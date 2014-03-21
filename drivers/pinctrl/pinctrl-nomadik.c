@@ -254,7 +254,7 @@ struct nmk_gpio_platform_data {
 	int first_gpio;
 	int first_irq;
 	int num_gpio;
-	u32 (*get_secondary_status)(unsigned int bank);
+	u32 (*get_latent_status)(unsigned int bank);
 	void (*set_ioforce)(bool enable);
 	bool supports_sleepmode;
 };
@@ -266,8 +266,8 @@ struct nmk_gpio_chip {
 	struct clk *clk;
 	unsigned int bank;
 	unsigned int parent_irq;
-	int secondary_parent_irq;
-	u32 (*get_secondary_status)(unsigned int bank);
+	int latent_parent_irq;
+	u32 (*get_latent_status)(unsigned int bank);
 	void (*set_ioforce)(bool enable);
 	spinlock_t lock;
 	bool sleepmode;
@@ -926,11 +926,11 @@ static void nmk_gpio_irq_handler(unsigned int irq, struct irq_desc *desc)
 	__nmk_gpio_irq_handler(irq, desc, status);
 }
 
-static void nmk_gpio_secondary_irq_handler(unsigned int irq,
+static void nmk_gpio_latent_irq_handler(unsigned int irq,
 					   struct irq_desc *desc)
 {
 	struct nmk_gpio_chip *nmk_chip = irq_get_handler_data(irq);
-	u32 status = nmk_chip->get_secondary_status(nmk_chip->bank);
+	u32 status = nmk_chip->get_latent_status(nmk_chip->bank);
 
 	__nmk_gpio_irq_handler(irq, desc, status);
 }
@@ -940,10 +940,10 @@ static int nmk_gpio_init_irq(struct nmk_gpio_chip *nmk_chip)
 	irq_set_chained_handler(nmk_chip->parent_irq, nmk_gpio_irq_handler);
 	irq_set_handler_data(nmk_chip->parent_irq, nmk_chip);
 
-	if (nmk_chip->secondary_parent_irq >= 0) {
-		irq_set_chained_handler(nmk_chip->secondary_parent_irq,
-					nmk_gpio_secondary_irq_handler);
-		irq_set_handler_data(nmk_chip->secondary_parent_irq, nmk_chip);
+	if (nmk_chip->latent_parent_irq >= 0) {
+		irq_set_chained_handler(nmk_chip->latent_parent_irq,
+					nmk_gpio_latent_irq_handler);
+		irq_set_handler_data(nmk_chip->latent_parent_irq, nmk_chip);
 	}
 
 	return 0;
@@ -1263,7 +1263,7 @@ static int nmk_gpio_probe(struct platform_device *dev)
 	struct gpio_chip *chip;
 	struct resource *res;
 	struct clk *clk;
-	int secondary_irq;
+	int latent_irq;
 	void __iomem *base;
 	int irq;
 	int ret;
@@ -1287,8 +1287,8 @@ static int nmk_gpio_probe(struct platform_device *dev)
 	if (irq < 0)
 		return irq;
 
-	secondary_irq = platform_get_irq(dev, 1);
-	if (secondary_irq >= 0 && !pdata->get_secondary_status)
+	latent_irq = platform_get_irq(dev, 1);
+	if (latent_irq >= 0 && !pdata->get_latent_status)
 		return -EINVAL;
 
 	res = platform_get_resource(dev, IORESOURCE_MEM, 0);
@@ -1314,8 +1314,8 @@ static int nmk_gpio_probe(struct platform_device *dev)
 	nmk_chip->addr = base;
 	nmk_chip->chip = nmk_gpio_template;
 	nmk_chip->parent_irq = irq;
-	nmk_chip->secondary_parent_irq = secondary_irq;
-	nmk_chip->get_secondary_status = pdata->get_secondary_status;
+	nmk_chip->latent_parent_irq = latent_irq;
+	nmk_chip->get_latent_status = pdata->get_latent_status;
 	nmk_chip->set_ioforce = pdata->set_ioforce;
 	nmk_chip->sleepmode = pdata->supports_sleepmode;
 	spin_lock_init(&nmk_chip->lock);
