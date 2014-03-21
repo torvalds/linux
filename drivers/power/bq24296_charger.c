@@ -362,7 +362,7 @@ static int bq24296_charge_mode_config(int on)
 	return ret;
 }
 
-extern int dwc_vbus_status(void);
+extern int dwc_otg_check_dpdm(bool wait);
 //extern int get_gadget_connect_flag(void);
 
 static void usb_detect_work_func(struct work_struct *work)
@@ -384,8 +384,8 @@ static void usb_detect_work_func(struct work_struct *work)
 	DBG("%s: retval = %08x bq24296_chag_down = %d\n", __func__,retval,bq24296_chag_down);
 	
 	mutex_lock(&pi->var_lock);
-	DBG("%s: dwc_vbus_status %d\n", __func__, dwc_vbus_status());
-	switch(dwc_vbus_status())
+	DBG("%s: dwc_otg_check_dpdm %d\n", __func__, dwc_otg_check_dpdm(0));
+	switch(dwc_otg_check_dpdm(0))
 		{
 			case 2: // USB Wall charger
 				bq24296_update_input_current_limit(bq24296_di->adp_input_current);
@@ -409,9 +409,6 @@ static void usb_detect_work_func(struct work_struct *work)
 			//	}
 			break;
 			default:
-				bq24296_update_input_current_limit(bq24296_di->adp_input_current);
-                                bq24296_set_charge_current(CHARGE_CURRENT_512MA);
-                                bq24296_charge_mode_config(0);
 				DBG("bq24296: detect no usb \n");			
 			break;
 		}
@@ -604,7 +601,7 @@ static int __init bq24296_battery_init(void)
 	
 	return ret;
 }
-module_init(bq24296_battery_init);
+subsys_initcall(bq24296_battery_init);
 
 static void __exit bq24296_battery_exit(void)
 {
