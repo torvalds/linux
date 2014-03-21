@@ -61,7 +61,7 @@ typedef unsigned char		uchar;
 
 /*
  * defines from dgap_pci.h
- */ 
+ */
 #define PCIMAX 32			/* maximum number of PCI boards */
 
 #define DIGI_VID		0x114F
@@ -209,7 +209,8 @@ typedef unsigned char		uchar;
 #define FEP5_PLUS       0x0E40          /* ASCII '5' and ASCII 'A' is here  */
 #define ECS_SEG         0x0E44          /* Segment of the extended channel structure */
 #define LINE_SPEED      0x10            /* Offset into ECS_SEG for line speed   */
-                                        /* if the fep has extended capabilities */
+					/* if the fep has extended      */
+					/* capabilities                 */
 
 /* BIOS MAGIC SPOTS */
 #define ERROR           0x0C14L		/* BIOS error code              */
@@ -362,13 +363,13 @@ typedef unsigned char		uchar;
 #define MC8E8K  36
 
 #define AVANFS	42	/* start of Avanstar family definitions */
-#define A8P 	42
+#define A8P	42
 #define A16P	43
 #define AVANFE	43	/* end of Avanstar family definitions */
 
 #define DA2000FS	44	/* start of AccelePort 2000 family definitions */
-#define DA22 		44 /* AccelePort 2002 */
-#define DA24 		45 /* AccelePort 2004 */
+#define DA22		44 /* AccelePort 2002 */
+#define DA24		45 /* AccelePort 2004 */
 #define DA28		46 /* AccelePort 2008 */
 #define DA216		47 /* AccelePort 2016 */
 #define DAR4		48 /* AccelePort RAS 4 port */
@@ -578,7 +579,7 @@ struct board_t {
 	ulong		membase;	/* Start of base memory of the card */
 	ulong		membase_end;	/* End of base memory of the card */
 
-	uchar 		*re_map_port;	/* Remapped io port of the card */
+	uchar		*re_map_port;	/* Remapped io port of the card */
 	uchar		*re_map_membase;/* Remapped memory of the card */
 
 	uchar		runwait;	/* # Processes waiting for FEP  */
@@ -737,26 +738,26 @@ struct un_t {
 						/* Adapter Memory	*/
 
 #define	DIGI_GETFLOW	(('e'<<8) | 99)		/* Get startc/stopc flow */
-						/* control characters 	 */
-#define	DIGI_SETFLOW	(('e'<<8) | 100)		/* Set startc/stopc flow */
+						/* control characters    */
+#define	DIGI_SETFLOW	(('e'<<8) | 100)	/* Set startc/stopc flow */
 						/* control characters	 */
-#define	DIGI_GETAFLOW	(('e'<<8) | 101)		/* Get Aux. startc/stopc */
-						/* flow control chars 	 */
-#define	DIGI_SETAFLOW	(('e'<<8) | 102)		/* Set Aux. startc/stopc */
+#define	DIGI_GETAFLOW	(('e'<<8) | 101)	/* Get Aux. startc/stopc */
+						/* flow control chars    */
+#define	DIGI_SETAFLOW	(('e'<<8) | 102)	/* Set Aux. startc/stopc */
 						/* flow control chars	 */
 
-#define DIGI_GEDELAY	(('d'<<8) | 246)		/* Get edelay */
-#define DIGI_SEDELAY	(('d'<<8) | 247)		/* Set edelay */
+#define DIGI_GEDELAY	(('d'<<8) | 246)	/* Get edelay */
+#define DIGI_SEDELAY	(('d'<<8) | 247)	/* Set edelay */
 
 struct	digiflow_t {
-	unsigned char	startc;				/* flow cntl start char	*/
-	unsigned char	stopc;				/* flow cntl stop char	*/
+	unsigned char	startc;			/* flow cntl start char	*/
+	unsigned char	stopc;			/* flow cntl stop char	*/
 };
 
 
 #ifdef	FLOW_2200
-#define	F2200_GETA	(('e'<<8) | 104)		/* Get 2x36 flow cntl flags */
-#define	F2200_SETAW	(('e'<<8) | 105)		/* Set 2x36 flow cntl flags */
+#define	F2200_GETA	(('e'<<8) | 104)	/* Get 2x36 flow cntl flags */
+#define	F2200_SETAW	(('e'<<8) | 105)	/* Set 2x36 flow cntl flags */
 #define		F2200_MASK	0x03		/* 2200 flow cntl bit mask  */
 #define		FCNTL_2200	0x01		/* 2x36 terminal flow cntl  */
 #define		PCNTL_2200	0x02		/* 2x36 printer flow cntl   */
@@ -873,7 +874,7 @@ struct shrink_buf_struct {
 						   xxinit call. */
 
 	unsigned char	shrink_buf_anports;	/* Number of async ports  */
-	unsigned char	shrink_buf_snports; 	/* Number of sync  ports */
+	unsigned char	shrink_buf_snports;	/* Number of sync  ports */
 	unsigned char	shrink_buf_type;	/* Board type 1 = PC/Xi,
 							      2 = PC/Xm,
 							      3 = PC/Xe
@@ -936,9 +937,9 @@ struct digi_stat {
 struct digi_ch {
 	unsigned long	info_bdnum;		/* Board number (0 based)  */
 	unsigned long	info_channel;		/* Channel index number    */
-	unsigned long	info_ch_cflag;		/* Channel cflag   	   */
-	unsigned long	info_ch_iflag;		/* Channel iflag   	   */
-	unsigned long	info_ch_oflag;		/* Channel oflag   	   */
+	unsigned long	info_ch_cflag;		/* Channel cflag           */
+	unsigned long	info_ch_iflag;		/* Channel iflag           */
+	unsigned long	info_ch_oflag;		/* Channel oflag           */
 	unsigned long	info_chsize;		/* Channel structure size  */
 	unsigned long	info_sleep_stat;	/* sleep status		   */
 	dev_t		info_dev;		/* device number	   */
@@ -1208,7 +1209,7 @@ struct bs_t {
 	volatile unsigned char   stopc;		/* W   Xoff character           */
 	volatile unsigned char   vnextc;	/* W   Vnext character           */
 	volatile unsigned char   hflow;		/* C   Software flow control    */
-	
+
 	volatile unsigned char   fillc;		/* U   Delay Fill character     */
 	volatile unsigned char   ochar;		/* U   Saved output character   */
 	volatile unsigned char   omask;		/* U   Output character mask    */
@@ -1225,7 +1226,7 @@ struct cnode {
 
 	union {
 		struct {
-			char  type;	/* Board Type 		*/
+			char  type;	/* Board Type           */
 			long  port;	/* I/O Address		*/
 			char  *portstr; /* I/O Address in string */
 			long  addr;	/* Memory Address	*/
