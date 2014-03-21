@@ -506,7 +506,7 @@ static void __remove_pg_pool(struct rb_root *root, struct ceph_pg_pool_info *pi)
 	kfree(pi);
 }
 
-static int __decode_pool(void **p, void *end, struct ceph_pg_pool_info *pi)
+static int decode_pool(void **p, void *end, struct ceph_pg_pool_info *pi)
 {
 	u8 ev, cv;
 	unsigned len, num;
@@ -587,7 +587,7 @@ bad:
 	return -EINVAL;
 }
 
-static int __decode_pool_names(void **p, void *end, struct ceph_osdmap *map)
+static int decode_pool_names(void **p, void *end, struct ceph_osdmap *map)
 {
 	struct ceph_pg_pool_info *pi;
 	u32 num, len;
@@ -723,7 +723,7 @@ static int osdmap_decode(void **p, void *end, struct ceph_osdmap *map)
 			goto bad;
 		}
 		pi->id = ceph_decode_64(p);
-		err = __decode_pool(p, end, pi);
+		err = decode_pool(p, end, pi);
 		if (err < 0) {
 			kfree(pi);
 			goto bad;
@@ -731,7 +731,8 @@ static int osdmap_decode(void **p, void *end, struct ceph_osdmap *map)
 		__insert_pg_pool(&map->pg_pools, pi);
 	}
 
-	err = __decode_pool_names(p, end, map);
+	/* pool_name */
+	err = decode_pool_names(p, end, map);
 	if (err)
 		goto bad;
 
@@ -949,12 +950,13 @@ struct ceph_osdmap *osdmap_apply_incremental(void **p, void *end,
 			pi->id = pool;
 			__insert_pg_pool(&map->pg_pools, pi);
 		}
-		err = __decode_pool(p, end, pi);
+		err = decode_pool(p, end, pi);
 		if (err < 0)
 			goto bad;
 	}
 
-	err = __decode_pool_names(p, end, map);
+	/* new_pool_names */
+	err = decode_pool_names(p, end, map);
 	if (err)
 		goto bad;
 
