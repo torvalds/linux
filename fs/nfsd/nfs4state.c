@@ -1605,9 +1605,8 @@ nfsd4_replay_cache_entry(struct nfsd4_compoundres *resp,
 
 	dprintk("--> %s slot %p\n", __func__, slot);
 
-	/* Either returns 0 or nfserr_retry_uncached */
 	status = nfsd4_enc_sequence_replay(resp->rqstp->rq_argp, resp);
-	if (status == nfserr_retry_uncached_rep)
+	if (status)
 		return status;
 
 	/* The sequence operation has been encoded, cstate->datap set. */
