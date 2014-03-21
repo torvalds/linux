@@ -822,9 +822,9 @@ static int __decode_pg_temp(void **p, void *end, struct ceph_osdmap *map,
 				return -ENOMEM;
 
 			pg->pgid = pgid;
-			pg->len = len;
+			pg->pg_temp.len = len;
 			for (i = 0; i < len; i++)
-				pg->osds[i] = ceph_decode_32(p);
+				pg->pg_temp.osds[i] = ceph_decode_32(p);
 
 			ret = __insert_pg_mapping(pg, &map->pg_temp);
 			if (ret) {
@@ -1281,8 +1281,8 @@ static int *calc_pg_raw(struct ceph_osdmap *osdmap, struct ceph_pg pgid,
 				    pool->pg_num_mask);
 	pg = __lookup_pg_mapping(&osdmap->pg_temp, pgid);
 	if (pg) {
-		*num = pg->len;
-		return pg->osds;
+		*num = pg->pg_temp.len;
+		return pg->pg_temp.osds;
 	}
 
 	/* crush */

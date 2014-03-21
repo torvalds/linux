@@ -60,8 +60,13 @@ struct ceph_object_id {
 struct ceph_pg_mapping {
 	struct rb_node node;
 	struct ceph_pg pgid;
-	int len;
-	int osds[];
+
+	union {
+		struct {
+			int len;
+			int osds[];
+		} pg_temp;
+	};
 };
 
 struct ceph_osdmap {

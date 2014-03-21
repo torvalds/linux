@@ -88,9 +88,9 @@ static int osdmap_show(struct seq_file *s, void *p)
 
 		seq_printf(s, "pg_temp %llu.%x [", pg->pgid.pool,
 			   pg->pgid.seed);
-		for (i = 0; i < pg->len; i++)
+		for (i = 0; i < pg->pg_temp.len; i++)
 			seq_printf(s, "%s%d", (i == 0 ? "" : ","),
-				   pg->osds[i]);
+				   pg->pg_temp.osds[i]);
 		seq_printf(s, "]\n");
 	}
 
