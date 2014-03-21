@@ -59,7 +59,7 @@ static DEFINE_SPINLOCK(mnt_id_lock);
 static int mnt_id_start = 0;
 static int mnt_group_start = 1;
 
-static struct list_head *mount_hashtable __read_mostly;
+static struct hlist_head *mount_hashtable __read_mostly;
 static struct hlist_head *mountpoint_hashtable __read_mostly;
 static struct kmem_cache *mnt_cache __read_mostly;
 static DECLARE_RWSEM(namespace_sem);
@@ -78,7 +78,7 @@ EXPORT_SYMBOL_GPL(fs_kobj);
  */
 __cacheline_aligned_in_smp DEFINE_SEQLOCK(mount_lock);
 
-static inline struct list_head *m_hash(struct vfsmount *mnt, struct dentry *dentry)
+static inline struct hlist_head *m_hash(struct vfsmount *mnt, struct dentry *dentry)
 {
 	unsigned long tmp = ((unsigned long)mnt / L1_CACHE_BYTES);
 	tmp += ((unsigned long)dentry / L1_CACHE_BYTES);
@@ -217,7 +217,7 @@ static struct mount *alloc_vfsmnt(const char *name)
 		mnt->mnt_writers = 0;
 #endif
 
-		INIT_LIST_HEAD(&mnt->mnt_hash);
+		INIT_HLIST_NODE(&mnt->mnt_hash);
 		INIT_LIST_HEAD(&mnt->mnt_child);
 		INIT_LIST_HEAD(&mnt->mnt_mounts);
 		INIT_LIST_HEAD(&mnt->mnt_list);
@@ -605,10 +605,10 @@ bool legitimize_mnt(struct vfsmount *bastard, unsigned seq)
  */
 struct mount *__lookup_mnt(struct vfsmount *mnt, struct dentry *dentry)
 {
-	struct list_head *head = m_hash(mnt, dentry);
+	struct hlist_head *head = m_hash(mnt, dentry);
 	struct mount *p;
 
-	list_for_each_entry_rcu(p, head, mnt_hash)
+	hlist_for_each_entry_rcu(p, head, mnt_hash)
 		if (&p->mnt_parent->mnt == mnt && p->mnt_mountpoint == dentry)
 			return p;
 	return NULL;
@@ -620,20 +620,16 @@ struct mount *__lookup_mnt(struct vfsmount *mnt, struct dentry *dentry)
  */
 struct mount *__lookup_mnt_last(struct vfsmount *mnt, struct dentry *dentry)
 {
-	struct list_head *head = m_hash(mnt, dentry);
-	struct mount *p, *res = NULL;
-
-	list_for_each_entry(p, head, mnt_hash)
-		if (&p->mnt_parent->mnt == mnt && p->mnt_mountpoint == dentry)
-			goto found;
-	return res;
-found:
-	res = p;
-	list_for_each_entry_continue(p, head, mnt_hash) {
+	struct mount *p, *res;
+	res = p = __lookup_mnt(mnt, dentry);
+	if (!p)
+		goto out;
+	hlist_for_each_entry_continue(p, mnt_hash) {
 		if (&p->mnt_parent->mnt != mnt || p->mnt_mountpoint != dentry)
 			break;
 		res = p;
 	}
+out:
 	return res;
 }
 
@@ -750,7 +746,7 @@ static void detach_mnt(struct mount *mnt, struct path *old_path)
 	mnt->mnt_parent = mnt;
 	mnt->mnt_mountpoint = mnt->mnt.mnt_root;
 	list_del_init(&mnt->mnt_child);
-	list_del_init(&mnt->mnt_hash);
+	hlist_del_init_rcu(&mnt->mnt_hash);
 	put_mountpoint(mnt->mnt_mp);
 	mnt->mnt_mp = NULL;
 }
@@ -777,7 +773,7 @@ static void attach_mnt(struct mount *mnt,
 			struct mountpoint *mp)
 {
 	mnt_set_mountpoint(parent, mp, mnt);
-	list_add(&mnt->mnt_hash, m_hash(&parent->mnt, mp->m_dentry));
+	hlist_add_head_rcu(&mnt->mnt_hash, m_hash(&parent->mnt, mp->m_dentry));
 	list_add_tail(&mnt->mnt_child, &parent->mnt_mounts);
 }
 
@@ -800,9 +796,9 @@ static void commit_tree(struct mount *mnt, struct mount *shadows)
 	list_splice(&head, n->list.prev);
 
 	if (shadows)
-		list_add(&mnt->mnt_hash, &shadows->mnt_hash);
+		hlist_add_after_rcu(&shadows->mnt_hash, &mnt->mnt_hash);
 	else
-		list_add(&mnt->mnt_hash,
+		hlist_add_head_rcu(&mnt->mnt_hash,
 				m_hash(&parent->mnt, mnt->mnt_mountpoint));
 	list_add_tail(&mnt->mnt_child, &parent->mnt_mounts);
 	touch_mnt_namespace(n);
@@ -1193,26 +1189,28 @@ int may_umount(struct vfsmount *mnt)
 
 EXPORT_SYMBOL(may_umount);
 
-static LIST_HEAD(unmounted);	/* protected by namespace_sem */
+static HLIST_HEAD(unmounted);	/* protected by namespace_sem */
 
 static void namespace_unlock(void)
 {
 	struct mount *mnt;
-	LIST_HEAD(head);
+	struct hlist_head head = unmounted;
 
-	if (likely(list_empty(&unmounted))) {
+	if (likely(hlist_empty(&head))) {
 		up_write(&namespace_sem);
 		return;
 	}
 
-	list_splice_init(&unmounted, &head);
+	head.first->pprev = &head.first;
+	INIT_HLIST_HEAD(&unmounted);
+
 	up_write(&namespace_sem);
 
 	synchronize_rcu();
 
-	while (!list_empty(&head)) {
-		mnt = list_first_entry(&head, struct mount, mnt_hash);
-		list_del_init(&mnt->mnt_hash);
+	while (!hlist_empty(&head)) {
+		mnt = hlist_entry(head.first, struct mount, mnt_hash);
+		hlist_del_init(&mnt->mnt_hash);
 		if (mnt->mnt_ex_mountpoint.mnt)
 			path_put(&mnt->mnt_ex_mountpoint);
 		mntput(&mnt->mnt);
@@ -1233,16 +1231,19 @@ static inline void namespace_lock(void)
  */
 void umount_tree(struct mount *mnt, int how)
 {
-	LIST_HEAD(tmp_list);
+	HLIST_HEAD(tmp_list);
 	struct mount *p;
+	struct mount *last = NULL;
 
-	for (p = mnt; p; p = next_mnt(p, mnt))
-		list_move(&p->mnt_hash, &tmp_list);
+	for (p = mnt; p; p = next_mnt(p, mnt)) {
+		hlist_del_init_rcu(&p->mnt_hash);
+		hlist_add_head(&p->mnt_hash, &tmp_list);
+	}
 
 	if (how)
 		propagate_umount(&tmp_list);
 
-	list_for_each_entry(p, &tmp_list, mnt_hash) {
+	hlist_for_each_entry(p, &tmp_list, mnt_hash) {
 		list_del_init(&p->mnt_expire);
 		list_del_init(&p->mnt_list);
 		__touch_mnt_namespace(p->mnt_ns);
@@ -1260,8 +1261,13 @@ void umount_tree(struct mount *mnt, int how)
 			p->mnt_mp = NULL;
 		}
 		change_mnt_propagation(p, MS_PRIVATE);
+		last = p;
 	}
-	list_splice(&tmp_list, &unmounted);
+	if (last) {
+		last->mnt_hash.next = unmounted.first;
+		unmounted.first = tmp_list.first;
+		unmounted.first->pprev = &unmounted.first;
+	}
 }
 
 static void shrink_submounts(struct mount *mnt);
@@ -1645,8 +1651,9 @@ static int attach_recursive_mnt(struct mount *source_mnt,
 			struct mountpoint *dest_mp,
 			struct path *parent_path)
 {
-	LIST_HEAD(tree_list);
+	HLIST_HEAD(tree_list);
 	struct mount *child, *p;
+	struct hlist_node *n;
 	int err;
 
 	if (IS_MNT_SHARED(dest_mnt)) {
@@ -1671,9 +1678,9 @@ static int attach_recursive_mnt(struct mount *source_mnt,
 		commit_tree(source_mnt, NULL);
 	}
 
-	list_for_each_entry_safe(child, p, &tree_list, mnt_hash) {
+	hlist_for_each_entry_safe(child, n, &tree_list, mnt_hash) {
 		struct mount *q;
-		list_del_init(&child->mnt_hash);
+		hlist_del_init(&child->mnt_hash);
 		q = __lookup_mnt_last(&child->mnt_parent->mnt,
 				      child->mnt_mountpoint);
 		commit_tree(child, q);
@@ -2818,7 +2825,7 @@ void __init mnt_init(void)
 			0, SLAB_HWCACHE_ALIGN | SLAB_PANIC, NULL);
 
 	mount_hashtable = alloc_large_system_hash("Mount-cache",
-				sizeof(struct list_head),
+				sizeof(struct hlist_head),
 				mhash_entries, 19,
 				0,
 				&m_hash_shift, &m_hash_mask, 0, 0);
@@ -2832,7 +2839,7 @@ void __init mnt_init(void)
 		panic("Failed to allocate mount hash table\n");
 
 	for (u = 0; u <= m_hash_mask; u++)
-		INIT_LIST_HEAD(&mount_hashtable[u]);
+		INIT_HLIST_HEAD(&mount_hashtable[u]);
 	for (u = 0; u <= mp_hash_mask; u++)
 		INIT_HLIST_HEAD(&mountpoint_hashtable[u]);
 

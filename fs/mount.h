@@ -25,7 +25,7 @@ struct mountpoint {
 };
 
 struct mount {
-	struct list_head mnt_hash;
+	struct hlist_node mnt_hash;
 	struct mount *mnt_parent;
 	struct dentry *mnt_mountpoint;
 	struct vfsmount mnt;
