@@ -1170,7 +1170,7 @@ static void process_mpa_reply(struct c4iw_ep *ep, struct sk_buff *skb)
 	 * the connection.
 	 */
 	stop_ep_timer(ep);
-	if (state_read(&ep->com) != MPA_REQ_SENT)
+	if (ep->com.state != MPA_REQ_SENT)
 		return;
 
 	/*
@@ -1245,7 +1245,7 @@ static void process_mpa_reply(struct c4iw_ep *ep, struct sk_buff *skb)
 	 * start reply message including private data. And
 	 * the MPA header is valid.
 	 */
-	state_set(&ep->com, FPDU_MODE);
+	__state_set(&ep->com, FPDU_MODE);
 	ep->mpa_attr.crc_enabled = (mpa->flags & MPA_CRC) | crc_enabled ? 1 : 0;
 	ep->mpa_attr.recv_marker_enabled = markers_enabled;
 	ep->mpa_attr.xmit_marker_enabled = mpa->flags & MPA_MARKERS ? 1 : 0;
@@ -1360,7 +1360,7 @@ static void process_mpa_reply(struct c4iw_ep *ep, struct sk_buff *skb)
 	}
 	goto out;
 err:
-	state_set(&ep->com, ABORTING);
+	__state_set(&ep->com, ABORTING);
 	send_abort(ep, skb, GFP_KERNEL);
 out:
 	connect_reply_upcall(ep, err);
@@ -1375,7 +1375,7 @@ static void process_mpa_request(struct c4iw_ep *ep, struct sk_buff *skb)
 
 	PDBG("%s ep %p tid %u\n", __func__, ep, ep->hwtid);
 
-	if (state_read(&ep->com) != MPA_REQ_WAIT)
+	if (ep->com.state != MPA_REQ_WAIT)
 		return;
 
 	/*
@@ -1496,7 +1496,7 @@ static void process_mpa_request(struct c4iw_ep *ep, struct sk_buff *skb)
 	     ep->mpa_attr.xmit_marker_enabled, ep->mpa_attr.version,
 	     ep->mpa_attr.p2p_type);
 
-	state_set(&ep->com, MPA_REQ_RCVD);
+	__state_set(&ep->com, MPA_REQ_RCVD);
 	stop_ep_timer(ep);
 
 	/* drive upcall */
@@ -1526,11 +1526,12 @@ static int rx_data(struct c4iw_dev *dev, struct sk_buff *skb)
 	PDBG("%s ep %p tid %u dlen %u\n", __func__, ep, ep->hwtid, dlen);
 	skb_pull(skb, sizeof(*hdr));
 	skb_trim(skb, dlen);
+	mutex_lock(&ep->com.mutex);
 
 	/* update RX credits */
 	update_rx_credits(ep, dlen);
 
-	switch (state_read(&ep->com)) {
+	switch (ep->com.state) {
 	case MPA_REQ_SENT:
 		ep->rcv_seq += dlen;
 		process_mpa_reply(ep, skb);
@@ -1546,7 +1547,7 @@ static int rx_data(struct c4iw_dev *dev, struct sk_buff *skb)
 			pr_err("%s Unexpected streaming data." \
 			       " qpid %u ep %p state %d tid %u status %d\n",
 			       __func__, ep->com.qp->wq.sq.qid, ep,
-			       state_read(&ep->com), ep->hwtid, status);
+			       ep->com.state, ep->hwtid, status);
 		attrs.next_state = C4IW_QP_STATE_TERMINATE;
 		c4iw_modify_qp(ep->com.qp->rhp, ep->com.qp,
 			       C4IW_QP_ATTR_NEXT_STATE, &attrs, 0);
@@ -1555,6 +1556,7 @@ static int rx_data(struct c4iw_dev *dev, struct sk_buff *skb)
 	default:
 		break;
 	}
+	mutex_unlock(&ep->com.mutex);
 	return 0;
 }
 
