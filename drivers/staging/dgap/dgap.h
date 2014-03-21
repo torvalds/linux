@@ -207,9 +207,10 @@ typedef unsigned char		uchar;
 #define EVSTART         0x0800L         /* Start of event buffer        */
 #define EVMAX           0x0c00L         /* End of event buffer          */
 #define FEP5_PLUS       0x0E40          /* ASCII '5' and ASCII 'A' is here  */
-#define ECS_SEG         0x0E44          /* Segment of the extended channel structure */
-#define LINE_SPEED      0x10            /* Offset into ECS_SEG for line speed   */
-					/* if the fep has extended      */
+#define ECS_SEG         0x0E44          /* Segment of the extended      */
+					/* channel structure            */
+#define LINE_SPEED      0x10            /* Offset into ECS_SEG for line */
+					/* speed if the fep has extended */
 					/* capabilities                 */
 
 /* BIOS MAGIC SPOTS */
@@ -248,12 +249,12 @@ typedef unsigned char		uchar;
 
 #define FEPTIMEOUT 200000
 
-#define ENABLE_INTR		0x0e04		/* Enable interrupts flag */
-#define FEPPOLL_MIN		1		/* minimum of 1 millisecond */
-#define FEPPOLL_MAX		20		/* maximum of 20 milliseconds */
-#define FEPPOLL			0x0c26		/* Fep event poll interval */
+#define ENABLE_INTR	0x0e04		/* Enable interrupts flag */
+#define FEPPOLL_MIN	1		/* minimum of 1 millisecond */
+#define FEPPOLL_MAX	20		/* maximum of 20 milliseconds */
+#define FEPPOLL		0x0c26		/* Fep event poll interval */
 
-#define	IALTPIN			0x0080		/* Input flag to swap DSR <-> DCD */
+#define	IALTPIN		0x0080		/* Input flag to swap DSR <-> DCD */
 
 /************************************************************************
  * FEP supported functions
@@ -367,7 +368,7 @@ typedef unsigned char		uchar;
 #define A16P	43
 #define AVANFE	43	/* end of Avanstar family definitions */
 
-#define DA2000FS	44	/* start of AccelePort 2000 family definitions */
+#define DA2000FS	44 /* start of AccelePort 2000 family definitions */
 #define DA22		44 /* AccelePort 2002 */
 #define DA24		45 /* AccelePort 2004 */
 #define DA28		46 /* AccelePort 2008 */
@@ -572,7 +573,8 @@ struct board_t {
 	ulong		irq;		/* Interrupt request number */
 	ulong		intr_count;	/* Count of interrupts */
 	u32		intr_used;	/* Non-zero if using interrupts */
-	u32		intr_running;	/* Non-zero if FEP knows its doing interrupts */
+	u32		intr_running;	/* Non-zero if FEP knows its doing */
+					/* interrupts */
 
 	ulong		port;		/* Start of base io port of the card */
 	ulong		port_end;	/* End of base io port of the card */
@@ -583,9 +585,10 @@ struct board_t {
 	uchar		*re_map_membase;/* Remapped memory of the card */
 
 	uchar		runwait;	/* # Processes waiting for FEP  */
-	uchar		inhibit_poller; /* Tells  the poller to leave us alone */
+	uchar		inhibit_poller; /* Tells the poller to leave us alone */
 
-	struct channel_t *channels[MAXPORTS]; /* array of pointers to our channels. */
+	struct channel_t *channels[MAXPORTS]; /* array of pointers to our */
+					      /* channels.                */
 
 	struct tty_driver	*SerialDriver;
 	struct tty_port *SerialPorts;
@@ -600,16 +603,21 @@ struct board_t {
 	u32		dgap_Serial_Major;
 	u32		dgap_TransparentPrint_Major;
 
-	struct bs_t	*bd_bs;			/* Base structure pointer       */
+	struct bs_t	*bd_bs;		/* Base structure pointer         */
 
-	char	*flipbuf;		/* Our flip buffer, alloced if board is found */
-	char	*flipflagbuf;		/* Our flip flag buffer, alloced if board is found */
+	char	*flipbuf;		/* Our flip buffer, alloced if    */
+					/* board is found                 */
+	char	*flipflagbuf;		/* Our flip flag buffer, alloced  */
+					/* if board is found              */
 
-	u16		dpatype;	/* The board "type", as defined by DPA */
-	u16		dpastatus;	/* The board "status", as defined by DPA */
-	wait_queue_head_t kme_wait;	/* Needed for DPA support */
+	u16		dpatype;	/* The board "type", as defined   */
+					/* by DPA                         */
+	u16		dpastatus;	/* The board "status", as defined */
+					/* by DPA                         */
+	wait_queue_head_t kme_wait;	/* Needed for DPA support         */
 
-	u32		conc_dl_status;	/* Status of any pending conc download */
+	u32		conc_dl_status;	/* Status of any pending conc     */
+					/* download                       */
 };
 
 
@@ -690,8 +698,8 @@ struct un_t {
 
 #if !defined(TIOCMODG)
 
-#define	TIOCMODG	(('d'<<8) | 250)		/* get modem ctrl state	*/
-#define	TIOCMODS	(('d'<<8) | 251)		/* set modem ctrl state	*/
+#define	TIOCMODG	(('d'<<8) | 250)	/* get modem ctrl state	*/
+#define	TIOCMODS	(('d'<<8) | 251)	/* set modem ctrl state	*/
 
 #ifndef TIOCM_LE
 #define		TIOCM_LE	0x01		/* line enable		*/
@@ -710,13 +718,13 @@ struct un_t {
 #endif
 
 #if !defined(TIOCMSET)
-#define	TIOCMSET	(('d'<<8) | 252)		/* set modem ctrl state	*/
-#define	TIOCMGET	(('d'<<8) | 253)		/* set modem ctrl state	*/
+#define	TIOCMSET	(('d'<<8) | 252)	/* set modem ctrl state	*/
+#define	TIOCMGET	(('d'<<8) | 253)	/* set modem ctrl state	*/
 #endif
 
 #if !defined(TIOCMBIC)
-#define	TIOCMBIC	(('d'<<8) | 254)		/* set modem ctrl state */
-#define	TIOCMBIS	(('d'<<8) | 255)		/* set modem ctrl state */
+#define	TIOCMBIC	(('d'<<8) | 254)	/* set modem ctrl state */
+#define	TIOCMBIS	(('d'<<8) | 255)	/* set modem ctrl state */
 #endif
 
 
@@ -853,9 +861,9 @@ struct shrink_buf_struct {
 	unsigned long	shrink_buf_vaddr;	/* Virtual address of board */
 	unsigned long	shrink_buf_phys;	/* Physical address of board */
 	unsigned long	shrink_buf_bseg;	/* Amount of board memory */
-	unsigned long	shrink_buf_hseg;	/* '186 Beginning of Dual-Port */
+	unsigned long	shrink_buf_hseg;	/* 186 Beginning of Dual-Port */
 
-	unsigned long	shrink_buf_lseg;	/* '186 Beginning of freed memory						*/
+	unsigned long	shrink_buf_lseg;	/* 186 Beginning of freed mem */
 	unsigned long	shrink_buf_mseg;	/* Linear address from start of
 						   dual-port were freed memory
 						   begins, host viewpoint. */
@@ -893,7 +901,7 @@ struct digi_dinfo {
 	char		dinfo_version[16];	/* driver version       */
 };
 
-#define	DIGI_GETDD	(('d'<<8) | 248)		/* get driver info      */
+#define	DIGI_GETDD	(('d'<<8) | 248)	/* get driver info      */
 
 /************************************************************************
  * Structure used with ioctl commands for per-board information
@@ -913,7 +921,7 @@ struct digi_info {
 	char		info_reserved[7];	/* for future expansion    */
 };
 
-#define	DIGI_GETBD	(('d'<<8) | 249)		/* get board info          */
+#define	DIGI_GETBD	(('d'<<8) | 249)	/* get board info          */
 
 struct digi_stat {
 	unsigned int	info_chan;		/* Channel number (0 based)  */
@@ -928,7 +936,7 @@ struct digi_stat {
 	unsigned long	info_reserved[8];	/* for future expansion    */
 };
 
-#define	DIGI_GETSTAT	(('d'<<8) | 244)		/* get board info          */
+#define	DIGI_GETSTAT	(('d'<<8) | 244)	/* get board info          */
 /************************************************************************
  *
  * Structure used with ioctl commands for per-channel information
@@ -971,7 +979,7 @@ struct digi_cmd {
 #define INFO_CH_WLOW	0x0020
 #define INFO_XXBUF_BUSY 0x0040
 
-#define	DIGI_GETCH	(('d'<<8) | 245)		/* get board info          */
+#define	DIGI_GETCH	(('d'<<8) | 245)	/* get board info          */
 
 /* Board type definitions */
 
@@ -1016,12 +1024,13 @@ struct digi_cmd {
 #define BD_TRIBOOT	0x8
 #define	BD_BADKME	0x80
 
-#define DIGI_LOOPBACK	      (('d'<<8) | 252)		/* Enable/disable UART internal loopback */
-#define DIGI_SPOLL            (('d'<<8) | 254)		/* change poller rate   */
+#define DIGI_LOOPBACK	(('d'<<8) | 252)	/* Enable/disable UART  */
+						/* internal loopback    */
+#define DIGI_SPOLL	(('d'<<8) | 254)	/* change poller rate   */
 
-#define DIGI_SETCUSTOMBAUD	_IOW('e', 106, int)	/* Set integer baud rate */
-#define DIGI_GETCUSTOMBAUD	_IOR('e', 107, int)	/* Get integer baud rate */
-#define DIGI_RESET_PORT		(('e'<<8) | 93)		/* Reset port		*/
+#define DIGI_SETCUSTOMBAUD _IOW('e', 106, int)	/* Set integer baud rate */
+#define DIGI_GETCUSTOMBAUD _IOR('e', 107, int)	/* Get integer baud rate */
+#define DIGI_RESET_PORT	   (('e'<<8) | 93)	/* Reset port		 */
 
 /************************************************************************
  * Channel information structure.
@@ -1049,7 +1058,8 @@ struct channel_t {
 	u32	ch_flags;		/* Channel flags                */
 
 
-	u32	ch_close_delay;		/* How long we should drop RTS/DTR for */
+	u32	ch_close_delay;		/* How long we should drop      */
+					/* RTS/DTR for                  */
 
 	u32	ch_cpstime;		/* Time for CPS calculations    */
 
@@ -1058,7 +1068,7 @@ struct channel_t {
 	tcflag_t ch_c_oflag;		/* channel oflags               */
 	tcflag_t ch_c_lflag;		/* channel lflags               */
 
-	u16  ch_fepiflag;            /* FEP tty iflags               */
+	u16  ch_fepiflag;		/* FEP tty iflags               */
 	u16  ch_fepcflag;		/* FEP tty cflags               */
 	u16  ch_fepoflag;		/* FEP tty oflags               */
 	u16  ch_wopen;			/* Waiting for open process cnt */
@@ -1094,11 +1104,11 @@ struct channel_t {
 	uchar   ch_tx_win;		/* channel tx buffer window     */
 	uchar   ch_rx_win;		/* channel rx buffer window     */
 	uint	ch_custom_speed;	/* Custom baud, if set		*/
-	uint	ch_baud_info;		/* Current baud info for /proc output	*/
-	ulong	ch_rxcount;		/* total of data received so far	*/
-	ulong	ch_txcount;		/* total of data transmitted so far	*/
-	ulong	ch_err_parity;		/* Count of parity errors on channel	*/
-	ulong	ch_err_frame;		/* Count of framing errors on channel	*/
+	uint	ch_baud_info;		/* Current baud info for /proc output */
+	ulong	ch_rxcount;		/* total of data received so far      */
+	ulong	ch_txcount;		/* total of data transmitted so far   */
+	ulong	ch_err_parity;		/* Count of parity errors on channel  */
+	ulong	ch_err_frame;		/* Count of framing errors on channel */
 	ulong	ch_err_break;		/* Count of breaks on channel	*/
 	ulong	ch_err_overrun;		/* Count of overruns on channel	*/
 
@@ -1113,20 +1123,20 @@ struct channel_t {
  * Command structure definition.
  ************************************************************************/
 struct cm_t {
-	volatile unsigned short cm_head;	/* Command buffer head offset	*/
-	volatile unsigned short cm_tail;	/* Command buffer tail offset	*/
-	volatile unsigned short cm_start;	/* start offset of buffer	*/
-	volatile unsigned short cm_max;		/* last offset of buffer	*/
+	volatile unsigned short cm_head;	/* Command buffer head offset */
+	volatile unsigned short cm_tail;	/* Command buffer tail offset */
+	volatile unsigned short cm_start;	/* start offset of buffer     */
+	volatile unsigned short cm_max;		/* last offset of buffer      */
 };
 
 /************************************************************************
  * Event structure definition.
  ************************************************************************/
 struct ev_t {
-	volatile unsigned short ev_head;	/* Command buffer head offset	*/
-	volatile unsigned short ev_tail;	/* Command buffer tail offset	*/
-	volatile unsigned short ev_start;	/* start offset of buffer	*/
-	volatile unsigned short ev_max;		/* last offset of buffer	*/
+	volatile unsigned short ev_head;	/* Command buffer head offset */
+	volatile unsigned short ev_tail;	/* Command buffer tail offset */
+	volatile unsigned short ev_start;	/* start offset of buffer     */
+	volatile unsigned short ev_max;		/* last offset of buffer      */
 };
 
 /************************************************************************
@@ -1153,70 +1163,74 @@ struct downld_t {
  *        U = unknown (may be changed w/o notice)                       *
  ************************************************************************/
 struct bs_t {
-	volatile unsigned short  tp_jmp;	/* Transmit poll jump		 */
-	volatile unsigned short  tc_jmp;	/* Cooked procedure jump	 */
-	volatile unsigned short  ri_jmp;	/* Not currently used		 */
-	volatile unsigned short  rp_jmp;	/* Receive poll jump		 */
+	volatile unsigned short  tp_jmp;	/* Transmit poll jump	 */
+	volatile unsigned short  tc_jmp;	/* Cooked procedure jump */
+	volatile unsigned short  ri_jmp;	/* Not currently used	 */
+	volatile unsigned short  rp_jmp;	/* Receive poll jump	 */
 
-	volatile unsigned short  tx_seg;	/* W  Tx segment	 */
-	volatile unsigned short  tx_head;	/* W  Tx buffer head offset	*/
-	volatile unsigned short  tx_tail;	/* R  Tx buffer tail offset	*/
-	volatile unsigned short  tx_max;	/* W  Tx buffer size - 1	 */
+	volatile unsigned short  tx_seg;	/* W Tx segment	 */
+	volatile unsigned short  tx_head;	/* W Tx buffer head offset */
+	volatile unsigned short  tx_tail;	/* R Tx buffer tail offset */
+	volatile unsigned short  tx_max;	/* W Tx buffer size - 1    */
 
-	volatile unsigned short  rx_seg;	/* W  Rx segment		*/
-	volatile unsigned short  rx_head;	/* W  Rx buffer head offset	*/
-	volatile unsigned short  rx_tail;	/* R  Rx buffer tail offset	*/
-	volatile unsigned short  rx_max;	/* W  Rx buffer size - 1	 */
+	volatile unsigned short  rx_seg;	/* W Rx segment	    */
+	volatile unsigned short  rx_head;	/* W Rx buffer head offset */
+	volatile unsigned short  rx_tail;	/* R Rx buffer tail offset */
+	volatile unsigned short  rx_max;	/* W Rx buffer size - 1    */
 
-	volatile unsigned short  tx_lw;		/* W  Tx buffer low water mark  */
-	volatile unsigned short  rx_lw;		/* W  Rx buffer low water mark  */
-	volatile unsigned short  rx_hw;		/* W  Rx buffer high water mark */
-	volatile unsigned short  incr;		/* W  Increment to next channel */
+	volatile unsigned short  tx_lw;		/* W Tx buffer low water mark */
+	volatile unsigned short  rx_lw;		/* W Rx buffer low water mark */
+	volatile unsigned short  rx_hw;		/* W Rx buffer high water mark*/
+	volatile unsigned short  incr;		/* W Increment to next channel*/
 
-	volatile unsigned short  fepdev;	/* U  SCC device base address    */
-	volatile unsigned short  edelay;	/* W  Exception delay            */
-	volatile unsigned short  blen;		/* W  Break length              */
-	volatile unsigned short  btime;		/* U  Break complete time       */
+	volatile unsigned short  fepdev;	/* U SCC device base address  */
+	volatile unsigned short  edelay;	/* W Exception delay          */
+	volatile unsigned short  blen;		/* W Break length             */
+	volatile unsigned short  btime;		/* U Break complete time      */
 
-	volatile unsigned short  iflag;		/* C  UNIX input flags          */
-	volatile unsigned short  oflag;		/* C  UNIX output flags         */
-	volatile unsigned short  cflag;		/* C  UNIX control flags        */
-	volatile unsigned short  wfill[13];	/* U  Reserved for expansion    */
+	volatile unsigned short  iflag;		/* C UNIX input flags         */
+	volatile unsigned short  oflag;		/* C UNIX output flags        */
+	volatile unsigned short  cflag;		/* C UNIX control flags       */
+	volatile unsigned short  wfill[13];	/* U Reserved for expansion   */
 
-	volatile unsigned char   num;		/* U  Channel number            */
-	volatile unsigned char   ract;		/* U  Receiver active counter   */
-	volatile unsigned char   bstat;		/* U  Break status bits         */
-	volatile unsigned char   tbusy;		/* W  Transmit busy             */
-	volatile unsigned char   iempty;	/* W  Transmit empty event enable */
-	volatile unsigned char   ilow;		/* W  Transmit low-water event enable */
-	volatile unsigned char   idata;		/* W  Receive data interrupt enable */
-	volatile unsigned char   eflag;		/* U  Host event flags          */
+	volatile unsigned char   num;		/* U Channel number           */
+	volatile unsigned char   ract;		/* U Receiver active counter  */
+	volatile unsigned char   bstat;		/* U Break status bits        */
+	volatile unsigned char   tbusy;		/* W Transmit busy            */
+	volatile unsigned char   iempty;	/* W Transmit empty event     */
+						/* enable                     */
+	volatile unsigned char   ilow;		/* W Transmit low-water event */
+						/* enable                     */
+	volatile unsigned char   idata;		/* W Receive data interrupt   */
+						/* enable                     */
+	volatile unsigned char   eflag;		/* U Host event flags         */
 
-	volatile unsigned char   tflag;		/* U  Transmit flags            */
-	volatile unsigned char   rflag;		/* U  Receive flags             */
-	volatile unsigned char   xmask;		/* U  Transmit ready flags      */
-	volatile unsigned char   xval;		/* U  Transmit ready value      */
-	volatile unsigned char   m_stat;	/* RC Modem status bits          */
-	volatile unsigned char   m_change;	/* U  Modem bits which changed  */
-	volatile unsigned char   m_int;		/* W  Modem interrupt enable bits */
-	volatile unsigned char   m_last;	/* U  Last modem status         */
+	volatile unsigned char   tflag;		/* U Transmit flags           */
+	volatile unsigned char   rflag;		/* U Receive flags            */
+	volatile unsigned char   xmask;		/* U Transmit ready flags     */
+	volatile unsigned char   xval;		/* U Transmit ready value     */
+	volatile unsigned char   m_stat;	/* RC Modem status bits       */
+	volatile unsigned char   m_change;	/* U Modem bits which changed */
+	volatile unsigned char   m_int;		/* W Modem interrupt enable   */
+						/* bits                       */
+	volatile unsigned char   m_last;	/* U Last modem status        */
 
-	volatile unsigned char   mtran;		/* C   Unreported modem trans   */
-	volatile unsigned char   orun;		/* C   Buffer overrun occurred  */
-	volatile unsigned char   astartc;	/* W   Auxiliary Xon char       */
-	volatile unsigned char   astopc;	/* W   Auxiliary Xoff char      */
-	volatile unsigned char   startc;	/* W   Xon character             */
-	volatile unsigned char   stopc;		/* W   Xoff character           */
-	volatile unsigned char   vnextc;	/* W   Vnext character           */
-	volatile unsigned char   hflow;		/* C   Software flow control    */
+	volatile unsigned char   mtran;		/* C Unreported modem trans   */
+	volatile unsigned char   orun;		/* C Buffer overrun occurred  */
+	volatile unsigned char   astartc;	/* W Auxiliary Xon char       */
+	volatile unsigned char   astopc;	/* W Auxiliary Xoff char      */
+	volatile unsigned char   startc;	/* W Xon character            */
+	volatile unsigned char   stopc;		/* W Xoff character           */
+	volatile unsigned char   vnextc;	/* W Vnext character          */
+	volatile unsigned char   hflow;		/* C Software flow control    */
 
-	volatile unsigned char   fillc;		/* U   Delay Fill character     */
-	volatile unsigned char   ochar;		/* U   Saved output character   */
-	volatile unsigned char   omask;		/* U   Output character mask    */
+	volatile unsigned char   fillc;		/* U Delay Fill character     */
+	volatile unsigned char   ochar;		/* U Saved output character   */
+	volatile unsigned char   omask;		/* U Output character mask    */
 
-	volatile unsigned char   bfill[13];	/* U   Reserved for expansion   */
+	volatile unsigned char   bfill[13];	/* U Reserved for expansion   */
 
-	volatile unsigned char   scc[16];	/* U   SCC registers            */
+	volatile unsigned char   scc[16];	/* U SCC registers            */
 };
 
 struct cnode {
