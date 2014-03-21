@@ -821,7 +821,7 @@ static int nfsd_direct_splice_actor(struct pipe_inode_info *pipe,
 }
 
 static __be32
-nfsd_vfs_read(struct svc_rqst *rqstp, struct svc_fh *fhp, struct file *file,
+nfsd_vfs_read(struct svc_rqst *rqstp, struct file *file,
               loff_t offset, struct kvec *vec, int vlen, unsigned long *count)
 {
 	mm_segment_t	oldfs;
@@ -981,7 +981,7 @@ __be32 nfsd_read(struct svc_rqst *rqstp, struct svc_fh *fhp,
 	if (ra && ra->p_set)
 		file->f_ra = ra->p_ra;
 
-	err = nfsd_vfs_read(rqstp, fhp, file, offset, vec, vlen, count);
+	err = nfsd_vfs_read(rqstp, file, offset, vec, vlen, count);
 
 	/* Write back readahead params */
 	if (ra) {
@@ -1010,7 +1010,7 @@ nfsd_read_file(struct svc_rqst *rqstp, struct svc_fh *fhp, struct file *file,
 				NFSD_MAY_READ|NFSD_MAY_OWNER_OVERRIDE);
 		if (err)
 			goto out;
-		err = nfsd_vfs_read(rqstp, fhp, file, offset, vec, vlen, count);
+		err = nfsd_vfs_read(rqstp, file, offset, vec, vlen, count);
 	} else /* Note file may still be NULL in NFSv4 special stateid case: */
 		err = nfsd_read(rqstp, fhp, offset, vec, vlen, count);
 out:
