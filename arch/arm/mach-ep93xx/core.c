@@ -242,6 +242,7 @@ unsigned int ep93xx_chip_revision(void)
 	v >>= EP93XX_SYSCON_SYSCFG_REV_SHIFT;
 	return v;
 }
+EXPORT_SYMBOL_GPL(ep93xx_chip_revision);
 
 /*************************************************************************
  * EP93xx GPIO

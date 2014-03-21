@@ -196,7 +196,7 @@ static void gta02_charger_worker(struct work_struct *work)
 	 * If the PCF50633 ADC is disabled we fallback to a
 	 * 100mA limit for safety.
 	 */
-	pcf50633_mbc_usb_curlim_set(pcf, 100);
+	pcf50633_mbc_usb_curlim_set(gta02_pcf, 100);
 #endif
 }
 

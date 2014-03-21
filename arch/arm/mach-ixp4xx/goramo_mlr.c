@@ -17,6 +17,13 @@
 #include <asm/mach/pci.h>
 #include <asm/system_info.h>
 
+#define IXP4XX_GPIO_OUT 		0x1
+#define IXP4XX_GPIO_IN  		0x2
+
+void gpio_line_config(u8 line, u32 direction);
+void gpio_line_get(u8 line, int *value);
+void gpio_line_set(u8 line, int value);
+
 #define SLOT_ETHA		0x0B	/* IDSEL = AD21 */
 #define SLOT_ETHB		0x0C	/* IDSEL = AD20 */
 #define SLOT_MPCI		0x0D	/* IDSEL = AD19 */

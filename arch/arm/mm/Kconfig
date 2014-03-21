@@ -264,7 +264,7 @@ config CPU_ARM1026
 
 # SA110
 config CPU_SA110
-	bool "Support StrongARM(R) SA-110 processor" if ARCH_RPC
+	bool
 	select CPU_32v3 if ARCH_RPC
 	select CPU_32v4 if !ARCH_RPC
 	select CPU_ABRT_EV4

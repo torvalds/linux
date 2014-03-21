@@ -97,7 +97,9 @@ void __init s3c24xx_init_clocks(int xtal)
 #if IS_ENABLED(CONFIG_SAMSUNG_ATAGS)
 static int nr_uarts __initdata = 0;
 
+#ifdef CONFIG_SERIAL_SAMSUNG_UARTS
 static struct s3c2410_uartcfg uart_cfgs[CONFIG_SERIAL_SAMSUNG_UARTS];
+#endif
 
 /* s3c24xx_init_uartdevs
  *
@@ -112,6 +114,7 @@ void __init s3c24xx_init_uartdevs(char *name,
 				  struct s3c24xx_uart_resources *res,
 				  struct s3c2410_uartcfg *cfg, int no)
 {
+#ifdef CONFIG_SERIAL_SAMSUNG_UARTS
 	struct platform_device *platdev;
 	struct s3c2410_uartcfg *cfgptr = uart_cfgs;
 	struct s3c24xx_uart_resources *resp;
@@ -134,6 +137,7 @@ void __init s3c24xx_init_uartdevs(char *name,
 	}
 
 	nr_uarts = no;
+#endif
 }
 
 void __init s3c24xx_init_uarts(struct s3c2410_uartcfg *cfg, int no)

@@ -21,6 +21,7 @@
 #include <linux/clocksource.h>
 #include <linux/dma-mapping.h>
 #include <linux/mbus.h>
+#include <linux/signal.h>
 #include <linux/slab.h>
 #include <asm/hardware/cache-l2x0.h>
 #include <asm/mach/arch.h>

@@ -100,7 +100,7 @@ void __init ixp4xx_map_io(void)
 #define IXP4XX_GPIO_CLK_0		14
 #define IXP4XX_GPIO_CLK_1		15
 
-static void gpio_line_config(u8 line, u32 direction)
+void gpio_line_config(u8 line, u32 direction)
 {
 	if (direction == IXP4XX_GPIO_IN)
 		*IXP4XX_GPIO_GPOER |= (1 << line);
@@ -108,12 +108,12 @@ static void gpio_line_config(u8 line, u32 direction)
 		*IXP4XX_GPIO_GPOER &= ~(1 << line);
 }
 
-static void gpio_line_get(u8 line, int *value)
+void gpio_line_get(u8 line, int *value)
 {
 	*value = (*IXP4XX_GPIO_GPINR >> line) & 0x1;
 }
 
-static void gpio_line_set(u8 line, int value)
+void gpio_line_set(u8 line, int value)
 {
 	if (value == IXP4XX_GPIO_HIGH)
 	    *IXP4XX_GPIO_GPOUTR |= (1 << line);

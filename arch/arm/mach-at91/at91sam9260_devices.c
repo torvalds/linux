@@ -1255,12 +1255,8 @@ void __init at91_add_device_cf(struct at91_cf_data *data)
 	at91_set_A_periph(AT91_PIN_PC10, 0);    /* CFRNW */
 	at91_set_A_periph(AT91_PIN_PC15, 1);    /* NWAIT */
 
-	if (data->flags & AT91_CF_TRUE_IDE)
-#if defined(CONFIG_PATA_AT91) || defined(CONFIG_PATA_AT91_MODULE)
+	if (IS_ENABLED(CONFIG_PATA_AT91) && (data->flags & AT91_CF_TRUE_IDE)
 		pdev->name = "pata_at91";
-#else
-#warning "board requires AT91_CF_TRUE_IDE: enable pata_at91"
-#endif
 	else
 		pdev->name = "at91_cf";
 
