@@ -507,6 +507,7 @@ void __init setup_arch(char **cmdline_p)
 		    __pa(&_Level6InterruptVector_text_end), 0);
 #endif
 
+	parse_early_param();
 	bootmem_init();
 
 	unflatten_and_copy_device_tree();

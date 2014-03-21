@@ -332,3 +332,53 @@ void free_initmem(void)
 {
 	free_initmem_default(-1);
 }
+
+static void __init parse_memmap_one(char *p)
+{
+	char *oldp;
+	unsigned long start_at, mem_size;
+
+	if (!p)
+		return;
+
+	oldp = p;
+	mem_size = memparse(p, &p);
+	if (p == oldp)
+		return;
+
+	switch (*p) {
+	case '@':
+		start_at = memparse(p + 1, &p);
+		add_sysmem_bank(start_at, start_at + mem_size);
+		break;
+
+	case '$':
+		start_at = memparse(p + 1, &p);
+		mem_reserve(start_at, start_at + mem_size, 0);
+		break;
+
+	case 0:
+		mem_reserve(mem_size, 0, 0);
+		break;
+
+	default:
+		pr_warn("Unrecognized memmap syntax: %s\n", p);
+		break;
+	}
+}
+
+static int __init parse_memmap_opt(char *str)
+{
+	while (str) {
+		char *k = strchr(str, ',');
+
+		if (k)
+			*k++ = 0;
+
+		parse_memmap_one(str);
+		str = k;
+	}
+
+	return 0;
+}
+early_param("memmap", parse_memmap_opt);
