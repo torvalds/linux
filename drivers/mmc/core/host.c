@@ -610,11 +610,10 @@ int mmc_host_rescan(struct mmc_host *host)
         if(!host)
             host = primary_sdio_host;
         else 
-            printk("mmc_host_rescan pass in host from argument!\n");
+            printk("%s: mmc_host_rescan pass in host from argument!\n", mmc_hostname(host));
     }
     else{
-        printk("%s: host isn't  initialization successfully.\n",
-                mmc_hostname(host));
+        printk("sdio: host isn't  initialization successfully.\n");                    
         return -ENOMEDIUM;
     }
 
