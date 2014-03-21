@@ -2185,6 +2185,31 @@ struct wmi_pdev_set_regdomain_cmd {
 	__le32 conformance_test_limit_5G;
 } __packed;
 
+enum wmi_dfs_region {
+	/* Uninitialized dfs domain */
+	WMI_UNINIT_DFS_DOMAIN = 0,
+
+	/* FCC3 dfs domain */
+	WMI_FCC_DFS_DOMAIN = 1,
+
+	/* ETSI dfs domain */
+	WMI_ETSI_DFS_DOMAIN = 2,
+
+	/*Japan dfs domain */
+	WMI_MKK4_DFS_DOMAIN = 3,
+};
+
+struct wmi_pdev_set_regdomain_cmd_10x {
+	__le32 reg_domain;
+	__le32 reg_domain_2G;
+	__le32 reg_domain_5G;
+	__le32 conformance_test_limit_2G;
+	__le32 conformance_test_limit_5G;
+
+	/* dfs domain from wmi_dfs_region */
+	__le32 dfs_domain;
+} __packed;
+
 /* Command to set/unset chip in quiet mode */
 struct wmi_pdev_set_quiet_cmd {
 	/* period in TUs */
@@ -4215,7 +4240,8 @@ int ath10k_wmi_pdev_set_channel(struct ath10k *ar,
 int ath10k_wmi_pdev_suspend_target(struct ath10k *ar, u32 suspend_opt);
 int ath10k_wmi_pdev_resume_target(struct ath10k *ar);
 int ath10k_wmi_pdev_set_regdomain(struct ath10k *ar, u16 rd, u16 rd2g,
-				  u16 rd5g, u16 ctl2g, u16 ctl5g);
+				  u16 rd5g, u16 ctl2g, u16 ctl5g,
+				  enum wmi_dfs_region dfs_reg);
 int ath10k_wmi_pdev_set_param(struct ath10k *ar, u32 id, u32 value);
 int ath10k_wmi_cmd_init(struct ath10k *ar);
 int ath10k_wmi_start_scan(struct ath10k *ar, const struct wmi_start_scan_arg *);

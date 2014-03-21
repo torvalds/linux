@@ -2393,8 +2393,9 @@ int ath10k_wmi_connect_htc_service(struct ath10k *ar)
 	return 0;
 }
 
-int ath10k_wmi_pdev_set_regdomain(struct ath10k *ar, u16 rd, u16 rd2g,
-				  u16 rd5g, u16 ctl2g, u16 ctl5g)
+static int ath10k_wmi_main_pdev_set_regdomain(struct ath10k *ar, u16 rd,
+					      u16 rd2g, u16 rd5g, u16 ctl2g,
+					      u16 ctl5g)
 {
 	struct wmi_pdev_set_regdomain_cmd *cmd;
 	struct sk_buff *skb;
@@ -2416,6 +2417,46 @@ int ath10k_wmi_pdev_set_regdomain(struct ath10k *ar, u16 rd, u16 rd2g,
 
 	return ath10k_wmi_cmd_send(ar, skb,
 				   ar->wmi.cmd->pdev_set_regdomain_cmdid);
+}
+
+static int ath10k_wmi_10x_pdev_set_regdomain(struct ath10k *ar, u16 rd,
+					     u16 rd2g, u16 rd5g,
+					     u16 ctl2g, u16 ctl5g,
+					     enum wmi_dfs_region dfs_reg)
+{
+	struct wmi_pdev_set_regdomain_cmd_10x *cmd;
+	struct sk_buff *skb;
+
+	skb = ath10k_wmi_alloc_skb(sizeof(*cmd));
+	if (!skb)
+		return -ENOMEM;
+
+	cmd = (struct wmi_pdev_set_regdomain_cmd_10x *)skb->data;
+	cmd->reg_domain = __cpu_to_le32(rd);
+	cmd->reg_domain_2G = __cpu_to_le32(rd2g);
+	cmd->reg_domain_5G = __cpu_to_le32(rd5g);
+	cmd->conformance_test_limit_2G = __cpu_to_le32(ctl2g);
+	cmd->conformance_test_limit_5G = __cpu_to_le32(ctl5g);
+	cmd->dfs_domain = __cpu_to_le32(dfs_reg);
+
+	ath10k_dbg(ATH10K_DBG_WMI,
+		   "wmi pdev regdomain rd %x rd2g %x rd5g %x ctl2g %x ctl5g %x dfs_region %x\n",
+		   rd, rd2g, rd5g, ctl2g, ctl5g, dfs_reg);
+
+	return ath10k_wmi_cmd_send(ar, skb,
+				   ar->wmi.cmd->pdev_set_regdomain_cmdid);
+}
+
+int ath10k_wmi_pdev_set_regdomain(struct ath10k *ar, u16 rd, u16 rd2g,
+				  u16 rd5g, u16 ctl2g, u16 ctl5g,
+				  enum wmi_dfs_region dfs_reg)
+{
+	if (test_bit(ATH10K_FW_FEATURE_WMI_10X, ar->fw_features))
+		return ath10k_wmi_10x_pdev_set_regdomain(ar, rd, rd2g, rd5g,
+							ctl2g, ctl5g, dfs_reg);
+	else
+		return ath10k_wmi_main_pdev_set_regdomain(ar, rd, rd2g, rd5g,
+							 ctl2g, ctl5g);
 }
 
 int ath10k_wmi_pdev_set_channel(struct ath10k *ar,
