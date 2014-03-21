@@ -1002,4 +1002,20 @@
                                                     >;           
             };
 
+	   isp:isp@0xFF910000{
+	        compatible = "rockchip,isp";
+	        reg = <0xFF910000 0x10000>;
+	        interrupts = <GIC_SPI 14 IRQ_TYPE_LEVEL_HIGH>;
+	        clocks = <&clk_gates16 2>, <&clk_gates16 1>, <&clk_isp>, <&clk_isp_jpe>, <&dummy>, <&clk_cif_out>;
+			clock_names = "aclk_isp", "hclk_isp", "clk_isp", "clk_isp_jpe", "pclkin_isp", "clk_vipout";
+			pinctrl-names = "default", "isp_dvp8bit","isp_dvp10bit","isp_dvp12bit";
+			pinctrl-0 = <&isp_mipi>;
+			pinctrl-1 = <&isp_mipi &isp_dvp_sync_d2d9>;
+			pinctrl-2 = <&isp_mipi &isp_dvp_sync_d2d9 &isp_dvp_d0d1>;
+			pinctrl-3 = <&isp_mipi &isp_dvp_sync_d2d9 &isp_dvp_d0d1 &isp_dvpd10d11>;
+			
+			status = "disabled";
+	};
+        
+
 };

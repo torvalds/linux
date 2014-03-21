@@ -1,0 +1,18 @@
+config CAMSYS_DRV
+	tristate "camsys driver "
+	default n
+	
+menu "RockChip camera system driver"
+	depends on CAMSYS_DRV
+	
+config CAMSYS_MRV
+	tristate "camsys driver for marvin isp "
+	default n
+	---help---
+
+config CAMSYS_CIF
+	tristate "camsys driver for cif "
+	default n
+	---help---
+
+endmenu	  

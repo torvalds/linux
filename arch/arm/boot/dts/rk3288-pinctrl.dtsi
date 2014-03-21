@@ -1054,6 +1054,68 @@
 		};
 
 		
+		isp_pin	{
+			isp_mipi:isp_mipi{
+				rockchip,pins =	<CIF_CLKOUT>;
+				rockchip,pull = <VALUE_PULL_DISABLE>;
+				//rockchip,voltage = <VALUE_VOL_DEFAULT>;
+				rockchip,drive = <VALUE_DRV_DEFAULT>;
+				//rockchip,tristate = <VALUE_TRI_DEFAULT>;			
+			};
+			isp_dvp_sync_d2d9:isp_dvp_force	{
+				rockchip,pins = <CIF_DATA2>,<CIF_DATA3>,
+								<CIF_DATA4>,<CIF_DATA5>,
+								<CIF_DATA6>,<CIF_DATA7>,
+								<CIF_DATA8>,<CIF_DATA9>,
+								<CIF_VSYNC>,<CIF_HREF>,
+								<CIF_CLKIN>,<CIF_CLKOUT>;
+				rockchip,pull = <VALUE_PULL_DISABLE>;
+				//rockchip,voltage = <VALUE_VOL_DEFAULT>;
+				rockchip,drive = <VALUE_DRV_DEFAULT>;
+				//rockchip,tristate = <VALUE_TRI_DEFAULT>;
+
+			};
+			
+			isp_dvp_d0d1:isp_d0d1	{
+				rockchip,pins = <CIF_DATA0>,<CIF_DATA1>;
+				rockchip,pull = <VALUE_PULL_DISABLE>;
+				//rockchip,voltage = <VALUE_VOL_DEFAULT>;
+				rockchip,drive = <VALUE_DRV_DEFAULT>;
+				//rockchip,tristate = <VALUE_TRI_DEFAULT>;
+			};
+
+			isp_dvpd10d11:ispd10d11	{
+				rockchip,pins = <CIF_DATA10>,<CIF_DATA11>;
+				rockchip,pull = <VALUE_PULL_DISABLE>;
+				//rockchip,voltage = <VALUE_VOL_DEFAULT>;
+				rockchip,drive = <VALUE_DRV_DEFAULT>;
+				//rockchip,tristate = <VALUE_TRI_DEFAULT>;
+			};
+
+			isp_shutter:isp_shutter		{
+				rockchip,pins = <ISP_SHUTTEREN>,<ISP_SHUTTERTRIG>;
+				rockchip,pull = <VALUE_PULL_DISABLE>;
+				//rockchip,voltage = <VALUE_VOL_DEFAULT>;
+				rockchip,drive = <VALUE_DRV_DEFAULT>;
+				//rockchip,tristate = <VALUE_TRI_DEFAULT>;
+			};
+
+			isp_flash_trigger:isp_trigger {
+				rockchip,pins = <ISP_FLASHTRIGOUTSPI1_CS0>;
+				rockchip,pull = <VALUE_PULL_DISABLE>;
+				//rockchip,voltage = <VALUE_VOL_DEFAULT>;
+				rockchip,drive = <VALUE_DRV_DEFAULT>;
+				//rockchip,tristate = <VALUE_TRI_DEFAULT>;
+			};
+
+			isp_prelight:isp_prelight	{
+				rockchip,pins = <ISP_PRELIGHTTRIGSPI1_RXD>;
+				rockchip,pull = <VALUE_PULL_DISABLE>;
+				//rockchip,voltage = <VALUE_VOL_DEFAULT>;
+				rockchip,drive = <VALUE_DRV_DEFAULT>;
+				//rockchip,tristate = <VALUE_TRI_DEFAULT>;
+			};
+		};
 
 	};
 };
