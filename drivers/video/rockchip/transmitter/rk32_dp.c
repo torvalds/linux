@@ -52,6 +52,7 @@ static int rk32_edp_init_edp(struct rk32_edp *edp)
 
 	val = 0x80008000;
 	writel_relaxed(val, RK_CRU_VIRT + 0x0d0);
+	
 	rk32_edp_reset(edp);
 	rk32_edp_init_refclk(edp);
 	rk32_edp_init_interrupt(edp);
@@ -200,7 +201,7 @@ static int rk32_edp_read_edid(struct rk32_edp *edp)
 			}
 		}
 	}
-
+	fb_edid_to_monspecs(edid, &edp->specs);
 	dev_err(edp->dev, "EDID Read success!\n");
 	return 0;
 }
@@ -216,6 +217,8 @@ static int rk32_edp_handle_edid(struct rk32_edp *edp)
 	if (retval < 0)
 		return retval;
 
+	for (i=0 ;i < 12; i++)
+		dev_info(edp->dev, "%d:>>0x%02x\n", i, buf[i]);
 	/* Read EDID */
 	for (i = 0; i < 3; i++) {
 		retval = rk32_edp_read_edid(edp);
@@ -1086,7 +1089,7 @@ edp_phy_init:
 	
 	rk32_edp_init_edp(edp);
 
-	/*ret = rk32_edp_handle_edid(edp);
+	ret = rk32_edp_handle_edid(edp);
 	if (ret) {
 		dev_err(edp->dev, "unable to handle edid\n");
 		//goto out;
@@ -1104,10 +1107,10 @@ edp_phy_init:
 		dev_err(edp->dev, "unable to set enhanced mode\n");
 		//goto out;
 	}
-	rk32_edp_enable_enhanced_mode(edp, 0);*/
+	rk32_edp_enable_enhanced_mode(edp, 0);
 
        /* Link Training */
-	ret = rk32_edp_set_link_train(edp, LANE_CNT4, LINK_RATE_2_70GBPS);
+	ret = rk32_edp_set_link_train(edp, LANE_CNT4, LINK_RATE_1_62GBPS);
 	if (ret) {
 		dev_err(edp->dev, "link train failed\n");
 		//goto out;

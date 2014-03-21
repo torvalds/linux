@@ -75,7 +75,7 @@ void rk32_edp_init_refclk(struct rk32_edp *edp)
 
 	val = SEL_24M;
 	writel(val, edp->regs + ANALOG_CTL_2);
-	
+
 	val = REF_CLK_24M;
 	writel(val, edp->regs + PLL_REG_1);
 
@@ -95,7 +95,7 @@ void rk32_edp_init_refclk(struct rk32_edp *edp)
 	writel(val, edp->regs + SSC_REG);
 	val = 0x87;
 	writel(val, edp->regs + TX_REG_COMMON);
-	val = 0x03;
+	val = 0x13;
 	writel(val, edp->regs + DP_AUX);
 	val = 0x46;
 	writel(val, edp->regs + DP_BIAS);
@@ -175,7 +175,12 @@ void rk32_edp_reset(struct rk32_edp *edp)
 	u32 val;
 
 	//writel(RST_DP_TX, edp->regs + TX_SW_RST);
-
+	/*val = 0x80008000;
+	writel_relaxed(val, RK_CRU_VIRT + 0x01d0);
+	mdelay(12);
+	val = 0x80000000;
+	writel_relaxed(val, RK_CRU_VIRT + 0x01d0);
+	mdelay(12);*/
 	rk32_edp_stop_video(edp);
 	rk32_edp_enable_video_mute(edp, 0);
 
@@ -306,7 +311,7 @@ void rk32_edp_init_hpd(struct rk32_edp *edp)
 	writel(val, edp->regs + DP_INT_STA);
 
 	val = readl(edp->regs + SYS_CTL_3);
-	val &= ~(F_HPD | HPD_CTRL);
+	val |= (F_HPD | HPD_CTRL);
 	writel(val, edp->regs + SYS_CTL_3);
 }
 
@@ -1020,8 +1025,8 @@ int rk32_edp_init_video(struct rk32_edp *edp)
 	val = CHA_CRI(4) | CHA_CTRL;
 	writel(val, edp->regs + SYS_CTL_2);
 
-	val = 0x0;
-	writel(val, edp->regs + SYS_CTL_3);
+	//val = 0x0;
+	//writel(val, edp->regs + SYS_CTL_3);
 
 	val = VID_HRES_TH(2) | VID_VRES_TH(0);
 	writel(val, edp->regs + VIDEO_CTL_8);

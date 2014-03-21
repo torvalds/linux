@@ -95,7 +95,7 @@
 #define DP_BIAS					0x124
 
 #define PLL_REG_1				0xfc
-#define REF_CLK_24M				(0x01 << 1)
+#define REF_CLK_24M				(0x1 << 1)
 #define REF_CLK_27M				(0x0 << 1)
 
 #define PLL_REG_2				0x9e4
@@ -513,6 +513,7 @@ struct rk32_edp {
 	struct link_train	link_train;
 	struct video_info	video_info;
 	struct rk_screen	screen;
+	struct fb_monspecs      specs;
 	int 			enabled;
 };
 
