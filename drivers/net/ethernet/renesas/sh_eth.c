@@ -2772,6 +2772,9 @@ static int sh_eth_drv_probe(struct platform_device *pdev)
 	if (!ndev)
 		return -ENOMEM;
 
+	pm_runtime_enable(&pdev->dev);
+	pm_runtime_get_sync(&pdev->dev);
+
 	/* The sh Ether-specific entries in the device structure. */
 	ndev->base_addr = res->start;
 	devno = pdev->id;
@@ -2799,8 +2802,6 @@ static int sh_eth_drv_probe(struct platform_device *pdev)
 
 	spin_lock_init(&mdp->lock);
 	mdp->pdev = pdev;
-	pm_runtime_enable(&pdev->dev);
-	pm_runtime_resume(&pdev->dev);
 
 	if (pdev->dev.of_node)
 		pd = sh_eth_parse_dt(&pdev->dev);
@@ -2898,6 +2899,7 @@ static int sh_eth_drv_probe(struct platform_device *pdev)
 	netdev_info(ndev, "Base address at 0x%x, %pM, IRQ %d.\n",
 		    (u32)ndev->base_addr, ndev->dev_addr, ndev->irq);
 
+	pm_runtime_put(&pdev->dev);
 	platform_set_drvdata(pdev, ndev);
 
 	return ret;
@@ -2911,6 +2913,8 @@ out_release:
 	if (ndev)
 		free_netdev(ndev);
 
+	pm_runtime_put(&pdev->dev);
+	pm_runtime_disable(&pdev->dev);
 	return ret;
 }
 
