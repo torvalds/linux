@@ -2736,6 +2736,12 @@ void vlv_force_wake_put(struct drm_i915_private *dev_priv, int fw_engine);
 #define I915_READ_NOTRACE(reg)		dev_priv->uncore.funcs.mmio_readl(dev_priv, (reg), false)
 #define I915_WRITE_NOTRACE(reg, val)	dev_priv->uncore.funcs.mmio_writel(dev_priv, (reg), (val), false)
 
+/* Be very careful with read/write 64-bit values. On 32-bit machines, they
+ * will be implemented using 2 32-bit writes in an arbitrary order with
+ * an arbitrary delay between them. This can cause the hardware to
+ * act upon the intermediate value, possibly leading to corruption and
+ * machine death. You have been warned.
+ */
 #define I915_WRITE64(reg, val)	dev_priv->uncore.funcs.mmio_writeq(dev_priv, (reg), (val), true)
 #define I915_READ64(reg)	dev_priv->uncore.funcs.mmio_readq(dev_priv, (reg), true)
 
