@@ -402,7 +402,7 @@ static int drm_dp_dpcd_access(struct drm_dp_aux *aux, u8 request,
 		}
 	}
 
-	DRM_ERROR("too many retries, giving up\n");
+	DRM_DEBUG_KMS("too many retries, giving up\n");
 	return -EIO;
 }
 
@@ -656,7 +656,7 @@ static int drm_dp_i2c_do_msg(struct drm_dp_aux *aux, struct drm_dp_aux_msg *msg)
 		}
 	}
 
-	DRM_ERROR("too many retries, giving up\n");
+	DRM_DEBUG_KMS("too many retries, giving up\n");
 	return -EREMOTEIO;
 }
 
