@@ -35,7 +35,7 @@
 #include <linux/regulator/machine.h>
 
 
-#if 1
+#if 0
 #define DBG(x...)	printk(KERN_INFO x)
 #else
 #define DBG(x...)
@@ -369,12 +369,14 @@ static int __init pwm_regulator_probe(struct platform_device *pdev)
 		goto err;
 		}
 		pdata->rdev[i] = pwm_rdev;
+		
+		/*********set pwm vol by defult***********/
+		dc = regulator_get(NULL,rail_name);
+		regulator_set_voltage(dc,pdata->pwm_voltage,pdata->pwm_voltage);
+		regulator_put(dc);
+		/**************************************/
 		}
 	}
-	/*********set pwm vol by defult***********/
-	//dc = regulator_get(NULL,"vdd_gpu");
-	//regulator_set_voltage(dc,pdata->pwm_voltage,pdata->pwm_voltage);
-	/**************************************/
 	return 0;
 err:
 	printk("%s:error\n",__func__);
