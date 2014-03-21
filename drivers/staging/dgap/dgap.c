@@ -78,10 +78,6 @@
 
 #include "dgap.h"
 
-#define init_MUTEX(sem)         sema_init(sem, 1)
-#define DECLARE_MUTEX(name)     \
-	struct semaphore name = __SEMAPHORE_INITIALIZER(name, 1)
-
 MODULE_LICENSE("GPL");
 MODULE_AUTHOR("Digi International, http://www.digi.com");
 MODULE_DESCRIPTION("Driver for the Digi International EPCA PCI based product line");
@@ -245,9 +241,7 @@ static struct board_t *dgap_Board[MAXBOARDS];
 static ulong dgap_poll_counter;
 static char *dgap_config_buf;
 static int dgap_driver_state = DRIVER_INITIALIZED;
-DEFINE_SPINLOCK(dgap_dl_lock);
 static wait_queue_head_t dgap_dl_wait;
-static int dgap_dl_action;
 static int dgap_poll_tick = 20;	/* Poll interval - 20 ms */
 
 /*
@@ -1197,7 +1191,6 @@ static void dgap_init_globals(void)
 	init_timer(&dgap_poll_timer);
 
 	init_waitqueue_head(&dgap_dl_wait);
-	dgap_dl_action = 0;
 }
 
 /************************************************************************
