@@ -9,6 +9,7 @@
  */
 
 #include <linux/bootmem.h>
+#include <asm/smp-ops.h>
 
 #include <loongson.h>
 
@@ -33,6 +34,7 @@ void __init prom_init(void)
 
 	/*init the uart base address */
 	prom_init_uart_base();
+	register_smp_ops(&loongson3_smp_ops);
 }
 
 void __init prom_free_prom_memory(void)

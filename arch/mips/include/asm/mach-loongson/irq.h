@@ -37,5 +37,7 @@
 
 #endif
 
+extern void loongson3_ipi_interrupt(struct pt_regs *regs);
+
 #include_next <irq.h>
 #endif /* __ASM_MACH_LOONGSON_IRQ_H_ */

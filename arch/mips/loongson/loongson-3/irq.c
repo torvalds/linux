@@ -26,6 +26,10 @@ void mach_irq_dispatch(unsigned int pending)
 {
 	if (pending & CAUSEF_IP7)
 		do_IRQ(LOONGSON_TIMER_IRQ);
+#if defined(CONFIG_SMP)
+	else if (pending & CAUSEF_IP6)
+		loongson3_ipi_interrupt(NULL);
+#endif
 	else if (pending & CAUSEF_IP3)
 		ht_irqdispatch();
 	else if (pending & CAUSEF_IP2)
@@ -45,10 +49,26 @@ static inline void mask_loongson_irq(struct irq_data *d)
 {
 	clear_c0_status(0x100 << (d->irq - MIPS_CPU_IRQ_BASE));
 	irq_disable_hazard();
+
+	/* Workaround: UART IRQ may deliver to any core */
+	if (d->irq == LOONGSON_UART_IRQ) {
+		int cpu = smp_processor_id();
+
+		LOONGSON_INT_ROUTER_INTENCLR = 1 << 10;
+		LOONGSON_INT_ROUTER_LPC = 0x10 + (1<<cpu);
+	}
 }
 
 static inline void unmask_loongson_irq(struct irq_data *d)
 {
+	/* Workaround: UART IRQ may deliver to any core */
+	if (d->irq == LOONGSON_UART_IRQ) {
+		int cpu = smp_processor_id();
+
+		LOONGSON_INT_ROUTER_INTENSET = 1 << 10;
+		LOONGSON_INT_ROUTER_LPC = 0x10 + (1<<cpu);
+	}
+
 	set_c0_status(0x100 << (d->irq - MIPS_CPU_IRQ_BASE));
 	irq_enable_hazard();
 }
