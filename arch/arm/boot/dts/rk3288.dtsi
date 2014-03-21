@@ -567,7 +567,7 @@
 	
 	lvds: lvds@ff96c000 {
 		compatible = "rockchip, rk32-lvds";
-		reg = <0xff96c000 0x20000>;
+		reg = <0xff96c000 0x4000>;
 		clocks = <&clk_gates16 7>;
 		clock-names = "pclk_lvds";
         };
