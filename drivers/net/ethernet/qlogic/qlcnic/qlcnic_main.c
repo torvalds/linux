@@ -2205,6 +2205,16 @@ qlcnic_setup_netdev(struct qlcnic_adapter *adapter, struct net_device *netdev,
 	if (adapter->ahw->capabilities & QLCNIC_FW_CAPABILITY_HW_LRO)
 		netdev->features |= NETIF_F_LRO;
 
+	if (qlcnic_encap_tx_offload(adapter)) {
+		netdev->features |= NETIF_F_GSO_UDP_TUNNEL;
+
+		/* encapsulation Tx offload supported by Adapter */
+		netdev->hw_enc_features = NETIF_F_IP_CSUM        |
+					  NETIF_F_GSO_UDP_TUNNEL |
+					  NETIF_F_TSO            |
+					  NETIF_F_TSO6;
+	}
+
 	netdev->hw_features = netdev->features;
 	netdev->priv_flags |= IFF_UNICAST_FLT;
 	netdev->irq = adapter->msix_entries[0].vector;
