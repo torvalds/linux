@@ -185,17 +185,19 @@ static const struct of_device_id dw_mci_rockchip_match[] = {
 };
 MODULE_DEVICE_TABLE(of, dw_mci_rockchip_match);
 
+#if DW_MMC_OF_PROBE
 extern void rockchip_mmc_of_probe(struct device_node *np,struct rk_sdmmc_of *mmc_property);
+#endif
 
-#define DW_MMC_OF_PROBE 0
 static int dw_mci_rockchip_probe(struct platform_device *pdev)
 {
 	const struct dw_mci_drv_data *drv_data;
 	const struct of_device_id *match;
+	
+	#if DW_MMC_OF_PROBE
     struct device_node *np = pdev->dev.of_node;
 	struct rk_sdmmc_of *rk_mmc_property = NULL;
 
-    #if DW_MMC_OF_PROBE	
     rk_mmc_property = (struct rk_sdmmc_of *)kmalloc(sizeof(struct rk_sdmmc_of),GFP_KERNEL);
     if(NULL == rk_mmc_property)
     {

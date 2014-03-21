@@ -13,6 +13,7 @@
 u32 mmc_debug_level= MMC_DBG_ERROR;//MMC_DBG_CMD//set the value refer to file rk_sdmmc_of.h
 char dbg_flag[]="mmc0mmc1mmc2"; 
 
+#if DW_MMC_OF_PROBE
 static void rockchip_mmc_of_dump(struct rk_sdmmc_of *rk_mmc_property)
 {    
     printk("=========rockchip mmc dts dump info start== 2014-03-14 20:39 ======");
@@ -56,5 +57,6 @@ void rockchip_mmc_of_probe(struct device_node *np,struct rk_sdmmc_of *rk_mmc_pro
 
 }
 EXPORT_SYSMBOL(rockchip_mmc_of_probe);
+#endif /*DW_MMC_OF_PROBE*/
 
 

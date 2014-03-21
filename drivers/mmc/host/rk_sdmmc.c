@@ -420,9 +420,12 @@ static void dw_mci_idmac_complete_dma(struct dw_mci *host)
 	struct mmc_data *data = host->data;
 
 	dev_vdbg(host->dev, "DMA complete\n");
- //   MMC_DBG_CMD_FUNC(host->mmc," DMA complete cmd=%d(arg=0x%x), blocks=%d,blksz=%d[%s]", \
- //       host->mrq->cmd->opcode,host->mrq->cmd->arg,data->blocks,data->blksz,mmc_hostname(host->mmc));
 
+    /*
+    MMC_DBG_CMD_FUNC(host->mmc," DMA complete cmd=%d(arg=0x%x), blocks=%d,blksz=%d[%s]", \
+        host->mrq->cmd->opcode,host->mrq->cmd->arg,data->blocks,data->blksz,mmc_hostname(host->mmc));
+    */
+    
 	host->dma_ops->cleanup(host);
 
 	/*
