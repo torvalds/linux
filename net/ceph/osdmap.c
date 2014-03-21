@@ -683,6 +683,63 @@ static int osdmap_set_max_osd(struct ceph_osdmap *map, int max)
 	return 0;
 }
 
+#define OSDMAP_WRAPPER_COMPAT_VER	7
+#define OSDMAP_CLIENT_DATA_COMPAT_VER	1
+
+/*
+ * Return 0 or error.  On success, *v is set to 0 for old (v6) osdmaps,
+ * to struct_v of the client_data section for new (v7 and above)
+ * osdmaps.
+ */
+static int get_osdmap_client_data_v(void **p, void *end,
+				    const char *prefix, u8 *v)
+{
+	u8 struct_v;
+
+	ceph_decode_8_safe(p, end, struct_v, e_inval);
+	if (struct_v >= 7) {
+		u8 struct_compat;
+
+		ceph_decode_8_safe(p, end, struct_compat, e_inval);
+		if (struct_compat > OSDMAP_WRAPPER_COMPAT_VER) {
+			pr_warning("got v %d cv %d > %d of %s ceph_osdmap\n",
+				   struct_v, struct_compat,
+				   OSDMAP_WRAPPER_COMPAT_VER, prefix);
+			return -EINVAL;
+		}
+		*p += 4; /* ignore wrapper struct_len */
+
+		ceph_decode_8_safe(p, end, struct_v, e_inval);
+		ceph_decode_8_safe(p, end, struct_compat, e_inval);
+		if (struct_compat > OSDMAP_CLIENT_DATA_COMPAT_VER) {
+			pr_warning("got v %d cv %d > %d of %s ceph_osdmap client data\n",
+				   struct_v, struct_compat,
+				   OSDMAP_CLIENT_DATA_COMPAT_VER, prefix);
+			return -EINVAL;
+		}
+		*p += 4; /* ignore client data struct_len */
+	} else {
+		u16 version;
+
+		*p -= 1;
+		ceph_decode_16_safe(p, end, version, e_inval);
+		if (version < 6) {
+			pr_warning("got v %d < 6 of %s ceph_osdmap\n", version,
+				   prefix);
+			return -EINVAL;
+		}
+
+		/* old osdmap enconding */
+		struct_v = 0;
+	}
+
+	*v = struct_v;
+	return 0;
+
+e_inval:
+	return -EINVAL;
+}
+
 static int __decode_pools(void **p, void *end, struct ceph_osdmap *map,
 			  bool incremental)
 {
@@ -798,7 +855,7 @@ static int decode_new_pg_temp(void **p, void *end, struct ceph_osdmap *map)
  */
 static int osdmap_decode(void **p, void *end, struct ceph_osdmap *map)
 {
-	u16 version;
+	u8 struct_v;
 	u32 epoch = 0;
 	void *start = *p;
 	u32 max;
@@ -807,15 +864,9 @@ static int osdmap_decode(void **p, void *end, struct ceph_osdmap *map)
 
 	dout("%s %p to %p len %d\n", __func__, *p, end, (int)(end - *p));
 
-	ceph_decode_16_safe(p, end, version, e_inval);
-	if (version > 6) {
-		pr_warning("got unknown v %d > 6 of osdmap\n", version);
-		goto e_inval;
-	}
-	if (version < 6) {
-		pr_warning("got old v %d < 6 of osdmap\n", version);
-		goto e_inval;
-	}
+	err = get_osdmap_client_data_v(p, end, "full", &struct_v);
+	if (err)
+		goto bad;
 
 	/* fsid, epoch, created, modified */
 	ceph_decode_need(p, end, sizeof(map->fsid) + sizeof(u32) +
@@ -943,15 +994,13 @@ struct ceph_osdmap *osdmap_apply_incremental(void **p, void *end,
 	__s32 new_flags, max;
 	void *start = *p;
 	int err;
-	u16 version;
+	u8 struct_v;
 
 	dout("%s %p to %p len %d\n", __func__, *p, end, (int)(end - *p));
 
-	ceph_decode_16_safe(p, end, version, e_inval);
-	if (version != 6) {
-		pr_warning("got unknown v %d != 6 of inc osdmap\n", version);
-		goto e_inval;
-	}
+	err = get_osdmap_client_data_v(p, end, "inc", &struct_v);
+	if (err)
+		goto bad;
 
 	/* fsid, epoch, modified, new_pool_max, new_flags */
 	ceph_decode_need(p, end, sizeof(fsid) + sizeof(u32) + sizeof(modified) +
