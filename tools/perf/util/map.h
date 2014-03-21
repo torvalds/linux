@@ -61,6 +61,9 @@ struct map_groups {
 	struct machine	 *machine;
 };
 
+struct map_groups *map_groups__new(void);
+void map_groups__delete(struct map_groups *mg);
+
 static inline struct kmap *map__kmap(struct map *map)
 {
 	return (struct kmap *)(map + 1);

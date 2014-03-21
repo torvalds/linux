@@ -15,7 +15,10 @@ struct thread *thread__new(pid_t pid, pid_t tid)
 	struct thread *thread = zalloc(sizeof(*thread));
 
 	if (thread != NULL) {
-		map_groups__init(&thread->mg);
+		thread->mg = map_groups__new();
+		if (thread->mg == NULL)
+			goto out_free;
+
 		thread->pid_ = pid;
 		thread->tid = tid;
 		thread->ppid = -1;
@@ -37,6 +40,8 @@ struct thread *thread__new(pid_t pid, pid_t tid)
 	return thread;
 
 err_thread:
+	map_groups__delete(thread->mg);
+out_free:
 	free(thread);
 	return NULL;
 }
@@ -45,7 +50,8 @@ void thread__delete(struct thread *thread)
 {
 	struct comm *comm, *tmp;
 
-	map_groups__exit(&thread->mg);
+	map_groups__delete(thread->mg);
+	thread->mg = NULL;
 	list_for_each_entry_safe(comm, tmp, &thread->comm_list, list) {
 		list_del(&comm->list);
 		comm__free(comm);
@@ -111,13 +117,13 @@ int thread__comm_len(struct thread *thread)
 size_t thread__fprintf(struct thread *thread, FILE *fp)
 {
 	return fprintf(fp, "Thread %d %s\n", thread->tid, thread__comm_str(thread)) +
-	       map_groups__fprintf(&thread->mg, verbose, fp);
+	       map_groups__fprintf(thread->mg, verbose, fp);
 }
 
 void thread__insert_map(struct thread *thread, struct map *map)
 {
-	map_groups__fixup_overlappings(&thread->mg, map, verbose, stderr);
-	map_groups__insert(&thread->mg, map);
+	map_groups__fixup_overlappings(thread->mg, map, verbose, stderr);
+	map_groups__insert(thread->mg, map);
 }
 
 int thread__fork(struct thread *thread, struct thread *parent, u64 timestamp)
@@ -135,7 +141,7 @@ int thread__fork(struct thread *thread, struct thread *parent, u64 timestamp)
 	}
 
 	for (i = 0; i < MAP__NR_TYPES; ++i)
-		if (map_groups__clone(&thread->mg, &parent->mg, i) < 0)
+		if (map_groups__clone(thread->mg, parent->mg, i) < 0)
 			return -ENOMEM;
 
 	thread->ppid = parent->tid;

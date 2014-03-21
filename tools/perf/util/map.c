@@ -358,6 +358,22 @@ void map_groups__exit(struct map_groups *mg)
 	}
 }
 
+struct map_groups *map_groups__new(void)
+{
+	struct map_groups *mg = malloc(sizeof(*mg));
+
+	if (mg != NULL)
+		map_groups__init(mg);
+
+	return mg;
+}
+
+void map_groups__delete(struct map_groups *mg)
+{
+	map_groups__exit(mg);
+	free(mg);
+}
+
 void map_groups__flush(struct map_groups *mg)
 {
 	int type;
