@@ -41,8 +41,6 @@ DECLARE_VDSO_IMAGE(vdso32_syscall);
 #endif
 DECLARE_VDSO_IMAGE(vdso32_sysenter);
 
-extern const char VDSO32_PRELINK[];
-
 /*
  * Given a pointer to the vDSO image, find the pointer to VDSO32_name
  * as that symbol is defined in the vDSO sources or linker script.
