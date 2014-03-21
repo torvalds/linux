@@ -20,6 +20,7 @@
 #include <linux/in6.h>
 
 #include <asm/uaccess.h>
+#include <asm/cacheflush.h>
 #include <asm/checksum.h>
 #include <asm/dma.h>
 #include <asm/io.h>
@@ -127,4 +128,9 @@ EXPORT_SYMBOL(common_exception_return);
 
 #ifdef CONFIG_FUNCTION_TRACER
 EXPORT_SYMBOL(_mcount);
+#endif
+
+EXPORT_SYMBOL(__invalidate_dcache_range);
+#if XCHAL_DCACHE_IS_WRITEBACK
+EXPORT_SYMBOL(__flush_dcache_range);
 #endif
