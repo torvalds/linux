@@ -134,7 +134,7 @@ static struct device_node *s2mps11_clk_parse_dt(struct platform_device *pdev)
 	if (!iodev->dev->of_node)
 		return ERR_PTR(-EINVAL);
 
-	clk_np = of_find_node_by_name(iodev->dev->of_node, "clocks");
+	clk_np = of_get_child_by_name(iodev->dev->of_node, "clocks");
 	if (!clk_np) {
 		dev_err(&pdev->dev, "could not find clock sub-node\n");
 		return ERR_PTR(-EINVAL);
