@@ -181,7 +181,7 @@ typedef struct {
 	 * address of an array of lnet_kiov_t and the length field specifies
 	 * the number of entries in the array. The length can't be bigger
 	 * than LNET_MAX_IOV. The lnet_kiov_t is used to describe page-based
-	 * fragments that are not necessarily mapped in virtal memory.
+	 * fragments that are not necessarily mapped in virtual memory.
 	 * - LNET_MD_IOVEC bit set: The start field points to the starting
 	 * address of an array of struct iovec and the length field specifies
 	 * the number of entries in the array. The length can't be bigger

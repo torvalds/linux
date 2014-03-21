@@ -128,7 +128,7 @@ struct cfs_cpt_table *cfs_cpt_table_alloc(unsigned int ncpt);
 int
 cfs_cpt_number(struct cfs_cpt_table *cptab);
 /**
- * return number of HW cores or hypter-threadings in a CPU partition \a cpt
+ * return number of HW cores or hyper-threadings in a CPU partition \a cpt
  */
 int cfs_cpt_weight(struct cfs_cpt_table *cptab, int cpt);
 /**
@@ -152,7 +152,7 @@ int cfs_cpt_of_cpu(struct cfs_cpt_table *cptab, int cpu);
  */
 int cfs_cpt_bind(struct cfs_cpt_table *cptab, int cpt);
 /**
- * add \a cpu to CPU partion @cpt of \a cptab, return 1 for success,
+ * add \a cpu to CPU partition @cpt of \a cptab, return 1 for success,
  * otherwise 0 is returned
  */
 int cfs_cpt_set_cpu(struct cfs_cpt_table *cptab, int cpt, int cpu);

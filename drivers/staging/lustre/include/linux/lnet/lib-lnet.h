@@ -181,7 +181,7 @@ lnet_net_lock_current(void)
 #define MAX_PORTALS     64
 
 /* these are only used by code with LNET_USE_LIB_FREELIST, but we still
- * exported them to !LNET_USE_LIB_FREELIST for easy implemetation */
+ * exported them to !LNET_USE_LIB_FREELIST for easy implementation */
 #define LNET_FL_MAX_MES		2048
 #define LNET_FL_MAX_MDS		2048
 #define LNET_FL_MAX_EQS		512
