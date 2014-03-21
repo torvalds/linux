@@ -10,20 +10,24 @@
  *
  */
 
-// #define DEBUG    1
-
+//#define DEBUG   1
+#include <linux/gpio.h>
+#include <linux/of_gpio.h>
 #include <linux/platform_device.h>
 #include <linux/power_supply.h>
 #include <linux/workqueue.h>
 #include <linux/kernel.h>
 #include <linux/i2c.h>
-#include <mach/gpio.h>
+#include <linux/module.h>
 #include <linux/delay.h>
 #include <linux/power/cw2015_battery.h>
 #include <linux/time.h>
 #include <linux/interrupt.h>
 #include <linux/irq.h>
-#include <mach/board.h>
+#include <linux/slab.h>
+
+#define CW2015_GPIO_HIGH  1
+#define CW2015_GPIO_LOW   0
 
 #define REG_VERSION             0x0
 #define REG_VCELL               0x2
@@ -67,7 +71,7 @@ struct cw_battery {
         struct delayed_work battery_delay_work;
         struct delayed_work dc_wakeup_work;
         struct delayed_work bat_low_wakeup_work;
-        const struct cw_bat_platform_data *plat_data;
+        struct cw_bat_platform_data plat_data;
 
         struct power_supply rk_bat;
         struct power_supply rk_ac;
@@ -91,6 +95,53 @@ struct cw_battery {
 
         int bat_change;
 };
+
+static int i2c_master_reg8_send(const struct i2c_client *client, const char reg, const char *buf, int count, int scl_rate)
+{
+	struct i2c_adapter *adap=client->adapter;
+	struct i2c_msg msg;
+	int ret;
+	char *tx_buf = (char *)kzalloc(count + 1, GFP_KERNEL);
+	if(!tx_buf)
+		return -ENOMEM;
+	tx_buf[0] = reg;
+	memcpy(tx_buf+1, buf, count); 
+
+	msg.addr = client->addr;
+	msg.flags = client->flags;
+	msg.len = count + 1;
+	msg.buf = (char *)tx_buf;
+	msg.scl_rate = scl_rate;
+
+	ret = i2c_transfer(adap, &msg, 1);
+	kfree(tx_buf);
+	return (ret == 1) ? count : ret;
+
+}
+
+static int i2c_master_reg8_recv(const struct i2c_client *client, const char reg, char *buf, int count, int scl_rate)
+{
+	struct i2c_adapter *adap=client->adapter;
+	struct i2c_msg msgs[2];
+	int ret;
+	char reg_buf = reg;
+	
+	msgs[0].addr = client->addr;
+	msgs[0].flags = client->flags;
+	msgs[0].len = 1;
+	msgs[0].buf = &reg_buf;
+	msgs[0].scl_rate = scl_rate;
+
+	msgs[1].addr = client->addr;
+	msgs[1].flags = client->flags | I2C_M_RD;
+	msgs[1].len = count;
+	msgs[1].buf = (char *)buf;
+	msgs[1].scl_rate = scl_rate;
+
+	ret = i2c_transfer(adap, msgs, 2);
+
+	return (ret == 2)? count : ret;
+}
 
 static int cw_read(struct i2c_client *client, u8 reg, u8 buf[])
 {
@@ -146,9 +197,9 @@ static int cw_update_config_info(struct cw_battery *cw_bat)
 
         /* update new battery info */
         for (i = 0; i < SIZE_BATINFO; i++) {
-                dev_info(&cw_bat->client->dev, "cw_bat->plat_data->cw_bat_config_info[%d] = 0x%x\n", i, \
-                                cw_bat->plat_data->cw_bat_config_info[i]);
-                ret = cw_write(cw_bat->client, REG_BATINFO + i, &cw_bat->plat_data->cw_bat_config_info[i]);
+                dev_info(&cw_bat->client->dev, "cw_bat->plat_data.cw_bat_config_info[%d] = 0x%x\n", i, \
+                                cw_bat->plat_data.cw_bat_config_info[i]);
+                ret = cw_write(cw_bat->client, REG_BATINFO + i, &cw_bat->plat_data.cw_bat_config_info[i]);
 
                 if (ret < 0) 
                         return ret;
@@ -157,7 +208,7 @@ static int cw_update_config_info(struct cw_battery *cw_bat)
         /* readback & check */
         for (i = 0; i < SIZE_BATINFO; i++) {
                 ret = cw_read(cw_bat->client, REG_BATINFO + i, &reg_val);
-                if (reg_val != cw_bat->plat_data->cw_bat_config_info[i])
+                if (reg_val != cw_bat->plat_data.cw_bat_config_info[i])
                         return -1;
         }
         
@@ -246,7 +297,7 @@ static int cw_init(struct cw_battery *cw_bat)
                         if (ret < 0)
                                 return ret;
                         
-                        if (cw_bat->plat_data->cw_bat_config_info[i] != reg_val)
+                        if (cw_bat->plat_data.cw_bat_config_info[i] != reg_val)
                                 break;
                 }
 
@@ -262,7 +313,7 @@ static int cw_init(struct cw_battery *cw_bat)
                 ret = cw_read(cw_bat->client, REG_SOC, &reg_val);
                 if (ret < 0)
                         return ret;
-                else if (ret != 0xff) 
+                else if (reg_val <= 0x64) 
                         break;
                 
                 msleep(100);
@@ -270,7 +321,12 @@ static int cw_init(struct cw_battery *cw_bat)
                         dev_err(&cw_bat->client->dev, "cw2015/cw2013 input unvalid power error\n");
 
         }
-        
+        if (i >=30){
+        	   reg_val = MODE_SLEEP;
+             ret = cw_write(cw_bat->client, REG_MODE, &reg_val);
+             dev_info(&cw_bat->client->dev, "report battery capacity error");
+             return -1;
+        } 
         return 0;
 }
 
@@ -330,7 +386,7 @@ static int cw_get_capacity(struct cw_battery *cw_bat)
 {
         int cw_capacity;
         int ret;
-        u8 reg_val[2];
+        u8 reg_val;
 
         struct timespec ts;
         long new_run_time;
@@ -340,32 +396,79 @@ static int cw_get_capacity(struct cw_battery *cw_bat)
         int allow_capacity;
         static int if_quickstart = 0;
         static int jump_flag =0;
+        static int reset_loop =0;
         int charge_time;
+        u8 reset_val;
 
 
-        // ret = cw_read(cw_bat->client, REG_SOC, &reg_val);
-        ret = cw_read_word(cw_bat->client, REG_SOC, reg_val);
+        ret = cw_read(cw_bat->client, REG_SOC, &reg_val);
+        //ret = cw_read_word(cw_bat->client, REG_SOC, reg_val);
         if (ret < 0)
                 return ret;
-
-        cw_capacity = reg_val[0];
-        if ((cw_capacity < 0) || (cw_capacity > 100)) {
-                dev_err(&cw_bat->client->dev, "get cw_capacity error; cw_capacity = %d\n", cw_capacity);
-                return cw_capacity;
-        } 
-
-        if (cw_capacity == 0) 
-                dev_dbg(&cw_bat->client->dev, "the cw201x capacity is 0 !!!!!!!, funciton: %s, line: %d\n", __func__, __LINE__);
+        cw_capacity = reg_val;   
+             
+        if ((cw_capacity == 0)&&(if_quickstart ==0)) {
+                dev_info(&cw_bat->client->dev, "the cw201x capacity is 0 !!!!!!!, funciton: %s, line: %d\n", __func__, __LINE__);
+                
+                reset_val = MODE_SLEEP;               
+                ret = cw_write(cw_bat->client, REG_MODE, &reset_val);
+                if (ret < 0)
+                    return ret;
+                reset_val = MODE_NORMAL;
+                msleep(10);
+                ret = cw_write(cw_bat->client, REG_MODE, &reset_val);
+                if (ret < 0)
+                    return ret;
+                dev_info(&cw_bat->client->dev, "report battery capacity error1");                              
+//                ret = cw_update_config_info(cw_bat);
+//                   if (ret) 
+//                     return ret;
+                if_quickstart =1;
+         }                       
         else 
                 dev_dbg(&cw_bat->client->dev, "the cw201x capacity is %d, funciton: %s\n", cw_capacity, __func__);
-
-        // ret = cw_read(cw_bat->client, REG_SOC + 1, &reg_val);
+        
+        if ((cw_capacity < 0) || (cw_capacity > 100)) {
+                dev_err(&cw_bat->client->dev, "get cw_capacity error; cw_capacity = %d\n", cw_capacity);
+                reset_loop++;
+                
+            if (reset_loop >5){ 
+            	
+                reset_val = MODE_SLEEP;               
+                ret = cw_write(cw_bat->client, REG_MODE, &reset_val);
+                if (ret < 0)
+                    return ret;
+                reset_val = MODE_NORMAL;
+                msleep(10);
+                ret = cw_write(cw_bat->client, REG_MODE, &reset_val);
+                if (ret < 0)
+                    return ret;
+                dev_info(&cw_bat->client->dev, "report battery capacity error");                              
+                ret = cw_update_config_info(cw_bat);
+                   if (ret) 
+                     return ret;
+                reset_loop =0;  
+                             
+            }
+                                     
+            return cw_capacity;
+        }else {
+        	reset_loop =0;
+        }
 
         ktime_get_ts(&ts);
         new_run_time = ts.tv_sec;
 
         get_monotonic_boottime(&ts);
         new_sleep_time = ts.tv_sec - new_run_time;
+
+        if (((cw_bat->charger_mode > 0) && (cw_capacity <= (cw_bat->capacity - 1)) && (cw_capacity > (cw_bat->capacity - 9)))
+                        || ((cw_bat->charger_mode == 0) && (cw_capacity == (cw_bat->capacity + 1)))) {             // modify battery level swing
+
+                if (!(cw_capacity == 0 && cw_bat->capacity <= 2)) {			
+		                    cw_capacity = cw_bat->capacity;
+		            }
+				}        
 
         if ((cw_bat->charger_mode > 0) && (cw_capacity >= 95) && (cw_capacity <= cw_bat->capacity)) {     // avoid no charge full
 
@@ -380,26 +483,9 @@ static int cw_get_capacity(struct cw_battery *cw_bat)
                         cw_capacity = cw_bat->capacity; 
                 }
 
-        } else if (((cw_bat->charger_mode > 0) && (cw_capacity == (cw_bat->capacity - 1)))
-                        || ((cw_bat->charger_mode == 0) && (cw_capacity == (cw_bat->capacity + 1)))) {             // modify battery level swing
-
-                if (!(cw_capacity == 0 && cw_bat->capacity == 1)) {			
-		        cw_capacity = cw_bat->capacity;
-		}
-				
-
-        } else if ((cw_capacity == 0) && (cw_bat->capacity > 1)) {              // avoid battery level jump to 0% at a moment from more than 2%
-                allow_change = ((new_run_time - cw_bat->run_time_capacity_change) / BATTERY_DOWN_MIN_CHANGE_RUN);
-                allow_change += ((new_sleep_time - cw_bat->sleep_time_capacity_change) / BATTERY_DOWN_MIN_CHANGE_SLEEP);
-
-                allow_capacity = cw_bat->capacity - allow_change;
-                cw_capacity = (allow_capacity >= cw_capacity) ? allow_capacity: cw_capacity;
-                reg_val[0] = MODE_NORMAL;
-                ret = cw_write(cw_bat->client, REG_MODE, reg_val);
-                if (ret < 0)
-                        return ret;
-
-        } else if ((cw_bat->charger_mode == 0) && (cw_capacity <= cw_bat->capacity ) && (cw_capacity >= 90) && (jump_flag == 1)) {     // avoid battery level jump to CW_BAT
+        }
+       
+        else if ((cw_bat->charger_mode == 0) && (cw_capacity <= cw_bat->capacity ) && (cw_capacity >= 90) && (jump_flag == 1)) {     // avoid battery level jump to CW_BAT
                 capacity_or_aconline_time = (cw_bat->sleep_time_capacity_change > cw_bat->sleep_time_charge_start) ? cw_bat->sleep_time_capacity_change : cw_bat->sleep_time_charge_start;
                 capacity_or_aconline_time += (cw_bat->run_time_capacity_change > cw_bat->run_time_charge_start) ? cw_bat->run_time_capacity_change : cw_bat->run_time_charge_start;
                 allow_change = (new_sleep_time + new_run_time - capacity_or_aconline_time) / BATTERY_DOWN_CHANGE;
@@ -415,13 +501,50 @@ static int cw_get_capacity(struct cw_battery *cw_bat)
                         cw_capacity = cw_bat->capacity;
                 }
         }
+				
+				if ((cw_capacity == 0) && (cw_bat->capacity > 1)) {              // avoid battery level jump to 0% at a moment from more than 2%
+                allow_change = ((new_run_time - cw_bat->run_time_capacity_change) / BATTERY_DOWN_MIN_CHANGE_RUN);
+                allow_change += ((new_sleep_time - cw_bat->sleep_time_capacity_change) / BATTERY_DOWN_MIN_CHANGE_SLEEP);
+
+                allow_capacity = cw_bat->capacity - allow_change;
+                cw_capacity = (allow_capacity >= cw_capacity) ? allow_capacity: cw_capacity;
+                dev_info(&cw_bat->client->dev, "report GGIC POR happened");
+                reset_val = MODE_SLEEP;               
+                ret = cw_write(cw_bat->client, REG_MODE, &reset_val);
+                if (ret < 0)
+                    return ret;
+                reset_val = MODE_NORMAL;
+                msleep(10);
+                ret = cw_write(cw_bat->client, REG_MODE, &reset_val);
+                if (ret < 0)
+                    return ret;
+                dev_info(&cw_bat->client->dev, "report battery capacity error");                              
+                ret = cw_update_config_info(cw_bat);
+                   if (ret) 
+                     return ret;  
+                dev_info(&cw_bat->client->dev, "report battery capacity jump 0 ");                                                                    
+        }
  
 #if 1	
 	if((cw_bat->charger_mode > 0) &&(cw_capacity == 0))
 	{		  
                 charge_time = new_sleep_time + new_run_time - cw_bat->sleep_time_charge_start - cw_bat->run_time_charge_start;
                 if ((charge_time > BATTERY_DOWN_MAX_CHANGE_RUN_AC_ONLINE) && (if_quickstart == 0)) {
-        		cw_quickstart(cw_bat);      // if the cw_capacity = 0 the cw2015 will qstrt
+        		      //cw_quickstart(cw_bat);		// if the cw_capacity = 0 the cw2015 will qstrt/
+        		       reset_val = MODE_SLEEP;               
+                   ret = cw_write(cw_bat->client, REG_MODE, &reset_val);
+                   if (ret < 0)
+                      return ret;
+                   reset_val = MODE_NORMAL;
+                   msleep(10);
+                   ret = cw_write(cw_bat->client, REG_MODE, &reset_val);
+                   if (ret < 0)
+                      return ret;
+                   dev_info(&cw_bat->client->dev, "report battery capacity error");                              
+                   ret = cw_update_config_info(cw_bat);
+                   if (ret) 
+                      return ret;
+        		      dev_info(&cw_bat->client->dev, "report battery capacity still 0 if in changing");
                         if_quickstart = 1;
                 }
 	} else if ((if_quickstart == 1)&&(cw_bat->charger_mode == 0)) {
@@ -431,8 +554,8 @@ static int cw_get_capacity(struct cw_battery *cw_bat)
 #endif
 
 #if 0
-        if (cw_bat->plat_data->chg_ok_pin != INVALID_GPIO) {
-                if(gpio_get_value(cw_bat->plat_data->chg_ok_pin) != cw_bat->plat_data->chg_ok_level) {
+        if (gpio_is_valid(cw_bat->plat_data.chg_ok_pin)) {
+                if(gpio_get_value(cw_bat->plat_data.chg_ok_pin) != cw_bat->plat_data.chg_ok_level) {
                         if (cw_capacity == 100) {
                                 cw_capacity = 99;
                         }
@@ -504,9 +627,9 @@ static int cw_get_vol(struct cw_battery *cw_bat)
 			value16_1 =value16_3;
         }			
 
-        voltage = value16_1 * 312 / 1024;
-        voltage = voltage * 1000;
+        voltage = value16_1 * 305;
 
+        dev_dbg(&cw_bat->client->dev, "the cw201x voltage=%d,reg_val=%x %x\n",voltage,reg_val[0],reg_val[1]);
         return voltage;
 }
 
@@ -622,18 +745,13 @@ static int rk_ac_update_online(struct cw_battery *cw_bat)
 {
         int ret = 0;
 
-        if(cw_bat->plat_data->dc_det_pin == INVALID_GPIO) {
+        if(!gpio_is_valid(cw_bat->plat_data.dc_det_pin)) {
                 cw_bat->dc_online = 0;
+		printk("%s cw2015 dc charger but without dc_det_pin,maybe error\n",__func__);
                 return 0;
         }
-#if 0
-        if (cw_bat->plat_data->is_dc_charge == 0) {
-                cw_bat->dc_online = 0;
-                return 0;
-        }
-#endif
 
-        if (gpio_get_value(cw_bat->plat_data->dc_det_pin) == cw_bat->plat_data->dc_det_level) {
+        if (gpio_get_value(cw_bat->plat_data.dc_det_pin) == cw_bat->plat_data.dc_det_level) {
                 if (cw_bat->dc_online != 1) {
                         cw_update_time_member_charge_start(cw_bat);
                         cw_bat->dc_online = 1;
@@ -666,8 +784,7 @@ static int get_usb_charge_state(struct cw_battery *cw_bat)
         get_monotonic_boottime(&ts);
         time_from_boot = ts.tv_sec;
         
-        if (cw_bat->charger_init_mode) {
- 
+        if (cw_bat->charger_init_mode) { 
                 if (usb_status == 1 || usb_status == 2) {
                         cw_bat->charger_init_mode = 0;
                 } else if (time_from_boot < 8) {
@@ -688,12 +805,10 @@ static int get_usb_charge_state(struct cw_battery *cw_bat)
                 }
         }
 #endif
-        return usb_status;
- 
+
         dev_dbg(&cw_bat->client->dev, "%s usb_status=[%d],cw_bat->charger_mode=[%d],cw_bat->gadget_status=[%d], cw_bat->charger_init_mode = [%d]\n",__func__,usb_status,cw_bat->charger_mode,gadget_status, cw_bat->charger_init_mode);
 
-
-
+        return usb_status;
 }
 
 static int rk_usb_update_online(struct cw_battery *cw_bat)
@@ -701,21 +816,16 @@ static int rk_usb_update_online(struct cw_battery *cw_bat)
         int ret = 0;
         int usb_status = 0;
       
-        if (cw_bat->plat_data->is_usb_charge == 0) {
-                cw_bat->usb_online = 0;
-                return 0;
-
-        }
-        
+       
         usb_status = get_usb_charge_state(cw_bat);        
         if (usb_status == 2) {
                 if (cw_bat->charger_mode != AC_CHARGER_MODE) {
                         cw_bat->charger_mode = AC_CHARGER_MODE;
                         ret = 1;
                 }
-                if (cw_bat->plat_data->chg_mode_sel_pin != INVALID_GPIO) {
-                        if (gpio_get_value (cw_bat->plat_data->chg_mode_sel_pin) != cw_bat->plat_data->chg_mode_sel_level)
-                                gpio_direction_output(cw_bat->plat_data->chg_mode_sel_pin, (cw_bat->plat_data->chg_mode_sel_level==GPIO_HIGH) ? GPIO_HIGH : GPIO_LOW);
+                if (gpio_is_valid(cw_bat->plat_data.chg_mode_sel_pin)) {
+                        if (gpio_get_value (cw_bat->plat_data.chg_mode_sel_pin) != cw_bat->plat_data.chg_mode_sel_level)
+                                gpio_direction_output(cw_bat->plat_data.chg_mode_sel_pin, (cw_bat->plat_data.chg_mode_sel_level==CW2015_GPIO_LOW) ? CW2015_GPIO_LOW : CW2015_GPIO_HIGH);
                 }
                 
                 if (cw_bat->usb_online != 1) {
@@ -729,9 +839,9 @@ static int rk_usb_update_online(struct cw_battery *cw_bat)
                         ret = 1;
                 }
                 
-                if (cw_bat->plat_data->chg_mode_sel_pin != INVALID_GPIO) {
-                        if (gpio_get_value (cw_bat->plat_data->chg_mode_sel_pin) == cw_bat->plat_data->chg_mode_sel_level)
-                                gpio_direction_output(cw_bat->plat_data->chg_mode_sel_pin, (cw_bat->plat_data->chg_mode_sel_level==GPIO_HIGH) ? GPIO_LOW : GPIO_HIGH);
+                if (gpio_is_valid(cw_bat->plat_data.chg_mode_sel_pin)) {
+                        if (gpio_get_value (cw_bat->plat_data.chg_mode_sel_pin) == cw_bat->plat_data.chg_mode_sel_level)
+                                gpio_direction_output(cw_bat->plat_data.chg_mode_sel_pin, (cw_bat->plat_data.chg_mode_sel_level==CW2015_GPIO_LOW) ? CW2015_GPIO_HIGH : CW2015_GPIO_LOW);
                 }
                 if (cw_bat->usb_online != 1){
                         cw_bat->usb_online = 1;
@@ -740,9 +850,9 @@ static int rk_usb_update_online(struct cw_battery *cw_bat)
 
         } else if (usb_status == 0 && cw_bat->usb_online != 0) {
 
-                if (cw_bat->plat_data->chg_mode_sel_pin != INVALID_GPIO) {
-                        if (gpio_get_value (cw_bat->plat_data->chg_mode_sel_pin == cw_bat->plat_data->chg_mode_sel_level))
-                                gpio_direction_output(cw_bat->plat_data->chg_mode_sel_pin, (cw_bat->plat_data->chg_mode_sel_level==GPIO_HIGH) ? GPIO_LOW : GPIO_HIGH);
+                if (gpio_is_valid(cw_bat->plat_data.chg_mode_sel_pin)) {
+                        if (gpio_get_value (cw_bat->plat_data.chg_mode_sel_pin == cw_bat->plat_data.chg_mode_sel_level))
+                                gpio_direction_output(cw_bat->plat_data.chg_mode_sel_pin, (cw_bat->plat_data.chg_mode_sel_level==CW2015_GPIO_LOW) ? CW2015_GPIO_HIGH : CW2015_GPIO_LOW);
                 }
 
                 if (cw_bat->dc_online == 0)
@@ -765,13 +875,14 @@ static void cw_bat_work(struct work_struct *work)
         delay_work = container_of(work, struct delayed_work, work);
         cw_bat = container_of(delay_work, struct cw_battery, battery_delay_work);
 
+        if (cw_bat->plat_data.is_dc_charge == 1) {
+  	      ret = rk_ac_update_online(cw_bat);
+  	      if (ret == 1) {
+  	              power_supply_changed(&cw_bat->rk_ac);
+  	      }
+	}
 
-        ret = rk_ac_update_online(cw_bat);
-        if (ret == 1) {
-                power_supply_changed(&cw_bat->rk_ac);
-        }
-
-        if (cw_bat->plat_data->is_usb_charge == 1) {
+        if (cw_bat->plat_data.is_usb_charge == 1) {
                 ret = rk_usb_update_online(cw_bat);
                 if (ret == 1) {
                         power_supply_changed(&cw_bat->rk_usb);     
@@ -792,8 +903,11 @@ static void cw_bat_work(struct work_struct *work)
 
         queue_delayed_work(cw_bat->battery_workqueue, &cw_bat->battery_delay_work, msecs_to_jiffies(1000));
 
-        dev_dbg(&cw_bat->client->dev, "cw_bat->bat_change = %d, cw_bat->time_to_empty = %d, cw_bat->capacity = %d, cw_bat->voltage = %d, cw_bat->dc_online = %d, cw_bat->usb_online = %d\n",\
-                        cw_bat->bat_change, cw_bat->time_to_empty, cw_bat->capacity, cw_bat->voltage, cw_bat->dc_online, cw_bat->usb_online);
+        dev_dbg(&cw_bat->client->dev, "cw_bat->bat_change = %d, cw_bat->time_to_empty = %d, cw_bat->capacity = %d\n",\
+                        cw_bat->bat_change, cw_bat->time_to_empty, cw_bat->capacity);
+
+        dev_dbg(&cw_bat->client->dev, "cw_bat->voltage = %d, cw_bat->dc_online = %d, cw_bat->usb_online = %d\n",\
+                        cw_bat->voltage, cw_bat->dc_online, cw_bat->usb_online);
 }
 
 static int rk_usb_get_property (struct power_supply *psy,
@@ -898,75 +1012,73 @@ static int cw_bat_gpio_init(struct cw_battery *cw_bat)
 {
 
         int ret;
-        gpio_free(cw_bat->plat_data->dc_det_pin);
-        if (cw_bat->plat_data->dc_det_pin != INVALID_GPIO) {
-                ret = gpio_request(cw_bat->plat_data->dc_det_pin, NULL);
+
+        if (gpio_is_valid(cw_bat->plat_data.dc_det_pin)) {
+                ret = gpio_request(cw_bat->plat_data.dc_det_pin, NULL);
                 if (ret) {
                         dev_err(&cw_bat->client->dev, "failed to request dc_det_pin gpio\n");
                         goto request_dc_det_pin_fail;
                 }
-
-                gpio_pull_updown(cw_bat->plat_data->dc_det_pin, GPIOPullUp);
-                ret = gpio_direction_input(cw_bat->plat_data->dc_det_pin);
+                ret = gpio_direction_input(cw_bat->plat_data.dc_det_pin);
                 if (ret) {
                         dev_err(&cw_bat->client->dev, "failed to set dc_det_pin input\n");
                         goto request_bat_low_pin_fail;
                 }
         }
-        if (cw_bat->plat_data->bat_low_pin != INVALID_GPIO) {
-                ret = gpio_request(cw_bat->plat_data->bat_low_pin, NULL);
+        if (gpio_is_valid(cw_bat->plat_data.bat_low_pin)) {
+                ret = gpio_request(cw_bat->plat_data.bat_low_pin, NULL);
                 if (ret) {
                         dev_err(&cw_bat->client->dev, "failed to request bat_low_pin gpio\n");
                         goto request_bat_low_pin_fail;
                 }
 
-                gpio_pull_updown(cw_bat->plat_data->bat_low_pin, GPIOPullUp);
-                ret = gpio_direction_input(cw_bat->plat_data->bat_low_pin);
+                ret = gpio_direction_input(cw_bat->plat_data.bat_low_pin);
                 if (ret) {
                         dev_err(&cw_bat->client->dev, "failed to set bat_low_pin input\n");
-                        goto request_chg_ok_pin_fail;
+                        goto request_bat_low_pin_fail;
                 }
         }
-        if (cw_bat->plat_data->chg_ok_pin != INVALID_GPIO) {
-                ret = gpio_request(cw_bat->plat_data->chg_ok_pin, NULL);
+        if (gpio_is_valid(cw_bat->plat_data.chg_ok_pin)) {
+                ret = gpio_request(cw_bat->plat_data.chg_ok_pin, NULL);
                 if (ret) {
                         dev_err(&cw_bat->client->dev, "failed to request chg_ok_pin gpio\n");
                         goto request_chg_ok_pin_fail;
                 }
 
-                gpio_pull_updown(cw_bat->plat_data->chg_ok_pin, GPIOPullUp);
-                ret = gpio_direction_input(cw_bat->plat_data->chg_ok_pin);
+                ret = gpio_direction_input(cw_bat->plat_data.chg_ok_pin);
                 if (ret) {
                         dev_err(&cw_bat->client->dev, "failed to set chg_ok_pin input\n");
-                        gpio_free(cw_bat->plat_data->chg_ok_pin); 
+                        gpio_free(cw_bat->plat_data.chg_ok_pin); 
                         goto request_chg_ok_pin_fail;
                 }
         }
 
-        if ((cw_bat->plat_data->is_usb_charge == 1) && (cw_bat->plat_data->chg_mode_sel_pin!= INVALID_GPIO)) {
-                ret = gpio_request(cw_bat->plat_data->chg_mode_sel_pin, NULL);
+        if ((gpio_is_valid(cw_bat->plat_data.chg_mode_sel_pin))) {
+                ret = gpio_request(cw_bat->plat_data.chg_mode_sel_pin, NULL);
                 if (ret) {
                         dev_err(&cw_bat->client->dev, "failed to request chg_mode_sel_pin gpio\n");
-                        goto request_chg_ok_pin_fail;
+                        goto request_chg_mode_sel_pin_fail;
                 }
-                ret = gpio_direction_output(cw_bat->plat_data->chg_mode_sel_pin, (cw_bat->plat_data->chg_mode_sel_level==GPIO_HIGH) ? GPIO_LOW : GPIO_HIGH);
+                ret = gpio_direction_output(cw_bat->plat_data.chg_mode_sel_pin, (cw_bat->plat_data.chg_mode_sel_level==CW2015_GPIO_LOW) ? CW2015_GPIO_HIGH : CW2015_GPIO_LOW);
                 if (ret) {
-                        dev_err(&cw_bat->client->dev, "failed to set chg_mode_sel_pin input\n");
-                        gpio_free(cw_bat->plat_data->chg_mode_sel_pin); 
-                        goto request_chg_ok_pin_fail;
+                        dev_err(&cw_bat->client->dev, "failed to set chg_mode_sel_pin output\n");
+                        gpio_free(cw_bat->plat_data.chg_mode_sel_pin); 
+                        goto request_chg_mode_sel_pin_fail;
                 }
         }
  
         return 0;
 
+request_chg_mode_sel_pin_fail:
+                  gpio_free(cw_bat->plat_data.chg_mode_sel_pin);
         
 request_chg_ok_pin_fail:
-        if (cw_bat->plat_data->bat_low_pin != INVALID_GPIO)
-                gpio_free(cw_bat->plat_data->bat_low_pin);
+        if (gpio_is_valid(cw_bat->plat_data.bat_low_pin))
+                gpio_free(cw_bat->plat_data.bat_low_pin);
 
 request_bat_low_pin_fail:
-        if (cw_bat->plat_data->dc_det_pin != INVALID_GPIO) 
-                gpio_free(cw_bat->plat_data->dc_det_pin);
+        if (gpio_is_valid(cw_bat->plat_data.dc_det_pin)) 
+                gpio_free(cw_bat->plat_data.dc_det_pin);
 
 request_dc_det_pin_fail:
         return ret;
@@ -986,7 +1098,7 @@ static void dc_detect_do_wakeup(struct work_struct *work)
         delay_work = container_of(work, struct delayed_work, work);
         cw_bat = container_of(delay_work, struct cw_battery, dc_wakeup_work);
 
-        rk28_send_wakeup_key();
+        rk_send_wakeup_key();
 
         /* this assume if usb insert or extract dc_det pin is change */
 #if 0
@@ -994,8 +1106,8 @@ static void dc_detect_do_wakeup(struct work_struct *work)
                 cw_bat->charger_init_mode=0;
 #endif
 
-        irq = gpio_to_irq(cw_bat->plat_data->dc_det_pin);
-        type = gpio_get_value(cw_bat->plat_data->dc_det_pin) ? IRQ_TYPE_EDGE_FALLING : IRQ_TYPE_EDGE_RISING;
+        irq = gpio_to_irq(cw_bat->plat_data.dc_det_pin);
+        type = gpio_get_value(cw_bat->plat_data.dc_det_pin) ? IRQ_TYPE_EDGE_FALLING : IRQ_TYPE_EDGE_RISING;
         ret = irq_set_irq_type(irq, type);
         if (ret < 0) {
                 pr_err("%s: irq_set_irq_type(%d, %d) failed\n", __func__, irq, type);
@@ -1014,7 +1126,6 @@ static irqreturn_t dc_detect_irq_handler(int irq, void *dev_id)
 #ifdef BAT_LOW_INTERRUPT
 
 #define WAKE_LOCK_TIMEOUT       (10 * HZ)
-static struct wake_lock bat_low_wakelock;
 
 static void bat_low_detect_do_wakeup(struct work_struct *work)
 {
@@ -1032,36 +1143,145 @@ static irqreturn_t bat_low_detect_irq_handler(int irq, void *dev_id)
 {
         struct cw_battery *cw_bat = dev_id;
         // disable_irq_nosync(irq); // for irq debounce
-        wake_lock_timeout(&bat_low_wakelock, WAKE_LOCK_TIMEOUT);
         queue_delayed_work(cw_bat->battery_workqueue, &cw_bat->bat_low_wakeup_work, msecs_to_jiffies(20));
         return IRQ_HANDLED;
+}
+#endif
+
+#ifdef CONFIG_OF
+static int cw2015_parse_dt(struct device *dev,
+				  struct cw_bat_platform_data *data)
+{
+	struct device_node *node = dev->of_node;
+	enum of_gpio_flags flags;
+	struct property *prop;
+	int length;
+	u32 value;
+	int ret;
+
+	if (!node)
+		return -ENODEV;
+
+	memset(data, 0, sizeof(*data));
+
+	/* determine the number of config info */
+	prop = of_find_property(node, "bat_config_info", &length);
+	if (!prop)
+		return -EINVAL;
+
+	length /= sizeof(u32);
+
+	if (length > 0) {
+		size_t size = sizeof(*data->cw_bat_config_info) * length;
+		data->cw_bat_config_info = devm_kzalloc(dev, size, GFP_KERNEL);
+		if (!data->cw_bat_config_info)
+			return -ENOMEM;
+
+		ret = of_property_read_u32_array(node, "bat_config_info",
+					 data->cw_bat_config_info,
+					 length);
+		if (ret < 0)
+			return ret;
+	}
+
+	data->dc_det_pin = of_get_named_gpio_flags(node, "dc_det_gpio", 0,
+						    &flags);
+	if (data->dc_det_pin == -EPROBE_DEFER)
+		printk("%s  dc_det_gpio error\n",__func__);
+
+	if (gpio_is_valid(data->dc_det_pin))
+		data->dc_det_level = (flags & OF_GPIO_ACTIVE_LOW)? CW2015_GPIO_LOW:CW2015_GPIO_HIGH;
+
+
+	data->bat_low_pin = of_get_named_gpio_flags(node, "bat_low_gpio", 0,
+						    &flags);
+	if (data->bat_low_pin == -EPROBE_DEFER)
+		printk("%s  bat_low_gpio error\n",__func__);
+
+	if (gpio_is_valid(data->bat_low_pin))
+		data->bat_low_level = (flags & OF_GPIO_ACTIVE_LOW)? CW2015_GPIO_LOW:CW2015_GPIO_HIGH;
+
+
+	data->chg_ok_pin = of_get_named_gpio_flags(node, "chg_ok_gpio", 0,
+						    &flags);
+	if (data->chg_ok_pin == -EPROBE_DEFER)
+		printk("%s  chg_ok_gpio error\n",__func__);
+
+	if (gpio_is_valid(data->chg_ok_pin))
+		data->chg_ok_level = (flags & OF_GPIO_ACTIVE_LOW)? CW2015_GPIO_LOW:CW2015_GPIO_HIGH;
+
+	data->chg_mode_sel_pin = of_get_named_gpio_flags(node, "chg_mode_sel_gpio", 0,
+						    &flags);
+	if (data->chg_mode_sel_pin == -EPROBE_DEFER)
+		printk("%s  chg_mod_sel_gpio error\n",__func__);
+
+	if (gpio_is_valid(data->chg_mode_sel_pin))
+		data->chg_mode_sel_level = (flags & OF_GPIO_ACTIVE_LOW)? CW2015_GPIO_LOW:CW2015_GPIO_HIGH;
+
+
+	ret = of_property_read_u32(node, "is_dc_charge",
+					  &value);
+	if (ret < 0)
+	{
+		printk("%s:hardware unsupport dc charge\n",__func__);
+		value = 0;
+	}
+	data->is_dc_charge = value;
+
+	ret = of_property_read_u32(node, "is_usb_charge",
+					  &value);
+	if (ret < 0)
+	{
+		printk("%s:hardware unsupport usb charge\n",__func__);
+		value = 0;
+	}
+	data->is_usb_charge = value;
+
+	printk("cw201x:support %s %s charger\n",
+		data->is_dc_charge ? "DC" : "", data->is_usb_charge ? "USB" : "");
+
+	return 0;
+}
+#else
+static int cw2015_parse_dt(struct device *dev,
+				  struct cw_bat_platform_data *data)
+{
+	return -ENODEV;
 }
 #endif
 
 static int cw_bat_probe(struct i2c_client *client, const struct i2c_device_id *id)
 {
         struct cw_battery *cw_bat;
+	struct cw_bat_platform_data *plat_data = client->dev.platform_data;
         int ret;
         int irq;
         int irq_flags;
+	int level = 0;
         int loop = 0;
 
         cw_bat = devm_kzalloc(&client->dev, sizeof(*cw_bat), GFP_KERNEL);
         if (!cw_bat) {
-                dev_err(&cw_bat->client->dev, "fail to allocate memory\n");
+                dev_err(&cw_bat->client->dev, "fail to allocate memory for cw2015\n");
                 return -ENOMEM;
         }
-
         i2c_set_clientdata(client, cw_bat);
-        cw_bat->plat_data = client->dev.platform_data;
+
+	if (!plat_data) {
+		ret = cw2015_parse_dt(&client->dev, &(cw_bat->plat_data));
+		if (ret < 0) {
+			dev_err(&client->dev, "failed to find cw2015 platform data\n");
+			goto pdate_fail;
+		}
+	}
+
+        cw_bat->client = client;
         ret = cw_bat_gpio_init(cw_bat);
         if (ret) {
                 dev_err(&cw_bat->client->dev, "cw_bat_gpio_init error\n");
                 return ret;
         }
-        
-        cw_bat->client = client;
-
+       
         ret = cw_init(cw_bat);
         while ((loop++ < 200) && (ret != 0)) {
                 ret = cw_init(cw_bat);
@@ -1081,29 +1301,31 @@ static int cw_bat_probe(struct i2c_client *client, const struct i2c_device_id *i
                 goto rk_bat_register_fail;
         }
 
-        cw_bat->rk_ac.name = "rk-ac";
-        cw_bat->rk_ac.type = POWER_SUPPLY_TYPE_MAINS;
-        cw_bat->rk_ac.properties = rk_ac_properties;
-        cw_bat->rk_ac.num_properties = ARRAY_SIZE(rk_ac_properties);
-        cw_bat->rk_ac.get_property = rk_ac_get_property;
-        ret = power_supply_register(&client->dev, &cw_bat->rk_ac);
-        if(ret < 0) {
-                dev_err(&cw_bat->client->dev, "power supply register rk_ac error\n");
-                goto rk_ac_register_fail;
-        }
+	cw_bat->rk_ac.name = "rk-ac";
+	cw_bat->rk_ac.type = POWER_SUPPLY_TYPE_MAINS;
+	cw_bat->rk_ac.properties = rk_ac_properties;
+	cw_bat->rk_ac.num_properties = ARRAY_SIZE(rk_ac_properties);
+	cw_bat->rk_ac.get_property = rk_ac_get_property;
+	ret = power_supply_register(&client->dev, &cw_bat->rk_ac);
+	if(ret < 0) {
+	        dev_err(&cw_bat->client->dev, "power supply register rk_ac error\n");
+	        goto rk_ac_register_fail;
+     	   }	
 
-        cw_bat->rk_usb.name = "rk-usb";
-        cw_bat->rk_usb.type = POWER_SUPPLY_TYPE_USB;
-        cw_bat->rk_usb.properties = rk_usb_properties;
-        cw_bat->rk_usb.num_properties = ARRAY_SIZE(rk_usb_properties);
-        cw_bat->rk_usb.get_property = rk_usb_get_property;
-        ret = power_supply_register(&client->dev, &cw_bat->rk_usb);
-        if(ret < 0) {
-                dev_err(&cw_bat->client->dev, "power supply register rk_ac error\n");
-                goto rk_usb_register_fail;
-        }
-
-        cw_bat->charger_init_mode = dwc_otg_check_dpdm();
+        if (cw_bat->plat_data.is_usb_charge == 1) {
+		cw_bat->rk_usb.name = "rk-usb";
+		cw_bat->rk_usb.type = POWER_SUPPLY_TYPE_USB;
+		cw_bat->rk_usb.properties = rk_usb_properties;
+		cw_bat->rk_usb.num_properties = ARRAY_SIZE(rk_usb_properties);
+		cw_bat->rk_usb.get_property = rk_usb_get_property;
+		ret = power_supply_register(&client->dev, &cw_bat->rk_usb);
+		if(ret < 0) {
+		        dev_err(&cw_bat->client->dev, "power supply register rk_usb error\n");
+		        goto rk_usb_register_fail;
+		}
+	        cw_bat->charger_init_mode = dwc_otg_check_dpdm();
+		printk("%s cw2015 support charger by usb. usb_mode=%d\n",__func__,cw_bat->charger_init_mode);
+	}
 
         cw_bat->dc_online = 0;
         cw_bat->usb_online = 0;
@@ -1122,37 +1344,49 @@ static int cw_bat_probe(struct i2c_client *client, const struct i2c_device_id *i
         INIT_DELAYED_WORK(&cw_bat->dc_wakeup_work, dc_detect_do_wakeup);
         queue_delayed_work(cw_bat->battery_workqueue, &cw_bat->battery_delay_work, msecs_to_jiffies(10));
         
-        if (cw_bat->plat_data->dc_det_pin != INVALID_GPIO) {
-                irq = gpio_to_irq(cw_bat->plat_data->dc_det_pin);
-                irq_flags = gpio_get_value(cw_bat->plat_data->dc_det_pin) ? IRQF_TRIGGER_FALLING : IRQF_TRIGGER_RISING;
-                ret = request_irq(irq, dc_detect_irq_handler, irq_flags, "usb_detect", cw_bat);
+        if (gpio_is_valid(cw_bat->plat_data.dc_det_pin)) {
+                irq = gpio_to_irq(cw_bat->plat_data.dc_det_pin);
+		level = gpio_get_value(cw_bat->plat_data.dc_det_pin);
+		if (level == cw_bat->plat_data.dc_det_level)
+		{
+			printk("%s booting up with dc plug\n",__func__);
+			cw_bat->status = POWER_SUPPLY_STATUS_CHARGING;
+		}
+                irq_flags = level ? IRQF_TRIGGER_FALLING : IRQF_TRIGGER_RISING;
+                ret = request_irq(irq, dc_detect_irq_handler, irq_flags, "dc_detect", cw_bat);
                 if (ret < 0) {
                         pr_err("%s: request_irq(%d) failed\n", __func__, irq);
                 }
                 enable_irq_wake(irq);
         }
 
-#ifdef BAT_LOW_INTERRUPT
-        INIT_DELAYED_WORK(&cw_bat->bat_low_wakeup_work, bat_low_detect_do_wakeup);
-        wake_lock_init(&bat_low_wakelock, WAKE_LOCK_SUSPEND, "bat_low_detect");
-        if (cw_bat->plat_data->bat_low_pin != INVALID_GPIO) {
-                irq = gpio_to_irq(cw_bat->plat_data->bat_low_pin);
+
+	if (gpio_is_valid(cw_bat->plat_data.bat_low_pin)) {
+        	INIT_DELAYED_WORK(&cw_bat->bat_low_wakeup_work, bat_low_detect_do_wakeup);
+        	level = gpio_get_value(cw_bat->plat_data.bat_low_pin);
+		if (level == cw_bat->plat_data.dc_det_level)
+		{
+			printk("%s booting up with lower power\n",__func__);
+			cw_bat->capacity = 1;
+		}
+                irq = gpio_to_irq(cw_bat->plat_data.bat_low_pin);
                 ret = request_irq(irq, bat_low_detect_irq_handler, IRQF_TRIGGER_RISING, "bat_low_detect", cw_bat);
                 if (ret < 0) {
-                        gpio_free(cw_bat->plat_data->bat_low_pin);
+                        gpio_free(cw_bat->plat_data.bat_low_pin);
                 }
                 enable_irq_wake(irq);
         }
-#endif
 
         dev_info(&cw_bat->client->dev, "cw2015/cw2013 driver v1.2 probe sucess\n");
         return 0;
 
 rk_usb_register_fail:
-        power_supply_unregister(&cw_bat->rk_bat);
+        power_supply_unregister(&cw_bat->rk_usb);
 rk_ac_register_fail:
         power_supply_unregister(&cw_bat->rk_ac);
 rk_bat_register_fail:
+        power_supply_unregister(&cw_bat->rk_bat);
+pdate_fail:
         dev_info(&cw_bat->client->dev, "cw2015/cw2013 driver v1.2 probe error!!!!\n");
         return ret;
 }
@@ -1186,6 +1420,7 @@ static int cw_bat_resume(struct device *dev)
 
 static const struct i2c_device_id cw_id[] = {
 	{ "cw201x", 0 },
+	{  }
 };
 MODULE_DEVICE_TABLE(i2c, cw_id);
 
@@ -1221,7 +1456,9 @@ static void __exit cw_bat_exit(void)
 fs_initcall(cw_bat_init);
 module_exit(cw_bat_exit);
 
+
 MODULE_AUTHOR("xhc<xhc@rock-chips.com>");
 MODULE_DESCRIPTION("cw2015/cw2013 battery driver");
 MODULE_LICENSE("GPL");
+
 

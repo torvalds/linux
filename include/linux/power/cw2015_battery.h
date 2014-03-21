@@ -17,6 +17,7 @@
 
 #define SIZE_BATINFO    64 
 
+extern void rk_send_wakeup_key(void);
 struct cw_bat_platform_data {
 
         int is_dc_charge;
@@ -31,7 +32,7 @@ struct cw_bat_platform_data {
         int bat_low_level;
         int chg_ok_pin;
         int chg_ok_level;
-        u8* cw_bat_config_info;
+        u32* cw_bat_config_info;
 };
 
 #endif

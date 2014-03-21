@@ -360,6 +360,11 @@ config CHARGER_TPS65090
 	 Say Y here to enable support for battery charging with TPS65090
 	 PMIC chips.
 
+config CW2015_BATTERY
+	tristate "CW2015 battery driver"
+	help
+	  Say Y to enable support for the cw2015 on the Rockchip
+
 config AB8500_BM
 	bool "AB8500 Battery Management Driver"
 	depends on AB8500_CORE && AB8500_GPADC
@@ -372,6 +377,9 @@ config BATTERY_GOLDFISH
 	help
 	  Say Y to enable support for the battery and AC power in the
 	  Goldfish emulator.
+
+config CHARGER_DISPLAY
+	bool "Support charger display"
 
 source "drivers/power/reset/Kconfig"
 
