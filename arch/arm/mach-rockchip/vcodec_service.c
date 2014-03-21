@@ -55,6 +55,7 @@
 
 #define HEVC_TEST_ENABLE    0
 #define HEVC_SIM_ENABLE		0
+#define VCODEC_CLOCK_ENABLE 1
 
 typedef enum {
 	VPU_DEC_ID_9190		= 0x6731,
@@ -304,6 +305,7 @@ static const struct file_operations debug_vcodec_fops = {
 
 static void vpu_get_clk(struct vpu_service_info *pservice)
 {
+#if VCODEC_CLOCK_ENABLE
 	/*pd_video	= clk_get(NULL, "pd_video");
 	if (IS_ERR(pd_video)) {
 		pr_err("failed on clk_get pd_video\n");
@@ -330,10 +332,12 @@ static void vpu_get_clk(struct vpu_service_info *pservice)
 			dev_err(pservice->dev, "failed on clk_get clk_cabac\n");
 		}
 	}
+#endif
 }
 
 static void vpu_put_clk(struct vpu_service_info *pservice)
 {
+#if VCODEC_CLOCK_ENABLE
     //clk_put(pd_video);
 
     if (pservice->aclk_vcodec) {
@@ -344,7 +348,7 @@ static void vpu_put_clk(struct vpu_service_info *pservice)
         devm_clk_put(pservice->dev, pservice->hclk_vcodec);
     }
 
-    if (pservice->hw_info->hw_id == HEVC_ID) {
+    if (pservice->dev_id == VCODEC_DEVICE_ID_HEVC) {
         if (pservice->clk_core) {
             devm_clk_put(pservice->dev, pservice->clk_core);
         }
@@ -353,6 +357,7 @@ static void vpu_put_clk(struct vpu_service_info *pservice)
             devm_clk_put(pservice->dev, pservice->clk_cabac);
         }
     }
+#endif
 }
 
 static void vpu_reset(struct vpu_service_info *pservice)
@@ -447,17 +452,17 @@ static void vpu_service_power_off(struct vpu_service_info *pservice)
 		vpu_service_dump(pservice);
 	}
 
-	printk("vpu: power off...");
+	printk("%s: power off...", dev_name(pservice->dev));
 #ifdef CONFIG_ARCH_RK29
 	pmu_set_power_domain(PD_VCODEC, false);
 #else
 	//clk_disable(pd_video);
 #endif
 	udelay(10);
-#if 0
+#if VCODEC_CLOCK_ENABLE
 	clk_disable_unprepare(pservice->hclk_vcodec);
 	clk_disable_unprepare(pservice->aclk_vcodec);
-    if (pservice->hw_info->hw_id == HEVC_ID) {
+    if (pservice->dev_id == VCODEC_DEVICE_ID_HEVC) {
         clk_disable_unprepare(pservice->clk_core);
         clk_disable_unprepare(pservice->clk_cabac);
     }
@@ -498,12 +503,13 @@ static void vpu_service_power_on(struct vpu_service_info *pservice)
 		return ;
 
 	pservice->enabled = true;
-	printk("vpu: power on\n");
+	printk("%s: power on\n", dev_name(pservice->dev));
 
-#if 0
+#if VCODEC_CLOCK_ENABLE
     clk_prepare_enable(pservice->aclk_vcodec);
 	clk_prepare_enable(pservice->hclk_vcodec);
-    if (pservice->hw_info->hw_id == HEVC_ID) {
+
+    if (pservice->dev_id == VCODEC_DEVICE_ID_HEVC) {
         clk_prepare_enable(pservice->clk_core);
         clk_prepare_enable(pservice->clk_cabac);
     }
@@ -1674,8 +1680,7 @@ static irqreturn_t vdpu_irq(int irq, void *dev_id)
 {
     struct vpu_service_info *pservice = (struct vpu_service_info*)dev_id;
     vpu_device *dev = &pservice->dec_dev;
-	u32 irq_status = readl(dev->hwregs + DEC_INTERRUPT_REGISTER);
-    int i;
+    u32 irq_status = readl(dev->hwregs + DEC_INTERRUPT_REGISTER);
 
 	pr_debug("dec_irq\n");
 
