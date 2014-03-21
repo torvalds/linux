@@ -1665,8 +1665,6 @@ static const struct inode_operations ceph_symlink_iops = {
 	.getxattr = ceph_getxattr,
 	.listxattr = ceph_listxattr,
 	.removexattr = ceph_removexattr,
-	.get_acl = ceph_get_acl,
-	.set_acl = ceph_set_acl,
 };
 
 /*
