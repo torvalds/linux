@@ -2290,6 +2290,7 @@ nfsd4_sequence(struct svc_rqst *rqstp,
 				    nfserr_rep_too_big;
 	if (xdr_restrict_buflen(xdr, buflen - 2 * RPC_MAX_AUTH_SIZE))
 		goto out_put_session;
+	svc_reserve(rqstp, buflen);
 
 	status = nfs_ok;
 	/* Success! bump slot seqid */
