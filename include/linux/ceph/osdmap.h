@@ -88,6 +88,8 @@ struct ceph_osdmap {
 	struct rb_root pg_temp;
 	struct rb_root primary_temp;
 
+	u32 *osd_primary_affinity;
+
 	struct rb_root pg_pools;
 	u32 pool_max;
 
@@ -134,6 +136,7 @@ static inline bool ceph_osdmap_flag(struct ceph_osdmap *map, int flag)
 }
 
 extern char *ceph_osdmap_state_str(char *str, int len, int state);
+extern u32 ceph_get_primary_affinity(struct ceph_osdmap *map, int osd);
 
 static inline struct ceph_entity_addr *ceph_osd_addr(struct ceph_osdmap *map,
 						     int osd)

@@ -133,6 +133,10 @@ extern const char *ceph_osd_state_name(int s);
 #define CEPH_OSD_IN  0x10000
 #define CEPH_OSD_OUT 0
 
+/* osd primary-affinity.  fixed point value: 0x10000 == baseline */
+#define CEPH_OSD_MAX_PRIMARY_AFFINITY 0x10000
+#define CEPH_OSD_DEFAULT_PRIMARY_AFFINITY 0x10000
+
 
 /*
  * osd map flag bits

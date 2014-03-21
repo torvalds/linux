@@ -649,6 +649,7 @@ void ceph_osdmap_destroy(struct ceph_osdmap *map)
 	kfree(map->osd_state);
 	kfree(map->osd_weight);
 	kfree(map->osd_addr);
+	kfree(map->osd_primary_affinity);
 	kfree(map);
 }
 
@@ -684,6 +685,20 @@ static int osdmap_set_max_osd(struct ceph_osdmap *map, int max)
 	map->osd_state = state;
 	map->osd_weight = weight;
 	map->osd_addr = addr;
+
+	if (map->osd_primary_affinity) {
+		u32 *affinity;
+
+		affinity = krealloc(map->osd_primary_affinity,
+				    max*sizeof(*affinity), GFP_NOFS);
+		if (!affinity)
+			return -ENOMEM;
+
+		for (i = map->max_osd; i < max; i++)
+			affinity[i] = CEPH_OSD_DEFAULT_PRIMARY_AFFINITY;
+
+		map->osd_primary_affinity = affinity;
+	}
 
 	map->max_osd = max;
 
@@ -910,6 +925,38 @@ static int decode_new_primary_temp(void **p, void *end,
 				   struct ceph_osdmap *map)
 {
 	return __decode_primary_temp(p, end, map, true);
+}
+
+u32 ceph_get_primary_affinity(struct ceph_osdmap *map, int osd)
+{
+	BUG_ON(osd >= map->max_osd);
+
+	if (!map->osd_primary_affinity)
+		return CEPH_OSD_DEFAULT_PRIMARY_AFFINITY;
+
+	return map->osd_primary_affinity[osd];
+}
+
+static int set_primary_affinity(struct ceph_osdmap *map, int osd, u32 aff)
+{
+	BUG_ON(osd >= map->max_osd);
+
+	if (!map->osd_primary_affinity) {
+		int i;
+
+		map->osd_primary_affinity = kmalloc(map->max_osd*sizeof(u32),
+						    GFP_NOFS);
+		if (!map->osd_primary_affinity)
+			return -ENOMEM;
+
+		for (i = 0; i < map->max_osd; i++)
+			map->osd_primary_affinity[i] =
+			    CEPH_OSD_DEFAULT_PRIMARY_AFFINITY;
+	}
+
+	map->osd_primary_affinity[osd] = aff;
+
+	return 0;
 }
 
 /*
