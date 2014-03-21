@@ -13,7 +13,7 @@
  * GNU General Public License for more details.
  *
  */
-
+#include <linux/delay.h>
 #include <linux/interrupt.h>
 #include <linux/clk.h>
 #include <linux/uaccess.h>
@@ -147,12 +147,12 @@ static int rk3288_hdmi_drv_init(struct hdmi *hdmi_drv)
 	struct rk_screen screen;
 
 	rk_fb_get_prmry_screen(&screen);
-	hdmi_dev->lcdc_id = (screen.lcdc_id == 1) ? 0 : 1;	//hdmi is extend as default,TODO modify if hdmi is primary
+	hdmi_dev->lcdc_id = 0;	//hdmi is extend as default,TODO modify if hdmi is primary
         grf_writel(HDMI_SEL_LCDC(hdmi_dev->lcdc_id), RK3288_GRF_SOC_CON6);	//lcdc source select
-	if(hdmi_dev->lcdc_id == 0)
+	//if(hdmi_dev->lcdc_id == 0)
 		hdmi_drv->lcdc = rk_get_lcdc_drv("lcdc0");
-	else
-		hdmi_drv->lcdc = rk_get_lcdc_drv("lcdc1");
+	//else
+		//hdmi_drv->lcdc = rk_get_lcdc_drv("lcdc1");
 	if(IS_ERR(hdmi_drv->lcdc))
 	{
 		dev_err(hdmi_drv->dev, "can not connect to video source lcdc\n");
@@ -276,6 +276,9 @@ static int rk3288_hdmi_probe(struct platform_device *pdev)
 #endif
 
 	dev_info(hdmi_dev->dev, "rk3288 hdmi probe sucess.\n");
+	dev_drv->state = WAIT_HOTPLUG;
+	dev_drv->tmdsclk = 74250000;
+	queue_delayed_work(dev_drv->workqueue, &dev_drv->delay_work, msecs_to_jiffies(5));
 	return 0;
 
 err2:
