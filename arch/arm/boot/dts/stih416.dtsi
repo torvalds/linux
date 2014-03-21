@@ -212,5 +212,17 @@
 			resets		= <&softreset STIH416_IRB_SOFTRESET>;
 		};
 
+		/* FSM */
+		spifsm: spifsm@fe902000 {
+			compatible	   = "st,spi-fsm";
+			reg		   = <0xfe902000 0x1000>;
+			pinctrl-0	   = <&pinctrl_fsm>;
+
+			st,syscfg	   = <&syscfg_rear>;
+			st,boot-device-reg = <0x958>;
+			st,boot-device-spi = <0x1a>;
+
+			status = "disabled";
+		};
 	};
 };
