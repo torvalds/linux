@@ -783,7 +783,7 @@ void cfg80211_leave(struct cfg80211_registered_device *rdev,
 		break;
 	case NL80211_IFTYPE_AP:
 	case NL80211_IFTYPE_P2P_GO:
-		cfg80211_stop_ap(rdev, dev);
+		cfg80211_stop_ap(rdev, dev, true);
 		break;
 	default:
 		break;

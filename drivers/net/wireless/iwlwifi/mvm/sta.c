@@ -851,7 +851,7 @@ static int iwl_mvm_sta_tx_agg(struct iwl_mvm *mvm, struct ieee80211_sta *sta,
 	return ret;
 }
 
-static const u8 tid_to_mac80211_ac[] = {
+const u8 tid_to_mac80211_ac[] = {
 	IEEE80211_AC_BE,
 	IEEE80211_AC_BK,
 	IEEE80211_AC_BK,
@@ -902,10 +902,18 @@ int iwl_mvm_sta_tx_agg_start(struct iwl_mvm *mvm, struct ieee80211_vif *vif,
 		return -EIO;
 	}
 
+	spin_lock_bh(&mvmsta->lock);
+
+	/* possible race condition - we entered D0i3 while starting agg */
+	if (test_bit(IWL_MVM_STATUS_IN_D0I3, &mvm->status)) {
+		spin_unlock_bh(&mvmsta->lock);
+		IWL_ERR(mvm, "Entered D0i3 while starting Tx agg\n");
+		return -EIO;
+	}
+
 	/* the new tx queue is still connected to the same mac80211 queue */
 	mvm->queue_to_mac80211[txq_id] = vif->hw_queue[tid_to_mac80211_ac[tid]];
 
-	spin_lock_bh(&mvmsta->lock);
 	tid_data = &mvmsta->tid_data[tid];
 	tid_data->ssn = IEEE80211_SEQ_TO_SN(tid_data->seq_number);
 	tid_data->txq_id = txq_id;

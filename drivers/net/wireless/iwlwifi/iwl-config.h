@@ -262,6 +262,7 @@ struct iwl_cfg {
 	bool high_temp;
 	bool d0i3;
 	u8   nvm_hw_section_num;
+	bool lp_xtal_workaround;
 	const struct iwl_pwr_tx_backoff *pwr_tx_backoffs;
 };
 

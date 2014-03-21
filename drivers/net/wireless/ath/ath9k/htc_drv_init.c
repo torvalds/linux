@@ -405,8 +405,8 @@ static int ath9k_init_queues(struct ath9k_htc_priv *priv)
 	for (i = 0; i < ARRAY_SIZE(priv->hwq_map); i++)
 		priv->hwq_map[i] = -1;
 
-	priv->beaconq = ath9k_hw_beaconq_setup(priv->ah);
-	if (priv->beaconq == -1) {
+	priv->beacon.beaconq = ath9k_hw_beaconq_setup(priv->ah);
+	if (priv->beacon.beaconq == -1) {
 		ath_err(common, "Unable to setup BEACON xmit queue\n");
 		goto err;
 	}
@@ -459,8 +459,6 @@ static int ath9k_init_priv(struct ath9k_htc_priv *priv,
 	struct ath_common *common;
 	int i, ret = 0, csz = 0;
 
-	set_bit(OP_INVALID, &priv->op_flags);
-
 	ah = kzalloc(sizeof(struct ath_hw), GFP_KERNEL);
 	if (!ah)
 		return -ENOMEM;
@@ -485,6 +483,7 @@ static int ath9k_init_priv(struct ath9k_htc_priv *priv,
 	common->priv = priv;
 	common->debug_mask = ath9k_debug;
 	common->btcoex_enabled = ath9k_htc_btcoex_enable == 1;
+	set_bit(ATH_OP_INVALID, &common->op_flags);
 
 	spin_lock_init(&priv->beacon_lock);
 	spin_lock_init(&priv->tx.tx_lock);
@@ -520,7 +519,8 @@ static int ath9k_init_priv(struct ath9k_htc_priv *priv,
 		goto err_queues;
 
 	for (i = 0; i < ATH9K_HTC_MAX_BCN_VIF; i++)
-		priv->cur_beacon_conf.bslot[i] = NULL;
+		priv->beacon.bslot[i] = NULL;
+	priv->beacon.slottime = ATH9K_SLOT_TIME_9;
 
 	ath9k_cmn_init_channels_rates(common);
 	ath9k_cmn_init_crypto(ah);

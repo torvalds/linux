@@ -202,6 +202,11 @@ enum MWIFIEX_802_11_PRIVACY_FILTER {
 
 #define MWIFIEX_DEF_AMPDU	IEEE80211_HT_AMPDU_PARM_FACTOR
 
+#define GET_RXSTBC(x) (x & IEEE80211_HT_CAP_RX_STBC)
+#define MWIFIEX_RX_STBC1	0x0100
+#define MWIFIEX_RX_STBC12	0x0200
+#define MWIFIEX_RX_STBC123	0x0300
+
 /* dev_cap bitmap
  * BIT
  * 0-16		reserved
@@ -514,6 +519,8 @@ enum P2P_MODES {
 #define ACT_TDLS_DELETE            0x00
 #define ACT_TDLS_CREATE            0x01
 #define ACT_TDLS_CONFIG            0x02
+
+#define MWIFIEX_FW_V15		   15
 
 struct mwifiex_ie_types_header {
 	__le16 type;
@@ -1103,6 +1110,7 @@ struct mwifiex_rate_scope {
 	__le16 hr_dsss_rate_bitmap;
 	__le16 ofdm_rate_bitmap;
 	__le16 ht_mcs_rate_bitmap[8];
+	__le16 vht_mcs_rate_bitmap[8];
 } __packed;
 
 struct mwifiex_rate_drop_pattern {

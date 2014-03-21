@@ -68,9 +68,13 @@ static int wil_if_pcie_enable(struct wil6210_priv *wil)
 		goto stop_master;
 
 	/* need reset here to obtain MAC */
+	mutex_lock(&wil->mutex);
 	rc = wil_reset(wil);
+	mutex_unlock(&wil->mutex);
 	if (rc)
 		goto release_irq;
+
+	wil_info(wil, "HW version: 0x%08x\n", wil->hw_version);
 
 	return 0;
 
@@ -149,6 +153,7 @@ static int wil_pcie_probe(struct pci_dev *pdev, const struct pci_device_id *id)
 	pci_set_drvdata(pdev, wil);
 	wil->pdev = pdev;
 
+	wil6210_clear_irq(wil);
 	/* FW should raise IRQ when ready */
 	rc = wil_if_pcie_enable(wil);
 	if (rc) {

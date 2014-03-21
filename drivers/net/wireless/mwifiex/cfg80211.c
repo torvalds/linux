@@ -1158,9 +1158,10 @@ static int mwifiex_cfg80211_set_bitrate_mask(struct wiphy *wiphy,
 	struct mwifiex_private *priv = mwifiex_netdev_get_priv(dev);
 	u16 bitmap_rates[MAX_BITMAP_RATES_SIZE];
 	enum ieee80211_band band;
+	struct mwifiex_adapter *adapter = priv->adapter;
 
 	if (!priv->media_connected) {
-		dev_err(priv->adapter->dev,
+		dev_err(adapter->dev,
 			"Can not set Tx data rate in disconnected state\n");
 		return -EINVAL;
 	}
@@ -1181,8 +1182,15 @@ static int mwifiex_cfg80211_set_bitrate_mask(struct wiphy *wiphy,
 
 	/* Fill HT MCS rates */
 	bitmap_rates[2] = mask->control[band].ht_mcs[0];
-	if (priv->adapter->hw_dev_mcs_support == HT_STREAM_2X2)
+	if (adapter->hw_dev_mcs_support == HT_STREAM_2X2)
 		bitmap_rates[2] |= mask->control[band].ht_mcs[1] << 8;
+
+       /* Fill VHT MCS rates */
+	if (adapter->fw_api_ver == MWIFIEX_FW_V15) {
+		bitmap_rates[10] = mask->control[band].vht_mcs[0];
+		if (adapter->hw_dev_mcs_support == HT_STREAM_2X2)
+			bitmap_rates[11] = mask->control[band].vht_mcs[1];
+	}
 
 	return mwifiex_send_cmd(priv, HostCmd_CMD_TX_RATE_CFG,
 				HostCmd_ACT_GEN_SET, 0, bitmap_rates, true);
@@ -2092,10 +2100,10 @@ mwifiex_setup_ht_caps(struct ieee80211_sta_ht_cap *ht_info,
 	else
 		ht_info->cap &= ~IEEE80211_HT_CAP_SGI_40;
 
-	if (ISSUPP_RXSTBC(adapter->hw_dot_11n_dev_cap))
-		ht_info->cap |= 1 << IEEE80211_HT_CAP_RX_STBC_SHIFT;
+	if (adapter->user_dev_mcs_support == HT_STREAM_2X2)
+		ht_info->cap |= 3 << IEEE80211_HT_CAP_RX_STBC_SHIFT;
 	else
-		ht_info->cap &= ~(3 << IEEE80211_HT_CAP_RX_STBC_SHIFT);
+		ht_info->cap |= 1 << IEEE80211_HT_CAP_RX_STBC_SHIFT;
 
 	if (ISSUPP_TXSTBC(adapter->hw_dot_11n_dev_cap))
 		ht_info->cap |= IEEE80211_HT_CAP_TX_STBC;

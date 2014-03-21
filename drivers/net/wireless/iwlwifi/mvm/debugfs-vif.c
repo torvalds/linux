@@ -312,6 +312,11 @@ static ssize_t iwl_dbgfs_reduced_txp_write(struct ieee80211_vif *vif,
 	mutex_lock(&mvm->mutex);
 
 	mvmsta = iwl_mvm_sta_from_staid_protected(mvm, mvmvif->ap_sta_id);
+	if (IS_ERR_OR_NULL(mvmsta)) {
+		mutex_unlock(&mvm->mutex);
+		return -ENOTCONN;
+	}
+
 	mvmsta->bt_reduced_txpower_dbg = false;
 	ret = iwl_mvm_bt_coex_reduced_txp(mvm, mvmvif->ap_sta_id,
 					  reduced_tx_power);

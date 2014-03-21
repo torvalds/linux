@@ -119,7 +119,8 @@ struct iwl_cfg;
  * @queue_not_full: notifies that a HW queue is not full any more.
  *	Must be atomic and called with BH disabled.
  * @hw_rf_kill:notifies of a change in the HW rf kill switch. True means that
- *	the radio is killed. May sleep.
+ *	the radio is killed. Return %true if the device should be stopped by
+ *	the transport immediately after the call. May sleep.
  * @free_skb: allows the transport layer to free skbs that haven't been
  *	reclaimed by the op_mode. This can happen when the driver is freed and
  *	there are Tx packets pending in the transport layer.
@@ -144,7 +145,7 @@ struct iwl_op_mode_ops {
 		  struct iwl_device_cmd *cmd);
 	void (*queue_full)(struct iwl_op_mode *op_mode, int queue);
 	void (*queue_not_full)(struct iwl_op_mode *op_mode, int queue);
-	void (*hw_rf_kill)(struct iwl_op_mode *op_mode, bool state);
+	bool (*hw_rf_kill)(struct iwl_op_mode *op_mode, bool state);
 	void (*free_skb)(struct iwl_op_mode *op_mode, struct sk_buff *skb);
 	void (*nic_error)(struct iwl_op_mode *op_mode);
 	void (*cmd_queue_full)(struct iwl_op_mode *op_mode);
@@ -195,11 +196,11 @@ static inline void iwl_op_mode_queue_not_full(struct iwl_op_mode *op_mode,
 	op_mode->ops->queue_not_full(op_mode, queue);
 }
 
-static inline void iwl_op_mode_hw_rf_kill(struct iwl_op_mode *op_mode,
-					  bool state)
+static inline bool __must_check
+iwl_op_mode_hw_rf_kill(struct iwl_op_mode *op_mode, bool state)
 {
 	might_sleep();
-	op_mode->ops->hw_rf_kill(op_mode, state);
+	return op_mode->ops->hw_rf_kill(op_mode, state);
 }
 
 static inline void iwl_op_mode_free_skb(struct iwl_op_mode *op_mode,

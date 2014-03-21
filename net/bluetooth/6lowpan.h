@@ -14,13 +14,34 @@
 #ifndef __6LOWPAN_H
 #define __6LOWPAN_H
 
+#include <linux/errno.h>
 #include <linux/skbuff.h>
 #include <net/bluetooth/l2cap.h>
 
+#if IS_ENABLED(CONFIG_BT_6LOWPAN)
 int bt_6lowpan_recv(struct l2cap_conn *conn, struct sk_buff *skb);
 int bt_6lowpan_add_conn(struct l2cap_conn *conn);
 int bt_6lowpan_del_conn(struct l2cap_conn *conn);
 int bt_6lowpan_init(void);
 void bt_6lowpan_cleanup(void);
+#else
+static int bt_6lowpan_recv(struct l2cap_conn *conn, struct sk_buff *skb)
+{
+	return -EOPNOTSUPP;
+}
+static int bt_6lowpan_add_conn(struct l2cap_conn *conn)
+{
+	return -EOPNOTSUPP;
+}
+int bt_6lowpan_del_conn(struct l2cap_conn *conn)
+{
+	return -EOPNOTSUPP;
+}
+static int bt_6lowpan_init(void)
+{
+	return -EOPNOTSUPP;
+}
+static void bt_6lowpan_cleanup(void) { }
+#endif
 
 #endif /* __6LOWPAN_H */

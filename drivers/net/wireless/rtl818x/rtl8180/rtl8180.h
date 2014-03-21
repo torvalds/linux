@@ -81,12 +81,18 @@ struct rtl8180_priv {
 	struct ieee80211_supported_band band;
 	struct pci_dev *pdev;
 	u32 rx_conf;
+	u8 slot_time;
+	u16 ack_time;
 
-	int r8185;
+	enum {
+		RTL818X_CHIP_FAMILY_RTL8180,
+		RTL818X_CHIP_FAMILY_RTL8185,
+	} chip_family;
 	u32 anaparam;
 	u16 rfparam;
 	u8 csthreshold;
-
+	u8 mac_addr[ETH_ALEN];
+	u8 rf_type;
 	/* sequence # */
 	u16 seqno;
 };
