@@ -17,10 +17,9 @@
 #define RK_DEBUG_UART_VIRT              RK_IO_ADDRESS(0x00060000)
 #define RK_CPU_AXI_BUS_VIRT             RK_IO_ADDRESS(0x00070000)
 #define RK_TIMER_VIRT                   RK_IO_ADDRESS(0x00080000)
-#define RK_GIC_VIRT                      RK_IO_ADDRESS(0x00090000)
-#define RK_BOOTRAM_VIRT           RK_IO_ADDRESS(0x000a0000)
+#define RK_GIC_VIRT                     RK_IO_ADDRESS(0x00090000)
+#define RK_BOOTRAM_VIRT                 RK_IO_ADDRESS(0x000a0000)
 #define RK_DDR_VIRT                     RK_IO_ADDRESS(0x000d0000)
-
 
 #define RK3188_CRU_PHYS                 0x20000000
 #define RK3188_CRU_SIZE                 SZ_4K
@@ -105,14 +104,13 @@
 #define RK3288_UART_GPS_PHYS            0xFF1B0000
 #define RK3288_UART_EXP_PHYS            0xFF1C0000
 #define RK3288_UART_SIZE                SZ_4K
-
-#define RK3288_GIC_DIST_PHYS            0xffc01000
-#define RK3288_GIC_DIST_SIZE                SZ_4K
-#define RK3288_GIC_CPU_PHYS            0xffc02000
-#define RK3288_GIC_CPU_SIZE                SZ_4K
-
-#define RK3288_BOOTRAM_PHYS            0xff720000
-#define RK3288_BOOTRAM_SIZE            SZ_4K
-
+#define RK3288_GIC_DIST_PHYS            0xFFC01000
+#define RK3288_GIC_DIST_SIZE            SZ_4K
+#define RK3288_GIC_CPU_PHYS             0xFFC02000
+#define RK3288_GIC_CPU_SIZE             SZ_4K
+#define RK3288_BOOTRAM_PHYS             0xFF720000
+#define RK3288_BOOTRAM_SIZE             SZ_4K
+#define RK3288_IMEM_PHYS                0xFF700000
+#define RK3288_IMEM_SZIE                0x00018000
 
 #endif
