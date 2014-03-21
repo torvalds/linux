@@ -51,6 +51,8 @@ static const struct qlcnic_stats qlcnic_gstrings_stats[] = {
 	 QLC_OFF(stats.encap_lso_frames)},
 	{"encap_tx_csummed", QLC_SIZEOF(stats.encap_tx_csummed),
 	 QLC_OFF(stats.encap_tx_csummed)},
+	{"encap_rx_csummed", QLC_SIZEOF(stats.encap_rx_csummed),
+	 QLC_OFF(stats.encap_rx_csummed)},
 	{"skb_alloc_failure", QLC_SIZEOF(stats.skb_alloc_failure),
 	 QLC_OFF(stats.skb_alloc_failure)},
 	{"mac_filter_limit_overrun", QLC_SIZEOF(stats.mac_filter_limit_overrun),

@@ -528,8 +528,9 @@ enum qlc_83xx_ext_regs {
 };
 
 /* Initialize/Stop NIC command bit definitions */
-#define QLC_REGISTER_DCB_AEN		BIT_1
 #define QLC_REGISTER_LB_IDC		BIT_0
+#define QLC_REGISTER_DCB_AEN		BIT_1
+#define QLC_83XX_MULTI_TENANCY_INFO	BIT_29
 #define QLC_INIT_FW_RESOURCES		BIT_31
 
 /* 83xx funcitons */

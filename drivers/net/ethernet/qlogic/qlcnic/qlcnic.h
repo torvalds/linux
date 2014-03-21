@@ -535,6 +535,7 @@ struct qlcnic_hardware_context {
 	u8 extend_lb_time;
 	u8 phys_port_id[ETH_ALEN];
 	u8 lb_mode;
+	u16 vxlan_port;
 };
 
 struct qlcnic_adapter_stats {
@@ -551,6 +552,7 @@ struct qlcnic_adapter_stats {
 	u64  lso_frames;
 	u64  encap_lso_frames;
 	u64  encap_tx_csummed;
+	u64  encap_rx_csummed;
 	u64  xmit_on;
 	u64  xmit_off;
 	u64  skb_alloc_failure;
@@ -912,6 +914,7 @@ struct qlcnic_mac_vlan_list {
 #define QLCNIC_FW_CAPABILITY_2_BEACON		BIT_7
 #define QLCNIC_FW_CAPABILITY_2_PER_PORT_ESWITCH_CFG	BIT_9
 
+#define QLCNIC_83XX_FW_CAPAB_ENCAP_RX_OFFLOAD	BIT_0
 #define QLCNIC_83XX_FW_CAPAB_ENCAP_TX_OFFLOAD	BIT_1
 #define QLCNIC_83XX_FW_CAPAB_ENCAP_CKO_OFFLOAD	BIT_4
 
@@ -1008,6 +1011,8 @@ struct qlcnic_ipaddr {
 #define QLCNIC_APP_CHANGED_FLAGS	0x20000
 #define QLCNIC_HAS_PHYS_PORT_ID		0x40000
 #define QLCNIC_TSS_RSS			0x80000
+#define QLCNIC_ADD_VXLAN_PORT		0x100000
+#define QLCNIC_DEL_VXLAN_PORT		0x200000
 
 #define QLCNIC_IS_MSI_FAMILY(adapter) \
 	((adapter)->flags & (QLCNIC_MSI_ENABLED | QLCNIC_MSIX_ENABLED))
@@ -1826,6 +1831,12 @@ static inline bool qlcnic_encap_tx_offload(struct qlcnic_adapter *adapter)
 {
 	return adapter->ahw->extra_capability[0] &
 	       QLCNIC_83XX_FW_CAPAB_ENCAP_TX_OFFLOAD;
+}
+
+static inline bool qlcnic_encap_rx_offload(struct qlcnic_adapter *adapter)
+{
+	return adapter->ahw->extra_capability[0] &
+	       QLCNIC_83XX_FW_CAPAB_ENCAP_RX_OFFLOAD;
 }
 
 static inline int qlcnic_start_firmware(struct qlcnic_adapter *adapter)
