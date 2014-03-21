@@ -621,12 +621,20 @@ struct mount *__lookup_mnt(struct vfsmount *mnt, struct dentry *dentry)
 struct mount *__lookup_mnt_last(struct vfsmount *mnt, struct dentry *dentry)
 {
 	struct list_head *head = m_hash(mnt, dentry);
-	struct mount *p;
+	struct mount *p, *res = NULL;
 
-	list_for_each_entry_reverse(p, head, mnt_hash)
+	list_for_each_entry(p, head, mnt_hash)
 		if (&p->mnt_parent->mnt == mnt && p->mnt_mountpoint == dentry)
-			return p;
-	return NULL;
+			goto found;
+	return res;
+found:
+	res = p;
+	list_for_each_entry_continue(p, head, mnt_hash) {
+		if (&p->mnt_parent->mnt != mnt || p->mnt_mountpoint != dentry)
+			break;
+		res = p;
+	}
+	return res;
 }
 
 /*
@@ -769,14 +777,14 @@ static void attach_mnt(struct mount *mnt,
 			struct mountpoint *mp)
 {
 	mnt_set_mountpoint(parent, mp, mnt);
-	list_add_tail(&mnt->mnt_hash, m_hash(&parent->mnt, mp->m_dentry));
+	list_add(&mnt->mnt_hash, m_hash(&parent->mnt, mp->m_dentry));
 	list_add_tail(&mnt->mnt_child, &parent->mnt_mounts);
 }
 
 /*
  * vfsmount lock must be held for write
  */
-static void commit_tree(struct mount *mnt)
+static void commit_tree(struct mount *mnt, struct mount *shadows)
 {
 	struct mount *parent = mnt->mnt_parent;
 	struct mount *m;
@@ -791,7 +799,10 @@ static void commit_tree(struct mount *mnt)
 
 	list_splice(&head, n->list.prev);
 
-	list_add_tail(&mnt->mnt_hash,
+	if (shadows)
+		list_add(&mnt->mnt_hash, &shadows->mnt_hash);
+	else
+		list_add(&mnt->mnt_hash,
 				m_hash(&parent->mnt, mnt->mnt_mountpoint));
 	list_add_tail(&mnt->mnt_child, &parent->mnt_mounts);
 	touch_mnt_namespace(n);
@@ -1659,12 +1670,15 @@ static int attach_recursive_mnt(struct mount *source_mnt,
 		touch_mnt_namespace(source_mnt->mnt_ns);
 	} else {
 		mnt_set_mountpoint(dest_mnt, dest_mp, source_mnt);
-		commit_tree(source_mnt);
+		commit_tree(source_mnt, NULL);
 	}
 
 	list_for_each_entry_safe(child, p, &tree_list, mnt_hash) {
+		struct mount *q;
 		list_del_init(&child->mnt_hash);
-		commit_tree(child);
+		q = __lookup_mnt_last(&child->mnt_parent->mnt,
+				      child->mnt_mountpoint);
+		commit_tree(child, q);
 	}
 	unlock_mount_hash();
 
