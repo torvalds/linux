@@ -2468,11 +2468,6 @@ errout_free:
 	goto errout;
 }
 
-int ip_rt_dump(struct sk_buff *skb,  struct netlink_callback *cb)
-{
-	return skb->len;
-}
-
 void ip_rt_multicast_event(struct in_device *in_dev)
 {
 	rt_cache_flush(dev_net(in_dev->dev));
