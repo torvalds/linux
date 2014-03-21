@@ -854,14 +854,47 @@ EXPORT_SYMBOL_GPL(snd_soc_resume);
 static const struct snd_soc_dai_ops null_dai_ops = {
 };
 
+static struct snd_soc_codec *soc_find_codec(const struct device_node *codec_of_node,
+					    const char *codec_name)
+{
+	struct snd_soc_codec *codec;
+
+	list_for_each_entry(codec, &codec_list, list) {
+		if (codec_of_node) {
+			if (codec->dev->of_node != codec_of_node)
+				continue;
+		} else {
+			if (strcmp(codec->name, codec_name))
+				continue;
+		}
+
+		return codec;
+	}
+
+	return NULL;
+}
+
+static struct snd_soc_dai *soc_find_codec_dai(struct snd_soc_codec *codec,
+					      const char *codec_dai_name)
+{
+	struct snd_soc_dai *codec_dai;
+
+	list_for_each_entry(codec_dai, &codec->component.dai_list, list) {
+		if (!strcmp(codec_dai->name, codec_dai_name)) {
+			return codec_dai;
+		}
+	}
+
+	return NULL;
+}
+
 static int soc_bind_dai_link(struct snd_soc_card *card, int num)
 {
 	struct snd_soc_dai_link *dai_link = &card->dai_link[num];
 	struct snd_soc_pcm_runtime *rtd = &card->rtd[num];
 	struct snd_soc_component *component;
-	struct snd_soc_codec *codec;
 	struct snd_soc_platform *platform;
-	struct snd_soc_dai *codec_dai, *cpu_dai;
+	struct snd_soc_dai *cpu_dai;
 	const char *platform_name;
 
 	dev_dbg(card->dev, "ASoC: binding %s at idx %d\n", dai_link->name, num);
@@ -889,39 +922,21 @@ static int soc_bind_dai_link(struct snd_soc_card *card, int num)
 		return -EPROBE_DEFER;
 	}
 
-	/* Find CODEC from registered CODECs */
-	list_for_each_entry(codec, &codec_list, list) {
-		if (dai_link->codec_of_node) {
-			if (codec->dev->of_node != dai_link->codec_of_node)
-				continue;
-		} else {
-			if (strcmp(codec->name, dai_link->codec_name))
-				continue;
-		}
-
-		rtd->codec = codec;
-
-		/*
-		 * CODEC found, so find CODEC DAI from registered DAIs from
-		 * this CODEC
-		 */
-		list_for_each_entry(codec_dai, &codec->component.dai_list, list) {
-			if (!strcmp(codec_dai->name, dai_link->codec_dai_name)) {
-				rtd->codec_dai = codec_dai;
-				break;
-			}
-		}
-
-		if (!rtd->codec_dai) {
-			dev_err(card->dev, "ASoC: CODEC DAI %s not registered\n",
-				dai_link->codec_dai_name);
-			return -EPROBE_DEFER;
-		}
-	}
-
+	/* Find CODEC from registered list */
+	rtd->codec = soc_find_codec(dai_link->codec_of_node,
+				    dai_link->codec_name);
 	if (!rtd->codec) {
 		dev_err(card->dev, "ASoC: CODEC %s not registered\n",
 			dai_link->codec_name);
+		return -EPROBE_DEFER;
+	}
+
+	/* Find CODEC DAI from registered list */
+	rtd->codec_dai = soc_find_codec_dai(rtd->codec,
+					    dai_link->codec_dai_name);
+	if (!rtd->codec_dai) {
+		dev_err(card->dev, "ASoC: CODEC DAI %s not registered\n",
+			dai_link->codec_dai_name);
 		return -EPROBE_DEFER;
 	}
 
