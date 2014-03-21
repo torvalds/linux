@@ -38,7 +38,9 @@
 /* usi register bit */
 #define ENINT		(0x01 << 17)
 #define ENFLG		(0x01 << 16)
+#define SLEEP		(0x0f << 12)
 #define TXNUM		(0x03 << 8)
+#define TXBITLEN	(0x1f << 3)
 #define TXNEG		(0x01 << 2)
 #define RXNEG		(0x01 << 1)
 #define LSB		(0x01 << 10)
@@ -116,19 +118,16 @@ static void nuc900_spi_chipsel(struct spi_device *spi, int value)
 	}
 }
 
-static void nuc900_spi_setup_txnum(struct nuc900_spi *hw,
-							unsigned int txnum)
+static void nuc900_spi_setup_txnum(struct nuc900_spi *hw, unsigned int txnum)
 {
 	unsigned int val;
 	unsigned long flags;
 
 	spin_lock_irqsave(&hw->lock, flags);
 
-	val = __raw_readl(hw->regs + USI_CNT);
+	val = __raw_readl(hw->regs + USI_CNT) & ~TXNUM;
 
-	if (!txnum)
-		val &= ~TXNUM;
-	else
+	if (txnum)
 		val |= txnum << 0x08;
 
 	__raw_writel(val, hw->regs + USI_CNT);
@@ -145,7 +144,7 @@ static void nuc900_spi_setup_txbitlen(struct nuc900_spi *hw,
 
 	spin_lock_irqsave(&hw->lock, flags);
 
-	val = __raw_readl(hw->regs + USI_CNT);
+	val = __raw_readl(hw->regs + USI_CNT) & ~TXBITLEN;
 
 	val |= (txbitlen << 0x03);
 
@@ -284,12 +283,11 @@ static void nuc900_set_sleep(struct nuc900_spi *hw, unsigned int sleep)
 
 	spin_lock_irqsave(&hw->lock, flags);
 
-	val = __raw_readl(hw->regs + USI_CNT);
+	val = __raw_readl(hw->regs + USI_CNT) & ~SLEEP;
 
 	if (sleep)
 		val |= (sleep << 12);
-	else
-		val &= ~(0x0f << 12);
+
 	__raw_writel(val, hw->regs + USI_CNT);
 
 	spin_unlock_irqrestore(&hw->lock, flags);
