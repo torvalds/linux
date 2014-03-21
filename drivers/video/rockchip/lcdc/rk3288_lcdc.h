@@ -130,9 +130,9 @@
 #define m_DSP_LAYER3_SEL		(3<<16)
 
 #define DSP_BG 				(0x0018)
-#define v_DSP_BG_BLUE(x)        	(((x)&0x3ff)<<0)
-#define v_DSP_BG_GREEN(x)       	(((x)&0x3ff)<<10)
-#define v_DSP_BG_RED(x)         	(((x)&0x3ff)<<20)
+#define v_DSP_BG_BLUE(x)        	(((x<<2)&0x3ff)<<0)
+#define v_DSP_BG_GREEN(x)       	(((x<<2)&0x3ff)<<10)
+#define v_DSP_BG_RED(x)         	(((x<<2)&0x3ff)<<20)
 #define m_DSP_BG_BLUE        		(0x3ff<<0)
 #define m_DSP_BG_GREEN      		(0x3ff<<10)
 #define m_DSP_BG_RED        		(0x3ff<<20)

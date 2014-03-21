@@ -159,7 +159,7 @@
 	supports-emmc;
         bootpart-no-access;
         
-    	status = "okay";
+    	status = "disable";
 };
     
 &sdmmc {
@@ -372,12 +372,13 @@
 			rockchip,delay = <10>;
 		};
 		
-		/*lcd_cs:lcd_cs {
-			rockchip,power_type = <REGULATOR>;
+		lcd_cs:lcd_cs {
+rockchip,power_type = <GPIO>;
+			gpios = <&gpio7 GPIO_A4 GPIO_ACTIVE_HIGH>;
 			rockchip,delay = <10>;
 		};
 
-		lcd_rst:lcd_rst {
+		/*lcd_rst:lcd_rst {
 			rockchip,power_type = <GPIO>;
 			gpios = <&gpio3 GPIO_D6 GPIO_ACTIVE_HIGH>;
 			rockchip,delay = <5>;

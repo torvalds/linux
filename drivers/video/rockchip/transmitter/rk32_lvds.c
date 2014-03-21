@@ -31,10 +31,12 @@ static int rk32_lvds_en(void)
 	struct rk32_lvds *lvds = rk32_lvds;
 	struct rk_screen *screen = &lvds->screen;
 	u32 h_bp = screen->mode.hsync_len + screen->mode.left_margin;
-	u32 val ;
+	u32 i,j, val ;
 
 	clk_prepare_enable(lvds->clk);
+	screen->type = SCREEN_RGB;
 	
+	screen->lcdc_id = 1;
 	if (screen->lcdc_id == 1) /*lcdc1 = vop little,lcdc0 = vop big*/
 		val = LVDS_SEL_VOP_LIT | (LVDS_SEL_VOP_LIT << 16);
 	else
@@ -44,11 +46,12 @@ static int rk32_lvds_en(void)
 	val = screen->lvds_format;
 	if (screen->type == SCREEN_DUAL_LVDS)
 		val |= LVDS_DUAL | LVDS_CH0_EN | LVDS_CH1_EN;
-	else 
+	else if(screen->type == SCREEN_LVDS)
 		val |= LVDS_CH0_EN;
 
-	if (screen->type == SCREEN_RGB)
-		val |= LVDS_TTL_EN;
+		//val |= LVDS_MSB;
+	else if (screen->type == SCREEN_RGB)
+		val |= LVDS_TTL_EN | LVDS_CH0_EN | LVDS_CH1_EN;
 
 	if (h_bp & 0x01)
 		val |= LVDS_START_PHASE_RST_1;
@@ -56,29 +59,175 @@ static int rk32_lvds_en(void)
 	val |= (screen->pin_dclk << 8) | (screen->pin_hsync << 9) |
 		(screen->pin_den << 10);
 	val |= 0xffff << 16;
+	//val = 0x08010801;
 	writel_relaxed(val, RK_GRF_VIRT + RK3288_GRF_SOC_CON7);
 
-	
-	if (screen->type == SCREEN_RGB)
+	if (screen->type == SCREEN_LVDS)
 		val = 0xbf;
 	else
 		val = 0x7f;
-	lvds_writel(lvds, LVDS_CH0_REG_0, val);
-	lvds_writel(lvds, LVDS_CH0_REG_1, 0x3f);
-	lvds_writel(lvds, LVDS_CH0_REG_2, 0x7e);
+#if 0
+	for(i=0;i<0x200;){
+		val  = readl_relaxed(lvds->regs + i);
+		printk("0x%08x:0x%08x  ",i,val);
+		i += 4;
+		if(i % 16 == 0)
+			printk("\n");
+	}
+#endif	
+	#if 1 // 0 ttl  1 lvds
+	val = 0x007f007f;//0x1<<6 |0x1 <<4;
+	writel_relaxed(val, RK_GRF_VIRT + 0xc);
+
+	
+	lvds_writel(lvds, LVDS_CH0_REG_0, 0x7f);
+	lvds_writel(lvds, LVDS_CH0_REG_1, 0x40);
+	lvds_writel(lvds, LVDS_CH0_REG_2, 0x00);
 
 	if (screen->type == SCREEN_RGB)
 		val = 0x1f;
 	else
 		val = 0x00;
-	lvds_writel(lvds, LVDS_CH0_REG_4, val);
-	lvds_writel(lvds, LVDS_CH0_REG_5, val);
+	lvds_writel(lvds, LVDS_CH0_REG_4, 0x3f);
+	lvds_writel(lvds, LVDS_CH0_REG_5, 0x3f);
 	lvds_writel(lvds, LVDS_CH0_REG_3, 0x46);
-	lvds_writel(lvds, LVDS_CH0_REG_d, 0x05);
-	lvds_writel(lvds, LVDS_CH0_REG_20,0x44);
+	lvds_writel(lvds, LVDS_CH0_REG_d, 0x0a);
+	lvds_writel(lvds, LVDS_CH0_REG_20,0x44);/* 44:LSB  45:MSB*/
 	writel_relaxed(0x00, lvds->regs + LVDS_CFG_REG_c); /*eanble pll*/
 	writel_relaxed(0x92, lvds->regs + LVDS_CFG_REG_21); /*enable tx*/
 
+	lvds_writel(lvds, 0x100, 0x7f);
+	lvds_writel(lvds, 0x104, 0x40);
+	lvds_writel(lvds, 0x108, 0x00);
+	lvds_writel(lvds, 0x10c, 0x46);
+	lvds_writel(lvds, 0x110, 0x3f);
+	lvds_writel(lvds, 0x114, 0x3f);
+	lvds_writel(lvds, 0x134, 0x0a);
+	#else
+	val  = readl_relaxed(lvds->regs + 0x88);
+	printk("0x88:0x%x\n",val);
+
+	lvds_writel(lvds, LVDS_CH0_REG_0, 0xbf);
+	lvds_writel(lvds, LVDS_CH0_REG_1, 0x3f);//  3f
+	lvds_writel(lvds, LVDS_CH0_REG_2, 0xfe);
+	lvds_writel(lvds, LVDS_CH0_REG_3, 0x46);//0x46
+	lvds_writel(lvds, LVDS_CH0_REG_4, 0x00);
+	//lvds_writel(lvds, LVDS_CH0_REG_9, 0x20);
+	//lvds_writel(lvds, LVDS_CH0_REG_d, 0x4b);
+	//lvds_writel(lvds, LVDS_CH0_REG_f, 0x0d);
+	lvds_writel(lvds, LVDS_CH0_REG_d, 0x0a);//0a
+	lvds_writel(lvds, LVDS_CH0_REG_20,0x44);/* 44:LSB  45:MSB*/
+	//lvds_writel(lvds, 0x24,0x20);
+	//writel_relaxed(0x23, lvds->regs + 0x88);
+	writel_relaxed(0x00, lvds->regs + LVDS_CFG_REG_c); /*eanble pll*/
+	writel_relaxed(0x92, lvds->regs + LVDS_CFG_REG_21); /*enable tx*/
+
+
+	//lvds_writel(lvds, 0x100, 0xbf);
+	//lvds_writel(lvds, 0x104, 0x3f);
+	//lvds_writel(lvds, 0x108, 0xfe);
+	//lvds_writel(lvds, 0x10c, 0x46); //0x46
+	//lvds_writel(lvds, 0x110, 0x00);
+	//lvds_writel(lvds, 0x114, 0x00);
+	//lvds_writel(lvds, 0x134, 0x0a);
+
+	#endif
+#if 0
+	for(i=0;i<100;i++){
+		mdelay(1000);
+		mdelay(1000);
+		mdelay(1000);
+		mdelay(1000);
+		mdelay(1000);
+		printk("write LVDS_CH0_REG_20 :0x40\n");
+		//writel_relaxed(0x10, lvds->regs + LVDS_CFG_REG_c);
+		lvds_writel(lvds, LVDS_CH0_REG_20,0x40);/* 44:LSB  45:MSB*/
+		val  = readl_relaxed(lvds->regs + LVDS_CH0_REG_20);
+		printk("read back LVDS_CH0_REG_20:0x%x\n",val);
+		mdelay(1000);
+		mdelay(1000);
+		mdelay(1000);
+		mdelay(1000);
+		mdelay(1000);
+		printk("write LVDS_CH0_REG_20 :0x44\n");
+		lvds_writel(lvds, LVDS_CH0_REG_20,0x44);/* 44:LSB  45:MSB*/
+		val  = readl_relaxed(lvds->regs + LVDS_CH0_REG_20);
+		printk("read back LVDS_CH0_REG_20:0x%x\n",val);
+	}
+#endif	
+	//while(1)
+#if 0
+	{
+	val  = readl_relaxed(RK_GRF_VIRT + RK3288_GRF_SOC_CON6);
+	printk("RK3288_GRF_SOC_CON6:0x%x\n",val);
+	val  = readl_relaxed(RK_GRF_VIRT + RK3288_GRF_SOC_CON7);
+	printk("RK3288_GRF_SOC_CON7:0x%x\n",val);
+	val  = readl_relaxed(RK_GRF_VIRT + RK3288_GRF_SOC_CON15);
+	printk("RK3288_GRF_SOC_CON15:0x%x\n",val);
+	
+
+	val  = readl_relaxed(lvds->regs + LVDS_CH0_REG_0);
+	printk("LVDS_CH0_REG_0:0x%x\n",val);
+
+	val  = readl_relaxed(lvds->regs + LVDS_CH0_REG_1);
+	printk("LVDS_CH0_REG_1:0x%x\n",val);
+
+	val  = readl_relaxed(lvds->regs + LVDS_CH0_REG_2);
+	printk("LVDS_CH0_REG_2:0x%x\n",val);
+
+	val  = readl_relaxed(lvds->regs + LVDS_CH0_REG_3);
+	printk("LVDS_CH0_REG_3:0x%x\n",val);
+	
+	val  = readl_relaxed(lvds->regs + LVDS_CH0_REG_4);
+	printk("LVDS_CH0_REG_4:0x%x\n",val);
+
+	val  = readl_relaxed(lvds->regs + LVDS_CH0_REG_5);
+	printk("LVDS_CH0_REG_5:0x%x\n",val);
+
+	val  = readl_relaxed(lvds->regs + LVDS_CH0_REG_d);
+	printk("LVDS_CH0_REG_d:0x%x\n",val);
+
+	val  = readl_relaxed(lvds->regs + LVDS_CH0_REG_f);
+		printk("LVDS_CH0_REG_f:0x%x\n",val);
+
+	
+	val  = readl_relaxed(lvds->regs + LVDS_CFG_REG_c);
+	printk("LVDS_CFG_REG_c:0x%x\n",val);
+
+	val  = readl_relaxed(lvds->regs + LVDS_CFG_REG_21);
+	printk("LVDS_CFG_REG_21:0x%x\n",val);
+	val  = readl_relaxed(lvds->regs + 0x100);
+	printk("0x100:0x%x\n",val);
+
+	val  = readl_relaxed(lvds->regs + 0x104);
+	printk("0x104:0x%x\n",val);
+		val  = readl_relaxed(lvds->regs + 0x108);
+	printk("0x108:0x%x\n",val);
+
+	val  = readl_relaxed(lvds->regs + 0x10c);
+	printk("0x10c:0x%x\n",val);
+	
+	val  = readl_relaxed(lvds->regs + 0x110);
+	printk("0x110:0x%x\n",val);
+
+	val  = readl_relaxed(lvds->regs + 0x114);
+	printk("0x114:0x%x\n",val);
+		val  = readl_relaxed(lvds->regs + 0x118);
+	printk("0x118:0x%x\n",val);
+
+	val  = readl_relaxed(lvds->regs + 0x11c);
+	printk("0x11c:0x%x\n",val);	
+	mdelay(1000);
+		}
+
+	for(i=0;i<0x200;){
+		val  = readl_relaxed(lvds->regs + i);
+		printk("0x%08x:0x%08x  ",i,val);
+		i += 4;
+		if(i % 16 == 0)
+			printk("\n");
+	}
+#endif
 	return 0;
 }
 
