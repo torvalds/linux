@@ -276,6 +276,15 @@ __raw3270_start(struct raw3270 *rp, struct raw3270_view *view,
 }
 
 int
+raw3270_view_active(struct raw3270_view *view)
+{
+	struct raw3270 *rp = view->dev;
+
+	return rp && rp->view == view &&
+		!test_bit(RAW3270_FLAGS_FROZEN, &rp->flags);
+}
+
+int
 raw3270_start(struct raw3270_view *view, struct raw3270_request *rq)
 {
 	unsigned long flags;
