@@ -290,7 +290,7 @@ static int __init caam_rng_init(void)
 	rng_ctx = kmalloc(sizeof(struct caam_rng_ctx), GFP_DMA);
 	if (!rng_ctx)
 		return -ENOMEM;
-	caam_init_rng(&rng_ctx, dev);
+	caam_init_rng(rng_ctx, dev);
 
 	dev_info(dev, "registering rng-caam\n");
 	return hwrng_register(&caam_rng);
