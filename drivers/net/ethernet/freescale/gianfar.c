@@ -754,9 +754,19 @@ static int gfar_of_init(struct platform_device *ofdev, struct net_device **pdev)
 		num_tx_qs = 1;
 		num_rx_qs = 1;
 	} else { /* MQ_MG_MODE */
+		/* get the actual number of supported groups */
+		unsigned int num_grps = of_get_available_child_count(np);
+
+		if (num_grps == 0 || num_grps > MAXGROUPS) {
+			dev_err(&ofdev->dev, "Invalid # of int groups(%d)\n",
+				num_grps);
+			pr_err("Cannot do alloc_etherdev, aborting\n");
+			return -EINVAL;
+		}
+
 		if (poll_mode == GFAR_SQ_POLLING) {
-			num_tx_qs = 2; /* one txq per int group */
-			num_rx_qs = 2; /* one rxq per int group */
+			num_tx_qs = num_grps; /* one txq per int group */
+			num_rx_qs = num_grps; /* one rxq per int group */
 		} else { /* GFAR_MQ_POLLING */
 			num_tx_qs = tx_queues ? *tx_queues : 1;
 			num_rx_qs = rx_queues ? *rx_queues : 1;
