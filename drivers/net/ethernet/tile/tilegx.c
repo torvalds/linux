@@ -873,6 +873,7 @@ static struct ptp_clock_info ptp_mpipe_caps = {
 	.name		= "mPIPE clock",
 	.max_adj	= 999999999,
 	.n_ext_ts	= 0,
+	.n_pins		= 0,
 	.pps		= 0,
 	.adjfreq	= ptp_mpipe_adjfreq,
 	.adjtime	= ptp_mpipe_adjtime,

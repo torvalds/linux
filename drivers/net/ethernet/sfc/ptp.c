@@ -1194,6 +1194,7 @@ static const struct ptp_clock_info efx_phc_clock_info = {
 	.n_alarm	= 0,
 	.n_ext_ts	= 0,
 	.n_per_out	= 0,
+	.n_pins		= 0,
 	.pps		= 1,
 	.adjfreq	= efx_phc_adjfreq,
 	.adjtime	= efx_phc_adjtime,
