@@ -2151,7 +2151,7 @@ struct rt3261_priv {
 	bool dsp_play_pass;
 	bool dsp_rec_pass;
 
-	unsigned int codec_en_gpio;
+	int codec_en_gpio;
 
 	unsigned int modem_is_open;
 	unsigned int spk_num;

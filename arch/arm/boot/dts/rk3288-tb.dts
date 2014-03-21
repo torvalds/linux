@@ -136,6 +136,16 @@
 				//bitclock-master;
 				//frame-master;
 			};
+			dai1 {
+				audio-codec = <&rt3261>;
+				i2s-controller = <&i2s>;
+				format = "i2s";
+				//continuous-clock;
+				//bitclock-inversion;
+				//frame-inversion;
+				//bitclock-master;
+				//frame-master;
+			};
 		};
 	};
 
@@ -294,7 +304,7 @@
 	rt3261: rt3261@1c {
 		compatible = "rt3261";
 		reg = <0x1c>;
-		codec-en-gpio = <0>;//sdk default high level
+	//	codec-en-gpio = <0>;//sdk default high level
 		spk-num= <2>;
 		modem-input-mode = <1>;
 		lout-to-modem_mode = <1>;

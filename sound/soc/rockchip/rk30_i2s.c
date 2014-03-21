@@ -540,6 +540,7 @@ static int rockchip_i2s_probe(struct platform_device *pdev)
 		ret = PTR_ERR(i2s->i2s_clk);
 		goto err;
 	}
+	clk_set_rate(i2s->i2s_clk, 12288000);	
 	clk_set_rate(i2s->i2s_clk, 11289600);
 	clk_prepare_enable(i2s->i2s_clk);
 
@@ -547,6 +548,7 @@ static int rockchip_i2s_probe(struct platform_device *pdev)
 	if(IS_ERR(i2s->i2s_mclk) ) {
 		printk("This platfrom have not i2s_mclk,no need to set i2s_mclk.\n");
 	}else{
+		clk_set_rate(i2s->i2s_mclk, 12288000);
 		clk_set_rate(i2s->i2s_mclk, 11289600);
 		clk_prepare_enable(i2s->i2s_mclk);
 	}
