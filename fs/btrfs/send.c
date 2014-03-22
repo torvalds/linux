@@ -2030,7 +2030,6 @@ static int __get_cur_name_and_parent(struct send_ctx *sctx,
 {
 	int ret;
 	int nce_ret;
-	struct btrfs_path *path = NULL;
 	struct name_cache_entry *nce = NULL;
 
 	/*
@@ -2055,10 +2054,6 @@ static int __get_cur_name_and_parent(struct send_ctx *sctx,
 			goto out;
 		}
 	}
-
-	path = alloc_path_for_send();
-	if (!path)
-		return -ENOMEM;
 
 	/*
 	 * If the inode is not existent yet, add the orphan name and return 1.
@@ -2135,7 +2130,6 @@ out_cache:
 	name_cache_clean_unused(sctx);
 
 out:
-	btrfs_free_path(path);
 	return ret;
 }
 
