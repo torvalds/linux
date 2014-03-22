@@ -27,6 +27,23 @@
 #include <asm/bootparam.h>
 #include <asm/page.h>
 #include <asm/sections.h>
+#include <asm/sysmem.h>
+
+struct sysmem_info sysmem __initdata;
+
+int __init add_sysmem_bank(unsigned long start, unsigned long end)
+{
+	if (sysmem.nr_banks >= SYSMEM_BANKS_MAX) {
+		pr_warn("Ignoring memory bank 0x%08lx size %ldKB\n",
+			start, end - start);
+		return -EINVAL;
+	}
+	sysmem.bank[sysmem.nr_banks].start = PAGE_ALIGN(start);
+	sysmem.bank[sysmem.nr_banks].end   = end & PAGE_MASK;
+	sysmem.nr_banks++;
+
+	return 0;
+}
 
 /*
  * mem_reserve(start, end, must_exist)
