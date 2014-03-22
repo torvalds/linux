@@ -1570,7 +1570,7 @@ static int w_after_conn_state_ch(struct drbd_work *w, int unused)
 		old_conf = connection->net_conf;
 		connection->my_addr_len = 0;
 		connection->peer_addr_len = 0;
-		rcu_assign_pointer(connection->net_conf, NULL);
+		RCU_INIT_POINTER(connection->net_conf, NULL);
 		conn_free_crypto(connection);
 		mutex_unlock(&connection->resource->conf_update);
 
