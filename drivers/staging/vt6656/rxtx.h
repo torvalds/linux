@@ -217,7 +217,7 @@ union vnt_tx_head {
 struct vnt_tx_fifo_head {
 	u32 adwTxKey[4];
 	u16 wFIFOCtl;
-	u16 wTimeStamp;
+	__le16 time_stamp;
 	u16 wFragCtl;
 	u16 wReserved;
 } __packed;

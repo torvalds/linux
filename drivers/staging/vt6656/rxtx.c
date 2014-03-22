@@ -1008,7 +1008,7 @@ static int s_bPacketToWirelessUsb(struct vnt_private *pDevice, u8 byPktType,
 		pTxBufHead->wFIFOCtl |= FIFOCTL_NEEDACK;
 	}
 
-    pTxBufHead->wTimeStamp = DEFAULT_MSDU_LIFETIME_RES_64us;
+    pTxBufHead->time_stamp = cpu_to_le16(DEFAULT_MSDU_LIFETIME_RES_64us);
 
     //Set FRAGCTL_MACHDCNT
 	cbMACHdLen = WLAN_HDR_ADDR3_LEN;
@@ -1431,7 +1431,7 @@ CMD_STATUS csMgmt_xmit(struct vnt_private *pDevice,
     }
 
     pTxBufHead->wFIFOCtl |= FIFOCTL_TMOEN;
-    pTxBufHead->wTimeStamp = cpu_to_le16(DEFAULT_MGN_LIFETIME_RES_64us);
+    pTxBufHead->time_stamp = cpu_to_le16(DEFAULT_MGN_LIFETIME_RES_64us);
 
     if (is_multicast_ether_addr(pPacket->p80211Header->sA3.abyAddr1)) {
         bNeedACK = false;
@@ -1800,7 +1800,7 @@ void vDMA0_tx_80211(struct vnt_private *pDevice, struct sk_buff *skb)
     }
 
     pTxBufHead->wFIFOCtl |= FIFOCTL_TMOEN;
-    pTxBufHead->wTimeStamp = cpu_to_le16(DEFAULT_MGN_LIFETIME_RES_64us);
+    pTxBufHead->time_stamp = cpu_to_le16(DEFAULT_MGN_LIFETIME_RES_64us);
 
     if (is_multicast_ether_addr(p80211Header->sA3.abyAddr1)) {
         bNeedACK = false;
