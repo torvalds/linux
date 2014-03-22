@@ -619,7 +619,6 @@ struct em28xx {
 	unsigned hscale;	/* horizontal scale factor (see datasheet) */
 	unsigned vscale;	/* vertical scale factor (see datasheet) */
 	int interlaced;		/* 1=interlace fileds, 0=just top fileds */
-	unsigned int video_bytesread;	/* Number of bytes read */
 
 	unsigned long hash;	/* eeprom hash - for boards with generic ID */
 	unsigned long i2c_hash;	/* i2c devicelist hash -
@@ -639,8 +638,6 @@ struct em28xx {
 	/* locks */
 	struct mutex lock;
 	struct mutex ctrl_urb_lock;	/* protects urb_buf */
-	/* spinlock_t queue_lock; */
-	struct list_head inqueue, outqueue;
 	struct video_device *vbi_dev;
 	struct video_device *radio_dev;
 
@@ -664,7 +661,6 @@ struct em28xx {
 	spinlock_t slock;
 
 	unsigned int field_count;
-	unsigned int vbi_field_count;
 
 	/* usb transfer */
 	struct usb_device *udev;	/* the usb device */
