@@ -808,6 +808,7 @@ static void dw_mci_setup_bus(struct dw_mci_slot *slot, bool force_clkinit)
 	unsigned int clock = slot->clock;
 	u32 div;
 	u32 clk_en_a;
+	u32 sdio_int;
 
 	if (!clock) {
 		mci_writel(host, CLKENA, 0);
@@ -848,7 +849,13 @@ static void dw_mci_setup_bus(struct dw_mci_slot *slot, bool force_clkinit)
 
 		/* enable clock; only low power if no SDIO */
 		clk_en_a = SDMMC_CLKEN_ENABLE << slot->id;
-		if (!(mci_readl(host, INTMASK) & SDMMC_INT_SDIO(slot->id)))
+
+		if (host->verid < DW_MMC_240A)
+		    sdio_int = SDMMC_INT_SDIO(slot->id);
+	    else
+		    sdio_int = SDMMC_INT_SDIO((slot->id) + 8);
+
+		if (!(mci_readl(host, INTMASK) & sdio_int))
 			clk_en_a |= SDMMC_CLKEN_LOW_PWR << slot->id;
 		mci_writel(host, CLKENA, clk_en_a);
 
@@ -1186,9 +1193,16 @@ static void dw_mci_enable_sdio_irq(struct mmc_host *mmc, int enb)
 	struct dw_mci_slot *slot = mmc_priv(mmc);
 	struct dw_mci *host = slot->host;
 	u32 int_mask;
+	u32 sdio_int;
 
 	/* Enable/disable Slot Specific SDIO interrupt */
 	int_mask = mci_readl(host, INTMASK);
+
+    if (host->verid < DW_MMC_240A)
+		sdio_int = SDMMC_INT_SDIO(slot->id);
+	else
+		sdio_int = SDMMC_INT_SDIO((slot->id) + 8);
+	
 	if (enb) {
 		/*
 		 * Turn off low power mode if it was enabled.  This is a bit of
@@ -1199,10 +1213,10 @@ static void dw_mci_enable_sdio_irq(struct mmc_host *mmc, int enb)
 		dw_mci_disable_low_power(slot);
 
 		mci_writel(host, INTMASK,
-			   (int_mask | SDMMC_INT_SDIO(slot->id)));
+			   (int_mask | sdio_int));
 	} else {
 		mci_writel(host, INTMASK,
-			   (int_mask & ~SDMMC_INT_SDIO(slot->id)));
+			   (int_mask & ~sdio_int));
 	}
 }
 
@@ -2006,7 +2020,7 @@ static void dw_mci_cmd_interrupt(struct dw_mci *host, u32 status)
 static irqreturn_t dw_mci_interrupt(int irq, void *dev_id)
 {
 	struct dw_mci *host = dev_id;
-	u32 pending;
+	u32 pending, sdio_int;
 	int i;
 
 	pending = mci_readl(host, MINTSTS); /* read-only mask reg */
@@ -2078,8 +2092,14 @@ static irqreturn_t dw_mci_interrupt(int irq, void *dev_id)
 		/* Handle SDIO Interrupts */
 		for (i = 0; i < host->num_slots; i++) {
 			struct dw_mci_slot *slot = host->slot[i];
-			if (pending & SDMMC_INT_SDIO(i)) {
-				mci_writel(host, RINTSTS, SDMMC_INT_SDIO(i));
+
+            if (host->verid < DW_MMC_240A)
+    		    sdio_int = SDMMC_INT_SDIO(i);
+    	    else
+    		    sdio_int = SDMMC_INT_SDIO(i + 8);
+    			
+			if (pending & sdio_int) {
+				mci_writel(host, RINTSTS, sdio_int);
 				mmc_signal_sdio_irq(slot->mmc);
 			}
 		}
