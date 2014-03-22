@@ -24,6 +24,11 @@
 #define ANAPARAM_PWR1_SHIFT	20
 #define ANAPARAM_PWR1_MASK	(0x7F << ANAPARAM_PWR1_SHIFT)
 
+/* rtl8180/rtl8185 have 3 queue + beacon queue.
+ * mac80211 can use just one, + beacon = 2 tot.
+ */
+#define RTL8180_NR_TX_QUEUES 2
+
 struct rtl8180_tx_desc {
 	__le32 flags;
 	__le16 rts_duration;
@@ -75,7 +80,7 @@ struct rtl8180_priv {
 	dma_addr_t rx_ring_dma;
 	unsigned int rx_idx;
 	struct sk_buff *rx_buf[32];
-	struct rtl8180_tx_ring tx_ring[4];
+	struct rtl8180_tx_ring tx_ring[RTL8180_NR_TX_QUEUES];
 	struct ieee80211_channel channels[14];
 	struct ieee80211_rate rates[12];
 	struct ieee80211_supported_band band;
