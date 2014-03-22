@@ -8,6 +8,7 @@
  * for more details.
  *
  * Copyright (C) 2001 - 2005 Tensilica Inc.
+ * Copyright (C) 2014 Cadence Design Systems Inc.
  *
  * Chris Zankel	<chris@zankel.net>
  * Joe Taylor	<joe@tensilica.com, joetylr@yahoo.com>
@@ -31,17 +32,109 @@
 
 struct sysmem_info sysmem __initdata;
 
+/*
+ * Find bank with maximal .start such that bank.start <= start
+ */
+static inline struct meminfo * __init find_bank(unsigned long start)
+{
+	unsigned i;
+	struct meminfo *it = NULL;
+
+	for (i = 0; i < sysmem.nr_banks; ++i)
+		if (sysmem.bank[i].start <= start)
+			it = sysmem.bank + i;
+		else
+			break;
+	return it;
+}
+
+/*
+ * Move all memory banks starting at 'from' to a new place at 'to',
+ * adjust nr_banks accordingly.
+ * Both 'from' and 'to' must be inside the sysmem.bank.
+ *
+ * Returns: 0 (success), -ENOMEM (not enough space in the sysmem.bank).
+ */
+static int __init move_banks(struct meminfo *to, struct meminfo *from)
+{
+	unsigned n = sysmem.nr_banks - (from - sysmem.bank);
+
+	if (to > from && to - from + sysmem.nr_banks > SYSMEM_BANKS_MAX)
+		return -ENOMEM;
+	if (to != from)
+		memmove(to, from, n * sizeof(struct meminfo));
+	sysmem.nr_banks += to - from;
+	return 0;
+}
+
+/*
+ * Add new bank to sysmem. Resulting sysmem is the union of bytes of the
+ * original sysmem and the new bank.
+ *
+ * Returns: 0 (success), < 0 (error)
+ */
 int __init add_sysmem_bank(unsigned long start, unsigned long end)
 {
-	if (sysmem.nr_banks >= SYSMEM_BANKS_MAX) {
-		pr_warn("Ignoring memory bank 0x%08lx size %ldKB\n",
+	unsigned i;
+	struct meminfo *it = NULL;
+	unsigned long sz;
+	unsigned long bank_sz = 0;
+
+	if (start == end ||
+	    (start < end) != (PAGE_ALIGN(start) < (end & PAGE_MASK))) {
+		pr_warn("Ignoring small memory bank 0x%08lx size: %ld bytes\n",
 			start, end - start);
 		return -EINVAL;
 	}
-	sysmem.bank[sysmem.nr_banks].start = PAGE_ALIGN(start);
-	sysmem.bank[sysmem.nr_banks].end   = end & PAGE_MASK;
-	sysmem.nr_banks++;
 
+	start = PAGE_ALIGN(start);
+	end &= PAGE_MASK;
+	sz = end - start;
+
+	it = find_bank(start);
+
+	if (it)
+		bank_sz = it->end - it->start;
+
+	if (it && bank_sz >= start - it->start) {
+		if (end - it->start > bank_sz)
+			it->end = end;
+		else
+			return 0;
+	} else {
+		if (!it)
+			it = sysmem.bank;
+		else
+			++it;
+
+		if (it - sysmem.bank < sysmem.nr_banks &&
+		    it->start - start <= sz) {
+			it->start = start;
+			if (it->end - it->start < sz)
+				it->end = end;
+			else
+				return 0;
+		} else {
+			if (move_banks(it + 1, it) < 0) {
+				pr_warn("Ignoring memory bank 0x%08lx size %ld bytes\n",
+					start, end - start);
+				return -EINVAL;
+			}
+			it->start = start;
+			it->end = end;
+			return 0;
+		}
+	}
+	sz = it->end - it->start;
+	for (i = it + 1 - sysmem.bank; i < sysmem.nr_banks; ++i)
+		if (sysmem.bank[i].start - it->start <= sz) {
+			if (sz < sysmem.bank[i].end - it->start)
+				it->end = sysmem.bank[i].end;
+		} else {
+			break;
+		}
+
+	move_banks(it + 1, sysmem.bank + i);
 	return 0;
 }
 

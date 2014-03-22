@@ -18,6 +18,11 @@ struct meminfo {
 	unsigned long end;
 };
 
+/*
+ * Bank array is sorted by .start.
+ * Banks don't overlap and there's at least one page gap
+ * between adjacent bank entries.
+ */
 struct sysmem_info {
 	int nr_banks;
 	struct meminfo bank[SYSMEM_BANKS_MAX];
