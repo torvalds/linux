@@ -320,8 +320,31 @@ static int vpif_stop_streaming(struct vb2_queue *vq)
 
 	common = &ch->common[VPIF_VIDEO_INDEX];
 
+	/* Disable channel */
+	if (VPIF_CHANNEL2_VIDEO == ch->channel_id) {
+		enable_channel2(0);
+		channel2_intr_enable(0);
+	}
+	if ((VPIF_CHANNEL3_VIDEO == ch->channel_id) ||
+		(2 == common->started)) {
+		enable_channel3(0);
+		channel3_intr_enable(0);
+	}
+	common->started = 0;
+
 	/* release all active buffers */
 	spin_lock_irqsave(&common->irqlock, flags);
+	if (common->cur_frm == common->next_frm) {
+		vb2_buffer_done(&common->cur_frm->vb, VB2_BUF_STATE_ERROR);
+	} else {
+		if (common->cur_frm != NULL)
+			vb2_buffer_done(&common->cur_frm->vb,
+					VB2_BUF_STATE_ERROR);
+		if (common->next_frm != NULL)
+			vb2_buffer_done(&common->next_frm->vb,
+					VB2_BUF_STATE_ERROR);
+	}
+
 	while (!list_empty(&common->dma_queue)) {
 		common->next_frm = list_entry(common->dma_queue.next,
 						struct vpif_disp_buffer, list);
@@ -773,18 +796,6 @@ static int vpif_release(struct file *filep)
 	if (fh->io_allowed[VPIF_VIDEO_INDEX]) {
 		/* Reset io_usrs member of channel object */
 		common->io_usrs = 0;
-		/* Disable channel */
-		if (VPIF_CHANNEL2_VIDEO == ch->channel_id) {
-			enable_channel2(0);
-			channel2_intr_enable(0);
-		}
-		if ((VPIF_CHANNEL3_VIDEO == ch->channel_id) ||
-		    (2 == common->started)) {
-			enable_channel3(0);
-			channel3_intr_enable(0);
-		}
-		common->started = 0;
-
 		/* Free buffers allocated */
 		vb2_queue_release(&common->buffer_queue);
 		vb2_dma_contig_cleanup_ctx(common->alloc_ctx);
