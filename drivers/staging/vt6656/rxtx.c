@@ -1697,7 +1697,7 @@ CMD_STATUS csBeacon_xmit(struct vnt_private *pDevice,
 
     cbReqCount = cbHeaderSize + WLAN_HDR_ADDR3_LEN + cbFrameBodySize;
 
-    pTX_Buffer->wTxByteCount = (u16)cbReqCount;
+    pTX_Buffer->tx_byte_count = cpu_to_le16((u16)cbReqCount);
     pTX_Buffer->byPKTNO = (u8) (((wCurrentRate<<4) &0x00F0) | ((pDevice->wSeqCounter - 1) & 0x000F));
     pTX_Buffer->byType = 0x01;
 
