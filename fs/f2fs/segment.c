@@ -1046,12 +1046,38 @@ void rewrite_node_page(struct f2fs_sb_info *sbi,
 	mutex_unlock(&curseg->curseg_mutex);
 }
 
+static inline bool is_merged_page(struct f2fs_sb_info *sbi,
+					struct page *page, enum page_type type)
+{
+	enum page_type btype = PAGE_TYPE_OF_BIO(type);
+	struct f2fs_bio_info *io = &sbi->write_io[btype];
+	struct bio *bio = io->bio;
+	struct bio_vec *bvec;
+	int i;
+
+	down_read(&io->io_rwsem);
+	if (!bio)
+		goto out;
+
+	bio_for_each_segment_all(bvec, bio, i) {
+		if (page == bvec->bv_page) {
+			up_read(&io->io_rwsem);
+			return true;
+		}
+	}
+
+out:
+	up_read(&io->io_rwsem);
+	return false;
+}
+
 void f2fs_wait_on_page_writeback(struct page *page,
 				enum page_type type)
 {
 	struct f2fs_sb_info *sbi = F2FS_SB(page->mapping->host->i_sb);
 	if (PageWriteback(page)) {
-		f2fs_submit_merged_bio(sbi, type, WRITE);
+		if (is_merged_page(sbi, page, type))
+			f2fs_submit_merged_bio(sbi, type, WRITE);
 		wait_on_page_writeback(page);
 	}
 }

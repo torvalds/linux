@@ -394,7 +394,7 @@ struct f2fs_bio_info {
 	struct bio *bio;		/* bios to merge */
 	sector_t last_block_in_bio;	/* last block number */
 	struct f2fs_io_info fio;	/* store buffered io info. */
-	struct mutex io_mutex;		/* mutex for bio */
+	struct rw_semaphore io_rwsem;	/* blocking op for bio */
 };
 
 struct f2fs_sb_info {

@@ -920,11 +920,11 @@ static int f2fs_fill_super(struct super_block *sb, void *data, int silent)
 	sbi->por_doing = false;
 	spin_lock_init(&sbi->stat_lock);
 
-	mutex_init(&sbi->read_io.io_mutex);
+	init_rwsem(&sbi->read_io.io_rwsem);
 	sbi->read_io.sbi = sbi;
 	sbi->read_io.bio = NULL;
 	for (i = 0; i < NR_PAGE_TYPE; i++) {
-		mutex_init(&sbi->write_io[i].io_mutex);
+		init_rwsem(&sbi->write_io[i].io_rwsem);
 		sbi->write_io[i].sbi = sbi;
 		sbi->write_io[i].bio = NULL;
 	}

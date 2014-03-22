@@ -134,7 +134,7 @@ void f2fs_submit_merged_bio(struct f2fs_sb_info *sbi,
 
 	io = is_read_io(rw) ? &sbi->read_io : &sbi->write_io[btype];
 
-	mutex_lock(&io->io_mutex);
+	down_write(&io->io_rwsem);
 
 	/* change META to META_FLUSH in the checkpoint procedure */
 	if (type >= META_FLUSH) {
@@ -142,7 +142,7 @@ void f2fs_submit_merged_bio(struct f2fs_sb_info *sbi,
 		io->fio.rw = WRITE_FLUSH_FUA | REQ_META | REQ_PRIO;
 	}
 	__submit_merged_bio(io);
-	mutex_unlock(&io->io_mutex);
+	up_write(&io->io_rwsem);
 }
 
 /*
@@ -180,7 +180,7 @@ void f2fs_submit_page_mbio(struct f2fs_sb_info *sbi, struct page *page,
 
 	verify_block_addr(sbi, blk_addr);
 
-	mutex_lock(&io->io_mutex);
+	down_write(&io->io_rwsem);
 
 	if (!is_read)
 		inc_page_count(sbi, F2FS_WRITEBACK);
@@ -204,7 +204,7 @@ alloc_new:
 
 	io->last_block_in_bio = blk_addr;
 
-	mutex_unlock(&io->io_mutex);
+	up_write(&io->io_rwsem);
 	trace_f2fs_submit_page_mbio(page, fio->rw, fio->type, blk_addr);
 }
 
