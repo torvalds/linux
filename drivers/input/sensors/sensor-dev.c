@@ -2047,7 +2047,7 @@ out_misc_device_register_device_failed:
 out_input_register_device_failed:
 	input_free_device(sensor->input_dev);	
 out_free_memory:
-	kfree(sensor);
+	//kfree(sensor);
 out_no_free:
 	dev_err(&client->adapter->dev, "%s failed %d\n\n", __func__, result);
 	return result;
