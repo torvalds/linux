@@ -32,6 +32,17 @@
 
 struct sysmem_info sysmem __initdata;
 
+static void __init sysmem_dump(void)
+{
+	unsigned i;
+
+	pr_debug("Sysmem:\n");
+	for (i = 0; i < sysmem.nr_banks; ++i)
+		pr_debug("  0x%08lx - 0x%08lx (%ldK)\n",
+			 sysmem.bank[i].start, sysmem.bank[i].end,
+			 (sysmem.bank[i].end - sysmem.bank[i].start) >> 10);
+}
+
 /*
  * Find bank with maximal .start such that bank.start <= start
  */
@@ -227,6 +238,7 @@ void __init bootmem_init(void)
 	unsigned long bootmap_start, bootmap_size;
 	int i;
 
+	sysmem_dump();
 	max_low_pfn = max_pfn = 0;
 	min_low_pfn = ~0;
 
