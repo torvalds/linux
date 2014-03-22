@@ -261,7 +261,7 @@ static int rk3288_hdmi_probe(struct platform_device *pdev)
 		goto err2;
 	}
 
-	ret = devm_request_irq(hdmi_dev->dev, dev_drv->irq, hdmi_irq, 0, dev_name(hdmi_dev->dev), dev_drv);
+	//ret = devm_request_irq(hdmi_dev->dev, dev_drv->irq, hdmi_irq, 0, dev_name(hdmi_dev->dev), dev_drv);
 	if (ret) {
 		dev_err(hdmi_dev->dev, "hdmi request_irq failed (%d).\n", ret);
 		goto err2;
