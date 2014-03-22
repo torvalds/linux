@@ -2205,7 +2205,7 @@ static ssize_t rk3288_lcdc_get_disp_info(struct rk_lcdc_driver *dev_drv,
 	h_pw_bp = hsync_len + left_margin;
 	v_pw_bp = vsync_len + upper_margin;
 	dclk_freq = screen->mode.pixclock;
-	rk3288_lcdc_reg_dump(dev_drv);
+	/*rk3288_lcdc_reg_dump(dev_drv);*/
 
 	spin_lock(&lcdc_dev->reg_lock);		
 	if (lcdc_dev->clk_on) {
