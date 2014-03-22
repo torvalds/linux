@@ -2345,8 +2345,7 @@ int pagecache_write_end(struct file *file, struct address_space *mapping,
 EXPORT_SYMBOL(pagecache_write_end);
 
 ssize_t
-generic_file_direct_write(struct kiocb *iocb, struct iov_iter *from,
-		loff_t pos, size_t count, size_t ocount)
+generic_file_direct_write(struct kiocb *iocb, struct iov_iter *from, loff_t pos)
 {
 	struct file	*file = iocb->ki_filp;
 	struct address_space *mapping = file->f_mapping;
@@ -2356,10 +2355,7 @@ generic_file_direct_write(struct kiocb *iocb, struct iov_iter *from,
 	pgoff_t		end;
 	struct iov_iter data;
 
-	if (count != ocount)
-		from->nr_segs = iov_shorten((struct iovec *)from->iov, from->nr_segs, count);
-
-	write_len = iov_length(from->iov, from->nr_segs);
+	write_len = iov_iter_count(from);
 	end = (pos + write_len - 1) >> PAGE_CACHE_SHIFT;
 
 	written = filemap_write_and_wait_range(mapping, pos, pos + write_len - 1);
@@ -2568,7 +2564,6 @@ ssize_t __generic_file_aio_write(struct kiocb *iocb, const struct iovec *iov,
 {
 	struct file *file = iocb->ki_filp;
 	struct address_space * mapping = file->f_mapping;
-	size_t ocount;		/* original count */
 	size_t count;		/* after file limit checks */
 	struct inode 	*inode = mapping->host;
 	loff_t		pos = iocb->ki_pos;
@@ -2577,7 +2572,8 @@ ssize_t __generic_file_aio_write(struct kiocb *iocb, const struct iovec *iov,
 	ssize_t		status;
 	struct iov_iter from;
 
-	count = ocount = iov_length(iov, nr_segs);
+	count = iov_length(iov, nr_segs);
+	iov_iter_init(&from, WRITE, iov, nr_segs, count);
 
 	/* We can write back this queue in page reclaim */
 	current->backing_dev_info = mapping->backing_dev_info;
@@ -2588,6 +2584,8 @@ ssize_t __generic_file_aio_write(struct kiocb *iocb, const struct iovec *iov,
 	if (count == 0)
 		goto out;
 
+	iov_iter_truncate(&from, count);
+
 	err = file_remove_suid(file);
 	if (err)
 		goto out;
@@ -2596,14 +2594,11 @@ ssize_t __generic_file_aio_write(struct kiocb *iocb, const struct iovec *iov,
 	if (err)
 		goto out;
 
-	iov_iter_init(&from, WRITE, iov, nr_segs, count);
-
 	/* coalesce the iovecs and go direct-to-BIO for O_DIRECT */
 	if (unlikely(file->f_flags & O_DIRECT)) {
 		loff_t endbyte;
 
-		written = generic_file_direct_write(iocb, &from, pos,
-							count, ocount);
+		written = generic_file_direct_write(iocb, &from, pos);
 		if (written < 0 || written == count)
 			goto out;
 

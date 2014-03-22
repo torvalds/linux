@@ -1659,8 +1659,7 @@ again:
 
 static ssize_t __btrfs_direct_write(struct kiocb *iocb,
 				    struct iov_iter *from,
-				    loff_t pos,
-				    size_t count, size_t ocount)
+				    loff_t pos)
 {
 	struct file *file = iocb->ki_filp;
 	ssize_t written;
@@ -1668,9 +1667,9 @@ static ssize_t __btrfs_direct_write(struct kiocb *iocb,
 	loff_t endbyte;
 	int err;
 
-	written = generic_file_direct_write(iocb, from, pos, count, ocount);
+	written = generic_file_direct_write(iocb, from, pos);
 
-	if (written < 0 || written == count)
+	if (written < 0 || !iov_iter_count(from))
 		return written;
 
 	pos += written;
@@ -1720,13 +1719,14 @@ static ssize_t btrfs_file_aio_write(struct kiocb *iocb,
 	u64 end_pos;
 	ssize_t num_written = 0;
 	ssize_t err = 0;
-	size_t count, ocount;
+	size_t count;
 	bool sync = (file->f_flags & O_DSYNC) || IS_SYNC(file->f_mapping->host);
 	struct iov_iter i;
 
 	mutex_lock(&inode->i_mutex);
 
-	count = ocount = iov_length(iov, nr_segs);
+	count = iov_length(iov, nr_segs);
+	iov_iter_init(&i, WRITE, iov, nr_segs, count);
 
 	current->backing_dev_info = inode->i_mapping->backing_dev_info;
 	err = generic_write_checks(file, &pos, &count, S_ISBLK(inode->i_mode));
@@ -1740,7 +1740,7 @@ static ssize_t btrfs_file_aio_write(struct kiocb *iocb,
 		goto out;
 	}
 
-	iov_iter_init(&i, WRITE, iov, nr_segs, count);
+	iov_iter_truncate(&i, count);
 
 	err = file_remove_suid(file);
 	if (err) {
@@ -1783,8 +1783,7 @@ static ssize_t btrfs_file_aio_write(struct kiocb *iocb,
 		atomic_inc(&BTRFS_I(inode)->sync_writers);
 
 	if (unlikely(file->f_flags & O_DIRECT)) {
-		num_written = __btrfs_direct_write(iocb, &i,
-						   pos, count, ocount);
+		num_written = __btrfs_direct_write(iocb, &i, pos);
 	} else {
 		num_written = __btrfs_buffered_write(file, &i, pos);
 		if (num_written > 0)

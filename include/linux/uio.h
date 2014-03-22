@@ -82,6 +82,12 @@ static inline size_t iov_iter_count(struct iov_iter *i)
 	return i->count;
 }
 
+static inline void iov_iter_truncate(struct iov_iter *i, size_t count)
+{
+	if (i->count > count)
+		i->count = count;
+}
+
 int memcpy_fromiovec(unsigned char *kdata, struct iovec *iov, int len);
 int memcpy_toiovec(struct iovec *iov, unsigned char *kdata, int len);
 

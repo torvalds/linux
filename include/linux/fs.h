@@ -2407,8 +2407,7 @@ extern ssize_t generic_file_aio_read(struct kiocb *, const struct iovec *, unsig
 extern ssize_t generic_file_read_iter(struct kiocb *, struct iov_iter *);
 extern ssize_t __generic_file_aio_write(struct kiocb *, const struct iovec *, unsigned long);
 extern ssize_t generic_file_aio_write(struct kiocb *, const struct iovec *, unsigned long, loff_t);
-extern ssize_t generic_file_direct_write(struct kiocb *, struct iov_iter *,
-		loff_t, size_t, size_t);
+extern ssize_t generic_file_direct_write(struct kiocb *, struct iov_iter *, loff_t);
 extern ssize_t generic_perform_write(struct file *, struct iov_iter *, loff_t);
 extern ssize_t do_sync_read(struct file *filp, char __user *buf, size_t len, loff_t *ppos);
 extern ssize_t do_sync_write(struct file *filp, const char __user *buf, size_t len, loff_t *ppos);

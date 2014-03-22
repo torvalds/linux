@@ -2241,7 +2241,6 @@ static ssize_t ocfs2_file_aio_write(struct kiocb *iocb,
 	int ret, direct_io, appending, rw_level, have_alloc_sem  = 0;
 	int can_do_direct, has_refcount = 0;
 	ssize_t written = 0;
-	size_t ocount;		/* original count */
 	size_t count;		/* after file limit checks */
 	loff_t old_size, *ppos = &iocb->ki_pos;
 	u32 old_clusters;
@@ -2252,6 +2251,9 @@ static ssize_t ocfs2_file_aio_write(struct kiocb *iocb,
 			       OCFS2_MOUNT_COHERENCY_BUFFERED);
 	int unaligned_dio = 0;
 	struct iov_iter from;
+
+	count = iov_length(iov, nr_segs);
+	iov_iter_init(&from, WRITE, iov, nr_segs, count);
 
 	trace_ocfs2_file_aio_write(inode, file, file->f_path.dentry,
 		(unsigned long long)OCFS2_I(inode)->ip_blkno,
@@ -2355,16 +2357,14 @@ relock:
 	/* communicate with ocfs2_dio_end_io */
 	ocfs2_iocb_set_rw_locked(iocb, rw_level);
 
-	count = ocount = iov_length(iov, nr_segs);
 	ret = generic_write_checks(file, ppos, &count,
 				   S_ISBLK(inode->i_mode));
 	if (ret)
 		goto out_dio;
 
-	iov_iter_init(&from, WRITE, iov, nr_segs, count);
+	iov_iter_truncate(&from, count);
 	if (direct_io) {
-		written = generic_file_direct_write(iocb, &from, *ppos,
-						    count, ocount);
+		written = generic_file_direct_write(iocb, &from, *ppos);
 		if (written < 0) {
 			ret = written;
 			goto out_dio;

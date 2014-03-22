@@ -626,7 +626,7 @@ xfs_file_dio_aio_write(
 	const struct iovec	*iovp,
 	unsigned long		nr_segs,
 	loff_t			pos,
-	size_t			ocount)
+	size_t			count)
 {
 	struct file		*file = iocb->ki_filp;
 	struct address_space	*mapping = file->f_mapping;
@@ -634,7 +634,6 @@ xfs_file_dio_aio_write(
 	struct xfs_inode	*ip = XFS_I(inode);
 	struct xfs_mount	*mp = ip->i_mount;
 	ssize_t			ret = 0;
-	size_t			count = ocount;
 	int			unaligned_io = 0;
 	int			iolock;
 	struct xfs_buftarg	*target = XFS_IS_REALTIME_INODE(ip) ?
@@ -644,6 +643,8 @@ xfs_file_dio_aio_write(
 	/* DIO must be aligned to device logical sector size */
 	if ((pos | count) & target->bt_logical_sectormask)
 		return -XFS_ERROR(EINVAL);
+
+	iov_iter_init(&from, WRITE, iovp, nr_segs, count);
 
 	/* "unaligned" here means not aligned to a filesystem block */
 	if ((pos & mp->m_blockmask) || ((pos + count) & mp->m_blockmask))
@@ -676,6 +677,7 @@ xfs_file_dio_aio_write(
 	ret = xfs_file_aio_write_checks(file, &pos, &count, &iolock);
 	if (ret)
 		goto out;
+	iov_iter_truncate(&from, count);
 
 	if (mapping->nrpages) {
 		ret = filemap_write_and_wait_range(VFS_I(ip)->i_mapping,
@@ -697,8 +699,7 @@ xfs_file_dio_aio_write(
 	}
 
 	trace_xfs_file_direct_write(ip, count, iocb->ki_pos, 0);
-	iov_iter_init(&from, WRITE, iovp, nr_segs, count);
-	ret = generic_file_direct_write(iocb, &from, pos, count, ocount);
+	ret = generic_file_direct_write(iocb, &from, pos);
 
 out:
 	xfs_rw_iunlock(ip, iolock);
