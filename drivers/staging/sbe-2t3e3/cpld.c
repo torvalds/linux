@@ -30,7 +30,8 @@ static inline void cpld_set_bit(struct channel *channel, unsigned reg, u32 bit)
 	spin_unlock_irqrestore(&channel->card->bootrom_lock, flags);
 }
 
-static inline void cpld_clear_bit(struct channel *channel, unsigned reg, u32 bit)
+static inline void cpld_clear_bit(struct channel *channel,
+				unsigned reg, u32 bit)
 {
 	unsigned long flags;
 	spin_lock_irqsave(&channel->card->bootrom_lock, flags);
