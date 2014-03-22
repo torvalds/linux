@@ -181,7 +181,7 @@ static void s_vFillTxKey(struct vnt_private *pDevice,
 	struct vnt_mic_hdr *mic_hdr)
 {
 	u8 *pbyBuf = (u8 *)&fifo_head->adwTxKey[0];
-	u32 *pdwIV = (u32 *)pbyIVHead;
+	__le32 *pdwIV = (__le32 *)pbyIVHead;
 	u32 *pdwExtIV = (u32 *)((u8 *)pbyIVHead + 4);
 	struct ieee80211_hdr *pMACHeader = (struct ieee80211_hdr *)pbyHdrBuf;
 	__le32 rev_iv_counter;
@@ -191,7 +191,7 @@ static void s_vFillTxKey(struct vnt_private *pDevice,
 		return;
 
 	rev_iv_counter = cpu_to_le32(pDevice->dwIVCounter);
-	*pdwIV = pDevice->dwIVCounter;
+	*pdwIV = cpu_to_le32(pDevice->dwIVCounter);
 	pDevice->byKeyIndex = pTransmitKey->dwKeyIndex & 0xf;
 
 	switch (pTransmitKey->byCipherSuite) {
@@ -213,9 +213,8 @@ static void s_vFillTxKey(struct vnt_private *pDevice,
 			memcpy(pDevice->abyPRNG, pbyBuf, 16);
 		}
 		/* Append IV after Mac Header */
-		*pdwIV &= WEP_IV_MASK;
-		*pdwIV |= (u32)pDevice->byKeyIndex << 30;
-		*pdwIV = cpu_to_le32(*pdwIV);
+		*pdwIV &= cpu_to_le32(WEP_IV_MASK);
+		*pdwIV |= cpu_to_le32((u32)pDevice->byKeyIndex << 30);
 
 		pDevice->dwIVCounter++;
 		if (pDevice->dwIVCounter > WEP_IV_MASK)
@@ -256,7 +255,7 @@ static void s_vFillTxKey(struct vnt_private *pDevice,
 		*(pbyIVHead+3) = (u8)(((pDevice->byKeyIndex << 6) &
 							0xc0) | 0x20);
 
-		*pdwIV |= cpu_to_le16((u16)(pTransmitKey->wTSC15_0));
+		*pdwIV |= cpu_to_le32((u32)(pTransmitKey->wTSC15_0));
 
 		/* Append IV&ExtIV after Mac Header */
 		*pdwExtIV = cpu_to_le32(pTransmitKey->dwTSC47_16);
