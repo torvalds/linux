@@ -70,6 +70,7 @@ static int ad2s1200_read_raw(struct iio_dev *indio_dev,
 		vel = (((s16)(st->rx[0])) << 4) | ((st->rx[1] & 0xF0) >> 4);
 		vel = (vel << 4) >> 4;
 		*val = vel;
+		break;
 	default:
 		mutex_unlock(&st->lock);
 		return -EINVAL;
