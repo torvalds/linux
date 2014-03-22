@@ -282,9 +282,10 @@ static void s_vFillTxKey(struct vnt_private *pDevice,
 
 		/* MICHDR2 */
 		memcpy(mic_hdr->addr3, pMACHeader->addr3, ETH_ALEN);
-		mic_hdr->frame_control = cpu_to_le16(pMACHeader->frame_control
-								& 0xc78f);
-		mic_hdr->seq_ctrl = cpu_to_le16(pMACHeader->seq_ctrl & 0xf);
+		mic_hdr->frame_control = cpu_to_le16(
+			le16_to_cpu(pMACHeader->frame_control) & 0xc78f);
+		mic_hdr->seq_ctrl = cpu_to_le16(
+				le16_to_cpu(pMACHeader->seq_ctrl) & 0xf);
 
 		if (ieee80211_has_a4(pMACHeader->frame_control))
 			memcpy(mic_hdr->addr4, pMACHeader->addr4, ETH_ALEN);
