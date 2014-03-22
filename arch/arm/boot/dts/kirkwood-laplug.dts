@@ -48,7 +48,7 @@
 			status = "okay";
 
 			eeprom@50 {
-				compatible = "at,24c04";
+				compatible = "atmel,24c04";
 				pagesize = <16>;
 				reg = <0x50>;
 			};
