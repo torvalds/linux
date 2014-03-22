@@ -1605,7 +1605,7 @@ CMD_STATUS csMgmt_xmit(struct vnt_private *pDevice,
 	}
     }
 
-    pTX_Buffer->wTxByteCount = cpu_to_le16((u16)(cbReqCount));
+    pTX_Buffer->tx_byte_count = cpu_to_le16((u16)(cbReqCount));
     pTX_Buffer->byPKTNO = (u8) (((wCurrentRate<<4) &0x00F0) | ((pDevice->wSeqCounter - 1) & 0x000F));
     pTX_Buffer->byType = 0x00;
 
@@ -2045,7 +2045,7 @@ void vDMA0_tx_80211(struct vnt_private *pDevice, struct sk_buff *skb)
 	}
     }
 
-    pTX_Buffer->wTxByteCount = cpu_to_le16((u16)(cbReqCount));
+    pTX_Buffer->tx_byte_count = cpu_to_le16((u16)(cbReqCount));
     pTX_Buffer->byPKTNO = (u8) (((wCurrentRate<<4) &0x00F0) | ((pDevice->wSeqCounter - 1) & 0x000F));
     pTX_Buffer->byType = 0x00;
 
@@ -2437,7 +2437,7 @@ int nsDMA_tx_packet(struct vnt_private *pDevice,
     }
 
     pTX_Buffer->byPKTNO = (u8) (((pDevice->wCurrentRate<<4) &0x00F0) | ((pDevice->wSeqCounter - 1) & 0x000F));
-    pTX_Buffer->wTxByteCount = (u16)BytesToWrite;
+    pTX_Buffer->tx_byte_count = cpu_to_le16((u16)BytesToWrite);
 
     pContext->pPacket = skb;
     pContext->type = CONTEXT_DATA_PACKET;
@@ -2591,7 +2591,7 @@ int bRelayPacketSend(struct vnt_private *pDevice, u8 *pbySkbData, u32 uDataLen,
     }
 
     pTX_Buffer->byPKTNO = (u8) (((pDevice->wCurrentRate<<4) &0x00F0) | ((pDevice->wSeqCounter - 1) & 0x000F));
-    pTX_Buffer->wTxByteCount = (u16)BytesToWrite;
+    pTX_Buffer->tx_byte_count = cpu_to_le16((u16)BytesToWrite);
 
     pContext->pPacket = NULL;
     pContext->type = CONTEXT_DATA_PACKET;
