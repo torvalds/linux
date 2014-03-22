@@ -35,12 +35,12 @@ static void rk3288_hdmi_av_mute(struct hdmi *hdmi_drv, int enable)
 	struct rk3288_hdmi_device *hdmi_dev = container_of(hdmi_drv, struct rk3288_hdmi_device, driver);
 
 	hdmi_msk_reg(hdmi_dev, FC_GCP, m_FC_SET_AVMUTE, v_FC_SET_AVMUTE(enable));
-
+#if 0
 	/* audio mute priority: AVMUTE, sample flat, validity */
 	/* AVMUTE also mutes video */
 	value = enable ? 0xF : 0;
 	hdmi_msk_reg(hdmi_dev, FC_AUDSCONF, m_AUD_PACK_SAMPFIT, v_AUD_PACK_SAMPFIT(value));
-
+#endif
 }
 
 static void rk3288_hdmi_set_pwr_mode(struct hdmi *hdmi_drv, int mode)
@@ -54,15 +54,14 @@ static void rk3288_hdmi_set_pwr_mode(struct hdmi *hdmi_drv, int mode)
 	switch(mode)
 	{
 		case NORMAL:
-			hdmi_msk_reg(hdmi_dev, A_HDCPCFG0, m_ENCRYPT_BYPASS, v_ENCRYPT_BYPASS(1));	//cfg to bypass hdcp data encrypt
-			hdmi_writel(hdmi_dev, MC_SWRSTZREQ, 0x00);
-			hdmi_writel(hdmi_dev, MC_SWRSTZREQ_2, 0x00);
+			//hdmi_writel(hdmi_dev, MC_SWRSTZREQ, 0x00);
+			//hdmi_writel(hdmi_dev, MC_SWRSTZREQ_2, 0x00);
 			hdmi_writel(hdmi_dev, MC_CLKDIS, 0x00);
 			break;
 		case LOWER_PWR:
-			hdmi_msk_reg(hdmi_dev, MC_CLKDIS, m_AUDCLK_DISABLE | m_PREPCLK_DISABLE | m_TMDSCLK_DISABLE | m_PIXELCLK_DISABLE,
-				v_AUDCLK_DISABLE(1) | v_PREPCLK_DISABLE(1) | v_TMDSCLK_DISABLE(1) | v_PIXELCLK_DISABLE(1));
-			hdmi_msk_reg(hdmi_dev, PHY_CONF0, m_TXPWRON_SIG, v_TXPWRON_SIG(0));
+			//hdmi_msk_reg(hdmi_dev, MC_CLKDIS, m_AUDCLK_DISABLE | m_PREPCLK_DISABLE | m_TMDSCLK_DISABLE | m_PIXELCLK_DISABLE,
+				//v_AUDCLK_DISABLE(1) | v_PREPCLK_DISABLE(1) | v_TMDSCLK_DISABLE(1) | v_PIXELCLK_DISABLE(1));
+			//hdmi_msk_reg(hdmi_dev, PHY_CONF0, m_TXPWRON_SIG, v_TXPWRON_SIG(0));
 			break;
 		default:
 			hdmi_dbg(hdmi_drv->dev, "unkown hdmi pwr mode %d\n",mode);
@@ -74,7 +73,28 @@ static void rk3288_hdmi_set_pwr_mode(struct hdmi *hdmi_drv, int mode)
 void rk3288_hdmi_i2cm_reset(struct rk3288_hdmi_device *hdmi_dev)
 {
 	hdmi_msk_reg(hdmi_dev, I2CM_SOFTRSTZ, m_I2CM_SOFTRST, v_I2CM_SOFTRST(0));
+	udelay(200);
+}
+
+void rk3288_hdmi_reset(struct hdmi *hdmi_drv)
+{
+	struct rk3288_hdmi_device *hdmi_dev = container_of(hdmi_drv, struct rk3288_hdmi_device, driver);
+
+	hdmi_writel(hdmi_dev, MC_SWRSTZREQ, 0x00);
+	udelay(100);
+	hdmi_writel(hdmi_dev, MC_SWRSTZREQ, 0xff);
+	hdmi_writel(hdmi_dev, MC_SWRSTZREQ_2, 0x00);
+	udelay(100);
+	hdmi_writel(hdmi_dev, MC_SWRSTZREQ_2, 0x01);
+	rk3288_hdmi_i2cm_reset(hdmi_dev);
+	//hdmi_msk_reg(hdmi_dev, PHY_CONF0, m_TXPWRON_SIG, v_TXPWRON_SIG(1));
+	hdmi_msk_reg(hdmi_dev, PHY_I2CM_DIV, m_PHY_I2CM_FAST_STD, v_PHY_I2CM_FAST_STD(0));
+	hdmi_writel(hdmi_dev, PHY_CONF0, 0x3a);
+	hdmi_writel(hdmi_dev, MC_PHYRSTZ, v_PHY_RSTZ(1));
 	msleep(5);
+	hdmi_writel(hdmi_dev, MC_PHYRSTZ, v_PHY_RSTZ(0));
+	hdmi_writel(hdmi_dev, PHY_CONF0, 0x6e);
+	rk3288_hdmi_set_pwr_mode(hdmi_drv, LOWER_PWR);
 }
 
 int rk3288_hdmi_detect_hotplug(struct hdmi *hdmi_drv)
@@ -222,6 +242,8 @@ static int rk3288_hdmi_video_frameComposer(struct hdmi *hdmi_drv, struct hdmi_vi
 		hdmi_msk_reg(hdmi_dev, FC_SCRAMBLER_CTRL, m_FC_SCRAMBLE_EN, v_FC_SCRAMBLE_EN(1));
 	}
 
+	hdmi_msk_reg(hdmi_dev, A_HDCPCFG0, m_ENCRYPT_BYPASS | m_HDMI_DVI,
+		v_ENCRYPT_BYPASS(1) | v_HDMI_DVI(vpara->output_mode));	//cfg to bypass hdcp data encrypt
 	hdmi_msk_reg(hdmi_dev, FC_INVIDCONF, m_FC_VSYNC_POL | m_FC_HSYNC_POL | m_FC_DE_POL | m_FC_HDMI_DVI | m_FC_INTERLACE_MODE,
 		v_FC_VSYNC_POL(vsync_pol) | v_FC_HSYNC_POL(hsync_pol) | v_FC_DE_POL(de_pol) | v_FC_HDMI_DVI(vpara->output_mode) | v_FC_INTERLACE_MODE(mode->vmode));
 	hdmi_msk_reg(hdmi_dev, FC_INVIDCONF, m_FC_VBLANK, v_FC_VBLANK(mode->vmode));
@@ -930,7 +952,7 @@ int rk3288_hdmi_initial(struct hdmi *hdmi_drv)
 {
         int rc = HDMI_ERROR_SUCESS;
 
-	hdmi_drv->pwr_mode = LOWER_PWR;
+	hdmi_drv->pwr_mode = NORMAL;
 	hdmi_drv->insert = rk3288_hdmi_insert;
         hdmi_drv->remove = rk3288_hdmi_removed;
         hdmi_drv->control_output = rk3288_hdmi_control_output;
@@ -938,6 +960,8 @@ int rk3288_hdmi_initial(struct hdmi *hdmi_drv)
         hdmi_drv->config_audio = rk3288_hdmi_config_audio;
         hdmi_drv->detect_hotplug = rk3288_hdmi_detect_hotplug;
         hdmi_drv->read_edid = rk3288_hdmi_read_edid;
+
+	rk3288_hdmi_reset(hdmi_drv);
 
 	if(hdmi_drv->hdcp_power_on_cb)
 		rc = hdmi_drv->hdcp_power_on_cb();
@@ -969,7 +993,9 @@ irqreturn_t hdmi_irq(int irq, void *priv)
 	//hdmi_writel(hdmi_dev, A_APIINTCLR, hdcp_int);
 
 	//HPD
-	if((phy_int & m_HPD) || ((phy_int & 0x3c) == 0x3c)) {
+	if((phy_int & m_HPD)
+		//|| ((phy_int & 0x3c) == 0x3c)
+		) {
 		if(hdmi_drv->state == HDMI_SLEEP)
 			hdmi_drv->state = WAIT_HOTPLUG;
 		queue_delayed_work(hdmi_drv->workqueue, &hdmi_drv->delay_work, msecs_to_jiffies(5));
@@ -977,16 +1003,16 @@ irqreturn_t hdmi_irq(int irq, void *priv)
 
 	//I2CM write or read result
 	if(i2cm_int & (m_SCDC_READREQ | m_I2CM_DONE | m_I2CM_ERROR)) {
-		spin_lock(&hdmi_drv->irq_lock);
+		//spin_lock(&hdmi_drv->irq_lock);
 		hdmi_dev->i2cm_int = i2cm_int;
-		spin_unlock(&hdmi_drv->irq_lock);
+		//spin_unlock(&hdmi_drv->irq_lock);
 	}
 
 	//PHY I2CM write or read result
 	if(phy_i2cm_int & (m_I2CMPHY_DONE | m_I2CMPHY_ERR)) {
-		mutex_lock(&hdmi_dev->int_mutex);
+		//mutex_lock(&hdmi_dev->int_mutex);
 		hdmi_dev->phy_i2cm_int = phy_i2cm_int;
-		mutex_unlock(&hdmi_dev->int_mutex);
+		//mutex_unlock(&hdmi_dev->int_mutex);
 	}
 
 	//CEC

@@ -1156,6 +1156,7 @@ static void rk_fb_update_reg(struct rk_lcdc_driver * dev_drv,struct rk_fb_reg_da
 			ext_win->area[0].ypos = (ext_dev_drv->cur_screen->mode.yres - ext_dev_drv->cur_screen->ysize)>>1;
 			ext_win->area[0].xsize = ext_dev_drv->cur_screen->xsize;
 			ext_win->area[0].ysize = ext_dev_drv->cur_screen->ysize;
+			ext_win->alpha_en = 0;	//hdmi only one win so disable alpha
 			ext_win->state = 1;
 		}
 		else {
