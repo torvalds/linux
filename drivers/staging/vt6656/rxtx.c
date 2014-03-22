@@ -182,7 +182,7 @@ static void s_vFillTxKey(struct vnt_private *pDevice,
 {
 	u8 *pbyBuf = (u8 *)&fifo_head->adwTxKey[0];
 	__le32 *pdwIV = (__le32 *)pbyIVHead;
-	u32 *pdwExtIV = (u32 *)((u8 *)pbyIVHead + 4);
+	__le32 *pdwExtIV = (__le32 *)((u8 *)pbyIVHead + 4);
 	struct ieee80211_hdr *pMACHeader = (struct ieee80211_hdr *)pbyHdrBuf;
 	__le32 rev_iv_counter;
 
