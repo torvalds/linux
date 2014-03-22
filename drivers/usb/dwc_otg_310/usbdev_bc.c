@@ -51,7 +51,7 @@ u32 grf_uoc_get_field(uoc_field_t *field)
 inline static int uoc_init_field(struct device_node *np, const char* name, uoc_field_t *f)
 {
     of_property_read_u32_array(np, name, f->array, 3);
-    printk("usb battery charger detect: uoc_init_field: 0x%08x %d %d \n",f->b.offset,f->b.bitmap,f->b.mask);
+    //printk("usb battery charger detect: uoc_init_field: 0x%08x %d %d \n",f->b.offset,f->b.bitmap,f->b.mask);
     return 0;
 }
 inline static void uoc_init_synop(struct device_node *np)
@@ -111,13 +111,13 @@ int usb_battery_charger_detect_rk(bool wait)
                 
             default:
                 port_type = USB_BC_TYPE_SDP;
-                printk("%s linestate = %d bad status\n", __func__, BC_GET(RK_BC_LINESTATE));
+                //printk("%s linestate = %d bad status\n", __func__, BC_GET(RK_BC_LINESTATE));
         }
         
     }
     BC_SET(RK_BC_SOFTCTRL, 0);    
     
-    printk("%s , battery_charger_detect %d\n", __func__, port_type);
+    //printk("%s , battery_charger_detect %d\n", __func__, port_type);
     return port_type;
 }
 
@@ -183,7 +183,7 @@ int usb_battery_charger_detect_synop(bool wait)
 
     }
 
-    printk("%s , battery_charger_detect %d\n", __func__, port_type);
+    //printk("%s , battery_charger_detect %d\n", __func__, port_type);
     return port_type;
 }
 
@@ -253,7 +253,7 @@ void usb20otg_battery_charger_detect_cb(int charger_type_new)
                 break;
         }
 
-        printk("%s , battery_charger_detect %d\n", __func__, charger_type_new);
+        //printk("%s , battery_charger_detect %d\n", __func__, charger_type_new);
     }
     charger_type = charger_type_new;
 }
