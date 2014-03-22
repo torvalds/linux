@@ -3071,6 +3071,10 @@ nfsd4_encode_read(struct nfsd4_compoundres *resp, __be32 nfserr,
 	if (!p)
 		return nfserr_resource;
 
+	/* Make sure there will be room for padding if needed: */
+	if (xdr->end - xdr->p < 1)
+		return nfserr_resource;
+
 	maxcount = svc_max_payload(resp->rqstp);
 	if (maxcount > read->rd_length)
 		maxcount = read->rd_length;
@@ -3122,8 +3126,6 @@ nfsd4_encode_read(struct nfsd4_compoundres *resp, __be32 nfserr,
 	resp->xdr.buf->tail[0].iov_len = 0;
 	if (maxcount&3) {
 		p = xdr_reserve_space(xdr, 4);
-		if (!p)
-			return nfserr_resource;
 		WRITE32(0);
 		resp->xdr.buf->tail[0].iov_base += maxcount&3;
 		resp->xdr.buf->tail[0].iov_len = 4 - (maxcount&3);
@@ -3156,6 +3158,9 @@ nfsd4_encode_readlink(struct nfsd4_compoundres *resp, __be32 nfserr, struct nfsd
 	if (!p)
 		return nfserr_resource;
 
+	if (xdr->end - xdr->p < 1)
+		return nfserr_resource;
+
 	/*
 	 * XXX: By default, the ->readlink() VFS op will truncate symlinks
 	 * if they would overflow the buffer.  Is this kosher in NFSv4?  If
@@ -3182,8 +3187,6 @@ nfsd4_encode_readlink(struct nfsd4_compoundres *resp, __be32 nfserr, struct nfsd
 	resp->xdr.buf->tail[0].iov_len = 0;
 	if (maxcount&3) {
 		p = xdr_reserve_space(xdr, 4);
-		if  (!p)
-			return nfserr_resource;
 		WRITE32(0);
 		resp->xdr.buf->tail[0].iov_base += maxcount&3;
 		resp->xdr.buf->tail[0].iov_len = 4 - (maxcount&3);
