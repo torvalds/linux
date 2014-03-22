@@ -142,6 +142,8 @@ int __init add_sysmem_bank(unsigned long start, unsigned long end)
  * mem_reserve(start, end, must_exist)
  *
  * Reserve some memory from the memory pool.
+ * If must_exist is set and a part of the region being reserved does not exist
+ * memory map is not altered.
  *
  * Parameters:
  *  start	Start of region,
@@ -149,53 +151,69 @@ int __init add_sysmem_bank(unsigned long start, unsigned long end)
  *  must_exist	Must exist in memory pool.
  *
  * Returns:
- *  0 (memory area couldn't be mapped)
- * -1 (success)
+ *  0 (success)
+ *  < 0 (error)
  */
 
 int __init mem_reserve(unsigned long start, unsigned long end, int must_exist)
 {
-	int i;
-
-	if (start == end)
-		return 0;
+	struct meminfo *it;
+	struct meminfo *rm = NULL;
+	unsigned long sz;
+	unsigned long bank_sz = 0;
 
 	start = start & PAGE_MASK;
 	end = PAGE_ALIGN(end);
+	sz = end - start;
+	if (!sz)
+		return -EINVAL;
 
-	for (i = 0; i < sysmem.nr_banks; i++)
-		if (start < sysmem.bank[i].end
-		    && end >= sysmem.bank[i].start)
-			break;
+	it = find_bank(start);
 
-	if (i == sysmem.nr_banks) {
-		if (must_exist)
-			printk (KERN_WARNING "mem_reserve: [0x%0lx, 0x%0lx) "
-				"not in any region!\n", start, end);
-		return 0;
+	if (it)
+		bank_sz = it->end - it->start;
+
+	if ((!it || end - it->start > bank_sz) && must_exist) {
+		pr_warn("mem_reserve: [0x%0lx, 0x%0lx) not in any region!\n",
+			start, end);
+		return -EINVAL;
 	}
 
-	if (start > sysmem.bank[i].start) {
-		if (end < sysmem.bank[i].end) {
-			/* split entry */
-			if (sysmem.nr_banks >= SYSMEM_BANKS_MAX)
-				panic("meminfo overflow\n");
-			sysmem.bank[sysmem.nr_banks].start = end;
-			sysmem.bank[sysmem.nr_banks].end = sysmem.bank[i].end;
-			sysmem.nr_banks++;
+	if (it && start - it->start < bank_sz) {
+		if (start == it->start) {
+			if (end - it->start < bank_sz) {
+				it->start = end;
+				return 0;
+			} else {
+				rm = it;
+			}
+		} else {
+			it->end = start;
+			if (end - it->start < bank_sz)
+				return add_sysmem_bank(end,
+						       it->start + bank_sz);
+			++it;
 		}
-		sysmem.bank[i].end = start;
-
-	} else if (end < sysmem.bank[i].end) {
-		sysmem.bank[i].start = end;
-
-	} else {
-		/* remove entry */
-		sysmem.nr_banks--;
-		sysmem.bank[i].start = sysmem.bank[sysmem.nr_banks].start;
-		sysmem.bank[i].end   = sysmem.bank[sysmem.nr_banks].end;
 	}
-	return -1;
+
+	if (!it)
+		it = sysmem.bank;
+
+	for (; it < sysmem.bank + sysmem.nr_banks; ++it) {
+		if (it->end - start <= sz) {
+			if (!rm)
+				rm = it;
+		} else {
+			if (it->start - start < sz)
+				it->start = end;
+			break;
+		}
+	}
+
+	if (rm)
+		move_banks(rm, it);
+
+	return 0;
 }
 
 

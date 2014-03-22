@@ -462,7 +462,7 @@ void __init setup_arch(char **cmdline_p)
 #ifdef CONFIG_BLK_DEV_INITRD
 	if (initrd_start < initrd_end) {
 		initrd_is_mapped = mem_reserve(__pa(initrd_start),
-					       __pa(initrd_end), 0);
+					       __pa(initrd_end), 0) == 0;
 		initrd_below_start_ok = 1;
 	} else {
 		initrd_start = 0;
