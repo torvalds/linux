@@ -3081,6 +3081,14 @@ static void srpt_queue_tm_rsp(struct se_cmd *cmd)
 	srpt_queue_response(cmd);
 }
 
+static void srpt_aborted_task(struct se_cmd *cmd)
+{
+	struct srpt_send_ioctx *ioctx = container_of(cmd,
+				struct srpt_send_ioctx, cmd);
+
+	srpt_unmap_sg_to_ib_sge(ioctx->ch, ioctx);
+}
+
 static int srpt_queue_status(struct se_cmd *cmd)
 {
 	struct srpt_send_ioctx *ioctx;
@@ -3928,6 +3936,7 @@ static struct target_core_fabric_ops srpt_template = {
 	.queue_data_in			= srpt_queue_data_in,
 	.queue_status			= srpt_queue_status,
 	.queue_tm_rsp			= srpt_queue_tm_rsp,
+	.aborted_task			= srpt_aborted_task,
 	/*
 	 * Setup function pointers for generic logic in
 	 * target_core_fabric_configfs.c

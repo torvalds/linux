@@ -499,6 +499,18 @@ static int iscsit_queue_rsp(struct iscsi_conn *conn, struct iscsi_cmd *cmd)
 	return 0;
 }
 
+static void iscsit_aborted_task(struct iscsi_conn *conn, struct iscsi_cmd *cmd)
+{
+	bool scsi_cmd = (cmd->iscsi_opcode == ISCSI_OP_SCSI_CMD);
+
+	spin_lock_bh(&conn->cmd_lock);
+	if (!list_empty(&cmd->i_conn_node))
+		list_del_init(&cmd->i_conn_node);
+	spin_unlock_bh(&conn->cmd_lock);
+
+	__iscsit_free_cmd(cmd, scsi_cmd, true);
+}
+
 static struct iscsit_transport iscsi_target_transport = {
 	.name			= "iSCSI/TCP",
 	.transport_type		= ISCSI_TCP,
@@ -513,6 +525,7 @@ static struct iscsit_transport iscsi_target_transport = {
 	.iscsit_response_queue	= iscsit_response_queue,
 	.iscsit_queue_data_in	= iscsit_queue_rsp,
 	.iscsit_queue_status	= iscsit_queue_rsp,
+	.iscsit_aborted_task	= iscsit_aborted_task,
 };
 
 static int __init iscsi_target_init_module(void)

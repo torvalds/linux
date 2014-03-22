@@ -2162,6 +2162,24 @@ isert_put_response(struct iscsi_conn *conn, struct iscsi_cmd *cmd)
 	return isert_post_response(isert_conn, isert_cmd);
 }
 
+static void
+isert_aborted_task(struct iscsi_conn *conn, struct iscsi_cmd *cmd)
+{
+	struct isert_cmd *isert_cmd = iscsit_priv_cmd(cmd);
+	struct isert_conn *isert_conn = (struct isert_conn *)conn->context;
+	struct isert_device *device = isert_conn->conn_device;
+
+	spin_lock_bh(&conn->cmd_lock);
+	if (!list_empty(&cmd->i_conn_node))
+		list_del_init(&cmd->i_conn_node);
+	spin_unlock_bh(&conn->cmd_lock);
+
+	if (cmd->data_direction == DMA_TO_DEVICE)
+		iscsit_stop_dataout_timer(cmd);
+
+	device->unreg_rdma_mem(isert_cmd, isert_conn);
+}
+
 static int
 isert_put_nopin(struct iscsi_cmd *cmd, struct iscsi_conn *conn,
 		bool nopout_response)
@@ -3217,6 +3235,7 @@ static struct iscsit_transport iser_target_transport = {
 	.iscsit_get_dataout	= isert_get_dataout,
 	.iscsit_queue_data_in	= isert_put_datain,
 	.iscsit_queue_status	= isert_put_response,
+	.iscsit_aborted_task	= isert_aborted_task,
 };
 
 static int __init isert_init(void)

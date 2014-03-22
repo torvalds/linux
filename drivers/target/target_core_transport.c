@@ -605,6 +605,12 @@ void transport_cmd_finish_abort(struct se_cmd *cmd, int remove)
 {
 	if (cmd->se_cmd_flags & SCF_SE_LUN_CMD)
 		transport_lun_remove_cmd(cmd);
+	/*
+	 * Allow the fabric driver to unmap any resources before
+	 * releasing the descriptor via TFO->release_cmd()
+	 */
+	if (remove)
+		cmd->se_tfo->aborted_task(cmd);
 
 	if (transport_cmd_check_stop_to_fabric(cmd))
 		return;

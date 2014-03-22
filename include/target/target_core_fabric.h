@@ -62,6 +62,7 @@ struct target_core_fabric_ops {
 	int (*queue_data_in)(struct se_cmd *);
 	int (*queue_status)(struct se_cmd *);
 	void (*queue_tm_rsp)(struct se_cmd *);
+	void (*aborted_task)(struct se_cmd *);
 	/*
 	 * fabric module calls for target_core_fabric_configfs.c
 	 */

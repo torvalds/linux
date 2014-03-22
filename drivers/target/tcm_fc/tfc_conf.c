@@ -536,6 +536,7 @@ static struct target_core_fabric_ops ft_fabric_ops = {
 	.queue_data_in =		ft_queue_data_in,
 	.queue_status =			ft_queue_status,
 	.queue_tm_rsp =			ft_queue_tm_resp,
+	.aborted_task =			ft_aborted_task,
 	/*
 	 * Setup function pointers for generic logic in
 	 * target_core_fabric_configfs.c

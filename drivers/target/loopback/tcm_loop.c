@@ -919,6 +919,11 @@ static void tcm_loop_queue_tm_rsp(struct se_cmd *se_cmd)
 	wake_up(&tl_tmr->tl_tmr_wait);
 }
 
+static void tcm_loop_aborted_task(struct se_cmd *se_cmd)
+{
+	return;
+}
+
 static char *tcm_loop_dump_proto_id(struct tcm_loop_hba *tl_hba)
 {
 	switch (tl_hba->tl_proto_id) {
@@ -1487,6 +1492,7 @@ static int tcm_loop_register_configfs(void)
 	fabric->tf_ops.queue_data_in = &tcm_loop_queue_data_in;
 	fabric->tf_ops.queue_status = &tcm_loop_queue_status;
 	fabric->tf_ops.queue_tm_rsp = &tcm_loop_queue_tm_rsp;
+	fabric->tf_ops.aborted_task = &tcm_loop_aborted_task;
 
 	/*
 	 * Setup function pointers for generic logic in target_core_fabric_configfs.c

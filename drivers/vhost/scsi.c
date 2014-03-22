@@ -539,6 +539,11 @@ static void tcm_vhost_queue_tm_rsp(struct se_cmd *se_cmd)
 	return;
 }
 
+static void tcm_vhost_aborted_task(struct se_cmd *se_cmd)
+{
+	return;
+}
+
 static void tcm_vhost_free_evt(struct vhost_scsi *vs, struct tcm_vhost_evt *evt)
 {
 	vs->vs_events_nr--;
@@ -2131,6 +2136,7 @@ static struct target_core_fabric_ops tcm_vhost_ops = {
 	.queue_data_in			= tcm_vhost_queue_data_in,
 	.queue_status			= tcm_vhost_queue_status,
 	.queue_tm_rsp			= tcm_vhost_queue_tm_rsp,
+	.aborted_task			= tcm_vhost_aborted_task,
 	/*
 	 * Setup callers for generic logic in target_core_fabric_configfs.c
 	 */

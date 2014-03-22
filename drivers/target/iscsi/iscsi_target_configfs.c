@@ -1821,6 +1821,13 @@ static void lio_queue_tm_rsp(struct se_cmd *se_cmd)
 	iscsit_add_cmd_to_response_queue(cmd, cmd->conn, cmd->i_state);
 }
 
+static void lio_aborted_task(struct se_cmd *se_cmd)
+{
+	struct iscsi_cmd *cmd = container_of(se_cmd, struct iscsi_cmd, se_cmd);
+
+	cmd->conn->conn_transport->iscsit_aborted_task(cmd->conn, cmd);
+}
+
 static char *lio_tpg_get_endpoint_wwn(struct se_portal_group *se_tpg)
 {
 	struct iscsi_portal_group *tpg = se_tpg->se_tpg_fabric_ptr;
@@ -2005,6 +2012,7 @@ int iscsi_target_register_configfs(void)
 	fabric->tf_ops.queue_data_in = &lio_queue_data_in;
 	fabric->tf_ops.queue_status = &lio_queue_status;
 	fabric->tf_ops.queue_tm_rsp = &lio_queue_tm_rsp;
+	fabric->tf_ops.aborted_task = &lio_aborted_task;
 	/*
 	 * Setup function pointers for generic logic in target_core_fabric_configfs.c
 	 */
