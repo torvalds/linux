@@ -23,6 +23,7 @@
 
 uoc_field_t *pBC_UOC_FIELDS = NULL;
 static void *pGRF_BASE = NULL;
+int rk_usb_charger_status = USB_BC_TYPE_DISCNT;
 
 /****** GET REGISTER FIELD INFO FROM Device Tree ******/
 
@@ -223,7 +224,33 @@ EXPORT_SYMBOL(usb_battery_charger_detect);
 
 int dwc_otg_check_dpdm(bool wait)
 {
-    return usb_battery_charger_detect(wait);
+    static struct device_node *np = NULL;
+    if(!np)
+        np = of_find_node_by_name(NULL, "usb_bc");
+    if(!np)
+        return -1;
+    if(!pGRF_BASE) {
+        pGRF_BASE = get_grf_base(np);
+    }
+
+    if(of_device_is_compatible(np,"rockchip,ctrl")) {
+        if(!pBC_UOC_FIELDS)
+            uoc_init_rk(np);
+		if(!BC_GET(RK_BC_BVALID))
+			rk_usb_charger_status = USB_BC_TYPE_DISCNT;
+
+    }else if(of_device_is_compatible(np,"synopsys,phy")) {
+        if(!pBC_UOC_FIELDS)
+            uoc_init_synop(np);
+		if(!BC_GET(SYNOP_BC_BVALID))
+			rk_usb_charger_status = USB_BC_TYPE_DISCNT;
+
+    }else if(of_device_is_compatible(np,"inno,phy")) {
+        if(!pBC_UOC_FIELDS)
+            uoc_init_inno(np);
+    }
+
+    return rk_usb_charger_status;
 }
 EXPORT_SYMBOL(dwc_otg_check_dpdm);
 

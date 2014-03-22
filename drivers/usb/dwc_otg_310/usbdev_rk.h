@@ -38,6 +38,7 @@
 #define USB_REMOTE_WAKEUP     (6)
 #define USB_IRQ_WAKEUP        (7)
 
+extern int rk_usb_charger_status;
 /* rk3188 platform data */
 extern struct dwc_otg_platform_data usb20otg_pdata_rk3188;
 extern struct dwc_otg_platform_data usb20host_pdata_rk3188;
@@ -96,6 +97,7 @@ struct dwc_otg_control_usb {
 	struct gpio *otg_gpios;
 	struct clk* hclk_usb_peri;
 	struct delayed_work usb_det_wakeup_work;
+	struct delayed_work usb_charger_det_work;
 	struct wake_lock usb_wakelock;
 	int remote_wakeup;
 	int usb_irq_wakeup;

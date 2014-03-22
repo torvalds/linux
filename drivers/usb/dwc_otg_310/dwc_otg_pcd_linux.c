@@ -1518,9 +1518,9 @@ static void dwc_otg_pcd_check_vbus_work( struct work_struct *work )
 		/* if usb not connect before ,then start connect */
 		if( _pcd->vbus_status == USB_BC_TYPE_DISCNT ) {
 			printk("*******************vbus detect*********************\n");
-            if( pldata->bc_detect_cb != NULL )
-                pldata->bc_detect_cb( _pcd->vbus_status = usb_battery_charger_detect(1) );
-            else
+//            if( pldata->bc_detect_cb != NULL )
+//                pldata->bc_detect_cb( _pcd->vbus_status = usb_battery_charger_detect(1) );
+//            else
                 _pcd->vbus_status = USB_BC_TYPE_SDP;
 			if(_pcd->conn_en){
 				goto connect;
@@ -1540,10 +1540,13 @@ static void dwc_otg_pcd_check_vbus_work( struct work_struct *work )
 			 */
 			dwc_otg_msc_unlock(_pcd);
 			_pcd->conn_status++;
-            if( pldata->bc_detect_cb != NULL )
-               pldata->bc_detect_cb( _pcd->vbus_status = USB_BC_TYPE_DCP ); 
-            else
+            if( pldata->bc_detect_cb != NULL ){
+                rk_usb_charger_status = USB_BC_TYPE_DCP;
+                pldata->bc_detect_cb( _pcd->vbus_status = USB_BC_TYPE_DCP ); 
+            }else{
                 _pcd->vbus_status = USB_BC_TYPE_DCP;
+                rk_usb_charger_status = USB_BC_TYPE_DCP;
+			}
 			/* fail to connect, suspend usb phy and disable clk */
 			if( pldata->phy_status == USB_PHY_ENABLED ){
 				pldata->phy_suspend(pldata, USB_PHY_SUSPEND);

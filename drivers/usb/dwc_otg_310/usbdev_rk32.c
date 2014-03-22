@@ -534,6 +534,10 @@ inline static void do_wakeup(struct work_struct *work)
 //      rk28_send_wakeup_key();
 }
 
+static void usb_battery_charger_detect_work(struct work_struct *work)
+{
+	rk_usb_charger_status = usb_battery_charger_detect(0);
+}
 /********** handler for bvalid irq **********/
 static irqreturn_t bvalid_irq_handler(int irq, void *dev_id)
 {
@@ -549,6 +553,10 @@ static irqreturn_t bvalid_irq_handler(int irq, void *dev_id)
 		wake_lock_timeout(&control_usb->usb_wakelock, WAKE_LOCK_TIMEOUT);
 		schedule_delayed_work(&control_usb->usb_det_wakeup_work, HZ/10);
 	}
+
+	rk_usb_charger_status = USB_BC_TYPE_SDP;
+	schedule_delayed_work(&control_usb->usb_charger_det_work, HZ/10);
+
 	return IRQ_HANDLED;
 }
 
@@ -634,7 +642,7 @@ static int otg_irq_detect_init(struct platform_device *pdev)
 			}
 		}
 	}
-
+#if 0
     /*register otg_id irq*/
     irq = platform_get_irq_byname(pdev, "otg_id");
     if(irq > 0){
@@ -694,7 +702,7 @@ static int otg_irq_detect_init(struct platform_device *pdev)
 			}
 		}
     }
-	
+#endif	
 	return ret;
 }
 
@@ -829,6 +837,7 @@ static int dwc_otg_control_usb_probe(struct platform_device *pdev)
 	control_usb->usb_irq_wakeup = of_property_read_bool(np,
 		"rockchip,usb_irq_wakeup");
 
+	INIT_DELAYED_WORK(&control_usb->usb_charger_det_work, usb_battery_charger_detect_work);
 /*	disable for debug
 	hclk_usb_peri = devm_clk_get(&pdev->dev, "hclk_usb_peri");
 	if (IS_ERR(hclk_usb_peri)) {
@@ -894,11 +903,15 @@ static int dwc_otg_control_usb_probe(struct platform_device *pdev)
 	}
 	gpio_direction_output(control_usb->otg_gpios->gpio, 0);
 
-/* disable for debug
+	if(usb20otg_get_status(USB_STATUS_BVABLID)){
+		rk_usb_charger_status = USB_BC_TYPE_SDP;
+		schedule_delayed_work(&control_usb->usb_charger_det_work, HZ/10);
+	}
+
 	ret = otg_irq_detect_init(pdev);
 	if (ret < 0)
 		goto err2;
-*/
+
 	return 0;
 
 err2:

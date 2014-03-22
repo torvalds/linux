@@ -2640,8 +2640,8 @@ void dwc_pcd_reset(dwc_otg_pcd_t *pcd)
 {
     dwc_otg_core_if_t *core_if = GET_CORE_IF(pcd);
     dwc_otg_disable_global_interrupts(core_if);
+	dwc_otg_core_init(core_if);
     dwc_otg_pcd_reinit(pcd);
-    msleep(100);
     dwc_otg_core_dev_init(core_if);
     dwc_otg_enable_global_interrupts(core_if);
 }
