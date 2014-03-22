@@ -742,7 +742,9 @@ static u16 s_vFillCTSHead(struct vnt_private *pDevice, u32 uDMAIdx,
 			pDevice->tx_rate_fb1, bNeedAck, byFBOption);
 		/* Get CTS Frame body */
 		pBuf->data.duration = pBuf->duration_ba;
-		pBuf->data.frame_control = TYPE_CTL_CTS;
+		pBuf->data.frame_control =
+			cpu_to_le16(IEEE80211_FTYPE_CTL | IEEE80211_STYPE_CTS);
+
 		memcpy(pBuf->data.ra, pDevice->abyCurrentNetAddr, ETH_ALEN);
 
 		return vnt_rxtx_datahead_g_fb(pDevice, byPktType, wCurrentRate,
@@ -758,7 +760,9 @@ static u16 s_vFillCTSHead(struct vnt_private *pDevice, u32 uDMAIdx,
 			wCurrentRate, bNeedAck, byFBOption);
 		/*Get CTS Frame body*/
 		pBuf->data.duration = pBuf->duration_ba;
-		pBuf->data.frame_control = TYPE_CTL_CTS;
+		pBuf->data.frame_control =
+			cpu_to_le16(IEEE80211_FTYPE_CTL | IEEE80211_STYPE_CTS);
+
 		memcpy(pBuf->data.ra, pDevice->abyCurrentNetAddr, ETH_ALEN);
 
 		return vnt_rxtx_datahead_g(pDevice, byPktType, wCurrentRate,
