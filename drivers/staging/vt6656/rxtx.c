@@ -184,28 +184,28 @@ static void s_vFillTxKey(struct vnt_private *pDevice,
 	u32 *pdwIV = (u32 *)pbyIVHead;
 	u32 *pdwExtIV = (u32 *)((u8 *)pbyIVHead + 4);
 	struct ieee80211_hdr *pMACHeader = (struct ieee80211_hdr *)pbyHdrBuf;
-	u32 dwRevIVCounter;
+	__le32 rev_iv_counter;
 
 	/* Fill TXKEY */
 	if (pTransmitKey == NULL)
 		return;
 
-	dwRevIVCounter = cpu_to_le32(pDevice->dwIVCounter);
+	rev_iv_counter = cpu_to_le32(pDevice->dwIVCounter);
 	*pdwIV = pDevice->dwIVCounter;
 	pDevice->byKeyIndex = pTransmitKey->dwKeyIndex & 0xf;
 
 	switch (pTransmitKey->byCipherSuite) {
 	case KEY_CTL_WEP:
 		if (pTransmitKey->uKeyLength == WLAN_WEP232_KEYLEN) {
-			memcpy(pDevice->abyPRNG, (u8 *)&dwRevIVCounter, 3);
+			memcpy(pDevice->abyPRNG, (u8 *)&rev_iv_counter, 3);
 			memcpy(pDevice->abyPRNG + 3, pTransmitKey->abyKey,
 						pTransmitKey->uKeyLength);
 		} else {
-			memcpy(pbyBuf, (u8 *)&dwRevIVCounter, 3);
+			memcpy(pbyBuf, (u8 *)&rev_iv_counter, 3);
 			memcpy(pbyBuf + 3, pTransmitKey->abyKey,
 						pTransmitKey->uKeyLength);
 			if (pTransmitKey->uKeyLength == WLAN_WEP40_KEYLEN) {
-				memcpy(pbyBuf+8, (u8 *)&dwRevIVCounter, 3);
+				memcpy(pbyBuf+8, (u8 *)&rev_iv_counter, 3);
 			memcpy(pbyBuf+11, pTransmitKey->abyKey,
 						pTransmitKey->uKeyLength);
 			}
