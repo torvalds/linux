@@ -407,6 +407,8 @@ int f2fs_getxattr(struct inode *inode, int name_index, const char *name,
 	if (name == NULL)
 		return -EINVAL;
 	name_len = strlen(name);
+	if (name_len > F2FS_NAME_LEN)
+		return -ERANGE;
 
 	base_addr = read_all_xattrs(inode, NULL);
 	if (!base_addr)
