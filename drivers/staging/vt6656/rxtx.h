@@ -219,7 +219,7 @@ struct vnt_tx_fifo_head {
 	u16 wFIFOCtl;
 	__le16 time_stamp;
 	u16 wFragCtl;
-	u16 wReserved;
+	__le16 current_rate;
 } __packed;
 
 struct vnt_tx_buffer {

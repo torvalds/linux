@@ -800,7 +800,7 @@ static u16 s_vGenerateTxParameter(struct vnt_private *pDevice,
 	u16 wFifoCtl;
 	u8 byFBOption = AUTO_FB_NONE;
 
-	pFifoHead->wReserved = wCurrentRate;
+	pFifoHead->current_rate = cpu_to_le16(wCurrentRate);
 	wFifoCtl = pFifoHead->wFIFOCtl;
 
 	if (wFifoCtl & FIFOCTL_AUTO_FB_0)
