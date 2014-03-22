@@ -53,22 +53,22 @@ again:
 	 * allocation which may be in a new descriptor region.
 	 */
 	*map_size += sizeof(*m);
-	status = efi_early->call(efi_early->allocate_pool, EFI_LOADER_DATA,
-				 *map_size, (void **)&m);
+	status = efi_call_early(allocate_pool, EFI_LOADER_DATA,
+				*map_size, (void **)&m);
 	if (status != EFI_SUCCESS)
 		goto fail;
 
 	*desc_size = 0;
 	key = 0;
-	status = efi_early->call(efi_early->get_memory_map, map_size, m,
-				 &key, desc_size, &desc_version);
+	status = efi_call_early(get_memory_map, map_size, m,
+				&key, desc_size, &desc_version);
 	if (status == EFI_BUFFER_TOO_SMALL) {
-		efi_early->call(efi_early->free_pool, m);
+		efi_call_early(free_pool, m);
 		goto again;
 	}
 
 	if (status != EFI_SUCCESS)
-		efi_early->call(efi_early->free_pool, m);
+		efi_call_early(free_pool, m);
 
 	if (key_ptr && status == EFI_SUCCESS)
 		*key_ptr = key;
@@ -149,9 +149,9 @@ again:
 	if (!max_addr)
 		status = EFI_NOT_FOUND;
 	else {
-		status = efi_early->call(efi_early->allocate_pages,
-					 EFI_ALLOCATE_ADDRESS, EFI_LOADER_DATA,
-					 nr_pages, &max_addr);
+		status = efi_call_early(allocate_pages,
+					EFI_ALLOCATE_ADDRESS, EFI_LOADER_DATA,
+					nr_pages, &max_addr);
 		if (status != EFI_SUCCESS) {
 			max = max_addr;
 			max_addr = 0;
@@ -161,7 +161,7 @@ again:
 		*addr = max_addr;
 	}
 
-	efi_early->call(efi_early->free_pool, map);
+	efi_call_early(free_pool, map);
 fail:
 	return status;
 }
@@ -221,9 +221,9 @@ static efi_status_t efi_low_alloc(efi_system_table_t *sys_table_arg,
 		if ((start + size) > end)
 			continue;
 
-		status = efi_early->call(efi_early->allocate_pages,
-					 EFI_ALLOCATE_ADDRESS, EFI_LOADER_DATA,
-					 nr_pages, &start);
+		status = efi_call_early(allocate_pages,
+					EFI_ALLOCATE_ADDRESS, EFI_LOADER_DATA,
+					nr_pages, &start);
 		if (status == EFI_SUCCESS) {
 			*addr = start;
 			break;
@@ -233,7 +233,7 @@ static efi_status_t efi_low_alloc(efi_system_table_t *sys_table_arg,
 	if (i == map_size / desc_size)
 		status = EFI_NOT_FOUND;
 
-	efi_early->call(efi_early->free_pool, map);
+	efi_call_early(free_pool, map);
 fail:
 	return status;
 }
@@ -247,7 +247,7 @@ static void efi_free(efi_system_table_t *sys_table_arg, unsigned long size,
 		return;
 
 	nr_pages = round_up(size, EFI_PAGE_SIZE) / EFI_PAGE_SIZE;
-	efi_early->call(efi_early->free_pages, addr, nr_pages);
+	efi_call_early(free_pages, addr, nr_pages);
 }
 
 
@@ -307,8 +307,8 @@ static efi_status_t handle_cmdline_files(efi_system_table_t *sys_table_arg,
 	if (!nr_files)
 		return EFI_SUCCESS;
 
-	status = efi_early->call(efi_early->allocate_pool, EFI_LOADER_DATA,
-				 nr_files * sizeof(*files), (void **)&files);
+	status = efi_call_early(allocate_pool, EFI_LOADER_DATA,
+				nr_files * sizeof(*files), (void **)&files);
 	if (status != EFI_SUCCESS) {
 		efi_printk(sys_table_arg, "Failed to alloc mem for file handle list\n");
 		goto fail;
@@ -413,7 +413,7 @@ static efi_status_t handle_cmdline_files(efi_system_table_t *sys_table_arg,
 
 	}
 
-	efi_early->call(efi_early->free_pool, files);
+	efi_call_early(free_pool, files);
 
 	*load_addr = file_addr;
 	*load_size = file_size_total;
@@ -427,7 +427,7 @@ close_handles:
 	for (k = j; k < i; k++)
 		efi_file_close(fh, files[k].handle);
 free_files:
-	efi_early->call(efi_early->free_pool, files);
+	efi_call_early(free_pool, files);
 fail:
 	*load_addr = 0;
 	*load_size = 0;
@@ -473,9 +473,9 @@ static efi_status_t efi_relocate_kernel(efi_system_table_t *sys_table_arg,
 	 * as possible while respecting the required alignment.
 	 */
 	nr_pages = round_up(alloc_size, EFI_PAGE_SIZE) / EFI_PAGE_SIZE;
-	status = efi_early->call(efi_early->allocate_pages,
-				 EFI_ALLOCATE_ADDRESS, EFI_LOADER_DATA,
-				 nr_pages, &efi_addr);
+	status = efi_call_early(allocate_pages,
+				EFI_ALLOCATE_ADDRESS, EFI_LOADER_DATA,
+				nr_pages, &efi_addr);
 	new_addr = efi_addr;
 	/*
 	 * If preferred address allocation failed allocate as low as
