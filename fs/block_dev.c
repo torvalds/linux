@@ -1538,14 +1538,17 @@ static ssize_t blkdev_aio_read(struct kiocb *iocb, const struct iovec *iov,
 	struct file *file = iocb->ki_filp;
 	struct inode *bd_inode = file->f_mapping->host;
 	loff_t size = i_size_read(bd_inode);
+	size_t count = iocb->ki_nbytes;
+	struct iov_iter to;
+
+	iov_iter_init(&to, READ, iov, nr_segs, count);
 
 	if (pos >= size)
 		return 0;
 
 	size -= pos;
-	if (size < iocb->ki_nbytes)
-		nr_segs = iov_shorten((struct iovec *)iov, nr_segs, size);
-	return generic_file_aio_read(iocb, iov, nr_segs, pos);
+	iov_iter_truncate(&to, size);
+	return generic_file_read_iter(iocb, &to);
 }
 
 /*
