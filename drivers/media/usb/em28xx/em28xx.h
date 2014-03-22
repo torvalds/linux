@@ -794,26 +794,4 @@ int em28xx_init_camera(struct em28xx *dev);
 	printk(KERN_WARNING "%s: "fmt,\
 			dev->name , ##arg); } while (0)
 
-/*FIXME: maxw should be dependent of alt mode */
-static inline unsigned int norm_maxw(struct em28xx *dev)
-{
-	if (dev->board.is_webcam)
-		return dev->sensor_xres;
-
-	if (dev->board.max_range_640_480)
-		return 640;
-
-	return 720;
-}
-
-static inline unsigned int norm_maxh(struct em28xx *dev)
-{
-	if (dev->board.is_webcam)
-		return dev->sensor_yres;
-
-	if (dev->board.max_range_640_480)
-		return 480;
-
-	return (dev->norm & V4L2_STD_625_50) ? 576 : 480;
-}
 #endif
