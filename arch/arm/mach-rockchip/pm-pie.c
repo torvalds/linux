@@ -59,8 +59,8 @@ void PIE_FUNC(rkpm_sram_printch_pie)(char byte)
     if(DATA(pm_sram_ops).printch)
            DATA(pm_sram_ops).printch(byte); 
     
-    if (byte == '\n')
-        FUNC(rkpm_sram_printch_pie)('\r');
+   // if (byte == '\n')
+        //FUNC(rkpm_sram_printch_pie)('\r');
 }
 
 void  PIE_FUNC(rkpm_sram_printhex_pie)(unsigned int hex)
@@ -129,6 +129,9 @@ void PIE_FUNC(rkpm_sram_suspend_arg)(void *arg)
 }
 static void rkpm_pie_init(void)
 {
+    if(rockchip_pie_chunk)
+    {
     rkpm_set_pie_info(kern_to_pie(rockchip_pie_chunk, &DATA(pm_sram_ops))
                         ,fn_to_pie(rockchip_pie_chunk, &FUNC(rkpm_sram_suspend_arg)));
+    }
 }

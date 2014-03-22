@@ -16,12 +16,20 @@ void rkpm_ddr_reg_offset_dump(void __iomem * base_addr,u32 _offset)
 void  rkpm_ddr_regs_dump(void __iomem * base_addr,u32 start_offset,u32 end_offset)
 {
 	u32 i;
-    
+        u32 line=0;
+
+        rkpm_ddr_printascii("start from:");     
+        rkpm_ddr_printhex((u32)(base_addr +start_offset));       
+        rkpm_ddr_printch('\n');
+        
 	for(i=start_offset;i<=end_offset;)
 	{
-            rkpm_ddr_printhex(readl_relaxed((void *)(base_addr + i)));  
-            if((i!=0&!(i%6))||i==end_offset)
-            rkpm_ddr_printch('\n');
+            rkpm_ddr_printhex(readl_relaxed((base_addr + i)));  
+            line++;
+            if((line%4==0)||i==end_offset)
+                rkpm_ddr_printch('\n');
+            else              
+                rkpm_ddr_printch('-');
             i+=4;
 	} 
     
@@ -318,9 +326,8 @@ void rkpm_ddr_printch(char byte)
 {
         if(pm_ops.printch)
             pm_ops.printch(byte);	
-        
-	if (byte == '\n')
-		rkpm_ddr_printch('\r');
+	//if (byte == '\n')
+		//rkpm_ddr_printch('\r');
 }
 void rkpm_ddr_printascii(const char *s)
 {
@@ -403,8 +410,13 @@ static int rkpm_enter(suspend_state_t state)
     
     pm_log = false;
 
-    if(rkpm_chk_jdg_ctrbit(RKPM_CTR_NORIDLE_MD))
+    if(rkpm_chk_jdg_ctrbit(RKPM_CTR_NORIDLE_MD)&&p_suspend_pie_cb)
         call_with_stack(p_suspend_pie_cb,&rkpm_jdg_sram_ctrbits, rockchip_sram_stack);
+     else
+    {
+        dsb();
+        wfi();
+    }
   
     pm_log = true;
     

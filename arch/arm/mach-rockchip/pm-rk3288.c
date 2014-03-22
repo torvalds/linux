@@ -20,7 +20,7 @@
 #include <linux/rockchip/iomap.h>
 #include "pm.h"
 
-//#define CPU 3288
+#define CPU 3288
 //#include "sram.h"
 #include "pm-pie.c"
 
@@ -269,7 +269,10 @@ static u32 slp_uart_data[RK3288_UART_NUM][10];
 	 if(b_addr==NULL || ch>=RK3288_UART_NUM)
 	 	return;	
         if(ch==2)
+        {
             idx=RK3288_CLKGATE_PCLK_UART2;
+            b_addr=RK_DEBUG_UART_VIRT;
+        }
 
         
 	gate_reg=cru_readl(RK3288_CRU_GATEID_CONS(idx));     
@@ -1167,17 +1170,13 @@ static void gpio_get_dts_info(struct device_node *parent)
 }
 
 
-
-
-
-
-
 /*******************************clk gating config*******************************************/
 #define CLK_MSK_GATING(msk, con) cru_writel((msk << 16) | 0xffff, con)
 #define CLK_MSK_UNGATING(msk, con) cru_writel(((~msk) << 16) | 0xffff, con)
 
 
 static u32 clk_ungt_msk[RK3288_CRU_CLKGATES_CON_CNT];// first clk gating setting
+static u32 clk_ungt_msk_1[RK3288_CRU_CLKGATES_CON_CNT];// first clk gating setting
 static u32 clk_ungt_save[RK3288_CRU_CLKGATES_CON_CNT]; //first clk gating value saveing
 
 
@@ -1225,23 +1224,27 @@ void PIE_FUNC(gtclks_sram_resume)(void)
 static void gtclks_suspend(void)
 {
     int i;
-    
+
+  // rkpm_ddr_regs_dump(RK_CRU_VIRT,RK3288_CRU_CLKGATES_CON(0)
+                                          //          ,RK3288_CRU_CLKGATES_CON(RK3288_CRU_CLKGATES_CON_CNT-1));
     for(i=0;i<RK3288_CRU_CLKGATES_CON_CNT;i++)
     {
-    
-        clk_ungt_save[i]=cru_readl(RK3288_CRU_CLKGATES_CON(i));    
-        //if(i!=4||i!=0)
-        CLK_MSK_UNGATING(clk_ungt_msk[i],RK3288_CRU_CLKGATES_CON(i));
-       #if 0
-        rkpm_ddr_printch('\n');   
-        rkpm_ddr_printhex(clk_ungt_save[i]);
-        rkpm_ddr_printch('-');   
-        rkpm_ddr_printhex(clk_ungt_msk[i]);
-        rkpm_ddr_printch('-');   
-        rkpm_ddr_printhex(cru_readl(RK3188_CRU_CLKGATES_CON(i))) ;  
-        if(i==(RK3288_CRU_CLKGATES_CON_CNT-1))            
+            clk_ungt_save[i]=cru_readl(RK3288_CRU_CLKGATES_CON(i));    
+           //if(RK3288_CRU_CLKGATES_CON(i)<0x170||RK3288_CRU_CLKGATES_CON(i)>0x194)
+            {
+                CLK_MSK_UNGATING(clk_ungt_msk[i],RK3288_CRU_CLKGATES_CON(i));
+            
+            }
+           #if 0
             rkpm_ddr_printch('\n');   
-        #endif
+            rkpm_ddr_printhex(RK3288_CRU_CLKGATES_CON(i));
+            rkpm_ddr_printch('-');   
+            rkpm_ddr_printhex(clk_ungt_msk[i]);
+            rkpm_ddr_printch('-');   
+            rkpm_ddr_printhex(cru_readl(RK3288_CRU_CLKGATES_CON(i))) ;  
+            if(i==(RK3288_CRU_CLKGATES_CON_CNT-1))            
+            rkpm_ddr_printch('\n');   
+            #endif
     }
 
 }
@@ -1251,8 +1254,10 @@ static void gtclks_resume(void)
     int i;
      for(i=0;i<RK3288_CRU_CLKGATES_CON_CNT;i++)
     {
-       cru_writel(clk_ungt_save[i]|0xffff0000,RK3288_CRU_CLKGATES_CON(i));
+       cru_writel(clk_ungt_save[i]|0xffff0000,RK3288_CRU_CLKGATES_CON(i));       
      }
+     //rkpm_ddr_regs_dump(RK_CRU_VIRT,RK3288_CRU_CLKGATES_CON(0)
+                                                 //   ,RK3288_CRU_CLKGATES_CON(RK3288_CRU_CLKGATES_CON_CNT-1));
     
 }
 /********************************pll power down***************************************/
@@ -1327,8 +1332,12 @@ static inline void plls_resume(u32 pll_id)
 {
         u32 pllcon0, pllcon1, pllcon2;
 
-        if(plls_con3_save[pll_id]||RK3288_PLL_PWR_DN_MSK)
-            return ;    
+       // rkpm_ddr_printascii("ddr");
+       // rkpm_ddr_printhex(pll_id);
+
+        if(!(plls_con3_save[pll_id]&&RK3288_PLL_PWR_DN_MSK))
+            return ;        
+        //rkpm_ddr_printascii("res\n");
         //enter slowmode
         cru_writel(RK3288_PLL_MODE_SLOW(pll_id), RK3288_CRU_MODE_CON);      
         
@@ -1362,6 +1371,11 @@ static u32 clk_sel0,clk_sel1, clk_sel10,clk_sel26,clk_sel36, clk_sel37;
 
 static void pm_plls_suspend(void)
 {
+
+    //rkpm_ddr_regs_dump(RK_CRU_VIRT,RK3288_PLL_CONS((0), 0),RK3288_PLL_CONS((4), 3)); 
+    //rkpm_ddr_regs_dump(RK_CRU_VIRT,RK3288_CRU_MODE_CON,RK3288_CRU_MODE_CON);   
+    //rkpm_ddr_regs_dump(RK_CRU_VIRT,RK3288_CRU_CLKSELS_CON(0),RK3288_CRU_CLKSELS_CON(42));
+    
     clk_sel0=cru_readl(RK3288_CRU_CLKSELS_CON(0));
     clk_sel1=cru_readl(RK3288_CRU_CLKSELS_CON(1));    
     clk_sel10=cru_readl(RK3288_CRU_CLKSELS_CON(10));
@@ -1445,6 +1459,10 @@ static void pm_plls_resume(void)
         plls_resume(NPLL_ID);       
         cru_writel(cru_mode_con|(RK3288_PLL_MODE_MSK(NPLL_ID)<<16), RK3288_CRU_MODE_CON);
 
+        //rkpm_ddr_regs_dump(RK_CRU_VIRT,RK3288_PLL_CONS((0), 0),RK3288_PLL_CONS((4), 3)); 
+      //  rkpm_ddr_regs_dump(RK_CRU_VIRT,RK3288_CRU_MODE_CON,RK3288_CRU_MODE_CON);   
+        //rkpm_ddr_regs_dump(RK_CRU_VIRT,RK3288_CRU_CLKSELS_CON(0),RK3288_CRU_CLKSELS_CON(42));
+
 }
 
 static __sramdata u32  sysclk_clksel0_con,sysclk_clksel1_con,sysclk_clksel10_con,sysclk_mode_con;
@@ -1495,19 +1513,23 @@ void PIE_FUNC(sysclk_resume)(u32 sel_clk)
 static void clks_gating_suspend_init(void)
 {
     // get clk gating info
-    p_rkpm_clkgt_last_set= kern_to_pie(rockchip_pie_chunk, &DATA(rkpm_clkgt_last_set[0]));
-    
+    if(rockchip_pie_chunk)
+        p_rkpm_clkgt_last_set= kern_to_pie(rockchip_pie_chunk, &DATA(rkpm_clkgt_last_set[0]));
+    else
+        p_rkpm_clkgt_last_set=&clk_ungt_msk_1[0];
     if(clk_suspend_clkgt_info_get(clk_ungt_msk,p_rkpm_clkgt_last_set, RK3288_CRU_CLKGATES_CON_CNT) 
-        ==RK3188_CRU_CLKGATES_CON(0))
+        ==RK3288_CRU_CLKGATES_CON(0))
     {
         rkpm_set_ops_gtclks(gtclks_suspend,gtclks_resume);
-        rkpm_set_sram_ops_gtclks(fn_to_pie(rockchip_pie_chunk, &FUNC(gtclks_sram_suspend)), 
-                        fn_to_pie(rockchip_pie_chunk, &FUNC(gtclks_sram_resume)));
+        if(rockchip_pie_chunk)
+            rkpm_set_sram_ops_gtclks(fn_to_pie(rockchip_pie_chunk, &FUNC(gtclks_sram_suspend)), 
+                                fn_to_pie(rockchip_pie_chunk, &FUNC(gtclks_sram_resume)));
         
         PM_LOG("%s:clkgt info ok\n",__FUNCTION__);
 
     }
-    rkpm_set_sram_ops_sysclk(fn_to_pie(rockchip_pie_chunk, &FUNC(sysclk_suspend))
+    if(rockchip_pie_chunk)
+        rkpm_set_sram_ops_sysclk(fn_to_pie(rockchip_pie_chunk, &FUNC(sysclk_suspend))
                                                 ,fn_to_pie(rockchip_pie_chunk, &FUNC(sysclk_resume))); 
 }
 
@@ -1577,12 +1599,12 @@ static  void rkpm_prepare(void)
        // rkpm_ddr_printhex(temp);
         #endif             
 	// dump GPIO INTEN for debug
-	//rk30_pm_dump_inten();
+	rk30_pm_dump_inten();
 }
 
 static void rkpm_finish(void)
 {
-	//rk30_pm_dump_irq();
+	rk30_pm_dump_irq();
 }
 
 
@@ -1625,21 +1647,18 @@ static void __init  rk3288_suspend_init(void)
             return ;
     }
     PM_LOG("%s: pm_ctrbits =%x\n",__FUNCTION__,pm_ctrbits);
-#if 0
-    if(of_property_read_u32_array(parent,"rockchip,pmic-gpios",gpios_data,ARRAY_SIZE(gpios_data)))
-    {
-            PM_ERR("%s:get pm ctr error\n",__FUNCTION__);
-            return ;
-    }
-#endif    
+    
     rkpm_set_ctrbits(pm_ctrbits);
     
     clks_gating_suspend_init();
-    
-   rkpm_set_ops_plls(pm_plls_suspend,pm_plls_resume);
 
-    //rkpm_set_ops_prepare_finish(rkpm_prepare,rkpm_finish);
-   // rkpm_set_ops_regs_pread(interface_ctr_reg_pread);                                    
-    rkpm_set_sram_ops_printch(fn_to_pie(rockchip_pie_chunk, &FUNC(sram_printch)));
+    rkpm_set_ops_plls(pm_plls_suspend,pm_plls_resume);
+
+    rkpm_set_ops_prepare_finish(rkpm_prepare,rkpm_finish);
+    //rkpm_set_ops_regs_pread(interface_ctr_reg_pread);  
+    
+    if(rockchip_pie_chunk)
+        rkpm_set_sram_ops_printch(fn_to_pie(rockchip_pie_chunk, &FUNC(sram_printch)));
+    
     rkpm_set_ops_printch(ddr_printch); 	
 }

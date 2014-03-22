@@ -10,6 +10,7 @@
 
 / {
 	compatible = "rockchip,rk3288";
+	rockchip,sram = <&sram>;
 	interrupt-parent = <&gic>;
 
 	aliases {
@@ -1015,11 +1016,11 @@
     rockchip_suspend {     
                     rockchip,ctrbits = <    
                                     (0
-                                   // RKPM_CTR_PWR_DMNS
+                                    //|RKPM_CTR_PWR_DMNS
                                     //|RKPM_CTR_GTCLKS
                                     //|RKPM_CTR_PLLS
                                     //|RKPM_CTR_SYSCLK_DIV
-                                    |RKPM_CTR_NORIDLE_MD
+                                    //|RKPM_CTR_NORIDLE_MD
                                     )
                                 >;              
                   rockchip,pmic-gpios=<

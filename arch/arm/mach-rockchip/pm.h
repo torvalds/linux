@@ -1,5 +1,5 @@
-#ifndef __MACH_ROCKCHIP_PM1_H
-#define __MACH_ROCKCHIP_PM1_H
+#ifndef __MACH_ROCKCHIP_PM_H
+#define __MACH_ROCKCHIP_PM_H
 
 #include <dt-bindings/suspend/rockchip-pm.h>
 
@@ -91,10 +91,16 @@ struct rkpm_gpios_info_st{
 #define reg_readl(base)	readl_relaxed(base)
 #define reg_writel(v, base)	do { writel_relaxed(v, base); dsb(); } while (0)
 
-
+#if 0
 #define PM_ERR(fmt, args...) printk(KERN_ERR fmt, ##args)
 #define PM_LOG(fmt, args...) printk(KERN_ERR fmt, ##args)
 #define PM_WARNING(fmt, args...) printk(KERN_WARNING fmt, ##args)
+#else
+
+#define PM_ERR(fmt, args...) printk(fmt, ##args)
+#define PM_LOG(fmt, args...) printk(fmt, ##args)
+#define PM_WARNING(fmt, args...) printk(fmt, ##args)
+#endif
 
 /*********************************pm control******************************************/
 extern void rkpm_ddr_reg_offset_dump(void __iomem * base_addr,u32 _offset);

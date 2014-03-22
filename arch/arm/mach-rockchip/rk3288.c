@@ -388,17 +388,112 @@ static int __init rk3288_pie_init(void)
 
 	rockchip_sram_virt = kern_to_pie(rockchip_pie_chunk, &__pie_common_start[0]);
 	rockchip_sram_stack = kern_to_pie(rockchip_pie_chunk, (char *) DATA(sram_stack) + sizeof(DATA(sram_stack)));
-
 	return 0;
 }
 arch_initcall(rk3288_pie_init);
 #ifdef CONFIG_PM
 #include "pm-rk3288.c"
+int rk3288_sys_set_power_domain(enum pmu_power_domain pd, bool on)
+{   
+            u32 clks_ungating[RK3288_CRU_CLKGATES_CON_CNT];
+            u32 clks_save[RK3288_CRU_CLKGATES_CON_CNT];
+            u32 i,ret;
+            for(i=0;i<RK3288_CRU_CLKGATES_CON_CNT;i++)
+            {
+                clks_save[i]=cru_readl(RK3288_CRU_CLKGATES_CON(i));
+                clks_ungating[i]=0;
+            }
+            switch(pd)
+            {
+                case PD_GPU:                   
+                    clks_ungating[5]=0x1<<7;
+                    break;
+                case PD_VIDEO:
+                     clks_ungating[3]=0x1<<11|0x1<<10|0x1<<9;
+                    break;
+                case PD_VIO:
+                    clks_ungating[3]=0x1<<0|0x1<<2|0x1<<5|0x1<<4|0x1<<1|0x1<<3|0x1<<12|0x1<<13
+                        |0x1<<14|0x1<<15|0x1<<12|0x1<<11;
+                    break;
+                case  PD_HEVC:
+                    clks_ungating[13]=0x1<<15|0x1<<14|0x1<<13;
+                    break;
+                #if 0    
+                case  PD_CS:
+                    clks_ungating[12]=0x1<<11|0x1<10|0x1<<9|0x1<<8;
+                   break;
+                 #endif  
+                    default:
+                        break;
+            }
+            
+            for(i=0;i<RK3288_CRU_CLKGATES_CON_CNT;i++)
+            {
+                if(clks_ungating[i])                  
+                    cru_writel(clks_ungating[i]<<16,RK3288_CRU_CLKGATES_CON(i));           
+            }      
+            ret=rk3288_pmu_set_power_domain(pd,on);
+
+             for(i=0;i<RK3288_CRU_CLKGATES_CON_CNT;i++)
+            {
+                if(clks_ungating[i])
+                    cru_writel(clks_save[i]|0xffff0000,RK3288_CRU_CLKGATES_CON(i));
+            }
+
+            return ret;
+             
+}
+
+static u32 rk_pmu_pwrdn_st;
+static inline void rk_pm_soc_pd_suspend(void)
+{
+	rk_pmu_pwrdn_st = pmu_readl(RK3288_PMU_PWR_STATE);
+    
+        if(!(rk_pmu_pwrdn_st&BIT(pmu_pd_map[IDLE_REQ_GPU])))
+	    rk3288_sys_set_power_domain(IDLE_REQ_GPU, false);
+        
+        if(!(rk_pmu_pwrdn_st&BIT(pmu_pd_map[IDLE_REQ_HEVC])))
+	    rk3288_sys_set_power_domain(IDLE_REQ_HEVC, false);
+        
+        if(!(rk_pmu_pwrdn_st&BIT(pmu_pd_map[IDLE_REQ_VIO])))
+	    rk3288_sys_set_power_domain(IDLE_REQ_VIO, false);
+        
+        if(!(rk_pmu_pwrdn_st&BIT(pmu_pd_map[IDLE_REQ_VIDEO])))
+	    rk3288_sys_set_power_domain(IDLE_REQ_VIDEO, false);
+        
+        rkpm_ddr_printascii("pd state:");
+        rkpm_ddr_printhex(pmu_readl(RK3288_PMU_PWR_STATE));        
+        rkpm_ddr_printascii("\n");
+   
+}
+static inline void rk_pm_soc_pd_resume(void)
+{
+      if(!(rk_pmu_pwrdn_st&BIT(pmu_pd_map[IDLE_REQ_GPU])))
+	    rk3288_sys_set_power_domain(IDLE_REQ_GPU, false);
+        
+        if(!(rk_pmu_pwrdn_st&BIT(pmu_pd_map[IDLE_REQ_HEVC])))
+	    rk3288_sys_set_power_domain(IDLE_REQ_HEVC, false);
+        
+        if(!(rk_pmu_pwrdn_st&BIT(pmu_pd_map[IDLE_REQ_VIO])))
+	    rk3288_sys_set_power_domain(IDLE_REQ_VIO, false);
+        
+        if(!(rk_pmu_pwrdn_st&BIT(pmu_pd_map[IDLE_REQ_VIDEO])))
+	    rk3288_sys_set_power_domain(IDLE_REQ_VIDEO, false);
+
+    rkpm_ddr_printascii("pd state:");
+    rkpm_ddr_printhex(pmu_readl(RK3288_PMU_PWR_STATE));        
+    rkpm_ddr_printascii("\n");
+}
+//extern bool console_suspend_enabled;
 static void __init rk3288_init_suspend(void)
 {
-	return;
-	rockchip_suspend_init();
-	rkpm_pie_init();
-	rk3288_suspend_init();
+    return;
+    printk("%s\n",__FUNCTION__);
+    rockchip_suspend_init();       
+    //rkpm_pie_init();
+    rk3288_suspend_init();
+   // rkpm_set_ops_pwr_dmns(rk_pm_soc_pd_suspend,rk_pm_soc_pd_resume);  
+   //console_suspend_enabled=0;
+  //pm_suspend(PM_SUSPEND_MEM);
 }
 #endif
