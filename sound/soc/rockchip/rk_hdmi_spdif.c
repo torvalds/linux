@@ -23,6 +23,10 @@
 #include <sound/soc.h>
 #include <sound/soc-dapm.h>
 
+#include "card_info.h"
+#include "rk_pcm.h"
+
+
 #if 0
 #define RK_SPDIF_DBG(x...) printk(KERN_INFO "rk_hdmi_spdif:"x)
 #else
@@ -68,6 +72,8 @@ static int rk_hw_params(struct snd_pcm_substream *substream,
 	int ret, ratio;
 
 	RK_SPDIF_DBG("spdif:Entered %s\n", __func__);
+
+	return 0;
 
 	/* set codec DAI configuration */
 	ret = snd_soc_dai_set_fmt(codec_dai, dai_fmt);
@@ -143,6 +149,12 @@ static int rockchip_hdmi_spdif_audio_probe(struct platform_device *pdev)
 	struct snd_soc_card *card = &rockchip_hdmi_spdif_snd_card;
 
 	card->dev = &pdev->dev;
+
+	ret = rockchip_of_get_sound_card_info(card);
+	if (ret) {
+		printk("%s() get sound card info failed:%d\n", __FUNCTION__, ret);
+		return ret;
+	}
 
 	ret = snd_soc_register_card(card);
 

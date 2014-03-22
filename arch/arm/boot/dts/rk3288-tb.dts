@@ -105,6 +105,18 @@
 	
 	rockchip-hdmi-spdif {
 		compatible = "rockchip-hdmi-spdif";
+		dais {
+			dai0 {
+				audio-codec = <&codec_hdmi_spdif>;
+				i2s-controller = <&spdif>;
+				format = "spdif";
+				//continuous-clock;
+				//bitclock-inversion;
+				//frame-inversion;
+				//bitclock-master;
+				//frame-master;
+			};
+		};		
 	};
 
 	rockchip-rt5631 {

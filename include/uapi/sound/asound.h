@@ -216,6 +216,9 @@ typedef int __bitwise snd_pcm_format_t;
 #define	SNDRV_PCM_FORMAT_G723_40_1B	((__force snd_pcm_format_t) 47) /* 1 sample in 1 byte */
 #define	SNDRV_PCM_FORMAT_DSD_U8		((__force snd_pcm_format_t) 48) /* DSD, 1-byte samples DSD (x8) */
 #define	SNDRV_PCM_FORMAT_DSD_U16_LE	((__force snd_pcm_format_t) 49) /* DSD, 2-byte samples DSD (x16), little endian */
+#define	SNDRV_NON_LINEAR_PCM_FORMAT_AC3    ((__force snd_pcm_format_t) 50) /* AC3,NON Linear PCM,spdif */
+#define	SNDRV_NON_LINEAR_PCM_FORMAT_EAC3   ((__force snd_pcm_format_t) 51) /* EAC3,NON Linear PCM,spdif*/
+#define	SNDRV_NON_LINEAR_PCM_FORMAT_DTS_I  ((__force snd_pcm_format_t) 52) /* DTS-I,NON Linear PCM,spdif*/
 #define	SNDRV_PCM_FORMAT_LAST		SNDRV_PCM_FORMAT_DSD_U16_LE
 
 #ifdef SNDRV_LITTLE_ENDIAN
