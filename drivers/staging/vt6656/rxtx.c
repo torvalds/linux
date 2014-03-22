@@ -551,7 +551,8 @@ static int vnt_fill_ieee80211_rts(struct vnt_private *priv,
 		__le16 duration)
 {
 	rts->duration = duration;
-	rts->frame_control = TYPE_CTL_RTS;
+	rts->frame_control =
+		cpu_to_le16(IEEE80211_FTYPE_CTL | IEEE80211_STYPE_RTS);
 
 	if (priv->op_mode == NL80211_IFTYPE_ADHOC ||
 				priv->op_mode == NL80211_IFTYPE_AP)
