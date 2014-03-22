@@ -383,6 +383,24 @@ static void usb_detect_work_func(struct work_struct *work)
 
 	DBG("%s: retval = %08x bq24296_chag_down = %d\n", __func__,retval,bq24296_chag_down);
 	
+	#ifdef CONFIG_OF
+	if (gpio_is_valid(bq24296_pdata->dc_det_pin)){
+			ret = gpio_request(bq24296_pdata->dc_det_pin, "bq24296_dc_det");
+			if (ret < 0) {
+				DBG("Failed to request gpio %d with ret:""%d\n",bq24296_pdata->dc_det_pin, ret);
+			}
+			gpio_direction_input(bq24296_pdata->dc_det_pin);
+			ret = gpio_get_value(bq24296_pdata->dc_det_pin);
+			if (ret ==0){
+				bq24296_update_input_current_limit(bq24296_di->adp_input_current);
+				bq24296_set_charge_current(bq24296_di->chg_current);
+				bq24296_charge_mode_config(0);
+			}
+			gpio_free(bq24296_pdata->dc_det_pin);
+			DBG("%s: bq24296_di->dc_det_pin=%x\n", __func__, ret);
+	}	
+	#endif
+	
 	mutex_lock(&pi->var_lock);
 	DBG("%s: dwc_otg_check_dpdm %d\n", __func__, dwc_otg_check_dpdm(0));
 	switch(dwc_otg_check_dpdm(0))
@@ -456,6 +474,11 @@ static struct bq24296_board *bq24296_parse_dt(struct bq24296_device_info *di)
 	pdata->chg_irq_pin = of_get_named_gpio(bq24296_np,"gpios",0);
 	if (!gpio_is_valid(pdata->chg_irq_pin)) {
 		printk("invalid gpio: %d\n",  pdata->chg_irq_pin);
+	}
+
+	pdata->dc_det_pin = of_get_named_gpio(bq24296_np,"gpios",1);
+	if (!gpio_is_valid(pdata->dc_det_pin)) {
+		printk("invalid gpio: %d\n",  pdata->dc_det_pin);
 	}
 	
 	return pdata;
