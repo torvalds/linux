@@ -41,6 +41,11 @@
 #include <linux/fb.h>
 #include <linux/wakelock.h>
 
+#if defined(CONFIG_ION_ROCKCHIP)
+#include <linux/rockchip_ion.h>
+#endif
+
+
 #include "rga2.h"
 #include "rga2_reg_info.h"
 #include "rga2_mmu_info.h"
@@ -84,12 +89,20 @@ struct rga2_drvdata_t {
 	struct clk *hclk_rga2;
 	struct clk *pd_rga2;
     struct clk *rga2;
+
+    #if defined(CONFIG_ION_ROCKCHIP)
+    struct ion_client * ion_client;
+    #endif
 };
 
 struct rga2_drvdata_t *rga2_drvdata;
 
 struct rga2_service_info rga2_service;
 struct rga2_mmu_buf_t rga2_mmu_buf;
+
+#if defined(CONFIG_ION_ROCKCHIP)
+extern struct ion_client *rockchip_ion_client_create(const char * name);
+#endif
 
 static int rga2_blit_async(rga2_session *session, struct rga2_req *req);
 static void rga2_del_running_list(void);
@@ -250,9 +263,9 @@ static void rga2_power_on(void)
 	if (rga2_service.enable)
 		return;
 
-    //clk_enable(rga2_drvdata->rga2);
-	//clk_prepare_enable(rga2_drvdata->aclk_rga2);
-	//clk_prepare_enable(rga2_drvdata->hclk_rga2);
+    clk_prepare_enable(rga2_drvdata->rga2);
+	clk_prepare_enable(rga2_drvdata->aclk_rga2);
+	clk_prepare_enable(rga2_drvdata->hclk_rga2);
 	//clk_enable(rga2_drvdata->pd_rga2);
 	wake_lock(&rga2_drvdata->wake_lock);
 	rga2_service.enable = true;
@@ -276,9 +289,9 @@ static void rga2_power_off(void)
 	}
 
 	//clk_disable(rga2_drvdata->pd_rga2);
-    //clk_disable(rga2_drvdata->rga2);
-	//clk_disable_unprepare(rga2_drvdata->aclk_rga2);
-	//clk_disable_unprepare(rga2_drvdata->hclk_rga2);
+    clk_disable_unprepare(rga2_drvdata->rga2);
+	clk_disable_unprepare(rga2_drvdata->aclk_rga2);
+	clk_disable_unprepare(rga2_drvdata->hclk_rga2);
 	wake_unlock(&rga2_drvdata->wake_lock);
 	rga2_service.enable = false;
 }
@@ -663,11 +676,62 @@ static void rga2_del_running_list_timeout(void)
     }
 }
 
+
+static int rga2_convert_dma_buf(struct rga2_req *req)
+{
+	struct ion_handle *hdl;
+	ion_phys_addr_t phy_addr;
+	size_t len;
+    int ret;
+
+    if(req->src.yrgb_addr) {
+        hdl = ion_import_dma_buf(rga2_drvdata->ion_client, req->src.yrgb_addr);
+        if (IS_ERR(hdl)) {
+            ret = PTR_ERR(hdl);
+            printk("RGA2 ERROR ion buf handle\n");
+            return ret;
+        }
+	    ion_phys(rga2_drvdata->ion_client, hdl, &phy_addr, &len);
+        req->src.yrgb_addr = phy_addr;
+        req->src.uv_addr = req->src.yrgb_addr + (req->src.vir_w * req->src.vir_h);
+        ion_free(rga2_drvdata->ion_client, hdl);
+    }
+    else {
+        req->src.yrgb_addr = req->src.uv_addr;
+        req->src.uv_addr = req->src.yrgb_addr + (req->src.vir_w * req->src.vir_h);
+    }
+
+    if(req->dst.yrgb_addr) {
+        hdl = ion_import_dma_buf(rga2_drvdata->ion_client, req->dst.yrgb_addr);
+        if (IS_ERR(hdl)) {
+            ret = PTR_ERR(hdl);
+            printk("RGA2 ERROR ion buf handle\n");
+            return ret;
+        }
+	    ion_phys(rga2_drvdata->ion_client, hdl, &phy_addr, &len);
+        req->dst.yrgb_addr = phy_addr;
+        req->dst.uv_addr = req->dst.yrgb_addr + (req->dst.vir_w * req->dst.vir_h);
+        ion_free(rga2_drvdata->ion_client, hdl);
+    }
+    else {
+        req->dst.yrgb_addr = req->dst.uv_addr;
+        req->dst.uv_addr = req->dst.yrgb_addr + (req->src.vir_w * req->src.vir_h);
+    }
+
+    return 0;
+}
+
+
 static int rga2_blit(rga2_session *session, struct rga2_req *req)
 {
     int ret = -1;
     int num = 0;
     struct rga2_reg *reg;
+
+    if(rga2_convert_dma_buf(req)) {
+        printk("RGA2 : DMA buf copy error\n");
+        return -EFAULT;
+    }
 
     do {
         /* check value if legal */
@@ -1014,9 +1078,9 @@ static int rga2_drv_probe(struct platform_device *pdev)
 	wake_lock_init(&data->wake_lock, WAKE_LOCK_SUSPEND, "rga");
 
 	//data->pd_rga2 = clk_get(NULL, "pd_rga");
-    //data->rga2 = clk_get(NULL, "rga");
-	//data->aclk_rga2 = devm_clk_get(&pdev->dev, "aclk_rga");
-    //data->hclk_rga2 = devm_clk_get(&pdev->dev, "hclk_rga");
+    data->rga2 = devm_clk_get(&pdev->dev, "clk_rga");
+	data->aclk_rga2 = devm_clk_get(&pdev->dev, "aclk_rga");
+    data->hclk_rga2 = devm_clk_get(&pdev->dev, "hclk_rga");
 
 	/* map the registers */
 	res = platform_get_resource(pdev, IORESOURCE_MEM, 0);
@@ -1045,6 +1109,16 @@ static int rga2_drv_probe(struct platform_device *pdev)
 
 	platform_set_drvdata(pdev, data);
 	rga2_drvdata = data;
+
+    #if defined(CONFIG_ION_ROCKCHIP)
+	data->ion_client = rockchip_ion_client_create("rga");
+	if (IS_ERR(data->ion_client)) {
+		dev_err(&pdev->dev, "failed to create ion client for rga");
+		return PTR_ERR(data->ion_client);
+	} else {
+		dev_info(&pdev->dev, "rga ion client create success!\n");
+	}
+    #endif
 
 	ret = misc_register(&rga2_dev);
 	if(ret)
@@ -1079,9 +1153,9 @@ static int rga2_drv_remove(struct platform_device *pdev)
 	iounmap((void __iomem *)(data->rga_base));
 
 	//clk_put(data->pd_rga2);
-    //clk_put(data->rga2);
-	//devm_clk_put(&pdev->dev, data->aclk_rga2);
-	//devm_clk_put(&pdev->dev, data->hclk_rga2);
+    devm_clk_put(&pdev->dev, data->rga2);
+	devm_clk_put(&pdev->dev, data->aclk_rga2);
+	devm_clk_put(&pdev->dev, data->hclk_rga2);
 
 	kfree(data);
 	return 0;
