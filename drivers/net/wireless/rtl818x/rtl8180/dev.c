@@ -635,12 +635,6 @@ static int rtl8180_start(struct ieee80211_hw *dev)
 	if (ret)
 		goto err_free_rings;
 
-	rtl818x_iowrite32(priv, &priv->map->RDSAR, priv->rx_ring_dma);
-	rtl818x_iowrite32(priv, &priv->map->TBDA, priv->tx_ring[3].dma);
-	rtl818x_iowrite32(priv, &priv->map->THPDA, priv->tx_ring[2].dma);
-	rtl818x_iowrite32(priv, &priv->map->TNPDA, priv->tx_ring[1].dma);
-	rtl818x_iowrite32(priv, &priv->map->TLPDA, priv->tx_ring[0].dma);
-
 	ret = request_irq(priv->pdev->irq, rtl8180_interrupt,
 			  IRQF_SHARED, KBUILD_MODNAME, dev);
 	if (ret) {
