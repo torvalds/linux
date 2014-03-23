@@ -380,6 +380,7 @@ static struct uvc_buffer *uvc_queue_next_buffer(struct uvc_video_queue *queue,
 	else
 		nextbuf = NULL;
 
+	buf->buf.v4l2_buf.field = V4L2_FIELD_NONE;
 	buf->buf.v4l2_buf.sequence = queue->sequence++;
 	v4l2_get_timestamp(&buf->buf.v4l2_buf.timestamp);
 
