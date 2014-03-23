@@ -425,9 +425,9 @@ static u_int32_t pmcCalcCrc_T01(void *bufp)
 	u_int32_t crc;
 
 	/* Calc CRC for type and length fields */
-	sbeCrc((u_int8_t *) & buf->type,
+	sbeCrc((u_int8_t *) &buf->type,
 	       (u_int32_t) STRUCT_OFFSET(FLD_TYPE1, Crc32),
-	       (u_int32_t) 0, (u_int32_t *) & crc);
+	       (u_int32_t) 0, (u_int32_t *) &crc);
 
 #ifdef EEPROM_TYPE_DEBUG
 	/* RLD DEBUG */
@@ -443,14 +443,14 @@ static u_int32_t pmcCalcCrc_T02(void *bufp)
 	u_int32_t crc;
 
 	/* Calc CRC for type and length fields */
-	sbeCrc((u_int8_t *) & buf->type,
+	sbeCrc((u_int8_t *) &buf->type,
 	       (u_int32_t) STRUCT_OFFSET(FLD_TYPE2, Crc32),
-	       (u_int32_t) 0, (u_int32_t *) & crc);
+	       (u_int32_t) 0, (u_int32_t *) &crc);
 
 	/* Calc CRC for remaining fields */
-	sbeCrc((u_int8_t *) & buf->Id[0],
+	sbeCrc((u_int8_t *) &buf->Id[0],
 	       (u_int32_t) (sizeof(FLD_TYPE2) - STRUCT_OFFSET(FLD_TYPE2, Id)),
-	       (u_int32_t) crc, (u_int32_t *) & crc);
+	       (u_int32_t) crc, (u_int32_t *) &crc);
 
 #ifdef EEPROM_TYPE_DEBUG
 	/* RLD DEBUG */
