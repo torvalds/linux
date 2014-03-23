@@ -286,7 +286,7 @@ static u_int32_t pmc_eeprom_read(long addr, long mem_offset)
 
 static int pmc_eeprom_write(long addr, long mem_offset, u_int32_t data)
 {
-	volatile u_int32_t temp;
+	u_int32_t temp;
 	int count;
 
 	if (!ByteReverseBuilt)
