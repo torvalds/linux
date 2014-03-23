@@ -334,7 +334,7 @@ static int pmc_eeprom_write(long addr, long mem_offset, u_int32_t data)
 		if (temp & EPROM_ACTIVE_IN_BIT) {
 			/* Remove Chip Select from EEPROM */
 			pci_write_32((u_int32_t *) addr, 0);
-			return (1);
+			return 1;
 		}
 	}
 	count = 1000;
@@ -347,9 +347,9 @@ static int pmc_eeprom_write(long addr, long mem_offset, u_int32_t data)
 	}
 
 	if (count == -1)
-		return (2);
+		return 2;
 
-	return (0);
+	return 0;
 }
 
 /*------------------------------------------------------------------------
