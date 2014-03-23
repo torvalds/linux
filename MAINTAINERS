@@ -3393,12 +3393,6 @@ S:	Maintained
 F:	drivers/extcon/
 F:	Documentation/extcon/
 
-EXYNOS DP DRIVER
-M:	Jingoo Han <jg1.han@samsung.com>
-L:	linux-fbdev@vger.kernel.org
-S:	Maintained
-F:	drivers/video/exynos/exynos_dp*
-
 EXYNOS MIPI DISPLAY DRIVERS
 M:	Inki Dae <inki.dae@samsung.com>
 M:	Donghwa Lee <dh09.lee@samsung.com>

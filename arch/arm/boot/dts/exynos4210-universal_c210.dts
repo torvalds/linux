@@ -225,6 +225,7 @@
 					regulator-name = "VLCD+VMIPI_1.8V";
 					regulator-min-microvolt = <1800000>;
 					regulator-max-microvolt = <1800000>;
+					regulator-always-on;
 				};
 
 				ldo8_reg: LDO8 {
@@ -288,6 +289,7 @@
 					regulator-name = "VCC_3.0V_LCD";
 					regulator-min-microvolt = <3000000>;
 					regulator-max-microvolt = <3000000>;
+					regulator-always-on;
 				};
 
 				buck1_reg: BUCK1 {
@@ -341,6 +343,31 @@
 					regulator-name = "SAFEOUT2";
 					regulator-boot-on;
 				};
+			};
+		};
+	};
+
+	fimd: fimd@11c00000 {
+		pinctrl-0 = <&lcd_clk>, <&lcd_data24>;
+		pinctrl-names = "default";
+		status = "okay";
+		samsung,invert-vden;
+		samsung,invert-vclk;
+		display-timings {
+			timing {
+				clock-frequency = <23492370>;
+				hactive = <480>;
+				vactive = <800>;
+				hback-porch = <16>;
+				hfront-porch = <16>;
+				vback-porch = <2>;
+				vfront-porch = <28>;
+				hsync-len = <2>;
+				vsync-len = <1>;
+				hsync-active = <0>;
+				vsync-active = <0>;
+				de-active = <0>;
+				pixelclk-active = <0>;
 			};
 		};
 	};
