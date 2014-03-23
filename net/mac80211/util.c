@@ -1546,7 +1546,7 @@ int ieee80211_reconfig(struct ieee80211_local *local)
 		WARN_ON(local->resuming);
 		res = drv_add_interface(local, sdata);
 		if (WARN_ON(res)) {
-			rcu_assign_pointer(local->monitor_sdata, NULL);
+			RCU_INIT_POINTER(local->monitor_sdata, NULL);
 			synchronize_net();
 			kfree(sdata);
 		}

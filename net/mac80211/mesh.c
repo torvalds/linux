@@ -829,7 +829,7 @@ void ieee80211_stop_mesh(struct ieee80211_sub_if_data *sdata)
 	ieee80211_bss_info_change_notify(sdata, BSS_CHANGED_BEACON_ENABLED);
 	bcn = rcu_dereference_protected(ifmsh->beacon,
 					lockdep_is_held(&sdata->wdev.mtx));
-	rcu_assign_pointer(ifmsh->beacon, NULL);
+	RCU_INIT_POINTER(ifmsh->beacon, NULL);
 	kfree_rcu(bcn, rcu_head);
 
 	/* flush STAs and mpaths on this iface */
@@ -1068,7 +1068,7 @@ int ieee80211_mesh_finish_csa(struct ieee80211_sub_if_data *sdata)
 
 	/* Remove the CSA and MCSP elements from the beacon */
 	tmp_csa_settings = rcu_dereference(ifmsh->csa);
-	rcu_assign_pointer(ifmsh->csa, NULL);
+	RCU_INIT_POINTER(ifmsh->csa, NULL);
 	if (tmp_csa_settings)
 		kfree_rcu(tmp_csa_settings, rcu_head);
 	ret = ieee80211_mesh_rebuild_beacon(sdata);
@@ -1102,7 +1102,7 @@ int ieee80211_mesh_csa_beacon(struct ieee80211_sub_if_data *sdata,
 	ret = ieee80211_mesh_rebuild_beacon(sdata);
 	if (ret) {
 		tmp_csa_settings = rcu_dereference(ifmsh->csa);
-		rcu_assign_pointer(ifmsh->csa, NULL);
+		RCU_INIT_POINTER(ifmsh->csa, NULL);
 		kfree_rcu(tmp_csa_settings, rcu_head);
 		return ret;
 	}

@@ -392,7 +392,7 @@ static void ieee80211_unassign_vif_chanctx(struct ieee80211_sub_if_data *sdata,
 	lockdep_assert_held(&local->chanctx_mtx);
 
 	ctx->refcount--;
-	rcu_assign_pointer(sdata->vif.chanctx_conf, NULL);
+	RCU_INIT_POINTER(sdata->vif.chanctx_conf, NULL);
 
 	sdata->vif.bss_conf.idle = true;
 
