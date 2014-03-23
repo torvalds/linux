@@ -1092,7 +1092,7 @@ static void __net_exit audit_net_exit(struct net *net)
 		audit_sock = NULL;
 	}
 
-	rcu_assign_pointer(aunet->nlsk, NULL);
+	RCU_INIT_POINTER(aunet->nlsk, NULL);
 	synchronize_net();
 	netlink_kernel_release(sock);
 }
