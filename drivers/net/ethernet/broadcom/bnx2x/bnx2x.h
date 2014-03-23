@@ -1414,7 +1414,6 @@ enum sp_rtnl_flag {
 
 enum bnx2x_iov_flag {
 	BNX2X_IOV_HANDLE_VF_MSG,
-	BNX2X_IOV_CONT_VFOP,
 	BNX2X_IOV_HANDLE_FLR,
 };
 

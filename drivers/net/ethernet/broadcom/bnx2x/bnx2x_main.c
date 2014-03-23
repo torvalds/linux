@@ -1857,8 +1857,6 @@ void bnx2x_sp_event(struct bnx2x_fastpath *fp, union eth_rx_cqe *rr_cqe)
 #else
 		return;
 #endif
-	/* SRIOV: reschedule any 'in_progress' operations */
-	bnx2x_iov_sp_event(bp, cid);
 
 	smp_mb__before_atomic_inc();
 	atomic_inc(&bp->cq_spq_left);
