@@ -17,6 +17,7 @@
 #include <linux/platform_data/edma.h>
 #include <linux/i2c.h>
 #include <linux/of_platform.h>
+#include <linux/clk.h>
 #include <sound/core.h>
 #include <sound/pcm.h>
 #include <sound/soc.h>
@@ -30,8 +31,33 @@
 #include "davinci-i2s.h"
 
 struct snd_soc_card_drvdata_davinci {
+	struct clk *mclk;
 	unsigned sysclk;
 };
+
+static int evm_startup(struct snd_pcm_substream *substream)
+{
+	struct snd_soc_pcm_runtime *rtd = substream->private_data;
+	struct snd_soc_card *soc_card = rtd->codec->card;
+	struct snd_soc_card_drvdata_davinci *drvdata =
+		snd_soc_card_get_drvdata(soc_card);
+
+	if (drvdata->mclk)
+		return clk_prepare_enable(drvdata->mclk);
+
+	return 0;
+}
+
+static void evm_shutdown(struct snd_pcm_substream *substream)
+{
+	struct snd_soc_pcm_runtime *rtd = substream->private_data;
+	struct snd_soc_card *soc_card = rtd->codec->card;
+	struct snd_soc_card_drvdata_davinci *drvdata =
+		snd_soc_card_get_drvdata(soc_card);
+
+	if (drvdata->mclk)
+		clk_disable_unprepare(drvdata->mclk);
+}
 
 static int evm_hw_params(struct snd_pcm_substream *substream,
 			 struct snd_pcm_hw_params *params)
@@ -59,6 +85,8 @@ static int evm_hw_params(struct snd_pcm_substream *substream,
 }
 
 static struct snd_soc_ops evm_ops = {
+	.startup = evm_startup,
+	.shutdown = evm_shutdown,
 	.hw_params = evm_hw_params,
 };
 
@@ -348,6 +376,7 @@ static int davinci_evm_probe(struct platform_device *pdev)
 		of_match_device(of_match_ptr(davinci_evm_dt_ids), &pdev->dev);
 	struct snd_soc_dai_link *dai = (struct snd_soc_dai_link *) match->data;
 	struct snd_soc_card_drvdata_davinci *drvdata = NULL;
+	struct clk *mclk;
 	int ret = 0;
 
 	evm_soc_card.dai_link = dai;
@@ -367,13 +396,38 @@ static int davinci_evm_probe(struct platform_device *pdev)
 	if (ret)
 		return ret;
 
+	mclk = devm_clk_get(&pdev->dev, "mclk");
+	if (PTR_ERR(mclk) == -EPROBE_DEFER) {
+		return -EPROBE_DEFER;
+	} else if (IS_ERR(mclk)) {
+		dev_dbg(&pdev->dev, "mclk not found.\n");
+		mclk = NULL;
+	}
+
 	drvdata = devm_kzalloc(&pdev->dev, sizeof(*drvdata), GFP_KERNEL);
 	if (!drvdata)
 		return -ENOMEM;
 
+	drvdata->mclk = mclk;
+
 	ret = of_property_read_u32(np, "ti,codec-clock-rate", &drvdata->sysclk);
-	if (ret < 0)
-		return -EINVAL;
+
+	if (ret < 0) {
+		if (!drvdata->mclk) {
+			dev_err(&pdev->dev,
+				"No clock or clock rate defined.\n");
+			return -EINVAL;
+		}
+		drvdata->sysclk = clk_get_rate(drvdata->mclk);
+	} else if (drvdata->mclk) {
+		unsigned int requestd_rate = drvdata->sysclk;
+		clk_set_rate(drvdata->mclk, drvdata->sysclk);
+		drvdata->sysclk = clk_get_rate(drvdata->mclk);
+		if (drvdata->sysclk != requestd_rate)
+			dev_warn(&pdev->dev,
+				 "Could not get requested rate %u using %u.\n",
+				 requestd_rate, drvdata->sysclk);
+	}
 
 	snd_soc_card_set_drvdata(&evm_soc_card, drvdata);
 	ret = devm_snd_soc_register_card(&pdev->dev, &evm_soc_card);

@@ -154,22 +154,22 @@ static const struct reg_default wm8940_reg_defaults[] = {
 };
 
 static const char *wm8940_companding[] = { "Off", "NC", "u-law", "A-law" };
-static const struct soc_enum wm8940_adc_companding_enum
-= SOC_ENUM_SINGLE(WM8940_COMPANDINGCTL, 1, 4, wm8940_companding);
-static const struct soc_enum wm8940_dac_companding_enum
-= SOC_ENUM_SINGLE(WM8940_COMPANDINGCTL, 3, 4, wm8940_companding);
+static SOC_ENUM_SINGLE_DECL(wm8940_adc_companding_enum,
+			    WM8940_COMPANDINGCTL, 1, wm8940_companding);
+static SOC_ENUM_SINGLE_DECL(wm8940_dac_companding_enum,
+			    WM8940_COMPANDINGCTL, 3, wm8940_companding);
 
 static const char *wm8940_alc_mode_text[] = {"ALC", "Limiter"};
-static const struct soc_enum wm8940_alc_mode_enum
-= SOC_ENUM_SINGLE(WM8940_ALC3, 8, 2, wm8940_alc_mode_text);
+static SOC_ENUM_SINGLE_DECL(wm8940_alc_mode_enum,
+			    WM8940_ALC3, 8, wm8940_alc_mode_text);
 
 static const char *wm8940_mic_bias_level_text[] = {"0.9", "0.65"};
-static const struct soc_enum wm8940_mic_bias_level_enum
-= SOC_ENUM_SINGLE(WM8940_INPUTCTL, 8, 2, wm8940_mic_bias_level_text);
+static SOC_ENUM_SINGLE_DECL(wm8940_mic_bias_level_enum,
+			    WM8940_INPUTCTL, 8, wm8940_mic_bias_level_text);
 
 static const char *wm8940_filter_mode_text[] = {"Audio", "Application"};
-static const struct soc_enum wm8940_filter_mode_enum
-= SOC_ENUM_SINGLE(WM8940_ADC, 7, 2, wm8940_filter_mode_text);
+static SOC_ENUM_SINGLE_DECL(wm8940_filter_mode_enum,
+			    WM8940_ADC, 7, wm8940_filter_mode_text);
 
 static DECLARE_TLV_DB_SCALE(wm8940_spk_vol_tlv, -5700, 100, 1);
 static DECLARE_TLV_DB_SCALE(wm8940_att_tlv, -1000, 1000, 0);

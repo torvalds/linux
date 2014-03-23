@@ -307,29 +307,29 @@ static const char * const da7210_hpf_cutoff_txt[] = {
 	"Fs/8192*pi", "Fs/4096*pi", "Fs/2048*pi", "Fs/1024*pi"
 };
 
-static const struct soc_enum da7210_dac_hpf_cutoff =
-	SOC_ENUM_SINGLE(DA7210_DAC_HPF, 0, 4, da7210_hpf_cutoff_txt);
+static SOC_ENUM_SINGLE_DECL(da7210_dac_hpf_cutoff,
+			    DA7210_DAC_HPF, 0, da7210_hpf_cutoff_txt);
 
-static const struct soc_enum da7210_adc_hpf_cutoff =
-	SOC_ENUM_SINGLE(DA7210_ADC_HPF, 0, 4, da7210_hpf_cutoff_txt);
+static SOC_ENUM_SINGLE_DECL(da7210_adc_hpf_cutoff,
+			    DA7210_ADC_HPF, 0, da7210_hpf_cutoff_txt);
 
 /* ADC and DAC voice (8kHz) high pass cutoff value */
 static const char * const da7210_vf_cutoff_txt[] = {
 	"2.5Hz", "25Hz", "50Hz", "100Hz", "150Hz", "200Hz", "300Hz", "400Hz"
 };
 
-static const struct soc_enum da7210_dac_vf_cutoff =
-	SOC_ENUM_SINGLE(DA7210_DAC_HPF, 4, 8, da7210_vf_cutoff_txt);
+static SOC_ENUM_SINGLE_DECL(da7210_dac_vf_cutoff,
+			    DA7210_DAC_HPF, 4, da7210_vf_cutoff_txt);
 
-static const struct soc_enum da7210_adc_vf_cutoff =
-	SOC_ENUM_SINGLE(DA7210_ADC_HPF, 4, 8, da7210_vf_cutoff_txt);
+static SOC_ENUM_SINGLE_DECL(da7210_adc_vf_cutoff,
+			    DA7210_ADC_HPF, 4, da7210_vf_cutoff_txt);
 
 static const char *da7210_hp_mode_txt[] = {
 	"Class H", "Class G"
 };
 
-static const struct soc_enum da7210_hp_mode_sel =
-	SOC_ENUM_SINGLE(DA7210_HP_CFG, 0, 2, da7210_hp_mode_txt);
+static SOC_ENUM_SINGLE_DECL(da7210_hp_mode_sel,
+			    DA7210_HP_CFG, 0, da7210_hp_mode_txt);
 
 /* ALC can be enabled only if noise suppression is disabled */
 static int da7210_put_alc_sw(struct snd_kcontrol *kcontrol,
