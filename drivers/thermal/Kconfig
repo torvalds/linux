@@ -237,6 +237,7 @@ config INTEL_SOC_DTS_THERMAL
 config INT340X_THERMAL
 	tristate "ACPI INT340X thermal drivers"
 	depends on X86 && ACPI
+	select THERMAL_GOV_USER_SPACE
 	help
 	  Newer laptops and tablets that use ACPI may have thermal sensors and
 	  other devices with thermal control capabilities outside the core
