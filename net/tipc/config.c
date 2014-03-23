@@ -181,7 +181,7 @@ static struct sk_buff *cfg_set_own_addr(void)
 	if (tipc_own_addr)
 		return tipc_cfg_reply_error_string(TIPC_CFG_NOT_SUPPORTED
 						   " (cannot change node address once assigned)");
-	tipc_core_start_net(addr);
+	tipc_net_start(addr);
 	return tipc_cfg_reply_none();
 }
 
@@ -376,7 +376,6 @@ static void cfg_conn_msg_event(int conid, struct sockaddr_tipc *addr,
 	struct tipc_cfg_msg_hdr *req_hdr;
 	struct tipc_cfg_msg_hdr *rep_hdr;
 	struct sk_buff *rep_buf;
-	int ret;
 
 	/* Validate configuration message header (ignore invalid message) */
 	req_hdr = (struct tipc_cfg_msg_hdr *)buf;
@@ -398,12 +397,8 @@ static void cfg_conn_msg_event(int conid, struct sockaddr_tipc *addr,
 		memcpy(rep_hdr, req_hdr, sizeof(*rep_hdr));
 		rep_hdr->tcm_len = htonl(rep_buf->len);
 		rep_hdr->tcm_flags &= htons(~TCM_F_REQUEST);
-
-		ret = tipc_conn_sendmsg(&cfgsrv, conid, addr, rep_buf->data,
-					rep_buf->len);
-		if (ret < 0)
-			pr_err("Sending cfg reply message failed, no memory\n");
-
+		tipc_conn_sendmsg(&cfgsrv, conid, addr, rep_buf->data,
+				  rep_buf->len);
 		kfree_skb(rep_buf);
 	}
 }

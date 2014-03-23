@@ -1578,6 +1578,7 @@ config BL_SWITCHER_DUMMY_IF
 
 choice
 	prompt "Memory split"
+	depends on MMU
 	default VMSPLIT_3G
 	help
 	  Select the desired split between kernel and user memory.
@@ -1595,6 +1596,7 @@ endchoice
 
 config PAGE_OFFSET
 	hex
+	default PHYS_OFFSET if !MMU
 	default 0x40000000 if VMSPLIT_1G
 	default 0x80000000 if VMSPLIT_2G
 	default 0xC0000000
@@ -1903,6 +1905,7 @@ config XEN
 	depends on ARM && AEABI && OF
 	depends on CPU_V7 && !CPU_V6
 	depends on !GENERIC_ATOMIC64
+	depends on MMU
 	select ARM_PSCI
 	select SWIOTLB_XEN
 	select ARCH_DMA_ADDR_T_64BIT

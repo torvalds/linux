@@ -39,7 +39,7 @@ void init_mmu(void)
 	set_itlbcfg_register(0);
 	set_dtlbcfg_register(0);
 #endif
-#if XCHAL_HAVE_PTP_MMU && XCHAL_HAVE_SPANNING_WAY && CONFIG_OF
+#if XCHAL_HAVE_PTP_MMU && XCHAL_HAVE_SPANNING_WAY && defined(CONFIG_OF)
 	/*
 	 * Update the IO area mapping in case xtensa_kio_paddr has changed
 	 */

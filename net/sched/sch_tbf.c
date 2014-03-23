@@ -334,18 +334,6 @@ static int tbf_change(struct Qdisc *sch, struct nlattr *opt)
 			qdisc_put_rtab(qdisc_get_rtab(&qopt->peakrate,
 						      tb[TCA_TBF_PTAB]));
 
-	if (q->qdisc != &noop_qdisc) {
-		err = fifo_set_limit(q->qdisc, qopt->limit);
-		if (err)
-			goto done;
-	} else if (qopt->limit > 0) {
-		child = fifo_create_dflt(sch, &bfifo_qdisc_ops, qopt->limit);
-		if (IS_ERR(child)) {
-			err = PTR_ERR(child);
-			goto done;
-		}
-	}
-
 	buffer = min_t(u64, PSCHED_TICKS2NS(qopt->buffer), ~0U);
 	mtu = min_t(u64, PSCHED_TICKS2NS(qopt->mtu), ~0U);
 
@@ -388,6 +376,18 @@ static int tbf_change(struct Qdisc *sch, struct nlattr *opt)
 	if (!max_size) {
 		err = -EINVAL;
 		goto done;
+	}
+
+	if (q->qdisc != &noop_qdisc) {
+		err = fifo_set_limit(q->qdisc, qopt->limit);
+		if (err)
+			goto done;
+	} else if (qopt->limit > 0) {
+		child = fifo_create_dflt(sch, &bfifo_qdisc_ops, qopt->limit);
+		if (IS_ERR(child)) {
+			err = PTR_ERR(child);
+			goto done;
+		}
 	}
 
 	sch_tree_lock(sch);

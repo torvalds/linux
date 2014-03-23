@@ -166,9 +166,10 @@ static int max14577_regulator_dt_parse_pdata(struct platform_device *pdev)
 
 	ret = of_regulator_match(&pdev->dev, np, max14577_regulator_matches,
 			MAX14577_REG_MAX);
-	if (ret < 0) {
+	if (ret < 0)
 		dev_err(&pdev->dev, "Error parsing regulator init data: %d\n", ret);
-	}
+	else
+		ret = 0;
 
 	of_node_put(np);
 

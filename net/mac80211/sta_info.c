@@ -91,7 +91,7 @@ static int sta_info_hash_del(struct ieee80211_local *local,
 	return -ENOENT;
 }
 
-static void cleanup_single_sta(struct sta_info *sta)
+static void __cleanup_single_sta(struct sta_info *sta)
 {
 	int ac, i;
 	struct tid_ampdu_tx *tid_tx;
@@ -99,7 +99,8 @@ static void cleanup_single_sta(struct sta_info *sta)
 	struct ieee80211_local *local = sdata->local;
 	struct ps_data *ps;
 
-	if (test_sta_flag(sta, WLAN_STA_PS_STA)) {
+	if (test_sta_flag(sta, WLAN_STA_PS_STA) ||
+	    test_sta_flag(sta, WLAN_STA_PS_DRIVER)) {
 		if (sta->sdata->vif.type == NL80211_IFTYPE_AP ||
 		    sta->sdata->vif.type == NL80211_IFTYPE_AP_VLAN)
 			ps = &sdata->bss->ps;
@@ -109,6 +110,7 @@ static void cleanup_single_sta(struct sta_info *sta)
 			return;
 
 		clear_sta_flag(sta, WLAN_STA_PS_STA);
+		clear_sta_flag(sta, WLAN_STA_PS_DRIVER);
 
 		atomic_dec(&ps->num_sta_ps);
 		sta_info_recalc_tim(sta);
@@ -139,7 +141,14 @@ static void cleanup_single_sta(struct sta_info *sta)
 		ieee80211_purge_tx_queue(&local->hw, &tid_tx->pending);
 		kfree(tid_tx);
 	}
+}
 
+static void cleanup_single_sta(struct sta_info *sta)
+{
+	struct ieee80211_sub_if_data *sdata = sta->sdata;
+	struct ieee80211_local *local = sdata->local;
+
+	__cleanup_single_sta(sta);
 	sta_info_free(local, sta);
 }
 
@@ -330,6 +339,7 @@ struct sta_info *sta_info_alloc(struct ieee80211_sub_if_data *sdata,
 	rcu_read_unlock();
 
 	spin_lock_init(&sta->lock);
+	spin_lock_init(&sta->ps_lock);
 	INIT_WORK(&sta->drv_unblock_wk, sta_unblock);
 	INIT_WORK(&sta->ampdu_mlme.work, ieee80211_ba_session_work);
 	mutex_init(&sta->ampdu_mlme.mtx);
@@ -487,21 +497,26 @@ static int sta_info_insert_finish(struct sta_info *sta) __acquires(RCU)
 		goto out_err;
 	}
 
-	/* notify driver */
-	err = sta_info_insert_drv_state(local, sdata, sta);
-	if (err)
-		goto out_err;
-
 	local->num_sta++;
 	local->sta_generation++;
 	smp_mb();
+
+	/* simplify things and don't accept BA sessions yet */
+	set_sta_flag(sta, WLAN_STA_BLOCK_BA);
 
 	/* make the station visible */
 	sta_info_hash_add(local, sta);
 
 	list_add_rcu(&sta->list, &local->sta_list);
 
+	/* notify driver */
+	err = sta_info_insert_drv_state(local, sdata, sta);
+	if (err)
+		goto out_remove;
+
 	set_sta_flag(sta, WLAN_STA_INSERTED);
+	/* accept BA sessions now */
+	clear_sta_flag(sta, WLAN_STA_BLOCK_BA);
 
 	ieee80211_recalc_min_chandef(sdata);
 	ieee80211_sta_debugfs_add(sta);
@@ -522,6 +537,12 @@ static int sta_info_insert_finish(struct sta_info *sta) __acquires(RCU)
 		mesh_accept_plinks_update(sdata);
 
 	return 0;
+ out_remove:
+	sta_info_hash_del(local, sta);
+	list_del_rcu(&sta->list);
+	local->num_sta--;
+	synchronize_net();
+	__cleanup_single_sta(sta);
  out_err:
 	mutex_unlock(&local->sta_mtx);
 	rcu_read_lock();
@@ -1071,10 +1092,14 @@ struct ieee80211_sta *ieee80211_find_sta(struct ieee80211_vif *vif,
 }
 EXPORT_SYMBOL(ieee80211_find_sta);
 
-static void clear_sta_ps_flags(void *_sta)
+/* powersave support code */
+void ieee80211_sta_ps_deliver_wakeup(struct sta_info *sta)
 {
-	struct sta_info *sta = _sta;
 	struct ieee80211_sub_if_data *sdata = sta->sdata;
+	struct ieee80211_local *local = sdata->local;
+	struct sk_buff_head pending;
+	int filtered = 0, buffered = 0, ac;
+	unsigned long flags;
 	struct ps_data *ps;
 
 	if (sdata->vif.type == NL80211_IFTYPE_AP ||
@@ -1084,20 +1109,6 @@ static void clear_sta_ps_flags(void *_sta)
 		ps = &sdata->u.mesh.ps;
 	else
 		return;
-
-	clear_sta_flag(sta, WLAN_STA_PS_DRIVER);
-	if (test_and_clear_sta_flag(sta, WLAN_STA_PS_STA))
-		atomic_dec(&ps->num_sta_ps);
-}
-
-/* powersave support code */
-void ieee80211_sta_ps_deliver_wakeup(struct sta_info *sta)
-{
-	struct ieee80211_sub_if_data *sdata = sta->sdata;
-	struct ieee80211_local *local = sdata->local;
-	struct sk_buff_head pending;
-	int filtered = 0, buffered = 0, ac;
-	unsigned long flags;
 
 	clear_sta_flag(sta, WLAN_STA_SP);
 
@@ -1109,6 +1120,8 @@ void ieee80211_sta_ps_deliver_wakeup(struct sta_info *sta)
 
 	skb_queue_head_init(&pending);
 
+	/* sync with ieee80211_tx_h_unicast_ps_buf */
+	spin_lock(&sta->ps_lock);
 	/* Send all buffered frames to the station */
 	for (ac = 0; ac < IEEE80211_NUM_ACS; ac++) {
 		int count = skb_queue_len(&pending), tmp;
@@ -1127,7 +1140,12 @@ void ieee80211_sta_ps_deliver_wakeup(struct sta_info *sta)
 		buffered += tmp - count;
 	}
 
-	ieee80211_add_pending_skbs_fn(local, &pending, clear_sta_ps_flags, sta);
+	ieee80211_add_pending_skbs(local, &pending);
+	clear_sta_flag(sta, WLAN_STA_PS_DRIVER);
+	clear_sta_flag(sta, WLAN_STA_PS_STA);
+	spin_unlock(&sta->ps_lock);
+
+	atomic_dec(&ps->num_sta_ps);
 
 	/* This station just woke up and isn't aware of our SMPS state */
 	if (!ieee80211_smps_is_restrictive(sta->known_smps_mode,
@@ -1188,6 +1206,7 @@ static void ieee80211_send_null_response(struct ieee80211_sub_if_data *sdata,
 	memcpy(nullfunc->addr1, sta->sta.addr, ETH_ALEN);
 	memcpy(nullfunc->addr2, sdata->vif.addr, ETH_ALEN);
 	memcpy(nullfunc->addr3, sdata->vif.addr, ETH_ALEN);
+	nullfunc->seq_ctrl = 0;
 
 	skb->priority = tid;
 	skb_set_queue_mapping(skb, ieee802_1d_to_ac[tid]);

@@ -70,8 +70,6 @@ static const struct proto_ops msg_ops;
 static struct proto tipc_proto;
 static struct proto tipc_proto_kern;
 
-static int sockets_enabled;
-
 /*
  * Revised TIPC socket locking policy:
  *
@@ -999,7 +997,7 @@ static int tipc_wait_for_rcvmsg(struct socket *sock, long timeo)
 
 	for (;;) {
 		prepare_to_wait(sk_sleep(sk), &wait, TASK_INTERRUPTIBLE);
-		if (skb_queue_empty(&sk->sk_receive_queue)) {
+		if (timeo && skb_queue_empty(&sk->sk_receive_queue)) {
 			if (sock->state == SS_DISCONNECTING) {
 				err = -ENOTCONN;
 				break;
@@ -1625,7 +1623,7 @@ static int tipc_wait_for_accept(struct socket *sock, long timeo)
 	for (;;) {
 		prepare_to_wait_exclusive(sk_sleep(sk), &wait,
 					  TASK_INTERRUPTIBLE);
-		if (skb_queue_empty(&sk->sk_receive_queue)) {
+		if (timeo && skb_queue_empty(&sk->sk_receive_queue)) {
 			release_sock(sk);
 			timeo = schedule_timeout(timeo);
 			lock_sock(sk);
@@ -2027,8 +2025,6 @@ int tipc_socket_init(void)
 		proto_unregister(&tipc_proto);
 		goto out;
 	}
-
-	sockets_enabled = 1;
  out:
 	return res;
 }
@@ -2038,10 +2034,6 @@ int tipc_socket_init(void)
  */
 void tipc_socket_stop(void)
 {
-	if (!sockets_enabled)
-		return;
-
-	sockets_enabled = 0;
 	sock_unregister(tipc_family_ops.family);
 	proto_unregister(&tipc_proto);
 }

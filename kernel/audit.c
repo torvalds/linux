@@ -182,7 +182,7 @@ struct audit_buffer {
 
 struct audit_reply {
 	__u32 portid;
-	pid_t pid;
+	struct net *net;	
 	struct sk_buff *skb;
 };
 
@@ -500,7 +500,7 @@ int audit_send_list(void *_dest)
 {
 	struct audit_netlink_list *dest = _dest;
 	struct sk_buff *skb;
-	struct net *net = get_net_ns_by_pid(dest->pid);
+	struct net *net = dest->net;
 	struct audit_net *aunet = net_generic(net, audit_net_id);
 
 	/* wait for parent to finish and send an ACK */
@@ -510,6 +510,7 @@ int audit_send_list(void *_dest)
 	while ((skb = __skb_dequeue(&dest->q)) != NULL)
 		netlink_unicast(aunet->nlsk, skb, dest->portid, 0);
 
+	put_net(net);
 	kfree(dest);
 
 	return 0;
@@ -543,7 +544,7 @@ out_kfree_skb:
 static int audit_send_reply_thread(void *arg)
 {
 	struct audit_reply *reply = (struct audit_reply *)arg;
-	struct net *net = get_net_ns_by_pid(reply->pid);
+	struct net *net = reply->net;
 	struct audit_net *aunet = net_generic(net, audit_net_id);
 
 	mutex_lock(&audit_cmd_mutex);
@@ -552,12 +553,13 @@ static int audit_send_reply_thread(void *arg)
 	/* Ignore failure. It'll only happen if the sender goes away,
 	   because our timeout is set to infinite. */
 	netlink_unicast(aunet->nlsk , reply->skb, reply->portid, 0);
+	put_net(net);
 	kfree(reply);
 	return 0;
 }
 /**
  * audit_send_reply - send an audit reply message via netlink
- * @portid: netlink port to which to send reply
+ * @request_skb: skb of request we are replying to (used to target the reply)
  * @seq: sequence number
  * @type: audit message type
  * @done: done (last) flag
@@ -568,9 +570,11 @@ static int audit_send_reply_thread(void *arg)
  * Allocates an skb, builds the netlink message, and sends it to the port id.
  * No failure notifications.
  */
-static void audit_send_reply(__u32 portid, int seq, int type, int done,
+static void audit_send_reply(struct sk_buff *request_skb, int seq, int type, int done,
 			     int multi, const void *payload, int size)
 {
+	u32 portid = NETLINK_CB(request_skb).portid;
+	struct net *net = sock_net(NETLINK_CB(request_skb).sk);
 	struct sk_buff *skb;
 	struct task_struct *tsk;
 	struct audit_reply *reply = kmalloc(sizeof(struct audit_reply),
@@ -583,8 +587,8 @@ static void audit_send_reply(__u32 portid, int seq, int type, int done,
 	if (!skb)
 		goto out;
 
+	reply->net = get_net(net);
 	reply->portid = portid;
-	reply->pid = task_pid_vnr(current);
 	reply->skb = skb;
 
 	tsk = kthread_run(audit_send_reply_thread, reply, "audit_send_reply");
@@ -673,8 +677,7 @@ static int audit_get_feature(struct sk_buff *skb)
 
 	seq = nlmsg_hdr(skb)->nlmsg_seq;
 
-	audit_send_reply(NETLINK_CB(skb).portid, seq, AUDIT_GET, 0, 0,
-			 &af, sizeof(af));
+	audit_send_reply(skb, seq, AUDIT_GET, 0, 0, &af, sizeof(af));
 
 	return 0;
 }
@@ -794,8 +797,7 @@ static int audit_receive_msg(struct sk_buff *skb, struct nlmsghdr *nlh)
 		s.backlog		= skb_queue_len(&audit_skb_queue);
 		s.version		= AUDIT_VERSION_LATEST;
 		s.backlog_wait_time	= audit_backlog_wait_time;
-		audit_send_reply(NETLINK_CB(skb).portid, seq, AUDIT_GET, 0, 0,
-				 &s, sizeof(s));
+		audit_send_reply(skb, seq, AUDIT_GET, 0, 0, &s, sizeof(s));
 		break;
 	}
 	case AUDIT_SET: {
@@ -905,7 +907,7 @@ static int audit_receive_msg(struct sk_buff *skb, struct nlmsghdr *nlh)
 					   seq, data, nlmsg_len(nlh));
 		break;
 	case AUDIT_LIST_RULES:
-		err = audit_list_rules_send(NETLINK_CB(skb).portid, seq);
+		err = audit_list_rules_send(skb, seq);
 		break;
 	case AUDIT_TRIM:
 		audit_trim_trees();
@@ -970,8 +972,8 @@ static int audit_receive_msg(struct sk_buff *skb, struct nlmsghdr *nlh)
 			memcpy(sig_data->ctx, ctx, len);
 			security_release_secctx(ctx, len);
 		}
-		audit_send_reply(NETLINK_CB(skb).portid, seq, AUDIT_SIGNAL_INFO,
-				0, 0, sig_data, sizeof(*sig_data) + len);
+		audit_send_reply(skb, seq, AUDIT_SIGNAL_INFO, 0, 0,
+				 sig_data, sizeof(*sig_data) + len);
 		kfree(sig_data);
 		break;
 	case AUDIT_TTY_GET: {
@@ -983,8 +985,7 @@ static int audit_receive_msg(struct sk_buff *skb, struct nlmsghdr *nlh)
 		s.log_passwd = tsk->signal->audit_tty_log_passwd;
 		spin_unlock(&tsk->sighand->siglock);
 
-		audit_send_reply(NETLINK_CB(skb).portid, seq,
-				 AUDIT_TTY_GET, 0, 0, &s, sizeof(s));
+		audit_send_reply(skb, seq, AUDIT_TTY_GET, 0, 0, &s, sizeof(s));
 		break;
 	}
 	case AUDIT_TTY_SET: {

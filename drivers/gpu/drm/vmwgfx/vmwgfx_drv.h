@@ -40,7 +40,7 @@
 #include <drm/ttm/ttm_module.h>
 #include "vmwgfx_fence.h"
 
-#define VMWGFX_DRIVER_DATE "20121114"
+#define VMWGFX_DRIVER_DATE "20140228"
 #define VMWGFX_DRIVER_MAJOR 2
 #define VMWGFX_DRIVER_MINOR 5
 #define VMWGFX_DRIVER_PATCHLEVEL 0

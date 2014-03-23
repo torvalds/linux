@@ -2105,7 +2105,8 @@ int cayman_resume(struct radeon_device *rdev)
 	/* init golden registers */
 	ni_init_golden_registers(rdev);
 
-	radeon_pm_resume(rdev);
+	if (rdev->pm.pm_method == PM_METHOD_DPM)
+		radeon_pm_resume(rdev);
 
 	rdev->accel_working = true;
 	r = cayman_startup(rdev);

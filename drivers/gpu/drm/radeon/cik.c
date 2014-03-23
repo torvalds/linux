@@ -3046,7 +3046,7 @@ static u32 cik_create_bitmask(u32 bit_width)
 }
 
 /**
- * cik_select_se_sh - select which SE, SH to address
+ * cik_get_rb_disabled - computes the mask of disabled RBs
  *
  * @rdev: radeon_device pointer
  * @max_rb_num: max RBs (render backends) for the asic
@@ -4134,8 +4134,11 @@ static void cik_cp_compute_enable(struct radeon_device *rdev, bool enable)
 {
 	if (enable)
 		WREG32(CP_MEC_CNTL, 0);
-	else
+	else {
 		WREG32(CP_MEC_CNTL, (MEC_ME1_HALT | MEC_ME2_HALT));
+		rdev->ring[CAYMAN_RING_TYPE_CP1_INDEX].ready = false;
+		rdev->ring[CAYMAN_RING_TYPE_CP2_INDEX].ready = false;
+	}
 	udelay(50);
 }
 
@@ -7902,7 +7905,8 @@ int cik_resume(struct radeon_device *rdev)
 	/* init golden registers */
 	cik_init_golden_registers(rdev);
 
-	radeon_pm_resume(rdev);
+	if (rdev->pm.pm_method == PM_METHOD_DPM)
+		radeon_pm_resume(rdev);
 
 	rdev->accel_working = true;
 	r = cik_startup(rdev);

@@ -28,7 +28,7 @@
 	compatible = "nvidia,cardhu", "nvidia,tegra30";
 
 	aliases {
-		rtc0 = "/i2c@7000d000/tps6586x@34";
+		rtc0 = "/i2c@7000d000/tps65911@2d";
 		rtc1 = "/rtc@7000e000";
 	};
 
