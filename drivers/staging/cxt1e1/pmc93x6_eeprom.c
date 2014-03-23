@@ -49,10 +49,10 @@
 #define EE_LIMIT    128		/* Index to end testing at */
 
 /*  Bit Ordering for Instructions
-**
-**  A0, A1, A2, A3, A4, A5, A6, OP0, OP1, SB   (lsb, or 1st bit out)
-**
-*/
+ *
+ *  A0, A1, A2, A3, A4, A5, A6, OP0, OP1, SB   (lsb, or 1st bit out)
+ *
+ */
 
 #define EPROM_EWEN      0x0019	/* Erase/Write enable (reversed) */
 #define EPROM_EWDS      0x0001	/* Erase/Write disable (reversed) */
@@ -110,7 +110,8 @@ static u8 mfg_template[sizeof(FLD_TYPE2)] = {
 
 static void BuildByteReverse(void)
 {
-	long half;		/* Used to build by powers to 2 */
+	/* Used to build by powers to 2 */
+	long half;
 	int i;
 
 	ByteReverse[0] = 0;
@@ -150,12 +151,15 @@ static void eeprom_put_byte(long addr, long data, int count)
 	u_int32_t output;
 
 	while (--count >= 0) {
-		output = (data & EPROM_ACTIVE_OUT_BIT) ? 1 : 0;	/* Get next data bit */
-		output |= EPROM_ENCS;	/* Add Chip Select */
+		/* Get next data bit */
+		output = (data & EPROM_ACTIVE_OUT_BIT) ? 1 : 0;
+		/* Add Chip Select */
+		output |= EPROM_ENCS;
 		data >>= 1;
 
 		eeprom_delay();
-		pci_write_32((u_int32_t *) addr, output);	/* Output it */
+		/* Output it */
+		pci_write_32((u_int32_t *) addr, output);
 	}
 }
 
@@ -174,10 +178,10 @@ static u_int32_t eeprom_get_byte(long addr)
 	int count;
 
 /*  Start the Reading of DATA
-**
-**  The first read is a dummy as the data is latched in the
-**  EPLD and read on the next read access to the EEPROM.
-*/
+ *
+ *  The first read is a dummy as the data is latched in the
+ *  EPLD and read on the next read access to the EEPROM.
+ */
 
 	input = pci_read_32((u_int32_t *) addr);
 
@@ -187,7 +191,8 @@ static u_int32_t eeprom_get_byte(long addr)
 		eeprom_delay();
 		input = pci_read_32((u_int32_t *) addr);
 
-		data <<= 1;	/* Shift data over */
+		/* Shift data over */
+		data <<= 1;
 		data |= (input & EPROM_ACTIVE_IN_BIT) ? 1 : 0;
 
 	}
@@ -206,8 +211,8 @@ static void disable_pmc_eeprom(long addr)
 {
 	eeprom_put_byte(addr, EPROM_EWDS, SIZE_ADDR_OP);
 
-	pci_write_32((u_int32_t *) addr, 0);	/* this removes Chip Select
-						 * from EEPROM */
+	/* this removes Chip Select from EEPROM */
+	pci_write_32((u_int32_t *) addr, 0);
 }
 
 /*------------------------------------------------------------------------
@@ -221,8 +226,8 @@ static void enable_pmc_eeprom(long addr)
 {
 	eeprom_put_byte(addr, EPROM_EWEN, SIZE_ADDR_OP);
 
-	pci_write_32((u_int32_t *) addr, 0);	/* this removes Chip Select
-						 * from EEPROM */
+	/* this removes Chip Select from EEPROM */
+	pci_write_32((u_int32_t *) addr, 0);
 }
 
 /*------------------------------------------------------------------------
@@ -235,27 +240,35 @@ static void enable_pmc_eeprom(long addr)
 
 static u_int32_t pmc_eeprom_read(long addr, long mem_offset)
 {
-	u_int32_t data;		/* Data from chip */
+	/* Data from chip */
+	u_int32_t data;
 
 	if (!ByteReverseBuilt)
 		BuildByteReverse();
 
-	mem_offset = ByteReverse[0x7F & mem_offset];	/* Reverse address */
+	/* Reverse address */
+	mem_offset = ByteReverse[0x7F & mem_offset];
+
 	/*
-	 * NOTE: The max offset address is 128 or half the reversal table. So the
-	 * LSB is always zero and counts as a built in shift of one bit.  So even
-	 * though we need to shift 3 bits to make room for the command, we only
-	 * need to shift twice more because of the built in shift.
+	 * NOTE: The max offset address is 128 or half the reversal table. So
+	 * the LSB is always zero and counts as a built in shift of one bit.
+	 * So even though we need to shift 3 bits to make room for the command,
+	 * we only need to shift twice more because of the built in shift.
 	 */
-	mem_offset <<= 2;	/* Shift for command */
-	mem_offset |= EPROM_READ;	/* Add command */
 
-	eeprom_put_byte(addr, mem_offset, SIZE_ADDR_OP);	/* Output chip address */
+	/* Shift for command */
+	mem_offset <<= 2;
+	/* Add command */
+	mem_offset |= EPROM_READ;
 
-	data = eeprom_get_byte(addr);	/* Read chip data */
+	/* Output chip address */
+	eeprom_put_byte(addr, mem_offset, SIZE_ADDR_OP);
 
-	pci_write_32((u_int32_t *) addr, 0);	/* Remove Chip Select from
-						 * EEPROM */
+	/* Read chip data */
+	data = eeprom_get_byte(addr);
+
+	/* Remove Chip Select from EEPROM */
+	pci_write_32((u_int32_t *) addr, 0);
 
 	return (data & 0x000000FF);
 }
@@ -279,38 +292,48 @@ static int pmc_eeprom_write(long addr, long mem_offset, u_int32_t data)
 	if (!ByteReverseBuilt)
 		BuildByteReverse();
 
-	mem_offset = ByteReverse[0x7F & mem_offset];	/* Reverse address */
+	/* Reverse address */
+	mem_offset = ByteReverse[0x7F & mem_offset];
+
 	/*
-	 * NOTE: The max offset address is 128 or half the reversal table. So the
-	 * LSB is always zero and counts as a built in shift of one bit.  So even
-	 * though we need to shift 3 bits to make room for the command, we only
-	 * need to shift twice more because of the built in shift.
+	 * NOTE: The max offset address is 128 or half the reversal table. So
+	 * the LSB is always zero and counts as a built in shift of one bit.
+	 * So even though we need to shift 3 bits to make room for the command,
+	 * we only need to shift twice more because of the built in shift.
 	 */
-	mem_offset <<= 2;	/* Shift for command */
-	mem_offset |= EPROM_WRITE;	/* Add command */
 
-	eeprom_put_byte(addr, mem_offset, SIZE_ADDR_OP);	/* Output chip address */
+	/* Shift for command */
+	mem_offset <<= 2;
+	/* Add command */
+	mem_offset |= EPROM_WRITE;
 
-	data = ByteReverse[0xFF & data];	/* Reverse data */
-	eeprom_put_byte(addr, data, NUM_OF_BITS);	/* Output chip data */
+	/* Output chip address */
+	eeprom_put_byte(addr, mem_offset, SIZE_ADDR_OP);
 
-	pci_write_32((u_int32_t *) addr, 0);	/* Remove Chip Select from
-						 * EEPROM */
+	/* Reverse data */
+	data = ByteReverse[0xFF & data];
+	/* Output chip data */
+	eeprom_put_byte(addr, data, NUM_OF_BITS);
+
+	/* Remove Chip Select from EEPROM */
+	pci_write_32((u_int32_t *) addr, 0);
 
 /*
-**  Must see Data In at a low state before completing this transaction.
-**
-**  Afterwards, the data bit will return to a high state, ~6 ms, terminating
-**  the operation.
-*/
-	pci_write_32((u_int32_t *) addr, EPROM_ENCS);	/* Re-enable Chip Select */
-	temp = pci_read_32((u_int32_t *) addr);	/* discard first read */
+ *  Must see Data In at a low state before completing this transaction.
+ *
+ *  Afterwards, the data bit will return to a high state, ~6 ms, terminating
+ *  the operation.
+ */
+	/* Re-enable Chip Select */
+	pci_write_32((u_int32_t *) addr, EPROM_ENCS);
+	/* discard first read */
+	temp = pci_read_32((u_int32_t *) addr);
 	temp = pci_read_32((u_int32_t *) addr);
 	if (temp & EPROM_ACTIVE_IN_BIT) {
 		temp = pci_read_32((u_int32_t *) addr);
 		if (temp & EPROM_ACTIVE_IN_BIT) {
-			pci_write_32((u_int32_t *) addr, 0);	/* Remove Chip Select
-								 * from EEPROM */
+			/* Remove Chip Select from EEPROM */
+			pci_write_32((u_int32_t *) addr, 0);
 			return (1);
 		}
 	}
@@ -398,7 +421,8 @@ pmc_eeprom_write_buffer(long addr, long mem_offset, char *dest_ptr, int size)
 static u_int32_t pmcCalcCrc_T01(void *bufp)
 {
 	FLD_TYPE2 *buf = bufp;
-	u_int32_t crc;		/* CRC of the structure */
+	/* CRC of the structure */
+	u_int32_t crc;
 
 	/* Calc CRC for type and length fields */
 	sbeCrc((u_int8_t *) & buf->type,
@@ -406,7 +430,8 @@ static u_int32_t pmcCalcCrc_T01(void *bufp)
 	       (u_int32_t) 0, (u_int32_t *) & crc);
 
 #ifdef EEPROM_TYPE_DEBUG
-	pr_info("sbeCrc: crc 1 calculated as %08x\n", crc);	/* RLD DEBUG */
+	/* RLD DEBUG */
+	pr_info("sbeCrc: crc 1 calculated as %08x\n", crc);
 #endif
 	return ~crc;
 }
@@ -414,7 +439,8 @@ static u_int32_t pmcCalcCrc_T01(void *bufp)
 static u_int32_t pmcCalcCrc_T02(void *bufp)
 {
 	FLD_TYPE2 *buf = bufp;
-	u_int32_t crc;		/* CRC of the structure */
+	/* CRC of the structure */
+	u_int32_t crc;
 
 	/* Calc CRC for type and length fields */
 	sbeCrc((u_int8_t *) & buf->type,
@@ -427,7 +453,8 @@ static u_int32_t pmcCalcCrc_T02(void *bufp)
 	       (u_int32_t) crc, (u_int32_t *) & crc);
 
 #ifdef EEPROM_TYPE_DEBUG
-	pr_info("sbeCrc: crc 2 calculated as %08x\n", crc);	/* RLD DEBUG */
+	/* RLD DEBUG */
+	pr_info("sbeCrc: crc 2 calculated as %08x\n", crc);
 #endif
 	return crc;
 }
@@ -444,8 +471,10 @@ static u_int32_t pmcCalcCrc_T02(void *bufp)
 
 void pmc_init_seeprom(u_int32_t addr, u_int32_t serialNum)
 {
-	PROMFORMAT buffer;	/* Memory image of structure */
-	u_int32_t crc;		/* CRC of structure */
+	/* Memory image of structure */
+	PROMFORMAT buffer;
+	/* CRC of structure */
+	u_int32_t crc;
 	time_t createTime;
 
 	createTime = get_seconds();
@@ -477,12 +506,14 @@ char pmc_verify_cksum(void *bufp)
 {
 	FLD_TYPE1 *buf1 = bufp;
 	FLD_TYPE2 *buf2 = bufp;
-	u_int32_t crc1, crc2;	/* CRC read from EEPROM */
+	/* CRC read from EEPROM */
+	u_int32_t crc1, crc2;
 
 	/* Retrieve contents of CRC field */
 	crc1 = pmcGetBuffValue(&buf1->Crc32[0], sizeof(buf1->Crc32));
 #ifdef EEPROM_TYPE_DEBUG
-	pr_info("EEPROM: chksum 1 reads   as %08x\n", crc1);	/* RLD DEBUG */
+	/* RLD DEBUG */
+	pr_info("EEPROM: chksum 1 reads   as %08x\n", crc1);
 #endif
 	if ((buf1->type == PROM_FORMAT_TYPE1) &&
 	    (pmcCalcCrc_T01((void *)buf1) == crc1))
@@ -490,13 +521,13 @@ char pmc_verify_cksum(void *bufp)
 
 	crc2 = pmcGetBuffValue(&buf2->Crc32[0], sizeof(buf2->Crc32));
 #ifdef EEPROM_TYPE_DEBUG
-	pr_info("EEPROM: chksum 2 reads   as %08x\n", crc2);	/* RLD DEBUG */
+	/* RLD DEBUG */
+	pr_info("EEPROM: chksum 2 reads   as %08x\n", crc2);
 #endif
 	if ((buf2->type == PROM_FORMAT_TYPE2) &&
 	    (pmcCalcCrc_T02((void *)buf2) == crc2))
 		return PROM_FORMAT_TYPE2;	/* checksum type 2 verified */
 
-	return PROM_FORMAT_Unk;	/* failed to validate */
+	/* failed to validate */
+	return PROM_FORMAT_Unk;
 }
-
-/*** End-of-File ***/
