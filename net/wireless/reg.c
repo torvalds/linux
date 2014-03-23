@@ -2594,7 +2594,7 @@ void wiphy_regulatory_deregister(struct wiphy *wiphy)
 		reg_num_devs_support_basehint--;
 
 	rcu_free_regdom(get_wiphy_regdom(wiphy));
-	rcu_assign_pointer(wiphy->regd, NULL);
+	RCU_INIT_POINTER(wiphy->regd, NULL);
 
 	if (lr)
 		request_wiphy = wiphy_idx_to_wiphy(lr->wiphy_idx);
