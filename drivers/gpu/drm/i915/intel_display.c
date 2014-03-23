@@ -11499,6 +11499,17 @@ static void intel_sanitize_crtc(struct intel_crtc *crtc)
 			encoder->base.crtc = NULL;
 		}
 	}
+	if (crtc->active) {
+		/*
+		 * We start out with underrun reporting disabled to avoid races.
+		 * For correct bookkeeping mark this on active crtcs.
+		 *
+		 * No protection against concurrent access is required - at
+		 * worst a fifo underrun happens which also sets this to false.
+		 */
+		crtc->cpu_fifo_underrun_disabled = true;
+		crtc->pch_fifo_underrun_disabled = true;
+	}
 }
 
 static void intel_sanitize_encoder(struct intel_encoder *encoder)
