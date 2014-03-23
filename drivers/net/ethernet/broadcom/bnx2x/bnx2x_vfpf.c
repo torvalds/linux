@@ -896,29 +896,16 @@ int bnx2x_vfpf_storm_rx_mode(struct bnx2x *bp)
 
 	DP(NETIF_MSG_IFUP, "Rx mode is %d\n", mode);
 
-	switch (mode) {
-	case BNX2X_RX_MODE_NONE: /* no Rx */
+	/* Ignore everything accept MODE_NONE */
+	if (mode  == BNX2X_RX_MODE_NONE) {
 		req->rx_mask = VFPF_RX_MASK_ACCEPT_NONE;
-		break;
-	case BNX2X_RX_MODE_NORMAL:
+	} else {
+		/* Current PF driver will not look at the specific flags,
+		 * but they are required when working with older drivers on hv.
+		 */
 		req->rx_mask = VFPF_RX_MASK_ACCEPT_MATCHED_MULTICAST;
 		req->rx_mask |= VFPF_RX_MASK_ACCEPT_MATCHED_UNICAST;
 		req->rx_mask |= VFPF_RX_MASK_ACCEPT_BROADCAST;
-		break;
-	case BNX2X_RX_MODE_ALLMULTI:
-		req->rx_mask = VFPF_RX_MASK_ACCEPT_ALL_MULTICAST;
-		req->rx_mask |= VFPF_RX_MASK_ACCEPT_MATCHED_UNICAST;
-		req->rx_mask |= VFPF_RX_MASK_ACCEPT_BROADCAST;
-		break;
-	case BNX2X_RX_MODE_PROMISC:
-		req->rx_mask = VFPF_RX_MASK_ACCEPT_ALL_UNICAST;
-		req->rx_mask |= VFPF_RX_MASK_ACCEPT_ALL_MULTICAST;
-		req->rx_mask |= VFPF_RX_MASK_ACCEPT_BROADCAST;
-		break;
-	default:
-		BNX2X_ERR("BAD rx mode (%d)\n", mode);
-		rc = -EINVAL;
-		goto out;
 	}
 
 	req->flags |= VFPF_SET_Q_FILTERS_RX_MASK_CHANGED;
@@ -939,7 +926,7 @@ int bnx2x_vfpf_storm_rx_mode(struct bnx2x *bp)
 		BNX2X_ERR("Set Rx mode failed: %d\n", resp->hdr.status);
 		rc = -EINVAL;
 	}
-out:
+
 	bnx2x_vfpf_finalize(bp, &req->first_tlv);
 
 	return rc;
@@ -1571,21 +1558,12 @@ static int bnx2x_vf_mbx_qfilters(struct bnx2x *bp, struct bnx2x_virtf *vf)
 		struct pf_vf_bulletin_content *bulletin =
 					BP_VF_BULLETIN(bp, vf->index);
 
-		/* covert VF-PF if mask to bnx2x accept flags */
-		if (msg->rx_mask & VFPF_RX_MASK_ACCEPT_MATCHED_UNICAST)
+		/* Ignore VF requested mode; instead set a regular mode */
+		if (msg->rx_mask !=  VFPF_RX_MASK_ACCEPT_NONE) {
 			__set_bit(BNX2X_ACCEPT_UNICAST, &accept);
-
-		if (msg->rx_mask & VFPF_RX_MASK_ACCEPT_MATCHED_MULTICAST)
 			__set_bit(BNX2X_ACCEPT_MULTICAST, &accept);
-
-		if (msg->rx_mask & VFPF_RX_MASK_ACCEPT_ALL_UNICAST)
-			__set_bit(BNX2X_ACCEPT_ALL_UNICAST, &accept);
-
-		if (msg->rx_mask & VFPF_RX_MASK_ACCEPT_ALL_MULTICAST)
-			__set_bit(BNX2X_ACCEPT_ALL_MULTICAST, &accept);
-
-		if (msg->rx_mask & VFPF_RX_MASK_ACCEPT_BROADCAST)
 			__set_bit(BNX2X_ACCEPT_BROADCAST, &accept);
+		}
 
 		/* A packet arriving the vf's mac should be accepted
 		 * with any vlan, unless a vlan has already been
