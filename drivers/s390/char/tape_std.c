@@ -78,7 +78,7 @@ tape_std_assign(struct tape_device *device)
 
 	rc = tape_do_io_interruptible(device, request);
 
-	del_timer(&timeout);
+	del_timer_sync(&timeout);
 
 	if (rc != 0) {
 		DBF_EVENT(3, "%08x: assign failed - device might be busy\n",
