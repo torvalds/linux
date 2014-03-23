@@ -28,6 +28,7 @@
 #include "sbecom_inline_linux.h"
 #include "pmcc4.h"
 #include "sbe_promformat.h"
+#include "pmc93x6_eeprom.h"
 
 #ifndef TRUE
 #define TRUE   1
@@ -154,7 +155,7 @@ eeprom_delay (void)
  *      the data to the EEPROM.
  */
 
-void
+static void
 eeprom_put_byte (long addr, long data, int count)
 {
     u_int32_t output;
@@ -179,7 +180,7 @@ eeprom_put_byte (long addr, long data, int count)
  *      from the  EEPROM.
  */
 
-u_int32_t
+static u_int32_t
 eeprom_get_byte (long addr)
 {
     u_int32_t   input;
@@ -252,7 +253,7 @@ enable_pmc_eeprom (long addr)
  *      the contents of the specified location to the calling routine.
  */
 
-u_int32_t
+static u_int32_t
 pmc_eeprom_read (long addr, long mem_offset)
 {
     u_int32_t   data;           /* Data from chip */
@@ -292,7 +293,7 @@ pmc_eeprom_read (long addr, long mem_offset)
  *      operation succeeded.
  */
 
-int
+static int
 pmc_eeprom_write (long addr, long mem_offset, u_int32_t data)
 {
     volatile u_int32_t temp;
@@ -360,7 +361,7 @@ pmc_eeprom_write (long addr, long mem_offset, u_int32_t data)
  *------------------------------------------------------------------------
  */
 
-long
+static long
 pmcGetBuffValue (char *ptr, int size)
 {
     long        value = 0;
@@ -381,7 +382,7 @@ pmcGetBuffValue (char *ptr, int size)
  *------------------------------------------------------------------------
  */
 
-void
+static void
 pmcSetBuffValue (char *ptr, long value, int size)
 {
     int         index = size;
@@ -429,7 +430,7 @@ pmc_eeprom_write_buffer (long addr, long mem_offset, char *dest_ptr, int size)
  *------------------------------------------------------------------------
  */
 
-u_int32_t
+static u_int32_t
 pmcCalcCrc_T01 (void *bufp)
 {
     FLD_TYPE2  *buf = bufp;
@@ -448,7 +449,7 @@ pmcCalcCrc_T01 (void *bufp)
     return ~crc;
 }
 
-u_int32_t
+static u_int32_t
 pmcCalcCrc_T02 (void *bufp)
 {
     FLD_TYPE2  *buf = bufp;
