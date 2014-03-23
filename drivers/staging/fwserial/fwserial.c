@@ -1807,7 +1807,7 @@ static void fwserial_release_port(struct fwtty_port *port, bool reset)
 	port->max_payload = link_speed_to_max_payload(SCODE_100);
 	dma_fifo_change_tx_limit(&port->tx_fifo, port->max_payload);
 
-	rcu_assign_pointer(port->peer, NULL);
+	RCU_INIT_POINTER(port->peer, NULL);
 	spin_unlock_bh(&port->lock);
 
 	if (port->port.console && port->fwcon_ops->notify != NULL)
@@ -2240,7 +2240,7 @@ static int fwserial_create(struct fw_unit *unit)
 		port->max_payload = link_speed_to_max_payload(SCODE_100);
 		dma_fifo_init(&port->tx_fifo);
 
-		rcu_assign_pointer(port->peer, NULL);
+		RCU_INIT_POINTER(port->peer, NULL);
 		serial->ports[i] = port;
 
 		/* get unique bus addr region for port's status & recv fifo */
