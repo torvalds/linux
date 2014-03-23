@@ -2163,7 +2163,7 @@ static struct dm_table *__unbind(struct mapped_device *md)
 		return NULL;
 
 	dm_table_event_callback(map, NULL, NULL);
-	rcu_assign_pointer(md->map, NULL);
+	RCU_INIT_POINTER(md->map, NULL);
 	dm_sync_table(md);
 
 	return map;
