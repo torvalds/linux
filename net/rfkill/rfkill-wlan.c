@@ -268,10 +268,10 @@ EXPORT_SYMBOL(rockchip_wifi_power);
  * Wifi Sdio Detect Func
  *
  *************************************************************************/
-extern int mmc_host_rescan(struct mmc_host *host);
-int rockchip_wifi_set_carddetect(void)
+extern int mmc_host_rescan(struct mmc_host *host, int val);
+int rockchip_wifi_set_carddetect(int val)
 {
-    return mmc_host_rescan(NULL);//NULL => SDIO host
+    return mmc_host_rescan(NULL, val);//NULL => SDIO host
 }
 EXPORT_SYMBOL(rockchip_wifi_set_carddetect);
 

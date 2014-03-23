@@ -40,7 +40,7 @@ struct rksdmmc_gpio_wifi_moudle {
 
 void *rockchip_mem_prealloc(int section, unsigned long size);
 int rockchip_wifi_power(int on);
-int rockchip_wifi_set_carddetect(void);
+int rockchip_wifi_set_carddetect(int val);
 int rockchip_wifi_get_oob_irq(void);
 int rockchip_wifi_reset(int on);
 int rockchip_wifi_mac_addr(unsigned char *buf);

@@ -124,6 +124,7 @@ struct mmc_host_ops {
 	void	(*set_ios)(struct mmc_host *host, struct mmc_ios *ios);
 	int	(*get_ro)(struct mmc_host *host);
 	int	(*get_cd)(struct mmc_host *host);
+	int	(*set_sdio_status)(struct mmc_host *host, int val);//added by xbw,at 2014-03-24
 
 	void	(*enable_sdio_irq)(struct mmc_host *host, int enable);
 

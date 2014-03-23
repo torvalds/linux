@@ -2413,6 +2413,14 @@ static int mmc_blk_probe(struct mmc_card *card)
 #ifdef CONFIG_MMC_BLOCK_DEFERRED_RESUME
 	mmc_set_bus_resume_policy(card->host, 1);
 #endif
+#if defined(CONFIG_MMC_DW_ROCKCHIP)
+    if(card->host->restrict_caps & RESTRICT_CARD_TYPE_EMMC){
+        this_card = card;
+        md->disk->emmc_disk = 1;
+    }else {
+        md->disk->emmc_disk = 0;
+    }
+#endif
 	if (mmc_add_disk(md))
 		goto out;
 
@@ -2432,10 +2440,6 @@ static int mmc_blk_probe(struct mmc_card *card)
 		pm_runtime_set_active(&card->dev);
 		pm_runtime_enable(&card->dev);
 	}
-#if defined(CONFIG_MMC_DW_ROCKCHIP)
-    if(card->host->restrict_caps & RESTRICT_CARD_TYPE_EMMC)
-        this_card = card;
-#endif
 
 	return 0;
 

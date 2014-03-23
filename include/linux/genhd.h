@@ -200,6 +200,8 @@ struct gendisk {
 	struct blk_integrity *integrity;
 #endif
 	int node_id;
+	
+	int emmc_disk;//for emmc devive; added by xbw at 2014-03-22
 };
 
 static inline struct gendisk *part_to_disk(struct hd_struct *part)

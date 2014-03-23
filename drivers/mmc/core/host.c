@@ -604,7 +604,7 @@ EXPORT_SYMBOL(mmc_free_host);
  *  OR, rescan host from argument.
  *
  */
-int mmc_host_rescan(struct mmc_host *host)
+int mmc_host_rescan(struct mmc_host *host, int val)
 {
     if(NULL != primary_sdio_host){
         if(!host)
@@ -618,9 +618,10 @@ int mmc_host_rescan(struct mmc_host *host)
     }
 
     printk("%s:mmc host rescan start!\n", mmc_hostname(host));
-                              
-    mmc_detect_change(host, msecs_to_jiffies(10));
 
+    if (!(host->caps & MMC_CAP_NONREMOVABLE) && host->ops->set_sdio_status)
+		host->ops->set_sdio_status(host, val);
+	
     return 0;
 }
 EXPORT_SYSMBOL(mmc_host_rescan);
