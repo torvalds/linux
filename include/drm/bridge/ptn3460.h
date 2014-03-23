@@ -19,7 +19,7 @@ struct drm_encoder;
 struct i2c_client;
 struct device_node;
 
-#ifdef CONFIG_DRM_PTN3460
+#if defined(CONFIG_DRM_PTN3460) || defined(CONFIG_DRM_PTN3460_MODULE)
 
 int ptn3460_init(struct drm_device *dev, struct drm_encoder *encoder,
 		struct i2c_client *client, struct device_node *node);
