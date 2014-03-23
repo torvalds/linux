@@ -3482,10 +3482,15 @@ static void bnx2x_handle_eee_event(struct bnx2x *bp)
 	bnx2x_fw_command(bp, DRV_MSG_CODE_EEE_RESULTS_ACK, 0);
 }
 
+#define BNX2X_UPDATE_DRV_INFO_IND_LENGTH	(20)
+#define BNX2X_UPDATE_DRV_INFO_IND_COUNT		(25)
+
 static void bnx2x_handle_drv_info_req(struct bnx2x *bp)
 {
 	enum drv_info_opcode op_code;
 	u32 drv_info_ctl = SHMEM2_RD(bp, drv_info_control);
+	bool release = false;
+	int wait;
 
 	/* if drv_info version supported by MFW doesn't match - send NACK */
 	if ((drv_info_ctl & DRV_INFO_CONTROL_VER_MASK) != DRV_INFO_CUR_VER) {
@@ -3495,6 +3500,9 @@ static void bnx2x_handle_drv_info_req(struct bnx2x *bp)
 
 	op_code = (drv_info_ctl & DRV_INFO_CONTROL_OP_CODE_MASK) >>
 		  DRV_INFO_CONTROL_OP_CODE_SHIFT;
+
+	/* Must prevent other flows from accessing drv_info_to_mcp */
+	mutex_lock(&bp->drv_info_mutex);
 
 	memset(&bp->slowpath->drv_info_to_mcp, 0,
 	       sizeof(union drv_info_to_mcp));
@@ -3512,7 +3520,7 @@ static void bnx2x_handle_drv_info_req(struct bnx2x *bp)
 	default:
 		/* if op code isn't supported - send NACK */
 		bnx2x_fw_command(bp, DRV_MSG_CODE_DRV_INFO_NACK, 0);
-		return;
+		goto out;
 	}
 
 	/* if we got drv_info attn from MFW then these fields are defined in
@@ -3524,6 +3532,106 @@ static void bnx2x_handle_drv_info_req(struct bnx2x *bp)
 		U64_HI(bnx2x_sp_mapping(bp, drv_info_to_mcp)));
 
 	bnx2x_fw_command(bp, DRV_MSG_CODE_DRV_INFO_ACK, 0);
+
+	/* Since possible management wants both this and get_driver_version
+	 * need to wait until management notifies us it finished utilizing
+	 * the buffer.
+	 */
+	if (!SHMEM2_HAS(bp, mfw_drv_indication)) {
+		DP(BNX2X_MSG_MCP, "Management does not support indication\n");
+	} else if (!bp->drv_info_mng_owner) {
+		u32 bit = MFW_DRV_IND_READ_DONE_OFFSET((BP_ABS_FUNC(bp) >> 1));
+
+		for (wait = 0; wait < BNX2X_UPDATE_DRV_INFO_IND_COUNT; wait++) {
+			u32 indication = SHMEM2_RD(bp, mfw_drv_indication);
+
+			/* Management is done; need to clear indication */
+			if (indication & bit) {
+				SHMEM2_WR(bp, mfw_drv_indication,
+					  indication & ~bit);
+				release = true;
+				break;
+			}
+
+			msleep(BNX2X_UPDATE_DRV_INFO_IND_LENGTH);
+		}
+	}
+	if (!release) {
+		DP(BNX2X_MSG_MCP, "Management did not release indication\n");
+		bp->drv_info_mng_owner = true;
+	}
+
+out:
+	mutex_unlock(&bp->drv_info_mutex);
+}
+
+static u32 bnx2x_update_mng_version_utility(u8 *version, bool bnx2x_format)
+{
+	u8 vals[4];
+	int i = 0;
+
+	if (bnx2x_format) {
+		i = sscanf(version, "1.%c%hhd.%hhd.%hhd",
+			   &vals[0], &vals[1], &vals[2], &vals[3]);
+		if (i > 0)
+			vals[0] -= '0';
+	} else {
+		i = sscanf(version, "%hhd.%hhd.%hhd.%hhd",
+			   &vals[0], &vals[1], &vals[2], &vals[3]);
+	}
+
+	while (i < 4)
+		vals[i++] = 0;
+
+	return (vals[0] << 24) | (vals[1] << 16) | (vals[2] << 8) | vals[3];
+}
+
+void bnx2x_update_mng_version(struct bnx2x *bp)
+{
+	u32 iscsiver = DRV_VER_NOT_LOADED;
+	u32 fcoever = DRV_VER_NOT_LOADED;
+	u32 ethver = DRV_VER_NOT_LOADED;
+	int idx = BP_FW_MB_IDX(bp);
+	u8 *version;
+
+	if (!SHMEM2_HAS(bp, func_os_drv_ver))
+		return;
+
+	mutex_lock(&bp->drv_info_mutex);
+	/* Must not proceed when `bnx2x_handle_drv_info_req' is feasible */
+	if (bp->drv_info_mng_owner)
+		goto out;
+
+	if (bp->state != BNX2X_STATE_OPEN)
+		goto out;
+
+	/* Parse ethernet driver version */
+	ethver = bnx2x_update_mng_version_utility(DRV_MODULE_VERSION, true);
+	if (!CNIC_LOADED(bp))
+		goto out;
+
+	/* Try getting storage driver version via cnic */
+	memset(&bp->slowpath->drv_info_to_mcp, 0,
+	       sizeof(union drv_info_to_mcp));
+	bnx2x_drv_info_iscsi_stat(bp);
+	version = bp->slowpath->drv_info_to_mcp.iscsi_stat.version;
+	iscsiver = bnx2x_update_mng_version_utility(version, false);
+
+	memset(&bp->slowpath->drv_info_to_mcp, 0,
+	       sizeof(union drv_info_to_mcp));
+	bnx2x_drv_info_fcoe_stat(bp);
+	version = bp->slowpath->drv_info_to_mcp.fcoe_stat.version;
+	fcoever = bnx2x_update_mng_version_utility(version, false);
+
+out:
+	SHMEM2_WR(bp, func_os_drv_ver[idx].versions[DRV_PERS_ETHERNET], ethver);
+	SHMEM2_WR(bp, func_os_drv_ver[idx].versions[DRV_PERS_ISCSI], iscsiver);
+	SHMEM2_WR(bp, func_os_drv_ver[idx].versions[DRV_PERS_FCOE], fcoever);
+
+	mutex_unlock(&bp->drv_info_mutex);
+
+	DP(BNX2X_MSG_MCP, "Setting driver version: ETH [%08x] iSCSI [%08x] FCoE [%08x]\n",
+	   ethver, iscsiver, fcoever);
 }
 
 static void bnx2x_dcc_event(struct bnx2x *bp, u32 dcc_event)
@@ -9807,6 +9915,10 @@ sp_rtnl_not_reset:
 		bnx2x_dcbx_resume_hw_tx(bp);
 	}
 
+	if (test_and_clear_bit(BNX2X_SP_RTNL_GET_DRV_VERSION,
+			       &bp->sp_rtnl_state))
+		bnx2x_update_mng_version(bp);
+
 	/* work which needs rtnl lock not-taken (as it takes the lock itself and
 	 * can be called from other contexts as well)
 	 */
@@ -11757,6 +11869,8 @@ static int bnx2x_init_bp(struct bnx2x *bp)
 
 	mutex_init(&bp->port.phy_mutex);
 	mutex_init(&bp->fw_mb_mutex);
+	mutex_init(&bp->drv_info_mutex);
+	bp->drv_info_mng_owner = false;
 	spin_lock_init(&bp->stats_lock);
 	sema_init(&bp->stats_sema, 1);
 
@@ -13794,6 +13908,7 @@ static int bnx2x_drv_ctl(struct net_device *dev, struct drv_ctl_info *ctl)
 				REG_WR(bp, scratch_offset + i,
 				       *(host_addr + i/4));
 		}
+		bnx2x_schedule_sp_rtnl(bp, BNX2X_SP_RTNL_GET_DRV_VERSION, 0);
 		break;
 	}
 
@@ -13811,6 +13926,7 @@ static int bnx2x_drv_ctl(struct net_device *dev, struct drv_ctl_info *ctl)
 				cap &= ~DRV_FLAGS_CAPABILITIES_LOADED_FCOE;
 			SHMEM2_WR(bp, drv_capabilities_flag[idx], cap);
 		}
+		bnx2x_schedule_sp_rtnl(bp, BNX2X_SP_RTNL_GET_DRV_VERSION, 0);
 		break;
 	}
 
@@ -13915,6 +14031,9 @@ static int bnx2x_register_cnic(struct net_device *dev, struct cnic_ops *ops,
 	bnx2x_setup_cnic_irq_info(bp);
 
 	rcu_assign_pointer(bp->cnic_ops, ops);
+
+	/* Schedule driver to read CNIC driver versions */
+	bnx2x_schedule_sp_rtnl(bp, BNX2X_SP_RTNL_GET_DRV_VERSION, 0);
 
 	return 0;
 }

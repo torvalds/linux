@@ -2003,6 +2003,23 @@ struct shmem_lfa {
 	#define SHMEM_LFA_DONT_CLEAR_STAT		(1<<24)
 };
 
+/* Used to support NSCI get OS driver version
+ * on driver load the version value will be set
+ * on driver unload driver value of 0x0 will be set.
+ */
+struct os_drv_ver {
+#define DRV_VER_NOT_LOADED			0
+
+	/* personalties order is important */
+#define DRV_PERS_ETHERNET			0
+#define DRV_PERS_ISCSI				1
+#define DRV_PERS_FCOE				2
+
+	/* shmem2 struct is constant can't add more personalties here */
+#define MAX_DRV_PERS				3
+	u32 versions[MAX_DRV_PERS];
+};
+
 struct ncsi_oem_fcoe_features {
 	u32 fcoe_features1;
 	#define FCOE_FEATURES1_IOS_PER_CONNECTION_MASK          0x0000FFFF
@@ -2217,6 +2234,18 @@ struct shmem2_region {
 	u32 reserved4;				/* Offset 0x150 */
 	u32 link_attr_sync[PORT_MAX];		/* Offset 0x154 */
 	#define LINK_ATTR_SYNC_KR2_ENABLE	(1<<0)
+
+	u32 reserved5[2];
+	u32 reserved6[PORT_MAX];
+
+	/* driver version for each personality */
+	struct os_drv_ver func_os_drv_ver[E2_FUNC_MAX]; /* Offset 0x16c */
+
+	/* Flag to the driver that PF's drv_info_host_addr buffer was read  */
+	u32 mfw_drv_indication;
+
+	/* We use indication for each PF (0..3) */
+#define MFW_DRV_IND_READ_DONE_OFFSET(_pf_) (1 << (_pf_))
 };
 
 

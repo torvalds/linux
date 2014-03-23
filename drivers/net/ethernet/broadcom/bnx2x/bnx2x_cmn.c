@@ -2804,6 +2804,9 @@ int bnx2x_nic_load(struct bnx2x *bp, int load_mode)
 	if (CNIC_ENABLED(bp))
 		bnx2x_load_cnic(bp);
 
+	if (IS_PF(bp))
+		bnx2x_schedule_sp_rtnl(bp, BNX2X_SP_RTNL_GET_DRV_VERSION, 0);
+
 	if (IS_PF(bp) && SHMEM2_HAS(bp, drv_capabilities_flag)) {
 		/* mark driver is loaded in shmem2 */
 		u32 val;
@@ -3029,6 +3032,10 @@ int bnx2x_nic_unload(struct bnx2x *bp, int unload_mode, bool keep_link)
 
 	bp->state = BNX2X_STATE_CLOSED;
 	bp->cnic_loaded = false;
+
+	/* Clear driver version indication in shmem */
+	if (IS_PF(bp))
+		bnx2x_update_mng_version(bp);
 
 	/* Check if there are pending parity attentions. If there are - set
 	 * RECOVERY_IN_PROGRESS.

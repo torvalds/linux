@@ -1413,6 +1413,7 @@ enum sp_rtnl_flag {
 	BNX2X_SP_RTNL_RX_MODE,
 	BNX2X_SP_RTNL_HYPERVISOR_VLAN,
 	BNX2X_SP_RTNL_TX_STOP,
+	BNX2X_SP_RTNL_GET_DRV_VERSION,
 };
 
 struct bnx2x_prev_path_list {
@@ -1702,6 +1703,10 @@ struct bnx2x {
 
 	struct bnx2x_slowpath	*slowpath;
 	dma_addr_t		slowpath_mapping;
+
+	/* Mechanism protecting the drv_info_to_mcp */
+	struct mutex		drv_info_mutex;
+	bool			drv_info_mng_owner;
 
 	/* Total number of FW statistics requests */
 	u8			fw_stats_num;
@@ -2534,6 +2539,8 @@ enum {
 #define NUM_MACS	8
 
 void bnx2x_set_local_cmng(struct bnx2x *bp);
+
+void bnx2x_update_mng_version(struct bnx2x *bp);
 
 #define MCPR_SCRATCH_BASE(bp) \
 	(CHIP_IS_E1x(bp) ? MCP_REG_MCPR_SCRATCH : MCP_A_REG_MCPR_SCRATCH)
