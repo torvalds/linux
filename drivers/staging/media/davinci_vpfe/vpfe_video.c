@@ -1218,8 +1218,16 @@ static int vpfe_start_streaming(struct vb2_queue *vq, unsigned int count)
 	video->state = VPFE_VIDEO_BUFFER_QUEUED;
 
 	ret = vpfe_start_capture(video);
-	if (ret)
+	if (ret) {
+		struct vpfe_cap_buffer *buf, *tmp;
+
+		vb2_buffer_done(&video->cur_frm->vb, VB2_BUF_STATE_QUEUED);
+		list_for_each_entry_safe(buf, tmp, &video->dma_queue, list) {
+			list_del(&buf->list);
+			vb2_buffer_done(&buf->vb, VB2_BUF_STATE_QUEUED);
+		}
 		goto unlock_out;
+	}
 
 	mutex_unlock(&video->lock);
 
