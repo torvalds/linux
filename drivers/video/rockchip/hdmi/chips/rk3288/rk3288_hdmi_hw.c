@@ -59,8 +59,8 @@ static void rk3288_hdmi_set_pwr_mode(struct hdmi *hdmi_drv, int mode)
 			hdmi_writel(hdmi_dev, MC_CLKDIS, 0x00);
 			break;
 		case LOWER_PWR:
-			//hdmi_msk_reg(hdmi_dev, MC_CLKDIS, m_AUDCLK_DISABLE | m_PREPCLK_DISABLE | m_TMDSCLK_DISABLE | m_PIXELCLK_DISABLE,
-				//v_AUDCLK_DISABLE(1) | v_PREPCLK_DISABLE(1) | v_TMDSCLK_DISABLE(1) | v_PIXELCLK_DISABLE(1));
+			hdmi_msk_reg(hdmi_dev, MC_CLKDIS, m_AUDCLK_DISABLE | m_PREPCLK_DISABLE | m_TMDSCLK_DISABLE | m_PIXELCLK_DISABLE,
+				v_AUDCLK_DISABLE(1) | v_PREPCLK_DISABLE(1) | v_TMDSCLK_DISABLE(1) | v_PIXELCLK_DISABLE(1));
 			//hdmi_msk_reg(hdmi_dev, PHY_CONF0, m_TXPWRON_SIG, v_TXPWRON_SIG(0));
 			break;
 		default:
@@ -73,7 +73,7 @@ static void rk3288_hdmi_set_pwr_mode(struct hdmi *hdmi_drv, int mode)
 void rk3288_hdmi_i2cm_reset(struct rk3288_hdmi_device *hdmi_dev)
 {
 	hdmi_msk_reg(hdmi_dev, I2CM_SOFTRSTZ, m_I2CM_SOFTRST, v_I2CM_SOFTRST(0));
-	udelay(200);
+	udelay(100);
 }
 
 void rk3288_hdmi_reset(struct hdmi *hdmi_drv)
@@ -86,28 +86,31 @@ void rk3288_hdmi_reset(struct hdmi *hdmi_drv)
 	hdmi_writel(hdmi_dev, MC_SWRSTZREQ_2, 0x00);
 	udelay(100);
 	hdmi_writel(hdmi_dev, MC_SWRSTZREQ_2, 0x01);
+
 	rk3288_hdmi_i2cm_reset(hdmi_dev);
-	//hdmi_msk_reg(hdmi_dev, PHY_CONF0, m_TXPWRON_SIG, v_TXPWRON_SIG(1));
-	hdmi_msk_reg(hdmi_dev, PHY_I2CM_DIV, m_PHY_I2CM_FAST_STD, v_PHY_I2CM_FAST_STD(0));
+#if 0
+	//reset PHY
 	hdmi_writel(hdmi_dev, PHY_CONF0, 0x3a);
 	hdmi_writel(hdmi_dev, MC_PHYRSTZ, v_PHY_RSTZ(1));
-	msleep(5);
+	udelay(100);
 	hdmi_writel(hdmi_dev, MC_PHYRSTZ, v_PHY_RSTZ(0));
 	hdmi_writel(hdmi_dev, PHY_CONF0, 0x6e);
+#endif
+
 	rk3288_hdmi_set_pwr_mode(hdmi_drv, LOWER_PWR);
 }
 
 int rk3288_hdmi_detect_hotplug(struct hdmi *hdmi_drv)
 {
-	//struct rk3288_hdmi_device *hdmi_dev = container_of(hdmi_drv, struct rk3288_hdmi_device, driver);
-	//u32 value = hdmi_readl(hdmi_dev,PHY_STAT0);
+	struct rk3288_hdmi_device *hdmi_dev = container_of(hdmi_drv, struct rk3288_hdmi_device, driver);
+	u32 value = hdmi_readl(hdmi_dev, PHY_STAT0);
 
-	//hdmi_dbg(hdmi_drv->dev, "[%s] reg%x value %02x\n", __FUNCTION__, PHY_STAT0, value);
+	hdmi_dbg(hdmi_drv->dev, "[%s] reg%x value %02x\n", __FUNCTION__, PHY_STAT0, value);
 
-	//if(value & m_PHY_HPD)
+	if((value & m_PHY_HPD) || ((value & 0xf0) == 0xf0))
 		return HDMI_HPD_ACTIVED;
-	//else
-		//return HDMI_HPD_REMOVED;
+	else
+		return HDMI_HPD_REMOVED;
 }
 
 int rk3288_hdmi_read_edid(struct hdmi *hdmi_drv, int block, unsigned char *buff)
@@ -119,9 +122,9 @@ int rk3288_hdmi_read_edid(struct hdmi *hdmi_drv, int block, unsigned char *buff)
 
 	return -1;
 	hdmi_dbg(hdmi_drv->dev, "[%s] block %d\n", __FUNCTION__, block);
-	spin_lock_irqsave(&hdmi_drv->irq_lock, flags);
+	//spin_lock_irqsave(&hdmi_drv->irq_lock, flags);
 	hdmi_dev->i2cm_int = 0;
-	spin_unlock_irqrestore(&hdmi_drv->irq_lock, flags);
+	//spin_unlock_irqrestore(&hdmi_drv->irq_lock, flags);
 
 	//Set DDC I2C CLK which devided from DDC_CLK to 100KHz.
 	hdmi_writel(hdmi_dev, I2CM_SS_SCL_HCNT_0_ADDR, 0x7a);
@@ -146,10 +149,10 @@ int rk3288_hdmi_read_edid(struct hdmi *hdmi_drv, int block, unsigned char *buff)
 			i = 200;
 			while(i--)
 			{
-				spin_lock_irqsave(&hdmi_drv->irq_lock, flags);
+				//spin_lock_irqsave(&hdmi_drv->irq_lock, flags);
 				interrupt = hdmi_dev->i2cm_int;
 				hdmi_dev->i2cm_int = 0;
-				spin_unlock_irqrestore(&hdmi_drv->irq_lock, flags);
+				//spin_unlock_irqrestore(&hdmi_drv->irq_lock, flags);
 				if(interrupt & (m_SCDC_READREQ | m_I2CM_DONE | m_I2CM_ERROR))
 					break;
 				msleep(5);
@@ -237,6 +240,8 @@ static int rk3288_hdmi_video_frameComposer(struct hdmi *hdmi_drv, struct hdmi_vi
 	}
 
 	hdmi_drv->tmdsclk = mode->pixclock;
+	rk3288_hdmi_config_phy(hdmi_drv);
+
 	if(hdmi_drv->tmdsclk > 340000000) {	//used for HDMI 2.0 TX	//TODO Daisen wait to modify HDCP KEEPOUT
 		hdmi_msk_reg(hdmi_dev, FC_INVIDCONF, m_FC_HDCP_KEEPOUT, v_FC_HDCP_KEEPOUT(1));
 		hdmi_msk_reg(hdmi_dev, FC_SCRAMBLER_CTRL, m_FC_SCRAMBLE_EN, v_FC_SCRAMBLE_EN(1));
@@ -475,7 +480,7 @@ static int rk3288_hdmi_write_phy(struct rk3288_hdmi_device *hdmi_dev, int reg_ad
 	return -1;
 }
 
-static int rk3288_hdmi_config_phy(struct hdmi *hdmi_drv)
+int rk3288_hdmi_config_phy(struct hdmi *hdmi_drv)
 {
 	int stat = 0, i = 0;
 	char pix_repet = NO_PIXEL_REPET;
@@ -759,7 +764,6 @@ int rk3288_hdmi_config_video(struct hdmi *hdmi_drv, struct hdmi_video_para *vpar
 		hdmi_dbg(hdmi_drv->dev, "[%s] sucess output DVI.\n", __FUNCTION__);
 	}
 
-	rk3288_hdmi_config_phy(hdmi_drv);
 	rk3288_hdmi_control_output(hdmi_drv, 0);
 	return 0;
 }
@@ -992,10 +996,8 @@ irqreturn_t hdmi_irq(int irq, void *priv)
 	hdmi_writel(hdmi_dev, IH_AHBDMAAUD_STAT0, aud_dma_int);
 	//hdmi_writel(hdmi_dev, A_APIINTCLR, hdcp_int);
 
-	//HPD
-	if((phy_int & m_HPD)
-		//|| ((phy_int & 0x3c) == 0x3c)
-		) {
+	//HPD or RX_SENSE
+	if((phy_int & m_HPD) || ((phy_int & 0x3c) == 0x3c)) {
 		if(hdmi_drv->state == HDMI_SLEEP)
 			hdmi_drv->state = WAIT_HOTPLUG;
 		queue_delayed_work(hdmi_drv->workqueue, &hdmi_drv->delay_work, msecs_to_jiffies(5));

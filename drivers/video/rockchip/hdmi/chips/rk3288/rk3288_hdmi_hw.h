@@ -2,6 +2,8 @@
 #define _RK3288_HDMI_HW_H
 #include "../../rk_hdmi.h"
 
+#define HDMI_INT_USE_POLL 1	//TODO Daisen wait to modify
+
 enum PWR_MODE{
 	NORMAL,
 	LOWER_PWR,
@@ -1409,6 +1411,9 @@ struct rk3288_hdmi_device {
 	struct clk		*pclk;				//HDMI AHP clk
 	struct hdmi 		driver;
         struct dentry           *debugfs_dir;
+#ifdef HDMI_INT_USE_POLL
+	struct delayed_work	delay_work;
+#endif
 };
 
 
@@ -1436,6 +1441,7 @@ static inline int hdmi_msk_reg(struct rk3288_hdmi_device *hdmi_dev, u16 offset, 
 
 int rk3288_hdmi_initial(struct hdmi *hdmi_drv);
 void rk3288_hdmi_control_output(struct hdmi *hdmi_drv, int enable);
+int rk3288_hdmi_config_phy(struct hdmi * hdmi_drv);
 
 
 #endif

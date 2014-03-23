@@ -141,6 +141,22 @@ struct hdmi* rk3288_hdmi_register_hdcp_callbacks(
 	return hdmi_drv;
 }
 
+#ifdef HDMI_INT_USE_POLL
+static void rk3288_poll_delay_work(struct work_struct *work)
+{
+	struct hdmi *hdmi_drv = &hdmi_dev->driver;
+
+	if(hdmi_drv->suspend == 0) {
+		if(hdmi_drv->enable == 1) {
+			hdmi_irq(0, hdmi_drv);
+		}
+		if(hdmi_dev->irq == 0) {
+			queue_delayed_work(hdmi_drv->workqueue, &hdmi_dev->delay_work, 100);
+		}
+	}
+}
+#endif
+
 static int rk3288_hdmi_drv_init(struct hdmi *hdmi_drv)
 {
 	int ret = 0;
@@ -253,6 +269,7 @@ static int rk3288_hdmi_probe(struct platform_device *pdev)
 	switch_dev_register(&(dev_drv->switch_hdmi));
 #endif
 
+#ifndef HDMI_INT_USE_POLL
 	/* get and request the IRQ */
 	dev_drv->irq = platform_get_irq(pdev, 0);
 	if(dev_drv->irq <= 0) {
@@ -261,11 +278,16 @@ static int rk3288_hdmi_probe(struct platform_device *pdev)
 		goto err2;
 	}
 
-	//ret = devm_request_irq(hdmi_dev->dev, dev_drv->irq, hdmi_irq, 0, dev_name(hdmi_dev->dev), dev_drv);
+	ret = devm_request_irq(hdmi_dev->dev, dev_drv->irq, hdmi_irq, 0, dev_name(hdmi_dev->dev), dev_drv);
 	if (ret) {
 		dev_err(hdmi_dev->dev, "hdmi request_irq failed (%d).\n", ret);
 		goto err2;
 	}
+#else
+	hdmi_dev->irq = 0;
+	INIT_DELAYED_WORK(&hdmi_dev->delay_work, rk3288_poll_delay_work);
+	queue_delayed_work(dev_drv->workqueue, &hdmi_dev->delay_work, msecs_to_jiffies(1));
+#endif
 
 #if defined(CONFIG_DEBUG_FS)
         hdmi_dev->debugfs_dir = debugfs_create_dir("rk3288-hdmi", NULL);
@@ -277,9 +299,6 @@ static int rk3288_hdmi_probe(struct platform_device *pdev)
 #endif
 
 	dev_info(hdmi_dev->dev, "rk3288 hdmi probe sucess.\n");
-	dev_drv->state = WAIT_HOTPLUG;
-	dev_drv->tmdsclk = 74250000;
-	queue_delayed_work(dev_drv->workqueue, &dev_drv->delay_work, msecs_to_jiffies(5));
 	return 0;
 
 err2:
