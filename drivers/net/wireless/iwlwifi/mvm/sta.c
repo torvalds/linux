@@ -498,7 +498,7 @@ void iwl_mvm_sta_drained_wk(struct work_struct *wk)
 				sta_id);
 			continue;
 		}
-		rcu_assign_pointer(mvm->fw_id_to_mac_id[sta_id], NULL);
+		RCU_INIT_POINTER(mvm->fw_id_to_mac_id[sta_id], NULL);
 		clear_bit(sta_id, mvm->sta_drained);
 	}
 
@@ -549,7 +549,7 @@ int iwl_mvm_rm_sta(struct iwl_mvm *mvm,
 	} else {
 		spin_unlock_bh(&mvm_sta->lock);
 		ret = iwl_mvm_rm_sta_common(mvm, mvm_sta->sta_id);
-		rcu_assign_pointer(mvm->fw_id_to_mac_id[mvm_sta->sta_id], NULL);
+		RCU_INIT_POINTER(mvm->fw_id_to_mac_id[mvm_sta->sta_id], NULL);
 	}
 
 	return ret;
@@ -563,7 +563,7 @@ int iwl_mvm_rm_sta_id(struct iwl_mvm *mvm,
 
 	lockdep_assert_held(&mvm->mutex);
 
-	rcu_assign_pointer(mvm->fw_id_to_mac_id[sta_id], NULL);
+	RCU_INIT_POINTER(mvm->fw_id_to_mac_id[sta_id], NULL);
 	return ret;
 }
 
@@ -585,7 +585,7 @@ int iwl_mvm_allocate_int_sta(struct iwl_mvm *mvm, struct iwl_mvm_int_sta *sta,
 
 void iwl_mvm_dealloc_int_sta(struct iwl_mvm *mvm, struct iwl_mvm_int_sta *sta)
 {
-	rcu_assign_pointer(mvm->fw_id_to_mac_id[sta->sta_id], NULL);
+	RCU_INIT_POINTER(mvm->fw_id_to_mac_id[sta->sta_id], NULL);
 	memset(sta, 0, sizeof(struct iwl_mvm_int_sta));
 	sta->sta_id = IWL_MVM_STATION_COUNT;
 }
