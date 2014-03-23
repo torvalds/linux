@@ -75,8 +75,8 @@ BEGIN_FTR_SECTION
 END_FTR_SECTION_IFCLR(CPU_FTR_ARCH_207S)
 
 	/* Restore SPRG3 */
-	ld	r3,PACA_SPRG3(r13)
-	mtspr	SPRN_SPRG3,r3
+	ld	r3,PACA_SPRG_VDSO(r13)
+	mtspr	SPRN_SPRG_VDSO_WRITE,r3
 
 	/* Reload the host's PMU registers */
 	ld	r3, PACALPPACAPTR(r13)	/* is the host using the PMU? */

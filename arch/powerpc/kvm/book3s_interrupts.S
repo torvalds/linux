@@ -153,8 +153,8 @@ kvm_start_lightweight:
 	 * Reload kernel SPRG3 value.
 	 * No need to save guest value as usermode can't modify SPRG3.
 	 */
-	ld	r3, PACA_SPRG3(r13)
-	mtspr	SPRN_SPRG3, r3
+	ld	r3, PACA_SPRG_VDSO(r13)
+	mtspr	SPRN_SPRG_VDSO_WRITE, r3
 #endif /* CONFIG_PPC_BOOK3S_64 */
 
 	/* R7 = vcpu */

@@ -102,6 +102,8 @@ static void setup_tlb_core_data(void)
 {
 	int cpu;
 
+	BUILD_BUG_ON(offsetof(struct tlb_core_data, lock) != 0);
+
 	for_each_possible_cpu(cpu) {
 		int first = cpu_first_thread_sibling(cpu);
 
@@ -552,14 +554,20 @@ static void __init irqstack_early_init(void)
 static void __init exc_lvl_early_init(void)
 {
 	unsigned int i;
+	unsigned long sp;
 
 	for_each_possible_cpu(i) {
-		critirq_ctx[i] = (struct thread_info *)
-			__va(memblock_alloc(THREAD_SIZE, THREAD_SIZE));
-		dbgirq_ctx[i] = (struct thread_info *)
-			__va(memblock_alloc(THREAD_SIZE, THREAD_SIZE));
-		mcheckirq_ctx[i] = (struct thread_info *)
-			__va(memblock_alloc(THREAD_SIZE, THREAD_SIZE));
+		sp = memblock_alloc(THREAD_SIZE, THREAD_SIZE);
+		critirq_ctx[i] = (struct thread_info *)__va(sp);
+		paca[i].crit_kstack = __va(sp + THREAD_SIZE);
+
+		sp = memblock_alloc(THREAD_SIZE, THREAD_SIZE);
+		dbgirq_ctx[i] = (struct thread_info *)__va(sp);
+		paca[i].dbg_kstack = __va(sp + THREAD_SIZE);
+
+		sp = memblock_alloc(THREAD_SIZE, THREAD_SIZE);
+		mcheckirq_ctx[i] = (struct thread_info *)__va(sp);
+		paca[i].mc_kstack = __va(sp + THREAD_SIZE);
 	}
 
 	if (cpu_has_feature(CPU_FTR_DEBUG_LVL_EXC))
