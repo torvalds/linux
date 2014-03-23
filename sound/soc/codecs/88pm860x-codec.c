@@ -1327,8 +1327,7 @@ static int pm860x_probe(struct snd_soc_codec *codec)
 
 	pm860x->codec = codec;
 
-	codec->control_data = pm860x->regmap;
-	ret = snd_soc_codec_set_cache_io(codec, 0, 0, SND_SOC_REGMAP);
+	ret = snd_soc_codec_set_cache_io(codec, pm860x->regmap);
 	if (ret)
 		return ret;
 

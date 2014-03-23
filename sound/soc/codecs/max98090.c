@@ -2218,14 +2218,6 @@ static int max98090_probe(struct snd_soc_codec *codec)
 
 	max98090->codec = codec;
 
-	codec->control_data = max98090->regmap;
-
-	ret = snd_soc_codec_set_cache_io(codec, 8, 8, SND_SOC_REGMAP);
-	if (ret != 0) {
-		dev_err(codec->dev, "Failed to set cache I/O: %d\n", ret);
-		return ret;
-	}
-
 	/* Reset the codec, the DSP core, and disable all interrupts */
 	max98090_reset(max98090);
 

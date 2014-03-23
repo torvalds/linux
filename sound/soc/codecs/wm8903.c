@@ -1897,21 +1897,13 @@ static void wm8903_free_gpio(struct wm8903_priv *wm8903)
 static int wm8903_probe(struct snd_soc_codec *codec)
 {
 	struct wm8903_priv *wm8903 = snd_soc_codec_get_drvdata(codec);
-	int ret;
 
 	wm8903->codec = codec;
-	codec->control_data = wm8903->regmap;
-
-	ret = snd_soc_codec_set_cache_io(codec, 8, 16, SND_SOC_REGMAP);
-	if (ret != 0) {
-		dev_err(codec->dev, "Failed to set cache I/O: %d\n", ret);
-		return ret;
-	}
 
 	/* power on device */
 	wm8903_set_bias_level(codec, SND_SOC_BIAS_STANDBY);
 
-	return ret;
+	return 0;
 }
 
 /* power down chip */
