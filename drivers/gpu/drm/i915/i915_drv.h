@@ -35,6 +35,7 @@
 #include "i915_reg.h"
 #include "intel_bios.h"
 #include "intel_ringbuffer.h"
+#include "i915_gem_gtt.h"
 #include <linux/io-mapping.h>
 #include <linux/i2c.h>
 #include <linux/i2c-algo-bit.h>
@@ -570,168 +571,6 @@ enum i915_cache_level {
 			      large Last-Level-Cache. LLC is coherent with
 			      the CPU, but L3 is only visible to the GPU. */
 	I915_CACHE_WT, /* hsw:gt3e WriteThrough for scanouts */
-};
-
-typedef uint32_t gen6_gtt_pte_t;
-
-/**
- * A VMA represents a GEM BO that is bound into an address space. Therefore, a
- * VMA's presence cannot be guaranteed before binding, or after unbinding the
- * object into/from the address space.
- *
- * To make things as simple as possible (ie. no refcounting), a VMA's lifetime
- * will always be <= an objects lifetime. So object refcounting should cover us.
- */
-struct i915_vma {
-	struct drm_mm_node node;
-	struct drm_i915_gem_object *obj;
-	struct i915_address_space *vm;
-
-	/** This object's place on the active/inactive lists */
-	struct list_head mm_list;
-
-	struct list_head vma_link; /* Link in the object's VMA list */
-
-	/** This vma's place in the batchbuffer or on the eviction list */
-	struct list_head exec_list;
-
-	/**
-	 * Used for performing relocations during execbuffer insertion.
-	 */
-	struct hlist_node exec_node;
-	unsigned long exec_handle;
-	struct drm_i915_gem_exec_object2 *exec_entry;
-
-	/**
-	 * How many users have pinned this object in GTT space. The following
-	 * users can each hold at most one reference: pwrite/pread, pin_ioctl
-	 * (via user_pin_count), execbuffer (objects are not allowed multiple
-	 * times for the same batchbuffer), and the framebuffer code. When
-	 * switching/pageflipping, the framebuffer code has at most two buffers
-	 * pinned per crtc.
-	 *
-	 * In the worst case this is 1 + 1 + 1 + 2*2 = 7. That would fit into 3
-	 * bits with absolutely no headroom. So use 4 bits. */
-	unsigned int pin_count:4;
-#define DRM_I915_GEM_OBJECT_MAX_PIN_COUNT 0xf
-
-	/** Unmap an object from an address space. This usually consists of
-	 * setting the valid PTE entries to a reserved scratch page. */
-	void (*unbind_vma)(struct i915_vma *vma);
-	/* Map an object into an address space with the given cache flags. */
-#define GLOBAL_BIND (1<<0)
-	void (*bind_vma)(struct i915_vma *vma,
-			 enum i915_cache_level cache_level,
-			 u32 flags);
-};
-
-struct i915_address_space {
-	struct drm_mm mm;
-	struct drm_device *dev;
-	struct list_head global_link;
-	unsigned long start;		/* Start offset always 0 for dri2 */
-	size_t total;		/* size addr space maps (ex. 2GB for ggtt) */
-
-	struct {
-		dma_addr_t addr;
-		struct page *page;
-	} scratch;
-
-	/**
-	 * List of objects currently involved in rendering.
-	 *
-	 * Includes buffers having the contents of their GPU caches
-	 * flushed, not necessarily primitives.  last_rendering_seqno
-	 * represents when the rendering involved will be completed.
-	 *
-	 * A reference is held on the buffer while on this list.
-	 */
-	struct list_head active_list;
-
-	/**
-	 * LRU list of objects which are not in the ringbuffer and
-	 * are ready to unbind, but are still in the GTT.
-	 *
-	 * last_rendering_seqno is 0 while an object is in this list.
-	 *
-	 * A reference is not held on the buffer while on this list,
-	 * as merely being GTT-bound shouldn't prevent its being
-	 * freed, and we'll pull it off the list in the free path.
-	 */
-	struct list_head inactive_list;
-
-	/* FIXME: Need a more generic return type */
-	gen6_gtt_pte_t (*pte_encode)(dma_addr_t addr,
-				     enum i915_cache_level level,
-				     bool valid); /* Create a valid PTE */
-	void (*clear_range)(struct i915_address_space *vm,
-			    uint64_t start,
-			    uint64_t length,
-			    bool use_scratch);
-	void (*insert_entries)(struct i915_address_space *vm,
-			       struct sg_table *st,
-			       uint64_t start,
-			       enum i915_cache_level cache_level);
-	void (*cleanup)(struct i915_address_space *vm);
-};
-
-/* The Graphics Translation Table is the way in which GEN hardware translates a
- * Graphics Virtual Address into a Physical Address. In addition to the normal
- * collateral associated with any va->pa translations GEN hardware also has a
- * portion of the GTT which can be mapped by the CPU and remain both coherent
- * and correct (in cases like swizzling). That region is referred to as GMADR in
- * the spec.
- */
-struct i915_gtt {
-	struct i915_address_space base;
-	size_t stolen_size;		/* Total size of stolen memory */
-
-	unsigned long mappable_end;	/* End offset that we can CPU map */
-	struct io_mapping *mappable;	/* Mapping to our CPU mappable region */
-	phys_addr_t mappable_base;	/* PA of our GMADR */
-
-	/** "Graphics Stolen Memory" holds the global PTEs */
-	void __iomem *gsm;
-
-	bool do_idle_maps;
-
-	int mtrr;
-
-	/* global gtt ops */
-	int (*gtt_probe)(struct drm_device *dev, size_t *gtt_total,
-			  size_t *stolen, phys_addr_t *mappable_base,
-			  unsigned long *mappable_end);
-};
-#define gtt_total_entries(gtt) ((gtt).base.total >> PAGE_SHIFT)
-
-#define GEN8_LEGACY_PDPS 4
-struct i915_hw_ppgtt {
-	struct i915_address_space base;
-	struct kref ref;
-	struct drm_mm_node node;
-	unsigned num_pd_entries;
-	unsigned num_pd_pages; /* gen8+ */
-	union {
-		struct page **pt_pages;
-		struct page **gen8_pt_pages[GEN8_LEGACY_PDPS];
-	};
-	struct page *pd_pages;
-	union {
-		uint32_t pd_offset;
-		dma_addr_t pd_dma_addr[GEN8_LEGACY_PDPS];
-	};
-	union {
-		dma_addr_t *pt_dma_addr;
-		dma_addr_t *gen8_pt_dma_addr[4];
-	};
-
-	struct i915_hw_context *ctx;
-
-	int (*enable)(struct i915_hw_ppgtt *ppgtt);
-	int (*switch_mm)(struct i915_hw_ppgtt *ppgtt,
-			 struct intel_ring_buffer *ring,
-			 bool synchronous);
-	void (*debug_dump)(struct i915_hw_ppgtt *ppgtt, struct seq_file *m);
 };
 
 struct i915_ctx_hang_stats {
@@ -1523,7 +1362,7 @@ typedef struct drm_i915_private {
 	struct mutex modeset_restore_lock;
 
 	struct list_head vm_list; /* Global list of all address spaces */
-	struct i915_gtt gtt; /* VMA representing the global address space */
+	struct i915_gtt gtt; /* VM representing the global address space */
 
 	struct i915_gem_mm mm;
 
@@ -2467,23 +2306,12 @@ int __must_check i915_gem_evict_something(struct drm_device *dev,
 int i915_gem_evict_vm(struct i915_address_space *vm, bool do_idle);
 int i915_gem_evict_everything(struct drm_device *dev);
 
-/* i915_gem_gtt.c */
-void i915_check_and_clear_faults(struct drm_device *dev);
-void i915_gem_suspend_gtt_mappings(struct drm_device *dev);
-void i915_gem_restore_gtt_mappings(struct drm_device *dev);
-int __must_check i915_gem_gtt_prepare_object(struct drm_i915_gem_object *obj);
-void i915_gem_gtt_finish_object(struct drm_i915_gem_object *obj);
-void i915_gem_init_global_gtt(struct drm_device *dev);
-void i915_gem_setup_global_gtt(struct drm_device *dev, unsigned long start,
-			       unsigned long mappable_end, unsigned long end);
-int i915_gem_gtt_init(struct drm_device *dev);
+/* belongs in i915_gem_gtt.h */
 static inline void i915_gem_chipset_flush(struct drm_device *dev)
 {
 	if (INTEL_INFO(dev)->gen < 6)
 		intel_gtt_chipset_flush();
 }
-int i915_gem_init_ppgtt(struct drm_device *dev, struct i915_hw_ppgtt *ppgtt);
-bool intel_enable_ppgtt(struct drm_device *dev, bool full);
 
 /* i915_gem_stolen.c */
 int i915_gem_init_stolen(struct drm_device *dev);
