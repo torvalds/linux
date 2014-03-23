@@ -120,7 +120,8 @@ static int debug;
 module_param(debug, int, S_IRUGO);
 MODULE_PARM_DESC(debug, " Default debug msglevel");
 
-struct workqueue_struct *bnx2x_wq;
+static struct workqueue_struct *bnx2x_wq;
+struct workqueue_struct *bnx2x_iov_wq;
 
 struct bnx2x_mac_vals {
 	u32 xmac_addr;
@@ -1857,7 +1858,7 @@ void bnx2x_sp_event(struct bnx2x_fastpath *fp, union eth_rx_cqe *rr_cqe)
 		return;
 #endif
 	/* SRIOV: reschedule any 'in_progress' operations */
-	bnx2x_iov_sp_event(bp, cid, true);
+	bnx2x_iov_sp_event(bp, cid);
 
 	smp_mb__before_atomic_inc();
 	atomic_inc(&bp->cq_spq_left);
@@ -4160,7 +4161,8 @@ static void bnx2x_attn_int_deasserted3(struct bnx2x *bp, u32 attn)
 				bnx2x_handle_drv_info_req(bp);
 
 			if (val & DRV_STATUS_VF_DISABLED)
-				bnx2x_vf_handle_flr_event(bp);
+				bnx2x_schedule_iov_task(bp,
+							BNX2X_IOV_HANDLE_FLR);
 
 			if ((bp->port.pmf == 0) && (val & DRV_STATUS_PMF))
 				bnx2x_pmf_update(bp);
@@ -5351,8 +5353,8 @@ static void bnx2x_eq_int(struct bnx2x *bp)
 		/* handle eq element */
 		switch (opcode) {
 		case EVENT_RING_OPCODE_VF_PF_CHANNEL:
-			DP(BNX2X_MSG_IOV, "vf pf channel element on eq\n");
-			bnx2x_vf_mbx(bp, &elem->message.data.vf_pf_event);
+			bnx2x_vf_mbx_schedule(bp,
+					      &elem->message.data.vf_pf_event);
 			continue;
 
 		case EVENT_RING_OPCODE_STAT_QUERY:
@@ -5566,13 +5568,6 @@ static void bnx2x_sp_task(struct work_struct *work)
 		bnx2x_ack_sb(bp, bp->igu_dsb_id, ATTENTION_ID,
 			     le16_to_cpu(bp->def_att_idx), IGU_INT_ENABLE, 1);
 	}
-
-	/* must be called after the EQ processing (since eq leads to sriov
-	 * ramrod completion flows).
-	 * This flow may have been scheduled by the arrival of a ramrod
-	 * completion, or by the sriov code rescheduling itself.
-	 */
-	bnx2x_iov_sp_task(bp);
 
 	/* afex - poll to check if VIFSET_ACK should be sent to MFW */
 	if (test_and_clear_bit(BNX2X_AFEX_PENDING_VIFSET_MCP_ACK,
@@ -8990,6 +8985,7 @@ static int bnx2x_func_wait_started(struct bnx2x *bp)
 		synchronize_irq(bp->pdev->irq);
 
 	flush_workqueue(bnx2x_wq);
+	flush_workqueue(bnx2x_iov_wq);
 
 	while (bnx2x_func_get_state(bp, &bp->func_obj) !=
 				BNX2X_F_STATE_STARTED && tout--)
@@ -11877,6 +11873,7 @@ static int bnx2x_init_bp(struct bnx2x *bp)
 	INIT_DELAYED_WORK(&bp->sp_task, bnx2x_sp_task);
 	INIT_DELAYED_WORK(&bp->sp_rtnl_task, bnx2x_sp_rtnl_task);
 	INIT_DELAYED_WORK(&bp->period_task, bnx2x_period_task);
+	INIT_DELAYED_WORK(&bp->iov_task, bnx2x_iov_task);
 	if (IS_PF(bp)) {
 		rc = bnx2x_get_hwinfo(bp);
 		if (rc)
@@ -13499,11 +13496,18 @@ static int __init bnx2x_init(void)
 		pr_err("Cannot create workqueue\n");
 		return -ENOMEM;
 	}
+	bnx2x_iov_wq = create_singlethread_workqueue("bnx2x_iov");
+	if (!bnx2x_iov_wq) {
+		pr_err("Cannot create iov workqueue\n");
+		destroy_workqueue(bnx2x_wq);
+		return -ENOMEM;
+	}
 
 	ret = pci_register_driver(&bnx2x_pci_driver);
 	if (ret) {
 		pr_err("Cannot register driver\n");
 		destroy_workqueue(bnx2x_wq);
+		destroy_workqueue(bnx2x_iov_wq);
 	}
 	return ret;
 }
@@ -13515,6 +13519,7 @@ static void __exit bnx2x_cleanup(void)
 	pci_unregister_driver(&bnx2x_pci_driver);
 
 	destroy_workqueue(bnx2x_wq);
+	destroy_workqueue(bnx2x_iov_wq);
 
 	/* Free globally allocated resources */
 	list_for_each_safe(pos, q, &bnx2x_prev_list) {

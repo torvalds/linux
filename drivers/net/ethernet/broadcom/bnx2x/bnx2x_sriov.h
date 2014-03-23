@@ -30,6 +30,8 @@ enum sample_bulletin_result {
 
 #ifdef CONFIG_BNX2X_SRIOV
 
+extern struct workqueue_struct *bnx2x_iov_wq;
+
 /* The bnx2x device structure holds vfdb structure described below.
  * The VF array is indexed by the relative vfid.
  */
@@ -346,11 +348,6 @@ struct bnx2x_vf_mbx {
 	u32 vf_addr_hi;
 
 	struct vfpf_first_tlv first_tlv;	/* saved VF request header */
-
-	u8 flags;
-#define VF_MSG_INPROCESS	0x1	/* failsafe - the FW should prevent
-					 * more then one pending msg
-					 */
 };
 
 struct bnx2x_vf_sp {
@@ -427,6 +424,10 @@ struct bnx2x_vfdb {
 	/* the number of msix vectors belonging to this PF designated for VFs */
 	u16 vf_sbs_pool;
 	u16 first_vf_igu_entry;
+
+	/* sp_rtnl synchronization */
+	struct mutex			event_mutex;
+	u64				event_occur;
 };
 
 /* queue access */
@@ -476,13 +477,14 @@ void bnx2x_iov_init_dq(struct bnx2x *bp);
 void bnx2x_iov_init_dmae(struct bnx2x *bp);
 void bnx2x_iov_set_queue_sp_obj(struct bnx2x *bp, int vf_cid,
 				struct bnx2x_queue_sp_obj **q_obj);
-void bnx2x_iov_sp_event(struct bnx2x *bp, int vf_cid, bool queue_work);
+void bnx2x_iov_sp_event(struct bnx2x *bp, int vf_cid);
 int bnx2x_iov_eq_sp_event(struct bnx2x *bp, union event_ring_elem *elem);
 void bnx2x_iov_adjust_stats_req(struct bnx2x *bp);
 void bnx2x_iov_storm_stats_update(struct bnx2x *bp);
-void bnx2x_iov_sp_task(struct bnx2x *bp);
 /* global vf mailbox routines */
-void bnx2x_vf_mbx(struct bnx2x *bp, struct vf_pf_event_data *vfpf_event);
+void bnx2x_vf_mbx(struct bnx2x *bp);
+void bnx2x_vf_mbx_schedule(struct bnx2x *bp,
+			   struct vf_pf_event_data *vfpf_event);
 void bnx2x_vf_enable_mbx(struct bnx2x *bp, u8 abs_vfid);
 
 /* CORE VF API */
@@ -520,7 +522,8 @@ enum {
 		else {							\
 			DP(BNX2X_MSG_IOV, "no ramrod. Scheduling\n");	\
 			atomic_set(&vf->op_in_progress, 1);		\
-			queue_delayed_work(bnx2x_wq, &bp->sp_task, 0);  \
+			bnx2x_schedule_iov_task(bp,			\
+						BNX2X_IOV_CONT_VFOP);	\
 			return;						\
 		}							\
 	} while (0)
@@ -785,18 +788,21 @@ void bnx2x_pf_set_vfs_vlan(struct bnx2x *bp);
 int bnx2x_sriov_configure(struct pci_dev *dev, int num_vfs);
 void bnx2x_iov_channel_down(struct bnx2x *bp);
 
+void bnx2x_iov_task(struct work_struct *work);
+
+void bnx2x_schedule_iov_task(struct bnx2x *bp, enum bnx2x_iov_flag flag);
+
 #else /* CONFIG_BNX2X_SRIOV */
 
 static inline void bnx2x_iov_set_queue_sp_obj(struct bnx2x *bp, int vf_cid,
 				struct bnx2x_queue_sp_obj **q_obj) {}
-static inline void bnx2x_iov_sp_event(struct bnx2x *bp, int vf_cid,
-				      bool queue_work) {}
+static inline void bnx2x_iov_sp_event(struct bnx2x *bp, int vf_cid) {}
 static inline void bnx2x_vf_handle_flr_event(struct bnx2x *bp) {}
 static inline int bnx2x_iov_eq_sp_event(struct bnx2x *bp,
 					union event_ring_elem *elem) {return 1; }
-static inline void bnx2x_iov_sp_task(struct bnx2x *bp) {}
-static inline void bnx2x_vf_mbx(struct bnx2x *bp,
-				struct vf_pf_event_data *vfpf_event) {}
+static inline void bnx2x_vf_mbx(struct bnx2x *bp) {}
+static inline void bnx2x_vf_mbx_schedule(struct bnx2x *bp,
+					 struct vf_pf_event_data *vfpf_event) {}
 static inline int bnx2x_iov_init_ilt(struct bnx2x *bp, u16 line) {return line; }
 static inline void bnx2x_iov_init_dq(struct bnx2x *bp) {}
 static inline int bnx2x_iov_alloc_mem(struct bnx2x *bp) {return 0; }
@@ -842,6 +848,9 @@ static inline int bnx2x_vf_pci_alloc(struct bnx2x *bp) {return 0; }
 static inline void bnx2x_pf_set_vfs_vlan(struct bnx2x *bp) {}
 static inline int bnx2x_sriov_configure(struct pci_dev *dev, int num_vfs) {return 0; }
 static inline void bnx2x_iov_channel_down(struct bnx2x *bp) {}
+
+static inline void bnx2x_iov_task(struct work_struct *work) {}
+void bnx2x_schedule_iov_task(struct bnx2x *bp, enum bnx2x_iov_flag flag) {}
 
 #endif /* CONFIG_BNX2X_SRIOV */
 #endif /* bnx2x_sriov.h */

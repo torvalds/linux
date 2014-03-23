@@ -1155,10 +1155,6 @@ struct bnx2x_port {
 			(offsetof(struct bnx2x_eth_stats, stat_name) / 4)
 
 /* slow path */
-
-/* slow path work-queue */
-extern struct workqueue_struct *bnx2x_wq;
-
 #define BNX2X_MAX_NUM_OF_VFS	64
 #define BNX2X_VF_CID_WND	4 /* log num of queues per VF. HW config. */
 #define BNX2X_CIDS_PER_VF	(1 << BNX2X_VF_CID_WND)
@@ -1416,6 +1412,12 @@ enum sp_rtnl_flag {
 	BNX2X_SP_RTNL_GET_DRV_VERSION,
 };
 
+enum bnx2x_iov_flag {
+	BNX2X_IOV_HANDLE_VF_MSG,
+	BNX2X_IOV_CONT_VFOP,
+	BNX2X_IOV_HANDLE_FLR,
+};
+
 struct bnx2x_prev_path_list {
 	struct list_head list;
 	u8 bus;
@@ -1614,6 +1616,8 @@ struct bnx2x {
 	int			mrrs;
 
 	struct delayed_work	sp_task;
+	struct delayed_work	iov_task;
+
 	atomic_t		interrupt_occurred;
 	struct delayed_work	sp_rtnl_task;
 
@@ -1896,6 +1900,9 @@ struct bnx2x {
 
 	/* operation indication for the sp_rtnl task */
 	unsigned long				sp_rtnl_state;
+
+	/* Indication of the IOV tasks */
+	unsigned long				iov_task_state;
 
 	/* DCBX Negotiation results */
 	struct dcbx_features			dcbx_local_feat;

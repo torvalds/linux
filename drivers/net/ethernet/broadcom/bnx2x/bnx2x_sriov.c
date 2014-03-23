@@ -2042,6 +2042,9 @@ int bnx2x_iov_init_one(struct bnx2x *bp, int int_mode_param,
 		goto failed;
 	}
 
+	/* Prepare the VFs event synchronization mechanism */
+	mutex_init(&bp->vfdb->event_mutex);
+
 	return 0;
 failed:
 	DP(BNX2X_MSG_IOV, "Failed err=%d\n", err);
@@ -2469,7 +2472,7 @@ get_vf:
 		return 0;
 	}
 	/* SRIOV: reschedule any 'in_progress' operations */
-	bnx2x_iov_sp_event(bp, cid, false);
+	bnx2x_iov_sp_event(bp, cid);
 
 	return 0;
 }
@@ -2506,7 +2509,7 @@ void bnx2x_iov_set_queue_sp_obj(struct bnx2x *bp, int vf_cid,
 	}
 }
 
-void bnx2x_iov_sp_event(struct bnx2x *bp, int vf_cid, bool queue_work)
+void bnx2x_iov_sp_event(struct bnx2x *bp, int vf_cid)
 {
 	struct bnx2x_virtf *vf;
 
@@ -2518,8 +2521,7 @@ void bnx2x_iov_sp_event(struct bnx2x *bp, int vf_cid, bool queue_work)
 	if (vf) {
 		/* set in_progress flag */
 		atomic_set(&vf->op_in_progress, 1);
-		if (queue_work)
-			queue_delayed_work(bnx2x_wq, &bp->sp_task, 0);
+		bnx2x_schedule_iov_task(bp, BNX2X_IOV_CONT_VFOP);
 	}
 }
 
@@ -2604,7 +2606,7 @@ void bnx2x_iov_adjust_stats_req(struct bnx2x *bp)
 	bp->fw_stats_req->hdr.cmd_num = bp->fw_stats_num + stats_count;
 }
 
-void bnx2x_iov_sp_task(struct bnx2x *bp)
+void bnx2x_iov_vfop_cont(struct bnx2x *bp)
 {
 	int i;
 
@@ -3874,4 +3876,33 @@ void bnx2x_iov_channel_down(struct bnx2x *bp)
 		/* update vf bulletin board */
 		bnx2x_post_vf_bulletin(bp, vf_idx);
 	}
+}
+
+void bnx2x_iov_task(struct work_struct *work)
+{
+	struct bnx2x *bp = container_of(work, struct bnx2x, iov_task.work);
+
+	if (!netif_running(bp->dev))
+		return;
+
+	if (test_and_clear_bit(BNX2X_IOV_HANDLE_FLR,
+			       &bp->iov_task_state))
+		bnx2x_vf_handle_flr_event(bp);
+
+	if (test_and_clear_bit(BNX2X_IOV_CONT_VFOP,
+			       &bp->iov_task_state))
+		bnx2x_iov_vfop_cont(bp);
+
+	if (test_and_clear_bit(BNX2X_IOV_HANDLE_VF_MSG,
+			       &bp->iov_task_state))
+		bnx2x_vf_mbx(bp);
+}
+
+void bnx2x_schedule_iov_task(struct bnx2x *bp, enum bnx2x_iov_flag flag)
+{
+	smp_mb__before_clear_bit();
+	set_bit(flag, &bp->iov_task_state);
+	smp_mb__after_clear_bit();
+	DP(BNX2X_MSG_IOV, "Scheduling iov task [Flag: %d]\n", flag);
+	queue_delayed_work(bnx2x_iov_wq, &bp->iov_task, 0);
 }

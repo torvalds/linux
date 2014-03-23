@@ -1089,9 +1089,6 @@ static void bnx2x_vf_mbx_resp_send_msg(struct bnx2x *bp,
 	storm_memset_vf_mbx_ack(bp, vf->abs_vfid);
 	mmiowb();
 
-	/* initiate dmae to send the response */
-	mbx->flags &= ~VF_MSG_INPROCESS;
-
 	/* copy the response header including status-done field,
 	 * must be last dmae, must be after FW is acked
 	 */
@@ -2059,13 +2056,10 @@ static void bnx2x_vf_mbx_request(struct bnx2x *bp, struct bnx2x_virtf *vf,
 	}
 }
 
-/* handle new vf-pf message */
-void bnx2x_vf_mbx(struct bnx2x *bp, struct vf_pf_event_data *vfpf_event)
+void bnx2x_vf_mbx_schedule(struct bnx2x *bp,
+			   struct vf_pf_event_data *vfpf_event)
 {
-	struct bnx2x_virtf *vf;
-	struct bnx2x_vf_mbx *mbx;
 	u8 vf_idx;
-	int rc;
 
 	DP(BNX2X_MSG_IOV,
 	   "vf pf event received: vfid %d, address_hi %x, address lo %x",
@@ -2077,50 +2071,73 @@ void bnx2x_vf_mbx(struct bnx2x *bp, struct vf_pf_event_data *vfpf_event)
 	    BNX2X_NR_VIRTFN(bp)) {
 		BNX2X_ERR("Illegal vf_id %d max allowed: %d\n",
 			  vfpf_event->vf_id, BNX2X_NR_VIRTFN(bp));
-		goto mbx_done;
+		return;
 	}
+
 	vf_idx = bnx2x_vf_idx_by_abs_fid(bp, vfpf_event->vf_id);
-	mbx = BP_VF_MBX(bp, vf_idx);
 
-	/* verify an event is not currently being processed -
-	 * debug failsafe only
-	 */
-	if (mbx->flags & VF_MSG_INPROCESS) {
-		BNX2X_ERR("Previous message is still being processed, vf_id %d\n",
-			  vfpf_event->vf_id);
-		goto mbx_done;
+	/* Update VFDB with current message and schedule its handling */
+	mutex_lock(&BP_VFDB(bp)->event_mutex);
+	BP_VF_MBX(bp, vf_idx)->vf_addr_hi = vfpf_event->msg_addr_hi;
+	BP_VF_MBX(bp, vf_idx)->vf_addr_lo = vfpf_event->msg_addr_lo;
+	BP_VFDB(bp)->event_occur |= (1ULL << vf_idx);
+	mutex_unlock(&BP_VFDB(bp)->event_mutex);
+
+	bnx2x_schedule_iov_task(bp, BNX2X_IOV_HANDLE_VF_MSG);
+}
+
+/* handle new vf-pf messages */
+void bnx2x_vf_mbx(struct bnx2x *bp)
+{
+	struct bnx2x_vfdb *vfdb = BP_VFDB(bp);
+	u64 events;
+	u8 vf_idx;
+	int rc;
+
+	if (!vfdb)
+		return;
+
+	mutex_lock(&vfdb->event_mutex);
+	events = vfdb->event_occur;
+	vfdb->event_occur = 0;
+	mutex_unlock(&vfdb->event_mutex);
+
+	for_each_vf(bp, vf_idx) {
+		struct bnx2x_vf_mbx *mbx = BP_VF_MBX(bp, vf_idx);
+		struct bnx2x_virtf *vf = BP_VF(bp, vf_idx);
+
+		/* Handle VFs which have pending events */
+		if (!(events & (1ULL << vf_idx)))
+			continue;
+
+		DP(BNX2X_MSG_IOV,
+		   "Handling vf pf event vfid %d, address: [%x:%x], resp_offset 0x%x\n",
+		   vf_idx, mbx->vf_addr_hi, mbx->vf_addr_lo,
+		   mbx->first_tlv.resp_msg_offset);
+
+		/* dmae to get the VF request */
+		rc = bnx2x_copy32_vf_dmae(bp, true, mbx->msg_mapping,
+					  vf->abs_vfid, mbx->vf_addr_hi,
+					  mbx->vf_addr_lo,
+					  sizeof(union vfpf_tlvs)/4);
+		if (rc) {
+			BNX2X_ERR("Failed to copy request VF %d\n",
+				  vf->abs_vfid);
+			bnx2x_vf_release(bp, vf, false); /* non blocking */
+			return;
+		}
+
+		/* process the VF message header */
+		mbx->first_tlv = mbx->msg->req.first_tlv;
+
+		/* Clean response buffer to refrain from falsely
+		 * seeing chains.
+		 */
+		memset(&mbx->msg->resp, 0, sizeof(union pfvf_tlvs));
+
+		/* dispatch the request (will prepare the response) */
+		bnx2x_vf_mbx_request(bp, vf, mbx);
 	}
-	vf = BP_VF(bp, vf_idx);
-
-	/* save the VF message address */
-	mbx->vf_addr_hi = vfpf_event->msg_addr_hi;
-	mbx->vf_addr_lo = vfpf_event->msg_addr_lo;
-	DP(BNX2X_MSG_IOV, "mailbox vf address hi 0x%x, lo 0x%x, offset 0x%x\n",
-	   mbx->vf_addr_hi, mbx->vf_addr_lo, mbx->first_tlv.resp_msg_offset);
-
-	/* dmae to get the VF request */
-	rc = bnx2x_copy32_vf_dmae(bp, true, mbx->msg_mapping, vf->abs_vfid,
-				  mbx->vf_addr_hi, mbx->vf_addr_lo,
-				  sizeof(union vfpf_tlvs)/4);
-	if (rc) {
-		BNX2X_ERR("Failed to copy request VF %d\n", vf->abs_vfid);
-		goto mbx_error;
-	}
-
-	/* process the VF message header */
-	mbx->first_tlv = mbx->msg->req.first_tlv;
-
-	/* Clean response buffer to refrain from falsely seeing chains */
-	memset(&mbx->msg->resp, 0, sizeof(union pfvf_tlvs));
-
-	/* dispatch the request (will prepare the response) */
-	bnx2x_vf_mbx_request(bp, vf, mbx);
-	goto mbx_done;
-
-mbx_error:
-	bnx2x_vf_release(bp, vf, false); /* non blocking */
-mbx_done:
-	return;
 }
 
 /* propagate local bulletin board to vf */
