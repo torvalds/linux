@@ -336,6 +336,10 @@ int mtdpart_partition(struct parsed_partitions *state)
 
 	if(n < SECTOR_1G)
 		return 0;
+	
+        //only used to eMMC-disk
+        if(1 != state->bdev->bd_disk->emmc_disk)
+        	return 0;
 
 	cmdline = strstr(saved_command_line, "mtdparts=") + 9;
 	

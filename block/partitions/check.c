@@ -163,6 +163,11 @@ check_partition(struct gendisk *hd, struct block_device *bdev)
 		sprintf(state->name, "p");
 
 	i = res = err = 0;
+	
+	//if the disk is eMMC,then skip directly the check_part to mtdpart_partition; added by xbw, at 2014-03-24	
+ 	if((179 == MAJOR(bdev->bd_dev)&& (1 == hd->emmc_disk)))
+    		i=sizeof(check_part)/sizeof(struct parsed_partitions *)-2;
+
 	while (!res && check_part[i]) {
 		memset(state->parts, 0, state->limit * sizeof(state->parts[0]));
 		res = check_part[i++](state);
