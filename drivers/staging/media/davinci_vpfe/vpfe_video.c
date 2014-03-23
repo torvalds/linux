@@ -415,7 +415,6 @@ static int vpfe_open(struct file *file)
 	video->usrs++;
 	/* Set io_allowed member to false */
 	handle->io_allowed = 0;
-	v4l2_prio_open(&video->prio, &handle->prio);
 	handle->video = video;
 	file->private_data = &handle->vfh;
 	mutex_unlock(&video->lock);
@@ -532,8 +531,8 @@ static int vpfe_release(struct file *file)
 	}
 	/* Decrement device users counter */
 	video->usrs--;
-	/* Close the priority */
-	v4l2_prio_close(&video->prio, fh->prio);
+	v4l2_fh_del(&fh->vfh);
+	v4l2_fh_exit(&fh->vfh);
 	/* If this is the last file handle */
 	if (!video->usrs)
 		video->initialized = 0;
@@ -1590,8 +1589,6 @@ int vpfe_video_init(struct vpfe_video_device *video, const char *name)
 	snprintf(video->video_dev.name, sizeof(video->video_dev.name),
 		 "DAVINCI VIDEO %s %s", name, direction);
 
-	/* Initialize prio member of device object */
-	v4l2_prio_init(&video->prio);
 	spin_lock_init(&video->irqlock);
 	spin_lock_init(&video->dma_queue_lock);
 	mutex_init(&video->lock);
@@ -1600,6 +1597,7 @@ int vpfe_video_init(struct vpfe_video_device *video, const char *name)
 	if (ret < 0)
 		return ret;
 
+	set_bit(V4L2_FL_USE_FH_PRIO, &video->video_dev.flags);
 	video_set_drvdata(&video->video_dev, video);
 
 	return 0;
