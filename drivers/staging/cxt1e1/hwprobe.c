@@ -174,12 +174,12 @@ cleanup_ioremap(void)
 		if (hi->pci_slot == 0xff)
 			break;
 		if (hi->addr_mapped[0]) {
-			iounmap((void *)(hi->addr_mapped[0]));
+			iounmap(hi->addr_mapped[0]);
 			release_mem_region((long) hi->addr[0], hi->len[0]);
 			hi->addr_mapped[0] = 0;
 		}
 		if (hi->addr_mapped[1]) {
-			iounmap((void *)(hi->addr_mapped[1]));
+			iounmap(hi->addr_mapped[1]);
 			release_mem_region((long) hi->addr[1], hi->len[1]);
 			hi->addr_mapped[1] = 0;
 		}
@@ -329,7 +329,7 @@ c4hw_attach_all(void)
 				return -ENOMEM;
 			}
 
-			hi->addr_mapped[j] = (unsigned long)ioremap(hi->addr[j], hi->len[j]);
+			hi->addr_mapped[j] = ioremap(hi->addr[j], hi->len[j]);
 			if (!hi->addr_mapped[j]) {
 				pr_warning("%s: ioremap fails, addr=0x%lx, len=0x%lx ?\n",
 					   hi->devname, hi->addr[j], hi->len[j]);
