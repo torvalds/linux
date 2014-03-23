@@ -11,6 +11,7 @@
 /dts-v1/;
 #include "r8a7740.dtsi"
 #include <dt-bindings/gpio/gpio.h>
+#include <dt-bindings/input/input.h>
 #include <dt-bindings/interrupt-controller/irq.h>
 #include <dt-bindings/pwm/pwm.h>
 
@@ -77,26 +78,26 @@
 
 		power-key {
 			gpios = <&pfc 99 GPIO_ACTIVE_LOW>;
-			linux,code = <116>;
+			linux,code = <KEY_POWER>;
 			label = "SW3";
 			gpio-key,wakeup;
 		};
 
 		back-key {
 			gpios = <&pfc 100 GPIO_ACTIVE_LOW>;
-			linux,code = <158>;
+			linux,code = <KEY_BACK>;
 			label = "SW4";
 		};
 
 		menu-key {
 			gpios = <&pfc 97 GPIO_ACTIVE_LOW>;
-			linux,code = <139>;
+			linux,code = <KEY_MENU>;
 			label = "SW5";
 		};
 
 		home-key {
 			gpios = <&pfc 98 GPIO_ACTIVE_LOW>;
-			linux,code = <102>;
+			linux,code = <KEY_HOME>;
 			label = "SW6";
 		};
 	};
