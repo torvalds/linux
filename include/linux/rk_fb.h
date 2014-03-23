@@ -293,7 +293,7 @@ struct rk_lcdc_win {
 	bool state;		/*on or off*/
 	u32 pseudo_pal[16];
 	enum data_format format;
-	u8 z_order;		/*win sel layer*/
+	int z_order;		/*win sel layer*/
 	u8 fmt_cfg;
 	u8 fmt_10;;
 	u8 swap_rb;

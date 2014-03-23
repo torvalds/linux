@@ -548,7 +548,6 @@ static int rk3288_win_0_1_reg_update(struct rk_lcdc_driver *dev_drv,int win_id)
 	struct rk_lcdc_win *win = dev_drv->win[win_id];
 	unsigned int mask, val, off;
 	off = win_id * 0x40;
-	
 	if(win->state == 1){
 		mask =  m_WIN0_EN | m_WIN0_DATA_FMT | m_WIN0_FMT_10 |
 			m_WIN0_LB_MODE | m_WIN0_RB_SWAP;
@@ -874,23 +873,15 @@ static int rk3288_load_screen(struct rk_lcdc_driver *dev_drv, bool initscreen)
 		case SCREEN_HDMI:
 			face = OUT_RGB_AAA;
 			mask = m_HDMI_OUT_EN;
-			val = v_HDMI_OUT_EN(1);
-			/*v = 1 << (4+16);
-			v |= (lcdc_dev->id << 4);*/	
+			val = v_HDMI_OUT_EN(1); 	
 			break;
 		case SCREEN_MIPI:
 			mask = m_MIPI_OUT_EN;
-			val = v_MIPI_OUT_EN(1);
-			/*v = (1 << (6+16))||(1 << (9+16));
-			v |= (lcdc_dev->id << 6);
-			v |= (lcdc_dev->id << 9);*/		
+			val = v_MIPI_OUT_EN(1); 		
 			break;
 		case SCREEN_DUAL_MIPI:
 			mask = m_MIPI_OUT_EN | m_DOUB_CHANNEL_EN;
-			val = v_MIPI_OUT_EN(1) | v_DOUB_CHANNEL_EN(1);
-			/*v = (1 << (6+16))||(1 << (9+16));
-			v |= (lcdc_dev->id << 6);
-			v |= (lcdc_dev->id << 9);*/	
+			val = v_MIPI_OUT_EN(1) | v_DOUB_CHANNEL_EN(1); 	
 			break;
 		case SCREEN_EDP:
 			face = OUT_RGB_AAA;  /*RGB AAA output*/
@@ -898,9 +889,7 @@ static int rk3288_load_screen(struct rk_lcdc_driver *dev_drv, bool initscreen)
 			val = v_DITHER_DOWN_EN(0) | v_DITHER_UP_EN(0);
 			lcdc_msk_reg(lcdc_dev, DSP_CTRL1, mask, val);
 			mask = m_EDP_OUT_EN;
-			val = v_EDP_OUT_EN(1);
-			/*v = 1 << (5+16);
-			v |= (lcdc_dev->id << 5);*/		
+			val = v_EDP_OUT_EN(1); 		
 			break;
 		}
 		lcdc_msk_reg(lcdc_dev, SYS_CTRL, mask, val);
@@ -1222,13 +1211,11 @@ static int rk3288_lcdc_pan_display(struct rk_lcdc_driver *dev_drv, int win_id)
 	unsigned long flags;
 #endif
 	win = dev_drv->win[win_id];
-	/*lcdc_dev->atv_layer_cnt = dev_drv->atv_layer_cnt;*/
-	if (!screen) {
+ 	if (!screen) {
 		dev_err(dev_drv->dev, "screen is null!\n");
 		return -ENOENT;
 	}
-	/*overlay*/
-	if(win_id == 0){
+ 	if(win_id == 0){
 		win0_display(lcdc_dev, win);
 	}else if(win_id == 1){
 		win1_display(lcdc_dev, win);
@@ -1240,9 +1227,7 @@ static int rk3288_lcdc_pan_display(struct rk_lcdc_driver *dev_drv, int win_id)
 		dev_err(dev_drv->dev, "invalid win number:%d!\n", win_id);
 		return -EINVAL;
 	}
-
-
-
+ 
 	/*this is the first frame of the system ,enable frame start interrupt */
 	if ((dev_drv->first_frame)) {
 		dev_drv->first_frame = 0;
@@ -1254,7 +1239,7 @@ static int rk3288_lcdc_pan_display(struct rk_lcdc_driver *dev_drv, int win_id)
 		    v_DSP_LINE_FLAG_NUM(screen->mode.vsync_len + screen->mode.upper_margin +
 		    screen->mode.yres -1);
 		lcdc_msk_reg(lcdc_dev, INTR_CTRL0, mask, val);
- #if 0
+#if 0
 		 mask = m_WIN0_EMPTY_INTR_EN | m_WIN1_EMPTY_INTR_EN | m_WIN2_EMPTY_INTR_EN |
 			 m_WIN3_EMPTY_INTR_EN |m_HWC_EMPTY_INTR_EN | m_POST_BUF_EMPTY_INTR_EN |
 			 m_PWM_GEN_INTR_EN;
@@ -1262,8 +1247,7 @@ static int rk3288_lcdc_pan_display(struct rk_lcdc_driver *dev_drv, int win_id)
 			 v_WIN3_EMPTY_INTR_EN(1)| v_HWC_EMPTY_INTR_EN(1) | v_POST_BUF_EMPTY_INTR_EN(1) |
 			 v_PWM_GEN_INTR_EN(1);
 		 lcdc_msk_reg(lcdc_dev, INTR_CTRL1, mask, val);
-#endif
-		/*lcdc_cfg_done(lcdc_dev);*/
+#endif 
 	}
 #if defined(WAIT_FOR_SYNC)
 	spin_lock_irqsave(&dev_drv->cpl_lock, flags);
@@ -1277,9 +1261,7 @@ static int rk3288_lcdc_pan_display(struct rk_lcdc_driver *dev_drv, int win_id)
 		dev_info(dev_drv->dev, "wait for new frame start time out!\n");
 		return -ETIMEDOUT;
 	}
-#endif
-	/*dev_drv->ops->ovl_mgr(dev_drv, 0, 1);*/
-	/*rk3288_lcdc_reg_update(dev_drv);*/
+#endif 
 	return 0;
 }
 
@@ -2116,36 +2098,52 @@ static int rk3288_lcdc_ovl_mgr(struct rk_lcdc_driver *dev_drv, int swap,
 	struct rk_lcdc_win *win = NULL;
 	int i,ovl;
 	unsigned int mask, val;
+	int z_order_num=0;
 	int layer0_sel,layer1_sel,layer2_sel,layer3_sel;
-	for(i=0;i<4;i++){
-		win = dev_drv->win[i];
-		switch(win->z_order){
-		case 0:
-			layer0_sel = win->id;
-			break;
-		case 1:
-			layer1_sel = win->id;
-			break;
-		case 2:
-			layer2_sel = win->id;
-			break;
-		case 3:
-			layer3_sel = win->id;
-			break;
-		default:
-			break;
+	if(swap == 0){
+		for(i=0;i<4;i++){
+			win = dev_drv->win[i];
+			if(win->state == 1){
+				z_order_num++;
+			}	
 		}
+		for(i=0;i<4;i++){
+			win = dev_drv->win[i];
+			if(win->state == 0)
+				win->z_order = z_order_num++;
+			switch(win->z_order){
+			case 0:
+				layer0_sel = win->id;
+				break;
+			case 1:
+				layer1_sel = win->id;
+				break;
+			case 2:
+				layer2_sel = win->id;
+				break;
+			case 3:
+				layer3_sel = win->id;
+				break;
+			default:
+				break;
+			}
+		}
+	}else{
+		layer0_sel = swap %10;;
+		layer1_sel = swap /10 % 10;
+		layer2_sel = swap / 100 %10;
+		layer3_sel = swap / 1000;
 	}
-	
+
 	spin_lock(&lcdc_dev->reg_lock);
 	if(lcdc_dev->clk_on){
 		if(set){
 			mask = m_DSP_LAYER0_SEL | m_DSP_LAYER1_SEL |
 				m_DSP_LAYER2_SEL | m_DSP_LAYER3_SEL;
-			val  = v_DSP_LAYER0_SEL(0) |
-				v_DSP_LAYER1_SEL(1) |
-				v_DSP_LAYER2_SEL(2) |
-				v_DSP_LAYER3_SEL(3);
+			val  = v_DSP_LAYER0_SEL(layer0_sel) |
+				v_DSP_LAYER1_SEL(layer1_sel) |
+				v_DSP_LAYER2_SEL(layer2_sel) |
+				v_DSP_LAYER3_SEL(layer3_sel);
 			lcdc_msk_reg(lcdc_dev,DSP_CTRL1,mask,val);
 		}else{
 			layer0_sel = lcdc_read_bit(lcdc_dev, DSP_CTRL1, m_DSP_LAYER0_SEL);

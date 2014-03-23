@@ -1097,7 +1097,8 @@ static void rk_fb_update_driver(struct rk_lcdc_win *win,struct rk_fb_reg_win_dat
 			}
 		}
 	}else{
-		win->state = 0;
+		//win->state = 0;
+		//win->z_order = -1;
 	}
 	#endif
 
@@ -1127,6 +1128,7 @@ static void rk_fb_update_reg(struct rk_lcdc_driver * dev_drv,struct rk_fb_reg_da
 			dev_drv->ops->set_par(dev_drv,i);
 			dev_drv->ops->pan_display(dev_drv,i);		
 		}else{
+			win->z_order = -1;
 			win->state = 0;
 		}
 	}
@@ -1261,6 +1263,7 @@ static int rk_fb_set_win_buffer(struct fb_info *info,
 #else
 	ion_phys_addr_t phy_addr;
 #endif
+	reg_win_data->reg_area_data[0].smem_start = -1;
 	reg_win_data->area_num = 0;
 	if(win_par->area_par[0].phy_addr == 0){
 		for(i=0;i<RK_WIN_MAX_AREA;i++){	
@@ -1328,10 +1331,13 @@ static int rk_fb_set_win_buffer(struct fb_info *info,
 	ppixel_a = ((fb_data_fmt == ARGB888)||(fb_data_fmt == ABGR888)) ? 1:0;
 	global_a = (win_par->g_alpha_val == 0) ? 0:1;
 	reg_win_data->alpha_en = ppixel_a | global_a;
-	
-	reg_win_data->z_order = win_par->z_order;
-	reg_win_data->win_id  = win_par->win_id;	
-	
+	if(reg_win_data->reg_area_data[0].smem_start > 0){
+		reg_win_data->z_order = win_par->z_order;
+		reg_win_data->win_id  = win_par->win_id;
+	}else{
+		reg_win_data->z_order = -1;
+		reg_win_data->win_id  = -1;
+	}
 	for(i=0;i<reg_win_data->area_num;i++){
 		dsp_height = reg_win_data->reg_area_data[i].ysize;
 		reg_win_data->reg_area_data[i].xpos = win_par->area_par[i].xpos;//visiable pos in panel
