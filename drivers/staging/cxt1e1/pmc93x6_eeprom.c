@@ -133,9 +133,8 @@ static void eeprom_delay(void)
 {
 	int timeout;
 
-	for (timeout = 20; timeout; --timeout) {
+	for (timeout = 20; timeout; --timeout)
 		OS_uwait_dummy();
-	}
 }
 
 /*------------------------------------------------------------------------
