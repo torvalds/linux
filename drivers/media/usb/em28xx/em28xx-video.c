@@ -2399,35 +2399,35 @@ static int em28xx_v4l2_init(struct em28xx *dev)
 	/* Add image controls */
 	/* NOTE: at this point, the subdevices are already registered, so bridge
 	 * controls are only added/enabled when no subdevice provides them */
-	if (NULL == v4l2_ctrl_find(&dev->ctrl_handler, V4L2_CID_CONTRAST))
-		v4l2_ctrl_new_std(&dev->ctrl_handler, &em28xx_ctrl_ops,
+	if (NULL == v4l2_ctrl_find(hdl, V4L2_CID_CONTRAST))
+		v4l2_ctrl_new_std(hdl, &em28xx_ctrl_ops,
 				  V4L2_CID_CONTRAST,
 				  0, 0x1f, 1, CONTRAST_DEFAULT);
-	if (NULL == v4l2_ctrl_find(&dev->ctrl_handler, V4L2_CID_BRIGHTNESS))
-		v4l2_ctrl_new_std(&dev->ctrl_handler, &em28xx_ctrl_ops,
+	if (NULL == v4l2_ctrl_find(hdl, V4L2_CID_BRIGHTNESS))
+		v4l2_ctrl_new_std(hdl, &em28xx_ctrl_ops,
 				  V4L2_CID_BRIGHTNESS,
 				  -0x80, 0x7f, 1, BRIGHTNESS_DEFAULT);
-	if (NULL == v4l2_ctrl_find(&dev->ctrl_handler, V4L2_CID_SATURATION))
-		v4l2_ctrl_new_std(&dev->ctrl_handler, &em28xx_ctrl_ops,
+	if (NULL == v4l2_ctrl_find(hdl, V4L2_CID_SATURATION))
+		v4l2_ctrl_new_std(hdl, &em28xx_ctrl_ops,
 				  V4L2_CID_SATURATION,
 				  0, 0x1f, 1, SATURATION_DEFAULT);
-	if (NULL == v4l2_ctrl_find(&dev->ctrl_handler, V4L2_CID_BLUE_BALANCE))
-		v4l2_ctrl_new_std(&dev->ctrl_handler, &em28xx_ctrl_ops,
+	if (NULL == v4l2_ctrl_find(hdl, V4L2_CID_BLUE_BALANCE))
+		v4l2_ctrl_new_std(hdl, &em28xx_ctrl_ops,
 				  V4L2_CID_BLUE_BALANCE,
 				  -0x30, 0x30, 1, BLUE_BALANCE_DEFAULT);
-	if (NULL == v4l2_ctrl_find(&dev->ctrl_handler, V4L2_CID_RED_BALANCE))
-		v4l2_ctrl_new_std(&dev->ctrl_handler, &em28xx_ctrl_ops,
+	if (NULL == v4l2_ctrl_find(hdl, V4L2_CID_RED_BALANCE))
+		v4l2_ctrl_new_std(hdl, &em28xx_ctrl_ops,
 				  V4L2_CID_RED_BALANCE,
 				  -0x30, 0x30, 1, RED_BALANCE_DEFAULT);
-	if (NULL == v4l2_ctrl_find(&dev->ctrl_handler, V4L2_CID_SHARPNESS))
-		v4l2_ctrl_new_std(&dev->ctrl_handler, &em28xx_ctrl_ops,
+	if (NULL == v4l2_ctrl_find(hdl, V4L2_CID_SHARPNESS))
+		v4l2_ctrl_new_std(hdl, &em28xx_ctrl_ops,
 				  V4L2_CID_SHARPNESS,
 				  0, 0x0f, 1, SHARPNESS_DEFAULT);
 
 	/* Reset image controls */
 	em28xx_colorlevels_set_default(dev);
-	v4l2_ctrl_handler_setup(&dev->ctrl_handler);
-	ret = dev->ctrl_handler.error;
+	v4l2_ctrl_handler_setup(hdl);
+	ret = hdl->error;
 	if (ret)
 		goto unregister_dev;
 
