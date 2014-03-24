@@ -1,6 +1,6 @@
 /*
  * NVM Express device driver
- * Copyright (c) 2011, Intel Corporation.
+ * Copyright (c) 2011-2014, Intel Corporation.
  *
  * This program is free software; you can redistribute it and/or modify it
  * under the terms and conditions of the GNU General Public License,
@@ -2601,7 +2601,7 @@ static const struct pci_error_handlers nvme_err_handler = {
 /* Move to pci_ids.h later */
 #define PCI_CLASS_STORAGE_EXPRESS	0x010802
 
-static DEFINE_PCI_DEVICE_TABLE(nvme_id_table) = {
+static const struct pci_device_id nvme_id_table[] = {
 	{ PCI_DEVICE_CLASS(PCI_CLASS_STORAGE_EXPRESS, 0xffffff) },
 	{ 0, }
 };
@@ -2662,6 +2662,6 @@ static void __exit nvme_exit(void)
 
 MODULE_AUTHOR("Matthew Wilcox <willy@linux.intel.com>");
 MODULE_LICENSE("GPL");
-MODULE_VERSION("0.8");
+MODULE_VERSION("0.9");
 module_init(nvme_init);
 module_exit(nvme_exit);
