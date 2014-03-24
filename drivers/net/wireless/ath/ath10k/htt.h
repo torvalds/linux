@@ -1173,11 +1173,6 @@ struct htt_peer_unmap_event {
 	u16 peer_id;
 };
 
-struct htt_rx_info {
-	struct sk_buff *skb;
-	struct ieee80211_rx_status rx_status;
-};
-
 struct ath10k_htt_txbuf {
 	struct htt_data_tx_desc_frag frags[2];
 	struct ath10k_htc_hdr htc_hdr;
