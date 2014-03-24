@@ -636,9 +636,7 @@ _loop3:
 
 	/* Align stack */
 	mov	%rsp, %rbx
-	and	$(0x1000-1), %rbx
-	sub	$(8+32), %rbx
-	sub	%rbx, %rsp
+	and	$~(0x20-1), %rsp
 	push	%rbx
 	sub	$RESERVE_STACK, %rsp
 
@@ -665,8 +663,7 @@ _loop3:
 	avx2_zeroupper
 
 	add	$RESERVE_STACK, %rsp
-	pop	%rbx
-	add	%rbx, %rsp
+	pop	%rsp
 
 	pop	%r15
 	pop	%r14
