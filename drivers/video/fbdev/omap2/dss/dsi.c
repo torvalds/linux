@@ -5132,6 +5132,7 @@ static enum omap_channel dsi_get_channel(int module_id)
 {
 	switch (omapdss_get_version()) {
 	case OMAPDSS_VER_OMAP24xx:
+	case OMAPDSS_VER_AM43xx:
 		DSSWARN("DSI not supported\n");
 		return OMAP_DSS_CHANNEL_LCD;
 

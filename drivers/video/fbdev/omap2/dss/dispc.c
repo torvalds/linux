@@ -3656,6 +3656,7 @@ static int __init dispc_init_features(struct platform_device *pdev)
 	case OMAPDSS_VER_OMAP34xx_ES3:
 	case OMAPDSS_VER_OMAP3630:
 	case OMAPDSS_VER_AM35xx:
+	case OMAPDSS_VER_AM43xx:
 		src = &omap34xx_rev3_0_dispc_feats;
 		break;
 

@@ -728,6 +728,13 @@ static const struct dss_features omap54xx_dss_feats __initconst = {
 	.dpi_select_source	=	&dss_dpi_select_source_omap5,
 };
 
+static const struct dss_features am43xx_dss_feats __initconst = {
+	.fck_div_max		=	0,
+	.dss_fck_multiplier	=	0,
+	.parent_clk_name	=	NULL,
+	.dpi_select_source	=	&dss_dpi_select_source_omap2_omap3,
+};
+
 static int __init dss_init_features(struct platform_device *pdev)
 {
 	const struct dss_features *src;
@@ -762,6 +769,10 @@ static int __init dss_init_features(struct platform_device *pdev)
 
 	case OMAPDSS_VER_OMAP5:
 		src = &omap54xx_dss_feats;
+		break;
+
+	case OMAPDSS_VER_AM43xx:
+		src = &am43xx_dss_feats;
 		break;
 
 	default:
