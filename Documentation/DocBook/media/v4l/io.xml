@@ -125,7 +125,7 @@ location of the buffers in device memory can be determined with the
 <structfield>m.offset</structfield> and <structfield>length</structfield>
 returned in a &v4l2-buffer; are passed as sixth and second parameter to the
 <function>mmap()</function> function. When using the multi-planar API,
-struct &v4l2-buffer; contains an array of &v4l2-plane; structures, each
+&v4l2-buffer; contains an array of &v4l2-plane; structures, each
 containing its own <structfield>m.offset</structfield> and
 <structfield>length</structfield>. When using the multi-planar API, every
 plane of every buffer has to be mapped separately, so the number of
