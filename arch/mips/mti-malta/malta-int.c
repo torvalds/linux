@@ -286,10 +286,6 @@ asmlinkage void plat_irq_dispatch(void)
 
 #ifdef CONFIG_MIPS_MT_SMP
 
-
-#define GIC_MIPS_CPU_IPI_RESCHED_IRQ	3
-#define GIC_MIPS_CPU_IPI_CALL_IRQ	4
-
 #define MIPS_CPU_IPI_RESCHED_IRQ 0	/* SW int 0 for resched */
 #define C_RESCHED C_SW0
 #define MIPS_CPU_IPI_CALL_IRQ 1		/* SW int 1 for resched */
@@ -305,6 +301,13 @@ static void ipi_call_dispatch(void)
 {
 	do_IRQ(MIPS_CPU_IRQ_BASE + MIPS_CPU_IPI_CALL_IRQ);
 }
+
+#endif /* CONFIG_MIPS_MT_SMP */
+
+#ifdef CONFIG_MIPS_GIC_IPI
+
+#define GIC_MIPS_CPU_IPI_RESCHED_IRQ	3
+#define GIC_MIPS_CPU_IPI_CALL_IRQ	4
 
 static irqreturn_t ipi_resched_interrupt(int irq, void *dev_id)
 {
@@ -336,7 +339,7 @@ static struct irqaction irq_call = {
 	.flags		= IRQF_PERCPU,
 	.name		= "IPI_call"
 };
-#endif /* CONFIG_MIPS_MT_SMP */
+#endif /* CONFIG_MIPS_GIC_IPI */
 
 static int gic_resched_int_base;
 static int gic_call_int_base;
@@ -416,7 +419,7 @@ static struct gic_intr_map gic_intr_map[GIC_NUM_INTRS] = {
 };
 #undef X
 
-#if defined(CONFIG_MIPS_MT_SMP)
+#ifdef CONFIG_MIPS_GIC_IPI
 static void __init fill_ipi_map1(int baseintr, int cpu, int cpupin)
 {
 	int intr = baseintr + cpu;
@@ -532,7 +535,7 @@ void __init arch_init_irq(void)
 	if (gic_present) {
 		/* FIXME */
 		int i;
-#if defined(CONFIG_MIPS_MT_SMP)
+#if defined(CONFIG_MIPS_GIC_IPI)
 		gic_call_int_base = GIC_NUM_INTRS -
 			(NR_CPUS - nr_cpu_ids) * 2 - nr_cpu_ids;
 		gic_resched_int_base = gic_call_int_base - nr_cpu_ids;
@@ -547,7 +550,7 @@ void __init arch_init_irq(void)
 				(i | (0x1 << MSC01_SC_CFG_GICENA_SHF));
 			pr_debug("GIC Enabled\n");
 		}
-#if defined(CONFIG_MIPS_MT_SMP)
+#if defined(CONFIG_MIPS_GIC_IPI)
 		/* set up ipi interrupts */
 		if (cpu_has_vint) {
 			set_vi_handler(MIPSCPU_INT_IPI0, malta_ipi_irqdispatch);
