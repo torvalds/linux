@@ -1596,6 +1596,72 @@ static int raw_to_up_osds(struct ceph_osdmap *osdmap,
 	return len;
 }
 
+static void apply_primary_affinity(struct ceph_osdmap *osdmap, u32 pps,
+				   struct ceph_pg_pool_info *pool,
+				   int *osds, int len, int *primary)
+{
+	int i;
+	int pos = -1;
+
+	/*
+	 * Do we have any non-default primary_affinity values for these
+	 * osds?
+	 */
+	if (!osdmap->osd_primary_affinity)
+		return;
+
+	for (i = 0; i < len; i++) {
+		if (osds[i] != CRUSH_ITEM_NONE &&
+		    osdmap->osd_primary_affinity[i] !=
+					CEPH_OSD_DEFAULT_PRIMARY_AFFINITY) {
+			break;
+		}
+	}
+	if (i == len)
+		return;
+
+	/*
+	 * Pick the primary.  Feed both the seed (for the pg) and the
+	 * osd into the hash/rng so that a proportional fraction of an
+	 * osd's pgs get rejected as primary.
+	 */
+	for (i = 0; i < len; i++) {
+		int osd;
+		u32 aff;
+
+		osd = osds[i];
+		if (osd == CRUSH_ITEM_NONE)
+			continue;
+
+		aff = osdmap->osd_primary_affinity[osd];
+		if (aff < CEPH_OSD_MAX_PRIMARY_AFFINITY &&
+		    (crush_hash32_2(CRUSH_HASH_RJENKINS1,
+				    pps, osd) >> 16) >= aff) {
+			/*
+			 * We chose not to use this primary.  Note it
+			 * anyway as a fallback in case we don't pick
+			 * anyone else, but keep looking.
+			 */
+			if (pos < 0)
+				pos = i;
+		} else {
+			pos = i;
+			break;
+		}
+	}
+	if (pos < 0)
+		return;
+
+	*primary = osds[pos];
+
+	if (ceph_can_shift_osds(pool) && pos > 0) {
+		/* move the new primary to the front */
+		for (i = pos; i > 0; i--)
+			osds[i] = osds[i - 1];
+		osds[0] = *primary;
+	}
+}
+
 /*
  * Given up set, apply pg_temp and primary_temp mappings.
  *
@@ -1697,6 +1763,8 @@ int ceph_calc_pg_acting(struct ceph_osdmap *osdmap, struct ceph_pg pgid,
 	}
 
 	len = raw_to_up_osds(osdmap, pool, osds, len, primary);
+
+	apply_primary_affinity(osdmap, pps, pool, osds, len, primary);
 
 	len = apply_temps(osdmap, pool, pgid, osds, len, primary);
 
