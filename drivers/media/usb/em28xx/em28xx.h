@@ -515,6 +515,14 @@ struct em28xx_v4l2 {
 	struct vb2_queue vb_vbiq;
 	struct mutex vb_queue_lock;
 	struct mutex vb_vbi_queue_lock;
+
+	/* Frame properties */
+	int width;		/* current frame width */
+	int height;		/* current frame height */
+	unsigned hscale;	/* horizontal scale factor (see datasheet) */
+	unsigned vscale;	/* vertical scale factor (see datasheet) */
+	unsigned int vbi_width;
+	unsigned int vbi_height; /* lines per field */
 };
 
 struct em28xx_audio {
@@ -632,11 +640,7 @@ struct em28xx {
 	unsigned int ctl_aoutput;/* selected audio output */
 	int mute;
 	int volume;
-	/* frame properties */
-	int width;		/* current frame width */
-	int height;		/* current frame height */
-	unsigned hscale;	/* horizontal scale factor (see datasheet) */
-	unsigned vscale;	/* vertical scale factor (see datasheet) */
+
 	int interlaced;		/* 1=interlace fileds, 0=just top fileds */
 
 	unsigned long hash;	/* eeprom hash - for boards with generic ID */
@@ -647,8 +651,6 @@ struct em28xx {
 	int capture_type;
 	unsigned char top_field:1;
 	int vbi_read;
-	unsigned int vbi_width;
-	unsigned int vbi_height; /* lines per field */
 
 	struct work_struct         request_module_wk;
 
