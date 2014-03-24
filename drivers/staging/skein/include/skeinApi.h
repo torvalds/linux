@@ -81,11 +81,6 @@ OTHER DEALINGS IN THE SOFTWARE.
 #include <linux/types.h>
 #include <skein.h>
 
-#ifdef __cplusplus
-extern "C"
-{
-#endif
-
     /**
      * Which Skein size to use
      */
@@ -228,10 +223,6 @@ extern "C"
      * @see skeinReset
      */
     int skeinFinal(SkeinCtx_t* ctx, uint8_t* hash);
-
-#ifdef __cplusplus
-}
-#endif
 
 /**
  * @}

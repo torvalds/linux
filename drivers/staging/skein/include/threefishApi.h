@@ -33,11 +33,6 @@
 
 #define KeyScheduleConst 0x1BD11BDAA9FC1A22L
 
-#ifdef __cplusplus
-extern "C"
-{
-#endif
-
     /**
      * Which Threefish size to use
      */
@@ -157,10 +152,6 @@ extern "C"
     void threefishDecrypt256(ThreefishKey_t* keyCtx, uint64_t* input, uint64_t* output);
     void threefishDecrypt512(ThreefishKey_t* keyCtx, uint64_t* input, uint64_t* output);
     void threefishDecrypt1024(ThreefishKey_t* keyCtx, uint64_t* input, uint64_t* output);
-#ifdef __cplusplus
-}
-#endif
-
 /**
  * @}
  */

@@ -27,13 +27,6 @@
 **                                1: return SKEIN_FAIL to flag errors
 **
 ***************************************************************************/
-#ifdef __cplusplus
-extern "C"
-{
-#endif
-
-#include <stddef.h>                          /* get size_t definition */
-
 typedef unsigned int    uint_t;             /* native unsigned integer */
 typedef uint8_t         u08b_t;             /*  8-bit unsigned integer */
 typedef uint64_t        u64b_t;             /* 64-bit unsigned integer */
@@ -320,10 +313,6 @@ enum
 #define SKEIN_256_ROUNDS_TOTAL (8*((((SKEIN_ROUNDS/100) + 5) % 10) + 5))
 #define SKEIN_512_ROUNDS_TOTAL (8*((((SKEIN_ROUNDS/ 10) + 5) % 10) + 5))
 #define SKEIN1024_ROUNDS_TOTAL (8*((((SKEIN_ROUNDS    ) + 5) % 10) + 5))
-#endif
-
-#ifdef __cplusplus
-}
 #endif
 
 #endif  /* ifndef _SKEIN_H_ */
