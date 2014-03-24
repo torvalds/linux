@@ -401,6 +401,10 @@ struct hci_conn *hci_conn_add(struct hci_dev *hdev, int type, bdaddr_t *dst)
 	case ACL_LINK:
 		conn->pkt_type = hdev->pkt_type & ACL_PTYPE_MASK;
 		break;
+	case LE_LINK:
+		/* conn->src should reflect the local identity address */
+		hci_copy_identity_address(hdev, &conn->src, &conn->src_type);
+		break;
 	case SCO_LINK:
 		if (lmp_esco_capable(hdev))
 			conn->pkt_type = (hdev->esco_type & SCO_ESCO_MASK) |
