@@ -520,14 +520,6 @@ int iwl_mvm_rm_sta(struct iwl_mvm *mvm,
 		/* flush its queues here since we are freeing mvm_sta */
 		ret = iwl_mvm_flush_tx_path(mvm, mvm_sta->tfd_queue_msk, true);
 
-		/*
-		 * Put a non-NULL since the fw station isn't removed.
-		 * It will be removed after the MAC will be set as
-		 * unassoc.
-		 */
-		rcu_assign_pointer(mvm->fw_id_to_mac_id[mvm_sta->sta_id],
-				   ERR_PTR(-EINVAL));
-
 		/* if we are associated - we can't remove the AP STA now */
 		if (vif->bss_conf.assoc)
 			return ret;
