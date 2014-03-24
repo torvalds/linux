@@ -6707,6 +6707,14 @@ static void nohz_idle_balance(int this_cpu, enum cpu_idle_type idle) { }
 #endif
 
 #ifdef CONFIG_SCHED_HMP
+static unsigned int hmp_task_eligible_for_up_migration(struct sched_entity *se)
+{
+	/* below hmp_up_threshold, never eligible */
+	if (se->avg.load_avg_ratio < hmp_up_threshold)
+		return 0;
+	return 1;
+}
+
 /* Check if task should migrate to a faster cpu */
 static unsigned int hmp_up_migration(int cpu, int *target_cpu, struct sched_entity *se)
 {
@@ -6722,7 +6730,7 @@ static unsigned int hmp_up_migration(int cpu, int *target_cpu, struct sched_enti
 	if (p->prio >= hmp_up_prio)
 		return 0;
 #endif
-	if (se->avg.load_avg_ratio < hmp_up_threshold)
+	if (!hmp_task_eligible_for_up_migration(se))
 		return 0;
 
 	/* Let the task load settle before doing another up migration */
@@ -7210,7 +7218,10 @@ static unsigned int hmp_idle_pull(int this_cpu)
 		}
 		orig = curr;
 		curr = hmp_get_heaviest_task(curr, 1);
-		if (curr->avg.load_avg_ratio > hmp_up_threshold &&
+		/* check if heaviest eligible task on this
+		 * CPU is heavier than previous task
+		 */
+		if (hmp_task_eligible_for_up_migration(curr) &&
 			curr->avg.load_avg_ratio > ratio) {
 			p = task_of(curr);
 			target = rq;
