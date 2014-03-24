@@ -535,7 +535,7 @@ static int alx_alloc_descriptors(struct alx_priv *alx)
 	if (!alx->descmem.virt)
 		goto out_free;
 
-	alx->txq.tpd = (void *)alx->descmem.virt;
+	alx->txq.tpd = alx->descmem.virt;
 	alx->txq.tpd_dma = alx->descmem.dma;
 
 	/* alignment requirement for next block */
