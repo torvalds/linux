@@ -163,9 +163,11 @@ acpi_ds_detect_named_opcodes(struct acpi_walk_state *walk_state,
 
 	ACPI_FUNCTION_NAME(acpi_ds_detect_named_opcodes);
 
-	/* We are only interested in opcodes that have an associated name */
+	/* We are only interested in opcodes that create a new name */
 
-	if (!(walk_state->op_info->flags & AML_NAMED)) {
+	if (!
+	    (walk_state->op_info->
+	     flags & (AML_NAMED | AML_CREATE | AML_FIELD))) {
 		return (AE_OK);
 	}
 
