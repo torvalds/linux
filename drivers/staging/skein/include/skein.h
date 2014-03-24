@@ -9,7 +9,7 @@
 ** This algorithm and source code is released to the public domain.
 **
 ***************************************************************************
-** 
+**
 ** The following compile-time switches may be defined to control some
 ** tradeoffs between speed, code size, error checking, and security.
 **
@@ -20,8 +20,8 @@
 **                            [default: no callouts (no overhead)]
 **
 **  SKEIN_ERR_CHECK        -- how error checking is handled inside Skein
-**                            code. If not defined, most error checking 
-**                            is disabled (for performance). Otherwise, 
+**                            code. If not defined, most error checking
+**                            is disabled (for performance). Otherwise,
 **                            the switch value is interpreted as:
 **                                0: use assert()      to flag errors
 **                                1: return SKEIN_FAIL to flag errors
@@ -109,12 +109,12 @@ int  Skein1024_Final(struct skein1024_ctx *ctx, u8 *hashVal);
 **   After an InitExt() call, just use Update/Final calls as with Init().
 **
 **   Notes: Same parameters as _Init() calls, plus treeInfo/key/keyBytes.
-**          When keyBytes == 0 and treeInfo == SKEIN_SEQUENTIAL, 
+**          When keyBytes == 0 and treeInfo == SKEIN_SEQUENTIAL,
 **              the results of InitExt() are identical to calling Init().
 **          The function Init() may be called once to "precompute" the IV for
 **              a given hashBitLen value, then by saving a copy of the context
 **              the IV computation may be avoided in later calls.
-**          Similarly, the function InitExt() may be called once per MAC key 
+**          Similarly, the function InitExt() may be called once per MAC key
 **              to precompute the MAC IV, then a copy of the context saved and
 **              reused for each new MAC computation.
 **/
@@ -142,7 +142,7 @@ int  Skein1024_Output(struct skein1024_ctx *ctx, u8 *hashVal);
 
 /*****************************************************************
 ** "Internal" Skein definitions
-**    -- not needed for sequential hashing API, but will be 
+**    -- not needed for sequential hashing API, but will be
 **           helpful for other uses of Skein (e.g., tree hash mode).
 **    -- included here so that they can be shared between
 **           reference and optimized code.
@@ -269,8 +269,8 @@ int  Skein1024_Output(struct skein1024_ctx *ctx, u8 *hashVal);
 /*****************************************************************
 ** Skein block function constants (shared across Ref and Opt code)
 ******************************************************************/
-enum    
-	{   
+enum
+	{
 	    /* Skein_256 round rotation constants */
 	R_256_0_0 = 14, R_256_0_1 = 16,
 	R_256_1_0 = 52, R_256_1_1 = 57,

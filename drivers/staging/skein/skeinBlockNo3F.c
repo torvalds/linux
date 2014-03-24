@@ -29,7 +29,7 @@ void Skein_256_Process_Block(struct skein_256_ctx *ctx, const u8 *blkPtr,
 			carry += words[i];
 			words[i] = carry;
 			carry >>= 32;
-		}        
+		}
 		tweak[0] = words[0] & 0xffffffffL;
 		tweak[0] |= (words[1] & 0xffffffffL) << 32;
 		tweak[1] |= words[2] & 0xffffffffL;
@@ -79,7 +79,7 @@ void Skein_512_Process_Block(struct skein_512_ctx *ctx, const u8 *blkPtr,
 			carry += words[i];
 			words[i] = carry;
 			carry >>= 32;
-		}        
+		}
 		tweak[0] = words[0] & 0xffffffffL;
 		tweak[0] |= (words[1] & 0xffffffffL) << 32;
 		tweak[1] |= words[2] & 0xffffffffL;
@@ -133,7 +133,7 @@ void Skein1024_Process_Block(struct skein1024_ctx *ctx, const u8 *blkPtr,
 			carry += words[i];
 			words[i] = carry;
 			carry >>= 32;
-		}        
+		}
 		tweak[0] = words[0] & 0xffffffffL;
 		tweak[0] |= (words[1] & 0xffffffffL) << 32;
 		tweak[1] |= words[2] & 0xffffffffL;

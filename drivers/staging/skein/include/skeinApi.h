@@ -36,46 +36,46 @@ OTHER DEALINGS IN THE SOFTWARE.
  * of Skein. The design and the way to use the functions follow the openSSL
  * design but at the same time take care of some Skein specific behaviour
  * and possibilities.
- * 
+ *
  * The functions enable applications to create a normal Skein hashes and
  * message authentication codes (MAC).
- * 
+ *
  * Using these functions is simple and straight forward:
- * 
+ *
  * @code
- * 
+ *
  * #include <skeinApi.h>
- * 
+ *
  * ...
  * struct skein_ctx ctx;             // a Skein hash or MAC context
- * 
+ *
  * // prepare context, here for a Skein with a state size of 512 bits.
  * skeinCtxPrepare(&ctx, Skein512);
- * 
+ *
  * // Initialize the context to set the requested hash length in bits
  * // here request a output hash size of 31 bits (Skein supports variable
  * // output sizes even very strange sizes)
  * skeinInit(&ctx, 31);
- * 
+ *
  * // Now update Skein with any number of message bits. A function that
  * // takes a number of bytes is also available.
  * skeinUpdateBits(&ctx, message, msgLength);
- * 
+ *
  * // Now get the result of the Skein hash. The output buffer must be
  * // large enough to hold the request number of output bits. The application
  * // may now extract the bits.
  * skeinFinal(&ctx, result);
  * ...
  * @endcode
- * 
+ *
  * An application may use @c skeinReset to reset a Skein context and use
  * it for creation of another hash with the same Skein state size and output
  * bit length. In this case the API implementation restores some internal
  * internal state data and saves a full Skein initialization round.
- * 
- * To create a MAC the application just uses @c skeinMacInit instead of 
+ *
+ * To create a MAC the application just uses @c skeinMacInit instead of
  * @c skeinInit. All other functions calls remain the same.
- * 
+ *
  */
 
 #include <linux/types.h>
@@ -111,7 +111,7 @@ struct skein_ctx {
 
 /**
  * Prepare a Skein context.
- * 
+ *
  * An application must call this function before it can use the Skein
  * context. The functions clears memory and initializes size dependent
  * variables.
@@ -128,7 +128,7 @@ int skeinCtxPrepare(struct skein_ctx *ctx, enum skein_size size);
 /**
  * Initialize a Skein context.
  *
- * Initializes the context with this data and saves the resulting Skein 
+ * Initializes the context with this data and saves the resulting Skein
  * state variables for further use.
  *
  * @param ctx
@@ -143,11 +143,11 @@ int skeinInit(struct skein_ctx *ctx, size_t hashBitLen);
 
 /**
  * Resets a Skein context for further use.
- * 
- * Restores the saved chaining variables to reset the Skein context. 
- * Thus applications can reuse the same setup to  process several 
+ *
+ * Restores the saved chaining variables to reset the Skein context.
+ * Thus applications can reuse the same setup to  process several
  * messages. This saves a complete Skein initialization cycle.
- * 
+ *
  * @param ctx
  *     Pointer to a pre-initialized Skein MAC context
  */
@@ -155,8 +155,8 @@ void skeinReset(struct skein_ctx *ctx);
 
 /**
  * Initializes a Skein context for MAC usage.
- * 
- * Initializes the context with this data and saves the resulting Skein 
+ *
+ * Initializes the context with this data and saves the resulting Skein
  * state variables for further use.
  *
  * Applications call the normal Skein functions to update the MAC and
@@ -209,7 +209,7 @@ int skeinUpdateBits(struct skein_ctx *ctx, const u8 *msg,
 
 /**
  * Finalize Skein and return the hash.
- * 
+ *
  * Before an application can reuse a Skein setup the application must
  * reset the Skein context.
  *

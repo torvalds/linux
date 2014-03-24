@@ -8,14 +8,14 @@
  * @{
  *
  * This API and the functions that implement this API simplify the usage
- * of the Threefish cipher. The design and the way to use the functions 
+ * of the Threefish cipher. The design and the way to use the functions
  * follow the openSSL design but at the same time take care of some Threefish
  * specific behaviour and possibilities.
  *
  * These are the low level functions that deal with Threefisch blocks only.
- * Implementations for cipher modes such as ECB, CFB, or CBC may use these 
+ * Implementations for cipher modes such as ECB, CFB, or CBC may use these
  * functions.
- * 
+ *
 @code
     // Threefish cipher context data
     struct threefish_key keyCtx;
@@ -44,7 +44,7 @@ enum threefish_size {
 
 /**
  * Context for Threefish key and tweak words.
- * 
+ *
  * This structure was setup with some know-how of the internal
  * Skein structures, in particular ordering of header and size dependent
  * variables. If Skein implementation changes this, the adapt these
@@ -58,10 +58,10 @@ struct threefish_key {
 
 /**
  * Set Threefish key and tweak data.
- * 
+ *
  * This function sets the key and tweak data for the Threefish cipher of
  * the given size. The key data must have the same length (number of bits)
- * as the state size 
+ * as the state size
  *
  * @param keyCtx
  *     Pointer to a Threefish key structure.
@@ -76,12 +76,12 @@ void threefishSetKey(struct threefish_key *keyCtx, enum threefish_size stateSize
 
 /**
  * Encrypt Threefisch block (bytes).
- * 
- * The buffer must have at least the same length (number of bits) aas the 
+ *
+ * The buffer must have at least the same length (number of bits) aas the
  * state size for this key. The function uses the first @c stateSize bits
  * of the input buffer, encrypts them and stores the result in the output
  * buffer.
- * 
+ *
  * @param keyCtx
  *     Pointer to a Threefish key structure.
  * @param in
@@ -93,14 +93,14 @@ void threefishEncryptBlockBytes(struct threefish_key *keyCtx, u8 *in, u8 *out);
 
 /**
  * Encrypt Threefisch block (words).
- * 
- * The buffer must have at least the same length (number of bits) aas the 
+ *
+ * The buffer must have at least the same length (number of bits) aas the
  * state size for this key. The function uses the first @c stateSize bits
  * of the input buffer, encrypts them and stores the result in the output
  * buffer.
- * 
+ *
  * The wordsize ist set to 64 bits.
- * 
+ *
  * @param keyCtx
  *     Pointer to a Threefish key structure.
  * @param in
@@ -112,12 +112,12 @@ void threefishEncryptBlockWords(struct threefish_key *keyCtx, u64 *in, u64 *out)
 
 /**
  * Decrypt Threefisch block (bytes).
- * 
- * The buffer must have at least the same length (number of bits) aas the 
+ *
+ * The buffer must have at least the same length (number of bits) aas the
  * state size for this key. The function uses the first @c stateSize bits
  * of the input buffer, decrypts them and stores the result in the output
  * buffer
- * 
+ *
  * @param keyCtx
  *     Pointer to a Threefish key structure.
  * @param in
@@ -129,14 +129,14 @@ void threefishDecryptBlockBytes(struct threefish_key *keyCtx, u8 *in, u8 *out);
 
 /**
  * Decrypt Threefisch block (words).
- * 
- * The buffer must have at least the same length (number of bits) aas the 
+ *
+ * The buffer must have at least the same length (number of bits) aas the
  * state size for this key. The function uses the first @c stateSize bits
  * of the input buffer, encrypts them and stores the result in the output
  * buffer.
- * 
+ *
  * The wordsize ist set to 64 bits.
- * 
+ *
  * @param keyCtx
  *     Pointer to a Threefish key structure.
  * @param in
