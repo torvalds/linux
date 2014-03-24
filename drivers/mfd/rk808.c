@@ -1233,6 +1233,13 @@ static int rk808_pre_init(struct rk808 *rk808)
                 return ret;
         }
 	/**********************************/
+	/**********enable clkout2****************/
+        ret = rk808_reg_write(rk808,RK808_CLK32OUT_REG,0x01);
+         if (ret <0) {
+                printk(KERN_ERR "Unable to write RK808_CLK32OUT_REG reg\n");
+                return ret;
+        }
+	/**********************************/
 	return 0;
 }
 
