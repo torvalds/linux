@@ -232,7 +232,7 @@ defined in include/linux/pm.h:
       equal to zero); the initial value of it is 1 (i.e. runtime PM is
       initially disabled for all devices)
 
-  unsigned int runtime_error;
+  int runtime_error;
     - if set, there was a fatal error (one of the callbacks returned error code
       as described in Section 2), so the helper funtions will not work until
       this flag is cleared; this is the error code returned by the failing
