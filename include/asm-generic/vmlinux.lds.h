@@ -179,9 +179,9 @@
 
 #ifdef CONFIG_SMP
 #define CPU_METHOD_OF_TABLES() . = ALIGN(8);				    \
-			   VMLINUX_SYMBOL(__cpu_method_of_table_begin) = .; \
+			   VMLINUX_SYMBOL(__cpu_method_of_table) = .; \
 			   *(__cpu_method_of_table)			    \
-			   VMLINUX_SYMBOL(__cpu_method_of_table_end) = .;
+			   *(__cpu_method_of_table_end)
 #else
 #define CPU_METHOD_OF_TABLES()
 #endif

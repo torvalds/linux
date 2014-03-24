@@ -33,18 +33,21 @@ void __init early_init_dt_add_memory_arch(u64 base, u64 size)
 }
 
 #ifdef CONFIG_SMP
-extern struct of_cpu_method __cpu_method_of_table_begin[];
-extern struct of_cpu_method __cpu_method_of_table_end[];
+extern struct of_cpu_method __cpu_method_of_table[];
+
+static const struct of_cpu_method __cpu_method_of_table_sentinel
+	__used __section(__cpu_method_of_table_end);
+
 
 static int __init set_smp_ops_by_method(struct device_node *node)
 {
 	const char *method;
-	struct of_cpu_method *m = __cpu_method_of_table_begin;
+	struct of_cpu_method *m = __cpu_method_of_table;
 
 	if (of_property_read_string(node, "enable-method", &method))
 		return 0;
 
-	for (; m < __cpu_method_of_table_end; m++)
+	for (; m->method; m++)
 		if (!strcmp(m->method, method)) {
 			smp_set_ops(m->ops);
 			return 1;
