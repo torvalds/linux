@@ -120,6 +120,7 @@ struct smp_cmd_security_req {
 #define SMP_FLAG_MITM_AUTH	3
 #define SMP_FLAG_LTK_ENCRYPT	4
 #define SMP_FLAG_COMPLETE	5
+#define SMP_FLAG_INITIATOR	6
 
 #define SMP_REENCRYPT_TIMEOUT	msecs_to_jiffies(500)
 

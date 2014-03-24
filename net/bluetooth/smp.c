@@ -716,6 +716,8 @@ static u8 smp_cmd_pairing_req(struct l2cap_conn *conn, struct sk_buff *skb)
 	if (ret)
 		return SMP_UNSPECIFIED;
 
+	clear_bit(SMP_FLAG_INITIATOR, &smp->smp_flags);
+
 	return 0;
 }
 
@@ -871,6 +873,8 @@ static u8 smp_cmd_security_req(struct l2cap_conn *conn, struct sk_buff *skb)
 
 	smp_send_cmd(conn, SMP_CMD_PAIRING_REQ, sizeof(cp), &cp);
 
+	clear_bit(SMP_FLAG_INITIATOR, &smp->smp_flags);
+
 	return 0;
 }
 
@@ -939,6 +943,8 @@ int smp_conn_security(struct hci_conn *hcon, __u8 sec_level)
 	}
 
 done:
+	set_bit(SMP_FLAG_INITIATOR, &smp->smp_flags);
+
 	hcon->pending_sec_level = sec_level;
 
 	return 0;
