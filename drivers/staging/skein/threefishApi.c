@@ -4,11 +4,11 @@
 #include <threefishApi.h>
 
 void threefishSetKey(struct threefish_key* keyCtx, enum threefish_size stateSize,
-                     uint64_t* keyData, uint64_t* tweak)
+                     u64* keyData, u64* tweak)
 {
     int keyWords = stateSize / 64;
     int i;
-    uint64_t parity = KeyScheduleConst;
+    u64 parity = KeyScheduleConst;
 
     keyCtx->tweak[0] = tweak[0];
     keyCtx->tweak[1] = tweak[1];
@@ -22,8 +22,8 @@ void threefishSetKey(struct threefish_key* keyCtx, enum threefish_size stateSize
     keyCtx->stateSize = stateSize;
 }
 
-void threefishEncryptBlockBytes(struct threefish_key* keyCtx, uint8_t* in,
-                                uint8_t* out)
+void threefishEncryptBlockBytes(struct threefish_key* keyCtx, u8* in,
+                                u8* out)
 {
     u64 plain[SKEIN_MAX_STATE_WORDS];        /* max number of words*/
     u64 cipher[SKEIN_MAX_STATE_WORDS];
@@ -33,8 +33,8 @@ void threefishEncryptBlockBytes(struct threefish_key* keyCtx, uint8_t* in,
     Skein_Put64_LSB_First(out, cipher, keyCtx->stateSize / 8);  /* words to bytes */
 }
 
-void threefishEncryptBlockWords(struct threefish_key* keyCtx, uint64_t* in,
-                                uint64_t* out)
+void threefishEncryptBlockWords(struct threefish_key* keyCtx, u64* in,
+                                u64* out)
 {
     switch (keyCtx->stateSize) {
         case Threefish256:
@@ -49,8 +49,8 @@ void threefishEncryptBlockWords(struct threefish_key* keyCtx, uint64_t* in,
     }
 }
 
-void threefishDecryptBlockBytes(struct threefish_key* keyCtx, uint8_t* in,
-                                uint8_t* out)
+void threefishDecryptBlockBytes(struct threefish_key* keyCtx, u8* in,
+                                u8* out)
 {
     u64 plain[SKEIN_MAX_STATE_WORDS];        /* max number of words*/
     u64 cipher[SKEIN_MAX_STATE_WORDS];
@@ -60,8 +60,8 @@ void threefishDecryptBlockBytes(struct threefish_key* keyCtx, uint8_t* in,
     Skein_Put64_LSB_First(out, plain, keyCtx->stateSize / 8);   /* words to bytes */
 }
 
-void threefishDecryptBlockWords(struct threefish_key* keyCtx, uint64_t* in,
-                                uint64_t* out)
+void threefishDecryptBlockWords(struct threefish_key* keyCtx, u64* in,
+                                u64* out)
 {
     switch (keyCtx->stateSize) {
         case Threefish256:

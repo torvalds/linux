@@ -2,10 +2,10 @@
 #include <threefishApi.h>
 
 
-void threefishEncrypt1024(struct threefish_key* keyCtx, uint64_t* input, uint64_t* output)
+void threefishEncrypt1024(struct threefish_key* keyCtx, u64* input, u64* output)
         {
 
-    uint64_t b0 = input[0], b1 = input[1],
+    u64 b0 = input[0], b1 = input[1],
       b2 = input[2], b3 = input[3],
       b4 = input[4], b5 = input[5],
       b6 = input[6], b7 = input[7],
@@ -13,7 +13,7 @@ void threefishEncrypt1024(struct threefish_key* keyCtx, uint64_t* input, uint64_
       b10 = input[10], b11 = input[11],
       b12 = input[12], b13 = input[13],
       b14 = input[14], b15 = input[15];
-    uint64_t k0 = keyCtx->key[0], k1 = keyCtx->key[1],
+    u64 k0 = keyCtx->key[0], k1 = keyCtx->key[1],
       k2 = keyCtx->key[2], k3 = keyCtx->key[3],
       k4 = keyCtx->key[4], k5 = keyCtx->key[5],
       k6 = keyCtx->key[6], k7 = keyCtx->key[7],
@@ -22,7 +22,7 @@ void threefishEncrypt1024(struct threefish_key* keyCtx, uint64_t* input, uint64_
       k12 = keyCtx->key[12], k13 = keyCtx->key[13],
       k14 = keyCtx->key[14], k15 = keyCtx->key[15],
       k16 = keyCtx->key[16];
-    uint64_t t0 = keyCtx->tweak[0], t1 = keyCtx->tweak[1],
+    u64 t0 = keyCtx->tweak[0], t1 = keyCtx->tweak[1],
       t2 = keyCtx->tweak[2];
 
             b1 += k1; b0 += b1 + k0; b1 = ((b1 << 24) | (b1 >> (64 - 24))) ^ b0;
@@ -684,10 +684,10 @@ void threefishEncrypt1024(struct threefish_key* keyCtx, uint64_t* input, uint64_
             output[15] = b15 + k1 + 20;
         }
 
-void threefishDecrypt1024(struct threefish_key* keyCtx, uint64_t* input, uint64_t* output)
+void threefishDecrypt1024(struct threefish_key* keyCtx, u64* input, u64* output)
 {
 
-    uint64_t b0 = input[0], b1 = input[1],
+    u64 b0 = input[0], b1 = input[1],
       b2 = input[2], b3 = input[3],
       b4 = input[4], b5 = input[5],
       b6 = input[6], b7 = input[7],
@@ -695,7 +695,7 @@ void threefishDecrypt1024(struct threefish_key* keyCtx, uint64_t* input, uint64_
       b10 = input[10], b11 = input[11],
       b12 = input[12], b13 = input[13],
       b14 = input[14], b15 = input[15];
-    uint64_t k0 = keyCtx->key[0], k1 = keyCtx->key[1],
+    u64 k0 = keyCtx->key[0], k1 = keyCtx->key[1],
       k2 = keyCtx->key[2], k3 = keyCtx->key[3],
       k4 = keyCtx->key[4], k5 = keyCtx->key[5],
       k6 = keyCtx->key[6], k7 = keyCtx->key[7],
@@ -704,9 +704,9 @@ void threefishDecrypt1024(struct threefish_key* keyCtx, uint64_t* input, uint64_
       k12 = keyCtx->key[12], k13 = keyCtx->key[13],
       k14 = keyCtx->key[14], k15 = keyCtx->key[15],
       k16 = keyCtx->key[16];
-    uint64_t t0 = keyCtx->tweak[0], t1 = keyCtx->tweak[1],
+    u64 t0 = keyCtx->tweak[0], t1 = keyCtx->tweak[1],
       t2 = keyCtx->tweak[2];
-    uint64_t tmp;
+    u64 tmp;
 
             b0 -= k3;
             b1 -= k4;

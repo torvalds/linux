@@ -173,7 +173,7 @@ OTHER DEALINGS IN THE SOFTWARE.
      * @return
      *     SKEIN_SUCESS of SKEIN_FAIL
      */
-    int skeinMacInit(struct skein_ctx* ctx, const uint8_t *key, size_t keyLen,
+    int skeinMacInit(struct skein_ctx* ctx, const u8 *key, size_t keyLen,
                      size_t hashBitLen);
 
     /**
@@ -188,7 +188,7 @@ OTHER DEALINGS IN THE SOFTWARE.
      * @return
      *     Success or error code.
      */
-    int skeinUpdate(struct skein_ctx *ctx, const uint8_t *msg,
+    int skeinUpdate(struct skein_ctx *ctx, const u8 *msg,
                     size_t msgByteCnt);
 
     /**
@@ -204,7 +204,7 @@ OTHER DEALINGS IN THE SOFTWARE.
      * @param msgBitCnt
      *     Length of the message in @b bits.
      */
-    int skeinUpdateBits(struct skein_ctx *ctx, const uint8_t *msg,
+    int skeinUpdateBits(struct skein_ctx *ctx, const u8 *msg,
                         size_t msgBitCnt);
 
     /**
@@ -222,7 +222,7 @@ OTHER DEALINGS IN THE SOFTWARE.
      *     Success or error code.
      * @see skeinReset
      */
-    int skeinFinal(struct skein_ctx* ctx, uint8_t* hash);
+    int skeinFinal(struct skein_ctx* ctx, u8* hash);
 
 /**
  * @}

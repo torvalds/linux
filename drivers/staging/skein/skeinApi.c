@@ -42,7 +42,7 @@ int skeinInit(struct skein_ctx* ctx, size_t hashBitLen)
     int ret = SKEIN_FAIL;
     size_t Xlen = 0;
     u64*  X = NULL;
-    uint64_t treeInfo = SKEIN_CFG_TREE_INFO_SEQUENTIAL;
+    u64 treeInfo = SKEIN_CFG_TREE_INFO_SEQUENTIAL;
 
     Skein_Assert(ctx, SKEIN_FAIL);
     /*
@@ -78,13 +78,13 @@ int skeinInit(struct skein_ctx* ctx, size_t hashBitLen)
     return ret;
 }
 
-int skeinMacInit(struct skein_ctx* ctx, const uint8_t *key, size_t keyLen,
+int skeinMacInit(struct skein_ctx* ctx, const u8 *key, size_t keyLen,
                  size_t hashBitLen)
 {
     int ret = SKEIN_FAIL;
     u64*  X = NULL;
     size_t Xlen = 0;
-    uint64_t treeInfo = SKEIN_CFG_TREE_INFO_SEQUENTIAL;
+    u64 treeInfo = SKEIN_CFG_TREE_INFO_SEQUENTIAL;
 
     Skein_Assert(ctx, SKEIN_FAIL);
 
@@ -138,7 +138,7 @@ void skeinReset(struct skein_ctx* ctx)
     Skein_Start_New_Type(&ctx->m, MSG);
 }
 
-int skeinUpdate(struct skein_ctx *ctx, const uint8_t *msg,
+int skeinUpdate(struct skein_ctx *ctx, const u8 *msg,
                 size_t msgByteCnt)
 {
     int ret = SKEIN_FAIL;
@@ -159,7 +159,7 @@ int skeinUpdate(struct skein_ctx *ctx, const uint8_t *msg,
 
 }
 
-int skeinUpdateBits(struct skein_ctx *ctx, const uint8_t *msg,
+int skeinUpdateBits(struct skein_ctx *ctx, const u8 *msg,
                     size_t msgBitCnt)
 {
     /*
@@ -168,8 +168,8 @@ int skeinUpdateBits(struct skein_ctx *ctx, const uint8_t *msg,
      * arithmetic.
      */
     size_t length;
-    uint8_t mask;
-    uint8_t* up;
+    u8 mask;
+    u8* up;
 
     /* only the final Update() call is allowed do partial bytes, else assert an error */
     Skein_Assert((ctx->m.h.T[1] & SKEIN_T1_FLAG_BIT_PAD) == 0 || msgBitCnt == 0, SKEIN_FAIL);
@@ -186,20 +186,20 @@ int skeinUpdateBits(struct skein_ctx *ctx, const uint8_t *msg,
      * Skein's real partial block buffer.
      * If this layout ever changes we have to adapt this as well.
      */
-    up = (uint8_t*)ctx->m.s256.X + ctx->skeinSize / 8;
+    up = (u8*)ctx->m.s256.X + ctx->skeinSize / 8;
 
     Skein_Set_Bit_Pad_Flag(ctx->m.h);                       /* set tweak flag for the skeinFinal call */
 
     /* now "pad" the final partial byte the way NIST likes */
     length = ctx->m.h.bCnt;                                 /* get the bCnt value (same location for all block sizes) */
     Skein_assert(length != 0);                              /* internal sanity check: there IS a partial byte in the buffer! */
-    mask = (uint8_t) (1u << (7 - (msgBitCnt & 7)));         /* partial byte bit mask */
-    up[length-1]  = (uint8_t)((up[length-1] & (0-mask))|mask);   /* apply bit padding on final byte (in the buffer) */
+    mask = (u8) (1u << (7 - (msgBitCnt & 7)));         /* partial byte bit mask */
+    up[length-1]  = (u8)((up[length-1] & (0-mask))|mask);   /* apply bit padding on final byte (in the buffer) */
 
     return SKEIN_SUCCESS;
 }
 
-int skeinFinal(struct skein_ctx* ctx, uint8_t* hash)
+int skeinFinal(struct skein_ctx* ctx, u8* hash)
 {
     int ret = SKEIN_FAIL;
     Skein_Assert(ctx, SKEIN_FAIL);
