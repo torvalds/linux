@@ -102,13 +102,6 @@ int Skein_256_InitExt(Skein_256_Ctxt_t *ctx,size_t hashBitLen,u64b_t treeInfo, c
         Skein_256_Update(ctx,key,keyBytes);     /* hash the key */
         Skein_256_Final_Pad(ctx,cfg.b);         /* put result into cfg.b[] */
         memcpy(ctx->X,cfg.b,sizeof(cfg.b));     /* copy over into ctx->X[] */
-#if SKEIN_NEED_SWAP
-        {
-            uint_t i;
-            for (i=0;i<SKEIN_256_STATE_WORDS;i++)   /* convert key bytes to context words */
-                ctx->X[i] = Skein_Swap64(ctx->X[i]);
-        }
-#endif
     }
     /* build/process the config block, type == CONFIG (could be precomputed for each key) */
     ctx->h.hashBitLen = hashBitLen;             /* output hash bit count */
@@ -297,13 +290,6 @@ int Skein_512_InitExt(Skein_512_Ctxt_t *ctx,size_t hashBitLen,u64b_t treeInfo, c
         Skein_512_Update(ctx,key,keyBytes);     /* hash the key */
         Skein_512_Final_Pad(ctx,cfg.b);         /* put result into cfg.b[] */
         memcpy(ctx->X,cfg.b,sizeof(cfg.b));     /* copy over into ctx->X[] */
-#if SKEIN_NEED_SWAP
-        {
-            uint_t i;
-            for (i=0;i<SKEIN_512_STATE_WORDS;i++)   /* convert key bytes to context words */
-                ctx->X[i] = Skein_Swap64(ctx->X[i]);
-        }
-#endif
     }
     /* build/process the config block, type == CONFIG (could be precomputed for each key) */
     ctx->h.hashBitLen = hashBitLen;             /* output hash bit count */
@@ -489,13 +475,6 @@ int Skein1024_InitExt(Skein1024_Ctxt_t *ctx,size_t hashBitLen,u64b_t treeInfo, c
         Skein1024_Update(ctx,key,keyBytes);     /* hash the key */
         Skein1024_Final_Pad(ctx,cfg.b);         /* put result into cfg.b[] */
         memcpy(ctx->X,cfg.b,sizeof(cfg.b));     /* copy over into ctx->X[] */
-#if SKEIN_NEED_SWAP
-        {
-            uint_t i;
-            for (i=0;i<SKEIN1024_STATE_WORDS;i++)   /* convert key bytes to context words */
-                ctx->X[i] = Skein_Swap64(ctx->X[i]);
-        }
-#endif
     }
     /* build/process the config block, type == CONFIG (could be precomputed for each key) */
     ctx->h.hashBitLen = hashBitLen;             /* output hash bit count */
