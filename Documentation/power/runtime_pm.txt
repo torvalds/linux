@@ -667,11 +667,11 @@ driver/base/power/generic_ops.c:
 
   int pm_generic_runtime_suspend(struct device *dev);
     - invoke the ->runtime_suspend() callback provided by the driver of this
-      device and return its result, or return -EINVAL if not defined
+      device and return its result, or return 0 if not defined
 
   int pm_generic_runtime_resume(struct device *dev);
     - invoke the ->runtime_resume() callback provided by the driver of this
-      device and return its result, or return -EINVAL if not defined
+      device and return its result, or return 0 if not defined
 
   int pm_generic_suspend(struct device *dev);
     - if the device has not been suspended at run time, invoke the ->suspend()
