@@ -297,6 +297,14 @@ static inline unsigned long kvm_dirty_bitmap_bytes(struct kvm_memory_slot *memsl
 	return ALIGN(memslot->npages, BITS_PER_LONG) / 8;
 }
 
+struct kvm_s390_adapter_int {
+	u64 ind_addr;
+	u64 summary_addr;
+	u64 ind_offset;
+	u32 summary_offset;
+	u32 adapter_id;
+};
+
 struct kvm_kernel_irq_routing_entry {
 	u32 gsi;
 	u32 type;
@@ -309,6 +317,7 @@ struct kvm_kernel_irq_routing_entry {
 			unsigned pin;
 		} irqchip;
 		struct msi_msg msi;
+		struct kvm_s390_adapter_int adapter;
 	};
 	struct hlist_node link;
 };
@@ -913,7 +922,11 @@ static inline int mmu_notifier_retry(struct kvm *kvm, unsigned long mmu_seq)
 
 #ifdef CONFIG_HAVE_KVM_IRQ_ROUTING
 
+#ifdef CONFIG_S390
+#define KVM_MAX_IRQ_ROUTES 4096 //FIXME: we can have more than that...
+#else
 #define KVM_MAX_IRQ_ROUTES 1024
+#endif
 
 int kvm_setup_default_irq_routing(struct kvm *kvm);
 int kvm_set_irq_routing(struct kvm *kvm,

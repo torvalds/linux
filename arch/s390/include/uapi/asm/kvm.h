@@ -22,6 +22,8 @@
 #define KVM_DEV_FLIC_CLEAR_IRQS		3
 #define KVM_DEV_FLIC_APF_ENABLE		4
 #define KVM_DEV_FLIC_APF_DISABLE_WAIT	5
+#define KVM_DEV_FLIC_ADAPTER_REGISTER	6
+#define KVM_DEV_FLIC_ADAPTER_MODIFY	7
 /*
  * We can have up to 4*64k pending subchannels + 8 adapter interrupts,
  * as well as up  to ASYNC_PF_PER_VCPU*KVM_MAX_VCPUS pfault done interrupts.
@@ -31,6 +33,26 @@
  */
 #define KVM_S390_MAX_FLOAT_IRQS	266250
 #define KVM_S390_FLIC_MAX_BUFFER	0x2000000
+
+struct kvm_s390_io_adapter {
+	__u32 id;
+	__u8 isc;
+	__u8 maskable;
+	__u8 swap;
+	__u8 pad;
+};
+
+#define KVM_S390_IO_ADAPTER_MASK 1
+#define KVM_S390_IO_ADAPTER_MAP 2
+#define KVM_S390_IO_ADAPTER_UNMAP 3
+
+struct kvm_s390_io_adapter_req {
+	__u32 id;
+	__u8 type;
+	__u8 mask;
+	__u16 pad0;
+	__u64 addr;
+};
 
 /* for KVM_GET_REGS and KVM_SET_REGS */
 struct kvm_regs {

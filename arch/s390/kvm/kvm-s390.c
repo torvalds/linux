@@ -159,6 +159,7 @@ int kvm_dev_ioctl_check_extension(long ext)
 	case KVM_CAP_S390_CSS_SUPPORT:
 	case KVM_CAP_IOEVENTFD:
 	case KVM_CAP_DEVICE_CTRL:
+	case KVM_CAP_ENABLE_CAP_VM:
 		r = 1;
 		break;
 	case KVM_CAP_NR_VCPUS:
@@ -187,6 +188,25 @@ int kvm_vm_ioctl_get_dirty_log(struct kvm *kvm,
 	return 0;
 }
 
+static int kvm_vm_ioctl_enable_cap(struct kvm *kvm, struct kvm_enable_cap *cap)
+{
+	int r;
+
+	if (cap->flags)
+		return -EINVAL;
+
+	switch (cap->cap) {
+	case KVM_CAP_S390_IRQCHIP:
+		kvm->arch.use_irqchip = 1;
+		r = 0;
+		break;
+	default:
+		r = -EINVAL;
+		break;
+	}
+	return r;
+}
+
 long kvm_arch_vm_ioctl(struct file *filp,
 		       unsigned int ioctl, unsigned long arg)
 {
@@ -202,6 +222,26 @@ long kvm_arch_vm_ioctl(struct file *filp,
 		if (copy_from_user(&s390int, argp, sizeof(s390int)))
 			break;
 		r = kvm_s390_inject_vm(kvm, &s390int);
+		break;
+	}
+	case KVM_ENABLE_CAP: {
+		struct kvm_enable_cap cap;
+		r = -EFAULT;
+		if (copy_from_user(&cap, argp, sizeof(cap)))
+			break;
+		r = kvm_vm_ioctl_enable_cap(kvm, &cap);
+		break;
+	}
+	case KVM_CREATE_IRQCHIP: {
+		struct kvm_irq_routing_entry routing;
+
+		r = -EINVAL;
+		if (kvm->arch.use_irqchip) {
+			/* Set up dummy routing. */
+			memset(&routing, 0, sizeof(routing));
+			kvm_set_irq_routing(kvm, &routing, 0, 0);
+			r = 0;
+		}
 		break;
 	}
 	default:
@@ -260,6 +300,7 @@ int kvm_arch_init_vm(struct kvm *kvm, unsigned long type)
 	}
 
 	kvm->arch.css_support = 0;
+	kvm->arch.use_irqchip = 0;
 
 	return 0;
 out_nogmap:
@@ -319,6 +360,7 @@ void kvm_arch_destroy_vm(struct kvm *kvm)
 	debug_unregister(kvm->arch.dbf);
 	if (!kvm_is_ucontrol(kvm))
 		gmap_free(kvm->arch.gmap);
+	kvm_s390_destroy_adapters(kvm);
 }
 
 /* Section: vcpu related */

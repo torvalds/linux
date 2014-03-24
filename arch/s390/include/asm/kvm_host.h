@@ -19,9 +19,18 @@
 #include <linux/kvm.h>
 #include <asm/debug.h>
 #include <asm/cpu.h>
+#include <asm/isc.h>
 
 #define KVM_MAX_VCPUS 64
 #define KVM_USER_MEM_SLOTS 32
+
+/*
+ * These seem to be used for allocating ->chip in the routing table,
+ * which we don't use. 4096 is an out-of-thin-air value. If we need
+ * to look at ->chip later on, we'll need to revisit this.
+ */
+#define KVM_NR_IRQCHIPS 1
+#define KVM_IRQCHIP_NUM_PINS 4096
 
 struct sca_entry {
 	atomic_t scn;
@@ -245,6 +254,27 @@ struct kvm_vm_stat {
 struct kvm_arch_memory_slot {
 };
 
+struct s390_map_info {
+	struct list_head list;
+	__u64 guest_addr;
+	__u64 addr;
+	struct page *page;
+};
+
+struct s390_io_adapter {
+	unsigned int id;
+	int isc;
+	bool maskable;
+	bool masked;
+	bool swap;
+	struct rw_semaphore maps_lock;
+	struct list_head maps;
+	atomic_t nr_maps;
+};
+
+#define MAX_S390_IO_ADAPTERS ((MAX_ISC + 1) * 8)
+#define MAX_S390_ADAPTER_MAPS 256
+
 struct kvm_arch{
 	struct sca_block *sca;
 	debug_info_t *dbf;
@@ -252,6 +282,8 @@ struct kvm_arch{
 	struct kvm_device *flic;
 	struct gmap *gmap;
 	int css_support;
+	int use_irqchip;
+	struct s390_io_adapter *adapters[MAX_S390_IO_ADAPTERS];
 };
 
 #define KVM_HVA_ERR_BAD		(-1UL)
