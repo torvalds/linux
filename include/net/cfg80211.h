@@ -3194,6 +3194,7 @@ struct cfg80211_cached_keys;
  * @ibss_dfs_possible: (private) IBSS may change to a DFS channel
  * @event_list: (private) list for internal event processing
  * @event_lock: (private) lock for event list
+ * @owner_nlportid: (private) owner socket port ID
  */
 struct wireless_dev {
 	struct wiphy *wiphy;
@@ -3240,6 +3241,8 @@ struct wireless_dev {
 	bool cac_started;
 	unsigned long cac_start_time;
 	unsigned int cac_time_ms;
+
+	u32 owner_nlportid;
 
 #ifdef CONFIG_CFG80211_WEXT
 	/* wext data */
