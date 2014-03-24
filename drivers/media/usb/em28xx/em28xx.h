@@ -509,6 +509,12 @@ struct em28xx_v4l2 {
 	struct video_device *vdev;
 	struct video_device *vbi_dev;
 	struct video_device *radio_dev;
+
+	/* Videobuf2 */
+	struct vb2_queue vb_vidq;
+	struct vb2_queue vb_vbiq;
+	struct mutex vb_queue_lock;
+	struct mutex vb_vbi_queue_lock;
 };
 
 struct em28xx_audio {
@@ -649,12 +655,6 @@ struct em28xx {
 	/* locks */
 	struct mutex lock;
 	struct mutex ctrl_urb_lock;	/* protects urb_buf */
-
-	/* Videobuf2 */
-	struct vb2_queue vb_vidq;
-	struct vb2_queue vb_vbiq;
-	struct mutex vb_queue_lock;
-	struct mutex vb_vbi_queue_lock;
 
 	/* resources in use */
 	unsigned int resources;

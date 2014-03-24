@@ -3016,8 +3016,6 @@ static int em28xx_init_dev(struct em28xx *dev, struct usb_device *udev,
 	const char *chip_name = default_chip_name;
 
 	dev->udev = udev;
-	mutex_init(&dev->vb_queue_lock);
-	mutex_init(&dev->vb_vbi_queue_lock);
 	mutex_init(&dev->ctrl_urb_lock);
 	spin_lock_init(&dev->slock);
 
