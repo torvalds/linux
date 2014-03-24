@@ -568,6 +568,10 @@ struct em28xx_audio {
 
 	int users;
 	spinlock_t slock;
+
+	/* Controls streaming */
+	struct work_struct wq_trigger;	/* trigger to start/stop audio */
+	atomic_t       stream_started;	/* stream should be running if true */
 };
 
 struct em28xx;
@@ -618,10 +622,6 @@ struct em28xx {
 	struct em28xx_board board;
 
 	enum em28xx_sensor em28xx_sensor;	/* camera specific */
-
-	/* Controls audio streaming */
-	struct work_struct wq_trigger;	/* Trigger to start/stop audio for alsa module */
-	atomic_t       stream_started;	/* stream should be running if true */
 
 	/* Some older em28xx chips needs a waiting time after writing */
 	unsigned int wait_after_write;
