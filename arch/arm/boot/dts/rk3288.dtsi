@@ -1044,6 +1044,18 @@
 			
 			status = "disabled";
 	};
+	
+	tsadc: tsadc@ff280000{
+			compatible = "rockchip,tsadc";
+			reg = <0xff280000 0x100>;
+			interrupts = <GIC_SPI 37 IRQ_TYPE_LEVEL_HIGH>;
+			#io-channel-cells = <1>;
+			io-channel-ranges;	
+			clock-frequency = <50000>;
+			clocks = <&clk_tsadc>, <&clk_gates7 2>;
+			clock-names = "tsadc", "pclk_tsadc";
+			status = "okay";
+	};
         
 
 };
