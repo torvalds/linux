@@ -96,13 +96,13 @@ static inline u32 *addr_gcr_##name(void)			\
 								\
 static inline u32 read_gcr_##name(void)				\
 {								\
-	return readl(addr_gcr_##name());			\
+	return __raw_readl(addr_gcr_##name());			\
 }
 
 #define BUILD_CM__W(name, off)					\
 static inline void write_gcr_##name(u32 value)			\
 {								\
-	writel(value, addr_gcr_##name());			\
+	__raw_writel(value, addr_gcr_##name());			\
 }
 
 #define BUILD_CM_RW(name, off)					\
