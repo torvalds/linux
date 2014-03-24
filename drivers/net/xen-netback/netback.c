@@ -1167,8 +1167,7 @@ static unsigned xenvif_tx_build_gops(struct xenvif *vif, int budget)
 	struct sk_buff *skb;
 	int ret;
 
-	while (xenvif_tx_pending_slots_available(vif) &&
-	       (skb_queue_len(&vif->tx_queue) < budget)) {
+	while (skb_queue_len(&vif->tx_queue) < budget) {
 		struct xen_netif_tx_request txreq;
 		struct xen_netif_tx_request txfrags[XEN_NETBK_LEGACY_SLOTS_MAX];
 		struct xen_netif_extra_info extras[XEN_NETIF_EXTRA_TYPE_MAX-1];
@@ -1508,13 +1507,6 @@ void xenvif_zerocopy_callback(struct ubuf_info *ubuf, bool zerocopy_success)
 	wake_up(&vif->dealloc_wq);
 	spin_unlock_irqrestore(&vif->callback_lock, flags);
 
-	if (RING_HAS_UNCONSUMED_REQUESTS(&vif->tx) &&
-	    xenvif_tx_pending_slots_available(vif)) {
-		local_bh_disable();
-		napi_schedule(&vif->napi);
-		local_bh_enable();
-	}
-
 	if (likely(zerocopy_success))
 		vif->tx_zerocopy_success++;
 	else
@@ -1706,8 +1698,7 @@ static inline int rx_work_todo(struct xenvif *vif)
 static inline int tx_work_todo(struct xenvif *vif)
 {
 
-	if (likely(RING_HAS_UNCONSUMED_REQUESTS(&vif->tx)) &&
-	    xenvif_tx_pending_slots_available(vif))
+	if (likely(RING_HAS_UNCONSUMED_REQUESTS(&vif->tx)))
 		return 1;
 
 	return 0;

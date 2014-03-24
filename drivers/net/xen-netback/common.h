@@ -81,7 +81,7 @@ struct xenvif_rx_meta {
 
 #define MAX_BUFFER_OFFSET PAGE_SIZE
 
-#define MAX_PENDING_REQS 256
+#define MAX_PENDING_REQS XEN_NETIF_TX_RING_SIZE
 
 /* It's possible for an skb to have a maximal number of frags
  * but still be less than MAX_BUFFER_OFFSET in size. Thus the
@@ -249,12 +249,6 @@ static inline pending_ring_idx_t nr_pending_reqs(struct xenvif *vif)
 {
 	return MAX_PENDING_REQS -
 		vif->pending_prod + vif->pending_cons;
-}
-
-static inline bool xenvif_tx_pending_slots_available(struct xenvif *vif)
-{
-	return nr_pending_reqs(vif) + XEN_NETBK_LEGACY_SLOTS_MAX
-		< MAX_PENDING_REQS;
 }
 
 /* Callback from stack when TX packet can be released */

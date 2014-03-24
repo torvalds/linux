@@ -88,8 +88,7 @@ static int xenvif_poll(struct napi_struct *napi, int budget)
 		local_irq_save(flags);
 
 		RING_FINAL_CHECK_FOR_REQUESTS(&vif->tx, more_to_do);
-		if (!(more_to_do &&
-		      xenvif_tx_pending_slots_available(vif)))
+		if (!more_to_do)
 			__napi_complete(napi);
 
 		local_irq_restore(flags);
