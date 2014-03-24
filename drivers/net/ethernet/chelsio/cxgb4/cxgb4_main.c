@@ -3220,8 +3220,8 @@ static int cxgb4_clip_get(const struct net_device *dev,
 	c.op_to_write = htonl(FW_CMD_OP(FW_CLIP_CMD) |
 			FW_CMD_REQUEST | FW_CMD_WRITE);
 	c.alloc_to_len16 = htonl(F_FW_CLIP_CMD_ALLOC | FW_LEN16(c));
-	*(__be64 *)&c.ip_hi = *(__be64 *)(lip->s6_addr);
-	*(__be64 *)&c.ip_lo = *(__be64 *)(lip->s6_addr + 8);
+	c.ip_hi = *(__be64 *)(lip->s6_addr);
+	c.ip_lo = *(__be64 *)(lip->s6_addr + 8);
 	return t4_wr_mbox_meat(adap, adap->mbox, &c, sizeof(c), &c, false);
 }
 
@@ -3236,8 +3236,8 @@ static int cxgb4_clip_release(const struct net_device *dev,
 	c.op_to_write = htonl(FW_CMD_OP(FW_CLIP_CMD) |
 			FW_CMD_REQUEST | FW_CMD_READ);
 	c.alloc_to_len16 = htonl(F_FW_CLIP_CMD_FREE | FW_LEN16(c));
-	*(__be64 *)&c.ip_hi = *(__be64 *)(lip->s6_addr);
-	*(__be64 *)&c.ip_lo = *(__be64 *)(lip->s6_addr + 8);
+	c.ip_hi = *(__be64 *)(lip->s6_addr);
+	c.ip_lo = *(__be64 *)(lip->s6_addr + 8);
 	return t4_wr_mbox_meat(adap, adap->mbox, &c, sizeof(c), &c, false);
 }
 
