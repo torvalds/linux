@@ -102,6 +102,12 @@ struct filename;
 
 extern void audit_log_session_info(struct audit_buffer *ab);
 
+#ifdef CONFIG_COMPAT
+#define audit_is_compat(arch)  (!((arch) & __AUDIT_ARCH_64BIT))
+#else
+#define audit_is_compat(arch)  false
+#endif
+
 #ifdef CONFIG_AUDITSYSCALL
 /* These are defined in auditsc.c */
 				/* Public API */

@@ -362,12 +362,6 @@ enum {
 #define AUDIT_ARCH_SPARC64	(EM_SPARCV9|__AUDIT_ARCH_64BIT)
 #define AUDIT_ARCH_X86_64	(EM_X86_64|__AUDIT_ARCH_64BIT|__AUDIT_ARCH_LE)
 
-#ifdef CONFIG_COMPAT
-#define audit_is_compat(arch)	(!((arch) & __AUDIT_ARCH_64BIT))
-#else
-#define audit_is_compat(arch)	false
-#endif
-
 #define AUDIT_PERM_EXEC		1
 #define AUDIT_PERM_WRITE	2
 #define AUDIT_PERM_READ		4
