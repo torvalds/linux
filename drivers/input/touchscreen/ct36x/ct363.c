@@ -53,12 +53,12 @@ static void ct363_deinit_hw(struct ct36x_data *ts)
 
 static void ct363_reset_hw(struct ct36x_data *ts)
 {
-	//gpio_direction_output(ts->rst_io.gpio, ts->rst_io.active_low);
-	//msleep(50);
+	gpio_direction_output(ts->rst_io.gpio, ts->rst_io.active_low);
+	msleep(50);
 	gpio_set_value(ts->rst_io.gpio, !ts->rst_io.active_low);
-	msleep(10);
+	msleep(50);
 	gpio_set_value(ts->rst_io.gpio, ts->rst_io.active_low);
-	msleep(230);
+	msleep(500);
 }
 
 static int ct363_init(struct ct36x_data *ts)
@@ -73,8 +73,6 @@ static int ct363_init(struct ct36x_data *ts)
 	 /* Hardware reset */
 	ct363_reset_hw(ts);
 	// Get binary Checksum
-
-	#if 1
 	binchksum = ct36x_chip_get_binchksum();
 	ct36x_dbg(ts, "CT363 init: binchksum = %d\n", binchksum);
 
@@ -109,12 +107,9 @@ static int ct363_init(struct ct36x_data *ts)
 	}
 
 	/* Hardware reset */
-	//ct363_reset_hw(ts);
-	gpio_set_value(ts->rst_io.gpio, !ts->rst_io.active_low);
-	msleep(10);
-	gpio_set_value(ts->rst_io.gpio, ts->rst_io.active_low);
+	ct363_reset_hw(ts);
 	msleep(5);
-	#endif
+
 	ts->point_num = CT363_POINT_NUM;
 	
 	ct363 = kzalloc(sizeof(struct ct363_priv), GFP_KERNEL);
@@ -209,7 +204,7 @@ static void ct363_report(struct ct36x_data *ts)
                    if( (ct363->x > ts->x_max) || (ct363->y > ts->y_max) || (ct363->x < 0) || (ct363->y < 0) ){
                           continue ;
                     }
-                   
+            ct363->y = ts->y_max - ct363->y;       
 			input_mt_slot(ts->input, ct363->pts[i].id - 1);
 			input_mt_report_slot_state(ts->input, MT_TOOL_FINGER, true);
 			input_report_abs(ts->input, ABS_MT_TOUCH_MAJOR, 1);

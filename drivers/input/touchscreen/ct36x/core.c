@@ -12,7 +12,7 @@ static unsigned char ct365_binary_data[] = {
 };
 
 static unsigned char ct363_binary_data[] = {
-#include "wgj97112tsm01_CT363_01_V01_EA50_140224.dat"
+#include  "lx--js77_97_CT365_V01_E7DA_130419.dat" //"wgj97112tsm01_CT363_01_V01_EA50_140224.dat"
 };
 
 
@@ -22,7 +22,7 @@ int ct36x_chip_set_idle(struct ct36x_data *ts)
 	char buf[2] = {0x00, 0xA5};
 
 	ret = ct36x_update_write(ts, 0x7F, buf, 2);
-	mdelay(5);
+	mdelay(10);
 
 	return ret;
 }
@@ -33,7 +33,7 @@ static int ct36x_chip_rst_offset(struct ct36x_data *ts)
 	char buf = 0x00;
 
 	ret =ct36x_update_write(ts, 0x7F, &buf, 1);
-	mdelay(5);
+	mdelay(10);
 
 	return ret;
 }
@@ -201,14 +201,14 @@ int ct36x_chip_get_fwchksum(struct ct36x_data *ts)
 	ret = ct36x_write(ts, buf, 3);
 	if(ret < 0)
 		return ret;
-	mdelay(5);
+	mdelay(20);
 
 	buf[0] = 0x00;
 	buf[1] = 0xE1;
 	ret = ct36x_write(ts, buf, 2);
 	if(ret < 0)
 		return ret;
-	mdelay(330);
+	mdelay(500);
 
 	buf[0] = 0xFF;
 	buf[1] = 0x8E;
@@ -216,7 +216,7 @@ int ct36x_chip_get_fwchksum(struct ct36x_data *ts)
 	ret = ct36x_write(ts, buf, 3);
 	if(ret < 0)
 		return ret;
-	mdelay(5);
+	mdelay(20);
 
 	ret = ct36x_chip_rst_offset(ts);
 	if(ret < 0){
@@ -228,7 +228,7 @@ int ct36x_chip_get_fwchksum(struct ct36x_data *ts)
 	if(ret < 0)
 		return ret;
 
-	mdelay(5);
+	mdelay(20);
 	fwchksum = ((buf[0]<<8) | buf[1]);
 
 	return fwchksum;
@@ -246,19 +246,19 @@ int ct36x_chip_get_ver(struct ct36x_data *ts)
 	ret = ct36x_write(ts, buf, 3);
 	if(ret < 0)
 		return ret;
-	mdelay(5);
+	mdelay(10);
 
 	buf[0] = 0x00;
 	ret = ct36x_write(ts, buf, 1);
 	if(ret < 0)
 		return ret;
-	mdelay(5);
+	mdelay(10);
 
 	// do read version
 	ret = ct36x_read(ts, &ver, 1);
 	if(ret < 0)
 		return ret;
-	mdelay(5);
+	mdelay(10);
 
 	return ver;
 }
