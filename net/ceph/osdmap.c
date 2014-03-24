@@ -1521,6 +1521,82 @@ static int *calc_pg_raw(struct ceph_osdmap *osdmap, struct ceph_pg pgid,
 }
 
 /*
+ * Calculate raw (crush) set for given pgid.
+ *
+ * Return raw set length, or error.
+ */
+static int pg_to_raw_osds(struct ceph_osdmap *osdmap,
+			  struct ceph_pg_pool_info *pool,
+			  struct ceph_pg pgid, u32 pps, int *osds)
+{
+	int ruleno;
+	int len;
+
+	/* crush */
+	ruleno = crush_find_rule(osdmap->crush, pool->crush_ruleset,
+				 pool->type, pool->size);
+	if (ruleno < 0) {
+		pr_err("no crush rule: pool %lld ruleset %d type %d size %d\n",
+		       pgid.pool, pool->crush_ruleset, pool->type,
+		       pool->size);
+		return -ENOENT;
+	}
+
+	len = do_crush(osdmap, ruleno, pps, osds,
+		       min_t(int, pool->size, CEPH_PG_MAX_SIZE),
+		       osdmap->osd_weight, osdmap->max_osd);
+	if (len < 0) {
+		pr_err("error %d from crush rule %d: pool %lld ruleset %d type %d size %d\n",
+		       len, ruleno, pgid.pool, pool->crush_ruleset,
+		       pool->type, pool->size);
+		return len;
+	}
+
+	return len;
+}
+
+/*
+ * Given raw set, calculate up set and up primary.
+ *
+ * Return up set length.  *primary is set to up primary osd id, or -1
+ * if up set is empty.
+ */
+static int raw_to_up_osds(struct ceph_osdmap *osdmap,
+			  struct ceph_pg_pool_info *pool,
+			  int *osds, int len, int *primary)
+{
+	int up_primary = -1;
+	int i;
+
+	if (ceph_can_shift_osds(pool)) {
+		int removed = 0;
+
+		for (i = 0; i < len; i++) {
+			if (ceph_osd_is_down(osdmap, osds[i])) {
+				removed++;
+				continue;
+			}
+			if (removed)
+				osds[i - removed] = osds[i];
+		}
+
+		len -= removed;
+		if (len > 0)
+			up_primary = osds[0];
+	} else {
+		for (i = len - 1; i >= 0; i--) {
+			if (ceph_osd_is_down(osdmap, osds[i]))
+				osds[i] = CRUSH_ITEM_NONE;
+			else
+				up_primary = osds[i];
+		}
+	}
+
+	*primary = up_primary;
+	return len;
+}
+
+/*
  * Return acting set for given pgid.
  */
 int ceph_calc_pg_acting(struct ceph_osdmap *osdmap, struct ceph_pg pgid,
