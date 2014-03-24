@@ -3975,25 +3975,30 @@ static void check_pending_le_conn(struct hci_dev *hdev, bdaddr_t *addr,
 	}
 }
 
+static void process_adv_report(struct hci_dev *hdev, u8 type, bdaddr_t *bdaddr,
+			       u8 bdaddr_type, s8 rssi, u8 *data, u8 len)
+{
+	if (type == LE_ADV_IND || type == LE_ADV_DIRECT_IND)
+		check_pending_le_conn(hdev, bdaddr, bdaddr_type);
+
+	mgmt_device_found(hdev, bdaddr, LE_LINK, bdaddr_type, NULL, rssi, 0, 1,
+			  data, len);
+}
+
 static void hci_le_adv_report_evt(struct hci_dev *hdev, struct sk_buff *skb)
 {
 	u8 num_reports = skb->data[0];
 	void *ptr = &skb->data[1];
-	s8 rssi;
 
 	hci_dev_lock(hdev);
 
 	while (num_reports--) {
 		struct hci_ev_le_advertising_info *ev = ptr;
-
-		if (ev->evt_type == LE_ADV_IND ||
-		    ev->evt_type == LE_ADV_DIRECT_IND)
-			check_pending_le_conn(hdev, &ev->bdaddr,
-					      ev->bdaddr_type);
+		s8 rssi;
 
 		rssi = ev->data[ev->length];
-		mgmt_device_found(hdev, &ev->bdaddr, LE_LINK, ev->bdaddr_type,
-				  NULL, rssi, 0, 1, ev->data, ev->length);
+		process_adv_report(hdev, ev->evt_type, &ev->bdaddr,
+				   ev->bdaddr_type, rssi, ev->data, ev->length);
 
 		ptr += sizeof(*ev) + ev->length + 1;
 	}
