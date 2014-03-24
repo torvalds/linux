@@ -870,7 +870,7 @@ Here is a schematic pseudo-code example:
 		foo->is_suspended = 0;
 		pm_runtime_mark_last_busy(&foo->dev);
 		if (foo->num_pending_requests > 0)
-			foo_process_requests(foo);
+			foo_process_next_request(foo);
 		unlock(&foo->private_lock);
 		return 0;
 	}
