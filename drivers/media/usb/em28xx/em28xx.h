@@ -633,7 +633,6 @@ struct em28xx {
 	struct em28xx_audio_mode audio_mode;
 
 	int tuner_type;		/* type of the tuner */
-	int tuner_addr;		/* tuner address */
 
 	/* i2c i/o */
 	struct i2c_adapter i2c_adap[NUM_I2C_BUSES];

@@ -2741,8 +2741,6 @@ static void em28xx_card_setup(struct em28xx *dev)
 		    dev->board.name, dev->model);
 
 	dev->tuner_type = em28xx_boards[dev->model].tuner_type;
-	if (em28xx_boards[dev->model].tuner_addr)
-		dev->tuner_addr = em28xx_boards[dev->model].tuner_addr;
 
 	/* request some modules */
 	switch (dev->model) {

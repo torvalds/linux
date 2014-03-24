@@ -2219,15 +2219,12 @@ static struct video_device *em28xx_vdev_init(struct em28xx *dev,
 	return vfd;
 }
 
-static void em28xx_tuner_setup(struct em28xx *dev)
+static void em28xx_tuner_setup(struct em28xx *dev, unsigned short tuner_addr)
 {
 	struct em28xx_v4l2      *v4l2 = dev->v4l2;
 	struct v4l2_device      *v4l2_dev = &v4l2->v4l2_dev;
 	struct tuner_setup      tun_setup;
 	struct v4l2_frequency   f;
-
-	if (dev->tuner_type == TUNER_ABSENT)
-		return;
 
 	memset(&tun_setup, 0, sizeof(tun_setup));
 
@@ -2244,7 +2241,7 @@ static void em28xx_tuner_setup(struct em28xx *dev)
 
 	if ((dev->tuner_type != TUNER_ABSENT) && (dev->tuner_type)) {
 		tun_setup.type   = dev->tuner_type;
-		tun_setup.addr   = dev->tuner_addr;
+		tun_setup.addr   = tuner_addr;
 
 		v4l2_device_call_all(v4l2_dev,
 				     0, tuner, s_type_addr, &tun_setup);
@@ -2360,6 +2357,7 @@ static int em28xx_v4l2_init(struct em28xx *dev)
 	/* Initialize tuner and camera */
 
 	if (dev->board.tuner_type != TUNER_ABSENT) {
+		unsigned short tuner_addr = dev->board.tuner_addr;
 		int has_demod = (dev->board.tda9887_conf & TDA9887_PRESENT);
 
 		if (dev->board.radio.type)
@@ -2371,7 +2369,7 @@ static int em28xx_v4l2_init(struct em28xx *dev)
 			v4l2_i2c_new_subdev(&v4l2->v4l2_dev,
 				&dev->i2c_adap[dev->def_i2c_bus], "tuner",
 				0, v4l2_i2c_tuner_addrs(ADDRS_DEMOD));
-		if (dev->tuner_addr == 0) {
+		if (tuner_addr == 0) {
 			enum v4l2_i2c_tuner_type type =
 				has_demod ? ADDRS_TV_WITH_DEMOD : ADDRS_TV;
 			struct v4l2_subdev *sd;
@@ -2381,15 +2379,16 @@ static int em28xx_v4l2_init(struct em28xx *dev)
 				0, v4l2_i2c_tuner_addrs(type));
 
 			if (sd)
-				dev->tuner_addr = v4l2_i2c_subdev_addr(sd);
+				tuner_addr = v4l2_i2c_subdev_addr(sd);
 		} else {
 			v4l2_i2c_new_subdev(&v4l2->v4l2_dev,
 					    &dev->i2c_adap[dev->def_i2c_bus],
-					    "tuner", dev->tuner_addr, NULL);
+					    "tuner", tuner_addr, NULL);
 		}
+
+		em28xx_tuner_setup(dev, tuner_addr);
 	}
 
-	em28xx_tuner_setup(dev);
 	if (dev->em28xx_sensor != EM28XX_NOSENSOR)
 		em28xx_init_camera(dev);
 
