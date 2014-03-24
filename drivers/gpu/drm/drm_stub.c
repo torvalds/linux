@@ -108,11 +108,7 @@ void drm_ut_debug_printk(const char *prefix,
 	vaf.fmt = format;
 	vaf.va = &args;
 
-	if (function_name)
-		printk(KERN_DEBUG "[%s:%s], %pV", prefix,
-		       function_name, &vaf);
-	else
-		printk(KERN_DEBUG "%pV", &vaf);
+	printk(KERN_DEBUG "[%s:%s], %pV", prefix, function_name, &vaf);
 
 	va_end(args);
 }
