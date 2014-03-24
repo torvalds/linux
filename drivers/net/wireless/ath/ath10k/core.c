@@ -255,7 +255,8 @@ static int ath10k_download_and_run_otp(struct ath10k *ar)
 	/* OTP is optional */
 
 	if (!ar->otp_data || !ar->otp_len) {
-		ath10k_warn("Not running otp, calibration will be incorrect!\n");
+		ath10k_warn("Not running otp, calibration will be incorrect (otp-data %p otp_len %zd)!\n",
+			    ar->otp_data, ar->otp_len);
 		return 0;
 	}
 
@@ -585,16 +586,22 @@ static int ath10k_init_download_firmware(struct ath10k *ar)
 	int ret;
 
 	ret = ath10k_download_board_data(ar);
-	if (ret)
+	if (ret) {
+		ath10k_err("failed to download board data: %d\n", ret);
 		return ret;
+	}
 
 	ret = ath10k_download_and_run_otp(ar);
-	if (ret)
+	if (ret) {
+		ath10k_err("failed to run otp: %d\n", ret);
 		return ret;
+	}
 
 	ret = ath10k_download_fw(ar);
-	if (ret)
+	if (ret) {
+		ath10k_err("failed to download firmware: %d\n", ret);
 		return ret;
+	}
 
 	return ret;
 }
