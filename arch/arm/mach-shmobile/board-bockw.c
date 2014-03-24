@@ -429,14 +429,12 @@ static struct asoc_simple_card_info rsnd_card_info[] = {
 		.card		= "SSI56-AK4643",
 		.codec		= "ak4642-codec.0-0012",
 		.platform	= "rcar_sound",
-		.daifmt		= SND_SOC_DAIFMT_LEFT_J,
+		.daifmt		= SND_SOC_DAIFMT_LEFT_J | SND_SOC_DAIFMT_CBM_CFM,
 		.cpu_dai = {
 			.name	= "rsnd-dai.0",
-			.fmt	= SND_SOC_DAIFMT_CBS_CFS,
 		},
 		.codec_dai = {
 			.name	= "ak4642-hifi",
-			.fmt	= SND_SOC_DAIFMT_CBM_CFM,
 			.sysclk	= 11289600,
 		},
 	},
@@ -446,10 +444,9 @@ static struct asoc_simple_card_info rsnd_card_info[] = {
 		.card		= "SSI3-AK4554(playback)",
 		.codec		= "ak4554-adc-dac.0",
 		.platform	= "rcar_sound",
+		.daifmt		= SND_SOC_DAIFMT_CBS_CFS | SND_SOC_DAIFMT_RIGHT_J,
 		.cpu_dai = {
 			.name	= "rsnd-dai.1",
-			.fmt	= SND_SOC_DAIFMT_CBM_CFM |
-				  SND_SOC_DAIFMT_RIGHT_J,
 		},
 		.codec_dai = {
 			.name	= "ak4554-hifi",
@@ -461,10 +458,9 @@ static struct asoc_simple_card_info rsnd_card_info[] = {
 		.card		= "SSI4-AK4554(capture)",
 		.codec		= "ak4554-adc-dac.0",
 		.platform	= "rcar_sound",
+		.daifmt		= SND_SOC_DAIFMT_CBS_CFS | SND_SOC_DAIFMT_LEFT_J,
 		.cpu_dai = {
 			.name	= "rsnd-dai.2",
-			.fmt	= SND_SOC_DAIFMT_CBM_CFM |
-				  SND_SOC_DAIFMT_LEFT_J,
 		},
 		.codec_dai = {
 			.name	= "ak4554-hifi",
@@ -476,10 +472,9 @@ static struct asoc_simple_card_info rsnd_card_info[] = {
 		.card		= "SSI7-AK4554(playback)",
 		.codec		= "ak4554-adc-dac.1",
 		.platform	= "rcar_sound",
+		.daifmt		= SND_SOC_DAIFMT_CBS_CFS | SND_SOC_DAIFMT_RIGHT_J,
 		.cpu_dai = {
 			.name	= "rsnd-dai.3",
-			.fmt	= SND_SOC_DAIFMT_CBM_CFM |
-				  SND_SOC_DAIFMT_RIGHT_J,
 		},
 		.codec_dai = {
 			.name	= "ak4554-hifi",
@@ -491,10 +486,9 @@ static struct asoc_simple_card_info rsnd_card_info[] = {
 		.card		= "SSI8-AK4554(capture)",
 		.codec		= "ak4554-adc-dac.1",
 		.platform	= "rcar_sound",
+		.daifmt		= SND_SOC_DAIFMT_CBS_CFS | SND_SOC_DAIFMT_LEFT_J,
 		.cpu_dai = {
 			.name	= "rsnd-dai.4",
-			.fmt	= SND_SOC_DAIFMT_CBM_CFM |
-				  SND_SOC_DAIFMT_LEFT_J,
 		},
 		.codec_dai = {
 			.name	= "ak4554-hifi",
