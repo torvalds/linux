@@ -87,7 +87,7 @@ int exynos_plane_mode_set(struct drm_plane *plane, struct drm_crtc *crtc,
 		struct exynos_drm_gem_buf *buffer = exynos_drm_fb_buffer(fb, i);
 
 		if (!buffer) {
-			DRM_LOG_KMS("buffer is null\n");
+			DRM_DEBUG_KMS("buffer is null\n");
 			return -EFAULT;
 		}
 
