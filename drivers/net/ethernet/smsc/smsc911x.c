@@ -2380,8 +2380,6 @@ static int smsc911x_drv_probe(struct platform_device *pdev)
 	int res_size, irq_flags;
 	int retval;
 
-	pr_info("Driver version %s\n", SMSC_DRV_VERSION);
-
 	res = platform_get_resource_byname(pdev, IORESOURCE_MEM,
 					   "smsc911x-memory");
 	if (!res)
