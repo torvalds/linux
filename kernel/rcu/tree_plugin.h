@@ -116,7 +116,7 @@ static void __init rcu_bootup_announce_oddness(void)
 #ifdef CONFIG_TREE_PREEMPT_RCU
 
 RCU_STATE_INITIALIZER(rcu_preempt, 'p', call_rcu);
-static struct rcu_state *rcu_state = &rcu_preempt_state;
+static struct rcu_state *rcu_state_p = &rcu_preempt_state;
 
 static int rcu_preempted_readers_exp(struct rcu_node *rnp);
 
@@ -947,7 +947,7 @@ void exit_rcu(void)
 
 #else /* #ifdef CONFIG_TREE_PREEMPT_RCU */
 
-static struct rcu_state *rcu_state = &rcu_sched_state;
+static struct rcu_state *rcu_state_p = &rcu_sched_state;
 
 /*
  * Tell them what RCU they are running.
@@ -1468,11 +1468,11 @@ static int __init rcu_spawn_kthreads(void)
 	for_each_possible_cpu(cpu)
 		per_cpu(rcu_cpu_has_work, cpu) = 0;
 	BUG_ON(smpboot_register_percpu_thread(&rcu_cpu_thread_spec));
-	rnp = rcu_get_root(rcu_state);
-	(void)rcu_spawn_one_boost_kthread(rcu_state, rnp);
+	rnp = rcu_get_root(rcu_state_p);
+	(void)rcu_spawn_one_boost_kthread(rcu_state_p, rnp);
 	if (NUM_RCU_NODES > 1) {
-		rcu_for_each_leaf_node(rcu_state, rnp)
-			(void)rcu_spawn_one_boost_kthread(rcu_state, rnp);
+		rcu_for_each_leaf_node(rcu_state_p, rnp)
+			(void)rcu_spawn_one_boost_kthread(rcu_state_p, rnp);
 	}
 	return 0;
 }
@@ -1480,12 +1480,12 @@ early_initcall(rcu_spawn_kthreads);
 
 static void rcu_prepare_kthreads(int cpu)
 {
-	struct rcu_data *rdp = per_cpu_ptr(rcu_state->rda, cpu);
+	struct rcu_data *rdp = per_cpu_ptr(rcu_state_p->rda, cpu);
 	struct rcu_node *rnp = rdp->mynode;
 
 	/* Fire up the incoming CPU's kthread and leaf rcu_node kthread. */
 	if (rcu_scheduler_fully_active)
-		(void)rcu_spawn_one_boost_kthread(rcu_state, rnp);
+		(void)rcu_spawn_one_boost_kthread(rcu_state_p, rnp);
 }
 
 #else /* #ifdef CONFIG_RCU_BOOST */

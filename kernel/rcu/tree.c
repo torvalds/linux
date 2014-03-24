@@ -101,7 +101,7 @@ DEFINE_PER_CPU(struct rcu_data, sname##_data)
 RCU_STATE_INITIALIZER(rcu_sched, 's', call_rcu_sched);
 RCU_STATE_INITIALIZER(rcu_bh, 'b', call_rcu_bh);
 
-static struct rcu_state *rcu_state;
+static struct rcu_state *rcu_state_p;
 LIST_HEAD(rcu_struct_flavors);
 
 /* Increase (but not decrease) the CONFIG_RCU_FANOUT_LEAF at boot time. */
@@ -275,7 +275,7 @@ EXPORT_SYMBOL_GPL(rcu_batches_completed_bh);
  */
 void rcu_force_quiescent_state(void)
 {
-	force_quiescent_state(rcu_state);
+	force_quiescent_state(rcu_state_p);
 }
 EXPORT_SYMBOL_GPL(rcu_force_quiescent_state);
 
@@ -327,7 +327,7 @@ void rcutorture_get_gp_data(enum rcutorture_type test_type, int *flags,
 
 	switch (test_type) {
 	case RCU_FLAVOR:
-		rsp = rcu_state;
+		rsp = rcu_state_p;
 		break;
 	case RCU_BH_FLAVOR:
 		rsp = &rcu_bh_state;
@@ -910,7 +910,7 @@ static int rcu_implicit_dynticks_qs(struct rcu_data *rdp,
 	 * we will beat on the first one until it gets unstuck, then move
 	 * to the next.  Only do this for the primary flavor of RCU.
 	 */
-	if (rdp->rsp == rcu_state &&
+	if (rdp->rsp == rcu_state_p &&
 	    ULONG_CMP_GE(jiffies, rdp->rsp->jiffies_resched)) {
 		rdp->rsp->jiffies_resched += 5;
 		resched_cpu(rdp->cpu);
@@ -2660,7 +2660,7 @@ EXPORT_SYMBOL_GPL(call_rcu_bh);
 void kfree_call_rcu(struct rcu_head *head,
 		    void (*func)(struct rcu_head *rcu))
 {
-	__call_rcu(head, func, rcu_state, -1, 1);
+	__call_rcu(head, func, rcu_state_p, -1, 1);
 }
 EXPORT_SYMBOL_GPL(kfree_call_rcu);
 
@@ -2787,7 +2787,7 @@ unsigned long get_state_synchronize_rcu(void)
 	 * time-consuming work between get_state_synchronize_rcu()
 	 * and cond_synchronize_rcu().
 	 */
-	return smp_load_acquire(&rcu_state->gpnum);
+	return smp_load_acquire(&rcu_state_p->gpnum);
 }
 EXPORT_SYMBOL_GPL(get_state_synchronize_rcu);
 
@@ -2813,7 +2813,7 @@ void cond_synchronize_rcu(unsigned long oldstate)
 	 * Ensure that this load happens before any RCU-destructive
 	 * actions the caller might carry out after we return.
 	 */
-	newstate = smp_load_acquire(&rcu_state->completed);
+	newstate = smp_load_acquire(&rcu_state_p->completed);
 	if (ULONG_CMP_GE(oldstate, newstate))
 		synchronize_rcu();
 }
@@ -3354,7 +3354,7 @@ static int rcu_cpu_notify(struct notifier_block *self,
 				    unsigned long action, void *hcpu)
 {
 	long cpu = (long)hcpu;
-	struct rcu_data *rdp = per_cpu_ptr(rcu_state->rda, cpu);
+	struct rcu_data *rdp = per_cpu_ptr(rcu_state_p->rda, cpu);
 	struct rcu_node *rnp = rdp->mynode;
 	struct rcu_state *rsp;
 
