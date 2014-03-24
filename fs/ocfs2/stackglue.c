@@ -494,7 +494,7 @@ static ssize_t ocfs2_max_locking_protocol_show(struct kobject *kobj,
 }
 
 static struct kobj_attribute ocfs2_attr_max_locking_protocol =
-	__ATTR(max_locking_protocol, S_IFREG | S_IRUGO,
+	__ATTR(max_locking_protocol, S_IRUGO,
 	       ocfs2_max_locking_protocol_show, NULL);
 
 static ssize_t ocfs2_loaded_cluster_plugins_show(struct kobject *kobj,
@@ -526,7 +526,7 @@ static ssize_t ocfs2_loaded_cluster_plugins_show(struct kobject *kobj,
 }
 
 static struct kobj_attribute ocfs2_attr_loaded_cluster_plugins =
-	__ATTR(loaded_cluster_plugins, S_IFREG | S_IRUGO,
+	__ATTR(loaded_cluster_plugins, S_IRUGO,
 	       ocfs2_loaded_cluster_plugins_show, NULL);
 
 static ssize_t ocfs2_active_cluster_plugin_show(struct kobject *kobj,
@@ -548,7 +548,7 @@ static ssize_t ocfs2_active_cluster_plugin_show(struct kobject *kobj,
 }
 
 static struct kobj_attribute ocfs2_attr_active_cluster_plugin =
-	__ATTR(active_cluster_plugin, S_IFREG | S_IRUGO,
+	__ATTR(active_cluster_plugin, S_IRUGO,
 	       ocfs2_active_cluster_plugin_show, NULL);
 
 static ssize_t ocfs2_cluster_stack_show(struct kobject *kobj,
@@ -597,7 +597,7 @@ static ssize_t ocfs2_cluster_stack_store(struct kobject *kobj,
 
 
 static struct kobj_attribute ocfs2_attr_cluster_stack =
-	__ATTR(cluster_stack, S_IFREG | S_IRUGO | S_IWUSR,
+	__ATTR(cluster_stack, S_IRUGO | S_IWUSR,
 	       ocfs2_cluster_stack_show,
 	       ocfs2_cluster_stack_store);
 
