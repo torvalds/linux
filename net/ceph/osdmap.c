@@ -1649,24 +1649,49 @@ static int apply_temps(struct ceph_osdmap *osdmap,
 }
 
 /*
- * Return acting set for given pgid.
+ * Calculate acting set for given pgid.
+ *
+ * Return acting set length, or error.
  */
 int ceph_calc_pg_acting(struct ceph_osdmap *osdmap, struct ceph_pg pgid,
-			int *acting)
+			int *osds)
 {
-	int rawosds[CEPH_PG_MAX_SIZE], *osds;
-	int i, o, num = CEPH_PG_MAX_SIZE;
+	struct ceph_pg_pool_info *pool;
+	u32 pps;
+	int len;
+	int primary;
 
-	osds = calc_pg_raw(osdmap, pgid, rawosds, &num);
-	if (!osds)
-		return -1;
+	pool = __lookup_pg_pool(&osdmap->pg_pools, pgid.pool);
+	if (!pool)
+		return 0;
 
-	/* primary is first up osd */
-	o = 0;
-	for (i = 0; i < num; i++)
-		if (ceph_osd_is_up(osdmap, osds[i]))
-			acting[o++] = osds[i];
-	return o;
+	if (pool->flags & CEPH_POOL_FLAG_HASHPSPOOL) {
+		/* hash pool id and seed so that pool PGs do not overlap */
+		pps = crush_hash32_2(CRUSH_HASH_RJENKINS1,
+				     ceph_stable_mod(pgid.seed, pool->pgp_num,
+						     pool->pgp_num_mask),
+				     pgid.pool);
+	} else {
+		/*
+		 * legacy behavior: add ps and pool together.  this is
+		 * not a great approach because the PGs from each pool
+		 * will overlap on top of each other: 0.5 == 1.4 ==
+		 * 2.3 == ...
+		 */
+		pps = ceph_stable_mod(pgid.seed, pool->pgp_num,
+				      pool->pgp_num_mask) +
+			(unsigned)pgid.pool;
+	}
+
+	len = pg_to_raw_osds(osdmap, pool, pgid, pps, osds);
+	if (len < 0)
+		return len;
+
+	len = raw_to_up_osds(osdmap, pool, osds, len, &primary);
+
+	len = apply_temps(osdmap, pool, pgid, osds, len, &primary);
+
+	return len;
 }
 
 /*
