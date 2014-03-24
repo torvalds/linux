@@ -1001,6 +1001,8 @@ struct ext4_inode_info {
 #define EXT4_MOUNT2_STD_GROUP_SIZE	0x00000002 /* We have standard group
 						      size of blocksize * 8
 						      blocks */
+#define EXT4_MOUNT2_HURD_COMPAT		0x00000004 /* Support HURD-castrated
+						      file systems */
 
 #define clear_opt(sb, opt)		EXT4_SB(sb)->s_mount_opt &= \
 						~EXT4_MOUNT_##opt
