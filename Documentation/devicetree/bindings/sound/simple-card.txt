@@ -43,6 +43,12 @@ Optional CPU/CODEC subnodes properties:
 					  clock node (= common clock), or "system-clock-frequency"
 					  (if system doens't support common clock)
 
+Note:
+ * For 'format', 'frame-master', 'bitclock-master', 'bitclock-inversion' and
+   'frame-inversion', the simple card will use the settings of CODEC for both
+   CPU and CODEC sides as we need to keep the settings identical for both ends
+   of the link.
+
 Example:
 
 sound {

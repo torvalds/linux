@@ -1,0 +1,96 @@
+Renesas R-Car sound
+
+Required properties:
+- compatible			: "renesas,rcar_sound-gen1" if generation1
+				  "renesas,rcar_sound-gen2" if generation2
+- reg				: Should contain the register physical address.
+				  required register is
+				   SRU/ADG/SSI      if generation1
+				   SRU/ADG/SSIU/SSI if generation2
+- rcar_sound,ssi		: SSI subnode
+- rcar_sound,scu		: SCU subnode
+- rcar_sound,dai		: DAI subnode
+
+SSI subnode properties:
+- interrupts			: Should contain SSI interrupt for PIO transfer
+- shared-pin			: if shared clock pin
+
+DAI subnode properties:
+- playback			: list of playback modules
+- capture			: list of capture  modules
+
+Example:
+
+rcar_sound: rcar_sound@0xffd90000 {
+	#sound-dai-cells = <1>;
+	compatible = "renesas,rcar_sound-gen2";
+	reg =	<0 0xec500000 0 0x1000>, /* SCU */
+		<0 0xec5a0000 0 0x100>,  /* ADG */
+		<0 0xec540000 0 0x1000>, /* SSIU */
+		<0 0xec541000 0 0x1280>; /* SSI */
+
+	rcar_sound,src {
+		src0: src@0 { };
+		src1: src@1 { };
+		src2: src@2 { };
+		src3: src@3 { };
+		src4: src@4 { };
+		src5: src@5 { };
+		src6: src@6 { };
+		src7: src@7 { };
+		src8: src@8 { };
+		src9: src@9 { };
+	};
+
+	rcar_sound,ssi {
+		ssi0: ssi@0 {
+			interrupts = <0 370 IRQ_TYPE_LEVEL_HIGH>;
+		};
+		ssi1: ssi@1 {
+			interrupts = <0 371 IRQ_TYPE_LEVEL_HIGH>;
+		};
+		ssi2: ssi@2 {
+			interrupts = <0 372 IRQ_TYPE_LEVEL_HIGH>;
+		};
+		ssi3: ssi@3 {
+			interrupts = <0 373 IRQ_TYPE_LEVEL_HIGH>;
+		};
+		ssi4: ssi@4 {
+			interrupts = <0 374 IRQ_TYPE_LEVEL_HIGH>;
+		};
+		ssi5: ssi@5 {
+			interrupts = <0 375 IRQ_TYPE_LEVEL_HIGH>;
+		};
+		ssi6: ssi@6 {
+			interrupts = <0 376 IRQ_TYPE_LEVEL_HIGH>;
+		};
+		ssi7: ssi@7 {
+			interrupts = <0 377 IRQ_TYPE_LEVEL_HIGH>;
+		};
+		ssi8: ssi@8 {
+			interrupts = <0 378 IRQ_TYPE_LEVEL_HIGH>;
+		};
+		ssi9: ssi@9 {
+			interrupts = <0 379 IRQ_TYPE_LEVEL_HIGH>;
+		};
+	};
+
+	rcar_sound,dai {
+		dai0 {
+			playback = <&ssi5 &src5>;
+			capture  = <&ssi6>;
+		};
+		dai1 {
+			playback = <&ssi3>;
+		};
+		dai2 {
+			capture  = <&ssi4>;
+		};
+		dai3 {
+			playback = <&ssi7>;
+		};
+		dai4 {
+			capture  = <&ssi8>;
+		};
+	};
+};

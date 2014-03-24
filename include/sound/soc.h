@@ -1107,6 +1107,19 @@ struct soc_enum {
 	const unsigned int *values;
 };
 
+/**
+ * snd_soc_component_to_codec() - Casts a component to the CODEC it is embedded in
+ * @component: The component to cast to a CODEC
+ *
+ * This function must only be used on components that are known to be CODECs.
+ * Otherwise the behavior is undefined.
+ */
+static inline struct snd_soc_codec *snd_soc_component_to_codec(
+	struct snd_soc_component *component)
+{
+	return container_of(component, struct snd_soc_codec, component);
+}
+
 /* codec IO */
 unsigned int snd_soc_read(struct snd_soc_codec *codec, unsigned int reg);
 unsigned int snd_soc_write(struct snd_soc_codec *codec,

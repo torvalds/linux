@@ -67,6 +67,20 @@ static struct snd_soc_dai_link a370db_dai[] = {
 	.dai_fmt = SND_SOC_DAIFMT_I2S | SND_SOC_DAIFMT_CBS_CFS,
 	.ops = &a370db_ops,
 },
+{
+	.name = "S/PDIF out",
+	.stream_name = "spdif-out",
+	.cpu_dai_name = "spdif",
+	.codec_dai_name = "dit-hifi",
+	.dai_fmt = SND_SOC_DAIFMT_I2S | SND_SOC_DAIFMT_CBS_CFS,
+},
+{
+	.name = "S/PDIF in",
+	.stream_name = "spdif-in",
+	.cpu_dai_name = "spdif",
+	.codec_dai_name = "dir-hifi",
+	.dai_fmt = SND_SOC_DAIFMT_I2S | SND_SOC_DAIFMT_CBS_CFS,
+},
 };
 
 static struct snd_soc_card a370db = {
@@ -94,6 +108,20 @@ static int a370db_probe(struct platform_device *pdev)
 	a370db_dai[0].codec_of_node =
 		of_parse_phandle(pdev->dev.of_node,
 				 "marvell,audio-codec", 0);
+
+	a370db_dai[1].cpu_of_node = a370db_dai[0].cpu_of_node;
+	a370db_dai[1].platform_of_node = a370db_dai[0].cpu_of_node;
+
+	a370db_dai[1].codec_of_node =
+		of_parse_phandle(pdev->dev.of_node,
+				 "marvell,audio-codec", 1);
+
+	a370db_dai[2].cpu_of_node = a370db_dai[0].cpu_of_node;
+	a370db_dai[2].platform_of_node = a370db_dai[0].cpu_of_node;
+
+	a370db_dai[2].codec_of_node =
+		of_parse_phandle(pdev->dev.of_node,
+				 "marvell,audio-codec", 2);
 
 	return devm_snd_soc_register_card(card->dev, card);
 }
