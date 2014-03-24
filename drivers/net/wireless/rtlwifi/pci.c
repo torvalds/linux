@@ -1509,10 +1509,10 @@ static int rtl_pci_tx(struct ieee80211_hw *hw,
 
 	if (rtlpriv->use_new_trx_flow) {
 		rtlpriv->cfg->ops->set_desc(hw, (u8 *)pdesc, true,
-					    HW_DESC_OWN, (u8 *)&hw_queue);
+					    HW_DESC_OWN, &hw_queue);
 	} else {
 		rtlpriv->cfg->ops->set_desc(hw, (u8 *)pdesc, true,
-					    HW_DESC_OWN, (u8 *)&temp_one);
+					    HW_DESC_OWN, &temp_one);
 	}
 
 	if ((ring->entries - skb_queue_len(&ring->queue)) < 2 &&
