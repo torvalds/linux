@@ -930,9 +930,9 @@ int smp_conn_security(struct hci_conn *hcon, __u8 sec_level)
 		smp_send_cmd(conn, SMP_CMD_SECURITY_REQ, sizeof(cp), &cp);
 	}
 
-done:
 	set_bit(SMP_FLAG_INITIATOR, &smp->smp_flags);
 
+done:
 	hcon->pending_sec_level = sec_level;
 
 	return 0;
