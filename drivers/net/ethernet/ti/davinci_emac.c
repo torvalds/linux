@@ -1533,8 +1533,8 @@ static int emac_dev_open(struct net_device *ndev)
 	u32 cnt;
 	struct resource *res;
 	int q, m, ret;
+	int res_num = 0, irq_num = 0;
 	int i = 0;
-	int k = 0;
 	struct emac_priv *priv = netdev_priv(ndev);
 
 	pm_runtime_get(&priv->pdev->dev);
@@ -1564,14 +1564,24 @@ static int emac_dev_open(struct net_device *ndev)
 	}
 
 	/* Request IRQ */
+	while ((res = platform_get_resource(priv->pdev, IORESOURCE_IRQ,
+					    res_num))) {
+		for (irq_num = res->start; irq_num <= res->end; irq_num++) {
+			dev_err(emac_dev, "Request IRQ %d\n", irq_num);
+			if (request_irq(irq_num, emac_irq, 0, ndev->name,
+					ndev)) {
+				dev_err(emac_dev,
+					"DaVinci EMAC: request_irq() failed\n");
+				ret = -EBUSY;
 
-	while ((res = platform_get_resource(priv->pdev, IORESOURCE_IRQ, k))) {
-		for (i = res->start; i <= res->end; i++) {
-			if (request_irq(i, emac_irq, 0, ndev->name, ndev))
 				goto rollback;
+			}
 		}
-		k++;
+		res_num++;
 	}
+	/* prepare counters for rollback in case of an error */
+	res_num--;
+	irq_num--;
 
 	/* Start/Enable EMAC hardware */
 	emac_hw_enable(priv);
@@ -1638,19 +1648,23 @@ static int emac_dev_open(struct net_device *ndev)
 
 	return 0;
 
-rollback:
-
-	dev_err(emac_dev, "DaVinci EMAC: request_irq() failed");
-
-	for (q = k; k >= 0; k--) {
-		for (m = i; m >= res->start; m--)
-			free_irq(m, ndev);
-		res = platform_get_resource(priv->pdev, IORESOURCE_IRQ, k-1);
-		m = res->end;
-	}
-
-	ret = -EBUSY;
 err:
+	emac_int_disable(priv);
+	napi_disable(&priv->napi);
+
+rollback:
+	for (q = res_num; q >= 0; q--) {
+		res = platform_get_resource(priv->pdev, IORESOURCE_IRQ, q);
+		/* at the first iteration, irq_num is already set to the
+		 * right value
+		 */
+		if (q != res_num)
+			irq_num = res->end;
+
+		for (m = irq_num; m >= res->start; m--)
+			free_irq(m, ndev);
+	}
+	cpdma_ctlr_stop(priv->dma);
 	pm_runtime_put(&priv->pdev->dev);
 	return ret;
 }
