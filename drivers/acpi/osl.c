@@ -1539,6 +1539,22 @@ static int __init osi_setup(char *str)
 
 __setup("acpi_osi=", osi_setup);
 
+/*
+ * Enable the auto-serialization of named objects creation methods.
+ *
+ * This feature is disabled by default.  It marks the AML control methods
+ * that contain the opcodes to create named objects as "Serialized".
+ */
+static int __init acpi_auto_serialize_setup(char *str)
+{
+	acpi_gbl_auto_serialize_methods = TRUE;
+	pr_info("ACPI: auto-serialization enabled\n");
+
+	return 1;
+}
+
+__setup("acpi_auto_serialize", acpi_auto_serialize_setup);
+
 /* Check of resource interference between native drivers and ACPI
  * OperationRegions (SystemIO and System Memory only).
  * IO ports and memory declared in ACPI might be used by the ACPI subsystem
