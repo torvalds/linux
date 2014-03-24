@@ -838,6 +838,8 @@ unsigned long __gmap_fault(unsigned long address, struct gmap *);
 unsigned long gmap_fault(unsigned long address, struct gmap *);
 void gmap_discard(unsigned long from, unsigned long to, struct gmap *);
 void __gmap_zap(unsigned long address, struct gmap *);
+bool gmap_test_and_clear_dirty(unsigned long address, struct gmap *);
+
 
 void gmap_register_ipte_notifier(struct gmap_notifier *);
 void gmap_unregister_ipte_notifier(struct gmap_notifier *);

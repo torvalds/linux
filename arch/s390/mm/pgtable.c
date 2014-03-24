@@ -1401,6 +1401,27 @@ void s390_enable_skey(void)
 }
 EXPORT_SYMBOL_GPL(s390_enable_skey);
 
+/*
+ * Test and reset if a guest page is dirty
+ */
+bool gmap_test_and_clear_dirty(unsigned long address, struct gmap *gmap)
+{
+	pte_t *pte;
+	spinlock_t *ptl;
+	bool dirty = false;
+
+	pte = get_locked_pte(gmap->mm, address, &ptl);
+	if (unlikely(!pte))
+		return false;
+
+	if (ptep_test_and_clear_user_dirty(gmap->mm, address, pte))
+		dirty = true;
+
+	spin_unlock(ptl);
+	return dirty;
+}
+EXPORT_SYMBOL_GPL(gmap_test_and_clear_dirty);
+
 #ifdef CONFIG_TRANSPARENT_HUGEPAGE
 int pmdp_clear_flush_young(struct vm_area_struct *vma, unsigned long address,
 			   pmd_t *pmdp)
