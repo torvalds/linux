@@ -99,8 +99,8 @@ OTHER DEALINGS IN THE SOFTWARE.
      * structures as well.
      */
     typedef struct SkeinCtx {
-        u64b_t skeinSize;
-        u64b_t  XSave[SKEIN_MAX_STATE_WORDS];   /* save area for state variables */
+        u64 skeinSize;
+        u64  XSave[SKEIN_MAX_STATE_WORDS];   /* save area for state variables */
         union {
             Skein_Ctxt_Hdr_t h;
             Skein_256_Ctxt_t s256;

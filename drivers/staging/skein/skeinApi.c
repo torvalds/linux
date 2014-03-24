@@ -41,7 +41,7 @@ int skeinInit(SkeinCtx_t* ctx, size_t hashBitLen)
 {
     int ret = SKEIN_FAIL;
     size_t Xlen = 0;
-    u64b_t*  X = NULL;
+    u64*  X = NULL;
     uint64_t treeInfo = SKEIN_CFG_TREE_INFO_SEQUENTIAL;
 
     Skein_Assert(ctx, SKEIN_FAIL);
@@ -82,7 +82,7 @@ int skeinMacInit(SkeinCtx_t* ctx, const uint8_t *key, size_t keyLen,
                  size_t hashBitLen)
 {
     int ret = SKEIN_FAIL;
-    u64b_t*  X = NULL;
+    u64*  X = NULL;
     size_t Xlen = 0;
     uint64_t treeInfo = SKEIN_CFG_TREE_INFO_SEQUENTIAL;
 
@@ -97,18 +97,18 @@ int skeinMacInit(SkeinCtx_t* ctx, const uint8_t *key, size_t keyLen,
     case Skein256:
         ret = Skein_256_InitExt(&ctx->m.s256, hashBitLen,
                                 treeInfo,
-                                (const u08b_t*)key, keyLen);
+                                (const u8*)key, keyLen);
 
         break;
     case Skein512:
         ret = Skein_512_InitExt(&ctx->m.s512, hashBitLen,
                                 treeInfo,
-                                (const u08b_t*)key, keyLen);
+                                (const u8*)key, keyLen);
         break;
     case Skein1024:
         ret = Skein1024_InitExt(&ctx->m.s1024, hashBitLen,
                                 treeInfo,
-                                (const u08b_t*)key, keyLen);
+                                (const u8*)key, keyLen);
 
         break;
     }
@@ -122,7 +122,7 @@ int skeinMacInit(SkeinCtx_t* ctx, const uint8_t *key, size_t keyLen,
 void skeinReset(SkeinCtx_t* ctx)
 {
     size_t Xlen = 0;
-    u64b_t*  X = NULL;
+    u64*  X = NULL;
 
     /*
      * The following two lines rely of the fact that the real Skein contexts are
@@ -146,13 +146,13 @@ int skeinUpdate(SkeinCtx_t *ctx, const uint8_t *msg,
 
     switch (ctx->skeinSize) {
     case Skein256:
-        ret = Skein_256_Update(&ctx->m.s256, (const u08b_t*)msg, msgByteCnt);
+        ret = Skein_256_Update(&ctx->m.s256, (const u8*)msg, msgByteCnt);
         break;
     case Skein512:
-        ret = Skein_512_Update(&ctx->m.s512, (const u08b_t*)msg, msgByteCnt);
+        ret = Skein_512_Update(&ctx->m.s512, (const u8*)msg, msgByteCnt);
         break;
     case Skein1024:
-        ret = Skein1024_Update(&ctx->m.s1024, (const u08b_t*)msg, msgByteCnt);
+        ret = Skein1024_Update(&ctx->m.s1024, (const u8*)msg, msgByteCnt);
         break;
     }
     return ret;
@@ -206,13 +206,13 @@ int skeinFinal(SkeinCtx_t* ctx, uint8_t* hash)
 
     switch (ctx->skeinSize) {
     case Skein256:
-        ret = Skein_256_Final(&ctx->m.s256, (u08b_t*)hash);
+        ret = Skein_256_Final(&ctx->m.s256, (u8*)hash);
         break;
     case Skein512:
-        ret = Skein_512_Final(&ctx->m.s512, (u08b_t*)hash);
+        ret = Skein_512_Final(&ctx->m.s512, (u8*)hash);
         break;
     case Skein1024:
-        ret = Skein1024_Final(&ctx->m.s1024, (u08b_t*)hash);
+        ret = Skein1024_Final(&ctx->m.s1024, (u8*)hash);
         break;
     }
     return ret;

@@ -5,21 +5,21 @@
 
 
 /*****************************  Skein_256 ******************************/
-void Skein_256_Process_Block(Skein_256_Ctxt_t *ctx, const u08b_t *blkPtr,
+void Skein_256_Process_Block(Skein_256_Ctxt_t *ctx, const u8 *blkPtr,
                              size_t blkCnt, size_t byteCntAdd)
 {
     ThreefishKey_t key;
-    u64b_t tweak[2];
+    u64 tweak[2];
     int i;
-    u64b_t  w[SKEIN_256_STATE_WORDS];           /* local copy of input block */
-    u64b_t words[3];
+    u64  w[SKEIN_256_STATE_WORDS];           /* local copy of input block */
+    u64 words[3];
 
     Skein_assert(blkCnt != 0);                  /* never call with blkCnt == 0! */
     tweak[0] = ctx->h.T[0];
     tweak[1] = ctx->h.T[1];
 
     do  {
-        u64b_t carry = byteCntAdd;
+        u64 carry = byteCntAdd;
 
         words[0] = tweak[0] & 0xffffffffL;
         words[1] = ((tweak[0] >> 32) & 0xffffffffL);
@@ -55,21 +55,21 @@ void Skein_256_Process_Block(Skein_256_Ctxt_t *ctx, const u08b_t *blkPtr,
     ctx->h.T[1] = tweak[1];
 }
 
-void Skein_512_Process_Block(Skein_512_Ctxt_t *ctx, const u08b_t *blkPtr,
+void Skein_512_Process_Block(Skein_512_Ctxt_t *ctx, const u8 *blkPtr,
                              size_t blkCnt, size_t byteCntAdd)
 {
     ThreefishKey_t key;
-    u64b_t tweak[2];
+    u64 tweak[2];
     int i;
-    u64b_t words[3];
-    u64b_t  w[SKEIN_512_STATE_WORDS];           /* local copy of input block */
+    u64 words[3];
+    u64  w[SKEIN_512_STATE_WORDS];           /* local copy of input block */
 
     Skein_assert(blkCnt != 0);                  /* never call with blkCnt == 0! */
     tweak[0] = ctx->h.T[0];
     tweak[1] = ctx->h.T[1];
 
     do  {
-        u64b_t carry = byteCntAdd;
+        u64 carry = byteCntAdd;
 
         words[0] = tweak[0] & 0xffffffffL;
         words[1] = ((tweak[0] >> 32) & 0xffffffffL);
@@ -109,21 +109,21 @@ void Skein_512_Process_Block(Skein_512_Ctxt_t *ctx, const u08b_t *blkPtr,
     ctx->h.T[1] = tweak[1];
 }
 
-void Skein1024_Process_Block(Skein1024_Ctxt_t *ctx, const u08b_t *blkPtr,
+void Skein1024_Process_Block(Skein1024_Ctxt_t *ctx, const u8 *blkPtr,
                               size_t blkCnt, size_t byteCntAdd)
 {
     ThreefishKey_t key;
-    u64b_t tweak[2];
+    u64 tweak[2];
     int i;
-    u64b_t words[3];
-    u64b_t  w[SKEIN1024_STATE_WORDS];           /* local copy of input block */
+    u64 words[3];
+    u64  w[SKEIN1024_STATE_WORDS];           /* local copy of input block */
 
     Skein_assert(blkCnt != 0);                  /* never call with blkCnt == 0! */
     tweak[0] = ctx->h.T[0];
     tweak[1] = ctx->h.T[1];
 
     do  {
-        u64b_t carry = byteCntAdd;
+        u64 carry = byteCntAdd;
 
         words[0] = tweak[0] & 0xffffffffL;
         words[1] = ((tweak[0] >> 32) & 0xffffffffL);

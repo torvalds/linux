@@ -27,9 +27,6 @@
 **                                1: return SKEIN_FAIL to flag errors
 **
 ***************************************************************************/
-typedef unsigned int    uint_t;             /* native unsigned integer */
-typedef uint8_t         u08b_t;             /*  8-bit unsigned integer */
-typedef uint64_t        u64b_t;             /* 64-bit unsigned integer */
 
 #ifndef RotL_64
 #define RotL_64(x,N)    (((x) << (N)) | ((x) >> (64-(N))))
@@ -70,28 +67,28 @@ typedef struct
     {
     size_t  hashBitLen;                      /* size of hash result, in bits */
     size_t  bCnt;                            /* current byte count in buffer b[] */
-    u64b_t  T[SKEIN_MODIFIER_WORDS];         /* tweak words: T[0]=byte cnt, T[1]=flags */
+    u64  T[SKEIN_MODIFIER_WORDS];         /* tweak words: T[0]=byte cnt, T[1]=flags */
     } Skein_Ctxt_Hdr_t;
 
 typedef struct                               /*  256-bit Skein hash context structure */
     {
     Skein_Ctxt_Hdr_t h;                      /* common header context variables */
-    u64b_t  X[SKEIN_256_STATE_WORDS];        /* chaining variables */
-    u08b_t  b[SKEIN_256_BLOCK_BYTES];        /* partial block buffer (8-byte aligned) */
+    u64  X[SKEIN_256_STATE_WORDS];        /* chaining variables */
+    u8  b[SKEIN_256_BLOCK_BYTES];        /* partial block buffer (8-byte aligned) */
     } Skein_256_Ctxt_t;
 
 typedef struct                               /*  512-bit Skein hash context structure */
     {
     Skein_Ctxt_Hdr_t h;                      /* common header context variables */
-    u64b_t  X[SKEIN_512_STATE_WORDS];        /* chaining variables */
-    u08b_t  b[SKEIN_512_BLOCK_BYTES];        /* partial block buffer (8-byte aligned) */
+    u64  X[SKEIN_512_STATE_WORDS];        /* chaining variables */
+    u8  b[SKEIN_512_BLOCK_BYTES];        /* partial block buffer (8-byte aligned) */
     } Skein_512_Ctxt_t;
 
 typedef struct                               /* 1024-bit Skein hash context structure */
     {
     Skein_Ctxt_Hdr_t h;                      /* common header context variables */
-    u64b_t  X[SKEIN1024_STATE_WORDS];        /* chaining variables */
-    u08b_t  b[SKEIN1024_BLOCK_BYTES];        /* partial block buffer (8-byte aligned) */
+    u64  X[SKEIN1024_STATE_WORDS];        /* chaining variables */
+    u8  b[SKEIN1024_BLOCK_BYTES];        /* partial block buffer (8-byte aligned) */
     } Skein1024_Ctxt_t;
 
 /*   Skein APIs for (incremental) "straight hashing" */
@@ -99,13 +96,13 @@ int  Skein_256_Init  (Skein_256_Ctxt_t *ctx, size_t hashBitLen);
 int  Skein_512_Init  (Skein_512_Ctxt_t *ctx, size_t hashBitLen);
 int  Skein1024_Init  (Skein1024_Ctxt_t *ctx, size_t hashBitLen);
 
-int  Skein_256_Update(Skein_256_Ctxt_t *ctx, const u08b_t *msg, size_t msgByteCnt);
-int  Skein_512_Update(Skein_512_Ctxt_t *ctx, const u08b_t *msg, size_t msgByteCnt);
-int  Skein1024_Update(Skein1024_Ctxt_t *ctx, const u08b_t *msg, size_t msgByteCnt);
+int  Skein_256_Update(Skein_256_Ctxt_t *ctx, const u8 *msg, size_t msgByteCnt);
+int  Skein_512_Update(Skein_512_Ctxt_t *ctx, const u8 *msg, size_t msgByteCnt);
+int  Skein1024_Update(Skein1024_Ctxt_t *ctx, const u8 *msg, size_t msgByteCnt);
 
-int  Skein_256_Final (Skein_256_Ctxt_t *ctx, u08b_t * hashVal);
-int  Skein_512_Final (Skein_512_Ctxt_t *ctx, u08b_t * hashVal);
-int  Skein1024_Final (Skein1024_Ctxt_t *ctx, u08b_t * hashVal);
+int  Skein_256_Final (Skein_256_Ctxt_t *ctx, u8 * hashVal);
+int  Skein_512_Final (Skein_512_Ctxt_t *ctx, u8 * hashVal);
+int  Skein1024_Final (Skein1024_Ctxt_t *ctx, u8 * hashVal);
 
 /*
 **   Skein APIs for "extended" initialization: MAC keys, tree hashing.
@@ -121,26 +118,26 @@ int  Skein1024_Final (Skein1024_Ctxt_t *ctx, u08b_t * hashVal);
 **              to precompute the MAC IV, then a copy of the context saved and
 **              reused for each new MAC computation.
 **/
-int  Skein_256_InitExt(Skein_256_Ctxt_t *ctx, size_t hashBitLen, u64b_t treeInfo, const u08b_t *key, size_t keyBytes);
-int  Skein_512_InitExt(Skein_512_Ctxt_t *ctx, size_t hashBitLen, u64b_t treeInfo, const u08b_t *key, size_t keyBytes);
-int  Skein1024_InitExt(Skein1024_Ctxt_t *ctx, size_t hashBitLen, u64b_t treeInfo, const u08b_t *key, size_t keyBytes);
+int  Skein_256_InitExt(Skein_256_Ctxt_t *ctx, size_t hashBitLen, u64 treeInfo, const u8 *key, size_t keyBytes);
+int  Skein_512_InitExt(Skein_512_Ctxt_t *ctx, size_t hashBitLen, u64 treeInfo, const u8 *key, size_t keyBytes);
+int  Skein1024_InitExt(Skein1024_Ctxt_t *ctx, size_t hashBitLen, u64 treeInfo, const u8 *key, size_t keyBytes);
 
 /*
 **   Skein APIs for MAC and tree hash:
 **      Final_Pad:  pad, do final block, but no OUTPUT type
 **      Output:     do just the output stage
 */
-int  Skein_256_Final_Pad(Skein_256_Ctxt_t *ctx, u08b_t * hashVal);
-int  Skein_512_Final_Pad(Skein_512_Ctxt_t *ctx, u08b_t * hashVal);
-int  Skein1024_Final_Pad(Skein1024_Ctxt_t *ctx, u08b_t * hashVal);
+int  Skein_256_Final_Pad(Skein_256_Ctxt_t *ctx, u8 * hashVal);
+int  Skein_512_Final_Pad(Skein_512_Ctxt_t *ctx, u8 * hashVal);
+int  Skein1024_Final_Pad(Skein1024_Ctxt_t *ctx, u8 * hashVal);
 
 #ifndef SKEIN_TREE_HASH
 #define SKEIN_TREE_HASH (1)
 #endif
 #if  SKEIN_TREE_HASH
-int  Skein_256_Output   (Skein_256_Ctxt_t *ctx, u08b_t * hashVal);
-int  Skein_512_Output   (Skein_512_Ctxt_t *ctx, u08b_t * hashVal);
-int  Skein1024_Output   (Skein1024_Ctxt_t *ctx, u08b_t * hashVal);
+int  Skein_256_Output   (Skein_256_Ctxt_t *ctx, u8 * hashVal);
+int  Skein_512_Output   (Skein_512_Ctxt_t *ctx, u8 * hashVal);
+int  Skein1024_Output   (Skein1024_Ctxt_t *ctx, u8 * hashVal);
 #endif
 
 /*****************************************************************
@@ -161,13 +158,13 @@ int  Skein1024_Output   (Skein1024_Ctxt_t *ctx, u08b_t * hashVal);
 #define SKEIN_T1_POS_FINAL      SKEIN_T1_BIT(127)       /* bit  127     : final block flag         */
                                 
 /* tweak word T[1]: flag bit definition(s) */
-#define SKEIN_T1_FLAG_FIRST     (((u64b_t)  1 ) << SKEIN_T1_POS_FIRST)
-#define SKEIN_T1_FLAG_FINAL     (((u64b_t)  1 ) << SKEIN_T1_POS_FINAL)
-#define SKEIN_T1_FLAG_BIT_PAD   (((u64b_t)  1 ) << SKEIN_T1_POS_BIT_PAD)
+#define SKEIN_T1_FLAG_FIRST     (((u64)  1 ) << SKEIN_T1_POS_FIRST)
+#define SKEIN_T1_FLAG_FINAL     (((u64)  1 ) << SKEIN_T1_POS_FINAL)
+#define SKEIN_T1_FLAG_BIT_PAD   (((u64)  1 ) << SKEIN_T1_POS_BIT_PAD)
                                 
 /* tweak word T[1]: tree level bit field mask */
-#define SKEIN_T1_TREE_LVL_MASK  (((u64b_t)0x7F) << SKEIN_T1_POS_TREE_LVL)
-#define SKEIN_T1_TREE_LEVEL(n)  (((u64b_t) (n)) << SKEIN_T1_POS_TREE_LVL)
+#define SKEIN_T1_TREE_LVL_MASK  (((u64)0x7F) << SKEIN_T1_POS_TREE_LVL)
+#define SKEIN_T1_TREE_LEVEL(n)  (((u64) (n)) << SKEIN_T1_POS_TREE_LVL)
 
 /* tweak word T[1]: block type field */
 #define SKEIN_BLK_TYPE_KEY      ( 0)                    /* key, for MAC and KDF */
@@ -180,7 +177,7 @@ int  Skein1024_Output   (Skein1024_Ctxt_t *ctx, u08b_t * hashVal);
 #define SKEIN_BLK_TYPE_OUT      (63)                    /* output stage */
 #define SKEIN_BLK_TYPE_MASK     (63)                    /* bit field mask */
 
-#define SKEIN_T1_BLK_TYPE(T)   (((u64b_t) (SKEIN_BLK_TYPE_##T)) << SKEIN_T1_POS_BLK_TYPE)
+#define SKEIN_T1_BLK_TYPE(T)   (((u64) (SKEIN_BLK_TYPE_##T)) << SKEIN_T1_POS_BLK_TYPE)
 #define SKEIN_T1_BLK_TYPE_KEY   SKEIN_T1_BLK_TYPE(KEY)  /* key, for MAC and KDF */
 #define SKEIN_T1_BLK_TYPE_CFG   SKEIN_T1_BLK_TYPE(CFG)  /* configuration block */
 #define SKEIN_T1_BLK_TYPE_PERS  SKEIN_T1_BLK_TYPE(PERS) /* personalization string */
@@ -200,7 +197,7 @@ int  Skein1024_Output   (Skein1024_Ctxt_t *ctx, u08b_t * hashVal);
 #define SKEIN_ID_STRING_LE      (0x33414853)            /* "SHA3" (little-endian)*/
 #endif
 
-#define SKEIN_MK_64(hi32,lo32)  ((lo32) + (((u64b_t) (hi32)) << 32))
+#define SKEIN_MK_64(hi32,lo32)  ((lo32) + (((u64) (hi32)) << 32))
 #define SKEIN_SCHEMA_VER        SKEIN_MK_64(SKEIN_VERSION,SKEIN_ID_STRING_LE)
 #define SKEIN_KS_PARITY         SKEIN_MK_64(0x1BD11BDA,0xA9FC1A22)
 
@@ -211,14 +208,14 @@ int  Skein1024_Output   (Skein1024_Ctxt_t *ctx, u08b_t * hashVal);
 #define SKEIN_CFG_TREE_NODE_SIZE_POS  ( 8)
 #define SKEIN_CFG_TREE_MAX_LEVEL_POS  (16)
 
-#define SKEIN_CFG_TREE_LEAF_SIZE_MSK  (((u64b_t) 0xFF) << SKEIN_CFG_TREE_LEAF_SIZE_POS)
-#define SKEIN_CFG_TREE_NODE_SIZE_MSK  (((u64b_t) 0xFF) << SKEIN_CFG_TREE_NODE_SIZE_POS)
-#define SKEIN_CFG_TREE_MAX_LEVEL_MSK  (((u64b_t) 0xFF) << SKEIN_CFG_TREE_MAX_LEVEL_POS)
+#define SKEIN_CFG_TREE_LEAF_SIZE_MSK  (((u64) 0xFF) << SKEIN_CFG_TREE_LEAF_SIZE_POS)
+#define SKEIN_CFG_TREE_NODE_SIZE_MSK  (((u64) 0xFF) << SKEIN_CFG_TREE_NODE_SIZE_POS)
+#define SKEIN_CFG_TREE_MAX_LEVEL_MSK  (((u64) 0xFF) << SKEIN_CFG_TREE_MAX_LEVEL_POS)
 
 #define SKEIN_CFG_TREE_INFO(leaf,node,maxLvl)                   \
-    ( (((u64b_t)(leaf  )) << SKEIN_CFG_TREE_LEAF_SIZE_POS) |    \
-      (((u64b_t)(node  )) << SKEIN_CFG_TREE_NODE_SIZE_POS) |    \
-      (((u64b_t)(maxLvl)) << SKEIN_CFG_TREE_MAX_LEVEL_POS) )
+    ( (((u64)(leaf  )) << SKEIN_CFG_TREE_LEAF_SIZE_POS) |    \
+      (((u64)(node  )) << SKEIN_CFG_TREE_NODE_SIZE_POS) |    \
+      (((u64)(maxLvl)) << SKEIN_CFG_TREE_MAX_LEVEL_POS) )
 
 #define SKEIN_CFG_TREE_INFO_SEQUENTIAL SKEIN_CFG_TREE_INFO(0,0,0) /* use as treeInfo in InitExt() call for sequential processing */
 

@@ -51,9 +51,9 @@
      * structures as well.
      */
     typedef struct ThreefishKey {
-        u64b_t stateSize;
-        u64b_t key[SKEIN_MAX_STATE_WORDS+1];   /* max number of key words*/
-        u64b_t tweak[3];
+        u64 stateSize;
+        u64 key[SKEIN_MAX_STATE_WORDS+1];   /* max number of key words*/
+        u64 tweak[3];
     } ThreefishKey_t;
 
     /**

@@ -25,8 +25,8 @@ void threefishSetKey(ThreefishKey_t* keyCtx, ThreefishSize_t stateSize,
 void threefishEncryptBlockBytes(ThreefishKey_t* keyCtx, uint8_t* in,
                                 uint8_t* out)
 {
-    u64b_t plain[SKEIN_MAX_STATE_WORDS];        /* max number of words*/
-    u64b_t cipher[SKEIN_MAX_STATE_WORDS];
+    u64 plain[SKEIN_MAX_STATE_WORDS];        /* max number of words*/
+    u64 cipher[SKEIN_MAX_STATE_WORDS];
     
     Skein_Get64_LSB_First(plain, in, keyCtx->stateSize / 64);   /* bytes to words */
     threefishEncryptBlockWords(keyCtx, plain, cipher);
@@ -52,8 +52,8 @@ void threefishEncryptBlockWords(ThreefishKey_t* keyCtx, uint64_t* in,
 void threefishDecryptBlockBytes(ThreefishKey_t* keyCtx, uint8_t* in,
                                 uint8_t* out)
 {
-    u64b_t plain[SKEIN_MAX_STATE_WORDS];        /* max number of words*/
-    u64b_t cipher[SKEIN_MAX_STATE_WORDS];
+    u64 plain[SKEIN_MAX_STATE_WORDS];        /* max number of words*/
+    u64 cipher[SKEIN_MAX_STATE_WORDS];
     
     Skein_Get64_LSB_First(cipher, in, keyCtx->stateSize / 64);  /* bytes to words */
     threefishDecryptBlockWords(keyCtx, cipher, plain);

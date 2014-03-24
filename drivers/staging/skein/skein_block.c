@@ -39,7 +39,7 @@
 
 /*****************************  Skein_256 ******************************/
 #if !(SKEIN_USE_ASM & 256)
-void Skein_256_Process_Block(Skein_256_Ctxt_t *ctx,const u08b_t *blkPtr,size_t blkCnt,size_t byteCntAdd)
+void Skein_256_Process_Block(Skein_256_Ctxt_t *ctx,const u8 *blkPtr,size_t blkCnt,size_t byteCntAdd)
     { /* do it in C */
     enum
         {
@@ -59,14 +59,14 @@ void Skein_256_Process_Block(Skein_256_Ctxt_t *ctx,const u08b_t *blkPtr,size_t b
 #error "Invalid SKEIN_UNROLL_256"               /* sanity check on unroll count */
 #endif
     size_t  r;
-    u64b_t  kw[WCNT+4+RCNT*2];                  /* key schedule words : chaining vars + tweak + "rotation"*/
+    u64  kw[WCNT+4+RCNT*2];                  /* key schedule words : chaining vars + tweak + "rotation"*/
 #else
-    u64b_t  kw[WCNT+4];                         /* key schedule words : chaining vars + tweak */
+    u64  kw[WCNT+4];                         /* key schedule words : chaining vars + tweak */
 #endif
-    u64b_t  X0,X1,X2,X3;                        /* local copy of context vars, for speed */
-    u64b_t  w [WCNT];                           /* local copy of input block */
+    u64  X0,X1,X2,X3;                        /* local copy of context vars, for speed */
+    u64  w [WCNT];                           /* local copy of input block */
 #ifdef SKEIN_DEBUG
-    const u64b_t *Xptr[4];                      /* use for debugging (help compiler put Xn in registers) */
+    const u64 *Xptr[4];                      /* use for debugging (help compiler put Xn in registers) */
     Xptr[0] = &X0;  Xptr[1] = &X1;  Xptr[2] = &X2;  Xptr[3] = &X3;
 #endif
     Skein_assert(blkCnt != 0);                  /* never call with blkCnt == 0! */
@@ -212,10 +212,10 @@ void Skein_256_Process_Block(Skein_256_Ctxt_t *ctx,const u08b_t *blkPtr,size_t b
 #if defined(SKEIN_CODE_SIZE) || defined(SKEIN_PERF)
 size_t Skein_256_Process_Block_CodeSize(void)
     {
-    return ((u08b_t *) Skein_256_Process_Block_CodeSize) -
-           ((u08b_t *) Skein_256_Process_Block);
+    return ((u8 *) Skein_256_Process_Block_CodeSize) -
+           ((u8 *) Skein_256_Process_Block);
     }
-uint_t Skein_256_Unroll_Cnt(void)
+unsigned int Skein_256_Unroll_Cnt(void)
     {
     return SKEIN_UNROLL_256;
     }
@@ -224,7 +224,7 @@ uint_t Skein_256_Unroll_Cnt(void)
 
 /*****************************  Skein_512 ******************************/
 #if !(SKEIN_USE_ASM & 512)
-void Skein_512_Process_Block(Skein_512_Ctxt_t *ctx,const u08b_t *blkPtr,size_t blkCnt,size_t byteCntAdd)
+void Skein_512_Process_Block(Skein_512_Ctxt_t *ctx,const u8 *blkPtr,size_t blkCnt,size_t byteCntAdd)
     { /* do it in C */
     enum
         {
@@ -244,14 +244,14 @@ void Skein_512_Process_Block(Skein_512_Ctxt_t *ctx,const u08b_t *blkPtr,size_t b
 #error "Invalid SKEIN_UNROLL_512"               /* sanity check on unroll count */
 #endif
     size_t  r;
-    u64b_t  kw[WCNT+4+RCNT*2];                  /* key schedule words : chaining vars + tweak + "rotation"*/
+    u64  kw[WCNT+4+RCNT*2];                  /* key schedule words : chaining vars + tweak + "rotation"*/
 #else
-    u64b_t  kw[WCNT+4];                         /* key schedule words : chaining vars + tweak */
+    u64  kw[WCNT+4];                         /* key schedule words : chaining vars + tweak */
 #endif
-    u64b_t  X0,X1,X2,X3,X4,X5,X6,X7;            /* local copy of vars, for speed */
-    u64b_t  w [WCNT];                           /* local copy of input block */
+    u64  X0,X1,X2,X3,X4,X5,X6,X7;            /* local copy of vars, for speed */
+    u64  w [WCNT];                           /* local copy of input block */
 #ifdef SKEIN_DEBUG
-    const u64b_t *Xptr[8];                      /* use for debugging (help compiler put Xn in registers) */
+    const u64 *Xptr[8];                      /* use for debugging (help compiler put Xn in registers) */
     Xptr[0] = &X0;  Xptr[1] = &X1;  Xptr[2] = &X2;  Xptr[3] = &X3;
     Xptr[4] = &X4;  Xptr[5] = &X5;  Xptr[6] = &X6;  Xptr[7] = &X7;
 #endif
@@ -420,10 +420,10 @@ void Skein_512_Process_Block(Skein_512_Ctxt_t *ctx,const u08b_t *blkPtr,size_t b
 #if defined(SKEIN_CODE_SIZE) || defined(SKEIN_PERF)
 size_t Skein_512_Process_Block_CodeSize(void)
     {
-    return ((u08b_t *) Skein_512_Process_Block_CodeSize) -
-           ((u08b_t *) Skein_512_Process_Block);
+    return ((u8 *) Skein_512_Process_Block_CodeSize) -
+           ((u8 *) Skein_512_Process_Block);
     }
-uint_t Skein_512_Unroll_Cnt(void)
+unsigned int Skein_512_Unroll_Cnt(void)
     {
     return SKEIN_UNROLL_512;
     }
@@ -432,7 +432,7 @@ uint_t Skein_512_Unroll_Cnt(void)
 
 /*****************************  Skein1024 ******************************/
 #if !(SKEIN_USE_ASM & 1024)
-void Skein1024_Process_Block(Skein1024_Ctxt_t *ctx,const u08b_t *blkPtr,size_t blkCnt,size_t byteCntAdd)
+void Skein1024_Process_Block(Skein1024_Ctxt_t *ctx,const u8 *blkPtr,size_t blkCnt,size_t byteCntAdd)
     { /* do it in C, always looping (unrolled is bigger AND slower!) */
     enum
         {
@@ -452,16 +452,16 @@ void Skein1024_Process_Block(Skein1024_Ctxt_t *ctx,const u08b_t *blkPtr,size_t b
 #error "Invalid SKEIN_UNROLL_1024"              /* sanity check on unroll count */
 #endif
     size_t  r;
-    u64b_t  kw[WCNT+4+RCNT*2];                  /* key schedule words : chaining vars + tweak + "rotation"*/
+    u64  kw[WCNT+4+RCNT*2];                  /* key schedule words : chaining vars + tweak + "rotation"*/
 #else
-    u64b_t  kw[WCNT+4];                         /* key schedule words : chaining vars + tweak */
+    u64  kw[WCNT+4];                         /* key schedule words : chaining vars + tweak */
 #endif
 
-    u64b_t  X00,X01,X02,X03,X04,X05,X06,X07,    /* local copy of vars, for speed */
+    u64  X00,X01,X02,X03,X04,X05,X06,X07,    /* local copy of vars, for speed */
             X08,X09,X10,X11,X12,X13,X14,X15;
-    u64b_t  w [WCNT];                           /* local copy of input block */
+    u64  w [WCNT];                           /* local copy of input block */
 #ifdef SKEIN_DEBUG
-    const u64b_t *Xptr[16];                     /* use for debugging (help compiler put Xn in registers) */
+    const u64 *Xptr[16];                     /* use for debugging (help compiler put Xn in registers) */
     Xptr[ 0] = &X00;  Xptr[ 1] = &X01;  Xptr[ 2] = &X02;  Xptr[ 3] = &X03;
     Xptr[ 4] = &X04;  Xptr[ 5] = &X05;  Xptr[ 6] = &X06;  Xptr[ 7] = &X07;
     Xptr[ 8] = &X08;  Xptr[ 9] = &X09;  Xptr[10] = &X10;  Xptr[11] = &X11;
@@ -678,10 +678,10 @@ void Skein1024_Process_Block(Skein1024_Ctxt_t *ctx,const u08b_t *blkPtr,size_t b
 #if defined(SKEIN_CODE_SIZE) || defined(SKEIN_PERF)
 size_t Skein1024_Process_Block_CodeSize(void)
     {
-    return ((u08b_t *) Skein1024_Process_Block_CodeSize) -
-           ((u08b_t *) Skein1024_Process_Block);
+    return ((u8 *) Skein1024_Process_Block_CodeSize) -
+           ((u8 *) Skein1024_Process_Block);
     }
-uint_t Skein1024_Unroll_Cnt(void)
+unsigned int Skein1024_Unroll_Cnt(void)
     {
     return SKEIN_UNROLL_1024;
     }
