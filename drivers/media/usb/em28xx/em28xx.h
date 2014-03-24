@@ -542,6 +542,11 @@ struct em28xx_i2c_bus {
 struct em28xx {
 	struct kref ref;
 
+	/* Sub-module data */
+	struct em28xx_dvb *dvb;
+	struct em28xx_audio adev;
+	struct em28xx_IR *ir;
+
 	/* generic device properties */
 	char name[30];		/* name (including minor) of the device */
 	int model;		/* index in the device_data struct */
@@ -576,8 +581,6 @@ struct em28xx {
 	atomic_t       stream_started;	/* stream should be running if true */
 
 	struct em28xx_fmt *format;
-
-	struct em28xx_IR *ir;
 
 	/* Some older em28xx chips needs a waiting time after writing */
 	unsigned int wait_after_write;
@@ -623,8 +626,6 @@ struct em28xx {
 	unsigned long hash;	/* eeprom hash - for boards with generic ID */
 	unsigned long i2c_hash;	/* i2c devicelist hash -
 				   for boards with generic ID */
-
-	struct em28xx_audio adev;
 
 	/* capture state tracking */
 	int capture_type;
@@ -705,8 +706,6 @@ struct em28xx {
 	/* Snapshot button input device */
 	char snapshot_button_path[30];	/* path of the input dev */
 	struct input_dev *sbutton_input_dev;
-
-	struct em28xx_dvb *dvb;
 };
 
 #define kref_to_dev(d) container_of(d, struct em28xx, ref)
