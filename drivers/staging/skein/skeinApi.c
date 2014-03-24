@@ -27,7 +27,7 @@ OTHER DEALINGS IN THE SOFTWARE.
 #include <linux/string.h>
 #include <skeinApi.h>
 
-int skeinCtxPrepare(struct skein_ctx* ctx, enum skein_size size)
+int skeinCtxPrepare(struct skein_ctx *ctx, enum skein_size size)
 {
     Skein_Assert(ctx && size, SKEIN_FAIL);
 
@@ -37,11 +37,11 @@ int skeinCtxPrepare(struct skein_ctx* ctx, enum skein_size size)
     return SKEIN_SUCCESS;
 }
 
-int skeinInit(struct skein_ctx* ctx, size_t hashBitLen)
+int skeinInit(struct skein_ctx *ctx, size_t hashBitLen)
 {
     int ret = SKEIN_FAIL;
     size_t Xlen = 0;
-    u64*  X = NULL;
+    u64 *X = NULL;
     u64 treeInfo = SKEIN_CFG_TREE_INFO_SEQUENTIAL;
 
     Skein_Assert(ctx, SKEIN_FAIL);
@@ -78,11 +78,11 @@ int skeinInit(struct skein_ctx* ctx, size_t hashBitLen)
     return ret;
 }
 
-int skeinMacInit(struct skein_ctx* ctx, const u8 *key, size_t keyLen,
+int skeinMacInit(struct skein_ctx *ctx, const u8 *key, size_t keyLen,
                  size_t hashBitLen)
 {
     int ret = SKEIN_FAIL;
-    u64*  X = NULL;
+    u64 *X = NULL;
     size_t Xlen = 0;
     u64 treeInfo = SKEIN_CFG_TREE_INFO_SEQUENTIAL;
 
@@ -119,10 +119,10 @@ int skeinMacInit(struct skein_ctx* ctx, const u8 *key, size_t keyLen,
     return ret;
 }
 
-void skeinReset(struct skein_ctx* ctx)
+void skeinReset(struct skein_ctx *ctx)
 {
     size_t Xlen = 0;
-    u64*  X = NULL;
+    u64 *X = NULL;
 
     /*
      * The following two lines rely of the fact that the real Skein contexts are
@@ -169,7 +169,7 @@ int skeinUpdateBits(struct skein_ctx *ctx, const u8 *msg,
      */
     size_t length;
     u8 mask;
-    u8* up;
+    u8 *up;
 
     /* only the final Update() call is allowed do partial bytes, else assert an error */
     Skein_Assert((ctx->m.h.T[1] & SKEIN_T1_FLAG_BIT_PAD) == 0 || msgBitCnt == 0, SKEIN_FAIL);
@@ -199,7 +199,7 @@ int skeinUpdateBits(struct skein_ctx *ctx, const u8 *msg,
     return SKEIN_SUCCESS;
 }
 
-int skeinFinal(struct skein_ctx* ctx, u8* hash)
+int skeinFinal(struct skein_ctx *ctx, u8 *hash)
 {
     int ret = SKEIN_FAIL;
     Skein_Assert(ctx, SKEIN_FAIL);
