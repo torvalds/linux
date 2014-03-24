@@ -35,7 +35,7 @@
 #include <linux/regulator/machine.h>
 
 
-#if 0
+#if 1
 #define DBG(x...)	printk(KERN_INFO x)
 #else
 #define DBG(x...)
@@ -107,9 +107,9 @@ static int pwm_regulator_set_voltage(struct regulator_dev *dev,
 	u32 size = g_pdata->pwm_vol_map_count;
 	u32 i, vol,pwm_value;
 
-	DBG("%s:  min_uV = %d, max_uV = %d \n",__FUNCTION__, min_uV,max_uV);
+	DBG("%s:  min_uV = %d, max_uV = %d\n",__FUNCTION__, min_uV,max_uV);
 
-	if (min_uV < voltage_map[0] ||max_uV > voltage_map[size])
+	if (min_uV < voltage_map[0] ||max_uV > voltage_map[size-1])
 	{
 		printk("%s: voltage_map voltage is out of table\n",__func__);
 		return -EINVAL;
