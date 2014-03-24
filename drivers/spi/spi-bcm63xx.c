@@ -35,8 +35,6 @@
 
 #include <bcm63xx_dev_spi.h>
 
-#define PFX		KBUILD_MODNAME
-
 #define BCM63XX_SPI_MAX_PREPEND		15
 
 struct bcm63xx_spi {
