@@ -841,6 +841,10 @@ END_FTR_SECTION_IFCLR(CPU_FTR_ARCH_207S)
 	 * Set the decrementer to the guest decrementer.
 	 */
 	ld	r8,VCPU_DEC_EXPIRES(r4)
+	/* r8 is a host timebase value here, convert to guest TB */
+	ld	r5,HSTATE_KVM_VCORE(r13)
+	ld	r6,VCORE_TB_OFFSET(r5)
+	add	r8,r8,r6
 	mftb	r7
 	subf	r3,r7,r8
 	mtspr	SPRN_DEC,r3
@@ -1204,6 +1208,10 @@ END_FTR_SECTION_IFCLR(CPU_FTR_ARCH_201)
 	mftb	r6
 	extsw	r5,r5
 	add	r5,r5,r6
+	/* r5 is a guest timebase value here, convert to host TB */
+	ld	r3,HSTATE_KVM_VCORE(r13)
+	ld	r4,VCORE_TB_OFFSET(r3)
+	subf	r5,r4,r5
 	std	r5,VCPU_DEC_EXPIRES(r9)
 
 BEGIN_FTR_SECTION
@@ -1479,7 +1487,7 @@ END_FTR_SECTION_IFSET(CPU_FTR_ARCH_207S)
 	ld	r8,VCORE_TB_OFFSET(r5)
 	cmpdi	r8,0
 	beq	17f
-	mftb	r6			/* current host timebase */
+	mftb	r6			/* current guest timebase */
 	subf	r8,r8,r6
 	mtspr	SPRN_TBU40,r8		/* update upper 40 bits */
 	mftb	r7			/* check if lower 24 bits overflowed */
