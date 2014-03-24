@@ -623,7 +623,6 @@ _loop3:
  */
 .macro SHA1_VECTOR_ASM  name
 	ENTRY(\name)
-	.align 4096
 
 	push	%rbx
 	push	%rbp
