@@ -519,6 +519,8 @@ struct em28xx_v4l2 {
 	u8 vinmode;
 	u8 vinctl;
 
+	v4l2_std_id norm;	/* selected tv norm */
+
 	/* Frame properties */
 	int width;		/* current frame width */
 	int height;		/* current frame height */
@@ -633,7 +635,6 @@ struct em28xx {
 	/* video for linux */
 	int users;		/* user count for exclusive use */
 	int streaming_users;    /* Number of actively streaming users */
-	v4l2_std_id norm;	/* selected tv norm */
 	int ctl_freq;		/* selected frequency */
 	unsigned int ctl_input;	/* selected input */
 	unsigned int ctl_ainput;/* selected audio input */

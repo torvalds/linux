@@ -155,13 +155,15 @@ static inline unsigned int norm_maxw(struct em28xx *dev)
 
 static inline unsigned int norm_maxh(struct em28xx *dev)
 {
+	struct em28xx_v4l2 *v4l2 = dev->v4l2;
+
 	if (dev->board.is_webcam)
 		return dev->sensor_yres;
 
 	if (dev->board.max_range_640_480)
 		return 480;
 
-	return (dev->norm & V4L2_STD_625_50) ? 576 : 480;
+	return (v4l2->norm & V4L2_STD_625_50) ? 576 : 480;
 }
 
 static int em28xx_vbi_supported(struct em28xx *dev)
@@ -246,10 +248,10 @@ static int em28xx_set_outfmt(struct em28xx *dev)
 		em28xx_write_reg(dev, EM28XX_R34_VBI_START_H, 0x00);
 		em28xx_write_reg(dev, EM28XX_R36_VBI_WIDTH, v4l2->vbi_width/4);
 		em28xx_write_reg(dev, EM28XX_R37_VBI_HEIGHT, v4l2->vbi_height);
-		if (dev->norm & V4L2_STD_525_60) {
+		if (v4l2->norm & V4L2_STD_525_60) {
 			/* NTSC */
 			em28xx_write_reg(dev, EM28XX_R35_VBI_START_V, 0x09);
-		} else if (dev->norm & V4L2_STD_625_50) {
+		} else if (v4l2->norm & V4L2_STD_625_50) {
 			/* PAL */
 			em28xx_write_reg(dev, EM28XX_R35_VBI_START_V, 0x07);
 		}
@@ -330,7 +332,7 @@ static int em28xx_resolution_set(struct em28xx *dev)
 
 	/* Properly setup VBI */
 	v4l2->vbi_width = 720;
-	if (dev->norm & V4L2_STD_525_60)
+	if (v4l2->norm & V4L2_STD_525_60)
 		v4l2->vbi_height = 12;
 	else
 		v4l2->vbi_height = 18;
@@ -1345,7 +1347,7 @@ static int vidioc_g_std(struct file *file, void *priv, v4l2_std_id *norm)
 	struct em28xx_fh   *fh  = priv;
 	struct em28xx      *dev = fh->dev;
 
-	*norm = dev->norm;
+	*norm = dev->v4l2->norm;
 
 	return 0;
 }
@@ -1367,13 +1369,13 @@ static int vidioc_s_std(struct file *file, void *priv, v4l2_std_id norm)
 	struct em28xx_v4l2 *v4l2 = dev->v4l2;
 	struct v4l2_format f;
 
-	if (norm == dev->norm)
+	if (norm == v4l2->norm)
 		return 0;
 
 	if (dev->streaming_users > 0)
 		return -EBUSY;
 
-	dev->norm = norm;
+	v4l2->norm = norm;
 
 	/* Adjusts width/height, if needed */
 	f.fmt.pix.width = 720;
@@ -1387,7 +1389,7 @@ static int vidioc_s_std(struct file *file, void *priv, v4l2_std_id norm)
 			   &v4l2->hscale, &v4l2->vscale);
 
 	em28xx_resolution_set(dev);
-	v4l2_device_call_all(&v4l2->v4l2_dev, 0, core, s_std, dev->norm);
+	v4l2_device_call_all(&v4l2->v4l2_dev, 0, core, s_std, v4l2->norm);
 
 	return 0;
 }
@@ -1395,16 +1397,17 @@ static int vidioc_s_std(struct file *file, void *priv, v4l2_std_id norm)
 static int vidioc_g_parm(struct file *file, void *priv,
 			 struct v4l2_streamparm *p)
 {
-	struct em28xx_fh   *fh  = priv;
-	struct em28xx      *dev = fh->dev;
+	struct em28xx_fh   *fh   = priv;
+	struct em28xx      *dev  = fh->dev;
+	struct em28xx_v4l2 *v4l2 = dev->v4l2;
 	int rc = 0;
 
 	p->parm.capture.readbuffers = EM28XX_MIN_BUF;
 	if (dev->board.is_webcam)
-		rc = v4l2_device_call_until_err(&dev->v4l2->v4l2_dev, 0,
+		rc = v4l2_device_call_until_err(&v4l2->v4l2_dev, 0,
 						video, g_parm, p);
 	else
-		v4l2_video_std_frame_period(dev->norm,
+		v4l2_video_std_frame_period(v4l2->norm,
 						 &p->parm.capture.timeperframe);
 
 	return rc;
@@ -1805,11 +1808,11 @@ static int vidioc_g_fmt_vbi_cap(struct file *file, void *priv,
 	memset(format->fmt.vbi.reserved, 0, sizeof(format->fmt.vbi.reserved));
 
 	/* Varies by video standard (NTSC, PAL, etc.) */
-	if (dev->norm & V4L2_STD_525_60) {
+	if (v4l2->norm & V4L2_STD_525_60) {
 		/* NTSC */
 		format->fmt.vbi.start[0] = 10;
 		format->fmt.vbi.start[1] = 273;
-	} else if (dev->norm & V4L2_STD_625_50) {
+	} else if (v4l2->norm & V4L2_STD_625_50) {
 		/* PAL */
 		format->fmt.vbi.start[0] = 6;
 		format->fmt.vbi.start[1] = 318;
@@ -2421,8 +2424,8 @@ static int em28xx_v4l2_init(struct em28xx *dev)
 	}
 
 	/* set default norm */
-	dev->norm = V4L2_STD_PAL;
-	v4l2_device_call_all(&v4l2->v4l2_dev, 0, core, s_std, dev->norm);
+	v4l2->norm = V4L2_STD_PAL;
+	v4l2_device_call_all(&v4l2->v4l2_dev, 0, core, s_std, v4l2->norm);
 	dev->interlaced = EM28XX_INTERLACED_DEFAULT;
 
 	/* Analog specific initialization */
