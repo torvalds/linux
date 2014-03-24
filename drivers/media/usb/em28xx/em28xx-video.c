@@ -274,7 +274,7 @@ static void em28xx_capture_area_set(struct em28xx *dev, u8 hstart, u8 vstart,
 
 static int em28xx_scaler_set(struct em28xx *dev, u16 h, u16 v)
 {
-	u8 mode;
+	u8 mode = 0x00;
 	/* the em2800 scaler only supports scaling down to 50% */
 
 	if (dev->board.is_em2800) {
@@ -293,7 +293,7 @@ static int em28xx_scaler_set(struct em28xx *dev, u16 h, u16 v)
 		   to work correctly */
 		mode = (h || v) ? 0x30 : 0x00;
 	}
-	return em28xx_write_reg_bits(dev, EM28XX_R26_COMPR, mode, 0x30);
+	return em28xx_write_reg(dev, EM28XX_R26_COMPR, mode);
 }
 
 /* FIXME: this only function read values from dev */
@@ -2372,7 +2372,6 @@ static int em28xx_v4l2_init(struct em28xx *dev)
 			 (EM28XX_XCLK_AUDIO_UNMUTE | val));
 
 	em28xx_set_outfmt(dev);
-	em28xx_compression_disable(dev);
 
 	/* Add image controls */
 	/* NOTE: at this point, the subdevices are already registered, so bridge
