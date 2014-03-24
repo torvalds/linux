@@ -272,7 +272,14 @@ enum rs_column {
 	RS_COLUMN_MIMO2_SGI,
 
 	RS_COLUMN_LAST = RS_COLUMN_MIMO2_SGI,
+	RS_COLUMN_COUNT = RS_COLUMN_LAST + 1,
 	RS_COLUMN_INVALID,
+};
+
+/* Packet stats per rate */
+struct rs_rate_stats {
+	u64 success;
+	u64 total;
 };
 
 /**
@@ -322,6 +329,8 @@ struct iwl_lq_sta {
 	bool is_vht;
 	enum ieee80211_band band;
 
+	struct rs_rate_stats tx_stats[RS_COLUMN_COUNT][IWL_RATE_COUNT];
+
 	/* The following are bitmaps of rates; IWL_RATE_6M_MASK, etc. */
 	u16 active_legacy_rate;
 	u16 active_siso_rate;
@@ -335,6 +344,7 @@ struct iwl_lq_sta {
 #ifdef CONFIG_MAC80211_DEBUGFS
 	struct dentry *rs_sta_dbgfs_scale_table_file;
 	struct dentry *rs_sta_dbgfs_stats_table_file;
+	struct dentry *rs_sta_dbgfs_drv_tx_stats_file;
 	struct dentry *rs_sta_dbgfs_tx_agg_tid_en_file;
 	struct dentry *rs_sta_dbgfs_reduced_txp_file;
 	u32 dbg_fixed_rate;
