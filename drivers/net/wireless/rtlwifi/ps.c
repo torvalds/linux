@@ -759,7 +759,7 @@ static void rtl_p2p_noa_ie(struct ieee80211_hw *hw, void *data,
 			   unsigned int len)
 {
 	struct rtl_priv *rtlpriv = rtl_priv(hw);
-	struct ieee80211_mgmt *mgmt = (void *)data;
+	struct ieee80211_mgmt *mgmt = data;
 	struct rtl_p2p_ps_info *p2pinfo = &(rtlpriv->psc.p2p_ps_info);
 	u8 *pos, *end, *ie;
 	u16 noa_len;
@@ -858,7 +858,7 @@ static void rtl_p2p_action_ie(struct ieee80211_hw *hw, void *data,
 			      unsigned int len)
 {
 	struct rtl_priv *rtlpriv = rtl_priv(hw);
-	struct ieee80211_mgmt *mgmt = (void *)data;
+	struct ieee80211_mgmt *mgmt = data;
 	struct rtl_p2p_ps_info *p2pinfo = &(rtlpriv->psc.p2p_ps_info);
 	u8 noa_num, index, i, noa_index = 0;
 	u8 *pos, *end, *ie;
@@ -950,9 +950,8 @@ void rtl_p2p_ps_cmd(struct ieee80211_hw *hw, u8 p2p_ps_state)
 	switch (p2p_ps_state) {
 	case P2P_PS_DISABLE:
 		p2pinfo->p2p_ps_state = p2p_ps_state;
-		rtlpriv->cfg->ops->set_hw_reg(hw,
-				 HW_VAR_H2C_FW_P2P_PS_OFFLOAD,
-				 (u8 *)(&p2p_ps_state));
+		rtlpriv->cfg->ops->set_hw_reg(hw, HW_VAR_H2C_FW_P2P_PS_OFFLOAD,
+					      &p2p_ps_state);
 
 		p2pinfo->noa_index = 0;
 		p2pinfo->ctwindow = 0;
@@ -964,7 +963,7 @@ void rtl_p2p_ps_cmd(struct ieee80211_hw *hw, u8 p2p_ps_state)
 				rtlps->smart_ps = 2;
 				rtlpriv->cfg->ops->set_hw_reg(hw,
 					 HW_VAR_H2C_FW_PWRMODE,
-					 (u8 *)(&rtlps->pwr_mode));
+					 &rtlps->pwr_mode);
 			}
 		}
 		break;
@@ -977,12 +976,12 @@ void rtl_p2p_ps_cmd(struct ieee80211_hw *hw, u8 p2p_ps_state)
 					rtlps->smart_ps = 0;
 					rtlpriv->cfg->ops->set_hw_reg(hw,
 						 HW_VAR_H2C_FW_PWRMODE,
-						 (u8 *)(&rtlps->pwr_mode));
+						 &rtlps->pwr_mode);
 				}
 			}
 			rtlpriv->cfg->ops->set_hw_reg(hw,
 				 HW_VAR_H2C_FW_P2P_PS_OFFLOAD,
-				 (u8 *)(&p2p_ps_state));
+				 &p2p_ps_state);
 		}
 		break;
 	case P2P_PS_SCAN:
@@ -992,7 +991,7 @@ void rtl_p2p_ps_cmd(struct ieee80211_hw *hw, u8 p2p_ps_state)
 			p2pinfo->p2p_ps_state = p2p_ps_state;
 			rtlpriv->cfg->ops->set_hw_reg(hw,
 				 HW_VAR_H2C_FW_P2P_PS_OFFLOAD,
-				 (u8 *)(&p2p_ps_state));
+				 &p2p_ps_state);
 		}
 		break;
 	default:
@@ -1012,7 +1011,7 @@ void rtl_p2p_info(struct ieee80211_hw *hw, void *data, unsigned int len)
 {
 	struct rtl_priv *rtlpriv = rtl_priv(hw);
 	struct rtl_mac *mac = rtl_mac(rtl_priv(hw));
-	struct ieee80211_hdr *hdr = (void *)data;
+	struct ieee80211_hdr *hdr = data;
 
 	if (!mac->p2p)
 		return;
