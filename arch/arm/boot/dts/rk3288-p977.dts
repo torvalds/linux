@@ -211,7 +211,7 @@
 		irq-gpio = <&gpio8 GPIO_A0 IRQ_TYPE_LEVEL_LOW>;
 		irq_enable = <1>;
 		poll_delay_ms = <30>;
-		layout = <1>;
+		layout = <8>;
 	};
 	sensor@0d {
 		compatible = "ak8963";
