@@ -16,6 +16,7 @@
 #define _VIDEO_ADF_FBDEV_H_
 
 #include <linux/fb.h>
+#include <linux/mutex.h>
 #include <video/adf.h>
 
 struct adf_fbdev {
@@ -24,7 +25,8 @@ struct adf_fbdev {
 	struct fb_info *info;
 	u32 pseudo_palette[16];
 
-	bool open;
+	unsigned int refcount;
+	struct mutex refcount_lock;
 
 	struct dma_buf *dma_buf;
 	u32 offset;

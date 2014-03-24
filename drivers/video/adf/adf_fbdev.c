@@ -356,18 +356,25 @@ int adf_fbdev_open(struct fb_info *info, int user)
 	struct adf_fbdev *fbdev = info->par;
 	int ret;
 
-	if (!fbdev->open) {
+	mutex_lock(&fbdev->refcount_lock);
+
+	if (unlikely(fbdev->refcount == UINT_MAX)) {
+		ret = -EMFILE;
+		goto done;
+	}
+
+	if (!fbdev->refcount) {
 		struct drm_mode_modeinfo mode;
 		struct fb_videomode fbmode;
 		struct adf_device *dev = adf_interface_parent(fbdev->intf);
 
 		ret = adf_device_attach(dev, fbdev->eng, fbdev->intf);
 		if (ret < 0 && ret != -EALREADY)
-			return ret;
+			goto done;
 
 		ret = adf_fb_alloc(fbdev);
 		if (ret < 0)
-			return ret;
+			goto done;
 
 		adf_interface_current_mode(fbdev->intf, &mode);
 		adf_modeinfo_to_fb_videomode(&mode, &fbmode);
@@ -379,13 +386,15 @@ int adf_fbdev_open(struct fb_info *info, int user)
 
 	ret = adf_fbdev_post(fbdev);
 	if (ret < 0) {
-		if (!fbdev->open)
+		if (!fbdev->refcount)
 			adf_fb_destroy(fbdev);
-		return ret;
+		goto done;
 	}
 
-	fbdev->open = true;
-	return 0;
+	fbdev->refcount++;
+done:
+	mutex_unlock(&fbdev->refcount_lock);
+	return ret;
 }
 EXPORT_SYMBOL(adf_fbdev_open);
 
@@ -395,8 +404,12 @@ EXPORT_SYMBOL(adf_fbdev_open);
 int adf_fbdev_release(struct fb_info *info, int user)
 {
 	struct adf_fbdev *fbdev = info->par;
-	adf_fb_destroy(fbdev);
-	fbdev->open = false;
+	mutex_lock(&fbdev->refcount_lock);
+	BUG_ON(!fbdev->refcount);
+	fbdev->refcount--;
+	if (!fbdev->refcount)
+		adf_fb_destroy(fbdev);
+	mutex_unlock(&fbdev->refcount_lock);
 	return 0;
 }
 EXPORT_SYMBOL(adf_fbdev_release);
@@ -601,6 +614,7 @@ int adf_fbdev_init(struct adf_fbdev *fbdev, struct adf_interface *interface,
 		dev_err(dev, "allocating framebuffer device failed\n");
 		return -ENOMEM;
 	}
+	mutex_init(&fbdev->refcount_lock);
 	fbdev->default_xres_virtual = xres_virtual;
 	fbdev->default_yres_virtual = yres_virtual;
 	fbdev->default_format = format;
@@ -644,8 +658,8 @@ EXPORT_SYMBOL(adf_fbdev_init);
 void adf_fbdev_destroy(struct adf_fbdev *fbdev)
 {
 	unregister_framebuffer(fbdev->info);
-	if (WARN_ON(fbdev->open))
-		adf_fb_destroy(fbdev);
+	BUG_ON(fbdev->refcount);
+	mutex_destroy(&fbdev->refcount_lock);
 	framebuffer_release(fbdev->info);
 }
 EXPORT_SYMBOL(adf_fbdev_destroy);
