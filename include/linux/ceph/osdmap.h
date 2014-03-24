@@ -41,6 +41,18 @@ struct ceph_pg_pool_info {
 	char *name;
 };
 
+static inline bool ceph_can_shift_osds(struct ceph_pg_pool_info *pool)
+{
+	switch (pool->type) {
+	case CEPH_POOL_TYPE_REP:
+		return true;
+	case CEPH_POOL_TYPE_EC:
+		return false;
+	default:
+		BUG_ON(1);
+	}
+}
+
 struct ceph_object_locator {
 	s64 pool;
 };

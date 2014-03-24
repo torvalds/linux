@@ -81,8 +81,9 @@ struct ceph_pg_v1 {
  */
 #define CEPH_NOPOOL  ((__u64) (-1))  /* pool id not defined */
 
-#define CEPH_PG_TYPE_REP     1
-#define CEPH_PG_TYPE_RAID4   2
+#define CEPH_POOL_TYPE_REP     1
+#define CEPH_POOL_TYPE_RAID4   2 /* never implemented */
+#define CEPH_POOL_TYPE_EC      3
 
 /*
  * stable_mod func is used to control number of placement groups.
