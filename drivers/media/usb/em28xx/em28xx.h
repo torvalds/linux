@@ -519,6 +519,7 @@ struct em28xx_v4l2 {
 	u8 vinmode;
 	u8 vinctl;
 
+	struct em28xx_fmt *format;
 	v4l2_std_id norm;	/* selected tv norm */
 
 	/* Frame properties */
@@ -606,8 +607,6 @@ struct em28xx {
 	/* Controls audio streaming */
 	struct work_struct wq_trigger;	/* Trigger to start/stop audio for alsa module */
 	atomic_t       stream_started;	/* stream should be running if true */
-
-	struct em28xx_fmt *format;
 
 	/* Some older em28xx chips needs a waiting time after writing */
 	unsigned int wait_after_write;

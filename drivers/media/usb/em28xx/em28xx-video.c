@@ -222,7 +222,7 @@ static int em28xx_set_outfmt(struct em28xx *dev)
 	u8 fmt, vinctrl;
 	struct em28xx_v4l2 *v4l2 = dev->v4l2;
 
-	fmt = dev->format->reg;
+	fmt = v4l2->format->reg;
 	if (!dev->is_em25xx)
 		fmt |= 0x20;
 	/*
@@ -877,7 +877,7 @@ static int queue_setup(struct vb2_queue *vq, const struct v4l2_format *fmt,
 		size = fmt->fmt.pix.sizeimage;
 	else
 		size =
-		     (v4l2->width * v4l2->height * dev->format->depth + 7) >> 3;
+		    (v4l2->width * v4l2->height * v4l2->format->depth + 7) >> 3;
 
 	if (size == 0)
 		return -EINVAL;
@@ -901,7 +901,7 @@ buffer_prepare(struct vb2_buffer *vb)
 
 	em28xx_videodbg("%s, field=%d\n", __func__, vb->v4l2_buf.field);
 
-	size = (v4l2->width * v4l2->height * dev->format->depth + 7) >> 3;
+	size = (v4l2->width * v4l2->height * v4l2->format->depth + 7) >> 3;
 
 	if (vb2_plane_size(vb, 0) < size) {
 		em28xx_videodbg("%s data will not fit into plane (%lu < %lu)\n",
@@ -1224,8 +1224,8 @@ static int vidioc_g_fmt_vid_cap(struct file *file, void *priv,
 
 	f->fmt.pix.width = v4l2->width;
 	f->fmt.pix.height = v4l2->height;
-	f->fmt.pix.pixelformat = dev->format->fourcc;
-	f->fmt.pix.bytesperline = (v4l2->width * dev->format->depth + 7) >> 3;
+	f->fmt.pix.pixelformat = v4l2->format->fourcc;
+	f->fmt.pix.bytesperline = (v4l2->width * v4l2->format->depth + 7) >> 3;
 	f->fmt.pix.sizeimage = f->fmt.pix.bytesperline * v4l2->height;
 	f->fmt.pix.colorspace = V4L2_COLORSPACE_SMPTE170M;
 
@@ -1315,7 +1315,7 @@ static int em28xx_set_video_format(struct em28xx *dev, unsigned int fourcc,
 	if (!fmt)
 		return -EINVAL;
 
-	dev->format = fmt;
+	v4l2->format = fmt;
 	v4l2->width  = width;
 	v4l2->height = height;
 
@@ -2429,7 +2429,7 @@ static int em28xx_v4l2_init(struct em28xx *dev)
 	dev->interlaced = EM28XX_INTERLACED_DEFAULT;
 
 	/* Analog specific initialization */
-	dev->format = &format[0];
+	v4l2->format = &format[0];
 
 	maxw = norm_maxw(dev);
 	/* MaxPacketSize for em2800 is too small to capture at full resolution
