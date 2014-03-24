@@ -522,6 +522,11 @@ struct em28xx_v4l2 {
 	struct em28xx_fmt *format;
 	v4l2_std_id norm;	/* selected tv norm */
 
+	/* Progressive/interlaced mode */
+	bool progressive;
+	int interlaced_fieldmode; /* 1=interlaced fields, 0=just top fields */
+	/* FIXME: everything else than interlaced_fieldmode=1 doesn't work */
+
 	/* Frame properties */
 	int width;		/* current frame width */
 	int height;		/* current frame height */
@@ -601,9 +606,6 @@ struct em28xx {
 	int sensor_xres, sensor_yres;
 	int sensor_xtal;
 
-	/* Progressive (non-interlaced) mode */
-	int progressive;
-
 	/* Controls audio streaming */
 	struct work_struct wq_trigger;	/* Trigger to start/stop audio for alsa module */
 	atomic_t       stream_started;	/* stream should be running if true */
@@ -640,8 +642,6 @@ struct em28xx {
 	unsigned int ctl_aoutput;/* selected audio output */
 	int mute;
 	int volume;
-
-	int interlaced;		/* 1=interlace fileds, 0=just top fileds */
 
 	unsigned long hash;	/* eeprom hash - for boards with generic ID */
 	unsigned long i2c_hash;	/* i2c devicelist hash -

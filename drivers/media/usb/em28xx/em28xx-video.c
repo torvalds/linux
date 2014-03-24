@@ -447,9 +447,10 @@ static void em28xx_copy_video(struct em28xx *dev,
 			      unsigned char *usb_buf,
 			      unsigned long len)
 {
+	struct em28xx_v4l2 *v4l2 = dev->v4l2;
 	void *fieldstart, *startwrite, *startread;
 	int  linesdone, currlinedone, offset, lencopy, remain;
-	int bytesperline = dev->v4l2->width << 1;
+	int bytesperline = v4l2->width << 1;
 
 	if (buf->pos + len > buf->length)
 		len = buf->length - buf->pos;
@@ -457,7 +458,7 @@ static void em28xx_copy_video(struct em28xx *dev,
 	startread = usb_buf;
 	remain = len;
 
-	if (dev->progressive || buf->top_field)
+	if (v4l2->progressive || buf->top_field)
 		fieldstart = buf->vb_buf;
 	else /* interlaced mode, even nr. of lines */
 		fieldstart = buf->vb_buf + bytesperline;
@@ -465,7 +466,7 @@ static void em28xx_copy_video(struct em28xx *dev,
 	linesdone = buf->pos / bytesperline;
 	currlinedone = buf->pos % bytesperline;
 
-	if (dev->progressive)
+	if (v4l2->progressive)
 		offset = linesdone * bytesperline + currlinedone;
 	else
 		offset = linesdone * bytesperline * 2 + currlinedone;
@@ -489,7 +490,7 @@ static void em28xx_copy_video(struct em28xx *dev,
 	remain -= lencopy;
 
 	while (remain > 0) {
-		if (dev->progressive)
+		if (v4l2->progressive)
 			startwrite += lencopy;
 		else
 			startwrite += lencopy + bytesperline;
@@ -611,7 +612,9 @@ finish_field_prepare_next(struct em28xx *dev,
 			  struct em28xx_buffer *buf,
 			  struct em28xx_dmaqueue *dma_q)
 {
-	if (dev->progressive || dev->top_field) { /* Brand new frame */
+	struct em28xx_v4l2 *v4l2 = dev->v4l2;
+
+	if (v4l2->progressive || dev->top_field) { /* Brand new frame */
 		if (buf != NULL)
 			finish_buffer(dev, buf);
 		buf = get_next_buf(dev, dma_q);
@@ -1230,10 +1233,10 @@ static int vidioc_g_fmt_vid_cap(struct file *file, void *priv,
 	f->fmt.pix.colorspace = V4L2_COLORSPACE_SMPTE170M;
 
 	/* FIXME: TOP? NONE? BOTTOM? ALTENATE? */
-	if (dev->progressive)
+	if (v4l2->progressive)
 		f->fmt.pix.field = V4L2_FIELD_NONE;
 	else
-		f->fmt.pix.field = dev->interlaced ?
+		f->fmt.pix.field = v4l2->interlaced_fieldmode ?
 			   V4L2_FIELD_INTERLACED : V4L2_FIELD_TOP;
 	return 0;
 }
@@ -1254,6 +1257,7 @@ static int vidioc_try_fmt_vid_cap(struct file *file, void *priv,
 {
 	struct em28xx_fh      *fh    = priv;
 	struct em28xx         *dev   = fh->dev;
+	struct em28xx_v4l2    *v4l2  = dev->v4l2;
 	unsigned int          width  = f->fmt.pix.width;
 	unsigned int          height = f->fmt.pix.height;
 	unsigned int          maxw   = norm_maxw(dev);
@@ -1295,10 +1299,10 @@ static int vidioc_try_fmt_vid_cap(struct file *file, void *priv,
 	f->fmt.pix.bytesperline = (width * fmt->depth + 7) >> 3;
 	f->fmt.pix.sizeimage = f->fmt.pix.bytesperline * height;
 	f->fmt.pix.colorspace = V4L2_COLORSPACE_SMPTE170M;
-	if (dev->progressive)
+	if (v4l2->progressive)
 		f->fmt.pix.field = V4L2_FIELD_NONE;
 	else
-		f->fmt.pix.field = dev->interlaced ?
+		f->fmt.pix.field = v4l2->interlaced_fieldmode ?
 			   V4L2_FIELD_INTERLACED : V4L2_FIELD_TOP;
 	f->fmt.pix.priv = 0;
 
@@ -2312,6 +2316,9 @@ static int em28xx_v4l2_init(struct em28xx *dev)
 	v4l2_ctrl_handler_init(hdl, 8);
 	v4l2->v4l2_dev.ctrl_handler = hdl;
 
+	if (dev->board.is_webcam)
+		v4l2->progressive = 1;
+
 	/*
 	 * Default format, used for tvp5150 or saa711x output formats
 	 */
@@ -2426,7 +2433,7 @@ static int em28xx_v4l2_init(struct em28xx *dev)
 	/* set default norm */
 	v4l2->norm = V4L2_STD_PAL;
 	v4l2_device_call_all(&v4l2->v4l2_dev, 0, core, s_std, v4l2->norm);
-	dev->interlaced = EM28XX_INTERLACED_DEFAULT;
+	v4l2->interlaced_fieldmode = EM28XX_INTERLACED_DEFAULT;
 
 	/* Analog specific initialization */
 	v4l2->format = &format[0];

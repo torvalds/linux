@@ -2707,8 +2707,6 @@ static void em28xx_card_setup(struct em28xx *dev)
 	if (dev->board.is_webcam) {
 		if (em28xx_detect_sensor(dev) < 0)
 			dev->board.is_webcam = 0;
-		else
-			dev->progressive = 1;
 	}
 
 	switch (dev->model) {
