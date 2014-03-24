@@ -106,7 +106,7 @@ void drm_ut_debug_printk(const char *function_name, const char *format, ...)
 	vaf.fmt = format;
 	vaf.va = &args;
 
-	printk(KERN_DEBUG "[" DRM_NAME ":%s], %pV", function_name, &vaf);
+	printk(KERN_DEBUG "[" DRM_NAME ":%s] %pV", function_name, &vaf);
 
 	va_end(args);
 }
