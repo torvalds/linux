@@ -749,10 +749,29 @@ static void ath10k_htt_rx_h_rates(struct ath10k *ar, struct htt_rx_info *info,
 	}
 }
 
+static bool ath10k_htt_rx_h_channel(struct ath10k *ar,
+				    struct ieee80211_rx_status *status)
+{
+	struct ieee80211_channel *ch;
+
+	spin_lock_bh(&ar->data_lock);
+	ch = ar->scan_channel;
+	if (!ch)
+		ch = ar->rx_channel;
+	spin_unlock_bh(&ar->data_lock);
+
+	if (!ch)
+		return false;
+
+	status->band = ch->band;
+	status->freq = ch->center_freq;
+
+	return true;
+}
+
 static void ath10k_process_rx(struct ath10k *ar, struct htt_rx_info *info)
 {
 	struct ieee80211_rx_status *status;
-	struct ieee80211_channel *ch;
 	struct ieee80211_hdr *hdr = (struct ieee80211_hdr *)info->skb->data;
 
 	status = IEEE80211_SKB_RXCB(info->skb);
@@ -777,21 +796,7 @@ static void ath10k_process_rx(struct ath10k *ar, struct htt_rx_info *info)
 
 	status->signal = info->signal;
 
-	spin_lock_bh(&ar->data_lock);
-	ch = ar->scan_channel;
-	if (!ch)
-		ch = ar->rx_channel;
-	spin_unlock_bh(&ar->data_lock);
-
-	if (!ch) {
-		ath10k_warn("no channel configured; ignoring frame!\n");
-		dev_kfree_skb_any(info->skb);
-		return;
-	}
-
-	ath10k_htt_rx_h_rates(ar, info, ch->band, status);
-	status->band = ch->band;
-	status->freq = ch->center_freq;
+	ath10k_htt_rx_h_rates(ar, info, status->band, status);
 
 	if (info->rate.info0 & HTT_RX_INDICATION_INFO0_END_VALID) {
 		/* TSF available only in 32-bit */
@@ -1137,7 +1142,8 @@ static int ath10k_unchain_msdu(struct sk_buff *msdu_head)
 
 static bool ath10k_htt_rx_amsdu_allowed(struct ath10k_htt *htt,
 					struct sk_buff *head,
-					struct htt_rx_info *info)
+					struct htt_rx_info *info,
+					bool channel_set)
 {
 	enum htt_rx_mpdu_status status = info->status;
 
@@ -1155,6 +1161,11 @@ static bool ath10k_htt_rx_amsdu_allowed(struct ath10k_htt *htt,
 	if (ath10k_htt_rx_has_decrypt_err(head)) {
 		ath10k_dbg(ATH10K_DBG_HTT,
 			   "htt rx dropping due to decrypt-err\n");
+		return false;
+	}
+
+	if (!channel_set) {
+		ath10k_warn("no channel configured; ignoring frame!\n");
 		return false;
 	}
 
@@ -1193,6 +1204,7 @@ static void ath10k_htt_rx_handler(struct ath10k_htt *htt,
 	int num_mpdu_ranges;
 	int fw_desc_len;
 	u8 *fw_desc;
+	bool channel_set;
 	int i, j;
 
 	lockdep_assert_held(&htt->rx_ring.lock);
@@ -1209,6 +1221,8 @@ static void ath10k_htt_rx_handler(struct ath10k_htt *htt,
 	/* Fill this once, while this is per-ppdu */
 	info.signal  = ATH10K_DEFAULT_NOISE_FLOOR;
 	info.signal += rx->ppdu.combined_rssi;
+
+	channel_set = ath10k_htt_rx_h_channel(htt->ar, &info.rx_status);
 
 	info.rate.info0 = rx->ppdu.info0;
 	info.rate.info1 = __le32_to_cpu(rx->ppdu.info1);
@@ -1236,7 +1250,8 @@ static void ath10k_htt_rx_handler(struct ath10k_htt *htt,
 							 &msdu_tail);
 
 			if (!ath10k_htt_rx_amsdu_allowed(htt, msdu_head,
-							 &info)) {
+							 &info,
+							 channel_set)) {
 				ath10k_htt_rx_free_msdu_chain(msdu_head);
 				continue;
 			}
