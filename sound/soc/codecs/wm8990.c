@@ -1289,14 +1289,6 @@ static int wm8990_resume(struct snd_soc_codec *codec)
  */
 static int wm8990_probe(struct snd_soc_codec *codec)
 {
-	int ret;
-
-	ret = snd_soc_codec_set_cache_io(codec, 8, 16, SND_SOC_REGMAP);
-	if (ret < 0) {
-		printk(KERN_ERR "wm8990: failed to set cache I/O: %d\n", ret);
-		return ret;
-	}
-
 	wm8990_reset(codec);
 
 	/* charge output caps */

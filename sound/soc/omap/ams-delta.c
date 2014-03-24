@@ -325,7 +325,7 @@ static void cx81801_close(struct tty_struct *tty)
 
 	snd_soc_dapm_sync_unlocked(dapm);
 
-	snd_soc_dapm_mutex_unlock(codec);
+	snd_soc_dapm_mutex_unlock(dapm);
 }
 
 /* Line discipline .hangup() */

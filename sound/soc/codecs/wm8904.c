@@ -2048,9 +2048,6 @@ static void wm8904_handle_pdata(struct snd_soc_codec *codec)
 static int wm8904_probe(struct snd_soc_codec *codec)
 {
 	struct wm8904_priv *wm8904 = snd_soc_codec_get_drvdata(codec);
-	int ret;
-
-	codec->control_data = wm8904->regmap;
 
 	switch (wm8904->devtype) {
 	case WM8904:
@@ -2062,12 +2059,6 @@ static int wm8904_probe(struct snd_soc_codec *codec)
 		dev_err(codec->dev, "Unknown device type %d\n",
 			wm8904->devtype);
 		return -EINVAL;
-	}
-
-	ret = snd_soc_codec_set_cache_io(codec, 8, 16, SND_SOC_REGMAP);
-	if (ret != 0) {
-		dev_err(codec->dev, "Failed to set cache I/O: %d\n", ret);
-		return ret;
 	}
 
 	wm8904_handle_pdata(codec);
