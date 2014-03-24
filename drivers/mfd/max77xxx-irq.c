@@ -249,8 +249,9 @@ static int max77xxx_irq_domain_map(struct irq_domain *d, unsigned int irq,
 	struct max77xxx_dev *max77xxx = d->host_data;
 
 	irq_set_chip_data(irq, max77xxx);
-	irq_set_chip_and_handler(irq, &max77xxx_irq_chip, handle_edge_irq);
+	irq_set_chip_and_handler(irq, &max77xxx_irq_chip, handle_simple_irq);
 	irq_set_nested_thread(irq, 1);
+	irq_set_parent(irq, max77xxx->irq);
 #ifdef CONFIG_ARM
 	set_irq_flags(irq, IRQF_VALID);
 #else
