@@ -2353,6 +2353,11 @@ static int igb_get_ts_info(struct net_device *dev,
 {
 	struct igb_adapter *adapter = netdev_priv(dev);
 
+	if (adapter->ptp_clock)
+		info->phc_index = ptp_clock_index(adapter->ptp_clock);
+	else
+		info->phc_index = -1;
+
 	switch (adapter->hw.mac.type) {
 	case e1000_82575:
 		info->so_timestamping =
@@ -2373,11 +2378,6 @@ static int igb_get_ts_info(struct net_device *dev,
 			SOF_TIMESTAMPING_TX_HARDWARE |
 			SOF_TIMESTAMPING_RX_HARDWARE |
 			SOF_TIMESTAMPING_RAW_HARDWARE;
-
-		if (adapter->ptp_clock)
-			info->phc_index = ptp_clock_index(adapter->ptp_clock);
-		else
-			info->phc_index = -1;
 
 		info->tx_types =
 			(1 << HWTSTAMP_TX_OFF) |
@@ -2791,9 +2791,11 @@ static int igb_get_module_eeprom(struct net_device *netdev,
 	/* Read EEPROM block, SFF-8079/SFF-8472, word at a time */
 	for (i = 0; i < last_word - first_word + 1; i++) {
 		status = igb_read_phy_reg_i2c(hw, first_word + i, &dataword[i]);
-		if (status != E1000_SUCCESS)
+		if (status != E1000_SUCCESS) {
 			/* Error occurred while reading module */
+			kfree(dataword);
 			return -EIO;
+		}
 
 		be16_to_cpus(&dataword[i]);
 	}

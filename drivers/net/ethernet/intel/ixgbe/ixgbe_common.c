@@ -2913,6 +2913,9 @@ s32 ixgbe_clear_vmdq_generic(struct ixgbe_hw *hw, u32 rar, u32 vmdq)
 	mpsar_lo = IXGBE_READ_REG(hw, IXGBE_MPSAR_LO(rar));
 	mpsar_hi = IXGBE_READ_REG(hw, IXGBE_MPSAR_HI(rar));
 
+	if (ixgbe_removed(hw->hw_addr))
+		goto done;
+
 	if (!mpsar_lo && !mpsar_hi)
 		goto done;
 

@@ -751,6 +751,28 @@ static void igb_cache_ring_register(struct igb_adapter *adapter)
 	}
 }
 
+u32 igb_rd32(struct e1000_hw *hw, u32 reg)
+{
+	struct igb_adapter *igb = container_of(hw, struct igb_adapter, hw);
+	u8 __iomem *hw_addr = ACCESS_ONCE(hw->hw_addr);
+	u32 value = 0;
+
+	if (E1000_REMOVED(hw_addr))
+		return ~value;
+
+	value = readl(&hw_addr[reg]);
+
+	/* reads should not return all F's */
+	if (!(~value) && (!reg || !(~readl(hw_addr)))) {
+		struct net_device *netdev = igb->netdev;
+		hw->hw_addr = NULL;
+		netif_device_detach(netdev);
+		netdev_err(netdev, "PCIe link lost, device now detached\n");
+	}
+
+	return value;
+}
+
 /**
  *  igb_write_ivar - configure ivar for given MSI-X vector
  *  @hw: pointer to the HW structure
@@ -1013,6 +1035,12 @@ static void igb_reset_q_vector(struct igb_adapter *adapter, int v_idx)
 {
 	struct igb_q_vector *q_vector = adapter->q_vector[v_idx];
 
+	/* Coming from igb_set_interrupt_capability, the vectors are not yet
+	 * allocated. So, q_vector is NULL so we should stop here.
+	 */
+	if (!q_vector)
+		return;
+
 	if (q_vector->tx.ring)
 		adapter->tx_ring[q_vector->tx.ring->queue_index] = NULL;
 
@@ -1121,6 +1149,7 @@ static void igb_set_interrupt_capability(struct igb_adapter *adapter, bool msix)
 
 	/* If we can't do MSI-X, try MSI */
 msi_only:
+	adapter->flags &= ~IGB_FLAG_HAS_MSIX;
 #ifdef CONFIG_PCI_IOV
 	/* disable SR-IOV for non MSI-X configurations */
 	if (adapter->vf_data) {
@@ -7162,8 +7191,10 @@ static int igb_ioctl(struct net_device *netdev, struct ifreq *ifr, int cmd)
 	case SIOCGMIIREG:
 	case SIOCSMIIREG:
 		return igb_mii_ioctl(netdev, ifr, cmd);
+	case SIOCGHWTSTAMP:
+		return igb_ptp_get_ts_config(netdev, ifr);
 	case SIOCSHWTSTAMP:
-		return igb_ptp_hwtstamp_ioctl(netdev, ifr, cmd);
+		return igb_ptp_set_ts_config(netdev, ifr);
 	default:
 		return -EOPNOTSUPP;
 	}

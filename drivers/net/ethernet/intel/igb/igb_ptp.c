@@ -541,10 +541,26 @@ void igb_ptp_rx_rgtstamp(struct igb_q_vector *q_vector,
 }
 
 /**
- * igb_ptp_hwtstamp_ioctl - control hardware time stamping
+ * igb_ptp_get_ts_config - get hardware time stamping config
  * @netdev:
  * @ifreq:
- * @cmd:
+ *
+ * Get the hwtstamp_config settings to return to the user. Rather than attempt
+ * to deconstruct the settings from the registers, just return a shadow copy
+ * of the last known settings.
+ **/
+int igb_ptp_get_ts_config(struct net_device *netdev, struct ifreq *ifr)
+{
+	struct igb_adapter *adapter = netdev_priv(netdev);
+	struct hwtstamp_config *config = &adapter->tstamp_config;
+
+	return copy_to_user(ifr->ifr_data, config, sizeof(*config)) ?
+		-EFAULT : 0;
+}
+/**
+ * igb_ptp_set_ts_config - control hardware time stamping
+ * @netdev:
+ * @ifreq:
  *
  * Outgoing time stamping can be enabled and disabled. Play nice and
  * disable it when requested, although it shouldn't case any overhead
@@ -558,12 +574,11 @@ void igb_ptp_rx_rgtstamp(struct igb_q_vector *q_vector,
  * not supported, with the exception of "all V2 events regardless of
  * level 2 or 4".
  **/
-int igb_ptp_hwtstamp_ioctl(struct net_device *netdev,
-			   struct ifreq *ifr, int cmd)
+int igb_ptp_set_ts_config(struct net_device *netdev, struct ifreq *ifr)
 {
 	struct igb_adapter *adapter = netdev_priv(netdev);
 	struct e1000_hw *hw = &adapter->hw;
-	struct hwtstamp_config config;
+	struct hwtstamp_config *config = &adapter->tstamp_config;
 	u32 tsync_tx_ctl = E1000_TSYNCTXCTL_ENABLED;
 	u32 tsync_rx_ctl = E1000_TSYNCRXCTL_ENABLED;
 	u32 tsync_rx_cfg = 0;
@@ -571,14 +586,14 @@ int igb_ptp_hwtstamp_ioctl(struct net_device *netdev,
 	bool is_l2 = false;
 	u32 regval;
 
-	if (copy_from_user(&config, ifr->ifr_data, sizeof(config)))
+	if (copy_from_user(config, ifr->ifr_data, sizeof(*config)))
 		return -EFAULT;
 
 	/* reserved for future extensions */
-	if (config.flags)
+	if (config->flags)
 		return -EINVAL;
 
-	switch (config.tx_type) {
+	switch (config->tx_type) {
 	case HWTSTAMP_TX_OFF:
 		tsync_tx_ctl = 0;
 	case HWTSTAMP_TX_ON:
@@ -587,7 +602,7 @@ int igb_ptp_hwtstamp_ioctl(struct net_device *netdev,
 		return -ERANGE;
 	}
 
-	switch (config.rx_filter) {
+	switch (config->rx_filter) {
 	case HWTSTAMP_FILTER_NONE:
 		tsync_rx_ctl = 0;
 		break;
@@ -611,7 +626,7 @@ int igb_ptp_hwtstamp_ioctl(struct net_device *netdev,
 	case HWTSTAMP_FILTER_PTP_V2_L2_DELAY_REQ:
 	case HWTSTAMP_FILTER_PTP_V2_L4_DELAY_REQ:
 		tsync_rx_ctl |= E1000_TSYNCRXCTL_TYPE_EVENT_V2;
-		config.rx_filter = HWTSTAMP_FILTER_PTP_V2_EVENT;
+		config->rx_filter = HWTSTAMP_FILTER_PTP_V2_EVENT;
 		is_l2 = true;
 		is_l4 = true;
 		break;
@@ -622,12 +637,12 @@ int igb_ptp_hwtstamp_ioctl(struct net_device *netdev,
 		 */
 		if (hw->mac.type != e1000_82576) {
 			tsync_rx_ctl |= E1000_TSYNCRXCTL_TYPE_ALL;
-			config.rx_filter = HWTSTAMP_FILTER_ALL;
+			config->rx_filter = HWTSTAMP_FILTER_ALL;
 			break;
 		}
 		/* fall through */
 	default:
-		config.rx_filter = HWTSTAMP_FILTER_NONE;
+		config->rx_filter = HWTSTAMP_FILTER_NONE;
 		return -ERANGE;
 	}
 
@@ -644,7 +659,7 @@ int igb_ptp_hwtstamp_ioctl(struct net_device *netdev,
 	if ((hw->mac.type >= e1000_82580) && tsync_rx_ctl) {
 		tsync_rx_ctl = E1000_TSYNCRXCTL_ENABLED;
 		tsync_rx_ctl |= E1000_TSYNCRXCTL_TYPE_ALL;
-		config.rx_filter = HWTSTAMP_FILTER_ALL;
+		config->rx_filter = HWTSTAMP_FILTER_ALL;
 		is_l2 = true;
 		is_l4 = true;
 
@@ -708,7 +723,7 @@ int igb_ptp_hwtstamp_ioctl(struct net_device *netdev,
 	regval = rd32(E1000_RXSTMPL);
 	regval = rd32(E1000_RXSTMPH);
 
-	return copy_to_user(ifr->ifr_data, &config, sizeof(config)) ?
+	return copy_to_user(ifr->ifr_data, config, sizeof(*config)) ?
 		-EFAULT : 0;
 }
 
@@ -864,6 +879,9 @@ void igb_ptp_reset(struct igb_adapter *adapter)
 
 	if (!(adapter->flags & IGB_FLAG_PTP))
 		return;
+
+	/* reset the tstamp_config */
+	memset(&adapter->tstamp_config, 0, sizeof(adapter->tstamp_config));
 
 	switch (adapter->hw.mac.type) {
 	case e1000_82576:
