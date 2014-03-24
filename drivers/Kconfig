@@ -170,4 +170,6 @@ source "drivers/reset/Kconfig"
 
 source "drivers/gator/Kconfig"
 
+source "drivers/headset_observe/Kconfig"
+
 endmenu

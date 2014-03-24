@@ -7,24 +7,26 @@
 #define HOOK_DOWN_HIGH 0x00000001
 #define HOOK_DOWN_LOW  0x00000000
 
-struct io_info{
-	char	iomux_name[50];
-	int		iomux_mode;	
-};
-
-
 struct rk_headset_pdata{
-	unsigned int Hook_gpio;//Detection Headset--Must be set
-	unsigned int Sw_mic_gpio;
-	unsigned int Hp_mic_io_value;
-	unsigned int Main_mic_io_value;
-	unsigned int Hook_adc_chn; //adc channel
-	unsigned int Hook_down_type; //Hook key down status   
-	int	hook_key_code;
-	unsigned int Headset_gpio;//Detection Headset--Must be set
-	unsigned int headset_in_type;//	Headphones into the state level--Must be set
-	int (*headset_io_init)(int);
-	int (*hook_io_init)(int);
+//heaset about
+	unsigned int headset_gpio;
+	unsigned int headset_insert_type;//	Headphones into the state level
+//hook about
+	int hook_adc_chn; //adc channel
+	unsigned int hook_gpio;
+	unsigned int hook_down_type; //Hook key down status  
+#ifdef CONFIG_MODEM_MIC_SWITCH
+//mic about	
+	unsigned int mic_switch_gpio;
+	unsigned int hp_mic_io_value;
+	unsigned int main_mic_io_value;
+#endif
 };
 
+#define HOOK_KEY_CODE KEY_MEDIA
+
+extern int rk_headset_probe(struct platform_device *pdev,struct rk_headset_pdata *pdata);
+extern int rk_headset_adc_probe(struct platform_device *pdev,struct rk_headset_pdata *pdata);
+extern int rk_headset_adc_suspend(struct platform_device *pdev, pm_message_t state);
+extern int rk_headset_adc_resume(struct platform_device *pdev);
 #endif
