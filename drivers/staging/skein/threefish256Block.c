@@ -1,6 +1,5 @@
+#include <linux/string.h>
 #include <threefishApi.h>
-#include <stdint.h>
-#include <string.h>
 
 
 void threefishEncrypt256(ThreefishKey_t* keyCtx, uint64_t* input, uint64_t* output)

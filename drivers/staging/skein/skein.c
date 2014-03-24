@@ -10,7 +10,7 @@
 
 #define  SKEIN_PORT_CODE /* instantiate any code in skein_port.h */
 
-#include <string.h>       /* get the memcpy/memset functions */
+#include <linux/string.h>       /* get the memcpy/memset functions */
 #include <skein.h> /* get the Skein API definitions   */
 #include <skein_iv.h>    /* get precomputed IVs */
 

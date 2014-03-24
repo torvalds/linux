@@ -44,24 +44,10 @@ typedef uint_64t        u64b_t;             /* 64-bit unsigned integer */
  * platform-specific code instead (e.g., for big-endian CPUs).
  *
  */
-#ifndef SKEIN_NEED_SWAP /* compile-time "override" for endianness? */
-
-#include <brg_endian.h>              /* get endianness selection */
-#if   PLATFORM_BYTE_ORDER == IS_BIG_ENDIAN
-    /* here for big-endian CPUs */
-#define SKEIN_NEED_SWAP   (1)
-#elif PLATFORM_BYTE_ORDER == IS_LITTLE_ENDIAN
-    /* here for x86 and x86-64 CPUs (and other detected little-endian CPUs) */
 #define SKEIN_NEED_SWAP   (0)
-#if   PLATFORM_MUST_ALIGN == 0              /* ok to use "fast" versions? */
+/* below two prototype assume we are handed aligned data */
 #define Skein_Put64_LSB_First(dst08,src64,bCnt) memcpy(dst08,src64,bCnt)
 #define Skein_Get64_LSB_First(dst64,src08,wCnt) memcpy(dst64,src08,8*(wCnt))
-#endif
-#else
-#error "Skein needs endianness setting!"
-#endif
-
-#endif /* ifndef SKEIN_NEED_SWAP */
 
 /*
  ******************************************************************

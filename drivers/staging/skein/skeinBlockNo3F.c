@@ -1,5 +1,5 @@
 
-#include <string.h>
+#include <linux/string.h>
 #include <skein.h>
 #include <threefishApi.h>
 

@@ -24,10 +24,8 @@ OTHER DEALINGS IN THE SOFTWARE.
 
 */
 
-#define SKEIN_ERR_CHECK 1
+#include <linux/string.h>
 #include <skeinApi.h>
-#include <string.h>
-#include <stdio.h>
 
 int skeinCtxPrepare(SkeinCtx_t* ctx, SkeinSize_t size)
 {

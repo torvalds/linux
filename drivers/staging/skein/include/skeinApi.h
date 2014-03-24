@@ -78,8 +78,8 @@ OTHER DEALINGS IN THE SOFTWARE.
  * 
  */
 
+#include <linux/types.h>
 #include <skein.h>
-#include <stdint.h>
 
 #ifdef __cplusplus
 extern "C"

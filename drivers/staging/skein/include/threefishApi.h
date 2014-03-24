@@ -28,8 +28,8 @@
 @endcode
  */
 
+#include <linux/types.h>
 #include <skein.h>
-#include <stdint.h>
 
 #define KeyScheduleConst 0x1BD11BDAA9FC1A22L
 
