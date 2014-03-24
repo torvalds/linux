@@ -1154,8 +1154,6 @@ static void ath10k_htt_rx_handler(struct ath10k_htt *htt,
 
 	lockdep_assert_held(&htt->rx_ring.lock);
 
-	memset(rx_status, 0, sizeof(*rx_status));
-
 	fw_desc_len = __le16_to_cpu(rx->prefix.fw_rx_desc_bytes);
 	fw_desc = (u8 *)&rx->fw_desc;
 
@@ -1164,8 +1162,11 @@ static void ath10k_htt_rx_handler(struct ath10k_htt *htt,
 	mpdu_ranges = htt_rx_ind_get_mpdu_ranges(rx);
 
 	/* Fill this once, while this is per-ppdu */
-	rx_status->signal  = ATH10K_DEFAULT_NOISE_FLOOR;
-	rx_status->signal += rx->ppdu.combined_rssi;
+	if (rx->ppdu.info0 & HTT_RX_INDICATION_INFO0_START_VALID) {
+		memset(rx_status, 0, sizeof(*rx_status));
+		rx_status->signal  = ATH10K_DEFAULT_NOISE_FLOOR +
+				     rx->ppdu.combined_rssi;
+	}
 
 	if (rx->ppdu.info0 & HTT_RX_INDICATION_INFO0_END_VALID) {
 		/* TSF available only in 32-bit */
