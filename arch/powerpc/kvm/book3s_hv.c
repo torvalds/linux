@@ -2467,7 +2467,7 @@ static int kvmppc_book3s_init_hv(void)
 	 */
 	r = kvmppc_core_check_processor_compat_hv();
 	if (r < 0)
-		return r;
+		return -ENODEV;
 
 	kvm_ops_hv.owner = THIS_MODULE;
 	kvmppc_hv_ops = &kvm_ops_hv;
