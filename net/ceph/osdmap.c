@@ -1597,7 +1597,7 @@ static int raw_to_up_osds(struct ceph_osdmap *osdmap,
 }
 
 /*
- * Given up set, apply pg_temp mapping.
+ * Given up set, apply pg_temp and primary_temp mappings.
  *
  * Return acting set length.  *primary is set to acting primary osd id,
  * or -1 if acting set is empty.
@@ -1643,6 +1643,11 @@ static int apply_temps(struct ceph_osdmap *osdmap,
 		temp_len = len;
 		temp_primary = *primary;
 	}
+
+	/* primary_temp? */
+	pg = __lookup_pg_mapping(&osdmap->primary_temp, pgid);
+	if (pg)
+		temp_primary = pg->primary_temp.osd;
 
 	*primary = temp_primary;
 	return temp_len;
