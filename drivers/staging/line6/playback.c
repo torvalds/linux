@@ -34,6 +34,7 @@ static void change_volume(struct urb *urb_out, int volume[],
 
 	if (bytes_per_frame == 4) {
 		short *p, *buf_end;
+
 		p = (short *)urb_out->transfer_buffer;
 		buf_end = p + urb_out->transfer_buffer_length / sizeof(*p);
 
@@ -48,6 +49,7 @@ static void change_volume(struct urb *urb_out, int volume[],
 
 		for (; p < buf_end; p += 3) {
 			int val;
+
 			val = p[0] + (p[1] << 8) + ((signed char)p[2] << 16);
 			val = (val * volume[chn & 1]) >> 8;
 			p[0] = val;
@@ -116,6 +118,7 @@ static void add_monitor_signal(struct urb *urb_out, unsigned char *signal,
 
 	if (bytes_per_frame == 4) {
 		short *pi, *po, *buf_end;
+
 		pi = (short *)signal;
 		po = (short *)urb_out->transfer_buffer;
 		buf_end = po + urb_out->transfer_buffer_length / sizeof(*po);
@@ -171,6 +174,7 @@ static int submit_audio_out_urb(struct snd_line6_pcm *line6pcm)
 
 		if (fsize == 0) {
 			int n;
+
 			line6pcm->count_out += frame_increment;
 			n = line6pcm->count_out / frame_factor;
 			line6pcm->count_out -= n * frame_factor;
@@ -207,6 +211,7 @@ static int submit_audio_out_urb(struct snd_line6_pcm *line6pcm)
 			   copy the data to the temp buffer.
 			 */
 			int len;
+
 			len = runtime->buffer_size - line6pcm->pos_out;
 
 			if (len > 0) {

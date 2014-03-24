@@ -213,6 +213,7 @@ static int snd_toneport_source_info(struct snd_kcontrol *kcontrol,
 				    struct snd_ctl_elem_info *uinfo)
 {
 	const int size = ARRAY_SIZE(toneport_source_info);
+
 	uinfo->type = SNDRV_CTL_ELEM_TYPE_ENUMERATED;
 	uinfo->count = 1;
 	uinfo->value.enumerated.items = size;
