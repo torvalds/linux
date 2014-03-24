@@ -1176,19 +1176,6 @@ struct htt_peer_unmap_event {
 struct htt_rx_info {
 	struct sk_buff *skb;
 	struct ieee80211_rx_status rx_status;
-	enum htt_rx_mpdu_status status;
-	enum htt_rx_mpdu_encrypt_type encrypt_type;
-	s8 signal;
-	struct {
-		u8 info0;
-		u32 info1;
-		u32 info2;
-	} rate;
-
-	u32 tsf;
-	bool fcs_err;
-	bool amsdu_more;
-	bool mic_err;
 };
 
 struct ath10k_htt_txbuf {
