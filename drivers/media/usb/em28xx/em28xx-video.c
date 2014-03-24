@@ -236,11 +236,11 @@ static int em28xx_set_outfmt(struct em28xx *dev)
 	if (ret < 0)
 		return ret;
 
-	ret = em28xx_write_reg(dev, EM28XX_R10_VINMODE, dev->vinmode);
+	ret = em28xx_write_reg(dev, EM28XX_R10_VINMODE, v4l2->vinmode);
 	if (ret < 0)
 		return ret;
 
-	vinctrl = dev->vinctl;
+	vinctrl = v4l2->vinctl;
 	if (em28xx_vbi_supported(dev) == 1) {
 		vinctrl |= EM28XX_VINCTRL_VBI_RAW;
 		em28xx_write_reg(dev, EM28XX_R34_VBI_START_H, 0x00);
@@ -2312,9 +2312,9 @@ static int em28xx_v4l2_init(struct em28xx *dev)
 	/*
 	 * Default format, used for tvp5150 or saa711x output formats
 	 */
-	dev->vinmode = 0x10;
-	dev->vinctl  = EM28XX_VINCTRL_INTERLACED |
-		       EM28XX_VINCTRL_CCIR656_ENABLE;
+	v4l2->vinmode = 0x10;
+	v4l2->vinctl  = EM28XX_VINCTRL_INTERLACED |
+			EM28XX_VINCTRL_CCIR656_ENABLE;
 
 	/* request some modules */
 

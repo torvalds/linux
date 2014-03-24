@@ -516,6 +516,9 @@ struct em28xx_v4l2 {
 	struct mutex vb_queue_lock;
 	struct mutex vb_vbi_queue_lock;
 
+	u8 vinmode;
+	u8 vinctl;
+
 	/* Frame properties */
 	int width;		/* current frame width */
 	int height;		/* current frame height */
@@ -597,9 +600,6 @@ struct em28xx {
 
 	/* Progressive (non-interlaced) mode */
 	int progressive;
-
-	/* Vinmode/Vinctl used at the driver */
-	int vinmode, vinctl;
 
 	/* Controls audio streaming */
 	struct work_struct wq_trigger;	/* Trigger to start/stop audio for alsa module */

@@ -372,8 +372,8 @@ int em28xx_init_camera(struct em28xx *dev)
 			break;
 		}
 		/* probably means GRGB 16 bit bayer */
-		dev->vinmode = 0x0d;
-		dev->vinctl = 0x00;
+		v4l2->vinmode = 0x0d;
+		v4l2->vinctl = 0x00;
 
 		break;
 	}
@@ -384,8 +384,8 @@ int em28xx_init_camera(struct em28xx *dev)
 		em28xx_initialize_mt9m001(dev);
 
 		/* probably means BGGR 16 bit bayer */
-		dev->vinmode = 0x0c;
-		dev->vinctl = 0x00;
+		v4l2->vinmode = 0x0c;
+		v4l2->vinctl = 0x00;
 
 		break;
 	case EM28XX_MT9M111:
@@ -396,8 +396,8 @@ int em28xx_init_camera(struct em28xx *dev)
 		em28xx_write_reg(dev, EM28XX_R0F_XCLK, dev->board.xclk);
 		em28xx_initialize_mt9m111(dev);
 
-		dev->vinmode = 0x0a;
-		dev->vinctl = 0x00;
+		v4l2->vinmode = 0x0a;
+		v4l2->vinctl = 0x00;
 
 		break;
 	case EM28XX_OV2640:
@@ -438,8 +438,8 @@ int em28xx_init_camera(struct em28xx *dev)
 		/* NOTE: for UXGA=1600x1200 switch to 12MHz */
 		dev->board.xclk = EM28XX_XCLK_FREQUENCY_24MHZ;
 		em28xx_write_reg(dev, EM28XX_R0F_XCLK, dev->board.xclk);
-		dev->vinmode = 0x08;
-		dev->vinctl = 0x00;
+		v4l2->vinmode = 0x08;
+		v4l2->vinctl = 0x00;
 
 		break;
 	}
