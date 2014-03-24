@@ -238,11 +238,6 @@ int drm_err(const char *func, const char *format, ...);
 		drm_ut_debug_printk(DRM_UT_KMS, NULL,			\
 					NULL, fmt, ##args);		\
 	} while (0)
-#define DRM_LOG_MODE(fmt, args...)					\
-	do {								\
-		drm_ut_debug_printk(DRM_UT_MODE, NULL,			\
-					NULL, fmt, ##args);		\
-	} while (0)
 #define DRM_LOG_DRIVER(fmt, args...)					\
 	do {								\
 		drm_ut_debug_printk(DRM_UT_DRIVER, NULL,		\
@@ -255,7 +250,6 @@ int drm_err(const char *func, const char *format, ...);
 #define DRM_DEBUG(fmt, arg...)		 do { } while (0)
 #define DRM_LOG(fmt, arg...)		do { } while (0)
 #define DRM_LOG_KMS(fmt, args...) do { } while (0)
-#define DRM_LOG_MODE(fmt, arg...) do { } while (0)
 #define DRM_LOG_DRIVER(fmt, arg...) do { } while (0)
 
 #endif
