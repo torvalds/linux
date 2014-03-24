@@ -99,6 +99,9 @@ static inline unsigned long idx_to_kaddr(struct xenvif *vif,
 	return (unsigned long)pfn_to_kaddr(idx_to_pfn(vif, idx));
 }
 
+#define callback_param(vif, pending_idx) \
+	(vif->pending_tx_info[pending_idx].callback_struct)
+
 /* Find the containing VIF's structure from a pointer in pending_tx_info array
  */
 static inline struct xenvif* ubuf_to_vif(struct ubuf_info *ubuf)
@@ -1020,12 +1023,12 @@ static void xenvif_fill_frags(struct xenvif *vif, struct sk_buff *skb)
 		/* If this is not the first frag, chain it to the previous*/
 		if (unlikely(prev_pending_idx == INVALID_PENDING_IDX))
 			skb_shinfo(skb)->destructor_arg =
-				&vif->pending_tx_info[pending_idx].callback_struct;
+				&callback_param(vif, pending_idx);
 		else if (likely(pending_idx != prev_pending_idx))
-			vif->pending_tx_info[prev_pending_idx].callback_struct.ctx =
-				&(vif->pending_tx_info[pending_idx].callback_struct);
+			callback_param(vif, prev_pending_idx).ctx =
+				&callback_param(vif, pending_idx);
 
-		vif->pending_tx_info[pending_idx].callback_struct.ctx = NULL;
+		callback_param(vif, pending_idx).ctx = NULL;
 		prev_pending_idx = pending_idx;
 
 		txp = &vif->pending_tx_info[pending_idx].req;
@@ -1395,13 +1398,13 @@ static int xenvif_tx_submit(struct xenvif *vif)
 		memcpy(skb->data,
 		       (void *)(idx_to_kaddr(vif, pending_idx)|txp->offset),
 		       data_len);
-		vif->pending_tx_info[pending_idx].callback_struct.ctx = NULL;
+		callback_param(vif, pending_idx).ctx = NULL;
 		if (data_len < txp->size) {
 			/* Append the packet payload as a fragment. */
 			txp->offset += data_len;
 			txp->size -= data_len;
 			skb_shinfo(skb)->destructor_arg =
-				&vif->pending_tx_info[pending_idx].callback_struct;
+				&callback_param(vif, pending_idx);
 		} else {
 			/* Schedule a response immediately. */
 			xenvif_idx_unmap(vif, pending_idx);
@@ -1681,7 +1684,16 @@ void xenvif_idx_unmap(struct xenvif *vif, u16 pending_idx)
 
 	ret = gnttab_unmap_refs(&tx_unmap_op, NULL,
 				&vif->mmap_pages[pending_idx], 1);
-	BUG_ON(ret);
+	if (ret) {
+		netdev_err(vif->dev,
+			   "Unmap fail: ret: %d pending_idx: %d host_addr: %llx handle: %x status: %d\n",
+			   ret,
+			   pending_idx,
+			   tx_unmap_op.host_addr,
+			   tx_unmap_op.handle,
+			   tx_unmap_op.status);
+		BUG();
+	}
 
 	xenvif_idx_release(vif, pending_idx, XEN_NETIF_RSP_OKAY);
 }
