@@ -933,7 +933,7 @@ static int tse_change_mtu(struct net_device *dev, int new_mtu)
 static void altera_tse_set_mcfilter(struct net_device *dev)
 {
 	struct altera_tse_private *priv = netdev_priv(dev);
-	struct altera_tse_mac *mac = (struct altera_tse_mac *)priv->mac_dev;
+	struct altera_tse_mac *mac = priv->mac_dev;
 	int i;
 	struct netdev_hw_addr *ha;
 
@@ -963,7 +963,7 @@ static void altera_tse_set_mcfilter(struct net_device *dev)
 static void altera_tse_set_mcfilterall(struct net_device *dev)
 {
 	struct altera_tse_private *priv = netdev_priv(dev);
-	struct altera_tse_mac *mac = (struct altera_tse_mac *)priv->mac_dev;
+	struct altera_tse_mac *mac = priv->mac_dev;
 	int i;
 
 	/* set the hash filter */
