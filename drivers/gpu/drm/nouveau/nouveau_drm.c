@@ -322,7 +322,7 @@ nouveau_get_hdmi_dev(struct nouveau_drm *drm)
 	struct pci_dev *pdev = drm->dev->pdev;
 
 	if (!pdev) {
-		DRM_INFO("not a PCI device; no HDMI");
+		DRM_INFO("not a PCI device; no HDMI\n");
 		drm->hdmi_device = NULL;
 		return;
 	}
