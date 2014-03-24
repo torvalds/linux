@@ -37,12 +37,11 @@
 #define Skein_Get64_LSB_First(dst64, src08, wCnt) memcpy(dst64, src08, 8*(wCnt))
 #define Skein_Swap64(w64)  (w64)
 
-enum
-	{
+enum {
 	SKEIN_SUCCESS         =      0, /* return codes from Skein calls */
 	SKEIN_FAIL            =      1,
 	SKEIN_BAD_HASHLEN     =      2
-	};
+};
 
 #define  SKEIN_MODIFIER_WORDS   (2) /* number of modifier (tweak) words */
 
@@ -63,33 +62,29 @@ enum
 #define  SKEIN_512_BLOCK_BYTES  (8*SKEIN_512_STATE_WORDS)
 #define  SKEIN1024_BLOCK_BYTES  (8*SKEIN1024_STATE_WORDS)
 
-struct skein_ctx_hdr
-	{
+struct skein_ctx_hdr {
 	size_t  hashBitLen;		/* size of hash result, in bits */
 	size_t  bCnt;			/* current byte count in buffer b[] */
 	u64  T[SKEIN_MODIFIER_WORDS];	/* tweak: T[0]=byte cnt, T[1]=flags */
-	};
+};
 
-struct skein_256_ctx /* 256-bit Skein hash context structure */
-	{
+struct skein_256_ctx { /* 256-bit Skein hash context structure */
 	struct skein_ctx_hdr h;		/* common header context variables */
 	u64  X[SKEIN_256_STATE_WORDS];	/* chaining variables */
 	u8  b[SKEIN_256_BLOCK_BYTES];	/* partial block buf (8-byte aligned) */
-	};
+};
 
-struct skein_512_ctx /* 512-bit Skein hash context structure */
-	{
+struct skein_512_ctx { /* 512-bit Skein hash context structure */
 	struct skein_ctx_hdr h;		/* common header context variables */
 	u64  X[SKEIN_512_STATE_WORDS];	/* chaining variables */
 	u8  b[SKEIN_512_BLOCK_BYTES];	/* partial block buf (8-byte aligned) */
-	};
+};
 
-struct skein1024_ctx /* 1024-bit Skein hash context structure */
-	{
+struct skein1024_ctx { /* 1024-bit Skein hash context structure */
 	struct skein_ctx_hdr h;		/* common header context variables */
 	u64  X[SKEIN1024_STATE_WORDS];	/* chaining variables */
 	u8  b[SKEIN1024_BLOCK_BYTES];	/* partial block buf (8-byte aligned) */
-	};
+};
 
 /*   Skein APIs for (incremental) "straight hashing" */
 int  Skein_256_Init(struct skein_256_ctx *ctx, size_t hashBitLen);
@@ -296,8 +291,7 @@ int  Skein1024_Output(struct skein1024_ctx *ctx, u8 *hashVal);
 /*****************************************************************
 ** Skein block function constants (shared across Ref and Opt code)
 ******************************************************************/
-enum
-	{
+enum {
 	    /* Skein_256 round rotation constants */
 	R_256_0_0 = 14, R_256_0_1 = 16,
 	R_256_1_0 = 52, R_256_1_1 = 57,
@@ -335,7 +329,7 @@ enum
 	R1024_6_4 = 19, R1024_6_5 = 42, R1024_6_6 = 44, R1024_6_7 = 25,
 	R1024_7_0 =  9, R1024_7_1 = 48, R1024_7_2 = 35, R1024_7_3 = 52,
 	R1024_7_4 = 23, R1024_7_5 = 31, R1024_7_6 = 37, R1024_7_7 = 20
-	};
+};
 
 #ifndef SKEIN_ROUNDS
 #define SKEIN_256_ROUNDS_TOTAL (72)	/* # rounds for diff block sizes */
