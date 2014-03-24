@@ -144,8 +144,10 @@ static struct em28xx_fmt format[] = {
 /*FIXME: maxw should be dependent of alt mode */
 static inline unsigned int norm_maxw(struct em28xx *dev)
 {
+	struct em28xx_v4l2 *v4l2 = dev->v4l2;
+
 	if (dev->board.is_webcam)
-		return dev->sensor_xres;
+		return v4l2->sensor_xres;
 
 	if (dev->board.max_range_640_480)
 		return 640;
@@ -158,7 +160,7 @@ static inline unsigned int norm_maxh(struct em28xx *dev)
 	struct em28xx_v4l2 *v4l2 = dev->v4l2;
 
 	if (dev->board.is_webcam)
-		return dev->sensor_yres;
+		return v4l2->sensor_yres;
 
 	if (dev->board.max_range_640_480)
 		return 480;

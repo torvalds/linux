@@ -519,6 +519,11 @@ struct em28xx_v4l2 {
 	u8 vinmode;
 	u8 vinctl;
 
+	/* Camera specific fields */
+	int sensor_xres;
+	int sensor_yres;
+	int sensor_xtal;
+
 	struct em28xx_fmt *format;
 	v4l2_std_id norm;	/* selected tv norm */
 
@@ -601,10 +606,7 @@ struct em28xx {
 
 	struct em28xx_board board;
 
-	/* Webcam specific fields */
-	enum em28xx_sensor em28xx_sensor;
-	int sensor_xres, sensor_yres;
-	int sensor_xtal;
+	enum em28xx_sensor em28xx_sensor;	/* camera specific */
 
 	/* Controls audio streaming */
 	struct work_struct wq_trigger;	/* Trigger to start/stop audio for alsa module */
