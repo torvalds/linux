@@ -1437,7 +1437,7 @@ static void tcp_minshall_update(struct tcp_sock *tp, unsigned int mss_now,
  *    With Minshall's modification: all sent small packets are ACKed.
  */
 static bool tcp_nagle_check(bool partial, const struct tcp_sock *tp,
-			    unsigned int mss_now, int nonagle)
+			    int nonagle)
 {
 	return partial &&
 		((nonagle & TCP_NAGLE_CORK) ||
@@ -1469,7 +1469,7 @@ static unsigned int tcp_mss_split_point(const struct sock *sk,
 	 * to include this last segment in this skb.
 	 * Otherwise, we'll split the skb at last MSS boundary
 	 */
-	if (tcp_nagle_check(partial != 0, tp, mss_now, nonagle))
+	if (tcp_nagle_check(partial != 0, tp, nonagle))
 		return needed - partial;
 
 	return needed;
@@ -1532,7 +1532,7 @@ static inline bool tcp_nagle_test(const struct tcp_sock *tp, const struct sk_buf
 	if (tcp_urg_mode(tp) || (TCP_SKB_CB(skb)->tcp_flags & TCPHDR_FIN))
 		return true;
 
-	if (!tcp_nagle_check(skb->len < cur_mss, tp, cur_mss, nonagle))
+	if (!tcp_nagle_check(skb->len < cur_mss, tp, nonagle))
 		return true;
 
 	return false;
