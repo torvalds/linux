@@ -963,7 +963,7 @@ int em28xx_start_analog_streaming(struct vb2_queue *vq, unsigned int count)
 
 		/* Ask tuner to go to analog or radio mode */
 		memset(&f, 0, sizeof(f));
-		f.frequency = dev->ctl_freq;
+		f.frequency = v4l2->frequency;
 		if (vq->owner && vq->owner->vdev->vfl_type == VFL_TYPE_RADIO)
 			f.type = V4L2_TUNER_RADIO;
 		else
@@ -1593,11 +1593,12 @@ static int vidioc_g_frequency(struct file *file, void *priv,
 {
 	struct em28xx_fh      *fh  = priv;
 	struct em28xx         *dev = fh->dev;
+	struct em28xx_v4l2    *v4l2 = dev->v4l2;
 
 	if (0 != f->tuner)
 		return -EINVAL;
 
-	f->frequency = dev->ctl_freq;
+	f->frequency = v4l2->frequency;
 	return 0;
 }
 
@@ -1614,7 +1615,7 @@ static int vidioc_s_frequency(struct file *file, void *priv,
 
 	v4l2_device_call_all(&v4l2->v4l2_dev, 0, tuner, s_frequency, f);
 	v4l2_device_call_all(&v4l2->v4l2_dev, 0, tuner, g_frequency, &new_freq);
-	dev->ctl_freq = new_freq.frequency;
+	v4l2->frequency = new_freq.frequency;
 
 	return 0;
 }
@@ -2220,9 +2221,10 @@ static struct video_device *em28xx_vdev_init(struct em28xx *dev,
 
 static void em28xx_tuner_setup(struct em28xx *dev)
 {
-	struct v4l2_device *v4l2_dev = &dev->v4l2->v4l2_dev;
-	struct tuner_setup           tun_setup;
-	struct v4l2_frequency        f;
+	struct em28xx_v4l2      *v4l2 = dev->v4l2;
+	struct v4l2_device      *v4l2_dev = &v4l2->v4l2_dev;
+	struct tuner_setup      tun_setup;
+	struct v4l2_frequency   f;
 
 	if (dev->tuner_type == TUNER_ABSENT)
 		return;
@@ -2277,7 +2279,7 @@ static void em28xx_tuner_setup(struct em28xx *dev)
 	f.tuner = 0;
 	f.type = V4L2_TUNER_ANALOG_TV;
 	f.frequency = 9076;     /* just a magic number */
-	dev->ctl_freq = f.frequency;
+	v4l2->frequency = f.frequency;
 	v4l2_device_call_all(v4l2_dev, 0, tuner, s_frequency, &f);
 }
 

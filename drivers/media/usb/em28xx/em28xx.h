@@ -527,6 +527,8 @@ struct em28xx_v4l2 {
 	int users;		/* user count for exclusive use */
 	int streaming_users;    /* number of actively streaming users */
 
+	u32 frequency;		/* selected tuner frequency */
+
 	struct em28xx_fmt *format;
 	v4l2_std_id norm;	/* selected tv norm */
 
@@ -645,7 +647,6 @@ struct em28xx {
 	struct rt_mutex i2c_bus_lock;
 
 	/* video for linux */
-	int ctl_freq;		/* selected frequency */
 	unsigned int ctl_input;	/* selected input */
 	unsigned int ctl_ainput;/* selected audio input */
 	unsigned int ctl_aoutput;/* selected audio output */
