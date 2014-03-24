@@ -1532,7 +1532,7 @@ static int emac_dev_open(struct net_device *ndev)
 	struct device *emac_dev = &ndev->dev;
 	u32 cnt;
 	struct resource *res;
-	int ret;
+	int q, m, ret;
 	int i = 0;
 	int k = 0;
 	struct emac_priv *priv = netdev_priv(ndev);
@@ -1567,8 +1567,7 @@ static int emac_dev_open(struct net_device *ndev)
 
 	while ((res = platform_get_resource(priv->pdev, IORESOURCE_IRQ, k))) {
 		for (i = res->start; i <= res->end; i++) {
-			if (devm_request_irq(&priv->pdev->dev, i, emac_irq,
-					     0, ndev->name, ndev))
+			if (request_irq(i, emac_irq, 0, ndev->name, ndev))
 				goto rollback;
 		}
 		k++;
@@ -1641,7 +1640,15 @@ static int emac_dev_open(struct net_device *ndev)
 
 rollback:
 
-	dev_err(emac_dev, "DaVinci EMAC: devm_request_irq() failed");
+	dev_err(emac_dev, "DaVinci EMAC: request_irq() failed");
+
+	for (q = k; k >= 0; k--) {
+		for (m = i; m >= res->start; m--)
+			free_irq(m, ndev);
+		res = platform_get_resource(priv->pdev, IORESOURCE_IRQ, k-1);
+		m = res->end;
+	}
+
 	ret = -EBUSY;
 err:
 	pm_runtime_put(&priv->pdev->dev);
@@ -1659,6 +1666,9 @@ err:
  */
 static int emac_dev_stop(struct net_device *ndev)
 {
+	struct resource *res;
+	int i = 0;
+	int irq_num;
 	struct emac_priv *priv = netdev_priv(ndev);
 	struct device *emac_dev = &ndev->dev;
 
@@ -1673,6 +1683,13 @@ static int emac_dev_stop(struct net_device *ndev)
 
 	if (priv->phydev)
 		phy_disconnect(priv->phydev);
+
+	/* Free IRQ */
+	while ((res = platform_get_resource(priv->pdev, IORESOURCE_IRQ, i))) {
+		for (irq_num = res->start; irq_num <= res->end; irq_num++)
+			free_irq(irq_num, priv->ndev);
+		i++;
+	}
 
 	if (netif_msg_drv(priv))
 		dev_notice(emac_dev, "DaVinci EMAC: %s stopped\n", ndev->name);
