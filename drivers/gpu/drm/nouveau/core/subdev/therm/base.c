@@ -179,7 +179,7 @@ nouveau_therm_fan_mode(struct nouveau_therm *therm, int mode)
 
 	/* do not allow automatic fan management if the thermal sensor is
 	 * not available */
-	if (priv->mode == NOUVEAU_THERM_CTRL_AUTO && therm->temp_get(therm) < 0)
+	if (mode == NOUVEAU_THERM_CTRL_AUTO && therm->temp_get(therm) < 0)
 		return -EINVAL;
 
 	if (priv->mode == mode)
