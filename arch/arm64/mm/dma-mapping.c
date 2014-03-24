@@ -33,10 +33,8 @@ EXPORT_SYMBOL(dma_ops);
 static pgprot_t __get_dma_pgprot(struct dma_attrs *attrs, pgprot_t prot,
 				 bool coherent)
 {
-	if (dma_get_attr(DMA_ATTR_WRITE_COMBINE, attrs))
+	if (!coherent || dma_get_attr(DMA_ATTR_WRITE_COMBINE, attrs))
 		return pgprot_writecombine(prot);
-	else if (!coherent)
-		return pgprot_dmacoherent(prot);
 	return prot;
 }
 
