@@ -38,8 +38,8 @@
 
 #define _QLCNIC_LINUX_MAJOR 5
 #define _QLCNIC_LINUX_MINOR 3
-#define _QLCNIC_LINUX_SUBVERSION 56
-#define QLCNIC_LINUX_VERSIONID  "5.3.56"
+#define _QLCNIC_LINUX_SUBVERSION 57
+#define QLCNIC_LINUX_VERSIONID  "5.3.57"
 #define QLCNIC_DRV_IDC_VER  0x01
 #define QLCNIC_DRIVER_VERSION  ((_QLCNIC_LINUX_MAJOR << 16) |\
 		 (_QLCNIC_LINUX_MINOR << 8) | (_QLCNIC_LINUX_SUBVERSION))
@@ -169,11 +169,20 @@ struct cmd_desc_type0 {
 
 	__le64 addr_buffer2;
 
-	__le16 reference_handle;
+	__le16 encap_descr;	/* 15:10 offset of outer L3 header,
+				 * 9:6 number of 32bit words in outer L3 header,
+				 * 5 offload outer L4 checksum,
+				 * 4 offload outer L3 checksum,
+				 * 3 Inner L4 type, TCP=0, UDP=1,
+				 * 2 Inner L3 type, IPv4=0, IPv6=1,
+				 * 1 Outer L3 type,IPv4=0, IPv6=1,
+				 * 0 type of encapsulation, GRE=0, VXLAN=1
+				 */
 	__le16 mss;
 	u8 port_ctxid;		/* 7:4 ctxid 3:0 port */
-	u8 total_hdr_length;	/* LSO only : MAC+IP+TCP Hdr size */
-	__le16 conn_id;		/* IPSec offoad only */
+	u8 hdr_length;		/* LSO only : MAC+IP+TCP Hdr size */
+	u8 outer_hdr_length;	/* Encapsulation only */
+	u8 rsvd1;
 
 	__le64 addr_buffer3;
 	__le64 addr_buffer1;
@@ -183,7 +192,9 @@ struct cmd_desc_type0 {
 	__le64 addr_buffer4;
 
 	u8 eth_addr[ETH_ALEN];
-	__le16 vlan_TCI;
+	__le16 vlan_TCI;	/* In case of  encapsulation,
+				 * this is for outer VLAN
+				 */
 
 } __attribute__ ((aligned(64)));
 
@@ -524,6 +535,7 @@ struct qlcnic_hardware_context {
 	u8 extend_lb_time;
 	u8 phys_port_id[ETH_ALEN];
 	u8 lb_mode;
+	u16 vxlan_port;
 };
 
 struct qlcnic_adapter_stats {
@@ -538,6 +550,9 @@ struct qlcnic_adapter_stats {
 	u64  txbytes;
 	u64  lrobytes;
 	u64  lso_frames;
+	u64  encap_lso_frames;
+	u64  encap_tx_csummed;
+	u64  encap_rx_csummed;
 	u64  xmit_on;
 	u64  xmit_off;
 	u64  skb_alloc_failure;
@@ -899,6 +914,10 @@ struct qlcnic_mac_vlan_list {
 #define QLCNIC_FW_CAPABILITY_2_BEACON		BIT_7
 #define QLCNIC_FW_CAPABILITY_2_PER_PORT_ESWITCH_CFG	BIT_9
 
+#define QLCNIC_83XX_FW_CAPAB_ENCAP_RX_OFFLOAD	BIT_0
+#define QLCNIC_83XX_FW_CAPAB_ENCAP_TX_OFFLOAD	BIT_1
+#define QLCNIC_83XX_FW_CAPAB_ENCAP_CKO_OFFLOAD	BIT_4
+
 /* module types */
 #define LINKEVENT_MODULE_NOT_PRESENT			1
 #define LINKEVENT_MODULE_OPTICAL_UNKNOWN		2
@@ -992,6 +1011,8 @@ struct qlcnic_ipaddr {
 #define QLCNIC_APP_CHANGED_FLAGS	0x20000
 #define QLCNIC_HAS_PHYS_PORT_ID		0x40000
 #define QLCNIC_TSS_RSS			0x80000
+#define QLCNIC_ADD_VXLAN_PORT		0x100000
+#define QLCNIC_DEL_VXLAN_PORT		0x200000
 
 #define QLCNIC_IS_MSI_FAMILY(adapter) \
 	((adapter)->flags & (QLCNIC_MSI_ENABLED | QLCNIC_MSIX_ENABLED))
@@ -1805,6 +1826,18 @@ struct qlcnic_hardware_ops {
 };
 
 extern struct qlcnic_nic_template qlcnic_vf_ops;
+
+static inline bool qlcnic_encap_tx_offload(struct qlcnic_adapter *adapter)
+{
+	return adapter->ahw->extra_capability[0] &
+	       QLCNIC_83XX_FW_CAPAB_ENCAP_TX_OFFLOAD;
+}
+
+static inline bool qlcnic_encap_rx_offload(struct qlcnic_adapter *adapter)
+{
+	return adapter->ahw->extra_capability[0] &
+	       QLCNIC_83XX_FW_CAPAB_ENCAP_RX_OFFLOAD;
+}
 
 static inline int qlcnic_start_firmware(struct qlcnic_adapter *adapter)
 {
