@@ -955,14 +955,9 @@ static ssize_t le_auto_conn_write(struct file *file, const char __user *data,
 	if (count < 3)
 		return -EINVAL;
 
-	buf = kzalloc(count, GFP_KERNEL);
-	if (!buf)
-		return -ENOMEM;
-
-	if (copy_from_user(buf, data, count)) {
-		err = -EFAULT;
-		goto done;
-	}
+	buf = memdup_user(data, count);
+	if (IS_ERR(buf))
+		return PTR_ERR(buf);
 
 	if (memcmp(buf, "add", 3) == 0) {
 		n = sscanf(&buf[4], "%hhx:%hhx:%hhx:%hhx:%hhx:%hhx %hhu %hhu",
