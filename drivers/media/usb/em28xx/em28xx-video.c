@@ -2250,11 +2250,11 @@ static void em28xx_tuner_setup(struct em28xx *dev)
 				     0, tuner, s_type_addr, &tun_setup);
 	}
 
-	if (dev->tda9887_conf) {
+	if (dev->board.tda9887_conf) {
 		struct v4l2_priv_tun_config tda9887_cfg;
 
 		tda9887_cfg.tuner = TUNER_TDA9887;
-		tda9887_cfg.priv = &dev->tda9887_conf;
+		tda9887_cfg.priv = &dev->board.tda9887_conf;
 
 		v4l2_device_call_all(v4l2_dev,
 				     0, tuner, s_config, &tda9887_cfg);
@@ -2360,7 +2360,7 @@ static int em28xx_v4l2_init(struct em28xx *dev)
 	/* Initialize tuner and camera */
 
 	if (dev->board.tuner_type != TUNER_ABSENT) {
-		int has_demod = (dev->tda9887_conf & TDA9887_PRESENT);
+		int has_demod = (dev->board.tda9887_conf & TDA9887_PRESENT);
 
 		if (dev->board.radio.type)
 			v4l2_i2c_new_subdev(&v4l2->v4l2_dev,

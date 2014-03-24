@@ -634,7 +634,6 @@ struct em28xx {
 
 	int tuner_type;		/* type of the tuner */
 	int tuner_addr;		/* tuner address */
-	int tda9887_conf;
 
 	/* i2c i/o */
 	struct i2c_adapter i2c_adap[NUM_I2C_BUSES];
