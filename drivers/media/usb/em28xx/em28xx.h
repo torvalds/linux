@@ -498,6 +498,12 @@ struct em28xx_eeprom {
 #define EM28XX_RESOURCE_VIDEO 0x01
 #define EM28XX_RESOURCE_VBI   0x02
 
+struct em28xx_v4l2 {
+	struct kref ref;
+
+	struct v4l2_device v4l2_dev;
+};
+
 struct em28xx_audio {
 	char name[50];
 	unsigned num_urb;
@@ -543,6 +549,7 @@ struct em28xx {
 	struct kref ref;
 
 	/* Sub-module data */
+	struct em28xx_v4l2 *v4l2;
 	struct em28xx_dvb *dvb;
 	struct em28xx_audio adev;
 	struct em28xx_IR *ir;
@@ -560,7 +567,6 @@ struct em28xx {
 	unsigned int has_alsa_audio:1;
 	unsigned int is_audio_only:1;
 
-	struct v4l2_device v4l2_dev;
 	struct v4l2_ctrl_handler ctrl_handler;
 	struct v4l2_clk *clk;
 	struct em28xx_board board;
