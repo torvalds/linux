@@ -492,6 +492,13 @@ void ieee80211_recalc_smps_chanctx(struct ieee80211_local *local,
 		rx_chains_static = max(rx_chains_static, needed_static);
 		rx_chains_dynamic = max(rx_chains_dynamic, needed_dynamic);
 	}
+
+	/* Disable SMPS for the monitor interface */
+	sdata = rcu_dereference(local->monitor_sdata);
+	if (sdata &&
+	    rcu_access_pointer(sdata->vif.chanctx_conf) == &chanctx->conf)
+		rx_chains_dynamic = rx_chains_static = local->rx_chains;
+
 	rcu_read_unlock();
 
 	if (!local->use_chanctx) {
