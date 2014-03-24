@@ -556,20 +556,6 @@ error:
 	smp_failure(conn, reason);
 }
 
-static void smp_reencrypt(struct work_struct *work)
-{
-	struct smp_chan *smp = container_of(work, struct smp_chan,
-					    reencrypt.work);
-	struct l2cap_conn *conn = smp->conn;
-	struct hci_conn *hcon = conn->hcon;
-	struct smp_ltk *ltk = smp->ltk;
-
-	BT_DBG("");
-
-	hci_le_start_enc(hcon, ltk->ediv, ltk->rand, ltk->val);
-	hcon->enc_key_size = ltk->enc_size;
-}
-
 static struct smp_chan *smp_chan_create(struct l2cap_conn *conn)
 {
 	struct smp_chan *smp;
@@ -580,7 +566,6 @@ static struct smp_chan *smp_chan_create(struct l2cap_conn *conn)
 
 	INIT_WORK(&smp->confirm, confirm_work);
 	INIT_WORK(&smp->random, random_work);
-	INIT_DELAYED_WORK(&smp->reencrypt, smp_reencrypt);
 
 	smp->conn = conn;
 	conn->smp_chan = smp;
@@ -597,8 +582,6 @@ void smp_chan_destroy(struct l2cap_conn *conn)
 	bool complete;
 
 	BUG_ON(!smp);
-
-	cancel_delayed_work_sync(&smp->reencrypt);
 
 	complete = test_bit(SMP_FLAG_COMPLETE, &smp->smp_flags);
 	mgmt_smp_complete(conn->hcon, complete);
@@ -1276,7 +1259,6 @@ int smp_distribute_keys(struct l2cap_conn *conn)
 	struct smp_chan *smp = conn->smp_chan;
 	struct hci_conn *hcon = conn->hcon;
 	struct hci_dev *hdev = hcon->hdev;
-	bool ltk_encrypt;
 	__u8 *keydist;
 
 	BT_DBG("conn %p", conn);
@@ -1376,32 +1358,12 @@ int smp_distribute_keys(struct l2cap_conn *conn)
 	if ((smp->remote_key_dist & 0x07))
 		return 0;
 
-	/* Check if we should try to re-encrypt the link with the LTK.
-	 * SMP_FLAG_LTK_ENCRYPT flag is used to track whether we've
-	 * already tried this (in which case we shouldn't try again).
-	 *
-	 * The request will trigger an encryption key refresh event
-	 * which will cause a call to auth_cfm and eventually lead to
-	 * l2cap_core.c calling this smp_distribute_keys function again
-	 * and thereby completing the process.
-	 */
-	if (smp->ltk)
-		ltk_encrypt = !test_and_set_bit(SMP_FLAG_LTK_ENCRYPT,
-						&smp->smp_flags);
-	else
-		ltk_encrypt = false;
+	clear_bit(HCI_CONN_LE_SMP_PEND, &hcon->flags);
+	cancel_delayed_work_sync(&conn->security_timer);
+	set_bit(SMP_FLAG_COMPLETE, &smp->smp_flags);
+	smp_notify_keys(conn);
 
-	/* Re-encrypt the link with LTK if possible */
-	if (ltk_encrypt && hcon->out) {
-		queue_delayed_work(hdev->req_workqueue, &smp->reencrypt,
-				   SMP_REENCRYPT_TIMEOUT);
-	} else {
-		clear_bit(HCI_CONN_LE_SMP_PEND, &hcon->flags);
-		cancel_delayed_work_sync(&conn->security_timer);
-		set_bit(SMP_FLAG_COMPLETE, &smp->smp_flags);
-		smp_notify_keys(conn);
-		smp_chan_destroy(conn);
-	}
+	smp_chan_destroy(conn);
 
 	return 0;
 }
