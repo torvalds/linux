@@ -1456,71 +1456,6 @@ static int do_crush(struct ceph_osdmap *map, int ruleno, int x,
 }
 
 /*
- * Calculate raw osd vector for the given pgid.  Return pointer to osd
- * array, or NULL on failure.
- */
-static int *calc_pg_raw(struct ceph_osdmap *osdmap, struct ceph_pg pgid,
-			int *osds, int *num)
-{
-	struct ceph_pg_mapping *pg;
-	struct ceph_pg_pool_info *pool;
-	int ruleno;
-	int r;
-	u32 pps;
-
-	pool = __lookup_pg_pool(&osdmap->pg_pools, pgid.pool);
-	if (!pool)
-		return NULL;
-
-	/* pg_temp? */
-	pgid.seed = ceph_stable_mod(pgid.seed, pool->pg_num,
-				    pool->pg_num_mask);
-	pg = __lookup_pg_mapping(&osdmap->pg_temp, pgid);
-	if (pg) {
-		*num = pg->pg_temp.len;
-		return pg->pg_temp.osds;
-	}
-
-	/* crush */
-	ruleno = crush_find_rule(osdmap->crush, pool->crush_ruleset,
-				 pool->type, pool->size);
-	if (ruleno < 0) {
-		pr_err("no crush rule pool %lld ruleset %d type %d size %d\n",
-		       pgid.pool, pool->crush_ruleset, pool->type,
-		       pool->size);
-		return NULL;
-	}
-
-	if (pool->flags & CEPH_POOL_FLAG_HASHPSPOOL) {
-		/* hash pool id and seed sothat pool PGs do not overlap */
-		pps = crush_hash32_2(CRUSH_HASH_RJENKINS1,
-				     ceph_stable_mod(pgid.seed, pool->pgp_num,
-						     pool->pgp_num_mask),
-				     pgid.pool);
-	} else {
-		/*
-		 * legacy ehavior: add ps and pool together.  this is
-		 * not a great approach because the PGs from each pool
-		 * will overlap on top of each other: 0.5 == 1.4 ==
-		 * 2.3 == ...
-		 */
-		pps = ceph_stable_mod(pgid.seed, pool->pgp_num,
-				      pool->pgp_num_mask) +
-			(unsigned)pgid.pool;
-	}
-	r = do_crush(osdmap, ruleno, pps, osds, min_t(int, pool->size, *num),
-		     osdmap->osd_weight, osdmap->max_osd);
-	if (r < 0) {
-		pr_err("error %d from crush rule: pool %lld ruleset %d type %d"
-		       " size %d\n", r, pgid.pool, pool->crush_ruleset,
-		       pool->type, pool->size);
-		return NULL;
-	}
-	*num = r;
-	return osds;
-}
-
-/*
  * Calculate raw (crush) set for given pgid.
  *
  * Return raw set length, or error.
@@ -1776,17 +1711,11 @@ int ceph_calc_pg_acting(struct ceph_osdmap *osdmap, struct ceph_pg pgid,
  */
 int ceph_calc_pg_primary(struct ceph_osdmap *osdmap, struct ceph_pg pgid)
 {
-	int rawosds[CEPH_PG_MAX_SIZE], *osds;
-	int i, num = CEPH_PG_MAX_SIZE;
+	int osds[CEPH_PG_MAX_SIZE];
+	int primary;
 
-	osds = calc_pg_raw(osdmap, pgid, rawosds, &num);
-	if (!osds)
-		return -1;
+	ceph_calc_pg_acting(osdmap, pgid, osds, &primary);
 
-	/* primary is first up osd */
-	for (i = 0; i < num; i++)
-		if (ceph_osd_is_up(osdmap, osds[i]))
-			return osds[i];
-	return -1;
+	return primary;
 }
 EXPORT_SYMBOL(ceph_calc_pg_primary);
