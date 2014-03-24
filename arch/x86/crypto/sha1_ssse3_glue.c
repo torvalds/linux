@@ -208,11 +208,7 @@ static bool __init avx_usable(void)
 {
 	u64 xcr0;
 
-#if defined(CONFIG_AS_AVX2)
-	if (!cpu_has_avx || !cpu_has_avx2 || !cpu_has_osxsave)
-#else
 	if (!cpu_has_avx || !cpu_has_osxsave)
-#endif
 		return false;
 
 	xcr0 = xgetbv(XCR_XFEATURE_ENABLED_MASK);
@@ -224,11 +220,23 @@ static bool __init avx_usable(void)
 
 	return true;
 }
+
+#ifdef CONFIG_AS_AVX2
+static bool __init avx2_usable(void)
+{
+	if (avx_usable() && cpu_has_avx2 && boot_cpu_has(X86_FEATURE_BMI1) &&
+	    boot_cpu_has(X86_FEATURE_BMI2))
+		return true;
+
+	return false;
+}
+#endif
 #endif
 
 static int __init sha1_ssse3_mod_init(void)
 {
 	char *algo_name;
+
 	/* test for SSSE3 first */
 	if (cpu_has_ssse3) {
 		sha1_transform_asm = sha1_transform_ssse3;
@@ -238,13 +246,11 @@ static int __init sha1_ssse3_mod_init(void)
 #ifdef CONFIG_AS_AVX
 	/* allow AVX to override SSSE3, it's a little faster */
 	if (avx_usable()) {
-		if (cpu_has_avx) {
-			sha1_transform_asm = sha1_transform_avx;
-			algo_name = "AVX";
-		}
+		sha1_transform_asm = sha1_transform_avx;
+		algo_name = "AVX";
 #ifdef CONFIG_AS_AVX2
-		if (cpu_has_avx2 && boot_cpu_has(X86_FEATURE_BMI2)) {
-			/* allow AVX2 to override AVX, it's a little faster */
+		/* allow AVX2 to override AVX, it's a little faster */
+		if (avx2_usable()) {
 			sha1_transform_asm = sha1_apply_transform_avx2;
 			algo_name = "AVX2";
 		}
