@@ -1333,7 +1333,7 @@ static int __map_request(struct ceph_osd_client *osdc,
 {
 	struct ceph_pg pgid;
 	int acting[CEPH_PG_MAX_SIZE];
-	int o = -1, num = 0;
+	int num, o;
 	int err;
 	bool was_paused;
 
@@ -1346,11 +1346,9 @@ static int __map_request(struct ceph_osd_client *osdc,
 	}
 	req->r_pgid = pgid;
 
-	err = ceph_calc_pg_acting(osdc->osdmap, pgid, acting);
-	if (err > 0) {
-		o = acting[0];
-		num = err;
-	}
+	num = ceph_calc_pg_acting(osdc->osdmap, pgid, acting, &o);
+	if (num < 0)
+		num = 0;
 
 	was_paused = req->r_paused;
 	req->r_paused = __req_should_be_paused(osdc, req);

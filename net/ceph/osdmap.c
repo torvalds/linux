@@ -1651,19 +1651,21 @@ static int apply_temps(struct ceph_osdmap *osdmap,
 /*
  * Calculate acting set for given pgid.
  *
- * Return acting set length, or error.
+ * Return acting set length, or error.  *primary is set to acting
+ * primary osd id, or -1 if acting set is empty or on error.
  */
 int ceph_calc_pg_acting(struct ceph_osdmap *osdmap, struct ceph_pg pgid,
-			int *osds)
+			int *osds, int *primary)
 {
 	struct ceph_pg_pool_info *pool;
 	u32 pps;
 	int len;
-	int primary;
 
 	pool = __lookup_pg_pool(&osdmap->pg_pools, pgid.pool);
-	if (!pool)
-		return 0;
+	if (!pool) {
+		*primary = -1;
+		return -ENOENT;
+	}
 
 	if (pool->flags & CEPH_POOL_FLAG_HASHPSPOOL) {
 		/* hash pool id and seed so that pool PGs do not overlap */
@@ -1684,12 +1686,14 @@ int ceph_calc_pg_acting(struct ceph_osdmap *osdmap, struct ceph_pg pgid,
 	}
 
 	len = pg_to_raw_osds(osdmap, pool, pgid, pps, osds);
-	if (len < 0)
+	if (len < 0) {
+		*primary = -1;
 		return len;
+	}
 
-	len = raw_to_up_osds(osdmap, pool, osds, len, &primary);
+	len = raw_to_up_osds(osdmap, pool, osds, len, primary);
 
-	len = apply_temps(osdmap, pool, pgid, osds, len, &primary);
+	len = apply_temps(osdmap, pool, pgid, osds, len, primary);
 
 	return len;
 }
