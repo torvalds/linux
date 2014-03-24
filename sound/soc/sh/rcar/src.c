@@ -182,16 +182,20 @@ unsigned int rsnd_src_get_ssi_rate(struct rsnd_priv *priv,
 				   struct rsnd_dai_stream *io,
 				   struct snd_pcm_runtime *runtime)
 {
+	struct rsnd_mod *src_mod = rsnd_io_to_mod_src(io);
 	struct rsnd_src *src;
-	unsigned int rate;
+	unsigned int rate = 0;
 
-	src = rsnd_mod_to_src(rsnd_io_to_mod_src(io));
+	if (src_mod) {
+		src = rsnd_mod_to_src(src_mod);
 
-	/*
-	 * return convert rate if SRC is used,
-	 * otherwise, return runtime->rate as usual
-	 */
-	rate = rsnd_src_convert_rate(src);
+		/*
+		 * return convert rate if SRC is used,
+		 * otherwise, return runtime->rate as usual
+		 */
+		rate = rsnd_src_convert_rate(src);
+	}
+
 	if (!rate)
 		rate = runtime->rate;
 
