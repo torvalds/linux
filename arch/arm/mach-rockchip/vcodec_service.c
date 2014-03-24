@@ -702,13 +702,14 @@ static void reg_from_run_to_done(struct vpu_service_info *pservice, vpu_reg *reg
 	case VPU_ENC : {
 		pservice->reg_codec = NULL;
 		reg_copy_from_hw(reg, pservice->enc_dev.hwregs, pservice->hw_info->enc_reg_num);
-        irq_reg = ENC_INTERRUPT_REGISTER;
+                irq_reg = ENC_INTERRUPT_REGISTER;
 		break;
 	}
 	case VPU_DEC : {
+        int reg_len = pservice->hw_info->hw_id == HEVC_ID ? REG_NUM_HEVC_DEC : REG_NUM_9190_DEC;
 		pservice->reg_codec = NULL;
-		reg_copy_from_hw(reg, pservice->dec_dev.hwregs, REG_NUM_9190_DEC);
-        irq_reg = DEC_INTERRUPT_REGISTER;
+		reg_copy_from_hw(reg, pservice->dec_dev.hwregs, reg_len);
+                irq_reg = DEC_INTERRUPT_REGISTER;
 		break;
 	}
 	case VPU_PP : {
@@ -964,7 +965,8 @@ static int return_reg(struct vpu_service_info *pservice, vpu_reg *reg, u32 __use
 		break;
 	}
 	case VPU_DEC : {
-		if (copy_to_user(dst, &reg->reg[0], SIZE_REG(REG_NUM_9190_DEC)))
+        int reg_len = pservice->hw_info->hw_id == HEVC_ID ? REG_NUM_HEVC_DEC : REG_NUM_9190_DEC;
+		if (copy_to_user(dst, &reg->reg[0], reg_len))
 			ret = -EFAULT;
 		break;
 	}
@@ -1357,9 +1359,8 @@ static int vcodec_probe(struct platform_device *pdev)
 
     platform_set_drvdata(pdev, pservice);
 
-    if (pservice->hw_info->hw_id != HEVC_ID) {
-        get_hw_info(pservice);
-    }
+    get_hw_info(pservice);
+
 
 #ifdef CONFIG_DEBUG_FS
     pservice->debugfs_dir = vcodec_debugfs_create_device_dir((char*)dev_name(dev), parent);
@@ -1485,195 +1486,196 @@ static struct platform_driver vcodec_driver = {
 
 static void get_hw_info(struct vpu_service_info *pservice)
 {
-	VPUHwDecConfig_t *dec = &pservice->dec_config;
-	VPUHwEncConfig_t *enc = &pservice->enc_config;
-	u32 configReg   = pservice->dec_dev.hwregs[VPU_DEC_HWCFG0];
-	u32 asicID      = pservice->dec_dev.hwregs[0];
-
-	dec->h264Support    = (configReg >> DWL_H264_E) & 0x3U;
-	dec->jpegSupport    = (configReg >> DWL_JPEG_E) & 0x01U;
-	if (dec->jpegSupport && ((configReg >> DWL_PJPEG_E) & 0x01U))
-		dec->jpegSupport = JPEG_PROGRESSIVE;
-	dec->mpeg4Support   = (configReg >> DWL_MPEG4_E) & 0x3U;
-	dec->vc1Support     = (configReg >> DWL_VC1_E) & 0x3U;
-	dec->mpeg2Support   = (configReg >> DWL_MPEG2_E) & 0x01U;
-	dec->sorensonSparkSupport = (configReg >> DWL_SORENSONSPARK_E) & 0x01U;
-	dec->refBufSupport  = (configReg >> DWL_REF_BUFF_E) & 0x01U;
-	dec->vp6Support     = (configReg >> DWL_VP6_E) & 0x01U;
-
-    if (!soc_is_rk3190() && !soc_is_rk3288()) {
-		dec->maxDecPicWidth = configReg & 0x07FFU;
-    } else {
-		// vpu after rk3190
-		dec->maxDecPicWidth = 3840;
-	}
-
-	/* 2nd Config register */
-	configReg   = pservice->dec_dev.hwregs[VPU_DEC_HWCFG1];
-	if (dec->refBufSupport) {
-		if ((configReg >> DWL_REF_BUFF_ILACE_E) & 0x01U)
-			dec->refBufSupport |= 2;
-		if ((configReg >> DWL_REF_BUFF_DOUBLE_E) & 0x01U)
-			dec->refBufSupport |= 4;
-	}
-	dec->customMpeg4Support = (configReg >> DWL_MPEG4_CUSTOM_E) & 0x01U;
-	dec->vp7Support     = (configReg >> DWL_VP7_E) & 0x01U;
-	dec->vp8Support     = (configReg >> DWL_VP8_E) & 0x01U;
-	dec->avsSupport     = (configReg >> DWL_AVS_E) & 0x01U;
-
-	/* JPEG xtensions */
-	if (((asicID >> 16) >= 0x8190U) || ((asicID >> 16) == 0x6731U)) {
-		dec->jpegESupport = (configReg >> DWL_JPEG_EXT_E) & 0x01U;
-	} else {
-		dec->jpegESupport = JPEG_EXT_NOT_SUPPORTED;
-	}
-
-	if (((asicID >> 16) >= 0x9170U) || ((asicID >> 16) == 0x6731U) ) {
-		dec->rvSupport = (configReg >> DWL_RV_E) & 0x03U;
-	} else {
-		dec->rvSupport = RV_NOT_SUPPORTED;
-	}
-
-	dec->mvcSupport = (configReg >> DWL_MVC_E) & 0x03U;
-
-	if (dec->refBufSupport && (asicID >> 16) == 0x6731U ) {
-		dec->refBufSupport |= 8; /* enable HW support for offset */
-	}
-
-    /// invalidate fuse register value in rk319x vpu
-    if (!soc_is_rk3190() && !soc_is_rk3288()) {
-		VPUHwFuseStatus_t hwFuseSts;
-		/* Decoder fuse configuration */
-		u32 fuseReg = pservice->dec_dev.hwregs[VPU_DEC_HW_FUSE_CFG];
-
-		hwFuseSts.h264SupportFuse = (fuseReg >> DWL_H264_FUSE_E) & 0x01U;
-		hwFuseSts.mpeg4SupportFuse = (fuseReg >> DWL_MPEG4_FUSE_E) & 0x01U;
-		hwFuseSts.mpeg2SupportFuse = (fuseReg >> DWL_MPEG2_FUSE_E) & 0x01U;
-		hwFuseSts.sorensonSparkSupportFuse = (fuseReg >> DWL_SORENSONSPARK_FUSE_E) & 0x01U;
-		hwFuseSts.jpegSupportFuse = (fuseReg >> DWL_JPEG_FUSE_E) & 0x01U;
-		hwFuseSts.vp6SupportFuse = (fuseReg >> DWL_VP6_FUSE_E) & 0x01U;
-		hwFuseSts.vc1SupportFuse = (fuseReg >> DWL_VC1_FUSE_E) & 0x01U;
-		hwFuseSts.jpegProgSupportFuse = (fuseReg >> DWL_PJPEG_FUSE_E) & 0x01U;
-		hwFuseSts.rvSupportFuse = (fuseReg >> DWL_RV_FUSE_E) & 0x01U;
-		hwFuseSts.avsSupportFuse = (fuseReg >> DWL_AVS_FUSE_E) & 0x01U;
-		hwFuseSts.vp7SupportFuse = (fuseReg >> DWL_VP7_FUSE_E) & 0x01U;
-		hwFuseSts.vp8SupportFuse = (fuseReg >> DWL_VP8_FUSE_E) & 0x01U;
-		hwFuseSts.customMpeg4SupportFuse = (fuseReg >> DWL_CUSTOM_MPEG4_FUSE_E) & 0x01U;
-		hwFuseSts.mvcSupportFuse = (fuseReg >> DWL_MVC_FUSE_E) & 0x01U;
-
-		/* check max. decoder output width */
-
-		if (fuseReg & 0x8000U)
-			hwFuseSts.maxDecPicWidthFuse = 1920;
-		else if (fuseReg & 0x4000U)
-			hwFuseSts.maxDecPicWidthFuse = 1280;
-		else if (fuseReg & 0x2000U)
-			hwFuseSts.maxDecPicWidthFuse = 720;
-		else if (fuseReg & 0x1000U)
-			hwFuseSts.maxDecPicWidthFuse = 352;
-		else    /* remove warning */
-			hwFuseSts.maxDecPicWidthFuse = 352;
-
-		hwFuseSts.refBufSupportFuse = (fuseReg >> DWL_REF_BUFF_FUSE_E) & 0x01U;
-
-		/* Pp configuration */
-		configReg = pservice->dec_dev.hwregs[VPU_PP_HW_SYNTH_CFG];
-
-		if ((configReg >> DWL_PP_E) & 0x01U) {
-			dec->ppSupport = 1;
-			dec->maxPpOutPicWidth = configReg & 0x07FFU;
-			/*pHwCfg->ppConfig = (configReg >> DWL_CFG_E) & 0x0FU; */
-			dec->ppConfig = configReg;
-		} else {
-			dec->ppSupport = 0;
-			dec->maxPpOutPicWidth = 0;
-			dec->ppConfig = 0;
-		}
-
-		/* check the HW versio */
-		if (((asicID >> 16) >= 0x8190U) || ((asicID >> 16) == 0x6731U))	{
-			/* Pp configuration */
-			configReg = pservice->dec_dev.hwregs[VPU_DEC_HW_FUSE_CFG];
-
-			if ((configReg >> DWL_PP_E) & 0x01U) {
-				/* Pp fuse configuration */
-				u32 fuseRegPp = pservice->dec_dev.hwregs[VPU_PP_HW_FUSE_CFG];
-
-				if ((fuseRegPp >> DWL_PP_FUSE_E) & 0x01U) {
-					hwFuseSts.ppSupportFuse = 1;
-					/* check max. pp output width */
-					if      (fuseRegPp & 0x8000U) hwFuseSts.maxPpOutPicWidthFuse = 1920;
-					else if (fuseRegPp & 0x4000U) hwFuseSts.maxPpOutPicWidthFuse = 1280;
-					else if (fuseRegPp & 0x2000U) hwFuseSts.maxPpOutPicWidthFuse = 720;
-					else if (fuseRegPp & 0x1000U) hwFuseSts.maxPpOutPicWidthFuse = 352;
-					else                          hwFuseSts.maxPpOutPicWidthFuse = 352;
-					hwFuseSts.ppConfigFuse = fuseRegPp;
-				} else {
-					hwFuseSts.ppSupportFuse = 0;
-					hwFuseSts.maxPpOutPicWidthFuse = 0;
-					hwFuseSts.ppConfigFuse = 0;
-				}
-			} else {
-				hwFuseSts.ppSupportFuse = 0;
-				hwFuseSts.maxPpOutPicWidthFuse = 0;
-				hwFuseSts.ppConfigFuse = 0;
-			}
-
-			if (dec->maxDecPicWidth > hwFuseSts.maxDecPicWidthFuse)
-				dec->maxDecPicWidth = hwFuseSts.maxDecPicWidthFuse;
-			if (dec->maxPpOutPicWidth > hwFuseSts.maxPpOutPicWidthFuse)
-				dec->maxPpOutPicWidth = hwFuseSts.maxPpOutPicWidthFuse;
-			if (!hwFuseSts.h264SupportFuse) dec->h264Support = H264_NOT_SUPPORTED;
-			if (!hwFuseSts.mpeg4SupportFuse) dec->mpeg4Support = MPEG4_NOT_SUPPORTED;
-			if (!hwFuseSts.customMpeg4SupportFuse) dec->customMpeg4Support = MPEG4_CUSTOM_NOT_SUPPORTED;
-			if (!hwFuseSts.jpegSupportFuse) dec->jpegSupport = JPEG_NOT_SUPPORTED;
-			if ((dec->jpegSupport == JPEG_PROGRESSIVE) && !hwFuseSts.jpegProgSupportFuse)
-				dec->jpegSupport = JPEG_BASELINE;
-			if (!hwFuseSts.mpeg2SupportFuse) dec->mpeg2Support = MPEG2_NOT_SUPPORTED;
-			if (!hwFuseSts.vc1SupportFuse) dec->vc1Support = VC1_NOT_SUPPORTED;
-			if (!hwFuseSts.vp6SupportFuse) dec->vp6Support = VP6_NOT_SUPPORTED;
-			if (!hwFuseSts.vp7SupportFuse) dec->vp7Support = VP7_NOT_SUPPORTED;
-			if (!hwFuseSts.vp8SupportFuse) dec->vp8Support = VP8_NOT_SUPPORTED;
-			if (!hwFuseSts.ppSupportFuse) dec->ppSupport = PP_NOT_SUPPORTED;
-
-			/* check the pp config vs fuse status */
-			if ((dec->ppConfig & 0xFC000000) && ((hwFuseSts.ppConfigFuse & 0xF0000000) >> 5)) {
-				u32 deInterlace = ((dec->ppConfig & PP_DEINTERLACING) >> 25);
-				u32 alphaBlend  = ((dec->ppConfig & PP_ALPHA_BLENDING) >> 24);
-				u32 deInterlaceFuse = (((hwFuseSts.ppConfigFuse >> 5) & PP_DEINTERLACING) >> 25);
-				u32 alphaBlendFuse  = (((hwFuseSts.ppConfigFuse >> 5) & PP_ALPHA_BLENDING) >> 24);
-
-				if (deInterlace && !deInterlaceFuse) dec->ppConfig &= 0xFD000000;
-				if (alphaBlend && !alphaBlendFuse) dec->ppConfig &= 0xFE000000;
-			}
-			if (!hwFuseSts.sorensonSparkSupportFuse) dec->sorensonSparkSupport = SORENSON_SPARK_NOT_SUPPORTED;
-			if (!hwFuseSts.refBufSupportFuse)   dec->refBufSupport = REF_BUF_NOT_SUPPORTED;
-			if (!hwFuseSts.rvSupportFuse)       dec->rvSupport = RV_NOT_SUPPORTED;
-			if (!hwFuseSts.avsSupportFuse)      dec->avsSupport = AVS_NOT_SUPPORTED;
-			if (!hwFuseSts.mvcSupportFuse)      dec->mvcSupport = MVC_NOT_SUPPORTED;
-		}
-	}
-
-	configReg = pservice->enc_dev.hwregs[63];
-	enc->maxEncodedWidth = configReg & ((1 << 11) - 1);
-	enc->h264Enabled = (configReg >> 27) & 1;
-	enc->mpeg4Enabled = (configReg >> 26) & 1;
-	enc->jpegEnabled = (configReg >> 25) & 1;
-	enc->vsEnabled = (configReg >> 24) & 1;
-	enc->rgbEnabled = (configReg >> 28) & 1;
-	//enc->busType = (configReg >> 20) & 15;
-	//enc->synthesisLanguage = (configReg >> 16) & 15;
-	//enc->busWidth = (configReg >> 12) & 15;
-	enc->reg_size = pservice->reg_size;
-	enc->reserv[0] = enc->reserv[1] = 0;
-
-	pservice->auto_freq = soc_is_rk2928g() || soc_is_rk2928l() || soc_is_rk2926();
-	if (pservice->auto_freq) {
-		printk("vpu_service set to auto frequency mode\n");
-		atomic_set(&pservice->freq_status, VPU_FREQ_BUT);
-	}
-	pservice->bug_dec_addr = cpu_is_rk30xx();
-	//printk("cpu 3066b bug %d\n", service.bug_dec_addr);
+    if (pservice->dev_id == VCODEC_DEVICE_ID_VPU) {
+        VPUHwDecConfig_t *dec = &pservice->dec_config;
+        VPUHwEncConfig_t *enc = &pservice->enc_config;
+        u32 configReg   = pservice->dec_dev.hwregs[VPU_DEC_HWCFG0];
+        u32 asicID      = pservice->dec_dev.hwregs[0];
+    
+        dec->h264Support    = (configReg >> DWL_H264_E) & 0x3U;
+        dec->jpegSupport    = (configReg >> DWL_JPEG_E) & 0x01U;
+        if (dec->jpegSupport && ((configReg >> DWL_PJPEG_E) & 0x01U))
+            dec->jpegSupport = JPEG_PROGRESSIVE;
+        dec->mpeg4Support   = (configReg >> DWL_MPEG4_E) & 0x3U;
+        dec->vc1Support     = (configReg >> DWL_VC1_E) & 0x3U;
+        dec->mpeg2Support   = (configReg >> DWL_MPEG2_E) & 0x01U;
+        dec->sorensonSparkSupport = (configReg >> DWL_SORENSONSPARK_E) & 0x01U;
+        dec->refBufSupport  = (configReg >> DWL_REF_BUFF_E) & 0x01U;
+        dec->vp6Support     = (configReg >> DWL_VP6_E) & 0x01U;
+    
+        if (!soc_is_rk3190() && !soc_is_rk3288()) {
+            dec->maxDecPicWidth = configReg & 0x07FFU;
+        } else {
+            dec->maxDecPicWidth = 3840;
+        }
+    
+        /* 2nd Config register */
+        configReg   = pservice->dec_dev.hwregs[VPU_DEC_HWCFG1];
+        if (dec->refBufSupport) {
+            if ((configReg >> DWL_REF_BUFF_ILACE_E) & 0x01U)
+                dec->refBufSupport |= 2;
+            if ((configReg >> DWL_REF_BUFF_DOUBLE_E) & 0x01U)
+                dec->refBufSupport |= 4;
+        }
+        dec->customMpeg4Support = (configReg >> DWL_MPEG4_CUSTOM_E) & 0x01U;
+        dec->vp7Support     = (configReg >> DWL_VP7_E) & 0x01U;
+        dec->vp8Support     = (configReg >> DWL_VP8_E) & 0x01U;
+        dec->avsSupport     = (configReg >> DWL_AVS_E) & 0x01U;
+    
+        /* JPEG xtensions */
+        if (((asicID >> 16) >= 0x8190U) || ((asicID >> 16) == 0x6731U)) {
+            dec->jpegESupport = (configReg >> DWL_JPEG_EXT_E) & 0x01U;
+        } else {
+            dec->jpegESupport = JPEG_EXT_NOT_SUPPORTED;
+        }
+    
+        if (((asicID >> 16) >= 0x9170U) || ((asicID >> 16) == 0x6731U) ) {
+            dec->rvSupport = (configReg >> DWL_RV_E) & 0x03U;
+        } else {
+            dec->rvSupport = RV_NOT_SUPPORTED;
+        }
+    
+        dec->mvcSupport = (configReg >> DWL_MVC_E) & 0x03U;
+    
+        if (dec->refBufSupport && (asicID >> 16) == 0x6731U ) {
+            dec->refBufSupport |= 8; /* enable HW support for offset */
+        }
+    
+        /// invalidate fuse register value in rk319x vpu and following.
+        if (!soc_is_rk3190() && !soc_is_rk3288()) {
+            VPUHwFuseStatus_t hwFuseSts;
+            /* Decoder fuse configuration */
+            u32 fuseReg = pservice->dec_dev.hwregs[VPU_DEC_HW_FUSE_CFG];
+    
+            hwFuseSts.h264SupportFuse = (fuseReg >> DWL_H264_FUSE_E) & 0x01U;
+            hwFuseSts.mpeg4SupportFuse = (fuseReg >> DWL_MPEG4_FUSE_E) & 0x01U;
+            hwFuseSts.mpeg2SupportFuse = (fuseReg >> DWL_MPEG2_FUSE_E) & 0x01U;
+            hwFuseSts.sorensonSparkSupportFuse = (fuseReg >> DWL_SORENSONSPARK_FUSE_E) & 0x01U;
+            hwFuseSts.jpegSupportFuse = (fuseReg >> DWL_JPEG_FUSE_E) & 0x01U;
+            hwFuseSts.vp6SupportFuse = (fuseReg >> DWL_VP6_FUSE_E) & 0x01U;
+            hwFuseSts.vc1SupportFuse = (fuseReg >> DWL_VC1_FUSE_E) & 0x01U;
+            hwFuseSts.jpegProgSupportFuse = (fuseReg >> DWL_PJPEG_FUSE_E) & 0x01U;
+            hwFuseSts.rvSupportFuse = (fuseReg >> DWL_RV_FUSE_E) & 0x01U;
+            hwFuseSts.avsSupportFuse = (fuseReg >> DWL_AVS_FUSE_E) & 0x01U;
+            hwFuseSts.vp7SupportFuse = (fuseReg >> DWL_VP7_FUSE_E) & 0x01U;
+            hwFuseSts.vp8SupportFuse = (fuseReg >> DWL_VP8_FUSE_E) & 0x01U;
+            hwFuseSts.customMpeg4SupportFuse = (fuseReg >> DWL_CUSTOM_MPEG4_FUSE_E) & 0x01U;
+            hwFuseSts.mvcSupportFuse = (fuseReg >> DWL_MVC_FUSE_E) & 0x01U;
+    
+            /* check max. decoder output width */
+    
+            if (fuseReg & 0x8000U)
+                hwFuseSts.maxDecPicWidthFuse = 1920;
+            else if (fuseReg & 0x4000U)
+                hwFuseSts.maxDecPicWidthFuse = 1280;
+            else if (fuseReg & 0x2000U)
+                hwFuseSts.maxDecPicWidthFuse = 720;
+            else if (fuseReg & 0x1000U)
+                hwFuseSts.maxDecPicWidthFuse = 352;
+            else    /* remove warning */
+                hwFuseSts.maxDecPicWidthFuse = 352;
+    
+            hwFuseSts.refBufSupportFuse = (fuseReg >> DWL_REF_BUFF_FUSE_E) & 0x01U;
+    
+            /* Pp configuration */
+            configReg = pservice->dec_dev.hwregs[VPU_PP_HW_SYNTH_CFG];
+    
+            if ((configReg >> DWL_PP_E) & 0x01U) {
+                dec->ppSupport = 1;
+                dec->maxPpOutPicWidth = configReg & 0x07FFU;
+                /*pHwCfg->ppConfig = (configReg >> DWL_CFG_E) & 0x0FU; */
+                dec->ppConfig = configReg;
+            } else {
+                dec->ppSupport = 0;
+                dec->maxPpOutPicWidth = 0;
+                dec->ppConfig = 0;
+            }
+    
+            /* check the HW versio */
+            if (((asicID >> 16) >= 0x8190U) || ((asicID >> 16) == 0x6731U))	{
+                /* Pp configuration */
+                configReg = pservice->dec_dev.hwregs[VPU_DEC_HW_FUSE_CFG];
+    
+                if ((configReg >> DWL_PP_E) & 0x01U) {
+                    /* Pp fuse configuration */
+                    u32 fuseRegPp = pservice->dec_dev.hwregs[VPU_PP_HW_FUSE_CFG];
+    
+                    if ((fuseRegPp >> DWL_PP_FUSE_E) & 0x01U) {
+                        hwFuseSts.ppSupportFuse = 1;
+                        /* check max. pp output width */
+                        if      (fuseRegPp & 0x8000U) hwFuseSts.maxPpOutPicWidthFuse = 1920;
+                        else if (fuseRegPp & 0x4000U) hwFuseSts.maxPpOutPicWidthFuse = 1280;
+                        else if (fuseRegPp & 0x2000U) hwFuseSts.maxPpOutPicWidthFuse = 720;
+                        else if (fuseRegPp & 0x1000U) hwFuseSts.maxPpOutPicWidthFuse = 352;
+                        else                          hwFuseSts.maxPpOutPicWidthFuse = 352;
+                        hwFuseSts.ppConfigFuse = fuseRegPp;
+                    } else {
+                        hwFuseSts.ppSupportFuse = 0;
+                        hwFuseSts.maxPpOutPicWidthFuse = 0;
+                        hwFuseSts.ppConfigFuse = 0;
+                    }
+                } else {
+                    hwFuseSts.ppSupportFuse = 0;
+                    hwFuseSts.maxPpOutPicWidthFuse = 0;
+                    hwFuseSts.ppConfigFuse = 0;
+                }
+    
+                if (dec->maxDecPicWidth > hwFuseSts.maxDecPicWidthFuse)
+                    dec->maxDecPicWidth = hwFuseSts.maxDecPicWidthFuse;
+                if (dec->maxPpOutPicWidth > hwFuseSts.maxPpOutPicWidthFuse)
+                    dec->maxPpOutPicWidth = hwFuseSts.maxPpOutPicWidthFuse;
+                if (!hwFuseSts.h264SupportFuse) dec->h264Support = H264_NOT_SUPPORTED;
+                if (!hwFuseSts.mpeg4SupportFuse) dec->mpeg4Support = MPEG4_NOT_SUPPORTED;
+                if (!hwFuseSts.customMpeg4SupportFuse) dec->customMpeg4Support = MPEG4_CUSTOM_NOT_SUPPORTED;
+                if (!hwFuseSts.jpegSupportFuse) dec->jpegSupport = JPEG_NOT_SUPPORTED;
+                if ((dec->jpegSupport == JPEG_PROGRESSIVE) && !hwFuseSts.jpegProgSupportFuse)
+                    dec->jpegSupport = JPEG_BASELINE;
+                if (!hwFuseSts.mpeg2SupportFuse) dec->mpeg2Support = MPEG2_NOT_SUPPORTED;
+                if (!hwFuseSts.vc1SupportFuse) dec->vc1Support = VC1_NOT_SUPPORTED;
+                if (!hwFuseSts.vp6SupportFuse) dec->vp6Support = VP6_NOT_SUPPORTED;
+                if (!hwFuseSts.vp7SupportFuse) dec->vp7Support = VP7_NOT_SUPPORTED;
+                if (!hwFuseSts.vp8SupportFuse) dec->vp8Support = VP8_NOT_SUPPORTED;
+                if (!hwFuseSts.ppSupportFuse) dec->ppSupport = PP_NOT_SUPPORTED;
+    
+                /* check the pp config vs fuse status */
+                if ((dec->ppConfig & 0xFC000000) && ((hwFuseSts.ppConfigFuse & 0xF0000000) >> 5)) {
+                    u32 deInterlace = ((dec->ppConfig & PP_DEINTERLACING) >> 25);
+                    u32 alphaBlend  = ((dec->ppConfig & PP_ALPHA_BLENDING) >> 24);
+                    u32 deInterlaceFuse = (((hwFuseSts.ppConfigFuse >> 5) & PP_DEINTERLACING) >> 25);
+                    u32 alphaBlendFuse  = (((hwFuseSts.ppConfigFuse >> 5) & PP_ALPHA_BLENDING) >> 24);
+    
+                    if (deInterlace && !deInterlaceFuse) dec->ppConfig &= 0xFD000000;
+                    if (alphaBlend && !alphaBlendFuse) dec->ppConfig &= 0xFE000000;
+                }
+                if (!hwFuseSts.sorensonSparkSupportFuse) dec->sorensonSparkSupport = SORENSON_SPARK_NOT_SUPPORTED;
+                if (!hwFuseSts.refBufSupportFuse)   dec->refBufSupport = REF_BUF_NOT_SUPPORTED;
+                if (!hwFuseSts.rvSupportFuse)       dec->rvSupport = RV_NOT_SUPPORTED;
+                if (!hwFuseSts.avsSupportFuse)      dec->avsSupport = AVS_NOT_SUPPORTED;
+                if (!hwFuseSts.mvcSupportFuse)      dec->mvcSupport = MVC_NOT_SUPPORTED;
+            }
+        }
+    
+        configReg = pservice->enc_dev.hwregs[63];
+        enc->maxEncodedWidth = configReg & ((1 << 11) - 1);
+        enc->h264Enabled = (configReg >> 27) & 1;
+        enc->mpeg4Enabled = (configReg >> 26) & 1;
+        enc->jpegEnabled = (configReg >> 25) & 1;
+        enc->vsEnabled = (configReg >> 24) & 1;
+        enc->rgbEnabled = (configReg >> 28) & 1;
+        //enc->busType = (configReg >> 20) & 15;
+        //enc->synthesisLanguage = (configReg >> 16) & 15;
+        //enc->busWidth = (configReg >> 12) & 15;
+        enc->reg_size = pservice->reg_size;
+        enc->reserv[0] = enc->reserv[1] = 0;
+    
+        pservice->auto_freq = soc_is_rk2928g() || soc_is_rk2928l() || soc_is_rk2926();
+        if (pservice->auto_freq) {
+            pr_info("vpu_service set to auto frequency mode\n");
+            atomic_set(&pservice->freq_status, VPU_FREQ_BUT);
+        }
+        pservice->bug_dec_addr = cpu_is_rk30xx();
+        //printk("cpu 3066b bug %d\n", service.bug_dec_addr);
+    }
 }
 
 static irqreturn_t vdpu_irq(int irq, void *dev_id)
