@@ -195,18 +195,18 @@ struct lm49453_priv {
 
 static const char *lm49453_mic2mode_text[] = {"Single Ended", "Differential"};
 
-static const SOC_ENUM_SINGLE_DECL(lm49453_mic2mode_enum, LM49453_P0_MICR_REG, 5,
-				  lm49453_mic2mode_text);
+static SOC_ENUM_SINGLE_DECL(lm49453_mic2mode_enum, LM49453_P0_MICR_REG, 5,
+			    lm49453_mic2mode_text);
 
 static const char *lm49453_dmic_cfg_text[] = {"DMICDAT1", "DMICDAT2"};
 
-static const SOC_ENUM_SINGLE_DECL(lm49453_dmic12_cfg_enum,
-				  LM49453_P0_DIGITAL_MIC1_CONFIG_REG,
-				  7, lm49453_dmic_cfg_text);
+static SOC_ENUM_SINGLE_DECL(lm49453_dmic12_cfg_enum,
+			    LM49453_P0_DIGITAL_MIC1_CONFIG_REG, 7,
+			    lm49453_dmic_cfg_text);
 
-static const SOC_ENUM_SINGLE_DECL(lm49453_dmic34_cfg_enum,
-				  LM49453_P0_DIGITAL_MIC2_CONFIG_REG,
-				  7, lm49453_dmic_cfg_text);
+static SOC_ENUM_SINGLE_DECL(lm49453_dmic34_cfg_enum,
+			    LM49453_P0_DIGITAL_MIC2_CONFIG_REG, 7,
+			    lm49453_dmic_cfg_text);
 
 /* MUX Controls */
 static const char *lm49453_adcl_mux_text[] = { "MIC1", "Aux_L" };

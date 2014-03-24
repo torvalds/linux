@@ -172,16 +172,21 @@ static int pcm1681_hw_params(struct snd_pcm_substream *substream,
 	struct snd_soc_codec *codec = dai->codec;
 	struct pcm1681_private *priv = snd_soc_codec_get_drvdata(codec);
 	int val = 0, ret;
-	int pcm_format = params_format(params);
 
 	priv->rate = params_rate(params);
 
 	switch (priv->format & SND_SOC_DAIFMT_FORMAT_MASK) {
 	case SND_SOC_DAIFMT_RIGHT_J:
-		if (pcm_format == SNDRV_PCM_FORMAT_S24_LE)
-			val = 0x00;
-		else if (pcm_format == SNDRV_PCM_FORMAT_S16_LE)
-			val = 0x03;
+		switch (params_width(params)) {
+		case 24:
+			val = 0;
+			break;
+		case 16:
+			val = 3;
+			break;
+		default:
+			return -EINVAL;
+		}
 		break;
 	case SND_SOC_DAIFMT_I2S:
 		val = 0x04;

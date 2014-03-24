@@ -1849,7 +1849,7 @@ static void max98088_handle_eq_pdata(struct snd_soc_codec *codec)
 
        /* Now point the soc_enum to .texts array items */
        max98088->eq_enum.texts = max98088->eq_texts;
-       max98088->eq_enum.max = max98088->eq_textcnt;
+       max98088->eq_enum.items = max98088->eq_textcnt;
 
        ret = snd_soc_add_codec_controls(codec, controls, ARRAY_SIZE(controls));
        if (ret != 0)

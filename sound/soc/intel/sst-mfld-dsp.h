@@ -1,7 +1,7 @@
-#ifndef __SST_DSP_H__
-#define __SST_DSP_H__
+#ifndef __SST_MFLD_DSP_H__
+#define __SST_MFLD_DSP_H__
 /*
- *  sst_dsp.h - Intel SST Driver for audio engine
+ *  sst_mfld_dsp.h - Intel SST Driver for audio engine
  *
  *  Copyright (C) 2008-12 Intel Corporation
  *  Authors:	Vinod Koul <vinod.koul@linux.intel.com>
@@ -131,4 +131,4 @@ struct snd_sst_params {
 	struct snd_sst_alloc_params_ext aparams;
 };
 
-#endif /* __SST_DSP_H__ */
+#endif /* __SST_MFLD_DSP_H__ */
