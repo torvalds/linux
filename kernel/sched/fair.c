@@ -39,6 +39,9 @@
  */
 #include <linux/cpufreq.h>
 #endif /* CONFIG_HMP_FREQUENCY_INVARIANT_SCALE */
+#ifdef CONFIG_SCHED_HMP
+#include <linux/cpuidle.h>
+#endif
 
 #include "sched.h"
 
@@ -3514,6 +3517,110 @@ static const int hmp_max_tasks = 5;
 
 extern void __init arch_get_hmp_domains(struct list_head *hmp_domains_list);
 
+#ifdef CONFIG_CPU_IDLE
+/*
+ * hmp_idle_pull:
+ *
+ * In this version we have stopped using forced up migrations when we
+ * detect that a task running on a little CPU should be moved to a bigger
+ * CPU. In most cases, the bigger CPU is in a deep sleep state and a forced
+ * migration means we stop the task immediately but need to wait for the
+ * target CPU to wake up before we can restart the task which is being
+ * moved. Instead, we now wake a big CPU with an IPI and ask it to pull
+ * a task when ready. This allows the task to continue executing on its
+ * current CPU, reducing the amount of time that the task is stalled for.
+ *
+ * keepalive timers:
+ *
+ * The keepalive timer is used as a way to keep a CPU engaged in an
+ * idle pull operation out of idle while waiting for the source
+ * CPU to stop and move the task. Ideally this would not be necessary
+ * and we could impose a temporary zero-latency requirement on the
+ * current CPU, but in the current QoS framework this will result in
+ * all CPUs in the system being unable to enter idle states which is
+ * not desirable. The timer does not perform any work when it expires.
+ */
+struct hmp_keepalive {
+	bool init;
+	ktime_t delay;	/* if zero, no need for timer */
+	struct hrtimer timer;
+};
+DEFINE_PER_CPU(struct hmp_keepalive, hmp_cpu_keepalive);
+
+/* setup per-cpu keepalive timers */
+static enum hrtimer_restart hmp_cpu_keepalive_notify(struct hrtimer *hrtimer)
+{
+	return HRTIMER_NORESTART;
+}
+
+/*
+ * Work out if any of the idle states have an exit latency too high for us.
+ * ns_delay is passed in containing the max we are willing to tolerate.
+ * If there are none, set ns_delay to zero.
+ * If there are any, set ns_delay to
+ * ('target_residency of state with shortest too-big latency' - 1) * 1000.
+ */
+static void hmp_keepalive_delay(unsigned int *ns_delay)
+{
+	struct cpuidle_driver *drv;
+	drv = cpuidle_driver_ref();
+	if (drv) {
+		unsigned int us_delay = UINT_MAX;
+		unsigned int us_max_delay = *ns_delay / 1000;
+		int idx;
+		/* if cpuidle states are guaranteed to be sorted we
+		 * could stop at the first match.
+		 */
+		for (idx = 0; idx < drv->state_count; idx++) {
+			if (drv->states[idx].exit_latency > us_max_delay &&
+				drv->states[idx].target_residency < us_delay) {
+				us_delay = drv->states[idx].target_residency;
+			}
+		}
+		if (us_delay == UINT_MAX)
+			*ns_delay = 0; /* no timer required */
+		else
+			*ns_delay = 1000 * (us_delay - 1);
+	}
+	cpuidle_driver_unref();
+}
+
+static void hmp_cpu_keepalive_trigger(void)
+{
+	int cpu = smp_processor_id();
+	struct hmp_keepalive *keepalive = &per_cpu(hmp_cpu_keepalive, cpu);
+	if (!keepalive->init) {
+		unsigned int ns_delay = 100000; /* tolerate 100usec delay */
+
+		hrtimer_init(&keepalive->timer,
+				CLOCK_MONOTONIC, HRTIMER_MODE_REL_PINNED);
+		keepalive->timer.function = hmp_cpu_keepalive_notify;
+
+		hmp_keepalive_delay(&ns_delay);
+		keepalive->delay = ns_to_ktime(ns_delay);
+		keepalive->init = true;
+	}
+	if (ktime_to_ns(keepalive->delay))
+		hrtimer_start(&keepalive->timer,
+			keepalive->delay, HRTIMER_MODE_REL_PINNED);
+}
+
+static void hmp_cpu_keepalive_cancel(int cpu)
+{
+	struct hmp_keepalive *keepalive = &per_cpu(hmp_cpu_keepalive, cpu);
+	if (keepalive->init)
+		hrtimer_cancel(&keepalive->timer);
+}
+#else /* !CONFIG_CPU_IDLE */
+static void hmp_cpu_keepalive_trigger(void)
+{
+}
+
+static void hmp_cpu_keepalive_cancel(int cpu)
+{
+}
+#endif
+
 /* Setup hmp_domains */
 static int __init hmp_cpu_mask_setup(void)
 {
@@ -3574,6 +3681,8 @@ static void hmp_offline_cpu(int cpu)
 
 	if(domain)
 		cpumask_clear_cpu(cpu, &domain->cpus);
+
+	hmp_cpu_keepalive_cancel(cpu);
 }
 /*
  * Needed to determine heaviest tasks etc.
@@ -7003,7 +7112,7 @@ static void hmp_force_up_migration(int this_cpu)
 		target = cpu_rq(cpu);
 		raw_spin_lock_irqsave(&target->lock, flags);
 		curr = target->cfs.curr;
-		if (!curr) {
+		if (!curr || target->active_balance) {
 			raw_spin_unlock_irqrestore(&target->lock, flags);
 			continue;
 		}
@@ -7020,16 +7129,13 @@ static void hmp_force_up_migration(int this_cpu)
 		curr = hmp_get_heaviest_task(curr, 1);
 		p = task_of(curr);
 		if (hmp_up_migration(cpu, &target_cpu, curr)) {
-			if (!target->active_balance) {
-				get_task_struct(p);
-				target->push_cpu = target_cpu;
-				target->migrate_task = p;
-				got_target = 1;
-				trace_sched_hmp_migrate(p, target->push_cpu, HMP_MIGRATE_FORCE);
-				hmp_next_up_delay(&p->se, target->push_cpu);
-			}
+			cpu_rq(target_cpu)->wake_for_idle_pull = 1;
+			raw_spin_unlock_irqrestore(&target->lock, flags);
+			spin_unlock(&hmp_force_migration);
+			smp_send_reschedule(target_cpu);
+			return;
 		}
-		if (!got_target && !target->active_balance) {
+		if (!got_target) {
 			/*
 			 * For now we just check the currently running task.
 			 * Selecting the lightest task for offloading will
@@ -7051,7 +7157,7 @@ static void hmp_force_up_migration(int this_cpu)
 		 * is not currently running move it, otherwise let the
 		 * CPU stopper take care of it.
 		 */
-		if (got_target && !target->active_balance) {
+		if (got_target) {
 			if (!task_running(target, p)) {
 				trace_sched_hmp_migrate_force_running(p, 0);
 				hmp_migrate_runnable_task(target);
@@ -7157,6 +7263,8 @@ static unsigned int hmp_idle_pull(int this_cpu)
 	raw_spin_unlock_irqrestore(&target->lock, flags);
 
 	if (force) {
+		/* start timer to keep us awake */
+		hmp_cpu_keepalive_trigger();
 		stop_one_cpu_nowait(cpu_of(target),
 			hmp_active_task_migration_cpu_stop,
 			target, &target->active_balance_work);
@@ -7179,6 +7287,18 @@ static void run_rebalance_domains(struct softirq_action *h)
 	struct rq *this_rq = cpu_rq(this_cpu);
 	enum cpu_idle_type idle = this_rq->idle_balance ?
 						CPU_IDLE : CPU_NOT_IDLE;
+
+#ifdef CONFIG_SCHED_HMP
+	/* shortcut for hmp idle pull wakeups */
+	if (unlikely(this_rq->wake_for_idle_pull)) {
+		this_rq->wake_for_idle_pull = 0;
+		if (hmp_idle_pull(this_cpu)) {
+			/* break out unless running nohz idle as well */
+			if (idle != CPU_IDLE)
+				return;
+		}
+	}
+#endif
 
 	hmp_force_up_migration(this_cpu);
 
