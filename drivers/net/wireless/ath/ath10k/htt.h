@@ -1273,6 +1273,9 @@ struct ath10k_htt {
 	struct tasklet_struct txrx_compl_task;
 	struct sk_buff_head tx_compl_q;
 	struct sk_buff_head rx_compl_q;
+
+	/* rx_status template */
+	struct ieee80211_rx_status rx_status;
 };
 
 #define RX_HTT_HDR_STATUS_LEN 64
