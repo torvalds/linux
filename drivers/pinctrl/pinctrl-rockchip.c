@@ -59,7 +59,7 @@
 
 
 #if 1
-#define DBG_PINCTRL(x...)  if(atomic_read(&info->debug_flag) == 1) printk(x)
+#define DBG_PINCTRL(x...)  if(((atomic_read(&info->debug_flag) == (bank->bank_num + 1)) || (atomic_read(&info->debug_flag) >= info->ctrl->nr_banks)) && bank && info) printk(x)
 #else
 #define DBG_PINCTRL(x...)
 #endif
@@ -68,7 +68,7 @@
 /* GPIO control registers */
 #define GPIO_SWPORT_DR		0x00
 #define GPIO_SWPORT_DDR		0x04
-#define GPIO_INTEN			0x30
+#define GPIO_INTEN		0x30
 #define GPIO_INTMASK		0x34
 #define GPIO_INTTYPE_LEVEL	0x38
 #define GPIO_INT_POLARITY	0x3c
@@ -130,7 +130,7 @@ struct rockchip_pin_bank {
 	spinlock_t			slock;
 	u32				toggle_edge_mode;
 	u32 				suspend_wakeup;
-	u32 				saved_wakeup;	
+	u32 				saved_wakeup;
 };
 
 #define PIN_BANK(id, pins, label)			\
@@ -176,6 +176,7 @@ struct rockchip_pin_group {
 	unsigned int			npins;
 	unsigned int			*pins;
 	struct rockchip_pin_config	*data;
+	unsigned long	gconfigs;
 };
 
 /**
@@ -205,9 +206,8 @@ struct rockchip_pinctrl {
 	unsigned int			ngroups;
 	struct rockchip_pmx_func	*functions;
 	unsigned int			nfunctions;
-	
+		
 	atomic_t			debug_flag;	
-	
 #ifdef CONFIG_DEBUG_FS
 	struct dentry *debugfs;
 #endif
@@ -277,10 +277,22 @@ static ssize_t pinctrl_write_proc_data(struct file *file, const char __user *buf
 	}
 
 	if((strstr(buf, "debug") != NULL) || (strstr(buf, "DEBUG") != NULL))
-	{		
-		atomic_set(&info->debug_flag, 1);		
+	{				
+		if(strstr(buf, "debug") != NULL)
+		sscanf(buf, "debug%d", &value);
+		else if(strstr(buf, "DEBUG") != NULL)
+		sscanf(buf, "DEBUG%d", &value);
+
+		if(value < 0)
+		{
+			printk("%s:error:value %d is out of bank num %d\n",__func__, value, info->ctrl->nr_banks-1);
+		}
+		else
+		{
+			atomic_set(&info->debug_flag, value+1);
+			printk("%s:open debug for bank%d\n",__func__,value);
+		}
 		kfree(buf);
-		printk("%s:open debug\n",__func__);
 	}
 	else if((strstr(buf, "stop") != NULL) || (strstr(buf, "STOP") != NULL))
 	{		
@@ -608,7 +620,7 @@ static int rockchip_set_rk32_mux(struct rockchip_pin_bank *bank, int pin, int mu
 	if((m.mux.bank != bank->bank_num))
 	{
 		printk("%s:error:mux_bank(%d) != gpio_bank(%d)\n",__func__, m.mux.bank, bank->bank_num);
-		return;
+		return 0;
 	}
 
 	switch(bank->bank_num)
@@ -835,15 +847,14 @@ static int rockchip_pmx_enable(struct pinctrl_dev *pctldev, unsigned selector,
 	struct rockchip_pin_bank *bank;
 	int cnt;
 
-	DBG_PINCTRL("%s:enable function %s group %s\n",
-		__func__, info->functions[selector].name, info->groups[group].name);
-
 	/*
 	 * for each pin in the pin group selected, program the correspoding pin
 	 * pin function number in the config register.
 	 */
 	for (cnt = 0; cnt < info->groups[group].npins; cnt++) {
 		bank = pin_to_bank(info, pins[cnt]);
+		DBG_PINCTRL("%s:enable function %s group %s\n",
+		__func__, info->functions[selector].name, info->groups[group].name);
 		rockchip_set_mux(bank, pins[cnt] - bank->pin_base,
 				 data[cnt].func);
 	}
@@ -860,11 +871,10 @@ static void rockchip_pmx_disable(struct pinctrl_dev *pctldev,
 	struct rockchip_pin_bank *bank;
 	int cnt;
 
-	DBG_PINCTRL("%s:disable function %s group %s\n",
-		__func__, info->functions[selector].name, info->groups[group].name);
-
 	for (cnt = 0; cnt < info->groups[group].npins; cnt++) {
 		bank = pin_to_bank(info, pins[cnt]);
+		DBG_PINCTRL("%s:disable function %s group %s\n",
+		__func__, info->functions[selector].name, info->groups[group].name);
 		rockchip_set_mux(bank, pins[cnt] - bank->pin_base, FUNC_TO_GPIO(data[cnt].func));
 	}
 }
@@ -1602,7 +1612,8 @@ static int rockchip_pinconf_set(struct pinctrl_dev *pctldev, unsigned int pin,
 				unsigned long configs, unsigned group)
 {
 	struct rockchip_pinctrl *info = pinctrl_dev_get_drvdata(pctldev);
-	struct rockchip_pin_bank *bank = pin_to_bank(info, pin);
+	struct rockchip_pin_bank *bank = pin_to_bank(info, pin);	
+	struct rockchip_pin_group *grp = &info->groups[group];
 	enum pin_config_param param;
 	u16 arg;
 	int rc;
@@ -1654,6 +1665,9 @@ static int rockchip_pinconf_set(struct pinctrl_dev *pctldev, unsigned int pin,
 		return -ENOTSUPP;
 		break;
 	}
+	
+	/* cache the config value for rockchip_pinconf_get() */
+	grp->gconfigs = configs;
 	
 	DBG_PINCTRL("%s,pin=%d,param=%d, arg=%d\n",__func__,pin, param, arg);
 
@@ -1724,12 +1738,16 @@ static int rockchip_pinconf_group_set(struct pinctrl_dev *pctldev,
 	struct rockchip_pinctrl *info = pinctrl_dev_get_drvdata(pctldev);
 	const unsigned int *pins;
 	unsigned int cnt;
+	struct rockchip_pin_bank *bank;
 	
-	DBG_PINCTRL("%s:group[%d]:%s\n",__func__, group, info->groups[group].name);
 	pins = info->groups[group].pins;
 
 	for (cnt = 0; cnt < info->groups[group].npins; cnt++)
+	{		
+		bank = pin_to_bank(info, pins[cnt]);
+		DBG_PINCTRL("%s:group[%d]:%s, pins[%d]=%d\n",__func__, group, info->groups[group].name, cnt, pins[cnt]);
 		rockchip_pinconf_set(pctldev, pins[cnt], config, group);
+	}
 	
 	return 0;
 }
@@ -1740,11 +1758,15 @@ static int rockchip_pinconf_group_get(struct pinctrl_dev *pctldev,
 {	
 	struct rockchip_pinctrl *info = pinctrl_dev_get_drvdata(pctldev);
 	const unsigned int *pins;
-
+	struct rockchip_pin_bank *bank;
+	
 	pins = info->groups[group].pins;
-	rockchip_pinconf_get(pctldev, pins[0], config, group);
+	bank = pin_to_bank(info, pins[0]);
+	
+	//rockchip_pinconf_get(pctldev, pins[0], config, group);	
+	*config = info->groups[group].gconfigs;
 
-	DBG_PINCTRL("%s:group[%d]:%s\n",__func__, group, info->groups[group].name);
+	DBG_PINCTRL("%s:group[%d]:%s,config=0x%lx\n",__func__, group, info->groups[group].name, *config);
 	return 0;
 }
 
@@ -1803,7 +1825,7 @@ static int rockchip_pinctrl_parse_groups(struct device_node *np,
 	unsigned long *pinconfig;	
 	u32 val;
 	
-	DBG_PINCTRL("%s:group(%d): %s\n", __func__, index, np->name);
+	//printk("%s:group(%d): %s\n", __func__, index, np->name);
 
         /* Initialise group */
         grp->name = np->name;
@@ -1905,7 +1927,7 @@ static int rockchip_pinctrl_parse_functions(struct device_node *np,
 	static u32 grp_index;
 	u32 i = 0;
 
-	DBG_PINCTRL("%s:parse function(%d): %s\n", __func__, index, np->name);
+	//printk("%s:parse function(%d): %s\n", __func__, index, np->name);
 
 	func = &info->functions[index];
 
@@ -1928,7 +1950,7 @@ static int rockchip_pinctrl_parse_functions(struct device_node *np,
 		if (ret)
 			return ret;	
 		
-		//DBG_PINCTRL("%s:grp->func_name(%d): %s\n", __func__, grp_index, grp->func_name);
+		//printk("%s:grp->func_name(%d): %s\n", __func__, grp_index, grp->func_name);
 	}
 
 	return 0;
@@ -2521,7 +2543,7 @@ static int rockchip_interrupts_register(struct platform_device *pdev,
 		}
 
 		
-		DBG_PINCTRL("%s:bank=%d\n",__func__,i);
+		DBG_PINCTRL("%s:bank_num=%d\n",__func__,bank->bank_num);
 
 		irq_set_handler_data(bank->irq, bank);
 		irq_set_chained_handler(bank->irq, rockchip_irq_demux);
@@ -2739,8 +2761,9 @@ static struct rockchip_pin_ctrl *rockchip_pinctrl_get_soc_data(
 
 #ifdef CONFIG_PM
 static int rockchip_pinctrl_suspend(void)
-{
-	struct rockchip_pin_ctrl *ctrl = g_info->ctrl;
+{	
+	struct rockchip_pinctrl *info = g_info;
+	struct rockchip_pin_ctrl *ctrl = info->ctrl;
 	struct rockchip_pin_bank *bank = ctrl->pin_banks;
 	int n, i = 0;
 	//int value = 0;
@@ -2755,12 +2778,12 @@ static int rockchip_pinctrl_suspend(void)
 		}
 #endif		
 		bank->saved_wakeup = __raw_readl(bank->reg_base + GPIO_INTEN);
-         __raw_writel(bank->suspend_wakeup, bank->reg_base + GPIO_INTEN);
+         	__raw_writel(bank->suspend_wakeup, bank->reg_base + GPIO_INTEN);
 
 		if (!bank->suspend_wakeup)
 		clk_disable_unprepare(bank->clk);
 				
-		printk("%s:bank_num=%d, suspend_wakeup=0x%x\n",__func__, bank->bank_num, bank->suspend_wakeup);
+		DBG_PINCTRL("%s:bank_num=%d, suspend_wakeup=0x%x\n",__func__, bank->bank_num, bank->suspend_wakeup);
 		bank++;
 	}
 
@@ -2770,7 +2793,8 @@ static int rockchip_pinctrl_suspend(void)
 
 static void rockchip_pinctrl_resume(void)
 {
-	struct rockchip_pin_ctrl *ctrl = g_info->ctrl;
+	struct rockchip_pinctrl *info = g_info;
+	struct rockchip_pin_ctrl *ctrl = info->ctrl;
 	struct rockchip_pin_bank *bank = ctrl->pin_banks;
 	int n, i = 0;
 	int value = 0;	
@@ -2790,9 +2814,9 @@ static void rockchip_pinctrl_resume(void)
 
 		/* keep enable for resume irq */
 		 isr = __raw_readl(bank->reg_base + GPIO_INT_STATUS);
-        __raw_writel(bank->saved_wakeup | (bank->suspend_wakeup & isr), bank->reg_base + GPIO_INTEN);
+        	__raw_writel(bank->saved_wakeup | (bank->suspend_wakeup & isr), bank->reg_base + GPIO_INTEN);
 
-		printk("%s:bank_num=%d, suspend_wakeup=0x%x\n",__func__, bank->bank_num, bank->saved_wakeup | (bank->suspend_wakeup & isr));
+		DBG_PINCTRL("%s:bank_num=%d, suspend_wakeup=0x%x\n",__func__, bank->bank_num, bank->saved_wakeup | (bank->suspend_wakeup & isr));
 
 		bank++;
 	}
@@ -2840,7 +2864,7 @@ static int rockchip_pinctrl_probe(struct platform_device *pdev)
 			info->reg_base = devm_ioremap_resource(&pdev->dev, res);
 			if (IS_ERR(info->reg_base))
 			return PTR_ERR(info->reg_base);
-			DBG_PINCTRL("%s:name=%s start=0x%x,end=0x%x\n",__func__,res->name, res->start, res->end);
+			printk("%s:name=%s start=0x%x,end=0x%x\n",__func__,res->name, res->start, res->end);
 			break;
 
 		case RK3188:
@@ -2848,25 +2872,25 @@ static int rockchip_pinctrl_probe(struct platform_device *pdev)
 			info->reg_base = devm_ioremap_resource(&pdev->dev, res);
 			if (IS_ERR(info->reg_base))
 			return PTR_ERR(info->reg_base);
-			DBG_PINCTRL("%s:name=%s start=0x%x,end=0x%x\n",__func__,res->name, res->start, res->end);
+			printk("%s:name=%s start=0x%x,end=0x%x\n",__func__,res->name, res->start, res->end);
 
 			res = platform_get_resource(pdev, IORESOURCE_MEM, 1);
 			info->reg_mux = devm_ioremap_resource(&pdev->dev, res);
 			if (IS_ERR(info->reg_mux))
 			return PTR_ERR(info->reg_mux);
-			DBG_PINCTRL("%s:name=%s start=0x%x,end=0x%x\n",__func__,res->name, res->start, res->end);
+			printk("%s:name=%s start=0x%x,end=0x%x\n",__func__,res->name, res->start, res->end);
 
 			res = platform_get_resource(pdev, IORESOURCE_MEM, 2);
 			info->reg_pull = devm_ioremap_resource(&pdev->dev, res);
 			if (IS_ERR(info->reg_pull))
 			return PTR_ERR(info->reg_pull);
-			DBG_PINCTRL("%s:name=%s start=0x%x,end=0x%x\n",__func__,res->name, res->start, res->end);
+			printk("%s:name=%s start=0x%x,end=0x%x\n",__func__,res->name, res->start, res->end);
 
 			res = platform_get_resource(pdev, IORESOURCE_MEM, 3);
 			info->reg_drv = devm_ioremap_resource(&pdev->dev, res);
 			if (IS_ERR(info->reg_drv))
 			return PTR_ERR(info->reg_drv);
-			DBG_PINCTRL("%s:name=%s start=0x%x,end=0x%x\n",__func__,res->name, res->start, res->end);
+			printk("%s:name=%s start=0x%x,end=0x%x\n",__func__,res->name, res->start, res->end);
 
 			break;
 
@@ -2875,7 +2899,7 @@ static int rockchip_pinctrl_probe(struct platform_device *pdev)
 			info->reg_base = devm_ioremap_resource(&pdev->dev, res);
 			if (IS_ERR(info->reg_base))
 			return PTR_ERR(info->reg_base);
-			DBG_PINCTRL("%s:name=%s start=0x%x,end=0x%x\n",__func__,res->name, res->start, res->end);
+			printk("%s:name=%s start=0x%x,end=0x%x\n",__func__,res->name, res->start, res->end);
 	
 			info->reg_mux = info->reg_base;
 			
@@ -2883,18 +2907,18 @@ static int rockchip_pinctrl_probe(struct platform_device *pdev)
 			info->reg_pull = devm_ioremap_resource(&pdev->dev, res);
 			if (IS_ERR(info->reg_pull))
 			return PTR_ERR(info->reg_pull);
-			DBG_PINCTRL("%s:name=%s start=0x%x,end=0x%x\n",__func__,res->name, res->start, res->end);
+			printk("%s:name=%s start=0x%x,end=0x%x\n",__func__,res->name, res->start, res->end);
 
 			res = platform_get_resource(pdev, IORESOURCE_MEM, 2);
 			info->reg_drv = devm_ioremap_resource(&pdev->dev, res);
 			if (IS_ERR(info->reg_drv))
 			return PTR_ERR(info->reg_drv);
-			DBG_PINCTRL("%s:name=%s start=0x%x,end=0x%x\n",__func__,res->name, res->start, res->end);
+			printk("%s:name=%s start=0x%x,end=0x%x\n",__func__,res->name, res->start, res->end);
 
 			break;
 			
 		defualt:
-			printk("%s:unknown chip type\n",__func__, ctrl->type);
+			printk("%s:unknown chip type %d\n",__func__, (int)ctrl->type);
 			return -1;
 
 	}
