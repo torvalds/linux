@@ -135,7 +135,7 @@ static int bcm7xxx_28nm_afe_config_init(struct phy_device *phydev)
 	phy_write_misc(phydev, AFE_RXCONFIG_1, 0x9a3f);
 
 	/* write AFE_RX_LP_COUNTER */
-	phy_write_misc(phydev, AFE_RX_LP_COUNTER, 0x7fc7);
+	phy_write_misc(phydev, AFE_RX_LP_COUNTER, 0x7fc0);
 
 	/* write AFE_HPF_TRIM_OTHERS */
 	phy_write_misc(phydev, AFE_HPF_TRIM_OTHERS, 0x000b);
