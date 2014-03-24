@@ -121,7 +121,7 @@ asoc_simple_card_sub_parse_of(struct device_node *np,
 	 * bitclock-master,    frame-master
 	 * and specific "format" if it has
 	 */
-	dai->fmt = snd_soc_of_parse_daifmt(np, NULL);
+	dai->fmt = snd_soc_of_parse_daifmt(np, NULL, NULL, NULL);
 	dai->fmt |= daifmt;
 
 	/*
@@ -201,7 +201,8 @@ static int asoc_simple_card_parse_of(struct device_node *node,
 	snd_soc_of_parse_card_name(&priv->snd_card, "simple-audio-card,name");
 
 	/* get CPU/CODEC common format via simple-audio-card,format */
-	daifmt = snd_soc_of_parse_daifmt(node, "simple-audio-card,") &
+	daifmt = snd_soc_of_parse_daifmt(node, "simple-audio-card,", NULL,
+					 NULL) &
 		(SND_SOC_DAIFMT_FORMAT_MASK | SND_SOC_DAIFMT_INV_MASK);
 
 	/* off-codec widgets */
