@@ -276,6 +276,10 @@ if test -d .git
 then
 	git status >> $resdir/$ds/testid.txt
 	git rev-parse HEAD >> $resdir/$ds/testid.txt
+	if ! git diff HEAD > $T/git-diff 2>&1
+	then
+		cp $T/git-diff $resdir/$ds
+	fi
 fi
 ___EOF___
 awk < $T/cfgcpu.pack \
