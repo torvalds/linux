@@ -21,6 +21,7 @@
 #include <linux/bug.h>
 #include <linux/interrupt.h>
 #include <linux/dmapool.h>
+#include <net/mac80211.h>
 
 #include "htc.h"
 #include "rx_desc.h"
@@ -1174,6 +1175,7 @@ struct htt_peer_unmap_event {
 
 struct htt_rx_info {
 	struct sk_buff *skb;
+	struct ieee80211_rx_status rx_status;
 	enum htt_rx_mpdu_status status;
 	enum htt_rx_mpdu_encrypt_type encrypt_type;
 	s8 signal;
