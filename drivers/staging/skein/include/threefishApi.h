@@ -72,7 +72,9 @@ struct threefish_key {
  * @param tweak
  *     Pointer to the two tweak words (word has 64 bits).
  */
-void threefishSetKey(struct threefish_key *keyCtx, enum threefish_size stateSize, u64 *keyData, u64 *tweak);
+void threefishSetKey(struct threefish_key *keyCtx,
+			enum threefish_size stateSize,
+			u64 *keyData, u64 *tweak);
 
 /**
  * Encrypt Threefisch block (bytes).
@@ -108,7 +110,8 @@ void threefishEncryptBlockBytes(struct threefish_key *keyCtx, u8 *in, u8 *out);
  * @param out
  *     Pointer to cipher buffer.
  */
-void threefishEncryptBlockWords(struct threefish_key *keyCtx, u64 *in, u64 *out);
+void threefishEncryptBlockWords(struct threefish_key *keyCtx, u64 *in,
+				u64 *out);
 
 /**
  * Decrypt Threefisch block (bytes).
@@ -144,14 +147,17 @@ void threefishDecryptBlockBytes(struct threefish_key *keyCtx, u8 *in, u8 *out);
  * @param out
  *     Pointer to plaintext buffer.
  */
-void threefishDecryptBlockWords(struct threefish_key *keyCtx, u64 *in, u64 *out);
+void threefishDecryptBlockWords(struct threefish_key *keyCtx, u64 *in,
+				u64 *out);
 
 void threefishEncrypt256(struct threefish_key *keyCtx, u64 *input, u64 *output);
 void threefishEncrypt512(struct threefish_key *keyCtx, u64 *input, u64 *output);
-void threefishEncrypt1024(struct threefish_key *keyCtx, u64 *input, u64 *output);
+void threefishEncrypt1024(struct threefish_key *keyCtx, u64 *input,
+			u64 *output);
 void threefishDecrypt256(struct threefish_key *keyCtx, u64 *input, u64 *output);
 void threefishDecrypt512(struct threefish_key *keyCtx, u64 *input, u64 *output);
-void threefishDecrypt1024(struct threefish_key *keyCtx, u64 *input, u64 *output);
+void threefishDecrypt1024(struct threefish_key *keyCtx, u64 *input,
+			u64 *output);
 /**
  * @}
  */

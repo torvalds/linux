@@ -46,9 +46,9 @@ int skeinInit(struct skein_ctx *ctx, size_t hashBitLen)
 
 	Skein_Assert(ctx, SKEIN_FAIL);
 	/*
-	 * The following two lines rely of the fact that the real Skein contexts are
-	 * a union in out context and thus have tha maximum memory available.
-	 * The beauty of C :-) .
+	 * The following two lines rely of the fact that the real Skein
+	 * contexts are a union in out context and thus have tha maximum
+	 * memory available.  The beauty of C :-) .
 	 */
 	X = ctx->m.s256.X;
 	Xlen = ctx->skeinSize/8;
@@ -72,7 +72,10 @@ int skeinInit(struct skein_ctx *ctx, size_t hashBitLen)
 	}
 
 	if (ret == SKEIN_SUCCESS) {
-		/* Save chaining variables for this combination of size and hashBitLen */
+		/*
+		 * Save chaining variables for this combination of size and
+		 * hashBitLen
+		 */
 		memcpy(ctx->XSave, X, Xlen);
 	}
 	return ret;
@@ -113,7 +116,10 @@ int skeinMacInit(struct skein_ctx *ctx, const u8 *key, size_t keyLen,
 		break;
 	}
 	if (ret == SKEIN_SUCCESS) {
-		/* Save chaining variables for this combination of key, keyLen, hashBitLen */
+		/*
+		 * Save chaining variables for this combination of key,
+		 * keyLen, hashBitLen
+		 */
 		memcpy(ctx->XSave, X, Xlen);
 	}
 	return ret;
@@ -125,9 +131,9 @@ void skeinReset(struct skein_ctx *ctx)
 	u64 *X = NULL;
 
 	/*
-	 * The following two lines rely of the fact that the real Skein contexts are
-	 * a union in out context and thus have tha maximum memory available.
-	 * The beautiy of C :-) .
+	 * The following two lines rely of the fact that the real Skein
+	 * contexts are a union in out context and thus have tha maximum
+	 * memory available.  The beautiy of C :-) .
 	 */
 	X = ctx->m.s256.X;
 	Xlen = ctx->skeinSize/8;
@@ -146,13 +152,16 @@ int skeinUpdate(struct skein_ctx *ctx, const u8 *msg,
 
 	switch (ctx->skeinSize) {
 	case Skein256:
-		ret = Skein_256_Update(&ctx->m.s256, (const u8 *)msg, msgByteCnt);
+		ret = Skein_256_Update(&ctx->m.s256, (const u8 *)msg,
+					msgByteCnt);
 		break;
 	case Skein512:
-		ret = Skein_512_Update(&ctx->m.s512, (const u8 *)msg, msgByteCnt);
+		ret = Skein_512_Update(&ctx->m.s512, (const u8 *)msg,
+					msgByteCnt);
 		break;
 	case Skein1024:
-		ret = Skein1024_Update(&ctx->m.s1024, (const u8 *)msg, msgByteCnt);
+		ret = Skein1024_Update(&ctx->m.s1024, (const u8 *)msg,
+					msgByteCnt);
 		break;
 	}
 	return ret;
@@ -164,15 +173,19 @@ int skeinUpdateBits(struct skein_ctx *ctx, const u8 *msg,
 {
 	/*
 	 * I've used the bit pad implementation from skein_test.c (see NIST CD)
-	 * and modified it to use the convenience functions and added some pointer
-	 * arithmetic.
+	 * and modified it to use the convenience functions and added some
+	 * pointer arithmetic.
 	 */
 	size_t length;
 	u8 mask;
 	u8 *up;
 
-	/* only the final Update() call is allowed do partial bytes, else assert an error */
-	Skein_Assert((ctx->m.h.T[1] & SKEIN_T1_FLAG_BIT_PAD) == 0 || msgBitCnt == 0, SKEIN_FAIL);
+	/*
+	 * only the final Update() call is allowed do partial bytes, else
+	 * assert an error
+	 */
+	Skein_Assert((ctx->m.h.T[1] & SKEIN_T1_FLAG_BIT_PAD) == 0 ||
+			msgBitCnt == 0, SKEIN_FAIL);
 
 	/* if number of bits is a multiple of bytes - that's easy */
 	if ((msgBitCnt & 0x7) == 0) {
@@ -188,13 +201,18 @@ int skeinUpdateBits(struct skein_ctx *ctx, const u8 *msg,
 	 */
 	up = (u8 *)ctx->m.s256.X + ctx->skeinSize / 8;
 
-	Skein_Set_Bit_Pad_Flag(ctx->m.h);                       /* set tweak flag for the skeinFinal call */
+	/* set tweak flag for the skeinFinal call */
+	Skein_Set_Bit_Pad_Flag(ctx->m.h);
 
 	/* now "pad" the final partial byte the way NIST likes */
-	length = ctx->m.h.bCnt;                                 /* get the bCnt value (same location for all block sizes) */
-	Skein_assert(length != 0);                              /* internal sanity check: there IS a partial byte in the buffer! */
-	mask = (u8) (1u << (7 - (msgBitCnt & 7)));         /* partial byte bit mask */
-	up[length-1]  = (u8)((up[length-1] & (0-mask))|mask);   /* apply bit padding on final byte (in the buffer) */
+	/* get the bCnt value (same location for all block sizes) */
+	length = ctx->m.h.bCnt;
+	/* internal sanity check: there IS a partial byte in the buffer! */
+	Skein_assert(length != 0);
+	/* partial byte bit mask */
+	mask = (u8) (1u << (7 - (msgBitCnt & 7)));
+	/* apply bit padding on final byte (in the buffer) */
+	up[length-1]  = (u8)((up[length-1] & (0-mask))|mask);
 
 	return SKEIN_SUCCESS;
 }

@@ -11,10 +11,10 @@ void Skein_256_Process_Block(struct skein_256_ctx *ctx, const u8 *blkPtr,
 	struct threefish_key key;
 	u64 tweak[2];
 	int i;
-	u64  w[SKEIN_256_STATE_WORDS];           /* local copy of input block */
+	u64  w[SKEIN_256_STATE_WORDS]; /* local copy of input block */
 	u64 words[3];
 
-	Skein_assert(blkCnt != 0);                  /* never call with blkCnt == 0! */
+	Skein_assert(blkCnt != 0); /* never call with blkCnt == 0! */
 	tweak[0] = ctx->h.T[0];
 	tweak[1] = ctx->h.T[1];
 
@@ -36,13 +36,14 @@ void Skein_256_Process_Block(struct skein_256_ctx *ctx, const u8 *blkPtr,
 
 		threefishSetKey(&key, Threefish256, ctx->X, tweak);
 
-		Skein_Get64_LSB_First(w, blkPtr, SKEIN_256_STATE_WORDS);   /* get input block in little-endian format */
+		/* get input block in little-endian format */
+		Skein_Get64_LSB_First(w, blkPtr, SKEIN_256_STATE_WORDS);
 
 		threefishEncryptBlockWords(&key, w, ctx->X);
 
 		blkPtr += SKEIN_256_BLOCK_BYTES;
 
-		/* do the final "feedforward" xor, update context chaining vars */
+		/* do the final "feedforward" xor, update ctx chaining vars */
 		ctx->X[0] = ctx->X[0] ^ w[0];
 		ctx->X[1] = ctx->X[1] ^ w[1];
 		ctx->X[2] = ctx->X[2] ^ w[2];
@@ -62,9 +63,9 @@ void Skein_512_Process_Block(struct skein_512_ctx *ctx, const u8 *blkPtr,
 	u64 tweak[2];
 	int i;
 	u64 words[3];
-	u64  w[SKEIN_512_STATE_WORDS];           /* local copy of input block */
+	u64  w[SKEIN_512_STATE_WORDS]; /* local copy of input block */
 
-	Skein_assert(blkCnt != 0);                  /* never call with blkCnt == 0! */
+	Skein_assert(blkCnt != 0); /* never call with blkCnt == 0! */
 	tweak[0] = ctx->h.T[0];
 	tweak[1] = ctx->h.T[1];
 
@@ -86,13 +87,14 @@ void Skein_512_Process_Block(struct skein_512_ctx *ctx, const u8 *blkPtr,
 
 		threefishSetKey(&key, Threefish512, ctx->X, tweak);
 
-		Skein_Get64_LSB_First(w, blkPtr, SKEIN_512_STATE_WORDS);   /* get input block in little-endian format */
+		/* get input block in little-endian format */
+		Skein_Get64_LSB_First(w, blkPtr, SKEIN_512_STATE_WORDS);
 
 		threefishEncryptBlockWords(&key, w, ctx->X);
 
 		blkPtr += SKEIN_512_BLOCK_BYTES;
 
-		/* do the final "feedforward" xor, update context chaining vars */
+		/* do the final "feedforward" xor, update ctx chaining vars */
 		ctx->X[0] = ctx->X[0] ^ w[0];
 		ctx->X[1] = ctx->X[1] ^ w[1];
 		ctx->X[2] = ctx->X[2] ^ w[2];
@@ -116,9 +118,9 @@ void Skein1024_Process_Block(struct skein1024_ctx *ctx, const u8 *blkPtr,
 	u64 tweak[2];
 	int i;
 	u64 words[3];
-	u64  w[SKEIN1024_STATE_WORDS];           /* local copy of input block */
+	u64  w[SKEIN1024_STATE_WORDS]; /* local copy of input block */
 
-	Skein_assert(blkCnt != 0);                  /* never call with blkCnt == 0! */
+	Skein_assert(blkCnt != 0); /* never call with blkCnt == 0! */
 	tweak[0] = ctx->h.T[0];
 	tweak[1] = ctx->h.T[1];
 
@@ -140,13 +142,14 @@ void Skein1024_Process_Block(struct skein1024_ctx *ctx, const u8 *blkPtr,
 
 		threefishSetKey(&key, Threefish1024, ctx->X, tweak);
 
-		Skein_Get64_LSB_First(w, blkPtr, SKEIN1024_STATE_WORDS);   /* get input block in little-endian format */
+		/* get input block in little-endian format */
+		Skein_Get64_LSB_First(w, blkPtr, SKEIN1024_STATE_WORDS);
 
 		threefishEncryptBlockWords(&key, w, ctx->X);
 
 		blkPtr += SKEIN1024_BLOCK_BYTES;
 
-		/* do the final "feedforward" xor, update context chaining vars */
+		/* do the final "feedforward" xor, update ctx chaining vars */
 		ctx->X[0]  = ctx->X[0]  ^ w[0];
 		ctx->X[1]  = ctx->X[1]  ^ w[1];
 		ctx->X[2]  = ctx->X[2]  ^ w[2];
