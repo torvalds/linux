@@ -95,4 +95,10 @@ extern void cpu_report(void);
 extern const char *__cpu_name[];
 #define cpu_name_string()	__cpu_name[smp_processor_id()]
 
+#if defined(CONFIG_MIPS_MT_SMP) || defined(CONFIG_MIPS_MT_SMTC)
+# define cpu_vpe_id(cpuinfo)	((cpuinfo)->vpe_id)
+#else
+# define cpu_vpe_id(cpuinfo)	0
+#endif
+
 #endif /* __ASM_CPU_INFO_H */
