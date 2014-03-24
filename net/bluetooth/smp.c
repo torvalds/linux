@@ -884,10 +884,16 @@ bool smp_sufficient_security(struct hci_conn *hcon, u8 sec_level)
 int smp_conn_security(struct hci_conn *hcon, __u8 sec_level)
 {
 	struct l2cap_conn *conn = hcon->l2cap_data;
-	struct smp_chan *smp = conn->smp_chan;
+	struct smp_chan *smp;
 	__u8 authreq;
 
 	BT_DBG("conn %p hcon %p level 0x%2.2x", conn, hcon, sec_level);
+
+	/* This may be NULL if there's an unexpected disconnection */
+	if (!conn)
+		return 1;
+
+	smp = conn->smp_chan;
 
 	if (!test_bit(HCI_LE_ENABLED, &hcon->hdev->dev_flags))
 		return 1;
