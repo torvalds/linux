@@ -1653,7 +1653,7 @@ mwifiex_parse_single_response_buf(struct mwifiex_private *priv, u8 **bss_info,
 	curr_bcn_bytes -= ETH_ALEN;
 
 	if (!ext_scan) {
-		rssi = (s32) *(u8 *)current_ptr;
+		rssi = (s32) *current_ptr;
 		rssi = (-rssi) * 100;		/* Convert dBm to mBm */
 		current_ptr += sizeof(u8);
 		curr_bcn_bytes -= sizeof(u8);
