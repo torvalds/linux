@@ -31,7 +31,7 @@ int skeinCtxPrepare(struct skein_ctx *ctx, enum skein_size size)
 {
     Skein_Assert(ctx && size, SKEIN_FAIL);
 
-    memset(ctx ,0, sizeof(struct skein_ctx));
+    memset(ctx , 0, sizeof(struct skein_ctx));
     ctx->skeinSize = size;
 
     return SKEIN_SUCCESS;
@@ -97,18 +97,18 @@ int skeinMacInit(struct skein_ctx *ctx, const u8 *key, size_t keyLen,
     case Skein256:
         ret = Skein_256_InitExt(&ctx->m.s256, hashBitLen,
                                 treeInfo,
-                                (const u8*)key, keyLen);
+                                (const u8 *)key, keyLen);
 
         break;
     case Skein512:
         ret = Skein_512_InitExt(&ctx->m.s512, hashBitLen,
                                 treeInfo,
-                                (const u8*)key, keyLen);
+                                (const u8 *)key, keyLen);
         break;
     case Skein1024:
         ret = Skein1024_InitExt(&ctx->m.s1024, hashBitLen,
                                 treeInfo,
-                                (const u8*)key, keyLen);
+                                (const u8 *)key, keyLen);
 
         break;
     }
@@ -146,13 +146,13 @@ int skeinUpdate(struct skein_ctx *ctx, const u8 *msg,
 
     switch (ctx->skeinSize) {
     case Skein256:
-        ret = Skein_256_Update(&ctx->m.s256, (const u8*)msg, msgByteCnt);
+        ret = Skein_256_Update(&ctx->m.s256, (const u8 *)msg, msgByteCnt);
         break;
     case Skein512:
-        ret = Skein_512_Update(&ctx->m.s512, (const u8*)msg, msgByteCnt);
+        ret = Skein_512_Update(&ctx->m.s512, (const u8 *)msg, msgByteCnt);
         break;
     case Skein1024:
-        ret = Skein1024_Update(&ctx->m.s1024, (const u8*)msg, msgByteCnt);
+        ret = Skein1024_Update(&ctx->m.s1024, (const u8 *)msg, msgByteCnt);
         break;
     }
     return ret;
@@ -186,7 +186,7 @@ int skeinUpdateBits(struct skein_ctx *ctx, const u8 *msg,
      * Skein's real partial block buffer.
      * If this layout ever changes we have to adapt this as well.
      */
-    up = (u8*)ctx->m.s256.X + ctx->skeinSize / 8;
+    up = (u8 *)ctx->m.s256.X + ctx->skeinSize / 8;
 
     Skein_Set_Bit_Pad_Flag(ctx->m.h);                       /* set tweak flag for the skeinFinal call */
 
@@ -206,13 +206,13 @@ int skeinFinal(struct skein_ctx *ctx, u8 *hash)
 
     switch (ctx->skeinSize) {
     case Skein256:
-        ret = Skein_256_Final(&ctx->m.s256, (u8*)hash);
+        ret = Skein_256_Final(&ctx->m.s256, (u8 *)hash);
         break;
     case Skein512:
-        ret = Skein_512_Final(&ctx->m.s512, (u8*)hash);
+        ret = Skein_512_Final(&ctx->m.s512, (u8 *)hash);
         break;
     case Skein1024:
-        ret = Skein1024_Final(&ctx->m.s1024, (u8*)hash);
+        ret = Skein1024_Final(&ctx->m.s1024, (u8 *)hash);
         break;
     }
     return ret;

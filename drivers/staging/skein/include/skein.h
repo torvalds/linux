@@ -29,12 +29,12 @@
 ***************************************************************************/
 
 #ifndef RotL_64
-#define RotL_64(x,N)    (((x) << (N)) | ((x) >> (64-(N))))
+#define RotL_64(x, N)    (((x) << (N)) | ((x) >> (64-(N))))
 #endif
 
 /* below two prototype assume we are handed aligned data */
-#define Skein_Put64_LSB_First(dst08,src64,bCnt) memcpy(dst08,src64,bCnt)
-#define Skein_Get64_LSB_First(dst64,src08,wCnt) memcpy(dst64,src08,8*(wCnt))
+#define Skein_Put64_LSB_First(dst08, src64, bCnt) memcpy(dst08, src64, bCnt)
+#define Skein_Get64_LSB_First(dst64, src08, wCnt) memcpy(dst64, src08, 8*(wCnt))
 #define Skein_Swap64(w64)  (w64)
 
 enum
@@ -44,24 +44,24 @@ enum
     SKEIN_BAD_HASHLEN     =      2
     };
 
-#define  SKEIN_MODIFIER_WORDS  ( 2)          /* number of modifier (tweak) words */
+#define  SKEIN_MODIFIER_WORDS   (2)          /* number of modifier (tweak) words */
 
-#define  SKEIN_256_STATE_WORDS ( 4)
-#define  SKEIN_512_STATE_WORDS ( 8)
+#define  SKEIN_256_STATE_WORDS  (4)
+#define  SKEIN_512_STATE_WORDS  (8)
 #define  SKEIN1024_STATE_WORDS (16)
 #define  SKEIN_MAX_STATE_WORDS (16)
 
-#define  SKEIN_256_STATE_BYTES ( 8*SKEIN_256_STATE_WORDS)
-#define  SKEIN_512_STATE_BYTES ( 8*SKEIN_512_STATE_WORDS)
-#define  SKEIN1024_STATE_BYTES ( 8*SKEIN1024_STATE_WORDS)
+#define  SKEIN_256_STATE_BYTES  (8*SKEIN_256_STATE_WORDS)
+#define  SKEIN_512_STATE_BYTES  (8*SKEIN_512_STATE_WORDS)
+#define  SKEIN1024_STATE_BYTES  (8*SKEIN1024_STATE_WORDS)
 
 #define  SKEIN_256_STATE_BITS  (64*SKEIN_256_STATE_WORDS)
 #define  SKEIN_512_STATE_BITS  (64*SKEIN_512_STATE_WORDS)
 #define  SKEIN1024_STATE_BITS  (64*SKEIN1024_STATE_WORDS)
 
-#define  SKEIN_256_BLOCK_BYTES ( 8*SKEIN_256_STATE_WORDS)
-#define  SKEIN_512_BLOCK_BYTES ( 8*SKEIN_512_STATE_WORDS)
-#define  SKEIN1024_BLOCK_BYTES ( 8*SKEIN1024_STATE_WORDS)
+#define  SKEIN_256_BLOCK_BYTES  (8*SKEIN_256_STATE_WORDS)
+#define  SKEIN_512_BLOCK_BYTES  (8*SKEIN_512_STATE_WORDS)
+#define  SKEIN1024_BLOCK_BYTES  (8*SKEIN1024_STATE_WORDS)
 
 struct skein_ctx_hdr
     {
@@ -92,17 +92,17 @@ struct skein1024_ctx                              /* 1024-bit Skein hash context
     };
 
 /*   Skein APIs for (incremental) "straight hashing" */
-int  Skein_256_Init  (struct skein_256_ctx *ctx, size_t hashBitLen);
-int  Skein_512_Init  (struct skein_512_ctx *ctx, size_t hashBitLen);
-int  Skein1024_Init  (struct skein1024_ctx *ctx, size_t hashBitLen);
+int  Skein_256_Init(struct skein_256_ctx *ctx, size_t hashBitLen);
+int  Skein_512_Init(struct skein_512_ctx *ctx, size_t hashBitLen);
+int  Skein1024_Init(struct skein1024_ctx *ctx, size_t hashBitLen);
 
 int  Skein_256_Update(struct skein_256_ctx *ctx, const u8 *msg, size_t msgByteCnt);
 int  Skein_512_Update(struct skein_512_ctx *ctx, const u8 *msg, size_t msgByteCnt);
 int  Skein1024_Update(struct skein1024_ctx *ctx, const u8 *msg, size_t msgByteCnt);
 
-int  Skein_256_Final (struct skein_256_ctx *ctx, u8 *hashVal);
-int  Skein_512_Final (struct skein_512_ctx *ctx, u8 *hashVal);
-int  Skein1024_Final (struct skein1024_ctx *ctx, u8 *hashVal);
+int  Skein_256_Final(struct skein_256_ctx *ctx, u8 *hashVal);
+int  Skein_512_Final(struct skein_512_ctx *ctx, u8 *hashVal);
+int  Skein1024_Final(struct skein1024_ctx *ctx, u8 *hashVal);
 
 /*
 **   Skein APIs for "extended" initialization: MAC keys, tree hashing.
@@ -135,9 +135,9 @@ int  Skein1024_Final_Pad(struct skein1024_ctx *ctx, u8 *hashVal);
 #define SKEIN_TREE_HASH (1)
 #endif
 #if  SKEIN_TREE_HASH
-int  Skein_256_Output   (struct skein_256_ctx *ctx, u8 *hashVal);
-int  Skein_512_Output   (struct skein_512_ctx *ctx, u8 *hashVal);
-int  Skein1024_Output   (struct skein1024_ctx *ctx, u8 *hashVal);
+int  Skein_256_Output(struct skein_256_ctx *ctx, u8 *hashVal);
+int  Skein_512_Output(struct skein_512_ctx *ctx, u8 *hashVal);
+int  Skein1024_Output(struct skein1024_ctx *ctx, u8 *hashVal);
 #endif
 
 /*****************************************************************
@@ -158,18 +158,18 @@ int  Skein1024_Output   (struct skein1024_ctx *ctx, u8 *hashVal);
 #define SKEIN_T1_POS_FINAL      SKEIN_T1_BIT(127)       /* bit  127     : final block flag         */
                                 
 /* tweak word T[1]: flag bit definition(s) */
-#define SKEIN_T1_FLAG_FIRST     (((u64)  1 ) << SKEIN_T1_POS_FIRST)
-#define SKEIN_T1_FLAG_FINAL     (((u64)  1 ) << SKEIN_T1_POS_FINAL)
-#define SKEIN_T1_FLAG_BIT_PAD   (((u64)  1 ) << SKEIN_T1_POS_BIT_PAD)
+#define SKEIN_T1_FLAG_FIRST     (((u64)  1) << SKEIN_T1_POS_FIRST)
+#define SKEIN_T1_FLAG_FINAL     (((u64)  1) << SKEIN_T1_POS_FINAL)
+#define SKEIN_T1_FLAG_BIT_PAD   (((u64)  1) << SKEIN_T1_POS_BIT_PAD)
                                 
 /* tweak word T[1]: tree level bit field mask */
 #define SKEIN_T1_TREE_LVL_MASK  (((u64)0x7F) << SKEIN_T1_POS_TREE_LVL)
 #define SKEIN_T1_TREE_LEVEL(n)  (((u64) (n)) << SKEIN_T1_POS_TREE_LVL)
 
 /* tweak word T[1]: block type field */
-#define SKEIN_BLK_TYPE_KEY      ( 0)                    /* key, for MAC and KDF */
-#define SKEIN_BLK_TYPE_CFG      ( 4)                    /* configuration block */
-#define SKEIN_BLK_TYPE_PERS     ( 8)                    /* personalization string */
+#define SKEIN_BLK_TYPE_KEY       (0)                    /* key, for MAC and KDF */
+#define SKEIN_BLK_TYPE_CFG       (4)                    /* configuration block */
+#define SKEIN_BLK_TYPE_PERS      (8)                    /* personalization string */
 #define SKEIN_BLK_TYPE_PK       (12)                    /* public key (for digital signature hashing) */
 #define SKEIN_BLK_TYPE_KDF      (16)                    /* key identifier for KDF */
 #define SKEIN_BLK_TYPE_NONCE    (20)                    /* nonce for PRNG */
@@ -197,73 +197,73 @@ int  Skein1024_Output   (struct skein1024_ctx *ctx, u8 *hashVal);
 #define SKEIN_ID_STRING_LE      (0x33414853)            /* "SHA3" (little-endian)*/
 #endif
 
-#define SKEIN_MK_64(hi32,lo32)  ((lo32) + (((u64) (hi32)) << 32))
-#define SKEIN_SCHEMA_VER        SKEIN_MK_64(SKEIN_VERSION,SKEIN_ID_STRING_LE)
-#define SKEIN_KS_PARITY         SKEIN_MK_64(0x1BD11BDA,0xA9FC1A22)
+#define SKEIN_MK_64(hi32, lo32)  ((lo32) + (((u64) (hi32)) << 32))
+#define SKEIN_SCHEMA_VER        SKEIN_MK_64(SKEIN_VERSION, SKEIN_ID_STRING_LE)
+#define SKEIN_KS_PARITY         SKEIN_MK_64(0x1BD11BDA, 0xA9FC1A22)
 
 #define SKEIN_CFG_STR_LEN       (4*8)
 
 /* bit field definitions in config block treeInfo word */
-#define SKEIN_CFG_TREE_LEAF_SIZE_POS  ( 0)
-#define SKEIN_CFG_TREE_NODE_SIZE_POS  ( 8)
+#define SKEIN_CFG_TREE_LEAF_SIZE_POS  (0)
+#define SKEIN_CFG_TREE_NODE_SIZE_POS  (8)
 #define SKEIN_CFG_TREE_MAX_LEVEL_POS  (16)
 
 #define SKEIN_CFG_TREE_LEAF_SIZE_MSK  (((u64) 0xFF) << SKEIN_CFG_TREE_LEAF_SIZE_POS)
 #define SKEIN_CFG_TREE_NODE_SIZE_MSK  (((u64) 0xFF) << SKEIN_CFG_TREE_NODE_SIZE_POS)
 #define SKEIN_CFG_TREE_MAX_LEVEL_MSK  (((u64) 0xFF) << SKEIN_CFG_TREE_MAX_LEVEL_POS)
 
-#define SKEIN_CFG_TREE_INFO(leaf,node,maxLvl)                   \
-    ( (((u64)(leaf  )) << SKEIN_CFG_TREE_LEAF_SIZE_POS) |    \
-      (((u64)(node  )) << SKEIN_CFG_TREE_NODE_SIZE_POS) |    \
-      (((u64)(maxLvl)) << SKEIN_CFG_TREE_MAX_LEVEL_POS) )
+#define SKEIN_CFG_TREE_INFO(leaf, node, maxLvl)                   \
+    ((((u64)(leaf))   << SKEIN_CFG_TREE_LEAF_SIZE_POS) |    \
+     (((u64)(node))   << SKEIN_CFG_TREE_NODE_SIZE_POS) |    \
+     (((u64)(maxLvl)) << SKEIN_CFG_TREE_MAX_LEVEL_POS))
 
-#define SKEIN_CFG_TREE_INFO_SEQUENTIAL SKEIN_CFG_TREE_INFO(0,0,0) /* use as treeInfo in InitExt() call for sequential processing */
+#define SKEIN_CFG_TREE_INFO_SEQUENTIAL SKEIN_CFG_TREE_INFO(0, 0, 0) /* use as treeInfo in InitExt() call for sequential processing */
 
 /*
 **   Skein macros for getting/setting tweak words, etc.
 **   These are useful for partial input bytes, hash tree init/update, etc.
 **/
-#define Skein_Get_Tweak(ctxPtr,TWK_NUM)         ((ctxPtr)->h.T[TWK_NUM])
-#define Skein_Set_Tweak(ctxPtr,TWK_NUM,tVal)    {(ctxPtr)->h.T[TWK_NUM] = (tVal);}
+#define Skein_Get_Tweak(ctxPtr, TWK_NUM)          ((ctxPtr)->h.T[TWK_NUM])
+#define Skein_Set_Tweak(ctxPtr, TWK_NUM, tVal)    {(ctxPtr)->h.T[TWK_NUM] = (tVal); }
 
-#define Skein_Get_T0(ctxPtr)    Skein_Get_Tweak(ctxPtr,0)
-#define Skein_Get_T1(ctxPtr)    Skein_Get_Tweak(ctxPtr,1)
-#define Skein_Set_T0(ctxPtr,T0) Skein_Set_Tweak(ctxPtr,0,T0)
-#define Skein_Set_T1(ctxPtr,T1) Skein_Set_Tweak(ctxPtr,1,T1)
+#define Skein_Get_T0(ctxPtr)     Skein_Get_Tweak(ctxPtr, 0)
+#define Skein_Get_T1(ctxPtr)     Skein_Get_Tweak(ctxPtr, 1)
+#define Skein_Set_T0(ctxPtr, T0) Skein_Set_Tweak(ctxPtr, 0, T0)
+#define Skein_Set_T1(ctxPtr, T1) Skein_Set_Tweak(ctxPtr, 1, T1)
 
 /* set both tweak words at once */
-#define Skein_Set_T0_T1(ctxPtr,T0,T1)           \
+#define Skein_Set_T0_T1(ctxPtr, T0, T1)           \
     {                                           \
-    Skein_Set_T0(ctxPtr,(T0));                  \
-    Skein_Set_T1(ctxPtr,(T1));                  \
+    Skein_Set_T0(ctxPtr, (T0));                  \
+    Skein_Set_T1(ctxPtr, (T1));                  \
     }
 
-#define Skein_Set_Type(ctxPtr,BLK_TYPE)         \
-    Skein_Set_T1(ctxPtr,SKEIN_T1_BLK_TYPE_##BLK_TYPE)
+#define Skein_Set_Type(ctxPtr, BLK_TYPE)         \
+    Skein_Set_T1(ctxPtr, SKEIN_T1_BLK_TYPE_##BLK_TYPE)
 
 /* set up for starting with a new type: h.T[0]=0; h.T[1] = NEW_TYPE; h.bCnt=0; */
-#define Skein_Start_New_Type(ctxPtr,BLK_TYPE)   \
-    { Skein_Set_T0_T1(ctxPtr,0,SKEIN_T1_FLAG_FIRST | SKEIN_T1_BLK_TYPE_##BLK_TYPE); (ctxPtr)->h.bCnt=0; }
+#define Skein_Start_New_Type(ctxPtr, BLK_TYPE)   \
+    { Skein_Set_T0_T1(ctxPtr, 0, SKEIN_T1_FLAG_FIRST | SKEIN_T1_BLK_TYPE_##BLK_TYPE); (ctxPtr)->h.bCnt = 0; }
 
 #define Skein_Clear_First_Flag(hdr)      { (hdr).T[1] &= ~SKEIN_T1_FLAG_FIRST;       }
 #define Skein_Set_Bit_Pad_Flag(hdr)      { (hdr).T[1] |=  SKEIN_T1_FLAG_BIT_PAD;     }
 
-#define Skein_Set_Tree_Level(hdr,height) { (hdr).T[1] |= SKEIN_T1_TREE_LEVEL(height);}
+#define Skein_Set_Tree_Level(hdr, height) { (hdr).T[1] |= SKEIN_T1_TREE_LEVEL(height); }
 
 /*****************************************************************
 ** "Internal" Skein definitions for debugging and error checking
 ******************************************************************/
-#ifdef  SKEIN_DEBUG             /* examine/display intermediate values? */
+#ifdef SKEIN_DEBUG             /* examine/display intermediate values? */
 #include "skein_debug.h"
 #else                           /* default is no callouts */
-#define Skein_Show_Block(bits,ctx,X,blkPtr,wPtr,ksEvenPtr,ksOddPtr)
-#define Skein_Show_Round(bits,ctx,r,X)
-#define Skein_Show_R_Ptr(bits,ctx,r,X_ptr)
-#define Skein_Show_Final(bits,ctx,cnt,outPtr)
-#define Skein_Show_Key(bits,ctx,key,keyBytes)
+#define Skein_Show_Block(bits, ctx, X, blkPtr, wPtr, ksEvenPtr, ksOddPtr)
+#define Skein_Show_Round(bits, ctx, r, X)
+#define Skein_Show_R_Ptr(bits, ctx, r, X_ptr)
+#define Skein_Show_Final(bits, ctx, cnt, outPtr)
+#define Skein_Show_Key(bits, ctx, key, keyBytes)
 #endif
 
-#define Skein_Assert(x,retCode)/* default: ignore all Asserts, for performance */
+#define Skein_Assert(x, retCode)/* default: ignore all Asserts, for performance */
 #define Skein_assert(x)
 
 /*****************************************************************
@@ -272,34 +272,34 @@ int  Skein1024_Output   (struct skein1024_ctx *ctx, u8 *hashVal);
 enum    
     {   
         /* Skein_256 round rotation constants */
-    R_256_0_0=14, R_256_0_1=16,
-    R_256_1_0=52, R_256_1_1=57,
-    R_256_2_0=23, R_256_2_1=40,
-    R_256_3_0= 5, R_256_3_1=37,
-    R_256_4_0=25, R_256_4_1=33,
-    R_256_5_0=46, R_256_5_1=12,
-    R_256_6_0=58, R_256_6_1=22,
-    R_256_7_0=32, R_256_7_1=32,
+    R_256_0_0 = 14, R_256_0_1 = 16,
+    R_256_1_0 = 52, R_256_1_1 = 57,
+    R_256_2_0 = 23, R_256_2_1 = 40,
+    R_256_3_0 =  5, R_256_3_1 = 37,
+    R_256_4_0 = 25, R_256_4_1 = 33,
+    R_256_5_0 = 46, R_256_5_1 = 12,
+    R_256_6_0 = 58, R_256_6_1 = 22,
+    R_256_7_0 = 32, R_256_7_1 = 32,
 
         /* Skein_512 round rotation constants */
-    R_512_0_0=46, R_512_0_1=36, R_512_0_2=19, R_512_0_3=37,
-    R_512_1_0=33, R_512_1_1=27, R_512_1_2=14, R_512_1_3=42,
-    R_512_2_0=17, R_512_2_1=49, R_512_2_2=36, R_512_2_3=39,
-    R_512_3_0=44, R_512_3_1= 9, R_512_3_2=54, R_512_3_3=56,
-    R_512_4_0=39, R_512_4_1=30, R_512_4_2=34, R_512_4_3=24,
-    R_512_5_0=13, R_512_5_1=50, R_512_5_2=10, R_512_5_3=17,
-    R_512_6_0=25, R_512_6_1=29, R_512_6_2=39, R_512_6_3=43,
-    R_512_7_0= 8, R_512_7_1=35, R_512_7_2=56, R_512_7_3=22,
+    R_512_0_0 = 46, R_512_0_1 = 36, R_512_0_2 = 19, R_512_0_3 = 37,
+    R_512_1_0 = 33, R_512_1_1 = 27, R_512_1_2 = 14, R_512_1_3 = 42,
+    R_512_2_0 = 17, R_512_2_1 = 49, R_512_2_2 = 36, R_512_2_3 = 39,
+    R_512_3_0 = 44, R_512_3_1 =  9, R_512_3_2 = 54, R_512_3_3 = 56,
+    R_512_4_0 = 39, R_512_4_1 = 30, R_512_4_2 = 34, R_512_4_3 = 24,
+    R_512_5_0 = 13, R_512_5_1 = 50, R_512_5_2 = 10, R_512_5_3 = 17,
+    R_512_6_0 = 25, R_512_6_1 = 29, R_512_6_2 = 39, R_512_6_3 = 43,
+    R_512_7_0 =  8, R_512_7_1 = 35, R_512_7_2 = 56, R_512_7_3 = 22,
 
         /* Skein1024 round rotation constants */
-    R1024_0_0=24, R1024_0_1=13, R1024_0_2= 8, R1024_0_3=47, R1024_0_4= 8, R1024_0_5=17, R1024_0_6=22, R1024_0_7=37,
-    R1024_1_0=38, R1024_1_1=19, R1024_1_2=10, R1024_1_3=55, R1024_1_4=49, R1024_1_5=18, R1024_1_6=23, R1024_1_7=52,
-    R1024_2_0=33, R1024_2_1= 4, R1024_2_2=51, R1024_2_3=13, R1024_2_4=34, R1024_2_5=41, R1024_2_6=59, R1024_2_7=17,
-    R1024_3_0= 5, R1024_3_1=20, R1024_3_2=48, R1024_3_3=41, R1024_3_4=47, R1024_3_5=28, R1024_3_6=16, R1024_3_7=25,
-    R1024_4_0=41, R1024_4_1= 9, R1024_4_2=37, R1024_4_3=31, R1024_4_4=12, R1024_4_5=47, R1024_4_6=44, R1024_4_7=30,
-    R1024_5_0=16, R1024_5_1=34, R1024_5_2=56, R1024_5_3=51, R1024_5_4= 4, R1024_5_5=53, R1024_5_6=42, R1024_5_7=41,
-    R1024_6_0=31, R1024_6_1=44, R1024_6_2=47, R1024_6_3=46, R1024_6_4=19, R1024_6_5=42, R1024_6_6=44, R1024_6_7=25,
-    R1024_7_0= 9, R1024_7_1=48, R1024_7_2=35, R1024_7_3=52, R1024_7_4=23, R1024_7_5=31, R1024_7_6=37, R1024_7_7=20
+    R1024_0_0 = 24, R1024_0_1 = 13, R1024_0_2 =  8, R1024_0_3 = 47, R1024_0_4 =  8, R1024_0_5 = 17, R1024_0_6 = 22, R1024_0_7 = 37,
+    R1024_1_0 = 38, R1024_1_1 = 19, R1024_1_2 = 10, R1024_1_3 = 55, R1024_1_4 = 49, R1024_1_5 = 18, R1024_1_6 = 23, R1024_1_7 = 52,
+    R1024_2_0 = 33, R1024_2_1 =  4, R1024_2_2 = 51, R1024_2_3 = 13, R1024_2_4 = 34, R1024_2_5 = 41, R1024_2_6 = 59, R1024_2_7 = 17,
+    R1024_3_0 =  5, R1024_3_1 = 20, R1024_3_2 = 48, R1024_3_3 = 41, R1024_3_4 = 47, R1024_3_5 = 28, R1024_3_6 = 16, R1024_3_7 = 25,
+    R1024_4_0 = 41, R1024_4_1 =  9, R1024_4_2 = 37, R1024_4_3 = 31, R1024_4_4 = 12, R1024_4_5 = 47, R1024_4_6 = 44, R1024_4_7 = 30,
+    R1024_5_0 = 16, R1024_5_1 = 34, R1024_5_2 = 56, R1024_5_3 = 51, R1024_5_4 =  4, R1024_5_5 = 53, R1024_5_6 = 42, R1024_5_7 = 41,
+    R1024_6_0 = 31, R1024_6_1 = 44, R1024_6_2 = 47, R1024_6_3 = 46, R1024_6_4 = 19, R1024_6_5 = 42, R1024_6_6 = 44, R1024_6_7 = 25,
+    R1024_7_0 =  9, R1024_7_1 = 48, R1024_7_2 = 35, R1024_7_3 = 52, R1024_7_4 = 23, R1024_7_5 = 31, R1024_7_6 = 37, R1024_7_7 = 20
     };
 
 #ifndef SKEIN_ROUNDS
@@ -308,8 +308,8 @@ enum
 #define SKEIN1024_ROUNDS_TOTAL (80)
 #else                                        /* allow command-line define in range 8*(5..14)   */
 #define SKEIN_256_ROUNDS_TOTAL (8*((((SKEIN_ROUNDS/100) + 5) % 10) + 5))
-#define SKEIN_512_ROUNDS_TOTAL (8*((((SKEIN_ROUNDS/ 10) + 5) % 10) + 5))
-#define SKEIN1024_ROUNDS_TOTAL (8*((((SKEIN_ROUNDS    ) + 5) % 10) + 5))
+#define SKEIN_512_ROUNDS_TOTAL (8*((((SKEIN_ROUNDS/10)  + 5) % 10) + 5))
+#define SKEIN1024_ROUNDS_TOTAL (8*((((SKEIN_ROUNDS)     + 5) % 10) + 5))
 #endif
 
 #endif  /* ifndef _SKEIN_H_ */
