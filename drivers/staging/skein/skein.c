@@ -13,15 +13,7 @@
 #include <linux/string.h>       /* get the memcpy/memset functions */
 #include <skein.h> /* get the Skein API definitions   */
 #include <skein_iv.h>    /* get precomputed IVs */
-
-/*****************************************************************/
-/* External function to process blkCnt (nonzero) full block(s) of data. */
-void Skein_256_Process_Block(struct skein_256_ctx *ctx, const u8 *blkPtr,
-				size_t blkCnt, size_t byteCntAdd);
-void Skein_512_Process_Block(struct skein_512_ctx *ctx, const u8 *blkPtr,
-				size_t blkCnt, size_t byteCntAdd);
-void Skein1024_Process_Block(struct skein1024_ctx *ctx, const u8 *blkPtr,
-				size_t blkCnt, size_t byteCntAdd);
+#include <skein_block.h>
 
 /*****************************************************************/
 /*     256-bit Skein                                             */
