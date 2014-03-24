@@ -505,6 +505,10 @@ struct em28xx_v4l2 {
 	struct v4l2_device v4l2_dev;
 	struct v4l2_ctrl_handler ctrl_handler;
 	struct v4l2_clk *clk;
+
+	struct video_device *vdev;
+	struct video_device *vbi_dev;
+	struct video_device *radio_dev;
 };
 
 struct em28xx_audio {
@@ -615,7 +619,6 @@ struct em28xx {
 	/* video for linux */
 	int users;		/* user count for exclusive use */
 	int streaming_users;    /* Number of actively streaming users */
-	struct video_device *vdev;	/* video for linux device struct */
 	v4l2_std_id norm;	/* selected tv norm */
 	int ctl_freq;		/* selected frequency */
 	unsigned int ctl_input;	/* selected input */
@@ -646,8 +649,6 @@ struct em28xx {
 	/* locks */
 	struct mutex lock;
 	struct mutex ctrl_urb_lock;	/* protects urb_buf */
-	struct video_device *vbi_dev;
-	struct video_device *radio_dev;
 
 	/* Videobuf2 */
 	struct vb2_queue vb_vidq;
