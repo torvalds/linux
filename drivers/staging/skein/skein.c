@@ -16,9 +16,9 @@
 
 /*****************************************************************/
 /* External function to process blkCnt (nonzero) full block(s) of data. */
-void    Skein_256_Process_Block(Skein_256_Ctxt_t *ctx,const u8 *blkPtr,size_t blkCnt,size_t byteCntAdd);
-void    Skein_512_Process_Block(Skein_512_Ctxt_t *ctx,const u8 *blkPtr,size_t blkCnt,size_t byteCntAdd);
-void    Skein1024_Process_Block(Skein1024_Ctxt_t *ctx,const u8 *blkPtr,size_t blkCnt,size_t byteCntAdd);
+void    Skein_256_Process_Block(struct skein_256_ctx *ctx,const u8 *blkPtr,size_t blkCnt,size_t byteCntAdd);
+void    Skein_512_Process_Block(struct skein_512_ctx *ctx,const u8 *blkPtr,size_t blkCnt,size_t byteCntAdd);
+void    Skein1024_Process_Block(struct skein1024_ctx *ctx,const u8 *blkPtr,size_t blkCnt,size_t byteCntAdd);
 
 /*****************************************************************/
 /*     256-bit Skein                                             */
@@ -26,7 +26,7 @@ void    Skein1024_Process_Block(Skein1024_Ctxt_t *ctx,const u8 *blkPtr,size_t bl
 
 /*++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++*/
 /* init the context for a straight hashing operation  */
-int Skein_256_Init(Skein_256_Ctxt_t *ctx, size_t hashBitLen)
+int Skein_256_Init(struct skein_256_ctx *ctx, size_t hashBitLen)
 {
     union
     {
@@ -76,7 +76,7 @@ int Skein_256_Init(Skein_256_Ctxt_t *ctx, size_t hashBitLen)
 /*++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++*/
 /* init the context for a MAC and/or tree hash operation */
 /* [identical to Skein_256_Init() when keyBytes == 0 && treeInfo == SKEIN_CFG_TREE_INFO_SEQUENTIAL] */
-int Skein_256_InitExt(Skein_256_Ctxt_t *ctx,size_t hashBitLen,u64 treeInfo, const u8 *key, size_t keyBytes)
+int Skein_256_InitExt(struct skein_256_ctx *ctx,size_t hashBitLen,u64 treeInfo, const u8 *key, size_t keyBytes)
 {
     union
     {
@@ -126,7 +126,7 @@ int Skein_256_InitExt(Skein_256_Ctxt_t *ctx,size_t hashBitLen,u64 treeInfo, cons
 
 /*++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++*/
 /* process the input bytes */
-int Skein_256_Update(Skein_256_Ctxt_t *ctx, const u8 *msg, size_t msgByteCnt)
+int Skein_256_Update(struct skein_256_ctx *ctx, const u8 *msg, size_t msgByteCnt)
 {
     size_t n;
 
@@ -174,7 +174,7 @@ int Skein_256_Update(Skein_256_Ctxt_t *ctx, const u8 *msg, size_t msgByteCnt)
 
 /*++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++*/
 /* finalize the hash computation and output the result */
-int Skein_256_Final(Skein_256_Ctxt_t *ctx, u8 *hashVal)
+int Skein_256_Final(struct skein_256_ctx *ctx, u8 *hashVal)
 {
     size_t i,n,byteCnt;
     u64 X[SKEIN_256_STATE_WORDS];
@@ -213,7 +213,7 @@ int Skein_256_Final(Skein_256_Ctxt_t *ctx, u8 *hashVal)
 
 /*++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++*/
 /* init the context for a straight hashing operation  */
-int Skein_512_Init(Skein_512_Ctxt_t *ctx, size_t hashBitLen)
+int Skein_512_Init(struct skein_512_ctx *ctx, size_t hashBitLen)
 {
     union
     {
@@ -264,7 +264,7 @@ int Skein_512_Init(Skein_512_Ctxt_t *ctx, size_t hashBitLen)
 /*++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++*/
 /* init the context for a MAC and/or tree hash operation */
 /* [identical to Skein_512_Init() when keyBytes == 0 && treeInfo == SKEIN_CFG_TREE_INFO_SEQUENTIAL] */
-int Skein_512_InitExt(Skein_512_Ctxt_t *ctx,size_t hashBitLen,u64 treeInfo, const u8 *key, size_t keyBytes)
+int Skein_512_InitExt(struct skein_512_ctx *ctx,size_t hashBitLen,u64 treeInfo, const u8 *key, size_t keyBytes)
 {
     union
     {
@@ -314,7 +314,7 @@ int Skein_512_InitExt(Skein_512_Ctxt_t *ctx,size_t hashBitLen,u64 treeInfo, cons
 
 /*++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++*/
 /* process the input bytes */
-int Skein_512_Update(Skein_512_Ctxt_t *ctx, const u8 *msg, size_t msgByteCnt)
+int Skein_512_Update(struct skein_512_ctx *ctx, const u8 *msg, size_t msgByteCnt)
 {
     size_t n;
 
@@ -362,7 +362,7 @@ int Skein_512_Update(Skein_512_Ctxt_t *ctx, const u8 *msg, size_t msgByteCnt)
 
 /*++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++*/
 /* finalize the hash computation and output the result */
-int Skein_512_Final(Skein_512_Ctxt_t *ctx, u8 *hashVal)
+int Skein_512_Final(struct skein_512_ctx *ctx, u8 *hashVal)
 {
     size_t i,n,byteCnt;
     u64 X[SKEIN_512_STATE_WORDS];
@@ -401,7 +401,7 @@ int Skein_512_Final(Skein_512_Ctxt_t *ctx, u8 *hashVal)
 
 /*++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++*/
 /* init the context for a straight hashing operation  */
-int Skein1024_Init(Skein1024_Ctxt_t *ctx, size_t hashBitLen)
+int Skein1024_Init(struct skein1024_ctx *ctx, size_t hashBitLen)
 {
     union
     {
@@ -449,7 +449,7 @@ int Skein1024_Init(Skein1024_Ctxt_t *ctx, size_t hashBitLen)
 /*++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++*/
 /* init the context for a MAC and/or tree hash operation */
 /* [identical to Skein1024_Init() when keyBytes == 0 && treeInfo == SKEIN_CFG_TREE_INFO_SEQUENTIAL] */
-int Skein1024_InitExt(Skein1024_Ctxt_t *ctx,size_t hashBitLen,u64 treeInfo, const u8 *key, size_t keyBytes)
+int Skein1024_InitExt(struct skein1024_ctx *ctx,size_t hashBitLen,u64 treeInfo, const u8 *key, size_t keyBytes)
 {
     union
     {
@@ -499,7 +499,7 @@ int Skein1024_InitExt(Skein1024_Ctxt_t *ctx,size_t hashBitLen,u64 treeInfo, cons
 
 /*++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++*/
 /* process the input bytes */
-int Skein1024_Update(Skein1024_Ctxt_t *ctx, const u8 *msg, size_t msgByteCnt)
+int Skein1024_Update(struct skein1024_ctx *ctx, const u8 *msg, size_t msgByteCnt)
 {
     size_t n;
 
@@ -547,7 +547,7 @@ int Skein1024_Update(Skein1024_Ctxt_t *ctx, const u8 *msg, size_t msgByteCnt)
 
 /*++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++*/
 /* finalize the hash computation and output the result */
-int Skein1024_Final(Skein1024_Ctxt_t *ctx, u8 *hashVal)
+int Skein1024_Final(struct skein1024_ctx *ctx, u8 *hashVal)
 {
     size_t i,n,byteCnt;
     u64 X[SKEIN1024_STATE_WORDS];
@@ -585,7 +585,7 @@ int Skein1024_Final(Skein1024_Ctxt_t *ctx, u8 *hashVal)
 
 /*++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++*/
 /* finalize the hash computation and output the block, no OUTPUT stage */
-int Skein_256_Final_Pad(Skein_256_Ctxt_t *ctx, u8 *hashVal)
+int Skein_256_Final_Pad(struct skein_256_ctx *ctx, u8 *hashVal)
 {
     Skein_Assert(ctx->h.bCnt <= SKEIN_256_BLOCK_BYTES,SKEIN_FAIL);    /* catch uninitialized context */
 
@@ -601,7 +601,7 @@ int Skein_256_Final_Pad(Skein_256_Ctxt_t *ctx, u8 *hashVal)
 
 /*++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++*/
 /* finalize the hash computation and output the block, no OUTPUT stage */
-int Skein_512_Final_Pad(Skein_512_Ctxt_t *ctx, u8 *hashVal)
+int Skein_512_Final_Pad(struct skein_512_ctx *ctx, u8 *hashVal)
 {
     Skein_Assert(ctx->h.bCnt <= SKEIN_512_BLOCK_BYTES,SKEIN_FAIL);    /* catch uninitialized context */
 
@@ -617,7 +617,7 @@ int Skein_512_Final_Pad(Skein_512_Ctxt_t *ctx, u8 *hashVal)
 
 /*++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++*/
 /* finalize the hash computation and output the block, no OUTPUT stage */
-int Skein1024_Final_Pad(Skein1024_Ctxt_t *ctx, u8 *hashVal)
+int Skein1024_Final_Pad(struct skein1024_ctx *ctx, u8 *hashVal)
 {
     Skein_Assert(ctx->h.bCnt <= SKEIN1024_BLOCK_BYTES,SKEIN_FAIL);    /* catch uninitialized context */
 
@@ -634,7 +634,7 @@ int Skein1024_Final_Pad(Skein1024_Ctxt_t *ctx, u8 *hashVal)
 #if SKEIN_TREE_HASH
 /*++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++*/
 /* just do the OUTPUT stage                                       */
-int Skein_256_Output(Skein_256_Ctxt_t *ctx, u8 *hashVal)
+int Skein_256_Output(struct skein_256_ctx *ctx, u8 *hashVal)
 {
     size_t i,n,byteCnt;
     u64 X[SKEIN_256_STATE_WORDS];
@@ -663,7 +663,7 @@ int Skein_256_Output(Skein_256_Ctxt_t *ctx, u8 *hashVal)
 
 /*++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++*/
 /* just do the OUTPUT stage                                       */
-int Skein_512_Output(Skein_512_Ctxt_t *ctx, u8 *hashVal)
+int Skein_512_Output(struct skein_512_ctx *ctx, u8 *hashVal)
 {
     size_t i,n,byteCnt;
     u64 X[SKEIN_512_STATE_WORDS];
@@ -692,7 +692,7 @@ int Skein_512_Output(Skein_512_Ctxt_t *ctx, u8 *hashVal)
 
 /*++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++*/
 /* just do the OUTPUT stage                                       */
-int Skein1024_Output(Skein1024_Ctxt_t *ctx, u8 *hashVal)
+int Skein1024_Output(struct skein1024_ctx *ctx, u8 *hashVal)
 {
     size_t i,n,byteCnt;
     u64 X[SKEIN1024_STATE_WORDS];

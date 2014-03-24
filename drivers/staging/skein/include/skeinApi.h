@@ -47,7 +47,7 @@ OTHER DEALINGS IN THE SOFTWARE.
  * #include <skeinApi.h>
  * 
  * ...
- * SkeinCtx_t ctx;             // a Skein hash or MAC context
+ * struct skein_ctx ctx;             // a Skein hash or MAC context
  * 
  * // prepare context, here for a Skein with a state size of 512 bits.
  * skeinCtxPrepare(&ctx, Skein512);
@@ -84,11 +84,11 @@ OTHER DEALINGS IN THE SOFTWARE.
     /**
      * Which Skein size to use
      */
-    typedef enum SkeinSize {
+    enum skein_size {
         Skein256 = 256,     /*!< Skein with 256 bit state */
         Skein512 = 512,     /*!< Skein with 512 bit state */
         Skein1024 = 1024    /*!< Skein with 1024 bit state */
-    } SkeinSize_t;
+    };
 
     /**
      * Context for Skein.
@@ -98,16 +98,16 @@ OTHER DEALINGS IN THE SOFTWARE.
      * variables. If Skein implementation changes this, then adapt these
      * structures as well.
      */
-    typedef struct SkeinCtx {
+    struct skein_ctx {
         u64 skeinSize;
         u64  XSave[SKEIN_MAX_STATE_WORDS];   /* save area for state variables */
         union {
-            Skein_Ctxt_Hdr_t h;
-            Skein_256_Ctxt_t s256;
-            Skein_512_Ctxt_t s512;
-            Skein1024_Ctxt_t s1024;
+            struct skein_ctx_hdr h;
+            struct skein_256_ctx s256;
+            struct skein_512_ctx s512;
+            struct skein1024_ctx s1024;
         } m;
-    } SkeinCtx_t;
+    };
 
     /**
      * Prepare a Skein context.
@@ -123,7 +123,7 @@ OTHER DEALINGS IN THE SOFTWARE.
      * @return
      *     SKEIN_SUCESS of SKEIN_FAIL
      */
-    int skeinCtxPrepare(SkeinCtx_t* ctx, SkeinSize_t size);
+    int skeinCtxPrepare(struct skein_ctx* ctx, enum skein_size size);
 
     /**
      * Initialize a Skein context.
@@ -139,7 +139,7 @@ OTHER DEALINGS IN THE SOFTWARE.
      *     SKEIN_SUCESS of SKEIN_FAIL
      * @see skeinReset
      */
-    int skeinInit(SkeinCtx_t* ctx, size_t hashBitLen);
+    int skeinInit(struct skein_ctx* ctx, size_t hashBitLen);
 
     /**
      * Resets a Skein context for further use.
@@ -151,7 +151,7 @@ OTHER DEALINGS IN THE SOFTWARE.
      * @param ctx
      *     Pointer to a pre-initialized Skein MAC context
      */
-    void skeinReset(SkeinCtx_t* ctx);
+    void skeinReset(struct skein_ctx* ctx);
     
     /**
      * Initializes a Skein context for MAC usage.
@@ -173,7 +173,7 @@ OTHER DEALINGS IN THE SOFTWARE.
      * @return
      *     SKEIN_SUCESS of SKEIN_FAIL
      */
-    int skeinMacInit(SkeinCtx_t* ctx, const uint8_t *key, size_t keyLen,
+    int skeinMacInit(struct skein_ctx* ctx, const uint8_t *key, size_t keyLen,
                      size_t hashBitLen);
 
     /**
@@ -188,7 +188,7 @@ OTHER DEALINGS IN THE SOFTWARE.
      * @return
      *     Success or error code.
      */
-    int skeinUpdate(SkeinCtx_t *ctx, const uint8_t *msg,
+    int skeinUpdate(struct skein_ctx *ctx, const uint8_t *msg,
                     size_t msgByteCnt);
 
     /**
@@ -204,7 +204,7 @@ OTHER DEALINGS IN THE SOFTWARE.
      * @param msgBitCnt
      *     Length of the message in @b bits.
      */
-    int skeinUpdateBits(SkeinCtx_t *ctx, const uint8_t *msg,
+    int skeinUpdateBits(struct skein_ctx *ctx, const uint8_t *msg,
                         size_t msgBitCnt);
 
     /**
@@ -222,7 +222,7 @@ OTHER DEALINGS IN THE SOFTWARE.
      *     Success or error code.
      * @see skeinReset
      */
-    int skeinFinal(SkeinCtx_t* ctx, uint8_t* hash);
+    int skeinFinal(struct skein_ctx* ctx, uint8_t* hash);
 
 /**
  * @}

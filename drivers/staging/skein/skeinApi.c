@@ -27,17 +27,17 @@ OTHER DEALINGS IN THE SOFTWARE.
 #include <linux/string.h>
 #include <skeinApi.h>
 
-int skeinCtxPrepare(SkeinCtx_t* ctx, SkeinSize_t size)
+int skeinCtxPrepare(struct skein_ctx* ctx, enum skein_size size)
 {
     Skein_Assert(ctx && size, SKEIN_FAIL);
 
-    memset(ctx ,0, sizeof(SkeinCtx_t));
+    memset(ctx ,0, sizeof(struct skein_ctx));
     ctx->skeinSize = size;
 
     return SKEIN_SUCCESS;
 }
 
-int skeinInit(SkeinCtx_t* ctx, size_t hashBitLen)
+int skeinInit(struct skein_ctx* ctx, size_t hashBitLen)
 {
     int ret = SKEIN_FAIL;
     size_t Xlen = 0;
@@ -78,7 +78,7 @@ int skeinInit(SkeinCtx_t* ctx, size_t hashBitLen)
     return ret;
 }
 
-int skeinMacInit(SkeinCtx_t* ctx, const uint8_t *key, size_t keyLen,
+int skeinMacInit(struct skein_ctx* ctx, const uint8_t *key, size_t keyLen,
                  size_t hashBitLen)
 {
     int ret = SKEIN_FAIL;
@@ -119,7 +119,7 @@ int skeinMacInit(SkeinCtx_t* ctx, const uint8_t *key, size_t keyLen,
     return ret;
 }
 
-void skeinReset(SkeinCtx_t* ctx)
+void skeinReset(struct skein_ctx* ctx)
 {
     size_t Xlen = 0;
     u64*  X = NULL;
@@ -138,7 +138,7 @@ void skeinReset(SkeinCtx_t* ctx)
     Skein_Start_New_Type(&ctx->m, MSG);
 }
 
-int skeinUpdate(SkeinCtx_t *ctx, const uint8_t *msg,
+int skeinUpdate(struct skein_ctx *ctx, const uint8_t *msg,
                 size_t msgByteCnt)
 {
     int ret = SKEIN_FAIL;
@@ -159,7 +159,7 @@ int skeinUpdate(SkeinCtx_t *ctx, const uint8_t *msg,
 
 }
 
-int skeinUpdateBits(SkeinCtx_t *ctx, const uint8_t *msg,
+int skeinUpdateBits(struct skein_ctx *ctx, const uint8_t *msg,
                     size_t msgBitCnt)
 {
     /*
@@ -199,7 +199,7 @@ int skeinUpdateBits(SkeinCtx_t *ctx, const uint8_t *msg,
     return SKEIN_SUCCESS;
 }
 
-int skeinFinal(SkeinCtx_t* ctx, uint8_t* hash)
+int skeinFinal(struct skein_ctx* ctx, uint8_t* hash)
 {
     int ret = SKEIN_FAIL;
     Skein_Assert(ctx, SKEIN_FAIL);

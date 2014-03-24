@@ -3,7 +3,7 @@
 #include <linux/string.h>
 #include <threefishApi.h>
 
-void threefishSetKey(ThreefishKey_t* keyCtx, ThreefishSize_t stateSize,
+void threefishSetKey(struct threefish_key* keyCtx, enum threefish_size stateSize,
                      uint64_t* keyData, uint64_t* tweak)
 {
     int keyWords = stateSize / 64;
@@ -22,7 +22,7 @@ void threefishSetKey(ThreefishKey_t* keyCtx, ThreefishSize_t stateSize,
     keyCtx->stateSize = stateSize;
 }
 
-void threefishEncryptBlockBytes(ThreefishKey_t* keyCtx, uint8_t* in,
+void threefishEncryptBlockBytes(struct threefish_key* keyCtx, uint8_t* in,
                                 uint8_t* out)
 {
     u64 plain[SKEIN_MAX_STATE_WORDS];        /* max number of words*/
@@ -33,7 +33,7 @@ void threefishEncryptBlockBytes(ThreefishKey_t* keyCtx, uint8_t* in,
     Skein_Put64_LSB_First(out, cipher, keyCtx->stateSize / 8);  /* words to bytes */
 }
 
-void threefishEncryptBlockWords(ThreefishKey_t* keyCtx, uint64_t* in,
+void threefishEncryptBlockWords(struct threefish_key* keyCtx, uint64_t* in,
                                 uint64_t* out)
 {
     switch (keyCtx->stateSize) {
@@ -49,7 +49,7 @@ void threefishEncryptBlockWords(ThreefishKey_t* keyCtx, uint64_t* in,
     }
 }
 
-void threefishDecryptBlockBytes(ThreefishKey_t* keyCtx, uint8_t* in,
+void threefishDecryptBlockBytes(struct threefish_key* keyCtx, uint8_t* in,
                                 uint8_t* out)
 {
     u64 plain[SKEIN_MAX_STATE_WORDS];        /* max number of words*/
@@ -60,7 +60,7 @@ void threefishDecryptBlockBytes(ThreefishKey_t* keyCtx, uint8_t* in,
     Skein_Put64_LSB_First(out, plain, keyCtx->stateSize / 8);   /* words to bytes */
 }
 
-void threefishDecryptBlockWords(ThreefishKey_t* keyCtx, uint64_t* in,
+void threefishDecryptBlockWords(struct threefish_key* keyCtx, uint64_t* in,
                                 uint64_t* out)
 {
     switch (keyCtx->stateSize) {

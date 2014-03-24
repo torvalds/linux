@@ -39,7 +39,7 @@
 
 /*****************************  Skein_256 ******************************/
 #if !(SKEIN_USE_ASM & 256)
-void Skein_256_Process_Block(Skein_256_Ctxt_t *ctx,const u8 *blkPtr,size_t blkCnt,size_t byteCntAdd)
+void Skein_256_Process_Block(struct skein_256_ctx *ctx,const u8 *blkPtr,size_t blkCnt,size_t byteCntAdd)
     { /* do it in C */
     enum
         {
@@ -224,7 +224,7 @@ unsigned int Skein_256_Unroll_Cnt(void)
 
 /*****************************  Skein_512 ******************************/
 #if !(SKEIN_USE_ASM & 512)
-void Skein_512_Process_Block(Skein_512_Ctxt_t *ctx,const u8 *blkPtr,size_t blkCnt,size_t byteCntAdd)
+void Skein_512_Process_Block(struct skein_512_ctx *ctx,const u8 *blkPtr,size_t blkCnt,size_t byteCntAdd)
     { /* do it in C */
     enum
         {
@@ -432,7 +432,7 @@ unsigned int Skein_512_Unroll_Cnt(void)
 
 /*****************************  Skein1024 ******************************/
 #if !(SKEIN_USE_ASM & 1024)
-void Skein1024_Process_Block(Skein1024_Ctxt_t *ctx,const u8 *blkPtr,size_t blkCnt,size_t byteCntAdd)
+void Skein1024_Process_Block(struct skein1024_ctx *ctx,const u8 *blkPtr,size_t blkCnt,size_t byteCntAdd)
     { /* do it in C, always looping (unrolled is bigger AND slower!) */
     enum
         {

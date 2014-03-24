@@ -5,10 +5,10 @@
 
 
 /*****************************  Skein_256 ******************************/
-void Skein_256_Process_Block(Skein_256_Ctxt_t *ctx, const u8 *blkPtr,
+void Skein_256_Process_Block(struct skein_256_ctx *ctx, const u8 *blkPtr,
                              size_t blkCnt, size_t byteCntAdd)
 {
-    ThreefishKey_t key;
+    struct threefish_key key;
     u64 tweak[2];
     int i;
     u64  w[SKEIN_256_STATE_WORDS];           /* local copy of input block */
@@ -55,10 +55,10 @@ void Skein_256_Process_Block(Skein_256_Ctxt_t *ctx, const u8 *blkPtr,
     ctx->h.T[1] = tweak[1];
 }
 
-void Skein_512_Process_Block(Skein_512_Ctxt_t *ctx, const u8 *blkPtr,
+void Skein_512_Process_Block(struct skein_512_ctx *ctx, const u8 *blkPtr,
                              size_t blkCnt, size_t byteCntAdd)
 {
-    ThreefishKey_t key;
+    struct threefish_key key;
     u64 tweak[2];
     int i;
     u64 words[3];
@@ -109,10 +109,10 @@ void Skein_512_Process_Block(Skein_512_Ctxt_t *ctx, const u8 *blkPtr,
     ctx->h.T[1] = tweak[1];
 }
 
-void Skein1024_Process_Block(Skein1024_Ctxt_t *ctx, const u8 *blkPtr,
+void Skein1024_Process_Block(struct skein1024_ctx *ctx, const u8 *blkPtr,
                               size_t blkCnt, size_t byteCntAdd)
 {
-    ThreefishKey_t key;
+    struct threefish_key key;
     u64 tweak[2];
     int i;
     u64 words[3];
