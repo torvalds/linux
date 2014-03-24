@@ -24,13 +24,14 @@
 #include <linux/vmalloc.h>
 #include <linux/mtd/mtd.h>
 #include <linux/platform_device.h>
+#include <linux/mutex.h>
 
 #include <asm/div64.h>
 
 #include "goldfish_nand_reg.h"
 
 struct goldfish_nand {
-	spinlock_t              lock;
+	struct mutex            lock;
 	unsigned char __iomem  *base;
 	struct cmd_params       *cmd_params;
 	size_t                  mtd_count;
@@ -77,10 +78,9 @@ static u32 goldfish_nand_cmd(struct mtd_info *mtd, enum nand_cmd cmd,
 {
 	struct goldfish_nand *nand = mtd->priv;
 	u32 rv;
-	unsigned long irq_flags;
 	unsigned char __iomem  *base = nand->base;
 
-	spin_lock_irqsave(&nand->lock, irq_flags);
+	mutex_lock(&nand->lock);
 	if (goldfish_nand_cmd_with_params(mtd, cmd, addr, len, ptr, &rv)) {
 		writel(mtd - nand->mtd, base + NAND_DEV);
 		writel((u32)(addr >> 32), base + NAND_ADDR_HIGH);
@@ -90,7 +90,7 @@ static u32 goldfish_nand_cmd(struct mtd_info *mtd, enum nand_cmd cmd,
 		writel(cmd, base + NAND_COMMAND);
 		rv = readl(base + NAND_RESULT);
 	}
-	spin_unlock_irqrestore(&nand->lock, irq_flags);
+	mutex_unlock(&nand->lock);
 	return rv;
 }
 
@@ -307,12 +307,11 @@ static int goldfish_nand_init_device(struct platform_device *pdev,
 	u32 name_len;
 	u32 result;
 	u32 flags;
-	unsigned long irq_flags;
 	unsigned char __iomem  *base = nand->base;
 	struct mtd_info *mtd = &nand->mtd[id];
 	char *name;
 
-	spin_lock_irqsave(&nand->lock, irq_flags);
+	mutex_lock(&nand->lock);
 	writel(id, base + NAND_DEV);
 	flags = readl(base + NAND_DEV_FLAGS);
 	name_len = readl(base + NAND_DEV_NAME_LEN);
@@ -329,7 +328,7 @@ static int goldfish_nand_init_device(struct platform_device *pdev,
 		"goldfish nand dev%d: size %llx, page %d, extra %d, erase %d\n",
 		       id, mtd->size, mtd->writesize,
 		       mtd->oobsize, mtd->erasesize);
-	spin_unlock_irqrestore(&nand->lock, irq_flags);
+	mutex_unlock(&nand->lock);
 
 	mtd->priv = nand;
 
@@ -405,7 +404,7 @@ static int goldfish_nand_probe(struct platform_device *pdev)
 	if (nand == NULL)
 		return -ENOMEM;
 
-	spin_lock_init(&nand->lock);
+	mutex_init(&nand->lock);
 	nand->base = base;
 	nand->mtd_count = num_dev;
 	platform_set_drvdata(pdev, nand);
