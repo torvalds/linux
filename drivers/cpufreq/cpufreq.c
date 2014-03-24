@@ -1507,8 +1507,8 @@ static void cpufreq_out_of_sync(unsigned int cpu, unsigned int old_freq,
 	policy = per_cpu(cpufreq_cpu_data, cpu);
 	read_unlock_irqrestore(&cpufreq_driver_lock, flags);
 
-	cpufreq_notify_transition(policy, &freqs, CPUFREQ_PRECHANGE);
-	cpufreq_notify_transition(policy, &freqs, CPUFREQ_POSTCHANGE);
+	cpufreq_freq_transition_begin(policy, &freqs);
+	cpufreq_freq_transition_end(policy, &freqs, 0);
 }
 
 /**
@@ -1868,8 +1868,7 @@ int __cpufreq_driver_target(struct cpufreq_policy *policy,
 			pr_debug("%s: cpu: %d, oldfreq: %u, new freq: %u\n",
 				 __func__, policy->cpu, freqs.old, freqs.new);
 
-			cpufreq_notify_transition(policy, &freqs,
-					CPUFREQ_PRECHANGE);
+			cpufreq_freq_transition_begin(policy, &freqs);
 		}
 
 		retval = cpufreq_driver->target_index(policy, index);
@@ -1878,7 +1877,7 @@ int __cpufreq_driver_target(struct cpufreq_policy *policy,
 			       __func__, retval);
 
 		if (notify)
-			cpufreq_notify_post_transition(policy, &freqs, retval);
+			cpufreq_freq_transition_end(policy, &freqs, retval);
 	}
 
 out:
