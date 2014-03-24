@@ -29,191 +29,191 @@ OTHER DEALINGS IN THE SOFTWARE.
 
 int skeinCtxPrepare(struct skein_ctx *ctx, enum skein_size size)
 {
-    Skein_Assert(ctx && size, SKEIN_FAIL);
+	Skein_Assert(ctx && size, SKEIN_FAIL);
 
-    memset(ctx , 0, sizeof(struct skein_ctx));
-    ctx->skeinSize = size;
+	memset(ctx , 0, sizeof(struct skein_ctx));
+	ctx->skeinSize = size;
 
-    return SKEIN_SUCCESS;
+	return SKEIN_SUCCESS;
 }
 
 int skeinInit(struct skein_ctx *ctx, size_t hashBitLen)
 {
-    int ret = SKEIN_FAIL;
-    size_t Xlen = 0;
-    u64 *X = NULL;
-    u64 treeInfo = SKEIN_CFG_TREE_INFO_SEQUENTIAL;
+	int ret = SKEIN_FAIL;
+	size_t Xlen = 0;
+	u64 *X = NULL;
+	u64 treeInfo = SKEIN_CFG_TREE_INFO_SEQUENTIAL;
 
-    Skein_Assert(ctx, SKEIN_FAIL);
-    /*
-     * The following two lines rely of the fact that the real Skein contexts are
-     * a union in out context and thus have tha maximum memory available.
-     * The beauty of C :-) .
-     */
-    X = ctx->m.s256.X;
-    Xlen = ctx->skeinSize/8;
-    /*
-     * If size is the same and hash bit length is zero then reuse
-     * the save chaining variables.
-     */
-    switch (ctx->skeinSize) {
-    case Skein256:
-        ret = Skein_256_InitExt(&ctx->m.s256, hashBitLen,
-                                treeInfo, NULL, 0);
-        break;
-    case Skein512:
-        ret = Skein_512_InitExt(&ctx->m.s512, hashBitLen,
-                                treeInfo, NULL, 0);
-        break;
-    case Skein1024:
-        ret = Skein1024_InitExt(&ctx->m.s1024, hashBitLen,
-                                treeInfo, NULL, 0);
-        break;
-    }
+	Skein_Assert(ctx, SKEIN_FAIL);
+	/*
+	 * The following two lines rely of the fact that the real Skein contexts are
+	 * a union in out context and thus have tha maximum memory available.
+	 * The beauty of C :-) .
+	 */
+	X = ctx->m.s256.X;
+	Xlen = ctx->skeinSize/8;
+	/*
+	 * If size is the same and hash bit length is zero then reuse
+	 * the save chaining variables.
+	 */
+	switch (ctx->skeinSize) {
+	case Skein256:
+		ret = Skein_256_InitExt(&ctx->m.s256, hashBitLen,
+					treeInfo, NULL, 0);
+		break;
+	case Skein512:
+		ret = Skein_512_InitExt(&ctx->m.s512, hashBitLen,
+					treeInfo, NULL, 0);
+		break;
+	case Skein1024:
+		ret = Skein1024_InitExt(&ctx->m.s1024, hashBitLen,
+					treeInfo, NULL, 0);
+		break;
+	}
 
-    if (ret == SKEIN_SUCCESS) {
-        /* Save chaining variables for this combination of size and hashBitLen */
-        memcpy(ctx->XSave, X, Xlen);
-    }
-    return ret;
+	if (ret == SKEIN_SUCCESS) {
+		/* Save chaining variables for this combination of size and hashBitLen */
+		memcpy(ctx->XSave, X, Xlen);
+	}
+	return ret;
 }
 
 int skeinMacInit(struct skein_ctx *ctx, const u8 *key, size_t keyLen,
-                 size_t hashBitLen)
+		size_t hashBitLen)
 {
-    int ret = SKEIN_FAIL;
-    u64 *X = NULL;
-    size_t Xlen = 0;
-    u64 treeInfo = SKEIN_CFG_TREE_INFO_SEQUENTIAL;
+	int ret = SKEIN_FAIL;
+	u64 *X = NULL;
+	size_t Xlen = 0;
+	u64 treeInfo = SKEIN_CFG_TREE_INFO_SEQUENTIAL;
 
-    Skein_Assert(ctx, SKEIN_FAIL);
+	Skein_Assert(ctx, SKEIN_FAIL);
 
-    X = ctx->m.s256.X;
-    Xlen = ctx->skeinSize/8;
+	X = ctx->m.s256.X;
+	Xlen = ctx->skeinSize/8;
 
-    Skein_Assert(hashBitLen, SKEIN_BAD_HASHLEN);
+	Skein_Assert(hashBitLen, SKEIN_BAD_HASHLEN);
 
-    switch (ctx->skeinSize) {
-    case Skein256:
-        ret = Skein_256_InitExt(&ctx->m.s256, hashBitLen,
-                                treeInfo,
-                                (const u8 *)key, keyLen);
+	switch (ctx->skeinSize) {
+	case Skein256:
+		ret = Skein_256_InitExt(&ctx->m.s256, hashBitLen,
+					treeInfo,
+					(const u8 *)key, keyLen);
 
-        break;
-    case Skein512:
-        ret = Skein_512_InitExt(&ctx->m.s512, hashBitLen,
-                                treeInfo,
-                                (const u8 *)key, keyLen);
-        break;
-    case Skein1024:
-        ret = Skein1024_InitExt(&ctx->m.s1024, hashBitLen,
-                                treeInfo,
-                                (const u8 *)key, keyLen);
+		break;
+	case Skein512:
+		ret = Skein_512_InitExt(&ctx->m.s512, hashBitLen,
+					treeInfo,
+					(const u8 *)key, keyLen);
+		break;
+	case Skein1024:
+		ret = Skein1024_InitExt(&ctx->m.s1024, hashBitLen,
+					treeInfo,
+					(const u8 *)key, keyLen);
 
-        break;
-    }
-    if (ret == SKEIN_SUCCESS) {
-        /* Save chaining variables for this combination of key, keyLen, hashBitLen */
-        memcpy(ctx->XSave, X, Xlen);
-    }
-    return ret;
+		break;
+	}
+	if (ret == SKEIN_SUCCESS) {
+		/* Save chaining variables for this combination of key, keyLen, hashBitLen */
+		memcpy(ctx->XSave, X, Xlen);
+	}
+	return ret;
 }
 
 void skeinReset(struct skein_ctx *ctx)
 {
-    size_t Xlen = 0;
-    u64 *X = NULL;
+	size_t Xlen = 0;
+	u64 *X = NULL;
 
-    /*
-     * The following two lines rely of the fact that the real Skein contexts are
-     * a union in out context and thus have tha maximum memory available.
-     * The beautiy of C :-) .
-     */
-    X = ctx->m.s256.X;
-    Xlen = ctx->skeinSize/8;
-    /* Restore the chaing variable, reset byte counter */
-    memcpy(X, ctx->XSave, Xlen);
+	/*
+	 * The following two lines rely of the fact that the real Skein contexts are
+	 * a union in out context and thus have tha maximum memory available.
+	 * The beautiy of C :-) .
+	 */
+	X = ctx->m.s256.X;
+	Xlen = ctx->skeinSize/8;
+	/* Restore the chaing variable, reset byte counter */
+	memcpy(X, ctx->XSave, Xlen);
 
-    /* Setup context to process the message */
-    Skein_Start_New_Type(&ctx->m, MSG);
+	/* Setup context to process the message */
+	Skein_Start_New_Type(&ctx->m, MSG);
 }
 
 int skeinUpdate(struct skein_ctx *ctx, const u8 *msg,
-                size_t msgByteCnt)
+		size_t msgByteCnt)
 {
-    int ret = SKEIN_FAIL;
-    Skein_Assert(ctx, SKEIN_FAIL);
+	int ret = SKEIN_FAIL;
+	Skein_Assert(ctx, SKEIN_FAIL);
 
-    switch (ctx->skeinSize) {
-    case Skein256:
-        ret = Skein_256_Update(&ctx->m.s256, (const u8 *)msg, msgByteCnt);
-        break;
-    case Skein512:
-        ret = Skein_512_Update(&ctx->m.s512, (const u8 *)msg, msgByteCnt);
-        break;
-    case Skein1024:
-        ret = Skein1024_Update(&ctx->m.s1024, (const u8 *)msg, msgByteCnt);
-        break;
-    }
-    return ret;
+	switch (ctx->skeinSize) {
+	case Skein256:
+		ret = Skein_256_Update(&ctx->m.s256, (const u8 *)msg, msgByteCnt);
+		break;
+	case Skein512:
+		ret = Skein_512_Update(&ctx->m.s512, (const u8 *)msg, msgByteCnt);
+		break;
+	case Skein1024:
+		ret = Skein1024_Update(&ctx->m.s1024, (const u8 *)msg, msgByteCnt);
+		break;
+	}
+	return ret;
 
 }
 
 int skeinUpdateBits(struct skein_ctx *ctx, const u8 *msg,
-                    size_t msgBitCnt)
+			size_t msgBitCnt)
 {
-    /*
-     * I've used the bit pad implementation from skein_test.c (see NIST CD)
-     * and modified it to use the convenience functions and added some pointer
-     * arithmetic.
-     */
-    size_t length;
-    u8 mask;
-    u8 *up;
+	/*
+	 * I've used the bit pad implementation from skein_test.c (see NIST CD)
+	 * and modified it to use the convenience functions and added some pointer
+	 * arithmetic.
+	 */
+	size_t length;
+	u8 mask;
+	u8 *up;
 
-    /* only the final Update() call is allowed do partial bytes, else assert an error */
-    Skein_Assert((ctx->m.h.T[1] & SKEIN_T1_FLAG_BIT_PAD) == 0 || msgBitCnt == 0, SKEIN_FAIL);
+	/* only the final Update() call is allowed do partial bytes, else assert an error */
+	Skein_Assert((ctx->m.h.T[1] & SKEIN_T1_FLAG_BIT_PAD) == 0 || msgBitCnt == 0, SKEIN_FAIL);
 
-    /* if number of bits is a multiple of bytes - that's easy */
-    if ((msgBitCnt & 0x7) == 0) {
-        return skeinUpdate(ctx, msg, msgBitCnt >> 3);
-    }
-    skeinUpdate(ctx, msg, (msgBitCnt >> 3) + 1);
+	/* if number of bits is a multiple of bytes - that's easy */
+	if ((msgBitCnt & 0x7) == 0) {
+		return skeinUpdate(ctx, msg, msgBitCnt >> 3);
+	}
+	skeinUpdate(ctx, msg, (msgBitCnt >> 3) + 1);
 
-    /*
-     * The next line rely on the fact that the real Skein contexts
-     * are a union in our context. After the addition the pointer points to
-     * Skein's real partial block buffer.
-     * If this layout ever changes we have to adapt this as well.
-     */
-    up = (u8 *)ctx->m.s256.X + ctx->skeinSize / 8;
+	/*
+	 * The next line rely on the fact that the real Skein contexts
+	 * are a union in our context. After the addition the pointer points to
+	 * Skein's real partial block buffer.
+	 * If this layout ever changes we have to adapt this as well.
+	 */
+	up = (u8 *)ctx->m.s256.X + ctx->skeinSize / 8;
 
-    Skein_Set_Bit_Pad_Flag(ctx->m.h);                       /* set tweak flag for the skeinFinal call */
+	Skein_Set_Bit_Pad_Flag(ctx->m.h);                       /* set tweak flag for the skeinFinal call */
 
-    /* now "pad" the final partial byte the way NIST likes */
-    length = ctx->m.h.bCnt;                                 /* get the bCnt value (same location for all block sizes) */
-    Skein_assert(length != 0);                              /* internal sanity check: there IS a partial byte in the buffer! */
-    mask = (u8) (1u << (7 - (msgBitCnt & 7)));         /* partial byte bit mask */
-    up[length-1]  = (u8)((up[length-1] & (0-mask))|mask);   /* apply bit padding on final byte (in the buffer) */
+	/* now "pad" the final partial byte the way NIST likes */
+	length = ctx->m.h.bCnt;                                 /* get the bCnt value (same location for all block sizes) */
+	Skein_assert(length != 0);                              /* internal sanity check: there IS a partial byte in the buffer! */
+	mask = (u8) (1u << (7 - (msgBitCnt & 7)));         /* partial byte bit mask */
+	up[length-1]  = (u8)((up[length-1] & (0-mask))|mask);   /* apply bit padding on final byte (in the buffer) */
 
-    return SKEIN_SUCCESS;
+	return SKEIN_SUCCESS;
 }
 
 int skeinFinal(struct skein_ctx *ctx, u8 *hash)
 {
-    int ret = SKEIN_FAIL;
-    Skein_Assert(ctx, SKEIN_FAIL);
+	int ret = SKEIN_FAIL;
+	Skein_Assert(ctx, SKEIN_FAIL);
 
-    switch (ctx->skeinSize) {
-    case Skein256:
-        ret = Skein_256_Final(&ctx->m.s256, (u8 *)hash);
-        break;
-    case Skein512:
-        ret = Skein_512_Final(&ctx->m.s512, (u8 *)hash);
-        break;
-    case Skein1024:
-        ret = Skein1024_Final(&ctx->m.s1024, (u8 *)hash);
-        break;
-    }
-    return ret;
+	switch (ctx->skeinSize) {
+	case Skein256:
+		ret = Skein_256_Final(&ctx->m.s256, (u8 *)hash);
+		break;
+	case Skein512:
+		ret = Skein_512_Final(&ctx->m.s512, (u8 *)hash);
+		break;
+	case Skein1024:
+		ret = Skein1024_Final(&ctx->m.s1024, (u8 *)hash);
+		break;
+	}
+	return ret;
 }

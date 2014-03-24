@@ -81,148 +81,148 @@ OTHER DEALINGS IN THE SOFTWARE.
 #include <linux/types.h>
 #include <skein.h>
 
-    /**
-     * Which Skein size to use
-     */
-    enum skein_size {
-        Skein256 = 256,     /*!< Skein with 256 bit state */
-        Skein512 = 512,     /*!< Skein with 512 bit state */
-        Skein1024 = 1024    /*!< Skein with 1024 bit state */
-    };
+/**
+ * Which Skein size to use
+ */
+enum skein_size {
+	Skein256 = 256,     /*!< Skein with 256 bit state */
+	Skein512 = 512,     /*!< Skein with 512 bit state */
+	Skein1024 = 1024    /*!< Skein with 1024 bit state */
+};
 
-    /**
-     * Context for Skein.
-     *
-     * This structure was setup with some know-how of the internal
-     * Skein structures, in particular ordering of header and size dependent
-     * variables. If Skein implementation changes this, then adapt these
-     * structures as well.
-     */
-    struct skein_ctx {
-        u64 skeinSize;
-        u64  XSave[SKEIN_MAX_STATE_WORDS];   /* save area for state variables */
-        union {
-            struct skein_ctx_hdr h;
-            struct skein_256_ctx s256;
-            struct skein_512_ctx s512;
-            struct skein1024_ctx s1024;
-        } m;
-    };
+/**
+ * Context for Skein.
+ *
+ * This structure was setup with some know-how of the internal
+ * Skein structures, in particular ordering of header and size dependent
+ * variables. If Skein implementation changes this, then adapt these
+ * structures as well.
+ */
+struct skein_ctx {
+	u64 skeinSize;
+	u64  XSave[SKEIN_MAX_STATE_WORDS];   /* save area for state variables */
+	union {
+		struct skein_ctx_hdr h;
+		struct skein_256_ctx s256;
+		struct skein_512_ctx s512;
+		struct skein1024_ctx s1024;
+	} m;
+};
 
-    /**
-     * Prepare a Skein context.
-     * 
-     * An application must call this function before it can use the Skein
-     * context. The functions clears memory and initializes size dependent
-     * variables.
-     *
-     * @param ctx
-     *     Pointer to a Skein context.
-     * @param size
-     *     Which Skein size to use.
-     * @return
-     *     SKEIN_SUCESS of SKEIN_FAIL
-     */
-    int skeinCtxPrepare(struct skein_ctx *ctx, enum skein_size size);
+/**
+ * Prepare a Skein context.
+ * 
+ * An application must call this function before it can use the Skein
+ * context. The functions clears memory and initializes size dependent
+ * variables.
+ *
+ * @param ctx
+ *     Pointer to a Skein context.
+ * @param size
+ *     Which Skein size to use.
+ * @return
+ *     SKEIN_SUCESS of SKEIN_FAIL
+ */
+int skeinCtxPrepare(struct skein_ctx *ctx, enum skein_size size);
 
-    /**
-     * Initialize a Skein context.
-     *
-     * Initializes the context with this data and saves the resulting Skein 
-     * state variables for further use.
-     *
-     * @param ctx
-     *     Pointer to a Skein context.
-     * @param hashBitLen
-     *     Number of MAC hash bits to compute
-     * @return
-     *     SKEIN_SUCESS of SKEIN_FAIL
-     * @see skeinReset
-     */
-    int skeinInit(struct skein_ctx *ctx, size_t hashBitLen);
+/**
+ * Initialize a Skein context.
+ *
+ * Initializes the context with this data and saves the resulting Skein 
+ * state variables for further use.
+ *
+ * @param ctx
+ *     Pointer to a Skein context.
+ * @param hashBitLen
+ *     Number of MAC hash bits to compute
+ * @return
+ *     SKEIN_SUCESS of SKEIN_FAIL
+ * @see skeinReset
+ */
+int skeinInit(struct skein_ctx *ctx, size_t hashBitLen);
 
-    /**
-     * Resets a Skein context for further use.
-     * 
-     * Restores the saved chaining variables to reset the Skein context. 
-     * Thus applications can reuse the same setup to  process several 
-     * messages. This saves a complete Skein initialization cycle.
-     * 
-     * @param ctx
-     *     Pointer to a pre-initialized Skein MAC context
-     */
-    void skeinReset(struct skein_ctx *ctx);
-    
-    /**
-     * Initializes a Skein context for MAC usage.
-     * 
-     * Initializes the context with this data and saves the resulting Skein 
-     * state variables for further use.
-     *
-     * Applications call the normal Skein functions to update the MAC and
-     * get the final result.
-     *
-     * @param ctx
-     *     Pointer to an empty or preinitialized Skein MAC context
-     * @param key
-     *     Pointer to key bytes or NULL
-     * @param keyLen
-     *     Length of the key in bytes or zero
-     * @param hashBitLen
-     *     Number of MAC hash bits to compute
-     * @return
-     *     SKEIN_SUCESS of SKEIN_FAIL
-     */
-    int skeinMacInit(struct skein_ctx *ctx, const u8 *key, size_t keyLen,
-                     size_t hashBitLen);
+/**
+ * Resets a Skein context for further use.
+ * 
+ * Restores the saved chaining variables to reset the Skein context. 
+ * Thus applications can reuse the same setup to  process several 
+ * messages. This saves a complete Skein initialization cycle.
+ * 
+ * @param ctx
+ *     Pointer to a pre-initialized Skein MAC context
+ */
+void skeinReset(struct skein_ctx *ctx);
 
-    /**
-     * Update Skein with the next part of the message.
-     *
-     * @param ctx
-     *     Pointer to initialized Skein context
-     * @param msg
-     *     Pointer to the message.
-     * @param msgByteCnt
-     *     Length of the message in @b bytes
-     * @return
-     *     Success or error code.
-     */
-    int skeinUpdate(struct skein_ctx *ctx, const u8 *msg,
-                    size_t msgByteCnt);
+/**
+ * Initializes a Skein context for MAC usage.
+ * 
+ * Initializes the context with this data and saves the resulting Skein 
+ * state variables for further use.
+ *
+ * Applications call the normal Skein functions to update the MAC and
+ * get the final result.
+ *
+ * @param ctx
+ *     Pointer to an empty or preinitialized Skein MAC context
+ * @param key
+ *     Pointer to key bytes or NULL
+ * @param keyLen
+ *     Length of the key in bytes or zero
+ * @param hashBitLen
+ *     Number of MAC hash bits to compute
+ * @return
+ *     SKEIN_SUCESS of SKEIN_FAIL
+ */
+int skeinMacInit(struct skein_ctx *ctx, const u8 *key, size_t keyLen,
+		 size_t hashBitLen);
 
-    /**
-     * Update the hash with a message bit string.
-     *
-     * Skein can handle data not only as bytes but also as bit strings of
-     * arbitrary length (up to its maximum design size).
-     *
-     * @param ctx
-     *     Pointer to initialized Skein context
-     * @param msg
-     *     Pointer to the message.
-     * @param msgBitCnt
-     *     Length of the message in @b bits.
-     */
-    int skeinUpdateBits(struct skein_ctx *ctx, const u8 *msg,
-                        size_t msgBitCnt);
+/**
+ * Update Skein with the next part of the message.
+ *
+ * @param ctx
+ *     Pointer to initialized Skein context
+ * @param msg
+ *     Pointer to the message.
+ * @param msgByteCnt
+ *     Length of the message in @b bytes
+ * @return
+ *     Success or error code.
+ */
+int skeinUpdate(struct skein_ctx *ctx, const u8 *msg,
+		size_t msgByteCnt);
 
-    /**
-     * Finalize Skein and return the hash.
-     * 
-     * Before an application can reuse a Skein setup the application must
-     * reset the Skein context.
-     *
-     * @param ctx
-     *     Pointer to initialized Skein context
-     * @param hash
-     *     Pointer to buffer that receives the hash. The buffer must be large
-     *     enough to store @c hashBitLen bits.
-     * @return
-     *     Success or error code.
-     * @see skeinReset
-     */
-    int skeinFinal(struct skein_ctx *ctx, u8 *hash);
+/**
+ * Update the hash with a message bit string.
+ *
+ * Skein can handle data not only as bytes but also as bit strings of
+ * arbitrary length (up to its maximum design size).
+ *
+ * @param ctx
+ *     Pointer to initialized Skein context
+ * @param msg
+ *     Pointer to the message.
+ * @param msgBitCnt
+ *     Length of the message in @b bits.
+ */
+int skeinUpdateBits(struct skein_ctx *ctx, const u8 *msg,
+		    size_t msgBitCnt);
+
+/**
+ * Finalize Skein and return the hash.
+ * 
+ * Before an application can reuse a Skein setup the application must
+ * reset the Skein context.
+ *
+ * @param ctx
+ *     Pointer to initialized Skein context
+ * @param hash
+ *     Pointer to buffer that receives the hash. The buffer must be large
+ *     enough to store @c hashBitLen bits.
+ * @return
+ *     Success or error code.
+ * @see skeinReset
+ */
+int skeinFinal(struct skein_ctx *ctx, u8 *hash);
 
 /**
  * @}
