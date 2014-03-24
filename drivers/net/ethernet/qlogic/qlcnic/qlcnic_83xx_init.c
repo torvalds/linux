@@ -1388,7 +1388,7 @@ static int qlcnic_83xx_copy_fw_file(struct qlcnic_adapter *adapter)
 	addr = (u64)dest;
 
 	ret = qlcnic_83xx_ms_mem_write128(adapter, addr,
-					  (u32 *)p_cache, size / 16);
+					  p_cache, size / 16);
 	if (ret) {
 		dev_err(&adapter->pdev->dev, "MS memory write failed\n");
 		release_firmware(fw);
