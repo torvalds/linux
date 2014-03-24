@@ -753,10 +753,9 @@ static int aic31xx_setup_pll(struct snd_soc_codec *codec,
 
 static int aic31xx_hw_params(struct snd_pcm_substream *substream,
 			     struct snd_pcm_hw_params *params,
-			     struct snd_soc_dai *tmp)
+			     struct snd_soc_dai *dai)
 {
-	struct snd_soc_pcm_runtime *rtd = substream->private_data;
-	struct snd_soc_codec *codec = rtd->codec;
+	struct snd_soc_codec *codec = dai->codec;
 	u8 data = 0;
 
 	dev_dbg(codec->dev, "## %s: format %d width %d rate %d\n",
@@ -1020,7 +1019,8 @@ static int aic31xx_set_bias_level(struct snd_soc_codec *codec,
 		}
 		break;
 	case SND_SOC_BIAS_OFF:
-		aic31xx_power_off(codec);
+		if (codec->dapm.bias_level == SND_SOC_BIAS_STANDBY)
+			aic31xx_power_off(codec);
 		break;
 	}
 	codec->dapm.bias_level = level;
@@ -1228,7 +1228,6 @@ static int aic31xx_i2c_probe(struct i2c_client *i2c,
 		return -ENOMEM;
 
 	aic31xx->regmap = devm_regmap_init_i2c(i2c, regmap_config);
-
 	if (IS_ERR(aic31xx->regmap)) {
 		ret = PTR_ERR(aic31xx->regmap);
 		dev_err(&i2c->dev, "Failed to allocate register map: %d\n",
@@ -1241,18 +1240,14 @@ static int aic31xx_i2c_probe(struct i2c_client *i2c,
 
 	aic31xx_device_init(aic31xx);
 
-	ret = snd_soc_register_codec(&i2c->dev, &soc_codec_driver_aic31xx,
+	return snd_soc_register_codec(&i2c->dev, &soc_codec_driver_aic31xx,
 				     aic31xx_dai_driver,
 				     ARRAY_SIZE(aic31xx_dai_driver));
-
-	return ret;
 }
 
 static int aic31xx_i2c_remove(struct i2c_client *i2c)
 {
-	struct aic31xx_priv *aic31xx = dev_get_drvdata(&i2c->dev);
-
-	kfree(aic31xx);
+	snd_soc_unregister_codec(&i2c->dev);
 	return 0;
 }
 
@@ -1274,7 +1269,7 @@ static struct i2c_driver aic31xx_i2c_driver = {
 		.of_match_table = of_match_ptr(tlv320aic31xx_of_match),
 	},
 	.probe		= aic31xx_i2c_probe,
-	.remove		= (aic31xx_i2c_remove),
+	.remove		= aic31xx_i2c_remove,
 	.id_table	= aic31xx_i2c_id,
 };
 

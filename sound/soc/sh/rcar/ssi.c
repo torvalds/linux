@@ -588,7 +588,61 @@ static void rsnd_ssi_parent_clk_setup(struct rsnd_priv *priv, struct rsnd_ssi *s
 	}
 }
 
+
+static void rsnd_of_parse_ssi(struct platform_device *pdev,
+			      const struct rsnd_of_data *of_data,
+			      struct rsnd_priv *priv)
+{
+	struct device_node *node;
+	struct device_node *np;
+	struct rsnd_ssi_platform_info *ssi_info;
+	struct rcar_snd_info *info = rsnd_priv_to_info(priv);
+	struct device *dev = &pdev->dev;
+	int nr, i;
+
+	if (!of_data)
+		return;
+
+	node = of_get_child_by_name(dev->of_node, "rcar_sound,ssi");
+	if (!node)
+		return;
+
+	nr = of_get_child_count(node);
+	if (!nr)
+		return;
+
+	ssi_info = devm_kzalloc(dev,
+				sizeof(struct rsnd_ssi_platform_info) * nr,
+				GFP_KERNEL);
+	if (!ssi_info) {
+		dev_err(dev, "ssi info allocation error\n");
+		return;
+	}
+
+	info->ssi_info		= ssi_info;
+	info->ssi_info_nr	= nr;
+
+	i = -1;
+	for_each_child_of_node(node, np) {
+		i++;
+
+		ssi_info = info->ssi_info + i;
+
+		/*
+		 * pin settings
+		 */
+		if (of_get_property(np, "shared-pin", NULL))
+			ssi_info->flags |= RSND_SSI_CLK_PIN_SHARE;
+
+		/*
+		 * irq
+		 */
+		ssi_info->pio_irq = irq_of_parse_and_map(np, 0);
+	}
+}
+
 int rsnd_ssi_probe(struct platform_device *pdev,
+		   const struct rsnd_of_data *of_data,
 		   struct rsnd_priv *priv)
 {
 	struct rcar_snd_info *info = rsnd_priv_to_info(priv);
@@ -599,6 +653,8 @@ int rsnd_ssi_probe(struct platform_device *pdev,
 	struct rsnd_ssi *ssi;
 	char name[RSND_SSI_NAME_SIZE];
 	int i, nr;
+
+	rsnd_of_parse_ssi(pdev, of_data, priv);
 
 	/*
 	 *	init SSI

@@ -2343,7 +2343,6 @@ static int max98090_i2c_probe(struct i2c_client *i2c,
 
 	max98090->devtype = id->driver_data;
 	i2c_set_clientdata(i2c, max98090);
-	max98090->control_data = i2c;
 	max98090->pdata = i2c->dev.platform_data;
 	max98090->irq = i2c->irq;
 
