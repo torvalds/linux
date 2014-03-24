@@ -75,13 +75,13 @@ static inline bool mips_cpc_present(void)
 #define BUILD_CPC_R_(name, off) \
 static inline u32 read_cpc_##name(void)				\
 {								\
-	return readl(mips_cpc_base + (off));			\
+	return __raw_readl(mips_cpc_base + (off));		\
 }
 
 #define BUILD_CPC__W(name, off) \
 static inline void write_cpc_##name(u32 value)			\
 {								\
-	writel(value, mips_cpc_base + (off));			\
+	__raw_writel(value, mips_cpc_base + (off));		\
 }
 
 #define BUILD_CPC_RW(name, off)					\
