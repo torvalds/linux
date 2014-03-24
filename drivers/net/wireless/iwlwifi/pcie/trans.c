@@ -1257,7 +1257,7 @@ static int iwl_trans_pcie_write_mem(struct iwl_trans *trans, u32 addr,
 
 #define IWL_FLUSH_WAIT_MS	2000
 
-static int iwl_trans_pcie_wait_txq_empty(struct iwl_trans *trans)
+static int iwl_trans_pcie_wait_txq_empty(struct iwl_trans *trans, u32 txq_bm)
 {
 	struct iwl_trans_pcie *trans_pcie = IWL_TRANS_GET_PCIE_TRANS(trans);
 	struct iwl_txq *txq;
@@ -1271,6 +1271,10 @@ static int iwl_trans_pcie_wait_txq_empty(struct iwl_trans *trans)
 	/* waiting for all the tx frames complete might take a while */
 	for (cnt = 0; cnt < trans->cfg->base_params->num_of_queues; cnt++) {
 		if (cnt == trans_pcie->cmd_queue)
+			continue;
+		if (!test_bit(cnt, trans_pcie->queue_used))
+			continue;
+		if (!(BIT(cnt) & txq_bm))
 			continue;
 		txq = &trans_pcie->txq[cnt];
 		q = &txq->q;
