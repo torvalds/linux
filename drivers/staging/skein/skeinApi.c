@@ -188,9 +188,9 @@ int skeinUpdateBits(struct skein_ctx *ctx, const u8 *msg,
 			msgBitCnt == 0, SKEIN_FAIL);
 
 	/* if number of bits is a multiple of bytes - that's easy */
-	if ((msgBitCnt & 0x7) == 0) {
+	if ((msgBitCnt & 0x7) == 0)
 		return skeinUpdate(ctx, msg, msgBitCnt >> 3);
-	}
+
 	skeinUpdate(ctx, msg, (msgBitCnt >> 3) + 1);
 
 	/*
