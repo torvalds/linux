@@ -434,7 +434,7 @@ static inline void finish_buffer(struct em28xx *dev,
 {
 	em28xx_isocdbg("[%p/%d] wakeup\n", buf, buf->top_field);
 
-	buf->vb.v4l2_buf.sequence = dev->field_count++;
+	buf->vb.v4l2_buf.sequence = dev->v4l2->field_count++;
 	buf->vb.v4l2_buf.field = V4L2_FIELD_INTERLACED;
 	v4l2_get_timestamp(&buf->vb.v4l2_buf.timestamp);
 
@@ -616,13 +616,13 @@ finish_field_prepare_next(struct em28xx *dev,
 {
 	struct em28xx_v4l2 *v4l2 = dev->v4l2;
 
-	if (v4l2->progressive || dev->top_field) { /* Brand new frame */
+	if (v4l2->progressive || v4l2->top_field) { /* Brand new frame */
 		if (buf != NULL)
 			finish_buffer(dev, buf);
 		buf = get_next_buf(dev, dma_q);
 	}
 	if (buf != NULL) {
-		buf->top_field = dev->top_field;
+		buf->top_field = v4l2->top_field;
 		buf->pos = 0;
 	}
 
@@ -656,17 +656,17 @@ static inline void process_frame_data_em28xx(struct em28xx *dev,
 			data_len -= 4;
 		} else if (data_pkt[0] == 0x33 && data_pkt[1] == 0x95) {
 			/* Field start (VBI mode) */
-			dev->capture_type = 0;
-			dev->vbi_read = 0;
+			v4l2->capture_type = 0;
+			v4l2->vbi_read = 0;
 			em28xx_isocdbg("VBI START HEADER !!!\n");
-			dev->top_field = !(data_pkt[2] & 1);
+			v4l2->top_field = !(data_pkt[2] & 1);
 			data_pkt += 4;
 			data_len -= 4;
 		} else if (data_pkt[0] == 0x22 && data_pkt[1] == 0x5a) {
 			/* Field start (VBI disabled) */
-			dev->capture_type = 2;
+			v4l2->capture_type = 2;
 			em28xx_isocdbg("VIDEO START HEADER !!!\n");
-			dev->top_field = !(data_pkt[2] & 1);
+			v4l2->top_field = !(data_pkt[2] & 1);
 			data_pkt += 4;
 			data_len -= 4;
 		}
@@ -674,37 +674,37 @@ static inline void process_frame_data_em28xx(struct em28xx *dev,
 	/* NOTE: With bulk transfers, intermediate data packets
 	 * have no continuation header */
 
-	if (dev->capture_type == 0) {
+	if (v4l2->capture_type == 0) {
 		vbi_buf = finish_field_prepare_next(dev, vbi_buf, vbi_dma_q);
 		dev->usb_ctl.vbi_buf = vbi_buf;
-		dev->capture_type = 1;
+		v4l2->capture_type = 1;
 	}
 
-	if (dev->capture_type == 1) {
+	if (v4l2->capture_type == 1) {
 		int vbi_size = v4l2->vbi_width * v4l2->vbi_height;
-		int vbi_data_len = ((dev->vbi_read + data_len) > vbi_size) ?
-				   (vbi_size - dev->vbi_read) : data_len;
+		int vbi_data_len = ((v4l2->vbi_read + data_len) > vbi_size) ?
+				   (vbi_size - v4l2->vbi_read) : data_len;
 
 		/* Copy VBI data */
 		if (vbi_buf != NULL)
 			em28xx_copy_vbi(dev, vbi_buf, data_pkt, vbi_data_len);
-		dev->vbi_read += vbi_data_len;
+		v4l2->vbi_read += vbi_data_len;
 
 		if (vbi_data_len < data_len) {
 			/* Continue with copying video data */
-			dev->capture_type = 2;
+			v4l2->capture_type = 2;
 			data_pkt += vbi_data_len;
 			data_len -= vbi_data_len;
 		}
 	}
 
-	if (dev->capture_type == 2) {
+	if (v4l2->capture_type == 2) {
 		buf = finish_field_prepare_next(dev, buf, dma_q);
 		dev->usb_ctl.vid_buf = buf;
-		dev->capture_type = 3;
+		v4l2->capture_type = 3;
 	}
 
-	if (dev->capture_type == 3 && buf != NULL && data_len > 0)
+	if (v4l2->capture_type == 3 && buf != NULL && data_len > 0)
 		em28xx_copy_video(dev, buf, data_pkt, data_len);
 }
 
@@ -717,6 +717,7 @@ static inline void process_frame_data_em25xx(struct em28xx *dev,
 {
 	struct em28xx_buffer    *buf = dev->usb_ctl.vid_buf;
 	struct em28xx_dmaqueue  *dmaq = &dev->vidq;
+	struct em28xx_v4l2      *v4l2 = dev->v4l2;
 	bool frame_end = 0;
 
 	/* Check for header */
@@ -725,7 +726,7 @@ static inline void process_frame_data_em25xx(struct em28xx *dev,
 	if (data_len >= 2) {	/* em25xx header is only 2 bytes long */
 		if ((data_pkt[0] == EM25XX_FRMDATAHDR_BYTE1) &&
 		    ((data_pkt[1] & ~EM25XX_FRMDATAHDR_BYTE2_MASK) == 0x00)) {
-			dev->top_field = !(data_pkt[1] &
+			v4l2->top_field = !(data_pkt[1] &
 					   EM25XX_FRMDATAHDR_BYTE2_FRAME_ID);
 			frame_end = data_pkt[1] &
 				    EM25XX_FRMDATAHDR_BYTE2_FRAME_END;
@@ -921,6 +922,7 @@ buffer_prepare(struct vb2_buffer *vb)
 int em28xx_start_analog_streaming(struct vb2_queue *vq, unsigned int count)
 {
 	struct em28xx *dev = vb2_get_drv_priv(vq);
+	struct em28xx_v4l2 *v4l2 = dev->v4l2;
 	struct v4l2_frequency f;
 	int rc = 0;
 
@@ -943,7 +945,7 @@ int em28xx_start_analog_streaming(struct vb2_queue *vq, unsigned int count)
 		*/
 		em28xx_wake_i2c(dev);
 
-		dev->capture_type = -1;
+		v4l2->capture_type = -1;
 		rc = em28xx_init_usb_xfer(dev, EM28XX_ANALOG_MODE,
 					  dev->analog_xfer_bulk,
 					  EM28XX_NUM_BUFS,
@@ -966,7 +968,7 @@ int em28xx_start_analog_streaming(struct vb2_queue *vq, unsigned int count)
 			f.type = V4L2_TUNER_RADIO;
 		else
 			f.type = V4L2_TUNER_ANALOG_TV;
-		v4l2_device_call_all(&dev->v4l2->v4l2_dev,
+		v4l2_device_call_all(&v4l2->v4l2_dev,
 				     0, tuner, s_frequency, &f);
 	}
 

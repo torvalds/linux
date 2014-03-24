@@ -539,6 +539,12 @@ struct em28xx_v4l2 {
 	unsigned vscale;	/* vertical scale factor (see datasheet) */
 	unsigned int vbi_width;
 	unsigned int vbi_height; /* lines per field */
+
+	/* Capture state tracking */
+	int capture_type;
+	bool top_field;
+	int vbi_read;
+	unsigned int field_count;
 };
 
 struct em28xx_audio {
@@ -649,11 +655,6 @@ struct em28xx {
 	unsigned long i2c_hash;	/* i2c devicelist hash -
 				   for boards with generic ID */
 
-	/* capture state tracking */
-	int capture_type;
-	unsigned char top_field:1;
-	int vbi_read;
-
 	struct work_struct         request_module_wk;
 
 	/* locks */
@@ -672,8 +673,6 @@ struct em28xx {
 	struct em28xx_dmaqueue vbiq;
 	struct em28xx_usb_ctl usb_ctl;
 	spinlock_t slock;
-
-	unsigned int field_count;
 
 	/* usb transfer */
 	struct usb_device *udev;	/* the usb device */
