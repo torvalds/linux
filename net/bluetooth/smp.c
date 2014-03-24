@@ -387,6 +387,11 @@ static int tk_request(struct l2cap_conn *conn, u8 remote_oob, u8 auth,
 	if (!(auth & SMP_AUTH_BONDING) && method == JUST_CFM)
 		method = JUST_WORKS;
 
+	/* Don't confirm locally initiated pairing attempts */
+	if (method == JUST_CFM && test_bit(SMP_FLAG_INITIATOR,
+					   &smp->smp_flags))
+		method = JUST_WORKS;
+
 	/* If Just Works, Continue with Zero TK */
 	if (method == JUST_WORKS) {
 		set_bit(SMP_FLAG_TK_VALID, &smp->smp_flags);
