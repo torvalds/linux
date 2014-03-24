@@ -1970,9 +1970,9 @@ static int em28xx_v4l2_fini(struct em28xx *dev)
 	v4l2_ctrl_handler_free(&v4l2->ctrl_handler);
 	v4l2_device_unregister(&v4l2->v4l2_dev);
 
-	if (dev->clk) {
-		v4l2_clk_unregister_fixed(dev->clk);
-		dev->clk = NULL;
+	if (v4l2->clk) {
+		v4l2_clk_unregister_fixed(v4l2->clk);
+		v4l2->clk = NULL;
 	}
 
 	kref_put(&v4l2->ref, em28xx_free_v4l2);

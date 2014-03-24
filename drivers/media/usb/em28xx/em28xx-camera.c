@@ -330,13 +330,14 @@ int em28xx_init_camera(struct em28xx *dev)
 	char clk_name[V4L2_SUBDEV_NAME_SIZE];
 	struct i2c_client *client = &dev->i2c_client[dev->def_i2c_bus];
 	struct i2c_adapter *adap = &dev->i2c_adap[dev->def_i2c_bus];
+	struct em28xx_v4l2 *v4l2 = dev->v4l2;
 	int ret = 0;
 
 	v4l2_clk_name_i2c(clk_name, sizeof(clk_name),
 			  i2c_adapter_id(adap), client->addr);
-	dev->clk = v4l2_clk_register_fixed(clk_name, "mclk", -EINVAL);
-	if (IS_ERR(dev->clk))
-		return PTR_ERR(dev->clk);
+	v4l2->clk = v4l2_clk_register_fixed(clk_name, "mclk", -EINVAL);
+	if (IS_ERR(v4l2->clk))
+		return PTR_ERR(v4l2->clk);
 
 	switch (dev->em28xx_sensor) {
 	case EM28XX_MT9V011:
@@ -448,8 +449,8 @@ int em28xx_init_camera(struct em28xx *dev)
 	}
 
 	if (ret < 0) {
-		v4l2_clk_unregister_fixed(dev->clk);
-		dev->clk = NULL;
+		v4l2_clk_unregister_fixed(v4l2->clk);
+		v4l2->clk = NULL;
 	}
 
 	return ret;

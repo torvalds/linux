@@ -504,6 +504,7 @@ struct em28xx_v4l2 {
 
 	struct v4l2_device v4l2_dev;
 	struct v4l2_ctrl_handler ctrl_handler;
+	struct v4l2_clk *clk;
 };
 
 struct em28xx_audio {
@@ -569,7 +570,6 @@ struct em28xx {
 	unsigned int has_alsa_audio:1;
 	unsigned int is_audio_only:1;
 
-	struct v4l2_clk *clk;
 	struct em28xx_board board;
 
 	/* Webcam specific fields */
