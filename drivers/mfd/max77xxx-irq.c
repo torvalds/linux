@@ -172,12 +172,30 @@ static void max77xxx_irq_unmask(struct irq_data *data)
 			max77xxx->irq_masks_cur[irq_data->group]);
 }
 
+static int max77xxx_irq_set_wake(struct irq_data *data, unsigned int on)
+{
+	struct max77xxx_dev *max77xxx = irq_get_chip_data(data->irq);
+
+	if (device_may_wakeup(max77xxx->dev)) {
+		if (on)
+			return enable_irq_wake(max77xxx->irq);
+		else
+			return disable_irq_wake(max77xxx->irq);
+	} else if (on) {
+		dev_warn(max77xxx->dev,
+			 "Child requested wakeup but wakeup disabled\n");
+		return -ENXIO;
+	}
+	return 0;
+}
+
 static struct irq_chip max77xxx_irq_chip = {
 	.name			= "max77xxx",
 	.irq_bus_lock		= max77xxx_irq_lock,
 	.irq_bus_sync_unlock	= max77xxx_irq_sync_unlock,
 	.irq_mask		= max77xxx_irq_mask,
 	.irq_unmask		= max77xxx_irq_unmask,
+	.irq_set_wake		= max77xxx_irq_set_wake,
 };
 
 static irqreturn_t max77xxx_irq_thread(int irq, void *data)

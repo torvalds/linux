@@ -821,6 +821,33 @@ static void max77xxx_rtc_shutdown(struct platform_device *pdev)
 #endif /* MAX77XXX_RTC_WTSR_SMPL */
 }
 
+#ifdef CONFIG_PM_SLEEP
+static int max77xxx_rtc_suspend(struct device *dev)
+{
+	if (device_may_wakeup(dev)) {
+		struct max77xxx_rtc_info *info = dev_get_drvdata(dev);
+
+		return enable_irq_wake(info->virq);
+	}
+
+	return 0;
+}
+
+static int max77xxx_rtc_resume(struct device *dev)
+{
+	if (device_may_wakeup(dev)) {
+		struct max77xxx_rtc_info *info = dev_get_drvdata(dev);
+
+		return disable_irq_wake(info->virq);
+	}
+
+	return 0;
+}
+#endif
+
+static SIMPLE_DEV_PM_OPS(max77xxx_rtc_pm_ops,
+			 max77xxx_rtc_suspend, max77xxx_rtc_resume);
+
 static const struct platform_device_id rtc_id[] = {
 	{ "max77686-rtc", TYPE_MAX77686 },
 	{ "max77802-rtc", TYPE_MAX77802 },
@@ -831,6 +858,7 @@ static struct platform_driver max77xxx_rtc_driver = {
 	.driver		= {
 		.name	= "max77xxx-rtc",
 		.owner	= THIS_MODULE,
+		.pm	= &max77xxx_rtc_pm_ops,
 	},
 	.probe		= max77xxx_rtc_probe,
 	.remove		= max77xxx_rtc_remove,

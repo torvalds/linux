@@ -265,31 +265,19 @@ static const struct i2c_device_id max77xxx_i2c_id[] = {
 MODULE_DEVICE_TABLE(i2c, max77xxx_i2c_id);
 
 #ifdef CONFIG_PM_SLEEP
-static int max77xxx_suspend(struct device *dev)
-{
-	struct i2c_client *i2c = container_of(dev, struct i2c_client, dev);
-	struct max77xxx_dev *max77xxx = i2c_get_clientdata(i2c);
-
-	if (device_may_wakeup(dev))
-		enable_irq_wake(max77xxx->irq);
-
-	return 0;
-}
-
 static int max77xxx_resume(struct device *dev)
 {
 	struct i2c_client *i2c = container_of(dev, struct i2c_client, dev);
 	struct max77xxx_dev *max77xxx = i2c_get_clientdata(i2c);
 
-	if (device_may_wakeup(dev))
-		disable_irq_wake(max77xxx->irq);
+	/* TODO: Shouldn't max77xxx-irq do this itself? */
 	max77xxx_irq_resume(max77xxx);
 
 	return 0;
 }
 #endif
 
-static SIMPLE_DEV_PM_OPS(max77xxx_pm_ops, max77xxx_suspend, max77xxx_resume);
+static SIMPLE_DEV_PM_OPS(max77xxx_pm_ops, NULL, max77xxx_resume);
 
 static struct i2c_driver max77xxx_i2c_driver = {
 	.driver = {
