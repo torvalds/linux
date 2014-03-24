@@ -574,15 +574,15 @@ void xenvif_disconnect(struct xenvif *vif)
 void xenvif_free(struct xenvif *vif)
 {
 	int i, unmap_timeout = 0;
-	/* Here we want to avoid timeout messages if an skb can be legitimatly
-	 * stucked somewhere else. Realisticly this could be an another vif's
+	/* Here we want to avoid timeout messages if an skb can be legitimately
+	 * stuck somewhere else. Realistically this could be an another vif's
 	 * internal or QDisc queue. That another vif also has this
 	 * rx_drain_timeout_msecs timeout, but the timer only ditches the
 	 * internal queue. After that, the QDisc queue can put in worst case
 	 * XEN_NETIF_RX_RING_SIZE / MAX_SKB_FRAGS skbs into that another vif's
 	 * internal queue, so we need several rounds of such timeouts until we
 	 * can be sure that no another vif should have skb's from us. We are
-	 * not sending more skb's, so newly stucked packets are not interesting
+	 * not sending more skb's, so newly stuck packets are not interesting
 	 * for us here.
 	 */
 	unsigned int worst_case_skb_lifetime = (rx_drain_timeout_msecs/1000) *
@@ -597,6 +597,13 @@ void xenvif_free(struct xenvif *vif)
 				netdev_err(vif->dev,
 					   "Page still granted! Index: %x\n",
 					   i);
+			/* If there are still unmapped pages, reset the loop to
+			 * start checking again. We shouldn't exit here until
+			 * dealloc thread and NAPI instance release all the
+			 * pages. If a kernel bug causes the skbs to stall
+			 * somewhere, the interface cannot be brought down
+			 * properly.
+			 */
 			i = -1;
 		}
 	}

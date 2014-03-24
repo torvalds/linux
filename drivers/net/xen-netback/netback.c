@@ -56,7 +56,7 @@ bool separate_tx_rx_irq = 1;
 module_param(separate_tx_rx_irq, bool, 0644);
 
 /* When guest ring is filled up, qdisc queues the packets for us, but we have
- * to timeout them, otherwise other guests' packets can get stucked there
+ * to timeout them, otherwise other guests' packets can get stuck there
  */
 unsigned int rx_drain_timeout_msecs = 10000;
 module_param(rx_drain_timeout_msecs, uint, 0444);
@@ -1545,7 +1545,6 @@ static inline void xenvif_tx_dealloc_action(struct xenvif *vif)
 					    idx_to_kaddr(vif, pending_idx),
 					    GNTMAP_host_map,
 					    vif->grant_tx_handle[pending_idx]);
-			/* Btw. already unmapped? */
 			xenvif_grant_handle_reset(vif, pending_idx);
 			++gop;
 		}
@@ -1678,7 +1677,6 @@ void xenvif_idx_unmap(struct xenvif *vif, u16 pending_idx)
 			    idx_to_kaddr(vif, pending_idx),
 			    GNTMAP_host_map,
 			    vif->grant_tx_handle[pending_idx]);
-	/* Btw. already unmapped? */
 	xenvif_grant_handle_reset(vif, pending_idx);
 
 	ret = gnttab_unmap_refs(&tx_unmap_op, NULL,
