@@ -175,8 +175,15 @@ acpi_ds_detect_named_opcodes(struct acpi_walk_state *walk_state,
 	 * At this point, we know we have a Named object opcode.
 	 * Mark the method as serialized. Later code will create a mutex for
 	 * this method to enforce serialization.
+	 *
+	 * Note, ACPI_METHOD_IGNORE_SYNC_LEVEL flag means that we will ignore the
+	 * Sync Level mechanism for this method, even though it is now serialized.
+	 * Otherwise, there can be conflicts with existing ASL code that actually
+	 * uses sync levels.
 	 */
-	walk_state->method_desc->method.info_flags |= ACPI_METHOD_SERIALIZED;
+	walk_state->method_desc->method.sync_level = 0;
+	walk_state->method_desc->method.info_flags |=
+	    (ACPI_METHOD_SERIALIZED | ACPI_METHOD_IGNORE_SYNC_LEVEL);
 
 	ACPI_DEBUG_PRINT((ACPI_DB_INFO,
 			  "Method serialized [%4.4s] %p - [%s] (%4.4X)\n",
@@ -349,13 +356,19 @@ acpi_ds_begin_method_execution(struct acpi_namespace_node *method_node,
 		/*
 		 * The current_sync_level (per-thread) must be less than or equal to
 		 * the sync level of the method. This mechanism provides some
-		 * deadlock prevention
+		 * deadlock prevention.
+		 *
+		 * If the method was auto-serialized, we just ignore the sync level
+		 * mechanism, because auto-serialization of methods can interfere
+		 * with ASL code that actually uses sync levels.
 		 *
 		 * Top-level method invocation has no walk state at this point
 		 */
 		if (walk_state &&
-		    (walk_state->thread->current_sync_level >
-		     obj_desc->method.mutex->mutex.sync_level)) {
+		    (!(obj_desc->method.
+		       info_flags & ACPI_METHOD_IGNORE_SYNC_LEVEL))
+		    && (walk_state->thread->current_sync_level >
+			obj_desc->method.mutex->mutex.sync_level)) {
 			ACPI_ERROR((AE_INFO,
 				    "Cannot acquire Mutex for method [%4.4s], current SyncLevel is too large (%u)",
 				    acpi_ut_get_node_name(method_node),
@@ -800,7 +813,8 @@ acpi_ds_terminate_control_method(union acpi_operand_object *method_desc,
 			method_desc->method.info_flags &=
 			    ~ACPI_METHOD_SERIALIZED_PENDING;
 			method_desc->method.info_flags |=
-			    ACPI_METHOD_SERIALIZED;
+			    (ACPI_METHOD_SERIALIZED |
+			     ACPI_METHOD_IGNORE_SYNC_LEVEL);
 			method_desc->method.sync_level = 0;
 		}
 
