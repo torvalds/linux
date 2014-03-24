@@ -438,6 +438,38 @@ out_no_rpciod:
 	return ERR_PTR(err);
 }
 
+struct rpc_clnt *rpc_create_xprt(struct rpc_create_args *args,
+					struct rpc_xprt *xprt)
+{
+	struct rpc_clnt *clnt = NULL;
+
+	clnt = rpc_new_client(args, xprt, NULL);
+	if (IS_ERR(clnt))
+		return clnt;
+
+	if (!(args->flags & RPC_CLNT_CREATE_NOPING)) {
+		int err = rpc_ping(clnt);
+		if (err != 0) {
+			rpc_shutdown_client(clnt);
+			return ERR_PTR(err);
+		}
+	}
+
+	clnt->cl_softrtry = 1;
+	if (args->flags & RPC_CLNT_CREATE_HARDRTRY)
+		clnt->cl_softrtry = 0;
+
+	if (args->flags & RPC_CLNT_CREATE_AUTOBIND)
+		clnt->cl_autobind = 1;
+	if (args->flags & RPC_CLNT_CREATE_DISCRTRY)
+		clnt->cl_discrtry = 1;
+	if (!(args->flags & RPC_CLNT_CREATE_QUIET))
+		clnt->cl_chatty = 1;
+
+	return clnt;
+}
+EXPORT_SYMBOL_GPL(rpc_create_xprt);
+
 /**
  * rpc_create - create an RPC client and transport with one call
  * @args: rpc_clnt create argument structure
@@ -451,7 +483,6 @@ out_no_rpciod:
 struct rpc_clnt *rpc_create(struct rpc_create_args *args)
 {
 	struct rpc_xprt *xprt;
-	struct rpc_clnt *clnt;
 	struct xprt_create xprtargs = {
 		.net = args->net,
 		.ident = args->protocol,
@@ -515,30 +546,7 @@ struct rpc_clnt *rpc_create(struct rpc_create_args *args)
 	if (args->flags & RPC_CLNT_CREATE_NONPRIVPORT)
 		xprt->resvport = 0;
 
-	clnt = rpc_new_client(args, xprt, NULL);
-	if (IS_ERR(clnt))
-		return clnt;
-
-	if (!(args->flags & RPC_CLNT_CREATE_NOPING)) {
-		int err = rpc_ping(clnt);
-		if (err != 0) {
-			rpc_shutdown_client(clnt);
-			return ERR_PTR(err);
-		}
-	}
-
-	clnt->cl_softrtry = 1;
-	if (args->flags & RPC_CLNT_CREATE_HARDRTRY)
-		clnt->cl_softrtry = 0;
-
-	if (args->flags & RPC_CLNT_CREATE_AUTOBIND)
-		clnt->cl_autobind = 1;
-	if (args->flags & RPC_CLNT_CREATE_DISCRTRY)
-		clnt->cl_discrtry = 1;
-	if (!(args->flags & RPC_CLNT_CREATE_QUIET))
-		clnt->cl_chatty = 1;
-
-	return clnt;
+	return rpc_create_xprt(args, xprt);
 }
 EXPORT_SYMBOL_GPL(rpc_create);
 
