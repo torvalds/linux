@@ -97,9 +97,7 @@ int drm_err(const char *func, const char *format, ...)
 }
 EXPORT_SYMBOL(drm_err);
 
-void drm_ut_debug_printk(const char *prefix,
-			 const char *function_name,
-			 const char *format, ...)
+void drm_ut_debug_printk(const char *function_name, const char *format, ...)
 {
 	struct va_format vaf;
 	va_list args;
@@ -108,7 +106,7 @@ void drm_ut_debug_printk(const char *prefix,
 	vaf.fmt = format;
 	vaf.va = &args;
 
-	printk(KERN_DEBUG "[%s:%s], %pV", prefix, function_name, &vaf);
+	printk(KERN_DEBUG "[" DRM_NAME ":%s], %pV", function_name, &vaf);
 
 	va_end(args);
 }
