@@ -97,26 +97,24 @@ int drm_err(const char *func, const char *format, ...)
 }
 EXPORT_SYMBOL(drm_err);
 
-void drm_ut_debug_printk(unsigned int request_level,
-			 const char *prefix,
+void drm_ut_debug_printk(const char *prefix,
 			 const char *function_name,
 			 const char *format, ...)
 {
 	struct va_format vaf;
 	va_list args;
 
-	if (drm_debug & request_level) {
-		va_start(args, format);
-		vaf.fmt = format;
-		vaf.va = &args;
+	va_start(args, format);
+	vaf.fmt = format;
+	vaf.va = &args;
 
-		if (function_name)
-			printk(KERN_DEBUG "[%s:%s], %pV", prefix,
-			       function_name, &vaf);
-		else
-			printk(KERN_DEBUG "%pV", &vaf);
-		va_end(args);
-	}
+	if (function_name)
+		printk(KERN_DEBUG "[%s:%s], %pV", prefix,
+		       function_name, &vaf);
+	else
+		printk(KERN_DEBUG "%pV", &vaf);
+
+	va_end(args);
 }
 EXPORT_SYMBOL(drm_ut_debug_printk);
 

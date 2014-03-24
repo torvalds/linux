@@ -121,9 +121,8 @@ struct videomode;
 #define DRM_UT_KMS		0x04
 #define DRM_UT_PRIME		0x08
 
-extern __printf(4, 5)
-void drm_ut_debug_printk(unsigned int request_level,
-			 const char *prefix,
+extern __printf(3, 4)
+void drm_ut_debug_printk(const char *prefix,
 			 const char *function_name,
 			 const char *format, ...);
 extern __printf(2, 3)
@@ -209,24 +208,28 @@ int drm_err(const char *func, const char *format, ...);
 #if DRM_DEBUG_CODE
 #define DRM_DEBUG(fmt, args...)						\
 	do {								\
-		drm_ut_debug_printk(DRM_UT_CORE, DRM_NAME, 		\
-					__func__, fmt, ##args);		\
+		if (unlikely(drm_debug & DRM_UT_CORE))			\
+			drm_ut_debug_printk(DRM_NAME, __func__,		\
+					    fmt, ##args);		\
 	} while (0)
 
 #define DRM_DEBUG_DRIVER(fmt, args...)					\
 	do {								\
-		drm_ut_debug_printk(DRM_UT_DRIVER, DRM_NAME,		\
-					__func__, fmt, ##args);		\
+		if (unlikely(drm_debug & DRM_UT_DRIVER))		\
+			drm_ut_debug_printk(DRM_NAME, __func__,		\
+					    fmt, ##args);		\
 	} while (0)
-#define DRM_DEBUG_KMS(fmt, args...)				\
+#define DRM_DEBUG_KMS(fmt, args...)					\
 	do {								\
-		drm_ut_debug_printk(DRM_UT_KMS, DRM_NAME, 		\
-					 __func__, fmt, ##args);	\
+		if (unlikely(drm_debug & DRM_UT_KMS))			\
+			drm_ut_debug_printk(DRM_NAME, __func__,		\
+					    fmt, ##args);		\
 	} while (0)
 #define DRM_DEBUG_PRIME(fmt, args...)					\
 	do {								\
-		drm_ut_debug_printk(DRM_UT_PRIME, DRM_NAME,		\
-					__func__, fmt, ##args);		\
+		if (unlikely(drm_debug & DRM_UT_PRIME))			\
+			drm_ut_debug_printk(DRM_NAME, __func__,		\
+					    fmt, ##args);		\
 	} while (0)
 #else
 #define DRM_DEBUG_DRIVER(fmt, args...) do { } while (0)
