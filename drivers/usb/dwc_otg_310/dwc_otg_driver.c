@@ -369,13 +369,14 @@ static DRIVER_ATTR(debuglevel, S_IRUGO | S_IWUSR, dbg_level_show,
 		   dbg_level_store);
 
 extern void hcd_start(dwc_otg_core_if_t *core_if);
-extern void hub_disconnect_device(struct usb_hub *hub);
+extern struct usb_hub *g_dwc_otg_root_hub20;
+extern void dwc_otg_hub_disconnect_device(struct usb_hub *hub);
 
 void dwc_otg_force_host(dwc_otg_core_if_t *core_if)
 {
 	dwc_otg_device_t *otg_dev = core_if->otg_dev;
 	dctl_data_t dctl = {.d32=0};
-	u32 flags;
+	unsigned long flags;
 
 	if(core_if->op_state == A_HOST)
     {
@@ -403,7 +404,7 @@ void dwc_otg_force_host(dwc_otg_core_if_t *core_if)
 void dwc_otg_force_device(dwc_otg_core_if_t *core_if)
 {
 	dwc_otg_device_t *otg_dev = core_if->otg_dev;
-	u32 flags;
+	unsigned long flags;
 
 	local_irq_save(flags);
 
@@ -413,7 +414,7 @@ void dwc_otg_force_device(dwc_otg_core_if_t *core_if)
 	}
 	core_if->op_state = B_PERIPHERAL;
 	cil_hcd_stop(core_if);
-	//hub_disconnect_device(g_root_hub20);
+	//dwc_otg_hub_disconnect_device(g_dwc_otg_root_hub20);
 	otg_dev->pcd->phy_suspend = 1;
 	otg_dev->pcd->vbus_status = 0;
 	dwc_otg_pcd_start_check_vbus_work(otg_dev->pcd);
@@ -462,12 +463,14 @@ static ssize_t force_usb_mode_store(struct device_driver *drv, const char *buf,
 {
 	int new_mode = simple_strtoul(buf, NULL, 16);
 	dwc_otg_device_t *otg_dev = g_otgdev;
+	dwc_otg_core_if_t *core_if;
+	struct dwc_otg_platform_data *pldata;
 
 	if(!otg_dev)
 		return -EINVAL;
 
-	dwc_otg_core_if_t *core_if = otg_dev->core_if;
-	struct dwc_otg_platform_data *pldata = otg_dev->pldata;
+	core_if = otg_dev->core_if;
+	pldata = otg_dev->pldata;
 
 	DWC_PRINTF("%s %d->%d\n",__func__, core_if->usb_mode, new_mode);
 
