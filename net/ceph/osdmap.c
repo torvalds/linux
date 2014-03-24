@@ -1597,6 +1597,58 @@ static int raw_to_up_osds(struct ceph_osdmap *osdmap,
 }
 
 /*
+ * Given up set, apply pg_temp mapping.
+ *
+ * Return acting set length.  *primary is set to acting primary osd id,
+ * or -1 if acting set is empty.
+ */
+static int apply_temps(struct ceph_osdmap *osdmap,
+		       struct ceph_pg_pool_info *pool, struct ceph_pg pgid,
+		       int *osds, int len, int *primary)
+{
+	struct ceph_pg_mapping *pg;
+	int temp_len;
+	int temp_primary;
+	int i;
+
+	/* raw_pg -> pg */
+	pgid.seed = ceph_stable_mod(pgid.seed, pool->pg_num,
+				    pool->pg_num_mask);
+
+	/* pg_temp? */
+	pg = __lookup_pg_mapping(&osdmap->pg_temp, pgid);
+	if (pg) {
+		temp_len = 0;
+		temp_primary = -1;
+
+		for (i = 0; i < pg->pg_temp.len; i++) {
+			if (ceph_osd_is_down(osdmap, pg->pg_temp.osds[i])) {
+				if (ceph_can_shift_osds(pool))
+					continue;
+				else
+					osds[temp_len++] = CRUSH_ITEM_NONE;
+			} else {
+				osds[temp_len++] = pg->pg_temp.osds[i];
+			}
+		}
+
+		/* apply pg_temp's primary */
+		for (i = 0; i < temp_len; i++) {
+			if (osds[i] != CRUSH_ITEM_NONE) {
+				temp_primary = osds[i];
+				break;
+			}
+		}
+	} else {
+		temp_len = len;
+		temp_primary = *primary;
+	}
+
+	*primary = temp_primary;
+	return temp_len;
+}
+
+/*
  * Return acting set for given pgid.
  */
 int ceph_calc_pg_acting(struct ceph_osdmap *osdmap, struct ceph_pg pgid,
