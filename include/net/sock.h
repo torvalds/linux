@@ -862,9 +862,9 @@ static inline void sock_rps_save_rxhash(struct sock *sk,
 					const struct sk_buff *skb)
 {
 #ifdef CONFIG_RPS
-	if (unlikely(sk->sk_rxhash != skb->rxhash)) {
+	if (unlikely(sk->sk_rxhash != skb->hash)) {
 		sock_rps_reset_flow(sk);
-		sk->sk_rxhash = skb->rxhash;
+		sk->sk_rxhash = skb->hash;
 	}
 #endif
 }

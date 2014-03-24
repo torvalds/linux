@@ -390,9 +390,9 @@ static int bpf_jit_build_body(struct sk_filter *fp, u32 *image,
 							  mark));
 			break;
 		case BPF_S_ANC_RXHASH:
-			BUILD_BUG_ON(FIELD_SIZEOF(struct sk_buff, rxhash) != 4);
+			BUILD_BUG_ON(FIELD_SIZEOF(struct sk_buff, hash) != 4);
 			PPC_LWZ_OFFS(r_A, r_skb, offsetof(struct sk_buff,
-							  rxhash));
+							  hash));
 			break;
 		case BPF_S_ANC_VLAN_TAG:
 		case BPF_S_ANC_VLAN_TAG_PRESENT:

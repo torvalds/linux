@@ -553,13 +553,13 @@ void bpf_jit_compile(struct sk_filter *fp)
 				}
 				break;
 			case BPF_S_ANC_RXHASH:
-				BUILD_BUG_ON(FIELD_SIZEOF(struct sk_buff, rxhash) != 4);
-				if (is_imm8(offsetof(struct sk_buff, rxhash))) {
+				BUILD_BUG_ON(FIELD_SIZEOF(struct sk_buff, hash) != 4);
+				if (is_imm8(offsetof(struct sk_buff, hash))) {
 					/* mov off8(%rdi),%eax */
-					EMIT3(0x8b, 0x47, offsetof(struct sk_buff, rxhash));
+					EMIT3(0x8b, 0x47, offsetof(struct sk_buff, hash));
 				} else {
 					EMIT2(0x8b, 0x87);
-					EMIT(offsetof(struct sk_buff, rxhash), 4);
+					EMIT(offsetof(struct sk_buff, hash), 4);
 				}
 				break;
 			case BPF_S_ANC_QUEUE:
