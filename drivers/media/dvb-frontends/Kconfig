@@ -577,6 +577,14 @@ config DVB_LGDT3305
 	  An ATSC 8VSB and QAM64/256 tuner module. Say Y when you want
 	  to support this frontend.
 
+config DVB_LGDT3306A
+	tristate "LG Electronics LGDT3306A based"
+	depends on DVB_CORE && I2C
+	default m if !MEDIA_SUBDRV_AUTOSELECT
+	help
+	  An ATSC 8VSB and QAM-B 64/256 demodulator module. Say Y when you want
+	  to support this frontend.
+
 config DVB_LG2160
 	tristate "LG Electronics LG216x based"
 	depends on DVB_CORE && I2C
