@@ -1568,8 +1568,7 @@ static struct platform_driver pch_spi_pd_driver = {
 	.resume = pch_spi_pd_resume
 };
 
-static int pch_spi_probe(struct pci_dev *pdev,
-				   const struct pci_device_id *id)
+static int pch_spi_probe(struct pci_dev *pdev, const struct pci_device_id *id)
 {
 	struct pch_spi_board_data *board_dat;
 	struct platform_device *pd_dev = NULL;
@@ -1639,6 +1638,8 @@ static int pch_spi_probe(struct pci_dev *pdev,
 	return 0;
 
 err_platform_device:
+	while (--i >= 0)
+		platform_device_unregister(pd_dev_save->pd_save[i]);
 	pci_disable_device(pdev);
 pci_enable_device:
 	pci_release_regions(pdev);
