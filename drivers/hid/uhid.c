@@ -428,6 +428,67 @@ err_free:
 	return ret;
 }
 
+static int uhid_dev_create2(struct uhid_device *uhid,
+			    const struct uhid_event *ev)
+{
+	struct hid_device *hid;
+	int ret;
+
+	if (uhid->running)
+		return -EALREADY;
+
+	uhid->rd_size = ev->u.create2.rd_size;
+	if (uhid->rd_size <= 0 || uhid->rd_size > HID_MAX_DESCRIPTOR_SIZE)
+		return -EINVAL;
+
+	uhid->rd_data = kmalloc(uhid->rd_size, GFP_KERNEL);
+	if (!uhid->rd_data)
+		return -ENOMEM;
+
+	memcpy(uhid->rd_data, ev->u.create2.rd_data, uhid->rd_size);
+
+	hid = hid_allocate_device();
+	if (IS_ERR(hid)) {
+		ret = PTR_ERR(hid);
+		goto err_free;
+	}
+
+	strncpy(hid->name, ev->u.create2.name, 127);
+	hid->name[127] = 0;
+	strncpy(hid->phys, ev->u.create2.phys, 63);
+	hid->phys[63] = 0;
+	strncpy(hid->uniq, ev->u.create2.uniq, 63);
+	hid->uniq[63] = 0;
+
+	hid->ll_driver = &uhid_hid_driver;
+	hid->bus = ev->u.create2.bus;
+	hid->vendor = ev->u.create2.vendor;
+	hid->product = ev->u.create2.product;
+	hid->version = ev->u.create2.version;
+	hid->country = ev->u.create2.country;
+	hid->driver_data = uhid;
+	hid->dev.parent = uhid_misc.this_device;
+
+	uhid->hid = hid;
+	uhid->running = true;
+
+	ret = hid_add_device(hid);
+	if (ret) {
+		hid_err(hid, "Cannot register HID device\n");
+		goto err_hid;
+	}
+
+	return 0;
+
+err_hid:
+	hid_destroy_device(hid);
+	uhid->hid = NULL;
+	uhid->running = false;
+err_free:
+	kfree(uhid->rd_data);
+	return ret;
+}
+
 static int uhid_dev_destroy(struct uhid_device *uhid)
 {
 	if (!uhid->running)
@@ -452,6 +513,17 @@ static int uhid_dev_input(struct uhid_device *uhid, struct uhid_event *ev)
 
 	hid_input_report(uhid->hid, HID_INPUT_REPORT, ev->u.input.data,
 			 min_t(size_t, ev->u.input.size, UHID_DATA_MAX), 0);
+
+	return 0;
+}
+
+static int uhid_dev_input2(struct uhid_device *uhid, struct uhid_event *ev)
+{
+	if (!uhid->running)
+		return -EINVAL;
+
+	hid_input_report(uhid->hid, HID_INPUT_REPORT, ev->u.input2.data,
+			 min_t(size_t, ev->u.input2.size, UHID_DATA_MAX), 0);
 
 	return 0;
 }
@@ -592,11 +664,17 @@ static ssize_t uhid_char_write(struct file *file, const char __user *buffer,
 	case UHID_CREATE:
 		ret = uhid_dev_create(uhid, &uhid->input_buf);
 		break;
+	case UHID_CREATE2:
+		ret = uhid_dev_create2(uhid, &uhid->input_buf);
+		break;
 	case UHID_DESTROY:
 		ret = uhid_dev_destroy(uhid);
 		break;
 	case UHID_INPUT:
 		ret = uhid_dev_input(uhid, &uhid->input_buf);
+		break;
+	case UHID_INPUT2:
+		ret = uhid_dev_input2(uhid, &uhid->input_buf);
 		break;
 	case UHID_FEATURE_ANSWER:
 		ret = uhid_dev_feature_answer(uhid, &uhid->input_buf);
