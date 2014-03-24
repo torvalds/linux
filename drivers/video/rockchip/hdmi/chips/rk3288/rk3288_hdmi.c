@@ -190,6 +190,76 @@ static int rk3288_hdmi_drv_init(struct hdmi *hdmi_drv)
 	return ret;
 }
 
+static void rk3288_hdmi_early_suspend()
+{
+	struct hdmi *hdmi_drv = &hdmi_dev->driver;
+
+	hdmi_dbg(hdmi_drv->dev, "hdmi enter early suspend pwr %d state %d\n", hdmi_drv->pwr_mode, hdmi_drv->state);
+	flush_delayed_work(&hdmi_drv->delay_work);
+	mutex_lock(&hdmi_drv->enable_mutex);
+	hdmi_drv->suspend = 1;
+	if(!hdmi_drv->enable) {
+		mutex_unlock(&hdmi_drv->enable_mutex);
+		return;
+	}
+	disable_irq(hdmi_drv->irq);
+	mutex_unlock(&hdmi_drv->enable_mutex);
+	hdmi_drv->command = HDMI_CONFIG_ENABLE;
+	init_completion(&hdmi_drv->complete);
+	hdmi_drv->wait = 1;
+	queue_delayed_work(hdmi_drv->workqueue, &hdmi_drv->delay_work, 0);
+	wait_for_completion_interruptible_timeout(&hdmi_drv->complete,
+							msecs_to_jiffies(5000));
+	flush_delayed_work(&hdmi_drv->delay_work);
+	return;
+}
+
+static void rk3288_hdmi_early_resume()
+{
+	struct hdmi *hdmi_drv = &hdmi_dev->driver;
+
+	hdmi_dbg(hdmi_drv->dev, "hdmi enter early resume\n");
+	mutex_lock(&hdmi_drv->enable_mutex);
+	hdmi_drv->suspend = 0;
+	rk3288_hdmi_initial(hdmi_drv);
+	if(hdmi_drv->enable) {
+		enable_irq(hdmi_drv->irq);
+	}
+	mutex_unlock(&hdmi_drv->enable_mutex);
+	return;
+}
+
+static int rk3288_hdmi_fb_event_notify(struct notifier_block *self, unsigned long action, void *data)
+{
+	struct fb_event *event = data;
+	int blank_mode = *((int *)event->data);
+
+	if (action == FB_EARLY_EVENT_BLANK) {
+		switch (blank_mode) {
+		case FB_BLANK_UNBLANK:
+			break;
+		default:
+			rk3288_hdmi_early_suspend();
+			break;
+		}
+	}
+	else if (action == FB_EVENT_BLANK) {
+		switch (blank_mode) {
+		case FB_BLANK_UNBLANK:
+			rk3288_hdmi_early_resume();
+			break;
+		default:
+			break;
+		}
+	}
+
+	return NOTIFY_OK;
+}
+
+static struct notifier_block rk3288_hdmi_fb_notifier = {
+        .notifier_call = rk3288_hdmi_fb_event_notify,
+};
+
 #if defined(CONFIG_OF)
 static int rk3288_hdmi_parse_dt(struct rk3288_hdmi_device *hdmi_dev)
 {
@@ -269,6 +339,8 @@ static int rk3288_hdmi_probe(struct platform_device *pdev)
 	switch_dev_register(&(dev_drv->switch_hdmi));
 #endif
 
+	fb_register_client(&rk3288_hdmi_fb_notifier);
+
 #ifndef HDMI_INT_USE_POLL
 	/* get and request the IRQ */
 	dev_drv->irq = platform_get_irq(pdev, 0);
@@ -302,6 +374,7 @@ static int rk3288_hdmi_probe(struct platform_device *pdev)
 	return 0;
 
 err2:
+	fb_unregister_client(&rk3288_hdmi_fb_notifier);
 #ifdef CONFIG_SWITCH
 	switch_dev_unregister(&(dev_drv->switch_hdmi));
 #endif
@@ -333,6 +406,8 @@ static int rk3288_hdmi_remove(struct platform_device *pdev)
 
 		flush_workqueue(hdmi_drv->workqueue);
 		destroy_workqueue(hdmi_drv->workqueue);
+
+		fb_unregister_client(&rk3288_hdmi_fb_notifier);
 
 		#ifdef CONFIG_SWITCH
 		switch_dev_unregister(&(hdmi_drv->switch_hdmi));

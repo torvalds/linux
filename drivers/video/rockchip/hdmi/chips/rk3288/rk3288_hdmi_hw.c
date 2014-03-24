@@ -31,7 +31,6 @@ const struct phy_mpll_config_tab* get_phy_mpll_tab(int pixClock, char pixRepet, 
 
 static void rk3288_hdmi_av_mute(struct hdmi *hdmi_drv, int enable)
 {
-	int value = 0;
 	struct rk3288_hdmi_device *hdmi_dev = container_of(hdmi_drv, struct rk3288_hdmi_device, driver);
 
 	hdmi_msk_reg(hdmi_dev, FC_GCP, m_FC_SET_AVMUTE, v_FC_SET_AVMUTE(enable));
@@ -49,8 +48,8 @@ static void rk3288_hdmi_set_pwr_mode(struct hdmi *hdmi_drv, int mode)
 	if(hdmi_drv->pwr_mode == mode)
 		return;
 
-	hdmi_dbg(hdmi_drv->dev, "%s change pwr_mode %d --> %d\n",__FUNCTION__, hdmi_drv->pwr_mode, mode);
-	printk("%s change pwr_mode %d --> %d\n",__FUNCTION__, hdmi_drv->pwr_mode, mode);
+	dev_printk(KERN_INFO, hdmi_drv->dev, "%s change pwr_mode %d --> %d\n", __FUNCTION__, hdmi_drv->pwr_mode, mode);
+
 	switch(mode)
 	{
 		case NORMAL:
@@ -59,8 +58,8 @@ static void rk3288_hdmi_set_pwr_mode(struct hdmi *hdmi_drv, int mode)
 			hdmi_writel(hdmi_dev, MC_CLKDIS, 0x00);
 			break;
 		case LOWER_PWR:
-			hdmi_msk_reg(hdmi_dev, MC_CLKDIS, m_AUDCLK_DISABLE | m_PREPCLK_DISABLE | m_TMDSCLK_DISABLE | m_PIXELCLK_DISABLE,
-				v_AUDCLK_DISABLE(1) | v_PREPCLK_DISABLE(1) | v_TMDSCLK_DISABLE(1) | v_PIXELCLK_DISABLE(1));
+			//hdmi_msk_reg(hdmi_dev, MC_CLKDIS, m_AUDCLK_DISABLE | m_PREPCLK_DISABLE | m_TMDSCLK_DISABLE | m_PIXELCLK_DISABLE,
+				//v_AUDCLK_DISABLE(1) | v_PREPCLK_DISABLE(1) | v_TMDSCLK_DISABLE(1) | v_PIXELCLK_DISABLE(1));
 			//hdmi_msk_reg(hdmi_dev, PHY_CONF0, m_TXPWRON_SIG, v_TXPWRON_SIG(0));
 			break;
 		default:
@@ -88,7 +87,7 @@ void rk3288_hdmi_reset(struct hdmi *hdmi_drv)
 	hdmi_writel(hdmi_dev, MC_SWRSTZREQ_2, 0x01);
 
 	rk3288_hdmi_i2cm_reset(hdmi_dev);
-#if 0
+#if 1
 	//reset PHY
 	hdmi_writel(hdmi_dev, PHY_CONF0, 0x3a);
 	hdmi_writel(hdmi_dev, MC_PHYRSTZ, v_PHY_RSTZ(1));
@@ -222,7 +221,6 @@ static int rk3288_hdmi_video_forceOutput(struct hdmi *hdmi_drv, char enable)
 
 static int rk3288_hdmi_video_frameComposer(struct hdmi *hdmi_drv, struct hdmi_video_para *vpara)	//TODO Daisen wait to add support 3D
 {
-	int i = 0, value = 0;
 	int h_act = 0, v_act = 0;
 	int h_syncdelay = 0, v_syncdelay = 0;
 	int h_sync = 0, v_sync = 0;
