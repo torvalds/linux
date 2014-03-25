@@ -257,6 +257,8 @@ struct eg20t_port {
 	dma_addr_t			rx_buf_dma;
 
 	struct dentry	*debugfs;
+#define IRQ_NAME_SIZE 17
+	char				irq_name[IRQ_NAME_SIZE];
 
 	/* protect the eg20t_port private structure and io access to membase */
 	spinlock_t lock;
@@ -1343,7 +1345,7 @@ static int pch_uart_startup(struct uart_port *port)
 		return ret;
 
 	ret = request_irq(priv->port.irq, pch_uart_interrupt, IRQF_SHARED,
-			KBUILD_MODNAME, priv);
+			priv->irq_name, priv);
 	if (ret < 0)
 		return ret;
 
@@ -1817,6 +1819,10 @@ static struct eg20t_port *pch_uart_init_port(struct pci_dev *pdev,
 	priv->port.fifosize = fifosize;
 	priv->port.line = board->line_no;
 	priv->trigger = PCH_UART_HAL_TRIGGER_M;
+
+	snprintf(priv->irq_name, IRQ_NAME_SIZE,
+		 KBUILD_MODNAME ":" PCH_UART_DRIVER_DEVICE "%d",
+		 priv->port.line);
 
 	spin_lock_init(&priv->port.lock);
 
