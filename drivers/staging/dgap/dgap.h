@@ -282,13 +282,11 @@ typedef unsigned char		uchar;
 #define SPINTFC		0xfc		/* Reserved			*/
 #define SCOMMODE	0xfd		/* Set RS232/422 mode		*/
 
-
 /************************************************************************
  *	Modes for SCOMMODE
  ************************************************************************/
 #define MODE_232	0x00
 #define MODE_422	0x01
-
 
 /************************************************************************
  *      Event flags.
@@ -494,8 +492,6 @@ enum {
 	REQUESTED_CONCENTRATOR
 };
 
-
-
 /*
  * Modem line constants are defined as macros because DSR and
  * DCD are swapable using the ditty altpin option.
@@ -507,13 +503,11 @@ enum {
 #define D_RI(ch)        DM_RI           /* Ring indicator       */
 #define D_DTR(ch)       DM_DTR          /* Data terminal ready  */
 
-
 /*************************************************************************
  *
  * Structures and closely related defines.
  *
  *************************************************************************/
-
 
 /*
  * A structure to hold a statistics counter.  We also
@@ -525,7 +519,6 @@ struct macounter {
 	ulong		sma;	/* Simple moving average */
 	ulong		ema;	/* Exponential moving average */
 };
-
 
 /************************************************************************
  * Device flag definitions for bd_flags.
@@ -620,8 +613,6 @@ struct board_t {
 					/* download                       */
 };
 
-
-
 /************************************************************************
  * Unit flag definitions for un_flags.
  ************************************************************************/
@@ -659,7 +650,6 @@ struct un_t {
 	struct device *un_sysfs;
 };
 
-
 /************************************************************************
  * Device flag definitions for ch_flags.
  ************************************************************************/
@@ -685,7 +675,6 @@ struct un_t {
 #define SNIFF_OPEN	0x1
 #define SNIFF_WAIT_DATA	0x2
 #define SNIFF_WAIT_SPACE 0x4
-
 
 /************************************************************************
  ***	Definitions for Digi ditty(1) command.
@@ -727,7 +716,6 @@ struct un_t {
 #define	TIOCMBIS	(('d'<<8) | 255)	/* set modem ctrl state */
 #endif
 
-
 #if !defined(TIOCSDTR)
 #define	TIOCSDTR	(('e'<<8) | 0)		/* set DTR		*/
 #define	TIOCCDTR	(('e'<<8) | 1)		/* clear DTR		*/
@@ -761,7 +749,6 @@ struct	digiflow_t {
 	unsigned char	startc;			/* flow cntl start char	*/
 	unsigned char	stopc;			/* flow cntl stop char	*/
 };
-
 
 #ifdef	FLOW_2200
 #define	F2200_GETA	(('e'<<8) | 104)	/* Get 2x36 flow cntl flags */
@@ -1003,7 +990,6 @@ struct channel_t {
 	u32 ch_portnum;			/* Port number, 0 offset.	*/
 	u32 ch_open_count;		/* open count			*/
 	u32	ch_flags;		/* Channel flags                */
-
 
 	u32	ch_close_delay;		/* How long we should drop      */
 					/* RTS/DTR for                  */
@@ -1256,29 +1242,17 @@ struct cnode {
 		} module;
 
 		char *ttyname;
-
 		char *cuname;
-
 		char *printname;
-
 		long majornumber;
-
 		long altpin;
-
 		long ttysize;
-
 		long chsize;
-
 		long bssize;
-
 		long unsize;
-
 		long f2size;
-
 		long vpixsize;
-
 		long useintr;
 	} u;
 };
-
 #endif
