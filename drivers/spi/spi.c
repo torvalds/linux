@@ -1621,8 +1621,6 @@ static int __spi_validate(struct spi_device *spi, struct spi_message *message)
 
 	if (list_empty(&message->transfers))
 		return -EINVAL;
-	if (!message->complete)
-		return -EINVAL;
 
 	/* Half-duplex links include original MicroWire, and ones with
 	 * only one data pin like SPI_3WIRE (switches direction) or where
