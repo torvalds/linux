@@ -26,7 +26,6 @@
 #include <linux/pm_runtime.h>
 #include <linux/regmap.h>
 #include <linux/slab.h>
-
 #include <asm/dma.h>
 #include <sound/core.h>
 #include <sound/pcm.h>
@@ -35,8 +34,10 @@
 #include <sound/soc.h>
 #include <sound/dmaengine_pcm.h>
 #include <asm/io.h>
-
 #include <linux/spinlock.h>
+#include <linux/workqueue.h>
+
+#define CLK_SET_lATER
 
 #include "rk_pcm.h"
 #include "rk_i2s.h"
@@ -64,6 +65,9 @@ struct rk30_i2s_info {
 
 	bool i2s_tx_status;//active = true;
 	bool i2s_rx_status;
+#ifdef CLK_SET_lATER
+	struct delayed_work clk_delayed_work;
+#endif	
 };
 
 #define I2S_CLR_ERROR_COUNT 10// check I2S_CLR reg 
@@ -504,6 +508,16 @@ static int rockchip_i2s_resume_noirq(struct device *dev)
 #define rockchip_i2s_resume_noirq NULL
 #endif
 
+#ifdef CLK_SET_lATER
+static void set_clk_later_work(struct work_struct *work)
+{
+	struct rk30_i2s_info *i2s = rk30_i2s;
+	clk_set_rate(i2s->i2s_clk, 11289600);
+	if(!IS_ERR(i2s->i2s_mclk) )
+		clk_set_rate(i2s->i2s_mclk, 11289600);
+}
+#endif
+
 static int rockchip_i2s_probe(struct platform_device *pdev)
 {
 	struct device_node *node = pdev->dev.of_node;
@@ -534,22 +548,30 @@ static int rockchip_i2s_probe(struct platform_device *pdev)
 		goto err;
 	}
 
+	rk30_i2s = i2s;
 	i2s->i2s_clk= clk_get(&pdev->dev, "i2s_clk");
 	if (IS_ERR(i2s->i2s_clk)) {
 		dev_err(&pdev->dev, "Can't retrieve i2s clock\n");
 		ret = PTR_ERR(i2s->i2s_clk);
 		goto err;
 	}
-	clk_set_rate(i2s->i2s_clk, 12288000);	
-	clk_set_rate(i2s->i2s_clk, 11289600);
+#ifdef CLK_SET_lATER
+	INIT_DELAYED_WORK(&i2s->clk_delayed_work, set_clk_later_work);
+	schedule_delayed_work(&i2s->clk_delayed_work, msecs_to_jiffies(10));
+#else
+	clk_set_rate(i2s->iis_clk, 11289600);
+#endif	
 	clk_prepare_enable(i2s->i2s_clk);
 
 	i2s->i2s_mclk= clk_get(&pdev->dev, "i2s_mclk");
 	if(IS_ERR(i2s->i2s_mclk) ) {
 		printk("This platfrom have not i2s_mclk,no need to set i2s_mclk.\n");
 	}else{
-		clk_set_rate(i2s->i2s_mclk, 12288000);
+	#ifdef CLK_SET_lATER
+		
+	#else
 		clk_set_rate(i2s->i2s_mclk, 11289600);
+	#endif
 		clk_prepare_enable(i2s->i2s_mclk);
 	}
 
@@ -619,8 +641,6 @@ static int rockchip_i2s_probe(struct platform_device *pdev)
 	rockchip_snd_rxctrl(i2s, 0);
 
 	dev_set_drvdata(&pdev->dev, i2s);
-
-	rk30_i2s = i2s;
 	return 0;
 
 err_unregister_component:
