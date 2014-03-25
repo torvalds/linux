@@ -327,6 +327,7 @@ static int ixgbe_set_vf_multicasts(struct ixgbe_adapter *adapter,
 	u32 vector_bit;
 	u32 vector_reg;
 	u32 mta_reg;
+	u32 vmolr = IXGBE_READ_REG(hw, IXGBE_VMOLR(vf));
 
 	/* only so many hash values supported */
 	entries = min(entries, IXGBE_MAX_VF_MC_ENTRIES);
@@ -353,10 +354,13 @@ static int ixgbe_set_vf_multicasts(struct ixgbe_adapter *adapter,
 		mta_reg |= (1 << vector_bit);
 		IXGBE_WRITE_REG(hw, IXGBE_MTA(vector_reg), mta_reg);
 	}
+	vmolr |= IXGBE_VMOLR_ROMPE;
+	IXGBE_WRITE_REG(hw, IXGBE_VMOLR(vf), vmolr);
 
 	return 0;
 }
 
+#ifdef CONFIG_PCI_IOV
 static void ixgbe_restore_vf_macvlans(struct ixgbe_adapter *adapter)
 {
 	struct ixgbe_hw *hw = &adapter->hw;
@@ -382,6 +386,7 @@ void ixgbe_restore_vf_multicasts(struct ixgbe_adapter *adapter)
 	u32 mta_reg;
 
 	for (i = 0; i < adapter->num_vfs; i++) {
+		u32 vmolr = IXGBE_READ_REG(hw, IXGBE_VMOLR(i));
 		vfinfo = &adapter->vfinfo[i];
 		for (j = 0; j < vfinfo->num_vf_mc_hashes; j++) {
 			hw->addr_ctrl.mta_in_use++;
@@ -391,11 +396,18 @@ void ixgbe_restore_vf_multicasts(struct ixgbe_adapter *adapter)
 			mta_reg |= (1 << vector_bit);
 			IXGBE_WRITE_REG(hw, IXGBE_MTA(vector_reg), mta_reg);
 		}
+
+		if (vfinfo->num_vf_mc_hashes)
+			vmolr |= IXGBE_VMOLR_ROMPE;
+		else
+			vmolr &= ~IXGBE_VMOLR_ROMPE;
+		IXGBE_WRITE_REG(hw, IXGBE_VMOLR(i), vmolr);
 	}
 
 	/* Restore any VF macvlans */
 	ixgbe_restore_vf_macvlans(adapter);
 }
+#endif
 
 static int ixgbe_set_vf_vlan(struct ixgbe_adapter *adapter, int add, int vid,
 			     u32 vf)
@@ -495,8 +507,7 @@ static s32 ixgbe_set_vf_lpe(struct ixgbe_adapter *adapter, u32 *msgbuf, u32 vf)
 static void ixgbe_set_vmolr(struct ixgbe_hw *hw, u32 vf, bool aupe)
 {
 	u32 vmolr = IXGBE_READ_REG(hw, IXGBE_VMOLR(vf));
-	vmolr |= (IXGBE_VMOLR_ROMPE |
-		  IXGBE_VMOLR_BAM);
+	vmolr |= IXGBE_VMOLR_BAM;
 	if (aupe)
 		vmolr |= IXGBE_VMOLR_AUPE;
 	else
