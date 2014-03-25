@@ -292,7 +292,7 @@ static ssize_t pinctrl_write_proc_data(struct file *file, const char __user *buf
 			atomic_set(&info->debug_flag, value+1);
 			printk("%s:open debug for bank%d\n",__func__,value);
 		}
-		kfree(buf);
+		
 	}
 	else if((strstr(buf, "stop") != NULL) || (strstr(buf, "STOP") != NULL))
 	{		
@@ -1016,14 +1016,17 @@ static void rk2928_calc_pull_reg_and_bit(struct rockchip_pin_bank *bank,
 				    int pin_num, void __iomem **reg, u8 *bit)
 {
 	struct rockchip_pinctrl *info = bank->drvdata;
-
+	void __iomem *reg_base;
+	
 	*reg = info->reg_base + RK2928_PULL_OFFSET;
 	*reg += bank->bank_num * RK2928_PULL_BANK_STRIDE;
 	*reg += (pin_num / RK2928_PULL_PINS_PER_REG) * 4;
 
 	*bit = pin_num % RK2928_PULL_PINS_PER_REG;
 
-	DBG_PINCTRL("%s:GPIO%d-%d, pull_reg=0x%p, bit=%d\n", __func__, bank->bank_num, pin_num, *reg, *bit);
+	reg_base = info->reg_base;
+
+	DBG_PINCTRL("%s:GPIO%d-%d, pull_reg=0x%x, bit=%d\n", __func__, bank->bank_num, pin_num, *reg - reg_base, *bit);
 };
 
 
@@ -1031,13 +1034,15 @@ static void rk3188_calc_pull_reg_and_bit(struct rockchip_pin_bank *bank,
 				    int pin_num, void __iomem **reg, u8 *bit)
 {
 	struct rockchip_pinctrl *info = bank->drvdata;
-
+	void __iomem *reg_base;
+	
 	/* The first 12 pins of the first bank are located elsewhere */
 	if (bank->bank_type == RK3188_BANK0 && pin_num < 12) {
 		*reg = bank->reg_pull_bank0 +
 				((pin_num / RK3188_PULL_PINS_PER_REG) * 4);
 		*bit = pin_num % RK3188_PULL_PINS_PER_REG;
 		*bit *= RK3188_PULL_BITS_PER_PIN;
+		reg_base = bank->reg_pull_bank0;
 	} else {
 		*reg = info->reg_pull - 4;
 		*reg += bank->bank_num * RK3188_PULL_BANK_STRIDE;
@@ -1050,15 +1055,17 @@ static void rk3188_calc_pull_reg_and_bit(struct rockchip_pin_bank *bank,
 		 */
 		*bit = 7 - (pin_num % RK3188_PULL_PINS_PER_REG);
 		*bit *= RK3188_PULL_BITS_PER_PIN;
+		reg_base = info->reg_pull - 4;
 	}
 
-	DBG_PINCTRL("%s:GPIO%d-%d, pull_reg=0x%p, bit=%d\n", __func__, bank->bank_num, pin_num, *reg, *bit);
+	DBG_PINCTRL("%s:GPIO%d-%d, pull_reg=0x%x, bit=%d\n", __func__, bank->bank_num, pin_num, *reg - reg_base, *bit);
 }
 
 static void rk3288_calc_pull_reg_and_bit(struct rockchip_pin_bank *bank,
 				    int pin_num, void __iomem **reg, u8 *bit)
 {
-	struct rockchip_pinctrl *info = bank->drvdata;
+	struct rockchip_pinctrl *info = bank->drvdata;	
+	void __iomem *reg_base;
 
 	/* The first 24 pins of the first bank are located elsewhere */
 	if (bank->bank_type == RK3288_BANK0 && pin_num < 24) {
@@ -1066,16 +1073,18 @@ static void rk3288_calc_pull_reg_and_bit(struct rockchip_pin_bank *bank,
 				((pin_num / 8) * 4);
 		*bit = pin_num % 8;
 		*bit *= 2;
+		reg_base = bank->reg_pull_bank0;
 	} else {
 		*reg = info->reg_pull - 0x10;
 		*reg += bank->bank_num * 0x10;
 		*reg += ((pin_num / 8) * 4);
 
 		*bit = (pin_num % 8);
-		*bit *= 2;
+		*bit *= 2;	
+		reg_base = info->reg_pull - 0x10;
 	}
-
-	DBG_PINCTRL("%s:GPIO%d-%d, pull_reg=0x%p, bit=%d\n", __func__, bank->bank_num, pin_num, *reg, *bit);
+	 
+	DBG_PINCTRL("%s:GPIO%d-%d, pull_reg=0x%x, bit=%d\n", __func__, bank->bank_num, pin_num, *reg - reg_base, *bit);
 }
 
 
@@ -1083,13 +1092,16 @@ static void rk3288_calc_drv_reg_and_bit(struct rockchip_pin_bank *bank,
 				    int pin_num, void __iomem **reg, u8 *bit)
 {
 	struct rockchip_pinctrl *info = bank->drvdata;
-
+	void __iomem *reg_base;
+	
 	/* The first 24 pins of the first bank are located elsewhere */
 	if (bank->bank_type == RK3288_BANK0 && pin_num < 24) {
 		*reg = bank->reg_drv_bank0 +
 				((pin_num / 8) * 4);
 		*bit = pin_num % 8;
 		*bit *= 2;
+		
+		reg_base = bank->reg_drv_bank0;
 	} else {
 		*reg = info->reg_drv - 0x10;
 		*reg += bank->bank_num * 0x10;
@@ -1097,9 +1109,11 @@ static void rk3288_calc_drv_reg_and_bit(struct rockchip_pin_bank *bank,
 
 		*bit = (pin_num % 8);
 		*bit *= 2;
+		
+		reg_base = info->reg_drv - 0x10;
 	}
 
-	DBG_PINCTRL("%s:GPIO%d-%d, pull_reg=0x%p, bit=%d\n", __func__, bank->bank_num, pin_num, *reg, *bit);
+	DBG_PINCTRL("%s:GPIO%d-%d, pull_reg=0x%x, bit=%d\n", __func__, bank->bank_num, pin_num, *reg - reg_base, *bit);
 }
 
 
