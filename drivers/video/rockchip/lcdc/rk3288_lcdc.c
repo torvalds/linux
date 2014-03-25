@@ -785,7 +785,7 @@ static int rk3288_lcdc_reg_update(struct rk_lcdc_driver *dev_drv)
 
 static int rk3288_lcdc_reg_restore(struct lcdc_device *lcdc_dev)
 {
-	memcpy((u8 *) lcdc_dev->regs, (u8 *) lcdc_dev->regsbak, 0x84);
+	memcpy((u8 *) lcdc_dev->regs, (u8 *) lcdc_dev->regsbak, 0x1f8);
 	return 0;
 }
 
@@ -2065,18 +2065,16 @@ static int rk3288_lcdc_blank(struct rk_lcdc_driver *dev_drv,
 	struct lcdc_device *lcdc_dev =
 	    container_of(dev_drv, struct lcdc_device, driver);
 
-	if (likely(lcdc_dev->clk_on)) {
-		switch (blank_mode) {
-		case FB_BLANK_UNBLANK:
-			rk3288_lcdc_early_resume(dev_drv);
-			break;
-		case FB_BLANK_NORMAL:
-			rk3288_lcdc_early_suspend(dev_drv);
-			break;
-		default:
-			rk3288_lcdc_early_suspend(dev_drv);
-			break;
-		}
+	switch (blank_mode) {
+	case FB_BLANK_UNBLANK:
+		rk3288_lcdc_early_resume(dev_drv);
+		break;
+	case FB_BLANK_NORMAL:	
+		rk3288_lcdc_early_suspend(dev_drv);
+		break;
+	default:
+		rk3288_lcdc_early_suspend(dev_drv);
+		break;
 	}
 
 	dev_info(dev_drv->dev, "blank mode:%d\n", blank_mode);

@@ -1517,7 +1517,7 @@ static int rk_fb_set_win_config(struct fb_info *info,
 	mutex_lock(&dev_drv->output_lock);
 	if(!(dev_drv->suspend_flag == 0)){
 		rk_fb_update_reg(dev_drv,regs);
-		printk("suspend_flag == 0\n");
+		printk("suspend_flag = 1\n");
 		goto err;
 	}
 	mutex_lock(&dev_drv->update_regs_list_lock);
