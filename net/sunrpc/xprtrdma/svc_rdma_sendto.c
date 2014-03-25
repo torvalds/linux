@@ -625,6 +625,7 @@ static int send_reply(struct svcxprt_rdma *rdma,
 		if (page_no+1 >= sge_no)
 			ctxt->sge[page_no+1].length = 0;
 	}
+	rqstp->rq_next_page = rqstp->rq_respages + 1;
 	BUG_ON(sge_no > rdma->sc_max_sge);
 	memset(&send_wr, 0, sizeof send_wr);
 	ctxt->wr_op = IB_WR_SEND;
