@@ -1057,7 +1057,7 @@ struct i915_gem_mm {
 	/** PPGTT used for aliasing the PPGTT with the GTT */
 	struct i915_hw_ppgtt *aliasing_ppgtt;
 
-	struct shrinker inactive_shrinker;
+	struct shrinker shrinker;
 	bool shrinker_no_lock_stealing;
 
 	/** LRU list of objects with fence regs on them. */
