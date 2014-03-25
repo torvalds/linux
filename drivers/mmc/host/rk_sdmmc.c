@@ -727,6 +727,10 @@ static int dw_mci_submit_data_dma(struct dw_mci *host, struct mmc_data *data)
 	if (host->prev_blksz != data->blksz)
 		dw_mci_adjust_fifoth(host, data);
 
+    temp = mci_readl(host, CTRL);
+	temp |= (SDMMC_CTRL_DMA_RESET | SDMMC_CTRL_FIFO_RESET);
+	mci_writel(host, CTRL, temp);
+
 	/* Enable the DMA interface */
 	temp = mci_readl(host, CTRL);
 	temp |= SDMMC_CTRL_DMA_ENABLE;
@@ -1454,11 +1458,11 @@ static void dw_mci_command_complete(struct dw_mci *host, struct mmc_command *cmd
 		cmd->error = -EIO;
 	else
 		cmd->error = 0;
-    MMC_DBG_CMD_FUNC(host->mmc, " command complete, cmd=%d,cmdError=0x%x [%s]",cmd->opcode, cmd->error,mmc_hostname(host->mmc));
+    MMC_DBG_CMD_FUNC(host->mmc, " command complete, cmd=%d,cmdError=%d [%s]",cmd->opcode, cmd->error,mmc_hostname(host->mmc));
 
 	if (cmd->error) {
 	    if(MMC_SEND_STATUS != cmd->opcode)
-    	    MMC_DBG_ERR_FUNC(host->mmc, " command complete, cmd=%d,cmdError=0x%x [%s]",\
+    	    MMC_DBG_ERR_FUNC(host->mmc, " command complete, cmd=%d,cmdError=%d [%s]",\
     	        cmd->opcode, cmd->error,mmc_hostname(host->mmc));
 	        
 		/* newer ip versions need a delay between retries */
