@@ -1252,6 +1252,7 @@ void sxgbe_tso_prepare(struct sxgbe_priv_data *priv,
 static netdev_tx_t sxgbe_xmit(struct sk_buff *skb, struct net_device *dev)
 {
 	unsigned int entry, frag_num;
+	int cksum_flag = 0;
 	struct netdev_queue *dev_txq;
 	unsigned txq_index = skb_get_queue_mapping(skb);
 	struct sxgbe_priv_data *priv = netdev_priv(dev);
@@ -1332,7 +1333,7 @@ static netdev_tx_t sxgbe_xmit(struct sk_buff *skb, struct net_device *dev)
 					   __func__);
 
 			priv->hw->desc->prepare_tx_desc(tx_desc, 1, no_pagedlen,
-							no_pagedlen, 0);
+							no_pagedlen, cksum_flag);
 		}
 	}
 
@@ -1350,7 +1351,7 @@ static netdev_tx_t sxgbe_xmit(struct sk_buff *skb, struct net_device *dev)
 
 		/* prepare the descriptor */
 		priv->hw->desc->prepare_tx_desc(tx_desc, 0, len,
-						len, 0);
+						len, cksum_flag);
 		/* memory barrier to flush descriptor */
 		wmb();
 
@@ -1471,6 +1472,8 @@ static int sxgbe_rx(struct sxgbe_priv_data *priv, int limit)
 	unsigned int entry = priv->rxq[qnum]->cur_rx;
 	unsigned int next_entry = 0;
 	unsigned int count = 0;
+	int checksum;
+	int status;
 
 	while (count < limit) {
 		struct sxgbe_rx_norm_desc *p;
@@ -1487,7 +1490,18 @@ static int sxgbe_rx(struct sxgbe_priv_data *priv, int limit)
 		next_entry = (++priv->rxq[qnum]->cur_rx) % rxsize;
 		prefetch(priv->rxq[qnum]->dma_rx + next_entry);
 
-		/*TO DO read the status of the incoming frame */
+		/* Read the status of the incoming frame and also get checksum
+		 * value based on whether it is enabled in SXGBE hardware or
+		 * not.
+		 */
+		status = priv->hw->desc->rx_wbstatus(p, &priv->xstats,
+						     &checksum);
+		if (unlikely(status < 0)) {
+			entry = next_entry;
+			continue;
+		}
+		if (unlikely(!priv->rxcsum_insertion))
+			checksum = CHECKSUM_NONE;
 
 		skb = priv->rxq[qnum]->rx_skbuff[entry];
 
@@ -1501,7 +1515,11 @@ static int sxgbe_rx(struct sxgbe_priv_data *priv, int limit)
 
 		skb_put(skb, frame_len);
 
-		netif_receive_skb(skb);
+		skb->ip_summed = checksum;
+		if (checksum == CHECKSUM_NONE)
+			netif_receive_skb(skb);
+		else
+			napi_gro_receive(&priv->napi, skb);
 
 		entry = next_entry;
 	}
@@ -1748,15 +1766,15 @@ static int sxgbe_set_features(struct net_device *dev,
 {
 	struct sxgbe_priv_data *priv = netdev_priv(dev);
 	netdev_features_t changed = dev->features ^ features;
-	u32 ctrl;
 
 	if (changed & NETIF_F_RXCSUM) {
-		ctrl = readl(priv->ioaddr + SXGBE_CORE_RX_CONFIG_REG);
-		if (features & NETIF_F_RXCSUM)
-			ctrl |= SXGBE_RX_CSUMOFFLOAD_ENABLE;
-		else
-			ctrl &= ~SXGBE_RX_CSUMOFFLOAD_ENABLE;
-		writel(ctrl, priv->ioaddr + SXGBE_CORE_RX_CONFIG_REG);
+		if (features & NETIF_F_RXCSUM) {
+			priv->hw->mac->enable_rx_csum(priv->ioaddr);
+			priv->rxcsum_insertion = true;
+		} else {
+			priv->hw->mac->disable_rx_csum(priv->ioaddr);
+			priv->rxcsum_insertion = false;
+		}
 	}
 
 	return 0;
@@ -2113,6 +2131,12 @@ struct sxgbe_priv_data *sxgbe_drv_probe(struct device *device,
 		SXGBE_FOR_EACH_QUEUE(SXGBE_TX_QUEUES, queue_num) {
 			priv->hw->dma->enable_tso(priv->ioaddr, queue_num);
 		}
+	}
+
+	/* Enable Rx checksum offload */
+	if (priv->hw_cap.rx_csum_offload) {
+		priv->hw->mac->enable_rx_csum(priv->ioaddr);
+		priv->rxcsum_insertion = true;
 	}
 
 	/* Rx Watchdog is available, enable depend on platform data */

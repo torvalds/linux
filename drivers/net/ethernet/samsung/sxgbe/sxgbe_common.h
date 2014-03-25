@@ -340,6 +340,10 @@ struct sxgbe_core_ops {
 	void (*set_eee_timer)(void __iomem *ioaddr, const int ls,
 			      const int tw);
 	void (*set_eee_pls)(void __iomem *ioaddr, const int link);
+
+	/* Enable disable checksum offload operations */
+	void (*enable_rx_csum)(void __iomem *ioaddr);
+	void (*disable_rx_csum)(void __iomem *ioaddr);
 };
 
 const struct sxgbe_core_ops *sxgbe_get_core_ops(void);
@@ -452,6 +456,7 @@ struct sxgbe_priv_data {
 	struct sxgbe_ops *hw;	/* sxgbe specific ops */
 	int no_csum_insertion;
 	int irq;
+	int rxcsum_insertion;
 	spinlock_t stats_lock;	/* lock for tx/rx statatics */
 
 	struct phy_device *phydev;

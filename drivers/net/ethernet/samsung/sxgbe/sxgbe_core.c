@@ -218,6 +218,24 @@ static void  sxgbe_set_eee_timer(void __iomem *ioaddr,
 	writel(value, ioaddr + SXGBE_CORE_LPI_TIMER_CTRL);
 }
 
+static void sxgbe_enable_rx_csum(void __iomem *ioaddr)
+{
+	u32 ctrl;
+
+	ctrl = readl(ioaddr + SXGBE_CORE_RX_CONFIG_REG);
+	ctrl |= SXGBE_RX_CSUMOFFLOAD_ENABLE;
+	writel(ctrl, ioaddr + SXGBE_CORE_RX_CONFIG_REG);
+}
+
+static void sxgbe_disable_rx_csum(void __iomem *ioaddr)
+{
+	u32 ctrl;
+
+	ctrl = readl(ioaddr + SXGBE_CORE_RX_CONFIG_REG);
+	ctrl &= ~SXGBE_RX_CSUMOFFLOAD_ENABLE;
+	writel(ctrl, ioaddr + SXGBE_CORE_RX_CONFIG_REG);
+}
+
 const struct sxgbe_core_ops core_ops = {
 	.core_init		= sxgbe_core_init,
 	.dump_regs		= sxgbe_core_dump_regs,
@@ -234,6 +252,8 @@ const struct sxgbe_core_ops core_ops = {
 	.reset_eee_mode		= sxgbe_reset_eee_mode,
 	.set_eee_timer		= sxgbe_set_eee_timer,
 	.set_eee_pls		= sxgbe_set_eee_pls,
+	.enable_rx_csum		= sxgbe_enable_rx_csum,
+	.disable_rx_csum	= sxgbe_disable_rx_csum,
 };
 
 const struct sxgbe_core_ops *sxgbe_get_core_ops(void)

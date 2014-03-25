@@ -113,7 +113,7 @@ struct sxgbe_rx_norm_desc {
 			/* WB RDES3 */
 			u32 pkt_len:14;
 			u32 rdes3_reserved:1;
-			u32 err_summary:15;
+			u32 err_summary:1;
 			u32 err_l2_type:4;
 			u32 layer34_pkt_type:4;
 			u32 no_coagulation_pkt:1;
