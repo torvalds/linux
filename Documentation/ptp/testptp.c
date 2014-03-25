@@ -496,14 +496,14 @@ int main(int argc, char *argv[])
 			interval = t2 - t1;
 			offset = (t2 + t1) / 2 - tp;
 
-			printf("system time: %ld.%ld\n",
+			printf("system time: %lld.%u\n",
 				(pct+2*i)->sec, (pct+2*i)->nsec);
-			printf("phc    time: %ld.%ld\n",
+			printf("phc    time: %lld.%u\n",
 				(pct+2*i+1)->sec, (pct+2*i+1)->nsec);
-			printf("system time: %ld.%ld\n",
+			printf("system time: %lld.%u\n",
 				(pct+2*i+2)->sec, (pct+2*i+2)->nsec);
-			printf("system/phc clock time offset is %ld ns\n"
-				"system     clock time delay  is %ld ns\n",
+			printf("system/phc clock time offset is %lld ns\n"
+				"system     clock time delay  is %lld ns\n",
 				offset, interval);
 		}
 
