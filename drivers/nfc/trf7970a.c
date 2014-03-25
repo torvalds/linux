@@ -16,6 +16,7 @@
 #include <linux/device.h>
 #include <linux/netdevice.h>
 #include <linux/interrupt.h>
+#include <linux/pm_runtime.h>
 #include <linux/nfc.h>
 #include <linux/skbuff.h>
 #include <linux/delay.h>
@@ -105,6 +106,8 @@
 #define TRF7970A_SUPPORTED_PROTOCOLS \
 		(NFC_PROTO_MIFARE_MASK | NFC_PROTO_ISO14443_MASK |	\
 		 NFC_PROTO_ISO15693_MASK)
+
+#define TRF7970A_AUTOSUSPEND_DELAY		30000 /* 30 seconds */
 
 /* TX data must be prefixed with a FIFO reset cmd, a cmd that depends
  * on what the current framing is, the address of the TX length byte 1
@@ -330,7 +333,6 @@ struct trf7970a {
 	struct regulator		*regulator;
 	struct nfc_digital_dev		*ddev;
 	u32				quirks;
-	bool				powering_up;
 	bool				aborting;
 	struct sk_buff			*tx_skb;
 	struct sk_buff			*rx_skb;
@@ -795,47 +797,22 @@ static void trf7970a_switch_rf_off(struct trf7970a *trf)
 
 	trf7970a_write(trf, TRF7970A_CHIP_STATUS_CTRL, trf->chip_status_ctrl);
 
-	gpio_set_value(trf->en_gpio, 0);
-	gpio_set_value(trf->en2_gpio, 0);
-
 	trf->aborting = false;
 	trf->state = TRF7970A_ST_OFF;
+
+	pm_runtime_mark_last_busy(trf->dev);
+	pm_runtime_put_autosuspend(trf->dev);
 }
 
 static int trf7970a_switch_rf_on(struct trf7970a *trf)
 {
-	unsigned long delay;
-	int ret;
-
 	dev_dbg(trf->dev, "Switching rf on\n");
 
-	if (trf->powering_up)
-		usleep_range(5000, 6000);
+	pm_runtime_get_sync(trf->dev);
 
-	gpio_set_value(trf->en2_gpio, 1);
-	usleep_range(1000, 2000);
-	gpio_set_value(trf->en_gpio, 1);
+	trf->state = TRF7970A_ST_IDLE;
 
-	/* The delay between enabling the trf7970a and issuing the first
-	 * command is significantly longer the very first time after powering
-	 * up.  Make sure the longer delay is only done the first time.
-	 */
-	if (trf->powering_up) {
-		delay = 20000;
-		trf->powering_up = false;
-	} else {
-		delay = 5000;
-	}
-
-	usleep_range(delay, delay + 1000);
-
-	ret = trf7970a_init(trf);
-	if (ret)
-		trf7970a_switch_rf_off(trf);
-	else
-		trf->state = TRF7970A_ST_IDLE;
-
-	return ret;
+	return 0;
 }
 
 static int trf7970a_switch_rf(struct nfc_digital_dev *ddev, bool on)
@@ -1331,8 +1308,6 @@ static int trf7970a_probe(struct spi_device *spi)
 	if (uvolts > 4000000)
 		trf->chip_status_ctrl = TRF7970A_CHIP_STATUS_VRS5_3;
 
-	trf->powering_up = true;
-
 	trf->ddev = nfc_digital_allocate_device(&trf7970a_nfc_ops,
 			TRF7970A_SUPPORTED_PROTOCOLS,
 			NFC_DIGITAL_DRV_CAPS_IN_CRC, TRF7970A_TX_SKB_HEADROOM,
@@ -1347,6 +1322,10 @@ static int trf7970a_probe(struct spi_device *spi)
 	nfc_digital_set_drvdata(trf->ddev, trf);
 	spi_set_drvdata(spi, trf);
 
+	pm_runtime_set_autosuspend_delay(trf->dev, TRF7970A_AUTOSUSPEND_DELAY);
+	pm_runtime_use_autosuspend(trf->dev);
+	pm_runtime_enable(trf->dev);
+
 	ret = nfc_digital_register_device(trf->ddev);
 	if (ret) {
 		dev_err(trf->dev, "Can't register NFC digital device: %d\n",
@@ -1357,6 +1336,7 @@ static int trf7970a_probe(struct spi_device *spi)
 	return 0;
 
 err_free_ddev:
+	pm_runtime_disable(trf->dev);
 	nfc_digital_free_device(trf->ddev);
 err_disable_regulator:
 	regulator_disable(trf->regulator);
@@ -1371,21 +1351,24 @@ static int trf7970a_remove(struct spi_device *spi)
 
 	mutex_lock(&trf->lock);
 
-	trf7970a_switch_rf_off(trf);
-	trf7970a_init(trf);
-
 	switch (trf->state) {
 	case TRF7970A_ST_WAIT_FOR_TX_FIFO:
 	case TRF7970A_ST_WAIT_FOR_RX_DATA:
 	case TRF7970A_ST_WAIT_FOR_RX_DATA_CONT:
 	case TRF7970A_ST_WAIT_TO_ISSUE_EOF:
 		trf7970a_send_err_upstream(trf, -ECANCELED);
+		/* FALLTHROUGH */
+	case TRF7970A_ST_IDLE:
+	case TRF7970A_ST_IDLE_RX_BLOCKED:
+		pm_runtime_put_sync(trf->dev);
 		break;
 	default:
 		break;
 	}
 
 	mutex_unlock(&trf->lock);
+
+	pm_runtime_disable(trf->dev);
 
 	nfc_digital_unregister_device(trf->ddev);
 	nfc_digital_free_device(trf->ddev);
@@ -1396,6 +1379,70 @@ static int trf7970a_remove(struct spi_device *spi)
 
 	return 0;
 }
+
+#ifdef CONFIG_PM_RUNTIME
+static int trf7970a_pm_runtime_suspend(struct device *dev)
+{
+	struct spi_device *spi = container_of(dev, struct spi_device, dev);
+	struct trf7970a *trf = spi_get_drvdata(spi);
+	int ret;
+
+	dev_dbg(dev, "Runtime suspend\n");
+
+	if (trf->state != TRF7970A_ST_OFF) {
+		dev_dbg(dev, "Can't suspend - not in OFF state (%d)\n",
+				trf->state);
+		return -EBUSY;
+	}
+
+	gpio_set_value(trf->en_gpio, 0);
+	gpio_set_value(trf->en2_gpio, 0);
+
+	ret = regulator_disable(trf->regulator);
+	if (ret)
+		dev_err(dev, "%s - Can't disable VIN: %d\n", __func__, ret);
+
+	return ret;
+}
+
+static int trf7970a_pm_runtime_resume(struct device *dev)
+{
+	struct spi_device *spi = container_of(dev, struct spi_device, dev);
+	struct trf7970a *trf = spi_get_drvdata(spi);
+	int ret;
+
+	dev_dbg(dev, "Runtime resume\n");
+
+	ret = regulator_enable(trf->regulator);
+	if (ret) {
+		dev_err(dev, "%s - Can't enable VIN: %d\n", __func__, ret);
+		return ret;
+	}
+
+	usleep_range(5000, 6000);
+
+	gpio_set_value(trf->en2_gpio, 1);
+	usleep_range(1000, 2000);
+	gpio_set_value(trf->en_gpio, 1);
+
+	usleep_range(20000, 21000);
+
+	ret = trf7970a_init(trf);
+	if (ret) {
+		dev_err(dev, "%s - Can't initialize: %d\n", __func__, ret);
+		return ret;
+	}
+
+	pm_runtime_mark_last_busy(dev);
+
+	return 0;
+}
+#endif
+
+static const struct dev_pm_ops trf7970a_pm_ops = {
+	SET_RUNTIME_PM_OPS(trf7970a_pm_runtime_suspend,
+			trf7970a_pm_runtime_resume, NULL)
+};
 
 static const struct spi_device_id trf7970a_id_table[] = {
 	{ "trf7970a", TRF7970A_QUIRK_IRQ_STATUS_READ_ERRATA },
@@ -1410,6 +1457,7 @@ static struct spi_driver trf7970a_spi_driver = {
 	.driver		= {
 		.name	= "trf7970a",
 		.owner	= THIS_MODULE,
+		.pm	= &trf7970a_pm_ops,
 	},
 };
 
