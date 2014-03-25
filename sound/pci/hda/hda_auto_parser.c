@@ -227,10 +227,18 @@ int snd_hda_parse_pin_defcfg(struct hda_codec *codec,
 				continue;
 			if (!assoc_line_out)
 				assoc_line_out = assoc;
-			else if (assoc_line_out != assoc)
+			else if (assoc_line_out != assoc) {
+				codec_info(codec,
+					   "ignore pin 0x%x with mismatching assoc# 0x%x vs 0x%x\n",
+					   nid, assoc, assoc_line_out);
 				continue;
-			if (cfg->line_outs >= ARRAY_SIZE(cfg->line_out_pins))
+			}
+			if (cfg->line_outs >= ARRAY_SIZE(cfg->line_out_pins)) {
+				codec_info(codec,
+					   "ignore pin 0x%x, too many assigned pins\n",
+					   nid);
 				continue;
+			}
 			line_out[cfg->line_outs].pin = nid;
 			line_out[cfg->line_outs].seq = seq;
 			cfg->line_outs++;
@@ -238,8 +246,12 @@ int snd_hda_parse_pin_defcfg(struct hda_codec *codec,
 		case AC_JACK_SPEAKER:
 			seq = get_defcfg_sequence(def_conf);
 			assoc = get_defcfg_association(def_conf);
-			if (cfg->speaker_outs >= ARRAY_SIZE(cfg->speaker_pins))
+			if (cfg->speaker_outs >= ARRAY_SIZE(cfg->speaker_pins)) {
+				codec_info(codec,
+					   "ignore pin 0x%x, too many assigned pins\n",
+					   nid);
 				continue;
+			}
 			speaker_out[cfg->speaker_outs].pin = nid;
 			speaker_out[cfg->speaker_outs].seq = (assoc << 4) | seq;
 			cfg->speaker_outs++;
@@ -247,8 +259,12 @@ int snd_hda_parse_pin_defcfg(struct hda_codec *codec,
 		case AC_JACK_HP_OUT:
 			seq = get_defcfg_sequence(def_conf);
 			assoc = get_defcfg_association(def_conf);
-			if (cfg->hp_outs >= ARRAY_SIZE(cfg->hp_pins))
+			if (cfg->hp_outs >= ARRAY_SIZE(cfg->hp_pins)) {
+				codec_info(codec,
+					   "ignore pin 0x%x, too many assigned pins\n",
+					   nid);
 				continue;
+			}
 			hp_out[cfg->hp_outs].pin = nid;
 			hp_out[cfg->hp_outs].seq = (assoc << 4) | seq;
 			cfg->hp_outs++;
@@ -267,8 +283,12 @@ int snd_hda_parse_pin_defcfg(struct hda_codec *codec,
 			break;
 		case AC_JACK_SPDIF_OUT:
 		case AC_JACK_DIG_OTHER_OUT:
-			if (cfg->dig_outs >= ARRAY_SIZE(cfg->dig_out_pins))
+			if (cfg->dig_outs >= ARRAY_SIZE(cfg->dig_out_pins)) {
+				codec_info(codec,
+					   "ignore pin 0x%x, too many assigned pins\n",
+					   nid);
 				continue;
+			}
 			cfg->dig_out_pins[cfg->dig_outs] = nid;
 			cfg->dig_out_type[cfg->dig_outs] =
 				(loc == AC_JACK_LOC_HDMI) ?
