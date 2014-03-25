@@ -164,6 +164,21 @@
 
 };
 
+&pinctrl {
+
+	gpio7_gpio {
+			gpio7_b7: gpio7-b7 {
+				rockchip,pins = <GPIO7_B7>;
+				rockchip,pull = <VALUE_PULL_UP>;
+			};
+
+			//to add
+		};
+
+	//could add other pinctrl definition such as gpio
+
+};
+
 &emmc {
 	clock-frequency = <50000000>;
         clock-freq-min-max = <400000 50000000>;

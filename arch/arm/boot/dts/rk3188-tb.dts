@@ -151,6 +151,21 @@
 
 };
 
+&pinctrl {
+
+	gpio1_gpio {
+			gpio1_a2: gpio1-a2 {
+				rockchip,pins = <GPIO1_A2>;
+				rockchip,pull = <VALUE_PULL_UP>;
+			};
+
+			//to add
+		};
+
+	//could add other pinctrl definition such as gpio
+
+};
+
 
 &emmc {
 	clock-frequency = <50000000>;

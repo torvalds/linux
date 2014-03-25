@@ -4,7 +4,7 @@
 #include <dt-bindings/pinctrl/rockchip-rk3288.h>
 
 / { 
-	pinctrl@ff770000 {
+	pinctrl: pinctrl@ff770000 {
 		compatible = "rockchip,rk3288-pinctrl";
 		reg = <0xff770000 0x140>,
 		      <0xff770140 0x80>,
