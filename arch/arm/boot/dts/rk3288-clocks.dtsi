@@ -427,7 +427,7 @@
 						clock-output-names = "clk_uart4";
 						#clock-cells = <0>;
 						rockchip,clkops-idx =
-							<CLKOPS_RATE_UART>;
+							<CLKOPS_RATE_RK3288_I2S>;
 						rockchip,flags = <CLK_SET_RATE_PARENT>;
 					};
 
@@ -461,6 +461,8 @@
 						clocks = <&clk_i2s_pll>, <&i2s_frac>, <&i2s_clkin>, <&xin12m>;
 						clock-output-names = "clk_i2s";
 						#clock-cells = <0>;
+						rockchip,clkops-idx =
+							<CLKOPS_RATE_RK3288_I2S>;
 						rockchip,flags = <CLK_SET_RATE_PARENT>;
 					};
 
@@ -509,6 +511,8 @@
 						clocks = <&spdif_div>, <&spdif_frac>, <&xin12m>, <&dummy>;
 						clock-output-names = "clk_spdif";
 						#clock-cells = <0>;
+						rockchip,clkops-idx =
+							<CLKOPS_RATE_RK3288_I2S>;
 						rockchip,flags = <CLK_SET_RATE_PARENT>;
 					};
 
@@ -794,7 +798,7 @@
 						clock-output-names = "clk_uart0";
 						#clock-cells = <0>;
 						rockchip,clkops-idx =
-							<CLKOPS_RATE_UART>;
+							<CLKOPS_RATE_RK3288_I2S>;
 						rockchip,flags = <CLK_SET_RATE_PARENT>;
 					};
 
@@ -850,7 +854,7 @@
 						clock-output-names = "clk_uart1";
 						#clock-cells = <0>;
 						rockchip,clkops-idx =
-							<CLKOPS_RATE_UART>;
+							<CLKOPS_RATE_RK3288_I2S>;
 						rockchip,flags = <CLK_SET_RATE_PARENT>;
 					};
 
@@ -881,7 +885,7 @@
 						clock-output-names = "clk_uart2";
 						#clock-cells = <0>;
 						rockchip,clkops-idx =
-							<CLKOPS_RATE_UART>;
+							<CLKOPS_RATE_RK3288_I2S>;
 						rockchip,flags = <CLK_SET_RATE_PARENT>;
 					};
 
@@ -912,7 +916,7 @@
 						clock-output-names = "clk_uart3";
 						#clock-cells = <0>;
 						rockchip,clkops-idx =
-							<CLKOPS_RATE_UART>;
+							<CLKOPS_RATE_RK3288_I2S>;
 						rockchip,flags = <CLK_SET_RATE_PARENT>;
 					};
 
@@ -1882,6 +1886,8 @@
 						clocks = <&spdif_8ch_div>, <&spdif_8ch_frac>, <&xin12m>;
 						clock-output-names = "clk_spdif_8ch";
 						#clock-cells = <0>;
+						rockchip,clkops-idx =
+							<CLKOPS_RATE_RK3288_I2S>;
 						rockchip,flags = <CLK_SET_RATE_PARENT>;
 					};
 

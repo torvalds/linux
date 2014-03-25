@@ -476,6 +476,43 @@ const struct clk_ops clkops_rate_ddr = {
 	.determine_rate = clk_ddr_determine_rate,
 };
 
+static unsigned long clk_3288_i2s_recalc_rate(struct clk_hw *hw,
+		unsigned long parent_rate)
+{
+	return parent_rate;
+}
+
+static long clk_3288_i2s_round_rate(struct clk_hw *hw, unsigned long rate,
+		unsigned long *prate)
+{
+	return rate;
+}
+
+static int clk_3288_i2s_set_rate(struct clk_hw *hw, unsigned long rate,
+		unsigned long parent_rate)
+{
+	struct clk *parent = __clk_get_parent(hw->clk);
+	struct clk *grand_p = __clk_get_parent(parent);
+
+
+	if (IS_ERR_OR_NULL(parent) || IS_ERR_OR_NULL(grand_p)) {
+		return 0;
+	}
+
+	if (parent->ops->set_rate) {
+		parent->ops->set_rate(parent->hw, rate/2, __clk_get_rate(grand_p));
+		parent->ops->set_rate(parent->hw, rate, __clk_get_rate(grand_p));
+	}
+
+	return 0;
+}
+
+const struct clk_ops clkops_rate_3288_i2s = {
+	.recalc_rate	= clk_3288_i2s_recalc_rate,
+	.round_rate	= clk_3288_i2s_round_rate,
+	.set_rate	= clk_3288_i2s_set_rate,
+};
+
 struct clk_ops_table rk_clkops_rate_table[] = {
 	{.index = CLKOPS_RATE_MUX_DIV,		.clk_ops = &clkops_rate_auto_parent},
 	{.index = CLKOPS_RATE_EVENDIV,		.clk_ops = &clkops_rate_evendiv},
@@ -485,6 +522,7 @@ struct clk_ops_table rk_clkops_rate_table[] = {
 	{.index = CLKOPS_RATE_CORE,		.clk_ops = &clkops_rate_core},
 	{.index = CLKOPS_RATE_CORE_CHILD,	.clk_ops = &clkops_rate_core_peri},
 	{.index = CLKOPS_RATE_DDR,		.clk_ops = &clkops_rate_ddr},
+	{.index = CLKOPS_RATE_RK3288_I2S,	.clk_ops = &clkops_rate_3288_i2s},
 	{.index = CLKOPS_RATE_I2S,		.clk_ops = NULL},
 	{.index = CLKOPS_RATE_CIFOUT,		.clk_ops = NULL},
 	{.index = CLKOPS_RATE_UART,		.clk_ops = NULL},
