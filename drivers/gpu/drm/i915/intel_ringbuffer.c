@@ -566,7 +566,8 @@ static int init_render_ring(struct intel_ring_buffer *ring)
 	struct drm_i915_private *dev_priv = dev->dev_private;
 	int ret = init_ring_common(ring);
 
-	if (INTEL_INFO(dev)->gen > 3)
+	/* WaTimedSingleVertexDispatch:cl,bw,ctg,elk,ilk,snb */
+	if (INTEL_INFO(dev)->gen >= 4 && INTEL_INFO(dev)->gen < 7)
 		I915_WRITE(MI_MODE, _MASKED_BIT_ENABLE(VS_TIMER_DISPATCH));
 
 	/* We need to disable the AsyncFlip performance optimisations in order
