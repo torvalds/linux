@@ -196,7 +196,7 @@ static int fimc_queue_setup(struct vb2_queue *vq, const struct v4l2_format *fmt,
 
 	*num_planes = f->fmt->memplanes;
 	for (i = 0; i < f->fmt->memplanes; i++) {
-		sizes[i] = (f->f_width * f->f_height * f->fmt->depth[i]) / 8;
+		sizes[i] = f->payload[i];
 		allocators[i] = ctx->fimc_dev->alloc_ctx;
 	}
 	return 0;
