@@ -359,12 +359,27 @@ static int rsnd_gen1_probe(struct platform_device *pdev,
 /*
  *		Gen
  */
+static void rsnd_of_parse_gen(struct platform_device *pdev,
+			      const struct rsnd_of_data *of_data,
+			      struct rsnd_priv *priv)
+{
+	struct rcar_snd_info *info = priv->info;
+
+	if (!of_data)
+		return;
+
+	info->flags = of_data->flags;
+}
+
 int rsnd_gen_probe(struct platform_device *pdev,
+		   const struct rsnd_of_data *of_data,
 		   struct rsnd_priv *priv)
 {
 	struct device *dev = rsnd_priv_to_dev(priv);
 	struct rsnd_gen *gen;
 	int ret;
+
+	rsnd_of_parse_gen(pdev, of_data, priv);
 
 	gen = devm_kzalloc(dev, sizeof(*gen), GFP_KERNEL);
 	if (!gen) {

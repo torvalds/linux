@@ -628,7 +628,41 @@ struct rsnd_mod *rsnd_src_mod_get(struct rsnd_priv *priv, int id)
 	return &((struct rsnd_src *)(priv->src) + id)->mod;
 }
 
+static void rsnd_of_parse_src(struct platform_device *pdev,
+			      const struct rsnd_of_data *of_data,
+			      struct rsnd_priv *priv)
+{
+	struct device_node *src_node;
+	struct rcar_snd_info *info = rsnd_priv_to_info(priv);
+	struct rsnd_src_platform_info *src_info;
+	struct device *dev = &pdev->dev;
+	int nr;
+
+	if (!of_data)
+		return;
+
+	src_node = of_get_child_by_name(dev->of_node, "rcar_sound,src");
+	if (!src_node)
+		return;
+
+	nr = of_get_child_count(src_node);
+	if (!nr)
+		return;
+
+	src_info = devm_kzalloc(dev,
+				sizeof(struct rsnd_src_platform_info) * nr,
+				GFP_KERNEL);
+	if (!src_info) {
+		dev_err(dev, "src info allocation error\n");
+		return;
+	}
+
+	info->src_info		= src_info;
+	info->src_info_nr	= nr;
+}
+
 int rsnd_src_probe(struct platform_device *pdev,
+		   const struct rsnd_of_data *of_data,
 		   struct rsnd_priv *priv)
 {
 	struct rcar_snd_info *info = rsnd_priv_to_info(priv);
@@ -638,6 +672,8 @@ int rsnd_src_probe(struct platform_device *pdev,
 	struct clk *clk;
 	char name[RSND_SRC_NAME_SIZE];
 	int i, nr;
+
+	rsnd_of_parse_src(pdev, of_data, priv);
 
 	/*
 	 * init SRC
