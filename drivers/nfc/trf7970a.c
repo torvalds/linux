@@ -765,11 +765,6 @@ static int trf7970a_init(struct trf7970a *trf)
 	if (ret)
 		goto err_out;
 
-	ret = trf7970a_write(trf, TRF7970A_MODULATOR_SYS_CLK_CTRL,
-			TRF7970A_MODULATOR_DEPTH_OOK);
-	if (ret)
-		goto err_out;
-
 	ret = trf7970a_write(trf, TRF7970A_ADJUTABLE_FIFO_IRQ_LEVELS,
 			TRF7970A_ADJUTABLE_FIFO_IRQ_LEVELS_WLH_96 |
 			TRF7970A_ADJUTABLE_FIFO_IRQ_LEVELS_WLL_32);
@@ -943,6 +938,11 @@ static int trf7970a_config_framing(struct trf7970a *trf, int framing)
 			return ret;
 
 		trf->iso_ctrl = iso_ctrl;
+
+		ret = trf7970a_write(trf, TRF7970A_MODULATOR_SYS_CLK_CTRL,
+				TRF7970A_MODULATOR_DEPTH_OOK);
+		if (ret)
+			return ret;
 	}
 
 	return 0;
