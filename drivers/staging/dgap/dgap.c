@@ -620,8 +620,6 @@ static void dgap_cleanup_module(void)
 	class_destroy(dgap_class);
 	unregister_chrdev(DIGI_DGAP_MAJOR, "dgap");
 
-	kfree(dgap_config_buf);
-
 	for (i = 0; i < dgap_NumBoards; ++i) {
 		dgap_remove_ports_sysfiles(dgap_Board[i]);
 		dgap_tty_uninit(dgap_Board[i]);
@@ -828,7 +826,7 @@ static int dgap_firmware_load(struct pci_dev *pdev, int card_type)
 	dgap_get_vpd(brd);
 	dgap_do_reset_board(brd);
 
-	if (fw_info[card_type].conf_name) {
+	if ((fw_info[card_type].conf_name) && !dgap_config_buf) {
 		ret = request_firmware(&fw, fw_info[card_type].conf_name,
 					 &pdev->dev);
 		if (ret) {
@@ -836,20 +834,22 @@ static int dgap_firmware_load(struct pci_dev *pdev, int card_type)
 				fw_info[card_type].conf_name);
 			return ret;
 		}
+
+		dgap_config_buf = kmalloc(fw->size + 1, GFP_KERNEL);
 		if (!dgap_config_buf) {
-			dgap_config_buf = kmalloc(fw->size + 1, GFP_ATOMIC);
-			if (!dgap_config_buf) {
-				release_firmware(fw);
-				return -ENOMEM;
-			}
+			release_firmware(fw);
+			return -ENOMEM;
 		}
 
 		memcpy(dgap_config_buf, fw->data, fw->size);
 		release_firmware(fw);
 		dgap_config_buf[fw->size + 1] = '\0';
 
-		if (dgap_parsefile(&dgap_config_buf, TRUE) != 0)
+		if (dgap_parsefile(&dgap_config_buf, TRUE) != 0) {
+			kfree(dgap_config_buf);
 			return -EINVAL;
+		}
+		kfree(dgap_config_buf);
 	}
 
 	ret = dgap_after_config_loaded(brd->boardnum);
