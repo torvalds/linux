@@ -37,10 +37,12 @@ static int __init rockchip_cpu_axi_init(void)
 	if (!np)
 		return -ENODEV;
 
+#define MAP(base) if (!base) base = of_iomap(cp, 0); if (!base) continue;
+
 	gp = of_get_child_by_name(np, "qos");
 	if (gp) {
 		for_each_child_of_node(gp, cp) {
-			u32 priority[2], mode, bandwidth, saturation;
+			u32 priority[2], mode, bandwidth, saturation, extcontrol;
 			base = NULL;
 #ifdef DEBUG
 			{
@@ -50,36 +52,29 @@ static int __init rockchip_cpu_axi_init(void)
 			}
 #endif
 			if (!of_property_read_u32_array(cp, "rockchip,priority", priority, ARRAY_SIZE(priority))) {
-				if (!base)
-					base = of_iomap(cp, 0);
-				if (!base)
-					continue;
+				MAP(base);
 				CPU_AXI_SET_QOS_PRIORITY(priority[0], priority[1], base);
 				pr_debug("qos: %s priority %x %x\n", cp->name, priority[0], priority[1]);
 			}
 			if (!of_property_read_u32(cp, "rockchip,mode", &mode)) {
-				if (!base)
-					base = of_iomap(cp, 0);
-				if (!base)
-					continue;
+				MAP(base);
 				CPU_AXI_SET_QOS_MODE(mode, base);
 				pr_debug("qos: %s mode %x\n", cp->name, mode);
 			}
 			if (!of_property_read_u32(cp, "rockchip,bandwidth", &bandwidth)) {
-				if (!base)
-					base = of_iomap(cp, 0);
-				if (!base)
-					continue;
+				MAP(base);
 				CPU_AXI_SET_QOS_BANDWIDTH(bandwidth, base);
 				pr_debug("qos: %s bandwidth %x\n", cp->name, bandwidth);
 			}
 			if (!of_property_read_u32(cp, "rockchip,saturation", &saturation)) {
-				if (!base)
-					base = of_iomap(cp, 0);
-				if (!base)
-					continue;
+				MAP(base);
 				CPU_AXI_SET_QOS_SATURATION(saturation, base);
 				pr_debug("qos: %s saturation %x\n", cp->name, saturation);
+			}
+			if (!of_property_read_u32(cp, "rockchip,extcontrol", &extcontrol)) {
+				MAP(base);
+				CPU_AXI_SET_QOS_EXTCONTROL(extcontrol, base);
+				pr_debug("qos: %s extcontrol %x\n", cp->name, extcontrol);
 			}
 			if (base)
 				iounmap(base);
@@ -99,10 +94,7 @@ static int __init rockchip_cpu_axi_init(void)
 			}
 #endif
 			if (!of_property_read_u32(cp, "rockchip,read-latency", &val)) {
-				if (!base)
-					base = of_iomap(cp, 0);
-				if (!base)
-					continue;
+				MAP(base);
 				writel_relaxed(val, base + 0x0014);	// memory scheduler read latency
 				pr_debug("msch: %s read latency %x\n", cp->name, val);
 			}
@@ -111,6 +103,8 @@ static int __init rockchip_cpu_axi_init(void)
 		}
 	}
 	dsb();
+
+#undef MAP
 
 	return 0;
 }
