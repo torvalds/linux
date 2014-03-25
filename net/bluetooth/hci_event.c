@@ -4021,6 +4021,7 @@ static void process_adv_report(struct hci_dev *hdev, u8 type, bdaddr_t *bdaddr,
 			       u8 bdaddr_type, s8 rssi, u8 *data, u8 len)
 {
 	struct discovery_state *d = &hdev->discovery;
+	bool match;
 
 	/* Passive scanning shouldn't trigger any device found events */
 	if (hdev->le_scan_type == LE_SCAN_PASSIVE) {
@@ -4048,17 +4049,21 @@ static void process_adv_report(struct hci_dev *hdev, u8 type, bdaddr_t *bdaddr,
 		return;
 	}
 
+	/* Check if the pending report is for the same device as the new one */
+	match = (!bacmp(bdaddr, &d->last_adv_addr) &&
+		 bdaddr_type == d->last_adv_addr_type);
+
 	/* If the pending data doesn't match this report or this isn't a
 	 * scan response (e.g. we got a duplicate ADV_IND) then force
 	 * sending of the pending data.
 	 */
-	if (type != LE_ADV_SCAN_RSP || bacmp(bdaddr, &d->last_adv_addr) ||
-	    bdaddr_type != d->last_adv_addr_type) {
-		/* Send out whatever is in the cache */
-		mgmt_device_found(hdev, &d->last_adv_addr, LE_LINK,
-				  d->last_adv_addr_type, NULL, 0, 0, 1,
-				  d->last_adv_data, d->last_adv_data_len,
-				  NULL, 0);
+	if (type != LE_ADV_SCAN_RSP || !match) {
+		/* Send out whatever is in the cache, but skip duplicates */
+		if (!match)
+			mgmt_device_found(hdev, &d->last_adv_addr, LE_LINK,
+					  d->last_adv_addr_type, NULL, 0,
+					  0, 1, d->last_adv_data,
+					  d->last_adv_data_len, NULL, 0);
 
 		/* If the new report will trigger a SCAN_REQ store it for
 		 * later merging.
