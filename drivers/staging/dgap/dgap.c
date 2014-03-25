@@ -782,9 +782,8 @@ static int dgap_found_board(struct pci_dev *pdev, int id)
 	if (i)
 		brd->state = BOARD_FAILED;
 
-	pr_info("dgap: board %d: %s (rev %d), irq %ld, %s\n",
-		dgap_NumBoards, brd->name, brd->rev, brd->irq,
-		brd->state ? "NOT READY\0" : "READY\0");
+	pr_info("dgap: board %d: %s (rev %d), irq %ld\n",
+		dgap_NumBoards, brd->name, brd->rev, brd->irq);
 
 	return 0;
 }
