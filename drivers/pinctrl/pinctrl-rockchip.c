@@ -350,6 +350,20 @@ static int rockchip_set_mux(struct rockchip_pin_bank *bank, int pin, int mux)
 	u8 bit;
 	u32 data;
 
+	/*
+	 * The first 16 pins of rk3188_bank0 are always gpios and do not have
+	 * a mux register at all.
+	 */
+	if (bank->bank_type == RK3188_BANK0 && pin < 16) {
+		if (mux != RK_FUNC_GPIO) {
+			dev_err(info->dev,
+				"pin %d only supports a gpio mux\n", pin);
+			return -ENOTSUPP;
+		} else {
+			return 0;
+		}
+	}
+
 	dev_dbg(info->dev, "setting mux of GPIO%d-%d to %d\n",
 						bank->bank_num, pin, mux);
 
