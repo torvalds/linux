@@ -154,6 +154,7 @@ static int bq24296_init_registers(void)
 	int ret = 0;
 
 	/* reset the register */
+	/*
 	ret = bq24296_update_reg(bq24296_di->client,
 				POWE_ON_CONFIGURATION_REGISTER,
 				REGISTER_RESET_ENABLE << REGISTER_RESET_OFFSET,
@@ -165,7 +166,7 @@ static int bq24296_init_registers(void)
 	}
 
 	mdelay(5);
-
+*/
 	/* Disable the watchdog */
 	ret = bq24296_update_reg(bq24296_di->client,
 				TERMINATION_TIMER_CONTROL_REGISTER,
@@ -220,7 +221,6 @@ static int bq24296_get_limit_current(int value)
 		data = 6;
 	else
 		data = 7;
-	data &= 0xff;
 	return data;
 	
 }
@@ -382,8 +382,9 @@ static void usb_detect_work_func(struct work_struct *work)
 		bq24296_chag_down =0;
 
 	DBG("%s: retval = %08x bq24296_chag_down = %d\n", __func__,retval,bq24296_chag_down);
+
+	mutex_lock(&pi->var_lock);
 	
-	#ifdef CONFIG_OF
 	if (gpio_is_valid(bq24296_pdata->dc_det_pin)){
 			ret = gpio_request(bq24296_pdata->dc_det_pin, "bq24296_dc_det");
 			if (ret < 0) {
@@ -393,48 +394,53 @@ static void usb_detect_work_func(struct work_struct *work)
 			ret = gpio_get_value(bq24296_pdata->dc_det_pin);
 			if (ret ==0){
 				bq24296_update_input_current_limit(bq24296_di->adp_input_current);
-				bq24296_set_charge_current(bq24296_di->chg_current);
+				bq24296_set_charge_current(CHARGE_CURRENT_2048MA);
 				bq24296_charge_mode_config(0);
+			}
+			else {
+				bq24296_update_input_current_limit(IINLIM_500MA);
+				bq24296_set_charge_current(CHARGE_CURRENT_512MA);
 			}
 			gpio_free(bq24296_pdata->dc_det_pin);
 			DBG("%s: bq24296_di->dc_det_pin=%x\n", __func__, ret);
-	}	
-	#endif
-	
-	mutex_lock(&pi->var_lock);
-	DBG("%s: dwc_otg_check_dpdm %d\n", __func__, dwc_otg_check_dpdm(0));
-	switch(dwc_otg_check_dpdm(0))
-		{
-			case 2: // USB Wall charger
-				bq24296_update_input_current_limit(bq24296_di->adp_input_current);
-				bq24296_set_charge_current(bq24296_di->chg_current);
+	}
+	else{
+			DBG("%s: dwc_otg_check_dpdm %d\n", __func__, dwc_otg_check_dpdm(0));
+			switch(dwc_otg_check_dpdm(0))
+			{
+				case 2: // USB Wall charger
+				bq24296_update_input_current_limit(bq24296_di->usb_input_current);
+				bq24296_set_charge_current(CHARGE_CURRENT_2048MA);
 				bq24296_charge_mode_config(0);
 				DBG("bq24296: detect usb wall charger\n");
-			break;
-			case 1: //normal USB
+				break;
+				case 1: //normal USB
 				#if 0
 				if (0 == get_gadget_connect_flag()){  // non-standard AC charger
-				bq24296_update_input_current_limit(IINLIM_2000MA);
-				bq24296_set_charge_current(CHARGE_CURRENT_1024MA);
+				bq24296_update_input_current_limit((bq24296_di->usb_input_current);
+				bq24296_set_charge_current(CHARGE_CURRENT_2048MA);
 				bq24296_charge_mode_config(0);;
 				}else{
 				#endif
 				// connect to pc	
-				bq24296_update_input_current_limit(bq24296_di->adp_input_current);
+				bq24296_update_input_current_limit(bq24296_di->usb_input_current);
 				bq24296_set_charge_current(CHARGE_CURRENT_512MA);
 				bq24296_charge_mode_config(0);
 				DBG("bq24296: detect normal usb charger\n");
-			//	}
-			break;
-			default:
+				//	}
+				break;
+				default:
+				bq24296_update_input_current_limit(IINLIM_500MA);
+				bq24296_set_charge_current(CHARGE_CURRENT_512MA);
 				DBG("bq24296: detect no usb \n");			
-			break;
+				break;
+				}
 		}
+
 	mutex_unlock(&pi->var_lock);
 	
 	schedule_delayed_work(&pi->usb_detect_work, 1*HZ);
 }
-
 
 static void irq_work_func(struct work_struct *work)
 {
