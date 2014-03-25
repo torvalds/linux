@@ -332,7 +332,7 @@ static void pch_spi_handler_sub(struct pch_spi_data *data, u32 reg_spsr_val,
 				data->transfer_active = false;
 				wake_up(&data->wait);
 			} else {
-				dev_err(&data->master->dev,
+				dev_vdbg(&data->master->dev,
 					"%s : Transfer is not completed",
 					__func__);
 			}
