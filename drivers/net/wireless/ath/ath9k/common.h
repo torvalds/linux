@@ -22,6 +22,7 @@
 #include "hw-ops.h"
 
 #include "common-init.h"
+#include "common-beacon.h"
 
 /* Common header for Atheros 802.11n base driver cores */
 
@@ -43,6 +44,19 @@
 } while (0)
 #define ATH_EP_RND(x, mul) 						\
 	(((x) + ((mul)/2)) / (mul))
+
+#define IEEE80211_MS_TO_TU(x)   (((x) * 1000) / 1024)
+
+struct ath_beacon_config {
+	int beacon_interval;
+	u16 dtim_period;
+	u16 bmiss_timeout;
+	u8 dtim_count;
+	bool enable_beacon;
+	bool ibss_creator;
+	u32 nexttbtt;
+	u32 intval;
+};
 
 bool ath9k_cmn_rx_accept(struct ath_common *common,
 			 struct ieee80211_hdr *hdr,

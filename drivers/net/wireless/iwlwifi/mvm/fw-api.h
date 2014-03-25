@@ -70,7 +70,7 @@
 #include "fw-api-mac.h"
 #include "fw-api-power.h"
 #include "fw-api-d3.h"
-#include "fw-api-bt-coex.h"
+#include "fw-api-coex.h"
 
 /* maximal number of Tx queues in any platform */
 #define IWL_MVM_MAX_QUEUES	20
@@ -95,6 +95,7 @@ enum {
 	/* PHY context commands */
 	PHY_CONTEXT_CMD = 0x8,
 	DBG_CFG = 0x9,
+	ANTENNA_COUPLING_NOTIFICATION = 0xa,
 
 	/* station table */
 	ADD_STA_KEY = 0x17,

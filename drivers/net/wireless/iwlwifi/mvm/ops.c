@@ -61,6 +61,7 @@
  *
  *****************************************************************************/
 #include <linux/module.h>
+#include <linux/vmalloc.h>
 #include <net/mac80211.h>
 
 #include "iwl-notif-wait.h"
@@ -78,6 +79,7 @@
 #include "iwl-prph.h"
 #include "rs.h"
 #include "fw-api-scan.h"
+#include "fw-error-dump.h"
 #include "time-event.h"
 
 /*
@@ -220,13 +222,15 @@ static const struct iwl_rx_handlers iwl_mvm_rx_handlers[] = {
 	RX_HANDLER(BT_PROFILE_NOTIFICATION, iwl_mvm_rx_bt_coex_notif, true),
 	RX_HANDLER(BEACON_NOTIFICATION, iwl_mvm_rx_beacon_notif, false),
 	RX_HANDLER(STATISTICS_NOTIFICATION, iwl_mvm_rx_statistics, true),
+	RX_HANDLER(ANTENNA_COUPLING_NOTIFICATION,
+		   iwl_mvm_rx_ant_coupling_notif, true),
 
 	RX_HANDLER(TIME_EVENT_NOTIFICATION, iwl_mvm_rx_time_event_notif, false),
 
 	RX_HANDLER(EOSP_NOTIFICATION, iwl_mvm_rx_eosp_notif, false),
 
 	RX_HANDLER(SCAN_REQUEST_CMD, iwl_mvm_rx_scan_response, false),
-	RX_HANDLER(SCAN_COMPLETE_NOTIFICATION, iwl_mvm_rx_scan_complete, false),
+	RX_HANDLER(SCAN_COMPLETE_NOTIFICATION, iwl_mvm_rx_scan_complete, true),
 	RX_HANDLER(SCAN_OFFLOAD_COMPLETE,
 		   iwl_mvm_rx_scan_offload_complete_notif, true),
 	RX_HANDLER(MATCH_FOUND_NOTIFICATION, iwl_mvm_rx_sched_scan_results,
@@ -321,6 +325,7 @@ static const char *const iwl_mvm_cmd_strings[REPLY_MAX] = {
 	CMD(MAC_PM_POWER_TABLE),
 	CMD(BT_COEX_CI),
 	CMD(PSM_UAPSD_AP_MISBEHAVING_NOTIFICATION),
+	CMD(ANTENNA_COUPLING_NOTIFICATION),
 };
 #undef CMD
 
@@ -406,6 +411,10 @@ iwl_op_mode_mvm_start(struct iwl_trans *trans, const struct iwl_cfg *cfg,
 	INIT_WORK(&mvm->roc_done_wk, iwl_mvm_roc_done_wk);
 	INIT_WORK(&mvm->sta_drained_wk, iwl_mvm_sta_drained_wk);
 	INIT_WORK(&mvm->d0i3_exit_work, iwl_mvm_d0i3_exit_work);
+
+	spin_lock_init(&mvm->d0i3_tx_lock);
+	skb_queue_head_init(&mvm->d0i3_tx);
+	init_waitqueue_head(&mvm->d0i3_exit_waitq);
 
 	SET_IEEE80211_DEV(mvm->hw, mvm->trans->dev);
 
@@ -527,6 +536,8 @@ static void iwl_op_mode_mvm_stop(struct iwl_op_mode *op_mode)
 	ieee80211_unregister_hw(mvm->hw);
 
 	kfree(mvm->scan_cmd);
+	vfree(mvm->fw_error_dump);
+	kfree(mvm->fw_error_sram);
 	kfree(mvm->mcast_filter_cmd);
 	mvm->mcast_filter_cmd = NULL;
 
@@ -690,7 +701,7 @@ void iwl_mvm_set_hw_ctkill_state(struct iwl_mvm *mvm, bool state)
 	wiphy_rfkill_set_hw_state(mvm->hw->wiphy, iwl_mvm_is_radio_killed(mvm));
 }
 
-static void iwl_mvm_set_hw_rfkill_state(struct iwl_op_mode *op_mode, bool state)
+static bool iwl_mvm_set_hw_rfkill_state(struct iwl_op_mode *op_mode, bool state)
 {
 	struct iwl_mvm *mvm = IWL_OP_MODE_GET_MVM(op_mode);
 
@@ -699,9 +710,9 @@ static void iwl_mvm_set_hw_rfkill_state(struct iwl_op_mode *op_mode, bool state)
 	else
 		clear_bit(IWL_MVM_STATUS_HW_RFKILL, &mvm->status);
 
-	if (state && mvm->cur_ucode != IWL_UCODE_INIT)
-		iwl_trans_stop_device(mvm->trans);
 	wiphy_rfkill_set_hw_state(mvm->hw->wiphy, iwl_mvm_is_radio_killed(mvm));
+
+	return state && mvm->cur_ucode != IWL_UCODE_INIT;
 }
 
 static void iwl_mvm_free_skb(struct iwl_op_mode *op_mode, struct sk_buff *skb)
@@ -797,13 +808,52 @@ static void iwl_mvm_nic_restart(struct iwl_mvm *mvm)
 	}
 }
 
+#ifdef CONFIG_IWLWIFI_DEBUGFS
+void iwl_mvm_fw_error_dump(struct iwl_mvm *mvm)
+{
+	struct iwl_fw_error_dump_file *dump_file;
+	struct iwl_fw_error_dump_data *dump_data;
+	u32 file_len;
+
+	lockdep_assert_held(&mvm->mutex);
+
+	if (mvm->fw_error_dump)
+		return;
+
+	file_len = mvm->fw_error_sram_len +
+		   sizeof(*dump_file) +
+		   sizeof(*dump_data);
+
+	dump_file = vmalloc(file_len);
+	if (!dump_file)
+		return;
+
+	mvm->fw_error_dump = dump_file;
+
+	dump_file->barker = cpu_to_le32(IWL_FW_ERROR_DUMP_BARKER);
+	dump_file->file_len = cpu_to_le32(file_len);
+	dump_data = (void *)dump_file->data;
+	dump_data->type = IWL_FW_ERROR_DUMP_SRAM;
+	dump_data->len = cpu_to_le32(mvm->fw_error_sram_len);
+
+	/*
+	 * No need for lock since at the stage the FW isn't loaded. So it
+	 * can't assert - we are the only one who can possibly be accessing
+	 * mvm->fw_error_sram right now.
+	 */
+	memcpy(dump_data->data, mvm->fw_error_sram, mvm->fw_error_sram_len);
+}
+#endif
+
 static void iwl_mvm_nic_error(struct iwl_op_mode *op_mode)
 {
 	struct iwl_mvm *mvm = IWL_OP_MODE_GET_MVM(op_mode);
 
 	iwl_mvm_dump_nic_error_log(mvm);
-	if (!mvm->restart_fw)
-		iwl_mvm_dump_sram(mvm);
+
+#ifdef CONFIG_IWLWIFI_DEBUGFS
+	iwl_mvm_fw_error_sram_dump(mvm);
+#endif
 
 	iwl_mvm_nic_restart(mvm);
 }
@@ -820,7 +870,61 @@ struct iwl_d0i3_iter_data {
 	struct iwl_mvm *mvm;
 	u8 ap_sta_id;
 	u8 vif_count;
+	u8 offloading_tid;
+	bool disable_offloading;
 };
+
+static bool iwl_mvm_disallow_offloading(struct iwl_mvm *mvm,
+					struct ieee80211_vif *vif,
+					struct iwl_d0i3_iter_data *iter_data)
+{
+	struct iwl_mvm_vif *mvmvif = iwl_mvm_vif_from_mac80211(vif);
+	struct ieee80211_sta *ap_sta;
+	struct iwl_mvm_sta *mvmsta;
+	u32 available_tids = 0;
+	u8 tid;
+
+	if (WARN_ON(vif->type != NL80211_IFTYPE_STATION ||
+		    mvmvif->ap_sta_id == IWL_MVM_STATION_COUNT))
+		return false;
+
+	ap_sta = rcu_dereference(mvm->fw_id_to_mac_id[mvmvif->ap_sta_id]);
+	if (IS_ERR_OR_NULL(ap_sta))
+		return false;
+
+	mvmsta = iwl_mvm_sta_from_mac80211(ap_sta);
+	spin_lock_bh(&mvmsta->lock);
+	for (tid = 0; tid < IWL_MAX_TID_COUNT; tid++) {
+		struct iwl_mvm_tid_data *tid_data = &mvmsta->tid_data[tid];
+
+		/*
+		 * in case of pending tx packets, don't use this tid
+		 * for offloading in order to prevent reuse of the same
+		 * qos seq counters.
+		 */
+		if (iwl_mvm_tid_queued(tid_data))
+			continue;
+
+		if (tid_data->state != IWL_AGG_OFF)
+			continue;
+
+		available_tids |= BIT(tid);
+	}
+	spin_unlock_bh(&mvmsta->lock);
+
+	/*
+	 * disallow protocol offloading if we have no available tid
+	 * (with no pending frames and no active aggregation,
+	 * as we don't handle "holes" properly - the scheduler needs the
+	 * frame's seq number and TFD index to match)
+	 */
+	if (!available_tids)
+		return true;
+
+	/* for simplicity, just use the first available tid */
+	iter_data->offloading_tid = ffs(available_tids) - 1;
+	return false;
+}
 
 static void iwl_mvm_enter_d0i3_iterator(void *_data, u8 *mac,
 					struct ieee80211_vif *vif)
@@ -835,7 +939,16 @@ static void iwl_mvm_enter_d0i3_iterator(void *_data, u8 *mac,
 	    !vif->bss_conf.assoc)
 		return;
 
+	/*
+	 * in case of pending tx packets or active aggregations,
+	 * avoid offloading features in order to prevent reuse of
+	 * the same qos seq counters.
+	 */
+	if (iwl_mvm_disallow_offloading(mvm, vif, data))
+		data->disable_offloading = true;
+
 	iwl_mvm_update_d0i3_power_mode(mvm, vif, true, flags);
+	iwl_mvm_send_proto_offload(mvm, vif, data->disable_offloading, flags);
 
 	/*
 	 * on init/association, mvm already configures POWER_TABLE_CMD
@@ -847,6 +960,34 @@ static void iwl_mvm_enter_d0i3_iterator(void *_data, u8 *mac,
 	data->vif_count++;
 }
 
+static void iwl_mvm_set_wowlan_data(struct iwl_mvm *mvm,
+				    struct iwl_wowlan_config_cmd_v3 *cmd,
+				    struct iwl_d0i3_iter_data *iter_data)
+{
+	struct ieee80211_sta *ap_sta;
+	struct iwl_mvm_sta *mvm_ap_sta;
+
+	if (iter_data->ap_sta_id == IWL_MVM_STATION_COUNT)
+		return;
+
+	rcu_read_lock();
+
+	ap_sta = rcu_dereference(mvm->fw_id_to_mac_id[iter_data->ap_sta_id]);
+	if (IS_ERR_OR_NULL(ap_sta))
+		goto out;
+
+	mvm_ap_sta = iwl_mvm_sta_from_mac80211(ap_sta);
+	cmd->common.is_11n_connection = ap_sta->ht_cap.ht_supported;
+	cmd->offloading_tid = iter_data->offloading_tid;
+
+	/*
+	 * The d0i3 uCode takes care of the nonqos counters,
+	 * so configure only the qos seq ones.
+	 */
+	iwl_mvm_set_wowlan_qos_seq(mvm_ap_sta, &cmd->common);
+out:
+	rcu_read_unlock();
+}
 static int iwl_mvm_enter_d0i3(struct iwl_op_mode *op_mode)
 {
 	struct iwl_mvm *mvm = IWL_OP_MODE_GET_MVM(op_mode);
@@ -855,11 +996,14 @@ static int iwl_mvm_enter_d0i3(struct iwl_op_mode *op_mode)
 	struct iwl_d0i3_iter_data d0i3_iter_data = {
 		.mvm = mvm,
 	};
-	struct iwl_wowlan_config_cmd wowlan_config_cmd = {
-		.wakeup_filter = cpu_to_le32(IWL_WOWLAN_WAKEUP_RX_FRAME |
-					     IWL_WOWLAN_WAKEUP_BEACON_MISS |
-					     IWL_WOWLAN_WAKEUP_LINK_CHANGE |
-					     IWL_WOWLAN_WAKEUP_BCN_FILTERING),
+	struct iwl_wowlan_config_cmd_v3 wowlan_config_cmd = {
+		.common = {
+			.wakeup_filter =
+				cpu_to_le32(IWL_WOWLAN_WAKEUP_RX_FRAME |
+					    IWL_WOWLAN_WAKEUP_BEACON_MISS |
+					    IWL_WOWLAN_WAKEUP_LINK_CHANGE |
+					    IWL_WOWLAN_WAKEUP_BCN_FILTERING),
+		},
 	};
 	struct iwl_d3_manager_config d3_cfg_cmd = {
 		.min_sleep_time = cpu_to_le32(1000),
@@ -867,17 +1011,24 @@ static int iwl_mvm_enter_d0i3(struct iwl_op_mode *op_mode)
 
 	IWL_DEBUG_RPM(mvm, "MVM entering D0i3\n");
 
+	/* make sure we have no running tx while configuring the qos */
+	set_bit(IWL_MVM_STATUS_IN_D0I3, &mvm->status);
+	synchronize_net();
+
 	ieee80211_iterate_active_interfaces_atomic(mvm->hw,
 						   IEEE80211_IFACE_ITER_NORMAL,
 						   iwl_mvm_enter_d0i3_iterator,
 						   &d0i3_iter_data);
 	if (d0i3_iter_data.vif_count == 1) {
 		mvm->d0i3_ap_sta_id = d0i3_iter_data.ap_sta_id;
+		mvm->d0i3_offloading = !d0i3_iter_data.disable_offloading;
 	} else {
 		WARN_ON_ONCE(d0i3_iter_data.vif_count > 1);
 		mvm->d0i3_ap_sta_id = IWL_MVM_STATION_COUNT;
+		mvm->d0i3_offloading = false;
 	}
 
+	iwl_mvm_set_wowlan_data(mvm, &wowlan_config_cmd, &d0i3_iter_data);
 	ret = iwl_mvm_send_cmd_pdu(mvm, WOWLAN_CONFIGURATION, flags,
 				   sizeof(wowlan_config_cmd),
 				   &wowlan_config_cmd);
@@ -914,6 +1065,62 @@ static void iwl_mvm_d0i3_disconnect_iter(void *data, u8 *mac,
 		ieee80211_connection_loss(vif);
 }
 
+void iwl_mvm_d0i3_enable_tx(struct iwl_mvm *mvm, __le16 *qos_seq)
+{
+	struct ieee80211_sta *sta = NULL;
+	struct iwl_mvm_sta *mvm_ap_sta;
+	int i;
+	bool wake_queues = false;
+
+	lockdep_assert_held(&mvm->mutex);
+
+	spin_lock_bh(&mvm->d0i3_tx_lock);
+
+	if (mvm->d0i3_ap_sta_id == IWL_MVM_STATION_COUNT)
+		goto out;
+
+	IWL_DEBUG_RPM(mvm, "re-enqueue packets\n");
+
+	/* get the sta in order to update seq numbers and re-enqueue skbs */
+	sta = rcu_dereference_protected(
+			mvm->fw_id_to_mac_id[mvm->d0i3_ap_sta_id],
+			lockdep_is_held(&mvm->mutex));
+
+	if (IS_ERR_OR_NULL(sta)) {
+		sta = NULL;
+		goto out;
+	}
+
+	if (mvm->d0i3_offloading && qos_seq) {
+		/* update qos seq numbers if offloading was enabled */
+		mvm_ap_sta = (struct iwl_mvm_sta *)sta->drv_priv;
+		for (i = 0; i < IWL_MAX_TID_COUNT; i++) {
+			u16 seq = le16_to_cpu(qos_seq[i]);
+			/* firmware stores last-used one, we store next one */
+			seq += 0x10;
+			mvm_ap_sta->tid_data[i].seq_number = seq;
+		}
+	}
+out:
+	/* re-enqueue (or drop) all packets */
+	while (!skb_queue_empty(&mvm->d0i3_tx)) {
+		struct sk_buff *skb = __skb_dequeue(&mvm->d0i3_tx);
+
+		if (!sta || iwl_mvm_tx_skb(mvm, skb, sta))
+			ieee80211_free_txskb(mvm->hw, skb);
+
+		/* if the skb_queue is not empty, we need to wake queues */
+		wake_queues = true;
+	}
+	clear_bit(IWL_MVM_STATUS_IN_D0I3, &mvm->status);
+	wake_up(&mvm->d0i3_exit_waitq);
+	mvm->d0i3_ap_sta_id = IWL_MVM_STATION_COUNT;
+	if (wake_queues)
+		ieee80211_wake_queues(mvm->hw);
+
+	spin_unlock_bh(&mvm->d0i3_tx_lock);
+}
+
 static void iwl_mvm_d0i3_exit_work(struct work_struct *wk)
 {
 	struct iwl_mvm *mvm = container_of(wk, struct iwl_mvm, d0i3_exit_work);
@@ -924,6 +1131,7 @@ static void iwl_mvm_d0i3_exit_work(struct work_struct *wk)
 	struct iwl_wowlan_status_v6 *status;
 	int ret;
 	u32 disconnection_reasons, wakeup_reasons;
+	__le16 *qos_seq = NULL;
 
 	mutex_lock(&mvm->mutex);
 	ret = iwl_mvm_send_cmd(mvm, &get_status_cmd);
@@ -935,6 +1143,7 @@ static void iwl_mvm_d0i3_exit_work(struct work_struct *wk)
 
 	status = (void *)get_status_cmd.resp_pkt->data;
 	wakeup_reasons = le32_to_cpu(status->wakeup_reasons);
+	qos_seq = status->qos_seq_ctr;
 
 	IWL_DEBUG_RPM(mvm, "wakeup reasons: 0x%x\n", wakeup_reasons);
 
@@ -948,6 +1157,7 @@ static void iwl_mvm_d0i3_exit_work(struct work_struct *wk)
 
 	iwl_free_resp(&get_status_cmd);
 out:
+	iwl_mvm_d0i3_enable_tx(mvm, qos_seq);
 	mutex_unlock(&mvm->mutex);
 }
 

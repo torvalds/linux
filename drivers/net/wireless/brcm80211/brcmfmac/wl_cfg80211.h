@@ -89,21 +89,6 @@ enum brcmf_scan_status {
 	BRCMF_SCAN_STATUS_SUPPRESS,
 };
 
-/**
- * enum wl_mode - driver mode of virtual interface.
- *
- * @WL_MODE_BSS: connects to BSS.
- * @WL_MODE_IBSS: operate as ad-hoc.
- * @WL_MODE_AP: operate as access-point.
- * @WL_MODE_P2P: provide P2P discovery.
- */
-enum wl_mode {
-	WL_MODE_BSS,
-	WL_MODE_IBSS,
-	WL_MODE_AP,
-	WL_MODE_P2P
-};
-
 /* dongle configuration */
 struct brcmf_cfg80211_conf {
 	u32 frag_threshold;
@@ -193,7 +178,6 @@ struct vif_saved_ie {
  * @ifp: lower layer interface pointer
  * @wdev: wireless device.
  * @profile: profile information.
- * @mode: operating mode.
  * @roam_off: roaming state.
  * @sme_state: SME state using enum brcmf_vif_status bits.
  * @pm_block: power-management blocked.
@@ -204,7 +188,6 @@ struct brcmf_cfg80211_vif {
 	struct brcmf_if *ifp;
 	struct wireless_dev wdev;
 	struct brcmf_cfg80211_profile profile;
-	s32 mode;
 	s32 roam_off;
 	unsigned long sme_state;
 	bool pm_block;

@@ -60,11 +60,14 @@
  * OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
  *
  *****************************************************************************/
+#include <linux/vmalloc.h>
+
 #include "mvm.h"
 #include "sta.h"
 #include "iwl-io.h"
 #include "iwl-prph.h"
 #include "debugfs.h"
+#include "fw-error-dump.h"
 
 static ssize_t iwl_dbgfs_tx_flush_write(struct iwl_mvm *mvm, char *buf,
 					size_t count, loff_t *ppos)
@@ -115,6 +118,51 @@ static ssize_t iwl_dbgfs_sta_drain_write(struct iwl_mvm *mvm, char *buf,
 	mutex_unlock(&mvm->mutex);
 
 	return ret;
+}
+
+static int iwl_dbgfs_fw_error_dump_open(struct inode *inode, struct file *file)
+{
+	struct iwl_mvm *mvm = inode->i_private;
+	int ret;
+
+	if (!mvm)
+		return -EINVAL;
+
+	mutex_lock(&mvm->mutex);
+	if (!mvm->fw_error_dump) {
+		ret = -ENODATA;
+		goto out;
+	}
+
+	file->private_data = mvm->fw_error_dump;
+	mvm->fw_error_dump = NULL;
+	kfree(mvm->fw_error_sram);
+	mvm->fw_error_sram = NULL;
+	mvm->fw_error_sram_len = 0;
+	ret = 0;
+
+out:
+	mutex_unlock(&mvm->mutex);
+	return ret;
+}
+
+static ssize_t iwl_dbgfs_fw_error_dump_read(struct file *file,
+					    char __user *user_buf,
+					    size_t count, loff_t *ppos)
+{
+	struct iwl_fw_error_dump_file *dump_file = file->private_data;
+
+	return simple_read_from_buffer(user_buf, count, ppos,
+				       dump_file,
+				       le32_to_cpu(dump_file->file_len));
+}
+
+static int iwl_dbgfs_fw_error_dump_release(struct inode *inode,
+					   struct file *file)
+{
+	vfree(file->private_data);
+
+	return 0;
 }
 
 static ssize_t iwl_dbgfs_sram_read(struct file *file, char __user *user_buf,
@@ -350,6 +398,9 @@ static ssize_t iwl_dbgfs_bt_notif_read(struct file *file, char __user *user_buf,
 			 le32_to_cpu(notif->secondary_ch_lut));
 	pos += scnprintf(buf+pos, bufsz-pos, "bt_activity_grading = %d\n",
 			 le32_to_cpu(notif->bt_activity_grading));
+	pos += scnprintf(buf+pos, bufsz-pos,
+			 "antenna isolation = %d CORUN LUT index = %d\n",
+			 mvm->last_ant_isol, mvm->last_corun_lut);
 
 	mutex_unlock(&mvm->mutex);
 
@@ -390,6 +441,22 @@ static ssize_t iwl_dbgfs_bt_cmd_read(struct file *file, char __user *user_buf,
 	mutex_unlock(&mvm->mutex);
 
 	return simple_read_from_buffer(user_buf, count, ppos, buf, pos);
+}
+
+static ssize_t
+iwl_dbgfs_bt_tx_prio_write(struct iwl_mvm *mvm, char *buf,
+			   size_t count, loff_t *ppos)
+{
+	u32 bt_tx_prio;
+
+	if (sscanf(buf, "%u", &bt_tx_prio) != 1)
+		return -EINVAL;
+	if (bt_tx_prio > 4)
+		return -EINVAL;
+
+	mvm->bt_tx_prio = bt_tx_prio;
+
+	return count;
 }
 
 #define PRINT_STATS_LE32(_str, _val)					\
@@ -536,56 +603,60 @@ static ssize_t iwl_dbgfs_frame_stats_read(struct iwl_mvm *mvm,
 					  loff_t *ppos,
 					  struct iwl_mvm_frame_stats *stats)
 {
-	char *buff;
-	int pos = 0, idx, i;
+	char *buff, *pos, *endpos;
+	int idx, i;
 	int ret;
-	size_t bufsz = 1024;
+	static const size_t bufsz = 1024;
 
 	buff = kmalloc(bufsz, GFP_KERNEL);
 	if (!buff)
 		return -ENOMEM;
 
 	spin_lock_bh(&mvm->drv_stats_lock);
-	pos += scnprintf(buff + pos, bufsz - pos,
+
+	pos = buff;
+	endpos = pos + bufsz;
+
+	pos += scnprintf(pos, endpos - pos,
 			 "Legacy/HT/VHT\t:\t%d/%d/%d\n",
 			 stats->legacy_frames,
 			 stats->ht_frames,
 			 stats->vht_frames);
-	pos += scnprintf(buff + pos, bufsz - pos, "20/40/80\t:\t%d/%d/%d\n",
+	pos += scnprintf(pos, endpos - pos, "20/40/80\t:\t%d/%d/%d\n",
 			 stats->bw_20_frames,
 			 stats->bw_40_frames,
 			 stats->bw_80_frames);
-	pos += scnprintf(buff + pos, bufsz - pos, "NGI/SGI\t\t:\t%d/%d\n",
+	pos += scnprintf(pos, endpos - pos, "NGI/SGI\t\t:\t%d/%d\n",
 			 stats->ngi_frames,
 			 stats->sgi_frames);
-	pos += scnprintf(buff + pos, bufsz - pos, "SISO/MIMO2\t:\t%d/%d\n",
+	pos += scnprintf(pos, endpos - pos, "SISO/MIMO2\t:\t%d/%d\n",
 			 stats->siso_frames,
 			 stats->mimo2_frames);
-	pos += scnprintf(buff + pos, bufsz - pos, "FAIL/SCSS\t:\t%d/%d\n",
+	pos += scnprintf(pos, endpos - pos, "FAIL/SCSS\t:\t%d/%d\n",
 			 stats->fail_frames,
 			 stats->success_frames);
-	pos += scnprintf(buff + pos, bufsz - pos, "MPDUs agg\t:\t%d\n",
+	pos += scnprintf(pos, endpos - pos, "MPDUs agg\t:\t%d\n",
 			 stats->agg_frames);
-	pos += scnprintf(buff + pos, bufsz - pos, "A-MPDUs\t\t:\t%d\n",
+	pos += scnprintf(pos, endpos - pos, "A-MPDUs\t\t:\t%d\n",
 			 stats->ampdu_count);
-	pos += scnprintf(buff + pos, bufsz - pos, "Avg MPDUs/A-MPDU:\t%d\n",
+	pos += scnprintf(pos, endpos - pos, "Avg MPDUs/A-MPDU:\t%d\n",
 			 stats->ampdu_count > 0 ?
 			 (stats->agg_frames / stats->ampdu_count) : 0);
 
-	pos += scnprintf(buff + pos, bufsz - pos, "Last Rates\n");
+	pos += scnprintf(pos, endpos - pos, "Last Rates\n");
 
 	idx = stats->last_frame_idx - 1;
 	for (i = 0; i < ARRAY_SIZE(stats->last_rates); i++) {
 		idx = (idx + 1) % ARRAY_SIZE(stats->last_rates);
 		if (stats->last_rates[idx] == 0)
 			continue;
-		pos += scnprintf(buff + pos, bufsz - pos, "Rate[%d]: ",
+		pos += scnprintf(pos, endpos - pos, "Rate[%d]: ",
 				 (int)(ARRAY_SIZE(stats->last_rates) - i));
-		pos += rs_pretty_print_rate(buff + pos, stats->last_rates[idx]);
+		pos += rs_pretty_print_rate(pos, stats->last_rates[idx]);
 	}
 	spin_unlock_bh(&mvm->drv_stats_lock);
 
-	ret = simple_read_from_buffer(user_buf, count, ppos, buff, pos);
+	ret = simple_read_from_buffer(user_buf, count, ppos, buff, pos - buff);
 	kfree(buff);
 
 	return ret;
@@ -1032,8 +1103,15 @@ MVM_DEBUGFS_READ_FILE_OPS(fw_rx_stats);
 MVM_DEBUGFS_READ_FILE_OPS(drv_rx_stats);
 MVM_DEBUGFS_WRITE_FILE_OPS(fw_restart, 10);
 MVM_DEBUGFS_WRITE_FILE_OPS(fw_nmi, 10);
+MVM_DEBUGFS_WRITE_FILE_OPS(bt_tx_prio, 10);
 MVM_DEBUGFS_READ_WRITE_FILE_OPS(scan_ant_rxchain, 8);
 MVM_DEBUGFS_READ_WRITE_FILE_OPS(d0i3_refs, 8);
+
+static const struct file_operations iwl_dbgfs_fw_error_dump_ops = {
+        .open = iwl_dbgfs_fw_error_dump_open,
+        .read = iwl_dbgfs_fw_error_dump_read,
+        .release = iwl_dbgfs_fw_error_dump_release,
+};
 
 #ifdef CONFIG_IWLWIFI_BCAST_FILTERING
 MVM_DEBUGFS_READ_WRITE_FILE_OPS(bcast_filters, 256);
@@ -1049,12 +1127,15 @@ int iwl_mvm_dbgfs_register(struct iwl_mvm *mvm, struct dentry *dbgfs_dir)
 	struct dentry *bcast_dir __maybe_unused;
 	char buf[100];
 
+	spin_lock_init(&mvm->drv_stats_lock);
+
 	mvm->debugfs_dir = dbgfs_dir;
 
 	MVM_DEBUGFS_ADD_FILE(tx_flush, mvm->debugfs_dir, S_IWUSR);
 	MVM_DEBUGFS_ADD_FILE(sta_drain, mvm->debugfs_dir, S_IWUSR);
 	MVM_DEBUGFS_ADD_FILE(sram, mvm->debugfs_dir, S_IWUSR | S_IRUSR);
 	MVM_DEBUGFS_ADD_FILE(stations, dbgfs_dir, S_IRUSR);
+	MVM_DEBUGFS_ADD_FILE(fw_error_dump, dbgfs_dir, S_IRUSR);
 	MVM_DEBUGFS_ADD_FILE(bt_notif, dbgfs_dir, S_IRUSR);
 	MVM_DEBUGFS_ADD_FILE(bt_cmd, dbgfs_dir, S_IRUSR);
 	if (mvm->fw->ucode_capa.flags & IWL_UCODE_TLV_FLAGS_DEVICE_PS_CMD)
@@ -1064,6 +1145,7 @@ int iwl_mvm_dbgfs_register(struct iwl_mvm *mvm, struct dentry *dbgfs_dir)
 	MVM_DEBUGFS_ADD_FILE(drv_rx_stats, mvm->debugfs_dir, S_IRUSR);
 	MVM_DEBUGFS_ADD_FILE(fw_restart, mvm->debugfs_dir, S_IWUSR);
 	MVM_DEBUGFS_ADD_FILE(fw_nmi, mvm->debugfs_dir, S_IWUSR);
+	MVM_DEBUGFS_ADD_FILE(bt_tx_prio, mvm->debugfs_dir, S_IWUSR);
 	MVM_DEBUGFS_ADD_FILE(scan_ant_rxchain, mvm->debugfs_dir,
 			     S_IWUSR | S_IRUSR);
 	MVM_DEBUGFS_ADD_FILE(prph_reg, mvm->debugfs_dir, S_IWUSR | S_IRUSR);

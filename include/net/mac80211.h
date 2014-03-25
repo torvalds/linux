@@ -697,11 +697,11 @@ struct ieee80211_tx_info {
 		} control;
 		struct {
 			struct ieee80211_tx_rate rates[IEEE80211_TX_MAX_RATES];
-			int ack_signal;
+			s32 ack_signal;
 			u8 ampdu_ack_len;
 			u8 ampdu_len;
 			u8 antenna;
-			/* 21 bytes free */
+			void *status_driver_data[21 / sizeof(void *)];
 		} status;
 		struct {
 			struct ieee80211_tx_rate driver_rates[
@@ -877,11 +877,13 @@ enum mac80211_rx_flags {
  * @RX_VHT_FLAG_80MHZ: 80 MHz was used
  * @RX_VHT_FLAG_80P80MHZ: 80+80 MHz was used
  * @RX_VHT_FLAG_160MHZ: 160 MHz was used
+ * @RX_VHT_FLAG_BF: packet was beamformed
  */
 enum mac80211_rx_vht_flags {
 	RX_VHT_FLAG_80MHZ		= BIT(0),
 	RX_VHT_FLAG_80P80MHZ		= BIT(1),
 	RX_VHT_FLAG_160MHZ		= BIT(2),
+	RX_VHT_FLAG_BF			= BIT(3),
 };
 
 /**

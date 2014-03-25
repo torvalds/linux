@@ -1924,9 +1924,9 @@ static void hci_conn_request_evt(struct hci_dev *hdev, struct sk_buff *skb)
 			bacpy(&cp.bdaddr, &ev->bdaddr);
 			cp.pkt_type = cpu_to_le16(conn->pkt_type);
 
-			cp.tx_bandwidth   = __constant_cpu_to_le32(0x00001f40);
-			cp.rx_bandwidth   = __constant_cpu_to_le32(0x00001f40);
-			cp.max_latency    = __constant_cpu_to_le16(0xffff);
+			cp.tx_bandwidth   = cpu_to_le32(0x00001f40);
+			cp.rx_bandwidth   = cpu_to_le32(0x00001f40);
+			cp.max_latency    = cpu_to_le16(0xffff);
 			cp.content_format = cpu_to_le16(hdev->voice_setting);
 			cp.retrans_effort = 0xff;
 
@@ -2182,6 +2182,18 @@ static void hci_encrypt_change_evt(struct hci_dev *hdev, struct sk_buff *skb)
 	if (conn->state == BT_CONFIG) {
 		if (!ev->status)
 			conn->state = BT_CONNECTED;
+
+		/* In Secure Connections Only mode, do not allow any
+		 * connections that are not encrypted with AES-CCM
+		 * using a P-256 authenticated combination key.
+		 */
+		if (test_bit(HCI_SC_ONLY, &hdev->dev_flags) &&
+		    (!test_bit(HCI_CONN_AES_CCM, &conn->flags) ||
+		     conn->key_type != HCI_LK_AUTH_COMBINATION_P256)) {
+			hci_proto_connect_cfm(conn, HCI_ERROR_AUTH_FAILURE);
+			hci_conn_drop(conn);
+			goto unlock;
+		}
 
 		hci_proto_connect_cfm(conn, ev->status);
 		hci_conn_drop(conn);
@@ -3157,6 +3169,7 @@ static void hci_sync_conn_complete_evt(struct hci_dev *hdev,
 	case 0x1c:	/* SCO interval rejected */
 	case 0x1a:	/* Unsupported Remote Feature */
 	case 0x1f:	/* Unspecified error */
+	case 0x20:	/* Unsupported LMP Parameter value */
 		if (conn->out) {
 			conn->pkt_type = (hdev->esco_type & SCO_ESCO_MASK) |
 					(hdev->esco_type & EDR_ESCO_MASK);
@@ -3961,7 +3974,13 @@ static void hci_le_ltk_request_evt(struct hci_dev *hdev, struct sk_buff *skb)
 
 	hci_send_cmd(hdev, HCI_OP_LE_LTK_REPLY, sizeof(cp), &cp);
 
-	if (ltk->type & HCI_SMP_STK) {
+	/* Ref. Bluetooth Core SPEC pages 1975 and 2004. STK is a
+	 * temporary key used to encrypt a connection following
+	 * pairing. It is used during the Encrypted Session Setup to
+	 * distribute the keys. Later, security can be re-established
+	 * using a distributed LTK.
+	 */
+	if (ltk->type == HCI_SMP_STK_SLAVE) {
 		list_del(&ltk->list);
 		kfree(ltk);
 	}

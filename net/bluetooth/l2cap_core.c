@@ -665,7 +665,7 @@ static void l2cap_chan_connect_reject(struct l2cap_chan *chan)
 	rsp.scid   = cpu_to_le16(chan->dcid);
 	rsp.dcid   = cpu_to_le16(chan->scid);
 	rsp.result = cpu_to_le16(result);
-	rsp.status = __constant_cpu_to_le16(L2CAP_CS_NO_INFO);
+	rsp.status = cpu_to_le16(L2CAP_CS_NO_INFO);
 
 	l2cap_send_cmd(conn, chan->ident, L2CAP_CONN_RSP, sizeof(rsp), &rsp);
 }
@@ -727,7 +727,7 @@ static inline u8 l2cap_get_auth_type(struct l2cap_chan *chan)
 		}
 		break;
 	case L2CAP_CHAN_CONN_LESS:
-		if (chan->psm == __constant_cpu_to_le16(L2CAP_PSM_3DSP)) {
+		if (chan->psm == cpu_to_le16(L2CAP_PSM_3DSP)) {
 			if (chan->sec_level == BT_SECURITY_LOW)
 				chan->sec_level = BT_SECURITY_SDP;
 		}
@@ -738,7 +738,7 @@ static inline u8 l2cap_get_auth_type(struct l2cap_chan *chan)
 			return HCI_AT_NO_BONDING;
 		break;
 	case L2CAP_CHAN_CONN_ORIENTED:
-		if (chan->psm == __constant_cpu_to_le16(L2CAP_PSM_SDP)) {
+		if (chan->psm == cpu_to_le16(L2CAP_PSM_SDP)) {
 			if (chan->sec_level == BT_SECURITY_LOW)
 				chan->sec_level = BT_SECURITY_SDP;
 
@@ -1273,7 +1273,7 @@ static void l2cap_do_start(struct l2cap_chan *chan)
 		}
 	} else {
 		struct l2cap_info_req req;
-		req.type = __constant_cpu_to_le16(L2CAP_IT_FEAT_MASK);
+		req.type = cpu_to_le16(L2CAP_IT_FEAT_MASK);
 
 		conn->info_state |= L2CAP_INFO_FEAT_MASK_REQ_SENT;
 		conn->info_ident = l2cap_get_ident(conn);
@@ -1370,18 +1370,18 @@ static void l2cap_conn_start(struct l2cap_conn *conn)
 
 			if (l2cap_chan_check_security(chan)) {
 				if (test_bit(FLAG_DEFER_SETUP, &chan->flags)) {
-					rsp.result = __constant_cpu_to_le16(L2CAP_CR_PEND);
-					rsp.status = __constant_cpu_to_le16(L2CAP_CS_AUTHOR_PEND);
+					rsp.result = cpu_to_le16(L2CAP_CR_PEND);
+					rsp.status = cpu_to_le16(L2CAP_CS_AUTHOR_PEND);
 					chan->ops->defer(chan);
 
 				} else {
 					l2cap_state_change(chan, BT_CONFIG);
-					rsp.result = __constant_cpu_to_le16(L2CAP_CR_SUCCESS);
-					rsp.status = __constant_cpu_to_le16(L2CAP_CS_NO_INFO);
+					rsp.result = cpu_to_le16(L2CAP_CR_SUCCESS);
+					rsp.status = cpu_to_le16(L2CAP_CS_NO_INFO);
 				}
 			} else {
-				rsp.result = __constant_cpu_to_le16(L2CAP_CR_PEND);
-				rsp.status = __constant_cpu_to_le16(L2CAP_CS_AUTHEN_PEND);
+				rsp.result = cpu_to_le16(L2CAP_CR_PEND);
+				rsp.status = cpu_to_le16(L2CAP_CS_AUTHEN_PEND);
 			}
 
 			l2cap_send_cmd(conn, chan->ident, L2CAP_CONN_RSP,
@@ -2895,9 +2895,9 @@ static struct sk_buff *l2cap_build_cmd(struct l2cap_conn *conn, u8 code,
 	lh->len = cpu_to_le16(L2CAP_CMD_HDR_SIZE + dlen);
 
 	if (conn->hcon->type == LE_LINK)
-		lh->cid = __constant_cpu_to_le16(L2CAP_CID_LE_SIGNALING);
+		lh->cid = cpu_to_le16(L2CAP_CID_LE_SIGNALING);
 	else
-		lh->cid = __constant_cpu_to_le16(L2CAP_CID_SIGNALING);
+		lh->cid = cpu_to_le16(L2CAP_CID_SIGNALING);
 
 	cmd = (struct l2cap_cmd_hdr *) skb_put(skb, L2CAP_CMD_HDR_SIZE);
 	cmd->code  = code;
@@ -3010,8 +3010,8 @@ static void l2cap_add_opt_efs(void **ptr, struct l2cap_chan *chan)
 		efs.stype	= chan->local_stype;
 		efs.msdu	= cpu_to_le16(chan->local_msdu);
 		efs.sdu_itime	= cpu_to_le32(chan->local_sdu_itime);
-		efs.acc_lat	= __constant_cpu_to_le32(L2CAP_DEFAULT_ACC_LAT);
-		efs.flush_to	= __constant_cpu_to_le32(L2CAP_EFS_DEFAULT_FLUSH_TO);
+		efs.acc_lat	= cpu_to_le32(L2CAP_DEFAULT_ACC_LAT);
+		efs.flush_to	= cpu_to_le32(L2CAP_EFS_DEFAULT_FLUSH_TO);
 		break;
 
 	case L2CAP_MODE_STREAMING:
@@ -3152,8 +3152,8 @@ static void __l2cap_set_ertm_timeouts(struct l2cap_chan *chan,
 		rfc->retrans_timeout = cpu_to_le16((u16) ertm_to);
 		rfc->monitor_timeout = rfc->retrans_timeout;
 	} else {
-		rfc->retrans_timeout = __constant_cpu_to_le16(L2CAP_DEFAULT_RETRANS_TO);
-		rfc->monitor_timeout = __constant_cpu_to_le16(L2CAP_DEFAULT_MONITOR_TO);
+		rfc->retrans_timeout = cpu_to_le16(L2CAP_DEFAULT_RETRANS_TO);
+		rfc->monitor_timeout = cpu_to_le16(L2CAP_DEFAULT_MONITOR_TO);
 	}
 }
 
@@ -3285,7 +3285,7 @@ done:
 	}
 
 	req->dcid  = cpu_to_le16(chan->dcid);
-	req->flags = __constant_cpu_to_le16(0);
+	req->flags = cpu_to_le16(0);
 
 	return ptr - data;
 }
@@ -3499,7 +3499,7 @@ done:
 	}
 	rsp->scid   = cpu_to_le16(chan->dcid);
 	rsp->result = cpu_to_le16(result);
-	rsp->flags  = __constant_cpu_to_le16(0);
+	rsp->flags  = cpu_to_le16(0);
 
 	return ptr - data;
 }
@@ -3608,7 +3608,7 @@ static int l2cap_parse_conf_rsp(struct l2cap_chan *chan, void *rsp, int len,
 	}
 
 	req->dcid   = cpu_to_le16(chan->dcid);
-	req->flags  = __constant_cpu_to_le16(0);
+	req->flags  = cpu_to_le16(0);
 
 	return ptr - data;
 }
@@ -3639,7 +3639,7 @@ void __l2cap_le_connect_rsp_defer(struct l2cap_chan *chan)
 	rsp.mtu     = cpu_to_le16(chan->imtu);
 	rsp.mps     = cpu_to_le16(chan->mps);
 	rsp.credits = cpu_to_le16(chan->rx_credits);
-	rsp.result  = __constant_cpu_to_le16(L2CAP_CR_SUCCESS);
+	rsp.result  = cpu_to_le16(L2CAP_CR_SUCCESS);
 
 	l2cap_send_cmd(conn, chan->ident, L2CAP_LE_CONN_RSP, sizeof(rsp),
 		       &rsp);
@@ -3654,8 +3654,8 @@ void __l2cap_connect_rsp_defer(struct l2cap_chan *chan)
 
 	rsp.scid   = cpu_to_le16(chan->dcid);
 	rsp.dcid   = cpu_to_le16(chan->scid);
-	rsp.result = __constant_cpu_to_le16(L2CAP_CR_SUCCESS);
-	rsp.status = __constant_cpu_to_le16(L2CAP_CS_NO_INFO);
+	rsp.result = cpu_to_le16(L2CAP_CR_SUCCESS);
+	rsp.status = cpu_to_le16(L2CAP_CS_NO_INFO);
 
 	if (chan->hs_hcon)
 		rsp_code = L2CAP_CREATE_CHAN_RSP;
@@ -3684,8 +3684,8 @@ static void l2cap_conf_rfc_get(struct l2cap_chan *chan, void *rsp, int len)
 	u16 txwin_ext = chan->ack_win;
 	struct l2cap_conf_rfc rfc = {
 		.mode = chan->mode,
-		.retrans_timeout = __constant_cpu_to_le16(L2CAP_DEFAULT_RETRANS_TO),
-		.monitor_timeout = __constant_cpu_to_le16(L2CAP_DEFAULT_MONITOR_TO),
+		.retrans_timeout = cpu_to_le16(L2CAP_DEFAULT_RETRANS_TO),
+		.monitor_timeout = cpu_to_le16(L2CAP_DEFAULT_MONITOR_TO),
 		.max_pdu_size = cpu_to_le16(chan->imtu),
 		.txwin_size = min_t(u16, chan->ack_win, L2CAP_DEFAULT_TX_WINDOW),
 	};
@@ -3776,7 +3776,7 @@ static struct l2cap_chan *l2cap_connect(struct l2cap_conn *conn,
 	l2cap_chan_lock(pchan);
 
 	/* Check if the ACL is secure enough (if not SDP) */
-	if (psm != __constant_cpu_to_le16(L2CAP_PSM_SDP) &&
+	if (psm != cpu_to_le16(L2CAP_PSM_SDP) &&
 	    !hci_conn_check_link_mode(conn->hcon)) {
 		conn->disc_reason = HCI_ERROR_AUTH_FAILURE;
 		result = L2CAP_CR_SEC_BLOCK;
@@ -3861,7 +3861,7 @@ sendresp:
 
 	if (result == L2CAP_CR_PEND && status == L2CAP_CS_NO_INFO) {
 		struct l2cap_info_req info;
-		info.type = __constant_cpu_to_le16(L2CAP_IT_FEAT_MASK);
+		info.type = cpu_to_le16(L2CAP_IT_FEAT_MASK);
 
 		conn->info_state |= L2CAP_INFO_FEAT_MASK_REQ_SENT;
 		conn->info_ident = l2cap_get_ident(conn);
@@ -4010,7 +4010,7 @@ static void cmd_reject_invalid_cid(struct l2cap_conn *conn, u8 ident,
 {
 	struct l2cap_cmd_rej_cid rej;
 
-	rej.reason = __constant_cpu_to_le16(L2CAP_REJ_INVALID_CID);
+	rej.reason = cpu_to_le16(L2CAP_REJ_INVALID_CID);
 	rej.scid = __cpu_to_le16(scid);
 	rej.dcid = __cpu_to_le16(dcid);
 
@@ -4342,8 +4342,8 @@ static inline int l2cap_information_req(struct l2cap_conn *conn,
 		u8 buf[8];
 		u32 feat_mask = l2cap_feat_mask;
 		struct l2cap_info_rsp *rsp = (struct l2cap_info_rsp *) buf;
-		rsp->type   = __constant_cpu_to_le16(L2CAP_IT_FEAT_MASK);
-		rsp->result = __constant_cpu_to_le16(L2CAP_IR_SUCCESS);
+		rsp->type   = cpu_to_le16(L2CAP_IT_FEAT_MASK);
+		rsp->result = cpu_to_le16(L2CAP_IR_SUCCESS);
 		if (!disable_ertm)
 			feat_mask |= L2CAP_FEAT_ERTM | L2CAP_FEAT_STREAMING
 				| L2CAP_FEAT_FCS;
@@ -4363,15 +4363,15 @@ static inline int l2cap_information_req(struct l2cap_conn *conn,
 		else
 			l2cap_fixed_chan[0] &= ~L2CAP_FC_A2MP;
 
-		rsp->type   = __constant_cpu_to_le16(L2CAP_IT_FIXED_CHAN);
-		rsp->result = __constant_cpu_to_le16(L2CAP_IR_SUCCESS);
+		rsp->type   = cpu_to_le16(L2CAP_IT_FIXED_CHAN);
+		rsp->result = cpu_to_le16(L2CAP_IR_SUCCESS);
 		memcpy(rsp->data, l2cap_fixed_chan, sizeof(l2cap_fixed_chan));
 		l2cap_send_cmd(conn, cmd->ident, L2CAP_INFO_RSP, sizeof(buf),
 			       buf);
 	} else {
 		struct l2cap_info_rsp rsp;
 		rsp.type   = cpu_to_le16(type);
-		rsp.result = __constant_cpu_to_le16(L2CAP_IR_NOTSUPP);
+		rsp.result = cpu_to_le16(L2CAP_IR_NOTSUPP);
 		l2cap_send_cmd(conn, cmd->ident, L2CAP_INFO_RSP, sizeof(rsp),
 			       &rsp);
 	}
@@ -4416,7 +4416,7 @@ static inline int l2cap_information_rsp(struct l2cap_conn *conn,
 
 		if (conn->feat_mask & L2CAP_FEAT_FIXED_CHAN) {
 			struct l2cap_info_req req;
-			req.type = __constant_cpu_to_le16(L2CAP_IT_FIXED_CHAN);
+			req.type = cpu_to_le16(L2CAP_IT_FIXED_CHAN);
 
 			conn->info_ident = l2cap_get_ident(conn);
 
@@ -4510,8 +4510,8 @@ static int l2cap_create_channel_req(struct l2cap_conn *conn,
 error:
 	rsp.dcid = 0;
 	rsp.scid = cpu_to_le16(scid);
-	rsp.result = __constant_cpu_to_le16(L2CAP_CR_BAD_AMP);
-	rsp.status = __constant_cpu_to_le16(L2CAP_CS_NO_INFO);
+	rsp.result = cpu_to_le16(L2CAP_CR_BAD_AMP);
+	rsp.status = cpu_to_le16(L2CAP_CS_NO_INFO);
 
 	l2cap_send_cmd(conn, cmd->ident, L2CAP_CREATE_CHAN_RSP,
 		       sizeof(rsp), &rsp);
@@ -4575,7 +4575,7 @@ static void l2cap_send_move_chan_cfm_icid(struct l2cap_conn *conn, u16 icid)
 	BT_DBG("conn %p, icid 0x%4.4x", conn, icid);
 
 	cfm.icid = cpu_to_le16(icid);
-	cfm.result = __constant_cpu_to_le16(L2CAP_MC_UNCONFIRMED);
+	cfm.result = cpu_to_le16(L2CAP_MC_UNCONFIRMED);
 
 	l2cap_send_cmd(conn, l2cap_get_ident(conn), L2CAP_MOVE_CHAN_CFM,
 		       sizeof(cfm), &cfm);
@@ -4758,12 +4758,12 @@ static void l2cap_do_create(struct l2cap_chan *chan, int result,
 
 		if (result == L2CAP_CR_SUCCESS) {
 			/* Send successful response */
-			rsp.result = __constant_cpu_to_le16(L2CAP_CR_SUCCESS);
-			rsp.status = __constant_cpu_to_le16(L2CAP_CS_NO_INFO);
+			rsp.result = cpu_to_le16(L2CAP_CR_SUCCESS);
+			rsp.status = cpu_to_le16(L2CAP_CS_NO_INFO);
 		} else {
 			/* Send negative response */
-			rsp.result = __constant_cpu_to_le16(L2CAP_CR_NO_MEM);
-			rsp.status = __constant_cpu_to_le16(L2CAP_CS_NO_INFO);
+			rsp.result = cpu_to_le16(L2CAP_CR_NO_MEM);
+			rsp.status = cpu_to_le16(L2CAP_CS_NO_INFO);
 		}
 
 		l2cap_send_cmd(chan->conn, chan->ident, L2CAP_CREATE_CHAN_RSP,
@@ -4891,7 +4891,7 @@ static inline int l2cap_move_channel_req(struct l2cap_conn *conn,
 	chan = l2cap_get_chan_by_dcid(conn, icid);
 	if (!chan) {
 		rsp.icid = cpu_to_le16(icid);
-		rsp.result = __constant_cpu_to_le16(L2CAP_MR_NOT_ALLOWED);
+		rsp.result = cpu_to_le16(L2CAP_MR_NOT_ALLOWED);
 		l2cap_send_cmd(conn, cmd->ident, L2CAP_MOVE_CHAN_RSP,
 			       sizeof(rsp), &rsp);
 		return 0;
@@ -5235,9 +5235,9 @@ static inline int l2cap_conn_param_update_req(struct l2cap_conn *conn,
 
 	err = l2cap_check_conn_param(min, max, latency, to_multiplier);
 	if (err)
-		rsp.result = __constant_cpu_to_le16(L2CAP_CONN_PARAM_REJECTED);
+		rsp.result = cpu_to_le16(L2CAP_CONN_PARAM_REJECTED);
 	else
-		rsp.result = __constant_cpu_to_le16(L2CAP_CONN_PARAM_ACCEPTED);
+		rsp.result = cpu_to_le16(L2CAP_CONN_PARAM_ACCEPTED);
 
 	l2cap_send_cmd(conn, cmd->ident, L2CAP_CONN_PARAM_UPDATE_RSP,
 		       sizeof(rsp), &rsp);
@@ -5650,7 +5650,7 @@ static inline void l2cap_le_sig_channel(struct l2cap_conn *conn,
 
 		BT_ERR("Wrong link type (%d)", err);
 
-		rej.reason = __constant_cpu_to_le16(L2CAP_REJ_NOT_UNDERSTOOD);
+		rej.reason = cpu_to_le16(L2CAP_REJ_NOT_UNDERSTOOD);
 		l2cap_send_cmd(conn, cmd->ident, L2CAP_COMMAND_REJ,
 			       sizeof(rej), &rej);
 	}
@@ -5695,7 +5695,7 @@ static inline void l2cap_sig_channel(struct l2cap_conn *conn,
 
 			BT_ERR("Wrong link type (%d)", err);
 
-			rej.reason = __constant_cpu_to_le16(L2CAP_REJ_NOT_UNDERSTOOD);
+			rej.reason = cpu_to_le16(L2CAP_REJ_NOT_UNDERSTOOD);
 			l2cap_send_cmd(conn, cmd.ident, L2CAP_COMMAND_REJ,
 				       sizeof(rej), &rej);
 		}

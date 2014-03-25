@@ -1699,7 +1699,7 @@ int ath_cabq_update(struct ath_softc *sc)
 
 	ath9k_hw_get_txq_props(sc->sc_ah, qnum, &qi);
 
-	qi.tqi_readyTime = (cur_conf->beacon_interval *
+	qi.tqi_readyTime = (TU_TO_USEC(cur_conf->beacon_interval) *
 			    ATH_CABQ_READY_TIME) / 100;
 	ath_txq_update(sc, qnum, &qi);
 
@@ -1769,7 +1769,7 @@ bool ath_drain_all_txq(struct ath_softc *sc)
 	int i;
 	u32 npend = 0;
 
-	if (test_bit(SC_OP_INVALID, &sc->sc_flags))
+	if (test_bit(ATH_OP_INVALID, &common->op_flags))
 		return true;
 
 	ath9k_hw_abort_tx_dma(ah);
@@ -1817,11 +1817,12 @@ void ath_tx_cleanupq(struct ath_softc *sc, struct ath_txq *txq)
  */
 void ath_txq_schedule(struct ath_softc *sc, struct ath_txq *txq)
 {
+	struct ath_common *common = ath9k_hw_common(sc->sc_ah);
 	struct ath_atx_ac *ac, *last_ac;
 	struct ath_atx_tid *tid, *last_tid;
 	bool sent = false;
 
-	if (test_bit(SC_OP_HW_RESET, &sc->sc_flags) ||
+	if (test_bit(ATH_OP_HW_RESET, &common->op_flags) ||
 	    list_empty(&txq->axq_acq))
 		return;
 
@@ -2471,7 +2472,7 @@ static void ath_tx_processq(struct ath_softc *sc, struct ath_txq *txq)
 
 	ath_txq_lock(sc, txq);
 	for (;;) {
-		if (test_bit(SC_OP_HW_RESET, &sc->sc_flags))
+		if (test_bit(ATH_OP_HW_RESET, &common->op_flags))
 			break;
 
 		if (list_empty(&txq->axq_q)) {
@@ -2554,7 +2555,7 @@ void ath_tx_edma_tasklet(struct ath_softc *sc)
 	int status;
 
 	for (;;) {
-		if (test_bit(SC_OP_HW_RESET, &sc->sc_flags))
+		if (test_bit(ATH_OP_HW_RESET, &common->op_flags))
 			break;
 
 		status = ath9k_hw_txprocdesc(ah, NULL, (void *)&ts);

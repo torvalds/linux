@@ -179,7 +179,7 @@ static int wil_cfg80211_get_station(struct wiphy *wiphy,
 
 	int cid = wil_find_cid(wil, mac);
 
-	wil_info(wil, "%s(%pM) CID %d\n", __func__, mac, cid);
+	wil_dbg_misc(wil, "%s(%pM) CID %d\n", __func__, mac, cid);
 	if (cid < 0)
 		return cid;
 
@@ -218,7 +218,7 @@ static int wil_cfg80211_dump_station(struct wiphy *wiphy,
 		return -ENOENT;
 
 	memcpy(mac, wil->sta[cid].addr, ETH_ALEN);
-	wil_info(wil, "%s(%pM) CID %d\n", __func__, mac, cid);
+	wil_dbg_misc(wil, "%s(%pM) CID %d\n", __func__, mac, cid);
 
 	rc = wil_cid_fill_sinfo(wil, cid, sinfo);
 
@@ -265,6 +265,7 @@ static int wil_cfg80211_scan(struct wiphy *wiphy,
 		u16 chnl[4];
 	} __packed cmd;
 	uint i, n;
+	int rc;
 
 	if (wil->scan_request) {
 		wil_err(wil, "Already scanning\n");
@@ -282,7 +283,7 @@ static int wil_cfg80211_scan(struct wiphy *wiphy,
 
 	/* FW don't support scan after connection attempt */
 	if (test_bit(wil_status_dontscan, &wil->status)) {
-		wil_err(wil, "Scan after connect attempt not supported\n");
+		wil_err(wil, "Can't scan now\n");
 		return -EBUSY;
 	}
 
@@ -305,8 +306,13 @@ static int wil_cfg80211_scan(struct wiphy *wiphy,
 			     request->channels[i]->center_freq);
 	}
 
-	return wmi_send(wil, WMI_START_SCAN_CMDID, &cmd, sizeof(cmd.cmd) +
+	rc = wmi_send(wil, WMI_START_SCAN_CMDID, &cmd, sizeof(cmd.cmd) +
 			cmd.cmd.num_channels * sizeof(cmd.cmd.channel_list[0]));
+
+	if (rc)
+		wil->scan_request = NULL;
+
+	return rc;
 }
 
 static int wil_cfg80211_connect(struct wiphy *wiphy,
@@ -320,6 +326,10 @@ static int wil_cfg80211_connect(struct wiphy *wiphy,
 	const u8 *rsn_eid;
 	int ch;
 	int rc = 0;
+
+	if (test_bit(wil_status_fwconnecting, &wil->status) ||
+	    test_bit(wil_status_fwconnected, &wil->status))
+		return -EALREADY;
 
 	bss = cfg80211_get_bss(wiphy, sme->channel, sme->bssid,
 			       sme->ssid, sme->ssid_len,
@@ -402,10 +412,7 @@ static int wil_cfg80211_connect(struct wiphy *wiphy,
 
 	memcpy(conn.bssid, bss->bssid, ETH_ALEN);
 	memcpy(conn.dst_mac, bss->bssid, ETH_ALEN);
-	/*
-	 * FW don't support scan after connection attempt
-	 */
-	set_bit(wil_status_dontscan, &wil->status);
+
 	set_bit(wil_status_fwconnecting, &wil->status);
 
 	rc = wmi_send(wil, WMI_CONNECT_CMDID, &conn, sizeof(conn));
@@ -414,7 +421,6 @@ static int wil_cfg80211_connect(struct wiphy *wiphy,
 		mod_timer(&wil->connect_timer,
 			  jiffies + msecs_to_jiffies(2000));
 	} else {
-		clear_bit(wil_status_dontscan, &wil->status);
 		clear_bit(wil_status_fwconnecting, &wil->status);
 	}
 
@@ -603,18 +609,20 @@ static int wil_cfg80211_start_ap(struct wiphy *wiphy,
 	if (wil_fix_bcon(wil, bcon))
 		wil_dbg_misc(wil, "Fixed bcon\n");
 
+	mutex_lock(&wil->mutex);
+
 	rc = wil_reset(wil);
 	if (rc)
-		return rc;
+		goto out;
 
 	/* Rx VRING. */
 	rc = wil_rx_init(wil);
 	if (rc)
-		return rc;
+		goto out;
 
 	rc = wmi_set_ssid(wil, info->ssid_len, info->ssid);
 	if (rc)
-		return rc;
+		goto out;
 
 	/* MAC address - pre-requisite for other commands */
 	wmi_set_mac_address(wil, ndev->dev_addr);
@@ -638,11 +646,13 @@ static int wil_cfg80211_start_ap(struct wiphy *wiphy,
 	rc = wmi_pcp_start(wil, info->beacon_interval, wmi_nettype,
 			   channel->hw_value);
 	if (rc)
-		return rc;
+		goto out;
 
 
 	netif_carrier_on(ndev);
 
+out:
+	mutex_unlock(&wil->mutex);
 	return rc;
 }
 
@@ -652,8 +662,11 @@ static int wil_cfg80211_stop_ap(struct wiphy *wiphy,
 	int rc = 0;
 	struct wil6210_priv *wil = wiphy_to_wil(wiphy);
 
+	mutex_lock(&wil->mutex);
+
 	rc = wmi_pcp_stop(wil);
 
+	mutex_unlock(&wil->mutex);
 	return rc;
 }
 
@@ -661,7 +674,11 @@ static int wil_cfg80211_del_station(struct wiphy *wiphy,
 				    struct net_device *dev, u8 *mac)
 {
 	struct wil6210_priv *wil = wiphy_to_wil(wiphy);
+
+	mutex_lock(&wil->mutex);
 	wil6210_disconnect(wil, mac);
+	mutex_unlock(&wil->mutex);
+
 	return 0;
 }
 

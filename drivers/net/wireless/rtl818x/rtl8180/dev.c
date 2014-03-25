@@ -148,7 +148,8 @@ static void rtl8180_handle_rx(struct ieee80211_hw *dev)
 			rx_status.antenna = (flags2 >> 15) & 1;
 			rx_status.rate_idx = (flags >> 20) & 0xF;
 			agc = (flags2 >> 17) & 0x7F;
-			if (priv->r8185) {
+
+			if (priv->chip_family == RTL818X_CHIP_FAMILY_RTL8185) {
 				if (rx_status.rate_idx > 3)
 					signal = 90 - clamp_t(u8, agc, 25, 90);
 				else
@@ -288,7 +289,7 @@ static void rtl8180_tx(struct ieee80211_hw *dev,
 		   (ieee80211_get_tx_rate(dev, info)->hw_value << 24) |
 		   skb->len;
 
-	if (priv->r8185)
+	if (priv->chip_family != RTL818X_CHIP_FAMILY_RTL8180)
 		tx_flags |= RTL818X_TX_DESC_FLAG_DMA |
 			    RTL818X_TX_DESC_FLAG_NO_ENC;
 
@@ -305,7 +306,7 @@ static void rtl8180_tx(struct ieee80211_hw *dev,
 		rts_duration = ieee80211_rts_duration(dev, priv->vif, skb->len,
 						      info);
 
-	if (!priv->r8185) {
+	if (priv->chip_family == RTL818X_CHIP_FAMILY_RTL8180) {
 		unsigned int remainder;
 
 		plcp_len = DIV_ROUND_UP(16 * (skb->len + 4),
@@ -370,6 +371,36 @@ void rtl8180_set_anaparam(struct rtl8180_priv *priv, u32 anaparam)
 	rtl818x_iowrite8(priv, &priv->map->EEPROM_CMD, RTL818X_EEPROM_CMD_NORMAL);
 }
 
+static void rtl8180_conf_basic_rates(struct ieee80211_hw *dev,
+			    u32 rates_mask)
+{
+	struct rtl8180_priv *priv = dev->priv;
+
+	u8 max, min;
+	u16 reg;
+
+	max = fls(rates_mask) - 1;
+	min = ffs(rates_mask) - 1;
+
+	switch (priv->chip_family) {
+
+	case RTL818X_CHIP_FAMILY_RTL8180:
+		/* in 8180 this is NOT a BITMAP */
+		reg = rtl818x_ioread16(priv, &priv->map->BRSR);
+		reg &= ~3;
+		reg |= max;
+		rtl818x_iowrite16(priv, &priv->map->BRSR, reg);
+
+		break;
+
+	case RTL818X_CHIP_FAMILY_RTL8185:
+		/* in 8185 this is a BITMAP */
+		rtl818x_iowrite16(priv, &priv->map->BRSR, rates_mask);
+		rtl818x_iowrite8(priv, &priv->map->RESP_RATE, (max << 4) | min);
+		break;
+	}
+}
+
 static int rtl8180_init_hw(struct ieee80211_hw *dev)
 {
 	struct rtl8180_priv *priv = dev->priv;
@@ -412,7 +443,7 @@ static int rtl8180_init_hw(struct ieee80211_hw *dev)
 
 	rtl818x_iowrite8(priv, &priv->map->MSR, 0);
 
-	if (!priv->r8185)
+	if (priv->chip_family == RTL818X_CHIP_FAMILY_RTL8180)
 		rtl8180_set_anaparam(priv, priv->anaparam);
 
 	rtl818x_iowrite32(priv, &priv->map->RDSAR, priv->rx_ring_dma);
@@ -425,7 +456,7 @@ static int rtl8180_init_hw(struct ieee80211_hw *dev)
 	rtl818x_iowrite8(priv, &priv->map->EEPROM_CMD, RTL818X_EEPROM_CMD_CONFIG);
 	reg = rtl818x_ioread8(priv, &priv->map->CONFIG2);
 	rtl818x_iowrite8(priv, &priv->map->CONFIG2, reg & ~(1 << 3));
-	if (priv->r8185) {
+	if (priv->chip_family == RTL818X_CHIP_FAMILY_RTL8185) {
 		reg = rtl818x_ioread8(priv, &priv->map->CONFIG2);
 		rtl818x_iowrite8(priv, &priv->map->CONFIG2, reg | (1 << 4));
 	}
@@ -437,12 +468,9 @@ static int rtl8180_init_hw(struct ieee80211_hw *dev)
 
 	rtl818x_iowrite32(priv, &priv->map->INT_TIMEOUT, 0);
 
-	if (priv->r8185) {
+	if (priv->chip_family != RTL818X_CHIP_FAMILY_RTL8180) {
 		rtl818x_iowrite8(priv, &priv->map->WPA_CONF, 0);
 		rtl818x_iowrite8(priv, &priv->map->RATE_FALLBACK, 0x81);
-		rtl818x_iowrite8(priv, &priv->map->RESP_RATE, (8 << 4) | 0);
-
-		rtl818x_iowrite16(priv, &priv->map->BRSR, 0x01F3);
 
 		/* TODO: set ClkRun enable? necessary? */
 		reg = rtl818x_ioread8(priv, &priv->map->GP_ENABLE);
@@ -452,7 +480,6 @@ static int rtl8180_init_hw(struct ieee80211_hw *dev)
 		rtl818x_iowrite8(priv, &priv->map->CONFIG3, reg | (1 << 2));
 		rtl818x_iowrite8(priv, &priv->map->EEPROM_CMD, RTL818X_EEPROM_CMD_NORMAL);
 	} else {
-		rtl818x_iowrite16(priv, &priv->map->BRSR, 0x1);
 		rtl818x_iowrite8(priv, &priv->map->SECURITY, 0);
 
 		rtl818x_iowrite8(priv, &priv->map->PHY_DELAY, 0x6);
@@ -460,8 +487,18 @@ static int rtl8180_init_hw(struct ieee80211_hw *dev)
 	}
 
 	priv->rf->init(dev);
-	if (priv->r8185)
-		rtl818x_iowrite16(priv, &priv->map->BRSR, 0x01F3);
+
+	/* default basic rates are 1,2 Mbps for rtl8180. 1,2,6,9,12,18,24 Mbps
+	 * otherwise. bitmask 0x3 and 0x01f3 respectively.
+	 * NOTE: currenty rtl8225 RF code changes basic rates, so we need to do
+	 * this after rf init.
+	 * TODO: try to find out whether RF code really needs to do this..
+	 */
+	if (priv->chip_family == RTL818X_CHIP_FAMILY_RTL8180)
+		rtl8180_conf_basic_rates(dev, 0x3);
+	else
+		rtl8180_conf_basic_rates(dev, 0x1f3);
+
 	return 0;
 }
 
@@ -624,7 +661,7 @@ static int rtl8180_start(struct ieee80211_hw *dev)
 	      RTL818X_RX_CONF_BROADCAST |
 	      RTL818X_RX_CONF_NICMAC;
 
-	if (priv->r8185)
+	if (priv->chip_family == RTL818X_CHIP_FAMILY_RTL8185)
 		reg |= RTL818X_RX_CONF_CSDM1 | RTL818X_RX_CONF_CSDM2;
 	else {
 		reg |= (priv->rfparam & RF_PARAM_CARRIERSENSE1)
@@ -636,7 +673,7 @@ static int rtl8180_start(struct ieee80211_hw *dev)
 	priv->rx_conf = reg;
 	rtl818x_iowrite32(priv, &priv->map->RX_CONF, reg);
 
-	if (priv->r8185) {
+	if (priv->chip_family != RTL818X_CHIP_FAMILY_RTL8180) {
 		reg = rtl818x_ioread8(priv, &priv->map->CW_CONF);
 
 		/* CW is not on per-packet basis.
@@ -668,7 +705,9 @@ static int rtl8180_start(struct ieee80211_hw *dev)
 	reg |= (6 << 21 /* MAX TX DMA */) |
 	       RTL818X_TX_CONF_NO_ICV;
 
-	if (priv->r8185)
+
+
+	if (priv->chip_family != RTL818X_CHIP_FAMILY_RTL8180)
 		reg &= ~RTL818X_TX_CONF_PROBE_DTS;
 	else
 		reg &= ~RTL818X_TX_CONF_HW_SEQNUM;
@@ -827,6 +866,72 @@ static int rtl8180_config(struct ieee80211_hw *dev, u32 changed)
 	return 0;
 }
 
+static int rtl8180_conf_tx(struct ieee80211_hw *dev,
+			    struct ieee80211_vif *vif, u16 queue,
+			    const struct ieee80211_tx_queue_params *params)
+{
+	struct rtl8180_priv *priv = dev->priv;
+	u8 cw_min, cw_max;
+
+	/* nothing to do ? */
+	if (priv->chip_family == RTL818X_CHIP_FAMILY_RTL8180)
+		return 0;
+
+	cw_min = fls(params->cw_min);
+	cw_max = fls(params->cw_max);
+
+	rtl818x_iowrite8(priv, &priv->map->CW_VAL, (cw_max << 4) | cw_min);
+
+	return 0;
+}
+
+static void rtl8180_conf_erp(struct ieee80211_hw *dev,
+			    struct ieee80211_bss_conf *info)
+{
+	struct rtl8180_priv *priv = dev->priv;
+	u8 sifs, difs;
+	int eifs;
+	u8 hw_eifs;
+
+	/* TODO: should we do something ? */
+	if (priv->chip_family == RTL818X_CHIP_FAMILY_RTL8180)
+		return;
+
+	/* I _hope_ this means 10uS for the HW.
+	 * In reference code it is 0x22 for
+	 * both rtl8187L and rtl8187SE
+	 */
+	sifs = 0x22;
+
+	if (info->use_short_slot)
+		priv->slot_time = 9;
+	else
+		priv->slot_time = 20;
+
+	/* 10 is SIFS time in uS */
+	difs = 10 + 2 * priv->slot_time;
+	eifs = 10 + difs + priv->ack_time;
+
+	/* HW should use 4uS units for EIFS (I'm sure for rtl8185)*/
+	hw_eifs = DIV_ROUND_UP(eifs, 4);
+
+
+	rtl818x_iowrite8(priv, &priv->map->SLOT, priv->slot_time);
+	rtl818x_iowrite8(priv, &priv->map->SIFS, sifs);
+	rtl818x_iowrite8(priv, &priv->map->DIFS, difs);
+
+	/* from reference code. set ack timeout reg = eifs reg */
+	rtl818x_iowrite8(priv, &priv->map->CARRIER_SENSE_COUNTER, hw_eifs);
+
+	/* rtl8187/rtl8185 HW bug. After EIFS is elapsed,
+	 * the HW still wait for DIFS.
+	 * HW uses 4uS units for EIFS.
+	 */
+	hw_eifs = DIV_ROUND_UP(eifs - difs, 4);
+
+	rtl818x_iowrite8(priv, &priv->map->EIFS, hw_eifs);
+}
+
 static void rtl8180_bss_info_changed(struct ieee80211_hw *dev,
 				     struct ieee80211_vif *vif,
 				     struct ieee80211_bss_conf *info,
@@ -854,8 +959,23 @@ static void rtl8180_bss_info_changed(struct ieee80211_hw *dev,
 		rtl818x_iowrite8(priv, &priv->map->MSR, reg);
 	}
 
-	if (changed & BSS_CHANGED_ERP_SLOT && priv->rf->conf_erp)
-		priv->rf->conf_erp(dev, info);
+	if (changed & BSS_CHANGED_BASIC_RATES)
+		rtl8180_conf_basic_rates(dev, info->basic_rates);
+
+	if (changed & (BSS_CHANGED_ERP_SLOT | BSS_CHANGED_ERP_PREAMBLE)) {
+
+		/* when preamble changes, acktime duration changes, and erp must
+		 * be recalculated. ACK time is calculated at lowest rate.
+		 * Since mac80211 include SIFS time we remove it (-10)
+		 */
+		priv->ack_time =
+			le16_to_cpu(ieee80211_generic_frame_duration(dev,
+					priv->vif,
+					IEEE80211_BAND_2GHZ, 10,
+					&priv->rates[0])) - 10;
+
+		rtl8180_conf_erp(dev, info);
+	}
 
 	if (changed & BSS_CHANGED_BEACON_ENABLED)
 		vif_priv->enable_beacon = info->enable_beacon;
@@ -913,6 +1033,7 @@ static const struct ieee80211_ops rtl8180_ops = {
 	.remove_interface	= rtl8180_remove_interface,
 	.config			= rtl8180_config,
 	.bss_info_changed	= rtl8180_bss_info_changed,
+	.conf_tx		= rtl8180_conf_tx,
 	.prepare_multicast	= rtl8180_prepare_multicast,
 	.configure_filter	= rtl8180_configure_filter,
 	.get_tsf		= rtl8180_get_tsf,
@@ -920,8 +1041,7 @@ static const struct ieee80211_ops rtl8180_ops = {
 
 static void rtl8180_eeprom_register_read(struct eeprom_93cx6 *eeprom)
 {
-	struct ieee80211_hw *dev = eeprom->data;
-	struct rtl8180_priv *priv = dev->priv;
+	struct rtl8180_priv *priv = eeprom->data;
 	u8 reg = rtl818x_ioread8(priv, &priv->map->EEPROM_CMD);
 
 	eeprom->reg_data_in = reg & RTL818X_EEPROM_CMD_WRITE;
@@ -932,8 +1052,7 @@ static void rtl8180_eeprom_register_read(struct eeprom_93cx6 *eeprom)
 
 static void rtl8180_eeprom_register_write(struct eeprom_93cx6 *eeprom)
 {
-	struct ieee80211_hw *dev = eeprom->data;
-	struct rtl8180_priv *priv = dev->priv;
+	struct rtl8180_priv *priv = eeprom->data;
 	u8 reg = 2 << 6;
 
 	if (eeprom->reg_data_in)
@@ -950,6 +1069,67 @@ static void rtl8180_eeprom_register_write(struct eeprom_93cx6 *eeprom)
 	udelay(10);
 }
 
+static void rtl8180_eeprom_read(struct rtl8180_priv *priv)
+{
+	struct eeprom_93cx6 eeprom;
+	int eeprom_cck_table_adr;
+	u16 eeprom_val;
+	int i;
+
+	eeprom.data = priv;
+	eeprom.register_read = rtl8180_eeprom_register_read;
+	eeprom.register_write = rtl8180_eeprom_register_write;
+	if (rtl818x_ioread32(priv, &priv->map->RX_CONF) & (1 << 6))
+		eeprom.width = PCI_EEPROM_WIDTH_93C66;
+	else
+		eeprom.width = PCI_EEPROM_WIDTH_93C46;
+
+	rtl818x_iowrite8(priv, &priv->map->EEPROM_CMD,
+			RTL818X_EEPROM_CMD_PROGRAM);
+	rtl818x_ioread8(priv, &priv->map->EEPROM_CMD);
+	udelay(10);
+
+	eeprom_93cx6_read(&eeprom, 0x06, &eeprom_val);
+	eeprom_val &= 0xFF;
+	priv->rf_type = eeprom_val;
+
+	eeprom_93cx6_read(&eeprom, 0x17, &eeprom_val);
+	priv->csthreshold = eeprom_val >> 8;
+
+	eeprom_93cx6_multiread(&eeprom, 0x7, (__le16 *)priv->mac_addr, 3);
+
+	eeprom_cck_table_adr = 0x10;
+
+	/* CCK TX power */
+	for (i = 0; i < 14; i += 2) {
+		u16 txpwr;
+		eeprom_93cx6_read(&eeprom, eeprom_cck_table_adr + (i >> 1),
+				&txpwr);
+		priv->channels[i].hw_value = txpwr & 0xFF;
+		priv->channels[i + 1].hw_value = txpwr >> 8;
+	}
+
+	/* OFDM TX power */
+	if (priv->chip_family != RTL818X_CHIP_FAMILY_RTL8180) {
+		for (i = 0; i < 14; i += 2) {
+			u16 txpwr;
+			eeprom_93cx6_read(&eeprom, 0x20 + (i >> 1), &txpwr);
+			priv->channels[i].hw_value |= (txpwr & 0xFF) << 8;
+			priv->channels[i + 1].hw_value |= txpwr & 0xFF00;
+		}
+	}
+
+	if (priv->chip_family == RTL818X_CHIP_FAMILY_RTL8180) {
+		__le32 anaparam;
+		eeprom_93cx6_multiread(&eeprom, 0xD, (__le16 *)&anaparam, 2);
+		priv->anaparam = le32_to_cpu(anaparam);
+		eeprom_93cx6_read(&eeprom, 0x19, &priv->rfparam);
+	}
+
+	rtl818x_iowrite8(priv, &priv->map->EEPROM_CMD,
+			RTL818X_EEPROM_CMD_NORMAL);
+}
+
 static int rtl8180_probe(struct pci_dev *pdev,
 				   const struct pci_device_id *id)
 {
@@ -957,12 +1137,9 @@ static int rtl8180_probe(struct pci_dev *pdev,
 	struct rtl8180_priv *priv;
 	unsigned long mem_addr, mem_len;
 	unsigned int io_addr, io_len;
-	int err, i;
-	struct eeprom_93cx6 eeprom;
+	int err;
 	const char *chip_name, *rf_name = NULL;
 	u32 reg;
-	u16 eeprom_val;
-	u8 mac_addr[ETH_ALEN];
 
 	err = pci_enable_device(pdev);
 	if (err) {
@@ -1052,15 +1229,22 @@ static int rtl8180_probe(struct pci_dev *pdev,
 	switch (reg) {
 	case RTL818X_TX_CONF_R8180_ABCD:
 		chip_name = "RTL8180";
+		priv->chip_family = RTL818X_CHIP_FAMILY_RTL8180;
 		break;
+
 	case RTL818X_TX_CONF_R8180_F:
 		chip_name = "RTL8180vF";
+		priv->chip_family = RTL818X_CHIP_FAMILY_RTL8180;
 		break;
+
 	case RTL818X_TX_CONF_R8185_ABC:
 		chip_name = "RTL8185";
+		priv->chip_family = RTL818X_CHIP_FAMILY_RTL8185;
 		break;
+
 	case RTL818X_TX_CONF_R8185_D:
 		chip_name = "RTL8185vD";
+		priv->chip_family = RTL818X_CHIP_FAMILY_RTL8185;
 		break;
 	default:
 		printk(KERN_ERR "%s (rtl8180): Unknown chip! (0x%x)\n",
@@ -1068,27 +1252,14 @@ static int rtl8180_probe(struct pci_dev *pdev,
 		goto err_iounmap;
 	}
 
-	priv->r8185 = reg & RTL818X_TX_CONF_R8185_ABC;
-	if (priv->r8185) {
+	if (priv->chip_family != RTL818X_CHIP_FAMILY_RTL8180) {
 		priv->band.n_bitrates = ARRAY_SIZE(rtl818x_rates);
 		pci_try_set_mwi(pdev);
 	}
 
-	eeprom.data = dev;
-	eeprom.register_read = rtl8180_eeprom_register_read;
-	eeprom.register_write = rtl8180_eeprom_register_write;
-	if (rtl818x_ioread32(priv, &priv->map->RX_CONF) & (1 << 6))
-		eeprom.width = PCI_EEPROM_WIDTH_93C66;
-	else
-		eeprom.width = PCI_EEPROM_WIDTH_93C46;
+	rtl8180_eeprom_read(priv);
 
-	rtl818x_iowrite8(priv, &priv->map->EEPROM_CMD, RTL818X_EEPROM_CMD_PROGRAM);
-	rtl818x_ioread8(priv, &priv->map->EEPROM_CMD);
-	udelay(10);
-
-	eeprom_93cx6_read(&eeprom, 0x06, &eeprom_val);
-	eeprom_val &= 0xFF;
-	switch (eeprom_val) {
+	switch (priv->rf_type) {
 	case 1:	rf_name = "Intersil";
 		break;
 	case 2:	rf_name = "RFMD";
@@ -1106,7 +1277,7 @@ static int rtl8180_probe(struct pci_dev *pdev,
 		break;
 	default:
 		printk(KERN_ERR "%s (rtl8180): Unknown RF! (0x%x)\n",
-		       pci_name(pdev), eeprom_val);
+		       pci_name(pdev), priv->rf_type);
 		goto err_iounmap;
 	}
 
@@ -1116,42 +1287,12 @@ static int rtl8180_probe(struct pci_dev *pdev,
 		goto err_iounmap;
 	}
 
-	eeprom_93cx6_read(&eeprom, 0x17, &eeprom_val);
-	priv->csthreshold = eeprom_val >> 8;
-	if (!priv->r8185) {
-		__le32 anaparam;
-		eeprom_93cx6_multiread(&eeprom, 0xD, (__le16 *)&anaparam, 2);
-		priv->anaparam = le32_to_cpu(anaparam);
-		eeprom_93cx6_read(&eeprom, 0x19, &priv->rfparam);
-	}
-
-	eeprom_93cx6_multiread(&eeprom, 0x7, (__le16 *)mac_addr, 3);
-	if (!is_valid_ether_addr(mac_addr)) {
+	if (!is_valid_ether_addr(priv->mac_addr)) {
 		printk(KERN_WARNING "%s (rtl8180): Invalid hwaddr! Using"
 		       " randomly generated MAC addr\n", pci_name(pdev));
-		eth_random_addr(mac_addr);
+		eth_random_addr(priv->mac_addr);
 	}
-	SET_IEEE80211_PERM_ADDR(dev, mac_addr);
-
-	/* CCK TX power */
-	for (i = 0; i < 14; i += 2) {
-		u16 txpwr;
-		eeprom_93cx6_read(&eeprom, 0x10 + (i >> 1), &txpwr);
-		priv->channels[i].hw_value = txpwr & 0xFF;
-		priv->channels[i + 1].hw_value = txpwr >> 8;
-	}
-
-	/* OFDM TX power */
-	if (priv->r8185) {
-		for (i = 0; i < 14; i += 2) {
-			u16 txpwr;
-			eeprom_93cx6_read(&eeprom, 0x20 + (i >> 1), &txpwr);
-			priv->channels[i].hw_value |= (txpwr & 0xFF) << 8;
-			priv->channels[i + 1].hw_value |= txpwr & 0xFF00;
-		}
-	}
-
-	rtl818x_iowrite8(priv, &priv->map->EEPROM_CMD, RTL818X_EEPROM_CMD_NORMAL);
+	SET_IEEE80211_PERM_ADDR(dev, priv->mac_addr);
 
 	spin_lock_init(&priv->lock);
 
@@ -1163,7 +1304,7 @@ static int rtl8180_probe(struct pci_dev *pdev,
 	}
 
 	wiphy_info(dev->wiphy, "hwaddr %pm, %s + %s\n",
-		   mac_addr, chip_name, priv->rf->name);
+		   priv->mac_addr, chip_name, priv->rf->name);
 
 	return 0;
 

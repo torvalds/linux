@@ -26,6 +26,56 @@
 #include "11n.h"
 #include "11n_rxreorder.h"
 
+/* This function will dispatch amsdu packet and forward it to kernel/upper
+ * layer.
+ */
+static int mwifiex_11n_dispatch_amsdu_pkt(struct mwifiex_private *priv,
+					  struct sk_buff *skb)
+{
+	struct rxpd *local_rx_pd = (struct rxpd *)(skb->data);
+	int ret;
+
+	if (le16_to_cpu(local_rx_pd->rx_pkt_type) == PKT_TYPE_AMSDU) {
+		struct sk_buff_head list;
+		struct sk_buff *rx_skb;
+
+		__skb_queue_head_init(&list);
+
+		skb_pull(skb, le16_to_cpu(local_rx_pd->rx_pkt_offset));
+		skb_trim(skb, le16_to_cpu(local_rx_pd->rx_pkt_length));
+
+		ieee80211_amsdu_to_8023s(skb, &list, priv->curr_addr,
+					 priv->wdev->iftype, 0, false);
+
+		while (!skb_queue_empty(&list)) {
+			rx_skb = __skb_dequeue(&list);
+			ret = mwifiex_recv_packet(priv, rx_skb);
+			if (ret == -1)
+				dev_err(priv->adapter->dev,
+					"Rx of A-MSDU failed");
+		}
+		return 0;
+	}
+
+	return -1;
+}
+
+/* This function will process the rx packet and forward it to kernel/upper
+ * layer.
+ */
+static int mwifiex_11n_dispatch_pkt(struct mwifiex_private *priv, void *payload)
+{
+	int ret = mwifiex_11n_dispatch_amsdu_pkt(priv, payload);
+
+	if (!ret)
+		return 0;
+
+	if (priv->bss_role == MWIFIEX_BSS_ROLE_UAP)
+		return mwifiex_handle_uap_rx_forward(priv, payload);
+
+	return mwifiex_process_rx_packet(priv, payload);
+}
+
 /*
  * This function dispatches all packets in the Rx reorder table until the
  * start window.
@@ -35,8 +85,9 @@
  * circular buffer.
  */
 static void
-mwifiex_11n_dispatch_pkt(struct mwifiex_private *priv,
-			 struct mwifiex_rx_reorder_tbl *tbl, int start_win)
+mwifiex_11n_dispatch_pkt_until_start_win(struct mwifiex_private *priv,
+					 struct mwifiex_rx_reorder_tbl *tbl,
+					 int start_win)
 {
 	int pkt_to_send, i;
 	void *rx_tmp_ptr;
@@ -54,12 +105,8 @@ mwifiex_11n_dispatch_pkt(struct mwifiex_private *priv,
 			tbl->rx_reorder_ptr[i] = NULL;
 		}
 		spin_unlock_irqrestore(&priv->rx_pkt_lock, flags);
-		if (rx_tmp_ptr) {
-			if (priv->bss_role == MWIFIEX_BSS_ROLE_UAP)
-				mwifiex_handle_uap_rx_forward(priv, rx_tmp_ptr);
-			else
-				mwifiex_process_rx_packet(priv, rx_tmp_ptr);
-		}
+		if (rx_tmp_ptr)
+			mwifiex_11n_dispatch_pkt(priv, rx_tmp_ptr);
 	}
 
 	spin_lock_irqsave(&priv->rx_pkt_lock, flags);
@@ -101,11 +148,7 @@ mwifiex_11n_scan_and_dispatch(struct mwifiex_private *priv,
 		rx_tmp_ptr = tbl->rx_reorder_ptr[i];
 		tbl->rx_reorder_ptr[i] = NULL;
 		spin_unlock_irqrestore(&priv->rx_pkt_lock, flags);
-
-		if (priv->bss_role == MWIFIEX_BSS_ROLE_UAP)
-			mwifiex_handle_uap_rx_forward(priv, rx_tmp_ptr);
-		else
-			mwifiex_process_rx_packet(priv, rx_tmp_ptr);
+		mwifiex_11n_dispatch_pkt(priv, rx_tmp_ptr);
 	}
 
 	spin_lock_irqsave(&priv->rx_pkt_lock, flags);
@@ -135,12 +178,13 @@ mwifiex_del_rx_reorder_entry(struct mwifiex_private *priv,
 			     struct mwifiex_rx_reorder_tbl *tbl)
 {
 	unsigned long flags;
+	int start_win;
 
 	if (!tbl)
 		return;
 
-	mwifiex_11n_dispatch_pkt(priv, tbl, (tbl->start_win + tbl->win_size) &
-					    (MAX_TID_VALUE - 1));
+	start_win = (tbl->start_win + tbl->win_size) & (MAX_TID_VALUE - 1);
+	mwifiex_11n_dispatch_pkt_until_start_win(priv, tbl, start_win);
 
 	del_timer_sync(&tbl->timer_context.timer);
 
@@ -228,17 +272,17 @@ mwifiex_flush_data(unsigned long context)
 {
 	struct reorder_tmr_cnxt *ctx =
 		(struct reorder_tmr_cnxt *) context;
-	int start_win;
+	int start_win, seq_num;
 
-	start_win = mwifiex_11n_find_last_seq_num(ctx->ptr);
+	seq_num = mwifiex_11n_find_last_seq_num(ctx->ptr);
 
-	if (start_win < 0)
+	if (seq_num < 0)
 		return;
 
-	dev_dbg(ctx->priv->adapter->dev, "info: flush data %d\n", start_win);
-	mwifiex_11n_dispatch_pkt(ctx->priv, ctx->ptr,
-				 (ctx->ptr->start_win + start_win + 1) &
-				 (MAX_TID_VALUE - 1));
+	dev_dbg(ctx->priv->adapter->dev, "info: flush data %d\n", seq_num);
+	start_win = (ctx->ptr->start_win + seq_num + 1) & (MAX_TID_VALUE - 1);
+	mwifiex_11n_dispatch_pkt_until_start_win(ctx->priv, ctx->ptr,
+						 start_win);
 }
 
 /*
@@ -267,7 +311,7 @@ mwifiex_11n_create_rx_reorder_tbl(struct mwifiex_private *priv, u8 *ta,
 	 */
 	tbl = mwifiex_11n_get_rx_reorder_tbl(priv, tid, ta);
 	if (tbl) {
-		mwifiex_11n_dispatch_pkt(priv, tbl, seq_num);
+		mwifiex_11n_dispatch_pkt_until_start_win(priv, tbl, seq_num);
 		return;
 	}
 	/* if !tbl then create one */
@@ -401,8 +445,11 @@ int mwifiex_cmd_11n_addba_rsp_gen(struct mwifiex_private *priv,
 		>> BLOCKACKPARAM_TID_POS;
 	add_ba_rsp->status_code = cpu_to_le16(ADDBA_RSP_STATUS_ACCEPT);
 	block_ack_param_set &= ~IEEE80211_ADDBA_PARAM_BUF_SIZE_MASK;
-	/* We donot support AMSDU inside AMPDU, hence reset the bit */
-	block_ack_param_set &= ~BLOCKACKPARAM_AMSDU_SUPP_MASK;
+
+	/* If we don't support AMSDU inside AMPDU, reset the bit */
+	if (!priv->add_ba_param.rx_amsdu ||
+	    (priv->aggr_prio_tbl[tid].amsdu == BA_STREAM_NOT_ALLOWED))
+		block_ack_param_set &= ~BLOCKACKPARAM_AMSDU_SUPP_MASK;
 	block_ack_param_set |= rx_win_size << BLOCKACKPARAM_WINSIZE_POS;
 	add_ba_rsp->block_ack_param_set = cpu_to_le16(block_ack_param_set);
 	win_size = (le16_to_cpu(add_ba_rsp->block_ack_param_set)
@@ -459,14 +506,16 @@ int mwifiex_11n_rx_reorder_pkt(struct mwifiex_private *priv,
 
 	tbl = mwifiex_11n_get_rx_reorder_tbl(priv, tid, ta);
 	if (!tbl) {
-		if (pkt_type != PKT_TYPE_BAR) {
-			if (priv->bss_role == MWIFIEX_BSS_ROLE_UAP)
-				mwifiex_handle_uap_rx_forward(priv, payload);
-			else
-				mwifiex_process_rx_packet(priv, payload);
-		}
+		if (pkt_type != PKT_TYPE_BAR)
+			mwifiex_11n_dispatch_pkt(priv, payload);
 		return 0;
 	}
+
+	if ((pkt_type == PKT_TYPE_AMSDU) && !tbl->amsdu) {
+		mwifiex_11n_dispatch_pkt(priv, payload);
+		return 0;
+	}
+
 	start_win = tbl->start_win;
 	win_size = tbl->win_size;
 	end_win = ((start_win + win_size) - 1) & (MAX_TID_VALUE - 1);
@@ -520,7 +569,7 @@ int mwifiex_11n_rx_reorder_pkt(struct mwifiex_private *priv,
 			start_win = (end_win - win_size) + 1;
 		else
 			start_win = (MAX_TID_VALUE - (win_size - seq_num)) + 1;
-		mwifiex_11n_dispatch_pkt(priv, tbl, start_win);
+		mwifiex_11n_dispatch_pkt_until_start_win(priv, tbl, start_win);
 	}
 
 	if (pkt_type != PKT_TYPE_BAR) {
@@ -611,16 +660,7 @@ int mwifiex_ret_11n_addba_resp(struct mwifiex_private *priv,
 	 * Check if we had rejected the ADDBA, if yes then do not create
 	 * the stream
 	 */
-	if (le16_to_cpu(add_ba_rsp->status_code) == BA_RESULT_SUCCESS) {
-		win_size = (block_ack_param_set &
-			IEEE80211_ADDBA_PARAM_BUF_SIZE_MASK)
-			>> BLOCKACKPARAM_WINSIZE_POS;
-
-		dev_dbg(priv->adapter->dev,
-			"cmd: ADDBA RSP: %pM tid=%d ssn=%d win_size=%d\n",
-			add_ba_rsp->peer_mac_addr, tid,
-			add_ba_rsp->ssn, win_size);
-	} else {
+	if (le16_to_cpu(add_ba_rsp->status_code) != BA_RESULT_SUCCESS) {
 		dev_err(priv->adapter->dev, "ADDBA RSP: failed %pM tid=%d)\n",
 			add_ba_rsp->peer_mac_addr, tid);
 
@@ -628,7 +668,27 @@ int mwifiex_ret_11n_addba_resp(struct mwifiex_private *priv,
 						     add_ba_rsp->peer_mac_addr);
 		if (tbl)
 			mwifiex_del_rx_reorder_entry(priv, tbl);
+
+		return 0;
 	}
+
+	win_size = (block_ack_param_set & IEEE80211_ADDBA_PARAM_BUF_SIZE_MASK)
+		    >> BLOCKACKPARAM_WINSIZE_POS;
+
+	tbl = mwifiex_11n_get_rx_reorder_tbl(priv, tid,
+					     add_ba_rsp->peer_mac_addr);
+	if (tbl) {
+		if ((block_ack_param_set & BLOCKACKPARAM_AMSDU_SUPP_MASK) &&
+		    priv->add_ba_param.rx_amsdu &&
+		    (priv->aggr_prio_tbl[tid].amsdu != BA_STREAM_NOT_ALLOWED))
+			tbl->amsdu = true;
+		else
+			tbl->amsdu = false;
+	}
+
+	dev_dbg(priv->adapter->dev,
+		"cmd: ADDBA RSP: %pM tid=%d ssn=%d win_size=%d\n",
+		add_ba_rsp->peer_mac_addr, tid, add_ba_rsp->ssn, win_size);
 
 	return 0;
 }

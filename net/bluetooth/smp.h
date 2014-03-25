@@ -121,7 +121,7 @@ struct smp_cmd_security_req {
 #define SMP_FLAG_LTK_ENCRYPT	4
 #define SMP_FLAG_COMPLETE	5
 
-#define SMP_REENCRYPT_TIMEOUT	msecs_to_jiffies(250)
+#define SMP_REENCRYPT_TIMEOUT	msecs_to_jiffies(500)
 
 struct smp_chan {
 	struct l2cap_conn *conn;
@@ -136,6 +136,8 @@ struct smp_chan {
 	bdaddr_t	id_addr;
 	u8		id_addr_type;
 	u8		irk[16];
+	struct smp_csrk	*csrk;
+	struct smp_csrk	*slave_csrk;
 	struct smp_ltk	*ltk;
 	struct smp_ltk	*slave_ltk;
 	struct smp_irk	*remote_irk;

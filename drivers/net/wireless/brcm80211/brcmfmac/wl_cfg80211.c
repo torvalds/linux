@@ -191,6 +191,7 @@ static struct ieee80211_supported_band __wl_band_2ghz = {
 	.n_channels = ARRAY_SIZE(__wl_2ghz_channels),
 	.bitrates = wl_g_rates,
 	.n_bitrates = wl_g_rates_size,
+	.ht_cap = {IEEE80211_HT_CAP_SUP_WIDTH_20_40, true},
 };
 
 static struct ieee80211_supported_band __wl_band_5ghz_a = {
@@ -494,6 +495,19 @@ brcmf_configure_arp_offload(struct brcmf_if *ifp, bool enable)
 	return err;
 }
 
+static bool brcmf_is_apmode(struct brcmf_cfg80211_vif *vif)
+{
+	enum nl80211_iftype iftype;
+
+	iftype = vif->wdev.iftype;
+	return iftype == NL80211_IFTYPE_AP || iftype == NL80211_IFTYPE_P2P_GO;
+}
+
+static bool brcmf_is_ibssmode(struct brcmf_cfg80211_vif *vif)
+{
+	return vif->wdev.iftype == NL80211_IFTYPE_ADHOC;
+}
+
 static struct wireless_dev *brcmf_cfg80211_add_iface(struct wiphy *wiphy,
 						     const char *name,
 						     enum nl80211_iftype type,
@@ -654,7 +668,6 @@ brcmf_cfg80211_change_iface(struct wiphy *wiphy, struct net_device *ndev,
 			  type);
 		return -EOPNOTSUPP;
 	case NL80211_IFTYPE_ADHOC:
-		vif->mode = WL_MODE_IBSS;
 		infra = 0;
 		break;
 	case NL80211_IFTYPE_STATION:
@@ -670,12 +683,10 @@ brcmf_cfg80211_change_iface(struct wiphy *wiphy, struct net_device *ndev,
 			 */
 			return 0;
 		}
-		vif->mode = WL_MODE_BSS;
 		infra = 1;
 		break;
 	case NL80211_IFTYPE_AP:
 	case NL80211_IFTYPE_P2P_GO:
-		vif->mode = WL_MODE_AP;
 		ap = 1;
 		break;
 	default:
@@ -699,7 +710,7 @@ brcmf_cfg80211_change_iface(struct wiphy *wiphy, struct net_device *ndev,
 			err = -EAGAIN;
 			goto done;
 		}
-		brcmf_dbg(INFO, "IF Type = %s\n", (vif->mode == WL_MODE_IBSS) ?
+		brcmf_dbg(INFO, "IF Type = %s\n", brcmf_is_ibssmode(vif) ?
 			  "Adhoc" : "Infra");
 	}
 	ndev->ieee80211_ptr->iftype = type;
@@ -1682,22 +1693,9 @@ brcmf_cfg80211_connect(struct wiphy *wiphy, struct net_device *ndev,
 	ext_join_params->ssid_le.SSID_len = cpu_to_le32(profile->ssid.SSID_len);
 	memcpy(&ext_join_params->ssid_le.SSID, sme->ssid,
 	       profile->ssid.SSID_len);
-	/*increase dwell time to receive probe response or detect Beacon
-	 * from target AP at a noisy air only during connect command
-	 */
-	ext_join_params->scan_le.active_time =
-		cpu_to_le32(BRCMF_SCAN_JOIN_ACTIVE_DWELL_TIME_MS);
-	ext_join_params->scan_le.passive_time =
-		cpu_to_le32(BRCMF_SCAN_JOIN_PASSIVE_DWELL_TIME_MS);
+
 	/* Set up join scan parameters */
 	ext_join_params->scan_le.scan_type = -1;
-	/* to sync with presence period of VSDB GO.
-	 * Send probe request more frequently. Probe request will be stopped
-	 * when it gets probe response from target AP/GO.
-	 */
-	ext_join_params->scan_le.nprobes =
-		cpu_to_le32(BRCMF_SCAN_JOIN_ACTIVE_DWELL_TIME_MS /
-			    BRCMF_SCAN_JOIN_PROBE_INTERVAL_MS);
 	ext_join_params->scan_le.home_time = cpu_to_le32(-1);
 
 	if (sme->bssid)
@@ -1710,6 +1708,25 @@ brcmf_cfg80211_connect(struct wiphy *wiphy, struct net_device *ndev,
 
 		ext_join_params->assoc_le.chanspec_list[0] =
 			cpu_to_le16(chanspec);
+		/* Increase dwell time to receive probe response or detect
+		 * beacon from target AP at a noisy air only during connect
+		 * command.
+		 */
+		ext_join_params->scan_le.active_time =
+			cpu_to_le32(BRCMF_SCAN_JOIN_ACTIVE_DWELL_TIME_MS);
+		ext_join_params->scan_le.passive_time =
+			cpu_to_le32(BRCMF_SCAN_JOIN_PASSIVE_DWELL_TIME_MS);
+		/* To sync with presence period of VSDB GO send probe request
+		 * more frequently. Probe request will be stopped when it gets
+		 * probe response from target AP/GO.
+		 */
+		ext_join_params->scan_le.nprobes =
+			cpu_to_le32(BRCMF_SCAN_JOIN_ACTIVE_DWELL_TIME_MS /
+				    BRCMF_SCAN_JOIN_PROBE_INTERVAL_MS);
+	} else {
+		ext_join_params->scan_le.active_time = cpu_to_le32(-1);
+		ext_join_params->scan_le.passive_time = cpu_to_le32(-1);
+		ext_join_params->scan_le.nprobes = cpu_to_le32(-1);
 	}
 
 	err  = brcmf_fil_bsscfg_data_set(ifp, "join", ext_join_params,
@@ -1917,7 +1934,7 @@ brcmf_add_keyext(struct wiphy *wiphy, struct net_device *ndev,
 		brcmf_dbg(CONN, "Setting the key index %d\n", key.index);
 		memcpy(key.data, params->key, key.len);
 
-		if ((ifp->vif->mode != WL_MODE_AP) &&
+		if (!brcmf_is_apmode(ifp->vif) &&
 		    (params->cipher == WLAN_CIPHER_SUITE_TKIP)) {
 			brcmf_dbg(CONN, "Swapping RX/TX MIC key\n");
 			memcpy(keybuf, &key.data[24], sizeof(keybuf));
@@ -2016,7 +2033,7 @@ brcmf_cfg80211_add_key(struct wiphy *wiphy, struct net_device *ndev,
 		brcmf_dbg(CONN, "WLAN_CIPHER_SUITE_WEP104\n");
 		break;
 	case WLAN_CIPHER_SUITE_TKIP:
-		if (ifp->vif->mode != WL_MODE_AP) {
+		if (!brcmf_is_apmode(ifp->vif)) {
 			brcmf_dbg(CONN, "Swapping RX/TX MIC key\n");
 			memcpy(keybuf, &key.data[24], sizeof(keybuf));
 			memcpy(&key.data[24], &key.data[16], sizeof(keybuf));
@@ -2177,7 +2194,7 @@ brcmf_cfg80211_get_station(struct wiphy *wiphy, struct net_device *ndev,
 	if (!check_vif_up(ifp->vif))
 		return -EIO;
 
-	if (ifp->vif->mode == WL_MODE_AP) {
+	if (brcmf_is_apmode(ifp->vif)) {
 		memcpy(&sta_info_le, mac, ETH_ALEN);
 		err = brcmf_fil_iovar_data_get(ifp, "sta_info",
 					       &sta_info_le,
@@ -2194,7 +2211,7 @@ brcmf_cfg80211_get_station(struct wiphy *wiphy, struct net_device *ndev,
 		}
 		brcmf_dbg(TRACE, "STA idle time : %d ms, connected time :%d sec\n",
 			  sinfo->inactive_time, sinfo->connected_time);
-	} else if (ifp->vif->mode == WL_MODE_BSS) {
+	} else if (ifp->vif->wdev.iftype == NL80211_IFTYPE_STATION) {
 		if (memcmp(mac, bssid, ETH_ALEN)) {
 			brcmf_err("Wrong Mac address cfg_mac-%pM wl_bssid-%pM\n",
 				  mac, bssid);
@@ -2474,11 +2491,6 @@ CleanUp:
 	brcmf_dbg(TRACE, "Exit\n");
 
 	return err;
-}
-
-static bool brcmf_is_ibssmode(struct brcmf_cfg80211_vif *vif)
-{
-	return vif->mode == WL_MODE_IBSS;
 }
 
 static s32 brcmf_update_bss_info(struct brcmf_cfg80211_info *cfg,
@@ -4253,32 +4265,6 @@ static struct cfg80211_ops wl_cfg80211_ops = {
 	CFG80211_TESTMODE_CMD(brcmf_cfg80211_testmode)
 };
 
-static s32 brcmf_nl80211_iftype_to_mode(enum nl80211_iftype type)
-{
-	switch (type) {
-	case NL80211_IFTYPE_AP_VLAN:
-	case NL80211_IFTYPE_WDS:
-	case NL80211_IFTYPE_MONITOR:
-	case NL80211_IFTYPE_MESH_POINT:
-		return -ENOTSUPP;
-	case NL80211_IFTYPE_ADHOC:
-		return WL_MODE_IBSS;
-	case NL80211_IFTYPE_STATION:
-	case NL80211_IFTYPE_P2P_CLIENT:
-		return WL_MODE_BSS;
-	case NL80211_IFTYPE_AP:
-	case NL80211_IFTYPE_P2P_GO:
-		return WL_MODE_AP;
-	case NL80211_IFTYPE_P2P_DEVICE:
-		return WL_MODE_P2P;
-	case NL80211_IFTYPE_UNSPECIFIED:
-	default:
-		break;
-	}
-
-	return -EINVAL;
-}
-
 static void brcmf_wiphy_pno_params(struct wiphy *wiphy)
 {
 	/* scheduled scan settings */
@@ -4403,7 +4389,6 @@ struct brcmf_cfg80211_vif *brcmf_alloc_vif(struct brcmf_cfg80211_info *cfg,
 	vif->wdev.wiphy = cfg->wiphy;
 	vif->wdev.iftype = type;
 
-	vif->mode = brcmf_nl80211_iftype_to_mode(type);
 	vif->pm_block = pm_block;
 	vif->roam_off = -1;
 
@@ -4697,7 +4682,7 @@ brcmf_notify_connect_status(struct brcmf_if *ifp,
 	s32 err = 0;
 	u16 reason;
 
-	if (ifp->vif->mode == WL_MODE_AP) {
+	if (brcmf_is_apmode(ifp->vif)) {
 		err = brcmf_notify_connect_status_ap(cfg, ndev, e, data);
 	} else if (brcmf_is_linkup(e)) {
 		brcmf_dbg(CONN, "Linkup\n");
@@ -4945,6 +4930,30 @@ static void init_vif_event(struct brcmf_cfg80211_vif_event *event)
 	mutex_init(&event->vif_event_lock);
 }
 
+static int brcmf_enable_bw40_2g(struct brcmf_if *ifp)
+{
+	struct brcmf_fil_bwcap_le band_bwcap;
+	u32 val;
+	int err;
+
+	/* verify support for bw_cap command */
+	val = WLC_BAND_5G;
+	err = brcmf_fil_iovar_int_get(ifp, "bw_cap", &val);
+
+	if (!err) {
+		/* only set 2G bandwidth using bw_cap command */
+		band_bwcap.band = cpu_to_le32(WLC_BAND_2G);
+		band_bwcap.bw_cap = cpu_to_le32(WLC_BW_40MHZ_BIT);
+		err = brcmf_fil_iovar_data_set(ifp, "bw_cap", &band_bwcap,
+					       sizeof(band_bwcap));
+	} else {
+		brcmf_dbg(INFO, "fallback to mimo_bw_cap\n");
+		val = WLC_N_BW_40ALL;
+		err = brcmf_fil_iovar_int_set(ifp, "mimo_bw_cap", val);
+	}
+	return err;
+}
+
 struct brcmf_cfg80211_info *brcmf_cfg80211_attach(struct brcmf_pub *drvr,
 						  struct device *busdev)
 {
@@ -5000,6 +5009,17 @@ struct brcmf_cfg80211_info *brcmf_cfg80211_attach(struct brcmf_pub *drvr,
 		brcmf_err("BT-coex initialisation failed (%d)\n", err);
 		brcmf_p2p_detach(&cfg->p2p);
 		goto cfg80211_p2p_attach_out;
+	}
+
+	/* If cfg80211 didn't disable 40MHz HT CAP in wiphy_register(),
+	 * setup 40MHz in 2GHz band and enable OBSS scanning.
+	 */
+	if (wiphy->bands[IEEE80211_BAND_2GHZ]->ht_cap.cap &
+	    IEEE80211_HT_CAP_SUP_WIDTH_20_40) {
+		err = brcmf_enable_bw40_2g(ifp);
+		if (!err)
+			err = brcmf_fil_iovar_int_set(ifp, "obss_coex",
+						      BRCMF_OBSS_COEX_AUTO);
 	}
 
 	err = brcmf_fil_iovar_int_set(ifp, "tdls_enable", 1);

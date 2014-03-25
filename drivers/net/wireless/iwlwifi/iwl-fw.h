@@ -125,6 +125,22 @@ enum iwl_ucode_tlv_flag {
 	IWL_UCODE_TLV_FLAGS_GO_UAPSD		= BIT(30),
 };
 
+/**
+ * enum iwl_ucode_tlv_api - ucode api
+ * @IWL_UCODE_TLV_API_WOWLAN_CONFIG_TID: wowlan config includes tid field.
+ */
+enum iwl_ucode_tlv_api {
+	IWL_UCODE_TLV_API_WOWLAN_CONFIG_TID	= BIT(0),
+};
+
+/**
+ * enum iwl_ucode_tlv_capa - ucode capabilities
+ * @IWL_UCODE_TLV_CAPA_D0I3_SUPPORT: supports D0i3
+ */
+enum iwl_ucode_tlv_capa {
+	IWL_UCODE_TLV_CAPA_D0I3_SUPPORT		= BIT(0),
+};
+
 /* The default calibrate table size if not specified by firmware file */
 #define IWL_DEFAULT_STANDARD_PHY_CALIBRATE_TBL_SIZE	18
 #define IWL_MAX_STANDARD_PHY_CALIBRATE_TBL_SIZE		19
