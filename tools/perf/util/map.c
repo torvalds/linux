@@ -323,6 +323,7 @@ void map_groups__init(struct map_groups *mg)
 		INIT_LIST_HEAD(&mg->removed_maps[i]);
 	}
 	mg->machine = NULL;
+	mg->refcnt = 1;
 }
 
 static void maps__delete(struct rb_root *maps)
@@ -372,6 +373,12 @@ void map_groups__delete(struct map_groups *mg)
 {
 	map_groups__exit(mg);
 	free(mg);
+}
+
+void map_groups__put(struct map_groups *mg)
+{
+	if (--mg->refcnt == 0)
+		map_groups__delete(mg);
 }
 
 void map_groups__flush(struct map_groups *mg)
