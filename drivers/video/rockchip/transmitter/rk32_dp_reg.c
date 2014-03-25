@@ -95,7 +95,7 @@ void rk32_edp_init_refclk(struct rk32_edp *edp)
 	writel(val, edp->regs + SSC_REG);
 	val = 0x87;
 	writel(val, edp->regs + TX_REG_COMMON);
-	val = 0x13;
+	val = 0x03;
 	writel(val, edp->regs + DP_AUX);
 	val = 0x46;
 	writel(val, edp->regs + DP_BIAS);
@@ -175,12 +175,7 @@ void rk32_edp_reset(struct rk32_edp *edp)
 	u32 val;
 
 	//writel(RST_DP_TX, edp->regs + TX_SW_RST);
-	/*val = 0x80008000;
-	writel_relaxed(val, RK_CRU_VIRT + 0x01d0);
-	mdelay(12);
-	val = 0x80000000;
-	writel_relaxed(val, RK_CRU_VIRT + 0x01d0);
-	mdelay(12);*/
+	
 	rk32_edp_stop_video(edp);
 	rk32_edp_enable_video_mute(edp, 0);
 
@@ -270,7 +265,7 @@ void rk32_edp_analog_power_ctr(struct rk32_edp *edp, bool enable)
 void rk32_edp_init_analog_func(struct rk32_edp *edp)
 {
 	u32 val;
-
+	int wt = 0;
 	rk32_edp_analog_power_ctr(edp, 1);
 
 	val = PLL_LOCK_CHG;
@@ -281,7 +276,6 @@ void rk32_edp_init_analog_func(struct rk32_edp *edp)
 	writel(val, edp->regs + DEBUG_CTL);
 
 	/* Power up PLL */
-	int wt = 0;
 	while (wt < 100) {
 	if (rk32_edp_get_pll_lock_status(edp) == DP_PLL_UNLOCKED)
 		dev_warn(edp->dev, "edp pll unlocked.....\n");
@@ -290,13 +284,13 @@ void rk32_edp_init_analog_func(struct rk32_edp *edp)
 		break;
 	}
 		wt++;
-		msleep(50);
+		udelay(5);
 	}
 
 	/* Enable Serdes FIFO function and Link symbol clock domain module */
 	val = readl(edp->regs + FUNC_EN_2);
 	val &= ~(SERDES_FIFO_FUNC_EN_N | LS_CLK_DOMAIN_FUNC_EN_N
-		| AUX_FUNC_EN_N);
+		| AUX_FUNC_EN_N | SSC_FUNC_EN_N);
 	writel(val, edp->regs + FUNC_EN_2);
 }
 
@@ -1292,3 +1286,23 @@ void rk32_edp_disable_scrambling(struct rk32_edp *edp)
 	val |= SCRAMBLING_DISABLE;
 	writel(val, edp->regs + TRAINING_PTN_SET);
 }
+
+enum dp_irq_type rk32_edp_get_irq_type(struct rk32_edp *edp)
+{
+	u32 val;
+
+	/* Parse hotplug interrupt status register */
+	val = readl(edp->regs + COMMON_INT_STA_4);
+
+	if (val & PLUG)
+		return DP_IRQ_TYPE_HP_CABLE_IN;
+
+	if (val & HPD_LOST)
+		return DP_IRQ_TYPE_HP_CABLE_OUT;
+
+	if (val & HOTPLUG_CHG)
+		return DP_IRQ_TYPE_HP_CHANGE;
+
+	return DP_IRQ_TYPE_UNKNOWN;
+}
+

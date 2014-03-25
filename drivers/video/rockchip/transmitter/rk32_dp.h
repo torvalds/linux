@@ -385,6 +385,14 @@
 #define GRF_EDP_SECURE_EN			(1 << 3)
 #define EDP_SEL_VOP_LIT				(1 << 5)
 #define GRF_EDP_REF_CLK_SEL_INTER		(1 << 4)
+
+enum dp_irq_type {
+	DP_IRQ_TYPE_HP_CABLE_IN,
+	DP_IRQ_TYPE_HP_CABLE_OUT,
+	DP_IRQ_TYPE_HP_CHANGE,
+	DP_IRQ_TYPE_UNKNOWN,
+};
+
 enum color_coefficient {
 	COLOR_YCBCR601,
 	COLOR_YCBCR709
@@ -514,7 +522,6 @@ struct rk32_edp {
 	struct video_info	video_info;
 	struct rk_screen	screen;
 	struct fb_monspecs      specs;
-	int 			enabled;
 };
 
 
@@ -609,4 +616,6 @@ int rk32_edp_bist_cfg(struct rk32_edp *edp);
 void rk32_edp_hw_link_training_en(struct rk32_edp * edp);
 int rk32_edp_get_hw_lt_status(struct rk32_edp *edp);
 int rk32_edp_wait_hw_lt_done(struct rk32_edp *edp);
+enum dp_irq_type rk32_edp_get_irq_type(struct rk32_edp *edp);
+
 #endif

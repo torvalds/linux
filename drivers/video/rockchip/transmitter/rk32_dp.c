@@ -38,7 +38,7 @@ static int rk32_edp_init_edp(struct rk32_edp *edp)
 {
 	struct rk_screen *screen = &edp->screen;
 	u32 val = 0;
-
+	int i= 0;
 	screen->lcdc_id = 1;
 	if (screen->lcdc_id == 1)  /*select lcdc*/
 		val = EDP_SEL_VOP_LIT | (EDP_SEL_VOP_LIT << 16);
@@ -52,7 +52,13 @@ static int rk32_edp_init_edp(struct rk32_edp *edp)
 
 	val = 0x80008000;
 	writel_relaxed(val, RK_CRU_VIRT + 0x0d0);
-	
+
+	val = 0x80008000;
+	writel_relaxed(val, RK_CRU_VIRT + 0x01d0);
+	mdelay(12);
+	val = 0x80000000;
+	writel_relaxed(val, RK_CRU_VIRT + 0x01d0);
+	mdelay(12);
 	rk32_edp_reset(edp);
 	rk32_edp_init_refclk(edp);
 	rk32_edp_init_interrupt(edp);
@@ -825,9 +831,7 @@ static int rk32_edp_get_max_rx_lane_count(struct rk32_edp *edp,
 	return 0;
 }
 
-static int rk32_edp_init_training(struct rk32_edp *edp,
-			enum link_lane_count_type max_lane,
-			u32 max_rate)
+static int rk32_edp_init_training(struct rk32_edp *edp)
 {
 	int retval;
 
@@ -839,12 +843,7 @@ static int rk32_edp_init_training(struct rk32_edp *edp,
 
 	
 	retval = rk32_edp_get_max_rx_bandwidth(edp, &edp->link_train.link_rate);
-	if (retval < 0)
-		return retval;
-
 	retval = rk32_edp_get_max_rx_lane_count(edp, &edp->link_train.lane_count);
-	if (retval < 0)
-		return retval;
 	dev_info(edp->dev, "max link rate:%d.%dGps max number of lanes:%d\n",
 			edp->link_train.link_rate * 27/100,
 			edp->link_train.link_rate*27%100,
@@ -852,25 +851,24 @@ static int rk32_edp_init_training(struct rk32_edp *edp,
 	
 	if ((edp->link_train.link_rate != LINK_RATE_1_62GBPS) &&
 	   (edp->link_train.link_rate != LINK_RATE_2_70GBPS)) {
-		dev_err(edp->dev, "Rx Max Link Rate is abnormal :%x !\n",
-			edp->link_train.link_rate);
-		edp->link_train.link_rate = LINK_RATE_1_62GBPS;
+		dev_warn(edp->dev, "Rx Max Link Rate is abnormal :%x !"
+			"use default link rate:%d.%dGps\n",
+			edp->link_train.link_rate,
+			edp->video_info.link_rate*27/100,
+			edp->video_info.link_rate*27%100);
+		edp->link_train.link_rate = edp->video_info.link_rate;
 	}
 
 	if (edp->link_train.lane_count == 0) {
-		dev_err(edp->dev, "Rx Max Lane count is abnormal :%x !\n",
-			edp->link_train.lane_count);
-		edp->link_train.lane_count = (u8)LANE_CNT1;
+		dev_err(edp->dev, "Rx Max Lane count is abnormal :%x !"
+			"use default lanes:%d\n",
+			edp->link_train.lane_count,
+			edp->video_info.lane_count);
+		edp->link_train.lane_count = edp->video_info.lane_count;
 	}
 
-	
-	if (edp->link_train.lane_count > max_lane)
-		edp->link_train.lane_count = max_lane;
-	if (edp->link_train.link_rate > max_rate)
-		edp->link_train.link_rate = max_rate;
-
-	
 	rk32_edp_analog_power_ctr(edp, 1);
+	
 
 	return 0;
 }
@@ -920,7 +918,7 @@ static int rk32_edp_hw_link_training(struct rk32_edp *edp)
 	rk32_edp_set_link_bandwidth(edp, edp->link_train.link_rate);
 	rk32_edp_set_lane_count(edp, edp->link_train.lane_count);
 	rk32_edp_hw_link_training_en(edp);
-	mdelay(1);
+	mdelay(10);
 	val = rk32_edp_wait_hw_lt_done(edp);
 	while (val) {
 		if (cnt-- <= 0) {
@@ -937,13 +935,11 @@ static int rk32_edp_hw_link_training(struct rk32_edp *edp)
 	return val;
 		
 }
-static int rk32_edp_set_link_train(struct rk32_edp *edp,
-				u32 count,
-				u32 bwtype)
+static int rk32_edp_set_link_train(struct rk32_edp *edp)
 {
 	int retval;
 
-	retval = rk32_edp_init_training(edp, count, bwtype);
+	retval = rk32_edp_init_training(edp);
 	if (retval < 0)
 		dev_err(edp->dev, "DP LT init failed!\n");
 #if 0
@@ -1067,29 +1063,26 @@ static int rk32_edp_enable_scramble(struct rk32_edp *edp, bool enable)
 static irqreturn_t rk32_edp_isr(int irq, void *arg)
 {
 	struct rk32_edp *edp = arg;
+	enum dp_irq_type irq_type;
 
-	//dev_info(edp->dev, "rk32_edp_isr\n");
+	irq_type = rk32_edp_get_irq_type(edp);
+	
 	return IRQ_HANDLED;
 }
 
 static int rk32_edp_enable(void)
 {
 	int ret = 0;
-	int retry = 0;
+	int i;
 	struct rk32_edp *edp = rk32_edp;
-	if (edp->enabled)
-		goto out;
-
-	edp->enabled = 1;
+	
 	clk_enable(edp->pclk);
 	clk_enable(edp->clk_edp);
 	clk_enable(edp->clk_24m);
-edp_phy_init:
-
 	
 	rk32_edp_init_edp(edp);
 
-	ret = rk32_edp_handle_edid(edp);
+	/*ret = rk32_edp_handle_edid(edp);
 	if (ret) {
 		dev_err(edp->dev, "unable to handle edid\n");
 		//goto out;
@@ -1107,49 +1100,34 @@ edp_phy_init:
 		dev_err(edp->dev, "unable to set enhanced mode\n");
 		//goto out;
 	}
-	rk32_edp_enable_enhanced_mode(edp, 0);
+	rk32_edp_enable_enhanced_mode(edp, 1);*/
 
-       /* Link Training */
-	ret = rk32_edp_set_link_train(edp, LANE_CNT4, LINK_RATE_1_62GBPS);
-	if (ret) {
-		dev_err(edp->dev, "link train failed\n");
-		//goto out;
-	}
+	ret = rk32_edp_set_link_train(edp);
+	if (ret) 
+		dev_err(edp->dev, "link train failed>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>\n");
+	else 
+		dev_info(edp->dev, "link training success.\n");
 
-	rk32_edp_set_lane_count(edp, edp->video_info.lane_count);
-	rk32_edp_set_link_bandwidth(edp, edp->video_info.link_rate);
+	rk32_edp_set_lane_count(edp, edp->link_train.lane_count);
+	rk32_edp_set_link_bandwidth(edp, edp->link_train.link_rate);
 
 #ifdef EDP_BIST_MODE
 	rk32_edp_bist_cfg(edp);
 #else
 	rk32_edp_init_video(edp);
 	ret = rk32_edp_config_video(edp, &edp->video_info);
-	if (ret) {
+	if (ret)
 		dev_err(edp->dev, "unable to config video\n");
-		//goto out;
-	}
 #endif
-	return 0;
-
-out:
-
-	if (retry < 3) {
-		retry++;
-		goto edp_phy_init;
-	}
-	
-	dev_err(edp->dev, "DP LT exceeds max retry count");
 	return ret;
+
+
+	
 }
 	
 static int  rk32_edp_disable(void )
 {
 	struct rk32_edp *edp = rk32_edp;
-
-	if (!edp->enabled)
-		return 0;
-
-	edp->enabled = 0;
 
 	rk32_edp_reset(edp);
 	rk32_edp_analog_power_ctr(edp, 0);
