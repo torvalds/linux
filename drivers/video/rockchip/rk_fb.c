@@ -2402,6 +2402,8 @@ int rk_fb_switch_screen(struct rk_screen *screen , int enable, int lcdc_id)
 	if (dev_drv->ops->lcdc_hdmi_process)
 		dev_drv->ops->lcdc_hdmi_process(dev_drv, enable);
 
+	hdmi_switch_complete = enable;
+
 	if (rk_fb->disp_mode == DUAL) {
 		if (likely(rk_fb->num_lcdc == 2)) {
 			pmy_info = rk_fb->fb[0];
@@ -2424,7 +2426,6 @@ int rk_fb_switch_screen(struct rk_screen *screen , int enable, int lcdc_id)
 
 	//if (rk_fb->disp_mode != DUAL)
 	//	rk29_backlight_set(1);
-	hdmi_switch_complete = enable;
 	return 0;
 
 }
