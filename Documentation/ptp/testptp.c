@@ -131,7 +131,8 @@ static void usage(char *progname)
 		" -P val     enable or disable (val=1|0) the system clock PPS\n"
 		" -s         set the ptp clock time from the system time\n"
 		" -S         set the system time from the ptp clock time\n"
-		" -t val     shift the ptp clock time by 'val' seconds\n",
+		" -t val     shift the ptp clock time by 'val' seconds\n"
+		" -T val     set the ptp clock time to 'val' seconds\n",
 		progname);
 }
 
@@ -172,6 +173,7 @@ int main(int argc, char *argv[])
 	int perout = -1;
 	int pin_index = -1, pin_func;
 	int pps = -1;
+	int seconds = 0;
 	int settime = 0;
 
 	int64_t t1, t2, tp;
@@ -179,7 +181,7 @@ int main(int argc, char *argv[])
 
 	progname = strrchr(argv[0], '/');
 	progname = progname ? 1+progname : argv[0];
-	while (EOF != (c = getopt(argc, argv, "a:A:cd:e:f:ghi:k:lL:p:P:sSt:v"))) {
+	while (EOF != (c = getopt(argc, argv, "a:A:cd:e:f:ghi:k:lL:p:P:sSt:T:v"))) {
 		switch (c) {
 		case 'a':
 			oneshot = atoi(optarg);
@@ -233,6 +235,10 @@ int main(int argc, char *argv[])
 			break;
 		case 't':
 			adjtime = atoi(optarg);
+			break;
+		case 'T':
+			settime = 3;
+			seconds = atoi(optarg);
 			break;
 		case 'h':
 			usage(progname);
@@ -320,6 +326,16 @@ int main(int argc, char *argv[])
 	if (settime == 2) {
 		clock_gettime(clkid, &ts);
 		if (clock_settime(CLOCK_REALTIME, &ts)) {
+			perror("clock_settime");
+		} else {
+			puts("set time okay");
+		}
+	}
+
+	if (settime == 3) {
+		ts.tv_sec = seconds;
+		ts.tv_nsec = 0;
+		if (clock_settime(clkid, &ts)) {
 			perror("clock_settime");
 		} else {
 			puts("set time okay");
