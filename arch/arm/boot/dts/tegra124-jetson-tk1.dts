@@ -1426,6 +1426,155 @@
 					bias-high-impedance;
 				};
 			};
+
+			regulators {
+				vsup-sd2-supply = <&vdd_5v0_sys>;
+				vsup-sd3-supply = <&vdd_5v0_sys>;
+				vsup-sd4-supply = <&vdd_5v0_sys>;
+				vsup-sd5-supply = <&vdd_5v0_sys>;
+				vin-ldo0-supply = <&vdd_1v35_lp0>;
+				vin-ldo1-6-supply = <&vdd_3v3_run>;
+				vin-ldo2-5-7-supply = <&vddio_1v8>;
+				vin-ldo3-4-supply = <&vdd_3v3_sys>;
+				vin-ldo9-10-supply = <&vdd_5v0_sys>;
+				vin-ldo11-supply = <&vdd_3v3_run>;
+
+				sd0 {
+					regulator-name = "+VDD_CPU_AP";
+					regulator-min-microvolt = <700000>;
+					regulator-max-microvolt = <1400000>;
+					regulator-min-microamp = <3500000>;
+					regulator-max-microamp = <3500000>;
+					regulator-always-on;
+					regulator-boot-on;
+					ams,external-control = <2>;
+				};
+
+				sd1 {
+					regulator-name = "+VDD_CORE";
+					regulator-min-microvolt = <700000>;
+					regulator-max-microvolt = <1350000>;
+					regulator-min-microamp = <2500000>;
+					regulator-max-microamp = <2500000>;
+					regulator-always-on;
+					regulator-boot-on;
+					ams,external-control = <1>;
+				};
+
+				vdd_1v35_lp0: sd2 {
+					regulator-name = "+1.35V_LP0(sd2)";
+					regulator-min-microvolt = <1350000>;
+					regulator-max-microvolt = <1350000>;
+					regulator-always-on;
+					regulator-boot-on;
+				};
+
+				sd3 {
+					regulator-name = "+1.35V_LP0(sd3)";
+					regulator-min-microvolt = <1350000>;
+					regulator-max-microvolt = <1350000>;
+					regulator-always-on;
+					regulator-boot-on;
+				};
+
+				sd4 {
+					regulator-name = "+1.05V_RUN";
+					regulator-min-microvolt = <1050000>;
+					regulator-max-microvolt = <1050000>;
+				};
+
+				vddio_1v8: sd5 {
+					regulator-name = "+1.8V_VDDIO";
+					regulator-min-microvolt = <1800000>;
+					regulator-max-microvolt = <1800000>;
+					regulator-boot-on;
+					regulator-always-on;
+				};
+
+				sd6 {
+					regulator-name = "+VDD_GPU_AP";
+					regulator-min-microvolt = <650000>;
+					regulator-max-microvolt = <1200000>;
+					regulator-min-microamp = <3500000>;
+					regulator-max-microamp = <3500000>;
+					regulator-boot-on;
+					regulator-always-on;
+				};
+
+				ldo0 {
+					regulator-name = "+1.05V_RUN_AVDD";
+					regulator-min-microvolt = <1050000>;
+					regulator-max-microvolt = <1050000>;
+					regulator-boot-on;
+					regulator-always-on;
+					ams,external-control = <1>;
+				};
+
+				ldo1 {
+					regulator-name = "+1.8V_RUN_CAM";
+					regulator-min-microvolt = <1800000>;
+					regulator-max-microvolt = <1800000>;
+				};
+
+				ldo2 {
+					regulator-name = "+1.2V_GEN_AVDD";
+					regulator-min-microvolt = <1200000>;
+					regulator-max-microvolt = <1200000>;
+					regulator-boot-on;
+					regulator-always-on;
+				};
+
+				ldo3 {
+					regulator-name = "+1.05V_LP0_VDD_RTC";
+					regulator-min-microvolt = <1000000>;
+					regulator-max-microvolt = <1000000>;
+					regulator-boot-on;
+					regulator-always-on;
+					ams,enable-tracking;
+				};
+
+				ldo4 {
+					regulator-name = "+2.8V_RUN_CAM";
+					regulator-min-microvolt = <2800000>;
+					regulator-max-microvolt = <2800000>;
+				};
+
+				ldo5 {
+					regulator-name = "+1.2V_RUN_CAM_FRONT";
+					regulator-min-microvolt = <1200000>;
+					regulator-max-microvolt = <1200000>;
+				};
+
+				vddio_sdmmc3: ldo6 {
+					regulator-name = "+VDDIO_SDMMC3";
+					regulator-min-microvolt = <1800000>;
+					regulator-max-microvolt = <3300000>;
+				};
+
+				ldo7 {
+					regulator-name = "+1.05V_RUN_CAM_REAR";
+					regulator-min-microvolt = <1050000>;
+					regulator-max-microvolt = <1050000>;
+				};
+
+				ldo9 {
+					regulator-name = "+3.3V_RUN_TOUCH";
+					regulator-min-microvolt = <2800000>;
+					regulator-max-microvolt = <2800000>;
+				};
+
+				ldo10 {
+					regulator-name = "+2.8V_RUN_CAM_AF";
+					regulator-min-microvolt = <2800000>;
+					regulator-max-microvolt = <2800000>;
+				};
+
+				ldo11 {
+					regulator-name = "+1.8V_RUN_VPP_FUSE";
+					regulator-min-microvolt = <1800000>;
+					regulator-max-microvolt = <1800000>;
+				};
+			};
 		};
 	};
 
@@ -1462,6 +1611,7 @@
 		cd-gpios = <&gpio TEGRA_GPIO(V, 2) GPIO_ACTIVE_LOW>;
 		power-gpios = <&gpio TEGRA_GPIO(R, 0) GPIO_ACTIVE_HIGH>;
 		bus-width = <4>;
+		vmmc-supply = <&vddio_sdmmc3>;
 	};
 
 	/* eMMC */
@@ -1525,6 +1675,72 @@
 		#address-cells = <1>;
 		#size-cells = <0>;
 
+		vdd_mux: regulator@0 {
+			compatible = "regulator-fixed";
+			reg = <0>;
+			regulator-name = "+VDD_MUX";
+			regulator-min-microvolt = <12000000>;
+			regulator-max-microvolt = <12000000>;
+			regulator-always-on;
+			regulator-boot-on;
+		};
+
+		vdd_5v0_sys: regulator@1 {
+			compatible = "regulator-fixed";
+			reg = <1>;
+			regulator-name = "+5V_SYS";
+			regulator-min-microvolt = <5000000>;
+			regulator-max-microvolt = <5000000>;
+			regulator-always-on;
+			regulator-boot-on;
+			vin-supply = <&vdd_mux>;
+		};
+
+		vdd_3v3_sys: regulator@2 {
+			compatible = "regulator-fixed";
+			reg = <2>;
+			regulator-name = "+3.3V_SYS";
+			regulator-min-microvolt = <3300000>;
+			regulator-max-microvolt = <3300000>;
+			regulator-always-on;
+			regulator-boot-on;
+			vin-supply = <&vdd_mux>;
+		};
+
+		vdd_3v3_run: regulator@3 {
+			compatible = "regulator-fixed";
+			reg = <3>;
+			regulator-name = "+3.3V_RUN";
+			regulator-min-microvolt = <3300000>;
+			regulator-max-microvolt = <3300000>;
+			regulator-always-on;
+			regulator-boot-on;
+			gpio = <&pmic 1 GPIO_ACTIVE_HIGH>;
+			enable-active-high;
+			vin-supply = <&vdd_3v3_sys>;
+		};
+
+		vdd_3v3_hdmi: regulator@4 {
+			compatible = "regulator-fixed";
+			reg = <4>;
+			regulator-name = "+3.3V_AVDD_HDMI_AP_GATED";
+			regulator-min-microvolt = <3300000>;
+			regulator-max-microvolt = <3300000>;
+			vin-supply = <&vdd_3v3_run>;
+		};
+
+		vdd_usb1_vbus: regulator@7 {
+			compatible = "regulator-fixed";
+			reg = <7>;
+			regulator-name = "+USB0_VBUS_SW";
+			regulator-min-microvolt = <5000000>;
+			regulator-max-microvolt = <5000000>;
+			gpio = <&gpio TEGRA_GPIO(N, 4) GPIO_ACTIVE_HIGH>;
+			enable-active-high;
+			gpio-open-drain;
+			vin-supply = <&vdd_5v0_sys>;
+		};
+
 		vdd_usb3_vbus: regulator@8 {
 			compatible = "regulator-fixed";
 			reg = <8>;
@@ -1534,6 +1750,20 @@
 			gpio = <&gpio TEGRA_GPIO(N, 5) GPIO_ACTIVE_HIGH>;
 			enable-active-high;
 			gpio-open-drain;
+			vin-supply = <&vdd_5v0_sys>;
+		};
+
+		vdd_3v3_lp0: regulator@10 {
+			compatible = "regulator-fixed";
+			reg = <10>;
+			regulator-name = "+3.3V_LP0";
+			regulator-min-microvolt = <3300000>;
+			regulator-max-microvolt = <3300000>;
+			regulator-always-on;
+			regulator-boot-on;
+			gpio = <&pmic 2 GPIO_ACTIVE_HIGH>;
+			enable-active-high;
+			vin-supply = <&vdd_3v3_sys>;
 		};
 	};
 
