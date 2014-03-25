@@ -373,16 +373,9 @@ static void iwl_pcie_rxq_free_rbs(struct iwl_trans *trans)
  * Also restock the Rx queue via iwl_pcie_rxq_restock.
  * This is called as a scheduled work item (except for during initialization)
  */
-static void iwl_pcie_rx_replenish(struct iwl_trans *trans)
+static void iwl_pcie_rx_replenish(struct iwl_trans *trans, gfp_t gfp)
 {
-	iwl_pcie_rxq_alloc_rbs(trans, GFP_KERNEL);
-
-	iwl_pcie_rxq_restock(trans);
-}
-
-static void iwl_pcie_rx_replenish_now(struct iwl_trans *trans)
-{
-	iwl_pcie_rxq_alloc_rbs(trans, GFP_ATOMIC);
+	iwl_pcie_rxq_alloc_rbs(trans, gfp);
 
 	iwl_pcie_rxq_restock(trans);
 }
@@ -392,7 +385,7 @@ static void iwl_pcie_rx_replenish_work(struct work_struct *data)
 	struct iwl_trans_pcie *trans_pcie =
 	    container_of(data, struct iwl_trans_pcie, rx_replenish);
 
-	iwl_pcie_rx_replenish(trans_pcie->trans);
+	iwl_pcie_rx_replenish(trans_pcie->trans, GFP_KERNEL);
 }
 
 static int iwl_pcie_rx_alloc(struct iwl_trans *trans)
@@ -528,7 +521,7 @@ int iwl_pcie_rx_init(struct iwl_trans *trans)
 	memset(rxq->rb_stts, 0, sizeof(*rxq->rb_stts));
 	spin_unlock(&rxq->lock);
 
-	iwl_pcie_rx_replenish(trans);
+	iwl_pcie_rx_replenish(trans, GFP_KERNEL);
 
 	iwl_pcie_rx_hw_init(trans, rxq);
 
@@ -750,7 +743,7 @@ restart:
 			if (count >= 8) {
 				rxq->read = i;
 				spin_unlock(&rxq->lock);
-				iwl_pcie_rx_replenish_now(trans);
+				iwl_pcie_rx_replenish(trans, GFP_ATOMIC);
 				count = 0;
 				goto restart;
 			}
@@ -762,7 +755,7 @@ restart:
 	spin_unlock(&rxq->lock);
 
 	if (fill_rx)
-		iwl_pcie_rx_replenish_now(trans);
+		iwl_pcie_rx_replenish(trans, GFP_ATOMIC);
 	else
 		iwl_pcie_rxq_restock(trans);
 
