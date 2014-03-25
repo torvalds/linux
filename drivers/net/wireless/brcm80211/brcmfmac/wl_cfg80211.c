@@ -1354,13 +1354,14 @@ static s32 brcmf_set_auth_type(struct net_device *ndev,
 }
 
 static s32
-brcmf_set_set_cipher(struct net_device *ndev,
-		     struct cfg80211_connect_params *sme)
+brcmf_set_wsec_mode(struct net_device *ndev,
+		     struct cfg80211_connect_params *sme, bool mfp)
 {
 	struct brcmf_cfg80211_profile *profile = ndev_to_prof(ndev);
 	struct brcmf_cfg80211_security *sec;
 	s32 pval = 0;
 	s32 gval = 0;
+	s32 wsec;
 	s32 err = 0;
 
 	if (sme->crypto.n_ciphers_pairwise) {
@@ -1412,7 +1413,12 @@ brcmf_set_set_cipher(struct net_device *ndev,
 	if (brcmf_find_wpsie(sme->ie, sme->ie_len) && !pval && !gval &&
 	    sme->privacy)
 		pval = AES_ENABLED;
-	err = brcmf_fil_bsscfg_int_set(netdev_priv(ndev), "wsec", pval | gval);
+
+	if (mfp)
+		wsec = pval | gval | MFP_CAPABLE;
+	else
+		wsec = pval | gval;
+	err = brcmf_fil_bsscfg_int_set(netdev_priv(ndev), "wsec", wsec);
 	if (err) {
 		brcmf_err("error (%d)\n", err);
 		return err;
@@ -1582,7 +1588,6 @@ brcmf_cfg80211_connect(struct wiphy *wiphy, struct net_device *ndev,
 	u32 ie_len;
 	struct brcmf_ext_join_params_le *ext_join_params;
 	u16 chanspec;
-
 	s32 err = 0;
 
 	brcmf_dbg(TRACE, "Enter\n");
@@ -1651,7 +1656,7 @@ brcmf_cfg80211_connect(struct wiphy *wiphy, struct net_device *ndev,
 		goto done;
 	}
 
-	err = brcmf_set_set_cipher(ndev, sme);
+	err = brcmf_set_wsec_mode(ndev, sme, sme->mfp == NL80211_MFP_REQUIRED);
 	if (err) {
 		brcmf_err("wl_set_set_cipher failed (%d)\n", err);
 		goto done;
