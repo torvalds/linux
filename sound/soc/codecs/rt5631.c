@@ -18,6 +18,7 @@
 #include <linux/delay.h>
 #include <linux/pm.h>
 #include <linux/i2c.h>
+#include <linux/of.h>
 #include <linux/platform_device.h>
 #include <linux/spi/spi.h>
 #include <sound/core.h>
@@ -53,6 +54,7 @@ struct rt5631_priv {
 	int sysclk;
 	int dmic_used_flag;
 	int eq_mode;
+	int phone_det_level;
 	int pll_used_flag;
 };
 #if (RT5631_SPK_TIMER == 1)
@@ -217,7 +219,7 @@ static struct rt5631_init_reg init_list[] = {
 	{RT5631_MIC_CTRL_1		, 0x8000},//set mic 1 to differnetial mode
 	{RT5631_GPIO_CTRL		, 0x0000},//set GPIO to input pin	
 //	{RT5631_JACK_DET_CTRL		, 0x4e80},//Jack detect for GPIO,high is HP,low is speaker	
-	{RT5631_JACK_DET_CTRL		, 0x4bc0},//Jack detect for GPIO,high is speaker,low is hp	
+//	{RT5631_JACK_DET_CTRL		, 0x4bc0},//Jack detect for GPIO,high is speaker,low is hp	
 };
 #define RT5631_INIT_REG_LEN ARRAY_SIZE(init_list)
 
@@ -2005,6 +2007,10 @@ static int rt5631_probe(struct snd_soc_codec *codec)
 	rt5631_write_mask(codec, RT5631_PWR_MANAG_ADD3, PWR_FAST_VREF_CTRL,
 					PWR_FAST_VREF_CTRL);
 	rt5631_reg_init(codec);
+	if (rt5631->phone_det_level == 1)
+		rt5631_write(codec, RT5631_JACK_DET_CTRL,0x4e80);
+	else
+		rt5631_write(codec, RT5631_JACK_DET_CTRL,0x4bc0);
 
 	/* power off ClassD auto Recovery */
 	if (rt5631->codec_version)
@@ -2140,14 +2146,22 @@ static int rt5631_i2c_probe(struct i2c_client *i2c,
 		    const struct i2c_device_id *id)
 {
 	struct rt5631_priv *rt5631;
+	struct device_node *node = i2c->dev.of_node;
 	int ret;
 
 	printk("RT5631 Audio Codec %s\n", RT5631_VERSION);
 
 	rt5631 = kzalloc(sizeof(struct rt5631_priv), GFP_KERNEL);
 	if (NULL == rt5631)
-		return -ENOMEM;
+		return -ENOMEM; 
 
+#ifdef  CONFIG_OF
+	ret = of_property_read_u32(node,"phone_det_level",&rt5631->phone_det_level);
+	if (ret < 0)
+		printk("%s get phone_det_level error\n",__func__);
+	else
+		printk("RT5631 codec: phone_det_level %s",rt5631->phone_det_level ? "HIGH":"LOW");
+#endif
 	i2c_set_clientdata(i2c, rt5631);
 
 	ret = snd_soc_register_codec(&i2c->dev, &soc_codec_dev_rt5631,
