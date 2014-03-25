@@ -133,7 +133,7 @@ static int sxgbe_tx_ctxt_desc_get_owner(struct sxgbe_tx_ctxt_desc *p)
 }
 
 /* Set TX mss in TX context Descriptor */
-static void sxgbe_tx_ctxt_desc_set_mss(struct sxgbe_tx_ctxt_desc *p, int mss)
+static void sxgbe_tx_ctxt_desc_set_mss(struct sxgbe_tx_ctxt_desc *p, u16 mss)
 {
 	p->maxseg_size = mss;
 }

@@ -168,7 +168,7 @@ struct sxgbe_desc_ops {
 
 	/* Invoked by the xmit function to prepare the tx descriptor */
 	void (*tx_desc_enable_tse)(struct sxgbe_tx_norm_desc *p, u8 is_tse,
-				   u32 total_hdr_len, u32 payload_len,
+				   u32 total_hdr_len, u32 tcp_hdr_len,
 				   u32 tcp_payload_len);
 
 	/* Assign buffer lengths for descriptor */
@@ -217,7 +217,7 @@ struct sxgbe_desc_ops {
 	int (*get_tx_ctxt_owner)(struct sxgbe_tx_ctxt_desc *p);
 
 	/* Set TX mss */
-	void (*tx_ctxt_desc_set_mss)(struct sxgbe_tx_ctxt_desc *p, int mss);
+	void (*tx_ctxt_desc_set_mss)(struct sxgbe_tx_ctxt_desc *p, u16 mss);
 
 	/* Set TX mss */
 	int (*tx_ctxt_desc_get_mss)(struct sxgbe_tx_ctxt_desc *p);

@@ -1219,6 +1219,28 @@ static int sxgbe_release(struct net_device *dev)
 	return 0;
 }
 
+/* Prepare first Tx descriptor for doing TSO operation */
+void sxgbe_tso_prepare(struct sxgbe_priv_data *priv,
+		       struct sxgbe_tx_norm_desc *first_desc,
+		       struct sk_buff *skb)
+{
+	unsigned int total_hdr_len, tcp_hdr_len;
+
+	/* Write first Tx descriptor with appropriate value */
+	tcp_hdr_len = tcp_hdrlen(skb);
+	total_hdr_len = skb_transport_offset(skb) + tcp_hdr_len;
+
+	first_desc->tdes01 = dma_map_single(priv->device, skb->data,
+					    total_hdr_len, DMA_TO_DEVICE);
+	if (dma_mapping_error(priv->device, first_desc->tdes01))
+		pr_err("%s: TX dma mapping failed!!\n", __func__);
+
+	first_desc->tdes23.tx_rd_des23.first_desc = 1;
+	priv->hw->desc->tx_desc_enable_tse(first_desc, 1, total_hdr_len,
+					   tcp_hdr_len,
+					   skb->len - total_hdr_len);
+}
+
 /**
  *  sxgbe_xmit: Tx entry point of the driver
  *  @skb : the socket buffer
@@ -1236,12 +1258,23 @@ static netdev_tx_t sxgbe_xmit(struct sk_buff *skb, struct net_device *dev)
 	unsigned int tx_rsize = priv->dma_tx_size;
 	struct sxgbe_tx_queue *tqueue = priv->txq[txq_index];
 	struct sxgbe_tx_norm_desc *tx_desc, *first_desc;
+	struct sxgbe_tx_ctxt_desc *ctxt_desc = NULL;
 	int nr_frags = skb_shinfo(skb)->nr_frags;
 	int no_pagedlen = skb_headlen(skb);
 	int is_jumbo = 0;
+	u16 cur_mss = skb_shinfo(skb)->gso_size;
+	u32 ctxt_desc_req = 0;
 
 	/* get the TX queue handle */
 	dev_txq = netdev_get_tx_queue(dev, txq_index);
+
+	if (unlikely(skb_is_gso(skb) && tqueue->prev_mss != cur_mss))
+		ctxt_desc_req = 1;
+
+	if (unlikely(vlan_tx_tag_present(skb) ||
+		     ((skb_shinfo(skb)->tx_flags & SKBTX_HW_TSTAMP) &&
+		      tqueue->hwts_tx_en)))
+		ctxt_desc_req = 1;
 
 	/* get the spinlock */
 	spin_lock(&tqueue->tx_lock);
@@ -1264,18 +1297,43 @@ static netdev_tx_t sxgbe_xmit(struct sk_buff *skb, struct net_device *dev)
 	tx_desc = tqueue->dma_tx + entry;
 
 	first_desc = tx_desc;
+	if (ctxt_desc_req)
+		ctxt_desc = (struct sxgbe_tx_ctxt_desc *)first_desc;
 
 	/* save the skb address */
 	tqueue->tx_skbuff[entry] = skb;
 
 	if (!is_jumbo) {
-		tx_desc->tdes01 = dma_map_single(priv->device, skb->data,
-						   no_pagedlen, DMA_TO_DEVICE);
-		if (dma_mapping_error(priv->device, tx_desc->tdes01))
-			pr_err("%s: TX dma mapping failed!!\n", __func__);
+		if (likely(skb_is_gso(skb))) {
+			/* TSO support */
+			if (unlikely(tqueue->prev_mss != cur_mss)) {
+				priv->hw->desc->tx_ctxt_desc_set_mss(
+						ctxt_desc, cur_mss);
+				priv->hw->desc->tx_ctxt_desc_set_tcmssv(
+						ctxt_desc);
+				priv->hw->desc->tx_ctxt_desc_reset_ostc(
+						ctxt_desc);
+				priv->hw->desc->tx_ctxt_desc_set_ctxt(
+						ctxt_desc);
+				priv->hw->desc->tx_ctxt_desc_set_owner(
+						ctxt_desc);
 
-		priv->hw->desc->prepare_tx_desc(tx_desc, 1, no_pagedlen,
-						no_pagedlen, 0);
+				entry = (++tqueue->cur_tx) % tx_rsize;
+				first_desc = tqueue->dma_tx + entry;
+
+				tqueue->prev_mss = cur_mss;
+			}
+			sxgbe_tso_prepare(priv, first_desc, skb);
+		} else {
+			tx_desc->tdes01 = dma_map_single(priv->device,
+							 skb->data, no_pagedlen, DMA_TO_DEVICE);
+			if (dma_mapping_error(priv->device, tx_desc->tdes01))
+				netdev_err(dev, "%s: TX dma mapping failed!!\n",
+					   __func__);
+
+			priv->hw->desc->prepare_tx_desc(tx_desc, 1, no_pagedlen,
+							no_pagedlen, 0);
+		}
 	}
 
 	for (frag_num = 0; frag_num < nr_frags; frag_num++) {
@@ -2005,6 +2063,7 @@ struct sxgbe_priv_data *sxgbe_drv_probe(struct device *device,
 	struct sxgbe_priv_data *priv;
 	struct net_device *ndev;
 	int ret;
+	u8 queue_num;
 
 	ndev = alloc_etherdev_mqs(sizeof(struct sxgbe_priv_data),
 				  SXGBE_TX_QUEUES, SXGBE_RX_QUEUES);
@@ -2038,7 +2097,9 @@ struct sxgbe_priv_data *sxgbe_drv_probe(struct device *device,
 
 	ndev->netdev_ops = &sxgbe_netdev_ops;
 
-	ndev->hw_features = NETIF_F_SG | NETIF_F_RXCSUM;
+	ndev->hw_features = NETIF_F_SG | NETIF_F_IP_CSUM | NETIF_F_IPV6_CSUM |
+		NETIF_F_RXCSUM | NETIF_F_TSO | NETIF_F_TSO6 |
+		NETIF_F_GRO;
 	ndev->features |= ndev->hw_features | NETIF_F_HIGHDMA;
 	ndev->watchdog_timeo = msecs_to_jiffies(TX_TIMEO);
 
@@ -2046,6 +2107,13 @@ struct sxgbe_priv_data *sxgbe_drv_probe(struct device *device,
 	ndev->priv_flags |= IFF_UNICAST_FLT;
 
 	priv->msg_enable = netif_msg_init(debug, default_msg_level);
+
+	/* Enable TCP segmentation offload for all DMA channels */
+	if (priv->hw_cap.tcpseg_offload) {
+		SXGBE_FOR_EACH_QUEUE(SXGBE_TX_QUEUES, queue_num) {
+			priv->hw->dma->enable_tso(priv->ioaddr, queue_num);
+		}
+	}
 
 	/* Rx Watchdog is available, enable depend on platform data */
 	if (!priv->plat->riwt_off) {

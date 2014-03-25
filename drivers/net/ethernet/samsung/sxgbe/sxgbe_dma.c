@@ -349,6 +349,15 @@ static void sxgbe_dma_rx_watchdog(void __iomem *ioaddr, u32 riwt)
 	}
 }
 
+static void sxgbe_enable_tso(void __iomem *ioaddr, u8 chan_num)
+{
+	u32 ctrl;
+
+	ctrl = readl(ioaddr + SXGBE_DMA_CHA_TXCTL_REG(chan_num));
+	ctrl |= SXGBE_DMA_CHA_TXCTL_TSE_ENABLE;
+	writel(ctrl, ioaddr + SXGBE_DMA_CHA_TXCTL_REG(chan_num));
+}
+
 static const struct sxgbe_dma_ops sxgbe_dma_ops = {
 	.init				= sxgbe_dma_init,
 	.cha_init			= sxgbe_dma_channel_init,
@@ -364,6 +373,7 @@ static const struct sxgbe_dma_ops sxgbe_dma_ops = {
 	.tx_dma_int_status		= sxgbe_tx_dma_int_status,
 	.rx_dma_int_status		= sxgbe_rx_dma_int_status,
 	.rx_watchdog			= sxgbe_dma_rx_watchdog,
+	.enable_tso			= sxgbe_enable_tso,
 };
 
 const struct sxgbe_dma_ops *sxgbe_get_dma_ops(void)

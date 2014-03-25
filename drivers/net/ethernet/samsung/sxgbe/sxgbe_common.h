@@ -371,6 +371,7 @@ struct sxgbe_tx_queue {
 	u32 tx_coal_frames;
 	u32 tx_coal_timer;
 	int hwts_tx_en;
+	u16 prev_mss;
 	u8 queue_no;
 };
 
