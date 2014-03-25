@@ -705,7 +705,7 @@ static void rk_bat_update_vol(struct cw_battery *cw_bat)
         ret = cw_get_vol(cw_bat);
         if ((ret >= 0) && (cw_bat->voltage != ret)) {
                 cw_bat->voltage = ret;
-                cw_bat->bat_change = 1;
+             //   cw_bat->bat_change = 1;
         }
 }
 
@@ -736,7 +736,7 @@ static void rk_bat_update_time_to_empty(struct cw_battery *cw_bat)
         ret = cw_get_time_to_empty(cw_bat);
         if ((ret >= 0) && (cw_bat->time_to_empty != ret)) {
                 cw_bat->time_to_empty = ret;
-                cw_bat->bat_change = 1;
+              //  cw_bat->bat_change = 1;
         }
         
 }
