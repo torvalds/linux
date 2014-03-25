@@ -241,6 +241,7 @@
 	rt5631: rt5631@1a {
 		compatible = "rt5631";
 		reg = <0x1a>;
+		phone_det_level = <1>;
 	};
 	
 };
