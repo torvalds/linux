@@ -550,7 +550,7 @@ extern bool is_prmry_rk_lcdc_registered(void);
 extern int rk_fb_prase_timing_dt(struct device_node *np,
 		struct rk_screen *screen);
 
-__weak static int inline support_uboot_display(void)
+__weak int support_uboot_display(void)
 {
 	return 0;
 }
