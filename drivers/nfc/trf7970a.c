@@ -1221,12 +1221,25 @@ static struct nfc_digital_ops trf7970a_nfc_ops = {
 	.abort_cmd		= trf7970a_abort_cmd,
 };
 
+static int trf7970a_get_autosuspend_delay(struct device_node *np)
+{
+	int autosuspend_delay, ret;
+
+	ret = of_property_read_u32(np, "autosuspend-delay", &autosuspend_delay);
+	if (ret)
+		autosuspend_delay = TRF7970A_AUTOSUSPEND_DELAY;
+
+	of_node_put(np);
+
+	return autosuspend_delay;
+}
+
 static int trf7970a_probe(struct spi_device *spi)
 {
 	struct device_node *np = spi->dev.of_node;
 	const struct spi_device_id *id = spi_get_device_id(spi);
 	struct trf7970a *trf;
-	int uvolts, ret;
+	int uvolts, autosuspend_delay, ret;
 
 	if (!np) {
 		dev_err(&spi->dev, "No Device Tree entry\n");
@@ -1315,7 +1328,9 @@ static int trf7970a_probe(struct spi_device *spi)
 	nfc_digital_set_drvdata(trf->ddev, trf);
 	spi_set_drvdata(spi, trf);
 
-	pm_runtime_set_autosuspend_delay(trf->dev, TRF7970A_AUTOSUSPEND_DELAY);
+	autosuspend_delay = trf7970a_get_autosuspend_delay(np);
+
+	pm_runtime_set_autosuspend_delay(trf->dev, autosuspend_delay);
 	pm_runtime_use_autosuspend(trf->dev);
 	pm_runtime_enable(trf->dev);
 
