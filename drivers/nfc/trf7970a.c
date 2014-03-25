@@ -336,6 +336,7 @@ struct trf7970a {
 	struct sk_buff			*rx_skb;
 	nfc_digital_cmd_complete_t	cb;
 	void				*cb_arg;
+	u8				chip_status_ctrl;
 	u8				iso_ctrl;
 	u8				iso_ctrl_tech;
 	u8				modulator_sys_clk_ctrl;
@@ -779,8 +780,7 @@ static int trf7970a_init(struct trf7970a *trf)
 	trf->special_fcn_reg1 = 0;
 
 	ret = trf7970a_write(trf, TRF7970A_CHIP_STATUS_CTRL,
-			TRF7970A_CHIP_STATUS_RF_ON |
-				TRF7970A_CHIP_STATUS_VRS5_3);
+			trf->chip_status_ctrl | TRF7970A_CHIP_STATUS_RF_ON);
 	if (ret)
 		goto err_out;
 
@@ -1245,7 +1245,7 @@ static int trf7970a_probe(struct spi_device *spi)
 	struct device_node *np = spi->dev.of_node;
 	const struct spi_device_id *id = spi_get_device_id(spi);
 	struct trf7970a *trf;
-	int ret;
+	int uvolts, ret;
 
 	if (!np) {
 		dev_err(&spi->dev, "No Device Tree entry\n");
@@ -1314,6 +1314,11 @@ static int trf7970a_probe(struct spi_device *spi)
 		dev_err(trf->dev, "Can't enable VIN: %d\n", ret);
 		goto err_destroy_lock;
 	}
+
+	uvolts = regulator_get_voltage(trf->regulator);
+
+	if (uvolts > 4000000)
+		trf->chip_status_ctrl = TRF7970A_CHIP_STATUS_VRS5_3;
 
 	trf->powering_up = true;
 
