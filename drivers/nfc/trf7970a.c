@@ -681,7 +681,9 @@ static irqreturn_t trf7970a_irq(int irq, void *dev_id)
 			trf->ignore_timeout =
 				!cancel_delayed_work(&trf->timeout_work);
 			trf7970a_drain_fifo(trf, status);
-		} else if (!(status & TRF7970A_IRQ_STATUS_TX)) {
+		} else if (status == TRF7970A_IRQ_STATUS_TX) {
+			trf7970a_cmd(trf, TRF7970A_CMD_FIFO_RESET);
+		} else {
 			trf7970a_send_err_upstream(trf, -EIO);
 		}
 		break;
