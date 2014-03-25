@@ -43,6 +43,14 @@
 #include <linux/rockchip_ion.h>
 #endif
 
+//#define CONFIG_VCODEC_MMU
+
+#ifdef CONFIG_VCODEC_MMU
+#include <linux/rockchip/iovmm.h>
+#include <linux/rockchip/sysmmu.h>
+#include <linux/dma-buf.h>
+#endif
+
 #ifdef CONFIG_DEBUG_FS
 #include <linux/debugfs.h>
 #endif
@@ -201,11 +209,14 @@ typedef struct vpu_session {
  */
 typedef struct vpu_reg {
 	VPU_CLIENT_TYPE		type;
-	VPU_FREQ		freq;
+	VPU_FREQ		    freq;
 	vpu_session 		*session;
 	struct list_head	session_link;		/* link to vpu service session */
 	struct list_head	status_link;		/* link to register set list */
 	unsigned long		size;
+#if defined(CONFIG_VCODEC_MMU)    
+    struct list_head    mem_region_list;
+#endif    
 	unsigned long		*reg;
 } vpu_reg;
 
@@ -220,6 +231,17 @@ typedef struct vpu_device {
 enum vcodec_device_id {
 	VCODEC_DEVICE_ID_VPU,
 	VCODEC_DEVICE_ID_HEVC
+};
+
+struct vcodec_mem_region {
+    struct list_head srv_lnk;
+    struct list_head reg_lnk;
+    struct list_head session_lnk;
+    dma_addr_t       iova;              /* virtual address for iommu */
+    struct dma_buf   *buf;
+    struct dma_buf_attachment *attachment;
+    struct sg_table *sg_table;
+    struct ion_handle *hdl;
 };
 
 typedef struct vpu_service_info {
@@ -268,6 +290,10 @@ typedef struct vpu_service_info {
 #if defined(CONFIG_ION_ROCKCHIP)	
 	struct ion_client * ion_client;
 #endif	
+
+#if defined(CONFIG_VCODEC_MMU)
+    struct list_head mem_region_list;
+#endif
 
 	enum vcodec_device_id dev_id;
 
@@ -543,6 +569,53 @@ static inline bool reg_check_interlace(vpu_reg *reg)
 }
 
 #if defined(CONFIG_VCODEC_MMU)
+
+static unsigned int vcodec_map_ion_handle(vpu_service_info *pservice, 
+                                          vpu_reg *reg,
+                                          struct ion_handle *ion_handle,
+                                          struct dma_buf *buf, int offset)
+{
+    struct vcodec_mem_region *mem_region = kzalloc(sizeof(struct vcodec_mem_region), GFP_KERNEL);
+    if (mem_region == NULL) {
+        dev_err(pservice->dev, "allocate memory for iommu memory region failed\n");
+        return -1;
+    }
+    
+    mem_region->buf = buf;
+    mem_region->hdl = ion_handle;
+    
+    mem_region->attachment = dma_buf_attach(buf, pservice->dev);
+    if (IS_ERR_OR_NULL(mem_region->attachment)) {
+        dev_err(pservice->dev, "dma_buf_attach() failed: %ld\n", PTR_ERR(mem_region->attachment));
+        goto err_buf_map_attach;
+    }
+    
+    mem_region->sg_table = dma_buf_map_attachment(mem_region->attachment, DMA_BIDIRECTIONAL);
+    if (IS_ERR_OR_NULL(mem_region->sg_table)) {
+        dev_err(pservice->dev, "dma_buf_map_attachment() failed: %ld\n", PTR_ERR(mem_region->sg_table));
+        goto err_buf_map_attachment;
+    }
+    
+    mem_region->iova = iovmm_map(pservice->dev, mem_region->sg_table->sgl, offset, buf->size);
+    if (mem_region->iova == 0 || IS_ERR_VALUE(mem_region->iova)) {
+        dev_err(pservice->dev, "iovmm_map() failed: %d\n", mem_region->iova);
+        goto err_iovmm_map;
+    }
+    
+    INIT_LIST_HEAD(&mem_region->reg_lnk);
+    list_add_tail(&mem_region->reg_lnk, &reg->mem_region_list);
+    
+    return mem_region->iova;
+    
+err_iovmm_map:
+	dma_buf_unmap_attachment(mem_region->attachment, mem_region->sg_table, DMA_BIDIRECTIONAL);
+err_buf_map_attachment:
+	dma_buf_detach(buf, mem_region->attachment);
+err_buf_map_attach:
+    kfree(mem_region);
+	return 0;
+}
+
 static u8 table_vpu_dec[] = {
 	12, 13, 14, 15, 16, 17, 18, 19, 20, 21, 22, 23, 24, 25, 26, 27, 28, 29, 40, 41
 };
@@ -555,7 +628,7 @@ static u8 table_hevc_dec[1] = {
 
 };
 
-static int reg_address_translate(struct vpu_service_info *pservice, vpu_reg *reg)
+static int vcodec_reg_address_translate(struct vpu_service_info *pservice, vpu_reg *reg)
 {
 	VPU_HW_ID hw_id;
 	int i;
@@ -569,8 +642,9 @@ static int reg_address_translate(struct vpu_service_info *pservice, vpu_reg *reg
             for (i=0; i<sizeof(table_vpu_dec); i++) {
 				int usr_fd;
 				struct ion_handle *hdl;
-				ion_phys_addr_t phy_addr;
-				size_t len;
+				//ion_phys_addr_t phy_addr;
+                struct dma_buf *buf;
+				//size_t len;
 				int offset;
 
 #if 0
@@ -585,14 +659,26 @@ static int reg_address_translate(struct vpu_service_info *pservice, vpu_reg *reg
 					hdl = ion_import_dma_buf(pservice->ion_client, usr_fd);
                     if (IS_ERR(hdl)) {
 						pr_err("import dma-buf from fd %d failed\n", usr_fd);
-						return ERR_PTR(hdl);
+						return PTR_ERR(hdl);
                     }
 
+#if 0
 					ion_phys(pservice->ion_client, hdl, &phy_addr, &len);
 
 					reg->reg[table_vpu_dec[i]] = phy_addr + offset;
-
-					ion_free(pservice->ion_client, hdl);
+                    
+                    ion_free(pservice->ion_client, hdl);
+#else 
+                    buf = ion_share_dma_buf(pservice->ion_client, hdl);
+                    if (IS_ERR_OR_NULL(buf)) {
+                        dev_err(pservice->dev, "ion_share_dma_buf() failed\n");
+                        ion_free(pservice->ion_client, hdl);
+                        return PTR_ERR(buf);
+                    }
+                    
+                    reg->reg[table_vpu_dec[i]] = vcodec_map_ion_handle(pservice, reg, hdl, buf, offset);
+#endif
+					
                 }
             }
         } else if (reg->type == VPU_ENC) {
@@ -624,6 +710,10 @@ static vpu_reg *reg_init(struct vpu_service_info *pservice, vpu_session *session
 	INIT_LIST_HEAD(&reg->session_link);
 	INIT_LIST_HEAD(&reg->status_link);
 
+#if defined(CONFIG_VCODEC_MMU)    
+    INIT_LIST_HEAD(&reg->mem_region_list);
+#endif    
+
 	if (copy_from_user(&reg->reg[0], (void __user *)src, size)) {
 		pr_err("error: copy_from_user failed in reg_init\n");
 		kfree(reg);
@@ -631,7 +721,7 @@ static vpu_reg *reg_init(struct vpu_service_info *pservice, vpu_session *session
 	}
 
 #if defined(CONFIG_VCODEC_MMU)
-    if (0 > reg_address_translate(pservice, reg)) {
+    if (0 > vcodec_reg_address_translate(pservice, reg)) {
 		pr_err("error: translate reg address failed\n");
 		kfree(reg);
 		return NULL;
@@ -665,10 +755,32 @@ static vpu_reg *reg_init(struct vpu_service_info *pservice, vpu_session *session
 
 static void reg_deinit(struct vpu_service_info *pservice, vpu_reg *reg)
 {
+#if defined(CONFIG_VCODEC_MMU)    
+    struct vcodec_mem_region *mem_region = NULL, *n;
+#endif
+    
 	list_del_init(&reg->session_link);
 	list_del_init(&reg->status_link);
 	if (reg == pservice->reg_codec) pservice->reg_codec = NULL;
 	if (reg == pservice->reg_pproc) pservice->reg_pproc = NULL;
+    
+#if defined(CONFIG_VCODEC_MMU)
+    // release memory region attach to this registers table.
+    list_for_each_entry_safe(mem_region, n, &reg->mem_region_list, reg_lnk) {
+        iovmm_unmap(pservice->dev, mem_region->iova);
+        
+        dma_buf_unmap_attachment(mem_region->attachment, mem_region->sg_table, DMA_BIDIRECTIONAL);
+        dma_buf_detach(mem_region->buf, mem_region->attachment);
+        
+        dma_buf_put(mem_region->buf);
+        ion_free(pservice->ion_client, mem_region->hdl);
+        
+        list_del_init(&mem_region->reg_lnk);
+        
+        kfree(mem_region);
+    }
+#endif    
+    
 	kfree(reg);
 }
 
@@ -966,7 +1078,7 @@ static int return_reg(struct vpu_service_info *pservice, vpu_reg *reg, u32 __use
 	}
 	case VPU_DEC : {
         int reg_len = pservice->hw_info->hw_id == HEVC_ID ? REG_NUM_HEVC_DEC : REG_NUM_9190_DEC;
-		if (copy_to_user(dst, &reg->reg[0], reg_len))
+		if (copy_to_user(dst, &reg->reg[0], SIZE_REG(reg_len)))
 			ret = -EFAULT;
 		break;
 	}
@@ -1231,6 +1343,10 @@ static int vcodec_probe(struct platform_device *pdev)
     struct device_node *np = pdev->dev.of_node;
     struct vpu_service_info *pservice = devm_kzalloc(dev, sizeof(struct vpu_service_info), GFP_KERNEL);
     char *prop = (char*)dev_name(dev);
+#if defined(CONFIG_VCODEC_MMU)
+    struct device *mmu_dev = NULL;
+    char mmu_dev_dts_name[40];
+#endif
 
     pr_info("probe device %s\n", dev_name(dev));
 
@@ -1385,6 +1501,13 @@ static int vcodec_probe(struct platform_device *pdev)
 	} else {
 		dev_info(&pdev->dev, "vcodec ion client create success!\n");
 	}
+    
+    sprintf(mmu_dev_dts_name, "iommu,%s", dev_name(dev));
+    
+    mmu_dev = rockchip_get_sysmmu_device_by_compatible(mmu_dev_dts_name);
+    platform_set_sysmmu(mmu_dev, pservice->dev);
+    
+    iovmm_activate(pservice->dev);
 #endif
 
 #if HEVC_SIM_ENABLE
