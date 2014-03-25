@@ -140,14 +140,17 @@ static void mq_flush_run(struct work_struct *work)
 	blk_mq_insert_request(rq, false, true, false);
 }
 
-static bool blk_flush_queue_rq(struct request *rq)
+static bool blk_flush_queue_rq(struct request *rq, bool add_front)
 {
 	if (rq->q->mq_ops) {
 		INIT_WORK(&rq->mq_flush_work, mq_flush_run);
 		kblockd_schedule_work(rq->q, &rq->mq_flush_work);
 		return false;
 	} else {
-		list_add_tail(&rq->queuelist, &rq->q->queue_head);
+		if (add_front)
+			list_add(&rq->queuelist, &rq->q->queue_head);
+		else
+			list_add_tail(&rq->queuelist, &rq->q->queue_head);
 		return true;
 	}
 }
@@ -193,7 +196,7 @@ static bool blk_flush_complete_seq(struct request *rq, unsigned int seq,
 
 	case REQ_FSEQ_DATA:
 		list_move_tail(&rq->flush.list, &q->flush_data_in_flight);
-		queued = blk_flush_queue_rq(rq);
+		queued = blk_flush_queue_rq(rq, true);
 		break;
 
 	case REQ_FSEQ_DONE:
@@ -326,7 +329,7 @@ static bool blk_kick_flush(struct request_queue *q)
 	q->flush_rq->rq_disk = first_rq->rq_disk;
 	q->flush_rq->end_io = flush_end_io;
 
-	return blk_flush_queue_rq(q->flush_rq);
+	return blk_flush_queue_rq(q->flush_rq, false);
 }
 
 static void flush_data_end_io(struct request *rq, int error)
