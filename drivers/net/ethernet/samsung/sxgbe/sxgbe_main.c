@@ -55,6 +55,9 @@
 #define SXGBE_DEFAULT_LPI_TIMER	1000
 
 static int debug = -1;
+static int eee_timer = SXGBE_DEFAULT_LPI_TIMER;
+
+module_param(eee_timer, int, S_IRUGO | S_IWUSR);
 
 module_param(debug, int, S_IRUGO | S_IWUSR);
 static const u32 default_msg_level = (NETIF_MSG_DRV | NETIF_MSG_PROBE |
@@ -66,6 +69,97 @@ static irqreturn_t sxgbe_tx_interrupt(int irq, void *dev_id);
 static irqreturn_t sxgbe_rx_interrupt(int irq, void *dev_id);
 
 #define SXGBE_COAL_TIMER(x) (jiffies + usecs_to_jiffies(x))
+
+#define SXGBE_LPI_TIMER(x) (jiffies + msecs_to_jiffies(x))
+
+/**
+ * sxgbe_verify_args - verify the driver parameters.
+ * Description: it verifies if some wrong parameter is passed to the driver.
+ * Note that wrong parameters are replaced with the default values.
+ */
+static void sxgbe_verify_args(void)
+{
+	if (unlikely(eee_timer < 0))
+		eee_timer = SXGBE_DEFAULT_LPI_TIMER;
+}
+
+static void sxgbe_enable_eee_mode(const struct sxgbe_priv_data *priv)
+{
+	/* Check and enter in LPI mode */
+	if (!priv->tx_path_in_lpi_mode)
+		priv->hw->mac->set_eee_mode(priv->ioaddr);
+}
+
+void sxgbe_disable_eee_mode(struct sxgbe_priv_data * const priv)
+{
+	/* Exit and disable EEE in case of we are are in LPI state. */
+	priv->hw->mac->reset_eee_mode(priv->ioaddr);
+	del_timer_sync(&priv->eee_ctrl_timer);
+	priv->tx_path_in_lpi_mode = false;
+}
+
+/**
+ * sxgbe_eee_ctrl_timer
+ * @arg : data hook
+ * Description:
+ *  If there is no data transfer and if we are not in LPI state,
+ *  then MAC Transmitter can be moved to LPI state.
+ */
+static void sxgbe_eee_ctrl_timer(unsigned long arg)
+{
+	struct sxgbe_priv_data *priv = (struct sxgbe_priv_data *)arg;
+
+	sxgbe_enable_eee_mode(priv);
+	mod_timer(&priv->eee_ctrl_timer, SXGBE_LPI_TIMER(eee_timer));
+}
+
+/**
+ * sxgbe_eee_init
+ * @priv: private device pointer
+ * Description:
+ *  If the EEE support has been enabled while configuring the driver,
+ *  if the GMAC actually supports the EEE (from the HW cap reg) and the
+ *  phy can also manage EEE, so enable the LPI state and start the timer
+ *  to verify if the tx path can enter in LPI state.
+ */
+bool sxgbe_eee_init(struct sxgbe_priv_data * const priv)
+{
+	bool ret = false;
+
+	/* MAC core supports the EEE feature. */
+	if (priv->hw_cap.eee) {
+		/* Check if the PHY supports EEE */
+		if (phy_init_eee(priv->phydev, 1))
+			return false;
+
+		priv->eee_active = 1;
+		init_timer(&priv->eee_ctrl_timer);
+		priv->eee_ctrl_timer.function = sxgbe_eee_ctrl_timer;
+		priv->eee_ctrl_timer.data = (unsigned long)priv;
+		priv->eee_ctrl_timer.expires = SXGBE_LPI_TIMER(eee_timer);
+		add_timer(&priv->eee_ctrl_timer);
+
+		priv->hw->mac->set_eee_timer(priv->ioaddr,
+					     SXGBE_DEFAULT_LPI_TIMER,
+					     priv->tx_lpi_timer);
+
+		pr_info("Energy-Efficient Ethernet initialized\n");
+
+		ret = true;
+	}
+
+	return ret;
+}
+
+static void sxgbe_eee_adjust(const struct sxgbe_priv_data *priv)
+{
+	/* When the EEE has been already initialised we have to
+	 * modify the PLS bit in the LPI ctrl & status reg according
+	 * to the PHY link status. For this reason.
+	 */
+	if (priv->eee_enabled)
+		priv->hw->mac->set_eee_pls(priv->ioaddr, priv->phydev->link);
+}
 
 /**
  * sxgbe_clk_csr_set - dynamically set the MDC clock
@@ -156,6 +250,9 @@ static void sxgbe_adjust_link(struct net_device *dev)
 
 	if (new_state & netif_msg_link(priv))
 		phy_print_status(phydev);
+
+	/* Alter the MAC settings for EEE */
+	sxgbe_eee_adjust(priv);
 }
 
 /**
@@ -676,7 +773,7 @@ static void sxgbe_tx_queue_clean(struct sxgbe_tx_queue *tqueue)
  * @priv: driver private structure
  * Description: it reclaims resources after transmission completes.
  */
-static void sxgbe_tx_all_clean(struct sxgbe_priv_data *priv)
+static void sxgbe_tx_all_clean(struct sxgbe_priv_data * const priv)
 {
 	u8 queue_num;
 
@@ -684,6 +781,11 @@ static void sxgbe_tx_all_clean(struct sxgbe_priv_data *priv)
 		struct sxgbe_tx_queue *tqueue = priv->txq[queue_num];
 
 		sxgbe_tx_queue_clean(tqueue);
+	}
+
+	if ((priv->eee_enabled) && (!priv->tx_path_in_lpi_mode)) {
+		sxgbe_enable_eee_mode(priv);
+		mod_timer(&priv->eee_ctrl_timer, SXGBE_LPI_TIMER(eee_timer));
 	}
 }
 
@@ -766,6 +868,7 @@ static int sxgbe_get_hw_features(struct sxgbe_priv_data * const priv)
 		features->multi_macaddr = SXGBE_HW_FEAT_MACADDR_COUNT(rval);
 		features->tstamp_srcselect = SXGBE_HW_FEAT_TSTMAP_SRC(rval);
 		features->sa_vlan_insert = SXGBE_HW_FEAT_SRCADDR_VLAN(rval);
+		features->eee = SXGBE_HW_FEAT_EEE(rval);
 	}
 
 	/* Read First Capability Register CAP[1] */
@@ -983,6 +1086,20 @@ static int sxgbe_open(struct net_device *dev)
 		goto init_error;
 	}
 
+	/* If the LPI irq is different from the mac irq
+	 * register a dedicated handler
+	 */
+	if (priv->lpi_irq != dev->irq) {
+		ret = devm_request_irq(priv->device, priv->lpi_irq,
+				       sxgbe_common_interrupt,
+				       IRQF_SHARED, dev->name, dev);
+		if (unlikely(ret < 0)) {
+			netdev_err(dev, "%s: ERROR: allocating the LPI IRQ %d (%d)\n",
+				   __func__, priv->lpi_irq, ret);
+			goto init_error;
+		}
+	}
+
 	/* Request TX DMA irq lines */
 	SXGBE_FOR_EACH_QUEUE(SXGBE_TX_QUEUES, queue_num) {
 		ret = devm_request_irq(priv->device,
@@ -1038,6 +1155,9 @@ static int sxgbe_open(struct net_device *dev)
 		priv->hw->dma->rx_watchdog(priv->ioaddr, SXGBE_MAX_DMA_RIWT);
 	}
 
+	priv->tx_lpi_timer = SXGBE_DEFAULT_LPI_TIMER;
+	priv->eee_enabled = sxgbe_eee_init(priv);
+
 	napi_enable(&priv->napi);
 	netif_start_queue(dev);
 
@@ -1062,6 +1182,9 @@ phy_error:
 static int sxgbe_release(struct net_device *dev)
 {
 	struct sxgbe_priv_data *priv = netdev_priv(dev);
+
+	if (priv->eee_enabled)
+		del_timer_sync(&priv->eee_ctrl_timer);
 
 	/* Stop and disconnect the PHY */
 	if (priv->phydev) {
@@ -1122,6 +1245,9 @@ static netdev_tx_t sxgbe_xmit(struct sk_buff *skb, struct net_device *dev)
 
 	/* get the spinlock */
 	spin_lock(&tqueue->tx_lock);
+
+	if (priv->tx_path_in_lpi_mode)
+		sxgbe_disable_eee_mode(priv);
 
 	if (unlikely(sxgbe_tx_avail(tqueue, tx_rsize) < nr_frags + 1)) {
 		if (!netif_tx_queue_stopped(dev_txq)) {
@@ -1380,6 +1506,25 @@ static void sxgbe_tx_timeout(struct net_device *dev)
  */
 static irqreturn_t sxgbe_common_interrupt(int irq, void *dev_id)
 {
+	struct net_device *netdev = (struct net_device *)dev_id;
+	struct sxgbe_priv_data *priv = netdev_priv(netdev);
+	int status;
+
+	status = priv->hw->mac->host_irq_status(priv->ioaddr, &priv->xstats);
+	/* For LPI we need to save the tx status */
+	if (status & TX_ENTRY_LPI_MODE) {
+		priv->xstats.tx_lpi_entry_n++;
+		priv->tx_path_in_lpi_mode = true;
+	}
+	if (status & TX_EXIT_LPI_MODE) {
+		priv->xstats.tx_lpi_exit_n++;
+		priv->tx_path_in_lpi_mode = false;
+	}
+	if (status & RX_ENTRY_LPI_MODE)
+		priv->xstats.rx_lpi_entry_n++;
+	if (status & RX_EXIT_LPI_MODE)
+		priv->xstats.rx_lpi_exit_n++;
+
 	return IRQ_HANDLED;
 }
 
@@ -1876,6 +2021,9 @@ struct sxgbe_priv_data *sxgbe_drv_probe(struct device *device,
 	priv->plat = plat_dat;
 	priv->ioaddr = addr;
 
+	/* Verify driver arguments */
+	sxgbe_verify_args();
+
 	/* Init MAC and get the capabilities */
 	sxgbe_hw_init(priv);
 
@@ -2032,7 +2180,21 @@ module_exit(sxgbe_exit);
 #ifndef MODULE
 static int __init sxgbe_cmdline_opt(char *str)
 {
+	char *opt;
+
+	if (!str || !*str)
+		return -EINVAL;
+	while ((opt = strsep(&str, ",")) != NULL) {
+		if (!strncmp(opt, "eee_timer:", 6)) {
+			if (kstrtoint(opt + 10, 0, &eee_timer))
+				goto err;
+		}
+	}
 	return 0;
+
+err:
+	pr_err("%s: ERROR broken module parameter conversion\n", __func__);
+	return -EINVAL;
 }
 
 __setup("sxgbeeth=", sxgbe_cmdline_opt);
@@ -2043,6 +2205,7 @@ __setup("sxgbeeth=", sxgbe_cmdline_opt);
 MODULE_DESCRIPTION("SAMSUNG 10G/2.5G/1G Ethernet PLATFORM driver");
 
 MODULE_PARM_DESC(debug, "Message Level (-1: default, 0: no output, 16: all)");
+MODULE_PARM_DESC(eee_timer, "EEE-LPI Default LS timer value");
 
 MODULE_AUTHOR("Siva Reddy Kallam <siva.kallam@samsung.com>");
 MODULE_AUTHOR("ByungHo An <bh74.an@samsung.com>");

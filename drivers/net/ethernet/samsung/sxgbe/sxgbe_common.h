@@ -118,6 +118,33 @@ struct sxgbe_mtl_ops;
 #define RX_PTP_SIGNAL		0x0A
 #define RX_PTP_RESV_MSG		0x0F
 
+/* EEE-LPI mode  flags*/
+#define TX_ENTRY_LPI_MODE	0x10
+#define TX_EXIT_LPI_MODE	0x20
+#define RX_ENTRY_LPI_MODE	0x40
+#define RX_EXIT_LPI_MODE	0x80
+
+/* EEE-LPI Interrupt status flag */
+#define LPI_INT_STATUS		BIT(5)
+
+/* EEE-LPI Default timer values */
+#define LPI_LINK_STATUS_TIMER	0x3E8
+#define LPI_MAC_WAIT_TIMER	0x00
+
+/* EEE-LPI Control and status definitions */
+#define LPI_CTRL_STATUS_TXA	BIT(19)
+#define LPI_CTRL_STATUS_PLSDIS	BIT(18)
+#define LPI_CTRL_STATUS_PLS	BIT(17)
+#define LPI_CTRL_STATUS_LPIEN	BIT(16)
+#define LPI_CTRL_STATUS_TXRSTP	BIT(11)
+#define LPI_CTRL_STATUS_RXRSTP	BIT(10)
+#define LPI_CTRL_STATUS_RLPIST	BIT(9)
+#define LPI_CTRL_STATUS_TLPIST	BIT(8)
+#define LPI_CTRL_STATUS_RLPIEX	BIT(3)
+#define LPI_CTRL_STATUS_RLPIEN	BIT(2)
+#define LPI_CTRL_STATUS_TLPIEX	BIT(1)
+#define LPI_CTRL_STATUS_TLPIEN	BIT(0)
+
 enum dma_irq_status {
 	tx_hard_error	= BIT(0),
 	tx_bump_tc	= BIT(1),
@@ -201,6 +228,13 @@ struct sxgbe_extra_stats {
 	unsigned long rx_desc_access_err;
 	unsigned long rx_buffer_access_err;
 	unsigned long rx_data_transfer_err;
+
+	/* EEE-LPI stats */
+	unsigned long tx_lpi_entry_n;
+	unsigned long tx_lpi_exit_n;
+	unsigned long rx_lpi_entry_n;
+	unsigned long rx_lpi_exit_n;
+	unsigned long eee_wakeup_error_n;
 
 	/* RX specific */
 	/* L2 error */
@@ -299,6 +333,13 @@ struct sxgbe_core_ops {
 				       unsigned char feature_index);
 	/* adjust SXGBE speed */
 	void (*set_speed)(void __iomem *ioaddr, unsigned char speed);
+
+	/* EEE-LPI specific operations */
+	void (*set_eee_mode)(void __iomem *ioaddr);
+	void (*reset_eee_mode)(void __iomem *ioaddr);
+	void (*set_eee_timer)(void __iomem *ioaddr, const int ls,
+			      const int tw);
+	void (*set_eee_pls)(void __iomem *ioaddr, const int link);
 };
 
 const struct sxgbe_core_ops *sxgbe_get_core_ops(void);
@@ -353,6 +394,8 @@ struct sxgbe_hw_features {
 	unsigned int pmt_magic_frame;
 	/* IEEE 1588-2008 */
 	unsigned int atime_stamp;
+
+	unsigned int eee;
 
 	unsigned int tx_csum_offload;
 	unsigned int rx_csum_offload;
@@ -437,6 +480,13 @@ struct sxgbe_priv_data {
 	/* tc control */
 	int tx_tc;
 	int rx_tc;
+	/* EEE-LPI specific members */
+	struct timer_list eee_ctrl_timer;
+	bool tx_path_in_lpi_mode;
+	int lpi_irq;
+	int eee_enabled;
+	int eee_active;
+	int tx_lpi_timer;
 };
 
 /* Function prototypes */
@@ -458,5 +508,8 @@ int sxgbe_restore(struct net_device *ndev);
 #endif /* CONFIG_PM */
 
 const struct sxgbe_mtl_ops *sxgbe_get_mtl_ops(void);
+
+void sxgbe_disable_eee_mode(struct sxgbe_priv_data * const priv);
+bool sxgbe_eee_init(struct sxgbe_priv_data * const priv);
 
 #endif /* __SXGBE_COMMON_H__ */

@@ -145,6 +145,12 @@ static int sxgbe_platform_probe(struct platform_device *pdev)
 		}
 	}
 
+	priv->lpi_irq = irq_of_parse_and_map(node, chan);
+	if (priv->lpi_irq <= 0) {
+		dev_err(dev, "sxgbe lpi irq parsing failed\n");
+		goto err_rx_irq_unmap;
+	}
+
 	platform_set_drvdata(pdev, priv->dev);
 
 	pr_debug("platform driver registration completed\n");

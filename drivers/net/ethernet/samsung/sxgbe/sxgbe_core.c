@@ -48,11 +48,38 @@ static void sxgbe_core_dump_regs(void __iomem *ioaddr)
 {
 }
 
+static int sxgbe_get_lpi_status(void __iomem *ioaddr, const u32 irq_status)
+{
+	int status = 0;
+	int lpi_status;
+
+	/* Reading this register shall clear all the LPI status bits */
+	lpi_status = readl(ioaddr + SXGBE_CORE_LPI_CTRL_STATUS);
+
+	if (lpi_status & LPI_CTRL_STATUS_TLPIEN)
+		status |= TX_ENTRY_LPI_MODE;
+	if (lpi_status & LPI_CTRL_STATUS_TLPIEX)
+		status |= TX_EXIT_LPI_MODE;
+	if (lpi_status & LPI_CTRL_STATUS_RLPIEN)
+		status |= RX_ENTRY_LPI_MODE;
+	if (lpi_status & LPI_CTRL_STATUS_RLPIEX)
+		status |= RX_EXIT_LPI_MODE;
+
+	return status;
+}
+
 /* Handle extra events on specific interrupts hw dependent */
 static int sxgbe_core_host_irq_status(void __iomem *ioaddr,
 				      struct sxgbe_extra_stats *x)
 {
-	return 0;
+	int irq_status, status = 0;
+
+	irq_status = readl(ioaddr + SXGBE_CORE_INT_STATUS_REG);
+
+	if (unlikely(irq_status & LPI_INT_STATUS))
+		status |= sxgbe_get_lpi_status(ioaddr, irq_status);
+
+	return status;
 }
 
 /* Set power management mode (e.g. magic frame) */
@@ -138,6 +165,59 @@ static void sxgbe_core_set_speed(void __iomem *ioaddr, unsigned char speed)
 	writel(tx_cfg, ioaddr + SXGBE_CORE_TX_CONFIG_REG);
 }
 
+static void  sxgbe_set_eee_mode(void __iomem *ioaddr)
+{
+	u32 ctrl;
+
+	/* Enable the LPI mode for transmit path with Tx automate bit set.
+	 * When Tx Automate bit is set, MAC internally handles the entry
+	 * to LPI mode after all outstanding and pending packets are
+	 * transmitted.
+	 */
+	ctrl = readl(ioaddr + SXGBE_CORE_LPI_CTRL_STATUS);
+	ctrl |= LPI_CTRL_STATUS_LPIEN | LPI_CTRL_STATUS_TXA;
+	writel(ctrl, ioaddr + SXGBE_CORE_LPI_CTRL_STATUS);
+}
+
+static void  sxgbe_reset_eee_mode(void __iomem *ioaddr)
+{
+	u32 ctrl;
+
+	ctrl = readl(ioaddr + SXGBE_CORE_LPI_CTRL_STATUS);
+	ctrl &= ~(LPI_CTRL_STATUS_LPIEN | LPI_CTRL_STATUS_TXA);
+	writel(ctrl, ioaddr + SXGBE_CORE_LPI_CTRL_STATUS);
+}
+
+static void  sxgbe_set_eee_pls(void __iomem *ioaddr, const int link)
+{
+	u32 ctrl;
+
+	ctrl = readl(ioaddr + SXGBE_CORE_LPI_CTRL_STATUS);
+
+	/* If the PHY link status is UP then set PLS */
+	if (link)
+		ctrl |= LPI_CTRL_STATUS_PLS;
+	else
+		ctrl &= ~LPI_CTRL_STATUS_PLS;
+
+	writel(ctrl, ioaddr + SXGBE_CORE_LPI_CTRL_STATUS);
+}
+
+static void  sxgbe_set_eee_timer(void __iomem *ioaddr,
+				 const int ls, const int tw)
+{
+	int value = ((tw & 0xffff)) | ((ls & 0x7ff) << 16);
+
+	/* Program the timers in the LPI timer control register:
+	 * LS: minimum time (ms) for which the link
+	 *  status from PHY should be ok before transmitting
+	 *  the LPI pattern.
+	 * TW: minimum time (us) for which the core waits
+	 *  after it has stopped transmitting the LPI pattern.
+	 */
+	writel(value, ioaddr + SXGBE_CORE_LPI_TIMER_CTRL);
+}
+
 const struct sxgbe_core_ops core_ops = {
 	.core_init		= sxgbe_core_init,
 	.dump_regs		= sxgbe_core_dump_regs,
@@ -150,6 +230,10 @@ const struct sxgbe_core_ops core_ops = {
 	.get_controller_version	= sxgbe_get_controller_version,
 	.get_hw_feature		= sxgbe_get_hw_feature,
 	.set_speed		= sxgbe_core_set_speed,
+	.set_eee_mode		= sxgbe_set_eee_mode,
+	.reset_eee_mode		= sxgbe_reset_eee_mode,
+	.set_eee_timer		= sxgbe_set_eee_timer,
+	.set_eee_pls		= sxgbe_set_eee_pls,
 };
 
 const struct sxgbe_core_ops *sxgbe_get_core_ops(void)
