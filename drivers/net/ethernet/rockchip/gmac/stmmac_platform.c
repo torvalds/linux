@@ -26,7 +26,201 @@
 #include <linux/io.h>
 #include <linux/of.h>
 #include <linux/of_net.h>
+#include <linux/gpio.h>
+#include <linux/of_gpio.h>
 #include "stmmac.h"
+#include <linux/rockchip/iomap.h>
+#include <linux/rockchip/grf.h>
+
+#define grf_readl(offset)	readl_relaxed(RK_GRF_VIRT + offset)
+#define grf_writel(v, offset)	do { writel_relaxed(v, RK_GRF_VIRT + offset); dsb(); } while (0)
+
+// RK3288_GRF_SOC_CON1
+#define GMAC_PHY_INTF_SEL_RGMII ((0x01C0 << 16) | (0x0040))
+#define GMAC_PHY_INTF_SEL_RMII  ((0x01C0 << 16) | (0x0100))
+#define GMAC_FLOW_CTRL          ((0x0200 << 16) | (0x0200))
+#define GMAC_FLOW_CTRL_CLR      ((0x0200 << 16) | (0x0000))
+#define GMAC_SPEED_10M          ((0x0400 << 16) | (0x0400))
+#define GMAC_SPEED_100M         ((0x0400 << 16) | (0x0000))
+#define GMAC_RMII_CLK_25M       ((0x0800 << 16) | (0x0800))
+#define GMAC_RMII_CLK_2_5M      ((0x0800 << 16) | (0x0000))
+#define GMAC_CLK_125M           ((0x3000 << 16) | (0x0000))
+#define GMAC_CLK_25M            ((0x3000 << 16) | (0x3000))
+#define GMAC_CLK_2_5M           ((0x3000 << 16) | (0x2000))
+#define GMAC_RMII_MODE          ((0x4000 << 16) | (0x4000))
+#define GMAC_RMII_MODE_CLR      ((0x4000 << 16) | (0x0000))
+
+// RK3288_GRF_SOC_CON3
+#define GMAC_TXCLK_DLY_ENABLE   ((0x4000 << 16) | (0x4000))
+#define GMAC_TXCLK_DLY_DISABLE  ((0x4000 << 16) | (0x0000))
+#define GMAC_RXCLK_DLY_ENABLE   ((0x8000 << 16) | (0x8000))
+#define GMAC_RXCLK_DLY_DISABLE  ((0x8000 << 16) | (0x0000))
+#if 0
+#define GMAC_CLK_RX_DL_CFG	((0x3F80 << 16) | (0x0800))
+#define GMAC_CLK_TX_DL_CFG	((0x007F << 16) | (0x0040))
+#else
+#define GMAC_CLK_RX_DL_CFG(val) ((0x3F80 << 16) | (val<<7))        // 7bit
+#define GMAC_CLK_TX_DL_CFG(val) ((0x007F << 16) | (val))           // 7bit
+#endif
+struct bsp_priv g_bsp_priv;
+
+static int phy_power_on(struct plat_stmmacenet_data *plat, int enable)
+{
+	struct bsp_priv * bsp_priv;
+
+	printk("enter %s ,enable = %d \n",__func__,enable);
+
+	if ((plat) && (plat->bsp_priv)) {
+		bsp_priv = plat->bsp_priv;
+	} else {
+		printk("ERROR: platform data or private data is NULL. %s\n", __FUNCTION__);
+		return -1;
+	}
+
+	if (enable) {
+		//power on
+		if (gpio_is_valid(bsp_priv->power_io)) {
+			gpio_direction_output(bsp_priv->power_io, 0);
+			gpio_set_value(bsp_priv->power_io, 1);
+		}
+
+		//reset
+		if (gpio_is_valid(bsp_priv->reset_io)) {
+			gpio_direction_output(bsp_priv->reset_io, 0);
+			gpio_set_value(bsp_priv->reset_io, 0);
+			msleep(10);
+			gpio_set_value(bsp_priv->reset_io, 1);
+		}
+	} else {
+		//power off
+		if (gpio_is_valid(bsp_priv->power_io)) {
+			gpio_direction_output(bsp_priv->power_io, 0);
+			gpio_set_value(bsp_priv->power_io, 0);
+		}
+	}
+
+	return 0;
+}
+
+int stmmc_pltfr_init(struct platform_device *pdev) {
+	struct pinctrl_state *gmac_state;
+	int phy_iface;
+	int err;
+
+	printk("enter func %s...\n", __func__);
+
+//iomux
+#if 0
+	if ((pdev->dev.pins) && (pdev->dev.pins->p)) {
+		gmac_state = pinctrl_lookup_state(pdev->dev.pins->p, "default");
+		if (IS_ERR(gmac_state)) {
+				dev_err(&pdev->dev, "no gmc pinctrl state\n");
+				return -1;
+		}
+
+		pinctrl_select_state(pdev->dev.pins->p, gmac_state);
+	}
+#endif
+
+	struct bsp_priv * bsp_priv = &g_bsp_priv;
+	phy_iface = bsp_priv->phy_iface;
+//power
+	if (!gpio_is_valid(bsp_priv->power_io)) {
+		printk("%s: ERROR: Get power-gpio failed.\n", __func__);
+		//return -EINVAL;
+	}
+
+	err = gpio_request(bsp_priv->power_io, "gmac_phy_power");
+	if (err) {
+		printk("%s: ERROR: Request gmac phy power pin failed.\n", __func__);
+		//return -EINVAL;
+	}
+
+	if (!gpio_is_valid(bsp_priv->reset_io)) {
+		printk("%s: ERROR: Get reset-gpio failed.\n", __func__);
+		//return -EINVAL;
+	}
+
+	err = gpio_request(bsp_priv->reset_io, "gmac_phy_reset");
+	if (err) {
+		printk("%s: ERROR: Request gmac phy reset pin failed.\n", __func__);
+		//return -EINVAL;
+	}
+
+//rmii or rgmii
+	if (phy_iface & PHY_INTERFACE_MODE_RGMII) {
+		printk("init for RGMII\n");
+		grf_writel(GMAC_PHY_INTF_SEL_RGMII, RK3288_GRF_SOC_CON1);
+		grf_writel(GMAC_RMII_MODE_CLR, RK3288_GRF_SOC_CON1);
+		grf_writel(GMAC_RXCLK_DLY_ENABLE, RK3288_GRF_SOC_CON3);
+		grf_writel(GMAC_TXCLK_DLY_ENABLE, RK3288_GRF_SOC_CON3);
+		grf_writel(GMAC_CLK_RX_DL_CFG(0x10), RK3288_GRF_SOC_CON3);
+		grf_writel(GMAC_CLK_TX_DL_CFG(0x40), RK3288_GRF_SOC_CON3);
+	} else if (phy_iface & PHY_INTERFACE_MODE_RMII) {
+		printk("init for RMII\n");
+		grf_writel(GMAC_PHY_INTF_SEL_RMII, RK3288_GRF_SOC_CON1);
+		grf_writel(GMAC_RMII_MODE, RK3288_GRF_SOC_CON1);
+	} else {
+		printk("ERROR: NO interface defined!\n");
+	}
+
+	return 0;
+}
+
+void * stmmc_pltfr_fix_mac_speed(void *priv, unsigned int speed){
+	printk("enter func %s...\n", __func__);
+	struct bsp_priv * bsp_priv = priv;
+	int interface;
+
+	printk("fix speed to %d\n", speed);
+
+	if (bsp_priv) {
+		interface = bsp_priv->phy_iface;
+	}
+
+	if (interface & PHY_INTERFACE_MODE_RGMII) {
+		printk("fix speed for RGMII\n");
+
+		switch (speed) {
+			case 10: {
+				grf_writel(GMAC_CLK_2_5M, RK3288_GRF_SOC_CON1);
+				break;
+			}
+			case 100: {
+				grf_writel(GMAC_CLK_25M, RK3288_GRF_SOC_CON1);
+				break;
+			}
+			case 1000: {
+				grf_writel(GMAC_CLK_125M, RK3288_GRF_SOC_CON1);
+				break;
+			}
+			default: {
+				printk("ERROR: speed %d is not defined!\n");
+			}
+		}
+
+	} else if (interface & PHY_INTERFACE_MODE_RMII) {
+		printk("fix speed for RMII\n");
+		switch (speed) {
+			case 10: {
+				grf_writel(GMAC_RMII_CLK_2_5M, RK3288_GRF_SOC_CON1);
+				break;
+			}
+			case 100: {
+				grf_writel(GMAC_RMII_CLK_25M, RK3288_GRF_SOC_CON1);
+				break;
+			}
+			default: {
+				printk("ERROR: speed %d is not defined!\n");
+			}
+		}
+	} else {
+		printk("ERROR: NO interface defined!\n");
+	}
+
+	return NULL;
+}
+
 
 #ifdef CONFIG_OF
 static int stmmac_probe_config_dt(struct platform_device *pdev,
@@ -34,6 +228,7 @@ static int stmmac_probe_config_dt(struct platform_device *pdev,
 				  const char **mac)
 {
 	struct device_node *np = pdev->dev.of_node;
+	enum of_gpio_flags flags;
 
 	if (!np)
 		return -ENODEV;
@@ -43,6 +238,19 @@ static int stmmac_probe_config_dt(struct platform_device *pdev,
 	plat->mdio_bus_data = devm_kzalloc(&pdev->dev,
 					   sizeof(struct stmmac_mdio_bus_data),
 					   GFP_KERNEL);
+
+	plat->init = stmmc_pltfr_init;
+	plat->fix_mac_speed = stmmc_pltfr_fix_mac_speed;
+
+	g_bsp_priv.reset_io = 
+			of_get_named_gpio_flags(np, "reset-gpio", 0, &flags);
+	g_bsp_priv.power_io = 
+			of_get_named_gpio_flags(np, "power-gpio", 0, &flags);
+
+	g_bsp_priv.phy_iface = plat->interface;
+	g_bsp_priv.phy_power_on = phy_power_on;
+
+	plat->bsp_priv = &g_bsp_priv;
 
 	/*
 	 * Currently only the properties needed on SPEAr600
@@ -148,11 +356,6 @@ static int stmmac_pltfr_probe(struct platform_device *pdev)
 	priv->lpi_irq = platform_get_irq_byname(pdev, "eth_lpi");
 
 	platform_set_drvdata(pdev, priv->dev);
-
-	priv->rk_pdata = &rk_board_gmac_data;
-	if (priv->rk_pdata->gmac_register_init) {
-		priv->rk_pdata->gmac_register_init();
-	}
 
 	pr_debug("STMMAC platform driver registration completed");
 

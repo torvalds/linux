@@ -1,4 +1,4 @@
-obj-$(CONFIG_RK_GMAC_ETH) += stmmac.o rk_gmac_phy_ctl.o
+obj-$(CONFIG_RK_GMAC_ETH) += stmmac.o
 stmmac-$(CONFIG_RK_GMAC_ETH) += stmmac_platform.o
 stmmac-$(CONFIG_STMMAC_PCI) += stmmac_pci.o
 stmmac-objs:= stmmac_main.o stmmac_ethtool.o stmmac_mdio.o ring_mode.o	\

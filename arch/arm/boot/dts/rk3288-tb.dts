@@ -161,7 +161,13 @@
 			};
 		};
 	};
+};
 
+&gmac {
+//	power_ctl_by = "gpio";	//"gpio" "pmu"
+	power-gpio = <&gpio0 GPIO_A6 GPIO_ACTIVE_HIGH>;
+//	power-pmu = "act_ldo"
+	reset-gpio = <&gpio4 GPIO_A7 GPIO_ACTIVE_HIGH>;
 };
 
 &pinctrl {

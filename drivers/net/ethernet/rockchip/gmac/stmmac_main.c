@@ -248,10 +248,6 @@ static inline void stmmac_hw_fix_mac_speed(struct stmmac_priv *priv)
 
 	if (likely(priv->plat->fix_mac_speed))
 		priv->plat->fix_mac_speed(priv->plat->bsp_priv, phydev->speed);
-
-	if (priv->rk_pdata->gmac_speed_switch) {
-		priv->rk_pdata->gmac_speed_switch(phydev->speed);
-	}
 }
 
 /**
@@ -1575,13 +1571,16 @@ static int stmmac_open(struct net_device *dev)
 
 	clk_prepare_enable(priv->stmmac_clk);
 
-	if (priv->rk_pdata->gmac_io_init) {
-		priv->rk_pdata->gmac_io_init(priv->device);
+	if ((priv->plat) && (priv->plat->bsp_priv)) {
+		struct bsp_priv * bsp_priv = priv->plat->bsp_priv;
+		if ((bsp_priv) && (bsp_priv->phy_power_on)) {
+			bsp_priv->phy_power_on(priv->plat, 1);
+		}
 	}
 
 	stmmac_check_ether_addr(priv);
 
-	if (priv->pcs != STMMAC_PCS_RGMII && priv->pcs != STMMAC_PCS_TBI &&
+	if (priv->pcs != STMMAC_PCS_SGMII && priv->pcs != STMMAC_PCS_TBI &&
 	    priv->pcs != STMMAC_PCS_RTBI) {
 		ret = stmmac_init_phy(dev);
 		if (ret) {
@@ -1767,8 +1766,11 @@ static int stmmac_release(struct net_device *dev)
 
 	stmmac_release_ptp(priv);
 
-	if (priv->rk_pdata->gmac_io_deinit) {
-		priv->rk_pdata->gmac_io_deinit(priv->device);
+	if ((priv->plat) && (priv->plat->bsp_priv)) {
+		struct bsp_priv * bsp_priv = priv->plat->bsp_priv;
+		if ((bsp_priv) && (bsp_priv->phy_power_on)) {
+			bsp_priv->phy_power_on(priv->plat, 0);
+		}
 	}
 
 	return 0;
@@ -2715,7 +2717,7 @@ struct stmmac_priv *stmmac_dvr_probe(struct device *device,
 		goto error_netdev_register;
 	}
 
-	priv->stmmac_clk = clk_get(priv->device, STMMAC_RESOURCE_NAME);
+	priv->stmmac_clk = clk_get(priv->device, "clk_mac"/*STMMAC_RESOURCE_NAME*/);
 	if (IS_ERR(priv->stmmac_clk)) {
 		pr_warn("%s: warning: cannot get CSR clock\n", __func__);
 		goto error_clk_get;
@@ -2734,7 +2736,7 @@ struct stmmac_priv *stmmac_dvr_probe(struct device *device,
 
 	stmmac_check_pcs_mode(priv);
 
-	if (priv->pcs != STMMAC_PCS_RGMII && priv->pcs != STMMAC_PCS_TBI &&
+	if (priv->pcs != STMMAC_PCS_SGMII && priv->pcs != STMMAC_PCS_TBI &&
 	    priv->pcs != STMMAC_PCS_RTBI) {
 		/* MDIO bus Registration */
 		ret = stmmac_mdio_register(ndev);
@@ -2775,7 +2777,7 @@ int stmmac_dvr_remove(struct net_device *ndev)
 	priv->hw->dma->stop_tx(priv->ioaddr);
 
 	stmmac_set_mac(priv->ioaddr, false);
-	if (priv->pcs != STMMAC_PCS_RGMII && priv->pcs != STMMAC_PCS_TBI &&
+	if (priv->pcs != STMMAC_PCS_SGMII && priv->pcs != STMMAC_PCS_TBI &&
 	    priv->pcs != STMMAC_PCS_RTBI)
 		stmmac_mdio_unregister(ndev);
 	netif_carrier_off(ndev);
