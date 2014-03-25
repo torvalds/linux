@@ -341,7 +341,7 @@ static void __set_frame_format(struct fimc_frame *frame, struct fimc_fmt *fmt,
 {
 	int i;
 
-	for (i = 0; i < fmt->colplanes; i++) {
+	for (i = 0; i < fmt->memplanes; i++) {
 		frame->bytesperline[i] = pixm->plane_fmt[i].bytesperline;
 		frame->payload[i] = pixm->plane_fmt[i].sizeimage;
 	}
@@ -460,7 +460,7 @@ static int fimc_m2m_try_crop(struct fimc_ctx *ctx, struct v4l2_crop *cr)
 	else
 		halign = ffs(fimc->variant->min_vsize_align) - 1;
 
-	for (i = 0; i < f->fmt->colplanes; i++)
+	for (i = 0; i < f->fmt->memplanes; i++)
 		depth += f->fmt->depth[i];
 
 	v4l_bound_align_image(&cr->c.width, min_size, f->o_width,
