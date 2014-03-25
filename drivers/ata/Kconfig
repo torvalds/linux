@@ -99,7 +99,6 @@ config SATA_AHCI_PLATFORM
 
 config AHCI_ST
 	tristate "ST AHCI SATA support"
-	depends on SATA_AHCI_PLATFORM
 	depends on ARCH_STI
 	help
 	  This option enables support for ST AHCI SATA controller.
@@ -108,7 +107,7 @@ config AHCI_ST
 
 config AHCI_IMX
 	tristate "Freescale i.MX AHCI SATA support"
-	depends on SATA_AHCI_PLATFORM && MFD_SYSCON
+	depends on MFD_SYSCON
 	help
 	  This option enables support for the Freescale i.MX SoC's
 	  onboard AHCI SATA.
@@ -117,7 +116,7 @@ config AHCI_IMX
 
 config AHCI_SUNXI
 	tristate "Allwinner sunxi AHCI SATA support"
-	depends on ARCH_SUNXI && SATA_AHCI_PLATFORM
+	depends on ARCH_SUNXI
 	help
 	  This option enables support for the Allwinner sunxi SoC's
 	  onboard AHCI SATA.
@@ -126,7 +125,7 @@ config AHCI_SUNXI
 
 config AHCI_XGENE
 	tristate "APM X-Gene 6.0Gbps AHCI SATA host controller support"
-	depends on SATA_AHCI_PLATFORM && (ARM64 || COMPILE_TEST)
+	depends on ARM64 || COMPILE_TEST
 	select PHY_XGENE
 	help
 	 This option enables support for APM X-Gene SoC SATA host controller.
