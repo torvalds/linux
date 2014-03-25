@@ -67,14 +67,14 @@
  * only the SRX bit set, it means that all of the data has been received
  * (once what's in the fifo has been read).  However, depending on timing
  * an interrupt status with only the SRX bit set may not be recived.  In
- * those cases, the timeout mechanism is used to wait 5 ms in case more
- * data arrives.  After 5 ms, it is assumed that all of the data has been
+ * those cases, the timeout mechanism is used to wait 20 ms in case more
+ * data arrives.  After 20 ms, it is assumed that all of the data has been
  * received and the accumulated rx data is sent upstream.  The
  * 'TRF7970A_ST_WAIT_FOR_RX_DATA_CONT' state is used for this purpose
  * (i.e., it indicates that some data has been received but we're not sure
  * if there is more coming so a timeout in this state means all data has
- * been received and there isn't an error).  The delay is 5 ms since delays
- * over 2 ms have been observed during testing (a little extra just in case).
+ * been received and there isn't an error).  The delay is 20 ms since delays
+ * of ~16 ms have been observed during testing.
  *
  * Type 2 write and sector select commands respond with a 4-bit ACK or NACK.
  * Having only 4 bits in the FIFO won't normally generate an interrupt so
@@ -120,7 +120,7 @@
 /* TX length is 3 nibbles long ==> 4KB - 1 bytes max */
 #define TRF7970A_TX_MAX				(4096 - 1)
 
-#define TRF7970A_WAIT_FOR_RX_DATA_TIMEOUT	5
+#define TRF7970A_WAIT_FOR_RX_DATA_TIMEOUT	20
 #define TRF7970A_WAIT_FOR_FIFO_DRAIN_TIMEOUT	3
 #define TRF7970A_WAIT_TO_ISSUE_ISO15693_EOF	20
 
