@@ -1569,7 +1569,7 @@ static inline void xenvif_tx_dealloc_action(struct xenvif *vif)
 					vif->pages_to_unmap,
 					gop - vif->tx_unmap_ops);
 		if (ret) {
-			netdev_err(vif->dev, "Unmap fail: nr_ops %x ret %d\n",
+			netdev_err(vif->dev, "Unmap fail: nr_ops %tx ret %d\n",
 				   gop - vif->tx_unmap_ops, ret);
 			for (i = 0; i < gop - vif->tx_unmap_ops; ++i) {
 				if (gop[i].status != GNTST_okay)
