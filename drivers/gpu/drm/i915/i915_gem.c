@@ -63,7 +63,6 @@ static unsigned long i915_gem_shrinker_scan(struct shrinker *shrinker,
 					    struct shrink_control *sc);
 static unsigned long i915_gem_purge(struct drm_i915_private *dev_priv, long target);
 static unsigned long i915_gem_shrink_all(struct drm_i915_private *dev_priv);
-static void i915_gem_object_truncate(struct drm_i915_gem_object *obj);
 
 static bool cpu_cache_is_coherent(struct drm_device *dev,
 				  enum i915_cache_level level)
@@ -1691,12 +1690,16 @@ i915_gem_mmap_gtt_ioctl(struct drm_device *dev, void *data,
 	return i915_gem_mmap_gtt(file, dev, args->handle, &args->offset);
 }
 
+static inline int
+i915_gem_object_is_purgeable(struct drm_i915_gem_object *obj)
+{
+	return obj->madv == I915_MADV_DONTNEED;
+}
+
 /* Immediately discard the backing storage */
 static void
 i915_gem_object_truncate(struct drm_i915_gem_object *obj)
 {
-	struct inode *inode;
-
 	i915_gem_object_free_mmap_offset(obj);
 
 	if (obj->base.filp == NULL)
@@ -1707,16 +1710,28 @@ i915_gem_object_truncate(struct drm_i915_gem_object *obj)
 	 * To do this we must instruct the shmfs to drop all of its
 	 * backing pages, *now*.
 	 */
-	inode = file_inode(obj->base.filp);
-	shmem_truncate_range(inode, 0, (loff_t)-1);
-
+	shmem_truncate_range(file_inode(obj->base.filp), 0, (loff_t)-1);
 	obj->madv = __I915_MADV_PURGED;
 }
 
-static inline int
-i915_gem_object_is_purgeable(struct drm_i915_gem_object *obj)
+/* Try to discard unwanted pages */
+static void
+i915_gem_object_invalidate(struct drm_i915_gem_object *obj)
 {
-	return obj->madv == I915_MADV_DONTNEED;
+	struct address_space *mapping;
+
+	switch (obj->madv) {
+	case I915_MADV_DONTNEED:
+		i915_gem_object_truncate(obj);
+	case __I915_MADV_PURGED:
+		return;
+	}
+
+	if (obj->base.filp == NULL)
+		return;
+
+	mapping = file_inode(obj->base.filp)->i_mapping,
+	invalidate_mapping_pages(mapping, 0, (loff_t)-1);
 }
 
 static void
@@ -1781,8 +1796,7 @@ i915_gem_object_put_pages(struct drm_i915_gem_object *obj)
 	ops->put_pages(obj);
 	obj->pages = NULL;
 
-	if (i915_gem_object_is_purgeable(obj))
-		i915_gem_object_truncate(obj);
+	i915_gem_object_invalidate(obj);
 
 	return 0;
 }
@@ -4266,6 +4280,8 @@ void i915_gem_free_object(struct drm_gem_object *gem_obj)
 
 	if (WARN_ON(obj->pages_pin_count))
 		obj->pages_pin_count = 0;
+	if (obj->madv != __I915_MADV_PURGED)
+		obj->madv = I915_MADV_DONTNEED;
 	i915_gem_object_put_pages(obj);
 	i915_gem_object_free_mmap_offset(obj);
 	i915_gem_object_release_stolen(obj);
