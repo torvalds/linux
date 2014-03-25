@@ -139,7 +139,7 @@ nv50_bar_ctor(struct nouveau_object *parent, struct nouveau_object *engine,
 
 	/* BAR3 */
 	start = 0x0100000000ULL;
-	limit = start + pci_resource_len(device->pdev, 3);
+	limit = pci_resource_len(device->pdev, 3);
 
 	ret = nouveau_vm_new(device, start, limit, start, &vm);
 	if (ret)
@@ -148,7 +148,7 @@ nv50_bar_ctor(struct nouveau_object *parent, struct nouveau_object *engine,
 	atomic_inc(&vm->engref[NVDEV_SUBDEV_BAR]);
 
 	ret = nouveau_gpuobj_new(nv_object(priv), heap,
-				 ((limit-- - start) >> 12) * 8, 0x1000,
+				 (limit-- >> 12) * 8, 0x1000,
 				 NVOBJ_FLAG_ZERO_ALLOC, &vm->pgt[0].obj[0]);
 	vm->pgt[0].refcount[0] = 1;
 	if (ret)
@@ -173,7 +173,7 @@ nv50_bar_ctor(struct nouveau_object *parent, struct nouveau_object *engine,
 
 	/* BAR1 */
 	start = 0x0000000000ULL;
-	limit = start + pci_resource_len(device->pdev, 1);
+	limit = pci_resource_len(device->pdev, 1);
 
 	ret = nouveau_vm_new(device, start, limit--, start, &vm);
 	if (ret)
