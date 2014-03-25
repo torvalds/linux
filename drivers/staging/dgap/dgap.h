@@ -186,7 +186,7 @@ typedef unsigned char		uchar;
 			ECHOCTL | ECHOKE | IEXTEN)
 
 #ifndef _POSIX_VDISABLE
-#define   _POSIX_VDISABLE '\0'
+#define _POSIX_VDISABLE ('\0')
 #endif
 
 #define SNIFF_MAX	65536		/* Sniff buffer size (2^n) */
