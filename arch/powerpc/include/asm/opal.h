@@ -178,6 +178,8 @@ extern int opal_enter_rtas(struct rtas_args *args,
 
 #ifndef __ASSEMBLY__
 
+#include <linux/notifier.h>
+
 /* Other enums */
 enum OpalVendorApiTokens {
 	OPAL_START_VENDOR_API_RANGE = 1000, OPAL_END_VENDOR_API_RANGE = 1999
