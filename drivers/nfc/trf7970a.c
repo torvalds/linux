@@ -1191,7 +1191,18 @@ static void trf7970a_abort_cmd(struct nfc_digital_dev *ddev)
 	dev_dbg(trf->dev, "Abort process initiated\n");
 
 	mutex_lock(&trf->lock);
-	trf->aborting = true;
+
+	switch (trf->state) {
+	case TRF7970A_ST_WAIT_FOR_TX_FIFO:
+	case TRF7970A_ST_WAIT_FOR_RX_DATA:
+	case TRF7970A_ST_WAIT_FOR_RX_DATA_CONT:
+	case TRF7970A_ST_WAIT_TO_ISSUE_EOF:
+		trf->aborting = true;
+		break;
+	default:
+		break;
+	}
+
 	mutex_unlock(&trf->lock);
 }
 
