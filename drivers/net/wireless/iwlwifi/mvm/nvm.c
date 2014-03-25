@@ -437,14 +437,7 @@ int iwl_nvm_init(struct iwl_mvm *mvm, bool read_nvm_from_nic)
 	if (WARN_ON_ONCE(mvm->cfg->nvm_hw_section_num >= NVM_MAX_NUM_SECTIONS))
 		return -EINVAL;
 
-	/* load external NVM if configured */
-	if (iwlwifi_mod_params.nvm_file) {
-		/* move to External NVM flow */
-		ret = iwl_mvm_read_external_nvm(mvm);
-		if (ret)
-			return ret;
-	}
-
+	/* load NVM values from nic */
 	if (read_nvm_from_nic) {
 		/* list of NVM sections we are allowed/need to read */
 		if (mvm->trans->cfg->device_family != IWL_DEVICE_FAMILY_8000) {
@@ -512,6 +505,15 @@ int iwl_nvm_init(struct iwl_mvm *mvm, bool read_nvm_from_nic)
 			return ret;
 	}
 
+	/* load external NVM if configured */
+	if (iwlwifi_mod_params.nvm_file) {
+		/* move to External NVM flow */
+		ret = iwl_mvm_read_external_nvm(mvm);
+		if (ret)
+			return ret;
+	}
+
+	/* parse the relevant nvm sections */
 	mvm->nvm_data = iwl_parse_nvm_sections(mvm);
 	if (!mvm->nvm_data)
 		return -ENODATA;
