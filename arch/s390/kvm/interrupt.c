@@ -510,6 +510,20 @@ enum hrtimer_restart kvm_s390_idle_wakeup(struct hrtimer *timer)
 	return HRTIMER_NORESTART;
 }
 
+void kvm_s390_clear_local_irqs(struct kvm_vcpu *vcpu)
+{
+	struct kvm_s390_local_interrupt *li = &vcpu->arch.local_int;
+	struct kvm_s390_interrupt_info  *n, *inti = NULL;
+
+	spin_lock_bh(&li->lock);
+	list_for_each_entry_safe(inti, n, &li->list, list) {
+		list_del(&inti->list);
+		kfree(inti);
+	}
+	atomic_set(&li->active, 0);
+	spin_unlock_bh(&li->lock);
+}
+
 void kvm_s390_deliver_pending_interrupts(struct kvm_vcpu *vcpu)
 {
 	struct kvm_s390_local_interrupt *li = &vcpu->arch.local_int;

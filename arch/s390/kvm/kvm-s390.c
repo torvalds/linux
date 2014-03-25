@@ -255,6 +255,7 @@ int kvm_arch_init_vm(struct kvm *kvm, unsigned long type)
 {
 	int rc;
 	char debug_name[16];
+	static unsigned long sca_offset;
 
 	rc = -EINVAL;
 #ifdef CONFIG_KVM_S390_UCONTROL
@@ -276,6 +277,10 @@ int kvm_arch_init_vm(struct kvm *kvm, unsigned long type)
 	kvm->arch.sca = (struct sca_block *) get_zeroed_page(GFP_KERNEL);
 	if (!kvm->arch.sca)
 		goto out_err;
+	spin_lock(&kvm_lock);
+	sca_offset = (sca_offset + 16) & 0x7f0;
+	kvm->arch.sca = (struct sca_block *) ((char *) kvm->arch.sca + sca_offset);
+	spin_unlock(&kvm_lock);
 
 	sprintf(debug_name, "kvm-%u", current->pid);
 
@@ -432,6 +437,7 @@ static void kvm_s390_vcpu_initial_reset(struct kvm_vcpu *vcpu)
 	vcpu->arch.pfault_token = KVM_S390_PFAULT_TOKEN_INVALID;
 	kvm_clear_async_pf_completion_queue(vcpu);
 	atomic_set_mask(CPUSTAT_STOPPED, &vcpu->arch.sie_block->cpuflags);
+	kvm_s390_clear_local_irqs(vcpu);
 }
 
 int kvm_arch_vcpu_postcreate(struct kvm_vcpu *vcpu)

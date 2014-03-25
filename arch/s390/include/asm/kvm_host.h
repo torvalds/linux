@@ -222,8 +222,7 @@ struct kvm_s390_float_interrupt {
 	struct list_head list;
 	atomic_t active;
 	int next_rr_cpu;
-	unsigned long idle_mask[(KVM_MAX_VCPUS + sizeof(long) - 1)
-				/ sizeof(long)];
+	unsigned long idle_mask[BITS_TO_LONGS(KVM_MAX_VCPUS)];
 	unsigned int irq_count;
 };
 

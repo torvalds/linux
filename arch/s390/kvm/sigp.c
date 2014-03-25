@@ -58,7 +58,9 @@ static int __sigp_emergency(struct kvm_vcpu *vcpu, u16 cpu_addr)
 	struct kvm_s390_interrupt_info *inti;
 	struct kvm_vcpu *dst_vcpu = NULL;
 
-	if (cpu_addr >= KVM_MAX_VCPUS)
+	if (cpu_addr < KVM_MAX_VCPUS)
+		dst_vcpu = kvm_get_vcpu(vcpu->kvm, cpu_addr);
+	if (!dst_vcpu)
 		return SIGP_CC_NOT_OPERATIONAL;
 
 	inti = kzalloc(sizeof(*inti), GFP_KERNEL);
@@ -68,9 +70,6 @@ static int __sigp_emergency(struct kvm_vcpu *vcpu, u16 cpu_addr)
 	inti->type = KVM_S390_INT_EMERGENCY;
 	inti->emerg.code = vcpu->vcpu_id;
 
-	dst_vcpu = kvm_get_vcpu(vcpu->kvm, cpu_addr);
-	if (!dst_vcpu)
-		return SIGP_CC_NOT_OPERATIONAL;
 	li = &dst_vcpu->arch.local_int;
 	spin_lock_bh(&li->lock);
 	list_add_tail(&inti->list, &li->list);
@@ -121,7 +120,9 @@ static int __sigp_external_call(struct kvm_vcpu *vcpu, u16 cpu_addr)
 	struct kvm_s390_interrupt_info *inti;
 	struct kvm_vcpu *dst_vcpu = NULL;
 
-	if (cpu_addr >= KVM_MAX_VCPUS)
+	if (cpu_addr < KVM_MAX_VCPUS)
+		dst_vcpu = kvm_get_vcpu(vcpu->kvm, cpu_addr);
+	if (!dst_vcpu)
 		return SIGP_CC_NOT_OPERATIONAL;
 
 	inti = kzalloc(sizeof(*inti), GFP_KERNEL);
@@ -131,9 +132,6 @@ static int __sigp_external_call(struct kvm_vcpu *vcpu, u16 cpu_addr)
 	inti->type = KVM_S390_INT_EXTERNAL_CALL;
 	inti->extcall.code = vcpu->vcpu_id;
 
-	dst_vcpu = kvm_get_vcpu(vcpu->kvm, cpu_addr);
-	if (!dst_vcpu)
-		return SIGP_CC_NOT_OPERATIONAL;
 	li = &dst_vcpu->arch.local_int;
 	spin_lock_bh(&li->lock);
 	list_add_tail(&inti->list, &li->list);
