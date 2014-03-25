@@ -235,6 +235,9 @@ config PINCTRL_NOMADIK
 	depends on ARCH_U8500 || ARCH_NOMADIK
 	select PINMUX
 	select PINCONF
+	select GPIOLIB
+	select OF_GPIO
+	select GPIOLIB_IRQCHIP
 
 config PINCTRL_STN8815
 	bool "STN8815 pin controller driver"
