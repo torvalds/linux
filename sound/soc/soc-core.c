@@ -3620,14 +3620,14 @@ int snd_soc_dai_set_fmt(struct snd_soc_dai *dai, unsigned int fmt)
 EXPORT_SYMBOL_GPL(snd_soc_dai_set_fmt);
 
 /**
- * snd_soc_of_xlate_tdm_slot - generate tx/rx slot mask.
+ * snd_soc_xlate_tdm_slot - generate tx/rx slot mask.
  * @slots: Number of slots in use.
  * @tx_mask: bitmask representing active TX slots.
  * @rx_mask: bitmask representing active RX slots.
  *
  * Generates the TDM tx and rx slot default masks for DAI.
  */
-static int snd_soc_of_xlate_tdm_slot_mask(unsigned int slots,
+static int snd_soc_xlate_tdm_slot_mask(unsigned int slots,
 					  unsigned int *tx_mask,
 					  unsigned int *rx_mask)
 {
@@ -3657,11 +3657,11 @@ static int snd_soc_of_xlate_tdm_slot_mask(unsigned int slots,
 int snd_soc_dai_set_tdm_slot(struct snd_soc_dai *dai,
 	unsigned int tx_mask, unsigned int rx_mask, int slots, int slot_width)
 {
-	if (dai->driver && dai->driver->ops->of_xlate_tdm_slot_mask)
-		dai->driver->ops->of_xlate_tdm_slot_mask(slots,
+	if (dai->driver && dai->driver->ops->xlate_tdm_slot_mask)
+		dai->driver->ops->xlate_tdm_slot_mask(slots,
 						&tx_mask, &rx_mask);
 	else
-		snd_soc_of_xlate_tdm_slot_mask(slots, &tx_mask, &rx_mask);
+		snd_soc_xlate_tdm_slot_mask(slots, &tx_mask, &rx_mask);
 
 	if (dai->driver && dai->driver->ops->set_tdm_slot)
 		return dai->driver->ops->set_tdm_slot(dai, tx_mask, rx_mask,
