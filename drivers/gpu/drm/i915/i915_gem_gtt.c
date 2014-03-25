@@ -50,7 +50,7 @@ bool intel_enable_ppgtt(struct drm_device *dev, bool full)
 
 	/* Full ppgtt disabled by default for now due to issues. */
 	if (full)
-		return false; /* HAS_PPGTT(dev) */
+		return HAS_PPGTT(dev) && (i915.enable_ppgtt == 2);
 	else
 		return HAS_ALIASING_PPGTT(dev);
 }
