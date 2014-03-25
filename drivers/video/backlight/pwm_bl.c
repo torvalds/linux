@@ -33,6 +33,7 @@ struct pwm_bl_data {
 	int			enable_gpio;
 	unsigned long		enable_gpio_flags;
 	unsigned int		scale;
+	int 		invert;
 	int			(*notify)(struct device *,
 					  int brightness);
 	void			(*notify_after)(struct device *,
@@ -93,7 +94,10 @@ static int pwm_backlight_update_status(struct backlight_device *bl)
 	struct pwm_bl_data *pb = bl_get_data(bl);
 	int brightness = bl->props.brightness;
 	int duty_cycle;
-
+	
+	if(pb->invert == 1)
+		brightness = pb->scale - brightness;
+	
 	if (bl->props.power != FB_BLANK_UNBLANK ||
 	    bl->props.fb_blank != FB_BLANK_UNBLANK ||
 	    bl->props.state & BL_CORE_FBBLANK)
@@ -188,6 +192,12 @@ static int pwm_backlight_parse_dt(struct device *dev,
 	if (gpio_is_valid(data->enable_gpio) && (flags & OF_GPIO_ACTIVE_LOW))
 		data->enable_gpio_flags |= PWM_BACKLIGHT_GPIO_ACTIVE_LOW;
 
+	ret = of_property_read_u32(node, "brightness_invert", &value);
+	if (ret){
+		printk("get  brightness_invert err!");
+		return ret;
+	}
+	data->invert = value;
 	return 0;
 }
 
@@ -297,7 +307,8 @@ static int pwm_backlight_probe(struct platform_device *pdev)
 
 	pb->period = pwm_get_period(pb->pwm);
 	pb->lth_brightness = data->lth_brightness * (pb->period / pb->scale);
-
+	pb->invert = data->invert;
+	
 	memset(&props, 0, sizeof(struct backlight_properties));
 	props.type = BACKLIGHT_RAW;
 	props.max_brightness = data->max_brightness;
