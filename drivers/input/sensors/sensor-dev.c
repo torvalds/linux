@@ -1828,24 +1828,24 @@ int sensor_probe(struct i2c_client *client, const struct i2c_device_id *devid)
 	client->irq = pdata->irq_pin;
 	type = pdata->type;
 	pdata->irq_flags = irq_flags;
-	printk("irq_flags = %lu  padta->irq_flags = %lu\n",irq_flags, pdata->irq_flags);
-	printk("type = %d \n",pdata->type);
-	printk("irq = %d \n",pdata->irq);
-	printk("irq_pin = %d \n",pdata->irq_pin);
-	printk("pwer_pin = %d \n",pdata->power_pin);	
-	printk("reset_pin = %d \n",pdata->reset_pin);
-	printk("irq_enable = %d \n",pdata->irq_enable);
+	DBG("irq_flags = %lu  padta->irq_flags = %lu\n",irq_flags, pdata->irq_flags);
+	DBG("type = %d \n",pdata->type);
+	DBG("irq = %d \n",pdata->irq);
+	DBG("irq_pin = %d \n",pdata->irq_pin);
+	DBG("pwer_pin = %d \n",pdata->power_pin);	
+	DBG("reset_pin = %d \n",pdata->reset_pin);
+	DBG("irq_enable = %d \n",pdata->irq_enable);
 
-	printk("poll_delay_ms = %d \n",pdata->poll_delay_ms);
-	printk("x_min = %d \n",pdata->x_min);
-	printk("y_min = %d \n",pdata->y_min);
-	printk("z_min = %d \n",pdata->z_min);	
-	printk("factory = %d \n",pdata->factory);
-	printk("layout = %d \n",pdata->layout);
-	printk("address = 0x%x \n",pdata->address);
-	printk("project_name = [%s] \n",pdata->project_name);
+	DBG("poll_delay_ms = %d \n",pdata->poll_delay_ms);
+	DBG("x_min = %d \n",pdata->x_min);
+	DBG("y_min = %d \n",pdata->y_min);
+	DBG("z_min = %d \n",pdata->z_min);	
+	DBG("factory = %d \n",pdata->factory);
+	DBG("layout = %d \n",pdata->layout);
+	DBG("address = 0x%x \n",pdata->address);
+	DBG("project_name = [%s] \n",pdata->project_name);
 	
-	printk(" == %d,%d ,%d \t ,%d ,%d ,%d , \t ,%d, %d, %d ,==%d\n",pdata->orientation[0],pdata->orientation[1],pdata->orientation[2]
+	DBG(" == %d,%d ,%d \t ,%d ,%d ,%d , \t ,%d, %d, %d ,==%d\n",pdata->orientation[0],pdata->orientation[1],pdata->orientation[2]
 				,pdata->orientation[3],pdata->orientation[4],pdata->orientation[5]
 				,pdata->orientation[6],pdata->orientation[7],pdata->orientation[8],ARRAY_SIZE(pdata->orientation));
 		
