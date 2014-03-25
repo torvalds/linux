@@ -2124,12 +2124,15 @@ static bool bond_has_this_ip(struct bonding *bond, __be32 ip)
  * switches in VLAN mode (especially if ports are configured as
  * "native" to a VLAN) might not pass non-tagged frames.
  */
-static void bond_arp_send(struct net_device *slave_dev, int arp_op, __be32 dest_ip, __be32 src_ip, unsigned short vlan_id)
+static void bond_arp_send(struct net_device *slave_dev, int arp_op,
+			  __be32 dest_ip, __be32 src_ip,
+			  struct bond_vlan_tag *inner,
+			  struct bond_vlan_tag *outer)
 {
 	struct sk_buff *skb;
 
-	pr_debug("arp %d on slave %s: dst %pI4 src %pI4 vid %d\n",
-		 arp_op, slave_dev->name, &dest_ip, &src_ip, vlan_id);
+	pr_debug("arp %d on slave %s: dst %pI4 src %pI4\n",
+		 arp_op, slave_dev->name, &dest_ip, &src_ip);
 
 	skb = arp_create(arp_op, ETH_P_ARP, dest_ip, slave_dev, src_ip,
 			 NULL, slave_dev->dev_addr, NULL);
@@ -2138,10 +2141,22 @@ static void bond_arp_send(struct net_device *slave_dev, int arp_op, __be32 dest_
 		pr_err("ARP packet allocation failed\n");
 		return;
 	}
-	if (vlan_id) {
-		skb = vlan_put_tag(skb, htons(ETH_P_8021Q), vlan_id);
+	if (outer->vlan_id) {
+		if (inner->vlan_id) {
+			pr_debug("inner tag: proto %X vid %X\n",
+				 ntohs(inner->vlan_proto), inner->vlan_id);
+			skb = __vlan_put_tag(skb, inner->vlan_proto, inner->vlan_id);
+			if (!skb) {
+				pr_err("failed to insert inner VLAN tag\n");
+				return;
+			}
+		}
+
+		pr_debug("outer reg: proto %X vid %X\n",
+			 ntohs(outer->vlan_proto), outer->vlan_id);
+		skb = vlan_put_tag(skb, outer->vlan_proto, outer->vlan_id);
 		if (!skb) {
-			pr_err("failed to insert VLAN tag\n");
+			pr_err("failed to insert outer VLAN tag\n");
 			return;
 		}
 	}
@@ -2154,11 +2169,16 @@ static void bond_arp_send_all(struct bonding *bond, struct slave *slave)
 	struct net_device *upper, *vlan_upper;
 	struct list_head *iter, *vlan_iter;
 	struct rtable *rt;
+	struct bond_vlan_tag inner, outer;
 	__be32 *targets = bond->params.arp_targets, addr;
-	int i, vlan_id;
+	int i;
 
 	for (i = 0; i < BOND_MAX_ARP_TARGETS && targets[i]; i++) {
 		pr_debug("basa: target %pI4\n", &targets[i]);
+		inner.vlan_proto = 0;
+		inner.vlan_id = 0;
+		outer.vlan_proto = 0;
+		outer.vlan_id = 0;
 
 		/* Find out through which dev should the packet go */
 		rt = ip_route_output(dev_net(bond->dev), targets[i], 0,
@@ -2170,11 +2190,9 @@ static void bond_arp_send_all(struct bonding *bond, struct slave *slave)
 			if (bond->params.arp_validate && net_ratelimit())
 				pr_warn("%s: no route to arp_ip_target %pI4 and arp_validate is set\n",
 					bond->dev->name, &targets[i]);
-			bond_arp_send(slave->dev, ARPOP_REQUEST, targets[i], 0, 0);
+			bond_arp_send(slave->dev, ARPOP_REQUEST, targets[i], 0, &inner, &outer);
 			continue;
 		}
-
-		vlan_id = 0;
 
 		/* bond device itself */
 		if (rt->dst.dev == bond->dev)
@@ -2185,17 +2203,30 @@ static void bond_arp_send_all(struct bonding *bond, struct slave *slave)
 		 * found we verify its upper dev list, searching for the
 		 * rt->dst.dev. If found we save the tag of the vlan and
 		 * proceed to send the packet.
-		 *
-		 * TODO: QinQ?
 		 */
 		netdev_for_each_all_upper_dev_rcu(bond->dev, vlan_upper,
 						  vlan_iter) {
 			if (!is_vlan_dev(vlan_upper))
 				continue;
+
+			if (vlan_upper == rt->dst.dev) {
+				outer.vlan_proto = vlan_dev_vlan_proto(vlan_upper);
+				outer.vlan_id = vlan_dev_vlan_id(vlan_upper);
+				rcu_read_unlock();
+				goto found;
+			}
 			netdev_for_each_all_upper_dev_rcu(vlan_upper, upper,
 							  iter) {
 				if (upper == rt->dst.dev) {
-					vlan_id = vlan_dev_vlan_id(vlan_upper);
+					/* If the upper dev is a vlan dev too,
+					 *  set the vlan tag to inner tag.
+					 */
+					if (is_vlan_dev(upper)) {
+						inner.vlan_proto = vlan_dev_vlan_proto(upper);
+						inner.vlan_id = vlan_dev_vlan_id(upper);
+					}
+					outer.vlan_proto = vlan_dev_vlan_proto(vlan_upper);
+					outer.vlan_id = vlan_dev_vlan_id(vlan_upper);
 					rcu_read_unlock();
 					goto found;
 				}
@@ -2208,10 +2239,6 @@ static void bond_arp_send_all(struct bonding *bond, struct slave *slave)
 		 */
 		netdev_for_each_all_upper_dev_rcu(bond->dev, upper, iter) {
 			if (upper == rt->dst.dev) {
-				/* if it's a vlan - get its VID */
-				if (is_vlan_dev(upper))
-					vlan_id = vlan_dev_vlan_id(upper);
-
 				rcu_read_unlock();
 				goto found;
 			}
@@ -2230,7 +2257,7 @@ found:
 		addr = bond_confirm_addr(rt->dst.dev, targets[i], 0);
 		ip_rt_put(rt);
 		bond_arp_send(slave->dev, ARPOP_REQUEST, targets[i],
-			      addr, vlan_id);
+			      addr, &inner, &outer);
 	}
 }
 
