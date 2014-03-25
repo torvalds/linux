@@ -991,10 +991,25 @@ static void hci_cc_le_set_adv_enable(struct hci_dev *hdev, struct sk_buff *skb)
 	if (!sent)
 		return;
 
+	if (status)
+		return;
+
 	hci_dev_lock(hdev);
 
-	if (!status)
-		mgmt_advertising(hdev, *sent);
+	/* If we're doing connection initation as peripheral. Set a
+	 * timeout in case something goes wrong.
+	 */
+	if (*sent) {
+		struct hci_conn *conn;
+
+		conn = hci_conn_hash_lookup_state(hdev, LE_LINK, BT_CONNECT);
+		if (conn)
+			queue_delayed_work(hdev->workqueue,
+					   &conn->le_conn_timeout,
+					   HCI_LE_CONN_TIMEOUT);
+	}
+
+	mgmt_advertising(hdev, *sent);
 
 	hci_dev_unlock(hdev);
 }
