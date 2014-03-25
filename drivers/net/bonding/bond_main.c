@@ -3656,8 +3656,8 @@ static int bond_xmit_broadcast(struct sk_buff *skb, struct net_device *bond_dev)
 			struct sk_buff *skb2 = skb_clone(skb, GFP_ATOMIC);
 
 			if (!skb2) {
-				pr_err("%s: Error: bond_xmit_broadcast(): skb_clone() failed\n",
-				       bond_dev->name);
+				net_err_ratelimited("%s: Error: %s: skb_clone() failed\n",
+						    bond_dev->name, __func__);
 				continue;
 			}
 			/* bond_dev_queue_xmit always returns 0 */
