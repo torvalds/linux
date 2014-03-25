@@ -102,7 +102,7 @@ struct filename;
 
 extern void audit_log_session_info(struct audit_buffer *ab);
 
-#ifdef CONFIG_COMPAT
+#ifdef CONFIG_AUDIT_COMPAT_GENERIC
 #define audit_is_compat(arch)  (!((arch) & __AUDIT_ARCH_64BIT))
 #else
 #define audit_is_compat(arch)  false
