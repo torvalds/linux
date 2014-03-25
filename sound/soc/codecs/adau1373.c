@@ -1376,14 +1376,7 @@ static int adau1373_probe(struct snd_soc_codec *codec)
 	struct adau1373_platform_data *pdata = codec->dev->platform_data;
 	bool lineout_differential = false;
 	unsigned int val;
-	int ret;
 	int i;
-
-	ret = snd_soc_codec_set_cache_io(codec, 0, 0, SND_SOC_REGMAP);
-	if (ret) {
-		dev_err(codec->dev, "failed to set cache I/O: %d\n", ret);
-		return ret;
-	}
 
 	if (pdata) {
 		if (pdata->num_drc > ARRAY_SIZE(pdata->drc_setting))

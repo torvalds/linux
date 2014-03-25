@@ -138,9 +138,8 @@ static int cq93vc_probe(struct snd_soc_codec *codec)
 	struct davinci_vc *davinci_vc = codec->dev->platform_data;
 
 	davinci_vc->cq93vc.codec = codec;
-	codec->control_data = davinci_vc->regmap;
 
-	snd_soc_codec_set_cache_io(codec, 32, 32, SND_SOC_REGMAP);
+	snd_soc_codec_set_cache_io(codec, davinci_vc->regmap);
 
 	/* Off, with power on */
 	cq93vc_set_bias_level(codec, SND_SOC_BIAS_STANDBY);

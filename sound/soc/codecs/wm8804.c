@@ -546,14 +546,6 @@ static int wm8804_probe(struct snd_soc_codec *codec)
 
 	wm8804 = snd_soc_codec_get_drvdata(codec);
 
-	codec->control_data = wm8804->regmap;
-
-	ret = snd_soc_codec_set_cache_io(codec, 8, 8, SND_SOC_REGMAP);
-	if (ret < 0) {
-		dev_err(codec->dev, "Failed to set cache i/o: %d\n", ret);
-		return ret;
-	}
-
 	for (i = 0; i < ARRAY_SIZE(wm8804->supplies); i++)
 		wm8804->supplies[i].supply = wm8804_supply_names[i];
 
