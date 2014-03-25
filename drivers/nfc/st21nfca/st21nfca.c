@@ -56,8 +56,18 @@
 
 #define ST21NFCA_DEVICE_MGNT_GATE		0x01
 #define ST21NFCA_DEVICE_MGNT_PIPE		0x02
-#define ST21NFCA_NFC_MODE	0x03	/* NFC_MODE parameter*/
 
+#define ST21NFCA_DM_GETINFO         0x13
+#define ST21NFCA_DM_GETINFO_PIPE_LIST       0x02
+#define ST21NFCA_DM_GETINFO_PIPE_INFO       0x01
+#define ST21NFCA_DM_PIPE_CREATED        0x02
+#define ST21NFCA_DM_PIPE_OPEN           0x04
+#define ST21NFCA_DM_RF_ACTIVE           0x80
+
+#define ST21NFCA_DM_IS_PIPE_OPEN(p) \
+	((p & 0x0f) == (ST21NFCA_DM_PIPE_CREATED | ST21NFCA_DM_PIPE_OPEN))
+
+#define ST21NFCA_NFC_MODE	0x03	/* NFC_MODE parameter*/
 
 static DECLARE_BITMAP(dev_mask, ST21NFCA_NUM_DEVICES);
 
@@ -72,8 +82,112 @@ static struct nfc_hci_gate st21nfca_gates[] = {
 	{ST21NFCA_RF_READER_F_GATE, NFC_HCI_INVALID_PIPE},
 	{ST21NFCA_RF_READER_14443_3_A_GATE, NFC_HCI_INVALID_PIPE},
 };
+
+struct st21nfca_pipe_info {
+	u8 pipe_state;
+	u8 src_host_id;
+	u8 src_gate_id;
+	u8 dst_host_id;
+	u8 dst_gate_id;
+};
+
 /* Largest headroom needed for outgoing custom commands */
 #define ST21NFCA_CMDS_HEADROOM  7
+
+static int st21nfca_hci_load_session(struct nfc_hci_dev *hdev)
+{
+	int i, j, r;
+	struct sk_buff *skb_pipe_list, *skb_pipe_info;
+	struct st21nfca_pipe_info *info;
+
+	u8 pipe_list[] = { ST21NFCA_DM_GETINFO_PIPE_LIST,
+		NFC_HCI_TERMINAL_HOST_ID
+	};
+	u8 pipe_info[] = { ST21NFCA_DM_GETINFO_PIPE_INFO,
+		NFC_HCI_TERMINAL_HOST_ID, 0
+	};
+
+	skb_pipe_list = alloc_skb(ST21NFCA_HCI_LLC_MAX_SIZE, GFP_KERNEL);
+	if (!skb_pipe_list) {
+		r = -ENOMEM;
+		goto free_list;
+	}
+
+	skb_pipe_info = alloc_skb(ST21NFCA_HCI_LLC_MAX_SIZE, GFP_KERNEL);
+	if (!skb_pipe_info) {
+		r = -ENOMEM;
+		goto free_info;
+	}
+
+	/* On ST21NFCA device pipes number are dynamics
+	 * A maximum of 16 pipes can be created at the same time
+	 * If pipes are already created, hci_dev_up will fail.
+	 * Doing a clear all pipe is a bad idea because:
+	 * - It does useless EEPROM cycling
+	 * - It might cause issue for secure elements support
+	 * (such as removing connectivity or APDU reader pipe)
+	 * A better approach on ST21NFCA is to:
+	 * - get a pipe list for each host.
+	 * (eg: NFC_HCI_HOST_CONTROLLER_ID for now).
+	 * (TODO Later on UICC HOST and eSE HOST)
+	 * - get pipe information
+	 * - match retrieved pipe list in st21nfca_gates
+	 * ST21NFCA_DEVICE_MGNT_GATE is a proprietary gate
+	 * with ST21NFCA_DEVICE_MGNT_PIPE.
+	 * Pipe can be closed and need to be open.
+	 */
+	r = nfc_hci_connect_gate(hdev, NFC_HCI_HOST_CONTROLLER_ID,
+		ST21NFCA_DEVICE_MGNT_GATE, ST21NFCA_DEVICE_MGNT_PIPE);
+	if (r < 0)
+		goto free_info;
+
+	/* Get pipe list */
+	r = nfc_hci_send_cmd(hdev, ST21NFCA_DEVICE_MGNT_GATE,
+			ST21NFCA_DM_GETINFO, pipe_list, sizeof(pipe_list),
+			&skb_pipe_list);
+	if (r < 0)
+		goto free_info;
+
+	/* Complete the existing gate_pipe table */
+	for (i = 0; i < skb_pipe_list->len; i++) {
+		pipe_info[2] = skb_pipe_list->data[i];
+		r = nfc_hci_send_cmd(hdev, ST21NFCA_DEVICE_MGNT_GATE,
+					ST21NFCA_DM_GETINFO, pipe_info,
+					sizeof(pipe_info), &skb_pipe_info);
+
+		if (r)
+			continue;
+
+		/*
+		 * Match pipe ID and gate ID
+		 * Output format from ST21NFC_DM_GETINFO is:
+		 * - pipe state (1byte)
+		 * - source hid (1byte)
+		 * - source gid (1byte)
+		 * - destination hid (1byte)
+		 * - destination gid (1byte)
+		 */
+		info = (struct st21nfca_pipe_info *)
+					skb_pipe_info->data;
+		for (j = 0; (j < ARRAY_SIZE(st21nfca_gates)) &&
+			(st21nfca_gates[j].gate != info->dst_gate_id);
+			j++)
+			;
+
+		if (st21nfca_gates[j].gate == info->dst_gate_id &&
+			ST21NFCA_DM_IS_PIPE_OPEN(info->pipe_state)) {
+			st21nfca_gates[j].pipe = pipe_info[2];
+			hdev->gate2pipe[st21nfca_gates[j].gate] =
+				st21nfca_gates[j].pipe;
+		}
+	}
+	memcpy(hdev->init_data.gates, st21nfca_gates, sizeof(st21nfca_gates));
+free_info:
+	kfree_skb(skb_pipe_info);
+free_list:
+	kfree_skb(skb_pipe_list);
+	return r;
+}
 
 static int st21nfca_hci_open(struct nfc_hci_dev *hdev)
 {
@@ -407,6 +521,7 @@ static int st21nfca_hci_check_presence(struct nfc_hci_dev *hdev,
 static struct nfc_hci_ops st21nfca_hci_ops = {
 	.open = st21nfca_hci_open,
 	.close = st21nfca_hci_close,
+	.load_session = st21nfca_hci_load_session,
 	.hci_ready = st21nfca_hci_ready,
 	.xmit = st21nfca_hci_xmit,
 	.start_poll = st21nfca_hci_start_poll,
