@@ -2139,6 +2139,10 @@ struct sxgbe_priv_data *sxgbe_drv_probe(struct device *device,
 		priv->rxcsum_insertion = true;
 	}
 
+	/* Initialise pause frame settings */
+	priv->rx_pause = 1;
+	priv->tx_pause = 1;
+
 	/* Rx Watchdog is available, enable depend on platform data */
 	if (!priv->plat->riwt_off) {
 		priv->use_riwt = 1;

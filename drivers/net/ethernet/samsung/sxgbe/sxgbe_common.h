@@ -197,6 +197,20 @@ enum dma_irq_status {
 #define SXGBE_FOR_EACH_QUEUE(max_queues, queue_num)			\
 	for (queue_num = 0; queue_num < max_queues; queue_num++)
 
+#define DRV_VERSION "1.0.0"
+
+#define SXGBE_MAX_RX_CHANNELS	16
+#define SXGBE_MAX_TX_CHANNELS	16
+
+#define START_MAC_REG_OFFSET	0x0000
+#define MAX_MAC_REG_OFFSET	0x0DFC
+#define START_MTL_REG_OFFSET	0x1000
+#define MAX_MTL_REG_OFFSET	0x18FC
+#define START_DMA_REG_OFFSET	0x3000
+#define MAX_DMA_REG_OFFSET	0x38FC
+
+#define REG_SPACE_SIZE		0x2000
+
 /* sxgbe statistics counters */
 struct sxgbe_extra_stats {
 	/* TX/RX IRQ events */
@@ -482,6 +496,7 @@ struct sxgbe_priv_data {
 	/* advanced time stamp support */
 	u32 adv_ts;
 	int use_riwt;
+	struct ptp_clock *ptp_clock;
 
 	/* tc control */
 	int tx_tc;
@@ -517,5 +532,4 @@ const struct sxgbe_mtl_ops *sxgbe_get_mtl_ops(void);
 
 void sxgbe_disable_eee_mode(struct sxgbe_priv_data * const priv);
 bool sxgbe_eee_init(struct sxgbe_priv_data * const priv);
-
 #endif /* __SXGBE_COMMON_H__ */
