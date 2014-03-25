@@ -288,7 +288,7 @@ static inline struct sk_buff *vlan_insert_tag(struct sk_buff *skb,
 	struct vlan_ethhdr *veth;
 
 	if (skb_cow_head(skb, VLAN_HLEN) < 0) {
-		kfree_skb(skb);
+		dev_kfree_skb_any(skb);
 		return NULL;
 	}
 	veth = (struct vlan_ethhdr *)skb_push(skb, VLAN_HLEN);

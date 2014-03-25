@@ -1087,7 +1087,7 @@ static inline void _tx_reclaim_skb(void)
 		tx_list_head->desc_a.config &= ~DMAEN;
 		tx_list_head->status.status_word = 0;
 		if (tx_list_head->skb) {
-			dev_kfree_skb(tx_list_head->skb);
+			dev_consume_skb_any(tx_list_head->skb);
 			tx_list_head->skb = NULL;
 		}
 		tx_list_head = tx_list_head->next;

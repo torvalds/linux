@@ -2946,17 +2946,17 @@ bnad_start_xmit(struct sk_buff *skb, struct net_device *netdev)
 	/* Sanity checks for the skb */
 
 	if (unlikely(skb->len <= ETH_HLEN)) {
-		dev_kfree_skb(skb);
+		dev_kfree_skb_any(skb);
 		BNAD_UPDATE_CTR(bnad, tx_skb_too_short);
 		return NETDEV_TX_OK;
 	}
 	if (unlikely(len > BFI_TX_MAX_DATA_PER_VECTOR)) {
-		dev_kfree_skb(skb);
+		dev_kfree_skb_any(skb);
 		BNAD_UPDATE_CTR(bnad, tx_skb_headlen_zero);
 		return NETDEV_TX_OK;
 	}
 	if (unlikely(len == 0)) {
-		dev_kfree_skb(skb);
+		dev_kfree_skb_any(skb);
 		BNAD_UPDATE_CTR(bnad, tx_skb_headlen_zero);
 		return NETDEV_TX_OK;
 	}
@@ -2968,7 +2968,7 @@ bnad_start_xmit(struct sk_buff *skb, struct net_device *netdev)
 	 * and the netif_tx_stop_all_queues() call.
 	 */
 	if (unlikely(!tcb || !test_bit(BNAD_TXQ_TX_STARTED, &tcb->flags))) {
-		dev_kfree_skb(skb);
+		dev_kfree_skb_any(skb);
 		BNAD_UPDATE_CTR(bnad, tx_skb_stopping);
 		return NETDEV_TX_OK;
 	}
@@ -2981,7 +2981,7 @@ bnad_start_xmit(struct sk_buff *skb, struct net_device *netdev)
 	wis = BNA_TXQ_WI_NEEDED(vectors);	/* 4 vectors per work item */
 
 	if (unlikely(vectors > BFI_TX_MAX_VECTORS_PER_PKT)) {
-		dev_kfree_skb(skb);
+		dev_kfree_skb_any(skb);
 		BNAD_UPDATE_CTR(bnad, tx_skb_max_vectors);
 		return NETDEV_TX_OK;
 	}
@@ -3021,7 +3021,7 @@ bnad_start_xmit(struct sk_buff *skb, struct net_device *netdev)
 
 	/* Program the opcode, flags, frame_len, num_vectors in WI */
 	if (bnad_txq_wi_prepare(bnad, tcb, skb, txqent)) {
-		dev_kfree_skb(skb);
+		dev_kfree_skb_any(skb);
 		return NETDEV_TX_OK;
 	}
 	txqent->hdr.wi.reserved = 0;
@@ -3047,7 +3047,7 @@ bnad_start_xmit(struct sk_buff *skb, struct net_device *netdev)
 			/* Undo the changes starting at tcb->producer_index */
 			bnad_tx_buff_unmap(bnad, unmap_q, q_depth,
 				tcb->producer_index);
-			dev_kfree_skb(skb);
+			dev_kfree_skb_any(skb);
 			BNAD_UPDATE_CTR(bnad, tx_skb_frag_zero);
 			return NETDEV_TX_OK;
 		}
@@ -3076,7 +3076,7 @@ bnad_start_xmit(struct sk_buff *skb, struct net_device *netdev)
 	if (unlikely(len != skb->len)) {
 		/* Undo the changes starting at tcb->producer_index */
 		bnad_tx_buff_unmap(bnad, unmap_q, q_depth, tcb->producer_index);
-		dev_kfree_skb(skb);
+		dev_kfree_skb_any(skb);
 		BNAD_UPDATE_CTR(bnad, tx_skb_len_mismatch);
 		return NETDEV_TX_OK;
 	}
