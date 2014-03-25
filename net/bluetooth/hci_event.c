@@ -1049,12 +1049,13 @@ static void clear_pending_adv_report(struct hci_dev *hdev)
 }
 
 static void store_pending_adv_report(struct hci_dev *hdev, bdaddr_t *bdaddr,
-				     u8 bdaddr_type, u8 *data, u8 len)
+				     u8 bdaddr_type, s8 rssi, u8 *data, u8 len)
 {
 	struct discovery_state *d = &hdev->discovery;
 
 	bacpy(&d->last_adv_addr, bdaddr);
 	d->last_adv_addr_type = bdaddr_type;
+	d->last_adv_rssi = rssi;
 	memcpy(d->last_adv_data, data, len);
 	d->last_adv_data_len = len;
 }
@@ -4040,7 +4041,7 @@ static void process_adv_report(struct hci_dev *hdev, u8 type, bdaddr_t *bdaddr,
 		 */
 		if (type == LE_ADV_IND || type == LE_ADV_SCAN_IND) {
 			store_pending_adv_report(hdev, bdaddr, bdaddr_type,
-						 data, len);
+						 rssi, data, len);
 			return;
 		}
 
@@ -4061,8 +4062,9 @@ static void process_adv_report(struct hci_dev *hdev, u8 type, bdaddr_t *bdaddr,
 		/* Send out whatever is in the cache, but skip duplicates */
 		if (!match)
 			mgmt_device_found(hdev, &d->last_adv_addr, LE_LINK,
-					  d->last_adv_addr_type, NULL, 0,
-					  0, 1, d->last_adv_data,
+					  d->last_adv_addr_type, NULL,
+					  d->last_adv_rssi, 0, 1,
+					  d->last_adv_data,
 					  d->last_adv_data_len, NULL, 0);
 
 		/* If the new report will trigger a SCAN_REQ store it for
@@ -4070,7 +4072,7 @@ static void process_adv_report(struct hci_dev *hdev, u8 type, bdaddr_t *bdaddr,
 		 */
 		if (type == LE_ADV_IND || type == LE_ADV_SCAN_IND) {
 			store_pending_adv_report(hdev, bdaddr, bdaddr_type,
-						 data, len);
+						 rssi, data, len);
 			return;
 		}
 
