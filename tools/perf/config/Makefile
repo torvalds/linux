@@ -278,6 +278,8 @@ else
       NO_LIBELF := 1
       NO_DWARF := 1
       NO_DEMANGLE := 1
+      NO_LIBUNWIND := 1
+      NO_LIBDW_DWARF_UNWIND := 1
     else
       msg := $(error No gnu/libc-version.h found, please install glibc-dev[el]/glibc-static);
     endif
