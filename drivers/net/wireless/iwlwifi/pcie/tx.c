@@ -1028,7 +1028,8 @@ static void iwl_pcie_cmdq_reclaim(struct iwl_trans *trans, int txq_id, int idx)
 		}
 	}
 
-	if (q->read_ptr == q->write_ptr) {
+	if (trans->cfg->base_params->apmg_wake_up_wa &&
+	    q->read_ptr == q->write_ptr) {
 		spin_lock_irqsave(&trans_pcie->reg_lock, flags);
 		WARN_ON(!trans_pcie->cmd_in_flight);
 		trans_pcie->cmd_in_flight = false;
@@ -1405,9 +1406,11 @@ static int iwl_pcie_enqueue_hcmd(struct iwl_trans *trans,
 	/*
 	 * wake up the NIC to make sure that the firmware will see the host
 	 * command - we will let the NIC sleep once all the host commands
-	 * returned.
+	 * returned. This needs to be done only on NICs that have
+	 * apmg_wake_up_wa set.
 	 */
-	if (!trans_pcie->cmd_in_flight) {
+	if (trans->cfg->base_params->apmg_wake_up_wa &&
+	    !trans_pcie->cmd_in_flight) {
 		trans_pcie->cmd_in_flight = true;
 		__iwl_trans_pcie_set_bit(trans, CSR_GP_CNTRL,
 					 CSR_GP_CNTRL_REG_FLAG_MAC_ACCESS_REQ);

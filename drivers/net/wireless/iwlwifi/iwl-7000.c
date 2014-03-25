@@ -107,6 +107,7 @@ static const struct iwl_base_params iwl7000_base_params = {
 	.max_event_log_size = 512,
 	.shadow_reg_enable = true,
 	.pcie_l1_allowed = true,
+	.apmg_wake_up_wa = true,
 };
 
 static const struct iwl_ht_params iwl7000_ht_params = {
