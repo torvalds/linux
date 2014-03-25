@@ -5001,6 +5001,22 @@ static bool mutex_is_locked_by(struct mutex *mutex, struct task_struct *task)
 #endif
 }
 
+static bool i915_gem_shrinker_lock(struct drm_device *dev, bool *unlock)
+{
+	if (!mutex_trylock(&dev->struct_mutex)) {
+		if (!mutex_is_locked_by(&dev->struct_mutex, current))
+			return false;
+
+		if (to_i915(dev)->mm.shrinker_no_lock_stealing)
+			return false;
+
+		*unlock = false;
+	} else
+		*unlock = true;
+
+	return true;
+}
+
 static int num_vma_bound(struct drm_i915_gem_object *obj)
 {
 	struct i915_vma *vma;
@@ -5020,18 +5036,11 @@ i915_gem_shrinker_count(struct shrinker *shrinker, struct shrink_control *sc)
 		container_of(shrinker, struct drm_i915_private, mm.shrinker);
 	struct drm_device *dev = dev_priv->dev;
 	struct drm_i915_gem_object *obj;
-	bool unlock = true;
 	unsigned long count;
+	bool unlock;
 
-	if (!mutex_trylock(&dev->struct_mutex)) {
-		if (!mutex_is_locked_by(&dev->struct_mutex, current))
-			return 0;
-
-		if (dev_priv->mm.shrinker_no_lock_stealing)
-			return 0;
-
-		unlock = false;
-	}
+	if (!i915_gem_shrinker_lock(dev, &unlock))
+		return 0;
 
 	count = 0;
 	list_for_each_entry(obj, &dev_priv->mm.unbound_list, global_list)
@@ -5119,17 +5128,10 @@ i915_gem_shrinker_scan(struct shrinker *shrinker, struct shrink_control *sc)
 		container_of(shrinker, struct drm_i915_private, mm.shrinker);
 	struct drm_device *dev = dev_priv->dev;
 	unsigned long freed;
-	bool unlock = true;
+	bool unlock;
 
-	if (!mutex_trylock(&dev->struct_mutex)) {
-		if (!mutex_is_locked_by(&dev->struct_mutex, current))
-			return SHRINK_STOP;
-
-		if (dev_priv->mm.shrinker_no_lock_stealing)
-			return SHRINK_STOP;
-
-		unlock = false;
-	}
+	if (!i915_gem_shrinker_lock(dev, &unlock))
+		return SHRINK_STOP;
 
 	freed = i915_gem_purge(dev_priv, sc->nr_to_scan);
 	if (freed < sc->nr_to_scan)
