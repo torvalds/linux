@@ -1254,6 +1254,9 @@ fail:
 }
 EXPORT_SYMBOL_GPL(gpiochip_add);
 
+/* Forward-declaration */
+static void gpiochip_irqchip_remove(struct gpio_chip *gpiochip);
+
 /**
  * gpiochip_remove() - unregister a gpio_chip
  * @chip: the chip to unregister
@@ -1270,6 +1273,7 @@ int gpiochip_remove(struct gpio_chip *chip)
 
 	spin_lock_irqsave(&gpio_lock, flags);
 
+	gpiochip_irqchip_remove(chip);
 	gpiochip_remove_pin_ranges(chip);
 	of_gpiochip_remove(chip);
 
@@ -1338,6 +1342,190 @@ static struct gpio_chip *find_chip_by_name(const char *name)
 {
 	return gpiochip_find((void *)name, gpiochip_match_name);
 }
+
+#ifdef CONFIG_GPIOLIB_IRQCHIP
+
+/*
+ * The following is irqchip helper code for gpiochips.
+ */
+
+/**
+ * gpiochip_add_chained_irqchip() - adds a chained irqchip to a gpiochip
+ * @gpiochip: the gpiochip to add the irqchip to
+ * @irqchip: the irqchip to add to the gpiochip
+ * @parent_irq: the irq number corresponding to the parent IRQ for this
+ * chained irqchip
+ * @parent_handler: the parent interrupt handler for the accumulated IRQ
+ * coming out of the gpiochip
+ */
+void gpiochip_set_chained_irqchip(struct gpio_chip *gpiochip,
+				  struct irq_chip *irqchip,
+				  int parent_irq,
+				  irq_flow_handler_t parent_handler)
+{
+	irq_set_chained_handler(parent_irq, parent_handler);
+	/*
+	 * The parent irqchip is already using the chip_data for this
+	 * irqchip, so our callbacks simply use the handler_data.
+	 */
+	irq_set_handler_data(parent_irq, gpiochip);
+}
+EXPORT_SYMBOL_GPL(gpiochip_set_chained_irqchip);
+
+/**
+ * gpiochip_irq_map() - maps an IRQ into a GPIO irqchip
+ * @d: the irqdomain used by this irqchip
+ * @irq: the global irq number used by this GPIO irqchip irq
+ * @hwirq: the local IRQ/GPIO line offset on this gpiochip
+ *
+ * This function will set up the mapping for a certain IRQ line on a
+ * gpiochip by assigning the gpiochip as chip data, and using the irqchip
+ * stored inside the gpiochip.
+ */
+static int gpiochip_irq_map(struct irq_domain *d, unsigned int irq,
+			    irq_hw_number_t hwirq)
+{
+	struct gpio_chip *chip = d->host_data;
+
+	irq_set_chip_and_handler(irq, chip->irqchip, chip->irq_handler);
+	irq_set_chip_data(irq, chip);
+#ifdef CONFIG_ARM
+	set_irq_flags(irq, IRQF_VALID);
+#else
+	irq_set_noprobe(irq);
+#endif
+	irq_set_irq_type(irq, chip->irq_default_type);
+
+	return 0;
+}
+
+static const struct irq_domain_ops gpiochip_domain_ops = {
+	.map	= gpiochip_irq_map,
+	/* Virtually all GPIO irqchips are twocell:ed */
+	.xlate	= irq_domain_xlate_twocell,
+};
+
+static int gpiochip_irq_reqres(struct irq_data *d)
+{
+	struct gpio_chip *chip = irq_data_get_irq_chip_data(d);
+
+	if (gpio_lock_as_irq(chip, d->hwirq)) {
+		chip_err(chip,
+			"unable to lock HW IRQ %lu for IRQ\n",
+			d->hwirq);
+		return -EINVAL;
+	}
+	return 0;
+}
+
+static void gpiochip_irq_relres(struct irq_data *d)
+{
+	struct gpio_chip *chip = irq_data_get_irq_chip_data(d);
+
+	gpio_unlock_as_irq(chip, d->hwirq);
+}
+
+static int gpiochip_to_irq(struct gpio_chip *chip, unsigned offset)
+{
+	return irq_find_mapping(chip->irqdomain, offset);
+}
+
+/**
+ * gpiochip_irqchip_remove() - removes an irqchip added to a gpiochip
+ * @gpiochip: the gpiochip to remove the irqchip from
+ *
+ * This is called only from gpiochip_remove()
+ */
+static void gpiochip_irqchip_remove(struct gpio_chip *gpiochip)
+{
+	if (gpiochip->irqdomain)
+		irq_domain_remove(gpiochip->irqdomain);
+
+	if (gpiochip->irqchip) {
+		gpiochip->irqchip->irq_request_resources = NULL;
+		gpiochip->irqchip->irq_release_resources = NULL;
+		gpiochip->irqchip = NULL;
+	}
+}
+
+/**
+ * gpiochip_irqchip_add() - adds an irqchip to a gpiochip
+ * @gpiochip: the gpiochip to add the irqchip to
+ * @irqchip: the irqchip to add to the gpiochip
+ * @first_irq: if not dynamically assigned, the base (first) IRQ to
+ * allocate gpiochip irqs from
+ * @handler: the irq handler to use (often a predefined irq core function)
+ * @type: the default type for IRQs on this irqchip
+ *
+ * This function closely associates a certain irqchip with a certain
+ * gpiochip, providing an irq domain to translate the local IRQs to
+ * global irqs in the gpiolib core, and making sure that the gpiochip
+ * is passed as chip data to all related functions. Driver callbacks
+ * need to use container_of() to get their local state containers back
+ * from the gpiochip passed as chip data. An irqdomain will be stored
+ * in the gpiochip that shall be used by the driver to handle IRQ number
+ * translation. The gpiochip will need to be initialized and registered
+ * before calling this function.
+ *
+ * This function will handle two cell:ed simple IRQs. Everything else
+ * need to be open coded.
+ */
+int gpiochip_irqchip_add(struct gpio_chip *gpiochip,
+			 struct irq_chip *irqchip,
+			 unsigned int first_irq,
+			 irq_flow_handler_t handler,
+			 unsigned int type)
+{
+	struct device_node *of_node;
+	unsigned int offset;
+
+	if (!gpiochip || !irqchip)
+		return -EINVAL;
+
+	if (!gpiochip->dev) {
+		pr_err("missing gpiochip .dev parent pointer\n");
+		return -EINVAL;
+	}
+	of_node = gpiochip->dev->of_node;
+#ifdef CONFIG_OF_GPIO
+	/*
+	 * If the gpiochip has an assigned OF node this takes precendence
+	 * FIXME: get rid of this and use gpiochip->dev->of_node everywhere
+	 */
+	if (gpiochip->of_node)
+		of_node = gpiochip->of_node;
+#endif
+	gpiochip->irqchip = irqchip;
+	gpiochip->irq_handler = handler;
+	gpiochip->irq_default_type = type;
+	gpiochip->to_irq = gpiochip_to_irq;
+	gpiochip->irqdomain = irq_domain_add_simple(of_node,
+					gpiochip->ngpio, first_irq,
+					&gpiochip_domain_ops, gpiochip);
+	if (!gpiochip->irqdomain) {
+		gpiochip->irqchip = NULL;
+		return -EINVAL;
+	}
+	irqchip->irq_request_resources = gpiochip_irq_reqres;
+	irqchip->irq_release_resources = gpiochip_irq_relres;
+
+	/*
+	 * Prepare the mapping since the irqchip shall be orthogonal to
+	 * any gpiochip calls. If the first_irq was zero, this is
+	 * necessary to allocate descriptors for all IRQs.
+	 */
+	for (offset = 0; offset < gpiochip->ngpio; offset++)
+		irq_create_mapping(gpiochip->irqdomain, offset);
+
+	return 0;
+}
+EXPORT_SYMBOL_GPL(gpiochip_irqchip_add);
+
+#else /* CONFIG_GPIOLIB_IRQCHIP */
+
+static void gpiochip_irqchip_remove(struct gpio_chip *gpiochip) {}
+
+#endif /* CONFIG_GPIOLIB_IRQCHIP */
 
 #ifdef CONFIG_PINCTRL
 

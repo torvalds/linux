@@ -55,6 +55,9 @@ config GPIO_ACPI
 	def_bool y
 	depends on ACPI
 
+config GPIOLIB_IRQCHIP
+	bool
+
 config DEBUG_GPIO
 	bool "Debug GPIO calls"
 	depends on DEBUG_KERNEL
