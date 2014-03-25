@@ -188,6 +188,7 @@ enum iwl_ucode_sec {
 #define IWL_UCODE_SECTION_MAX 12
 #define IWL_API_ARRAY_SIZE	1
 #define IWL_CAPABILITIES_ARRAY_SIZE	1
+#define CPU1_CPU2_SEPARATOR_SECTION	0xFFFFCCCC
 
 struct iwl_ucode_capabilities {
 	u32 max_probe_length;
