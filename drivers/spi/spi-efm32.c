@@ -471,6 +471,9 @@ static int efm32_spi_remove(struct platform_device *pdev)
 
 static const struct of_device_id efm32_spi_dt_ids[] = {
 	{
+		.compatible = "energymicro,efm32-spi",
+	}, {
+		/* doesn't follow the "vendor,device" scheme, don't use */
 		.compatible = "efm32,spi",
 	}, {
 		/* sentinel */

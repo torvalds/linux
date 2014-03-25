@@ -3,7 +3,7 @@
 Required properties:
 - #address-cells: see spi-bus.txt
 - #size-cells: see spi-bus.txt
-- compatible: should be "efm32,spi"
+- compatible: should be "energymicro,efm32-spi"
 - reg: Offset and length of the register set for the controller
 - interrupts: pair specifying rx and tx irq
 - clocks: phandle to the spi clock
@@ -15,7 +15,7 @@ Example:
 spi1: spi@0x4000c400 { /* USART1 */
 	#address-cells = <1>;
 	#size-cells = <0>;
-	compatible = "efm32,spi";
+	compatible = "energymicro,efm32-spi";
 	reg = <0x4000c400 0x400>;
 	interrupts = <15 16>;
 	clocks = <&cmu 20>;
