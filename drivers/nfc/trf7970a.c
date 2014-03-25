@@ -337,6 +337,7 @@ struct trf7970a {
 	nfc_digital_cmd_complete_t	cb;
 	void				*cb_arg;
 	u8				iso_ctrl;
+	u8				iso_ctrl_tech;
 	u8				special_fcn_reg1;
 	int				technology;
 	int				framing;
@@ -787,6 +788,7 @@ static int trf7970a_init(struct trf7970a *trf)
 	if (ret)
 		goto err_out;
 
+	trf->iso_ctrl = 0xff;
 	return 0;
 
 err_out:
@@ -889,10 +891,10 @@ static int trf7970a_config_rf_tech(struct trf7970a *trf, int tech)
 
 	switch (tech) {
 	case NFC_DIGITAL_RF_TECH_106A:
-		trf->iso_ctrl = TRF7970A_ISO_CTRL_14443A_106;
+		trf->iso_ctrl_tech = TRF7970A_ISO_CTRL_14443A_106;
 		break;
 	case NFC_DIGITAL_RF_TECH_ISO15693:
-		trf->iso_ctrl = TRF7970A_ISO_CTRL_15693_SGL_1OF4_2648;
+		trf->iso_ctrl_tech = TRF7970A_ISO_CTRL_15693_SGL_1OF4_2648;
 		break;
 	default:
 		dev_dbg(trf->dev, "Unsupported rf technology: %d\n", tech);
@@ -906,24 +908,27 @@ static int trf7970a_config_rf_tech(struct trf7970a *trf, int tech)
 
 static int trf7970a_config_framing(struct trf7970a *trf, int framing)
 {
+	u8 iso_ctrl = trf->iso_ctrl_tech;
+	int ret;
+
 	dev_dbg(trf->dev, "framing: %d\n", framing);
 
 	switch (framing) {
 	case NFC_DIGITAL_FRAMING_NFCA_SHORT:
 	case NFC_DIGITAL_FRAMING_NFCA_STANDARD:
 		trf->tx_cmd = TRF7970A_CMD_TRANSMIT_NO_CRC;
-		trf->iso_ctrl |= TRF7970A_ISO_CTRL_RX_CRC_N;
+		iso_ctrl |= TRF7970A_ISO_CTRL_RX_CRC_N;
 		break;
 	case NFC_DIGITAL_FRAMING_NFCA_STANDARD_WITH_CRC_A:
 	case NFC_DIGITAL_FRAMING_NFCA_T4T:
 	case NFC_DIGITAL_FRAMING_ISO15693_INVENTORY:
 	case NFC_DIGITAL_FRAMING_ISO15693_T5T:
 		trf->tx_cmd = TRF7970A_CMD_TRANSMIT;
-		trf->iso_ctrl &= ~TRF7970A_ISO_CTRL_RX_CRC_N;
+		iso_ctrl &= ~TRF7970A_ISO_CTRL_RX_CRC_N;
 		break;
 	case NFC_DIGITAL_FRAMING_NFCA_T2T:
 		trf->tx_cmd = TRF7970A_CMD_TRANSMIT;
-		trf->iso_ctrl |= TRF7970A_ISO_CTRL_RX_CRC_N;
+		iso_ctrl |= TRF7970A_ISO_CTRL_RX_CRC_N;
 		break;
 	default:
 		dev_dbg(trf->dev, "Unsupported Framing: %d\n", framing);
@@ -932,7 +937,15 @@ static int trf7970a_config_framing(struct trf7970a *trf, int framing)
 
 	trf->framing = framing;
 
-	return trf7970a_write(trf, TRF7970A_ISO_CTRL, trf->iso_ctrl);
+	if (iso_ctrl != trf->iso_ctrl) {
+		ret = trf7970a_write(trf, TRF7970A_ISO_CTRL, iso_ctrl);
+		if (ret)
+			return ret;
+
+		trf->iso_ctrl = iso_ctrl;
+	}
+
+	return 0;
 }
 
 static int trf7970a_in_configure_hw(struct nfc_digital_dev *ddev, int type,
