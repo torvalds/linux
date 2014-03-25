@@ -1045,7 +1045,7 @@ int kvm_s390_inject_vcpu(struct kvm_vcpu *vcpu,
 	return 0;
 }
 
-static void clear_floating_interrupts(struct kvm *kvm)
+void kvm_s390_clear_float_irqs(struct kvm *kvm)
 {
 	struct kvm_s390_float_interrupt *fi;
 	struct kvm_s390_interrupt_info	*n, *inti = NULL;
@@ -1391,7 +1391,7 @@ static int flic_set_attr(struct kvm_device *dev, struct kvm_device_attr *attr)
 		break;
 	case KVM_DEV_FLIC_CLEAR_IRQS:
 		r = 0;
-		clear_floating_interrupts(dev->kvm);
+		kvm_s390_clear_float_irqs(dev->kvm);
 		break;
 	case KVM_DEV_FLIC_APF_ENABLE:
 		dev->kvm->arch.gmap->pfault_enabled = 1;
