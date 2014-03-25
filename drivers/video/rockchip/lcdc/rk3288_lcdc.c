@@ -242,6 +242,20 @@ static int rk3288_lcdc_pre_init(struct rk_lcdc_driver *dev_drv)
 		writel_relaxed(v, RK_GRF_VIRT + RK3288_GRF_IO_VSEL);
 	}
 #endif	
+	lcdc_writel(lcdc_dev,CABC_GAUSS_LINE0_0,0x15110903);
+	lcdc_writel(lcdc_dev,CABC_GAUSS_LINE0_1,0x00030911);
+	lcdc_writel(lcdc_dev,CABC_GAUSS_LINE1_0,0x1a150b04);
+	lcdc_writel(lcdc_dev,CABC_GAUSS_LINE1_1,0x00040b15);
+	lcdc_writel(lcdc_dev,CABC_GAUSS_LINE2_0,0x15110903);
+	lcdc_writel(lcdc_dev,CABC_GAUSS_LINE2_1,0x00030911);
+
+	lcdc_writel(lcdc_dev,FRC_LOWER01_0,0x12844821);
+	lcdc_writel(lcdc_dev,FRC_LOWER01_1,0x21488412);
+	lcdc_writel(lcdc_dev,FRC_LOWER10_0,0xa55a9696);
+	lcdc_writel(lcdc_dev,FRC_LOWER10_1,0x5aa56969);
+	lcdc_writel(lcdc_dev,FRC_LOWER11_0,0xdeb77deb);
+	lcdc_writel(lcdc_dev,FRC_LOWER11_1,0xed7bb7de);
+
 	lcdc_set_bit(lcdc_dev, SYS_CTRL, m_AUTO_GATING_EN);
 	lcdc_cfg_done(lcdc_dev);
 	lcdc_dev->pre_init = true;
@@ -2845,8 +2859,12 @@ static int rk3288_lcdc_set_dsp_cabc(struct rk_lcdc_driver *dev_drv,int mode)
 	/*iomux connect to vop or pwm*/
 	if(mode == 0){
 		DBG(3,"close cabc\n");
+		val = 0x30001;
+		writel_relaxed(val, RK_GRF_VIRT + RK3288_GRF_GPIO7A_IOMUX);/*pwm sel*/
+		lcdc_set_bit(lcdc_dev, SYS_CTRL, 0<<23);/*disable auto gating*/
 		mask = m_CABC_EN;
 		val = v_CABC_EN(0);
+		lcdc_set_bit(lcdc_dev, SYS_CTRL, m_AUTO_GATING_EN);
 		/*lcdc_msk_reg(lcdc_dev, CABC_CTRL0, mask, val);*/
 		return 0;
 	}
@@ -2870,6 +2888,8 @@ static int rk3288_lcdc_set_dsp_cabc(struct rk_lcdc_driver *dev_drv,int mode)
 		lcdc_cfg_done(lcdc_dev);
 	}
 	spin_unlock(&lcdc_dev->reg_lock);
+	val = 0x30003;
+	writel_relaxed(val, RK_GRF_VIRT + RK3288_GRF_GPIO7A_IOMUX);/*pwm sel*/
 	return 0;
 }
 /*
