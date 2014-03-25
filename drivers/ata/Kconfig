@@ -97,6 +97,15 @@ config SATA_AHCI_PLATFORM
 
 	  If unsure, say N.
 
+config AHCI_DA850
+	tristate "DaVinci DA850 AHCI SATA support"
+	depends on ARCH_DAVINCI_DA850
+	help
+	  This option enables support for the DaVinci DA850 SoC's
+	  onboard AHCI SATA.
+
+	  If unsure, say N.
+
 config AHCI_ST
 	tristate "ST AHCI SATA support"
 	depends on ARCH_STI
