@@ -288,6 +288,7 @@ struct kvm_arch{
 	struct gmap *gmap;
 	int css_support;
 	int use_irqchip;
+	int use_cmma;
 	struct s390_io_adapter *adapters[MAX_S390_IO_ADAPTERS];
 };
 

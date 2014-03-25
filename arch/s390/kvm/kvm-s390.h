@@ -158,8 +158,11 @@ void s390_vcpu_block(struct kvm_vcpu *vcpu);
 void s390_vcpu_unblock(struct kvm_vcpu *vcpu);
 void exit_sie(struct kvm_vcpu *vcpu);
 void exit_sie_sync(struct kvm_vcpu *vcpu);
-/* are we going to support cmma? */
-bool kvm_enabled_cmma(void);
+int kvm_s390_vcpu_setup_cmma(struct kvm_vcpu *vcpu);
+void kvm_s390_vcpu_unsetup_cmma(struct kvm_vcpu *vcpu);
+/* is cmma enabled */
+bool kvm_s390_cmma_enabled(struct kvm *kvm);
+
 /* implemented in diag.c */
 int kvm_s390_handle_diag(struct kvm_vcpu *vcpu);
 
