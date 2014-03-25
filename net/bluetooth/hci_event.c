@@ -1033,6 +1033,32 @@ static void hci_cc_le_set_scan_param(struct hci_dev *hdev, struct sk_buff *skb)
 	hci_dev_unlock(hdev);
 }
 
+static bool has_pending_adv_report(struct hci_dev *hdev)
+{
+	struct discovery_state *d = &hdev->discovery;
+
+	return bacmp(&d->last_adv_addr, BDADDR_ANY);
+}
+
+static void clear_pending_adv_report(struct hci_dev *hdev)
+{
+	struct discovery_state *d = &hdev->discovery;
+
+	bacpy(&d->last_adv_addr, BDADDR_ANY);
+	d->last_adv_data_len = 0;
+}
+
+static void store_pending_adv_report(struct hci_dev *hdev, bdaddr_t *bdaddr,
+				     u8 bdaddr_type, u8 *data, u8 len)
+{
+	struct discovery_state *d = &hdev->discovery;
+
+	bacpy(&d->last_adv_addr, bdaddr);
+	d->last_adv_addr_type = bdaddr_type;
+	memcpy(d->last_adv_data, data, len);
+	d->last_adv_data_len = len;
+}
+
 static void hci_cc_le_set_scan_enable(struct hci_dev *hdev,
 				      struct sk_buff *skb)
 {
@@ -1051,9 +1077,24 @@ static void hci_cc_le_set_scan_enable(struct hci_dev *hdev,
 	switch (cp->enable) {
 	case LE_SCAN_ENABLE:
 		set_bit(HCI_LE_SCAN, &hdev->dev_flags);
+		if (hdev->le_scan_type == LE_SCAN_ACTIVE)
+			clear_pending_adv_report(hdev);
 		break;
 
 	case LE_SCAN_DISABLE:
+		/* We do this here instead of when setting DISCOVERY_STOPPED
+		 * since the latter would potentially require waiting for
+		 * inquiry to stop too.
+		 */
+		if (has_pending_adv_report(hdev)) {
+			struct discovery_state *d = &hdev->discovery;
+
+			mgmt_device_found(hdev, &d->last_adv_addr, LE_LINK,
+					  d->last_adv_addr_type, NULL, 0, 0,
+					  1, d->last_adv_data,
+					  d->last_adv_data_len, NULL, 0);
+		}
+
 		/* Cancel this timer so that we don't try to disable scanning
 		 * when it's already disabled.
 		 */
@@ -3979,6 +4020,8 @@ static void check_pending_le_conn(struct hci_dev *hdev, bdaddr_t *addr,
 static void process_adv_report(struct hci_dev *hdev, u8 type, bdaddr_t *bdaddr,
 			       u8 bdaddr_type, s8 rssi, u8 *data, u8 len)
 {
+	struct discovery_state *d = &hdev->discovery;
+
 	/* Passive scanning shouldn't trigger any device found events */
 	if (hdev->le_scan_type == LE_SCAN_PASSIVE) {
 		if (type == LE_ADV_IND || type == LE_ADV_DIRECT_IND)
@@ -3986,8 +4029,64 @@ static void process_adv_report(struct hci_dev *hdev, u8 type, bdaddr_t *bdaddr,
 		return;
 	}
 
-	mgmt_device_found(hdev, bdaddr, LE_LINK, bdaddr_type, NULL, rssi, 0, 1,
-			  data, len, NULL, 0);
+	/* If there's nothing pending either store the data from this
+	 * event or send an immediate device found event if the data
+	 * should not be stored for later.
+	 */
+	if (!has_pending_adv_report(hdev)) {
+		/* If the report will trigger a SCAN_REQ store it for
+		 * later merging.
+		 */
+		if (type == LE_ADV_IND || type == LE_ADV_SCAN_IND) {
+			store_pending_adv_report(hdev, bdaddr, bdaddr_type,
+						 data, len);
+			return;
+		}
+
+		mgmt_device_found(hdev, bdaddr, LE_LINK, bdaddr_type, NULL,
+				  rssi, 0, 1, data, len, NULL, 0);
+		return;
+	}
+
+	/* If the pending data doesn't match this report or this isn't a
+	 * scan response (e.g. we got a duplicate ADV_IND) then force
+	 * sending of the pending data.
+	 */
+	if (type != LE_ADV_SCAN_RSP || bacmp(bdaddr, &d->last_adv_addr) ||
+	    bdaddr_type != d->last_adv_addr_type) {
+		/* Send out whatever is in the cache */
+		mgmt_device_found(hdev, &d->last_adv_addr, LE_LINK,
+				  d->last_adv_addr_type, NULL, 0, 0, 1,
+				  d->last_adv_data, d->last_adv_data_len,
+				  NULL, 0);
+
+		/* If the new report will trigger a SCAN_REQ store it for
+		 * later merging.
+		 */
+		if (type == LE_ADV_IND || type == LE_ADV_SCAN_IND) {
+			store_pending_adv_report(hdev, bdaddr, bdaddr_type,
+						 data, len);
+			return;
+		}
+
+		/* The advertising reports cannot be merged, so clear
+		 * the pending report and send out a device found event.
+		 */
+		clear_pending_adv_report(hdev);
+		mgmt_device_found(hdev, &d->last_adv_addr, LE_LINK,
+				  d->last_adv_addr_type, NULL, rssi, 0, 1,
+				  data, len, NULL, 0);
+		return;
+	}
+
+	/* If we get here we've got a pending ADV_IND or ADV_SCAN_IND and
+	 * the new event is a SCAN_RSP. We can therefore proceed with
+	 * sending a merged device found event.
+	 */
+	mgmt_device_found(hdev, &d->last_adv_addr, LE_LINK,
+			  d->last_adv_addr_type, NULL, rssi, 0, 1, data, len,
+			  d->last_adv_data, d->last_adv_data_len);
+	clear_pending_adv_report(hdev);
 }
 
 static void hci_le_adv_report_evt(struct hci_dev *hdev, struct sk_buff *skb)

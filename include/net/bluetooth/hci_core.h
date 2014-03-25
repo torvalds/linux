@@ -68,6 +68,10 @@ struct discovery_state {
 	struct list_head	unknown;	/* Name state not known */
 	struct list_head	resolve;	/* Name needs to be resolved */
 	__u32			timestamp;
+	bdaddr_t		last_adv_addr;
+	u8			last_adv_addr_type;
+	u8			last_adv_data[HCI_MAX_AD_LENGTH];
+	u8			last_adv_data_len;
 };
 
 struct hci_conn_hash {
