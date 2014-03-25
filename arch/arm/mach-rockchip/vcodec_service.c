@@ -83,6 +83,8 @@ typedef enum VPU_FREQ {
 	VPU_FREQ_266M,
 	VPU_FREQ_300M,
 	VPU_FREQ_400M,
+    VPU_FREQ_500M,
+    VPU_FREQ_600M,
 	VPU_FREQ_DEFAULT,
 	VPU_FREQ_BUT,
 } VPU_FREQ;
@@ -568,6 +570,19 @@ static inline bool reg_check_interlace(vpu_reg *reg)
 	return (type > 0);
 }
 
+static inline bool reg_check_avc(vpu_reg *reg)
+{
+	unsigned long type = (reg->reg[3] & 0xF0000000) >> 28;
+	return (type == 0);
+}
+
+static inline int reg_probe_width(vpu_reg *reg)
+{
+    int width_in_mb = reg->reg[4] >> 23;
+    
+    return width_in_mb * 16;
+}
+
 #if defined(CONFIG_VCODEC_MMU)
 
 static unsigned int vcodec_map_ion_handle(vpu_service_info *pservice, 
@@ -738,7 +753,12 @@ static vpu_reg *reg_init(struct vpu_service_info *pservice, vpu_session *session
 			if (reg->type == VPU_DEC || reg->type == VPU_DEC_PP) {
 				if (reg_check_rmvb_wmv(reg)) {
 					reg->freq = VPU_FREQ_200M;
-				} else {
+				} else if (reg_check_avc(reg)) {
+                    if (reg_probe_width(reg) > 3200) {
+                        // raise frequency for 4k avc.
+                        reg->freq = VPU_FREQ_500M;
+                    }
+                } else {
 					if (reg_check_interlace(reg)) {
 						reg->freq = VPU_FREQ_400M;
 					}
@@ -876,6 +896,12 @@ static void vpu_service_set_freq(struct vpu_service_info *pservice, vpu_reg *reg
 		clk_set_rate(pservice->aclk_vcodec, 400*MHZ);
 		//printk("default: 400M\n");
 	} break;
+    case VPU_FREQ_500M : {
+        clk_set_rate(pservice->aclk_vcodec, 500*MHZ);
+    } break;
+    case VPU_FREQ_600M : {
+        clk_set_rate(pservice->aclk_vcodec, 600*MHZ);
+    } break;
 	default : {
 		if (soc_is_rk2928g()) {
 			clk_set_rate(pservice->aclk_vcodec, 400*MHZ);
@@ -1791,13 +1817,16 @@ static void get_hw_info(struct vpu_service_info *pservice)
         enc->reg_size = pservice->reg_size;
         enc->reserv[0] = enc->reserv[1] = 0;
     
-        pservice->auto_freq = soc_is_rk2928g() || soc_is_rk2928l() || soc_is_rk2926();
+        pservice->auto_freq = soc_is_rk2928g() || soc_is_rk2928l() || soc_is_rk2926() || soc_is_rk3288();
         if (pservice->auto_freq) {
             pr_info("vpu_service set to auto frequency mode\n");
             atomic_set(&pservice->freq_status, VPU_FREQ_BUT);
         }
         pservice->bug_dec_addr = cpu_is_rk30xx();
         //printk("cpu 3066b bug %d\n", service.bug_dec_addr);
+    } else {
+        // disable frequency switch in hevc.
+        pservice->auto_freq = false;
     }
 }
 
@@ -1805,7 +1834,8 @@ static irqreturn_t vdpu_irq(int irq, void *dev_id)
 {
     struct vpu_service_info *pservice = (struct vpu_service_info*)dev_id;
     vpu_device *dev = &pservice->dec_dev;
-    u32 irq_status = readl(dev->hwregs + DEC_INTERRUPT_REGISTER);
+    u32 raw_status;
+    u32 irq_status = raw_status = readl(dev->hwregs + DEC_INTERRUPT_REGISTER);
 
 	pr_debug("dec_irq\n");
 
@@ -1841,7 +1871,7 @@ static irqreturn_t vdpu_irq(int irq, void *dev_id)
         }
     }
 
-    pservice->irq_status = irq_status;
+    pservice->irq_status = raw_status;
 
 	return IRQ_WAKE_THREAD;
 }
