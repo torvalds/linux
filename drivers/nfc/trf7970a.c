@@ -779,11 +779,6 @@ static int trf7970a_init(struct trf7970a *trf)
 
 	trf->special_fcn_reg1 = 0;
 
-	ret = trf7970a_write(trf, TRF7970A_CHIP_STATUS_CTRL,
-			trf->chip_status_ctrl | TRF7970A_CHIP_STATUS_RF_ON);
-	if (ret)
-		goto err_out;
-
 	trf->iso_ctrl = 0xff;
 	return 0;
 
@@ -795,6 +790,10 @@ err_out:
 static void trf7970a_switch_rf_off(struct trf7970a *trf)
 {
 	dev_dbg(trf->dev, "Switching rf off\n");
+
+	trf->chip_status_ctrl &= ~TRF7970A_CHIP_STATUS_RF_ON;
+
+	trf7970a_write(trf, TRF7970A_CHIP_STATUS_CTRL, trf->chip_status_ctrl);
 
 	gpio_set_value(trf->en_gpio, 0);
 	gpio_set_value(trf->en2_gpio, 0);
@@ -946,6 +945,18 @@ static int trf7970a_config_framing(struct trf7970a *trf, int framing)
 				trf->modulator_sys_clk_ctrl);
 		if (ret)
 			return ret;
+	}
+
+	if (!(trf->chip_status_ctrl & TRF7970A_CHIP_STATUS_RF_ON)) {
+		ret = trf7970a_write(trf, TRF7970A_CHIP_STATUS_CTRL,
+				trf->chip_status_ctrl |
+					TRF7970A_CHIP_STATUS_RF_ON);
+		if (ret)
+			return ret;
+
+		trf->chip_status_ctrl |= TRF7970A_CHIP_STATUS_RF_ON;
+
+		usleep_range(5000, 6000);
 	}
 
 	return 0;
