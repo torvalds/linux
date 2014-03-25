@@ -54,7 +54,7 @@ static ssize_t spi_test_write(struct file *file,
 	struct spi_device *spi = NULL;
 	char txbuf[256],rxbuf[256];
 
-	printk("%s:0:bus=0,cs=0; 1:bus=0,cs=1; 2:bus=1,cs=0; 3:bus=1,cs=1\n",__func__);
+	printk("%s:0:bus=0,cs=0; 1:bus=0,cs=1; 2:bus=1,cs=0; 3:bus=1,cs=1; 4:bus=2,cs=0; 5:bus=2,cs=1\n",__func__);
 
 	if(count > 5)
 	    return -EFAULT;
@@ -67,7 +67,7 @@ static ssize_t spi_test_write(struct file *file,
 	if(nr >= 6 || nr < 0)
 	{
 		printk("%s:cmd is error\n",__func__);
-	    return -EFAULT;
+		return -EFAULT;
 	}
 	
 	for(i=0; i<256; i++)
@@ -223,6 +223,8 @@ static const struct of_device_id rockchip_spi_test_dt_match[] = {
 	{ .compatible = "rockchip,spi_test_bus0_cs1", },
 	{ .compatible = "rockchip,spi_test_bus1_cs0", },
 	{ .compatible = "rockchip,spi_test_bus1_cs1", },
+	{ .compatible = "rockchip,spi_test_bus2_cs0", },
+        { .compatible = "rockchip,spi_test_bus2_cs1", },
 	{},
 };
 MODULE_DEVICE_TABLE(of, rockchip_spi_test_dt_match);

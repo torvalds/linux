@@ -221,7 +221,7 @@ static int rockchip_spi_probe(struct platform_device *pdev)
 #ifdef CONFIG_SPI_ROCKCHIP_DMA
 	ret = dw_spi_dma_init(dws);
 	if (ret)
-		goto err_release_mem;
+	printk("%s:fail to init dma\n",__func__);
 #endif
 
 	ret = dw_spi_add_host(dws);
