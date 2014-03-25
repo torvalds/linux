@@ -3964,8 +3964,12 @@ static void check_pending_le_conn(struct hci_dev *hdev, bdaddr_t *addr,
 static void process_adv_report(struct hci_dev *hdev, u8 type, bdaddr_t *bdaddr,
 			       u8 bdaddr_type, s8 rssi, u8 *data, u8 len)
 {
-	if (type == LE_ADV_IND || type == LE_ADV_DIRECT_IND)
-		check_pending_le_conn(hdev, bdaddr, bdaddr_type);
+	/* Passive scanning shouldn't trigger any device found events */
+	if (hdev->le_scan_type == LE_SCAN_PASSIVE) {
+		if (type == LE_ADV_IND || type == LE_ADV_DIRECT_IND)
+			check_pending_le_conn(hdev, bdaddr, bdaddr_type);
+		return;
+	}
 
 	mgmt_device_found(hdev, bdaddr, LE_LINK, bdaddr_type, NULL, rssi, 0, 1,
 			  data, len);
