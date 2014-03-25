@@ -282,18 +282,22 @@ static void dvfs_vd_get_regulator_mode_info(struct vd_node *vd)
 		}
 	}
 }
+#endif
 
-struct regulator *dvfs_get_regulator1(char *regulator_name) 
+struct regulator *dvfs_get_regulator(char *regulator_name) 
 {
 	struct vd_node *vd;
+
+	mutex_lock(&rk_dvfs_mutex);
 	list_for_each_entry(vd, &rk_dvfs_tree, node) {
 		if (strcmp(regulator_name, vd->regulator_name) == 0) {
+			mutex_unlock(&rk_dvfs_mutex);
 			return vd->regulator;
 		}
 	}
+	mutex_unlock(&rk_dvfs_mutex);
 	return NULL;
 }
-#endif
 
 static int dvfs_get_rate_range(struct dvfs_node *clk_dvfs_node)
 {
