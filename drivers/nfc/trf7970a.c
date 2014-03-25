@@ -338,6 +338,7 @@ struct trf7970a {
 	void				*cb_arg;
 	u8				iso_ctrl;
 	u8				iso_ctrl_tech;
+	u8				modulator_sys_clk_ctrl;
 	u8				special_fcn_reg1;
 	int				technology;
 	int				framing;
@@ -887,9 +888,11 @@ static int trf7970a_config_rf_tech(struct trf7970a *trf, int tech)
 	switch (tech) {
 	case NFC_DIGITAL_RF_TECH_106A:
 		trf->iso_ctrl_tech = TRF7970A_ISO_CTRL_14443A_106;
+		trf->modulator_sys_clk_ctrl = TRF7970A_MODULATOR_DEPTH_OOK;
 		break;
 	case NFC_DIGITAL_RF_TECH_ISO15693:
 		trf->iso_ctrl_tech = TRF7970A_ISO_CTRL_15693_SGL_1OF4_2648;
+		trf->modulator_sys_clk_ctrl = TRF7970A_MODULATOR_DEPTH_OOK;
 		break;
 	default:
 		dev_dbg(trf->dev, "Unsupported rf technology: %d\n", tech);
@@ -940,7 +943,7 @@ static int trf7970a_config_framing(struct trf7970a *trf, int framing)
 		trf->iso_ctrl = iso_ctrl;
 
 		ret = trf7970a_write(trf, TRF7970A_MODULATOR_SYS_CLK_CTRL,
-				TRF7970A_MODULATOR_DEPTH_OOK);
+				trf->modulator_sys_clk_ctrl);
 		if (ret)
 			return ret;
 	}
