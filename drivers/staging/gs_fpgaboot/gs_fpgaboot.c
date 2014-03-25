@@ -373,7 +373,6 @@ static int __init gs_fpgaboot_init(void)
 	r = -1;
 
 	pr_info("FPGA DOWNLOAD --->\n");
-	pr_info("built at %s UTC\n", __TIMESTAMP__);
 
 	pr_info("FPGA image file name: %s\n", file);
 
