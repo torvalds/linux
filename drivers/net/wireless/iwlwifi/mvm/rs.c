@@ -2547,6 +2547,7 @@ static void rs_build_rates_table(struct iwl_mvm *mvm,
 	if (is_siso(&rate)) {
 		num_rates = RS_SECONDARY_SISO_NUM_RATES;
 		num_retries = RS_SECONDARY_SISO_RETRIES;
+		lq_cmd->mimo_delim = index;
 	} else if (is_legacy(&rate)) {
 		num_rates = RS_SECONDARY_LEGACY_NUM_RATES;
 		num_retries = RS_LEGACY_RETRIES_PER_RATE;
