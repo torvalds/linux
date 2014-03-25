@@ -23,6 +23,11 @@ Optional properties:
 
 Required subnodes:
 
+- simple-audio-card,dai-link		: container for the CPU and CODEC sub-nodes
+					  This container may be omitted when the
+					  card has only one DAI link.
+					  See the examples.
+
 - simple-audio-card,cpu			: CPU   sub-node
 - simple-audio-card,codec		: CODEC sub-node
 
@@ -49,7 +54,7 @@ Note:
    CPU and CODEC sides as we need to keep the settings identical for both ends
    of the link.
 
-Example:
+Example 1 - single DAI link:
 
 sound {
 	compatible = "simple-audio-card";
@@ -93,4 +98,39 @@ sh_fsi2: sh_fsi2@ec230000 {
 	reg = <0xec230000 0x400>;
 	interrupt-parent = <&gic>;
 	interrupts = <0 146 0x4>;
+};
+
+Example 2 - many DAI links:
+
+sound {
+	compatible = "simple-audio-card";
+	simple-audio-card,name = "Cubox Audio";
+	simple-audio-card,format = "i2s";
+
+	simple-audio-card,dai-link@0 {		/* I2S - HDMI */
+		simple-audio-card,cpu {
+			sound-dai = <&audio1 0>;
+		};
+		simple-audio-card,codec {
+			sound-dai = <&tda998x 0>;
+		};
+	};
+
+	simple-audio-card,dai-link@1 {		/* S/PDIF - HDMI */
+		simple-audio-card,cpu {
+			sound-dai = <&audio1 1>;
+		};
+		simple-audio-card,codec {
+			sound-dai = <&tda998x 1>;
+		};
+	};
+
+	simple-audio-card,dai-link@2 {		/* S/PDIF - S/PDIF */
+		simple-audio-card,cpu {
+			sound-dai = <&audio1 1>;
+		};
+		simple-audio-card,codec {
+			sound-dai = <&spdif_codec>;
+		};
+	};
 };
