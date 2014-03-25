@@ -419,7 +419,7 @@ static struct pci_driver xhci_pci_driver = {
 	.remove =	xhci_pci_remove,
 	/* suspend and resume implemented later */
 
-	.shutdown = 	usb_hcd_pci_shutdown,
+	.shutdown = 	xhci_pci_remove,
 #ifdef CONFIG_PM
 	.driver = {
 		.pm = &usb_hcd_pci_pm_ops
