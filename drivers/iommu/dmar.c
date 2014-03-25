@@ -657,7 +657,12 @@ static void __init dmar_acpi_insert_dev_scope(u8 device_number,
 
 static int __init dmar_acpi_dev_scope_init(void)
 {
-	struct acpi_dmar_andd *andd = (void *)dmar_tbl + sizeof(struct acpi_table_dmar);
+	struct acpi_dmar_andd *andd;
+
+	if (dmar_tbl == NULL)
+		return -ENODEV;
+
+	andd = (void *)dmar_tbl + sizeof(struct acpi_table_dmar);
 
 	while (((unsigned long)andd) <
 	       ((unsigned long)dmar_tbl) + dmar_tbl->length) {
