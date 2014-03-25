@@ -1056,20 +1056,20 @@ struct channel_t {
  * Command structure definition.
  ************************************************************************/
 struct cm_t {
-	volatile unsigned short cm_head;	/* Command buffer head offset */
-	volatile unsigned short cm_tail;	/* Command buffer tail offset */
-	volatile unsigned short cm_start;	/* start offset of buffer     */
-	volatile unsigned short cm_max;		/* last offset of buffer      */
+	unsigned short cm_head;		/* Command buffer head offset */
+	unsigned short cm_tail;		/* Command buffer tail offset */
+	unsigned short cm_start;	/* start offset of buffer     */
+	unsigned short cm_max;		/* last offset of buffer      */
 };
 
 /************************************************************************
  * Event structure definition.
  ************************************************************************/
 struct ev_t {
-	volatile unsigned short ev_head;	/* Command buffer head offset */
-	volatile unsigned short ev_tail;	/* Command buffer tail offset */
-	volatile unsigned short ev_start;	/* start offset of buffer     */
-	volatile unsigned short ev_max;		/* last offset of buffer      */
+	unsigned short ev_head;		/* Command buffer head offset */
+	unsigned short ev_tail;		/* Command buffer tail offset */
+	unsigned short ev_start;	/* start offset of buffer     */
+	unsigned short ev_max;		/* last offset of buffer      */
 };
 
 /************************************************************************
@@ -1096,74 +1096,74 @@ struct downld_t {
  *        U = unknown (may be changed w/o notice)                       *
  ************************************************************************/
 struct bs_t {
-	volatile unsigned short  tp_jmp;	/* Transmit poll jump	 */
-	volatile unsigned short  tc_jmp;	/* Cooked procedure jump */
-	volatile unsigned short  ri_jmp;	/* Not currently used	 */
-	volatile unsigned short  rp_jmp;	/* Receive poll jump	 */
+	unsigned short  tp_jmp;		/* Transmit poll jump	 */
+	unsigned short  tc_jmp;		/* Cooked procedure jump */
+	unsigned short  ri_jmp;		/* Not currently used	 */
+	unsigned short  rp_jmp;		/* Receive poll jump	 */
 
-	volatile unsigned short  tx_seg;	/* W Tx segment	 */
-	volatile unsigned short  tx_head;	/* W Tx buffer head offset */
-	volatile unsigned short  tx_tail;	/* R Tx buffer tail offset */
-	volatile unsigned short  tx_max;	/* W Tx buffer size - 1    */
+	unsigned short  tx_seg;		/* W Tx segment	 */
+	unsigned short  tx_head;	/* W Tx buffer head offset */
+	unsigned short  tx_tail;	/* R Tx buffer tail offset */
+	unsigned short  tx_max;		/* W Tx buffer size - 1    */
 
-	volatile unsigned short  rx_seg;	/* W Rx segment	    */
-	volatile unsigned short  rx_head;	/* W Rx buffer head offset */
-	volatile unsigned short  rx_tail;	/* R Rx buffer tail offset */
-	volatile unsigned short  rx_max;	/* W Rx buffer size - 1    */
+	unsigned short  rx_seg;		/* W Rx segment	    */
+	unsigned short  rx_head;	/* W Rx buffer head offset */
+	unsigned short  rx_tail;	/* R Rx buffer tail offset */
+	unsigned short  rx_max;		/* W Rx buffer size - 1    */
 
-	volatile unsigned short  tx_lw;		/* W Tx buffer low water mark */
-	volatile unsigned short  rx_lw;		/* W Rx buffer low water mark */
-	volatile unsigned short  rx_hw;		/* W Rx buffer high water mark*/
-	volatile unsigned short  incr;		/* W Increment to next channel*/
+	unsigned short  tx_lw;		/* W Tx buffer low water mark */
+	unsigned short  rx_lw;		/* W Rx buffer low water mark */
+	unsigned short  rx_hw;		/* W Rx buffer high water mark*/
+	unsigned short  incr;		/* W Increment to next channel*/
 
-	volatile unsigned short  fepdev;	/* U SCC device base address  */
-	volatile unsigned short  edelay;	/* W Exception delay          */
-	volatile unsigned short  blen;		/* W Break length             */
-	volatile unsigned short  btime;		/* U Break complete time      */
+	unsigned short  fepdev;		/* U SCC device base address  */
+	unsigned short  edelay;		/* W Exception delay          */
+	unsigned short  blen;		/* W Break length             */
+	unsigned short  btime;		/* U Break complete time      */
 
-	volatile unsigned short  iflag;		/* C UNIX input flags         */
-	volatile unsigned short  oflag;		/* C UNIX output flags        */
-	volatile unsigned short  cflag;		/* C UNIX control flags       */
-	volatile unsigned short  wfill[13];	/* U Reserved for expansion   */
+	unsigned short  iflag;		/* C UNIX input flags         */
+	unsigned short  oflag;		/* C UNIX output flags        */
+	unsigned short  cflag;		/* C UNIX control flags       */
+	unsigned short  wfill[13];	/* U Reserved for expansion   */
 
-	volatile unsigned char   num;		/* U Channel number           */
-	volatile unsigned char   ract;		/* U Receiver active counter  */
-	volatile unsigned char   bstat;		/* U Break status bits        */
-	volatile unsigned char   tbusy;		/* W Transmit busy            */
-	volatile unsigned char   iempty;	/* W Transmit empty event     */
-						/* enable                     */
-	volatile unsigned char   ilow;		/* W Transmit low-water event */
-						/* enable                     */
-	volatile unsigned char   idata;		/* W Receive data interrupt   */
-						/* enable                     */
-	volatile unsigned char   eflag;		/* U Host event flags         */
+	unsigned char   num;		/* U Channel number           */
+	unsigned char   ract;		/* U Receiver active counter  */
+	unsigned char   bstat;		/* U Break status bits        */
+	unsigned char   tbusy;		/* W Transmit busy            */
+	unsigned char   iempty;		/* W Transmit empty event     */
+					/* enable                     */
+	unsigned char   ilow;		/* W Transmit low-water event */
+					/* enable                     */
+	unsigned char   idata;		/* W Receive data interrupt   */
+					/* enable                     */
+	unsigned char   eflag;		/* U Host event flags         */
 
-	volatile unsigned char   tflag;		/* U Transmit flags           */
-	volatile unsigned char   rflag;		/* U Receive flags            */
-	volatile unsigned char   xmask;		/* U Transmit ready flags     */
-	volatile unsigned char   xval;		/* U Transmit ready value     */
-	volatile unsigned char   m_stat;	/* RC Modem status bits       */
-	volatile unsigned char   m_change;	/* U Modem bits which changed */
-	volatile unsigned char   m_int;		/* W Modem interrupt enable   */
-						/* bits                       */
-	volatile unsigned char   m_last;	/* U Last modem status        */
+	unsigned char   tflag;		/* U Transmit flags           */
+	unsigned char   rflag;		/* U Receive flags            */
+	unsigned char   xmask;		/* U Transmit ready flags     */
+	unsigned char   xval;		/* U Transmit ready value     */
+	unsigned char   m_stat;		/* RC Modem status bits       */
+	unsigned char   m_change;	/* U Modem bits which changed */
+	unsigned char   m_int;		/* W Modem interrupt enable   */
+					/* bits                       */
+	unsigned char   m_last;		/* U Last modem status        */
 
-	volatile unsigned char   mtran;		/* C Unreported modem trans   */
-	volatile unsigned char   orun;		/* C Buffer overrun occurred  */
-	volatile unsigned char   astartc;	/* W Auxiliary Xon char       */
-	volatile unsigned char   astopc;	/* W Auxiliary Xoff char      */
-	volatile unsigned char   startc;	/* W Xon character            */
-	volatile unsigned char   stopc;		/* W Xoff character           */
-	volatile unsigned char   vnextc;	/* W Vnext character          */
-	volatile unsigned char   hflow;		/* C Software flow control    */
+	unsigned char   mtran;		/* C Unreported modem trans   */
+	unsigned char   orun;		/* C Buffer overrun occurred  */
+	unsigned char   astartc;	/* W Auxiliary Xon char       */
+	unsigned char   astopc;		/* W Auxiliary Xoff char      */
+	unsigned char   startc;		/* W Xon character            */
+	unsigned char   stopc;		/* W Xoff character           */
+	unsigned char   vnextc;		/* W Vnext character          */
+	unsigned char   hflow;		/* C Software flow control    */
 
-	volatile unsigned char   fillc;		/* U Delay Fill character     */
-	volatile unsigned char   ochar;		/* U Saved output character   */
-	volatile unsigned char   omask;		/* U Output character mask    */
+	unsigned char   fillc;		/* U Delay Fill character     */
+	unsigned char   ochar;		/* U Saved output character   */
+	unsigned char   omask;		/* U Output character mask    */
 
-	volatile unsigned char   bfill[13];	/* U Reserved for expansion   */
+	unsigned char   bfill[13];	/* U Reserved for expansion   */
 
-	volatile unsigned char   scc[16];	/* U SCC registers            */
+	unsigned char   scc[16];	/* U SCC registers            */
 };
 
 struct cnode {
