@@ -88,6 +88,7 @@ static int moxart_gpio_direction_output(struct gpio_chip *chip,
 	struct moxart_gpio_chip *gc = to_moxart_gpio(chip);
 	void __iomem *ioaddr = gc->base + GPIO_PIN_DIRECTION;
 
+	moxart_gpio_set(chip, offset, value);
 	writel(readl(ioaddr) | BIT(offset), ioaddr);
 	return 0;
 }
