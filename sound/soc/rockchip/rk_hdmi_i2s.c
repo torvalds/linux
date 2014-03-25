@@ -34,14 +34,14 @@ static int hdmi_i2s_hifi_hw_params(struct snd_pcm_substream *substream,
 	int ret;
 
 	DBG("Enter::%s----%d\n", __FUNCTION__, __LINE__);
-
+#if 0
 	/* set codec DAI configuration */
 	ret = snd_soc_dai_set_fmt(codec_dai, dai_fmt);
 	if (ret < 0) {
 		printk("%s():failed to set the format for codec side\n", __FUNCTION__);
 		return ret;
 	}
-
+#endif
 	/* set cpu DAI configuration */
 	ret = snd_soc_dai_set_fmt(cpu_dai, dai_fmt);
 	if (ret < 0) {
