@@ -385,7 +385,7 @@ struct rkehci_platform_data rkhsic_pdata_rk3188 = {
 
 inline static void do_wakeup(struct work_struct *work)
 {
-//	rk28_send_wakeup_key();
+	rk_send_wakeup_key(); // wake up the system
 }
 
 /********** handler for bvalid irq **********/

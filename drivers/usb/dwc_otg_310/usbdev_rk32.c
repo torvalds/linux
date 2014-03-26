@@ -531,7 +531,7 @@ struct rkehci_platform_data rkohci_pdata_rk3288 = {
 #define WAKE_LOCK_TIMEOUT (HZ * 10)
 inline static void do_wakeup(struct work_struct *work)
 {
-//      rk28_send_wakeup_key();
+	rk_send_wakeup_key(); // wake up the system
 }
 
 static void usb_battery_charger_detect_work(struct work_struct *work)
@@ -594,7 +594,6 @@ static irqreturn_t id_irq_handler(int irq, void *dev_id)
 
 static irqreturn_t line_irq_handler(int irq, void *dev_id)
 {
-    unsigned int uoc_con;
     /* clear irq */
     
     if(control_usb->grf_uoc0_base->CON0 & 1<<15){

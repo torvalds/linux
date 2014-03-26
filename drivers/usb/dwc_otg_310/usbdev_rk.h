@@ -39,6 +39,7 @@
 #define USB_IRQ_WAKEUP        (7)
 
 extern int rk_usb_charger_status;
+extern void rk_send_wakeup_key(void);
 /* rk3188 platform data */
 extern struct dwc_otg_platform_data usb20otg_pdata_rk3188;
 extern struct dwc_otg_platform_data usb20host_pdata_rk3188;
