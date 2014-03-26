@@ -43,7 +43,7 @@ int get_cpu_clock_speed(u32 *cpu_clock);
 #define KBASE_VE_MEMORY_PER_PROCESS_LIMIT       (512 * 1024 * 1024UL)	/* 512MB */
 #define KBASE_VE_MEMORY_OS_SHARED_MAX           (2048 * 1024 * 1024UL)	/* 768MB */
 #define KBASE_VE_MEMORY_OS_SHARED_PERF_GPU      KBASE_MEM_PERF_FAST/*KBASE_MEM_PERF_SLOW*/
-#define KBASE_VE_GPU_FREQ_KHZ_MAX               400000
+#define KBASE_VE_GPU_FREQ_KHZ_MAX               600000
 #define KBASE_VE_GPU_FREQ_KHZ_MIN               100000
 #ifdef CONFIG_UMP
 #define KBASE_VE_UMP_DEVICE                     UMP_DEVICE_Z_SHIFT
@@ -257,9 +257,11 @@ static kbase_pm_callback_conf pm_callbacks = {
 
 /* Please keep table config_attributes in sync with config_attributes_hw_issue_8408 */
 static kbase_attribute config_attributes[] = {
+#if 0
 	{
 	 KBASE_CONFIG_ATTR_MEMORY_PER_PROCESS_LIMIT,
 	 KBASE_VE_MEMORY_PER_PROCESS_LIMIT},
+#endif
 #ifdef CONFIG_UMP
 	{
 	 KBASE_CONFIG_ATTR_UMP_DEVICE,
@@ -270,15 +272,16 @@ static kbase_attribute config_attributes[] = {
 	 KBASE_CONFIG_ATTR_POWER_MANAGEMENT_CALLBACKS,
 	 (uintptr_t)&pm_callbacks},
 #endif
-
+#if 0
 	{
 	 KBASE_CONFIG_ATTR_MEMORY_OS_SHARED_MAX,
 	 KBASE_VE_MEMORY_OS_SHARED_MAX},
-
+#endif
+#if 0
 	{
 	 KBASE_CONFIG_ATTR_MEMORY_OS_SHARED_PERF_GPU,
 	 KBASE_VE_MEMORY_OS_SHARED_PERF_GPU},
-	
+#endif
 	{
 	 KBASE_CONFIG_ATTR_PLATFORM_FUNCS,
 	 (uintptr_t) &platform_funcs},
@@ -318,50 +321,62 @@ static kbase_attribute config_attributes[] = {
 	 KBASE_VE_JS_RESET_TICKS_NSS_DEBUG},
 #else				/* CONFIG_MALI_DEBUG */
 /* In release builds same as the defaults but scaled for 5MHz FPGA */
+#if 0
 	{
 	 KBASE_CONFIG_ATTR_JS_SCHEDULING_TICK_NS,
 	 KBASE_VE_JS_SCHEDULING_TICK_NS},
-
+#endif
+#if 0
 	{
 	 KBASE_CONFIG_ATTR_JS_SOFT_STOP_TICKS,
 	 KBASE_VE_JS_SOFT_STOP_TICKS},
-
+#endif
+#if 0
 	{
 	 KBASE_CONFIG_ATTR_JS_HARD_STOP_TICKS_SS,
 	 KBASE_VE_JS_HARD_STOP_TICKS_SS},
-
+#endif
+#if 0
 	{
 	 KBASE_CONFIG_ATTR_JS_HARD_STOP_TICKS_NSS,
 	 KBASE_VE_JS_HARD_STOP_TICKS_NSS},
-
+#endif
+#if 0
 	{
 	 KBASE_CONFIG_ATTR_JS_RESET_TICKS_SS,
 	 KBASE_VE_JS_RESET_TICKS_SS},
-
+#endif
+#if 0 
 	{
 	 KBASE_CONFIG_ATTR_JS_RESET_TICKS_NSS,
 	 KBASE_VE_JS_RESET_TICKS_NSS},
+#endif
 #endif				/* CONFIG_MALI_DEBUG */
+#if 0 
 	{
 	 KBASE_CONFIG_ATTR_JS_RESET_TIMEOUT_MS,
 	 KBASE_VE_JS_RESET_TIMEOUT_MS},
-
+#endif
+#if 0
 	{
 	 KBASE_CONFIG_ATTR_JS_CTX_TIMESLICE_NS,
 	 KBASE_VE_JS_CTX_TIMESLICE_NS},
-
+#endif
+#if 0
 	{
 	 KBASE_CONFIG_ATTR_CPU_SPEED_FUNC,
 	 KBASE_VE_CPU_SPEED_FUNC},
-
+#endif
+#if 0
 	{
 	 KBASE_CONFIG_ATTR_SECURE_BUT_LOSS_OF_PERFORMANCE,
 	 KBASE_VE_SECURE_BUT_LOSS_OF_PERFORMANCE},
-
+#endif
+#if 0
 	{
 	 KBASE_CONFIG_ATTR_GPU_IRQ_THROTTLE_TIME_US,
 	 20},
-
+#endif
 	{
 	 KBASE_CONFIG_ATTR_END,
 	 0}

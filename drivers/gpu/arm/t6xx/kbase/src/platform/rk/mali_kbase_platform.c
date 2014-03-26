@@ -78,7 +78,7 @@ static int kbase_platform_power_clock_init(kbase_device *kbdev)
 	if(IS_ERR_OR_NULL(platform->mali_pd_node))
 	{
 		platform->mali_pd_node = NULL;
-		printk(KERN_ERR "%s, %s(): failed to clk_get [platform->mali_pd_node]\n", __FILE__, __func__);
+		printk(KERN_ERR "%s, %s(): failed to get [platform->mali_pd_node]\n", __FILE__, __func__);
 		//goto out;
 	}
 	else
@@ -93,8 +93,8 @@ static int kbase_platform_power_clock_init(kbase_device *kbdev)
 	if (IS_ERR_OR_NULL(platform->mali_clk_node)) 
 	{
 		platform->mali_clk_node = NULL;
-		printk(KERN_ERR "%s, %s(): failed to clk_get [platform->mali_clk_node]\n", __FILE__, __func__);
-		//goto out;
+		printk(KERN_ERR "%s, %s(): failed to get [platform->mali_clk_node]\n", __FILE__, __func__);
+		goto out;
 	} 
 	else 
 	{
@@ -275,14 +275,16 @@ static ssize_t show_clock(struct device *dev, struct device_attribute *attr, cha
 	if (!platform)
 		return -ENODEV;
 
-	if (!platform->clk_mali)
+	if (!platform->mali_clk_node)
+	{
+		printk("mali_clk_node not init\n");
 		return -ENODEV;
-
+	}
 	clkrate = dvfs_clk_get_rate(platform->mali_clk_node);
 	ret += snprintf(buf + ret, PAGE_SIZE - ret, "Current clk mali = %dMhz", clkrate / 1000000);
 
 	/* To be revised  */
-	ret += snprintf(buf + ret, PAGE_SIZE - ret, "\nPossible settings : 533, 450, 400, 350, 266, 160, 100Mhz");
+	ret += snprintf(buf + ret, PAGE_SIZE - ret, "\nPossible settings : 600, 400, 350, 266, 160, 100Mhz");
 
 	if (ret < PAGE_SIZE - 1)
 		ret += snprintf(buf + ret, PAGE_SIZE - ret, "\n");
@@ -312,10 +314,8 @@ static ssize_t set_clock(struct device *dev, struct device_attribute *attr, cons
 	if (!platform->mali_clk_node)
 		return -ENODEV;
 
-	if (sysfs_streq("533", buf)) {
-		freq = 533;
-	} else if (sysfs_streq("450", buf)) {
-		freq = 450;
+	if (sysfs_streq("600", buf)) {
+		freq = 600;
 	} else if (sysfs_streq("400", buf)) {
 		freq = 400;
 	} else if (sysfs_streq("350", buf)) {
@@ -647,7 +647,7 @@ static ssize_t show_upper_lock_dvfs(struct device *dev, struct device_attribute 
 		ret += snprintf(buf + ret, PAGE_SIZE - ret, "Current Upper Lock Level = %dMhz", locked_level);
 	else
 		ret += snprintf(buf + ret, PAGE_SIZE - ret, "Unset the Upper Lock Level");
-	ret += snprintf(buf + ret, PAGE_SIZE - ret, "\nPossible settings : 450, 400, 266, 160, 100, If you want to unlock : 533 or off");
+	ret += snprintf(buf + ret, PAGE_SIZE - ret, "\nPossible settings : 400, 350,266, 160, 100, If you want to unlock : 600 or off");
 
 #else
 	ret += snprintf(buf + ret, PAGE_SIZE - ret, "mali DVFS is disabled. You can not set");
@@ -675,10 +675,8 @@ static ssize_t set_upper_lock_dvfs(struct device *dev, struct device_attribute *
 #ifdef CONFIG_MALI_T6XX_DVFS
 	if (sysfs_streq("off", buf)) {
 		mali_dvfs_freq_unlock();
-	} else if (sysfs_streq("533", buf)) {
+	} else if (sysfs_streq("600", buf)) {
 		mali_dvfs_freq_unlock();
-	} else if (sysfs_streq("450", buf)) {
-		mali_dvfs_freq_lock(5);
 	} else if (sysfs_streq("400", buf)) {
 		mali_dvfs_freq_lock(4);
 	} else if (sysfs_streq("350", buf)) {
@@ -691,7 +689,7 @@ static ssize_t set_upper_lock_dvfs(struct device *dev, struct device_attribute *
 		mali_dvfs_freq_lock(0);
 	} else {
 		dev_err(dev, "set_clock: invalid value\n");
-		dev_err(dev, "Possible settings : 450, 400, 266, 160, 100, If you want to unlock : 533\n");
+		dev_err(dev, "Possible settings :  400, 350,266, 160, 100, If you want to unlock : 600\n");
 		return -ENOENT;
 	}
 #else				/* CONFIG_MALI_T6XX_DVFS */
@@ -720,7 +718,7 @@ static ssize_t show_under_lock_dvfs(struct device *dev, struct device_attribute 
 		ret += snprintf(buf + ret, PAGE_SIZE - ret, "Current Under Lock Level = %dMhz", locked_level);
 	else
 		ret += snprintf(buf + ret, PAGE_SIZE - ret, "Unset the Under Lock Level");
-	ret += snprintf(buf + ret, PAGE_SIZE - ret, "\nPossible settings : 533, 450, 400, 266, 160, If you want to unlock : 100 or off");
+	ret += snprintf(buf + ret, PAGE_SIZE - ret, "\nPossible settings : 600, 400, 350,266, 160, If you want to unlock : 100 or off");
 
 #else
 	ret += snprintf(buf + ret, PAGE_SIZE - ret, "mali DVFS is disabled. You can not set");
@@ -748,9 +746,7 @@ static ssize_t set_under_lock_dvfs(struct device *dev, struct device_attribute *
 #ifdef CONFIG_MALI_T6XX_DVFS
 	if (sysfs_streq("off", buf)) {
 		mali_dvfs_freq_under_unlock();
-	} else if (sysfs_streq("533", buf)) {
-		mali_dvfs_freq_under_lock(6);
-	} else if (sysfs_streq("450", buf)) {
+	} else if (sysfs_streq("600", buf)) {
 		mali_dvfs_freq_under_lock(5);
 	} else if (sysfs_streq("400", buf)) {
 		mali_dvfs_freq_under_lock(4);
