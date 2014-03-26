@@ -2957,7 +2957,7 @@ static bool bond_flow_dissect(struct bonding *bond, struct sk_buff *skb,
 	fk->ports = 0;
 	noff = skb_network_offset(skb);
 	if (skb->protocol == htons(ETH_P_IP)) {
-		if (!pskb_may_pull(skb, noff + sizeof(*iph)))
+		if (unlikely(!pskb_may_pull(skb, noff + sizeof(*iph))))
 			return false;
 		iph = ip_hdr(skb);
 		fk->src = iph->saddr;
@@ -2966,7 +2966,7 @@ static bool bond_flow_dissect(struct bonding *bond, struct sk_buff *skb,
 		if (!ip_is_fragment(iph))
 			proto = iph->protocol;
 	} else if (skb->protocol == htons(ETH_P_IPV6)) {
-		if (!pskb_may_pull(skb, noff + sizeof(*iph6)))
+		if (unlikely(!pskb_may_pull(skb, noff + sizeof(*iph6))))
 			return false;
 		iph6 = ipv6_hdr(skb);
 		fk->src = (__force __be32)ipv6_addr_hash(&iph6->saddr);
@@ -3656,8 +3656,8 @@ static int bond_xmit_broadcast(struct sk_buff *skb, struct net_device *bond_dev)
 			struct sk_buff *skb2 = skb_clone(skb, GFP_ATOMIC);
 
 			if (!skb2) {
-				pr_err("%s: Error: bond_xmit_broadcast(): skb_clone() failed\n",
-				       bond_dev->name);
+				net_err_ratelimited("%s: Error: %s: skb_clone() failed\n",
+						    bond_dev->name, __func__);
 				continue;
 			}
 			/* bond_dev_queue_xmit always returns 0 */
@@ -3768,7 +3768,7 @@ static netdev_tx_t bond_start_xmit(struct sk_buff *skb, struct net_device *dev)
 	 * If we risk deadlock from transmitting this in the
 	 * netpoll path, tell netpoll to queue the frame for later tx
 	 */
-	if (is_netpoll_tx_blocked(dev))
+	if (unlikely(is_netpoll_tx_blocked(dev)))
 		return NETDEV_TX_BUSY;
 
 	rcu_read_lock();
