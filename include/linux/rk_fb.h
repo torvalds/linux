@@ -378,9 +378,9 @@ struct rk_lcdc_drv_ops {
 };
 
 struct rk_fb_area_par {
-	u16 ion_fd;
+	int ion_fd;
 	unsigned long phy_addr;
-	u16 acq_fence_fd;
+	int acq_fence_fd;
 	u32 x_offset;
 	u32 y_offset;
 	u32 xpos;		/*start point in panel  --->LCDC_WINx_DSP_ST*/
@@ -404,8 +404,8 @@ struct rk_fb_win_par {
 };
 
 struct rk_fb_win_cfg_data {
-	u16 ret_fence_fd;
-	u16 rel_fence_fd[RK_MAX_BUF_NUM];
+	int ret_fence_fd;
+	int rel_fence_fd[RK_MAX_BUF_NUM];
 	struct  rk_fb_win_par win_par[RK30_MAX_LAYER_SUPPORT];
 	struct  rk_lcdc_post_cfg post_cfg;
 	u8      wait_fs;
