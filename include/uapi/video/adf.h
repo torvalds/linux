@@ -83,7 +83,7 @@ struct adf_event {
  */
 struct adf_vsync_event {
 	struct adf_event base;
-	__u64 timestamp;
+	__aligned_u64 timestamp;
 };
 
 /**
@@ -119,12 +119,12 @@ struct adf_buffer_config {
 	__u32 h;
 	__u32 format;
 
-	__s64 fd[ADF_MAX_PLANES];
+	__s32 fd[ADF_MAX_PLANES];
 	__u32 offset[ADF_MAX_PLANES];
 	__u32 pitch[ADF_MAX_PLANES];
 	__u8 n_planes;
 
-	__s64 acquire_fence;
+	__s32 acquire_fence;
 };
 #define ADF_MAX_BUFFERS (4096 / sizeof(struct adf_buffer_config))
 
@@ -150,7 +150,7 @@ struct adf_post_config {
 	size_t custom_data_size;
 	void __user *custom_data;
 
-	__s64 complete_fence;
+	__s32 complete_fence;
 };
 #define ADF_MAX_INTERFACES (4096 / sizeof(__u32))
 
@@ -180,7 +180,7 @@ struct adf_simple_buffer_alloc {
 	__u16 h;
 	__u32 format;
 
-	__s64 fd;
+	__s32 fd;
 	__u32 offset;
 	__u32 pitch;
 };
@@ -195,7 +195,7 @@ struct adf_simple_buffer_alloc {
  */
 struct adf_simple_post_config {
 	struct adf_buffer_config buf;
-	__s64 complete_fence;
+	__s32 complete_fence;
 };
 
 /**

@@ -25,7 +25,7 @@ struct adf_post_config32 {
 	compat_size_t custom_data_size;
 	compat_uptr_t custom_data;
 
-	__s64 complete_fence;
+	__s32 complete_fence;
 };
 
 struct adf_device_data32 {
