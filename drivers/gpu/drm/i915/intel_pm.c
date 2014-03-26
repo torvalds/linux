@@ -77,6 +77,14 @@ static void gen9_init_clock_gating(struct drm_device *dev)
 	I915_WRITE(GEN8_UCGCTL6, I915_READ(GEN8_UCGCTL6) |
 		   GEN8_SDEUNIT_CLOCK_GATE_DISABLE);
 
+	/*
+	 * WaDisableDgMirrorFixInHalfSliceChicken5:skl
+	 * This is a pre-production w/a.
+	 */
+	I915_WRITE(GEN9_HALF_SLICE_CHICKEN5,
+		   I915_READ(GEN9_HALF_SLICE_CHICKEN5) &
+		   ~GEN9_DG_MIRROR_FIX_ENABLE);
+
 	/* Wa4x4STCOptimizationDisable:skl */
 	I915_WRITE(CACHE_MODE_1,
 		   _MASKED_BIT_ENABLE(GEN8_4x4_STC_OPTIMIZATION_DISABLE));
