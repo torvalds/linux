@@ -326,7 +326,6 @@ static int cpufreq_verify(struct cpufreq_policy *policy)
 
 static int cpufreq_scale_rate_for_dvfs(struct clk *clk, unsigned long rate)
 {
-	unsigned int i;
 	int ret;
 	struct cpufreq_freqs freqs;
 	struct cpufreq_policy *policy;
@@ -343,17 +342,6 @@ static int cpufreq_scale_rate_for_dvfs(struct clk *clk, unsigned long rate)
 	FREQ_DBG("cpufreq_scale_rate_for_dvfs(%lu)\n", rate);
 	
 	ret = clk_set_rate(clk, rate);
-
-#ifdef CONFIG_SMP
-	/*
-	 * Note that loops_per_jiffy is not updated on SMP systems in
-	 * cpufreq driver. So, update the per-CPU loops_per_jiffy value
-	 * on frequency transition. We need to update all dependent CPUs.
-	 */
-	for_each_possible_cpu(i) {
-		per_cpu(cpu_data, i).loops_per_jiffy = loops_per_jiffy;
-	}
-#endif
 
 	freqs.new = clk_get_rate(clk) / 1000;
 	/* notifiers */
@@ -470,8 +458,7 @@ static struct freq_attr *cpufreq_attr[] = {
 	NULL,
 };
 
-//#ifdef CONFIG_POWER_SUPPLY
-#if 0
+#ifdef CONFIG_CHARGER_DISPLAY
 extern int rk_get_system_battery_capacity(void);
 #else
 static int rk_get_system_battery_capacity(void) { return 100; }
