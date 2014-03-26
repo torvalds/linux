@@ -412,13 +412,17 @@ static void rtl8180_conf_basic_rates(struct ieee80211_hw *dev,
 		reg &= ~3;
 		reg |= max;
 		rtl818x_iowrite16(priv, &priv->map->BRSR, reg);
-
 		break;
 
 	case RTL818X_CHIP_FAMILY_RTL8185:
 		/* in 8185 this is a BITMAP */
 		rtl818x_iowrite16(priv, &priv->map->BRSR, rates_mask);
 		rtl818x_iowrite8(priv, &priv->map->RESP_RATE, (max << 4) | min);
+		break;
+
+	case RTL818X_CHIP_FAMILY_RTL8187SE:
+		/* in 8187se this is a BITMAP */
+		rtl818x_iowrite16(priv, &priv->map->BRSR_8187SE, rates_mask);
 		break;
 	}
 }
