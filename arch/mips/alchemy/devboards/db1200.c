@@ -35,6 +35,7 @@
 #include <linux/spi/spi.h>
 #include <linux/spi/flash.h>
 #include <linux/smc91x.h>
+#include <linux/ata_platform.h>
 #include <asm/mach-au1x00/au1000.h>
 #include <asm/mach-au1x00/au1100_mmc.h>
 #include <asm/mach-au1x00/au1xxx_dbdma.h>
@@ -330,32 +331,38 @@ static struct platform_device db1200_eth_dev = {
 
 /**********************************************************************/
 
+static struct pata_platform_info db1200_ide_info = {
+	.ioport_shift	= DB1200_IDE_REG_SHIFT,
+};
+
+#define IDE_ALT_START	(14 << DB1200_IDE_REG_SHIFT)
 static struct resource db1200_ide_res[] = {
 	[0] = {
 		.start	= DB1200_IDE_PHYS_ADDR,
-		.end	= DB1200_IDE_PHYS_ADDR + DB1200_IDE_PHYS_LEN - 1,
+		.end	= DB1200_IDE_PHYS_ADDR + IDE_ALT_START - 1,
 		.flags	= IORESOURCE_MEM,
 	},
 	[1] = {
+		.start	= DB1200_IDE_PHYS_ADDR + IDE_ALT_START,
+		.end	= DB1200_IDE_PHYS_ADDR + DB1200_IDE_PHYS_LEN - 1,
+		.flags	= IORESOURCE_MEM,
+	},
+	[2] = {
 		.start	= DB1200_IDE_INT,
 		.end	= DB1200_IDE_INT,
 		.flags	= IORESOURCE_IRQ,
-	},
-	[2] = {
-		.start	= AU1200_DSCR_CMD0_DMA_REQ1,
-		.end	= AU1200_DSCR_CMD0_DMA_REQ1,
-		.flags	= IORESOURCE_DMA,
 	},
 };
 
 static u64 au1200_ide_dmamask = DMA_BIT_MASK(32);
 
 static struct platform_device db1200_ide_dev = {
-	.name		= "au1200-ide",
+	.name		= "pata_platform",
 	.id		= 0,
 	.dev = {
 		.dma_mask		= &au1200_ide_dmamask,
 		.coherent_dma_mask	= DMA_BIT_MASK(32),
+		.platform_data		= &db1200_ide_info,
 	},
 	.num_resources	= ARRAY_SIZE(db1200_ide_res),
 	.resource	= db1200_ide_res,
