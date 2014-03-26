@@ -195,6 +195,10 @@ struct dw_mci {
 	struct regulator	*vmmc;	/* Power regulator */
 	unsigned long		irq_flags; /* IRQ flags */
 	int			irq;
+	struct pinctrl *pinctrl; /*Pinctrl state*/
+	struct pinctrl_state	*pins_default;
+	struct pinctrl_state	*pins_idle;
+	struct pinctrl_state    *pins_sleep;
 };
 
 /* DMA ops for Internal/External DMAC interface */

@@ -820,7 +820,121 @@
 				rockchip,drive = <VALUE_DRV_DEFAULT>;
 				//rockchip,tristate = <VALUE_TRI_DEFAULT>;
 			};
+			
+			sdmmc0_gpio: sdmmc0_gpio{
+				rockchip,pins = 
+					<GPIO6_C4>,  //CMD
+					<GPIO6_C5>,  //CLK
+					<GPIO6_C6>,  //DET
+					<GPIO6_C0>,  //D0
+					<GPIO6_C1>,  //D1
+					<GPIO6_C2>,  //D2
+				   	<GPIO6_C3>;  //D3
+				rockchip,pull = <VALUE_PULL_UP>;
+				//rockchip,voltage = <VALUE_VOL_DEFAULT>;
+				rockchip,drive = <VALUE_DRV_DEFAULT>;
+				//rockchip,tristate = <VALUE_TRI_DEFAULT>;
+			};
+
 		};
+
+		gpio4_sdio0 {
+				
+				sdio0_clk: sdio0_clk {
+                rockchip,pins = <SDIO0_CLKOUT>;
+                rockchip,pull = <VALUE_PULL_DISABLE>;
+                //rockchip,voltage = <VALUE_VOL_DEFAULT>;
+                rockchip,drive = <VALUE_DRV_DEFAULT>;
+                //rockchip,tristate = <VALUE_TRI_DEFAULT>;
+            	};
+
+            	sdio0_cmd: sdio0_cmd {
+                	rockchip,pins = <SDIO0_CMD>;
+                	rockchip,pull = <VALUE_PULL_UP>;
+                	//rockchip,voltage = <VALUE_VOL_DEFAULT>;
+                	rockchip,drive = <VALUE_DRV_DEFAULT>;
+                	//rockchip,tristate = <VALUE_TRI_DEFAULT>;
+            	};
+			
+            	sdio0_dectn: sdio0-dectn{
+                	rockchip,pins = <SDIO0_DETECTN>;
+                	rockchip,pull = <VALUE_PULL_UP>;
+                	//rockchip,voltage = <VALUE_VOL_DEFAULT>;
+                	rockchip,drive = <VALUE_DRV_DEFAULT>;
+                	//rockchip,tristate = <VALUE_TRI_DEFAULT>;
+            	};
+						
+				sdio0_wrprt: sdio0_wrprt{
+                	rockchip,pins = <SDIO0_WRPRT>;
+                	rockchip,pull = <VALUE_PULL_UP>;
+                	//rockchip,voltage = <VALUE_VOL_DEFAULT>;
+                	rockchip,drive = <VALUE_DRV_DEFAULT>;
+                	//rockchip,tristate = <VALUE_TRI_DEFAULT>;
+            	};
+				
+				sdio0_pwr: sdio0-pwren{
+                	rockchip,pins = <SDIO0_PWREN>;
+                	rockchip,pull = <VALUE_PULL_UP>;
+                	//rockchip,voltage = <VALUE_VOL_DEFAULT>;
+                	rockchip,drive = <VALUE_DRV_DEFAULT>;
+                	//rockchip,tristate = <VALUE_TRI_DEFAULT>;
+            	};
+				
+				sdio0_bkpwr: sdio0-bkpwr{
+                	rockchip,pins = <SDIO0_BKPWR>;
+                	rockchip,pull = <VALUE_PULL_UP>;
+                	//rockchip,voltage = <VALUE_VOL_DEFAULT>;
+                	rockchip,drive = <VALUE_DRV_DEFAULT>;
+                	//rockchip,tristate = <VALUE_TRI_DEFAULT>;
+            	};
+				
+				sdio0_intn: sdio0-intn{
+                	rockchip,pins = <SDIO0_INTN>;
+                	rockchip,pull = <VALUE_PULL_UP>;
+                	//rockchip,voltage = <VALUE_VOL_DEFAULT>;
+                	rockchip,drive = <VALUE_DRV_DEFAULT>;
+                	//rockchip,tristate = <VALUE_TRI_DEFAULT>;
+            	};
+				
+	
+            	sdio0_bus1: sdio0-bus-width1 {
+                	rockchip,pins = <SDIO0_DATA0>;
+                	rockchip,pull = <VALUE_PULL_UP>;
+                	//rockchip,voltage = <VALUE_VOL_DEFAULT>;
+                	rockchip,drive = <VALUE_DRV_DEFAULT>;
+                	//rockchip,tristate = <VALUE_TRI_DEFAULT>;
+            	};
+
+            	sdio0_bus4: sdio0-bus-width4 {
+                	rockchip,pins = <SDIO0_DATA0>,
+                        <SDIO0_DATA1>,
+                        <SDIO0_DATA2>,
+                        <SDIO0_DATA3>;
+                	rockchip,pull = <VALUE_PULL_UP>;
+                	//rockchip,voltage = <VALUE_VOL_DEFAULT>;
+                	rockchip,drive = <VALUE_DRV_DEFAULT>;
+                	//rockchip,tristate = <VALUE_TRI_DEFAULT>;
+            	};
+            
+            	sdio0_gpio: sdio0-all-gpio{
+					rockchip,pins = 
+						<GPIO4_D1>,   //CLK
+						<GPIO4_D0>,   //CMD
+						<GPIO4_D2>,   //DET
+						<GPIO4_D3>,   //wrprt
+						<GPIO4_D4>,   //PWREN
+						<GPIO4_D5>,   //BKPWR
+						<GPIO4_D6>,   //DO
+						<GPIO4_C4>,   //D1    
+						<GPIO4_C5>,   //D2
+						<GPIO4_C6>,   //D3
+						<GPIO4_C7>;   //INTN
+					rockchip,pull = <VALUE_PULL_UP>;
+					//rockchip,voltage = <VALUE_VOL_DEFAULT>;
+					rockchip,drive = <VALUE_DRV_DEFAULT>;
+					//rockchip,tristate = <VALUE_TRI_DEFAULT>;
+				};
+        	};		
 
 		gpio2_gps {
 			gps_mag:gps-mag {

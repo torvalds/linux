@@ -727,7 +727,8 @@ static int dw_mci_submit_data_dma(struct dw_mci *host, struct mmc_data *data)
 	if (host->prev_blksz != data->blksz)
 		dw_mci_adjust_fifoth(host, data);
 
-    temp = mci_readl(host, CTRL);
+    /* Reset DMA FIFO*/
+	temp = mci_readl(host, CTRL);
 	temp |= (SDMMC_CTRL_DMA_RESET | SDMMC_CTRL_FIFO_RESET);
 	mci_writel(host, CTRL, temp);
 
@@ -755,6 +756,11 @@ static void dw_mci_submit_data(struct dw_mci *host, struct mmc_data *data)
 	WARN_ON(host->data);
 	host->sg = NULL;
 	host->data = data;
+
+	/* Reset FIFO*/
+	temp = mci_readl(host, CTRL);
+	temp |= (SDMMC_CTRL_DMA_RESET | SDMMC_CTRL_FIFO_RESET);
+	mci_writel(host, CTRL, temp);
 
 	if (data->flags & MMC_DATA_READ) {
 		host->dir_status = DW_MCI_RECV_STATUS;
@@ -2649,6 +2655,19 @@ static int dw_mci_init_slot(struct dw_mci *host, unsigned int id)
 	if (ret)
 		goto err_setup_bus;
 
+    /* Pinctrl set default iomux state to fucntion port.
+     * Fixme: DON'T TOUCH EMMC SETTING!
+     */
+    if(!(host->mmc->restrict_caps & RESTRICT_CARD_TYPE_EMMC))
+    {
+        host->pinctrl = devm_pinctrl_get(host->dev);
+        host->pins_default = pinctrl_lookup_state(host->pinctrl,PINCTRL_STATE_DEFAULT);
+        if(!host->pins_default)
+            pinctrl_select_state(host->pinctrl, host->pins_default);
+        else
+            printk("%s: Warning : No default pinctrl matched!\n",mmc_hostname(host->mmc));
+    }
+    
 #if defined(CONFIG_DEBUG_FS)
 	dw_mci_init_debugfs(slot);
 #endif
