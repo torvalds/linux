@@ -129,6 +129,35 @@
 			gpios = <&gpio4 26 GPIO_ACTIVE_LOW>;
 		};
 	};
+
+	regulators {
+		compatible = "simple-bus";
+		#address-cells = <1>;
+		#size-cells = <0>;
+
+		reg_usb_vbus: regulator@0 {
+			compatible = "regulator-fixed";
+			reg = <0>;
+			regulator-name = "usb_vbus";
+			regulator-min-microvolt = <5000000>;
+			regulator-max-microvolt = <5000000>;
+			gpio = <&gpio2 5 0>;
+			enable-active-high;
+		};
+	};
+
+	usbphy {
+		#address-cells = <1>;
+		#size-cells = <0>;
+		compatible = "simple-bus";
+
+		usbh1phy: usbh1phy@0 {
+			compatible = "usb-nop-xceiv";
+			reg = <0>;
+			clocks = <&clks 0>;
+			clock-names = "main_clk";
+		};
+	};
 };
 
 &esdhc1 {
@@ -479,6 +508,23 @@
 				MX51_PAD_EIM_D24__UART3_CTS		0x1c5
 			>;
 		};
+
+		pinctrl_usbh1: usbh1grp {
+			fsl,pins = <
+				MX51_PAD_USBH1_CLK__USBH1_CLK		0x80000000
+				MX51_PAD_USBH1_DIR__USBH1_DIR		0x80000000
+				MX51_PAD_USBH1_NXT__USBH1_NXT		0x80000000
+				MX51_PAD_USBH1_DATA0__USBH1_DATA0	0x80000000
+				MX51_PAD_USBH1_DATA1__USBH1_DATA1	0x80000000
+				MX51_PAD_USBH1_DATA2__USBH1_DATA2	0x80000000
+				MX51_PAD_USBH1_DATA3__USBH1_DATA3	0x80000000
+				MX51_PAD_USBH1_DATA4__USBH1_DATA4	0x80000000
+				MX51_PAD_USBH1_DATA5__USBH1_DATA5	0x80000000
+				MX51_PAD_USBH1_DATA6__USBH1_DATA6	0x80000000
+				MX51_PAD_USBH1_DATA7__USBH1_DATA7	0x80000000
+				MX51_PAD_EIM_D21__GPIO2_5		0x80000000
+			>;
+		};
 	};
 };
 
@@ -545,5 +591,14 @@
 		MATRIX_KEY(3, 2, KEY_F3)
 		MATRIX_KEY(3, 3, KEY_POWER)
 		>;
+	status = "okay";
+};
+
+&usbh1 {
+	pinctrl-names = "default";
+	pinctrl-0 = <&pinctrl_usbh1>;
+	vbus-supply = <&reg_usb_vbus>;
+	fsl,usbphy = <&usbh1phy>;
+	phy_type = "ulpi";
 	status = "okay";
 };
