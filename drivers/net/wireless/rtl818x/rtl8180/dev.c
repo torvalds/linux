@@ -601,6 +601,26 @@ static void rtl8180_conf_basic_rates(struct ieee80211_hw *dev,
 	}
 }
 
+static void rtl8180_config_cardbus(struct ieee80211_hw *dev)
+{
+	struct rtl8180_priv *priv = dev->priv;
+	u16 reg16;
+	u8 reg8;
+
+	reg8 = rtl818x_ioread8(priv, &priv->map->CONFIG3);
+	reg8 |= 1 << 1;
+	rtl818x_iowrite8(priv, &priv->map->CONFIG3, reg8);
+
+	if (priv->chip_family == RTL818X_CHIP_FAMILY_RTL8187SE) {
+		rtl818x_iowrite16(priv, FEMR_SE, 0xffff);
+	} else {
+		reg16 = rtl818x_ioread16(priv, &priv->map->FEMR);
+			reg16 |= (1 << 15) | (1 << 14) | (1 << 4);
+		rtl818x_iowrite16(priv, &priv->map->FEMR, reg16);
+	}
+
+}
+
 static int rtl8180_init_hw(struct ieee80211_hw *dev)
 {
 	struct rtl8180_priv *priv = dev->priv;
@@ -632,13 +652,7 @@ static int rtl8180_init_hw(struct ieee80211_hw *dev)
 	msleep(200);
 
 	if (rtl818x_ioread8(priv, &priv->map->CONFIG3) & (1 << 3)) {
-		/* For cardbus */
-		reg = rtl818x_ioread8(priv, &priv->map->CONFIG3);
-		reg |= 1 << 1;
-		rtl818x_iowrite8(priv, &priv->map->CONFIG3, reg);
-		reg = rtl818x_ioread16(priv, &priv->map->FEMR);
-		reg |= (1 << 15) | (1 << 14) | (1 << 4);
-		rtl818x_iowrite16(priv, &priv->map->FEMR, reg);
+		rtl8180_config_cardbus(dev);
 	}
 
 	rtl818x_iowrite8(priv, &priv->map->MSR, 0);
