@@ -33,7 +33,6 @@ struct spi_clps711x_data {
 	struct regmap		*syscon;
 	struct regmap		*syscon1;
 	struct clk		*spi_clk;
-	u32			max_speed_hz;
 
 	u8			*tx_buf;
 	u8			*rx_buf;
@@ -52,16 +51,17 @@ static int spi_clps711x_setup(struct spi_device *spi)
 static void spi_clps711x_setup_xfer(struct spi_device *spi,
 				    struct spi_transfer *xfer)
 {
-	struct spi_clps711x_data *hw = spi_master_get_devdata(spi->master);
+	struct spi_master *master = spi->master;
+	struct spi_clps711x_data *hw = spi_master_get_devdata(master);
 
 	/* Setup SPI frequency divider */
-	if (!xfer->speed_hz || (xfer->speed_hz >= hw->max_speed_hz))
+	if (xfer->speed_hz >= master->max_speed_hz)
 		regmap_update_bits(hw->syscon1, SYSCON_OFFSET,
 				   SYSCON1_ADCKSEL_MASK, SYSCON1_ADCKSEL(3));
-	else if (xfer->speed_hz >= (hw->max_speed_hz / 2))
+	else if (xfer->speed_hz >= (master->max_speed_hz / 2))
 		regmap_update_bits(hw->syscon1, SYSCON_OFFSET,
 				   SYSCON1_ADCKSEL_MASK, SYSCON1_ADCKSEL(2));
-	else if (xfer->speed_hz >= (hw->max_speed_hz / 8))
+	else if (xfer->speed_hz >= (master->max_speed_hz / 8))
 		regmap_update_bits(hw->syscon1, SYSCON_OFFSET,
 				   SYSCON1_ADCKSEL_MASK, SYSCON1_ADCKSEL(1));
 	else
@@ -183,7 +183,7 @@ static int spi_clps711x_probe(struct platform_device *pdev)
 		ret = PTR_ERR(hw->spi_clk);
 		goto err_out;
 	}
-	hw->max_speed_hz = clk_get_rate(hw->spi_clk);
+	master->max_speed_hz = clk_get_rate(hw->spi_clk);
 
 	platform_set_drvdata(pdev, master);
 
@@ -221,7 +221,7 @@ static int spi_clps711x_probe(struct platform_device *pdev)
 	if (!ret) {
 		dev_info(&pdev->dev,
 			 "SPI bus driver initialized. Master clock %u Hz\n",
-			 hw->max_speed_hz);
+			 master->max_speed_hz);
 		return 0;
 	}
 
