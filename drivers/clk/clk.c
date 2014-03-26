@@ -822,6 +822,9 @@ void __clk_unprepare(struct clk *clk)
  */
 void clk_unprepare(struct clk *clk)
 {
+	if (IS_ERR_OR_NULL(clk))
+		return;
+
 	clk_prepare_lock();
 	__clk_unprepare(clk);
 	clk_prepare_unlock();
@@ -883,9 +886,6 @@ static void __clk_disable(struct clk *clk)
 	if (!clk)
 		return;
 
-	if (WARN_ON(IS_ERR(clk)))
-		return;
-
 	if (WARN_ON(clk->enable_count == 0))
 		return;
 
@@ -913,6 +913,9 @@ static void __clk_disable(struct clk *clk)
 void clk_disable(struct clk *clk)
 {
 	unsigned long flags;
+
+	if (IS_ERR_OR_NULL(clk))
+		return;
 
 	flags = clk_enable_lock();
 	__clk_disable(clk);
