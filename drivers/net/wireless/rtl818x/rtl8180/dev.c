@@ -1740,6 +1740,12 @@ static int rtl8180_probe(struct pci_dev *pdev,
 		chip_name = "RTL8185vD";
 		priv->chip_family = RTL818X_CHIP_FAMILY_RTL8185;
 		break;
+
+	case RTL818X_TX_CONF_RTL8187SE:
+		chip_name = "RTL8187SE";
+		priv->chip_family = RTL818X_CHIP_FAMILY_RTL8187SE;
+		break;
+
 	default:
 		printk(KERN_ERR "%s (rtl8180): Unknown chip! (0x%x)\n",
 		       pci_name(pdev), reg >> 25);
@@ -1753,7 +1759,10 @@ static int rtl8180_probe(struct pci_dev *pdev,
 	 * with mac80211, however the beacon queue is an exception and it
 	 * is mapped on the highst tx ring IDX.
 	 */
-	dev->queues = RTL8180_NR_TX_QUEUES - 1;
+	if (priv->chip_family == RTL818X_CHIP_FAMILY_RTL8187SE)
+		dev->queues = RTL8187SE_NR_TX_QUEUES - 1;
+	else
+		dev->queues = RTL8180_NR_TX_QUEUES - 1;
 
 	if (priv->chip_family != RTL818X_CHIP_FAMILY_RTL8180) {
 		priv->band.n_bitrates = ARRAY_SIZE(rtl818x_rates);
@@ -1773,7 +1782,11 @@ static int rtl8180_probe(struct pci_dev *pdev,
 		break;
 	case 5:	priv->rf = &grf5101_rf_ops;
 		break;
-	case 9:	priv->rf = rtl8180_detect_rf(dev);
+	case 9:
+		if (priv->chip_family == RTL818X_CHIP_FAMILY_RTL8187SE)
+			priv->rf = rtl8187se_detect_rf(dev);
+		else
+			priv->rf = rtl8180_detect_rf(dev);
 		break;
 	case 10:
 		rf_name = "RTL8255";
