@@ -723,16 +723,6 @@ static int tegra_output_hdmi_enable(struct tegra_output *output)
 		return err;
 	}
 
-	/*
-	 * This assumes that the display controller will divide its parent
-	 * clock by 2 to generate the pixel clock.
-	 */
-	err = tegra_output_setup_clock(output, hdmi->clk, pclk * 2);
-	if (err < 0) {
-		dev_err(hdmi->dev, "failed to setup clock: %d\n", err);
-		return err;
-	}
-
 	err = clk_set_rate(hdmi->clk, pclk);
 	if (err < 0)
 		return err;
