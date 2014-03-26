@@ -463,6 +463,36 @@ void rtl8180_set_anaparam(struct rtl8180_priv *priv, u32 anaparam)
 	rtl818x_iowrite8(priv, &priv->map->EEPROM_CMD, RTL818X_EEPROM_CMD_NORMAL);
 }
 
+static void rtl8180_int_enable(struct ieee80211_hw *dev)
+{
+	struct rtl8180_priv *priv = dev->priv;
+
+	if (priv->chip_family == RTL818X_CHIP_FAMILY_RTL8187SE) {
+		rtl818x_iowrite32(priv, &priv->map->IMR, IMR_TMGDOK |
+			  IMR_TBDER | IMR_THPDER |
+			  IMR_THPDER | IMR_THPDOK |
+			  IMR_TVODER | IMR_TVODOK |
+			  IMR_TVIDER | IMR_TVIDOK |
+			  IMR_TBEDER | IMR_TBEDOK |
+			  IMR_TBKDER | IMR_TBKDOK |
+			  IMR_RDU | IMR_RER |
+			  IMR_ROK | IMR_RQOSOK);
+	} else {
+		rtl818x_iowrite16(priv, &priv->map->INT_MASK, 0xFFFF);
+	}
+}
+
+static void rtl8180_int_disable(struct ieee80211_hw *dev)
+{
+	struct rtl8180_priv *priv = dev->priv;
+
+	if (priv->chip_family == RTL818X_CHIP_FAMILY_RTL8187SE) {
+		rtl818x_iowrite32(priv, &priv->map->IMR, 0);
+	} else {
+		rtl818x_iowrite16(priv, &priv->map->INT_MASK, 0);
+	}
+}
+
 static void rtl8180_conf_basic_rates(struct ieee80211_hw *dev,
 			    u32 rates_mask)
 {
@@ -507,7 +537,7 @@ static int rtl8180_init_hw(struct ieee80211_hw *dev)
 	msleep(10);
 
 	/* reset */
-	rtl818x_iowrite16(priv, &priv->map->INT_MASK, 0);
+	rtl8180_int_disable(dev);
 	rtl818x_ioread8(priv, &priv->map->CMD);
 
 	reg = rtl818x_ioread8(priv, &priv->map->CMD);
@@ -747,7 +777,7 @@ static int rtl8180_start(struct ieee80211_hw *dev)
 		goto err_free_rings;
 	}
 
-	rtl818x_iowrite16(priv, &priv->map->INT_MASK, 0xFFFF);
+	rtl8180_int_enable(dev);
 
 	rtl818x_iowrite32(priv, &priv->map->MAR[0], ~0);
 	rtl818x_iowrite32(priv, &priv->map->MAR[1], ~0);
@@ -840,7 +870,7 @@ static void rtl8180_stop(struct ieee80211_hw *dev)
 	u8 reg;
 	int i;
 
-	rtl818x_iowrite16(priv, &priv->map->INT_MASK, 0);
+	rtl8180_int_disable(dev);
 
 	reg = rtl818x_ioread8(priv, &priv->map->CMD);
 	reg &= ~RTL818X_CMD_TX_ENABLE;
