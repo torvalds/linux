@@ -2211,6 +2211,8 @@ KVM_S390_SIGP_STOP (vcpu) - sigp restart
 KVM_S390_PROGRAM_INT (vcpu) - program check; code in parm
 KVM_S390_SIGP_SET_PREFIX (vcpu) - sigp set prefix; prefix address in parm
 KVM_S390_RESTART (vcpu) - restart
+KVM_S390_INT_CLOCK_COMP (vcpu) - clock comparator interrupt
+KVM_S390_INT_CPU_TIMER (vcpu) - CPU timer interrupt
 KVM_S390_INT_VIRTIO (vm) - virtio external interrupt; external interrupt
 			   parameters in parm and parm64
 KVM_S390_INT_SERVICE (vm) - sclp external interrupt; sclp parameter in parm

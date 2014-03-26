@@ -27,6 +27,8 @@
 #define IOINT_CSSID_MASK 0x03fc0000
 #define IOINT_AI_MASK 0x04000000
 
+static void deliver_ckc_interrupt(struct kvm_vcpu *vcpu);
+
 static int is_ioint(u64 type)
 {
 	return ((type & 0xfffe0000u) != 0xfffe0000u);
@@ -87,6 +89,14 @@ static int __interrupt_is_deliverable(struct kvm_vcpu *vcpu,
 		if (psw_extint_disabled(vcpu))
 			return 0;
 		if (vcpu->arch.sie_block->gcr[0] & 0x4000ul)
+			return 1;
+		return 0;
+	case KVM_S390_INT_CLOCK_COMP:
+		return ckc_interrupts_enabled(vcpu);
+	case KVM_S390_INT_CPU_TIMER:
+		if (psw_extint_disabled(vcpu))
+			return 0;
+		if (vcpu->arch.sie_block->gcr[0] & 0x400ul)
 			return 1;
 		return 0;
 	case KVM_S390_INT_SERVICE:
@@ -166,6 +176,8 @@ static void __set_intercept_indicator(struct kvm_vcpu *vcpu,
 	case KVM_S390_INT_PFAULT_INIT:
 	case KVM_S390_INT_PFAULT_DONE:
 	case KVM_S390_INT_VIRTIO:
+	case KVM_S390_INT_CLOCK_COMP:
+	case KVM_S390_INT_CPU_TIMER:
 		if (psw_extint_disabled(vcpu))
 			__set_cpuflag(vcpu, CPUSTAT_EXT_INT);
 		else
@@ -325,6 +337,24 @@ static void __do_deliver_interrupt(struct kvm_vcpu *vcpu,
 		rc |= read_guest_lc(vcpu, __LC_EXT_NEW_PSW,
 				    &vcpu->arch.sie_block->gpsw,
 				    sizeof(psw_t));
+		break;
+	case KVM_S390_INT_CLOCK_COMP:
+		trace_kvm_s390_deliver_interrupt(vcpu->vcpu_id, inti->type,
+						 inti->ext.ext_params, 0);
+		deliver_ckc_interrupt(vcpu);
+		break;
+	case KVM_S390_INT_CPU_TIMER:
+		trace_kvm_s390_deliver_interrupt(vcpu->vcpu_id, inti->type,
+						 inti->ext.ext_params, 0);
+		rc  = put_guest_lc(vcpu, EXT_IRQ_CPU_TIMER,
+				   (u16 *)__LC_EXT_INT_CODE);
+		rc |= write_guest_lc(vcpu, __LC_EXT_OLD_PSW,
+				     &vcpu->arch.sie_block->gpsw,
+				     sizeof(psw_t));
+		rc |= read_guest_lc(vcpu, __LC_EXT_NEW_PSW,
+				    &vcpu->arch.sie_block->gpsw, sizeof(psw_t));
+		rc |= put_guest_lc(vcpu, inti->ext.ext_params,
+				   (u32 *)__LC_EXT_PARAMS);
 		break;
 	case KVM_S390_INT_SERVICE:
 		VCPU_EVENT(vcpu, 4, "interrupt: sclp parm:%x",
@@ -984,6 +1014,8 @@ int kvm_s390_inject_vcpu(struct kvm_vcpu *vcpu,
 		break;
 	case KVM_S390_SIGP_STOP:
 	case KVM_S390_RESTART:
+	case KVM_S390_INT_CLOCK_COMP:
+	case KVM_S390_INT_CPU_TIMER:
 		VCPU_EVENT(vcpu, 3, "inject: type %x", s390int->type);
 		inti->type = s390int->type;
 		break;

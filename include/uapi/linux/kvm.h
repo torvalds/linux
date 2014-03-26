@@ -416,6 +416,8 @@ struct kvm_s390_psw {
 #define KVM_S390_INT_PFAULT_INIT	0xfffe0004u
 #define KVM_S390_INT_PFAULT_DONE	0xfffe0005u
 #define KVM_S390_MCHK			0xfffe1000u
+#define KVM_S390_INT_CLOCK_COMP		0xffff1004u
+#define KVM_S390_INT_CPU_TIMER		0xffff1005u
 #define KVM_S390_INT_VIRTIO		0xffff2603u
 #define KVM_S390_INT_SERVICE		0xffff2401u
 #define KVM_S390_INT_EMERGENCY		0xffff1201u
