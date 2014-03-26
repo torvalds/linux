@@ -4498,7 +4498,7 @@ static int mtip_pci_probe(struct pci_dev *pdev,
 	}
 	dev_info(&pdev->dev, "NUMA node %d (closest: %d,%d, probe on %d:%d)\n",
 		my_node, pcibus_to_node(pdev->bus), dev_to_node(&pdev->dev),
-		cpu_to_node(smp_processor_id()), smp_processor_id());
+		cpu_to_node(raw_smp_processor_id()), raw_smp_processor_id());
 
 	dd = kzalloc_node(sizeof(struct driver_data), GFP_KERNEL, my_node);
 	if (dd == NULL) {
