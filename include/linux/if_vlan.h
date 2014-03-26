@@ -110,6 +110,7 @@ extern struct net_device *__vlan_find_dev_deep(struct net_device *real_dev,
 					       __be16 vlan_proto, u16 vlan_id);
 extern struct net_device *vlan_dev_real_dev(const struct net_device *dev);
 extern u16 vlan_dev_vlan_id(const struct net_device *dev);
+extern __be16 vlan_dev_vlan_proto(const struct net_device *dev);
 
 /**
  *	struct vlan_priority_tci_mapping - vlan egress priority mappings
@@ -211,6 +212,12 @@ static inline struct net_device *vlan_dev_real_dev(const struct net_device *dev)
 }
 
 static inline u16 vlan_dev_vlan_id(const struct net_device *dev)
+{
+	BUG();
+	return 0;
+}
+
+static inline __be16 vlan_dev_vlan_proto(const struct net_device *dev)
 {
 	BUG();
 	return 0;
