@@ -49,7 +49,7 @@ static struct w1_gpio_platform_data w1_gpio_pdata = {
 static struct platform_device odroidxu_w1_device = {
 	.name 				= "w1-gpio",
 	.id					= -1,
-	.dev.platform_data 	= &w1_gpio_pdata;
+	.dev.platform_data 	= &w1_gpio_pdata,
 };
 #endif
 
