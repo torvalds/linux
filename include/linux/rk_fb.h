@@ -549,12 +549,6 @@ extern int rk_disp_pwr_disable(struct rk_lcdc_driver *dev_drv);
 extern bool is_prmry_rk_lcdc_registered(void);
 extern int rk_fb_prase_timing_dt(struct device_node *np,
 		struct rk_screen *screen);
-
-__weak int support_uboot_display(void)
-{
-	return 0;
-}
-
 extern int rk_disp_prase_timing_dt(struct rk_lcdc_driver *dev_drv);
 
 extern int rk_fb_dpi_open(bool open);

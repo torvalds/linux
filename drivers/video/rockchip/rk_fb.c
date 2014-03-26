@@ -65,6 +65,10 @@ EXPORT_SYMBOL(video_data_to_mirroring);
 static struct rk_fb_trsm_ops *trsm_lvds_ops;
 static struct rk_fb_trsm_ops *trsm_edp_ops;
 static struct rk_fb_trsm_ops *trsm_mipi_ops;
+__weak int support_uboot_display(void)
+{
+	return 0;
+}
 
 int rk_fb_trsm_ops_register(struct rk_fb_trsm_ops *ops, int type)
 {
