@@ -110,11 +110,11 @@ choice
 
 	config RKWIFI_26M
     	bool "26M"
-	    depends on RKWIFI
+	    depends on RKWIFI && !AP6335 && !AP6234 && !AP6441
 
 	config RKWIFI_24M
     	bool "24M"
-	    depends on RKWIFI
+	    depends on RKWIFI && AP6210
 
 endchoice
 
