@@ -145,6 +145,7 @@ struct rtl8180_priv {
 
 void rtl8180_write_phy(struct ieee80211_hw *dev, u8 addr, u32 data);
 void rtl8180_set_anaparam(struct rtl8180_priv *priv, u32 anaparam);
+void rtl8180_set_anaparam2(struct rtl8180_priv *priv, u32 anaparam2);
 
 static inline u8 rtl818x_ioread8(struct rtl8180_priv *priv, u8 __iomem *addr)
 {
