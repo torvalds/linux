@@ -141,7 +141,7 @@ static ssize_t ecx_transmit_led_message(struct ata_port *ap, u32 state,
 					ssize_t size)
 {
 	struct ahci_host_priv *hpriv =  ap->host->private_data;
-	struct ecx_plat_data *pdata = (struct ecx_plat_data *) hpriv->plat_data;
+	struct ecx_plat_data *pdata = hpriv->plat_data;
 	struct ahci_port_priv *pp = ap->private_data;
 	unsigned long flags;
 	int pmp, i;
