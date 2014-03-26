@@ -2797,7 +2797,7 @@ static int adv7604_probe(struct i2c_client *client,
 		if (IS_ERR(state->hpd_gpio[i]))
 			continue;
 
-		gpiod_set_value_cansleep(state->hpd_gpio[i], 0);
+		gpiod_direction_output(state->hpd_gpio[i], 0);
 
 		v4l_info(client, "Handling HPD %u GPIO\n", i);
 	}
