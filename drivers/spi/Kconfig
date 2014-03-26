@@ -150,7 +150,7 @@ config SPI_BUTTERFLY
 
 config SPI_CLPS711X
 	tristate "CLPS711X host SPI controller"
-	depends on ARCH_CLPS711X
+	depends on ARCH_CLPS711X || COMPILE_TEST
 	help
 	  This enables dedicated general purpose SPI/Microwire1-compatible
 	  master mode interface (SSI1) for CLPS711X-based CPUs.
