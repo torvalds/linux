@@ -1136,7 +1136,7 @@ static bool g4x_compute_wm0(struct drm_device *dev,
 	/* Use the large buffer method to calculate cursor watermark */
 	line_time_us = max(htotal * 1000 / clock, 1);
 	line_count = (cursor_latency_ns / line_time_us + 1000) / 1000;
-	entries = line_count * 64 * pixel_size;
+	entries = line_count * to_intel_crtc(crtc)->cursor_width * pixel_size;
 	tlb_miss = cursor->fifo_size*cursor->cacheline_size - hdisplay * 8;
 	if (tlb_miss > 0)
 		entries += tlb_miss;
@@ -1222,7 +1222,7 @@ static bool g4x_compute_srwm(struct drm_device *dev,
 	*display_wm = entries + display->guard_size;
 
 	/* calculate the self-refresh watermark for display cursor */
-	entries = line_count * pixel_size * 64;
+	entries = line_count * pixel_size * to_intel_crtc(crtc)->cursor_width;
 	entries = DIV_ROUND_UP(entries, cursor->cacheline_size);
 	*cursor_wm = entries + cursor->guard_size;
 
@@ -1457,7 +1457,7 @@ static void i965_update_wm(struct drm_crtc *unused_crtc)
 			      entries, srwm);
 
 		entries = (((sr_latency_ns / line_time_us) + 1000) / 1000) *
-			pixel_size * 64;
+			pixel_size * to_intel_crtc(crtc)->cursor_width;
 		entries = DIV_ROUND_UP(entries,
 					  i965_cursor_wm_info.cacheline_size);
 		cursor_sr = i965_cursor_wm_info.fifo_size -
@@ -2120,7 +2120,7 @@ static void ilk_compute_wm_parameters(struct drm_crtc *crtc,
 		p->pri.bytes_per_pixel = crtc->fb->bits_per_pixel / 8;
 		p->cur.bytes_per_pixel = 4;
 		p->pri.horiz_pixels = intel_crtc->config.pipe_src_w;
-		p->cur.horiz_pixels = 64;
+		p->cur.horiz_pixels = intel_crtc->cursor_width;
 		/* TODO: for now, assume primary and cursor planes are always enabled. */
 		p->pri.enabled = true;
 		p->cur.enabled = true;
