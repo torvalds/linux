@@ -29,6 +29,7 @@
 #include "sa2400.h"
 #include "max2820.h"
 #include "grf5101.h"
+#include "rtl8225se.h"
 
 MODULE_AUTHOR("Michael Wu <flamingice@sourmilk.net>");
 MODULE_AUTHOR("Andrea Merello <andrea.merello@gmail.com>");
