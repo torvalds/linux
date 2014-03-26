@@ -34,6 +34,7 @@ struct tegra_sor {
 
 	struct tegra_dpaux *dpaux;
 
+	struct mutex lock;
 	bool enabled;
 
 	struct dentry *debugfs;
@@ -299,14 +300,16 @@ static int tegra_output_sor_enable(struct tegra_output *output)
 	unsigned int vbe, vse, hbe, hse, vbs, hbs, i;
 	struct tegra_sor *sor = to_sor(output);
 	unsigned long value;
-	int err;
+	int err = 0;
+
+	mutex_lock(&sor->lock);
 
 	if (sor->enabled)
-		return 0;
+		goto unlock;
 
 	err = clk_prepare_enable(sor->clk);
 	if (err < 0)
-		return err;
+		goto unlock;
 
 	reset_control_deassert(sor->rst);
 
@@ -388,7 +391,7 @@ static int tegra_output_sor_enable(struct tegra_output *output)
 	err = tegra_io_rail_power_on(TEGRA_IO_RAIL_LVDS);
 	if (err < 0) {
 		dev_err(sor->dev, "failed to power on I/O rail: %d\n", err);
-		return err;
+		goto unlock;
 	}
 
 	usleep_range(5, 100);
@@ -512,21 +515,21 @@ static int tegra_output_sor_enable(struct tegra_output *output)
 		if (err < 0) {
 			dev_err(sor->dev, "failed to probe eDP link: %d\n",
 				err);
-			return err;
+			goto unlock;
 		}
 
 		err = drm_dp_link_power_up(aux, &link);
 		if (err < 0) {
 			dev_err(sor->dev, "failed to power up eDP link: %d\n",
 				err);
-			return err;
+			goto unlock;
 		}
 
 		err = drm_dp_link_configure(aux, &link);
 		if (err < 0) {
 			dev_err(sor->dev, "failed to configure eDP link: %d\n",
 				err);
-			return err;
+			goto unlock;
 		}
 
 		rate = drm_dp_link_rate_to_bw_code(link.rate);
@@ -561,7 +564,7 @@ static int tegra_output_sor_enable(struct tegra_output *output)
 		if (err < 0) {
 			dev_err(sor->dev, "DP fast link training failed: %d\n",
 				err);
-			return err;
+			goto unlock;
 		}
 
 		dev_dbg(sor->dev, "fast link training succeeded\n");
@@ -570,7 +573,7 @@ static int tegra_output_sor_enable(struct tegra_output *output)
 	err = tegra_sor_power_up(sor, 250);
 	if (err < 0) {
 		dev_err(sor->dev, "failed to power up SOR: %d\n", err);
-		return err;
+		goto unlock;
 	}
 
 	/* start display controller in continuous mode */
@@ -635,7 +638,7 @@ static int tegra_output_sor_enable(struct tegra_output *output)
 	err = tegra_sor_setup_pwm(sor, 250);
 	if (err < 0) {
 		dev_err(sor->dev, "failed to setup PWM: %d\n", err);
-		return err;
+		goto unlock;
 	}
 
 	value = tegra_dc_readl(dc, DC_DISP_DISP_WIN_OPTIONS);
@@ -647,18 +650,20 @@ static int tegra_output_sor_enable(struct tegra_output *output)
 	err = tegra_sor_attach(sor);
 	if (err < 0) {
 		dev_err(sor->dev, "failed to attach SOR: %d\n", err);
-		return err;
+		goto unlock;
 	}
 
 	err = tegra_sor_wakeup(sor);
 	if (err < 0) {
 		dev_err(sor->dev, "failed to enable DC: %d\n", err);
-		return err;
+		goto unlock;
 	}
 
 	sor->enabled = true;
 
-	return 0;
+unlock:
+	mutex_unlock(&sor->lock);
+	return err;
 }
 
 static int tegra_sor_detach(struct tegra_sor *sor)
@@ -786,15 +791,17 @@ static int tegra_output_sor_disable(struct tegra_output *output)
 	struct tegra_dc *dc = to_tegra_dc(output->encoder.crtc);
 	struct tegra_sor *sor = to_sor(output);
 	unsigned long value;
-	int err;
+	int err = 0;
+
+	mutex_lock(&sor->lock);
 
 	if (!sor->enabled)
-		return 0;
+		goto unlock;
 
 	err = tegra_sor_detach(sor);
 	if (err < 0) {
 		dev_err(sor->dev, "failed to detach SOR: %d\n", err);
-		return err;
+		goto unlock;
 	}
 
 	tegra_sor_writel(sor, 0, SOR_STATE_1);
@@ -835,21 +842,21 @@ static int tegra_output_sor_disable(struct tegra_output *output)
 	err = tegra_sor_power_down(sor);
 	if (err < 0) {
 		dev_err(sor->dev, "failed to power down SOR: %d\n", err);
-		return err;
+		goto unlock;
 	}
 
 	if (sor->dpaux) {
 		err = tegra_dpaux_disable(sor->dpaux);
 		if (err < 0) {
 			dev_err(sor->dev, "failed to disable DP: %d\n", err);
-			return err;
+			goto unlock;
 		}
 	}
 
 	err = tegra_io_rail_power_off(TEGRA_IO_RAIL_LVDS);
 	if (err < 0) {
 		dev_err(sor->dev, "failed to power off I/O rail: %d\n", err);
-		return err;
+		goto unlock;
 	}
 
 	reset_control_assert(sor->rst);
@@ -857,7 +864,9 @@ static int tegra_output_sor_disable(struct tegra_output *output)
 
 	sor->enabled = false;
 
-	return 0;
+unlock:
+	mutex_unlock(&sor->lock);
+	return err;
 }
 
 static int tegra_output_sor_setup_clock(struct tegra_output *output,
@@ -952,10 +961,16 @@ static ssize_t tegra_sor_crc_read(struct file *file, char __user *buffer,
 				  size_t size, loff_t *ppos)
 {
 	struct tegra_sor *sor = file->private_data;
+	ssize_t num, err;
 	char buf[10];
-	ssize_t num;
 	u32 value;
-	int err;
+
+	mutex_lock(&sor->lock);
+
+	if (!sor->enabled) {
+		err = -EAGAIN;
+		goto unlock;
+	}
 
 	value = tegra_sor_readl(sor, SOR_STATE_1);
 	value &= ~SOR_STATE_ASY_CRC_MODE_MASK;
@@ -971,14 +986,18 @@ static ssize_t tegra_sor_crc_read(struct file *file, char __user *buffer,
 
 	err = tegra_sor_crc_wait(sor, 100);
 	if (err < 0)
-		return err;
+		goto unlock;
 
 	tegra_sor_writel(sor, SOR_CRC_A_RESET, SOR_CRC_A);
 	value = tegra_sor_readl(sor, SOR_CRC_B);
 
 	num = scnprintf(buf, sizeof(buf), "%08x\n", value);
 
-	return simple_read_from_buffer(buffer, size, ppos, buf, num);
+	err = simple_read_from_buffer(buffer, size, ppos, buf, num);
+
+unlock:
+	mutex_unlock(&sor->lock);
+	return err;
 }
 
 static const struct file_operations tegra_sor_crc_fops = {
@@ -1167,6 +1186,8 @@ static int tegra_sor_probe(struct platform_device *pdev)
 	INIT_LIST_HEAD(&sor->client.list);
 	sor->client.ops = &sor_client_ops;
 	sor->client.dev = &pdev->dev;
+
+	mutex_init(&sor->lock);
 
 	err = host1x_client_register(&sor->client);
 	if (err < 0) {
