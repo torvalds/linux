@@ -119,7 +119,6 @@ static void if_scan_init(void);
 
 static int bypass_proc_create_dev_sd(struct bpctl_dev *pbp_device_block);
 static int bypass_proc_remove_dev_sd(struct bpctl_dev *pbp_device_block);
-static int bp_proc_create(void);
 
 static int is_bypass_fn(struct bpctl_dev *pbpctl_dev);
 static int get_dev_idx_bsf(int bus, int slot, int func);
@@ -6399,25 +6398,6 @@ static int __init bypass_init_module(void)
 	}
 
 	register_netdevice_notifier(&bp_notifier_block);
-#ifdef BP_PROC_SUPPORT
-	{
-		int i = 0;
-		/* unsigned long flags; */
-		/* rcu_read_lock(); */
-		bp_proc_create();
-		for (i = 0; i < device_num; i++) {
-			if (bpctl_dev_arr[i].ifindex) {
-				/* spin_lock_irqsave(&bpvm_lock, flags); */
-				bypass_proc_remove_dev_sd(&bpctl_dev_arr[i]);
-				bypass_proc_create_dev_sd(&bpctl_dev_arr[i]);
-				/* spin_unlock_irqrestore(&bpvm_lock, flags); */
-			}
-
-		}
-		/* rcu_read_unlock(); */
-	}
-#endif
-
 	return 0;
 }
 
@@ -6431,13 +6411,6 @@ static void __exit bypass_cleanup_module(void)
 
 	for (i = 0; i < device_num; i++) {
 		/* unsigned long flags; */
-#ifdef BP_PROC_SUPPORT
-/*	spin_lock_irqsave(&bpvm_lock, flags);
-	rcu_read_lock(); */
-		bypass_proc_remove_dev_sd(&bpctl_dev_arr[i]);
-/*	spin_unlock_irqrestore(&bpvm_lock, flags);
-	rcu_read_unlock(); */
-#endif
 		remove_bypass_wd_auto(&bpctl_dev_arr[i]);
 		bpctl_dev_arr[i].reset_time = 0;
 
@@ -6782,18 +6755,6 @@ EXPORT_SYMBOL(bp_if_scan_sd);
 #define BP_PROC_DIR "bypass"
 
 static struct proc_dir_entry *bp_procfs_dir;
-
-static int bp_proc_create(void)
-{
-	bp_procfs_dir = proc_mkdir(BP_PROC_DIR, init_net.proc_net);
-	if (bp_procfs_dir == (struct proc_dir_entry *)0) {
-		printk(KERN_DEBUG
-		       "Could not create procfs nicinfo directory %s\n",
-		       BP_PROC_DIR);
-		return -1;
-	}
-	return 0;
-}
 
 static int procfs_add(char *proc_name, const struct file_operations *fops,
 		      struct bpctl_dev *dev)
