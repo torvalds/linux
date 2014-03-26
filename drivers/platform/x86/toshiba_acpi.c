@@ -112,6 +112,7 @@ MODULE_LICENSE("GPL");
 #define HCI_LCD_BRIGHTNESS		0x002a
 #define HCI_WIRELESS			0x0056
 #define HCI_KBD_ILLUMINATION		0x0095
+#define HCI_ECO_MODE			0x0097
 #define SCI_ILLUMINATION		0x014e
 #define SCI_KBD_ILLUM_STATUS		0x015c
 #define SCI_TOUCHPAD			0x050e
@@ -142,6 +143,7 @@ struct toshiba_acpi_dev {
 	struct backlight_device *backlight_dev;
 	struct led_classdev led_dev;
 	struct led_classdev kbd_led;
+	struct led_classdev eco_led;
 
 	int force_fan;
 	int last_key_event;
@@ -159,6 +161,7 @@ struct toshiba_acpi_dev {
 	unsigned int kbd_illum_supported:1;
 	unsigned int kbd_led_registered:1;
 	unsigned int touchpad_supported:1;
+	unsigned int eco_supported:1;
 	unsigned int sysfs_created:1;
 
 	struct mutex mutex;
@@ -569,6 +572,57 @@ static int toshiba_touchpad_get(struct toshiba_acpi_dev *dev, u32 *state)
 	}
 
 	return 0;
+}
+
+/* Eco Mode support */
+static int toshiba_eco_mode_available(struct toshiba_acpi_dev *dev)
+{
+	acpi_status status;
+	u32 in[HCI_WORDS] = { HCI_GET, HCI_ECO_MODE, 0, 1, 0, 0 };
+	u32 out[HCI_WORDS];
+
+	status = hci_raw(dev, in, out);
+	if (ACPI_FAILURE(status) || out[0] == SCI_INPUT_DATA_ERROR) {
+		pr_info("ACPI call to get ECO led failed\n");
+		return 0;
+	}
+
+	return 1;
+}
+
+static enum led_brightness toshiba_eco_mode_get_status(struct led_classdev *cdev)
+{
+	struct toshiba_acpi_dev *dev = container_of(cdev,
+			struct toshiba_acpi_dev, eco_led);
+	u32 in[HCI_WORDS] = { HCI_GET, HCI_ECO_MODE, 0, 1, 0, 0 };
+	u32 out[HCI_WORDS];
+	acpi_status status;
+
+	status = hci_raw(dev, in, out);
+	if (ACPI_FAILURE(status) || out[0] == SCI_INPUT_DATA_ERROR) {
+		pr_err("ACPI call to get ECO led failed\n");
+		return LED_OFF;
+	}
+
+	return out[2] ? LED_FULL : LED_OFF;
+}
+
+static void toshiba_eco_mode_set_status(struct led_classdev *cdev,
+				     enum led_brightness brightness)
+{
+	struct toshiba_acpi_dev *dev = container_of(cdev,
+			struct toshiba_acpi_dev, eco_led);
+	u32 in[HCI_WORDS] = { HCI_SET, HCI_ECO_MODE, 0, 1, 0, 0 };
+	u32 out[HCI_WORDS];
+	acpi_status status;
+
+	/* Switch the Eco Mode led on/off */
+	in[2] = (brightness) ? 1 : 0;
+	status = hci_raw(dev, in, out);
+	if (ACPI_FAILURE(status) || out[0] == SCI_INPUT_DATA_ERROR) {
+		pr_err("ACPI call to set ECO led failed\n");
+		return;
+	}
 }
 
 /* Bluetooth rfkill handlers */
@@ -1469,6 +1523,9 @@ static int toshiba_acpi_remove(struct acpi_device *acpi_dev)
  
 	if (dev->kbd_led_registered)
 		led_classdev_unregister(&dev->kbd_led);
+ 
+	if (dev->eco_supported)
+		led_classdev_unregister(&dev->eco_led);
 
 	if (toshiba_acpi)
 		toshiba_acpi = NULL;
@@ -1554,6 +1611,15 @@ static int toshiba_acpi_add(struct acpi_device *acpi_dev)
 		dev->led_dev.brightness_get = toshiba_illumination_get;
 		if (!led_classdev_register(&acpi_dev->dev, &dev->led_dev))
 			dev->illumination_supported = 1;
+	}
+ 
+	if (toshiba_eco_mode_available(dev)) {
+		dev->eco_led.name = "toshiba::eco_mode";
+		dev->eco_led.max_brightness = 1;
+		dev->eco_led.brightness_set = toshiba_eco_mode_set_status;
+		dev->eco_led.brightness_get = toshiba_eco_mode_get_status;
+		if (!led_classdev_register(&dev->acpi_dev->dev, &dev->eco_led))
+			dev->eco_supported = 1;
 	}
  
 	ret = toshiba_kbd_illum_status_get(dev, &dummy);
