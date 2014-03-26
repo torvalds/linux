@@ -244,10 +244,8 @@ static int rk3288_pmu_set_power_domain(enum pmu_power_domain pd, bool on)
 	unsigned long flags;
 
 	spin_lock_irqsave(&pmu_pd_lock, flags);
-	if (rk3288_pmu_power_domain_is_on(pd) == on) {
-		spin_unlock_irqrestore(&pmu_pd_lock, flags);
-		return 0;
-	}
+	if (rk3288_pmu_power_domain_is_on(pd) == on)
+		goto out;
 
 	if (!on) {
 		/* if power down, idle request to NIU first */
@@ -273,6 +271,8 @@ static int rk3288_pmu_set_power_domain(enum pmu_power_domain pd, bool on)
 			SAVE_QOS(hevc_r_qos, HEVC_R);
 			SAVE_QOS(hevc_w_qos, HEVC_W);
 			rk3288_pmu_set_idle_request(IDLE_REQ_HEVC, true);
+		} else if (pd >= PD_CPU_1 && pd <= PD_CPU_3) {
+			goto out;
 		}
 	}
 
@@ -310,6 +310,7 @@ static int rk3288_pmu_set_power_domain(enum pmu_power_domain pd, bool on)
 		}
 	}
 
+out:
 	spin_unlock_irqrestore(&pmu_pd_lock, flags);
 	return 0;
 }
