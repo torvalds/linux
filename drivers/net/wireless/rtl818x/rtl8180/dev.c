@@ -1,14 +1,41 @@
 
-/*
- * Linux device driver for RTL8180 / RTL8185
+/* Linux device driver for RTL8180 / RTL8185 / RTL8187SE
  *
  * Copyright 2007 Michael Wu <flamingice@sourmilk.net>
- * Copyright 2007 Andrea Merello <andrea.merello@gmail.com>
+ * Copyright 2007,2014 Andrea Merello <andrea.merello@gmail.com>
  *
  * Based on the r8180 driver, which is:
  * Copyright 2004-2005 Andrea Merello <andrea.merello@gmail.com>, et al.
  *
  * Thanks to Realtek for their support!
+ *
+ ************************************************************************
+ *
+ * The driver was extended to the RTL8187SE in 2014 by
+ * Andrea Merello <andrea.merello@gmail.com>
+ *
+ * based also on:
+ *  - portions of rtl8187se Linux staging driver, Copyright Realtek corp.
+ *  - other GPL, unpublished (until now), Linux driver code,
+ *    Copyright Larry Finger <Larry.Finger@lwfinger.net>
+ *
+ * A huge thanks goes to Sara V. Nari who forgives me when I'm
+ * sitting in front of my laptop at evening, week-end, night...
+ *
+ * A special thanks goes to Antonio Cuni, who helped me with
+ * some python userspace stuff I used to debug RTL8187SE code, and who
+ * bought a laptop with an unsupported Wi-Fi card some years ago...
+ *
+ * Thanks to Larry Finger for writing some code for rtl8187se and for
+ * his suggestions.
+ *
+ * Thanks to Dan Carpenter for reviewing my initial patch and for his
+ * suggestions.
+ *
+ * Thanks to Bernhard Schiffner for his help in testing and for his
+ * suggestions.
+ *
+ ************************************************************************
  *
  * This program is free software; you can redistribute it and/or modify
  * it under the terms of the GNU General Public License version 2 as
@@ -33,10 +60,14 @@
 
 MODULE_AUTHOR("Michael Wu <flamingice@sourmilk.net>");
 MODULE_AUTHOR("Andrea Merello <andrea.merello@gmail.com>");
-MODULE_DESCRIPTION("RTL8180 / RTL8185 PCI wireless driver");
+MODULE_DESCRIPTION("RTL8180 / RTL8185 / RTL8187SE PCI wireless driver");
 MODULE_LICENSE("GPL");
 
 static DEFINE_PCI_DEVICE_TABLE(rtl8180_table) = {
+
+	/* rtl8187se */
+	{ PCI_DEVICE(PCI_VENDOR_ID_REALTEK, 0x8199) },
+
 	/* rtl8185 */
 	{ PCI_DEVICE(PCI_VENDOR_ID_REALTEK, 0x8185) },
 	{ PCI_DEVICE(PCI_VENDOR_ID_BELKIN, 0x700f) },
