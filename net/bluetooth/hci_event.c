@@ -1091,8 +1091,9 @@ static void hci_cc_le_set_scan_enable(struct hci_dev *hdev,
 			struct discovery_state *d = &hdev->discovery;
 
 			mgmt_device_found(hdev, &d->last_adv_addr, LE_LINK,
-					  d->last_adv_addr_type, NULL, 0, 0,
-					  1, d->last_adv_data,
+					  d->last_adv_addr_type, NULL,
+					  d->last_adv_rssi, 0, 1,
+					  d->last_adv_data,
 					  d->last_adv_data_len, NULL, 0);
 		}
 
