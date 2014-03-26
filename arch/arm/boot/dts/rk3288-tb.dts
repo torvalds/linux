@@ -12,7 +12,7 @@
         compatible = "wlan-platdata";
 
         wifi_chip_type = "";
-        sdio_vref = <28000>;
+        sdio_vref = <1800>; //1800mv or 3300mv
 
         //power_ctrl_by_pmu;
         pmu_regulator = "act_ldo3";
@@ -291,6 +291,12 @@
 		enable_dma = <0>;
 	};
 	*/
+};
+
+&uart_bt {
+        status = "okay";
+        dma-names = "!tx", "!rx";
+        pinctrl-0 = <&uart0_xfer &uart0_cts>;
 };
 
 &i2c0 {

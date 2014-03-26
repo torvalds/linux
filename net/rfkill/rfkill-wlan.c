@@ -31,6 +31,7 @@
 #include <linux/proc_fs.h>
 #include <linux/uaccess.h>
 #include <linux/gpio.h>
+#include <linux/rockchip/iomap.h>
 #include <dt-bindings/gpio/gpio.h>
 #ifdef CONFIG_OF
 #include <linux/of.h>
@@ -325,6 +326,7 @@ u8 wifi_custom_mac_addr[6] = {0,0,0,0,0,0};
 extern char GetSNSectorInfo(char * pbuf);
 int rockchip_wifi_mac_addr(unsigned char *buf)
 {
+    return -1;
     char mac_buf[20] = {0};
     LOG("%s: enter.\n", __func__);
 
@@ -391,6 +393,30 @@ void *rockchip_wifi_country_code(char *ccode)
 }
 EXPORT_SYMBOL(rockchip_wifi_country_code);
 /**************************************************************************/
+
+static int rockchip_wifi_voltage_select(void)
+{
+    struct rfkill_wlan_data *mrfkill = g_rfkill;
+    int voltage = 0;
+
+    if (mrfkill == NULL) {
+        LOG("%s: rfkill-wlan driver has not Successful initialized\n", __func__);
+        return -1;
+    }
+    voltage = mrfkill->pdata->sdio_vol;
+    if (voltage > 2700 && voltage < 3500) {
+        writel_relaxed(0x00100000, RK_GRF_VIRT+0x380); //3.3
+        LOG("%s: wifi & sdio reference voltage: 3.3V\n", __func__);
+    } else if (voltage  > 1500 && voltage < 1950) {
+        writel_relaxed(0x00100010, RK_GRF_VIRT+0x380); //1.8
+        LOG("%s: wifi & sdio reference voltage: 1.8V\n", __func__);
+    } else {
+        LOG("%s: unsupport wifi & sdio reference voltage!\n", __func__);
+        return -1;
+    }
+
+    return 0;
+}
 
 static int rfkill_rk_setup_gpio(struct rksdmmc_gpio *gpio, const char* prefix, const char* name)
 {
@@ -545,6 +571,8 @@ static int rfkill_wlan_probe(struct platform_device *pdev)
     {
         gpio_direction_output(pdata->power_n.io, !pdata->power_n.enable);
     }
+
+    rockchip_wifi_voltage_select();
 
 #if BCM_STATIC_MEMORY_SUPPORT
     rockchip_init_wifi_mem();
