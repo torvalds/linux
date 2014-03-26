@@ -188,7 +188,8 @@ int wpa_set_wpadev(PSDevice pDevice, int val)
  *
  */
 
-int wpa_set_keys(PSDevice pDevice, void *ctx, bool fcpfkernel)
+int wpa_set_keys(PSDevice pDevice, void *ctx,
+		 bool fcpfkernel) __must_hold(&pDevice->lock)
 {
 	struct viawget_wpa_param *param = ctx;
 	PSMgmtObject pMgmt = pDevice->pMgmt;

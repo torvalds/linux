@@ -31,6 +31,7 @@
  *
  */
 
+#include <linux/compiler.h>
 #include "firmware.h"
 #include "control.h"
 #include "rndis.h"
@@ -43,7 +44,7 @@ static int msglevel = MSG_LEVEL_INFO;
 
 #define FIRMWARE_CHUNK_SIZE	0x400
 
-int FIRMWAREbDownload(struct vnt_private *pDevice)
+int FIRMWAREbDownload(struct vnt_private *pDevice) __must_hold(&pDevice->lock)
 {
 	struct device *dev = &pDevice->usb->dev;
 	const struct firmware *fw;
