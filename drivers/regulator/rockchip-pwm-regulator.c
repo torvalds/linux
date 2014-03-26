@@ -55,9 +55,9 @@ static int pwm_set_rate(struct pwm_platform_data *pdata,u32 rate)
 	duty_cycle = (rate * (pdata->period ) / 100) ;
 
 	pwm_config(pdata->pwm, duty_cycle, pdata->period);
-	
-	usleep_range(10*1000, 10*1000);
 
+	pwm_enable(pdata->pwm);
+	
 	return (0);
 }
 
@@ -332,7 +332,6 @@ static int __init pwm_regulator_probe(struct platform_device *pdev)
 			goto err;
 		}
 	}
-	pwm_enable(pdata->pwm);
 	if (pdata->pwm_period_ns > 0)
 		pwm_set_period(pdata->pwm, pdata->pwm_period_ns);
 
