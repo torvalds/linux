@@ -603,6 +603,16 @@ tcp_fastopen - INTEGER
 	Note that that additional client or server features are only
 	effective if the basic support (0x1 and 0x2) are enabled respectively.
 
+tcp_fwmark_accept - BOOLEAN
+	If set, incoming connections to listening sockets that do not have a
+	socket mark will set the mark of the accepting socket to the fwmark of
+	the incoming SYN packet. This will cause all packets on that connection
+	(starting from the first SYNACK) to be sent with that fwmark. The
+	listening socket's mark is unchanged. Listening sockets that already
+	have a fwmark set via setsockopt(SOL_SOCKET, SO_MARK, ...) are
+	unaffected.
+	Default: 0
+
 tcp_syn_retries - INTEGER
 	Number of times initial SYNs for an active TCP connection attempt
 	will be retransmitted. Should not be higher than 127. Default value
