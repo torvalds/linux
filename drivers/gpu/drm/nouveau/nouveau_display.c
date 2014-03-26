@@ -105,7 +105,7 @@ nouveau_display_scanoutpos_head(struct drm_crtc *crtc, int *vpos, int *hpos,
 		if (retry) ndelay(crtc->linedur_ns);
 	} while (retry--);
 
-	*hpos = calc(args.hblanks, args.hblanke, args.htotal, args.hline);
+	*hpos = args.hline;
 	*vpos = calc(args.vblanks, args.vblanke, args.vtotal, args.vline);
 	if (stime) *stime = ns_to_ktime(args.time[0]);
 	if (etime) *etime = ns_to_ktime(args.time[1]);
@@ -419,6 +419,7 @@ int
 nouveau_display_create(struct drm_device *dev)
 {
 	struct nouveau_drm *drm = nouveau_drm(dev);
+	struct nouveau_device *device = nouveau_dev(dev);
 	struct nouveau_display *disp;
 	int ret, gen;
 
@@ -459,7 +460,7 @@ nouveau_display_create(struct drm_device *dev)
 	}
 
 	dev->mode_config.funcs = &nouveau_mode_config_funcs;
-	dev->mode_config.fb_base = pci_resource_start(dev->pdev, 1);
+	dev->mode_config.fb_base = nv_device_resource_start(device, 1);
 
 	dev->mode_config.min_width = 0;
 	dev->mode_config.min_height = 0;
@@ -488,6 +489,7 @@ nouveau_display_create(struct drm_device *dev)
 
 	if (drm->vbios.dcb.entries) {
 		static const u16 oclass[] = {
+			GM107_DISP_CLASS,
 			NVF0_DISP_CLASS,
 			NVE0_DISP_CLASS,
 			NVD0_DISP_CLASS,

@@ -49,7 +49,7 @@ nouveau_parent_sclass(struct nouveau_object *parent, u16 handle,
 
 	mask = nv_parent(parent)->engine;
 	while (mask) {
-		int i = ffsll(mask) - 1;
+		int i = __ffs64(mask);
 
 		if (nv_iclass(parent, NV_CLIENT_CLASS))
 			engine = nv_engine(nv_client(parent)->device);

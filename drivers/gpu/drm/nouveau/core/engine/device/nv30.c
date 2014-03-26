@@ -63,7 +63,7 @@ nv30_identify(struct nouveau_device *device)
 		device->oclass[NVDEV_ENGINE_FIFO   ] =  nv17_fifo_oclass;
 		device->oclass[NVDEV_ENGINE_SW     ] =  nv10_software_oclass;
 		device->oclass[NVDEV_ENGINE_GR     ] = &nv30_graph_oclass;
-		device->oclass[NVDEV_ENGINE_DISP   ] = &nv04_disp_oclass;
+		device->oclass[NVDEV_ENGINE_DISP   ] =  nv04_disp_oclass;
 		break;
 	case 0x35:
 		device->cname = "NV35";
@@ -82,7 +82,7 @@ nv30_identify(struct nouveau_device *device)
 		device->oclass[NVDEV_ENGINE_FIFO   ] =  nv17_fifo_oclass;
 		device->oclass[NVDEV_ENGINE_SW     ] =  nv10_software_oclass;
 		device->oclass[NVDEV_ENGINE_GR     ] = &nv35_graph_oclass;
-		device->oclass[NVDEV_ENGINE_DISP   ] = &nv04_disp_oclass;
+		device->oclass[NVDEV_ENGINE_DISP   ] =  nv04_disp_oclass;
 		break;
 	case 0x31:
 		device->cname = "NV31";
@@ -102,7 +102,7 @@ nv30_identify(struct nouveau_device *device)
 		device->oclass[NVDEV_ENGINE_SW     ] =  nv10_software_oclass;
 		device->oclass[NVDEV_ENGINE_GR     ] = &nv30_graph_oclass;
 		device->oclass[NVDEV_ENGINE_MPEG   ] = &nv31_mpeg_oclass;
-		device->oclass[NVDEV_ENGINE_DISP   ] = &nv04_disp_oclass;
+		device->oclass[NVDEV_ENGINE_DISP   ] =  nv04_disp_oclass;
 		break;
 	case 0x36:
 		device->cname = "NV36";
@@ -122,7 +122,7 @@ nv30_identify(struct nouveau_device *device)
 		device->oclass[NVDEV_ENGINE_SW     ] =  nv10_software_oclass;
 		device->oclass[NVDEV_ENGINE_GR     ] = &nv35_graph_oclass;
 		device->oclass[NVDEV_ENGINE_MPEG   ] = &nv31_mpeg_oclass;
-		device->oclass[NVDEV_ENGINE_DISP   ] = &nv04_disp_oclass;
+		device->oclass[NVDEV_ENGINE_DISP   ] =  nv04_disp_oclass;
 		break;
 	case 0x34:
 		device->cname = "NV34";
@@ -142,7 +142,7 @@ nv30_identify(struct nouveau_device *device)
 		device->oclass[NVDEV_ENGINE_SW     ] =  nv10_software_oclass;
 		device->oclass[NVDEV_ENGINE_GR     ] = &nv34_graph_oclass;
 		device->oclass[NVDEV_ENGINE_MPEG   ] = &nv31_mpeg_oclass;
-		device->oclass[NVDEV_ENGINE_DISP   ] = &nv04_disp_oclass;
+		device->oclass[NVDEV_ENGINE_DISP   ] =  nv04_disp_oclass;
 		break;
 	default:
 		nv_fatal(device, "unknown Rankine chipset\n");

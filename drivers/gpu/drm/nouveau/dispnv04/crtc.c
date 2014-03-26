@@ -1048,7 +1048,7 @@ nouveau_crtc_set_config(struct drm_mode_set *set)
 
 	/* get a pm reference here */
 	ret = pm_runtime_get_sync(dev->dev);
-	if (ret < 0)
+	if (ret < 0 && ret != -EACCES)
 		return ret;
 
 	ret = drm_crtc_helper_set_config(set);
