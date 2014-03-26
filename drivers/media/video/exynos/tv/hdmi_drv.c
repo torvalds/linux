@@ -252,6 +252,7 @@ static int hdmi_s_power(struct v4l2_subdev *sd, int on)
 		cancel_work_sync(&hdev->hpd_work);
 
 		s5p_v4l2_int_src_ext_hpd();
+		queue_delayed_work(system_nrt_wq, &hdev->hpd_work_ext, 0);
 		enable_irq(hdev->ext_irq);
 		dev_info(hdev->dev, "HDMI interrupt changed to external\n");
 
