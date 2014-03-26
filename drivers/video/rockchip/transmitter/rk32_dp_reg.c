@@ -68,11 +68,6 @@ void rk32_edp_init_refclk(struct rk32_edp *edp)
 	val = TX_TERMINAL_CTRL_50_OHM;
 	writel(val, edp->regs + ANALOG_CTL_1);*/
 
-#ifndef CONFIG_RK_FPGA
-	val = (REF_CLK_FROM_INTER << 16) | REF_CLK_FROM_INTER;
-	writel_relaxed(val,RK_GRF_VIRT + RK3288_GRF_SOC_CON12);
-#endif
-
 	val = SEL_24M;
 	writel(val, edp->regs + ANALOG_CTL_2);
 
@@ -277,14 +272,13 @@ void rk32_edp_init_analog_func(struct rk32_edp *edp)
 
 	/* Power up PLL */
 	while (wt < 100) {
-	if (rk32_edp_get_pll_lock_status(edp) == DP_PLL_UNLOCKED)
-		dev_warn(edp->dev, "edp pll unlocked.....\n");
-	else {
-		dev_info(edp->dev, "edp pll locked\n");
-		break;
-	}
-		wt++;
-		udelay(5);
+		if (rk32_edp_get_pll_lock_status(edp) == DP_PLL_LOCKED) {
+			dev_info(edp->dev, "edp pll locked\n");
+			break;
+		} else {
+			wt++;
+			udelay(5);
+		}	
 	}
 
 	/* Enable Serdes FIFO function and Link symbol clock domain module */

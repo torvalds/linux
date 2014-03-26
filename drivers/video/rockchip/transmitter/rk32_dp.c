@@ -34,11 +34,57 @@
 //#define EDP_BIST_MODE
 
 static struct rk32_edp *rk32_edp;
+
+
+static int rk32_edp_clk_enable(struct rk32_edp *edp)
+{
+	if (!edp->clk_on) {
+		clk_enable(edp->pclk);
+		clk_enable(edp->clk_edp);
+		clk_enable(edp->clk_24m);
+		edp->clk_on = true;
+	}
+
+	return 0;
+}
+
+static int rk32_edp_clk_disable(struct rk32_edp *edp)
+{
+	if (edp->clk_on) {
+		clk_disable(edp->pclk);
+		clk_disable(edp->clk_edp);
+		clk_disable(edp->clk_24m);
+		edp->clk_on = false;
+	}
+
+	return 0;
+}
+
+static int rk32_edp_pre_init(void)
+{
+	u32 val;
+	val = GRF_EDP_REF_CLK_SEL_INTER |
+		(GRF_EDP_REF_CLK_SEL_INTER << 16);
+	writel_relaxed(val, RK_GRF_VIRT + RK3288_GRF_SOC_CON12);
+
+	val = 0x80008000;
+	writel_relaxed(val, RK_CRU_VIRT + 0x0d0); /*select 24m*/
+
+	val = 0x80008000;
+	writel_relaxed(val, RK_CRU_VIRT + 0x01d0); /*reset edp*/
+	udelay(1);
+	val = 0x80000000;
+	writel_relaxed(val, RK_CRU_VIRT + 0x01d0);
+	udelay(1);
+
+	return 0;
+}
+
 static int rk32_edp_init_edp(struct rk32_edp *edp)
 {
 	struct rk_screen *screen = &edp->screen;
 	u32 val = 0;
-	int i= 0;
+	
 	screen->lcdc_id = 1;
 	if (screen->lcdc_id == 1)  /*select lcdc*/
 		val = EDP_SEL_VOP_LIT | (EDP_SEL_VOP_LIT << 16);
@@ -46,19 +92,7 @@ static int rk32_edp_init_edp(struct rk32_edp *edp)
 		val = EDP_SEL_VOP_LIT << 16;
 	writel_relaxed(val, RK_GRF_VIRT + RK3288_GRF_SOC_CON6);
 
-	val = GRF_EDP_REF_CLK_SEL_INTER |
-		(GRF_EDP_REF_CLK_SEL_INTER << 16);
-	writel_relaxed(val, RK_GRF_VIRT + RK3288_GRF_SOC_CON12);
-
-	val = 0x80008000;
-	writel_relaxed(val, RK_CRU_VIRT + 0x0d0);
-
-	val = 0x80008000;
-	writel_relaxed(val, RK_CRU_VIRT + 0x01d0);
-	mdelay(12);
-	val = 0x80000000;
-	writel_relaxed(val, RK_CRU_VIRT + 0x01d0);
-	mdelay(12);
+	
 	rk32_edp_reset(edp);
 	rk32_edp_init_refclk(edp);
 	rk32_edp_init_interrupt(edp);
@@ -918,7 +952,6 @@ static int rk32_edp_hw_link_training(struct rk32_edp *edp)
 	rk32_edp_set_link_bandwidth(edp, edp->link_train.link_rate);
 	rk32_edp_set_lane_count(edp, edp->link_train.lane_count);
 	rk32_edp_hw_link_training_en(edp);
-	mdelay(10);
 	val = rk32_edp_wait_hw_lt_done(edp);
 	while (val) {
 		if (cnt-- <= 0) {
@@ -1073,13 +1106,11 @@ static irqreturn_t rk32_edp_isr(int irq, void *arg)
 static int rk32_edp_enable(void)
 {
 	int ret = 0;
-	int i;
 	struct rk32_edp *edp = rk32_edp;
 	
-	clk_enable(edp->pclk);
-	clk_enable(edp->clk_edp);
-	clk_enable(edp->clk_24m);
-	
+
+	rk32_edp_clk_enable(edp);
+	rk32_edp_pre_init();
 	rk32_edp_init_edp(edp);
 
 	/*ret = rk32_edp_handle_edid(edp);
@@ -1104,7 +1135,7 @@ static int rk32_edp_enable(void)
 
 	ret = rk32_edp_set_link_train(edp);
 	if (ret) 
-		dev_err(edp->dev, "link train failed>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>\n");
+		dev_err(edp->dev, "link train failed!\n");
 	else 
 		dev_info(edp->dev, "link training success.\n");
 
@@ -1131,10 +1162,7 @@ static int  rk32_edp_disable(void )
 
 	rk32_edp_reset(edp);
 	rk32_edp_analog_power_ctr(edp, 0);
-
-	clk_disable(edp->clk_24m);
-	clk_disable(edp->clk_edp);
-	clk_disable(edp->pclk);
+	rk32_edp_clk_disable(edp);
 	
 	return 0;
 }
@@ -1204,8 +1232,13 @@ static int rk32_edp_probe(struct platform_device *pdev)
 		dev_err(&pdev->dev, "cannot get pclk\n");
 		return PTR_ERR(edp->pclk);
 	}
-	
-	/*edp->irq = platform_get_irq(pdev, 0);
+
+	clk_prepare(edp->pclk);
+	clk_prepare(edp->clk_edp);
+	clk_prepare(edp->clk_24m);
+	rk32_edp_clk_enable(edp);
+	rk32_edp_pre_init();
+	edp->irq = platform_get_irq(pdev, 0);
 	if (edp->irq < 0) {
 		dev_err(&pdev->dev, "cannot find IRQ\n");
 		return edp->irq;
@@ -1216,11 +1249,9 @@ static int rk32_edp_probe(struct platform_device *pdev)
 		dev_err(&pdev->dev, "cannot claim IRQ %d\n", edp->irq);
 		return ret;
 	}
-	disable_irq(edp->irq);*/
+	disable_irq(edp->irq);
+	rk32_edp_clk_disable(edp);
 	rk32_edp = edp;
-	clk_prepare(edp->pclk);
-	clk_prepare(edp->clk_edp);
-	clk_prepare(edp->clk_24m);
 	rk_fb_trsm_ops_register(&trsm_edp_ops, SCREEN_EDP);
 	dev_info(&pdev->dev, "rk32 edp driver probe success\n");
 
@@ -1234,7 +1265,7 @@ static void rk32_edp_shutdown(struct platform_device *pdev)
 
 #if defined(CONFIG_OF)
 static const struct of_device_id rk32_edp_dt_ids[] = {
-	{.compatible = "rockchip, rk32-edp",},
+	{.compatible = "rockchip,rk32-edp",},
 	{}
 };
 

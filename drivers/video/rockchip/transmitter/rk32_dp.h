@@ -378,13 +378,12 @@
 
 
 
-#define REF_CLK_FROM_INTER			(1 << 4)
+#define GRF_EDP_REF_CLK_SEL_INTER		(1 << 4)
 #define GRF_EDP_HDCP_EN				(1 << 15)
 #define GRF_EDP_BIST_EN				(1 << 14)
 #define GRF_EDP_MEM_CTL_BY_EDP			(1 << 13)
 #define GRF_EDP_SECURE_EN			(1 << 3)
 #define EDP_SEL_VOP_LIT				(1 << 5)
-#define GRF_EDP_REF_CLK_SEL_INTER		(1 << 4)
 
 enum dp_irq_type {
 	DP_IRQ_TYPE_HP_CABLE_IN,
@@ -522,6 +521,7 @@ struct rk32_edp {
 	struct video_info	video_info;
 	struct rk_screen	screen;
 	struct fb_monspecs      specs;
+	bool 			clk_on;
 };
 
 
