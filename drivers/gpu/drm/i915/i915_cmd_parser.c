@@ -407,6 +407,12 @@ static const u32 gen7_render_regs[] = {
 	REG64(CL_PRIMITIVES_COUNT),
 	REG64(PS_INVOCATION_COUNT),
 	REG64(PS_DEPTH_COUNT),
+	/*
+	 * FIXME: This is just to keep mesa working for now, we need to check
+	 * that mesa resets this again and that it doesn't use any of the
+	 * special modes which write into the gtt.
+	 */
+	OACONTROL,
 	REG64(GEN7_SO_NUM_PRIMS_WRITTEN(0)),
 	REG64(GEN7_SO_NUM_PRIMS_WRITTEN(1)),
 	REG64(GEN7_SO_NUM_PRIMS_WRITTEN(2)),
