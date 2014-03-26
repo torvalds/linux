@@ -509,6 +509,11 @@ int mwifiex_send_cmd(struct mwifiex_private *priv, u16 cmd_no,
 		return -1;
 	}
 
+	if (adapter->hs_enabling && cmd_no != HostCmd_CMD_802_11_HS_CFG_ENH) {
+		dev_err(adapter->dev, "PREP_CMD: host entering sleep state\n");
+		return -1;
+	}
+
 	if (adapter->surprise_removed) {
 		dev_err(adapter->dev, "PREP_CMD: card is removed\n");
 		return -1;
