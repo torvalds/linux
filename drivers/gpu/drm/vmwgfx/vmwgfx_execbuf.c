@@ -2389,7 +2389,7 @@ vmw_execbuf_copy_fence_user(struct vmw_private *dev_priv,
 		BUG_ON(fence == NULL);
 
 		fence_rep.handle = fence_handle;
-		fence_rep.seqno = fence->seqno;
+		fence_rep.seqno = fence->base.seqno;
 		vmw_update_seqno(dev_priv, &dev_priv->fifo);
 		fence_rep.passed_seqno = dev_priv->last_read_seqno;
 	}
