@@ -129,14 +129,30 @@ void rtl8180_write_phy(struct ieee80211_hw *dev, u8 addr, u32 data)
 static void rtl8180_handle_rx(struct ieee80211_hw *dev)
 {
 	struct rtl8180_priv *priv = dev->priv;
+	struct rtl818x_rx_cmd_desc *cmd_desc;
 	unsigned int count = 32;
 	u8 signal, agc, sq;
 	dma_addr_t mapping;
 
 	while (count--) {
-		struct rtl8180_rx_desc *entry = &priv->rx_ring[priv->rx_idx];
+		void *entry = priv->rx_ring + priv->rx_idx * priv->rx_ring_sz;
 		struct sk_buff *skb = priv->rx_buf[priv->rx_idx];
-		u32 flags = le32_to_cpu(entry->flags);
+		u32 flags, flags2;
+		u64 tsft;
+
+		if (priv->chip_family == RTL818X_CHIP_FAMILY_RTL8187SE) {
+			struct rtl8187se_rx_desc *desc = entry;
+
+			flags = le32_to_cpu(desc->flags);
+			flags2 = le32_to_cpu(desc->flags2);
+			tsft = le64_to_cpu(desc->tsft);
+		} else {
+			struct rtl8180_rx_desc *desc = entry;
+
+			flags = le32_to_cpu(desc->flags);
+			flags2 = le32_to_cpu(desc->flags2);
+			tsft = le64_to_cpu(desc->tsft);
+		}
 
 		if (flags & RTL818X_RX_DESC_FLAG_OWN)
 			return;
@@ -146,7 +162,6 @@ static void rtl8180_handle_rx(struct ieee80211_hw *dev)
 				      RTL818X_RX_DESC_FLAG_RX_ERR)))
 			goto done;
 		else {
-			u32 flags2 = le32_to_cpu(entry->flags2);
 			struct ieee80211_rx_status rx_status = {0};
 			struct sk_buff *new_skb = dev_alloc_skb(MAX_RX_SIZE);
 
@@ -178,14 +193,18 @@ static void rtl8180_handle_rx(struct ieee80211_hw *dev)
 					signal = 90 - clamp_t(u8, agc, 25, 90);
 				else
 					signal = 95 - clamp_t(u8, agc, 30, 95);
-			} else {
+			} else if (priv->chip_family ==
+				   RTL818X_CHIP_FAMILY_RTL8180) {
 				sq = flags2 & 0xff;
 				signal = priv->rf->calc_rssi(agc, sq);
+			} else {
+				/* TODO: rtl8187se rssi */
+				signal = 10;
 			}
 			rx_status.signal = signal;
 			rx_status.freq = dev->conf.chandef.chan->center_freq;
 			rx_status.band = dev->conf.chandef.chan->band;
-			rx_status.mactime = le64_to_cpu(entry->tsft);
+			rx_status.mactime = tsft;
 			rx_status.flag |= RX_FLAG_MACTIME_START;
 			if (flags & RTL818X_RX_DESC_FLAG_CRC32_ERR)
 				rx_status.flag |= RX_FLAG_FAILED_FCS_CRC;
@@ -199,11 +218,13 @@ static void rtl8180_handle_rx(struct ieee80211_hw *dev)
 		}
 
 	done:
-		entry->rx_buf = cpu_to_le32(*((dma_addr_t *)skb->cb));
-		entry->flags = cpu_to_le32(RTL818X_RX_DESC_FLAG_OWN |
+		cmd_desc = entry;
+		cmd_desc->rx_buf = cpu_to_le32(*((dma_addr_t *)skb->cb));
+		cmd_desc->flags = cpu_to_le32(RTL818X_RX_DESC_FLAG_OWN |
 					   MAX_RX_SIZE);
 		if (priv->rx_idx == 31)
-			entry->flags |= cpu_to_le32(RTL818X_RX_DESC_FLAG_EOR);
+			cmd_desc->flags |=
+				cpu_to_le32(RTL818X_RX_DESC_FLAG_EOR);
 		priv->rx_idx = (priv->rx_idx + 1) % 32;
 	}
 }
@@ -529,11 +550,16 @@ static int rtl8180_init_hw(struct ieee80211_hw *dev)
 static int rtl8180_init_rx_ring(struct ieee80211_hw *dev)
 {
 	struct rtl8180_priv *priv = dev->priv;
-	struct rtl8180_rx_desc *entry;
+	struct rtl818x_rx_cmd_desc *entry;
 	int i;
 
+	if (priv->chip_family == RTL818X_CHIP_FAMILY_RTL8187SE)
+		priv->rx_ring_sz = sizeof(struct rtl8187se_rx_desc);
+	else
+		priv->rx_ring_sz = sizeof(struct rtl8180_rx_desc);
+
 	priv->rx_ring = pci_alloc_consistent(priv->pdev,
-					     sizeof(*priv->rx_ring) * 32,
+					     priv->rx_ring_sz * 32,
 					     &priv->rx_ring_dma);
 
 	if (!priv->rx_ring || (unsigned long)priv->rx_ring & 0xFF) {
@@ -541,13 +567,13 @@ static int rtl8180_init_rx_ring(struct ieee80211_hw *dev)
 		return -ENOMEM;
 	}
 
-	memset(priv->rx_ring, 0, sizeof(*priv->rx_ring) * 32);
+	memset(priv->rx_ring, 0, priv->rx_ring_sz * 32);
 	priv->rx_idx = 0;
 
 	for (i = 0; i < 32; i++) {
 		struct sk_buff *skb = dev_alloc_skb(MAX_RX_SIZE);
 		dma_addr_t *mapping;
-		entry = &priv->rx_ring[i];
+		entry = priv->rx_ring + priv->rx_ring_sz*i;
 		if (!skb) {
 			wiphy_err(dev->wiphy, "Cannot allocate RX skb\n");
 			return -ENOMEM;
@@ -587,7 +613,7 @@ static void rtl8180_free_rx_ring(struct ieee80211_hw *dev)
 		kfree_skb(skb);
 	}
 
-	pci_free_consistent(priv->pdev, sizeof(*priv->rx_ring) * 32,
+	pci_free_consistent(priv->pdev, priv->rx_ring_sz * 32,
 			    priv->rx_ring, priv->rx_ring_dma);
 	priv->rx_ring = NULL;
 }

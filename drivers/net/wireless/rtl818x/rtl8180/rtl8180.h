@@ -55,13 +55,25 @@ struct rtl8180_tx_desc {
 	__le16 frag_qsize;
 } __packed;
 
+struct rtl818x_rx_cmd_desc {
+	__le32 flags;
+	u32 reserved;
+	__le32 rx_buf;
+} __packed;
+
 struct rtl8180_rx_desc {
 	__le32 flags;
 	__le32 flags2;
-	union {
-		__le32 rx_buf;
-		__le64 tsft;
-	};
+	__le64 tsft;
+
+} __packed;
+
+struct rtl8187se_rx_desc {
+	__le32 flags;
+	__le64 tsft;
+	__le32 flags2;
+	__le32 flags3;
+	u32 reserved[3];
 } __packed;
 
 struct rtl8180_tx_ring {
@@ -88,7 +100,8 @@ struct rtl8180_priv {
 
 	/* rtl8180 driver specific */
 	spinlock_t lock;
-	struct rtl8180_rx_desc *rx_ring;
+	void *rx_ring;
+	u8 rx_ring_sz;
 	dma_addr_t rx_ring_dma;
 	unsigned int rx_idx;
 	struct sk_buff *rx_buf[32];
