@@ -146,7 +146,7 @@ int usb_battery_charger_detect_synop(bool wait)
         BC_SET(SYNOP_BC_VDATDETENB, 1);
         BC_SET(SYNOP_BC_CHRGSEL, 0);
 
-        timeout = T_BC_WAIT_CHGDET;
+        timeout = wait ? T_BC_WAIT_CHGDET : 1;
         while(timeout--) {
             if(BC_GET(SYNOP_BC_CHGDET))
                 break;
@@ -159,7 +159,7 @@ int usb_battery_charger_detect_synop(bool wait)
             BC_SET(SYNOP_BC_VDATSRCENB, 0);
             BC_SET(SYNOP_BC_VDATDETENB, 0);
 
-            timeout = T_BC_SRC_OFF;
+            timeout = wait ? T_BC_SRC_OFF : 1;
             while(timeout--) {
                 if(!BC_GET(SYNOP_BC_CHGDET))
                     break;
@@ -170,7 +170,7 @@ int usb_battery_charger_detect_synop(bool wait)
             BC_SET(SYNOP_BC_VDATSRCENB, 1);
             BC_SET(SYNOP_BC_VDATDETENB, 1);
             BC_SET(SYNOP_BC_CHRGSEL, 1);
-
+            udelay(200);
             if(BC_GET(SYNOP_BC_CHGDET))
                 port_type = USB_BC_TYPE_DCP;
             else
@@ -184,7 +184,7 @@ int usb_battery_charger_detect_synop(bool wait)
 
     }
 
-    //printk("%s , battery_charger_detect %d\n", __func__, port_type);
+    printk("%s , battery_charger_detect %d\n", __func__, port_type);
     return port_type;
 }
 
