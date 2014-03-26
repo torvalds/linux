@@ -49,7 +49,7 @@ enum {
 
 static struct snd_soc_codec *rt3261_codec;
 
-#if 1
+#if 0
 #define DBG(x...)	printk(KERN_DEBUG x)
 #else
 #define DBG(x...)
@@ -3363,7 +3363,11 @@ static int rt3261_probe(struct snd_soc_codec *codec)
 	}
 	#endif
 	
-	rt3261_reset(codec);
+	ret=rt3261_reset(codec);
+	if (ret < 0)
+	{
+		return -ENODEV;
+	}
 	snd_soc_update_bits(codec, RT3261_PWR_ANLG1,
 		RT3261_PWR_VREF1 | RT3261_PWR_MB |
 		RT3261_PWR_BG | RT3261_PWR_VREF2,
@@ -3576,7 +3580,7 @@ static int rt3261_parse_dt_property(struct device *dev,
 	int ret;
 	enum of_gpio_flags flags;
 
-	printk("%s()\n", __FUNCTION__);
+	DBG("%s()\n", __FUNCTION__);
 
 	if (!node)
 		return -ENODEV;

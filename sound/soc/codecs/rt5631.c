@@ -120,8 +120,14 @@ static unsigned int rt5631_read_index(struct snd_soc_codec *codec,
 				unsigned int reg)
 {
 	unsigned int value;
+	int ret = 0;
 
-	rt5631_write(codec, RT5631_INDEX_ADD, reg);
+	ret = rt5631_write(codec, RT5631_INDEX_ADD, reg);
+	if (ret < 0)
+	{
+		return ret;
+	}
+
 	value = rt5631_read(codec, RT5631_INDEX_DATA);
 
 	return value;
@@ -1985,7 +1991,7 @@ static int rt5631_set_bias_level(struct snd_soc_codec *codec,
 static int rt5631_probe(struct snd_soc_codec *codec)
 {
 	struct rt5631_priv *rt5631 = snd_soc_codec_get_drvdata(codec);
-	unsigned int val;
+	int val;
 	int ret;
 	ret = snd_soc_codec_set_cache_io(codec, 8, 16, SND_SOC_I2C);
 	if (ret != 0) {
@@ -1995,6 +2001,10 @@ static int rt5631_probe(struct snd_soc_codec *codec)
 	codec->cache_bypass = 1;
 
 	val = rt5631_read_index(codec, RT5631_ADDA_MIXER_INTL_REG3);
+	if(val < 0)
+	{
+		return -ENODEV;
+	}
 	if (val & 0x0002)
 		rt5631->codec_version = 1;
 	else
@@ -2056,7 +2066,6 @@ static int rt5631_remove(struct snd_soc_codec *codec)
 
 
 #if (RT5631_SPK_TIMER == 1)	
-	/* Timer¡¡module¡¡uninstalling */
 	int ret;
 	ret = del_timer(&spk_timer);
 	if(ret) printk("The timer is still in use...\n");
