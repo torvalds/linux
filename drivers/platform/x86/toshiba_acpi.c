@@ -100,6 +100,7 @@ MODULE_LICENSE("GPL");
 #define SCI_OPEN_CLOSE_OK		0x0044
 #define SCI_ALREADY_OPEN		0x8100
 #define SCI_NOT_OPENED			0x8200
+#define SCI_INPUT_DATA_ERROR		0x8300
 #define SCI_NOT_PRESENT			0x8600
 
 /* registers */
@@ -110,6 +111,7 @@ MODULE_LICENSE("GPL");
 #define HCI_HOTKEY_EVENT		0x001e
 #define HCI_LCD_BRIGHTNESS		0x002a
 #define HCI_WIRELESS			0x0056
+#define SCI_ILLUMINATION		0x014e
 
 /* field definitions */
 #define HCI_HOTKEY_DISABLE		0x0b
@@ -362,18 +364,23 @@ static acpi_status sci_write(struct toshiba_acpi_dev *dev, u32 reg,
 /* Illumination support */
 static int toshiba_illumination_available(struct toshiba_acpi_dev *dev)
 {
-	u32 in[HCI_WORDS] = { 0, 0, 0, 0, 0, 0 };
+	u32 in[HCI_WORDS] = { SCI_GET, SCI_ILLUMINATION, 0, 0, 0, 0 };
 	u32 out[HCI_WORDS];
 	acpi_status status;
 
-	in[0] = 0xf100;
+	if (!sci_open(dev))
+		return 0;
+
 	status = hci_raw(dev, in, out);
-	if (ACPI_FAILURE(status)) {
+	sci_close(dev);
+	if (ACPI_FAILURE(status) || out[0] == HCI_FAILURE) {
+		pr_err("ACPI call to query Illumination support failed\n");
+		return 0;
+	} else if (out[0] == HCI_NOT_SUPPORTED || out[1] != 1) {
 		pr_info("Illumination device not available\n");
 		return 0;
 	}
-	in[0] = 0xf400;
-	status = hci_raw(dev, in, out);
+
 	return 1;
 }
 
@@ -382,82 +389,49 @@ static void toshiba_illumination_set(struct led_classdev *cdev,
 {
 	struct toshiba_acpi_dev *dev = container_of(cdev,
 			struct toshiba_acpi_dev, led_dev);
-	u32 in[HCI_WORDS] = { 0, 0, 0, 0, 0, 0 };
-	u32 out[HCI_WORDS];
+	u32 state, result;
 	acpi_status status;
 
 	/* First request : initialize communication. */
-	in[0] = 0xf100;
-	status = hci_raw(dev, in, out);
+	if (!sci_open(dev))
+		return;
+
+	/* Switch the illumination on/off */
+	state = brightness ? 1 : 0;
+	status = sci_write(dev, SCI_ILLUMINATION, state, &result);
+	sci_close(dev);
 	if (ACPI_FAILURE(status)) {
-		pr_info("Illumination device not available\n");
+		pr_err("ACPI call for illumination failed\n");
+		return;
+	} else if (result == HCI_NOT_SUPPORTED) {
+		pr_info("Illumination not supported\n");
 		return;
 	}
-
-	if (brightness) {
-		/* Switch the illumination on */
-		in[0] = 0xf400;
-		in[1] = 0x14e;
-		in[2] = 1;
-		status = hci_raw(dev, in, out);
-		if (ACPI_FAILURE(status)) {
-			pr_info("ACPI call for illumination failed\n");
-			return;
-		}
-	} else {
-		/* Switch the illumination off */
-		in[0] = 0xf400;
-		in[1] = 0x14e;
-		in[2] = 0;
-		status = hci_raw(dev, in, out);
-		if (ACPI_FAILURE(status)) {
-			pr_info("ACPI call for illumination failed.\n");
-			return;
-		}
-	}
-
-	/* Last request : close communication. */
-	in[0] = 0xf200;
-	in[1] = 0;
-	in[2] = 0;
-	hci_raw(dev, in, out);
 }
 
 static enum led_brightness toshiba_illumination_get(struct led_classdev *cdev)
 {
 	struct toshiba_acpi_dev *dev = container_of(cdev,
 			struct toshiba_acpi_dev, led_dev);
-	u32 in[HCI_WORDS] = { 0, 0, 0, 0, 0, 0 };
-	u32 out[HCI_WORDS];
+	u32 state, result;
 	acpi_status status;
-	enum led_brightness result;
 
 	/* First request : initialize communication. */
-	in[0] = 0xf100;
-	status = hci_raw(dev, in, out);
-	if (ACPI_FAILURE(status)) {
-		pr_info("Illumination device not available\n");
+	if (!sci_open(dev))
 		return LED_OFF;
-	}
 
 	/* Check the illumination */
-	in[0] = 0xf300;
-	in[1] = 0x14e;
-	status = hci_raw(dev, in, out);
-	if (ACPI_FAILURE(status)) {
-		pr_info("ACPI call for illumination failed.\n");
+	status = sci_read(dev, SCI_ILLUMINATION, &state, &result);
+	sci_close(dev);
+	if (ACPI_FAILURE(status) || result == SCI_INPUT_DATA_ERROR) {
+		pr_err("ACPI call for illumination failed\n");
+		return LED_OFF;
+	} else if (result == HCI_NOT_SUPPORTED) {
+		pr_info("Illumination not supported\n");
 		return LED_OFF;
 	}
 
-	result = out[2] ? LED_FULL : LED_OFF;
-
-	/* Last request : close communication. */
-	in[0] = 0xf200;
-	in[1] = 0;
-	in[2] = 0;
-	hci_raw(dev, in, out);
-
-	return result;
+	return state ? LED_FULL : LED_OFF;
 }
 
 /* Bluetooth rfkill handlers */
