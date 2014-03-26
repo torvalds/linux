@@ -602,3 +602,10 @@
 	phy_type = "ulpi";
 	status = "okay";
 };
+
+&usbotg {
+	dr_mode = "otg";
+	disable-over-current;
+	phy_type = "utmi_wide";
+	status = "okay";
+};
