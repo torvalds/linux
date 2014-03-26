@@ -762,7 +762,7 @@ void fimc_adjust_mplane_format(struct fimc_fmt *fmt, u32 width, u32 height,
 		if (tiled_fmt(fmt)) {
 			/* 64 * 32 * plane_fmt->bytesperline / 64 */
 			u32 row_size = plane_fmt->bytesperline * 32;
-			sizeimage = ALIGN(sizeimage, row_size);
+			sizeimage = roundup(sizeimage, row_size);
 		}
 
 		plane_fmt->sizeimage = max(sizeimage, plane_fmt->sizeimage);
