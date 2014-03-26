@@ -1716,9 +1716,6 @@ int clk_set_parent(struct clk *clk, struct clk *parent)
 	if (!clk)
 		return 0;
 
-	if (!clk->ops)
-		return -EINVAL;
-
 	/* verify ops for for multi-parent clks */
 	if ((clk->num_parents > 1) && (!clk->ops->set_parent))
 		return -ENOSYS;
