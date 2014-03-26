@@ -244,12 +244,19 @@ static ssize_t w1_therm_read(struct device *device,
 			break;
 	}
 
+	for (i = 0; i < 9; ++i)
+		c -= snprintf(buf + PAGE_SIZE - c, c, "%02x ", rom[i]);
+	c -= snprintf(buf + PAGE_SIZE - c, c, ": crc=%02x %s\n",
+			   crc, (verdict) ? "YES" : "NO");
 	if (verdict)
 		memcpy(sl->rom, rom, sizeof(sl->rom));
 	else
 		dev_warn(device, "18S20 doesn't respond to CONVERT_TEMP.\n");
 
-	c -= snprintf(buf + PAGE_SIZE - c, c, "%d\n",
+	for (i = 0; i < 9; ++i)
+		c -= snprintf(buf + PAGE_SIZE - c, c, "%02x ", sl->rom[i]);
+
+	c -= snprintf(buf + PAGE_SIZE - c, c, "t=%d\n",
 		w1_convert_temp(rom, sl->family->fid));
 	mutex_unlock(&dev->mutex);
 
