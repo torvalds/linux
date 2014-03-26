@@ -449,9 +449,10 @@ static int wlan_platdata_parse_dt(struct device *dev,
     memset(data, 0, sizeof(*data));
 
     ret = of_property_read_u32(node, "sdio_vref", &value);
-    if (ret < 0)
+    if (ret < 0) {
         LOG("%s: Can't get sdio vref.", __func__);
-
+        return -1;
+    }
     data->sdio_vol = value;
 
     if (of_find_property(node, "power_ctrl_by_pmu", NULL)) {
@@ -480,19 +481,19 @@ static int wlan_platdata_parse_dt(struct device *dev,
 			data->power_n.io = gpio;
 			data->power_n.enable = (flags == GPIO_ACTIVE_HIGH)? 1:0;
 			LOG("%s: get property: WIFI,poweren_gpio = %d, flags = %d.\n", __func__, gpio, flags);
-        }
+        } else data->power_n.io = -1;
         gpio = of_get_named_gpio_flags(node, "WIFI,reset_gpio", 0, &flags);
         if (gpio_is_valid(gpio)){
 			data->reset_n.io = gpio;
 			data->reset_n.enable = (flags == GPIO_ACTIVE_HIGH)? 1:0;
 			LOG("%s: get property: WIFI,reset_gpio = %d, flags = %d.\n", __func__, gpio, flags);
-        }
+        } else data->reset_n.io = -1;
         gpio = of_get_named_gpio_flags(node, "WIFI,host_wake_irq", 0, &flags);
         if (gpio_is_valid(gpio)){
 			data->wifi_int_b.io = gpio;
 			data->wifi_int_b.enable = flags;
 			LOG("%s: get property: WIFI,host_wake_irq = %d, flags = %d.\n", __func__, gpio, flags);
-        }
+        } else data->wifi_int_b.io = -1;
 	}
 
     return 0;
