@@ -325,6 +325,10 @@ static int cpufreq_stat_notifier_trans(struct notifier_block *nb,
 	old_index = stat->last_index;
 	new_index = freq_table_get_index(stat, freq->new);
 
+#ifdef CONFIG_ARCH_ROCKCHIP
+	if (old_index == -1)
+		stat->last_index = new_index;
+#endif
 	/* We can't do stat->time_in_state[-1]= .. */
 	if (old_index == -1 || new_index == -1)
 		return 0;
