@@ -2504,11 +2504,7 @@ static int dw_mci_init_slot(struct dw_mci *host, unsigned int id)
 	slot->quirks = dw_mci_of_get_slot_quirks(host->dev, slot->id);
 
 	mmc->ops = &dw_mci_ops;
-#if 0
-    mmc->f_min = DIV_ROUND_UP(host->bus_hz, 510);
-    mmc->f_max = host->bus_hz;
-    printk("%d..%s: fmin=%d, fmax=%d, bus_hz=%d \n", __LINE__,__FUNCTION__,mmc->f_min, mmc->f_max, host->bus_hz);    
-#else
+
 	if (of_property_read_u32_array(host->dev->of_node,
 				       "clock-freq-min-max", freq, 2)) {
 		mmc->f_min = DW_MCI_FREQ_MIN;
@@ -2521,7 +2517,6 @@ static int dw_mci_init_slot(struct dw_mci *host, unsigned int id)
 		
         printk("%d..%s: fmin=%d, fmax=%d [%s]\n", __LINE__,__FUNCTION__,mmc->f_min, mmc->f_max,  mmc_hostname(mmc));    
 	}
-#endif
 
 	if (of_find_property(host->dev->of_node, "supports-sd", NULL))
 		mmc->restrict_caps |= RESTRICT_CARD_TYPE_SD;	
@@ -2865,57 +2860,47 @@ int dw_mci_probe(struct dw_mci *host)
 		return -ENODEV;
 	}
 
-	host->biu_clk = devm_clk_get(host->dev, "biu");
-	if (IS_ERR(host->biu_clk)) {
-		dev_dbg(host->dev, "biu clock not available\n");
-	} else {
-		ret = clk_prepare_enable(host->biu_clk);
-		if (ret) {
-			dev_err(host->dev, "failed to enable biu clock\n");
-			return ret;
-		}
-	}
+    //hclk enable
+    host->hclk_mmc= devm_clk_get(host->dev, "hclk_mmc");
+    if (IS_ERR(host->hclk_mmc)) {
+        dev_err(host->dev, "failed to get hclk_mmc\n");
+        ret = PTR_ERR(host->hclk_mmc);
+        goto err_hclk_mmc;
+    }
+    clk_prepare_enable(host->hclk_mmc);
 
-	host->ciu_clk = devm_clk_get(host->dev, "ciu");
-	if (IS_ERR(host->ciu_clk)) {
-		dev_dbg(host->dev, "ciu clock not available\n");
-		host->bus_hz = host->pdata->bus_hz;
-	} else {
-		ret = clk_prepare_enable(host->ciu_clk);
-		if (ret) {
-			dev_err(host->dev, "failed to enable ciu clock\n");
-			goto err_clk_biu;
-		}
-	}
+    //mmc clk enable
+    host->clk_mmc = devm_clk_get(host->dev, "clk_mmc");
+    if (IS_ERR(host->clk_mmc)) {
+        dev_err(host->dev, "failed to get clk mmc_per\n");
+        ret = PTR_ERR(host->clk_mmc);
+        goto err_clk_mmc;
+    }
+    
+    host->bus_hz = host->pdata->bus_hz;    
+    if (!host->bus_hz) {
+        dev_err(host->dev,"Platform data must supply bus speed\n");
+        ret = -ENODEV;
+        goto err_clk_mmc;
+    }
 
-#if 1
-    //test, modify by xbw
-    host->bus_hz = 50000000;
-#else
-	if (drv_data && drv_data->init) {
-		ret = drv_data->init(host);
-		if (ret) {
-			dev_err(host->dev,
-				"implementation specific init failed\n");
-			goto err_clk_ciu;
-		}
-		host->bus_hz = clk_get_rate(host->ciu_clk);
-#endif
+	ret = clk_set_rate(host->clk_mmc, host->bus_hz);
+	if(ret < 0) {
+	    dev_err(host->dev, "failed to set clk mmc\n");
+	    goto err_clk_mmc;
+	}
+    clk_prepare_enable(host->clk_mmc);
+   // printk(" hclk=0x%x, hclk-rate=%lu, clk=0x%x, mmcclk-rate=%lu,host->bus_hz=%d",\
+    //    host->hclk_mmc,host->hclk_mmc->rate,host->clk_mmc,host->clk_mmc.rate,host->bus_hz);
+
 	if (drv_data && drv_data->setup_clock) {
-		ret = drv_data->setup_clock(host);
-		if (ret) {
-			dev_err(host->dev,
-				"implementation specific clock setup failed\n");
-			goto err_clk_ciu;
-		}
-	}
-
-	if (!host->bus_hz) {
-		dev_err(host->dev,
-			"Platform data must supply bus speed\n");
-		ret = -ENODEV;
-		goto err_clk_ciu;
-	}
+        ret = drv_data->setup_clock(host);
+        if (ret) {
+            dev_err(host->dev,
+                "implementation specific clock setup failed\n");
+            goto err_clk_mmc;
+        }
+    }
 
 	host->quirks = host->pdata->quirks;
     host->irq_state = true;
@@ -3069,14 +3054,13 @@ err_dmaunmap:
 	if (host->vmmc)
 		regulator_disable(host->vmmc);
 
-err_clk_ciu:
-	if (!IS_ERR(host->ciu_clk))
-		clk_disable_unprepare(host->ciu_clk);
-
-err_clk_biu:
-	if (!IS_ERR(host->biu_clk))
-		clk_disable_unprepare(host->biu_clk);
-
+err_clk_mmc:
+    if (!IS_ERR(host->clk_mmc))
+		clk_disable_unprepare(host->clk_mmc);
+err_hclk_mmc:
+    if (!IS_ERR(host->hclk_mmc))
+		clk_disable_unprepare(host->hclk_mmc);
+		
 	return ret;
 }
 EXPORT_SYMBOL(dw_mci_probe);
@@ -3105,12 +3089,12 @@ void dw_mci_remove(struct dw_mci *host)
 
 	if (host->vmmc)
 		regulator_disable(host->vmmc);
+		
+    if (!IS_ERR(host->clk_mmc))
+		clk_disable_unprepare(host->clk_mmc);
 
-	if (!IS_ERR(host->ciu_clk))
-		clk_disable_unprepare(host->ciu_clk);
-
-	if (!IS_ERR(host->biu_clk))
-		clk_disable_unprepare(host->biu_clk);
+    if (!IS_ERR(host->hclk_mmc))
+		clk_disable_unprepare(host->hclk_mmc);
 }
 EXPORT_SYMBOL(dw_mci_remove);
 
