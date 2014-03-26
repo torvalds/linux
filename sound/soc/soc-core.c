@@ -1137,16 +1137,6 @@ static int soc_probe_codec(struct snd_soc_card *card,
 
 	codec->dapm.idle_bias_off = driver->idle_bias_off;
 
-	if (!codec->write && dev_get_regmap(codec->dev, NULL)) {
-		/* Set the default I/O up try regmap */
-		ret = snd_soc_codec_set_cache_io(codec, NULL);
-		if (ret < 0) {
-			dev_err(codec->dev,
-				"Failed to set cache I/O: %d\n", ret);
-			goto err_probe;
-		}
-	}
-
 	if (driver->probe) {
 		ret = driver->probe(codec);
 		if (ret < 0) {
@@ -4263,6 +4253,7 @@ int snd_soc_register_codec(struct device *dev,
 			   int num_dai)
 {
 	struct snd_soc_codec *codec;
+	struct regmap *regmap;
 	int ret, i;
 
 	dev_dbg(dev, "codec register %s\n", dev_name(dev));
@@ -4293,6 +4284,23 @@ int snd_soc_register_codec(struct device *dev,
 	codec->driver = codec_drv;
 	codec->num_dai = num_dai;
 	mutex_init(&codec->mutex);
+
+	if (!codec->write) {
+		if (codec_drv->get_regmap)
+			regmap = codec_drv->get_regmap(dev);
+		else
+			regmap = dev_get_regmap(dev, NULL);
+
+		if (regmap) {
+			ret = snd_soc_codec_set_cache_io(codec, regmap);
+			if (ret && ret != -ENOTSUPP) {
+				dev_err(codec->dev,
+						"Failed to set cache I/O:%d\n",
+						ret);
+				return ret;
+			}
+		}
+	}
 
 	for (i = 0; i < num_dai; i++) {
 		fixup_codec_formats(&dai_drv[i].playback);

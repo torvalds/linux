@@ -60,14 +60,11 @@ int snd_soc_codec_set_cache_io(struct snd_soc_codec *codec,
 {
 	int ret;
 
-	/* Device has made its own regmap arrangements */
 	if (!regmap)
-		codec->control_data = dev_get_regmap(codec->dev, NULL);
-	else
-		codec->control_data = regmap;
+		return -EINVAL;
 
-	if (IS_ERR(codec->control_data))
-		return PTR_ERR(codec->control_data);
+	/* Device has made its own regmap arrangements */
+	codec->control_data = regmap;
 
 	codec->write = hw_write;
 	codec->read = hw_read;
