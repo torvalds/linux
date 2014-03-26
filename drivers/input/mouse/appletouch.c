@@ -48,6 +48,7 @@ struct atp_info {
 	int yfact;				/* Y multiplication factor */
 	int datalen;				/* size of USB transfers */
 	void (*callback)(struct urb *);		/* callback function */
+	int fuzz;				/* fuzz touchpad generates */
 };
 
 static void atp_complete_geyser_1_2(struct urb *urb);
@@ -61,6 +62,7 @@ static const struct atp_info fountain_info = {
 	.yfact		= 43,
 	.datalen	= 81,
 	.callback	= atp_complete_geyser_1_2,
+	.fuzz		= 16,
 };
 
 static const struct atp_info geyser1_info = {
@@ -71,6 +73,7 @@ static const struct atp_info geyser1_info = {
 	.yfact		= 43,
 	.datalen	= 81,
 	.callback	= atp_complete_geyser_1_2,
+	.fuzz		= 16,
 };
 
 static const struct atp_info geyser2_info = {
@@ -81,6 +84,7 @@ static const struct atp_info geyser2_info = {
 	.yfact		= 43,
 	.datalen	= 64,
 	.callback	= atp_complete_geyser_1_2,
+	.fuzz		= 0,
 };
 
 static const struct atp_info geyser3_info = {
@@ -90,6 +94,7 @@ static const struct atp_info geyser3_info = {
 	.yfact		= 64,
 	.datalen	= 64,
 	.callback	= atp_complete_geyser_3_4,
+	.fuzz		= 0,
 };
 
 static const struct atp_info geyser4_info = {
@@ -99,6 +104,7 @@ static const struct atp_info geyser4_info = {
 	.yfact		= 64,
 	.datalen	= 64,
 	.callback	= atp_complete_geyser_3_4,
+	.fuzz		= 0,
 };
 
 #define ATP_DEVICE(prod, info)					\
@@ -154,9 +160,6 @@ MODULE_DEVICE_TABLE(usb, atp_table);
 /* maximum number of sensors */
 #define ATP_XSENSORS	26
 #define ATP_YSENSORS	16
-
-/* amount of fuzz this touchpad generates */
-#define ATP_FUZZ	16
 
 /* maximum pressure this driver will report */
 #define ATP_PRESSURE	300
@@ -455,7 +458,7 @@ static void atp_detect_size(struct atp *dev)
 			input_set_abs_params(dev->input, ABS_X, 0,
 					     (dev->info->xsensors_17 - 1) *
 							dev->info->xfact - 1,
-					     ATP_FUZZ, 0);
+					     dev->info->fuzz, 0);
 			break;
 		}
 	}
@@ -843,10 +846,10 @@ static int atp_probe(struct usb_interface *iface,
 
 	input_set_abs_params(input_dev, ABS_X, 0,
 			     (dev->info->xsensors - 1) * dev->info->xfact - 1,
-			     ATP_FUZZ, 0);
+			     dev->info->fuzz, 0);
 	input_set_abs_params(input_dev, ABS_Y, 0,
 			     (dev->info->ysensors - 1) * dev->info->yfact - 1,
-			     ATP_FUZZ, 0);
+			     dev->info->fuzz, 0);
 	input_set_abs_params(input_dev, ABS_PRESSURE, 0, ATP_PRESSURE, 0, 0);
 
 	set_bit(EV_KEY, input_dev->evbit);
