@@ -218,10 +218,6 @@ static int uwire_txrx(struct spi_device *spi, struct spi_transfer *t)
 	if (!t->tx_buf && !t->rx_buf)
 		return 0;
 
-	/* Microwire doesn't read and write concurrently */
-	if (t->tx_buf && t->rx_buf)
-		return -EPERM;
-
 	w = spi->chip_select << 10;
 	w |= CS_CMD;
 
