@@ -2653,15 +2653,24 @@ static int dw_mci_init_slot(struct dw_mci *host, unsigned int id)
     /* Pinctrl set default iomux state to fucntion port.
      * Fixme: DON'T TOUCH EMMC SETTING!
      */
-    if(!(host->mmc->restrict_caps & RESTRICT_CARD_TYPE_EMMC))
-    {
+     if(!(host->mmc->restrict_caps & RESTRICT_CARD_TYPE_EMMC))
+     {
         host->pinctrl = devm_pinctrl_get(host->dev);
-        host->pins_default = pinctrl_lookup_state(host->pinctrl,PINCTRL_STATE_DEFAULT);
-        if(!host->pins_default)
-            pinctrl_select_state(host->pinctrl, host->pins_default);
+        if(IS_ERR(host->pinctrl))
+            printk("%s: Warning : No pinctrl used!\n",mmc_hostname(host->mmc));
         else
-            printk("%s: Warning : No default pinctrl matched!\n",mmc_hostname(host->mmc));
-    }
+        {
+            host->pins_default = pinctrl_lookup_state(host->pinctrl,PINCTRL_STATE_DEFAULT);
+            if(IS_ERR(host->pins_default))
+                printk("%s: Warning : No default pinctrl matched!\n", mmc_hostname(host->mmc));
+            else
+            { 
+                if(pinctrl_select_state(host->pinctrl, host->pins_default) < 0)
+                   printk("%s: Warning :  Default pinctrl setting failed!\n", mmc_hostname(host->mmc));  
+            }
+         }
+     }
+    
     
 #if defined(CONFIG_DEBUG_FS)
 	dw_mci_init_debugfs(slot);
