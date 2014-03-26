@@ -12,7 +12,7 @@
         compatible = "wlan-platdata";
 
         wifi_chip_type = "";
-        sdio_vref = <28000>;
+        sdio_vref = <1800>; //1800mv or 3300mv
 
         //power_ctrl_by_pmu;
         pmu_regulator = "act_ldo3";
@@ -105,6 +105,18 @@
 	
 	rockchip-hdmi-spdif {
 		compatible = "rockchip-hdmi-spdif";
+		dais {
+			dai0 {
+				audio-codec = <&codec_hdmi_spdif>;
+				i2s-controller = <&spdif>;
+				format = "spdif";
+				//continuous-clock;
+				//bitclock-inversion;
+				//frame-inversion;
+				//bitclock-master;
+				//frame-master;
+			};
+		};		
 	};
 
 	rockchip-rt5631 {
@@ -156,9 +168,9 @@
 		
   	supports-highspeed;		
 	supports-sdio;
-	cap-sdio-irq;
+	//cap-sdio-irq;
 
-	status = "diabled";
+	status = "okay";
 };
 
 &spi0 {
@@ -171,6 +183,11 @@
 
 &spi2 {
 	status = "okay";
+};
+&uart_bt {
+        status = "okay";
+        dma-names = "!tx", "!rx";
+        pinctrl-0 = <&uart0_xfer &uart0_cts>;
 };
 
 &i2c0 {
@@ -265,7 +282,7 @@
 };
 
 &i2c5 {
-	status = "okay";
+	status = "disable";
 };
 
 &fb {
