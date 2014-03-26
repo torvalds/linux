@@ -85,6 +85,52 @@ static const struct ieee80211_channel rtl818x_channels[] = {
 	{ .center_freq = 2484 },
 };
 
+/* Queues for rtl8187se card
+ *
+ * name | reg  |  queue
+ *  BC  |  7   |   6
+ *  MG  |  1   |   0
+ *  HI  |  6   |   1
+ *  VO  |  5   |   2
+ *  VI  |  4   |   3
+ *  BE  |  3   |   4
+ *  BK  |  2   |   5
+ *
+ * The complete map for DMA kick reg using use all queue is:
+ * static const int rtl8187se_queues_map[RTL8187SE_NR_TX_QUEUES] =
+ *	{1, 6, 5, 4, 3, 2, 7};
+ *
+ * .. but.. Because for mac80211 4 queues are enough for QoS we use this
+ *
+ * name | reg  |  queue
+ *  BC  |  7   |   4  <- currently not used yet
+ *  MG  |  1   |   x  <- Not used
+ *  HI  |  6   |   x  <- Not used
+ *  VO  |  5   |   0  <- used
+ *  VI  |  4   |   1  <- used
+ *  BE  |  3   |   2  <- used
+ *  BK  |  2   |   3  <- used
+ *
+ * Beacon queue could be used, but this is not finished yet.
+ *
+ * I thougth about using the other two queues but I decided not to do this:
+ *
+ * - I'm unsure whether the mac80211 will ever try to use more than 4 queues
+ *   by itself.
+ *
+ * - I could route MGMT frames (currently sent over VO queue) to the MGMT
+ *   queue but since mac80211 will do not know about it, I will probably gain
+ *   some HW priority whenever the VO queue is not empty, but this gain is
+ *   limited by the fact that I had to stop the mac80211 queue whenever one of
+ *   the VO or MGMT queues is full, stopping also submitting of MGMT frame
+ *   to the driver.
+ *
+ * - I don't know how to set in the HW the contention window params for MGMT
+ *   and HI-prio queues.
+ */
+
+static const int rtl8187se_queues_map[RTL8187SE_NR_TX_QUEUES] = {5, 4, 3, 2, 7};
+
 /* Queues for rtl8180/rtl8185 cards
  *
  * name | reg  |  prio
@@ -358,6 +404,8 @@ static void rtl8180_tx(struct ieee80211_hw *dev,
 	u8 rc_flags;
 	u16 plcp_len = 0;
 	__le16 rts_duration = 0;
+	/* do arithmetic and then convert to le16 */
+	u16 frame_duration = 0;
 
 	prio = skb_get_queue_mapping(skb);
 	ring = &priv->tx_ring[prio];
@@ -369,7 +417,6 @@ static void rtl8180_tx(struct ieee80211_hw *dev,
 		kfree_skb(skb);
 		dev_err(&priv->pdev->dev, "TX DMA mapping error\n");
 		return;
-
 	}
 
 	tx_flags = RTL818X_TX_DESC_FLAG_OWN | RTL818X_TX_DESC_FLAG_FS |
@@ -405,6 +452,18 @@ static void rtl8180_tx(struct ieee80211_hw *dev,
 			plcp_len |= 1 << 15;
 	}
 
+	if (priv->chip_family == RTL818X_CHIP_FAMILY_RTL8187SE) {
+		__le16 duration;
+		/* SIFS time (required by HW) is already included by
+		 * ieee80211_generic_frame_duration
+		 */
+		duration = ieee80211_generic_frame_duration(dev, priv->vif,
+					IEEE80211_BAND_2GHZ, skb->len,
+					ieee80211_get_tx_rate(dev, info));
+
+		frame_duration =  priv->ack_time + le16_to_cpu(duration);
+	}
+
 	spin_lock_irqsave(&priv->lock, flags);
 
 	if (info->flags & IEEE80211_TX_CTL_ASSIGN_SEQ) {
@@ -417,10 +476,19 @@ static void rtl8180_tx(struct ieee80211_hw *dev,
 	idx = (ring->idx + skb_queue_len(&ring->queue)) % ring->entries;
 	entry = &ring->desc[idx];
 
+	if (priv->chip_family == RTL818X_CHIP_FAMILY_RTL8187SE) {
+		entry->frame_duration = cpu_to_le16(frame_duration);
+		entry->frame_len_se = cpu_to_le16(skb->len);
+
+		/* tpc polarity */
+		entry->flags3 = cpu_to_le16(1<<4);
+	} else
+		entry->frame_len = cpu_to_le32(skb->len);
+
 	entry->rts_duration = rts_duration;
 	entry->plcp_len = cpu_to_le16(plcp_len);
 	entry->tx_buf = cpu_to_le32(mapping);
-	entry->frame_len = cpu_to_le32(skb->len);
+
 	entry->flags2 = info->control.rates[1].idx >= 0 ?
 		ieee80211_get_alt_retry_rate(dev, info, 0)->bitrate << 4 : 0;
 	entry->retry_limit = info->control.rates[0].count;
@@ -442,11 +510,17 @@ static void rtl8180_tx(struct ieee80211_hw *dev,
 
 	spin_unlock_irqrestore(&priv->lock, flags);
 
-	hw_prio = rtl8180_queues_map[prio];
-
-	rtl818x_iowrite8(priv, &priv->map->TX_DMA_POLLING,
+	if (priv->chip_family == RTL818X_CHIP_FAMILY_RTL8187SE) {
+		/* just poll: rings are stopped with TPPollStop reg */
+		hw_prio = rtl8187se_queues_map[prio];
+		rtl818x_iowrite8(priv, &priv->map->TX_DMA_POLLING,
+			 (1 << hw_prio));
+	} else {
+		hw_prio = rtl8180_queues_map[prio];
+		rtl818x_iowrite8(priv, &priv->map->TX_DMA_POLLING,
 			 (1 << hw_prio) | /* ring to poll  */
 			 (1<<1) | (1<<2));/* stopped rings */
+	}
 }
 
 void rtl8180_set_anaparam(struct rtl8180_priv *priv, u32 anaparam)

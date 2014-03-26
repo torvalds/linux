@@ -29,6 +29,14 @@
  */
 #define RTL8180_NR_TX_QUEUES 2
 
+/* rtl8187SE have 6 queues + beacon queues
+ * mac80211 can use 4 QoS data queue, + beacon = 5 tot
+ */
+#define RTL8187SE_NR_TX_QUEUES 5
+
+/* for array static allocation, it is the max of above */
+#define RTL818X_NR_TX_QUEUES 5
+
 struct rtl8180_tx_desc {
 	__le32 flags;
 	__le16 rts_duration;
@@ -105,7 +113,7 @@ struct rtl8180_priv {
 	dma_addr_t rx_ring_dma;
 	unsigned int rx_idx;
 	struct sk_buff *rx_buf[32];
-	struct rtl8180_tx_ring tx_ring[RTL8180_NR_TX_QUEUES];
+	struct rtl8180_tx_ring tx_ring[RTL818X_NR_TX_QUEUES];
 	struct ieee80211_channel channels[14];
 	struct ieee80211_rate rates[12];
 	struct ieee80211_supported_band band;
