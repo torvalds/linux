@@ -242,6 +242,7 @@ struct sta_info *sta_info_alloc(struct ieee80211_sub_if_data *sdata,
 		return NULL;
 
 	spin_lock_init(&sta->lock);
+	spin_lock_init(&sta->ps_lock);
 	INIT_WORK(&sta->drv_unblock_wk, sta_unblock);
 	INIT_WORK(&sta->ampdu_mlme.work, ieee80211_ba_session_work);
 	mutex_init(&sta->ampdu_mlme.mtx);
@@ -971,6 +972,8 @@ void ieee80211_sta_ps_deliver_wakeup(struct sta_info *sta)
 
 	skb_queue_head_init(&pending);
 
+	/* sync with ieee80211_tx_h_unicast_ps_buf */
+	spin_lock(&sta->ps_lock);
 	/* Send all buffered frames to the station */
 	for (ac = 0; ac < IEEE80211_NUM_ACS; ac++) {
 		int count = skb_queue_len(&pending), tmp;
@@ -990,6 +993,7 @@ void ieee80211_sta_ps_deliver_wakeup(struct sta_info *sta)
 	}
 
 	ieee80211_add_pending_skbs_fn(local, &pending, clear_sta_ps_flags, sta);
+	spin_unlock(&sta->ps_lock);
 
 	local->total_ps_buffered -= buffered;
 
