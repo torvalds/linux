@@ -407,12 +407,12 @@ config REGULATOR_PCF50633
 	 on PCF50633
 
 config REGULATOR_PFUZE100
-	tristate "Freescale PFUZE100 regulator driver"
+	tristate "Freescale PFUZE100/PFUZE200 regulator driver"
 	depends on I2C
 	select REGMAP_I2C
 	help
-	  Say y here to support the regulators found on the Freescale PFUZE100
-	  PMIC.
+	  Say y here to support the regulators found on the Freescale
+	  PFUZE100/PFUZE200 PMIC.
 
 config REGULATOR_RC5T583
 	tristate "RICOH RC5T583 Power regulators"
@@ -424,13 +424,21 @@ config REGULATOR_RC5T583
 	  through regulator interface. The device supports multiple DCDC/LDO
 	  outputs which can be controlled by i2c communication.
 
-config REGULATOR_S2MPS11
-	tristate "Samsung S2MPS11 voltage regulator"
+config REGULATOR_S2MPA01
+	tristate "Samsung S2MPA01 voltage regulator"
 	depends on MFD_SEC_CORE
 	help
-	 This driver supports a Samsung S2MPS11 voltage output regulator
-	 via I2C bus. S2MPS11 is comprised of high efficient Buck converters
-	 including Dual-Phase Buck converter, Buck-Boost converter, various LDOs.
+	 This driver controls Samsung S2MPA01 voltage output regulator
+	 via I2C bus. S2MPA01 has 10 Bucks and 26 LDO outputs.
+
+config REGULATOR_S2MPS11
+	tristate "Samsung S2MPS11/S2MPS14 voltage regulator"
+	depends on MFD_SEC_CORE
+	help
+	 This driver supports a Samsung S2MPS11/S2MPS14 voltage output
+	 regulator via I2C bus. The chip is comprised of high efficient Buck
+	 converters including Dual-Phase Buck converter, Buck-Boost converter,
+	 various LDOs.
 
 config REGULATOR_S5M8767
 	tristate "Samsung S5M8767A voltage regulator"
