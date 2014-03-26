@@ -1320,7 +1320,10 @@ static void rtl8180_eeprom_read(struct rtl8180_priv *priv)
 
 	eeprom_93cx6_multiread(&eeprom, 0x7, (__le16 *)priv->mac_addr, 3);
 
-	eeprom_cck_table_adr = 0x10;
+	if (priv->chip_family == RTL818X_CHIP_FAMILY_RTL8187SE)
+		eeprom_cck_table_adr = 0x30;
+	else
+		eeprom_cck_table_adr = 0x10;
 
 	/* CCK TX power */
 	for (i = 0; i < 14; i += 2) {
@@ -1346,6 +1349,19 @@ static void rtl8180_eeprom_read(struct rtl8180_priv *priv)
 		eeprom_93cx6_multiread(&eeprom, 0xD, (__le16 *)&anaparam, 2);
 		priv->anaparam = le32_to_cpu(anaparam);
 		eeprom_93cx6_read(&eeprom, 0x19, &priv->rfparam);
+	}
+
+	if (priv->chip_family == RTL818X_CHIP_FAMILY_RTL8187SE) {
+		eeprom_93cx6_read(&eeprom, 0x3F, &eeprom_val);
+		priv->antenna_diversity_en = !!(eeprom_val & 0x100);
+		priv->antenna_diversity_default = (eeprom_val & 0xC00) == 0x400;
+
+		eeprom_93cx6_read(&eeprom, 0x7C, &eeprom_val);
+		priv->xtal_out = eeprom_val & 0xF;
+		priv->xtal_in = (eeprom_val & 0xF0) >> 4;
+		priv->xtal_cal = !!(eeprom_val & 0x1000);
+		priv->thermal_meter_val = (eeprom_val & 0xF00) >> 8;
+		priv->thermal_meter_en = !!(eeprom_val & 0x2000);
 	}
 
 	rtl818x_iowrite8(priv, &priv->map->EEPROM_CMD,

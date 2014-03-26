@@ -132,6 +132,13 @@ struct rtl8180_priv {
 	u8 csthreshold;
 	u8 mac_addr[ETH_ALEN];
 	u8 rf_type;
+	u8 xtal_out;
+	u8 xtal_in;
+	u8 xtal_cal;
+	u8 thermal_meter_val;
+	u8 thermal_meter_en;
+	u8 antenna_diversity_en;
+	u8 antenna_diversity_default;
 	/* sequence # */
 	u16 seqno;
 };
