@@ -298,9 +298,10 @@ static void rk_hsic_hw_init(void)
 	control_usb->grf_uoc3_base->CON0 = ((0xf<<6)<<16)|(0xf<<6);
 
 	/* other haredware init
-	 * set common_on, in suspend mode, otg/host PLL blocks remain powered
+	 * set common_on = 0, in suspend mode, otg/host PLL blocks remain powered
+	 * for RK3288, use host1 (DWC_OTG) 480M phy clk
 	 */
-
+	control_usb->grf_uoc2_base->CON0 = (1<<16)|0;
 
 	/* change INCR to INCR16 or INCR8(beats less than 16)
 	 * or INCR4(beats less than 8) or SINGLE(beats less than 4)
@@ -330,9 +331,9 @@ static void rk_hsic_clock_init(void* pdata)
 		return;
 	}
 
-	phyclk_usbphy1 = devm_clk_get(usbpdata->dev, "hsic_usbphy1");
+	phyclk_usbphy1 = devm_clk_get(usbpdata->dev, "hsic_usbphy2");
 	if (IS_ERR(phyclk_usbphy1)) {
-		dev_err(usbpdata->dev, "Failed to get hsic_usbphy1\n");
+		dev_err(usbpdata->dev, "Failed to get hsic_usbphy2\n");
 		return;
 	}
 
