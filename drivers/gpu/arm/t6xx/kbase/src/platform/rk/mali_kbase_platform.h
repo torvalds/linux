@@ -1,9 +1,6 @@
-/* drivers/gpu/t6xx/kbase/src/platform/manta/mali_kbase_platform.h
+/* drivers/gpu/t6xx/kbase/src/platform/rk/mali_kbase_platform.h
  *
- * Copyright 2011 by S.LSI. Samsung Electronics Inc.
- * San#24, Nongseo-Dong, Giheung-Gu, Yongin, Korea
- *
- * Samsung SoC Mali-T604 platform-dependent codes
+ * Rockchip SoC Mali-T764 platform-dependent codes
  *
  * This program is free software; you can redistribute it and/or modify
  * it under the terms of the GNU General Public License version 2 as

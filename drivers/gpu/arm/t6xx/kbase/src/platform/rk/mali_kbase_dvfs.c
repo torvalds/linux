@@ -1,9 +1,6 @@
-/* drivers/gpu/t6xx/kbase/src/platform/manta/mali_kbase_dvfs.c
+/* drivers/gpu/t6xx/kbase/src/platform/rk/mali_kbase_dvfs.c
  *
- * Copyright 2011 by S.LSI. Samsung Electronics Inc.
- * San#24, Nongseo-Dong, Giheung-Gu, Yongin, Korea
- *
- * Samsung SoC Mali-T604 DVFS driver
+ * Rockchip SoC Mali-T764 DVFS driver
  *
  * This program is free software; you can redistribute it and/or modify
  * it under the terms of the GNU General Public License version 2 as
@@ -460,11 +457,13 @@ void kbase_platform_dvfs_set_level(kbase_device *kbdev, int level)
 	if (WARN_ON((level >= MALI_DVFS_STEP) || (level < 0)))
 		panic("invalid level");
 
+#ifdef CONFIG_MALI_T6XX_FREQ_LOCK
 	if (mali_dvfs_status_current.upper_lock >= 0 && level > mali_dvfs_status_current.upper_lock)
 		level = mali_dvfs_status_current.upper_lock;
 
 	if (mali_dvfs_status_current.under_lock >= 0 && level < mali_dvfs_status_current.under_lock)
 		level = mali_dvfs_status_current.under_lock;
+#endif
 
 #ifdef CONFIG_MALI_T6XX_DVFS
 	mutex_lock(&mali_set_clock_lock);

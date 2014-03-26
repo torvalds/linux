@@ -969,7 +969,7 @@
     iep_mmu{
         dbgname = "iep";
         compatible = "iommu,iep_mmu";
-        reg = <0xffa40000 0x10000>;
+        reg = <0xff900800 0x100>;
         interrupts = <GIC_SPI 17 IRQ_TYPE_LEVEL_HIGH>;
         interrupt-names = "iep_mmu";
     };
@@ -977,31 +977,31 @@
     vip_mmu{
         dbgname = "vip";
         compatible = "iommu,vip_mmu";
-        reg = <0xffa40000 0x10000>;
+        reg = <0xff950800 0x100>;
         interrupts = <GIC_SPI 13 IRQ_TYPE_LEVEL_HIGH>;
         interrupt-names = "vip_mmu";
     };
 
-    isp0_mmu{
-        dbgname = "isp0";
-        compatible = "iommu,isp0_mmu";
-        reg = <0xffa40000 0x10000>;
+    isp_mmu0{
+        dbgname = "isp_mmu0";
+        compatible = "iommu,isp_mmu0";
+        reg = <0xff914000 0x100>;
         interrupts = <GIC_SPI 14 IRQ_TYPE_LEVEL_HIGH>;
-        interrupt-names = "isp0_mmu";
+        interrupt-names = "isp_mmu0";
     };
 
-    isp1_mmu{
-        dbgname = "isp1";
-        compatible = "iommu,isp1_mmu";
-        reg = <0xffa40000 0x10000>;
+    isp_mmu1{
+        dbgname = "isp_mmu1";
+        compatible = "iommu,isp_mmu1";
+        reg = <0xff915000 0x100>;
         interrupts = <GIC_SPI 14 IRQ_TYPE_LEVEL_HIGH>;
-        interrupt-names = "isp1_mmu";
+        interrupt-names = "isp_mmu1";
     };
 
     vopb_mmu{
         dbgname = "vopb";
         compatible = "iommu,vopb_mmu";
-        reg = <0xffa40000 0x10000>;
+        reg = <0xff930300 0x100>;
         interrupts = <GIC_SPI 15 IRQ_TYPE_LEVEL_HIGH>;
         interrupt-names = "vopb_mmu";
     };
@@ -1009,11 +1009,27 @@
     vopl_mmu{
         dbgname = "vopl";
         compatible = "iommu,vopl_mmu";
-        reg = <0xffa40000 0x10000>;
+        reg = <0xff940300 0x100>;
         interrupts = <GIC_SPI 16 IRQ_TYPE_LEVEL_HIGH>;
         interrupt-names = "vopl_mmu";
     };
-
+    
+    hevc_mmu{
+        dbgname = "hevc";
+        compatible = "iommu,hevc_mmu";
+        reg = <0xff9c0800 0x100>;
+        interrupts = <GIC_SPI 111 IRQ_TYPE_LEVEL_HIGH>;
+        interrupt-names = "hevc_mmu";
+    };
+		
+		vpu_mmu{
+        dbgname = "vpu";
+        compatible = "iommu,vpu_mmu";
+        reg = <0xff9a0800 0x100>;
+        interrupts = <GIC_SPI 11 IRQ_TYPE_LEVEL_HIGH>;
+        interrupt-names = "vpu_mmu";
+    };
+    
     rockchip_suspend {     
                     rockchip,ctrbits = <    
                                     (0

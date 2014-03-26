@@ -2465,7 +2465,7 @@ static int kbase_platform_device_probe(struct platform_device *pdev)
 #endif /* CONFIG_MALI_NO_MALI */
 
 const char *dbgname = NULL;
-printk("slient i come :%s\n",__func__);
+#if 0
 if(pdev->dev.of_node)
 {
 	of_property_read_string(pdev->dev.of_node,"dbgname",&dbgname);
@@ -2475,7 +2475,7 @@ else
 {
 	printk("pdev->dev.of_node null\r\n");
 }
-
+#endif
 #ifdef CONFIG_OF
 	kbase_platform_config *config;
 	int attribute_count;
@@ -2579,7 +2579,6 @@ else
 	}
 #ifdef CONFIG_UMP
 	kbdev->memdev.ump_device_id = kbasep_get_config_value(kbdev, platform_data, KBASE_CONFIG_ATTR_UMP_DEVICE);
-	printk("i don't want ump device \n");
 #endif /* CONFIG_UMP */
 
 	kbdev->memdev.per_process_memory_limit = kbasep_get_config_value(kbdev, platform_data, KBASE_CONFIG_ATTR_MEMORY_PER_PROCESS_LIMIT);
@@ -2595,7 +2594,6 @@ else
 		dev_err(osdev->dev, "Failed kbase_common_device_init\n");
 		goto out_term_dev;
 	}
-	printk("yeah,everything seems going well,i go slient without nothing\n");
 	return 0;
 
  out_term_dev:

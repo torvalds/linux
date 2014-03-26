@@ -16,12 +16,14 @@
 #define IEP_SYSMMU_COMPATIBLE_NAME "iommu,iep_mmu"
 #define VIP_SYSMMU_COMPATIBLE_NAME "iommu,vip_mmu"
 
-#define ISP0_SYSMMU_COMPATIBLE_NAME "iommu,isp0_mmu"
-#define ISP1_SYSMMU_COMPATIBLE_NAME "iommu,isp1_mmu"
+#define ISP_SYSMMU0_COMPATIBLE_NAME "iommu,isp_mmu0"
+#define ISP_SYSMMU1_COMPATIBLE_NAME "iommu,isp_mmu1"
 
 #define VOPB_SYSMMU_COMPATIBLE_NAME "iommu,vopb_mmu"
 #define VOPL_SYSMMU_COMPATIBLE_NAME "iommu,vopl_mmu"
 
+#define HEVC_SYSMMU_COMPATIBLE_NAME "iommu,hevc_mmu"
+#define VPU_SYSMMU_COMPATIBLE_NAME "iommu,vpu_mmu"
 
 
 enum rk_sysmmu_inttype {

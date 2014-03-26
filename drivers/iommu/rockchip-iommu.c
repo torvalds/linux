@@ -1052,10 +1052,12 @@ static const struct of_device_id sysmmu_dt_ids[] =
 {
 	{ .compatible = IEP_SYSMMU_COMPATIBLE_NAME},
 	{ .compatible = VIP_SYSMMU_COMPATIBLE_NAME},
-	{ .compatible = ISP0_SYSMMU_COMPATIBLE_NAME},
-	{ .compatible = ISP1_SYSMMU_COMPATIBLE_NAME},
+	{ .compatible = ISP_SYSMMU0_COMPATIBLE_NAME},
+	{ .compatible = ISP_SYSMMU1_COMPATIBLE_NAME},
 	{ .compatible = VOPB_SYSMMU_COMPATIBLE_NAME},
 	{ .compatible = VOPL_SYSMMU_COMPATIBLE_NAME},
+	{ .compatible = HEVC_SYSMMU_COMPATIBLE_NAME},
+	{ .compatible = VPU_SYSMMU_COMPATIBLE_NAME},
 	{ /* end */ }
 };
 MODULE_DEVICE_TABLE(of, sysmmu_dt_ids);
