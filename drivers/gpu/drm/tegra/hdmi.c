@@ -978,10 +978,10 @@ static int tegra_output_hdmi_disable(struct tegra_output *output)
 }
 
 static int tegra_output_hdmi_setup_clock(struct tegra_output *output,
-					 struct clk *clk, unsigned long pclk)
+					 struct clk *clk, unsigned long pclk,
+					 unsigned int *div)
 {
 	struct tegra_hdmi *hdmi = to_hdmi(output);
-	struct clk *base;
 	int err;
 
 	err = clk_set_parent(clk, hdmi->clk_parent);
@@ -990,17 +990,12 @@ static int tegra_output_hdmi_setup_clock(struct tegra_output *output,
 		return err;
 	}
 
-	base = clk_get_parent(hdmi->clk_parent);
-
-	/*
-	 * This assumes that the parent clock is pll_d_out0 or pll_d2_out
-	 * respectively, each of which divides the base pll_d by 2.
-	 */
-	err = clk_set_rate(base, pclk * 2);
+	err = clk_set_rate(hdmi->clk_parent, pclk);
 	if (err < 0)
-		dev_err(output->dev,
-			"failed to set base clock rate to %lu Hz\n",
-			pclk * 2);
+		dev_err(output->dev, "failed to set clock rate to %lu Hz\n",
+			pclk);
+
+	*div = 0;
 
 	return 0;
 }

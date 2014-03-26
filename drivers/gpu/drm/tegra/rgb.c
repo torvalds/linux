@@ -159,11 +159,38 @@ static int tegra_output_rgb_disable(struct tegra_output *output)
 }
 
 static int tegra_output_rgb_setup_clock(struct tegra_output *output,
-					struct clk *clk, unsigned long pclk)
+					struct clk *clk, unsigned long pclk,
+					unsigned int *div)
 {
 	struct tegra_rgb *rgb = to_rgb(output);
+	int err;
 
-	return clk_set_parent(clk, rgb->clk_parent);
+	err = clk_set_parent(clk, rgb->clk_parent);
+	if (err < 0) {
+		dev_err(output->dev, "failed to set parent: %d\n", err);
+		return err;
+	}
+
+	/*
+	 * We may not want to change the frequency of the parent clock, since
+	 * it may be a parent for other peripherals. This is due to the fact
+	 * that on Tegra20 there's only a single clock dedicated to display
+	 * (pll_d_out0), whereas later generations have a second one that can
+	 * be used to independently drive a second output (pll_d2_out0).
+	 *
+	 * As a way to support multiple outputs on Tegra20 as well, pll_p is
+	 * typically used as the parent clock for the display controllers.
+	 * But this comes at a cost: pll_p is the parent of several other
+	 * peripherals, so its frequency shouldn't change out of the blue.
+	 *
+	 * The best we can do at this point is to use the shift clock divider
+	 * and hope that the desired frequency can be matched (or at least
+	 * matched sufficiently close that the panel will still work).
+	 */
+
+	*div = ((clk_get_rate(clk) * 2) / pclk) - 2;
+
+	return 0;
 }
 
 static int tegra_output_rgb_check_mode(struct tegra_output *output,

@@ -619,7 +619,7 @@ static int tegra_dc_set_timings(struct tegra_dc *dc,
 static int tegra_crtc_setup_clk(struct drm_crtc *crtc,
 				struct drm_display_mode *mode)
 {
-	unsigned long pclk = mode->clock * 1000, rate;
+	unsigned long pclk = mode->clock * 1000;
 	struct tegra_dc *dc = to_tegra_dc(crtc);
 	struct tegra_output *output = NULL;
 	struct drm_encoder *encoder;
@@ -637,19 +637,16 @@ static int tegra_crtc_setup_clk(struct drm_crtc *crtc,
 		return -ENODEV;
 
 	/*
-	 * This assumes that the display controller will divide its parent
-	 * clock by 2 to generate the pixel clock.
+	 * This assumes that the parent clock is pll_d_out0 or pll_d2_out
+	 * respectively, each of which divides the base pll_d by 2.
 	 */
-	err = tegra_output_setup_clock(output, dc->clk, pclk * 2);
+	err = tegra_output_setup_clock(output, dc->clk, pclk, &div);
 	if (err < 0) {
 		dev_err(dc->dev, "failed to setup clock: %ld\n", err);
 		return err;
 	}
 
-	rate = clk_get_rate(dc->clk);
-	div = (rate * 2 / pclk) - 2;
-
-	DRM_DEBUG_KMS("rate: %lu, div: %u\n", rate, div);
+	DRM_DEBUG_KMS("rate: %lu, div: %u\n", clk_get_rate(dc->clk), div);
 
 	value = SHIFT_CLK_DIVIDER(div) | PIXEL_CLK_DIVIDER_PCD1;
 	tegra_dc_writel(dc, value, DC_DISP_DISP_CLOCK_CONTROL);

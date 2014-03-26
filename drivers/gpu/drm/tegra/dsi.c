@@ -583,26 +583,39 @@ static int tegra_output_dsi_disable(struct tegra_output *output)
 }
 
 static int tegra_output_dsi_setup_clock(struct tegra_output *output,
-					struct clk *clk, unsigned long pclk)
+					struct clk *clk, unsigned long pclk,
+					unsigned int *divp)
 {
 	struct tegra_dc *dc = to_tegra_dc(output->encoder.crtc);
 	struct drm_display_mode *mode = &dc->base.mode;
 	unsigned int timeout, mul, div, vrefresh;
 	struct tegra_dsi *dsi = to_dsi(output);
 	unsigned long bclk, plld, value;
-	struct clk *base;
 	int err;
 
 	err = tegra_dsi_get_muldiv(dsi->format, &mul, &div);
 	if (err < 0)
 		return err;
 
+	DRM_DEBUG_KMS("mul: %u, div: %u, lanes: %u\n", mul, div, dsi->lanes);
 	vrefresh = drm_mode_vrefresh(mode);
+	DRM_DEBUG_KMS("vrefresh: %u\n", vrefresh);
 
+	/* compute byte clock */
 	pclk = mode->htotal * mode->vtotal * vrefresh;
 	bclk = (pclk * mul) / (div * dsi->lanes);
-	plld = DIV_ROUND_UP(bclk * 8, 1000000);
-	pclk = (plld * 1000000) / 2;
+
+	/*
+	 * Compute bit clock and round up to the next MHz.
+	 */
+	plld = DIV_ROUND_UP(bclk * 8, 1000000) * 1000000;
+
+	/*
+	 * We divide the frequency by two here, but we make up for that by
+	 * setting the shift clock divider (further below) to half of the
+	 * correct value.
+	 */
+	plld /= 2;
 
 	err = clk_set_parent(clk, dsi->clk_parent);
 	if (err < 0) {
@@ -610,18 +623,24 @@ static int tegra_output_dsi_setup_clock(struct tegra_output *output,
 		return err;
 	}
 
-	base = clk_get_parent(dsi->clk_parent);
-
-	/*
-	 * This assumes that the parent clock is pll_d_out0 or pll_d2_out
-	 * respectively, each of which divides the base pll_d by 2.
-	 */
-	err = clk_set_rate(base, pclk * 2);
+	err = clk_set_rate(dsi->clk_parent, plld);
 	if (err < 0) {
 		dev_err(dsi->dev, "failed to set base clock rate to %lu Hz\n",
-			pclk * 2);
+			plld);
 		return err;
 	}
+
+	/*
+	 * Derive pixel clock from bit clock using the shift clock divider.
+	 * Note that this is only half of what we would expect, but we need
+	 * that to make up for the fact that we divided the bit clock by a
+	 * factor of two above.
+	 *
+	 * It's not clear exactly why this is necessary, but the display is
+	 * not working properly otherwise. Perhaps the PLLs cannot generate
+	 * frequencies sufficiently high.
+	 */
+	*divp = ((8 * mul) / (div * dsi->lanes)) - 2;
 
 	/*
 	 * XXX: Move the below somewhere else so that we don't need to have
