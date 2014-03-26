@@ -899,7 +899,7 @@ int dwc_otg_hcd_init(dwc_otg_hcd_t * hcd, dwc_otg_core_if_t * core_if)
 	 */
 	if (hcd->core_if->dma_enable) {
 		hcd->status_buf =
-		    DWC_DMA_ALLOC(DWC_OTG_HCD_STATUS_BUF_SIZE,
+		    DWC_DMA_ALLOC_ATOMIC(DWC_OTG_HCD_STATUS_BUF_SIZE,
 				  &hcd->status_buf_dma);
 	} else {
 		hcd->status_buf = DWC_ALLOC(DWC_OTG_HCD_STATUS_BUF_SIZE);

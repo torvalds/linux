@@ -415,6 +415,22 @@ static void dwc_otg_hcd_connect_detect(unsigned long pdata)
 	return;
 }
 
+static void otg20_hcd_connect_detect(unsigned long pdata)
+{
+	dwc_otg_hcd_t *dwc_otg_hcd = (dwc_otg_hcd_t *)pdata;
+	dwc_otg_core_if_t *core_if = dwc_otg_hcd->core_if;
+	struct dwc_otg_platform_data *pldata;
+	pldata = core_if->otg_dev->pldata;
+
+	if( pldata->phy_status == USB_PHY_SUSPEND){
+		pldata->clock_enable(pldata, 1);
+		pldata->phy_suspend(pldata, USB_PHY_ENABLED);
+	}
+	dwc_otg_core_init(core_if);
+	dwc_otg_enable_global_interrupts(core_if);
+	cil_hcd_start(core_if);
+}
+
 /**
  * Initializes the HCD. This function allocates memory for and initializes the
  * static parts of the usb_hcd and dwc_otg_hcd structures. It also registers the
@@ -501,7 +517,12 @@ int otg20_hcd_init( struct platform_device *_dev )
 
 	dwc_otg_hcd_set_priv_data(dwc_otg_hcd, hcd);
 	dwc_otg_hcd->host_enabled = 1;
-
+	if(dwc_otg_is_host_mode(otg_dev->core_if)){
+		dwc_otg_hcd->connect_detect_timer.function = otg20_hcd_connect_detect;
+		dwc_otg_hcd->connect_detect_timer.data = (unsigned long)(dwc_otg_hcd);
+		init_timer( &dwc_otg_hcd->connect_detect_timer);
+		mod_timer(&dwc_otg_hcd->connect_detect_timer, jiffies+(HZ<<2));
+	}
 	return 0;
 
 error2:
@@ -596,8 +617,8 @@ int host20_hcd_init( struct platform_device *_dev )
 
 	dwc_otg_hcd_set_priv_data(dwc_otg_hcd, hcd);
 
-	dwc_otg_hcd->host_enabled = 1;
-	dwc_otg_hcd->host_setenable = 1;
+	dwc_otg_hcd->host_enabled = 2;
+	dwc_otg_hcd->host_setenable = 2;
 	dwc_otg_hcd->connect_detect_timer.function = dwc_otg_hcd_connect_detect;
 	dwc_otg_hcd->connect_detect_timer.data = (unsigned long)(dwc_otg_hcd);
 	init_timer( &dwc_otg_hcd->connect_detect_timer);

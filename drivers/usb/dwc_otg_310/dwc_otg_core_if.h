@@ -52,6 +52,7 @@ typedef struct dwc_otg_core_if dwc_otg_core_if_t;
 
 extern dwc_otg_core_if_t *dwc_otg_cil_init(const uint32_t * _reg_base_addr);
 extern void dwc_otg_core_init(dwc_otg_core_if_t * _core_if);
+extern void dwc_otg_core_init_no_reset(dwc_otg_core_if_t * _core_if);
 extern void dwc_otg_cil_remove(dwc_otg_core_if_t * _core_if);
 
 extern void dwc_otg_enable_global_interrupts(dwc_otg_core_if_t * _core_if);

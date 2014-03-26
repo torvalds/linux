@@ -1565,16 +1565,17 @@ static void dwc_otg_pcd_check_vbus_work( struct work_struct *work )
 		}
 
 		if( pldata->phy_status == USB_PHY_ENABLED ){
+			/* release wake lock */
+			dwc_otg_msc_unlock(_pcd);
 			/* no vbus detect here , close usb phy  */
 			pldata->phy_suspend(pldata, USB_PHY_SUSPEND);
 			udelay(3);
 			pldata->clock_enable( pldata, 0);
-			/* usb phy bypass to uart mode  */
-			if( pldata->dwc_otg_uart_mode != NULL )
-				pldata->dwc_otg_uart_mode( pldata, PHY_UART_MODE);
-			/* release wake lock */
-			dwc_otg_msc_unlock(_pcd);
 		}
+
+		/* usb phy bypass to uart mode  */
+		if( pldata->dwc_otg_uart_mode != NULL )
+			pldata->dwc_otg_uart_mode( pldata, PHY_UART_MODE);
 	}
 
 	schedule_delayed_work(&_pcd->check_vbus_work, HZ);
@@ -1583,14 +1584,14 @@ static void dwc_otg_pcd_check_vbus_work( struct work_struct *work )
 	return;
     
 connect:
-	if(_pcd->conn_status==0)
-		dwc_otg_msc_lock(_pcd);
-
 	if( pldata->phy_status)
 	{
 		pldata->clock_enable(pldata, 1);
 		pldata->phy_suspend(pldata, USB_PHY_ENABLED);
 	}
+
+	if(_pcd->conn_status==0)
+		dwc_otg_msc_lock(_pcd);
 
 	schedule_delayed_work( &_pcd->reconnect , 8 ); /* delay 8 jiffies */
 	schedule_delayed_work(&_pcd->check_vbus_work, (HZ<<2));
@@ -1644,7 +1645,6 @@ static void dwc_otg_pcd_work_init(dwc_otg_pcd_t *pcd, struct platform_device *de
 			pldata->dwc_otg_uart_mode(pldata, PHY_USB_MODE);
 		}else{
 			//usb phy bypass to uart mode
-			pldata->phy_suspend(pldata,USB_PHY_SUSPEND);
 			pldata->dwc_otg_uart_mode(pldata, PHY_UART_MODE);
 		}
 #endif

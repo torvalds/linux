@@ -1156,7 +1156,7 @@ dwc_otg_pcd_t *dwc_otg_pcd_init(dwc_otg_core_if_t * core_if)
 	 */
 	if (GET_CORE_IF(pcd)->dma_enable) {
 		pcd->setup_pkt =
-		    DWC_DMA_ALLOC(sizeof(*pcd->setup_pkt) * 5,
+		    DWC_DMA_ALLOC_ATOMIC(sizeof(*pcd->setup_pkt) * 5,
 				  &pcd->setup_pkt_dma_handle);
 		if (pcd->setup_pkt == NULL) {
 			DWC_FREE(pcd);
@@ -1164,7 +1164,7 @@ dwc_otg_pcd_t *dwc_otg_pcd_init(dwc_otg_core_if_t * core_if)
 		}
 
 		pcd->status_buf =
-		    DWC_DMA_ALLOC(sizeof(uint16_t),
+		    DWC_DMA_ALLOC_ATOMIC(sizeof(uint16_t),
 				  &pcd->status_buf_dma_handle);
 		if (pcd->status_buf == NULL) {
 			DWC_DMA_FREE(sizeof(*pcd->setup_pkt) * 5,

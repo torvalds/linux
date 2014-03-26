@@ -1199,13 +1199,6 @@ static uint32_t calc_num_out_eps(dwc_otg_core_if_t * core_if)
 	return num_out_eps;
 }
 
-/**
- * This function initializes the DWC_otg controller registers and
- * prepares the core for device mode or host mode operation.
- *
- * @param core_if Programming view of the DWC_otg controller
- *
- */
 void dwc_otg_core_init(dwc_otg_core_if_t * core_if)
 {
 	int i = 0;
@@ -1216,7 +1209,6 @@ void dwc_otg_core_init(dwc_otg_core_if_t * core_if)
 	gi2cctl_data_t i2cctl = {.d32 = 0 };
 
 	DWC_DEBUGPL(DBG_CILV, "dwc_otg_core_init(%p)\n", core_if);
-
 	/* Common Initialization */
 	usbcfg.d32 = DWC_READ_REG32(&global_regs->gusbcfg);
 
@@ -1341,6 +1333,330 @@ void dwc_otg_core_init(dwc_otg_core_if_t * core_if)
 			DWC_WRITE_REG32(&global_regs->gusbcfg, usbcfg.d32);
 			/* Reset after setting the PHY parameters */
 			dwc_otg_core_reset(core_if);
+		}
+	}
+
+	if ((core_if->hwcfg2.b.hs_phy_type == 2) &&
+	    (core_if->hwcfg2.b.fs_phy_type == 1) &&
+	    (core_if->core_params->ulpi_fs_ls)) {
+		DWC_DEBUGPL(DBG_CIL, "Setting ULPI FSLS\n");
+		usbcfg.d32 = DWC_READ_REG32(&global_regs->gusbcfg);
+		usbcfg.b.ulpi_fsls = 1;
+		usbcfg.b.ulpi_clk_sus_m = 1;
+		DWC_WRITE_REG32(&global_regs->gusbcfg, usbcfg.d32);
+	} else {
+		usbcfg.d32 = DWC_READ_REG32(&global_regs->gusbcfg);
+		usbcfg.b.ulpi_fsls = 0;
+		usbcfg.b.ulpi_clk_sus_m = 0;
+		DWC_WRITE_REG32(&global_regs->gusbcfg, usbcfg.d32);
+	}
+
+	/* Program the GAHBCFG Register. */
+	switch (core_if->hwcfg2.b.architecture) {
+
+	case DWC_SLAVE_ONLY_ARCH:
+		DWC_DEBUGPL(DBG_CIL, "Slave Only Mode\n");
+		ahbcfg.b.nptxfemplvl_txfemplvl =
+		    DWC_GAHBCFG_TXFEMPTYLVL_HALFEMPTY;
+		ahbcfg.b.ptxfemplvl = DWC_GAHBCFG_TXFEMPTYLVL_HALFEMPTY;
+		core_if->dma_enable = 0;
+		core_if->dma_desc_enable = 0;
+		break;
+
+	case DWC_EXT_DMA_ARCH:
+		DWC_DEBUGPL(DBG_CIL, "External DMA Mode\n");
+		{
+			uint8_t brst_sz = core_if->core_params->dma_burst_size;
+			ahbcfg.b.hburstlen = 0;
+			while (brst_sz > 1) {
+				ahbcfg.b.hburstlen++;
+				brst_sz >>= 1;
+			}
+		}
+		core_if->dma_enable = (core_if->core_params->dma_enable != 0);
+		core_if->dma_desc_enable =
+		    (core_if->core_params->dma_desc_enable != 0);
+		break;
+
+	case DWC_INT_DMA_ARCH:
+		DWC_DEBUGPL(DBG_CIL, "Internal DMA Mode\n");
+		/* Old value was DWC_GAHBCFG_INT_DMA_BURST_INCR - done for
+		   Host mode ISOC in issue fix - vahrama */
+		ahbcfg.b.hburstlen = DWC_GAHBCFG_INT_DMA_BURST_INCR16;
+		core_if->dma_enable = (core_if->core_params->dma_enable != 0);
+		core_if->dma_desc_enable =
+		    (core_if->core_params->dma_desc_enable != 0);
+		break;
+
+	}
+	if (core_if->dma_enable) {
+		if (core_if->dma_desc_enable) {
+			DWC_PRINTF("Using Descriptor DMA mode\n");
+		} else {
+			DWC_PRINTF("Using Buffer DMA mode\n");
+		}
+	} else {
+		DWC_PRINTF("Using Slave mode\n");
+		core_if->dma_desc_enable = 0;
+	}
+
+	if (core_if->core_params->ahb_single) {
+		ahbcfg.b.ahbsingle = 1;
+	}
+
+	ahbcfg.b.dmaenable = core_if->dma_enable;
+	DWC_WRITE_REG32(&global_regs->gahbcfg, ahbcfg.d32);
+
+	core_if->en_multiple_tx_fifo = core_if->hwcfg4.b.ded_fifo_en;
+
+	core_if->pti_enh_enable = core_if->core_params->pti_enable != 0;
+	core_if->multiproc_int_enable = core_if->core_params->mpi_enable;
+	DWC_PRINTF("Periodic Transfer Interrupt Enhancement - %s\n",
+		   ((core_if->pti_enh_enable) ? "enabled" : "disabled"));
+	DWC_PRINTF("Multiprocessor Interrupt Enhancement - %s\n",
+		   ((core_if->multiproc_int_enable) ? "enabled" : "disabled"));
+
+	/*
+	 * Program the GUSBCFG register.
+	 */
+	usbcfg.d32 = DWC_READ_REG32(&global_regs->gusbcfg);
+
+	switch (core_if->hwcfg2.b.op_mode) {
+	case DWC_MODE_HNP_SRP_CAPABLE:
+		usbcfg.b.hnpcap = (core_if->core_params->otg_cap ==
+				   DWC_OTG_CAP_PARAM_HNP_SRP_CAPABLE);
+		usbcfg.b.srpcap = (core_if->core_params->otg_cap !=
+				   DWC_OTG_CAP_PARAM_NO_HNP_SRP_CAPABLE);
+		break;
+
+	case DWC_MODE_SRP_ONLY_CAPABLE:
+		usbcfg.b.hnpcap = 0;
+		usbcfg.b.srpcap = (core_if->core_params->otg_cap !=
+				   DWC_OTG_CAP_PARAM_NO_HNP_SRP_CAPABLE);
+		break;
+
+	case DWC_MODE_NO_HNP_SRP_CAPABLE:
+		usbcfg.b.hnpcap = 0;
+		usbcfg.b.srpcap = 0;
+		break;
+
+	case DWC_MODE_SRP_CAPABLE_DEVICE:
+		usbcfg.b.hnpcap = 0;
+		usbcfg.b.srpcap = (core_if->core_params->otg_cap !=
+				   DWC_OTG_CAP_PARAM_NO_HNP_SRP_CAPABLE);
+		break;
+
+	case DWC_MODE_NO_SRP_CAPABLE_DEVICE:
+		usbcfg.b.hnpcap = 0;
+		usbcfg.b.srpcap = 0;
+		break;
+
+	case DWC_MODE_SRP_CAPABLE_HOST:
+		usbcfg.b.hnpcap = 0;
+		usbcfg.b.srpcap = (core_if->core_params->otg_cap !=
+				   DWC_OTG_CAP_PARAM_NO_HNP_SRP_CAPABLE);
+		break;
+
+	case DWC_MODE_NO_SRP_CAPABLE_HOST:
+		usbcfg.b.hnpcap = 0;
+		usbcfg.b.srpcap = 0;
+		break;
+	}
+
+	DWC_WRITE_REG32(&global_regs->gusbcfg, usbcfg.d32);
+
+#ifdef CONFIG_USB_DWC_OTG_LPM
+	if (core_if->core_params->lpm_enable) {
+		glpmcfg_data_t lpmcfg = {.d32 = 0 };
+
+		/* To enable LPM support set lpm_cap_en bit */
+		lpmcfg.b.lpm_cap_en = 1;
+
+		/* Make AppL1Res ACK */
+		lpmcfg.b.appl_resp = 1;
+
+		/* Retry 3 times */
+		lpmcfg.b.retry_count = 3;
+
+		DWC_MODIFY_REG32(&core_if->core_global_regs->glpmcfg,
+				 0, lpmcfg.d32);
+
+	}
+#endif
+	if (core_if->core_params->ic_usb_cap) {
+		gusbcfg_data_t gusbcfg = {.d32 = 0 };
+		gusbcfg.b.ic_usb_cap = 1;
+		DWC_MODIFY_REG32(&core_if->core_global_regs->gusbcfg,
+				 0, gusbcfg.d32);
+	}
+	{
+		gotgctl_data_t gotgctl = {.d32 = 0 };
+		gotgctl.b.otgver = core_if->core_params->otg_ver;
+		DWC_MODIFY_REG32(&core_if->core_global_regs->gotgctl, 0,
+				 gotgctl.d32);
+		/* Set OTG version supported */
+		core_if->otg_ver = core_if->core_params->otg_ver;
+		DWC_PRINTF("OTG VER PARAM: %d, OTG VER FLAG: %d\n",
+			   core_if->core_params->otg_ver, core_if->otg_ver);
+	}
+
+	/* Enable common interrupts */
+	dwc_otg_enable_common_interrupts(core_if);
+
+	/* Do device or host intialization based on mode during PCD
+	 * and HCD initialization  */
+	if (dwc_otg_is_host_mode(core_if)) {
+		DWC_PRINTF("^^^^^^^^^^^^^^^^^^Host Mode\n" );
+		core_if->op_state = A_HOST;
+	} else {
+		DWC_PRINTF("^^^^^^^^^^^^^^^^^Device Mode\n" );
+		core_if->op_state = B_PERIPHERAL;
+#ifdef DWC_DEVICE_ONLY
+		dwc_otg_core_dev_init(core_if);
+#endif
+	}
+}
+/**
+ * This function initializes the DWC_otg controller registers and
+ * prepares the core for device mode or host mode operation.
+ *
+ * @param core_if Programming view of the DWC_otg controller
+ *
+ */
+void dwc_otg_core_init_no_reset(dwc_otg_core_if_t * core_if)
+{
+	int i = 0;
+	dwc_otg_core_global_regs_t *global_regs = core_if->core_global_regs;
+	dwc_otg_dev_if_t *dev_if = core_if->dev_if;
+	gahbcfg_data_t ahbcfg = {.d32 = 0 };
+	gusbcfg_data_t usbcfg = {.d32 = 0 };
+	gi2cctl_data_t i2cctl = {.d32 = 0 };
+
+	DWC_DEBUGPL(DBG_CILV, "dwc_otg_core_init(%p)\n", core_if);
+	/* Common Initialization */
+	usbcfg.d32 = DWC_READ_REG32(&global_regs->gusbcfg);
+
+	/* Program the ULPI External VBUS bit if needed */
+	usbcfg.b.ulpi_ext_vbus_drv =
+	    (core_if->core_params->phy_ulpi_ext_vbus ==
+	     DWC_PHY_ULPI_EXTERNAL_VBUS) ? 1 : 0;
+
+	/* Set external TS Dline pulsing */
+	usbcfg.b.term_sel_dl_pulse =
+	    (core_if->core_params->ts_dline == 1) ? 1 : 0;
+	DWC_WRITE_REG32(&global_regs->gusbcfg, usbcfg.d32);
+
+	/* Reset the Controller */
+//	dwc_otg_core_reset(core_if);
+
+	core_if->adp_enable = core_if->core_params->adp_supp_enable;
+	core_if->power_down = core_if->core_params->power_down;
+
+	/* Initialize parameters from Hardware configuration registers. */
+	dev_if->num_in_eps = calc_num_in_eps(core_if);
+	dev_if->num_out_eps = calc_num_out_eps(core_if);
+
+	DWC_DEBUGPL(DBG_CIL, "num_dev_perio_in_ep=%d\n",
+		    core_if->hwcfg4.b.num_dev_perio_in_ep);
+
+	for (i = 0; i < core_if->hwcfg4.b.num_dev_perio_in_ep; i++) {
+		dev_if->perio_tx_fifo_size[i] =
+		    DWC_READ_REG32(&global_regs->dtxfsiz[i]) >> 16;
+		DWC_DEBUGPL(DBG_CIL, "Periodic Tx FIFO SZ #%d=0x%0x\n",
+			    i, dev_if->perio_tx_fifo_size[i]);
+	}
+
+	for (i = 0; i < core_if->hwcfg4.b.num_in_eps; i++) {
+		dev_if->tx_fifo_size[i] =
+		    DWC_READ_REG32(&global_regs->dtxfsiz[i]) >> 16;
+		DWC_DEBUGPL(DBG_CIL, "Tx FIFO SZ #%d=0x%0x\n",
+			    i, dev_if->tx_fifo_size[i]);
+	}
+
+	core_if->total_fifo_size = core_if->hwcfg3.b.dfifo_depth;
+	core_if->rx_fifo_size = DWC_READ_REG32(&global_regs->grxfsiz);
+	core_if->nperio_tx_fifo_size =
+	    DWC_READ_REG32(&global_regs->gnptxfsiz) >> 16;
+
+	DWC_DEBUGPL(DBG_CIL, "Total FIFO SZ=%d\n", core_if->total_fifo_size);
+	DWC_DEBUGPL(DBG_CIL, "Rx FIFO SZ=%d\n", core_if->rx_fifo_size);
+	DWC_DEBUGPL(DBG_CIL, "NP Tx FIFO SZ=%d\n",
+		    core_if->nperio_tx_fifo_size);
+
+	/* This programming sequence needs to happen in FS mode before any other
+	 * programming occurs */
+	if ((core_if->core_params->speed == DWC_SPEED_PARAM_FULL) &&
+	    (core_if->core_params->phy_type == DWC_PHY_TYPE_PARAM_FS)) {
+		/* If FS mode with FS PHY */
+
+		/* core_init() is now called on every switch so only call the
+		 * following for the first time through. */
+		if (!core_if->phy_init_done) {
+			core_if->phy_init_done = 1;
+			DWC_DEBUGPL(DBG_CIL, "FS_PHY detected\n");
+			usbcfg.d32 = DWC_READ_REG32(&global_regs->gusbcfg);
+			usbcfg.b.physel = 1;
+			DWC_WRITE_REG32(&global_regs->gusbcfg, usbcfg.d32);
+
+			/* Reset after a PHY select */
+//			dwc_otg_core_reset(core_if);
+		}
+
+		/* Program DCFG.DevSpd or HCFG.FSLSPclkSel to 48Mhz in FS.      Also
+		 * do this on HNP Dev/Host mode switches (done in dev_init and
+		 * host_init). */
+		if (dwc_otg_is_host_mode(core_if)) {
+			init_fslspclksel(core_if);
+		} else {
+			init_devspd(core_if);
+		}
+
+		if (core_if->core_params->i2c_enable) {
+			DWC_DEBUGPL(DBG_CIL, "FS_PHY Enabling I2c\n");
+			/* Program GUSBCFG.OtgUtmifsSel to I2C */
+			usbcfg.d32 = DWC_READ_REG32(&global_regs->gusbcfg);
+			usbcfg.b.otgutmifssel = 1;
+			DWC_WRITE_REG32(&global_regs->gusbcfg, usbcfg.d32);
+
+			/* Program GI2CCTL.I2CEn */
+			i2cctl.d32 = DWC_READ_REG32(&global_regs->gi2cctl);
+			i2cctl.b.i2cdevaddr = 1;
+			i2cctl.b.i2cen = 0;
+			DWC_WRITE_REG32(&global_regs->gi2cctl, i2cctl.d32);
+			i2cctl.b.i2cen = 1;
+			DWC_WRITE_REG32(&global_regs->gi2cctl, i2cctl.d32);
+		}
+
+	} /* endif speed == DWC_SPEED_PARAM_FULL */
+	else {
+		/* High speed PHY. */
+		if (!core_if->phy_init_done) {
+			core_if->phy_init_done = 1;
+			/* HS PHY parameters.  These parameters are preserved
+			 * during soft reset so only program the first time.  Do
+			 * a soft reset immediately after setting phyif.  */
+
+			if (core_if->core_params->phy_type == 2) {
+				/* ULPI interface */
+				usbcfg.b.ulpi_utmi_sel = 1;
+				usbcfg.b.phyif = 0;
+				usbcfg.b.ddrsel =
+				    core_if->core_params->phy_ulpi_ddr;
+			} else if (core_if->core_params->phy_type == 1) {
+				/* UTMI+ interface */
+				usbcfg.b.ulpi_utmi_sel = 0;
+				if (core_if->core_params->phy_utmi_width == 16) {
+					usbcfg.b.phyif = 1;
+
+				} else {
+					usbcfg.b.phyif = 0;
+				}
+			} else {
+				DWC_ERROR("FS PHY TYPE\n");
+			}
+			DWC_WRITE_REG32(&global_regs->gusbcfg, usbcfg.d32);
+			/* Reset after setting the PHY parameters */
+//			dwc_otg_core_reset(core_if);
 		}
 	}
 
@@ -1514,10 +1830,10 @@ void dwc_otg_core_init(dwc_otg_core_if_t * core_if)
 	/* Do device or host intialization based on mode during PCD
 	 * and HCD initialization  */
 	if (dwc_otg_is_host_mode(core_if)) {
-		DWC_DEBUGPL(DBG_ANY, "Host Mode\n");
+		DWC_PRINTF("^^^^^^^^^^^^^^^^^^Host Mode\n" );
 		core_if->op_state = A_HOST;
 	} else {
-		DWC_DEBUGPL(DBG_ANY, "Device Mode\n");
+		DWC_PRINTF("^^^^^^^^^^^^^^^^^Device Mode\n" );
 		core_if->op_state = B_PERIPHERAL;
 #ifdef DWC_DEVICE_ONLY
 		dwc_otg_core_dev_init(core_if);

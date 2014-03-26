@@ -1126,8 +1126,10 @@ static int host20_driver_probe(struct platform_device *_dev)
 
 	/*
 	 * Initialize the DWC_otg core.
+	 * In order to reduce the time of initialization,
+	 * we do core soft reset after connection detected.
 	 */
-	dwc_otg_core_init(dwc_otg_device->core_if);
+	dwc_otg_core_init_no_reset(dwc_otg_device->core_if);
 		
 	/*
 	 * Initialize the HCD
@@ -1144,8 +1146,14 @@ static int host20_driver_probe(struct platform_device *_dev)
 	 * handlers are installed if there is no ADP support else 
 	 * perform initial actions required for Internal ADP logic.
 	 */
-	if (!dwc_otg_get_param_adp_enable(dwc_otg_device->core_if))	
-		dwc_otg_enable_global_interrupts(dwc_otg_device->core_if);
+	if (!dwc_otg_get_param_adp_enable(dwc_otg_device->core_if))	{
+		if( pldata->phy_status == USB_PHY_ENABLED ){
+			pldata->phy_suspend(pldata, USB_PHY_SUSPEND);
+			udelay(3);
+			pldata->clock_enable( pldata, 0);
+		}
+//		dwc_otg_enable_global_interrupts(dwc_otg_device->core_if);
+	}
 	else
 		dwc_otg_adp_start(dwc_otg_device->core_if, 
 							dwc_otg_is_host_mode(dwc_otg_device->core_if));
@@ -1368,8 +1376,10 @@ static int otg20_driver_probe(struct platform_device *_dev)
 
 	if(pldata->phy_suspend)
 		pldata->phy_suspend(pldata, USB_PHY_ENABLED);
+
 	if(pldata->dwc_otg_uart_mode)
 		pldata->dwc_otg_uart_mode(pldata, PHY_USB_MODE);
+
 	if(pldata->soft_reset)
 		pldata->soft_reset();
 	/*end todo*/
@@ -1477,8 +1487,10 @@ static int otg20_driver_probe(struct platform_device *_dev)
 
 	/*
 	 * Initialize the DWC_otg core.
+	 * In order to reduce the time of initialization,
+	 * we do core soft reset after connection detected.
 	 */
-	dwc_otg_core_init(dwc_otg_device->core_if);
+	dwc_otg_core_init_no_reset(dwc_otg_device->core_if);
 	dwc_otg_device->core_if->usb_mode = 0;// TODO: Can be read from Device-Tree
 #ifndef DWC_HOST_ONLY
 	/*
@@ -1507,8 +1519,14 @@ static int otg20_driver_probe(struct platform_device *_dev)
 	 * handlers are installed if there is no ADP support else 
 	 * perform initial actions required for Internal ADP logic.
 	 */
-	if (!dwc_otg_get_param_adp_enable(dwc_otg_device->core_if))	
-		dwc_otg_enable_global_interrupts(dwc_otg_device->core_if);
+	if (!dwc_otg_get_param_adp_enable(dwc_otg_device->core_if)){
+		if( pldata->phy_status == USB_PHY_ENABLED ){
+			pldata->phy_suspend(pldata, USB_PHY_SUSPEND);
+			udelay(3);
+			pldata->clock_enable( pldata, 0);
+		}
+//		dwc_otg_enable_global_interrupts(dwc_otg_device->core_if);
+	}
 	else
 		dwc_otg_adp_start(dwc_otg_device->core_if, 
 							dwc_otg_is_host_mode(dwc_otg_device->core_if));
