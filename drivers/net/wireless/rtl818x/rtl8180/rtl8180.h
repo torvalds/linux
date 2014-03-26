@@ -34,13 +34,25 @@ struct rtl8180_tx_desc {
 	__le16 rts_duration;
 	__le16 plcp_len;
 	__le32 tx_buf;
-	__le32 frame_len;
+	union{
+		__le32 frame_len;
+		struct {
+			__le16 frame_len_se;
+			__le16 frame_duration;
+		} __packed;
+	} __packed;
 	__le32 next_tx_desc;
 	u8 cw;
 	u8 retry_limit;
 	u8 agc;
 	u8 flags2;
-	u32 reserved[2];
+	/* rsvd for 8180/8185.
+	 * valid for 8187se but we dont use it
+	 */
+	u32 reserved;
+	/* all rsvd for 8180/8185 */
+	__le16 flags3;
+	__le16 frag_qsize;
 } __packed;
 
 struct rtl8180_rx_desc {
