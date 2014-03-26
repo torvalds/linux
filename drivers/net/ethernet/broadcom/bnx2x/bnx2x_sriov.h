@@ -574,7 +574,7 @@ static inline int bnx2x_sriov_configure(struct pci_dev *dev, int num_vfs) {retur
 static inline void bnx2x_iov_channel_down(struct bnx2x *bp) {}
 
 static inline void bnx2x_iov_task(struct work_struct *work) {}
-void bnx2x_schedule_iov_task(struct bnx2x *bp, enum bnx2x_iov_flag flag) {}
+static inline void bnx2x_schedule_iov_task(struct bnx2x *bp, enum bnx2x_iov_flag flag) {}
 
 #endif /* CONFIG_BNX2X_SRIOV */
 #endif /* bnx2x_sriov.h */
