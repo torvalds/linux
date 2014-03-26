@@ -1155,10 +1155,6 @@ struct bnx2x_port {
 			(offsetof(struct bnx2x_eth_stats, stat_name) / 4)
 
 /* slow path */
-
-/* slow path work-queue */
-extern struct workqueue_struct *bnx2x_wq;
-
 #define BNX2X_MAX_NUM_OF_VFS	64
 #define BNX2X_VF_CID_WND	4 /* log num of queues per VF. HW config. */
 #define BNX2X_CIDS_PER_VF	(1 << BNX2X_VF_CID_WND)
@@ -1413,6 +1409,12 @@ enum sp_rtnl_flag {
 	BNX2X_SP_RTNL_RX_MODE,
 	BNX2X_SP_RTNL_HYPERVISOR_VLAN,
 	BNX2X_SP_RTNL_TX_STOP,
+	BNX2X_SP_RTNL_GET_DRV_VERSION,
+};
+
+enum bnx2x_iov_flag {
+	BNX2X_IOV_HANDLE_VF_MSG,
+	BNX2X_IOV_HANDLE_FLR,
 };
 
 struct bnx2x_prev_path_list {
@@ -1613,6 +1615,8 @@ struct bnx2x {
 	int			mrrs;
 
 	struct delayed_work	sp_task;
+	struct delayed_work	iov_task;
+
 	atomic_t		interrupt_occurred;
 	struct delayed_work	sp_rtnl_task;
 
@@ -1702,6 +1706,10 @@ struct bnx2x {
 
 	struct bnx2x_slowpath	*slowpath;
 	dma_addr_t		slowpath_mapping;
+
+	/* Mechanism protecting the drv_info_to_mcp */
+	struct mutex		drv_info_mutex;
+	bool			drv_info_mng_owner;
 
 	/* Total number of FW statistics requests */
 	u8			fw_stats_num;
@@ -1891,6 +1899,9 @@ struct bnx2x {
 
 	/* operation indication for the sp_rtnl task */
 	unsigned long				sp_rtnl_state;
+
+	/* Indication of the IOV tasks */
+	unsigned long				iov_task_state;
 
 	/* DCBX Negotiation results */
 	struct dcbx_features			dcbx_local_feat;
@@ -2534,6 +2545,8 @@ enum {
 #define NUM_MACS	8
 
 void bnx2x_set_local_cmng(struct bnx2x *bp);
+
+void bnx2x_update_mng_version(struct bnx2x *bp);
 
 #define MCPR_SCRATCH_BASE(bp) \
 	(CHIP_IS_E1x(bp) ? MCP_REG_MCPR_SCRATCH : MCP_A_REG_MCPR_SCRATCH)
