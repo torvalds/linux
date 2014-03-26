@@ -44,6 +44,11 @@ extern char __pie_data(rk3188) __pie_rk3188_sram_stack[1024];
 #define __sramlocalfunc RK_PIE
 
 extern void call_with_stack(void (*fn)(void *), void *arg, void *sp);
+
+#ifdef CONFIG_PIE
 extern int __init rockchip_pie_init(void);
+#else
+static inline int rockchip_pie_init(void) { return -1; }
+#endif
 
 #endif

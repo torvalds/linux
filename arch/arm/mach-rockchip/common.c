@@ -156,6 +156,7 @@ void *rockchip_sram_virt = NULL;
 size_t rockchip_sram_size = 0;
 char *rockchip_sram_stack = NULL;
 
+#ifdef CONFIG_PIE
 int __init rockchip_pie_init(void)
 {
 	struct device_node *np;
@@ -173,6 +174,7 @@ int __init rockchip_pie_init(void)
 
 	return 0;
 }
+#endif
 
 static bool is_panic = false;
 
