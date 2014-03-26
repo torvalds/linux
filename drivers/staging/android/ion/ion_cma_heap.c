@@ -93,7 +93,7 @@ static int ion_cma_allocate(struct ion_heap *heap, struct ion_buffer *buffer,
 	}
 
 	if (!info->cpu_addr) {
-		dev_err(dev, "Fail to allocate buffer\n");
+		dev_err(dev, "Fail to allocate(%lx) buffer\n", len);
 		goto err;
 	}
 
