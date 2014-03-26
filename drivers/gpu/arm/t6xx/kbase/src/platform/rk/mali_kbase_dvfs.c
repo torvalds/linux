@@ -55,13 +55,12 @@ typedef struct _mali_dvfs_info {
 } mali_dvfs_info;
 
 static mali_dvfs_info mali_dvfs_infotbl[] = {
-	{925000, 100, 0, 70, 0},
-	{925000, 160, 50, 65, 0},
-	{1025000, 266, 60, 78, 0},
-	{1075000, 350, 70, 80, 0},
-	{1125000, 400, 70, 80, 0},
-	{1150000, 450, 76, 99, 0},
-	{1200000, 533, 99, 100, 0},
+	  {925000, 100, 0, 70, 0},
+      {925000, 160, 50, 65, 0},
+      {1025000, 266, 60, 78, 0},
+      {1075000, 350, 65, 75, 0},
+      {1125000, 400, 70, 75, 0},
+      {1200000, 600, 90, 100, 0},
 };
 
 #define MALI_DVFS_STEP	ARRAY_SIZE(mali_dvfs_infotbl)
@@ -109,6 +108,7 @@ static void mali_dvfs_event_proc(struct work_struct *w)
 	spin_lock_irqsave(&mali_dvfs_spinlock, flags);
 	if (dvfs_status->utilisation > mali_dvfs_infotbl[dvfs_status->step].max_threshold) 
 	{
+	#if 0
 		if (dvfs_status->step==kbase_platform_dvfs_get_level(450)) 
 		{
 			if (platform->utilisation > mali_dvfs_infotbl[dvfs_status->step].max_threshold)
@@ -120,8 +120,13 @@ static void mali_dvfs_event_proc(struct work_struct *w)
 			dvfs_status->step++;
 			BUG_ON(dvfs_status->step >= MALI_DVFS_STEP);
 		}
+	#endif
+		dvfs_status->step++;
+		BUG_ON(dvfs_status->step >= MALI_DVFS_STEP);
+
 	} 
-	else if((dvfs_status->step > 0) && (platform->time_tick == MALI_DVFS_TIME_INTERVAL) && (platform->utilisation < mali_dvfs_infotbl[dvfs_status->step].min_threshold)) 
+	else if((dvfs_status->step > 0) && (dvfs_status->utilisation < mali_dvfs_infotbl[dvfs_status->step].min_threshold)) 
+	//else if((dvfs_status->step > 0) && (platform->time_tick == MALI_DVFS_TIME_INTERVAL) && (platform->utilisation < mali_dvfs_infotbl[dvfs_status->step].min_threshold)) 
 	{
 		BUG_ON(dvfs_status->step <= 0);
 		dvfs_status->step--;
@@ -398,15 +403,14 @@ void kbase_platform_dvfs_set_clock(kbase_device *kbdev, int freq)
 	if (NULL == platform)
 		panic("oops");
 
-	if (platform->clk_mali == 0) 
+	if (!platform->mali_clk_node) 
+	{
+		printk("mali_clk_node not init\n");
 		return;
-
+	}
 	switch (freq) {
-		case 533:
-			aclk_400_rate = 533000000;
-			break;
-		case 450:
-			aclk_400_rate = 450000000;
+		case 600:
+			aclk_400_rate = 600000000;
 			break;
 		case 400:
 			aclk_400_rate = 400000000;
@@ -415,7 +419,7 @@ void kbase_platform_dvfs_set_clock(kbase_device *kbdev, int freq)
 			aclk_400_rate = 350000000;
 			break;
 		case 266:
-			aclk_400_rate = 267000000;
+			aclk_400_rate = 266000000;
 			break;
 		case 160:
 			aclk_400_rate = 160000000;
