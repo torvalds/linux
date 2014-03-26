@@ -632,6 +632,7 @@ acpi_video_init_brightness(struct acpi_video_device *device)
 	union acpi_object *o;
 	struct acpi_video_device_brightness *br = NULL;
 	int result = -EINVAL;
+	u32 value;
 
 	if (!ACPI_SUCCESS(acpi_video_device_lcd_query_levels(device, &obj))) {
 		ACPI_DEBUG_PRINT((ACPI_DB_INFO, "Could not query available "
@@ -662,7 +663,12 @@ acpi_video_init_brightness(struct acpi_video_device *device)
 			printk(KERN_ERR PREFIX "Invalid data\n");
 			continue;
 		}
-		br->levels[count] = (u32) o->integer.value;
+		value = (u32) o->integer.value;
+		/* Skip duplicate entries */
+		if (count > 2 && br->levels[count - 1] == value)
+			continue;
+
+		br->levels[count] = value;
 
 		if (br->levels[count] > max_level)
 			max_level = br->levels[count];

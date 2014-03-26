@@ -525,13 +525,18 @@ static int __vcpu_run(struct kvm_vcpu *vcpu)
 	if (!kvm_is_ucontrol(vcpu->kvm))
 		kvm_s390_deliver_pending_interrupts(vcpu);
 
+	VCPU_EVENT(vcpu, 6, "entering sie flags %x",
+		   atomic_read(&vcpu->arch.sie_block->cpuflags));
+
 	vcpu->arch.sie_block->icptcode = 0;
 	local_irq_disable();
 	kvm_guest_enter();
 	local_irq_enable();
-	VCPU_EVENT(vcpu, 6, "entering sie flags %x",
-		   atomic_read(&vcpu->arch.sie_block->cpuflags));
 	rc = sie64a(vcpu->arch.sie_block, vcpu->run->s.regs.gprs);
+	local_irq_disable();
+	kvm_guest_exit();
+	local_irq_enable();
+
 	if (rc) {
 		if (kvm_is_ucontrol(vcpu->kvm)) {
 			rc = SIE_INTERCEPT_UCONTROL;
@@ -543,9 +548,6 @@ static int __vcpu_run(struct kvm_vcpu *vcpu)
 	}
 	VCPU_EVENT(vcpu, 6, "exit sie icptcode %d",
 		   vcpu->arch.sie_block->icptcode);
-	local_irq_disable();
-	kvm_guest_exit();
-	local_irq_enable();
 
 	memcpy(&vcpu->run->s.regs.gprs[14], &vcpu->arch.sie_block->gg14, 16);
 	return rc;
@@ -902,7 +904,7 @@ static int __init kvm_s390_init(void)
 	}
 	memcpy(facilities, S390_lowcore.stfle_fac_list, 16);
 	facilities[0] &= 0xff00fff3f47c0000ULL;
-	facilities[1] &= 0x201c000000000000ULL;
+	facilities[1] &= 0x001c000000000000ULL;
 	return 0;
 }
 

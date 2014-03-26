@@ -905,6 +905,7 @@ struct ubifs_budget_req {
  * @dnext: next orphan to delete
  * @inum: inode number
  * @new: %1 => added since the last commit, otherwise %0
+ * @del: %1 => delete pending, otherwise %0
  */
 struct ubifs_orphan {
 	struct rb_node rb;
@@ -914,6 +915,7 @@ struct ubifs_orphan {
 	struct ubifs_orphan *dnext;
 	ino_t inum;
 	int new;
+	unsigned del:1;
 };
 
 /**

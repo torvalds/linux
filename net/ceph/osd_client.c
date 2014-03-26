@@ -1721,6 +1721,8 @@ int ceph_osdc_start_request(struct ceph_osd_client *osdc,
 				dout("osdc_start_request failed map, "
 				     " will retry %lld\n", req->r_tid);
 				rc = 0;
+			} else {
+				__unregister_request(osdc, req);
 			}
 			goto out_unlock;
 		}
