@@ -277,11 +277,11 @@ static int mwifiex_dnld_sleep_confirm_cmd(struct mwifiex_adapter *adapter)
 
 	priv = mwifiex_get_priv(adapter, MWIFIEX_BSS_ROLE_ANY);
 
+	adapter->seq_num++;
 	sleep_cfm_buf->seq_num =
 		cpu_to_le16((HostCmd_SET_SEQ_NO_BSS_INFO
 					(adapter->seq_num, priv->bss_num,
 					 priv->bss_type)));
-	adapter->seq_num++;
 
 	if (adapter->iface_type == MWIFIEX_USB) {
 		sleep_cfm_tmp =
