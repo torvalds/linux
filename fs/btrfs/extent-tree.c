@@ -8337,9 +8337,15 @@ static void __link_block_group(struct btrfs_space_info *space_info,
 			       struct btrfs_block_group_cache *cache)
 {
 	int index = get_block_group_index(cache);
+	bool first = false;
 
 	down_write(&space_info->groups_sem);
-	if (list_empty(&space_info->block_groups[index])) {
+	if (list_empty(&space_info->block_groups[index]))
+		first = true;
+	list_add_tail(&cache->list, &space_info->block_groups[index]);
+	up_write(&space_info->groups_sem);
+
+	if (first) {
 		struct kobject *kobj = &space_info->block_group_kobjs[index];
 		int ret;
 
@@ -8351,8 +8357,6 @@ static void __link_block_group(struct btrfs_space_info *space_info,
 			kobject_put(&space_info->kobj);
 		}
 	}
-	list_add_tail(&cache->list, &space_info->block_groups[index]);
-	up_write(&space_info->groups_sem);
 }
 
 static struct btrfs_block_group_cache *
