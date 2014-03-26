@@ -123,7 +123,7 @@ config BCM47XX
 	select SYS_SUPPORTS_32BIT_KERNEL
 	select SYS_SUPPORTS_LITTLE_ENDIAN
 	select SYS_HAS_EARLY_PRINTK
-	select EARLY_PRINTK_8250 if EARLY_PRINTK
+	select USE_GENERIC_EARLY_PRINTK_8250
 	help
 	 Support for BCM47XX based boards
 
@@ -150,7 +150,6 @@ config MIPS_COBALT
 	select CSRC_R4K
 	select CEVT_GT641XX
 	select DMA_NONCOHERENT
-	select EARLY_PRINTK_8250 if EARLY_PRINTK
 	select HW_HAS_PCI
 	select I8253
 	select I8259
@@ -163,6 +162,7 @@ config MIPS_COBALT
 	select SYS_SUPPORTS_32BIT_KERNEL
 	select SYS_SUPPORTS_64BIT_KERNEL
 	select SYS_SUPPORTS_LITTLE_ENDIAN
+	select USE_GENERIC_EARLY_PRINTK_8250
 
 config MACH_DECSTATION
 	bool "DECstations"
@@ -674,6 +674,7 @@ config SNI_RM
 	select SYS_SUPPORTS_BIG_ENDIAN
 	select SYS_SUPPORTS_HIGHMEM
 	select SYS_SUPPORTS_LITTLE_ENDIAN
+	select USE_GENERIC_EARLY_PRINTK_8250
 	help
 	  The SNI RM200/300/400 are MIPS-based machines manufactured by
 	  Siemens Nixdorf Informationssysteme (SNI), parent company of Pyramid
