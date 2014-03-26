@@ -186,7 +186,6 @@ static int __init anon_inode_init(void)
 
 err_unregister_filesystem:
 	unregister_filesystem(&anon_inode_fs_type);
-err_exit:
 	panic(KERN_ERR "anon_inode_init() failed (%d)\n", error);
 }
 
