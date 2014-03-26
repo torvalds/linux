@@ -133,6 +133,7 @@ void Set_D_LogBlockAddr(u8 *redundant)
 void Set_D_FailBlock(u8 *redundant)
 {
 	char i;
+
 	for (i = 0; i < REDTSIZE; i++)
 		*redundant++ = (u8)((i == REDT_BLOCK) ? 0xF0 : 0xFF);
 }
