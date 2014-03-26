@@ -1336,13 +1336,17 @@ static void rtl8180_conf_erp(struct ieee80211_hw *dev,
 	/* from reference code. set ack timeout reg = eifs reg */
 	rtl818x_iowrite8(priv, &priv->map->CARRIER_SENSE_COUNTER, hw_eifs);
 
-	/* rtl8187/rtl8185 HW bug. After EIFS is elapsed,
-	 * the HW still wait for DIFS.
-	 * HW uses 4uS units for EIFS.
-	 */
-	hw_eifs = DIV_ROUND_UP(eifs - difs, 4);
+	if (priv->chip_family == RTL818X_CHIP_FAMILY_RTL8187SE)
+		rtl818x_iowrite8(priv, &priv->map->EIFS_8187SE, hw_eifs);
+	else if (priv->chip_family == RTL818X_CHIP_FAMILY_RTL8185) {
+		/* rtl8187/rtl8185 HW bug. After EIFS is elapsed,
+		 * the HW still wait for DIFS.
+		 * HW uses 4uS units for EIFS.
+		 */
+		hw_eifs = DIV_ROUND_UP(eifs - difs, 4);
 
-	rtl818x_iowrite8(priv, &priv->map->EIFS, hw_eifs);
+		rtl818x_iowrite8(priv, &priv->map->EIFS, hw_eifs);
+	}
 }
 
 static void rtl8180_bss_info_changed(struct ieee80211_hw *dev,
