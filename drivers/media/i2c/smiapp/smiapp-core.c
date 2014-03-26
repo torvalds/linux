@@ -2543,8 +2543,9 @@ static int smiapp_registered(struct v4l2_subdev *subdev)
 		}
 
 		snprintf(this->sd.name,
-			 sizeof(this->sd.name), "%s %s",
-			 sensor->minfo.name, _this->name);
+			 sizeof(this->sd.name), "%s %d-%4.4x %s",
+			 sensor->minfo.name, i2c_adapter_id(client->adapter),
+			 client->addr, _this->name);
 
 		this->sink_fmt.width =
 			sensor->limits[SMIAPP_LIMIT_X_ADDR_MAX] + 1;
