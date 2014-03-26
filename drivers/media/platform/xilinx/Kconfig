@@ -7,4 +7,10 @@ config VIDEO_XILINX
 
 if VIDEO_XILINX
 
+config VIDEO_XILINX_VTC
+	tristate "Xilinx Video Timing Controller"
+	depends on VIDEO_XILINX
+	---help---
+	   Driver for the Xilinx Video Timing Controller
+
 endif #VIDEO_XILINX
