@@ -117,6 +117,7 @@
 			/* service vio */
 			vio1_vop {
 				reg = <0xffad0000 0x20>;
+				rockchip,priority = <2 2>;
 			};
 			vio1_isp_w0 {
 				reg = <0xffad0100 0x20>;
@@ -126,6 +127,7 @@
 			};
 			vio0_vop {
 				reg = <0xffad0400 0x20>;
+				rockchip,priority = <2 2>;
 			};
 			vio0_vip {
 				reg = <0xffad0480 0x20>;
