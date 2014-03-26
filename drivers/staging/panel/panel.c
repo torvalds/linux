@@ -2298,7 +2298,7 @@ static void __exit panel_cleanup_module(void)
 	unregister_reboot_notifier(&panel_notifier);
 
 	if (scan_timer.function != NULL)
-		del_timer(&scan_timer);
+		del_timer_sync(&scan_timer);
 
 	if (pprt != NULL) {
 		if (keypad_enabled) {
