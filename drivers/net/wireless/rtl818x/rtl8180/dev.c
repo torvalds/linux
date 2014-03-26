@@ -1090,6 +1090,7 @@ static int rtl8180_start(struct ieee80211_hw *dev)
 
 		/* CW is not on per-packet basis.
 		 * in rtl8185 the CW_VALUE reg is used.
+		 * in rtl8187se the AC param regs are used.
 		 */
 		reg &= ~RTL818X_CW_CONF_PERPACKET_CW;
 		/* retry limit IS on per-packet basis.
@@ -1279,6 +1280,49 @@ static int rtl8180_config(struct ieee80211_hw *dev, u32 changed)
 	return 0;
 }
 
+static void rtl8187se_conf_ac_parm(struct ieee80211_hw *dev, u8 queue)
+{
+	const struct ieee80211_tx_queue_params *params;
+	struct rtl8180_priv *priv = dev->priv;
+
+	/* hw value */
+	u32 ac_param;
+
+	u8 aifs;
+	u8 txop;
+	u8 cw_min, cw_max;
+
+	params = &priv->queue_param[queue];
+
+	cw_min = fls(params->cw_min);
+	cw_max = fls(params->cw_max);
+
+	aifs = 10 + params->aifs * priv->slot_time;
+
+	/* TODO: check if txop HW is in us (mult by 32) */
+	txop = params->txop;
+
+	ac_param = txop << AC_PARAM_TXOP_LIMIT_SHIFT |
+		cw_max << AC_PARAM_ECW_MAX_SHIFT |
+		cw_min << AC_PARAM_ECW_MIN_SHIFT |
+		aifs << AC_PARAM_AIFS_SHIFT;
+
+	switch (queue) {
+	case IEEE80211_AC_BK:
+		rtl818x_iowrite32(priv, &priv->map->AC_BK_PARAM, ac_param);
+		break;
+	case IEEE80211_AC_BE:
+		rtl818x_iowrite32(priv, &priv->map->AC_BE_PARAM, ac_param);
+		break;
+	case IEEE80211_AC_VI:
+		rtl818x_iowrite32(priv, &priv->map->AC_VI_PARAM, ac_param);
+		break;
+	case IEEE80211_AC_VO:
+		rtl818x_iowrite32(priv, &priv->map->AC_VO_PARAM, ac_param);
+		break;
+	}
+}
+
 static int rtl8180_conf_tx(struct ieee80211_hw *dev,
 			    struct ieee80211_vif *vif, u16 queue,
 			    const struct ieee80211_tx_queue_params *params)
@@ -1293,8 +1337,12 @@ static int rtl8180_conf_tx(struct ieee80211_hw *dev,
 	cw_min = fls(params->cw_min);
 	cw_max = fls(params->cw_max);
 
-	rtl818x_iowrite8(priv, &priv->map->CW_VAL, (cw_max << 4) | cw_min);
-
+	if (priv->chip_family == RTL818X_CHIP_FAMILY_RTL8187SE) {
+		priv->queue_param[queue] = *params;
+		rtl8187se_conf_ac_parm(dev, queue);
+	} else
+		rtl818x_iowrite8(priv, &priv->map->CW_VAL,
+				 (cw_max << 4) | cw_min);
 	return 0;
 }
 
@@ -1396,6 +1444,16 @@ static void rtl8180_bss_info_changed(struct ieee80211_hw *dev,
 					&priv->rates[0])) - 10;
 
 		rtl8180_conf_erp(dev, info);
+
+		/* mac80211 supplies aifs_n to driver and calls
+		 * conf_tx callback whether aifs_n changes, NOT
+		 * when aifs changes.
+		 * Aifs should be recalculated if slot changes.
+		 */
+		if (priv->chip_family == RTL818X_CHIP_FAMILY_RTL8187SE) {
+			for (i = 0; i < 4; i++)
+				rtl8187se_conf_ac_parm(dev, i);
+		}
 	}
 
 	if (changed & BSS_CHANGED_BEACON_ENABLED)
