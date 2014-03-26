@@ -75,7 +75,7 @@ struct display_timing {
 	struct timing_entry vsync_len;		/* ver. sync len */
 
 	enum display_flags flags;		/* display flags */
-#if defined(CONFIG_FB_ROCKCHIP)
+#if defined(CONFIG_FB_ROCKCHIP) || defined(CONFIG_DRM_ROCKCHIP)
 	u16 screen_type;			/*screen type*/
 	u16 lvds_format;			/*lvds data format for lvds screen*/
 	u16 face;				/*display output  interface format:24bit 18bit 16bit*/

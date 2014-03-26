@@ -1,0 +1,54 @@
+config DRM_ROCKCHIP
+	tristate "DRM Support for  ROCKCHIP "
+	depends on DRM && ARCH_MULTIPLATFORM
+	select DRM_KMS_HELPER
+	select FB_CFB_FILLRECT
+	select FB_CFB_COPYAREA
+	select FB_CFB_IMAGEBLIT
+	select VT_HW_CONSOLE_BINDING if FRAMEBUFFER_CONSOLE
+	help
+	  Choose this option if you have a  ROCKCHIP soc chipset.
+	  If M is selected the module will be called rockchipdrm.
+
+config DRM_ROCKCHIP_IOMMU
+	bool "ROCKCHIP DRM IOMMU Support"
+	depends on DRM_ROCKCHIP && ARM_DMA_USE_IOMMU
+	help
+	  Choose this option if you want to use IOMMU feature for DRM.
+
+config DRM_ROCKCHIP_DMABUF
+	bool "ROCKCHIP DRM DMABUF"
+	depends on DRM_ROCKCHIP
+	help
+	  Choose this option if you want to use DMABUF feature for DRM.
+
+config DRM_RK3188_FIMD
+	bool "RK3188 DRM FIMD"
+	depends on OF && DRM_ROCKCHIP 
+	select FB_MODE_HELPERS
+	select VIDEOMODE_HELPERS
+	help
+	  Choose this option if you want to use Rockchip FIMD for DRM.
+
+config DRM_RK3288_FIMD
+	bool "RK3288 DRM FIMD"
+	depends on OF && DRM_ROCKCHIP 
+	select FB_MODE_HELPERS
+	select VIDEOMODE_HELPERS
+	help
+	  Choose this option if you want to use Rockchip FIMD for DRM.
+
+
+config DRM_ROCKCHIP_HDMI
+	bool "Rockchip DRM HDMI"
+	depends on DRM_ROCKCHIP 
+	help
+	  Choose this option if you want to use Rockchip HDMI for DRM.
+
+config DRM_ROCKCHIP_VIDI
+	bool "Rockchip DRM Virtual Display"
+	depends on DRM_ROCKCHIP
+	help
+	  Choose this option if you want to use rockchip VIDI for DRM.
+
+source "drivers/gpu/drm/rockchip/screen/Kconfig"
