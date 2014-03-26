@@ -7745,6 +7745,7 @@ static int intel_crtc_cursor_set(struct drm_crtc *crtc,
 	struct drm_i915_private *dev_priv = dev->dev_private;
 	struct intel_crtc *intel_crtc = to_intel_crtc(crtc);
 	struct drm_i915_gem_object *obj;
+	unsigned old_width;
 	uint32_t addr;
 	int ret;
 
@@ -7835,13 +7836,18 @@ static int intel_crtc_cursor_set(struct drm_crtc *crtc,
 
 	mutex_unlock(&dev->struct_mutex);
 
+	old_width = intel_crtc->cursor_width;
+
 	intel_crtc->cursor_addr = addr;
 	intel_crtc->cursor_bo = obj;
 	intel_crtc->cursor_width = width;
 	intel_crtc->cursor_height = height;
 
-	if (intel_crtc->active)
+	if (intel_crtc->active) {
+		if (old_width != width)
+			intel_update_watermarks(crtc);
 		intel_crtc_update_cursor(crtc, intel_crtc->cursor_bo != NULL);
+	}
 
 	return 0;
 fail_unpin:
