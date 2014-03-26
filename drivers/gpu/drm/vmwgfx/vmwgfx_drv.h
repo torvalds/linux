@@ -342,7 +342,6 @@ struct vmw_sw_context{
 	uint32_t *cmd_bounce;
 	uint32_t cmd_bounce_size;
 	struct list_head resource_list;
-	uint32_t fence_flags;
 	struct ttm_buffer_object *cur_query_bo;
 	struct list_head res_relocations;
 	uint32_t *buf_start;

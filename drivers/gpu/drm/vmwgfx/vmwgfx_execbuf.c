@@ -350,8 +350,6 @@ static int vmw_bo_to_validate_list(struct vmw_sw_context *sw_context,
 		vval_buf->validate_as_mob = validate_as_mob;
 	}
 
-	sw_context->fence_flags |= DRM_VMW_FENCE_FLAG_EXEC;
-
 	if (p_val_node)
 		*p_val_node = val_node;
 
@@ -2337,13 +2335,9 @@ int vmw_execbuf_fence_commands(struct drm_file *file_priv,
 
 	if (p_handle != NULL)
 		ret = vmw_user_fence_create(file_priv, dev_priv->fman,
-					    sequence,
-					    DRM_VMW_FENCE_FLAG_EXEC,
-					    p_fence, p_handle);
+					    sequence, p_fence, p_handle);
 	else
-		ret = vmw_fence_create(dev_priv->fman, sequence,
-				       DRM_VMW_FENCE_FLAG_EXEC,
-				       p_fence);
+		ret = vmw_fence_create(dev_priv->fman, sequence, p_fence);
 
 	if (unlikely(ret != 0 && !synced)) {
 		(void) vmw_fallback_wait(dev_priv, false, false,
@@ -2416,8 +2410,7 @@ vmw_execbuf_copy_fence_user(struct vmw_private *dev_priv,
 		ttm_ref_object_base_unref(vmw_fp->tfile,
 					  fence_handle, TTM_REF_USAGE);
 		DRM_ERROR("Fence copy error. Syncing.\n");
-		(void) vmw_fence_obj_wait(fence, fence->signal_mask,
-					  false, false,
+		(void) vmw_fence_obj_wait(fence, false, false,
 					  VMW_FENCE_WAIT_TIMEOUT);
 	}
 }
@@ -2469,7 +2462,6 @@ int vmw_execbuf_process(struct drm_file *file_priv,
 	sw_context->fp = vmw_fpriv(file_priv);
 	sw_context->cur_reloc = 0;
 	sw_context->cur_val_buf = 0;
-	sw_context->fence_flags = 0;
 	INIT_LIST_HEAD(&sw_context->resource_list);
 	sw_context->cur_query_bo = dev_priv->pinned_bo;
 	sw_context->last_query_ctx = NULL;
