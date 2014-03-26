@@ -18,5 +18,5 @@ rockchipdrm-$(CONFIG_DRM_ROCKCHIP_HDMI)	+= rockchip_hdmi.o rockchip_mixer.o \
 rockchipdrm-$(CONFIG_DRM_ROCKCHIP_VIDI)	+= rockchip_drm_vidi.o
 
 obj-$(CONFIG_DRM_ROCKCHIP)		+= rockchipdrm.o
-obj-y += screen/
-obj-y += transmitter/
+obj-$(CONFIG_DRM_ROCKCHIP) += ../../../video/rockchip/screen/
+obj-$(CONFIG_DRM_ROCKCHIP) += ../../../video/rockchip/transmitter/

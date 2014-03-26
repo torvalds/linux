@@ -51,4 +51,3 @@ config DRM_ROCKCHIP_VIDI
 	help
 	  Choose this option if you want to use rockchip VIDI for DRM.
 
-source "drivers/gpu/drm/rockchip/screen/Kconfig"

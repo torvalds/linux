@@ -1,5 +1,5 @@
 choice
-	depends on FB_ROCKCHIP
+	depends on FB_ROCKCHIP || DRM_ROCKCHIP
 	prompt  "LCD Panel Select"
 
 config LCD_GENERAL
