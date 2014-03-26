@@ -60,7 +60,6 @@
  * OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
  *****************************************************************************/
 #include "iwl-trans.h"
-
 #include "mvm.h"
 #include "fw-api.h"
 
