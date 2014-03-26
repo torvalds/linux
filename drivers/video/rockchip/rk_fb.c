@@ -51,7 +51,7 @@
 #include <linux/dma-buf.h>
 #endif
 #endif
-//#define H_USE_FENCE 1
+#define H_USE_FENCE 1
 static int hdmi_switch_complete;
 static struct platform_device *fb_pdev;
 struct list_head saved_list;
