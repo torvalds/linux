@@ -264,6 +264,55 @@ static void rtl8180_handle_tx(struct ieee80211_hw *dev, unsigned int prio)
 	}
 }
 
+static irqreturn_t rtl8187se_interrupt(int irq, void *dev_id)
+{
+	struct ieee80211_hw *dev = dev_id;
+	struct rtl8180_priv *priv = dev->priv;
+	u32 reg;
+	unsigned long flags;
+	static int desc_err;
+
+	spin_lock_irqsave(&priv->lock, flags);
+	/* Note: 32-bit interrupt status */
+	reg = rtl818x_ioread32(priv, &priv->map->INT_STATUS_SE);
+	if (unlikely(reg == 0xFFFFFFFF)) {
+		spin_unlock_irqrestore(&priv->lock, flags);
+		return IRQ_HANDLED;
+	}
+
+	rtl818x_iowrite32(priv, &priv->map->INT_STATUS_SE, reg);
+
+	if (reg & IMR_TIMEOUT1)
+		rtl818x_iowrite32(priv, &priv->map->INT_TIMEOUT, 0);
+
+	if (reg & (IMR_TBDOK | IMR_TBDER))
+		rtl8180_handle_tx(dev, 4);
+
+	if (reg & (IMR_TVODOK | IMR_TVODER))
+		rtl8180_handle_tx(dev, 0);
+
+	if (reg & (IMR_TVIDOK | IMR_TVIDER))
+		rtl8180_handle_tx(dev, 1);
+
+	if (reg & (IMR_TBEDOK | IMR_TBEDER))
+		rtl8180_handle_tx(dev, 2);
+
+	if (reg & (IMR_TBKDOK | IMR_TBKDER))
+		rtl8180_handle_tx(dev, 3);
+
+	if (reg & (IMR_ROK | IMR_RER | RTL818X_INT_SE_RX_DU | IMR_RQOSOK))
+		rtl8180_handle_rx(dev);
+	/* The interface sometimes generates several RX DMA descriptor errors
+	 * at startup. Do not report these.
+	 */
+	if ((reg & RTL818X_INT_SE_RX_DU) && desc_err++ > 2)
+		if (net_ratelimit())
+			wiphy_err(dev->wiphy, "No RX DMA Descriptor avail\n");
+
+	spin_unlock_irqrestore(&priv->lock, flags);
+	return IRQ_HANDLED;
+}
+
 static irqreturn_t rtl8180_interrupt(int irq, void *dev_id)
 {
 	struct ieee80211_hw *dev = dev_id;
@@ -685,8 +734,14 @@ static int rtl8180_start(struct ieee80211_hw *dev)
 	if (ret)
 		goto err_free_rings;
 
-	ret = request_irq(priv->pdev->irq, rtl8180_interrupt,
+	if (priv->chip_family == RTL818X_CHIP_FAMILY_RTL8187SE) {
+		ret = request_irq(priv->pdev->irq, rtl8187se_interrupt,
 			  IRQF_SHARED, KBUILD_MODNAME, dev);
+	} else {
+		ret = request_irq(priv->pdev->irq, rtl8180_interrupt,
+			  IRQF_SHARED, KBUILD_MODNAME, dev);
+	}
+
 	if (ret) {
 		wiphy_err(dev->wiphy, "failed to register IRQ handler\n");
 		goto err_free_rings;
