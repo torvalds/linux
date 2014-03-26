@@ -289,7 +289,7 @@ static void rk32_lvds_shutdown(struct platform_device *pdev)
 
 #if defined(CONFIG_OF)
 static const struct of_device_id rk32_lvds_dt_ids[] = {
-	{.compatible = "rockchip, rk32-lvds",},
+	{.compatible = "rockchip,rk32-lvds",},
 	{}
 };
 
