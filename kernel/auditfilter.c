@@ -71,6 +71,24 @@ static struct list_head audit_rules_list[AUDIT_NR_FILTERS] = {
 
 DEFINE_MUTEX(audit_filter_mutex);
 
+static void audit_free_lsm_field(struct audit_field *f)
+{
+	switch (f->type) {
+	case AUDIT_SUBJ_USER:
+	case AUDIT_SUBJ_ROLE:
+	case AUDIT_SUBJ_TYPE:
+	case AUDIT_SUBJ_SEN:
+	case AUDIT_SUBJ_CLR:
+	case AUDIT_OBJ_USER:
+	case AUDIT_OBJ_ROLE:
+	case AUDIT_OBJ_TYPE:
+	case AUDIT_OBJ_LEV_LOW:
+	case AUDIT_OBJ_LEV_HIGH:
+		kfree(f->lsm_str);
+		security_audit_rule_free(f->lsm_rule);
+	}
+}
+
 static inline void audit_free_rule(struct audit_entry *e)
 {
 	int i;
@@ -80,11 +98,8 @@ static inline void audit_free_rule(struct audit_entry *e)
 	if (erule->watch)
 		audit_put_watch(erule->watch);
 	if (erule->fields)
-		for (i = 0; i < erule->field_count; i++) {
-			struct audit_field *f = &erule->fields[i];
-			kfree(f->lsm_str);
-			security_audit_rule_free(f->lsm_rule);
-		}
+		for (i = 0; i < erule->field_count; i++)
+			audit_free_lsm_field(&erule->fields[i]);
 	kfree(erule->fields);
 	kfree(erule->filterkey);
 	kfree(e);
@@ -422,10 +437,6 @@ static struct audit_entry *audit_data_to_entry(struct audit_rule_data *data,
 
 		f->type = data->fields[i];
 		f->val = data->values[i];
-		f->uid = INVALID_UID;
-		f->gid = INVALID_GID;
-		f->lsm_str = NULL;
-		f->lsm_rule = NULL;
 
 		/* Support legacy tests for a valid loginuid */
 		if ((f->type == AUDIT_LOGINUID) && (f->val == AUDIT_UID_UNSET)) {
