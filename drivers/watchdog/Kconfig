@@ -835,7 +835,7 @@ config 60XX_WDT
 
 config SBC8360_WDT
 	tristate "SBC8360 Watchdog Timer"
-	depends on X86
+	depends on X86_32
 	---help---
 
 	  This is the driver for the hardware watchdog on the SBC8360 Single
