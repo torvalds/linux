@@ -493,7 +493,7 @@ static int tcp_v6_send_synack(struct sock *sk, struct request_sock *req,
 	fl6.saddr = treq->loc_addr;
 	fl6.flowlabel = 0;
 	fl6.flowi6_oif = treq->iif;
-	fl6.flowi6_mark = sk->sk_mark;
+	fl6.flowi6_mark = inet_rsk(req)->ir_mark;
 	fl6.fl6_dport = inet_rsk(req)->rmt_port;
 	fl6.fl6_sport = inet_rsk(req)->loc_port;
 	security_req_classify_flow(req, flowi6_to_flowi(&fl6));
@@ -1145,6 +1145,7 @@ static int tcp_v6_conn_request(struct sock *sk, struct sk_buff *skb)
 		TCP_ECN_create_request(req, tcp_hdr(skb));
 
 	treq->iif = sk->sk_bound_dev_if;
+	inet_rsk(req)->ir_mark = inet_request_mark(sk, skb);
 
 	/* So that link locals have meaning */
 	if (!sk->sk_bound_dev_if &&
