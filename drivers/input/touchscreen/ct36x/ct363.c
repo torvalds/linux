@@ -53,12 +53,12 @@ static void ct363_deinit_hw(struct ct36x_data *ts)
 
 static void ct363_reset_hw(struct ct36x_data *ts)
 {
-	gpio_direction_output(ts->rst_io.gpio, ts->rst_io.active_low);
-	msleep(50);
+	//gpio_direction_output(ts->rst_io.gpio, ts->rst_io.active_low);
+	//msleep(50);
 	gpio_set_value(ts->rst_io.gpio, !ts->rst_io.active_low);
-	msleep(50);
+	msleep(20);
 	gpio_set_value(ts->rst_io.gpio, ts->rst_io.active_low);
-	msleep(500);
+	msleep(255);
 }
 
 static int ct363_init(struct ct36x_data *ts)
@@ -107,9 +107,12 @@ static int ct363_init(struct ct36x_data *ts)
 	}
 
 	/* Hardware reset */
-	ct363_reset_hw(ts);
-	msleep(5);
-
+	//ct363_reset_hw(ts);
+	//msleep(5);
+	gpio_set_value(ts->rst_io.gpio, !ts->rst_io.active_low);
+	msleep(10);
+	gpio_set_value(ts->rst_io.gpio, ts->rst_io.active_low);
+	msleep(30);
 	ts->point_num = CT363_POINT_NUM;
 	
 	ct363 = kzalloc(sizeof(struct ct363_priv), GFP_KERNEL);
