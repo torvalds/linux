@@ -462,25 +462,25 @@ static int bluetooth_platdata_parse_dt(struct device *dev,
         data->poweron_gpio.io = gpio;
         data->poweron_gpio.enable = (flags == GPIO_ACTIVE_HIGH)? 1:0;
         LOG("%s: get property: BT,power_gpio = %d.\n", __func__, gpio);
-    }
+    } else data->poweron_gpio.io = -1;
     gpio = of_get_named_gpio_flags(node, "BT,reset_gpio", 0, &flags);
     if (gpio_is_valid(gpio)){
         data->reset_gpio.io = gpio;
         data->reset_gpio.enable = (flags == GPIO_ACTIVE_HIGH)? 1:0;
         LOG("%s: get property: BT,reset_gpio = %d.\n", __func__, gpio);
-    }
+    } else data->reset_gpio.io = -1;
     gpio = of_get_named_gpio_flags(node, "BT,wake_gpio", 0, &flags);
     if (gpio_is_valid(gpio)){
         data->wake_gpio.io = gpio;
         data->wake_gpio.enable = (flags == GPIO_ACTIVE_HIGH)? 1:0;
         LOG("%s: get property: BT,wake_gpio = %d.\n", __func__, gpio);
-    }
+    } else data->wake_gpio.io = -1;
     gpio = of_get_named_gpio_flags(node, "BT,wake_host_irq", 0, &flags);
     if (gpio_is_valid(gpio)) {
         data->wake_host_irq.gpio.io = gpio;
         data->wake_host_irq.gpio.enable = flags;
         LOG("%s: get property: BT,wake_host_irq = %d.\n", __func__, gpio);
-    }
+    } else data->wake_host_irq.gpio.io = -1;
 
     return 0;
 }
