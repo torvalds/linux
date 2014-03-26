@@ -617,13 +617,14 @@ static int tegra_dc_set_timings(struct tegra_dc *dc,
 }
 
 static int tegra_crtc_setup_clk(struct drm_crtc *crtc,
-				struct drm_display_mode *mode,
-				unsigned long *div)
+				struct drm_display_mode *mode)
 {
 	unsigned long pclk = mode->clock * 1000, rate;
 	struct tegra_dc *dc = to_tegra_dc(crtc);
 	struct tegra_output *output = NULL;
 	struct drm_encoder *encoder;
+	unsigned int div;
+	u32 value;
 	long err;
 
 	list_for_each_entry(encoder, &crtc->dev->mode_config.encoder_list, head)
@@ -646,9 +647,12 @@ static int tegra_crtc_setup_clk(struct drm_crtc *crtc,
 	}
 
 	rate = clk_get_rate(dc->clk);
-	*div = (rate * 2 / pclk) - 2;
+	div = (rate * 2 / pclk) - 2;
 
-	DRM_DEBUG_KMS("rate: %lu, div: %lu\n", rate, *div);
+	DRM_DEBUG_KMS("rate: %lu, div: %u\n", rate, div);
+
+	value = SHIFT_CLK_DIVIDER(div) | PIXEL_CLK_DIVIDER_PCD1;
+	tegra_dc_writel(dc, value, DC_DISP_DISP_CLOCK_CONTROL);
 
 	return 0;
 }
@@ -661,12 +665,12 @@ static int tegra_crtc_mode_set(struct drm_crtc *crtc,
 	struct tegra_bo *bo = tegra_fb_get_plane(crtc->primary->fb, 0);
 	struct tegra_dc *dc = to_tegra_dc(crtc);
 	struct tegra_dc_window window;
-	unsigned long div, value;
+	u32 value;
 	int err;
 
 	drm_vblank_pre_modeset(crtc->dev, dc->pipe);
 
-	err = tegra_crtc_setup_clk(crtc, mode, &div);
+	err = tegra_crtc_setup_clk(crtc, mode);
 	if (err) {
 		dev_err(dc->dev, "failed to setup clock for CRTC: %d\n", err);
 		return err;
@@ -681,9 +685,6 @@ static int tegra_crtc_mode_set(struct drm_crtc *crtc,
 		value &= ~INTERLACE_ENABLE;
 		tegra_dc_writel(dc, value, DC_DISP_INTERLACE_CONTROL);
 	}
-
-	value = SHIFT_CLK_DIVIDER(div) | PIXEL_CLK_DIVIDER_PCD1;
-	tegra_dc_writel(dc, value, DC_DISP_DISP_CLOCK_CONTROL);
 
 	/* setup window parameters */
 	memset(&window, 0, sizeof(window));
