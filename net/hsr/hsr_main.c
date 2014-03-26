@@ -459,7 +459,7 @@ static int __init hsr_init(void)
 static void __exit hsr_exit(void)
 {
 	unregister_netdevice_notifier(&hsr_nb);
-	del_timer(&prune_timer);
+	del_timer_sync(&prune_timer);
 	hsr_netlink_exit();
 	dev_remove_pack(&hsr_pt);
 }
