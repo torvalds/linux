@@ -92,7 +92,7 @@ MODULE_DEVICE_TABLE(of, pfuze_dt_ids);
 static int pfuze100_set_ramp_delay(struct regulator_dev *rdev, int ramp_delay)
 {
 	struct pfuze_chip *pfuze100 = rdev_get_drvdata(rdev);
-	int id = rdev->desc->id;
+	int id = rdev_get_id(rdev);
 	unsigned int ramp_bits;
 	int ret;
 
