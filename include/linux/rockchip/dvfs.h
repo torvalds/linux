@@ -190,7 +190,7 @@ static inline struct cpufreq_frequency_table *dvfs_get_freq_volt_table(struct dv
 static inline int rk_regist_vd(struct vd_node *vd){ return 0; };
 static inline int rk_regist_pd(struct pd_node *pd){ return 0; };
 static inline int rk_regist_clk(struct dvfs_node *clk_dvfs_node){ return 0; };
-struct regulator *dvfs_get_regulator(char *regulator_name){ return NULL; };
+static inline struct regulator *dvfs_get_regulator(char *regulator_name){ return NULL; };
 static inline int of_dvfs_init(void){ return 0; };
 #endif
 
