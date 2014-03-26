@@ -168,6 +168,14 @@ ENTRY(__flush_dcache_area)
 ENDPROC(__flush_dcache_area)
 
 /*
+ *	__inval_cache_range(start, end)
+ *	- start   - start address of region
+ *	- end     - end address of region
+ */
+ENTRY(__inval_cache_range)
+	/* FALLTHROUGH */
+
+/*
  *	__dma_inv_range(start, end)
  *	- start   - virtual start address of region
  *	- end     - virtual end address of region
@@ -183,6 +191,7 @@ __dma_inv_range:
 	b.lo	1b
 	dsb	sy
 	ret
+ENDPROC(__inval_cache_range)
 ENDPROC(__dma_inv_range)
 
 /*

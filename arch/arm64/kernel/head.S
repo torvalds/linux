@@ -26,6 +26,7 @@
 #include <asm/assembler.h>
 #include <asm/ptrace.h>
 #include <asm/asm-offsets.h>
+#include <asm/cache.h>
 #include <asm/cputype.h>
 #include <asm/memory.h>
 #include <asm/thread_info.h>
@@ -229,7 +230,11 @@ ENTRY(set_cpu_boot_mode_flag)
 	cmp	w20, #BOOT_CPU_MODE_EL2
 	b.ne	1f
 	add	x1, x1, #4
-1:	str	w20, [x1]			// This CPU has booted in EL1
+1:	dc	cvac, x1			// Clean potentially dirty cache line
+	dsb	sy
+	str	w20, [x1]			// This CPU has booted in EL1
+	dc	civac, x1			// Clean&invalidate potentially stale cache line
+	dsb	sy
 	ret
 ENDPROC(set_cpu_boot_mode_flag)
 
@@ -240,8 +245,9 @@ ENDPROC(set_cpu_boot_mode_flag)
  * This is not in .bss, because we set it sufficiently early that the boot-time
  * zeroing of .bss would clobber it.
  */
-	.pushsection	.data
+	.pushsection	.data..cacheline_aligned
 ENTRY(__boot_cpu_mode)
+	.align	L1_CACHE_SHIFT
 	.long	BOOT_CPU_MODE_EL2
 	.long	0
 	.popsection
@@ -408,6 +414,15 @@ ENDPROC(__calc_phys_offset)
  */
 __create_page_tables:
 	pgtbl	x25, x26, x24			// idmap_pg_dir and swapper_pg_dir addresses
+	mov	x27, lr
+
+	/*
+	 * Invalidate the idmap and swapper page tables to avoid potential
+	 * dirty cache lines being evicted.
+	 */
+	mov	x0, x25
+	add	x1, x26, #SWAPPER_DIR_SIZE
+	bl	__inval_cache_range
 
 	/*
 	 * Clear the idmap and swapper page tables.
@@ -470,6 +485,17 @@ __create_page_tables:
 	add	x0, x26, #2 * PAGE_SIZE		// section table address
 	create_pgd_entry x26, x0, x5, x6, x7
 #endif
+
+	/*
+	 * Since the page tables have been populated with non-cacheable
+	 * accesses (MMU disabled), invalidate the idmap and swapper page
+	 * tables again to remove any speculatively loaded cache lines.
+	 */
+	mov	x0, x25
+	add	x1, x26, #SWAPPER_DIR_SIZE
+	bl	__inval_cache_range
+
+	mov	lr, x27
 	ret
 ENDPROC(__create_page_tables)
 	.ltorg
