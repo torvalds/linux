@@ -520,7 +520,7 @@ static int bq24296_battery_probe(struct i2c_client *client,const struct i2c_devi
 		printk("could not find bq24296-node\n");
 	}
 	 
-	di = devm_kzalloc( &client->dev,sizeof(*di), GFP_KERNEL);
+	di = devm_kzalloc(&client->dev,sizeof(*di), GFP_KERNEL);
 	if (!di) {
 		dev_err(&client->dev, "failed to allocate device info data\n");
 		retval = -ENOMEM;
@@ -555,7 +555,7 @@ static int bq24296_battery_probe(struct i2c_client *client,const struct i2c_devi
 	if (ret < 0) {
 		dev_err(&di->client->dev, "%s(): Failed in reading register"
 				"0x%02x\n", __func__, VENDOR_STATS_REGISTER);
-		goto batt_failed_4;
+		goto batt_failed_2;
 	}
 	di->workqueue = create_singlethread_workqueue("bq24296_irq");
 	INIT_WORK(&di->irq_work, irq_work_func);
@@ -580,12 +580,9 @@ static int bq24296_battery_probe(struct i2c_client *client,const struct i2c_devi
 	DBG("bq24296_battery_probe ok");
 	return 0;
 
-batt_failed_4:
-	kfree(di);
-batt_failed_2:
-	
 err_chgirq_failed:
 	free_irq(gpio_to_irq(pdev->chg_irq_pin), NULL);
+batt_failed_2:
 	return retval;
 }
 
