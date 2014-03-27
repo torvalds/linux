@@ -195,7 +195,7 @@
 			interrupt-controller;
 			#interrupt-cells = <2>;
 			reg = <0x01f00c0c 0x38>;
-			interrupts = <0 0 4>;
+			interrupts = <0 32 4>;
 		};
 
 		pio: pinctrl@01c20800 {
