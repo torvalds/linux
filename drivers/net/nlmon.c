@@ -136,7 +136,8 @@ static void nlmon_setup(struct net_device *dev)
 	dev->ethtool_ops = &nlmon_ethtool_ops;
 	dev->destructor	= free_netdev;
 
-	dev->features = NETIF_F_FRAGLIST | NETIF_F_HIGHDMA;
+	dev->features = NETIF_F_SG | NETIF_F_FRAGLIST |
+			NETIF_F_HIGHDMA | NETIF_F_LLTX;
 	dev->flags = IFF_NOARP;
 
 	/* That's rather a softlimit here, which, of course,
