@@ -1287,7 +1287,6 @@ enum dp_irq_type rk32_edp_get_irq_type(struct rk32_edp *edp)
 
 	/* Parse hotplug interrupt status register */
 	val = readl(edp->regs + COMMON_INT_STA_4);
-
 	if (val & PLUG)
 		return DP_IRQ_TYPE_HP_CABLE_IN;
 
@@ -1298,5 +1297,16 @@ enum dp_irq_type rk32_edp_get_irq_type(struct rk32_edp *edp)
 		return DP_IRQ_TYPE_HP_CHANGE;
 
 	return DP_IRQ_TYPE_UNKNOWN;
+}
+
+void rk32_edp_clear_hotplug_interrupts(struct rk32_edp *edp)
+{
+	u32 val;
+
+	val = HOTPLUG_CHG | HPD_LOST | PLUG;
+	writel(val, edp->regs + COMMON_INT_STA_4);
+
+	val = INT_HPD;
+	writel(val, edp->regs + DP_INT_STA);
 }
 

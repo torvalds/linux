@@ -617,5 +617,6 @@ void rk32_edp_hw_link_training_en(struct rk32_edp * edp);
 int rk32_edp_get_hw_lt_status(struct rk32_edp *edp);
 int rk32_edp_wait_hw_lt_done(struct rk32_edp *edp);
 enum dp_irq_type rk32_edp_get_irq_type(struct rk32_edp *edp);
+void rk32_edp_clear_hotplug_interrupts(struct rk32_edp *edp);
 
 #endif
