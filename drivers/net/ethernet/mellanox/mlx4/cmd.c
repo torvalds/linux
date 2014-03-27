@@ -800,16 +800,7 @@ static int mlx4_MAD_IFC_wrapper(struct mlx4_dev *dev, int slave,
 				    vhcr->op, MLX4_CMD_TIME_CLASS_C, MLX4_CMD_NATIVE);
 }
 
-static int MLX4_CMD_UPDATE_QP_wrapper(struct mlx4_dev *dev, int slave,
-		     struct mlx4_vhcr *vhcr,
-		     struct mlx4_cmd_mailbox *inbox,
-		     struct mlx4_cmd_mailbox *outbox,
-		     struct mlx4_cmd_info *cmd)
-{
-	return -EPERM;
-}
-
-static int MLX4_CMD_GET_OP_REQ_wrapper(struct mlx4_dev *dev, int slave,
+static int mlx4_CMD_EPERM_wrapper(struct mlx4_dev *dev, int slave,
 		     struct mlx4_vhcr *vhcr,
 		     struct mlx4_cmd_mailbox *inbox,
 		     struct mlx4_cmd_mailbox *outbox,
@@ -1258,7 +1249,7 @@ static struct mlx4_cmd_info cmd_info[] = {
 		.out_is_imm = false,
 		.encode_slave_id = false,
 		.verify = NULL,
-		.wrapper = MLX4_CMD_UPDATE_QP_wrapper
+		.wrapper = mlx4_CMD_EPERM_wrapper
 	},
 	{
 		.opcode = MLX4_CMD_GET_OP_REQ,
@@ -1267,7 +1258,7 @@ static struct mlx4_cmd_info cmd_info[] = {
 		.out_is_imm = false,
 		.encode_slave_id = false,
 		.verify = NULL,
-		.wrapper = MLX4_CMD_GET_OP_REQ_wrapper,
+		.wrapper = mlx4_CMD_EPERM_wrapper,
 	},
 	{
 		.opcode = MLX4_CMD_CONF_SPECIAL_QP,
@@ -1378,7 +1369,7 @@ static struct mlx4_cmd_info cmd_info[] = {
 		.out_is_imm = false,
 		.encode_slave_id = false,
 		.verify = NULL,
-		.wrapper = mlx4_FLOW_STEERING_IB_UC_QP_RANGE_wrapper
+		.wrapper = mlx4_CMD_EPERM_wrapper
 	},
 };
 
