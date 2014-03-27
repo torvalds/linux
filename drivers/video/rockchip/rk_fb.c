@@ -1158,10 +1158,20 @@ static void rk_fb_update_reg(struct rk_lcdc_driver * dev_drv,struct rk_fb_reg_da
 		}
 		if (j < regs->win_num){
 			rk_fb_update_driver(ext_win, &regs->reg_win_data[j]);
-			ext_win->area[0].xpos = (ext_dev_drv->cur_screen->mode.xres - ext_dev_drv->cur_screen->xsize)>>1;
-			ext_win->area[0].ypos = (ext_dev_drv->cur_screen->mode.yres - ext_dev_drv->cur_screen->ysize)>>1;
-			ext_win->area[0].xsize = ext_dev_drv->cur_screen->xsize;
-			ext_win->area[0].ysize = ext_dev_drv->cur_screen->ysize;
+			if(win->area[0].xpos != 0 || win->area[0].ypos != 0) {
+				ext_win->area[0].xsize = (ext_dev_drv->cur_screen->xsize * win->area[0].xsize) / dev_drv->cur_screen->mode.xres;
+				ext_win->area[0].ysize = (ext_dev_drv->cur_screen->ysize * win->area[0].ysize) / dev_drv->cur_screen->mode.yres;
+				ext_win->area[0].xpos = ((ext_dev_drv->cur_screen->mode.xres - ext_dev_drv->cur_screen->xsize) >> 1)
+								+ ext_dev_drv->cur_screen->xsize * win->area[0].xpos / dev_drv->cur_screen->mode.xres;
+				ext_win->area[0].ypos = ((ext_dev_drv->cur_screen->mode.yres - ext_dev_drv->cur_screen->ysize) >> 1)
+								+ ext_dev_drv->cur_screen->ysize * win->area[0].ypos / dev_drv->cur_screen->mode.yres;
+			}
+			else {
+				ext_win->area[0].xpos = (ext_dev_drv->cur_screen->mode.xres - ext_dev_drv->cur_screen->xsize) >> 1;
+				ext_win->area[0].ypos = (ext_dev_drv->cur_screen->mode.yres - ext_dev_drv->cur_screen->ysize) >> 1;
+				ext_win->area[0].xsize = ext_dev_drv->cur_screen->xsize;
+				ext_win->area[0].ysize = ext_dev_drv->cur_screen->ysize;
+			}
 			ext_win->alpha_en = 0;	//hdmi only one win so disable alpha
 			ext_win->state = 1;
 		}
@@ -2098,6 +2108,30 @@ if (rk_fb->disp_mode != DUAL) {
 					extend_info->var.yres = var->yres;
 					extend_info->var.xres_virtual = var->xres_virtual;
 				}
+				extend_win->area[0].y_vir_stride = win->area[0].y_vir_stride;
+				extend_win->area[0].uv_vir_stride = win->area[0].uv_vir_stride;
+				if(win->area[0].xpos != 0 || win->area[0].ypos != 0) {
+					extend_win->area[0].xsize = (extend_dev_drv->cur_screen->xsize * win->area[0].xsize) / screen->mode.xres;
+					extend_win->area[0].ysize = (extend_dev_drv->cur_screen->ysize * win->area[0].ysize) / screen->mode.yres;
+					extend_win->area[0].xpos = ((extend_dev_drv->cur_screen->mode.xres - extend_dev_drv->cur_screen->xsize) >> 1)
+									+ extend_dev_drv->cur_screen->xsize * win->area[0].xpos / screen->mode.xres;
+					extend_win->area[0].ypos = ((extend_dev_drv->cur_screen->mode.yres - extend_dev_drv->cur_screen->ysize) >> 1)
+									+ extend_dev_drv->cur_screen->ysize * win->area[0].ypos / screen->mode.yres;
+				}
+				else {	//the display image of the primary screen is full screen size
+					extend_win->area[0].xpos = (extend_dev_drv->cur_screen->mode.xres - extend_dev_drv->cur_screen->xsize) >> 1;
+					extend_win->area[0].ypos = (extend_dev_drv->cur_screen->mode.yres - extend_dev_drv->cur_screen->ysize) >> 1;
+					extend_win->area[0].xsize = extend_dev_drv->cur_screen->xsize;
+					extend_win->area[0].ysize = extend_dev_drv->cur_screen->ysize;
+				}
+			#if !defined(CONFIG_FB_ROTATE) && defined(CONFIG_THREE_FB_BUFFER)
+				extend_win->area[0].smem_start = win->area[0].smem_start;
+				extend_win->area[0].cbr_start = win->area[0].cbr_start;
+			#endif
+				extend_win->state = 1;
+				extend_win->area[0].state = 1;
+				extend_win->area_num = 1;
+				extend_win->alpha_en = 0;
 				extend_win->format = win->format;
 				extend_info->var.nonstd &= 0xffffff00;
 				extend_info->var.nonstd |= data_format;
