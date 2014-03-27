@@ -1363,6 +1363,25 @@ enum {
 #define m_MPLL_N_CNTRL		(0x03 << 0)
 #define v_MPLL_N_CNTRL(n)	(((n)&0x03) << 0)
 
+#define PHYTX_CLKSYMCTRL		0x09
+#define v_OVERRIDE(n)		(0x01 << 15)
+#define m_SLOPEBOOST		(0x03 << 4)
+#define v_SLOPEBOOST(n)		(((n)&0x03) << 4)
+#define m_TX_SYMON		(0x01 << 3)
+#define v_TX_SYMON(n)		(((n)&0x01) << 3)
+#define m_TX_TRAON		(0x01 << 2)
+#define v_TX_TRAON(n)		(((n)&0x01) << 2)
+#define m_TX_TRBON		(0x01 << 1)
+#define v_TX_TRBON(n)		(((n)&0x01) << 1)
+#define m_CLK_SYMON		(0x01 << 0)
+#define v_CLK_SYMON(n)		(((n)&0x01) << 0)
+
+#define PHYTX_VLEVCTRL			0x0e
+#define m_SUP_TXLVL		(0x1f << 5)
+#define v_SUP_TXLVL(n)		(((n)&0x1f) << 5)
+#define m_SUP_CLKLVL		(0x1f << 0)
+#define v_SUP_CLKLVL(n)		(((n)&0x1f) << 0)
+
 #define PHYTX_PLLCURRCTRL		0x10
 #define m_MPLL_PROP_CNTRL	(0x07 << 3)
 #define v_MPLL_PROP_CNTRL(n)	(((n)&0x07) << 3)
@@ -1372,6 +1391,21 @@ enum {
 #define PHYTX_PLLGMPCTRL		0x15
 #define m_MPLL_GMP_CNTRL	(0x03 << 0)
 #define v_MPLL_GMP_CNTRL(n)	(((n)&0x03) << 0)
+
+enum TERM_RESIS{
+	R50_Ohms = 0,
+	R5714_Ohms,
+	R6667_Ohms,
+	R80_Ohms,
+	R100_Ohms,
+	R13333_Ohms,
+	R200_Ohms,
+	ROPEN_CIRCUIT,
+};
+#define PHYTX_TERM_RESIS		0x19
+#define m_TX_TERM		(0x07 << 0)
+#define v_TX_TERM(n)		(((n)&0x07) << 0)
+
 
 struct phy_mpll_config_tab {
 	u32 pix_clock;

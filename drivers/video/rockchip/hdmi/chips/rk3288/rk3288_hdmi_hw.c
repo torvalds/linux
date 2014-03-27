@@ -6,9 +6,9 @@
 static const struct phy_mpll_config_tab PHY_MPLL_TABLE[] = {	//opmode: 0:HDMI1.4 	1:HDMI2.0
 //     	|pixclock|pixrepet|colordepth|prepdiv|tmdsmhl|opmode|fbdiv2|fbdiv1|ref_cntrl|nctrl|propctrl|intctrl|gmpctrl|
 	{27000000,	0,	8,	0,	0,	0,	2,	3,	0,	3,	3,	0,	0},
-	{74250000, 	0,	8, 	0,	0,	0, 	1, 	3,	0,	2,	5,	0, 	1},
-	{148500000, 	0, 	8,  	0, 	0,	0,	1,	1,	0,	1,	7,	0,	2},
-	{297000000,	0, 	8,	0, 	0, 	0, 	1, 	0, 	0, 	0, 	7, 	0, 	3},
+	{74250000, 	0,	8, 	0,	0,	0, 	2, 	3,	0,	3,	7,	0, 	3},
+	{148500000, 	0, 	8,  	0, 	0,	0,	1,	3,	0,	2,	7,	0,	3},
+	{297000000,	0, 	8,	0, 	0, 	0, 	1, 	3, 	0, 	2, 	7, 	0, 	3},
 	{297000000, 	0, 	16,  	3, 	3, 	1, 	1, 	1, 	0, 	0, 	5, 	0, 	3},
 	{594000000,	0, 	8, 	0, 	3, 	1, 	1, 	0, 	0, 	0, 	3, 	0, 	3},
 };
@@ -423,12 +423,13 @@ static int rk3288_hdmi_read_phy(struct rk3288_hdmi_device *hdmi_dev, int reg_add
 			hdmi_err(hdmi_dev->dev, "[%s] operation error,trytime=%d\n", __FUNCTION__,trytime);
 		}
 		msleep(100);
-#endif
-		msleep(1000);
+#else
+		msleep(300);
 		val = (hdmi_readl(hdmi_dev, PHY_I2CM_DATAI_1) >> 8) & 0xff;
 		val += (hdmi_readl(hdmi_dev, PHY_I2CM_DATAI_0) & 0xff);
 		printk(">>>reg%x:%x", reg_addr, val);
 		return val;
+#endif
 	}
 
 	return -1;
@@ -462,7 +463,6 @@ static int rk3288_hdmi_write_phy(struct rk3288_hdmi_device *hdmi_dev, int reg_ad
 		}
 
 		//op_status = hdmi_readl(hdmi_dev, PHY_I2CM_INT);
-//		printk("")
 		if(op_status & m_I2CMPHY_DONE) {
 			return 0;
 		}
@@ -470,9 +470,10 @@ static int rk3288_hdmi_write_phy(struct rk3288_hdmi_device *hdmi_dev, int reg_ad
 			hdmi_err(hdmi_dev->dev, "[%s] operation error,trytime=%d\n", __FUNCTION__,trytime);
 		}
 		msleep(100);
+#else
+		msleep(300);
+		return 0;
 #endif
-		msleep(500);
-		return 0;	//delete
 	}
 
 	return -1;
@@ -507,6 +508,26 @@ int rk3288_hdmi_config_phy(struct hdmi *hdmi_drv)
 		rk3288_hdmi_write_phy(hdmi_dev, PHYTX_PLLCURRCTRL, v_MPLL_PROP_CNTRL(phy_mpll->prop_cntrl) | v_MPLL_INT_CNTRL(phy_mpll->int_cntrl));
 		rk3288_hdmi_write_phy(hdmi_dev, PHYTX_PLLGMPCTRL, v_MPLL_GMP_CNTRL(phy_mpll->gmp_cntrl));
 	}
+	if(hdmi_drv->tmdsclk == 74250000) {
+		rk3288_hdmi_write_phy(hdmi_dev, PHYTX_CLKSYMCTRL, v_OVERRIDE(1) | v_SLOPEBOOST(0)
+			| v_TX_SYMON(1) | v_TX_TRAON(0) | v_TX_TRBON(0) | v_CLK_SYMON(1));
+		rk3288_hdmi_write_phy(hdmi_dev, PHYTX_TERM_RESIS, v_TX_TERM(R100_Ohms));
+	}
+	else if(hdmi_drv->tmdsclk == 148500000) {
+		rk3288_hdmi_write_phy(hdmi_dev, PHYTX_CLKSYMCTRL, v_OVERRIDE(1) | v_SLOPEBOOST(3)
+			| v_TX_SYMON(1) | v_TX_TRAON(0) | v_TX_TRBON(0) | v_CLK_SYMON(1));
+		rk3288_hdmi_write_phy(hdmi_dev, PHYTX_TERM_RESIS, v_TX_TERM(R100_Ohms));
+	}
+	else if(hdmi_drv->tmdsclk == 297000000) {
+		rk3288_hdmi_write_phy(hdmi_dev, PHYTX_CLKSYMCTRL, v_OVERRIDE(1) | v_SLOPEBOOST(3)
+			| v_TX_SYMON(1) | v_TX_TRAON(0) | v_TX_TRBON(1) | v_CLK_SYMON(1));
+		rk3288_hdmi_write_phy(hdmi_dev, PHYTX_TERM_RESIS, v_TX_TERM(R100_Ohms));
+	}
+	else if(hdmi_drv->tmdsclk > 297000000) {
+		//TODO Daisen wait to add and modify
+		rk3288_hdmi_write_phy(hdmi_dev, PHYTX_TERM_RESIS, v_TX_TERM(R13333_Ohms));
+	}
+	rk3288_hdmi_write_phy(hdmi_dev, PHYTX_VLEVCTRL, v_SUP_TXLVL(10) | v_SUP_CLKLVL(10));
 
 	//power on PHY
 	hdmi_writel(hdmi_dev, PHY_CONF0, 0x6e);
@@ -801,7 +822,7 @@ int rk3288_hdmi_config_audio(struct hdmi *hdmi_drv, struct hdmi_audio *audio)
 	switch(audio->rate)
 	{
 		case HDMI_AUDIO_FS_32000:
-			mclk_fs = FS_128;
+			mclk_fs = FS_256;
 			if(hdmi_drv->tmdsclk >= 594000000)
 				N = N_32K_HIGHCLK;
 			else if(hdmi_drv->tmdsclk == 297000000)
@@ -810,7 +831,7 @@ int rk3288_hdmi_config_audio(struct hdmi *hdmi_drv, struct hdmi_audio *audio)
 				N = N_32K_LOWCLK;
 			break;
 		case HDMI_AUDIO_FS_44100:
-			mclk_fs = FS_128;
+			mclk_fs = FS_256;
 			if(hdmi_drv->tmdsclk >= 594000000)
 				N = N_441K_HIGHCLK;
 			else if(hdmi_drv->tmdsclk == 297000000)
@@ -819,7 +840,7 @@ int rk3288_hdmi_config_audio(struct hdmi *hdmi_drv, struct hdmi_audio *audio)
 				N = N_441K_LOWCLK;
 			break;
 		case HDMI_AUDIO_FS_48000:
-			mclk_fs = FS_128;
+			mclk_fs = FS_256;
 			if(hdmi_drv->tmdsclk >= 594000000)	//FS_153.6
 				N = N_48K_HIGHCLK;
 			else if(hdmi_drv->tmdsclk == 297000000)
@@ -828,7 +849,7 @@ int rk3288_hdmi_config_audio(struct hdmi *hdmi_drv, struct hdmi_audio *audio)
 				N = N_48K_LOWCLK;
 			break;
 		case HDMI_AUDIO_FS_88200:
-			mclk_fs = FS_128;
+			mclk_fs = FS_256;
 			if(hdmi_drv->tmdsclk >= 594000000)
 				N = N_882K_HIGHCLK;
 			else if(hdmi_drv->tmdsclk == 297000000)
@@ -837,7 +858,7 @@ int rk3288_hdmi_config_audio(struct hdmi *hdmi_drv, struct hdmi_audio *audio)
 				N = N_882K_LOWCLK;
 			break;
 		case HDMI_AUDIO_FS_96000:
-			mclk_fs = FS_128;
+			mclk_fs = FS_256;
 			if(hdmi_drv->tmdsclk >= 594000000)	//FS_153.6
 				N = N_96K_HIGHCLK;
 			else if(hdmi_drv->tmdsclk == 297000000)
@@ -846,7 +867,7 @@ int rk3288_hdmi_config_audio(struct hdmi *hdmi_drv, struct hdmi_audio *audio)
 				N = N_96K_LOWCLK;
 			break;
 		case HDMI_AUDIO_FS_176400:
-			mclk_fs = FS_128;
+			mclk_fs = FS_256;
 			if(hdmi_drv->tmdsclk >= 594000000)
 				N = N_1764K_HIGHCLK;
 			else if(hdmi_drv->tmdsclk == 297000000)
@@ -855,7 +876,7 @@ int rk3288_hdmi_config_audio(struct hdmi *hdmi_drv, struct hdmi_audio *audio)
 				N = N_1764K_LOWCLK;
 			break;
 		case HDMI_AUDIO_FS_192000:
-			mclk_fs = FS_128;
+			mclk_fs = FS_256;
 			if(hdmi_drv->tmdsclk >= 594000000)	//FS_153.6
 				N = N_192K_HIGHCLK;
 			else if(hdmi_drv->tmdsclk == 297000000)
@@ -885,7 +906,7 @@ int rk3288_hdmi_config_audio(struct hdmi *hdmi_drv, struct hdmi_audio *audio)
 
 	/* more than 2 channels => layout 1 else layout 0 */
 	//value = (audio->channel > 2) ? 1 : 0;	//TODO Daisen wait to modify
-	//hdmi_msk_reg(hdmi_dev, FC_AUDSCONF, m_AUD_PACK_LAYOUT, v_AUD_PACK_LAYOUT(value));
+	hdmi_msk_reg(hdmi_dev, FC_AUDSCONF, m_AUD_PACK_LAYOUT, v_AUD_PACK_LAYOUT(1));
 
 	if(hdmi_drv->audio.type == INPUT_SPDIF) {
 		hdmi_msk_reg(hdmi_dev, AUD_CONF0, m_I2S_SEL, v_I2S_SEL(AUDIO_SPDIF_GPA));
