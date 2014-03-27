@@ -64,7 +64,7 @@ struct work_struct  spk_work;
 static int last_is_spk = -1;	//bard 9-13
 #endif
 
-static struct snd_soc_codec *rt5631_codec;
+static struct snd_soc_codec *rt5631_codec = NULL;
 struct delayed_work rt5631_delay_cap; //bard 7-16
 EXPORT_SYMBOL(rt5631_delay_cap); //bard 7-16
 static const u16 rt5631_reg[0x80];
@@ -2141,7 +2141,9 @@ static struct snd_soc_codec_driver soc_codec_dev_rt5631 = {
 
 void rt5631_shutdown(struct i2c_client *client)
 {
-	rt5631_set_bias_level(rt5631_codec, SND_SOC_BIAS_OFF);
+
+	if (rt5631_codec != NULL)
+		rt5631_set_bias_level(rt5631_codec, SND_SOC_BIAS_OFF);
 }
 
 
