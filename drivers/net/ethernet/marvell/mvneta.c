@@ -22,6 +22,7 @@
 #include <linux/interrupt.h>
 #include <net/ip.h>
 #include <net/ipv6.h>
+#include <linux/io.h>
 #include <linux/of.h>
 #include <linux/of_irq.h>
 #include <linux/of_mdio.h>
@@ -2774,6 +2775,7 @@ static void mvneta_port_power_up(struct mvneta_port *pp, int phy_mode)
 static int mvneta_probe(struct platform_device *pdev)
 {
 	const struct mbus_dram_target_info *dram_target_info;
+	struct resource *res;
 	struct device_node *dn = pdev->dev.of_node;
 	struct device_node *phy_node;
 	u32 phy_addr;
@@ -2837,9 +2839,10 @@ static int mvneta_probe(struct platform_device *pdev)
 
 	clk_prepare_enable(pp->clk);
 
-	pp->base = of_iomap(dn, 0);
-	if (pp->base == NULL) {
-		err = -ENOMEM;
+	res = platform_get_resource(pdev, IORESOURCE_MEM, 0);
+	pp->base = devm_ioremap_resource(&pdev->dev, res);
+	if (IS_ERR(pp->base)) {
+		err = PTR_ERR(pp->base);
 		goto err_clk;
 	}
 
@@ -2847,7 +2850,7 @@ static int mvneta_probe(struct platform_device *pdev)
 	pp->stats = netdev_alloc_pcpu_stats(struct mvneta_pcpu_stats);
 	if (!pp->stats) {
 		err = -ENOMEM;
-		goto err_unmap;
+		goto err_clk;
 	}
 
 	dt_mac_addr = of_get_mac_address(dn);
@@ -2906,8 +2909,6 @@ err_deinit:
 	mvneta_deinit(pp);
 err_free_stats:
 	free_percpu(pp->stats);
-err_unmap:
-	iounmap(pp->base);
 err_clk:
 	clk_disable_unprepare(pp->clk);
 err_free_irq:
@@ -2927,7 +2928,6 @@ static int mvneta_remove(struct platform_device *pdev)
 	mvneta_deinit(pp);
 	clk_disable_unprepare(pp->clk);
 	free_percpu(pp->stats);
-	iounmap(pp->base);
 	irq_dispose_mapping(dev->irq);
 	free_netdev(dev);
 
