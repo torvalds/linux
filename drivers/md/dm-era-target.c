@@ -289,6 +289,12 @@ struct era_metadata {
 	 * A flag that is set whenever a writeset has been archived.
 	 */
 	bool archived_writesets;
+
+	/*
+	 * Reading the space map root can fail, so we read it into this
+	 * buffer before the superblock is locked and updated.
+	 */
+	__u8 metadata_space_map_root[SPACE_MAP_ROOT_SIZE];
 };
 
 static int superblock_read_lock(struct era_metadata *md,
@@ -453,16 +459,33 @@ bad:
 	return r;
 }
 
+static int save_sm_root(struct era_metadata *md)
+{
+	int r;
+	size_t metadata_len;
+
+	r = dm_sm_root_size(md->sm, &metadata_len);
+	if (r < 0)
+		return r;
+
+	return dm_sm_copy_root(md->sm, &md->metadata_space_map_root,
+			       metadata_len);
+}
+
+static void copy_sm_root(struct era_metadata *md, struct superblock_disk *disk)
+{
+	memcpy(&disk->metadata_space_map_root,
+	       &md->metadata_space_map_root,
+	       sizeof(md->metadata_space_map_root));
+}
+
 /*
  * Writes a superblock, including the static fields that don't get updated
  * with every commit (possible optimisation here).  'md' should be fully
  * constructed when this is called.
  */
-static int prepare_superblock(struct era_metadata *md, struct superblock_disk *disk)
+static void prepare_superblock(struct era_metadata *md, struct superblock_disk *disk)
 {
-	int r;
-	size_t metadata_len;
-
 	disk->magic = cpu_to_le64(SUPERBLOCK_MAGIC);
 	disk->flags = cpu_to_le32(0ul);
 
@@ -470,14 +493,7 @@ static int prepare_superblock(struct era_metadata *md, struct superblock_disk *d
 	memset(disk->uuid, 0, sizeof(disk->uuid));
 	disk->version = cpu_to_le32(MAX_ERA_VERSION);
 
-	r = dm_sm_root_size(md->sm, &metadata_len);
-	if (r < 0)
-		return r;
-
-	r = dm_sm_copy_root(md->sm, &disk->metadata_space_map_root,
-			    metadata_len);
-	if (r < 0)
-		return r;
+	copy_sm_root(md, disk);
 
 	disk->data_block_size = cpu_to_le32(md->block_size);
 	disk->metadata_block_size = cpu_to_le32(DM_ERA_METADATA_BLOCK_SIZE >> SECTOR_SHIFT);
@@ -488,8 +504,6 @@ static int prepare_superblock(struct era_metadata *md, struct superblock_disk *d
 	disk->writeset_tree_root = cpu_to_le64(md->writeset_tree_root);
 	disk->era_array_root = cpu_to_le64(md->era_array_root);
 	disk->metadata_snap = cpu_to_le64(md->metadata_snap);
-
-	return 0;
 }
 
 static int write_superblock(struct era_metadata *md)
@@ -498,17 +512,18 @@ static int write_superblock(struct era_metadata *md)
 	struct dm_block *sblock;
 	struct superblock_disk *disk;
 
+	r = save_sm_root(md);
+	if (r) {
+		DMERR("%s: save_sm_root failed", __func__);
+		return r;
+	}
+
 	r = superblock_lock_zero(md, &sblock);
 	if (r)
 		return r;
 
 	disk = dm_block_data(sblock);
-	r = prepare_superblock(md, disk);
-	if (r) {
-		DMERR("%s: prepare_superblock failed", __func__);
-		dm_bm_unlock(sblock); /* FIXME: does this commit? */
-		return r;
-	}
+	prepare_superblock(md, disk);
 
 	return dm_tm_commit(md->tm, sblock);
 }
@@ -942,6 +957,12 @@ static int metadata_commit(struct era_metadata *md)
 		}
 	}
 
+	r = save_sm_root(md);
+	if (r) {
+		DMERR("%s: save_sm_root failed", __func__);
+		return r;
+	}
+
 	r = dm_tm_pre_commit(md->tm);
 	if (r) {
 		DMERR("%s: pre commit failed", __func__);
@@ -954,12 +975,7 @@ static int metadata_commit(struct era_metadata *md)
 		return r;
 	}
 
-	r = prepare_superblock(md, dm_block_data(sblock));
-	if (r) {
-		DMERR("%s: prepare_superblock failed", __func__);
-		dm_bm_unlock(sblock); /* FIXME: does this commit? */
-		return r;
-	}
+	prepare_superblock(md, dm_block_data(sblock));
 
 	return dm_tm_commit(md->tm, sblock);
 }
