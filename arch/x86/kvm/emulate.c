@@ -162,6 +162,8 @@
 #define NoWrite     ((u64)1 << 45)  /* No writeback */
 #define SrcWrite    ((u64)1 << 46)  /* Write back src operand */
 #define NoMod	    ((u64)1 << 47)  /* Mod field is ignored */
+#define Intercept   ((u64)1 << 48)  /* Has valid intercept field */
+#define CheckPerm   ((u64)1 << 49)  /* Has valid check_perm field */
 
 #define DstXacc     (DstAccLo | SrcAccHi | SrcWrite)
 
@@ -3546,9 +3548,9 @@ static int check_perm_out(struct x86_emulate_ctxt *ctxt)
 }
 
 #define D(_y) { .flags = (_y) }
-#define DI(_y, _i) { .flags = (_y), .intercept = x86_intercept_##_i }
-#define DIP(_y, _i, _p) { .flags = (_y), .intercept = x86_intercept_##_i, \
-		      .check_perm = (_p) }
+#define DI(_y, _i) { .flags = (_y)|Intercept, .intercept = x86_intercept_##_i }
+#define DIP(_y, _i, _p) { .flags = (_y)|Intercept|CheckPerm, \
+		      .intercept = x86_intercept_##_i, .check_perm = (_p) }
 #define N    D(NotImpl)
 #define EXT(_f, _e) { .flags = ((_f) | RMExt), .u.group = (_e) }
 #define G(_f, _g) { .flags = ((_f) | Group | ModRM), .u.group = (_g) }
@@ -3557,10 +3559,10 @@ static int check_perm_out(struct x86_emulate_ctxt *ctxt)
 #define I(_f, _e) { .flags = (_f), .u.execute = (_e) }
 #define F(_f, _e) { .flags = (_f) | Fastop, .u.fastop = (_e) }
 #define II(_f, _e, _i) \
-	{ .flags = (_f), .u.execute = (_e), .intercept = x86_intercept_##_i }
+	{ .flags = (_f)|Intercept, .u.execute = (_e), .intercept = x86_intercept_##_i }
 #define IIP(_f, _e, _i, _p) \
-	{ .flags = (_f), .u.execute = (_e), .intercept = x86_intercept_##_i, \
-	  .check_perm = (_p) }
+	{ .flags = (_f)|Intercept|CheckPerm, .u.execute = (_e), \
+	  .intercept = x86_intercept_##_i, .check_perm = (_p) }
 #define GP(_f, _g) { .flags = ((_f) | Prefix), .u.gprefix = (_g) }
 
 #define D2bv(_f)      D((_f) | ByteOp), D(_f)
@@ -4393,29 +4395,37 @@ done_prefixes:
 		return EMULATION_FAILED;
 
 	ctxt->execute = opcode.u.execute;
-	ctxt->check_perm = opcode.check_perm;
-	ctxt->intercept = opcode.intercept;
 
-	if (ctxt->d & NotImpl)
-		return EMULATION_FAILED;
+	if (unlikely(ctxt->d &
+		     (NotImpl|EmulateOnUD|Stack|Op3264|Sse|Mmx|Intercept|CheckPerm))) {
+		/*
+		 * These are copied unconditionally here, and checked unconditionally
+		 * in x86_emulate_insn.
+		 */
+		ctxt->check_perm = opcode.check_perm;
+		ctxt->intercept = opcode.intercept;
 
-	if (!(ctxt->d & EmulateOnUD) && ctxt->ud)
-		return EMULATION_FAILED;
+		if (ctxt->d & NotImpl)
+			return EMULATION_FAILED;
 
-	if (mode == X86EMUL_MODE_PROT64 && (ctxt->d & Stack))
-		ctxt->op_bytes = 8;
+		if (!(ctxt->d & EmulateOnUD) && ctxt->ud)
+			return EMULATION_FAILED;
 
-	if (ctxt->d & Op3264) {
-		if (mode == X86EMUL_MODE_PROT64)
+		if (mode == X86EMUL_MODE_PROT64 && (ctxt->d & Stack))
 			ctxt->op_bytes = 8;
-		else
-			ctxt->op_bytes = 4;
-	}
 
-	if (ctxt->d & Sse)
-		ctxt->op_bytes = 16;
-	else if (ctxt->d & Mmx)
-		ctxt->op_bytes = 8;
+		if (ctxt->d & Op3264) {
+			if (mode == X86EMUL_MODE_PROT64)
+				ctxt->op_bytes = 8;
+			else
+				ctxt->op_bytes = 4;
+		}
+
+		if (ctxt->d & Sse)
+			ctxt->op_bytes = 16;
+		else if (ctxt->d & Mmx)
+			ctxt->op_bytes = 8;
+	}
 
 	/* ModRM and SIB bytes. */
 	if (ctxt->d & ModRM) {
@@ -4549,75 +4559,78 @@ int x86_emulate_insn(struct x86_emulate_ctxt *ctxt)
 		goto done;
 	}
 
-	if ((ctxt->mode == X86EMUL_MODE_PROT64 && (ctxt->d & No64)) ||
-			(ctxt->d & Undefined)) {
-		rc = emulate_ud(ctxt);
-		goto done;
-	}
-
-	if (((ctxt->d & (Sse|Mmx)) && ((ops->get_cr(ctxt, 0) & X86_CR0_EM)))
-	    || ((ctxt->d & Sse) && !(ops->get_cr(ctxt, 4) & X86_CR4_OSFXSR))) {
-		rc = emulate_ud(ctxt);
-		goto done;
-	}
-
-	if ((ctxt->d & (Sse|Mmx)) && (ops->get_cr(ctxt, 0) & X86_CR0_TS)) {
-		rc = emulate_nm(ctxt);
-		goto done;
-	}
-
-	if (ctxt->d & Mmx) {
-		rc = flush_pending_x87_faults(ctxt);
-		if (rc != X86EMUL_CONTINUE)
+	if (unlikely(ctxt->d &
+		     (No64|Undefined|Sse|Mmx|Intercept|CheckPerm|Priv|Prot|String))) {
+		if ((ctxt->mode == X86EMUL_MODE_PROT64 && (ctxt->d & No64)) ||
+				(ctxt->d & Undefined)) {
+			rc = emulate_ud(ctxt);
 			goto done;
-		/*
-		 * Now that we know the fpu is exception safe, we can fetch
-		 * operands from it.
-		 */
-		fetch_possible_mmx_operand(ctxt, &ctxt->src);
-		fetch_possible_mmx_operand(ctxt, &ctxt->src2);
-		if (!(ctxt->d & Mov))
-			fetch_possible_mmx_operand(ctxt, &ctxt->dst);
-	}
+		}
 
-	if (unlikely(ctxt->guest_mode) && ctxt->intercept) {
-		rc = emulator_check_intercept(ctxt, ctxt->intercept,
-					      X86_ICPT_PRE_EXCEPT);
-		if (rc != X86EMUL_CONTINUE)
+		if (((ctxt->d & (Sse|Mmx)) && ((ops->get_cr(ctxt, 0) & X86_CR0_EM)))
+		    || ((ctxt->d & Sse) && !(ops->get_cr(ctxt, 4) & X86_CR4_OSFXSR))) {
+			rc = emulate_ud(ctxt);
 			goto done;
-	}
+		}
 
-	/* Privileged instruction can be executed only in CPL=0 */
-	if ((ctxt->d & Priv) && ops->cpl(ctxt)) {
-		rc = emulate_gp(ctxt, 0);
-		goto done;
-	}
-
-	/* Instruction can only be executed in protected mode */
-	if ((ctxt->d & Prot) && ctxt->mode < X86EMUL_MODE_PROT16) {
-		rc = emulate_ud(ctxt);
-		goto done;
-	}
-
-	/* Do instruction specific permission checks */
-	if (ctxt->check_perm) {
-		rc = ctxt->check_perm(ctxt);
-		if (rc != X86EMUL_CONTINUE)
+		if ((ctxt->d & (Sse|Mmx)) && (ops->get_cr(ctxt, 0) & X86_CR0_TS)) {
+			rc = emulate_nm(ctxt);
 			goto done;
-	}
+		}
 
-	if (unlikely(ctxt->guest_mode) && ctxt->intercept) {
-		rc = emulator_check_intercept(ctxt, ctxt->intercept,
-					      X86_ICPT_POST_EXCEPT);
-		if (rc != X86EMUL_CONTINUE)
-			goto done;
-	}
+		if (ctxt->d & Mmx) {
+			rc = flush_pending_x87_faults(ctxt);
+			if (rc != X86EMUL_CONTINUE)
+				goto done;
+			/*
+			 * Now that we know the fpu is exception safe, we can fetch
+			 * operands from it.
+			 */
+			fetch_possible_mmx_operand(ctxt, &ctxt->src);
+			fetch_possible_mmx_operand(ctxt, &ctxt->src2);
+			if (!(ctxt->d & Mov))
+				fetch_possible_mmx_operand(ctxt, &ctxt->dst);
+		}
 
-	if (ctxt->rep_prefix && (ctxt->d & String)) {
-		/* All REP prefixes have the same first termination condition */
-		if (address_mask(ctxt, reg_read(ctxt, VCPU_REGS_RCX)) == 0) {
-			ctxt->eip = ctxt->_eip;
+		if (unlikely(ctxt->guest_mode) && ctxt->intercept) {
+			rc = emulator_check_intercept(ctxt, ctxt->intercept,
+						      X86_ICPT_PRE_EXCEPT);
+			if (rc != X86EMUL_CONTINUE)
+				goto done;
+		}
+
+		/* Privileged instruction can be executed only in CPL=0 */
+		if ((ctxt->d & Priv) && ops->cpl(ctxt)) {
+			rc = emulate_gp(ctxt, 0);
 			goto done;
+		}
+
+		/* Instruction can only be executed in protected mode */
+		if ((ctxt->d & Prot) && ctxt->mode < X86EMUL_MODE_PROT16) {
+			rc = emulate_ud(ctxt);
+			goto done;
+		}
+
+		/* Do instruction specific permission checks */
+		if (ctxt->check_perm) {
+			rc = ctxt->check_perm(ctxt);
+			if (rc != X86EMUL_CONTINUE)
+				goto done;
+		}
+
+		if (unlikely(ctxt->guest_mode) && ctxt->intercept) {
+			rc = emulator_check_intercept(ctxt, ctxt->intercept,
+						      X86_ICPT_POST_EXCEPT);
+			if (rc != X86EMUL_CONTINUE)
+				goto done;
+		}
+
+		if (ctxt->rep_prefix && (ctxt->d & String)) {
+			/* All REP prefixes have the same first termination condition */
+			if (address_mask(ctxt, reg_read(ctxt, VCPU_REGS_RCX)) == 0) {
+				ctxt->eip = ctxt->_eip;
+				goto done;
+			}
 		}
 	}
 
