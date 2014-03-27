@@ -12,15 +12,15 @@ struct rk_headset_pdata{
 	unsigned int headset_gpio;
 	unsigned int headset_insert_type;//	Headphones into the state level
 //hook about
-	int hook_adc_chn; //adc channel
 	unsigned int hook_gpio;
 	unsigned int hook_down_type; //Hook key down status  
 #ifdef CONFIG_MODEM_MIC_SWITCH
 //mic about	
 	unsigned int mic_switch_gpio;
 	unsigned int hp_mic_io_value;
-	unsigned int main_mic_io_value;
+	unsigned int main_mic_io_value;	
 #endif
+	struct iio_channel *chan;
 };
 
 #define HOOK_KEY_CODE KEY_MEDIA

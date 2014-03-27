@@ -160,6 +160,7 @@
 			};
 		};
 	};
+
 };
 
 &gmac {
@@ -187,9 +188,6 @@
 
 			//to add
 		};
-
-	
-
 	//could add other pinctrl definition such as gpio
 
 };
@@ -508,6 +506,18 @@ rockchip,power_type = <GPIO>;
 
 &adc {
 	status = "okay";
+
+	rockchip_headset {
+		compatible = "rockchip_headset";
+		headset_gpio = <&gpio0 GPIO_C2 GPIO_ACTIVE_LOW>;
+		pinctrl-names = "default";
+		pinctrl-0 = <&gpio0_c2>;
+		io-channels = <&adc 2>; 
+       /*
+               hook_gpio = ;
+               hook_down_type = ; //interrupt hook key down status 
+		*/       
+       };
 
 	key {
 		compatible = "rockchip,key";
