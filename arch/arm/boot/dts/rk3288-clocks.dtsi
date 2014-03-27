@@ -20,160 +20,170 @@
 		#size-cells = <1>;
 		ranges = <0x0 0xFF760000 0x01b0>;
 
-		xin24m: xin24m {
-			compatible = "fixed-clock";
-			#clock-cells = <0>;
-			clock-output-names = "xin24m";
-			clock-frequency = <24000000>;
+		fixed_rate_cons {
+			compatible = "rockchip,rk-fixed-rate-cons";
+
+			xin24m: xin24m {
+				compatible = "rockchip,rk-fixed-clock";
+				clock-output-names = "xin24m";
+				clock-frequency = <24000000>;
+				#clock-cells = <0>;
+			};
+
+			xin12m: xin12m {
+				compatible = "rockchip,rk-fixed-clock";
+				clocks = <&xin24m>;
+				clock-output-names = "xin12m";
+				clock-frequency = <12000000>;
+				#clock-cells = <0>;
+			};
+
+			xin32k: xin32k {
+				compatible = "rockchip,rk-fixed-clock";
+				clock-output-names = "xin32k";
+				clock-frequency = <32000>;
+				#clock-cells = <0>;
+			};
+
+			io_27m_in: io_27m_in {
+				compatible = "rockchip,rk-fixed-clock";
+				clock-output-names = "io_27m_in";
+				clock-frequency = <27000000>;
+				#clock-cells = <0>;
+			};
+
+			dummy: dummy {
+				compatible = "rockchip,rk-fixed-clock";
+				clock-output-names = "dummy";
+				clock-frequency = <0>;
+				#clock-cells = <0>;
+			};
+
+			i2s_clkin: i2s_clkin {
+				compatible = "rockchip,rk-fixed-clock";
+				clock-output-names = "i2s_clkin";
+				clock-frequency = <0>;
+				#clock-cells = <0>;
+			};
+
+			edp_24m_clkin: edp_24m_clkin {
+				compatible = "rockchip,rk-fixed-clock";
+				#clock-cells = <0>;
+				clock-output-names = "edp_24m_clkin";
+				clock-frequency = <0>;
+			};
+
+			gmac_clkin: gmac_clkin {
+				compatible = "rockchip,rk-fixed-clock";
+				#clock-cells = <0>;
+				clock-output-names = "gmac_clkin";
+				clock-frequency = <0>;
+			};
+
+			clk_hsadc_ext: clk_hsadc_ext {
+				compatible = "rockchip,rk-fixed-clock";
+				#clock-cells = <0>;
+				clock-output-names = "clk_hsadc_ext";
+				clock-frequency = <0>;
+			};
+
+			jtag_clkin: jtag_clkin {
+				compatible = "rockchip,rk-fixed-clock";
+				#clock-cells = <0>;
+				clock-output-names = "jtag_clkin";
+				clock-frequency = <0>;
+			};
+
+			pclkin_cif: pclkin_cif {
+				compatible = "rockchip,rk-fixed-clock";
+				#clock-cells = <0>;
+				clock-output-names = "pclkin_cif";
+				clock-frequency = <0>;
+			};
+
+			pclkin_isp: pclkin_isp {
+				compatible = "rockchip,rk-fixed-clock";
+				#clock-cells = <0>;
+				clock-output-names = "pclkin_isp";
+				clock-frequency = <0>;
+			};
+
 		};
 
-		xin12m: xin12m {
-			compatible = "fixed-clock";
-			#clock-cells = <0>;
-			clocks = <&xin24m>;
-			clock-output-names = "xin12m";
-			clock-frequency = <12000000>;
-		};
+		fixed_factor_cons {
+				compatible = "rockchip,rk-fixed-factor-cons";
 
-		xin32k: xin32k {
-			compatible = "fixed-clock";
-			#clock-cells = <0>;
-			clock-output-names = "xin32k";
-			clock-frequency = <32000>;
-		};
+			otgphy0_480m: otgphy0_480m {
+				compatible = "rockchip,rk-fixed-factor-clock";
+				clocks = <&clk_gates13 4>;
+				clock-output-names = "otgphy0_480m";
+				clock-div = <1>;
+				clock-mult = <20>;
+				#clock-cells = <0>;
+			};
 
-		io_27m_in: io_27m_in {
-			compatible = "fixed-clock";
-			#clock-cells = <0>;
-			clock-output-names = "io_27m_in";
-			clock-frequency = <27000000>;
-		};
+			otgphy1_480m: otgphy1_480m {
+				compatible = "rockchip,rk-fixed-factor-clock";
+				clocks = <&clk_gates13 5>;
+				clock-output-names = "otgphy1_480m";
+				clock-div = <1>;
+				clock-mult = <20>;
+				#clock-cells = <0>;
+			};
 
-		dummy: dummy {
-			compatible = "fixed-clock";
-			#clock-cells = <0>;
-			clock-frequency = <0>;
-		};
+			otgphy2_480m: otgphy2_480m {
+				compatible = "rockchip,rk-fixed-factor-clock";
+				clocks = <&clk_gates13 6>;
+				clock-output-names = "otgphy2_480m";
+				clock-div = <1>;
+				clock-mult = <20>;
+				#clock-cells = <0>;
+			};
 
-		i2s_clkin: i2s_clkin {
-			compatible = "fixed-clock";
-			#clock-cells = <0>;
-			clock-output-names = "i2s_clkin";
-			clock-frequency = <0>;
-		};
+			clk_hsadc_inv: clk_hsadc_inv {
+				compatible = "rockchip,rk-fixed-factor-clock";
+				clocks = <&clk_hsadc_out>;
+				clock-output-names = "clk_hsadc_inv";
+				clock-div = <1>;
+				clock-mult = <1>;
+				#clock-cells = <0>;
+			};
 
-		edp_24m_clkin: edp_24m_clkin {
-			compatible = "fixed-clock";
-			#clock-cells = <0>;
-			clock-output-names = "edp_24m_clkin";
-			clock-frequency = <0>;
-		};
+			pclkin_cif_inv: pclkin_cif_inv {
+				compatible = "rockchip,rk-fixed-factor-clock";
+				clocks = <&clk_gates16 0>;
+				clock-output-names = "pclkin_cif_inv";
+				clock-div = <1>;
+				clock-mult = <1>;
+				#clock-cells = <0>;
+			};
 
-		gmac_clkin: gmac_clkin {
-			compatible = "fixed-clock";
-			#clock-cells = <0>;
-			clock-output-names = "gmac_clkin";
-			clock-frequency = <0>;
-		};
+			pclkin_isp_inv: pclkin_isp_inv {
+				compatible = "rockchip,rk-fixed-factor-clock";
+				clocks = <&clk_gates16 3>;
+				clock-output-names = "pclkin_isp_inv";
+				clock-div = <1>;
+				clock-mult = <1>;
+				#clock-cells = <0>;
+			};
 
-		clk_hsadc_ext: clk_hsadc_ext {
-			compatible = "fixed-clock";
-			#clock-cells = <0>;
-			clock-output-names = "clk_hsadc_ext";
-			clock-frequency = <0>;
-		};
+			hclk_vepu: hclk_vepu {
+				compatible = "rockchip,rk-fixed-factor-clock";
+				clocks = <&clk_vepu>;
+				clock-output-names = "hclk_vepu";
+				clock-div = <4>;
+				clock-mult = <1>;
+				#clock-cells = <0>;
+			};
 
-		jtag_clkin: jtag_clkin {
-			compatible = "fixed-clock";
-			#clock-cells = <0>;
-			clock-output-names = "jtag_clkin";
-			clock-frequency = <0>;
-		};
-
-		pclkin_cif: pclkin_cif {
-			compatible = "fixed-clock";
-			#clock-cells = <0>;
-			clock-output-names = "pclkin_cif";
-			clock-frequency = <0>;
-		};
-
-		pclkin_isp: pclkin_isp {
-			compatible = "fixed-clock";
-			#clock-cells = <0>;
-			clock-output-names = "pclkin_isp";
-			clock-frequency = <0>;
-		};
-
-		clk_otgphy0_480m: clk_otgphy0_480m {
-			compatible = "fixed-factor-clock";
-			clocks = <&clk_gates13 4>;
-			clock-output-names = "clk_otgphy0_480m";
-			clock-div = <1>;
-			clock-mult = <20>;
-			#clock-cells = <0>;
-		};
-
-		clk_otgphy1_480m: clk_otgphy1_480m {
-			compatible = "fixed-factor-clock";
-			clocks = <&clk_gates13 5>;
-			clock-output-names = "clk_otgphy1_480m";
-			clock-div = <1>;
-			clock-mult = <20>;
-			#clock-cells = <0>;
-		};
-
-		clk_otgphy2_480m: clk_otgphy2_480m {
-			compatible = "fixed-factor-clock";
-			clocks = <&clk_gates13 6>;
-			clock-output-names = "clk_otgphy2_480m";
-			clock-div = <1>;
-			clock-mult = <20>;
-			#clock-cells = <0>;
-		};
-
-		clk_hsadc_inv: clk_hsadc_inv {
-			compatible = "fixed-factor-clock";
-			clocks = <&clk_hsadc_out>;
-			clock-output-names = "clk_hsadc_inv";
-			clock-div = <1>;
-			clock-mult = <1>;
-			#clock-cells = <0>;
-		};
-
-		pclkin_cif_inv: pclkin_cif_inv {
-			compatible = "fixed-factor-clock";
-			clocks = <&clk_gates16 0>;
-			clock-output-names = "pclkin_cif_inv";
-			clock-div = <1>;
-			clock-mult = <1>;
-			#clock-cells = <0>;
-		};
-
-		pclkin_isp_inv: pclkin_isp_inv {
-			compatible = "fixed-factor-clock";
-			clocks = <&clk_gates16 3>;
-			clock-output-names = "pclkin_isp_inv";
-			clock-div = <1>;
-			clock-mult = <1>;
-			#clock-cells = <0>;
-		};
-
-		hclk_vepu: hclk_vepu {
-			compatible = "fixed-factor-clock";
-			clocks = <&clk_vepu>;
-			clock-output-names = "hclk_vepu";
-			clock-div = <4>;
-			clock-mult = <1>;
-			#clock-cells = <0>;
-		};
-
-		hclk_vdpu: hclk_vdpu {
-			compatible = "fixed-factor-clock";
-			clocks = <&clk_vdpu>;
-			clock-output-names = "hclk_vdpu";
-			clock-div = <4>;
-			clock-mult = <1>;
-			#clock-cells = <0>;
+			hclk_vdpu: hclk_vdpu {
+				compatible = "rockchip,rk-fixed-factor-clock";
+				clocks = <&clk_vdpu>;
+				clock-output-names = "hclk_vdpu";
+				clock-div = <4>;
+				clock-mult = <1>;
+				#clock-cells = <0>;
+			};
 		};
 
 		clock_regs {
@@ -807,7 +817,7 @@
 					usbphy_480m: usbphy_480m_mux {
 						compatible = "rockchip,rk3188-mux-con";
 						rockchip,bits = <11 2>;
-						clocks = <&clk_otgphy0_480m>, <&clk_otgphy1_480m>, <&clk_otgphy2_480m>;
+						clocks = <&otgphy0_480m>, <&otgphy1_480m>, <&otgphy2_480m>;
 						clock-output-names = "usbphy_480m";
 						#clock-cells = <0>;
 					};

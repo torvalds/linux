@@ -21,65 +21,76 @@
 		#size-cells = <1>;
 		ranges = <0x0 0x20000000 0x0100>;
 
-		xin24m: xin24m {
-			compatible = "fixed-clock";
-			#clock-cells = <0>;
-			clock-output-names = "xin24m";
-			clock-frequency = <24000000>;
+		fixed_rate_cons {
+			compatible = "rockchip,rk-fixed-rate-cons";
+
+			xin24m: xin24m {
+				compatible = "fixed-clock";
+				#clock-cells = <0>;
+				clock-output-names = "xin24m";
+				clock-frequency = <24000000>;
+			};
+
+			xin12m: xin12m {
+				compatible = "fixed-clock";
+				#clock-cells = <0>;
+				clocks = <&xin24m>;
+				clock-output-names = "xin12m";
+				clock-frequency = <12000000>;
+			};
+
+			dummy: dummy {
+				compatible = "fixed-clock";
+				#clock-cells = <0>;
+				clock-output-names = "dummy";
+				clock-frequency = <0>;
+			};
+
+
+			rmii_clkin: rmii_clkin {
+				compatible = "fixed-clock";
+				#clock-cells = <0>;
+				clock-output-names = "rmii_clkin";
+				clock-frequency = <0>;
+			};
+
+			clk_hsadc_ext: clk_hsadc_ext {
+				compatible = "fixed-clock";
+				#clock-cells = <0>;
+				clock-output-names = "clk_hsadc_ext";
+				clock-frequency = <0>;
+			};
+
+			clk_cif_in: clk_cif_in {
+				compatible = "fixed-clock";
+				#clock-cells = <0>;
+				clock-output-names = "clk_cif_in";
+				clock-frequency = <0>;
+			};
+
 		};
 
-		xin12m: xin12m {
-			compatible = "fixed-clock";
-			#clock-cells = <0>;
-			clocks = <&xin24m>;
-			clock-output-names = "xin12m";
-			clock-frequency = <12000000>;
-		};
+		fixed_factor_cons {
+			compatible = "rockchip,rk-fixed-factor-cons";
 
-		dummy: dummy {
-			compatible = "fixed-clock";
-			#clock-cells = <0>;
-			clock-frequency = <0>;
-		};
+			otgphy0_480m: otgphy0_480m {
+				compatible = "fixed-factor-clock";
+				clocks = <&clk_gates1 5>;
+				clock-output-names = "otgphy0_480m";
+				clock-div = <1>;
+				clock-mult = <20>;
+				#clock-cells = <0>;
+			};
 
+			otgphy1_480m: otgphy1_480m {
+				compatible = "fixed-factor-clock";
+				clocks = <&clk_gates1 6>;
+				clock-output-names = "otgphy1_480m";
+				clock-div = <1>;
+				clock-mult = <20>;
+				#clock-cells = <0>;
+			};
 
-		rmii_clkin: rmii_clkin {
-			compatible = "fixed-clock";
-			#clock-cells = <0>;
-			clock-output-names = "rmii_clkin";
-			clock-frequency = <0>;
-		};
-
-		clk_hsadc_ext: clk_hsadc_ext {
-			compatible = "fixed-clock";
-			#clock-cells = <0>;
-			clock-output-names = "clk_hsadc_ext";
-			clock-frequency = <0>;
-		};
-
-		clk_cif_in: clk_cif_in {
-			compatible = "fixed-clock";
-			#clock-cells = <0>;
-			clock-output-names = "clk_cif_in";
-			clock-frequency = <0>;
-		};
-
-		clk_otgphy0_480m: clk_otgphy0_480m {
-			compatible = "fixed-factor-clock";
-			clocks = <&clk_gates1 5>;
-			clock-output-names = "clk_otgphy0_480m";
-			clock-div = <1>;
-			clock-mult = <20>;
-			#clock-cells = <0>;
-		};
-
-		clk_otgphy1_480m: clk_otgphy1_480m {
-			compatible = "fixed-factor-clock";
-			clocks = <&clk_gates1 6>;
-			clock-output-names = "clk_otgphy1_480m";
-			clock-div = <1>;
-			clock-mult = <20>;
-			#clock-cells = <0>;
 		};
 
 		clock_regs {
@@ -1007,7 +1018,7 @@
 					clk_hsicphy480m: clk_hsicphy480m_mux {
 						compatible = "rockchip,rk3188-mux-con";
 						rockchip,bits = <0 2>;
-						clocks = <&clk_otgphy0_480m>, <&clk_otgphy1_480m>,
+						clocks = <&otgphy0_480m>, <&otgphy1_480m>,
 							 <&clk_gpll>, <&clk_cpll>;
 						clock-output-names = "clk_hsicphy480m";
 						#clock-cells = <0>;

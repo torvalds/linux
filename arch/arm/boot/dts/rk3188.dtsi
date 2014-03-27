@@ -772,7 +772,7 @@
 		reg = <0x10240000 0x40000>;
 		interrupts = <GIC_SPI 5 IRQ_TYPE_LEVEL_HIGH>;
 		clocks = <&clk_hsicphy480m>, <&clk_gates7 4>,
-                 <&clk_hsicphy12m>, <&clk_otgphy1_480m>;
+                 <&clk_hsicphy12m>, <&otgphy1_480m>;
 		clock-names = "hsicphy_480m", "hclk_hsic",
                       "hsicphy_12m", "hsic_usbphy1";
 	};
