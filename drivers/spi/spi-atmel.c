@@ -224,7 +224,7 @@ struct atmel_spi {
 	struct platform_device	*pdev;
 
 	struct spi_transfer	*current_transfer;
-	unsigned long		current_remaining_bytes;
+	int			current_remaining_bytes;
 	int			done_status;
 
 	struct completion	xfer_completion;
@@ -1110,6 +1110,8 @@ static int atmel_spi_one_transfer(struct spi_master *master,
 				atmel_spi_next_xfer_pio(master, xfer);
 			} else {
 				as->current_remaining_bytes -= len;
+				if (as->current_remaining_bytes < 0)
+					as->current_remaining_bytes = 0;
 			}
 		} else {
 			atmel_spi_next_xfer_pio(master, xfer);
