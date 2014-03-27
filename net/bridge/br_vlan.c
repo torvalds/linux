@@ -174,6 +174,18 @@ bool br_allowed_ingress(struct net_bridge *br, struct net_port_vlans *v,
 	if (!v)
 		return false;
 
+	/* If vlan tx offload is disabled on bridge device and frame was
+	 * sent from vlan device on the bridge device, it does not have
+	 * HW accelerated vlan tag.
+	 */
+	if (unlikely(!vlan_tx_tag_present(skb) &&
+		     (skb->protocol == htons(ETH_P_8021Q) ||
+		      skb->protocol == htons(ETH_P_8021AD)))) {
+		skb = vlan_untag(skb);
+		if (unlikely(!skb))
+			return false;
+	}
+
 	err = br_vlan_get_tag(skb, vid);
 	if (!*vid) {
 		u16 pvid = br_get_pvid(v);
