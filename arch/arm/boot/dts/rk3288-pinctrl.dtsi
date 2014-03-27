@@ -985,7 +985,15 @@
 			};
 			
 			mac_rxpins: mac-rxpins {
-				rockchip,pins = <MAC_RXD0>, <MAC_RXD1>, <MAC_RXD2>, <MAC_RXD3>, <MAC_RXDV>, <MAC_RXER>, <MAC_RXCLK>, <MAC_CRS>, <MAC_COL>;
+				rockchip,pins = <MAC_RXD0>, <MAC_RXD1>, <MAC_RXD2>, <MAC_RXD3>, <MAC_RXDV>, <MAC_RXER>, <MAC_RXCLK>, <MAC_COL>;
+				rockchip,pull = <VALUE_PULL_DISABLE>;
+				//rockchip,voltage = <VALUE_VOL_DEFAULT>;
+				rockchip,drive = <VALUE_DRV_DEFAULT>;
+				//rockchip,tristate = <VALUE_TRI_DEFAULT>;
+			};
+			
+			mac_crs: mac-crs {
+				rockchip,pins = <MAC_CRS>;
 				rockchip,pull = <VALUE_PULL_DISABLE>;
 				//rockchip,voltage = <VALUE_VOL_DEFAULT>;
 				rockchip,drive = <VALUE_DRV_DEFAULT>;

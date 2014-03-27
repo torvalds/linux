@@ -28,6 +28,8 @@
 #include <linux/of_net.h>
 #include <linux/gpio.h>
 #include <linux/of_gpio.h>
+#include <linux/of_device.h>
+#include <dt-bindings/gpio/gpio.h>
 #include "stmmac.h"
 #include <linux/rockchip/iomap.h>
 #include <linux/rockchip/grf.h>
@@ -80,22 +82,24 @@ static int phy_power_on(struct plat_stmmacenet_data *plat, int enable)
 	if (enable) {
 		//power on
 		if (gpio_is_valid(bsp_priv->power_io)) {
-			gpio_direction_output(bsp_priv->power_io, 0);
-			gpio_set_value(bsp_priv->power_io, 1);
+			gpio_direction_output(bsp_priv->power_io, !bsp_priv->power_io_level);
+			msleep(10);
+			gpio_direction_output(bsp_priv->power_io, bsp_priv->power_io_level);
+			//gpio_set_value(bsp_priv->power_io, 1);
 		}
 
 		//reset
 		if (gpio_is_valid(bsp_priv->reset_io)) {
-			gpio_direction_output(bsp_priv->reset_io, 0);
-			gpio_set_value(bsp_priv->reset_io, 0);
+			gpio_direction_output(bsp_priv->reset_io, bsp_priv->reset_io_level);
+			//gpio_set_value(bsp_priv->reset_io, 0);
 			msleep(10);
-			gpio_set_value(bsp_priv->reset_io, 1);
+			gpio_direction_output(bsp_priv->reset_io, !bsp_priv->reset_io_level);
 		}
 	} else {
 		//power off
 		if (gpio_is_valid(bsp_priv->power_io)) {
-			gpio_direction_output(bsp_priv->power_io, 0);
-			gpio_set_value(bsp_priv->power_io, 0);
+			gpio_direction_output(bsp_priv->power_io, !bsp_priv->power_io_level);
+			//gpio_set_value(bsp_priv->power_io, 0);
 		}
 	}
 
@@ -244,8 +248,10 @@ static int stmmac_probe_config_dt(struct platform_device *pdev,
 
 	g_bsp_priv.reset_io = 
 			of_get_named_gpio_flags(np, "reset-gpio", 0, &flags);
+	g_bsp_priv.reset_io_level = (flags == GPIO_ACTIVE_HIGH) ? 1 : 0;
 	g_bsp_priv.power_io = 
 			of_get_named_gpio_flags(np, "power-gpio", 0, &flags);
+	g_bsp_priv.power_io_level = (flags == GPIO_ACTIVE_HIGH) ? 1 : 0;
 
 	g_bsp_priv.phy_iface = plat->interface;
 	g_bsp_priv.phy_power_on = phy_power_on;

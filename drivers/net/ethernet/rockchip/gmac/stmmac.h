@@ -112,7 +112,9 @@ struct stmmac_priv {
 struct bsp_priv {
 	char pwr_ctl_by[8];
 	int power_io;
+	int power_io_level;
 	int reset_io;
+	int reset_io_level;
 	int phy_iface;
 	int (*phy_power_on)(struct plat_stmmacenet_data *plat, int enable);
 };

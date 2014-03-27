@@ -1582,6 +1582,17 @@ static int stmmac_open(struct net_device *dev)
 
 	if (priv->pcs != STMMAC_PCS_SGMII && priv->pcs != STMMAC_PCS_TBI &&
 	    priv->pcs != STMMAC_PCS_RTBI) {
+		/* MDIO bus Registration */
+		ret = stmmac_mdio_register(priv->dev);
+		if (ret < 0) {
+			pr_debug("%s: MDIO bus (id: %d) registration failed",
+				 __func__, priv->plat->bus_id);
+			goto open_error;
+		}
+	}	
+
+	if (priv->pcs != STMMAC_PCS_SGMII && priv->pcs != STMMAC_PCS_TBI &&
+	    priv->pcs != STMMAC_PCS_RTBI) {
 		ret = stmmac_init_phy(dev);
 		if (ret) {
 			pr_err("%s: Cannot attach to PHY (error: %d)\n",
@@ -2735,17 +2746,6 @@ struct stmmac_priv *stmmac_dvr_probe(struct device *device,
 		priv->clk_csr = priv->plat->clk_csr;
 
 	stmmac_check_pcs_mode(priv);
-
-	if (priv->pcs != STMMAC_PCS_SGMII && priv->pcs != STMMAC_PCS_TBI &&
-	    priv->pcs != STMMAC_PCS_RTBI) {
-		/* MDIO bus Registration */
-		ret = stmmac_mdio_register(ndev);
-		if (ret < 0) {
-			pr_debug("%s: MDIO bus (id: %d) registration failed",
-				 __func__, priv->plat->bus_id);
-			goto error_mdio_register;
-		}
-	}
 
 	return priv;
 
