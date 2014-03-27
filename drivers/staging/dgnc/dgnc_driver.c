@@ -730,15 +730,18 @@ static int dgnc_finalize_board_init(struct dgnc_board *brd) {
 	DPR_INIT(("dgnc_finalize_board_init() - start #2\n"));
 
 	if (brd->irq) {
-		rc = request_irq(brd->irq, brd->bd_ops->intr, IRQF_SHARED, "DGNC", brd);
+		rc = request_irq(brd->irq, brd->bd_ops->intr,
+				 IRQF_SHARED, "DGNC", brd);
 
 		if (rc) {
-			printk("Failed to hook IRQ %d\n",brd->irq);
+			dev_err(&brd->pdev->dev,
+				"Failed to hook IRQ %d\n", brd->irq);
 			brd->state = BOARD_FAILED;
 			brd->dpastatus = BD_NOFEP;
 			rc = -ENODEV;
 		} else {
-			DPR_INIT(("Requested and received usage of IRQ %d\n", brd->irq));
+			DPR_INIT(("Requested and received usage of IRQ %d\n",
+				  brd->irq));
 		}
 	}
 	return rc;
