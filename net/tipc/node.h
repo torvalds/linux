@@ -66,6 +66,7 @@
  * @link_cnt: number of links to node
  * @signature: node instance identifier
  * @bclink: broadcast-related info
+ * @rcu: rcu struct for tipc_node
  *    @acked: sequence # of last outbound b'cast message acknowledged by node
  *    @last_in: sequence # of last in-sequence b'cast message received from node
  *    @last_sent: sequence # of last b'cast message sent by node
@@ -89,6 +90,7 @@ struct tipc_node {
 	int working_links;
 	int block_setup;
 	u32 signature;
+	struct rcu_head rcu;
 	struct {
 		u32 acked;
 		u32 last_in;

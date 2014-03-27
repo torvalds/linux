@@ -72,14 +72,14 @@ struct tipc_node *tipc_node_find(u32 addr)
 	if (unlikely(!in_own_cluster_exact(addr)))
 		return NULL;
 
-	spin_lock_bh(&node_list_lock);
-	hlist_for_each_entry(node, &node_htable[tipc_hashfn(addr)], hash) {
+	rcu_read_lock();
+	hlist_for_each_entry_rcu(node, &node_htable[tipc_hashfn(addr)], hash) {
 		if (node->addr == addr) {
-			spin_unlock_bh(&node_list_lock);
+			rcu_read_unlock();
 			return node;
 		}
 	}
-	spin_unlock_bh(&node_list_lock);
+	rcu_read_unlock();
 	return NULL;
 }
 
@@ -102,13 +102,13 @@ struct tipc_node *tipc_node_create(u32 addr)
 	INIT_LIST_HEAD(&n_ptr->list);
 	INIT_LIST_HEAD(&n_ptr->nsub);
 
-	hlist_add_head(&n_ptr->hash, &node_htable[tipc_hashfn(addr)]);
+	hlist_add_head_rcu(&n_ptr->hash, &node_htable[tipc_hashfn(addr)]);
 
-	list_for_each_entry(temp_node, &tipc_node_list, list) {
+	list_for_each_entry_rcu(temp_node, &tipc_node_list, list) {
 		if (n_ptr->addr < temp_node->addr)
 			break;
 	}
-	list_add_tail(&n_ptr->list, &temp_node->list);
+	list_add_tail_rcu(&n_ptr->list, &temp_node->list);
 	n_ptr->block_setup = WAIT_PEER_DOWN;
 	n_ptr->signature = INVALID_NODE_SIG;
 
@@ -120,9 +120,9 @@ struct tipc_node *tipc_node_create(u32 addr)
 
 static void tipc_node_delete(struct tipc_node *n_ptr)
 {
-	list_del(&n_ptr->list);
-	hlist_del(&n_ptr->hash);
-	kfree(n_ptr);
+	list_del_rcu(&n_ptr->list);
+	hlist_del_rcu(&n_ptr->hash);
+	kfree_rcu(n_ptr, rcu);
 
 	tipc_num_nodes--;
 }
@@ -359,7 +359,8 @@ struct sk_buff *tipc_node_get_nodes(const void *req_tlv_area, int req_tlv_space)
 	}
 
 	/* Add TLVs for all nodes in scope */
-	list_for_each_entry(n_ptr, &tipc_node_list, list) {
+	rcu_read_lock();
+	list_for_each_entry_rcu(n_ptr, &tipc_node_list, list) {
 		if (!tipc_in_scope(domain, n_ptr->addr))
 			continue;
 		node_info.addr = htonl(n_ptr->addr);
@@ -367,6 +368,7 @@ struct sk_buff *tipc_node_get_nodes(const void *req_tlv_area, int req_tlv_space)
 		tipc_cfg_append_tlv(buf, TIPC_TLV_NODE_INFO,
 				    &node_info, sizeof(node_info));
 	}
+	rcu_read_unlock();
 	spin_unlock_bh(&node_list_lock);
 	return buf;
 }
@@ -412,7 +414,8 @@ struct sk_buff *tipc_node_get_links(const void *req_tlv_area, int req_tlv_space)
 	tipc_cfg_append_tlv(buf, TIPC_TLV_LINK_INFO, &link_info, sizeof(link_info));
 
 	/* Add TLVs for any other links in scope */
-	list_for_each_entry(n_ptr, &tipc_node_list, list) {
+	rcu_read_lock();
+	list_for_each_entry_rcu(n_ptr, &tipc_node_list, list) {
 		u32 i;
 
 		if (!tipc_in_scope(domain, n_ptr->addr))
@@ -429,6 +432,7 @@ struct sk_buff *tipc_node_get_links(const void *req_tlv_area, int req_tlv_space)
 		}
 		tipc_node_unlock(n_ptr);
 	}
+	rcu_read_unlock();
 	spin_unlock_bh(&node_list_lock);
 	return buf;
 }

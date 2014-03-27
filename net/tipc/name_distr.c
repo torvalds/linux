@@ -133,8 +133,8 @@ static void named_cluster_distribute(struct sk_buff *buf)
 	struct tipc_node *n_ptr;
 	struct tipc_link *l_ptr;
 
-	read_lock_bh(&tipc_net_lock);
-	list_for_each_entry(n_ptr, &tipc_node_list, list) {
+	rcu_read_lock();
+	list_for_each_entry_rcu(n_ptr, &tipc_node_list, list) {
 		spin_lock_bh(&n_ptr->lock);
 		l_ptr = n_ptr->active_links[n_ptr->addr & 1];
 		if (l_ptr) {
@@ -148,7 +148,7 @@ static void named_cluster_distribute(struct sk_buff *buf)
 		}
 		spin_unlock_bh(&n_ptr->lock);
 	}
-	read_unlock_bh(&tipc_net_lock);
+	rcu_read_unlock();
 
 	kfree_skb(buf);
 }

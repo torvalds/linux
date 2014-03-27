@@ -280,13 +280,13 @@ struct tipc_link *tipc_link_create(struct tipc_node *n_ptr,
 	return l_ptr;
 }
 
-
 void tipc_link_delete_list(unsigned int bearer_id, bool shutting_down)
 {
 	struct tipc_link *l_ptr;
 	struct tipc_node *n_ptr;
 
-	list_for_each_entry(n_ptr, &tipc_node_list, list) {
+	rcu_read_lock();
+	list_for_each_entry_rcu(n_ptr, &tipc_node_list, list) {
 		spin_lock_bh(&n_ptr->lock);
 		l_ptr = n_ptr->links[bearer_id];
 		if (l_ptr) {
@@ -309,6 +309,7 @@ void tipc_link_delete_list(unsigned int bearer_id, bool shutting_down)
 		}
 		spin_unlock_bh(&n_ptr->lock);
 	}
+	rcu_read_unlock();
 }
 
 /**
@@ -461,13 +462,15 @@ void tipc_link_reset_list(unsigned int bearer_id)
 	struct tipc_link *l_ptr;
 	struct tipc_node *n_ptr;
 
-	list_for_each_entry(n_ptr, &tipc_node_list, list) {
+	rcu_read_lock();
+	list_for_each_entry_rcu(n_ptr, &tipc_node_list, list) {
 		spin_lock_bh(&n_ptr->lock);
 		l_ptr = n_ptr->links[bearer_id];
 		if (l_ptr)
 			tipc_link_reset(l_ptr);
 		spin_unlock_bh(&n_ptr->lock);
 	}
+	rcu_read_unlock();
 }
 
 static void link_activate(struct tipc_link *l_ptr)
@@ -2404,13 +2407,12 @@ static struct tipc_node *tipc_link_find_owner(const char *link_name,
 {
 	struct tipc_link *l_ptr;
 	struct tipc_node *n_ptr;
-	struct tipc_node *tmp_n_ptr;
 	struct tipc_node *found_node = 0;
-
 	int i;
 
 	*bearer_id = 0;
-	list_for_each_entry_safe(n_ptr, tmp_n_ptr, &tipc_node_list, list) {
+	rcu_read_lock();
+	list_for_each_entry_rcu(n_ptr, &tipc_node_list, list) {
 		tipc_node_lock(n_ptr);
 		for (i = 0; i < MAX_BEARERS; i++) {
 			l_ptr = n_ptr->links[i];
@@ -2424,6 +2426,8 @@ static struct tipc_node *tipc_link_find_owner(const char *link_name,
 		if (found_node)
 			break;
 	}
+	rcu_read_unlock();
+
 	return found_node;
 }
 
