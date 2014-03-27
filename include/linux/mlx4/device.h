@@ -1232,4 +1232,6 @@ struct mlx4_slaves_pport mlx4_phys_to_slaves_pport_actv(
 int mlx4_phys_to_slave_port(struct mlx4_dev *dev, int slave, int port);
 
 int mlx4_get_base_gid_ix(struct mlx4_dev *dev, int slave, int port);
+
+int mlx4_config_vxlan_port(struct mlx4_dev *dev, __be16 udp_port);
 #endif /* MLX4_DEVICE_H */

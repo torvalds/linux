@@ -955,6 +955,15 @@ static struct mlx4_cmd_info cmd_info[] = {
 		.wrapper = NULL
 	},
 	{
+		.opcode = MLX4_CMD_CONFIG_DEV,
+		.has_inbox = false,
+		.has_outbox = false,
+		.out_is_imm = false,
+		.encode_slave_id = false,
+		.verify = NULL,
+		.wrapper = mlx4_CMD_EPERM_wrapper
+	},
+	{
 		.opcode = MLX4_CMD_ALLOC_RES,
 		.has_inbox = false,
 		.has_outbox = false,
