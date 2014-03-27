@@ -41,9 +41,9 @@
 #include "bcast.h"
 #include "name_distr.h"
 
-#define MAX_PKT_DEFAULT_MCAST 1500	/* bcast link max packet size (fixed) */
-
-#define BCLINK_WIN_DEFAULT 20		/* bcast link window size (default) */
+#define	MAX_PKT_DEFAULT_MCAST	1500	/* bcast link max packet size (fixed) */
+#define	BCLINK_WIN_DEFAULT	20	/* bcast link window size (default) */
+#define	BCBEARER		MAX_BEARERS
 
 /**
  * struct tipc_bcbearer_pair - a pair of bearers used by broadcast link
@@ -784,6 +784,7 @@ void tipc_bclink_init(void)
 	bcl->max_pkt = MAX_PKT_DEFAULT_MCAST;
 	tipc_link_set_queue_limits(bcl, BCLINK_WIN_DEFAULT);
 	bcl->b_ptr = &bcbearer->bearer;
+	bearer_list[BCBEARER] = &bcbearer->bearer;
 	bcl->state = WORKING_WORKING;
 	strlcpy(bcl->name, tipc_bclink_name, TIPC_MAX_LINK_NAME);
 }
@@ -794,6 +795,7 @@ void tipc_bclink_stop(void)
 	tipc_link_purge_queues(bcl);
 	spin_unlock_bh(&bc_lock);
 
+	bearer_list[BCBEARER] = NULL;
 	memset(bclink, 0, sizeof(*bclink));
 	memset(bcbearer, 0, sizeof(*bcbearer));
 }
