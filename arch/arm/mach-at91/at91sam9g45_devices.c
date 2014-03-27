@@ -39,6 +39,7 @@
 #include "board.h"
 #include "generic.h"
 #include "clock.h"
+#include "gpio.h"
 
 
 /* --------------------------------------------------------------------
