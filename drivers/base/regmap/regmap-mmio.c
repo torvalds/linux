@@ -30,6 +30,16 @@ struct regmap_mmio_context {
 	struct clk *clk;
 };
 
+static inline void regmap_mmio_regsize_check(size_t reg_size)
+{
+	BUG_ON(reg_size != 4);
+}
+
+static inline void regmap_mmio_count_check(size_t count)
+{
+	BUG_ON(count < 4);
+}
+
 static int regmap_mmio_gather_write(void *context,
 				    const void *reg, size_t reg_size,
 				    const void *val, size_t val_size)
@@ -38,7 +48,7 @@ static int regmap_mmio_gather_write(void *context,
 	u32 offset;
 	int ret;
 
-	BUG_ON(reg_size != 4);
+	regmap_mmio_regsize_check(reg_size);
 
 	if (!IS_ERR(ctx->clk)) {
 		ret = clk_enable(ctx->clk);
@@ -81,7 +91,7 @@ static int regmap_mmio_gather_write(void *context,
 
 static int regmap_mmio_write(void *context, const void *data, size_t count)
 {
-	BUG_ON(count < 4);
+	regmap_mmio_count_check(count);
 
 	return regmap_mmio_gather_write(context, data, 4, data + 4, count - 4);
 }
@@ -94,7 +104,7 @@ static int regmap_mmio_read(void *context,
 	u32 offset;
 	int ret;
 
-	BUG_ON(reg_size != 4);
+	regmap_mmio_regsize_check(reg_size);
 
 	if (!IS_ERR(ctx->clk)) {
 		ret = clk_enable(ctx->clk);
