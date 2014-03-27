@@ -2940,7 +2940,9 @@ static void free_waiting_dir_move(struct send_ctx *sctx,
 static int add_pending_dir_move(struct send_ctx *sctx,
 				u64 ino,
 				u64 ino_gen,
-				u64 parent_ino)
+				u64 parent_ino,
+				struct list_head *new_refs,
+				struct list_head *deleted_refs)
 {
 	struct rb_node **p = &sctx->pending_dir_moves.rb_node;
 	struct rb_node *parent = NULL;
@@ -2972,12 +2974,12 @@ static int add_pending_dir_move(struct send_ctx *sctx,
 		}
 	}
 
-	list_for_each_entry(cur, &sctx->deleted_refs, list) {
+	list_for_each_entry(cur, deleted_refs, list) {
 		ret = dup_ref(cur, &pm->update_refs);
 		if (ret < 0)
 			goto out;
 	}
-	list_for_each_entry(cur, &sctx->new_refs, list) {
+	list_for_each_entry(cur, new_refs, list) {
 		ret = dup_ref(cur, &pm->update_refs);
 		if (ret < 0)
 			goto out;
@@ -3020,6 +3022,48 @@ static struct pending_dir_move *get_pending_dir_moves(struct send_ctx *sctx,
 	return NULL;
 }
 
+static int path_loop(struct send_ctx *sctx, struct fs_path *name,
+		     u64 ino, u64 gen, u64 *ancestor_ino)
+{
+	int ret = 0;
+	u64 parent_inode = 0;
+	u64 parent_gen = 0;
+	u64 start_ino = ino;
+
+	*ancestor_ino = 0;
+	while (ino != BTRFS_FIRST_FREE_OBJECTID) {
+		fs_path_reset(name);
+
+		if (is_waiting_for_rm(sctx, ino))
+			break;
+		if (is_waiting_for_move(sctx, ino)) {
+			if (*ancestor_ino == 0)
+				*ancestor_ino = ino;
+			ret = get_first_ref(sctx->parent_root, ino,
+					    &parent_inode, &parent_gen, name);
+		} else {
+			ret = __get_cur_name_and_parent(sctx, ino, gen,
+							&parent_inode,
+							&parent_gen, name);
+			if (ret > 0) {
+				ret = 0;
+				break;
+			}
+		}
+		if (ret < 0)
+			break;
+		if (parent_inode == start_ino) {
+			ret = 1;
+			if (*ancestor_ino == 0)
+				*ancestor_ino = ino;
+			break;
+		}
+		ino = parent_inode;
+		gen = parent_gen;
+	}
+	return ret;
+}
+
 static int apply_dir_move(struct send_ctx *sctx, struct pending_dir_move *pm)
 {
 	struct fs_path *from_path = NULL;
@@ -3031,6 +3075,7 @@ static int apply_dir_move(struct send_ctx *sctx, struct pending_dir_move *pm)
 	struct waiting_dir_move *dm = NULL;
 	u64 rmdir_ino = 0;
 	int ret;
+	u64 ancestor = 0;
 
 	name = fs_path_alloc();
 	from_path = fs_path_alloc();
@@ -3057,11 +3102,25 @@ static int apply_dir_move(struct send_ctx *sctx, struct pending_dir_move *pm)
 	if (ret < 0)
 		goto out;
 
+	sctx->send_progress = sctx->cur_ino + 1;
+	ret = path_loop(sctx, name, pm->ino, pm->gen, &ancestor);
+	if (ret) {
+		LIST_HEAD(deleted_refs);
+		ASSERT(ancestor > BTRFS_FIRST_FREE_OBJECTID);
+		ret = add_pending_dir_move(sctx, pm->ino, pm->gen, ancestor,
+					   &pm->update_refs, &deleted_refs);
+		if (ret < 0)
+			goto out;
+		if (rmdir_ino) {
+			dm = get_waiting_dir_move(sctx, pm->ino);
+			ASSERT(dm);
+			dm->rmdir_ino = rmdir_ino;
+		}
+		goto out;
+	}
 	fs_path_reset(name);
 	to_path = name;
 	name = NULL;
-
-	sctx->send_progress = sctx->cur_ino + 1;
 	ret = get_cur_path(sctx, pm->ino, pm->gen, to_path);
 	if (ret < 0)
 		goto out;
@@ -3185,126 +3244,73 @@ out:
 static int wait_for_parent_move(struct send_ctx *sctx,
 				struct recorded_ref *parent_ref)
 {
-	int ret;
+	int ret = 0;
 	u64 ino = parent_ref->dir;
 	u64 parent_ino_before, parent_ino_after;
-	u64 old_gen;
 	struct fs_path *path_before = NULL;
 	struct fs_path *path_after = NULL;
 	int len1, len2;
-	int register_upper_dirs;
-	u64 gen;
-
-	if (is_waiting_for_move(sctx, ino))
-		return 1;
-
-	if (parent_ref->dir <= sctx->cur_ino)
-		return 0;
-
-	ret = get_inode_info(sctx->parent_root, ino, NULL, &old_gen,
-			     NULL, NULL, NULL, NULL);
-	if (ret == -ENOENT)
-		return 0;
-	else if (ret < 0)
-		return ret;
-
-	if (parent_ref->dir_gen != old_gen)
-		return 0;
-
-	path_before = fs_path_alloc();
-	if (!path_before)
-		return -ENOMEM;
-
-	ret = get_first_ref(sctx->parent_root, ino, &parent_ino_before,
-			    NULL, path_before);
-	if (ret == -ENOENT) {
-		ret = 0;
-		goto out;
-	} else if (ret < 0) {
-		goto out;
-	}
 
 	path_after = fs_path_alloc();
-	if (!path_after) {
+	path_before = fs_path_alloc();
+	if (!path_after || !path_before) {
 		ret = -ENOMEM;
 		goto out;
 	}
 
-	ret = get_first_ref(sctx->send_root, ino, &parent_ino_after,
-			    &gen, path_after);
-	if (ret == -ENOENT) {
-		ret = 0;
-		goto out;
-	} else if (ret < 0) {
-		goto out;
-	}
-
-	len1 = fs_path_len(path_before);
-	len2 = fs_path_len(path_after);
-	if (parent_ino_before != parent_ino_after || len1 != len2 ||
-	     memcmp(path_before->start, path_after->start, len1)) {
-		ret = 1;
-		goto out;
-	}
-	ret = 0;
-
 	/*
-	 * Ok, our new most direct ancestor has a higher inode number but
-	 * wasn't moved/renamed. So maybe some of the new ancestors higher in
-	 * the hierarchy have an higher inode number too *and* were renamed
-	 * or moved - in this case we need to wait for the ancestor's rename
-	 * or move operation before we can do the move/rename for the current
-	 * inode.
+	 * Our current directory inode may not yet be renamed/moved because some
+	 * ancestor (immediate or not) has to be renamed/moved first. So find if
+	 * such ancestor exists and make sure our own rename/move happens after
+	 * that ancestor is processed.
 	 */
-	register_upper_dirs = 0;
-	ino = parent_ino_after;
-again:
-	while ((ret == 0 || register_upper_dirs) && ino > sctx->cur_ino) {
-		u64 parent_gen;
+	while (ino > BTRFS_FIRST_FREE_OBJECTID) {
+		if (is_waiting_for_move(sctx, ino)) {
+			ret = 1;
+			break;
+		}
 
 		fs_path_reset(path_before);
 		fs_path_reset(path_after);
 
 		ret = get_first_ref(sctx->send_root, ino, &parent_ino_after,
-				    &parent_gen, path_after);
+				    NULL, path_after);
 		if (ret < 0)
 			goto out;
 		ret = get_first_ref(sctx->parent_root, ino, &parent_ino_before,
 				    NULL, path_before);
-		if (ret == -ENOENT) {
-			ret = 0;
-			break;
-		} else if (ret < 0) {
+		if (ret < 0 && ret != -ENOENT) {
 			goto out;
+		} else if (ret == -ENOENT) {
+			ret = 1;
+			break;
 		}
 
 		len1 = fs_path_len(path_before);
 		len2 = fs_path_len(path_after);
-		if (parent_ino_before != parent_ino_after || len1 != len2 ||
-		    memcmp(path_before->start, path_after->start, len1)) {
+		if (ino > sctx->cur_ino &&
+		    (parent_ino_before != parent_ino_after || len1 != len2 ||
+		     memcmp(path_before->start, path_after->start, len1))) {
 			ret = 1;
-			if (register_upper_dirs) {
-				break;
-			} else {
-				register_upper_dirs = 1;
-				ino = parent_ref->dir;
-				gen = parent_ref->dir_gen;
-				goto again;
-			}
-		} else if (register_upper_dirs) {
-			ret = add_pending_dir_move(sctx, ino, gen,
-						   parent_ino_after);
-			if (ret < 0 && ret != -EEXIST)
-				goto out;
+			break;
 		}
-
 		ino = parent_ino_after;
-		gen = parent_gen;
 	}
 
 out:
 	fs_path_free(path_before);
 	fs_path_free(path_after);
+
+	if (ret == 1) {
+		ret = add_pending_dir_move(sctx,
+					   sctx->cur_ino,
+					   sctx->cur_inode_gen,
+					   ino,
+					   &sctx->new_refs,
+					   &sctx->deleted_refs);
+		if (!ret)
+			ret = 1;
+	}
 
 	return ret;
 }
@@ -3466,10 +3472,6 @@ verbose_printk("btrfs: process_recorded_refs %llu\n", sctx->cur_ino);
 				if (ret < 0)
 					goto out;
 				if (ret) {
-					ret = add_pending_dir_move(sctx,
-							   sctx->cur_ino,
-							   sctx->cur_inode_gen,
-							   cur->dir);
 					*pending_move = 1;
 				} else {
 					ret = send_rename(sctx, valid_path,
