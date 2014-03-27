@@ -206,10 +206,14 @@ static int rockchip_rt3261_init(struct snd_soc_pcm_runtime *rtd)
 	/* Set up specific audio path audio_mapnects */
 	snd_soc_dapm_add_routes(dapm, audio_map, ARRAY_SIZE(audio_map));
 
+	mutex_lock(&dapm->card->dapm_mutex);
+
 	snd_soc_dapm_enable_pin(dapm, "Mic Jack");
 	snd_soc_dapm_enable_pin(dapm, "Headset Jack");
 	snd_soc_dapm_enable_pin(dapm, "Ext Spk");
 	snd_soc_dapm_enable_pin(dapm, "Headphone Jack");
+
+	mutex_unlock(&dapm->card->dapm_mutex);
 
 	snd_soc_dapm_sync(dapm);
 
