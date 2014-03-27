@@ -122,7 +122,8 @@ struct nand_timing {
 enum gpmi_type {
 	IS_MX23,
 	IS_MX28,
-	IS_MX6Q
+	IS_MX6Q,
+	IS_MX6SX
 };
 
 struct gpmi_devdata {
@@ -298,4 +299,7 @@ extern int gpmi_read_page(struct gpmi_nand_data *,
 #define GPMI_IS_MX23(x)		((x)->devdata->type == IS_MX23)
 #define GPMI_IS_MX28(x)		((x)->devdata->type == IS_MX28)
 #define GPMI_IS_MX6Q(x)		((x)->devdata->type == IS_MX6Q)
+#define GPMI_IS_MX6SX(x)	((x)->devdata->type == IS_MX6SX)
+
+#define GPMI_IS_MX6(x)		(GPMI_IS_MX6Q(x) || GPMI_IS_MX6SX(x))
 #endif

@@ -71,6 +71,12 @@ static const struct gpmi_devdata gpmi_devdata_imx6q = {
 	.max_chain_delay = 12,
 };
 
+static const struct gpmi_devdata gpmi_devdata_imx6sx = {
+	.type = IS_MX6SX,
+	.bch_max_ecc_strength = 62,
+	.max_chain_delay = 12,
+};
+
 static irqreturn_t bch_irq(int irq, void *cookie)
 {
 	struct gpmi_nand_data *this = cookie;
@@ -583,7 +589,7 @@ static int gpmi_get_clks(struct gpmi_nand_data *this)
 	}
 
 	/* Get extra clocks */
-	if (GPMI_IS_MX6Q(this))
+	if (GPMI_IS_MX6(this))
 		extra_clks = extra_clks_for_mx6q;
 	if (!extra_clks)
 		return 0;
@@ -601,9 +607,9 @@ static int gpmi_get_clks(struct gpmi_nand_data *this)
 		r->clock[i] = clk;
 	}
 
-	if (GPMI_IS_MX6Q(this))
+	if (GPMI_IS_MX6(this))
 		/*
-		 * Set the default value for the gpmi clock in mx6q:
+		 * Set the default value for the gpmi clock.
 		 *
 		 * If you want to use the ONFI nand which is in the
 		 * Synchronous Mode, you should change the clock as you need.
@@ -1666,7 +1672,7 @@ static int gpmi_init_last(struct gpmi_nand_data *this)
 	 *  (1) the chip is imx6, and
 	 *  (2) the size of the ECC parity is byte aligned.
 	 */
-	if (GPMI_IS_MX6Q(this) &&
+	if (GPMI_IS_MX6(this) &&
 		((bch_geo->gf_len * bch_geo->ecc_strength) % 8) == 0) {
 		ecc->read_subpage = gpmi_ecc_read_subpage;
 		chip->options |= NAND_SUBPAGE_READ;
@@ -1722,7 +1728,7 @@ static int gpmi_nand_init(struct gpmi_nand_data *this)
 	if (ret)
 		goto err_out;
 
-	ret = nand_scan_ident(mtd, GPMI_IS_MX6Q(this) ? 2 : 1, NULL);
+	ret = nand_scan_ident(mtd, GPMI_IS_MX6(this) ? 2 : 1, NULL);
 	if (ret)
 		goto err_out;
 
@@ -1761,6 +1767,9 @@ static const struct of_device_id gpmi_nand_id_table[] = {
 	}, {
 		.compatible = "fsl,imx6q-gpmi-nand",
 		.data = (void *)&gpmi_devdata_imx6q,
+	}, {
+		.compatible = "fsl,imx6sx-gpmi-nand",
+		.data = (void *)&gpmi_devdata_imx6sx,
 	}, {}
 };
 MODULE_DEVICE_TABLE(of, gpmi_nand_id_table);
