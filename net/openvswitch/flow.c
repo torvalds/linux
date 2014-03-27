@@ -66,10 +66,7 @@ void ovs_flow_stats_update(struct sw_flow *flow, struct sk_buff *skb)
 	struct flow_stats *stats;
 	__be16 tcp_flags = 0;
 
-	if (!flow->stats.is_percpu)
-		stats = flow->stats.stat;
-	else
-		stats = this_cpu_ptr(flow->stats.cpu_stats);
+	stats = this_cpu_ptr(flow->stats);
 
 	if ((flow->key.eth.type == htons(ETH_P_IP) ||
 	     flow->key.eth.type == htons(ETH_P_IPV6)) &&
@@ -110,16 +107,14 @@ void ovs_flow_stats_get(struct sw_flow *flow, struct ovs_flow_stats *ovs_stats,
 	memset(ovs_stats, 0, sizeof(*ovs_stats));
 
 	local_bh_disable();
-	if (!flow->stats.is_percpu) {
-		stats_read(flow->stats.stat, ovs_stats, used, tcp_flags);
-	} else {
-		for_each_possible_cpu(cpu) {
-			struct flow_stats *stats;
 
-			stats = per_cpu_ptr(flow->stats.cpu_stats, cpu);
-			stats_read(stats, ovs_stats, used, tcp_flags);
-		}
+	for_each_possible_cpu(cpu) {
+		struct flow_stats *stats;
+
+		stats = per_cpu_ptr(flow->stats.cpu_stats, cpu);
+		stats_read(stats, ovs_stats, used, tcp_flags);
 	}
+
 	local_bh_enable();
 }
 
@@ -138,13 +133,10 @@ void ovs_flow_stats_clear(struct sw_flow *flow)
 	int cpu;
 
 	local_bh_disable();
-	if (!flow->stats.is_percpu) {
-		stats_reset(flow->stats.stat);
-	} else {
-		for_each_possible_cpu(cpu) {
-			stats_reset(per_cpu_ptr(flow->stats.cpu_stats, cpu));
-		}
-	}
+
+	for_each_possible_cpu(cpu)
+		stats_reset(per_cpu_ptr(flow->stats, cpu));
+
 	local_bh_enable();
 }
 
