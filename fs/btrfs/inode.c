@@ -1271,6 +1271,15 @@ next_slot:
 			disk_bytenr += cur_offset - found_key.offset;
 			num_bytes = min(end + 1, extent_end) - cur_offset;
 			/*
+			 * if there are pending snapshots for this root,
+			 * we fall into common COW way.
+			 */
+			if (!nolock) {
+				err = btrfs_start_nocow_write(root);
+				if (!err)
+					goto out_check;
+			}
+			/*
 			 * force cow if csum exists in the range.
 			 * this ensure that csum for a given extent are
 			 * either valid or do not exist.
@@ -1289,6 +1298,8 @@ next_slot:
 out_check:
 		if (extent_end <= start) {
 			path->slots[0]++;
+			if (!nolock && nocow)
+				btrfs_end_nocow_write(root);
 			goto next_slot;
 		}
 		if (!nocow) {
@@ -1306,8 +1317,11 @@ out_check:
 			ret = cow_file_range(inode, locked_page,
 					     cow_start, found_key.offset - 1,
 					     page_started, nr_written, 1);
-			if (ret)
+			if (ret) {
+				if (!nolock && nocow)
+					btrfs_end_nocow_write(root);
 				goto error;
+			}
 			cow_start = (u64)-1;
 		}
 
@@ -1354,8 +1368,11 @@ out_check:
 		    BTRFS_DATA_RELOC_TREE_OBJECTID) {
 			ret = btrfs_reloc_clone_csums(inode, cur_offset,
 						      num_bytes);
-			if (ret)
+			if (ret) {
+				if (!nolock && nocow)
+					btrfs_end_nocow_write(root);
 				goto error;
+			}
 		}
 
 		extent_clear_unlock_delalloc(inode, cur_offset,
@@ -1363,6 +1380,8 @@ out_check:
 					     locked_page, EXTENT_LOCKED |
 					     EXTENT_DELALLOC, PAGE_UNLOCK |
 					     PAGE_SET_PRIVATE2);
+		if (!nolock && nocow)
+			btrfs_end_nocow_write(root);
 		cur_offset = extent_end;
 		if (cur_offset > end)
 			break;
