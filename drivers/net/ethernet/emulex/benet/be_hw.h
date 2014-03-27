@@ -407,7 +407,8 @@ struct amap_eth_rx_compl_v1 {
 	u8 vntagp;		/* dword 2 */
 	u8 header_len[8];	/* dword 2 */
 	u8 header_split[2];	/* dword 2 */
-	u8 rsvd1[13];		/* dword 2 */
+	u8 rsvd1[12];		/* dword 2 */
+	u8 tunneled;
 	u8 valid;		/* dword 2 */
 	u8 rsshash[32];		/* dword 3 */
 } __packed;

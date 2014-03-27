@@ -296,6 +296,7 @@ struct be_rx_compl_info {
 	u8 qnq;
 	u8 pkt_type;
 	u8 ip_frag;
+	u8 tunneled;
 };
 
 struct be_rx_obj {
@@ -371,10 +372,11 @@ enum vf_state {
 #define BE_FLAGS_WORKER_SCHEDULED		(1 << 3)
 #define BE_FLAGS_VLAN_PROMISC			(1 << 4)
 #define BE_FLAGS_NAPI_ENABLED			(1 << 9)
-#define BE_UC_PMAC_COUNT		30
-#define BE_VF_UC_PMAC_COUNT		2
 #define BE_FLAGS_QNQ_ASYNC_EVT_RCVD		(1 << 11)
+#define BE_FLAGS_VXLAN_OFFLOADS			(1 << 12)
 
+#define BE_UC_PMAC_COUNT			30
+#define BE_VF_UC_PMAC_COUNT			2
 /* Ethtool set_dump flags */
 #define LANCER_INITIATE_FW_DUMP			0x1
 
@@ -494,6 +496,7 @@ struct be_adapter {
 	u32 sli_family;
 	u8 hba_port_num;
 	u16 pvid;
+	__be16 vxlan_port;
 	struct phy_info phy;
 	u8 wol_cap;
 	bool wol_en;
