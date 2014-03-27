@@ -76,6 +76,14 @@ enum transcoder {
 };
 #define transcoder_name(t) ((t) + 'A')
 
+/*
+ * This is the maximum (across all platforms) number of planes (primary +
+ * sprites) that can be active at the same time on one pipe.
+ *
+ * This value doesn't count the cursor plane.
+ */
+#define I915_MAX_PLANES	3
+
 enum plane {
 	PLANE_A = 0,
 	PLANE_B,
