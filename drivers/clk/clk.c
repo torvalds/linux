@@ -2591,7 +2591,7 @@ static int parent_ready(struct device_node *np)
  * @matches: array of compatible values and init functions for providers.
  *
  * This function scans the device tree for matching clock providers
- * and calls their initialization functions. It also do it by trying
+ * and calls their initialization functions. It also does it by trying
  * to follow the dependencies.
  */
 void __init of_clk_init(const struct of_device_id *matches)
@@ -2628,7 +2628,7 @@ void __init of_clk_init(const struct of_device_id *matches)
 		}
 
 		/*
-		 * We didn't managed to initialize any of the
+		 * We didn't manage to initialize any of the
 		 * remaining providers during the last loop, so now we
 		 * initialize all the remaining ones unconditionally
 		 * in case the clock parent was not mandatory
