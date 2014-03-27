@@ -348,7 +348,10 @@ int iwl_mvm_scan_request(struct iwl_mvm *mvm,
 	struct iwl_mvm_scan_params params = {};
 
 	lockdep_assert_held(&mvm->mutex);
-	BUG_ON(mvm->scan_cmd == NULL);
+
+	/* we should have failed registration if scan_cmd was NULL */
+	if (WARN_ON(mvm->scan_cmd == NULL))
+		return -ENOMEM;
 
 	IWL_DEBUG_SCAN(mvm, "Handling mac80211 scan request\n");
 	mvm->scan_status = IWL_MVM_SCAN_OS;

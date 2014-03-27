@@ -1278,6 +1278,8 @@ static int iwl_trans_pcie_wait_txq_empty(struct iwl_trans *trans, u32 txq_bm)
 			continue;
 		if (!(BIT(cnt) & txq_bm))
 			continue;
+
+		IWL_DEBUG_TX_QUEUES(trans, "Emptying queue %d...\n", cnt);
 		txq = &trans_pcie->txq[cnt];
 		q = &txq->q;
 		wr_ptr = ACCESS_ONCE(q->write_ptr);
@@ -1300,6 +1302,7 @@ static int iwl_trans_pcie_wait_txq_empty(struct iwl_trans *trans, u32 txq_bm)
 			ret = -ETIMEDOUT;
 			break;
 		}
+		IWL_DEBUG_TX_QUEUES(trans, "Queue %d is now empty.\n", cnt);
 	}
 
 	if (!ret)
