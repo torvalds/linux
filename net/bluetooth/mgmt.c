@@ -3351,6 +3351,8 @@ static int mgmt_start_discovery_failed(struct hci_dev *hdev, u8 status)
 
 static void start_discovery_complete(struct hci_dev *hdev, u8 status)
 {
+	unsigned long timeout = 0;
+
 	BT_DBG("status %d", status);
 
 	if (status) {
@@ -3366,13 +3368,11 @@ static void start_discovery_complete(struct hci_dev *hdev, u8 status)
 
 	switch (hdev->discovery.type) {
 	case DISCOV_TYPE_LE:
-		queue_delayed_work(hdev->workqueue, &hdev->le_scan_disable,
-				   DISCOV_LE_TIMEOUT);
+		timeout = DISCOV_LE_TIMEOUT;
 		break;
 
 	case DISCOV_TYPE_INTERLEAVED:
-		queue_delayed_work(hdev->workqueue, &hdev->le_scan_disable,
-				   DISCOV_INTERLEAVED_TIMEOUT);
+		timeout = msecs_to_jiffies(DISCOV_INTERLEAVED_TIMEOUT);
 		break;
 
 	case DISCOV_TYPE_BREDR:
@@ -3381,6 +3381,11 @@ static void start_discovery_complete(struct hci_dev *hdev, u8 status)
 	default:
 		BT_ERR("Invalid discovery type %d", hdev->discovery.type);
 	}
+
+	if (!timeout)
+		return;
+
+	queue_delayed_work(hdev->workqueue, &hdev->le_scan_disable, timeout);
 }
 
 static int start_discovery(struct sock *sk, struct hci_dev *hdev,
