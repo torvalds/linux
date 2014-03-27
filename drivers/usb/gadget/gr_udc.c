@@ -143,6 +143,7 @@ static void gr_seq_ep_show(struct seq_file *seq, struct gr_ep *ep)
 	seq_printf(seq, "  wedged = %d\n", ep->wedged);
 	seq_printf(seq, "  callback = %d\n", ep->callback);
 	seq_printf(seq, "  maxpacket = %d\n", ep->ep.maxpacket);
+	seq_printf(seq, "  maxpacket_limit = %d\n", ep->ep.maxpacket_limit);
 	seq_printf(seq, "  bytes_per_buffer = %d\n", ep->bytes_per_buffer);
 	if (mode == 1 || mode == 3)
 		seq_printf(seq, "  nt = %d\n",
