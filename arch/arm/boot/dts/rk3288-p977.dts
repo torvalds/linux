@@ -134,7 +134,27 @@
 			};
 		};
 	};
-	
+};
+&pinctrl {
+	gpio0_gpio {
+			gpio0_c2: gpio0-c2 {
+				rockchip,pins = <GPIO0_C2>;
+				rockchip,pull = <VALUE_PULL_DOWN>;
+			};
+
+			//to add
+		};
+		
+	gpio7_gpio {
+			gpio7_b7: gpio7-b7 {
+				rockchip,pins = <GPIO7_B7>;
+				rockchip,pull = <VALUE_PULL_UP>;
+			};
+
+			//to add
+		};
+	//could add other pinctrl definition such as gpio
+
 };
 
 &emmc {
@@ -175,14 +195,77 @@
 
 &spi0 {
 	status = "okay";
+	max-freq = <48000000>;	
+	/*
+	spi_test@00 {
+     		compatible = "rockchip,spi_test_bus0_cs0";
+                reg = <0>;
+                spi-max-frequency = <24000000>;
+                //spi-cpha;
+		//spi-cpol;
+                poll_mode = <0>;
+	        type = <0>;
+		enable_dma = <0>;
+
+	};
+
+	spi_test@01 {
+	        compatible = "rockchip,spi_test_bus0_cs1";
+	        reg = <1>;
+	        spi-max-frequency = <24000000>;
+	        spi-cpha;
+		spi-cpol;
+	        poll_mode = <0>;
+	        type = <0>;
+		enable_dma = <0>;	        
+	};
+	*/
 };
 
 &spi1 {
 	status = "okay";
+	max-freq = <48000000>;
+	/*
+	spi_test@10 {
+	        compatible = "rockchip,spi_test_bus1_cs0";
+	        reg = <0>;
+	        spi-max-frequency = <24000000>;
+	        //spi-cpha;
+		//spi-cpol;
+	        poll_mode = <0>;
+	        type = <0>;
+		enable_dma = <0>;
+	};
+
+	*/
 };
 
 &spi2 {
 	status = "okay";
+	max-freq = <48000000>;
+	/*
+	spi_test@20 {
+	        compatible = "rockchip,spi_test_bus2_cs0";
+	        reg = <0>;
+	        spi-max-frequency = <24000000>;
+	        //spi-cpha;
+		//spi-cpol;
+	        poll_mode = <0>;
+	        type = <0>;
+		enable_dma = <0>;
+	};
+
+	spi_test@21 {
+	        compatible = "rockchip,spi_test_bus2_cs1";
+	        reg = <1>;
+	        spi-max-frequency = <24000000>;
+	        //spi-cpha;
+		//spi-cpol;
+	        poll_mode = <0>;
+	        type = <0>;
+		enable_dma = <0>;
+	};
+	*/
 };
 &uart_bt {
         status = "okay";
@@ -231,7 +314,7 @@
 		layout = <8>;
 	};
 	sensor@0d {
-		compatible = "ak8963";
+		compatible = "ak8975";
 		reg = <0x0d>;
 		type = <SENSOR_TYPE_COMPASS>;
 		irq-gpio = <&gpio8 GPIO_A2 IRQ_TYPE_EDGE_RISING>;
@@ -332,6 +415,18 @@
 &adc {
 	status = "okay";
 
+	rockchip_headset {
+		compatible = "rockchip_headset";
+		headset_gpio = <&gpio0 GPIO_C2 GPIO_ACTIVE_LOW>;
+		pinctrl-names = "default";
+		pinctrl-0 = <&gpio0_c2>;
+		io-channels = <&adc 2>; 
+       /*
+               hook_gpio = ;
+               hook_down_type = ; //interrupt hook key down status 
+		*/       
+       };
+
 	key {
 		compatible = "rockchip,key";
 		io-channels = <&adc 1>;
@@ -354,7 +449,7 @@
 			label = "power";
 			gpio-key,wakeup;
 		};
-
+/*
 		menu-key {
 			linux,code = <139>;
 			label = "menu";
@@ -366,7 +461,7 @@
 			label = "home";
 			rockchip,adc_value = <746>;
 		};
-
+*/
 		back-key {
 			linux,code = <158>;
 			label = "back";
@@ -430,6 +525,7 @@
 /include/ "rk808.dtsi"
 &rk808 {
 	gpios =<&gpio0 GPIO_A4 GPIO_ACTIVE_HIGH>,<&gpio0 GPIO_B3 GPIO_ACTIVE_LOW>;
+	rk808,system-power-controller;
 
 	regulators {
 		
