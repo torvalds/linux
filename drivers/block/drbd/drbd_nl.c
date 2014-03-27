@@ -23,6 +23,8 @@
 
  */
 
+#define pr_fmt(fmt)	KBUILD_MODNAME ": " fmt
+
 #include <linux/module.h>
 #include <linux/drbd.h>
 #include <linux/in.h>
@@ -85,7 +87,7 @@ static void drbd_adm_send_reply(struct sk_buff *skb, struct genl_info *info)
 {
 	genlmsg_end(skb, genlmsg_data(nlmsg_data(nlmsg_hdr(skb))));
 	if (genlmsg_reply(skb, info))
-		printk(KERN_ERR "drbd: error sending genl reply\n");
+		pr_err("error sending genl reply\n");
 }
 
 /* Used on a fresh "drbd_adm_prepare"d reply_skb, this cannot fail: The only

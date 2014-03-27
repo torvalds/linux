@@ -26,6 +26,8 @@
 
  */
 
+#define pr_fmt(fmt)	KBUILD_MODNAME ": " fmt
+
 #include <linux/module.h>
 #include <linux/drbd.h>
 #include <asm/uaccess.h>
@@ -2333,7 +2335,7 @@ static void drbd_cleanup(void)
 
 	idr_destroy(&drbd_devices);
 
-	printk(KERN_INFO "drbd: module cleanup done.\n");
+	pr_info("module cleanup done.\n");
 }
 
 /**
@@ -2869,8 +2871,7 @@ static int __init drbd_init(void)
 	int err;
 
 	if (minor_count < DRBD_MINOR_COUNT_MIN || minor_count > DRBD_MINOR_COUNT_MAX) {
-		printk(KERN_ERR
-		       "drbd: invalid minor_count (%d)\n", minor_count);
+		pr_err("invalid minor_count (%d)\n", minor_count);
 #ifdef MODULE
 		return -EINVAL;
 #else
@@ -2880,8 +2881,7 @@ static int __init drbd_init(void)
 
 	err = register_blkdev(DRBD_MAJOR, "drbd");
 	if (err) {
-		printk(KERN_ERR
-		       "drbd: unable to register block device major %d\n",
+		pr_err("unable to register block device major %d\n",
 		       DRBD_MAJOR);
 		return err;
 	}
@@ -2899,7 +2899,7 @@ static int __init drbd_init(void)
 
 	err = drbd_genl_register();
 	if (err) {
-		printk(KERN_ERR "drbd: unable to register generic netlink family\n");
+		pr_err("unable to register generic netlink family\n");
 		goto fail;
 	}
 
@@ -2910,34 +2910,32 @@ static int __init drbd_init(void)
 	err = -ENOMEM;
 	drbd_proc = proc_create_data("drbd", S_IFREG | S_IRUGO , NULL, &drbd_proc_fops, NULL);
 	if (!drbd_proc)	{
-		printk(KERN_ERR "drbd: unable to register proc file\n");
+		pr_err("unable to register proc file\n");
 		goto fail;
 	}
 
 	retry.wq = create_singlethread_workqueue("drbd-reissue");
 	if (!retry.wq) {
-		printk(KERN_ERR "drbd: unable to create retry workqueue\n");
+		pr_err("unable to create retry workqueue\n");
 		goto fail;
 	}
 	INIT_WORK(&retry.worker, do_retry);
 	spin_lock_init(&retry.lock);
 	INIT_LIST_HEAD(&retry.writes);
 
-	printk(KERN_INFO "drbd: initialized. "
+	pr_info("initialized. "
 	       "Version: " REL_VERSION " (api:%d/proto:%d-%d)\n",
 	       API_VERSION, PRO_VERSION_MIN, PRO_VERSION_MAX);
-	printk(KERN_INFO "drbd: %s\n", drbd_buildtag());
-	printk(KERN_INFO "drbd: registered as block device major %d\n",
-		DRBD_MAJOR);
-
+	pr_info("%s\n", drbd_buildtag());
+	pr_info("registered as block device major %d\n", DRBD_MAJOR);
 	return 0; /* Success! */
 
 fail:
 	drbd_cleanup();
 	if (err == -ENOMEM)
-		printk(KERN_ERR "drbd: ran out of memory\n");
+		pr_err("ran out of memory\n");
 	else
-		printk(KERN_ERR "drbd: initialization failure\n");
+		pr_err("initialization failure\n");
 	return err;
 }
 
