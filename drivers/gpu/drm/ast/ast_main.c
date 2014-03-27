@@ -72,7 +72,10 @@ static int ast_detect_chip(struct drm_device *dev)
 		ast->chip = AST1100;
 		DRM_INFO("AST 1180 detected\n");
 	} else {
-		if (dev->pdev->revision >= 0x20) {
+		if (dev->pdev->revision >= 0x30) {
+			ast->chip = AST2400;
+			DRM_INFO("AST 2400 detected\n");
+		} else if (dev->pdev->revision >= 0x20) {
 			ast->chip = AST2300;
 			DRM_INFO("AST 2300 detected\n");
 		} else if (dev->pdev->revision >= 0x10) {
@@ -121,13 +124,14 @@ static int ast_detect_chip(struct drm_device *dev)
 			ast->support_wide_screen = true;
 		else {
 			ast->support_wide_screen = false;
-			if (ast->chip == AST2300) {
-				ast_write32(ast, 0xf004, 0x1e6e0000);
-				ast_write32(ast, 0xf000, 0x1);
-				data = ast_read32(ast, 0x1207c);
-				if ((data & 0x300) == 0) /* ast1300 */
-					ast->support_wide_screen = true;
-			}
+			ast_write32(ast, 0xf004, 0x1e6e0000);
+			ast_write32(ast, 0xf000, 0x1);
+			data = ast_read32(ast, 0x1207c);
+			data &= 0x300;
+			if (ast->chip == AST2300 && data == 0x0) /* ast1300 */
+				ast->support_wide_screen = true;
+			if (ast->chip == AST2400 && data == 0x100) /* ast1400 */
+				ast->support_wide_screen = true;
 		}
 		break;
 	}
@@ -157,7 +161,7 @@ static int ast_get_dram_info(struct drm_device *dev)
 	else
 		ast->dram_bus_width = 32;
 
-	if (ast->chip == AST2300) {
+	if (ast->chip == AST2300 || ast->chip == AST2400) {
 		switch (data & 0x03) {
 		case 0:
 			ast->dram_type = AST_DRAM_512Mx16;
@@ -344,6 +348,7 @@ int ast_driver_load(struct drm_device *dev, unsigned long flags)
 	if (ast->chip == AST2100 ||
 	    ast->chip == AST2200 ||
 	    ast->chip == AST2300 ||
+	    ast->chip == AST2400 ||
 	    ast->chip == AST1180) {
 		dev->mode_config.max_width = 1920;
 		dev->mode_config.max_height = 2048;

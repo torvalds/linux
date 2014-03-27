@@ -78,7 +78,7 @@ ast_set_def_ext_reg(struct drm_device *dev)
 	for (i = 0x81; i <= 0x8f; i++)
 		ast_set_index_reg(ast, AST_IO_CRTC_PORT, i, 0x00);
 
-	if (ast->chip == AST2300) {
+	if (ast->chip == AST2300 || ast->chip == AST2400) {
 		if (dev->pdev->revision >= 0x20)
 			ext_reg_info = extreginfo_ast2300;
 		else
@@ -102,7 +102,7 @@ ast_set_def_ext_reg(struct drm_device *dev)
 
 	/* Enable RAMDAC for A1 */
 	reg = 0x04;
-	if (ast->chip == AST2300)
+	if (ast->chip == AST2300 || ast->chip == AST2400)
 		reg |= 0x20;
 	ast_set_index_reg_mask(ast, AST_IO_CRTC_PORT, 0xb6, 0xff, reg);
 }
@@ -365,7 +365,7 @@ void ast_post_gpu(struct drm_device *dev)
 	ast_open_key(ast);
 	ast_set_def_ext_reg(dev);
 
-	if (ast->chip == AST2300)
+	if (ast->chip == AST2300 || ast->chip == AST2400)
 		ast_init_dram_2300(dev);
 	else
 		ast_init_dram_reg(dev);
