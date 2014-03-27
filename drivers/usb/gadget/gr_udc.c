@@ -1542,6 +1542,10 @@ static int gr_ep_enable(struct usb_ep *_ep,
 	} else if (max == 0) {
 		dev_err(dev->dev, "Max payload cannot be set to 0\n");
 		return -EINVAL;
+	} else if (max > ep->ep.maxpacket_limit) {
+		dev_err(dev->dev, "Requested max payload %d > limit %d\n",
+			max, ep->ep.maxpacket_limit);
+		return -EINVAL;
 	}
 
 	spin_lock(&ep->dev->lock);
