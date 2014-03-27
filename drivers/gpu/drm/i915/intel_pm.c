@@ -7397,7 +7397,9 @@ void intel_init_pm(struct drm_device *dev)
 		i915_ironlake_get_mem_freq(dev);
 
 	/* For FIFO watermark updates */
-	if (HAS_PCH_SPLIT(dev)) {
+	if (IS_GEN9(dev)) {
+		dev_priv->display.init_clock_gating = gen9_init_clock_gating;
+	} else if (HAS_PCH_SPLIT(dev)) {
 		ilk_setup_wm_latency(dev);
 
 		if ((IS_GEN5(dev) && dev_priv->wm.pri_latency[1] &&
@@ -7421,8 +7423,6 @@ void intel_init_pm(struct drm_device *dev)
 			dev_priv->display.init_clock_gating = haswell_init_clock_gating;
 		else if (INTEL_INFO(dev)->gen == 8)
 			dev_priv->display.init_clock_gating = broadwell_init_clock_gating;
-		else if (INTEL_INFO(dev)->gen == 9)
-			dev_priv->display.init_clock_gating = gen9_init_clock_gating;
 	} else if (IS_CHERRYVIEW(dev)) {
 		dev_priv->display.update_wm = cherryview_update_wm;
 		dev_priv->display.update_sprite_wm = valleyview_update_sprite_wm;
