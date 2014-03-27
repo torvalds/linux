@@ -104,7 +104,7 @@ static inline void __client_obd_list_lock(client_obd_lock_t *lock,
 }
 
 #define client_obd_list_lock(lock) \
-	__client_obd_list_lock(lock, __FUNCTION__, __LINE__)
+	__client_obd_list_lock(lock, __func__, __LINE__)
 
 static inline void client_obd_list_unlock(client_obd_lock_t *lock)
 {
