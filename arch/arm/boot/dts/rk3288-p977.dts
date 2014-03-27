@@ -317,7 +317,7 @@
 		compatible = "ak8975";
 		reg = <0x0d>;
 		type = <SENSOR_TYPE_COMPASS>;
-		irq-gpio = <&gpio8 GPIO_A2 IRQ_TYPE_EDGE_RISING>;
+		irq-gpio = <&gpio8 GPIO_A1 IRQ_TYPE_EDGE_RISING>;
 		irq_enable = <1>;
 		poll_delay_ms = <30>;
 		layout = <1>;
