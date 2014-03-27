@@ -988,7 +988,7 @@ struct mlx4_set_port_vxlan_context {
 	u8	steering;
 };
 
-int mlx4_SET_PORT_VXLAN(struct mlx4_dev *dev, u8 port, u8 steering)
+int mlx4_SET_PORT_VXLAN(struct mlx4_dev *dev, u8 port, u8 steering, int enable)
 {
 	int err;
 	u32 in_mod;
@@ -1002,7 +1002,8 @@ int mlx4_SET_PORT_VXLAN(struct mlx4_dev *dev, u8 port, u8 steering)
 	memset(context, 0, sizeof(*context));
 
 	context->modify_flags = VXLAN_ENABLE_MODIFY | VXLAN_STEERING_MODIFY;
-	context->enable_flags = VXLAN_ENABLE;
+	if (enable)
+		context->enable_flags = VXLAN_ENABLE;
 	context->steering  = steering;
 
 	in_mod = MLX4_SET_PORT_VXLAN << 8 | port;
