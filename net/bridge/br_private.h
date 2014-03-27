@@ -349,7 +349,7 @@ static inline void br_netpoll_send_skb(const struct net_bridge_port *p,
 		netpoll_send_skb(np, skb);
 }
 
-int br_netpoll_enable(struct net_bridge_port *p, gfp_t gfp);
+int br_netpoll_enable(struct net_bridge_port *p);
 void br_netpoll_disable(struct net_bridge_port *p);
 #else
 static inline void br_netpoll_send_skb(const struct net_bridge_port *p,
@@ -357,7 +357,7 @@ static inline void br_netpoll_send_skb(const struct net_bridge_port *p,
 {
 }
 
-static inline int br_netpoll_enable(struct net_bridge_port *p, gfp_t gfp)
+static inline int br_netpoll_enable(struct net_bridge_port *p)
 {
 	return 0;
 }
