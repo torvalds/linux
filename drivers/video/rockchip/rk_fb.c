@@ -1345,6 +1345,8 @@ static int rk_fb_set_win_buffer(struct fb_info *info,
 	ppixel_a = ((fb_data_fmt == ARGB888)||(fb_data_fmt == ABGR888)) ? 1:0;
 	global_a = (win_par->g_alpha_val == 0) ? 0:1;
 	reg_win_data->alpha_en = ppixel_a | global_a;
+	reg_win_data->g_alpha_val = win_par->g_alpha_val;
+	reg_win_data->alpha_mode = win_par->alpha_mode;
 	if(reg_win_data->reg_area_data[0].smem_start > 0){
 		reg_win_data->z_order = win_par->z_order;
 		reg_win_data->win_id  = win_par->win_id;
@@ -2087,7 +2089,6 @@ if (rk_fb->disp_mode != DUAL) {
 	win->alpha_mode = 4;//AB_SRC_OVER;
 	win->alpha_en = ((win->format == ARGB888)||(win->format == ABGR888)) ? 1 : 0;
 	win->g_alpha_val = 0;
-	printk("%s,alpha_mode=%d,alpha_en=%d\n",__func__,win->alpha_mode,win->alpha_en);
 
 	if (rk_fb->disp_mode == DUAL) {
 		if (extend_win->state && (hdmi_switch_complete)) {

@@ -127,7 +127,7 @@
 #define m_DSP_LAYER0_SEL		(3<<8)
 #define m_DSP_LAYER1_SEL		(3<<10)
 #define m_DSP_LAYER2_SEL		(3<<12)
-#define m_DSP_LAYER3_SEL		(3<<16)
+#define m_DSP_LAYER3_SEL		(3<<14)
 
 #define DSP_BG 				(0x0018)
 #define v_DSP_BG_BLUE(x)        	(((x<<2)&0x3ff)<<0)
