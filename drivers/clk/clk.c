@@ -2612,7 +2612,7 @@ void __init of_clk_init(const struct of_device_id *matches)
 
 		parent->clk_init_cb = match->data;
 		parent->np = np;
-		list_add(&parent->node, &clk_provider_list);
+		list_add_tail(&parent->node, &clk_provider_list);
 	}
 
 	while (!list_empty(&clk_provider_list)) {
