@@ -3372,7 +3372,7 @@ static void start_discovery_complete(struct hci_dev *hdev, u8 status)
 		break;
 
 	case DISCOV_TYPE_INTERLEAVED:
-		timeout = msecs_to_jiffies(DISCOV_INTERLEAVED_TIMEOUT);
+		timeout = msecs_to_jiffies(hdev->discov_interleaved_timeout);
 		break;
 
 	case DISCOV_TYPE_BREDR:

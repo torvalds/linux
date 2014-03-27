@@ -199,6 +199,7 @@ struct hci_dev {
 	__u16		le_scan_window;
 	__u16		le_conn_min_interval;
 	__u16		le_conn_max_interval;
+	__u16		discov_interleaved_timeout;
 	__u8		ssp_debug_mode;
 
 	__u16		devid_source;

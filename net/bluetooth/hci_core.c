@@ -1823,6 +1823,9 @@ static int __hci_init(struct hci_dev *hdev)
 				    &lowpan_debugfs_fops);
 		debugfs_create_file("le_auto_conn", 0644, hdev->debugfs, hdev,
 				    &le_auto_conn_fops);
+		debugfs_create_u16("discov_interleaved_timeout", 0644,
+				   hdev->debugfs,
+				   &hdev->discov_interleaved_timeout);
 	}
 
 	return 0;
@@ -3785,6 +3788,7 @@ struct hci_dev *hci_alloc_dev(void)
 	hdev->le_conn_max_interval = 0x0038;
 
 	hdev->rpa_timeout = HCI_DEFAULT_RPA_TIMEOUT;
+	hdev->discov_interleaved_timeout = DISCOV_INTERLEAVED_TIMEOUT;
 
 	mutex_init(&hdev->lock);
 	mutex_init(&hdev->req_lock);
