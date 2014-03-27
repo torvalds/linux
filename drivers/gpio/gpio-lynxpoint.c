@@ -188,7 +188,7 @@ static int lp_irq_type(struct irq_data *d, unsigned type)
 static int lp_gpio_get(struct gpio_chip *chip, unsigned offset)
 {
 	unsigned long reg = lp_gpio_reg(chip, offset, LP_CONFIG1);
-	return inl(reg) & IN_LVL_BIT;
+	return !!(inl(reg) & IN_LVL_BIT);
 }
 
 static void lp_gpio_set(struct gpio_chip *chip, unsigned offset, int value)
