@@ -14,8 +14,10 @@
 *        1) add support cif phy for marvin;
 *v0.0.4:
 *        1) add clock information in struct camsys_devio_name_s;
+*v0.0.5:
+		 1) add pwren control
 */
-#define CAMSYS_HEAD_VERSION           KERNEL_VERSION(0,0,4)
+#define CAMSYS_HEAD_VERSION           KERNEL_VERSION(0,0,5)
 
 #define CAMSYS_MARVIN_DEVNAME         "camsys_marvin"           
 #define CAMSYS_CIF0_DEVNAME           "camsys_cif0"
@@ -95,7 +97,8 @@ typedef enum camsys_sysctrl_ops_e {
     CamSys_Rst,
     CamSys_AfPwr,
     CamSys_AfPwrDn,
-
+    CamSys_PwrEn,
+    
     CamSys_Gpio_Tag = 50,
 
     CamSys_ClkIn   
@@ -124,6 +127,10 @@ typedef struct camsys_flash_info_s {
 
 typedef struct camsys_mipiphy_s {
     unsigned int                data_en_bit;        //data lane enable bit;
+    #if 0
+    unsigned int                freq;
+    unsigned int                phy_index;          //phy0,phy1
+    #endif
 } camsys_mipiphy_t;
 
 typedef enum camsys_fmt_e {
@@ -176,9 +183,11 @@ typedef struct camsys_devio_name_s {
     camsys_regulator_info_t     afvdd; 
 
     camsys_gpio_info_t          pwrdn;        // standby gpio name
-    camsys_gpio_info_t          rst;          // hard reset gpio name  
+    camsys_gpio_info_t          rst;          // hard reset gpio name 
     camsys_gpio_info_t          afpwr;        // auto focus vcm driver ic power gpio name
     camsys_gpio_info_t          afpwrdn;      // auto focus vcm driver ic standby gpio 
+    camsys_gpio_info_t          pwren;          // power enable gpio name  
+
 
     camsys_flash_info_t         fl;
 

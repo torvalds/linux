@@ -174,13 +174,13 @@ static int camsys_extdev_register(camsys_devio_name_t *devio, camsys_dev_t *cams
     camsys_gpio_info_t *gpio_info;
     camsys_gpio_t *gpio;
     
-    
     if ((devio->dev_id & CAMSYS_DEVID_EXTERNAL) == 0) {
         err = -EINVAL;
         camsys_err("dev_id: 0x%x is not support for camsys!",devio->dev_id);
         goto end;
     }
 
+#if 0
     if (devio->phy.type == CamSys_Phy_Mipi) {
         if (camsys_find_devmem(CAMSYS_REGISTER_MIPIPHY_RES_NAME, camsys_dev) == NULL) {
             camsys_err("dev_id: 0x%x is connect to MIPI CSI, but %s isn't support",devio->dev_id,
@@ -190,7 +190,7 @@ static int camsys_extdev_register(camsys_devio_name_t *devio, camsys_dev_t *cams
             goto end;
         }
     }
-    
+#endif    
 
     extdev = camsys_find_extdev(devio->dev_id, camsys_dev);
     if (extdev != NULL) {
@@ -235,7 +235,7 @@ static int camsys_extdev_register(camsys_devio_name_t *devio, camsys_dev_t *cams
 
     gpio_info = &devio->pwrdn;
     gpio = &extdev->pwrdn;
-    for (i=0; i<4; i++) {
+    for (i=0; i<5; i++) {
         if (strcmp(gpio_info->name,"NC")) {
             gpio->io = camsys_gpio_get(gpio_info->name);
             if (gpio->io < 0) {
@@ -401,6 +401,15 @@ static int camsys_sysctl(camsys_sysctrl_t *devctl, camsys_dev_t *camsys_dev)
                 camsys_dev->reset_cb(camsys_dev);
                 break;
             }
+            #if 0
+            //for mipi
+            case CamSys_Gpio_Tag:
+            {
+                if((camsys_dev->mipiphy.ops )){
+                    camsys_dev->mipiphy.ops(NULL,NULL,devctl->on);
+                }
+            }
+            #endif
             default:
                 break;
 
@@ -480,7 +489,13 @@ static int camsys_irq_connect(camsys_irqcnnt_t *irqcnnt, camsys_dev_t *camsys_de
         err = -EINVAL;
         goto end;
     }
-        
+#if 0
+    //zyc for test mipi
+    if((camsys_dev->mipiphy.ops ) && (irqcnnt->mis == MRV_ISP_MIS)){
+        camsys_dev->mipiphy.ops(NULL,NULL,0);
+    }
+#endif    
+
     spin_lock_irqsave(&camsys_dev->irq.lock,flags);
     if (!list_empty(&camsys_dev->irq.irq_pool)) {
         list_for_each_entry(irqpool, &camsys_dev->irq.irq_pool, list) {
@@ -579,7 +594,7 @@ static int camsys_irq_wait(camsys_irqsta_t *irqsta, camsys_dev_t *camsys_dev)
                 list_add_tail(&irqstas->list,&irqpool->deactive);
                 spin_unlock_irqrestore(&irqpool->lock,flags);
             } else {
-                camsys_warn("Thread(pid: %d) wait irq timeout!!",current->pid);
+           //     camsys_warn("Thread(pid: %d) wait irq timeout!!",current->pid);
                 err = -EAGAIN;
             }
         } else {
@@ -606,7 +621,6 @@ static int camsys_irq_disconnect(camsys_irqcnnt_t *irqcnnt, camsys_dev_t *camsys
     
     if (all == false) {
         spin_lock_irqsave(&camsys_dev->irq.lock,flags);
-        printk("%s++++++++++++++++\n",__func__);
 		if (!list_empty(&camsys_dev->irq.irq_pool)) {
             list_for_each_entry(irqpool, &camsys_dev->irq.irq_pool, list) {
                 if (irqpool->pid == irqcnnt->pid) {
@@ -616,7 +630,6 @@ static int camsys_irq_disconnect(camsys_irqcnnt_t *irqcnnt, camsys_dev_t *camsys
                 }
             }
         }
-		printk("%s -------------\n",__func__);
         spin_unlock_irqrestore(&camsys_dev->irq.lock,flags);
 
         if (find_pool == false) {
@@ -861,9 +874,7 @@ static long camsys_ioctl(struct file *filp,unsigned int cmd, unsigned long arg)
 
             if (copy_from_user((void*)&irqcnnt,(void __user *)arg, sizeof(camsys_irqcnnt_t))) 
                 return -EFAULT;
-               printk("disconnect ++++++++++++++++\n"); 
             err = camsys_irq_disconnect(&irqcnnt,camsys_dev,false);
-            printk("disconnect ----------------\n");
 			break;
         }
 
@@ -981,7 +992,7 @@ struct file_operations camsys_fops = {
 	.mmap =             camsys_mmap,
 };
 
-static int camsys_platform_probe_new(struct platform_device *pdev){
+static int camsys_platform_probe(struct platform_device *pdev){
     int err = 0;
 	camsys_dev_t *camsys_dev;
     struct resource register_res ;
@@ -989,7 +1000,6 @@ static int camsys_platform_probe_new(struct platform_device *pdev){
     unsigned long i2cmem;
 	camsys_meminfo_t *meminfo;
     unsigned int irq_id;
-
     err = of_address_to_resource(dev->of_node, 0, &register_res);
     if (err < 0){
         camsys_err("Get register resource from %s platform device failed!",pdev->name);
@@ -1083,179 +1093,8 @@ static int camsys_platform_probe_new(struct platform_device *pdev){
             camsys_err("Mipi phy probe failed!");
         }
     }
-    
-    if (strcmp(dev_name(&pdev->dev),CAMSYS_PLATFORM_MARVIN_NAME) == 0) {
-        #if (defined(CONFIG_CAMSYS_MRV))
-        camsys_mrv_probe_cb(pdev, camsys_dev);        
-        #else
-        camsys_err("Marvin controller camsys driver haven't been complie!!!");
-        #endif
-    } else {
-        #if (defined(CONFIG_CAMSYS_CIF))
-        camsys_cif_probe_cb(pdev,camsys_dev);
-        #else
-        camsys_err("CIF controller camsys driver haven't been complie!!!");
-        #endif
-    }
 
-    camsys_trace(1, "%s memory:",dev_name(&pdev->dev));
-    list_for_each_entry(meminfo, &camsys_dev->devmems.memslist, list) {
-        if (strcmp(meminfo->name,CAMSYS_I2C_MEM_NAME) == 0) {
-            camsys_dev->devmems.i2cmem = meminfo;
-            camsys_trace(1,"    I2c memory (phy: 0x%x vir: 0x%x size: 0x%x)",
-                        meminfo->phy_base,meminfo->vir_base,meminfo->size);
-        }
-        if (strcmp(meminfo->name,CAMSYS_REGISTER_MEM_NAME) == 0) {
-            camsys_dev->devmems.registermem = meminfo;
-            camsys_trace(1,"    Register memory (phy: 0x%x vir: 0x%x size: 0x%x)",
-                        meminfo->phy_base,meminfo->vir_base,meminfo->size);
-        }
-    }
-
-    camsys_dev->phy_cb = camsys_phy_ops;
-    platform_set_drvdata(pdev,(void*)camsys_dev);
-    //Camsys_devs list add    
-    spin_lock(&camsys_devs.lock);    
-    list_add_tail(&camsys_dev->list, &camsys_devs.devs);
-    spin_unlock(&camsys_devs.lock);
-
-    
-    camsys_trace(1, "Probe %s device success ", dev_name(&pdev->dev));
-    return 0;
-request_mem_fail:
-    if (camsys_dev != NULL) {
-    
-        while(!list_empty(&camsys_dev->devmems.memslist)) {
-            meminfo = list_first_entry(&camsys_dev->devmems.memslist, camsys_meminfo_t, list);
-            if (meminfo) {
-                list_del_init(&meminfo->list);
-                if (strcmp(meminfo->name,CAMSYS_REGISTER_MEM_NAME)==0) {
-                    iounmap((void __iomem *)meminfo->vir_base);
-                    release_mem_region(meminfo->phy_base,meminfo->size);
-                } else if (strcmp(meminfo->name,CAMSYS_I2C_MEM_NAME)==0) {
-                    kfree((void*)meminfo->vir_base);
-                }
-                kfree(meminfo);
-                meminfo = NULL;
-            }
-        } 
-    
-        kfree(camsys_dev);
-        camsys_dev = NULL;
-    }
-fail_end:
-    return -1;
-
-    
-}
 #if 0
-static int camsys_platform_probe(struct platform_device *pdev)
-{
-    int err = 0;
-    unsigned int irq_id;
-    camsys_dev_t *camsys_dev;
-    unsigned long i2cmem;
-    camsys_meminfo_t *meminfo;
-    struct resource *register_res, *mipiphy_register_res;
-
-    camsys_trace(1, "Probe %s device now", dev_name(&pdev->dev));
-    register_res = platform_get_resource_byname(pdev, IORESOURCE_MEM, CAMSYS_REGISTER_RES_NAME);
-    if (register_res == NULL) {
-        camsys_err("Get register resource from %s platform device failed!",pdev->name);
-        err = -ENODEV;
-        goto fail_end;
-    }
-
-    mipiphy_register_res = platform_get_resource_byname(pdev, IORESOURCE_MEM, CAMSYS_REGISTER_MIPIPHY_RES_NAME);
-    
-    irq_id = platform_get_irq_byname(pdev, CAMSYS_IRQ_RES_NAME);
-    if (irq_id < 0) {
-        camsys_err("Get irq resource from %s platform device failed!",pdev->name);
-        err = -ENODEV;
-        goto fail_end;
-    }
-    
-    camsys_dev = (camsys_dev_t*)kzalloc(sizeof(camsys_dev_t), GFP_KERNEL);
-    if (camsys_dev == NULL) {
-        camsys_err("Allocate camsys_dev for %s platform device failed",pdev->name);
-        err = -ENOMEM;
-        goto fail_end;
-    }
-
-    //spin_lock_init(&camsys_dev->lock);
-    mutex_init(&camsys_dev->extdevs.mut);
-    INIT_LIST_HEAD(&camsys_dev->extdevs.list);
-    INIT_LIST_HEAD(&camsys_dev->extdevs.active);
-    INIT_LIST_HEAD(&camsys_dev->list);
-    
-
-    //IRQ init
-    camsys_dev->irq.irq_id = irq_id;  
-    spin_lock_init(&camsys_dev->irq.lock);
-    INIT_LIST_HEAD(&camsys_dev->irq.irq_pool); 
-    //init_waitqueue_head(&camsys_dev->irq.irq_done);
-    
-    INIT_LIST_HEAD(&camsys_dev->devmems.memslist);
-    if (!request_mem_region(register_res->start, register_res->end - register_res->start + 1,
-                            dev_name(&pdev->dev))) {
-        err = -ENOMEM;
-        goto request_mem_fail;
-    }
-
-    //Register mem init
-    meminfo = kzalloc(sizeof(camsys_meminfo_t),GFP_KERNEL);
-    if (meminfo == NULL) {
-        err = -ENOMEM;
-        goto request_mem_fail;
-    }
-    
-    meminfo->vir_base = (unsigned int)ioremap(register_res->start, register_res->end - register_res->start + 1);
-    if (meminfo->vir_base == 0) {
-        camsys_err("%s ioremap %s failed",dev_name(&pdev->dev), CAMSYS_REGISTER_MEM_NAME);
-        err = -ENXIO;
-        goto request_mem_fail;
-    }
-
-    strlcpy(meminfo->name, CAMSYS_REGISTER_MEM_NAME,sizeof(meminfo->name));
-    meminfo->phy_base = register_res->start;
-    meminfo->size = register_res->end - register_res->start + 1;  
-    list_add_tail(&meminfo->list, &camsys_dev->devmems.memslist);
-
-    //I2c mem init
-    i2cmem = __get_free_page(GFP_KERNEL);
-    if (i2cmem == 0) {
-        camsys_err("Allocate i2cmem failed!");
-        err = -ENOMEM;
-        goto request_mem_fail;
-    }
-    SetPageReserved(virt_to_page(i2cmem));
-    
-    meminfo = kzalloc(sizeof(camsys_meminfo_t),GFP_KERNEL);
-    if (meminfo == NULL) {
-        err = -ENOMEM;
-        goto request_mem_fail;
-    }
-    strlcpy(meminfo->name,CAMSYS_I2C_MEM_NAME,sizeof(meminfo->name));
-    meminfo->vir_base = i2cmem;
-    meminfo->phy_base = virt_to_phys((void*)i2cmem);
-    meminfo->size = PAGE_SIZE;
-    list_add_tail(&meminfo->list, &camsys_dev->devmems.memslist);
-
-    {
-        unsigned int *tmpp;
-
-        tmpp = (unsigned int*)meminfo->vir_base;
-        *tmpp = 0xfa561243;
-    }
-
-    //Special init
-
-    if (mipiphy_register_res) {        
-        if (camsys_mipiphy_probe_cb(pdev, camsys_dev) <0) {
-            camsys_err("Mipi phy probe failed!");
-        }
-    }
-    
     if (strcmp(dev_name(&pdev->dev),CAMSYS_PLATFORM_MARVIN_NAME) == 0) {
         #if (defined(CONFIG_CAMSYS_MRV))
         camsys_mrv_probe_cb(pdev, camsys_dev);        
@@ -1269,7 +1108,15 @@ static int camsys_platform_probe(struct platform_device *pdev)
         camsys_err("CIF controller camsys driver haven't been complie!!!");
         #endif
     }
-
+#else
+        #if (defined(CONFIG_CAMSYS_MRV))
+        camsys_mrv_probe_cb(pdev, camsys_dev);        
+        #elif (defined(CONFIG_CAMSYS_CIF))
+        camsys_cif_probe_cb(pdev,camsys_dev);
+        #else
+        camsys_err("camsys driver haven't been complie!!!");
+        #endif
+#endif
     camsys_trace(1, "%s memory:",dev_name(&pdev->dev));
     list_for_each_entry(meminfo, &camsys_dev->devmems.memslist, list) {
         if (strcmp(meminfo->name,CAMSYS_I2C_MEM_NAME) == 0) {
@@ -1283,11 +1130,12 @@ static int camsys_platform_probe(struct platform_device *pdev)
                         meminfo->phy_base,meminfo->vir_base,meminfo->size);
         }
     }
+
 
     camsys_dev->phy_cb = camsys_phy_ops;
     camsys_dev->pdev    =   pdev;
+
     platform_set_drvdata(pdev,(void*)camsys_dev);
-    
     //Camsys_devs list add    
     spin_lock(&camsys_devs.lock);    
     list_add_tail(&camsys_dev->list, &camsys_devs.devs);
@@ -1319,8 +1167,9 @@ request_mem_fail:
     }
 fail_end:
     return -1;
+
+    
 }
-#endif
 static int  camsys_platform_remove(struct platform_device *pdev)
 {
     camsys_dev_t *camsys_dev = platform_get_drvdata(pdev);
@@ -1378,7 +1227,7 @@ static int  camsys_platform_remove(struct platform_device *pdev)
 
 
 static const struct of_device_id cif_of_match[] = {
-    { .compatible = "rodkchip,isp" },
+    { .compatible = "rockchip,isp" },
 };
 MODULE_DEVICE_TABLE(of, cif_of_match);
 
@@ -1386,13 +1235,13 @@ static struct platform_driver camsys_platform_driver =
 {
     .driver 	= {
         .name	= CAMSYS_PLATFORM_DRV_NAME,
-        .of_match_table = cif_of_match,
+        .of_match_table = of_match_ptr(cif_of_match),
     },
-    .probe		= camsys_platform_probe_new,
+    .probe		= camsys_platform_probe,
     .remove		= (camsys_platform_remove),
 };
 
-
+MODULE_ALIAS(CAMSYS_PLATFORM_DRV_NAME);
 static int __init camsys_platform_init(void)  
 {
     printk("CamSys driver version: v%d.%d.%d,  CamSys head file version: v%d.%d.%d\n",
@@ -1403,7 +1252,7 @@ static int __init camsys_platform_init(void)
     spin_lock_init(&camsys_devs.lock);
     INIT_LIST_HEAD(&camsys_devs.devs);
     platform_driver_register(&camsys_platform_driver);
-
+   // platform_driver_probe(&camsys_platform_driver, camsys_platform_probe_new);
     
     return 0;
 }  

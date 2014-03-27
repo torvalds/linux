@@ -170,6 +170,7 @@ typedef struct camsys_extdev_s {
     camsys_gpio_t            rst;
     camsys_gpio_t            afpwr;
     camsys_gpio_t            afpwrdn;
+	camsys_gpio_t            pwren;
 
     camsys_flash_t           fl;
 
