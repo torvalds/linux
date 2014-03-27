@@ -34,10 +34,23 @@ extern unsigned long asmlinkage efi_call_phys(void *, ...);
 
 /* Use this macro if your virtual returns a non-void value */
 #define efi_call_virt(f, args...) \
-	((efi_##f##_t __attribute__((regparm(0)))*)efi.systab->runtime->f)(args)
+({									\
+	efi_status_t __s;						\
+	kernel_fpu_begin();						\
+	__s = ((efi_##f##_t __attribute__((regparm(0)))*)		\
+		efi.systab->runtime->f)(args);				\
+	kernel_fpu_end();						\
+	__s;								\
+})
 
 /* Use this macro if your virtual call does not return any value */
-#define __efi_call_virt(f, args...) efi_call_virt(f, args)
+#define __efi_call_virt(f, args...) \
+({									\
+	kernel_fpu_begin();						\
+	((efi_##f##_t __attribute__((regparm(0)))*)			\
+		efi.systab->runtime->f)(args);				\
+	kernel_fpu_end();						\
+})
 
 #define efi_ioremap(addr, size, type, attr)	ioremap_cache(addr, size)
 
