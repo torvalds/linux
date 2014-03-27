@@ -13,7 +13,7 @@
 #include "k2hk.dtsi"
 
 / {
-	compatible =  "ti,k2hk-evm";
+	compatible =  "ti,k2hk-evm","ti,keystone";
 	model = "Texas Instruments Keystone 2 Kepler/Hawking EVM";
 
 	soc {
@@ -133,7 +133,7 @@
 
 			partition@180000 {
 				label = "ubifs";
-				reg = <0x180000 0x7E80000>;
+				reg = <0x180000 0x1fe80000>;
 			};
 		};
 	};
