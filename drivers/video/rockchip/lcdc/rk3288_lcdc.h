@@ -656,7 +656,7 @@
 #define v_WIN2_SRC_ALPHA_M0(x)		(((x)&1)<<2)
 #define v_WIN2_SRC_BLEND_M0(x)		(((x)&3)<<3)
 #define v_WIN2_SRC_ALPHA_CAL_M0(x)	(((x)&1)<<5)
-#define v_WIN2_SRC_FACTOR_M0(x)		(((x)&7)<<5)
+#define v_WIN2_SRC_FACTOR_M0(x)		(((x)&7)<<6)
 #define v_WIN2_SRC_GLOBAL_ALPHA(x)	(((x)&0xff)<<16)
 #define v_WIN2_FADING_VALUE(x)          (((x)&0xff)<<24)
 
