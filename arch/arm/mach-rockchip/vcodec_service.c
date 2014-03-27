@@ -184,6 +184,18 @@ static VPU_HW_INFO_E vpu_hw_set[] = {
 #define VPU_REG_DEC_PP_GATE 			61
 #define VPU_REG_DEC_PP_GATE_BIT 		(1<<8)
 
+static u8 addr_tbl_vpu_dec[] = {
+	12, 13, 14, 15, 16, 17, 18, 19, 20, 21, 22, 23, 24, 25, 26, 27, 28, 29, 40, 41
+};
+
+static u8 addr_tbl_vpu_enc[] = {
+	5, 6, 7, 8, 9, 10, 11, 12, 13, 51
+};
+
+static u8 addr_tbl_hevc_dec[] = {
+    4, 6, 7, 10, 11, 12, 13, 14, 15, 16, 17, 18, 19, 20, 21, 22, 23, 24, 42, 43
+};
+
 /**
  * struct for process session which connect to vpu
  *
@@ -631,18 +643,6 @@ err_buf_map_attach:
 	return 0;
 }
 
-static u8 table_vpu_dec[] = {
-	12, 13, 14, 15, 16, 17, 18, 19, 20, 21, 22, 23, 24, 25, 26, 27, 28, 29, 40, 41
-};
-
-static u8 table_vpu_enc[] = {
-	5, 6, 7, 8, 9, 10, 11, 12, 13, 51
-};
-
-static u8 table_hevc_dec[1] = {
-
-};
-
 static int vcodec_reg_address_translate(struct vpu_service_info *pservice, vpu_reg *reg)
 {
 	VPU_HW_ID hw_id;
@@ -654,7 +654,7 @@ static int vcodec_reg_address_translate(struct vpu_service_info *pservice, vpu_r
 
     } else {
         if (reg->type == VPU_DEC) {
-            for (i=0; i<sizeof(table_vpu_dec); i++) {
+            for (i=0; i<sizeof(addr_tbl_vpu_dec); i++) {
 				int usr_fd;
 				struct ion_handle *hdl;
 				//ion_phys_addr_t phy_addr;
@@ -663,11 +663,11 @@ static int vcodec_reg_address_translate(struct vpu_service_info *pservice, vpu_r
 				int offset;
 
 #if 0
-				if (copy_from_user(&usr_fd, &reg->reg[table_vpu_dec[i]], sizeof(usr_fd)))
+				if (copy_from_user(&usr_fd, &reg->reg[addr_tbl_vpu_dec[i]], sizeof(usr_fd)))
 					return -EFAULT;
 #else
-				usr_fd = reg->reg[table_vpu_dec[i]] & 0xFF;
-				offset = reg->reg[table_vpu_dec[i]] >> 8;
+				usr_fd = reg->reg[addr_tbl_vpu_dec[i]] & 0xFF;
+				offset = reg->reg[addr_tbl_vpu_dec[i]] >> 8;
 #endif
                 if (usr_fd != 0) {
 
@@ -680,7 +680,7 @@ static int vcodec_reg_address_translate(struct vpu_service_info *pservice, vpu_r
 #if 0
 					ion_phys(pservice->ion_client, hdl, &phy_addr, &len);
 
-					reg->reg[table_vpu_dec[i]] = phy_addr + offset;
+					reg->reg[addr_tbl_vpu_dec[i]] = phy_addr + offset;
                     
                     ion_free(pservice->ion_client, hdl);
 #else 
@@ -691,7 +691,7 @@ static int vcodec_reg_address_translate(struct vpu_service_info *pservice, vpu_r
                         return PTR_ERR(buf);
                     }
                     
-                    reg->reg[table_vpu_dec[i]] = vcodec_map_ion_handle(pservice, reg, hdl, buf, offset);
+                    reg->reg[addr_tbl_vpu_dec[i]] = vcodec_map_ion_handle(pservice, reg, hdl, buf, offset);
 #endif
 					
                 }
@@ -818,7 +818,7 @@ static void reg_copy_from_hw(vpu_reg *reg, volatile u32 *src, u32 count)
 	int i;
 	u32 *dst = (u32 *)&reg->reg[0];
 	for (i = 0; i < count; i++)
-		*dst++ = *src++;
+        *dst++ = *src++;
 }
 
 static void reg_from_run_to_done(struct vpu_service_info *pservice, vpu_reg *reg)
@@ -983,6 +983,7 @@ static void reg_copy_to_hw(struct vpu_service_info *pservice, vpu_reg *reg)
 		} else {
 			dst[VPU_REG_EN_DEC] = src[VPU_REG_EN_DEC];
 		}
+
         dsb();
         dmb();
 
@@ -1933,12 +1934,14 @@ static irqreturn_t vepu_irq(int irq, void *dev_id)
 		(enc_end.tv_sec  - enc_start.tv_sec)  * 1000 +
 		(enc_end.tv_usec - enc_start.tv_usec) / 1000);
 #endif
-
+    
 	if (likely(irq_status & ENC_INTERRUPT_BIT)) {
 		/* clear enc IRQ */
 		writel(irq_status & (~ENC_INTERRUPT_BIT), dev->hwregs + ENC_INTERRUPT_REGISTER);
 		atomic_add(1, &dev->irq_count_codec);
 	}
+    
+    pservice->irq_status = irq_status;
 
 	return IRQ_WAKE_THREAD;
 }
