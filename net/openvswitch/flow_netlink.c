@@ -1059,11 +1059,11 @@ int ovs_nla_put_flow(const struct sw_flow_key *swkey,
 				goto nla_put_failure;
 			sctp_key = nla_data(nla);
 			if (swkey->eth.type == htons(ETH_P_IP)) {
-				sctp_key->sctp_src = swkey->ipv4.tp.src;
-				sctp_key->sctp_dst = swkey->ipv4.tp.dst;
+				sctp_key->sctp_src = output->ipv4.tp.src;
+				sctp_key->sctp_dst = output->ipv4.tp.dst;
 			} else if (swkey->eth.type == htons(ETH_P_IPV6)) {
-				sctp_key->sctp_src = swkey->ipv6.tp.src;
-				sctp_key->sctp_dst = swkey->ipv6.tp.dst;
+				sctp_key->sctp_src = output->ipv6.tp.src;
+				sctp_key->sctp_dst = output->ipv6.tp.dst;
 			}
 		} else if (swkey->eth.type == htons(ETH_P_IP) &&
 			   swkey->ip.proto == IPPROTO_ICMP) {
