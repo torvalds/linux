@@ -51,6 +51,9 @@
 #define TEST_CLKOUT 0x0c11
 #define CLKT1_27M 0x0c12
 
+#define GPIO0_C2 0x0c20
+
+
 
 /* GPIO0_D */
 #define GPIO0_D0 0x0d00

@@ -79,10 +79,11 @@
 
 
 /*warning:don not chang the following value*/
-#define VALUE_PULL_DISABLE	0
+#define VALUE_PULL_NORMAL	0
 #define VALUE_PULL_UP		1
 #define VALUE_PULL_DOWN		2
-#define VALUE_PULL_DEFAULT	3
+#define VALUE_PULL_KEEP		3
+#define VALUE_PULL_DISABLE	4 //don't set and keep pull default
 
 #define VALUE_VOL_DEFAULT	0
 #define VALUE_VOL_3V3		0
