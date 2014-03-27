@@ -159,12 +159,18 @@ struct sw_flow {
 	struct rcu_head rcu;
 	struct hlist_node hash_node[2];
 	u32 hash;
-
+	int stats_last_writer;		/* NUMA-node id of the last writer on
+					 * 'stats[0]'.
+					 */
 	struct sw_flow_key key;
 	struct sw_flow_key unmasked_key;
 	struct sw_flow_mask *mask;
 	struct sw_flow_actions __rcu *sf_acts;
-	struct flow_stats __percpu *stats;
+	struct flow_stats __rcu *stats[]; /* One for each NUMA node.  First one
+					   * is allocated at flow creation time,
+					   * the rest are allocated on demand
+					   * while holding the 'stats[0].lock'.
+					   */
 };
 
 struct arp_eth_header {

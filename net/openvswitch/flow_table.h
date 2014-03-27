@@ -52,6 +52,8 @@ struct flow_table {
 	unsigned int count;
 };
 
+extern struct kmem_cache *flow_stats_cache;
+
 int ovs_flow_init(void);
 void ovs_flow_exit(void);
 
