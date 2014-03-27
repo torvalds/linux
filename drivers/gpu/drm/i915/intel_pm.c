@@ -3095,11 +3095,6 @@ static void vlv_set_rps_idle(struct drm_i915_private *dev_priv)
 	I915_WRITE(VLV_GTLC_SURVIVABILITY_REG,
 		I915_READ(VLV_GTLC_SURVIVABILITY_REG) &
 				~VLV_GFX_CLK_FORCE_ON_BIT);
-
-	/* Unmask Up interrupts */
-	dev_priv->rps.rp_up_masked = true;
-	gen6_set_pm_mask(dev_priv, GEN6_PM_RP_DOWN_THRESHOLD,
-						dev_priv->rps.min_freq_softlimit);
 }
 
 void gen6_rps_idle(struct drm_i915_private *dev_priv)
@@ -3687,9 +3682,6 @@ static void valleyview_enable_rps(struct drm_device *dev)
 			 dev_priv->rps.efficient_freq);
 
 	valleyview_set_rps(dev_priv->dev, dev_priv->rps.efficient_freq);
-
-	dev_priv->rps.rp_up_masked = false;
-	dev_priv->rps.rp_down_masked = false;
 
 	gen6_enable_rps_interrupts(dev);
 

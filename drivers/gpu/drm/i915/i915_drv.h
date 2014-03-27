@@ -1001,9 +1001,6 @@ struct intel_gen6_power_mgmt {
 	u8 rp1_freq;		/* "less than" RP0 power/freqency */
 	u8 rp0_freq;		/* Non-overclocked max frequency. */
 
-	bool rp_up_masked;
-	bool rp_down_masked;
-
 	int last_adj;
 	enum { LOW_POWER, BETWEEN, HIGH_POWER } power;
 
