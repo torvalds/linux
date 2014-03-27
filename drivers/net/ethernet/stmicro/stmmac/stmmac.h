@@ -136,6 +136,9 @@ extern const struct stmmac_of_data sun7i_gmac_data;
 #ifdef CONFIG_DWMAC_STI
 extern const struct stmmac_of_data sti_gmac_data;
 #endif
+#ifdef CONFIG_DWMAC_SOCFPGA
+extern const struct stmmac_of_data socfpga_gmac_data;
+#endif
 extern struct platform_driver stmmac_pltfr_driver;
 static inline int stmmac_register_platform(void)
 {
