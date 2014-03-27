@@ -2065,9 +2065,9 @@ static int gr_udc_init(struct gr_udc *dev)
 	return 0;
 }
 
-static int gr_remove(struct platform_device *ofdev)
+static int gr_remove(struct platform_device *pdev)
 {
-	struct gr_udc *dev = dev_get_drvdata(&ofdev->dev);
+	struct gr_udc *dev = platform_get_drvdata(pdev);
 
 	if (dev->added)
 		usb_del_gadget_udc(&dev->gadget); /* Shuts everything down */
@@ -2077,7 +2077,7 @@ static int gr_remove(struct platform_device *ofdev)
 	gr_dfs_delete(dev);
 	if (dev->desc_pool)
 		dma_pool_destroy(dev->desc_pool);
-	dev_set_drvdata(&ofdev->dev, NULL);
+	platform_set_drvdata(pdev, NULL);
 
 	gr_free_request(&dev->epi[0].ep, &dev->ep0reqi->req);
 	gr_free_request(&dev->epo[0].ep, &dev->ep0reqo->req);
@@ -2090,7 +2090,7 @@ static int gr_request_irq(struct gr_udc *dev, int irq)
 					 IRQF_SHARED, driver_name, dev);
 }
 
-static int gr_probe(struct platform_device *ofdev)
+static int gr_probe(struct platform_device *pdev)
 {
 	struct gr_udc *dev;
 	struct resource *res;
@@ -2098,12 +2098,12 @@ static int gr_probe(struct platform_device *ofdev)
 	int retval;
 	u32 status;
 
-	dev = devm_kzalloc(&ofdev->dev, sizeof(*dev), GFP_KERNEL);
+	dev = devm_kzalloc(&pdev->dev, sizeof(*dev), GFP_KERNEL);
 	if (!dev)
 		return -ENOMEM;
-	dev->dev = &ofdev->dev;
+	dev->dev = &pdev->dev;
 
-	res = platform_get_resource(ofdev, IORESOURCE_MEM, 0);
+	res = platform_get_resource(pdev, IORESOURCE_MEM, 0);
 	regs = devm_ioremap_resource(dev->dev, res);
 	if (IS_ERR(regs))
 		return PTR_ERR(regs);
@@ -2132,7 +2132,7 @@ static int gr_probe(struct platform_device *ofdev)
 	spin_lock_init(&dev->lock);
 	dev->regs = regs;
 
-	dev_set_drvdata(&ofdev->dev, dev);
+	platform_set_drvdata(pdev, dev);
 
 	/* Determine number of endpoints and data interface mode */
 	status = gr_read32(&dev->regs->status);
@@ -2204,7 +2204,7 @@ out:
 	spin_unlock(&dev->lock);
 
 	if (retval)
-		gr_remove(ofdev);
+		gr_remove(pdev);
 
 	return retval;
 }
