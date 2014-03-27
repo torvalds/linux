@@ -179,7 +179,7 @@ struct tipc_bearer *tipc_bearer_find(const char *name)
 
 	for (i = 0; i < MAX_BEARERS; i++) {
 		b_ptr = bearer_list[i];
-		if (b_ptr && b_ptr->active && (!strcmp(b_ptr->name, name)))
+		if (b_ptr && (!strcmp(b_ptr->name, name)))
 			return b_ptr;
 	}
 	return NULL;
@@ -204,7 +204,7 @@ struct sk_buff *tipc_bearer_get_names(void)
 			b = bearer_list[j];
 			if (!b)
 				continue;
-			if (b->active && (b->media == media_info_array[i])) {
+			if (b->media == media_info_array[i]) {
 				tipc_cfg_append_tlv(buf, TIPC_TLV_BEARER_NAME,
 						    b->name,
 						    strlen(b->name) + 1);
@@ -288,7 +288,7 @@ restart:
 	with_this_prio = 1;
 	for (i = MAX_BEARERS; i-- != 0; ) {
 		b_ptr = bearer_list[i];
-		if (!b_ptr || !b_ptr->active) {
+		if (!b_ptr) {
 			bearer_id = i;
 			continue;
 		}
@@ -333,7 +333,6 @@ restart:
 	b_ptr->tolerance = m_ptr->tolerance;
 	b_ptr->window = m_ptr->window;
 	b_ptr->net_plane = bearer_id + 'A';
-	b_ptr->active = 1;
 	b_ptr->priority = priority;
 
 	res = tipc_disc_create(b_ptr, &b_ptr->bcast_addr, disc_domain);
@@ -628,7 +627,7 @@ void tipc_bearer_stop(void)
 
 	for (i = 0; i < MAX_BEARERS; i++) {
 		b_ptr = bearer_list[i];
-		if (b_ptr && b_ptr->active) {
+		if (b_ptr) {
 			bearer_disable(b_ptr, true);
 			bearer_list[i] = NULL;
 		}

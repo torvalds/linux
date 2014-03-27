@@ -1458,10 +1458,6 @@ void tipc_rcv(struct sk_buff *head, struct tipc_bearer *b_ptr)
 		head = head->next;
 		buf->next = NULL;
 
-		/* Ensure bearer is still enabled */
-		if (unlikely(!b_ptr->active))
-			goto discard;
-
 		/* Ensure message is well-formed */
 		if (unlikely(!link_recv_buf_validate(buf)))
 			goto discard;

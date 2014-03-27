@@ -669,7 +669,7 @@ void tipc_bcbearer_sort(void)
 
 	for (b_index = 0; b_index < MAX_BEARERS; b_index++) {
 		struct tipc_bearer *b = bearer_list[b_index];
-		if (!b || !b->active || !b->nodes.count)
+		if (!b || !b->nodes.count)
 			continue;
 
 		if (!bp_temp[b->priority].primary)
