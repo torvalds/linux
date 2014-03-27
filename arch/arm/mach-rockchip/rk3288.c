@@ -118,6 +118,7 @@ static void __init rk3288_dt_map_io(void)
 {
 	iotable_init(rk3288_io_desc, ARRAY_SIZE(rk3288_io_desc));
 	debug_ll_io_init();
+	usb_uart_init();
 
 	rockchip_soc_id = ROCKCHIP_SOC_RK3288;
 

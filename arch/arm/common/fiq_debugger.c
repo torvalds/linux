@@ -40,6 +40,9 @@
 #include <asm/stacktrace.h>
 
 #include <linux/uaccess.h>
+#include <linux/rockchip/grf.h>
+#include <linux/rockchip/iomap.h>
+#include <linux/rockchip/cpu.h>
 
 #include "fiq_debugger_ringbuf.h"
 
@@ -1166,15 +1169,15 @@ static void debug_fiq(struct fiq_glue_handler *h, void *regs, void *svc_sp)
 	 * and make uart controller enter infinite fiq loop 
 	 */
 #ifdef CONFIG_RK_USB_UART
-#ifdef CONFIG_ARCH_RK2928
-	if(!(readl_relaxed(RK2928_GRF_BASE + 0x014c) & (1<<10))){//id low          
-		writel_relaxed(0x34000000, RK2928_GRF_BASE + 0x190);   //enter usb phy    
+	if(cpu_is_rk3188()){
+		if(!(readl_relaxed(RK_GRF_VIRT + RK3188_GRF_SOC_STATUS0) & (1 << 13))){//id low
+			writel_relaxed((0x0300 << 16), RK_GRF_VIRT + RK3188_GRF_UOC0_CON0);   //enter usb phy
+		}
+	}else if(cpu_is_rk3288()){
+		if(!(readl_relaxed(RK_GRF_VIRT + RK3288_GRF_SOC_STATUS2) & (1 << 17))){//id low
+			writel_relaxed((0x00c0 << 16), RK_GRF_VIRT + RK3288_GRF_UOC0_CON3);//enter usb phy
+		}
 	}
-#elif defined(CONFIG_ARCH_RK3188)
-	if(!(readl_relaxed(RK30_GRF_BASE + 0x00ac) & (1 << 13))){//id low          
-		writel_relaxed((0x0300 << 16), RK30_GRF_BASE + 0x010c);   //enter usb phy    
-	}
-#endif
 #endif
 	need_irq = debug_handle_uart_interrupt(state, this_cpu, regs, svc_sp);
 	if (need_irq)
