@@ -352,11 +352,11 @@ struct sk_buff *tipc_node_get_nodes(const void *req_tlv_area, int req_tlv_space)
 		return tipc_cfg_reply_error_string(TIPC_CFG_NOT_SUPPORTED
 						   " (too many nodes)");
 	}
+	spin_unlock_bh(&node_list_lock);
+
 	buf = tipc_cfg_reply_alloc(payload_size);
-	if (!buf) {
-		spin_unlock_bh(&node_list_lock);
+	if (!buf)
 		return NULL;
-	}
 
 	/* Add TLVs for all nodes in scope */
 	rcu_read_lock();
@@ -369,7 +369,6 @@ struct sk_buff *tipc_node_get_nodes(const void *req_tlv_area, int req_tlv_space)
 				    &node_info, sizeof(node_info));
 	}
 	rcu_read_unlock();
-	spin_unlock_bh(&node_list_lock);
 	return buf;
 }
 
