@@ -309,11 +309,8 @@ int iwl_mvm_mac_setup_register(struct iwl_mvm *mvm)
 		BIT(NL80211_IFTYPE_P2P_CLIENT) |
 		BIT(NL80211_IFTYPE_AP) |
 		BIT(NL80211_IFTYPE_P2P_GO) |
-		BIT(NL80211_IFTYPE_P2P_DEVICE);
-
-	/* IBSS has bugs in older versions */
-	if (IWL_UCODE_API(mvm->fw->ucode_ver) >= 8)
-		hw->wiphy->interface_modes |= BIT(NL80211_IFTYPE_ADHOC);
+		BIT(NL80211_IFTYPE_P2P_DEVICE) |
+		BIT(NL80211_IFTYPE_ADHOC);
 
 	hw->wiphy->flags |= WIPHY_FLAG_IBSS_RSN;
 	hw->wiphy->regulatory_flags |= REGULATORY_CUSTOM_REG |
