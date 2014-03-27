@@ -488,7 +488,7 @@ static inline void rk_pm_soc_pd_resume(void)
 //extern bool console_suspend_enabled;
 static void __init rk3288_init_suspend(void)
 {
-    return;
+    //return;
     printk("%s\n",__FUNCTION__);
     rockchip_suspend_init();       
     //rkpm_pie_init();
