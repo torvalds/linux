@@ -48,7 +48,7 @@ The MDIO bus
    time, so it is safe for them to block, waiting for an interrupt to signal
    the operation is complete
  
- 2) A reset function is necessary.  This is used to return the bus to an
+ 2) A reset function is optional.  This is used to return the bus to an
    initialized state.
 
  3) A probe function is needed.  This function should set up anything the bus
