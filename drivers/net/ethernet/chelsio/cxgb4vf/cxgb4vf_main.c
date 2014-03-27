@@ -2944,6 +2944,14 @@ static DEFINE_PCI_DEVICE_TABLE(cxgb4vf_pci_tbl) = {
 	CH_DEVICE(0x5811, 0),   /* T520-lp-cr */
 	CH_DEVICE(0x5812, 0),   /* T560-cr */
 	CH_DEVICE(0x5813, 0),   /* T580-cr */
+	CH_DEVICE(0x5814, 0),   /* T580-so-cr */
+	CH_DEVICE(0x5815, 0),   /* T502-bt */
+	CH_DEVICE(0x5880, 0),
+	CH_DEVICE(0x5881, 0),
+	CH_DEVICE(0x5882, 0),
+	CH_DEVICE(0x5883, 0),
+	CH_DEVICE(0x5884, 0),
+	CH_DEVICE(0x5885, 0),
 	{ 0, }
 };
 
