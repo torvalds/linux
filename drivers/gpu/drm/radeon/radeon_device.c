@@ -1551,10 +1551,12 @@ int radeon_resume_kms(struct drm_device *dev, bool resume, bool fbcon)
 	/* reset hpd state */
 	radeon_hpd_init(rdev);
 	/* blat the mode back in */
-	drm_helper_resume_force_mode(dev);
-	/* turn on display hw */
-	list_for_each_entry(connector, &dev->mode_config.connector_list, head) {
-		drm_helper_connector_dpms(connector, DRM_MODE_DPMS_ON);
+	if (fbcon) {
+		drm_helper_resume_force_mode(dev);
+		/* turn on display hw */
+		list_for_each_entry(connector, &dev->mode_config.connector_list, head) {
+			drm_helper_connector_dpms(connector, DRM_MODE_DPMS_ON);
+		}
 	}
 
 	drm_kms_helper_poll_enable(dev);
