@@ -310,7 +310,7 @@ static ssize_t  pinctrl_show_regs(struct file *file, char __user *user_buf,
 {
 	struct rockchip_pinctrl *info;
 	struct rockchip_pin_ctrl *ctrl;
-	struct rockchip_pin_bank *bank;
+	struct rockchip_pin_bank *bank, *bank0;
 	char *buf;
 	u32 len = 0;
 	ssize_t ret;
@@ -320,6 +320,7 @@ static ssize_t  pinctrl_show_regs(struct file *file, char __user *user_buf,
 	info = file->private_data;
 	ctrl = info->ctrl;
 	bank = ctrl->pin_banks;
+	bank0 = bank;
 
 	buf = kzalloc(PINCTRL_REGS_BUFSIZE, GFP_KERNEL);
 	if (!buf)
@@ -343,6 +344,36 @@ static ssize_t  pinctrl_show_regs(struct file *file, char __user *user_buf,
 	len += snprintf(buf + len, PINCTRL_REGS_BUFSIZE - len,
 			"=================================\n\n");
 
+	if(bank0)
+	{
+		len += snprintf(buf + len, PINCTRL_REGS_BUFSIZE - len,
+				"BANK0 GRF registers:\n");
+		len += snprintf(buf + len, PINCTRL_REGS_BUFSIZE - len,
+				"=================================\n");			
+
+		for(i=0; i<0x10; i=i+4)
+		{
+			value = readl_relaxed(bank0->reg_mux_bank0 + i);
+			len += snprintf(buf + len, PINCTRL_REGS_BUFSIZE - len, "MUX_BANK0[0x%p+0x%x]=0x%08x\n",(int *)bank0->reg_mux_bank0, i, value);
+		}
+
+		for(i=0; i<0x0c; i=i+4)
+		{
+			value = readl_relaxed(bank0->reg_pull_bank0 + i);
+			len += snprintf(buf + len, PINCTRL_REGS_BUFSIZE - len, "PULL_BANK0[0x%p+0x%x]=0x%08x\n",(int *)bank0->reg_pull_bank0, i, value);
+		}
+
+		for(i=0; i<0x0c; i=i+4)
+		{
+			value = readl_relaxed(bank0->reg_drv_bank0 + i);
+			len += snprintf(buf + len, PINCTRL_REGS_BUFSIZE - len, "DRV_BANK0[0x%p+0x%x]=0x%08x\n",(int *)bank0->reg_drv_bank0, i, value);
+		}
+
+		len += snprintf(buf + len, PINCTRL_REGS_BUFSIZE - len,
+				"=================================\n\n");
+	}
+
+	
 	len += snprintf(buf + len, PINCTRL_REGS_BUFSIZE - len,
 			"rockchip pinctrl GRF registers:\n");
 	len += snprintf(buf + len, PINCTRL_REGS_BUFSIZE - len,
@@ -1113,7 +1144,7 @@ static void rk3288_calc_drv_reg_and_bit(struct rockchip_pin_bank *bank,
 		reg_base = info->reg_drv - 0x10;
 	}
 
-	DBG_PINCTRL("%s:GPIO%d-%d, pull_reg=0x%x, bit=%d\n", __func__, bank->bank_num, pin_num, *reg - reg_base, *bit);
+	DBG_PINCTRL("%s:GPIO%d-%d, drv_reg=0x%x, bit=%d\n", __func__, bank->bank_num, pin_num, *reg - reg_base, *bit);
 }
 
 
@@ -1683,7 +1714,7 @@ static int rockchip_pinconf_set(struct pinctrl_dev *pctldev, unsigned int pin,
 	/* cache the config value for rockchip_pinconf_get() */
 	grp->gconfigs = configs;
 	
-	DBG_PINCTRL("%s,pin=%d,param=%d, arg=%d\n",__func__,pin, param, arg);
+	DBG_PINCTRL("%s,bank_num=%d,pin=%d,param=%d, arg=%d\n",__func__,bank->bank_num, pin, param, arg);
 
 	return 0;
 }
@@ -1740,7 +1771,7 @@ static int rockchip_pinconf_get(struct pinctrl_dev *pctldev, unsigned int pin,
 	}
 
 	
-	DBG_PINCTRL("%s:pin=%d, param=%d\n",__func__, pin, param);
+	DBG_PINCTRL("%s:bank_num=%d, pin=%d, param=%d\n",__func__, bank->bank_num, pin, param);
 
 	return 0;
 }
@@ -1895,12 +1926,16 @@ static int rockchip_pinctrl_parse_groups(struct device_node *np,
 			
 		if (!of_property_read_u32(np, "rockchip,pull", &val)) {
 			enum pin_config_param pull = PIN_CONFIG_END;
+			if (val == 0)
+				pull = PIN_CONFIG_BIAS_DISABLE;
 			if (val == 1)
 				pull = PIN_CONFIG_BIAS_PULL_UP;
 			else if (val == 2)
 				pull = PIN_CONFIG_BIAS_PULL_DOWN;
+			else if (val == 3)
+				pull = PIN_CONFIG_BIAS_BUS_HOLD;
 			
-			pinconfig[j++] = pinconf_to_config_packed(pull, 0);
+			pinconfig[j++] = pinconf_to_config_packed(pull, val);
 		}
 
 		if (!of_property_read_u32(np, "rockchip,voltage", &val)) {
