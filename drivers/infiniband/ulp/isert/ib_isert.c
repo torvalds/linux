@@ -231,7 +231,8 @@ isert_create_device_ib_res(struct isert_device *device)
 		return ret;
 
 	/* asign function handlers */
-	if (dev_attr->device_cap_flags & IB_DEVICE_MEM_MGT_EXTENSIONS) {
+	if (dev_attr->device_cap_flags & IB_DEVICE_MEM_MGT_EXTENSIONS &&
+	    dev_attr->device_cap_flags & IB_DEVICE_SIGNATURE_HANDOVER) {
 		device->use_fastreg = 1;
 		device->reg_rdma_mem = isert_reg_rdma;
 		device->unreg_rdma_mem = isert_unreg_rdma;
