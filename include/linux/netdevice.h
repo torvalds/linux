@@ -2909,6 +2909,11 @@ static inline void netif_tx_unlock_bh(struct net_device *dev)
 	}						\
 }
 
+#define HARD_TX_TRYLOCK(dev, txq)			\
+	(((dev->features & NETIF_F_LLTX) == 0) ?	\
+		__netif_tx_trylock(txq) :		\
+		true )
+
 #define HARD_TX_UNLOCK(dev, txq) {			\
 	if ((dev->features & NETIF_F_LLTX) == 0) {	\
 		__netif_tx_unlock(txq);			\

@@ -119,17 +119,17 @@ static void queue_process(struct work_struct *work)
 		txq = netdev_get_tx_queue(dev, skb_get_queue_mapping(skb));
 
 		local_irq_save(flags);
-		__netif_tx_lock(txq, smp_processor_id());
+		HARD_TX_LOCK(dev, txq, smp_processor_id());
 		if (netif_xmit_frozen_or_stopped(txq) ||
 		    netpoll_start_xmit(skb, dev, txq) != NETDEV_TX_OK) {
 			skb_queue_head(&npinfo->txq, skb);
-			__netif_tx_unlock(txq);
+			HARD_TX_UNLOCK(dev, txq);
 			local_irq_restore(flags);
 
 			schedule_delayed_work(&npinfo->tx_work, HZ/10);
 			return;
 		}
-		__netif_tx_unlock(txq);
+		HARD_TX_UNLOCK(dev, txq);
 		local_irq_restore(flags);
 	}
 }
@@ -345,11 +345,11 @@ void netpoll_send_skb_on_dev(struct netpoll *np, struct sk_buff *skb,
 		/* try until next clock tick */
 		for (tries = jiffies_to_usecs(1)/USEC_PER_POLL;
 		     tries > 0; --tries) {
-			if (__netif_tx_trylock(txq)) {
+			if (HARD_TX_TRYLOCK(dev, txq)) {
 				if (!netif_xmit_stopped(txq))
 					status = netpoll_start_xmit(skb, dev, txq);
 
-				__netif_tx_unlock(txq);
+				HARD_TX_UNLOCK(dev, txq);
 
 				if (status == NETDEV_TX_OK)
 					break;
