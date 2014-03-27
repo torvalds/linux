@@ -1890,11 +1890,9 @@ static int rt5640_set_dai_pll(struct snd_soc_dai *dai, int pll_id, int source,
 static int rt5640_set_bias_level(struct snd_soc_codec *codec,
 			enum snd_soc_bias_level level)
 {
-	struct rt5640_priv *rt5640 = snd_soc_codec_get_drvdata(codec);
 	switch (level) {
 	case SND_SOC_BIAS_STANDBY:
 		if (SND_SOC_BIAS_OFF == codec->dapm.bias_level) {
-			regcache_cache_only(rt5640->regmap, false);
 			snd_soc_update_bits(codec, RT5640_PWR_ANLG1,
 				RT5640_PWR_VREF1 | RT5640_PWR_MB |
 				RT5640_PWR_BG | RT5640_PWR_VREF2,
@@ -1904,7 +1902,6 @@ static int rt5640_set_bias_level(struct snd_soc_codec *codec,
 			snd_soc_update_bits(codec, RT5640_PWR_ANLG1,
 				RT5640_PWR_FV1 | RT5640_PWR_FV2,
 				RT5640_PWR_FV1 | RT5640_PWR_FV2);
-			regcache_sync(rt5640->regmap);
 			snd_soc_update_bits(codec, RT5640_DUMMY1,
 						0x0301, 0x0301);
 			snd_soc_update_bits(codec, RT5640_MICBIAS,
@@ -1978,6 +1975,9 @@ static int rt5640_resume(struct snd_soc_codec *codec)
 		gpio_set_value_cansleep(rt5640->pdata.ldo1_en, 1);
 		msleep(400);
 	}
+
+	regcache_cache_only(rt5640->regmap, false);
+	regcache_sync(rt5640->regmap);
 
 	return 0;
 }
