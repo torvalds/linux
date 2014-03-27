@@ -595,6 +595,8 @@ int bnx2x_vf_mcast(struct bnx2x *bp, struct bnx2x_virtf *vf,
 	rc = bnx2x_config_mcast(bp, &mcast, BNX2X_MCAST_CMD_DEL);
 	if (rc) {
 		BNX2X_ERR("Failed to remove multicasts\n");
+		if (mc)
+			kfree(mc);
 		return rc;
 	}
 
