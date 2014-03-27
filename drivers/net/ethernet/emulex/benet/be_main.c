@@ -1346,11 +1346,7 @@ static int be_set_vf_tx_rate(struct net_device *netdev,
 		return -EINVAL;
 	}
 
-	if (lancer_chip(adapter))
-		status = be_cmd_set_profile_config(adapter, rate / 10, vf + 1);
-	else
-		status = be_cmd_set_qos(adapter, rate / 10, vf + 1);
-
+	status = be_cmd_config_qos(adapter, rate / 10, vf + 1);
 	if (status)
 		dev_err(&adapter->pdev->dev,
 				"tx rate %d on VF %d failed\n", rate, vf);
@@ -3124,7 +3120,7 @@ static int be_vf_setup(struct be_adapter *adapter)
 		 * Allow full available bandwidth
 		 */
 		if (BE3_chip(adapter) && !old_vfs)
-			be_cmd_set_qos(adapter, 1000, vf+1);
+			be_cmd_config_qos(adapter, 1000, vf + 1);
 
 		status = be_cmd_link_status_query(adapter, &lnk_speed,
 						  NULL, vf + 1);
