@@ -27,6 +27,7 @@
 #include <linux/of_platform.h>
 #include <linux/of_device.h>
 
+#include <sound/asoundef.h>
 #include <sound/core.h>
 #include <sound/pcm.h>
 #include <sound/pcm_params.h>
@@ -637,8 +638,12 @@ static int mcasp_i2s_hw_param(struct davinci_mcasp *mcasp, int stream)
 }
 
 /* S/PDIF */
-static int mcasp_dit_hw_param(struct davinci_mcasp *mcasp)
+static int mcasp_dit_hw_param(struct davinci_mcasp *mcasp,
+			      unsigned int rate)
 {
+	u32 cs_value = 0;
+	u8 *cs_bytes = (u8*) &cs_value;
+
 	/* Set the TX format : 24 bit right rotation, 32 bit slot, Pad 0
 	   and LSB first */
 	mcasp_set_bits(mcasp, DAVINCI_MCASP_TXFMT_REG, TXROT(6) | TXSSZ(15));
@@ -659,6 +664,46 @@ static int mcasp_dit_hw_param(struct davinci_mcasp *mcasp)
 
 	/* Enable the DIT */
 	mcasp_set_bits(mcasp, DAVINCI_MCASP_TXDITCTL_REG, DITEN);
+
+	/* Set S/PDIF channel status bits */
+	cs_bytes[0] = IEC958_AES0_CON_NOT_COPYRIGHT;
+	cs_bytes[1] = IEC958_AES1_CON_PCM_CODER;
+
+	switch (rate) {
+	case 22050:
+		cs_bytes[3] |= IEC958_AES3_CON_FS_22050;
+		break;
+	case 24000:
+		cs_bytes[3] |= IEC958_AES3_CON_FS_24000;
+		break;
+	case 32000:
+		cs_bytes[3] |= IEC958_AES3_CON_FS_32000;
+		break;
+	case 44100:
+		cs_bytes[3] |= IEC958_AES3_CON_FS_44100;
+		break;
+	case 48000:
+		cs_bytes[3] |= IEC958_AES3_CON_FS_48000;
+		break;
+	case 88200:
+		cs_bytes[3] |= IEC958_AES3_CON_FS_88200;
+		break;
+	case 96000:
+		cs_bytes[3] |= IEC958_AES3_CON_FS_96000;
+		break;
+	case 176400:
+		cs_bytes[3] |= IEC958_AES3_CON_FS_176400;
+		break;
+	case 192000:
+		cs_bytes[3] |= IEC958_AES3_CON_FS_192000;
+		break;
+	default:
+		printk(KERN_WARNING "unsupported sampling rate: %d\n", rate);
+		return -EINVAL;
+	}
+
+	mcasp_set_reg(mcasp, DAVINCI_MCASP_DITCSRA_REG, cs_value);
+	mcasp_set_reg(mcasp, DAVINCI_MCASP_DITCSRB_REG, cs_value);
 
 	return 0;
 }
@@ -692,7 +737,7 @@ static int davinci_mcasp_hw_params(struct snd_pcm_substream *substream,
 		return ret;
 
 	if (mcasp->op_mode == DAVINCI_MCASP_DIT_MODE)
-		ret = mcasp_dit_hw_param(mcasp);
+		ret = mcasp_dit_hw_param(mcasp, params_rate(params));
 	else
 		ret = mcasp_i2s_hw_param(mcasp, substream->stream);
 
