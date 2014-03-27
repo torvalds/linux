@@ -1832,7 +1832,7 @@ F:	net/bluetooth/
 F:	include/net/bluetooth/
 
 BONDING DRIVER
-M:	Jay Vosburgh <fubar@us.ibm.com>
+M:	Jay Vosburgh <j.vosburgh@gmail.com>
 M:	Veaceslav Falico <vfalico@redhat.com>
 M:	Andy Gospodarek <andy@greyhouse.net>
 L:	netdev@vger.kernel.org
