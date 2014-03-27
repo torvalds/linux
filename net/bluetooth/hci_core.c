@@ -2032,7 +2032,7 @@ bool hci_inquiry_cache_update(struct hci_dev *hdev, struct inquiry_data *data,
 
 	ie = hci_inquiry_cache_lookup(hdev, &data->bdaddr);
 	if (ie) {
-		if (ie->data.ssp_mode && ssp)
+		if (ie->data.ssp_mode)
 			*ssp = true;
 
 		if (ie->name_state == NAME_NEEDED &&
