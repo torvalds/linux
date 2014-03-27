@@ -95,12 +95,6 @@ struct tipc_node *tipc_node_create(u32 addr)
 
 	spin_lock_bh(&node_create_lock);
 
-	n_ptr = tipc_node_find(addr);
-	if (n_ptr) {
-		spin_unlock_bh(&node_create_lock);
-		return n_ptr;
-	}
-
 	n_ptr = kzalloc(sizeof(*n_ptr), GFP_ATOMIC);
 	if (!n_ptr) {
 		spin_unlock_bh(&node_create_lock);
