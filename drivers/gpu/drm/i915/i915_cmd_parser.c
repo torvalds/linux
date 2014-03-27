@@ -758,6 +758,76 @@ bool i915_needs_cmd_parser(struct intel_ring_buffer *ring)
 	return (i915.enable_cmd_parser == 1);
 }
 
+static bool check_cmd(const struct intel_ring_buffer *ring,
+		      const struct drm_i915_cmd_descriptor *desc,
+		      const u32 *cmd,
+		      const bool is_master)
+{
+	if (desc->flags & CMD_DESC_REJECT) {
+		DRM_DEBUG_DRIVER("CMD: Rejected command: 0x%08X\n", *cmd);
+		return false;
+	}
+
+	if ((desc->flags & CMD_DESC_MASTER) && !is_master) {
+		DRM_DEBUG_DRIVER("CMD: Rejected master-only command: 0x%08X\n",
+				 *cmd);
+		return false;
+	}
+
+	if (desc->flags & CMD_DESC_REGISTER) {
+		u32 reg_addr = cmd[desc->reg.offset] & desc->reg.mask;
+
+		if (!valid_reg(ring->reg_table,
+			       ring->reg_count, reg_addr)) {
+			if (!is_master ||
+			    !valid_reg(ring->master_reg_table,
+				       ring->master_reg_count,
+				       reg_addr)) {
+				DRM_DEBUG_DRIVER("CMD: Rejected register 0x%08X in command: 0x%08X (ring=%d)\n",
+						 reg_addr,
+						 *cmd,
+						 ring->id);
+				return false;
+			}
+		}
+	}
+
+	if (desc->flags & CMD_DESC_BITMASK) {
+		int i;
+
+		for (i = 0; i < MAX_CMD_DESC_BITMASKS; i++) {
+			u32 dword;
+
+			if (desc->bits[i].mask == 0)
+				break;
+
+			if (desc->bits[i].condition_mask != 0) {
+				u32 offset =
+					desc->bits[i].condition_offset;
+				u32 condition = cmd[offset] &
+					desc->bits[i].condition_mask;
+
+				if (condition == 0)
+					continue;
+			}
+
+			dword = cmd[desc->bits[i].offset] &
+				desc->bits[i].mask;
+
+			if (dword != desc->bits[i].expected) {
+				DRM_DEBUG_DRIVER("CMD: Rejected command 0x%08X for bitmask 0x%08X (exp=0x%08X act=0x%08X) (ring=%d)\n",
+						 *cmd,
+						 desc->bits[i].mask,
+						 desc->bits[i].expected,
+						 dword, ring->id);
+				return false;
+			}
+		}
+	}
+
+	return true;
+}
+
 #define LENGTH_BIAS 2
 
 /**
@@ -830,73 +900,9 @@ int i915_parse_cmds(struct intel_ring_buffer *ring,
 			break;
 		}
 
-		if (desc->flags & CMD_DESC_REJECT) {
-			DRM_DEBUG_DRIVER("CMD: Rejected command: 0x%08X\n", *cmd);
+		if (!check_cmd(ring, desc, cmd, is_master)) {
 			ret = -EINVAL;
 			break;
-		}
-
-		if ((desc->flags & CMD_DESC_MASTER) && !is_master) {
-			DRM_DEBUG_DRIVER("CMD: Rejected master-only command: 0x%08X\n",
-					 *cmd);
-			ret = -EINVAL;
-			break;
-		}
-
-		if (desc->flags & CMD_DESC_REGISTER) {
-			u32 reg_addr = cmd[desc->reg.offset] & desc->reg.mask;
-
-			if (!valid_reg(ring->reg_table,
-				       ring->reg_count, reg_addr)) {
-				if (!is_master ||
-				    !valid_reg(ring->master_reg_table,
-					       ring->master_reg_count,
-					       reg_addr)) {
-					DRM_DEBUG_DRIVER("CMD: Rejected register 0x%08X in command: 0x%08X (ring=%d)\n",
-							 reg_addr,
-							 *cmd,
-							 ring->id);
-					ret = -EINVAL;
-					break;
-				}
-			}
-		}
-
-		if (desc->flags & CMD_DESC_BITMASK) {
-			int i;
-
-			for (i = 0; i < MAX_CMD_DESC_BITMASKS; i++) {
-				u32 dword;
-
-				if (desc->bits[i].mask == 0)
-					break;
-
-				if (desc->bits[i].condition_mask != 0) {
-					u32 offset =
-						desc->bits[i].condition_offset;
-					u32 condition = cmd[offset] &
-						desc->bits[i].condition_mask;
-
-					if (condition == 0)
-						continue;
-				}
-
-				dword = cmd[desc->bits[i].offset] &
-					desc->bits[i].mask;
-
-				if (dword != desc->bits[i].expected) {
-					DRM_DEBUG_DRIVER("CMD: Rejected command 0x%08X for bitmask 0x%08X (exp=0x%08X act=0x%08X) (ring=%d)\n",
-							 *cmd,
-							 desc->bits[i].mask,
-							 desc->bits[i].expected,
-							 dword, ring->id);
-					ret = -EINVAL;
-					break;
-				}
-			}
-
-			if (ret)
-				break;
 		}
 
 		cmd += length;
