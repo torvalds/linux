@@ -493,12 +493,13 @@ static u32 gen7_blt_get_cmd_length_mask(u32 cmd_header)
 	return 0;
 }
 
-static void validate_cmds_sorted(struct intel_ring_buffer *ring)
+static bool validate_cmds_sorted(struct intel_ring_buffer *ring)
 {
 	int i;
+	bool ret = true;
 
 	if (!ring->cmd_tables || ring->cmd_table_count == 0)
-		return;
+		return true;
 
 	for (i = 0; i < ring->cmd_table_count; i++) {
 		const struct drm_i915_cmd_table *table = &ring->cmd_tables[i];
@@ -510,35 +511,45 @@ static void validate_cmds_sorted(struct intel_ring_buffer *ring)
 				&table->table[i];
 			u32 curr = desc->cmd.value & desc->cmd.mask;
 
-			if (curr < previous)
+			if (curr < previous) {
 				DRM_ERROR("CMD: table not sorted ring=%d table=%d entry=%d cmd=0x%08X prev=0x%08X\n",
 					  ring->id, i, j, curr, previous);
+				ret = false;
+			}
 
 			previous = curr;
 		}
 	}
+
+	return ret;
 }
 
-static void check_sorted(int ring_id, const u32 *reg_table, int reg_count)
+static bool check_sorted(int ring_id, const u32 *reg_table, int reg_count)
 {
 	int i;
 	u32 previous = 0;
+	bool ret = true;
 
 	for (i = 0; i < reg_count; i++) {
 		u32 curr = reg_table[i];
 
-		if (curr < previous)
+		if (curr < previous) {
 			DRM_ERROR("CMD: table not sorted ring=%d entry=%d reg=0x%08X prev=0x%08X\n",
 				  ring_id, i, curr, previous);
+			ret = false;
+		}
 
 		previous = curr;
 	}
+
+	return ret;
 }
 
-static void validate_regs_sorted(struct intel_ring_buffer *ring)
+static bool validate_regs_sorted(struct intel_ring_buffer *ring)
 {
-	check_sorted(ring->id, ring->reg_table, ring->reg_count);
-	check_sorted(ring->id, ring->master_reg_table, ring->master_reg_count);
+	return check_sorted(ring->id, ring->reg_table, ring->reg_count) &&
+		check_sorted(ring->id, ring->master_reg_table,
+			     ring->master_reg_count);
 }
 
 /**
@@ -617,8 +628,8 @@ void i915_cmd_parser_init_ring(struct intel_ring_buffer *ring)
 		BUG();
 	}
 
-	validate_cmds_sorted(ring);
-	validate_regs_sorted(ring);
+	BUG_ON(!validate_cmds_sorted(ring));
+	BUG_ON(!validate_regs_sorted(ring));
 }
 
 static const struct drm_i915_cmd_descriptor*
