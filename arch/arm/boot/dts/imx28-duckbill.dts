@@ -110,12 +110,12 @@
 
 		status {
 			label = "duckbill:green:status";
-			gpios = <&gpio3 5 0>;
+			gpios = <&gpio3 5 GPIO_ACTIVE_HIGH>;
 		};
 
 		failure {
 			label = "duckbill:red:status";
-			gpios = <&gpio3 4 0>;
+			gpios = <&gpio3 4 GPIO_ACTIVE_HIGH>;
 		};
 	};
 };
