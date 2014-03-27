@@ -230,6 +230,7 @@ enum iwl_mvm_ref_type {
 	IWL_MVM_REF_USER,
 	IWL_MVM_REF_TX,
 	IWL_MVM_REF_TX_AGG,
+	IWL_MVM_REF_EXIT_WORK,
 
 	IWL_MVM_REF_COUNT,
 };
@@ -451,6 +452,11 @@ struct iwl_mvm_frame_stats {
 	int last_frame_idx;
 };
 
+enum {
+	D0I3_DEFER_WAKEUP,
+	D0I3_PENDING_WAKEUP,
+};
+
 struct iwl_mvm {
 	/* for logger access */
 	struct device *dev;
@@ -605,6 +611,9 @@ struct iwl_mvm {
 	bool d0i3_offloading;
 	struct work_struct d0i3_exit_work;
 	struct sk_buff_head d0i3_tx;
+	/* protect d0i3_suspend_flags */
+	struct mutex d0i3_suspend_mutex;
+	unsigned long d0i3_suspend_flags;
 	/* sync d0i3_tx queue and IWL_MVM_STATUS_IN_D0I3 status flag */
 	spinlock_t d0i3_tx_lock;
 	wait_queue_head_t d0i3_exit_waitq;
@@ -923,6 +932,7 @@ int iwl_mvm_send_proto_offload(struct iwl_mvm *mvm,
 void iwl_mvm_ref(struct iwl_mvm *mvm, enum iwl_mvm_ref_type ref_type);
 void iwl_mvm_unref(struct iwl_mvm *mvm, enum iwl_mvm_ref_type ref_type);
 void iwl_mvm_d0i3_enable_tx(struct iwl_mvm *mvm, __le16 *qos_seq);
+int _iwl_mvm_exit_d0i3(struct iwl_mvm *mvm);
 
 /* BT Coex */
 int iwl_send_bt_init_conf(struct iwl_mvm *mvm);

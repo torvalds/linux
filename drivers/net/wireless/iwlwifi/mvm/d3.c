@@ -1074,6 +1074,15 @@ static int __iwl_mvm_suspend(struct ieee80211_hw *hw,
 
 int iwl_mvm_suspend(struct ieee80211_hw *hw, struct cfg80211_wowlan *wowlan)
 {
+	struct iwl_mvm *mvm = IWL_MAC80211_GET_MVM(hw);
+
+	if (iwl_mvm_is_d0i3_supported(mvm)) {
+		mutex_lock(&mvm->d0i3_suspend_mutex);
+		__set_bit(D0I3_DEFER_WAKEUP, &mvm->d0i3_suspend_flags);
+		mutex_unlock(&mvm->d0i3_suspend_mutex);
+		return 0;
+	}
+
 	return __iwl_mvm_suspend(hw, wowlan, false);
 }
 
@@ -1645,6 +1654,19 @@ static int __iwl_mvm_resume(struct iwl_mvm *mvm, bool test)
 int iwl_mvm_resume(struct ieee80211_hw *hw)
 {
 	struct iwl_mvm *mvm = IWL_MAC80211_GET_MVM(hw);
+
+	if (iwl_mvm_is_d0i3_supported(mvm)) {
+		bool exit_now;
+
+		mutex_lock(&mvm->d0i3_suspend_mutex);
+		__clear_bit(D0I3_DEFER_WAKEUP, &mvm->d0i3_suspend_flags);
+		exit_now = __test_and_clear_bit(D0I3_PENDING_WAKEUP,
+						&mvm->d0i3_suspend_flags);
+		mutex_unlock(&mvm->d0i3_suspend_mutex);
+		if (exit_now)
+			_iwl_mvm_exit_d0i3(mvm);
+		return 0;
+	}
 
 	return __iwl_mvm_resume(mvm, false);
 }
