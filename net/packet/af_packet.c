@@ -243,40 +243,40 @@ static int packet_direct_xmit(struct sk_buff *skb)
 	const struct net_device_ops *ops = dev->netdev_ops;
 	netdev_features_t features;
 	struct netdev_queue *txq;
+	int ret = NETDEV_TX_BUSY;
 	u16 queue_map;
-	int ret;
 
 	if (unlikely(!netif_running(dev) ||
-		     !netif_carrier_ok(dev))) {
-		kfree_skb(skb);
-		return NET_XMIT_DROP;
-	}
+		     !netif_carrier_ok(dev)))
+		goto drop;
 
 	features = netif_skb_features(skb);
 	if (skb_needs_linearize(skb, features) &&
-	    __skb_linearize(skb)) {
-		kfree_skb(skb);
-		return NET_XMIT_DROP;
-	}
+	    __skb_linearize(skb))
+		goto drop;
 
 	queue_map = skb_get_queue_mapping(skb);
 	txq = netdev_get_tx_queue(dev, queue_map);
 
-	__netif_tx_lock_bh(txq);
-	if (unlikely(netif_xmit_frozen_or_stopped(txq))) {
-		ret = NETDEV_TX_BUSY;
-		kfree_skb(skb);
-		goto out;
-	}
+	local_bh_disable();
 
-	ret = ops->ndo_start_xmit(skb, dev);
-	if (likely(dev_xmit_complete(ret)))
-		txq_trans_update(txq);
-	else
+	HARD_TX_LOCK(dev, txq, smp_processor_id());
+	if (!netif_xmit_frozen_or_stopped(txq)) {
+		ret = ops->ndo_start_xmit(skb, dev);
+		if (ret == NETDEV_TX_OK)
+			txq_trans_update(txq);
+	}
+	HARD_TX_UNLOCK(dev, txq);
+
+	local_bh_enable();
+
+	if (!dev_xmit_complete(ret))
 		kfree_skb(skb);
-out:
-	__netif_tx_unlock_bh(txq);
+
 	return ret;
+drop:
+	kfree_skb(skb);
+	return NET_XMIT_DROP;
 }
 
 static struct net_device *packet_cached_dev_get(struct packet_sock *po)
