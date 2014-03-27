@@ -3950,9 +3950,9 @@ _scsih_setup_direct_io(struct MPT2SAS_ADAPTER *ioc, struct scsi_cmnd *scmd,
  * SCSI_MLQUEUE_HOST_BUSY if the entire host queue is full
  */
 static int
-_scsih_qcmd_lck(struct scsi_cmnd *scmd, void (*done)(struct scsi_cmnd *))
+_scsih_qcmd(struct Scsi_Host *shost, struct scsi_cmnd *scmd)
 {
-	struct MPT2SAS_ADAPTER *ioc = shost_priv(scmd->device->host);
+	struct MPT2SAS_ADAPTER *ioc = shost_priv(shost);
 	struct MPT2SAS_DEVICE *sas_device_priv_data;
 	struct MPT2SAS_TARGET *sas_target_priv_data;
 	struct _raid_device *raid_device;
@@ -3960,7 +3960,6 @@ _scsih_qcmd_lck(struct scsi_cmnd *scmd, void (*done)(struct scsi_cmnd *))
 	u32 mpi_control;
 	u16 smid;
 
-	scmd->scsi_done = done;
 	sas_device_priv_data = scmd->device->hostdata;
 	if (!sas_device_priv_data || !sas_device_priv_data->sas_target) {
 		scmd->result = DID_NO_CONNECT << 16;
@@ -4036,7 +4035,7 @@ _scsih_qcmd_lck(struct scsi_cmnd *scmd, void (*done)(struct scsi_cmnd *))
 	    MPT_TARGET_FLAGS_RAID_COMPONENT)
 		mpi_request->Function = MPI2_FUNCTION_RAID_SCSI_IO_PASSTHROUGH;
 	else
-		mpi_request->Function = MPI2_FUNCTION_SCSI_IO_REQUEST;
+	mpi_request->Function = MPI2_FUNCTION_SCSI_IO_REQUEST;
 	mpi_request->DevHandle =
 	    cpu_to_le16(sas_device_priv_data->sas_target->handle);
 	mpi_request->DataLength = cpu_to_le32(scsi_bufflen(scmd));
@@ -4079,8 +4078,6 @@ _scsih_qcmd_lck(struct scsi_cmnd *scmd, void (*done)(struct scsi_cmnd *))
  out:
 	return SCSI_MLQUEUE_HOST_BUSY;
 }
-
-static DEF_SCSI_QCMD(_scsih_qcmd)
 
 /**
  * _scsih_normalize_sense - normalize descriptor and fixed format sense data
