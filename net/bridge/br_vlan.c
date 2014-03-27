@@ -119,22 +119,6 @@ static void __vlan_flush(struct net_port_vlans *v)
 	kfree_rcu(v, rcu);
 }
 
-/* Strip the tag from the packet.  Will return skb with tci set 0.  */
-static struct sk_buff *br_vlan_untag(struct sk_buff *skb)
-{
-	if (skb->protocol != htons(ETH_P_8021Q)) {
-		skb->vlan_tci = 0;
-		return skb;
-	}
-
-	skb->vlan_tci = 0;
-	skb = vlan_untag(skb);
-	if (skb)
-		skb->vlan_tci = 0;
-
-	return skb;
-}
-
 struct sk_buff *br_handle_vlan(struct net_bridge *br,
 			       const struct net_port_vlans *pv,
 			       struct sk_buff *skb)
@@ -150,7 +134,7 @@ struct sk_buff *br_handle_vlan(struct net_bridge *br,
 	 */
 	br_vlan_get_tag(skb, &vid);
 	if (test_bit(vid, pv->untagged_bitmap))
-		skb = br_vlan_untag(skb);
+		skb->vlan_tci = 0;
 
 out:
 	return skb;
