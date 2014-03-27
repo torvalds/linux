@@ -416,6 +416,15 @@ static int bcmgenet_set_rx_csum(struct net_device *dev,
 	else
 		rbuf_chk_ctrl &= ~RBUF_RXCHK_EN;
 	priv->desc_rxchk_en = rx_csum_en;
+
+	/* If UniMAC forwards CRC, we need to skip over it to get
+	 * a valid CHK bit to be set in the per-packet status word
+	*/
+	if (rx_csum_en && priv->crc_fwd_en)
+		rbuf_chk_ctrl |= RBUF_SKIP_FCS;
+	else
+		rbuf_chk_ctrl &= ~RBUF_SKIP_FCS;
+
 	bcmgenet_rbuf_writel(priv, rbuf_chk_ctrl, RBUF_CHK_CTRL);
 
 	return 0;
