@@ -132,6 +132,7 @@ struct rk808_board {
 	unsigned int dcdc_slp_voltage[3]; /* buckx_voltage in uV */
 	bool pmic_sleep;
 	unsigned int ldo_slp_voltage[7];
+	bool pm_off;
 };
 
 struct rk808_regulator_subdev {
@@ -185,7 +186,6 @@ int rk808_bulk_read(struct rk808 *rk808, u8 reg,
 		     int count, u8 *buf);
 int rk808_bulk_write(struct rk808 *rk808, u8 reg,
 		     int count, u8 *buf);
-int rk808_device_shutdown(void);
 
 #endif
 

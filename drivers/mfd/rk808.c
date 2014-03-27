@@ -1053,6 +1053,8 @@ static struct rk808_board *rk808_parse_dt(struct rk808 *rk808)
 				printk("invalid gpio: %d\n",  pdata->pmic_sleep_gpio);
 		}
 	pdata->pmic_sleep = true;
+	
+	pdata->pm_off = of_property_read_bool(rk808_pmic_np,"rk808,system-power-controller");
 		
 	return pdata;
 }
@@ -1065,7 +1067,7 @@ static struct rk808_board *rk808_parse_dt(struct i2c_client *i2c)
 #endif
 
 
-int rk808_device_shutdown(void)
+static int rk808_device_shutdown(void)
 {
 	int ret;
 	int err = -1;
@@ -1372,6 +1374,9 @@ static int rk808_i2c_probe(struct i2c_client *i2c, const struct i2c_device_id *i
 	/*********************************************/
 	
 	g_rk808 = rk808;
+	if (pdev->pm_off && !pm_power_off) {
+		pm_power_off = rk808_device_shutdown;
+	}
 
 	#ifdef CONFIG_HAS_EARLYSUSPEND
 	rk808->rk808_suspend.suspend = rk808_early_suspend,

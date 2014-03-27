@@ -595,6 +595,7 @@ rockchip,power_type = <GPIO>;
 /include/ "rk808.dtsi"
 &rk808 {
 	gpios =<&gpio0 GPIO_A4 GPIO_ACTIVE_HIGH>,<&gpio0 GPIO_B3 GPIO_ACTIVE_LOW>;
+	rk808,system-power-controller;
 
 	regulators {
 		
