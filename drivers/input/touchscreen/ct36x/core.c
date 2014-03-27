@@ -208,7 +208,7 @@ int ct36x_chip_get_fwchksum(struct ct36x_data *ts)
 	ret = ct36x_write(ts, buf, 2);
 	if(ret < 0)
 		return ret;
-	mdelay(350);
+	mdelay(500);
 
 	buf[0] = 0xFF;
 	buf[1] = 0x8E;
