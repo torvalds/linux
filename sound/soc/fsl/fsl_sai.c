@@ -23,6 +23,71 @@
 
 #include "fsl_sai.h"
 
+#define FSL_SAI_FLAGS (FSL_SAI_CSR_SEIE |\
+		       FSL_SAI_CSR_FEIE)
+
+static irqreturn_t fsl_sai_isr(int irq, void *devid)
+{
+	struct fsl_sai *sai = (struct fsl_sai *)devid;
+	struct device *dev = &sai->pdev->dev;
+	u32 xcsr, mask;
+
+	/* Only handle those what we enabled */
+	mask = (FSL_SAI_FLAGS >> FSL_SAI_CSR_xIE_SHIFT) << FSL_SAI_CSR_xF_SHIFT;
+
+	/* Tx IRQ */
+	regmap_read(sai->regmap, FSL_SAI_TCSR, &xcsr);
+	xcsr &= mask;
+
+	if (xcsr & FSL_SAI_CSR_WSF)
+		dev_dbg(dev, "isr: Start of Tx word detected\n");
+
+	if (xcsr & FSL_SAI_CSR_SEF)
+		dev_warn(dev, "isr: Tx Frame sync error detected\n");
+
+	if (xcsr & FSL_SAI_CSR_FEF) {
+		dev_warn(dev, "isr: Transmit underrun detected\n");
+		/* FIFO reset for safety */
+		xcsr |= FSL_SAI_CSR_FR;
+	}
+
+	if (xcsr & FSL_SAI_CSR_FWF)
+		dev_dbg(dev, "isr: Enabled transmit FIFO is empty\n");
+
+	if (xcsr & FSL_SAI_CSR_FRF)
+		dev_dbg(dev, "isr: Transmit FIFO watermark has been reached\n");
+
+	regmap_update_bits(sai->regmap, FSL_SAI_TCSR,
+			   FSL_SAI_CSR_xF_W_MASK | FSL_SAI_CSR_FR, xcsr);
+
+	/* Rx IRQ */
+	regmap_read(sai->regmap, FSL_SAI_RCSR, &xcsr);
+	xcsr &= mask;
+
+	if (xcsr & FSL_SAI_CSR_WSF)
+		dev_dbg(dev, "isr: Start of Rx word detected\n");
+
+	if (xcsr & FSL_SAI_CSR_SEF)
+		dev_warn(dev, "isr: Rx Frame sync error detected\n");
+
+	if (xcsr & FSL_SAI_CSR_FEF) {
+		dev_warn(dev, "isr: Receive overflow detected\n");
+		/* FIFO reset for safety */
+		xcsr |= FSL_SAI_CSR_FR;
+	}
+
+	if (xcsr & FSL_SAI_CSR_FWF)
+		dev_dbg(dev, "isr: Enabled receive FIFO is full\n");
+
+	if (xcsr & FSL_SAI_CSR_FRF)
+		dev_dbg(dev, "isr: Receive FIFO watermark has been reached\n");
+
+	regmap_update_bits(sai->regmap, FSL_SAI_RCSR,
+			   FSL_SAI_CSR_xF_W_MASK | FSL_SAI_CSR_FR, xcsr);
+
+	return IRQ_HANDLED;
+}
+
 static int fsl_sai_set_dai_sysclk_tr(struct snd_soc_dai *cpu_dai,
 		int clk_id, unsigned int freq, int fsl_dir)
 {
@@ -373,8 +438,8 @@ static int fsl_sai_dai_probe(struct snd_soc_dai *cpu_dai)
 {
 	struct fsl_sai *sai = dev_get_drvdata(cpu_dai->dev);
 
-	regmap_update_bits(sai->regmap, FSL_SAI_TCSR, 0xffffffff, 0x0);
-	regmap_update_bits(sai->regmap, FSL_SAI_RCSR, 0xffffffff, 0x0);
+	regmap_update_bits(sai->regmap, FSL_SAI_TCSR, 0xffffffff, FSL_SAI_FLAGS);
+	regmap_update_bits(sai->regmap, FSL_SAI_RCSR, 0xffffffff, FSL_SAI_FLAGS);
 	regmap_update_bits(sai->regmap, FSL_SAI_TCR1, FSL_SAI_CR1_RFW_MASK,
 			   FSL_SAI_MAXBURST_TX * 2);
 	regmap_update_bits(sai->regmap, FSL_SAI_RCR1, FSL_SAI_CR1_RFW_MASK,
@@ -490,11 +555,13 @@ static int fsl_sai_probe(struct platform_device *pdev)
 	struct fsl_sai *sai;
 	struct resource *res;
 	void __iomem *base;
-	int ret;
+	int irq, ret;
 
 	sai = devm_kzalloc(&pdev->dev, sizeof(*sai), GFP_KERNEL);
 	if (!sai)
 		return -ENOMEM;
+
+	sai->pdev = pdev;
 
 	sai->big_endian_regs = of_property_read_bool(np, "big-endian-regs");
 	if (sai->big_endian_regs)
@@ -512,6 +579,18 @@ static int fsl_sai_probe(struct platform_device *pdev)
 	if (IS_ERR(sai->regmap)) {
 		dev_err(&pdev->dev, "regmap init failed\n");
 		return PTR_ERR(sai->regmap);
+	}
+
+	irq = platform_get_irq(pdev, 0);
+	if (irq < 0) {
+		dev_err(&pdev->dev, "no irq for node %s\n", np->full_name);
+		return irq;
+	}
+
+	ret = devm_request_irq(&pdev->dev, irq, fsl_sai_isr, 0, np->name, sai);
+	if (ret) {
+		dev_err(&pdev->dev, "failed to claim irq %u\n", irq);
+		return ret;
 	}
 
 	sai->dma_params_rx.addr = res->start + FSL_SAI_RDR;
