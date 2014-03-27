@@ -150,7 +150,7 @@ struct tipc_bearer_names {
 
 struct tipc_link;
 
-extern struct tipc_bearer tipc_bearers[];
+extern struct tipc_bearer *bearer_list[];
 
 /*
  * TIPC routines available to supported media types

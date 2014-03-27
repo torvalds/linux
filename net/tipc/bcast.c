@@ -668,9 +668,8 @@ void tipc_bcbearer_sort(void)
 	memset(bp_temp, 0, sizeof(bcbearer->bpairs_temp));
 
 	for (b_index = 0; b_index < MAX_BEARERS; b_index++) {
-		struct tipc_bearer *b = &tipc_bearers[b_index];
-
-		if (!b->active || !b->nodes.count)
+		struct tipc_bearer *b = bearer_list[b_index];
+		if (!b || !b->active || !b->nodes.count)
 			continue;
 
 		if (!bp_temp[b->priority].primary)

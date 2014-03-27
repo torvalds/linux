@@ -49,7 +49,7 @@ static struct tipc_media * const media_info_array[] = {
 	NULL
 };
 
-struct tipc_bearer tipc_bearers[MAX_BEARERS];
+struct tipc_bearer *bearer_list[MAX_BEARERS];
 
 static void bearer_disable(struct tipc_bearer *b_ptr, bool shutting_down);
 
@@ -177,8 +177,9 @@ struct tipc_bearer *tipc_bearer_find(const char *name)
 	struct tipc_bearer *b_ptr;
 	u32 i;
 
-	for (i = 0, b_ptr = tipc_bearers; i < MAX_BEARERS; i++, b_ptr++) {
-		if (b_ptr->active && (!strcmp(b_ptr->name, name)))
+	for (i = 0; i < MAX_BEARERS; i++) {
+		b_ptr = bearer_list[i];
+		if (b_ptr && b_ptr->active && (!strcmp(b_ptr->name, name)))
 			return b_ptr;
 	}
 	return NULL;
@@ -200,7 +201,9 @@ struct sk_buff *tipc_bearer_get_names(void)
 	read_lock_bh(&tipc_net_lock);
 	for (i = 0; media_info_array[i] != NULL; i++) {
 		for (j = 0; j < MAX_BEARERS; j++) {
-			b = &tipc_bearers[j];
+			b = bearer_list[j];
+			if (!b)
+				continue;
 			if (b->active && (b->media == media_info_array[i])) {
 				tipc_cfg_append_tlv(buf, TIPC_TLV_BEARER_NAME,
 						    b->name,
@@ -284,16 +287,17 @@ restart:
 	bearer_id = MAX_BEARERS;
 	with_this_prio = 1;
 	for (i = MAX_BEARERS; i-- != 0; ) {
-		if (!tipc_bearers[i].active) {
+		b_ptr = bearer_list[i];
+		if (!b_ptr || !b_ptr->active) {
 			bearer_id = i;
 			continue;
 		}
-		if (!strcmp(name, tipc_bearers[i].name)) {
+		if (!strcmp(name, b_ptr->name)) {
 			pr_warn("Bearer <%s> rejected, already enabled\n",
 				name);
 			goto exit;
 		}
-		if ((tipc_bearers[i].priority == priority) &&
+		if ((b_ptr->priority == priority) &&
 		    (++with_this_prio > 2)) {
 			if (priority-- == 0) {
 				pr_warn("Bearer <%s> rejected, duplicate priority\n",
@@ -311,7 +315,11 @@ restart:
 		goto exit;
 	}
 
-	b_ptr = &tipc_bearers[bearer_id];
+	b_ptr = kzalloc(sizeof(*b_ptr), GFP_ATOMIC);
+	if (!b_ptr) {
+		res = -ENOMEM;
+		goto exit;
+	}
 	strcpy(b_ptr->name, name);
 	b_ptr->media = m_ptr;
 	res = m_ptr->enable_media(b_ptr);
@@ -335,6 +343,9 @@ restart:
 			name);
 		goto exit;
 	}
+
+	bearer_list[bearer_id] = b_ptr;
+
 	pr_info("Enabled bearer <%s>, discovery domain %s, priority %u\n",
 		name,
 		tipc_addr_string_fill(addr_string, disc_domain), priority);
@@ -362,13 +373,22 @@ static int tipc_reset_bearer(struct tipc_bearer *b_ptr)
  */
 static void bearer_disable(struct tipc_bearer *b_ptr, bool shutting_down)
 {
+	u32 i;
+
 	pr_info("Disabling bearer <%s>\n", b_ptr->name);
 	b_ptr->media->disable_media(b_ptr);
 
 	tipc_link_delete_list(b_ptr->identity, shutting_down);
 	if (b_ptr->link_req)
 		tipc_disc_delete(b_ptr->link_req);
-	memset(b_ptr, 0, sizeof(struct tipc_bearer));
+
+	for (i = 0; i < MAX_BEARERS; i++) {
+		if (b_ptr == bearer_list[i]) {
+			bearer_list[i] = NULL;
+			break;
+		}
+	}
+	kfree(b_ptr);
 }
 
 int tipc_disable_bearer(const char *name)
@@ -603,10 +623,14 @@ void tipc_bearer_cleanup(void)
 
 void tipc_bearer_stop(void)
 {
+	struct tipc_bearer *b_ptr;
 	u32 i;
 
 	for (i = 0; i < MAX_BEARERS; i++) {
-		if (tipc_bearers[i].active)
-			bearer_disable(&tipc_bearers[i], true);
+		b_ptr = bearer_list[i];
+		if (b_ptr && b_ptr->active) {
+			bearer_disable(b_ptr, true);
+			bearer_list[i] = NULL;
+		}
 	}
 }
