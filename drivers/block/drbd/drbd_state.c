@@ -1238,7 +1238,8 @@ static void after_state_ch(struct drbd_device *device, union drbd_state os,
 	sib.os = os;
 	sib.ns = ns;
 
-	if (os.conn != C_CONNECTED && ns.conn == C_CONNECTED) {
+	if ((os.disk != D_UP_TO_DATE || os.pdsk != D_UP_TO_DATE)
+	&&  (ns.disk == D_UP_TO_DATE && ns.pdsk == D_UP_TO_DATE)) {
 		clear_bit(CRASHED_PRIMARY, &device->flags);
 		if (device->p_uuid)
 			device->p_uuid[UI_FLAGS] &= ~((u64)2);
