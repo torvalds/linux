@@ -3672,7 +3672,7 @@ static void vmx_set_segment(struct kvm_vcpu *vcpu,
 	vmcs_write32(sf->ar_bytes, vmx_segment_access_rights(var));
 
 out:
-	vmx->emulation_required |= emulation_required(vcpu);
+	vmx->emulation_required = emulation_required(vcpu);
 }
 
 static void vmx_get_cs_db_l_bits(struct kvm_vcpu *vcpu, int *db, int *l)
@@ -5640,7 +5640,7 @@ static int handle_invalid_guest_state(struct kvm_vcpu *vcpu)
 	cpu_exec_ctrl = vmcs_read32(CPU_BASED_VM_EXEC_CONTROL);
 	intr_window_requested = cpu_exec_ctrl & CPU_BASED_VIRTUAL_INTR_PENDING;
 
-	while (!guest_state_valid(vcpu) && count-- != 0) {
+	while (vmx->emulation_required && count-- != 0) {
 		if (intr_window_requested && vmx_interrupt_allowed(vcpu))
 			return handle_interrupt_window(&vmx->vcpu);
 
@@ -5674,7 +5674,6 @@ static int handle_invalid_guest_state(struct kvm_vcpu *vcpu)
 			schedule();
 	}
 
-	vmx->emulation_required = emulation_required(vcpu);
 out:
 	return ret;
 }
