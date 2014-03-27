@@ -31,8 +31,12 @@ extern unsigned long asmlinkage efi_call_phys(void *, ...);
  * Wrap all the virtual calls in a way that forces the parameters on the stack.
  */
 
+/* Use this macro if your virtual returns a non-void value */
 #define efi_call_virt(f, args...) \
 	((efi_##f##_t __attribute__((regparm(0)))*)efi.systab->runtime->f)(args)
+
+/* Use this macro if your virtual call does not return any value */
+#define __efi_call_virt(f, args...) efi_call_virt(f, args)
 
 #define efi_ioremap(addr, size, type, attr)	ioremap_cache(addr, size)
 
@@ -54,6 +58,12 @@ extern u64 asmlinkage efi_call(void *fp, ...);
 	preempt_enable();						\
 	__s;								\
 })
+
+/*
+ * All X86_64 virt calls return non-void values. Thus, use non-void call for
+ * virt calls that would be void on X86_32.
+ */
+#define __efi_call_virt(f, args...) efi_call_virt(f, args)
 
 extern void __iomem *efi_ioremap(unsigned long addr, unsigned long size,
 				 u32 type, u64 attribute);
