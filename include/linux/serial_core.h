@@ -294,12 +294,18 @@ struct earlycon_device {
 int setup_earlycon(char *buf, const char *match,
 		   int (*setup)(struct earlycon_device *, const char *));
 
+extern int of_setup_earlycon(unsigned long addr,
+			     int (*setup)(struct earlycon_device *, const char *));
+
 #define EARLYCON_DECLARE(name, func) \
 static int __init name ## _setup_earlycon(char *buf) \
 { \
 	return setup_earlycon(buf, __stringify(name), func); \
 } \
 early_param("earlycon", name ## _setup_earlycon);
+
+#define OF_EARLYCON_DECLARE(name, compat, fn)				\
+	_OF_DECLARE(earlycon, name, compat, fn, void *)
 
 struct uart_port *uart_get_console(struct uart_port *ports, int nr,
 				   struct console *c);
