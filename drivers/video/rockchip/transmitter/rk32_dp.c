@@ -1222,7 +1222,7 @@ static int rk32_edp_probe(struct platform_device *pdev)
 	edp->video_info.color_space	= CS_RGB;
 	edp->video_info.dynamic_range	= VESA;
 	edp->video_info.ycbcr_coeff	= COLOR_YCBCR601;
-	edp->video_info.color_depth	= COLOR_6;
+	edp->video_info.color_depth	= COLOR_8;
 
 	edp->video_info.link_rate	= LINK_RATE_1_62GBPS;
 	edp->video_info.lane_count	= LANE_CNT4;
