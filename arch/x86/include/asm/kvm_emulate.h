@@ -233,7 +233,7 @@ struct operand {
 	union {
 		unsigned long val;
 		u64 val64;
-		char valptr[sizeof(unsigned long) + 2];
+		char valptr[sizeof(sse128_t)];
 		sse128_t vec_val;
 		u64 mm_val;
 		void *data;
