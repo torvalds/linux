@@ -195,6 +195,7 @@ struct dw_mci {
 	struct regulator	*vmmc;	/* Power regulator */
 	unsigned long		irq_flags; /* IRQ flags */
 	int			irq;
+	u32         cmd_rto;     /*cmd response timeout hold times*/
 	struct pinctrl *pinctrl; /*Pinctrl state*/
 	struct pinctrl_state	*pins_default;
 	struct pinctrl_state	*pins_idle;

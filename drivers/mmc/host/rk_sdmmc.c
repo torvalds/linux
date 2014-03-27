@@ -62,6 +62,7 @@
 #define SDMMC_DATA_TIMEOUT_SDIO	250
 #define SDMMC_DATA_TIMEOUT_EMMC	2500
 
+#define SDMMC_CMD_RTO_MAX_HOLD 200 
 //#define SDMMC_WAIT_FOR_UNBUSY	2500
 
 #ifdef CONFIG_MMC_DW_IDMAC
@@ -1457,7 +1458,15 @@ static void dw_mci_command_complete(struct dw_mci *host, struct mmc_command *cmd
 	}
 
 	if (status & SDMMC_INT_RTO)
-		cmd->error = -ETIMEDOUT;
+	{
+	    if(host->mmc->restrict_caps & RESTRICT_CARD_TYPE_SDIO)
+	    {
+	        host->cmd_rto += 1;
+	       (host->cmd_rto >= SDMMC_CMD_RTO_MAX_HOLD)?(cmd->error = -ETIMEDOUT):(cmd->error = 0);    
+		}
+		else
+		    cmd->error = -ETIMEDOUT;
+	}
 	else if ((cmd->flags & MMC_RSP_CRC) && (status & SDMMC_INT_RCRC))
 		cmd->error = -EILSEQ;
 	else if (status & SDMMC_INT_RESP_ERR)
@@ -2115,8 +2124,8 @@ done:
 static void dw_mci_cmd_interrupt(struct dw_mci *host, u32 status)
 {
 	if (!host->cmd_status)
-		host->cmd_status = status;
-
+	    host->cmd_status = status;
+	    
 	smp_wmb();
 
 	set_bit(EVENT_CMD_COMPLETE, &host->pending_events);
