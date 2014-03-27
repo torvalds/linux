@@ -453,7 +453,10 @@ static int rk3288_lcdc_alpha_cfg(struct rk_lcdc_driver *dev_drv,int win_id)
 		break;
  	case AB_SRC_OVER:
 		alpha_config.src_color_mode=AA_SRC_PRE_MUL;
-		alpha_config.src_factor_mode=AA_ONE;
+		if(global_alpha)
+			alpha_config.src_factor_mode=AA_SRC_GLOBAL;
+		else
+			alpha_config.src_factor_mode=AA_ONE;
 		alpha_config.dst_factor_mode=AA_SRC_INVERSE;		
 		break;
  	case AB_DST_OVER:
