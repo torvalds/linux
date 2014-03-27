@@ -220,8 +220,7 @@ RGA2_set_reg_src_info(RK_U8 *base, struct rga2_req *msg)
             scale_h_flag = 1;
         else if (sh < dh)
             scale_h_flag = 2;
-        else
-        {
+        else {
             scale_h_flag = 0;
             if(msg->rotate_mode >> 6)
                 scale_h_flag = 3;
@@ -960,6 +959,8 @@ void RGA_MSG_2_RGA2_MSG(struct rga_req *req_rga, struct rga2_req *req)
         req->render_mode = update_patten_buff_mode;
     else if (req_rga->render_mode == 5)
         req->render_mode = bitblt_mode;
+    else
+        req->render_mode = req_rga->render_mode;
 
     memcpy(&req->src, &req_rga->src, sizeof(req_rga->src));
     memcpy(&req->dst, &req_rga->dst, sizeof(req_rga->dst));
@@ -1018,8 +1019,8 @@ void RGA_MSG_2_RGA2_MSG(struct rga_req *req_rga, struct rga2_req *req)
     req->rop_mode = 0;
 
     req->color_fill_mode = req_rga->color_fill_mode;
-    req->color_key_min = req_rga->color_key_min;
-    req->color_key_max = req_rga->color_key_max;
+    req->color_key_min   = req_rga->color_key_min;
+    req->color_key_max   = req_rga->color_key_max;
 
     req->fg_color = req_rga->fg_color;
     req->bg_color = req_rga->bg_color;

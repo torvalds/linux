@@ -559,7 +559,7 @@ static void rga2_try_set_reg(void)
             rga2_write(virt_to_phys(rga2_service.cmd_buff), RGA2_CMD_BASE);
 
 #if RGA2_TEST
-            if(1)//rga2_flag)
+            if(rga2_flag)
             {
                 //printk(KERN_DEBUG "cmd_addr = %.8x\n", rga_read(RGA_CMD_ADDR));
                 uint32_t i, *p;
@@ -584,7 +584,7 @@ static void rga2_try_set_reg(void)
             atomic_set(&reg->session->done, 0);
             rga2_write(0x1, RGA2_CMD_CTRL);
 #if RGA2_TEST
-            if(1)//rga2_flag)
+            if(rga2_flag)
             {
                 uint32_t i;
                 printk("CMD_READ_BACK_REG\n");
@@ -784,7 +784,7 @@ static int rga2_blit_sync(rga2_session *session, struct rga2_req *req)
     int ret_timeout = 0;
 
     #if RGA2_TEST_MSG
-    if (req->src.format >= 0x10) {
+    if (req->bitblt_mode == 0x2) {
         print_info(req);
         rga2_flag = 1;
         printk("*** rga2_blit_sync proc ***\n");
