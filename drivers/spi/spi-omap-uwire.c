@@ -478,6 +478,7 @@ static int uwire_probe(struct platform_device *pdev)
 		status = PTR_ERR(uwire->ck);
 		dev_dbg(&pdev->dev, "no functional clock?\n");
 		spi_master_put(master);
+		iounmap(uwire_base);
 		return status;
 	}
 	clk_enable(uwire->ck);
