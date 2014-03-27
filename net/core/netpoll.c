@@ -214,7 +214,7 @@ static void netpoll_poll_dev(struct net_device *dev)
 	zap_completion_queue();
 }
 
-void netpoll_rx_disable(struct net_device *dev)
+void netpoll_poll_disable(struct net_device *dev)
 {
 	struct netpoll_info *ni;
 	int idx;
@@ -225,9 +225,9 @@ void netpoll_rx_disable(struct net_device *dev)
 		down(&ni->dev_lock);
 	srcu_read_unlock(&netpoll_srcu, idx);
 }
-EXPORT_SYMBOL(netpoll_rx_disable);
+EXPORT_SYMBOL(netpoll_poll_disable);
 
-void netpoll_rx_enable(struct net_device *dev)
+void netpoll_poll_enable(struct net_device *dev)
 {
 	struct netpoll_info *ni;
 	rcu_read_lock();
@@ -236,7 +236,7 @@ void netpoll_rx_enable(struct net_device *dev)
 		up(&ni->dev_lock);
 	rcu_read_unlock();
 }
-EXPORT_SYMBOL(netpoll_rx_enable);
+EXPORT_SYMBOL(netpoll_poll_enable);
 
 static void refill_skbs(void)
 {
