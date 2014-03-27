@@ -30,6 +30,7 @@
 #include <linux/pda_power.h>
 #include <linux/io.h>
 #include <linux/i2c.h>
+#include <linux/ioport.h>
 
 #include <asm/mach-types.h>
 #include <asm/mach/arch.h>
@@ -113,13 +114,13 @@ struct platform_device sw_pdev_nand =
 	.dev = {}
 };
 
-#ifndef CONFIG_ARCH_SUN7I
 static struct resource sunxi_pmu_resources[] = {
-	{
-		.start	= SW_INT_IRQNO_PLE_PFM,
-		.end	= SW_INT_IRQNO_PLE_PFM,
-		.flags	= IORESOURCE_IRQ,
-	},
+#ifdef CONFIG_ARCH_SUN7I
+	DEFINE_RES_IRQ(152),
+	DEFINE_RES_IRQ(153),
+#else
+	DEFINE_RES_IRQ(SW_INT_IRQNO_PLE_PFM),
+#endif
 };
 
 struct platform_device sunxi_pmu_device = {
@@ -128,7 +129,6 @@ struct platform_device sunxi_pmu_device = {
 	.resource	= sunxi_pmu_resources,
 	.num_resources	= ARRAY_SIZE(sunxi_pmu_resources),
 };
-#endif
 
 #if defined(CONFIG_MALI_DRM) || defined(CONFIG_MALI_DRM_MODULE)
 static struct platform_device sunxi_device_mali_drm = {
@@ -143,9 +143,7 @@ static struct platform_device *sw_pdevs[] __initdata = {
 #endif
 	&sw_pdev_dmac,
 	&sw_pdev_nand,
-#ifndef CONFIG_ARCH_SUN7I
 	&sunxi_pmu_device,
-#endif
 #if defined(CONFIG_MALI_DRM) || defined(CONFIG_MALI_DRM_MODULE)
 	&sunxi_device_mali_drm,
 #endif
