@@ -69,14 +69,12 @@ void ovs_flow_stats_update(struct sw_flow *flow, struct sk_buff *skb)
 
 	stats = rcu_dereference(flow->stats[node]);
 
-	if ((flow->key.eth.type == htons(ETH_P_IP) ||
-	     flow->key.eth.type == htons(ETH_P_IPV6)) &&
-	    flow->key.ip.frag != OVS_FRAG_TYPE_LATER &&
-	    flow->key.ip.proto == IPPROTO_TCP &&
-	    likely(skb->len >= skb_transport_offset(skb) + sizeof(struct tcphdr))) {
-		tcp_flags = TCP_FLAGS_BE16(tcp_hdr(skb));
+	if (likely(flow->key.ip.proto == IPPROTO_TCP)) {
+		if (likely(flow->key.eth.type == htons(ETH_P_IP)))
+			tcp_flags = flow->key.ipv4.tp.flags;
+		else if (likely(flow->key.eth.type == htons(ETH_P_IPV6)))
+			tcp_flags = flow->key.ipv6.tp.flags;
 	}
-
 	/* Check if already have node-specific stats. */
 	if (likely(stats)) {
 		spin_lock(&stats->lock);
