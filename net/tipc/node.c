@@ -2,7 +2,7 @@
  * net/tipc/node.c: TIPC node management routines
  *
  * Copyright (c) 2000-2006, 2012 Ericsson AB
- * Copyright (c) 2005-2006, 2010-2011, Wind River Systems
+ * Copyright (c) 2005-2006, 2010-2014, Wind River Systems
  * All rights reserved.
  *
  * Redistribution and use in source and binary forms, with or without
@@ -44,11 +44,10 @@
 static void node_lost_contact(struct tipc_node *n_ptr);
 static void node_established_contact(struct tipc_node *n_ptr);
 
-static DEFINE_SPINLOCK(node_create_lock);
-
 static struct hlist_head node_htable[NODE_HTABLE_SIZE];
 LIST_HEAD(tipc_node_list);
 static u32 tipc_num_nodes;
+static DEFINE_SPINLOCK(node_list_lock);
 
 static atomic_t tipc_num_links = ATOMIC_INIT(0);
 
@@ -73,31 +72,26 @@ struct tipc_node *tipc_node_find(u32 addr)
 	if (unlikely(!in_own_cluster_exact(addr)))
 		return NULL;
 
+	spin_lock_bh(&node_list_lock);
 	hlist_for_each_entry(node, &node_htable[tipc_hashfn(addr)], hash) {
-		if (node->addr == addr)
+		if (node->addr == addr) {
+			spin_unlock_bh(&node_list_lock);
 			return node;
+		}
 	}
+	spin_unlock_bh(&node_list_lock);
 	return NULL;
 }
 
-/**
- * tipc_node_create - create neighboring node
- *
- * Currently, this routine is called by neighbor discovery code, which holds
- * net_lock for reading only.  We must take node_create_lock to ensure a node
- * isn't created twice if two different bearers discover the node at the same
- * time.  (It would be preferable to switch to holding net_lock in write mode,
- * but this is a non-trivial change.)
- */
 struct tipc_node *tipc_node_create(u32 addr)
 {
 	struct tipc_node *n_ptr, *temp_node;
 
-	spin_lock_bh(&node_create_lock);
+	spin_lock_bh(&node_list_lock);
 
 	n_ptr = kzalloc(sizeof(*n_ptr), GFP_ATOMIC);
 	if (!n_ptr) {
-		spin_unlock_bh(&node_create_lock);
+		spin_unlock_bh(&node_list_lock);
 		pr_warn("Node creation failed, no memory\n");
 		return NULL;
 	}
@@ -120,17 +114,27 @@ struct tipc_node *tipc_node_create(u32 addr)
 
 	tipc_num_nodes++;
 
-	spin_unlock_bh(&node_create_lock);
+	spin_unlock_bh(&node_list_lock);
 	return n_ptr;
 }
 
-void tipc_node_delete(struct tipc_node *n_ptr)
+static void tipc_node_delete(struct tipc_node *n_ptr)
 {
 	list_del(&n_ptr->list);
 	hlist_del(&n_ptr->hash);
 	kfree(n_ptr);
 
 	tipc_num_nodes--;
+}
+
+void tipc_node_stop(void)
+{
+	struct tipc_node *node, *t_node;
+
+	spin_lock_bh(&node_list_lock);
+	list_for_each_entry_safe(node, t_node, &tipc_node_list, list)
+		tipc_node_delete(node);
+	spin_unlock_bh(&node_list_lock);
 }
 
 /**
@@ -335,22 +339,22 @@ struct sk_buff *tipc_node_get_nodes(const void *req_tlv_area, int req_tlv_space)
 		return tipc_cfg_reply_error_string(TIPC_CFG_INVALID_VALUE
 						   " (network address)");
 
-	read_lock_bh(&tipc_net_lock);
+	spin_lock_bh(&node_list_lock);
 	if (!tipc_num_nodes) {
-		read_unlock_bh(&tipc_net_lock);
+		spin_unlock_bh(&node_list_lock);
 		return tipc_cfg_reply_none();
 	}
 
 	/* For now, get space for all other nodes */
 	payload_size = TLV_SPACE(sizeof(node_info)) * tipc_num_nodes;
 	if (payload_size > 32768u) {
-		read_unlock_bh(&tipc_net_lock);
+		spin_unlock_bh(&node_list_lock);
 		return tipc_cfg_reply_error_string(TIPC_CFG_NOT_SUPPORTED
 						   " (too many nodes)");
 	}
 	buf = tipc_cfg_reply_alloc(payload_size);
 	if (!buf) {
-		read_unlock_bh(&tipc_net_lock);
+		spin_unlock_bh(&node_list_lock);
 		return NULL;
 	}
 
@@ -363,8 +367,7 @@ struct sk_buff *tipc_node_get_nodes(const void *req_tlv_area, int req_tlv_space)
 		tipc_cfg_append_tlv(buf, TIPC_TLV_NODE_INFO,
 				    &node_info, sizeof(node_info));
 	}
-
-	read_unlock_bh(&tipc_net_lock);
+	spin_unlock_bh(&node_list_lock);
 	return buf;
 }
 
@@ -387,19 +390,18 @@ struct sk_buff *tipc_node_get_links(const void *req_tlv_area, int req_tlv_space)
 	if (!tipc_own_addr)
 		return tipc_cfg_reply_none();
 
-	read_lock_bh(&tipc_net_lock);
-
+	spin_lock_bh(&node_list_lock);
 	/* Get space for all unicast links + broadcast link */
 	payload_size = TLV_SPACE(sizeof(link_info)) *
 		(atomic_read(&tipc_num_links) + 1);
 	if (payload_size > 32768u) {
-		read_unlock_bh(&tipc_net_lock);
+		spin_unlock_bh(&node_list_lock);
 		return tipc_cfg_reply_error_string(TIPC_CFG_NOT_SUPPORTED
 						   " (too many links)");
 	}
 	buf = tipc_cfg_reply_alloc(payload_size);
 	if (!buf) {
-		read_unlock_bh(&tipc_net_lock);
+		spin_unlock_bh(&node_list_lock);
 		return NULL;
 	}
 
@@ -427,7 +429,6 @@ struct sk_buff *tipc_node_get_links(const void *req_tlv_area, int req_tlv_space)
 		}
 		tipc_node_unlock(n_ptr);
 	}
-
-	read_unlock_bh(&tipc_net_lock);
+	spin_unlock_bh(&node_list_lock);
 	return buf;
 }

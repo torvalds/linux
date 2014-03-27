@@ -189,15 +189,14 @@ void tipc_net_start(u32 addr)
 
 void tipc_net_stop(void)
 {
-	struct tipc_node *node, *t_node;
-
 	if (!tipc_own_addr)
 		return;
+
 	write_lock_bh(&tipc_net_lock);
 	tipc_bearer_stop();
 	tipc_bclink_stop();
-	list_for_each_entry_safe(node, t_node, &tipc_node_list, list)
-		tipc_node_delete(node);
+	tipc_node_stop();
 	write_unlock_bh(&tipc_net_lock);
+
 	pr_info("Left network mode\n");
 }
