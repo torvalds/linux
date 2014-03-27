@@ -1422,8 +1422,7 @@ static void slic_cmdq_addcmdpage(struct adapter *adapter, u32 *page)
 		spin_lock_irqsave(&adapter->handle_lock.lock,
 				adapter->handle_lock.flags);
 		pslic_handle  =  adapter->pfree_slic_handles;
-		if (pslic_handle)
-			adapter->pfree_slic_handles = pslic_handle->next;
+		adapter->pfree_slic_handles = pslic_handle->next;
 		spin_unlock_irqrestore(&adapter->handle_lock.lock,
 				adapter->handle_lock.flags);
 		pslic_handle->type = SLIC_HANDLE_CMD;
