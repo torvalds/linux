@@ -182,8 +182,6 @@ void tipc_net_start(u32 addr)
 	tipc_bclink_init();
 	write_unlock_bh(&tipc_net_lock);
 
-	tipc_cfg_reinit();
-
 	pr_info("Started in network mode\n");
 	pr_info("Own node address %s, network identity %u\n",
 		tipc_addr_string_fill(addr_string, tipc_own_addr), tipc_net_id);
