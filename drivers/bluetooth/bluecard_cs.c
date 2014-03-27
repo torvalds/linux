@@ -901,7 +901,7 @@ static void bluecard_release(struct pcmcia_device *link)
 
 	bluecard_close(info);
 
-	del_timer(&(info->timer));
+	del_timer_sync(&(info->timer));
 
 	pcmcia_disable_device(link);
 }
