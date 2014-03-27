@@ -112,7 +112,7 @@ static void queue_process(struct work_struct *work)
 		struct netdev_queue *txq;
 
 		if (!netif_device_present(dev) || !netif_running(dev)) {
-			__kfree_skb(skb);
+			kfree_skb(skb);
 			continue;
 		}
 
@@ -332,7 +332,7 @@ void netpoll_send_skb_on_dev(struct netpoll *np, struct sk_buff *skb,
 
 	npinfo = rcu_dereference_bh(np->dev->npinfo);
 	if (!npinfo || !netif_running(dev) || !netif_device_present(dev)) {
-		__kfree_skb(skb);
+		dev_kfree_skb_irq(skb);
 		return;
 	}
 
