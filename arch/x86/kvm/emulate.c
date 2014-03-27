@@ -4388,12 +4388,15 @@ done_prefixes:
 		ctxt->d |= opcode.flags;
 	}
 
+	/* Unrecognised? */
+	if (ctxt->d == 0)
+		return EMULATION_FAILED;
+
 	ctxt->execute = opcode.u.execute;
 	ctxt->check_perm = opcode.check_perm;
 	ctxt->intercept = opcode.intercept;
 
-	/* Unrecognised? */
-	if (ctxt->d == 0 || (ctxt->d & NotImpl))
+	if (ctxt->d & NotImpl)
 		return EMULATION_FAILED;
 
 	if (!(ctxt->d & EmulateOnUD) && ctxt->ud)
@@ -4535,12 +4538,6 @@ int x86_emulate_insn(struct x86_emulate_ctxt *ctxt)
 
 	ctxt->mem_read.pos = 0;
 
-	if ((ctxt->mode == X86EMUL_MODE_PROT64 && (ctxt->d & No64)) ||
-			(ctxt->d & Undefined)) {
-		rc = emulate_ud(ctxt);
-		goto done;
-	}
-
 	/* LOCK prefix is allowed only with some instructions */
 	if (ctxt->lock_prefix && (!(ctxt->d & Lock) || ctxt->dst.type != OP_MEM)) {
 		rc = emulate_ud(ctxt);
@@ -4548,6 +4545,12 @@ int x86_emulate_insn(struct x86_emulate_ctxt *ctxt)
 	}
 
 	if ((ctxt->d & SrcMask) == SrcMemFAddr && ctxt->src.type != OP_MEM) {
+		rc = emulate_ud(ctxt);
+		goto done;
+	}
+
+	if ((ctxt->mode == X86EMUL_MODE_PROT64 && (ctxt->d & No64)) ||
+			(ctxt->d & Undefined)) {
 		rc = emulate_ud(ctxt);
 		goto done;
 	}
