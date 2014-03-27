@@ -908,6 +908,8 @@
 		interrupts = <GIC_SPI 23 IRQ_TYPE_LEVEL_HIGH>;
 		/*clocks = <&clk_gates13 4>, <&clk_gates7 4>;*/
 		/*clock-names = "clk_usbphy0", "hclk_usb0";*/
+		/*0 - Normal, 1 - Force Host, 2 - Force Device*/
+		rockchip,usb-mode = <0>;
 	};
 
 	usb1: usb@ff540000 {

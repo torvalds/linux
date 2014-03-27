@@ -1638,7 +1638,8 @@ static void dwc_otg_pcd_work_init(dwc_otg_pcd_t *pcd, struct platform_device *de
 
 	wake_lock_init(&pcd->wake_lock, WAKE_LOCK_SUSPEND, "usb_pcd");
     
-	if(dwc_otg_is_device_mode(pcd->core_if)){
+	if(dwc_otg_is_device_mode(pcd->core_if) &&
+	  (otg_dev->core_if->usb_mode != USB_MODE_FORCE_HOST)){
 #ifdef CONFIG_RK_USB_UART        
 		if(pldata->get_status(USB_STATUS_BVABLID)){
 			//enter usb phy mode

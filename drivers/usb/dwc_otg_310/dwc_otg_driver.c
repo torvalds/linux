@@ -1340,6 +1340,7 @@ static int otg20_driver_probe(struct platform_device *_dev)
 {
 	int retval = 0;
 	int irq;
+	uint32_t val;
 	struct resource *res_base;
 	dwc_otg_device_t *dwc_otg_device;
 	struct device 		*dev = &_dev->dev;
@@ -1491,7 +1492,15 @@ static int otg20_driver_probe(struct platform_device *_dev)
 	 * we do core soft reset after connection detected.
 	 */
 	dwc_otg_core_init_no_reset(dwc_otg_device->core_if);
-	dwc_otg_device->core_if->usb_mode = 0;// TODO: Can be read from Device-Tree
+
+	/* set otg mode
+	 * 0 - USB_MODE_NORMAL
+	 * 1 - USB_MODE_FORCE_HOST
+	 * 2 - USB_MODE_FORCE_DEVICE
+	 */
+	of_property_read_u32(node, "rockchip,usb-mode", &val);
+	dwc_otg_device->core_if->usb_mode = val;
+
 #ifndef DWC_HOST_ONLY
 	/*
 	 * Initialize the PCD

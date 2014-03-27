@@ -517,7 +517,8 @@ int otg20_hcd_init( struct platform_device *_dev )
 
 	dwc_otg_hcd_set_priv_data(dwc_otg_hcd, hcd);
 	dwc_otg_hcd->host_enabled = 1;
-	if(dwc_otg_is_host_mode(otg_dev->core_if)){
+	if(dwc_otg_is_host_mode(otg_dev->core_if) ||
+	  (otg_dev->core_if->usb_mode == USB_MODE_FORCE_HOST)){
 		dwc_otg_hcd->connect_detect_timer.function = otg20_hcd_connect_detect;
 		dwc_otg_hcd->connect_detect_timer.data = (unsigned long)(dwc_otg_hcd);
 		init_timer( &dwc_otg_hcd->connect_detect_timer);
