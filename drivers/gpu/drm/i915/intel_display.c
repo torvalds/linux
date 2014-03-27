@@ -5533,8 +5533,11 @@ static void i9xx_set_pipeconf(struct intel_crtc *intel_crtc)
 		}
 	}
 
-	if (!IS_GEN2(dev) &&
+	if (IS_VALLEYVIEW(dev) &&
 	    intel_crtc->config.adjusted_mode.flags & DRM_MODE_FLAG_INTERLACE)
+		pipeconf |= PIPECONF_INTERLACE_W_SYNC_SHIFT;
+	else if (!IS_GEN2(dev) &&
+		 intel_crtc->config.adjusted_mode.flags & DRM_MODE_FLAG_INTERLACE)
 		pipeconf |= PIPECONF_INTERLACE_W_FIELD_INDICATION;
 	else
 		pipeconf |= PIPECONF_PROGRESSIVE;
