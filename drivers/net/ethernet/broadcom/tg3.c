@@ -1401,11 +1401,6 @@ static int tg3_mdio_write(struct mii_bus *bp, int mii_id, int reg, u16 val)
 	return ret;
 }
 
-static int tg3_mdio_reset(struct mii_bus *bp)
-{
-	return 0;
-}
-
 static void tg3_mdio_config_5785(struct tg3 *tp)
 {
 	u32 val;
@@ -1542,7 +1537,6 @@ static int tg3_mdio_init(struct tg3 *tp)
 	tp->mdio_bus->parent   = &tp->pdev->dev;
 	tp->mdio_bus->read     = &tg3_mdio_read;
 	tp->mdio_bus->write    = &tg3_mdio_write;
-	tp->mdio_bus->reset    = &tg3_mdio_reset;
 	tp->mdio_bus->phy_mask = ~(1 << tp->phy_addr);
 	tp->mdio_bus->irq      = &tp->mdio_irq[0];
 
