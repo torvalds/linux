@@ -16,6 +16,7 @@
 
 #include <linux/clk-provider.h>
 #include <linux/clocksource.h>
+#include <linux/cpuidle.h>
 #include <linux/delay.h>
 #include <linux/init.h>
 #include <linux/irqchip.h>
@@ -28,6 +29,8 @@
 #include <linux/rockchip/dvfs.h>
 #include <linux/rockchip/grf.h>
 #include <linux/rockchip/iomap.h>
+#include <asm/cpuidle.h>
+#include <asm/cputype.h>
 #include <asm/mach/arch.h>
 #include <asm/mach/map.h>
 #include "cpu_axi.h"
@@ -354,16 +357,54 @@ static void rk3288_restart(char mode, const char *cmd)
 	dsb();
 }
 
+static struct cpuidle_driver rk3288_cpuidle_driver = {
+	.name = "rk3288_cpuidle",
+	.owner = THIS_MODULE,
+	.states[0] = ARM_CPUIDLE_WFI_STATE,
+	.state_count = 1,
+};
+
+static int rk3288_cpuidle_enter(struct cpuidle_device *dev,
+		struct cpuidle_driver *drv, int index)
+{
+	void *sel = RK_CRU_VIRT + RK3288_CRU_CLKSELS_CON(36);
+	u32 con = readl_relaxed(sel);
+	u32 cpu = MPIDR_AFFINITY_LEVEL(read_cpuid_mpidr(), 0);
+	writel_relaxed(0x70007 << (cpu << 2), sel);
+	cpu_do_idle();
+	writel_relaxed((0x70000 << (cpu << 2)) | con, sel);
+	dsb();
+	return index;
+}
+
+static void __init rk3288_init_cpuidle(void)
+{
+	int ret;
+
+	rk3288_cpuidle_driver.states[0].enter = rk3288_cpuidle_enter;
+	ret = cpuidle_register(&rk3288_cpuidle_driver, NULL);
+	if (ret)
+		pr_err("%s: failed to register cpuidle driver: %d\n", __func__, ret);
+}
+
 static void __init rk3288_init_suspend(void);
+
+static void __init rk3288_init_late(void)
+{
+#ifdef CONFIG_PM
+	rk3288_init_suspend();
+#endif
+#ifdef CONFIG_CPU_IDLE
+	rk3288_init_cpuidle();
+#endif
+}
 
 DT_MACHINE_START(RK3288_DT, "Rockchip RK3288 (Flattened Device Tree)")
 	.smp		= smp_ops(rockchip_smp_ops),
 	.map_io		= rk3288_dt_map_io,
 	.init_time	= rk3288_dt_init_timer,
 	.dt_compat	= rk3288_dt_compat,
-#ifdef CONFIG_PM
-	.init_late	= rk3288_init_suspend,
-#endif
+	.init_late	= rk3288_init_late,
 	.reserve	= rk3288_reserve,
 	.restart	= rk3288_restart,
 MACHINE_END
