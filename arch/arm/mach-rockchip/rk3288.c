@@ -272,7 +272,8 @@ static int rk3288_pmu_set_power_domain(enum pmu_power_domain pd, bool on)
 			SAVE_QOS(hevc_w_qos, HEVC_W);
 			rk3288_pmu_set_idle_request(IDLE_REQ_HEVC, true);
 		} else if (pd >= PD_CPU_1 && pd <= PD_CPU_3) {
-			goto out;
+			writel_relaxed(0x20002 << (pd - PD_CPU_1), RK_CRU_VIRT + RK3288_CRU_SOFTRSTS_CON(0));
+			dsb();
 		}
 	}
 
@@ -303,6 +304,8 @@ static int rk3288_pmu_set_power_domain(enum pmu_power_domain pd, bool on)
 			RESTORE_QOS(hevc_r_qos, HEVC_R);
 			RESTORE_QOS(hevc_w_qos, HEVC_W);
 		} else if (pd >= PD_CPU_1 && pd <= PD_CPU_3) {
+			writel_relaxed(0x20000 << (pd - PD_CPU_1), RK_CRU_VIRT + RK3288_CRU_SOFTRSTS_CON(0));
+			dsb();
 			udelay(10);
 			writel_relaxed(virt_to_phys(secondary_startup), RK3288_IMEM_VIRT + 8);
 			writel_relaxed(0xDEADBEAF, RK3288_IMEM_VIRT + 4);

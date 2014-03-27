@@ -98,6 +98,7 @@ enum rk3288_cru_clk_gate {
 
 #define RK3288_CRU_GLB_SRST_FST_VALUE   0x1b0
 #define RK3288_CRU_GLB_SRST_SND_VALUE   0x1b4
+#define RK3288_CRU_SOFTRST_CON          0x1b8
 #define RK3288_CRU_MISC_CON             0x1e8
 #define RK3288_CRU_GLB_CNT_TH           0x1ec
 #define RK3288_CRU_GLB_RST_CON          0x1f0
@@ -110,5 +111,8 @@ enum rk3288_cru_clk_gate {
 #define RK3288_CRU_SDIO1_CON1           0x214
 #define RK3288_CRU_EMMC_CON0            0x218
 #define RK3288_CRU_EMMC_CON1            0x21c
+
+#define RK3288_CRU_SOFTRSTS_CON_CNT	(12)
+#define RK3288_CRU_SOFTRSTS_CON(i)	(RK3288_CRU_SOFTRST_CON + ((i) * 4))
 
 #endif

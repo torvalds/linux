@@ -49,7 +49,7 @@ int rockchip_cpu_kill(unsigned int cpu)
  *
  * Called with IRQs disabled
  */
-void rockchip_cpu_die(unsigned int cpu)
+void rockchip_cpu_die_a9(unsigned int cpu)
 {
 	unsigned int v;
 
@@ -80,6 +80,20 @@ void rockchip_cpu_die(unsigned int cpu)
 	/* wait for SoC code in platform_cpu_kill() to shut off CPU core
 	 * power. CPU bring up starts from the reset vector.
 	 */
+	while (1) {
+		dsb();
+		wfi();
+	}
+}
+
+void rockchip_cpu_die(unsigned int cpu)
+{
+	/* notify platform_cpu_kill() that hardware shutdown is finished */
+	cpumask_set_cpu(cpu, &dead_cpus);
+	flush_cache_louis();
+
+	v7_exit_coherency_flush(louis);
+
 	while (1) {
 		dsb();
 		wfi();
