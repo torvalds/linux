@@ -173,11 +173,11 @@
 	}						\
 }
 
-#define WRITE_BCR(reg, into)				\
+#define WRITE_AUX(reg, into)				\
 {							\
 	unsigned int tmp;				\
 	if (sizeof(tmp) == sizeof(into)) {		\
-		tmp = (*(unsigned int *)(into));	\
+		tmp = (*(unsigned int *)&(into));	\
 		write_aux_reg(reg, tmp);		\
 	} else  {					\
 		extern void bogus_undefined(void);	\
