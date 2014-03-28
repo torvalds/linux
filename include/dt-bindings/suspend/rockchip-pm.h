@@ -19,8 +19,9 @@
 #define __DT_BINDINGS_ROCKCHIP_PM_H__
 /******************************bits ops************************************/
 
-
-
+#ifndef BIT
+#define BIT(nr)			(1 << (nr))
+#endif
 
 #define RKPM_BITS_W_MSK(bits_shift, msk)	((msk) << ((bits_shift) + 16))
 
@@ -36,36 +37,38 @@
 
 #define RKPM_GETBITS(val, bits_shift, msk)	(((val)>> (bits_shift))&(msk))
 
-
-
-
-
 /*********************CTRBIT DEFINE*****************************/
-#define RKPM_CTR_PWR_DMNS (0x1<<0)
-#define RKPM_CTR_GTCLKS (0x1<<1)
-#define RKPM_CTR_PLLS (0x1<<2)
-#define RKPM_CTR_VOLTS (0x1<<3)
-#define RKPM_CTR_GPIOS (0x1<<4)
-#define RKPM_CTR_DDR (0x1<<5)
-#define RKPM_CTR_PMIC (0x1<<6)
-	/*
-	*sys_clk 24M div , it is mutex for 
-	**RKPM_CTR_SYSCLK_DIV and RKPM_CTR_SYSCLK_32K and RKPM_CTR_SYSCLK_OSC_DIS.
-	**you can select only one
-	*/
-#define RKPM_CTR_SYSCLK_DIV (0x1<<7)// system clk is 24M,and div to min
-#define RKPM_CTR_SYSCLK_32K (0x1<<8)// switch sysclk to 32k,need hardwart susport. and div to min
-#define RKPM_CTR_SYSCLK_OSC_DIS (0x1<<9) // switch sysclk to 32k,disable 24M OSC,need hardwart susport. and div to min
+#define RKPM_CTR_PWR_DMNS BIT(0)
+#define RKPM_CTR_GTCLKS BIT(1)
+#define RKPM_CTR_PLLS BIT(2)
+#define RKPM_CTR_VOLTS BIT(3)
+#define RKPM_CTR_GPIOS BIT(4)
+#define RKPM_CTR_DDR BIT(5)
+#define RKPM_CTR_PMIC BIT(6)
 
-       //pm mode Function Selection
-#define RKPM_CTR_NORIDLE_MD (0x1<<16)
+/*************************************************************
+*sys_clk 24M div , it is mutex for 
+**RKPM_CTR_SYSCLK_DIV and RKPM_CTR_SYSCLK_32K and RKPM_CTR_SYSCLK_OSC_DIS.
+**you can select only one
+************************************************************/
+#define RKPM_CTR_SYSCLK_DIV BIT(7)// system clk is 24M,and div to min
+#define RKPM_CTR_SYSCLK_32K BIT(8)// switch sysclk to 32k,need hardwart susport. and div to min
+#define RKPM_CTR_SYSCLK_OSC_DIS BIT(9) // switch sysclk to 32k,disable 24M OSC,need hardwart susport. and div to min
+
+//Low Power Function Selection
+#define RKPM_CTR_IDLESRAM_MD BIT(16) // ddr reslf by soft // nor low power
+#define RKPM_CTR_IDLEAUTO_MD BIT(17) // ddr reslf by soc // nor low power
+#define RKPM_CTR_ARMDP_LPMD BIT(18) // arm enter deep sleep,not off power supply  
+#define RKPM_CTR_ARMOFF_LPMD BIT(19) // arm enter deep sleep,off power supply
+#define RKPM_CTR_ARMLOGDP_LPMD BIT(20)// arm and logic enter deep sleep,both is not off power supply  
+#define RKPM_CTR_ARMOFF_LOGDP_LPMD BIT(21)// arm off ,logic enter deep sleep,but it is not off power supply  
+#define RKPM_CTR_ARMLOGOFF_DLPMD BIT(22) //// arm and logic enter deep sleep,both is off power supply  
     
         //debug ctrl Selection
-#define RKPM_CTR_RET_DIRT (0x1<<24)
-#define RKPM_CTR_ONLY_WFI (0x1<<25)
-#define RKPM_CTR_SRAM_NO_WFI (0x1<<26)
-#define RKPM_CTR_WAKE_UP_KEY (0x1<<27)
-#define RKPM_CTR_ALL (0x1<<31)
+#define RKPM_CTR_RET_DIRT BIT(24)
+#define RKPM_CTR_SRAM_NO_WFI BIT(26)
+#define RKPM_CTR_WAKE_UP_KEY BIT(27)
+#define RKPM_CTR_ALL BIT(31)
 
 /*********************CTRBIT DEFINE END*****************************/
 

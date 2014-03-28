@@ -62,6 +62,8 @@ void PIE_FUNC(rkpm_sram_printch_pie)(char byte)
    // if (byte == '\n')
         //FUNC(rkpm_sram_printch_pie)('\r');
 }
+EXPORT_PIE_SYMBOL(FUNC(rkpm_sram_printch_pie));
+
 
 void  PIE_FUNC(rkpm_sram_printhex_pie)(unsigned int hex)
 {
@@ -74,6 +76,7 @@ void  PIE_FUNC(rkpm_sram_printhex_pie)(unsigned int hex)
     	hex <<= 4;
     }
 }
+EXPORT_PIE_SYMBOL(FUNC(rkpm_sram_printhex_pie));
 
 
 /******************************************pm main function******************************************/
@@ -82,13 +85,13 @@ void  PIE_FUNC(rkpm_sram_printhex_pie)(unsigned int hex)
 static void __sramfunc rkpm_sram_suspend(u32 ctrbits)
 {
 
-	rkpm_sram_printch('5');
+	rkpm_sram_printch('7');
 	RKPM_BITCTR_SRAM_FUN(DDR,ddr);
     
-	rkpm_sram_printch('6');  
+	rkpm_sram_printch('8');  
 	RKPM_BITCTR_SRAM_FUN(VOLTS,volts);
     
-        rkpm_sram_printch('7');
+        rkpm_sram_printch('9');
                 
        RKPM_BITCTR_SRAM_FUN(GTCLKS,gtclks);
 	
@@ -108,13 +111,13 @@ static void __sramfunc rkpm_sram_suspend(u32 ctrbits)
     
 	RKPM_BITCTR_SRAM_FUN(GTCLKS,re_gtclks);
     
-	rkpm_sram_printch('7');
+	rkpm_sram_printch('9');
 	RKPM_BITCTR_SRAM_FUN(VOLTS,re_volts);
     
-	rkpm_sram_printch('6');	
+	rkpm_sram_printch('8');	
 	RKPM_BITCTR_SRAM_FUN(DDR,re_ddr);
     
-	rkpm_sram_printch('5');	
+	rkpm_sram_printch('7');	
 }
 
 void PIE_FUNC(rkpm_sram_suspend_arg)(void *arg)
@@ -123,10 +126,11 @@ void PIE_FUNC(rkpm_sram_suspend_arg)(void *arg)
     
    // rkpm_sram_printhex(rkpm_sram_ctrbits); 
     //rkpm_sram_printhex(*((u32 *)arg));
-    rkpm_sram_suspend(rkpm_sram_ctrbits);
-
-    
+    rkpm_sram_suspend(rkpm_sram_ctrbits);    
 }
+EXPORT_PIE_SYMBOL(FUNC(rkpm_sram_suspend_arg));
+
+
 static void rkpm_pie_init(void)
 {
     if(rockchip_pie_chunk)

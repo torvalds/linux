@@ -1,6 +1,11 @@
 #include <linux/kernel.h>
 #include <linux/init.h>
 #include <linux/suspend.h>
+#include <asm/cacheflush.h>
+#include <asm/tlbflush.h>
+#include <asm/suspend.h>
+#include <linux/delay.h>
+
 #include <asm/io.h>
 #include "pm.h"
 
@@ -24,7 +29,7 @@ void  rkpm_ddr_regs_dump(void __iomem * base_addr,u32 start_offset,u32 end_offse
         
 	for(i=start_offset;i<=end_offset;)
 	{
-            rkpm_ddr_printhex(readl_relaxed((base_addr + i)));  
+            rkpm_ddr_printhex(reg_readl((base_addr + i)));  
             line++;
             if((line%4==0)||i==end_offset)
                 rkpm_ddr_printch('\n');
@@ -56,7 +61,6 @@ void rkpm_set_pie_info(struct rkpm_sram_ops *pm_sram_ops,rkpm_sram_suspend_arg_c
 
 
 }
-
 
 void rkpm_set_ops_prepare_finish(rkpm_ops_void_callback prepare,rkpm_ops_void_callback finish)
 {
@@ -99,6 +103,14 @@ void rkpm_set_ops_regs_pread(rkpm_ops_void_callback regs_pread)
 	pm_ops.regs_pread=regs_pread;	
 }
 
+void rkpm_set_ops_regs_sleep(rkpm_ops_void_callback save,rkpm_ops_paramter_u32_cb setting
+                                                                ,rkpm_ops_void_callback re_first,rkpm_ops_void_callback re_last)
+{
+	pm_ops.slp_save=save;
+	pm_ops.slp_setting=setting;
+	pm_ops.slp_re_first=re_first;
+	pm_ops.slp_re_last=re_last;    
+}
 
 
 /**************************************sram callback setting***************************************/
@@ -217,12 +229,22 @@ static void inline rkpm_clr_jdg_ctrbit(int bit)
 #define  RKPM_DDR_FUN(fun) \
 	if(pm_ops.fun)\
 		(pm_ops.fun)()
+
+// fun with paramater
+#define  RKPM_DDR_PFUN(fun,fun_p) \
+        if(pm_ops.fun_p) \
+            {pm_ops.fun;} while(0)
+
+
     
 
 #define  RKPM_BITCTR_DDR_FUN(ctr,fun) \
 	if(rkpm_chk_jdg_ctrbit(RKPM_CTR_##ctr)&&pm_ops.fun)\
 		(pm_ops.fun)()
 
+#define  RKPM_BITSCTR_DDR_FUN(bits,fun) \
+        if(rkpm_chk_jdg_ctrbits(bits)&&pm_ops.fun)\
+            (pm_ops.fun)()
 
 
 void rkpm_ctrbits_prepare(void)
@@ -233,9 +255,9 @@ void rkpm_ctrbits_prepare(void)
 	rkpm_jdg_ctrbits=rkpm_ctrbits;
 
         //if plls is no pd,clk rate is high, volts can not setting low,so we need to judge ctrbits
-	if(rkpm_chk_jdg_ctrbit(RKPM_CTR_VOLTS))
+	//if(rkpm_chk_jdg_ctrbit(RKPM_CTR_VOLTS))
 	{
-		rkpm_clr_jdg_ctrbit(RKPM_CTR_VOLTS);
+		//rkpm_clr_jdg_ctrbit(RKPM_CTR_VOLTS);
 	}
     
         rkpm_jdg_sram_ctrbits=rkpm_jdg_ctrbits;
@@ -348,109 +370,137 @@ void  rkpm_ddr_printhex(unsigned int hex)
 		hex <<= 4;
 	}
 }
-
-inline int rkpm_dbgctr_enter(void)
+static int rk_lpmode_enter(unsigned long arg)
 {
-    if(rkpm_chk_jdg_ctrbits(RKPM_OR_2BITS(RET_DIRT,ONLY_WFI)))
-    {
-        if(rkpm_chk_jdg_ctrbit(RKPM_CTR_ONLY_WFI))
-        {
-            local_fiq_disable();
-            dsb();
-            wfi();
-            local_fiq_enable();
-        }
-        return -1;
-    }
-    return 0;
+
+        RKPM_DDR_PFUN(slp_setting(rkpm_jdg_sram_ctrbits),slp_setting); 
+        
+        local_flush_tlb_all();
+        flush_cache_all();
+        outer_flush_all();
+        outer_disable();
+        cpu_proc_fin();
+        //outer_inv_all();// ???
+        //  l2x0_inv_all_pm(); //rk319x is not need
+        flush_cache_all();
+        
+        rkpm_ddr_printch('d');
+
+        dsb();
+        wfi();  
+        
+        rkpm_ddr_printch('D');
+	return 0;
 }
 
-void  rk_slp_mode_enter(void)
-{
-	//rk30_suspend_sleep();
-         
-}
 
+int cpu_suspend(unsigned long arg, int (*fn)(unsigned long));
 
 static int rkpm_enter(suspend_state_t state)
 {
+ 
+        printk("%s\n",__FUNCTION__);
+        printk(KERN_DEBUG "pm: ");
 
-    printk("%s\n",__FUNCTION__);
-    printk(KERN_DEBUG "pm: ");
+        rkpm_ctrbits_prepare();
 
-    rkpm_ctrbits_prepare();
+      //  if(rkpm_chk_jdg_ctrbit(RKPM_CTR_RET_DIRT))
+      //  return 0;
+
+        RKPM_DDR_FUN(prepare);
+
+        rkpm_ddr_printch('0');
+
+        RKPM_BITCTR_DDR_FUN(PWR_DMNS,pwr_dmns);
+
+        rkpm_ddr_printch('1');
+
+        local_fiq_disable();
+
+        RKPM_BITSCTR_DDR_FUN(RKPM_CTRBITS_SOC_DLPMD,slp_save);
+        
+        rkpm_ddr_printch('2');
+        RKPM_BITCTR_DDR_FUN(GTCLKS,gtclks);
+
+        rkpm_ddr_printch('3');
+
+        RKPM_BITCTR_DDR_FUN(PLLS,plls);
+
+        rkpm_ddr_printch('4');
+
+        RKPM_BITCTR_DDR_FUN(GPIOS,gpios);
+
+        RKPM_DDR_FUN(regs_pread);
+
+        rkpm_ddr_printch('5');
+
+        pm_log = false;
+
+        if(rkpm_chk_jdg_ctrbits(RKPM_CTRBITS_SOC_DLPMD))
+        {   
+            if(cpu_suspend(0,rk_lpmode_enter)==0)
+            {
+                rkpm_ddr_printch('d');
+                RKPM_DDR_FUN(slp_re_first);
+                //rk_soc_pm_ctr_bits_prepare();
+            }	  	
+        }else if(rkpm_chk_jdg_ctrbit(RKPM_CTR_IDLEAUTO_MD))
+        {
+            RKPM_DDR_PFUN(slp_setting(rkpm_jdg_sram_ctrbits),slp_setting);
+            rkpm_ddr_printch('a');	
+            dsb();
+            wfi();  
+            rkpm_ddr_printch('a');	
+        }
+        else if(rkpm_chk_jdg_ctrbit(RKPM_CTR_IDLESRAM_MD)&&p_suspend_pie_cb)
+        {
+            call_with_stack(p_suspend_pie_cb,&rkpm_jdg_sram_ctrbits, rockchip_sram_stack);
+        }
+        else
+        {
+            dsb();
+            wfi();
+        }
+
+        pm_log = true;
+
+        rkpm_ddr_printch('5');
+
+        RKPM_BITCTR_DDR_FUN(GPIOS,re_gpios);
+
+        rkpm_ddr_printch('4');
+
+        RKPM_BITCTR_DDR_FUN(PLLS,re_plls);
+
+        rkpm_ddr_printch('3');
+
+        RKPM_BITCTR_DDR_FUN(GTCLKS,re_gtclks);
+        
+        rkpm_ddr_printch('2');
+        
+        RKPM_BITSCTR_DDR_FUN(RKPM_CTRBITS_SOC_DLPMD,slp_re_last);
+
+        local_fiq_enable();
+
+        rkpm_ddr_printch('1');
+
+        RKPM_BITCTR_DDR_FUN(PWR_DMNS,re_pwr_dmns);
+
+        rkpm_ddr_printch('0');
+
+        pm_log = false;
+
+        printk(KERN_CONT "\n");
+
+        rkpm_ddr_printch('\n');
+
+        RKPM_DDR_FUN(finish);
     
-    if(rkpm_dbgctr_enter())
-        return 0;
-
-    RKPM_DDR_FUN(prepare);
-
-
-    rkpm_ddr_printch('0');
-
-    RKPM_BITCTR_DDR_FUN(PWR_DMNS,pwr_dmns);
-
-    rkpm_ddr_printch('1');
-    
-    local_fiq_disable();
-
-    RKPM_BITCTR_DDR_FUN(GTCLKS,gtclks);
-
-    rkpm_ddr_printch('2');
-    
-    RKPM_BITCTR_DDR_FUN(PLLS,plls);
-
-    rkpm_ddr_printch('3');
-
-    RKPM_BITCTR_DDR_FUN(GPIOS,gpios);
-
-    RKPM_DDR_FUN(regs_pread);
-
-    rkpm_ddr_printch('4');
-    
-    pm_log = false;
-
-    if(rkpm_chk_jdg_ctrbit(RKPM_CTR_NORIDLE_MD)&&p_suspend_pie_cb)
-        call_with_stack(p_suspend_pie_cb,&rkpm_jdg_sram_ctrbits, rockchip_sram_stack);
-     else
-    {
-        dsb();
-        wfi();
-    }
   
-    pm_log = true;
-    
-    rkpm_ddr_printch('4');
-
-    RKPM_BITCTR_DDR_FUN(GPIOS,re_gpios);
-    
-    rkpm_ddr_printch('3');
-    
-    RKPM_BITCTR_DDR_FUN(PLLS,re_plls);
-
-    rkpm_ddr_printch('2');
-
-    RKPM_BITCTR_DDR_FUN(GTCLKS,re_gtclks);
-
-    local_fiq_enable();
-    
-    rkpm_ddr_printch('1');
-
-    RKPM_BITCTR_DDR_FUN(PWR_DMNS,re_pwr_dmns);
-
-    rkpm_ddr_printch('0');
-    
-    pm_log = false;
-    
-    printk(KERN_CONT "\n");
-    
-    rkpm_ddr_printch('\n');
-    
-    RKPM_DDR_FUN(finish);
-    return 0;
+        return 0;
 }
 
-int rkpm_enter_tst(void)
+static int rkpm_enter_tst(void)
 {
 
        return rkpm_enter(0);
@@ -478,9 +528,6 @@ static void rkpm_suspend_finish(void)
 }
 
 
-
-
-
 static struct platform_suspend_ops rockchip_suspend_ops = {
 	.enter		= rkpm_enter,
 	.valid		= suspend_valid_only_mem,
@@ -489,7 +536,7 @@ static struct platform_suspend_ops rockchip_suspend_ops = {
 };
 void __init rockchip_suspend_init(void)
 {
-    printk("%s\n",__FUNCTION__);
+    //printk("%s\n",__FUNCTION__);
     suspend_set_ops(&rockchip_suspend_ops);
     return;
 }

@@ -61,7 +61,7 @@
 #define RK3288_PMU_GPIO0_A_IOMUX        0x84
 #define RK3288_PMU_GPIO0_B_IOMUX        0x88
 #define RK3288_PMU_GPIO0_C_IOMUX        0x8c
-#define RK3288_PMU_GPIO0_D_IOMUX        0x90
+#define RK3288_PMU_PWRMODE_CON1        0x90
 #define RK3288_PMU_SYS_REG0             0x94
 #define RK3288_PMU_SYS_REG1             0x98
 #define RK3288_PMU_SYS_REG2             0x9c
