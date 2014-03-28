@@ -578,6 +578,9 @@ static int vlan_dev_init(struct net_device *dev)
 
 	dev->features |= real_dev->vlan_features | NETIF_F_LLTX;
 	dev->gso_max_size = real_dev->gso_max_size;
+	if (dev->features & NETIF_F_VLAN_FEATURES)
+		netdev_warn(real_dev, "VLAN features are set incorrectly.  Q-in-Q configurations may not work correctly.\n");
+
 
 	/* ipv6 shared card related stuff */
 	dev->dev_id = real_dev->dev_id;
