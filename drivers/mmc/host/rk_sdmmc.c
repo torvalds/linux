@@ -1460,12 +1460,9 @@ static void dw_mci_command_complete(struct dw_mci *host, struct mmc_command *cmd
 	if (status & SDMMC_INT_RTO)
 	{
 	    if(host->mmc->restrict_caps & RESTRICT_CARD_TYPE_SDIO)
-	    {
 	        host->cmd_rto += 1;
-	       (host->cmd_rto >= SDMMC_CMD_RTO_MAX_HOLD)?(cmd->error = -ETIMEDOUT):(cmd->error = 0);    
-		}
-		else
-		    cmd->error = -ETIMEDOUT;
+	        
+		cmd->error = -ETIMEDOUT;
 	}
 	else if ((cmd->flags & MMC_RSP_CRC) && (status & SDMMC_INT_RCRC))
 		cmd->error = -EILSEQ;
@@ -1477,8 +1474,11 @@ static void dw_mci_command_complete(struct dw_mci *host, struct mmc_command *cmd
 
 	if (cmd->error) {
 	    if(MMC_SEND_STATUS != cmd->opcode)
-    	    MMC_DBG_ERR_FUNC(host->mmc, " command complete, cmd=%d,cmdError=%d [%s]",\
-    	        cmd->opcode, cmd->error,mmc_hostname(host->mmc));
+	        if(host->cmd_rto >= SDMMC_CMD_RTO_MAX_HOLD){
+    	        MMC_DBG_ERR_FUNC(host->mmc, " command complete, cmd=%d,cmdError=%d [%s]",\
+    	            cmd->opcode, cmd->error,mmc_hostname(host->mmc));
+    	       host->cmd_rto = 0;
+    	 }
 	        
 		/* newer ip versions need a delay between retries */
 		if (host->quirks & DW_MCI_QUIRK_RETRY_DELAY)
