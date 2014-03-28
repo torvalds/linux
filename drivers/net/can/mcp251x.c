@@ -1032,8 +1032,8 @@ static int mcp251x_can_probe(struct spi_device *spi)
 	struct mcp251x_platform_data *pdata = dev_get_platdata(&spi->dev);
 	struct net_device *net;
 	struct mcp251x_priv *priv;
-	int freq, ret = -ENODEV;
 	struct clk *clk;
+	int freq, ret;
 
 	clk = devm_clk_get(&spi->dev, NULL);
 	if (IS_ERR(clk)) {
@@ -1076,6 +1076,18 @@ static int mcp251x_can_probe(struct spi_device *spi)
 	priv->net = net;
 	priv->clk = clk;
 
+	spi_set_drvdata(spi, priv);
+
+	/* Configure the SPI bus */
+	spi->bits_per_word = 8;
+	if (mcp251x_is_2510(spi))
+		spi->max_speed_hz = spi->max_speed_hz ? : 5 * 1000 * 1000;
+	else
+		spi->max_speed_hz = spi->max_speed_hz ? : 10 * 1000 * 1000;
+	ret = spi_setup(spi);
+	if (ret)
+		goto out_clk;
+
 	priv->power = devm_regulator_get(&spi->dev, "vdd");
 	priv->transceiver = devm_regulator_get(&spi->dev, "xceiver");
 	if ((PTR_ERR(priv->power) == -EPROBE_DEFER) ||
@@ -1087,8 +1099,6 @@ static int mcp251x_can_probe(struct spi_device *spi)
 	ret = mcp251x_power_enable(priv->power, 1);
 	if (ret)
 		goto out_clk;
-
-	spi_set_drvdata(spi, priv);
 
 	priv->spi = spi;
 	mutex_init(&priv->mcp_lock);
@@ -1133,15 +1143,6 @@ static int mcp251x_can_probe(struct spi_device *spi)
 	}
 
 	SET_NETDEV_DEV(net, &spi->dev);
-
-	/* Configure the SPI bus */
-	spi->mode = spi->mode ? : SPI_MODE_0;
-	if (mcp251x_is_2510(spi))
-		spi->max_speed_hz = spi->max_speed_hz ? : 5 * 1000 * 1000;
-	else
-		spi->max_speed_hz = spi->max_speed_hz ? : 10 * 1000 * 1000;
-	spi->bits_per_word = 8;
-	spi_setup(spi);
 
 	/* Here is OK to not lock the MCP, no one knows about it yet */
 	if (!mcp251x_hw_probe(spi)) {
