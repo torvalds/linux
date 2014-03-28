@@ -95,6 +95,7 @@ static int phy_power_on(struct plat_stmmacenet_data *plat, int enable)
 			msleep(10);
 			gpio_direction_output(bsp_priv->reset_io, !bsp_priv->reset_io_level);
 		}
+		msleep(100);
 	} else {
 		//power off
 		if (gpio_is_valid(bsp_priv->power_io)) {
