@@ -315,7 +315,7 @@ static u32 clk_sel0, clk_sel1, clk_sel10;
 static u32 cpll_con3;
 static u32 cru_mode_con;
 
-void plls_suspend(void)
+static void plls_suspend(void)
 {
     cru_mode_con = cru_readl(RK3188_CRU_MODE_CON);
     cru_writel(RK3188_PLL_MODE_SLOW(RK3188_CPLL_ID), RK3188_CRU_MODE_CON);
@@ -357,7 +357,7 @@ void plls_suspend(void)
 
 }
 
-void plls_resume(void)
+static void plls_resume(void)
 {
     //gpll
        
@@ -451,7 +451,7 @@ void PIE_FUNC(sysclk_resume)(u32 sel_clk)
 
 }
 
-void clks_gating_suspend_init(void)
+static void clks_gating_suspend_init(void)
 {
     // get clk gating info
     p_rkpm_clkgt_last_set= kern_to_pie(rockchip_pie_chunk, &DATA(rkpm_clkgt_last_set[0]));

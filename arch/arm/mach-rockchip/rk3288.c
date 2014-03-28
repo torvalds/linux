@@ -80,7 +80,7 @@ static struct map_desc rk3288_io_desc[] __initdata = {
 	RK_DEVICE(RK_GPIO_VIRT(8), RK3288_GPIO8_PHYS, RK3288_GPIO_SIZE),
 	RK_DEVICE(RK_DEBUG_UART_VIRT, RK3288_UART_DBG_PHYS, RK3288_UART_SIZE),
 	RK_DEVICE(RK_GIC_VIRT, RK3288_GIC_DIST_PHYS, RK3288_GIC_DIST_SIZE),
-	RK_DEVICE(RK_GIC_VIRT + RK3288_GIC_DIST_SIZE, RK3288_GIC_DIST_PHYS + RK3288_GIC_DIST_SIZE, RK3288_GIC_CPU_SIZE),
+	RK_DEVICE(RK_GIC_VIRT + RK3288_GIC_DIST_SIZE, RK3288_GIC_CPU_PHYS, RK3288_GIC_CPU_SIZE),
 	RK_DEVICE(RK_BOOTRAM_VIRT, RK3288_BOOTRAM_PHYS, RK3288_BOOTRAM_SIZE),
 	RK_DEVICE(RK3288_IMEM_VIRT, RK3288_IMEM_PHYS, SZ_4K),
 };
@@ -416,7 +416,6 @@ EXPORT_PIE_SYMBOL(DATA(sram_stack));
 static int __init rk3288_pie_init(void)
 {
 	int err;
-
 	if (!cpu_is_rk3288())
 		return 0;
 
@@ -434,7 +433,8 @@ static int __init rk3288_pie_init(void)
 
 	rockchip_sram_virt = kern_to_pie(rockchip_pie_chunk, &__pie_common_start[0]);
 	rockchip_sram_stack = kern_to_pie(rockchip_pie_chunk, (char *) DATA(sram_stack) + sizeof(DATA(sram_stack)));
-	return 0;
+
+    return 0;
 }
 arch_initcall(rk3288_pie_init);
 #ifdef CONFIG_PM
@@ -493,53 +493,63 @@ int rk3288_sys_set_power_domain(enum pmu_power_domain pd, bool on)
 static u32 rk_pmu_pwrdn_st;
 static inline void rk_pm_soc_pd_suspend(void)
 {
-	rk_pmu_pwrdn_st = pmu_readl(RK3288_PMU_PWR_STATE);
-    
-        if(!(rk_pmu_pwrdn_st&BIT(pmu_pd_map[IDLE_REQ_GPU])))
-	    rk3288_sys_set_power_domain(IDLE_REQ_GPU, false);
-        
-        if(!(rk_pmu_pwrdn_st&BIT(pmu_pd_map[IDLE_REQ_HEVC])))
-	    rk3288_sys_set_power_domain(IDLE_REQ_HEVC, false);
-        
-        if(!(rk_pmu_pwrdn_st&BIT(pmu_pd_map[IDLE_REQ_VIO])))
-	    rk3288_sys_set_power_domain(IDLE_REQ_VIO, false);
-        
-        if(!(rk_pmu_pwrdn_st&BIT(pmu_pd_map[IDLE_REQ_VIDEO])))
-	    rk3288_sys_set_power_domain(IDLE_REQ_VIDEO, false);
-        
-        rkpm_ddr_printascii("pd state:");
-        rkpm_ddr_printhex(pmu_readl(RK3288_PMU_PWR_STATE));        
-        rkpm_ddr_printascii("\n");
-   
+    rk_pmu_pwrdn_st = pmu_readl(RK3288_PMU_PWRDN_ST);
+
+    if(!(rk_pmu_pwrdn_st&BIT(pmu_st_map[PD_GPU])))
+    rk3288_sys_set_power_domain(PD_GPU, false);
+
+    if(!(rk_pmu_pwrdn_st&BIT(pmu_st_map[PD_HEVC])))
+    rk3288_sys_set_power_domain(PD_HEVC, false);
+
+    if(!(rk_pmu_pwrdn_st&BIT(pmu_st_map[PD_VIO])))
+    rk3288_sys_set_power_domain(PD_VIO, false);
+
+    if(!(rk_pmu_pwrdn_st&BIT(pmu_st_map[PD_VIDEO])))
+    rk3288_sys_set_power_domain(PD_VIDEO, false);
+#if 0
+    rkpm_ddr_printascii("pd state:");
+    rkpm_ddr_printhex(rk_pmu_pwrdn_st);        
+    rkpm_ddr_printhex(pmu_readl(RK3288_PMU_PWRDN_ST));        
+    rkpm_ddr_printascii("\n");
+ #endif  
 }
 static inline void rk_pm_soc_pd_resume(void)
 {
-      if(!(rk_pmu_pwrdn_st&BIT(pmu_pd_map[IDLE_REQ_GPU])))
-	    rk3288_sys_set_power_domain(IDLE_REQ_GPU, false);
-        
-        if(!(rk_pmu_pwrdn_st&BIT(pmu_pd_map[IDLE_REQ_HEVC])))
-	    rk3288_sys_set_power_domain(IDLE_REQ_HEVC, false);
-        
-        if(!(rk_pmu_pwrdn_st&BIT(pmu_pd_map[IDLE_REQ_VIO])))
-	    rk3288_sys_set_power_domain(IDLE_REQ_VIO, false);
-        
-        if(!(rk_pmu_pwrdn_st&BIT(pmu_pd_map[IDLE_REQ_VIDEO])))
-	    rk3288_sys_set_power_domain(IDLE_REQ_VIDEO, false);
+    if(!(rk_pmu_pwrdn_st&BIT(pmu_st_map[PD_GPU])))
+        rk3288_sys_set_power_domain(PD_GPU, true);
 
+    if(!(rk_pmu_pwrdn_st&BIT(pmu_st_map[PD_HEVC])))
+        rk3288_sys_set_power_domain(PD_HEVC, true);
+
+    if(!(rk_pmu_pwrdn_st&BIT(pmu_st_map[PD_VIO])))
+     rk3288_sys_set_power_domain(PD_VIO, true);
+
+    if(!(rk_pmu_pwrdn_st&BIT(pmu_st_map[PD_VIDEO])))
+        rk3288_sys_set_power_domain(PD_VIDEO, true);
+
+#if 0
     rkpm_ddr_printascii("pd state:");
-    rkpm_ddr_printhex(pmu_readl(RK3288_PMU_PWR_STATE));        
+    rkpm_ddr_printhex(pmu_readl(RK3288_PMU_PWRDN_ST));        
     rkpm_ddr_printascii("\n");
+#endif    
 }
-//extern bool console_suspend_enabled;
-static void __init rk3288_init_suspend(void)
+
+extern bool console_suspend_enabled;
+
+static void rk3288_init_suspend(void)
 {
-    //return;
     printk("%s\n",__FUNCTION__);
     rockchip_suspend_init();       
     //rkpm_pie_init();
     rk3288_suspend_init();
-   // rkpm_set_ops_pwr_dmns(rk_pm_soc_pd_suspend,rk_pm_soc_pd_resume);  
-   //console_suspend_enabled=0;
-  //pm_suspend(PM_SUSPEND_MEM);
+   rkpm_set_ops_pwr_dmns(rk_pm_soc_pd_suspend,rk_pm_soc_pd_resume);  
+    #if 0    
+    console_suspend_enabled=0;
+    do{
+        pm_suspend(PM_SUSPEND_MEM);
+    }
+    while(1);
+    #endif
 }
+
 #endif

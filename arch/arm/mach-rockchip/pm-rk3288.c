@@ -19,18 +19,15 @@
 #include <linux/rockchip/grf.h>
 #include <linux/rockchip/iomap.h>
 #include "pm.h"
+#include <linux/irqchip/arm-gic.h>
 
 #define CPU 3288
 //#include "sram.h"
 #include "pm-pie.c"
 
-
 /*************************cru define********************************************/
 #define RK3288_CRU_UNGATING_OPS(id) cru_writel(CRU_W_MSK_SETBITS(0,id%16,0x1),RK3288_CRU_GATEID_CONS(id))
 #define RK3288_CRU_GATING_OPS(id) cru_writel(CRU_W_MSK_SETBITS(1,id%16,0x1),RK3288_CRU_GATEID_CONS(id))
-
-
-
 
 /*******************************gpio define **********************************************/
 
@@ -49,23 +46,7 @@
 #define GPIO_LS_SYNC		0x60
 
 /***********************************sleep func*********************************************/
-#define SEELP_SRAM_SAVE_SIZE (0x100)
 
-static char slp_sram_code_save[SEELP_SRAM_SAVE_SIZE];
-
-#define RK_SLEEP_DDR_CODE_OFF (512)
-
-#define RK_SLEEP_DDR_DATA_OFF (512+2048)
-
-// index data off in SLP_DATA_SAVE_BASE
-// it may be include in *.s ,so con't use enum type define
-#define SLP_DDR_NEED_RES            (0)  //ddr ctrl is need to resume
-#define SLP_DPLL_NEED_RES           (1) //ddr pll is need to resume
-#define SLP_DDR_CODE_PHY            (2) //ddr resume code phy
-#define SLP_DDR_DATA_PHY            (3) //ddr resume data phy
-#define SLP_SLEEP_RES_CON_CNT   (PM_BOOT_DATA_SIZE/4) // all index
-
-#if 1
 // sys resume data in boot ram
 #define SLP_DATA_SAVE_PHY  (RK3288_BOOTRAM_PHYS+PM_BOOT_CODE_OFFSET+PM_BOOT_CODE_SIZE)
 #define SLP_DATA_SAVE_BASE  (RK_BOOTRAM_VIRT+PM_BOOT_CODE_OFFSET+PM_BOOT_CODE_SIZE)
@@ -73,24 +54,20 @@ static char slp_sram_code_save[SEELP_SRAM_SAVE_SIZE];
 // ddr resume data in boot ram
 #define SLP_DDR_DATA_SAVE_PHY  (RK3288_BOOTRAM_PHYS + PM_BOOT_DDR_CODE_OFFSET)
 #define SLP_DDR_DATA_SAVE_BASE  (RK_BOOTRAM_VIRT+PM_BOOT_DDR_CODE_OFFSET)
-#endif
 
-#define PM_BOOT_CODE_OFFSET (0x0)
-#define PM_BOOT_CODE_SIZE	(64*4)
-#define PM_BOOT_DATA_SIZE	(10*4)
 #define PM_BOOT_DDR_CODE_OFFSET	(((PM_BOOT_CODE_OFFSET+PM_BOOT_CODE_SIZE+PM_BOOT_DATA_SIZE)/4+2)*4)
-#define PM_BOOT_CODE_SP (RK3288_BOOTRAM_PHYS+(RK3288_BOOTRAM_SIZE-1)&~0x7)
+#define PM_BOOT_CODE_SP (RK3288_BOOTRAM_PHYS+((RK3288_BOOTRAM_SIZE-1)&~0x7))
 
 
 #define BOOT_RAM_SIZE	(4*1024)
 #define INT_RAM_SIZE		(64*1024)
 
-static char boot_ram_data[BOOT_RAM_SIZE];
+static char boot_ram_data[BOOT_RAM_SIZE+4*10];
 static char int_ram_data[INT_RAM_SIZE];
 
 
 // the value is used to control cpu resume flow
-static u32 sleep_resume_data[SLP_SLEEP_RES_CON_CNT];
+static u32 sleep_resume_data[SLPDATA_SLEEP_RES_CON_CNT];
 static char *resume_data_base=(char *)(SLP_DATA_SAVE_BASE);
 static char *resume_data_phy=  (char *)(SLP_DATA_SAVE_PHY);
 
@@ -105,10 +82,6 @@ static void sram_code_reset(char *data, char *save, char* sram_base,char* sram_p
   flush_icache_range((unsigned long)addr_d, (unsigned long)addr_d + _size);
   outer_clean_range((phys_addr_t) sram_phy, _size);
 }
-void rk_slp_cpu_resume(void)
-{
-
-}
 
 /**
 ddr code and data
@@ -118,8 +91,8 @@ ddr code and data
 ---code----
 ---data----
 */
- static void sram_data_for_sleep(char *boot_save, char *int_save)
- {	
+static void sram_data_for_sleep(char *boot_save, char *int_save)
+{	
  	
 	char *addr_base,*addr_phy,*data_src,*data_dst;
 	u32 sr_size,data_size;
@@ -135,7 +108,7 @@ ddr code and data
 	// move resume code and date to boot sram
 	// move sys code
 	data_dst=(char *)RK_BOOTRAM_VIRT+PM_BOOT_CODE_OFFSET;
-	data_src=(char *)rk_slp_cpu_resume;
+	data_src=(char *)rkpm_slp_cpu_resume;
 	data_size=PM_BOOT_CODE_SIZE;
 	memcpy((char *)data_dst,(char *)data_src, data_size);
 
@@ -164,7 +137,7 @@ ddr code and data
 	/*************************ddr code cpy  end*************************************/
 #endif	
 	flush_icache_range((unsigned long)addr_base, (unsigned long)addr_base + sr_size);
-	 outer_clean_range((phys_addr_t) addr_phy, sr_size);
+	 outer_clean_range((phys_addr_t) addr_phy, (phys_addr_t)(addr_phy)+sr_size);
 #if 0	 
 	 /*************************int mem bak*************************************/
 	// int mem
@@ -180,61 +153,319 @@ ddr code and data
 #endif
  }
 
- static void sram_data_resume(char *boot_save, char *int_save)
-  {  
-	 
-	 char *addr_base,*addr_phy;
-	 u32 sr_size;
+static void sram_data_resume(char *boot_save, char *int_save)
+{  
  
-	 addr_base=(char *)RK_BOOTRAM_VIRT;
-	 addr_phy=(char *)RK3288_BOOTRAM_PHYS;
-	 sr_size=RK3288_BOOTRAM_SIZE;
- 
-	 // save boot sram
-	  if(boot_save)
-		  memcpy(addr_base,boot_save, sr_size);
- 
-	 flush_icache_range((unsigned long)addr_base, (unsigned long)addr_base + sr_size);
-	 outer_clean_range((phys_addr_t) addr_phy, sr_size);
+    char *addr_base,*addr_phy;
+    u32 sr_size;
 
+    addr_base=(char *)RK_BOOTRAM_VIRT;
+    addr_phy=(char *)RK3288_BOOTRAM_PHYS;
+    sr_size=RK3288_BOOTRAM_SIZE;
+    // save boot sram
+    if(boot_save)
+        memcpy(addr_base,boot_save, sr_size);
+
+    flush_icache_range((unsigned long)addr_base, (unsigned long)addr_base + sr_size);
+    outer_clean_range((phys_addr_t) addr_phy, (phys_addr_t)addr_phy+sr_size);
+     
     #if 0
-	// int mem
-	addr_base=(char *)RK319X_IMEM_BASE;
-	addr_phy=(char *)RK319X_IMEM_PHYS;
-	sr_size=RK319X_IMEM_SIZE;
-	
-	 if(int_save)
-	   memcpy(addr_base, int_save,sr_size);
- 
-	  flush_icache_range((unsigned long)addr_base, (unsigned long)addr_base + sr_size);
-	  outer_clean_range((phys_addr_t) addr_phy, sr_size);
+    // int mem
+    addr_base=(char *)RK319X_IMEM_BASE;
+    addr_phy=(char *)RK319X_IMEM_PHYS;
+    sr_size=RK319X_IMEM_SIZE;
+
+     if(int_save)
+       memcpy(addr_base, int_save,sr_size);
+
+      flush_icache_range((unsigned long)addr_base, (unsigned long)addr_base + sr_size);
+      outer_clean_range((phys_addr_t) addr_phy, sr_size);
       #endif
- }
-/**************************************regs save and resume**************************/
- void slp_regs_save(u32 *data,void __iomem * base,u32 st_offset,u32 end_offset)
- {
-	 u32 i;
-         u32 cnt=(end_offset-st_offset)/4+1;
-	 for(i=0;i<cnt;i++)
-	 {
-		 data[i]=readl_relaxed(base+st_offset+i*4);
-	 }	 
+}
+
+/**************************************gic save and resume**************************/
+#define  RK_GICD_BASE (RK_GIC_VIRT)
+#define RK_GICC_BASE (RK_GIC_VIRT+RK3288_GIC_DIST_SIZE)
+
+#define PM_IRQN_START 32
+#define PM_IRQN_END	107//107
+static void pm_gic_enable(u32 irqs)
+{
+
+        int irqstart=0;
+        u32 bit_off;
+        void __iomem *reg_off;
+        unsigned int gic_irqs;
+
+        gic_irqs = PM_IRQN_END;
+        irqstart=PM_IRQN_START;//PM_IRQN_START;
+
+        reg_off=(irqs/32)*4+GIC_DIST_ENABLE_SET+RK_GICD_BASE;
+        bit_off=irqs%32;
+        writel_relaxed(readl_relaxed(reg_off)|(1<<bit_off),reg_off);
+
+        dsb();
+}
+  
+static void rkpm_gic_disable(u32 irqs)
+{
+        int irqstart=0;
+        u32 bit_off;    
+        void __iomem *reg_off;
+        unsigned int gic_irqs;
+
+        gic_irqs = PM_IRQN_END;
+        irqstart=PM_IRQN_START;//PM_IRQN_START;
+
+        reg_off=(irqs/32)*4+GIC_DIST_ENABLE_CLEAR+RK_GICD_BASE;
+        bit_off=irqs%32;
+        writel_relaxed(readl_relaxed(reg_off)&~(1<<bit_off),reg_off);
+        dsb();
+}
+  
+#define gic_reg_dump(a,b,c)  {}//reg_dump((a),(b),(c))
+  
+static u32 slp_gic_save[260+50];
+
+static void rkpm_gic_dist_save(u32 *context)
+{
+     int i = 0,j,irqstart=0;
+     unsigned int gic_irqs;
+     
+     gic_irqs = readl_relaxed(RK_GICD_BASE + GIC_DIST_CTR) & 0x1f;
+     gic_irqs = (gic_irqs + 1) * 32;
+     if (gic_irqs > 1020)
+     gic_irqs = 1020;
+     //printk("gic_irqs=%d\n",gic_irqs);
+     //gic_irqs = PM_IRQN_END;
+     irqstart=PM_IRQN_START;//PM_IRQN_START;
+     
+     i = 0;
+     //level
+     for (j = irqstart; j < gic_irqs; j += 16)
+      context[i++]=readl_relaxed(RK_GICD_BASE + GIC_DIST_CONFIG + (j * 4) / 16);
+     gic_reg_dump("gic level",j,RK_GICD_BASE + GIC_DIST_CONFIG);
+
+     /*
+     * Set all global interrupts to this CPU only.
+     */
+     for(j = 0; j < gic_irqs; j += 4)
+    	 context[i++]=readl_relaxed(RK_GICD_BASE + GIC_DIST_TARGET +	(j * 4) / 4);
+     
+     gic_reg_dump("gic trig",j,RK_GICD_BASE + GIC_DIST_TARGET);
+
+     //pri
+     for (j = 0; j < gic_irqs; j += 4)
+    	 context[i++]=readl_relaxed(RK_GICD_BASE+ GIC_DIST_PRI + (j * 4) / 4);
+     gic_reg_dump("gic pri",j,RK_GICD_BASE + GIC_DIST_PRI);	 
+
+
+     
+
+     //secure
+     for (j = 0; j < gic_irqs; j += 32)
+    	 context[i++]=readl_relaxed(RK_GICD_BASE + 0x80 + (j * 4) / 32);
+     gic_reg_dump("gic secure",j,RK_GICD_BASE + 0x80); 
+     	 
+     for (j = irqstart; j < gic_irqs; j += 32)
+    	 context[i++]=readl_relaxed(RK_GICD_BASE + GIC_DIST_PENDING_SET + (j * 4) / 32);
+     
+     gic_reg_dump("gic PENDING",j,RK_GICD_BASE + GIC_DIST_PENDING_SET);	 
+
+
+     
+    #if 0
+     //disable
+     for (j = 0; j < gic_irqs; j += 32)
+    	 context[i++]=readl_relaxed(RK_GICD_BASE + GIC_DIST_ENABLE_CLEAR + (j * 4) / 32);
+     
+     gic_reg_dump("gic dis",j,RK_GICD_BASE + GIC_DIST_ENABLE_CLEAR);
+    #endif
+     //enable
+     for (j = 0; j < gic_irqs; j += 32)
+    	 context[i++]=readl_relaxed(RK_GICD_BASE + GIC_DIST_ENABLE_SET + (j * 4) / 32);
+
+    	//sram_printhex(j);
+     gic_reg_dump("gic en",j,RK_GICD_BASE + GIC_DIST_ENABLE_SET);  
+
+     
+     
+     gic_reg_dump("gicc",0x1c,RK_GICC_BASE);	 
+     gic_reg_dump("giccfc",0,RK_GICC_BASE+0xfc);
+
+     context[i++]=readl_relaxed(RK_GICC_BASE + GIC_CPU_PRIMASK);
+     context[i++]=readl_relaxed(RK_GICC_BASE + GIC_CPU_CTRL);
+     context[i++]=readl_relaxed(RK_GICD_BASE + GIC_DIST_CTRL);
+
+     
+    #if 0
+     context[i++]=readl_relaxed(RK_GICC_BASE + GIC_CPU_BINPOINT);
+     context[i++]=readl_relaxed(RK_GICC_BASE + GIC_CPU_PRIMASK);
+     context[i++]=readl_relaxed(RK_GICC_BASE + GIC_DIST_SOFTINT);
+     context[i++]=readl_relaxed(RK_GICC_BASE + GIC_CPU_CTRL);
+     context[i++]=readl_relaxed(RK_GICD_BASE + GIC_DIST_CTRL);
+    #endif	
+    #if 0  //rk319x is not need
+     for (j = irqstart; j < gic_irqs; j += 32)
+     {
+    	 writel_relaxed(0xffffffff, RK_GICD_BASE + GIC_DIST_ENABLE_CLEAR + j * 4 / 32);
+    	 dsb();
+
+     }
+    #endif  
+
+}
+
+static void rkpm_gic_dist_resume(u32 *context)
+{
+
+         int i = 0,j,irqstart=0;
+         unsigned int gic_irqs;
+         
+         gic_irqs = readl_relaxed(RK_GICD_BASE + GIC_DIST_CTR) & 0x1f;
+         gic_irqs = (gic_irqs + 1) * 32;
+         if (gic_irqs > 1020)
+        	 gic_irqs = 1020;
+         
+         
+         //gic_irqs = PM_IRQN_END;
+         irqstart=PM_IRQN_START;//PM_IRQN_START;
+
+         writel_relaxed(0,RK_GICC_BASE + GIC_CPU_CTRL);
+         dsb();
+         writel_relaxed(0,RK_GICD_BASE + GIC_DIST_CTRL);
+         dsb();
+         for (j = irqstart; j < gic_irqs; j += 32)
+         {
+        	 writel_relaxed(0xffffffff, RK_GICD_BASE + GIC_DIST_ENABLE_CLEAR + j * 4 / 32);
+        	 dsb();
+         }
+
+
+         i = 0;
+
+         //trig
+         for (j = irqstart; j < gic_irqs; j += 16)
+         {
+        	 writel_relaxed(context[i++],RK_GICD_BASE + GIC_DIST_CONFIG + j * 4 / 16);
+        	 dsb();
+         }
+         gic_reg_dump("gic level",j,RK_GICD_BASE + GIC_DIST_CONFIG);	 
+
+         /*
+         * Set all global interrupts to this CPU only.
+         */
+         for (j = 0; j < gic_irqs; j += 4)
+         {
+        	 writel_relaxed(context[i++],RK_GICD_BASE + GIC_DIST_TARGET +  (j * 4) / 4);
+        	 dsb();
+         }
+         gic_reg_dump("gic target",j,RK_GICD_BASE + GIC_DIST_TARGET);  
+
+         //pri
+         for (j = 0; j < gic_irqs; j += 4)
+         {
+        	 writel_relaxed(context[i++],RK_GICD_BASE+ GIC_DIST_PRI + (j * 4) / 4);
+        	 
+        	 dsb();
+         }
+         gic_reg_dump("gic pri",j,RK_GICD_BASE + GIC_DIST_PRI);	 
+
+         
+         //secu
+         for (j = 0; j < gic_irqs; j += 32)
+         {
+        	 writel_relaxed(context[i++],RK_GICD_BASE + 0x80 + (j * 4 )/ 32);
+        	 #if 0
+        	 sram_printhex((j * 4 )/ 32);
+        	 
+        	 sram_printch('_');
+        	 sram_printhex(temp);
+        	 
+        	 sram_printch('_');
+        	 sram_printhex(readl_relaxed(RK_GICD_BASE + 0x80 + (j * 4 )/ 32));
+        	 sram_printch('\n');
+#endif
+        	 
+        	 dsb();
+         }
+
+         gic_reg_dump("gic secu",j,RK_GICD_BASE + 0x80);	 
+
+
+         //pending
+         for (j = irqstart; j < gic_irqs; j += 32)
+         {
+        	 //writel_relaxed(context[i++],RK_GICD_BASE + GIC_DIST_PENDING_SET + j * 4 / 32);
+        	 i++;
+        	 dsb();
+         }
+         gic_reg_dump("gic pending",j,RK_GICD_BASE + GIC_DIST_PENDING_SET);	 
+
+
+         //disable
+#if 0
+         for (j = 0; j < gic_irqs; j += 32)
+         {
+        	 writel_relaxed(context[i++],RK_GICD_BASE + GIC_DIST_ENABLE_CLEAR + j * 4 / 32);
+        	 
+        	 dsb();
+         }
+         gic_reg_dump("gic disable",j,RK_GICD_BASE + GIC_DIST_ENABLE_CLEAR);	 
+         
+#else
+        //for (j = 0; j < gic_irqs; j += 32)
+        	// writel_relaxed(0xffffffff,RK_GICD_BASE + GIC_DIST_ENABLE_CLEAR + j * 4 / 32);
+#endif
+         
+        	 
+         //enable
+         for (j = 0; j < gic_irqs; j += 32)
+         {
+        	 writel_relaxed(context[i++],RK_GICD_BASE + GIC_DIST_ENABLE_SET + (j * 4) / 32);
+        	 
+        	 dsb();
+         }
+        // sram_printhex(j);
+         gic_reg_dump("gic enable",j,RK_GICD_BASE + GIC_DIST_ENABLE_SET);  
+
+         writel_relaxed(context[i++],RK_GICC_BASE + GIC_CPU_PRIMASK);
+         
+         writel_relaxed(context[i++],RK_GICC_BASE + GIC_CPU_CTRL);
+
+         writel_relaxed(context[i++],RK_GICD_BASE + GIC_DIST_CTRL);
+
+         gic_reg_dump("gicc",0x1c,RK_GICC_BASE);	 
+         gic_reg_dump("giccfc",0,RK_GICC_BASE+0xfc);	 
  
- }
+}
+
+
+ 
+/**************************************regs save and resume**************************/
+void slp_regs_save(u32 *data,void __iomem * base,u32 st_offset,u32 end_offset)
+{
+     u32 i;
+         u32 cnt=(end_offset-st_offset)/4+1;
+     for(i=0;i<cnt;i++)
+     {
+    	 data[i]=readl_relaxed(base+st_offset+i*4);
+     }	 
+}
 
 void slp_regs_resume(u32 *data,void __iomem * base,u32 st_offset,u32 end_offset,u32 w_msk)
 {
-	 u32 i;
-	 u32 cnt=(end_offset-st_offset)/4+1;
-	 for(i=0;i<cnt;i++)
-	 {		 
-		 reg_writel(data[i]|w_msk,(base+st_offset+i*4));
-	 }	 
+     u32 i;
+     u32 cnt=(end_offset-st_offset)/4+1;
+     for(i=0;i<cnt;i++)
+     {		 
+    	 reg_writel(data[i]|w_msk,(base+st_offset+i*4));
+     }	 
 }
- 
+
 void slp_regs_w_msk_resume(u32 *data,void __iomem * base,u32 st_offset,u32 end_offset,u32 *w_msk)
 {
-	 u32 i;
+        u32 i;
         u32 cnt=(end_offset-st_offset)/4+1;
          for(i=0;i<cnt;i++)
 	 {		 
@@ -491,7 +722,6 @@ static void gpio_ddr_dump_reg(int ports)
 
 /**************************************sleep func**************************/
 
-int  rk30_cpu_save(int state,int offset);
 void ddr_reg_save(uint32_t *pArg);
 void fiq_glue_resume(void);
 void rk30_cpu_resume(void);
@@ -520,8 +750,9 @@ static u32 slp_grf_uoc2_con_w_msk[2]={0x7fff0000,0x1f0000};
 static u32 slp_grf_uoc3_con_data[2];
 static u32 slp_grf_uoc3_con_w_msk[2]={0x3ff0000,0x0fff0000};
 
-static u32 slp_pmu_pwrmode_con_data[1];
 #endif
+static u32 slp_pmu_pwrmode_con_data[1];
+
 
 static u32 slp_nandc_data[8];
 static void __iomem *rk30_nandc_base=NULL;
@@ -545,7 +776,6 @@ void inline pm_io_base_map(void)
 	
 }	
 #if 0
-
 void pm_gpio_setting(void)
 {
 
@@ -556,49 +786,179 @@ void pm_gpio_setting(void)
 	
 }
 #endif
-static int sleep_resume_all=0;
+ enum rk3288_pwr_mode_con {
 
+        pmu_pwr_mode_en=0,
+        pmu_clk_core_src_gate_en,
+        pmu_global_int_disable,
+        pmu_l2flush_en,
+        
+        pmu_bus_pd_en,
+        pmu_a12_0_pd_en,
+        pmu_scu_en,
+        pmu_pll_pd_en,
+        
+        pmu_chip_pd_en, // power off pin enable
+        pmu_pwroff_comb,
+        pmu_alive_use_lf,
+        pmu_pmu_use_lf,
+        
+        pmu_osc_24m_dis,
+        pmu_input_clamp_en,
+        pmu_wakeup_reset_en,
+        pmu_sref0_enter_en,
+        
+        pmu_sref1_enter_en,       
+        pmu_ddr0io_ret_en,
+        pmu_ddr1io_ret_en,
+        pmu_ddr0_gating_en,
+        
+        pmu_ddr1_gating_en,
+        pmu_ddr0io_ret_de_req,
+        pmu_ddr1io_ret_de_req
+
+};
+ enum rk3288_pwr_mode_con1 {
+
+        pmu_clr_bus=0,
+        pmu_clr_core,
+        pmu_clr_cpup,
+        pmu_clr_alive,
+        
+        pmu_clr_dma,
+        pmu_clr_peri,
+        pmu_clr_gpu,
+        pmu_clr_video,
+        pmu_clr_hevc,
+        pmu_clr_vio
+  
+};
+
+static void ddr_pin_set_fun(u8 port,u8 bank,u8 b_gpio,u8 fun);
+
+static u32 sgrf_soc_con0,pmu_pwr_mode_con0,pmu_pwr_mode_con1;
+
+static void  rkpm_slp_mode_set(u32 val)
+{
+    u32 mode_set,mode_set1;
+    
+    // setting gpio0_a0 arm off pin
+    ddr_pin_set_fun(0x0,0xa,0x0,0x1);
+
+    sgrf_soc_con0=reg_readl(RK_SGRF_VIRT+RK3288_SGRF_SOC_CON0);
+    pmu_pwr_mode_con0=pmu_readl(RK3288_PMU_PWRMODE_CON);  
+    pmu_pwr_mode_con1=pmu_readl(RK3288_PMU_PWRMODE_CON1);
+    
+    mode_set1=pmu_pwr_mode_con1;
+    mode_set=pmu_pwr_mode_con0;
+    
+
+    pmu_writel(0x1<<3,RK3188_PMU_WAKEUP_CFG1);  
+
+    // enable boot ram    
+    reg_writel((0x1<<8)|(0x1<<(8+16)),RK_SGRF_VIRT+RK3288_SGRF_SOC_CON0);
+    reg_writel(RK3288_BOOTRAM_PHYS,RK_SGRF_VIRT+RK3288_SGRF_FAST_BOOT_ADDR);
+
+    mode_set|=  BIT(pmu_pwr_mode_en)|BIT(pmu_global_int_disable)
+                        | BIT(pmu_l2flush_en)
+                        |BIT(pmu_sref0_enter_en)|BIT(pmu_sref1_enter_en) |BIT(pmu_ddr0_gating_en)|BIT(pmu_ddr1_gating_en);
+
+
+    if(rkpm_chk_val_ctrbit(val,RKPM_CTR_IDLEAUTO_MD))
+    {
+        rkpm_ddr_printascii("-autoidle-");
+        mode_set|=BIT(pmu_clk_core_src_gate_en);
+    }
+    else if(rkpm_chk_val_ctrbit(val,RKPM_CTR_ARMDP_LPMD))
+    {
+        rkpm_ddr_printascii("-armdp-");            
+        //rkpm_ddr_printhex(cru_readl(RK3288_CRU_MODE_CON));       
+        
+       // pmu_writel(0x1<<3,RK3188_PMU_WAKEUP_CFG1);  
+        mode_set|=BIT(pmu_a12_0_pd_en);
+    }
+    else if(rkpm_chk_val_ctrbit(val,RKPM_CTR_ARMOFF_LPMD))
+    {
+    
+        rkpm_ddr_printascii("-armoff-");            
+        //rkpm_ddr_printhex(cru_readl(RK3288_CRU_MODE_CON)); 
+        
+        mode_set|=BIT(pmu_scu_en)|BIT(pmu_chip_pd_en);
+        mode_set1|=BIT(pmu_clr_core)|BIT(pmu_clr_cpup);
+    } 
+    else
+    {
+        mode_set=pmu_pwr_mode_con0;
+        mode_set1=pmu_pwr_mode_con1;
+    }
+
+   
+    pmu_writel(mode_set,RK3288_PMU_PWRMODE_CON);  
+    pmu_writel(mode_set1,RK3288_PMU_PWRMODE_CON1);  
+
+}
+
+static inline void  rkpm_slp_mode_set_resume(void)
+{
+
+    pmu_writel(pmu_pwr_mode_con0,RK3288_PMU_PWRMODE_CON);  
+    pmu_writel(pmu_pwr_mode_con1,RK3288_PMU_PWRMODE_CON1);  
+    reg_writel(sgrf_soc_con0|(0x1<<(8+16)),RK_SGRF_VIRT+RK3288_SGRF_SOC_CON0);
+    
+}
+
+static inline u32 rkpm_l2_config(void)
+{
+	u32 l2ctlr;
+	asm("mrc p15, 1, %0, c9, c0, 2" : "=r" (l2ctlr));
+        return l2ctlr;
+}
+
+
+static int sleep_resume_all=0;
 void pm_sleep_func_save(void)
 {
 	//char *data_src;
-	u32 data_size;
+	//u32 data_size;
 	//u32 *p;
 	
-	
-	sleep_resume_data[SLP_DDR_NEED_RES]=0;// in sys resume ,ddr is need resume
-	sleep_resume_data[SLP_DPLL_NEED_RES]=1;// in ddr resume ,dpll is need resume
+	sleep_resume_data[SLPDATA_L2_CON]=rkpm_l2_config();// in sys resume ,ddr is need resume	
+	sleep_resume_data[SLPDATA_SP_ADDR]=PM_BOOT_CODE_SP;// in sys resume ,ddr is need resume	
+	sleep_resume_data[SLPDATA_SP_CPU_RESUME]=virt_to_phys(cpu_resume);// in sys resume ,ddr is need resume
+	sleep_resume_data[SLPDATA_DDR_NEED_RES]=0;// in sys resume ,ddr is need resume
+	sleep_resume_data[SLPDATA_DPLL_NEED_RES]=0;// in ddr resume ,dpll is need resume
 	//data_src=(char *)ddr_get_resume_code_info(&data_size);
-	sleep_resume_data[SLP_DDR_CODE_PHY]=SLP_DDR_DATA_SAVE_PHY;
-	//sleep_resume_data[SLP_DDR_DATA_PHY]=SLP_DDR_DATA_SAVE_PHY+(data_size/4+1)*4;
-    
+	//sleep_resume_data[SLPDATA_DDR_CODE_PHY]=SLP_DDR_DATA_SAVE_PHY;
+	//sleep_resume_data[SLPDATA_DDR_DATA_PHY]=SLP_DDR_DATA_SAVE_PHY+(data_size/4+1)*4;	
+	
+	//ddr_reg_save(resume_data_phy+SLP_DPLL_NEED_RES*4);
+	sram_data_for_sleep(boot_ram_data,int_ram_data);
+       rkpm_gic_dist_save(&slp_gic_save[0]);
 	flush_cache_all();
 	outer_flush_all();
 	local_flush_tlb_all();
 
-	
-	rkpm_ddr_printch('a');
-	//ddr_reg_save(resume_data_phy+SLP_DPLL_NEED_RES*4);
-	sram_data_for_sleep(boot_ram_data,int_ram_data);
-
 	//slp_regs_save(slp_grf_iomux_data,(u32)RK_GRF_VIRT+0x10,16);
-	
 	//slp_regs_save(slp_nandc_data,(u32)rk30_nandc_base,8);
-    
-	//slp_pmu_pwrmode_con_data[0]=pmu_readl(PMU_PWRMODE_CON);//idlemode setting save
-	
-    
-	slp_pin_gpio_save(1);
-	slp_pin_gpio_save(2);
-	slp_pin_gpio_save(3);
-	slp_pin_gpio_save(4);
-	slp_uart_save(2);
-		
+ 
+	//slp_pin_gpio_save(1);
+	//slp_pin_gpio_save(2);
+	//slp_pin_gpio_save(3);
+	//slp_pin_gpio_save(4);
+	//slp_uart_save(2);
+	#if 0
+    	rkpm_ddr_printascii("l2-");
+        rkpm_ddr_printhex(sleep_resume_data[SLPDATA_L2_CON]);
+    	rkpm_ddr_printascii("\n");
+        #endif
+        
 	sleep_resume_all=0;
-	rkpm_ddr_printch('S');
 }
 void pm_sleep_func_rusume_first(void)
 {
-
+    
+       // rkpm_ddr_printhex(cru_readl(RK3288_CRU_MODE_CON));
+        #if 0
 	//rk319x_pm_set_power_domain(PD_PERI,true);
 	//slp_regs_resume(slp_grf_io_pull_data,(u32)RK_GRF_VIRT+0x144,16,0xffff0000);
 	slp_pin_gpio_resume(1);
@@ -615,67 +975,41 @@ void pm_sleep_func_rusume_first(void)
 	slp_regs_w_msk_resume(slp_grf_uoc2_con_data,(u32)RK_GRF_VIRT+0xe4,2,slp_grf_uoc2_con_w_msk);
 	slp_regs_w_msk_resume(slp_grf_uoc3_con_data,(u32)RK_GRF_VIRT+0xec,2,slp_grf_uoc3_con_w_msk);
 	#endif
-	//pmu_writel(slp_pmu_pwrmode_con_data[0],PMU_PWRMODE_CON);// idle mode setting resume
 	//sram_printch_uart_enable();
 	slp_uart_resume(2);
-	sleep_resume_all=1;
-
-}
-
- void pm_sleep_func_rusume_last(void)
- {
-	rkpm_ddr_printch('L');
-	if(sleep_resume_all)
-	{
-	 
-            cpu_init(); 	
-            slp_uart_resume(0);
-            slp_uart_resume(1);
-            slp_uart_resume(3);
-           // slp_regs_resume(slp_nandc_data,(u32)rk30_nandc_base,8,0);
-
-            fiq_glue_resume();
-	
-	}
-	
-	sram_data_resume(boot_ram_data,int_ram_data);
- }
- 
- void inline rk_sleep_setting(u32 config)//24M
- {
-  
-     return;
- }
-
-static void  rk30_sram_suspend_sleep(void)
-{
-	//u32 config =LP_ARM_DPSLP_LOG_DPSLP;
-	//rk_sleep_setting(config);
-	    
-        //if(config>LP_ARM_LOG_NOR) 
-        {
-            local_flush_tlb_all();
-            flush_cache_all();
-            outer_flush_all();
-            outer_disable();
-            cpu_proc_fin();
-            //outer_inv_all();// ???
-            //  l2x0_inv_all_pm(); //rk319x is not need
-            flush_cache_all();
-        }  
-        
-	rkpm_ddr_printch('w');	
-	dsb();
-	wfi();
-	dsb();
+    #endif
     
-	rkpm_ddr_printch('w');	
-	
+    sleep_resume_all=1;
+    
+
 }
 
+void pm_sleep_func_rusume_last(void)
+{
+    if(sleep_resume_all)
+    {
+  
+        // slp_uart_resume(0);
+        // slp_uart_resume(1);
+        // slp_uart_resume(3);
+        // slp_regs_resume(slp_nandc_data,(u32)rk30_nandc_base,8,0);
+
+        //rkpm_ddr_printch('g');
+        rkpm_gic_dist_resume(&slp_gic_save[0]);
+
+        fiq_glue_resume();
+        #if 0
+        rkpm_ddr_printascii("l2-");
+        rkpm_ddr_printhex(rkpm_l2_config());
+        rkpm_ddr_printascii("\n");
+        #endif
+        
+    }
+    rkpm_slp_mode_set_resume();
+    sram_data_resume(boot_ram_data,int_ram_data);  
+}
 
 /*******************************common code  for rkxxx*********************************/
-
 static void  inline uart_printch(char byte)
 {
         u32 reg_save[2];
@@ -713,33 +1047,62 @@ void PIE_FUNC(sram_printch)(char byte)
 	uart_printch(byte);
 }
 
+static void pll_udelay(u32 udelay);
+
 static void  ddr_printch(char byte)
 {
 	uart_printch(byte);
+        pll_udelay(2);
 }
 /*******************************gpio func*******************************************/
+//#define RK3288_PMU_GPIO0_A_IOMUX	0x0084
+//#define RK3288_PMU_GPIO0_B_IOMUX	0x0088
+//#define RK3288_PMU_GPIO0_C_IOMUX	0x008c
+//#define RK3288_PMU_GPIO0_D_IOMUX	0x0090
+
 
 //pin=0x0a21  gpio0a2,port=0,bank=a,b_gpio=2,fun=1
 static inline void pin_set_fun(u8 port,u8 bank,u8 b_gpio,u8 fun)
 { 
     u8 off_set;
     bank-=0xa;
-    off_set=port*(4*4)+bank*4;
+
+    if(port==0)
+    { 
+        if(bank>2)
+            return;
+            
+        off_set=RK3288_PMU_GPIO0_A_IOMUX+bank*4;
+        pmu_writel(RKPM_VAL_SETBITS(pmu_readl(off_set),fun,b_gpio*2,0x3),off_set);
+    }
+    else
+    {    
     
-    if(off_set<RK3288_GRF_GPIO1D_IOMUX)
-        return;   
-    reg_writel(RKPM_W_MSK_SETBITS(fun,b_gpio*2,0x3),RK_GRF_VIRT+0+off_set);
+        off_set=port*(4*4)+bank*4;
+        //form RK3288_GRF_GPIO1D_IOMUX
+         reg_writel(RKPM_W_MSK_SETBITS(fun,b_gpio*2,0x3),RK_GRF_VIRT+0+off_set);
+    }
 }
 
 static inline u8 pin_get_funset(u8 port,u8 bank,u8 b_gpio)
 { 
     u8 off_set;
     bank-=0xa;
-    off_set=port*(4*4)+bank*4;
+
+    if(port==0)
+    { 
+      if(bank>2)
+            return 0;
+        off_set=RK3288_PMU_GPIO0_A_IOMUX+bank*4;
+        return (pmu_readl(off_set)>>(b_gpio*2))&0x3;
+    }
+    else
+    {    
     
-    if(off_set<RK3288_GRF_GPIO1D_IOMUX)
-        return 0;   
-    return (reg_readl(RK_GRF_VIRT+0+off_set)>>(b_gpio*2))&0x3;
+        off_set=port*(4*4)+bank*4;
+        //form RK3288_GRF_GPIO1D_IOMUX
+         return (reg_readl(RK_GRF_VIRT+0+off_set)>>(b_gpio*2))&0x3;
+    }
 }
 
 static inline void pin_set_pull(u8 port,u8 bank,u8 b_gpio,u8 pull)
@@ -1128,11 +1491,6 @@ static void  rkpm_gpio_resume(void)
        }
 
 }
-
-
-
-
-
 static void gpio_get_dts_info(struct device_node *parent)
 {
         int i;
@@ -1286,8 +1644,8 @@ enum rk_plls_id {
 static void pm_pll_wait_lock(u32 pll_idx)
 {
 	u32 delay = 600000U;
-        u32 mode;
-       mode=cru_readl(RK3288_CRU_MODE_CON);
+       // u32 mode;
+     //  mode=cru_readl(RK3288_CRU_MODE_CON);
 	dsb();
 	dsb();
 	dsb();
@@ -1295,7 +1653,7 @@ static void pm_pll_wait_lock(u32 pll_idx)
 	dsb();
 	dsb();
 	while (delay > 0) {
-		if (cru_readl(RK3288_PLL_CONS(pll_idx,1))&(0x1<<31))
+		if ((cru_readl(RK3288_PLL_CONS(pll_idx,1))&(0x1<<31)))
 			break;
 		delay--;
 	}
@@ -1304,10 +1662,10 @@ static void pm_pll_wait_lock(u32 pll_idx)
 		rkpm_ddr_printhex(pll_idx);
 		rkpm_ddr_printch('\n');
 	}
-    cru_writel(mode|(RK3288_PLL_MODE_MSK(pll_idx)<<16), RK3288_CRU_MODE_CON);
+    //cru_writel(mode|(RK3288_PLL_MODE_MSK(pll_idx)<<16), RK3288_CRU_MODE_CON);
 }	
 
-void pll_udelay(u32 udelay)
+static void pll_udelay(u32 udelay)
 {
     u32 mode;
     mode=cru_readl(RK3288_CRU_MODE_CON);
@@ -1319,12 +1677,20 @@ void pll_udelay(u32 udelay)
     cru_writel(mode|(RK3288_PLL_MODE_MSK(APLL_ID)<<16), RK3288_CRU_MODE_CON);
 }
 
+static u32 plls_con0_save[END_PLL_ID];
+static u32 plls_con1_save[END_PLL_ID];
+static u32 plls_con2_save[END_PLL_ID];
 static u32 plls_con3_save[END_PLL_ID];
+
 static u32 cru_mode_con;
 
 static inline void plls_suspend(u32 pll_id)
 {
+    plls_con0_save[pll_id]=cru_readl(RK3288_PLL_CONS((pll_id), 0));
+    plls_con1_save[pll_id]=cru_readl(RK3288_PLL_CONS((pll_id), 1));
+    plls_con2_save[pll_id]=cru_readl(RK3288_PLL_CONS((pll_id), 2));
     plls_con3_save[pll_id]=cru_readl(RK3288_PLL_CONS((pll_id), 3));
+ 
     cru_writel(RK3288_PLL_PWR_DN, RK3288_PLL_CONS((pll_id), 3));
     
 }
@@ -1332,25 +1698,22 @@ static inline void plls_resume(u32 pll_id)
 {
         u32 pllcon0, pllcon1, pllcon2;
 
-       // rkpm_ddr_printascii("ddr");
-       // rkpm_ddr_printhex(pll_id);
-
-        if(!(plls_con3_save[pll_id]&&RK3288_PLL_PWR_DN_MSK))
-            return ;        
-        //rkpm_ddr_printascii("res\n");
+        if((plls_con3_save[pll_id]&RK3288_PLL_PWR_DN_MSK))
+            return ;
+         
         //enter slowmode
         cru_writel(RK3288_PLL_MODE_SLOW(pll_id), RK3288_CRU_MODE_CON);      
         
         cru_writel(RK3288_PLL_PWR_ON, RK3288_PLL_CONS((pll_id),3));
         cru_writel(RK3288_PLL_NO_BYPASS, RK3288_PLL_CONS((pll_id),3));
         
-        pllcon0 = cru_readl(RK3288_PLL_CONS((pll_id),0));
-        pllcon1 = cru_readl(RK3288_PLL_CONS((pll_id),1));
-        pllcon2 = cru_readl(RK3288_PLL_CONS((pll_id),2));
+        pllcon0 =plls_con0_save[pll_id];// cru_readl(RK3288_PLL_CONS((pll_id),0));
+        pllcon1 = plls_con1_save[pll_id];//cru_readl(RK3288_PLL_CONS((pll_id),1));
+        pllcon2 = plls_con2_save[pll_id];//cru_readl(RK3288_PLL_CONS((pll_id),2));
 
         //enter rest
         cru_writel(RK3288_PLL_RESET, RK3288_PLL_CONS(pll_id,3));
-        cru_writel(pllcon0, RK3288_PLL_CONS(pll_id,0));
+        cru_writel(pllcon0|CRU_W_MSK(0,0xf)|CRU_W_MSK(8,0x3f), RK3288_PLL_CONS(pll_id,0));
         cru_writel(pllcon1, RK3288_PLL_CONS(pll_id,1));
         cru_writel(pllcon2, RK3288_PLL_CONS(pll_id,2));
         
@@ -1365,21 +1728,23 @@ static inline void plls_resume(u32 pll_id)
         pm_pll_wait_lock(pll_id);
         
         cru_writel(plls_con3_save[pll_id]|(RK3288_PLL_BYPASS_MSK<<16),RK3288_PLL_CONS(pll_id,3));
+
 }
 
-static u32 clk_sel0,clk_sel1, clk_sel10,clk_sel26,clk_sel36, clk_sel37;
+static u32 clk_sel0,clk_sel1, clk_sel10,clk_sel26,clk_sel33,clk_sel36, clk_sel37;
 
 static void pm_plls_suspend(void)
 {
 
-    //rkpm_ddr_regs_dump(RK_CRU_VIRT,RK3288_PLL_CONS((0), 0),RK3288_PLL_CONS((4), 3)); 
-    //rkpm_ddr_regs_dump(RK_CRU_VIRT,RK3288_CRU_MODE_CON,RK3288_CRU_MODE_CON);   
-    //rkpm_ddr_regs_dump(RK_CRU_VIRT,RK3288_CRU_CLKSELS_CON(0),RK3288_CRU_CLKSELS_CON(42));
+   // rkpm_ddr_regs_dump(RK_CRU_VIRT,RK3288_PLL_CONS((0), 0),RK3288_PLL_CONS((4), 3)); 
+   // rkpm_ddr_regs_dump(RK_CRU_VIRT,RK3288_CRU_MODE_CON,RK3288_CRU_MODE_CON);   
+   // rkpm_ddr_regs_dump(RK_CRU_VIRT,RK3288_CRU_CLKSELS_CON(0),RK3288_CRU_CLKSELS_CON(42));
     
     clk_sel0=cru_readl(RK3288_CRU_CLKSELS_CON(0));
-    clk_sel1=cru_readl(RK3288_CRU_CLKSELS_CON(1));    
+    clk_sel1=cru_readl(RK3288_CRU_CLKSELS_CON(1));
     clk_sel10=cru_readl(RK3288_CRU_CLKSELS_CON(10));
-    clk_sel26=cru_readl(RK3288_CRU_CLKSELS_CON(26));
+    clk_sel26=cru_readl(RK3288_CRU_CLKSELS_CON(26));    
+    clk_sel33=cru_readl(RK3288_CRU_CLKSELS_CON(33));
     clk_sel36=cru_readl(RK3288_CRU_CLKSELS_CON(36));
     clk_sel37=cru_readl(RK3288_CRU_CLKSELS_CON(37));
     
@@ -1388,49 +1753,67 @@ static void pm_plls_suspend(void)
 
     cru_writel(RK3288_PLL_MODE_SLOW(NPLL_ID), RK3288_CRU_MODE_CON);  
     plls_suspend(NPLL_ID);
-
-  
+    
 // cpll
     cru_writel(RK3288_PLL_MODE_SLOW(CPLL_ID), RK3288_CRU_MODE_CON);
+  
 // gpll 
     cru_writel(RK3288_PLL_MODE_SLOW(GPLL_ID), RK3288_CRU_MODE_CON); 
 
     // set 1,pdbus pll is gpll
-    cru_writel(CRU_W_MSK_SETBITS(1,15,0x1), RK3288_CRU_CLKSELS_CON(1));
+    cru_writel(CRU_W_MSK_SETBITS(1,15,0x1), RK3288_CRU_CLKSELS_CON(1)); // 0 cpll 1gpll
 
-    // pd_bus clk ,aclk ,hclk ,pclk, pd bus pll sel
-    cru_writel(CRU_W_MSK_SETBITS(1,0,0x7)|CRU_W_MSK_SETBITS(1,3,0x1f)|CRU_W_MSK_SETBITS(1,8,0x3)|CRU_W_MSK_SETBITS(1,12,0x3)
+    // pd_bus clk 
+    cru_writel(0
+                        |CRU_W_MSK_SETBITS(0,0,0x7)  //  1  aclk
+                        |CRU_W_MSK_SETBITS(0,3,0x1f) //  1   aclk src
+                        |CRU_W_MSK_SETBITS(0,8,0x3) // 1   hclk 0~1 1 2 4
+                        |CRU_W_MSK_SETBITS(0,12,0x7) //  3   pclk
                      , RK3288_CRU_CLKSELS_CON(1));
+    
     //crypto for pd_bus
     cru_writel(CRU_W_MSK_SETBITS(3,6,0x3), RK3288_CRU_CLKSELS_CON(26));
 
     // peri aclk hclk pclk
-    cru_writel(CRU_W_MSK_SETBITS(1,0,0x1f)|CRU_W_MSK_SETBITS(1,8,0x3)
-                          |CRU_W_MSK_SETBITS(2,12,0x7), RK3288_CRU_CLKSELS_CON(10));
+    cru_writel(0
+                        |CRU_W_MSK_SETBITS(0,0,0x1f) // 1 aclk
+                        |CRU_W_MSK_SETBITS(0,8,0x3) // 2   hclk 0 1:1,1 2:1 ,2 4:1
+                        |CRU_W_MSK_SETBITS(0,12,0x3)// 2     0~3  1 2 4 8 div
+                        , RK3288_CRU_CLKSELS_CON(10));
 
-  
     plls_suspend(CPLL_ID);
     plls_suspend(GPLL_ID);
 
 //apll 
    cru_writel(RK3288_PLL_MODE_SLOW(APLL_ID), RK3288_CRU_MODE_CON);
      // core_m0 core_mp a12_core
-    cru_writel(CRU_W_MSK_SETBITS(1,0,0xf)|CRU_W_MSK_SETBITS(3,4,0xf)
-                      |CRU_W_MSK_SETBITS(0,8,0x1f), RK3288_CRU_CLKSELS_CON(0));
+    cru_writel(0
+                        |CRU_W_MSK_SETBITS(0,0,0xf) // 1   axi_mo
+                        |CRU_W_MSK_SETBITS(0,4,0xf) // 3  axi mp
+                        |CRU_W_MSK_SETBITS(0,8,0x1f) // 0 a12 core div
+                      , RK3288_CRU_CLKSELS_CON(0));
     // core0 core1 core2 core3
-    cru_writel(CRU_W_MSK_SETBITS(0,0,0x7)|CRU_W_MSK_SETBITS(0,4,0x7)
-                      |CRU_W_MSK_SETBITS(0,8,0x7)|CRU_W_MSK_SETBITS(0,12,0x7)
+    cru_writel(0
+                        |CRU_W_MSK_SETBITS(0,0,0x7) //core 0 div
+                        |CRU_W_MSK_SETBITS(0,4,0x7) // core 1
+                        |CRU_W_MSK_SETBITS(0,8,0x7) // core2
+                        |CRU_W_MSK_SETBITS(0,12,0x7)//core3
                       , RK3288_CRU_CLKSELS_CON(36));
     // l2ram atclk pclk
-    cru_writel((CRU_W_MSK_SETBITS(3,0,0x7)|CRU_W_MSK_SETBITS(0xf,4,0x1f)
-                                |CRU_W_MSK_SETBITS(0xf,9,0x1f)), RK3288_CRU_CLKSELS_CON(37));
+    cru_writel(0
+                    |CRU_W_MSK_SETBITS(3,0,0x7) // l2ram
+                    |CRU_W_MSK_SETBITS(0xf,4,0x1f) // atclk
+                     |CRU_W_MSK_SETBITS(0xf,9,0x1f) // pclk dbg
+                     , RK3288_CRU_CLKSELS_CON(37));
     plls_suspend(APLL_ID);
 
 }
 
 static void pm_plls_resume(void)
 {
-        plls_resume(APLL_ID);     
+
+        plls_resume(APLL_ID);    
+
         // core_m0 core_mp a12_core
         cru_writel(clk_sel0|(CRU_W_MSK(0,0xf)|CRU_W_MSK(4,0xf)|CRU_W_MSK(8,0xf)),RK3288_CRU_CLKSELS_CON(0));
         // core0 core1 core2 core3
@@ -1438,31 +1821,39 @@ static void pm_plls_resume(void)
                         , RK3288_CRU_CLKSELS_CON(36));
         // l2ram atclk pclk
         cru_writel(clk_sel37|(CRU_W_MSK(0,0x7)|CRU_W_MSK(4,0x1f)|CRU_W_MSK(9,0x1f)) , RK3288_CRU_CLKSELS_CON(37));
+
         cru_writel(cru_mode_con|(RK3288_PLL_MODE_MSK(APLL_ID)<<16), RK3288_CRU_MODE_CON);
 
+        
         plls_resume(GPLL_ID);       
-        plls_resume(CPLL_ID);       
+        plls_resume(CPLL_ID);      
+
         // peri aclk hclk pclk
-        cru_writel(clk_sel10|(CRU_W_MSK(0,0x1f)|CRU_W_MSK(8,0x3)|CRU_W_MSK(12,0x7))
+        cru_writel(clk_sel10|(CRU_W_MSK(0,0x1f)|CRU_W_MSK(8,0x3)|CRU_W_MSK(12,0x3))
                                                                             , RK3288_CRU_CLKSELS_CON(10));
-        // pd_bus aclk hclk pclk
-        cru_writel(clk_sel1|(CRU_W_MSK(0,0x7)|CRU_W_MSK(3,0x1f)|CRU_W_MSK(8,0x3)|CRU_W_MSK(12,0x3))
+        //pd bus gpll sel
+        cru_writel(clk_sel1|CRU_W_MSK(15,0x1), RK3288_CRU_CLKSELS_CON(1));
+        // pd_bus clk 
+        cru_writel(clk_sel1|(CRU_W_MSK(0,0x7)|CRU_W_MSK(3,0x1f)|CRU_W_MSK(8,0x3)|CRU_W_MSK(12,0x7))
                     , RK3288_CRU_CLKSELS_CON(1));
+                
         // crypto
         cru_writel(clk_sel26|CRU_W_MSK(6,0x3), RK3288_CRU_CLKSELS_CON(26));
-
-        cru_writel(clk_sel1|CRU_W_MSK(15,0x1), RK3288_CRU_CLKSELS_CON(1));
-
-        cru_writel(cru_mode_con|(RK3288_PLL_MODE_MSK(GPLL_ID)<<16), RK3288_CRU_MODE_CON);
+    
+        
+          // pmu alive 
+        cru_writel(clk_sel33|CRU_W_MSK(0,0x1f)|CRU_W_MSK(8,0x1f), RK3288_CRU_CLKSELS_CON(33));
+          
+        cru_writel(cru_mode_con|(RK3288_PLL_MODE_MSK(GPLL_ID)<<16), RK3288_CRU_MODE_CON);       
         cru_writel(cru_mode_con|(RK3288_PLL_MODE_MSK(CPLL_ID)<<16), RK3288_CRU_MODE_CON);
-
+        
         plls_resume(NPLL_ID);       
         cru_writel(cru_mode_con|(RK3288_PLL_MODE_MSK(NPLL_ID)<<16), RK3288_CRU_MODE_CON);
 
-        //rkpm_ddr_regs_dump(RK_CRU_VIRT,RK3288_PLL_CONS((0), 0),RK3288_PLL_CONS((4), 3)); 
-      //  rkpm_ddr_regs_dump(RK_CRU_VIRT,RK3288_CRU_MODE_CON,RK3288_CRU_MODE_CON);   
-        //rkpm_ddr_regs_dump(RK_CRU_VIRT,RK3288_CRU_CLKSELS_CON(0),RK3288_CRU_CLKSELS_CON(42));
-
+       // rkpm_ddr_regs_dump(RK_CRU_VIRT,RK3288_PLL_CONS((0), 0),RK3288_PLL_CONS((4), 3)); 
+       // rkpm_ddr_regs_dump(RK_CRU_VIRT,RK3288_CRU_MODE_CON,RK3288_CRU_MODE_CON);   
+       // rkpm_ddr_regs_dump(RK_CRU_VIRT,RK3288_CRU_CLKSELS_CON(0),RK3288_CRU_CLKSELS_CON(42));
+        
 }
 
 static __sramdata u32  sysclk_clksel0_con,sysclk_clksel1_con,sysclk_clksel10_con,sysclk_mode_con;
@@ -1625,6 +2016,16 @@ static  void interface_ctr_reg_pread(void)
         //readl_relaxed(RK30_I2C1_BASE+SZ_4K);
         //readl_relaxed(RK_GPIO_VIRT(3));
 }
+void PIE_FUNC(ddr_leakage_tst)(void)
+{
+    cru_writel(RK3288_PLL_MODE_SLOW(DPLL_ID), RK3288_CRU_MODE_CON);    
+    rkpm_sram_printch('\n');   
+    rkpm_sram_printch('t');   
+    rkpm_sram_printch('e');   
+    rkpm_sram_printch('s');
+    rkpm_sram_printch('t');   
+    while(1);               
+}
 
 static void __init  rk3288_suspend_init(void)
 {
@@ -1653,10 +2054,12 @@ static void __init  rk3288_suspend_init(void)
     clks_gating_suspend_init();
 
     rkpm_set_ops_plls(pm_plls_suspend,pm_plls_resume);
-
+    
+    //rkpm_set_sram_ops_ddr(fn_to_pie(rockchip_pie_chunk, &FUNC(ddr_leakage_tst)),NULL);
     rkpm_set_ops_prepare_finish(rkpm_prepare,rkpm_finish);
     //rkpm_set_ops_regs_pread(interface_ctr_reg_pread);  
     
+    rkpm_set_ops_regs_sleep(pm_sleep_func_save,rkpm_slp_mode_set,pm_sleep_func_rusume_first,pm_sleep_func_rusume_last);
     if(rockchip_pie_chunk)
         rkpm_set_sram_ops_printch(fn_to_pie(rockchip_pie_chunk, &FUNC(sram_printch)));
     

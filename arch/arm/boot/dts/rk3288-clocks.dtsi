@@ -2158,7 +2158,7 @@
 						"reserved",		"reserved",	   /*"g_clk_ddrphy0",		"g_clk_ddrphy1",*/
 						"clk_jtag",		"reserved";		/*"testclk_gate_en";*/
 
-                                            rockchip,suspend-clkgating-setting=<0x7000 0xf000>;
+                                            rockchip,suspend-clkgating-setting=<0xf000 0xf000>;
 					#clock-cells = <1>;
 				};
 
@@ -2190,7 +2190,7 @@
 
 						"g_hdmi_hdcp_clk",		"g_ps2c_clk",
 						"usbphy_480m",		"g_mipidsi_24m";
-                                                rockchip,suspend-clkgating-setting=<0x0000 0x0000>;
+                                                rockchip,suspend-clkgating-setting=<0x0100 0x0100>;
 
 					#clock-cells = <1>;
 				};
@@ -2355,7 +2355,7 @@
 
 						"g_aclk_dmac1",		"g_aclk_strc_sys",
 						"g_p_ddrupctl0",		"g_pclk_publ0";
-                                                rockchip,suspend-clkgating-setting=<0xe0f0 0xe0f0>;                                                
+                                                rockchip,suspend-clkgating-setting=<0xe2f0 0xe2f0>;                                                
 
 					#clock-cells = <1>;
 				};

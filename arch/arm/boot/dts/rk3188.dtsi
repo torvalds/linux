@@ -510,7 +510,6 @@
                 				|RKPM_CTR_GTCLKS
                 				|RKPM_CTR_PLLS
                 				|RKPM_CTR_SYSCLK_DIV
-                				|RKPM_CTR_NORIDLE_MD
                 				)
                 			>;              
               rockchip,pmic-gpios=<
