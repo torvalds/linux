@@ -2039,11 +2039,13 @@ static void sxgbe_get_ops(struct sxgbe_ops * const ops_ptr)
  *  Description: this function checks the HW capability
  *  (if supported) and sets the driver's features.
  */
-static void sxgbe_hw_init(struct sxgbe_priv_data * const priv)
+static int sxgbe_hw_init(struct sxgbe_priv_data * const priv)
 {
 	u32 ctrl_ids;
 
 	priv->hw = kmalloc(sizeof(*priv->hw), GFP_KERNEL);
+	if(!priv->hw)
+		return -ENOMEM;
 
 	/* get the hardware ops */
 	sxgbe_get_ops(priv->hw);
@@ -2064,6 +2066,8 @@ static void sxgbe_hw_init(struct sxgbe_priv_data * const priv)
 
 	if (priv->hw_cap.rx_csum_offload)
 		pr_info("RX Checksum offload supported\n");
+
+	return 0;
 }
 
 /**
@@ -2102,7 +2106,9 @@ struct sxgbe_priv_data *sxgbe_drv_probe(struct device *device,
 	sxgbe_verify_args();
 
 	/* Init MAC and get the capabilities */
-	sxgbe_hw_init(priv);
+	ret = sxgbe_hw_init(priv);
+	if (ret)
+		goto error_free_netdev;
 
 	/* allocate memory resources for Descriptor rings */
 	ret = txring_mem_alloc(priv);
