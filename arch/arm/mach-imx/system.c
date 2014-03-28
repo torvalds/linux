@@ -138,8 +138,6 @@ void __init imx_init_l2cache(void)
 	if (cpu_is_imx6q())
 		val &= ~(1 << 30 | 1 << 23);
 	writel_relaxed(val, l2x0_base + L310_PREFETCH_CTRL);
-	val = L310_DYNAMIC_CLK_GATING_EN | L310_STNDBY_MODE_EN;
-	writel_relaxed(val, l2x0_base + L310_POWER_CTRL);
 
 	iounmap(l2x0_base);
 	of_node_put(np);
