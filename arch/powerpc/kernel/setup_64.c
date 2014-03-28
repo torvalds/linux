@@ -261,6 +261,14 @@ void __init early_setup(unsigned long dt_ptr)
 	/* Initialize the hash table or TLB handling */
 	early_init_mmu();
 
+	/*
+	 * At this point, we can let interrupts switch to virtual mode
+	 * (the MMU has been setup), so adjust the MSR in the PACA to
+	 * have IR and DR set.
+	 */
+	get_paca()->kernel_msr = MSR_KERNEL;
+
+	/* Reserve large chunks of memory for use by CMA for KVM */
 	kvm_cma_reserve();
 
 	/*
@@ -293,6 +301,13 @@ void early_setup_secondary(void)
 
 	/* Initialize the hash table or TLB handling */
 	early_init_mmu_secondary();
+
+	/*
+	 * At this point, we can let interrupts switch to virtual mode
+	 * (the MMU has been setup), so adjust the MSR in the PACA to
+	 * have IR and DR set.
+	 */
+	get_paca()->kernel_msr = MSR_KERNEL;
 }
 
 #endif /* CONFIG_SMP */
