@@ -837,7 +837,7 @@
 		reg = <0xff9a0000 0x800>;
 		interrupts = <GIC_SPI 9 IRQ_TYPE_LEVEL_HIGH>, <GIC_SPI 10 IRQ_TYPE_LEVEL_HIGH>;
 		interrupt-names = "irq_enc", "irq_dec";
-		clocks = <&clk_vepu>, <&hclk_vepu>;
+		clocks = <&clk_vdpu>, <&hclk_vdpu>;
 		clock-names = "aclk_vcodec", "hclk_vcodec";
 		name = "vpu_service";
 		//status = "disabled";
