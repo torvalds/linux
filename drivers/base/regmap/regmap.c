@@ -718,7 +718,7 @@ skip_format_initialization:
 		new->window_start = range_cfg->window_start;
 		new->window_len = range_cfg->window_len;
 
-		if (_regmap_range_add(map, new) == false) {
+		if (!_regmap_range_add(map, new)) {
 			dev_err(map->dev, "Failed to add range %d\n", i);
 			kfree(new);
 			goto err_range;
@@ -1736,6 +1736,9 @@ static int _regmap_read(struct regmap *map, unsigned int reg,
 	if (map->cache_only)
 		return -EBUSY;
 
+	if (!regmap_readable(map, reg))
+		return -EIO;
+
 	ret = map->reg_read(context, reg, val);
 	if (ret == 0) {
 #ifdef LOG_DEVICE
@@ -1966,9 +1969,11 @@ static int _regmap_update_bits(struct regmap *map, unsigned int reg,
 
 	if (tmp != orig) {
 		ret = _regmap_write(map, reg, tmp);
-		*change = true;
+		if (change)
+			*change = true;
 	} else {
-		*change = false;
+		if (change)
+			*change = false;
 	}
 
 	return ret;
@@ -1987,11 +1992,10 @@ static int _regmap_update_bits(struct regmap *map, unsigned int reg,
 int regmap_update_bits(struct regmap *map, unsigned int reg,
 		       unsigned int mask, unsigned int val)
 {
-	bool change;
 	int ret;
 
 	map->lock(map->lock_arg);
-	ret = _regmap_update_bits(map, reg, mask, val, &change);
+	ret = _regmap_update_bits(map, reg, mask, val, NULL);
 	map->unlock(map->lock_arg);
 
 	return ret;
@@ -2016,14 +2020,13 @@ EXPORT_SYMBOL_GPL(regmap_update_bits);
 int regmap_update_bits_async(struct regmap *map, unsigned int reg,
 			     unsigned int mask, unsigned int val)
 {
-	bool change;
 	int ret;
 
 	map->lock(map->lock_arg);
 
 	map->async = true;
 
-	ret = _regmap_update_bits(map, reg, mask, val, &change);
+	ret = _regmap_update_bits(map, reg, mask, val, NULL);
 
 	map->async = false;
 
