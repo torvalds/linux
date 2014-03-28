@@ -2769,13 +2769,21 @@ enum wmi_stats_id {
 	WMI_REQUEST_AP_STAT	= 0x02
 };
 
+struct wlan_inst_rssi_args {
+	__le16 cfg_retry_count;
+	__le16 retry_count;
+};
+
 struct wmi_request_stats_cmd {
 	__le32 stats_id;
 
-	/*
-	 * Space to add parameters like
-	 * peer mac addr
-	 */
+	__le32 vdev_id;
+
+	/* peer MAC address */
+	struct wmi_mac_addr peer_macaddr;
+
+	/* Instantaneous RSSI arguments */
+	struct wlan_inst_rssi_args inst_rssi_args;
 } __packed;
 
 /* Suspend option */
