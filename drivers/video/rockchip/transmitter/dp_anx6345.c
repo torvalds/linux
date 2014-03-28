@@ -1419,6 +1419,6 @@ static void __exit anx6345_module_exit(void)
 	i2c_del_driver(&anx6345_i2c_driver);
 }
 
-subsys_initcall_sync(anx6345_module_init);
+fs_initcall(anx6345_module_init);
 module_exit(anx6345_module_exit);
 

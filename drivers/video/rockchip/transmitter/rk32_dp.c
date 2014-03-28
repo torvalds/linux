@@ -34,7 +34,7 @@
 //#define EDP_BIST_MODE
 
 static struct rk32_edp *rk32_edp;
-static int lcdc_probed = 0;
+
 static int rk32_edp_clk_enable(struct rk32_edp *edp)
 {
 	if (!edp->clk_on) {
@@ -68,12 +68,14 @@ static int rk32_edp_pre_init(void)
 
 	val = 0x80008000;
 	writel_relaxed(val, RK_CRU_VIRT + 0x0d0); /*select 24m*/
-
+	dsb();
 	val = 0x80008000;
 	writel_relaxed(val, RK_CRU_VIRT + 0x01d0); /*reset edp*/
+	dsb();
 	udelay(1);
 	val = 0x80000000;
 	writel_relaxed(val, RK_CRU_VIRT + 0x01d0);
+	dsb();
 	udelay(1);
 	return 0;
 }
@@ -1096,11 +1098,6 @@ static irqreturn_t rk32_edp_isr(int irq, void *arg)
 	struct rk32_edp *edp = arg;
 	enum dp_irq_type irq_type;
 
-	if (!lcdc_probed) {
-		disable_irq_nosync(edp->irq);
-		return 0;
-	}
-	
 	irq_type = rk32_edp_get_irq_type(edp);
 	switch (irq_type) {
 	case DP_IRQ_TYPE_HP_CABLE_IN:
@@ -1135,7 +1132,6 @@ static int rk32_edp_enable(void)
 
 	rk32_edp_clk_enable(edp);
 	rk32_edp_pre_init();
-	lcdc_probed = 1;
 	rk32_edp_init_edp(edp);
 	enable_irq(edp->irq);
 	/*ret = rk32_edp_handle_edid(edp);
@@ -1262,6 +1258,8 @@ static int rk32_edp_probe(struct platform_device *pdev)
 	clk_prepare(edp->pclk);
 	clk_prepare(edp->clk_edp);
 	clk_prepare(edp->clk_24m);
+	rk32_edp_clk_enable(edp);
+	rk32_edp_pre_init();
 	edp->irq = platform_get_irq(pdev, 0);
 	if (edp->irq < 0) {
 		dev_err(&pdev->dev, "cannot find IRQ\n");
@@ -1274,6 +1272,7 @@ static int rk32_edp_probe(struct platform_device *pdev)
 		return ret;
 	}
 	disable_irq_nosync(edp->irq);
+	rk32_edp_clk_disable(edp);
 	rk32_edp = edp;
 	rk_fb_trsm_ops_register(&trsm_edp_ops, SCREEN_EDP);
 	dev_info(&pdev->dev, "rk32 edp driver probe success\n");
@@ -1317,5 +1316,5 @@ static void __exit rk32_edp_module_exit(void)
 
 }
 
-subsys_initcall_sync(rk32_edp_module_init);
+fs_initcall(rk32_edp_module_init);
 module_exit(rk32_edp_module_exit);
