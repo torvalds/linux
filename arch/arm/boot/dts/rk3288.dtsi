@@ -896,8 +896,8 @@
                           "host1_linestate";
 		gpios = <&gpio0 GPIO_B6 GPIO_ACTIVE_LOW>,/*HOST_VBUS_DRV*/
 		        <&gpio0 GPIO_B4 GPIO_ACTIVE_LOW>;/*OTG_VBUS_DRV*/
-		/*clocks = <&clk_gates7 9>;*/
-		/*clock-names = "hclk_usb_peri";*/
+		clocks = <&clk_gates7 9>;
+		clock-names = "hclk_usb_peri";
 		rockchip,remote_wakeup;
 		rockchip,usb_irq_wakeup;
 
@@ -919,8 +919,8 @@
 		compatible = "rockchip,rk3288_usb20_otg";
 		reg = <0xff580000 0x40000>;
 		interrupts = <GIC_SPI 23 IRQ_TYPE_LEVEL_HIGH>;
-		/*clocks = <&clk_gates13 4>, <&clk_gates7 4>;*/
-		/*clock-names = "clk_usbphy0", "hclk_usb0";*/
+		clocks = <&clk_gates13 4>, <&clk_gates7 4>;
+		clock-names = "clk_usbphy0", "hclk_usb0";
 		/*0 - Normal, 1 - Force Host, 2 - Force Device*/
 		rockchip,usb-mode = <0>;
 	};
@@ -929,36 +929,36 @@
 		compatible = "rockchip,rk3288_usb20_host";
 		reg = <0xff540000 0x40000>;
 		interrupts = <GIC_SPI 25 IRQ_TYPE_LEVEL_HIGH>;
-		/*clocks = <&clk_gates13 6>, <&clk_gates7 7>;*/
-		/*clock-names = "clk_usbphy1", "hclk_usb1";*/
+		clocks = <&clk_gates13 6>, <&clk_gates7 7>;
+		clock-names = "clk_usbphy1", "hclk_usb1";
 	};
 
 	usb2: usb@ff500000 {
 		compatible = "rockchip,rk3288_rk_ehci_host";
 		reg = <0xff500000 0x20000>;
 		interrupts = <GIC_SPI 24 IRQ_TYPE_LEVEL_HIGH>;
-		/*clocks = <&clk_gates13 5>, <&clk_gates7 6>;*/
-		/*clock-names = "clk_usbphy2", "hclk_usb2";*/
+		clocks = <&clk_gates13 5>, <&clk_gates7 6>;
+		clock-names = "clk_usbphy2", "hclk_usb2";
 	};
 
 	usb3: usb@ff520000 {
 		compatible = "rockchip,rk3288_rk_ohci_host";
 		reg = <0xff520000 0x20000>;
 		interrupts = <GIC_SPI 41 IRQ_TYPE_LEVEL_HIGH>;
-		/*clocks = <&clk_gates13 5>, <&clk_gates7 6>;*/
-		/*clock-names = "clk_usbphy3", "hclk_usb3";*/
+		clocks = <&clk_gates13 5>, <&clk_gates7 6>;
+		clock-names = "clk_usbphy3", "hclk_usb3";
 	};
 
 	hsic: hsic@ff5c0000 {
 		compatible = "rockchip,rk3288_rk_hsic_host";
 		reg = <0xff5c0000 0x40000>;
 		interrupts = <GIC_SPI 26 IRQ_TYPE_LEVEL_HIGH>;
-		/*clocks = <&hsicphy_480m>, <&clk_gates7 8>,*/
-		/*         <&hsicphy_12m>, <&clk_otgphy1_480m>,*/
-		/*         <&clk_otgphy2_480m>;*/
-		/*clock-names = "hsicphy_480m", "hclk_hsic",*/
-		/*              "hsicphy_12m", "hsic_usbphy1",*/
-		/*              "hsic_usbphy2";*/
+		clocks = <&hsicphy_480m>, <&clk_gates7 8>,
+		         <&hsicphy_12m>, <&usbphy_480m>,
+		         <&otgphy1_480m>, <&otgphy2_480m>;
+		clock-names = "hsicphy_480m", "hclk_hsic",
+		              "hsicphy_12m", "usbphy_480m",
+		              "hsic_usbphy1", "hsic_usbphy2";
 	};
 	
 	gmac: eth@ff290000 {

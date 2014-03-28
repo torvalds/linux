@@ -47,7 +47,6 @@ static void usb20otg_soft_reset(void)
 
 static void usb20otg_clock_init(void* pdata)
 {
-	/*
 	struct dwc_otg_platform_data *usbpdata=pdata;
 	struct clk* ahbclk,*phyclk;
 
@@ -65,12 +64,10 @@ static void usb20otg_clock_init(void* pdata)
 
 	usbpdata->phyclk = phyclk;
 	usbpdata->ahbclk = ahbclk;
-	*/
 }
 
 static void usb20otg_clock_enable(void* pdata, int enable)
 {
-	/*
 	struct dwc_otg_platform_data *usbpdata=pdata;
 
 	if(enable){
@@ -79,7 +76,7 @@ static void usb20otg_clock_enable(void* pdata, int enable)
 	}else{
 		clk_disable_unprepare(usbpdata->ahbclk);
 		clk_disable_unprepare(usbpdata->phyclk);
-	}*/
+	}
 }
 
 static int usb20otg_get_status(int id)
@@ -195,7 +192,6 @@ static void usb20host_soft_reset(void)
 
 static void usb20host_clock_init(void* pdata)
 {
-	/*
 	struct dwc_otg_platform_data *usbpdata=pdata;
 	struct clk* ahbclk,*phyclk;
 
@@ -213,12 +209,10 @@ static void usb20host_clock_init(void* pdata)
 
 	usbpdata->phyclk = phyclk;
 	usbpdata->ahbclk = ahbclk;
-	*/
 }
 
 static void usb20host_clock_enable(void* pdata, int enable)
 {
-	/*
 	struct dwc_otg_platform_data *usbpdata=pdata;
 
 	if(enable){
@@ -228,7 +222,6 @@ static void usb20host_clock_enable(void* pdata, int enable)
 		clk_disable_unprepare(usbpdata->ahbclk);
 		clk_disable_unprepare(usbpdata->phyclk);
 	}
-	*/
 }
 
 static int usb20host_get_status(int id)
@@ -315,9 +308,9 @@ static void rk_hsic_clock_init(void* pdata)
 	 * rk3188 must use host phy 480MHz clk, because if otg bypass
 	 * to uart mode, otg phy 480MHz clk will be closed automatically
 	 */
-	/*
 	struct rkehci_platform_data *usbpdata=pdata;
-	struct clk *ahbclk, *phyclk480m_hsic, *phyclk12m_hsic, *phyclk_usbphy1;
+	struct clk *ahbclk, *phyclk480m_hsic, *phyclk12m_hsic;
+	struct clk *phyclk_480m, *phyclk480m_parent;
 
 	phyclk480m_hsic = devm_clk_get(usbpdata->dev, "hsicphy_480m");
 	if (IS_ERR(phyclk480m_hsic)) {
@@ -331,9 +324,15 @@ static void rk_hsic_clock_init(void* pdata)
 		return;
 	}
 
-	phyclk_usbphy1 = devm_clk_get(usbpdata->dev, "hsic_usbphy2");
-	if (IS_ERR(phyclk_usbphy1)) {
+	phyclk480m_parent = devm_clk_get(usbpdata->dev, "hsic_usbphy2");
+	if (IS_ERR(phyclk480m_parent)) {
 		dev_err(usbpdata->dev, "Failed to get hsic_usbphy2\n");
+		return;
+	}
+
+	phyclk_480m = devm_clk_get(usbpdata->dev, "usbphy_480m");
+	if (IS_ERR(phyclk_480m)) {
+		dev_err(usbpdata->dev, "Failed to get usbphy_480m\n");
 		return;
 	}
 
@@ -343,17 +342,15 @@ static void rk_hsic_clock_init(void* pdata)
 		return;
 	}
 
-	clk_set_parent(phyclk480m_hsic, phyclk_usbphy1);
+	clk_set_parent(phyclk_480m, phyclk480m_parent);
 	
 	usbpdata->hclk_hsic = ahbclk;
 	usbpdata->hsic_phy_480m = phyclk480m_hsic;
 	usbpdata->hsic_phy_12m = phyclk12m_hsic;
-	*/
 }
 
 static void rk_hsic_clock_enable(void* pdata, int enable)
 {
-	/*
 	struct rkehci_platform_data *usbpdata=pdata;
 
 	if(enable == usbpdata->clk_status)
@@ -369,7 +366,6 @@ static void rk_hsic_clock_enable(void* pdata, int enable)
 		clk_disable_unprepare(usbpdata->hsic_phy_12m);
 		usbpdata->clk_status = 0;
 	}
-	*/
 }
 
 static void rk_hsic_soft_reset(void)
@@ -401,7 +397,6 @@ static void rk_ehci_hw_init(void)
 
 static void rk_ehci_clock_init(void* pdata)
 {
-/*
 	struct rkehci_platform_data *usbpdata=pdata;
 	struct clk* ahbclk,*phyclk;
 
@@ -419,12 +414,10 @@ static void rk_ehci_clock_init(void* pdata)
 
 	usbpdata->phyclk = phyclk;
 	usbpdata->ahbclk = ahbclk;
-*/
 }
 
 static void rk_ehci_clock_enable(void* pdata, int enable)
 {
-/*
 	struct rkehci_platform_data *usbpdata=pdata;
 
 	if(enable == usbpdata->clk_status)
@@ -438,7 +431,6 @@ static void rk_ehci_clock_enable(void* pdata, int enable)
 		clk_disable_unprepare(usbpdata->phyclk);
 		usbpdata->clk_status = 0;
 	}
-*/
 }
 
 static void rk_ehci_soft_reset(void)
@@ -470,7 +462,6 @@ static void rk_ohci_hw_init(void)
 
 static void rk_ohci_clock_init(void* pdata)
 {
-/*
 	struct rkehci_platform_data *usbpdata=pdata;
 	struct clk* ahbclk,*phyclk;
 
@@ -488,12 +479,10 @@ static void rk_ohci_clock_init(void* pdata)
 
 	usbpdata->phyclk = phyclk;
 	usbpdata->ahbclk = ahbclk;
-*/
 }
 
 static void rk_ohci_clock_enable(void* pdata, int enable)
 {
-/*
 	struct rkehci_platform_data *usbpdata=pdata;
 
 	if(enable == usbpdata->clk_status)
@@ -507,7 +496,6 @@ static void rk_ohci_clock_enable(void* pdata, int enable)
 		clk_disable_unprepare(usbpdata->phyclk);
 		usbpdata->clk_status = 0;
 	}
-*/
 }
 
 static void rk_ohci_soft_reset(void)
@@ -821,7 +809,7 @@ static int dwc_otg_control_usb_probe(struct platform_device *pdev)
 {
 	int gpio, err;
 	struct device_node *np = pdev->dev.of_node;
-//	struct clk* hclk_usb_peri;
+	struct clk* hclk_usb_peri;
 	int ret = 0;
 
 	control_usb = devm_kzalloc(&pdev->dev, sizeof(*control_usb),GFP_KERNEL);
@@ -838,7 +826,6 @@ static int dwc_otg_control_usb_probe(struct platform_device *pdev)
 		"rockchip,usb_irq_wakeup");
 
 	INIT_DELAYED_WORK(&control_usb->usb_charger_det_work, usb_battery_charger_detect_work);
-/*	disable for debug
 	hclk_usb_peri = devm_clk_get(&pdev->dev, "hclk_usb_peri");
 	if (IS_ERR(hclk_usb_peri)) {
 		dev_err(&pdev->dev, "Failed to get hclk_usb_peri\n");
@@ -848,7 +835,6 @@ static int dwc_otg_control_usb_probe(struct platform_device *pdev)
 
 	control_usb->hclk_usb_peri = hclk_usb_peri;
 	clk_prepare_enable(hclk_usb_peri);
-*/
 	ret = usb_grf_ioremap(pdev);
 	if(ret){
 		dev_err(&pdev->dev, "Failed to ioremap usb grf\n");
@@ -915,16 +901,14 @@ static int dwc_otg_control_usb_probe(struct platform_device *pdev)
 	return 0;
 
 err2:
-//	disable for debug
-//	clk_disable_unprepare(hclk_usb_peri);
+	clk_disable_unprepare(hclk_usb_peri);
 err1:
 	return ret;
 }
 
 static int dwc_otg_control_usb_remove(struct platform_device *pdev)
 {
-//	disable for debug
-//	clk_disable_unprepare(control_usb->hclk_usb_peri);
+	clk_disable_unprepare(control_usb->hclk_usb_peri);
 	return 0;
 }
 
