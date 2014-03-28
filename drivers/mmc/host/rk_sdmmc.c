@@ -2539,7 +2539,7 @@ static int dw_mci_init_slot(struct dw_mci *host, unsigned int id)
 
     /* eMMC should not sched into pm mgmt framework*/
     if(mmc->restrict_caps & RESTRICT_CARD_TYPE_EMMC)
-        mmc->pm_flags |= MMC_PM_IGNORE_PM_NOTIFY;
+        mmc->pm_flags |= (MMC_PM_IGNORE_PM_NOTIFY | MMC_PM_KEEP_POWER);
 
 	if (host->pdata->get_ocr)
 		mmc->ocr_avail = host->pdata->get_ocr(id);
