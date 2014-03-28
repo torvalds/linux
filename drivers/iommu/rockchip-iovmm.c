@@ -53,7 +53,7 @@ dma_addr_t iovmm_map(struct device *dev,struct scatterlist *sg, off_t offset,siz
 	struct rk_iovmm *vmm = rockchip_get_iovmm(dev);
 	int order;
 	int ret;
-
+	
 	for (; sg_dma_len(sg) < offset; sg = sg_next(sg))
 		offset -= sg_dma_len(sg);
 
@@ -134,6 +134,8 @@ dma_addr_t iovmm_map(struct device *dev,struct scatterlist *sg, off_t offset,siz
 	list_add(&region->node, &vmm->regions_list);
 
 	spin_unlock(&vmm->lock);
+
+	rockchip_sysmmu_tlb_invalidate(dev);
 
 	dev_dbg(dev, "IOVMM: Allocated VM region @ %#x/%#X bytes.\n",region->start, region->size);
 
@@ -221,6 +223,8 @@ int iovmm_map_oto(struct device *dev, phys_addr_t phys, size_t size)
 	list_add(&region->node, &vmm->regions_list);
 
 	spin_unlock(&vmm->lock);
+	
+	rockchip_sysmmu_tlb_invalidate(dev);
 
 	return 0;
 }

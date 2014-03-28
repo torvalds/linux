@@ -430,6 +430,7 @@ static irqreturn_t rockchip_sysmmu_irq(int irq, void *dev_id)
 	enum rk_sysmmu_inttype itype = SYSMMU_FAULT_UNKNOWN;
 	u32 status;
 	u32 rawstat;
+	u32 int_status;
 	u32 fault_address;
 	int i, ret = -ENOSYS;
 
@@ -451,9 +452,12 @@ static irqreturn_t rockchip_sysmmu_irq(int irq, void *dev_id)
 	} 
 	else 
 	{
-		status = __raw_readl(data->res_bases[i] + SYSMMU_REGISTER_STATUS);
-		if(status != 0)
+		int_status = __raw_readl(data->res_bases[i] + SYSMMU_REGISTER_INT_STATUS);
+		if(int_status != 0)
 		{
+			/*mask status*/
+			__raw_writel(0x00,data->res_bases[i] + SYSMMU_REGISTER_INT_MASK);
+			
 			rawstat = __raw_readl(data->res_bases[i] + SYSMMU_REGISTER_INT_RAWSTAT);
 			if(rawstat & SYSMMU_INTERRUPT_PAGE_FAULT)
 			{
@@ -469,6 +473,8 @@ static irqreturn_t rockchip_sysmmu_irq(int irq, void *dev_id)
 				goto out;
 			}
 		}
+		else
+			goto out;
 	}
 
 	if (data->domain)
@@ -479,13 +485,17 @@ static irqreturn_t rockchip_sysmmu_irq(int irq, void *dev_id)
 		unsigned long base = data->pgtable;
 		if (itype != SYSMMU_FAULT_UNKNOWN)
 			base = __raw_readl(data->res_bases[i] + SYSMMU_REGISTER_DTE_ADDR);
+		status = __raw_readl(data->res_bases[i] + SYSMMU_REGISTER_STATUS);
 		ret = data->fault_handler(data->dev, itype, base, fault_address,status);
 	}
 
 	if (!ret && (itype != SYSMMU_FAULT_UNKNOWN))
 	{
 		if(SYSMMU_PAGEFAULT == itype)
+		{
+			sysmmu_zap_tlb(data->res_bases[i]);
 			sysmmu_page_fault_done(data->res_bases[i],data->dbgname);
+		}
 		sysmmu_reset(data->res_bases[i],data->dbgname);
 	}
 	else

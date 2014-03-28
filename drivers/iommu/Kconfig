@@ -127,6 +127,37 @@ config IRQ_REMAP
 	  To use x2apic mode in the CPU's which support x2APIC enhancements or
 	  to support platforms with CPU's having > 8 bit APIC ID, say Y.
 
+config ROCKCHIP_IOMMU
+	bool "Rockchip IOMMU Support"
+	depends on ARCH_ROCKCHIP
+	select IOMMU_API
+	help
+	  Support for the IOMMU(System MMU) of Rockchip rk32xx application
+	  processor family. This enables H/W multimedia accellerators to see
+	  non-linear physical memory chunks as a linear memory in their
+	  address spaces
+
+	  If unsure, say N here.
+
+config ROCKCHIP_IOVMM
+	bool "IO Virtual Memory Manager for Rockcihp IOMMUs"
+	select GENERIC_ALLOCATOR
+	depends on ROCKCHIP_IOMMU
+	default n
+	help
+	  Supporting the users of Rockchip IOMMU for allocating and mapping
+	  an IO virtual memory region with a physical memory region
+	  and managing the allocated virtual memory regions.
+
+config ROCKCHIP_IOMMU_DEBUG
+	bool "Debugging log for Rockchip IOMMU"
+	depends on ROCKCHIP_IOMMU
+	help
+	  Select this to see the detailed log message that shows what
+	  happens in the IOMMU driver
+
+	  Say N unless you need kernel log message for IOMMU debugging
+
 # OMAP IOMMU support
 config OMAP_IOMMU
 	bool "OMAP IOMMU Support"
