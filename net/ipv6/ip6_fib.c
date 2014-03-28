@@ -46,8 +46,7 @@
 
 static struct kmem_cache * fib6_node_kmem __read_mostly;
 
-enum fib_walk_state_t
-{
+enum fib_walk_state_t {
 #ifdef CONFIG_IPV6_SUBTREES
 	FWS_S,
 #endif
@@ -57,8 +56,7 @@ enum fib_walk_state_t
 	FWS_U
 };
 
-struct fib6_cleaner_t
-{
+struct fib6_cleaner_t {
 	struct fib6_walker_t w;
 	struct net *net;
 	int (*func)(struct rt6_info *, void *arg);
@@ -1190,8 +1188,10 @@ static struct fib6_node *fib6_repair_tree(struct net *net,
 
 		children = 0;
 		child = NULL;
-		if (fn->right) child = fn->right, children |= 1;
-		if (fn->left) child = fn->left, children |= 2;
+		if (fn->right)
+			child = fn->right, children |= 1;
+		if (fn->left)
+			child = fn->left, children |= 2;
 
 		if (children == 3 || FIB6_SUBTREE(fn)
 #ifdef CONFIG_IPV6_SUBTREES
@@ -1219,8 +1219,10 @@ static struct fib6_node *fib6_repair_tree(struct net *net,
 		} else {
 			WARN_ON(fn->fn_flags & RTN_ROOT);
 #endif
-			if (pn->right == fn) pn->right = child;
-			else if (pn->left == fn) pn->left = child;
+			if (pn->right == fn)
+				pn->right = child;
+			else if (pn->left == fn)
+				pn->left = child;
 #if RT6_DEBUG >= 2
 			else
 				WARN_ON(1);
