@@ -1,17 +1,12 @@
 /*
  * Pinctrl driver for Rockchip SoCs
  *
- * Copyright (c) 2013 MundoReader S.L.
- * Author: Heiko Stuebner <heiko@sntech.de>
+ * Copyright (c) 2016 Rockchip electronic L.T.D
+ * Author: Luo Wei <lw@rock-chips.com>
  *
- * With some ideas taken from pinctrl-samsung:
- * Copyright (c) 2012 Samsung Electronics Co., Ltd.
- *		http://www.samsung.com
- * Copyright (c) 2012 Linaro Ltd
- *		http://www.linaro.org
+ * Thanks to Heiko Stuebner <heiko@sntech.de>
+ * With some ideas taken from pinctrl-samsung
  *
- * and pinctrl-at91:
- * Copyright (C) 2011-2012 Jean-Christophe PLAGNIOL-VILLARD <plagnioj@jcrosoft.com>
  *
  * This program is free software; you can redistribute it and/or modify
  * it under the terms of the GNU General Public License version 2 as published
@@ -3130,6 +3125,6 @@ static int __init rockchip_pinctrl_drv_register(void)
 }
 postcore_initcall(rockchip_pinctrl_drv_register);
 
-MODULE_AUTHOR("Heiko Stuebner <heiko@sntech.de>");
+MODULE_AUTHOR("Luo Wei <lw@rock-chips.com>");
 MODULE_DESCRIPTION("Rockchip pinctrl driver");
 MODULE_LICENSE("GPL v2");

@@ -1,0 +1,154 @@
+Rockchip GPIO and Pin Mux/Config controller
+
+Rockchip's ARM based SoC's integrates a GPIO and Pin mux/config hardware
+controller. It controls the input/output settings on the available pads/pins
+and also provides ability to multiplex and configure the output of various
+on-chip controllers onto these pads.
+
+Required Properties:
+- compatible: should be one of the following.
+  - "rockchip,rk2928-pinctrl": for rk2928 compatible pin-controller,
+  - "rockchip,rk3188-pinctrl": for rk3188 compatible pin-controller.
+  - "rockchip,rk3288-pinctrl": for rk3288 compatible pin-controller.
+  
+- reg: Base address of the pin controller hardware module and length of
+  the address space it occupies.
+
+- Pin banks as child nodes: Pin banks of the controller are represented by child
+  nodes of the controller node. Bank name is taken from name of the node. Each
+  bank node must contain following properties:
+
+  - gpio-controller: identifies the node as a gpio controller and pin bank.
+  - #gpio-cells: number of cells in GPIO specifier. Since the generic GPIO
+    binding is used, the amount of cells must be specified as 2. See generic
+    GPIO binding documentation for description of particular cells.
+
+- Pin mux/config groups as child nodes: The pin mux (selecting pin function
+  mode) and pin config (pull up/down, driver strength) settings are represented
+  as child nodes of the pin-controller node. There should be atleast one
+  child node and there is no limit on the count of these child nodes.
+
+
+  The following pin function and configuration properties are supported.
+  
+  -rockchip,pins: Gpio or function selection.
+  -rockchip,pull: Pull up/down configuration.
+  -rockchip,voltage: Voltage domain configuration.
+  -rockchip,drive: Drive strength configuration.
+  
+  
+  "rockchip,pins" could be assigned gpio name and function name.
+  As an example, the pins in GPA0 bank of the pin controller can be represented
+  as gpio name such as "GPIO0_A0", "GPIO0_A1", "GPIO0_A2" and so on. Not only that,
+  the pins Could be represented as function name such as "UART0_TXD","UART0_RXD",
+  "UART0_RTS","UART0_CTS" and so on.Because the use of encoding, this method 
+  was able to achieve.The pin function name that could be applied on the pins listed 
+  in the include/dt-bindings/pinctrl/rockchip-rkxx.h.
+
+  "rockchip,pull" could be assigned the following values:
+	#define VALUE_PULL_NORMAL		0
+	#define VALUE_PULL_UP			1
+	#define VALUE_PULL_DOWN			2
+	#define VALUE_PULL_KEEP			3
+	#define VALUE_PULL_DISABLE		4 //don't set and keep pull default
+	
+	
+ "rockchip,voltage" could be assigned the following values:
+	#define VALUE_VOL_DEFAULT		0
+	#define VALUE_VOL_3V3			0
+	#define VALUE_VOL_1V8			1
+	
+ "rockchip,drive" could be assigned the following values:
+	#define VALUE_DRV_DEFAULT		0
+	#define VALUE_DRV_2MA			0
+	#define VALUE_DRV_4MA			1
+	#define VALUE_DRV_8MA			2
+	#define VALUE_DRV_12MA			3
+
+ Note: A child should include atleast a pin function selection..
+
+
+Example 1: A pin-controller node with pin banks:
+
+ pinctrl: pinctrl@ff770000 {
+		compatible = "rockchip,rk3288-pinctrl";
+		reg = <0xff770000 0x140>,
+		      <0xff770140 0x80>,
+		      <0xff7701c0 0x80>;
+		reg-names = "base", "pull", "drv";
+		#address-cells = <1>;
+		#size-cells = <1>;
+		ranges;
+		
+		/* Pin bank without external interrupts */
+		gpio0: gpio0@ff750000 {
+			compatible = "rockchip,rk3288-gpio-bank0";
+			reg =	<0xff750000 0x100>,
+				<0xff730084 0x10>,
+		      		<0xff730064 0x0c>,
+				<0xff730070 0x0c>;
+			reg-names = "base", "mux_bank0", "pull_bank0", "drv_bank0";
+			interrupts = <GIC_SPI 81 IRQ_TYPE_LEVEL_HIGH>;
+			clocks = <&clk_gates17 4>;
+
+			gpio-controller;
+			#gpio-cells = <2>;
+
+			interrupt-controller;
+			#interrupt-cells = <2>;
+		};
+
+	
+
+Example 2: A pin-controller node with pin groups.
+
+	gpio4_uart0 {
+			uart0_xfer: uart0-xfer {
+				rockchip,pins = <UART0BT_SIN>,
+						<UART0BT_SOUT>;
+				rockchip,pull = <VALUE_PULL_DISABLE>;
+				rockchip,voltage = <VALUE_VOL_DEFAULT>;
+				rockchip,drive = <VALUE_DRV_DEFAULT>;
+				//rockchip,tristate = <VALUE_TRI_DEFAULT>;
+			};
+
+			uart0_cts: uart0-cts {
+				rockchip,pins = <UART0BT_CTSN>;
+				rockchip,pull = <VALUE_PULL_DISABLE>;
+				//rockchip,voltage = <VALUE_VOL_DEFAULT>;
+				rockchip,drive = <VALUE_DRV_DEFAULT>;
+				//rockchip,tristate = <VALUE_TRI_DEFAULT>;
+			};
+
+			uart0_rts: uart0-rts {
+				rockchip,pins = <UART0BT_RTSN>;
+				rockchip,pull = <VALUE_PULL_DISABLE>;
+				//rockchip,voltage = <VALUE_VOL_DEFAULT>;
+				rockchip,drive = <VALUE_DRV_DEFAULT>;
+				//rockchip,tristate = <VALUE_TRI_DEFAULT>;
+			};
+
+			uart0_rts_gpio: uart0-rts-gpio {
+				rockchip,pins = <FUNC_TO_GPIO(UART0BT_RTSN)>;
+				rockchip,drive = <VALUE_DRV_DEFAULT>;
+			};
+		};
+
+
+
+Example 3: A i2c node that supports 'default' and 'gpio' states.
+
+	i2c0: i2c@ff650000 {
+		compatible = "rockchip,rk30-i2c";
+		reg = <0xff650000 0x1000>;
+		interrupts = <GIC_SPI 60 IRQ_TYPE_LEVEL_HIGH>;
+		#address-cells = <1>;
+		#size-cells = <0>;
+		pinctrl-names = "default", "gpio";
+		pinctrl-0 = <&i2c0_sda &i2c0_scl>;
+		pinctrl-1 = <&i2c0_gpio>;
+		gpios = <&gpio0 GPIO_B7 GPIO_ACTIVE_LOW>, <&gpio0 GPIO_C0 GPIO_ACTIVE_LOW>;
+		clocks = <&clk_gates10 2>;
+		rockchip,check-idle = <1>;
+		status = "disabled";
+	};
