@@ -36,7 +36,7 @@ struct device_node *of_allnodes;
 EXPORT_SYMBOL(of_allnodes);
 struct device_node *of_chosen;
 struct device_node *of_aliases;
-static struct device_node *of_stdout;
+struct device_node *of_stdout;
 
 static struct kset *of_kset;
 
@@ -2063,9 +2063,12 @@ void of_alias_scan(void * (*dt_alloc)(u64 size, u64 align))
 		of_chosen = of_find_node_by_path("/chosen@0");
 
 	if (of_chosen) {
+		/* linux,stdout-path and /aliases/stdout are for legacy compatibility */
 		const char *name = of_get_property(of_chosen, "stdout-path", NULL);
 		if (!name)
 			name = of_get_property(of_chosen, "linux,stdout-path", NULL);
+		if (IS_ENABLED(CONFIG_PPC) && !name)
+			name = of_get_property(of_aliases, "stdout", NULL);
 		if (name)
 			of_stdout = of_find_node_by_path(name);
 	}

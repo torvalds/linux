@@ -113,6 +113,7 @@ static inline void of_node_put(struct device_node *node) { }
 extern struct device_node *of_allnodes;
 extern struct device_node *of_chosen;
 extern struct device_node *of_aliases;
+extern struct device_node *of_stdout;
 extern raw_spinlock_t devtree_lock;
 
 static inline bool of_have_populated_dt(void)
