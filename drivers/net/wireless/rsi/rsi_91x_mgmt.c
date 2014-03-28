@@ -1292,10 +1292,11 @@ int rsi_mgmt_pkt_recv(struct rsi_common *common, u8 *msg)
 			return -EINVAL;
 		}
 	} else if (msg_type == TX_STATUS_IND) {
-		if (msg[15] == PROBEREQ_CONFIRM)
+		if (msg[15] == PROBEREQ_CONFIRM) {
 			common->mgmt_q_block = false;
 			rsi_dbg(FSM_ZONE, "%s: Probe confirm received\n",
 				__func__);
+		}
 	} else {
 		return rsi_mgmt_pkt_to_core(common, msg, msg_len, msg_type);
 	}
