@@ -151,6 +151,18 @@ config KEYBOARD_BFIN
 	  To compile this driver as a module, choose M here: the
 	  module will be called bf54x-keys.
 
+config KEYBOARD_CLPS711X
+	tristate "CLPS711X Keypad support"
+	depends on OF_GPIO && (ARCH_CLPS711X || COMPILE_TEST)
+	select INPUT_MATRIXKMAP
+	select INPUT_POLLDEV
+	help
+	  Say Y here to enable the matrix keypad on the Cirrus Logic
+	  CLPS711X CPUs.
+
+	  To compile this driver as a module, choose M here: the
+	  module will be called clps711x-keypad.
+
 config KEYBOARD_LKKBD
 	tristate "DECstation/VAXstation LK201/LK401 keyboard"
 	select SERIO
