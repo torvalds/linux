@@ -2538,9 +2538,6 @@ void vlv_flisdsi_write(struct drm_i915_private *dev_priv, u32 reg, u32 val);
 int vlv_gpu_freq(struct drm_i915_private *dev_priv, int val);
 int vlv_freq_opcode(struct drm_i915_private *dev_priv, int val);
 
-void vlv_force_wake_get(struct drm_i915_private *dev_priv, int fw_engine);
-void vlv_force_wake_put(struct drm_i915_private *dev_priv, int fw_engine);
-
 #define FORCEWAKE_VLV_RENDER_RANGE_OFFSET(reg) \
 	(((reg) >= 0x2000 && (reg) < 0x4000) ||\
 	((reg) >= 0x5000 && (reg) < 0x8000) ||\

@@ -253,8 +253,7 @@ static void __vlv_force_wake_put(struct drm_i915_private *dev_priv,
 
 }
 
-void vlv_force_wake_get(struct drm_i915_private *dev_priv,
-						int fw_engine)
+static void vlv_force_wake_get(struct drm_i915_private *dev_priv, int fw_engine)
 {
 	unsigned long irqflags;
 
@@ -273,8 +272,7 @@ void vlv_force_wake_get(struct drm_i915_private *dev_priv,
 	spin_unlock_irqrestore(&dev_priv->uncore.lock, irqflags);
 }
 
-void vlv_force_wake_put(struct drm_i915_private *dev_priv,
-						int fw_engine)
+static void vlv_force_wake_put(struct drm_i915_private *dev_priv, int fw_engine)
 {
 	unsigned long irqflags;
 
