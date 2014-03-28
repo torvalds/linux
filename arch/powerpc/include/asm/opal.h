@@ -874,8 +874,7 @@ int64_t opal_get_param(uint64_t token, uint32_t param_id, uint64_t buffer,
 		size_t length);
 int64_t opal_set_param(uint64_t token, uint32_t param_id, uint64_t buffer,
 		size_t length);
-int64_t opal_sensor_read(uint32_t sensor_hndl, int token,
-		uint32_t *sensor_data);
+int64_t opal_sensor_read(uint32_t sensor_hndl, int token, __be32 *sensor_data);
 
 /* Internal functions */
 extern int early_init_dt_scan_opal(unsigned long node, const char *uname, int depth, void *data);
