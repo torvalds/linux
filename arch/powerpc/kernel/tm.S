@@ -320,8 +320,6 @@ _GLOBAL(__tm_recheckpoint)
 	 */
 	SAVE_NVGPRS(r1)
 
-	std	r1, PACAR1(r13)
-
 	/* Load complete register state from ts_ckpt* registers */
 
 	addi	r7, r3, PT_CKPT_REGS		/* Thread's ckpt_regs */
