@@ -249,11 +249,12 @@ static int regcache_default_sync(struct regmap *map, unsigned int min,
 {
 	unsigned int reg;
 
-	for (reg = min; reg <= max; reg++) {
+	for (reg = min; reg <= max; reg += map->reg_stride) {
 		unsigned int val;
 		int ret;
 
-		if (regmap_volatile(map, reg))
+		if (regmap_volatile(map, reg) ||
+		    !regmap_writeable(map, reg))
 			continue;
 
 		ret = regcache_read(map, reg, &val);
@@ -312,10 +313,6 @@ int regcache_sync(struct regmap *map)
 	/* Apply any patch first */
 	map->cache_bypass = 1;
 	for (i = 0; i < map->patch_regs; i++) {
-		if (map->patch[i].reg % map->reg_stride) {
-			ret = -EINVAL;
-			goto out;
-		}
 		ret = _regmap_write(map, map->patch[i].reg, map->patch[i].def);
 		if (ret != 0) {
 			dev_err(map->dev, "Failed to write %x = %x: %d\n",
