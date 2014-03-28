@@ -410,6 +410,10 @@
 		};
 	};
 
+	fimd@11c00000 {
+		status = "okay";
+	};
+
 	camera {
 		pinctrl-names = "default";
 		pinctrl-0 = <>;
