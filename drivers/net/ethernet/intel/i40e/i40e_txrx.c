@@ -482,8 +482,9 @@ static void i40e_fd_handle_status(struct i40e_ring *rx_ring,
 		}
 	} else if (error ==
 			  (0x1 << I40E_RX_PROG_STATUS_DESC_NO_FD_ENTRY_SHIFT)) {
-		netdev_info(rx_ring->vsi->netdev, "ntuple filter loc = %d, could not be removed\n",
-			    rx_desc->wb.qword0.hi_dword.fd_id);
+		if (I40E_DEBUG_FD & pf->hw.debug_mask)
+			dev_info(&pdev->dev, "ntuple filter loc = %d, could not be removed\n",
+				 rx_desc->wb.qword0.hi_dword.fd_id);
 	}
 }
 
@@ -1624,8 +1625,11 @@ static void i40e_atr(struct i40e_ring *tx_ring, struct sk_buff *skb,
 
 	tx_ring->atr_count++;
 
-	/* sample on all syn/fin packets or once every atr sample rate */
-	if (!th->fin && !th->syn && (tx_ring->atr_count < tx_ring->atr_sample_rate))
+	/* sample on all syn/fin/rst packets or once every atr sample rate */
+	if (!th->fin &&
+	    !th->syn &&
+	    !th->rst &&
+	    (tx_ring->atr_count < tx_ring->atr_sample_rate))
 		return;
 
 	tx_ring->atr_count = 0;
@@ -1649,7 +1653,7 @@ static void i40e_atr(struct i40e_ring *tx_ring, struct sk_buff *skb,
 
 	dtype_cmd = I40E_TX_DESC_DTYPE_FILTER_PROG;
 
-	dtype_cmd |= th->fin ?
+	dtype_cmd |= (th->fin || th->rst) ?
 		     (I40E_FILTER_PROGRAM_DESC_PCMD_REMOVE <<
 		      I40E_TXD_FLTR_QW1_PCMD_SHIFT) :
 		     (I40E_FILTER_PROGRAM_DESC_PCMD_ADD_UPDATE <<

@@ -67,7 +67,7 @@ extern struct i40e_rx_ptype_decoded i40evf_ptype_lookup[];
 
 static inline struct i40e_rx_ptype_decoded decode_rx_desc_ptype(u8 ptype)
 {
-	return  i40evf_ptype_lookup[ptype];
+	return i40evf_ptype_lookup[ptype];
 }
 
 /* prototype for functions used for SW locks */

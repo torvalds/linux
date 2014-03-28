@@ -211,6 +211,7 @@ struct i40evf_adapter {
 #define I40EVF_FLAG_NEED_LINK_UPDATE             (u32)(1 << 7)
 #define I40EVF_FLAG_PF_COMMS_FAILED              (u32)(1 << 8)
 #define I40EVF_FLAG_RESET_PENDING                (u32)(1 << 9)
+#define I40EVF_FLAG_RESET_NEEDED                 (u32)(1 << 10)
 /* duplcates for common code */
 #define I40E_FLAG_FDIR_ATR_ENABLED		 0
 #define I40E_FLAG_DCB_ENABLED			 0
