@@ -53,7 +53,7 @@ int opal_get_sensor_data(u32 sensor_hndl, u32 *sensor_data)
 		goto out_token;
 	}
 
-	ret = msg.params[1];
+	ret = be64_to_cpu(msg.params[1]);
 
 out_token:
 	mutex_unlock(&opal_sensor_mutex);

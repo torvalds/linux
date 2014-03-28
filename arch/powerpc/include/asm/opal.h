@@ -422,9 +422,9 @@ enum OpalSysparamPerm {
 };
 
 struct opal_msg {
-	uint32_t msg_type;
-	uint32_t reserved;
-	uint64_t params[8];
+	__be32 msg_type;
+	__be32 reserved;
+	__be64 params[8];
 };
 
 struct opal_machine_check_event {
