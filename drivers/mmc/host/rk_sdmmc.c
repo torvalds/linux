@@ -2534,6 +2534,13 @@ static int dw_mci_init_slot(struct dw_mci *host, unsigned int id)
 	if (of_find_property(host->dev->of_node, "supports-emmc", NULL))
 		mmc->restrict_caps |= RESTRICT_CARD_TYPE_EMMC;
 
+    //if(mmc->restrict_caps & RESTRICT_CARD_TYPE_EMMC)
+    //    mmc->caps |= MMC_CAP_NONREMOVABLE;
+
+    /* eMMC should not sched into pm mgmt framework*/
+    if(mmc->restrict_caps & RESTRICT_CARD_TYPE_EMMC)
+        mmc->pm_flags |= MMC_PM_IGNORE_PM_NOTIFY;
+
 	if (host->pdata->get_ocr)
 		mmc->ocr_avail = host->pdata->get_ocr(id);
 	else{
@@ -3037,12 +3044,14 @@ int dw_mci_probe(struct dw_mci *host)
 	mci_writel(host, RINTSTS, 0xFFFFFFFF);
 	regs = SDMMC_INT_CMD_DONE | SDMMC_INT_DATA_OVER | SDMMC_INT_TXDR | 
 	       SDMMC_INT_RXDR | DW_MCI_ERROR_FLAGS;
-	if(!(host->mmc->restrict_caps & RESTRICT_CARD_TYPE_SDIO))
-	    regs |= SDMMC_INT_CD;
-	mci_writel(host, INTMASK, regs);
-		
-	mci_writel(host, CTRL, SDMMC_CTRL_INT_ENABLE); /* Enable mci interrupt */
+	if(!(host->mmc->restrict_caps & RESTRICT_CARD_TYPE_SDIO) 
+	    && !(host->mmc->restrict_caps & RESTRICT_CARD_TYPE_EMMC))
+	    regs |= SDMMC_INT_CD; 
 
+	mci_writel(host, INTMASK, regs);
+
+	mci_writel(host, CTRL, SDMMC_CTRL_INT_ENABLE); /* Enable mci interrupt */
+	
 	dev_info(host->dev, "DW MMC controller at irq %d, "
 		 "%d bit host data width, "
 		 "%u deep fifo\n",
@@ -3124,23 +3133,7 @@ EXPORT_SYMBOL(dw_mci_remove);
  */
 int dw_mci_suspend(struct dw_mci *host)
 {
-	/*int i, ret = 0;
-
-	for (i = 0; i < host->num_slots; i++) {
-		struct dw_mci_slot *slot = host->slot[i];
-		if (!slot)
-			continue;
-		ret = mmc_suspend_host(slot->mmc);
-		if (ret < 0) {
-			while (--i >= 0) {
-				slot = host->slot[i];
-				if (slot)
-					mmc_resume_host(host->slot[i]->mmc);
-			}
-			return ret;
-		}
-	}
-	*/
+	
 	if (host->vmmc)
 		regulator_disable(host->vmmc);
 
@@ -3195,10 +3188,6 @@ int dw_mci_resume(struct dw_mci *host)
 			dw_mci_set_ios(slot->mmc, &slot->mmc->ios);
 			dw_mci_setup_bus(slot, true);
 		}
-
-	//	ret = mmc_resume_host(host->slot[i]->mmc);
-	//	if (ret < 0)
-	//		return ret;
 	}
 	return 0;
 }
