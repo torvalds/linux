@@ -2257,6 +2257,7 @@ static struct dmar_domain *get_domain_for_dev(struct device *dev, int gaw)
 		goto error;
 	if (iommu_attach_domain(domain, iommu)) {
 		free_domain_mem(domain);
+		domain = NULL;
 		goto error;
 	}
 	free = domain;
