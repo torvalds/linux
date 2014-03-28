@@ -892,6 +892,8 @@ extern int early_init_dt_scan_opal(unsigned long node, const char *uname,
 				   int depth, void *data);
 
 extern int opal_notifier_register(struct notifier_block *nb);
+extern int opal_notifier_unregister(struct notifier_block *nb);
+
 extern int opal_message_notifier_register(enum OpalMessageType msg_type,
 						struct notifier_block *nb);
 extern void opal_notifier_enable(void);
