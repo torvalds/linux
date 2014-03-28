@@ -415,9 +415,7 @@ static irqreturn_t exynos_pcie_msi_irq_handler(int irq, void *arg)
 {
 	struct pcie_port *pp = arg;
 
-	dw_handle_msi_irq(pp);
-
-	return IRQ_HANDLED;
+	return dw_handle_msi_irq(pp);
 }
 
 static void exynos_pcie_msi_init(struct pcie_port *pp)
