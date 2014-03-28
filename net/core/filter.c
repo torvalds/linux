@@ -646,6 +646,7 @@ static int __sk_prepare_filter(struct sk_filter *fp)
 	int err;
 
 	fp->bpf_func = sk_run_filter;
+	fp->jited = 0;
 
 	err = sk_chk_filter(fp->insns, fp->len);
 	if (err)
