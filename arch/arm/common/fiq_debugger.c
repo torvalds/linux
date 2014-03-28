@@ -56,7 +56,11 @@ extern void rk29_wdt_keepalive(void);
 #define CMD_COUNT 0x0f
 #define MAX_UNHANDLED_FIQ_COUNT 1000000
 
+#ifdef CONFIG_ARCH_ROCKCHIP
+#define MAX_FIQ_DEBUGGER_PORTS 1
+#else
 #define MAX_FIQ_DEBUGGER_PORTS 4
+#endif
 
 #define THREAD_INFO(sp) ((struct thread_info *) \
 		((unsigned long)(sp) & ~(THREAD_SIZE - 1)))
@@ -109,8 +113,13 @@ struct fiq_debugger_state {
 	bool syslog_dumping;
 #endif
 
+#ifdef CONFIG_ARCH_ROCKCHIP
+	unsigned int last_irqs[1024];
+	unsigned int last_local_irqs[NR_CPUS][32];
+#else
 	unsigned int last_irqs[NR_IRQS];
 	unsigned int last_local_timer_irqs[NR_CPUS];
+#endif
 };
 
 #ifdef CONFIG_FIQ_DEBUGGER_CONSOLE
@@ -421,15 +430,57 @@ static void dump_irqs(struct fiq_debugger_state *state)
 		state->last_irqs[n] = kstat_irqs(n);
 	}
 
-#if 0  //def CONFIG_LOCAL_TIMERS
-	for (cpu = 0; cpu < NR_CPUS; cpu++) {
-
-		debug_printf(state, "LOC %d: %10u %11u\n", cpu,
-			     __IRQ_STAT(cpu, local_timer_irqs),
-			     __IRQ_STAT(cpu, local_timer_irqs) -
-			     state->last_local_timer_irqs[cpu]);
-		state->last_local_timer_irqs[cpu] =
-			__IRQ_STAT(cpu, local_timer_irqs);
+#ifdef CONFIG_ARCH_ROCKCHIP
+	for (n = 16; n < 32; n++) {
+		desc = irq_to_desc(n);
+		if (!desc)
+			continue;
+		for (cpu = 0; cpu < NR_CPUS; cpu++) {
+			unsigned int irqs = kstat_irqs_cpu(n, cpu);
+			struct irqaction *act = desc->action;
+			const char *name = (act && act->name) ? act->name : "???";
+			if (!irqs)
+				continue;
+			debug_printf(state,
+				"%5d: %10u %11u           %s (CPU%d)\n", n,
+				irqs, irqs - state->last_local_irqs[cpu][n],
+				name, cpu);
+			state->last_local_irqs[cpu][n] = irqs;
+		}
+	}
+	for (n = 0; n < NR_IPI; n++) {
+		enum ipi_msg_type {
+			IPI_WAKEUP,
+			IPI_TIMER,
+			IPI_RESCHEDULE,
+			IPI_CALL_FUNC,
+			IPI_CALL_FUNC_SINGLE,
+			IPI_CPU_STOP,
+			IPI_COMPLETION,
+			IPI_CPU_BACKTRACE,
+		};
+		static const char *ipi_types[NR_IPI] = {
+#define S(x,s)	[x] = s
+			S(IPI_WAKEUP, "CPU wakeup"),
+			S(IPI_TIMER, "Timer broadcast"),
+			S(IPI_RESCHEDULE, "Rescheduling"),
+			S(IPI_CALL_FUNC, "Function call"),
+			S(IPI_CALL_FUNC_SINGLE, "Single function call"),
+			S(IPI_CPU_STOP, "CPU stop"),
+			S(IPI_COMPLETION, "Completion"),
+			S(IPI_CPU_BACKTRACE, "CPU backtrace"),
+#undef S
+		};
+		for (cpu = 0; cpu < NR_CPUS; cpu++) {
+			unsigned int irqs = __get_irq_stat(cpu, ipi_irqs[n]);
+			if (irqs == 0)
+				continue;
+			debug_printf(state,
+				"%5d: %10u %11u           %s (CPU%d)\n",
+				n, irqs, irqs - state->last_local_irqs[cpu][n],
+				ipi_types[n], cpu);
+			state->last_local_irqs[cpu][n] = irqs;
+		}
 	}
 #endif
 }
