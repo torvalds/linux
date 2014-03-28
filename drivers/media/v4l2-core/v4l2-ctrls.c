@@ -462,6 +462,13 @@ const char * const *v4l2_ctrl_get_menu(u32 id)
 		"RGB full range (0-255)",
 		NULL,
 	};
+	static const char * const detect_md_mode[] = {
+		"Disabled",
+		"Global",
+		"Threshold Grid",
+		"Region Grid",
+		NULL,
+	};
 
 
 	switch (id) {
@@ -553,6 +560,8 @@ const char * const *v4l2_ctrl_get_menu(u32 id)
 	case V4L2_CID_DV_TX_RGB_RANGE:
 	case V4L2_CID_DV_RX_RGB_RANGE:
 		return dv_rgb_range;
+	case V4L2_CID_DETECT_MD_MODE:
+		return detect_md_mode;
 
 	default:
 		return NULL;
@@ -874,6 +883,15 @@ const char *v4l2_ctrl_get_name(u32 id)
 	case V4L2_CID_RF_TUNER_BANDWIDTH_AUTO:	return "Bandwidth, Auto";
 	case V4L2_CID_RF_TUNER_BANDWIDTH:	return "Bandwidth";
 	case V4L2_CID_RF_TUNER_PLL_LOCK:	return "PLL Lock";
+
+	/* Detection controls */
+	/* Keep the order of the 'case's the same as in v4l2-controls.h! */
+	case V4L2_CID_DETECT_CLASS:		return "Detection Controls";
+	case V4L2_CID_DETECT_MD_MODE:		return "Motion Detection Mode";
+	case V4L2_CID_DETECT_MD_GLOBAL_THRESHOLD: return "MD Global Threshold";
+	case V4L2_CID_DETECT_MD_THRESHOLD_GRID:	return "MD Threshold Grid";
+	case V4L2_CID_DETECT_MD_REGION_GRID:	return "MD Region Grid";
+
 	default:
 		return NULL;
 	}
@@ -992,6 +1010,7 @@ void v4l2_ctrl_fill(u32 id, const char **name, enum v4l2_ctrl_type *type,
 	case V4L2_CID_TEST_PATTERN:
 	case V4L2_CID_TUNE_DEEMPHASIS:
 	case V4L2_CID_MPEG_VIDEO_VPX_GOLDEN_FRAME_SEL:
+	case V4L2_CID_DETECT_MD_MODE:
 		*type = V4L2_CTRL_TYPE_MENU;
 		break;
 	case V4L2_CID_LINK_FREQ:
@@ -1018,6 +1037,7 @@ void v4l2_ctrl_fill(u32 id, const char **name, enum v4l2_ctrl_type *type,
 	case V4L2_CID_DV_CLASS:
 	case V4L2_CID_FM_RX_CLASS:
 	case V4L2_CID_RF_TUNER_CLASS:
+	case V4L2_CID_DETECT_CLASS:
 		*type = V4L2_CTRL_TYPE_CTRL_CLASS;
 		/* You can neither read not write these */
 		*flags |= V4L2_CTRL_FLAG_READ_ONLY | V4L2_CTRL_FLAG_WRITE_ONLY;
@@ -1063,6 +1083,12 @@ void v4l2_ctrl_fill(u32 id, const char **name, enum v4l2_ctrl_type *type,
 		*type = V4L2_CTRL_TYPE_INTEGER64;
 		*flags |= V4L2_CTRL_FLAG_READ_ONLY;
 		break;
+	case V4L2_CID_DETECT_MD_REGION_GRID:
+		*type = V4L2_CTRL_TYPE_U8;
+		break;
+	case V4L2_CID_DETECT_MD_THRESHOLD_GRID:
+		*type = V4L2_CTRL_TYPE_U16;
+		break;
 	default:
 		*type = V4L2_CTRL_TYPE_INTEGER;
 		break;
@@ -1103,6 +1129,7 @@ void v4l2_ctrl_fill(u32 id, const char **name, enum v4l2_ctrl_type *type,
 	case V4L2_CID_RF_TUNER_MIXER_GAIN:
 	case V4L2_CID_RF_TUNER_IF_GAIN:
 	case V4L2_CID_RF_TUNER_BANDWIDTH:
+	case V4L2_CID_DETECT_MD_GLOBAL_THRESHOLD:
 		*flags |= V4L2_CTRL_FLAG_SLIDER;
 		break;
 	case V4L2_CID_PAN_RELATIVE:
