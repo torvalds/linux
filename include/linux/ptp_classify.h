@@ -80,14 +80,6 @@
 #define OP_RETA	(BPF_RET | BPF_A)
 #define OP_RETK	(BPF_RET | BPF_K)
 
-static inline int ptp_filter_init(struct sock_filter *f, int len)
-{
-	if (OP_LDH == f[0].code)
-		return sk_chk_filter(f, len);
-	else
-		return 0;
-}
-
 #define PTP_FILTER \
 	{OP_LDH,	0,   0, OFF_ETYPE		}, /*              */ \
 	{OP_JEQ,	0,  12, ETH_P_IP		}, /* f goto L20   */ \
@@ -132,5 +124,7 @@ static inline int ptp_filter_init(struct sock_filter *f, int len)
 	{OP_OR,		0,   0, PTP_CLASS_L2		}, /*              */ \
 	{OP_RETA,	0,   0, 0			}, /*              */ \
 /*L6x*/	{OP_RETK,	0,   0, PTP_CLASS_NONE		},
+
+unsigned int ptp_classify_raw(const struct sk_buff *skb);
 
 #endif

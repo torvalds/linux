@@ -25,11 +25,17 @@
 
 static struct sk_filter *ptp_insns __read_mostly;
 
+unsigned int ptp_classify_raw(const struct sk_buff *skb)
+{
+	return SK_RUN_FILTER(ptp_insns, skb);
+}
+EXPORT_SYMBOL_GPL(ptp_classify_raw);
+
 static unsigned int classify(const struct sk_buff *skb)
 {
 	if (likely(skb->dev && skb->dev->phydev &&
 		   skb->dev->phydev->drv))
-		return SK_RUN_FILTER(ptp_insns, skb);
+		return ptp_classify_raw(skb);
 	else
 		return PTP_CLASS_NONE;
 }
