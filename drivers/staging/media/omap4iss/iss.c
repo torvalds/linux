@@ -204,7 +204,7 @@ void omap4iss_configure_bridge(struct iss_device *iss,
 	iss_reg_write(iss, OMAP4_ISS_MEM_ISP_SYS1, ISP5_CTRL, isp5ctrl_val);
 }
 
-#if defined(DEBUG) && defined(ISS_ISR_DEBUG)
+#ifdef ISS_ISR_DEBUG
 static void iss_isr_dbg(struct iss_device *iss, u32 irqstatus)
 {
 	static const char * const name[] = {
@@ -347,14 +347,14 @@ static irqreturn_t iss_isr(int irq, void *_iss)
 			omap4iss_resizer_isr(&iss->resizer,
 					     isp_irqstatus & resizer_events);
 
-#if defined(DEBUG) && defined(ISS_ISR_DEBUG)
+#ifdef ISS_ISR_DEBUG
 		iss_isp_isr_dbg(iss, isp_irqstatus);
 #endif
 	}
 
 	omap4iss_flush(iss);
 
-#if defined(DEBUG) && defined(ISS_ISR_DEBUG)
+#ifdef ISS_ISR_DEBUG
 	iss_isr_dbg(iss, irqstatus);
 #endif
 
