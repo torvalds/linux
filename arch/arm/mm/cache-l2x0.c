@@ -654,6 +654,18 @@ static void __init l2c310_enable(void __iomem *base, u32 aux, unsigned num_lock)
 		}
 	}
 
+	/* r3p0 or later has power control register */
+	if (rev >= L310_CACHE_ID_RTL_R3P0) {
+		u32 power_ctrl;
+
+		l2c_write_sec(L310_DYNAMIC_CLK_GATING_EN | L310_STNDBY_MODE_EN,
+			      base, L310_POWER_CTRL);
+		power_ctrl = readl_relaxed(base + L310_POWER_CTRL);
+		pr_info("L2C-310 dynamic clock gating %sabled, standby mode %sabled\n",
+			power_ctrl & L310_DYNAMIC_CLK_GATING_EN ? "en" : "dis",
+			power_ctrl & L310_STNDBY_MODE_EN ? "en" : "dis");
+	}
+
 	l2c_enable(base, aux, num_lock);
 }
 
