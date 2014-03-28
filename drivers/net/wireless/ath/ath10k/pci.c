@@ -358,9 +358,10 @@ static int ath10k_pci_diag_read_mem(struct ath10k *ar, u32 address, void *data,
 	 *   2) Buffer in DMA-able space
 	 */
 	orig_nbytes = nbytes;
-	data_buf = (unsigned char *)pci_alloc_consistent(ar_pci->pdev,
-							 orig_nbytes,
-							 &ce_data_base);
+	data_buf = (unsigned char *)dma_alloc_coherent(ar->dev,
+						       orig_nbytes,
+						       &ce_data_base,
+						       GFP_ATOMIC);
 
 	if (!data_buf) {
 		ret = -ENOMEM;
@@ -458,8 +459,8 @@ done:
 			    address, ret);
 
 	if (data_buf)
-		pci_free_consistent(ar_pci->pdev, orig_nbytes,
-				    data_buf, ce_data_base);
+		dma_free_coherent(ar->dev, orig_nbytes, data_buf,
+				  ce_data_base);
 
 	return ret;
 }
@@ -502,9 +503,10 @@ static int ath10k_pci_diag_write_mem(struct ath10k *ar, u32 address,
 	 *   2) Buffer in DMA-able space
 	 */
 	orig_nbytes = nbytes;
-	data_buf = (unsigned char *)pci_alloc_consistent(ar_pci->pdev,
-							 orig_nbytes,
-							 &ce_data_base);
+	data_buf = (unsigned char *)dma_alloc_coherent(ar->dev,
+						       orig_nbytes,
+						       &ce_data_base,
+						       GFP_ATOMIC);
 	if (!data_buf) {
 		ret = -ENOMEM;
 		goto done;
@@ -600,8 +602,8 @@ static int ath10k_pci_diag_write_mem(struct ath10k *ar, u32 address,
 
 done:
 	if (data_buf) {
-		pci_free_consistent(ar_pci->pdev, orig_nbytes, data_buf,
-				    ce_data_base);
+		dma_free_coherent(ar->dev, orig_nbytes, data_buf,
+				  ce_data_base);
 	}
 
 	if (ret != 0)

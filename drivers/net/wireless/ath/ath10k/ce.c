@@ -843,7 +843,6 @@ static int ath10k_ce_init_src_ring(struct ath10k *ar,
 				   struct ath10k_ce_pipe *ce_state,
 				   const struct ce_attr *attr)
 {
-	struct ath10k_pci *ar_pci = ath10k_pci_priv(ar);
 	struct ath10k_ce_ring *src_ring;
 	unsigned int nentries = attr->src_nentries;
 	unsigned int ce_nbytes;
@@ -885,10 +884,10 @@ static int ath10k_ce_init_src_ring(struct ath10k *ar,
 	 * coherent DMA are unsupported
 	 */
 	src_ring->base_addr_owner_space_unaligned =
-		pci_alloc_consistent(ar_pci->pdev,
-				     (nentries * sizeof(struct ce_desc) +
-				      CE_DESC_RING_ALIGN),
-				     &base_addr);
+		dma_alloc_coherent(ar->dev,
+				   (nentries * sizeof(struct ce_desc) +
+				    CE_DESC_RING_ALIGN),
+				   &base_addr, GFP_KERNEL);
 	if (!src_ring->base_addr_owner_space_unaligned) {
 		kfree(ce_state->src_ring);
 		ce_state->src_ring = NULL;
@@ -912,11 +911,11 @@ static int ath10k_ce_init_src_ring(struct ath10k *ar,
 		kmalloc((nentries * sizeof(struct ce_desc) +
 			 CE_DESC_RING_ALIGN), GFP_KERNEL);
 	if (!src_ring->shadow_base_unaligned) {
-		pci_free_consistent(ar_pci->pdev,
-				    (nentries * sizeof(struct ce_desc) +
-				     CE_DESC_RING_ALIGN),
-				    src_ring->base_addr_owner_space,
-				    src_ring->base_addr_ce_space);
+		dma_free_coherent(ar->dev,
+				  (nentries * sizeof(struct ce_desc) +
+				   CE_DESC_RING_ALIGN),
+				  src_ring->base_addr_owner_space,
+				  src_ring->base_addr_ce_space);
 		kfree(ce_state->src_ring);
 		ce_state->src_ring = NULL;
 		return -ENOMEM;
@@ -946,7 +945,6 @@ static int ath10k_ce_init_dest_ring(struct ath10k *ar,
 				    struct ath10k_ce_pipe *ce_state,
 				    const struct ce_attr *attr)
 {
-	struct ath10k_pci *ar_pci = ath10k_pci_priv(ar);
 	struct ath10k_ce_ring *dest_ring;
 	unsigned int nentries = attr->dest_nentries;
 	unsigned int ce_nbytes;
@@ -986,10 +984,10 @@ static int ath10k_ce_init_dest_ring(struct ath10k *ar,
 	 * coherent DMA are unsupported
 	 */
 	dest_ring->base_addr_owner_space_unaligned =
-		pci_alloc_consistent(ar_pci->pdev,
-				     (nentries * sizeof(struct ce_desc) +
-				      CE_DESC_RING_ALIGN),
-				     &base_addr);
+		dma_alloc_coherent(ar->dev,
+				   (nentries * sizeof(struct ce_desc) +
+				    CE_DESC_RING_ALIGN),
+				   &base_addr, GFP_KERNEL);
 	if (!dest_ring->base_addr_owner_space_unaligned) {
 		kfree(ce_state->dest_ring);
 		ce_state->dest_ring = NULL;
@@ -1112,26 +1110,25 @@ out:
 void ath10k_ce_deinit(struct ath10k_ce_pipe *ce_state)
 {
 	struct ath10k *ar = ce_state->ar;
-	struct ath10k_pci *ar_pci = ath10k_pci_priv(ar);
 
 	if (ce_state->src_ring) {
 		kfree(ce_state->src_ring->shadow_base_unaligned);
-		pci_free_consistent(ar_pci->pdev,
-				    (ce_state->src_ring->nentries *
-				     sizeof(struct ce_desc) +
-				     CE_DESC_RING_ALIGN),
-				    ce_state->src_ring->base_addr_owner_space,
-				    ce_state->src_ring->base_addr_ce_space);
+		dma_free_coherent(ar->dev,
+				  (ce_state->src_ring->nentries *
+				   sizeof(struct ce_desc) +
+				   CE_DESC_RING_ALIGN),
+				  ce_state->src_ring->base_addr_owner_space,
+				  ce_state->src_ring->base_addr_ce_space);
 		kfree(ce_state->src_ring);
 	}
 
 	if (ce_state->dest_ring) {
-		pci_free_consistent(ar_pci->pdev,
-				    (ce_state->dest_ring->nentries *
-				     sizeof(struct ce_desc) +
-				     CE_DESC_RING_ALIGN),
-				    ce_state->dest_ring->base_addr_owner_space,
-				    ce_state->dest_ring->base_addr_ce_space);
+		dma_free_coherent(ar->dev,
+				  (ce_state->dest_ring->nentries *
+				   sizeof(struct ce_desc) +
+				   CE_DESC_RING_ALIGN),
+				  ce_state->dest_ring->base_addr_owner_space,
+				  ce_state->dest_ring->base_addr_ce_space);
 		kfree(ce_state->dest_ring);
 	}
 
