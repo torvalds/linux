@@ -10,6 +10,7 @@
 #include <asm/ppc-opcode.h>
 #include <asm/ptrace.h>
 #include <asm/reg.h>
+#include <asm/bug.h>
 
 #ifdef CONFIG_VSX
 /* See fpu.S, this is borrowed from there */
@@ -175,6 +176,13 @@ dont_backup_vec:
 	stfd    fr0,FPSTATE_FPSCR(r7)
 
 dont_backup_fp:
+	/* Do sanity check on MSR to make sure we are suspended */
+	li	r7, (MSR_TS_S)@higher
+	srdi	r6, r14, 32
+	and	r6, r6, r7
+1:	tdeqi   r6, 0
+	EMIT_BUG_ENTRY 1b,__FILE__,__LINE__,0
+
 	/* The moment we treclaim, ALL of our GPRs will switch
 	 * to user register state.  (FPRs, CCR etc. also!)
 	 * Use an sprg and a tm_scratch in the PACA to shuffle.
@@ -383,12 +391,10 @@ restore_gprs:
 	/* ******************** CR,LR,CCR,MSR ********** */
 	ld	r4, _CTR(r7)
 	ld	r5, _LINK(r7)
-	ld	r6, _CCR(r7)
 	ld	r8, _XER(r7)
 
 	mtctr	r4
 	mtlr	r5
-	mtcr	r6
 	mtxer	r8
 
 	/* ******************** TAR ******************** */
@@ -404,7 +410,8 @@ restore_gprs:
 	li	r4, 0
 	mtmsrd	r4, 1
 
-	REST_4GPRS(0, r7)			/* GPR0-3 */
+	REST_GPR(0, r7)				/* GPR0 */
+	REST_2GPRS(2, r7)			/* GPR2-3 */
 	REST_GPR(4, r7)				/* GPR4 */
 	REST_4GPRS(8, r7)			/* GPR8-11 */
 	REST_2GPRS(12, r7)			/* GPR12-13 */
@@ -416,6 +423,31 @@ restore_gprs:
 	mtspr	SPRN_DSCR, r5
 	mtspr	SPRN_PPR, r6
 
+	/* Do final sanity check on TEXASR to make sure FS is set.  Do this
+	 * here before we load up the userspace r1 so any bugs we hit will get
+	 * a call chain */
+	mfspr	r5, SPRN_TEXASR
+	srdi	r5, r5, 16
+	li	r6, (TEXASR_FS)@h
+	and	r6, r6, r5
+1:	tdeqi	r6, 0
+	EMIT_BUG_ENTRY 1b,__FILE__,__LINE__,0
+
+	/* Do final sanity check on MSR to make sure we are not transactional
+	 * or suspended
+	 */
+	mfmsr   r6
+	li	r5, (MSR_TS_MASK)@higher
+	srdi	r6, r6, 32
+	and	r6, r6, r5
+1:	tdnei   r6, 0
+	EMIT_BUG_ENTRY 1b,__FILE__,__LINE__,0
+
+	/* Restore CR */
+	ld	r6, _CCR(r7)
+	mtcr    r6
+
+	REST_GPR(1, r7)				/* GPR1 */
 	REST_GPR(5, r7)				/* GPR5-7 */
 	REST_GPR(6, r7)
 	ld	r7, GPR7(r7)
