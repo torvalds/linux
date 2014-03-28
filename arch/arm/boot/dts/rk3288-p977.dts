@@ -415,17 +415,6 @@
 &adc {
 	status = "okay";
 
-	rockchip_headset {
-		compatible = "rockchip_headset";
-		headset_gpio = <&gpio0 GPIO_C2 GPIO_ACTIVE_LOW>;
-		pinctrl-names = "default";
-		pinctrl-0 = <&gpio0_c2>;
-		io-channels = <&adc 2>; 
-       /*
-               hook_gpio = ;
-               hook_down_type = ; //interrupt hook key down status 
-		*/       
-       };
 
 	key {
 		compatible = "rockchip,key";
@@ -449,25 +438,25 @@
 			label = "power";
 			gpio-key,wakeup;
 		};
-/*
-		menu-key {
-			linux,code = <139>;
-			label = "menu";
+
+		back-key {
+			linux,code = <158>;
+			label = "back";
 			rockchip,adc_value = <355>;
 		};
-
+/*
 		home-key {
 			linux,code = <102>;
 			label = "home";
 			rockchip,adc_value = <746>;
 		};
-*/
+
 		back-key {
 			linux,code = <158>;
 			label = "back";
 			rockchip,adc_value = <560>;
 		};
-
+*/
 		camera-key {
 			linux,code = <212>;
 			label = "camera";
@@ -501,7 +490,7 @@
 		200000 1200000
 		300000 1200000
 		400000 1200000
-		600000 1300000
+	//	600000 1300000
 		>;
 };
 
