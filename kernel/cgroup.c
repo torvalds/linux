@@ -4416,7 +4416,6 @@ void cgroup_post_fork(struct task_struct *child)
 /**
  * cgroup_exit - detach cgroup from exiting task
  * @tsk: pointer to task_struct of exiting process
- * @run_callback: run exit callbacks?
  *
  * Description: Detach cgroup from @tsk and release it.
  *
@@ -4433,7 +4432,7 @@ void cgroup_post_fork(struct task_struct *child)
  * init_css_set refcnting.  init_css_set never goes away and we can't race
  * with migration path - PF_EXITING is visible to migration path.
  */
-void cgroup_exit(struct task_struct *tsk, int run_callbacks)
+void cgroup_exit(struct task_struct *tsk)
 {
 	struct cgroup_subsys *ss;
 	struct css_set *cset;
@@ -4455,7 +4454,7 @@ void cgroup_exit(struct task_struct *tsk, int run_callbacks)
 	cset = task_css_set(tsk);
 	RCU_INIT_POINTER(tsk->cgroups, &init_css_set);
 
-	if (run_callbacks && need_forkexit_callback) {
+	if (need_forkexit_callback) {
 		/* see cgroup_post_fork() for details */
 		for_each_subsys(ss, i) {
 			if (ss->exit) {
