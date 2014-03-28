@@ -214,6 +214,8 @@
 
 #define TX_ECHO_SKB_MAX	1
 
+#define MCP251X_OST_DELAY_MS	(5)
+
 #define DEVICE_NAME "mcp251x"
 
 static int mcp251x_enable_dma; /* Enable SPI DMA. Default: 0 (Off) */
@@ -624,28 +626,24 @@ static int mcp251x_setup(struct net_device *net, struct mcp251x_priv *priv,
 static int mcp251x_hw_reset(struct spi_device *spi)
 {
 	struct mcp251x_priv *priv = spi_get_drvdata(spi);
+	u8 reg;
 	int ret;
-	unsigned long timeout;
+
+	/* Wait for oscillator startup timer after power up */
+	mdelay(MCP251X_OST_DELAY_MS);
 
 	priv->spi_tx_buf[0] = INSTRUCTION_RESET;
-	ret = spi_write(spi, priv->spi_tx_buf, 1);
-	if (ret) {
-		dev_err(&spi->dev, "reset failed: ret = %d\n", ret);
-		return -EIO;
-	}
+	ret = mcp251x_spi_trans(spi, 1);
+	if (ret)
+		return ret;
 
-	/* Wait for reset to finish */
-	timeout = jiffies + HZ;
-	mdelay(10);
-	while ((mcp251x_read_reg(spi, CANSTAT) & CANCTRL_REQOP_MASK)
-	       != CANCTRL_REQOP_CONF) {
-		schedule();
-		if (time_after(jiffies, timeout)) {
-			dev_err(&spi->dev, "MCP251x didn't"
-				" enter in conf mode after reset\n");
-			return -EBUSY;
-		}
-	}
+	/* Wait for oscillator startup timer after reset */
+	mdelay(MCP251X_OST_DELAY_MS);
+	
+	reg = mcp251x_read_reg(spi, CANSTAT);
+	if ((reg & CANCTRL_REQOP_MASK) != CANCTRL_REQOP_CONF)
+		return -ENODEV;
+
 	return 0;
 }
 
@@ -776,7 +774,6 @@ static void mcp251x_restart_work_handler(struct work_struct *ws)
 
 	mutex_lock(&priv->mcp_lock);
 	if (priv->after_suspend) {
-		mdelay(10);
 		mcp251x_hw_reset(spi);
 		mcp251x_setup(net, priv, spi);
 		if (priv->after_suspend & AFTER_SUSPEND_RESTART) {
