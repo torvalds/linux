@@ -194,8 +194,8 @@ static int dgap_finalize_board_init(struct board_t *brd);
 
 static void dgap_get_vpd(struct board_t *brd);
 static void dgap_do_reset_board(struct board_t *brd);
-static int dgap_do_wait_for_bios(struct board_t *brd);
-static int dgap_do_wait_for_fep(struct board_t *brd);
+static int dgap_test_bios(struct board_t *brd);
+static int dgap_test_fep(struct board_t *brd);
 static int dgap_tty_register_ports(struct board_t *brd);
 static int dgap_firmware_load(struct pci_dev *pdev, int card_type);
 
@@ -890,8 +890,9 @@ static int dgap_firmware_load(struct pci_dev *pdev, int card_type)
 		release_firmware(fw);
 
 		/* Wait for BIOS to test board... */
-		if (!dgap_do_wait_for_bios(brd))
-			return -ENXIO;
+		ret = dgap_test_bios(brd);
+		if (ret)
+			return ret;
 	}
 
 	if (fw_info[card_type].fep_name) {
@@ -906,8 +907,9 @@ static int dgap_firmware_load(struct pci_dev *pdev, int card_type)
 		release_firmware(fw);
 
 		/* Wait for FEP to load on board... */
-		if (!dgap_do_wait_for_fep(brd))
-			return -ENXIO;
+		ret = dgap_test_fep(brd);
+		if (ret)
+			return ret;
 	}
 
 #ifdef DIGI_CONCENTRATORS_SUPPORTED
@@ -4332,16 +4334,15 @@ static void dgap_do_bios_load(struct board_t *brd, const uchar *ubios, int len)
 /*
  * Checks to see if the BIOS completed running on the card.
  */
-static int dgap_do_wait_for_bios(struct board_t *brd)
+static int dgap_test_bios(struct board_t *brd)
 {
 	uchar *addr;
 	u16 word;
 	u16 err1;
 	u16 err2;
-	int ret = 0;
 
 	if (!brd || (brd->magic != DGAP_BOARD_MAGIC) || !brd->re_map_membase)
-		return ret;
+		return -EINVAL;
 
 	addr = brd->re_map_membase;
 	word = readw(addr + POSTAREA);
@@ -4355,7 +4356,7 @@ static int dgap_do_wait_for_bios(struct board_t *brd)
 	while (brd->wait_for_bios < 1000) {
 		/* Check to see if BIOS thinks board is good. (GD). */
 		if (word == *(u16 *) "GD")
-			return 1;
+			return 0;
 		msleep_interruptible(10);
 		brd->wait_for_bios++;
 		word = readw(addr + POSTAREA);
@@ -4369,7 +4370,7 @@ static int dgap_do_wait_for_bios(struct board_t *brd)
 	brd->state = BOARD_FAILED;
 	brd->dpastatus = BD_NOBIOS;
 
-	return ret;
+	return -EIO;
 }
 
 /*
@@ -4420,16 +4421,15 @@ static void dgap_do_fep_load(struct board_t *brd, const uchar *ufep, int len)
 /*
  * Waits for the FEP to report thats its ready for us to use.
  */
-static int dgap_do_wait_for_fep(struct board_t *brd)
+static int dgap_test_fep(struct board_t *brd)
 {
 	uchar *addr;
 	u16 word;
 	u16 err1;
 	u16 err2;
-	int ret = 0;
 
 	if (!brd || (brd->magic != DGAP_BOARD_MAGIC) || !brd->re_map_membase)
-		return ret;
+		return -EINVAL;
 
 	addr = brd->re_map_membase;
 	word = readw(addr + FEPSTAT);
@@ -4449,7 +4449,7 @@ static int dgap_do_wait_for_fep(struct board_t *brd)
 			if (word == *(u16 *) "5A")
 				brd->bd_flags |= BD_FEP5PLUS;
 
-			return 1;
+			return 0;
 		}
 		msleep_interruptible(10);
 		brd->wait_for_fep++;
@@ -4464,7 +4464,7 @@ static int dgap_do_wait_for_fep(struct board_t *brd)
 	brd->state = BOARD_FAILED;
 	brd->dpastatus = BD_NOFEP;
 
-	return ret;
+	return -EIO;
 }
 
 /*
