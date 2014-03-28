@@ -18,9 +18,6 @@
 #include <linux/time.h>
 #include <linux/delay.h>
 #include <linux/device.h>
-#ifdef CONFIG_HAS_EARLYSUSPEND
-#include <linux/earlysuspend.h>
-#endif
 #include <linux/hrtimer.h>
 #include <linux/i2c.h>
 #include <linux/input.h>
@@ -39,13 +36,13 @@
 #include <linux/reboot.h>
 #include <linux/proc_fs.h>
 #include <linux/async.h>
-#include "rk29_i2c_goodix.h"
-
 #include <linux/vmalloc.h>
 #include <linux/fs.h>
 #include <linux/string.h>
 #include <linux/completion.h>
 #include <asm/uaccess.h>
+
+#include "rk29_i2c_goodix.h"
 
 #define PEN_DOWN 1
 #define PEN_RELEASE 0
@@ -490,19 +487,17 @@ static irqreturn_t rk_ts_irq_handler(int irq, void *dev_id)
 static int rk_ts_suspend(struct i2c_client *client, pm_message_t mesg)
 {
 	int ret;
-	struct rk_ts_data *ts = i2c_get_clientdata(client);
+	struct rk_ts_data *ts = i2c_get_clientdata(client);       
 
-       
-	
-	disable_irq(ts->irq);
-	
-#if 1
+	disable_irq(ts->irq);	
+
 	if (ts->power) {
+		DBG("%s.....line=%d\n",__func__,__LINE__);
 		ret = ts->power(ts, 0);
 		if (ret < 0)
 			printk(KERN_ERR "goodix_ts_resume power off failed\n");
 	}
-#endif
+
 	return 0;
 }
 
@@ -510,37 +505,34 @@ static int rk_ts_resume(struct i2c_client *client)
 {
 	int ret;
 	struct rk_ts_data *ts = i2c_get_clientdata(client);
-	
-#if 1
+
 	if (ts->power) {
+		DBG("%s.....line=%d\n",__func__,__LINE__);
 		ret = ts->power(ts, 1);
 		if (ret < 0)
 			printk(KERN_ERR "goodix_ts_resume power on failed\n");
 	}
-#endif
-	
-	enable_irq(ts->irq);
 
+	enable_irq(ts->irq);
 	return 0;
 }
 
 
 
-#ifdef CONFIG_HAS_EARLYSUSPEND
-static void rk_ts_early_suspend(struct early_suspend *h)
+static void rk_ts_early_suspend(struct tp_device *tp_d)
 {
 	struct rk_ts_data *ts;
-	ts = container_of(h, struct rk_ts_data, early_suspend);
+	ts = container_of(tp_d, struct rk_ts_data, tp);
 	rk_ts_suspend(ts->client, PMSG_SUSPEND);
 }
 
-static void rk_ts_late_resume(struct early_suspend *h)
+static void rk_ts_early_resume(struct tp_device *tp_d)
 {
 	struct rk_ts_data *ts;
-	ts = container_of(h, struct rk_ts_data, early_suspend);
+	ts = container_of(tp_d, struct rk_ts_data, tp);
 	rk_ts_resume(ts->client);
 }
-#endif
+
 
 /*******************************************************
 Description:
@@ -557,21 +549,21 @@ static int goodix_ts_power(struct rk_ts_data * ts, int on)
 	int ret = -1;
 	unsigned char i2c_control_buf[2] = {80,  1};		//suspend cmd
 	int retry = 0;
+
 	if(on != 0 && on !=1)
 	{
-		printk(KERN_DEBUG "%s: Cant't support this command.", rk_ts_name);
+		printk("%s: Cant't support this command.", rk_ts_name);
 		return -EINVAL;
 	}
-	
-	
-	if(on == 0)		//suspend
+		
+	if(on == 0)//suspend
 	{ 
         while(retry<5)
 		{
 			ret = goodix_i2c_write_bytes(ts->client, i2c_control_buf, 2);
 			if(ret == 1)
 			{
-				printk(KERN_DEBUG "touch goodix Send suspend cmd successed \n");
+				printk("touch goodix Send suspend cmd successed \n");
 				break;
 			}
 		       retry++;
@@ -580,9 +572,9 @@ static int goodix_ts_power(struct rk_ts_data * ts, int on)
 		if(ret > 0)
 		  ret = 0;
 	}
-	else if(on == 1)		//resume
+	else if(on == 1)//resume
 	{
-		printk(KERN_DEBUG "touch goodix int resume\n");
+		printk("touch goodix int resume\n");
 		gpio_set_value(ts->rst_pin, ts->rst_val);
 		msleep(20);
 		gpio_set_value(ts->rst_pin, !ts->rst_val);
@@ -793,12 +785,10 @@ static int rk_ts_probe(struct i2c_client *client, const struct i2c_device_id *id
 
 	i2c_connect_client = client;
 
-#ifdef CONFIG_HAS_EARLYSUSPEND
-	ts->early_suspend.level = EARLY_SUSPEND_LEVEL_BLANK_SCREEN + 1;
-	ts->early_suspend.suspend = rk_ts_early_suspend;
-	ts->early_suspend.resume = rk_ts_late_resume;
-	register_early_suspend(&ts->early_suspend);
-#endif
+	ts->tp.tp_resume = rk_ts_early_resume;
+	ts->tp.tp_suspend = rk_ts_early_suspend;
+	tp_register_fb(&ts->tp);
+
 	i2c_set_clientdata(client, ts);
 
 	ts->irq=gpio_to_irq(ts->irq_pin);		//If not defined in client
@@ -809,15 +799,14 @@ static int rk_ts_probe(struct i2c_client *client, const struct i2c_device_id *id
 			printk(KERN_ALERT "Cannot allocate ts INT!ERRNO:%d\n", ret);
 			goto err;
 		}
+		disable_irq(ts->irq);
 	}
 	printk("goodix_ts_init: probe successfully!\n");
 	return 0;
 
 	
 err:
-#ifdef CONFIG_HAS_EARLYSUSPEND
-	unregister_early_suspend(&ts->early_suspend);
-#endif
+	tp_unregister_fb(&ts->tp);
 	i2c_set_clientdata(client, NULL);	
 	return ret;
 }
@@ -835,10 +824,9 @@ return:
 *******************************************************/
 static int rk_ts_remove(struct i2c_client *client)
 {
-#ifdef CONFIG_HAS_EARLYSUSPEND
 	struct rk_ts_data *ts = i2c_get_clientdata(client);
-	unregister_early_suspend(&ts->early_suspend);
-#endif
+	tp_unregister_fb(&ts->tp);
+
 #ifdef CONFIG_TOUCHSCREEN_GOODIX_IAP
 	remove_proc_entry("goodix-update", NULL);
 #endif
@@ -850,11 +838,10 @@ static int rk_ts_remove(struct i2c_client *client)
 
 static void rk_ts_shutdown(struct i2c_client *client)
 {
-#ifdef CONFIG_HAS_EARLYSUSPEND
 	struct rk_ts_data *ts = i2c_get_clientdata(client);
 	if (ts)
-		unregister_early_suspend(&ts->early_suspend);
-#endif
+		tp_unregister_fb(&ts->tp);
+
 }
 
 //******************************Begin of firmware update surpport*******************************
@@ -1600,10 +1587,6 @@ static struct i2c_driver rk_ts_driver = {
 	.probe		= rk_ts_probe,
 	.remove		= rk_ts_remove,
 	.shutdown	= rk_ts_shutdown,
-#ifndef CONFIG_HAS_EARLYSUSPEND
-	.suspend	= rk_ts_suspend,
-	.resume		= rk_ts_resume,
-#endif
 	.id_table	= goodix_ts_id,
 	.driver = {
 		.name	= "Goodix-TS",
