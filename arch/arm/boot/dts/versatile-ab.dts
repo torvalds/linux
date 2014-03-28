@@ -15,6 +15,10 @@
 		i2c0 = &i2c0;
 	};
 
+	chosen {
+		stdout-path = &uart0;
+	};
+
 	memory {
 		reg = <0x0 0x08000000>;
 	};
