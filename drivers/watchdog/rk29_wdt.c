@@ -75,7 +75,7 @@
 */
 
 static int nowayout	= WATCHDOG_NOWAYOUT;
-static int tmr_margin	= CONFIG_RK29_WATCHDOG_DEFAULT_TIME;
+static int tmr_margin	= 100;//CONFIG_RK29_WATCHDOG_DEFAULT_TIME;
 #ifdef CONFIG_RK29_WATCHDOG_ATBOOT
 static int tmr_atboot	= 1;
 #else
