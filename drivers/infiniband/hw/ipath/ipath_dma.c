@@ -115,6 +115,10 @@ static int ipath_map_sg(struct ib_device *dev, struct scatterlist *sgl,
 			ret = 0;
 			break;
 		}
+		sg->dma_address = addr + sg->offset;
+#ifdef CONFIG_NEED_SG_DMA_LENGTH
+		sg->dma_length = sg->length;
+#endif
 	}
 	return ret;
 }
@@ -124,21 +128,6 @@ static void ipath_unmap_sg(struct ib_device *dev,
 			   enum dma_data_direction direction)
 {
 	BUG_ON(!valid_dma_direction(direction));
-}
-
-static u64 ipath_sg_dma_address(struct ib_device *dev, struct scatterlist *sg)
-{
-	u64 addr = (u64) page_address(sg_page(sg));
-
-	if (addr)
-		addr += sg->offset;
-	return addr;
-}
-
-static unsigned int ipath_sg_dma_len(struct ib_device *dev,
-				     struct scatterlist *sg)
-{
-	return sg->length;
 }
 
 static void ipath_sync_single_for_cpu(struct ib_device *dev,
@@ -176,17 +165,15 @@ static void ipath_dma_free_coherent(struct ib_device *dev, size_t size,
 }
 
 struct ib_dma_mapping_ops ipath_dma_mapping_ops = {
-	ipath_mapping_error,
-	ipath_dma_map_single,
-	ipath_dma_unmap_single,
-	ipath_dma_map_page,
-	ipath_dma_unmap_page,
-	ipath_map_sg,
-	ipath_unmap_sg,
-	ipath_sg_dma_address,
-	ipath_sg_dma_len,
-	ipath_sync_single_for_cpu,
-	ipath_sync_single_for_device,
-	ipath_dma_alloc_coherent,
-	ipath_dma_free_coherent
+	.mapping_error = ipath_mapping_error,
+	.map_single = ipath_dma_map_single,
+	.unmap_single = ipath_dma_unmap_single,
+	.map_page = ipath_dma_map_page,
+	.unmap_page = ipath_dma_unmap_page,
+	.map_sg = ipath_map_sg,
+	.unmap_sg = ipath_unmap_sg,
+	.sync_single_for_cpu = ipath_sync_single_for_cpu,
+	.sync_single_for_device = ipath_sync_single_for_device,
+	.alloc_coherent = ipath_dma_alloc_coherent,
+	.free_coherent = ipath_dma_free_coherent
 };
