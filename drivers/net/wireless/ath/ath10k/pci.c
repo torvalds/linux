@@ -1258,18 +1258,10 @@ static void ath10k_pci_buffer_cleanup(struct ath10k *ar)
 
 static void ath10k_pci_ce_deinit(struct ath10k *ar)
 {
-	struct ath10k_pci *ar_pci = ath10k_pci_priv(ar);
-	struct ath10k_pci_pipe *pipe_info;
-	int pipe_num;
+	int i;
 
-	for (pipe_num = 0; pipe_num < CE_COUNT; pipe_num++) {
-		pipe_info = &ar_pci->pipe_info[pipe_num];
-		if (pipe_info->ce_hdl) {
-			ath10k_ce_deinit(pipe_info->ce_hdl);
-			pipe_info->ce_hdl = NULL;
-			pipe_info->buf_sz = 0;
-		}
-	}
+	for (i = 0; i < CE_COUNT; i++)
+		ath10k_ce_deinit_pipe(ar, i);
 }
 
 static void ath10k_pci_hif_stop(struct ath10k *ar)
@@ -1722,30 +1714,49 @@ static int ath10k_pci_init_config(struct ath10k *ar)
 	return 0;
 }
 
+static int ath10k_pci_alloc_ce(struct ath10k *ar)
+{
+	int i, ret;
 
+	for (i = 0; i < CE_COUNT; i++) {
+		ret = ath10k_ce_alloc_pipe(ar, i, &host_ce_config_wlan[i]);
+		if (ret) {
+			ath10k_err("failed to allocate copy engine pipe %d: %d\n",
+				   i, ret);
+			return ret;
+		}
+	}
+
+	return 0;
+}
+
+static void ath10k_pci_free_ce(struct ath10k *ar)
+{
+	int i;
+
+	for (i = 0; i < CE_COUNT; i++)
+		ath10k_ce_free_pipe(ar, i);
+}
 
 static int ath10k_pci_ce_init(struct ath10k *ar)
 {
 	struct ath10k_pci *ar_pci = ath10k_pci_priv(ar);
 	struct ath10k_pci_pipe *pipe_info;
 	const struct ce_attr *attr;
-	int pipe_num;
+	int pipe_num, ret;
 
 	for (pipe_num = 0; pipe_num < CE_COUNT; pipe_num++) {
 		pipe_info = &ar_pci->pipe_info[pipe_num];
+		pipe_info->ce_hdl = &ar_pci->ce_states[pipe_num];
 		pipe_info->pipe_num = pipe_num;
 		pipe_info->hif_ce_state = ar;
 		attr = &host_ce_config_wlan[pipe_num];
 
-		pipe_info->ce_hdl = ath10k_ce_init(ar, pipe_num, attr);
-		if (pipe_info->ce_hdl == NULL) {
-			ath10k_err("failed to initialize CE for pipe: %d\n",
-				   pipe_num);
-
-			/* It is safe to call it here. It checks if ce_hdl is
-			 * valid for each pipe */
-			ath10k_pci_ce_deinit(ar);
-			return -1;
+		ret = ath10k_ce_init_pipe(ar, pipe_num, attr);
+		if (ret) {
+			ath10k_err("failed to initialize copy engine pipe %d: %d\n",
+				   pipe_num, ret);
+			return ret;
 		}
 
 		if (pipe_num == CE_COUNT - 1) {
@@ -2648,16 +2659,24 @@ static int ath10k_pci_probe(struct pci_dev *pdev,
 
 	ath10k_do_pci_sleep(ar);
 
+	ret = ath10k_pci_alloc_ce(ar);
+	if (ret) {
+		ath10k_err("failed to allocate copy engine pipes: %d\n", ret);
+		goto err_iomap;
+	}
+
 	ath10k_dbg(ATH10K_DBG_BOOT, "boot pci_mem 0x%p\n", ar_pci->mem);
 
 	ret = ath10k_core_register(ar, chip_id);
 	if (ret) {
 		ath10k_err("failed to register driver core: %d\n", ret);
-		goto err_iomap;
+		goto err_free_ce;
 	}
 
 	return 0;
 
+err_free_ce:
+	ath10k_pci_free_ce(ar);
 err_iomap:
 	pci_iounmap(pdev, mem);
 err_master:
@@ -2693,6 +2712,7 @@ static void ath10k_pci_remove(struct pci_dev *pdev)
 	tasklet_kill(&ar_pci->msi_fw_err);
 
 	ath10k_core_unregister(ar);
+	ath10k_pci_free_ce(ar);
 
 	pci_iounmap(pdev, ar_pci->mem);
 	pci_release_region(pdev, BAR_NUM);
