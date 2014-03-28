@@ -22,6 +22,7 @@
 #include <linux/dma-mapping.h>
 #include <asm/cacheflush.h>
 #include <linux/rockchip_ion.h>
+#include <linux/rockchip/iovmm.h>
 
 #include "ion.h"
 #include "ion_priv.h"
@@ -227,6 +228,41 @@ int ion_cma_cache_ops(struct ion_heap *heap,
 	return 0;
 }
 
+#ifdef CONFIG_ROCKCHIP_IOMMU
+// get device's vaddr
+static int ion_cma_map_iommu(struct ion_buffer *buffer,
+				struct device *iommu_dev,
+				struct ion_iommu_map *data,
+				unsigned long iova_length,
+				unsigned long flags)
+{
+	int ret = 0;
+	struct ion_cma_buffer_info *info = buffer->priv_virt;
+
+	data->iova_addr = iovmm_map(iommu_dev, info->table->sgl, 0, iova_length);
+	pr_debug("%s: map %lx -> %lx\n", __func__, info->table->sgl->dma_address,
+		data->iova_addr);
+	if (!data->iova_addr || IS_ERR_VALUE(data->iova_addr)) {
+		pr_err("%s: iovmm_map() failed: %lx\n", __func__, data->iova_addr);
+		ret = -EINVAL;
+		goto out;
+	}
+
+	data->mapped_size = iova_length;
+
+out:
+	return ret;
+}
+
+void ion_cma_unmap_iommu(struct device *iommu_dev, struct ion_iommu_map *data)
+{
+	pr_debug("%s: unmap %x@%lx\n", __func__, data->mapped_size, data->iova_addr);
+	iovmm_unmap(iommu_dev, data->iova_addr);
+
+	return;
+}
+#endif
+
 static struct ion_heap_ops ion_cma_ops = {
 	.allocate = ion_cma_allocate,
 	.free = ion_cma_free,
@@ -237,6 +273,10 @@ static struct ion_heap_ops ion_cma_ops = {
 	.map_kernel = ion_cma_map_kernel,
 	.unmap_kernel = ion_cma_unmap_kernel,
 	.cache_op = ion_cma_cache_ops,
+#ifdef CONFIG_ROCKCHIP_IOMMU
+	.map_iommu = ion_cma_map_iommu,
+	.unmap_iommu = ion_cma_unmap_iommu,
+#endif
 };
 
 struct ion_heap *ion_cma_heap_create(struct ion_platform_heap *data)
