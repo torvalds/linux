@@ -173,7 +173,7 @@ static irqreturn_t edt_ft5x06_ts_isr(int irq, void *dev_id)
 		x = ((buf[0] << 8) | buf[1]) & 0x0fff;
 		y = ((buf[2] << 8) | buf[3]) & 0x0fff;
 		id = (buf[2] >> 4) & 0x0f;
-		down = (type != TOUCH_EVENT_UP);
+		down = type != TOUCH_EVENT_UP;
 
 		input_mt_slot(tsdata->input, id);
 		input_mt_report_slot_state(tsdata->input, MT_TOOL_FINGER, down);
@@ -257,7 +257,7 @@ static ssize_t edt_ft5x06_setting_show(struct device *dev,
 	struct edt_ft5x06_ts_data *tsdata = i2c_get_clientdata(client);
 	struct edt_ft5x06_attribute *attr =
 			container_of(dattr, struct edt_ft5x06_attribute, dattr);
-	u8 *field = (u8 *)((char *)tsdata + attr->field_offset);
+	u8 *field = (u8 *)tsdata + attr->field_offset;
 	int val;
 	size_t count = 0;
 	int error = 0;
@@ -299,7 +299,7 @@ static ssize_t edt_ft5x06_setting_store(struct device *dev,
 	struct edt_ft5x06_ts_data *tsdata = i2c_get_clientdata(client);
 	struct edt_ft5x06_attribute *attr =
 			container_of(dattr, struct edt_ft5x06_attribute, dattr);
-	u8 *field = (u8 *)((char *)tsdata + attr->field_offset);
+	u8 *field = (u8 *)tsdata + attr->field_offset;
 	unsigned int val;
 	int error;
 
@@ -479,7 +479,7 @@ static int edt_ft5x06_debugfs_mode_set(void *data, u64 mode)
 
 	if (mode != tsdata->factory_mode) {
 		retval = mode ? edt_ft5x06_factory_mode(tsdata) :
-			        edt_ft5x06_work_mode(tsdata);
+				edt_ft5x06_work_mode(tsdata);
 	}
 
 	mutex_unlock(&tsdata->mutex);
@@ -568,7 +568,6 @@ out:
 	return error ?: read;
 };
 
-
 static const struct file_operations debugfs_raw_data_fops = {
 	.open = simple_open,
 	.read = edt_ft5x06_debugfs_raw_data_read,
@@ -613,8 +612,6 @@ edt_ft5x06_ts_teardown_debugfs(struct edt_ft5x06_ts_data *tsdata)
 }
 
 #endif /* CONFIG_DEBUGFS */
-
-
 
 static int edt_ft5x06_ts_reset(struct i2c_client *client,
 					 int reset_pin)
@@ -852,8 +849,8 @@ static SIMPLE_DEV_PM_OPS(edt_ft5x06_ts_pm_ops,
 			 edt_ft5x06_ts_suspend, edt_ft5x06_ts_resume);
 
 static const struct i2c_device_id edt_ft5x06_ts_id[] = {
-	{ "edt-ft5x06", 0 },
-	{ }
+	{ "edt-ft5x06", 0, },
+	{ /* sentinel */ }
 };
 MODULE_DEVICE_TABLE(i2c, edt_ft5x06_ts_id);
 
