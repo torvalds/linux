@@ -128,8 +128,10 @@ static struct ib_ucontext *c4iw_alloc_ucontext(struct ib_device *ibdev,
 		rhp->rdev.flags |= T4_STATUS_PAGE_DISABLED;
 	} else {
 		mm = kmalloc(sizeof(*mm), GFP_KERNEL);
-		if (!mm)
+		if (!mm) {
+			ret = -ENOMEM;
 			goto err_free;
+		}
 
 		uresp.status_page_size = PAGE_SIZE;
 
