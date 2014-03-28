@@ -59,7 +59,7 @@ static struct reg_default init_list[] = {
 };
 #define RT5640_INIT_REG_LEN ARRAY_SIZE(init_list)
 
-static const struct reg_default rt5640_reg[RT5640_VENDOR_ID2 + 1] = {
+static const struct reg_default rt5640_reg[] = {
 	{ 0x00, 0x000e },
 	{ 0x01, 0xc8c8 },
 	{ 0x02, 0xc8c8 },
