@@ -41,12 +41,16 @@ static inline int ring_space(struct intel_ring_buffer *ring)
 	return space;
 }
 
-void __intel_ring_advance(struct intel_ring_buffer *ring)
+static bool intel_ring_stopped(struct intel_ring_buffer *ring)
 {
 	struct drm_i915_private *dev_priv = ring->dev->dev_private;
+	return dev_priv->gpu_error.stop_rings & intel_ring_flag(ring);
+}
 
+void __intel_ring_advance(struct intel_ring_buffer *ring)
+{
 	ring->tail &= ring->size - 1;
-	if (dev_priv->gpu_error.stop_rings & intel_ring_flag(ring))
+	if (intel_ring_stopped(ring))
 		return;
 	ring->write_tail(ring, ring->tail);
 }
