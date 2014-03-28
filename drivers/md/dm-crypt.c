@@ -61,7 +61,7 @@ struct dm_crypt_io {
 	int error;
 	sector_t sector;
 	struct dm_crypt_io *base_io;
-};
+} CRYPTO_MINALIGN_ATTR;
 
 struct dm_crypt_request {
 	struct convert_context *ctx;
@@ -163,6 +163,8 @@ struct crypt_config {
 	 * correctly aligned.
 	 */
 	unsigned int dmreq_start;
+
+	unsigned int per_bio_data_size;
 
 	unsigned long flags;
 	unsigned int key_size;
@@ -906,6 +908,15 @@ static void crypt_alloc_req(struct crypt_config *cc,
 	    kcryptd_async_done, dmreq_of_req(cc, ctx->req));
 }
 
+static void crypt_free_req(struct crypt_config *cc,
+			   struct ablkcipher_request *req, struct bio *base_bio)
+{
+	struct dm_crypt_io *io = dm_per_bio_data(base_bio, cc->per_bio_data_size);
+
+	if ((struct ablkcipher_request *)(io + 1) != req)
+		mempool_free(req, cc->req_pool);
+}
+
 /*
  * Encrypt / decrypt data from one bio to another one (can be the same one)
  */
@@ -1020,12 +1031,9 @@ static void crypt_free_buffer_pages(struct crypt_config *cc, struct bio *clone)
 	}
 }
 
-static struct dm_crypt_io *crypt_io_alloc(struct crypt_config *cc,
-					  struct bio *bio, sector_t sector)
+static void crypt_io_init(struct dm_crypt_io *io, struct crypt_config *cc,
+			  struct bio *bio, sector_t sector)
 {
-	struct dm_crypt_io *io;
-
-	io = mempool_alloc(cc->io_pool, GFP_NOIO);
 	io->cc = cc;
 	io->base_bio = bio;
 	io->sector = sector;
@@ -1033,8 +1041,6 @@ static struct dm_crypt_io *crypt_io_alloc(struct crypt_config *cc,
 	io->base_io = NULL;
 	io->ctx.req = NULL;
 	atomic_set(&io->io_pending, 0);
-
-	return io;
 }
 
 static void crypt_inc_pending(struct dm_crypt_io *io)
@@ -1058,8 +1064,9 @@ static void crypt_dec_pending(struct dm_crypt_io *io)
 		return;
 
 	if (io->ctx.req)
-		mempool_free(io->ctx.req, cc->req_pool);
-	mempool_free(io, cc->io_pool);
+		crypt_free_req(cc, io->ctx.req, base_bio);
+	if (io != dm_per_bio_data(base_bio, cc->per_bio_data_size))
+		mempool_free(io, cc->io_pool);
 
 	if (likely(!base_io))
 		bio_endio(base_bio, error);
@@ -1267,8 +1274,8 @@ static void kcryptd_crypt_write_convert(struct dm_crypt_io *io)
 		 * between fragments, so switch to a new dm_crypt_io structure.
 		 */
 		if (unlikely(!crypt_finished && remaining)) {
-			new_io = crypt_io_alloc(io->cc, io->base_bio,
-						sector);
+			new_io = mempool_alloc(cc->io_pool, GFP_NOIO);
+			crypt_io_init(new_io, io->cc, io->base_bio, sector);
 			crypt_inc_pending(new_io);
 			crypt_convert_init(cc, &new_io->ctx, NULL,
 					   io->base_bio, sector);
@@ -1338,7 +1345,7 @@ static void kcryptd_async_done(struct crypto_async_request *async_req,
 	if (error < 0)
 		io->error = -EIO;
 
-	mempool_free(req_of_dmreq(cc, dmreq), cc->req_pool);
+	crypt_free_req(cc, req_of_dmreq(cc, dmreq), io->base_bio);
 
 	if (!atomic_dec_and_test(&ctx->cc_pending))
 		return;
@@ -1753,6 +1760,10 @@ static int crypt_ctr(struct dm_target *ti, unsigned int argc, char **argv)
 		goto bad;
 	}
 
+	cc->per_bio_data_size = ti->per_bio_data_size =
+				sizeof(struct dm_crypt_io) + cc->dmreq_start +
+				sizeof(struct dm_crypt_request) + cc->iv_size;
+
 	cc->page_pool = mempool_create_page_pool(MIN_POOL_PAGES, 0);
 	if (!cc->page_pool) {
 		ti->error = "Cannot allocate page mempool";
@@ -1859,7 +1870,9 @@ static int crypt_map(struct dm_target *ti, struct bio *bio)
 		return DM_MAPIO_REMAPPED;
 	}
 
-	io = crypt_io_alloc(cc, bio, dm_target_offset(ti, bio->bi_sector));
+	io = dm_per_bio_data(bio, cc->per_bio_data_size);
+	crypt_io_init(io, cc, bio, dm_target_offset(ti, bio->bi_sector));
+	io->ctx.req = (struct ablkcipher_request *)(io + 1);
 
 	if (bio_data_dir(io->base_bio) == READ) {
 		if (kcryptd_io_read(io, GFP_NOWAIT))
