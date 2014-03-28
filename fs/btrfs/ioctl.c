@@ -4553,9 +4553,8 @@ static long btrfs_ioctl_set_received_subvol_32(struct file *file,
 	}
 
 	args64 = kmalloc(sizeof(*args64), GFP_NOFS);
-	if (IS_ERR(args64)) {
-		ret = PTR_ERR(args64);
-		args64 = NULL;
+	if (!args64) {
+		ret = -ENOMEM;
 		goto out;
 	}
 
