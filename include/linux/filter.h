@@ -19,14 +19,19 @@ struct compat_sock_fprog {
 };
 #endif
 
+struct sock_fprog_kern {
+	u16			len;
+	struct sock_filter	*filter;
+};
+
 struct sk_buff;
 struct sock;
 
-struct sk_filter
-{
+struct sk_filter {
 	atomic_t		refcnt;
 	u32			jited:1,	/* Is our filter JIT'ed? */
 				len:31;		/* Number of filter blocks */
+	struct sock_fprog_kern	*orig_prog;	/* Original BPF program */
 	struct rcu_head		rcu;
 	unsigned int		(*bpf_func)(const struct sk_buff *skb,
 					    const struct sock_filter *filter);
@@ -42,14 +47,20 @@ static inline unsigned int sk_filter_size(unsigned int proglen)
 		   offsetof(struct sk_filter, insns[proglen]));
 }
 
+#define sk_filter_proglen(fprog)			\
+		(fprog->len * sizeof(fprog->filter[0]))
+
 extern int sk_filter(struct sock *sk, struct sk_buff *skb);
 extern unsigned int sk_run_filter(const struct sk_buff *skb,
 				  const struct sock_filter *filter);
+
 extern int sk_unattached_filter_create(struct sk_filter **pfp,
 				       struct sock_fprog *fprog);
 extern void sk_unattached_filter_destroy(struct sk_filter *fp);
+
 extern int sk_attach_filter(struct sock_fprog *fprog, struct sock *sk);
 extern int sk_detach_filter(struct sock *sk);
+
 extern int sk_chk_filter(struct sock_filter *filter, unsigned int flen);
 extern int sk_get_filter(struct sock *sk, struct sock_filter __user *filter, unsigned len);
 extern void sk_decode_filter(struct sock_filter *filt, struct sock_filter *to);
