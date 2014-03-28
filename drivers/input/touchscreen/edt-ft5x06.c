@@ -176,6 +176,10 @@ static irqreturn_t edt_ft5x06_ts_isr(int irq, void *dev_id)
 		if (type == TOUCH_EVENT_RESERVED)
 			continue;
 
+		/* ignore TOUCH_DOWN events, might have bogus coordinates */
+		if (type == TOUCH_EVENT_DOWN)
+			continue;
+
 		x = ((buf[0] << 8) | buf[1]) & 0x0fff;
 		y = ((buf[2] << 8) | buf[3]) & 0x0fff;
 		id = (buf[2] >> 4) & 0x0f;
