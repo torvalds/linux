@@ -39,8 +39,7 @@
 
 struct tipc_link_req;
 
-int tipc_disc_create(struct tipc_bearer *b_ptr, struct tipc_media_addr *dest,
-		     u32 dest_domain);
+int tipc_disc_create(struct tipc_bearer *b_ptr, struct tipc_media_addr *dest);
 void tipc_disc_delete(struct tipc_link_req *req);
 void tipc_disc_add_dest(struct tipc_link_req *req);
 void tipc_disc_remove_dest(struct tipc_link_req *req);

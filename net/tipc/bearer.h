@@ -116,6 +116,7 @@ struct tipc_media {
  * @priority: default link priority for bearer
  * @window: default window size for bearer
  * @tolerance: default link tolerance for bearer
+ * @domain: network domain to which links can be established
  * @identity: array index of this bearer within TIPC bearer array
  * @link_req: ptr to (optional) structure making periodic link setup requests
  * @net_plane: network plane ('A' through 'H') currently associated with bearer
@@ -135,6 +136,7 @@ struct tipc_bearer {
 	u32 priority;
 	u32 window;
 	u32 tolerance;
+	u32 domain;
 	u32 identity;
 	struct tipc_link_req *link_req;
 	char net_plane;
