@@ -332,6 +332,7 @@ restart:
 	b_ptr->identity = bearer_id;
 	b_ptr->tolerance = m_ptr->tolerance;
 	b_ptr->window = m_ptr->window;
+	b_ptr->domain = disc_domain;
 	b_ptr->net_plane = bearer_id + 'A';
 	b_ptr->priority = priority;
 
@@ -360,7 +361,9 @@ static int tipc_reset_bearer(struct tipc_bearer *b_ptr)
 {
 	read_lock_bh(&tipc_net_lock);
 	pr_info("Resetting bearer <%s>\n", b_ptr->name);
+	tipc_disc_delete(b_ptr->link_req);
 	tipc_link_reset_list(b_ptr->identity);
+	tipc_disc_create(b_ptr, &b_ptr->bcast_addr, b_ptr->domain);
 	read_unlock_bh(&tipc_net_lock);
 	return 0;
 }
@@ -580,7 +583,11 @@ static int tipc_l2_device_event(struct notifier_block *nb, unsigned long evt,
 			break;
 	case NETDEV_DOWN:
 	case NETDEV_CHANGEMTU:
+		tipc_reset_bearer(b_ptr);
+		break;
 	case NETDEV_CHANGEADDR:
+		tipc_l2_media_addr_set(b_ptr, &b_ptr->addr,
+				       (char *)dev->dev_addr);
 		tipc_reset_bearer(b_ptr);
 		break;
 	case NETDEV_UNREGISTER:
