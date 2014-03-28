@@ -17,6 +17,7 @@
  *      as published by the Free Software Foundation; either version
  *      2 of the License, or (at your option) any later version.
  */
+#include <linux/console.h>
 #include <linux/ctype.h>
 #include <linux/cpu.h>
 #include <linux/module.h>
@@ -2180,20 +2181,22 @@ const char *of_prop_next_string(struct property *prop, const char *cur)
 EXPORT_SYMBOL_GPL(of_prop_next_string);
 
 /**
- * of_device_is_stdout_path - check if a device node matches the
- *                            linux,stdout-path property
+ * of_console_check() - Test and setup console for DT setup
+ * @dn - Pointer to device node
+ * @name - Name to use for preferred console without index. ex. "ttyS"
+ * @index - Index to use for preferred console.
  *
- * Check if this device node matches the linux,stdout-path property
- * in the chosen node. return true if yes, false otherwise.
+ * Check if the given device node matches the stdout-path property in the
+ * /chosen node. If it does then register it as the preferred console and return
+ * TRUE. Otherwise return FALSE.
  */
-int of_device_is_stdout_path(struct device_node *dn)
+bool of_console_check(struct device_node *dn, char *name, int index)
 {
-	if (!of_stdout)
+	if (!dn || dn != of_stdout || console_set_on_cmdline)
 		return false;
-
-	return of_stdout == dn;
+	return add_preferred_console(name, index, NULL);
 }
-EXPORT_SYMBOL_GPL(of_device_is_stdout_path);
+EXPORT_SYMBOL_GPL(of_console_check);
 
 /**
  *	of_find_next_cache_node - Find a node's subsidiary cache
