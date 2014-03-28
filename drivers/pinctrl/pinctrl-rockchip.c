@@ -346,7 +346,7 @@ static ssize_t  pinctrl_show_regs(struct file *file, char __user *user_buf,
 		len += snprintf(buf + len, PINCTRL_REGS_BUFSIZE - len,
 				"=================================\n");			
 
-		for(i=0; i<0x10; i=i+4)
+		for(i=0; i<0x0c; i=i+4)
 		{
 			value = readl_relaxed(bank0->reg_mux_bank0 + i);
 			len += snprintf(buf + len, PINCTRL_REGS_BUFSIZE - len, "MUX_BANK0[0x%p+0x%x]=0x%08x\n",(int *)bank0->reg_mux_bank0, i, value);
@@ -654,7 +654,10 @@ static int rockchip_set_rk32_mux(struct rockchip_pin_bank *bank, int pin, int mu
 		case 0:
 		//pmu
 		reg = bank->reg_mux_bank0;
-		bits = 2;	
+		if((m.mux.goff == 0x0a) || (m.mux.goff == 0x0b) || (m.mux.goff == 0x0c))
+		{
+			bits = 2;
+		}
 		rk32_iomux_bit_op(bank, pin, mux, reg, bits);
 		break;
 		

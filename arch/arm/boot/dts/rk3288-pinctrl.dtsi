@@ -17,7 +17,7 @@
 		gpio0: gpio0@ff750000 {
 			compatible = "rockchip,rk3288-gpio-bank0";
 			reg =	<0xff750000 0x100>,
-				<0xff730084 0x10>,
+				<0xff730084 0x0c>,
 		      		<0xff730064 0x0c>,
 				<0xff730070 0x0c>;
 			reg-names = "base", "mux_bank0", "pull_bank0", "drv_bank0";

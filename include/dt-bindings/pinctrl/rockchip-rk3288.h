@@ -54,21 +54,6 @@
 #define GPIO0_C2 0x0c20
 
 
-
-/* GPIO0_D */
-#define GPIO0_D0 0x0d00
-#define LCDC0_HSYNC_GPIO0D 0x0d01
-
-#define GPIO0_D1 0x0d10
-#define LCDC0_VSYNC_GPIO0D 0x0d11
-
-#define GPIO0_D2 0x0d20
-#define LCDC0_DEN_GPIO0D 0x0d21
-
-#define GPIO0_D3 0x0d30
-#define LCDC0_DCLK_GPIO0D 0x0d31
-
-
 /* GPIO1_A */
 /* GPIO1_B */
 /* GPIO1_C */
