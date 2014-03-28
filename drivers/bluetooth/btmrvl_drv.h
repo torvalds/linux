@@ -59,6 +59,8 @@ struct btmrvl_device {
 };
 
 struct btmrvl_adapter {
+	void *hw_regs_buf;
+	u8 *hw_regs;
 	u32 int_count;
 	struct sk_buff_head tx_queue;
 	u8 psmode;
