@@ -416,6 +416,7 @@ static int omap2430_musb_init(struct musb *musb)
 		omap_musb_set_mailbox(glue);
 
 	phy_init(musb->phy);
+	phy_power_on(musb->phy);
 
 	pm_runtime_put_noidle(musb->controller);
 	return 0;
@@ -478,6 +479,7 @@ static int omap2430_musb_exit(struct musb *musb)
 	del_timer_sync(&musb_idle_timer);
 
 	omap2430_low_level_exit(musb);
+	phy_power_off(musb->phy);
 	phy_exit(musb->phy);
 
 	return 0;
