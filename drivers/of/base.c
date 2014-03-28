@@ -1955,9 +1955,9 @@ void of_alias_scan(void * (*dt_alloc)(u64 size, u64 align))
 		of_chosen = of_find_node_by_path("/chosen@0");
 
 	if (of_chosen) {
-		const char *name;
-
-		name = of_get_property(of_chosen, "linux,stdout-path", NULL);
+		const char *name = of_get_property(of_chosen, "stdout-path", NULL);
+		if (!name)
+			name = of_get_property(of_chosen, "linux,stdout-path", NULL);
 		if (name)
 			of_stdout = of_find_node_by_path(name);
 	}
