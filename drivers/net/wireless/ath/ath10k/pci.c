@@ -44,12 +44,12 @@ enum ath10k_pci_reset_mode {
 	ATH10K_PCI_RESET_WARM_ONLY = 1,
 };
 
-static unsigned int ath10k_target_ps;
+static unsigned int ath10k_pci_target_ps;
 static unsigned int ath10k_pci_irq_mode = ATH10K_PCI_IRQ_AUTO;
 static unsigned int ath10k_pci_reset_mode = ATH10K_PCI_RESET_AUTO;
 
-module_param(ath10k_target_ps, uint, 0644);
-MODULE_PARM_DESC(ath10k_target_ps, "Enable ath10k Target (SoC) PS option");
+module_param_named(target_ps, ath10k_pci_target_ps, uint, 0644);
+MODULE_PARM_DESC(target_ps, "Enable ath10k Target (SoC) PS option");
 
 module_param_named(irq_mode, ath10k_pci_irq_mode, uint, 0644);
 MODULE_PARM_DESC(irq_mode, "0: auto, 1: legacy, 2: msi (default: 0)");
@@ -2531,7 +2531,7 @@ static int ath10k_pci_probe(struct pci_dev *pdev,
 		goto err_ar_pci;
 	}
 
-	if (ath10k_target_ps)
+	if (ath10k_pci_target_ps)
 		set_bit(ATH10K_PCI_FEATURE_SOC_POWER_SAVE, ar_pci->features);
 
 	ath10k_pci_dump_features(ar_pci);
