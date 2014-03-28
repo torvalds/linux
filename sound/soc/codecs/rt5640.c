@@ -487,7 +487,7 @@ static int is_sys_clk_from_pll(struct snd_soc_dapm_widget *source,
 
 	val = snd_soc_read(source->codec, RT5640_GLB_CLK);
 	val &= RT5640_SCLK_SRC_MASK;
-	if (val == RT5640_SCLK_SRC_PLL1 || val == RT5640_SCLK_SRC_PLL1T)
+	if (val == RT5640_SCLK_SRC_PLL1)
 		return 1;
 	else
 		return 0;
@@ -1693,12 +1693,6 @@ static int rt5640_set_dai_sysclk(struct snd_soc_dai *dai,
 		break;
 	case RT5640_SCLK_S_PLL1:
 		reg_val |= RT5640_SCLK_SRC_PLL1;
-		break;
-	case RT5640_SCLK_S_PLL1_TK:
-		reg_val |= RT5640_SCLK_SRC_PLL1T;
-		break;
-	case RT5640_SCLK_S_RCCLK:
-		reg_val |= RT5640_SCLK_SRC_RCCLK;
 		break;
 	default:
 		dev_err(codec->dev, "Invalid clock id (%d)\n", clk_id);
