@@ -1715,10 +1715,10 @@ nfsd_rename(struct svc_rqst *rqstp, struct svc_fh *ffhp, char *fname, int flen,
 	dput(odentry);
  out_nfserr:
 	err = nfserrno(host_err);
-
-	/* we cannot reply on fh_unlock on the two filehandles,
+	/*
+	 * We cannot rely on fh_unlock on the two filehandles,
 	 * as that would do the wrong thing if the two directories
-	 * were the same, so again we do it by hand
+	 * were the same, so again we do it by hand.
 	 */
 	fill_post_wcc(ffhp);
 	fill_post_wcc(tfhp);
