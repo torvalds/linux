@@ -379,7 +379,7 @@ static int __init early_init_dt_scan_cpus(unsigned long node,
 	check_cpu_pa_features(node);
 	check_cpu_slb_size(node);
 
-#ifdef CONFIG_PPC_PSERIES
+#ifdef CONFIG_PPC64
 	if (nthreads > 1)
 		cur_cpu_spec->cpu_features |= CPU_FTR_SMT;
 	else
