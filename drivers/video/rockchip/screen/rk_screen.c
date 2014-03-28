@@ -62,6 +62,6 @@ static void __exit rk_screen_exit(void)
 	platform_driver_unregister(&rk_screen_driver);
 }
 
-subsys_initcall_sync(rk_screen_init);
+fs_initcall(rk_screen_init);
 module_exit(rk_screen_exit);
 

@@ -3018,5 +3018,5 @@ static void __exit rk_fb_exit(void)
 	platform_driver_unregister(&rk_fb_driver);
 }
 
-subsys_initcall_sync(rk_fb_init);
+fs_initcall(rk_fb_init);
 module_exit(rk_fb_exit);
