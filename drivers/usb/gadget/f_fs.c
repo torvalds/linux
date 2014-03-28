@@ -98,12 +98,15 @@ static struct ffs_function *ffs_func_from_usb(struct usb_function *f)
 	return container_of(f, struct ffs_function, function);
 }
 
+static void ffs_func_free(struct ffs_function *func);
 
 static void ffs_func_eps_disable(struct ffs_function *func);
 static int __must_check ffs_func_eps_enable(struct ffs_function *func);
 
 static int ffs_func_bind(struct usb_configuration *,
 			 struct usb_function *);
+static void old_ffs_func_unbind(struct usb_configuration *,
+			    struct usb_function *);
 static int ffs_func_set_alt(struct usb_function *, unsigned, unsigned);
 static void ffs_func_disable(struct usb_function *);
 static int ffs_func_setup(struct usb_function *,
@@ -1302,6 +1305,73 @@ static void ffs_epfiles_destroy(struct ffs_epfile *epfiles, unsigned count)
 }
 
 
+static int functionfs_bind_config(struct usb_composite_dev *cdev,
+				  struct usb_configuration *c,
+				  struct ffs_data *ffs)
+{
+	struct ffs_function *func;
+	int ret;
+
+	ENTER();
+
+	func = kzalloc(sizeof *func, GFP_KERNEL);
+	if (unlikely(!func))
+		return -ENOMEM;
+
+	func->function.name    = "Function FS Gadget";
+	func->function.strings = ffs->stringtabs;
+
+	func->function.bind    = ffs_func_bind;
+	func->function.unbind  = old_ffs_func_unbind;
+	func->function.set_alt = ffs_func_set_alt;
+	func->function.disable = ffs_func_disable;
+	func->function.setup   = ffs_func_setup;
+	func->function.suspend = ffs_func_suspend;
+	func->function.resume  = ffs_func_resume;
+
+	func->conf   = c;
+	func->gadget = cdev->gadget;
+	func->ffs = ffs;
+	ffs_data_get(ffs);
+
+	ret = usb_add_function(c, &func->function);
+	if (unlikely(ret))
+		ffs_func_free(func);
+
+	return ret;
+}
+
+static void ffs_func_free(struct ffs_function *func)
+{
+	struct ffs_ep *ep         = func->eps;
+	unsigned count            = func->ffs->eps_count;
+	unsigned long flags;
+
+	ENTER();
+
+	/* cleanup after autoconfig */
+	spin_lock_irqsave(&func->ffs->eps_lock, flags);
+	do {
+		if (ep->ep && ep->req)
+			usb_ep_free_request(ep->ep, ep->req);
+		ep->req = NULL;
+		++ep;
+	} while (--count);
+	spin_unlock_irqrestore(&func->ffs->eps_lock, flags);
+
+	ffs_data_put(func->ffs);
+
+	kfree(func->eps);
+	/*
+	 * eps and interfaces_nums are allocated in the same chunk so
+	 * only one free is required.  Descriptors are also allocated
+	 * in the same chunk.
+	 */
+
+	kfree(func);
+}
+
+
 static void ffs_func_eps_disable(struct ffs_function *func)
 {
 	struct ffs_ep *ep         = func->eps;
@@ -2132,6 +2202,26 @@ static int ffs_func_bind(struct usb_configuration *c,
 
 
 /* Other USB function hooks *************************************************/
+
+
+static void old_ffs_func_unbind(struct usb_configuration *c,
+			    struct usb_function *f)
+{
+	struct ffs_function *func = ffs_func_from_usb(f);
+	struct ffs_data *ffs = func->ffs;
+
+	ENTER();
+
+	if (ffs->func == func) {
+		ffs_func_eps_disable(func);
+		ffs->func = NULL;
+	}
+
+	ffs_event_add(ffs, FUNCTIONFS_UNBIND);
+
+	ffs_func_free(func);
+}
+
 
 static int ffs_func_set_alt(struct usb_function *f,
 			    unsigned interface, unsigned alt)
