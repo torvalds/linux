@@ -301,6 +301,17 @@ struct hsi_client *hsi_new_client(struct hsi_port *port,
 int hsi_remove_client(struct device *dev, void *data);
 void hsi_port_unregister_clients(struct hsi_port *port);
 
+#ifdef CONFIG_OF
+void hsi_add_clients_from_dt(struct hsi_port *port,
+			     struct device_node *clients);
+#else
+static inline void hsi_add_clients_from_dt(struct hsi_port *port,
+					   struct device_node *clients)
+{
+	return;
+}
+#endif
+
 static inline void hsi_controller_set_drvdata(struct hsi_controller *hsi,
 								void *data)
 {
