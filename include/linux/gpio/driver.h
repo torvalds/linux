@@ -107,6 +107,7 @@ struct gpio_chip {
 	 */
 	struct irq_chip		*irqchip;
 	struct irq_domain	*irqdomain;
+	unsigned int		irq_base;
 	irq_flow_handler_t	irq_handler;
 	unsigned int		irq_default_type;
 #endif

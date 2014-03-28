@@ -1399,8 +1399,18 @@ static int gpiochip_irq_map(struct irq_domain *d, unsigned int irq,
 	return 0;
 }
 
+static void gpiochip_irq_unmap(struct irq_domain *d, unsigned int irq)
+{
+#ifdef CONFIG_ARM
+	set_irq_flags(irq, 0);
+#endif
+	irq_set_chip_and_handler(irq, NULL, NULL);
+	irq_set_chip_data(irq, NULL);
+}
+
 static const struct irq_domain_ops gpiochip_domain_ops = {
 	.map	= gpiochip_irq_map,
+	.unmap	= gpiochip_irq_unmap,
 	/* Virtually all GPIO irqchips are twocell:ed */
 	.xlate	= irq_domain_xlate_twocell,
 };
@@ -1438,8 +1448,14 @@ static int gpiochip_to_irq(struct gpio_chip *chip, unsigned offset)
  */
 static void gpiochip_irqchip_remove(struct gpio_chip *gpiochip)
 {
-	if (gpiochip->irqdomain)
+	unsigned int offset;
+
+	/* Remove all IRQ mappings and delete the domain */
+	if (gpiochip->irqdomain) {
+		for (offset = 0; offset < gpiochip->ngpio; offset++)
+			irq_dispose_mapping(gpiochip->irq_base + offset);
 		irq_domain_remove(gpiochip->irqdomain);
+	}
 
 	if (gpiochip->irqchip) {
 		gpiochip->irqchip->irq_request_resources = NULL;
@@ -1467,7 +1483,8 @@ static void gpiochip_irqchip_remove(struct gpio_chip *gpiochip)
  * translation. The gpiochip will need to be initialized and registered
  * before calling this function.
  *
- * This function will handle two cell:ed simple IRQs. Everything else
+ * This function will handle two cell:ed simple IRQs and assumes all
+ * the pins on the gpiochip can generate a unique IRQ. Everything else
  * need to be open coded.
  */
 int gpiochip_irqchip_add(struct gpio_chip *gpiochip,
@@ -1478,6 +1495,7 @@ int gpiochip_irqchip_add(struct gpio_chip *gpiochip,
 {
 	struct device_node *of_node;
 	unsigned int offset;
+	unsigned irq_base = 0;
 
 	if (!gpiochip || !irqchip)
 		return -EINVAL;
@@ -1514,8 +1532,15 @@ int gpiochip_irqchip_add(struct gpio_chip *gpiochip,
 	 * any gpiochip calls. If the first_irq was zero, this is
 	 * necessary to allocate descriptors for all IRQs.
 	 */
-	for (offset = 0; offset < gpiochip->ngpio; offset++)
-		irq_create_mapping(gpiochip->irqdomain, offset);
+	for (offset = 0; offset < gpiochip->ngpio; offset++) {
+		irq_base = irq_create_mapping(gpiochip->irqdomain, offset);
+		if (offset == 0)
+			/*
+			 * Store the base into the gpiochip to be used when
+			 * unmapping the irqs.
+			 */
+			gpiochip->irq_base = irq_base;
+	}
 
 	return 0;
 }
