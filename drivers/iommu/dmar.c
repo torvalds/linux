@@ -698,12 +698,12 @@ int __init dmar_dev_scope_init(void)
 	if (dmar_dev_scope_status != 1)
 		return dmar_dev_scope_status;
 
-	dmar_acpi_dev_scope_init();
-
 	if (list_empty(&dmar_drhd_units)) {
 		dmar_dev_scope_status = -ENODEV;
 	} else {
 		dmar_dev_scope_status = 0;
+
+		dmar_acpi_dev_scope_init();
 
 		for_each_pci_dev(dev) {
 			if (dev->is_virtfn)
