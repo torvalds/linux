@@ -19,7 +19,7 @@
 #include <sound/pcm.h>
 #include <sound/initval.h>
 
-static const char const *supply_names[] = {
+static const char * const supply_names[] = {
 	"va", "vd"
 };
 
