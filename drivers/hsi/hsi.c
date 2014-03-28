@@ -62,18 +62,36 @@ static struct bus_type hsi_bus_type = {
 
 static void hsi_client_release(struct device *dev)
 {
-	kfree(to_hsi_client(dev));
+	struct hsi_client *cl = to_hsi_client(dev);
+
+	kfree(cl->tx_cfg.channels);
+	kfree(cl->rx_cfg.channels);
+	kfree(cl);
 }
 
 static void hsi_new_client(struct hsi_port *port, struct hsi_board_info *info)
 {
 	struct hsi_client *cl;
+	size_t size;
 
 	cl = kzalloc(sizeof(*cl), GFP_KERNEL);
 	if (!cl)
 		return;
+
 	cl->tx_cfg = info->tx_cfg;
+	if (cl->tx_cfg.channels) {
+		size = cl->tx_cfg.num_channels * sizeof(*cl->tx_cfg.channels);
+		cl->tx_cfg.channels = kzalloc(size , GFP_KERNEL);
+		memcpy(cl->tx_cfg.channels, info->tx_cfg.channels, size);
+	}
+
 	cl->rx_cfg = info->rx_cfg;
+	if (cl->rx_cfg.channels) {
+		size = cl->rx_cfg.num_channels * sizeof(*cl->rx_cfg.channels);
+		cl->rx_cfg.channels = kzalloc(size , GFP_KERNEL);
+		memcpy(cl->rx_cfg.channels, info->rx_cfg.channels, size);
+	}
+
 	cl->device.bus = &hsi_bus_type;
 	cl->device.parent = &port->device;
 	cl->device.release = hsi_client_release;
@@ -501,6 +519,32 @@ int hsi_event(struct hsi_port *port, unsigned long event)
 	return atomic_notifier_call_chain(&port->n_head, event, NULL);
 }
 EXPORT_SYMBOL_GPL(hsi_event);
+
+/**
+ * hsi_get_channel_id_by_name - acquire channel id by channel name
+ * @cl: HSI client, which uses the channel
+ * @name: name the channel is known under
+ *
+ * Clients can call this function to get the hsi channel ids similar to
+ * requesting IRQs or GPIOs by name. This function assumes the same
+ * channel configuration is used for RX and TX.
+ *
+ * Returns -errno on error or channel id on success.
+ */
+int hsi_get_channel_id_by_name(struct hsi_client *cl, char *name)
+{
+	int i;
+
+	if (!cl->rx_cfg.channels)
+		return -ENOENT;
+
+	for (i = 0; i < cl->rx_cfg.num_channels; i++)
+		if (!strcmp(cl->rx_cfg.channels[i].name, name))
+			return cl->rx_cfg.channels[i].id;
+
+	return -ENXIO;
+}
+EXPORT_SYMBOL_GPL(hsi_get_channel_id_by_name);
 
 static int __init hsi_init(void)
 {
