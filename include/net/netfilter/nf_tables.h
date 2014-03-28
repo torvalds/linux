@@ -146,6 +146,44 @@ struct nft_set_iter {
 };
 
 /**
+ *	struct nft_set_desc - description of set elements
+ *
+ *	@klen: key length
+ *	@dlen: data length
+ *	@size: number of set elements
+ */
+struct nft_set_desc {
+	unsigned int		klen;
+	unsigned int		dlen;
+	unsigned int		size;
+};
+
+/**
+ *	enum nft_set_class - performance class
+ *
+ *	@NFT_LOOKUP_O_1: constant, O(1)
+ *	@NFT_LOOKUP_O_LOG_N: logarithmic, O(log N)
+ *	@NFT_LOOKUP_O_N: linear, O(N)
+ */
+enum nft_set_class {
+	NFT_SET_CLASS_O_1,
+	NFT_SET_CLASS_O_LOG_N,
+	NFT_SET_CLASS_O_N,
+};
+
+/**
+ *	struct nft_set_estimate - estimation of memory and performance
+ *				  characteristics
+ *
+ *	@size: required memory
+ *	@class: lookup performance class
+ */
+struct nft_set_estimate {
+	unsigned int		size;
+	enum nft_set_class	class;
+};
+
+/**
  *	struct nft_set_ops - nf_tables set operations
  *
  *	@lookup: look up an element within the set
@@ -174,7 +212,11 @@ struct nft_set_ops {
 						struct nft_set_iter *iter);
 
 	unsigned int			(*privsize)(const struct nlattr * const nla[]);
+	bool				(*estimate)(const struct nft_set_desc *desc,
+						    u32 features,
+						    struct nft_set_estimate *est);
 	int				(*init)(const struct nft_set *set,
+						const struct nft_set_desc *desc,
 						const struct nlattr * const nla[]);
 	void				(*destroy)(const struct nft_set *set);
 
@@ -194,6 +236,8 @@ void nft_unregister_set(struct nft_set_ops *ops);
  * 	@name: name of the set
  * 	@ktype: key type (numeric type defined by userspace, not used in the kernel)
  * 	@dtype: data type (verdict or numeric type defined by userspace)
+ * 	@size: maximum set size
+ * 	@nelems: number of elements
  * 	@ops: set ops
  * 	@flags: set flags
  * 	@klen: key length
@@ -206,6 +250,8 @@ struct nft_set {
 	char				name[IFNAMSIZ];
 	u32				ktype;
 	u32				dtype;
+	u32				size;
+	u32				nelems;
 	/* runtime data below here */
 	const struct nft_set_ops	*ops ____cacheline_aligned;
 	u16				flags;

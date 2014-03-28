@@ -1912,9 +1912,18 @@ void nft_unregister_set(struct nft_set_ops *ops)
 }
 EXPORT_SYMBOL_GPL(nft_unregister_set);
 
-static const struct nft_set_ops *nft_select_set_ops(const struct nlattr * const nla[])
+/*
+ * Select a set implementation based on the data characteristics and the
+ * given policy. The total memory use might not be known if no size is
+ * given, in that case the amount of memory per element is used.
+ */
+static const struct nft_set_ops *
+nft_select_set_ops(const struct nlattr * const nla[],
+		   const struct nft_set_desc *desc,
+		   enum nft_set_policies policy)
 {
-	const struct nft_set_ops *ops;
+	const struct nft_set_ops *ops, *bops;
+	struct nft_set_estimate est, best;
 	u32 features;
 
 #ifdef CONFIG_MODULES
@@ -1932,14 +1941,44 @@ static const struct nft_set_ops *nft_select_set_ops(const struct nlattr * const 
 		features &= NFT_SET_INTERVAL | NFT_SET_MAP;
 	}
 
-	// FIXME: implement selection properly
+	bops	   = NULL;
+	best.size  = ~0;
+	best.class = ~0;
+
 	list_for_each_entry(ops, &nf_tables_set_ops, list) {
 		if ((ops->features & features) != features)
 			continue;
+		if (!ops->estimate(desc, features, &est))
+			continue;
+
+		switch (policy) {
+		case NFT_SET_POL_PERFORMANCE:
+			if (est.class < best.class)
+				break;
+			if (est.class == best.class && est.size < best.size)
+				break;
+			continue;
+		case NFT_SET_POL_MEMORY:
+			if (est.size < best.size)
+				break;
+			if (est.size == best.size && est.class < best.class)
+				break;
+			continue;
+		default:
+			break;
+		}
+
 		if (!try_module_get(ops->owner))
 			continue;
-		return ops;
+		if (bops != NULL)
+			module_put(bops->owner);
+
+		bops = ops;
+		best = est;
 	}
+
+	if (bops != NULL)
+		return bops;
 
 	return ERR_PTR(-EOPNOTSUPP);
 }
@@ -1952,6 +1991,12 @@ static const struct nla_policy nft_set_policy[NFTA_SET_MAX + 1] = {
 	[NFTA_SET_KEY_LEN]		= { .type = NLA_U32 },
 	[NFTA_SET_DATA_TYPE]		= { .type = NLA_U32 },
 	[NFTA_SET_DATA_LEN]		= { .type = NLA_U32 },
+	[NFTA_SET_POLICY]		= { .type = NLA_U32 },
+	[NFTA_SET_DESC]			= { .type = NLA_NESTED },
+};
+
+static const struct nla_policy nft_set_desc_policy[NFTA_SET_DESC_MAX + 1] = {
+	[NFTA_SET_DESC_SIZE]		= { .type = NLA_U32 },
 };
 
 static int nft_ctx_init_from_setattr(struct nft_ctx *ctx,
@@ -2043,6 +2088,7 @@ static int nf_tables_fill_set(struct sk_buff *skb, const struct nft_ctx *ctx,
 {
 	struct nfgenmsg *nfmsg;
 	struct nlmsghdr *nlh;
+	struct nlattr *desc;
 	u32 portid = NETLINK_CB(ctx->skb).portid;
 	u32 seq = ctx->nlh->nlmsg_seq;
 
@@ -2075,6 +2121,14 @@ static int nf_tables_fill_set(struct sk_buff *skb, const struct nft_ctx *ctx,
 		if (nla_put_be32(skb, NFTA_SET_DATA_LEN, htonl(set->dlen)))
 			goto nla_put_failure;
 	}
+
+	desc = nla_nest_start(skb, NFTA_SET_DESC);
+	if (desc == NULL)
+		goto nla_put_failure;
+	if (set->size &&
+	    nla_put_be32(skb, NFTA_SET_DESC_SIZE, htonl(set->size)))
+		goto nla_put_failure;
+	nla_nest_end(skb, desc);
 
 	return nlmsg_end(skb, nlh);
 
@@ -2304,6 +2358,23 @@ err:
 	return err;
 }
 
+static int nf_tables_set_desc_parse(const struct nft_ctx *ctx,
+				    struct nft_set_desc *desc,
+				    const struct nlattr *nla)
+{
+	struct nlattr *da[NFTA_SET_DESC_MAX + 1];
+	int err;
+
+	err = nla_parse_nested(da, NFTA_SET_DESC_MAX, nla, nft_set_desc_policy);
+	if (err < 0)
+		return err;
+
+	if (da[NFTA_SET_DESC_SIZE] != NULL)
+		desc->size = ntohl(nla_get_be32(da[NFTA_SET_DESC_SIZE]));
+
+	return 0;
+}
+
 static int nf_tables_newset(struct sock *nlsk, struct sk_buff *skb,
 			    const struct nlmsghdr *nlh,
 			    const struct nlattr * const nla[])
@@ -2318,13 +2389,16 @@ static int nf_tables_newset(struct sock *nlsk, struct sk_buff *skb,
 	char name[IFNAMSIZ];
 	unsigned int size;
 	bool create;
-	u32 ktype, klen, dlen, dtype, flags;
+	u32 ktype, dtype, flags, policy;
+	struct nft_set_desc desc;
 	int err;
 
 	if (nla[NFTA_SET_TABLE] == NULL ||
 	    nla[NFTA_SET_NAME] == NULL ||
 	    nla[NFTA_SET_KEY_LEN] == NULL)
 		return -EINVAL;
+
+	memset(&desc, 0, sizeof(desc));
 
 	ktype = NFT_DATA_VALUE;
 	if (nla[NFTA_SET_KEY_TYPE] != NULL) {
@@ -2333,8 +2407,8 @@ static int nf_tables_newset(struct sock *nlsk, struct sk_buff *skb,
 			return -EINVAL;
 	}
 
-	klen = ntohl(nla_get_be32(nla[NFTA_SET_KEY_LEN]));
-	if (klen == 0 || klen > FIELD_SIZEOF(struct nft_data, data))
+	desc.klen = ntohl(nla_get_be32(nla[NFTA_SET_KEY_LEN]));
+	if (desc.klen == 0 || desc.klen > FIELD_SIZEOF(struct nft_data, data))
 		return -EINVAL;
 
 	flags = 0;
@@ -2346,7 +2420,6 @@ static int nf_tables_newset(struct sock *nlsk, struct sk_buff *skb,
 	}
 
 	dtype = 0;
-	dlen  = 0;
 	if (nla[NFTA_SET_DATA_TYPE] != NULL) {
 		if (!(flags & NFT_SET_MAP))
 			return -EINVAL;
@@ -2359,14 +2432,24 @@ static int nf_tables_newset(struct sock *nlsk, struct sk_buff *skb,
 		if (dtype != NFT_DATA_VERDICT) {
 			if (nla[NFTA_SET_DATA_LEN] == NULL)
 				return -EINVAL;
-			dlen = ntohl(nla_get_be32(nla[NFTA_SET_DATA_LEN]));
-			if (dlen == 0 ||
-			    dlen > FIELD_SIZEOF(struct nft_data, data))
+			desc.dlen = ntohl(nla_get_be32(nla[NFTA_SET_DATA_LEN]));
+			if (desc.dlen == 0 ||
+			    desc.dlen > FIELD_SIZEOF(struct nft_data, data))
 				return -EINVAL;
 		} else
-			dlen = sizeof(struct nft_data);
+			desc.dlen = sizeof(struct nft_data);
 	} else if (flags & NFT_SET_MAP)
 		return -EINVAL;
+
+	policy = NFT_SET_POL_PERFORMANCE;
+	if (nla[NFTA_SET_POLICY] != NULL)
+		policy = ntohl(nla_get_be32(nla[NFTA_SET_POLICY]));
+
+	if (nla[NFTA_SET_DESC] != NULL) {
+		err = nf_tables_set_desc_parse(&ctx, &desc, nla[NFTA_SET_DESC]);
+		if (err < 0)
+			return err;
+	}
 
 	create = nlh->nlmsg_flags & NLM_F_CREATE ? true : false;
 
@@ -2398,7 +2481,7 @@ static int nf_tables_newset(struct sock *nlsk, struct sk_buff *skb,
 	if (!(nlh->nlmsg_flags & NLM_F_CREATE))
 		return -ENOENT;
 
-	ops = nft_select_set_ops(nla);
+	ops = nft_select_set_ops(nla, &desc, policy);
 	if (IS_ERR(ops))
 		return PTR_ERR(ops);
 
@@ -2419,12 +2502,13 @@ static int nf_tables_newset(struct sock *nlsk, struct sk_buff *skb,
 	INIT_LIST_HEAD(&set->bindings);
 	set->ops   = ops;
 	set->ktype = ktype;
-	set->klen  = klen;
+	set->klen  = desc.klen;
 	set->dtype = dtype;
-	set->dlen  = dlen;
+	set->dlen  = desc.dlen;
 	set->flags = flags;
+	set->size  = desc.size;
 
-	err = ops->init(set, nla);
+	err = ops->init(set, &desc, nla);
 	if (err < 0)
 		goto err2;
 
@@ -2733,6 +2817,9 @@ static int nft_add_set_elem(const struct nft_ctx *ctx, struct nft_set *set,
 	enum nft_registers dreg;
 	int err;
 
+	if (set->size && set->nelems == set->size)
+		return -ENFILE;
+
 	err = nla_parse_nested(nla, NFTA_SET_ELEM_MAX, attr,
 			       nft_set_elem_policy);
 	if (err < 0)
@@ -2798,6 +2885,7 @@ static int nft_add_set_elem(const struct nft_ctx *ctx, struct nft_set *set,
 	err = set->ops->insert(set, &elem);
 	if (err < 0)
 		goto err3;
+	set->nelems++;
 
 	return 0;
 
@@ -2867,6 +2955,7 @@ static int nft_del_setelem(const struct nft_ctx *ctx, struct nft_set *set,
 		goto err2;
 
 	set->ops->remove(set, &elem);
+	set->nelems--;
 
 	nft_data_uninit(&elem.key, NFT_DATA_VALUE);
 	if (set->flags & NFT_SET_MAP)

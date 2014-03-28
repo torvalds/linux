@@ -212,6 +212,29 @@ enum nft_set_flags {
 };
 
 /**
+ * enum nft_set_policies - set selection policy
+ *
+ * @NFT_SET_POL_PERFORMANCE: prefer high performance over low memory use
+ * @NFT_SET_POL_MEMORY: prefer low memory use over high performance
+ */
+enum nft_set_policies {
+	NFT_SET_POL_PERFORMANCE,
+	NFT_SET_POL_MEMORY,
+};
+
+/**
+ * enum nft_set_desc_attributes - set element description
+ *
+ * @NFTA_SET_DESC_SIZE: number of elements in set (NLA_U32)
+ */
+enum nft_set_desc_attributes {
+	NFTA_SET_DESC_UNSPEC,
+	NFTA_SET_DESC_SIZE,
+	__NFTA_SET_DESC_MAX
+};
+#define NFTA_SET_DESC_MAX	(__NFTA_SET_DESC_MAX - 1)
+
+/**
  * enum nft_set_attributes - nf_tables set netlink attributes
  *
  * @NFTA_SET_TABLE: table name (NLA_STRING)
@@ -221,6 +244,8 @@ enum nft_set_flags {
  * @NFTA_SET_KEY_LEN: key data length (NLA_U32)
  * @NFTA_SET_DATA_TYPE: mapping data type (NLA_U32)
  * @NFTA_SET_DATA_LEN: mapping data length (NLA_U32)
+ * @NFTA_SET_POLICY: selection policy (NLA_U32)
+ * @NFTA_SET_DESC: set description (NLA_NESTED)
  */
 enum nft_set_attributes {
 	NFTA_SET_UNSPEC,
@@ -231,6 +256,8 @@ enum nft_set_attributes {
 	NFTA_SET_KEY_LEN,
 	NFTA_SET_DATA_TYPE,
 	NFTA_SET_DATA_LEN,
+	NFTA_SET_POLICY,
+	NFTA_SET_DESC,
 	__NFTA_SET_MAX
 };
 #define NFTA_SET_MAX		(__NFTA_SET_MAX - 1)
