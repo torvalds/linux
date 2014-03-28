@@ -27,11 +27,7 @@
 #include <linux/if_vlan.h>
 #include <linux/ip.h>
 #include <linux/filter.h>
-#ifdef __KERNEL__
 #include <linux/in.h>
-#else
-#include <netinet/in.h>
-#endif
 
 #define PTP_CLASS_NONE  0x00 /* not a PTP event message */
 #define PTP_CLASS_V1    0x01 /* protocol version 1 */
