@@ -5535,13 +5535,13 @@ static void i9xx_set_pipeconf(struct intel_crtc *intel_crtc)
 		}
 	}
 
-	if (IS_VALLEYVIEW(dev) &&
-	    intel_crtc->config.adjusted_mode.flags & DRM_MODE_FLAG_INTERLACE)
-		pipeconf |= PIPECONF_INTERLACE_W_SYNC_SHIFT;
-	else if (!IS_GEN2(dev) &&
-		 intel_crtc->config.adjusted_mode.flags & DRM_MODE_FLAG_INTERLACE)
-		pipeconf |= PIPECONF_INTERLACE_W_FIELD_INDICATION;
-	else
+	if (intel_crtc->config.adjusted_mode.flags & DRM_MODE_FLAG_INTERLACE) {
+		if (INTEL_INFO(dev)->gen < 4 ||
+		    intel_pipe_has_type(&intel_crtc->base, INTEL_OUTPUT_SDVO))
+			pipeconf |= PIPECONF_INTERLACE_W_FIELD_INDICATION;
+		else
+			pipeconf |= PIPECONF_INTERLACE_W_SYNC_SHIFT;
+	} else
 		pipeconf |= PIPECONF_PROGRESSIVE;
 
 	if (IS_VALLEYVIEW(dev) && intel_crtc->config.limited_color_range)
