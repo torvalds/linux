@@ -801,12 +801,12 @@ static void reg_deinit(struct vpu_service_info *pservice, vpu_reg *reg)
     }
 #endif    
     
-	kfree(reg);
+    kfree(reg);
 }
 
 static void reg_from_wait_to_run(struct vpu_service_info *pservice, vpu_reg *reg)
 {
-	list_del_init(&reg->status_link);
+    list_del_init(&reg->status_link);
 	list_add_tail(&reg->status_link, &pservice->running);
 
 	list_del_init(&reg->session_link);
@@ -1380,14 +1380,14 @@ static int vcodec_probe(struct platform_device *pdev)
     of_property_read_string(np, "name", (const char**)&prop);
     dev_set_name(dev, prop);
 
-	if (strcmp(dev_name(dev), "hevc_service") == 0) {
-		pservice->dev_id = VCODEC_DEVICE_ID_HEVC;
+    if (strcmp(dev_name(dev), "hevc_service") == 0) {
+        pservice->dev_id = VCODEC_DEVICE_ID_HEVC;
     } else if (strcmp(dev_name(dev), "vpu_service") == 0) {
-		pservice->dev_id = VCODEC_DEVICE_ID_VPU;
+        pservice->dev_id = VCODEC_DEVICE_ID_VPU;
     } else {
-		dev_err(dev, "Unknown device %s to probe\n", dev_name(dev));
-		return -1;
-	}
+        dev_err(dev, "Unknown device %s to probe\n", dev_name(dev));
+        return -1;
+    }
 
     wake_lock_init(&pservice->wake_lock, WAKE_LOCK_SUSPEND, "vpu");
     INIT_LIST_HEAD(&pservice->waiting);
@@ -1521,13 +1521,13 @@ static int vcodec_probe(struct platform_device *pdev)
     pr_info("init success\n");
 
 #if defined(CONFIG_VCODEC_MMU) & defined(CONFIG_ION_ROCKCHIP)
-	pservice->ion_client = rockchip_ion_client_create("vpu");
-	if (IS_ERR(pservice->ion_client)) {
-		dev_err(&pdev->dev, "failed to create ion client for vcodec");
-		return PTR_ERR(pservice->ion_client);
-	} else {
-		dev_info(&pdev->dev, "vcodec ion client create success!\n");
-	}
+    pservice->ion_client = rockchip_ion_client_create("vpu");
+    if (IS_ERR(pservice->ion_client)) {
+        dev_err(&pdev->dev, "failed to create ion client for vcodec");
+        return PTR_ERR(pservice->ion_client);
+    } else {
+        dev_info(&pdev->dev, "vcodec ion client create success!\n");
+    }
     
     sprintf(mmu_dev_dts_name, "iommu,%s", dev_name(dev));
     
@@ -1616,14 +1616,14 @@ static int vcodec_remove(struct platform_device *pdev)
 
 #if defined(CONFIG_OF)
 static const struct of_device_id vcodec_service_dt_ids[] = {
-	{.compatible = "vpu_service",},
-	{.compatible = "rockchip,hevc_service",},
+    {.compatible = "vpu_service",},
+    {.compatible = "rockchip,hevc_service",},
     {},
 };
 #endif
 
 static struct platform_driver vcodec_driver = {
-	.probe     = vcodec_probe,
+    .probe     = vcodec_probe,
     .remove	   = vcodec_remove,
     .driver = {
         .name = "vcodec",
@@ -1631,14 +1631,15 @@ static struct platform_driver vcodec_driver = {
 #if defined(CONFIG_OF)
         .of_match_table = of_match_ptr(vcodec_service_dt_ids),
 #endif
-	},
+    },
 };
 
 static void get_hw_info(struct vpu_service_info *pservice)
 {
-    if (pservice->dev_id == VCODEC_DEVICE_ID_VPU) {
-        VPUHwDecConfig_t *dec = &pservice->dec_config;
-        VPUHwEncConfig_t *enc = &pservice->enc_config;
+    VPUHwDecConfig_t *dec = &pservice->dec_config;
+    VPUHwEncConfig_t *enc = &pservice->enc_config;
+
+    if (pservice->dev_id == VCODEC_DEVICE_ID_VPU) {		
         u32 configReg   = pservice->dec_dev.hwregs[VPU_DEC_HWCFG0];
         u32 asicID      = pservice->dec_dev.hwregs[0];
     
@@ -1656,7 +1657,7 @@ static void get_hw_info(struct vpu_service_info *pservice)
         if (!soc_is_rk3190() && !soc_is_rk3288()) {
             dec->maxDecPicWidth = configReg & 0x07FFU;
         } else {
-            dec->maxDecPicWidth = 3840;
+            dec->maxDecPicWidth = 4096;
         }
     
         /* 2nd Config register */
