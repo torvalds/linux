@@ -179,7 +179,7 @@ static int cw_update_config_info(struct cw_battery *cw_bat)
 {
         int ret;
         u8 reg_val;
-        int i;
+        u8 i;
         u8 reset_val;
 
         dev_info(&cw_bat->client->dev, "func: %s-------\n", __func__);
@@ -199,7 +199,7 @@ static int cw_update_config_info(struct cw_battery *cw_bat)
         for (i = 0; i < SIZE_BATINFO; i++) {
                 dev_info(&cw_bat->client->dev, "cw_bat->plat_data.cw_bat_config_info[%d] = 0x%x\n", i, \
                                 cw_bat->plat_data.cw_bat_config_info[i]);
-                ret = cw_write(cw_bat->client, REG_BATINFO + i, &cw_bat->plat_data.cw_bat_config_info[i]);
+                ret = cw_write(cw_bat->client, REG_BATINFO + i, (u8 *)&cw_bat->plat_data.cw_bat_config_info[i]);
 
                 if (ret < 0) 
                         return ret;
@@ -1283,12 +1283,16 @@ static int cw_bat_probe(struct i2c_client *client, const struct i2c_device_id *i
         }
        
         ret = cw_init(cw_bat);
+#if 0
         while ((loop++ < 200) && (ret != 0)) {
                 ret = cw_init(cw_bat);
         }
-
+#endif
         if (ret) 
+	{
+		printk("%s cw_init error\n",__func__);
                 return ret;
+	}
         
         cw_bat->rk_bat.name = "rk-bat";
         cw_bat->rk_bat.type = POWER_SUPPLY_TYPE_BATTERY;
