@@ -2056,8 +2056,9 @@ static void *mlx4_ib_add(struct mlx4_dev *dev)
 			err = mlx4_counter_alloc(ibdev->dev, &ibdev->counters[i]);
 			if (err)
 				ibdev->counters[i] = -1;
-		} else
-				ibdev->counters[i] = -1;
+		} else {
+			ibdev->counters[i] = -1;
+		}
 	}
 
 	mlx4_foreach_port(i, dev, MLX4_PORT_TYPE_IB)
