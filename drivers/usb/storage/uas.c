@@ -1096,16 +1096,17 @@ static int uas_probe(struct usb_interface *intf, const struct usb_device_id *id)
 	if (result)
 		goto free_streams;
 
+	usb_set_intfdata(intf, shost);
 	result = scsi_add_host(shost, &intf->dev);
 	if (result)
 		goto free_streams;
 
 	scsi_scan_host(shost);
-	usb_set_intfdata(intf, shost);
 	return result;
 
 free_streams:
 	uas_free_streams(devinfo);
+	usb_set_intfdata(intf, NULL);
 set_alt0:
 	usb_set_interface(udev, intf->altsetting[0].desc.bInterfaceNumber, 0);
 	if (shost)
