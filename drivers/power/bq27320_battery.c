@@ -61,7 +61,7 @@
 #define BSP_ENTER_ROM_MODE_DATA 			0x0F00
 #define BSP_ROM_MODE_I2C_ADDR				0x0B
 #define BSP_NORMAL_MODE_I2C_ADDR			0x55
-#define BSP_FIRMWARE_FILE_SIZE				(3290*400)
+#define BSP_FIRMWARE_FILE_SIZE				(3301*400)
 
 /*define for power detect*/
 #define BATTERY_LOW_CAPACITY 2
@@ -105,9 +105,7 @@ static struct i2c_driver bq27320_battery_driver;
 int  virtual_battery_enable = 0;
 extern int dwc_vbus_status(void);
 //extern int get_gadget_connect_flag(void);
-//extern int dwc_otg_check_dpdm(void);
-
-static void bq27320_set(void);
+extern int dwc_otg_check_dpdm(bool wait);
 
 #if 0
 #define DBG(x...) printk(KERN_INFO x)
@@ -548,27 +546,19 @@ static u8 get_child_version(void)
 {
 	u8 data[32];
 	
-	data[0] = 0x39;
+	data[0] = 0x40;
 	if(bq27320_write(g_bq27320_i2c_client, 0x3e, data, 1) < 0)
 		return -1;
 	mdelay(2);
 
-	data[0] = 0x00;
+	data[0] = 0x40;
 	if(bq27320_write(g_bq27320_i2c_client, 0x3f, data, 1) < 0)
 		return -1;
 	mdelay(2);
 
-	data[0] = 0x00;
-	if(bq27320_write(g_bq27320_i2c_client, 0x61, data, 1) < 0)
-		return -1;
-	mdelay(2);
-
-	bq27320_read(g_bq27320_i2c_client, 0x60, data, 1);
-	mdelay(2);
-
-	bq27320_read(g_bq27320_i2c_client, 0x40, data, 32);
+	bq27320_read(g_bq27320_i2c_client, 0x40, data, 8);
 	
-	return data[0];
+	return data[2];
 }
 
 static ssize_t bq27320_attr_store(struct device_driver *driver,const char *buf, size_t count)
@@ -617,7 +607,7 @@ static ssize_t bq27320_attr_show(struct device_driver *driver, char *buf)
 	else
 	{	 
 	
-		return sprintf(buf, "%x", ver);
+		return sprintf(buf, "download firemware is %x", ver);
 	}
 
 }
@@ -1022,20 +1012,20 @@ static int bq27320_battery_get_status(void)
 {
 	int charge_on = 0;
 	int usb_ac_charging = 0;
-/*	
-	if(dwc_otg_check_dpdm() == 0){
+	
+	if(dwc_otg_check_dpdm(0) == 0){
 		bq27320_di->usb_charging = 0;
 		bq27320_di->ac_charging = 0;
-	}else if(dwc_otg_check_dpdm() == 1){
+	}else if(dwc_otg_check_dpdm(0) == 1){
 		bq27320_di->usb_charging = 1;
 		bq27320_di->ac_charging = 0;
-	}else if(dwc_otg_check_dpdm() == 2 || dwc_otg_check_dpdm() == 3){
+	}else if(dwc_otg_check_dpdm(0) == 2 || dwc_otg_check_dpdm(0) == 3){
 		bq27320_di->usb_charging = 0;
 		bq27320_di->ac_charging = 1;
 	}
 	if(( 1 == bq27320_di->usb_charging)||(1 == bq27320_di ->ac_charging))
 		charge_on =1;
-*/	
+	
 	if (charge_on == 0){
 		usb_ac_charging = bq27320_get_usb_status(); //0 --discharge, 1---usb charging,2----AC charging;
 		if(1 == usb_ac_charging){
@@ -1273,6 +1263,7 @@ static int bq27320_battery_probe(struct i2c_client *client,
 	int retval = 0;
 	struct bq27320_board *pdev;
 	struct device_node *bq27320_node;
+	u8 buf[2];
 
 	 DBG("%s,line=%d\n", __func__,__LINE__);
 	 
@@ -1300,6 +1291,12 @@ static int bq27320_battery_probe(struct i2c_client *client,
 	bq27320_di = di;
 	
 	mutex_init(&di->battery_mutex);
+	
+	retval = bq27320_read(di->client,0x00,buf,2);
+	if (retval < 0){
+		printk("The device is not bq27320 %d\n",retval);
+		goto batt_failed_2;
+	}
 	
 	bq27320_powersupply_init(di);
 	retval = power_supply_register(&client->dev, &di->bat);
