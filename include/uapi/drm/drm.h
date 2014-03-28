@@ -619,6 +619,15 @@ struct drm_gem_open {
 #define  DRM_PRIME_CAP_EXPORT		0x2
 #define DRM_CAP_TIMESTAMP_MONOTONIC	0x6
 #define DRM_CAP_ASYNC_PAGE_FLIP		0x7
+/*
+ * The CURSOR_WIDTH and CURSOR_HEIGHT capabilities return a valid widthxheight
+ * combination for the hardware cursor. The intention is that a hardware
+ * agnostic userspace can query a cursor plane size to use.
+ *
+ * Note that the cross-driver contract is to merely return a valid size;
+ * drivers are free to attach another meaning on top, eg. i915 returns the
+ * maximum plane size.
+ */
 #define DRM_CAP_CURSOR_WIDTH		0x8
 #define DRM_CAP_CURSOR_HEIGHT		0x9
 
