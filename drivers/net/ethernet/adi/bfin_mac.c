@@ -307,11 +307,6 @@ static int bfin_mdiobus_write(struct mii_bus *bus, int phy_addr, int regnum,
 	return bfin_mdio_poll();
 }
 
-static int bfin_mdiobus_reset(struct mii_bus *bus)
-{
-	return 0;
-}
-
 static void bfin_mac_adjust_link(struct net_device *dev)
 {
 	struct bfin_mac_local *lp = netdev_priv(dev);
@@ -1824,7 +1819,6 @@ static int bfin_mii_bus_probe(struct platform_device *pdev)
 		goto out_err_alloc;
 	miibus->read = bfin_mdiobus_read;
 	miibus->write = bfin_mdiobus_write;
-	miibus->reset = bfin_mdiobus_reset;
 
 	miibus->parent = &pdev->dev;
 	miibus->name = "bfin_mii_bus";
