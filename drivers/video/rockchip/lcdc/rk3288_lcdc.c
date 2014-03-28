@@ -1139,7 +1139,7 @@ static int win0_display(struct lcdc_device *lcdc_dev,
 		win->area[0].uv_addr = uv_addr;	
 		lcdc_writel(lcdc_dev, WIN0_YRGB_MST, win->area[0].y_addr); 
 		lcdc_writel(lcdc_dev, WIN0_CBR_MST, win->area[0].uv_addr);
-		lcdc_cfg_done(lcdc_dev);
+		/*lcdc_cfg_done(lcdc_dev);*/
 	}
 	spin_unlock(&lcdc_dev->reg_lock);
 
