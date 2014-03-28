@@ -484,6 +484,17 @@ void assert_force_wake_inactive(struct drm_i915_private *dev_priv)
 #define NEEDS_FORCE_WAKE(dev_priv, reg) \
 	 ((reg) < 0x40000 && (reg) != FORCEWAKE)
 
+#define FORCEWAKE_VLV_RENDER_RANGE_OFFSET(reg) \
+	(((reg) >= 0x2000 && (reg) < 0x4000) ||\
+	((reg) >= 0x5000 && (reg) < 0x8000) ||\
+	((reg) >= 0xB000 && (reg) < 0x12000) ||\
+	((reg) >= 0x2E000 && (reg) < 0x30000))
+
+#define FORCEWAKE_VLV_MEDIA_RANGE_OFFSET(reg)\
+	(((reg) >= 0x12000 && (reg) < 0x14000) ||\
+	((reg) >= 0x22000 && (reg) < 0x24000) ||\
+	((reg) >= 0x30000 && (reg) < 0x40000))
+
 static void
 ilk_dummy_write(struct drm_i915_private *dev_priv)
 {
