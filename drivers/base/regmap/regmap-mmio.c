@@ -47,6 +47,21 @@ static inline void regmap_mmio_regsize_check(size_t reg_size)
 	}
 }
 
+static int regmap_mmio_regbits_check(size_t reg_bits)
+{
+	switch (reg_bits) {
+	case 8:
+	case 16:
+	case 32:
+#ifdef CONFIG_64BIT
+	case 64:
+#endif
+		return 0;
+	default:
+		return -EINVAL;
+	}
+}
+
 static inline void regmap_mmio_count_check(size_t count)
 {
 	BUG_ON(count % 2 != 0);
@@ -191,8 +206,9 @@ static struct regmap_mmio_context *regmap_mmio_gen_context(struct device *dev,
 	int min_stride;
 	int ret;
 
-	if (config->reg_bits != 32)
-		return ERR_PTR(-EINVAL);
+	ret = regmap_mmio_regbits_check(config->reg_bits);
+	if (ret)
+		return ERR_PTR(ret);
 
 	if (config->pad_bits)
 		return ERR_PTR(-EINVAL);
