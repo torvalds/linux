@@ -128,6 +128,20 @@ struct sk_buff *br_handle_vlan(struct net_bridge *br,
 	if (!br->vlan_enabled)
 		goto out;
 
+	/* Vlan filter table must be configured at this point.  The
+	 * only exception is the bridge is set in promisc mode and the
+	 * packet is destined for the bridge device.  In this case
+	 * pass the packet as is.
+	 */
+	if (!pv) {
+		if ((br->dev->flags & IFF_PROMISC) && skb->dev == br->dev) {
+			goto out;
+		} else {
+			kfree_skb(skb);
+			return NULL;
+		}
+	}
+
 	/* At this point, we know that the frame was filtered and contains
 	 * a valid vlan id.  If the vlan id is set in the untagged bitmap,
 	 * send untagged; otherwise, send tagged.
