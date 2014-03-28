@@ -505,6 +505,18 @@ static struct of_device_id bq24296_battery_of_match[] = {
 MODULE_DEVICE_TABLE(of, bq24296_battery_of_match);
 #endif
 
+static int bq24296_battery_suspend(struct i2c_client *client, pm_message_t mesg)
+{
+	cancel_delayed_work_sync(&bq24296_di->usb_detect_work);
+	return 0;
+}
+
+static int bq24296_battery_resume(struct i2c_client *client)
+{
+	schedule_delayed_work(&bq24296_di->usb_detect_work, msecs_to_jiffies(50));
+	return 0;
+}
+
 static int bq24296_battery_probe(struct i2c_client *client,const struct i2c_device_id *id)
 {
 	struct bq24296_device_info *di;
@@ -614,6 +626,8 @@ static struct i2c_driver bq24296_battery_driver = {
 	.probe = bq24296_battery_probe,
 	.remove = bq24296_battery_remove,
 	.shutdown = bq24296_battery_shutdown,
+	.suspend = bq24296_battery_suspend,
+	.resume = bq24296_battery_resume,
 	.id_table = bq24296_id,
 };
 
