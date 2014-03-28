@@ -17,13 +17,7 @@
 
 struct rtl818x_csr {
 
-	union {
-		u8	MAC[6];
-		u8	offset1[6];     /* upper page indexing helpers */
-		__le16	offset2[1];
-		__le32	offset4[1];
-	} __packed;
-
+	u8	MAC[6];
 	u8	reserved_0[2];
 
 	union {
@@ -340,9 +334,9 @@ struct rtl818x_csr {
  * I don't like to introduce a ton of "reserved"..
  * They are for RTL8187SE
  */
-#define REG_ADDR1(addr)	((u8 __iomem *)(&priv->map->offset1[(addr)]))
-#define REG_ADDR2(addr)	((__le16 __iomem *)(&priv->map->offset2[((addr) >> 1)]))
-#define REG_ADDR4(addr)	((__le32 __iomem *)(&priv->map->offset4[((addr) >> 2)]))
+#define REG_ADDR1(addr)	((u8 __iomem *)priv->map + addr)
+#define REG_ADDR2(addr)	((__le16 __iomem *)priv->map + (addr >> 1))
+#define REG_ADDR4(addr)	((__le32 __iomem *)priv->map + (addr >> 2))
 
 #define FEMR_SE		REG_ADDR2(0x1D4)
 #define ARFR		REG_ADDR2(0x1E0)
