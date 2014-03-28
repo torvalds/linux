@@ -664,14 +664,37 @@ static void sk_release_orig_filter(struct sk_filter *fp)
  * 	sk_filter_release_rcu - Release a socket filter by rcu_head
  *	@rcu: rcu_head that contains the sk_filter to free
  */
-void sk_filter_release_rcu(struct rcu_head *rcu)
+static void sk_filter_release_rcu(struct rcu_head *rcu)
 {
 	struct sk_filter *fp = container_of(rcu, struct sk_filter, rcu);
 
 	sk_release_orig_filter(fp);
 	bpf_jit_free(fp);
 }
-EXPORT_SYMBOL(sk_filter_release_rcu);
+
+/**
+ *	sk_filter_release - release a socket filter
+ *	@fp: filter to remove
+ *
+ *	Remove a filter from a socket and release its resources.
+ */
+static void sk_filter_release(struct sk_filter *fp)
+{
+	if (atomic_dec_and_test(&fp->refcnt))
+		call_rcu(&fp->rcu, sk_filter_release_rcu);
+}
+
+void sk_filter_uncharge(struct sock *sk, struct sk_filter *fp)
+{
+	atomic_sub(sk_filter_size(fp->len), &sk->sk_omem_alloc);
+	sk_filter_release(fp);
+}
+
+void sk_filter_charge(struct sock *sk, struct sk_filter *fp)
+{
+	atomic_inc(&fp->refcnt);
+	atomic_add(sk_filter_size(fp->len), &sk->sk_omem_alloc);
+}
 
 static int __sk_prepare_filter(struct sk_filter *fp)
 {

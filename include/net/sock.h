@@ -1621,33 +1621,6 @@ void sk_common_release(struct sock *sk);
 /* Initialise core socket variables */
 void sock_init_data(struct socket *sock, struct sock *sk);
 
-void sk_filter_release_rcu(struct rcu_head *rcu);
-
-/**
- *	sk_filter_release - release a socket filter
- *	@fp: filter to remove
- *
- *	Remove a filter from a socket and release its resources.
- */
-
-static inline void sk_filter_release(struct sk_filter *fp)
-{
-	if (atomic_dec_and_test(&fp->refcnt))
-		call_rcu(&fp->rcu, sk_filter_release_rcu);
-}
-
-static inline void sk_filter_uncharge(struct sock *sk, struct sk_filter *fp)
-{
-	atomic_sub(sk_filter_size(fp->len), &sk->sk_omem_alloc);
-	sk_filter_release(fp);
-}
-
-static inline void sk_filter_charge(struct sock *sk, struct sk_filter *fp)
-{
-	atomic_inc(&fp->refcnt);
-	atomic_add(sk_filter_size(fp->len), &sk->sk_omem_alloc);
-}
-
 /*
  * Socket reference counting postulates.
  *
