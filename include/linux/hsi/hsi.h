@@ -296,6 +296,9 @@ struct hsi_controller *hsi_alloc_controller(unsigned int n_ports, gfp_t flags);
 void hsi_put_controller(struct hsi_controller *hsi);
 int hsi_register_controller(struct hsi_controller *hsi);
 void hsi_unregister_controller(struct hsi_controller *hsi);
+struct hsi_client *hsi_new_client(struct hsi_port *port,
+						struct hsi_board_info *info);
+int hsi_remove_client(struct device *dev, void *data);
 void hsi_port_unregister_clients(struct hsi_port *port);
 
 static inline void hsi_controller_set_drvdata(struct hsi_controller *hsi,

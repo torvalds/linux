@@ -69,14 +69,15 @@ static void hsi_client_release(struct device *dev)
 	kfree(cl);
 }
 
-static void hsi_new_client(struct hsi_port *port, struct hsi_board_info *info)
+struct hsi_client *hsi_new_client(struct hsi_port *port,
+						struct hsi_board_info *info)
 {
 	struct hsi_client *cl;
 	size_t size;
 
 	cl = kzalloc(sizeof(*cl), GFP_KERNEL);
 	if (!cl)
-		return;
+		return NULL;
 
 	cl->tx_cfg = info->tx_cfg;
 	if (cl->tx_cfg.channels) {
@@ -103,7 +104,10 @@ static void hsi_new_client(struct hsi_port *port, struct hsi_board_info *info)
 		pr_err("hsi: failed to register client: %s\n", info->name);
 		put_device(&cl->device);
 	}
+
+	return cl;
 }
+EXPORT_SYMBOL_GPL(hsi_new_client);
 
 static void hsi_scan_board_info(struct hsi_controller *hsi)
 {
@@ -119,12 +123,13 @@ static void hsi_scan_board_info(struct hsi_controller *hsi)
 		}
 }
 
-static int hsi_remove_client(struct device *dev, void *data __maybe_unused)
+int hsi_remove_client(struct device *dev, void *data __maybe_unused)
 {
 	device_unregister(dev);
 
 	return 0;
 }
+EXPORT_SYMBOL_GPL(hsi_remove_client);
 
 static int hsi_remove_port(struct device *dev, void *data __maybe_unused)
 {
