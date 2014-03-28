@@ -310,6 +310,7 @@ ieee80211_determine_chantype(struct ieee80211_sub_if_data *sdata,
 	switch (vht_oper->chan_width) {
 	case IEEE80211_VHT_CHANWIDTH_USE_HT:
 		vht_chandef.width = chandef->width;
+		vht_chandef.center_freq1 = chandef->center_freq1;
 		break;
 	case IEEE80211_VHT_CHANWIDTH_80MHZ:
 		vht_chandef.width = NL80211_CHAN_WIDTH_80;
@@ -359,6 +360,28 @@ ieee80211_determine_chantype(struct ieee80211_sub_if_data *sdata,
 	ret = 0;
 
 out:
+	/*
+	 * When tracking the current AP, don't do any further checks if the
+	 * new chandef is identical to the one we're currently using for the
+	 * connection. This keeps us from playing ping-pong with regulatory,
+	 * without it the following can happen (for example):
+	 *  - connect to an AP with 80 MHz, world regdom allows 80 MHz
+	 *  - AP advertises regdom US
+	 *  - CRDA loads regdom US with 80 MHz prohibited (old database)
+	 *  - the code below detects an unsupported channel, downgrades, and
+	 *    we disconnect from the AP in the caller
+	 *  - disconnect causes CRDA to reload world regdomain and the game
+	 *    starts anew.
+	 * (see https://bugzilla.kernel.org/show_bug.cgi?id=70881)
+	 *
+	 * It seems possible that there are still scenarios with CSA or real
+	 * bandwidth changes where a this could happen, but those cases are
+	 * less common and wouldn't completely prevent using the AP.
+	 */
+	if (tracking &&
+	    cfg80211_chandef_identical(chandef, &sdata->vif.bss_conf.chandef))
+		return ret;
+
 	/* don't print the message below for VHT mismatch if VHT is disabled */
 	if (ret & IEEE80211_STA_DISABLE_VHT)
 		vht_chandef = *chandef;
