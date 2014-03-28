@@ -609,10 +609,13 @@
 
 	dpll_per_clkdcoldo: dpll_per_clkdcoldo {
 		#clock-cells = <0>;
-		compatible = "fixed-factor-clock";
+		compatible = "ti,fixed-factor-clock";
 		clocks = <&dpll_per_ck>;
-		clock-mult = <1>;
-		clock-div = <1>;
+		ti,clock-mult = <1>;
+		ti,clock-div = <1>;
+		ti,autoidle-shift = <8>;
+		reg = <0x2e14>;
+		ti,invert-autoidle-bit;
 	};
 
 	dll_aging_clk_div: dll_aging_clk_div {
