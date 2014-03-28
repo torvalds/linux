@@ -889,10 +889,12 @@ static int dwc_otg_control_usb_probe(struct platform_device *pdev)
 	}
 	gpio_direction_output(control_usb->otg_gpios->gpio, 0);
 
+#ifdef CONFIG_USB20_OTG
 	if(usb20otg_get_status(USB_STATUS_BVABLID)){
 		rk_usb_charger_status = USB_BC_TYPE_SDP;
 		schedule_delayed_work(&control_usb->usb_charger_det_work, HZ/10);
 	}
+#endif
 
 	ret = otg_irq_detect_init(pdev);
 	if (ret < 0)

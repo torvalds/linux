@@ -1614,6 +1614,7 @@ void dwc_otg_pcd_start_check_vbus_work(dwc_otg_pcd_t * pcd)
 */
 int dwc_vbus_status( void )
 {
+#ifdef CONFIG_USB20_OTG
 	dwc_otg_pcd_t *pcd = 0;
 	pcd = gadget_wrapper->pcd;
 
@@ -1621,7 +1622,9 @@ int dwc_vbus_status( void )
 		return 0;
 	else
 		return pcd->vbus_status ;
-
+#else
+	return 0;
+#endif
 }
 EXPORT_SYMBOL(dwc_vbus_status);
 
