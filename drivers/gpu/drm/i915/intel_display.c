@@ -5369,7 +5369,8 @@ static void intel_set_pipe_timings(struct intel_crtc *intel_crtc)
 	enum transcoder cpu_transcoder = intel_crtc->config.cpu_transcoder;
 	struct drm_display_mode *adjusted_mode =
 		&intel_crtc->config.adjusted_mode;
-	uint32_t vsyncshift = 0, crtc_vtotal, crtc_vblank_end;
+	uint32_t crtc_vtotal, crtc_vblank_end;
+	int vsyncshift = 0;
 
 	/* We need to be careful not to changed the adjusted mode, for otherwise
 	 * the hw state checker will get angry at the mismatch. */
@@ -5386,6 +5387,8 @@ static void intel_set_pipe_timings(struct intel_crtc *intel_crtc)
 		else
 			vsyncshift = adjusted_mode->crtc_hsync_start -
 				adjusted_mode->crtc_htotal / 2;
+		if (vsyncshift < 0)
+			vsyncshift += adjusted_mode->crtc_htotal;
 	}
 
 	if (INTEL_INFO(dev)->gen > 3)
