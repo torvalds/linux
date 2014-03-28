@@ -1362,13 +1362,10 @@ static void ath10k_wmi_event_host_swba(struct ath10k *ar, struct sk_buff *skb)
 	struct sk_buff *bcn;
 	int ret, vdev_id = 0;
 
-	ath10k_dbg(ATH10K_DBG_MGMT, "WMI_HOST_SWBA_EVENTID\n");
-
 	ev = (struct wmi_host_swba_event *)skb->data;
 	map = __le32_to_cpu(ev->vdev_map);
 
-	ath10k_dbg(ATH10K_DBG_MGMT, "host swba:\n"
-		   "-vdev map 0x%x\n",
+	ath10k_dbg(ATH10K_DBG_MGMT, "mgmt swba vdev_map 0x%x\n",
 		   ev->vdev_map);
 
 	for (; map; map >>= 1, vdev_id++) {
@@ -1385,12 +1382,7 @@ static void ath10k_wmi_event_host_swba(struct ath10k *ar, struct sk_buff *skb)
 		bcn_info = &ev->bcn_info[i];
 
 		ath10k_dbg(ATH10K_DBG_MGMT,
-			   "-bcn_info[%d]:\n"
-			   "--tim_len %d\n"
-			   "--tim_mcast %d\n"
-			   "--tim_changed %d\n"
-			   "--tim_num_ps_pending %d\n"
-			   "--tim_bitmap 0x%08x%08x%08x%08x\n",
+			   "mgmt event bcn_info %d tim_len %d mcast %d changed %d num_ps_pending %d bitmap 0x%08x%08x%08x%08x\n",
 			   i,
 			   __le32_to_cpu(bcn_info->tim_info.tim_len),
 			   __le32_to_cpu(bcn_info->tim_info.tim_mcast),
