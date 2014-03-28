@@ -9,14 +9,12 @@
  *      modify it under the terms of the GNU General Public License
  *      as published by the Free Software Foundation; either version
  *      2 of the License, or (at your option) any later version.
- */
-
-/*
- * 	Changes:
- * 	Yuji SEKIYA @USAGI:	Support default route on router node;
- * 				remove ip6_null_entry from the top of
- * 				routing table.
- * 	Ville Nuorvala:		Fixed routing subtrees.
+ *
+ *	Changes:
+ *	Yuji SEKIYA @USAGI:	Support default route on router node;
+ *				remove ip6_null_entry from the top of
+ *				routing table.
+ *	Ville Nuorvala:		Fixed routing subtrees.
  */
 
 #define pr_fmt(fmt) "IPv6: " fmt
@@ -138,7 +136,7 @@ static __inline__ __be32 addr_bit_set(const void *token, int fn_bit)
 	const __be32 *addr = token;
 	/*
 	 * Here,
-	 * 	1 << ((~fn_bit ^ BITOP_BE32_SWIZZLE) & 0x1f)
+	 *	1 << ((~fn_bit ^ BITOP_BE32_SWIZZLE) & 0x1f)
 	 * is optimized version of
 	 *	htonl(1 << ((~fn_bit)&0x1F))
 	 * See include/asm-generic/bitops/le.h.
@@ -485,7 +483,7 @@ static struct fib6_node *fib6_add_1(struct fib6_node *root,
 		fn->fn_sernum = sernum;
 		dir = addr_bit_set(addr, fn->fn_bit);
 		pn = fn;
-		fn = dir ? fn->right: fn->left;
+		fn = dir ? fn->right : fn->left;
 	} while (fn);
 
 	if (!allow_create) {
@@ -1254,10 +1252,10 @@ static struct fib6_node *fib6_repair_tree(struct net *net,
 					w->node = child;
 					if (children&2) {
 						RT6_TRACE("W %p adjusted by delnode 2, s=%d\n", w, w->state);
-						w->state = w->state>=FWS_R ? FWS_U : FWS_INIT;
+						w->state = w->state >= FWS_R ? FWS_U : FWS_INIT;
 					} else {
 						RT6_TRACE("W %p adjusted by delnode 2, s=%d\n", w, w->state);
-						w->state = w->state>=FWS_C ? FWS_U : FWS_INIT;
+						w->state = w->state >= FWS_C ? FWS_U : FWS_INIT;
 					}
 				}
 			}
@@ -1355,7 +1353,7 @@ int fib6_del(struct rt6_info *rt, struct nl_info *info)
 	struct rt6_info **rtp;
 
 #if RT6_DEBUG >= 2
-	if (rt->dst.obsolete>0) {
+	if (rt->dst.obsolete > 0) {
 		WARN_ON(fn != NULL);
 		return -ENOENT;
 	}
@@ -1748,7 +1746,7 @@ out_rt6_stats:
 	kfree(net->ipv6.rt6_stats);
 out_timer:
 	return -ENOMEM;
- }
+}
 
 static void fib6_net_exit(struct net *net)
 {
