@@ -131,6 +131,12 @@ struct ath10k_target_stats {
 	u32 cycle_count;
 	u32 phy_err_count;
 	u32 chan_tx_power;
+	u32 ack_rx_bad;
+	u32 rts_bad;
+	u32 rts_good;
+	u32 fcs_bad;
+	u32 no_beacons;
+	u32 mib_int_count;
 
 	/* PDEV TX stats */
 	s32 comp_queued;

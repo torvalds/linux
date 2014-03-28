@@ -2834,7 +2834,7 @@ struct wmi_stats_event {
  * PDEV statistics
  * TODO: add all PDEV stats here
  */
-struct wmi_pdev_stats {
+struct wmi_pdev_stats_old {
 	__le32 chan_nf;        /* Channel noise floor */
 	__le32 tx_frame_count; /* TX frame count */
 	__le32 rx_frame_count; /* RX frame count */
@@ -2843,6 +2843,23 @@ struct wmi_pdev_stats {
 	__le32 phy_err_count;  /* Phy error count */
 	__le32 chan_tx_pwr;    /* channel tx power */
 	struct wal_dbg_stats wal; /* WAL dbg stats */
+} __packed;
+
+struct wmi_pdev_stats_10x {
+	__le32 chan_nf;        /* Channel noise floor */
+	__le32 tx_frame_count; /* TX frame count */
+	__le32 rx_frame_count; /* RX frame count */
+	__le32 rx_clear_count; /* rx clear count */
+	__le32 cycle_count;    /* cycle count */
+	__le32 phy_err_count;  /* Phy error count */
+	__le32 chan_tx_pwr;    /* channel tx power */
+	struct wal_dbg_stats wal; /* WAL dbg stats */
+	__le32 ack_rx_bad;
+	__le32 rts_bad;
+	__le32 rts_good;
+	__le32 fcs_bad;
+	__le32 no_beacons;
+	__le32 mib_int_count;
 } __packed;
 
 /*

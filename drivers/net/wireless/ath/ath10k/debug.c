@@ -161,7 +161,7 @@ void ath10k_debug_read_target_stats(struct ath10k *ar,
 	u8 *tmp = ev->data;
 	struct ath10k_target_stats *stats;
 	int num_pdev_stats, num_vdev_stats, num_peer_stats;
-	struct wmi_pdev_stats *ps;
+	struct wmi_pdev_stats_10x *ps;
 	int i;
 
 	spin_lock_bh(&ar->data_lock);
@@ -173,7 +173,7 @@ void ath10k_debug_read_target_stats(struct ath10k *ar,
 	num_peer_stats = __le32_to_cpu(ev->num_peer_stats); /* 0 or max peers */
 
 	if (num_pdev_stats) {
-		ps = (struct wmi_pdev_stats *)tmp;
+		ps = (struct wmi_pdev_stats_10x *)tmp;
 
 		stats->ch_noise_floor = __le32_to_cpu(ps->chan_nf);
 		stats->tx_frame_count = __le32_to_cpu(ps->tx_frame_count);
@@ -228,7 +228,18 @@ void ath10k_debug_read_target_stats(struct ath10k *ar,
 		stats->phy_err_drop = __le32_to_cpu(ps->wal.rx.phy_err_drop);
 		stats->mpdu_errs = __le32_to_cpu(ps->wal.rx.mpdu_errs);
 
-		tmp += sizeof(struct wmi_pdev_stats);
+		if (test_bit(ATH10K_FW_FEATURE_WMI_10X,
+			     ar->fw_features)) {
+			stats->ack_rx_bad = __le32_to_cpu(ps->ack_rx_bad);
+			stats->rts_bad = __le32_to_cpu(ps->rts_bad);
+			stats->rts_good = __le32_to_cpu(ps->rts_good);
+			stats->fcs_bad = __le32_to_cpu(ps->fcs_bad);
+			stats->no_beacons = __le32_to_cpu(ps->no_beacons);
+			stats->mib_int_count = __le32_to_cpu(ps->mib_int_count);
+			tmp += sizeof(struct wmi_pdev_stats_10x);
+		} else {
+			tmp += sizeof(struct wmi_pdev_stats_old);
+		}
 	}
 
 	/* 0 or max vdevs */
@@ -327,6 +338,16 @@ static ssize_t ath10k_read_fw_stats(struct file *file, char __user *user_buf,
 			 "Cycle count", fw_stats->cycle_count);
 	len += scnprintf(buf + len, buf_len - len, "%30s %10u\n",
 			 "PHY error count", fw_stats->phy_err_count);
+	len += scnprintf(buf + len, buf_len - len, "%30s %10u\n",
+			 "RTS bad count", fw_stats->rts_bad);
+	len += scnprintf(buf + len, buf_len - len, "%30s %10u\n",
+			 "RTS good count", fw_stats->rts_good);
+	len += scnprintf(buf + len, buf_len - len, "%30s %10u\n",
+			 "FCS bad count", fw_stats->fcs_bad);
+	len += scnprintf(buf + len, buf_len - len, "%30s %10u\n",
+			 "No beacon count", fw_stats->no_beacons);
+	len += scnprintf(buf + len, buf_len - len, "%30s %10u\n",
+			 "MIB int count", fw_stats->mib_int_count);
 
 	len += scnprintf(buf + len, buf_len - len, "\n");
 	len += scnprintf(buf + len, buf_len - len, "%30s\n",
