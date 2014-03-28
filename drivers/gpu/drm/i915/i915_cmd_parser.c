@@ -407,12 +407,7 @@ static const u32 gen7_render_regs[] = {
 	REG64(CL_PRIMITIVES_COUNT),
 	REG64(PS_INVOCATION_COUNT),
 	REG64(PS_DEPTH_COUNT),
-	/*
-	 * FIXME: This is just to keep mesa working for now, we need to check
-	 * that mesa resets this again and that it doesn't use any of the
-	 * special modes which write into the gtt.
-	 */
-	OACONTROL,
+	OACONTROL, /* Only allowed for LRI and SRM. See below. */
 	REG64(GEN7_SO_NUM_PRIMS_WRITTEN(0)),
 	REG64(GEN7_SO_NUM_PRIMS_WRITTEN(1)),
 	REG64(GEN7_SO_NUM_PRIMS_WRITTEN(2)),
@@ -761,7 +756,8 @@ bool i915_needs_cmd_parser(struct intel_ring_buffer *ring)
 static bool check_cmd(const struct intel_ring_buffer *ring,
 		      const struct drm_i915_cmd_descriptor *desc,
 		      const u32 *cmd,
-		      const bool is_master)
+		      const bool is_master,
+		      bool *oacontrol_set)
 {
 	if (desc->flags & CMD_DESC_REJECT) {
 		DRM_DEBUG_DRIVER("CMD: Rejected command: 0x%08X\n", *cmd);
@@ -776,6 +772,23 @@ static bool check_cmd(const struct intel_ring_buffer *ring,
 
 	if (desc->flags & CMD_DESC_REGISTER) {
 		u32 reg_addr = cmd[desc->reg.offset] & desc->reg.mask;
+
+		/*
+		 * OACONTROL requires some special handling for writes. We
+		 * want to make sure that any batch which enables OA also
+		 * disables it before the end of the batch. The goal is to
+		 * prevent one process from snooping on the perf data from
+		 * another process. To do that, we need to check the value
+		 * that will be written to the register. Hence, limit
+		 * OACONTROL writes to only MI_LOAD_REGISTER_IMM commands.
+		 */
+		if (reg_addr == OACONTROL) {
+			if (desc->cmd.value == MI_LOAD_REGISTER_MEM)
+				return false;
+
+			if (desc->cmd.value == MI_LOAD_REGISTER_IMM(1))
+				*oacontrol_set = (cmd[2] != 0);
+		}
 
 		if (!valid_reg(ring->reg_table,
 			       ring->reg_count, reg_addr)) {
@@ -851,6 +864,7 @@ int i915_parse_cmds(struct intel_ring_buffer *ring,
 	u32 *cmd, *batch_base, *batch_end;
 	struct drm_i915_cmd_descriptor default_desc = { 0 };
 	int needs_clflush = 0;
+	bool oacontrol_set = false; /* OACONTROL tracking. See check_cmd() */
 
 	ret = i915_gem_obj_prepare_shmem_read(batch_obj, &needs_clflush);
 	if (ret) {
@@ -900,12 +914,17 @@ int i915_parse_cmds(struct intel_ring_buffer *ring,
 			break;
 		}
 
-		if (!check_cmd(ring, desc, cmd, is_master)) {
+		if (!check_cmd(ring, desc, cmd, is_master, &oacontrol_set)) {
 			ret = -EINVAL;
 			break;
 		}
 
 		cmd += length;
+	}
+
+	if (oacontrol_set) {
+		DRM_DEBUG_DRIVER("CMD: batch set OACONTROL but did not clear it\n");
+		ret = -EINVAL;
 	}
 
 	if (cmd >= batch_end) {
