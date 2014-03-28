@@ -32,7 +32,7 @@ static char *integrity_status_msg[] = {
 };
 char *evm_hmac = "hmac(sha1)";
 char *evm_hash = "sha1";
-int evm_hmac_version = CONFIG_EVM_HMAC_VERSION;
+int evm_hmac_attrs;
 
 char *evm_config_xattrnames[] = {
 #ifdef CONFIG_SECURITY_SELINUX
@@ -56,6 +56,14 @@ static int __init evm_set_fixmode(char *str)
 	return 0;
 }
 __setup("evm=", evm_set_fixmode);
+
+static void __init evm_init_config(void)
+{
+#ifdef CONFIG_EVM_ATTR_FSUUID
+	evm_hmac_attrs |= EVM_ATTR_FSUUID;
+#endif
+	pr_info("HMAC attrs: 0x%x\n", evm_hmac_attrs);
+}
 
 static int evm_find_protected_xattrs(struct dentry *dentry)
 {
@@ -431,6 +439,8 @@ EXPORT_SYMBOL_GPL(evm_inode_init_security);
 static int __init init_evm(void)
 {
 	int error;
+
+	evm_init_config();
 
 	error = evm_init_secfs();
 	if (error < 0) {

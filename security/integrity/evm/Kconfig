@@ -12,15 +12,24 @@ config EVM
 
 	  If you are unsure how to answer this question, answer N.
 
-config EVM_HMAC_VERSION
-	int "EVM HMAC version"
-	depends on EVM
-	default 2
-	help
-	  This options adds EVM HMAC version support.
-	  1 - original version
-	  2 - add per filesystem unique identifier (UUID) (default)
+if EVM
 
-	  WARNING: changing the HMAC calculation method or adding 
+menu "EVM options"
+
+config EVM_ATTR_FSUUID
+	bool "FSUUID (version 2)"
+	default y
+	depends on EVM
+	help
+	  Include filesystem UUID for HMAC calculation.
+
+	  Default value is 'selected', which is former version 2.
+	  if 'not selected', it is former version 1
+
+	  WARNING: changing the HMAC calculation method or adding
 	  additional info to the calculation, requires existing EVM
-	  labeled file systems to be relabeled.  
+	  labeled file systems to be relabeled.
+
+endmenu
+
+endif
