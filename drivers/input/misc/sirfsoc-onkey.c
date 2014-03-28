@@ -136,6 +136,7 @@ static int sirfsoc_pwrc_probe(struct platform_device *pdev)
 	pwrcdrv->input->name = "sirfsoc pwrckey";
 	pwrcdrv->input->phys = "pwrc/input0";
 	pwrcdrv->input->evbit[0] = BIT_MASK(EV_KEY);
+	input_set_capability(pwrcdrv->input, EV_KEY, KEY_POWER);
 
 	INIT_DELAYED_WORK(&pwrcdrv->work, sirfsoc_pwrc_report_event);
 
