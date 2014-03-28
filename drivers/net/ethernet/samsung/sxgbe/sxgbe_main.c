@@ -2013,7 +2013,7 @@ static const struct net_device_ops sxgbe_netdev_ops = {
 };
 
 /* Get the hardware ops */
-void sxgbe_get_ops(struct sxgbe_ops * const ops_ptr)
+static void sxgbe_get_ops(struct sxgbe_ops * const ops_ptr)
 {
 	ops_ptr->mac		= sxgbe_get_core_ops();
 	ops_ptr->desc		= sxgbe_get_desc_ops();

@@ -200,14 +200,14 @@ static int sxgbe_platform_resume(struct device *dev)
 	return sxgbe_resume(ndev);
 }
 
-int sxgbe_platform_freeze(struct device *dev)
+static int sxgbe_platform_freeze(struct device *dev)
 {
 	struct net_device *ndev = dev_get_drvdata(dev);
 
 	return sxgbe_freeze(ndev);
 }
 
-int sxgbe_platform_restore(struct device *dev)
+static int sxgbe_platform_restore(struct device *dev)
 {
 	struct net_device *ndev = dev_get_drvdata(dev);
 
@@ -231,7 +231,7 @@ static const struct of_device_id sxgbe_dt_ids[] = {
 };
 MODULE_DEVICE_TABLE(of, sxgbe_dt_ids);
 
-struct platform_driver sxgbe_platform_driver = {
+static struct platform_driver sxgbe_platform_driver = {
 	.probe	= sxgbe_platform_probe,
 	.remove	= sxgbe_platform_remove,
 	.driver	= {
