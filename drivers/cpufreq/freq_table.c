@@ -33,7 +33,7 @@ int cpufreq_frequency_table_cpuinfo(struct cpufreq_policy *policy,
 			continue;
 		}
 		if (!cpufreq_boost_enabled()
-		    && table[i].driver_data == CPUFREQ_BOOST_FREQ)
+		    && (table[i].flags & CPUFREQ_BOOST_FREQ))
 			continue;
 
 		pr_debug("table entry %u: %u kHz\n", i, freq);
@@ -229,7 +229,7 @@ static ssize_t show_available_freqs(struct cpufreq_policy *policy, char *buf,
 		 * show_boost = false and driver_data != BOOST freq
 		 * display NON BOOST freqs
 		 */
-		if (show_boost ^ (table[i].driver_data == CPUFREQ_BOOST_FREQ))
+		if (show_boost ^ (table[i].flags & CPUFREQ_BOOST_FREQ))
 			continue;
 
 		count += sprintf(&buf[count], "%d ", table[i].frequency);

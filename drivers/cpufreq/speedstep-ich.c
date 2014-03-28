@@ -49,9 +49,9 @@ static u32 pmbase;
  * are in kHz for the time being.
  */
 static struct cpufreq_frequency_table speedstep_freqs[] = {
-	{SPEEDSTEP_HIGH,	0},
-	{SPEEDSTEP_LOW,		0},
-	{0,			CPUFREQ_TABLE_END},
+	{0, SPEEDSTEP_HIGH,	0},
+	{0, SPEEDSTEP_LOW,	0},
+	{0, 0,			CPUFREQ_TABLE_END},
 };
 
 
