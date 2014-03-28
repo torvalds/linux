@@ -336,7 +336,7 @@ restart:
 	b_ptr->net_plane = bearer_id + 'A';
 	b_ptr->priority = priority;
 
-	res = tipc_disc_create(b_ptr, &b_ptr->bcast_addr, disc_domain);
+	res = tipc_disc_create(b_ptr, &b_ptr->bcast_addr);
 	if (res) {
 		bearer_disable(b_ptr, false);
 		pr_warn("Bearer <%s> rejected, discovery object creation failed\n",
@@ -363,7 +363,7 @@ static int tipc_reset_bearer(struct tipc_bearer *b_ptr)
 	pr_info("Resetting bearer <%s>\n", b_ptr->name);
 	tipc_disc_delete(b_ptr->link_req);
 	tipc_link_reset_list(b_ptr->identity);
-	tipc_disc_create(b_ptr, &b_ptr->bcast_addr, b_ptr->domain);
+	tipc_disc_create(b_ptr, &b_ptr->bcast_addr);
 	read_unlock_bh(&tipc_net_lock);
 	return 0;
 }
