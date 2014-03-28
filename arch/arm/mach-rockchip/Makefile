@@ -14,3 +14,4 @@ obj-$(CONFIG_RK_VCODEC) += vcodec_service.o
 obj-$(CONFIG_RK_VPU) += vpu_service.o
 obj-$(CONFIG_RK_PL330_DMA_TEST) += dma_memcpy_test.o
 obj-$(CONFIG_BLOCK_RKNAND) += rknandbase.o
+obj-$(CONFIG_RK_PM_TESTS) += rk_pm_tests/

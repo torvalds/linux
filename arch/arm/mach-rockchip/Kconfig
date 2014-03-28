@@ -54,6 +54,11 @@ config DVFS
 	select PM_OPP
 	select CPU_FREQ
 
+config RK_PM_TESTS
+	bool "/sys/pm_tests/ support"
+	default n
+	select DVFS
+
 config RK_VPU
 	tristate "VPU (Video Processing Unit) service driver in kernel"
 	depends on ARCH_ROCKCHIP
