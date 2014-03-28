@@ -577,6 +577,10 @@
 		};
 	};
 
+	fimd@11c00000 {
+		status = "okay";
+	};
+
 	camera {
 		pinctrl-0 = <&cam_port_b_clk_active>;
 		pinctrl-names = "default";
