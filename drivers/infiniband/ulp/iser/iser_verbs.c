@@ -1178,9 +1178,10 @@ u8 iser_check_task_pi_status(struct iscsi_iser_task *iser_task,
 			do_div(sector_off, sector_size + 8);
 			*sector = scsi_get_lba(iser_task->sc) + sector_off;
 
-			pr_err("PI error found type %d at sector %lx "
+			pr_err("PI error found type %d at sector %llx "
 			       "expected %x vs actual %x\n",
-			       mr_status.sig_err.err_type, *sector,
+			       mr_status.sig_err.err_type,
+			       (unsigned long long)*sector,
 			       mr_status.sig_err.expected,
 			       mr_status.sig_err.actual);
 
