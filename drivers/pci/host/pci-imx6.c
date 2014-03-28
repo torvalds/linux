@@ -25,6 +25,7 @@
 #include <linux/resource.h>
 #include <linux/signal.h>
 #include <linux/types.h>
+#include <linux/interrupt.h>
 
 #include "pcie-designware.h"
 
@@ -314,6 +315,13 @@ static int imx6_pcie_wait_for_link(struct pcie_port *pp)
 	return 0;
 }
 
+static irqreturn_t imx6_pcie_msi_handler(int irq, void *arg)
+{
+	struct pcie_port *pp = arg;
+
+	return dw_handle_msi_irq(pp);
+}
+
 static int imx6_pcie_start_link(struct pcie_port *pp)
 {
 	struct imx6_pcie *imx6_pcie = to_imx6_pcie(pp);
@@ -388,6 +396,9 @@ static void imx6_pcie_host_init(struct pcie_port *pp)
 	dw_pcie_setup_rc(pp);
 
 	imx6_pcie_start_link(pp);
+
+	if (IS_ENABLED(CONFIG_PCI_MSI))
+		dw_pcie_msi_init(pp);
 }
 
 static void imx6_pcie_reset_phy(struct pcie_port *pp)
@@ -476,6 +487,22 @@ static int __init imx6_add_pcie_port(struct pcie_port *pp,
 			struct platform_device *pdev)
 {
 	int ret;
+
+	if (IS_ENABLED(CONFIG_PCI_MSI)) {
+		pp->msi_irq = platform_get_irq_byname(pdev, "msi");
+		if (pp->msi_irq <= 0) {
+			dev_err(&pdev->dev, "failed to get MSI irq\n");
+			return -ENODEV;
+		}
+
+		ret = devm_request_irq(&pdev->dev, pp->msi_irq,
+		                       imx6_pcie_msi_handler,
+		                       IRQF_SHARED, "mx6-pcie-msi", pp);
+		if (ret) {
+			dev_err(&pdev->dev, "failed to request MSI irq\n");
+			return -ENODEV;
+		}
+	}
 
 	pp->root_bus_nr = -1;
 	pp->ops = &imx6_pcie_host_ops;
