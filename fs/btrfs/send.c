@@ -493,6 +493,7 @@ static struct btrfs_path *alloc_path_for_send(void)
 		return NULL;
 	path->search_commit_root = 1;
 	path->skip_locking = 1;
+	path->need_commit_sem = 1;
 	return path;
 }
 
@@ -771,29 +772,22 @@ out:
 /*
  * Helper function to retrieve some fields from an inode item.
  */
-static int get_inode_info(struct btrfs_root *root,
-			  u64 ino, u64 *size, u64 *gen,
-			  u64 *mode, u64 *uid, u64 *gid,
-			  u64 *rdev)
+static int __get_inode_info(struct btrfs_root *root, struct btrfs_path *path,
+			  u64 ino, u64 *size, u64 *gen, u64 *mode, u64 *uid,
+			  u64 *gid, u64 *rdev)
 {
 	int ret;
 	struct btrfs_inode_item *ii;
 	struct btrfs_key key;
-	struct btrfs_path *path;
-
-	path = alloc_path_for_send();
-	if (!path)
-		return -ENOMEM;
 
 	key.objectid = ino;
 	key.type = BTRFS_INODE_ITEM_KEY;
 	key.offset = 0;
 	ret = btrfs_search_slot(NULL, root, &key, path, 0, 0);
-	if (ret < 0)
-		goto out;
 	if (ret) {
-		ret = -ENOENT;
-		goto out;
+		if (ret > 0)
+			ret = -ENOENT;
+		return ret;
 	}
 
 	ii = btrfs_item_ptr(path->nodes[0], path->slots[0],
@@ -811,7 +805,22 @@ static int get_inode_info(struct btrfs_root *root,
 	if (rdev)
 		*rdev = btrfs_inode_rdev(path->nodes[0], ii);
 
-out:
+	return ret;
+}
+
+static int get_inode_info(struct btrfs_root *root,
+			  u64 ino, u64 *size, u64 *gen,
+			  u64 *mode, u64 *uid, u64 *gid,
+			  u64 *rdev)
+{
+	struct btrfs_path *path;
+	int ret;
+
+	path = alloc_path_for_send();
+	if (!path)
+		return -ENOMEM;
+	ret = __get_inode_info(root, path, ino, size, gen, mode, uid, gid,
+			       rdev);
 	btrfs_free_path(path);
 	return ret;
 }
@@ -1085,6 +1094,7 @@ out:
 struct backref_ctx {
 	struct send_ctx *sctx;
 
+	struct btrfs_path *path;
 	/* number of total found references */
 	u64 found;
 
@@ -1155,8 +1165,9 @@ static int __iterate_backrefs(u64 ino, u64 offset, u64 root, void *ctx_)
 	 * There are inodes that have extents that lie behind its i_size. Don't
 	 * accept clones from these extents.
 	 */
-	ret = get_inode_info(found->root, ino, &i_size, NULL, NULL, NULL, NULL,
-			NULL);
+	ret = __get_inode_info(found->root, bctx->path, ino, &i_size, NULL, NULL,
+			       NULL, NULL, NULL);
+	btrfs_release_path(bctx->path);
 	if (ret < 0)
 		return ret;
 
@@ -1235,11 +1246,16 @@ static int find_extent_clone(struct send_ctx *sctx,
 	if (!tmp_path)
 		return -ENOMEM;
 
+	/* We only use this path under the commit sem */
+	tmp_path->need_commit_sem = 0;
+
 	backref_ctx = kmalloc(sizeof(*backref_ctx), GFP_NOFS);
 	if (!backref_ctx) {
 		ret = -ENOMEM;
 		goto out;
 	}
+
+	backref_ctx->path = tmp_path;
 
 	if (data_offset >= ino_size) {
 		/*

@@ -2769,9 +2769,13 @@ again:
 		 * the commit roots are read only
 		 * so we always do read locks
 		 */
+		if (p->need_commit_sem)
+			down_read(&root->fs_info->commit_root_sem);
 		b = root->commit_root;
 		extent_buffer_get(b);
 		level = btrfs_header_level(b);
+		if (p->need_commit_sem)
+			up_read(&root->fs_info->commit_root_sem);
 		if (!p->skip_locking)
 			btrfs_tree_read_lock(b);
 	} else {
@@ -5436,6 +5440,7 @@ int btrfs_compare_trees(struct btrfs_root *left_root,
 	 *   the right if possible or go up and right.
 	 */
 
+	down_read(&left_root->fs_info->commit_root_sem);
 	left_level = btrfs_header_level(left_root->commit_root);
 	left_root_level = left_level;
 	left_path->nodes[left_level] = left_root->commit_root;
@@ -5445,6 +5450,7 @@ int btrfs_compare_trees(struct btrfs_root *left_root,
 	right_root_level = right_level;
 	right_path->nodes[right_level] = right_root->commit_root;
 	extent_buffer_get(right_path->nodes[right_level]);
+	up_read(&left_root->fs_info->commit_root_sem);
 
 	if (left_level == 0)
 		btrfs_item_key_to_cpu(left_path->nodes[left_level],
