@@ -4431,8 +4431,7 @@ void cgroup_post_fork(struct task_struct *child)
  * notify_on_release(), then leave the task attached to the root cgroup in
  * each hierarchy for the remainder of its exit.  No need to bother with
  * init_css_set refcnting.  init_css_set never goes away and we can't race
- * with migration path - either PF_EXITING is visible to migration path or
- * @tsk never got on the tasklist.
+ * with migration path - PF_EXITING is visible to migration path.
  */
 void cgroup_exit(struct task_struct *tsk, int run_callbacks)
 {
