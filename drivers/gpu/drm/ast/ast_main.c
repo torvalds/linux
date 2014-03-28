@@ -136,6 +136,31 @@ static int ast_detect_chip(struct drm_device *dev)
 		break;
 	}
 
+	ast->tx_chip_type = AST_TX_NONE;
+	jreg = ast_get_index_reg_mask(ast, AST_IO_CRTC_PORT, 0xa3, 0xff);
+	if (jreg & 0x80)
+		ast->tx_chip_type = AST_TX_SIL164;
+	if ((ast->chip == AST2300) || (ast->chip == AST2400)) {
+		jreg = ast_get_index_reg_mask(ast, AST_IO_CRTC_PORT, 0xd1, 0xff);
+		switch (jreg) {
+		case 0x04:
+			ast->tx_chip_type = AST_TX_SIL164;
+			break;
+		case 0x08:
+			ast->dp501_fw_addr = kzalloc(32*1024, GFP_KERNEL);
+			if (ast->dp501_fw_addr) {
+				/* backup firmware */
+				if (ast_backup_fw(dev, ast->dp501_fw_addr, 32*1024)) {
+					kfree(ast->dp501_fw_addr);
+					ast->dp501_fw_addr = NULL;
+				}
+			}
+			/* fallthrough */
+		case 0x0c:
+			ast->tx_chip_type = AST_TX_DP501;
+		}
+	}
+
 	return 0;
 }
 
@@ -289,17 +314,32 @@ static u32 ast_get_vram_info(struct drm_device *dev)
 {
 	struct ast_private *ast = dev->dev_private;
 	u8 jreg;
-
+	u32 vram_size;
 	ast_open_key(ast);
 
+	vram_size = AST_VIDMEM_DEFAULT_SIZE;
 	jreg = ast_get_index_reg_mask(ast, AST_IO_CRTC_PORT, 0xaa, 0xff);
 	switch (jreg & 3) {
-	case 0: return AST_VIDMEM_SIZE_8M;
-	case 1: return AST_VIDMEM_SIZE_16M;
-	case 2: return AST_VIDMEM_SIZE_32M;
-	case 3: return AST_VIDMEM_SIZE_64M;
+	case 0: vram_size = AST_VIDMEM_SIZE_8M; break;
+	case 1: vram_size = AST_VIDMEM_SIZE_16M; break;
+	case 2: vram_size = AST_VIDMEM_SIZE_32M; break;
+	case 3: vram_size = AST_VIDMEM_SIZE_64M; break;
 	}
-	return AST_VIDMEM_DEFAULT_SIZE;
+
+	jreg = ast_get_index_reg_mask(ast, AST_IO_CRTC_PORT, 0x99, 0xff);
+	switch (jreg & 0x03) {
+	case 1:
+		vram_size -= 0x100000;
+		break;
+	case 2:
+		vram_size -= 0x200000;
+		break;
+	case 3:
+		vram_size -= 0x400000;
+		break;
+	}
+
+	return vram_size;
 }
 
 int ast_driver_load(struct drm_device *dev, unsigned long flags)
@@ -376,6 +416,7 @@ int ast_driver_unload(struct drm_device *dev)
 {
 	struct ast_private *ast = dev->dev_private;
 
+	kfree(ast->dp501_fw_addr);
 	ast_mode_fini(dev);
 	ast_fbdev_fini(dev);
 	drm_mode_config_cleanup(dev);

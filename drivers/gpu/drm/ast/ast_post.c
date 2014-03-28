@@ -107,7 +107,7 @@ ast_set_def_ext_reg(struct drm_device *dev)
 	ast_set_index_reg_mask(ast, AST_IO_CRTC_PORT, 0xb6, 0xff, reg);
 }
 
-static u32 ast_mindwm(struct ast_private *ast, u32 r)
+u32 ast_mindwm(struct ast_private *ast, u32 r)
 {
 	uint32_t data;
 
@@ -120,7 +120,7 @@ static u32 ast_mindwm(struct ast_private *ast, u32 r)
 	return ast_read32(ast, 0x10000 + (r & 0x0000ffff));
 }
 
-static void ast_moutdwm(struct ast_private *ast, u32 r, u32 v)
+void ast_moutdwm(struct ast_private *ast, u32 r, u32 v)
 {
 	uint32_t data;
 	ast_write32(ast, 0xf004, r & 0xffff0000);
@@ -378,6 +378,8 @@ void ast_post_gpu(struct drm_device *dev)
 		ast_init_dram_2300(dev);
 	else
 		ast_init_dram_reg(dev);
+
+	ast_init_3rdtx(dev);
 }
 
 /* AST 2300 DRAM settings */

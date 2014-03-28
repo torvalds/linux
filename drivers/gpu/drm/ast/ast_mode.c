@@ -460,9 +460,13 @@ static void ast_crtc_dpms(struct drm_crtc *crtc, int mode)
 	case DRM_MODE_DPMS_STANDBY:
 	case DRM_MODE_DPMS_SUSPEND:
 		ast_set_index_reg_mask(ast, AST_IO_SEQ_PORT, 0x1, 0xdf, 0);
+		if (ast->tx_chip_type == AST_TX_DP501)
+			ast_set_dp501_video_output(crtc->dev, 1);
 		ast_crtc_load_lut(crtc);
 		break;
 	case DRM_MODE_DPMS_OFF:
+		if (ast->tx_chip_type == AST_TX_DP501)
+			ast_set_dp501_video_output(crtc->dev, 0);
 		ast_set_index_reg_mask(ast, AST_IO_SEQ_PORT, 0x1, 0xdf, 0x20);
 		break;
 	}
@@ -738,10 +742,24 @@ static int ast_encoder_init(struct drm_device *dev)
 static int ast_get_modes(struct drm_connector *connector)
 {
 	struct ast_connector *ast_connector = to_ast_connector(connector);
+	struct ast_private *ast = connector->dev->dev_private;
 	struct edid *edid;
 	int ret;
+	bool flags = false;
+	if (ast->tx_chip_type == AST_TX_DP501) {
+		ast->dp501_maxclk = 0xff;
+		edid = kmalloc(128, GFP_KERNEL);
+		if (!edid)
+			return -ENOMEM;
 
-	edid = drm_get_edid(connector, &ast_connector->i2c->adapter);
+		flags = ast_dp501_read_edid(connector->dev, (u8 *)edid);
+		if (flags)
+			ast->dp501_maxclk = ast_get_dp501_max_clk(connector->dev);
+		else
+			kfree(edid);
+	}
+	if (!flags)
+		edid = drm_get_edid(connector, &ast_connector->i2c->adapter);
 	if (edid) {
 		drm_mode_connector_update_edid_property(&ast_connector->base, edid);
 		ret = drm_add_edid_modes(connector, edid);
