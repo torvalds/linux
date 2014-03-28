@@ -177,43 +177,11 @@
 		map-exec;
 	};
 
-/*
 	timer {
 		compatible = "arm,armv7-timer";
 		interrupts = <GIC_PPI 13 (GIC_CPU_MASK_SIMPLE(4) | IRQ_TYPE_LEVEL_HIGH)>,
-			     <GIC_PPI 14 (GIC_CPU_MASK_SIMPLE(4) | IRQ_TYPE_LEVEL_HIGH)>,
-			     <GIC_PPI 11 (GIC_CPU_MASK_SIMPLE(4) | IRQ_TYPE_LEVEL_HIGH)>,
-			     <GIC_PPI 10 (GIC_CPU_MASK_SIMPLE(4) | IRQ_TYPE_LEVEL_HIGH)>;
+			     <GIC_PPI 14 (GIC_CPU_MASK_SIMPLE(4) | IRQ_TYPE_LEVEL_HIGH)>;
 		clock-frequency = <24000000>;
-	};
-*/
-
-	timer@ff6b0000 {
-		compatible = "rockchip,timer";
-		reg = <0xff6b0000 0x20>;
-		interrupts = <GIC_SPI 66 IRQ_TYPE_LEVEL_HIGH>;
-		rockchip,percpu = <0>;
-	};
-
-	timer@ff6b0020 {
-		compatible = "rockchip,timer";
-		reg = <0xff6b0020 0x20>;
-		interrupts = <GIC_SPI 67 IRQ_TYPE_LEVEL_HIGH>;
-		rockchip,percpu = <1>;
-	};
-
-	timer@ff6b0040 {
-		compatible = "rockchip,timer";
-		reg = <0xff6b0040 0x20>;
-		interrupts = <GIC_SPI 68 IRQ_TYPE_LEVEL_HIGH>;
-		rockchip,percpu = <2>;
-	};
-
-	timer@ff6b0060 {
-		compatible = "rockchip,timer";
-		reg = <0xff6b0060 0x20>;
-		interrupts = <GIC_SPI 69 IRQ_TYPE_LEVEL_HIGH>;
-		rockchip,percpu = <3>;
 	};
 
 	timer@ff810000 {
@@ -221,14 +189,6 @@
 		reg = <0xff810000 0x20>;
 		interrupts = <GIC_SPI 72 IRQ_TYPE_LEVEL_HIGH>;
 		rockchip,broadcast = <1>;
-	};
-
-	timer@ff810020 {
-		compatible = "rockchip,timer";
-		reg = <0xff810020 0x20>;
-		interrupts = <GIC_SPI 73 IRQ_TYPE_LEVEL_HIGH>;
-		rockchip,clocksource = <1>;
-		rockchip,count-up = <1>;
 	};
 
 	watchdog:wdt@2004c000 {

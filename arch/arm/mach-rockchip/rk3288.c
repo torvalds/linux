@@ -50,6 +50,7 @@
 	RK_DEVICE(RK3288_SERVICE_##name##_VIRT, RK3288_SERVICE_##name##_PHYS, RK3288_SERVICE_##name##_SIZE)
 
 #define RK3288_IMEM_VIRT (RK_BOOTRAM_VIRT + SZ_32K)
+#define RK3288_TIMER7_VIRT (RK_TIMER_VIRT + 0x20)
 
 static struct map_desc rk3288_io_desc[] __initdata = {
 	RK3288_DEVICE(CRU),
@@ -83,6 +84,7 @@ static struct map_desc rk3288_io_desc[] __initdata = {
 	RK_DEVICE(RK_GIC_VIRT + RK3288_GIC_DIST_SIZE, RK3288_GIC_CPU_PHYS, RK3288_GIC_CPU_SIZE),
 	RK_DEVICE(RK_BOOTRAM_VIRT, RK3288_BOOTRAM_PHYS, RK3288_BOOTRAM_SIZE),
 	RK_DEVICE(RK3288_IMEM_VIRT, RK3288_IMEM_PHYS, SZ_4K),
+	RK_DEVICE(RK_TIMER_VIRT, RK3288_TIMER6_PHYS, RK3288_TIMER_SIZE),
 };
 
 static void __init rk3288_boot_mode_init(void)
@@ -130,6 +132,15 @@ static void __init rk3288_dt_map_io(void)
 
 	/* disable address remap */
 	writel_relaxed(0x08000000, RK_SGRF_VIRT + RK3288_SGRF_SOC_CON0);
+
+	/* enable timer7 for core */
+	writel_relaxed(0, RK3288_TIMER7_VIRT + 0x10);
+	dsb();
+	writel_relaxed(0xFFFFFFFF, RK3288_TIMER7_VIRT + 0x00);
+	writel_relaxed(0xFFFFFFFF, RK3288_TIMER7_VIRT + 0x04);
+	dsb();
+	writel_relaxed(1, RK3288_TIMER7_VIRT + 0x10);
+	dsb();
 
 	rk3288_boot_mode_init();
 }
