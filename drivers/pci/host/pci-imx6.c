@@ -32,9 +32,6 @@
 
 struct imx6_pcie {
 	int			reset_gpio;
-	int			power_on_gpio;
-	int			wake_up_gpio;
-	int			disable_gpio;
 	struct clk		*pcie_bus;
 	struct clk		*pcie_phy;
 	struct clk		*pcie;
@@ -229,9 +226,6 @@ static int imx6_pcie_deassert_core_reset(struct pcie_port *pp)
 {
 	struct imx6_pcie *imx6_pcie = to_imx6_pcie(pp);
 	int ret;
-
-	if (gpio_is_valid(imx6_pcie->power_on_gpio))
-		gpio_set_value(imx6_pcie->power_on_gpio, 1);
 
 	regmap_update_bits(imx6_pcie->iomuxc_gpr, IOMUXC_GPR1,
 			IMX6Q_GPR1_PCIE_TEST_PD, 0 << 18);
@@ -527,42 +521,6 @@ static int __init imx6_pcie_probe(struct platform_device *pdev)
 					    GPIOF_OUT_INIT_LOW, "PCIe reset");
 		if (ret) {
 			dev_err(&pdev->dev, "unable to get reset gpio\n");
-			return ret;
-		}
-	}
-
-	imx6_pcie->power_on_gpio = of_get_named_gpio(np, "power-on-gpio", 0);
-	if (gpio_is_valid(imx6_pcie->power_on_gpio)) {
-		ret = devm_gpio_request_one(&pdev->dev,
-					imx6_pcie->power_on_gpio,
-					GPIOF_OUT_INIT_LOW,
-					"PCIe power enable");
-		if (ret) {
-			dev_err(&pdev->dev, "unable to get power-on gpio\n");
-			return ret;
-		}
-	}
-
-	imx6_pcie->wake_up_gpio = of_get_named_gpio(np, "wake-up-gpio", 0);
-	if (gpio_is_valid(imx6_pcie->wake_up_gpio)) {
-		ret = devm_gpio_request_one(&pdev->dev,
-					imx6_pcie->wake_up_gpio,
-					GPIOF_IN,
-					"PCIe wake up");
-		if (ret) {
-			dev_err(&pdev->dev, "unable to get wake-up gpio\n");
-			return ret;
-		}
-	}
-
-	imx6_pcie->disable_gpio = of_get_named_gpio(np, "disable-gpio", 0);
-	if (gpio_is_valid(imx6_pcie->disable_gpio)) {
-		ret = devm_gpio_request_one(&pdev->dev,
-					imx6_pcie->disable_gpio,
-					GPIOF_OUT_INIT_HIGH,
-					"PCIe disable endpoint");
-		if (ret) {
-			dev_err(&pdev->dev, "unable to get disable-ep gpio\n");
 			return ret;
 		}
 	}
