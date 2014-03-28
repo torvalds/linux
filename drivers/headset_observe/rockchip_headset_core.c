@@ -158,7 +158,6 @@ static int rockchip_headset_remove(struct platform_device *pdev)
 
 static int rockchip_headset_suspend(struct platform_device *pdev, pm_message_t state)
 {
-	DBG("%s----%d\n",__FUNCTION__,__LINE__);
 	if(pdata_info->chan != 0)
 	{
 		return rk_headset_adc_suspend(pdev,state);
@@ -168,7 +167,6 @@ static int rockchip_headset_suspend(struct platform_device *pdev, pm_message_t s
 
 static int rockchip_headset_resume(struct platform_device *pdev)
 {
-	printk("%s----%d\n",__FUNCTION__,__LINE__);	
 	if(pdata_info->chan != 0)
 	{
 		return rk_headset_adc_resume(pdev);

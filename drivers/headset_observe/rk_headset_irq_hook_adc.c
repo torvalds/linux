@@ -43,15 +43,15 @@
 #include "rk_headset.h"
 
 /* Debug */
-#if 1
+#if 0
 #define DBG(x...) printk(x)
 #else
 #define DBG(x...) do { } while (0)
 #endif
 
 #define HOOK_ADC_SAMPLE_TIME	50
-#define HOOK_LEVEL_HIGH  		50		//1V*1024/2.5
-#define HOOK_LEVEL_LOW  		5		//0.5V*1024/2.5
+#define HOOK_LEVEL_HIGH  		410		//1V*1024/2.5
+#define HOOK_LEVEL_LOW  		204		//0.5V*1024/2.5
 #define HOOK_DEFAULT_VAL  		1024	
 
 #define BIT_HEADSET             (1 << 0)
