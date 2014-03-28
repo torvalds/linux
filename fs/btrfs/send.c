@@ -5718,7 +5718,9 @@ long btrfs_ioctl_send(struct file *mnt_file, void __user *arg_)
 			NULL);
 	sort_clone_roots = 1;
 
+	current->journal_info = (void *)BTRFS_SEND_TRANS_STUB;
 	ret = send_subvol(sctx);
+	current->journal_info = NULL;
 	if (ret < 0)
 		goto out;
 
