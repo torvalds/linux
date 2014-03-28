@@ -74,7 +74,6 @@
 #define DBG(fmt...)
 #endif
 
-int boot_cpuid = 0;
 int spinning_secondaries;
 u64 ppc64_pft_size;
 
