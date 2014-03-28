@@ -19,7 +19,6 @@
 #include <linux/module.h>
 #include <linux/platform_device.h>
 #include <linux/pm_runtime.h>
-#include <linux/workqueue.h>
 
 #include <linux/spi/spi.h>
 

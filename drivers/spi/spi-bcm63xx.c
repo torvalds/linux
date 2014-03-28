@@ -29,7 +29,6 @@
 #include <linux/spi/spi.h>
 #include <linux/completion.h>
 #include <linux/err.h>
-#include <linux/workqueue.h>
 #include <linux/pm_runtime.h>
 
 #include <bcm63xx_dev_spi.h>
