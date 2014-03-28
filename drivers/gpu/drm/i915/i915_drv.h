@@ -1120,6 +1120,12 @@ struct ddi_vbt_port_info {
 	uint8_t supports_dp:1;
 };
 
+enum drrs_support_type {
+	DRRS_NOT_SUPPORTED = 0,
+	STATIC_DRRS_SUPPORT = 1,
+	SEAMLESS_DRRS_SUPPORT = 2
+};
+
 struct intel_vbt_data {
 	struct drm_display_mode *lfp_lvds_vbt_mode; /* if any */
 	struct drm_display_mode *sdvo_lvds_vbt_mode; /* if any */
@@ -1134,6 +1140,8 @@ struct intel_vbt_data {
 	unsigned int fdi_rx_polarity_inverted:1;
 	int lvds_ssc_freq;
 	unsigned int bios_lvds_val; /* initial [PCH_]LVDS reg val in VBIOS */
+
+	enum drrs_support_type drrs_type;
 
 	/* eDP */
 	int edp_rate;

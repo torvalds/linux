@@ -206,7 +206,7 @@ parse_lfp_panel_data(struct drm_i915_private *dev_priv,
 	const struct lvds_dvo_timing *panel_dvo_timing;
 	const struct lvds_fp_timing *fp_timing;
 	struct drm_display_mode *panel_fixed_mode;
-	int i, downclock;
+	int i, downclock, drrs_mode;
 
 	lvds_options = find_section(bdb, BDB_LVDS_OPTIONS);
 	if (!lvds_options)
@@ -217,6 +217,28 @@ parse_lfp_panel_data(struct drm_i915_private *dev_priv,
 		return;
 
 	panel_type = lvds_options->panel_type;
+
+	drrs_mode = (lvds_options->dps_panel_type_bits
+				>> (panel_type * 2)) & MODE_MASK;
+	/*
+	 * VBT has static DRRS = 0 and seamless DRRS = 2.
+	 * The below piece of code is required to adjust vbt.drrs_type
+	 * to match the enum drrs_support_type.
+	 */
+	switch (drrs_mode) {
+	case 0:
+		dev_priv->vbt.drrs_type = STATIC_DRRS_SUPPORT;
+		DRM_DEBUG_KMS("DRRS supported mode is static\n");
+		break;
+	case 2:
+		dev_priv->vbt.drrs_type = SEAMLESS_DRRS_SUPPORT;
+		DRM_DEBUG_KMS("DRRS supported mode is seamless\n");
+		break;
+	default:
+		dev_priv->vbt.drrs_type = DRRS_NOT_SUPPORTED;
+		DRM_DEBUG_KMS("DRRS not supported (VBT input)\n");
+		break;
+	}
 
 	lvds_lfp_data = find_section(bdb, BDB_LVDS_LFP_DATA);
 	if (!lvds_lfp_data)
@@ -516,6 +538,16 @@ parse_driver_features(struct drm_i915_private *dev_priv,
 
 	if (driver->dual_frequency)
 		dev_priv->render_reclock_avail = true;
+
+	DRM_DEBUG_KMS("DRRS State Enabled:%d\n", driver->drrs_enabled);
+	/*
+	 * If DRRS is not supported, drrs_type has to be set to 0.
+	 * This is because, VBT is configured in such a way that
+	 * static DRRS is 0 and DRRS not supported is represented by
+	 * driver->drrs_enabled=false
+	 */
+	if (!driver->drrs_enabled)
+		dev_priv->vbt.drrs_type = DRRS_NOT_SUPPORTED;
 }
 
 static void

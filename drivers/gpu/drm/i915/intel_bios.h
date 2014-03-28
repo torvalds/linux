@@ -282,6 +282,9 @@ struct bdb_general_definitions {
 	union child_device_config devices[0];
 } __packed;
 
+/* Mask for DRRS / Panel Channel / SSC / BLT control bits extraction */
+#define MODE_MASK		0x3
+
 struct bdb_lvds_options {
 	u8 panel_type;
 	u8 rsvd1;
@@ -294,6 +297,18 @@ struct bdb_lvds_options {
 	u8 lvds_edid:1;
 	u8 rsvd2:1;
 	u8 rsvd4;
+	/* LVDS Panel channel bits stored here */
+	u32 lvds_panel_channel_bits;
+	/* LVDS SSC (Spread Spectrum Clock) bits stored here. */
+	u16 ssc_bits;
+	u16 ssc_freq;
+	u16 ssc_ddt;
+	/* Panel color depth defined here */
+	u16 panel_color_depth;
+	/* LVDS panel type bits stored here */
+	u32 dps_panel_type_bits;
+	/* LVDS backlight control type bits stored here */
+	u32 blt_control_type_bits;
 } __packed;
 
 /* LFP pointer table contains entries to the struct below */
@@ -479,6 +494,20 @@ struct bdb_driver_features {
 
 	u8 hdmi_termination;
 	u8 custom_vbt_version;
+	/* Driver features data block */
+	u16 rmpm_enabled:1;
+	u16 s2ddt_enabled:1;
+	u16 dpst_enabled:1;
+	u16 bltclt_enabled:1;
+	u16 adb_enabled:1;
+	u16 drrs_enabled:1;
+	u16 grs_enabled:1;
+	u16 gpmt_enabled:1;
+	u16 tbt_enabled:1;
+	u16 psr_enabled:1;
+	u16 ips_enabled:1;
+	u16 reserved3:4;
+	u16 pc_feature_valid:1;
 } __packed;
 
 #define EDP_18BPP	0
