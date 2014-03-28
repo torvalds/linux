@@ -10559,16 +10559,6 @@ static void intel_crtc_init(struct drm_device *dev, int pipe)
 
 	drm_crtc_init(dev, &intel_crtc->base, &intel_crtc_funcs);
 
-	if (IS_GEN2(dev)) {
-		intel_crtc->max_cursor_width = GEN2_CURSOR_WIDTH;
-		intel_crtc->max_cursor_height = GEN2_CURSOR_HEIGHT;
-	} else {
-		intel_crtc->max_cursor_width = CURSOR_WIDTH;
-		intel_crtc->max_cursor_height = CURSOR_HEIGHT;
-	}
-	dev->mode_config.cursor_width = intel_crtc->max_cursor_width;
-	dev->mode_config.cursor_height = intel_crtc->max_cursor_height;
-
 	drm_mode_crtc_set_gamma_size(&intel_crtc->base, 256);
 	for (i = 0; i < 256; i++) {
 		intel_crtc->lut_r[i] = i;
@@ -11319,6 +11309,15 @@ void intel_modeset_init(struct drm_device *dev)
 		dev->mode_config.max_width = 8192;
 		dev->mode_config.max_height = 8192;
 	}
+
+	if (IS_GEN2(dev)) {
+		dev->mode_config.cursor_width = GEN2_CURSOR_WIDTH;
+		dev->mode_config.cursor_height = GEN2_CURSOR_HEIGHT;
+	} else {
+		dev->mode_config.cursor_width = MAX_CURSOR_WIDTH;
+		dev->mode_config.cursor_height = MAX_CURSOR_HEIGHT;
+	}
+
 	dev->mode_config.fb_base = dev_priv->gtt.mappable_base;
 
 	DRM_DEBUG_KMS("%d display pipe%s available.\n",
