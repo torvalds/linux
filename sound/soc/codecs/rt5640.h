@@ -2095,7 +2095,6 @@ struct rt5640_priv {
 	int pll_in;
 	int pll_out;
 
-	int dmic_en;
 	bool hp_mute;
 };
 
