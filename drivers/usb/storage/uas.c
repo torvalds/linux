@@ -1030,7 +1030,7 @@ static int uas_configure_endpoints(struct uas_dev_info *devinfo)
 		devinfo->use_streams = 0;
 	} else {
 		devinfo->qdepth = usb_alloc_streams(devinfo->intf, eps + 1,
-						    3, 256, GFP_KERNEL);
+						    3, 256, GFP_NOIO);
 		if (devinfo->qdepth < 0)
 			return devinfo->qdepth;
 		devinfo->use_streams = 1;
@@ -1047,7 +1047,7 @@ static void uas_free_streams(struct uas_dev_info *devinfo)
 	eps[0] = usb_pipe_endpoint(udev, devinfo->status_pipe);
 	eps[1] = usb_pipe_endpoint(udev, devinfo->data_in_pipe);
 	eps[2] = usb_pipe_endpoint(udev, devinfo->data_out_pipe);
-	usb_free_streams(devinfo->intf, eps, 3, GFP_KERNEL);
+	usb_free_streams(devinfo->intf, eps, 3, GFP_NOIO);
 }
 
 static int uas_probe(struct usb_interface *intf, const struct usb_device_id *id)
