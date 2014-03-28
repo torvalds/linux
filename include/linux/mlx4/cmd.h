@@ -125,6 +125,7 @@ enum {
 	/* miscellaneous commands */
 	MLX4_CMD_DIAG_RPRT	 = 0x30,
 	MLX4_CMD_NOP		 = 0x31,
+	MLX4_CMD_CONFIG_DEV	 = 0x3a,
 	MLX4_CMD_ACCESS_MEM	 = 0x2e,
 	MLX4_CMD_SET_VEP	 = 0x52,
 

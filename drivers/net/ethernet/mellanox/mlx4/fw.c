@@ -1779,6 +1779,46 @@ int mlx4_CLOSE_HCA(struct mlx4_dev *dev, int panic)
 			MLX4_CMD_NATIVE);
 }
 
+struct mlx4_config_dev {
+	__be32	update_flags;
+	__be32	rsdv1[3];
+	__be16	vxlan_udp_dport;
+	__be16	rsvd2;
+};
+
+#define MLX4_VXLAN_UDP_DPORT (1 << 0)
+
+static int mlx4_CONFIG_DEV(struct mlx4_dev *dev, struct mlx4_config_dev *config_dev)
+{
+	int err;
+	struct mlx4_cmd_mailbox *mailbox;
+
+	mailbox = mlx4_alloc_cmd_mailbox(dev);
+	if (IS_ERR(mailbox))
+		return PTR_ERR(mailbox);
+
+	memcpy(mailbox->buf, config_dev, sizeof(*config_dev));
+
+	err = mlx4_cmd(dev, mailbox->dma, 0, 0, MLX4_CMD_CONFIG_DEV,
+		       MLX4_CMD_TIME_CLASS_B, MLX4_CMD_NATIVE);
+
+	mlx4_free_cmd_mailbox(dev, mailbox);
+	return err;
+}
+
+int mlx4_config_vxlan_port(struct mlx4_dev *dev, __be16 udp_port)
+{
+	struct mlx4_config_dev config_dev;
+
+	memset(&config_dev, 0, sizeof(config_dev));
+	config_dev.update_flags    = cpu_to_be32(MLX4_VXLAN_UDP_DPORT);
+	config_dev.vxlan_udp_dport = udp_port;
+
+	return mlx4_CONFIG_DEV(dev, &config_dev);
+}
+EXPORT_SYMBOL_GPL(mlx4_config_vxlan_port);
+
+
 int mlx4_SET_ICM_SIZE(struct mlx4_dev *dev, u64 icm_size, u64 *aux_pages)
 {
 	int ret = mlx4_cmd_imm(dev, icm_size, aux_pages, 0, 0,

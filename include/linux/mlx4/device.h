@@ -1142,7 +1142,7 @@ int mlx4_SET_PORT_qpn_calc(struct mlx4_dev *dev, u8 port, u32 base_qpn,
 int mlx4_SET_PORT_PRIO2TC(struct mlx4_dev *dev, u8 port, u8 *prio2tc);
 int mlx4_SET_PORT_SCHEDULER(struct mlx4_dev *dev, u8 port, u8 *tc_tx_bw,
 		u8 *pg, u16 *ratelimit);
-int mlx4_SET_PORT_VXLAN(struct mlx4_dev *dev, u8 port, u8 steering);
+int mlx4_SET_PORT_VXLAN(struct mlx4_dev *dev, u8 port, u8 steering, int enable);
 int mlx4_find_cached_mac(struct mlx4_dev *dev, u8 port, u64 mac, int *idx);
 int mlx4_find_cached_vlan(struct mlx4_dev *dev, u8 port, u16 vid, int *idx);
 int mlx4_register_vlan(struct mlx4_dev *dev, u8 port, u16 vlan, int *index);
@@ -1232,4 +1232,6 @@ struct mlx4_slaves_pport mlx4_phys_to_slaves_pport_actv(
 int mlx4_phys_to_slave_port(struct mlx4_dev *dev, int slave, int port);
 
 int mlx4_get_base_gid_ix(struct mlx4_dev *dev, int slave, int port);
+
+int mlx4_config_vxlan_port(struct mlx4_dev *dev, __be16 udp_port);
 #endif /* MLX4_DEVICE_H */
