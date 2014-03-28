@@ -23,10 +23,12 @@ ENDPROC(rkpm_slp_cpu_while_tst)
 ENTRY(rkpm_slp_cpu_resume)
 9:	mov r1,r1 
         //b 9b
+    #if 0    
 	ldr r4, = 0xFF690000
 	mov r5, #65
 	str r5,[r4]
-       // b 9b
+    #endif
+       
        
 	setmode	PSR_I_BIT | PSR_F_BIT | SVC_MODE, r1  @ set SVC, irqs off
 
@@ -45,6 +47,7 @@ cpu1loop:
 cpu0Run:
 	//mov r3, #48
 	//str r3,[r0]
+#if 0	
 //v7_invalidate_l1
 v7_invalidate_l1:
         mov     r0, #0
@@ -77,7 +80,7 @@ v7_invalidate_l1:
         bgt     1b
         dsb
         isb
-
+#endif
       #if 0 
 	ldr r1,=PM_BOOT_CODE_SP
 	mov sp, r1	//setting sp
