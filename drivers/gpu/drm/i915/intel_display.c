@@ -5369,21 +5369,23 @@ static void intel_set_pipe_timings(struct intel_crtc *intel_crtc)
 	enum transcoder cpu_transcoder = intel_crtc->config.cpu_transcoder;
 	struct drm_display_mode *adjusted_mode =
 		&intel_crtc->config.adjusted_mode;
-	uint32_t vsyncshift, crtc_vtotal, crtc_vblank_end;
+	uint32_t vsyncshift = 0, crtc_vtotal, crtc_vblank_end;
 
 	/* We need to be careful not to changed the adjusted mode, for otherwise
 	 * the hw state checker will get angry at the mismatch. */
 	crtc_vtotal = adjusted_mode->crtc_vtotal;
 	crtc_vblank_end = adjusted_mode->crtc_vblank_end;
 
-	if (!IS_GEN2(dev) && adjusted_mode->flags & DRM_MODE_FLAG_INTERLACE) {
+	if (adjusted_mode->flags & DRM_MODE_FLAG_INTERLACE) {
 		/* the chip adds 2 halflines automatically */
 		crtc_vtotal -= 1;
 		crtc_vblank_end -= 1;
-		vsyncshift = adjusted_mode->crtc_hsync_start
-			     - adjusted_mode->crtc_htotal / 2;
-	} else {
-		vsyncshift = 0;
+
+		if (intel_pipe_has_type(&intel_crtc->base, INTEL_OUTPUT_SDVO))
+			vsyncshift = (adjusted_mode->crtc_htotal - 1) / 2;
+		else
+			vsyncshift = adjusted_mode->crtc_hsync_start -
+				adjusted_mode->crtc_htotal / 2;
 	}
 
 	if (INTEL_INFO(dev)->gen > 3)
