@@ -1,7 +1,7 @@
 
 menuconfig RK_TRSM
 	bool "RockChip display transmitter support"
-	depends on FB_ROCKCHIP
+	depends on FB_ROCKCHIP || DRM_ROCKCHIP
 
 config RK2928_LVDS
 	bool "RK2928/RK2926 lvds transmitter support"

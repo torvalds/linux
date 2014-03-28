@@ -455,20 +455,20 @@ static int rk3288_win_0_1_reg_update(struct fimd_context *ctx,int win_id)
 	val  =  v_WIN0_EN(1) | v_WIN0_DATA_FMT(fmt_cfg);
 	lcdc_msk_reg(ctx, WIN0_CTRL0+off, mask,val);	
 
-	val =	v_WIN0_VIR_STRIDE(win_data->line_size/(win_data->bpp>>3));
+	val =	v_WIN0_VIR_STRIDE(win_data->fb_width);
 	lcdc_writel(ctx, WIN0_VIR+off, val);	
-	val =	v_WIN0_ACT_WIDTH(win_data->ovl_width) |
-		v_WIN0_ACT_HEIGHT(win_data->ovl_height);
+	val =	v_WIN0_ACT_WIDTH(win_data->fb_width) |
+		v_WIN0_ACT_HEIGHT(win_data->fb_height);
 	lcdc_writel(ctx, WIN0_ACT_INFO+off, val); 
 
-	val =	v_WIN0_DSP_WIDTH(win_data->fb_width) |
-		v_WIN0_DSP_HEIGHT(win_data->fb_height);
+	val =	v_WIN0_DSP_WIDTH(win_data->ovl_width) |
+		v_WIN0_DSP_HEIGHT(win_data->ovl_height);
 	lcdc_writel(ctx, WIN0_DSP_INFO+off, val); 
 
 	val =	v_WIN0_DSP_XST(xpos) |
 		v_WIN0_DSP_YST(ypos);
 	lcdc_writel(ctx, WIN0_DSP_ST+off, val); 
-	lcdc_writel(ctx, WIN0_YRGB_MST+off, win_data->dma_addr +win_data->buf_offsize );
+	lcdc_writel(ctx, WIN0_YRGB_MST+off, win_data->dma_addr );
 
 	if(win_id == 1)
 		rk3288_lcdc_alpha_cfg(ctx,win_id);
