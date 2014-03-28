@@ -483,12 +483,6 @@ static int __init imx6_add_pcie_port(struct pcie_port *pp,
 {
 	int ret;
 
-	pp->irq = platform_get_irq(pdev, 0);
-	if (!pp->irq) {
-		dev_err(&pdev->dev, "failed to get irq\n");
-		return -ENODEV;
-	}
-
 	pp->root_bus_nr = -1;
 	pp->ops = &imx6_pcie_host_ops;
 
