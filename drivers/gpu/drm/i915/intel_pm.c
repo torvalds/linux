@@ -3006,6 +3006,24 @@ static void gen6_set_rps_thresholds(struct drm_i915_private *dev_priv, u8 val)
 	dev_priv->rps.last_adj = 0;
 }
 
+static u32 gen6_rps_pm_mask(struct drm_i915_private *dev_priv, u8 val)
+{
+	u32 mask = 0;
+
+	if (val > dev_priv->rps.min_freq_softlimit)
+		mask |= GEN6_PM_RP_DOWN_THRESHOLD | GEN6_PM_RP_DOWN_TIMEOUT;
+	if (val < dev_priv->rps.max_freq_softlimit)
+		mask |= GEN6_PM_RP_UP_THRESHOLD;
+
+	/* IVB and SNB hard hangs on looping batchbuffer
+	 * if GEN6_PM_UP_EI_EXPIRED is masked.
+	 */
+	if (INTEL_INFO(dev_priv->dev)->gen <= 7 && !IS_HASWELL(dev_priv->dev))
+		mask |= GEN6_PM_RP_UP_EI_EXPIRED;
+
+	return ~mask;
+}
+
 /* gen6_set_rps is called to update the frequency request, but should also be
  * called when the range (min_delay and max_delay) is modified so that we can
  * update the GEN6_RP_INTERRUPT_LIMITS register accordingly. */
@@ -3037,6 +3055,7 @@ void gen6_set_rps(struct drm_device *dev, u8 val)
 	 * until we hit the minimum or maximum frequencies.
 	 */
 	I915_WRITE(GEN6_RP_INTERRUPT_LIMITS, gen6_rps_limits(dev_priv, val));
+	I915_WRITE(GEN6_PMINTRMSK, gen6_rps_pm_mask(dev_priv, val));
 
 	POSTING_READ(GEN6_RPNSWREQ);
 
@@ -3089,6 +3108,9 @@ static void vlv_set_rps_idle(struct drm_i915_private *dev_priv)
 	I915_WRITE(VLV_GTLC_SURVIVABILITY_REG,
 		I915_READ(VLV_GTLC_SURVIVABILITY_REG) &
 				~VLV_GFX_CLK_FORCE_ON_BIT);
+
+	I915_WRITE(GEN6_PMINTRMSK,
+		   gen6_rps_pm_mask(dev_priv, dev_priv->rps.cur_freq));
 }
 
 void gen6_rps_idle(struct drm_i915_private *dev_priv)
@@ -3134,13 +3156,12 @@ void valleyview_set_rps(struct drm_device *dev, u8 val)
 			 dev_priv->rps.cur_freq,
 			 vlv_gpu_freq(dev_priv, val), val);
 
-	if (val == dev_priv->rps.cur_freq)
-		return;
+	if (val != dev_priv->rps.cur_freq)
+		vlv_punit_write(dev_priv, PUNIT_REG_GPU_FREQ_REQ, val);
 
-	vlv_punit_write(dev_priv, PUNIT_REG_GPU_FREQ_REQ, val);
+	I915_WRITE(GEN6_PMINTRMSK, val);
 
 	dev_priv->rps.cur_freq = val;
-
 	trace_intel_gpu_freq_change(vlv_gpu_freq(dev_priv, val));
 }
 
@@ -3218,24 +3239,12 @@ int intel_enable_rc6(const struct drm_device *dev)
 static void gen6_enable_rps_interrupts(struct drm_device *dev)
 {
 	struct drm_i915_private *dev_priv = dev->dev_private;
-	u32 enabled_intrs;
 
 	spin_lock_irq(&dev_priv->irq_lock);
 	WARN_ON(dev_priv->rps.pm_iir);
 	snb_enable_pm_irq(dev_priv, dev_priv->pm_rps_events);
 	I915_WRITE(GEN6_PMIIR, dev_priv->pm_rps_events);
 	spin_unlock_irq(&dev_priv->irq_lock);
-
-	/* only unmask PM interrupts we need. Mask all others. */
-	enabled_intrs = dev_priv->pm_rps_events;
-
-	/* IVB and SNB hard hangs on looping batchbuffer
-	 * if GEN6_PM_UP_EI_EXPIRED is masked.
-	 */
-	if (INTEL_INFO(dev)->gen <= 7 && !IS_HASWELL(dev))
-		enabled_intrs |= GEN6_PM_RP_UP_EI_EXPIRED;
-
-	I915_WRITE(GEN6_PMINTRMSK, ~enabled_intrs);
 }
 
 static void gen8_enable_rps(struct drm_device *dev)
