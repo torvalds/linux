@@ -277,7 +277,7 @@ static kbase_attribute config_attributes[] = {
 	 KBASE_CONFIG_ATTR_MEMORY_OS_SHARED_MAX,
 	 KBASE_VE_MEMORY_OS_SHARED_MAX},
 #endif
-#if 0
+#if 1
 	{
 	 KBASE_CONFIG_ATTR_MEMORY_OS_SHARED_PERF_GPU,
 	 KBASE_VE_MEMORY_OS_SHARED_PERF_GPU},
@@ -352,7 +352,7 @@ static kbase_attribute config_attributes[] = {
 	 KBASE_VE_JS_RESET_TICKS_NSS},
 #endif
 #endif				/* CONFIG_MALI_DEBUG */
-#if 0 
+#if 1
 	{
 	 KBASE_CONFIG_ATTR_JS_RESET_TIMEOUT_MS,
 	 KBASE_VE_JS_RESET_TIMEOUT_MS},
