@@ -39,14 +39,23 @@ enum ath10k_pci_irq_mode {
 	ATH10K_PCI_IRQ_MSI = 2,
 };
 
+enum ath10k_pci_reset_mode {
+	ATH10K_PCI_RESET_AUTO = 0,
+	ATH10K_PCI_RESET_WARM_ONLY = 1,
+};
+
 static unsigned int ath10k_target_ps;
 static unsigned int ath10k_pci_irq_mode = ATH10K_PCI_IRQ_AUTO;
+static unsigned int ath10k_pci_reset_mode = ATH10K_PCI_RESET_AUTO;
 
 module_param(ath10k_target_ps, uint, 0644);
 MODULE_PARM_DESC(ath10k_target_ps, "Enable ath10k Target (SoC) PS option");
 
 module_param_named(irq_mode, ath10k_pci_irq_mode, uint, 0644);
 MODULE_PARM_DESC(irq_mode, "0: auto, 1: legacy, 2: msi (default: 0)");
+
+module_param_named(reset_mode, ath10k_pci_reset_mode, uint, 0644);
+MODULE_PARM_DESC(reset_mode, "0: auto, 1: warm only (default: 0)");
 
 /* how long wait to wait for target to initialise, in ms */
 #define ATH10K_PCI_TARGET_WAIT 3000
@@ -1969,8 +1978,13 @@ static int ath10k_pci_hif_power_up(struct ath10k *ar)
 	 */
 	ret = __ath10k_pci_hif_power_up(ar, false);
 	if (ret) {
-		ath10k_warn("failed to power up target using warm reset (%d), trying cold reset\n",
+		ath10k_warn("failed to power up target using warm reset: %d\n",
 			    ret);
+
+		if (ath10k_pci_reset_mode == ATH10K_PCI_RESET_WARM_ONLY)
+			return ret;
+
+		ath10k_warn("trying cold reset\n");
 
 		ret = __ath10k_pci_hif_power_up(ar, true);
 		if (ret) {
