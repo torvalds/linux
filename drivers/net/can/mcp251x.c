@@ -649,23 +649,22 @@ static int mcp251x_hw_reset(struct spi_device *spi)
 
 static int mcp251x_hw_probe(struct spi_device *spi)
 {
-	int st1, st2;
+	u8 ctrl;
+	int ret;
 
-	mcp251x_hw_reset(spi);
+	ret = mcp251x_hw_reset(spi);
+	if (ret)
+		return ret;
 
-	/*
-	 * Please note that these are "magic values" based on after
-	 * reset defaults taken from data sheet which allows us to see
-	 * if we really have a chip on the bus (we avoid common all
-	 * zeroes or all ones situations)
-	 */
-	st1 = mcp251x_read_reg(spi, CANSTAT) & 0xEE;
-	st2 = mcp251x_read_reg(spi, CANCTRL) & 0x17;
+	ctrl = mcp251x_read_reg(spi, CANCTRL);
 
-	dev_dbg(&spi->dev, "CANSTAT 0x%02x CANCTRL 0x%02x\n", st1, st2);
+	dev_dbg(&spi->dev, "CANCTRL 0x%02x\n", ctrl);
 
-	/* Check for power up default values */
-	return (st1 == 0x80 && st2 == 0x07) ? 1 : 0;
+	/* Check for power up default value */
+	if ((ctrl & 0x17) != 0x07)
+		return -ENODEV;
+
+	return 0;
 }
 
 static int mcp251x_power_enable(struct regulator *reg, int enable)
@@ -1142,10 +1141,10 @@ static int mcp251x_can_probe(struct spi_device *spi)
 	SET_NETDEV_DEV(net, &spi->dev);
 
 	/* Here is OK to not lock the MCP, no one knows about it yet */
-	if (!mcp251x_hw_probe(spi)) {
-		ret = -ENODEV;
+	ret = mcp251x_hw_probe(spi);
+	if (ret)
 		goto error_probe;
-	}
+
 	mcp251x_hw_sleep(spi);
 
 	ret = register_candev(net);
@@ -1154,7 +1153,7 @@ static int mcp251x_can_probe(struct spi_device *spi)
 
 	devm_can_led_init(net);
 
-	return ret;
+	return 0;
 
 error_probe:
 	if (mcp251x_enable_dma)
