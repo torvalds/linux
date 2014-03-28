@@ -243,13 +243,13 @@ void ath10k_debug_read_target_stats(struct ath10k *ar,
 	}
 
 	if (num_peer_stats) {
-		struct wmi_peer_stats *peer_stats;
+		struct wmi_peer_stats_10x *peer_stats;
 		struct ath10k_peer_stat *s;
 
 		stats->peers = num_peer_stats;
 
 		for (i = 0; i < num_peer_stats; i++) {
-			peer_stats = (struct wmi_peer_stats *)tmp;
+			peer_stats = (struct wmi_peer_stats_10x *)tmp;
 			s = &stats->peer_stat[i];
 
 			memcpy(s->peer_macaddr, &peer_stats->peer_macaddr.addr,
@@ -257,8 +257,15 @@ void ath10k_debug_read_target_stats(struct ath10k *ar,
 			s->peer_rssi = __le32_to_cpu(peer_stats->peer_rssi);
 			s->peer_tx_rate =
 				__le32_to_cpu(peer_stats->peer_tx_rate);
+			if (test_bit(ATH10K_FW_FEATURE_WMI_10X,
+				     ar->fw_features)) {
+				s->peer_rx_rate =
+					__le32_to_cpu(peer_stats->peer_rx_rate);
+				tmp += sizeof(struct wmi_peer_stats_10x);
 
-			tmp += sizeof(struct wmi_peer_stats);
+			} else {
+				tmp += sizeof(struct wmi_peer_stats_old);
+			}
 		}
 	}
 
@@ -272,7 +279,7 @@ static ssize_t ath10k_read_fw_stats(struct file *file, char __user *user_buf,
 	struct ath10k *ar = file->private_data;
 	struct ath10k_target_stats *fw_stats;
 	char *buf = NULL;
-	unsigned int len = 0, buf_len = 2500;
+	unsigned int len = 0, buf_len = 8000;
 	ssize_t ret_cnt = 0;
 	long left;
 	int i;
@@ -411,8 +418,8 @@ static ssize_t ath10k_read_fw_stats(struct file *file, char __user *user_buf,
 			 "MPDU errors (FCS, MIC, ENC)", fw_stats->mpdu_errs);
 
 	len += scnprintf(buf + len, buf_len - len, "\n");
-	len += scnprintf(buf + len, buf_len - len, "%30s\n",
-			 "ath10k PEER stats");
+	len += scnprintf(buf + len, buf_len - len, "%30s (%d)\n",
+			 "ath10k PEER stats", fw_stats->peers);
 	len += scnprintf(buf + len, buf_len - len, "%30s\n\n",
 				 "=================");
 
@@ -425,6 +432,9 @@ static ssize_t ath10k_read_fw_stats(struct file *file, char __user *user_buf,
 		len += scnprintf(buf + len, buf_len - len, "%30s %u\n",
 				 "Peer TX rate",
 				 fw_stats->peer_stat[i].peer_tx_rate);
+		len += scnprintf(buf + len, buf_len - len, "%30s %u\n",
+				 "Peer RX rate",
+				 fw_stats->peer_stat[i].peer_rx_rate);
 		len += scnprintf(buf + len, buf_len - len, "\n");
 	}
 	spin_unlock_bh(&ar->data_lock);

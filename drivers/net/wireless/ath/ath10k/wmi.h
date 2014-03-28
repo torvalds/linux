@@ -2857,10 +2857,17 @@ struct wmi_vdev_stats {
  * peer statistics.
  * TODO: add more stats
  */
-struct wmi_peer_stats {
+struct wmi_peer_stats_old {
 	struct wmi_mac_addr peer_macaddr;
 	__le32 peer_rssi;
 	__le32 peer_tx_rate;
+} __packed;
+
+struct wmi_peer_stats_10x {
+	struct wmi_mac_addr peer_macaddr;
+	__le32 peer_rssi;
+	__le32 peer_tx_rate;
+	__le32 peer_rx_rate;
 } __packed;
 
 struct wmi_vdev_create_cmd {
