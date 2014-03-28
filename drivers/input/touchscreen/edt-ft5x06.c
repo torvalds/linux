@@ -635,7 +635,7 @@ static int edt_ft5x06_ts_reset(struct i2c_client *client,
 			return error;
 		}
 
-		mdelay(5);
+		msleep(5);
 		gpio_set_value(tsdata->wake_pin, 1);
 	}
 	if (gpio_is_valid(tsdata->reset_pin)) {
@@ -650,9 +650,9 @@ static int edt_ft5x06_ts_reset(struct i2c_client *client,
 			return error;
 		}
 
-		mdelay(50);
+		msleep(5);
 		gpio_set_value(tsdata->reset_pin, 1);
-		mdelay(100);
+		msleep(300);
 	}
 
 	return 0;
