@@ -13,6 +13,7 @@
 #include <linux/dlm.h>
 #include <linux/sched.h>
 #include "md.h"
+#include "md-cluster.h"
 
 #define LVB_SIZE	64
 
@@ -113,15 +114,32 @@ static void lockres_free(struct dlm_lock_resource *res)
 	kfree(res);
 }
 
+static int join(struct mddev *mddev, int nodes)
+{
+	return 0;
+}
+
+static int leave(struct mddev *mddev)
+{
+	return 0;
+}
+
+static struct md_cluster_operations cluster_ops = {
+	.join   = join,
+	.leave  = leave,
+};
+
 static int __init cluster_init(void)
 {
 	pr_warn("md-cluster: EXPERIMENTAL. Use with caution\n");
 	pr_info("Registering Cluster MD functions\n");
+	register_md_cluster_operations(&cluster_ops, THIS_MODULE);
 	return 0;
 }
 
 static void cluster_exit(void)
 {
+	unregister_md_cluster_operations();
 }
 
 module_init(cluster_init);

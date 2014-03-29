@@ -23,6 +23,7 @@
 #include <linux/timer.h>
 #include <linux/wait.h>
 #include <linux/workqueue.h>
+#include "md-cluster.h"
 
 #define MaxSector (~(sector_t)0)
 
@@ -608,6 +609,11 @@ static inline void safe_put_page(struct page *p)
 
 extern int register_md_personality(struct md_personality *p);
 extern int unregister_md_personality(struct md_personality *p);
+extern int register_md_cluster_operations(struct md_cluster_operations *ops,
+		struct module *module);
+extern int unregister_md_cluster_operations(void);
+extern int md_setup_cluster(struct mddev *mddev, int nodes);
+extern void md_cluster_stop(struct mddev *mddev);
 extern struct md_thread *md_register_thread(
 	void (*run)(struct md_thread *thread),
 	struct mddev *mddev,
@@ -669,4 +675,5 @@ static inline void rdev_dec_pending(struct md_rdev *rdev, struct mddev *mddev)
 	}
 }
 
+extern struct md_cluster_operations *md_cluster_ops;
 #endif /* _MD_MD_H */
