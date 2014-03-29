@@ -27,14 +27,12 @@ bool space_for_roll_forward(struct f2fs_sb_info *sbi)
 static struct fsync_inode_entry *get_fsync_inode(struct list_head *head,
 								nid_t ino)
 {
-	struct list_head *this;
 	struct fsync_inode_entry *entry;
 
-	list_for_each(this, head) {
-		entry = list_entry(this, struct fsync_inode_entry, list);
+	list_for_each_entry(entry, head, list)
 		if (entry->inode->i_ino == ino)
 			return entry;
-	}
+
 	return NULL;
 }
 

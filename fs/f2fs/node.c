@@ -1451,7 +1451,6 @@ bool alloc_nid(struct f2fs_sb_info *sbi, nid_t *nid)
 {
 	struct f2fs_nm_info *nm_i = NM_I(sbi);
 	struct free_nid *i = NULL;
-	struct list_head *this;
 retry:
 	if (unlikely(sbi->total_valid_node_count + 1 >= nm_i->max_nid))
 		return false;
@@ -1461,11 +1460,9 @@ retry:
 	/* We should not use stale free nids created by build_free_nids */
 	if (nm_i->fcnt && !on_build_free_nids(nm_i)) {
 		f2fs_bug_on(list_empty(&nm_i->free_nid_list));
-		list_for_each(this, &nm_i->free_nid_list) {
-			i = list_entry(this, struct free_nid, list);
+		list_for_each_entry(i, &nm_i->free_nid_list, list)
 			if (i->state == NID_NEW)
 				break;
-		}
 
 		f2fs_bug_on(i->state != NID_NEW);
 		*nid = i->nid;
@@ -1780,7 +1777,7 @@ void flush_nat_entries(struct f2fs_sb_info *sbi)
 	struct f2fs_nm_info *nm_i = NM_I(sbi);
 	struct curseg_info *curseg = CURSEG_I(sbi, CURSEG_HOT_DATA);
 	struct f2fs_summary_block *sum = curseg->sum_blk;
-	struct list_head *cur, *n;
+	struct nat_entry *ne, *cur;
 	struct page *page = NULL;
 	struct f2fs_nat_block *nat_blk = NULL;
 	nid_t start_nid = 0, end_nid = 0;
@@ -1792,18 +1789,17 @@ void flush_nat_entries(struct f2fs_sb_info *sbi)
 		mutex_lock(&curseg->curseg_mutex);
 
 	/* 1) flush dirty nat caches */
-	list_for_each_safe(cur, n, &nm_i->dirty_nat_entries) {
-		struct nat_entry *ne;
+	list_for_each_entry_safe(ne, cur, &nm_i->dirty_nat_entries, list) {
 		nid_t nid;
 		struct f2fs_nat_entry raw_ne;
 		int offset = -1;
 		block_t new_blkaddr;
 
-		ne = list_entry(cur, struct nat_entry, list);
-		nid = nat_get_nid(ne);
-
 		if (nat_get_blkaddr(ne) == NEW_ADDR)
 			continue;
+
+		nid = nat_get_nid(ne);
+
 		if (flushed)
 			goto to_nat_page;
 
