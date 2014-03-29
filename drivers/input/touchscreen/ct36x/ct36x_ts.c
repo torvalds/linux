@@ -114,10 +114,10 @@ static irqreturn_t ct36x_irq_handler(int irq, void *data)
 	return IRQ_HANDLED;
 }
 
-#ifdef CONFIG_HAS_EARLYSUSPEND
-static void ct36x_ts_early_suspend(struct early_suspend *h)
+
+static void ct36x_ts_early_suspend(struct tp_device *tp_d)
 {
-	struct ct36x_data *ts = container_of(h, struct ct36x_data, early_suspend);
+	struct ct36x_data *ts = container_of(tp_d, struct ct36x_data, tp);
 
 	ct36x_dbg(ts, "<%s> touchscreen suspend\n", CT36X_NAME);
 
@@ -128,9 +128,9 @@ static void ct36x_ts_early_suspend(struct early_suspend *h)
 	
 }
 
-static void ct36x_ts_late_resume(struct early_suspend *h)
+static void ct36x_ts_late_resume(struct tp_device *tp_d)
 {
-	struct ct36x_data *ts = container_of(h, struct ct36x_data, early_suspend);
+	struct ct36x_data *ts = container_of(tp_d, struct ct36x_data, tp);
 
 	ct36x_dbg(ts, "<%s> tochscreen resume\n", CT36X_NAME);
 	if(ts->ops->resume)
@@ -138,7 +138,7 @@ static void ct36x_ts_late_resume(struct early_suspend *h)
 
 	enable_irq(ts->irq);
 }
-#endif
+
 
 static int ct36x_ts_probe(struct i2c_client *client, const struct i2c_device_id *id)
 {
@@ -270,12 +270,11 @@ static int ct36x_ts_probe(struct i2c_client *client, const struct i2c_device_id 
 		goto err_input_register_devcie;
 	}
 
-#ifdef CONFIG_HAS_EARLYSUSPEND
-	ts->early_suspend.level = EARLY_SUSPEND_LEVEL_BLANK_SCREEN + 1;
-	ts->early_suspend.suspend = ct36x_ts_early_suspend;
-	ts->early_suspend.resume = ct36x_ts_late_resume;
-	register_early_suspend(&ts->early_suspend);
-#endif
+	
+       ts->tp.tp_resume = ct36x_ts_late_resume;
+       ts->tp.tp_suspend = ct36x_ts_early_suspend;
+       tp_register_fb(&ts->tp);
+
 	ts->irq = gpio_to_irq(ts->irq_io.gpio);
 	if (ts->irq)
 		{
@@ -284,6 +283,7 @@ static int ct36x_ts_probe(struct i2c_client *client, const struct i2c_device_id 
 				printk(KERN_ALERT "Cannot allocate ts INT!ERRNO:%d\n", ret);
 				goto err_request_threaded_irq;
 			}
+			disable_irq(ts->irq);
 		}
 
 /*	ret = request_threaded_irq(ts->irq, NULL, ct36x_irq_handler, IRQF_TRIGGER_FALLING|IRQF_ONESHOT, CT36X_NAME, ts);
@@ -295,7 +295,7 @@ static int ct36x_ts_probe(struct i2c_client *client, const struct i2c_device_id 
 	dev_info(ts->dev, "CT363 Successfully initialized\n");
 	return 0;
 err_request_threaded_irq:
-	//unregister_early_suspend(&ts->early_suspend);
+	tp_unregister_fb(&ts->tp);
 err_input_register_devcie:
 err_input_allocate_device:
 	if(ts->ops->deinit)

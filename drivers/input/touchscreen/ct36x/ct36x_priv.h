@@ -17,8 +17,9 @@
 #include <linux/clk.h>
 #include <linux/interrupt.h>
 #include <linux/input/mt.h>
-
 #include <linux/ct36x.h>
+
+#include "../tp_suspend.h"
 
 int flag_ct36x_model;
 
@@ -64,9 +65,7 @@ struct ct36x_data{
 
 	struct      input_dev *input;
 
-#ifdef CONFIG_HAS_EARLYSUSPEND
-	struct      early_suspend early_suspend;
-#endif
+	struct  tp_device  tp;
 	struct ct36x_ops *ops;
 	void *priv;
 };
