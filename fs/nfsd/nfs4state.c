@@ -3627,8 +3627,11 @@ static __be32 nfsd4_lookup_stateid(stateid_t *stateid, unsigned char typemask,
 		return nfserr_bad_stateid;
 	status = lookup_clientid(&stateid->si_opaque.so_clid, sessions,
 							nn, &cl);
-	if (status == nfserr_stale_clientid)
+	if (status == nfserr_stale_clientid) {
+		if (sessions)
+			return nfserr_bad_stateid;
 		return nfserr_stale_stateid;
+	}
 	if (status)
 		return status;
 	*s = find_stateid_by_type(cl, stateid, typemask);
