@@ -720,7 +720,7 @@ static void nand_command_lp(struct mtd_info *mtd, unsigned int command,
 
 	/*
 	 * Program and erase have their own busy handlers status, sequential
-	 * in, and deplete1 need no delay.
+	 * in and status need no delay.
 	 */
 	switch (command) {
 
