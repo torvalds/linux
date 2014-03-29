@@ -56,7 +56,7 @@ static int fb_notifier_callback(struct notifier_block *self,
 
 	if (ret < 0)
 	{
-		printk("TP_notifier_callback error action=%x,blank_mode=%x\n",action,blank_mode);
+		printk("TP_notifier_callback error action=%x,blank_mode=%x\n",(int)action,blank_mode);
 		return ret;
 	}
 
@@ -76,4 +76,4 @@ static void tp_unregister_fb(struct tp_device *tp)
 {
 	fb_unregister_client(&tp->fb_notif);
 }
-#endif _RK_TP_SUSPEND_H
+#endif
