@@ -265,35 +265,30 @@ struct odm_rate_adapt {
 #define		DM_Type_ByFW			0
 #define		DM_Type_ByDriver		1
 
-/*  */
 /*  Declare for common info */
-/*  */
-/*  Declare for common info */
-/*  */
-#define MAX_PATH_NUM_92CS		2
 
 struct odm_phy_info {
 	u8		RxPWDBAll;
 	u8		SignalQuality;	 /*  in 0-100 index. */
-	u8		RxMIMOSignalQuality[MAX_PATH_NUM_92CS]; /* EVM */
-	u8		RxMIMOSignalStrength[MAX_PATH_NUM_92CS];/*  in 0~100 index */
+	u8		RxMIMOSignalQuality[RF_PATH_MAX]; /* EVM */
+	u8		RxMIMOSignalStrength[RF_PATH_MAX];/*  in 0~100 index */
 	s8		RxPower; /*  in dBm Translate from PWdB */
 	s8		RecvSignalPower;/*  Real power in dBm for this packet, no beautification and aggregation. Keep this raw info to be used for the other procedures. */
 	u8		BTRxRSSIPercentage;
 	u8		SignalStrength; /*  in 0-100 index. */
-	u8		RxPwr[MAX_PATH_NUM_92CS];/* per-path's pwdb */
-	u8		RxSNR[MAX_PATH_NUM_92CS];/* per-path's SNR */
+	u8		RxPwr[RF_PATH_MAX];/* per-path's pwdb */
+	u8		RxSNR[RF_PATH_MAX];/* per-path's SNR */
 };
 
 
 struct odm_phy_dbg_info {
 	/* ODM Write,debug info */
-	s8		RxSNRdB[MAX_PATH_NUM_92CS];
+	s8		RxSNRdB[RF_PATH_MAX];
 	u64		NumQryPhyStatus;
 	u64		NumQryPhyStatusCCK;
 	u64		NumQryPhyStatusOFDM;
 	/* Others */
-	s32		RxEVM[MAX_PATH_NUM_92CS];
+	s32		RxEVM[RF_PATH_MAX];
 
 };
 

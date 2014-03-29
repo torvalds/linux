@@ -388,7 +388,7 @@ s32 rtl8723a_FirmwareDownload(struct rtw_adapter *padapter)
 		rtStatus = _WriteFW(padapter, buf, fw_size);
 
 		if (rtStatus == _SUCCESS ||
-		    (rtw_get_passing_time_ms23a(fwdl_start_time) > 500 &&
+		    (jiffies_to_msecs(jiffies - fwdl_start_time) > 500 &&
 		     writeFW_retry++ >= 3))
 			break;
 

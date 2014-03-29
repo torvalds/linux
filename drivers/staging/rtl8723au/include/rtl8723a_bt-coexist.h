@@ -1074,7 +1074,7 @@ struct packet_irp_acl_data {
 struct packet_irp_hcievent_data {
 	u8		EventCode;
 	u8		Length;
-	u8		Data[5];
+	u8		Data[20];
 };
 
 struct common_triple {
@@ -1332,7 +1332,7 @@ struct bt_coexist_8723a {
 	u8					c2hBtInfoOriginal;
 	u8					prec2hBtInfo; /*  for 1Ant */
 	u8					bC2hBtInquiryPage;
-	u64					btInqPageStartTime; /*  for 2Ant */
+	unsigned long				btInqPageStartTime; /*  for 2Ant */
 	u8					c2hBtProfile; /*  for 1Ant */
 	u8					btRetryCnt;
 	u8					btInfoExt;

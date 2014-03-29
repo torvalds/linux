@@ -785,7 +785,7 @@ static s32 xmitframe_addmic(struct rtw_adapter *padapter,
 
 			for (curfragnum = 0; curfragnum < pattrib->nr_frags;
 			     curfragnum++) {
-				payload = (u8 *)RND4((unsigned long)payload);
+				payload = PTR_ALIGN(payload, 4);
 				RT_TRACE(_module_rtl871x_xmit_c_, _drv_err_,
 					 ("=== curfragnum =%d, pframe = 0x%.2x, "
 					  "0x%.2x, 0x%.2x, 0x%.2x, 0x%.2x, 0x"
@@ -1124,7 +1124,6 @@ s32 rtw_xmitframe_coalesce23a(struct rtw_adapter *padapter, struct sk_buff *pkt,
 	struct xmit_priv	*pxmitpriv = &padapter->xmitpriv;
 	struct pkt_attrib	*pattrib = &pxmitframe->attrib;
 	s32 frg_inx, frg_len, mpdu_len, llc_sz, mem_sz;
-	unsigned long addr;
 	u8 *pframe, *mem_start;
 	u8 hw_hdr_offset;
 	u8 *pbuf_start;
@@ -1261,9 +1260,7 @@ s32 rtw_xmitframe_coalesce23a(struct rtw_adapter *padapter, struct sk_buff *pkt,
 			RT_TRACE(_module_rtl871x_xmit_c_, _drv_err_, ("%s: There're still something in packet!\n", __func__));
 		}
 
-		addr = (unsigned long)pframe;
-
-		mem_start = (unsigned char *)RND4(addr) + hw_hdr_offset;
+		mem_start = PTR_ALIGN(pframe, 4) + hw_hdr_offset;
 		memcpy(mem_start, pbuf_start + hw_hdr_offset, pattrib->hdrlen);
 
 	}

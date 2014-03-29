@@ -65,8 +65,6 @@ enum RF_RADIO_PATH {
 	RF_PATH_MAX			/* Max RF number 90 support */
 };
 
-#define	RF_PATH_MAX			3
-
 #define CHANNEL_MAX_NUMBER		14	/*  14 is the max channel number */
 #define CHANNEL_GROUP_MAX		3	/*  ch1~3, ch4~9, ch10~14 total three groups */
 

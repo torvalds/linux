@@ -4620,11 +4620,11 @@ bthci_StateConnected(struct rtw_adapter *padapter,
 /*PMGNT_INFO pMgntInfo = &padapter->MgntInfo; */
 	struct bt_30info *pBTInfo = GET_BT_INFO(padapter);
 	struct bt_mgnt *pBtMgnt = &pBTInfo->BtMgnt;
+	u8 i;
+	u16 logicHandle = 0;
 
 	RTPRINT(FIOCTL, IOCTL_STATE, ("[BT state], [Connected], "));
 	switch (StateCmd) {
-	u8 i;
-	u16 logicHandle = 0;
 	case STATE_CMD_DISCONNECT_PHY_LINK:
 		RTPRINT(FIOCTL, IOCTL_STATE, ("STATE_CMD_DISCONNECT_PHY_LINK\n"));
 
@@ -7076,17 +7076,17 @@ static void btdm_2AntBtInquiryPage(struct rtw_adapter *padapter)
 static u8 btdm_HoldForBtInqPage(struct rtw_adapter *padapter)
 {
 	struct hal_data_8723a *pHalData = GET_HAL_DATA(padapter);
-	u32 curTime = rtw_get_current_time();
+	u32 curTime = jiffies;
 
 	if (pHalData->bt_coexist.halCoex8723.bC2hBtInquiryPage) {
 		/*  bt inquiry or page is started. */
 		if (pHalData->bt_coexist.halCoex8723.btInqPageStartTime == 0) {
 			pHalData->bt_coexist.halCoex8723.btInqPageStartTime = curTime;
-			RTPRINT(FBT, BT_TRACE, ("[BTCoex], BT Inquiry/page is started at time : 0x%"i64fmt"x \n",
+			RTPRINT(FBT, BT_TRACE, ("[BTCoex], BT Inquiry/page is started at time : 0x%lx \n",
 			pHalData->bt_coexist.halCoex8723.btInqPageStartTime));
 		}
 	}
-	RTPRINT(FBT, BT_TRACE, ("[BTCoex], BT Inquiry/page started time : 0x%"i64fmt"x, curTime : 0x%x \n",
+	RTPRINT(FBT, BT_TRACE, ("[BTCoex], BT Inquiry/page started time : 0x%lx, curTime : 0x%x \n",
 		pHalData->bt_coexist.halCoex8723.btInqPageStartTime, curTime));
 
 	if (pHalData->bt_coexist.halCoex8723.btInqPageStartTime) {

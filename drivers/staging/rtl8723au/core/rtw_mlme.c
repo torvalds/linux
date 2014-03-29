@@ -69,6 +69,7 @@ int _rtw_init_mlme_priv23a(struct rtw_adapter *padapter)
 	return res;
 }
 
+#ifdef CONFIG_8723AU_AP_MODE
 static void rtw_free_mlme_ie_data(u8 **ppie, u32 *plen)
 {
 	if(*ppie)
@@ -78,6 +79,7 @@ static void rtw_free_mlme_ie_data(u8 **ppie, u32 *plen)
 		*ppie=NULL;
 	}
 }
+#endif
 
 void rtw23a_free_mlme_priv_ie_data(struct mlme_priv *pmlmepriv)
 {
@@ -94,9 +96,7 @@ void rtw23a_free_mlme_priv_ie_data(struct mlme_priv *pmlmepriv)
 	rtw_free_mlme_ie_data(&pmlmepriv->p2p_probe_resp_ie, &pmlmepriv->p2p_probe_resp_ie_len);
 	rtw_free_mlme_ie_data(&pmlmepriv->p2p_go_probe_resp_ie, &pmlmepriv->p2p_go_probe_resp_ie_len);
 	rtw_free_mlme_ie_data(&pmlmepriv->p2p_assoc_req_ie, &pmlmepriv->p2p_assoc_req_ie_len);
-#endif
 
-#if defined(CONFIG_8723AU_P2P)
 	rtw_free_mlme_ie_data(&pmlmepriv->wfd_beacon_ie, &pmlmepriv->wfd_beacon_ie_len);
 	rtw_free_mlme_ie_data(&pmlmepriv->wfd_probe_req_ie, &pmlmepriv->wfd_probe_req_ie_len);
 	rtw_free_mlme_ie_data(&pmlmepriv->wfd_probe_resp_ie, &pmlmepriv->wfd_probe_resp_ie_len);
@@ -941,7 +941,7 @@ void rtw_indicate_disconnect23a(struct rtw_adapter *padapter)
 
 		/* set ips_deny_time to avoid enter IPS before LPS leave */
 		padapter->pwrctrlpriv.ips_deny_time =
-			rtw_get_current_time() + rtw_ms_to_systime23a(3000);
+			jiffies + msecs_to_jiffies(3000);
 
 		_clr_fwstate_(pmlmepriv, _FW_LINKED);
 
@@ -1675,7 +1675,7 @@ static int rtw_check_join_candidate(struct mlme_priv *pmlmepriv
 	}
 
 	/* check ssid, if needed */
-	if (pmlmepriv->assoc_ssid.ssid && pmlmepriv->assoc_ssid.ssid_len) {
+	if (pmlmepriv->assoc_ssid.ssid_len) {
 		if (competitor->network.Ssid.ssid_len !=
 		    pmlmepriv->assoc_ssid.ssid_len ||
 		    memcmp(competitor->network.Ssid.ssid,
@@ -1839,8 +1839,7 @@ int rtw_set_key23a(struct rtw_adapter *adapter,
 		res = _FAIL;  /* try again */
 		goto exit;
 	}
-	psetkeyparm = (struct setkey_parm *)
-		kzalloc(sizeof(struct setkey_parm), GFP_KERNEL);
+	psetkeyparm = kzalloc(sizeof(struct setkey_parm), GFP_KERNEL);
 	if (!psetkeyparm) {
 		kfree(pcmd);
 		res = _FAIL;
@@ -1902,6 +1901,8 @@ int rtw_set_key23a(struct rtw_adapter *adapter,
 			  "%x (must be 1 or 2 or 4 or 5)\n",
 			  psecuritypriv->dot11PrivacyAlgrthm));
 		res = _FAIL;
+		kfree(pcmd);
+		kfree(psetkeyparm);
 		goto exit;
 	}
 

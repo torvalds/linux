@@ -664,8 +664,10 @@ static struct rtw_adapter *rtw_usb_if1_init(struct dvobj_priv *dvobj,
 
 	/*  set mac addr */
 	rtw_macaddr_cfg23a(padapter->eeprompriv.mac_addr);
+#ifdef CONFIG_8723AU_P2P
 	rtw_init_wifidirect_addrs23a(padapter, padapter->eeprompriv.mac_addr,
 				  padapter->eeprompriv.mac_addr);
+#endif
 
 	DBG_8723A("bDriverStopped:%d, bSurpriseRemoved:%d, bup:%d, hw_init_completed:%d\n",
 		  padapter->bDriverStopped, padapter->bSurpriseRemoved,
@@ -811,12 +813,9 @@ static void rtw_disconnect(struct usb_interface *pusb_intf)
 	return;
 }
 
-extern int console_suspend_enabled;
-
 static int __init rtw_drv_entry(void)
 {
 	RT_TRACE(_module_hci_intfs_c_, _drv_err_, ("+rtw_drv_entry\n"));
-	rtw_suspend_lock_init();
 	return usb_register(usb_drv);
 }
 
@@ -824,8 +823,6 @@ static void __exit rtw_drv_halt(void)
 {
 	RT_TRACE(_module_hci_intfs_c_, _drv_err_, ("+rtw_drv_halt\n"));
 	DBG_8723A("+rtw_drv_halt\n");
-
-	rtw_suspend_lock_uninit();
 
 	usb_deregister(usb_drv);
 

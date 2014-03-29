@@ -81,7 +81,7 @@ static u32 go_add_group_info_attr(struct wifidirect_info *pwdinfo, u8 *pbuf)
 			pcur++;
 
 			/* u16*)(pcur) = cpu_to_be16(psta->config_methods); */
-			RTW_PUT_BE16(pcur, psta->config_methods);
+			put_unaligned_be16(psta->config_methods, pcur);
 			pcur += 2;
 
 			memcpy(pcur, psta->primary_dev_type, 8);
@@ -96,11 +96,11 @@ static u32 go_add_group_info_attr(struct wifidirect_info *pwdinfo, u8 *pbuf)
 			if (psta->dev_name_len>0)
 			{
 				/* u16*)(pcur) = cpu_to_be16(WPS_ATTR_DEVICE_NAME); */
-				RTW_PUT_BE16(pcur, WPS_ATTR_DEVICE_NAME);
+				put_unaligned_be16(WPS_ATTR_DEVICE_NAME, pcur);
 				pcur += 2;
 
 				/* u16*)(pcur) = cpu_to_be16(psta->dev_name_len); */
-				RTW_PUT_BE16(pcur, psta->dev_name_len);
+				put_unaligned_be16(psta->dev_name_len, pcur);
 				pcur += 2;
 
 				memcpy(pcur, psta->dev_name, psta->dev_name_len);
@@ -320,23 +320,23 @@ static void issue_p2p_provision_resp(struct wifidirect_info *pwdinfo, u8* raddr,
 	wpsielen = 0;
 	/*	WPS OUI */
 	/* u32*) (wpsie) = cpu_to_be32(WPSOUI); */
-	RTW_PUT_BE32(wpsie, WPSOUI);
+	put_unaligned_be32(WPSOUI, wpsie);
 	wpsielen += 4;
 
 	/*	Config Method */
 	/*	Type: */
 	/* u16*) (wpsie + wpsielen) = cpu_to_be16(WPS_ATTR_CONF_METHOD); */
-	RTW_PUT_BE16(wpsie + wpsielen, WPS_ATTR_CONF_METHOD);
+	put_unaligned_be16(WPS_ATTR_CONF_METHOD, wpsie + wpsielen);
 	wpsielen += 2;
 
 	/*	Length: */
 	/* u16*) (wpsie + wpsielen) = cpu_to_be16(0x0002); */
-	RTW_PUT_BE16(wpsie + wpsielen, 0x0002);
+	put_unaligned_be16(0x0002, wpsie + wpsielen);
 	wpsielen += 2;
 
 	/*	Value: */
 	/* u16*) (wpsie + wpsielen) = cpu_to_be16(config_method); */
-	RTW_PUT_BE16(wpsie + wpsielen, config_method);
+	put_unaligned_be16(config_method, wpsie + wpsielen);
 	wpsielen += 2;
 
 	pframe = rtw_set_ie23a(pframe, _VENDOR_SPECIFIC_IE_, wpsielen, (unsigned char *) wpsie, &pattrib->pktlen);
@@ -513,7 +513,7 @@ u32 build_beacon_wfd_ie(struct wifidirect_info *pwdinfo, u8 *pbuf)
 
 	/*	Length: */
 	/*	Note: In the WFD specification, the size of length field is 2. */
-	RTW_PUT_BE16(wfdie + wfdielen, 0x0006);
+	put_unaligned_be16(0x0006, wfdie + wfdielen);
 	wfdielen += 2;
 
 	/*	Value1: */
@@ -524,19 +524,24 @@ u32 build_beacon_wfd_ie(struct wifidirect_info *pwdinfo, u8 *pbuf)
 		if (is_any_client_associated(pwdinfo->padapter))
 		{
 			/*	WFD primary sink + WiFi Direct mode + WSD (WFD Service Discovery) */
-			RTW_PUT_BE16(wfdie + wfdielen, pwfd_info->wfd_device_type | WFD_DEVINFO_WSD);
+			put_unaligned_be16(pwfd_info->wfd_device_type |
+					   WFD_DEVINFO_WSD, wfdie + wfdielen);
 		}
 		else
 		{
 			/*	WFD primary sink + available for WFD session + WiFi Direct mode + WSD (WFD Service Discovery) */
-			RTW_PUT_BE16(wfdie + wfdielen, pwfd_info->wfd_device_type | WFD_DEVINFO_SESSION_AVAIL | WFD_DEVINFO_WSD);
+			put_unaligned_be16(pwfd_info->wfd_device_type |
+					   WFD_DEVINFO_SESSION_AVAIL |
+					   WFD_DEVINFO_WSD, wfdie + wfdielen);
 		}
 
 	}
 	else
 	{
 		/*	WFD primary sink + available for WFD session + WiFi Direct mode + WSD (WFD Service Discovery) */
-		RTW_PUT_BE16(wfdie + wfdielen, pwfd_info->wfd_device_type | WFD_DEVINFO_SESSION_AVAIL | WFD_DEVINFO_WSD);
+		put_unaligned_be16(pwfd_info->wfd_device_type |
+				   WFD_DEVINFO_SESSION_AVAIL |
+				   WFD_DEVINFO_WSD, wfdie + wfdielen);
 	}
 
 	wfdielen += 2;
@@ -544,13 +549,13 @@ u32 build_beacon_wfd_ie(struct wifidirect_info *pwdinfo, u8 *pbuf)
 	/*	Value2: */
 	/*	Session Management Control Port */
 	/*	Default TCP port for RTSP messages is 554 */
-	RTW_PUT_BE16(wfdie + wfdielen, pwfd_info->rtsp_ctrlport);
+	put_unaligned_be16(pwfd_info->rtsp_ctrlport, wfdie + wfdielen);
 	wfdielen += 2;
 
 	/*	Value3: */
 	/*	WFD Device Maximum Throughput */
 	/*	300Mbps is the maximum throughput */
-	RTW_PUT_BE16(wfdie + wfdielen, 300);
+	put_unaligned_be16(300, wfdie + wfdielen);
 	wfdielen += 2;
 
 	/*	Associated BSSID ATTR */
@@ -559,7 +564,7 @@ u32 build_beacon_wfd_ie(struct wifidirect_info *pwdinfo, u8 *pbuf)
 
 	/*	Length: */
 	/*	Note: In the WFD specification, the size of length field is 2. */
-	RTW_PUT_BE16(wfdie + wfdielen, 0x0006);
+	put_unaligned_be16(0x0006, wfdie + wfdielen);
 	wfdielen += 2;
 
 	/*	Value: */
@@ -581,7 +586,7 @@ u32 build_beacon_wfd_ie(struct wifidirect_info *pwdinfo, u8 *pbuf)
 
 	/*	Length: */
 	/*	Note: In the WFD specification, the size of length field is 2. */
-	RTW_PUT_BE16(wfdie + wfdielen, 0x0007);
+	put_unaligned_be16(0x0007, wfdie + wfdielen);
 	wfdielen += 2;
 
 	/*	Value: */
@@ -628,7 +633,7 @@ u32 build_probe_req_wfd_ie(struct wifidirect_info *pwdinfo, u8 *pbuf)
 
 	/*	Length: */
 	/*	Note: In the WFD specification, the size of length field is 2. */
-	RTW_PUT_BE16(wfdie + wfdielen, 0x0006);
+	put_unaligned_be16(0x0006, wfdie + wfdielen);
 	wfdielen += 2;
 
 	/*	Value1: */
@@ -637,17 +642,17 @@ u32 build_probe_req_wfd_ie(struct wifidirect_info *pwdinfo, u8 *pbuf)
 	if (1 == pwdinfo->wfd_tdls_enable)
 	{
 		/*	WFD primary sink + available for WFD session + WiFi TDLS mode + WSC (WFD Service Discovery) */
-		RTW_PUT_BE16(wfdie + wfdielen, pwfd_info->wfd_device_type |
-						WFD_DEVINFO_SESSION_AVAIL |
-						WFD_DEVINFO_WSD |
-						WFD_DEVINFO_PC_TDLS);
+		put_unaligned_be16(pwfd_info->wfd_device_type |
+				   WFD_DEVINFO_SESSION_AVAIL |
+				   WFD_DEVINFO_WSD |
+				   WFD_DEVINFO_PC_TDLS, wfdie + wfdielen);
 	}
 	else
 	{
 		/*	WFD primary sink + available for WFD session + WiFi Direct mode + WSC (WFD Service Discovery) */
-		RTW_PUT_BE16(wfdie + wfdielen, pwfd_info->wfd_device_type |
-						WFD_DEVINFO_SESSION_AVAIL |
-						WFD_DEVINFO_WSD);
+		put_unaligned_be16(pwfd_info->wfd_device_type |
+				   WFD_DEVINFO_SESSION_AVAIL |
+				   WFD_DEVINFO_WSD, wfdie + wfdielen);
 	}
 
 	wfdielen += 2;
@@ -655,13 +660,13 @@ u32 build_probe_req_wfd_ie(struct wifidirect_info *pwdinfo, u8 *pbuf)
 	/*	Value2: */
 	/*	Session Management Control Port */
 	/*	Default TCP port for RTSP messages is 554 */
-	RTW_PUT_BE16(wfdie + wfdielen, pwfd_info->rtsp_ctrlport);
+	put_unaligned_be16(pwfd_info->rtsp_ctrlport, wfdie + wfdielen);
 	wfdielen += 2;
 
 	/*	Value3: */
 	/*	WFD Device Maximum Throughput */
 	/*	300Mbps is the maximum throughput */
-	RTW_PUT_BE16(wfdie + wfdielen, 300);
+	put_unaligned_be16(300, wfdie + wfdielen);
 	wfdielen += 2;
 
 	/*	Associated BSSID ATTR */
@@ -670,7 +675,7 @@ u32 build_probe_req_wfd_ie(struct wifidirect_info *pwdinfo, u8 *pbuf)
 
 	/*	Length: */
 	/*	Note: In the WFD specification, the size of length field is 2. */
-	RTW_PUT_BE16(wfdie + wfdielen, 0x0006);
+	put_unaligned_be16(0x0006, wfdie + wfdielen);
 	wfdielen += 2;
 
 	/*	Value: */
@@ -692,7 +697,7 @@ u32 build_probe_req_wfd_ie(struct wifidirect_info *pwdinfo, u8 *pbuf)
 
 	/*	Length: */
 	/*	Note: In the WFD specification, the size of length field is 2. */
-	RTW_PUT_BE16(wfdie + wfdielen, 0x0007);
+	put_unaligned_be16(0x0007, wfdie + wfdielen);
 	wfdielen += 2;
 
 	/*	Value: */
@@ -740,7 +745,7 @@ u32 build_probe_resp_wfd_ie(struct wifidirect_info *pwdinfo, u8 *pbuf, u8 tunnel
 
 	/*	Length: */
 	/*	Note: In the WFD specification, the size of length field is 2. */
-	RTW_PUT_BE16(wfdie + wfdielen, 0x0006);
+	put_unaligned_be16(0x0006, wfdie + wfdielen);
 	wfdielen += 2;
 
 	/*	Value1: */
@@ -756,12 +761,12 @@ u32 build_probe_resp_wfd_ie(struct wifidirect_info *pwdinfo, u8 *pbuf, u8 tunnel
 				if (pwdinfo->wfd_tdls_enable)
 				{
 					/*	TDLS mode + WSD (WFD Service Discovery) */
-					RTW_PUT_BE16(wfdie + wfdielen, pwfd_info->wfd_device_type | WFD_DEVINFO_WSD | WFD_DEVINFO_PC_TDLS | WFD_DEVINFO_HDCP_SUPPORT);
+					put_unaligned_be16(pwfd_info->wfd_device_type | WFD_DEVINFO_WSD | WFD_DEVINFO_PC_TDLS | WFD_DEVINFO_HDCP_SUPPORT, wfdie + wfdielen);
 				}
 				else
 				{
 					/*	WiFi Direct mode + WSD (WFD Service Discovery) */
-					RTW_PUT_BE16(wfdie + wfdielen, pwfd_info->wfd_device_type | WFD_DEVINFO_WSD | WFD_DEVINFO_HDCP_SUPPORT);
+					put_unaligned_be16(pwfd_info->wfd_device_type | WFD_DEVINFO_WSD | WFD_DEVINFO_HDCP_SUPPORT, wfdie + wfdielen);
 				}
 			}
 			else
@@ -769,12 +774,12 @@ u32 build_probe_resp_wfd_ie(struct wifidirect_info *pwdinfo, u8 *pbuf, u8 tunnel
 				if (pwdinfo->wfd_tdls_enable)
 				{
 					/*	available for WFD session + TDLS mode + WSD (WFD Service Discovery) */
-					RTW_PUT_BE16(wfdie + wfdielen, pwfd_info->wfd_device_type | WFD_DEVINFO_SESSION_AVAIL | WFD_DEVINFO_WSD | WFD_DEVINFO_PC_TDLS | WFD_DEVINFO_HDCP_SUPPORT);
+					put_unaligned_be16(pwfd_info->wfd_device_type | WFD_DEVINFO_SESSION_AVAIL | WFD_DEVINFO_WSD | WFD_DEVINFO_PC_TDLS | WFD_DEVINFO_HDCP_SUPPORT, wfdie + wfdielen);
 				}
 				else
 				{
 					/*	available for WFD session + WiFi Direct mode + WSD (WFD Service Discovery) */
-					RTW_PUT_BE16(wfdie + wfdielen, pwfd_info->wfd_device_type | WFD_DEVINFO_SESSION_AVAIL | WFD_DEVINFO_WSD | WFD_DEVINFO_HDCP_SUPPORT);
+					put_unaligned_be16(pwfd_info->wfd_device_type | WFD_DEVINFO_SESSION_AVAIL | WFD_DEVINFO_WSD | WFD_DEVINFO_HDCP_SUPPORT, wfdie + wfdielen);
 				}
 			}
 		}
@@ -783,13 +788,22 @@ u32 build_probe_resp_wfd_ie(struct wifidirect_info *pwdinfo, u8 *pbuf, u8 tunnel
 			if (pwdinfo->wfd_tdls_enable)
 			{
 				/*	available for WFD session + WiFi Direct mode + WSD (WFD Service Discovery) */
-				RTW_PUT_BE16(wfdie + wfdielen, pwfd_info->wfd_device_type | WFD_DEVINFO_SESSION_AVAIL | WFD_DEVINFO_WSD | WFD_DEVINFO_PC_TDLS | WFD_DEVINFO_HDCP_SUPPORT);
+				put_unaligned_be16(pwfd_info->wfd_device_type |
+						   WFD_DEVINFO_SESSION_AVAIL |
+						   WFD_DEVINFO_WSD |
+						   WFD_DEVINFO_PC_TDLS |
+						   WFD_DEVINFO_HDCP_SUPPORT,
+						   wfdie + wfdielen);
 			}
 			else
 			{
 
 				/*	available for WFD session + WiFi Direct mode + WSD (WFD Service Discovery) */
-				RTW_PUT_BE16(wfdie + wfdielen, pwfd_info->wfd_device_type | WFD_DEVINFO_SESSION_AVAIL | WFD_DEVINFO_WSD | WFD_DEVINFO_HDCP_SUPPORT);
+				put_unaligned_be16(pwfd_info->wfd_device_type |
+						   WFD_DEVINFO_SESSION_AVAIL |
+						   WFD_DEVINFO_WSD |
+						   WFD_DEVINFO_HDCP_SUPPORT,
+						   wfdie + wfdielen);
 			}
 		}
 	}
@@ -797,11 +811,18 @@ u32 build_probe_resp_wfd_ie(struct wifidirect_info *pwdinfo, u8 *pbuf, u8 tunnel
 	{
 		if (pwdinfo->wfd_tdls_enable)
 		{
-			RTW_PUT_BE16(wfdie + wfdielen, pwfd_info->wfd_device_type | WFD_DEVINFO_WSD |WFD_DEVINFO_PC_TDLS | WFD_DEVINFO_HDCP_SUPPORT);
+			put_unaligned_be16(pwfd_info->wfd_device_type |
+					   WFD_DEVINFO_WSD |
+					   WFD_DEVINFO_PC_TDLS |
+					   WFD_DEVINFO_HDCP_SUPPORT,
+					   wfdie + wfdielen);
 		}
 		else
 		{
-			RTW_PUT_BE16(wfdie + wfdielen, pwfd_info->wfd_device_type | WFD_DEVINFO_WSD | WFD_DEVINFO_HDCP_SUPPORT);
+			put_unaligned_be16(pwfd_info->wfd_device_type |
+					   WFD_DEVINFO_WSD |
+					   WFD_DEVINFO_HDCP_SUPPORT,
+					   wfdie + wfdielen);
 		}
 
 	}
@@ -811,13 +832,13 @@ u32 build_probe_resp_wfd_ie(struct wifidirect_info *pwdinfo, u8 *pbuf, u8 tunnel
 	/*	Value2: */
 	/*	Session Management Control Port */
 	/*	Default TCP port for RTSP messages is 554 */
-	RTW_PUT_BE16(wfdie + wfdielen, pwfd_info->rtsp_ctrlport);
+	put_unaligned_be16(pwfd_info->rtsp_ctrlport, wfdie + wfdielen);
 	wfdielen += 2;
 
 	/*	Value3: */
 	/*	WFD Device Maximum Throughput */
 	/*	300Mbps is the maximum throughput */
-	RTW_PUT_BE16(wfdie + wfdielen, 300);
+	put_unaligned_be16(300, wfdie + wfdielen);
 	wfdielen += 2;
 
 	/*	Associated BSSID ATTR */
@@ -826,7 +847,7 @@ u32 build_probe_resp_wfd_ie(struct wifidirect_info *pwdinfo, u8 *pbuf, u8 tunnel
 
 	/*	Length: */
 	/*	Note: In the WFD specification, the size of length field is 2. */
-	RTW_PUT_BE16(wfdie + wfdielen, 0x0006);
+	put_unaligned_be16(0x0006, wfdie + wfdielen);
 	wfdielen += 2;
 
 	/*	Value: */
@@ -848,7 +869,7 @@ u32 build_probe_resp_wfd_ie(struct wifidirect_info *pwdinfo, u8 *pbuf, u8 tunnel
 
 	/*	Length: */
 	/*	Note: In the WFD specification, the size of length field is 2. */
-	RTW_PUT_BE16(wfdie + wfdielen, 0x0007);
+	put_unaligned_be16(0x0007, wfdie + wfdielen);
 	wfdielen += 2;
 
 	/*	Value: */
@@ -871,7 +892,7 @@ u32 build_probe_resp_wfd_ie(struct wifidirect_info *pwdinfo, u8 *pbuf, u8 tunnel
 
 		/*	Length: */
 		/*	Note: In the WFD specification, the size of length field is 2. */
-		RTW_PUT_BE16(wfdie + wfdielen, 0x0000);
+		put_unaligned_be16(0x0000, wfdie + wfdielen);
 		wfdielen += 2;
 
 		/*	Todo: to add the list of WFD device info descriptor in WFD group. */
@@ -919,25 +940,27 @@ u32 build_assoc_req_wfd_ie(struct wifidirect_info *pwdinfo, u8 *pbuf)
 
 	/*	Length: */
 	/*	Note: In the WFD specification, the size of length field is 2. */
-	RTW_PUT_BE16(wfdie + wfdielen, 0x0006);
+	put_unaligned_be16(0x0006, wfdie + wfdielen);
 	wfdielen += 2;
 
 	/*	Value1: */
 	/*	WFD device information */
 	/*	WFD primary sink + available for WFD session + WiFi Direct mode + WSD (WFD Service Discovery) */
-	RTW_PUT_BE16(wfdie + wfdielen, pwfd_info->wfd_device_type | WFD_DEVINFO_SESSION_AVAIL | WFD_DEVINFO_WSD);
+	put_unaligned_be16(pwfd_info->wfd_device_type |
+			   WFD_DEVINFO_SESSION_AVAIL |
+			   WFD_DEVINFO_WSD, wfdie + wfdielen);
 	wfdielen += 2;
 
 	/*	Value2: */
 	/*	Session Management Control Port */
 	/*	Default TCP port for RTSP messages is 554 */
-	RTW_PUT_BE16(wfdie + wfdielen, pwfd_info->rtsp_ctrlport);
+	put_unaligned_be16(pwfd_info->rtsp_ctrlport, wfdie + wfdielen);
 	wfdielen += 2;
 
 	/*	Value3: */
 	/*	WFD Device Maximum Throughput */
 	/*	300Mbps is the maximum throughput */
-	RTW_PUT_BE16(wfdie + wfdielen, 300);
+	put_unaligned_be16(300, wfdie + wfdielen);
 	wfdielen += 2;
 
 	/*	Associated BSSID ATTR */
@@ -946,7 +969,7 @@ u32 build_assoc_req_wfd_ie(struct wifidirect_info *pwdinfo, u8 *pbuf)
 
 	/*	Length: */
 	/*	Note: In the WFD specification, the size of length field is 2. */
-	RTW_PUT_BE16(wfdie + wfdielen, 0x0006);
+	put_unaligned_be16(0x0006, wfdie + wfdielen);
 	wfdielen += 2;
 
 	/*	Value: */
@@ -968,7 +991,7 @@ u32 build_assoc_req_wfd_ie(struct wifidirect_info *pwdinfo, u8 *pbuf)
 
 	/*	Length: */
 	/*	Note: In the WFD specification, the size of length field is 2. */
-	RTW_PUT_BE16(wfdie + wfdielen, 0x0007);
+	put_unaligned_be16(0x0007, wfdie + wfdielen);
 	wfdielen += 2;
 
 	/*	Value: */
@@ -1015,25 +1038,27 @@ u32 build_assoc_resp_wfd_ie(struct wifidirect_info *pwdinfo, u8 *pbuf)
 
 	/*	Length: */
 	/*	Note: In the WFD specification, the size of length field is 2. */
-	RTW_PUT_BE16(wfdie + wfdielen, 0x0006);
+	put_unaligned_be16(0x0006, wfdie + wfdielen);
 	wfdielen += 2;
 
 	/*	Value1: */
 	/*	WFD device information */
 	/*	WFD primary sink + available for WFD session + WiFi Direct mode + WSD (WFD Service Discovery) */
-	RTW_PUT_BE16(wfdie + wfdielen, pwfd_info->wfd_device_type | WFD_DEVINFO_SESSION_AVAIL | WFD_DEVINFO_WSD);
+	put_unaligned_be16(pwfd_info->wfd_device_type |
+			   WFD_DEVINFO_SESSION_AVAIL |
+			   WFD_DEVINFO_WSD, wfdie + wfdielen);
 	wfdielen += 2;
 
 	/*	Value2: */
 	/*	Session Management Control Port */
 	/*	Default TCP port for RTSP messages is 554 */
-	RTW_PUT_BE16(wfdie + wfdielen, pwfd_info->rtsp_ctrlport);
+	put_unaligned_be16(pwfd_info->rtsp_ctrlport, wfdie + wfdielen);
 	wfdielen += 2;
 
 	/*	Value3: */
 	/*	WFD Device Maximum Throughput */
 	/*	300Mbps is the maximum throughput */
-	RTW_PUT_BE16(wfdie + wfdielen, 300);
+	put_unaligned_be16(300, wfdie + wfdielen);
 	wfdielen += 2;
 
 	/*	Associated BSSID ATTR */
@@ -1042,7 +1067,7 @@ u32 build_assoc_resp_wfd_ie(struct wifidirect_info *pwdinfo, u8 *pbuf)
 
 	/*	Length: */
 	/*	Note: In the WFD specification, the size of length field is 2. */
-	RTW_PUT_BE16(wfdie + wfdielen, 0x0006);
+	put_unaligned_be16(0x0006, wfdie + wfdielen);
 	wfdielen += 2;
 
 	/*	Value: */
@@ -1064,7 +1089,7 @@ u32 build_assoc_resp_wfd_ie(struct wifidirect_info *pwdinfo, u8 *pbuf)
 
 	/*	Length: */
 	/*	Note: In the WFD specification, the size of length field is 2. */
-	RTW_PUT_BE16(wfdie + wfdielen, 0x0007);
+	put_unaligned_be16(0x0007, wfdie + wfdielen);
 	wfdielen += 2;
 
 	/*	Value: */
@@ -1111,25 +1136,27 @@ u32 build_nego_req_wfd_ie(struct wifidirect_info *pwdinfo, u8 *pbuf)
 
 	/*	Length: */
 	/*	Note: In the WFD specification, the size of length field is 2. */
-	RTW_PUT_BE16(wfdie + wfdielen, 0x0006);
+	put_unaligned_be16(0x0006, wfdie + wfdielen);
 	wfdielen += 2;
 
 	/*	Value1: */
 	/*	WFD device information */
 	/*	WFD primary sink + WiFi Direct mode + WSD (WFD Service Discovery) + WFD Session Available */
-	RTW_PUT_BE16(wfdie + wfdielen, pwfd_info->wfd_device_type | WFD_DEVINFO_WSD | WFD_DEVINFO_SESSION_AVAIL);
+	put_unaligned_be16(pwfd_info->wfd_device_type |
+			   WFD_DEVINFO_WSD | WFD_DEVINFO_SESSION_AVAIL,
+			   wfdie + wfdielen);
 	wfdielen += 2;
 
 	/*	Value2: */
 	/*	Session Management Control Port */
 	/*	Default TCP port for RTSP messages is 554 */
-	RTW_PUT_BE16(wfdie + wfdielen, pwfd_info->rtsp_ctrlport);
+	put_unaligned_be16(pwfd_info->rtsp_ctrlport, wfdie + wfdielen);
 	wfdielen += 2;
 
 	/*	Value3: */
 	/*	WFD Device Maximum Throughput */
 	/*	300Mbps is the maximum throughput */
-	RTW_PUT_BE16(wfdie + wfdielen, 300);
+	put_unaligned_be16(300, wfdie + wfdielen);
 	wfdielen += 2;
 
 	/*	Associated BSSID ATTR */
@@ -1138,7 +1165,7 @@ u32 build_nego_req_wfd_ie(struct wifidirect_info *pwdinfo, u8 *pbuf)
 
 	/*	Length: */
 	/*	Note: In the WFD specification, the size of length field is 2. */
-	RTW_PUT_BE16(wfdie + wfdielen, 0x0006);
+	put_unaligned_be16(0x0006, wfdie + wfdielen);
 	wfdielen += 2;
 
 	/*	Value: */
@@ -1160,7 +1187,7 @@ u32 build_nego_req_wfd_ie(struct wifidirect_info *pwdinfo, u8 *pbuf)
 
 	/*	Length: */
 	/*	Note: In the WFD specification, the size of length field is 2. */
-	RTW_PUT_BE16(wfdie + wfdielen, 0x0007);
+	put_unaligned_be16(0x0007, wfdie + wfdielen);
 	wfdielen += 2;
 
 	/*	Value: */
@@ -1207,25 +1234,27 @@ u32 build_nego_resp_wfd_ie(struct wifidirect_info *pwdinfo, u8 *pbuf)
 
 	/*	Length: */
 	/*	Note: In the WFD specification, the size of length field is 2. */
-	RTW_PUT_BE16(wfdie + wfdielen, 0x0006);
+	put_unaligned_be16(0x0006, wfdie + wfdielen);
 	wfdielen += 2;
 
 	/*	Value1: */
 	/*	WFD device information */
 	/*	WFD primary sink + WiFi Direct mode + WSD (WFD Service Discovery) + WFD Session Available */
-	RTW_PUT_BE16(wfdie + wfdielen, pwfd_info->wfd_device_type | WFD_DEVINFO_WSD | WFD_DEVINFO_SESSION_AVAIL);
+	put_unaligned_be16(pwfd_info->wfd_device_type |
+			   WFD_DEVINFO_WSD | WFD_DEVINFO_SESSION_AVAIL,
+			   wfdie + wfdielen);
 	wfdielen += 2;
 
 	/*	Value2: */
 	/*	Session Management Control Port */
 	/*	Default TCP port for RTSP messages is 554 */
-	RTW_PUT_BE16(wfdie + wfdielen, pwfd_info->rtsp_ctrlport);
+	put_unaligned_be16(pwfd_info->rtsp_ctrlport, wfdie + wfdielen);
 	wfdielen += 2;
 
 	/*	Value3: */
 	/*	WFD Device Maximum Throughput */
 	/*	300Mbps is the maximum throughput */
-	RTW_PUT_BE16(wfdie + wfdielen, 300);
+	put_unaligned_be16(300, wfdie + wfdielen);
 	wfdielen += 2;
 
 	/*	Associated BSSID ATTR */
@@ -1234,7 +1263,7 @@ u32 build_nego_resp_wfd_ie(struct wifidirect_info *pwdinfo, u8 *pbuf)
 
 	/*	Length: */
 	/*	Note: In the WFD specification, the size of length field is 2. */
-	RTW_PUT_BE16(wfdie + wfdielen, 0x0006);
+	put_unaligned_be16(0x0006, wfdie + wfdielen);
 	wfdielen += 2;
 
 	/*	Value: */
@@ -1256,7 +1285,7 @@ u32 build_nego_resp_wfd_ie(struct wifidirect_info *pwdinfo, u8 *pbuf)
 
 	/*	Length: */
 	/*	Note: In the WFD specification, the size of length field is 2. */
-	RTW_PUT_BE16(wfdie + wfdielen, 0x0007);
+	put_unaligned_be16(0x0007, wfdie + wfdielen);
 	wfdielen += 2;
 
 	/*	Value: */
@@ -1303,25 +1332,26 @@ u32 build_nego_confirm_wfd_ie(struct wifidirect_info *pwdinfo, u8 *pbuf)
 
 	/*	Length: */
 	/*	Note: In the WFD specification, the size of length field is 2. */
-	RTW_PUT_BE16(wfdie + wfdielen, 0x0006);
+	put_unaligned_be16(0x0006, wfdie + wfdielen);
 	wfdielen += 2;
 
 	/*	Value1: */
 	/*	WFD device information */
 	/*	WFD primary sink + WiFi Direct mode + WSD (WFD Service Discovery) + WFD Session Available */
-	RTW_PUT_BE16(wfdie + wfdielen, pwfd_info->wfd_device_type | WFD_DEVINFO_WSD | WFD_DEVINFO_SESSION_AVAIL);
+	put_unaligned_be16(pwfd_info->wfd_device_type | WFD_DEVINFO_WSD |
+			   WFD_DEVINFO_SESSION_AVAIL, wfdie + wfdielen);
 	wfdielen += 2;
 
 	/*	Value2: */
 	/*	Session Management Control Port */
 	/*	Default TCP port for RTSP messages is 554 */
-	RTW_PUT_BE16(wfdie + wfdielen, pwfd_info->rtsp_ctrlport);
+	put_unaligned_be16(pwfd_info->rtsp_ctrlport, wfdie + wfdielen);
 	wfdielen += 2;
 
 	/*	Value3: */
 	/*	WFD Device Maximum Throughput */
 	/*	300Mbps is the maximum throughput */
-	RTW_PUT_BE16(wfdie + wfdielen, 300);
+	put_unaligned_be16(300, wfdie + wfdielen);
 	wfdielen += 2;
 
 	/*	Associated BSSID ATTR */
@@ -1330,7 +1360,7 @@ u32 build_nego_confirm_wfd_ie(struct wifidirect_info *pwdinfo, u8 *pbuf)
 
 	/*	Length: */
 	/*	Note: In the WFD specification, the size of length field is 2. */
-	RTW_PUT_BE16(wfdie + wfdielen, 0x0006);
+	put_unaligned_be16(0x0006, wfdie + wfdielen);
 	wfdielen += 2;
 
 	/*	Value: */
@@ -1352,7 +1382,7 @@ u32 build_nego_confirm_wfd_ie(struct wifidirect_info *pwdinfo, u8 *pbuf)
 
 	/*	Length: */
 	/*	Note: In the WFD specification, the size of length field is 2. */
-	RTW_PUT_BE16(wfdie + wfdielen, 0x0007);
+	put_unaligned_be16(0x0007, wfdie + wfdielen);
 	wfdielen += 2;
 
 	/*	Value: */
@@ -1399,25 +1429,27 @@ u32 build_invitation_req_wfd_ie(struct wifidirect_info *pwdinfo, u8 *pbuf)
 
 	/*	Length: */
 	/*	Note: In the WFD specification, the size of length field is 2. */
-	RTW_PUT_BE16(wfdie + wfdielen, 0x0006);
+	put_unaligned_be16(0x0006, wfdie + wfdielen);
 	wfdielen += 2;
 
 	/*	Value1: */
 	/*	WFD device information */
 	/*	WFD primary sink + available for WFD session + WiFi Direct mode + WSD (WFD Service Discovery) */
-	RTW_PUT_BE16(wfdie + wfdielen, pwfd_info->wfd_device_type | WFD_DEVINFO_SESSION_AVAIL | WFD_DEVINFO_WSD);
+	put_unaligned_be16(pwfd_info->wfd_device_type |
+			   WFD_DEVINFO_SESSION_AVAIL | WFD_DEVINFO_WSD,
+			   wfdie + wfdielen);
 	wfdielen += 2;
 
 	/*	Value2: */
 	/*	Session Management Control Port */
 	/*	Default TCP port for RTSP messages is 554 */
-	RTW_PUT_BE16(wfdie + wfdielen, pwfd_info->rtsp_ctrlport);
+	put_unaligned_be16(pwfd_info->rtsp_ctrlport, wfdie + wfdielen);
 	wfdielen += 2;
 
 	/*	Value3: */
 	/*	WFD Device Maximum Throughput */
 	/*	300Mbps is the maximum throughput */
-	RTW_PUT_BE16(wfdie + wfdielen, 300);
+	put_unaligned_be16(300, wfdie + wfdielen);
 	wfdielen += 2;
 
 	/*	Associated BSSID ATTR */
@@ -1426,7 +1458,7 @@ u32 build_invitation_req_wfd_ie(struct wifidirect_info *pwdinfo, u8 *pbuf)
 
 	/*	Length: */
 	/*	Note: In the WFD specification, the size of length field is 2. */
-	RTW_PUT_BE16(wfdie + wfdielen, 0x0006);
+	put_unaligned_be16(0x0006, wfdie + wfdielen);
 	wfdielen += 2;
 
 	/*	Value: */
@@ -1448,7 +1480,7 @@ u32 build_invitation_req_wfd_ie(struct wifidirect_info *pwdinfo, u8 *pbuf)
 
 	/*	Length: */
 	/*	Note: In the WFD specification, the size of length field is 2. */
-	RTW_PUT_BE16(wfdie + wfdielen, 0x0007);
+	put_unaligned_be16(0x0007, wfdie + wfdielen);
 	wfdielen += 2;
 
 	/*	Value: */
@@ -1471,7 +1503,7 @@ u32 build_invitation_req_wfd_ie(struct wifidirect_info *pwdinfo, u8 *pbuf)
 
 		/*	Length: */
 		/*	Note: In the WFD specification, the size of length field is 2. */
-		RTW_PUT_BE16(wfdie + wfdielen, 0x0000);
+		put_unaligned_be16(0x0000, wfdie + wfdielen);
 		wfdielen += 2;
 
 		/*	Todo: to add the list of WFD device info descriptor in WFD group. */
@@ -1510,25 +1542,27 @@ u32 build_invitation_resp_wfd_ie(struct wifidirect_info *pwdinfo, u8 *pbuf)
 
 	/*	Length: */
 	/*	Note: In the WFD specification, the size of length field is 2. */
-	RTW_PUT_BE16(wfdie + wfdielen, 0x0006);
+	put_unaligned_be16(0x0006, wfdie + wfdielen);
 	wfdielen += 2;
 
 	/*	Value1: */
 	/*	WFD device information */
 	/*	WFD primary sink + available for WFD session + WiFi Direct mode + WSD (WFD Service Discovery) */
-	RTW_PUT_BE16(wfdie + wfdielen, pwfd_info->wfd_device_type | WFD_DEVINFO_SESSION_AVAIL | WFD_DEVINFO_WSD);
+	put_unaligned_be16(pwfd_info->wfd_device_type |
+			   WFD_DEVINFO_SESSION_AVAIL | WFD_DEVINFO_WSD,
+			   wfdie + wfdielen);
 	wfdielen += 2;
 
 	/*	Value2: */
 	/*	Session Management Control Port */
 	/*	Default TCP port for RTSP messages is 554 */
-	RTW_PUT_BE16(wfdie + wfdielen, pwfd_info->rtsp_ctrlport);
+	put_unaligned_be16(pwfd_info->rtsp_ctrlport, wfdie + wfdielen);
 	wfdielen += 2;
 
 	/*	Value3: */
 	/*	WFD Device Maximum Throughput */
 	/*	300Mbps is the maximum throughput */
-	RTW_PUT_BE16(wfdie + wfdielen, 300);
+	put_unaligned_be16(300, wfdie + wfdielen);
 	wfdielen += 2;
 
 	/*	Associated BSSID ATTR */
@@ -1537,7 +1571,7 @@ u32 build_invitation_resp_wfd_ie(struct wifidirect_info *pwdinfo, u8 *pbuf)
 
 	/*	Length: */
 	/*	Note: In the WFD specification, the size of length field is 2. */
-	RTW_PUT_BE16(wfdie + wfdielen, 0x0006);
+	put_unaligned_be16(0x0006, wfdie + wfdielen);
 	wfdielen += 2;
 
 	/*	Value: */
@@ -1559,7 +1593,7 @@ u32 build_invitation_resp_wfd_ie(struct wifidirect_info *pwdinfo, u8 *pbuf)
 
 	/*	Length: */
 	/*	Note: In the WFD specification, the size of length field is 2. */
-	RTW_PUT_BE16(wfdie + wfdielen, 0x0007);
+	put_unaligned_be16(0x0007, wfdie + wfdielen);
 	wfdielen += 2;
 
 	/*	Value: */
@@ -1582,7 +1616,7 @@ u32 build_invitation_resp_wfd_ie(struct wifidirect_info *pwdinfo, u8 *pbuf)
 
 		/*	Length: */
 		/*	Note: In the WFD specification, the size of length field is 2. */
-		RTW_PUT_BE16(wfdie + wfdielen, 0x0000);
+		put_unaligned_be16(0x0000, wfdie + wfdielen);
 		wfdielen += 2;
 
 		/*	Todo: to add the list of WFD device info descriptor in WFD group. */
@@ -1621,25 +1655,27 @@ u32 build_provdisc_req_wfd_ie(struct wifidirect_info *pwdinfo, u8 *pbuf)
 
 	/*	Length: */
 	/*	Note: In the WFD specification, the size of length field is 2. */
-	RTW_PUT_BE16(wfdie + wfdielen, 0x0006);
+	put_unaligned_be16(0x0006, wfdie + wfdielen);
 	wfdielen += 2;
 
 	/*	Value1: */
 	/*	WFD device information */
 	/*	WFD primary sink + available for WFD session + WiFi Direct mode + WSD (WFD Service Discovery) */
-	RTW_PUT_BE16(wfdie + wfdielen, pwfd_info->wfd_device_type | WFD_DEVINFO_SESSION_AVAIL | WFD_DEVINFO_WSD);
+	put_unaligned_be16(pwfd_info->wfd_device_type |
+			   WFD_DEVINFO_SESSION_AVAIL | WFD_DEVINFO_WSD,
+			   wfdie + wfdielen);
 	wfdielen += 2;
 
 	/*	Value2: */
 	/*	Session Management Control Port */
 	/*	Default TCP port for RTSP messages is 554 */
-	RTW_PUT_BE16(wfdie + wfdielen, pwfd_info->rtsp_ctrlport);
+	put_unaligned_be16(pwfd_info->rtsp_ctrlport, wfdie + wfdielen);
 	wfdielen += 2;
 
 	/*	Value3: */
 	/*	WFD Device Maximum Throughput */
 	/*	300Mbps is the maximum throughput */
-	RTW_PUT_BE16(wfdie + wfdielen, 300);
+	put_unaligned_be16(300, wfdie + wfdielen);
 	wfdielen += 2;
 
 	/*	Associated BSSID ATTR */
@@ -1648,7 +1684,7 @@ u32 build_provdisc_req_wfd_ie(struct wifidirect_info *pwdinfo, u8 *pbuf)
 
 	/*	Length: */
 	/*	Note: In the WFD specification, the size of length field is 2. */
-	RTW_PUT_BE16(wfdie + wfdielen, 0x0006);
+	put_unaligned_be16(0x0006, wfdie + wfdielen);
 	wfdielen += 2;
 
 	/*	Value: */
@@ -1670,7 +1706,7 @@ u32 build_provdisc_req_wfd_ie(struct wifidirect_info *pwdinfo, u8 *pbuf)
 
 	/*	Length: */
 	/*	Note: In the WFD specification, the size of length field is 2. */
-	RTW_PUT_BE16(wfdie + wfdielen, 0x0007);
+	put_unaligned_be16(0x0007, wfdie + wfdielen);
 	wfdielen += 2;
 
 	/*	Value: */
@@ -1717,25 +1753,27 @@ u32 build_provdisc_resp_wfd_ie(struct wifidirect_info *pwdinfo, u8 *pbuf)
 
 	/*	Length: */
 	/*	Note: In the WFD specification, the size of length field is 2. */
-	RTW_PUT_BE16(wfdie + wfdielen, 0x0006);
+	put_unaligned_be16(0x0006, wfdie + wfdielen);
 	wfdielen += 2;
 
 	/*	Value1: */
 	/*	WFD device information */
 	/*	WFD primary sink + available for WFD session + WiFi Direct mode + WSD (WFD Service Discovery) */
-	RTW_PUT_BE16(wfdie + wfdielen, pwfd_info->wfd_device_type | WFD_DEVINFO_SESSION_AVAIL | WFD_DEVINFO_WSD);
+	put_unaligned_be16(pwfd_info->wfd_device_type |
+			   WFD_DEVINFO_SESSION_AVAIL | WFD_DEVINFO_WSD,
+			   wfdie + wfdielen);
 	wfdielen += 2;
 
 	/*	Value2: */
 	/*	Session Management Control Port */
 	/*	Default TCP port for RTSP messages is 554 */
-	RTW_PUT_BE16(wfdie + wfdielen, pwfd_info->rtsp_ctrlport);
+	put_unaligned_be16(pwfd_info->rtsp_ctrlport, wfdie + wfdielen);
 	wfdielen += 2;
 
 	/*	Value3: */
 	/*	WFD Device Maximum Throughput */
 	/*	300Mbps is the maximum throughput */
-	RTW_PUT_BE16(wfdie + wfdielen, 300);
+	put_unaligned_be16(300, wfdie + wfdielen);
 	wfdielen += 2;
 
 	/*	Associated BSSID ATTR */
@@ -1744,7 +1782,7 @@ u32 build_provdisc_resp_wfd_ie(struct wifidirect_info *pwdinfo, u8 *pbuf)
 
 	/*	Length: */
 	/*	Note: In the WFD specification, the size of length field is 2. */
-	RTW_PUT_BE16(wfdie + wfdielen, 0x0006);
+	put_unaligned_be16(0x0006, wfdie + wfdielen);
 	wfdielen += 2;
 
 	/*	Value: */
@@ -1766,7 +1804,7 @@ u32 build_provdisc_resp_wfd_ie(struct wifidirect_info *pwdinfo, u8 *pbuf)
 
 	/*	Length: */
 	/*	Note: In the WFD specification, the size of length field is 2. */
-	RTW_PUT_BE16(wfdie + wfdielen, 0x0007);
+	put_unaligned_be16(0x0007, wfdie + wfdielen);
 	wfdielen += 2;
 
 	/*	Value: */
@@ -1814,7 +1852,7 @@ u32 build_probe_resp_p2p_ie23a(struct wifidirect_info *pwdinfo, u8 *pbuf)
 
 	/*	Length: */
 	/* u16*) (p2pie + p2pielen) = cpu_to_le16(0x0002); */
-	RTW_PUT_LE16(p2pie + p2pielen, 0x0002);
+	put_unaligned_le16(0x0002, p2pie + p2pielen);
 	p2pielen += 2;
 
 	/*	Value: */
@@ -1846,18 +1884,18 @@ u32 build_probe_resp_p2p_ie23a(struct wifidirect_info *pwdinfo, u8 *pbuf)
 
 	/*	Length: */
 	/* u16*) (p2pie + p2pielen) = cpu_to_le16(0x0004); */
-	RTW_PUT_LE16(p2pie + p2pielen, 0x0004);
+	put_unaligned_le16(0x0004, p2pie + p2pielen);
 	p2pielen += 2;
 
 	/*	Value: */
 	/*	Availability Period */
 	/* u16*) (p2pie + p2pielen) = cpu_to_le16(0xFFFF); */
-	RTW_PUT_LE16(p2pie + p2pielen, 0xFFFF);
+	put_unaligned_le16(0xFFFF, p2pie + p2pielen);
 	p2pielen += 2;
 
 	/*	Availability Interval */
 	/* u16*) (p2pie + p2pielen) = cpu_to_le16(0xFFFF); */
-	RTW_PUT_LE16(p2pie + p2pielen, 0xFFFF);
+	put_unaligned_le16(0xFFFF, p2pie + p2pielen);
 	p2pielen += 2;
 
 	/*  Notice of Absence ATTR */
@@ -1877,7 +1915,7 @@ u32 build_probe_resp_p2p_ie23a(struct wifidirect_info *pwdinfo, u8 *pbuf)
 	/*	21 -> P2P Device Address (6bytes) + Config Methods (2bytes) + Primary Device Type (8bytes) */
 	/*	+ NumofSecondDevType (1byte) + WPS Device Name ID field (2bytes) + WPS Device Name Len field (2bytes) */
 	/* u16*) (p2pie + p2pielen) = cpu_to_le16(21 + pwdinfo->device_name_len); */
-	RTW_PUT_LE16(p2pie + p2pielen, 21 + pwdinfo->device_name_len);
+	put_unaligned_le16(21 + pwdinfo->device_name_len, p2pie + p2pielen);
 	p2pielen += 2;
 
 	/*	Value: */
@@ -1888,23 +1926,23 @@ u32 build_probe_resp_p2p_ie23a(struct wifidirect_info *pwdinfo, u8 *pbuf)
 	/*	Config Method */
 	/*	This field should be big endian. Noted by P2P specification. */
 	/* u16*) (p2pie + p2pielen) = cpu_to_be16(pwdinfo->supported_wps_cm); */
-	RTW_PUT_BE16(p2pie + p2pielen, pwdinfo->supported_wps_cm);
+	put_unaligned_be16(pwdinfo->supported_wps_cm, p2pie + p2pielen);
 	p2pielen += 2;
 
 	/*	Primary Device Type */
 	/*	Category ID */
 	/* u16*) (p2pie + p2pielen) = cpu_to_be16(WPS_PDT_CID_MULIT_MEDIA); */
-	RTW_PUT_BE16(p2pie + p2pielen, WPS_PDT_CID_MULIT_MEDIA);
+	put_unaligned_be16(WPS_PDT_CID_MULIT_MEDIA, p2pie + p2pielen);
 	p2pielen += 2;
 
 	/*	OUI */
 	/* u32*) (p2pie + p2pielen) = cpu_to_be32(WPSOUI); */
-	RTW_PUT_BE32(p2pie + p2pielen, WPSOUI);
+	put_unaligned_be32(WPSOUI, p2pie + p2pielen);
 	p2pielen += 4;
 
 	/*	Sub Category ID */
 	/* u16*) (p2pie + p2pielen) = cpu_to_be16(WPS_PDT_SCID_MEDIA_SERVER); */
-	RTW_PUT_BE16(p2pie + p2pielen, WPS_PDT_SCID_MEDIA_SERVER);
+	put_unaligned_be16(WPS_PDT_SCID_MEDIA_SERVER, p2pie + p2pielen);
 	p2pielen += 2;
 
 	/*	Number of Secondary Device Types */
@@ -1913,12 +1951,12 @@ u32 build_probe_resp_p2p_ie23a(struct wifidirect_info *pwdinfo, u8 *pbuf)
 	/*	Device Name */
 	/*	Type: */
 	/* u16*) (p2pie + p2pielen) = cpu_to_be16(WPS_ATTR_DEVICE_NAME); */
-	RTW_PUT_BE16(p2pie + p2pielen, WPS_ATTR_DEVICE_NAME);
+	put_unaligned_be16(WPS_ATTR_DEVICE_NAME, p2pie + p2pielen);
 	p2pielen += 2;
 
 	/*	Length: */
 	/* u16*) (p2pie + p2pielen) = cpu_to_be16(pwdinfo->device_name_len); */
-	RTW_PUT_BE16(p2pie + p2pielen, pwdinfo->device_name_len);
+	put_unaligned_be16(pwdinfo->device_name_len, p2pie + p2pielen);
 	p2pielen += 2;
 
 	/*	Value: */
@@ -1963,7 +2001,7 @@ u32 build_prov_disc_request_p2p_ie23a(struct wifidirect_info *pwdinfo, u8 *pbuf,
 
 	/*	Length: */
 	/* u16*) (p2pie + p2pielen) = cpu_to_le16(0x0002); */
-	RTW_PUT_LE16(p2pie + p2pielen, 0x0002);
+	put_unaligned_le16(0x0002, p2pie + p2pielen);
 	p2pielen += 2;
 
 	/*	Value: */
@@ -1984,7 +2022,7 @@ u32 build_prov_disc_request_p2p_ie23a(struct wifidirect_info *pwdinfo, u8 *pbuf,
 	/*	21 -> P2P Device Address (6bytes) + Config Methods (2bytes) + Primary Device Type (8bytes) */
 	/*	+ NumofSecondDevType (1byte) + WPS Device Name ID field (2bytes) + WPS Device Name Len field (2bytes) */
 	/* u16*) (p2pie + p2pielen) = cpu_to_le16(21 + pwdinfo->device_name_len); */
-	RTW_PUT_LE16(p2pie + p2pielen, 21 + pwdinfo->device_name_len);
+	put_unaligned_le16(21 + pwdinfo->device_name_len, p2pie + p2pielen);
 	p2pielen += 2;
 
 	/*	Value: */
@@ -1997,12 +2035,12 @@ u32 build_prov_disc_request_p2p_ie23a(struct wifidirect_info *pwdinfo, u8 *pbuf,
 	if (pwdinfo->ui_got_wps_info == P2P_GOT_WPSINFO_PBC)
 	{
 		/* u16*) (p2pie + p2pielen) = cpu_to_be16(WPS_CONFIG_METHOD_PBC); */
-		RTW_PUT_BE16(p2pie + p2pielen, WPS_CONFIG_METHOD_PBC);
+		put_unaligned_be16(WPS_CONFIG_METHOD_PBC, p2pie + p2pielen);
 	}
 	else
 	{
 		/* u16*) (p2pie + p2pielen) = cpu_to_be16(WPS_CONFIG_METHOD_DISPLAY); */
-		RTW_PUT_BE16(p2pie + p2pielen, WPS_CONFIG_METHOD_DISPLAY);
+		put_unaligned_be16(WPS_CONFIG_METHOD_DISPLAY, p2pie + p2pielen);
 	}
 
 	p2pielen += 2;
@@ -2010,17 +2048,17 @@ u32 build_prov_disc_request_p2p_ie23a(struct wifidirect_info *pwdinfo, u8 *pbuf,
 	/*	Primary Device Type */
 	/*	Category ID */
 	/* u16*) (p2pie + p2pielen) = cpu_to_be16(WPS_PDT_CID_MULIT_MEDIA); */
-	RTW_PUT_BE16(p2pie + p2pielen, WPS_PDT_CID_MULIT_MEDIA);
+	put_unaligned_be16(WPS_PDT_CID_MULIT_MEDIA, p2pie + p2pielen);
 	p2pielen += 2;
 
 	/*	OUI */
 	/* u32*) (p2pie + p2pielen) = cpu_to_be32(WPSOUI); */
-	RTW_PUT_BE32(p2pie + p2pielen, WPSOUI);
+	put_unaligned_be32(WPSOUI, p2pie + p2pielen);
 	p2pielen += 4;
 
 	/*	Sub Category ID */
 	/* u16*) (p2pie + p2pielen) = cpu_to_be16(WPS_PDT_SCID_MEDIA_SERVER); */
-	RTW_PUT_BE16(p2pie + p2pielen, WPS_PDT_SCID_MEDIA_SERVER);
+	put_unaligned_be16(WPS_PDT_SCID_MEDIA_SERVER, p2pie + p2pielen);
 	p2pielen += 2;
 
 	/*	Number of Secondary Device Types */
@@ -2029,12 +2067,12 @@ u32 build_prov_disc_request_p2p_ie23a(struct wifidirect_info *pwdinfo, u8 *pbuf,
 	/*	Device Name */
 	/*	Type: */
 	/* u16*) (p2pie + p2pielen) = cpu_to_be16(WPS_ATTR_DEVICE_NAME); */
-	RTW_PUT_BE16(p2pie + p2pielen, WPS_ATTR_DEVICE_NAME);
+	put_unaligned_be16(WPS_ATTR_DEVICE_NAME, p2pie + p2pielen);
 	p2pielen += 2;
 
 	/*	Length: */
 	/* u16*) (p2pie + p2pielen) = cpu_to_be16(pwdinfo->device_name_len); */
-	RTW_PUT_BE16(p2pie + p2pielen, pwdinfo->device_name_len);
+	put_unaligned_be16(pwdinfo->device_name_len, p2pie + p2pielen);
 	p2pielen += 2;
 
 	/*	Value: */
@@ -2052,7 +2090,7 @@ u32 build_prov_disc_request_p2p_ie23a(struct wifidirect_info *pwdinfo, u8 *pbuf,
 
 		/*	Length: */
 		/* u16*) (p2pie + p2pielen) = cpu_to_le16(ETH_ALEN + ussidlen); */
-		RTW_PUT_LE16(p2pie + p2pielen, ETH_ALEN + ussidlen);
+		put_unaligned_le16(ETH_ALEN + ussidlen, p2pie + p2pielen);
 		p2pielen += 2;
 
 		/*	Value: */
@@ -2685,7 +2723,7 @@ u8 process_p2p_group_negotation_req23a(struct wifidirect_info *pwdinfo, u8 *pfra
 		rtw_get_wfd_attr_content(wfd_ie, wfd_ielen, WFD_ATTR_DEVICE_INFO, attr_content, &attr_contentlen);
 		if (attr_contentlen)
 		{
-			pwdinfo->wfd_info->peer_rtsp_ctrlport = RTW_GET_BE16(attr_content + 2);
+			pwdinfo->wfd_info->peer_rtsp_ctrlport = get_unaligned_be16(attr_content + 2);
 			DBG_8723A("[%s] Peer PORT NUM = %d\n", __func__, pwdinfo->wfd_info->peer_rtsp_ctrlport);
 		}
 	}
@@ -2926,7 +2964,7 @@ u8 process_p2p_group_negotation_resp23a(struct wifidirect_info *pwdinfo, u8 *pfr
 		rtw_get_wfd_attr_content(wfd_ie, wfd_ielen, WFD_ATTR_DEVICE_INFO, attr_content, &attr_contentlen);
 		if (attr_contentlen)
 		{
-			pwdinfo->wfd_info->peer_rtsp_ctrlport = RTW_GET_BE16(attr_content + 2);
+			pwdinfo->wfd_info->peer_rtsp_ctrlport = get_unaligned_be16(attr_content + 2);
 			DBG_8723A("[%s] Peer PORT NUM = %d\n", __func__, pwdinfo->wfd_info->peer_rtsp_ctrlport);
 		}
 	}
@@ -3859,7 +3897,7 @@ void init_wifidirect_info23a(struct rtw_adapter *padapter, enum P2P_ROLE role)
 
 	rtw_p2p_findphase_ex_set(pwdinfo, P2P_FINDPHASE_EX_NONE);
 
-	pwdinfo->listen_dwell = (u8) ((rtw_get_current_time() % 3) + 1);
+	pwdinfo->listen_dwell = (u8) ((jiffies % 3) + 1);
 	/* DBG_8723A("[%s] listen_dwell time is %d00ms\n", __func__, pwdinfo->listen_dwell); */
 
 	memset(&pwdinfo->tx_prov_disc_info, 0x00, sizeof(struct tx_provdisc_req_info));

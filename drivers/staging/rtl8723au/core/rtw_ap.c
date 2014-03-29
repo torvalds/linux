@@ -842,10 +842,10 @@ int rtw_check_beacon_data23a(struct rtw_adapter *padapter, u8 *pbuf,  int len)
 	/* beacon interval */
 	/* ie + 8;  8: TimeStamp, 2: Beacon Interval 2:Capability */
 	p = rtw_get_beacon_interval23a_from_ie(ie);
-	pbss_network->Configuration.BeaconPeriod = RTW_GET_LE16(p);
+	pbss_network->Configuration.BeaconPeriod = get_unaligned_le16(p);
 
 	/* capability */
-	cap = RTW_GET_LE16(ie);
+	cap = get_unaligned_le16(ie);
 
 	/* SSID */
 	p = rtw_get_ie23a(ie + _BEACON_IE_OFFSET_, _SSID_IE_, &ie_len,

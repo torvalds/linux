@@ -140,8 +140,6 @@ struct sta_info {
 	/* curr_network(mlme_priv/security_priv/qos/ht) : AP CAP/INFO */
 	/* sta_info: (AP & STA) CAP/INFO */
 
-#ifdef CONFIG_8723AU_AP_MODE
-
 	struct list_head asoc_list;
 	struct list_head auth_list;
 
@@ -183,10 +181,11 @@ struct sta_info {
 	u8 has_legacy_ac;
 	unsigned int sleepq_ac_len;
 
-#ifdef CONFIG_8723AU_P2P
 	/* p2p priv data */
 	u8 is_p2p_device;
 	u8 p2p_status_code;
+
+	u8 keep_alive_trycnt;
 
 	/* p2p client info */
 	u8 dev_addr[ETH_ALEN];
@@ -197,12 +196,6 @@ struct sta_info {
 	u8 secdev_types_list[32];/*  32/8 == 4; */
 	u16 dev_name_len;
 	u8 dev_name[32];
-#endif /* CONFIG_8723AU_P2P */
-
-	u8 keep_alive_trycnt;
-
-#endif	/*  CONFIG_8723AU_AP_MODE */
-
 	u8 *passoc_req;
 	u32 assoc_req_len;
 
@@ -329,9 +322,6 @@ struct	sta_priv {
 	struct rtw_queue wakeup_q;
 
 	struct rtw_adapter *padapter;
-
-
-#ifdef CONFIG_8723AU_AP_MODE
 	struct list_head asoc_list;
 	struct list_head auth_list;
 	spinlock_t asoc_list_lock;
@@ -357,7 +347,6 @@ struct	sta_priv {
 	u16 max_num_sta;
 
 	struct wlan_acl_pool acl_list;
-#endif
 };
 
 static inline u32 wifi_mac_hash(u8 *mac)

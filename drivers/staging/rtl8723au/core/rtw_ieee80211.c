@@ -196,8 +196,8 @@ inline u8 *rtw_set_ie23a_mesh_ch_switch_parm(u8 *buf, u32 *buf_len, u8 ttl,
 
 	ie_data[0] = ttl;
 	ie_data[1] = flags;
-	RTW_PUT_LE16((u8*)&ie_data[2], reason);
-	RTW_PUT_LE16((u8*)&ie_data[4], precedence);
+	put_unaligned_le16(reason, (u8*)&ie_data[2]);
+	put_unaligned_le16(precedence, (u8*)&ie_data[4]);
 
 	return rtw_set_ie23a(buf, 0x118,  6, ie_data, buf_len);
 }
@@ -585,7 +585,7 @@ int rtw_parse_wpa_ie23a(u8* wpa_ie, int wpa_ie_len, int *group_cipher, int *pair
 	/* pairwise_cipher */
 	if (left >= 2) {
                 /* count = le16_to_cpu(*(u16*)pos); */
-		count = RTW_GET_LE16(pos);
+		count = get_unaligned_le16(pos);
 		pos += 2;
 		left -= 2;
 
@@ -661,7 +661,7 @@ int rtw_parse_wpa2_ie23a(u8* rsn_ie, int rsn_ie_len, int *group_cipher,
 	/* pairwise_cipher */
 	if (left >= 2) {
 	        /* count = le16_to_cpu(*(u16*)pos); */
-		count = RTW_GET_LE16(pos);
+		count = get_unaligned_le16(pos);
 		pos += 2;
 		left -= 2;
 
@@ -876,8 +876,8 @@ u8 *rtw_get_wps_attr23a(u8 *wps_ie, uint wps_ielen, u16 target_attr_id,
 
 	while (attr_ptr - wps_ie < wps_ielen) {
 		/*  4 = 2(Attribute ID) + 2(Length) */
-		u16 attr_id = RTW_GET_BE16(attr_ptr);
-		u16 attr_data_len = RTW_GET_BE16(attr_ptr + 2);
+		u16 attr_id = get_unaligned_be16(attr_ptr);
+		u16 attr_data_len = get_unaligned_be16(attr_ptr + 2);
 		u16 attr_len = attr_data_len + 4;
 
 		/* DBG_8723A("%s attr_ptr:%p, id:%u, length:%u\n", __func__, attr_ptr, attr_id, attr_data_len); */
@@ -1246,8 +1246,8 @@ void dump_wps_ie23a(u8 *ie, u32 ie_len) {
 
 	pos+= 6;
 	while (pos-ie < ie_len) {
-		id = RTW_GET_BE16(pos);
-		len = RTW_GET_BE16(pos + 2);
+		id = get_unaligned_be16(pos);
+		len = get_unaligned_be16(pos + 2);
 
 		DBG_8723A("%s ID:0x%04x, LEN:%u\n", __func__, id, len);
 
@@ -1271,7 +1271,7 @@ void dump_p2p_ie23a(u8 *ie, u32 ie_len) {
 	pos += 6;
 	while (pos-ie < ie_len) {
 		id = *pos;
-		len = RTW_GET_LE16(pos+1);
+		len = get_unaligned_le16(pos+1);
 
 		DBG_8723A("%s ID:%u, LEN:%u\n", __func__, id, len);
 
@@ -1362,7 +1362,7 @@ u8 *rtw_get_p2p_attr23a(u8 *p2p_ie, uint p2p_ielen, u8 target_attr_id,
 	while (attr_ptr - p2p_ie < p2p_ielen) {
 		/*  3 = 1(Attribute ID) + 2(Length) */
 		u8 attr_id = *attr_ptr;
-		u16 attr_data_len = RTW_GET_LE16(attr_ptr + 1);
+		u16 attr_data_len = get_unaligned_le16(attr_ptr + 1);
 		u16 attr_len = attr_data_len + 3;
 
 		/* DBG_8723A("%s attr_ptr:%p, id:%u, length:%u\n", __func__, attr_ptr, attr_id, attr_data_len); */
@@ -1429,7 +1429,7 @@ u32 rtw_set_p2p_attr_content23a(u8 *pbuf, u8 attr_id, u16 attr_len, u8 *pdata_at
 	*pbuf = attr_id;
 
 	/* u16*)(pbuf + 1) = cpu_to_le16(attr_len); */
-	RTW_PUT_LE16(pbuf + 1, attr_len);
+	put_unaligned_le16(attr_len, pbuf + 1);
 
 	if (pdata_attr)
 		memcpy(pbuf + 3, pdata_attr, attr_len);
@@ -1561,7 +1561,7 @@ int rtw_get_wfd_attr_content(u8 *wfd_ie, uint wfd_ielen, u8 target_attr_id,
 	/*	1 (WFD IE) + 1 (Length) + 3 (OUI) + 1 (OUI Type) */
 	cnt = 6;
 	while (cnt < wfd_ielen) {
-		u16 attrlen = RTW_GET_BE16(wfd_ie + cnt + 1);
+		u16 attrlen = get_unaligned_be16(wfd_ie + cnt + 1);
 
 		attr_id = wfd_ie[cnt];
 		if (attr_id == target_attr_id) {

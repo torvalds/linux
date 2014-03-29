@@ -366,7 +366,7 @@ static s32 rtw_dump_xframe(struct rtw_adapter *padapter, struct xmit_frame *pxmi
 
 		mem_addr += w_sz;
 
-		mem_addr = (u8 *)RND4(((unsigned long)(mem_addr)));
+		mem_addr = PTR_ALIGN(mem_addr, 4);
 	}
 
 	rtw_free_xmitframe23a(pxmitpriv, pxmitframe);

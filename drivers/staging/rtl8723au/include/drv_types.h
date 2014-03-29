@@ -258,13 +258,9 @@ struct rtw_adapter {
 	struct	hostapd_priv	*phostapdpriv;
 #endif
 
-#ifdef CONFIG_8723AU_P2P
 	struct cfg80211_wifidirect_info	cfg80211_wdinfo;
-#endif /* CONFIG_8723AU_P2P */
 	u32	setband;
-#ifdef CONFIG_8723AU_P2P
 	struct wifidirect_info	wdinfo;
-#endif /* CONFIG_8723AU_P2P */
 
 #ifdef CONFIG_8723AU_P2P
 	struct wifi_display_info wfd_info;

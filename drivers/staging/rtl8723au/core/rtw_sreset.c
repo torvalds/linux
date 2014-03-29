@@ -165,9 +165,11 @@ static void sreset_restore_network_status(struct rtw_adapter *padapter)
 	if (check_fwstate(mlmepriv, WIFI_STATION_STATE)) {
 		DBG_8723A(FUNC_ADPT_FMT" fwstate:0x%08x - WIFI_STATION_STATE\n", FUNC_ADPT_ARG(padapter), get_fwstate(mlmepriv));
 		sreset_restore_network_station(padapter);
+#ifdef CONFIG_8723AU_AP_MODE
 	} else if (check_fwstate(mlmepriv, WIFI_AP_STATE)) {
 		DBG_8723A(FUNC_ADPT_FMT" fwstate:0x%08x - WIFI_AP_STATE\n", FUNC_ADPT_ARG(padapter), get_fwstate(mlmepriv));
 		rtw_ap_restore_network(padapter);
+#endif
 	} else if (check_fwstate(mlmepriv, WIFI_ADHOC_STATE)) {
 		DBG_8723A(FUNC_ADPT_FMT" fwstate:0x%08x - WIFI_ADHOC_STATE\n", FUNC_ADPT_ARG(padapter), get_fwstate(mlmepriv));
 	} else {

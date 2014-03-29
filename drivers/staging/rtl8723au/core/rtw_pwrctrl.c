@@ -108,13 +108,11 @@ static bool rtw_pwr_unassociated_idle(struct rtw_adapter *adapter)
 	struct rtw_adapter *buddy = adapter->pbuddy_adapter;
 	struct mlme_priv *pmlmepriv = &adapter->mlmepriv;
 	struct xmit_priv *pxmit_priv = &adapter->xmitpriv;
-#ifdef CONFIG_8723AU_P2P
 	struct wifidirect_info *pwdinfo = &adapter->wdinfo;
-#endif
 
 	bool ret = false;
 
-	if (adapter->pwrctrlpriv.ips_deny_time >= rtw_get_current_time())
+	if (time_after_eq(adapter->pwrctrlpriv.ips_deny_time, jiffies))
 		goto exit;
 
 	if (check_fwstate(pmlmepriv, WIFI_ASOC_STATE|WIFI_SITE_MONITOR)
@@ -129,9 +127,7 @@ static bool rtw_pwr_unassociated_idle(struct rtw_adapter *adapter)
 	/* consider buddy, if exist */
 	if (buddy) {
 		struct mlme_priv *b_pmlmepriv = &buddy->mlmepriv;
-#ifdef CONFIG_8723AU_P2P
 		struct wifidirect_info *b_pwdinfo = &buddy->wdinfo;
-#endif
 
 		if (check_fwstate(b_pmlmepriv, WIFI_ASOC_STATE|WIFI_SITE_MONITOR)
 			|| check_fwstate(b_pmlmepriv, WIFI_UNDER_LINKING|WIFI_UNDER_WPS)
@@ -386,11 +382,13 @@ void rtw_set_ps_mode23a(struct rtw_adapter *padapter, u8 ps_mode, u8 smart_ps, u
  */
 s32 LPS_RF_ON_check23a(struct rtw_adapter *padapter, u32 delay_ms)
 {
-	u32 start_time;
+	unsigned long start_time, end_time;
 	u8 bAwake = false;
 	s32 err = 0;
 
-	start_time = rtw_get_current_time();
+	start_time = jiffies;
+	end_time = start_time + msecs_to_jiffies(delay_ms);
+
 	while (1)
 	{
 		rtw23a_hal_get_hwreg(padapter, HW_VAR_FWLPS_RF_ON, &bAwake);
@@ -404,8 +402,7 @@ s32 LPS_RF_ON_check23a(struct rtw_adapter *padapter, u32 delay_ms)
 			break;
 		}
 
-		if (rtw_get_passing_time_ms23a(start_time) > delay_ms)
-		{
+		if (time_after(jiffies, end_time)) {
 			err = -1;
 			DBG_8723A("%s: Wait for FW LPS leave more than %u ms!!!\n", __func__, delay_ms);
 			break;
@@ -539,7 +536,7 @@ u8 rtw_interface_ps_func23a(struct rtw_adapter *padapter, enum hal_intf_ps_func 
 inline void rtw_set_ips_deny23a(struct rtw_adapter *padapter, u32 ms)
 {
 	struct pwrctrl_priv *pwrpriv = &padapter->pwrctrlpriv;
-	pwrpriv->ips_deny_time = rtw_get_current_time() + rtw_ms_to_systime23a(ms);
+	pwrpriv->ips_deny_time = jiffies + msecs_to_jiffies(ms);
 }
 
 /*
@@ -554,14 +551,18 @@ int _rtw_pwr_wakeup23a(struct rtw_adapter *padapter, u32 ips_deffer_ms, const ch
 	struct pwrctrl_priv *pwrpriv = &padapter->pwrctrlpriv;
 	struct mlme_priv *pmlmepriv = &padapter->mlmepriv;
 	int ret = _SUCCESS;
-	u32 start = rtw_get_current_time();
+	unsigned long start = jiffies;
+	unsigned long new_deny_time;
 
-	if (pwrpriv->ips_deny_time < rtw_get_current_time() + rtw_ms_to_systime23a(ips_deffer_ms))
-		pwrpriv->ips_deny_time = rtw_get_current_time() + rtw_ms_to_systime23a(ips_deffer_ms);
+	new_deny_time = jiffies + msecs_to_jiffies(ips_deffer_ms);
+
+	if (time_before(pwrpriv->ips_deny_time, new_deny_time))
+		pwrpriv->ips_deny_time = new_deny_time;
 
 	if (pwrpriv->ps_processing) {
 		DBG_8723A("%s wait ps_processing...\n", __func__);
-		while (pwrpriv->ps_processing && rtw_get_passing_time_ms23a(start) <= 3000)
+		while (pwrpriv->ps_processing &&
+		       jiffies_to_msecs(jiffies - start) <= 3000)
 			msleep(10);
 		if (pwrpriv->ps_processing)
 			DBG_8723A("%s wait ps_processing timeout\n", __func__);
@@ -571,7 +572,8 @@ int _rtw_pwr_wakeup23a(struct rtw_adapter *padapter, u32 ips_deffer_ms, const ch
 
 	if (rtw_hal_sreset_inprogress(padapter)) {
 		DBG_8723A("%s wait sreset_inprogress...\n", __func__);
-		while (rtw_hal_sreset_inprogress(padapter) && rtw_get_passing_time_ms23a(start) <= 4000)
+		while (rtw_hal_sreset_inprogress(padapter) &&
+		       jiffies_to_msecs(jiffies - start) <= 4000)
 			msleep(10);
 		if (rtw_hal_sreset_inprogress(padapter))
 			DBG_8723A("%s wait sreset_inprogress timeout\n", __func__);
@@ -582,7 +584,7 @@ int _rtw_pwr_wakeup23a(struct rtw_adapter *padapter, u32 ips_deffer_ms, const ch
 	if (pwrpriv->bInternalAutoSuspend == false && pwrpriv->bInSuspend) {
 		DBG_8723A("%s wait bInSuspend...\n", __func__);
 		while (pwrpriv->bInSuspend &&
-		       (rtw_get_passing_time_ms23a(start) <= 3000)) {
+		       (jiffies_to_msecs(jiffies - start) <= 3000)) {
 			msleep(10);
 		}
 		if (pwrpriv->bInSuspend)
@@ -630,8 +632,9 @@ int _rtw_pwr_wakeup23a(struct rtw_adapter *padapter, u32 ips_deffer_ms, const ch
 	}
 
 exit:
-	if (pwrpriv->ips_deny_time < rtw_get_current_time() + rtw_ms_to_systime23a(ips_deffer_ms))
-		pwrpriv->ips_deny_time = rtw_get_current_time() + rtw_ms_to_systime23a(ips_deffer_ms);
+	new_deny_time = jiffies + msecs_to_jiffies(ips_deffer_ms);
+	if (time_before(pwrpriv->ips_deny_time, new_deny_time))
+		pwrpriv->ips_deny_time = new_deny_time;
 	return ret;
 }
 

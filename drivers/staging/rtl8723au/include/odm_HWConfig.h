@@ -74,21 +74,21 @@ struct phy_rx_agc_info {
 };
 
 struct phy_status_rpt {
-	struct phy_rx_agc_info path_agc[2];
-	u8	ch_corr[2];
+	struct phy_rx_agc_info path_agc[RF_PATH_MAX];
+	u8	ch_corr[RF_PATH_MAX];
 	u8	cck_sig_qual_ofdm_pwdb_all;
 	u8	cck_agc_rpt_ofdm_cfosho_a;
 	u8	cck_rpt_b_ofdm_cfosho_b;
 	u8	rsvd_1;/* ch_corr_msb; */
 	u8	noise_power_db_msb;
-	u8	path_cfotail[2];
-	u8	pcts_mask[2];
-	s8	stream_rxevm[2];
-	u8	path_rxsnr[2];
+	u8	path_cfotail[RF_PATH_MAX];
+	u8	pcts_mask[RF_PATH_MAX];
+	s8	stream_rxevm[RF_PATH_MAX];
+	u8	path_rxsnr[RF_PATH_MAX];
 	u8	noise_power_db_lsb;
 	u8	rsvd_2[3];
-	u8	stream_csi[2];
-	u8	stream_target_csi[2];
+	u8	stream_csi[RF_PATH_MAX];
+	u8	stream_target_csi[RF_PATH_MAX];
 	s8	sig_evm;
 	u8	rsvd_3;
 

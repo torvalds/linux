@@ -1495,9 +1495,11 @@ static int rtw_cfg80211_set_probe_req_wpsp2pie(struct rtw_adapter *padapter,
 	int ret = 0;
 	uint wps_ielen = 0;
 	u8 *wps_ie;
+#ifdef CONFIG_8723AU_P2P
 	u32 p2p_ielen = 0;
 	u8 *p2p_ie;
 	u32 wfd_ielen = 0;
+#endif
 	struct mlme_priv *pmlmepriv = &padapter->mlmepriv;
 
 #ifdef CONFIG_DEBUG_CFG80211
@@ -1595,12 +1597,12 @@ static int cfg80211_rtw_scan(struct wiphy *wiphy,
 	struct mlme_priv *pmlmepriv = &padapter->mlmepriv;
 	struct cfg80211_ssid ssid[RTW_SSID_SCAN_AMOUNT];
 	struct rtw_ieee80211_channel ch[RTW_CHANNEL_SCAN_AMOUNT];
-#ifdef CONFIG_8723AU_P2P
-	struct wifidirect_info *pwdinfo = &padapter->wdinfo;
-#endif /* CONFIG_8723AU_P2P */
 	struct rtw_wdev_priv *pwdev_priv = wdev_to_priv(padapter->rtw_wdev);
 	struct cfg80211_ssid *ssids = request->ssids;
+#ifdef CONFIG_8723AU_P2P
+	struct wifidirect_info *pwdinfo = &padapter->wdinfo;
 	int social_channel = 0;
+#endif /* CONFIG_8723AU_P2P */
 	bool need_indicate_scan_done = false;
 
 #ifdef CONFIG_DEBUG_CFG80211
@@ -1625,8 +1627,7 @@ static int cfg80211_rtw_scan(struct wiphy *wiphy,
 		goto check_need_indicate_scan_done;
 	}
 #ifdef CONFIG_8723AU_P2P
-	if (ssids->ssid != NULL &&
-	    !memcmp(ssids->ssid, "DIRECT-", 7) &&
+	if (!memcmp(ssids->ssid, "DIRECT-", 7) &&
 	    rtw_get_p2p_ie23a((u8 *) request->ie, request->ie_len, NULL, NULL)) {
 		if (rtw_p2p_chk_state(pwdinfo, P2P_STATE_NONE)) {
 			rtw_p2p_enable23a(padapter, P2P_ROLE_DEVICE);
@@ -2738,7 +2739,9 @@ static int rtw_cfg80211_monitor_if_xmit_entry(struct sk_buff *skb,
 		struct mlme_ext_priv *pmlmeext = &padapter->mlmeextpriv;
 		u32 len = skb->len;
 		u8 category, action;
+#ifdef CONFIG_8723AU_P2P
 		int type = -1;
+#endif
 
 		if (rtw_action_frame_parse23a(skb->data, len, &category,
 					   &action) == false) {
@@ -2760,7 +2763,9 @@ static int rtw_cfg80211_monitor_if_xmit_entry(struct sk_buff *skb,
 		else
 			DBG_8723A("RTW_Tx:category(%u), action(%u)\n", category,
 				  action);
+#ifdef CONFIG_8723AU_P2P
 dump:
+#endif
 		/* starting alloc mgmt frame to dump it */
 		pmgntframe = alloc_mgtxmitframe23a(pxmitpriv);
 		if (pmgntframe == NULL)
@@ -2971,8 +2976,10 @@ static int rtw_add_beacon(struct rtw_adapter *adapter, const u8 *head,
 	int ret = 0;
 	u8 *pbuf = NULL;
 	uint len, wps_ielen = 0;
+#ifdef CONFIG_8723AU_P2P
 	uint p2p_ielen = 0;
 	u8 got_p2p_ie = false;
+#endif
 	struct mlme_priv *pmlmepriv = &adapter->mlmepriv;
 	/* struct sta_priv *pstapriv = &padapter->stapriv; */
 
@@ -3245,7 +3252,9 @@ static int cfg80211_rtw_change_bss(struct wiphy *wiphy, struct net_device *ndev,
 void rtw_cfg80211_rx_action_p2p(struct rtw_adapter *padapter, u8 *pmgmt_frame,
 				uint frame_len)
 {
+#ifdef CONFIG_8723AU_P2P
 	int type;
+#endif
 	s32 freq;
 	int channel;
 	u8 category, action;
@@ -3261,7 +3270,9 @@ void rtw_cfg80211_rx_action_p2p(struct rtw_adapter *padapter, u8 *pmgmt_frame,
 	rtw_action_frame_parse23a(pmgmt_frame, frame_len, &category, &action);
 	DBG_8723A("RTW_Rx:category(%u), action(%u)\n", category, action);
 
+#ifdef CONFIG_8723AU_P2P
 indicate:
+#endif
 	if (channel <= RTW_CH_MAX_2G_CHANNEL)
 		freq = ieee80211_channel_to_frequency(channel,
 						      IEEE80211_BAND_2GHZ);
@@ -3276,7 +3287,9 @@ indicate:
 void rtw_cfg80211_rx_p2p_action_public(struct rtw_adapter *padapter,
 				       u8 *pmgmt_frame, uint frame_len)
 {
+#ifdef CONFIG_8723AU_P2P
 	int type;
+#endif
 	s32 freq;
 	int channel;
 	u8 category, action;
@@ -3298,7 +3311,9 @@ void rtw_cfg80211_rx_p2p_action_public(struct rtw_adapter *padapter,
 	rtw_action_frame_parse23a(pmgmt_frame, frame_len, &category, &action);
 	DBG_8723A("RTW_Rx:category(%u), action(%u)\n", category, action);
 
+#ifdef CONFIG_8723AU_P2P
 indicate:
+#endif
 	if (channel <= RTW_CH_MAX_2G_CHANNEL)
 		freq = ieee80211_channel_to_frequency(channel,
 						      IEEE80211_BAND_2GHZ);
@@ -3485,7 +3500,7 @@ void rtw_cfg80211_issue_p2p_provision_request23a(struct rtw_adapter *padapter,
 	p2p_ie[p2pielen++] = P2P_ATTR_CAPABILITY;
 
 	/*      Length: */
-	RTW_PUT_LE16(p2p_ie + p2pielen, 0x0002);
+	put_unaligned_le16(0x0002, p2p_ie + p2pielen);
 	p2pielen += 2;
 
 	/*      Value: */
@@ -3499,7 +3514,7 @@ void rtw_cfg80211_issue_p2p_provision_request23a(struct rtw_adapter *padapter,
 	p2p_ie[p2pielen++] = P2P_ATTR_DEVICE_INFO;
 
 	/*      Length: */
-	RTW_PUT_LE16(p2p_ie + p2pielen, devinfo_contentlen);
+	put_unaligned_le16(devinfo_contentlen, p2p_ie + p2pielen);
 	p2pielen += 2;
 
 	/*      Value: */
@@ -3580,7 +3595,9 @@ static s32 cfg80211_rtw_remain_on_channel(struct wiphy *wiphy,
 
 		del_timer_sync(&padapter->cfg80211_wdinfo.remain_on_ch_timer);
 
+#ifdef CONFIG_8723AU_P2P
 		p2p_protocol_wk_hdl23a(padapter, P2P_RO_CH_WK);
+#endif
 	}
 
 	pcfg80211_wdinfo->is_ro_ch = true;
@@ -3663,7 +3680,9 @@ static s32 cfg80211_rtw_cancel_remain_on_channel(struct wiphy *wiphy,
 	if (pcfg80211_wdinfo->is_ro_ch == true) {
 		DBG_8723A("%s, cancel ro ch timer\n", __func__);
 		del_timer_sync(&padapter->cfg80211_wdinfo.remain_on_ch_timer);
+#ifdef CONFIG_8723AU_P2P
 		p2p_protocol_wk_hdl23a(padapter, P2P_RO_CH_WK);
+#endif
 	}
 
 	rtw_p2p_set_state(pwdinfo, rtw_p2p_pre_state(pwdinfo));
@@ -3834,7 +3853,9 @@ static int cfg80211_rtw_mgmt_tx(struct wiphy *wiphy, struct wireless_dev *wdev,
 		DBG_8723A("RTW_Tx:category(%u), action(%u)\n",
 			  category, action);
 
+#ifdef CONFIG_8723AU_P2P
 dump:
+#endif
 	do {
 		dump_cnt++;
 		tx_ret = _cfg80211_rtw_mgmt_tx(padapter, tx_ch, buf, len);
@@ -3890,10 +3911,14 @@ static int rtw_cfg80211_set_beacon_wpsp2pie(struct net_device *ndev, char *buf,
 	int ret = 0;
 	uint wps_ielen = 0;
 	u8 *wps_ie;
+#ifdef CONFIG_8723AU_P2P
 	u32 p2p_ielen = 0;
-	u8 wps_oui[8] = { 0x0, 0x50, 0xf2, 0x04 };
-	u8 *p2p_ie;
 	u32 wfd_ielen = 0;
+	u8 *p2p_ie;
+#endif
+#ifdef CONFIG_8723AU_AP_MODE
+	u8 wps_oui[8] = { 0x0, 0x50, 0xf2, 0x04 };
+#endif
 	struct rtw_adapter *padapter = netdev_priv(ndev);
 	struct mlme_priv *pmlmepriv = &padapter->mlmepriv;
 	struct mlme_ext_priv *pmlmeext = &padapter->mlmeextpriv;
@@ -3923,8 +3948,10 @@ static int rtw_cfg80211_set_beacon_wpsp2pie(struct net_device *ndev, char *buf,
 			memcpy(pmlmepriv->wps_beacon_ie, wps_ie, wps_ielen);
 			pmlmepriv->wps_beacon_ie_len = wps_ielen;
 
+#ifdef CONFIG_8723AU_AP_MODE
 			update_beacon23a(padapter, _VENDOR_SPECIFIC_IE_, wps_oui,
 				      true);
+#endif
 		}
 #ifdef CONFIG_8723AU_P2P
 		p2p_ie = rtw_get_p2p_ie23a(buf, len, NULL, &p2p_ielen);
@@ -3992,12 +4019,14 @@ static int rtw_cfg80211_set_probe_resp_wpsp2pie(struct net_device *net,
 {
 	struct rtw_adapter *padapter = netdev_priv(net);
 	struct mlme_priv *pmlmepriv = &padapter->mlmepriv;
-	int ret = 0;
-	uint wps_ielen = 0;
-	u8 *wps_ie;
+#ifdef CONFIG_8723AU_P2P
 	u32 p2p_ielen = 0;
 	u8 *p2p_ie;
 	u32 wfd_ielen = 0;
+#endif
+	int ret = 0;
+	uint wps_ielen = 0;
+	u8 *wps_ie;
 
 	if (len > 0) {
 		wps_ie = rtw_get_wps_ie23a(buf, len, NULL, &wps_ielen);
@@ -4176,7 +4205,9 @@ int rtw_cfg80211_set_mgnt_wpsp2pie(struct net_device *net, char *buf, int len,
 {
 	int ret = 0;
 	uint wps_ielen = 0;
+#ifdef CONFIG_8723AU_P2P
 	u32 p2p_ielen = 0;
+#endif
 
 #ifdef CONFIG_DEBUG_CFG80211
 	DBG_8723A("%s, ielen =%d\n", __func__, len);

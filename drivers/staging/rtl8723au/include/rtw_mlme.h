@@ -379,6 +379,28 @@ struct mlme_priv {
 
 	u8 *wps_probe_req_ie;
 	u32 wps_probe_req_ie_len;
+	u8 *assoc_req;
+	u32 assoc_req_len;
+	u32 assoc_rsp_len;
+	u8 *assoc_rsp;
+	u32 wps_assoc_resp_ie_len;
+	u8 *wps_assoc_resp_ie;
+	u8 *wps_probe_resp_ie;
+	u32 wps_probe_resp_ie_len;
+	u8 *wps_beacon_ie;
+	u32 wps_beacon_ie_len;
+	u32 p2p_go_probe_resp_ie_len; /* for GO */
+	u32 p2p_assoc_req_ie_len;
+	u8 *p2p_beacon_ie;
+	u8 *p2p_probe_req_ie;
+	u8 *p2p_probe_resp_ie;
+	u8 *p2p_go_probe_resp_ie; /* for GO */
+	u8 *p2p_assoc_req_ie;
+	u32 p2p_beacon_ie_len;
+	u32 p2p_probe_req_ie_len;
+	u32 p2p_probe_resp_ie_len;
+	u8 *wfd_assoc_req_ie;
+	u32 wfd_assoc_req_ie_len;
 
 #ifdef CONFIG_8723AU_AP_MODE
 	/* Number of associated Non-ERP stations (i.e., stations using 802.11b
@@ -407,50 +429,20 @@ struct mlme_priv {
 
 	u16 ht_op_mode;
 
-	u8 *assoc_req;
-	u32 assoc_req_len;
-	u8 *assoc_rsp;
-	u32 assoc_rsp_len;
-
-	u8 *wps_beacon_ie;
-	/* u8 *wps_probe_req_ie; */
-	u8 *wps_probe_resp_ie;
-	u8 *wps_assoc_resp_ie;
-
-	u32 wps_beacon_ie_len;
-	/* u32 wps_probe_req_ie_len; */
-	u32 wps_probe_resp_ie_len;
-	u32 wps_assoc_resp_ie_len;
-
-	u8 *p2p_beacon_ie;
-	u8 *p2p_probe_req_ie;
-	u8 *p2p_probe_resp_ie;
-	u8 *p2p_go_probe_resp_ie; /* for GO */
-	u8 *p2p_assoc_req_ie;
-
-	u32 p2p_beacon_ie_len;
-	u32 p2p_probe_req_ie_len;
-	u32 p2p_probe_resp_ie_len;
-	u32 p2p_go_probe_resp_ie_len; /* for GO */
-	u32 p2p_assoc_req_ie_len;
 	spinlock_t	bcn_update_lock;
 	u8		update_bcn;
 
 #endif /* ifdef CONFIG_8723AU_AP_MODE */
 
-#if defined(CONFIG_8723AU_P2P)
 	u8 *wfd_beacon_ie;
 	u8 *wfd_probe_req_ie;
 	u8 *wfd_probe_resp_ie;
 	u8 *wfd_go_probe_resp_ie; /* for GO */
-	u8 *wfd_assoc_req_ie;
 
 	u32 wfd_beacon_ie_len;
 	u32 wfd_probe_req_ie_len;
 	u32 wfd_probe_resp_ie_len;
 	u32 wfd_go_probe_resp_ie_len; /* for GO */
-	u32 wfd_assoc_req_ie_len;
-#endif
 };
 
 #ifdef CONFIG_8723AU_AP_MODE

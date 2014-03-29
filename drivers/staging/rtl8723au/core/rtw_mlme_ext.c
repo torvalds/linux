@@ -762,9 +762,9 @@ unsigned int OnProbeRsp23a(struct rtw_adapter *padapter,
 			   struct recv_frame *precv_frame)
 {
 	struct mlme_ext_priv *pmlmeext = &padapter->mlmeextpriv;
+#ifdef CONFIG_8723AU_P2P
 	struct sk_buff *skb = precv_frame->pkt;
 	struct ieee80211_hdr *hdr = (struct ieee80211_hdr *) skb->data;
-#ifdef CONFIG_8723AU_P2P
 	struct wifidirect_info	*pwdinfo = &padapter->wdinfo;
 #endif
 
@@ -1309,10 +1309,10 @@ unsigned int OnAssocReq23a(struct rtw_adapter *padapter, struct recv_frame *prec
 		goto asoc_class2_error;
 	}
 
-	capab_info = RTW_GET_LE16(pframe + sizeof(struct ieee80211_hdr_3addr));
+	capab_info = get_unaligned_le16(pframe + sizeof(struct ieee80211_hdr_3addr));
 	/* capab_info = le16_to_cpu(*(unsigned short *)(pframe + sizeof(struct ieee80211_hdr_3addr))); */
 	/* listen_interval = le16_to_cpu(*(unsigned short *)(pframe + sizeof(struct ieee80211_hdr_3addr)+2)); */
-	listen_interval = RTW_GET_LE16(pframe + sizeof(struct ieee80211_hdr_3addr)+2);
+	listen_interval = get_unaligned_le16(pframe + sizeof(struct ieee80211_hdr_3addr)+2);
 
 	left = pkt_len - (sizeof(struct ieee80211_hdr_3addr) + ie_offset);
 	pos = pframe + (sizeof(struct ieee80211_hdr_3addr) + ie_offset);
@@ -1665,7 +1665,7 @@ unsigned int OnAssocReq23a(struct rtw_adapter *padapter, struct recv_frame *prec
 			rtw_get_wfd_attr_content(wfd_ie, wfd_ielen, WFD_ATTR_DEVICE_INFO, attr_content, &attr_contentlen);
 			if (attr_contentlen)
 			{
-				pwdinfo->wfd_info->peer_rtsp_ctrlport = RTW_GET_BE16(attr_content + 2);
+				pwdinfo->wfd_info->peer_rtsp_ctrlport = get_unaligned_be16(attr_content + 2);
 				DBG_8723A("[%s] Peer PORT NUM = %d\n", __func__, pwdinfo->wfd_info->peer_rtsp_ctrlport);
 			}
 		}
@@ -2091,7 +2091,7 @@ unsigned int OnAction23a_back23a(struct rtw_adapter *padapter, struct recv_frame
 			}
 			break;
 		case WLAN_ACTION_ADDBA_RESP: /* ADDBA response */
-			status = RTW_GET_LE16(&frame_body[3]);
+			status = get_unaligned_le16(&frame_body[3]);
 			tid = ((frame_body[5] >> 2) & 0x7);
 			if (status == 0) {	/* successful */
 				DBG_8723A("agg_enable for TID =%d\n", tid);
@@ -2110,7 +2110,7 @@ unsigned int OnAction23a_back23a(struct rtw_adapter *padapter, struct recv_frame
 					~(1 << ((frame_body[3] >> 4) & 0xf));
 
 				/* reason_code = frame_body[4] | (frame_body[5] << 8); */
-				reason_code = RTW_GET_LE16(&frame_body[4]);
+				reason_code = get_unaligned_le16(&frame_body[4]);
 			} else if ((frame_body[3] & BIT(3)) == BIT(3)) {
 				tid = (frame_body[3] >> 4) & 0x0F;
 
@@ -4531,14 +4531,14 @@ static s32 rtw_action_public_decache(struct recv_frame *recv_frame, s32 token)
 
 static unsigned int on_action_public23a_p2p(struct recv_frame *precv_frame)
 {
-	struct rtw_adapter *padapter = precv_frame->adapter;
 	struct sk_buff *skb = precv_frame->pkt;
-	struct ieee80211_hdr *hdr = (struct ieee80211_hdr *) skb->data;
 	u8 *pframe = skb->data;
-	uint len = skb->len;
 	u8 *frame_body;
 	u8 dialogToken = 0;
 #ifdef CONFIG_8723AU_P2P
+	struct rtw_adapter *padapter = precv_frame->adapter;
+	struct ieee80211_hdr *hdr = (struct ieee80211_hdr *) skb->data;
+	uint len = skb->len;
 	u8 *p2p_ie;
 	u32	p2p_ielen;
 	struct	wifidirect_info	*pwdinfo = &padapter->wdinfo;
@@ -5262,9 +5262,7 @@ void issue_beacon23a(struct rtw_adapter *padapter, int timeout_ms)
 	unsigned short *fctrl;
 	unsigned int rate_len;
 	struct xmit_priv *pxmitpriv = &padapter->xmitpriv;
-#ifdef CONFIG_8723AU_AP_MODE
 	struct mlme_priv *pmlmepriv = &padapter->mlmepriv;
-#endif
 	struct mlme_ext_priv *pmlmeext = &padapter->mlmeextpriv;
 	struct mlme_ext_info *pmlmeinfo = &pmlmeext->mlmext_info;
 	struct wlan_bssid_ex *cur_network = &pmlmeinfo->network;
@@ -5579,6 +5577,13 @@ void issue_probersp23a(struct rtw_adapter *padapter, unsigned char *da,
 #ifdef CONFIG_8723AU_AP_MODE
 	u8 *pwps_ie;
 	uint wps_ielen;
+	u8 *ssid_ie;
+	int ssid_ielen;
+	int ssid_ielen_diff;
+	u8 buf[MAX_IE_SZ];
+	u8 *ies;
+#endif
+#if defined(CONFIG_8723AU_AP_MODE) || defined(CONFIG_8723AU_P2P)
 	struct mlme_priv *pmlmepriv = &padapter->mlmepriv;
 #endif
 	struct mlme_ext_priv *pmlmeext = &padapter->mlmeextpriv;
@@ -5588,11 +5593,6 @@ void issue_probersp23a(struct rtw_adapter *padapter, unsigned char *da,
 #ifdef CONFIG_8723AU_P2P
 	struct wifidirect_info *pwdinfo = &padapter->wdinfo;
 #endif /* CONFIG_8723AU_P2P */
-	u8 *ssid_ie;
-	int ssid_ielen;
-	int ssid_ielen_diff;
-	u8 buf[MAX_IE_SZ];
-	u8 *ies;
 
 	/* DBG_8723A("%s\n", __func__); */
 
@@ -7559,6 +7559,7 @@ unsigned int send_beacon23a(struct rtw_adapter *padapter)
 	int	issue = 0;
 	int poll = 0;
 	unsigned long start = jiffies;
+	unsigned int passing_time;
 
 	rtw_hal_set_hwreg23a(padapter, HW_VAR_BCN_VALID, NULL);
 	do {
@@ -7578,11 +7579,12 @@ unsigned int send_beacon23a(struct rtw_adapter *padapter)
 	if (padapter->bSurpriseRemoved || padapter->bDriverStopped)
 		return _FAIL;
 
+	passing_time = jiffies_to_msecs(jiffies - start);
+
 	if (!bxmitok) {
-		DBG_8723A("%s fail! %u ms\n", __func__, rtw_get_passing_time_ms23a(start));
+		DBG_8723A("%s fail! %u ms\n", __func__, passing_time);
 		return _FAIL;
 	} else {
-		unsigned int passing_time = jiffies_to_msecs(jiffies - start);
 
 		if (passing_time > 100 || issue > 3)
 			DBG_8723A("%s success, issue:%d, poll:%d, %u ms\n",

@@ -17,6 +17,7 @@
 
 #include <osdep_service.h>
 #include <drv_types.h>
+#include <Hal8723APhyCfg.h>
 
 #define NR_RECVFRAME		256
 
@@ -75,13 +76,11 @@ struct signal_stat {
 	u32	total_val;		/* sum of valid elements */
 };
 
-#define MAX_PATH_NUM_92CS		2
-
 struct phy_info {
 	u8		RxPWDBAll;
 	u8		SignalQuality;	 /*  in 0-100 index. */
-	u8		RxMIMOSignalQuality[MAX_PATH_NUM_92CS]; /* EVM */
-	u8		RxMIMOSignalStrength[MAX_PATH_NUM_92CS];/* 0~100 */
+	u8		RxMIMOSignalQuality[RF_PATH_MAX]; /* EVM */
+	u8		RxMIMOSignalStrength[RF_PATH_MAX];/* 0~100 */
 	s8		RxPower; /*  in dBm Translate from PWdB */
 	/* Real power in dBm for this packet, no beautification and aggregation.
 	 * Keep this raw info to be used for the other procedures.
@@ -89,8 +88,8 @@ struct phy_info {
 	s8		RecvSignalPower;
 	u8		BTRxRSSIPercentage;
 	u8		SignalStrength; /*  in 0-100 index. */
-	u8		RxPwr[MAX_PATH_NUM_92CS];/* per-path's pwdb */
-	u8		RxSNR[MAX_PATH_NUM_92CS];/* per-path's SNR */
+	u8		RxPwr[RF_PATH_MAX];/* per-path's pwdb */
+	u8		RxSNR[RF_PATH_MAX];/* per-path's SNR */
 };
 
 

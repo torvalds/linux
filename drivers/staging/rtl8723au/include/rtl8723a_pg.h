@@ -15,9 +15,7 @@
 #ifndef __RTL8723A_PG_H__
 #define __RTL8723A_PG_H__
 
-/*  */
 /*			EEPROM/Efuse PG Offset for 8723E/8723U/8723S */
-/*  */
 #define EEPROM_CCK_TX_PWR_INX_8723A			0x10
 #define EEPROM_HT40_1S_TX_PWR_INX_8723A		0x16
 #define EEPROM_HT20_TX_PWR_INX_DIFF_8723A	0x1C
@@ -53,31 +51,24 @@
 /*  RTL8723AS */
 #define EEPROM_MAC_ADDR_8723AS				0xAA
 
-/*  */
 /*			EEPROM/Efuse Value Type */
-/*  */
 #define EETYPE_TX_PWR						0x0
 
-/*  */
 /*			EEPROM/Efuse Default Value */
-/*  */
 #define EEPROM_Default_CrystalCap_8723A		0x20
 
 
-/*  */
 /*        EEPROM/EFUSE data structure definition. */
-/*  */
-#define	MAX_RF_PATH_NUM	2
 #define	MAX_CHNL_GROUP		3+9
 
 struct txpowerinfo {
-	u8 CCKIndex[MAX_RF_PATH_NUM][MAX_CHNL_GROUP];
-	u8 HT40_1SIndex[MAX_RF_PATH_NUM][MAX_CHNL_GROUP];
-	u8 HT40_2SIndexDiff[MAX_RF_PATH_NUM][MAX_CHNL_GROUP];
-	u8 HT20IndexDiff[MAX_RF_PATH_NUM][MAX_CHNL_GROUP];
-	u8 OFDMIndexDiff[MAX_RF_PATH_NUM][MAX_CHNL_GROUP];
-	u8 HT40MaxOffset[MAX_RF_PATH_NUM][MAX_CHNL_GROUP];
-	u8 HT20MaxOffset[MAX_RF_PATH_NUM][MAX_CHNL_GROUP];
+	u8 CCKIndex[RF_PATH_MAX][MAX_CHNL_GROUP];
+	u8 HT40_1SIndex[RF_PATH_MAX][MAX_CHNL_GROUP];
+	u8 HT40_2SIndexDiff[RF_PATH_MAX][MAX_CHNL_GROUP];
+	u8 HT20IndexDiff[RF_PATH_MAX][MAX_CHNL_GROUP];
+	u8 OFDMIndexDiff[RF_PATH_MAX][MAX_CHNL_GROUP];
+	u8 HT40MaxOffset[RF_PATH_MAX][MAX_CHNL_GROUP];
+	u8 HT20MaxOffset[RF_PATH_MAX][MAX_CHNL_GROUP];
 	u8 TSSI_A[3];
 	u8 TSSI_B[3];
 	u8 TSSI_A_5G[3];		/* 5GL/5GM/5GH */

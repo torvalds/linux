@@ -180,7 +180,7 @@ struct pwrctrl_priv {
 	u8	ips_mode;
 	u8	ips_mode_req; /*  used to accept the mode setting request */
 	uint bips_processing;
-	u32 ips_deny_time; /* will deny IPS when system time is smaller */
+	unsigned long ips_deny_time; /* deny IPS when system time is smaller */
 	u8 ps_processing; /* used to mark whether in rtw_ps_processor23a */
 
 	u8	bLeisurePs;

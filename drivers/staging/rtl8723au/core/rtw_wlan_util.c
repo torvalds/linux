@@ -581,7 +581,7 @@ int WFD_info_handler(struct rtw_adapter *padapter, struct ndis_802_11_var_ies *	
 		DBG_8723A("[%s] Found WFD IE\n", __func__);
 		rtw_get_wfd_attr_content(wfd_ie, wfd_ielen, WFD_ATTR_DEVICE_INFO, attr_content, &attr_contentlen);
 		if (attr_contentlen) {
-			pwdinfo->wfd_info->peer_rtsp_ctrlport = RTW_GET_BE16(attr_content + 2);
+			pwdinfo->wfd_info->peer_rtsp_ctrlport = get_unaligned_be16(attr_content + 2);
 			DBG_8723A("[%s] Peer PORT NUM = %d\n", __func__, pwdinfo->wfd_info->peer_rtsp_ctrlport);
 			return true;
 		}

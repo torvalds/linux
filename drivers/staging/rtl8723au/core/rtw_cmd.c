@@ -447,7 +447,7 @@ _next:
 
 		pcmdpriv->cmd_issued_cnt++;
 
-		pcmd->cmdsz = _RND4(pcmd->cmdsz);/* _RND4 */
+		pcmd->cmdsz = ALIGN(pcmd->cmdsz, 4);
 
 		memcpy(pcmdbuf, pcmd->parmbuf, pcmd->cmdsz);
 
@@ -1141,7 +1141,9 @@ static void traffic_status_watchdog(struct rtw_adapter *padapter)
 	u8 bHigherBusyTraffic = false, bHigherBusyRxTraffic = false;
 	u8 bHigherBusyTxTraffic = false;
 	struct mlme_priv *pmlmepriv = &padapter->mlmepriv;
-
+#ifndef CONFIG_8723AU_BT_COEXIST
+	int BusyThreshold = 100;
+#endif
 	/*  */
 	/*  Determine if our traffic is busy now */
 	/*  */
@@ -1638,12 +1640,12 @@ u8 rtw_drvextra_cmd_hdl23a(struct rtw_adapter *padapter, unsigned char *pbuf)
 	case P2P_PS_WK_CID:
 		p2p_ps_wk_hdl23a(padapter, pdrvextra_cmd->type_size);
 		break;
-#endif /*  CONFIG_8723AU_P2P */
 	case P2P_PROTO_WK_CID:
 		/*	Commented by Albert 2011/07/01 */
 		/*	I used the type_size as the type command */
 		p2p_protocol_wk_hdl23a(padapter, pdrvextra_cmd->type_size);
 		break;
+#endif /*  CONFIG_8723AU_P2P */
 #ifdef CONFIG_8723AU_AP_MODE
 	case CHECK_HIQ_WK_CID:
 		rtw_chk_hi_queue_hdl(padapter);

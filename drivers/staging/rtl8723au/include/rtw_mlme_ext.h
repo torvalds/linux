@@ -451,9 +451,7 @@ struct mlme_ext_priv {
 
 	u64 TSFValue;
 
-#ifdef CONFIG_8723AU_AP_MODE
 	unsigned char bstart_bss;
-#endif
 	u8 update_channel_plan_by_ap_done;
 	/* recv_decache check for Action_public frame */
 	u8 action_public_dialog_token;

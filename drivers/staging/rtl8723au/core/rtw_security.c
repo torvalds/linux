@@ -202,7 +202,7 @@ void rtw_wep_encrypt23a(struct rtw_adapter *padapter,
 			arcfour_encrypt(&mycontext, payload + length, crc, 4);
 
 			pframe += pxmitpriv->frag_len;
-			pframe = (u8 *)RND4((unsigned long)(pframe));
+			pframe = PTR_ALIGN(pframe, 4);
 		}
 	}
 
@@ -225,7 +225,7 @@ void rtw_wep_decrypt23a(struct rtw_adapter *padapter,
 	pframe = skb->data;
 
 	/* start to decrypt recvframe */
-	if ((prxattrib->encrypt =! _WEP40_) && (prxattrib->encrypt != _WEP104_))
+	if ((prxattrib->encrypt != _WEP40_) && (prxattrib->encrypt != _WEP104_))
 		return;
 
 	iv = pframe + prxattrib->hdrlen;
@@ -699,8 +699,7 @@ u32 rtw_tkip_encrypt23a(struct rtw_adapter *padapter,
 					arcfour_encrypt(&mycontext, payload+length, crc, 4);
 
 				pframe+= pxmitpriv->frag_len;
-				pframe = (u8 *)RND4((unsigned long)(pframe));
-
+				pframe = PTR_ALIGN(pframe, 4);
 				}
 			}
 
@@ -1371,7 +1370,7 @@ u32 rtw_aes_encrypt23a(struct rtw_adapter *padapter, struct xmit_frame *pxmitfra
 
 			aes_cipher(prwskey, pattrib->hdrlen, pframe, length);
 			pframe += pxmitpriv->frag_len;
-			pframe = (u8*)RND4((unsigned long)pframe);
+			pframe = PTR_ALIGN(pframe, 4);
 		}
 	}
 out:
@@ -1599,7 +1598,7 @@ u32 rtw_aes_decrypt23a(struct rtw_adapter *padapter, struct recv_frame *precvfra
 
 	pframe = skb->data;
 	/* 4 start to encrypt each fragment */
-	if (!prxattrib->encrypt != _AES_)
+	if (prxattrib->encrypt != _AES_)
 		return _FAIL;
 
 	stainfo = rtw_get_stainfo23a(&padapter->stapriv, &prxattrib->ta[0]);

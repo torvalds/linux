@@ -108,7 +108,6 @@ ReadEFuseByte23a(struct rtw_adapter *Adapter, u16 _offset, u8 *pbuf)
 	u32	value32;
 	u8	readbyte;
 	u16	retry;
-	/* u32 start = rtw_get_current_time(); */
 
 	/* Write Address */
 	rtw_write8(Adapter, EFUSE_CTRL+1, (_offset & 0xff));
@@ -137,7 +136,6 @@ ReadEFuseByte23a(struct rtw_adapter *Adapter, u16 _offset, u8 *pbuf)
 	value32 = rtw_read32(Adapter, EFUSE_CTRL);
 
 	*pbuf = (u8)(value32 & 0xff);
-	/* DBG_8723A("ReadEFuseByte23a _offset:%08u, in %d ms\n", _offset , rtw_get_passing_time_ms23a(start)); */
 }
 
 /*  */
