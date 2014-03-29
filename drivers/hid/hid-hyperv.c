@@ -457,7 +457,7 @@ static void mousevsc_hid_stop(struct hid_device *hid)
 
 static int mousevsc_hid_raw_request(struct hid_device *hid,
 				    unsigned char report_num,
-				    __u8 buf, size_t len,
+				    __u8 *buf, size_t len,
 				    unsigned char rtype,
 				    int reqtype)
 {
