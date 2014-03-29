@@ -91,6 +91,7 @@ enum ipu_dc_map {
 	IPU_DC_MAP_RGB565,
 	IPU_DC_MAP_GBR24, /* TVEv2 */
 	IPU_DC_MAP_BGR666,
+	IPU_DC_MAP_LVDS666,
 	IPU_DC_MAP_BGR24,
 };
 
@@ -153,6 +154,8 @@ static int ipu_pixfmt_to_map(u32 fmt)
 		return IPU_DC_MAP_GBR24;
 	case V4L2_PIX_FMT_BGR666:
 		return IPU_DC_MAP_BGR666;
+	case v4l2_fourcc('L', 'V', 'D', '6'):
+		return IPU_DC_MAP_LVDS666;
 	case V4L2_PIX_FMT_BGR24:
 		return IPU_DC_MAP_BGR24;
 	default:
@@ -397,6 +400,12 @@ int ipu_dc_init(struct ipu_soc *ipu, struct device *dev,
 	ipu_dc_map_config(priv, IPU_DC_MAP_BGR666, 0, 5, 0xfc); /* blue */
 	ipu_dc_map_config(priv, IPU_DC_MAP_BGR666, 1, 11, 0xfc); /* green */
 	ipu_dc_map_config(priv, IPU_DC_MAP_BGR666, 2, 17, 0xfc); /* red */
+
+	/* lvds666 */
+	ipu_dc_map_clear(priv, IPU_DC_MAP_LVDS666);
+	ipu_dc_map_config(priv, IPU_DC_MAP_LVDS666, 0, 5, 0xfc); /* blue */
+	ipu_dc_map_config(priv, IPU_DC_MAP_LVDS666, 1, 13, 0xfc); /* green */
+	ipu_dc_map_config(priv, IPU_DC_MAP_LVDS666, 2, 21, 0xfc); /* red */
 
 	/* bgr24 */
 	ipu_dc_map_clear(priv, IPU_DC_MAP_BGR24);
