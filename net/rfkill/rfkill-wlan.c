@@ -229,7 +229,7 @@ int rockchip_wifi_power(int on)
 				}
 			}
 			regulator_put(ldo);
-			mdelay(100);
+			msleep(100);
 		}
     } else {
 		poweron = &mrfkill->pdata->power_n;
@@ -238,20 +238,21 @@ int rockchip_wifi_power(int on)
 		if (on){
 			if (gpio_is_valid(poweron->io)) {
 				gpio_set_value(poweron->io, poweron->enable);
+				msleep(100);
 			}
-			mdelay(100);
 
 			if (gpio_is_valid(reset->io)) {
 				gpio_set_value(reset->io, reset->enable);
+				msleep(100);
 			}
-			mdelay(100);
+
 			LOG("wifi turn on power. %d\n", poweron->io);
 		}else{
 			if (gpio_is_valid(poweron->io)) {
 				gpio_set_value(poweron->io, !(poweron->enable));
+				msleep(100);
 			}
 
-			mdelay(100);
 			if (gpio_is_valid(reset->io)) {
 				gpio_set_value(reset->io, !(reset->enable));
 			}

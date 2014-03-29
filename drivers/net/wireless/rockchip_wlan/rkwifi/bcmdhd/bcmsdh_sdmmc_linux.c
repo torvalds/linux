@@ -289,12 +289,15 @@ static struct sdio_driver dummy_sdmmc_driver = {
 int sdio_func_reg_notify(void* semaphore)
 {
 	notify_semaphore = semaphore;
-	return sdio_register_driver(&dummy_sdmmc_driver);
+	if (notify_semaphore)
+		up(notify_semaphore);
+	return 0;	
+	//return sdio_register_driver(&dummy_sdmmc_driver);
 }
 
 void sdio_func_unreg_notify(void)
 {
-	sdio_unregister_driver(&dummy_sdmmc_driver);
+	//sdio_unregister_driver(&dummy_sdmmc_driver);
 }
 
 #endif /* defined(BCMLXSDMMC) */

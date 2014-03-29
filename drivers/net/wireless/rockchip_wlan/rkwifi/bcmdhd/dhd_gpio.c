@@ -46,12 +46,10 @@ void bcm_wlan_power_on(int flag)
 	if (flag == 1) {
 		printk("======== PULL WL_REG_ON HIGH! ========\n");
 		rockchip_wifi_power(1);
-        msleep(100);
         rockchip_wifi_set_carddetect(1);
 	} else {
 		printk("======== PULL WL_REG_ON HIGH! (flag = %d) ========\n", flag);
 		rockchip_wifi_power(1);
-        msleep(100);
 	}
 }
 

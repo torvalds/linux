@@ -133,7 +133,7 @@ dhd_customer_gpio_wlan_ctrl(int onoff)
 				__FUNCTION__));
 #ifdef CUSTOMER_HW
 			bcm_wlan_power_on(2);
-			OSL_DELAY(200);
+			//OSL_DELAY(200);
 #endif /* CUSTOMER_HW */
 #if defined(CUSTOMER_HW2)
 			wifi_set_power(1, 200);
@@ -157,7 +157,7 @@ dhd_customer_gpio_wlan_ctrl(int onoff)
 			bcm_wlan_power_on(1);
 #endif /* CUSTOMER_HW */
 			/* Lets customer power to get stable */
-			OSL_DELAY(200);
+			//OSL_DELAY(200);
 			WL_ERROR(("=========== WLAN placed in POWER ON ========\n"));
 		break;
 	}
