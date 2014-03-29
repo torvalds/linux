@@ -467,11 +467,9 @@ EXPORT_SYMBOL_GPL(spi_bitbang_start);
 /**
  * spi_bitbang_stop - stops the task providing spi communication
  */
-int spi_bitbang_stop(struct spi_bitbang *bitbang)
+void spi_bitbang_stop(struct spi_bitbang *bitbang)
 {
 	spi_unregister_master(bitbang->master);
-
-	return 0;
 }
 EXPORT_SYMBOL_GPL(spi_bitbang_stop);
 

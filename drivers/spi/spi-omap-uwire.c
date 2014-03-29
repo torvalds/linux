@@ -539,14 +539,13 @@ static int uwire_probe(struct platform_device *pdev)
 static int uwire_remove(struct platform_device *pdev)
 {
 	struct uwire_spi	*uwire = platform_get_drvdata(pdev);
-	int			status;
 
 	// FIXME remove all child devices, somewhere ...
 
-	status = spi_bitbang_stop(&uwire->bitbang);
+	spi_bitbang_stop(&uwire->bitbang);
 	uwire_off(uwire);
 	iounmap(uwire_base);
-	return status;
+	return 0;
 }
 
 /* work with hotplug and coldplug */
