@@ -69,6 +69,37 @@ module_param(carrier_timeout, uint, 0644);
 #define np_notice(np, fmt, ...)				\
 	pr_notice("%s: " fmt, np->name, ##__VA_ARGS__)
 
+static int netpoll_start_xmit(struct sk_buff *skb, struct net_device *dev,
+			      struct netdev_queue *txq)
+{
+	const struct net_device_ops *ops = dev->netdev_ops;
+	int status = NETDEV_TX_OK;
+	netdev_features_t features;
+
+	features = netif_skb_features(skb);
+
+	if (vlan_tx_tag_present(skb) &&
+	    !vlan_hw_offload_capable(features, skb->vlan_proto)) {
+		skb = __vlan_put_tag(skb, skb->vlan_proto,
+				     vlan_tx_tag_get(skb));
+		if (unlikely(!skb)) {
+			/* This is actually a packet drop, but we
+			 * don't want the code that calls this
+			 * function to try and operate on a NULL skb.
+			 */
+			goto out;
+		}
+		skb->vlan_tci = 0;
+	}
+
+	status = ops->ndo_start_xmit(skb, dev);
+	if (status == NETDEV_TX_OK)
+		txq_trans_update(txq);
+
+out:
+	return status;
+}
+
 static void queue_process(struct work_struct *work)
 {
 	struct netpoll_info *npinfo =
@@ -78,28 +109,27 @@ static void queue_process(struct work_struct *work)
 
 	while ((skb = skb_dequeue(&npinfo->txq))) {
 		struct net_device *dev = skb->dev;
-		const struct net_device_ops *ops = dev->netdev_ops;
 		struct netdev_queue *txq;
 
 		if (!netif_device_present(dev) || !netif_running(dev)) {
-			__kfree_skb(skb);
+			kfree_skb(skb);
 			continue;
 		}
 
 		txq = netdev_get_tx_queue(dev, skb_get_queue_mapping(skb));
 
 		local_irq_save(flags);
-		__netif_tx_lock(txq, smp_processor_id());
+		HARD_TX_LOCK(dev, txq, smp_processor_id());
 		if (netif_xmit_frozen_or_stopped(txq) ||
-		    ops->ndo_start_xmit(skb, dev) != NETDEV_TX_OK) {
+		    netpoll_start_xmit(skb, dev, txq) != NETDEV_TX_OK) {
 			skb_queue_head(&npinfo->txq, skb);
-			__netif_tx_unlock(txq);
+			HARD_TX_UNLOCK(dev, txq);
 			local_irq_restore(flags);
 
 			schedule_delayed_work(&npinfo->tx_work, HZ/10);
 			return;
 		}
-		__netif_tx_unlock(txq);
+		HARD_TX_UNLOCK(dev, txq);
 		local_irq_restore(flags);
 	}
 }
@@ -184,7 +214,7 @@ static void netpoll_poll_dev(struct net_device *dev)
 	zap_completion_queue();
 }
 
-void netpoll_rx_disable(struct net_device *dev)
+void netpoll_poll_disable(struct net_device *dev)
 {
 	struct netpoll_info *ni;
 	int idx;
@@ -195,9 +225,9 @@ void netpoll_rx_disable(struct net_device *dev)
 		down(&ni->dev_lock);
 	srcu_read_unlock(&netpoll_srcu, idx);
 }
-EXPORT_SYMBOL(netpoll_rx_disable);
+EXPORT_SYMBOL(netpoll_poll_disable);
 
-void netpoll_rx_enable(struct net_device *dev)
+void netpoll_poll_enable(struct net_device *dev)
 {
 	struct netpoll_info *ni;
 	rcu_read_lock();
@@ -206,7 +236,7 @@ void netpoll_rx_enable(struct net_device *dev)
 		up(&ni->dev_lock);
 	rcu_read_unlock();
 }
-EXPORT_SYMBOL(netpoll_rx_enable);
+EXPORT_SYMBOL(netpoll_poll_enable);
 
 static void refill_skbs(void)
 {
@@ -295,7 +325,6 @@ void netpoll_send_skb_on_dev(struct netpoll *np, struct sk_buff *skb,
 {
 	int status = NETDEV_TX_BUSY;
 	unsigned long tries;
-	const struct net_device_ops *ops = dev->netdev_ops;
 	/* It is up to the caller to keep npinfo alive. */
 	struct netpoll_info *npinfo;
 
@@ -303,7 +332,7 @@ void netpoll_send_skb_on_dev(struct netpoll *np, struct sk_buff *skb,
 
 	npinfo = rcu_dereference_bh(np->dev->npinfo);
 	if (!npinfo || !netif_running(dev) || !netif_device_present(dev)) {
-		__kfree_skb(skb);
+		dev_kfree_skb_irq(skb);
 		return;
 	}
 
@@ -316,29 +345,11 @@ void netpoll_send_skb_on_dev(struct netpoll *np, struct sk_buff *skb,
 		/* try until next clock tick */
 		for (tries = jiffies_to_usecs(1)/USEC_PER_POLL;
 		     tries > 0; --tries) {
-			if (__netif_tx_trylock(txq)) {
-				if (!netif_xmit_stopped(txq)) {
-					if (vlan_tx_tag_present(skb) &&
-					    !vlan_hw_offload_capable(netif_skb_features(skb),
-								     skb->vlan_proto)) {
-						skb = __vlan_put_tag(skb, skb->vlan_proto, vlan_tx_tag_get(skb));
-						if (unlikely(!skb)) {
-							/* This is actually a packet drop, but we
-							 * don't want the code at the end of this
-							 * function to try and re-queue a NULL skb.
-							 */
-							status = NETDEV_TX_OK;
-							goto unlock_txq;
-						}
-						skb->vlan_tci = 0;
-					}
+			if (HARD_TX_TRYLOCK(dev, txq)) {
+				if (!netif_xmit_stopped(txq))
+					status = netpoll_start_xmit(skb, dev, txq);
 
-					status = ops->ndo_start_xmit(skb, dev);
-					if (status == NETDEV_TX_OK)
-						txq_trans_update(txq);
-				}
-			unlock_txq:
-				__netif_tx_unlock(txq);
+				HARD_TX_UNLOCK(dev, txq);
 
 				if (status == NETDEV_TX_OK)
 					break;
@@ -353,7 +364,7 @@ void netpoll_send_skb_on_dev(struct netpoll *np, struct sk_buff *skb,
 
 		WARN_ONCE(!irqs_disabled(),
 			"netpoll_send_skb_on_dev(): %s enabled interrupts in poll (%pF)\n",
-			dev->name, ops->ndo_start_xmit);
+			dev->name, dev->netdev_ops->ndo_start_xmit);
 
 	}
 
@@ -584,7 +595,7 @@ int netpoll_parse_options(struct netpoll *np, char *opt)
 }
 EXPORT_SYMBOL(netpoll_parse_options);
 
-int __netpoll_setup(struct netpoll *np, struct net_device *ndev, gfp_t gfp)
+int __netpoll_setup(struct netpoll *np, struct net_device *ndev)
 {
 	struct netpoll_info *npinfo;
 	const struct net_device_ops *ops;
@@ -603,7 +614,7 @@ int __netpoll_setup(struct netpoll *np, struct net_device *ndev, gfp_t gfp)
 	}
 
 	if (!ndev->npinfo) {
-		npinfo = kmalloc(sizeof(*npinfo), gfp);
+		npinfo = kmalloc(sizeof(*npinfo), GFP_KERNEL);
 		if (!npinfo) {
 			err = -ENOMEM;
 			goto out;
@@ -617,7 +628,7 @@ int __netpoll_setup(struct netpoll *np, struct net_device *ndev, gfp_t gfp)
 
 		ops = np->dev->netdev_ops;
 		if (ops->ndo_netpoll_setup) {
-			err = ops->ndo_netpoll_setup(ndev, npinfo, gfp);
+			err = ops->ndo_netpoll_setup(ndev, npinfo);
 			if (err)
 				goto free_npinfo;
 		}
@@ -749,7 +760,7 @@ int netpoll_setup(struct netpoll *np)
 	/* fill up the skb queue */
 	refill_skbs();
 
-	err = __netpoll_setup(np, ndev, GFP_KERNEL);
+	err = __netpoll_setup(np, ndev);
 	if (err)
 		goto put;
 
