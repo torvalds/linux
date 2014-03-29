@@ -2506,12 +2506,14 @@ static int dw_mci_init_slot(struct dw_mci *host, unsigned int id)
 		mmc->f_min = DW_MCI_FREQ_MIN;
 		mmc->f_max = DW_MCI_FREQ_MAX;
 		
-        printk("%d..%s: fmin=%d, fmax=%d [%s]\n", __LINE__,__FUNCTION__,mmc->f_min, mmc->f_max, mmc_hostname(mmc));    
+        printk("%d..%s: fmin=%d, fmax=%d [%s]\n", __LINE__,__FUNCTION__,
+                mmc->f_min, mmc->f_max, mmc_hostname(mmc));    
 	} else {
 		mmc->f_min = freq[0];
 		mmc->f_max = freq[1];
 		
-        printk("%d..%s: fmin=%d, fmax=%d [%s]\n", __LINE__,__FUNCTION__,mmc->f_min, mmc->f_max,  mmc_hostname(mmc));    
+        printk("%d..%s: fmin=%d, fmax=%d [%s]\n", __LINE__,__FUNCTION__,
+                mmc->f_min, mmc->f_max,  mmc_hostname(mmc));    
 	}
 
 	if (of_find_property(host->dev->of_node, "supports-sd", NULL))
@@ -2521,22 +2523,14 @@ static int dw_mci_init_slot(struct dw_mci *host, unsigned int id)
 	if (of_find_property(host->dev->of_node, "supports-emmc", NULL))
 		mmc->restrict_caps |= RESTRICT_CARD_TYPE_EMMC;
 
-    //if(mmc->restrict_caps & RESTRICT_CARD_TYPE_EMMC)
-    //    mmc->caps |= MMC_CAP_NONREMOVABLE;
-
-    /* eMMC should not sched into pm mgmt framework*/
-    if(mmc->restrict_caps & RESTRICT_CARD_TYPE_EMMC)
-        mmc->pm_flags |= (MMC_PM_IGNORE_PM_NOTIFY | MMC_PM_KEEP_POWER);
-
 	if (host->pdata->get_ocr)
 		mmc->ocr_avail = host->pdata->get_ocr(id);
-	else{
-		//mmc->ocr_avail = MMC_VDD_32_33 | MMC_VDD_33_34;
-		mmc->ocr_avail = MMC_VDD_27_28|MMC_VDD_28_29|MMC_VDD_29_30|MMC_VDD_30_31
-                     | MMC_VDD_31_32|MMC_VDD_32_33 | MMC_VDD_33_34 | MMC_VDD_34_35| MMC_VDD_35_36;
-        
-        mmc->ocr_avail |= MMC_VDD_26_27 |MMC_VDD_25_26 |MMC_VDD_24_25 |MMC_VDD_23_24
-                         |MMC_VDD_22_23 |MMC_VDD_21_22 |MMC_VDD_20_21 |MMC_VDD_165_195;
+	else
+	{
+		mmc->ocr_avail =  MMC_VDD_27_28| MMC_VDD_28_29| MMC_VDD_29_30| MMC_VDD_30_31
+                        | MMC_VDD_31_32| MMC_VDD_32_33| MMC_VDD_33_34| MMC_VDD_34_35| MMC_VDD_35_36
+                        | MMC_VDD_26_27| MMC_VDD_25_26| MMC_VDD_24_25| MMC_VDD_23_24
+                        | MMC_VDD_22_23| MMC_VDD_21_22| MMC_VDD_20_21| MMC_VDD_165_195;
 	}
 
 	/*
@@ -2588,8 +2582,13 @@ static int dw_mci_init_slot(struct dw_mci *host, unsigned int id)
 		mmc->caps2 |= MMC_CAP2_FULL_PWR_CYCLE;
 	if (of_find_property(host->dev->of_node, "keep-power-in-suspend", NULL))
 		mmc->pm_caps |= MMC_PM_KEEP_POWER;
+    if (of_find_property(host->dev->of_node, "ignore-pm-notify", NULL))
+        mmc->pm_caps |= MMC_PM_IGNORE_PM_NOTIFY;
 	if (of_find_property(host->dev->of_node, "enable-sdio-wakeup", NULL))
 		mmc->pm_caps |= MMC_PM_WAKE_SDIO_IRQ;
+
+    /*Assign pm_caps pass to pm_flags*/
+        mmc->pm_flags = mmc->pm_caps;
 
 	if (host->pdata->blk_settings) {
 		mmc->max_segs = host->pdata->blk_settings->max_segs;
@@ -2845,8 +2844,6 @@ static struct dw_mci_board *dw_mci_parse_dt(struct dw_mci *host)
 	if (of_find_property(np, "keep-power-in-suspend", NULL))
 		pdata->pm_caps |= MMC_PM_KEEP_POWER;
 		
-
-
 	if (of_find_property(np, "enable-sdio-wakeup", NULL))
 		pdata->pm_caps |= MMC_PM_WAKE_SDIO_IRQ;
 
