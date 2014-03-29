@@ -20,7 +20,7 @@
 #include "exynos4x12.dtsi"
 
 / {
-	compatible = "samsung,exynos4412";
+	compatible = "samsung,exynos4412", "samsung,exynos4";
 
 	combiner: interrupt-controller@10440000 {
 		samsung,combiner-nr = <20>;

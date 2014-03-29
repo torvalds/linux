@@ -17,10 +17,10 @@
 #include "exynos5.dtsi"
 #include "exynos5420-pinctrl.dtsi"
 
-#include <dt-bindings/clk/exynos-audss-clk.h>
+#include <dt-bindings/clock/exynos-audss-clk.h>
 
 / {
-	compatible = "samsung,exynos5420";
+	compatible = "samsung,exynos5420", "samsung,exynos5";
 
 	aliases {
 		mshc0 = &mmc_0;

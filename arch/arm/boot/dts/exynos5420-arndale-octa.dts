@@ -16,7 +16,7 @@
 
 / {
 	model = "Insignal Arndale Octa evaluation board based on EXYNOS5420";
-	compatible = "insignal,arndale-octa", "samsung,exynos5420";
+	compatible = "insignal,arndale-octa", "samsung,exynos5420", "samsung,exynos5";
 
 	memory {
 		reg = <0x20000000 0x80000000>;

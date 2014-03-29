@@ -166,6 +166,10 @@ IS_SAMSUNG_CPU(exynos5440, EXYNOS5440_SOC_ID, EXYNOS5_SOC_MASK)
 # define soc_is_exynos5440()	0
 #endif
 
+#define soc_is_exynos4() (soc_is_exynos4210() || soc_is_exynos4212() || \
+			  soc_is_exynos4412())
+#define soc_is_exynos5() (soc_is_exynos5250() || soc_is_exynos5420())
+
 #define IODESC_ENT(x) { (unsigned long)S3C24XX_VA_##x, __phys_to_pfn(S3C24XX_PA_##x), S3C24XX_SZ_##x, MT_DEVICE }
 
 #ifndef KHZ
