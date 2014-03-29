@@ -7918,8 +7918,7 @@ static netdev_tx_t tg3_start_xmit(struct sk_buff *skb, struct net_device *dev)
 		struct iphdr *iph;
 		u32 tcp_opt_len, hdr_len;
 
-		if (skb_header_cloned(skb) &&
-		    pskb_expand_head(skb, 0, 0, GFP_ATOMIC))
+		if (skb_cow_head(skb, 0))
 			goto drop;
 
 		iph = ip_hdr(skb);
