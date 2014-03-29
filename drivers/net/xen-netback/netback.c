@@ -192,8 +192,8 @@ static bool start_new_rx_buffer(int offset, unsigned long size, int head)
 	 * into multiple copies tend to give large frags their
 	 * own buffers as before.
 	 */
-	if ((offset + size > MAX_BUFFER_OFFSET) &&
-	    (size <= MAX_BUFFER_OFFSET) && offset && !head)
+	BUG_ON(size > MAX_BUFFER_OFFSET);
+	if ((offset + size > MAX_BUFFER_OFFSET) && offset && !head)
 		return true;
 
 	return false;
@@ -482,6 +482,8 @@ static void xenvif_rx_action(struct xenvif *vif)
 
 	while ((skb = skb_dequeue(&vif->rx_queue)) != NULL) {
 		RING_IDX max_slots_needed;
+		RING_IDX old_req_cons;
+		RING_IDX ring_slots_used;
 		int i;
 
 		/* We need a cheap worse case estimate for the number of
@@ -493,9 +495,28 @@ static void xenvif_rx_action(struct xenvif *vif)
 						PAGE_SIZE);
 		for (i = 0; i < skb_shinfo(skb)->nr_frags; i++) {
 			unsigned int size;
+			unsigned int offset;
+
 			size = skb_frag_size(&skb_shinfo(skb)->frags[i]);
-			max_slots_needed += DIV_ROUND_UP(size, PAGE_SIZE);
+			offset = skb_shinfo(skb)->frags[i].page_offset;
+
+			/* For a worse-case estimate we need to factor in
+			 * the fragment page offset as this will affect the
+			 * number of times xenvif_gop_frag_copy() will
+			 * call start_new_rx_buffer().
+			 */
+			max_slots_needed += DIV_ROUND_UP(offset + size,
+							 PAGE_SIZE);
 		}
+
+		/* To avoid the estimate becoming too pessimal for some
+		 * frontends that limit posted rx requests, cap the estimate
+		 * at MAX_SKB_FRAGS.
+		 */
+		if (max_slots_needed > MAX_SKB_FRAGS)
+			max_slots_needed = MAX_SKB_FRAGS;
+
+		/* We may need one more slot for GSO metadata */
 		if (skb_is_gso(skb) &&
 		   (skb_shinfo(skb)->gso_type & SKB_GSO_TCPV4 ||
 		    skb_shinfo(skb)->gso_type & SKB_GSO_TCPV6))
@@ -511,8 +532,12 @@ static void xenvif_rx_action(struct xenvif *vif)
 			vif->rx_last_skb_slots = 0;
 
 		sco = (struct skb_cb_overlay *)skb->cb;
+
+		old_req_cons = vif->rx.req_cons;
 		sco->meta_slots_used = xenvif_gop_skb(skb, &npo);
-		BUG_ON(sco->meta_slots_used > max_slots_needed);
+		ring_slots_used = vif->rx.req_cons - old_req_cons;
+
+		BUG_ON(ring_slots_used > max_slots_needed);
 
 		__skb_queue_tail(&rxq, skb);
 	}
