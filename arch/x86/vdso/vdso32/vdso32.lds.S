@@ -23,14 +23,18 @@ ENTRY(__kernel_vsyscall);
  */
 VERSION
 {
+	LINUX_2.6 {
+	global:
+		__vdso_clock_gettime;
+		__vdso_gettimeofday;
+		__vdso_time;
+	};
+
 	LINUX_2.5 {
 	global:
 		__kernel_vsyscall;
 		__kernel_sigreturn;
 		__kernel_rt_sigreturn;
-		__vdso_clock_gettime;
-		__vdso_gettimeofday;
-		__vdso_time;
 	local: *;
 	};
 }
