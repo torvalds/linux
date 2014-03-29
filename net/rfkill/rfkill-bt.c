@@ -31,6 +31,7 @@
 #include <linux/proc_fs.h>
 #include <linux/uaccess.h>
 #include <linux/gpio.h>
+#include <linux/fs.h>
 #include <dt-bindings/gpio/gpio.h>
 #include <uapi/linux/rfkill.h>
 #ifdef CONFIG_OF
@@ -384,28 +385,26 @@ static const struct rfkill_ops rfkill_rk_ops = {
 
 static struct proc_dir_entry *bluetooth_dir, *sleep_dir;
 
-static int bluesleep_read_proc_lpm(char *page, char **start, off_t offset,
-					int count, int *eof, void *data)
+static int bluesleep_read_proc_lpm(struct file *file, char __user *buffer, 
+                    size_t count, loff_t *data)
 {
-    *eof = 1;
-    return sprintf(page, "unsupported to read\n");
+    return sprintf(buffer, "unsupported to read\n");
 }
 
-static int bluesleep_write_proc_lpm(struct file *file, const char *buffer,
-					unsigned long count, void *data)
+static int bluesleep_write_proc_lpm(struct file *file, const char __user *buffer, 
+                    size_t count, loff_t *data)
 {
     return count;
 }
 
-static int bluesleep_read_proc_btwrite(char *page, char **start, off_t offset,
-					int count, int *eof, void *data)
+static int bluesleep_read_proc_btwrite(struct file *file, char __user *buffer, 
+                    size_t count, loff_t *data)
 {
-    *eof = 1;
-    return sprintf(page, "unsupported to read\n");
+    return sprintf(buffer, "unsupported to read\n");
 }
 
-static int bluesleep_write_proc_btwrite(struct file *file, const char *buffer,
-					unsigned long count, void *data)
+static int bluesleep_write_proc_btwrite(struct file *file, const char __user *buffer, 
+                    size_t count, loff_t *data)
 {
     char b;
 
