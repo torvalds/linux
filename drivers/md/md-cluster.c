@@ -22,8 +22,16 @@ struct dlm_lock_resource {
 	struct dlm_lksb lksb;
 	char *name; /* lock name. */
 	uint32_t flags; /* flags to pass to dlm_lock() */
-	void (*bast)(void *arg, int mode); /* blocking AST function pointer*/
 	struct completion completion; /* completion for synchronized locking */
+	void (*bast)(void *arg, int mode); /* blocking AST function pointer*/
+	struct mddev *mddev; /* pointing back to mddev. */
+};
+
+struct md_cluster_info {
+	/* dlm lock space and resources for clustered raid. */
+	dlm_lockspace_t *lockspace;
+	struct dlm_lock_resource *sb_lock;
+	struct mutex sb_mutex;
 };
 
 static void sync_ast(void *arg)
@@ -53,16 +61,18 @@ static int dlm_unlock_sync(struct dlm_lock_resource *res)
 	return dlm_lock_sync(res, DLM_LOCK_NL);
 }
 
-static struct dlm_lock_resource *lockres_init(dlm_lockspace_t *lockspace,
+static struct dlm_lock_resource *lockres_init(struct mddev *mddev,
 		char *name, void (*bastfn)(void *arg, int mode), int with_lvb)
 {
 	struct dlm_lock_resource *res = NULL;
 	int ret, namelen;
+	struct md_cluster_info *cinfo = mddev->cluster_info;
 
 	res = kzalloc(sizeof(struct dlm_lock_resource), GFP_KERNEL);
 	if (!res)
 		return NULL;
-	res->ls = lockspace;
+	res->ls = cinfo->lockspace;
+	res->mddev = mddev;
 	namelen = strlen(name);
 	res->name = kzalloc(namelen + 1, GFP_KERNEL);
 	if (!res->name) {
@@ -114,13 +124,62 @@ static void lockres_free(struct dlm_lock_resource *res)
 	kfree(res);
 }
 
+static char *pretty_uuid(char *dest, char *src)
+{
+	int i, len = 0;
+
+	for (i = 0; i < 16; i++) {
+		if (i == 4 || i == 6 || i == 8 || i == 10)
+			len += sprintf(dest + len, "-");
+		len += sprintf(dest + len, "%02x", (__u8)src[i]);
+	}
+	return dest;
+}
+
 static int join(struct mddev *mddev, int nodes)
 {
+	struct md_cluster_info *cinfo;
+	int ret;
+	char str[64];
+
+	if (!try_module_get(THIS_MODULE))
+		return -ENOENT;
+
+	cinfo = kzalloc(sizeof(struct md_cluster_info), GFP_KERNEL);
+	if (!cinfo)
+		return -ENOMEM;
+
+	memset(str, 0, 64);
+	pretty_uuid(str, mddev->uuid);
+	ret = dlm_new_lockspace(str, NULL, DLM_LSFL_FS, LVB_SIZE,
+				NULL, NULL, NULL, &cinfo->lockspace);
+	if (ret)
+		goto err;
+	cinfo->sb_lock = lockres_init(mddev, "cmd-super",
+					NULL, 0);
+	if (!cinfo->sb_lock) {
+		ret = -ENOMEM;
+		goto err;
+	}
+	mutex_init(&cinfo->sb_mutex);
+	mddev->cluster_info = cinfo;
 	return 0;
+err:
+	if (cinfo->lockspace)
+		dlm_release_lockspace(cinfo->lockspace, 2);
+	kfree(cinfo);
+	module_put(THIS_MODULE);
+	return ret;
 }
 
 static int leave(struct mddev *mddev)
 {
+	struct md_cluster_info *cinfo = mddev->cluster_info;
+
+	if (!cinfo)
+		return 0;
+	lockres_free(cinfo->sb_lock);
+	dlm_release_lockspace(cinfo->lockspace, 2);
 	return 0;
 }
 

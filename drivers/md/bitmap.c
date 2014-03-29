@@ -433,6 +433,7 @@ void bitmap_update_sb(struct bitmap *bitmap)
 	/* This might have been changed by a reshape */
 	sb->sync_size = cpu_to_le64(bitmap->mddev->resync_max_sectors);
 	sb->chunksize = cpu_to_le32(bitmap->mddev->bitmap_info.chunksize);
+	sb->nodes = cpu_to_le32(bitmap->mddev->bitmap_info.nodes);
 	sb->sectors_reserved = cpu_to_le32(bitmap->mddev->
 					   bitmap_info.space);
 	kunmap_atomic(sb);
@@ -544,6 +545,7 @@ static int bitmap_read_sb(struct bitmap *bitmap)
 	bitmap_super_t *sb;
 	unsigned long chunksize, daemon_sleep, write_behind;
 	unsigned long long events;
+	int nodes = 0;
 	unsigned long sectors_reserved = 0;
 	int err = -EINVAL;
 	struct page *sb_page;
@@ -583,6 +585,7 @@ static int bitmap_read_sb(struct bitmap *bitmap)
 	daemon_sleep = le32_to_cpu(sb->daemon_sleep) * HZ;
 	write_behind = le32_to_cpu(sb->write_behind);
 	sectors_reserved = le32_to_cpu(sb->sectors_reserved);
+	nodes = le32_to_cpu(sb->nodes);
 
 	/* verify that the bitmap-specific fields are valid */
 	if (sb->magic != cpu_to_le32(BITMAP_MAGIC))
@@ -643,6 +646,7 @@ out_no_sb:
 	bitmap->mddev->bitmap_info.chunksize = chunksize;
 	bitmap->mddev->bitmap_info.daemon_sleep = daemon_sleep;
 	bitmap->mddev->bitmap_info.max_write_behind = write_behind;
+	bitmap->mddev->bitmap_info.nodes = nodes;
 	if (bitmap->mddev->bitmap_info.space == 0 ||
 	    bitmap->mddev->bitmap_info.space > sectors_reserved)
 		bitmap->mddev->bitmap_info.space = sectors_reserved;
@@ -2186,6 +2190,8 @@ __ATTR(chunksize, S_IRUGO|S_IWUSR, chunksize_show, chunksize_store);
 
 static ssize_t metadata_show(struct mddev *mddev, char *page)
 {
+	if (mddev_is_clustered(mddev))
+		return sprintf(page, "clustered\n");
 	return sprintf(page, "%s\n", (mddev->bitmap_info.external
 				      ? "external" : "internal"));
 }
@@ -2198,7 +2204,8 @@ static ssize_t metadata_store(struct mddev *mddev, const char *buf, size_t len)
 		return -EBUSY;
 	if (strncmp(buf, "external", 8) == 0)
 		mddev->bitmap_info.external = 1;
-	else if (strncmp(buf, "internal", 8) == 0)
+	else if ((strncmp(buf, "internal", 8) == 0) ||
+			(strncmp(buf, "clustered", 9) == 0))
 		mddev->bitmap_info.external = 0;
 	else
 		return -EINVAL;
