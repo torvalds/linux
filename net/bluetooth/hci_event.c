@@ -4081,9 +4081,8 @@ static void process_adv_report(struct hci_dev *hdev, u8 type, bdaddr_t *bdaddr,
 		 * the pending report and send out a device found event.
 		 */
 		clear_pending_adv_report(hdev);
-		mgmt_device_found(hdev, &d->last_adv_addr, LE_LINK,
-				  d->last_adv_addr_type, NULL, rssi, 0, 1,
-				  data, len, NULL, 0);
+		mgmt_device_found(hdev, bdaddr, LE_LINK, bdaddr_type, NULL,
+				  rssi, 0, 1, data, len, NULL, 0);
 		return;
 	}
 
