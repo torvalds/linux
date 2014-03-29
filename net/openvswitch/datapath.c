@@ -464,7 +464,9 @@ static int queue_userspace_packet(struct datapath *dp, struct sk_buff *skb,
 	}
 	nla->nla_len = nla_attr_size(skb->len);
 
-	skb_zerocopy(user_skb, skb, skb->len, hlen);
+	err = skb_zerocopy(user_skb, skb, skb->len, hlen);
+	if (err)
+		goto out;
 
 	/* Pad OVS_PACKET_ATTR_PACKET if linear copy was performed */
 	if (!(dp->user_features & OVS_DP_F_UNALIGNED)) {
@@ -478,6 +480,8 @@ static int queue_userspace_packet(struct datapath *dp, struct sk_buff *skb,
 
 	err = genlmsg_unicast(ovs_dp_get_net(dp), user_skb, upcall_info->portid);
 out:
+	if (err)
+		skb_tx_error(skb);
 	kfree_skb(nskb);
 	return err;
 }

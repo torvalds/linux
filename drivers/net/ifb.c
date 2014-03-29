@@ -180,7 +180,8 @@ static void ifb_setup(struct net_device *dev)
 	dev->tx_queue_len = TX_Q_LIMIT;
 
 	dev->features |= IFB_FEATURES;
-	dev->vlan_features |= IFB_FEATURES;
+	dev->vlan_features |= IFB_FEATURES & ~(NETIF_F_HW_VLAN_CTAG_TX |
+					       NETIF_F_HW_VLAN_STAG_TX);
 
 	dev->flags |= IFF_NOARP;
 	dev->flags &= ~IFF_MULTICAST;

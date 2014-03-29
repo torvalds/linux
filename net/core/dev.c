@@ -2281,7 +2281,7 @@ out:
 }
 EXPORT_SYMBOL(skb_checksum_help);
 
-__be16 skb_network_protocol(struct sk_buff *skb)
+__be16 skb_network_protocol(struct sk_buff *skb, int *depth)
 {
 	__be16 type = skb->protocol;
 	int vlan_depth = ETH_HLEN;
@@ -2308,6 +2308,8 @@ __be16 skb_network_protocol(struct sk_buff *skb)
 		vlan_depth += VLAN_HLEN;
 	}
 
+	*depth = vlan_depth;
+
 	return type;
 }
 
@@ -2321,12 +2323,13 @@ struct sk_buff *skb_mac_gso_segment(struct sk_buff *skb,
 {
 	struct sk_buff *segs = ERR_PTR(-EPROTONOSUPPORT);
 	struct packet_offload *ptype;
-	__be16 type = skb_network_protocol(skb);
+	int vlan_depth = skb->mac_len;
+	__be16 type = skb_network_protocol(skb, &vlan_depth);
 
 	if (unlikely(!type))
 		return ERR_PTR(-EINVAL);
 
-	__skb_pull(skb, skb->mac_len);
+	__skb_pull(skb, vlan_depth);
 
 	rcu_read_lock();
 	list_for_each_entry_rcu(ptype, &offload_base, list) {
@@ -2493,8 +2496,10 @@ static netdev_features_t harmonize_features(struct sk_buff *skb,
 					    const struct net_device *dev,
 					    netdev_features_t features)
 {
+	int tmp;
+
 	if (skb->ip_summed != CHECKSUM_NONE &&
-	    !can_checksum_protocol(features, skb_network_protocol(skb))) {
+	    !can_checksum_protocol(features, skb_network_protocol(skb, &tmp))) {
 		features &= ~NETIF_F_ALL_CSUM;
 	} else if (illegal_highdma(dev, skb)) {
 		features &= ~NETIF_F_SG;

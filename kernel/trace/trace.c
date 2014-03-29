@@ -1600,15 +1600,31 @@ void trace_buffer_unlock_commit(struct ring_buffer *buffer,
 }
 EXPORT_SYMBOL_GPL(trace_buffer_unlock_commit);
 
+static struct ring_buffer *temp_buffer;
+
 struct ring_buffer_event *
 trace_event_buffer_lock_reserve(struct ring_buffer **current_rb,
 			  struct ftrace_event_file *ftrace_file,
 			  int type, unsigned long len,
 			  unsigned long flags, int pc)
 {
+	struct ring_buffer_event *entry;
+
 	*current_rb = ftrace_file->tr->trace_buffer.buffer;
-	return trace_buffer_lock_reserve(*current_rb,
+	entry = trace_buffer_lock_reserve(*current_rb,
 					 type, len, flags, pc);
+	/*
+	 * If tracing is off, but we have triggers enabled
+	 * we still need to look at the event data. Use the temp_buffer
+	 * to store the trace event for the tigger to use. It's recusive
+	 * safe and will not be recorded anywhere.
+	 */
+	if (!entry && ftrace_file->flags & FTRACE_EVENT_FL_TRIGGER_COND) {
+		*current_rb = temp_buffer;
+		entry = trace_buffer_lock_reserve(*current_rb,
+						  type, len, flags, pc);
+	}
+	return entry;
 }
 EXPORT_SYMBOL_GPL(trace_event_buffer_lock_reserve);
 
@@ -6494,11 +6510,16 @@ __init static int tracer_alloc_buffers(void)
 
 	raw_spin_lock_init(&global_trace.start_lock);
 
+	/* Used for event triggers */
+	temp_buffer = ring_buffer_alloc(PAGE_SIZE, RB_FL_OVERWRITE);
+	if (!temp_buffer)
+		goto out_free_cpumask;
+
 	/* TODO: make the number of buffers hot pluggable with CPUS */
 	if (allocate_trace_buffers(&global_trace, ring_buf_size) < 0) {
 		printk(KERN_ERR "tracer: failed to allocate ring buffer!\n");
 		WARN_ON(1);
-		goto out_free_cpumask;
+		goto out_free_temp_buffer;
 	}
 
 	if (global_trace.buffer_disabled)
@@ -6540,6 +6561,8 @@ __init static int tracer_alloc_buffers(void)
 
 	return 0;
 
+out_free_temp_buffer:
+	ring_buffer_free(temp_buffer);
 out_free_cpumask:
 	free_percpu(global_trace.trace_buffer.data);
 #ifdef CONFIG_TRACER_MAX_TRACE
