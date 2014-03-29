@@ -1,3 +1,9 @@
+/*
+ *  Compat sytem call wrappers.
+ *
+ *    Copyright IBM Corp. 2014
+ */
+
 #include <linux/syscalls.h>
 #include <linux/compat.h>
 #include "entry.h"
