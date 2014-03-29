@@ -88,7 +88,7 @@ extern unsigned int camsys_debug;
 
 #define camsys_trace(level, msg,...) \
 	do { \
-		if (1/*camsys_debug >= level*/) \
+		if (camsys_debug >= level) \
 			printk("D%d:%s(%d): " msg "\n",level, __FUNCTION__,__LINE__, ## __VA_ARGS__); \
 	} while (0)
 

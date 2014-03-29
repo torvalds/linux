@@ -235,10 +235,9 @@ static int camsys_mipiphy_ops (void *phy, void *phyinfo, unsigned int on)
     //disable isp
         write_grf_reg(GRF_SOC_CON6_OFFSET, MIPI_PHY_DISABLE_ISP_MASK | 1); 
         phy_select(0);
-    //    phy_config_num_lane(0,2);
+        phy_config_num_lane(0,1);
         phy0_start(0,1);
 
-        phy_config_num_lane(0,1);
         udelay(200);
     //enable isp
         write_grf_reg(GRF_SOC_CON6_OFFSET, MIPI_PHY_DISABLE_ISP_MASK | 0); 
