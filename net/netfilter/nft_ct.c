@@ -268,8 +268,10 @@ static int nft_ct_init_validate_get(const struct nft_expr *expr,
 static int nft_ct_init_validate_set(uint32_t key)
 {
 	switch (key) {
+#ifdef CONFIG_NF_CONNTRACK_MARK
 	case NFT_CT_MARK:
 		break;
+#endif
 	default:
 		return -EOPNOTSUPP;
 	}
