@@ -1145,7 +1145,7 @@ config DEBUG_UART_8250_FLOW_CONTROL
 
 config DEBUG_UNCOMPRESS
 	bool
-	depends on ARCH_MULTIPLATFORM || ARCH_MSM || ARCH_EXYNOS
+	depends on ARCH_MULTIPLATFORM || ARCH_MSM || PLAT_SAMSUNG
 	default y if DEBUG_LL && !DEBUG_OMAP2PLUS_UART && \
 		     (!DEBUG_TEGRA_UART || !ZBOOT_ROM)
 	help
@@ -1162,7 +1162,7 @@ config DEBUG_UNCOMPRESS
 config UNCOMPRESS_INCLUDE
 	string
 	default "debug/uncompress.h" if ARCH_MULTIPLATFORM || ARCH_MSM || \
-					ARCH_EXYNOS
+					PLAT_SAMSUNG
 	default "mach/uncompress.h"
 
 config EARLY_PRINTK
