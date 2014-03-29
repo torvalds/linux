@@ -72,8 +72,6 @@ static int __ixgbe_enable_sriov(struct ixgbe_adapter *adapter)
 		for (i = 0; i < num_vf_macvlans; i++) {
 			mv_list->vf = -1;
 			mv_list->free = true;
-			mv_list->rar_entry = hw->mac.num_rar_entries -
-				(i + adapter->num_vfs + 1);
 			list_add(&mv_list->l, &adapter->vf_mvs.l);
 			mv_list++;
 		}
@@ -361,21 +359,6 @@ static int ixgbe_set_vf_multicasts(struct ixgbe_adapter *adapter,
 }
 
 #ifdef CONFIG_PCI_IOV
-static void ixgbe_restore_vf_macvlans(struct ixgbe_adapter *adapter)
-{
-	struct ixgbe_hw *hw = &adapter->hw;
-	struct list_head *pos;
-	struct vf_macvlans *entry;
-
-	list_for_each(pos, &adapter->vf_mvs.l) {
-		entry = list_entry(pos, struct vf_macvlans, l);
-		if (!entry->free)
-			hw->mac.ops.set_rar(hw, entry->rar_entry,
-					    entry->vf_macvlan,
-					    entry->vf, IXGBE_RAH_AV);
-	}
-}
-
 void ixgbe_restore_vf_multicasts(struct ixgbe_adapter *adapter)
 {
 	struct ixgbe_hw *hw = &adapter->hw;
@@ -405,7 +388,7 @@ void ixgbe_restore_vf_multicasts(struct ixgbe_adapter *adapter)
 	}
 
 	/* Restore any VF macvlans */
-	ixgbe_restore_vf_macvlans(adapter);
+	ixgbe_full_sync_mac_table(adapter);
 }
 #endif
 
@@ -525,7 +508,6 @@ static inline void ixgbe_vf_reset_event(struct ixgbe_adapter *adapter, u32 vf)
 {
 	struct ixgbe_hw *hw = &adapter->hw;
 	struct vf_data_storage *vfinfo = &adapter->vfinfo[vf];
-	int rar_entry = hw->mac.num_rar_entries - (vf + 1);
 	u8 num_tcs = netdev_get_num_tc(adapter->netdev);
 
 	/* add PF assigned VLAN or VLAN 0 */
@@ -555,7 +537,7 @@ static inline void ixgbe_vf_reset_event(struct ixgbe_adapter *adapter, u32 vf)
 	/* Flush and reset the mta with the new values */
 	ixgbe_set_rx_mode(adapter->netdev);
 
-	hw->mac.ops.clear_rar(hw, rar_entry);
+	ixgbe_del_mac_filter(adapter, adapter->vfinfo[vf].vf_mac_addresses, vf);
 
 	/* reset VF api back to unknown */
 	adapter->vfinfo[vf].vf_api = ixgbe_mbox_api_10;
@@ -564,11 +546,9 @@ static inline void ixgbe_vf_reset_event(struct ixgbe_adapter *adapter, u32 vf)
 static int ixgbe_set_vf_mac(struct ixgbe_adapter *adapter,
 			    int vf, unsigned char *mac_addr)
 {
-	struct ixgbe_hw *hw = &adapter->hw;
-	int rar_entry = hw->mac.num_rar_entries - (vf + 1);
-
+	ixgbe_del_mac_filter(adapter, adapter->vfinfo[vf].vf_mac_addresses, vf);
 	memcpy(adapter->vfinfo[vf].vf_mac_addresses, mac_addr, ETH_ALEN);
-	hw->mac.ops.set_rar(hw, rar_entry, mac_addr, vf, IXGBE_RAH_AV);
+	ixgbe_add_mac_filter(adapter, adapter->vfinfo[vf].vf_mac_addresses, vf);
 
 	return 0;
 }
@@ -576,7 +556,6 @@ static int ixgbe_set_vf_mac(struct ixgbe_adapter *adapter,
 static int ixgbe_set_vf_macvlan(struct ixgbe_adapter *adapter,
 				int vf, int index, unsigned char *mac_addr)
 {
-	struct ixgbe_hw *hw = &adapter->hw;
 	struct list_head *pos;
 	struct vf_macvlans *entry;
 
@@ -587,7 +566,8 @@ static int ixgbe_set_vf_macvlan(struct ixgbe_adapter *adapter,
 				entry->vf = -1;
 				entry->free = true;
 				entry->is_macvlan = false;
-				hw->mac.ops.clear_rar(hw, entry->rar_entry);
+				ixgbe_del_mac_filter(adapter,
+						     entry->vf_macvlan, vf);
 			}
 		}
 	}
@@ -623,7 +603,7 @@ static int ixgbe_set_vf_macvlan(struct ixgbe_adapter *adapter,
 	entry->vf = vf;
 	memcpy(entry->vf_macvlan, mac_addr, ETH_ALEN);
 
-	hw->mac.ops.set_rar(hw, entry->rar_entry, mac_addr, vf, IXGBE_RAH_AV);
+	ixgbe_add_mac_filter(adapter, mac_addr, vf);
 
 	return 0;
 }
