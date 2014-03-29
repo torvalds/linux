@@ -8,8 +8,14 @@ Required properties:
 - interrupts		: <interrupt mapping for SATA IRQ>
 - reg			: <registers mapping>
 - samsung,sata-freq	: <frequency in MHz>
-- phys			: as mentioned in phy-bindings.txt
-- phy-names		: as mentioned in phy-bindings.txt
+- phys			: Must contain exactly one entry as specified
+			  in phy-bindings.txt
+- phy-names		: Must be "sata-phy"
+
+Optional properties:
+- clocks		: Must contain an entry for each entry in clock-names.
+- clock-names		: Shall be "sata" for the external SATA bus clock,
+			  and "sclk_sata" for the internal controller clock.
 
 Example:
 	sata@122f0000 {
