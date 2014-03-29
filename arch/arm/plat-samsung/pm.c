@@ -25,7 +25,6 @@
 #include <asm/suspend.h>
 
 #ifdef CONFIG_SAMSUNG_ATAGS
-#include <mach/hardware.h>
 #include <mach/map.h>
 #ifndef CONFIG_ARCH_EXYNOS
 #include <mach/regs-clock.h>

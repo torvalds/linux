@@ -43,7 +43,6 @@
 #include <linux/debugfs.h>
 #endif
 
-#include <mach/hardware.h>
 #include <asm/irq.h>
 
 #include <plat/cpu-freq.h>
