@@ -543,7 +543,7 @@ static int pmic8xxx_kp_probe(struct platform_device *pdev)
 		return -EINVAL;
 	}
 
-	kp = kzalloc(sizeof(*kp), GFP_KERNEL);
+	kp = devm_kzalloc(&pdev->dev, sizeof(*kp), GFP_KERNEL);
 	if (!kp)
 		return -ENOMEM;
 
@@ -552,31 +552,26 @@ static int pmic8xxx_kp_probe(struct platform_device *pdev)
 	kp->pdata	= pdata;
 	kp->dev		= &pdev->dev;
 
-	kp->input = input_allocate_device();
+	kp->input = devm_input_allocate_device(&pdev->dev);
 	if (!kp->input) {
 		dev_err(&pdev->dev, "unable to allocate input device\n");
-		rc = -ENOMEM;
-		goto err_alloc_device;
+		return -ENOMEM;
 	}
 
 	kp->key_sense_irq = platform_get_irq(pdev, 0);
 	if (kp->key_sense_irq < 0) {
 		dev_err(&pdev->dev, "unable to get keypad sense irq\n");
-		rc = -ENXIO;
-		goto err_get_irq;
+		return kp->key_sense_irq;
 	}
 
 	kp->key_stuck_irq = platform_get_irq(pdev, 1);
 	if (kp->key_stuck_irq < 0) {
 		dev_err(&pdev->dev, "unable to get keypad stuck irq\n");
-		rc = -ENXIO;
-		goto err_get_irq;
+		return kp->key_stuck_irq;
 	}
 
 	kp->input->name = pdata->input_name ? : "PMIC8XXX keypad";
 	kp->input->phys = pdata->input_phys_device ? : "pmic8xxx_keypad/input0";
-
-	kp->input->dev.parent	= &pdev->dev;
 
 	kp->input->id.bustype	= BUS_I2C;
 	kp->input->id.version	= 0x0001;
@@ -591,7 +586,7 @@ static int pmic8xxx_kp_probe(struct platform_device *pdev)
 					kp->keycodes, kp->input);
 	if (rc) {
 		dev_err(&pdev->dev, "failed to build keymap\n");
-		goto err_get_irq;
+		return rc;
 	}
 
 	if (pdata->rep)
@@ -607,27 +602,29 @@ static int pmic8xxx_kp_probe(struct platform_device *pdev)
 	rc = pmic8xxx_kpd_init(kp);
 	if (rc < 0) {
 		dev_err(&pdev->dev, "unable to initialize keypad controller\n");
-		goto err_get_irq;
+		return rc;
 	}
 
-	rc = request_any_context_irq(kp->key_sense_irq, pmic8xxx_kp_irq,
-				 IRQF_TRIGGER_RISING, "pmic-keypad", kp);
+	rc = devm_request_any_context_irq(&pdev->dev, kp->key_sense_irq,
+			pmic8xxx_kp_irq, IRQF_TRIGGER_RISING, "pmic-keypad",
+			kp);
 	if (rc < 0) {
 		dev_err(&pdev->dev, "failed to request keypad sense irq\n");
-		goto err_get_irq;
+		return rc;
 	}
 
-	rc = request_any_context_irq(kp->key_stuck_irq, pmic8xxx_kp_stuck_irq,
-				 IRQF_TRIGGER_RISING, "pmic-keypad-stuck", kp);
+	rc = devm_request_any_context_irq(&pdev->dev, kp->key_stuck_irq,
+			pmic8xxx_kp_stuck_irq, IRQF_TRIGGER_RISING,
+			"pmic-keypad-stuck", kp);
 	if (rc < 0) {
 		dev_err(&pdev->dev, "failed to request keypad stuck irq\n");
-		goto err_req_stuck_irq;
+		return rc;
 	}
 
 	rc = pmic8xxx_kp_read_u8(kp, &ctrl_val, KEYP_CTRL);
 	if (rc < 0) {
 		dev_err(&pdev->dev, "failed to read KEYP_CTRL register\n");
-		goto err_pmic_reg_read;
+		return rc;
 	}
 
 	kp->ctrl_reg = ctrl_val;
@@ -635,33 +632,10 @@ static int pmic8xxx_kp_probe(struct platform_device *pdev)
 	rc = input_register_device(kp->input);
 	if (rc < 0) {
 		dev_err(&pdev->dev, "unable to register keypad input device\n");
-		goto err_pmic_reg_read;
+		return rc;
 	}
 
 	device_init_wakeup(&pdev->dev, pdata->wakeup);
-
-	return 0;
-
-err_pmic_reg_read:
-	free_irq(kp->key_stuck_irq, kp);
-err_req_stuck_irq:
-	free_irq(kp->key_sense_irq, kp);
-err_get_irq:
-	input_free_device(kp->input);
-err_alloc_device:
-	kfree(kp);
-	return rc;
-}
-
-static int pmic8xxx_kp_remove(struct platform_device *pdev)
-{
-	struct pmic8xxx_kp *kp = platform_get_drvdata(pdev);
-
-	device_init_wakeup(&pdev->dev, 0);
-	free_irq(kp->key_stuck_irq, kp);
-	free_irq(kp->key_sense_irq, kp);
-	input_unregister_device(kp->input);
-	kfree(kp);
 
 	return 0;
 }
@@ -713,7 +687,6 @@ static SIMPLE_DEV_PM_OPS(pm8xxx_kp_pm_ops,
 
 static struct platform_driver pmic8xxx_kp_driver = {
 	.probe		= pmic8xxx_kp_probe,
-	.remove		= pmic8xxx_kp_remove,
 	.driver		= {
 		.name = PM8XXX_KEYPAD_DEV_NAME,
 		.owner = THIS_MODULE,
