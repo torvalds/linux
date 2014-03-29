@@ -20,3 +20,39 @@ Required properties:
 - compatible : should be "samsung,exynos5250-dp-video-phy";
 - reg : offset and length of the Display Port PHY register set;
 - #phy-cells : from the generic PHY bindings, must be 0;
+
+Samsung SATA PHY Controller
+---------------------------
+
+SATA PHY nodes are defined to describe on-chip SATA Physical layer controllers.
+Each SATA PHY controller should have its own node.
+
+Required properties:
+- compatible        : compatible list, contains "samsung,exynos5250-sata-phy"
+- reg : offset and length of the SATA PHY register set;
+- #phy-cells : from the generic phy bindings;
+
+Example:
+	sata_phy: sata-phy@12170000 {
+		compatible = "samsung,exynos5250-sata-phy";
+		reg = <0x12170000 0x1ff>;
+		clocks = <&clock 287>;
+		clock-names = "sata_phyctrl";
+		#phy-cells = <0>;
+		samsung,exynos-sataphy-i2c-phandle = <&sata_phy_i2c>;
+		samsung,syscon-phandle = <&pmu_syscon>;
+	};
+
+Device-Tree bindings for sataphy i2c client driver
+--------------------------------------------------
+
+Required properties:
+compatible: Should be "samsung,exynos-sataphy-i2c"
+- reg: I2C address of the sataphy i2c device.
+
+Example:
+
+	sata_phy_i2c:sata-phy@38 {
+		compatible = "samsung,exynos-sataphy-i2c";
+		reg = <0x38>;
+	};

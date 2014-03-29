@@ -106,6 +106,11 @@
 		};
 	};
 
+	adc: adc@126C0000 {
+		vdd-supply = <&ldo3_reg>;
+		status = "okay";
+	};
+
 	i2c@13890000 {
 		samsung,i2c-sda-delay = <100>;
 		samsung,i2c-slave-addr = <0x10>;
@@ -588,5 +593,21 @@
 				};
 			};
 		};
+	};
+
+	thermistor-ap@0 {
+		compatible = "ntc,ncp15wb473";
+		pullup-uv = <1800000>;	 /* VCC_1.8V_AP */
+		pullup-ohm = <100000>;	 /* 100K */
+		pulldown-ohm = <100000>; /* 100K */
+		io-channels = <&adc 1>;  /* AP temperature */
+	};
+
+	thermistor-battery@1 {
+		compatible = "ntc,ncp15wb473";
+		pullup-uv = <1800000>;	 /* VCC_1.8V_AP */
+		pullup-ohm = <100000>;	 /* 100K */
+		pulldown-ohm = <100000>; /* 100K */
+		io-channels = <&adc 2>;  /* Battery temperature */
 	};
 };
