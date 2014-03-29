@@ -1308,6 +1308,9 @@ struct net_device {
 	atomic_long_t		rx_dropped;
 	atomic_long_t		tx_dropped;
 
+	/* Stats to monitor carrier on<->off transitions */
+	atomic_t		carrier_changes;
+
 #ifdef CONFIG_WIRELESS_EXT
 	/* List of functions to handle Wireless Extensions (instead of ioctl).
 	 * See <net/iw_handler.h> for details. Jean II */

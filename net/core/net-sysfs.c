@@ -253,6 +253,16 @@ static ssize_t operstate_show(struct device *dev,
 }
 static DEVICE_ATTR_RO(operstate);
 
+static ssize_t carrier_changes_show(struct device *dev,
+				    struct device_attribute *attr,
+				    char *buf)
+{
+	struct net_device *netdev = to_net_dev(dev);
+	return sprintf(buf, fmt_dec,
+		       atomic_read(&netdev->carrier_changes));
+}
+static DEVICE_ATTR_RO(carrier_changes);
+
 /* read-write attributes */
 
 static int change_mtu(struct net_device *net, unsigned long new_mtu)
@@ -386,6 +396,7 @@ static struct attribute *net_class_attrs[] = {
 	&dev_attr_duplex.attr,
 	&dev_attr_dormant.attr,
 	&dev_attr_operstate.attr,
+	&dev_attr_carrier_changes.attr,
 	&dev_attr_ifalias.attr,
 	&dev_attr_carrier.attr,
 	&dev_attr_mtu.attr,
