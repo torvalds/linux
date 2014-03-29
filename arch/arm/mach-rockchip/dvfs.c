@@ -21,6 +21,10 @@
 #include <linux/opp.h>
 #include <linux/rockchip/dvfs.h>
 
+static struct workqueue_struct *dvfs_wq;
+
+extern int rockchip_tsadc_get_temp(int chn);
+
 #define MHz	(1000 * 1000)
 static LIST_HEAD(rk_dvfs_tree);
 static DEFINE_MUTEX(rk_dvfs_mutex);
@@ -412,11 +416,6 @@ static void dvfs_update_clk_pds_volt(struct dvfs_node *clk_dvfs_node)
 		return ;
 	
 	pd->cur_volt = dvfs_pd_get_newvolt_byclk(pd, clk_dvfs_node);
-	/*for (i = 0; (clk_dvfs_node->pds[i].pd != NULL); i++) {
-		pd = clk_dvfs_node->pds[i].pd;
-		// DVFS_DBG("%s dvfs(%s),pd(%s)\n",__func__,clk_dvfs_node->name,pd->name);
-		pd->cur_volt = dvfs_pd_get_newvolt_byclk(pd, clk_dvfs_node);
-	}*/
 }
 
 static int dvfs_vd_get_newvolt_bypd(struct vd_node *vd)
@@ -450,11 +449,36 @@ static int dvfs_vd_get_newvolt_byclk(struct dvfs_node *clk_dvfs_node)
 	return  dvfs_vd_get_newvolt_bypd(clk_dvfs_node->vd);
 }
 
-int dvfs_clk_enable_limit(struct dvfs_node *clk_dvfs_node, unsigned int min_rate, unsigned max_rate)
+static void dvfs_temp_limit_work_func(struct work_struct *work)
+{
+	unsigned long delay = HZ / 10; // 100ms
+	struct vd_node *vd;
+	struct pd_node *pd;
+	struct dvfs_node *clk_dvfs_node;
+
+	mutex_lock(&rk_dvfs_mutex);
+	list_for_each_entry(vd, &rk_dvfs_tree, node) {
+		mutex_lock(&vd->mutex);
+		list_for_each_entry(pd, &vd->pd_list, node) {
+			list_for_each_entry(clk_dvfs_node, &pd->clk_list, node) {
+				if (clk_dvfs_node->temp_limit_table)
+					clk_dvfs_node->vd->vd_dvfs_target(clk_dvfs_node, clk_dvfs_node->last_set_rate);
+			}
+		}
+		mutex_unlock(&vd->mutex);
+	}
+	mutex_unlock(&rk_dvfs_mutex);
+
+	queue_delayed_work_on(0, dvfs_wq, to_delayed_work(work), delay);
+}
+static DECLARE_DELAYED_WORK(dvfs_temp_limit_work, dvfs_temp_limit_work_func);
+
+
+int dvfs_clk_enable_limit(struct dvfs_node *clk_dvfs_node, unsigned int min_rate, unsigned int max_rate)
 {
 	u32 rate = 0, ret = 0;
 
-	if (!clk_dvfs_node)
+	if (!clk_dvfs_node || (min_rate > max_rate))
 		return -EINVAL;
 	
 	if (clk_dvfs_node->vd && clk_dvfs_node->vd->vd_dvfs_target){
@@ -463,8 +487,15 @@ int dvfs_clk_enable_limit(struct dvfs_node *clk_dvfs_node, unsigned int min_rate
 		/* To reset clk_dvfs_node->min_rate/max_rate */
 		dvfs_get_rate_range(clk_dvfs_node);
 		clk_dvfs_node->freq_limit_en = 1;
-		clk_dvfs_node->min_rate = min_rate > clk_dvfs_node->min_rate ? min_rate : clk_dvfs_node->min_rate;
-		clk_dvfs_node->max_rate = max_rate < clk_dvfs_node->max_rate ? max_rate : clk_dvfs_node->max_rate;
+
+		if ((min_rate >= clk_dvfs_node->min_rate) && (min_rate <= clk_dvfs_node->max_rate)) {
+			clk_dvfs_node->min_rate = min_rate;
+		}
+		
+		if ((max_rate >= clk_dvfs_node->min_rate) && (max_rate <= clk_dvfs_node->max_rate)) {
+			clk_dvfs_node->max_rate = max_rate;
+		}
+
 		if (clk_dvfs_node->last_set_rate == 0)
 			rate = clk_get_rate(clk_dvfs_node->clk);
 		else
@@ -602,6 +633,7 @@ int clk_enable_dvfs(struct dvfs_node *clk_dvfs_node)
 		clk_dvfs_node->freq_limit_en = 1;
 		dvfs_table_round_volt(clk_dvfs_node);
 		clk_dvfs_node->set_freq = clk_dvfs_node_get_rate_kz(clk_dvfs_node->clk);
+		clk_dvfs_node->last_set_rate = clk_dvfs_node->set_freq;
 		
 		DVFS_DBG("%s: %s get freq %u!\n", 
 			__func__, clk_dvfs_node->name, clk_dvfs_node->set_freq);
@@ -631,23 +663,20 @@ int clk_enable_dvfs(struct dvfs_node *clk_dvfs_node)
 			clk_notifier_register(clk, clk_dvfs_node->dvfs_nb);
 		}
 #endif
-
-#if 0
 		if(clk_dvfs_node->vd->cur_volt < clk_dvfs_node->set_volt) {
 			int ret;
-			mutex_lock(&rk_dvfs_mutex);
 			ret = dvfs_regulator_set_voltage_readback(clk_dvfs_node->vd->regulator, clk_dvfs_node->set_volt, clk_dvfs_node->set_volt);
 			if (ret < 0) {
 				clk_dvfs_node->vd->volt_set_flag = DVFS_SET_VOLT_FAILURE;
-				clk_dvfs_node->enable_dvfs = 0;
+				clk_dvfs_node->enable_count = 0;
 				DVFS_ERR("dvfs enable clk %s,set volt error \n", clk_dvfs_node->name);
-				mutex_unlock(&rk_dvfs_mutex);
-				return -1;
+				mutex_unlock(&clk_dvfs_node->vd->mutex);
+				return -EAGAIN;
 			}
+			clk_dvfs_node->vd->cur_volt = clk_dvfs_node->set_volt;
 			clk_dvfs_node->vd->volt_set_flag = DVFS_SET_VOLT_SUCCESS;
-			mutex_unlock(&rk_dvfs_mutex);
 		}
-#endif
+
 		clk_dvfs_node->enable_count++;
 	} else {
 		DVFS_DBG("%s: dvfs already enable clk enable = %d!\n",
@@ -690,6 +719,43 @@ int clk_disable_dvfs(struct dvfs_node *clk_dvfs_node)
 }
 EXPORT_SYMBOL(clk_disable_dvfs);
 
+static unsigned long dvfs_get_limit_rate(struct dvfs_node *clk_dvfs_node, unsigned long rate)
+{
+	unsigned long limit_rate, temp_limit_rate;
+	int temp, i;
+
+	limit_rate = rate;
+	temp_limit_rate = -1;
+	if (clk_dvfs_node->freq_limit_en) {
+		//dvfs table limit
+		if (rate < clk_dvfs_node->min_rate) {
+			limit_rate = clk_dvfs_node->min_rate;
+		} else if (rate > clk_dvfs_node->max_rate) {
+			limit_rate = clk_dvfs_node->max_rate;
+		}
+
+		//temp limt
+		if (clk_dvfs_node->temp_limit_table) {
+			temp = rockchip_tsadc_get_temp(clk_dvfs_node->temp_channel);
+			for (i=0; clk_dvfs_node->temp_limit_table[i].frequency != CPUFREQ_TABLE_END; i++) {
+				if (temp > clk_dvfs_node->temp_limit_table[i].index) {
+					temp_limit_rate = clk_dvfs_node->temp_limit_table[i].frequency;
+				}
+			}
+
+			if (limit_rate > temp_limit_rate) {
+				DVFS_DBG("%s: temp(%d) limit clk(%s) rate %ld to %ld\n",
+					__func__, temp, clk_dvfs_node->name, limit_rate, temp_limit_rate);
+				limit_rate = temp_limit_rate;
+			}
+		}
+	}
+
+	DVFS_DBG("%s: rate:%ld, limit_rate:%ld,\n", __func__, rate, limit_rate);
+
+	return limit_rate;
+}
+
 static int dvfs_target(struct dvfs_node *clk_dvfs_node, unsigned long rate)
 {
 	struct cpufreq_frequency_table clk_fv;
@@ -714,15 +780,7 @@ static int dvfs_target(struct dvfs_node *clk_dvfs_node, unsigned long rate)
 		}
 	}
 
-	/* Check limit rate */
-	//if (clk_dvfs_node->freq_limit_en) {
-		if (rate < clk_dvfs_node->min_rate) {
-			rate = clk_dvfs_node->min_rate;
-		} else if (rate > clk_dvfs_node->max_rate) {
-			rate = clk_dvfs_node->max_rate;
-		}
-	//}
-
+	rate = dvfs_get_limit_rate(clk_dvfs_node, rate);
 	new_rate = clk_round_rate(clk, rate);
 	old_rate = clk_get_rate(clk);
 	if (new_rate == old_rate)
@@ -734,7 +792,7 @@ static int dvfs_target(struct dvfs_node *clk_dvfs_node, unsigned long rate)
 	/* find the clk corresponding voltage */
 	ret = clk_dvfs_node_get_ref_volt(clk_dvfs_node, new_rate / 1000, &clk_fv);
 	if (ret) {
-		DVFS_ERR("%s:dvfs clk(%s) rate %luhz is larger,not support\n",
+		DVFS_ERR("%s:dvfs clk(%s) rate %luhz is not support\n",
 			__func__, clk_dvfs_node->name, new_rate);
 		return ret;
 	}
@@ -774,9 +832,7 @@ static int dvfs_target(struct dvfs_node *clk_dvfs_node, unsigned long rate)
 		if (ret)
 			goto out;
 	}
-	
-	clk_dvfs_node->last_set_rate = new_rate;
-	
+
 	return 0;
 fail_roll_back:
 	clk_dvfs_node->set_volt = clk_volt_store;
@@ -867,6 +923,7 @@ int dvfs_clk_set_rate(struct dvfs_node *clk_dvfs_node, unsigned long rate)
 	if (clk_dvfs_node->vd && clk_dvfs_node->vd->vd_dvfs_target) {
 		mutex_lock(&clk_dvfs_node->vd->mutex);
 		ret = clk_dvfs_node->vd->vd_dvfs_target(clk_dvfs_node, rate);
+		clk_dvfs_node->last_set_rate = rate;
 		mutex_unlock(&clk_dvfs_node->vd->mutex);
 	} else {
 		DVFS_ERR("%s:dvfs node(%s) has no vd node or target callback!\n", 
@@ -955,6 +1012,42 @@ static int rk_convert_cpufreq_table(struct dvfs_node *dvfs_node)
 	return 0;
 }
 
+static struct cpufreq_frequency_table *of_get_temp_limit_table(struct device_node *dev_node)
+{
+	struct cpufreq_frequency_table *temp_limt_table = NULL;
+	const struct property *prop;
+	const __be32 *val;
+	int nr, i;
+
+	prop = of_find_property(dev_node, "temp-limit", NULL);
+	if (!prop)
+		return NULL;
+	if (!prop->value)
+		return NULL;
+
+	nr = prop->length / sizeof(u32);
+	if (nr % 2) {
+		pr_err("%s: Invalid freq list\n", __func__);
+		return NULL;
+	}
+
+	temp_limt_table = kzalloc(sizeof(struct cpufreq_frequency_table) *
+			     (nr/2 + 1), GFP_KERNEL);
+
+	val = prop->value;
+
+	for (i=0; i<nr/2; i++){
+		temp_limt_table[i].index = be32_to_cpup(val++);
+		temp_limt_table[i].frequency = be32_to_cpup(val++) * 1000;
+	}
+
+	temp_limt_table[i].index = 0;
+	temp_limt_table[i].frequency = CPUFREQ_TABLE_END;
+
+	return temp_limt_table;
+
+}
+
 int of_dvfs_init(void)
 {
 	struct vd_node *vd;
@@ -962,6 +1055,7 @@ int of_dvfs_init(void)
 	struct device_node *dvfs_dev_node, *clk_dev_node, *vd_dev_node, *pd_dev_node;
 	struct dvfs_node *dvfs_node;
 	struct clk *clk;
+	const __be32 *val;
 	int ret;
 
 	DVFS_DBG("%s\n", __func__);
@@ -987,13 +1081,6 @@ int of_dvfs_init(void)
 			continue;
 		}
 		
-		/*vd->regulator = regulator_get(NULL, vd->regulator_name);
-		if (IS_ERR(vd->regulator)){
-			DVFS_ERR("%s vd(%s) get regulator(%s) failed!\n", __func__, vd->name, vd->regulator_name);
-			kfree(vd);
-			continue;
-		}*/
-
 		vd->suspend_volt = 0;
 		
 		vd->volt_set_flag = DVFS_SET_VOLT_FAILURE;
@@ -1035,6 +1122,12 @@ int of_dvfs_init(void)
 				dvfs_node->name = clk_dev_node->name;
 				dvfs_node->pd = pd;
 				dvfs_node->vd = vd;
+				val = of_get_property(clk_dev_node, "temp-channel", NULL);
+				if (val) {
+					dvfs_node->temp_channel = be32_to_cpup(val);
+					dvfs_node->temp_limit_table = of_get_temp_limit_table(clk_dev_node);
+				}
+
 				dvfs_node->dev.of_node = clk_dev_node;
 				ret = of_init_opp_table(&dvfs_node->dev);
 				if (ret) {
@@ -1109,9 +1202,10 @@ static int dump_dbg_map(char *buf)
 						" enable_dvfs = %s\n",
 						clk_dvfs_node->name, clk_dvfs_node->set_freq, clk_dvfs_node->set_volt,
 						clk_dvfs_node->enable_count == 0 ? "DISABLE" : "ENABLE");
-				printk( "|  |  |- clk limit:[%u, %u]; last set rate = %u\n",
+				printk( "|  |  |- clk limit(%s):[%u, %u]; last set rate = %u\n",
+						clk_dvfs_node->freq_limit_en ? "enable" : "disable",
 						clk_dvfs_node->min_rate, clk_dvfs_node->max_rate,
-						clk_dvfs_node->last_set_rate);
+						clk_dvfs_node->last_set_rate/1000);
 
 				for (i = 0; (clk_dvfs_node->dvfs_table[i].frequency != CPUFREQ_TABLE_END); i++) {
 					printk( "|  |  |  |- freq = %d, volt = %d\n",
@@ -1174,7 +1268,10 @@ static int __init dvfs_init(void)
 		}
 	}
 
+	dvfs_wq = alloc_workqueue("dvfs", WQ_NON_REENTRANT | WQ_MEM_RECLAIM | WQ_HIGHPRI | WQ_FREEZABLE, 1);
+	queue_delayed_work_on(0, dvfs_wq, &dvfs_temp_limit_work, 0*HZ);
+
 	return ret;
 }
 
-subsys_initcall(dvfs_init);
+late_initcall(dvfs_init);

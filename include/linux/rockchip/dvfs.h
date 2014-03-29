@@ -97,13 +97,14 @@ struct dvfs_node {
 	unsigned int		min_rate;	//limit min frequency
 	unsigned int		max_rate;	//limit max frequency
 	unsigned int		last_set_rate;
+	unsigned int		temp_channel;
 	struct clk 		*clk;
 	struct pd_node		*pd;
 	struct vd_node		*vd;
 	struct list_head	node;
 	struct notifier_block	*dvfs_nb;
 	struct cpufreq_frequency_table	*dvfs_table;
-	struct cpufreq_frequency_table	*condition_freq_table;
+	struct cpufreq_frequency_table	*temp_limit_table;
 	clk_set_rate_callback 	clk_dvfs_target;
 };
 

@@ -69,7 +69,6 @@ static unsigned int suspend_volt = 1000000; // 1V
 static unsigned int low_battery_freq = 600 * 1000;
 static unsigned int low_battery_capacity = 5; // 5%
 static bool is_booting = true;
-static struct workqueue_struct *freq_wq;
 static DEFINE_MUTEX(cpufreq_mutex);
 static bool gpu_is_mali400;
 struct dvfs_node *clk_cpu_dvfs_node = NULL;
@@ -107,172 +106,19 @@ static unsigned int get_freq_from_table(unsigned int max_freq)
 	return target_freq;
 }
 
-/**********************thermal limit**************************/
-//#define CONFIG_RK30_CPU_FREQ_LIMIT_BY_TEMP
-
-#ifdef CONFIG_RK30_CPU_FREQ_LIMIT_BY_TEMP
-static unsigned int temp_limit_freq = -1;
-module_param(temp_limit_freq, uint, 0444);
-
-static struct cpufreq_frequency_table temp_limits[4][4] = {
-	{	// 1 CPU busy
-		{.frequency =          -1, .index = 50},
-		{.frequency =          -1, .index = 55},
-		{.frequency =          -1, .index = 60},
-		{.frequency = 1608 * 1000, .index = 75},
-	}, {	// 2 CPUs busy
-		{.frequency = 1800 * 1000, .index = 50},
-		{.frequency = 1608 * 1000, .index = 55},
-		{.frequency = 1416 * 1000, .index = 60},
-		{.frequency = 1200 * 1000, .index = 75},
-	}, {	// 3 CPUs busy
-		{.frequency = 1608 * 1000, .index = 50},
-		{.frequency = 1416 * 1000, .index = 55},
-		{.frequency = 1200 * 1000, .index = 60},
-		{.frequency = 1008 * 1000, .index = 75},
-	}, {	// 4 CPUs busy
-		{.frequency = 1416 * 1000, .index = 50},
-		{.frequency = 1200 * 1000, .index = 55},
-		{.frequency = 1008 * 1000, .index = 60},
-		{.frequency =  816 * 1000, .index = 75},
-	}
-};
-
-static struct cpufreq_frequency_table temp_limits_cpu_perf[] = {
-	{.frequency = 1008 * 1000, .index = 100},
-};
-
-static struct cpufreq_frequency_table temp_limits_gpu_perf[] = {
-	{.frequency = 1008 * 1000, .index = 0},
-};
-
-static int get_temp(void)
-{
-	return 60;
-}
-
-static char sys_state;
-static ssize_t sys_state_write(struct file *file, const char __user *buffer, size_t count, loff_t *ppos)
-{
-	char state;
-
-	if (count < 1)
-		return count;
-	if (copy_from_user(&state, buffer, 1)) {
-		return -EFAULT;
-	}
-
-	sys_state = state;
-	return count;
-}
-
-static const struct file_operations sys_state_fops = {
-	.owner	= THIS_MODULE,
-	.write	= sys_state_write,
-};
-
-static struct miscdevice sys_state_dev = {
-	.fops	= &sys_state_fops,
-	.name	= "sys_state",
-	.minor	= MISC_DYNAMIC_MINOR,
-};
-
-static void cpufreq_temp_limit_work_func(struct work_struct *work)
-{
-	static bool in_perf = false;
-	struct cpufreq_policy *policy;
-	int temp, i;
-	unsigned int new_freq = -1;
-	unsigned long delay = HZ / 10; // 100ms
-	unsigned int nr_cpus = num_online_cpus();
-	const struct cpufreq_frequency_table *limits_table = temp_limits[nr_cpus - 1];
-	size_t limits_size = ARRAY_SIZE(temp_limits[nr_cpus - 1]);
-
-	temp = get_temp();
-
-	if (sys_state == '1') {
-		in_perf = true;
-		if (gpu_is_mali400) {
-			unsigned int gpu_irqs[2];
-			gpu_irqs[0] = kstat_irqs(IRQ_GPU_GP);
-			msleep(40);
-			gpu_irqs[1] = kstat_irqs(IRQ_GPU_GP);
-			delay = 0;
-			if ((gpu_irqs[1] - gpu_irqs[0]) < 8) {
-				limits_table = temp_limits_cpu_perf;
-				limits_size = ARRAY_SIZE(temp_limits_cpu_perf);
-			} else {
-				limits_table = temp_limits_gpu_perf;
-				limits_size = ARRAY_SIZE(temp_limits_gpu_perf);
-			}
-		} else {
-			delay = HZ; // 1s
-			limits_table = temp_limits_cpu_perf;
-			limits_size = ARRAY_SIZE(temp_limits_cpu_perf);
-		}
-	} else if (in_perf) {
-		in_perf = false;
-	} else {
-		static u64 last_time_in_idle = 0;
-		static u64 last_time_in_idle_timestamp = 0;
-		u64 time_in_idle = 0, now;
-		u32 delta_idle;
-		u32 delta_time;
-		unsigned cpu;
-
-		for_each_online_cpu(cpu) {
-			time_in_idle += get_cpu_idle_time_us(cpu, &now);
-		}
-		delta_time = now - last_time_in_idle_timestamp;
-		delta_idle = time_in_idle - last_time_in_idle;
-		last_time_in_idle = time_in_idle;
-		last_time_in_idle_timestamp = now;
-		delta_idle += delta_time >> 4; // +6.25%
-		if (delta_idle > (nr_cpus - 1) * delta_time && delta_idle < (nr_cpus + 1) * delta_time)
-			limits_table = temp_limits[0];
-		else if (delta_idle > (nr_cpus - 2) * delta_time)
-			limits_table = temp_limits[1];
-		else if (delta_idle > (nr_cpus - 3) * delta_time)
-			limits_table = temp_limits[2];
-		FREQ_DBG("delta time %6u us idle %6u us %u cpus select table %d\n", delta_time, delta_idle, nr_cpus, (limits_table - temp_limits[0]) / ARRAY_SIZE(temp_limits[0]));
-	}
-
-	for (i = 0; i < limits_size; i++) {
-		if (temp >= limits_table[i].index) {
-			new_freq = limits_table[i].frequency;
-		}
-	}
-
-	if (temp_limit_freq != new_freq) {
-		unsigned int cur_freq;
-		temp_limit_freq = new_freq;
-		cur_freq = cpufreq_get_rate(0);
-		FREQ_DBG("temp limit %7d KHz cur %7d KHz\n", temp_limit_freq, cur_freq);
-		if (cur_freq > temp_limit_freq) {
-			policy = cpufreq_cpu_get(0);
-			cpufreq_driver_target(policy, policy->cur, CPUFREQ_RELATION_L | CPUFREQ_PRIVATE);
-			cpufreq_cpu_put(policy);
-		}
-	}
-
-	queue_delayed_work_on(0, freq_wq, to_delayed_work(work), delay);
-}
-
-static DECLARE_DELAYED_WORK(cpufreq_temp_limit_work, cpufreq_temp_limit_work_func);
-
 static int cpufreq_notifier_policy(struct notifier_block *nb, unsigned long val, void *data)
 {
 	struct cpufreq_policy *policy = data;
 
-	if (val != CPUFREQ_NOTIFY)
+	if (val != CPUFREQ_ADJUST)
 		return 0;
 
 	if (cpufreq_is_ondemand(policy)) {
 		FREQ_DBG("queue work\n");
-		queue_delayed_work_on(0, freq_wq, &cpufreq_temp_limit_work, 0);
+		dvfs_clk_enable_limit(clk_cpu_dvfs_node, 0, ~0);
 	} else {
 		FREQ_DBG("cancel work\n");
-		cancel_delayed_work_sync(&cpufreq_temp_limit_work);
+		dvfs_clk_disable_limit(clk_cpu_dvfs_node);
 	}
 
 	return 0;
@@ -281,41 +127,6 @@ static int cpufreq_notifier_policy(struct notifier_block *nb, unsigned long val,
 static struct notifier_block notifier_policy_block = {
 	.notifier_call = cpufreq_notifier_policy
 };
-
-static void cpufreq_temp_limit_init(struct cpufreq_policy *policy)
-{
-	unsigned int i;
-	struct cpufreq_frequency_table *table;
-
-	table = temp_limits[0];
-	for (i = 0; i < sizeof(temp_limits) / sizeof(struct cpufreq_frequency_table); i++) {
-		table[i].frequency = get_freq_from_table(table[i].frequency);
-	}
-	table = temp_limits_cpu_perf;
-	for (i = 0; i < sizeof(temp_limits_cpu_perf) / sizeof(struct cpufreq_frequency_table); i++) {
-		table[i].frequency = get_freq_from_table(table[i].frequency);
-	}
-	table = temp_limits_gpu_perf;
-	for (i = 0; i < sizeof(temp_limits_gpu_perf) / sizeof(struct cpufreq_frequency_table); i++) {
-		table[i].frequency = get_freq_from_table(table[i].frequency);
-	}
-	misc_register(&sys_state_dev);
-	if (cpufreq_is_ondemand(policy)) {
-		queue_delayed_work_on(0, freq_wq, &cpufreq_temp_limit_work, 0*HZ);
-	}
-	cpufreq_register_notifier(&notifier_policy_block, CPUFREQ_POLICY_NOTIFIER);
-}
-
-static void cpufreq_temp_limit_exit(void)
-{
-	cpufreq_unregister_notifier(&notifier_policy_block, CPUFREQ_POLICY_NOTIFIER);
-	if (freq_wq)
-		cancel_delayed_work(&cpufreq_temp_limit_work);
-}
-#else
-static inline void cpufreq_temp_limit_init(struct cpufreq_policy *policy) {}
-static inline void cpufreq_temp_limit_exit(void) {}
-#endif
 
 static int cpufreq_verify(struct cpufreq_policy *policy)
 {
@@ -370,8 +181,6 @@ static int cpufreq_init_cpu0(struct cpufreq_policy *policy)
 	clk_vepu_dvfs_node = clk_get_dvfs_node("clk_vepu");
 	if (clk_vepu_dvfs_node){
 		clk_enable_dvfs(clk_vepu_dvfs_node);
-		dvfs_clk_set_rate(clk_vepu_dvfs_node, 198000000);
-		dvfs_clk_set_rate(clk_vepu_dvfs_node, 297000000);
 	}
 
 	clk_cpu_dvfs_node = clk_get_dvfs_node("clk_core");
@@ -394,8 +203,7 @@ static int cpufreq_init_cpu0(struct cpufreq_policy *policy)
 	low_battery_freq = get_freq_from_table(low_battery_freq);
 	clk_enable_dvfs(clk_cpu_dvfs_node);
 
-	freq_wq = alloc_workqueue("cpufreq", WQ_NON_REENTRANT | WQ_MEM_RECLAIM | WQ_HIGHPRI | WQ_FREEZABLE, 1);
-	cpufreq_temp_limit_init(policy);
+	cpufreq_register_notifier(&notifier_policy_block, CPUFREQ_POLICY_NOTIFIER);
 
 	printk("cpufreq version " VERSION ", suspend freq %d MHz\n", suspend_freq / 1000);
 	return 0;
@@ -443,12 +251,7 @@ static int cpufreq_exit(struct cpufreq_policy *policy)
 
 	cpufreq_frequency_table_cpuinfo(policy, freq_table);
 	clk_put_dvfs_node(clk_cpu_dvfs_node);
-	cpufreq_temp_limit_exit();
-	if (freq_wq) {
-		flush_workqueue(freq_wq);
-		destroy_workqueue(freq_wq);
-		freq_wq = NULL;
-	}
+	cpufreq_unregister_notifier(&notifier_policy_block, CPUFREQ_POLICY_NOTIFIER);
 
 	return 0;
 }
@@ -480,22 +283,6 @@ static unsigned int cpufreq_scale_limit(unsigned int target_freq, struct cpufreq
 			target_freq = low_battery_freq;
 		}
 	}
-
-#ifdef CONFIG_RK30_CPU_FREQ_LIMIT_BY_TEMP
-	{
-		static unsigned int ondemand_target = 816 * 1000;
-		if (is_private)
-			target_freq = ondemand_target;
-		else
-			ondemand_target = target_freq;
-	}
-
-	/*
-	 * If the new frequency is more than the thermal max allowed
-	 * frequency, go ahead and scale the mpu device to proper frequency.
-	 */
-	target_freq = min(target_freq, temp_limit_freq);
-#endif
 
 	return target_freq;
 }
