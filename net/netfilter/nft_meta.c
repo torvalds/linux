@@ -170,21 +170,15 @@ static const struct nla_policy nft_meta_policy[NFTA_META_MAX + 1] = {
 	[NFTA_META_SREG]	= { .type = NLA_U32 },
 };
 
-static int nft_meta_init_validate_set(uint32_t key)
+static int nft_meta_get_init(const struct nft_ctx *ctx,
+			     const struct nft_expr *expr,
+			     const struct nlattr * const tb[])
 {
-	switch (key) {
-	case NFT_META_MARK:
-	case NFT_META_PRIORITY:
-	case NFT_META_NFTRACE:
-		return 0;
-	default:
-		return -EOPNOTSUPP;
-	}
-}
+	struct nft_meta *priv = nft_expr_priv(expr);
+	int err;
 
-static int nft_meta_init_validate_get(uint32_t key)
-{
-	switch (key) {
+	priv->key = ntohl(nla_get_be32(tb[NFTA_META_KEY]));
+	switch (priv->key) {
 	case NFT_META_LEN:
 	case NFT_META_PROTOCOL:
 	case NFT_META_NFPROTO:
@@ -205,38 +199,39 @@ static int nft_meta_init_validate_get(uint32_t key)
 #ifdef CONFIG_NETWORK_SECMARK
 	case NFT_META_SECMARK:
 #endif
-		return 0;
+		break;
 	default:
 		return -EOPNOTSUPP;
 	}
 
+	priv->dreg = ntohl(nla_get_be32(tb[NFTA_META_DREG]));
+	err = nft_validate_output_register(priv->dreg);
+	if (err < 0)
+		return err;
+
+	err = nft_validate_data_load(ctx, priv->dreg, NULL, NFT_DATA_VALUE);
+	if (err < 0)
+		return err;
+
+	return 0;
 }
 
-static int nft_meta_init(const struct nft_ctx *ctx, const struct nft_expr *expr,
-			 const struct nlattr * const tb[])
+static int nft_meta_set_init(const struct nft_ctx *ctx,
+			     const struct nft_expr *expr,
+			     const struct nlattr * const tb[])
 {
 	struct nft_meta *priv = nft_expr_priv(expr);
 	int err;
 
 	priv->key = ntohl(nla_get_be32(tb[NFTA_META_KEY]));
-
-	if (tb[NFTA_META_DREG]) {
-		err = nft_meta_init_validate_get(priv->key);
-		if (err < 0)
-			return err;
-
-		priv->dreg = ntohl(nla_get_be32(tb[NFTA_META_DREG]));
-		err = nft_validate_output_register(priv->dreg);
-		if (err < 0)
-			return err;
-
-		return nft_validate_data_load(ctx, priv->dreg, NULL,
-					      NFT_DATA_VALUE);
+	switch (priv->key) {
+	case NFT_META_MARK:
+	case NFT_META_PRIORITY:
+	case NFT_META_NFTRACE:
+		break;
+	default:
+		return -EOPNOTSUPP;
 	}
-
-	err = nft_meta_init_validate_set(priv->key);
-	if (err < 0)
-		return err;
 
 	priv->sreg = ntohl(nla_get_be32(tb[NFTA_META_SREG]));
 	err = nft_validate_input_register(priv->sreg);
@@ -282,7 +277,7 @@ static const struct nft_expr_ops nft_meta_get_ops = {
 	.type		= &nft_meta_type,
 	.size		= NFT_EXPR_SIZE(sizeof(struct nft_meta)),
 	.eval		= nft_meta_get_eval,
-	.init		= nft_meta_init,
+	.init		= nft_meta_get_init,
 	.dump		= nft_meta_get_dump,
 };
 
@@ -290,7 +285,7 @@ static const struct nft_expr_ops nft_meta_set_ops = {
 	.type		= &nft_meta_type,
 	.size		= NFT_EXPR_SIZE(sizeof(struct nft_meta)),
 	.eval		= nft_meta_set_eval,
-	.init		= nft_meta_init,
+	.init		= nft_meta_set_init,
 	.dump		= nft_meta_set_dump,
 };
 
