@@ -942,13 +942,19 @@ inline_data:
 	if (dn.data_blkaddr == NEW_ADDR) {
 		zero_user_segment(page, 0, PAGE_CACHE_SIZE);
 	} else {
-		if (f2fs_has_inline_data(inode))
+		if (f2fs_has_inline_data(inode)) {
 			err = f2fs_read_inline_data(inode, page);
-		else
+			if (err) {
+				page_cache_release(page);
+				return err;
+			}
+		} else {
 			err = f2fs_submit_page_bio(sbi, page, dn.data_blkaddr,
 							READ_SYNC);
-		if (err)
-			return err;
+			if (err)
+				return err;
+		}
+
 		lock_page(page);
 		if (unlikely(!PageUptodate(page))) {
 			f2fs_put_page(page, 1);
