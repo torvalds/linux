@@ -2496,12 +2496,10 @@ bnad_tso_prepare(struct bnad *bnad, struct sk_buff *skb)
 {
 	int err;
 
-	if (skb_header_cloned(skb)) {
-		err = pskb_expand_head(skb, 0, 0, GFP_ATOMIC);
-		if (err) {
-			BNAD_UPDATE_CTR(bnad, tso_err);
-			return err;
-		}
+	err = skb_cow_head(skb, 0);
+	if (err < 0) {
+		BNAD_UPDATE_CTR(bnad, tso_err);
+		return err;
 	}
 
 	/*
