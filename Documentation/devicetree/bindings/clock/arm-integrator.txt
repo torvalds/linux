@@ -1,4 +1,4 @@
-Clock bindings for ARM Integrator Core Module clocks
+Clock bindings for ARM Integrator and Versatile Core Module clocks
 
 Auxilary Oscillator Clock
 
@@ -12,7 +12,7 @@ parent node.
 
 
 Required properties:
-- compatible: must be "arm,integrator-cm-auxosc"
+- compatible: must be "arm,integrator-cm-auxosc" or "arm,versatile-cm-auxosc"
 - #clock-cells: must be <0>
 
 Optional properties:
