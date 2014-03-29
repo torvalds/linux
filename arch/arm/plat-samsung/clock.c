@@ -52,7 +52,7 @@
 #include <plat/cpu.h>
 
 #include <linux/serial_core.h>
-#include <plat/regs-serial.h> /* for s3c24xx_uart_devs */
+#include <linux/serial_s3c.h> /* for s3c24xx_uart_devs */
 
 /* clock information */
 

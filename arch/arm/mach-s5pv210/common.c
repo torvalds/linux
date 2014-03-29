@@ -24,6 +24,7 @@
 #include <linux/sched.h>
 #include <linux/dma-mapping.h>
 #include <linux/serial_core.h>
+#include <linux/serial_s3c.h>
 
 #include <asm/proc-fns.h>
 #include <asm/mach/arch.h>
@@ -46,7 +47,6 @@
 #include <plat/pwm-core.h>
 #include <plat/tv-core.h>
 #include <plat/spi-core.h>
-#include <plat/regs-serial.h>
 
 #include "common.h"
 
