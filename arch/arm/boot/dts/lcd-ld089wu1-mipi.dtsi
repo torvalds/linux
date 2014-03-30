@@ -1,0 +1,66 @@
+/*
+ * RockChip. ld089wu1 
+ * lcd
+ */
+
+/ {
+		/* about mipi */
+		disp_mipi_init: mipi_dsi_init{
+					rockchip,screen_init	= <0>;
+					rockchip,dsi_lane		= <4>;
+					rockchip,dsi_hs_clk		= <1020>;
+					rockchip,mipi_dsi_num	= <1>;
+		};
+		disp_mipi_power_ctr: mipi_power_ctr {
+					/*mipi_lcd_rst:mipi_lcd_rst{
+							rockchip,gpios = <&gpio2 GPIO_B7 GPIO_ACTIVE_LOW>;
+							rockchip,delay = <100>;
+					};
+					mipi_lcd_en:mipi_lcd_en {
+							rockchip,gpios = <&gpio0 GPIO_C1 GPIO_ACTIVE_HIGH>;
+							rockchip,delay = <100>;
+					};*/
+		};
+		disp_mipi_init_cmds: screen-on-cmds {
+					/*rockchip,cmd_debug = <1>;
+					rockchip,on-cmds1 {
+							rockchip,cmd_type = <HSDT>;
+							rockchip,dsi_id = <2>;
+							rockchip,cmd = <0xb0 0x02>;
+							rockchip,cmd_delay = <0>;
+					};
+					
+					rockchip,on-cmds2 {
+							rockchip,cmd_type = <HSDT>;
+							rockchip,dsi_id = <2>;
+							rockchip,cmd = <0xb1 0x21>;
+							rockchip,cmd_delay = <110>;
+					};*/
+		};
+
+
+		disp_timings: display-timings {
+                        native-mode = <&timing0>;
+                        timing0: timing0 {
+				screen-type = <SCREEN_MIPI>;
+				lvds-format = <LVDS_8BIT_2>;
+				out-face    = <OUT_P888>;
+				clock-frequency = <120000000>;
+				hactive = <1920>;
+				vactive = <1200>;
+				hback-porch = <16>;
+				hfront-porch = <24>;
+				vback-porch = <10>;
+				vfront-porch = <16>;
+				hsync-len = <10>;
+				vsync-len = <3>;
+				hsync-active = <0>;
+				vsync-active = <0>;
+				de-active = <0>;
+				pixelclk-active = <0>;
+				swap-rb = <0>;
+				swap-rg = <0>;
+				swap-gb = <0>;
+                     	};
+               };
+};
