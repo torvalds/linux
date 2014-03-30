@@ -1658,7 +1658,7 @@ void rk_clk_test(void) {}
 #endif
 EXPORT_SYMBOL_GPL(rk_clk_test);
 
-void rkclk_init_clks(struct device_node *node);
+void __init rkclk_init_clks(struct device_node *node);
 
 static struct device_node * clk_root_node=NULL;
 static void __init rk_clk_tree_init(struct device_node *np)
@@ -1796,7 +1796,50 @@ const char *of_clk_init_parent_get_info(struct device_node *np, int index,
 	return clk_name;
 }
 
-void rkclk_init_clks(struct device_node *np)
+static int __init rkclk_init_enable(void)
+{
+	struct device_node *node;
+	int cnt, i, ret = 0;
+	const char *clk_name;
+	struct clk *clk;
+
+
+	node = of_find_node_by_name(NULL, "clocks-enable");
+	if (!node) {
+		clk_err("%s: can not get clocks-enable node\n", __func__);
+		return -EINVAL;
+	}
+
+	cnt = of_count_phandle_with_args(node, "clocks", "#clock-cells");
+	if (cnt < 0) {
+		return -EINVAL;
+	} else {
+		clk_debug("%s: cnt = %d\n", __func__, cnt);
+	}
+
+	for (i = 0; i < cnt ; i++) {
+		clk_name = of_clk_get_parent_name(node, i);
+		clk = clk_get(NULL, clk_name);
+		if (IS_ERR_OR_NULL(clk)) {
+			clk_err("%s: fail to get %s\n", __func__, clk_name);
+			return -EINVAL;
+		}
+
+		ret = clk_prepare_enable(clk);
+		if (ret) {
+			clk_err("%s: fail to prepare_enable %s\n", __func__,
+				clk_name);
+			return ret;
+		} else {
+			clk_debug("%s: prepare_enable %s OK\n", __func__,
+				clk_name);
+		}
+	}
+
+	return ret;
+}
+
+void __init rkclk_init_clks(struct device_node *np)
 {
 	//struct device_node *np;
 	int i,cnt_parent,cnt_rate;
@@ -1854,6 +1897,8 @@ void rkclk_init_clks(struct device_node *np)
 		clk_debug("%s: set %s rate = %u\n", __FUNCTION__, clk_name,
 				clk_rate);
 	}
+
+	rkclk_init_enable();
 
 }
 

@@ -471,6 +471,97 @@
 			<&clk_tspout 80000000>, <&clk_mac 125000000>;
 	};
 
+	clocks-enable {
+		compatible = "rockchip,clocks-enable";
+		clocks =
+				/*PD_CORE*/
+				<&clk_gates0 2>, <&clk_core0>,
+				<&clk_core1>, <&clk_core2>,
+				<&clk_core3>, <&clk_l2ram>,
+				<&aclk_core_m0>, <&aclk_core_mp>,
+				<&atclk_core>, <&pclk_dbg_src>,
+
+				/*PD_BUS*/
+				<&aclk_bus>, <&clk_gates0 3>,
+				<&hclk_bus>, <&pclk_bus>,
+				<&clk_gates13 8>, <&clk_crypto>,
+				<&clk_gates0 7>,
+
+				/*TIMER*/
+				<&clk_gates1 0>, <&clk_gates1 1>,
+				<&clk_gates1 2>, <&clk_gates1 3>,
+				<&clk_gates1 4>, <&clk_gates1 5>,
+
+				<&pclk_pd_alive>, <&pclk_pd_pmu>,
+
+				/*PD_PERI*/
+				<&aclk_peri>, <&hclk_peri>,
+				<&pclk_peri>,
+
+				/*JTAG*/
+				/*<&clk_gates4 14>,*/
+
+				/*aclk_bus*/
+				<&clk_gates10 5>,/*aclk_intmem0*/
+				<&clk_gates10 6>,/*aclk_intmem1*/
+				<&clk_gates10 7>,/*aclk_intmem2*/
+				<&clk_gates10 12>,/*aclk_dma1*/		
+				<&clk_gates10 13>,/*aclk_strc_sys*/		
+				<&clk_gates10 4>,/*aclk_intmem*/
+				<&clk_gates11 6>,/*aclk_crypto*/
+				<&clk_gates11 8>,/*aclk_ccp*/
+
+				/*hclk_bus*/
+				<&clk_gates11 7>,/*hclk_crypto*/
+				<&clk_gates10 9>,/*hclk_rom*/
+
+				/*pclk_bus*/
+				<&clk_gates10 1>,/*pclk_timer*/
+
+				/*aclk_peri*/
+				<&clk_gates6 2>,/*aclk_peri_axi_matrix*/
+				<&clk_gates6 3>,/*aclk_dmac2*/
+				<&clk_gates7 11>,/*aclk_peri_niu*/
+				<&clk_gates8 12>,/*aclk_peri_mmu*/
+
+				/*hclk_peri*/
+				<&clk_gates6 0>,/*hclk_peri_matrix*/
+				<&clk_gates7 10>,/*hclk_peri_ahb_arbi*/
+				<&clk_gates7 12>,/*hclk_emem_peri*/
+				<&clk_gates7 13>,/*hclk_mem_peri*/
+
+				/*pclk_peri*/
+				<&clk_gates6 1>,/*pclk_peri_axi_matrix*/
+
+				/*pclk_pd_alive*/
+				<&clk_gates14 11>,/*pclk_grf*/
+				<&clk_gates14 12>,/*pclk_alive_niu*/
+
+				/*pclk_pd_pmu*/
+				<&clk_gates17 0>,/*pclk_pmu*/
+				<&clk_gates17 1>,/*pclk_intmem1*/
+				<&clk_gates17 2>,/*pclk_pmu_niu*/
+				<&clk_gates17 3>,/*pclk_sgrf*/
+
+				/*hclk_vio*/
+				<&clk_gates15 9>,/*hclk_vio_ahb_arbi*/
+				<&clk_gates15 10>,/*hclk_vio_niu*/
+				<&clk_gates16 10>,/*hclk_vio2_h2p*/
+				<&clk_gates16 11>,/*pclk_vio2_h2p*/
+
+				/*aclk_vio0*/
+				<&clk_gates15 11>,/*aclk_vio0_niu*/
+
+				/*aclk_vio1*/
+				<&clk_gates15 12>,/*aclk_vio1_niu*/
+
+				/*HDMI*/
+				<&clk_gates5 12>,/*hdmi_hdcp_clk*/
+
+				/*UART*/
+				<&clk_gates11 9>;/*pclk_uart2*/
+	};
+
 	i2c0: i2c@ff650000 {
 		compatible = "rockchip,rk30-i2c";
 		reg = <0xff650000 0x1000>;

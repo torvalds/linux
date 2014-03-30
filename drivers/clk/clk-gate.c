@@ -74,14 +74,14 @@ static void clk_gate_endisable(struct clk_hw *hw, int enable)
 
 static int clk_gate_enable(struct clk_hw *hw)
 {
-	//clk_gate_endisable(hw, 1);
+	clk_gate_endisable(hw, 1);
 
 	return 0;
 }
 
 static void clk_gate_disable(struct clk_hw *hw)
 {
-	//clk_gate_endisable(hw, 0);
+	clk_gate_endisable(hw, 0);
 }
 
 static int clk_gate_is_enabled(struct clk_hw *hw)

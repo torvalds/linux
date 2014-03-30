@@ -2012,14 +2012,14 @@
 						<&dummy>,		<&dummy>;
 
 					clock-output-names =
-						"reserved",		"core_apll",
+						"reserved",			"reserved",	 /* do not use bit1 = "core_apll" */
 						"clk_arm_gpll",		"g_aclk_bus",
 
 						"hclk_bus",		"pclk_bus",
 						"reserved",		"aclk_bus_2pmu",
 
 						"reserved",		"reserved",		/*"clk_ddr_dpll",	"clk_ddr_gpll",*/
-						"clk_bus_gpll",		"clk_bus_cpll",
+						"reserved",		"reserved",		/*"clk_bus_gpll",	"clk_bus_cpll",*/
 
 						"clk_acc_efuse",		"reserved",
 						"reserved",		"reserved";
@@ -2078,7 +2078,7 @@
 						<&dummy>,		<&dummy>;
 
 					clock-output-names =
-						"aclk_peri",		"g_aclk_periph",
+						"aclk_peri",		"reserved", /*"g_aclk_periph",*/
 						"hclk_peri",		"pclk_peri",
 
 						"reserved",		"clk_mac_pll",
@@ -2354,7 +2354,7 @@
 						"g_hclk_spdif",		"g_h_spdif_8ch",
 
 						"g_aclk_dmac1",		"g_aclk_strc_sys",
-						"g_p_ddrupctl0",		"g_pclk_publ0";
+						"reserved",		"reserved";	/*"g_p_ddrupctl0",	"g_pclk_publ0";*/
                                                 rockchip,suspend-clkgating-setting=<0xe2f0 0xe2f0>;                                                
 
 					#clock-cells = <1>;
@@ -2377,11 +2377,11 @@
 						<&dummy>,		<&dummy>;
 
 					clock-output-names =
-						"g_p_ddrupctl1",		"g_pclk_publ1",
-						"g_p_efuse_1024",		"g_pclk_tzpc",
+						"reserved", 	"reserved", 	/*"g_p_ddrupctl1",	"g_pclk_publ1",*/
+						"g_p_efuse_1024",	"g_pclk_tzpc",
 
 						"reserved",		"reserved",		/*"g_nclk_ddrupctl0", "g_nclk_ddrupctl1"*/
-						"g_aclk_crypto",		"g_hclk_crypto",
+						"g_aclk_crypto",	"g_hclk_crypto",
 
 						"g_aclk_ccp",	"g_pclk_uart2",
 						"g_p_efuse_256", 	"g_pclk_rkpwm",
@@ -2416,8 +2416,8 @@
 						"clk_l2ram",		"aclk_core_m0",
 						"aclk_core_mp",		"atclk_core",
 
-						"pclk_dbg_src",		"g_dbg_core_clk",
-						"g_cs_dbg_clk",		"g_pclk_core_niu",
+						"pclk_dbg_src",		"reserved",	/*"g_dbg_core_clk",*/
+						"reserved",		"reserved",		/*"g_cs_dbg_clk",	"g_pclk_core_niu",*/
 
 						"reserved",		"reserved",
 						"reserved",		"reserved";
@@ -2509,7 +2509,7 @@
 						<&aclk_vio0>,		<&hclk_vio>;
 
 					clock-output-names =
-						"g_aclk_rga",		"g_hclk_rga",
+						"reserved", /*"g_aclk_rga",*/	"g_hclk_rga",
 						"g_aclk_iep",		"g_hclk_iep",
 
 						"g_aclk_lcdc_iep",		"g_aclk_lcdc0",
@@ -2518,7 +2518,7 @@
 						"g_hclk_lcdc1",		"g_h_vio_ahb",
 						"g_hclk_vio_niu",		"g_aclk_vio0_niu",
 
-						"g_aclk_vio1_niu",		"g_aclk_vio2_niu",
+						"g_aclk_vio1_niu",		"reserved",/*"g_aclk_rga_niu",*/
 						"g_aclk_vip",		"g_hclk_vip";
                                                 rockchip,suspend-clkgating-setting=<0x0 0x0>;
 
@@ -2608,7 +2608,7 @@
 						<&dummy>,		<&dummy>;
 
 					clock-output-names =
-						"g_aclk_gpu",		"reserved",
+						"reserved", /*"g_aclk_gpu",*/	"reserved",
 						"reserved",		"reserved",
 
 						"reserved",		"reserved",
