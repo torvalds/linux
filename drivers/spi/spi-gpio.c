@@ -503,13 +503,12 @@ static int spi_gpio_remove(struct platform_device *pdev)
 {
 	struct spi_gpio			*spi_gpio;
 	struct spi_gpio_platform_data	*pdata;
-	int				status;
 
 	spi_gpio = platform_get_drvdata(pdev);
 	pdata = dev_get_platdata(&pdev->dev);
 
 	/* stop() unregisters child devices too */
-	status = spi_bitbang_stop(&spi_gpio->bitbang);
+	spi_bitbang_stop(&spi_gpio->bitbang);
 
 	if (SPI_MISO_GPIO != SPI_GPIO_NO_MISO)
 		gpio_free(SPI_MISO_GPIO);
@@ -518,7 +517,7 @@ static int spi_gpio_remove(struct platform_device *pdev)
 	gpio_free(SPI_SCK_GPIO);
 	spi_master_put(spi_gpio->bitbang.master);
 
-	return status;
+	return 0;
 }
 
 MODULE_ALIAS("platform:" DRIVER_NAME);

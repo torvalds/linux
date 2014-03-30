@@ -453,9 +453,8 @@ static int bcm63xx_hsspi_resume(struct device *dev)
 }
 #endif
 
-static const struct dev_pm_ops bcm63xx_hsspi_pm_ops = {
-	SET_SYSTEM_SLEEP_PM_OPS(bcm63xx_hsspi_suspend, bcm63xx_hsspi_resume)
-};
+static SIMPLE_DEV_PM_OPS(bcm63xx_hsspi_pm_ops, bcm63xx_hsspi_suspend,
+			 bcm63xx_hsspi_resume);
 
 static struct platform_driver bcm63xx_hsspi_driver = {
 	.driver = {

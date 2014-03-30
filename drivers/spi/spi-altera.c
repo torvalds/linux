@@ -200,7 +200,6 @@ static irqreturn_t altera_spi_irq(int irq, void *dev)
 
 static int altera_spi_probe(struct platform_device *pdev)
 {
-	struct altera_spi_platform_data *platp = dev_get_platdata(&pdev->dev);
 	struct altera_spi *hw;
 	struct spi_master *master;
 	struct resource *res;
@@ -214,6 +213,8 @@ static int altera_spi_probe(struct platform_device *pdev)
 	master->bus_num = pdev->id;
 	master->num_chipselect = 16;
 	master->mode_bits = SPI_CS_HIGH;
+	master->bits_per_word_mask = SPI_BPW_RANGE_MASK(1, 16);
+	master->dev.of_node = pdev->dev.of_node;
 
 	hw = spi_master_get_devdata(master);
 	platform_set_drvdata(pdev, hw);
@@ -245,9 +246,6 @@ static int altera_spi_probe(struct platform_device *pdev)
 		if (err)
 			goto exit;
 	}
-	/* find platform data */
-	if (!platp)
-		hw->bitbang.master->dev.of_node = pdev->dev.of_node;
 
 	/* register our spi controller */
 	err = spi_bitbang_start(&hw->bitbang);

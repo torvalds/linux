@@ -309,7 +309,6 @@ done:
 static void butterfly_detach(struct parport *p)
 {
 	struct butterfly	*pp;
-	int			status;
 
 	/* FIXME this global is ugly ... but, how to quickly get from
 	 * the parport to the "struct butterfly" associated with it?
@@ -321,7 +320,7 @@ static void butterfly_detach(struct parport *p)
 	butterfly = NULL;
 
 	/* stop() unregisters child devices too */
-	status = spi_bitbang_stop(&pp->bitbang);
+	spi_bitbang_stop(&pp->bitbang);
 
 	/* turn off VCC */
 	parport_write_data(pp->port, 0);
