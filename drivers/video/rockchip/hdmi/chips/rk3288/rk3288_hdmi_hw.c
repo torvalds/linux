@@ -5,9 +5,9 @@
 
 static const struct phy_mpll_config_tab PHY_MPLL_TABLE[] = {	//opmode: 0:HDMI1.4 	1:HDMI2.0
 //     	|pixclock|pixrepet|colordepth|prepdiv|tmdsmhl|opmode|fbdiv2|fbdiv1|ref_cntrl|nctrl|propctrl|intctrl|gmpctrl|
-	{27000000,	0,	8,	0,	0,	0,	2,	3,	0,	3,	3,	0,	0},
-	{74250000, 	0,	8, 	0,	0,	0, 	2, 	3,	0,	3,	7,	0, 	3},
-	{148500000, 	0, 	8,  	0, 	0,	0,	1,	3,	0,	2,	7,	0,	3},
+	{27000000,	0,	8,	0,	0,	0,	2,	3,	0,	3,	7,	0,	3},
+	{74250000, 	0,	8, 	0,	0,	0, 	4, 	3,	3,	2,	7,	0, 	3},
+	{148500000, 	0, 	8,  	0, 	0,	0,	4,	3,	3,	2,	7,	0,	3},
 	{297000000,	0, 	8,	0, 	0, 	0, 	1, 	3, 	0, 	2, 	7, 	0, 	3},
 	{297000000, 	0, 	16,  	3, 	3, 	1, 	1, 	1, 	0, 	0, 	5, 	0, 	3},
 	{594000000,	0, 	8, 	0, 	3, 	1, 	1, 	0, 	0, 	0, 	3, 	0, 	3},
@@ -471,7 +471,7 @@ static int rk3288_hdmi_write_phy(struct rk3288_hdmi_device *hdmi_dev, int reg_ad
 		}
 		msleep(100);
 #else
-		msleep(300);
+		msleep(50);
 		return 0;
 #endif
 	}
@@ -508,7 +508,7 @@ int rk3288_hdmi_config_phy(struct hdmi *hdmi_drv)
 		rk3288_hdmi_write_phy(hdmi_dev, PHYTX_PLLCURRCTRL, v_MPLL_PROP_CNTRL(phy_mpll->prop_cntrl) | v_MPLL_INT_CNTRL(phy_mpll->int_cntrl));
 		rk3288_hdmi_write_phy(hdmi_dev, PHYTX_PLLGMPCTRL, v_MPLL_GMP_CNTRL(phy_mpll->gmp_cntrl));
 	}
-	if(hdmi_drv->tmdsclk == 74250000) {
+	if(hdmi_drv->tmdsclk <= 74250000) {
 		rk3288_hdmi_write_phy(hdmi_dev, PHYTX_CLKSYMCTRL, v_OVERRIDE(1) | v_SLOPEBOOST(0)
 			| v_TX_SYMON(1) | v_TX_TRAON(0) | v_TX_TRBON(0) | v_CLK_SYMON(1));
 		rk3288_hdmi_write_phy(hdmi_dev, PHYTX_TERM_RESIS, v_TX_TERM(R100_Ohms));
@@ -547,7 +547,7 @@ int rk3288_hdmi_config_phy(struct hdmi *hdmi_drv)
 	}
 	if((stat & m_PHY_LOCK) == 0) {
 		stat = hdmi_readl(hdmi_dev, MC_LOCKONCLOCK);
-		hdmi_err(hdmi_dev->dev, "PHY PLL not locked: PCLK_ON=%d,TMDSCLK_ON=%d\n", stat & m_PCLK_ON, stat & m_TMDSCLK_ON);
+		hdmi_err(hdmi_dev->dev, "PHY PLL not locked: PCLK_ON=%d,TMDSCLK_ON=%d\n", (stat & m_PCLK_ON) >> 6, (stat & m_TMDSCLK_ON) >> 5);
 		return -1;
 	}
 
