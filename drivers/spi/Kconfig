@@ -307,7 +307,7 @@ config SPI_OMAP_UWIRE
 
 config SPI_OMAP24XX
 	tristate "McSPI driver for OMAP"
-	depends on ARM || ARM64 || AVR32 || HEXAGON || MIPS || SH
+	depends on ARM || ARM64 || AVR32 || HEXAGON || MIPS || SUPERH
 	depends on ARCH_OMAP2PLUS || COMPILE_TEST
 	help
 	  SPI master controller for OMAP24XX and later Multichannel SPI
@@ -380,6 +380,19 @@ config SPI_RSPI
 	depends on (SUPERH && SH_DMAE_BASE) || ARCH_SHMOBILE
 	help
 	  SPI driver for Renesas RSPI and QSPI blocks.
+
+config SPI_QUP
+	tristate "Qualcomm SPI controller with QUP interface"
+	depends on ARCH_MSM_DT || (ARM && COMPILE_TEST)
+	help
+	  Qualcomm Universal Peripheral (QUP) core is an AHB slave that
+	  provides a common data path (an output FIFO and an input FIFO)
+	  for serial peripheral interface (SPI) mini-core. SPI in master
+	  mode supports up to 50MHz, up to four chip selects, programmable
+	  data path from 4 bits to 32 bits and numerous protocol variants.
+
+	  This driver can also be built as a module.  If so, the module
+	  will be called spi_qup.
 
 config SPI_S3C24XX
 	tristate "Samsung S3C24XX series SPI"
