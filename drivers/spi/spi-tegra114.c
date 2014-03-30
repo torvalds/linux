@@ -172,7 +172,6 @@ struct tegra_spi_data {
 	void __iomem				*base;
 	phys_addr_t				phys;
 	unsigned				irq;
-	u32					spi_max_frequency;
 	u32					cur_speed;
 
 	struct spi_device			*cur_spi;
@@ -761,11 +760,6 @@ static int tegra_spi_setup(struct spi_device *spi)
 		spi->mode & SPI_CPHA ? "" : "~",
 		spi->max_speed_hz);
 
-	BUG_ON(spi->chip_select >= MAX_CHIP_SELECT);
-
-	/* Set speed to the spi max fequency if spi device has not set */
-	spi->max_speed_hz = spi->max_speed_hz ? : tspi->spi_max_frequency;
-
 	ret = pm_runtime_get_sync(tspi->dev);
 	if (ret < 0) {
 		dev_err(tspi->dev, "pm runtime failed, e = %d\n", ret);
@@ -1019,16 +1013,6 @@ static irqreturn_t tegra_spi_isr(int irq, void *context_data)
 	return IRQ_WAKE_THREAD;
 }
 
-static void tegra_spi_parse_dt(struct platform_device *pdev,
-	struct tegra_spi_data *tspi)
-{
-	struct device_node *np = pdev->dev.of_node;
-
-	if (of_property_read_u32(np, "spi-max-frequency",
-				&tspi->spi_max_frequency))
-		tspi->spi_max_frequency = 25000000; /* 25MHz */
-}
-
 static struct of_device_id tegra_spi_of_match[] = {
 	{ .compatible = "nvidia,tegra114-spi", },
 	{}
@@ -1050,15 +1034,15 @@ static int tegra_spi_probe(struct platform_device *pdev)
 	platform_set_drvdata(pdev, master);
 	tspi = spi_master_get_devdata(master);
 
-	/* Parse DT */
-	tegra_spi_parse_dt(pdev, tspi);
+	if (of_property_read_u32(pdev->dev.of_node, "spi-max-frequency",
+				 &master->max_speed_hz))
+		master->max_speed_hz = 25000000; /* 25MHz */
 
 	/* the spi->mode bits understood by this driver: */
 	master->mode_bits = SPI_CPOL | SPI_CPHA | SPI_CS_HIGH;
 	master->setup = tegra_spi_setup;
 	master->transfer_one_message = tegra_spi_transfer_one_message;
 	master->num_chipselect = MAX_CHIP_SELECT;
-	master->bus_num = -1;
 	master->auto_runtime_pm = true;
 
 	tspi->master = master;

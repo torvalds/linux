@@ -1775,6 +1775,9 @@ int spi_setup(struct spi_device *spi)
 	if (!spi->bits_per_word)
 		spi->bits_per_word = 8;
 
+	if (!spi->max_speed_hz)
+		spi->max_speed_hz = spi->master->max_speed_hz;
+
 	if (spi->master->setup)
 		status = spi->master->setup(spi);
 

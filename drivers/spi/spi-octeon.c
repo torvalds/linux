@@ -257,8 +257,6 @@ static int octeon_spi_probe(struct platform_device *pdev)
 	p->register_base = (u64)devm_ioremap(&pdev->dev, res_mem->start,
 					     resource_size(res_mem));
 
-	/* Dynamic bus numbering */
-	master->bus_num = -1;
 	master->num_chipselect = 4;
 	master->mode_bits = SPI_CPHA |
 			    SPI_CPOL |

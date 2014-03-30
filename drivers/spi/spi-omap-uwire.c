@@ -332,12 +332,6 @@ static int uwire_setup_transfer(struct spi_device *spi, struct spi_transfer *t)
 
 	uwire = spi_master_get_devdata(spi->master);
 
-	if (spi->chip_select > 3) {
-		pr_debug("%s: cs%d?\n", dev_name(&spi->dev), spi->chip_select);
-		status = -ENODEV;
-		goto done;
-	}
-
 	bits = spi->bits_per_word;
 	if (t != NULL && t->bits_per_word)
 		bits = t->bits_per_word;

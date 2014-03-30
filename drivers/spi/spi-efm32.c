@@ -198,7 +198,7 @@ static int efm32_spi_txrx_bufs(struct spi_device *spi, struct spi_transfer *t)
 
 	efm32_spi_filltx(ddata);
 
-	init_completion(&ddata->done);
+	reinit_completion(&ddata->done);
 
 	efm32_spi_write32(ddata, REG_IF_TXBL | REG_IF_RXDATAV, REG_IEN);
 
@@ -308,10 +308,6 @@ static int efm32_spi_probe_dt(struct platform_device *pdev,
 	}
 
 	ddata->pdata.location = location;
-
-	/* spi core takes care about the bus number using an alias */
-	master->bus_num = -1;
-
 	return 0;
 }
 
@@ -349,6 +345,7 @@ static int efm32_spi_probe(struct platform_device *pdev)
 	ddata->bitbang.txrx_bufs = efm32_spi_txrx_bufs;
 
 	spin_lock_init(&ddata->lock);
+	init_completion(&ddata->done);
 
 	ddata->clk = devm_clk_get(&pdev->dev, NULL);
 	if (IS_ERR(ddata->clk)) {
