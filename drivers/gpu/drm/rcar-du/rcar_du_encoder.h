@@ -18,6 +18,7 @@
 #include <drm/drm_encoder_slave.h>
 
 struct rcar_du_device;
+struct rcar_du_hdmienc;
 struct rcar_du_lvdsenc;
 
 enum rcar_du_encoder_type {
@@ -25,11 +26,13 @@ enum rcar_du_encoder_type {
 	RCAR_DU_ENCODER_NONE,
 	RCAR_DU_ENCODER_VGA,
 	RCAR_DU_ENCODER_LVDS,
+	RCAR_DU_ENCODER_HDMI,
 };
 
 struct rcar_du_encoder {
 	struct drm_encoder_slave slave;
 	enum rcar_du_output output;
+	struct rcar_du_hdmienc *hdmi;
 	struct rcar_du_lvdsenc *lvds;
 };
 
