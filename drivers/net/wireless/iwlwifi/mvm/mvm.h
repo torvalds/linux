@@ -164,7 +164,6 @@ enum iwl_dbgfs_pm_mask {
 	MVM_DEBUGFS_PM_SKIP_DTIM_PERIODS = BIT(2),
 	MVM_DEBUGFS_PM_RX_DATA_TIMEOUT = BIT(3),
 	MVM_DEBUGFS_PM_TX_DATA_TIMEOUT = BIT(4),
-	MVM_DEBUGFS_PM_DISABLE_POWER_OFF = BIT(5),
 	MVM_DEBUGFS_PM_LPRX_ENA = BIT(6),
 	MVM_DEBUGFS_PM_LPRX_RSSI_THRESHOLD = BIT(7),
 	MVM_DEBUGFS_PM_SNOOZE_ENABLE = BIT(8),
@@ -177,7 +176,6 @@ struct iwl_dbgfs_pm {
 	u32 tx_data_timeout;
 	bool skip_over_dtim;
 	u8 skip_dtim_periods;
-	bool disable_power_off;
 	bool lprx_ena;
 	u32 lprx_rssi_threshold;
 	bool snooze_ena;

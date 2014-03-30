@@ -303,11 +303,6 @@ static void iwl_mvm_power_build_cmd(struct iwl_mvm *mvm,
 
 	cmd->flags |= cpu_to_le16(POWER_FLAGS_POWER_SAVE_ENA_MSK);
 
-#ifdef CONFIG_IWLWIFI_DEBUGFS
-	if (mvmvif->dbgfs_pm.mask & MVM_DEBUGFS_PM_DISABLE_POWER_OFF &&
-	    mvmvif->dbgfs_pm.disable_power_off)
-		cmd->flags &= cpu_to_le16(~POWER_FLAGS_POWER_SAVE_ENA_MSK);
-#endif
 	if (!vif->bss_conf.ps || iwl_mvm_vif_low_latency(mvmvif) ||
 	    !mvmvif->pm_enabled)
 		return;
@@ -436,9 +431,6 @@ int iwl_mvm_power_update_device(struct iwl_mvm *mvm)
 	struct iwl_device_power_cmd cmd = {
 		.flags = cpu_to_le16(DEVICE_POWER_FLAGS_POWER_SAVE_ENA_MSK),
 	};
-
-	if (!(mvm->fw->ucode_capa.flags & IWL_UCODE_TLV_FLAGS_DEVICE_PS_CMD))
-		return 0;
 
 	if (iwlmvm_mod_params.power_scheme == IWL_POWER_SCHEME_CAM)
 		mvm->ps_disabled = true;
@@ -696,11 +688,6 @@ int iwl_mvm_power_mac_dbgfs_read(struct iwl_mvm *mvm,
 	memcpy(&cmd, &mvmvif->mac_pwr_cmd, sizeof(cmd));
 	mutex_unlock(&mvm->mutex);
 
-	if (!(mvm->fw->ucode_capa.flags & IWL_UCODE_TLV_FLAGS_DEVICE_PS_CMD))
-		pos += scnprintf(buf+pos, bufsz-pos, "disable_power_off = %d\n",
-				 (cmd.flags &
-				 cpu_to_le16(POWER_FLAGS_POWER_SAVE_ENA_MSK)) ?
-				 0 : 1);
 	pos += scnprintf(buf+pos, bufsz-pos, "power_scheme = %d\n",
 			 iwlmvm_mod_params.power_scheme);
 	pos += scnprintf(buf+pos, bufsz-pos, "flags = 0x%x\n",

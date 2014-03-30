@@ -103,10 +103,6 @@ static void iwl_dbgfs_update_pm(struct iwl_mvm *mvm,
 		IWL_DEBUG_POWER(mvm, "tx_data_timeout=%d\n", val);
 		dbgfs_pm->tx_data_timeout = val;
 		break;
-	case MVM_DEBUGFS_PM_DISABLE_POWER_OFF:
-		IWL_DEBUG_POWER(mvm, "disable_power_off=%d\n", val);
-		dbgfs_pm->disable_power_off = val;
-		break;
 	case MVM_DEBUGFS_PM_LPRX_ENA:
 		IWL_DEBUG_POWER(mvm, "lprx %s\n", val ? "enabled" : "disabled");
 		dbgfs_pm->lprx_ena = val;
@@ -154,12 +150,6 @@ static ssize_t iwl_dbgfs_pm_params_write(struct ieee80211_vif *vif, char *buf,
 		if (sscanf(buf + 16, "%d", &val) != 1)
 			return -EINVAL;
 		param = MVM_DEBUGFS_PM_TX_DATA_TIMEOUT;
-	} else if (!strncmp("disable_power_off=", buf, 18) &&
-		   !(mvm->fw->ucode_capa.flags &
-		     IWL_UCODE_TLV_FLAGS_DEVICE_PS_CMD)) {
-		if (sscanf(buf + 18, "%d", &val) != 1)
-			return -EINVAL;
-		param = MVM_DEBUGFS_PM_DISABLE_POWER_OFF;
 	} else if (!strncmp("lprx=", buf, 5)) {
 		if (sscanf(buf + 5, "%d", &val) != 1)
 			return -EINVAL;
