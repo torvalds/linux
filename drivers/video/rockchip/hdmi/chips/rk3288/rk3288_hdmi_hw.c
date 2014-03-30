@@ -807,7 +807,8 @@ static void rk3288_hdmi_config_aai(struct hdmi *hdmi_drv, struct hdmi_audio *aud
 
 int rk3288_hdmi_config_audio(struct hdmi *hdmi_drv, struct hdmi_audio *audio)
 {
-	int word_length = 0, channel = 0, N = 0, mclk_fs;
+	int word_length = 0, channel = 0, mclk_fs;
+	unsigned int N = 0, CTS = 0;
 	struct rk3288_hdmi_device *hdmi_dev = container_of(hdmi_drv, struct rk3288_hdmi_device, driver);
 
 	if(audio->channel < 3)
@@ -829,6 +830,8 @@ int rk3288_hdmi_config_audio(struct hdmi *hdmi_drv, struct hdmi_audio *audio)
 				N = N_32K_MIDCLK;
 			else
 				N = N_32K_LOWCLK;
+
+			CTS = CALC_CTS(N, hdmi_drv->tmdsclk/1000, 32);	//div a num to avoid the value is exceed 2^32(int)
 			break;
 		case HDMI_AUDIO_FS_44100:
 			mclk_fs = FS_256;
@@ -838,6 +841,8 @@ int rk3288_hdmi_config_audio(struct hdmi *hdmi_drv, struct hdmi_audio *audio)
 				N = N_441K_MIDCLK;
 			else
 				N = N_441K_LOWCLK;
+
+			CTS = CALC_CTS(N, hdmi_drv->tmdsclk/100, 441);
 			break;
 		case HDMI_AUDIO_FS_48000:
 			mclk_fs = FS_256;
@@ -847,6 +852,8 @@ int rk3288_hdmi_config_audio(struct hdmi *hdmi_drv, struct hdmi_audio *audio)
 				N = N_48K_MIDCLK;
 			else
 				N = N_48K_LOWCLK;
+
+			CTS = CALC_CTS(N, hdmi_drv->tmdsclk/1000, 48);
 			break;
 		case HDMI_AUDIO_FS_88200:
 			mclk_fs = FS_256;
@@ -856,6 +863,8 @@ int rk3288_hdmi_config_audio(struct hdmi *hdmi_drv, struct hdmi_audio *audio)
 				N = N_882K_MIDCLK;
 			else
 				N = N_882K_LOWCLK;
+
+			CTS = CALC_CTS(N, hdmi_drv->tmdsclk/100, 882);
 			break;
 		case HDMI_AUDIO_FS_96000:
 			mclk_fs = FS_256;
@@ -865,6 +874,8 @@ int rk3288_hdmi_config_audio(struct hdmi *hdmi_drv, struct hdmi_audio *audio)
 				N = N_96K_MIDCLK;
 			else
 				N = N_96K_LOWCLK;
+
+			CTS = CALC_CTS(N, hdmi_drv->tmdsclk/1000, 96);
 			break;
 		case HDMI_AUDIO_FS_176400:
 			mclk_fs = FS_256;
@@ -874,6 +885,8 @@ int rk3288_hdmi_config_audio(struct hdmi *hdmi_drv, struct hdmi_audio *audio)
 				N = N_1764K_MIDCLK;
 			else
 				N = N_1764K_LOWCLK;
+
+			CTS = CALC_CTS(N, hdmi_drv->tmdsclk/100, 1764);
 			break;
 		case HDMI_AUDIO_FS_192000:
 			mclk_fs = FS_256;
@@ -883,6 +896,8 @@ int rk3288_hdmi_config_audio(struct hdmi *hdmi_drv, struct hdmi_audio *audio)
 				N = N_192K_MIDCLK;
 			else
 				N = N_192K_LOWCLK;
+
+			CTS = CALC_CTS(N, hdmi_drv->tmdsclk/1000, 192);
 			break;
 		default:
 			hdmi_err(hdmi_drv->dev, "[%s] not support such sample rate %d\n", __FUNCTION__, audio->rate);
@@ -904,9 +919,10 @@ int rk3288_hdmi_config_audio(struct hdmi *hdmi_drv, struct hdmi_audio *audio)
 			word_length = I2S_16BIT_SAMPLE;
 	}
 
+	hdmi_dbg(hdmi_drv->dev, "rate = %d, tmdsclk = %d, N = %d, CTS = %d\n",  audio->rate, hdmi_drv->tmdsclk, N, CTS);
 	/* more than 2 channels => layout 1 else layout 0 */
 	//value = (audio->channel > 2) ? 1 : 0;	//TODO Daisen wait to modify
-	hdmi_msk_reg(hdmi_dev, FC_AUDSCONF, m_AUD_PACK_LAYOUT, v_AUD_PACK_LAYOUT(1));
+	//hdmi_msk_reg(hdmi_dev, FC_AUDSCONF, m_AUD_PACK_LAYOUT, v_AUD_PACK_LAYOUT(value));
 
 	if(hdmi_drv->audio.type == INPUT_SPDIF) {
 		hdmi_msk_reg(hdmi_dev, AUD_CONF0, m_I2S_SEL, v_I2S_SEL(AUDIO_SPDIF_GPA));
@@ -916,7 +932,7 @@ int rk3288_hdmi_config_audio(struct hdmi *hdmi_drv, struct hdmi_audio *audio)
 		hdmi_msk_reg(hdmi_dev, AUD_SPDIF0, m_SW_SAUD_FIFO_RST, v_SW_SAUD_FIFO_RST(1));
 	}
 	else {
-		hdmi_msk_reg(hdmi_dev, AUD_CONF0, m_I2S_SEL | m_I2S_IN_EN, v_I2S_SEL(AUDIO_I2S) | v_I2S_IN_EN(0x0f));
+		hdmi_msk_reg(hdmi_dev, AUD_CONF0, m_I2S_SEL | m_I2S_IN_EN, v_I2S_SEL(AUDIO_I2S) | v_I2S_IN_EN(channel));
 		hdmi_writel(hdmi_dev, AUD_CONF1, v_I2S_MODE(I2S_STANDARD_MODE) | v_I2S_WIDTH(word_length));
 		//Mask fifo empty and full int and reset fifo
 		hdmi_msk_reg(hdmi_dev, AUD_INT, m_FIFO_EMPTY_MASK | m_FIFO_FULL_MASK, v_FIFO_EMPTY_MASK(1) | v_FIFO_FULL_MASK(1));
@@ -929,8 +945,11 @@ int rk3288_hdmi_config_audio(struct hdmi *hdmi_drv, struct hdmi_audio *audio)
 	hdmi_msk_reg(hdmi_dev, AUD_N3, m_AUD_N3, v_AUD_N3(N >> 16));
 	hdmi_writel(hdmi_dev, AUD_N2, (N >> 8) & 0xff);
 	hdmi_writel(hdmi_dev, AUD_N1, N & 0xff);
-	//Set Automatic CTS generation
-	hdmi_msk_reg(hdmi_dev, AUD_CTS3, m_CTS_MANUAL, v_CTS_MANUAL(0));
+	//Set CTS by manual
+	hdmi_msk_reg(hdmi_dev, AUD_CTS3, m_N_SHIFT | m_CTS_MANUAL | m_AUD_CTS3,
+		v_N_SHIFT(N_SHIFT_1) | v_CTS_MANUAL(1) | v_AUD_CTS3(CTS >> 16));
+	hdmi_writel(hdmi_dev, AUD_CTS2, (CTS >> 8) & 0xff);
+	hdmi_writel(hdmi_dev, AUD_CTS1, CTS & 0xff);
 
 	hdmi_msk_reg(hdmi_dev, MC_CLKDIS, m_AUDCLK_DISABLE, v_AUDCLK_DISABLE(0));
 	rk3288_hdmi_config_aai(hdmi_drv, audio);

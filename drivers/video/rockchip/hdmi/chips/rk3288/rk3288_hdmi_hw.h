@@ -851,6 +851,8 @@ enum I2S_WIDTH {
 #define N_192K_LOWCLK 		0x6000
 #define N_192K_MIDCLK 		0x5000
 #define N_192K_HIGHCLK 		0x6000
+
+#define CALC_CTS(N, TMDSCLK, FS)	((N) / 128) * (TMDSCLK) / (FS)
 /****************************************/
 
 #define AUD_N1				0x3200
