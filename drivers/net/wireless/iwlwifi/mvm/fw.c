@@ -288,7 +288,7 @@ int iwl_run_init_mvm_ucode(struct iwl_mvm *mvm, bool read_nvm)
 		goto error;
 	}
 
-	ret = iwl_send_bt_prio_tbl(mvm);
+	ret = iwl_send_bt_init_conf(mvm);
 	if (ret)
 		goto error;
 
@@ -421,10 +421,6 @@ int iwl_mvm_up(struct iwl_mvm *mvm)
 		IWL_ERR(mvm, "Failed to initialize Smart Fifo\n");
 
 	ret = iwl_send_tx_ant_cfg(mvm, mvm->fw->valid_tx_ant);
-	if (ret)
-		goto error;
-
-	ret = iwl_send_bt_prio_tbl(mvm);
 	if (ret)
 		goto error;
 

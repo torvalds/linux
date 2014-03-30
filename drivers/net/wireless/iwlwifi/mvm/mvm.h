@@ -923,7 +923,6 @@ void iwl_mvm_unref(struct iwl_mvm *mvm, enum iwl_mvm_ref_type ref_type);
 void iwl_mvm_d0i3_enable_tx(struct iwl_mvm *mvm, __le16 *qos_seq);
 
 /* BT Coex */
-int iwl_send_bt_prio_tbl(struct iwl_mvm *mvm);
 int iwl_send_bt_init_conf(struct iwl_mvm *mvm);
 int iwl_mvm_rx_bt_coex_notif(struct iwl_mvm *mvm,
 			     struct iwl_rx_cmd_buffer *rxb,

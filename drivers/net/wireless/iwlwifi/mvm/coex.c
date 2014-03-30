@@ -104,7 +104,7 @@ static const u8 iwl_bt_prio_tbl[BT_COEX_PRIO_TBL_EVT_MAX] = {
 #define BT_DISABLE_REDUCED_TXPOWER_THRESHOLD	(-65)
 #define BT_ANTENNA_COUPLING_THRESHOLD		(30)
 
-int iwl_send_bt_prio_tbl(struct iwl_mvm *mvm)
+static int iwl_send_bt_prio_tbl(struct iwl_mvm *mvm)
 {
 	return iwl_mvm_send_cmd_pdu(mvm, BT_COEX_PRIO_TABLE, CMD_SYNC,
 				    sizeof(struct iwl_bt_coex_prio_tbl_cmd),
@@ -569,6 +569,10 @@ int iwl_send_bt_init_conf(struct iwl_mvm *mvm)
 	};
 	int ret;
 	u32 flags;
+
+	ret = iwl_send_bt_prio_tbl(mvm);
+	if (ret)
+		return ret;
 
 	bt_cmd = kzalloc(sizeof(*bt_cmd), GFP_KERNEL);
 	if (!bt_cmd)
