@@ -1,6 +1,5 @@
-obj-$(CONFIG_LCD_GENERAL) += lcd_general.o
-obj-$(CONFIG_LCD_LD089WU1_MIPI)   += lcd_LD089WU1_mipi.o
-obj-$(CONFIG_LCD_B080XAN02_MIPI)   += lcd_B080XAN02_mipi.o
+obj-$(CONFIG_LCD_GENERAL)			+= lcd_general.o
+obj-$(CONFIG_LCD_MIPI)	+= lcd_mipi.o
 
 
 quiet_cmd_gen = GEN     $@
@@ -19,6 +18,3 @@ $(obj)/rk_screen.o: $(obj)/lcd.h
 obj-y += rk_screen.o
 
 clean-files := lcd.h
-
-
-
