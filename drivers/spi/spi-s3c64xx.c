@@ -381,7 +381,7 @@ static void s3c64xx_spi_dma_stop(struct s3c64xx_spi_driver_data *sdd,
 #else
 
 static void prepare_dma(struct s3c64xx_spi_dma_data *dma,
-					unsigned len, dma_addr_t buf)
+			struct sg_table *sgt)
 {
 	struct s3c64xx_spi_driver_data *sdd;
 	struct dma_slave_config config;
@@ -407,8 +407,8 @@ static void prepare_dma(struct s3c64xx_spi_dma_data *dma,
 		dmaengine_slave_config(dma->ch, &config);
 	}
 
-	desc = dmaengine_prep_slave_single(dma->ch, buf, len,
-					dma->direction, DMA_PREP_INTERRUPT);
+	desc = dmaengine_prep_slave_sg(dma->ch, sgt->sgl, sgt->nents,
+				       dma->direction, DMA_PREP_INTERRUPT);
 
 	desc->callback = s3c64xx_spi_dmacb;
 	desc->callback_param = dma;
@@ -515,7 +515,11 @@ static void enable_datapath(struct s3c64xx_spi_driver_data *sdd,
 		chcfg |= S3C64XX_SPI_CH_TXCH_ON;
 		if (dma_mode) {
 			modecfg |= S3C64XX_SPI_MODE_TXDMA_ON;
+#ifndef CONFIG_S3C_DMA
+			prepare_dma(&sdd->tx_dma, &xfer->tx_sg);
+#else
 			prepare_dma(&sdd->tx_dma, xfer->len, xfer->tx_dma);
+#endif
 		} else {
 			switch (sdd->cur_bpw) {
 			case 32:
@@ -547,29 +551,16 @@ static void enable_datapath(struct s3c64xx_spi_driver_data *sdd,
 			writel(((xfer->len * 8 / sdd->cur_bpw) & 0xffff)
 					| S3C64XX_SPI_PACKET_CNT_EN,
 					regs + S3C64XX_SPI_PACKET_CNT);
+#ifndef CONFIG_S3C_DMA
+			prepare_dma(&sdd->rx_dma, &xfer->rx_sg);
+#else
 			prepare_dma(&sdd->rx_dma, xfer->len, xfer->rx_dma);
+#endif
 		}
 	}
 
 	writel(modecfg, regs + S3C64XX_SPI_MODE_CFG);
 	writel(chcfg, regs + S3C64XX_SPI_CH_CFG);
-}
-
-static inline void enable_cs(struct s3c64xx_spi_driver_data *sdd,
-						struct spi_device *spi)
-{
-	if (sdd->tgl_spi != NULL) { /* If last device toggled after mssg */
-		if (sdd->tgl_spi != spi) { /* if last mssg on diff device */
-			/* Deselect the last toggled device */
-			if (spi->cs_gpio >= 0)
-				gpio_set_value(spi->cs_gpio,
-					spi->mode & SPI_CS_HIGH ? 0 : 1);
-		}
-		sdd->tgl_spi = NULL;
-	}
-
-	if (spi->cs_gpio >= 0)
-		gpio_set_value(spi->cs_gpio, spi->mode & SPI_CS_HIGH ? 1 : 0);
 }
 
 static u32 s3c64xx_spi_wait_for_timeout(struct s3c64xx_spi_driver_data *sdd,
@@ -593,112 +584,111 @@ static u32 s3c64xx_spi_wait_for_timeout(struct s3c64xx_spi_driver_data *sdd,
 	return RX_FIFO_LVL(status, sdd);
 }
 
-static int wait_for_xfer(struct s3c64xx_spi_driver_data *sdd,
-				struct spi_transfer *xfer, int dma_mode)
+static int wait_for_dma(struct s3c64xx_spi_driver_data *sdd,
+			struct spi_transfer *xfer)
 {
 	void __iomem *regs = sdd->regs;
 	unsigned long val;
+	u32 status;
 	int ms;
 
 	/* millisecs to xfer 'len' bytes @ 'cur_speed' */
 	ms = xfer->len * 8 * 1000 / sdd->cur_speed;
 	ms += 10; /* some tolerance */
 
-	if (dma_mode) {
-		val = msecs_to_jiffies(ms) + 10;
-		val = wait_for_completion_timeout(&sdd->xfer_completion, val);
-	} else {
-		u32 status;
-		val = msecs_to_loops(ms);
-		do {
+	val = msecs_to_jiffies(ms) + 10;
+	val = wait_for_completion_timeout(&sdd->xfer_completion, val);
+
+	/*
+	 * If the previous xfer was completed within timeout, then
+	 * proceed further else return -EIO.
+	 * DmaTx returns after simply writing data in the FIFO,
+	 * w/o waiting for real transmission on the bus to finish.
+	 * DmaRx returns only after Dma read data from FIFO which
+	 * needs bus transmission to finish, so we don't worry if
+	 * Xfer involved Rx(with or without Tx).
+	 */
+	if (val && !xfer->rx_buf) {
+		val = msecs_to_loops(10);
+		status = readl(regs + S3C64XX_SPI_STATUS);
+		while ((TX_FIFO_LVL(status, sdd)
+			|| !S3C64XX_SPI_ST_TX_DONE(status, sdd))
+		       && --val) {
+			cpu_relax();
 			status = readl(regs + S3C64XX_SPI_STATUS);
-		} while (RX_FIFO_LVL(status, sdd) < xfer->len && --val);
-	}
-
-	if (dma_mode) {
-		u32 status;
-
-		/*
-		 * If the previous xfer was completed within timeout, then
-		 * proceed further else return -EIO.
-		 * DmaTx returns after simply writing data in the FIFO,
-		 * w/o waiting for real transmission on the bus to finish.
-		 * DmaRx returns only after Dma read data from FIFO which
-		 * needs bus transmission to finish, so we don't worry if
-		 * Xfer involved Rx(with or without Tx).
-		 */
-		if (val && !xfer->rx_buf) {
-			val = msecs_to_loops(10);
-			status = readl(regs + S3C64XX_SPI_STATUS);
-			while ((TX_FIFO_LVL(status, sdd)
-				|| !S3C64XX_SPI_ST_TX_DONE(status, sdd))
-					&& --val) {
-				cpu_relax();
-				status = readl(regs + S3C64XX_SPI_STATUS);
-			}
-
 		}
 
-		/* If timed out while checking rx/tx status return error */
-		if (!val)
-			return -EIO;
-	} else {
-		int loops;
-		u32 cpy_len;
-		u8 *buf;
-
-		/* If it was only Tx */
-		if (!xfer->rx_buf) {
-			sdd->state &= ~TXBUSY;
-			return 0;
-		}
-
-		/*
-		 * If the receive length is bigger than the controller fifo
-		 * size, calculate the loops and read the fifo as many times.
-		 * loops = length / max fifo size (calculated by using the
-		 * fifo mask).
-		 * For any size less than the fifo size the below code is
-		 * executed atleast once.
-		 */
-		loops = xfer->len / ((FIFO_LVL_MASK(sdd) >> 1) + 1);
-		buf = xfer->rx_buf;
-		do {
-			/* wait for data to be received in the fifo */
-			cpy_len = s3c64xx_spi_wait_for_timeout(sdd,
-						(loops ? ms : 0));
-
-			switch (sdd->cur_bpw) {
-			case 32:
-				ioread32_rep(regs + S3C64XX_SPI_RX_DATA,
-					buf, cpy_len / 4);
-				break;
-			case 16:
-				ioread16_rep(regs + S3C64XX_SPI_RX_DATA,
-					buf, cpy_len / 2);
-				break;
-			default:
-				ioread8_rep(regs + S3C64XX_SPI_RX_DATA,
-					buf, cpy_len);
-				break;
-			}
-
-			buf = buf + cpy_len;
-		} while (loops--);
-		sdd->state &= ~RXBUSY;
 	}
+
+	/* If timed out while checking rx/tx status return error */
+	if (!val)
+		return -EIO;
 
 	return 0;
 }
 
-static inline void disable_cs(struct s3c64xx_spi_driver_data *sdd,
-						struct spi_device *spi)
+static int wait_for_pio(struct s3c64xx_spi_driver_data *sdd,
+			struct spi_transfer *xfer)
 {
-	if (sdd->tgl_spi == spi)
-		sdd->tgl_spi = NULL;
+	void __iomem *regs = sdd->regs;
+	unsigned long val;
+	u32 status;
+	int loops;
+	u32 cpy_len;
+	u8 *buf;
+	int ms;
 
-	if (spi->cs_gpio >= 0)
-		gpio_set_value(spi->cs_gpio, spi->mode & SPI_CS_HIGH ? 0 : 1);
+	/* millisecs to xfer 'len' bytes @ 'cur_speed' */
+	ms = xfer->len * 8 * 1000 / sdd->cur_speed;
+	ms += 10; /* some tolerance */
+
+	val = msecs_to_loops(ms);
+	do {
+		status = readl(regs + S3C64XX_SPI_STATUS);
+	} while (RX_FIFO_LVL(status, sdd) < xfer->len && --val);
+
+
+	/* If it was only Tx */
+	if (!xfer->rx_buf) {
+		sdd->state &= ~TXBUSY;
+		return 0;
+	}
+
+	/*
+	 * If the receive length is bigger than the controller fifo
+	 * size, calculate the loops and read the fifo as many times.
+	 * loops = length / max fifo size (calculated by using the
+	 * fifo mask).
+	 * For any size less than the fifo size the below code is
+	 * executed atleast once.
+	 */
+	loops = xfer->len / ((FIFO_LVL_MASK(sdd) >> 1) + 1);
+	buf = xfer->rx_buf;
+	do {
+		/* wait for data to be received in the fifo */
+		cpy_len = s3c64xx_spi_wait_for_timeout(sdd,
+						       (loops ? ms : 0));
+
+		switch (sdd->cur_bpw) {
+		case 32:
+			ioread32_rep(regs + S3C64XX_SPI_RX_DATA,
+				     buf, cpy_len / 4);
+			break;
+		case 16:
+			ioread16_rep(regs + S3C64XX_SPI_RX_DATA,
+				     buf, cpy_len / 2);
+			break;
+		default:
+			ioread8_rep(regs + S3C64XX_SPI_RX_DATA,
+				    buf, cpy_len);
+			break;
+		}
+
+		buf = buf + cpy_len;
+	} while (loops--);
+	sdd->state &= ~RXBUSY;
+
+	return 0;
 }
 
 static void s3c64xx_spi_config(struct s3c64xx_spi_driver_data *sdd)
@@ -929,7 +919,10 @@ static int s3c64xx_spi_transfer_one(struct spi_master *master,
 
 	spin_unlock_irqrestore(&sdd->lock, flags);
 
-	status = wait_for_xfer(sdd, xfer, use_dma);
+	if (use_dma)
+		status = wait_for_dma(sdd, xfer);
+	else
+		status = wait_for_pio(sdd, xfer);
 
 	if (status) {
 		dev_err(&spi->dev, "I/O Error: rx-%d tx-%d res:rx-%c tx-%c len-%d\n",
@@ -1092,14 +1085,12 @@ static int s3c64xx_spi_setup(struct spi_device *spi)
 
 	pm_runtime_put(&sdd->pdev->dev);
 	writel(S3C64XX_SPI_SLAVE_SIG_INACT, sdd->regs + S3C64XX_SPI_SLAVE_SEL);
-	disable_cs(sdd, spi);
 	return 0;
 
 setup_exit:
 	pm_runtime_put(&sdd->pdev->dev);
 	/* setup() returns with device de-selected */
 	writel(S3C64XX_SPI_SLAVE_SIG_INACT, sdd->regs + S3C64XX_SPI_SLAVE_SEL);
-	disable_cs(sdd, spi);
 
 	gpio_free(cs->line);
 	spi_set_ctldata(spi, NULL);

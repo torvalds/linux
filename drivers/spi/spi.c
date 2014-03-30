@@ -24,6 +24,8 @@
 #include <linux/device.h>
 #include <linux/init.h>
 #include <linux/cache.h>
+#include <linux/dma-mapping.h>
+#include <linux/dmaengine.h>
 #include <linux/mutex.h>
 #include <linux/of_device.h>
 #include <linux/of_irq.h>
@@ -578,6 +580,169 @@ static void spi_set_cs(struct spi_device *spi, bool enable)
 		spi->master->set_cs(spi, !enable);
 }
 
+static int spi_map_buf(struct spi_master *master, struct device *dev,
+		       struct sg_table *sgt, void *buf, size_t len,
+		       enum dma_data_direction dir)
+{
+	const bool vmalloced_buf = is_vmalloc_addr(buf);
+	const int desc_len = vmalloced_buf ? PAGE_SIZE : master->max_dma_len;
+	const int sgs = DIV_ROUND_UP(len, desc_len);
+	struct page *vm_page;
+	void *sg_buf;
+	size_t min;
+	int i, ret;
+
+	ret = sg_alloc_table(sgt, sgs, GFP_KERNEL);
+	if (ret != 0)
+		return ret;
+
+	for (i = 0; i < sgs; i++) {
+		min = min_t(size_t, len, desc_len);
+
+		if (vmalloced_buf) {
+			vm_page = vmalloc_to_page(buf);
+			if (!vm_page) {
+				sg_free_table(sgt);
+				return -ENOMEM;
+			}
+			sg_buf = page_address(vm_page) +
+				((size_t)buf & ~PAGE_MASK);
+		} else {
+			sg_buf = buf;
+		}
+
+		sg_set_buf(&sgt->sgl[i], sg_buf, min);
+
+		buf += min;
+		len -= min;
+	}
+
+	ret = dma_map_sg(dev, sgt->sgl, sgt->nents, dir);
+	if (ret < 0) {
+		sg_free_table(sgt);
+		return ret;
+	}
+
+	sgt->nents = ret;
+
+	return 0;
+}
+
+static void spi_unmap_buf(struct spi_master *master, struct device *dev,
+			  struct sg_table *sgt, enum dma_data_direction dir)
+{
+	if (sgt->orig_nents) {
+		dma_unmap_sg(dev, sgt->sgl, sgt->orig_nents, dir);
+		sg_free_table(sgt);
+	}
+}
+
+static int spi_map_msg(struct spi_master *master, struct spi_message *msg)
+{
+	struct device *tx_dev, *rx_dev;
+	struct spi_transfer *xfer;
+	void *tmp;
+	unsigned int max_tx, max_rx;
+	int ret;
+
+	if (master->flags & (SPI_MASTER_MUST_RX | SPI_MASTER_MUST_TX)) {
+		max_tx = 0;
+		max_rx = 0;
+
+		list_for_each_entry(xfer, &msg->transfers, transfer_list) {
+			if ((master->flags & SPI_MASTER_MUST_TX) &&
+			    !xfer->tx_buf)
+				max_tx = max(xfer->len, max_tx);
+			if ((master->flags & SPI_MASTER_MUST_RX) &&
+			    !xfer->rx_buf)
+				max_rx = max(xfer->len, max_rx);
+		}
+
+		if (max_tx) {
+			tmp = krealloc(master->dummy_tx, max_tx,
+				       GFP_KERNEL | GFP_DMA);
+			if (!tmp)
+				return -ENOMEM;
+			master->dummy_tx = tmp;
+			memset(tmp, 0, max_tx);
+		}
+
+		if (max_rx) {
+			tmp = krealloc(master->dummy_rx, max_rx,
+				       GFP_KERNEL | GFP_DMA);
+			if (!tmp)
+				return -ENOMEM;
+			master->dummy_rx = tmp;
+		}
+
+		if (max_tx || max_rx) {
+			list_for_each_entry(xfer, &msg->transfers,
+					    transfer_list) {
+				if (!xfer->tx_buf)
+					xfer->tx_buf = master->dummy_tx;
+				if (!xfer->rx_buf)
+					xfer->rx_buf = master->dummy_rx;
+			}
+		}
+	}
+
+	if (!master->can_dma)
+		return 0;
+
+	tx_dev = &master->dma_tx->dev->device;
+	rx_dev = &master->dma_rx->dev->device;
+
+	list_for_each_entry(xfer, &msg->transfers, transfer_list) {
+		if (!master->can_dma(master, msg->spi, xfer))
+			continue;
+
+		if (xfer->tx_buf != NULL) {
+			ret = spi_map_buf(master, tx_dev, &xfer->tx_sg,
+					  (void *)xfer->tx_buf, xfer->len,
+					  DMA_TO_DEVICE);
+			if (ret != 0)
+				return ret;
+		}
+
+		if (xfer->rx_buf != NULL) {
+			ret = spi_map_buf(master, rx_dev, &xfer->rx_sg,
+					  xfer->rx_buf, xfer->len,
+					  DMA_FROM_DEVICE);
+			if (ret != 0) {
+				spi_unmap_buf(master, tx_dev, &xfer->tx_sg,
+					      DMA_TO_DEVICE);
+				return ret;
+			}
+		}
+	}
+
+	master->cur_msg_mapped = true;
+
+	return 0;
+}
+
+static int spi_unmap_msg(struct spi_master *master, struct spi_message *msg)
+{
+	struct spi_transfer *xfer;
+	struct device *tx_dev, *rx_dev;
+
+	if (!master->cur_msg_mapped || !master->can_dma)
+		return 0;
+
+	tx_dev = &master->dma_tx->dev->device;
+	rx_dev = &master->dma_rx->dev->device;
+
+	list_for_each_entry(xfer, &msg->transfers, transfer_list) {
+		if (!master->can_dma(master, msg->spi, xfer))
+			continue;
+
+		spi_unmap_buf(master, rx_dev, &xfer->rx_sg, DMA_FROM_DEVICE);
+		spi_unmap_buf(master, tx_dev, &xfer->tx_sg, DMA_TO_DEVICE);
+	}
+
+	return 0;
+}
+
 /*
  * spi_transfer_one_message - Default implementation of transfer_one_message()
  *
@@ -684,6 +849,10 @@ static void spi_pump_messages(struct kthread_work *work)
 		}
 		master->busy = false;
 		spin_unlock_irqrestore(&master->queue_lock, flags);
+		kfree(master->dummy_rx);
+		master->dummy_rx = NULL;
+		kfree(master->dummy_tx);
+		master->dummy_tx = NULL;
 		if (master->unprepare_transfer_hardware &&
 		    master->unprepare_transfer_hardware(master))
 			dev_err(&master->dev,
@@ -748,6 +917,13 @@ static void spi_pump_messages(struct kthread_work *work)
 			return;
 		}
 		master->cur_msg_prepared = true;
+	}
+
+	ret = spi_map_msg(master, master->cur_msg);
+	if (ret) {
+		master->cur_msg->status = ret;
+		spi_finalize_current_message(master);
+		return;
 	}
 
 	ret = master->transfer_one_message(master, master->cur_msg);
@@ -836,6 +1012,8 @@ void spi_finalize_current_message(struct spi_master *master)
 
 	queue_kthread_work(&master->kworker, &master->pump_messages);
 	spin_unlock_irqrestore(&master->queue_lock, flags);
+
+	spi_unmap_msg(master, mesg);
 
 	if (master->cur_msg_prepared && master->unprepare_message) {
 		ret = master->unprepare_message(master, mesg);
@@ -1370,6 +1548,8 @@ int spi_register_master(struct spi_master *master)
 	mutex_init(&master->bus_lock_mutex);
 	master->bus_lock_flag = 0;
 	init_completion(&master->xfer_completion);
+	if (!master->max_dma_len)
+		master->max_dma_len = INT_MAX;
 
 	/* register the device, then userspace will see it.
 	 * registration fails if the bus ID is in use.
