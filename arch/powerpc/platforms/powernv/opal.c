@@ -102,18 +102,35 @@ int __init early_init_dt_scan_opal(unsigned long node,
 int __init early_init_dt_scan_recoverable_ranges(unsigned long node,
 				   const char *uname, int depth, void *data)
 {
-	unsigned long i, size;
+	unsigned long i, psize, size;
 	const __be32 *prop;
 
 	if (depth != 1 || strcmp(uname, "ibm,opal") != 0)
 		return 0;
 
-	prop = of_get_flat_dt_prop(node, "mcheck-recoverable-ranges", &size);
+	prop = of_get_flat_dt_prop(node, "mcheck-recoverable-ranges", &psize);
 
 	if (!prop)
 		return 1;
 
 	pr_debug("Found machine check recoverable ranges.\n");
+
+	/*
+	 * Calculate number of available entries.
+	 *
+	 * Each recoverable address range entry is (start address, len,
+	 * recovery address), 2 cells each for start and recovery address,
+	 * 1 cell for len, totalling 5 cells per entry.
+	 */
+	mc_recoverable_range_len = psize / (sizeof(*prop) * 5);
+
+	/* Sanity check */
+	if (!mc_recoverable_range_len)
+		return 1;
+
+	/* Size required to hold all the entries. */
+	size = mc_recoverable_range_len *
+			sizeof(struct mcheck_recoverable_range);
 
 	/*
 	 * Allocate a buffer to hold the MC recoverable ranges. We would be
@@ -124,11 +141,7 @@ int __init early_init_dt_scan_recoverable_ranges(unsigned long node,
 							ppc64_rma_size));
 	memset(mc_recoverable_range, 0, size);
 
-	/*
-	 * Each recoverable address entry is an (start address,len,
-	 * recover address) pair, * 2 cells each, totalling 4 cells per entry.
-	 */
-	for (i = 0; i < size / (sizeof(*prop) * 5); i++) {
+	for (i = 0; i < mc_recoverable_range_len; i++) {
 		mc_recoverable_range[i].start_addr =
 					of_read_number(prop + (i * 5) + 0, 2);
 		mc_recoverable_range[i].end_addr =
@@ -142,7 +155,6 @@ int __init early_init_dt_scan_recoverable_ranges(unsigned long node,
 				mc_recoverable_range[i].end_addr,
 				mc_recoverable_range[i].recover_addr);
 	}
-	mc_recoverable_range_len = i;
 	return 1;
 }
 
