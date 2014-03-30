@@ -33,7 +33,7 @@ rcar_du_connector_best_encoder(struct drm_connector *connector)
 {
 	struct rcar_du_connector *rcon = to_rcar_connector(connector);
 
-	return &rcon->encoder->encoder;
+	return rcar_encoder_to_drm_encoder(rcon->encoder);
 }
 
 /* -----------------------------------------------------------------------------
@@ -146,6 +146,7 @@ int rcar_du_encoder_init(struct rcar_du_device *rcdu,
 			 struct device_node *con_node)
 {
 	struct rcar_du_encoder *renc;
+	struct drm_encoder *encoder;
 	unsigned int encoder_type;
 	int ret;
 
@@ -154,6 +155,7 @@ int rcar_du_encoder_init(struct rcar_du_device *rcdu,
 		return -ENOMEM;
 
 	renc->output = output;
+	encoder = rcar_encoder_to_drm_encoder(renc);
 
 	switch (output) {
 	case RCAR_DU_OUTPUT_LVDS0:
@@ -182,12 +184,12 @@ int rcar_du_encoder_init(struct rcar_du_device *rcdu,
 		break;
 	}
 
-	ret = drm_encoder_init(rcdu->ddev, &renc->encoder, &encoder_funcs,
+	ret = drm_encoder_init(rcdu->ddev, encoder, &encoder_funcs,
 			       encoder_type);
 	if (ret < 0)
 		return ret;
 
-	drm_encoder_helper_add(&renc->encoder, &encoder_helper_funcs);
+	drm_encoder_helper_add(encoder, &encoder_helper_funcs);
 
 	switch (encoder_type) {
 	case DRM_MODE_ENCODER_LVDS:
