@@ -4986,7 +4986,9 @@ static int finish_inode_if_needed(struct send_ctx *sctx, int at_end)
 
 	if (S_ISREG(sctx->cur_inode_mode)) {
 		if (need_send_hole(sctx)) {
-			if (sctx->cur_inode_last_extent == (u64)-1) {
+			if (sctx->cur_inode_last_extent == (u64)-1 ||
+			    sctx->cur_inode_last_extent <
+			    sctx->cur_inode_size) {
 				ret = get_last_extent(sctx, (u64)-1);
 				if (ret)
 					goto out;
