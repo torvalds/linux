@@ -18,4 +18,14 @@ config KEYSTONE_NAVIGATOR_QMSS
 
 	  If unsure, say N.
 
+config KEYSTONE_NAVIGATOR_DMA
+	tristate "TI Keystone Navigator Packet DMA support"
+	depends on ARCH_KEYSTONE
+	help
+	  Say y tp enable support for the Keystone Navigator Packet DMA on
+	  on Keystone family of devices. It sets up the dma channels for the
+	  Queue Manager Sub System.
+
+	  If unsure, say N.
+
 endif # SOC_TI
