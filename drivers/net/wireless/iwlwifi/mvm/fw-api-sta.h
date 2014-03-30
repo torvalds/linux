@@ -255,22 +255,19 @@ struct iwl_mvm_keyinfo {
 } __packed;
 
 /**
- * struct iwl_mvm_add_sta_cmd_v5 - Add/modify a station in the fw's sta table.
+ * struct iwl_mvm_add_sta_cmd - Add/modify a station in the fw's sta table.
  * ( REPLY_ADD_STA = 0x18 )
  * @add_modify: 1: modify existing, 0: add new station
- * @unicast_tx_key_id: unicast tx key id. Relevant only when unicast key sent
- * @multicast_tx_key_id: multicast tx key id. Relevant only when multicast key
- *	sent
+ * @awake_acs:
+ * @tid_disable_tx: is tid BIT(tid) enabled for Tx. Clear BIT(x) to enable
+ *	AMPDU for tid x. Set %STA_MODIFY_TID_DISABLE_TX to change this field.
  * @mac_id_n_color: the Mac context this station belongs to
  * @addr[ETH_ALEN]: station's MAC address
  * @sta_id: index of station in uCode's station table
  * @modify_mask: STA_MODIFY_*, selects which parameters to modify vs. leave
  *	alone. 1 - modify, 0 - don't change.
- * @key: look at %iwl_mvm_keyinfo
  * @station_flags: look at %iwl_sta_flags
  * @station_flags_msk: what of %station_flags have changed
- * @tid_disable_tx: is tid BIT(tid) enabled for Tx. Clear BIT(x) to enable
- *	AMPDU for tid x. Set %STA_MODIFY_TID_DISABLE_TX to change this field.
  * @add_immediate_ba_tid: tid for which to add block-ack support (Rx)
  *	Set %STA_MODIFY_ADD_BA_TID to use this field, and also set
  *	add_immediate_ba_ssn.
@@ -294,40 +291,7 @@ struct iwl_mvm_keyinfo {
  * ADD_STA sets up the table entry for one station, either creating a new
  * entry, or modifying a pre-existing one.
  */
-struct iwl_mvm_add_sta_cmd_v5 {
-	u8 add_modify;
-	u8 unicast_tx_key_id;
-	u8 multicast_tx_key_id;
-	u8 reserved1;
-	__le32 mac_id_n_color;
-	u8 addr[ETH_ALEN];
-	__le16 reserved2;
-	u8 sta_id;
-	u8 modify_mask;
-	__le16 reserved3;
-	struct iwl_mvm_keyinfo key;
-	__le32 station_flags;
-	__le32 station_flags_msk;
-	__le16 tid_disable_tx;
-	__le16 reserved4;
-	u8 add_immediate_ba_tid;
-	u8 remove_immediate_ba_tid;
-	__le16 add_immediate_ba_ssn;
-	__le16 sleep_tx_count;
-	__le16 sleep_state_flags;
-	__le16 assoc_id;
-	__le16 beamform_flags;
-	__le32 tfd_queue_msk;
-} __packed; /* ADD_STA_CMD_API_S_VER_5 */
-
-/**
- * struct iwl_mvm_add_sta_cmd_v7 - Add / modify a station
- * VER_7 of this command is quite similar to VER_5 except
- * exclusion of all fields related to the security key installation.
- * It only differs from VER_6 by the "awake_acs" field that is
- * reserved and ignored in VER_6.
- */
-struct iwl_mvm_add_sta_cmd_v7 {
+struct iwl_mvm_add_sta_cmd {
 	u8 add_modify;
 	u8 awake_acs;
 	__le16 tid_disable_tx;
