@@ -130,6 +130,7 @@ static void XGINew_DDRII_Bootup_XG27(
 			unsigned long P3c4, struct vb_device_info *pVBInfo)
 {
 	unsigned long P3d4 = P3c4 + 0x10;
+
 	pVBInfo->ram_type = XGINew_GetXG20DRAMType(HwDeviceExtension, pVBInfo);
 	XGINew_SetMemoryClock(pVBInfo);
 
@@ -389,6 +390,7 @@ static void XGI_SetDRAM_Helper(unsigned long P3d4, u8 seed, u8 temp2, u8 reg,
 	u8 shift_factor, u8 mask1, u8 mask2)
 {
 	u8 j;
+
 	for (j = 0; j < 4; j++) {
 		temp2 |= (((seed >> (2 * j)) & 0x03) << shift_factor);
 		xgifb_reg_set(P3d4, reg, temp2);
