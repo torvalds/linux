@@ -2434,6 +2434,13 @@ static int snd_ice1712_chip_init(struct snd_ice1712 *ice)
 		snd_ice1712_write(ice, ICE1712_IREG_CONSUMER_POWERDOWN, 0);
 	}
 	snd_ice1712_set_pro_rate(ice, 48000, 1);
+	/* unmask used interrupts */
+	outb(((ice->eeprom.data[ICE_EEP1_CODEC] & ICE1712_CFG_2xMPU401) == 0 ?
+	      ICE1712_IRQ_MPU2 : 0) |
+	     ((ice->eeprom.data[ICE_EEP1_CODEC] & ICE1712_CFG_NO_CON_AC97) ?
+	      ICE1712_IRQ_PBKDS | ICE1712_IRQ_CONCAP | ICE1712_IRQ_CONPBK : 0),
+	     ICEREG(ice, IRQMASK));
+	outb(0x00, ICEMT(ice, IRQ));
 
 	return 0;
 }
@@ -2596,6 +2603,7 @@ static int snd_ice1712_create(struct snd_card *card,
 	ice->pci = pci;
 	ice->irq = -1;
 	pci_set_master(pci);
+	/* disable legacy emulation */
 	pci_write_config_word(ice->pci, 0x40, 0x807f);
 	pci_write_config_word(ice->pci, 0x42, 0x0006);
 	snd_ice1712_proc_init(ice);
@@ -2631,14 +2639,6 @@ static int snd_ice1712_create(struct snd_card *card,
 		snd_ice1712_free(ice);
 		return -EIO;
 	}
-
-	/* unmask used interrupts */
-	outb(((ice->eeprom.data[ICE_EEP1_CODEC] & ICE1712_CFG_2xMPU401) == 0 ?
-	      ICE1712_IRQ_MPU2 : 0) |
-	     ((ice->eeprom.data[ICE_EEP1_CODEC] & ICE1712_CFG_NO_CON_AC97) ?
-	      ICE1712_IRQ_PBKDS | ICE1712_IRQ_CONCAP | ICE1712_IRQ_CONPBK : 0),
-	     ICEREG(ice, IRQMASK));
-	outb(0x00, ICEMT(ice, IRQ));
 
 	err = snd_device_new(card, SNDRV_DEV_LOWLEVEL, ice, &ops);
 	if (err < 0) {
@@ -2815,11 +2815,80 @@ static void snd_ice1712_remove(struct pci_dev *pci)
 	snd_card_free(card);
 }
 
+#ifdef CONFIG_PM_SLEEP
+static int snd_ice1712_suspend(struct device *dev)
+{
+	struct pci_dev *pci = to_pci_dev(dev);
+	struct snd_card *card = dev_get_drvdata(dev);
+	struct snd_ice1712 *ice = card->private_data;
+
+	if (!ice->pm_suspend_enabled)
+		return 0;
+
+	snd_power_change_state(card, SNDRV_CTL_POWER_D3hot);
+
+	snd_pcm_suspend_all(ice->pcm);
+	snd_pcm_suspend_all(ice->pcm_pro);
+	snd_pcm_suspend_all(ice->pcm_ds);
+	snd_ac97_suspend(ice->ac97);
+
+	if (ice->pm_suspend)
+		ice->pm_suspend(ice);
+
+	pci_disable_device(pci);
+	pci_save_state(pci);
+	pci_set_power_state(pci, PCI_D3hot);
+	return 0;
+}
+
+static int snd_ice1712_resume(struct device *dev)
+{
+	struct pci_dev *pci = to_pci_dev(dev);
+	struct snd_card *card = dev_get_drvdata(dev);
+	struct snd_ice1712 *ice = card->private_data;
+
+	if (!ice->pm_suspend_enabled)
+		return 0;
+
+	pci_set_power_state(pci, PCI_D0);
+	pci_restore_state(pci);
+
+	if (pci_enable_device(pci) < 0) {
+		snd_card_disconnect(card);
+		return -EIO;
+	}
+
+	pci_set_master(pci);
+
+	if (snd_ice1712_chip_init(ice) < 0) {
+		snd_card_disconnect(card);
+		return -EIO;
+	}
+
+	if (ice->pm_resume)
+		ice->pm_resume(ice);
+
+	if (ice->ac97)
+		snd_ac97_resume(ice->ac97);
+
+	snd_power_change_state(card, SNDRV_CTL_POWER_D0);
+	return 0;
+}
+
+static SIMPLE_DEV_PM_OPS(snd_ice1712_pm, snd_ice1712_suspend, snd_ice1712_resume);
+#define SND_VT1712_PM_OPS	&snd_ice1712_pm
+#else
+#define SND_VT1712_PM_OPS	NULL
+#endif /* CONFIG_PM_SLEEP */
+
 static struct pci_driver ice1712_driver = {
 	.name = KBUILD_MODNAME,
 	.id_table = snd_ice1712_ids,
 	.probe = snd_ice1712_probe,
 	.remove = snd_ice1712_remove,
+	.driver = {
+		.pm = SND_VT1712_PM_OPS,
+	},
 };
 
 module_pci_driver(ice1712_driver);
