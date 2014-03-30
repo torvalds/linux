@@ -142,6 +142,7 @@ struct hdmi* rk3288_hdmi_register_hdcp_callbacks(
 }
 
 #ifdef HDMI_INT_USE_POLL
+#define HDMI_POLL_MDELAY	100
 static void rk3288_poll_delay_work(struct work_struct *work)
 {
 	struct hdmi *hdmi_drv = &hdmi_dev->driver;
@@ -151,7 +152,7 @@ static void rk3288_poll_delay_work(struct work_struct *work)
 			hdmi_irq(0, hdmi_drv);
 		}
 		if(hdmi_dev->irq == 0) {
-			queue_delayed_work(hdmi_drv->workqueue, &hdmi_dev->delay_work, 100);
+			queue_delayed_work(hdmi_drv->workqueue, &hdmi_dev->delay_work, msecs_to_jiffies(HDMI_POLL_MDELAY));
 		}
 	}
 }
@@ -190,9 +191,12 @@ static int rk3288_hdmi_drv_init(struct hdmi *hdmi_drv)
 	return ret;
 }
 
-static void rk3288_hdmi_early_suspend()
+static void rk3288_hdmi_early_suspend(void)
 {
 	struct hdmi *hdmi_drv = &hdmi_dev->driver;
+
+	if(hdmi_drv->suspend)
+		return;
 
 	hdmi_dbg(hdmi_drv->dev, "hdmi enter early suspend pwr %d state %d\n", hdmi_drv->pwr_mode, hdmi_drv->state);
 	flush_delayed_work(&hdmi_drv->delay_work);
@@ -214,17 +218,24 @@ static void rk3288_hdmi_early_suspend()
 	return;
 }
 
-static void rk3288_hdmi_early_resume()
+static void rk3288_hdmi_early_resume(void)
 {
 	struct hdmi *hdmi_drv = &hdmi_dev->driver;
+
+	if(!hdmi_drv->suspend)
+		return;
 
 	hdmi_dbg(hdmi_drv->dev, "hdmi enter early resume\n");
 	mutex_lock(&hdmi_drv->enable_mutex);
 	hdmi_drv->suspend = 0;
 	rk3288_hdmi_initial(hdmi_drv);
-	if(hdmi_drv->enable) {
+	if(hdmi_dev->irq == 0){
+		queue_delayed_work(hdmi_drv->workqueue, &hdmi_dev->delay_work, msecs_to_jiffies(HDMI_POLL_MDELAY / 2));
+	}
+	else if(hdmi_drv->enable){
 		enable_irq(hdmi_drv->irq);
 	}
+	queue_delayed_work(hdmi_drv->workqueue, &hdmi_drv->delay_work, msecs_to_jiffies(10));
 	mutex_unlock(&hdmi_drv->enable_mutex);
 	return;
 }
