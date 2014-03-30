@@ -1,6 +1,7 @@
 #include <dt-bindings/clock/ddr.h>
 #include <dt-bindings/interrupt-controller/arm-gic.h>
 #include <dt-bindings/rkfb/rk_fb.h>
+#include <dt-bindings/rkmipi/mipi_dsi.h>
 #include <dt-bindings/suspend/rockchip-pm.h>
 #include <dt-bindings/sensor-dev.h>
 
@@ -568,6 +569,22 @@
 	
 	rk_screen: rk_screen{
 			compatible = "rockchip,screen";
+	};
+		
+	dsihost0: mipi@ff960000{
+		compatible = "rockchip,rk32-dsi";
+		rockchip,prop = <0>;
+		reg = <0xff960000 0x4000>;
+		interrupts = <GIC_SPI 19 IRQ_TYPE_LEVEL_HIGH>;
+		status = "okay";
+	};
+
+	dsihost1: mipi@ff964000{
+		compatible = "rockchip,rk32-dsi";
+		rockchip,prop = <1>;
+		reg = <0xff964000 0x4000>;
+		interrupts = <GIC_SPI 20 IRQ_TYPE_LEVEL_HIGH>;
+		status = "disabled"; 
 	};
 	
 	lvds: lvds@ff96c000 {
