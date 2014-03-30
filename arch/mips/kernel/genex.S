@@ -67,7 +67,7 @@ NESTED(except_vec3_generic, 0, sp)
  */
 NESTED(except_vec3_r4000, 0, sp)
 	.set	push
-	.set	mips3
+	.set	arch=r4000
 	.set	noat
 	mfc0	k1, CP0_CAUSE
 	li	k0, 31<<2
@@ -139,7 +139,7 @@ LEAF(__r4k_wait)
 	nop
 	nop
 #endif
-	.set	mips3
+	.set	arch=r4000
 	wait
 	/* end of rollback region (the region size must be power of two) */
 1:
@@ -577,7 +577,7 @@ isrdhwr:
 	ori	k1, _THREAD_MASK
 	xori	k1, _THREAD_MASK
 	LONG_L	v1, TI_TP_VALUE(k1)
-	.set	mips3
+	.set	arch=r4000
 	eret
 	.set	mips0
 #endif

@@ -31,7 +31,7 @@
 	.endm
 
 	.set	noreorder
-	.set	mips3
+	.set	arch=r4000
 
 LEAF(_save_fp_context)
 	cfc1	t1, fcr31

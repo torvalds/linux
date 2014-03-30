@@ -294,7 +294,7 @@ LEAF(_init_fpu)
 1:	.set    pop
 #endif /* CONFIG_CPU_MIPS32_R2 */
 #else
-	.set	mips3
+	.set	arch=r4000
 	dmtc1	t1, $f0
 	dmtc1	t1, $f2
 	dmtc1	t1, $f4
