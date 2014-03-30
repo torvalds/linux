@@ -846,8 +846,8 @@ complete_xfer:
 					SPI_COMMAND1);
 			tegra_spi_transfer_delay(xfer->delay_usecs);
 			goto exit;
-		} else if (msg->transfers.prev == &xfer->transfer_list) {
-			/* This is the last transfer in message */
+		} else if (list_is_last(&xfer->transfer_list,
+					&msg->transfers)) {
 			if (xfer->cs_change)
 				tspi->cs_control = spi;
 			else {
