@@ -106,9 +106,6 @@ static const u8 iwl_bt_prio_tbl[BT_COEX_PRIO_TBL_EVT_MAX] = {
 
 int iwl_send_bt_prio_tbl(struct iwl_mvm *mvm)
 {
-	if (!(mvm->fw->ucode_capa.flags & IWL_UCODE_TLV_FLAGS_NEWBT_COEX))
-		return 0;
-
 	return iwl_mvm_send_cmd_pdu(mvm, BT_COEX_PRIO_TABLE, CMD_SYNC,
 				    sizeof(struct iwl_bt_coex_prio_tbl_cmd),
 				    &iwl_bt_prio_tbl);
@@ -572,9 +569,6 @@ int iwl_send_bt_init_conf(struct iwl_mvm *mvm)
 	};
 	int ret;
 	u32 flags;
-
-	if (!(mvm->fw->ucode_capa.flags & IWL_UCODE_TLV_FLAGS_NEWBT_COEX))
-		return 0;
 
 	bt_cmd = kzalloc(sizeof(*bt_cmd), GFP_KERNEL);
 	if (!bt_cmd)
@@ -1260,9 +1254,6 @@ u8 iwl_mvm_bt_coex_tx_prio(struct iwl_mvm *mvm, struct ieee80211_hdr *hdr,
 
 void iwl_mvm_bt_coex_vif_change(struct iwl_mvm *mvm)
 {
-	if (!(mvm->fw->ucode_capa.flags & IWL_UCODE_TLV_FLAGS_NEWBT_COEX))
-		return;
-
 	iwl_mvm_bt_coex_notif_handle(mvm);
 }
 
