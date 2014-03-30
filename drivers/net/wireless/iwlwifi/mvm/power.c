@@ -843,8 +843,7 @@ int iwl_mvm_disable_beacon_filter(struct iwl_mvm *mvm,
 	struct iwl_mvm_vif *mvmvif = iwl_mvm_vif_from_mac80211(vif);
 	int ret;
 
-	if (!(mvm->fw->ucode_capa.flags & IWL_UCODE_TLV_FLAGS_BF_UPDATED) ||
-	    vif->type != NL80211_IFTYPE_STATION || vif->p2p)
+	if (vif->type != NL80211_IFTYPE_STATION || vif->p2p)
 		return 0;
 
 	ret = iwl_mvm_beacon_filter_send_cmd(mvm, &cmd, flags);
