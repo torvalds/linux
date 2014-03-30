@@ -255,13 +255,12 @@ EXPORT_SYMBOL_GPL(spi_bus_type);
 static int spi_drv_probe(struct device *dev)
 {
 	const struct spi_driver		*sdrv = to_spi_driver(dev->driver);
-	struct spi_device		*spi = to_spi_device(dev);
 	int ret;
 
-	acpi_dev_pm_attach(&spi->dev, true);
-	ret = sdrv->probe(spi);
+	acpi_dev_pm_attach(dev, true);
+	ret = sdrv->probe(to_spi_device(dev));
 	if (ret)
-		acpi_dev_pm_detach(&spi->dev, true);
+		acpi_dev_pm_detach(dev, true);
 
 	return ret;
 }
@@ -269,11 +268,10 @@ static int spi_drv_probe(struct device *dev)
 static int spi_drv_remove(struct device *dev)
 {
 	const struct spi_driver		*sdrv = to_spi_driver(dev->driver);
-	struct spi_device		*spi = to_spi_device(dev);
 	int ret;
 
-	ret = sdrv->remove(spi);
-	acpi_dev_pm_detach(&spi->dev, true);
+	ret = sdrv->remove(to_spi_device(dev));
+	acpi_dev_pm_detach(dev, true);
 
 	return ret;
 }
@@ -892,7 +890,7 @@ static int spi_stop_queue(struct spi_master *master)
 	 */
 	while ((!list_empty(&master->queue) || master->busy) && limit--) {
 		spin_unlock_irqrestore(&master->queue_lock, flags);
-		msleep(10);
+		usleep_range(10000, 11000);
 		spin_lock_irqsave(&master->queue_lock, flags);
 	}
 
@@ -1617,10 +1615,9 @@ static int __spi_validate(struct spi_device *spi, struct spi_message *message)
 {
 	struct spi_master *master = spi->master;
 	struct spi_transfer *xfer;
+	int w_size;
 
 	if (list_empty(&message->transfers))
-		return -EINVAL;
-	if (!message->complete)
 		return -EINVAL;
 
 	/* Half-duplex links include original MicroWire, and ones with
@@ -1652,12 +1649,13 @@ static int __spi_validate(struct spi_device *spi, struct spi_message *message)
 		message->frame_length += xfer->len;
 		if (!xfer->bits_per_word)
 			xfer->bits_per_word = spi->bits_per_word;
-		if (!xfer->speed_hz) {
+
+		if (!xfer->speed_hz)
 			xfer->speed_hz = spi->max_speed_hz;
-			if (master->max_speed_hz &&
-			    xfer->speed_hz > master->max_speed_hz)
-				xfer->speed_hz = master->max_speed_hz;
-		}
+
+		if (master->max_speed_hz &&
+		    xfer->speed_hz > master->max_speed_hz)
+			xfer->speed_hz = master->max_speed_hz;
 
 		if (master->bits_per_word_mask) {
 			/* Only 32 bits fit in the mask */
@@ -1668,11 +1666,23 @@ static int __spi_validate(struct spi_device *spi, struct spi_message *message)
 				return -EINVAL;
 		}
 
+		/*
+		 * SPI transfer length should be multiple of SPI word size
+		 * where SPI word size should be power-of-two multiple
+		 */
+		if (xfer->bits_per_word <= 8)
+			w_size = 1;
+		else if (xfer->bits_per_word <= 16)
+			w_size = 2;
+		else
+			w_size = 4;
+
+		/* No partial transfers accepted */
+		if (xfer->len % w_size)
+			return -EINVAL;
+
 		if (xfer->speed_hz && master->min_speed_hz &&
 		    xfer->speed_hz < master->min_speed_hz)
-			return -EINVAL;
-		if (xfer->speed_hz && master->max_speed_hz &&
-		    xfer->speed_hz > master->max_speed_hz)
 			return -EINVAL;
 
 		if (xfer->tx_buf && !xfer->tx_nbits)
