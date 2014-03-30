@@ -437,9 +437,6 @@ int iwl_mvm_power_update_device(struct iwl_mvm *mvm)
 		.flags = cpu_to_le16(DEVICE_POWER_FLAGS_POWER_SAVE_ENA_MSK),
 	};
 
-	if (!(mvm->fw->ucode_capa.flags & IWL_UCODE_TLV_FLAGS_PM_CMD_SUPPORT))
-		return 0;
-
 	if (!(mvm->fw->ucode_capa.flags & IWL_UCODE_TLV_FLAGS_DEVICE_PS_CMD))
 		return 0;
 
@@ -646,9 +643,6 @@ int iwl_mvm_power_update_mac(struct iwl_mvm *mvm, struct ieee80211_vif *vif)
 
 	lockdep_assert_held(&mvm->mutex);
 
-	if (!(mvm->fw->ucode_capa.flags & IWL_UCODE_TLV_FLAGS_PM_CMD_SUPPORT))
-		return 0;
-
 	iwl_mvm_power_set_pm(mvm, &vifs);
 
 	/* disable PS if CAM */
@@ -697,10 +691,6 @@ int iwl_mvm_power_mac_dbgfs_read(struct iwl_mvm *mvm,
 	struct iwl_mvm_vif *mvmvif = iwl_mvm_vif_from_mac80211(vif);
 	struct iwl_mac_power_cmd cmd = {};
 	int pos = 0;
-
-	if (WARN_ON(!(mvm->fw->ucode_capa.flags &
-		      IWL_UCODE_TLV_FLAGS_PM_CMD_SUPPORT)))
-		return 0;
 
 	mutex_lock(&mvm->mutex);
 	memcpy(&cmd, &mvmvif->mac_pwr_cmd, sizeof(cmd));
@@ -940,14 +930,4 @@ int iwl_mvm_update_beacon_filter(struct iwl_mvm *mvm,
 	}
 
 	return iwl_mvm_enable_beacon_filter(mvm, vif, flags);
-}
-
-int iwl_power_legacy_set_cam_mode(struct iwl_mvm *mvm)
-{
-	struct iwl_powertable_cmd cmd = {
-		.keep_alive_seconds = POWER_KEEP_ALIVE_PERIOD_SEC,
-	};
-
-	return iwl_mvm_send_cmd_pdu(mvm, POWER_TABLE_CMD, CMD_SYNC,
-				    sizeof(cmd), &cmd);
 }

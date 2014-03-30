@@ -468,12 +468,6 @@ int iwl_mvm_up(struct iwl_mvm *mvm)
 	/* Initialize tx backoffs to the minimal possible */
 	iwl_mvm_tt_tx_backoff(mvm, 0);
 
-	if (!(mvm->fw->ucode_capa.flags & IWL_UCODE_TLV_FLAGS_PM_CMD_SUPPORT)) {
-		ret = iwl_power_legacy_set_cam_mode(mvm);
-		if (ret)
-			goto error;
-	}
-
 	ret = iwl_mvm_power_update_device(mvm);
 	if (ret)
 		goto error;
