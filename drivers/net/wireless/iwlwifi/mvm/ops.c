@@ -1144,7 +1144,7 @@ static void iwl_mvm_d0i3_exit_work(struct work_struct *wk)
 		.id = WOWLAN_GET_STATUSES,
 		.flags = CMD_SYNC | CMD_HIGH_PRIO | CMD_WANT_SKB,
 	};
-	struct iwl_wowlan_status_v6 *status;
+	struct iwl_wowlan_status *status;
 	int ret;
 	u32 disconnection_reasons, wakeup_reasons;
 	__le16 *qos_seq = NULL;
