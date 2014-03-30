@@ -7277,7 +7277,7 @@ int md_setup_cluster(struct mddev *mddev, int nodes)
 	}
 	spin_unlock(&pers_lock);
 
-	return md_cluster_ops->join(mddev);
+	return md_cluster_ops->join(mddev, nodes);
 }
 
 void md_cluster_stop(struct mddev *mddev)

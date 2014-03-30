@@ -30,6 +30,8 @@ struct dlm_lock_resource {
 struct md_cluster_info {
 	/* dlm lock space and resources for clustered raid. */
 	dlm_lockspace_t *lockspace;
+	int slot_number;
+	struct completion completion;
 	struct dlm_lock_resource *sb_lock;
 	struct mutex sb_mutex;
 };
@@ -136,10 +138,42 @@ static char *pretty_uuid(char *dest, char *src)
 	return dest;
 }
 
+static void recover_prep(void *arg)
+{
+}
+
+static void recover_slot(void *arg, struct dlm_slot *slot)
+{
+	struct mddev *mddev = arg;
+	struct md_cluster_info *cinfo = mddev->cluster_info;
+
+	pr_info("md-cluster: %s Node %d/%d down. My slot: %d. Initiating recovery.\n",
+			mddev->bitmap_info.cluster_name,
+			slot->nodeid, slot->slot,
+			cinfo->slot_number);
+}
+
+static void recover_done(void *arg, struct dlm_slot *slots,
+		int num_slots, int our_slot,
+		uint32_t generation)
+{
+	struct mddev *mddev = arg;
+	struct md_cluster_info *cinfo = mddev->cluster_info;
+
+	cinfo->slot_number = our_slot;
+	complete(&cinfo->completion);
+}
+
+static const struct dlm_lockspace_ops md_ls_ops = {
+	.recover_prep = recover_prep,
+	.recover_slot = recover_slot,
+	.recover_done = recover_done,
+};
+
 static int join(struct mddev *mddev, int nodes)
 {
 	struct md_cluster_info *cinfo;
-	int ret;
+	int ret, ops_rv;
 	char str[64];
 
 	if (!try_module_get(THIS_MODULE))
@@ -149,24 +183,30 @@ static int join(struct mddev *mddev, int nodes)
 	if (!cinfo)
 		return -ENOMEM;
 
+	init_completion(&cinfo->completion);
+
+	mutex_init(&cinfo->sb_mutex);
+	mddev->cluster_info = cinfo;
+
 	memset(str, 0, 64);
 	pretty_uuid(str, mddev->uuid);
-	ret = dlm_new_lockspace(str, NULL, DLM_LSFL_FS, LVB_SIZE,
-				NULL, NULL, NULL, &cinfo->lockspace);
+	ret = dlm_new_lockspace(str, mddev->bitmap_info.cluster_name,
+				DLM_LSFL_FS, LVB_SIZE,
+				&md_ls_ops, mddev, &ops_rv, &cinfo->lockspace);
 	if (ret)
 		goto err;
+	wait_for_completion(&cinfo->completion);
 	cinfo->sb_lock = lockres_init(mddev, "cmd-super",
 					NULL, 0);
 	if (!cinfo->sb_lock) {
 		ret = -ENOMEM;
 		goto err;
 	}
-	mutex_init(&cinfo->sb_mutex);
-	mddev->cluster_info = cinfo;
 	return 0;
 err:
 	if (cinfo->lockspace)
 		dlm_release_lockspace(cinfo->lockspace, 2);
+	mddev->cluster_info = NULL;
 	kfree(cinfo);
 	module_put(THIS_MODULE);
 	return ret;
@@ -183,9 +223,21 @@ static int leave(struct mddev *mddev)
 	return 0;
 }
 
+/* slot_number(): Returns the MD slot number to use
+ * DLM starts the slot numbers from 1, wheras cluster-md
+ * wants the number to be from zero, so we deduct one
+ */
+static int slot_number(struct mddev *mddev)
+{
+	struct md_cluster_info *cinfo = mddev->cluster_info;
+
+	return cinfo->slot_number - 1;
+}
+
 static struct md_cluster_operations cluster_ops = {
 	.join   = join,
 	.leave  = leave,
+	.slot_number = slot_number,
 };
 
 static int __init cluster_init(void)

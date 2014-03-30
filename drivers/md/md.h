@@ -434,6 +434,7 @@ struct mddev {
 		unsigned long		max_write_behind; /* write-behind mode */
 		int			external;
 		int			nodes; /* Maximum number of nodes in the cluster */
+		char                    cluster_name[64]; /* Name of the cluster */
 	} bitmap_info;
 
 	atomic_t			max_corr_read_errors; /* max read retries */

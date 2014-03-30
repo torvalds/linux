@@ -130,9 +130,9 @@ typedef struct bitmap_super_s {
 	__le32 write_behind; /* 60  number of outstanding write-behind writes */
 	__le32 sectors_reserved; /* 64 number of 512-byte sectors that are
 				  * reserved for the bitmap. */
-
 	__le32 nodes;        /* 68 the maximum number of nodes in cluster. */
-	__u8  pad[256 - 72]; /* set to zero */
+	__u8 cluster_name[64]; /* 72 cluster name to which this md belongs */
+	__u8  pad[256 - 136]; /* set to zero */
 } bitmap_super_t;
 
 /* notes:
