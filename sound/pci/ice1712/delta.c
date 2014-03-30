@@ -576,6 +576,30 @@ static struct snd_ak4xxx_private akm_vx442_priv = {
 	.mask_flags = 0,
 };
 
+#ifdef CONFIG_PM_SLEEP
+static int snd_ice1712_delta_resume(struct snd_ice1712 *ice)
+{
+	unsigned char akm_backup[AK4XXX_IMAGE_SIZE];
+	/* init codec and restore registers */
+	if (ice->akm_codecs) {
+		memcpy(akm_backup, ice->akm->images, sizeof(akm_backup));
+		snd_akm4xxx_init(ice->akm);
+		memcpy(ice->akm->images, akm_backup, sizeof(akm_backup));
+		snd_akm4xxx_reset(ice->akm, 0);
+	}
+
+	return 0;
+}
+
+static int snd_ice1712_delta_suspend(struct snd_ice1712 *ice)
+{
+	if (ice->akm_codecs) /* reset & mute codec */
+		snd_akm4xxx_reset(ice->akm, 1);
+
+	return 0;
+}
+#endif
+
 static int snd_ice1712_delta_init(struct snd_ice1712 *ice)
 {
 	int err;
@@ -622,7 +646,11 @@ static int snd_ice1712_delta_init(struct snd_ice1712 *ice)
 		ice->num_total_adcs = 4;
 		break;
 	}
-
+#ifdef CONFIG_PM_SLEEP
+	ice->pm_resume = snd_ice1712_delta_resume;
+	ice->pm_suspend = snd_ice1712_delta_suspend;
+	ice->pm_suspend_enabled = 1;
+#endif
 	/* initialize the SPI clock to high */
 	tmp = snd_ice1712_read(ice, ICE1712_IREG_GPIO_DATA);
 	tmp |= ICE1712_DELTA_AP_CCLK;
