@@ -8,6 +8,13 @@ drivers/video/rockchip/transmitter/mipi_dsi.h
 #include "..\..\common\config.h"
 #endif
 
+#ifdef CONFIG_OF
+#include <linux/of.h>
+#include <linux/of_device.h>
+#include <linux/of_gpio.h>
+#include <dt-bindings/gpio/gpio.h>
+#endif
+
 //DSI DATA TYPE
 #define DTYPE_DCS_SWRITE_0P		0x05 
 #define DTYPE_DCS_SWRITE_1P		0x15 
@@ -73,6 +80,11 @@ drivers/video/rockchip/transmitter/mipi_dsi.h
 #define dcs_write_LUT 		 		0x2d
 #define dcs_write_memory_continue  	0x3c
 #define dcs_write_memory_start 		0x2c
+
+#ifndef MHz
+#define MHz   1000000
+#endif
+
 
 #if 0
 typedef signed char s8;
@@ -180,15 +192,15 @@ struct mipi_dsi_ops {
 	int (*dsi_send_dcs_packet)(void *, unsigned char *, u32 n);
 	int (*dsi_read_dcs_packet)(void *, unsigned char *, u32 n);
 	int (*dsi_send_packet)(void *, void *, u32 n);
+    int (*dsi_is_enable)(void *, u32 enable);
 	int (*dsi_is_active)(void *);
 	int (*power_up)(void *);
 	int (*power_down)(void *);
 };
 
-
 /* Screen description */
 struct mipi_dsi_screen {
-	
+
 	u16 type;
 	u16 face;
 	u8 lcdc_id;    
@@ -218,26 +230,45 @@ struct mipi_dsi_screen {
 	u8 dsi_lane;
 	u8 dsi_video_mode;
 	u32 hs_tx_clk;
-#if defined(CONFIG_ARCH_RK3288)
-    u8 screen_init; 
-    u8 mipi_screen_id;
 
-    int lcd_rst_gpio;
-    int lcd_rst_delay;
-    u8 lcd_rst_atv_val;
-    
-    int lcd_en_gpio;
-    int lcd_en_dealay;
-    u8 lcd_en_atv_val;
-#else
 	/* Operation function*/
 	int (*init)(void);
 	int (*standby)(u8 enable);
-#endif
+
 };
 
+#define INVALID_GPIO        -1
 
+struct dcs_cmd {
+	u8 type;
+    u8 dsi_id;
+    u8 cmd_len;
+	int cmds[32];
+	int delay;
+    char name[32];
+};
 
+struct mipi_dcs_cmd_ctr_list {
+	struct list_head list;
+	struct dcs_cmd dcs_cmd;
+};
+
+struct mipi_screen
+{
+    u8 screen_init; 
+    u8 mipi_dsi_num;
+    u8 lcd_rst_atv_val;
+    u8 lcd_en_atv_val;
+    u8 dsi_lane;
+    
+    u32 hs_tx_clk;
+    u32 lcd_en_gpio;
+    u32 lcd_en_delay;
+    u32 lcd_rst_gpio;
+    u32 lcd_rst_delay;
+
+    struct list_head cmdlist_head;
+};
 
 int register_dsi_ops(unsigned int id, struct mipi_dsi_ops *ops);
 int del_dsi_ops(struct mipi_dsi_ops *ops);
@@ -255,4 +286,6 @@ int dsi_set_regs(unsigned int id, void *array, u32 n);
 int dsi_send_dcs_packet(unsigned int id, unsigned char *packet, u32 n);
 int dsi_read_dcs_packet(unsigned int id, unsigned char *packet, u32 n);
 int dsi_send_packet(unsigned int id, void *packet, u32 n);
+int dsi_is_enable(unsigned int id, u32 enable);
+
 #endif /* end of MIPI_DSI_H_ */

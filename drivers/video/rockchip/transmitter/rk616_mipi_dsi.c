@@ -16,7 +16,7 @@
 
 //config
 //#define MIPI_DSI_REGISTER_IO	1
-#define CONFIG_MIPI_DSI_LINUX   1
+#define CONFIG_MIPI_DSI_LINUX    1
 //#define CONFIG_MIPI_DSI_FT 	1
 //#define CONFIG_MFD_RK616   	1
 //#define CONFIG_ARCH_RK319X    1
@@ -64,13 +64,8 @@
 #include <linux/dma-mapping.h>
 #include "mipi_dsi.h"
 #include "rk616_mipi_dsi.h"
+#include <linux/rockchip/iomap.h>
 
-
-#ifdef CONFIG_OF
-#include <linux/of.h>
-#include <linux/of_device.h>
-#include <linux/of_gpio.h>
-#endif
 
 
 #if 1
@@ -100,8 +95,6 @@
     
 #endif
 
-
-
 /*
 *			 Driver Version Note
 *
@@ -119,8 +112,7 @@
 *v3.0 : support kernel 3.10 and device tree 
 */
 #define RK_MIPI_DSI_VERSION_AND_TIME  "rockchip mipi_dsi v3.0 2014-03-06"
-
-
+int rk_mipi_screen(void);
 
 #ifdef CONFIG_MFD_RK616
 static struct mfd_rk616 *dsi_rk616;
@@ -137,6 +129,7 @@ static int rk_mipi_dsi_enable_hs_clk(void *arg, u32 enable);
 static int rk_mipi_dsi_enable_video_mode(void *arg, u32 enable);
 static int rk_mipi_dsi_enable_command_mode(void *arg, u32 enable);
 static int rk_mipi_dsi_send_dcs_packet(void *arg, unsigned char regs[], u32 n);
+static int rk_mipi_dsi_is_enable(void *arg, u32 enable);
 
 #ifdef CONFIG_MFD_RK616
 static u32 *host_mem = NULL;
@@ -264,22 +257,38 @@ static int dsi_set_bits(struct dsi *dsi, u32 data, u32 reg)
 	return 0;
 }
 
+static int dwc_phy_test_rd(struct dsi *dsi, unsigned char test_code)
+{
+    int val = 0;
+    dsi_set_bits(dsi, 1, phy_testclk);
+    dsi_set_bits(dsi, test_code, phy_testdin);
+    dsi_set_bits(dsi, 1, phy_testen);
+	dsi_set_bits(dsi, 0, phy_testclk);
+	dsi_set_bits(dsi, 0, phy_testen);;
+
+    dsi_set_bits(dsi, 0, phy_testen);
+    val = dsi_get_bits(dsi,phy_testdout);
+    dsi_set_bits(dsi, 1, phy_testclk);
+    dsi_set_bits(dsi, 0, phy_testclk);
+
+    return val;
+}
+
 
 static int dwc_phy_test_wr(struct dsi *dsi, unsigned char test_code, unsigned char *test_data, unsigned char size)
 {
 	int i = 0;
-	dsi_set_bits(dsi, 1, phy_testclk);
-	dsi_set_bits(dsi, test_code, phy_testdin);
-	dsi_set_bits(dsi, 1, phy_testen);
-	dsi_set_bits(dsi, 0, phy_testclk);
-	dsi_set_bits(dsi, 0, phy_testen);
+ 
+    dsi_set_bits(dsi, 0x10000 | test_code, PHY_TEST_CTRL1);
+    dsi_set_bits(dsi, 0x2, PHY_TEST_CTRL0);
+    dsi_set_bits(dsi, 0x0, PHY_TEST_CTRL0);
 
 	for(i = 0; i < size; i++) {
-		dsi_set_bits(dsi, 0, phy_testclk);
-		dsi_set_bits(dsi, test_data[i], phy_testdin);
-		dsi_set_bits(dsi, 1, phy_testclk);
+    	dsi_set_bits(dsi, test_data[i], PHY_TEST_CTRL1);
+        dsi_set_bits(dsi, 0x2, PHY_TEST_CTRL0);
+        dsi_set_bits(dsi, 0x0, PHY_TEST_CTRL0);
+        MIPI_DBG("dwc_phy_test_wr:%08x\n", dsi_get_bits(dsi, PHY_TEST_CTRL1));
 	}
-
 	return 0;
 }
 
@@ -324,7 +333,7 @@ loop2:		reg_addr = i - (count<<2);
 	return 0;
 }
 #endif
-
+#if defined(CONFIG_MFD_RK616) || defined(CONFIG_ARCH_RK319X)
 static int inno_phy_set_gotp(struct dsi *dsi, u32 offset) 
 {
 	u32 val = 0, temp = 0, Tlpx = 0;
@@ -613,30 +622,172 @@ static int inno_phy_init(struct dsi *dsi)
 	}	
 	return 0;
 }
-
-static int dwc_phy_set_gotp(struct dsi *dsi, u32 offset, int n) 
+#endif
+static int rk32_phy_power_up(struct dsi *dsi)
 {
-return 0;
+    //enable ref clock
+    clk_enable(dsi->phy.refclk);
+    udelay(10);
+
+	switch(dsi->host.lane) {
+		case 4:
+			dsi_set_bits(dsi, 3, n_lanes);
+		case 3:
+			dsi_set_bits(dsi, 2, n_lanes);
+		case 2:
+			dsi_set_bits(dsi, 1, n_lanes);
+		case 1:
+			dsi_set_bits(dsi, 0, n_lanes);
+			break;
+		default:
+			break;	
+	}
+    dsi_set_bits(dsi, 1, phy_shutdownz);
+    dsi_set_bits(dsi, 1, phy_rstz);  
+    dsi_set_bits(dsi, 1, phy_enableclk);
+    dsi_set_bits(dsi, 1, phy_forcepll);
+    return 0;
 }
 
-static int dwc_set_hs_clk(struct dsi *dsi) 
+static int rk32_phy_power_down(struct dsi *dsi)
 {
-return 0;	
+    dsi_set_bits(dsi, 0, phy_shutdownz);
+    clk_disable(dsi->phy.refclk);
+    return 0;
 }
 
-static int dwc_phy_power_up(struct dsi *dsi)
+static int rk32_phy_init(struct dsi *dsi)
 {
-return 0;
-}
+    u32 val = 0;
+    u32 ddr_clk = dsi->phy.ddr_clk;
+    u16 prediv = dsi->phy.prediv;
+    u16 fbdiv = dsi->phy.fbdiv;
+    // u32 Ttxclkesc = dsi->phy.Ttxclkesc;
+    unsigned char test_data[2] = {0};
 
-static int dwc_phy_power_down(struct dsi *dsi)
-{
-return 0;
-}
+    if(ddr_clk < 90 * MHz)
+        val = 0x01;
+	else if(ddr_clk < 100 * MHz)
+        val = 0x10;
+	else if(ddr_clk < 110 * MHz)
+        val = 0x20;
+	else if(ddr_clk < 130 * MHz)
+        val = 0x01;
+	else if(ddr_clk < 140 * MHz)
+        val = 0x11;
+	else if(ddr_clk < 150 * MHz)
+        val = 0x21; 
+	else if(ddr_clk < 170 * MHz)
+        val = 0x02;
+	else if(ddr_clk < 180 * MHz)
+        val = 0x12;
+	else if(ddr_clk < 200 * MHz)
+        val = 0x22;
+	else if(ddr_clk < 220 * MHz)
+        val = 0x03;
+	else if(ddr_clk < 240 * MHz)
+        val = 0x13;
+	else if(ddr_clk < 250 * MHz)
+        val = 0x23;
+	else if(ddr_clk < 270 * MHz)
+        val = 0x04; 
+	else if(ddr_clk < 300 * MHz)
+        val = 0x14;
+	else if(ddr_clk < 330 * MHz)
+        val = 0x05;
+	else if(ddr_clk < 360 * MHz)
+        val = 0x15; 
+	else if(ddr_clk < 400 * MHz)
+        val = 0x25;
+	else if(ddr_clk < 450 * MHz)
+        val = 0x06; 
+	else if(ddr_clk < 500 * MHz)
+        val = 0x16;
+	else if(ddr_clk < 550 * MHz)
+        val = 0x07;
+	else if(ddr_clk < 600 * MHz)
+        val = 0x17;
+	else if(ddr_clk < 650 * MHz)
+        val = 0x08;
+	else if(ddr_clk < 700 * MHz)
+        val = 0x18;
+	else if(ddr_clk < 750 * MHz)
+        val = 0x09;
+	else if(ddr_clk < 800 * MHz)
+        val = 0x19;
+    else if(ddr_clk < 850 * MHz)
+        val = 0x29;
+    else if(ddr_clk < 900 * MHz)
+        val = 0x39;
+    else if(ddr_clk < 950 * MHz)
+        val = 0x0a;
+    else if(ddr_clk < 1000 * MHz)
+        val = 0x1a;
+    else if(ddr_clk < 1050 * MHz)
+        val = 0x2a;
+    else if(ddr_clk < 1100* MHz)
+        val = 0x3a;
+    else if(ddr_clk < 1150* MHz)
+        val = 0x0b;
+    else if(ddr_clk < 1200 * MHz)
+        val = 0x1b;
+    else if(ddr_clk < 1250 * MHz)
+        val = 0x2b;
+    else if(ddr_clk < 1300 * MHz)
+        val = 0x3b;
+    else if(ddr_clk < 1350 * MHz)
+        val = 0x0c;
+    else if(ddr_clk < 1400* MHz)
+        val = 0x1c;
+    else if(ddr_clk < 1450* MHz)
+        val = 0x2c;
+    else if(ddr_clk < 1500* MHz)
+        val = 0x3c;
 
-static int dwc_phy_init(struct dsi *dsi)
-{
-return 0;
+    //N=2,M=84
+    test_data[0] = val << 1;
+    dwc_phy_test_wr(dsi, code_hs_rx_lane0, test_data, 1);
+    MIPI_DBG("code_hs_rx_lane0=0x%x;",dwc_phy_test_rd(dsi, code_hs_rx_lane0));
+
+    test_data[0] = prediv- 1;
+    dwc_phy_test_wr(dsi, code_pll_input_div_rat, test_data, 1);
+    
+    test_data[0] = (fbdiv - 1) & 0x1f; //0x14; 
+    dwc_phy_test_wr(dsi, code_pll_loop_div_rat, test_data, 1);
+    
+    test_data[0] = (fbdiv - 1) >> 5 | 0x80;  //0x82
+    dwc_phy_test_wr(dsi, code_pll_loop_div_rat, test_data, 1);
+    
+    test_data[0] = 0x30;
+    dwc_phy_test_wr(dsi, code_pll_input_loop_div_rat, test_data, 1);
+    mdelay(100);
+
+    test_data[0] = 0x00;
+    // dwc_phy_test_wr(dsi, 0x60, test_data, 1);
+
+    test_data[0] = 0x81;
+    // dwc_phy_test_wr(dsi, 0x61, test_data, 1);
+
+    test_data[0] = 0x0;
+    // dwc_phy_test_wr(dsi, 0x62, test_data, 1);
+
+    test_data[0] = 0x80 | 15;
+    dwc_phy_test_wr(dsi, code_hstxdatalanerequsetstatetime, test_data, 1);
+
+    test_data[0] = 0x80 | 85;
+    dwc_phy_test_wr(dsi, code_hstxdatalanepreparestatetime, test_data, 1);
+
+    test_data[0] = 0x40 | 10;
+    dwc_phy_test_wr(dsi, code_hstxdatalanehszerostatetime, test_data, 1);
+
+
+    // test_data[0] = 0x80 | 127;
+    // dwc_phy_test_wr(dsi, 0x71, test_data, 1);
+
+    // test_data[0] = 0x3;
+    // dwc_phy_test_wr(dsi, 0x57, test_data, 1);
+
+    return 0;
 }
 
 static int rk_mipi_dsi_phy_power_up(struct dsi *dsi)
@@ -644,7 +795,7 @@ static int rk_mipi_dsi_phy_power_up(struct dsi *dsi)
 #if defined(CONFIG_MFD_RK616) || defined(CONFIG_ARCH_RK319X)
 	return inno_phy_power_up(dsi);
 #else
-	return dwc_phy_power_up(dsi);
+	return rk32_phy_power_up(dsi);
 #endif
 }
 
@@ -654,7 +805,7 @@ static int rk_mipi_dsi_phy_power_down(struct dsi *dsi)
 #if defined(CONFIG_MFD_RK616) || defined(CONFIG_ARCH_RK319X)
 	return inno_phy_power_down(dsi);
 #else
-	return dwc_phy_power_down(dsi);
+	return rk32_phy_power_down(dsi);
 #endif
 	return 0;
 }
@@ -664,7 +815,7 @@ static int rk_mipi_dsi_phy_init(struct dsi *dsi)
 #if defined(CONFIG_MFD_RK616) || defined(CONFIG_ARCH_RK319X)
 	return inno_phy_init(dsi);
 #else
-	return dwc_phy_init(dsi);
+	return rk32_phy_init(dsi);
 #endif
 	return 0;
 }
@@ -683,20 +834,23 @@ static int rk_mipi_dsi_host_power_up(struct dsi *dsi)
 	dsi_set_bits(dsi, 0x1ffff, INT_MKS1);
 #endif
 
-	dsi_set_bits(dsi, 1, shutdownz);
+	rk_mipi_dsi_is_enable(dsi, 1);
 	
 	val = 10;
 	while(!dsi_get_bits(dsi, phylock) && val--) {
 		udelay(10);
 	};
+	
 	if(val == 0) {
 		ret = -1;
 		MIPI_TRACE("%s:phylock fail\n", __func__);	
-	}		
+	}
+	
 	val = 10;
 	while(!dsi_get_bits(dsi, phystopstateclklane) && val--) {
 		udelay(10);
 	};
+	
 	return ret;
 }
 
@@ -704,10 +858,9 @@ static int rk_mipi_dsi_host_power_down(struct dsi *dsi)
 {	
 	rk_mipi_dsi_enable_video_mode(dsi, 0);
 	rk_mipi_dsi_enable_hs_clk(dsi, 0);
-	dsi_set_bits(dsi, 0, shutdownz);
+	rk_mipi_dsi_is_enable(dsi, 0);
 	return 0;
 }
-
 
 static int rk_mipi_dsi_host_init(struct dsi *dsi) 
 {
@@ -741,16 +894,20 @@ static int rk_mipi_dsi_host_init(struct dsi *dsi)
 			break;
 	}
 	
-	dsi_set_bits(dsi, !screen->pin_hsync, hsync_active_low);
-	dsi_set_bits(dsi, !screen->pin_vsync, vsync_active_low);
-	dsi_set_bits(dsi, screen->pin_den, dataen_active_low);
-	dsi_set_bits(dsi, 1, colorm_active_low);
-	dsi_set_bits(dsi, 1, shutd_active_low);
+	dsi_set_bits(dsi, 1, hsync_active_low);
+	dsi_set_bits(dsi, 1, vsync_active_low);
+	
+	dsi_set_bits(dsi, 0, dataen_active_low);
+	dsi_set_bits(dsi, 0, colorm_active_low);
+	dsi_set_bits(dsi, 0, shutd_active_low);
 	
 	dsi_set_bits(dsi, dsi->host.video_mode, vid_mode_type);	  //burst mode
 	switch(dsi->host.video_mode) {
 		case VM_BM:
-			dsi_set_bits(dsi, screen->x_res, vid_pkt_size);
+		    if(screen->type == SCREEN_DUAL_MIPI)
+			    dsi_set_bits(dsi, screen->x_res / 2 + 4, vid_pkt_size);
+			 else
+			    dsi_set_bits(dsi, screen->x_res, vid_pkt_size);
 			break;
 		case VM_NBMWSE:
 		case VM_NBMWSP:
@@ -782,15 +939,17 @@ static int rk_mipi_dsi_host_init(struct dsi *dsi)
 	}	
 
 	//dsi_set_bits(dsi, 0, CMD_MODE_CFG << 16);
-	dsi_set_bits(dsi, dsi->phy.Tpclk * (screen->x_res + screen->left_margin + 
+
+	dsi_set_bits(dsi, dsi->phy.Tpclk * (screen->x_res + 8 + screen->left_margin + 
 					screen->hsync_len + screen->right_margin) \
-						/ dsi->phy.Ttxbyte_clk, vid_hline_time);
-	dsi_set_bits(dsi, dsi->phy.Tpclk * screen->left_margin / dsi->phy.Ttxbyte_clk, 
+						/ dsi->phy.Ttxbyte_clk, vid_hline_time);	
+						
+	dsi_set_bits(dsi, dsi->phy.Tpclk * (screen->left_margin) / dsi->phy.Ttxbyte_clk, 
 					vid_hbp_time);
-	dsi_set_bits(dsi, dsi->phy.Tpclk * screen->hsync_len / dsi->phy.Ttxbyte_clk, 
+	dsi_set_bits(dsi, dsi->phy.Tpclk * (screen->hsync_len) / dsi->phy.Ttxbyte_clk, 
 					vid_hsa_time);
-	
-	dsi_set_bits(dsi, screen->y_res, vid_active_lines);
+    
+	dsi_set_bits(dsi, screen->y_res , vid_active_lines);
 	dsi_set_bits(dsi, screen->lower_margin, vid_vfp_lines);
 	dsi_set_bits(dsi, screen->upper_margin, vid_vbp_lines);
 	dsi_set_bits(dsi, screen->vsync_len, vid_vsa_lines);
@@ -801,8 +960,8 @@ static int rk_mipi_dsi_host_init(struct dsi *dsi)
 	dsi_set_bits(dsi, val, TX_ESC_CLK_DIVISION);
 	
 	dsi_set_bits(dsi, 10, TO_CLK_DIVISION);
-	dsi_set_bits(dsi, 1000, lprx_to_cnt);
-	dsi_set_bits(dsi, 1000, hstx_to_cnt);	
+    dsi_set_bits(dsi, 1000, hstx_to_cnt); //no sure
+	dsi_set_bits(dsi, 1000, lprx_to_cnt);	
 	dsi_set_bits(dsi, 100, phy_stop_wait_time);
 
 	//dsi_set_bits(dsi, 0, outvact_lpcmd_time);   //byte
@@ -810,22 +969,28 @@ static int rk_mipi_dsi_host_init(struct dsi *dsi)
 		
 	dsi_set_bits(dsi, 20, phy_hs2lp_time);
 	dsi_set_bits(dsi, 16, phy_lp2hs_time);	
-	
+    
+#if defined(CONFIG_ARCH_RK3288)	
+   // dsi_set_bits(dsi, 87, phy_hs2lp_time_clk_lane); //no sure
+  //  dsi_set_bits(dsi, 25, phy_hs2hs_time_clk_lane); //no sure
+#endif	
+
 	dsi_set_bits(dsi, 10000, max_rd_time);
 #ifdef DWC_DSI_VERSION_0x3131302A
 	dsi_set_bits(dsi, 1, dpicolom);
 	dsi_set_bits(dsi, 1, dpishutdn);
 #endif
+#if 1
 	dsi_set_bits(dsi, 1, lp_hfp_en);
-	//dsi_set_bits(dsi, 1, lp_hbp_en);
+	//dsi_set_bits(dsi, 1, lp_hbp_en); //no sure
 	dsi_set_bits(dsi, 1, lp_vact_en);
 	dsi_set_bits(dsi, 1, lp_vfp_en);
 	dsi_set_bits(dsi, 1, lp_vbp_en);
 	dsi_set_bits(dsi, 1, lp_vsa_en);
-	
+#endif	
 	//dsi_set_bits(dsi, 1, frame_bta_ack_en);
-	//dsi_set_bits(dsi, 1, phy_enableclk);
-	//dsi_set_bits(dsi, 0, phy_tx_triggers);
+	dsi_set_bits(dsi, 1, phy_enableclk);
+	dsi_set_bits(dsi, 0, phy_tx_triggers);
 	//dsi_set_bits(dsi, 1, phy_txexitulpslan);
 	//dsi_set_bits(dsi, 1, phy_txexitulpsclk);
 	return 0;
@@ -836,7 +1001,6 @@ static int rk_mipi_dsi_host_init(struct dsi *dsi)
 */
 static int rk_mipi_dsi_init(void *arg, u32 n)
 {
-	u8 dcs[4] = {0};
 	u32 decimals = 1000, i = 0, pre = 0;
 	struct dsi *dsi = arg;
 	struct mipi_dsi_screen *screen = &dsi->screen;
@@ -844,17 +1008,24 @@ static int rk_mipi_dsi_init(void *arg, u32 n)
 	if(!screen)
 		return -1;
 	
-	if(screen->type != SCREEN_MIPI) {
-		MIPI_TRACE("only mipi dsi lcd is supported\n");
+	if((screen->type != SCREEN_MIPI) && (screen->type != SCREEN_DUAL_MIPI) ) {
+		MIPI_TRACE("only mipi dsi lcd is supported!\n");
 		return -1;
 	}
-	
+
+	if(((screen->type == SCREEN_DUAL_MIPI) && (rk_mipi_get_dsi_num() == 1)) ||  ((screen->type == SCREEN_MIPI) && (rk_mipi_get_dsi_num() == 2))){
+        MIPI_TRACE("dsi number and mipi type not match!\n");
+	    return -1;
+    }
+	    
 #ifdef CONFIG_MIPI_DSI_FT
 	dsi->phy.pclk = screen->pixclock;
 	dsi->phy.ref_clk = MIPI_DSI_MCLK;
 #else
 	
 	dsi->phy.Tpclk = rk_fb_get_prmry_screen_pixclock();
+
+	printk("dsi->phy.Tpclk=%d\n",dsi->phy.Tpclk);
 
 #if defined(CONFIG_MFD_RK616)
 	if(dsi_rk616->mclk)
@@ -867,15 +1038,24 @@ static int rk_mipi_dsi_init(void *arg, u32 n)
 #endif   /* CONFIG_MIPI_DSI_FT */
 
 	dsi->phy.sys_clk = dsi->phy.ref_clk;
-	
+
+#ifndef CONFIG_ARCH_RK3288	
 	if((screen->hs_tx_clk <= 80 * MHz) || (screen->hs_tx_clk >= 1000 * MHz))
 		dsi->phy.ddr_clk = 1000 * MHz;    //default is 1HGz
 	else
 		dsi->phy.ddr_clk = screen->hs_tx_clk;	
-	
-	if(n != 0) {
+#else
+    if((screen->hs_tx_clk <= 90 * MHz) || (screen->hs_tx_clk >= 1500 * MHz))
+        dsi->phy.ddr_clk = 1500 * MHz;    //default is 1.5HGz
+    else
+        dsi->phy.ddr_clk = screen->hs_tx_clk;   
+#endif	
+
+
+/*	if(n != 0) {
 		dsi->phy.ddr_clk = n;
 	}
+    */
 
 	decimals = dsi->phy.ref_clk;
 	for(i = 1; i < 6; i++) {
@@ -891,6 +1071,8 @@ static int rk_mipi_dsi_init(void *arg, u32 n)
 
 	MIPI_DBG("prediv:%d, fbdiv:%d\n", dsi->phy.prediv, dsi->phy.fbdiv);
 	dsi->phy.ddr_clk = dsi->phy.ref_clk / dsi->phy.prediv * dsi->phy.fbdiv;	
+
+    MIPI_DBG("dsi->phy.ddr_clk =%d\n",dsi->phy.ddr_clk);
 	dsi->phy.txbyte_clk = dsi->phy.ddr_clk / 8;
 	
 	dsi->phy.txclkesc = 20 * MHz;        // < 20MHz
@@ -929,39 +1111,23 @@ static int rk_mipi_dsi_init(void *arg, u32 n)
 				dsi->phy.Ttxbyte_clk);
 	MIPI_DBG("txclkesc:%d, Ttxclkesc:%d\n", dsi->phy.txclkesc, dsi->phy.Ttxclkesc);
 	
-	rk_mipi_dsi_phy_power_up(dsi);
-	rk_mipi_dsi_host_power_up(dsi);
 	rk_mipi_dsi_phy_init(dsi);
+    rk_mipi_dsi_phy_power_up(dsi);
+    rk_mipi_dsi_host_power_up(dsi);
 	rk_mipi_dsi_host_init(dsi);
-#if defined(CONFIG_ARCH_RK3288)
-
-#else
-	if(!screen->init) {
-		rk_mipi_dsi_enable_hs_clk(dsi, 1);
-#ifndef CONFIG_MIPI_DSI_FT	
-		dcs[0] = HSDT;
-		dcs[1] = dcs_exit_sleep_mode; 
-		rk_mipi_dsi_send_dcs_packet(dsi, dcs, 2);
-		msleep(1);
-		dcs[0] = HSDT;
-		dcs[1] = dcs_set_display_on;
-		rk_mipi_dsi_send_dcs_packet(dsi, dcs, 2);
-		msleep(10);
-#endif	
-	} else {
-		screen->init();
-	}
-#endif	
+		
 	/*
 		After the core reset, DPI waits for the first VSYNC active transition to start signal sampling, including
 		pixel data, and preventing image transmission in the middle of a frame.
 	*/
+#if 0	
 	dsi_set_bits(dsi, 0, shutdownz);
 	rk_mipi_dsi_enable_video_mode(dsi, 1);
 #ifdef CONFIG_MFD_RK616
 	rk616_display_router_cfg(dsi_rk616, g_rk29fd_screen, 0);
 #endif
 	dsi_set_bits(dsi, 1, shutdownz);
+#endif
 	return 0;
 }
 
@@ -1035,10 +1201,18 @@ int rk_mipi_dsi_init_lite(struct dsi *dsi)
 	//dsi_set_bits(dsi, 0, shutdownz);
 	rk_mipi_dsi_enable_hs_clk(dsi, 1);
 	rk_mipi_dsi_enable_video_mode(dsi, 1);
-	dsi_set_bits(dsi, 1, shutdownz);
+	rk_mipi_dsi_is_enable(dsi, 1);
 	return 0;
 }
 
+static int rk_mipi_dsi_is_enable(void *arg, u32 enable)
+{
+	struct dsi *dsi = arg;
+
+	dsi_set_bits(dsi, enable, shutdownz);
+
+	return 0;
+}
 
 static int rk_mipi_dsi_enable_video_mode(void *arg, u32 enable)
 {
@@ -1048,9 +1222,9 @@ static int rk_mipi_dsi_enable_video_mode(void *arg, u32 enable)
 #else
 	dsi_set_bits(dsi, !enable, cmd_video_mode);
 #endif
+
 	return 0;
 }
-
 
 static int rk_mipi_dsi_enable_command_mode(void *arg, u32 enable)
 {
@@ -1205,9 +1379,34 @@ static int rk_mipi_dsi_power_up(void *arg)
 
 static int rk_mipi_dsi_power_down(void *arg)
 {
+    u8 dcs[4] = {0};
 	struct dsi *dsi = arg;
+	struct mipi_dsi_screen *screen = &dsi->screen;
+	
+	if(!screen)
+		return -1;
+	
+	if(!screen->standby) {
+		rk_mipi_dsi_enable_video_mode(dsi, 0);
+		dcs[0] = HSDT;
+		dcs[1] = dcs_set_display_off; 
+		rk_mipi_dsi_send_dcs_packet(dsi, dcs, 2);
+		msleep(1);
+		dcs[0] = HSDT;
+		dcs[1] = dcs_enter_sleep_mode; 
+		rk_mipi_dsi_send_dcs_packet(dsi, dcs, 2);
+		msleep(1);
+	} else {
+		screen->standby(1);
+	}	
+		
 	rk_mipi_dsi_host_power_down(dsi);
 	rk_mipi_dsi_phy_power_down(dsi);
+#if defined(CONFIG_ARCH_RK319X)
+	clk_disable(dsi->dsi_pd);
+	clk_disable(dsi->dsi_pclk);
+#endif
+	MIPI_TRACE("%s:%d\n", __func__, __LINE__);
 	return 0;
 }
 
@@ -1219,22 +1418,21 @@ static int rk_mipi_dsi_get_id(void *arg)
 	return id;
 }
 
-
 /* the most top level of mipi dsi init */
 static int rk_mipi_dsi_probe(struct dsi *dsi)
 {
 	int ret = 0;
+	
 	register_dsi_ops(dsi->dsi_id, &dsi->ops);
+	
 	ret = dsi_probe_current_chip(dsi->dsi_id);
 	if(ret) {
 		MIPI_TRACE("mipi dsi probe fail\n");
 		return -ENODEV;
 	}
-	rk_mipi_dsi_init(dsi, 0);	
 
 	return 0;
 }
-
 
 #ifdef MIPI_DSI_REGISTER_IO
 #include <linux/proc_fs.h>
@@ -1347,8 +1545,6 @@ reg_proc_write_exit:
  	return count;
 }
 
-
-
 int reg_proc_read(struct file *file, char __user *buff, size_t count, 
 					loff_t *offp)
 {
@@ -1421,11 +1617,11 @@ int reg_proc_close(struct inode *inode, struct file *file)
 }
 
 struct file_operations reg_proc_fops = {
-	.owner = THIS_MODULE,
-	.open = reg_proc_open,
-	.release = reg_proc_close,
-	.write = reg_proc_write,
-	.read = reg_proc_read,
+    .owner  = THIS_MODULE,
+	.open   = reg_proc_open,
+	.release= reg_proc_close,
+	.write  = reg_proc_write,
+	.read   = reg_proc_read,
 };
 
 static int reg_proc_init(char *name)
@@ -1514,8 +1710,6 @@ int rk616_mipi_dsi_ft_init(void)
 }
 #endif  /* end of CONFIG_MIPI_DSI_FT */
 
-
-
 #ifdef CONFIG_MIPI_DSI_LINUX
 
 #ifdef CONFIG_HAS_EARLYSUSPEND
@@ -1563,7 +1757,7 @@ void rk616_mipi_dsi_resume(void)
 	rk_mipi_dsi_host_init(dsi);
 #endif
 
-	if(!g_screen->standby) {
+/*	if(!g_screen->standby) {
 		rk_mipi_dsi_enable_hs_clk(dsi, 1);
 		dcs[0] = HSDT;
 		dcs[1] = dcs_exit_sleep_mode;
@@ -1575,20 +1769,20 @@ void rk616_mipi_dsi_resume(void)
 		//msleep(10);
 	} else {
 		g_screen->standby(0);
-	}
+	}*/
 	
-	dsi_set_bits(dsi, 0, shutdownz);
+	rk_mipi_dsi_is_enable(dsi, 0);
 	rk_mipi_dsi_enable_video_mode(dsi, 1);
+	
 #ifdef CONFIG_MFD_RK616	
 	dsi_rk616->resume = 1;
 	rk616_display_router_cfg(dsi_rk616, g_rk29fd_screen, 0);
 	dsi_rk616->resume = 0;
 #endif	
-	dsi_set_bits(dsi, 1, shutdownz);
+	rk_mipi_dsi_is_enable(dsi, 1, shutdownz);
 	MIPI_TRACE("%s:%d\n", __func__, __LINE__);
 }
 
-//#ifdef CONFIG_MIPI_DSI_LINUX
 
 #ifdef CONFIG_HAS_EARLYSUSPEND
 static void rk616_mipi_dsi_early_suspend(struct early_suspend *h)
@@ -1635,239 +1829,95 @@ struct notifier_block mipi_dsi_nb= {
 };
 #endif
 
-
-
 #ifndef CONFIG_MFD_RK616
 static irqreturn_t rk616_mipi_dsi_irq_handler(int irq, void *data)
 {
-	
-
-
 	return IRQ_HANDLED;
 	//return IRQ_NONE;
 }
 #endif
 
-
-
-#if CONFIG_OF
-
-static int mipi_dsi_get_screen_dt(struct device *dev,struct dsi *dsi)
-{
-    struct device_node *node = dev->of_node;
-    struct device_node *childnode, *grandchildnode,*root;
-    struct mipi_dcs_cmd_ctr_list  *dcs_cmd;
-    struct list_head *pos;
-    struct property *prop;
-    enum of_gpio_flags flags;
-    const char *pin_funcs, *strings;
-    u32 value,i,debug,gpio,ret,cmds[20],length;
-
-    if (!node)
-        return -ENODEV;
-
-    memset(dsi, 0, sizeof(*dsi));
-    INIT_LIST_HEAD(&dsi->cmdlist_head);
-
-    childnode = of_get_child_by_name(node, "mipi_dsi_init");
-    if(!childnode )
-    {
-        printk("%s: Can not get child => mipi_init.\n", __func__);
-    }
-    else
-    {
-        ret = of_property_read_u32(childnode, "screen_init", &value);
-        if (ret) {
-            printk("%s: Can not read property: screen_init.\n", __func__);
-        } else {
-            dsi->screen.screen_init = value;
-            printk("%s: dsi->screen->screen_init = %d.\n", __func__, dsi->screen.screen_init ); 
-        }
-        
-        ret = of_property_read_u32(childnode, "dsi_lane", &value);
-        if (ret) {
-            printk("%s: Can not read property: dsi_lane.\n", __func__);
-        } else {
-            dsi->screen.dsi_lane = value;
-            printk("%s: dsi->screen.dsi_lane = %d.\n", __func__, dsi->screen.dsi_lane ); 
-        } 
-            
-        ret = of_property_read_u32(childnode, "dsi_hs_clk", &value);
-        if (ret) {
-            printk("%s: Can not read property: dsi_hs_clk.\n", __func__);
-        } else {
-            dsi->screen.hs_tx_clk = value;
-            printk("%s: dsi->screen->hs_tx_clk = %d.\n", __func__, dsi->screen.hs_tx_clk ); 
-        } 
-        
-        ret = of_property_read_u32(childnode, "mipi_screen_id", &value);
-        if (ret) {
-            printk("%s: Can not read property: mipi_screen_id.\n", __func__);
-        } else {
-            dsi->screen.mipi_screen_id = value ;
-            printk("%s: dsi->screen.mipi_screen_id = %d.\n", __func__, dsi->screen.mipi_screen_id ); 
-        }  
-    }
-
-
-    childnode = of_get_child_by_name(node, "mipi_power_ctr");
-    if(!childnode )
-    {
-        printk("%s: Can not get child => mipi_power_ctr.\n", __func__);
-    }
-    else
-	{
-		grandchildnode = of_get_child_by_name(childnode, "mipi_lcd_rst");
-		if (!grandchildnode)
-        {
-            printk("%s: mipi_lcd_rst = %d.\n", __func__, value ); 
-        }
-        else
-        {
-            ret = of_property_read_u32(grandchildnode, "delay", &value);
-            if (ret)
-           {
-                printk("%s: Can not read property: delay.\n", __func__);
-            } 
-            else 
-            {
-                dsi->screen.lcd_rst_delay = value;
-                printk("%s: dsi->screen->lcd_rst_delay = %d.\n", __func__, dsi->screen.lcd_rst_delay );     
-            } 
-            
-            gpio = of_get_named_gpio_flags(grandchildnode, "gpios", 0, &flags);
-            if (!gpio_is_valid(gpio)){
-                printk("rest: Can not read property: %s->gpios.\n", __func__);
-            } 
-            
-            ret = gpio_request(gpio,"mipi_lcd_rst");
-			if (ret) {
-                printk("request mipi_lcd_rst gpio fail:%d\n",gpio);
-                return -1;
-				}
-            
-            dsi->screen.lcd_rst_gpio = gpio;
-            dsi->screen.lcd_rst_atv_val = flags;
-            
-            printk("dsi->screen.lcd_rst_gpio=%d,dsi->screen.lcd_rst_atv_val=%d\n",dsi->screen.lcd_rst_gpio,dsi->screen.lcd_rst_atv_val);
-		} 
-		
-		grandchildnode = of_get_child_by_name(childnode, "mipi_lcd_en");
-		if (!grandchildnode)
-        {
-			printk("%s: Can not read property: mipi_lcd_en.\n", __func__);
-		} 
-        else 
-		{
-			ret = of_property_read_u32(grandchildnode, "delay", &value);
-            if (ret)
-           {
-                printk("%s: Can not read property: mipi_lcd_en-delay.\n", __func__);
-            } 
-            else 
-            {
-                 dsi->screen.lcd_en_dealay = value;
-                printk("%s: dsi->screen.lcd_en_dealay = %d.\n", __func__, dsi->screen.lcd_en_dealay ); 
-            } 
-            
-            gpio = of_get_named_gpio_flags(grandchildnode, "gpios", 0, &flags);
-            if (!gpio_is_valid(gpio)){
-                printk("rest: Can not read property: %s->gpios.\n", __func__);
-            }  
-            dsi->screen.lcd_en_gpio = gpio;
-            dsi->screen.lcd_en_atv_val= flags;
-            printk("dsi->screen.lcd_en_gpio=%d, dsi->screen.lcd_en_atv_val=%d\n",dsi->screen.lcd_en_gpio,dsi->screen.lcd_en_atv_val);
-		}
-	}
-
-    root= of_find_node_by_name(node,"panel-on-cmds");
-    if (!root) {
-		printk("can't find panel-on-cmds node\n");
-		return -ENODEV;
-	}
-    else
-    {
-    	for_each_child_of_node(root, childnode)
-        {
-		    dcs_cmd = kmalloc(sizeof(struct mipi_dcs_cmd_ctr_list), GFP_KERNEL);
-		    strcpy(dcs_cmd->dcs_cmd.name, childnode->name);
-            
-            prop = of_find_property(childnode, "cmd", &length);
-            if (!prop)
-            {
-                printk("Can not read property: cmds\n");
-                return -EINVAL;
-            }
-
-            printk("length=%d\n\n",(length / sizeof(u32)));
-            
-            ret = of_property_read_u32_array(childnode,  "cmd", cmds, (length / sizeof(u32)));
-		    if(ret < 0) 
-            {
-                printk("%s: Can not read property: %s--->cmds\n", __func__,childnode->name);
-                return ret;
-            }
-            else
-            {
-	            for(i = 0; i < (length / sizeof(u32)); i++)
-                {   
-                   printk("cmd[%d]=%02x£¬",i+1,cmds[i]);
-		           dcs_cmd->dcs_cmd.cmds[i] = cmds[i];
-                }
-                //printk("\n");
-            }
-           
-            ret = of_property_read_u32(childnode, "rockchip,cmd_type", &value);
-            if(ret)
-            {
-                printk("%s: Can not read property: %s--->cmd_type\n", __func__,childnode->name);
-            }
-            else
-            {
-                dcs_cmd->dcs_cmd.type = value;
-            }
-
-            ret = of_property_read_u32(childnode, "rockchip,cmd_delay", &value);
-            if(ret)
-            {
-                printk("%s: Can not read property: %s--->cmd_delay\n", __func__,childnode->name);
-            }
-            else
-            {
-                dcs_cmd->dcs_cmd.delay = value;
-            }
-
-    		list_add_tail(&dcs_cmd->list, &dsi->cmdlist_head);
-        }
-    }
-    ret = of_property_read_u32(root, "rockchip,cmd_debug", &debug);
-    if(ret)
-    {
-        printk("%s: Can not read property: rockchip,cmd_debug.\n", __func__);
-    }
-    else
-    {
-        if (debug) {
-            list_for_each(pos, &dsi->cmdlist_head) {
-                dcs_cmd = list_entry(pos, struct mipi_dcs_cmd_ctr_list, list);
-                printk("dcs_name:%s," "dcs_type:%d," "delay:%d\n\n",
-                        dcs_cmd->dcs_cmd.name,
-                        dcs_cmd->dcs_cmd.type,
-                        dcs_cmd->dcs_cmd.delay);
-            }
-        }
-        else
-        {
-            printk("---close cmd debug---\n");
-        }
-   }
+static int rk32_dsi_enable(void)
+{   
+    MIPI_DBG("rk32_dsi_enable-------\n");
     
-    ret=-1;
-    return ret;
-    
+    dsi_init(0, NULL, 0);
+    if (rk_mipi_get_dsi_num() ==2)
+        dsi_init(1, NULL, 0);
+              
+    rk_mipi_screen();  
+
+	/*
+		After the core reset, DPI waits for the first VSYNC active transition to start signal sampling, including
+		pixel data, and preventing image transmission in the middle of a frame.
+	*/
+    dsi_is_enable(0, 0);
+    if (rk_mipi_get_dsi_num() ==2)
+        dsi_is_enable(1, 0);     
+
+    dsi_enable_video_mode(0, 1);
+    dsi_enable_video_mode(1, 1);
+
+#ifdef CONFIG_MFD_RK616
+        rk616_display_router_cfg(dsi_rk616, g_rk29fd_screen, 0);
+#endif
+
+    dsi_is_enable(0, 1);
+    if (rk_mipi_get_dsi_num() ==2)
+        dsi_is_enable(1, 1);
+
+    return 0;
 }
 
-#endif
+static int rk32_dsi_disable(void)
+{
+    MIPI_DBG("rk32_dsi_disable-------\n");
+    
+    dsi_power_off(0);
+    if (rk_mipi_get_dsi_num() ==2)
+        dsi_power_off(1);
+    
+    return 0;
+}
+
+
+static struct rk_fb_trsm_ops trsm_dsi_ops = 
+{
+    .enable = rk32_dsi_enable,
+    .disable = rk32_dsi_disable,
+};
+
+static void rk32_init_phy_mode(int lcdc_id)
+{ 
+    int val0 = 0, val1 = 0;
+
+    MIPI_DBG("rk32_init_phy_mode----------lcdc_id=%d\n",lcdc_id);
+    //D-PHY mode select
+    if( rk_mipi_get_dsi_num() ==1 ){
+    
+        if(lcdc_id == 1)
+        //val0 =0x1 << 25 | 0x1 << 9;
+           val0 = 0x1 << 22 | 0x1 << 6;  //1'b1: VOP LIT output to DSI host0;1'b0: VOP BIG output to DSI host0
+        else
+           val0 = 0x1 << 22 | 0x0 << 6; 
+
+        writel_relaxed(val0, RK_GRF_VIRT + RK3288_GRF_SOC_CON6);
+    }
+    else{
+        if(lcdc_id == 1){
+            val0 = 0x1 << 25 | 0x1 <<  9 | 0x1 << 22 | 0x1 <<  6; 
+            val1 = 0x1 << 31 | 0x1 << 30 | 0x0 << 15 | 0x1 << 14; 
+         }
+         else{
+            val0 = 0x1 << 25 | 0x0 <<  9 | 0x1 << 22 | 0x0 << 14; 
+            val1 = 0x1 << 31 | 0x1 << 30 | 0x0 << 15 | 0x1 << 14;        
+         }
+         
+         writel_relaxed(val0, RK_GRF_VIRT + RK3288_GRF_SOC_CON6);
+         writel_relaxed(val1, RK_GRF_VIRT + RK3288_GRF_SOC_CON14);    
+    }
+
+}
 
 static int rk616_mipi_dsi_probe(struct platform_device *pdev)
 {
@@ -1889,13 +1939,6 @@ static int rk616_mipi_dsi_probe(struct platform_device *pdev)
 		dev_err(&pdev->dev,"request struct dsi fail!\n");
 		return -ENOMEM;
 	}
-    //printk("rk616_mipi_dsi_probe----------------------\n");  
-
-     ret = mipi_dsi_get_screen_dt(&pdev->dev, dsi);
-     if (ret < 0) {
-        dev_err(&pdev->dev,"No platform data specified!\n");
-        return ret;
-      }
 
 #if defined(CONFIG_MFD_RK616)
 	rk616 = dev_get_drvdata(pdev->dev.parent);
@@ -1986,27 +2029,29 @@ static int rk616_mipi_dsi_probe(struct platform_device *pdev)
 	clk_enable(clk_get(NULL, "pclk_mipiphy_dsi"));
 
 #elif defined(CONFIG_ARCH_RK3288)
-	/*res_host = platform_get_resource(pdev, IORESOURCE_MEM, 0);
+
+	res_host = platform_get_resource(pdev, IORESOURCE_MEM, 0);
 	dsi->host.membase = devm_request_and_ioremap(&pdev->dev, res_host);
 	if (!dsi->host.membase)
 		return -ENOMEM;
+		
 	dsi->host.irq = platform_get_irq(pdev, 0);
 	if (dsi->host.irq < 0) {
 		dev_err(&pdev->dev, "no irq resource?\n");
 		return dsi->host.irq;
 	}
-	ret = request_irq(dsi->host.irq, rk616_mipi_dsi_irq_handler, 0,
-					dev_name(&pdev->dev), dsi);
+	
+	ret = request_irq(dsi->host.irq, rk616_mipi_dsi_irq_handler, 0,dev_name(&pdev->dev), dsi);
 	if(ret) {
 		dev_err(&pdev->dev, "request mipi_dsi irq fail\n");
 		ret = -EINVAL;
 		goto probe_err1;
 	}
-	disable_irq(dsi->host.irq);*/
+    printk("dsi->host.irq =%d\n",dsi->host.irq); 
 
+    disable_irq(dsi->host.irq);
 
 #endif  /* CONFIG_MFD_RK616 */
-
 
 	screen = devm_kzalloc(&pdev->dev, sizeof(struct rk_screen), GFP_KERNEL);
 	if(!screen) {
@@ -2018,8 +2063,6 @@ static int rk616_mipi_dsi_probe(struct platform_device *pdev)
 #ifdef CONFIG_MFD_RK616
 	g_rk29fd_screen = screen;
 #endif
-
-
 
 	dsi->pdev = pdev;
 	ops = &dsi->ops;
@@ -2033,6 +2076,7 @@ static int rk616_mipi_dsi_probe(struct platform_device *pdev)
 	ops->dsi_enable_command_mode = rk_mipi_dsi_enable_command_mode,
 	ops->dsi_enable_hs_clk = rk_mipi_dsi_enable_hs_clk,
 	ops->dsi_is_active = rk_mipi_dsi_is_active,
+	ops->dsi_is_enable= rk_mipi_dsi_is_enable,
 	ops->power_up = rk_mipi_dsi_power_up,
 	ops->power_down = rk_mipi_dsi_power_down,
 	ops->dsi_init = rk_mipi_dsi_init,
@@ -2052,27 +2096,17 @@ static int rk616_mipi_dsi_probe(struct platform_device *pdev)
 	dsi_screen->x_res = screen->mode.xres;
 	dsi_screen->y_res = screen->mode.yres;
 	dsi_screen->pin_hsync = screen->pin_hsync;
-	dsi_screen->pin_vsync = screen->pin_vsync;
+    dsi_screen->pin_vsync = screen->pin_vsync;
 	dsi_screen->pin_den = screen->pin_den;
 	dsi_screen->pin_dclk = screen->pin_dclk;
-	dsi_screen->dsi_lane = screen->dsi_lane;
-	dsi_screen->dsi_video_mode = screen->dsi_video_mode;
-	dsi_screen->hs_tx_clk = screen->hs_tx_clk;
-    
-  #if   defined(CONFIG_ARCH_RK3288)
-
-  #else
-	dsi_screen->init = screen->init;
-	dsi_screen->standby = screen->standby;
-  #endif   //end CONFIG_ARCH_RK3288
-  
-     printk("dsi_screen->type=%d\n",dsi_screen->type);
-        printk("dsi_screen->pixclock=%d\n",dsi_screen->pixclock);
-      printk("dsi_screen->x_res=%d\n",dsi_screen->x_res);
-      printk("dsi_screen->y_res=%d\n",dsi_screen->y_res);
-
+    dsi_screen->dsi_lane = rk_mipi_get_dsi_lane();
+//  dsi_screen->dsi_video_mode = screen->dsi_video_mode; //no sure
+	dsi_screen->dsi_lane = rk_mipi_get_dsi_lane();
+	dsi_screen->hs_tx_clk = rk_mipi_get_dsi_clk();  
+	dsi_screen->lcdc_id = 1;
     
 	dsi->dsi_id = id++;//of_alias_get_id(pdev->dev.of_node, "dsi");
+
 	sprintf(ops->name, "rk_mipi_dsi.%d", dsi->dsi_id);
 	platform_set_drvdata(pdev, dsi);
 
@@ -2107,7 +2141,12 @@ static int rk616_mipi_dsi_probe(struct platform_device *pdev)
 	dsi->early_suspend.level = EARLY_SUSPEND_LEVEL_BLANK_SCREEN + 1;
 	register_early_suspend(&dsi->early_suspend);
 #endif
-	
+    
+    if(id == 1){
+        rk32_init_phy_mode(dsi_screen->lcdc_id);
+        rk_fb_trsm_ops_register(&trsm_dsi_ops, SCREEN_MIPI);	
+    }
+    
 	dev_info(&pdev->dev,"rk mipi_dsi probe success!\n");
 	dev_info(&pdev->dev,"%s\n", RK_MIPI_DSI_VERSION_AND_TIME);
 	return 0;
@@ -2137,14 +2176,16 @@ probe_err3:
 probe_err2:
 	release_mem_region(res_host->start, resource_size(res_host));
 #endif
+
 probe_err1:
+
 	return ret;
 	
 }
 
 static int rk616_mipi_dsi_remove(struct platform_device *pdev)
 {
-	struct dsi *dsi = platform_get_drvdata(pdev);
+	//struct dsi *dsi = platform_get_drvdata(pdev);
 #ifdef CONFIG_MFD_RK616
 	clk_notifier_unregister(dsi_rk616->mclk, &mipi_dsi_nb);
 #endif
@@ -2154,9 +2195,7 @@ static int rk616_mipi_dsi_remove(struct platform_device *pdev)
 static void rk616_mipi_dsi_shutdown(struct platform_device *pdev)
 {
 	u8 dcs[4] = {0};
-	struct dsi *dsi = platform_get_drvdata(pdev);
-    
-#if !defined(CONFIG_ARCH_RK3288)	
+	struct dsi *dsi = platform_get_drvdata(pdev);	
 
 	if(!dsi->screen.standby) {
 		rk_mipi_dsi_enable_video_mode(dsi, 0);
@@ -2171,8 +2210,6 @@ static void rk616_mipi_dsi_shutdown(struct platform_device *pdev)
 	} else {
 		dsi->screen.standby(1);
 	}
-    
-#endif
 
 	rk_mipi_dsi_host_power_down(dsi);
 	rk_mipi_dsi_phy_power_down(dsi);
@@ -2183,7 +2220,7 @@ static void rk616_mipi_dsi_shutdown(struct platform_device *pdev)
 
 #ifdef CONFIG_OF
 static const struct of_device_id of_rk_mipi_dsi_match[] = {
-	{ .compatible = "rockchip,mipi_dsi" }, 
+	{ .compatible = "rockchip,rk32-dsi" }, 
 	{ /* Sentinel */ } 
 }; 
 #endif

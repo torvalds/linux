@@ -38,11 +38,11 @@
 
 
 static struct mipi_dsi_ops *dsi_ops[MAX_DSI_CHIPS] = {NULL};
-static struct mipi_dsi_ops *cur_dsi_ops;
+//static struct mipi_dsi_ops *cur_dsi_ops;
 
 int register_dsi_ops(unsigned int id, struct mipi_dsi_ops *ops) {
 
-	int i = 0;
+	//int i = 0;
 	if(id > (MAX_DSI_CHIPS - 1))
 		return -EINVAL;
 
@@ -249,11 +249,31 @@ int dsi_is_active(unsigned int id) {
 }
 EXPORT_SYMBOL(dsi_is_active);
 
+int dsi_is_enable(unsigned int id, u32 enable){
+
+    struct mipi_dsi_ops *ops = NULL;
+
+	if(id > (MAX_DSI_CHIPS - 1))
+		return -EINVAL;
+
+	ops = dsi_ops[id];
+
+	if(!ops)
+		return -EINVAL;
+
+	if(ops->dsi_is_enable)
+		ops->dsi_is_enable(ops->dsi, enable);
+
+	return 0;
+	
+}
+EXPORT_SYMBOL(dsi_is_enable);
 
 int dsi_send_dcs_packet(unsigned int id, unsigned char *packet, u32 n) {
 
 	struct mipi_dsi_ops *ops = NULL;
 
+    printk("dsi_send_dcs_packet-------id=%d\n",id);
 	if(id > (MAX_DSI_CHIPS - 1))
 		return -EINVAL;
 
