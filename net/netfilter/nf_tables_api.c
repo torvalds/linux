@@ -381,7 +381,7 @@ err:
 	return err;
 }
 
-static int nf_tables_table_disable(const struct nft_af_info *afi,
+static void nf_tables_table_disable(const struct nft_af_info *afi,
 				   struct nft_table *table)
 {
 	struct nft_chain *chain;
@@ -391,8 +391,6 @@ static int nf_tables_table_disable(const struct nft_af_info *afi,
 			nf_unregister_hooks(nft_base_chain(chain)->ops,
 					    afi->nops);
 	}
-
-	return 0;
 }
 
 static int nf_tables_updtable(struct sock *nlsk, struct sk_buff *skb,
@@ -412,9 +410,8 @@ static int nf_tables_updtable(struct sock *nlsk, struct sk_buff *skb,
 
 		if ((flags & NFT_TABLE_F_DORMANT) &&
 		    !(table->flags & NFT_TABLE_F_DORMANT)) {
-			ret = nf_tables_table_disable(afi, table);
-			if (ret >= 0)
-				table->flags |= NFT_TABLE_F_DORMANT;
+			nf_tables_table_disable(afi, table);
+			table->flags |= NFT_TABLE_F_DORMANT;
 		} else if (!(flags & NFT_TABLE_F_DORMANT) &&
 			   table->flags & NFT_TABLE_F_DORMANT) {
 			ret = nf_tables_table_enable(afi, table);
