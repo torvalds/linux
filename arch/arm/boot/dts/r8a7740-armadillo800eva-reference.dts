@@ -118,6 +118,16 @@
 		};
 	};
 
+	i2c2: i2c@2 {
+		#address-cells = <1>;
+		#size-cells = <0>;
+		compatible = "i2c-gpio";
+		gpios = <&pfc 208 GPIO_ACTIVE_HIGH /* sda */
+			 &pfc 91 GPIO_ACTIVE_HIGH /* scl */
+			>;
+		i2c-gpio,delay-us = <5>;
+	};
+
 	backlight {
 		compatible = "pwm-backlight";
 		pwms = <&tpu 2 33333 PWM_POLARITY_INVERTED>;
@@ -164,6 +174,14 @@
 		#sound-dai-cells = <0>;
 		compatible = "wlf,wm8978";
 		reg = <0x1a>;
+	};
+};
+
+&i2c2 {
+	status = "okay";
+	rtc@30 {
+		compatible = "seiko,s35390a";
+		reg = <0x30>;
 	};
 };
 
