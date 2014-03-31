@@ -253,13 +253,10 @@ static int validate_insn_32bits(struct arch_uprobe *auprobe, struct insn *insn)
  *  - The displacement is always 4 bytes.
  */
 static void
-handle_riprel_insn(struct arch_uprobe *auprobe, struct mm_struct *mm, struct insn *insn)
+handle_riprel_insn(struct arch_uprobe *auprobe, struct insn *insn)
 {
 	u8 *cursor;
 	u8 reg;
-
-	if (mm->context.ia32_compat)
-		return;
 
 	if (!insn_rip_relative(insn))
 		return;
@@ -314,7 +311,6 @@ handle_riprel_insn(struct arch_uprobe *auprobe, struct mm_struct *mm, struct ins
 		cursor++;
 		memmove(cursor, cursor + insn->displacement.nbytes, insn->immediate.nbytes);
 	}
-	return;
 }
 
 static int validate_insn_64bits(struct arch_uprobe *auprobe, struct insn *insn)
@@ -343,7 +339,7 @@ static int validate_insn_bits(struct arch_uprobe *auprobe, struct mm_struct *mm,
 	return validate_insn_64bits(auprobe, insn);
 }
 #else /* 32-bit: */
-static void handle_riprel_insn(struct arch_uprobe *auprobe, struct mm_struct *mm, struct insn *insn)
+static void handle_riprel_insn(struct arch_uprobe *auprobe, struct insn *insn)
 {
 	/* No RIP-relative addressing on 32-bit */
 }
@@ -376,7 +372,7 @@ int arch_uprobe_analyze_insn(struct arch_uprobe *auprobe, struct mm_struct *mm, 
 	 * and annotate arch_uprobe->fixups accordingly. To start with, ->fixups
 	 * is either zero or it reflects rip-related fixups.
 	 */
-	handle_riprel_insn(auprobe, mm, &insn);
+	handle_riprel_insn(auprobe, &insn);
 
 	switch (OPCODE1(&insn)) {
 	case 0x9d:		/* popf */
