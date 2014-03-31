@@ -689,6 +689,7 @@ void bpf_jit_compile(struct sk_filter *fp)
 		((u64 *)image)[0] = (u64)code_base;
 		((u64 *)image)[1] = local_paca->kernel_toc;
 		fp->bpf_func = (void *)image;
+		fp->jited = 1;
 	}
 out:
 	kfree(addrs);
@@ -697,7 +698,7 @@ out:
 
 void bpf_jit_free(struct sk_filter *fp)
 {
-	if (fp->bpf_func != sk_run_filter)
+	if (fp->jited)
 		module_free(NULL, fp->bpf_func);
 	kfree(fp);
 }
