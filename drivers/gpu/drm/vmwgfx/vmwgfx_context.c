@@ -117,10 +117,10 @@ static void vmw_hw_context_destroy(struct vmw_resource *res)
 		(void) vmw_context_binding_state_kill
 			(&container_of(res, struct vmw_user_context, res)->cbs);
 		(void) vmw_gb_context_destroy(res);
+		mutex_unlock(&dev_priv->binding_mutex);
 		if (dev_priv->pinned_bo != NULL &&
 		    !dev_priv->query_cid_valid)
 			__vmw_execbuf_release_pinned_bo(dev_priv, NULL);
-		mutex_unlock(&dev_priv->binding_mutex);
 		mutex_unlock(&dev_priv->cmdbuf_mutex);
 		return;
 	}
