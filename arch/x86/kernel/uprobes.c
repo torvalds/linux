@@ -474,19 +474,18 @@ int arch_uprobe_analyze_insn(struct arch_uprobe *auprobe, struct mm_struct *mm, 
  */
 int arch_uprobe_pre_xol(struct arch_uprobe *auprobe, struct pt_regs *regs)
 {
-	struct arch_uprobe_task *autask;
+	struct uprobe_task *utask = current->utask;
 
-	autask = &current->utask->autask;
-	autask->saved_trap_nr = current->thread.trap_nr;
+	regs->ip = utask->xol_vaddr;
+	utask->autask.saved_trap_nr = current->thread.trap_nr;
 	current->thread.trap_nr = UPROBE_TRAP_NR;
-	regs->ip = current->utask->xol_vaddr;
-	pre_xol_rip_insn(auprobe, regs, autask);
 
-	autask->saved_tf = !!(regs->flags & X86_EFLAGS_TF);
+	utask->autask.saved_tf = !!(regs->flags & X86_EFLAGS_TF);
 	regs->flags |= X86_EFLAGS_TF;
 	if (test_tsk_thread_flag(current, TIF_BLOCKSTEP))
 		set_task_blockstep(current, false);
 
+	pre_xol_rip_insn(auprobe, regs, &utask->autask);
 	return 0;
 }
 
@@ -560,22 +559,13 @@ bool arch_uprobe_xol_was_trapped(struct task_struct *t)
  */
 int arch_uprobe_post_xol(struct arch_uprobe *auprobe, struct pt_regs *regs)
 {
-	struct uprobe_task *utask;
+	struct uprobe_task *utask = current->utask;
 	long correction;
 	int result = 0;
 
 	WARN_ON_ONCE(current->thread.trap_nr != UPROBE_TRAP_NR);
 
-	utask = current->utask;
 	current->thread.trap_nr = utask->autask.saved_trap_nr;
-	correction = (long)(utask->vaddr - utask->xol_vaddr);
-	handle_riprel_post_xol(auprobe, regs, &correction);
-	if (auprobe->fixups & UPROBE_FIX_IP)
-		regs->ip += correction;
-
-	if (auprobe->fixups & UPROBE_FIX_CALL)
-		result = adjust_ret_addr(regs->sp, correction);
-
 	/*
 	 * arch_uprobe_pre_xol() doesn't save the state of TIF_BLOCKSTEP
 	 * so we can get an extra SIGTRAP if we do not clear TF. We need
@@ -585,6 +575,14 @@ int arch_uprobe_post_xol(struct arch_uprobe *auprobe, struct pt_regs *regs)
 		send_sig(SIGTRAP, current, 0);
 	else if (!(auprobe->fixups & UPROBE_FIX_SETF))
 		regs->flags &= ~X86_EFLAGS_TF;
+
+	correction = (long)(utask->vaddr - utask->xol_vaddr);
+	handle_riprel_post_xol(auprobe, regs, &correction);
+	if (auprobe->fixups & UPROBE_FIX_IP)
+		regs->ip += correction;
+
+	if (auprobe->fixups & UPROBE_FIX_CALL)
+		result = adjust_ret_addr(regs->sp, correction);
 
 	return result;
 }
