@@ -1630,7 +1630,7 @@ static int _rockchip_pinconf_set(struct rockchip_pin_bank *bank,
 		for(i=0; i < j; i++)
 		{
 			reg = info->reg_base + reg_offset[i].reg_offset;
-			data |= ((arg & reg_offset[i].bit_mask) << (16 + reg_offset[i].bit_offset));
+			data |= ((reg_offset[i].bit_mask) << (16 + reg_offset[i].bit_offset));
 			data |= ((arg & reg_offset[i].bit_mask) << reg_offset[i].bit_offset);
 			spin_lock_irqsave(&bank->slock, flags);
 			writel_relaxed(data, reg);	
