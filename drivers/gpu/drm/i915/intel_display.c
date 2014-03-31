@@ -2166,15 +2166,6 @@ static int i9xx_update_primary_plane(struct drm_crtc *crtc,
 	u32 dspcntr;
 	u32 reg;
 
-	switch (plane) {
-	case 0:
-	case 1:
-		break;
-	default:
-		DRM_ERROR("Can't update plane %c in SAREA\n", plane_name(plane));
-		return -EINVAL;
-	}
-
 	intel_fb = to_intel_framebuffer(fb);
 	obj = intel_fb->obj;
 
@@ -2266,16 +2257,6 @@ static int ironlake_update_primary_plane(struct drm_crtc *crtc,
 	unsigned long linear_offset;
 	u32 dspcntr;
 	u32 reg;
-
-	switch (plane) {
-	case 0:
-	case 1:
-	case 2:
-		break;
-	default:
-		DRM_ERROR("Can't update plane %c in SAREA\n", plane_name(plane));
-		return -EINVAL;
-	}
 
 	intel_fb = to_intel_framebuffer(fb);
 	obj = intel_fb->obj;
