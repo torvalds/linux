@@ -861,12 +861,15 @@ void intel_uncore_fini(struct drm_device *dev)
 	intel_uncore_forcewake_reset(dev, false);
 }
 
+#define GEN_RANGE(l, h) GENMASK(h, l)
+
 static const struct register_whitelist {
 	uint64_t offset;
 	uint32_t size;
-	uint32_t gen_bitmask; /* support gens, 0x10 for 4, 0x30 for 4 and 5, etc. */
+	/* supported gens, 0x10 for 4, 0x30 for 4 and 5, etc. */
+	uint32_t gen_bitmask;
 } whitelist[] = {
-	{ RING_TIMESTAMP(RENDER_RING_BASE), 8, 0x1F0 },
+	{ RING_TIMESTAMP(RENDER_RING_BASE), 8, GEN_RANGE(4, 8) },
 };
 
 int i915_reg_read_ioctl(struct drm_device *dev,
