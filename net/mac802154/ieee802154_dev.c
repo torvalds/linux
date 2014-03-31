@@ -36,8 +36,27 @@
 int mac802154_slave_open(struct net_device *dev)
 {
 	struct mac802154_sub_if_data *priv = netdev_priv(dev);
+	struct mac802154_sub_if_data *subif;
 	struct mac802154_priv *ipriv = priv->hw;
 	int res = 0;
+
+	ASSERT_RTNL();
+
+	if (priv->type == IEEE802154_DEV_WPAN) {
+		mutex_lock(&priv->hw->slaves_mtx);
+		list_for_each_entry(subif, &priv->hw->slaves, list) {
+			if (subif != priv && subif->type == priv->type &&
+			    subif->running) {
+				mutex_unlock(&priv->hw->slaves_mtx);
+				return -EBUSY;
+			}
+		}
+		mutex_unlock(&priv->hw->slaves_mtx);
+	}
+
+	mutex_lock(&priv->hw->slaves_mtx);
+	priv->running = true;
+	mutex_unlock(&priv->hw->slaves_mtx);
 
 	if (ipriv->open_count++ == 0) {
 		res = ipriv->ops->start(&ipriv->hw);
@@ -69,7 +88,13 @@ int mac802154_slave_close(struct net_device *dev)
 	struct mac802154_sub_if_data *priv = netdev_priv(dev);
 	struct mac802154_priv *ipriv = priv->hw;
 
+	ASSERT_RTNL();
+
 	netif_stop_queue(dev);
+
+	mutex_lock(&priv->hw->slaves_mtx);
+	priv->running = false;
+	mutex_unlock(&priv->hw->slaves_mtx);
 
 	if (!--ipriv->open_count)
 		ipriv->ops->stop(&ipriv->hw);

@@ -71,6 +71,7 @@ struct mac802154_sub_if_data {
 	struct net_device *dev;
 
 	int type;
+	bool running;
 
 	spinlock_t mib_lock;
 
