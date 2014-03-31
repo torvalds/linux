@@ -334,7 +334,7 @@ static int rk3288_lcdc_post_cfg(struct rk_lcdc_driver *dev_drv)
 	}else{
 		post_dsp_vact_end = v_total - screen->mode.lower_margin -
 					- screen->post_dsp_sty;
-		post_dsp_hact_st = post_dsp_vact_end - screen->post_ysize;
+		post_dsp_vact_st = post_dsp_vact_end - screen->post_ysize;
 	}
 	if((screen->post_ysize < y_res)&&(screen->post_ysize != 0)){
 		post_vsd_en = 1;
@@ -555,6 +555,35 @@ static int rk3288_lcdc_alpha_cfg(struct rk_lcdc_driver *dev_drv,int win_id)
 
 	return 0;
 }
+static int rk3288_lcdc_area_swap(struct rk_lcdc_win *win,int area_num)
+{
+	struct rk_lcdc_win_area area_temp;
+	switch(area_num){
+	case 2:
+		area_temp = win->area[0];
+		win->area[0] = win->area[1];
+		win->area[1] = area_temp;
+		break;
+	case 3:
+		area_temp = win->area[0];
+		win->area[0] = win->area[2];
+		win->area[2] = area_temp;
+		break;
+	case 4:
+		area_temp = win->area[0];
+		win->area[0] = win->area[3];
+		win->area[3] = area_temp;
+		
+		area_temp = win->area[1];
+		win->area[1] = win->area[2];
+		win->area[2] = area_temp;	
+		break;
+	default:
+		printk(KERN_WARNING "un supported area num!\n");
+		break;
+	}
+	return 0;
+}
 
 static int rk3288_win_0_1_reg_update(struct rk_lcdc_driver *dev_drv,int win_id)
 {
@@ -642,9 +671,13 @@ static int rk3288_win_2_3_reg_update(struct rk_lcdc_driver *dev_drv,int win_id)
 	struct lcdc_device *lcdc_dev =
 	    container_of(dev_drv, struct lcdc_device, driver);
 	struct rk_lcdc_win *win = dev_drv->win[win_id];
+	struct rk_screen *screen = dev_drv->cur_screen;
 	unsigned int mask, val, off;
 	off = (win_id-2) * 0x50;
-
+	if((screen->y_mirror == 1)&&(win->area_num > 1)){
+		rk3288_lcdc_area_swap(win,win->area_num);
+	}
+	
 	if(win->state == 1){
 		mask =  m_WIN2_EN | m_WIN2_DATA_FMT | m_WIN2_RB_SWAP;
 		val  =  v_WIN2_EN(1) | v_WIN2_DATA_FMT(win->fmt_cfg) |

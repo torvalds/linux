@@ -803,7 +803,7 @@ static int rk_fb_pan_display(struct fb_var_screeninfo *var, struct fb_info *info
     	u32 stride_32bit_2;
     	u32 stride_128bit_1;
     	u32 stride_128bit_2;
-	u16 uv_x_off,uv_y_off,dsp_height,uv_y_act;
+	u16 uv_x_off,uv_y_off,uv_y_act;
 	u8  is_pic_yuv=0;
 
 	win_id = dev_drv->ops->fb_get_win_id(dev_drv, info->fix.id);
@@ -829,7 +829,6 @@ static int rk_fb_pan_display(struct fb_var_screeninfo *var, struct fb_info *info
 
 	stride	  = stride_32bit_1;//default rgb
 	fix->line_length = stride;
-	dsp_height = win->area[0].ysize;
 
 	switch (win->format){
 	case YUV422:
@@ -839,7 +838,7 @@ static int rk_fb_pan_display(struct fb_var_screeninfo *var, struct fb_info *info
 		uv_x_off   = xoffset >> 1 ;//
 		uv_y_off   = yoffset;//0
 		fix->line_length = stride;
-		uv_y_act = dsp_height>>1;
+		uv_y_act = win->area[0].yact>>1;
 		break;
 	case YUV420://420sp
 		is_pic_yuv = 1;
@@ -848,7 +847,7 @@ static int rk_fb_pan_display(struct fb_var_screeninfo *var, struct fb_info *info
 		uv_x_off   = xoffset;
 		uv_y_off   = yoffset >> 1;
 		fix->line_length = stride;
-		uv_y_act = dsp_height>>1;
+		uv_y_act = win->area[0].yact>>1;
 		break;
 	case YUV444:
 		is_pic_yuv = 1;
@@ -857,7 +856,7 @@ static int rk_fb_pan_display(struct fb_var_screeninfo *var, struct fb_info *info
 		uv_x_off   = xoffset*2;
 		uv_y_off   = yoffset;
 		fix->line_length = stride<<2;
-		uv_y_act = dsp_height;
+		uv_y_act = win->area[0].yact;
 		break;
 	default:
 		break;
@@ -1268,7 +1267,7 @@ static int rk_fb_set_win_buffer(struct fb_info *info,
     	u32 stride_32bit_2;
     	u32 stride_128bit_1;
     	u32 stride_128bit_2;
-	u16 uv_x_off,uv_y_off,uv_y_act,dsp_height;
+	u16 uv_x_off,uv_y_off,uv_y_act;
 	u8  is_pic_yuv=0;
 	u8  ppixel_a=0,global_a=0;
 #ifdef USE_ION_MMU	
@@ -1354,7 +1353,6 @@ static int rk_fb_set_win_buffer(struct fb_info *info,
 		reg_win_data->win_id  = -1;
 	}
 	for(i=0;i<reg_win_data->area_num;i++){
-		dsp_height = reg_win_data->reg_area_data[i].ysize;
 		reg_win_data->reg_area_data[i].xpos = win_par->area_par[i].xpos;//visiable pos in panel
 		reg_win_data->reg_area_data[i].ypos = win_par->area_par[i].ypos;
 
@@ -1418,7 +1416,7 @@ static int rk_fb_set_win_buffer(struct fb_info *info,
 		uv_x_off   = xoffset >> 1 ;//
 		uv_y_off   = yoffset;//0
 		fix->line_length = stride;
-		uv_y_act = dsp_height>>1;
+		uv_y_act = win_par->area_par[0].yact>>1;
 		break;
 	case YUV420://420sp
 		is_pic_yuv = 1;
@@ -1427,7 +1425,7 @@ static int rk_fb_set_win_buffer(struct fb_info *info,
 		uv_x_off   = xoffset;
 		uv_y_off   = yoffset >> 1;
 		fix->line_length = stride;
-		uv_y_act = dsp_height>>1;
+		uv_y_act = win_par->area_par[0].yact>>1;
 		break;
 	case YUV444:
 		is_pic_yuv = 1;
@@ -1436,7 +1434,7 @@ static int rk_fb_set_win_buffer(struct fb_info *info,
 		uv_x_off   = xoffset*2;
 		uv_y_off   = yoffset;
 		fix->line_length = stride<<2;
-		uv_y_act = dsp_height;
+		uv_y_act = win_par->area_par[0].yact;
 		break;
 	default:
 		break;
@@ -1942,7 +1940,7 @@ static int rk_fb_set_par(struct fb_info *info)
     	u32 stride_32bit_2;
     	u32 stride_128bit_1;
     	u32 stride_128bit_2;
-	u16 uv_x_off,uv_y_off,dsp_height,uv_y_act;
+	u16 uv_x_off,uv_y_off,uv_y_act;
 	u8  is_pic_yuv=0;
 
 	var->pixclock = dev_drv->pixclock;
@@ -1994,7 +1992,6 @@ if (rk_fb->disp_mode != DUAL) {
 
 	stride	  = stride_32bit_1;//default rgb
 	fix->line_length = stride;
-	dsp_height = win->area[0].ysize;
 	switch (fb_data_fmt){
 	case YUV422:
 		is_pic_yuv = 1;
@@ -2004,7 +2001,7 @@ if (rk_fb->disp_mode != DUAL) {
 		uv_y_off   = yoffset;//0
 		fix->line_length = stride;
 		cblen = crlen = (xvir*yvir)>>1;
-		uv_y_act = dsp_height;
+		uv_y_act = win->area[0].yact>>1;
 		break;
 	case YUV420://420sp
 		is_pic_yuv = 1;
@@ -2014,7 +2011,7 @@ if (rk_fb->disp_mode != DUAL) {
 		uv_y_off   = yoffset >> 1;
 		fix->line_length = stride;
 		cblen = crlen = (xvir*yvir)>>2;
-		uv_y_act = dsp_height>>1;
+		uv_y_act = win->area[0].yact>>1;
 		break;
 	case YUV444:
 		is_pic_yuv = 1;
@@ -2024,7 +2021,7 @@ if (rk_fb->disp_mode != DUAL) {
 		uv_y_off   = yoffset;
 		fix->line_length = stride<<2;
 		cblen = crlen = (xvir*yvir);
-		uv_y_act = dsp_height;
+		uv_y_act = win->area[0].yact;
 		break;
 	default:
 		break;

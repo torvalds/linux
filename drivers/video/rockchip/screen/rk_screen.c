@@ -15,6 +15,8 @@ int rk_fb_set_prmry_screen(struct rk_screen *screen)
 {
 	rk_screen->lcdc_id = screen->lcdc_id;
 	rk_screen->screen_id = screen->screen_id;
+	rk_screen->x_mirror = screen->x_mirror;
+	rk_screen->y_mirror = screen->y_mirror;
 	return 0;
 }
 
