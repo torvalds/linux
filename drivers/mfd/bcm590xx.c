@@ -64,6 +64,12 @@ static int bcm590xx_i2c_probe(struct i2c_client *i2c,
 	return ret;
 }
 
+static int bcm590xx_i2c_remove(struct i2c_client *i2c)
+{
+	mfd_remove_devices(&i2c->dev);
+	return 0;
+}
+
 static const struct of_device_id bcm590xx_of_match[] = {
 	{ .compatible = "brcm,bcm59056" },
 	{ }
@@ -83,6 +89,7 @@ static struct i2c_driver bcm590xx_i2c_driver = {
 		   .of_match_table = of_match_ptr(bcm590xx_of_match),
 	},
 	.probe = bcm590xx_i2c_probe,
+	.remove = bcm590xx_i2c_remove,
 	.id_table = bcm590xx_i2c_id,
 };
 module_i2c_driver(bcm590xx_i2c_driver);
