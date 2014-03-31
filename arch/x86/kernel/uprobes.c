@@ -53,7 +53,7 @@
 #define OPCODE1(insn)		((insn)->opcode.bytes[0])
 #define OPCODE2(insn)		((insn)->opcode.bytes[1])
 #define OPCODE3(insn)		((insn)->opcode.bytes[2])
-#define MODRM_REG(insn)		X86_MODRM_REG(insn->modrm.value)
+#define MODRM_REG(insn)		X86_MODRM_REG((insn)->modrm.value)
 
 #define W(row, b0, b1, b2, b3, b4, b5, b6, b7, b8, b9, ba, bb, bc, bd, be, bf)\
 	(((b0##UL << 0x0)|(b1##UL << 0x1)|(b2##UL << 0x2)|(b3##UL << 0x3) |   \
@@ -229,63 +229,6 @@ static int validate_insn_32bits(struct arch_uprobe *auprobe, struct insn *insn)
 	return -ENOTSUPP;
 }
 
-/*
- * Figure out which fixups arch_uprobe_post_xol() will need to perform, and
- * annotate arch_uprobe->fixups accordingly.  To start with,
- * arch_uprobe->fixups is either zero or it reflects rip-related fixups.
- */
-static void prepare_fixups(struct arch_uprobe *auprobe, struct insn *insn)
-{
-	bool fix_ip = true, fix_call = false;	/* defaults */
-	int reg;
-
-	insn_get_opcode(insn);	/* should be a nop */
-
-	switch (OPCODE1(insn)) {
-	case 0x9d:
-		/* popf */
-		auprobe->fixups |= UPROBE_FIX_SETF;
-		break;
-	case 0xc3:		/* ret/lret */
-	case 0xcb:
-	case 0xc2:
-	case 0xca:
-		/* ip is correct */
-		fix_ip = false;
-		break;
-	case 0xe8:		/* call relative - Fix return addr */
-		fix_call = true;
-		break;
-	case 0x9a:		/* call absolute - Fix return addr, not ip */
-		fix_call = true;
-		fix_ip = false;
-		break;
-	case 0xff:
-		insn_get_modrm(insn);
-		reg = MODRM_REG(insn);
-		if (reg == 2 || reg == 3) {
-			/* call or lcall, indirect */
-			/* Fix return addr; ip is correct. */
-			fix_call = true;
-			fix_ip = false;
-		} else if (reg == 4 || reg == 5) {
-			/* jmp or ljmp, indirect */
-			/* ip is correct. */
-			fix_ip = false;
-		}
-		break;
-	case 0xea:		/* jmp absolute -- ip is correct */
-		fix_ip = false;
-		break;
-	default:
-		break;
-	}
-	if (fix_ip)
-		auprobe->fixups |= UPROBE_FIX_IP;
-	if (fix_call)
-		auprobe->fixups |= UPROBE_FIX_CALL;
-}
-
 #ifdef CONFIG_X86_64
 /*
  * If arch_uprobe->insn doesn't use rip-relative addressing, return
@@ -318,7 +261,6 @@ handle_riprel_insn(struct arch_uprobe *auprobe, struct mm_struct *mm, struct ins
 	if (mm->context.ia32_compat)
 		return;
 
-	auprobe->rip_rela_target_address = 0x0;
 	if (!insn_rip_relative(insn))
 		return;
 
@@ -421,16 +363,58 @@ static int validate_insn_bits(struct arch_uprobe *auprobe, struct mm_struct *mm,
  */
 int arch_uprobe_analyze_insn(struct arch_uprobe *auprobe, struct mm_struct *mm, unsigned long addr)
 {
-	int ret;
 	struct insn insn;
+	bool fix_ip = true, fix_call = false;
+	int ret;
 
-	auprobe->fixups = 0;
 	ret = validate_insn_bits(auprobe, mm, &insn);
-	if (ret != 0)
+	if (ret)
 		return ret;
 
+	/*
+	 * Figure out which fixups arch_uprobe_post_xol() will need to perform,
+	 * and annotate arch_uprobe->fixups accordingly. To start with, ->fixups
+	 * is either zero or it reflects rip-related fixups.
+	 */
 	handle_riprel_insn(auprobe, mm, &insn);
-	prepare_fixups(auprobe, &insn);
+
+	switch (OPCODE1(&insn)) {
+	case 0x9d:		/* popf */
+		auprobe->fixups |= UPROBE_FIX_SETF;
+		break;
+	case 0xc3:		/* ret or lret -- ip is correct */
+	case 0xcb:
+	case 0xc2:
+	case 0xca:
+		fix_ip = false;
+		break;
+	case 0xe8:		/* call relative - Fix return addr */
+		fix_call = true;
+		break;
+	case 0x9a:		/* call absolute - Fix return addr, not ip */
+		fix_call = true;
+		fix_ip = false;
+		break;
+	case 0xea:		/* jmp absolute -- ip is correct */
+		fix_ip = false;
+		break;
+	case 0xff:
+		insn_get_modrm(&insn);
+		switch (MODRM_REG(&insn)) {
+		case 2: case 3:			/* call or lcall, indirect */
+			fix_call = true;
+		case 4: case 5:			/* jmp or ljmp, indirect */
+			fix_ip = false;
+		}
+		break;
+	default:
+		break;
+	}
+
+	if (fix_ip)
+		auprobe->fixups |= UPROBE_FIX_IP;
+	if (fix_call)
+		auprobe->fixups |= UPROBE_FIX_CALL;
 
 	return 0;
 }
