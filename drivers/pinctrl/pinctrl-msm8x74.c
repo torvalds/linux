@@ -341,7 +341,7 @@ static const unsigned int sdc2_data_pins[] = { 151 };
 		.name = "gpio" #id,			\
 		.pins = gpio##id##_pins,		\
 		.npins = ARRAY_SIZE(gpio##id##_pins),	\
-		.funcs = {				\
+		.funcs = (int[]){			\
 			MSM_MUX_NA, /* gpio mode */	\
 			MSM_MUX_##f1,			\
 			MSM_MUX_##f2,			\
@@ -351,6 +351,7 @@ static const unsigned int sdc2_data_pins[] = { 151 };
 			MSM_MUX_##f6,			\
 			MSM_MUX_##f7			\
 		},					\
+		.nfuncs = 8,				\
 		.ctl_reg = 0x1000 + 0x10 * id,		\
 		.io_reg = 0x1004 + 0x10 * id,		\
 		.intr_cfg_reg = 0x1008 + 0x10 * id,	\

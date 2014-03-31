@@ -145,12 +145,12 @@ static int msm_pinmux_enable(struct pinctrl_dev *pctldev,
 	if (WARN_ON(g->mux_bit < 0))
 		return -EINVAL;
 
-	for (i = 0; i < ARRAY_SIZE(g->funcs); i++) {
+	for (i = 0; i < g->nfuncs; i++) {
 		if (g->funcs[i] == function)
 			break;
 	}
 
-	if (WARN_ON(i == ARRAY_SIZE(g->funcs)))
+	if (WARN_ON(i == g->nfuncs))
 		return -EINVAL;
 
 	spin_lock_irqsave(&pctrl->lock, flags);
