@@ -2016,7 +2016,7 @@ static int __init iucv_init(void)
 	rc = iucv_query_maxconn();
 	if (rc)
 		goto out_ctl;
-	rc = register_external_interrupt(0x4000, iucv_external_interrupt);
+	rc = register_external_irq(EXT_IRQ_IUCV, iucv_external_interrupt);
 	if (rc)
 		goto out_ctl;
 	iucv_root = root_device_register("iucv");
@@ -2081,7 +2081,7 @@ out_free:
 	}
 	root_device_unregister(iucv_root);
 out_int:
-	unregister_external_interrupt(0x4000, iucv_external_interrupt);
+	unregister_external_irq(EXT_IRQ_IUCV, iucv_external_interrupt);
 out_ctl:
 	ctl_clear_bit(0, 1);
 out:
@@ -2116,7 +2116,7 @@ static void __exit iucv_exit(void)
 	}
 	root_device_unregister(iucv_root);
 	bus_unregister(&iucv_bus);
-	unregister_external_interrupt(0x4000, iucv_external_interrupt);
+	unregister_external_irq(EXT_IRQ_IUCV, iucv_external_interrupt);
 }
 
 subsys_initcall(iucv_init);

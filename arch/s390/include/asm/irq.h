@@ -27,6 +27,7 @@
 #define EXT_IRQ_TIMING_ALERT	0x1406
 #define EXT_IRQ_MEASURE_ALERT	0x1407
 #define EXT_IRQ_SERVICE_SIG	0x2401
+#define EXT_IRQ_CP_SERVICE	0x2603
 #define EXT_IRQ_IUCV		0x4000
 
 #ifndef __ASSEMBLY__
@@ -89,8 +90,8 @@ struct ext_code {
 
 typedef void (*ext_int_handler_t)(struct ext_code, unsigned int, unsigned long);
 
-int register_external_interrupt(u16 code, ext_int_handler_t handler);
-int unregister_external_interrupt(u16 code, ext_int_handler_t handler);
+int register_external_irq(u16 code, ext_int_handler_t handler);
+int unregister_external_irq(u16 code, ext_int_handler_t handler);
 
 enum irq_subclass {
 	IRQ_SUBCLASS_MEASUREMENT_ALERT = 5,
