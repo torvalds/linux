@@ -377,14 +377,13 @@ static int vmw_fb_create_bo(struct vmw_private *vmw_priv,
 
 	ne_placement.lpfn = (size + PAGE_SIZE - 1) >> PAGE_SHIFT;
 
-	/* interuptable? */
-	ret = ttm_write_lock(&vmw_priv->fbdev_master.lock, false);
-	if (unlikely(ret != 0))
-		return ret;
+	(void) ttm_write_lock(&vmw_priv->reservation_sem, false);
 
 	vmw_bo = kmalloc(sizeof(*vmw_bo), GFP_KERNEL);
-	if (!vmw_bo)
+	if (!vmw_bo) {
+		ret = -ENOMEM;
 		goto err_unlock;
+	}
 
 	ret = vmw_dmabuf_init(vmw_priv, vmw_bo, size,
 			      &ne_placement,
