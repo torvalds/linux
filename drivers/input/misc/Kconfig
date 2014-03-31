@@ -666,4 +666,14 @@ config INPUT_IDEAPAD_SLIDEBAR
 	  To compile this driver as a module, choose M here: the
 	  module will be called ideapad_slidebar.
 
+config INPUT_SOC_BUTTON_ARRAY
+	tristate "Windows-compatible SoC Button Array"
+	depends on KEYBOARD_GPIO
+	help
+	  Say Y here if you have a SoC-based tablet that originally
+	  runs Windows 8.
+
+	  To compile this driver as a module, choose M here: the
+	  module will be called soc_button_array.
+
 endif
