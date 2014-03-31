@@ -587,6 +587,8 @@ static int lp_do_ioctl(unsigned int minor, unsigned int cmd,
 		return -ENODEV;
 	switch ( cmd ) {
 		case LPTIME:
+			if (arg > UINT_MAX / HZ)
+				return -EINVAL;
 			LP_TIME(minor) = arg * HZ/100;
 			break;
 		case LPCHAR:

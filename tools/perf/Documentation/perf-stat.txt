@@ -133,7 +133,7 @@ use --per-core in addition to -a. (system-wide).  The output includes the
 core number and the number of online logical processors on that physical processor.
 
 -D msecs::
---initial-delay msecs::
+--delay msecs::
 After starting the program, wait msecs before measuring. This is useful to
 filter out the startup phase of the program, which is often very different.
 

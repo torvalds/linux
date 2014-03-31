@@ -83,7 +83,8 @@
 enum {
 	HCI_QUIRK_RESET_ON_CLOSE,
 	HCI_QUIRK_RAW_DEVICE,
-	HCI_QUIRK_FIXUP_BUFFER_SIZE
+	HCI_QUIRK_FIXUP_BUFFER_SIZE,
+	HCI_QUIRK_BROKEN_STORED_LINK_KEY,
 };
 
 /* HCI device flags */
@@ -131,6 +132,7 @@ enum {
 	HCI_PERIODIC_INQ,
 	HCI_FAST_CONNECTABLE,
 	HCI_BREDR_ENABLED,
+	HCI_6LOWPAN_ENABLED,
 };
 
 /* A mask for the flags that are supposed to remain when a reset happens
@@ -275,6 +277,12 @@ enum {
 #define LMP_EXTFEATURES	0x80
 
 /* Extended LMP features */
+#define LMP_CSB_MASTER	0x01
+#define LMP_CSB_SLAVE	0x02
+#define LMP_SYNC_TRAIN	0x04
+#define LMP_SYNC_SCAN	0x08
+
+/* Host features */
 #define LMP_HOST_SSP		0x01
 #define LMP_HOST_LE		0x02
 #define LMP_HOST_LE_BREDR	0x04

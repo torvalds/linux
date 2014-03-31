@@ -5,7 +5,7 @@
  *
  * GPL LICENSE SUMMARY
  *
- * Copyright(c) 2008 - 2013 Intel Corporation. All rights reserved.
+ * Copyright(c) 2008 - 2014 Intel Corporation. All rights reserved.
  *
  * This program is free software; you can redistribute it and/or modify
  * it under the terms of version 2 of the GNU General Public License as
@@ -30,7 +30,7 @@
  *
  * BSD LICENSE
  *
- * Copyright(c) 2005 - 2013 Intel Corporation. All rights reserved.
+ * Copyright(c) 2005 - 2014 Intel Corporation. All rights reserved.
  * All rights reserved.
  *
  * Redistribution and use in source and binary forms, with or without
@@ -182,6 +182,11 @@ static int iwl_init_channel_map(struct device *dev, const struct iwl_cfg *cfg,
 
 	for (ch_idx = 0; ch_idx < IWL_NUM_CHANNELS; ch_idx++) {
 		ch_flags = __le16_to_cpup(nvm_ch_flags + ch_idx);
+
+		if (ch_idx >= NUM_2GHZ_CHANNELS &&
+		    !data->sku_cap_band_52GHz_enable)
+			ch_flags &= ~NVM_CHANNEL_VALID;
+
 		if (!(ch_flags & NVM_CHANNEL_VALID)) {
 			IWL_DEBUG_EEPROM(dev,
 					 "Ch. %d Flags %x [%sGHz] - No traffic\n",
@@ -223,10 +228,10 @@ static int iwl_init_channel_map(struct device *dev, const struct iwl_cfg *cfg,
 			channel->flags |= IEEE80211_CHAN_NO_160MHZ;
 
 		if (!(ch_flags & NVM_CHANNEL_IBSS))
-			channel->flags |= IEEE80211_CHAN_NO_IBSS;
+			channel->flags |= IEEE80211_CHAN_NO_IR;
 
 		if (!(ch_flags & NVM_CHANNEL_ACTIVE))
-			channel->flags |= IEEE80211_CHAN_PASSIVE_SCAN;
+			channel->flags |= IEEE80211_CHAN_NO_IR;
 
 		if (ch_flags & NVM_CHANNEL_RADAR)
 			channel->flags |= IEEE80211_CHAN_RADAR;
@@ -263,12 +268,18 @@ static void iwl_init_vht_hw_capab(const struct iwl_cfg *cfg,
 				  struct iwl_nvm_data *data,
 				  struct ieee80211_sta_vht_cap *vht_cap)
 {
+	int num_ants = num_of_ant(data->valid_rx_ant);
+
 	vht_cap->vht_supported = true;
 
 	vht_cap->cap = IEEE80211_VHT_CAP_SHORT_GI_80 |
 		       IEEE80211_VHT_CAP_RXSTBC_1 |
 		       IEEE80211_VHT_CAP_SU_BEAMFORMEE_CAPABLE |
+		       3 << IEEE80211_VHT_CAP_BEAMFORMEE_STS_SHIFT |
 		       7 << IEEE80211_VHT_CAP_MAX_A_MPDU_LENGTH_EXPONENT_SHIFT;
+
+	if (num_ants > 1)
+		vht_cap->cap |= IEEE80211_VHT_CAP_TXSTBC;
 
 	if (iwlwifi_mod_params.amsdu_size_8K)
 		vht_cap->cap |= IEEE80211_VHT_CAP_MAX_MPDU_LENGTH_7991;
@@ -283,7 +294,8 @@ static void iwl_init_vht_hw_capab(const struct iwl_cfg *cfg,
 			    IEEE80211_VHT_MCS_NOT_SUPPORTED << 12 |
 			    IEEE80211_VHT_MCS_NOT_SUPPORTED << 14);
 
-	if (data->valid_rx_ant == 1 || cfg->rx_with_siso_diversity) {
+	if (num_ants == 1 ||
+	    cfg->rx_with_siso_diversity) {
 		vht_cap->cap |= IEEE80211_VHT_CAP_RX_ANTENNA_PATTERN |
 				IEEE80211_VHT_CAP_TX_ANTENNA_PATTERN;
 		/* this works because NOT_SUPPORTED == 3 */

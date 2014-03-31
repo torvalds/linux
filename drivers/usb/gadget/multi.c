@@ -134,7 +134,7 @@ static unsigned int fsg_num_buffers = CONFIG_USB_GADGET_STORAGE_NUM_BUFFERS;
  */
 #define fsg_num_buffers	CONFIG_USB_GADGET_STORAGE_NUM_BUFFERS
 
-#endif /* CONFIG_USB_DEBUG */
+#endif /* CONFIG_USB_GADGET_DEBUG_FILES */
 
 FSG_MODULE_PARAMETERS(/* no prefix */, fsg_mod_data);
 

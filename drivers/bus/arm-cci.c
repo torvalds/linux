@@ -979,7 +979,7 @@ static int cci_probe(void)
 
 	nb_cci_ports = cci_config->nb_ace + cci_config->nb_ace_lite;
 
-	ports = kcalloc(sizeof(*ports), nb_cci_ports, GFP_KERNEL);
+	ports = kcalloc(nb_cci_ports, sizeof(*ports), GFP_KERNEL);
 	if (!ports)
 		return -ENOMEM;
 

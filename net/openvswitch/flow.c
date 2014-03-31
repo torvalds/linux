@@ -35,6 +35,7 @@
 #include <linux/ip.h>
 #include <linux/ipv6.h>
 #include <linux/sctp.h>
+#include <linux/smp.h>
 #include <linux/tcp.h>
 #include <linux/udp.h>
 #include <linux/icmp.h>
@@ -60,23 +61,91 @@ u64 ovs_flow_used_time(unsigned long flow_jiffies)
 
 #define TCP_FLAGS_BE16(tp) (*(__be16 *)&tcp_flag_word(tp) & htons(0x0FFF))
 
-void ovs_flow_used(struct sw_flow *flow, struct sk_buff *skb)
+void ovs_flow_stats_update(struct sw_flow *flow, struct sk_buff *skb)
 {
+	struct flow_stats *stats;
 	__be16 tcp_flags = 0;
+
+	if (!flow->stats.is_percpu)
+		stats = flow->stats.stat;
+	else
+		stats = this_cpu_ptr(flow->stats.cpu_stats);
 
 	if ((flow->key.eth.type == htons(ETH_P_IP) ||
 	     flow->key.eth.type == htons(ETH_P_IPV6)) &&
+	    flow->key.ip.frag != OVS_FRAG_TYPE_LATER &&
 	    flow->key.ip.proto == IPPROTO_TCP &&
 	    likely(skb->len >= skb_transport_offset(skb) + sizeof(struct tcphdr))) {
 		tcp_flags = TCP_FLAGS_BE16(tcp_hdr(skb));
 	}
 
-	spin_lock(&flow->lock);
-	flow->used = jiffies;
-	flow->packet_count++;
-	flow->byte_count += skb->len;
-	flow->tcp_flags |= tcp_flags;
-	spin_unlock(&flow->lock);
+	spin_lock(&stats->lock);
+	stats->used = jiffies;
+	stats->packet_count++;
+	stats->byte_count += skb->len;
+	stats->tcp_flags |= tcp_flags;
+	spin_unlock(&stats->lock);
+}
+
+static void stats_read(struct flow_stats *stats,
+		       struct ovs_flow_stats *ovs_stats,
+		       unsigned long *used, __be16 *tcp_flags)
+{
+	spin_lock(&stats->lock);
+	if (!*used || time_after(stats->used, *used))
+		*used = stats->used;
+	*tcp_flags |= stats->tcp_flags;
+	ovs_stats->n_packets += stats->packet_count;
+	ovs_stats->n_bytes += stats->byte_count;
+	spin_unlock(&stats->lock);
+}
+
+void ovs_flow_stats_get(struct sw_flow *flow, struct ovs_flow_stats *ovs_stats,
+			unsigned long *used, __be16 *tcp_flags)
+{
+	int cpu;
+
+	*used = 0;
+	*tcp_flags = 0;
+	memset(ovs_stats, 0, sizeof(*ovs_stats));
+
+	local_bh_disable();
+	if (!flow->stats.is_percpu) {
+		stats_read(flow->stats.stat, ovs_stats, used, tcp_flags);
+	} else {
+		for_each_possible_cpu(cpu) {
+			struct flow_stats *stats;
+
+			stats = per_cpu_ptr(flow->stats.cpu_stats, cpu);
+			stats_read(stats, ovs_stats, used, tcp_flags);
+		}
+	}
+	local_bh_enable();
+}
+
+static void stats_reset(struct flow_stats *stats)
+{
+	spin_lock(&stats->lock);
+	stats->used = 0;
+	stats->packet_count = 0;
+	stats->byte_count = 0;
+	stats->tcp_flags = 0;
+	spin_unlock(&stats->lock);
+}
+
+void ovs_flow_stats_clear(struct sw_flow *flow)
+{
+	int cpu;
+
+	local_bh_disable();
+	if (!flow->stats.is_percpu) {
+		stats_reset(flow->stats.stat);
+	} else {
+		for_each_possible_cpu(cpu) {
+			stats_reset(per_cpu_ptr(flow->stats.cpu_stats, cpu));
+		}
+	}
+	local_bh_enable();
 }
 
 static int check_header(struct sk_buff *skb, int len)

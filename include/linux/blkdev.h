@@ -95,13 +95,10 @@ enum rq_cmd_type_bits {
  * as well!
  */
 struct request {
-	union {
-		struct list_head queuelist;
-		struct llist_node ll_list;
-	};
+	struct list_head queuelist;
 	union {
 		struct call_single_data csd;
-		struct work_struct mq_flush_data;
+		struct work_struct mq_flush_work;
 	};
 
 	struct request_queue *q;
@@ -291,6 +288,7 @@ struct queue_limits {
 	unsigned char		discard_misaligned;
 	unsigned char		cluster;
 	unsigned char		discard_zeroes_data;
+	unsigned char		raid_partial_stripes_expensive;
 };
 
 struct request_queue {
@@ -450,13 +448,8 @@ struct request_queue {
 	unsigned long		flush_pending_since;
 	struct list_head	flush_queue[2];
 	struct list_head	flush_data_in_flight;
-	union {
-		struct request	flush_rq;
-		struct {
-			spinlock_t mq_flush_lock;
-			struct work_struct mq_flush_work;
-		};
-	};
+	struct request		*flush_rq;
+	spinlock_t		mq_flush_lock;
 
 	struct mutex		sysfs_lock;
 
@@ -735,7 +728,7 @@ struct rq_map_data {
 };
 
 struct req_iterator {
-	int i;
+	struct bvec_iter iter;
 	struct bio *bio;
 };
 
@@ -748,10 +741,11 @@ struct req_iterator {
 
 #define rq_for_each_segment(bvl, _rq, _iter)			\
 	__rq_for_each_bio(_iter.bio, _rq)			\
-		bio_for_each_segment(bvl, _iter.bio, _iter.i)
+		bio_for_each_segment(bvl, _iter.bio, _iter.iter)
 
-#define rq_iter_last(rq, _iter)					\
-		(_iter.bio->bi_next == NULL && _iter.i == _iter.bio->bi_vcnt-1)
+#define rq_iter_last(bvec, _iter)				\
+		(_iter.bio->bi_next == NULL &&			\
+		 bio_iter_last(bvec, _iter.iter))
 
 #ifndef ARCH_IMPLEMENTS_FLUSH_DCACHE_PAGE
 # error	"You should define ARCH_IMPLEMENTS_FLUSH_DCACHE_PAGE for your platform"

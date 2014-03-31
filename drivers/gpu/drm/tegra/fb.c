@@ -18,10 +18,12 @@ static inline struct tegra_fb *to_tegra_fb(struct drm_framebuffer *fb)
 	return container_of(fb, struct tegra_fb, base);
 }
 
+#ifdef CONFIG_DRM_TEGRA_FBDEV
 static inline struct tegra_fbdev *to_tegra_fbdev(struct drm_fb_helper *helper)
 {
 	return container_of(helper, struct tegra_fbdev, base);
 }
+#endif
 
 struct tegra_bo *tegra_fb_get_plane(struct drm_framebuffer *framebuffer,
 				    unsigned int index)
@@ -98,8 +100,10 @@ static struct tegra_fb *tegra_fb_alloc(struct drm_device *drm,
 		return ERR_PTR(-ENOMEM);
 
 	fb->planes = kzalloc(num_planes * sizeof(*planes), GFP_KERNEL);
-	if (!fb->planes)
+	if (!fb->planes) {
+		kfree(fb);
 		return ERR_PTR(-ENOMEM);
+	}
 
 	fb->num_planes = num_planes;
 
@@ -172,6 +176,7 @@ unreference:
 	return ERR_PTR(err);
 }
 
+#ifdef CONFIG_DRM_TEGRA_FBDEV
 static struct fb_ops tegra_fb_ops = {
 	.owner = THIS_MODULE,
 	.fb_fillrect = sys_fillrect,
@@ -339,6 +344,15 @@ static void tegra_fbdev_free(struct tegra_fbdev *fbdev)
 	kfree(fbdev);
 }
 
+void tegra_fbdev_restore_mode(struct tegra_fbdev *fbdev)
+{
+	if (fbdev) {
+		drm_modeset_lock_all(fbdev->base.dev);
+		drm_fb_helper_restore_fbdev_mode(&fbdev->base);
+		drm_modeset_unlock_all(fbdev->base.dev);
+	}
+}
+
 static void tegra_fb_output_poll_changed(struct drm_device *drm)
 {
 	struct tegra_drm *tegra = drm->dev_private;
@@ -346,16 +360,20 @@ static void tegra_fb_output_poll_changed(struct drm_device *drm)
 	if (tegra->fbdev)
 		drm_fb_helper_hotplug_event(&tegra->fbdev->base);
 }
+#endif
 
 static const struct drm_mode_config_funcs tegra_drm_mode_funcs = {
 	.fb_create = tegra_fb_create,
+#ifdef CONFIG_DRM_TEGRA_FBDEV
 	.output_poll_changed = tegra_fb_output_poll_changed,
+#endif
 };
 
 int tegra_drm_fb_init(struct drm_device *drm)
 {
+#ifdef CONFIG_DRM_TEGRA_FBDEV
 	struct tegra_drm *tegra = drm->dev_private;
-	struct tegra_fbdev *fbdev;
+#endif
 
 	drm->mode_config.min_width = 0;
 	drm->mode_config.min_height = 0;
@@ -365,28 +383,21 @@ int tegra_drm_fb_init(struct drm_device *drm)
 
 	drm->mode_config.funcs = &tegra_drm_mode_funcs;
 
-	fbdev = tegra_fbdev_create(drm, 32, drm->mode_config.num_crtc,
-				   drm->mode_config.num_connector);
-	if (IS_ERR(fbdev))
-		return PTR_ERR(fbdev);
-
-	tegra->fbdev = fbdev;
+#ifdef CONFIG_DRM_TEGRA_FBDEV
+	tegra->fbdev = tegra_fbdev_create(drm, 32, drm->mode_config.num_crtc,
+					  drm->mode_config.num_connector);
+	if (IS_ERR(tegra->fbdev))
+		return PTR_ERR(tegra->fbdev);
+#endif
 
 	return 0;
 }
 
 void tegra_drm_fb_exit(struct drm_device *drm)
 {
+#ifdef CONFIG_DRM_TEGRA_FBDEV
 	struct tegra_drm *tegra = drm->dev_private;
 
 	tegra_fbdev_free(tegra->fbdev);
-}
-
-void tegra_fbdev_restore_mode(struct tegra_fbdev *fbdev)
-{
-	if (fbdev) {
-		drm_modeset_lock_all(fbdev->base.dev);
-		drm_fb_helper_restore_fbdev_mode(&fbdev->base);
-		drm_modeset_unlock_all(fbdev->base.dev);
-	}
+#endif
 }

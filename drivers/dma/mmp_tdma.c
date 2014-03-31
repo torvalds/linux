@@ -121,11 +121,13 @@ struct mmp_tdma_chan {
 	int				idx;
 	enum mmp_tdma_type		type;
 	int				irq;
-	unsigned long			reg_base;
+	void __iomem			*reg_base;
 
 	size_t				buf_len;
 	size_t				period_len;
 	size_t				pos;
+
+	struct gen_pool			*pool;
 };
 
 #define TDMA_CHANNEL_NUM 2
@@ -182,7 +184,7 @@ static void mmp_tdma_pause_chan(struct mmp_tdma_chan *tdmac)
 
 static int mmp_tdma_config_chan(struct mmp_tdma_chan *tdmac)
 {
-	unsigned int tdcr;
+	unsigned int tdcr = 0;
 
 	mmp_tdma_disable_chan(tdmac);
 
@@ -324,7 +326,7 @@ static void mmp_tdma_free_descriptor(struct mmp_tdma_chan *tdmac)
 	struct gen_pool *gpool;
 	int size = tdmac->desc_num * sizeof(struct mmp_tdma_desc);
 
-	gpool = sram_get_gpool("asram");
+	gpool = tdmac->pool;
 	if (tdmac->desc_arr)
 		gen_pool_free(gpool, (unsigned long)tdmac->desc_arr,
 				size);
@@ -374,7 +376,7 @@ struct mmp_tdma_desc *mmp_tdma_alloc_descriptor(struct mmp_tdma_chan *tdmac)
 	struct gen_pool *gpool;
 	int size = tdmac->desc_num * sizeof(struct mmp_tdma_desc);
 
-	gpool = sram_get_gpool("asram");
+	gpool = tdmac->pool;
 	if (!gpool)
 		return NULL;
 
@@ -505,7 +507,8 @@ static int mmp_tdma_remove(struct platform_device *pdev)
 }
 
 static int mmp_tdma_chan_init(struct mmp_tdma_device *tdev,
-						int idx, int irq, int type)
+					int idx, int irq,
+					int type, struct gen_pool *pool)
 {
 	struct mmp_tdma_chan *tdmac;
 
@@ -526,7 +529,8 @@ static int mmp_tdma_chan_init(struct mmp_tdma_device *tdev,
 	tdmac->chan.device = &tdev->device;
 	tdmac->idx	   = idx;
 	tdmac->type	   = type;
-	tdmac->reg_base	   = (unsigned long)tdev->base + idx * 4;
+	tdmac->reg_base	   = tdev->base + idx * 4;
+	tdmac->pool	   = pool;
 	tdmac->status = DMA_COMPLETE;
 	tdev->tdmac[tdmac->idx] = tdmac;
 	tasklet_init(&tdmac->tasklet, dma_do_tasklet, (unsigned long)tdmac);
@@ -553,6 +557,7 @@ static int mmp_tdma_probe(struct platform_device *pdev)
 	int i, ret;
 	int irq = 0, irq_num = 0;
 	int chan_num = TDMA_CHANNEL_NUM;
+	struct gen_pool *pool;
 
 	of_id = of_match_device(mmp_tdma_dt_ids, &pdev->dev);
 	if (of_id)
@@ -579,6 +584,15 @@ static int mmp_tdma_probe(struct platform_device *pdev)
 
 	INIT_LIST_HEAD(&tdev->device.channels);
 
+	if (pdev->dev.of_node)
+		pool = of_get_named_gen_pool(pdev->dev.of_node, "asram", 0);
+	else
+		pool = sram_get_gpool("asram");
+	if (!pool) {
+		dev_err(&pdev->dev, "asram pool not available\n");
+		return -ENOMEM;
+	}
+
 	if (irq_num != chan_num) {
 		irq = platform_get_irq(pdev, 0);
 		ret = devm_request_irq(&pdev->dev, irq,
@@ -590,7 +604,7 @@ static int mmp_tdma_probe(struct platform_device *pdev)
 	/* initialize channel parameters */
 	for (i = 0; i < chan_num; i++) {
 		irq = (irq_num != chan_num) ? 0 : platform_get_irq(pdev, i);
-		ret = mmp_tdma_chan_init(tdev, i, irq, type);
+		ret = mmp_tdma_chan_init(tdev, i, irq, type, pool);
 		if (ret)
 			return ret;
 	}

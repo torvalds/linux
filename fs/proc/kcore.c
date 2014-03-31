@@ -639,4 +639,4 @@ static int __init proc_kcore_init(void)
 
 	return 0;
 }
-module_init(proc_kcore_init);
+fs_initcall(proc_kcore_init);

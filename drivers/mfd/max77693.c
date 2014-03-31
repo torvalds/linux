@@ -41,7 +41,7 @@
 #define I2C_ADDR_MUIC	(0x4A >> 1)
 #define I2C_ADDR_HAPTIC	(0x90 >> 1)
 
-static struct mfd_cell max77693_devs[] = {
+static const struct mfd_cell max77693_devs[] = {
 	{ .name = "max77693-pmic", },
 	{ .name = "max77693-charger", },
 	{ .name = "max77693-flash", },
@@ -107,6 +107,12 @@ static const struct regmap_config max77693_regmap_config = {
 	.max_register = MAX77693_PMIC_REG_END,
 };
 
+static const struct regmap_config max77693_regmap_muic_config = {
+	.reg_bits = 8,
+	.val_bits = 8,
+	.max_register = MAX77693_MUIC_REG_END,
+};
+
 static int max77693_i2c_probe(struct i2c_client *i2c,
 			      const struct i2c_device_id *id)
 {
@@ -153,7 +159,7 @@ static int max77693_i2c_probe(struct i2c_client *i2c,
 	 * before call max77693-muic probe() function.
 	 */
 	max77693->regmap_muic = devm_regmap_init_i2c(max77693->muic,
-					 &max77693_regmap_config);
+					 &max77693_regmap_muic_config);
 	if (IS_ERR(max77693->regmap_muic)) {
 		ret = PTR_ERR(max77693->regmap_muic);
 		dev_err(max77693->dev,

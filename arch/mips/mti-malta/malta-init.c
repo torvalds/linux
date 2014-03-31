@@ -14,6 +14,7 @@
 #include <linux/init.h>
 #include <linux/string.h>
 #include <linux/kernel.h>
+#include <linux/serial_8250.h>
 
 #include <asm/cacheflush.h>
 #include <asm/smp-ops.h>
@@ -44,32 +45,39 @@ static void __init console_config(void)
 	char parity = '\0', bits = '\0', flow = '\0';
 	char *s;
 
-	if ((strstr(fw_getcmdline(), "console=")) == NULL) {
-		s = fw_getenv("modetty0");
-		if (s) {
-			while (*s >= '0' && *s <= '9')
-				baud = baud*10 + *s++ - '0';
-			if (*s == ',')
-				s++;
-			if (*s)
-				parity = *s++;
-			if (*s == ',')
-				s++;
-			if (*s)
-				bits = *s++;
-			if (*s == ',')
-				s++;
-			if (*s == 'h')
-				flow = 'r';
-		}
-		if (baud == 0)
-			baud = 38400;
-		if (parity != 'n' && parity != 'o' && parity != 'e')
-			parity = 'n';
-		if (bits != '7' && bits != '8')
-			bits = '8';
-		if (flow == '\0')
+	s = fw_getenv("modetty0");
+	if (s) {
+		while (*s >= '0' && *s <= '9')
+			baud = baud*10 + *s++ - '0';
+		if (*s == ',')
+			s++;
+		if (*s)
+			parity = *s++;
+		if (*s == ',')
+			s++;
+		if (*s)
+			bits = *s++;
+		if (*s == ',')
+			s++;
+		if (*s == 'h')
 			flow = 'r';
+	}
+	if (baud == 0)
+		baud = 38400;
+	if (parity != 'n' && parity != 'o' && parity != 'e')
+		parity = 'n';
+	if (bits != '7' && bits != '8')
+		bits = '8';
+	if (flow == '\0')
+		flow = 'r';
+
+	if ((strstr(fw_getcmdline(), "earlycon=")) == NULL) {
+		sprintf(console_string, "uart8250,io,0x3f8,%d%c%c", baud,
+			parity, bits);
+		setup_early_serial8250_console(console_string);
+	}
+
+	if ((strstr(fw_getcmdline(), "console=")) == NULL) {
 		sprintf(console_string, " console=ttyS0,%d%c%c%c", baud,
 			parity, bits, flow);
 		strcat(fw_getcmdline(), console_string);

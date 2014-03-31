@@ -388,37 +388,28 @@ int usb_hcd_pxa27x_probe (const struct hc_driver *driver, struct platform_device
 		return -ENXIO;
 	}
 
-	usb_clk = clk_get(&pdev->dev, NULL);
+	usb_clk = devm_clk_get(&pdev->dev, NULL);
 	if (IS_ERR(usb_clk))
 		return PTR_ERR(usb_clk);
 
 	hcd = usb_create_hcd (driver, &pdev->dev, "pxa27x");
-	if (!hcd) {
-		retval = -ENOMEM;
-		goto err0;
-	}
+	if (!hcd)
+		return -ENOMEM;
 
 	r = platform_get_resource(pdev, IORESOURCE_MEM, 0);
 	if (!r) {
 		pr_err("no resource of IORESOURCE_MEM");
 		retval = -ENXIO;
-		goto err1;
+		goto err;
 	}
 
 	hcd->rsrc_start = r->start;
 	hcd->rsrc_len = resource_size(r);
 
-	if (!request_mem_region(hcd->rsrc_start, hcd->rsrc_len, hcd_name)) {
-		pr_debug("request_mem_region failed");
-		retval = -EBUSY;
-		goto err1;
-	}
-
-	hcd->regs = ioremap(hcd->rsrc_start, hcd->rsrc_len);
-	if (!hcd->regs) {
-		pr_debug("ioremap failed");
-		retval = -ENOMEM;
-		goto err2;
+	hcd->regs = devm_ioremap_resource(&pdev->dev, r);
+	if (IS_ERR(hcd->regs)) {
+		retval = PTR_ERR(hcd->regs);
+		goto err;
 	}
 
 	/* initialize "struct pxa27x_ohci" */
@@ -429,7 +420,7 @@ int usb_hcd_pxa27x_probe (const struct hc_driver *driver, struct platform_device
 	retval = pxa27x_start_hc(pxa_ohci, &pdev->dev);
 	if (retval < 0) {
 		pr_debug("pxa27x_start_hc failed");
-		goto err3;
+		goto err;
 	}
 
 	/* Select Power Management Mode */
@@ -443,18 +434,14 @@ int usb_hcd_pxa27x_probe (const struct hc_driver *driver, struct platform_device
 	ohci->num_ports = 3;
 
 	retval = usb_add_hcd(hcd, irq, 0);
-	if (retval == 0)
+	if (retval == 0) {
+		device_wakeup_enable(hcd->self.controller);
 		return retval;
+	}
 
 	pxa27x_stop_hc(pxa_ohci, &pdev->dev);
- err3:
-	iounmap(hcd->regs);
- err2:
-	release_mem_region(hcd->rsrc_start, hcd->rsrc_len);
- err1:
+ err:
 	usb_put_hcd(hcd);
- err0:
-	clk_put(usb_clk);
 	return retval;
 }
 
@@ -478,9 +465,6 @@ void usb_hcd_pxa27x_remove (struct usb_hcd *hcd, struct platform_device *pdev)
 
 	usb_remove_hcd(hcd);
 	pxa27x_stop_hc(pxa_ohci, &pdev->dev);
-	iounmap(hcd->regs);
-	release_mem_region(hcd->rsrc_start, hcd->rsrc_len);
-	clk_put(pxa_ohci->clk);
 	usb_put_hcd(hcd);
 }
 

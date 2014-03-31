@@ -49,25 +49,13 @@ stext:
 	st.ab   0, [r5,4]
 	brlt    r5, r6, 1b
 
-#ifdef CONFIG_CMDLINE_UBOOT
-	; support for bootloader provided cmdline
-	;    If cmdline passed by u-boot, then
-	;    r0 = 1  (because ATAGS parsing, now retired, used to use 0)
-	;    r1 = magic number (board identity)
-	;    r2 = addr of cmdline string (somewhere in memory/flash)
-
-	brne	r0, 1, .Lother_bootup_chores	; u-boot didn't pass cmdline
-	breq	r2, 0, .Lother_bootup_chores	; or cmdline is NULL
-
-	mov	r5, @command_line
-1:
-	ldb.ab  r6, [r2, 1]
-	breq    r6, 0, .Lother_bootup_chores
-	b.d     1b
-	stb.ab  r6, [r5, 1]
-#endif
-
-.Lother_bootup_chores:
+	; Uboot - kernel ABI
+	;    r0 = [0] No uboot interaction, [1] cmdline in r2, [2] DTB in r2
+	;    r1 = magic number (board identity, unused as of now
+	;    r2 = pointer to uboot provided cmdline or external DTB in mem
+	; These are handled later in setup_arch()
+	st	r0, [@uboot_tag]
+	st	r2, [@uboot_arg]
 
 	; Identify if running on ISS vs Silicon
 	; 	IDENTITY Reg [ 3  2  1  0 ]

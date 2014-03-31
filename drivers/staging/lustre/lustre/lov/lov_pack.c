@@ -105,23 +105,21 @@ void lov_dump_lmm(int level, void *lmm)
 {
 	int magic;
 
-	magic = ((struct lov_mds_md_v1 *)(lmm))->lmm_magic;
+	magic = le32_to_cpu(((struct lov_mds_md *)lmm)->lmm_magic);
 	switch (magic) {
 	case LOV_MAGIC_V1:
-		return lov_dump_lmm_v1(level, (struct lov_mds_md_v1 *)(lmm));
+		lov_dump_lmm_v1(level, (struct lov_mds_md_v1 *)lmm);
+		break;
 	case LOV_MAGIC_V3:
-		return lov_dump_lmm_v3(level, (struct lov_mds_md_v3 *)(lmm));
+		lov_dump_lmm_v3(level, (struct lov_mds_md_v3 *)lmm);
+		break;
 	default:
-		CERROR("Cannot recognize lmm_magic %x", magic);
+		CDEBUG(level, "unrecognized lmm_magic %x, assuming %x\n",
+		       magic, LOV_MAGIC_V1);
+		lov_dump_lmm_common(level, lmm);
+		break;
 	}
-	return;
 }
-
-#define LMM_ASSERT(test)						\
-do {								    \
-	if (!(test)) lov_dump_lmm(D_ERROR, lmm);			\
-	LASSERT(test); /* so we know what assertion failed */	   \
-} while (0)
 
 /* Pack LOV object metadata for disk storage.  It is packed in LE byte
  * order and is opaque to the networking layer.

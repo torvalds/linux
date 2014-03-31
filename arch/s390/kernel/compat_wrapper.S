@@ -1412,3 +1412,14 @@ ENTRY(sys_finit_module_wrapper)
 	llgtr	%r3,%r3			# const char __user *
 	lgfr	%r4,%r4			# int
 	jg	sys_finit_module
+
+ENTRY(sys_sched_setattr_wrapper)
+	lgfr	%r2,%r2			# pid_t
+	llgtr	%r3,%r3			# struct sched_attr __user *
+	jg	sys_sched_setattr
+
+ENTRY(sys_sched_getattr_wrapper)
+	lgfr	%r2,%r2			# pid_t
+	llgtr	%r3,%r3			# const char __user *
+	llgfr	%r4,%r4			# unsigned int
+	jg	sys_sched_getattr

@@ -26,8 +26,7 @@
  * the GNU General Public License for more details.
  *
  * You should have received a copy of the GNU General Public License
- * along with this program;  if not, write to the Free Software
- * Foundation, Inc., 59 Temple Place, Suite 330, Boston, MA 02111-1307 USA
+ * along with this program;  if not, see <http://www.gnu.org/licenses/>.
  *
  */
 
@@ -304,7 +303,7 @@ static inline int cipso_v4_validate(const struct sk_buff *skb,
 
 	for (opt_iter = 6; opt_iter < opt_len;) {
 		tag_len = opt[opt_iter + 1];
-		if ((tag_len == 0) || (opt[opt_iter + 1] > (opt_len - opt_iter))) {
+		if ((tag_len == 0) || (tag_len > (opt_len - opt_iter))) {
 			err_offset = opt_iter + 1;
 			goto out;
 		}

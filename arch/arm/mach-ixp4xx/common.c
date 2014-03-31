@@ -475,7 +475,7 @@ void __init ixp4xx_sys_init(void)
 /*
  * sched_clock()
  */
-static u32 notrace ixp4xx_read_sched_clock(void)
+static u64 notrace ixp4xx_read_sched_clock(void)
 {
 	return *IXP4XX_OSTS;
 }
@@ -493,7 +493,7 @@ unsigned long ixp4xx_timer_freq = IXP4XX_TIMER_FREQ;
 EXPORT_SYMBOL(ixp4xx_timer_freq);
 static void __init ixp4xx_clocksource_init(void)
 {
-	setup_sched_clock(ixp4xx_read_sched_clock, 32, ixp4xx_timer_freq);
+	sched_clock_register(ixp4xx_read_sched_clock, 32, ixp4xx_timer_freq);
 
 	clocksource_mmio_init(NULL, "OSTS", ixp4xx_timer_freq, 200, 32,
 			ixp4xx_clocksource_read);
@@ -560,7 +560,7 @@ static void __init ixp4xx_clockevent_init(void)
 
 void ixp4xx_restart(enum reboot_mode mode, const char *cmd)
 {
-	if ( 1 && mode == REBOOT_SOFT) {
+	if (mode == REBOOT_SOFT) {
 		/* Jump into ROM at address 0 */
 		soft_restart(0);
 	} else {

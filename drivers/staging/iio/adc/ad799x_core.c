@@ -377,9 +377,9 @@ static const struct iio_info ad7991_info = {
 static const struct iio_info ad7993_4_7_8_info = {
 	.read_raw = &ad799x_read_raw,
 	.event_attrs = &ad799x_event_attrs_group,
-	.read_event_config_new = &ad799x_read_event_config,
-	.read_event_value_new = &ad799x_read_event_value,
-	.write_event_value_new = &ad799x_write_event_value,
+	.read_event_config = &ad799x_read_event_config,
+	.read_event_value = &ad799x_read_event_value,
+	.write_event_value = &ad799x_write_event_value,
 	.driver_module = THIS_MODULE,
 	.update_scan_mode = ad7997_8_update_scan_mode,
 };
@@ -393,7 +393,7 @@ static const struct iio_event_spec ad799x_events[] = {
 	}, {
 		.type = IIO_EV_TYPE_THRESH,
 		.dir = IIO_EV_DIR_FALLING,
-		.mask_separate = BIT(IIO_EV_INFO_VALUE),
+		.mask_separate = BIT(IIO_EV_INFO_VALUE) |
 			BIT(IIO_EV_INFO_ENABLE),
 	}, {
 		.type = IIO_EV_TYPE_THRESH,
@@ -409,7 +409,13 @@ static const struct iio_event_spec ad799x_events[] = {
 	.info_mask_separate = BIT(IIO_CHAN_INFO_RAW), \
 	.info_mask_shared_by_type = BIT(IIO_CHAN_INFO_SCALE), \
 	.scan_index = (_index), \
-	.scan_type = IIO_ST('u', _realbits, 16, 12 - (_realbits)), \
+	.scan_type = { \
+		.sign = 'u', \
+		.realbits = (_realbits), \
+		.storagebits = 16, \
+		.shift = 12 - (_realbits), \
+		.endianness = IIO_BE, \
+	}, \
 	.event_spec = _ev_spec, \
 	.num_event_specs = _num_ev_spec, \
 }
@@ -588,7 +594,8 @@ static int ad799x_probe(struct i2c_client *client,
 	return 0;
 
 error_free_irq:
-	free_irq(client->irq, indio_dev);
+	if (client->irq > 0)
+		free_irq(client->irq, indio_dev);
 error_cleanup_ring:
 	ad799x_ring_cleanup(indio_dev);
 error_disable_reg:

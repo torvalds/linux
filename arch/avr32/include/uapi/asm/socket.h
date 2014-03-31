@@ -78,4 +78,6 @@
 
 #define SO_MAX_PACING_RATE	47
 
+#define SO_BPF_EXTENSIONS	48
+
 #endif /* _UAPI__ASM_AVR32_SOCKET_H */

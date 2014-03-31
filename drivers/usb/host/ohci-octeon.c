@@ -138,18 +138,10 @@ static int ohci_octeon_drv_probe(struct platform_device *pdev)
 	hcd->rsrc_start = res_mem->start;
 	hcd->rsrc_len = resource_size(res_mem);
 
-	if (!request_mem_region(hcd->rsrc_start, hcd->rsrc_len,
-				OCTEON_OHCI_HCD_NAME)) {
-		dev_err(&pdev->dev, "request_mem_region failed\n");
-		ret = -EBUSY;
+	reg_base = devm_ioremap_resource(&pdev->dev, res_mem);
+	if (IS_ERR(reg_base)) {
+		ret = PTR_ERR(reg_base);
 		goto err1;
-	}
-
-	reg_base = ioremap(hcd->rsrc_start, hcd->rsrc_len);
-	if (!reg_base) {
-		dev_err(&pdev->dev, "ioremap failed\n");
-		ret = -ENOMEM;
-		goto err2;
 	}
 
 	ohci_octeon_hw_start();
@@ -168,19 +160,18 @@ static int ohci_octeon_drv_probe(struct platform_device *pdev)
 	ret = usb_add_hcd(hcd, irq, IRQF_SHARED);
 	if (ret) {
 		dev_dbg(&pdev->dev, "failed to add hcd with err %d\n", ret);
-		goto err3;
+		goto err2;
 	}
+
+	device_wakeup_enable(hcd->self.controller);
 
 	platform_set_drvdata(pdev, hcd);
 
 	return 0;
 
-err3:
+err2:
 	ohci_octeon_hw_stop();
 
-	iounmap(hcd->regs);
-err2:
-	release_mem_region(hcd->rsrc_start, hcd->rsrc_len);
 err1:
 	usb_put_hcd(hcd);
 	return ret;
@@ -193,8 +184,6 @@ static int ohci_octeon_drv_remove(struct platform_device *pdev)
 	usb_remove_hcd(hcd);
 
 	ohci_octeon_hw_stop();
-	iounmap(hcd->regs);
-	release_mem_region(hcd->rsrc_start, hcd->rsrc_len);
 	usb_put_hcd(hcd);
 
 	return 0;

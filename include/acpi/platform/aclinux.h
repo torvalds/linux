@@ -239,10 +239,6 @@ void acpi_os_unmap_memory(void __iomem * logical_address, acpi_size size);
  */
 void early_acpi_os_unmap_memory(void __iomem * virt, acpi_size size);
 
-void acpi_os_gpe_count(u32 gpe_number);
-
-void acpi_os_fixed_event_count(u32 fixed_event_number);
-
 #endif				/* __KERNEL__ */
 
 #endif				/* __ACLINUX_H__ */

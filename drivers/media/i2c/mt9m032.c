@@ -459,13 +459,15 @@ static int mt9m032_set_pad_crop(struct v4l2_subdev *subdev,
 			  MT9M032_COLUMN_START_MAX);
 	rect.top = clamp(ALIGN(crop->rect.top, 2), MT9M032_ROW_START_MIN,
 			 MT9M032_ROW_START_MAX);
-	rect.width = clamp(ALIGN(crop->rect.width, 2), MT9M032_COLUMN_SIZE_MIN,
-			   MT9M032_COLUMN_SIZE_MAX);
-	rect.height = clamp(ALIGN(crop->rect.height, 2), MT9M032_ROW_SIZE_MIN,
-			    MT9M032_ROW_SIZE_MAX);
+	rect.width = clamp_t(unsigned int, ALIGN(crop->rect.width, 2),
+			     MT9M032_COLUMN_SIZE_MIN, MT9M032_COLUMN_SIZE_MAX);
+	rect.height = clamp_t(unsigned int, ALIGN(crop->rect.height, 2),
+			      MT9M032_ROW_SIZE_MIN, MT9M032_ROW_SIZE_MAX);
 
-	rect.width = min(rect.width, MT9M032_PIXEL_ARRAY_WIDTH - rect.left);
-	rect.height = min(rect.height, MT9M032_PIXEL_ARRAY_HEIGHT - rect.top);
+	rect.width = min_t(unsigned int, rect.width,
+			   MT9M032_PIXEL_ARRAY_WIDTH - rect.left);
+	rect.height = min_t(unsigned int, rect.height,
+			    MT9M032_PIXEL_ARRAY_HEIGHT - rect.top);
 
 	__crop = __mt9m032_get_pad_crop(sensor, fh, crop->which);
 

@@ -973,17 +973,17 @@ static int da732x_hw_params(struct snd_pcm_substream *substream,
 
 	reg_aif = dai->driver->base;
 
-	switch (params_format(params)) {
-	case SNDRV_PCM_FORMAT_S16_LE:
+	switch (params_width(params)) {
+	case 16:
 		aif |= DA732X_AIF_WORD_16;
 		break;
-	case SNDRV_PCM_FORMAT_S20_3LE:
+	case 20:
 		aif |= DA732X_AIF_WORD_20;
 		break;
-	case SNDRV_PCM_FORMAT_S24_LE:
+	case 24:
 		aif |= DA732X_AIF_WORD_24;
 		break;
-	case SNDRV_PCM_FORMAT_S32_LE:
+	case 32:
 		aif |= DA732X_AIF_WORD_32;
 		break;
 	default:
@@ -1268,11 +1268,23 @@ static struct snd_soc_dai_driver da732x_dai[] = {
 	},
 };
 
+static bool da732x_volatile(struct device *dev, unsigned int reg)
+{
+	switch (reg) {
+	case DA732X_REG_HPL_DAC_OFF_CNTL:
+	case DA732X_REG_HPR_DAC_OFF_CNTL:
+		return true;
+	default:
+		return false;
+	}
+}
+
 static const struct regmap_config da732x_regmap = {
 	.reg_bits		= 8,
 	.val_bits		= 8,
 
 	.max_register		= DA732X_MAX_REG,
+	.volatile_reg		= da732x_volatile,
 	.reg_defaults		= da732x_reg_cache,
 	.num_reg_defaults	= ARRAY_SIZE(da732x_reg_cache),
 	.cache_type		= REGCACHE_RBTREE,

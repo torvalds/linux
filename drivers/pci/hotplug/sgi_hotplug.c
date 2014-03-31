@@ -459,12 +459,15 @@ static int enable_slot(struct hotplug_slot *bss_hotplug_slot)
 		acpi_scan_lock_release();
 	}
 
+	pci_lock_rescan_remove();
+
 	/* Call the driver for the new device */
 	pci_bus_add_devices(slot->pci_bus);
 	/* Call the drivers for the new devices subordinate to PPB */
 	if (new_ppb)
 		pci_bus_add_devices(new_bus);
 
+	pci_unlock_rescan_remove();
 	mutex_unlock(&sn_hotplug_mutex);
 
 	if (rc == 0)
@@ -540,6 +543,7 @@ static int disable_slot(struct hotplug_slot *bss_hotplug_slot)
 		acpi_scan_lock_release();
 	}
 
+	pci_lock_rescan_remove();
 	/* Free the SN resources assigned to the Linux device.*/
 	list_for_each_entry_safe(dev, temp, &slot->pci_bus->devices, bus_list) {
 		if (PCI_SLOT(dev->devfn) != slot->device_num + 1)
@@ -550,6 +554,7 @@ static int disable_slot(struct hotplug_slot *bss_hotplug_slot)
 		pci_stop_and_remove_bus_device(dev);
 		pci_dev_put(dev);
 	}
+	pci_unlock_rescan_remove();
 
 	/* Remove the SSDT for the slot from the ACPI namespace */
 	if (SN_ACPI_BASE_SUPPORT() && ssdt_id) {

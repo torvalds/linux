@@ -29,7 +29,7 @@
 #include <linux/delay.h>
 #include <linux/sched.h>
 
-#include "ixgbe_common.h"
+#include "ixgbe.h"
 #include "ixgbe_phy.h"
 
 static void ixgbe_i2c_start(struct ixgbe_hw *hw);

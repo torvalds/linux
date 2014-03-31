@@ -23,8 +23,7 @@ static struct ebt_entries initial_chain = {
 	.policy		= EBT_ACCEPT,
 };
 
-static struct ebt_replace_kernel initial_table =
-{
+static struct ebt_replace_kernel initial_table = {
 	.name		= "broute",
 	.valid_hooks	= 1 << NF_BR_BROUTING,
 	.entries_size	= sizeof(struct ebt_entries),
@@ -41,8 +40,7 @@ static int check(const struct ebt_table_info *info, unsigned int valid_hooks)
 	return 0;
 }
 
-static const struct ebt_table broute_table =
-{
+static const struct ebt_table broute_table = {
 	.name		= "broute",
 	.table		= &initial_table,
 	.valid_hooks	= 1 << NF_BR_BROUTING,

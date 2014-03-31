@@ -124,12 +124,11 @@ the default being 204800 sectors (or 100MB).
 Updating on-disk metadata
 -------------------------
 
-On-disk metadata is committed every time a REQ_SYNC or REQ_FUA bio is
-written.  If no such requests are made then commits will occur every
-second.  This means the cache behaves like a physical disk that has a
-write cache (the same is true of the thin-provisioning target).  If
-power is lost you may lose some recent writes.  The metadata should
-always be consistent in spite of any crash.
+On-disk metadata is committed every time a FLUSH or FUA bio is written.
+If no such requests are made then commits will occur every second.  This
+means the cache behaves like a physical disk that has a volatile write
+cache.  If power is lost you may lose some recent writes.  The metadata
+should always be consistent in spite of any crash.
 
 The 'dirty' state for a cache block changes far too frequently for us
 to keep updating it on the fly.  So we treat it as a hint.  In normal
@@ -217,36 +216,43 @@ the characteristics of a specific policy, always request it by name.
 Status
 ------
 
-<#used metadata blocks>/<#total metadata blocks> <#read hits> <#read misses>
-<#write hits> <#write misses> <#demotions> <#promotions> <#blocks in cache>
-<#dirty> <#features> <features>* <#core args> <core args>* <#policy args>
-<policy args>*
+<metadata block size> <#used metadata blocks>/<#total metadata blocks>
+<cache block size> <#used cache blocks>/<#total cache blocks>
+<#read hits> <#read misses> <#write hits> <#write misses>
+<#demotions> <#promotions> <#dirty> <#features> <features>*
+<#core args> <core args>* <policy name> <#policy args> <policy args>*
 
-#used metadata blocks    : Number of metadata blocks used
-#total metadata blocks   : Total number of metadata blocks
-#read hits               : Number of times a READ bio has been mapped
+metadata block size	 : Fixed block size for each metadata block in
+			     sectors
+#used metadata blocks	 : Number of metadata blocks used
+#total metadata blocks	 : Total number of metadata blocks
+cache block size	 : Configurable block size for the cache device
+			     in sectors
+#used cache blocks	 : Number of blocks resident in the cache
+#total cache blocks	 : Total number of cache blocks
+#read hits		 : Number of times a READ bio has been mapped
 			     to the cache
-#read misses             : Number of times a READ bio has been mapped
+#read misses		 : Number of times a READ bio has been mapped
 			     to the origin
-#write hits              : Number of times a WRITE bio has been mapped
+#write hits		 : Number of times a WRITE bio has been mapped
 			     to the cache
-#write misses            : Number of times a WRITE bio has been
+#write misses		 : Number of times a WRITE bio has been
 			     mapped to the origin
-#demotions               : Number of times a block has been removed
+#demotions		 : Number of times a block has been removed
 			     from the cache
-#promotions              : Number of times a block has been moved to
+#promotions		 : Number of times a block has been moved to
 			     the cache
-#blocks in cache         : Number of blocks resident in the cache
-#dirty                   : Number of blocks in the cache that differ
+#dirty			 : Number of blocks in the cache that differ
 			     from the origin
-#feature args            : Number of feature args to follow
-feature args             : 'writethrough' (optional)
-#core args               : Number of core arguments (must be even)
-core args                : Key/value pairs for tuning the core
+#feature args		 : Number of feature args to follow
+feature args		 : 'writethrough' (optional)
+#core args		 : Number of core arguments (must be even)
+core args		 : Key/value pairs for tuning the core
 			     e.g. migration_threshold
-#policy args             : Number of policy arguments to follow (must be even)
-policy args              : Key/value pairs
-			     e.g. 'sequential_threshold 1024
+policy name		 : Name of the policy
+#policy args		 : Number of policy arguments to follow (must be even)
+policy args		 : Key/value pairs
+			     e.g. sequential_threshold
 
 Messages
 --------

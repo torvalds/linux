@@ -21,7 +21,7 @@
 
 #ifdef CONFIG_BTRFS_FS_RUN_SANITY_TESTS
 
-#define test_msg(fmt, ...) pr_info("btrfs: selftest: " fmt, ##__VA_ARGS__)
+#define test_msg(fmt, ...) pr_info("BTRFS: selftest: " fmt, ##__VA_ARGS__)
 
 int btrfs_test_free_space_cache(void);
 int btrfs_test_extent_buffer_operations(void);

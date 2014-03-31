@@ -51,6 +51,7 @@ static unsigned int stmmac_jumbo_frm(void *p, struct sk_buff *skb, int csum)
 	priv->hw->desc->prepare_tx_desc(desc, 1, bmax, csum, STMMAC_CHAIN_MODE);
 
 	while (len != 0) {
+		priv->tx_skbuff[entry] = NULL;
 		entry = (++priv->cur_tx) % txsize;
 		desc = priv->dma_tx + entry;
 
@@ -62,7 +63,6 @@ static unsigned int stmmac_jumbo_frm(void *p, struct sk_buff *skb, int csum)
 			priv->hw->desc->prepare_tx_desc(desc, 0, bmax, csum,
 							STMMAC_CHAIN_MODE);
 			priv->hw->desc->set_tx_owner(desc);
-			priv->tx_skbuff[entry] = NULL;
 			len -= bmax;
 			i++;
 		} else {
@@ -73,7 +73,6 @@ static unsigned int stmmac_jumbo_frm(void *p, struct sk_buff *skb, int csum)
 			priv->hw->desc->prepare_tx_desc(desc, 0, len, csum,
 							STMMAC_CHAIN_MODE);
 			priv->hw->desc->set_tx_owner(desc);
-			priv->tx_skbuff[entry] = NULL;
 			len = 0;
 		}
 	}
@@ -152,7 +151,7 @@ static void stmmac_clean_desc3(void *priv_ptr, struct dma_desc *p)
 					  sizeof(struct dma_desc)));
 }
 
-const struct stmmac_chain_mode_ops chain_mode_ops = {
+const struct stmmac_mode_ops chain_mode_ops = {
 	.init = stmmac_init_dma_chain,
 	.is_jumbo_frm = stmmac_is_jumbo_frm,
 	.jumbo_frm = stmmac_jumbo_frm,

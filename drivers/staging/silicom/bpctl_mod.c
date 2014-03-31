@@ -135,8 +135,6 @@ static int bp_get_dev_idx_bsf(struct net_device *dev, int *index)
 	else
 		return -EOPNOTSUPP;
 
-	if (!drvinfo.bus_info)
-		return -ENODATA;
 	if (!strcmp(drvinfo.bus_info, "N/A"))
 		return -ENODATA;
 

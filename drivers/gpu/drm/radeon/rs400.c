@@ -484,6 +484,7 @@ int rs400_resume(struct radeon_device *rdev)
 
 int rs400_suspend(struct radeon_device *rdev)
 {
+	radeon_pm_suspend(rdev);
 	r100_cp_disable(rdev);
 	radeon_wb_disable(rdev);
 	r100_irq_disable(rdev);
@@ -493,6 +494,7 @@ int rs400_suspend(struct radeon_device *rdev)
 
 void rs400_fini(struct radeon_device *rdev)
 {
+	radeon_pm_fini(rdev);
 	r100_cp_fini(rdev);
 	radeon_wb_fini(rdev);
 	radeon_ib_pool_fini(rdev);
@@ -559,6 +561,9 @@ int rs400_init(struct radeon_device *rdev)
 	if (r)
 		return r;
 	r300_set_reg_safe(rdev);
+
+	/* Initialize power management */
+	radeon_pm_init(rdev);
 
 	rdev->accel_working = true;
 	r = rs400_startup(rdev);

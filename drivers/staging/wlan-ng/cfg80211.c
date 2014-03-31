@@ -73,7 +73,8 @@ static int prism2_result2err(int prism2_result)
 static int prism2_domibset_uint32(wlandevice_t *wlandev, u32 did, u32 data)
 {
 	struct p80211msg_dot11req_mibset msg;
-	p80211item_uint32_t *mibitem = (p80211item_uint32_t *) &msg.mibattribute.data;
+	p80211item_uint32_t *mibitem =
+			(p80211item_uint32_t *) &msg.mibattribute.data;
 
 	msg.msgcode = DIDmsg_dot11req_mibset;
 	mibitem->did = did;
@@ -86,7 +87,8 @@ static int prism2_domibset_pstr32(wlandevice_t *wlandev,
 				  u32 did, u8 len, u8 *data)
 {
 	struct p80211msg_dot11req_mibset msg;
-	p80211item_pstr32_t *mibitem = (p80211item_pstr32_t *) &msg.mibattribute.data;
+	p80211item_pstr32_t *mibitem =
+			(p80211item_pstr32_t *) &msg.mibattribute.data;
 
 	msg.msgcode = DIDmsg_dot11req_mibset;
 	mibitem->did = did;
@@ -182,7 +184,8 @@ static int prism2_add_key(struct wiphy *wiphy, struct net_device *dev,
 			goto exit;
 		}
 
-		result = prism2_domibset_pstr32(wlandev, did, params->key_len, params->key);
+		result = prism2_domibset_pstr32(wlandev, did,
+						params->key_len, params->key);
 		if (result)
 			goto exit;
 		break;
@@ -328,7 +331,8 @@ static int prism2_get_station(struct wiphy *wiphy, struct net_device *dev,
 	return result;
 }
 
-static int prism2_scan(struct wiphy *wiphy, struct cfg80211_scan_request *request)
+static int prism2_scan(struct wiphy *wiphy,
+		       struct cfg80211_scan_request *request)
 {
 	struct net_device *dev;
 	struct prism2_wiphy_private *priv = wiphy_priv(wiphy);
@@ -380,7 +384,8 @@ static int prism2_scan(struct wiphy *wiphy, struct cfg80211_scan_request *reques
 		(i < request->n_channels) && i < ARRAY_SIZE(prism2_channels);
 		i++)
 		msg1.channellist.data.data[i] =
-			ieee80211_frequency_to_channel(request->channels[i]->center_freq);
+			ieee80211_frequency_to_channel(
+				request->channels[i]->center_freq);
 	msg1.channellist.data.len = request->n_channels;
 
 	msg1.maxchanneltime.data = 250;
@@ -410,7 +415,8 @@ static int prism2_scan(struct wiphy *wiphy, struct cfg80211_scan_request *reques
 		ie_len = ie_buf[1] + 2;
 		memcpy(&ie_buf[2], &(msg2.ssid.data.data), msg2.ssid.data.len);
 		bss = cfg80211_inform_bss(wiphy,
-			ieee80211_get_channel(wiphy, ieee80211_dsss_chan_to_freq(msg2.dschannel.data)),
+			ieee80211_get_channel(wiphy,
+			      ieee80211_dsss_chan_to_freq(msg2.dschannel.data)),
 			(const u8 *) &(msg2.bssid.data.data),
 			msg2.timestamp.data, msg2.capinfo.data,
 			msg2.beaconperiod.data,

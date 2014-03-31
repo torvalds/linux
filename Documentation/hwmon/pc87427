@@ -7,7 +7,7 @@ Supported chips:
     Addresses scanned: none, address read from Super I/O config space
     Datasheet: No longer available
 
-Author: Jean Delvare <khali@linux-fr.org>
+Author: Jean Delvare <jdelvare@suse.de>
 
 Thanks to Amir Habibi at Candelis for setting up a test system, and to
 Michael Kress for testing several iterations of this driver.

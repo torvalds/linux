@@ -185,11 +185,12 @@ static inline unsigned long long __cmpxchg64(void *ptr,
 {
 	register_pair rp_old = {.pair = old};
 	register_pair rp_new = {.pair = new};
+	unsigned long long *ullptr = ptr;
 
 	asm volatile(
 		"	cds	%0,%2,%1"
-		: "+&d" (rp_old), "=Q" (ptr)
-		: "d" (rp_new), "Q" (ptr)
+		: "+d" (rp_old), "+Q" (*ullptr)
+		: "d" (rp_new)
 		: "memory", "cc");
 	return rp_old.pair;
 }

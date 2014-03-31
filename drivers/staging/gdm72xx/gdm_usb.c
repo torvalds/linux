@@ -635,11 +635,14 @@ static int gdm_usb_probe(struct usb_interface *intf,
 #endif /* CONFIG_WIMAX_GDM72XX_USB_PM */
 
 	ret = register_wimax_device(phy_dev, &intf->dev);
+	if (ret)
+		release_usb(udev);
 
 out:
 	if (ret) {
 		kfree(phy_dev);
 		kfree(udev);
+		usb_put_dev(usbdev);
 	} else {
 		usb_set_intfdata(intf, phy_dev);
 	}
@@ -780,9 +783,10 @@ static int k_mode_thread(void *arg)
 
 			spin_lock_irqsave(&k_lock, flags2);
 		}
+		wait_event_interruptible_lock_irq(k_wait,
+						  !list_empty(&k_list) || k_mode_stop,
+						  k_lock);
 		spin_unlock_irqrestore(&k_lock, flags2);
-
-		interruptible_sleep_on(&k_wait);
 	}
 	return 0;
 }

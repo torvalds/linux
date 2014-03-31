@@ -2,6 +2,8 @@
 
 /include/ "skeleton.dtsi"
 
+#include <dt-bindings/clock/qcom,gcc-msm8960.h>
+
 / {
 	model = "Qualcomm MSM8960 CDP";
 	compatible = "qcom,msm8960-cdp", "qcom,msm8960";
@@ -31,10 +33,24 @@
 		gpio-controller;
 		#gpio-cells = <2>;
 		ngpio = <150>;
-		interrupts = <0 32 0x4>;
+		interrupts = <0 16 0x4>;
 		interrupt-controller;
 		#interrupt-cells = <2>;
 		reg = <0x800000 0x4000>;
+	};
+
+	gcc: clock-controller@900000 {
+		compatible = "qcom,gcc-msm8960";
+		#clock-cells = <1>;
+		#reset-cells = <1>;
+		reg = <0x900000 0x4000>;
+	};
+
+	clock-controller@4000000 {
+		compatible = "qcom,mmcc-msm8960";
+		reg = <0x4000000 0x1000>;
+		#clock-cells = <1>;
+		#reset-cells = <1>;
 	};
 
 	serial@16440000 {
@@ -42,6 +58,8 @@
 		reg = <0x16440000 0x1000>,
 		      <0x16400000 0x1000>;
 		interrupts = <0 154 0x0>;
+		clocks = <&gcc GSBI5_UART_CLK>, <&gcc GSBI5_H_CLK>;
+		clock-names = "core", "iface";
 	};
 
 	qcom,ssbi@500000 {

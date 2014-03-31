@@ -11,8 +11,7 @@
  * more details.
  *
  * You should have received a copy of the GNU General Public License along with
- * this program; if not, write to the Free Software Foundation, Inc., 59 Temple
- * Place - Suite 330, Boston, MA 02111-1307 USA.
+ * this program; if not, see <http://www.gnu.org/licenses/>.
  *
  * Authors:
  *   Haiyang Zhang <haiyangz@microsoft.com>
@@ -244,6 +243,22 @@ static int rndis_filter_send_request(struct rndis_device *dev,
 	return ret;
 }
 
+static void rndis_set_link_state(struct rndis_device *rdev,
+				 struct rndis_request *request)
+{
+	u32 link_status;
+	struct rndis_query_complete *query_complete;
+
+	query_complete = &request->response_msg.msg.query_complete;
+
+	if (query_complete->status == RNDIS_STATUS_SUCCESS &&
+	    query_complete->info_buflen == sizeof(u32)) {
+		memcpy(&link_status, (void *)((unsigned long)query_complete +
+		       query_complete->info_buf_offset), sizeof(u32));
+		rdev->link_state = link_status != 0;
+	}
+}
+
 static void rndis_filter_receive_response(struct rndis_device *dev,
 				       struct rndis_message *resp)
 {
@@ -273,6 +288,10 @@ static void rndis_filter_receive_response(struct rndis_device *dev,
 		    sizeof(struct rndis_message) + RNDIS_EXT_LEN) {
 			memcpy(&request->response_msg, resp,
 			       resp->msg_len);
+			if (request->request_msg.ndis_msg_type ==
+			    RNDIS_MSG_QUERY && request->request_msg.msg.
+			    query_req.oid == RNDIS_OID_GEN_MEDIA_CONNECT_STATUS)
+				rndis_set_link_state(dev, request);
 		} else {
 			netdev_err(ndev,
 				"rndis response buffer overflow "
@@ -621,7 +640,6 @@ static int rndis_filter_query_device_link_status(struct rndis_device *dev)
 	ret = rndis_filter_query_device(dev,
 				      RNDIS_OID_GEN_MEDIA_CONNECT_STATUS,
 				      &link_status, &size);
-	dev->link_state = (link_status != 0) ? true : false;
 
 	return ret;
 }

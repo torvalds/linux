@@ -22,6 +22,7 @@
 #include <linux/io.h>
 #include <linux/export.h>
 #include <linux/random.h>
+#include <linux/clk.h>
 #include <linux/tegra-soc.h>
 
 #include "fuse.h"
@@ -54,6 +55,7 @@ int tegra_cpu_speedo_id;		/* only exist in Tegra30 and later */
 int tegra_soc_speedo_id;
 enum tegra_revision tegra_revision;
 
+static struct clk *fuse_clk;
 static int tegra_fuse_spare_bit;
 static void (*tegra_init_speedo_data)(void);
 
@@ -77,6 +79,22 @@ static const char *tegra_revision_name[TEGRA_REVISION_MAX] = {
 	[TEGRA_REVISION_A04]     = "A04",
 };
 
+static void tegra_fuse_enable_clk(void)
+{
+	if (IS_ERR(fuse_clk))
+		fuse_clk = clk_get_sys(NULL, "fuse");
+	if (IS_ERR(fuse_clk))
+		return;
+	clk_prepare_enable(fuse_clk);
+}
+
+static void tegra_fuse_disable_clk(void)
+{
+	if (IS_ERR(fuse_clk))
+		return;
+	clk_disable_unprepare(fuse_clk);
+}
+
 u32 tegra_fuse_readl(unsigned long offset)
 {
 	return tegra_apb_readl(TEGRA_FUSE_BASE + offset);
@@ -84,7 +102,15 @@ u32 tegra_fuse_readl(unsigned long offset)
 
 bool tegra_spare_fuse(int bit)
 {
-	return tegra_fuse_readl(tegra_fuse_spare_bit + bit * 4);
+	bool ret;
+
+	tegra_fuse_enable_clk();
+
+	ret = tegra_fuse_readl(tegra_fuse_spare_bit + bit * 4);
+
+	tegra_fuse_disable_clk();
+
+	return ret;
 }
 
 static enum tegra_revision tegra_get_revision(u32 id)
@@ -113,10 +139,14 @@ static void tegra_get_process_id(void)
 {
 	u32 reg;
 
+	tegra_fuse_enable_clk();
+
 	reg = tegra_fuse_readl(tegra_fuse_spare_bit);
 	tegra_cpu_process_id = (reg >> 6) & 3;
 	reg = tegra_fuse_readl(tegra_fuse_spare_bit);
 	tegra_core_process_id = (reg >> 12) & 3;
+
+	tegra_fuse_disable_clk();
 }
 
 u32 tegra_read_chipid(void)
@@ -158,6 +188,15 @@ void __init tegra_init_fuse(void)
 	u32 reg = readl(IO_ADDRESS(TEGRA_CLK_RESET_BASE + 0x48));
 	reg |= 1 << 28;
 	writel(reg, IO_ADDRESS(TEGRA_CLK_RESET_BASE + 0x48));
+
+	/*
+	 * Enable FUSE clock. This needs to be hardcoded because the clock
+	 * subsystem is not active during early boot.
+	 */
+	reg = readl(IO_ADDRESS(TEGRA_CLK_RESET_BASE + 0x14));
+	reg |= 1 << 7;
+	writel(reg, IO_ADDRESS(TEGRA_CLK_RESET_BASE + 0x14));
+	fuse_clk = ERR_PTR(-EINVAL);
 
 	reg = tegra_fuse_readl(FUSE_SKU_INFO);
 	randomness[0] = reg;

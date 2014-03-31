@@ -753,7 +753,7 @@ static struct device_type gadget_type = {
  * gadget driver using this framework.  The link layer addresses are
  * set up using module parameters.
  *
- * Returns negative errno, or zero on success
+ * Returns an eth_dev pointer on success, or an ERR_PTR on failure.
  */
 struct eth_dev *gether_setup_name(struct usb_gadget *g,
 		const char *dev_addr, const char *host_addr,

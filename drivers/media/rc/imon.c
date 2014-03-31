@@ -1909,10 +1909,8 @@ static struct input_dev *imon_init_idev(struct imon_context *ictx)
 	int ret, i;
 
 	idev = input_allocate_device();
-	if (!idev) {
-		dev_err(ictx->dev, "input dev allocation failed\n");
+	if (!idev)
 		goto out;
-	}
 
 	snprintf(ictx->name_idev, sizeof(ictx->name_idev),
 		 "iMON Panel, Knob and Mouse(%04x:%04x)",
@@ -1960,10 +1958,8 @@ static struct input_dev *imon_init_touch(struct imon_context *ictx)
 	int ret;
 
 	touch = input_allocate_device();
-	if (!touch) {
-		dev_err(ictx->dev, "touchscreen input dev allocation failed\n");
+	if (!touch)
 		goto touch_alloc_failed;
-	}
 
 	snprintf(ictx->name_touch, sizeof(ictx->name_touch),
 		 "iMON USB Touchscreen (%04x:%04x)",

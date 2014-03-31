@@ -510,7 +510,6 @@ void timer_interrupt(struct pt_regs * regs)
 	 */
 	may_hard_irq_enable();
 
-	__get_cpu_var(irq_stat).timer_irqs++;
 
 #if defined(CONFIG_PPC32) && defined(CONFIG_PMAC)
 	if (atomic_read(&ppc_n_lost_interrupts) != 0)
@@ -532,10 +531,15 @@ void timer_interrupt(struct pt_regs * regs)
 		*next_tb = ~(u64)0;
 		if (evt->event_handler)
 			evt->event_handler(evt);
+		__get_cpu_var(irq_stat).timer_irqs_event++;
 	} else {
 		now = *next_tb - now;
 		if (now <= DECREMENTER_MAX)
 			set_dec((int)now);
+		/* We may have raced with new irq work */
+		if (test_irq_work_pending())
+			set_dec(1);
+		__get_cpu_var(irq_stat).timer_irqs_others++;
 	}
 
 #ifdef CONFIG_PPC64
@@ -801,8 +805,16 @@ static void __init clocksource_init(void)
 static int decrementer_set_next_event(unsigned long evt,
 				      struct clock_event_device *dev)
 {
+	/* Don't adjust the decrementer if some irq work is pending */
+	if (test_irq_work_pending())
+		return 0;
 	__get_cpu_var(decrementers_next_tb) = get_tb_or_rtc() + evt;
 	set_dec(evt);
+
+	/* We may have raced with new irq work */
+	if (test_irq_work_pending())
+		set_dec(1);
+
 	return 0;
 }
 

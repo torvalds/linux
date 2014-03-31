@@ -291,6 +291,7 @@ struct radeon_tv_regs {
 
 struct radeon_atom_ss {
 	uint16_t percentage;
+	uint16_t percentage_divider;
 	uint8_t type;
 	uint16_t step;
 	uint8_t delay;
@@ -624,12 +625,45 @@ struct atom_voltage_table
 	struct atom_voltage_table_entry entries[MAX_VOLTAGE_ENTRIES];
 };
 
+
+extern void
+radeon_add_atom_connector(struct drm_device *dev,
+			  uint32_t connector_id,
+			  uint32_t supported_device,
+			  int connector_type,
+			  struct radeon_i2c_bus_rec *i2c_bus,
+			  uint32_t igp_lane_info,
+			  uint16_t connector_object_id,
+			  struct radeon_hpd *hpd,
+			  struct radeon_router *router);
+extern void
+radeon_add_legacy_connector(struct drm_device *dev,
+			    uint32_t connector_id,
+			    uint32_t supported_device,
+			    int connector_type,
+			    struct radeon_i2c_bus_rec *i2c_bus,
+			    uint16_t connector_object_id,
+			    struct radeon_hpd *hpd);
+extern uint32_t
+radeon_get_encoder_enum(struct drm_device *dev, uint32_t supported_device,
+			uint8_t dac);
+extern void radeon_link_encoder_connector(struct drm_device *dev);
+
 extern enum radeon_tv_std
 radeon_combios_get_tv_info(struct radeon_device *rdev);
 extern enum radeon_tv_std
 radeon_atombios_get_tv_info(struct radeon_device *rdev);
 extern void radeon_atombios_get_default_voltages(struct radeon_device *rdev,
 						 u16 *vddc, u16 *vddci, u16 *mvdd);
+
+extern void
+radeon_combios_connected_scratch_regs(struct drm_connector *connector,
+				      struct drm_encoder *encoder,
+				      bool connected);
+extern void
+radeon_atombios_connected_scratch_regs(struct drm_connector *connector,
+				       struct drm_encoder *encoder,
+				       bool connected);
 
 extern struct drm_connector *
 radeon_get_connector_for_encoder(struct drm_encoder *encoder);
@@ -666,6 +700,7 @@ extern void radeon_atom_ext_encoder_setup_ddc(struct drm_encoder *encoder);
 extern struct drm_encoder *radeon_get_external_encoder(struct drm_encoder *encoder);
 extern int radeon_dp_i2c_aux_ch(struct i2c_adapter *adapter, int mode,
 				u8 write_byte, u8 *read_byte);
+void radeon_atom_copy_swap(u8 *dst, u8 *src, u8 num_bytes, bool to_le);
 
 extern void radeon_i2c_init(struct radeon_device *rdev);
 extern void radeon_i2c_fini(struct radeon_device *rdev);
@@ -766,6 +801,7 @@ extern int radeon_crtc_cursor_move(struct drm_crtc *crtc,
 				   int x, int y);
 
 extern int radeon_get_crtc_scanoutpos(struct drm_device *dev, int crtc,
+				      unsigned int flags,
 				      int *vpos, int *hpos, ktime_t *stime,
 				      ktime_t *etime);
 

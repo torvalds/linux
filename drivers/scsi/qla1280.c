@@ -2502,7 +2502,7 @@ qla1280_mailbox_command(struct scsi_qla_host *ha, uint8_t mr, uint16_t *mb)
 	/* Issue set host interrupt command. */
 
 	/* set up a timer just in case we're really jammed */
-	init_timer(&timer);
+	init_timer_on_stack(&timer);
 	timer.expires = jiffies + 20*HZ;
 	timer.data = (unsigned long)ha;
 	timer.function = qla1280_mailbox_timeout;

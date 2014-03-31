@@ -722,7 +722,7 @@ done:
 	case IPV6_MTU_DISCOVER:
 		if (optlen < sizeof(int))
 			goto e_inval;
-		if (val < IP_PMTUDISC_DONT || val > IP_PMTUDISC_PROBE)
+		if (val < IPV6_PMTUDISC_DONT || val > IPV6_PMTUDISC_INTERFACE)
 			goto e_inval;
 		np->pmtudisc = val;
 		retv = 0;
@@ -1002,10 +1002,8 @@ static int do_ipv6_getsockopt(struct sock *sk, int level, int optname,
 		release_sock(sk);
 
 		if (skb) {
-			int err = ip6_datagram_recv_ctl(sk, &msg, skb);
+			ip6_datagram_recv_ctl(sk, &msg, skb);
 			kfree_skb(skb);
-			if (err)
-				return err;
 		} else {
 			if (np->rxopt.bits.rxinfo) {
 				struct in6_pktinfo src_info;
@@ -1019,7 +1017,8 @@ static int do_ipv6_getsockopt(struct sock *sk, int level, int optname,
 				put_cmsg(&msg, SOL_IPV6, IPV6_HOPLIMIT, sizeof(hlim), &hlim);
 			}
 			if (np->rxopt.bits.rxtclass) {
-				int tclass = np->rcv_tclass;
+				int tclass = (int)ip6_tclass(np->rcv_flowinfo);
+
 				put_cmsg(&msg, SOL_IPV6, IPV6_TCLASS, sizeof(tclass), &tclass);
 			}
 			if (np->rxopt.bits.rxoinfo) {
@@ -1033,6 +1032,11 @@ static int do_ipv6_getsockopt(struct sock *sk, int level, int optname,
 			if (np->rxopt.bits.rxohlim) {
 				int hlim = np->mcast_hops;
 				put_cmsg(&msg, SOL_IPV6, IPV6_2292HOPLIMIT, sizeof(hlim), &hlim);
+			}
+			if (np->rxopt.bits.rxflow) {
+				__be32 flowinfo = np->rcv_flowinfo;
+
+				put_cmsg(&msg, SOL_IPV6, IPV6_FLOWINFO, sizeof(flowinfo), &flowinfo);
 			}
 		}
 		len -= msg.msg_controllen;
@@ -1215,6 +1219,7 @@ static int do_ipv6_getsockopt(struct sock *sk, int level, int optname,
 	case IPV6_FLOWLABEL_MGR:
 	{
 		struct in6_flowlabel_req freq;
+		int flags;
 
 		if (len < sizeof(freq))
 			return -EINVAL;
@@ -1226,9 +1231,11 @@ static int do_ipv6_getsockopt(struct sock *sk, int level, int optname,
 			return -EINVAL;
 
 		len = sizeof(freq);
+		flags = freq.flr_flags;
+
 		memset(&freq, 0, sizeof(freq));
 
-		val = ipv6_flowlabel_opt_get(sk, &freq);
+		val = ipv6_flowlabel_opt_get(sk, &freq, flags);
 		if (val < 0)
 			return val;
 

@@ -110,7 +110,7 @@ static void br_tcn_timer_expired(unsigned long arg)
 	if (!br_is_root_bridge(br) && (br->dev->flags & IFF_UP)) {
 		br_transmit_tcn(br);
 
-		mod_timer(&br->tcn_timer,jiffies + br->bridge_hello_time);
+		mod_timer(&br->tcn_timer, jiffies + br->bridge_hello_time);
 	}
 	spin_unlock(&br->lock);
 }

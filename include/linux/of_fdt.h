@@ -116,6 +116,7 @@ extern const void *of_flat_dt_match_machine(const void *default_match,
 extern void unflatten_device_tree(void);
 extern void unflatten_and_copy_device_tree(void);
 extern void early_init_devtree(void *);
+extern void early_get_first_memblock_info(void *, phys_addr_t *);
 #else /* CONFIG_OF_FLATTREE */
 static inline const char *of_flat_dt_get_machine_name(void) { return NULL; }
 static inline void unflatten_device_tree(void) {}

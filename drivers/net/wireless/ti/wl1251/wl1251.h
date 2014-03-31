@@ -93,6 +93,7 @@ enum {
 	} while (0)
 
 #define WL1251_DEFAULT_RX_CONFIG (CFG_UNI_FILTER_EN |	\
+				  CFG_MC_FILTER_EN |	\
 				  CFG_BSSID_FILTER_EN)
 
 #define WL1251_DEFAULT_RX_FILTER (CFG_RX_PRSP_EN |  \
@@ -303,6 +304,8 @@ struct wl1251 {
 	u8 bss_type;
 	u8 listen_int;
 	int channel;
+	bool monitor_present;
+	bool joined;
 
 	void *target_mem_map;
 	struct acx_data_path_params_resp *data_path;
@@ -367,6 +370,9 @@ struct wl1251 {
 
 	/* PSM mode requested */
 	bool psm_requested;
+
+	/* retry counter for PSM entries */
+	u8 psm_entry_retry;
 
 	u16 beacon_int;
 	u8 dtim_period;

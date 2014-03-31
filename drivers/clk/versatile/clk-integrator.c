@@ -78,7 +78,7 @@ void __init integrator_clk_init(bool is_cp)
 	clk_register_clkdev(clk, NULL, "sp804");
 
 	/* ICST VCO clock used on the Integrator/CP CLCD */
-	clk = icst_clk_register(NULL, &cp_icst_desc,
+	clk = icst_clk_register(NULL, &cp_icst_desc, "icst",
 				__io_address(INTEGRATOR_HDR_BASE));
 	clk_register_clkdev(clk, NULL, "clcd");
 }

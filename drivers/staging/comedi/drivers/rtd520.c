@@ -495,8 +495,6 @@ static unsigned short rtd_convert_chan_gain(struct comedi_device *dev,
 	case AREF_OTHER:	/* ??? */
 		break;
 	}
-	/*printk ("chan=%d r=%d a=%d -> 0x%x\n",
-	   chan, range, aref, r); */
 	return r;
 }
 
@@ -606,7 +604,6 @@ static int rtd_ai_rinsn(struct comedi_device *dev,
 
 		/* read data */
 		d = readw(devpriv->las1 + LAS1_ADC_FIFO);
-		/*printk ("rtd520: Got 0x%x after %d usec\n", d, ii+1); */
 		d = d >> 3;	/* low 3 bits are marker lines */
 		if (test_bit(0, devpriv->chan_is_bipolar))
 			/* convert to comedi unsigned data */
@@ -692,7 +689,7 @@ static int ai_read_dregs(struct comedi_device *dev, struct comedi_subdevice *s)
 static irqreturn_t rtd_interrupt(int irq, void *d)
 {
 	struct comedi_device *dev = d;
-	struct comedi_subdevice *s = &dev->subdevices[0];
+	struct comedi_subdevice *s = dev->read_subdev;
 	struct rtd_private *devpriv = dev->private;
 	u32 overrun;
 	u16 status;
@@ -1427,7 +1424,7 @@ static int rtd520_pci_probe(struct pci_dev *dev,
 	return comedi_pci_auto_config(dev, &rtd520_driver, id->driver_data);
 }
 
-static DEFINE_PCI_DEVICE_TABLE(rtd520_pci_table) = {
+static const struct pci_device_id rtd520_pci_table[] = {
 	{ PCI_VDEVICE(RTD, 0x7520), BOARD_DM7520 },
 	{ PCI_VDEVICE(RTD, 0x4520), BOARD_PCI4520 },
 	{ 0 }

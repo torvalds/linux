@@ -271,6 +271,9 @@ int omap4_enter_lowpower(unsigned int cpu, unsigned int power_state)
 	else
 		omap_pm_ops.finish_suspend(save_state);
 
+	if (IS_PM44XX_ERRATUM(PM_OMAP4_ROM_SMP_BOOT_ERRATUM_GICD) && cpu)
+		gic_dist_enable();
+
 	/*
 	 * Restore the CPUx power state to ON otherwise CPUx
 	 * power domain can transitions to programmed low power

@@ -17,11 +17,13 @@ struct clk_factors_config {
 	u8 pwidth;
 };
 
-struct clk *clk_register_factors(struct device *dev, const char *name,
-				 const char *parent_name,
-				 unsigned long flags, void __iomem *reg,
-				 struct clk_factors_config *config,
-				 void (*get_factors) (u32 *rate, u32 parent_rate,
-						      u8 *n, u8 *k, u8 *m, u8 *p),
-				 spinlock_t *lock);
+struct clk_factors {
+	struct clk_hw hw;
+	void __iomem *reg;
+	struct clk_factors_config *config;
+	void (*get_factors) (u32 *rate, u32 parent, u8 *n, u8 *k, u8 *m, u8 *p);
+	spinlock_t *lock;
+};
+
+extern const struct clk_ops clk_factors_ops;
 #endif

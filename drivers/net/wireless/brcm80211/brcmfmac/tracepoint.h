@@ -89,7 +89,7 @@ TRACE_EVENT(brcmf_hexdump,
 	TP_printk("hexdump [addr=%lx, length=%lu]", __entry->addr, __entry->len)
 );
 
-TRACE_EVENT(brcmf_bdchdr,
+TRACE_EVENT(brcmf_bcdchdr,
 	TP_PROTO(void *data),
 	TP_ARGS(data),
 	TP_STRUCT__entry(
@@ -107,24 +107,35 @@ TRACE_EVENT(brcmf_bdchdr,
 		memcpy(__get_dynamic_array(signal),
 		       (u8 *)data + 4, __entry->siglen);
 	),
-	TP_printk("bdc: prio=%d siglen=%d", __entry->prio, __entry->siglen)
+	TP_printk("bcdc: prio=%d siglen=%d", __entry->prio, __entry->siglen)
 );
 
+#ifndef SDPCM_RX
+#define SDPCM_RX	0
+#endif
+#ifndef SDPCM_TX
+#define SDPCM_TX	1
+#endif
+#ifndef SDPCM_GLOM
+#define SDPCM_GLOM	2
+#endif
+
 TRACE_EVENT(brcmf_sdpcm_hdr,
-	TP_PROTO(bool tx, void *data),
-	TP_ARGS(tx, data),
+	TP_PROTO(u8 dir, void *data),
+	TP_ARGS(dir, data),
 	TP_STRUCT__entry(
-		__field(u8, tx)
+		__field(u8, dir)
 		__field(u16, len)
-		__array(u8, hdr, 12)
+		__dynamic_array(u8, hdr, dir == SDPCM_GLOM ? 20 : 12)
 	),
 	TP_fast_assign(
-		memcpy(__entry->hdr, data, 12);
-		__entry->len = __entry->hdr[0] | (__entry->hdr[1] << 8);
-		__entry->tx = tx ? 1 : 0;
+		memcpy(__get_dynamic_array(hdr), data, dir == SDPCM_GLOM ? 20 : 12);
+		__entry->len = *(u8 *)data | (*((u8 *)data + 1) << 8);
+		__entry->dir = dir;
 	),
-	TP_printk("sdpcm: %s len %u, seq %d", __entry->tx ? "TX" : "RX",
-		  __entry->len, __entry->hdr[4])
+	TP_printk("sdpcm: %s len %u, seq %d",
+		  __entry->dir == SDPCM_RX ? "RX" : "TX",
+		  __entry->len, ((u8 *)__get_dynamic_array(hdr))[4])
 );
 
 #ifdef CONFIG_BRCM_TRACING

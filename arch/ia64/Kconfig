@@ -7,6 +7,7 @@ menu "Processor type and features"
 config IA64
 	bool
 	select ARCH_MIGHT_HAVE_PC_PARPORT
+	select ARCH_MIGHT_HAVE_PC_SERIO
 	select PCI if (!IA64_HP_SIM)
 	select ACPI if (!IA64_HP_SIM)
 	select PM if (!IA64_HP_SIM)
@@ -104,6 +105,7 @@ config HAVE_SETUP_PER_CPU_AREA
 config DMI
 	bool
 	default y
+	select DMI_SCAN_MACHINE_NON_EFI_FALLBACK
 
 config EFI
 	bool
@@ -147,9 +149,6 @@ config PARAVIRT
 	  over full virtualization.  However, when run without a hypervisor
 	  the kernel is theoretically slower and slightly larger.
 
-
-source "arch/ia64/xen/Kconfig"
-
 endif
 
 choice
@@ -175,7 +174,6 @@ config IA64_GENERIC
 	  SGI-SN2		For SGI Altix systems
 	  SGI-UV		For SGI UV systems
 	  Ski-simulator		For the HP simulator <http://www.hpl.hp.com/research/linux/ski/>
-	  Xen-domU		For xen domU system
 
 	  If you don't know what to do, choose "generic".
 
@@ -230,14 +228,6 @@ config IA64_SGI_UV
 config IA64_HP_SIM
 	bool "Ski-simulator"
 	select SWIOTLB
-
-config IA64_XEN_GUEST
-	bool "Xen guest"
-	select SWIOTLB
-	depends on XEN
-	help
-	  Build a kernel that runs on Xen guest domain. At this moment only
-	  16KB page size in supported.
 
 endchoice
 

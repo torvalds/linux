@@ -341,10 +341,6 @@ config X86_USE_3DNOW
 	def_bool y
 	depends on (MCYRIXIII || MK7 || MGEODE_LX) && !UML
 
-config X86_OOSTORE
-	def_bool y
-	depends on (MWINCHIP3D || MWINCHIPC6) && MTRR
-
 #
 # P6_NOPs are a relatively minor optimization that require a family >=
 # 6 processor, except that it is broken on certain VIA chips.

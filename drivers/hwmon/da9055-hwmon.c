@@ -278,10 +278,6 @@ static int da9055_hwmon_probe(struct platform_device *pdev)
 	if (hwmon_irq < 0)
 		return hwmon_irq;
 
-	hwmon_irq = regmap_irq_get_virq(hwmon->da9055->irq_data, hwmon_irq);
-	if (hwmon_irq < 0)
-		return hwmon_irq;
-
 	ret = devm_request_threaded_irq(&pdev->dev, hwmon_irq,
 					NULL, da9055_auxadc_irq,
 					IRQF_TRIGGER_HIGH | IRQF_ONESHOT,

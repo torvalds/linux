@@ -13,10 +13,6 @@ TODO:
 	- Implement NAPI support
 	- In et131x_tx(), don't return NETDEV_TX_BUSY, just drop the packet with kfree_skb().
 	- Reduce the number of split lines by careful consideration of variable names etc.
-	- Do this in et131x.c:
-                struct fbr_lookup *fbr;
-                fbr = rx_local->fbr[id];
-	  Then replace all the instances of "rx_local->fbr[id]" with fbr.
 
 Please send patches to:
 	Greg Kroah-Hartman <gregkh@linuxfoundation.org>

@@ -36,6 +36,7 @@ static struct sk_buff *mps_qos_null_get(struct sta_info *sta)
 				      sdata->vif.addr);
 	nullfunc->frame_control = fc;
 	nullfunc->duration_id = 0;
+	nullfunc->seq_ctrl = 0;
 	/* no address resolution for this frame -> set addr 1 immediately */
 	memcpy(nullfunc->addr1, sta->sta.addr, ETH_ALEN);
 	memset(skb_put(skb, 2), 0, 2); /* append QoS control field */
@@ -576,10 +577,9 @@ void ieee80211_mps_frame_release(struct sta_info *sta,
 	int ac, buffer_local = 0;
 	bool has_buffered = false;
 
-	/* TIM map only for LLID <= IEEE80211_MAX_AID */
 	if (sta->plink_state == NL80211_PLINK_ESTAB)
 		has_buffered = ieee80211_check_tim(elems->tim, elems->tim_len,
-				le16_to_cpu(sta->llid) % IEEE80211_MAX_AID);
+						   sta->llid);
 
 	if (has_buffered)
 		mps_dbg(sta->sdata, "%pM indicates buffered frames\n",

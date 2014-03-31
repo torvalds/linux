@@ -62,17 +62,25 @@ tcf_unbind_filter(struct tcf_proto *tp, struct tcf_result *r)
 
 struct tcf_exts {
 #ifdef CONFIG_NET_CLS_ACT
-	struct tc_action *action;
+	__u32	type; /* for backward compat(TCA_OLD_COMPAT) */
+	struct list_head actions;
 #endif
-};
-
-/* Map to export classifier specific extension TLV types to the
- * generic extensions API. Unsupported extensions must be set to 0.
- */
-struct tcf_ext_map {
+	/* Map to export classifier specific extension TLV types to the
+	 * generic extensions API. Unsupported extensions must be set to 0.
+	 */
 	int action;
 	int police;
 };
+
+static inline void tcf_exts_init(struct tcf_exts *exts, int action, int police)
+{
+#ifdef CONFIG_NET_CLS_ACT
+	exts->type = 0;
+	INIT_LIST_HEAD(&exts->actions);
+#endif
+	exts->action = action;
+	exts->police = police;
+}
 
 /**
  * tcf_exts_is_predicative - check if a predicative extension is present
@@ -85,7 +93,7 @@ static inline int
 tcf_exts_is_predicative(struct tcf_exts *exts)
 {
 #ifdef CONFIG_NET_CLS_ACT
-	return !!exts->action;
+	return !list_empty(&exts->actions);
 #else
 	return 0;
 #endif
@@ -120,23 +128,20 @@ tcf_exts_exec(struct sk_buff *skb, struct tcf_exts *exts,
 	       struct tcf_result *res)
 {
 #ifdef CONFIG_NET_CLS_ACT
-	if (exts->action)
-		return tcf_action_exec(skb, exts->action, res);
+	if (!list_empty(&exts->actions))
+		return tcf_action_exec(skb, &exts->actions, res);
 #endif
 	return 0;
 }
 
 int tcf_exts_validate(struct net *net, struct tcf_proto *tp,
 		      struct nlattr **tb, struct nlattr *rate_tlv,
-		      struct tcf_exts *exts,
-		      const struct tcf_ext_map *map);
+		      struct tcf_exts *exts);
 void tcf_exts_destroy(struct tcf_proto *tp, struct tcf_exts *exts);
 void tcf_exts_change(struct tcf_proto *tp, struct tcf_exts *dst,
 		     struct tcf_exts *src);
-int tcf_exts_dump(struct sk_buff *skb, struct tcf_exts *exts,
-		  const struct tcf_ext_map *map);
-int tcf_exts_dump_stats(struct sk_buff *skb, struct tcf_exts *exts,
-			const struct tcf_ext_map *map);
+int tcf_exts_dump(struct sk_buff *skb, struct tcf_exts *exts);
+int tcf_exts_dump_stats(struct sk_buff *skb, struct tcf_exts *exts);
 
 /**
  * struct tcf_pkt_info - packet information
@@ -333,27 +338,27 @@ static inline int tcf_valid_offset(const struct sk_buff *skb,
 #include <net/net_namespace.h>
 
 static inline int
-tcf_change_indev(struct tcf_proto *tp, char *indev, struct nlattr *indev_tlv)
+tcf_change_indev(struct net *net, struct nlattr *indev_tlv)
 {
-	if (nla_strlcpy(indev, indev_tlv, IFNAMSIZ) >= IFNAMSIZ)
-		return -EINVAL;
-	return 0;
-}
-
-static inline int
-tcf_match_indev(struct sk_buff *skb, char *indev)
-{
+	char indev[IFNAMSIZ];
 	struct net_device *dev;
 
-	if (indev[0]) {
-		if  (!skb->skb_iif)
-			return 0;
-		dev = __dev_get_by_index(dev_net(skb->dev), skb->skb_iif);
-		if (!dev || strcmp(indev, dev->name))
-			return 0;
-	}
+	if (nla_strlcpy(indev, indev_tlv, IFNAMSIZ) >= IFNAMSIZ)
+		return -EINVAL;
+	dev = __dev_get_by_name(net, indev);
+	if (!dev)
+		return -ENODEV;
+	return dev->ifindex;
+}
 
-	return 1;
+static inline bool
+tcf_match_indev(struct sk_buff *skb, int ifindex)
+{
+	if (!ifindex)
+		return true;
+	if  (!skb->skb_iif)
+		return false;
+	return ifindex == skb->skb_iif;
 }
 #endif /* CONFIG_NET_CLS_IND */
 

@@ -36,6 +36,7 @@
 #include <linux/clk.h>
 #include <linux/mtd/lpc32xx_slc.h>
 #include <linux/mtd/lpc32xx_mlc.h>
+#include <linux/platform_data/gpio-lpc32xx.h>
 
 #include <asm/setup.h>
 #include <asm/mach-types.h>
@@ -44,7 +45,6 @@
 #include <mach/hardware.h>
 #include <mach/platform.h>
 #include <mach/board.h>
-#include <mach/gpio-lpc32xx.h>
 #include "common.h"
 
 /*

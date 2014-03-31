@@ -20,7 +20,7 @@ The EFI boot stub is enabled with the CONFIG_EFI_STUB kernel option.
 **** How to install bzImage.efi
 
 The bzImage located in arch/x86/boot/bzImage must be copied to the EFI
-System Partiion (ESP) and renamed with the extension ".efi". Without
+System Partition (ESP) and renamed with the extension ".efi". Without
 the extension the EFI firmware loader will refuse to execute it. It's
 not possible to execute bzImage.efi from the usual Linux file systems
 because EFI firmware doesn't have support for them.

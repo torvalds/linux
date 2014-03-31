@@ -149,13 +149,6 @@ int snd_dma_alloc_pages_fallback(int type, struct device *dev, size_t size,
                                  struct snd_dma_buffer *dmab);
 void snd_dma_free_pages(struct snd_dma_buffer *dmab);
 
-/* buffer-preservation managements */
-
-#define snd_dma_pci_buf_id(pci)	(((unsigned int)(pci)->vendor << 16) | (pci)->device)
-
-size_t snd_dma_get_reserved_buf(struct snd_dma_buffer *dmab, unsigned int id);
-int snd_dma_reserve_buf(struct snd_dma_buffer *dmab, unsigned int id);
-
 /* basic memory allocation functions */
 void *snd_malloc_pages(size_t size, gfp_t gfp_flags);
 void snd_free_pages(void *ptr, size_t size);

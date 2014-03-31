@@ -705,7 +705,7 @@ static int of_fsl_espi_probe(struct platform_device *ofdev)
 		goto err;
 
 	irq = irq_of_parse_and_map(np, 0);
-	if (!ret) {
+	if (!irq) {
 		ret = -EINVAL;
 		goto err;
 	}
@@ -727,6 +727,66 @@ static int of_fsl_espi_remove(struct platform_device *dev)
 	return mpc8xxx_spi_remove(&dev->dev);
 }
 
+#ifdef CONFIG_PM_SLEEP
+static int of_fsl_espi_suspend(struct device *dev)
+{
+	struct spi_master *master = dev_get_drvdata(dev);
+	struct mpc8xxx_spi *mpc8xxx_spi;
+	struct fsl_espi_reg *reg_base;
+	u32 regval;
+	int ret;
+
+	mpc8xxx_spi = spi_master_get_devdata(master);
+	reg_base = mpc8xxx_spi->reg_base;
+
+	ret = spi_master_suspend(master);
+	if (ret) {
+		dev_warn(dev, "cannot suspend master\n");
+		return ret;
+	}
+
+	regval = mpc8xxx_spi_read_reg(&reg_base->mode);
+	regval &= ~SPMODE_ENABLE;
+	mpc8xxx_spi_write_reg(&reg_base->mode, regval);
+
+	return 0;
+}
+
+static int of_fsl_espi_resume(struct device *dev)
+{
+	struct fsl_spi_platform_data *pdata = dev_get_platdata(dev);
+	struct spi_master *master = dev_get_drvdata(dev);
+	struct mpc8xxx_spi *mpc8xxx_spi;
+	struct fsl_espi_reg *reg_base;
+	u32 regval;
+	int i;
+
+	mpc8xxx_spi = spi_master_get_devdata(master);
+	reg_base = mpc8xxx_spi->reg_base;
+
+	/* SPI controller initializations */
+	mpc8xxx_spi_write_reg(&reg_base->mode, 0);
+	mpc8xxx_spi_write_reg(&reg_base->mask, 0);
+	mpc8xxx_spi_write_reg(&reg_base->command, 0);
+	mpc8xxx_spi_write_reg(&reg_base->event, 0xffffffff);
+
+	/* Init eSPI CS mode register */
+	for (i = 0; i < pdata->max_chipselect; i++)
+		mpc8xxx_spi_write_reg(&reg_base->csmode[i], CSMODE_INIT_VAL);
+
+	/* Enable SPI interface */
+	regval = pdata->initial_spmode | SPMODE_INIT_VAL | SPMODE_ENABLE;
+
+	mpc8xxx_spi_write_reg(&reg_base->mode, regval);
+
+	return spi_master_resume(master);
+}
+#endif /* CONFIG_PM_SLEEP */
+
+static const struct dev_pm_ops espi_pm = {
+	SET_SYSTEM_SLEEP_PM_OPS(of_fsl_espi_suspend, of_fsl_espi_resume)
+};
+
 static const struct of_device_id of_fsl_espi_match[] = {
 	{ .compatible = "fsl,mpc8536-espi" },
 	{}
@@ -738,6 +798,7 @@ static struct platform_driver fsl_espi_driver = {
 		.name = "fsl_espi",
 		.owner = THIS_MODULE,
 		.of_match_table = of_fsl_espi_match,
+		.pm = &espi_pm,
 	},
 	.probe		= of_fsl_espi_probe,
 	.remove		= of_fsl_espi_remove,

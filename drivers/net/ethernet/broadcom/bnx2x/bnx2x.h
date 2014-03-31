@@ -472,7 +472,7 @@ struct bnx2x_agg_info {
 	u16			vlan_tag;
 	u16			len_on_bd;
 	u32			rxhash;
-	bool			l4_rxhash;
+	enum pkt_hash_types	rxhash_type;
 	u16			gro_size;
 	u16			full_page;
 };
@@ -1566,6 +1566,7 @@ struct bnx2x {
 #define NO_ISCSI_FLAG			(1 << 14)
 #define NO_FCOE_FLAG			(1 << 15)
 #define BC_SUPPORTS_PFC_STATS		(1 << 17)
+#define TX_SWITCHING			(1 << 18)
 #define BC_SUPPORTS_FCOE_FEATURES	(1 << 19)
 #define USING_SINGLE_MSIX_FLAG		(1 << 20)
 #define BC_SUPPORTS_DCBX_MSG_NON_PMF	(1 << 21)
@@ -1573,6 +1574,7 @@ struct bnx2x {
 #define INTERRUPTS_ENABLED_FLAG		(1 << 23)
 #define BC_SUPPORTS_RMMOD_CMD		(1 << 24)
 #define HAS_PHYS_PORT_ID		(1 << 25)
+#define AER_ENABLED			(1 << 26)
 
 #define BP_NOMCP(bp)			((bp)->flags & NO_MCP_FLAG)
 
@@ -2080,7 +2082,6 @@ int bnx2x_del_all_macs(struct bnx2x *bp,
 void bnx2x_func_init(struct bnx2x *bp, struct bnx2x_func_init_params *p);
 void bnx2x_init_sb(struct bnx2x *bp, dma_addr_t mapping, int vfid,
 		    u8 vf_valid, int fw_sb_id, int igu_sb_id);
-u32 bnx2x_get_pretend_reg(struct bnx2x *bp);
 int bnx2x_get_gpio(struct bnx2x *bp, int gpio_num, u8 port);
 int bnx2x_set_gpio(struct bnx2x *bp, int gpio_num, u32 mode, u8 port);
 int bnx2x_set_mult_gpio(struct bnx2x *bp, u8 pins, u32 mode);
@@ -2463,7 +2464,8 @@ void bnx2x_igu_clear_sb_gen(struct bnx2x *bp, u8 func, u8 idu_sb_id,
 
 #define GOOD_ME_REG(me_reg) (((me_reg) & ME_REG_VF_VALID) && \
 			    (!((me_reg) & ME_REG_VF_ERR)))
-int bnx2x_nic_load_analyze_req(struct bnx2x *bp, u32 load_code);
+int bnx2x_compare_fw_ver(struct bnx2x *bp, u32 load_code, bool print_err);
+
 /* Congestion management fairness mode */
 #define CMNG_FNS_NONE			0
 #define CMNG_FNS_MINMAX			1

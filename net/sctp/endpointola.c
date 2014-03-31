@@ -23,9 +23,8 @@
  * See the GNU General Public License for more details.
  *
  * You should have received a copy of the GNU General Public License
- * along with GNU CC; see the file COPYING.  If not, write to
- * the Free Software Foundation, 59 Temple Place - Suite 330,
- * Boston, MA 02111-1307, USA.
+ * along with GNU CC; see the file COPYING.  If not, see
+ * <http://www.gnu.org/licenses/>.
  *
  * Please send any bug reports or fixes you make to the
  * email address(es):
@@ -369,9 +368,9 @@ struct sctp_association *sctp_endpoint_lookup_assoc(
 {
 	struct sctp_association *asoc;
 
-	sctp_local_bh_disable();
+	local_bh_disable();
 	asoc = __sctp_endpoint_lookup_assoc(ep, paddr, transport);
-	sctp_local_bh_enable();
+	local_bh_enable();
 
 	return asoc;
 }

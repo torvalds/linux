@@ -123,11 +123,15 @@ static int omap_framebuffer_dirty(struct drm_framebuffer *fb,
 {
 	int i;
 
+	drm_modeset_lock_all(fb->dev);
+
 	for (i = 0; i < num_clips; i++) {
 		omap_framebuffer_flush(fb, clips[i].x1, clips[i].y1,
 					clips[i].x2 - clips[i].x1,
 					clips[i].y2 - clips[i].y1);
 	}
+
+	drm_modeset_unlock_all(fb->dev);
 
 	return 0;
 }

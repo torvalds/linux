@@ -1,5 +1,5 @@
 /*
- * Copyright (C) 2013 Freescale Semiconductor, Inc.
+ * Copyright (C) 2013-2014 Freescale Semiconductor, Inc.
  *
  * Author: Peter Chen
  *
@@ -19,12 +19,12 @@ static inline void ci_clear_otg_interrupt(struct ci_hdrc *ci, u32 bits)
 
 static inline void ci_enable_otg_interrupt(struct ci_hdrc *ci, u32 bits)
 {
-	hw_write(ci, OP_OTGSC, bits, bits);
+	hw_write(ci, OP_OTGSC, bits | OTGSC_INT_STATUS_BITS, bits);
 }
 
 static inline void ci_disable_otg_interrupt(struct ci_hdrc *ci, u32 bits)
 {
-	hw_write(ci, OP_OTGSC, bits, 0);
+	hw_write(ci, OP_OTGSC, bits | OTGSC_INT_STATUS_BITS, 0);
 }
 
 int ci_hdrc_otg_init(struct ci_hdrc *ci);

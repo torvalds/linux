@@ -615,7 +615,7 @@ static int cppi41_dma_controller_start(struct cppi41_dma_controller *controller)
 
 		dc = dma_request_slave_channel(dev, str);
 		if (!dc) {
-			dev_err(dev, "Falied to request %s.\n", str);
+			dev_err(dev, "Failed to request %s.\n", str);
 			ret = -EPROBE_DEFER;
 			goto err;
 		}

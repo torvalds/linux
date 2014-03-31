@@ -346,7 +346,7 @@ static int vpfe_pipeline_disable(struct vpfe_pipeline *pipe)
 	}
 	mutex_unlock(&mdev->graph_mutex);
 
-	return (ret == 0) ? ret : -ETIMEDOUT ;
+	return ret ? -ETIMEDOUT : 0;
 }
 
 /*
@@ -1201,6 +1201,8 @@ static int vpfe_start_streaming(struct vb2_queue *vq, unsigned int count)
 	unsigned long addr;
 	int ret;
 
+	if (count == 0)
+		return -ENOBUFS;
 	ret = mutex_lock_interruptible(&video->lock);
 	if (ret)
 		goto streamoff;

@@ -424,11 +424,13 @@ static int f2fs_rename(struct inode *old_dir, struct dentry *old_dentry,
 		}
 
 		f2fs_set_link(new_dir, new_entry, new_page, old_inode);
+		F2FS_I(old_inode)->i_pino = new_dir->i_ino;
 
 		new_inode->i_ctime = CURRENT_TIME;
 		if (old_dir_entry)
 			drop_nlink(new_inode);
 		drop_nlink(new_inode);
+		mark_inode_dirty(new_inode);
 
 		if (!new_inode->i_nlink)
 			add_orphan_inode(sbi, new_inode->i_ino);
@@ -457,11 +459,14 @@ static int f2fs_rename(struct inode *old_dir, struct dentry *old_dentry,
 		if (old_dir != new_dir) {
 			f2fs_set_link(old_inode, old_dir_entry,
 						old_dir_page, new_dir);
+			F2FS_I(old_inode)->i_pino = new_dir->i_ino;
+			update_inode_page(old_inode);
 		} else {
 			kunmap(old_dir_page);
 			f2fs_put_page(old_dir_page, 0);
 		}
 		drop_nlink(old_dir);
+		mark_inode_dirty(old_dir);
 		update_inode_page(old_dir);
 	}
 
@@ -496,6 +501,7 @@ const struct inode_operations f2fs_dir_inode_operations = {
 	.getattr	= f2fs_getattr,
 	.setattr	= f2fs_setattr,
 	.get_acl	= f2fs_get_acl,
+	.set_acl	= f2fs_set_acl,
 #ifdef CONFIG_F2FS_FS_XATTR
 	.setxattr	= generic_setxattr,
 	.getxattr	= generic_getxattr,
@@ -522,6 +528,7 @@ const struct inode_operations f2fs_special_inode_operations = {
 	.getattr	= f2fs_getattr,
 	.setattr        = f2fs_setattr,
 	.get_acl	= f2fs_get_acl,
+	.set_acl	= f2fs_set_acl,
 #ifdef CONFIG_F2FS_FS_XATTR
 	.setxattr       = generic_setxattr,
 	.getxattr       = generic_getxattr,

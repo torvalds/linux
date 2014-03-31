@@ -14,7 +14,6 @@
 #include <linux/clk.h>
 #include <linux/delay.h>
 #include <linux/err.h>
-#include <linux/init.h>
 #include <linux/input.h>
 #include <linux/interrupt.h>
 #include <linux/io.h>
@@ -244,8 +243,8 @@ static void samsung_keypad_close(struct input_dev *input_dev)
 }
 
 #ifdef CONFIG_OF
-static struct samsung_keypad_platdata *samsung_keypad_parse_dt(
-				struct device *dev)
+static struct samsung_keypad_platdata *
+samsung_keypad_parse_dt(struct device *dev)
 {
 	struct samsung_keypad_platdata *pdata;
 	struct matrix_keymap_data *keymap_data;
@@ -253,17 +252,22 @@ static struct samsung_keypad_platdata *samsung_keypad_parse_dt(
 	struct device_node *np = dev->of_node, *key_np;
 	unsigned int key_count;
 
+	if (!np) {
+		dev_err(dev, "missing device tree data\n");
+		return ERR_PTR(-EINVAL);
+	}
+
 	pdata = devm_kzalloc(dev, sizeof(*pdata), GFP_KERNEL);
 	if (!pdata) {
 		dev_err(dev, "could not allocate memory for platform data\n");
-		return NULL;
+		return ERR_PTR(-ENOMEM);
 	}
 
 	of_property_read_u32(np, "samsung,keypad-num-rows", &num_rows);
 	of_property_read_u32(np, "samsung,keypad-num-columns", &num_cols);
 	if (!num_rows || !num_cols) {
 		dev_err(dev, "number of keypad rows/columns not specified\n");
-		return NULL;
+		return ERR_PTR(-EINVAL);
 	}
 	pdata->rows = num_rows;
 	pdata->cols = num_cols;
@@ -271,7 +275,7 @@ static struct samsung_keypad_platdata *samsung_keypad_parse_dt(
 	keymap_data = devm_kzalloc(dev, sizeof(*keymap_data), GFP_KERNEL);
 	if (!keymap_data) {
 		dev_err(dev, "could not allocate memory for keymap data\n");
-		return NULL;
+		return ERR_PTR(-ENOMEM);
 	}
 	pdata->keymap_data = keymap_data;
 
@@ -280,7 +284,7 @@ static struct samsung_keypad_platdata *samsung_keypad_parse_dt(
 	keymap = devm_kzalloc(dev, sizeof(uint32_t) * key_count, GFP_KERNEL);
 	if (!keymap) {
 		dev_err(dev, "could not allocate memory for keymap\n");
-		return NULL;
+		return ERR_PTR(-ENOMEM);
 	}
 	keymap_data->keymap = keymap;
 
@@ -294,16 +298,19 @@ static struct samsung_keypad_platdata *samsung_keypad_parse_dt(
 
 	if (of_get_property(np, "linux,input-no-autorepeat", NULL))
 		pdata->no_autorepeat = true;
+
 	if (of_get_property(np, "linux,input-wakeup", NULL))
 		pdata->wakeup = true;
 
 	return pdata;
 }
 #else
-static
-struct samsung_keypad_platdata *samsung_keypad_parse_dt(struct device *dev)
+static struct samsung_keypad_platdata *
+samsung_keypad_parse_dt(struct device *dev)
 {
-	return NULL;
+	dev_err(dev, "no platform data defined\n");
+
+	return ERR_PTR(-EINVAL);
 }
 #endif
 
@@ -318,13 +325,11 @@ static int samsung_keypad_probe(struct platform_device *pdev)
 	unsigned int keymap_size;
 	int error;
 
-	if (pdev->dev.of_node)
-		pdata = samsung_keypad_parse_dt(&pdev->dev);
-	else
-		pdata = pdev->dev.platform_data;
+	pdata = dev_get_platdata(&pdev->dev);
 	if (!pdata) {
-		dev_err(&pdev->dev, "no platform data defined\n");
-		return -EINVAL;
+		pdata = samsung_keypad_parse_dt(&pdev->dev);
+		if (IS_ERR(pdata))
+			return PTR_ERR(pdata);
 	}
 
 	keymap_data = pdata->keymap_data;

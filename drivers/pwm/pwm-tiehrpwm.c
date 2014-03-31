@@ -360,8 +360,8 @@ static int ehrpwm_pwm_enable(struct pwm_chip *chip, struct pwm_device *pwm)
 	/* Enable TBCLK before enabling PWM device */
 	ret = clk_enable(pc->tbclk);
 	if (ret) {
-		pr_err("Failed to enable TBCLK for %s\n",
-				dev_name(pc->chip.dev));
+		dev_err(chip->dev, "Failed to enable TBCLK for %s\n",
+			dev_name(pc->chip.dev));
 		return ret;
 	}
 

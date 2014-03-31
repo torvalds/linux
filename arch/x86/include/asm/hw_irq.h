@@ -191,6 +191,9 @@ extern void (*__initconst interrupt[NR_VECTORS-FIRST_EXTERNAL_VECTOR])(void);
 #define trace_interrupt interrupt
 #endif
 
+#define VECTOR_UNDEFINED	-1
+#define VECTOR_RETRIGGERED	-2
+
 typedef int vector_irq_t[NR_VECTORS];
 DECLARE_PER_CPU(vector_irq_t, vector_irq);
 extern void setup_vector_irq(int cpu);

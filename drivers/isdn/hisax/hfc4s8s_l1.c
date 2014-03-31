@@ -1620,7 +1620,7 @@ hfc4s8s_probe(struct pci_dev *pdev, const struct pci_device_id *ent)
 #else
 	if (!request_region(hw->iobase, 8, hw->card_name)) {
 		printk(KERN_INFO
-		       "HFC-4S/8S: failed to rquest address space at 0x%04x\n",
+		       "HFC-4S/8S: failed to request address space at 0x%04x\n",
 		       hw->iobase);
 		goto out;
 	}

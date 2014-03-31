@@ -1,6 +1,5 @@
 #include <asm/page_types.h>
 #include <linux/linkage.h>
-#include <linux/init.h>
 
 __PAGE_ALIGNED_DATA
 

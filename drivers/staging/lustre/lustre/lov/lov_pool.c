@@ -453,7 +453,7 @@ int lov_pool_new(struct obd_device *obd, char *poolname)
 	INIT_HLIST_NODE(&new_pool->pool_hash);
 
 #ifdef LPROCFS
-	/* we need this assert seq_file is not implementated for liblustre */
+	/* we need this assert seq_file is not implemented for liblustre */
 	/* get ref for /proc file */
 	lov_pool_getref(new_pool);
 	new_pool->pool_proc_entry = lprocfs_add_simple(lov->lov_pool_proc_entry,

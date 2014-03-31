@@ -250,7 +250,7 @@ static void r600_hdmi_audio_workaround(struct drm_encoder *encoder)
 		 value, ~HDMI0_AUDIO_TEST_EN);
 }
 
-void r600_audio_set_dto(struct drm_encoder *encoder, u32 clock)
+static void r600_audio_set_dto(struct drm_encoder *encoder, u32 clock)
 {
 	struct drm_device *dev = encoder->dev;
 	struct radeon_device *rdev = dev->dev_private;
@@ -328,9 +328,6 @@ static void dce3_2_afmt_write_speaker_allocation(struct drm_encoder *encoder)
 	u32 tmp;
 	u8 *sadb;
 	int sad_count;
-
-	/* XXX: setting this register causes hangs on some asics */
-	return;
 
 	list_for_each_entry(connector, &encoder->dev->mode_config.connector_list, head) {
 		if (connector->encoder == encoder) {
@@ -460,6 +457,10 @@ void r600_hdmi_setmode(struct drm_encoder *encoder, struct drm_display_mode *mod
 		return;
 	offset = dig->afmt->offset;
 
+	/* disable audio prior to setting up hw */
+	dig->afmt->pin = r600_audio_get_pin(rdev);
+	r600_audio_enable(rdev, dig->afmt->pin, false);
+
 	r600_audio_set_dto(encoder, mode->clock);
 
 	WREG32(HDMI0_VBI_PACKET_CONTROL + offset,
@@ -531,6 +532,9 @@ void r600_hdmi_setmode(struct drm_encoder *encoder, struct drm_display_mode *mod
 	WREG32(HDMI0_RAMP_CONTROL3 + offset, 0x00000001);
 
 	r600_hdmi_audio_workaround(encoder);
+
+	/* enable audio after to setting up hw */
+	r600_audio_enable(rdev, dig->afmt->pin, true);
 }
 
 /*
@@ -650,11 +654,6 @@ void r600_hdmi_enable(struct drm_encoder *encoder, bool enable)
 		return;
 	if (!enable && !dig->afmt->enabled)
 		return;
-
-	if (enable)
-		dig->afmt->pin = r600_audio_get_pin(rdev);
-	else
-		dig->afmt->pin = NULL;
 
 	/* Older chipsets require setting HDMI and routing manually */
 	if (!ASIC_IS_DCE3(rdev)) {

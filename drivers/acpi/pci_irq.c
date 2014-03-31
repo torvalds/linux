@@ -37,8 +37,6 @@
 #include <linux/pci.h>
 #include <linux/acpi.h>
 #include <linux/slab.h>
-#include <acpi/acpi_bus.h>
-#include <acpi/acpi_drivers.h>
 
 #define PREFIX "ACPI: "
 
@@ -432,6 +430,7 @@ int acpi_pci_irq_enable(struct pci_dev *dev)
 				 pin_name(pin));
 		}
 
+		kfree(entry);
 		return 0;
 	}
 

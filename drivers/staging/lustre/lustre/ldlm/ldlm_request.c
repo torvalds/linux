@@ -68,8 +68,8 @@
 #include "ldlm_internal.h"
 
 int ldlm_enqueue_min = OBD_TIMEOUT_DEFAULT;
-CFS_MODULE_PARM(ldlm_enqueue_min, "i", int, 0644,
-		"lock enqueue timeout minimum");
+module_param(ldlm_enqueue_min, int, 0644);
+MODULE_PARM_DESC(ldlm_enqueue_min, "lock enqueue timeout minimum");
 
 /* in client side, whether the cached locks will be canceled before replay */
 unsigned int ldlm_cancel_unused_locks_before_replay = 1;
@@ -96,9 +96,6 @@ int ldlm_expired_completion_wait(void *data)
 
 	if (lock->l_conn_export == NULL) {
 		static cfs_time_t next_dump = 0, last_dump = 0;
-
-		if (ptlrpc_check_suspend())
-			return 0;
 
 		LCONSOLE_WARN("lock timed out (enqueued at "CFS_TIME_T", "
 			      CFS_DURATION_T"s ago)\n",
@@ -610,18 +607,12 @@ int ldlm_cli_enqueue_fini(struct obd_export *exp, struct ptlrpc_request *req,
 			lock->l_req_mode = newmode;
 		}
 
-		if (memcmp(reply->lock_desc.l_resource.lr_name.name,
-			  lock->l_resource->lr_name.name,
-			  sizeof(struct ldlm_res_id))) {
-			CDEBUG(D_INFO, "remote intent success, locking "
-					"(%ld,%ld,%ld) instead of "
-					"(%ld,%ld,%ld)\n",
-			      (long)reply->lock_desc.l_resource.lr_name.name[0],
-			      (long)reply->lock_desc.l_resource.lr_name.name[1],
-			      (long)reply->lock_desc.l_resource.lr_name.name[2],
-			      (long)lock->l_resource->lr_name.name[0],
-			      (long)lock->l_resource->lr_name.name[1],
-			      (long)lock->l_resource->lr_name.name[2]);
+		if (!ldlm_res_eq(&reply->lock_desc.l_resource.lr_name,
+				 &lock->l_resource->lr_name)) {
+			CDEBUG(D_INFO, "remote intent success, locking "DLDLMRES
+				       " instead of "DLDLMRES"\n",
+			       PLDLMRES(&reply->lock_desc.l_resource),
+			       PLDLMRES(lock->l_resource));
 
 			rc = ldlm_lock_change_resource(ns, lock,
 					&reply->lock_desc.l_resource.lr_name);
@@ -790,7 +781,7 @@ int ldlm_prep_elc_req(struct obd_export *exp, struct ptlrpc_request *req,
 			dlm = req_capsule_client_get(pill, &RMF_DLM_REQ);
 			LASSERT(dlm);
 			/* Skip first lock handler in ldlm_request_pack(),
-			 * this method will incrment @lock_count according
+			 * this method will increment @lock_count according
 			 * to the lock handle amount actually written to
 			 * the buffer. */
 			dlm->lock_count = canceloff;
@@ -910,7 +901,7 @@ int ldlm_cli_enqueue(struct obd_export *exp, struct ptlrpc_request **reqp,
 	lock->l_conn_export = exp;
 	lock->l_export = NULL;
 	lock->l_blocking_ast = einfo->ei_cb_bl;
-	lock->l_flags |= (*flags & LDLM_FL_NO_LRU);
+	lock->l_flags |= (*flags & (LDLM_FL_NO_LRU | LDLM_FL_EXCL));
 
 	/* lock not sent to server yet */
 
@@ -1333,7 +1324,7 @@ int ldlm_cli_cancel(struct lustre_handle *lockh,
 	}
 
 	rc = ldlm_cli_cancel_local(lock);
-	if (rc == LDLM_FL_LOCAL_ONLY) {
+	if (rc == LDLM_FL_LOCAL_ONLY || cancel_flags & LCF_LOCAL) {
 		LDLM_LOCK_RELEASE(lock);
 		return 0;
 	}
@@ -1593,7 +1584,7 @@ ldlm_cancel_lru_policy(struct ldlm_namespace *ns, int flags)
  *			      the beginning of LRU list);
  *
  * flags & LDLM_CANCEL_SHRINK - cancel not more than \a count locks according to
- *			      memory pressre policy function;
+ *			      memory pressure policy function;
  *
  * flags & LDLM_CANCEL_AGED - cancel \a count locks according to "aged policy".
  *
@@ -1912,7 +1903,8 @@ int ldlm_cli_cancel_unused_resource(struct ldlm_namespace *ns,
 					   0, flags | LCF_BL_AST, opaque);
 	rc = ldlm_cli_cancel_list(&cancels, count, NULL, flags);
 	if (rc != ELDLM_OK)
-		CERROR("ldlm_cli_cancel_unused_resource: %d\n", rc);
+		CERROR("canceling unused lock "DLDLMRES": rc = %d\n",
+		       PLDLMRES(res), rc);
 
 	LDLM_RESOURCE_DELREF(res);
 	ldlm_resource_putref(res);
@@ -1930,15 +1922,10 @@ static int ldlm_cli_hash_cancel_unused(struct cfs_hash *hs, struct cfs_hash_bd *
 {
 	struct ldlm_resource	   *res = cfs_hash_object(hs, hnode);
 	struct ldlm_cli_cancel_arg     *lc = arg;
-	int			     rc;
 
-	rc = ldlm_cli_cancel_unused_resource(ldlm_res_to_ns(res), &res->lr_name,
-					     NULL, LCK_MINMODE,
-					     lc->lc_flags, lc->lc_opaque);
-	if (rc != 0) {
-		CERROR("ldlm_cli_cancel_unused ("LPU64"): %d\n",
-		       res->lr_name.name[0], rc);
-	}
+	ldlm_cli_cancel_unused_resource(ldlm_res_to_ns(res), &res->lr_name,
+					NULL, LCK_MINMODE,
+					lc->lc_flags, lc->lc_opaque);
 	/* must return 0 for hash iteration */
 	return 0;
 }
@@ -2089,7 +2076,7 @@ static int ldlm_chain_lock_for_replay(struct ldlm_lock *lock, void *closure)
 		 lock, &lock->l_pending_chain.next,&lock->l_pending_chain.prev);
 	/* bug 9573: don't replay locks left after eviction, or
 	 * bug 17614: locks being actively cancelled. Get a reference
-	 * on a lock so that it does not disapear under us (e.g. due to cancel)
+	 * on a lock so that it does not disappear under us (e.g. due to cancel)
 	 */
 	if (!(lock->l_flags & (LDLM_FL_FAILED|LDLM_FL_CANCELING))) {
 		list_add(&lock->l_pending_chain, list);

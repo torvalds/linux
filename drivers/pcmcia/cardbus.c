@@ -70,6 +70,8 @@ int __ref cb_alloc(struct pcmcia_socket *s)
 	struct pci_dev *dev;
 	unsigned int max, pass;
 
+	pci_lock_rescan_remove();
+
 	s->functions = pci_scan_slot(bus, PCI_DEVFN(0, 0));
 	pci_fixup_cardbus(bus);
 
@@ -93,6 +95,7 @@ int __ref cb_alloc(struct pcmcia_socket *s)
 
 	pci_bus_add_devices(bus);
 
+	pci_unlock_rescan_remove();
 	return 0;
 }
 
@@ -115,6 +118,10 @@ void cb_free(struct pcmcia_socket *s)
 	if (!bus)
 		return;
 
+	pci_lock_rescan_remove();
+
 	list_for_each_entry_safe(dev, tmp, &bus->devices, bus_list)
 		pci_stop_and_remove_bus_device(dev);
+
+	pci_unlock_rescan_remove();
 }

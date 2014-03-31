@@ -1310,27 +1310,22 @@ ctnetlink_change_status(struct nf_conn *ct, const struct nlattr * const cda[])
 }
 
 static int
-ctnetlink_change_nat(struct nf_conn *ct, const struct nlattr * const cda[])
+ctnetlink_setup_nat(struct nf_conn *ct, const struct nlattr * const cda[])
 {
 #ifdef CONFIG_NF_NAT_NEEDED
 	int ret;
 
-	if (cda[CTA_NAT_DST]) {
-		ret = ctnetlink_parse_nat_setup(ct,
-						NF_NAT_MANIP_DST,
-						cda[CTA_NAT_DST]);
-		if (ret < 0)
-			return ret;
-	}
-	if (cda[CTA_NAT_SRC]) {
-		ret = ctnetlink_parse_nat_setup(ct,
-						NF_NAT_MANIP_SRC,
-						cda[CTA_NAT_SRC]);
-		if (ret < 0)
-			return ret;
-	}
-	return 0;
+	ret = ctnetlink_parse_nat_setup(ct, NF_NAT_MANIP_DST,
+					cda[CTA_NAT_DST]);
+	if (ret < 0)
+		return ret;
+
+	ret = ctnetlink_parse_nat_setup(ct, NF_NAT_MANIP_SRC,
+					cda[CTA_NAT_SRC]);
+	return ret;
 #else
+	if (!cda[CTA_NAT_DST] && !cda[CTA_NAT_SRC])
+		return 0;
 	return -EOPNOTSUPP;
 #endif
 }
@@ -1659,11 +1654,9 @@ ctnetlink_create_conntrack(struct net *net, u16 zone,
 			goto err2;
 	}
 
-	if (cda[CTA_NAT_SRC] || cda[CTA_NAT_DST]) {
-		err = ctnetlink_change_nat(ct, cda);
-		if (err < 0)
-			goto err2;
-	}
+	err = ctnetlink_setup_nat(ct, cda);
+	if (err < 0)
+		goto err2;
 
 	nf_ct_acct_ext_add(ct, GFP_ATOMIC);
 	nf_ct_tstamp_ext_add(ct, GFP_ATOMIC);
@@ -2118,8 +2111,16 @@ ctnetlink_nfqueue_parse_ct(const struct nlattr *cda[], struct nf_conn *ct)
 			return err;
 	}
 #if defined(CONFIG_NF_CONNTRACK_MARK)
-	if (cda[CTA_MARK])
-		ct->mark = ntohl(nla_get_be32(cda[CTA_MARK]));
+	if (cda[CTA_MARK]) {
+		u32 mask = 0, mark, newmark;
+		if (cda[CTA_MARK_MASK])
+			mask = ~ntohl(nla_get_be32(cda[CTA_MARK_MASK]));
+
+		mark = ntohl(nla_get_be32(cda[CTA_MARK]));
+		newmark = (ct->mark & mask) ^ mark;
+		if (newmark != ct->mark)
+			ct->mark = newmark;
+	}
 #endif
 	return 0;
 }

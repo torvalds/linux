@@ -1529,9 +1529,13 @@ call_refreshresult(struct rpc_task *task)
 	task->tk_action = call_refresh;
 	switch (status) {
 	case 0:
-		if (rpcauth_uptodatecred(task))
+		if (rpcauth_uptodatecred(task)) {
 			task->tk_action = call_allocate;
-		return;
+			return;
+		}
+		/* Use rate-limiting and a max number of retries if refresh
+		 * had status 0 but failed to update the cred.
+		 */
 	case -ETIMEDOUT:
 		rpc_delay(task, 3*HZ);
 	case -EAGAIN:
@@ -1729,6 +1733,7 @@ call_bind_status(struct rpc_task *task)
 		return;
 	case -ECONNREFUSED:		/* connection problems */
 	case -ECONNRESET:
+	case -ECONNABORTED:
 	case -ENOTCONN:
 	case -EHOSTDOWN:
 	case -EHOSTUNREACH:
@@ -1799,7 +1804,9 @@ call_connect_status(struct rpc_task *task)
 		return;
 	case -ECONNREFUSED:
 	case -ECONNRESET:
+	case -ECONNABORTED:
 	case -ENETUNREACH:
+	case -EHOSTUNREACH:
 		/* retry with existing socket, after a delay */
 		rpc_delay(task, 3*HZ);
 		if (RPC_IS_SOFTCONN(task))
@@ -1902,6 +1909,7 @@ call_transmit_status(struct rpc_task *task)
 			break;
 		}
 	case -ECONNRESET:
+	case -ECONNABORTED:
 	case -ENOTCONN:
 	case -EPIPE:
 		rpc_task_force_reencode(task);
@@ -2011,8 +2019,9 @@ call_status(struct rpc_task *task)
 			xprt_conditional_disconnect(req->rq_xprt,
 					req->rq_connect_cookie);
 		break;
-	case -ECONNRESET:
 	case -ECONNREFUSED:
+	case -ECONNRESET:
+	case -ECONNABORTED:
 		rpc_force_rebind(clnt);
 		rpc_delay(task, 3*HZ);
 	case -EPIPE:

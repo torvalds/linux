@@ -37,7 +37,6 @@
  */
 
 #define DEBUG_SUBSYSTEM S_SEC
-#include <linux/init.h>
 #include <linux/module.h>
 #include <linux/slab.h>
 #include <linux/dcache.h>

@@ -521,7 +521,7 @@ send_to_lecd(struct lec_priv *priv, atmlec_msg_type type,
 	if (data != NULL)
 		mesg->sizeoftlvs = data->len;
 	if (mac_addr)
-		memcpy(&mesg->content.normal.mac_addr, mac_addr, ETH_ALEN);
+		ether_addr_copy(mesg->content.normal.mac_addr, mac_addr);
 	else
 		mesg->content.normal.targetless_le_arp = 1;
 	if (atm_addr)
@@ -1565,7 +1565,7 @@ static struct lec_arp_table *make_entry(struct lec_priv *priv,
 		pr_info("LEC: Arp entry kmalloc failed\n");
 		return NULL;
 	}
-	memcpy(to_return->mac_addr, mac_addr, ETH_ALEN);
+	ether_addr_copy(to_return->mac_addr, mac_addr);
 	INIT_HLIST_NODE(&to_return->next);
 	setup_timer(&to_return->timer, lec_arp_expire_arp,
 			(unsigned long)to_return);
@@ -1887,7 +1887,8 @@ lec_arp_update(struct lec_priv *priv, const unsigned char *mac_addr,
 					entry = tmp;
 				} else {
 					entry->status = ESI_FORWARD_DIRECT;
-					memcpy(entry->mac_addr, mac_addr, ETH_ALEN);
+					ether_addr_copy(entry->mac_addr,
+							mac_addr);
 					entry->last_used = jiffies;
 					lec_arp_add(priv, entry);
 				}
@@ -2263,7 +2264,7 @@ lec_arp_check_empties(struct lec_priv *priv,
 				  &priv->lec_arp_empty_ones, next) {
 		if (vcc == entry->vcc) {
 			del_timer(&entry->timer);
-			memcpy(entry->mac_addr, src, ETH_ALEN);
+			ether_addr_copy(entry->mac_addr, src);
 			entry->status = ESI_FORWARD_DIRECT;
 			entry->last_used = jiffies;
 			/* We might have got an entry */

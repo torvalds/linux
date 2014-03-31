@@ -152,13 +152,16 @@ void iscsit_free_r2ts_from_list(struct iscsi_cmd *cmd)
  * May be called from software interrupt (timer) context for allocating
  * iSCSI NopINs.
  */
-struct iscsi_cmd *iscsit_allocate_cmd(struct iscsi_conn *conn, gfp_t gfp_mask)
+struct iscsi_cmd *iscsit_allocate_cmd(struct iscsi_conn *conn, int state)
 {
 	struct iscsi_cmd *cmd;
 	struct se_session *se_sess = conn->sess->se_sess;
 	int size, tag;
 
-	tag = percpu_ida_alloc(&se_sess->sess_tag_pool, gfp_mask);
+	tag = percpu_ida_alloc(&se_sess->sess_tag_pool, state);
+	if (tag < 0)
+		return NULL;
+
 	size = sizeof(struct iscsi_cmd) + conn->conn_transport->priv_size;
 	cmd = (struct iscsi_cmd *)(se_sess->sess_cmd_map + (tag * size));
 	memset(cmd, 0, size);
@@ -926,7 +929,7 @@ static int iscsit_add_nopin(struct iscsi_conn *conn, int want_response)
 	u8 state;
 	struct iscsi_cmd *cmd;
 
-	cmd = iscsit_allocate_cmd(conn, GFP_ATOMIC);
+	cmd = iscsit_allocate_cmd(conn, TASK_RUNNING);
 	if (!cmd)
 		return -1;
 

@@ -2569,6 +2569,7 @@ const struct inode_operations ext3_dir_inode_operations = {
 	.removexattr	= generic_removexattr,
 #endif
 	.get_acl	= ext3_get_acl,
+	.set_acl	= ext3_set_acl,
 };
 
 const struct inode_operations ext3_special_inode_operations = {
@@ -2580,4 +2581,5 @@ const struct inode_operations ext3_special_inode_operations = {
 	.removexattr	= generic_removexattr,
 #endif
 	.get_acl	= ext3_get_acl,
+	.set_acl	= ext3_set_acl,
 };

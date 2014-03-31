@@ -124,7 +124,7 @@ int hdmi_phy_init(struct platform_device *pdev, struct hdmi_phy_data *phy)
 	struct resource *res;
 	struct resource temp_res;
 
-	res = platform_get_resource_byname(pdev, IORESOURCE_MEM, "hdmi_txphy");
+	res = platform_get_resource_byname(pdev, IORESOURCE_MEM, "phy");
 	if (!res) {
 		DSSDBG("can't get PHY mem resource by name\n");
 		/*

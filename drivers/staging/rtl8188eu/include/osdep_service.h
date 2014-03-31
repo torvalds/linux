@@ -24,13 +24,12 @@
 
 #define _FAIL		0
 #define _SUCCESS	1
-#define RTW_RX_HANDLED 2
+#define RTW_RX_HANDLED	2
 
 #include <linux/spinlock.h>
 #include <linux/compiler.h>
 #include <linux/kernel.h>
 #include <linux/errno.h>
-#include <linux/init.h>
 #include <linux/slab.h>
 #include <linux/module.h>
 #include <linux/kref.h>
@@ -63,8 +62,6 @@ struct	__queue	{
 	spinlock_t lock;
 };
 
-#define thread_exit() complete_and_exit(NULL, 0)
-
 static inline struct list_head *get_next(struct list_head *list)
 {
 	return list->next;
@@ -72,45 +69,15 @@ static inline struct list_head *get_next(struct list_head *list)
 
 static inline struct list_head *get_list_head(struct __queue *queue)
 {
-	return (&(queue->queue));
+	return &(queue->queue);
 }
 
 
 #define LIST_CONTAINOR(ptr, type, member) \
-        ((type *)((char *)(ptr)-(size_t)(&((type *)0)->member)))
+	((type *)((char *)(ptr)-(size_t)(&((type *)0)->member)))
 
-
-static inline void _enter_critical(spinlock_t *plock, unsigned long *pirqL)
-{
-	spin_lock_irqsave(plock, *pirqL);
-}
-
-static inline void _exit_critical(spinlock_t *plock, unsigned long *pirqL)
-{
-	spin_unlock_irqrestore(plock, *pirqL);
-}
-
-static inline void _enter_critical_ex(spinlock_t *plock, unsigned long *pirqL)
-{
-	spin_lock_irqsave(plock, *pirqL);
-}
-
-static inline void _exit_critical_ex(spinlock_t *plock, unsigned long *pirqL)
-{
-	spin_unlock_irqrestore(plock, *pirqL);
-}
-
-static inline void _enter_critical_bh(spinlock_t *plock, unsigned long *pirqL)
-{
-	spin_lock_bh(plock);
-}
-
-static inline void _exit_critical_bh(spinlock_t *plock, unsigned long *pirqL)
-{
-	spin_unlock_bh(plock);
-}
-
-static inline int _enter_critical_mutex(struct mutex *pmutex, unsigned long *pirqL)
+static inline int _enter_critical_mutex(struct mutex *pmutex,
+					unsigned long *pirqL)
 {
 	int ret;
 
@@ -119,7 +86,8 @@ static inline int _enter_critical_mutex(struct mutex *pmutex, unsigned long *pir
 }
 
 
-static inline void _exit_critical_mutex(struct mutex *pmutex, unsigned long *pirqL)
+static inline void _exit_critical_mutex(struct mutex *pmutex,
+					unsigned long *pirqL)
 {
 		mutex_unlock(pmutex);
 }
@@ -129,29 +97,33 @@ static inline void rtw_list_delete(struct list_head *plist)
 	list_del_init(plist);
 }
 
-static inline void _init_timer(struct timer_list *ptimer,struct  net_device *nic_hdl,void *pfunc,void* cntx)
+static inline void _init_timer(struct timer_list *ptimer,
+			       struct  net_device *nic_hdl,
+			       void *pfunc, void *cntx)
 {
 	ptimer->function = pfunc;
 	ptimer->data = (unsigned long)cntx;
 	init_timer(ptimer);
 }
 
-static inline void _set_timer(struct timer_list *ptimer,u32 delay_time)
+static inline void _set_timer(struct timer_list *ptimer, u32 delay_time)
 {
 	mod_timer(ptimer , (jiffies+(delay_time*HZ/1000)));
 }
 
-static inline void _cancel_timer(struct timer_list *ptimer,u8 *bcancelled)
+static inline void _cancel_timer(struct timer_list *ptimer, u8 *bcancelled)
 {
 	del_timer_sync(ptimer);
-	*bcancelled=  true;/* true ==1; false==0 */
+	*bcancelled = true;/* true ==1; false==0 */
 }
 
 #define RTW_TIMER_HDL_ARGS void *FunctionContext
 #define RTW_TIMER_HDL_NAME(name) rtw_##name##_timer_hdl
-#define RTW_DECLARE_TIMER_HDL(name) void RTW_TIMER_HDL_NAME(name)(RTW_TIMER_HDL_ARGS)
+#define RTW_DECLARE_TIMER_HDL(name) \
+	void RTW_TIMER_HDL_NAME(name)(RTW_TIMER_HDL_ARGS)
 
-static inline void _init_workitem(struct work_struct *pwork, void *pfunc, void * cntx)
+static inline void _init_workitem(struct work_struct *pwork, void *pfunc,
+				  void *cntx)
 {
 	INIT_WORK(pwork, pfunc);
 }
@@ -164,23 +136,6 @@ static inline void _set_workitem(struct work_struct *pwork)
 static inline void _cancel_workitem_sync(struct work_struct *pwork)
 {
 	cancel_work_sync(pwork);
-}
-/*  */
-/*  Global Mutex: can only be used at PASSIVE level. */
-/*  */
-
-#define ACQUIRE_GLOBAL_MUTEX(_MutexCounter)                              \
-{                                                               \
-	while (atomic_inc_return((atomic_t *)&(_MutexCounter)) != 1)\
-	{                                                           \
-		atomic_dec((atomic_t *)&(_MutexCounter));        \
-		msleep(10);                          \
-	}                                                           \
-}
-
-#define RELEASE_GLOBAL_MUTEX(_MutexCounter)                              \
-{                                                               \
-	atomic_dec((atomic_t *)&(_MutexCounter));        \
 }
 
 static inline int rtw_netif_queue_stopped(struct net_device *pnetdev)
@@ -207,7 +162,7 @@ static inline void rtw_netif_stop_queue(struct net_device *pnetdev)
 }
 
 #ifndef BIT
-	#define BIT(x)	( 1 << (x))
+	#define BIT(x)	(1 << (x))
 #endif
 
 #define BIT0	0x00000001
@@ -301,20 +256,13 @@ void rtw_list_insert_head(struct list_head *plist, struct list_head *phead);
 void rtw_list_insert_tail(struct list_head *plist, struct list_head *phead);
 void rtw_list_delete(struct list_head *plist);
 
-void _rtw_init_sema(struct semaphore *sema, int init_val);
-void _rtw_free_sema(struct semaphore *sema);
-void _rtw_up_sema(struct semaphore *sema);
 u32  _rtw_down_sema(struct semaphore *sema);
-void _rtw_mutex_init(struct mutex *pmutex);
-void _rtw_mutex_free(struct mutex *pmutex);
-void _rtw_spinlock_init(spinlock_t *plock);
-void _rtw_spinlock_free(spinlock_t *plock);
 
 void _rtw_init_queue(struct __queue *pqueue);
 u32  _rtw_queue_empty(struct __queue *pqueue);
-u32  rtw_end_of_queue_search(struct list_head *queue, struct list_head *pelement);
+u32  rtw_end_of_queue_search(struct list_head *queue,
+			     struct list_head *pelement);
 
-u32  rtw_get_current_time(void);
 u32  rtw_systime_to_ms(u32 systime);
 u32  rtw_ms_to_systime(u32 ms);
 s32  rtw_get_passing_time_ms(u32 start);
@@ -322,32 +270,21 @@ s32  rtw_get_time_interval_ms(u32 start, u32 end);
 
 void rtw_sleep_schedulable(int ms);
 
-void rtw_msleep_os(int ms);
-void rtw_usleep_os(int us);
-
 u32  rtw_atoi(u8 *s);
-
-void rtw_mdelay_os(int ms);
-void rtw_udelay_os(int us);
-
-void rtw_yield_os(void);
 
 static inline unsigned char _cancel_timer_ex(struct timer_list *ptimer)
 {
 	return del_timer_sync(ptimer);
 }
 
-static __inline void thread_enter(char *name)
+static inline void thread_enter(char *name)
 {
-#ifdef daemonize
-	daemonize("%s", name);
-#endif
 	allow_signal(SIGTERM);
 }
 
 static inline void flush_signals_thread(void)
 {
-	if (signal_pending (current))
+	if (signal_pending(current))
 		flush_signals(current);
 }
 
@@ -357,13 +294,13 @@ static inline int res_to_status(int res)
 }
 
 #define _RND(sz, r) ((((sz)+((r)-1))/(r))*(r))
-#define RND4(x)	(((x >> 2) + (((x & 3) == 0) ?  0: 1)) << 2)
+#define RND4(x)	(((x >> 2) + (((x & 3) == 0) ?  0 : 1)) << 2)
 
 static inline u32 _RND4(u32 sz)
 {
 	u32	val;
 
-	val = ((sz >> 2) + ((sz & 3) ? 1: 0)) << 2;
+	val = ((sz >> 2) + ((sz & 3) ? 1 : 0)) << 2;
 	return val;
 }
 
@@ -371,7 +308,7 @@ static inline u32 _RND8(u32 sz)
 {
 	u32	val;
 
-	val = ((sz >> 3) + ((sz & 7) ? 1: 0)) << 3;
+	val = ((sz >> 3) + ((sz & 7) ? 1 : 0)) << 3;
 	return val;
 }
 
@@ -379,7 +316,7 @@ static inline u32 _RND128(u32 sz)
 {
 	u32	val;
 
-	val = ((sz >> 7) + ((sz & 127) ? 1: 0)) << 7;
+	val = ((sz >> 7) + ((sz & 127) ? 1 : 0)) << 7;
 	return val;
 }
 
@@ -387,7 +324,7 @@ static inline u32 _RND256(u32 sz)
 {
 	u32	val;
 
-	val = ((sz >> 8) + ((sz & 255) ? 1: 0)) << 8;
+	val = ((sz >> 8) + ((sz & 255) ? 1 : 0)) << 8;
 	return val;
 }
 
@@ -395,7 +332,7 @@ static inline u32 _RND512(u32 sz)
 {
 	u32	val;
 
-	val = ((sz >> 9) + ((sz & 511) ? 1: 0)) << 9;
+	val = ((sz >> 9) + ((sz & 511) ? 1 : 0)) << 9;
 	return val;
 }
 
@@ -404,31 +341,13 @@ static inline u32 bitshift(u32 bitmask)
 	u32 i;
 
 	for (i = 0; i <= 31; i++)
-		if (((bitmask>>i) &  0x1) == 1) break;
+		if (((bitmask>>i) &  0x1) == 1)
+			break;
 	return i;
 }
 
 /*  limitation of path length */
 #define PATH_LENGTH_MAX PATH_MAX
-
-void rtw_suspend_lock_init(void);
-void rtw_suspend_lock_uninit(void);
-void rtw_lock_suspend(void);
-void rtw_unlock_suspend(void);
-
-/* Atomic integer operations */
-#define ATOMIC_T atomic_t
-
-void ATOMIC_SET(ATOMIC_T *v, int i);
-int ATOMIC_READ(ATOMIC_T *v);
-void ATOMIC_ADD(ATOMIC_T *v, int i);
-void ATOMIC_SUB(ATOMIC_T *v, int i);
-void ATOMIC_INC(ATOMIC_T *v);
-void ATOMIC_DEC(ATOMIC_T *v);
-int ATOMIC_ADD_RETURN(ATOMIC_T *v, int i);
-int ATOMIC_SUB_RETURN(ATOMIC_T *v, int i);
-int ATOMIC_INC_RETURN(ATOMIC_T *v);
-int ATOMIC_DEC_RETURN(ATOMIC_T *v);
 
 struct rtw_netdev_priv_indicator {
 	void *priv;
@@ -451,7 +370,7 @@ void rtw_free_netdev(struct net_device *netdev);
 #define FUNC_ADPT_FMT "%s(%s)"
 #define FUNC_ADPT_ARG(adapter) __func__, adapter->pnetdev->name
 
-#define rtw_signal_process(pid, sig) kill_pid(find_vpid((pid)),(sig), 1)
+#define rtw_signal_process(pid, sig) kill_pid(find_vpid((pid)), (sig), 1)
 
 u64 rtw_modular64(u64 x, u64 y);
 u64 rtw_division64(u64 x, u64 y);

@@ -36,7 +36,7 @@
 #include <sys/statfs.h>
 #include "../../include/uapi/linux/magic.h"
 #include "../../include/uapi/linux/kernel-page-flags.h"
-#include <lk/debugfs.h>
+#include <api/fs/debugfs.h>
 
 #ifndef MAX_PATH
 # define MAX_PATH 256

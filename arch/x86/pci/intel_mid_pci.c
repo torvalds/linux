@@ -31,6 +31,7 @@
 #include <asm/pci_x86.h>
 #include <asm/hw_irq.h>
 #include <asm/io_apic.h>
+#include <asm/intel-mid.h>
 
 #define PCIE_CAP_OFFSET	0x100
 
@@ -219,7 +220,10 @@ static int intel_mid_pci_irq_enable(struct pci_dev *dev)
 	irq_attr.ioapic = mp_find_ioapic(dev->irq);
 	irq_attr.ioapic_pin = dev->irq;
 	irq_attr.trigger = 1; /* level */
-	irq_attr.polarity = 1; /* active low */
+	if (intel_mid_identify_cpu() == INTEL_MID_CPU_CHIP_TANGIER)
+		irq_attr.polarity = 0; /* active high */
+	else
+		irq_attr.polarity = 1; /* active low */
 	io_apic_set_pci_routing(&dev->dev, dev->irq, &irq_attr);
 
 	return 0;

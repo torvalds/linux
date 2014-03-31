@@ -22,7 +22,6 @@
 #include <linux/clk.h>
 #include <linux/errno.h>
 #include <linux/if_arp.h>
-#include <linux/init.h>
 #include <linux/interrupt.h>
 #include <linux/kernel.h>
 #include <linux/module.h>

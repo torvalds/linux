@@ -162,7 +162,7 @@ static int keypad_probe(struct platform_device *pdev)
 	int error = 0, sz, row_shift;
 	u32 rev = 0;
 
-	pdata = pdev->dev.platform_data;
+	pdata = dev_get_platdata(&pdev->dev);
 	if (!pdata) {
 		dev_err(dev, "cannot find device data\n");
 		return -EINVAL;

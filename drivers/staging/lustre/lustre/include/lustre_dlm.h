@@ -1285,10 +1285,11 @@ void ldlm_namespace_register(struct ldlm_namespace *ns, ldlm_side_t client);
 void ldlm_namespace_unregister(struct ldlm_namespace *ns, ldlm_side_t client);
 void ldlm_namespace_get(struct ldlm_namespace *ns);
 void ldlm_namespace_put(struct ldlm_namespace *ns);
-int ldlm_proc_setup(void);
 #ifdef LPROCFS
+int ldlm_proc_setup(void);
 void ldlm_proc_cleanup(void);
 #else
+static inline int ldlm_proc_setup(void) { return 0; }
 static inline void ldlm_proc_cleanup(void) {}
 #endif
 

@@ -104,7 +104,6 @@
 	status = "okay";
 
 	ethphy0: ethernet-phy {
-		device_type = "ethernet-phy";
                 /* overwrite reg property in board file */
 	};
 };

@@ -39,8 +39,9 @@ nva3_disp_sclass[] = {
 	{}
 };
 
-struct nouveau_omthds
+static struct nouveau_omthds
 nva3_disp_base_omthds[] = {
+	{ HEAD_MTHD(NV50_DISP_SCANOUTPOS)     , nv50_disp_base_scanoutpos },
 	{ SOR_MTHD(NV50_DISP_SOR_PWR)         , nv50_sor_mthd },
 	{ SOR_MTHD(NVA3_DISP_SOR_HDA_ELD)     , nv50_sor_mthd },
 	{ SOR_MTHD(NV84_DISP_SOR_HDMI_PWR)    , nv50_sor_mthd },

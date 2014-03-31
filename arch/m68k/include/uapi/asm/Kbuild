@@ -11,6 +11,14 @@ generic-y += termbits.h
 generic-y += termios.h
 
 header-y += a.out.h
+header-y += bootinfo.h
+header-y += bootinfo-amiga.h
+header-y += bootinfo-apollo.h
+header-y += bootinfo-atari.h
+header-y += bootinfo-hp300.h
+header-y += bootinfo-mac.h
+header-y += bootinfo-q40.h
+header-y += bootinfo-vme.h
 header-y += byteorder.h
 header-y += cachectl.h
 header-y += fcntl.h

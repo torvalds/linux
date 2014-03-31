@@ -134,7 +134,7 @@ static struct gpio_chip reference_gp = {
 	.direction_input = da9055_gpio_direction_input,
 	.direction_output = da9055_gpio_direction_output,
 	.to_irq = da9055_gpio_to_irq,
-	.can_sleep = 1,
+	.can_sleep = true,
 	.ngpio = 3,
 	.base = -1,
 };

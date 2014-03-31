@@ -436,7 +436,7 @@ static void sx150x_init_chip(struct sx150x_chip *chip,
 	chip->gpio_chip.set              = sx150x_gpio_set;
 	chip->gpio_chip.to_irq           = sx150x_gpio_to_irq;
 	chip->gpio_chip.base             = pdata->gpio_base;
-	chip->gpio_chip.can_sleep        = 1;
+	chip->gpio_chip.can_sleep        = true;
 	chip->gpio_chip.ngpio            = chip->dev_cfg->ngpios;
 	if (pdata->oscio_is_gpo)
 		++chip->gpio_chip.ngpio;

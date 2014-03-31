@@ -23,8 +23,11 @@
 #include <linux/netpoll.h>
 #include <linux/inetdevice.h>
 #include <linux/etherdevice.h>
+#include <linux/reciprocal_div.h>
+
 #include "bond_3ad.h"
 #include "bond_alb.h"
+#include "bond_options.h"
 
 #define DRV_VERSION	"3.7.1"
 #define DRV_RELDATE	"April 27, 2011"
@@ -101,6 +104,10 @@
 		netdev_adjacent_get_private(bond_slave_list(bond)->prev) : \
 		NULL)
 
+/* Caller must have rcu_read_lock */
+#define bond_first_slave_rcu(bond) \
+	netdev_lower_get_first_private_rcu(bond->dev)
+
 #define bond_is_first_slave(bond, pos) (pos == bond_first_slave(bond))
 #define bond_is_last_slave(bond, pos) (pos == bond_last_slave(bond))
 
@@ -167,6 +174,7 @@ struct bond_params {
 	int resend_igmp;
 	int lp_interval;
 	int packets_per_slave;
+	struct reciprocal_value reciprocal_packets_per_slave;
 };
 
 struct bond_parm_tbl {
@@ -187,7 +195,8 @@ struct slave {
 	s8     new_link;
 	u8     backup:1,   /* indicates backup slave. Value corresponds with
 			      BOND_STATE_ACTIVE and BOND_STATE_BACKUP */
-	       inactive:1; /* indicates inactive slave */
+	       inactive:1, /* indicates inactive slave */
+	       should_notify:1; /* indicateds whether the state changed */
 	u8     duplex;
 	u32    original_mtu;
 	u32    link_failure_count;
@@ -199,6 +208,7 @@ struct slave {
 #ifdef CONFIG_NET_POLL_CONTROLLER
 	struct netpoll *np;
 #endif
+	struct kobject kobj;
 };
 
 /*
@@ -280,12 +290,62 @@ static inline bool bond_is_lb(const struct bonding *bond)
 
 static inline void bond_set_active_slave(struct slave *slave)
 {
-	slave->backup = 0;
+	if (slave->backup) {
+		slave->backup = 0;
+		rtmsg_ifinfo(RTM_NEWLINK, slave->dev, 0, GFP_KERNEL);
+	}
 }
 
 static inline void bond_set_backup_slave(struct slave *slave)
 {
-	slave->backup = 1;
+	if (!slave->backup) {
+		slave->backup = 1;
+		rtmsg_ifinfo(RTM_NEWLINK, slave->dev, 0, GFP_KERNEL);
+	}
+}
+
+static inline void bond_set_slave_state(struct slave *slave,
+					int slave_state, bool notify)
+{
+	if (slave->backup == slave_state)
+		return;
+
+	slave->backup = slave_state;
+	if (notify) {
+		rtmsg_ifinfo(RTM_NEWLINK, slave->dev, 0, GFP_KERNEL);
+		slave->should_notify = 0;
+	} else {
+		if (slave->should_notify)
+			slave->should_notify = 0;
+		else
+			slave->should_notify = 1;
+	}
+}
+
+static inline void bond_slave_state_change(struct bonding *bond)
+{
+	struct list_head *iter;
+	struct slave *tmp;
+
+	bond_for_each_slave(bond, tmp, iter) {
+		if (tmp->link == BOND_LINK_UP)
+			bond_set_active_slave(tmp);
+		else if (tmp->link == BOND_LINK_DOWN)
+			bond_set_backup_slave(tmp);
+	}
+}
+
+static inline void bond_slave_state_notify(struct bonding *bond)
+{
+	struct list_head *iter;
+	struct slave *tmp;
+
+	bond_for_each_slave(bond, tmp, iter) {
+		if (tmp->should_notify) {
+			rtmsg_ifinfo(RTM_NEWLINK, tmp->dev, 0, GFP_KERNEL);
+			tmp->should_notify = 0;
+		}
+	}
 }
 
 static inline int bond_slave_state(struct slave *slave)
@@ -314,6 +374,9 @@ static inline bool bond_is_active_slave(struct slave *slave)
 #define BOND_ARP_VALIDATE_BACKUP	(1 << BOND_STATE_BACKUP)
 #define BOND_ARP_VALIDATE_ALL		(BOND_ARP_VALIDATE_ACTIVE | \
 					 BOND_ARP_VALIDATE_BACKUP)
+
+#define BOND_SLAVE_NOTIFY_NOW		true
+#define BOND_SLAVE_NOTIFY_LATER		false
 
 static inline int slave_do_arp_validate(struct bonding *bond,
 					struct slave *slave)
@@ -366,17 +429,19 @@ static inline void bond_netpoll_send_skb(const struct slave *slave,
 }
 #endif
 
-static inline void bond_set_slave_inactive_flags(struct slave *slave)
+static inline void bond_set_slave_inactive_flags(struct slave *slave,
+						 bool notify)
 {
 	if (!bond_is_lb(slave->bond))
-		bond_set_backup_slave(slave);
+		bond_set_slave_state(slave, BOND_STATE_BACKUP, notify);
 	if (!slave->bond->params.all_slaves_active)
 		slave->inactive = 1;
 }
 
-static inline void bond_set_slave_active_flags(struct slave *slave)
+static inline void bond_set_slave_active_flags(struct slave *slave,
+					       bool notify)
 {
-	bond_set_active_slave(slave);
+	bond_set_slave_state(slave, BOND_STATE_ACTIVE, notify);
 	slave->inactive = 0;
 }
 
@@ -394,8 +459,8 @@ static inline __be32 bond_confirm_addr(struct net_device *dev, __be32 dst, __be3
 	in_dev = __in_dev_get_rcu(dev);
 
 	if (in_dev)
-		addr = inet_confirm_addr(in_dev, dst, local, RT_SCOPE_HOST);
-
+		addr = inet_confirm_addr(dev_net(dev), in_dev, dst, local,
+					 RT_SCOPE_HOST);
 	rcu_read_unlock();
 	return addr;
 }
@@ -412,19 +477,18 @@ static inline bool slave_can_tx(struct slave *slave)
 struct bond_net;
 
 int bond_arp_rcv(const struct sk_buff *skb, struct bonding *bond, struct slave *slave);
-int bond_dev_queue_xmit(struct bonding *bond, struct sk_buff *skb, struct net_device *slave_dev);
-void bond_xmit_slave_id(struct bonding *bond, struct sk_buff *skb, int slave_id);
+void bond_dev_queue_xmit(struct bonding *bond, struct sk_buff *skb, struct net_device *slave_dev);
 int bond_create(struct net *net, const char *name);
 int bond_create_sysfs(struct bond_net *net);
 void bond_destroy_sysfs(struct bond_net *net);
 void bond_prepare_sysfs_group(struct bonding *bond);
+int bond_sysfs_slave_add(struct slave *slave);
+void bond_sysfs_slave_del(struct slave *slave);
 int bond_enslave(struct net_device *bond_dev, struct net_device *slave_dev);
 int bond_release(struct net_device *bond_dev, struct net_device *slave_dev);
-void bond_mii_monitor(struct work_struct *);
-void bond_loadbalance_arp_mon(struct work_struct *);
-void bond_activebackup_arp_mon(struct work_struct *);
 int bond_xmit_hash(struct bonding *bond, struct sk_buff *skb, int count);
 int bond_parse_parm(const char *mode_arg, const struct bond_parm_tbl *tbl);
+int bond_parm_tbl_lookup(int mode, const struct bond_parm_tbl *tbl);
 void bond_select_active_slave(struct bonding *bond);
 void bond_change_active_slave(struct bonding *bond, struct slave *new_active);
 void bond_create_debugfs(void);
@@ -437,10 +501,11 @@ void bond_setup(struct net_device *bond_dev);
 unsigned int bond_get_num_tx_queues(void);
 int bond_netlink_init(void);
 void bond_netlink_fini(void);
-int bond_option_mode_set(struct bonding *bond, int mode);
-int bond_option_active_slave_set(struct bonding *bond, struct net_device *slave_dev);
+int bond_option_arp_ip_target_add(struct bonding *bond, __be32 target);
+int bond_option_arp_ip_target_rem(struct bonding *bond, __be32 target);
 struct net_device *bond_option_active_slave_get_rcu(struct bonding *bond);
 struct net_device *bond_option_active_slave_get(struct bonding *bond);
+const char *bond_slave_link_status(s8 link);
 
 struct bond_net {
 	struct net *		net;	/* Associated network namespace */
@@ -520,7 +585,6 @@ static inline int bond_get_targets_ip(__be32 *targets, __be32 ip)
 /* exported from bond_main.c */
 extern int bond_net_id;
 extern const struct bond_parm_tbl bond_lacp_tbl[];
-extern const struct bond_parm_tbl bond_mode_tbl[];
 extern const struct bond_parm_tbl xmit_hashtype_tbl[];
 extern const struct bond_parm_tbl arp_validate_tbl[];
 extern const struct bond_parm_tbl arp_all_targets_tbl[];

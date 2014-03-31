@@ -156,7 +156,7 @@ int lov_adjust_kms(struct obd_export *exp, struct lov_stripe_md *lsm,
 			kms = lov_size_to_stripe(lsm, size, stripe);
 			CDEBUG(D_INODE,
 			       "stripe %d KMS %sing "LPU64"->"LPU64"\n",
-			       stripe, kms > loi->loi_kms ? "increas":"shrink",
+			       stripe, kms > loi->loi_kms ? "increase":"shrink",
 			       loi->loi_kms, kms);
 			loi_kms_set(loi, loi->loi_lvb.lvb_size = kms);
 		}

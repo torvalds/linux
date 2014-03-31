@@ -162,7 +162,7 @@ static int lprocfs_ns_resources_seq_show(struct seq_file *m, void *v)
 	struct cfs_hash_bd	  bd;
 	int		    i;
 
-	/* result is not strictly consistant */
+	/* result is not strictly consistent */
 	cfs_hash_for_each_bucket(ns->ns_rs_hash, &bd, i)
 		res += cfs_hash_bd_count_get(&bd);
 	return lprocfs_rd_u64(m, &res);
@@ -762,16 +762,9 @@ static int ldlm_resource_complain(struct cfs_hash *hs, struct cfs_hash_bd *bd,
 	struct ldlm_resource  *res = cfs_hash_object(hs, hnode);
 
 	lock_res(res);
-	CERROR("Namespace %s resource refcount nonzero "
-	       "(%d) after lock cleanup; forcing "
-	       "cleanup.\n",
-	       ldlm_ns_name(ldlm_res_to_ns(res)),
-	       atomic_read(&res->lr_refcount) - 1);
-
-	CERROR("Resource: %p ("LPU64"/"LPU64"/"LPU64"/"
-	       LPU64") (rc: %d)\n", res,
-	       res->lr_name.name[0], res->lr_name.name[1],
-	       res->lr_name.name[2], res->lr_name.name[3],
+	CERROR("%s: namespace resource "DLDLMRES
+	       " (%p) refcount nonzero (%d) after lock cleanup; forcing cleanup.\n",
+	       ldlm_ns_name(ldlm_res_to_ns(res)), PLDLMRES(res), res,
 	       atomic_read(&res->lr_refcount) - 1);
 
 	ldlm_resource_dump(D_ERROR, res);
@@ -881,7 +874,7 @@ void ldlm_namespace_free_prior(struct ldlm_namespace *ns,
 
 		/*
 		 * With all requests dropped and the import inactive
-		 * we are gaurenteed all reference will be dropped.
+		 * we are guaranteed all reference will be dropped.
 		 */
 		rc = __ldlm_namespace_free(ns, 1);
 		LASSERT(rc == 0);
@@ -1403,10 +1396,8 @@ void ldlm_resource_dump(int level, struct ldlm_resource *res)
 	if (!((libcfs_debug | D_ERROR) & level))
 		return;
 
-	CDEBUG(level, "--- Resource: %p ("LPU64"/"LPU64"/"LPU64"/"LPU64
-	       ") (rc: %d)\n", res, res->lr_name.name[0], res->lr_name.name[1],
-	       res->lr_name.name[2], res->lr_name.name[3],
-	       atomic_read(&res->lr_refcount));
+	CDEBUG(level, "--- Resource: "DLDLMRES" (%p) refcount = %d\n",
+	       PLDLMRES(res), res, atomic_read(&res->lr_refcount));
 
 	if (!list_empty(&res->lr_granted)) {
 		CDEBUG(level, "Granted locks (in reverse order):\n");

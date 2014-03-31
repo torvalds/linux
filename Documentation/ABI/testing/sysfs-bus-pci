@@ -70,18 +70,15 @@ Date:		September, 2011
 Contact:	Neil Horman <nhorman@tuxdriver.com>
 Description:
 		The /sys/devices/.../msi_irqs directory contains a variable set
-		of sub-directories, with each sub-directory being named after a
-		corresponding msi irq vector allocated to that device.  Each
-		numbered sub-directory N contains attributes of that irq.
-		Note that this directory is not created for device drivers which
-		do not support msi irqs
+		of files, with each file being named after a corresponding msi
+		irq vector allocated to that device.
 
-What:		/sys/bus/pci/devices/.../msi_irqs/<N>/mode
+What:		/sys/bus/pci/devices/.../msi_irqs/<N>
 Date:		September 2011
 Contact:	Neil Horman <nhorman@tuxdriver.com>
 Description:
 		This attribute indicates the mode that the irq vector named by
-		the parent directory is in (msi vs. msix)
+		the file is in (msi vs. msix)
 
 What:		/sys/bus/pci/devices/.../remove
 Date:		January 2009

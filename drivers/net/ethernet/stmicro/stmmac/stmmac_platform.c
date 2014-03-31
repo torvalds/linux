@@ -26,7 +26,27 @@
 #include <linux/io.h>
 #include <linux/of.h>
 #include <linux/of_net.h>
+#include <linux/of_device.h>
 #include "stmmac.h"
+
+static const struct of_device_id stmmac_dt_ids[] = {
+#ifdef CONFIG_DWMAC_SUNXI
+	{ .compatible = "allwinner,sun7i-a20-gmac", .data = &sun7i_gmac_data},
+#endif
+#ifdef CONFIG_DWMAC_STI
+	{ .compatible = "st,stih415-dwmac", .data = &sti_gmac_data},
+	{ .compatible = "st,stih416-dwmac", .data = &sti_gmac_data},
+	{ .compatible = "st,stid127-dwmac", .data = &sti_gmac_data},
+#endif
+	/* SoC specific glue layers should come before generic bindings */
+	{ .compatible = "st,spear600-gmac"},
+	{ .compatible = "snps,dwmac-3.610"},
+	{ .compatible = "snps,dwmac-3.70a"},
+	{ .compatible = "snps,dwmac-3.710"},
+	{ .compatible = "snps,dwmac"},
+	{ /* sentinel */ }
+};
+MODULE_DEVICE_TABLE(of, stmmac_dt_ids);
 
 #ifdef CONFIG_OF
 static int stmmac_probe_config_dt(struct platform_device *pdev,
@@ -35,22 +55,62 @@ static int stmmac_probe_config_dt(struct platform_device *pdev,
 {
 	struct device_node *np = pdev->dev.of_node;
 	struct stmmac_dma_cfg *dma_cfg;
+	const struct of_device_id *device;
 
 	if (!np)
 		return -ENODEV;
 
+	device = of_match_device(stmmac_dt_ids, &pdev->dev);
+	if (!device)
+		return -ENODEV;
+
+	if (device->data) {
+		const struct stmmac_of_data *data = device->data;
+		plat->has_gmac = data->has_gmac;
+		plat->enh_desc = data->enh_desc;
+		plat->tx_coe = data->tx_coe;
+		plat->rx_coe = data->rx_coe;
+		plat->bugged_jumbo = data->bugged_jumbo;
+		plat->pmt = data->pmt;
+		plat->riwt_off = data->riwt_off;
+		plat->fix_mac_speed = data->fix_mac_speed;
+		plat->bus_setup = data->bus_setup;
+		plat->setup = data->setup;
+		plat->free = data->free;
+		plat->init = data->init;
+		plat->exit = data->exit;
+	}
+
 	*mac = of_get_mac_address(np);
 	plat->interface = of_get_phy_mode(np);
+
+	/* Get max speed of operation from device tree */
+	if (of_property_read_u32(np, "max-speed", &plat->max_speed))
+		plat->max_speed = -1;
 
 	plat->bus_id = of_alias_get_id(np, "ethernet");
 	if (plat->bus_id < 0)
 		plat->bus_id = 0;
 
-	of_property_read_u32(np, "snps,phy-addr", &plat->phy_addr);
+	/* Default to phy auto-detection */
+	plat->phy_addr = -1;
+
+	/* "snps,phy-addr" is not a standard property. Mark it as deprecated
+	 * and warn of its use. Remove this when phy node support is added.
+	 */
+	if (of_property_read_u32(np, "snps,phy-addr", &plat->phy_addr) == 0)
+		dev_warn(&pdev->dev, "snps,phy-addr property is deprecated\n");
 
 	plat->mdio_bus_data = devm_kzalloc(&pdev->dev,
 					   sizeof(struct stmmac_mdio_bus_data),
 					   GFP_KERNEL);
+
+	plat->force_sf_dma_mode = of_property_read_bool(np, "snps,force_sf_dma_mode");
+
+	/* Set the maxmtu to a default of JUMBO_LEN in case the
+	 * parameter is not present in the device tree.
+	 */
+	plat->maxmtu = JUMBO_LEN;
 
 	/*
 	 * Currently only the properties needed on SPEAr600
@@ -60,6 +120,14 @@ static int stmmac_probe_config_dt(struct platform_device *pdev,
 	if (of_device_is_compatible(np, "st,spear600-gmac") ||
 		of_device_is_compatible(np, "snps,dwmac-3.70a") ||
 		of_device_is_compatible(np, "snps,dwmac")) {
+		/* Note that the max-frame-size parameter as defined in the
+		 * ePAPR v1.1 spec is defined as max-frame-size, it's
+		 * actually used as the IEEE definition of MAC Client
+		 * data, or MTU. The ePAPR specification is confusing as
+		 * the definition is max-frame-size, but usage examples
+		 * are clearly MTUs
+		 */
+		of_property_read_u32(np, "max-frame-size", &plat->maxmtu);
 		plat->has_gmac = 1;
 		plat->pmt = 1;
 	}
@@ -140,17 +208,24 @@ static int stmmac_pltfr_probe(struct platform_device *pdev)
 		}
 	}
 
+	/* Custom setup (if needed) */
+	if (plat_dat->setup) {
+		plat_dat->bsp_priv = plat_dat->setup(pdev);
+		if (IS_ERR(plat_dat->bsp_priv))
+			return PTR_ERR(plat_dat->bsp_priv);
+	}
+
 	/* Custom initialisation (if needed)*/
 	if (plat_dat->init) {
-		ret = plat_dat->init(pdev);
+		ret = plat_dat->init(pdev, plat_dat->bsp_priv);
 		if (unlikely(ret))
 			return ret;
 	}
 
 	priv = stmmac_dvr_probe(&(pdev->dev), plat_dat, addr);
-	if (!priv) {
+	if (IS_ERR(priv)) {
 		pr_err("%s: main driver probe failed", __func__);
-		return -ENODEV;
+		return PTR_ERR(priv);
 	}
 
 	/* Get MAC address if available (DT) */
@@ -199,7 +274,10 @@ static int stmmac_pltfr_remove(struct platform_device *pdev)
 	int ret = stmmac_dvr_remove(ndev);
 
 	if (priv->plat->exit)
-		priv->plat->exit(pdev);
+		priv->plat->exit(pdev, priv->plat->bsp_priv);
+
+	if (priv->plat->free)
+		priv->plat->free(pdev, priv->plat->bsp_priv);
 
 	return ret;
 }
@@ -207,64 +285,34 @@ static int stmmac_pltfr_remove(struct platform_device *pdev)
 #ifdef CONFIG_PM
 static int stmmac_pltfr_suspend(struct device *dev)
 {
+	int ret;
 	struct net_device *ndev = dev_get_drvdata(dev);
+	struct stmmac_priv *priv = netdev_priv(ndev);
+	struct platform_device *pdev = to_platform_device(dev);
 
-	return stmmac_suspend(ndev);
+	ret = stmmac_suspend(ndev);
+	if (priv->plat->exit)
+		priv->plat->exit(pdev, priv->plat->bsp_priv);
+
+	return ret;
 }
 
 static int stmmac_pltfr_resume(struct device *dev)
 {
 	struct net_device *ndev = dev_get_drvdata(dev);
+	struct stmmac_priv *priv = netdev_priv(ndev);
+	struct platform_device *pdev = to_platform_device(dev);
+
+	if (priv->plat->init)
+		priv->plat->init(pdev, priv->plat->bsp_priv);
 
 	return stmmac_resume(ndev);
 }
 
-int stmmac_pltfr_freeze(struct device *dev)
-{
-	int ret;
-	struct plat_stmmacenet_data *plat_dat = dev_get_platdata(dev);
-	struct net_device *ndev = dev_get_drvdata(dev);
-	struct platform_device *pdev = to_platform_device(dev);
-
-	ret = stmmac_freeze(ndev);
-	if (plat_dat->exit)
-		plat_dat->exit(pdev);
-
-	return ret;
-}
-
-int stmmac_pltfr_restore(struct device *dev)
-{
-	struct plat_stmmacenet_data *plat_dat = dev_get_platdata(dev);
-	struct net_device *ndev = dev_get_drvdata(dev);
-	struct platform_device *pdev = to_platform_device(dev);
-
-	if (plat_dat->init)
-		plat_dat->init(pdev);
-
-	return stmmac_restore(ndev);
-}
-
-static const struct dev_pm_ops stmmac_pltfr_pm_ops = {
-	.suspend = stmmac_pltfr_suspend,
-	.resume = stmmac_pltfr_resume,
-	.freeze = stmmac_pltfr_freeze,
-	.thaw = stmmac_pltfr_restore,
-	.restore = stmmac_pltfr_restore,
-};
-#else
-static const struct dev_pm_ops stmmac_pltfr_pm_ops;
 #endif /* CONFIG_PM */
 
-static const struct of_device_id stmmac_dt_ids[] = {
-	{ .compatible = "st,spear600-gmac"},
-	{ .compatible = "snps,dwmac-3.610"},
-	{ .compatible = "snps,dwmac-3.70a"},
-	{ .compatible = "snps,dwmac-3.710"},
-	{ .compatible = "snps,dwmac"},
-	{ /* sentinel */ }
-};
-MODULE_DEVICE_TABLE(of, stmmac_dt_ids);
+static SIMPLE_DEV_PM_OPS(stmmac_pltfr_pm_ops,
+			stmmac_pltfr_suspend, stmmac_pltfr_resume);
 
 struct platform_driver stmmac_pltfr_driver = {
 	.probe = stmmac_pltfr_probe,

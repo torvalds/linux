@@ -10,6 +10,8 @@
 
 /include/ "skeleton.dtsi"
 
+#include <dt-bindings/interrupt-controller/irq.h>
+
 / {
 	compatible = "renesas,sh73a0";
 
@@ -40,12 +42,12 @@
 
 	pmu {
 		compatible = "arm,cortex-a9-pmu";
-		interrupts = <0 55 4>,
-			     <0 56 4>;
+		interrupts = <0 55 IRQ_TYPE_LEVEL_HIGH>,
+			     <0 56 IRQ_TYPE_LEVEL_HIGH>;
 	};
 
 	irqpin0: irqpin@e6900000 {
-		compatible = "renesas,intc-irqpin";
+		compatible = "renesas,intc-irqpin-sh73a0", "renesas,intc-irqpin";
 		#interrupt-cells = <2>;
 		interrupt-controller;
 		reg = <0xe6900000 4>,
@@ -54,18 +56,18 @@
 			<0xe6900040 1>,
 			<0xe6900060 1>;
 		interrupt-parent = <&gic>;
-		interrupts = <0 1 0x4
-			      0 2 0x4
-			      0 3 0x4
-			      0 4 0x4
-			      0 5 0x4
-			      0 6 0x4
-			      0 7 0x4
-			      0 8 0x4>;
+		interrupts = <0 1 IRQ_TYPE_LEVEL_HIGH
+			      0 2 IRQ_TYPE_LEVEL_HIGH
+			      0 3 IRQ_TYPE_LEVEL_HIGH
+			      0 4 IRQ_TYPE_LEVEL_HIGH
+			      0 5 IRQ_TYPE_LEVEL_HIGH
+			      0 6 IRQ_TYPE_LEVEL_HIGH
+			      0 7 IRQ_TYPE_LEVEL_HIGH
+			      0 8 IRQ_TYPE_LEVEL_HIGH>;
 	};
 
 	irqpin1: irqpin@e6900004 {
-		compatible = "renesas,intc-irqpin";
+		compatible = "renesas,intc-irqpin-sh73a0", "renesas,intc-irqpin";
 		#interrupt-cells = <2>;
 		interrupt-controller;
 		reg = <0xe6900004 4>,
@@ -74,19 +76,19 @@
 			<0xe6900044 1>,
 			<0xe6900064 1>;
 		interrupt-parent = <&gic>;
-		interrupts = <0 9 0x4
-			      0 10 0x4
-			      0 11 0x4
-			      0 12 0x4
-			      0 13 0x4
-			      0 14 0x4
-			      0 15 0x4
-			      0 16 0x4>;
+		interrupts = <0 9 IRQ_TYPE_LEVEL_HIGH
+			      0 10 IRQ_TYPE_LEVEL_HIGH
+			      0 11 IRQ_TYPE_LEVEL_HIGH
+			      0 12 IRQ_TYPE_LEVEL_HIGH
+			      0 13 IRQ_TYPE_LEVEL_HIGH
+			      0 14 IRQ_TYPE_LEVEL_HIGH
+			      0 15 IRQ_TYPE_LEVEL_HIGH
+			      0 16 IRQ_TYPE_LEVEL_HIGH>;
 		control-parent;
 	};
 
 	irqpin2: irqpin@e6900008 {
-		compatible = "renesas,intc-irqpin";
+		compatible = "renesas,intc-irqpin-sh73a0", "renesas,intc-irqpin";
 		#interrupt-cells = <2>;
 		interrupt-controller;
 		reg = <0xe6900008 4>,
@@ -95,18 +97,18 @@
 			<0xe6900048 1>,
 			<0xe6900068 1>;
 		interrupt-parent = <&gic>;
-		interrupts = <0 17 0x4
-			      0 18 0x4
-			      0 19 0x4
-			      0 20 0x4
-			      0 21 0x4
-			      0 22 0x4
-			      0 23 0x4
-			      0 24 0x4>;
+		interrupts = <0 17 IRQ_TYPE_LEVEL_HIGH
+			      0 18 IRQ_TYPE_LEVEL_HIGH
+			      0 19 IRQ_TYPE_LEVEL_HIGH
+			      0 20 IRQ_TYPE_LEVEL_HIGH
+			      0 21 IRQ_TYPE_LEVEL_HIGH
+			      0 22 IRQ_TYPE_LEVEL_HIGH
+			      0 23 IRQ_TYPE_LEVEL_HIGH
+			      0 24 IRQ_TYPE_LEVEL_HIGH>;
 	};
 
 	irqpin3: irqpin@e690000c {
-		compatible = "renesas,intc-irqpin";
+		compatible = "renesas,intc-irqpin-sh73a0", "renesas,intc-irqpin";
 		#interrupt-cells = <2>;
 		interrupt-controller;
 		reg = <0xe690000c 4>,
@@ -115,14 +117,14 @@
 			<0xe690004c 1>,
 			<0xe690006c 1>;
 		interrupt-parent = <&gic>;
-		interrupts = <0 25 0x4
-			      0 26 0x4
-			      0 27 0x4
-			      0 28 0x4
-			      0 29 0x4
-			      0 30 0x4
-			      0 31 0x4
-			      0 32 0x4>;
+		interrupts = <0 25 IRQ_TYPE_LEVEL_HIGH
+			      0 26 IRQ_TYPE_LEVEL_HIGH
+			      0 27 IRQ_TYPE_LEVEL_HIGH
+			      0 28 IRQ_TYPE_LEVEL_HIGH
+			      0 29 IRQ_TYPE_LEVEL_HIGH
+			      0 30 IRQ_TYPE_LEVEL_HIGH
+			      0 31 IRQ_TYPE_LEVEL_HIGH
+			      0 32 IRQ_TYPE_LEVEL_HIGH>;
 	};
 
 	i2c0: i2c@e6820000 {
@@ -131,10 +133,10 @@
 		compatible = "renesas,rmobile-iic";
 		reg = <0xe6820000 0x425>;
 		interrupt-parent = <&gic>;
-		interrupts = <0 167 0x4
-			      0 168 0x4
-			      0 169 0x4
-			      0 170 0x4>;
+		interrupts = <0 167 IRQ_TYPE_LEVEL_HIGH
+			      0 168 IRQ_TYPE_LEVEL_HIGH
+			      0 169 IRQ_TYPE_LEVEL_HIGH
+			      0 170 IRQ_TYPE_LEVEL_HIGH>;
 		status = "disabled";
 	};
 
@@ -144,10 +146,10 @@
 		compatible = "renesas,rmobile-iic";
 		reg = <0xe6822000 0x425>;
 		interrupt-parent = <&gic>;
-		interrupts = <0 51 0x4
-			      0 52 0x4
-			      0 53 0x4
-			      0 54 0x4>;
+		interrupts = <0 51 IRQ_TYPE_LEVEL_HIGH
+			      0 52 IRQ_TYPE_LEVEL_HIGH
+			      0 53 IRQ_TYPE_LEVEL_HIGH
+			      0 54 IRQ_TYPE_LEVEL_HIGH>;
 		status = "disabled";
 	};
 
@@ -157,10 +159,10 @@
 		compatible = "renesas,rmobile-iic";
 		reg = <0xe6824000 0x425>;
 		interrupt-parent = <&gic>;
-		interrupts = <0 171 0x4
-			      0 172 0x4
-			      0 173 0x4
-			      0 174 0x4>;
+		interrupts = <0 171 IRQ_TYPE_LEVEL_HIGH
+			      0 172 IRQ_TYPE_LEVEL_HIGH
+			      0 173 IRQ_TYPE_LEVEL_HIGH
+			      0 174 IRQ_TYPE_LEVEL_HIGH>;
 		status = "disabled";
 	};
 
@@ -170,10 +172,10 @@
 		compatible = "renesas,rmobile-iic";
 		reg = <0xe6826000 0x425>;
 		interrupt-parent = <&gic>;
-		interrupts = <0 183 0x4
-			      0 184 0x4
-			      0 185 0x4
-			      0 186 0x4>;
+		interrupts = <0 183 IRQ_TYPE_LEVEL_HIGH
+			      0 184 IRQ_TYPE_LEVEL_HIGH
+			      0 185 IRQ_TYPE_LEVEL_HIGH
+			      0 186 IRQ_TYPE_LEVEL_HIGH>;
 		status = "disabled";
 	};
 
@@ -183,52 +185,52 @@
 		compatible = "renesas,rmobile-iic";
 		reg = <0xe6828000 0x425>;
 		interrupt-parent = <&gic>;
-		interrupts = <0 187 0x4
-			      0 188 0x4
-			      0 189 0x4
-			      0 190 0x4>;
+		interrupts = <0 187 IRQ_TYPE_LEVEL_HIGH
+			      0 188 IRQ_TYPE_LEVEL_HIGH
+			      0 189 IRQ_TYPE_LEVEL_HIGH
+			      0 190 IRQ_TYPE_LEVEL_HIGH>;
 		status = "disabled";
 	};
 
-	mmcif: mmcif@e6bd0000 {
+	mmcif: mmc@e6bd0000 {
 		compatible = "renesas,sh-mmcif";
 		reg = <0xe6bd0000 0x100>;
 		interrupt-parent = <&gic>;
-		interrupts = <0 140 0x4
-			      0 141 0x4>;
+		interrupts = <0 140 IRQ_TYPE_LEVEL_HIGH
+			      0 141 IRQ_TYPE_LEVEL_HIGH>;
 		reg-io-width = <4>;
 		status = "disabled";
 	};
 
-	sdhi0: sdhi@ee100000 {
-		compatible = "renesas,sdhi-r8a7740";
+	sdhi0: sd@ee100000 {
+		compatible = "renesas,sdhi-sh73a0";
 		reg = <0xee100000 0x100>;
 		interrupt-parent = <&gic>;
-		interrupts = <0 83 4
-				0 84 4
-				0 85 4>;
+		interrupts = <0 83 IRQ_TYPE_LEVEL_HIGH
+			      0 84 IRQ_TYPE_LEVEL_HIGH
+			      0 85 IRQ_TYPE_LEVEL_HIGH>;
 		cap-sd-highspeed;
 		status = "disabled";
 	};
 
 	/* SDHI1 and SDHI2 have no CD pins, no need for CD IRQ */
-	sdhi1: sdhi@ee120000 {
-		compatible = "renesas,sdhi-r8a7740";
+	sdhi1: sd@ee120000 {
+		compatible = "renesas,sdhi-sh73a0";
 		reg = <0xee120000 0x100>;
 		interrupt-parent = <&gic>;
-		interrupts = <0 88 4
-				0 89 4>;
+		interrupts = <0 88 IRQ_TYPE_LEVEL_HIGH
+			      0 89 IRQ_TYPE_LEVEL_HIGH>;
 		toshiba,mmc-wrprotect-disable;
 		cap-sd-highspeed;
 		status = "disabled";
 	};
 
-	sdhi2: sdhi@ee140000 {
-		compatible = "renesas,sdhi-r8a7740";
+	sdhi2: sd@ee140000 {
+		compatible = "renesas,sdhi-sh73a0";
 		reg = <0xee140000 0x100>;
 		interrupt-parent = <&gic>;
-		interrupts = <0 104 4
-				0 105 4>;
+		interrupts = <0 104 IRQ_TYPE_LEVEL_HIGH
+			      0 105 IRQ_TYPE_LEVEL_HIGH>;
 		toshiba,mmc-wrprotect-disable;
 		cap-sd-highspeed;
 		status = "disabled";
@@ -240,5 +242,23 @@
 		      <0xe605801c 0x1c>;
 		gpio-controller;
 		#gpio-cells = <2>;
+		interrupts-extended =
+			<&irqpin0 0 0>, <&irqpin0 1 0>, <&irqpin0 2 0>, <&irqpin0 3 0>,
+			<&irqpin0 4 0>, <&irqpin0 5 0>, <&irqpin0 6 0>, <&irqpin0 7 0>,
+			<&irqpin1 0 0>, <&irqpin1 1 0>, <&irqpin1 2 0>, <&irqpin1 3 0>,
+			<&irqpin1 4 0>, <&irqpin1 5 0>, <&irqpin1 6 0>, <&irqpin1 7 0>,
+			<&irqpin2 0 0>, <&irqpin2 1 0>, <&irqpin2 2 0>, <&irqpin2 3 0>,
+			<&irqpin2 4 0>, <&irqpin2 5 0>, <&irqpin2 6 0>, <&irqpin2 7 0>,
+			<&irqpin3 0 0>, <&irqpin3 1 0>, <&irqpin3 2 0>, <&irqpin3 3 0>,
+			<&irqpin3 4 0>, <&irqpin3 5 0>, <&irqpin3 6 0>, <&irqpin3 7 0>;
+	};
+
+	sh_fsi2: sound@ec230000 {
+		#sound-dai-cells = <1>;
+		compatible = "renesas,sh_fsi2";
+		reg = <0xec230000 0x400>;
+		interrupt-parent = <&gic>;
+		interrupts = <0 146 0x4>;
+		status = "disabled";
 	};
 };

@@ -529,9 +529,10 @@ const struct inode_operations hfsplus_dir_inode_operations = {
 	.setxattr		= generic_setxattr,
 	.getxattr		= generic_getxattr,
 	.listxattr		= hfsplus_listxattr,
-	.removexattr		= hfsplus_removexattr,
+	.removexattr		= generic_removexattr,
 #ifdef CONFIG_HFSPLUS_FS_POSIX_ACL
 	.get_acl		= hfsplus_get_posix_acl,
+	.set_acl		= hfsplus_set_posix_acl,
 #endif
 };
 

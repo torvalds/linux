@@ -321,6 +321,7 @@ config SH_CAYMAN
 	bool "Hitachi Cayman"
 	depends on CPU_SUBTYPE_SH5_101 || CPU_SUBTYPE_SH5_103
 	select SYS_SUPPORTS_PCI
+	select ARCH_MIGHT_HAVE_PC_SERIO
 
 config SH_POLARIS
 	bool "SMSC Polaris"

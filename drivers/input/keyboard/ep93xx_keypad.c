@@ -244,7 +244,7 @@ static int ep93xx_keypad_probe(struct platform_device *pdev)
 	if (!keypad)
 		return -ENOMEM;
 
-	keypad->pdata = pdev->dev.platform_data;
+	keypad->pdata = dev_get_platdata(&pdev->dev);
 	if (!keypad->pdata) {
 		err = -EINVAL;
 		goto failed_free;
