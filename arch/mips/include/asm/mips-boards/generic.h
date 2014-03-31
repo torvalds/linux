@@ -67,9 +67,7 @@
 
 extern int mips_revision_sconid;
 
-#ifdef CONFIG_OF
-extern struct boot_param_header __dtb_start;
-#endif
+extern char __dtb_start[];
 
 #ifdef CONFIG_PCI
 extern void mips_pcibios_init(void);

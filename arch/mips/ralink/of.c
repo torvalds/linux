@@ -28,7 +28,7 @@
 __iomem void *rt_sysc_membase;
 __iomem void *rt_memc_membase;
 
-extern struct boot_param_header __dtb_start;
+extern char __dtb_start[];
 
 __iomem void *plat_of_remap_node(const char *node)
 {
@@ -63,7 +63,7 @@ void __init plat_mem_setup(void)
 	 * Load the builtin devicetree. This causes the chosen node to be
 	 * parsed resulting in our memory appearing
 	 */
-	__dt_setup_arch(&__dtb_start);
+	__dt_setup_arch(__dtb_start);
 
 	if (soc_info.mem_size)
 		add_memory_region(soc_info.mem_base, soc_info.mem_size * SZ_1M,
