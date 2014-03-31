@@ -1249,6 +1249,8 @@ static int at86rf230_remove(struct spi_device *spi)
 	struct at86rf230_local *lp = spi_get_drvdata(spi);
 	struct at86rf230_platform_data *pdata = spi->dev.platform_data;
 
+	/* mask all at86rf230 irq's */
+	at86rf230_write_subreg(lp, SR_IRQ_MASK, 0);
 	ieee802154_unregister_device(lp->dev);
 
 	free_irq(spi->irq, lp);
