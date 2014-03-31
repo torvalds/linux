@@ -322,7 +322,7 @@ int i915_error_state_to_str(struct drm_i915_error_state_buf *m,
 			    const struct i915_error_state_file_priv *error_priv)
 {
 	struct drm_device *dev = error_priv->dev;
-	drm_i915_private_t *dev_priv = dev->dev_private;
+	struct drm_i915_private *dev_priv = dev->dev_private;
 	struct drm_i915_error_state *error = error_priv->error;
 	int i, j, offset, elt;
 	int max_hangcheck_score;

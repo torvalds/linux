@@ -87,7 +87,7 @@
 void
 i915_gem_detect_bit_6_swizzle(struct drm_device *dev)
 {
-	drm_i915_private_t *dev_priv = dev->dev_private;
+	struct drm_i915_private *dev_priv = dev->dev_private;
 	uint32_t swizzle_x = I915_BIT_6_SWIZZLE_UNKNOWN;
 	uint32_t swizzle_y = I915_BIT_6_SWIZZLE_UNKNOWN;
 
@@ -294,7 +294,7 @@ i915_gem_set_tiling(struct drm_device *dev, void *data,
 		   struct drm_file *file)
 {
 	struct drm_i915_gem_set_tiling *args = data;
-	drm_i915_private_t *dev_priv = dev->dev_private;
+	struct drm_i915_private *dev_priv = dev->dev_private;
 	struct drm_i915_gem_object *obj;
 	int ret = 0;
 
@@ -415,7 +415,7 @@ i915_gem_get_tiling(struct drm_device *dev, void *data,
 		   struct drm_file *file)
 {
 	struct drm_i915_gem_get_tiling *args = data;
-	drm_i915_private_t *dev_priv = dev->dev_private;
+	struct drm_i915_private *dev_priv = dev->dev_private;
 	struct drm_i915_gem_object *obj;
 
 	obj = to_intel_bo(drm_gem_object_lookup(dev, file, args->handle));

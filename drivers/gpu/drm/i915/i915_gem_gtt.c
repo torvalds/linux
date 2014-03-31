@@ -888,7 +888,7 @@ err_out:
 static int gen7_ppgtt_enable(struct i915_hw_ppgtt *ppgtt)
 {
 	struct drm_device *dev = ppgtt->base.dev;
-	drm_i915_private_t *dev_priv = dev->dev_private;
+	struct drm_i915_private *dev_priv = dev->dev_private;
 	struct intel_ring_buffer *ring;
 	uint32_t ecochk, ecobits;
 	int i;
@@ -927,7 +927,7 @@ static int gen7_ppgtt_enable(struct i915_hw_ppgtt *ppgtt)
 static int gen6_ppgtt_enable(struct i915_hw_ppgtt *ppgtt)
 {
 	struct drm_device *dev = ppgtt->base.dev;
-	drm_i915_private_t *dev_priv = dev->dev_private;
+	struct drm_i915_private *dev_priv = dev->dev_private;
 	struct intel_ring_buffer *ring;
 	uint32_t ecochk, gab_ctl, ecobits;
 	int i;

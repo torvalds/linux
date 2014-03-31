@@ -662,7 +662,7 @@ int i915_resume(struct drm_device *dev)
  */
 int i915_reset(struct drm_device *dev)
 {
-	drm_i915_private_t *dev_priv = dev->dev_private;
+	struct drm_i915_private *dev_priv = dev->dev_private;
 	bool simulated;
 	int ret;
 

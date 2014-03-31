@@ -70,7 +70,7 @@ i915_gem_evict_something(struct drm_device *dev, struct i915_address_space *vm,
 			 int min_size, unsigned alignment, unsigned cache_level,
 			 unsigned flags)
 {
-	drm_i915_private_t *dev_priv = dev->dev_private;
+	struct drm_i915_private *dev_priv = dev->dev_private;
 	struct list_head eviction_list, unwind_list;
 	struct i915_vma *vma;
 	int ret = 0;
@@ -243,7 +243,7 @@ int i915_gem_evict_vm(struct i915_address_space *vm, bool do_idle)
 int
 i915_gem_evict_everything(struct drm_device *dev)
 {
-	drm_i915_private_t *dev_priv = dev->dev_private;
+	struct drm_i915_private *dev_priv = dev->dev_private;
 	struct i915_address_space *vm;
 	bool lists_empty = true;
 	int ret;
