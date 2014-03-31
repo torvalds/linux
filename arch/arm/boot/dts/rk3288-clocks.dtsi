@@ -108,6 +108,20 @@
 				clock-frequency = <0>;
 			};
 
+			hsadc_0_tsp: hsadc_0_tsp {
+				compatible = "rockchip,rk-fixed-clock";
+				#clock-cells = <0>;
+				clock-output-names = "hsadc_0_tsp";
+				clock-frequency = <0>;
+			};
+
+			hsadc_1_tsp: hsadc_1_tsp {
+				compatible = "rockchip,rk-fixed-clock";
+				#clock-cells = <0>;
+				clock-output-names = "hsadc_1_tsp";
+				clock-frequency = <0>;
+			};
+
 		};
 
 		fixed_factor_cons {
@@ -2172,11 +2186,11 @@
 						<&clk_crypto>,		<&clk_nandc0>,
 						<&clk_nandc1>,		<&clk_gpu>,
 
-						<&pclk_pd_pmu>,		<&dummy>,
-						<&dummy>,		<&xin32k>,
+						<&pclk_pd_pmu>,		<&xin24m>,
+						<&xin24m>,		<&xin32k>,
 
 						<&xin24m>,		<&xin24m>,
-						<&usbphy_480m>,		<&dummy>;
+						<&usbphy_480m>,		<&xin24m>;
 
 					clock-output-names =
 						"g_clk_mac_rx",		"g_clk_mac_tx",
@@ -2271,8 +2285,8 @@
 						<&hclk_peri>,		<&hclk_peri>,
 						<&hclk_peri>,		<&hclk_peri>,
 
-						<&hclk_peri>,		<&dummy>,
-						<&dummy>,		<&dummy>,
+						<&hclk_peri>,		<&hsadc_0_tsp>,
+						<&hsadc_1_tsp>,		<&io_27m_in>,
 
 						<&aclk_peri>,		<&dummy>,
 						<&dummy>,		<&dummy>;
@@ -2334,8 +2348,8 @@
 						<&pclk_bus>,		<&pclk_bus>,
 						<&pclk_bus>,		<&pclk_bus>,
 
-						<&aclk_bus>,		<&dummy>,
-						<&dummy>,		<&dummy>,
+						<&aclk_bus>,		<&aclk_bus>,
+						<&aclk_bus>,		<&aclk_bus>,
 
 						<&hclk_bus>,		<&hclk_bus>,
 						<&hclk_bus>,		<&hclk_bus>,
@@ -2437,7 +2451,7 @@
 						<&xin24m>,		<&xin32k>,
 
 						<&aclk_bus_src>,		<&xin12m>,
-						<&dummy>,		<&dummy>,
+						<&xin24m>,		<&xin24m>,
 
 						<&dummy>,		<&aclk_hevc>,
 						<&clk_hevc_cabac>,		<&clk_hevc_core>;
