@@ -139,6 +139,54 @@ static void ct36x_ts_late_resume(struct tp_device *tp_d)
 	enable_irq(ts->irq);
 }
 
+struct ct36x_data *ct36x_ts;
+
+static void ct36x_init_later_work(struct work_struct *work)
+{
+	int ret;
+	printk("ente ct36x_init_later_work==========\n");
+	 //struct ct36x_data *ts = container_of(work, struct ct36x_data, work.work);
+	   if(ct36x_ts->ops->init){
+		ret = ct36x_ts->ops->init(ct36x_ts);
+		if(ret < 0){
+			dev_err(ct36x_ts->dev, "Failed to init ct36x chip\n");
+			return ret;
+		}
+	}
+	//enable_irq(ct36x_ts->irq);
+	//ct36x_register_input(ct36x_ts);
+	
+		ct36x_ts->input = devm_input_allocate_device(&ct36x_ts->client->dev);
+		if(!ct36x_ts->input){
+			ret = -ENODEV;
+			dev_err(ct36x_ts->dev, "Failed to allocate input device\n");
+			return ret;
+		}
+	
+		ct36x_ts->input->name = CT36X_NAME;
+		ct36x_ts->input->dev.parent = &ct36x_ts->client->dev;
+		set_bit(EV_ABS, ct36x_ts->input->evbit);
+		set_bit(INPUT_PROP_DIRECT, ct36x_ts->input->propbit);
+		input_mt_init_slots(ct36x_ts->input, ct36x_ts->point_num,0);
+		input_set_abs_params(ct36x_ts->input, ABS_MT_POSITION_X, 0, ct36x_ts->x_max, 0, 0);
+		input_set_abs_params(ct36x_ts->input, ABS_MT_POSITION_Y, 0, ct36x_ts->y_max, 0, 0);
+		input_set_abs_params(ct36x_ts->input, ABS_MT_TOUCH_MAJOR, 0, 255, 0, 0);
+		input_set_abs_params(ct36x_ts->input, ABS_MT_WIDTH_MAJOR, 0, 255, 0, 0);
+	
+		ret = input_register_device(ct36x_ts->input);
+		if(ret < 0){
+			dev_err(ct36x_ts->dev, "Failed to register input device\n");
+			return ret;
+		}
+	
+#ifdef CONFIG_HAS_EARLYSUSPEND
+		ct36x_ts->early_suspend.level = EARLY_SUSPEND_LEVEL_BLANK_SCREEN + 1;
+		ct36x_ts->early_suspend.suspend = ct36x_ts_early_suspend;
+		ct36x_ts->early_suspend.resume = ct36x_ts_late_resume;
+		register_early_suspend(&ct36x_ts->early_suspend);
+#endif
+		printk("finish ct36x_init_later_work==========\n");
+}
 
 static int ct36x_ts_probe(struct i2c_client *client, const struct i2c_device_id *id)
 {
@@ -237,38 +285,9 @@ static int ct36x_ts_probe(struct i2c_client *client, const struct i2c_device_id 
 					}
 			}
 
-
-
-	if(ts->ops->init){
-		ret = ts->ops->init(ts);
-		if(ret < 0){
-			dev_err(ts->dev, "Failed to init ct36x chip\n");
-			goto err_ct36x_init_chip;
-		}
-	}
-
-	ts->input = devm_input_allocate_device(&ts->client->dev);
-	if(!ts->input){
-		ret = -ENODEV;
-		dev_err(ts->dev, "Failed to allocate input device\n");
-		goto err_input_allocate_device;
-	}
-
-	ts->input->name = CT36X_NAME;
-	ts->input->dev.parent = &client->dev;
-	set_bit(EV_ABS, ts->input->evbit);
-	set_bit(INPUT_PROP_DIRECT, ts->input->propbit);
-	input_mt_init_slots(ts->input, ts->point_num,0);
-	input_set_abs_params(ts->input, ABS_MT_POSITION_X, 0, ts->x_max, 0, 0);
-	input_set_abs_params(ts->input, ABS_MT_POSITION_Y, 0, ts->y_max, 0, 0);
-	input_set_abs_params(ts->input, ABS_MT_TOUCH_MAJOR, 0, 255, 0, 0);
-	input_set_abs_params(ts->input, ABS_MT_WIDTH_MAJOR, 0, 255, 0, 0);
-
-	ret = input_register_device(ts->input);
-	if(ret < 0){
-		dev_err(ts->dev, "Failed to register input device\n");
-		goto err_input_register_devcie;
-	}
+	ct36x_ts = ts;
+	INIT_DELAYED_WORK(&ts->ct36x_init_delayed_work, ct36x_init_later_work);
+	schedule_delayed_work(&ts->ct36x_init_delayed_work, msecs_to_jiffies(500));
 
 	
        ts->tp.tp_resume = ct36x_ts_late_resume;

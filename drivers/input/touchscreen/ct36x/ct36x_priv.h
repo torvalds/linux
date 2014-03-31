@@ -68,6 +68,7 @@ struct ct36x_data{
 	struct  tp_device  tp;
 	struct ct36x_ops *ops;
 	void *priv;
+	struct delayed_work ct36x_init_delayed_work;
 };
 
 static int i2c_master_normal_send(const struct i2c_client *client, const char *buf, int count, int scl_rate)
