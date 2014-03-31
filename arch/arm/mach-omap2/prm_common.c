@@ -527,3 +527,11 @@ int __init of_prcm_init(void)
 
 	return 0;
 }
+
+static int __init prm_late_init(void)
+{
+	if (prm_ll_data->late_init)
+		return prm_ll_data->late_init();
+	return 0;
+}
+subsys_initcall(prm_late_init);

@@ -401,8 +401,11 @@ struct pwrdm_ops omap3_pwrdm_operations = {
  *
  */
 
+static int omap3xxx_prm_late_init(void);
+
 static struct prm_ll_data omap3xxx_prm_ll_data = {
 	.read_reset_sources = &omap3xxx_prm_read_reset_sources,
+	.late_init = &omap3xxx_prm_late_init,
 };
 
 int __init omap3xxx_prm_init(void)
@@ -417,9 +420,6 @@ static int __init omap3xxx_prm_late_init(void)
 {
 	int ret;
 
-	if (!cpu_is_omap34xx())
-		return 0;
-
 	if (!(prm_features & PRM_HAS_IO_WAKEUP))
 		return 0;
 
@@ -431,7 +431,6 @@ static int __init omap3xxx_prm_late_init(void)
 
 	return ret;
 }
-omap_subsys_initcall(omap3xxx_prm_late_init);
 
 static void __exit omap3xxx_prm_exit(void)
 {

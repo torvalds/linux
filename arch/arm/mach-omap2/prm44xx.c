@@ -650,6 +650,8 @@ struct pwrdm_ops omap4_pwrdm_operations = {
 	.pwrdm_has_voltdm	= omap4_check_vcvp,
 };
 
+static int omap44xx_prm_late_init(void);
+
 /*
  * XXX document
  */
@@ -657,6 +659,7 @@ static struct prm_ll_data omap44xx_prm_ll_data = {
 	.read_reset_sources = &omap44xx_prm_read_reset_sources,
 	.was_any_context_lost_old = &omap44xx_prm_was_any_context_lost_old,
 	.clear_context_loss_flags_old = &omap44xx_prm_clear_context_loss_flags_old,
+	.late_init = &omap44xx_prm_late_init,
 };
 
 int __init omap44xx_prm_init(void)
@@ -669,9 +672,6 @@ int __init omap44xx_prm_init(void)
 
 static int __init omap44xx_prm_late_init(void)
 {
-	if (!cpu_is_omap44xx())
-		return 0;
-
 	if (!(prm_features & PRM_HAS_IO_WAKEUP))
 		return 0;
 
@@ -679,7 +679,6 @@ static int __init omap44xx_prm_late_init(void)
 
 	return omap_prcm_register_chain_handler(&omap4_prcm_irq_setup);
 }
-omap_subsys_initcall(omap44xx_prm_late_init);
 
 static void __exit omap44xx_prm_exit(void)
 {
