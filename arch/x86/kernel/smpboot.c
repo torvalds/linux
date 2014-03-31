@@ -122,8 +122,9 @@ static void smp_callin(void)
 	 * Since CPU0 is not wakened up by INIT, it doesn't wait for the IPI.
 	 */
 	cpuid = smp_processor_id();
-	if (apic->wait_for_init_deassert && cpuid != 0)
-		apic->wait_for_init_deassert(&init_deasserted);
+	if (apic->wait_for_init_deassert && cpuid)
+		while (!atomic_read(&init_deasserted))
+			cpu_relax();
 
 	/*
 	 * (This works even if the APIC is not enabled.)
@@ -701,11 +702,15 @@ wakeup_cpu_via_init_nmi(int cpu, unsigned long start_ip, int apicid,
 	int id;
 	int boot_error;
 
+	preempt_disable();
+
 	/*
 	 * Wake up AP by INIT, INIT, STARTUP sequence.
 	 */
-	if (cpu)
-		return wakeup_secondary_cpu_via_init(apicid, start_ip);
+	if (cpu) {
+		boot_error = wakeup_secondary_cpu_via_init(apicid, start_ip);
+		goto out;
+	}
 
 	/*
 	 * Wake up BSP by nmi.
@@ -724,6 +729,9 @@ wakeup_cpu_via_init_nmi(int cpu, unsigned long start_ip, int apicid,
 			id = apicid;
 		boot_error = wakeup_secondary_cpu_via_nmi(id, start_ip);
 	}
+
+out:
+	preempt_enable();
 
 	return boot_error;
 }
