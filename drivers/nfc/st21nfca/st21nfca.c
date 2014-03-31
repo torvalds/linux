@@ -167,14 +167,14 @@ static int st21nfca_hci_load_session(struct nfc_hci_dev *hdev)
 		 * - destination hid (1byte)
 		 * - destination gid (1byte)
 		 */
-		info = (struct st21nfca_pipe_info *)
-					skb_pipe_info->data;
+		info = (struct st21nfca_pipe_info *) skb_pipe_info->data;
 		for (j = 0; (j < ARRAY_SIZE(st21nfca_gates)) &&
 			(st21nfca_gates[j].gate != info->dst_gate_id);
 			j++)
 			;
 
-		if (st21nfca_gates[j].gate == info->dst_gate_id &&
+		if (j < ARRAY_SIZE(st21nfca_gates) &&
+			st21nfca_gates[j].gate == info->dst_gate_id &&
 			ST21NFCA_DM_IS_PIPE_OPEN(info->pipe_state)) {
 			st21nfca_gates[j].pipe = pipe_info[2];
 			hdev->gate2pipe[st21nfca_gates[j].gate] =
