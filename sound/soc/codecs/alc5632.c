@@ -1190,11 +1190,18 @@ static const struct i2c_device_id alc5632_i2c_table[] = {
 };
 MODULE_DEVICE_TABLE(i2c, alc5632_i2c_table);
 
+static const struct of_device_id alc5632_of_match[] = {
+	{ .compatible = "realtek,alc5632", },
+	{ }
+};
+MODULE_DEVICE_TABLE(of, alc5632_of_match);
+
 /* i2c codec control layer */
 static struct i2c_driver alc5632_i2c_driver = {
 	.driver = {
 		.name = "alc5632",
 		.owner = THIS_MODULE,
+		.of_match_table = of_match_ptr(alc5632_of_match),
 	},
 	.probe = alc5632_i2c_probe,
 	.remove =  alc5632_i2c_remove,
