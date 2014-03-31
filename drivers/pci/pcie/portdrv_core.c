@@ -379,10 +379,13 @@ int pcie_port_device_register(struct pci_dev *dev)
 	/*
 	 * Initialize service irqs. Don't use service devices that
 	 * require interrupts if there is no way to generate them.
+	 * However, some drivers may have a polling mode (e.g. pciehp_poll_mode)
+	 * that can be used in the absence of irqs.  Allow them to determine
+	 * if that is to be used.
 	 */
 	status = init_service_irqs(dev, irqs, capabilities);
 	if (status) {
-		capabilities &= PCIE_PORT_SERVICE_VC;
+		capabilities &= PCIE_PORT_SERVICE_VC | PCIE_PORT_SERVICE_HP;
 		if (!capabilities)
 			goto error_disable;
 	}
