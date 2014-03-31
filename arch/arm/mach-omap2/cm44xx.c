@@ -21,7 +21,6 @@
 #include "cm.h"
 #include "cm1_44xx.h"
 #include "cm2_44xx.h"
-#include "cm-regbits-44xx.h"
 
 /* CM1 hardware module low-level functions */
 
