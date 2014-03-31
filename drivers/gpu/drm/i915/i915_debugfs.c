@@ -1830,8 +1830,7 @@ static void gen8_ppgtt_info(struct seq_file *m, struct drm_device *dev)
 			u64 pdp = I915_READ(ring->mmio_base + offset + 4);
 			pdp <<= 32;
 			pdp |= I915_READ(ring->mmio_base + offset);
-			for (i = 0; i < 4; i++)
-				seq_printf(m, "\tPDP%d 0x%016llx\n", i, pdp);
+			seq_printf(m, "\tPDP%d 0x%016llx\n", i, pdp);
 		}
 	}
 }
