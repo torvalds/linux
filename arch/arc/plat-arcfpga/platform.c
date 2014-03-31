@@ -79,16 +79,11 @@ static void arc_fpga_serial_init(void)
 				   ARRAY_SIZE(fpga_early_devs));
 
 	/*
-	 * ARC console driver registers itself as an early platform driver
-	 * of class "earlyprintk".
-	 * Install it here, followed by probe of devices.
-	 * The installation here doesn't require earlyprintk in command line
-	 * To do so however, replace the lines below with
-	 *	parse_early_param();
-	 *	early_platform_driver_probe("earlyprintk", 1, 1);
-	 *						      ^^
+	 * ARC console driver registers (build time) as an early platform driver
+	 * of class "earlyprintk". However it needs explicit cmdline toggle
+	 * "earlyprintk=ttyARC0" to be successfuly runtime registered.
+	 * Otherwise the early probe below fails to find the driver
 	 */
-	early_platform_driver_register_all("earlyprintk");
 	early_platform_driver_probe("earlyprintk", 1, 0);
 
 	/*
