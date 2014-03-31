@@ -20,9 +20,7 @@
 #include <asm/apic.h>
 #include <asm/ipi.h>
 
-#ifdef CONFIG_ACPI
-#include <acpi/acpi_bus.h>
-#endif
+#include <linux/acpi.h>
 
 static struct apic apic_physflat;
 static struct apic apic_flat;

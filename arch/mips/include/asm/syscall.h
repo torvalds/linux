@@ -13,6 +13,7 @@
 #ifndef __ASM_MIPS_SYSCALL_H
 #define __ASM_MIPS_SYSCALL_H
 
+#include <linux/compiler.h>
 #include <linux/audit.h>
 #include <linux/elf-em.h>
 #include <linux/kernel.h>
@@ -29,7 +30,7 @@ static inline long syscall_get_nr(struct task_struct *task,
 static inline unsigned long mips_get_syscall_arg(unsigned long *arg,
 	struct task_struct *task, struct pt_regs *regs, unsigned int n)
 {
-	unsigned long usp = regs->regs[29];
+	unsigned long usp __maybe_unused = regs->regs[29];
 
 	switch (n) {
 	case 0: case 1: case 2: case 3:
@@ -39,14 +40,14 @@ static inline unsigned long mips_get_syscall_arg(unsigned long *arg,
 
 #ifdef CONFIG_32BIT
 	case 4: case 5: case 6: case 7:
-		return get_user(*arg, (int *)usp + 4 * n);
+		return get_user(*arg, (int *)usp + n);
 #endif
 
 #ifdef CONFIG_64BIT
 	case 4: case 5: case 6: case 7:
 #ifdef CONFIG_MIPS32_O32
 		if (test_thread_flag(TIF_32BIT_REGS))
-			return get_user(*arg, (int *)usp + 4 * n);
+			return get_user(*arg, (int *)usp + n);
 		else
 #endif
 			*arg = regs->regs[4 + n];
@@ -57,6 +58,8 @@ static inline unsigned long mips_get_syscall_arg(unsigned long *arg,
 	default:
 		BUG();
 	}
+
+	unreachable();
 }
 
 static inline long syscall_get_return_value(struct task_struct *task,
@@ -83,11 +86,10 @@ static inline void syscall_get_arguments(struct task_struct *task,
 					 unsigned int i, unsigned int n,
 					 unsigned long *args)
 {
-	unsigned long arg;
 	int ret;
 
 	while (n--)
-		ret |= mips_get_syscall_arg(&arg, task, regs, i++);
+		ret |= mips_get_syscall_arg(args++, task, regs, i++);
 
 	/*
 	 * No way to communicate an error because this is a void function.

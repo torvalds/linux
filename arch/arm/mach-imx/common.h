@@ -108,6 +108,7 @@ void tzic_handle_irq(struct pt_regs *);
 #define imx27_handle_irq avic_handle_irq
 #define imx31_handle_irq avic_handle_irq
 #define imx35_handle_irq avic_handle_irq
+#define imx50_handle_irq tzic_handle_irq
 #define imx51_handle_irq tzic_handle_irq
 #define imx53_handle_irq tzic_handle_irq
 
@@ -143,13 +144,11 @@ void imx6q_set_chicken_bit(void);
 void imx_cpu_die(unsigned int cpu);
 int imx_cpu_kill(unsigned int cpu);
 
-#ifdef CONFIG_PM
 void imx6q_pm_init(void);
 void imx6q_pm_set_ccm_base(void __iomem *base);
+#ifdef CONFIG_PM
 void imx5_pm_init(void);
 #else
-static inline void imx6q_pm_init(void) {}
-static inline void imx6q_pm_set_ccm_base(void __iomem *base) {}
 static inline void imx5_pm_init(void) {}
 #endif
 

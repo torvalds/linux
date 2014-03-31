@@ -338,20 +338,29 @@ DEF_TALITOS_DONE(ch1_3, TALITOS_ISR_CH_1_3_DONE)
 static u32 current_desc_hdr(struct device *dev, int ch)
 {
 	struct talitos_private *priv = dev_get_drvdata(dev);
-	int tail = priv->chan[ch].tail;
+	int tail, iter;
 	dma_addr_t cur_desc;
 
-	cur_desc = in_be32(priv->chan[ch].reg + TALITOS_CDPR_LO);
+	cur_desc = ((u64)in_be32(priv->chan[ch].reg + TALITOS_CDPR)) << 32;
+	cur_desc |= in_be32(priv->chan[ch].reg + TALITOS_CDPR_LO);
 
-	while (priv->chan[ch].fifo[tail].dma_desc != cur_desc) {
-		tail = (tail + 1) & (priv->fifo_len - 1);
-		if (tail == priv->chan[ch].tail) {
+	if (!cur_desc) {
+		dev_err(dev, "CDPR is NULL, giving up search for offending descriptor\n");
+		return 0;
+	}
+
+	tail = priv->chan[ch].tail;
+
+	iter = tail;
+	while (priv->chan[ch].fifo[iter].dma_desc != cur_desc) {
+		iter = (iter + 1) & (priv->fifo_len - 1);
+		if (iter == tail) {
 			dev_err(dev, "couldn't locate current descriptor\n");
 			return 0;
 		}
 	}
 
-	return priv->chan[ch].fifo[tail].desc->hdr;
+	return priv->chan[ch].fifo[iter].desc->hdr;
 }
 
 /*
@@ -2485,8 +2494,6 @@ static int talitos_remove(struct platform_device *ofdev)
 		tasklet_kill(&priv->done_task[1]);
 
 	iounmap(priv->reg);
-
-	dev_set_drvdata(dev, NULL);
 
 	kfree(priv);
 

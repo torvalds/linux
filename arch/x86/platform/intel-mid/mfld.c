@@ -58,18 +58,18 @@ static unsigned long __init mfld_calibrate_tsc(void)
 	return 0;
 }
 
-static void __init penwell_arch_setup()
+static void __init penwell_arch_setup(void)
 {
 	x86_platform.calibrate_tsc = mfld_calibrate_tsc;
 	pm_power_off = mfld_power_off;
 }
 
-void * __cpuinit get_penwell_ops()
+void *get_penwell_ops(void)
 {
 	return &penwell_ops;
 }
 
-void * __cpuinit get_cloverview_ops()
+void *get_cloverview_ops(void)
 {
 	return &penwell_ops;
 }

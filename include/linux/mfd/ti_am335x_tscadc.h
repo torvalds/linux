@@ -159,6 +159,9 @@ struct ti_tscadc_dev {
 	int adc_cell;	/* -1 if not used */
 	struct mfd_cell cells[TSCADC_CELLS];
 	u32 reg_se_cache;
+	bool adc_waiting;
+	bool adc_in_use;
+	wait_queue_head_t reg_se_wait;
 	spinlock_t reg_lock;
 	unsigned int clk_div;
 
@@ -176,8 +179,9 @@ static inline struct ti_tscadc_dev *ti_tscadc_dev_get(struct platform_device *p)
 	return *tscadc_dev;
 }
 
-void am335x_tsc_se_update(struct ti_tscadc_dev *tsadc);
-void am335x_tsc_se_set(struct ti_tscadc_dev *tsadc, u32 val);
+void am335x_tsc_se_set_cache(struct ti_tscadc_dev *tsadc, u32 val);
+void am335x_tsc_se_set_once(struct ti_tscadc_dev *tsadc, u32 val);
 void am335x_tsc_se_clr(struct ti_tscadc_dev *tsadc, u32 val);
+void am335x_tsc_se_adc_done(struct ti_tscadc_dev *tsadc);
 
 #endif

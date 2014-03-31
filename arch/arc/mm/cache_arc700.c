@@ -282,7 +282,7 @@ static inline void __cache_line_loop(unsigned long paddr, unsigned long vaddr,
 #else
 	/* if V-P const for loop, PTAG can be written once outside loop */
 	if (full_page_op)
-		write_aux_reg(ARC_REG_DC_PTAG, paddr);
+		write_aux_reg(aux_tag, paddr);
 #endif
 
 	while (num_lines-- > 0) {
@@ -296,7 +296,7 @@ static inline void __cache_line_loop(unsigned long paddr, unsigned long vaddr,
 		write_aux_reg(aux_cmd, vaddr);
 		vaddr += L1_CACHE_BYTES;
 #else
-		write_aux_reg(aux, paddr);
+		write_aux_reg(aux_cmd, paddr);
 		paddr += L1_CACHE_BYTES;
 #endif
 	}

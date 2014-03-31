@@ -116,6 +116,35 @@ Resuming a device with a new table itself triggers an event so the
 userspace daemon can use this to detect a situation where a new table
 already exceeds the threshold.
 
+A low water mark for the metadata device is maintained in the kernel and
+will trigger a dm event if free space on the metadata device drops below
+it.
+
+Updating on-disk metadata
+-------------------------
+
+On-disk metadata is committed every time a FLUSH or FUA bio is written.
+If no such requests are made then commits will occur every second.  This
+means the thin-provisioning target behaves like a physical disk that has
+a volatile write cache.  If power is lost you may lose some recent
+writes.  The metadata should always be consistent in spite of any crash.
+
+If data space is exhausted the pool will either error or queue IO
+according to the configuration (see: error_if_no_space).  If metadata
+space is exhausted or a metadata operation fails: the pool will error IO
+until the pool is taken offline and repair is performed to 1) fix any
+potential inconsistencies and 2) clear the flag that imposes repair.
+Once the pool's metadata device is repaired it may be resized, which
+will allow the pool to return to normal operation.  Note that if a pool
+is flagged as needing repair, the pool's data and metadata devices
+cannot be resized until repair is performed.  It should also be noted
+that when the pool's metadata space is exhausted the current metadata
+transaction is aborted.  Given that the pool will cache IO whose
+completion may have already been acknowledged to upper IO layers
+(e.g. filesystem) it is strongly suggested that consistency checks
+(e.g. fsck) be performed on those layers when repair of the pool is
+required.
+
 Thin provisioning
 -----------------
 
@@ -235,6 +264,8 @@ i) Constructor
       read_only: Don't allow any changes to be made to the pool
 		 metadata.
 
+      error_if_no_space: Error IOs, instead of queueing, if no space.
+
     Data block size must be between 64KB (128 sectors) and 1GB
     (2097152 sectors) inclusive.
 
@@ -256,10 +287,9 @@ ii) Status
 	should register for the event and then check the target's status.
 
     held metadata root:
-	The location, in sectors, of the metadata root that has been
+	The location, in blocks, of the metadata root that has been
 	'held' for userspace read access.  '-' indicates there is no
-	held root.  This feature is not yet implemented so '-' is
-	always returned.
+	held root.
 
     discard_passdown|no_discard_passdown
 	Whether or not discards are actually being passed down to the
@@ -275,6 +305,11 @@ ii) Status
 	no further I/O will be permitted and the status will just
 	contain the string 'Fail'.  The userspace recovery tools
 	should then be used.
+
+    error_if_no_space|queue_if_no_space
+	If the pool runs out of data or metadata space, the pool will
+	either queue or error the IO destined to the data device.  The
+	default is to queue the IO until more space is added.
 
 iii) Messages
 

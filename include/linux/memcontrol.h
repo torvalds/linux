@@ -497,10 +497,11 @@ void __memcg_kmem_commit_charge(struct page *page,
 void __memcg_kmem_uncharge_pages(struct page *page, int order);
 
 int memcg_cache_id(struct mem_cgroup *memcg);
-int memcg_register_cache(struct mem_cgroup *memcg, struct kmem_cache *s,
-			 struct kmem_cache *root_cache);
-void memcg_release_cache(struct kmem_cache *cachep);
-void memcg_cache_list_add(struct mem_cgroup *memcg, struct kmem_cache *cachep);
+int memcg_alloc_cache_params(struct mem_cgroup *memcg, struct kmem_cache *s,
+			     struct kmem_cache *root_cache);
+void memcg_free_cache_params(struct kmem_cache *s);
+void memcg_register_cache(struct kmem_cache *s);
+void memcg_unregister_cache(struct kmem_cache *s);
 
 int memcg_update_cache_size(struct kmem_cache *s, int num_groups);
 void memcg_update_array_size(int num_groups);
@@ -640,19 +641,21 @@ static inline int memcg_cache_id(struct mem_cgroup *memcg)
 	return -1;
 }
 
-static inline int
-memcg_register_cache(struct mem_cgroup *memcg, struct kmem_cache *s,
-		     struct kmem_cache *root_cache)
+static inline int memcg_alloc_cache_params(struct mem_cgroup *memcg,
+		struct kmem_cache *s, struct kmem_cache *root_cache)
 {
 	return 0;
 }
 
-static inline void memcg_release_cache(struct kmem_cache *cachep)
+static inline void memcg_free_cache_params(struct kmem_cache *s)
 {
 }
 
-static inline void memcg_cache_list_add(struct mem_cgroup *memcg,
-					struct kmem_cache *s)
+static inline void memcg_register_cache(struct kmem_cache *s)
+{
+}
+
+static inline void memcg_unregister_cache(struct kmem_cache *s)
 {
 }
 

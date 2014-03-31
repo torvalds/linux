@@ -351,9 +351,11 @@ static int ttm_bo_handle_move_mem(struct ttm_buffer_object *bo,
 
 moved:
 	if (bo->evicted) {
-		ret = bdev->driver->invalidate_caches(bdev, bo->mem.placement);
-		if (ret)
-			pr_err("Can not flush read caches\n");
+		if (bdev->driver->invalidate_caches) {
+			ret = bdev->driver->invalidate_caches(bdev, bo->mem.placement);
+			if (ret)
+				pr_err("Can not flush read caches\n");
+		}
 		bo->evicted = false;
 	}
 
@@ -957,7 +959,7 @@ int ttm_bo_mem_space(struct ttm_buffer_object *bo,
 }
 EXPORT_SYMBOL(ttm_bo_mem_space);
 
-int ttm_bo_move_buffer(struct ttm_buffer_object *bo,
+static int ttm_bo_move_buffer(struct ttm_buffer_object *bo,
 			struct ttm_placement *placement,
 			bool interruptible,
 			bool no_wait_gpu)

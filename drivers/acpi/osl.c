@@ -39,7 +39,6 @@
 #include <linux/workqueue.h>
 #include <linux/nmi.h>
 #include <linux/acpi.h>
-#include <linux/acpi_io.h>
 #include <linux/efi.h>
 #include <linux/ioport.h>
 #include <linux/list.h>
@@ -49,9 +48,6 @@
 #include <asm/io.h>
 #include <asm/uaccess.h>
 
-#include <acpi/acpi.h>
-#include <acpi/acpi_bus.h>
-#include <acpi/processor.h>
 #include "internal.h"
 
 #define _COMPONENT		ACPI_OS_SERVICES
@@ -544,7 +540,7 @@ static u64 acpi_tables_addr;
 static int all_tables_size;
 
 /* Copied from acpica/tbutils.c:acpi_tb_checksum() */
-u8 __init acpi_table_checksum(u8 *buffer, u32 length)
+static u8 __init acpi_table_checksum(u8 *buffer, u32 length)
 {
 	u8 sum = 0;
 	u8 *end = buffer + length;
@@ -1215,6 +1211,10 @@ acpi_status acpi_hotplug_execute(acpi_hp_callback func, void *data, u32 src)
 	return AE_OK;
 }
 
+bool acpi_queue_hotplug_work(struct work_struct *work)
+{
+	return queue_work(kacpi_hotplug_wq, work);
+}
 
 acpi_status
 acpi_os_create_semaphore(u32 max_units, u32 initial_units, acpi_handle * handle)
@@ -1282,7 +1282,7 @@ acpi_status acpi_os_wait_semaphore(acpi_handle handle, u32 units, u16 timeout)
 		jiffies = MAX_SCHEDULE_TIMEOUT;
 	else
 		jiffies = msecs_to_jiffies(timeout);
-	
+
 	ret = down_timeout(sem, jiffies);
 	if (ret)
 		status = AE_TIME;
@@ -1794,7 +1794,7 @@ acpi_status __init acpi_os_initialize1(void)
 {
 	kacpid_wq = alloc_workqueue("kacpid", 0, 1);
 	kacpi_notify_wq = alloc_workqueue("kacpi_notify", 0, 1);
-	kacpi_hotplug_wq = alloc_workqueue("kacpi_hotplug", 0, 1);
+	kacpi_hotplug_wq = alloc_ordered_workqueue("kacpi_hotplug", 0);
 	BUG_ON(!kacpid_wq);
 	BUG_ON(!kacpi_notify_wq);
 	BUG_ON(!kacpi_hotplug_wq);

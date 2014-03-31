@@ -659,23 +659,6 @@ static void ath10k_htt_rx_amsdu(struct ath10k_htt *htt,
 	memcpy(hdr_buf, hdr, hdr_len);
 	hdr = (struct ieee80211_hdr *)hdr_buf;
 
-	/* FIXME: Hopefully this is a temporary measure.
-	 *
-	 * Reporting individual A-MSDU subframes means each reported frame
-	 * shares the same sequence number.
-	 *
-	 * mac80211 drops frames it recognizes as duplicates, i.e.
-	 * retransmission flag is set and sequence number matches sequence
-	 * number from a previous frame (as per IEEE 802.11-2012: 9.3.2.10
-	 * "Duplicate detection and recovery")
-	 *
-	 * To avoid frames being dropped clear retransmission flag for all
-	 * received A-MSDUs.
-	 *
-	 * Worst case: actual duplicate frames will be reported but this should
-	 * still be handled gracefully by other OSI/ISO layers. */
-	hdr->frame_control &= cpu_to_le16(~IEEE80211_FCTL_RETRY);
-
 	first = skb;
 	while (skb) {
 		void *decap_hdr;
@@ -745,6 +728,9 @@ static void ath10k_htt_rx_amsdu(struct ath10k_htt *htt,
 		info->encrypt_type = enctype;
 		skb = skb->next;
 		info->skb->next = NULL;
+
+		if (skb)
+			info->amsdu_more = true;
 
 		ath10k_process_rx(htt->ar, info);
 	}
@@ -847,6 +833,20 @@ static bool ath10k_htt_rx_has_fcs_err(struct sk_buff *skb)
 	flags = __le32_to_cpu(rxd->attention.flags);
 
 	if (flags & RX_ATTENTION_FLAGS_FCS_ERR)
+		return true;
+
+	return false;
+}
+
+static bool ath10k_htt_rx_has_mic_err(struct sk_buff *skb)
+{
+	struct htt_rx_desc *rxd;
+	u32 flags;
+
+	rxd = (void *)skb->data - sizeof(*rxd);
+	flags = __le32_to_cpu(rxd->attention.flags);
+
+	if (flags & RX_ATTENTION_FLAGS_TKIP_MIC_ERR)
 		return true;
 
 	return false;
@@ -959,6 +959,11 @@ static void ath10k_htt_rx_handler(struct ath10k_htt *htt,
 				continue;
 			}
 
+			if (test_bit(ATH10K_CAC_RUNNING, &htt->ar->dev_flags)) {
+				ath10k_htt_rx_free_msdu_chain(msdu_head);
+				continue;
+			}
+
 			/* FIXME: we do not support chaining yet.
 			 * this needs investigation */
 			if (msdu_chaining) {
@@ -969,6 +974,7 @@ static void ath10k_htt_rx_handler(struct ath10k_htt *htt,
 
 			info.skb     = msdu_head;
 			info.fcs_err = ath10k_htt_rx_has_fcs_err(msdu_head);
+			info.mic_err = ath10k_htt_rx_has_mic_err(msdu_head);
 			info.signal  = ATH10K_DEFAULT_NOISE_FLOOR;
 			info.signal += rx->ppdu.combined_rssi;
 

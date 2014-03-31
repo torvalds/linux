@@ -305,7 +305,7 @@ static int pcf857x_probe(struct i2c_client *client,
 	spin_lock_init(&gpio->slock);
 
 	gpio->chip.base			= pdata ? pdata->gpio_base : -1;
-	gpio->chip.can_sleep		= 1;
+	gpio->chip.can_sleep		= true;
 	gpio->chip.dev			= &client->dev;
 	gpio->chip.owner		= THIS_MODULE;
 	gpio->chip.get			= pcf857x_get;

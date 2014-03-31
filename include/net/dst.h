@@ -322,12 +322,11 @@ static inline void __skb_tunnel_rx(struct sk_buff *skb, struct net_device *dev,
 	skb->dev = dev;
 
 	/*
-	 * Clear rxhash so that we can recalulate the hash for the
+	 * Clear hash so that we can recalulate the hash for the
 	 * encapsulated packet, unless we have already determine the hash
 	 * over the L4 4-tuple.
 	 */
-	if (!skb->l4_rxhash)
-		skb->rxhash = 0;
+	skb_clear_hash_if_not_l4(skb);
 	skb_set_queue_mapping(skb, 0);
 	skb_scrub_packet(skb, !net_eq(net, dev_net(dev)));
 }

@@ -102,7 +102,6 @@ rw_attribute(bypass_torture_test);
 rw_attribute(key_merging_disabled);
 rw_attribute(gc_always_rewrite);
 rw_attribute(expensive_debug_checks);
-rw_attribute(freelist_percent);
 rw_attribute(cache_replacement_policy);
 rw_attribute(btree_shrinker_disabled);
 rw_attribute(copy_gc_enabled);
@@ -401,6 +400,48 @@ static struct attribute *bch_flash_dev_files[] = {
 };
 KTYPE(bch_flash_dev);
 
+struct bset_stats_op {
+	struct btree_op op;
+	size_t nodes;
+	struct bset_stats stats;
+};
+
+static int btree_bset_stats(struct btree_op *b_op, struct btree *b)
+{
+	struct bset_stats_op *op = container_of(b_op, struct bset_stats_op, op);
+
+	op->nodes++;
+	bch_btree_keys_stats(&b->keys, &op->stats);
+
+	return MAP_CONTINUE;
+}
+
+static int bch_bset_print_stats(struct cache_set *c, char *buf)
+{
+	struct bset_stats_op op;
+	int ret;
+
+	memset(&op, 0, sizeof(op));
+	bch_btree_op_init(&op.op, -1);
+
+	ret = bch_btree_map_nodes(&op.op, c, &ZERO_KEY, btree_bset_stats);
+	if (ret < 0)
+		return ret;
+
+	return snprintf(buf, PAGE_SIZE,
+			"btree nodes:		%zu\n"
+			"written sets:		%zu\n"
+			"unwritten sets:		%zu\n"
+			"written key bytes:	%zu\n"
+			"unwritten key bytes:	%zu\n"
+			"floats:			%zu\n"
+			"failed:			%zu\n",
+			op.nodes,
+			op.stats.sets_written, op.stats.sets_unwritten,
+			op.stats.bytes_written, op.stats.bytes_unwritten,
+			op.stats.floats, op.stats.failed);
+}
+
 SHOW(__bch_cache_set)
 {
 	unsigned root_usage(struct cache_set *c)
@@ -419,7 +460,7 @@ lock_root:
 			rw_lock(false, b, b->level);
 		} while (b != c->root);
 
-		for_each_key_filter(b, k, &iter, bch_ptr_bad)
+		for_each_key_filter(&b->keys, k, &iter, bch_ptr_bad)
 			bytes += bkey_bytes(k);
 
 		rw_unlock(false, b);
@@ -434,7 +475,7 @@ lock_root:
 
 		mutex_lock(&c->bucket_lock);
 		list_for_each_entry(b, &c->btree_cache, list)
-			ret += 1 << (b->page_order + PAGE_SHIFT);
+			ret += 1 << (b->keys.page_order + PAGE_SHIFT);
 
 		mutex_unlock(&c->bucket_lock);
 		return ret;
@@ -491,7 +532,7 @@ lock_root:
 
 	sysfs_print_time_stats(&c->btree_gc_time,	btree_gc, sec, ms);
 	sysfs_print_time_stats(&c->btree_split_time,	btree_split, sec, us);
-	sysfs_print_time_stats(&c->sort_time,		btree_sort, ms, us);
+	sysfs_print_time_stats(&c->sort.time,		btree_sort, ms, us);
 	sysfs_print_time_stats(&c->btree_read_time,	btree_read, ms, us);
 	sysfs_print_time_stats(&c->try_harder_time,	try_harder, ms, us);
 
@@ -711,9 +752,6 @@ SHOW(__bch_cache)
 	sysfs_print(io_errors,
 		    atomic_read(&ca->io_errors) >> IO_ERROR_SHIFT);
 
-	sysfs_print(freelist_percent, ca->free.size * 100 /
-		    ((size_t) ca->sb.nbuckets));
-
 	if (attr == &sysfs_cache_replacement_policy)
 		return bch_snprint_string_list(buf, PAGE_SIZE,
 					       cache_replacement_policies,
@@ -820,32 +858,6 @@ STORE(__bch_cache)
 		}
 	}
 
-	if (attr == &sysfs_freelist_percent) {
-		DECLARE_FIFO(long, free);
-		long i;
-		size_t p = strtoul_or_return(buf);
-
-		p = clamp_t(size_t,
-			    ((size_t) ca->sb.nbuckets * p) / 100,
-			    roundup_pow_of_two(ca->sb.nbuckets) >> 9,
-			    ca->sb.nbuckets / 2);
-
-		if (!init_fifo_exact(&free, p, GFP_KERNEL))
-			return -ENOMEM;
-
-		mutex_lock(&ca->set->bucket_lock);
-
-		fifo_move(&free, &ca->free);
-		fifo_swap(&free, &ca->free);
-
-		mutex_unlock(&ca->set->bucket_lock);
-
-		while (fifo_pop(&free, i))
-			atomic_dec(&ca->buckets[i].pin);
-
-		free_fifo(&free);
-	}
-
 	if (attr == &sysfs_clear_stats) {
 		atomic_long_set(&ca->sectors_written, 0);
 		atomic_long_set(&ca->btree_sectors_written, 0);
@@ -869,7 +881,6 @@ static struct attribute *bch_cache_files[] = {
 	&sysfs_metadata_written,
 	&sysfs_io_errors,
 	&sysfs_clear_stats,
-	&sysfs_freelist_percent,
 	&sysfs_cache_replacement_policy,
 	NULL
 };

@@ -244,8 +244,19 @@ static void __prandom_reseed(bool late)
 	static bool latch = false;
 	static DEFINE_SPINLOCK(lock);
 
+	/* Asking for random bytes might result in bytes getting
+	 * moved into the nonblocking pool and thus marking it
+	 * as initialized. In this case we would double back into
+	 * this function and attempt to do a late reseed.
+	 * Ignore the pointless attempt to reseed again if we're
+	 * already waiting for bytes when the nonblocking pool
+	 * got initialized.
+	 */
+
 	/* only allow initial seeding (late == false) once */
-	spin_lock_irqsave(&lock, flags);
+	if (!spin_trylock_irqsave(&lock, flags))
+		return;
+
 	if (latch && !late)
 		goto out;
 	latch = true;

@@ -134,7 +134,7 @@ static void remove_revmap_chain(struct kvm *kvm, long pte_index,
 	unlock_rmap(rmap);
 }
 
-static pte_t lookup_linux_pte(pgd_t *pgdir, unsigned long hva,
+static pte_t lookup_linux_pte_and_update(pgd_t *pgdir, unsigned long hva,
 			      int writing, unsigned long *pte_sizep)
 {
 	pte_t *ptep;
@@ -232,7 +232,8 @@ long kvmppc_do_h_enter(struct kvm *kvm, unsigned long flags,
 
 		/* Look up the Linux PTE for the backing page */
 		pte_size = psize;
-		pte = lookup_linux_pte(pgdir, hva, writing, &pte_size);
+		pte = lookup_linux_pte_and_update(pgdir, hva, writing,
+						  &pte_size);
 		if (pte_present(pte)) {
 			if (writing && !pte_write(pte))
 				/* make the actual HPTE be read-only */
@@ -672,7 +673,8 @@ long kvmppc_h_protect(struct kvm_vcpu *vcpu, unsigned long flags,
 			memslot = __gfn_to_memslot(kvm_memslots(kvm), gfn);
 			if (memslot) {
 				hva = __gfn_to_hva_memslot(memslot, gfn);
-				pte = lookup_linux_pte(pgdir, hva, 1, &psize);
+				pte = lookup_linux_pte_and_update(pgdir, hva,
+								  1, &psize);
 				if (pte_present(pte) && !pte_write(pte))
 					r = hpte_make_readonly(r);
 			}

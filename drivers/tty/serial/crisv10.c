@@ -2153,7 +2153,7 @@ static void flush_timeout_function(unsigned long data)
 
 	fast_timers[info->line].function = NULL;
 	serial_fast_timer_expired++;
-	TIMERD(DEBUG_LOG(info->line, "flush_timout %i ", info->line));
+	TIMERD(DEBUG_LOG(info->line, "flush_timeout %i ", info->line));
 	TIMERD(DEBUG_LOG(info->line, "num expired: %i\n", serial_fast_timer_expired));
 	check_flush_timeout(info);
 }

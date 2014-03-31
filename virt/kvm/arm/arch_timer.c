@@ -182,6 +182,40 @@ static void kvm_timer_init_interrupt(void *info)
 	enable_percpu_irq(host_vtimer_irq, 0);
 }
 
+int kvm_arm_timer_set_reg(struct kvm_vcpu *vcpu, u64 regid, u64 value)
+{
+	struct arch_timer_cpu *timer = &vcpu->arch.timer_cpu;
+
+	switch (regid) {
+	case KVM_REG_ARM_TIMER_CTL:
+		timer->cntv_ctl = value;
+		break;
+	case KVM_REG_ARM_TIMER_CNT:
+		vcpu->kvm->arch.timer.cntvoff = kvm_phys_timer_read() - value;
+		break;
+	case KVM_REG_ARM_TIMER_CVAL:
+		timer->cntv_cval = value;
+		break;
+	default:
+		return -1;
+	}
+	return 0;
+}
+
+u64 kvm_arm_timer_get_reg(struct kvm_vcpu *vcpu, u64 regid)
+{
+	struct arch_timer_cpu *timer = &vcpu->arch.timer_cpu;
+
+	switch (regid) {
+	case KVM_REG_ARM_TIMER_CTL:
+		return timer->cntv_ctl;
+	case KVM_REG_ARM_TIMER_CNT:
+		return kvm_phys_timer_read() - vcpu->kvm->arch.timer.cntvoff;
+	case KVM_REG_ARM_TIMER_CVAL:
+		return timer->cntv_cval;
+	}
+	return (u64)-1;
+}
 
 static int kvm_timer_cpu_notify(struct notifier_block *self,
 				unsigned long action, void *cpu)

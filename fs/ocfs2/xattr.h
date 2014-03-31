@@ -40,8 +40,6 @@ struct ocfs2_security_xattr_info {
 extern const struct xattr_handler ocfs2_xattr_user_handler;
 extern const struct xattr_handler ocfs2_xattr_trusted_handler;
 extern const struct xattr_handler ocfs2_xattr_security_handler;
-extern const struct xattr_handler ocfs2_xattr_acl_access_handler;
-extern const struct xattr_handler ocfs2_xattr_acl_default_handler;
 extern const struct xattr_handler *ocfs2_xattr_handlers[];
 
 ssize_t ocfs2_listxattr(struct dentry *, char *, size_t);
@@ -96,5 +94,7 @@ int ocfs2_reflink_xattrs(struct inode *old_inode,
 			 bool preserve_security);
 int ocfs2_init_security_and_acl(struct inode *dir,
 				struct inode *inode,
-				const struct qstr *qstr);
+				const struct qstr *qstr,
+				struct posix_acl *default_acl,
+				struct posix_acl *acl);
 #endif /* OCFS2_XATTR_H */

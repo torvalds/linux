@@ -33,6 +33,13 @@
 #include <linux/vga_switcheroo.h>
 #include <linux/slab.h>
 #include <linux/pm_runtime.h>
+
+#if defined(CONFIG_VGA_SWITCHEROO)
+bool radeon_is_px(void);
+#else
+static inline bool radeon_is_px(void) { return false; }
+#endif
+
 /**
  * radeon_driver_unload_kms - Main unload function for KMS.
  *
@@ -130,7 +137,8 @@ int radeon_driver_load_kms(struct drm_device *dev, unsigned long flags)
 				"Error during ACPI methods call\n");
 	}
 
-	if (radeon_runtime_pm != 0) {
+	if ((radeon_runtime_pm == 1) ||
+	    ((radeon_runtime_pm == -1) && radeon_is_px())) {
 		pm_runtime_use_autosuspend(dev->dev);
 		pm_runtime_set_autosuspend_delay(dev->dev, 5000);
 		pm_runtime_set_active(dev->dev);
@@ -191,7 +199,7 @@ static void radeon_set_filp_rights(struct drm_device *dev,
  * etc. (all asics).
  * Returns 0 on success, -EINVAL on failure.
  */
-int radeon_info_ioctl(struct drm_device *dev, void *data, struct drm_file *filp)
+static int radeon_info_ioctl(struct drm_device *dev, void *data, struct drm_file *filp)
 {
 	struct radeon_device *rdev = dev->dev_private;
 	struct drm_radeon_info *info = data;
@@ -223,7 +231,7 @@ int radeon_info_ioctl(struct drm_device *dev, void *data, struct drm_file *filp)
 			*value = rdev->accel_working;
 		break;
 	case RADEON_INFO_CRTC_FROM_ID:
-		if (DRM_COPY_FROM_USER(value, value_ptr, sizeof(uint32_t))) {
+		if (copy_from_user(value, value_ptr, sizeof(uint32_t))) {
 			DRM_ERROR("copy_from_user %s:%u\n", __func__, __LINE__);
 			return -EFAULT;
 		}
@@ -269,7 +277,7 @@ int radeon_info_ioctl(struct drm_device *dev, void *data, struct drm_file *filp)
 		 *
 		 * When returning, the value is 1 if filp owns hyper-z access,
 		 * 0 otherwise. */
-		if (DRM_COPY_FROM_USER(value, value_ptr, sizeof(uint32_t))) {
+		if (copy_from_user(value, value_ptr, sizeof(uint32_t))) {
 			DRM_ERROR("copy_from_user %s:%u\n", __func__, __LINE__);
 			return -EFAULT;
 		}
@@ -281,7 +289,7 @@ int radeon_info_ioctl(struct drm_device *dev, void *data, struct drm_file *filp)
 		break;
 	case RADEON_INFO_WANT_CMASK:
 		/* The same logic as Hyper-Z. */
-		if (DRM_COPY_FROM_USER(value, value_ptr, sizeof(uint32_t))) {
+		if (copy_from_user(value, value_ptr, sizeof(uint32_t))) {
 			DRM_ERROR("copy_from_user %s:%u\n", __func__, __LINE__);
 			return -EFAULT;
 		}
@@ -417,7 +425,7 @@ int radeon_info_ioctl(struct drm_device *dev, void *data, struct drm_file *filp)
 		*value = rdev->fastfb_working;
 		break;
 	case RADEON_INFO_RING_WORKING:
-		if (DRM_COPY_FROM_USER(value, value_ptr, sizeof(uint32_t))) {
+		if (copy_from_user(value, value_ptr, sizeof(uint32_t))) {
 			DRM_ERROR("copy_from_user %s:%u\n", __func__, __LINE__);
 			return -EFAULT;
 		}
@@ -470,11 +478,18 @@ int radeon_info_ioctl(struct drm_device *dev, void *data, struct drm_file *filp)
 			DRM_DEBUG_KMS("BACKEND_ENABLED_MASK is si+ only!\n");
 		}
 		break;
+	case RADEON_INFO_MAX_SCLK:
+		if ((rdev->pm.pm_method == PM_METHOD_DPM) &&
+		    rdev->pm.dpm_enabled)
+			*value = rdev->pm.dpm.dyn_state.max_clock_voltage_on_ac.sclk * 10;
+		else
+			*value = rdev->pm.default_sclk * 10;
+		break;
 	default:
 		DRM_DEBUG_KMS("Invalid request %d\n", info->request);
 		return -EINVAL;
 	}
-	if (DRM_COPY_TO_USER(value_ptr, (char*)value, value_size)) {
+	if (copy_to_user(value_ptr, (char*)value, value_size)) {
 		DRM_ERROR("copy_to_user %s:%u\n", __func__, __LINE__);
 		return -EFAULT;
 	}
@@ -530,6 +545,10 @@ int radeon_driver_open_kms(struct drm_device *dev, struct drm_file *file_priv)
 
 		radeon_vm_init(rdev, &fpriv->vm);
 
+		r = radeon_bo_reserve(rdev->ring_tmp_bo.bo, false);
+		if (r)
+			return r;
+
 		/* map the ib pool buffer read only into
 		 * virtual address space */
 		bo_va = radeon_vm_bo_add(rdev, &fpriv->vm,
@@ -537,6 +556,8 @@ int radeon_driver_open_kms(struct drm_device *dev, struct drm_file *file_priv)
 		r = radeon_vm_bo_set_addr(rdev, bo_va, RADEON_VA_IB_OFFSET,
 					  RADEON_VM_PAGE_READABLE |
 					  RADEON_VM_PAGE_SNOOPED);
+
+		radeon_bo_unreserve(rdev->ring_tmp_bo.bo);
 		if (r) {
 			radeon_vm_fini(rdev, &fpriv->vm);
 			kfree(fpriv);
@@ -712,11 +733,12 @@ int radeon_get_vblank_timestamp_kms(struct drm_device *dev, int crtc,
 	/* Helper routine in DRM core does all the work: */
 	return drm_calc_vbltimestamp_from_scanoutpos(dev, crtc, max_error,
 						     vblank_time, flags,
-						     drmcrtc);
+						     drmcrtc, &drmcrtc->hwmode);
 }
 
 #define KMS_INVALID_IOCTL(name)						\
-int name(struct drm_device *dev, void *data, struct drm_file *file_priv)\
+static int name(struct drm_device *dev, void *data, struct drm_file	\
+		*file_priv)						\
 {									\
 	DRM_ERROR("invalid ioctl with kms %s\n", __func__);		\
 	return -EINVAL;							\

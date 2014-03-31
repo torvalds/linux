@@ -23,10 +23,12 @@
  * Amount of bytes we read when analyzing each block of flash memory.
  * Set it big enough to allow detecting partition and reading important data.
  */
-#define BCM47XXPART_BYTES_TO_READ	0x404
+#define BCM47XXPART_BYTES_TO_READ	0x4e8
 
 /* Magics */
 #define BOARD_DATA_MAGIC		0x5246504D	/* MPFR */
+#define BOARD_DATA_MAGIC2		0xBD0D0BBD
+#define CFE_MAGIC			0x43464531	/* 1EFC */
 #define FACTORY_MAGIC			0x59544346	/* FCTY */
 #define POT_MAGIC1			0x54544f50	/* POTT */
 #define POT_MAGIC2			0x504f		/* OP */
@@ -102,8 +104,9 @@ static int bcm47xxpart_parse(struct mtd_info *master,
 			continue;
 		}
 
-		/* CFE has small NVRAM at 0x400 */
-		if (buf[0x400 / 4] == NVRAM_HEADER) {
+		/* Magic or small NVRAM at 0x400 */
+		if ((buf[0x4e0 / 4] == CFE_MAGIC && buf[0x4e4 / 4] == CFE_MAGIC) ||
+		    (buf[0x400 / 4] == NVRAM_HEADER)) {
 			bcm47xxpart_add_part(&parts[curr_part++], "boot",
 					     offset, MTD_WRITEABLE);
 			continue;
@@ -190,6 +193,21 @@ static int bcm47xxpart_parse(struct mtd_info *master,
 					     offset, 0);
 			continue;
 		}
+
+		/* Read middle of the block */
+		if (mtd_read(master, offset + 0x8000, 0x4,
+			     &bytes_read, (uint8_t *)buf) < 0) {
+			pr_err("mtd_read error while parsing (offset: 0x%X)!\n",
+			       offset);
+			continue;
+		}
+
+		/* Some devices (ex. WNDR3700v3) don't have a standard 'MPFR' */
+		if (buf[0x000 / 4] == BOARD_DATA_MAGIC2) {
+			bcm47xxpart_add_part(&parts[curr_part++], "board_data",
+					     offset, MTD_WRITEABLE);
+			continue;
+		}
 	}
 
 	/* Look for NVRAM at the end of the last block. */
@@ -243,7 +261,8 @@ static struct mtd_part_parser bcm47xxpart_mtd_parser = {
 
 static int __init bcm47xxpart_init(void)
 {
-	return register_mtd_parser(&bcm47xxpart_mtd_parser);
+	register_mtd_parser(&bcm47xxpart_mtd_parser);
+	return 0;
 }
 
 static void __exit bcm47xxpart_exit(void)

@@ -1008,6 +1008,12 @@ static int perf_session__process_user_event(struct perf_session *session, union 
 		if (err == 0)
 			perf_session__set_id_hdr_size(session);
 		return err;
+	case PERF_RECORD_HEADER_EVENT_TYPE:
+		/*
+		 * Depreceated, but we need to handle it for sake
+		 * of old data files create in pipe mode.
+		 */
+		return 0;
 	case PERF_RECORD_HEADER_TRACING_DATA:
 		/* setup for reading amidst mmap */
 		lseek(fd, file_offset, SEEK_SET);
@@ -1573,7 +1579,7 @@ next:
 int perf_session__cpu_bitmap(struct perf_session *session,
 			     const char *cpu_list, unsigned long *cpu_bitmap)
 {
-	int i;
+	int i, err = -1;
 	struct cpu_map *map;
 
 	for (i = 0; i < PERF_TYPE_MAX; ++i) {
@@ -1602,13 +1608,17 @@ int perf_session__cpu_bitmap(struct perf_session *session,
 		if (cpu >= MAX_NR_CPUS) {
 			pr_err("Requested CPU %d too large. "
 			       "Consider raising MAX_NR_CPUS\n", cpu);
-			return -1;
+			goto out_delete_map;
 		}
 
 		set_bit(cpu, cpu_bitmap);
 	}
 
-	return 0;
+	err = 0;
+
+out_delete_map:
+	cpu_map__delete(map);
+	return err;
 }
 
 void perf_session__fprintf_info(struct perf_session *session, FILE *fp,

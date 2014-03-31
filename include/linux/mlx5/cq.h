@@ -79,15 +79,23 @@ enum {
 	MLX5_CQE_RESP_SEND	= 2,
 	MLX5_CQE_RESP_SEND_IMM	= 3,
 	MLX5_CQE_RESP_SEND_INV	= 4,
-	MLX5_CQE_RESIZE_CQ	= 0xff, /* TBD */
+	MLX5_CQE_RESIZE_CQ	= 5,
 	MLX5_CQE_REQ_ERR	= 13,
 	MLX5_CQE_RESP_ERR	= 14,
+	MLX5_CQE_INVALID	= 15,
 };
 
 enum {
-	MLX5_CQ_MODIFY_RESEIZE = 0,
-	MLX5_CQ_MODIFY_MODER = 1,
-	MLX5_CQ_MODIFY_MAPPING = 2,
+	MLX5_CQ_MODIFY_PERIOD	= 1 << 0,
+	MLX5_CQ_MODIFY_COUNT	= 1 << 1,
+	MLX5_CQ_MODIFY_OVERRUN	= 1 << 2,
+};
+
+enum {
+	MLX5_CQ_OPMOD_RESIZE		= 1,
+	MLX5_MODIFY_CQ_MASK_LOG_SIZE	= 1 << 0,
+	MLX5_MODIFY_CQ_MASK_PG_OFFSET	= 1 << 1,
+	MLX5_MODIFY_CQ_MASK_PG_SIZE	= 1 << 2,
 };
 
 struct mlx5_cq_modify_params {
@@ -158,7 +166,7 @@ int mlx5_core_destroy_cq(struct mlx5_core_dev *dev, struct mlx5_core_cq *cq);
 int mlx5_core_query_cq(struct mlx5_core_dev *dev, struct mlx5_core_cq *cq,
 		       struct mlx5_query_cq_mbox_out *out);
 int mlx5_core_modify_cq(struct mlx5_core_dev *dev, struct mlx5_core_cq *cq,
-			int type, struct mlx5_cq_modify_params *params);
+			struct mlx5_modify_cq_mbox_in *in, int in_sz);
 int mlx5_debug_cq_add(struct mlx5_core_dev *dev, struct mlx5_core_cq *cq);
 void mlx5_debug_cq_remove(struct mlx5_core_dev *dev, struct mlx5_core_cq *cq);
 

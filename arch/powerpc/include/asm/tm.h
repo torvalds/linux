@@ -15,6 +15,7 @@ extern void do_load_up_transact_altivec(struct thread_struct *thread);
 extern void tm_enable(void);
 extern void tm_reclaim(struct thread_struct *thread,
 		       unsigned long orig_msr, uint8_t cause);
+extern void tm_reclaim_current(uint8_t cause);
 extern void tm_recheckpoint(struct thread_struct *thread,
 			    unsigned long orig_msr);
 extern void tm_abort(uint8_t cause);

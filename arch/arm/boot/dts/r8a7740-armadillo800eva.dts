@@ -9,7 +9,7 @@
  */
 
 /dts-v1/;
-/include/ "r8a7740.dtsi"
+#include "r8a7740.dtsi"
 
 / {
 	model = "armadillo 800 eva";

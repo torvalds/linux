@@ -1,8 +1,8 @@
 VERSION = 3
-PATCHLEVEL = 13
+PATCHLEVEL = 14
 SUBLEVEL = 0
 EXTRAVERSION =
-NAME = One Giant Leap for Frogkind
+NAME = Shuffling Zombie Juror
 
 # *DOCUMENTATION*
 # To see a list of typical targets execute "make help"
@@ -311,8 +311,14 @@ endif
 # If the user is running make -s (silent mode), suppress echoing of
 # commands
 
+ifneq ($(filter 4.%,$(MAKE_VERSION)),)	# make-4
+ifneq ($(filter %s ,$(firstword x$(MAKEFLAGS))),)
+  quiet=silent_
+endif
+else					# make-3.8x
 ifneq ($(filter s% -s%,$(MAKEFLAGS)),)
   quiet=silent_
+endif
 endif
 
 export quiet Q KBUILD_VERBOSE
@@ -599,10 +605,11 @@ endif
 ifdef CONFIG_CC_STACKPROTECTOR_REGULAR
   stackp-flag := -fstack-protector
   ifeq ($(call cc-option, $(stackp-flag)),)
-    $(warning Cannot use CONFIG_CC_STACKPROTECTOR: \
-	      -fstack-protector not supported by compiler))
+    $(warning Cannot use CONFIG_CC_STACKPROTECTOR_REGULAR: \
+             -fstack-protector not supported by compiler)
   endif
-else ifdef CONFIG_CC_STACKPROTECTOR_STRONG
+else
+ifdef CONFIG_CC_STACKPROTECTOR_STRONG
   stackp-flag := -fstack-protector-strong
   ifeq ($(call cc-option, $(stackp-flag)),)
     $(warning Cannot use CONFIG_CC_STACKPROTECTOR_STRONG: \
@@ -611,6 +618,7 @@ else ifdef CONFIG_CC_STACKPROTECTOR_STRONG
 else
   # Force off for distro compilers that enable stack protector by default.
   stackp-flag := $(call cc-option, -fno-stack-protector)
+endif
 endif
 KBUILD_CFLAGS += $(stackp-flag)
 
@@ -633,7 +641,7 @@ endif
 
 ifdef CONFIG_DEBUG_INFO
 KBUILD_CFLAGS	+= -g
-KBUILD_AFLAGS	+= -gdwarf-2
+KBUILD_AFLAGS	+= -Wa,--gdwarf-2
 endif
 
 ifdef CONFIG_DEBUG_INFO_REDUCED
@@ -681,6 +689,9 @@ KBUILD_CFLAGS   += $(call cc-option,-Werror=implicit-int)
 
 # require functions to have arguments in prototypes, not empty 'int foo()'
 KBUILD_CFLAGS   += $(call cc-option,-Werror=strict-prototypes)
+
+# Prohibit date/time macros, which would make the build non-deterministic
+KBUILD_CFLAGS   += $(call cc-option,-Werror=date-time)
 
 # use the deterministic mode of AR if available
 KBUILD_ARFLAGS := $(call ar-option,D)

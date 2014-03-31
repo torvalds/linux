@@ -1010,6 +1010,7 @@ static int udf_symlink(struct inode *dir, struct dentry *dentry,
 	else
 		udf_truncate_tail_extent(inode);
 	mark_inode_dirty(inode);
+	up_write(&iinfo->i_data_sem);
 
 	fi = udf_add_entry(dir, dentry, &fibh, &cfi, &err);
 	if (!fi)
@@ -1023,7 +1024,6 @@ static int udf_symlink(struct inode *dir, struct dentry *dentry,
 	udf_write_fi(dir, &cfi, fi, &fibh, NULL, NULL);
 	if (UDF_I(dir)->i_alloc_type == ICBTAG_FLAG_AD_IN_ICB)
 		mark_inode_dirty(dir);
-	up_write(&iinfo->i_data_sem);
 	if (fibh.sbh != fibh.ebh)
 		brelse(fibh.ebh);
 	brelse(fibh.sbh);

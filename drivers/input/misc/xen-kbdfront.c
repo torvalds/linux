@@ -29,6 +29,7 @@
 #include <xen/interface/io/fbif.h>
 #include <xen/interface/io/kbdif.h>
 #include <xen/xenbus.h>
+#include <xen/platform_pci.h>
 
 struct xenkbd_info {
 	struct input_dev *kbd;
@@ -378,6 +379,9 @@ static int __init xenkbd_init(void)
 
 	/* Nothing to do if running in dom0. */
 	if (xen_initial_domain())
+		return -ENODEV;
+
+	if (!xen_has_pv_devices())
 		return -ENODEV;
 
 	return xenbus_register_frontend(&xenkbd_driver);

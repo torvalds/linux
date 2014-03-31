@@ -114,6 +114,10 @@ void snd_dmaengine_pcm_set_config_from_dai_data(
  * @compat_filter_fn: Will be used as the filter function when requesting a
  *  channel for platforms which do not use devicetree. The filter parameter
  *  will be the DAI's DMA data.
+ * @dma_dev: If set, request DMA channel on this device rather than the DAI
+ *  device.
+ * @chan_names: If set, these custom DMA channel names will be requested at
+ *  registration time.
  * @pcm_hardware: snd_pcm_hardware struct to be used for the PCM.
  * @prealloc_buffer_size: Size of the preallocated audio buffer.
  *
@@ -130,6 +134,8 @@ struct snd_dmaengine_pcm_config {
 			struct snd_soc_pcm_runtime *rtd,
 			struct snd_pcm_substream *substream);
 	dma_filter_fn compat_filter_fn;
+	struct device *dma_dev;
+	const char *chan_names[SNDRV_PCM_STREAM_LAST + 1];
 
 	const struct snd_pcm_hardware *pcm_hardware;
 	unsigned int prealloc_buffer_size;
@@ -139,6 +145,10 @@ int snd_dmaengine_pcm_register(struct device *dev,
 	const struct snd_dmaengine_pcm_config *config,
 	unsigned int flags);
 void snd_dmaengine_pcm_unregister(struct device *dev);
+
+int devm_snd_dmaengine_pcm_register(struct device *dev,
+	const struct snd_dmaengine_pcm_config *config,
+	unsigned int flags);
 
 int snd_dmaengine_pcm_prepare_slave_config(struct snd_pcm_substream *substream,
 	struct snd_pcm_hw_params *params,

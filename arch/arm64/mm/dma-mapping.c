@@ -45,6 +45,7 @@ static void *arm64_swiotlb_alloc_coherent(struct device *dev, size_t size,
 	if (IS_ENABLED(CONFIG_DMA_CMA)) {
 		struct page *page;
 
+		size = PAGE_ALIGN(size);
 		page = dma_alloc_from_contiguous(dev, size >> PAGE_SHIFT,
 							get_order(size));
 		if (!page)

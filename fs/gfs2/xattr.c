@@ -13,6 +13,7 @@
 #include <linux/buffer_head.h>
 #include <linux/xattr.h>
 #include <linux/gfs2_ondisk.h>
+#include <linux/posix_acl_xattr.h>
 #include <asm/uaccess.h>
 
 #include "gfs2.h"
@@ -1500,7 +1501,8 @@ static const struct xattr_handler gfs2_xattr_security_handler = {
 const struct xattr_handler *gfs2_xattr_handlers[] = {
 	&gfs2_xattr_user_handler,
 	&gfs2_xattr_security_handler,
-	&gfs2_xattr_system_handler,
+	&posix_acl_access_xattr_handler,
+	&posix_acl_default_xattr_handler,
 	NULL,
 };
 

@@ -158,11 +158,8 @@ static void set_slot_off(struct controller *ctrl, struct slot * pslot)
 {
 	/* turn off slot, turn on Amber LED, turn off Green LED if supported*/
 	if (POWER_CTRL(ctrl)) {
-		if (pciehp_power_off_slot(pslot)) {
-			ctrl_err(ctrl,
-				 "Issue of Slot Power Off command failed\n");
-			return;
-		}
+		pciehp_power_off_slot(pslot);
+
 		/*
 		 * After turning power off, we must wait for at least 1 second
 		 * before taking any action that relies on power having been
@@ -171,16 +168,8 @@ static void set_slot_off(struct controller *ctrl, struct slot * pslot)
 		msleep(1000);
 	}
 
-	if (PWR_LED(ctrl))
-		pciehp_green_led_off(pslot);
-
-	if (ATTN_LED(ctrl)) {
-		if (pciehp_set_attention_status(pslot, 1)) {
-			ctrl_err(ctrl,
-				 "Issue of Set Attention Led command failed\n");
-			return;
-		}
-	}
+	pciehp_green_led_off(pslot);
+	pciehp_set_attention_status(pslot, 1);
 }
 
 /**
@@ -203,8 +192,7 @@ static int board_added(struct slot *p_slot)
 			return retval;
 	}
 
-	if (PWR_LED(ctrl))
-		pciehp_green_led_blink(p_slot);
+	pciehp_green_led_blink(p_slot);
 
 	/* Check link training status */
 	retval = pciehp_check_link_status(ctrl);
@@ -227,9 +215,7 @@ static int board_added(struct slot *p_slot)
 		goto err_exit;
 	}
 
-	if (PWR_LED(ctrl))
-		pciehp_green_led_on(p_slot);
-
+	pciehp_green_led_on(p_slot);
 	return 0;
 
 err_exit:
@@ -243,7 +229,7 @@ err_exit:
  */
 static int remove_board(struct slot *p_slot)
 {
-	int retval = 0;
+	int retval;
 	struct controller *ctrl = p_slot->ctrl;
 
 	retval = pciehp_unconfigure_device(p_slot);
@@ -251,13 +237,8 @@ static int remove_board(struct slot *p_slot)
 		return retval;
 
 	if (POWER_CTRL(ctrl)) {
-		/* power off slot */
-		retval = pciehp_power_off_slot(p_slot);
-		if (retval) {
-			ctrl_err(ctrl,
-				 "Issue of Slot Disable command failed\n");
-			return retval;
-		}
+		pciehp_power_off_slot(p_slot);
+
 		/*
 		 * After turning power off, we must wait for at least 1 second
 		 * before taking any action that relies on power having been
@@ -267,9 +248,7 @@ static int remove_board(struct slot *p_slot)
 	}
 
 	/* turn off Green LED */
-	if (PWR_LED(ctrl))
-		pciehp_green_led_off(p_slot);
-
+	pciehp_green_led_off(p_slot);
 	return 0;
 }
 
@@ -305,7 +284,7 @@ static void pciehp_power_thread(struct work_struct *work)
 		break;
 	case POWERON_STATE:
 		mutex_unlock(&p_slot->lock);
-		if (pciehp_enable_slot(p_slot) && PWR_LED(p_slot->ctrl))
+		if (pciehp_enable_slot(p_slot))
 			pciehp_green_led_off(p_slot);
 		mutex_lock(&p_slot->lock);
 		p_slot->state = STATIC_STATE;
@@ -372,11 +351,8 @@ static void handle_button_press_event(struct slot *p_slot)
 				  "press.\n", slot_name(p_slot));
 		}
 		/* blink green LED and turn off amber */
-		if (PWR_LED(ctrl))
-			pciehp_green_led_blink(p_slot);
-		if (ATTN_LED(ctrl))
-			pciehp_set_attention_status(p_slot, 0);
-
+		pciehp_green_led_blink(p_slot);
+		pciehp_set_attention_status(p_slot, 0);
 		queue_delayed_work(p_slot->wq, &p_slot->work, 5*HZ);
 		break;
 	case BLINKINGOFF_STATE:
@@ -389,14 +365,11 @@ static void handle_button_press_event(struct slot *p_slot)
 		ctrl_info(ctrl, "Button cancel on Slot(%s)\n", slot_name(p_slot));
 		cancel_delayed_work(&p_slot->work);
 		if (p_slot->state == BLINKINGOFF_STATE) {
-			if (PWR_LED(ctrl))
-				pciehp_green_led_on(p_slot);
+			pciehp_green_led_on(p_slot);
 		} else {
-			if (PWR_LED(ctrl))
-				pciehp_green_led_off(p_slot);
+			pciehp_green_led_off(p_slot);
 		}
-		if (ATTN_LED(ctrl))
-			pciehp_set_attention_status(p_slot, 0);
+		pciehp_set_attention_status(p_slot, 0);
 		ctrl_info(ctrl, "PCI slot #%s - action canceled "
 			  "due to button press\n", slot_name(p_slot));
 		p_slot->state = STATIC_STATE;
@@ -456,10 +429,8 @@ static void interrupt_event_handler(struct work_struct *work)
 	case INT_POWER_FAULT:
 		if (!POWER_CTRL(ctrl))
 			break;
-		if (ATTN_LED(ctrl))
-			pciehp_set_attention_status(p_slot, 1);
-		if (PWR_LED(ctrl))
-			pciehp_green_led_off(p_slot);
+		pciehp_set_attention_status(p_slot, 1);
+		pciehp_green_led_off(p_slot);
 		break;
 	case INT_PRESENCE_ON:
 	case INT_PRESENCE_OFF:
@@ -482,14 +453,14 @@ int pciehp_enable_slot(struct slot *p_slot)
 	int rc;
 	struct controller *ctrl = p_slot->ctrl;
 
-	rc = pciehp_get_adapter_status(p_slot, &getstatus);
-	if (rc || !getstatus) {
+	pciehp_get_adapter_status(p_slot, &getstatus);
+	if (!getstatus) {
 		ctrl_info(ctrl, "No adapter on slot(%s)\n", slot_name(p_slot));
 		return -ENODEV;
 	}
 	if (MRL_SENS(p_slot->ctrl)) {
-		rc = pciehp_get_latch_status(p_slot, &getstatus);
-		if (rc || getstatus) {
+		pciehp_get_latch_status(p_slot, &getstatus);
+		if (getstatus) {
 			ctrl_info(ctrl, "Latch open on slot(%s)\n",
 				  slot_name(p_slot));
 			return -ENODEV;
@@ -497,8 +468,8 @@ int pciehp_enable_slot(struct slot *p_slot)
 	}
 
 	if (POWER_CTRL(p_slot->ctrl)) {
-		rc = pciehp_get_power_status(p_slot, &getstatus);
-		if (rc || getstatus) {
+		pciehp_get_power_status(p_slot, &getstatus);
+		if (getstatus) {
 			ctrl_info(ctrl, "Already enabled on slot(%s)\n",
 				  slot_name(p_slot));
 			return -EINVAL;
@@ -518,15 +489,14 @@ int pciehp_enable_slot(struct slot *p_slot)
 int pciehp_disable_slot(struct slot *p_slot)
 {
 	u8 getstatus = 0;
-	int ret = 0;
 	struct controller *ctrl = p_slot->ctrl;
 
 	if (!p_slot->ctrl)
 		return 1;
 
 	if (!HP_SUPR_RM(p_slot->ctrl)) {
-		ret = pciehp_get_adapter_status(p_slot, &getstatus);
-		if (ret || !getstatus) {
+		pciehp_get_adapter_status(p_slot, &getstatus);
+		if (!getstatus) {
 			ctrl_info(ctrl, "No adapter on slot(%s)\n",
 				  slot_name(p_slot));
 			return -ENODEV;
@@ -534,8 +504,8 @@ int pciehp_disable_slot(struct slot *p_slot)
 	}
 
 	if (MRL_SENS(p_slot->ctrl)) {
-		ret = pciehp_get_latch_status(p_slot, &getstatus);
-		if (ret || getstatus) {
+		pciehp_get_latch_status(p_slot, &getstatus);
+		if (getstatus) {
 			ctrl_info(ctrl, "Latch open on slot(%s)\n",
 				  slot_name(p_slot));
 			return -ENODEV;
@@ -543,8 +513,8 @@ int pciehp_disable_slot(struct slot *p_slot)
 	}
 
 	if (POWER_CTRL(p_slot->ctrl)) {
-		ret = pciehp_get_power_status(p_slot, &getstatus);
-		if (ret || !getstatus) {
+		pciehp_get_power_status(p_slot, &getstatus);
+		if (!getstatus) {
 			ctrl_info(ctrl, "Already disabled on slot(%s)\n",
 				  slot_name(p_slot));
 			return -EINVAL;

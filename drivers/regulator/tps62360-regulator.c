@@ -360,7 +360,7 @@ static int tps62360_probe(struct i2c_client *client,
 			dev_err(&client->dev, "Error: No device match found\n");
 			return -ENODEV;
 		}
-		chip_id = (int)match->data;
+		chip_id = (int)(long)match->data;
 		if (!pdata)
 			pdata = of_get_tps62360_platform_data(&client->dev);
 	} else if (id) {

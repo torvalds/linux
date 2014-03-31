@@ -5,7 +5,7 @@
  *
  * GPL LICENSE SUMMARY
  *
- * Copyright(c) 2012 - 2013 Intel Corporation. All rights reserved.
+ * Copyright(c) 2012 - 2014 Intel Corporation. All rights reserved.
  *
  * This program is free software; you can redistribute it and/or modify
  * it under the terms of version 2 of the GNU General Public License as
@@ -30,7 +30,7 @@
  *
  * BSD LICENSE
  *
- * Copyright(c) 2012 - 2013 Intel Corporation. All rights reserved.
+ * Copyright(c) 2012 - 2014 Intel Corporation. All rights reserved.
  * All rights reserved.
  *
  * Redistribution and use in source and binary forms, with or without
@@ -886,8 +886,7 @@ static int iwl_mvm_get_last_nonqos_seq(struct iwl_mvm *mvm,
 	if (err)
 		return err;
 
-	size = le32_to_cpu(cmd.resp_pkt->len_n_flags) & FH_RSCSR_FRAME_SIZE_MSK;
-	size -= sizeof(cmd.resp_pkt->hdr);
+	size = iwl_rx_packet_payload_len(cmd.resp_pkt);
 	if (size < sizeof(__le16)) {
 		err = -EINVAL;
 	} else {
@@ -1211,15 +1210,10 @@ static int __iwl_mvm_suspend(struct ieee80211_hw *hw,
 	if (ret)
 		goto out;
 #ifdef CONFIG_IWLWIFI_DEBUGFS
-	len = le32_to_cpu(d3_cfg_cmd.resp_pkt->len_n_flags) &
-		FH_RSCSR_FRAME_SIZE_MSK;
-	if (len >= sizeof(u32) * 2) {
+	len = iwl_rx_packet_payload_len(d3_cfg_cmd.resp_pkt);
+	if (len >= sizeof(u32)) {
 		mvm->d3_test_pme_ptr =
 			le32_to_cpup((__le32 *)d3_cfg_cmd.resp_pkt->data);
-	} else if (test) {
-		/* in test mode we require the pointer */
-		ret = -EIO;
-		goto out;
 	}
 #endif
 	iwl_free_resp(&d3_cfg_cmd);
@@ -1231,10 +1225,11 @@ static int __iwl_mvm_suspend(struct ieee80211_hw *hw,
 	mvm->aux_sta.sta_id = old_aux_sta_id;
 	mvm_ap_sta->sta_id = old_ap_sta_id;
 	mvmvif->ap_sta_id = old_ap_sta_id;
- out_noreset:
-	kfree(key_data.rsc_tsc);
+
 	if (ret < 0)
 		ieee80211_restart_hw(mvm->hw);
+ out_noreset:
+	kfree(key_data.rsc_tsc);
 
 	mutex_unlock(&mvm->mutex);
 
@@ -1537,8 +1532,14 @@ static bool iwl_mvm_setup_connection_keep(struct iwl_mvm *mvm,
 	struct iwl_mvm_d3_gtk_iter_data gtkdata = {
 		.status = status,
 	};
+	u32 disconnection_reasons =
+		IWL_WOWLAN_WAKEUP_BY_DISCONNECTION_ON_MISSED_BEACON |
+		IWL_WOWLAN_WAKEUP_BY_DISCONNECTION_ON_DEAUTH;
 
 	if (!status || !vif->bss_conf.bssid)
+		return false;
+
+	if (le32_to_cpu(status->wakeup_reasons) & disconnection_reasons)
 		return false;
 
 	/* find last GTK that we used initially, if any */
@@ -1665,8 +1666,8 @@ static bool iwl_mvm_query_wakeup_reasons(struct iwl_mvm *mvm,
 	else
 		status_size = sizeof(struct iwl_wowlan_status_v4);
 
-	len = le32_to_cpu(cmd.resp_pkt->len_n_flags) & FH_RSCSR_FRAME_SIZE_MSK;
-	if (len - sizeof(struct iwl_cmd_header) < status_size) {
+	len = iwl_rx_packet_payload_len(cmd.resp_pkt);
+	if (len < status_size) {
 		IWL_ERR(mvm, "Invalid WoWLAN status response!\n");
 		goto out_free_resp;
 	}
@@ -1701,8 +1702,7 @@ static bool iwl_mvm_query_wakeup_reasons(struct iwl_mvm *mvm,
 		status.wake_packet = status_v4->wake_packet;
 	}
 
-	if (len - sizeof(struct iwl_cmd_header) !=
-	    status_size + ALIGN(status.wake_packet_bufsize, 4)) {
+	if (len != status_size + ALIGN(status.wake_packet_bufsize, 4)) {
 		IWL_ERR(mvm, "Invalid WoWLAN status response!\n");
 		goto out_free_resp;
 	}
@@ -1805,6 +1805,10 @@ static int __iwl_mvm_resume(struct iwl_mvm *mvm, bool test)
 	iwl_mvm_read_d3_sram(mvm);
 
 	keep = iwl_mvm_query_wakeup_reasons(mvm, vif);
+#ifdef CONFIG_IWLWIFI_DEBUGFS
+	if (keep)
+		mvm->keep_vif = vif;
+#endif
 	/* has unlocked the mutex, so skip that */
 	goto out;
 
@@ -1861,6 +1865,7 @@ static int iwl_mvm_d3_test_open(struct inode *inode, struct file *file)
 		return err;
 	}
 	mvm->d3_test_active = true;
+	mvm->keep_vif = NULL;
 	return 0;
 }
 
@@ -1871,10 +1876,14 @@ static ssize_t iwl_mvm_d3_test_read(struct file *file, char __user *user_buf,
 	u32 pme_asserted;
 
 	while (true) {
-		pme_asserted = iwl_trans_read_mem32(mvm->trans,
-						    mvm->d3_test_pme_ptr);
-		if (pme_asserted)
-			break;
+		/* read pme_ptr if available */
+		if (mvm->d3_test_pme_ptr) {
+			pme_asserted = iwl_trans_read_mem32(mvm->trans,
+						mvm->d3_test_pme_ptr);
+			if (pme_asserted)
+				break;
+		}
+
 		if (msleep_interruptible(100))
 			break;
 	}
@@ -1885,6 +1894,10 @@ static ssize_t iwl_mvm_d3_test_read(struct file *file, char __user *user_buf,
 static void iwl_mvm_d3_test_disconn_work_iter(void *_data, u8 *mac,
 					      struct ieee80211_vif *vif)
 {
+	/* skip the one we keep connection on */
+	if (_data == vif)
+		return;
+
 	if (vif->type == NL80211_IFTYPE_STATION)
 		ieee80211_connection_loss(vif);
 }
@@ -1911,7 +1924,7 @@ static int iwl_mvm_d3_test_release(struct inode *inode, struct file *file)
 
 	ieee80211_iterate_active_interfaces_atomic(
 		mvm->hw, IEEE80211_IFACE_ITER_NORMAL,
-		iwl_mvm_d3_test_disconn_work_iter, NULL);
+		iwl_mvm_d3_test_disconn_work_iter, mvm->keep_vif);
 
 	ieee80211_wake_queues(mvm->hw);
 

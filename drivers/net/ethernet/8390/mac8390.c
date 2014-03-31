@@ -167,6 +167,7 @@ static void slow_sane_block_output(struct net_device *dev, int count,
 				   const unsigned char *buf, int start_page);
 static void word_memcpy_tocard(unsigned long tp, const void *fp, int count);
 static void word_memcpy_fromcard(void *tp, unsigned long fp, int count);
+static u32 mac8390_msg_enable;
 
 static enum mac8390_type __init mac8390_ident(struct nubus_dev *dev)
 {
@@ -402,6 +403,7 @@ struct net_device * __init mac8390_probe(int unit)
 	struct net_device *dev;
 	struct nubus_dev *ndev = NULL;
 	int err = -ENODEV;
+	struct ei_device *ei_local;
 
 	static unsigned int slots;
 
@@ -440,6 +442,10 @@ struct net_device * __init mac8390_probe(int unit)
 
 	if (!ndev)
 		goto out;
+
+	 ei_local = netdev_priv(dev);
+	 ei_local->msg_enable = mac8390_msg_enable;
+
 	err = register_netdev(dev);
 	if (err)
 		goto out;
@@ -660,19 +666,22 @@ static int mac8390_close(struct net_device *dev)
 
 static void mac8390_no_reset(struct net_device *dev)
 {
+	struct ei_device *ei_local = netdev_priv(dev);
+
 	ei_status.txing = 0;
-	if (ei_debug > 1)
-		pr_info("reset not supported\n");
+	netif_info(ei_local, hw, dev, "reset not supported\n");
 }
 
 static void interlan_reset(struct net_device *dev)
 {
 	unsigned char *target = nubus_slot_addr(IRQ2SLOT(dev->irq));
-	if (ei_debug > 1)
-		pr_info("Need to reset the NS8390 t=%lu...", jiffies);
+	struct ei_device *ei_local = netdev_priv(dev);
+
+	netif_info(ei_local, hw, dev, "Need to reset the NS8390 t=%lu...",
+		   jiffies);
 	ei_status.txing = 0;
 	target[0xC0000] = 0;
-	if (ei_debug > 1)
+	if (netif_msg_hw(ei_local))
 		pr_cont("reset complete\n");
 }
 

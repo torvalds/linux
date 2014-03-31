@@ -105,7 +105,7 @@ static int perf_pmu__parse_scale(struct perf_pmu_alias *alias, char *dir, char *
 	char scale[128];
 	int fd, ret = -1;
 	char path[PATH_MAX];
-	char *lc;
+	const char *lc;
 
 	snprintf(path, PATH_MAX, "%s/%s.scale", dir, name);
 
@@ -609,7 +609,7 @@ static struct perf_pmu_alias *pmu_find_alias(struct perf_pmu *pmu,
 
 
 static int check_unit_scale(struct perf_pmu_alias *alias,
-			    char **unit, double *scale)
+			    const char **unit, double *scale)
 {
 	/*
 	 * Only one term in event definition can
@@ -634,14 +634,18 @@ static int check_unit_scale(struct perf_pmu_alias *alias,
  * defined for the alias
  */
 int perf_pmu__check_alias(struct perf_pmu *pmu, struct list_head *head_terms,
-			  char **unit, double *scale)
+			  const char **unit, double *scale)
 {
 	struct parse_events_term *term, *h;
 	struct perf_pmu_alias *alias;
 	int ret;
 
+	/*
+	 * Mark unit and scale as not set
+	 * (different from default values, see below)
+	 */
 	*unit   = NULL;
-	*scale  = 0;
+	*scale  = 0.0;
 
 	list_for_each_entry_safe(term, h, head_terms, list) {
 		alias = pmu_find_alias(pmu, term);
@@ -658,6 +662,18 @@ int perf_pmu__check_alias(struct perf_pmu *pmu, struct list_head *head_terms,
 		list_del(&term->list);
 		free(term);
 	}
+
+	/*
+	 * if no unit or scale foundin aliases, then
+	 * set defaults as for evsel
+	 * unit cannot left to NULL
+	 */
+	if (*unit == NULL)
+		*unit   = "";
+
+	if (*scale == 0.0)
+		*scale  = 1.0;
+
 	return 0;
 }
 

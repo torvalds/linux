@@ -14,6 +14,6 @@
 
 extern struct intel_msic_platform_data msic_pdata;
 
-extern void *msic_generic_platform_data(void *info,
-			enum intel_msic_block block) __attribute__((weak));
+void *msic_generic_platform_data(void *info, enum intel_msic_block block);
+
 #endif

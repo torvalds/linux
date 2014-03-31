@@ -628,12 +628,6 @@ static struct snd_pcm_hardware rsnd_pcm_hardware = {
 			SNDRV_PCM_INFO_MMAP		|
 			SNDRV_PCM_INFO_MMAP_VALID	|
 			SNDRV_PCM_INFO_PAUSE,
-	.formats		= RSND_FMTS,
-	.rates			= RSND_RATES,
-	.rate_min		= 8000,
-	.rate_max		= 192000,
-	.channels_min		= 2,
-	.channels_max		= 2,
 	.buffer_bytes_max	= 64 * 1024,
 	.period_bytes_min	= 32,
 	.period_bytes_max	= 8192,

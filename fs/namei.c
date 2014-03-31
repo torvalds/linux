@@ -196,6 +196,7 @@ recopy:
 		goto error;
 
 	result->uptr = filename;
+	result->aname = NULL;
 	audit_getname(result);
 	return result;
 
@@ -209,7 +210,35 @@ getname(const char __user * filename)
 {
 	return getname_flags(filename, 0, NULL);
 }
-EXPORT_SYMBOL(getname);
+
+/*
+ * The "getname_kernel()" interface doesn't do pathnames longer
+ * than EMBEDDED_NAME_MAX. Deal with it - you're a kernel user.
+ */
+struct filename *
+getname_kernel(const char * filename)
+{
+	struct filename *result;
+	char *kname;
+	int len;
+
+	len = strlen(filename);
+	if (len >= EMBEDDED_NAME_MAX)
+		return ERR_PTR(-ENAMETOOLONG);
+
+	result = __getname();
+	if (unlikely(!result))
+		return ERR_PTR(-ENOMEM);
+
+	kname = (char *)result + sizeof(*result);
+	result->name = kname;
+	result->uptr = NULL;
+	result->aname = NULL;
+	result->separate = false;
+
+	strlcpy(kname, filename, EMBEDDED_NAME_MAX);
+	return result;
+}
 
 #ifdef CONFIG_AUDITSYSCALL
 void putname(struct filename *name)
@@ -235,27 +264,9 @@ static int check_acl(struct inode *inode, int mask)
 	        return posix_acl_permission(inode, acl, mask & ~MAY_NOT_BLOCK);
 	}
 
-	acl = get_cached_acl(inode, ACL_TYPE_ACCESS);
-
-	/*
-	 * A filesystem can force a ACL callback by just never filling the
-	 * ACL cache. But normally you'd fill the cache either at inode
-	 * instantiation time, or on the first ->get_acl call.
-	 *
-	 * If the filesystem doesn't have a get_acl() function at all, we'll
-	 * just create the negative cache entry.
-	 */
-	if (acl == ACL_NOT_CACHED) {
-	        if (inode->i_op->get_acl) {
-			acl = inode->i_op->get_acl(inode, ACL_TYPE_ACCESS);
-			if (IS_ERR(acl))
-				return PTR_ERR(acl);
-		} else {
-		        set_cached_acl(inode, ACL_TYPE_ACCESS, NULL);
-		        return -EAGAIN;
-		}
-	}
-
+	acl = get_acl(inode, ACL_TYPE_ACCESS);
+	if (IS_ERR(acl))
+		return PTR_ERR(acl);
 	if (acl) {
 	        int error = posix_acl_permission(inode, acl, mask);
 	        posix_acl_release(acl);
@@ -1098,7 +1109,7 @@ static bool __follow_mount_rcu(struct nameidata *nd, struct path *path,
 			return false;
 
 		if (!d_mountpoint(path->dentry))
-			break;
+			return true;
 
 		mounted = __lookup_mnt(path->mnt, path->dentry);
 		if (!mounted)
@@ -1114,20 +1125,7 @@ static bool __follow_mount_rcu(struct nameidata *nd, struct path *path,
 		 */
 		*inode = path->dentry->d_inode;
 	}
-	return true;
-}
-
-static void follow_mount_rcu(struct nameidata *nd)
-{
-	while (d_mountpoint(nd->path.dentry)) {
-		struct mount *mounted;
-		mounted = __lookup_mnt(nd->path.mnt, nd->path.dentry);
-		if (!mounted)
-			break;
-		nd->path.mnt = &mounted->mnt;
-		nd->path.dentry = mounted->mnt.mnt_root;
-		nd->seq = read_seqcount_begin(&nd->path.dentry->d_seq);
-	}
+	return read_seqretry(&mount_lock, nd->m_seq);
 }
 
 static int follow_dotdot_rcu(struct nameidata *nd)
@@ -1155,7 +1153,17 @@ static int follow_dotdot_rcu(struct nameidata *nd)
 			break;
 		nd->seq = read_seqcount_begin(&nd->path.dentry->d_seq);
 	}
-	follow_mount_rcu(nd);
+	while (d_mountpoint(nd->path.dentry)) {
+		struct mount *mounted;
+		mounted = __lookup_mnt(nd->path.mnt, nd->path.dentry);
+		if (!mounted)
+			break;
+		nd->path.mnt = &mounted->mnt;
+		nd->path.dentry = mounted->mnt.mnt_root;
+		nd->seq = read_seqcount_begin(&nd->path.dentry->d_seq);
+		if (!read_seqretry(&mount_lock, nd->m_seq))
+			goto failed;
+	}
 	nd->inode = nd->path.dentry->d_inode;
 	return 0;
 
@@ -1873,7 +1881,7 @@ static int path_init(int dfd, const char *name, unsigned int flags,
 
 		nd->path = f.file->f_path;
 		if (flags & LOOKUP_RCU) {
-			if (f.need_put)
+			if (f.flags & FDPUT_FPUT)
 				*fp = f.file;
 			nd->seq = __read_seqcount_begin(&nd->path.dentry->d_seq);
 			rcu_read_lock();
@@ -3945,10 +3953,13 @@ out_dput:
 	done_path_create(&new_path, new_dentry);
 	if (delegated_inode) {
 		error = break_deleg_wait(&delegated_inode);
-		if (!error)
+		if (!error) {
+			path_put(&old_path);
 			goto retry;
+		}
 	}
 	if (retry_estale(error, how)) {
+		path_put(&old_path);
 		how |= LOOKUP_REVAL;
 		goto retry;
 	}

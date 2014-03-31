@@ -116,6 +116,9 @@ struct buffer_head *gfs2_getbuf(struct gfs2_glock *gl, u64 blkno, int create)
 	unsigned long index;
 	unsigned int bufnum;
 
+	if (mapping == NULL)
+		mapping = &sdp->sd_aspace;
+
 	shift = PAGE_CACHE_SHIFT - sdp->sd_sb.sb_bsize_shift;
 	index = blkno >> shift;             /* convert block to page */
 	bufnum = blkno - (index << shift);  /* block buf index within page */

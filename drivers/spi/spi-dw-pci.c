@@ -43,35 +43,25 @@ static int spi_pci_probe(struct pci_dev *pdev,
 	dev_info(&pdev->dev, "found PCI SPI controller(ID: %04x:%04x)\n",
 		pdev->vendor, pdev->device);
 
-	ret = pci_enable_device(pdev);
+	ret = pcim_enable_device(pdev);
 	if (ret)
 		return ret;
 
-	dwpci = kzalloc(sizeof(struct dw_spi_pci), GFP_KERNEL);
-	if (!dwpci) {
-		ret = -ENOMEM;
-		goto err_disable;
-	}
+	dwpci = devm_kzalloc(&pdev->dev, sizeof(struct dw_spi_pci),
+			GFP_KERNEL);
+	if (!dwpci)
+		return -ENOMEM;
 
 	dwpci->pdev = pdev;
 	dws = &dwpci->dws;
 
 	/* Get basic io resource and map it */
 	dws->paddr = pci_resource_start(pdev, pci_bar);
-	dws->iolen = pci_resource_len(pdev, pci_bar);
 
-	ret = pci_request_region(pdev, pci_bar, dev_name(&pdev->dev));
+	ret = pcim_iomap_regions(pdev, 1, dev_name(&pdev->dev));
 	if (ret)
-		goto err_kfree;
+		return ret;
 
-	dws->regs = ioremap_nocache((unsigned long)dws->paddr,
-				pci_resource_len(pdev, pci_bar));
-	if (!dws->regs) {
-		ret = -ENOMEM;
-		goto err_release_reg;
-	}
-
-	dws->parent_dev = &pdev->dev;
 	dws->bus_num = 0;
 	dws->num_cs = 4;
 	dws->irq = pdev->irq;
@@ -83,26 +73,17 @@ static int spi_pci_probe(struct pci_dev *pdev,
 	if (pdev->device == 0x0800) {
 		ret = dw_spi_mid_init(dws);
 		if (ret)
-			goto err_unmap;
+			return ret;
 	}
 
-	ret = dw_spi_add_host(dws);
+	ret = dw_spi_add_host(&pdev->dev, dws);
 	if (ret)
-		goto err_unmap;
+		return ret;
 
 	/* PCI hook and SPI hook use the same drv data */
 	pci_set_drvdata(pdev, dwpci);
-	return 0;
 
-err_unmap:
-	iounmap(dws->regs);
-err_release_reg:
-	pci_release_region(pdev, pci_bar);
-err_kfree:
-	kfree(dwpci);
-err_disable:
-	pci_disable_device(pdev);
-	return ret;
+	return 0;
 }
 
 static void spi_pci_remove(struct pci_dev *pdev)
@@ -110,10 +91,6 @@ static void spi_pci_remove(struct pci_dev *pdev)
 	struct dw_spi_pci *dwpci = pci_get_drvdata(pdev);
 
 	dw_spi_remove_host(&dwpci->dws);
-	iounmap(dwpci->dws.regs);
-	pci_release_region(pdev, 0);
-	kfree(dwpci);
-	pci_disable_device(pdev);
 }
 
 #ifdef CONFIG_PM
@@ -148,7 +125,7 @@ static int spi_resume(struct pci_dev *pdev)
 #define spi_resume	NULL
 #endif
 
-static DEFINE_PCI_DEVICE_TABLE(pci_ids) = {
+static const struct pci_device_id pci_ids[] = {
 	/* Intel MID platform SPI controller 0 */
 	{ PCI_DEVICE(PCI_VENDOR_ID_INTEL, 0x0800) },
 	{},

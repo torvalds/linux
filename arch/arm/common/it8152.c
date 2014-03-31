@@ -257,7 +257,7 @@ static int it8152_needs_bounce(struct device *dev, dma_addr_t dma_addr, size_t s
  */
 static int it8152_pci_platform_notify(struct device *dev)
 {
-	if (dev->bus == &pci_bus_type) {
+	if (dev_is_pci(dev)) {
 		if (dev->dma_mask)
 			*dev->dma_mask = (SZ_64M - 1) | PHYS_OFFSET;
 		dev->coherent_dma_mask = (SZ_64M - 1) | PHYS_OFFSET;
@@ -268,7 +268,7 @@ static int it8152_pci_platform_notify(struct device *dev)
 
 static int it8152_pci_platform_notify_remove(struct device *dev)
 {
-	if (dev->bus == &pci_bus_type)
+	if (dev_is_pci(dev))
 		dmabounce_unregister_dev(dev);
 
 	return 0;

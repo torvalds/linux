@@ -84,7 +84,7 @@ static irqreturn_t ec_irq_thread(int irq, void *data)
 	return IRQ_HANDLED;
 }
 
-static struct mfd_cell cros_devs[] = {
+static const struct mfd_cell cros_devs[] = {
 	{
 		.name = "cros-ec-keyb",
 		.id = 1,

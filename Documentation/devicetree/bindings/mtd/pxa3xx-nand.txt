@@ -2,7 +2,9 @@ PXA3xx NAND DT bindings
 
 Required properties:
 
- - compatible:		Should be "marvell,pxa3xx-nand"
+ - compatible:		Should be set to one of the following:
+			marvell,pxa3xx-nand
+			marvell,armada370-nand
  - reg: 		The register base for the controller
  - interrupts:		The interrupt to map
  - #address-cells:	Set to <1> if the node includes partitions
@@ -13,6 +15,8 @@ Optional properties:
  - marvell,nand-keep-config:	Set to keep the NAND controller config as set
 				by the bootloader
  - num-cs:			Number of chipselect lines to usw
+ - nand-on-flash-bbt: 		boolean to enable on flash bbt option if
+				not present false
 
 Example:
 

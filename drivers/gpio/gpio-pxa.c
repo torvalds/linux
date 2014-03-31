@@ -263,7 +263,8 @@ static int pxa_gpio_direction_output(struct gpio_chip *chip,
 
 static int pxa_gpio_get(struct gpio_chip *chip, unsigned offset)
 {
-	return readl_relaxed(gpio_chip_base(chip) + GPLR_OFFSET) & (1 << offset);
+	u32 gplr = readl_relaxed(gpio_chip_base(chip) + GPLR_OFFSET);
+	return !!(gplr & (1 << offset));
 }
 
 static void pxa_gpio_set(struct gpio_chip *chip, unsigned offset, int value)

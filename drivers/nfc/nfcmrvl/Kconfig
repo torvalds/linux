@@ -1,0 +1,23 @@
+config NFC_MRVL
+	tristate "Marvell NFC driver support"
+	depends on NFC_NCI
+	help
+	  The core driver to support Marvell NFC devices.
+
+	  This driver is required if you want to support
+	  Marvell NFC device 8897.
+
+	  Say Y here to compile Marvell NFC driver into the kernel or
+	  say M to compile it as module.
+
+config NFC_MRVL_USB
+	tristate "Marvell NFC-over-USB driver"
+	depends on NFC_MRVL && USB
+	help
+	  Marvell NFC-over-USB driver.
+
+	  This driver provides support for Marvell NFC-over-USB devices:
+          8897.
+
+	  Say Y here to compile support for Marvell NFC-over-USB driver
+	  into the kernel or say M to compile it as module.

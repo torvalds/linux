@@ -19,6 +19,7 @@
 #ifndef FLOW_H
 #define FLOW_H 1
 
+#include <linux/cache.h>
 #include <linux/kernel.h>
 #include <linux/netlink.h>
 #include <linux/openvswitch.h>
@@ -122,8 +123,8 @@ struct sw_flow_key {
 } __aligned(BITS_PER_LONG/8); /* Ensure that we can do comparisons as longs. */
 
 struct sw_flow_key_range {
-	size_t start;
-	size_t end;
+	unsigned short int start;
+	unsigned short int end;
 };
 
 struct sw_flow_mask {
@@ -146,6 +147,22 @@ struct sw_flow_actions {
 	struct nlattr actions[];
 };
 
+struct flow_stats {
+	u64 packet_count;		/* Number of packets matched. */
+	u64 byte_count;			/* Number of bytes matched. */
+	unsigned long used;		/* Last used time (in jiffies). */
+	spinlock_t lock;		/* Lock for atomic stats update. */
+	__be16 tcp_flags;		/* Union of seen TCP flags. */
+};
+
+struct sw_flow_stats {
+	bool is_percpu;
+	union {
+		struct flow_stats *stat;
+		struct flow_stats __percpu *cpu_stats;
+	};
+};
+
 struct sw_flow {
 	struct rcu_head rcu;
 	struct hlist_node hash_node[2];
@@ -155,12 +172,7 @@ struct sw_flow {
 	struct sw_flow_key unmasked_key;
 	struct sw_flow_mask *mask;
 	struct sw_flow_actions __rcu *sf_acts;
-
-	spinlock_t lock;	/* Lock for values below. */
-	unsigned long used;	/* Last used time (in jiffies). */
-	u64 packet_count;	/* Number of packets matched. */
-	u64 byte_count;		/* Number of bytes matched. */
-	__be16 tcp_flags;	/* Union of seen TCP flags. */
+	struct sw_flow_stats stats;
 };
 
 struct arp_eth_header {
@@ -177,7 +189,10 @@ struct arp_eth_header {
 	unsigned char       ar_tip[4];		/* target IP address        */
 } __packed;
 
-void ovs_flow_used(struct sw_flow *, struct sk_buff *);
+void ovs_flow_stats_update(struct sw_flow *flow, struct sk_buff *skb);
+void ovs_flow_stats_get(struct sw_flow *flow, struct ovs_flow_stats *stats,
+			unsigned long *used, __be16 *tcp_flags);
+void ovs_flow_stats_clear(struct sw_flow *flow);
 u64 ovs_flow_used_time(unsigned long flow_jiffies);
 
 int ovs_flow_extract(struct sk_buff *, u16 in_port, struct sw_flow_key *);

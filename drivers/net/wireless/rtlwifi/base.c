@@ -353,7 +353,6 @@ static void _rtl_init_mac80211(struct ieee80211_hw *hw)
 
 	/* TODO: Correct this value for our hw */
 	/* TODO: define these hard code value */
-	hw->channel_change_time = 100;
 	hw->max_listen_interval = 10;
 	hw->max_rate_tries = 4;
 	/* hw->max_rates = 1; */
@@ -1293,7 +1292,7 @@ void rtl_beacon_statistic(struct ieee80211_hw *hw, struct sk_buff *skb)
 		return;
 
 	/* and only beacons from the associated BSSID, please */
-	if (!ether_addr_equal(hdr->addr3, rtlpriv->mac80211.bssid))
+	if (!ether_addr_equal_64bits(hdr->addr3, rtlpriv->mac80211.bssid))
 		return;
 
 	rtlpriv->link_info.bcn_rx_inperiod++;
@@ -1437,7 +1436,8 @@ void rtl_watchdog_wq_callback(void *data)
 			/* if we can't recv beacon for 6s, we should
 			 * reconnect this AP
 			 */
-			if (rtlpriv->link_info.roam_times >= 3) {
+			if ((rtlpriv->link_info.roam_times >= 3) &&
+			    !is_zero_ether_addr(rtlpriv->mac80211.bssid)) {
 				RT_TRACE(rtlpriv, COMP_ERR, DBG_EMERG,
 					 "AP off, try to reconnect now\n");
 				rtlpriv->link_info.roam_times = 0;
@@ -1780,7 +1780,7 @@ void rtl_recognize_peer(struct ieee80211_hw *hw, u8 *data, unsigned int len)
 		return;
 
 	/* and only beacons from the associated BSSID, please */
-	if (!ether_addr_equal(hdr->addr3, rtlpriv->mac80211.bssid))
+	if (!ether_addr_equal_64bits(hdr->addr3, rtlpriv->mac80211.bssid))
 		return;
 
 	if (rtl_find_221_ie(hw, data, len))

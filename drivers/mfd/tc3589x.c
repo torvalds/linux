@@ -155,7 +155,7 @@ static struct resource keypad_resources[] = {
 	},
 };
 
-static struct mfd_cell tc3589x_dev_gpio[] = {
+static const struct mfd_cell tc3589x_dev_gpio[] = {
 	{
 		.name		= "tc3589x-gpio",
 		.num_resources	= ARRAY_SIZE(gpio_resources),
@@ -164,7 +164,7 @@ static struct mfd_cell tc3589x_dev_gpio[] = {
 	},
 };
 
-static struct mfd_cell tc3589x_dev_keypad[] = {
+static const struct mfd_cell tc3589x_dev_keypad[] = {
 	{
 		.name           = "tc3589x-keypad",
 		.num_resources  = ARRAY_SIZE(keypad_resources),

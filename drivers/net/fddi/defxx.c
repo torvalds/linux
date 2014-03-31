@@ -206,7 +206,6 @@
 #include <linux/eisa.h>
 #include <linux/errno.h>
 #include <linux/fddidevice.h>
-#include <linux/init.h>
 #include <linux/interrupt.h>
 #include <linux/ioport.h>
 #include <linux/kernel.h>
@@ -240,12 +239,6 @@ static char version[] =
  * alignment for compatibility with old EISA boards.
  */
 #define NEW_SKB_SIZE (PI_RCV_DATA_K_SIZE_MAX+128)
-
-#ifdef CONFIG_PCI
-#define DFX_BUS_PCI(dev) (dev->bus == &pci_bus_type)
-#else
-#define DFX_BUS_PCI(dev) 0
-#endif
 
 #ifdef CONFIG_EISA
 #define DFX_BUS_EISA(dev) (dev->bus == &eisa_bus_type)
@@ -436,7 +429,7 @@ static void dfx_port_read_long(DFX_board_t *bp, int offset, u32 *data)
 static void dfx_get_bars(struct device *bdev,
 			 resource_size_t *bar_start, resource_size_t *bar_len)
 {
-	int dfx_bus_pci = DFX_BUS_PCI(bdev);
+	int dfx_bus_pci = dev_is_pci(bdev);
 	int dfx_bus_eisa = DFX_BUS_EISA(bdev);
 	int dfx_bus_tc = DFX_BUS_TC(bdev);
 	int dfx_use_mmio = DFX_MMIO || dfx_bus_tc;
@@ -518,7 +511,7 @@ static const struct net_device_ops dfx_netdev_ops = {
 static int dfx_register(struct device *bdev)
 {
 	static int version_disp;
-	int dfx_bus_pci = DFX_BUS_PCI(bdev);
+	int dfx_bus_pci = dev_is_pci(bdev);
 	int dfx_bus_tc = DFX_BUS_TC(bdev);
 	int dfx_use_mmio = DFX_MMIO || dfx_bus_tc;
 	const char *print_name = dev_name(bdev);
@@ -667,7 +660,7 @@ static void dfx_bus_init(struct net_device *dev)
 {
 	DFX_board_t *bp = netdev_priv(dev);
 	struct device *bdev = bp->bus_dev;
-	int dfx_bus_pci = DFX_BUS_PCI(bdev);
+	int dfx_bus_pci = dev_is_pci(bdev);
 	int dfx_bus_eisa = DFX_BUS_EISA(bdev);
 	int dfx_bus_tc = DFX_BUS_TC(bdev);
 	int dfx_use_mmio = DFX_MMIO || dfx_bus_tc;
@@ -813,7 +806,7 @@ static void dfx_bus_uninit(struct net_device *dev)
 {
 	DFX_board_t *bp = netdev_priv(dev);
 	struct device *bdev = bp->bus_dev;
-	int dfx_bus_pci = DFX_BUS_PCI(bdev);
+	int dfx_bus_pci = dev_is_pci(bdev);
 	int dfx_bus_eisa = DFX_BUS_EISA(bdev);
 	u8 val;
 
@@ -967,7 +960,7 @@ static int dfx_driver_init(struct net_device *dev, const char *print_name,
 {
 	DFX_board_t *bp = netdev_priv(dev);
 	struct device *bdev = bp->bus_dev;
-	int dfx_bus_pci = DFX_BUS_PCI(bdev);
+	int dfx_bus_pci = dev_is_pci(bdev);
 	int dfx_bus_eisa = DFX_BUS_EISA(bdev);
 	int dfx_bus_tc = DFX_BUS_TC(bdev);
 	int dfx_use_mmio = DFX_MMIO || dfx_bus_tc;
@@ -1877,7 +1870,7 @@ static irqreturn_t dfx_interrupt(int irq, void *dev_id)
 	struct net_device *dev = dev_id;
 	DFX_board_t *bp = netdev_priv(dev);
 	struct device *bdev = bp->bus_dev;
-	int dfx_bus_pci = DFX_BUS_PCI(bdev);
+	int dfx_bus_pci = dev_is_pci(bdev);
 	int dfx_bus_eisa = DFX_BUS_EISA(bdev);
 	int dfx_bus_tc = DFX_BUS_TC(bdev);
 
@@ -3579,7 +3572,7 @@ static void dfx_unregister(struct device *bdev)
 {
 	struct net_device *dev = dev_get_drvdata(bdev);
 	DFX_board_t *bp = netdev_priv(dev);
-	int dfx_bus_pci = DFX_BUS_PCI(bdev);
+	int dfx_bus_pci = dev_is_pci(bdev);
 	int dfx_bus_tc = DFX_BUS_TC(bdev);
 	int dfx_use_mmio = DFX_MMIO || dfx_bus_tc;
 	resource_size_t bar_start = 0;		/* pointer to port */

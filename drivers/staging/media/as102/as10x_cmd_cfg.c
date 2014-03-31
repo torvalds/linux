@@ -40,8 +40,6 @@ int as10x_cmd_get_context(struct as10x_bus_adapter_t *adap, uint16_t tag,
 	int  error;
 	struct as10x_cmd_t *pcmd, *prsp;
 
-	ENTER();
-
 	pcmd = adap->cmd;
 	prsp = adap->rsp;
 
@@ -81,7 +79,6 @@ int as10x_cmd_get_context(struct as10x_bus_adapter_t *adap, uint16_t tag,
 	}
 
 out:
-	LEAVE();
 	return error;
 }
 
@@ -98,8 +95,6 @@ int as10x_cmd_set_context(struct as10x_bus_adapter_t *adap, uint16_t tag,
 {
 	int error;
 	struct as10x_cmd_t *pcmd, *prsp;
-
-	ENTER();
 
 	pcmd = adap->cmd;
 	prsp = adap->rsp;
@@ -136,7 +131,6 @@ int as10x_cmd_set_context(struct as10x_bus_adapter_t *adap, uint16_t tag,
 	error = as10x_context_rsp_parse(prsp, CONTROL_PROC_CONTEXT_RSP);
 
 out:
-	LEAVE();
 	return error;
 }
 
@@ -155,8 +149,6 @@ int as10x_cmd_eLNA_change_mode(struct as10x_bus_adapter_t *adap, uint8_t mode)
 {
 	int error;
 	struct as10x_cmd_t *pcmd, *prsp;
-
-	ENTER();
 
 	pcmd = adap->cmd;
 	prsp = adap->rsp;
@@ -188,7 +180,6 @@ int as10x_cmd_eLNA_change_mode(struct as10x_bus_adapter_t *adap, uint8_t mode)
 	error = as10x_rsp_parse(prsp, CONTROL_PROC_ELNA_CHANGE_MODE_RSP);
 
 out:
-	LEAVE();
 	return error;
 }
 

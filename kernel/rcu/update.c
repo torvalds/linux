@@ -200,17 +200,6 @@ void wait_rcu_gp(call_rcu_func_t crf)
 }
 EXPORT_SYMBOL_GPL(wait_rcu_gp);
 
-#ifdef CONFIG_PROVE_RCU
-/*
- * wrapper function to avoid #include problems.
- */
-int rcu_my_thread_group_empty(void)
-{
-	return thread_group_empty(current);
-}
-EXPORT_SYMBOL_GPL(rcu_my_thread_group_empty);
-#endif /* #ifdef CONFIG_PROVE_RCU */
-
 #ifdef CONFIG_DEBUG_OBJECTS_RCU_HEAD
 static inline void debug_init_rcu_head(struct rcu_head *head)
 {

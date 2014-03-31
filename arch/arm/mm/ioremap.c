@@ -392,9 +392,9 @@ __arm_ioremap_exec(phys_addr_t phys_addr, size_t size, bool cached)
 	unsigned int mtype;
 
 	if (cached)
-		mtype = MT_MEMORY;
+		mtype = MT_MEMORY_RWX;
 	else
-		mtype = MT_MEMORY_NONCACHED;
+		mtype = MT_MEMORY_RWX_NONCACHED;
 
 	return __arm_ioremap_caller(phys_addr, size, mtype,
 			__builtin_return_address(0));

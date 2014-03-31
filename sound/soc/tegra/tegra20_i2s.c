@@ -339,9 +339,7 @@ static const struct regmap_config tegra20_i2s_regmap_config = {
 static int tegra20_i2s_platform_probe(struct platform_device *pdev)
 {
 	struct tegra20_i2s *i2s;
-	struct resource *mem, *memregion, *dmareq;
-	u32 of_dma[2];
-	u32 dma_ch;
+	struct resource *mem, *memregion;
 	void __iomem *regs;
 	int ret;
 
@@ -370,20 +368,6 @@ static int tegra20_i2s_platform_probe(struct platform_device *pdev)
 		goto err_clk_put;
 	}
 
-	dmareq = platform_get_resource(pdev, IORESOURCE_DMA, 0);
-	if (!dmareq) {
-		if (of_property_read_u32_array(pdev->dev.of_node,
-					"nvidia,dma-request-selector",
-					of_dma, 2) < 0) {
-			dev_err(&pdev->dev, "No DMA resource\n");
-			ret = -ENODEV;
-			goto err_clk_put;
-		}
-		dma_ch = of_dma[1];
-	} else {
-		dma_ch = dmareq->start;
-	}
-
 	memregion = devm_request_mem_region(&pdev->dev, mem->start,
 					    resource_size(mem), DRV_NAME);
 	if (!memregion) {
@@ -410,12 +394,10 @@ static int tegra20_i2s_platform_probe(struct platform_device *pdev)
 	i2s->capture_dma_data.addr = mem->start + TEGRA20_I2S_FIFO2;
 	i2s->capture_dma_data.addr_width = DMA_SLAVE_BUSWIDTH_4_BYTES;
 	i2s->capture_dma_data.maxburst = 4;
-	i2s->capture_dma_data.slave_id = dma_ch;
 
 	i2s->playback_dma_data.addr = mem->start + TEGRA20_I2S_FIFO1;
 	i2s->playback_dma_data.addr_width = DMA_SLAVE_BUSWIDTH_4_BYTES;
 	i2s->playback_dma_data.maxburst = 4;
-	i2s->playback_dma_data.slave_id = dma_ch;
 
 	pm_runtime_enable(&pdev->dev);
 	if (!pm_runtime_enabled(&pdev->dev)) {

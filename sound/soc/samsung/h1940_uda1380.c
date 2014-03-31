@@ -23,6 +23,7 @@
 #include "regs-iis.h"
 #include <asm/mach-types.h>
 
+#include <mach/gpio-samsung.h>
 #include "s3c24xx-i2s.h"
 
 static unsigned int rates[] = {

@@ -9,6 +9,7 @@
 
 #include <dt-bindings/pinctrl/at91.h>
 #include <dt-bindings/interrupt-controller/irq.h>
+#include <dt-bindings/clk/at91.h>
 
 / {
 	aliases {
@@ -17,10 +18,21 @@
 
 	ahb {
 		apb {
+			pmc: pmc@fffffc00 {
+				periphck {
+					tcb1_clk: tcb1_clk {
+						#clock-cells = <0>;
+						reg = <27>;
+					};
+				};
+			};
+
 			tcb1: timer@f8014000 {
 				compatible = "atmel,at91sam9x5-tcb";
 				reg = <0xf8014000 0x100>;
 				interrupts = <27 IRQ_TYPE_LEVEL_HIGH 0>;
+				clocks = <&tcb1_clk>;
+				clock-names = "t0_clk";
 			};
 		};
 	};

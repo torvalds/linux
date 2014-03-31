@@ -157,6 +157,7 @@ enum {
 	/* register/delete flow steering network rules */
 	MLX4_QP_FLOW_STEERING_ATTACH = 0x65,
 	MLX4_QP_FLOW_STEERING_DETACH = 0x66,
+	MLX4_FLOW_STEERING_IB_UC_QP_RANGE = 0x64,
 };
 
 enum {
@@ -180,6 +181,7 @@ enum {
 	MLX4_SET_PORT_GID_TABLE = 0x5,
 	MLX4_SET_PORT_PRIO2TC	= 0x8,
 	MLX4_SET_PORT_SCHEDULER = 0x9,
+	MLX4_SET_PORT_VXLAN	= 0xB
 };
 
 enum {

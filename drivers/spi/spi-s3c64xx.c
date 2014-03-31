@@ -890,7 +890,7 @@ static int s3c64xx_spi_transfer_one(struct spi_master *master,
 	unsigned long flags;
 	int use_dma;
 
-		reinit_completion(&sdd->xfer_completion);
+	reinit_completion(&sdd->xfer_completion);
 
 	/* Only BPW and Speed may change across transfers */
 	bpw = xfer->bits_per_word;
@@ -923,9 +923,6 @@ static int s3c64xx_spi_transfer_one(struct spi_master *master,
 	sdd->state &= ~TXBUSY;
 
 	enable_datapath(sdd, spi, xfer, use_dma);
-
-	/* Start the signals */
-	writel(0, sdd->regs + S3C64XX_SPI_SLAVE_SEL);
 
 	/* Start the signals */
 	writel(0, sdd->regs + S3C64XX_SPI_SLAVE_SEL);

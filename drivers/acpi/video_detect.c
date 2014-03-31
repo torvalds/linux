@@ -50,7 +50,7 @@ static bool acpi_video_caps_checked;
 
 static acpi_status
 acpi_backlight_cap_match(acpi_handle handle, u32 level, void *context,
-			  void **retyurn_value)
+			  void **return_value)
 {
 	long *cap = context;
 
@@ -166,14 +166,6 @@ static struct dmi_system_id video_detect_dmi_table[] = {
 	.matches = {
 		DMI_MATCH(DMI_SYS_VENDOR, "ASUSTeK Computer Inc."),
 		DMI_MATCH(DMI_PRODUCT_NAME, "UL30A"),
-		},
-	},
-	{
-	.callback = video_detect_force_vendor,
-	.ident = "Lenovo Yoga 13",
-	.matches = {
-		DMI_MATCH(DMI_SYS_VENDOR, "LENOVO"),
-		DMI_MATCH(DMI_PRODUCT_VERSION, "Lenovo IdeaPad Yoga 13"),
 		},
 	},
 	{ },

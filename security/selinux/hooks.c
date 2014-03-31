@@ -82,7 +82,6 @@
 #include <linux/syslog.h>
 #include <linux/user_namespace.h>
 #include <linux/export.h>
-#include <linux/security.h>
 #include <linux/msg.h>
 #include <linux/shm.h>
 
@@ -669,7 +668,7 @@ static int selinux_set_mnt_opts(struct super_block *sb,
 		if (flags[i] == SBLABEL_MNT)
 			continue;
 		rc = security_context_to_sid(mount_options[i],
-					     strlen(mount_options[i]), &sid);
+					     strlen(mount_options[i]), &sid, GFP_KERNEL);
 		if (rc) {
 			printk(KERN_WARNING "SELinux: security_context_to_sid"
 			       "(%s) failed for (dev %s, type %s) errno=%d\n",
@@ -2490,7 +2489,8 @@ static int selinux_sb_remount(struct super_block *sb, void *data)
 		if (flags[i] == SBLABEL_MNT)
 			continue;
 		len = strlen(mount_options[i]);
-		rc = security_context_to_sid(mount_options[i], len, &sid);
+		rc = security_context_to_sid(mount_options[i], len, &sid,
+					     GFP_KERNEL);
 		if (rc) {
 			printk(KERN_WARNING "SELinux: security_context_to_sid"
 			       "(%s) failed for (dev %s, type %s) errno=%d\n",
@@ -2894,7 +2894,7 @@ static int selinux_inode_setxattr(struct dentry *dentry, const char *name,
 	if (rc)
 		return rc;
 
-	rc = security_context_to_sid(value, size, &newsid);
+	rc = security_context_to_sid(value, size, &newsid, GFP_KERNEL);
 	if (rc == -EINVAL) {
 		if (!capable(CAP_MAC_ADMIN)) {
 			struct audit_buffer *ab;
@@ -3051,7 +3051,7 @@ static int selinux_inode_setsecurity(struct inode *inode, const char *name,
 	if (!value || !size)
 		return -EACCES;
 
-	rc = security_context_to_sid((void *)value, size, &newsid);
+	rc = security_context_to_sid((void *)value, size, &newsid, GFP_KERNEL);
 	if (rc)
 		return rc;
 
@@ -4490,13 +4490,9 @@ static int selinux_inet_conn_request(struct sock *sk, struct sk_buff *skb,
 {
 	struct sk_security_struct *sksec = sk->sk_security;
 	int err;
-	u16 family = sk->sk_family;
+	u16 family = req->rsk_ops->family;
 	u32 connsid;
 	u32 peersid;
-
-	/* handle mapped IPv4 packets arriving via IPv6 sockets */
-	if (family == PF_INET6 && skb->protocol == htons(ETH_P_IP))
-		family = PF_INET;
 
 	err = selinux_skb_peerlbl_sid(skb, family, &peersid);
 	if (err)
@@ -5534,7 +5530,7 @@ static int selinux_setprocattr(struct task_struct *p,
 			str[size-1] = 0;
 			size--;
 		}
-		error = security_context_to_sid(value, size, &sid);
+		error = security_context_to_sid(value, size, &sid, GFP_KERNEL);
 		if (error == -EINVAL && !strcmp(name, "fscreate")) {
 			if (!capable(CAP_MAC_ADMIN)) {
 				struct audit_buffer *ab;
@@ -5643,7 +5639,7 @@ static int selinux_secid_to_secctx(u32 secid, char **secdata, u32 *seclen)
 
 static int selinux_secctx_to_secid(const char *secdata, u32 seclen, u32 *secid)
 {
-	return security_context_to_sid(secdata, seclen, secid);
+	return security_context_to_sid(secdata, seclen, secid, GFP_KERNEL);
 }
 
 static void selinux_release_secctx(char *secdata, u32 seclen)

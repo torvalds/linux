@@ -1,0 +1,27 @@
+/*
+ * Device Tree Source for OMAP4 clock data
+ *
+ * Copyright (C) 2013 Texas Instruments, Inc.
+ *
+ * This program is free software; you can redistribute it and/or modify
+ * it under the terms of the GNU General Public License version 2 as
+ * published by the Free Software Foundation.
+ */
+&prm_clocks {
+	div_ts_ck: div_ts_ck {
+		#clock-cells = <0>;
+		compatible = "ti,divider-clock";
+		clocks = <&l4_wkup_clk_mux_ck>;
+		ti,bit-shift = <24>;
+		reg = <0x1888>;
+		ti,dividers = <8>, <16>, <32>;
+	};
+
+	bandgap_ts_fclk: bandgap_ts_fclk {
+		#clock-cells = <0>;
+		compatible = "ti,gate-clock";
+		clocks = <&div_ts_ck>;
+		ti,bit-shift = <8>;
+		reg = <0x1888>;
+	};
+};

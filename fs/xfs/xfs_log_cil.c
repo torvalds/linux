@@ -82,36 +82,6 @@ xlog_cil_init_post_recovery(
 								log->l_curr_block);
 }
 
-STATIC int
-xlog_cil_lv_item_format(
-	struct xfs_log_item	*lip,
-	struct xfs_log_vec	*lv)
-{
-	int	index;
-	char	*ptr;
-
-	/* format new vectors into array */
-	lip->li_ops->iop_format(lip, lv->lv_iovecp);
-
-	/* copy data into existing array */
-	ptr = lv->lv_buf;
-	for (index = 0; index < lv->lv_niovecs; index++) {
-		struct xfs_log_iovec *vec = &lv->lv_iovecp[index];
-
-		memcpy(ptr, vec->i_addr, vec->i_len);
-		vec->i_addr = ptr;
-		ptr += vec->i_len;
-	}
-
-	/*
-	 * some size calculations for log vectors over-estimate, so the caller
-	 * doesn't know the amount of space actually used by the item. Return
-	 * the byte count to the caller so they can check and store it
-	 * appropriately.
-	 */
-	return ptr - lv->lv_buf;
-}
-
 /*
  * Prepare the log item for insertion into the CIL. Calculate the difference in
  * log space and vectors it will consume, and if it is a new item pin it as
@@ -232,12 +202,28 @@ xlog_cil_insert_format_items(
 			nbytes = 0;
 		}
 
+		/*
+		 * We 64-bit align the length of each iovec so that the start
+		 * of the next one is naturally aligned.  We'll need to
+		 * account for that slack space here. Then round nbytes up
+		 * to 64-bit alignment so that the initial buffer alignment is
+		 * easy to calculate and verify.
+		 */
+		nbytes += niovecs * sizeof(uint64_t);
+		nbytes = round_up(nbytes, sizeof(uint64_t));
+
 		/* grab the old item if it exists for reservation accounting */
 		old_lv = lip->li_lv;
 
-		/* calc buffer size */
-		buf_size = sizeof(struct xfs_log_vec) + nbytes +
-				niovecs * sizeof(struct xfs_log_iovec);
+		/*
+		 * The data buffer needs to start 64-bit aligned, so round up
+		 * that space to ensure we can align it appropriately and not
+		 * overrun the buffer.
+		 */
+		buf_size = nbytes +
+			   round_up((sizeof(struct xfs_log_vec) +
+				     niovecs * sizeof(struct xfs_log_iovec)),
+				    sizeof(uint64_t));
 
 		/* compare to existing item size */
 		if (lip->li_lv && buf_size <= lip->li_lv->lv_size) {
@@ -254,34 +240,29 @@ xlog_cil_insert_format_items(
 			 */
 			*diff_iovecs -= lv->lv_niovecs;
 			*diff_len -= lv->lv_buf_len;
-
-			/* Ensure the lv is set up according to ->iop_size */
-			lv->lv_niovecs = niovecs;
-			lv->lv_buf = (char *)lv + buf_size - nbytes;
-
-			lv->lv_buf_len = xlog_cil_lv_item_format(lip, lv);
-			goto insert;
+		} else {
+			/* allocate new data chunk */
+			lv = kmem_zalloc(buf_size, KM_SLEEP|KM_NOFS);
+			lv->lv_item = lip;
+			lv->lv_size = buf_size;
+			if (ordered) {
+				/* track as an ordered logvec */
+				ASSERT(lip->li_lv == NULL);
+				lv->lv_buf_len = XFS_LOG_VEC_ORDERED;
+				goto insert;
+			}
+			lv->lv_iovecp = (struct xfs_log_iovec *)&lv[1];
 		}
 
-		/* allocate new data chunk */
-		lv = kmem_zalloc(buf_size, KM_SLEEP|KM_NOFS);
-		lv->lv_item = lip;
-		lv->lv_size = buf_size;
+		/* Ensure the lv is set up according to ->iop_size */
 		lv->lv_niovecs = niovecs;
-		if (ordered) {
-			/* track as an ordered logvec */
-			ASSERT(lip->li_lv == NULL);
-			lv->lv_buf_len = XFS_LOG_VEC_ORDERED;
-			goto insert;
-		}
-
-		/* The allocated iovec region lies beyond the log vector. */
-		lv->lv_iovecp = (struct xfs_log_iovec *)&lv[1];
 
 		/* The allocated data region lies beyond the iovec region */
+		lv->lv_buf_len = 0;
 		lv->lv_buf = (char *)lv + buf_size - nbytes;
+		ASSERT(IS_ALIGNED((unsigned long)lv->lv_buf, sizeof(uint64_t)));
 
-		lv->lv_buf_len = xlog_cil_lv_item_format(lip, lv);
+		lip->li_ops->iop_format(lip, lv);
 insert:
 		ASSERT(lv->lv_buf_len <= nbytes);
 		xfs_cil_prepare_item(log, lv, old_lv, diff_len, diff_iovecs);

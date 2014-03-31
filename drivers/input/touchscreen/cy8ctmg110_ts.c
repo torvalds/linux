@@ -178,7 +178,7 @@ static irqreturn_t cy8ctmg110_irq_thread(int irq, void *dev_id)
 static int cy8ctmg110_probe(struct i2c_client *client,
 					const struct i2c_device_id *id)
 {
-	const struct cy8ctmg110_pdata *pdata = client->dev.platform_data;
+	const struct cy8ctmg110_pdata *pdata = dev_get_platdata(&client->dev);
 	struct cy8ctmg110 *ts;
 	struct input_dev *input_dev;
 	int err;

@@ -29,14 +29,37 @@
 #include <plat/pll.h>
 #include <plat/regs-srom.h>
 
-#include <mach/regs-irq.h>
-#include <mach/regs-clock.h>
-#include <mach/regs-pmu.h>
+#include <mach/map.h>
 #include <mach/pm-core.h>
 
 #include "common.h"
+#include "regs-pmu.h"
 
-static struct sleep_save exynos4_set_clksrc[] = {
+#define EXYNOS4_EPLL_LOCK			(S5P_VA_CMU + 0x0C010)
+#define EXYNOS4_VPLL_LOCK			(S5P_VA_CMU + 0x0C020)
+
+#define EXYNOS4_EPLL_CON0			(S5P_VA_CMU + 0x0C110)
+#define EXYNOS4_EPLL_CON1			(S5P_VA_CMU + 0x0C114)
+#define EXYNOS4_VPLL_CON0			(S5P_VA_CMU + 0x0C120)
+#define EXYNOS4_VPLL_CON1			(S5P_VA_CMU + 0x0C124)
+
+#define EXYNOS4_CLKSRC_MASK_TOP			(S5P_VA_CMU + 0x0C310)
+#define EXYNOS4_CLKSRC_MASK_CAM			(S5P_VA_CMU + 0x0C320)
+#define EXYNOS4_CLKSRC_MASK_TV			(S5P_VA_CMU + 0x0C324)
+#define EXYNOS4_CLKSRC_MASK_LCD0		(S5P_VA_CMU + 0x0C334)
+#define EXYNOS4_CLKSRC_MASK_MAUDIO		(S5P_VA_CMU + 0x0C33C)
+#define EXYNOS4_CLKSRC_MASK_FSYS		(S5P_VA_CMU + 0x0C340)
+#define EXYNOS4_CLKSRC_MASK_PERIL0		(S5P_VA_CMU + 0x0C350)
+#define EXYNOS4_CLKSRC_MASK_PERIL1		(S5P_VA_CMU + 0x0C354)
+
+#define EXYNOS4_CLKSRC_MASK_DMC			(S5P_VA_CMU + 0x10300)
+
+#define EXYNOS4_EPLLCON0_LOCKED_SHIFT		(29)
+#define EXYNOS4_VPLLCON0_LOCKED_SHIFT		(29)
+
+#define EXYNOS4210_CLKSRC_MASK_LCD1		(S5P_VA_CMU + 0x0C338)
+
+static const struct sleep_save exynos4_set_clksrc[] = {
 	{ .reg = EXYNOS4_CLKSRC_MASK_TOP		, .val = 0x00000001, },
 	{ .reg = EXYNOS4_CLKSRC_MASK_CAM		, .val = 0x11111111, },
 	{ .reg = EXYNOS4_CLKSRC_MASK_TV			, .val = 0x00000111, },
@@ -48,7 +71,7 @@ static struct sleep_save exynos4_set_clksrc[] = {
 	{ .reg = EXYNOS4_CLKSRC_MASK_DMC		, .val = 0x00010000, },
 };
 
-static struct sleep_save exynos4210_set_clksrc[] = {
+static const struct sleep_save exynos4210_set_clksrc[] = {
 	{ .reg = EXYNOS4210_CLKSRC_MASK_LCD1		, .val = 0x00001111, },
 };
 

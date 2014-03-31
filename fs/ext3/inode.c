@@ -3365,7 +3365,7 @@ int ext3_setattr(struct dentry *dentry, struct iattr *attr)
 	mark_inode_dirty(inode);
 
 	if (ia_valid & ATTR_MODE)
-		rc = ext3_acl_chmod(inode);
+		rc = posix_acl_chmod(inode, inode->i_mode);
 
 err_out:
 	ext3_std_error(inode->i_sb, error);

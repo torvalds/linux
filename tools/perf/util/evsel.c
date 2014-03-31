@@ -1081,7 +1081,6 @@ void perf_evsel__close(struct perf_evsel *evsel, int ncpus, int nthreads)
 
 	perf_evsel__close_fd(evsel, ncpus, nthreads);
 	perf_evsel__free_fd(evsel);
-	evsel->fd = NULL;
 }
 
 static struct {

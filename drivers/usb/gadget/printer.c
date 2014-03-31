@@ -1157,7 +1157,7 @@ static int __init printer_bind_config(struct usb_configuration *c)
 
 	usb_gadget_set_selfpowered(gadget);
 
-	if (gadget->is_otg) {
+	if (gadget_is_otg(gadget)) {
 		otg_descriptor.bmAttributes |= USB_OTG_HNP;
 		printer_cfg_driver.descriptors = otg_desc;
 		printer_cfg_driver.bmAttributes |= USB_CONFIG_ATT_WAKEUP;

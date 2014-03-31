@@ -1288,8 +1288,6 @@ int dn_route_output_sock(struct dst_entry __rcu **pprt, struct flowidn *fl, stru
 
 	err = __dn_route_output_key(pprt, fl, flags & MSG_TRYHARD);
 	if (err == 0 && fl->flowidn_proto) {
-		if (!(flags & MSG_DONTWAIT))
-			fl->flowidn_flags |= FLOWI_FLAG_CAN_SLEEP;
 		*pprt = xfrm_lookup(&init_net, *pprt,
 				    flowidn_to_flowi(fl), sk, 0);
 		if (IS_ERR(*pprt)) {
@@ -1668,12 +1666,8 @@ static int dn_cache_getroute(struct sk_buff *in_skb, struct nlmsghdr *nlh)
 
 	if (fld.flowidn_iif) {
 		struct net_device *dev;
-		if ((dev = dev_get_by_index(&init_net, fld.flowidn_iif)) == NULL) {
-			kfree_skb(skb);
-			return -ENODEV;
-		}
-		if (!dev->dn_ptr) {
-			dev_put(dev);
+		dev = __dev_get_by_index(&init_net, fld.flowidn_iif);
+		if (!dev || !dev->dn_ptr) {
 			kfree_skb(skb);
 			return -ENODEV;
 		}
@@ -1695,8 +1689,6 @@ static int dn_cache_getroute(struct sk_buff *in_skb, struct nlmsghdr *nlh)
 		err = dn_route_output_key((struct dst_entry **)&rt, &fld, 0);
 	}
 
-	if (skb->dev)
-		dev_put(skb->dev);
 	skb->dev = NULL;
 	if (err)
 		goto out_free;

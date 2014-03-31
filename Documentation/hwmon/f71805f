@@ -15,7 +15,7 @@ Supported chips:
     Addresses scanned: none, address read from Super I/O config space
     Datasheet: Available from the Fintek website
 
-Author: Jean Delvare <khali@linux-fr.org>
+Author: Jean Delvare <jdelvare@suse.de>
 
 Thanks to Denis Kieft from Barracuda Networks for the donation of a
 test system (custom Jetway K8M8MS motherboard, with CPU and RAM) and

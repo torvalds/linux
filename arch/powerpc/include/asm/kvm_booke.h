@@ -63,6 +63,12 @@ static inline u32 kvmppc_get_xer(struct kvm_vcpu *vcpu)
 	return vcpu->arch.xer;
 }
 
+static inline bool kvmppc_need_byteswap(struct kvm_vcpu *vcpu)
+{
+	/* XXX Would need to check TLB entry */
+	return false;
+}
+
 static inline u32 kvmppc_get_last_inst(struct kvm_vcpu *vcpu)
 {
 	return vcpu->arch.last_inst;

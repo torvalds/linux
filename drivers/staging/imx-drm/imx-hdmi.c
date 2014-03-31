@@ -16,6 +16,7 @@
 #include <linux/delay.h>
 #include <linux/err.h>
 #include <linux/clk.h>
+#include <linux/hdmi.h>
 #include <linux/regmap.h>
 #include <linux/mfd/syscon.h>
 #include <linux/mfd/syscon/imx6q-iomuxc-gpr.h>
@@ -50,11 +51,6 @@ enum hdmi_datamap {
 	YCbCr422_8B = 0x16,
 	YCbCr422_10B = 0x14,
 	YCbCr422_12B = 0x12,
-};
-
-enum hdmi_colorimetry {
-	ITU601,
-	ITU709,
 };
 
 enum imx_hdmi_devtype {
@@ -489,12 +485,12 @@ static void imx_hdmi_update_csc_coeffs(struct imx_hdmi *hdmi)
 
 	if (is_color_space_conversion(hdmi)) {
 		if (hdmi->hdmi_data.enc_out_format == RGB) {
-			if (hdmi->hdmi_data.colorimetry == ITU601)
+			if (hdmi->hdmi_data.colorimetry == HDMI_COLORIMETRY_ITU_601)
 				csc_coeff = &csc_coeff_rgb_out_eitu601;
 			else
 				csc_coeff = &csc_coeff_rgb_out_eitu709;
 		} else if (hdmi->hdmi_data.enc_in_format == RGB) {
-			if (hdmi->hdmi_data.colorimetry == ITU601)
+			if (hdmi->hdmi_data.colorimetry == HDMI_COLORIMETRY_ITU_601)
 				csc_coeff = &csc_coeff_rgb_in_eitu601;
 			else
 				csc_coeff = &csc_coeff_rgb_in_eitu709;
@@ -1140,16 +1136,16 @@ static void hdmi_config_AVI(struct imx_hdmi *hdmi)
 	/* Set up colorimetry */
 	if (hdmi->hdmi_data.enc_out_format == XVYCC444) {
 		colorimetry = HDMI_FC_AVICONF1_COLORIMETRY_EXTENDED_INFO;
-		if (hdmi->hdmi_data.colorimetry == ITU601)
+		if (hdmi->hdmi_data.colorimetry == HDMI_COLORIMETRY_ITU_601)
 			ext_colorimetry =
 				HDMI_FC_AVICONF2_EXT_COLORIMETRY_XVYCC601;
-		else /* hdmi->hdmi_data.colorimetry == ITU709 */
+		else /*hdmi->hdmi_data.colorimetry == HDMI_COLORIMETRY_ITU_709*/
 			ext_colorimetry =
 				HDMI_FC_AVICONF2_EXT_COLORIMETRY_XVYCC709;
 	} else if (hdmi->hdmi_data.enc_out_format != RGB) {
-		if (hdmi->hdmi_data.colorimetry == ITU601)
+		if (hdmi->hdmi_data.colorimetry == HDMI_COLORIMETRY_ITU_601)
 			colorimetry = HDMI_FC_AVICONF1_COLORIMETRY_SMPTE;
-		else /* hdmi->hdmi_data.colorimetry == ITU709 */
+		else /*hdmi->hdmi_data.colorimetry == HDMI_COLORIMETRY_ITU_709*/
 			colorimetry = HDMI_FC_AVICONF1_COLORIMETRY_ITUR;
 		ext_colorimetry = HDMI_FC_AVICONF2_EXT_COLORIMETRY_XVYCC601;
 	} else { /* Carries no data */
@@ -1379,9 +1375,9 @@ static int imx_hdmi_setup(struct imx_hdmi *hdmi, struct drm_display_mode *mode)
 		(hdmi->vic == 21) || (hdmi->vic == 22) ||
 		(hdmi->vic == 2) || (hdmi->vic == 3) ||
 		(hdmi->vic == 17) || (hdmi->vic == 18))
-		hdmi->hdmi_data.colorimetry = ITU601;
+		hdmi->hdmi_data.colorimetry = HDMI_COLORIMETRY_ITU_601;
 	else
-		hdmi->hdmi_data.colorimetry = ITU709;
+		hdmi->hdmi_data.colorimetry = HDMI_COLORIMETRY_ITU_709;
 
 	if ((hdmi->vic == 10) || (hdmi->vic == 11) ||
 		(hdmi->vic == 12) || (hdmi->vic == 13) ||

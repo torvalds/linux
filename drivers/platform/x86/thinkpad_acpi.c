@@ -61,7 +61,6 @@
 #include <linux/freezer.h>
 #include <linux/delay.h>
 #include <linux/slab.h>
-
 #include <linux/nvram.h>
 #include <linux/proc_fs.h>
 #include <linux/seq_file.h>
@@ -74,21 +73,16 @@
 #include <linux/input.h>
 #include <linux/leds.h>
 #include <linux/rfkill.h>
-#include <asm/uaccess.h>
-
 #include <linux/dmi.h>
 #include <linux/jiffies.h>
 #include <linux/workqueue.h>
-
+#include <linux/acpi.h>
+#include <linux/pci_ids.h>
+#include <linux/thinkpad_acpi.h>
 #include <sound/core.h>
 #include <sound/control.h>
 #include <sound/initval.h>
-
-#include <acpi/acpi_drivers.h>
-
-#include <linux/pci_ids.h>
-
-#include <linux/thinkpad_acpi.h>
+#include <asm/uaccess.h>
 
 /* ThinkPad CMOS commands */
 #define TP_CMOS_VOLUME_DOWN	0

@@ -11,8 +11,7 @@
  * more details.
  *
  * You should have received a copy of the GNU General Public License along with
- * this program; if not, write to the Free Software Foundation, Inc., 59 Temple
- * Place - Suite 330, Boston, MA 02111-1307 USA.
+ * this program; if not, see <http://www.gnu.org/licenses/>.
  *
  * Author: Alexander Duyck <alexander.h.duyck@intel.com>
  */
@@ -29,15 +28,7 @@
 #include <net/tc_act/tc_skbedit.h>
 
 #define SKBEDIT_TAB_MASK     15
-static struct tcf_common *tcf_skbedit_ht[SKBEDIT_TAB_MASK + 1];
-static u32 skbedit_idx_gen;
-static DEFINE_RWLOCK(skbedit_lock);
-
-static struct tcf_hashinfo skbedit_hash_info = {
-	.htab	=	tcf_skbedit_ht,
-	.hmask	=	SKBEDIT_TAB_MASK,
-	.lock	=	&skbedit_lock,
-};
+static struct tcf_hashinfo skbedit_hash_info;
 
 static int tcf_skbedit(struct sk_buff *skb, const struct tc_action *a,
 		       struct tcf_result *res)
@@ -109,10 +100,9 @@ static int tcf_skbedit_init(struct net *net, struct nlattr *nla,
 
 	parm = nla_data(tb[TCA_SKBEDIT_PARMS]);
 
-	pc = tcf_hash_check(parm->index, a, bind, &skbedit_hash_info);
+	pc = tcf_hash_check(parm->index, a, bind);
 	if (!pc) {
-		pc = tcf_hash_create(parm->index, est, a, sizeof(*d), bind,
-				     &skbedit_idx_gen, &skbedit_hash_info);
+		pc = tcf_hash_create(parm->index, est, a, sizeof(*d), bind);
 		if (IS_ERR(pc))
 			return PTR_ERR(pc);
 
@@ -122,7 +112,7 @@ static int tcf_skbedit_init(struct net *net, struct nlattr *nla,
 		d = to_skbedit(pc);
 		if (bind)
 			return 0;
-		tcf_hash_release(pc, bind, &skbedit_hash_info);
+		tcf_hash_release(pc, bind, a->ops->hinfo);
 		if (!ovr)
 			return -EEXIST;
 	}
@@ -142,7 +132,7 @@ static int tcf_skbedit_init(struct net *net, struct nlattr *nla,
 	spin_unlock_bh(&d->tcf_lock);
 
 	if (ret == ACT_P_CREATED)
-		tcf_hash_insert(pc, &skbedit_hash_info);
+		tcf_hash_insert(pc, a->ops->hinfo);
 	return ret;
 }
 
@@ -198,7 +188,6 @@ static struct tc_action_ops act_skbedit_ops = {
 	.kind		=	"skbedit",
 	.hinfo		=	&skbedit_hash_info,
 	.type		=	TCA_ACT_SKBEDIT,
-	.capab		=	TCA_CAP_NONE,
 	.owner		=	THIS_MODULE,
 	.act		=	tcf_skbedit,
 	.dump		=	tcf_skbedit_dump,
@@ -212,11 +201,15 @@ MODULE_LICENSE("GPL");
 
 static int __init skbedit_init_module(void)
 {
+	int err = tcf_hashinfo_init(&skbedit_hash_info, SKBEDIT_TAB_MASK);
+	if (err)
+		return err;
 	return tcf_register_action(&act_skbedit_ops);
 }
 
 static void __exit skbedit_cleanup_module(void)
 {
+	tcf_hashinfo_destroy(&skbedit_hash_info);
 	tcf_unregister_action(&act_skbedit_ops);
 }
 

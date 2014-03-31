@@ -13,7 +13,7 @@
  *    Copyright (C) 2000 Grant Grundler <grundler with parisc-linux.org>
  *    Copyright (C) 2001 Alan Modra <amodra at parisc-linux.org>
  *    Copyright (C) 2001-2002 Ryan Bradetich <rbrad at parisc-linux.org>
- *    Copyright (C) 2001-2007 Helge Deller <deller at parisc-linux.org>
+ *    Copyright (C) 2001-2014 Helge Deller <deller@gmx.de>
  *    Copyright (C) 2002 Randolph Chung <tausq with parisc-linux.org>
  *
  *
@@ -49,6 +49,7 @@
 #include <linux/kallsyms.h>
 #include <linux/uaccess.h>
 #include <linux/rcupdate.h>
+#include <linux/random.h>
 
 #include <asm/io.h>
 #include <asm/asm-offsets.h>
@@ -286,3 +287,21 @@ void *dereference_function_descriptor(void *ptr)
 	return ptr;
 }
 #endif
+
+static inline unsigned long brk_rnd(void)
+{
+	/* 8MB for 32bit, 1GB for 64bit */
+	if (is_32bit_task())
+		return (get_random_int() & 0x7ffUL) << PAGE_SHIFT;
+	else
+		return (get_random_int() & 0x3ffffUL) << PAGE_SHIFT;
+}
+
+unsigned long arch_randomize_brk(struct mm_struct *mm)
+{
+	unsigned long ret = PAGE_ALIGN(mm->brk + brk_rnd());
+
+	if (ret < mm->brk)
+		return mm->brk;
+	return ret;
+}

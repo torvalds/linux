@@ -21,9 +21,9 @@
 #include <brcmu_utils.h>
 #include "dhd.h"
 #include "dhd_bus.h"
-#include "dhd_proto.h"
 #include "dhd_dbg.h"
 #include "fwil.h"
+#include "fwil_types.h"
 #include "tracepoint.h"
 
 #define PKTFILTER_BUF_SIZE		128
@@ -31,15 +31,6 @@
 #define BRCMF_DEFAULT_SCAN_CHANNEL_TIME	40
 #define BRCMF_DEFAULT_SCAN_UNASSOC_TIME	40
 #define BRCMF_DEFAULT_PACKET_FILTER	"100 0 0 0 0x01 0x00"
-
-#ifdef DEBUG
-static const char brcmf_version[] =
-	"Dongle Host Driver, version " BRCMF_VERSION_STR "\nCompiled on "
-	__DATE__ " at " __TIME__;
-#else
-static const char brcmf_version[] =
-	"Dongle Host Driver, version " BRCMF_VERSION_STR;
-#endif
 
 
 bool brcmf_c_prec_enq(struct device *dev, struct pktq *q,
@@ -257,8 +248,6 @@ int brcmf_c_preinit_dcmds(struct brcmf_if *ifp)
 	u8 buf[BRCMF_DCMD_SMLEN];
 	char *ptr;
 	s32 err;
-	struct brcmf_bus_dcmd *cmdlst;
-	struct list_head *cur, *q;
 
 	/* retreive mac address */
 	err = brcmf_fil_iovar_data_get(ifp, "cur_etheraddr", ifp->mac_addr,
@@ -281,8 +270,13 @@ int brcmf_c_preinit_dcmds(struct brcmf_if *ifp)
 	}
 	ptr = (char *)buf;
 	strsep(&ptr, "\n");
+
 	/* Print fw version info */
 	brcmf_err("Firmware version = %s\n", buf);
+
+	/* locate firmware version number for ethtool */
+	ptr = strrchr(buf, ' ') + 1;
+	strlcpy(ifp->drvr->fwver, ptr, sizeof(ifp->drvr->fwver));
 
 	/*
 	 * Setup timeout if Beacons are lost and roam is off to report
@@ -342,17 +336,8 @@ int brcmf_c_preinit_dcmds(struct brcmf_if *ifp)
 	brcmf_c_pktfilter_offload_enable(ifp, BRCMF_DEFAULT_PACKET_FILTER,
 					 0, true);
 
-	/* set bus specific command if there is any */
-	list_for_each_safe(cur, q, &ifp->drvr->bus_if->dcmd_list) {
-		cmdlst = list_entry(cur, struct brcmf_bus_dcmd, list);
-		if (cmdlst->name && cmdlst->param && cmdlst->param_len) {
-			brcmf_fil_iovar_data_set(ifp, cmdlst->name,
-						 cmdlst->param,
-						 cmdlst->param_len);
-		}
-		list_del(cur);
-		kfree(cmdlst);
-	}
+	/* do bus specific preinit here */
+	err = brcmf_bus_preinit(ifp->drvr->bus_if);
 done:
 	return err;
 }

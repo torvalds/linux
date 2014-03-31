@@ -162,7 +162,7 @@ void __init dove_ge00_init(struct mv643xx_eth_platform_data *eth_data)
 /*****************************************************************************
  * SoC RTC
  ****************************************************************************/
-void __init dove_rtc_init(void)
+static void __init dove_rtc_init(void)
 {
 	orion_rtc_init(DOVE_RTC_PHYS_BASE, IRQ_DOVE_RTC);
 }
@@ -257,18 +257,9 @@ void __init dove_timer_init(void)
 }
 
 /*****************************************************************************
- * Cryptographic Engines and Security Accelerator (CESA)
- ****************************************************************************/
-void __init dove_crypto_init(void)
-{
-	orion_crypto_init(DOVE_CRYPT_PHYS_BASE, DOVE_CESA_PHYS_BASE,
-			  DOVE_CESA_SIZE, IRQ_DOVE_CRYPTO);
-}
-
-/*****************************************************************************
  * XOR 0
  ****************************************************************************/
-void __init dove_xor0_init(void)
+static void __init dove_xor0_init(void)
 {
 	orion_xor0_init(DOVE_XOR0_PHYS_BASE, DOVE_XOR0_HIGH_PHYS_BASE,
 			IRQ_DOVE_XOR_00, IRQ_DOVE_XOR_01);
@@ -277,7 +268,7 @@ void __init dove_xor0_init(void)
 /*****************************************************************************
  * XOR 1
  ****************************************************************************/
-void __init dove_xor1_init(void)
+static void __init dove_xor1_init(void)
 {
 	orion_xor1_init(DOVE_XOR1_PHYS_BASE, DOVE_XOR1_HIGH_PHYS_BASE,
 			IRQ_DOVE_XOR_10, IRQ_DOVE_XOR_11);

@@ -111,8 +111,6 @@ static int as10x_pid_filter(struct as102_dev_t *dev,
 	struct as10x_bus_adapter_t *bus_adap = &dev->bus_adap;
 	int ret = -EFAULT;
 
-	ENTER();
-
 	if (mutex_lock_interruptible(&dev->bus_adap.lock)) {
 		dprintk(debug, "mutex_lock_interruptible(lock) failed !\n");
 		return -EBUSY;
@@ -133,15 +131,14 @@ static int as10x_pid_filter(struct as102_dev_t *dev,
 		filter.pid = pid;
 
 		ret = as10x_cmd_add_PID_filter(bus_adap, &filter);
-		dprintk(debug, "ADD_PID_FILTER([%02d -> %02d], 0x%04x) ret = %d\n",
+		dprintk(debug,
+			"ADD_PID_FILTER([%02d -> %02d], 0x%04x) ret = %d\n",
 			index, filter.idx, filter.pid, ret);
 		break;
 	}
 	}
 
 	mutex_unlock(&dev->bus_adap.lock);
-
-	LEAVE();
 	return ret;
 }
 
@@ -150,8 +147,6 @@ static int as102_dvb_dmx_start_feed(struct dvb_demux_feed *dvbdmxfeed)
 	int ret = 0;
 	struct dvb_demux *demux = dvbdmxfeed->demux;
 	struct as102_dev_t *as102_dev = demux->priv;
-
-	ENTER();
 
 	if (mutex_lock_interruptible(&as102_dev->sem))
 		return -ERESTARTSYS;
@@ -164,7 +159,6 @@ static int as102_dvb_dmx_start_feed(struct dvb_demux_feed *dvbdmxfeed)
 		ret = as102_start_stream(as102_dev);
 
 	mutex_unlock(&as102_dev->sem);
-	LEAVE();
 	return ret;
 }
 
@@ -172,8 +166,6 @@ static int as102_dvb_dmx_stop_feed(struct dvb_demux_feed *dvbdmxfeed)
 {
 	struct dvb_demux *demux = dvbdmxfeed->demux;
 	struct as102_dev_t *as102_dev = demux->priv;
-
-	ENTER();
 
 	if (mutex_lock_interruptible(&as102_dev->sem))
 		return -ERESTARTSYS;
@@ -186,7 +178,6 @@ static int as102_dvb_dmx_stop_feed(struct dvb_demux_feed *dvbdmxfeed)
 				 dvbdmxfeed->pid, 0);
 
 	mutex_unlock(&as102_dev->sem);
-	LEAVE();
 	return 0;
 }
 

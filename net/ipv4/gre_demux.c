@@ -182,6 +182,14 @@ static int gre_cisco_rcv(struct sk_buff *skb)
 	int i;
 	bool csum_err = false;
 
+#ifdef CONFIG_NET_IPGRE_BROADCAST
+	if (ipv4_is_multicast(ip_hdr(skb)->daddr)) {
+		/* Looped back packet, drop it! */
+		if (rt_is_output_route(skb_rtable(skb)))
+			goto drop;
+	}
+#endif
+
 	if (parse_gre_header(skb, &tpi, &csum_err) < 0)
 		goto drop;
 
@@ -355,14 +363,7 @@ static int __init gre_init(void)
 		goto err_gre;
 	}
 
-	if (gre_offload_init()) {
-		pr_err("can't add protocol offload\n");
-		goto err_gso;
-	}
-
 	return 0;
-err_gso:
-	gre_del_protocol(&ipgre_protocol, GREPROTO_CISCO);
 err_gre:
 	inet_del_protocol(&net_gre_protocol, IPPROTO_GRE);
 err:
@@ -371,8 +372,6 @@ err:
 
 static void __exit gre_exit(void)
 {
-	gre_offload_exit();
-
 	gre_del_protocol(&ipgre_protocol, GREPROTO_CISCO);
 	inet_del_protocol(&net_gre_protocol, IPPROTO_GRE);
 }

@@ -28,6 +28,7 @@
 
 
 struct hdmi_phy;
+struct hdmi_platform_config;
 
 struct hdmi {
 	struct kref refcount;
@@ -35,14 +36,14 @@ struct hdmi {
 	struct drm_device *dev;
 	struct platform_device *pdev;
 
+	const struct hdmi_platform_config *config;
+
 	void __iomem *mmio;
 
-	struct regulator *mvs;        /* HDMI_5V */
-	struct regulator *mpp0;       /* External 5V */
-
-	struct clk *clk;
-	struct clk *m_pclk;
-	struct clk *s_pclk;
+	struct regulator *hpd_regs[2];
+	struct regulator *pwr_regs[2];
+	struct clk *hpd_clks[3];
+	struct clk *pwr_clks[2];
 
 	struct hdmi_phy *phy;
 	struct i2c_adapter *i2c;
@@ -60,7 +61,29 @@ struct hdmi {
 /* platform config data (ie. from DT, or pdata) */
 struct hdmi_platform_config {
 	struct hdmi_phy *(*phy_init)(struct hdmi *hdmi);
-	int ddc_clk_gpio, ddc_data_gpio, hpd_gpio, pmic_gpio;
+	const char *mmio_name;
+
+	/* regulators that need to be on for hpd: */
+	const char **hpd_reg_names;
+	int hpd_reg_cnt;
+
+	/* regulators that need to be on for screen pwr: */
+	const char **pwr_reg_names;
+	int pwr_reg_cnt;
+
+	/* clks that need to be on for hpd: */
+	const char **hpd_clk_names;
+	int hpd_clk_cnt;
+
+	/* clks that need to be on for screen pwr (ie pixel clk): */
+	const char **pwr_clk_names;
+	int pwr_clk_cnt;
+
+	/* gpio's: */
+	int ddc_clk_gpio, ddc_data_gpio, hpd_gpio, mux_en_gpio, mux_sel_gpio;
+
+	/* older devices had their own irq, mdp5+ it is shared w/ mdp: */
+	bool shared_irq;
 };
 
 void hdmi_set_mode(struct hdmi *hdmi, bool power_on);
@@ -106,6 +129,7 @@ struct hdmi_phy {
 
 struct hdmi_phy *hdmi_phy_8960_init(struct hdmi *hdmi);
 struct hdmi_phy *hdmi_phy_8x60_init(struct hdmi *hdmi);
+struct hdmi_phy *hdmi_phy_8x74_init(struct hdmi *hdmi);
 
 /*
  * hdmi bridge:

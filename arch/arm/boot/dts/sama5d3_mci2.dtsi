@@ -9,6 +9,7 @@
 
 #include <dt-bindings/pinctrl/at91.h>
 #include <dt-bindings/interrupt-controller/irq.h>
+#include <dt-bindings/clk/at91.h>
 
 / {
 	ahb {
@@ -30,6 +31,15 @@
 				};
 			};
 
+			pmc: pmc@fffffc00 {
+				periphck {
+					mci2_clk: mci2_clk {
+						#clock-cells = <0>;
+						reg = <23>;
+					};
+				};
+			};
+
 			mmc2: mmc@f8004000 {
 				compatible = "atmel,hsmci";
 				reg = <0xf8004000 0x600>;
@@ -38,6 +48,8 @@
 				dma-names = "rxtx";
 				pinctrl-names = "default";
 				pinctrl-0 = <&pinctrl_mmc2_clk_cmd_dat0 &pinctrl_mmc2_dat1_3>;
+				clocks = <&mci2_clk>;
+				clock-names = "mci_clk";
 				status = "disabled";
 				#address-cells = <1>;
 				#size-cells = <0>;

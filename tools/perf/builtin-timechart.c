@@ -1045,6 +1045,9 @@ static void write_svg_file(struct timechart *tchart, const char *filename)
 		thresh /= 10;
 	} while (!process_filter && thresh && count < tchart->proc_num);
 
+	if (!tchart->proc_num)
+		count = 0;
+
 	open_svg(filename, tchart->numcpus, count, tchart->first_time, tchart->last_time);
 
 	svg_time_grid();

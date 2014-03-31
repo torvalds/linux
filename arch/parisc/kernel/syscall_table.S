@@ -429,6 +429,9 @@
 	ENTRY_COMP(process_vm_writev)
 	ENTRY_SAME(kcmp)
 	ENTRY_SAME(finit_module)
+	ENTRY_SAME(sched_setattr)
+	ENTRY_SAME(sched_getattr)	/* 335 */
+	ENTRY_COMP(utimes)
 
 	/* Nothing yet */
 

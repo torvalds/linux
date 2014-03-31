@@ -11,7 +11,6 @@
 #include <linux/slab.h>
 #include <linux/input.h>
 #include <linux/serio.h>
-#include <linux/init.h>
 
 #define PACKET_LENGTH  5
 struct tsc_ser {

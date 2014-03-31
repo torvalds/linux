@@ -206,6 +206,15 @@ static void find_target_mwait(void)
 
 }
 
+static bool has_pkg_state_counter(void)
+{
+	u64 tmp;
+	return !rdmsrl_safe(MSR_PKG_C2_RESIDENCY, &tmp) ||
+	       !rdmsrl_safe(MSR_PKG_C3_RESIDENCY, &tmp) ||
+	       !rdmsrl_safe(MSR_PKG_C6_RESIDENCY, &tmp) ||
+	       !rdmsrl_safe(MSR_PKG_C7_RESIDENCY, &tmp);
+}
+
 static u64 pkg_state_counter(void)
 {
 	u64 val;
@@ -498,7 +507,7 @@ static int start_power_clamp(void)
 	struct task_struct *thread;
 
 	/* check if pkg cstate counter is completely 0, abort in this case */
-	if (!pkg_state_counter()) {
+	if (!has_pkg_state_counter()) {
 		pr_err("pkg cstate counter not functional, abort\n");
 		return -EINVAL;
 	}

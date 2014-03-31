@@ -51,8 +51,8 @@
 		mvsdio@90000 {
 			pinctrl-0 = <&pmx_sdio_gpios>;
 			pinctrl-names = "default";
-			wp-gpios = <&gpio1 5 0>;
-			cd-gpios = <&gpio1 6 0>;
+			wp-gpios = <&gpio1 5 GPIO_ACTIVE_HIGH>;
+			cd-gpios = <&gpio1 6 GPIO_ACTIVE_HIGH>;
 			status = "okay";
 		};
 	};
@@ -84,7 +84,6 @@
 	status = "okay";
 
 	ethphy0: ethernet-phy@8 {
-		device_type = "ethernet-phy";
 		reg = <8>;
 	};
 };

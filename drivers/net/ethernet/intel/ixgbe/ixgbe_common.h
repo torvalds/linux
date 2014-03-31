@@ -124,24 +124,65 @@ s32 ixgbe_reset_pipeline_82599(struct ixgbe_hw *hw);
 s32 ixgbe_get_thermal_sensor_data_generic(struct ixgbe_hw *hw);
 s32 ixgbe_init_thermal_sensor_thresh_generic(struct ixgbe_hw *hw);
 
-#define IXGBE_WRITE_REG(a, reg, value) writel((value), ((a)->hw_addr + (reg)))
+#define IXGBE_FAILED_READ_REG 0xffffffffU
+
+static inline bool ixgbe_removed(void __iomem *addr)
+{
+	return unlikely(!addr);
+}
+
+void ixgbe_check_remove(struct ixgbe_hw *hw, u32 reg);
+
+static inline void ixgbe_write_reg(struct ixgbe_hw *hw, u32 reg, u32 value)
+{
+	u8 __iomem *reg_addr = ACCESS_ONCE(hw->hw_addr);
+
+	if (ixgbe_removed(reg_addr))
+		return;
+	writel(value, reg_addr + reg);
+}
+#define IXGBE_WRITE_REG(a, reg, value) ixgbe_write_reg((a), (reg), (value))
 
 #ifndef writeq
-#define writeq(val, addr) writel((u32) (val), addr); \
-    writel((u32) (val >> 32), (addr + 4));
+#define writeq writeq
+static inline void writeq(u64 val, void __iomem *addr)
+{
+	writel((u32)val, addr);
+	writel((u32)(val >> 32), addr + 4);
+}
 #endif
 
-#define IXGBE_WRITE_REG64(a, reg, value) writeq((value), ((a)->hw_addr + (reg)))
+static inline void ixgbe_write_reg64(struct ixgbe_hw *hw, u32 reg, u64 value)
+{
+	u8 __iomem *reg_addr = ACCESS_ONCE(hw->hw_addr);
 
-#define IXGBE_READ_REG(a, reg) readl((a)->hw_addr + (reg))
+	if (ixgbe_removed(reg_addr))
+		return;
+	writeq(value, reg_addr + reg);
+}
+#define IXGBE_WRITE_REG64(a, reg, value) ixgbe_write_reg64((a), (reg), (value))
 
-#define IXGBE_WRITE_REG_ARRAY(a, reg, offset, value) (\
-    writel((value), ((a)->hw_addr + (reg) + ((offset) << 2))))
+static inline u32 ixgbe_read_reg(struct ixgbe_hw *hw, u32 reg)
+{
+	u8 __iomem *reg_addr = ACCESS_ONCE(hw->hw_addr);
+	u32 value;
 
-#define IXGBE_READ_REG_ARRAY(a, reg, offset) (\
-    readl((a)->hw_addr + (reg) + ((offset) << 2)))
+	if (ixgbe_removed(reg_addr))
+		return IXGBE_FAILED_READ_REG;
+	value = readl(reg_addr + reg);
+	if (unlikely(value == IXGBE_FAILED_READ_REG))
+		ixgbe_check_remove(hw, reg);
+	return value;
+}
+#define IXGBE_READ_REG(a, reg) ixgbe_read_reg((a), (reg))
 
-#define IXGBE_WRITE_FLUSH(a) IXGBE_READ_REG(a, IXGBE_STATUS)
+#define IXGBE_WRITE_REG_ARRAY(a, reg, offset, value) \
+		ixgbe_write_reg((a), (reg) + ((offset) << 2), (value))
+
+#define IXGBE_READ_REG_ARRAY(a, reg, offset) \
+		ixgbe_read_reg((a), (reg) + ((offset) << 2))
+
+#define IXGBE_WRITE_FLUSH(a) ixgbe_read_reg((a), IXGBE_STATUS)
 
 #define ixgbe_hw_to_netdev(hw) (((struct ixgbe_adapter *)(hw)->back)->netdev)
 

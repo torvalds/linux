@@ -349,15 +349,12 @@ EXPORT_SYMBOL_GPL(eventfd_fget);
  */
 struct eventfd_ctx *eventfd_ctx_fdget(int fd)
 {
-	struct file *file;
 	struct eventfd_ctx *ctx;
-
-	file = eventfd_fget(fd);
-	if (IS_ERR(file))
-		return (struct eventfd_ctx *) file;
-	ctx = eventfd_ctx_get(file->private_data);
-	fput(file);
-
+	struct fd f = fdget(fd);
+	if (!f.file)
+		return ERR_PTR(-EBADF);
+	ctx = eventfd_ctx_fileget(f.file);
+	fdput(f);
 	return ctx;
 }
 EXPORT_SYMBOL_GPL(eventfd_ctx_fdget);

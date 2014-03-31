@@ -39,14 +39,15 @@ struct seq_file;
  * @ngpio: the number of GPIOs handled by this controller; the last GPIO
  *	handled is (base + ngpio - 1).
  * @desc: array of ngpio descriptors. Private.
- * @can_sleep: flag must be set iff get()/set() methods sleep, as they
- *	must while accessing GPIO expander chips over I2C or SPI
  * @names: if set, must be an array of strings to use as alternative
  *      names for the GPIOs in this chip. Any entry in the array
  *      may be NULL if there is no alias for the GPIO, however the
  *      array must be @ngpio entries long.  A name can include a single printk
  *      format specifier for an unsigned int.  It is substituted by the actual
  *      number of the gpio.
+ * @can_sleep: flag must be set iff get()/set() methods sleep, as they
+ *	must while accessing GPIO expander chips over I2C or SPI
+ * @exported: flags if the gpiochip is exported for use from sysfs. Private.
  *
  * A gpio_chip can help platforms abstract various sources of GPIOs so
  * they can all be accessed through a common programing interface.
@@ -91,8 +92,8 @@ struct gpio_chip {
 	u16			ngpio;
 	struct gpio_desc	*desc;
 	const char		*const *names;
-	unsigned		can_sleep:1;
-	unsigned		exported:1;
+	bool			can_sleep;
+	bool			exported;
 
 #if defined(CONFIG_OF_GPIO)
 	/*
@@ -136,59 +137,50 @@ enum gpio_lookup_flags {
 };
 
 /**
- * Lookup table for associating GPIOs to specific devices and functions using
- * platform data.
+ * struct gpiod_lookup - lookup table
+ * @chip_label: name of the chip the GPIO belongs to
+ * @chip_hwnum: hardware number (i.e. relative to the chip) of the GPIO
+ * @con_id: name of the GPIO from the device's point of view
+ * @idx: index of the GPIO in case several GPIOs share the same name
+ * @flags: mask of GPIO_* values
+ *
+ * gpiod_lookup is a lookup table for associating GPIOs to specific devices and
+ * functions using platform data.
  */
 struct gpiod_lookup {
-	struct list_head list;
-	/*
-	 * name of the chip the GPIO belongs to
-	 */
 	const char *chip_label;
-	/*
-	 * hardware number (i.e. relative to the chip) of the GPIO
-	 */
 	u16 chip_hwnum;
-	/*
-	 * name of device that can claim this GPIO
-	 */
-	const char *dev_id;
-	/*
-	 * name of the GPIO from the device's point of view
-	 */
 	const char *con_id;
-	/*
-	 * index of the GPIO in case several GPIOs share the same name
-	 */
 	unsigned int idx;
-	/*
-	 * mask of GPIO_* values
-	 */
 	enum gpio_lookup_flags flags;
+};
+
+struct gpiod_lookup_table {
+	struct list_head list;
+	const char *dev_id;
+	struct gpiod_lookup table[];
 };
 
 /*
  * Simple definition of a single GPIO under a con_id
  */
-#define GPIO_LOOKUP(_chip_label, _chip_hwnum, _dev_id, _con_id, _flags) \
-	GPIO_LOOKUP_IDX(_chip_label, _chip_hwnum, _dev_id, _con_id, 0, _flags)
+#define GPIO_LOOKUP(_chip_label, _chip_hwnum, _con_id, _flags) \
+	GPIO_LOOKUP_IDX(_chip_label, _chip_hwnum, _con_id, 0, _flags)
 
 /*
  * Use this macro if you need to have several GPIOs under the same con_id.
  * Each GPIO needs to use a different index and can be accessed using
  * gpiod_get_index()
  */
-#define GPIO_LOOKUP_IDX(_chip_label, _chip_hwnum, _dev_id, _con_id, _idx, \
-			_flags)                                           \
+#define GPIO_LOOKUP_IDX(_chip_label, _chip_hwnum, _con_id, _idx, _flags)  \
 {                                                                         \
 	.chip_label = _chip_label,                                        \
 	.chip_hwnum = _chip_hwnum,                                        \
-	.dev_id = _dev_id,                                                \
 	.con_id = _con_id,                                                \
 	.idx = _idx,                                                      \
 	.flags = _flags,                                                  \
 }
 
-void gpiod_add_table(struct gpiod_lookup *table, size_t size);
+void gpiod_add_lookup_table(struct gpiod_lookup_table *table);
 
 #endif

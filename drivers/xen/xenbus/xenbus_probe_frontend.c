@@ -496,7 +496,7 @@ subsys_initcall(xenbus_probe_frontend_init);
 #ifndef MODULE
 static int __init boot_wait_for_devices(void)
 {
-	if (xen_hvm_domain() && !xen_platform_pci_unplug)
+	if (!xen_has_pv_devices())
 		return -ENODEV;
 
 	ready_to_wait_for_devices = 1;

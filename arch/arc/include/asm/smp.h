@@ -46,14 +46,14 @@ extern int smp_ipi_irq_setup(int cpu, int irq);
  *
  * @info:		SoC SMP specific info for /proc/cpuinfo etc
  * @cpu_kick:		For Master to kickstart a cpu (optionally at a PC)
- * @ipi_send:		To send IPI to a @cpumask
- * @ips_clear:		To clear IPI received by @cpu at @irq
+ * @ipi_send:		To send IPI to a @cpu
+ * @ips_clear:		To clear IPI received at @irq
  */
 struct plat_smp_ops {
 	const char 	*info;
 	void		(*cpu_kick)(int cpu, unsigned long pc);
-	void		(*ipi_send)(void *callmap);
-	void		(*ipi_clear)(int cpu, int irq);
+	void		(*ipi_send)(int cpu);
+	void		(*ipi_clear)(int irq);
 };
 
 /* TBD: stop exporting it for direct population by platform */

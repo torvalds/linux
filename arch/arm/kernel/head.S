@@ -52,7 +52,8 @@
 	.equ	swapper_pg_dir, KERNEL_RAM_VADDR - PG_DIR_SIZE
 
 	.macro	pgtbl, rd, phys
-	add	\rd, \phys, #TEXT_OFFSET - PG_DIR_SIZE
+	add	\rd, \phys, #TEXT_OFFSET
+	sub	\rd, \rd, #PG_DIR_SIZE
 	.endm
 
 /*
@@ -101,7 +102,7 @@ ENTRY(stext)
 	and	r3, r3, #0xf			@ extract VMSA support
 	cmp	r3, #5				@ long-descriptor translation table format?
  THUMB( it	lo )				@ force fixup-able long branch encoding
-	blo	__error_p			@ only classic page table format
+	blo	__error_lpae			@ only classic page table format
 #endif
 
 #ifndef CONFIG_XIP_KERNEL

@@ -616,8 +616,6 @@ int comedi_auto_config(struct device *hardware_device,
 	ret = driver->auto_attach(dev, context);
 	if (ret >= 0)
 		ret = comedi_device_postconfig(dev);
-	if (ret < 0)
-		comedi_device_detach(dev);
 	mutex_unlock(&dev->mutex);
 
 	if (ret < 0) {

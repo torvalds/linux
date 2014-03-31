@@ -4,7 +4,7 @@
  * Copyright (C) 2001  Massimo Dal Zotto <dz@debian.org>
  *
  * Hwmon integration:
- * Copyright (C) 2011  Jean Delvare <khali@linux-fr.org>
+ * Copyright (C) 2011  Jean Delvare <jdelvare@suse.de>
  * Copyright (C) 2013  Guenter Roeck <linux@roeck-us.net>
  *
  * This program is free software; you can redistribute it and/or modify it

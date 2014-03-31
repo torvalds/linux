@@ -22,7 +22,6 @@
 #include <linux/string.h>
 #include <linux/errno.h>
 #include <linux/interrupt.h>
-#include <linux/init.h>
 #include <linux/delay.h>
 #include <linux/netdevice.h>
 #include <linux/etherdevice.h>
@@ -889,10 +888,8 @@ static int gfar_set_hash_opts(struct gfar_private *priv,
 
 static int gfar_check_filer_hardware(struct gfar_private *priv)
 {
-	struct gfar __iomem *regs = NULL;
+	struct gfar __iomem *regs = priv->gfargrp[0].regs;
 	u32 i;
-
-	regs = priv->gfargrp[0].regs;
 
 	/* Check if we are in FIFO mode */
 	i = gfar_read(&regs->ecntrl);
@@ -927,7 +924,7 @@ static int gfar_check_filer_hardware(struct gfar_private *priv)
 	/* Sets the properties for arbitrary filer rule
 	 * to the first 4 Layer 4 Bytes
 	 */
-	regs->rbifx = 0xC0C1C2C3;
+	gfar_write(&regs->rbifx, 0xC0C1C2C3);
 	return 0;
 }
 
@@ -1055,10 +1052,18 @@ static void gfar_set_basic_ip(struct ethtool_tcpip4_spec *value,
 			      struct ethtool_tcpip4_spec *mask,
 			      struct filer_table *tab)
 {
-	gfar_set_attribute(value->ip4src, mask->ip4src, RQFCR_PID_SIA, tab);
-	gfar_set_attribute(value->ip4dst, mask->ip4dst, RQFCR_PID_DIA, tab);
-	gfar_set_attribute(value->pdst, mask->pdst, RQFCR_PID_DPT, tab);
-	gfar_set_attribute(value->psrc, mask->psrc, RQFCR_PID_SPT, tab);
+	gfar_set_attribute(be32_to_cpu(value->ip4src),
+			   be32_to_cpu(mask->ip4src),
+			   RQFCR_PID_SIA, tab);
+	gfar_set_attribute(be32_to_cpu(value->ip4dst),
+			   be32_to_cpu(mask->ip4dst),
+			   RQFCR_PID_DIA, tab);
+	gfar_set_attribute(be16_to_cpu(value->pdst),
+			   be16_to_cpu(mask->pdst),
+			   RQFCR_PID_DPT, tab);
+	gfar_set_attribute(be16_to_cpu(value->psrc),
+			   be16_to_cpu(mask->psrc),
+			   RQFCR_PID_SPT, tab);
 	gfar_set_attribute(value->tos, mask->tos, RQFCR_PID_TOS, tab);
 }
 
@@ -1067,12 +1072,17 @@ static void gfar_set_user_ip(struct ethtool_usrip4_spec *value,
 			     struct ethtool_usrip4_spec *mask,
 			     struct filer_table *tab)
 {
-	gfar_set_attribute(value->ip4src, mask->ip4src, RQFCR_PID_SIA, tab);
-	gfar_set_attribute(value->ip4dst, mask->ip4dst, RQFCR_PID_DIA, tab);
+	gfar_set_attribute(be32_to_cpu(value->ip4src),
+			   be32_to_cpu(mask->ip4src),
+			   RQFCR_PID_SIA, tab);
+	gfar_set_attribute(be32_to_cpu(value->ip4dst),
+			   be32_to_cpu(mask->ip4dst),
+			   RQFCR_PID_DIA, tab);
 	gfar_set_attribute(value->tos, mask->tos, RQFCR_PID_TOS, tab);
 	gfar_set_attribute(value->proto, mask->proto, RQFCR_PID_L4P, tab);
-	gfar_set_attribute(value->l4_4_bytes, mask->l4_4_bytes, RQFCR_PID_ARB,
-			   tab);
+	gfar_set_attribute(be32_to_cpu(value->l4_4_bytes),
+			   be32_to_cpu(mask->l4_4_bytes),
+			   RQFCR_PID_ARB, tab);
 
 }
 
@@ -1139,7 +1149,41 @@ static void gfar_set_ether(struct ethhdr *value, struct ethhdr *mask,
 		}
 	}
 
-	gfar_set_attribute(value->h_proto, mask->h_proto, RQFCR_PID_ETY, tab);
+	gfar_set_attribute(be16_to_cpu(value->h_proto),
+			   be16_to_cpu(mask->h_proto),
+			   RQFCR_PID_ETY, tab);
+}
+
+static inline u32 vlan_tci_vid(struct ethtool_rx_flow_spec *rule)
+{
+	return be16_to_cpu(rule->h_ext.vlan_tci) & VLAN_VID_MASK;
+}
+
+static inline u32 vlan_tci_vidm(struct ethtool_rx_flow_spec *rule)
+{
+	return be16_to_cpu(rule->m_ext.vlan_tci) & VLAN_VID_MASK;
+}
+
+static inline u32 vlan_tci_cfi(struct ethtool_rx_flow_spec *rule)
+{
+	return be16_to_cpu(rule->h_ext.vlan_tci) & VLAN_CFI_MASK;
+}
+
+static inline u32 vlan_tci_cfim(struct ethtool_rx_flow_spec *rule)
+{
+	return be16_to_cpu(rule->m_ext.vlan_tci) & VLAN_CFI_MASK;
+}
+
+static inline u32 vlan_tci_prio(struct ethtool_rx_flow_spec *rule)
+{
+	return (be16_to_cpu(rule->h_ext.vlan_tci) & VLAN_PRIO_MASK) >>
+		VLAN_PRIO_SHIFT;
+}
+
+static inline u32 vlan_tci_priom(struct ethtool_rx_flow_spec *rule)
+{
+	return (be16_to_cpu(rule->m_ext.vlan_tci) & VLAN_PRIO_MASK) >>
+		VLAN_PRIO_SHIFT;
 }
 
 /* Convert a rule to binary filter format of gianfar */
@@ -1153,22 +1197,21 @@ static int gfar_convert_to_filer(struct ethtool_rx_flow_spec *rule,
 	u32 old_index = tab->index;
 
 	/* Check if vlan is wanted */
-	if ((rule->flow_type & FLOW_EXT) && (rule->m_ext.vlan_tci != 0xFFFF)) {
+	if ((rule->flow_type & FLOW_EXT) &&
+	    (rule->m_ext.vlan_tci != cpu_to_be16(0xFFFF))) {
 		if (!rule->m_ext.vlan_tci)
-			rule->m_ext.vlan_tci = 0xFFFF;
+			rule->m_ext.vlan_tci = cpu_to_be16(0xFFFF);
 
 		vlan = RQFPR_VLN;
 		vlan_mask = RQFPR_VLN;
 
 		/* Separate the fields */
-		id = rule->h_ext.vlan_tci & VLAN_VID_MASK;
-		id_mask = rule->m_ext.vlan_tci & VLAN_VID_MASK;
-		cfi = rule->h_ext.vlan_tci & VLAN_CFI_MASK;
-		cfi_mask = rule->m_ext.vlan_tci & VLAN_CFI_MASK;
-		prio = (rule->h_ext.vlan_tci & VLAN_PRIO_MASK) >>
-		       VLAN_PRIO_SHIFT;
-		prio_mask = (rule->m_ext.vlan_tci & VLAN_PRIO_MASK) >>
-			    VLAN_PRIO_SHIFT;
+		id = vlan_tci_vid(rule);
+		id_mask = vlan_tci_vidm(rule);
+		cfi = vlan_tci_cfi(rule);
+		cfi_mask = vlan_tci_cfim(rule);
+		prio = vlan_tci_prio(rule);
+		prio_mask = vlan_tci_priom(rule);
 
 		if (cfi == VLAN_TAG_PRESENT && cfi_mask == VLAN_TAG_PRESENT) {
 			vlan |= RQFPR_CFI;
@@ -1666,10 +1709,10 @@ static void gfar_invert_masks(struct ethtool_rx_flow_spec *flow)
 	for (i = 0; i < sizeof(flow->m_u); i++)
 		flow->m_u.hdata[i] ^= 0xFF;
 
-	flow->m_ext.vlan_etype ^= 0xFFFF;
-	flow->m_ext.vlan_tci ^= 0xFFFF;
-	flow->m_ext.data[0] ^= ~0;
-	flow->m_ext.data[1] ^= ~0;
+	flow->m_ext.vlan_etype ^= cpu_to_be16(0xFFFF);
+	flow->m_ext.vlan_tci ^= cpu_to_be16(0xFFFF);
+	flow->m_ext.data[0] ^= cpu_to_be32(~0);
+	flow->m_ext.data[1] ^= cpu_to_be32(~0);
 }
 
 static int gfar_add_cls(struct gfar_private *priv,

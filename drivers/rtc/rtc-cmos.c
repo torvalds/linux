@@ -756,11 +756,9 @@ cmos_do_probe(struct device *dev, struct resource *ports, int rtc_irq)
 		irq_handler_t rtc_cmos_int_handler;
 
 		if (is_hpet_enabled()) {
-			int err;
-
 			rtc_cmos_int_handler = hpet_rtc_interrupt;
-			err = hpet_register_irq_handler(cmos_interrupt);
-			if (err != 0) {
+			retval = hpet_register_irq_handler(cmos_interrupt);
+			if (retval) {
 				dev_warn(dev, "hpet_register_irq_handler "
 						" failed in rtc_init().");
 				goto cleanup1;
@@ -1175,7 +1173,7 @@ static struct platform_driver cmos_platform_driver = {
 	.remove		= __exit_p(cmos_platform_remove),
 	.shutdown	= cmos_platform_shutdown,
 	.driver = {
-		.name		= (char *) driver_name,
+		.name		= driver_name,
 #ifdef CONFIG_PM
 		.pm		= &cmos_pm_ops,
 #endif

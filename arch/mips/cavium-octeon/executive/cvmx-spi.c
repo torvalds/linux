@@ -177,6 +177,7 @@ int cvmx_spi_restart_interface(int interface, cvmx_spi_mode_t mode, int timeout)
 
 	return res;
 }
+EXPORT_SYMBOL_GPL(cvmx_spi_restart_interface);
 
 /**
  * Callback to perform SPI4 reset

@@ -668,6 +668,16 @@ static void icmp_socket_deliver(struct sk_buff *skb, u32 info)
 	rcu_read_unlock();
 }
 
+static bool icmp_tag_validation(int proto)
+{
+	bool ok;
+
+	rcu_read_lock();
+	ok = rcu_dereference(inet_protos[proto])->icmp_strict_tag_validation;
+	rcu_read_unlock();
+	return ok;
+}
+
 /*
  *	Handle ICMP_DEST_UNREACH, ICMP_TIME_EXCEED, ICMP_QUENCH, and
  *	ICMP_PARAMETERPROB.
@@ -705,10 +715,22 @@ static void icmp_unreach(struct sk_buff *skb)
 		case ICMP_PORT_UNREACH:
 			break;
 		case ICMP_FRAG_NEEDED:
-			if (ipv4_config.no_pmtu_disc) {
+			/* for documentation of the ip_no_pmtu_disc
+			 * values please see
+			 * Documentation/networking/ip-sysctl.txt
+			 */
+			switch (net->ipv4.sysctl_ip_no_pmtu_disc) {
+			default:
 				LIMIT_NETDEBUG(KERN_INFO pr_fmt("%pI4: fragmentation needed and DF set\n"),
 					       &iph->daddr);
-			} else {
+				break;
+			case 2:
+				goto out;
+			case 3:
+				if (!icmp_tag_validation(iph->protocol))
+					goto out;
+				/* fall through */
+			case 0:
 				info = ntohs(icmph->un.frag.mtu);
 				if (!info)
 					goto out;

@@ -113,14 +113,16 @@ static int report__add_mem_hist_entry(struct perf_tool *tool, struct addr_locati
 	if (!he)
 		return -ENOMEM;
 
-	err = hist_entry__inc_addr_samples(he, evsel->idx, al->addr);
-	if (err)
-		goto out;
+	if (ui__has_annotation()) {
+		err = hist_entry__inc_addr_samples(he, evsel->idx, al->addr);
+		if (err)
+			goto out;
 
-	mx = he->mem_info;
-	err = addr_map_symbol__inc_samples(&mx->daddr, evsel->idx);
-	if (err)
-		goto out;
+		mx = he->mem_info;
+		err = addr_map_symbol__inc_samples(&mx->daddr, evsel->idx);
+		if (err)
+			goto out;
+	}
 
 	evsel->hists.stats.total_period += cost;
 	hists__inc_nr_events(&evsel->hists, PERF_RECORD_SAMPLE);
@@ -164,14 +166,18 @@ static int report__add_branch_hist_entry(struct perf_tool *tool, struct addr_loc
 		he = __hists__add_entry(&evsel->hists, al, parent, &bi[i], NULL,
 					1, 1, 0);
 		if (he) {
-			bx = he->branch_info;
-			err = addr_map_symbol__inc_samples(&bx->from, evsel->idx);
-			if (err)
-				goto out;
+			if (ui__has_annotation()) {
+				bx = he->branch_info;
+				err = addr_map_symbol__inc_samples(&bx->from,
+								   evsel->idx);
+				if (err)
+					goto out;
 
-			err = addr_map_symbol__inc_samples(&bx->to, evsel->idx);
-			if (err)
-				goto out;
+				err = addr_map_symbol__inc_samples(&bx->to,
+								   evsel->idx);
+				if (err)
+					goto out;
+			}
 
 			evsel->hists.stats.total_period += 1;
 			hists__inc_nr_events(&evsel->hists, PERF_RECORD_SAMPLE);
@@ -205,7 +211,9 @@ static int report__add_hist_entry(struct perf_tool *tool, struct perf_evsel *evs
 	if (err)
 		goto out;
 
-	err = hist_entry__inc_addr_samples(he, evsel->idx, al->addr);
+	if (ui__has_annotation())
+		err = hist_entry__inc_addr_samples(he, evsel->idx, al->addr);
+
 	evsel->hists.stats.total_period += sample->period;
 	hists__inc_nr_events(&evsel->hists, PERF_RECORD_SAMPLE);
 out:

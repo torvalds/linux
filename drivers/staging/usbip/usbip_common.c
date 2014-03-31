@@ -367,7 +367,6 @@ int usbip_recv(struct socket *sock, void *buf, int size)
 		msg.msg_namelen = 0;
 		msg.msg_control = NULL;
 		msg.msg_controllen = 0;
-		msg.msg_namelen    = 0;
 		msg.msg_flags      = MSG_NOSIGNAL;
 
 		result = kernel_recvmsg(sock, &msg, &iov, 1, size, MSG_WAITALL);

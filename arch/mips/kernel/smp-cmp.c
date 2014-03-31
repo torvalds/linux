@@ -199,11 +199,14 @@ void __init cmp_prepare_cpus(unsigned int max_cpus)
 	pr_debug("SMPCMP: CPU%d: %s max_cpus=%d\n",
 		 smp_processor_id(), __func__, max_cpus);
 
+#ifdef CONFIG_MIPS_MT
 	/*
 	 * FIXME: some of these options are per-system, some per-core and
 	 * some per-cpu
 	 */
 	mips_mt_set_cpuoptions();
+#endif
+
 }
 
 struct plat_smp_ops cmp_smp_ops = {

@@ -103,7 +103,7 @@ static int ar9003_hw_set_channel(struct ath_hw *ah, struct ath9k_channel *chan)
 			} else {
 				channelSel = CHANSEL_2G(freq) >> 1;
 			}
-		} else if (AR_SREV_9550(ah)) {
+		} else if (AR_SREV_9550(ah) || AR_SREV_9531(ah)) {
 			if (ah->is_clk_25mhz)
 				div = 75;
 			else
@@ -118,7 +118,7 @@ static int ar9003_hw_set_channel(struct ath_hw *ah, struct ath9k_channel *chan)
 		/* Set to 2G mode */
 		bMode = 1;
 	} else {
-		if ((AR_SREV_9340(ah) || AR_SREV_9550(ah)) &&
+		if ((AR_SREV_9340(ah) || AR_SREV_9550(ah) || AR_SREV_9531(ah)) &&
 		    ah->is_clk_25mhz) {
 			channelSel = freq / 75;
 			chan_frac = ((freq % 75) * 0x20000) / 75;
@@ -641,11 +641,12 @@ static void ar9003_hw_override_ini(struct ath_hw *ah)
 		else
 			ah->enabled_cals &= ~TX_IQ_CAL;
 
-		if (REG_READ(ah, AR_PHY_CL_CAL_CTL) & AR_PHY_CL_CAL_ENABLE)
-			ah->enabled_cals |= TX_CL_CAL;
-		else
-			ah->enabled_cals &= ~TX_CL_CAL;
 	}
+
+	if (REG_READ(ah, AR_PHY_CL_CAL_CTL) & AR_PHY_CL_CAL_ENABLE)
+		ah->enabled_cals |= TX_CL_CAL;
+	else
+		ah->enabled_cals &= ~TX_CL_CAL;
 }
 
 static void ar9003_hw_prog_ini(struct ath_hw *ah,
@@ -809,10 +810,12 @@ static int ar9003_hw_process_ini(struct ath_hw *ah,
 	/*
 	 * TXGAIN initvals.
 	 */
-	if (AR_SREV_9550(ah)) {
-		int modes_txgain_index;
+	if (AR_SREV_9550(ah) || AR_SREV_9531(ah)) {
+		int modes_txgain_index = 1;
 
-		modes_txgain_index = ar9550_hw_get_modes_txgain_index(ah, chan);
+		if (AR_SREV_9550(ah))
+			modes_txgain_index = ar9550_hw_get_modes_txgain_index(ah, chan);
+
 		if (modes_txgain_index < 0)
 			return -EINVAL;
 
@@ -1331,6 +1334,7 @@ static void ar9003_hw_ani_cache_ini_regs(struct ath_hw *ah)
 static void ar9003_hw_set_radar_params(struct ath_hw *ah,
 				       struct ath_hw_radar_conf *conf)
 {
+	unsigned int regWrites = 0;
 	u32 radar_0 = 0, radar_1 = 0;
 
 	if (!conf) {
@@ -1357,6 +1361,11 @@ static void ar9003_hw_set_radar_params(struct ath_hw *ah,
 		REG_SET_BIT(ah, AR_PHY_RADAR_EXT, AR_PHY_RADAR_EXT_ENA);
 	else
 		REG_CLR_BIT(ah, AR_PHY_RADAR_EXT, AR_PHY_RADAR_EXT_ENA);
+
+	if (AR_SREV_9300(ah) || AR_SREV_9340(ah) || AR_SREV_9580(ah)) {
+		REG_WRITE_ARRAY(&ah->ini_dfs,
+				IS_CHAN_HT40(ah->curchan) ? 2 : 1, regWrites);
+	}
 }
 
 static void ar9003_hw_set_radar_conf(struct ath_hw *ah)
@@ -1807,6 +1816,68 @@ void ar9003_hw_attach_phy_ops(struct ath_hw *ah)
 	memcpy(ah->nf_regs, ar9300_cca_regs, sizeof(ah->nf_regs));
 }
 
+/*
+ * Baseband Watchdog signatures:
+ *
+ * 0x04000539: BB hang when operating in HT40 DFS Channel.
+ *             Full chip reset is not required, but a recovery
+ *             mechanism is needed.
+ *
+ * 0x1300000a: Related to CAC deafness.
+ *             Chip reset is not required.
+ *
+ * 0x0400000a: Related to CAC deafness.
+ *             Full chip reset is required.
+ *
+ * 0x04000b09: RX state machine gets into an illegal state
+ *             when a packet with unsupported rate is received.
+ *             Full chip reset is required and PHY_RESTART has
+ *             to be disabled.
+ *
+ * 0x04000409: Packet stuck on receive.
+ *             Full chip reset is required for all chips except AR9340.
+ */
+
+/*
+ * ar9003_hw_bb_watchdog_check(): Returns true if a chip reset is required.
+ */
+bool ar9003_hw_bb_watchdog_check(struct ath_hw *ah)
+{
+	u32 val;
+
+	switch(ah->bb_watchdog_last_status) {
+	case 0x04000539:
+		val = REG_READ(ah, AR_PHY_RADAR_0);
+		val &= (~AR_PHY_RADAR_0_FIRPWR);
+		val |= SM(0x7f, AR_PHY_RADAR_0_FIRPWR);
+		REG_WRITE(ah, AR_PHY_RADAR_0, val);
+		udelay(1);
+		val = REG_READ(ah, AR_PHY_RADAR_0);
+		val &= ~AR_PHY_RADAR_0_FIRPWR;
+		val |= SM(AR9300_DFS_FIRPWR, AR_PHY_RADAR_0_FIRPWR);
+		REG_WRITE(ah, AR_PHY_RADAR_0, val);
+
+		return false;
+	case 0x1300000a:
+		return false;
+	case 0x0400000a:
+	case 0x04000b09:
+		return true;
+	case 0x04000409:
+		if (AR_SREV_9340(ah) || AR_SREV_9531(ah))
+			return false;
+		else
+			return true;
+	default:
+		/*
+		 * For any other unknown signatures, do a
+		 * full chip reset.
+		 */
+		return true;
+	}
+}
+EXPORT_SYMBOL(ar9003_hw_bb_watchdog_check);
+
 void ar9003_hw_bb_watchdog_config(struct ath_hw *ah)
 {
 	struct ath_common *common = ath9k_hw_common(ah);
@@ -1923,6 +1994,7 @@ EXPORT_SYMBOL(ar9003_hw_bb_watchdog_dbg_info);
 
 void ar9003_hw_disable_phy_restart(struct ath_hw *ah)
 {
+	u8 result;
 	u32 val;
 
 	/* While receiving unsupported rate frame rx state machine
@@ -1930,15 +2002,13 @@ void ar9003_hw_disable_phy_restart(struct ath_hw *ah)
 	 * state, BB would go hang. If RXSM is in 0xb state after
 	 * first bb panic, ensure to disable the phy_restart.
 	 */
-	if (!((MS(ah->bb_watchdog_last_status,
-		  AR_PHY_WATCHDOG_RX_OFDM_SM) == 0xb) ||
-	    ah->bb_hang_rx_ofdm))
-		return;
+	result = MS(ah->bb_watchdog_last_status, AR_PHY_WATCHDOG_RX_OFDM_SM);
 
-	ah->bb_hang_rx_ofdm = true;
-	val = REG_READ(ah, AR_PHY_RESTART);
-	val &= ~AR_PHY_RESTART_ENA;
-
-	REG_WRITE(ah, AR_PHY_RESTART, val);
+	if ((result == 0xb) || ah->bb_hang_rx_ofdm) {
+		ah->bb_hang_rx_ofdm = true;
+		val = REG_READ(ah, AR_PHY_RESTART);
+		val &= ~AR_PHY_RESTART_ENA;
+		REG_WRITE(ah, AR_PHY_RESTART, val);
+	}
 }
 EXPORT_SYMBOL(ar9003_hw_disable_phy_restart);

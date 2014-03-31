@@ -51,6 +51,9 @@ struct omap_dss_device *omap_encoder_get_dssdev(struct drm_encoder *encoder)
 static void omap_encoder_destroy(struct drm_encoder *encoder)
 {
 	struct omap_encoder *omap_encoder = to_omap_encoder(encoder);
+
+	omap_encoder_set_enabled(encoder, false);
+
 	drm_encoder_cleanup(encoder);
 	kfree(omap_encoder);
 }

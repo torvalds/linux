@@ -1694,6 +1694,8 @@ enable_82xx_npiv:
 				if (!fw_major_version && ql2xallocfwdump
 				    && !(IS_P3P_TYPE(ha)))
 					qla2x00_alloc_fw_dump(vha);
+			} else {
+				goto failed;
 			}
 		} else {
 			ql_log(ql_log_fatal, vha, 0x00cd,

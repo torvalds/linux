@@ -20,6 +20,13 @@
 #ifndef cpu_has_tlb
 #define cpu_has_tlb		(cpu_data[0].options & MIPS_CPU_TLB)
 #endif
+#ifndef cpu_has_tlbinv
+#define cpu_has_tlbinv		(cpu_data[0].options & MIPS_CPU_TLBINV)
+#endif
+#ifndef cpu_has_segments
+#define cpu_has_segments	(cpu_data[0].options & MIPS_CPU_SEGMENTS)
+#endif
+
 
 /*
  * For the moment we don't consider R6000 and R8000 so we can assume that

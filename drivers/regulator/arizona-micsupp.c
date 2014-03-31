@@ -28,8 +28,6 @@
 #include <linux/mfd/arizona/pdata.h>
 #include <linux/mfd/arizona/registers.h>
 
-#define ARIZONA_MICSUPP_MAX_SELECTOR 0x1f
-
 struct arizona_micsupp {
 	struct regulator_dev *regulator;
 	struct arizona *arizona;
@@ -39,42 +37,6 @@ struct arizona_micsupp {
 
 	struct work_struct check_cp_work;
 };
-
-static int arizona_micsupp_list_voltage(struct regulator_dev *rdev,
-					unsigned int selector)
-{
-	if (selector > ARIZONA_MICSUPP_MAX_SELECTOR)
-		return -EINVAL;
-
-	if (selector == ARIZONA_MICSUPP_MAX_SELECTOR)
-		return 3300000;
-	else
-		return (selector * 50000) + 1700000;
-}
-
-static int arizona_micsupp_map_voltage(struct regulator_dev *rdev,
-				       int min_uV, int max_uV)
-{
-	unsigned int voltage;
-	int selector;
-
-	if (min_uV < 1700000)
-		min_uV = 1700000;
-
-	if (min_uV > 3200000)
-		selector = ARIZONA_MICSUPP_MAX_SELECTOR;
-	else
-		selector = DIV_ROUND_UP(min_uV - 1700000, 50000);
-
-	if (selector < 0)
-		return -EINVAL;
-
-	voltage = arizona_micsupp_list_voltage(rdev, selector);
-	if (voltage < min_uV || voltage > max_uV)
-		return -EINVAL;
-
-	return selector;
-}
 
 static void arizona_micsupp_check_cp(struct work_struct *work)
 {
@@ -145,8 +107,8 @@ static struct regulator_ops arizona_micsupp_ops = {
 	.disable = arizona_micsupp_disable,
 	.is_enabled = regulator_is_enabled_regmap,
 
-	.list_voltage = arizona_micsupp_list_voltage,
-	.map_voltage = arizona_micsupp_map_voltage,
+	.list_voltage = regulator_list_voltage_linear_range,
+	.map_voltage = regulator_map_voltage_linear_range,
 
 	.get_voltage_sel = regulator_get_voltage_sel_regmap,
 	.set_voltage_sel = regulator_set_voltage_sel_regmap,
@@ -155,11 +117,16 @@ static struct regulator_ops arizona_micsupp_ops = {
 	.set_bypass = arizona_micsupp_set_bypass,
 };
 
+static const struct regulator_linear_range arizona_micsupp_ranges[] = {
+	REGULATOR_LINEAR_RANGE(1700000, 0,    0x1e, 50000),
+	REGULATOR_LINEAR_RANGE(3300000, 0x1f, 0x1f, 0),
+};
+
 static const struct regulator_desc arizona_micsupp = {
 	.name = "MICVDD",
 	.supply_name = "CPVDD",
 	.type = REGULATOR_VOLTAGE,
-	.n_voltages = ARIZONA_MICSUPP_MAX_SELECTOR + 1,
+	.n_voltages = 32,
 	.ops = &arizona_micsupp_ops,
 
 	.vsel_reg = ARIZONA_LDO2_CONTROL_1,
@@ -168,6 +135,9 @@ static const struct regulator_desc arizona_micsupp = {
 	.enable_mask = ARIZONA_CPMIC_ENA,
 	.bypass_reg = ARIZONA_MIC_CHARGE_PUMP_1,
 	.bypass_mask = ARIZONA_CPMIC_BYPASS,
+
+	.linear_ranges = arizona_micsupp_ranges,
+	.n_linear_ranges = ARRAY_SIZE(arizona_micsupp_ranges),
 
 	.enable_time = 3000,
 

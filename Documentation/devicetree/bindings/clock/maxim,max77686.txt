@@ -1,0 +1,38 @@
+Binding for Maxim MAX77686 32k clock generator block
+
+This is a part of device tree bindings of MAX77686 multi-function device.
+More information can be found in bindings/mfd/max77686.txt file.
+
+The MAX77686 contains three 32.768khz clock outputs that can be controlled
+(gated/ungated) over I2C.
+
+Following properties should be presend in main device node of the MFD chip.
+
+Required properties:
+- #clock-cells: simple one-cell clock specifier format is used, where the
+  only cell is used as an index of the clock inside the provider. Following
+  indices are allowed:
+    - 0: 32khz_ap clock,
+    - 1: 32khz_cp clock,
+    - 2: 32khz_pmic clock.
+
+Example: Node of the MFD chip
+
+	max77686: max77686@09 {
+		compatible = "maxim,max77686";
+		interrupt-parent = <&wakeup_eint>;
+		interrupts = <26 0>;
+		reg = <0x09>;
+		#clock-cells = <1>;
+
+		/* ... */
+	};
+
+Example: Clock consumer node
+
+	foo@0 {
+		compatible = "bar,foo";
+		/* ... */
+		clock-names = "my-clock";
+		clocks = <&max77686 2>;
+	};

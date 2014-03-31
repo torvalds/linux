@@ -399,7 +399,6 @@ static void smiapp_update_mbus_formats(struct smiapp_sensor *sensor)
 
 	BUG_ON(max(internal_csi_format_idx, csi_format_idx) + pixel_order
 	       >= ARRAY_SIZE(smiapp_csi_data_formats));
-	BUG_ON(min(internal_csi_format_idx, csi_format_idx) < 0);
 
 	dev_dbg(&client->dev, "new pixel order %s\n",
 		pixel_order_str[pixel_order]);
@@ -2028,8 +2027,8 @@ static int smiapp_set_crop(struct v4l2_subdev *subdev,
 	sel->r.width = min(sel->r.width, src_size->width);
 	sel->r.height = min(sel->r.height, src_size->height);
 
-	sel->r.left = min(sel->r.left, src_size->width - sel->r.width);
-	sel->r.top = min(sel->r.top, src_size->height - sel->r.height);
+	sel->r.left = min_t(int, sel->r.left, src_size->width - sel->r.width);
+	sel->r.top = min_t(int, sel->r.top, src_size->height - sel->r.height);
 
 	*crops[sel->pad] = sel->r;
 
@@ -2121,8 +2120,8 @@ static int smiapp_set_selection(struct v4l2_subdev *subdev,
 
 	sel->r.left = max(0, sel->r.left & ~1);
 	sel->r.top = max(0, sel->r.top & ~1);
-	sel->r.width = max(0, SMIAPP_ALIGN_DIM(sel->r.width, sel->flags));
-	sel->r.height = max(0, SMIAPP_ALIGN_DIM(sel->r.height, sel->flags));
+	sel->r.width = SMIAPP_ALIGN_DIM(sel->r.width, sel->flags);
+	sel->r.height =	SMIAPP_ALIGN_DIM(sel->r.height, sel->flags);
 
 	sel->r.width = max_t(unsigned int,
 			     sensor->limits[SMIAPP_LIMIT_MIN_X_OUTPUT_SIZE],

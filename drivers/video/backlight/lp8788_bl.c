@@ -63,13 +63,13 @@ static struct lp8788_bl_config default_bl_config = {
 
 static inline bool is_brightness_ctrl_by_pwm(enum lp8788_bl_ctrl_mode mode)
 {
-	return (mode == LP8788_BL_COMB_PWM_BASED);
+	return mode == LP8788_BL_COMB_PWM_BASED;
 }
 
 static inline bool is_brightness_ctrl_by_register(enum lp8788_bl_ctrl_mode mode)
 {
-	return (mode == LP8788_BL_REGISTER_ONLY ||
-		mode == LP8788_BL_COMB_REGISTER_BASED);
+	return mode == LP8788_BL_REGISTER_ONLY ||
+		mode == LP8788_BL_COMB_REGISTER_BASED;
 }
 
 static int lp8788_backlight_configure(struct lp8788_bl *bl)

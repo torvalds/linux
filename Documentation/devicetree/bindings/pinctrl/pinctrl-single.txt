@@ -98,7 +98,7 @@ below for more information.
 In case when one register changes more than one pin's mux the
 pinctrl-single,bits need to be used which takes three parameters:
 
-	pinctrl-single,bits = <0xdc 0x18, 0xff>;
+	pinctrl-single,bits = <0xdc 0x18 0xff>;
 
 Where 0xdc is the offset from the pinctrl register base address for the
 device pinctrl register, 0x18 is the desired value, and 0xff is the sub mask to

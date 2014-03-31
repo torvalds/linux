@@ -2,7 +2,7 @@
  *
  * GPL LICENSE SUMMARY
  *
- * Copyright(c) 2008 - 2013 Intel Corporation. All rights reserved.
+ * Copyright(c) 2008 - 2014 Intel Corporation. All rights reserved.
  *
  * This program is free software; you can redistribute it and/or modify
  * it under the terms of version 2 of the GNU General Public License as
@@ -28,7 +28,6 @@
  *****************************************************************************/
 
 #include <linux/kernel.h>
-#include <linux/init.h>
 
 #include "iwl-io.h"
 #include "iwl-agn-hw.h"
@@ -389,7 +388,6 @@ static bool iwlagn_wait_calib(struct iwl_notif_wait_data *notif_wait,
 {
 	struct iwl_priv *priv = data;
 	struct iwl_calib_hdr *hdr;
-	int len;
 
 	if (pkt->hdr.cmd != CALIBRATION_RES_NOTIFICATION) {
 		WARN_ON(pkt->hdr.cmd != CALIBRATION_COMPLETE_NOTIFICATION);
@@ -397,12 +395,8 @@ static bool iwlagn_wait_calib(struct iwl_notif_wait_data *notif_wait,
 	}
 
 	hdr = (struct iwl_calib_hdr *)pkt->data;
-	len = le32_to_cpu(pkt->len_n_flags) & FH_RSCSR_FRAME_SIZE_MSK;
 
-	/* reduce the size by the length field itself */
-	len -= sizeof(__le32);
-
-	if (iwl_calib_set(priv, hdr, len))
+	if (iwl_calib_set(priv, hdr, iwl_rx_packet_payload_len(pkt)))
 		IWL_ERR(priv, "Failed to record calibration data %d\n",
 			hdr->op_code);
 

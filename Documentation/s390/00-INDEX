@@ -16,11 +16,13 @@ Debugging390.txt
 	- hints for debugging on s390 systems.
 driver-model.txt
 	- information on s390 devices and the driver model.
+kvm.txt
+	- ioctl calls to /dev/kvm on s390.
 monreader.txt
 	- information on accessing the z/VM monitor stream from Linux.
+qeth.txt
+	- HiperSockets Bridge Port Support.
 s390dbf.txt
 	- information on using the s390 debug feature.
-TAPE
-	- information on the driver for channel-attached tapes.
-zfcpdump
+zfcpdump.txt
 	- information on the s390 SCSI dump tool.

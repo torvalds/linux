@@ -901,6 +901,9 @@ nvc0_graph_init_ctxctl(struct nvc0_graph_priv *priv)
 		}
 
 		return 0;
+	} else
+	if (!oclass->fecs.ucode) {
+		return -ENOSYS;
 	}
 
 	/* load HUB microcode */
