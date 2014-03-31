@@ -332,6 +332,7 @@ static int slot_get(struct gfs2_quota_data *qd)
 	if (bit < sdp->sd_quota_slots) {
 		set_bit(bit, sdp->sd_quota_bitmap);
 		qd->qd_slot = bit;
+		error = 0;
 out:
 		qd->qd_slot_count++;
 	}
