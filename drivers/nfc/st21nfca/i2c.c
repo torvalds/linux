@@ -451,10 +451,10 @@ static struct nfc_phy_ops i2c_phy_ops = {
 	.disable = st21nfca_hci_i2c_disable,
 };
 
-static int st21nfca_request_resources(struct st21nfca_i2c_phy *phy,
-				      struct i2c_client *client)
+static int st21nfca_hci_i2c_request_resources(struct i2c_client *client)
 {
 	struct st21nfca_nfc_platform_data *pdata;
+	struct st21nfca_i2c_phy *phy = i2c_get_clientdata(client);
 	int r;
 
 	pdata = client->dev.platform_data;
@@ -467,7 +467,6 @@ static int st21nfca_request_resources(struct st21nfca_i2c_phy *phy,
 	phy->gpio_irq = pdata->gpio_irq;
 	phy->gpio_ena = pdata->gpio_ena;
 	phy->irq_polarity = pdata->irq_polarity;
-	phy->i2c_dev = client;
 
 	r = devm_gpio_request(&client->dev, phy->gpio_irq, "wake_up");
 	if (r) {
@@ -481,7 +480,7 @@ static int st21nfca_request_resources(struct st21nfca_i2c_phy *phy,
 		return -ENODEV;
 	}
 
-	if (phy->gpio_ena != 0) {
+	if (phy->gpio_ena > 0) {
 		r = devm_gpio_request(&client->dev,
 					phy->gpio_ena, "clf_enable");
 		if (r) {
@@ -497,13 +496,7 @@ static int st21nfca_request_resources(struct st21nfca_i2c_phy *phy,
 		}
 	}
 
-	phy->pending_skb = alloc_skb(ST21NFCA_HCI_LLC_MAX_SIZE * 2, GFP_KERNEL);
-	if (phy->pending_skb == NULL)
-		return -ENOMEM;
-
-	phy->current_read_len = 0;
-	phy->crc_trials = 0;
-	return r;
+	return 0;
 }
 
 static int st21nfca_hci_i2c_probe(struct i2c_client *client,
@@ -511,7 +504,8 @@ static int st21nfca_hci_i2c_probe(struct i2c_client *client,
 {
 	struct st21nfca_i2c_phy *phy;
 	struct st21nfca_nfc_platform_data *pdata;
-	int r = 0;
+	int r;
+	int irq;
 
 	dev_dbg(&client->dev, "%s\n", __func__);
 	dev_dbg(&client->dev, "IRQ: %d\n", client->irq);
@@ -530,20 +524,35 @@ static int st21nfca_hci_i2c_probe(struct i2c_client *client,
 	}
 
 	phy->i2c_dev = client;
+	phy->pending_skb = alloc_skb(ST21NFCA_HCI_LLC_MAX_SIZE * 2, GFP_KERNEL);
+	if (phy->pending_skb == NULL)
+		return -ENOMEM;
 
+	phy->current_read_len = 0;
+	phy->crc_trials = 0;
 	i2c_set_clientdata(client, phy);
 
 	pdata = client->dev.platform_data;
-	if (pdata == NULL) {
+	if (!pdata) {
 		nfc_err(&client->dev, "No platform data\n");
 		return -EINVAL;
 	}
 
-	r = st21nfca_request_resources(phy, client);
+	r = st21nfca_hci_i2c_request_resources(client);
 	if (r) {
 		nfc_err(&client->dev, "Cannot get platform resources\n");
 		return r;
 	}
+
+	/* IRQ */
+	irq = gpio_to_irq(phy->gpio_irq);
+	if (irq < 0) {
+		nfc_err(&client->dev,
+				"Unable to get irq number for GPIO %d error %d\n",
+				phy->gpio_irq, r);
+		return -ENODEV;
+	}
+	client->irq = irq;
 
 	st21nfca_hci_platform_init(phy);
 	r = devm_request_threaded_irq(&client->dev, client->irq, NULL,
@@ -576,8 +585,9 @@ static int st21nfca_hci_i2c_remove(struct i2c_client *client)
 
 static struct i2c_driver st21nfca_hci_i2c_driver = {
 	.driver = {
-		   .name = ST21NFCA_HCI_I2C_DRIVER_NAME,
-		   },
+		.owner = THIS_MODULE,
+		.name = ST21NFCA_HCI_I2C_DRIVER_NAME,
+	},
 	.probe = st21nfca_hci_i2c_probe,
 	.id_table = st21nfca_hci_i2c_id_table,
 	.remove = st21nfca_hci_i2c_remove,
