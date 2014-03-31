@@ -171,7 +171,12 @@ static int rk808_ldo_enable(struct regulator_dev *dev)
 	struct rk808 *rk808 = rdev_get_drvdata(dev);
 	int ldo= rdev_get_id(dev) - RK808_LDO1;
 	
-	return rk808_set_bits(rk808, RK808_LDO_EN_REG, 1 << ldo, 1 << ldo);
+	if(ldo == 8)
+		return rk808_set_bits(rk808, RK808_DCDC_EN_REG, 1 << 5, 1 << 5);
+	else if(ldo ==9)
+		return rk808_set_bits(rk808, RK808_DCDC_EN_REG, 1 << 6, 1 << 6);
+	else
+		return rk808_set_bits(rk808, RK808_LDO_EN_REG, 1 << ldo, 1 << ldo);
 	
 }
 static int rk808_ldo_disable(struct regulator_dev *dev)
@@ -179,7 +184,12 @@ static int rk808_ldo_disable(struct regulator_dev *dev)
 	struct rk808 *rk808 = rdev_get_drvdata(dev);
 	int ldo= rdev_get_id(dev) - RK808_LDO1;
 	
-	return rk808_set_bits(rk808, RK808_LDO_EN_REG, 1 << ldo, 0);
+	if(ldo == 8)
+		return rk808_set_bits(rk808, RK808_DCDC_EN_REG, 1 << 5, 0);
+	else if(ldo ==9)
+		return rk808_set_bits(rk808, RK808_DCDC_EN_REG, 1 << 6, 0);
+	else
+		return rk808_set_bits(rk808, RK808_LDO_EN_REG, 1 << ldo, 0);
 
 }
 static int rk808_ldo_suspend_enable(struct regulator_dev *dev)
