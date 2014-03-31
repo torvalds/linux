@@ -480,6 +480,7 @@ struct omap_prcm_irq {
  * @ocp_barrier: fn ptr to force buffered PRM writes to complete
  * @save_and_clear_irqen: fn ptr to save and clear IRQENABLE regs
  * @restore_irqen: fn ptr to save and clear IRQENABLE regs
+ * @reconfigure_io_chain: fn ptr to reconfigure IO chain
  * @saved_mask: IRQENABLE regs are saved here during suspend
  * @priority_mask: 1 bit per IRQ, set to 1 if omap_prcm_irq.priority = true
  * @base_irq: base dynamic IRQ number, returned from irq_alloc_descs() in init
@@ -501,6 +502,7 @@ struct omap_prcm_irq_setup {
 	void (*ocp_barrier)(void);
 	void (*save_and_clear_irqen)(u32 *saved_mask);
 	void (*restore_irqen)(u32 *saved_mask);
+	void (*reconfigure_io_chain)(void);
 	u32 *saved_mask;
 	u32 *priority_mask;
 	int base_irq;

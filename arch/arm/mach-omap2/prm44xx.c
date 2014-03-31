@@ -47,6 +47,7 @@ static struct omap_prcm_irq_setup omap4_prcm_irq_setup = {
 	.ocp_barrier		= &omap44xx_prm_ocp_barrier,
 	.save_and_clear_irqen	= &omap44xx_prm_save_and_clear_irqen,
 	.restore_irqen		= &omap44xx_prm_restore_irqen,
+	.reconfigure_io_chain	= &omap44xx_prm_reconfigure_io_chain,
 };
 
 /*

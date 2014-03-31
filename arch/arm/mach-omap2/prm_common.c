@@ -330,12 +330,7 @@ int omap_prcm_register_chain_handler(struct omap_prcm_irq_setup *irq_setup)
 
 	if (of_have_populated_dt()) {
 		int irq = omap_prcm_event_to_irq("io");
-		if (cpu_is_omap34xx())
-			omap_pcs_legacy_init(irq,
-				omap3xxx_prm_reconfigure_io_chain);
-		else
-			omap_pcs_legacy_init(irq,
-				omap44xx_prm_reconfigure_io_chain);
+		omap_pcs_legacy_init(irq, irq_setup->reconfigure_io_chain);
 	}
 
 	return 0;
