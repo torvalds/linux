@@ -315,10 +315,9 @@ int rk_disp_pwr_disable(struct rk_lcdc_driver *dev_drv)
 		pwr_ctr_list = list_entry(pos, struct rk_disp_pwr_ctr_list, list);
 		pwr_ctr = &pwr_ctr_list->pwr_ctr;
 		if (pwr_ctr->type == GPIO) {
-			gpio_set_value(pwr_ctr->gpio,pwr_ctr->atv_val);
+			gpio_set_value(pwr_ctr->gpio,!pwr_ctr->atv_val);
 		}
 	}
-
 	return 0;
 }
 
