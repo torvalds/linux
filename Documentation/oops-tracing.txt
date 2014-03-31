@@ -265,7 +265,7 @@ characters, each representing a particular tainted value.
 
  13: 'O' if an externally-built ("out-of-tree") module has been loaded.
 
- 14: 'X' if an unsigned module has been loaded in a kernel supporting
+ 14: 'E' if an unsigned module has been loaded in a kernel supporting
      module signature.
 
 The primary reason for the 'Tainted: ' string is to tell kernel
