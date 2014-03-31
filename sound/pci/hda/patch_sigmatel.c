@@ -296,7 +296,7 @@ static void stac_gpio_set(struct hda_codec *codec, unsigned int mask,
 {
 	unsigned int gpiostate, gpiomask, gpiodir;
 
-	snd_printdd("%s msk %x dir %x gpio %x\n", __func__, mask, dir_mask, data);
+	codec_dbg(codec, "%s msk %x dir %x gpio %x\n", __func__, mask, dir_mask, data);
 
 	gpiostate = snd_hda_codec_read(codec, codec->afg, 0,
 				       AC_VERB_GET_GPIO_DATA, 0);
@@ -359,7 +359,7 @@ static int stac_vrefout_set(struct hda_codec *codec,
 {
 	int error, pinctl;
 
-	snd_printdd("%s, nid %x ctl %x\n", __func__, nid, new_vref);
+	codec_dbg(codec, "%s, nid %x ctl %x\n", __func__, nid, new_vref);
 	pinctl = snd_hda_codec_read(codec, nid, 0,
 				AC_VERB_GET_PIN_WIDGET_CONTROL, 0);
 
@@ -2086,9 +2086,12 @@ static void stac92hd83xxx_fixup_hp(struct hda_codec *codec,
 	}
 
 	if (find_mute_led_cfg(codec, spec->default_polarity))
-		snd_printd("mute LED gpio %d polarity %d\n",
+		codec_dbg(codec, "mute LED gpio %d polarity %d\n",
 				spec->gpio_led,
 				spec->gpio_led_polarity);
+
+	/* allow auto-switching of dock line-in */
+	spec->gen.line_in_auto_switch = true;
 }
 
 static void stac92hd83xxx_fixup_hp_zephyr(struct hda_codec *codec,
@@ -3077,7 +3080,7 @@ static void stac92hd71bxx_fixup_hp(struct hda_codec *codec,
 	}
 
 	if (find_mute_led_cfg(codec, 1))
-		snd_printd("mute LED gpio %d polarity %d\n",
+		codec_dbg(codec, "mute LED gpio %d polarity %d\n",
 				spec->gpio_led,
 				spec->gpio_led_polarity);
 
@@ -4422,8 +4425,8 @@ static int patch_stac92hd73xx(struct hda_codec *codec)
 
 	num_dacs = snd_hda_get_num_conns(codec, 0x0a) - 1;
 	if (num_dacs < 3 || num_dacs > 5) {
-		printk(KERN_WARNING "hda_codec: Could not determine "
-		       "number of channels defaulting to DAC count\n");
+		codec_warn(codec,
+			   "Could not determine number of channels defaulting to DAC count\n");
 		num_dacs = 5;
 	}
 

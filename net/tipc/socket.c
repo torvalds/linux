@@ -997,7 +997,7 @@ static int tipc_wait_for_rcvmsg(struct socket *sock, long timeo)
 
 	for (;;) {
 		prepare_to_wait(sk_sleep(sk), &wait, TASK_INTERRUPTIBLE);
-		if (skb_queue_empty(&sk->sk_receive_queue)) {
+		if (timeo && skb_queue_empty(&sk->sk_receive_queue)) {
 			if (sock->state == SS_DISCONNECTING) {
 				err = -ENOTCONN;
 				break;
@@ -1623,7 +1623,7 @@ static int tipc_wait_for_accept(struct socket *sock, long timeo)
 	for (;;) {
 		prepare_to_wait_exclusive(sk_sleep(sk), &wait,
 					  TASK_INTERRUPTIBLE);
-		if (skb_queue_empty(&sk->sk_receive_queue)) {
+		if (timeo && skb_queue_empty(&sk->sk_receive_queue)) {
 			release_sock(sk);
 			timeo = schedule_timeout(timeo);
 			lock_sock(sk);

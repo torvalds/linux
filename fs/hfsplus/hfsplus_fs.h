@@ -242,6 +242,7 @@ struct hfsplus_inode_info {
 	 */
 	sector_t fs_blocks;
 	u8 userflags;		/* BSD user file flags */
+	u32 subfolders;		/* Subfolder count (HFSX only) */
 	struct list_head open_dir_list;
 	loff_t phys_size;
 

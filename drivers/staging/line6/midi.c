@@ -307,8 +307,6 @@ int line6_init_midi(struct usb_line6 *line6)
 	if (err < 0)
 		return err;
 
-	snd_card_set_dev(line6->card, line6->ifcdev);
-
 	err = snd_line6_new_midi(line6midi);
 	if (err < 0)
 		return err;

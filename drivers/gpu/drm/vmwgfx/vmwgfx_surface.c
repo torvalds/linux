@@ -830,6 +830,24 @@ int vmw_surface_define_ioctl(struct drm_device *dev, void *data,
 	if (unlikely(ret != 0))
 		goto out_unlock;
 
+	/*
+	 * A gb-aware client referencing a shared surface will
+	 * expect a backup buffer to be present.
+	 */
+	if (dev_priv->has_mob && req->shareable) {
+		uint32_t backup_handle;
+
+		ret = vmw_user_dmabuf_alloc(dev_priv, tfile,
+					    res->backup_size,
+					    true,
+					    &backup_handle,
+					    &res->backup);
+		if (unlikely(ret != 0)) {
+			vmw_resource_unreference(&res);
+			goto out_unlock;
+		}
+	}
+
 	tmp = vmw_resource_reference(&srf->res);
 	ret = ttm_prime_object_init(tfile, res->backup_size, &user_srf->prime,
 				    req->shareable, VMW_RES_SURFACE,

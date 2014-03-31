@@ -9,6 +9,13 @@
 #ifndef __AD193X_H__
 #define __AD193X_H__
 
+#include <linux/regmap.h>
+
+struct device;
+
+extern const struct regmap_config ad193x_regmap_config;
+int ad193x_probe(struct device *dev, struct regmap *regmap);
+
 #define AD193X_PLL_CLK_CTRL0    0x00
 #define AD193X_PLL_POWERDOWN           0x01
 #define AD193X_PLL_INPUT_MASK   0x6

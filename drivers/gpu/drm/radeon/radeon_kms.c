@@ -33,6 +33,13 @@
 #include <linux/vga_switcheroo.h>
 #include <linux/slab.h>
 #include <linux/pm_runtime.h>
+
+#if defined(CONFIG_VGA_SWITCHEROO)
+bool radeon_is_px(void);
+#else
+static inline bool radeon_is_px(void) { return false; }
+#endif
+
 /**
  * radeon_driver_unload_kms - Main unload function for KMS.
  *
@@ -130,7 +137,8 @@ int radeon_driver_load_kms(struct drm_device *dev, unsigned long flags)
 				"Error during ACPI methods call\n");
 	}
 
-	if (radeon_runtime_pm != 0) {
+	if ((radeon_runtime_pm == 1) ||
+	    ((radeon_runtime_pm == -1) && radeon_is_px())) {
 		pm_runtime_use_autosuspend(dev->dev);
 		pm_runtime_set_autosuspend_delay(dev->dev, 5000);
 		pm_runtime_set_active(dev->dev);
