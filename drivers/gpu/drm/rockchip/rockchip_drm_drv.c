@@ -43,7 +43,6 @@ static int rockchip_drm_load(struct drm_device *dev, unsigned long flags)
 	int ret;
 	int nr;
 
-	printk(KERN_ERR"----->yzq %s %d\n",__func__,__LINE__);
 	DRM_DEBUG_DRIVER("%s\n", __FILE__);
 
 	private = kzalloc(sizeof(struct rockchip_drm_private), GFP_KERNEL);
@@ -52,7 +51,6 @@ static int rockchip_drm_load(struct drm_device *dev, unsigned long flags)
 		return -ENOMEM;
 	}
 
-	printk(KERN_ERR"----->yzq %s %d\n",__func__,__LINE__);
 	INIT_LIST_HEAD(&private->pageflip_event_list);
 	dev->dev_private = (void *)private;
 
@@ -62,14 +60,12 @@ static int rockchip_drm_load(struct drm_device *dev, unsigned long flags)
 	 * also this iommu_mapping can be used to check if iommu is supported
 	 * or not.
 	 */
-	printk(KERN_ERR"----->yzq %s %d\n",__func__,__LINE__);
 	ret = drm_create_iommu_mapping(dev);
 	if (ret < 0) {
 		DRM_ERROR("failed to create iommu mapping.\n");
 		goto err_crtc;
 	}
 
-	printk(KERN_ERR"----->yzq %s %d\n",__func__,__LINE__);
 	drm_mode_config_init(dev);
 
 	/* init kms poll for handling hpd */
@@ -81,14 +77,12 @@ static int rockchip_drm_load(struct drm_device *dev, unsigned long flags)
 	 * ROCKCHIP4 is enough to have two CRTCs and each crtc would be used
 	 * without dependency of hardware.
 	 */
-	printk(KERN_ERR"----->yzq %s %d\n",__func__,__LINE__);
 	for (nr = 0; nr < MAX_CRTC; nr++) {
 		ret = rockchip_drm_crtc_create(dev, nr);
 		if (ret)
 			goto err_release_iommu_mapping;
 	}
 
-	printk(KERN_ERR"----->yzq %s %d\n",__func__,__LINE__);
 	for (nr = 0; nr < MAX_PLANE; nr++) {
 		struct drm_plane *plane;
 		unsigned int possible_crtcs = (1 << MAX_CRTC) - 1;
@@ -98,7 +92,6 @@ static int rockchip_drm_load(struct drm_device *dev, unsigned long flags)
 			goto err_release_iommu_mapping;
 	}
 
-	printk(KERN_ERR"----->yzq %s %d\n",__func__,__LINE__);
 	ret = drm_vblank_init(dev, MAX_CRTC);
 	if (ret)
 		goto err_release_iommu_mapping;
@@ -108,7 +101,6 @@ static int rockchip_drm_load(struct drm_device *dev, unsigned long flags)
 	 * that were registered at probe() of platform driver
 	 * to the sub driver and create encoder and connector for them.
 	 */
-	printk(KERN_ERR"----->yzq %s %d\n",__func__,__LINE__);
 	ret = rockchip_drm_device_register(dev);
 	if (ret)
 		goto err_vblank;
@@ -116,12 +108,10 @@ static int rockchip_drm_load(struct drm_device *dev, unsigned long flags)
 	/* setup possible_clones. */
 	rockchip_drm_encoder_setup(dev);
 
-	printk(KERN_ERR"----->yzq %s %d\n",__func__,__LINE__);
 	/*
 	 * create and configure fb helper and also rockchip specific
 	 * fbdev object.
 	 */
-	printk(KERN_ERR"----->yzq %s %d\n",__func__,__LINE__);
 	ret = rockchip_drm_fbdev_init(dev);
 	if (ret) {
 		DRM_ERROR("failed to initialize drm fbdev\n");
@@ -130,7 +120,6 @@ static int rockchip_drm_load(struct drm_device *dev, unsigned long flags)
 
 	drm_vblank_offdelay = VBLANK_OFF_DELAY;
 
-	printk(KERN_ERR"----->yzq %s %d\n",__func__,__LINE__);
 	return 0;
 
 err_drm_device:
@@ -168,7 +157,6 @@ static int rockchip_drm_open(struct drm_device *dev, struct drm_file *file)
 {
 	struct drm_rockchip_file_private *file_priv;
 
-	printk(KERN_ERR"----->yzq %s %d\n",__func__,__LINE__);
 	DRM_DEBUG_DRIVER("%s\n", __FILE__);
 
 	file_priv = kzalloc(sizeof(*file_priv), GFP_KERNEL);
@@ -286,7 +274,6 @@ static struct drm_driver rockchip_drm_driver = {
 static int rockchip_drm_platform_probe(struct platform_device *pdev)
 {
 	DRM_DEBUG_DRIVER("%s\n", __FILE__);
-	printk(KERN_ERR"----->yzq %s %d\n",__func__,__LINE__);
 
 	pdev->dev.coherent_dma_mask = DMA_BIT_MASK(32);
 	rockchip_drm_driver.num_ioctls = DRM_ARRAY_SIZE(rockchip_ioctls);
@@ -297,7 +284,6 @@ static int rockchip_drm_platform_probe(struct platform_device *pdev)
 static int rockchip_drm_platform_remove(struct platform_device *pdev)
 {
 	DRM_DEBUG_DRIVER("%s\n", __FILE__);
-	printk(KERN_ERR"----->yzq %s %d\n",__func__,__LINE__);
 
 	drm_platform_exit(&rockchip_drm_driver, pdev);
 
@@ -319,24 +305,20 @@ static int __init rockchip_drm_init(void)
 
 	DRM_DEBUG_DRIVER("%s\n", __FILE__);
 
-#ifdef CONFIG_DRM_RK3288_FIMD
-	ret = platform_driver_register(&fimd_driver);
+
+#ifdef CONFIG_DRM_RK_PRIMARY
+	ret = platform_driver_register(&primary_platform_driver);
 	if (ret < 0)
 		goto out_fimd;
-#endif
-#ifdef CONFIG_DRM_RK3188_FIMD
-	ret = platform_driver_register(&fimd_driver);
-	if (ret < 0)
-		goto out_fimd;
+	platform_device_register_simple("primary-display", -1,
+			NULL, 0);
 #endif
 
-	printk(KERN_ERR"----->yzq %s %d\n",__func__,__LINE__);
 	ret = platform_driver_register(&rockchip_drm_platform_driver);
 	if (ret < 0)
 		goto out_drm;
 
 
-	printk(KERN_ERR"----->yzq %s %d\n",__func__,__LINE__);
 	rockchip_drm_pdev = platform_device_register_simple("rockchip-drm", -1,
 				NULL, 0);
 	if (IS_ERR(rockchip_drm_pdev)) {
@@ -344,18 +326,13 @@ static int __init rockchip_drm_init(void)
 		goto out;
 	}
 
-	printk(KERN_ERR"----->yzq %s %d\n",__func__,__LINE__);
 	return 0;
 
 out:
 	platform_driver_unregister(&rockchip_drm_platform_driver);
 out_drm:
-#ifdef CONFIG_DRM_RK3188_FIMD
-	platform_driver_unregister(&fimd_driver);
-out_fimd:
-#endif
-#ifdef CONFIG_DRM_RK3288_FIMD
-	platform_driver_unregister(&fimd_driver);
+#ifdef CONFIG_DRM_RK_PRIMARY
+	platform_driver_unregister(&primary_platform_driver);
 out_fimd:
 #endif
 	return ret;
