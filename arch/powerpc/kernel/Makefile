@@ -2,6 +2,7 @@
 # Makefile for the linux kernel.
 #
 
+CFLAGS_prom.o		= -I$(src)/../../../scripts/dtc/libfdt
 CFLAGS_ptrace.o		+= -DUTS_MACHINE='"$(UTS_MACHINE)"'
 
 subdir-ccflags-$(CONFIG_PPC_WERROR) := -Werror
