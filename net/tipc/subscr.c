@@ -263,9 +263,9 @@ static void subscr_cancel(struct tipc_subscr *s,
  *
  * Called with subscriber lock held.
  */
-static struct tipc_subscription *subscr_subscribe(struct tipc_subscr *s,
-					     struct tipc_subscriber *subscriber)
-{
+static int subscr_subscribe(struct tipc_subscr *s,
+			    struct tipc_subscriber *subscriber,
+			    struct tipc_subscription **sub_p) {
 	struct tipc_subscription *sub;
 	int swap;
 
@@ -276,23 +276,21 @@ static struct tipc_subscription *subscr_subscribe(struct tipc_subscr *s,
 	if (s->filter & htohl(TIPC_SUB_CANCEL, swap)) {
 		s->filter &= ~htohl(TIPC_SUB_CANCEL, swap);
 		subscr_cancel(s, subscriber);
-		return NULL;
+		return 0;
 	}
 
 	/* Refuse subscription if global limit exceeded */
 	if (atomic_read(&subscription_count) >= TIPC_MAX_SUBSCRIPTIONS) {
 		pr_warn("Subscription rejected, limit reached (%u)\n",
 			TIPC_MAX_SUBSCRIPTIONS);
-		subscr_terminate(subscriber);
-		return NULL;
+		return -EINVAL;
 	}
 
 	/* Allocate subscription object */
 	sub = kmalloc(sizeof(*sub), GFP_ATOMIC);
 	if (!sub) {
 		pr_warn("Subscription rejected, no memory\n");
-		subscr_terminate(subscriber);
-		return NULL;
+		return -ENOMEM;
 	}
 
 	/* Initialize subscription object */
@@ -306,8 +304,7 @@ static struct tipc_subscription *subscr_subscribe(struct tipc_subscr *s,
 	    (sub->seq.lower > sub->seq.upper)) {
 		pr_warn("Subscription rejected, illegal request\n");
 		kfree(sub);
-		subscr_terminate(subscriber);
-		return NULL;
+		return -EINVAL;
 	}
 	INIT_LIST_HEAD(&sub->nameseq_list);
 	list_add(&sub->subscription_list, &subscriber->subscription_list);
@@ -320,8 +317,8 @@ static struct tipc_subscription *subscr_subscribe(struct tipc_subscr *s,
 			     (Handler)subscr_timeout, (unsigned long)sub);
 		k_start_timer(&sub->timer, sub->timeout);
 	}
-
-	return sub;
+	*sub_p = sub;
+	return 0;
 }
 
 /* Handle one termination request for the subscriber */
@@ -335,10 +332,14 @@ static void subscr_conn_msg_event(int conid, struct sockaddr_tipc *addr,
 				  void *usr_data, void *buf, size_t len)
 {
 	struct tipc_subscriber *subscriber = usr_data;
-	struct tipc_subscription *sub;
+	struct tipc_subscription *sub = NULL;
 
 	spin_lock_bh(&subscriber->lock);
-	sub = subscr_subscribe((struct tipc_subscr *)buf, subscriber);
+	if (subscr_subscribe((struct tipc_subscr *)buf, subscriber, &sub) < 0) {
+		spin_unlock_bh(&subscriber->lock);
+		subscr_terminate(subscriber);
+		return;
+	}
 	if (sub)
 		tipc_nametbl_subscribe(sub);
 	spin_unlock_bh(&subscriber->lock);

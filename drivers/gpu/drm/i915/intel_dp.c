@@ -1249,17 +1249,24 @@ void ironlake_edp_panel_off(struct intel_dp *intel_dp)
 
 	DRM_DEBUG_KMS("Turn eDP power off\n");
 
+	WARN(!intel_dp->want_panel_vdd, "Need VDD to turn off panel\n");
+
 	pp = ironlake_get_pp_control(intel_dp);
 	/* We need to switch off panel power _and_ force vdd, for otherwise some
 	 * panels get very unhappy and cease to work. */
-	pp &= ~(POWER_TARGET_ON | PANEL_POWER_RESET | EDP_BLC_ENABLE);
+	pp &= ~(POWER_TARGET_ON | EDP_FORCE_VDD | PANEL_POWER_RESET | EDP_BLC_ENABLE);
 
 	pp_ctrl_reg = _pp_ctrl_reg(intel_dp);
 
 	I915_WRITE(pp_ctrl_reg, pp);
 	POSTING_READ(pp_ctrl_reg);
 
+	intel_dp->want_panel_vdd = false;
+
 	ironlake_wait_panel_off(intel_dp);
+
+	/* We got a reference when we enabled the VDD. */
+	intel_runtime_pm_put(dev_priv);
 }
 
 void ironlake_edp_backlight_on(struct intel_dp *intel_dp)
@@ -1639,7 +1646,7 @@ static void intel_edp_psr_enable_source(struct intel_dp *intel_dp)
 		val |= EDP_PSR_LINK_DISABLE;
 
 	I915_WRITE(EDP_PSR_CTL(dev), val |
-		   IS_BROADWELL(dev) ? 0 : link_entry_time |
+		   (IS_BROADWELL(dev) ? 0 : link_entry_time) |
 		   max_sleep_time << EDP_PSR_MAX_SLEEP_TIME_SHIFT |
 		   idle_frames << EDP_PSR_IDLE_FRAME_SHIFT |
 		   EDP_PSR_ENABLE);
@@ -1784,6 +1791,7 @@ static void intel_disable_dp(struct intel_encoder *encoder)
 
 	/* Make sure the panel is off before trying to change the mode. But also
 	 * ensure that we have vdd while we switch off the panel. */
+	ironlake_edp_panel_vdd_on(intel_dp);
 	ironlake_edp_backlight_off(intel_dp);
 	intel_dp_sink_dpms(intel_dp, DRM_MODE_DPMS_OFF);
 	ironlake_edp_panel_off(intel_dp);
