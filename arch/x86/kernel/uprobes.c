@@ -482,8 +482,6 @@ int arch_uprobe_analyze_insn(struct arch_uprobe *auprobe, struct mm_struct *mm, 
 	 * and annotate arch_uprobe->fixups accordingly. To start with, ->fixups
 	 * is either zero or it reflects rip-related fixups.
 	 */
-	handle_riprel_insn(auprobe, &insn);
-
 	switch (OPCODE1(&insn)) {
 	case 0x9d:		/* popf */
 		auprobe->fixups |= UPROBE_FIX_SETF;
@@ -512,9 +510,9 @@ int arch_uprobe_analyze_insn(struct arch_uprobe *auprobe, struct mm_struct *mm, 
 		case 4: case 5:			/* jmp or ljmp, indirect */
 			fix_ip = false;
 		}
-		break;
+		/* fall through */
 	default:
-		break;
+		handle_riprel_insn(auprobe, &insn);
 	}
 
 	if (fix_ip)
