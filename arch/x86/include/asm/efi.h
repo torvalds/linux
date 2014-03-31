@@ -19,9 +19,11 @@
  */
 #define EFI_OLD_MEMMAP		EFI_ARCH_1
 
+#define EFI32_LOADER_SIGNATURE	"EL32"
+#define EFI64_LOADER_SIGNATURE	"EL64"
+
 #ifdef CONFIG_X86_32
 
-#define EFI_LOADER_SIGNATURE	"EL32"
 
 extern unsigned long asmlinkage efi_call_phys(void *, ...);
 
@@ -56,8 +58,6 @@ extern unsigned long asmlinkage efi_call_phys(void *, ...);
 #define efi_ioremap(addr, size, type, attr)	ioremap_cache(addr, size)
 
 #else /* !CONFIG_X86_32 */
-
-#define EFI_LOADER_SIGNATURE	"EL64"
 
 extern u64 efi_call0(void *fp);
 extern u64 efi_call1(void *fp, u64 arg1);
@@ -119,7 +119,6 @@ extern void __iomem *efi_ioremap(unsigned long addr, unsigned long size,
 #endif /* CONFIG_X86_32 */
 
 extern int add_efi_memmap;
-extern unsigned long x86_efi_facility;
 extern struct efi_scratch efi_scratch;
 extern void efi_set_executable(efi_memory_desc_t *md, bool executable);
 extern int efi_memblock_x86_reserve_range(void);
@@ -130,10 +129,12 @@ extern void efi_memory_uc(u64 addr, unsigned long size);
 extern void __init efi_map_region(efi_memory_desc_t *md);
 extern void __init efi_map_region_fixed(efi_memory_desc_t *md);
 extern void efi_sync_low_kernel_mappings(void);
-extern void efi_setup_page_tables(void);
+extern int efi_setup_page_tables(unsigned long pa_memmap, unsigned num_pages);
+extern void efi_cleanup_page_tables(unsigned long pa_memmap, unsigned num_pages);
 extern void __init old_map_region(efi_memory_desc_t *md);
 extern void __init runtime_code_page_mkexec(void);
 extern void __init efi_runtime_mkexec(void);
+extern void __init efi_dump_pagetable(void);
 extern void __init efi_apply_memmap_quirks(void);
 
 struct efi_setup_data {
@@ -153,8 +154,40 @@ static inline bool efi_is_native(void)
 	return IS_ENABLED(CONFIG_X86_64) == efi_enabled(EFI_64BIT);
 }
 
+static inline bool efi_runtime_supported(void)
+{
+	if (efi_is_native())
+		return true;
+
+	if (IS_ENABLED(CONFIG_EFI_MIXED) && !efi_enabled(EFI_OLD_MEMMAP))
+		return true;
+
+	return false;
+}
+
 extern struct console early_efi_console;
 extern void parse_efi_setup(u64 phys_addr, u32 data_len);
+
+#ifdef CONFIG_EFI_MIXED
+extern void efi_thunk_runtime_setup(void);
+extern efi_status_t efi_thunk_set_virtual_address_map(
+	void *phys_set_virtual_address_map,
+	unsigned long memory_map_size,
+	unsigned long descriptor_size,
+	u32 descriptor_version,
+	efi_memory_desc_t *virtual_map);
+#else
+static inline void efi_thunk_runtime_setup(void) {}
+static inline efi_status_t efi_thunk_set_virtual_address_map(
+	void *phys_set_virtual_address_map,
+	unsigned long memory_map_size,
+	unsigned long descriptor_size,
+	u32 descriptor_version,
+	efi_memory_desc_t *virtual_map)
+{
+	return EFI_SUCCESS;
+}
+#endif /* CONFIG_EFI_MIXED */
 #else
 /*
  * IF EFI is not configured, have the EFI calls return -ENOSYS.
