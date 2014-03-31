@@ -897,6 +897,8 @@ void intel_display_power_get(struct drm_i915_private *dev_priv,
 void intel_display_power_put(struct drm_i915_private *dev_priv,
 			     enum intel_display_power_domain domain);
 void intel_power_domains_init_hw(struct drm_i915_private *dev_priv);
+void intel_init_gt_powersave(struct drm_device *dev);
+void intel_cleanup_gt_powersave(struct drm_device *dev);
 void intel_enable_gt_powersave(struct drm_device *dev);
 void intel_disable_gt_powersave(struct drm_device *dev);
 void ironlake_teardown_rc6(struct drm_device *dev);

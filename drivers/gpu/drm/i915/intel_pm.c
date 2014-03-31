@@ -3201,11 +3201,6 @@ static void valleyview_disable_rps(struct drm_device *dev)
 	I915_WRITE(GEN6_RC_CONTROL, 0);
 
 	gen6_disable_rps_interrupts(dev);
-
-	if (dev_priv->vlv_pctx) {
-		drm_gem_object_unreference(&dev_priv->vlv_pctx->base);
-		dev_priv->vlv_pctx = NULL;
-	}
 }
 
 static void intel_print_rc6_info(struct drm_device *dev, u32 mode)
@@ -3549,6 +3544,15 @@ int valleyview_rps_min_freq(struct drm_i915_private *dev_priv)
 	return vlv_punit_read(dev_priv, PUNIT_REG_GPU_LFM) & 0xff;
 }
 
+/* Check that the pctx buffer wasn't move under us. */
+static void valleyview_check_pctx(struct drm_i915_private *dev_priv)
+{
+	unsigned long pctx_addr = I915_READ(VLV_PCBR) & ~4095;
+
+	WARN_ON(pctx_addr != dev_priv->mm.stolen_base +
+			     dev_priv->vlv_pctx->stolen->start);
+}
+
 static void valleyview_setup_pctx(struct drm_device *dev)
 {
 	struct drm_i915_private *dev_priv = dev->dev_private;
@@ -3593,6 +3597,17 @@ out:
 	dev_priv->vlv_pctx = pctx;
 }
 
+static void valleyview_cleanup_pctx(struct drm_device *dev)
+{
+	struct drm_i915_private *dev_priv = dev->dev_private;
+
+	if (WARN_ON(!dev_priv->vlv_pctx))
+		return;
+
+	drm_gem_object_unreference(&dev_priv->vlv_pctx->base);
+	dev_priv->vlv_pctx = NULL;
+}
+
 static void valleyview_enable_rps(struct drm_device *dev)
 {
 	struct drm_i915_private *dev_priv = dev->dev_private;
@@ -3601,6 +3616,8 @@ static void valleyview_enable_rps(struct drm_device *dev)
 	int i;
 
 	WARN_ON(!mutex_is_locked(&dev_priv->rps.hw_lock));
+
+	valleyview_check_pctx(dev_priv);
 
 	if ((gtfifodbg = I915_READ(GTFIFODBG))) {
 		DRM_DEBUG_DRIVER("GT fifo had a previous error %x\n",
@@ -4418,6 +4435,18 @@ static void intel_init_emon(struct drm_device *dev)
 	dev_priv->ips.corr = (lcfuse & LCFUSE_HIV_MASK);
 }
 
+void intel_init_gt_powersave(struct drm_device *dev)
+{
+	if (IS_VALLEYVIEW(dev))
+		valleyview_setup_pctx(dev);
+}
+
+void intel_cleanup_gt_powersave(struct drm_device *dev)
+{
+	if (IS_VALLEYVIEW(dev))
+		valleyview_cleanup_pctx(dev);
+}
+
 void intel_disable_gt_powersave(struct drm_device *dev)
 {
 	struct drm_i915_private *dev_priv = dev->dev_private;
@@ -4472,8 +4501,6 @@ void intel_enable_gt_powersave(struct drm_device *dev)
 		ironlake_enable_rc6(dev);
 		intel_init_emon(dev);
 	} else if (IS_GEN6(dev) || IS_GEN7(dev)) {
-		if (IS_VALLEYVIEW(dev))
-			valleyview_setup_pctx(dev);
 		/*
 		 * PCU communication is slow and this doesn't need to be
 		 * done at any specific time, so do this out of our fast path
