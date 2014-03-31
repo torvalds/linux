@@ -59,48 +59,48 @@ ENDPROC(compat_sys_fstatfs64_wrapper)
  * extension.
  */
 compat_sys_pread64_wrapper:
-	orr	x3, x4, x5, lsl #32
+	regs_to_64	x3, x4, x5
 	b	sys_pread64
 ENDPROC(compat_sys_pread64_wrapper)
 
 compat_sys_pwrite64_wrapper:
-	orr	x3, x4, x5, lsl #32
+	regs_to_64	x3, x4, x5
 	b	sys_pwrite64
 ENDPROC(compat_sys_pwrite64_wrapper)
 
 compat_sys_truncate64_wrapper:
-	orr	x1, x2, x3, lsl #32
+	regs_to_64	x1, x2, x3
 	b	sys_truncate
 ENDPROC(compat_sys_truncate64_wrapper)
 
 compat_sys_ftruncate64_wrapper:
-	orr	x1, x2, x3, lsl #32
+	regs_to_64	x1, x2, x3
 	b	sys_ftruncate
 ENDPROC(compat_sys_ftruncate64_wrapper)
 
 compat_sys_readahead_wrapper:
-	orr	x1, x2, x3, lsl #32
+	regs_to_64	x1, x2, x3
 	mov	w2, w4
 	b	sys_readahead
 ENDPROC(compat_sys_readahead_wrapper)
 
 compat_sys_fadvise64_64_wrapper:
 	mov	w6, w1
-	orr	x1, x2, x3, lsl #32
-	orr	x2, x4, x5, lsl #32
+	regs_to_64	x1, x2, x3
+	regs_to_64	x2, x4, x5
 	mov	w3, w6
 	b	sys_fadvise64_64
 ENDPROC(compat_sys_fadvise64_64_wrapper)
 
 compat_sys_sync_file_range2_wrapper:
-	orr	x2, x2, x3, lsl #32
-	orr	x3, x4, x5, lsl #32
+	regs_to_64	x2, x2, x3
+	regs_to_64	x3, x4, x5
 	b	sys_sync_file_range2
 ENDPROC(compat_sys_sync_file_range2_wrapper)
 
 compat_sys_fallocate_wrapper:
-	orr	x2, x2, x3, lsl #32
-	orr	x3, x4, x5, lsl #32
+	regs_to_64	x2, x2, x3
+	regs_to_64	x3, x4, x5
 	b	sys_fallocate
 ENDPROC(compat_sys_fallocate_wrapper)
 
