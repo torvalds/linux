@@ -314,9 +314,15 @@ struct iwl_lq_sta {
 	enum ieee80211_band band;
 
 	/* The following are bitmaps of rates; IWL_RATE_6M_MASK, etc. */
-	u16 active_legacy_rate;
-	u16 active_siso_rate;
-	u16 active_mimo2_rate;
+	unsigned long active_legacy_rate;
+	unsigned long active_siso_rate;
+	unsigned long active_mimo2_rate;
+
+	/* Highest rate per Tx mode */
+	u8 max_legacy_rate_idx;
+	u8 max_siso_rate_idx;
+	u8 max_mimo2_rate_idx;
+
 	s8 max_rate_idx;     /* Max rate set by user */
 	u8 missed_rate_counter;
 
