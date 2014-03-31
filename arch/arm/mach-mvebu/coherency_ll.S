@@ -20,6 +20,8 @@
 #define ARMADA_XP_CFB_CTL_REG_OFFSET 0x0
 #define ARMADA_XP_CFB_CFG_REG_OFFSET 0x4
 
+#include <asm/assembler.h>
+
 	.text
 /*
  * r0: Coherency fabric base register address
@@ -29,6 +31,7 @@ ENTRY(ll_set_cpu_coherent)
 	/* Create bit by cpu index */
 	mov	r3, #(1 << 24)
 	lsl	r1, r3, r1
+ARM_BE8(rev	r1, r1)
 
 	/* Add CPU to SMP group - Atomic */
 	add	r3, r0, #ARMADA_XP_CFB_CTL_REG_OFFSET
