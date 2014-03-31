@@ -23,7 +23,6 @@ struct blk_mq_ctx {
 };
 
 void __blk_mq_complete_request(struct request *rq);
-void blk_mq_run_request(struct request *rq, bool run_queue, bool async);
 void blk_mq_run_hw_queue(struct blk_mq_hw_ctx *hctx, bool async);
 void blk_mq_init_flush(struct request_queue *q);
 void blk_mq_drain_queue(struct request_queue *q);

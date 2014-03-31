@@ -195,7 +195,8 @@ struct slave {
 	s8     new_link;
 	u8     backup:1,   /* indicates backup slave. Value corresponds with
 			      BOND_STATE_ACTIVE and BOND_STATE_BACKUP */
-	       inactive:1; /* indicates inactive slave */
+	       inactive:1, /* indicates inactive slave */
+	       should_notify:1; /* indicateds whether the state changed */
 	u8     duplex;
 	u32    original_mtu;
 	u32    link_failure_count;
@@ -303,6 +304,24 @@ static inline void bond_set_backup_slave(struct slave *slave)
 	}
 }
 
+static inline void bond_set_slave_state(struct slave *slave,
+					int slave_state, bool notify)
+{
+	if (slave->backup == slave_state)
+		return;
+
+	slave->backup = slave_state;
+	if (notify) {
+		rtmsg_ifinfo(RTM_NEWLINK, slave->dev, 0, GFP_KERNEL);
+		slave->should_notify = 0;
+	} else {
+		if (slave->should_notify)
+			slave->should_notify = 0;
+		else
+			slave->should_notify = 1;
+	}
+}
+
 static inline void bond_slave_state_change(struct bonding *bond)
 {
 	struct list_head *iter;
@@ -313,6 +332,19 @@ static inline void bond_slave_state_change(struct bonding *bond)
 			bond_set_active_slave(tmp);
 		else if (tmp->link == BOND_LINK_DOWN)
 			bond_set_backup_slave(tmp);
+	}
+}
+
+static inline void bond_slave_state_notify(struct bonding *bond)
+{
+	struct list_head *iter;
+	struct slave *tmp;
+
+	bond_for_each_slave(bond, tmp, iter) {
+		if (tmp->should_notify) {
+			rtmsg_ifinfo(RTM_NEWLINK, tmp->dev, 0, GFP_KERNEL);
+			tmp->should_notify = 0;
+		}
 	}
 }
 
@@ -342,6 +374,9 @@ static inline bool bond_is_active_slave(struct slave *slave)
 #define BOND_ARP_VALIDATE_BACKUP	(1 << BOND_STATE_BACKUP)
 #define BOND_ARP_VALIDATE_ALL		(BOND_ARP_VALIDATE_ACTIVE | \
 					 BOND_ARP_VALIDATE_BACKUP)
+
+#define BOND_SLAVE_NOTIFY_NOW		true
+#define BOND_SLAVE_NOTIFY_LATER		false
 
 static inline int slave_do_arp_validate(struct bonding *bond,
 					struct slave *slave)
@@ -394,17 +429,19 @@ static inline void bond_netpoll_send_skb(const struct slave *slave,
 }
 #endif
 
-static inline void bond_set_slave_inactive_flags(struct slave *slave)
+static inline void bond_set_slave_inactive_flags(struct slave *slave,
+						 bool notify)
 {
 	if (!bond_is_lb(slave->bond))
-		bond_set_backup_slave(slave);
+		bond_set_slave_state(slave, BOND_STATE_BACKUP, notify);
 	if (!slave->bond->params.all_slaves_active)
 		slave->inactive = 1;
 }
 
-static inline void bond_set_slave_active_flags(struct slave *slave)
+static inline void bond_set_slave_active_flags(struct slave *slave,
+					       bool notify)
 {
-	bond_set_active_slave(slave);
+	bond_set_slave_state(slave, BOND_STATE_ACTIVE, notify);
 	slave->inactive = 0;
 }
 

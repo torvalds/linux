@@ -25,6 +25,11 @@
 
 /*----------------------------------------------------------------*/
 
+/*
+ * Thin metadata superblock flags.
+ */
+#define THIN_METADATA_NEEDS_CHECK_FLAG (1 << 0)
+
 struct dm_pool_metadata;
 struct dm_thin_device;
 
@@ -201,6 +206,12 @@ int dm_pool_register_metadata_threshold(struct dm_pool_metadata *pmd,
 					dm_block_t threshold,
 					dm_sm_threshold_fn fn,
 					void *context);
+
+/*
+ * Updates the superblock immediately.
+ */
+int dm_pool_metadata_set_needs_check(struct dm_pool_metadata *pmd);
+bool dm_pool_metadata_needs_check(struct dm_pool_metadata *pmd);
 
 /*----------------------------------------------------------------*/
 

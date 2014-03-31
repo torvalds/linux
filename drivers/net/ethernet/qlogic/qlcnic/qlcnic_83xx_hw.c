@@ -340,6 +340,7 @@ int qlcnic_83xx_setup_intr(struct qlcnic_adapter *adapter)
 			if (qlcnic_sriov_vf_check(adapter))
 				return -EINVAL;
 			num_msix = 1;
+			adapter->drv_sds_rings = QLCNIC_SINGLE_RING;
 			adapter->drv_tx_rings = QLCNIC_SINGLE_RING;
 		}
 	}

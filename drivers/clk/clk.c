@@ -2226,24 +2226,25 @@ EXPORT_SYMBOL_GPL(devm_clk_unregister);
  */
 int __clk_get(struct clk *clk)
 {
-	if (clk && !try_module_get(clk->owner))
-		return 0;
+	if (clk) {
+		if (!try_module_get(clk->owner))
+			return 0;
 
-	kref_get(&clk->ref);
+		kref_get(&clk->ref);
+	}
 	return 1;
 }
 
 void __clk_put(struct clk *clk)
 {
-	if (WARN_ON_ONCE(IS_ERR(clk)))
+	if (!clk || WARN_ON_ONCE(IS_ERR(clk)))
 		return;
 
 	clk_prepare_lock();
 	kref_put(&clk->ref, __clk_release);
 	clk_prepare_unlock();
 
-	if (clk)
-		module_put(clk->owner);
+	module_put(clk->owner);
 }
 
 /***        clk rate change notifiers        ***/

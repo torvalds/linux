@@ -9,6 +9,7 @@
 #define _ASM_ASMMACRO_H
 
 #include <asm/hazards.h>
+#include <asm/asm-offsets.h>
 
 #ifdef CONFIG_32BIT
 #include <asm/asmmacro-32.h>
@@ -54,11 +55,21 @@
 	.endm
 
 	.macro	local_irq_disable reg=t0
+#ifdef CONFIG_PREEMPT
+	lw      \reg, TI_PRE_COUNT($28)
+	addi    \reg, \reg, 1
+	sw      \reg, TI_PRE_COUNT($28)
+#endif
 	mfc0	\reg, CP0_STATUS
 	ori	\reg, \reg, 1
 	xori	\reg, \reg, 1
 	mtc0	\reg, CP0_STATUS
 	irq_disable_hazard
+#ifdef CONFIG_PREEMPT
+	lw      \reg, TI_PRE_COUNT($28)
+	addi    \reg, \reg, -1
+	sw      \reg, TI_PRE_COUNT($28)
+#endif
 	.endm
 #endif /* CONFIG_MIPS_MT_SMTC */
 
@@ -106,7 +117,7 @@
 	.endm
 
 	.macro	fpu_save_double thread status tmp
-#if defined(CONFIG_MIPS64) || defined(CONFIG_CPU_MIPS32_R2)
+#if defined(CONFIG_64BIT) || defined(CONFIG_CPU_MIPS32_R2)
 	sll	\tmp, \status, 5
 	bgez	\tmp, 10f
 	fpu_save_16odd \thread
@@ -159,7 +170,7 @@
 	.endm
 
 	.macro	fpu_restore_double thread status tmp
-#if defined(CONFIG_MIPS64) || defined(CONFIG_CPU_MIPS32_R2)
+#if defined(CONFIG_64BIT) || defined(CONFIG_CPU_MIPS32_R2)
 	sll	\tmp, \status, 5
 	bgez	\tmp, 10f				# 16 register mode?
 

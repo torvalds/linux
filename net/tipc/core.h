@@ -90,7 +90,6 @@ extern int tipc_random __read_mostly;
 /*
  * Routines available to privileged subsystems
  */
-int tipc_core_start_net(unsigned long);
 int tipc_handler_start(void);
 void tipc_handler_stop(void);
 int tipc_netlink_start(void);
