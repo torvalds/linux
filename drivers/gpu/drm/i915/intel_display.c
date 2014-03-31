@@ -8359,7 +8359,7 @@ struct drm_display_mode *intel_crtc_mode_get(struct drm_device *dev,
 static void intel_increase_pllclock(struct drm_crtc *crtc)
 {
 	struct drm_device *dev = crtc->dev;
-	drm_i915_private_t *dev_priv = dev->dev_private;
+	struct drm_i915_private *dev_priv = dev->dev_private;
 	struct intel_crtc *intel_crtc = to_intel_crtc(crtc);
 	int pipe = intel_crtc->pipe;
 	int dpll_reg = DPLL(pipe);
@@ -8390,7 +8390,7 @@ static void intel_increase_pllclock(struct drm_crtc *crtc)
 static void intel_decrease_pllclock(struct drm_crtc *crtc)
 {
 	struct drm_device *dev = crtc->dev;
-	drm_i915_private_t *dev_priv = dev->dev_private;
+	struct drm_i915_private *dev_priv = dev->dev_private;
 	struct intel_crtc *intel_crtc = to_intel_crtc(crtc);
 
 	if (HAS_PCH_SPLIT(dev))
@@ -8531,7 +8531,7 @@ static void intel_unpin_work_fn(struct work_struct *__work)
 static void do_intel_finish_page_flip(struct drm_device *dev,
 				      struct drm_crtc *crtc)
 {
-	drm_i915_private_t *dev_priv = dev->dev_private;
+	struct drm_i915_private *dev_priv = dev->dev_private;
 	struct intel_crtc *intel_crtc = to_intel_crtc(crtc);
 	struct intel_unpin_work *work;
 	unsigned long flags;
@@ -8572,7 +8572,7 @@ static void do_intel_finish_page_flip(struct drm_device *dev,
 
 void intel_finish_page_flip(struct drm_device *dev, int pipe)
 {
-	drm_i915_private_t *dev_priv = dev->dev_private;
+	struct drm_i915_private *dev_priv = dev->dev_private;
 	struct drm_crtc *crtc = dev_priv->pipe_to_crtc_mapping[pipe];
 
 	do_intel_finish_page_flip(dev, crtc);
@@ -8580,7 +8580,7 @@ void intel_finish_page_flip(struct drm_device *dev, int pipe)
 
 void intel_finish_page_flip_plane(struct drm_device *dev, int plane)
 {
-	drm_i915_private_t *dev_priv = dev->dev_private;
+	struct drm_i915_private *dev_priv = dev->dev_private;
 	struct drm_crtc *crtc = dev_priv->plane_to_crtc_mapping[plane];
 
 	do_intel_finish_page_flip(dev, crtc);
@@ -8588,7 +8588,7 @@ void intel_finish_page_flip_plane(struct drm_device *dev, int plane)
 
 void intel_prepare_page_flip(struct drm_device *dev, int plane)
 {
-	drm_i915_private_t *dev_priv = dev->dev_private;
+	struct drm_i915_private *dev_priv = dev->dev_private;
 	struct intel_crtc *intel_crtc =
 		to_intel_crtc(dev_priv->plane_to_crtc_mapping[plane]);
 	unsigned long flags;
@@ -9763,7 +9763,7 @@ check_encoder_state(struct drm_device *dev)
 static void
 check_crtc_state(struct drm_device *dev)
 {
-	drm_i915_private_t *dev_priv = dev->dev_private;
+	struct drm_i915_private *dev_priv = dev->dev_private;
 	struct intel_crtc *crtc;
 	struct intel_encoder *encoder;
 	struct intel_crtc_config pipe_config;
@@ -9831,7 +9831,7 @@ check_crtc_state(struct drm_device *dev)
 static void
 check_shared_dpll_state(struct drm_device *dev)
 {
-	drm_i915_private_t *dev_priv = dev->dev_private;
+	struct drm_i915_private *dev_priv = dev->dev_private;
 	struct intel_crtc *crtc;
 	struct intel_dpll_hw_state dpll_hw_state;
 	int i;
@@ -9904,7 +9904,7 @@ static int __intel_set_mode(struct drm_crtc *crtc,
 			    int x, int y, struct drm_framebuffer *fb)
 {
 	struct drm_device *dev = crtc->dev;
-	drm_i915_private_t *dev_priv = dev->dev_private;
+	struct drm_i915_private *dev_priv = dev->dev_private;
 	struct drm_display_mode *saved_mode;
 	struct intel_crtc_config *pipe_config = NULL;
 	struct intel_crtc *intel_crtc;
@@ -10551,7 +10551,7 @@ static void intel_shared_dpll_init(struct drm_device *dev)
 
 static void intel_crtc_init(struct drm_device *dev, int pipe)
 {
-	drm_i915_private_t *dev_priv = dev->dev_private;
+	struct drm_i915_private *dev_priv = dev->dev_private;
 	struct intel_crtc *intel_crtc;
 	int i;
 
@@ -11939,7 +11939,7 @@ struct intel_display_error_state {
 struct intel_display_error_state *
 intel_display_capture_error_state(struct drm_device *dev)
 {
-	drm_i915_private_t *dev_priv = dev->dev_private;
+	struct drm_i915_private *dev_priv = dev->dev_private;
 	struct intel_display_error_state *error;
 	int transcoders[] = {
 		TRANSCODER_A,
