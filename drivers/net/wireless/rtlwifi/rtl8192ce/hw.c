@@ -476,7 +476,7 @@ void rtl92ce_set_hw_reg(struct ieee80211_hw *hw, u8 variable, u8 *val)
 			break;
 		}
 	case HW_VAR_H2C_FW_P2P_PS_OFFLOAD:
-		rtl92c_set_p2p_ps_offload_cmd(hw, (*(u8 *)val));
+		rtl92c_set_p2p_ps_offload_cmd(hw, *val);
 		break;
 	case HW_VAR_AID:{
 			u16 u2btmp;
@@ -521,21 +521,21 @@ void rtl92ce_set_hw_reg(struct ieee80211_hw *hw, u8 variable, u8 *val)
 						(u8 *)(&fw_current_inps));
 				rtlpriv->cfg->ops->set_hw_reg(hw,
 						HW_VAR_H2C_FW_PWRMODE,
-						(u8 *)(&ppsc->fwctrl_psmode));
+						&ppsc->fwctrl_psmode);
 
 				rtlpriv->cfg->ops->set_hw_reg(hw,
-						HW_VAR_SET_RPWM,
-						(u8 *)(&rpwm_val));
+							      HW_VAR_SET_RPWM,
+							      &rpwm_val);
 			} else {
 				rpwm_val = 0x0C;	/* RF on */
 				fw_pwrmode = FW_PS_ACTIVE_MODE;
 				fw_current_inps = false;
 				rtlpriv->cfg->ops->set_hw_reg(hw,
-						HW_VAR_SET_RPWM,
-						(u8 *)(&rpwm_val));
+							      HW_VAR_SET_RPWM,
+							      &rpwm_val);
 				rtlpriv->cfg->ops->set_hw_reg(hw,
 						HW_VAR_H2C_FW_PWRMODE,
-						(u8 *)(&fw_pwrmode));
+						&fw_pwrmode);
 
 				rtlpriv->cfg->ops->set_hw_reg(hw,
 						HW_VAR_FW_PSMODE_STATUS,

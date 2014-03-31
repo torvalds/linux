@@ -730,13 +730,13 @@ void mwifiex_process_tdls_action_frame(struct mwifiex_private *priv,
 
 	if (len < (sizeof(struct ethhdr) + 3))
 		return;
-	if (*(u8 *)(buf + sizeof(struct ethhdr)) != WLAN_TDLS_SNAP_RFTYPE)
+	if (*(buf + sizeof(struct ethhdr)) != WLAN_TDLS_SNAP_RFTYPE)
 		return;
-	if (*(u8 *)(buf + sizeof(struct ethhdr) + 1) != WLAN_CATEGORY_TDLS)
+	if (*(buf + sizeof(struct ethhdr) + 1) != WLAN_CATEGORY_TDLS)
 		return;
 
 	peer = buf + ETH_ALEN;
-	action = *(u8 *)(buf + sizeof(struct ethhdr) + 2);
+	action = *(buf + sizeof(struct ethhdr) + 2);
 
 	/* just handle TDLS setup request/response/confirm */
 	if (action > WLAN_TDLS_SETUP_CONFIRM)

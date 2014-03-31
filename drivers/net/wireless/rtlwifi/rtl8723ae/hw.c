@@ -207,14 +207,13 @@ void rtl8723ae_set_hw_reg(struct ieee80211_hw *hw, u8 variable, u8 *val)
 		rtl_write_byte(rtlpriv, REG_SLOT, val[0]);
 
 		for (e_aci = 0; e_aci < AC_MAX; e_aci++) {
-			rtlpriv->cfg->ops->set_hw_reg(hw,
-						      HW_VAR_AC_PARAM,
-						      (u8 *) (&e_aci));
+			rtlpriv->cfg->ops->set_hw_reg(hw, HW_VAR_AC_PARAM,
+						      &e_aci);
 		}
 		break; }
 	case HW_VAR_ACK_PREAMBLE:{
 		u8 reg_tmp;
-		u8 short_preamble = (bool) (*(u8 *) val);
+		u8 short_preamble = (bool)*val;
 		reg_tmp = (mac->cur_40_prime_sc) << 5;
 		if (short_preamble)
 			reg_tmp |= 0x80;
@@ -225,7 +224,7 @@ void rtl8723ae_set_hw_reg(struct ieee80211_hw *hw, u8 variable, u8 *val)
 		u8 min_spacing_to_set;
 		u8 sec_min_space;
 
-		min_spacing_to_set = *((u8 *) val);
+		min_spacing_to_set = *val;
 		if (min_spacing_to_set <= 7) {
 			sec_min_space = 0;
 
@@ -249,7 +248,7 @@ void rtl8723ae_set_hw_reg(struct ieee80211_hw *hw, u8 variable, u8 *val)
 	case HW_VAR_SHORTGI_DENSITY:{
 		u8 density_to_set;
 
-		density_to_set = *((u8 *) val);
+		density_to_set = *val;
 		mac->min_space_cfg |= (density_to_set << 3);
 
 		RT_TRACE(rtlpriv, COMP_MLME, DBG_LOUD,
@@ -273,7 +272,7 @@ void rtl8723ae_set_hw_reg(struct ieee80211_hw *hw, u8 variable, u8 *val)
 		else
 			p_regtoset = regtoset_normal;
 
-		factor_toset = *((u8 *) val);
+		factor_toset = *val;
 		if (factor_toset <= 3) {
 			factor_toset = (1 << (factor_toset + 2));
 			if (factor_toset > 0xf)
@@ -304,16 +303,15 @@ void rtl8723ae_set_hw_reg(struct ieee80211_hw *hw, u8 variable, u8 *val)
 		}
 		break; }
 	case HW_VAR_AC_PARAM:{
-		u8 e_aci = *((u8 *) val);
+		u8 e_aci = *val;
 		rtl8723_dm_init_edca_turbo(hw);
 
 		if (rtlpci->acm_method != EACMWAY2_SW)
-			rtlpriv->cfg->ops->set_hw_reg(hw,
-						      HW_VAR_ACM_CTRL,
-						      (u8 *) (&e_aci));
+			rtlpriv->cfg->ops->set_hw_reg(hw, HW_VAR_ACM_CTRL,
+						      &e_aci);
 		break; }
 	case HW_VAR_ACM_CTRL:{
-		u8 e_aci = *((u8 *) val);
+		u8 e_aci = *val;
 		union aci_aifsn *p_aci_aifsn =
 		    (union aci_aifsn *)(&(mac->ac[0].aifs));
 		u8 acm = p_aci_aifsn->f.acm;
@@ -366,7 +364,7 @@ void rtl8723ae_set_hw_reg(struct ieee80211_hw *hw, u8 variable, u8 *val)
 		rtlpci->receive_config = ((u32 *) (val))[0];
 		break;
 	case HW_VAR_RETRY_LIMIT:{
-		u8 retry_limit = ((u8 *) (val))[0];
+		u8 retry_limit = *val;
 
 		rtl_write_word(rtlpriv, REG_RL,
 			       retry_limit << RETRY_LIMIT_SHORT_SHIFT |
@@ -379,13 +377,13 @@ void rtl8723ae_set_hw_reg(struct ieee80211_hw *hw, u8 variable, u8 *val)
 		rtlefuse->efuse_usedbytes = *((u16 *) val);
 		break;
 	case HW_VAR_EFUSE_USAGE:
-		rtlefuse->efuse_usedpercentage = *((u8 *) val);
+		rtlefuse->efuse_usedpercentage = *val;
 		break;
 	case HW_VAR_IO_CMD:
 		rtl8723ae_phy_set_io_cmd(hw, (*(enum io_type *)val));
 		break;
 	case HW_VAR_WPA_CONFIG:
-		rtl_write_byte(rtlpriv, REG_SECCFG, *((u8 *) val));
+		rtl_write_byte(rtlpriv, REG_SECCFG, *val);
 		break;
 	case HW_VAR_SET_RPWM:{
 		u8 rpwm_val;
@@ -394,27 +392,25 @@ void rtl8723ae_set_hw_reg(struct ieee80211_hw *hw, u8 variable, u8 *val)
 		udelay(1);
 
 		if (rpwm_val & BIT(7)) {
-			rtl_write_byte(rtlpriv, REG_PCIE_HRPWM,
-				       (*(u8 *) val));
+			rtl_write_byte(rtlpriv, REG_PCIE_HRPWM, *val);
 		} else {
-			rtl_write_byte(rtlpriv, REG_PCIE_HRPWM,
-				       ((*(u8 *) val) | BIT(7)));
+			rtl_write_byte(rtlpriv, REG_PCIE_HRPWM, *val | BIT(7));
 		}
 
 		break; }
 	case HW_VAR_H2C_FW_PWRMODE:{
-		u8 psmode = (*(u8 *) val);
+		u8 psmode = *val;
 
 		if (psmode != FW_PS_ACTIVE_MODE)
 			rtl8723ae_dm_rf_saving(hw, true);
 
-		rtl8723ae_set_fw_pwrmode_cmd(hw, (*(u8 *) val));
+		rtl8723ae_set_fw_pwrmode_cmd(hw, *val);
 		break; }
 	case HW_VAR_FW_PSMODE_STATUS:
 		ppsc->fw_current_inpsmode = *((bool *) val);
 		break;
 	case HW_VAR_H2C_FW_JOINBSSRPT:{
-		u8 mstatus = (*(u8 *) val);
+		u8 mstatus = *val;
 		u8 tmp_regcr, tmp_reg422;
 		bool recover = false;
 
@@ -447,11 +443,11 @@ void rtl8723ae_set_hw_reg(struct ieee80211_hw *hw, u8 variable, u8 *val)
 			rtl_write_byte(rtlpriv, REG_CR + 1,
 				       (tmp_regcr & ~(BIT(0))));
 		}
-		rtl8723ae_set_fw_joinbss_report_cmd(hw, (*(u8 *) val));
+		rtl8723ae_set_fw_joinbss_report_cmd(hw, *val);
 
 		break; }
 	case HW_VAR_H2C_FW_P2P_PS_OFFLOAD:
-		rtl8723ae_set_p2p_ps_offload_cmd(hw, (*(u8 *)val));
+		rtl8723ae_set_p2p_ps_offload_cmd(hw, *val);
 		break;
 	case HW_VAR_AID:{
 		u16 u2btmp;
@@ -461,7 +457,7 @@ void rtl8723ae_set_hw_reg(struct ieee80211_hw *hw, u8 variable, u8 *val)
 				mac->assoc_id));
 		break; }
 	case HW_VAR_CORRECT_TSF:{
-		u8 btype_ibss = ((u8 *) (val))[0];
+		u8 btype_ibss = *val;
 
 		if (btype_ibss == true)
 			_rtl8723ae_stop_tx_beacon(hw);
@@ -491,20 +487,18 @@ void rtl8723ae_set_hw_reg(struct ieee80211_hw *hw, u8 variable, u8 *val)
 					(u8 *)(&fw_current_inps));
 			rtlpriv->cfg->ops->set_hw_reg(hw,
 					HW_VAR_H2C_FW_PWRMODE,
-					(u8 *)(&ppsc->fwctrl_psmode));
+					&ppsc->fwctrl_psmode);
 
-			rtlpriv->cfg->ops->set_hw_reg(hw,
-					HW_VAR_SET_RPWM,
-					(u8 *)(&rpwm_val));
+			rtlpriv->cfg->ops->set_hw_reg(hw, HW_VAR_SET_RPWM,
+						      &rpwm_val);
 		} else {
 			rpwm_val = 0x0C;	/* RF on */
 			fw_pwrmode = FW_PS_ACTIVE_MODE;
 			fw_current_inps = false;
 			rtlpriv->cfg->ops->set_hw_reg(hw, HW_VAR_SET_RPWM,
-					(u8 *)(&rpwm_val));
-			rtlpriv->cfg->ops->set_hw_reg(hw,
-					HW_VAR_H2C_FW_PWRMODE,
-					(u8 *)(&fw_pwrmode));
+						      &rpwm_val);
+			rtlpriv->cfg->ops->set_hw_reg(hw, HW_VAR_H2C_FW_PWRMODE,
+						      &fw_pwrmode);
 
 			rtlpriv->cfg->ops->set_hw_reg(hw,
 					HW_VAR_FW_PSMODE_STATUS,
@@ -1628,10 +1622,10 @@ static void _rtl8723ae_read_adapter_info(struct ieee80211_hw *hw,
 	rtl8723ae_read_bt_coexist_info_from_hwpg(hw,
 			rtlefuse->autoload_failflag, hwinfo);
 
-	rtlefuse->eeprom_channelplan = *(u8 *)&hwinfo[EEPROM_CHANNELPLAN];
+	rtlefuse->eeprom_channelplan = hwinfo[EEPROM_CHANNELPLAN];
 	rtlefuse->eeprom_version = *(u16 *)&hwinfo[EEPROM_VERSION];
 	rtlefuse->txpwr_fromeprom = true;
-	rtlefuse->eeprom_oemid = *(u8 *)&hwinfo[EEPROM_CUSTOMER_ID];
+	rtlefuse->eeprom_oemid = hwinfo[EEPROM_CUSTOMER_ID];
 
 	RT_TRACE(rtlpriv, COMP_INIT, DBG_LOUD,
 		 "EEPROM Customer ID: 0x%2x\n", rtlefuse->eeprom_oemid);
@@ -2051,8 +2045,7 @@ void rtl8723ae_update_channel_access_setting(struct ieee80211_hw *hw)
 	struct rtl_mac *mac = rtl_mac(rtl_priv(hw));
 	u16 sifs_timer;
 
-	rtlpriv->cfg->ops->set_hw_reg(hw, HW_VAR_SLOT_TIME,
-				      (u8 *)&mac->slot_time);
+	rtlpriv->cfg->ops->set_hw_reg(hw, HW_VAR_SLOT_TIME, &mac->slot_time);
 	if (!mac->ht_enable)
 		sifs_timer = 0x0a0a;
 	else
