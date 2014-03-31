@@ -683,8 +683,8 @@ rockchip,power_type = <GPIO>;
 		};
 
 		rk808_ldo5_reg: regulator@8 {
-			regulator-name= "rk_ldo5";
-			regulator-min-microvolt = <3300000>;
+			regulator-name= "vcc_sd";
+			regulator-min-microvolt = <1800000>;
 			regulator-max-microvolt = <3300000>;
 			regulator-always-on;
 			regulator-boot-on;
@@ -727,3 +727,35 @@ rockchip,power_type = <GPIO>;
 		};
 	};
 };
+
+&lcdc_vdd_domain {
+	regulator-name = "vcc30_lcd";
+	};
+&dpio_vdd_domain{
+	regulator-name = "vcc18_cif";	
+	};
+&flash0_vdd_domain{
+	regulator-name = "vcc_flash";	
+	};
+&flash1_vdd_domain{
+	regulator-name = "vcc_flash";			
+	};
+&apio3_vdd_domain{
+	regulator-name = "vccio_wl";		
+	};
+&apio5_vdd_domain{
+	regulator-name = "vccio";		
+	};
+&apio4_vdd_domain{
+	regulator-name = "vccio";		
+	};
+&apio1_vdd_domain{
+	regulator-name = "vccio";			
+	};
+&apio2_vdd_domain{
+	regulator-name = "vccio";		
+	};
+&sdmmc0_vdd_domain{
+	regulator-name = "vcc_sd";			
+	};
+	

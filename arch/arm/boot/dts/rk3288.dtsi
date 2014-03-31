@@ -1174,6 +1174,76 @@
 			clock-names = "tsadc", "pclk_tsadc";
 			status = "okay";
 	};
-        
 
+	lcdc_vdd_domain: lcdc-vdd-domain{
+			compatible = "rockchip,io_vol_domain";
+			pinctrl-names = "default", "1.8V", "3.3V";
+			pinctrl-0 = <&lcdc_vcc>;
+			pinctrl-1 = <&lcdc_vcc_18>;
+			pinctrl-2 = <&lcdc_vcc_33>;
+	};
+	dpio_vdd_domain: dpio-vdd-domain{
+			compatible = "rockchip,io_vol_domain";
+			pinctrl-names = "default", "1.8V", "3.3V";
+			pinctrl-0 = <&dvp_vcc>;
+			pinctrl-1 = <&dvp_vcc_18>;
+			pinctrl-2 = <&dvp_vcc_33>;
+	};
+	flash0_vdd_domain: flash0-vdd-domain{
+			compatible = "rockchip,io_vol_domain";
+			pinctrl-names = "default", "1.8V", "3.3V";
+			pinctrl-0 = <&flash0_vcc>;
+			pinctrl-1 = <&flash0_vcc_18>;
+			pinctrl-2 = <&flash0_vcc_33>;
+	};
+	flash1_vdd_domain: flash1-vdd-domain{
+			compatible = "rockchip,io_vol_domain";
+			pinctrl-names = "default", "1.8V", "3.3V";
+			pinctrl-0 = <&flash1_vcc>;
+			pinctrl-1 = <&flash1_vcc_18>;
+			pinctrl-2 = <&flash1_vcc_33>;	
+	};
+	apio3_vdd_domain: apio3-vdd-domain{
+			compatible = "rockchip,io_vol_domain";
+			pinctrl-names = "default", "1.8V", "3.3V";
+			pinctrl-0 = <&wifi_vcc>;
+			pinctrl-1 = <&wifi_vcc_18>;
+			pinctrl-2 = <&wifi_vcc_33>;	
+	};
+	apio5_vdd_domain: apio5-vdd-domain{
+			compatible = "rockchip,io_vol_domain";
+			pinctrl-names = "default", "1.8V", "3.3V";
+			pinctrl-0 = <&bb_vcc>;
+			pinctrl-1 = <&bb_vcc_18>;
+			pinctrl-2 = <&bb_vcc_33>;	
+	};
+	apio4_vdd_domain: apio4-vdd-domain{
+			compatible = "rockchip,io_vol_domain";
+			pinctrl-names = "default", "1.8V", "3.3V";
+			pinctrl-0 = <&audio_vcc>;
+			pinctrl-1 = <&audio_vcc_18>;
+			pinctrl-2 = <&audio_vcc_33>;	
+	};
+	apio1_vdd_domain: apio0-vdd-domain{
+			compatible = "rockchip,io_vol_domain";
+			pinctrl-names = "default", "1.8V", "3.3V";
+			pinctrl-0 = <&gpio30_vcc>;
+			pinctrl-1 = <&gpio30_vcc_18>;
+			pinctrl-2 = <&gpio30_vcc_33>;	
+	};
+	apio2_vdd_domain: apio2-vdd-domain{
+			compatible = "rockchip,io_vol_domain";
+			pinctrl-names = "default", "1.8V", "3.3V";
+			pinctrl-0 = <&gpio1830_vcc>;
+			pinctrl-1 = <&gpio1830_vcc_18>;
+			pinctrl-2 = <&gpio1830_vcc_33>;	
+	};
+	sdmmc0_vdd_domain: sdmmc0-vdd-domain{
+			compatible = "rockchip,io_vol_domain";
+			pinctrl-names = "default", "1.8V", "3.3V";
+			pinctrl-0 = <&sdcard_vcc>;
+			pinctrl-1 = <&sdcard_vcc_18>;
+			pinctrl-2 = <&sdcard_vcc_33>;	
+	};
+	
 };
