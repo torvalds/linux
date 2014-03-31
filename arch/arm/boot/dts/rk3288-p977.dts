@@ -164,7 +164,8 @@
         supports-highspeed;
 	supports-emmc;
         bootpart-no-access;
-        
+        ignore-pm-notify;
+		keep-power-in-suspend;
     	status = "okay";
 };
     
