@@ -86,7 +86,6 @@ struct unwind_info {
 	struct perf_sample	*sample;
 	struct machine		*machine;
 	struct thread		*thread;
-	u64			sample_uregs;
 };
 
 #define dw_read(ptr, type, end) ({	\
@@ -391,30 +390,13 @@ static int access_dso_mem(struct unwind_info *ui, unw_word_t addr,
 	return !(size == sizeof(*data));
 }
 
-static int reg_value(unw_word_t *valp, struct regs_dump *regs, int id,
-		     u64 sample_regs)
-{
-	int i, idx = 0;
-
-	if (!(sample_regs & (1 << id)))
-		return -EINVAL;
-
-	for (i = 0; i < id; i++) {
-		if (sample_regs & (1 << i))
-			idx++;
-	}
-
-	*valp = regs->regs[idx];
-	return 0;
-}
-
 static int access_mem(unw_addr_space_t __maybe_unused as,
 		      unw_word_t addr, unw_word_t *valp,
 		      int __write, void *arg)
 {
 	struct unwind_info *ui = arg;
 	struct stack_dump *stack = &ui->sample->user_stack;
-	unw_word_t start, end;
+	u64 start, end;
 	int offset;
 	int ret;
 
@@ -424,8 +406,7 @@ static int access_mem(unw_addr_space_t __maybe_unused as,
 		return 0;
 	}
 
-	ret = reg_value(&start, &ui->sample->user_regs, PERF_REG_SP,
-			ui->sample_uregs);
+	ret = perf_reg_value(&start, &ui->sample->user_regs, PERF_REG_SP);
 	if (ret)
 		return ret;
 
@@ -438,8 +419,9 @@ static int access_mem(unw_addr_space_t __maybe_unused as,
 	if (addr < start || addr + sizeof(unw_word_t) >= end) {
 		ret = access_dso_mem(ui, addr, valp);
 		if (ret) {
-			pr_debug("unwind: access_mem %p not inside range %p-%p\n",
-				(void *)addr, (void *)start, (void *)end);
+			pr_debug("unwind: access_mem %p not inside range"
+				 " 0x%" PRIx64 "-0x%" PRIx64 "\n",
+				 (void *) addr, start, end);
 			*valp = 0;
 			return ret;
 		}
@@ -448,8 +430,8 @@ static int access_mem(unw_addr_space_t __maybe_unused as,
 
 	offset = addr - start;
 	*valp  = *(unw_word_t *)&stack->data[offset];
-	pr_debug("unwind: access_mem addr %p, val %lx, offset %d\n",
-		 (void *)addr, (unsigned long)*valp, offset);
+	pr_debug("unwind: access_mem addr %p val %lx, offset %d\n",
+		 (void *) addr, (unsigned long)*valp, offset);
 	return 0;
 }
 
@@ -459,6 +441,7 @@ static int access_reg(unw_addr_space_t __maybe_unused as,
 {
 	struct unwind_info *ui = arg;
 	int id, ret;
+	u64 val;
 
 	/* Don't support write, I suspect we don't need it. */
 	if (__write) {
@@ -471,16 +454,17 @@ static int access_reg(unw_addr_space_t __maybe_unused as,
 		return 0;
 	}
 
-	id = unwind__arch_reg_id(regnum);
+	id = libunwind__arch_reg_id(regnum);
 	if (id < 0)
 		return -EINVAL;
 
-	ret = reg_value(valp, &ui->sample->user_regs, id, ui->sample_uregs);
+	ret = perf_reg_value(&val, &ui->sample->user_regs, id);
 	if (ret) {
 		pr_err("unwind: can't read reg %d\n", regnum);
 		return ret;
 	}
 
+	*valp = (unw_word_t) val;
 	pr_debug("unwind: reg %d, val %lx\n", regnum, (unsigned long)*valp);
 	return 0;
 }
@@ -563,7 +547,7 @@ static int get_entries(struct unwind_info *ui, unwind_entry_cb_t cb,
 		unw_word_t ip;
 
 		unw_get_reg(&c, UNW_REG_IP, &ip);
-		ret = entry(ip, ui->thread, ui->machine, cb, arg);
+		ret = ip ? entry(ip, ui->thread, ui->machine, cb, arg) : 0;
 	}
 
 	unw_destroy_addr_space(addr_space);
@@ -572,13 +556,11 @@ static int get_entries(struct unwind_info *ui, unwind_entry_cb_t cb,
 
 int unwind__get_entries(unwind_entry_cb_t cb, void *arg,
 			struct machine *machine, struct thread *thread,
-			u64 sample_uregs, struct perf_sample *data,
-			int max_stack)
+			struct perf_sample *data, int max_stack)
 {
-	unw_word_t ip;
+	u64 ip;
 	struct unwind_info ui = {
 		.sample       = data,
-		.sample_uregs = sample_uregs,
 		.thread       = thread,
 		.machine      = machine,
 	};
@@ -587,7 +569,7 @@ int unwind__get_entries(unwind_entry_cb_t cb, void *arg,
 	if (!data->user_regs.regs)
 		return -EINVAL;
 
-	ret = reg_value(&ip, &data->user_regs, PERF_REG_IP, sample_uregs);
+	ret = perf_reg_value(&ip, &data->user_regs, PERF_REG_IP);
 	if (ret)
 		return ret;
 
@@ -595,5 +577,5 @@ int unwind__get_entries(unwind_entry_cb_t cb, void *arg,
 	if (ret)
 		return -ENOMEM;
 
-	return get_entries(&ui, cb, arg, max_stack);
+	return --max_stack > 0 ? get_entries(&ui, cb, arg, max_stack) : 0;
 }

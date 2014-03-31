@@ -1,8 +1,13 @@
+/* TODO merge/factor in debugfs.c here */
 
-/* TODO merge/factor into tools/lib/lk/debugfs.c */
+#include <errno.h>
+#include <stdbool.h>
+#include <stdio.h>
+#include <string.h>
+#include <sys/vfs.h>
 
-#include "util.h"
-#include "util/fs.h"
+#include "debugfs.h"
+#include "fs.h"
 
 static const char * const sysfs__fs_known_mountpoints[] = {
 	"/sys",
