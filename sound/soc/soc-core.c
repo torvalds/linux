@@ -1132,8 +1132,15 @@ static int soc_probe_codec(struct snd_soc_card *card,
 					  driver->num_dapm_widgets);
 
 	/* Create DAPM widgets for each DAI stream */
-	list_for_each_entry(dai, &codec->component.dai_list, list)
-		snd_soc_dapm_new_dai_widgets(&codec->dapm, dai);
+	list_for_each_entry(dai, &codec->component.dai_list, list) {
+		ret = snd_soc_dapm_new_dai_widgets(&codec->dapm, dai);
+
+		if (ret != 0) {
+			dev_err(codec->dev,
+				"Failed to create DAI widgets %d\n", ret);
+			goto err_probe;
+		}
+	}
 
 	codec->dapm.idle_bias_off = driver->idle_bias_off;
 
