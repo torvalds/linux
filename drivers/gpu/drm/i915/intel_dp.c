@@ -1316,8 +1316,6 @@ void intel_edp_panel_off(struct intel_dp *intel_dp)
 
 	DRM_DEBUG_KMS("Turn eDP power off\n");
 
-	edp_wait_backlight_off(intel_dp);
-
 	WARN(!intel_dp->want_panel_vdd, "Need VDD to turn off panel\n");
 
 	pp = ironlake_get_pp_control(intel_dp);
@@ -1353,6 +1351,9 @@ void intel_edp_backlight_on(struct intel_dp *intel_dp)
 		return;
 
 	DRM_DEBUG_KMS("\n");
+
+	intel_panel_enable_backlight(intel_dp->attached_connector);
+
 	/*
 	 * If we enable the backlight right away following a panel power
 	 * on, we may see slight flicker as the panel syncs with the eDP
@@ -1367,8 +1368,6 @@ void intel_edp_backlight_on(struct intel_dp *intel_dp)
 
 	I915_WRITE(pp_ctrl_reg, pp);
 	POSTING_READ(pp_ctrl_reg);
-
-	intel_panel_enable_backlight(intel_dp->attached_connector);
 }
 
 void intel_edp_backlight_off(struct intel_dp *intel_dp)
@@ -1381,8 +1380,6 @@ void intel_edp_backlight_off(struct intel_dp *intel_dp)
 	if (!is_edp(intel_dp))
 		return;
 
-	intel_panel_disable_backlight(intel_dp->attached_connector);
-
 	DRM_DEBUG_KMS("\n");
 	pp = ironlake_get_pp_control(intel_dp);
 	pp &= ~EDP_BLC_ENABLE;
@@ -1392,6 +1389,10 @@ void intel_edp_backlight_off(struct intel_dp *intel_dp)
 	I915_WRITE(pp_ctrl_reg, pp);
 	POSTING_READ(pp_ctrl_reg);
 	intel_dp->last_backlight_off = jiffies;
+
+	edp_wait_backlight_off(intel_dp);
+
+	intel_panel_disable_backlight(intel_dp->attached_connector);
 }
 
 static void ironlake_edp_pll_on(struct intel_dp *intel_dp)
