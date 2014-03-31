@@ -363,7 +363,7 @@ static int st21nfca_get_iso14443_3_atqa(struct nfc_hci_dev *hdev, u16 *atqa)
 		goto exit;
 	}
 
-	*atqa = be16_to_cpu(*(u16 *) atqa_skb->data);
+	*atqa = be16_to_cpu(*(__be16 *) atqa_skb->data);
 
 exit:
 	kfree_skb(atqa_skb);
