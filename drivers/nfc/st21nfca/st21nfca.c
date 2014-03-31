@@ -89,7 +89,7 @@ struct st21nfca_pipe_info {
 	u8 src_gate_id;
 	u8 dst_host_id;
 	u8 dst_gate_id;
-};
+} __packed;
 
 /* Largest headroom needed for outgoing custom commands */
 #define ST21NFCA_CMDS_HEADROOM  7
