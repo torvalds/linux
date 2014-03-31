@@ -100,17 +100,17 @@ do {								\
 
 static void st21nfca_hci_platform_init(struct st21nfca_i2c_phy *phy)
 {
-	u16 wait_tab[] = { 50, 300, 1000 };
+	u16 wait_reboot[] = { 50, 300, 1000 };
 	char reboot_cmd[] = { 0x7E, 0x66, 0x48, 0xF6, 0x7E };
 	u8 tmp[ST21NFCA_HCI_LLC_MAX_SIZE];
 	int i, r = -1;
 
-	for (i = 0; i < ARRAY_SIZE(wait_tab) && r < 0; i++)
+	for (i = 0; i < ARRAY_SIZE(wait_reboot) && r < 0; i++)
 		r = i2c_master_recv(phy->i2c_dev, tmp,
 				    ST21NFCA_HCI_LLC_MAX_SIZE);
 
 	r = -1;
-	for (i = 0; i < ARRAY_SIZE(wait_tab) && r < 0; i++)
+	for (i = 0; i < ARRAY_SIZE(wait_reboot) && r < 0; i++)
 		r = i2c_master_send(phy->i2c_dev, reboot_cmd,
 				    sizeof(reboot_cmd));
 	usleep_range(1000, 1500);
@@ -176,7 +176,6 @@ static int st21nfca_hci_i2c_write(void *phy_id, struct sk_buff *skb)
 	int r = -1, i, j, len;
 	struct st21nfca_i2c_phy *phy = phy_id;
 	struct i2c_client *client = phy->i2c_dev;
-	u16 wait_tab[] = { 2, 3, 5, 15, 20, 40};
 	u8 tmp[ST21NFCA_HCI_LLC_MAX_SIZE * 2];
 
 	I2C_DUMP_SKB("st21nfca_hci_i2c_write", skb);
