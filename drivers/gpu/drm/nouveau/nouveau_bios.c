@@ -935,7 +935,7 @@ static int parse_bit_tmds_tbl_entry(struct drm_device *dev, struct nvbios *bios,
 
 	tmdstableptr = ROM16(bios->data[bitentry->offset]);
 	if (!tmdstableptr) {
-		NV_ERROR(drm, "Pointer to TMDS table invalid\n");
+		NV_WARN(drm, "Pointer to TMDS table invalid\n");
 		return -EINVAL;
 	}
 
