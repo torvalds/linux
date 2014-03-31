@@ -62,6 +62,8 @@ static struct omap_prcm_irq_setup *prcm_irq_setup;
 /* prm_base: base virtual address of the PRM IP block */
 void __iomem *prm_base;
 
+u16 prm_features;
+
 /*
  * prm_ll_data: function pointers to SoC-specific implementations of
  * common PRM functions

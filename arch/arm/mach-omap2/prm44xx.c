@@ -661,12 +661,18 @@ static struct prm_ll_data omap44xx_prm_ll_data = {
 
 int __init omap44xx_prm_init(void)
 {
+	if (cpu_is_omap44xx())
+		prm_features |= PRM_HAS_IO_WAKEUP;
+
 	return prm_register(&omap44xx_prm_ll_data);
 }
 
 static int __init omap44xx_prm_late_init(void)
 {
 	if (!cpu_is_omap44xx())
+		return 0;
+
+	if (!(prm_features & PRM_HAS_IO_WAKEUP))
 		return 0;
 
 	omap44xx_prm_enable_io_wakeup();

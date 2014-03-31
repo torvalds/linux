@@ -247,7 +247,7 @@ void omap3xxx_prm_reconfigure_io_chain(void)
  */
 static void __init omap3xxx_prm_enable_io_wakeup(void)
 {
-	if (omap3_has_io_wakeup())
+	if (prm_features & PRM_HAS_IO_WAKEUP)
 		omap2_prm_set_mod_reg_bits(OMAP3430_EN_IO_MASK, WKUP_MOD,
 					   PM_WKEN);
 }
@@ -407,6 +407,9 @@ static struct prm_ll_data omap3xxx_prm_ll_data = {
 
 int __init omap3xxx_prm_init(void)
 {
+	if (omap3_has_io_wakeup())
+		prm_features |= PRM_HAS_IO_WAKEUP;
+
 	return prm_register(&omap3xxx_prm_ll_data);
 }
 
@@ -415,6 +418,9 @@ static int __init omap3xxx_prm_late_init(void)
 	int ret;
 
 	if (!cpu_is_omap34xx())
+		return 0;
+
+	if (!(prm_features & PRM_HAS_IO_WAKEUP))
 		return 0;
 
 	omap3xxx_prm_enable_io_wakeup();

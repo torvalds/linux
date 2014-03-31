@@ -17,10 +17,18 @@
 
 # ifndef __ASSEMBLER__
 extern void __iomem *prm_base;
+extern u16 prm_features;
 extern void omap2_set_globals_prm(void __iomem *prm);
 int of_prcm_init(void);
 # endif
 
+/*
+ * prm_features flag values
+ *
+ * PRM_HAS_IO_WAKEUP: has IO wakeup capability
+ * PRM_HAS_VOLTAGE: has voltage domains
+ */
+#define PRM_HAS_IO_WAKEUP	(1 << 0)
 
 /*
  * MAX_MODULE_SOFTRESET_WAIT: Maximum microseconds to wait for OMAP
