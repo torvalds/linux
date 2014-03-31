@@ -82,7 +82,7 @@ intel_read_legacy_status_page(struct drm_i915_private *dev_priv, int reg)
 
 void i915_update_dri1_breadcrumb(struct drm_device *dev)
 {
-	drm_i915_private_t *dev_priv = dev->dev_private;
+	struct drm_i915_private *dev_priv = dev->dev_private;
 	struct drm_i915_master_private *master_priv;
 
 	/*
@@ -103,7 +103,7 @@ void i915_update_dri1_breadcrumb(struct drm_device *dev)
 
 static void i915_write_hws_pga(struct drm_device *dev)
 {
-	drm_i915_private_t *dev_priv = dev->dev_private;
+	struct drm_i915_private *dev_priv = dev->dev_private;
 	u32 addr;
 
 	addr = dev_priv->status_page_dmah->busaddr;
@@ -118,7 +118,7 @@ static void i915_write_hws_pga(struct drm_device *dev)
  */
 static void i915_free_hws(struct drm_device *dev)
 {
-	drm_i915_private_t *dev_priv = dev->dev_private;
+	struct drm_i915_private *dev_priv = dev->dev_private;
 	struct intel_ring_buffer *ring = LP_RING(dev_priv);
 
 	if (dev_priv->status_page_dmah) {
@@ -137,7 +137,7 @@ static void i915_free_hws(struct drm_device *dev)
 
 void i915_kernel_lost_context(struct drm_device * dev)
 {
-	drm_i915_private_t *dev_priv = dev->dev_private;
+	struct drm_i915_private *dev_priv = dev->dev_private;
 	struct drm_i915_master_private *master_priv;
 	struct intel_ring_buffer *ring = LP_RING(dev_priv);
 
@@ -164,7 +164,7 @@ void i915_kernel_lost_context(struct drm_device * dev)
 
 static int i915_dma_cleanup(struct drm_device * dev)
 {
-	drm_i915_private_t *dev_priv = dev->dev_private;
+	struct drm_i915_private *dev_priv = dev->dev_private;
 	int i;
 
 	/* Make sure interrupts are disabled here because the uninstall ioctl
@@ -188,7 +188,7 @@ static int i915_dma_cleanup(struct drm_device * dev)
 
 static int i915_initialize(struct drm_device * dev, drm_i915_init_t * init)
 {
-	drm_i915_private_t *dev_priv = dev->dev_private;
+	struct drm_i915_private *dev_priv = dev->dev_private;
 	struct drm_i915_master_private *master_priv = dev->primary->master->driver_priv;
 	int ret;
 
@@ -233,7 +233,7 @@ static int i915_initialize(struct drm_device * dev, drm_i915_init_t * init)
 
 static int i915_dma_resume(struct drm_device * dev)
 {
-	drm_i915_private_t *dev_priv = (drm_i915_private_t *) dev->dev_private;
+	struct drm_i915_private *dev_priv = dev->dev_private;
 	struct intel_ring_buffer *ring = LP_RING(dev_priv);
 
 	DRM_DEBUG_DRIVER("%s\n", __func__);
@@ -357,7 +357,7 @@ static int validate_cmd(int cmd)
 
 static int i915_emit_cmds(struct drm_device * dev, int *buffer, int dwords)
 {
-	drm_i915_private_t *dev_priv = dev->dev_private;
+	struct drm_i915_private *dev_priv = dev->dev_private;
 	int i, ret;
 
 	if ((dwords+1) * sizeof(int) >= LP_RING(dev_priv)->size - 8)
@@ -431,7 +431,7 @@ i915_emit_box(struct drm_device *dev,
 
 static void i915_emit_breadcrumb(struct drm_device *dev)
 {
-	drm_i915_private_t *dev_priv = dev->dev_private;
+	struct drm_i915_private *dev_priv = dev->dev_private;
 	struct drm_i915_master_private *master_priv = dev->primary->master->driver_priv;
 
 	dev_priv->dri1.counter++;
@@ -547,7 +547,7 @@ static int i915_dispatch_batchbuffer(struct drm_device * dev,
 
 static int i915_dispatch_flip(struct drm_device * dev)
 {
-	drm_i915_private_t *dev_priv = dev->dev_private;
+	struct drm_i915_private *dev_priv = dev->dev_private;
 	struct drm_i915_master_private *master_priv =
 		dev->primary->master->driver_priv;
 	int ret;
@@ -625,7 +625,7 @@ static int i915_flush_ioctl(struct drm_device *dev, void *data,
 static int i915_batchbuffer(struct drm_device *dev, void *data,
 			    struct drm_file *file_priv)
 {
-	drm_i915_private_t *dev_priv = (drm_i915_private_t *) dev->dev_private;
+	struct drm_i915_private *dev_priv = dev->dev_private;
 	struct drm_i915_master_private *master_priv;
 	drm_i915_sarea_t *sarea_priv;
 	drm_i915_batchbuffer_t *batch = data;
@@ -683,7 +683,7 @@ fail_free:
 static int i915_cmdbuffer(struct drm_device *dev, void *data,
 			  struct drm_file *file_priv)
 {
-	drm_i915_private_t *dev_priv = (drm_i915_private_t *) dev->dev_private;
+	struct drm_i915_private *dev_priv = dev->dev_private;
 	struct drm_i915_master_private *master_priv;
 	drm_i915_sarea_t *sarea_priv;
 	drm_i915_cmdbuffer_t *cmdbuf = data;
@@ -753,7 +753,7 @@ fail_batch_free:
 
 static int i915_emit_irq(struct drm_device * dev)
 {
-	drm_i915_private_t *dev_priv = dev->dev_private;
+	struct drm_i915_private *dev_priv = dev->dev_private;
 	struct drm_i915_master_private *master_priv = dev->primary->master->driver_priv;
 
 	i915_kernel_lost_context(dev);
@@ -779,7 +779,7 @@ static int i915_emit_irq(struct drm_device * dev)
 
 static int i915_wait_irq(struct drm_device * dev, int irq_nr)
 {
-	drm_i915_private_t *dev_priv = (drm_i915_private_t *) dev->dev_private;
+	struct drm_i915_private *dev_priv = dev->dev_private;
 	struct drm_i915_master_private *master_priv = dev->primary->master->driver_priv;
 	int ret = 0;
 	struct intel_ring_buffer *ring = LP_RING(dev_priv);
@@ -816,7 +816,7 @@ static int i915_wait_irq(struct drm_device * dev, int irq_nr)
 static int i915_irq_emit(struct drm_device *dev, void *data,
 			 struct drm_file *file_priv)
 {
-	drm_i915_private_t *dev_priv = dev->dev_private;
+	struct drm_i915_private *dev_priv = dev->dev_private;
 	drm_i915_irq_emit_t *emit = data;
 	int result;
 
@@ -847,7 +847,7 @@ static int i915_irq_emit(struct drm_device *dev, void *data,
 static int i915_irq_wait(struct drm_device *dev, void *data,
 			 struct drm_file *file_priv)
 {
-	drm_i915_private_t *dev_priv = dev->dev_private;
+	struct drm_i915_private *dev_priv = dev->dev_private;
 	drm_i915_irq_wait_t *irqwait = data;
 
 	if (drm_core_check_feature(dev, DRIVER_MODESET))
@@ -864,7 +864,7 @@ static int i915_irq_wait(struct drm_device *dev, void *data,
 static int i915_vblank_pipe_get(struct drm_device *dev, void *data,
 			 struct drm_file *file_priv)
 {
-	drm_i915_private_t *dev_priv = dev->dev_private;
+	struct drm_i915_private *dev_priv = dev->dev_private;
 	drm_i915_vblank_pipe_t *pipe = data;
 
 	if (drm_core_check_feature(dev, DRIVER_MODESET))
@@ -925,7 +925,7 @@ static int i915_flip_bufs(struct drm_device *dev, void *data,
 static int i915_getparam(struct drm_device *dev, void *data,
 			 struct drm_file *file_priv)
 {
-	drm_i915_private_t *dev_priv = dev->dev_private;
+	struct drm_i915_private *dev_priv = dev->dev_private;
 	drm_i915_getparam_t *param = data;
 	int value;
 
@@ -1033,7 +1033,7 @@ static int i915_getparam(struct drm_device *dev, void *data,
 static int i915_setparam(struct drm_device *dev, void *data,
 			 struct drm_file *file_priv)
 {
-	drm_i915_private_t *dev_priv = dev->dev_private;
+	struct drm_i915_private *dev_priv = dev->dev_private;
 	drm_i915_setparam_t *param = data;
 
 	if (!dev_priv) {
@@ -1068,7 +1068,7 @@ static int i915_setparam(struct drm_device *dev, void *data,
 static int i915_set_status_page(struct drm_device *dev, void *data,
 				struct drm_file *file_priv)
 {
-	drm_i915_private_t *dev_priv = dev->dev_private;
+	struct drm_i915_private *dev_priv = dev->dev_private;
 	drm_i915_hws_addr_t *hws = data;
 	struct intel_ring_buffer *ring;
 
@@ -1136,7 +1136,7 @@ static int i915_get_bridge_dev(struct drm_device *dev)
 static int
 intel_alloc_mchbar_resource(struct drm_device *dev)
 {
-	drm_i915_private_t *dev_priv = dev->dev_private;
+	struct drm_i915_private *dev_priv = dev->dev_private;
 	int reg = INTEL_INFO(dev)->gen >= 4 ? MCHBAR_I965 : MCHBAR_I915;
 	u32 temp_lo, temp_hi = 0;
 	u64 mchbar_addr;
@@ -1182,7 +1182,7 @@ intel_alloc_mchbar_resource(struct drm_device *dev)
 static void
 intel_setup_mchbar(struct drm_device *dev)
 {
-	drm_i915_private_t *dev_priv = dev->dev_private;
+	struct drm_i915_private *dev_priv = dev->dev_private;
 	int mchbar_reg = INTEL_INFO(dev)->gen >= 4 ? MCHBAR_I965 : MCHBAR_I915;
 	u32 temp;
 	bool enabled;
@@ -1222,7 +1222,7 @@ intel_setup_mchbar(struct drm_device *dev)
 static void
 intel_teardown_mchbar(struct drm_device *dev)
 {
-	drm_i915_private_t *dev_priv = dev->dev_private;
+	struct drm_i915_private *dev_priv = dev->dev_private;
 	int mchbar_reg = INTEL_INFO(dev)->gen >= 4 ? MCHBAR_I965 : MCHBAR_I915;
 	u32 temp;
 
@@ -1895,7 +1895,7 @@ int i915_driver_open(struct drm_device *dev, struct drm_file *file)
  */
 void i915_driver_lastclose(struct drm_device * dev)
 {
-	drm_i915_private_t *dev_priv = dev->dev_private;
+	struct drm_i915_private *dev_priv = dev->dev_private;
 
 	/* On gen6+ we refuse to init without kms enabled, but then the drm core
 	 * goes right around and calls lastclose. Check for this and don't clean
