@@ -459,6 +459,7 @@ static int mwifiex_usb_suspend(struct usb_interface *intf, pm_message_t message)
 	 * 'suspended' state and a 'disconnect' one.
 	 */
 	adapter->is_suspended = true;
+	adapter->hs_enabling = false;
 
 	if (atomic_read(&card->rx_cmd_urb_pending) && card->rx_cmd.urb)
 		usb_kill_urb(card->rx_cmd.urb);

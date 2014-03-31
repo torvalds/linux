@@ -592,7 +592,7 @@ static void rtl8187_set_anaparam(struct rtl8187_priv *priv, bool rfon)
 	rtl818x_iowrite32(priv, &priv->map->ANAPARAM, anaparam);
 	rtl818x_iowrite32(priv, &priv->map->ANAPARAM2, anaparam2);
 	if (priv->is_rtl8187b)
-		rtl818x_iowrite8(priv, &priv->map->ANAPARAM3, anaparam3);
+		rtl818x_iowrite8(priv, &priv->map->ANAPARAM3A, anaparam3);
 	reg &= ~RTL818X_CONFIG3_ANAPARAM_WRITE;
 	rtl818x_iowrite8(priv, &priv->map->CONFIG3, reg);
 	rtl818x_iowrite8(priv, &priv->map->EEPROM_CMD,
@@ -1636,10 +1636,10 @@ static int rtl8187_probe(struct usb_interface *intf,
 
  err_free_dmabuf:
 	kfree(priv->io_dmabuf);
- err_free_dev:
-	ieee80211_free_hw(dev);
 	usb_set_intfdata(intf, NULL);
 	usb_put_dev(udev);
+ err_free_dev:
+	ieee80211_free_hw(dev);
 	return err;
 }
 

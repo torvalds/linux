@@ -387,6 +387,11 @@ static int tk_request(struct l2cap_conn *conn, u8 remote_oob, u8 auth,
 	if (!(auth & SMP_AUTH_BONDING) && method == JUST_CFM)
 		method = JUST_WORKS;
 
+	/* Don't confirm locally initiated pairing attempts */
+	if (method == JUST_CFM && test_bit(SMP_FLAG_INITIATOR,
+					   &smp->smp_flags))
+		method = JUST_WORKS;
+
 	/* If Just Works, Continue with Zero TK */
 	if (method == JUST_WORKS) {
 		set_bit(SMP_FLAG_TK_VALID, &smp->smp_flags);
@@ -422,10 +427,14 @@ static int tk_request(struct l2cap_conn *conn, u8 remote_oob, u8 auth,
 	if (method == REQ_PASSKEY)
 		ret = mgmt_user_passkey_request(hcon->hdev, &hcon->dst,
 						hcon->type, hcon->dst_type);
+	else if (method == JUST_CFM)
+		ret = mgmt_user_confirm_request(hcon->hdev, &hcon->dst,
+						hcon->type, hcon->dst_type,
+						passkey, 1);
 	else
 		ret = mgmt_user_passkey_notify(hcon->hdev, &hcon->dst,
 						hcon->type, hcon->dst_type,
-						cpu_to_le32(passkey), 0);
+						passkey, 0);
 
 	hci_dev_unlock(hcon->hdev);
 
@@ -547,20 +556,6 @@ error:
 	smp_failure(conn, reason);
 }
 
-static void smp_reencrypt(struct work_struct *work)
-{
-	struct smp_chan *smp = container_of(work, struct smp_chan,
-					    reencrypt.work);
-	struct l2cap_conn *conn = smp->conn;
-	struct hci_conn *hcon = conn->hcon;
-	struct smp_ltk *ltk = smp->ltk;
-
-	BT_DBG("");
-
-	hci_le_start_enc(hcon, ltk->ediv, ltk->rand, ltk->val);
-	hcon->enc_key_size = ltk->enc_size;
-}
-
 static struct smp_chan *smp_chan_create(struct l2cap_conn *conn)
 {
 	struct smp_chan *smp;
@@ -571,7 +566,6 @@ static struct smp_chan *smp_chan_create(struct l2cap_conn *conn)
 
 	INIT_WORK(&smp->confirm, confirm_work);
 	INIT_WORK(&smp->random, random_work);
-	INIT_DELAYED_WORK(&smp->reencrypt, smp_reencrypt);
 
 	smp->conn = conn;
 	conn->smp_chan = smp;
@@ -588,8 +582,6 @@ void smp_chan_destroy(struct l2cap_conn *conn)
 	bool complete;
 
 	BUG_ON(!smp);
-
-	cancel_delayed_work_sync(&smp->reencrypt);
 
 	complete = test_bit(SMP_FLAG_COMPLETE, &smp->smp_flags);
 	mgmt_smp_complete(conn->hcon, complete);
@@ -711,6 +703,8 @@ static u8 smp_cmd_pairing_req(struct l2cap_conn *conn, struct sk_buff *skb)
 	ret = tk_request(conn, 0, auth, rsp.io_capability, req->io_capability);
 	if (ret)
 		return SMP_UNSPECIFIED;
+
+	clear_bit(SMP_FLAG_INITIATOR, &smp->smp_flags);
 
 	return 0;
 }
@@ -867,6 +861,8 @@ static u8 smp_cmd_security_req(struct l2cap_conn *conn, struct sk_buff *skb)
 
 	smp_send_cmd(conn, SMP_CMD_PAIRING_REQ, sizeof(cp), &cp);
 
+	clear_bit(SMP_FLAG_INITIATOR, &smp->smp_flags);
+
 	return 0;
 }
 
@@ -884,10 +880,14 @@ bool smp_sufficient_security(struct hci_conn *hcon, u8 sec_level)
 int smp_conn_security(struct hci_conn *hcon, __u8 sec_level)
 {
 	struct l2cap_conn *conn = hcon->l2cap_data;
-	struct smp_chan *smp = conn->smp_chan;
+	struct smp_chan *smp;
 	__u8 authreq;
 
 	BT_DBG("conn %p hcon %p level 0x%2.2x", conn, hcon, sec_level);
+
+	/* This may be NULL if there's an unexpected disconnection */
+	if (!conn)
+		return 1;
 
 	if (!test_bit(HCI_LE_ENABLED, &hcon->hdev->dev_flags))
 		return 1;
@@ -927,6 +927,8 @@ int smp_conn_security(struct hci_conn *hcon, __u8 sec_level)
 		cp.auth_req = authreq;
 		smp_send_cmd(conn, SMP_CMD_SECURITY_REQ, sizeof(cp), &cp);
 	}
+
+	set_bit(SMP_FLAG_INITIATOR, &smp->smp_flags);
 
 done:
 	hcon->pending_sec_level = sec_level;
@@ -1057,12 +1059,6 @@ static int smp_cmd_ident_addr_info(struct l2cap_conn *conn,
 
 	smp->remote_irk = hci_add_irk(conn->hcon->hdev, &smp->id_addr,
 				      smp->id_addr_type, smp->irk, &rpa);
-
-	/* Track the connection based on the Identity Address from now on */
-	bacpy(&hcon->dst, &smp->id_addr);
-	hcon->dst_type = smp->id_addr_type;
-
-	l2cap_conn_update_id_addr(hcon);
 
 	smp_distribute_keys(conn);
 
@@ -1214,8 +1210,16 @@ static void smp_notify_keys(struct l2cap_conn *conn)
 	struct smp_cmd_pairing *rsp = (void *) &smp->prsp[1];
 	bool persistent;
 
-	if (smp->remote_irk)
+	if (smp->remote_irk) {
 		mgmt_new_irk(hdev, smp->remote_irk);
+		/* Now that user space can be considered to know the
+		 * identity address track the connection based on it
+		 * from now on.
+		 */
+		bacpy(&hcon->dst, &smp->remote_irk->bdaddr);
+		hcon->dst_type = smp->remote_irk->addr_type;
+		l2cap_conn_update_id_addr(hcon);
+	}
 
 	/* The LTKs and CSRKs should be persistent only if both sides
 	 * had the bonding bit set in their authentication requests.
@@ -1253,7 +1257,6 @@ int smp_distribute_keys(struct l2cap_conn *conn)
 	struct smp_chan *smp = conn->smp_chan;
 	struct hci_conn *hcon = conn->hcon;
 	struct hci_dev *hdev = hcon->hdev;
-	bool ltk_encrypt;
 	__u8 *keydist;
 
 	BT_DBG("conn %p", conn);
@@ -1353,32 +1356,12 @@ int smp_distribute_keys(struct l2cap_conn *conn)
 	if ((smp->remote_key_dist & 0x07))
 		return 0;
 
-	/* Check if we should try to re-encrypt the link with the LTK.
-	 * SMP_FLAG_LTK_ENCRYPT flag is used to track whether we've
-	 * already tried this (in which case we shouldn't try again).
-	 *
-	 * The request will trigger an encryption key refresh event
-	 * which will cause a call to auth_cfm and eventually lead to
-	 * l2cap_core.c calling this smp_distribute_keys function again
-	 * and thereby completing the process.
-	 */
-	if (smp->ltk)
-		ltk_encrypt = !test_and_set_bit(SMP_FLAG_LTK_ENCRYPT,
-						&smp->smp_flags);
-	else
-		ltk_encrypt = false;
+	clear_bit(HCI_CONN_LE_SMP_PEND, &hcon->flags);
+	cancel_delayed_work_sync(&conn->security_timer);
+	set_bit(SMP_FLAG_COMPLETE, &smp->smp_flags);
+	smp_notify_keys(conn);
 
-	/* Re-encrypt the link with LTK if possible */
-	if (ltk_encrypt && hcon->out) {
-		queue_delayed_work(hdev->req_workqueue, &smp->reencrypt,
-				   SMP_REENCRYPT_TIMEOUT);
-	} else {
-		clear_bit(HCI_CONN_LE_SMP_PEND, &hcon->flags);
-		cancel_delayed_work_sync(&conn->security_timer);
-		set_bit(SMP_FLAG_COMPLETE, &smp->smp_flags);
-		smp_notify_keys(conn);
-		smp_chan_destroy(conn);
-	}
+	smp_chan_destroy(conn);
 
 	return 0;
 }

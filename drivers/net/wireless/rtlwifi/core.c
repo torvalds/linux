@@ -982,7 +982,7 @@ static void rtl_op_bss_info_changed(struct ieee80211_hw *hw,
 				u8 keep_alive = 10;
 				rtlpriv->cfg->ops->set_hw_reg(hw,
 						 HW_VAR_KEEP_ALIVE,
-						 (u8 *)(&keep_alive));
+						 &keep_alive);
 
 				rtlpriv->cfg->ops->set_hw_reg(hw,
 						      HW_VAR_H2C_FW_JOINBSSRPT,

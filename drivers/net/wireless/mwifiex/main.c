@@ -38,7 +38,8 @@ static void scan_delay_timer_fn(unsigned long data)
 	if (adapter->surprise_removed)
 		return;
 
-	if (adapter->scan_delay_cnt == MWIFIEX_MAX_SCAN_DELAY_CNT) {
+	if (adapter->scan_delay_cnt == MWIFIEX_MAX_SCAN_DELAY_CNT ||
+	    !adapter->scan_processing) {
 		/*
 		 * Abort scan operation by cancelling all pending scan
 		 * commands

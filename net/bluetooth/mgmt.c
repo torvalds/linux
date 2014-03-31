@@ -2762,23 +2762,11 @@ static struct pending_cmd *find_pairing(struct hci_conn *conn)
 
 static void pairing_complete(struct pending_cmd *cmd, u8 status)
 {
-	const struct mgmt_cp_pair_device *cp = cmd->param;
 	struct mgmt_rp_pair_device rp;
 	struct hci_conn *conn = cmd->user_data;
 
-	/* If we had a pairing failure we might have already received
-	 * the remote Identity Address Information and updated the
-	 * hci_conn variables with it, however we would not yet have
-	 * notified user space of the resolved identity. Therefore, use
-	 * the address given in the Pair Device command in case the
-	 * pairing failed.
-	 */
-	if (status) {
-		memcpy(&rp.addr, &cp->addr, sizeof(rp.addr));
-	} else {
-		bacpy(&rp.addr.bdaddr, &conn->dst);
-		rp.addr.type = link_to_bdaddr(conn->type, conn->dst_type);
-	}
+	bacpy(&rp.addr.bdaddr, &conn->dst);
+	rp.addr.type = link_to_bdaddr(conn->type, conn->dst_type);
 
 	cmd_complete(cmd->sk, cmd->index, MGMT_OP_PAIR_DEVICE, status,
 		     &rp, sizeof(rp));
@@ -5338,7 +5326,7 @@ void mgmt_pin_code_neg_reply_complete(struct hci_dev *hdev, bdaddr_t *bdaddr,
 }
 
 int mgmt_user_confirm_request(struct hci_dev *hdev, bdaddr_t *bdaddr,
-			      u8 link_type, u8 addr_type, __le32 value,
+			      u8 link_type, u8 addr_type, u32 value,
 			      u8 confirm_hint)
 {
 	struct mgmt_ev_user_confirm_request ev;
@@ -5348,7 +5336,7 @@ int mgmt_user_confirm_request(struct hci_dev *hdev, bdaddr_t *bdaddr,
 	bacpy(&ev.addr.bdaddr, bdaddr);
 	ev.addr.type = link_to_bdaddr(link_type, addr_type);
 	ev.confirm_hint = confirm_hint;
-	ev.value = value;
+	ev.value = cpu_to_le32(value);
 
 	return mgmt_event(MGMT_EV_USER_CONFIRM_REQUEST, hdev, &ev, sizeof(ev),
 			  NULL);

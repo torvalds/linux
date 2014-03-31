@@ -413,20 +413,18 @@ void rtl92se_set_hw_reg(struct ieee80211_hw *hw, u8 variable, u8 *val)
 					(u8 *)(&fw_current_inps));
 			rtlpriv->cfg->ops->set_hw_reg(hw,
 					HW_VAR_H2C_FW_PWRMODE,
-					(u8 *)(&ppsc->fwctrl_psmode));
+					&ppsc->fwctrl_psmode);
 
-			rtlpriv->cfg->ops->set_hw_reg(hw,
-					HW_VAR_SET_RPWM,
-					(u8 *)(&rpwm_val));
+			rtlpriv->cfg->ops->set_hw_reg(hw, HW_VAR_SET_RPWM,
+						      &rpwm_val);
 		} else {
 			rpwm_val = 0x0C;	/* RF on */
 			fw_pwrmode = FW_PS_ACTIVE_MODE;
 			fw_current_inps = false;
 			rtlpriv->cfg->ops->set_hw_reg(hw, HW_VAR_SET_RPWM,
-					(u8 *)(&rpwm_val));
-			rtlpriv->cfg->ops->set_hw_reg(hw,
-					HW_VAR_H2C_FW_PWRMODE,
-					(u8 *)(&fw_pwrmode));
+						      &rpwm_val);
+			rtlpriv->cfg->ops->set_hw_reg(hw, HW_VAR_H2C_FW_PWRMODE,
+						      &fw_pwrmode);
 
 			rtlpriv->cfg->ops->set_hw_reg(hw,
 					HW_VAR_FW_PSMODE_STATUS,

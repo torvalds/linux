@@ -189,6 +189,7 @@ struct hci_dev {
 	__u16		page_scan_window;
 	__u8		page_scan_type;
 	__u8		le_adv_channel_map;
+	__u8		le_scan_type;
 	__u16		le_scan_interval;
 	__u16		le_scan_window;
 	__u16		le_conn_min_interval;
@@ -1236,7 +1237,7 @@ void mgmt_pin_code_reply_complete(struct hci_dev *hdev, bdaddr_t *bdaddr,
 void mgmt_pin_code_neg_reply_complete(struct hci_dev *hdev, bdaddr_t *bdaddr,
 				      u8 status);
 int mgmt_user_confirm_request(struct hci_dev *hdev, bdaddr_t *bdaddr,
-			      u8 link_type, u8 addr_type, __le32 value,
+			      u8 link_type, u8 addr_type, u32 value,
 			      u8 confirm_hint);
 int mgmt_user_confirm_reply_complete(struct hci_dev *hdev, bdaddr_t *bdaddr,
 				     u8 link_type, u8 addr_type, u8 status);

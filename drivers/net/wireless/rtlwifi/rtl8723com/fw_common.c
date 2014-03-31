@@ -115,7 +115,7 @@ void rtl8723_write_fw(struct ieee80211_hw *hw,
 		      u8 *buffer, u32 size)
 {
 	struct rtl_priv *rtlpriv = rtl_priv(hw);
-	u8 *bufferptr = (u8 *)buffer;
+	u8 *bufferptr = buffer;
 	u32 pagenums, remainsize;
 	u32 page, offset;
 
@@ -257,7 +257,7 @@ int rtl8723_download_fw(struct ieee80211_hw *hw,
 		return 1;
 
 	pfwheader = (struct rtl92c_firmware_header *)rtlhal->pfirmware;
-	pfwdata = (u8 *)rtlhal->pfirmware;
+	pfwdata = rtlhal->pfirmware;
 	fwsize = rtlhal->fwsize;
 	RT_TRACE(rtlpriv, COMP_FW, DBG_DMESG,
 		 "normal Firmware SIZE %d\n", fwsize);
