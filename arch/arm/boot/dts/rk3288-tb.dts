@@ -713,5 +713,17 @@ rockchip,power_type = <GPIO>;
 			regulator-always-on;
 			regulator-boot-on;
 		};
+
+		rk808_ldo9_reg: regulator@12 {
+			regulator-name= "rk_ldo9";
+			regulator-always-on;
+			regulator-boot-on;
+		};
+
+		rk808_ldo10_reg: regulator@13 {
+			regulator-name= "rk_ldo10";
+			regulator-always-on;
+			regulator-boot-on;
+		};
 	};
 };

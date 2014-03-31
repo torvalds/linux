@@ -104,7 +104,7 @@
 
 #define RK808_NUM_IRQ  9
 
-#define rk808_NUM_REGULATORS 12
+#define rk808_NUM_REGULATORS 14
 
 #define RK808_VBAT_LOW_2V8  0x00
 #define RK808_VBAT_LOW_2V9  0x01

@@ -114,7 +114,7 @@
 			regulator-initial-state = <3>;
 			regulator-state-mem {
 				regulator-state-enabled;
-				regulator-state-uv = <1200000>;
+				regulator-state-uv = <1000000>;
 			};	
 		};
 
@@ -135,6 +135,24 @@
 			regulator-state-mem {
 				regulator-state-enabled;
 				regulator-state-uv = <1800000>;
+			};	
+		};
+		
+		rk808_ldo9_reg: regulator@12{
+			reg = <12>;
+			regulator-compatible = "rk_ldo9";
+			regulator-initial-state = <3>;
+			regulator-state-mem {
+				regulator-state-enabled;
+			};	
+		};
+		
+		rk808_ldo10_reg: regulator@13{
+			reg = <13>;
+			regulator-compatible = "rk_ldo10";
+			regulator-initial-state = <3>;
+			regulator-state-mem {
+				regulator-state-enabled;
 			};	
 		};
 

@@ -186,8 +186,13 @@ static int rk808_ldo_suspend_enable(struct regulator_dev *dev)
 {
 	struct rk808 *rk808 = rdev_get_drvdata(dev);
 	int ldo= rdev_get_id(dev) - RK808_LDO1;
-	
-	return rk808_set_bits(rk808, RK808_SLEEP_SET_OFF_REG2, 1 << ldo, 0);
+
+	if(ldo == 8)
+		return rk808_set_bits(rk808, RK808_SLEEP_SET_OFF_REG1, 1 << 5, 0);
+	else if(ldo ==9)
+		return rk808_set_bits(rk808, RK808_SLEEP_SET_OFF_REG1, 1 << 6, 0);
+	else
+		return rk808_set_bits(rk808, RK808_SLEEP_SET_OFF_REG2, 1 << ldo, 0);
 	
 }
 static int rk808_ldo_suspend_disable(struct regulator_dev *dev)
@@ -195,6 +200,11 @@ static int rk808_ldo_suspend_disable(struct regulator_dev *dev)
 	struct rk808 *rk808 = rdev_get_drvdata(dev);
 	int ldo= rdev_get_id(dev) - RK808_LDO1;
 	
+	if(ldo == 8)
+		return rk808_set_bits(rk808, RK808_SLEEP_SET_OFF_REG1, 1 << 5, 1 << 5);
+	else if(ldo ==9)
+		return rk808_set_bits(rk808, RK808_SLEEP_SET_OFF_REG1, 1 << 6, 1 << 6);
+	else
 	return rk808_set_bits(rk808, RK808_SLEEP_SET_OFF_REG2, 1 << ldo, 1 << ldo);
 
 }
@@ -204,16 +214,24 @@ static int rk808_ldo_get_voltage(struct regulator_dev *dev)
 	int ldo= rdev_get_id(dev) - RK808_LDO1;
 	u16 reg = 0;
 	int val;
-	reg = rk808_reg_read(rk808,rk808_LDO_SET_VOL_REG(ldo));
-	reg &= LDO_VOL_MASK;
-	if (ldo ==2){
-	val = 1000 * ldo3_voltage_map[reg];	
-	}
-	else if (ldo == 5 || ldo ==6){
-	val = 1000 * ldo6_voltage_map[reg];	
+
+	if  ((ldo ==8 ) || (ldo ==9)){
+		reg = rk808_reg_read(rk808,rk808_BUCK_SET_VOL_REG(3));
+		reg &= BUCK_VOL_MASK;
+		val = 1000 * buck4_voltage_map[reg];		
 	}
 	else{
-	val = 1000 * ldo_voltage_map[reg];	
+		reg = rk808_reg_read(rk808,rk808_LDO_SET_VOL_REG(ldo));
+		reg &= LDO_VOL_MASK;
+		if (ldo ==2){
+		val = 1000 * ldo3_voltage_map[reg];	
+		}
+		else if (ldo == 5 || ldo ==6){
+		val = 1000 * ldo6_voltage_map[reg];	
+		}
+		else{
+		val = 1000 * ldo_voltage_map[reg];	
+		}
 	}
 	return val;
 }
@@ -687,6 +705,22 @@ static struct regulator_desc regulators[] = {
 		.type = REGULATOR_VOLTAGE,
 		.owner = THIS_MODULE,
 	},
+	{
+		.name = "RK_LDO9",
+		.id = 12,
+		.ops = &rk808_ldo_ops,
+		.n_voltages = ARRAY_SIZE(buck4_voltage_map),
+		.type = REGULATOR_VOLTAGE,
+		.owner = THIS_MODULE,
+	},
+	{
+		.name = "RK_LDO10",
+		.id = 13,
+		.ops = &rk808_ldo_ops,
+		.n_voltages = ARRAY_SIZE(buck4_voltage_map),
+		.type = REGULATOR_VOLTAGE,
+		.owner = THIS_MODULE,
+	},
 	
 };
 
@@ -1004,6 +1038,8 @@ static struct of_regulator_match rk808_reg_matches[] = {
 	{ .name = "rk_ldo6", .driver_data = (void *)9 },
 	{ .name = "rk_ldo7", .driver_data = (void *)10 },
 	{ .name = "rk_ldo8", .driver_data = (void *)11 },
+	{ .name = "rk_ldo9", .driver_data = (void *)12 },
+	{ .name = "rk_ldo10", .driver_data = (void *)13 },
 };
 
 static struct rk808_board *rk808_parse_dt(struct rk808 *rk808)

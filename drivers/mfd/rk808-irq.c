@@ -221,6 +221,7 @@ int rk808_irq_init(struct rk808 *rk808, int irq,struct rk808_board *pdata)
 	ret = request_threaded_irq(rk808->chip_irq, NULL, rk808_irq, IRQF_TRIGGER_FALLING | IRQF_ONESHOT, "rk808", rk808);
 
 	irq_set_irq_type(rk808->chip_irq, IRQ_TYPE_LEVEL_LOW);
+	enable_irq_wake(rk808->chip_irq);
 
 	if (ret != 0)
 		dev_err(rk808->dev, "Failed to request IRQ: %d\n", ret);
