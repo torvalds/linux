@@ -6,15 +6,15 @@
 # Execute this in the source tree.  Do not run it as a background task
 # because qemu does not seem to like that much.
 #
-# Usage: sh kvm-test-1-rcu.sh config builddir resdir minutes qemu-args bootargs
+# Usage: sh kvm-test-1-run.sh config builddir resdir minutes qemu-args boot_args
 #
-# qemu-args defaults to "" -- you will want "-nographic" if running headless.
-# bootargs defaults to	"root=/dev/sda noapic selinux=0 console=ttyS0"
-#			"initcall_debug debug rcutorture.stat_interval=15"
-#			"rcutorture.shutdown_secs=$((minutes * 60))"
-#			"rcutorture.rcutorture_runnable=1"
+# qemu-args defaults to "-nographic", along with arguments specifying the
+#			number of CPUs and other options generated from
+#			the underlying CPU architecture.
+# boot_args defaults to value returned by the per_version_boot_params
+#			shell function.
 #
-# Anything you specify for either qemu-args or bootargs is appended to
+# Anything you specify for either qemu-args or boot_args is appended to
 # the default values.  The "-smp" value is deduced from the contents of
 # the config fragment.
 #
@@ -40,32 +40,34 @@
 
 grace=120
 
-T=/tmp/kvm-test-1-rcu.sh.$$
+T=/tmp/kvm-test-1-run.sh.$$
 trap 'rm -rf $T' 0
 
 . $KVM/bin/functions.sh
 . $KVPATH/ver_functions.sh
 
 config_template=${1}
+config_dir=`echo $config_template | sed -e 's,/[^/]*$,,'`
 title=`echo $config_template | sed -e 's/^.*\///'`
 builddir=${2}
 if test -z "$builddir" -o ! -d "$builddir" -o ! -w "$builddir"
 then
-	echo "kvm-test-1-rcu.sh :$builddir: Not a writable directory, cannot build into it"
+	echo "kvm-test-1-run.sh :$builddir: Not a writable directory, cannot build into it"
 	exit 1
 fi
 resdir=${3}
 if test -z "$resdir" -o ! -d "$resdir" -o ! -w "$resdir"
 then
-	echo "kvm-test-1-rcu.sh :$resdir: Not a writable directory, cannot build into it"
+	echo "kvm-test-1-run.sh :$resdir: Not a writable directory, cannot store results into it"
 	exit 1
 fi
 cp $config_template $resdir/ConfigFragment
 echo ' ---' `date`: Starting build
 echo ' ---' Kconfig fragment at: $config_template >> $resdir/log
-cat << '___EOF___' >> $T
-CONFIG_RCU_TORTURE_TEST=y
-___EOF___
+if test -r "$config_dir/CFcommon"
+then
+	cat < $config_dir/CFcommon >> $T
+fi
 # Optimizations below this point
 # CONFIG_USB=n
 # CONFIG_SECURITY=n
@@ -96,11 +98,23 @@ then
 	cp $builddir/.config $resdir
 	cp $builddir/arch/x86/boot/bzImage $resdir
 	parse-build.sh $resdir/Make.out $title
+	if test -f $builddir.wait
+	then
+		mv $builddir.wait $builddir.ready
+	fi
 else
 	cp $builddir/Make*.out $resdir
 	echo Build failed, not running KVM, see $resdir.
+	if test -f $builddir.wait
+	then
+		mv $builddir.wait $builddir.ready
+	fi
 	exit 1
 fi
+while test -f $builddir.ready
+do
+	sleep 1
+done
 minutes=$4
 seconds=$(($minutes * 60))
 qemu_args=$5
@@ -111,9 +125,10 @@ kstarttime=`awk 'BEGIN { print systime() }' < /dev/null`
 echo ' ---' `date`: Starting kernel
 
 # Determine the appropriate flavor of qemu command.
-QEMU="`identify_qemu $builddir/vmlinux.o`"
+QEMU="`identify_qemu $builddir/vmlinux`"
 
 # Generate -smp qemu argument.
+qemu_args="-nographic $qemu_args"
 cpu_count=`configNR_CPUS.sh $config_template`
 vcpus=`identify_qemu_vcpus`
 if test $cpu_count -gt $vcpus
@@ -133,12 +148,8 @@ qemu_append="`identify_qemu_append "$QEMU"`"
 
 # Pull in Kconfig-fragment boot parameters
 boot_args="`configfrag_boot_params "$boot_args" "$config_template"`"
-# Generate CPU-hotplug boot parameters
-boot_args="`rcutorture_param_onoff "$boot_args" $builddir/.config`"
-# Generate rcu_barrier() boot parameter
-boot_args="`rcutorture_param_n_barrier_cbs "$boot_args"`"
-# Pull in standard rcutorture boot arguments
-boot_args="$boot_args rcutorture.stat_interval=15 rcutorture.shutdown_secs=$seconds rcutorture.rcutorture_runnable=1"
+# Generate kernel-version-specific boot parameters
+boot_args="`per_version_boot_params "$boot_args" $builddir/.config $seconds`"
 
 echo $QEMU $qemu_args -m 512 -kernel $builddir/arch/x86/boot/bzImage -append \"$qemu_append $boot_args\" > $resdir/qemu-cmd
 if test -n "$RCU_BUILDONLY"
@@ -188,5 +199,5 @@ then
 fi
 
 cp $builddir/console.log $resdir
-parse-rcutorture.sh $resdir/console.log $title
+parse-${TORTURE_SUITE}torture.sh $resdir/console.log $title
 parse-console.sh $resdir/console.log $title

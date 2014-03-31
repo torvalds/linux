@@ -12,8 +12,8 @@
  * GNU General Public License for more details.
  *
  * You should have received a copy of the GNU General Public License
- * along with this program; if not, write to the Free Software
- * Foundation, Inc., 59 Temple Place - Suite 330, Boston, MA 02111-1307, USA.
+ * along with this program; if not, you can access it online at
+ * http://www.gnu.org/licenses/gpl-2.0.html.
  *
  * Copyright IBM Corporation, 2001
  *
@@ -44,7 +44,9 @@
 #include <linux/debugobjects.h>
 #include <linux/bug.h>
 #include <linux/compiler.h>
+#include <asm/barrier.h>
 
+extern int rcu_expedited; /* for sysctl */
 #ifdef CONFIG_RCU_TORTURE_TEST
 extern int rcutorture_runnable; /* for sysctl */
 #endif /* #ifdef CONFIG_RCU_TORTURE_TEST */
@@ -479,11 +481,9 @@ static inline void rcu_preempt_sleep_check(void)
 	do {								\
 		rcu_preempt_sleep_check();				\
 		rcu_lockdep_assert(!lock_is_held(&rcu_bh_lock_map),	\
-				   "Illegal context switch in RCU-bh"	\
-				   " read-side critical section");	\
+				   "Illegal context switch in RCU-bh read-side critical section"); \
 		rcu_lockdep_assert(!lock_is_held(&rcu_sched_lock_map),	\
-				   "Illegal context switch in RCU-sched"\
-				   " read-side critical section");	\
+				   "Illegal context switch in RCU-sched read-side critical section"); \
 	} while (0)
 
 #else /* #ifdef CONFIG_PROVE_RCU */
@@ -510,43 +510,40 @@ static inline void rcu_preempt_sleep_check(void)
 #endif /* #else #ifdef __CHECKER__ */
 
 #define __rcu_access_pointer(p, space) \
-	({ \
-		typeof(*p) *_________p1 = (typeof(*p)*__force )ACCESS_ONCE(p); \
-		rcu_dereference_sparse(p, space); \
-		((typeof(*p) __force __kernel *)(_________p1)); \
-	})
+({ \
+	typeof(*p) *_________p1 = (typeof(*p) *__force)ACCESS_ONCE(p); \
+	rcu_dereference_sparse(p, space); \
+	((typeof(*p) __force __kernel *)(_________p1)); \
+})
 #define __rcu_dereference_check(p, c, space) \
-	({ \
-		typeof(*p) *_________p1 = (typeof(*p)*__force )ACCESS_ONCE(p); \
-		rcu_lockdep_assert(c, "suspicious rcu_dereference_check()" \
-				      " usage"); \
-		rcu_dereference_sparse(p, space); \
-		smp_read_barrier_depends(); \
-		((typeof(*p) __force __kernel *)(_________p1)); \
-	})
+({ \
+	typeof(*p) *_________p1 = (typeof(*p) *__force)ACCESS_ONCE(p); \
+	rcu_lockdep_assert(c, "suspicious rcu_dereference_check() usage"); \
+	rcu_dereference_sparse(p, space); \
+	smp_read_barrier_depends(); /* Dependency order vs. p above. */ \
+	((typeof(*p) __force __kernel *)(_________p1)); \
+})
 #define __rcu_dereference_protected(p, c, space) \
-	({ \
-		rcu_lockdep_assert(c, "suspicious rcu_dereference_protected()" \
-				      " usage"); \
-		rcu_dereference_sparse(p, space); \
-		((typeof(*p) __force __kernel *)(p)); \
-	})
+({ \
+	rcu_lockdep_assert(c, "suspicious rcu_dereference_protected() usage"); \
+	rcu_dereference_sparse(p, space); \
+	((typeof(*p) __force __kernel *)(p)); \
+})
 
 #define __rcu_access_index(p, space) \
-	({ \
-		typeof(p) _________p1 = ACCESS_ONCE(p); \
-		rcu_dereference_sparse(p, space); \
-		(_________p1); \
-	})
+({ \
+	typeof(p) _________p1 = ACCESS_ONCE(p); \
+	rcu_dereference_sparse(p, space); \
+	(_________p1); \
+})
 #define __rcu_dereference_index_check(p, c) \
-	({ \
-		typeof(p) _________p1 = ACCESS_ONCE(p); \
-		rcu_lockdep_assert(c, \
-				   "suspicious rcu_dereference_index_check()" \
-				   " usage"); \
-		smp_read_barrier_depends(); \
-		(_________p1); \
-	})
+({ \
+	typeof(p) _________p1 = ACCESS_ONCE(p); \
+	rcu_lockdep_assert(c, \
+			   "suspicious rcu_dereference_index_check() usage"); \
+	smp_read_barrier_depends(); /* Dependency order vs. p above. */ \
+	(_________p1); \
+})
 
 /**
  * RCU_INITIALIZER() - statically initialize an RCU-protected global variable
@@ -585,12 +582,7 @@ static inline void rcu_preempt_sleep_check(void)
  * please be careful when making changes to rcu_assign_pointer() and the
  * other macros that it invokes.
  */
-#define rcu_assign_pointer(p, v) \
-	do { \
-		smp_wmb(); \
-		ACCESS_ONCE(p) = RCU_INITIALIZER(v); \
-	} while (0)
-
+#define rcu_assign_pointer(p, v) smp_store_release(&p, RCU_INITIALIZER(v))
 
 /**
  * rcu_access_pointer() - fetch RCU pointer with no dereferencing
@@ -1015,11 +1007,21 @@ static inline notrace void rcu_read_unlock_sched_notrace(void)
 #define kfree_rcu(ptr, rcu_head)					\
 	__kfree_rcu(&((ptr)->rcu_head), offsetof(typeof(*(ptr)), rcu_head))
 
-#ifdef CONFIG_RCU_NOCB_CPU
+#if defined(CONFIG_TINY_RCU) || defined(CONFIG_RCU_NOCB_CPU_ALL)
+static inline int rcu_needs_cpu(int cpu, unsigned long *delta_jiffies)
+{
+	*delta_jiffies = ULONG_MAX;
+	return 0;
+}
+#endif /* #if defined(CONFIG_TINY_RCU) || defined(CONFIG_RCU_NOCB_CPU_ALL) */
+
+#if defined(CONFIG_RCU_NOCB_CPU_ALL)
+static inline bool rcu_is_nocb_cpu(int cpu) { return true; }
+#elif defined(CONFIG_RCU_NOCB_CPU)
 bool rcu_is_nocb_cpu(int cpu);
 #else
 static inline bool rcu_is_nocb_cpu(int cpu) { return false; }
-#endif /* #else #ifdef CONFIG_RCU_NOCB_CPU */
+#endif
 
 
 /* Only for use by adaptive-ticks code. */
