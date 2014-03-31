@@ -3622,9 +3622,9 @@ enum punit_power_well {
 #define   PIPE_PIXEL_MASK         0x00ffffff
 #define   PIPE_PIXEL_SHIFT        0
 /* GM45+ just has to be different */
-#define _PIPEA_FRMCOUNT_GM45	(dev_priv->info.display_mmio_offset + 0x70040)
-#define _PIPEA_FLIPCOUNT_GM45	(dev_priv->info.display_mmio_offset + 0x70044)
-#define PIPE_FRMCOUNT_GM45(pipe) _PIPE(pipe, _PIPEA_FRMCOUNT_GM45, _PIPEB_FRMCOUNT_GM45)
+#define _PIPEA_FRMCOUNT_GM45	0x70040
+#define _PIPEA_FLIPCOUNT_GM45	0x70044
+#define PIPE_FRMCOUNT_GM45(pipe) _PIPE2(pipe, _PIPEA_FRMCOUNT_GM45)
 
 /* Cursor A & B regs */
 #define _CURACNTR		(dev_priv->info.display_mmio_offset + 0x70080)
