@@ -313,6 +313,48 @@ handle_riprel_insn(struct arch_uprobe *auprobe, struct insn *insn)
 	}
 }
 
+/*
+ * If we're emulating a rip-relative instruction, save the contents
+ * of the scratch register and store the target address in that register.
+ */
+static void
+pre_xol_rip_insn(struct arch_uprobe *auprobe, struct pt_regs *regs,
+				struct arch_uprobe_task *autask)
+{
+	if (auprobe->fixups & UPROBE_FIX_RIP_AX) {
+		autask->saved_scratch_register = regs->ax;
+		regs->ax = current->utask->vaddr;
+		regs->ax += auprobe->rip_rela_target_address;
+	} else if (auprobe->fixups & UPROBE_FIX_RIP_CX) {
+		autask->saved_scratch_register = regs->cx;
+		regs->cx = current->utask->vaddr;
+		regs->cx += auprobe->rip_rela_target_address;
+	}
+}
+
+static void
+handle_riprel_post_xol(struct arch_uprobe *auprobe, struct pt_regs *regs, long *correction)
+{
+	if (auprobe->fixups & (UPROBE_FIX_RIP_AX | UPROBE_FIX_RIP_CX)) {
+		struct arch_uprobe_task *autask;
+
+		autask = &current->utask->autask;
+		if (auprobe->fixups & UPROBE_FIX_RIP_AX)
+			regs->ax = autask->saved_scratch_register;
+		else
+			regs->cx = autask->saved_scratch_register;
+
+		/*
+		 * The original instruction includes a displacement, and so
+		 * is 4 bytes longer than what we've just single-stepped.
+		 * Caller may need to apply other fixups to handle stuff
+		 * like "jmpq *...(%rip)" and "callq *...(%rip)".
+		 */
+		if (correction)
+			*correction += 4;
+	}
+}
+
 static int validate_insn_64bits(struct arch_uprobe *auprobe, struct insn *insn)
 {
 	insn_init(insn, auprobe->insn, true);
@@ -339,9 +381,19 @@ static int validate_insn_bits(struct arch_uprobe *auprobe, struct mm_struct *mm,
 	return validate_insn_64bits(auprobe, insn);
 }
 #else /* 32-bit: */
+/*
+ * No RIP-relative addressing on 32-bit
+ */
 static void handle_riprel_insn(struct arch_uprobe *auprobe, struct insn *insn)
 {
-	/* No RIP-relative addressing on 32-bit */
+}
+static void pre_xol_rip_insn(struct arch_uprobe *auprobe, struct pt_regs *regs,
+				struct arch_uprobe_task *autask)
+{
+}
+static void handle_riprel_post_xol(struct arch_uprobe *auprobe, struct pt_regs *regs,
+					long *correction)
+{
 }
 
 static int validate_insn_bits(struct arch_uprobe *auprobe, struct mm_struct *mm,  struct insn *insn)
@@ -415,34 +467,6 @@ int arch_uprobe_analyze_insn(struct arch_uprobe *auprobe, struct mm_struct *mm, 
 	return 0;
 }
 
-#ifdef CONFIG_X86_64
-/*
- * If we're emulating a rip-relative instruction, save the contents
- * of the scratch register and store the target address in that register.
- */
-static void
-pre_xol_rip_insn(struct arch_uprobe *auprobe, struct pt_regs *regs,
-				struct arch_uprobe_task *autask)
-{
-	if (auprobe->fixups & UPROBE_FIX_RIP_AX) {
-		autask->saved_scratch_register = regs->ax;
-		regs->ax = current->utask->vaddr;
-		regs->ax += auprobe->rip_rela_target_address;
-	} else if (auprobe->fixups & UPROBE_FIX_RIP_CX) {
-		autask->saved_scratch_register = regs->cx;
-		regs->cx = current->utask->vaddr;
-		regs->cx += auprobe->rip_rela_target_address;
-	}
-}
-#else
-static void
-pre_xol_rip_insn(struct arch_uprobe *auprobe, struct pt_regs *regs,
-				struct arch_uprobe_task *autask)
-{
-	/* No RIP-relative addressing on 32-bit */
-}
-#endif
-
 /*
  * arch_uprobe_pre_xol - prepare to execute out of line.
  * @auprobe: the probepoint information.
@@ -491,42 +515,6 @@ static int adjust_ret_addr(unsigned long sp, long correction)
 
 	return 0;
 }
-
-#ifdef CONFIG_X86_64
-static bool is_riprel_insn(struct arch_uprobe *auprobe)
-{
-	return ((auprobe->fixups & (UPROBE_FIX_RIP_AX | UPROBE_FIX_RIP_CX)) != 0);
-}
-
-static void
-handle_riprel_post_xol(struct arch_uprobe *auprobe, struct pt_regs *regs, long *correction)
-{
-	if (is_riprel_insn(auprobe)) {
-		struct arch_uprobe_task *autask;
-
-		autask = &current->utask->autask;
-		if (auprobe->fixups & UPROBE_FIX_RIP_AX)
-			regs->ax = autask->saved_scratch_register;
-		else
-			regs->cx = autask->saved_scratch_register;
-
-		/*
-		 * The original instruction includes a displacement, and so
-		 * is 4 bytes longer than what we've just single-stepped.
-		 * Fall through to handle stuff like "jmpq *...(%rip)" and
-		 * "callq *...(%rip)".
-		 */
-		if (correction)
-			*correction += 4;
-	}
-}
-#else
-static void
-handle_riprel_post_xol(struct arch_uprobe *auprobe, struct pt_regs *regs, long *correction)
-{
-	/* No RIP-relative addressing on 32-bit */
-}
-#endif
 
 /*
  * If xol insn itself traps and generates a signal(Say,
