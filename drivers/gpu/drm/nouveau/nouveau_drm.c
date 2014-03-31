@@ -866,13 +866,16 @@ static int nouveau_pmops_runtime_suspend(struct device *dev)
 	struct drm_device *drm_dev = pci_get_drvdata(pdev);
 	int ret;
 
-	if (nouveau_runtime_pm == 0)
-		return -EINVAL;
+	if (nouveau_runtime_pm == 0) {
+		pm_runtime_forbid(dev);
+		return -EBUSY;
+	}
 
 	/* are we optimus enabled? */
 	if (nouveau_runtime_pm == -1 && !nouveau_is_optimus() && !nouveau_is_v1_dsm()) {
 		DRM_DEBUG_DRIVER("failing to power off - not optimus\n");
-		return -EINVAL;
+		pm_runtime_forbid(dev);
+		return -EBUSY;
 	}
 
 	nv_debug_level(SILENT);
@@ -923,12 +926,15 @@ static int nouveau_pmops_runtime_idle(struct device *dev)
 	struct nouveau_drm *drm = nouveau_drm(drm_dev);
 	struct drm_crtc *crtc;
 
-	if (nouveau_runtime_pm == 0)
+	if (nouveau_runtime_pm == 0) {
+		pm_runtime_forbid(dev);
 		return -EBUSY;
+	}
 
 	/* are we optimus enabled? */
 	if (nouveau_runtime_pm == -1 && !nouveau_is_optimus() && !nouveau_is_v1_dsm()) {
 		DRM_DEBUG_DRIVER("failing to power off - not optimus\n");
+		pm_runtime_forbid(dev);
 		return -EBUSY;
 	}
 

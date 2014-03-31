@@ -464,7 +464,9 @@ static int queue_userspace_packet(struct datapath *dp, struct sk_buff *skb,
 	}
 	nla->nla_len = nla_attr_size(skb->len);
 
-	skb_zerocopy(user_skb, skb, skb->len, hlen);
+	err = skb_zerocopy(user_skb, skb, skb->len, hlen);
+	if (err)
+		goto out;
 
 	/* Pad OVS_PACKET_ATTR_PACKET if linear copy was performed */
 	if (!(dp->user_features & OVS_DP_F_UNALIGNED)) {
@@ -478,6 +480,8 @@ static int queue_userspace_packet(struct datapath *dp, struct sk_buff *skb,
 
 	err = genlmsg_unicast(ovs_dp_get_net(dp), user_skb, upcall_info->portid);
 out:
+	if (err)
+		skb_tx_error(skb);
 	kfree_skb(nskb);
 	return err;
 }
@@ -1174,7 +1178,7 @@ static void ovs_dp_reset_user_features(struct sk_buff *skb, struct genl_info *in
 	struct datapath *dp;
 
 	dp = lookup_datapath(sock_net(skb->sk), info->userhdr, info->attrs);
-	if (!dp)
+	if (IS_ERR(dp))
 		return;
 
 	WARN(dp->user_features, "Dropping previously announced user features\n");
@@ -1762,11 +1766,12 @@ static int ovs_vport_cmd_dump(struct sk_buff *skb, struct netlink_callback *cb)
 	int bucket = cb->args[0], skip = cb->args[1];
 	int i, j = 0;
 
-	dp = get_dp(sock_net(skb->sk), ovs_header->dp_ifindex);
-	if (!dp)
-		return -ENODEV;
-
 	rcu_read_lock();
+	dp = get_dp(sock_net(skb->sk), ovs_header->dp_ifindex);
+	if (!dp) {
+		rcu_read_unlock();
+		return -ENODEV;
+	}
 	for (i = bucket; i < DP_VPORT_HASH_BUCKETS; i++) {
 		struct vport *vport;
 

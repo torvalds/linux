@@ -693,20 +693,11 @@ blk_init_queue_node(request_fn_proc *rfn, spinlock_t *lock, int node_id)
 	if (!uninit_q)
 		return NULL;
 
-	uninit_q->flush_rq = kzalloc(sizeof(struct request), GFP_KERNEL);
-	if (!uninit_q->flush_rq)
-		goto out_cleanup_queue;
-
 	q = blk_init_allocated_queue(uninit_q, rfn, lock);
 	if (!q)
-		goto out_free_flush_rq;
-	return q;
+		blk_cleanup_queue(uninit_q);
 
-out_free_flush_rq:
-	kfree(uninit_q->flush_rq);
-out_cleanup_queue:
-	blk_cleanup_queue(uninit_q);
-	return NULL;
+	return q;
 }
 EXPORT_SYMBOL(blk_init_queue_node);
 
@@ -717,8 +708,12 @@ blk_init_allocated_queue(struct request_queue *q, request_fn_proc *rfn,
 	if (!q)
 		return NULL;
 
-	if (blk_init_rl(&q->root_rl, q, GFP_KERNEL))
+	q->flush_rq = kzalloc(sizeof(struct request), GFP_KERNEL);
+	if (!q->flush_rq)
 		return NULL;
+
+	if (blk_init_rl(&q->root_rl, q, GFP_KERNEL))
+		goto fail;
 
 	q->request_fn		= rfn;
 	q->prep_rq_fn		= NULL;
@@ -742,12 +737,16 @@ blk_init_allocated_queue(struct request_queue *q, request_fn_proc *rfn,
 	/* init elevator */
 	if (elevator_init(q, NULL)) {
 		mutex_unlock(&q->sysfs_lock);
-		return NULL;
+		goto fail;
 	}
 
 	mutex_unlock(&q->sysfs_lock);
 
 	return q;
+
+fail:
+	kfree(q->flush_rq);
+	return NULL;
 }
 EXPORT_SYMBOL(blk_init_allocated_queue);
 

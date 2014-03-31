@@ -307,7 +307,7 @@ SYSCALL_DEFINE5(llseek, unsigned int, fd, unsigned long, offset_high,
 		unsigned int, whence)
 {
 	int retval;
-	struct fd f = fdget(fd);
+	struct fd f = fdget_pos(fd);
 	loff_t offset;
 
 	if (!f.file)
@@ -327,7 +327,7 @@ SYSCALL_DEFINE5(llseek, unsigned int, fd, unsigned long, offset_high,
 			retval = 0;
 	}
 out_putf:
-	fdput(f);
+	fdput_pos(f);
 	return retval;
 }
 #endif

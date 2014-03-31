@@ -2127,25 +2127,31 @@ EXPORT_SYMBOL_GPL(skb_zerocopy_headlen);
  *
  *	The `hlen` as calculated by skb_zerocopy_headlen() specifies the
  *	headroom in the `to` buffer.
+ *
+ *	Return value:
+ *	0: everything is OK
+ *	-ENOMEM: couldn't orphan frags of @from due to lack of memory
+ *	-EFAULT: skb_copy_bits() found some problem with skb geometry
  */
-void
-skb_zerocopy(struct sk_buff *to, const struct sk_buff *from, int len, int hlen)
+int
+skb_zerocopy(struct sk_buff *to, struct sk_buff *from, int len, int hlen)
 {
 	int i, j = 0;
 	int plen = 0; /* length of skb->head fragment */
+	int ret;
 	struct page *page;
 	unsigned int offset;
 
 	BUG_ON(!from->head_frag && !hlen);
 
 	/* dont bother with small payloads */
-	if (len <= skb_tailroom(to)) {
-		skb_copy_bits(from, 0, skb_put(to, len), len);
-		return;
-	}
+	if (len <= skb_tailroom(to))
+		return skb_copy_bits(from, 0, skb_put(to, len), len);
 
 	if (hlen) {
-		skb_copy_bits(from, 0, skb_put(to, hlen), hlen);
+		ret = skb_copy_bits(from, 0, skb_put(to, hlen), hlen);
+		if (unlikely(ret))
+			return ret;
 		len -= hlen;
 	} else {
 		plen = min_t(int, skb_headlen(from), len);
@@ -2163,6 +2169,11 @@ skb_zerocopy(struct sk_buff *to, const struct sk_buff *from, int len, int hlen)
 	to->len += len + plen;
 	to->data_len += len + plen;
 
+	if (unlikely(skb_orphan_frags(from, GFP_ATOMIC))) {
+		skb_tx_error(from);
+		return -ENOMEM;
+	}
+
 	for (i = 0; i < skb_shinfo(from)->nr_frags; i++) {
 		if (!len)
 			break;
@@ -2173,6 +2184,8 @@ skb_zerocopy(struct sk_buff *to, const struct sk_buff *from, int len, int hlen)
 		j++;
 	}
 	skb_shinfo(to)->nr_frags = j;
+
+	return 0;
 }
 EXPORT_SYMBOL_GPL(skb_zerocopy);
 
@@ -2866,8 +2879,9 @@ struct sk_buff *skb_segment(struct sk_buff *head_skb,
 	int err = -ENOMEM;
 	int i = 0;
 	int pos;
+	int dummy;
 
-	proto = skb_network_protocol(head_skb);
+	proto = skb_network_protocol(head_skb, &dummy);
 	if (unlikely(!proto))
 		return ERR_PTR(-EINVAL);
 

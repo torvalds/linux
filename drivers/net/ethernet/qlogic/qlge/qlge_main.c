@@ -4765,7 +4765,9 @@ static int qlge_probe(struct pci_dev *pdev,
 	ndev->features = ndev->hw_features;
 	ndev->vlan_features = ndev->hw_features;
 	/* vlan gets same features (except vlan filter) */
-	ndev->vlan_features &= ~NETIF_F_HW_VLAN_CTAG_FILTER;
+	ndev->vlan_features &= ~(NETIF_F_HW_VLAN_CTAG_FILTER |
+				 NETIF_F_HW_VLAN_CTAG_TX |
+				 NETIF_F_HW_VLAN_CTAG_RX);
 
 	if (test_bit(QL_DMA64, &qdev->flags))
 		ndev->features |= NETIF_F_HIGHDMA;
