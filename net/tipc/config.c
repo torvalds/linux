@@ -181,7 +181,7 @@ static struct sk_buff *cfg_set_own_addr(void)
 	if (tipc_own_addr)
 		return tipc_cfg_reply_error_string(TIPC_CFG_NOT_SUPPORTED
 						   " (cannot change node address once assigned)");
-	tipc_core_start_net(addr);
+	tipc_net_start(addr);
 	return tipc_cfg_reply_none();
 }
 

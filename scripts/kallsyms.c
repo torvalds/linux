@@ -330,8 +330,7 @@ static void write_src(void)
 				printf("\tPTR\t_text + %#llx\n",
 					table[i].addr - _text);
 			else
-				printf("\tPTR\t_text - %#llx\n",
-					_text - table[i].addr);
+				printf("\tPTR\t%#llx\n", table[i].addr);
 		} else {
 			printf("\tPTR\t%#llx\n", table[i].addr);
 		}

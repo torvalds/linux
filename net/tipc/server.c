@@ -573,7 +573,6 @@ int tipc_server_start(struct tipc_server *s)
 		kmem_cache_destroy(s->rcvbuf_cache);
 		return ret;
 	}
-	s->enabled = 1;
 	return ret;
 }
 
@@ -583,10 +582,6 @@ void tipc_server_stop(struct tipc_server *s)
 	int total = 0;
 	int id;
 
-	if (!s->enabled)
-		return;
-
-	s->enabled = 0;
 	spin_lock_bh(&s->idr_lock);
 	for (id = 0; total < s->idr_in_use; id++) {
 		con = idr_find(&s->conn_idr, id);
