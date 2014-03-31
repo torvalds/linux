@@ -1253,11 +1253,12 @@ static int snd_card_asihpi_pcm_new(struct snd_card_asihpi *asihpi, int device)
 			num_outstreams,	num_instreams, &pcm);
 	if (err < 0)
 		return err;
+
 	/* pointer to ops struct is stored, dont change ops afterwards! */
-		snd_pcm_set_ops(pcm, SNDRV_PCM_STREAM_PLAYBACK,
-				&snd_card_asihpi_playback_mmap_ops);
-		snd_pcm_set_ops(pcm, SNDRV_PCM_STREAM_CAPTURE,
-				&snd_card_asihpi_capture_mmap_ops);
+	snd_pcm_set_ops(pcm, SNDRV_PCM_STREAM_PLAYBACK,
+			&snd_card_asihpi_playback_mmap_ops);
+	snd_pcm_set_ops(pcm, SNDRV_PCM_STREAM_CAPTURE,
+			&snd_card_asihpi_capture_mmap_ops);
 
 	pcm->private_data = asihpi;
 	pcm->info_flags = 0;
