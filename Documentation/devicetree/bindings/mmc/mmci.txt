@@ -24,6 +24,7 @@ Optional properties:
 - st,sig-dir-dat31       : bus signal direction pin used for DAT[3] and DAT[1].
 - st,sig-dir-dat74       : bus signal direction pin used for DAT[4] to DAT[7].
 - st,sig-dir-cmd         : cmd signal direction pin used for CMD.
+- st,sig-pin-fbclk       : feedback clock signal pin used.
 
 Example:
 
@@ -47,6 +48,7 @@ sdi0_per1@80126000 {
 	st,sig-dir-dat0;
 	st,sig-dir-dat2;
 	st,sig-dir-cmd;
+	st,sig-pin-fbclk;
 
 	vmmc-supply = <&ab8500_ldo_aux3_reg>;
 	vqmmc-supply = <&vmmci>;

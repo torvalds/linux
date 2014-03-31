@@ -1402,6 +1402,8 @@ static void mmci_dt_populate_generic_pdata(struct device_node *np,
 		pdata->sigdir |= MCI_ST_DATA74DIREN;
 	if (of_get_property(np, "st,sig-dir-cmd", NULL))
 		pdata->sigdir |= MCI_ST_CMDDIREN;
+	if (of_get_property(np, "st,sig-pin-fbclk", NULL))
+		pdata->sigdir |= MCI_ST_FBCLKEN;
 
 	pdata->gpio_wp = of_get_named_gpio(np, "wp-gpios", 0);
 	pdata->gpio_cd = of_get_named_gpio(np, "cd-gpios", 0);
