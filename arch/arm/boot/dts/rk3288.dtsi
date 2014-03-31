@@ -742,7 +742,7 @@
 		vd_arm {
 			regulator_name="vdd_arm";
 			suspend_volt=<1000>; //mV
-			pd_a12 {
+			pd_core {
 				clk_core_dvfs_table:
 				clk_core {
 					operating-points = <
