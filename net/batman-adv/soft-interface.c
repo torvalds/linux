@@ -129,6 +129,7 @@ static struct net_device_stats *batadv_interface_stats(struct net_device *dev)
 static int batadv_interface_set_mac_addr(struct net_device *dev, void *p)
 {
 	struct batadv_priv *bat_priv = netdev_priv(dev);
+	struct batadv_softif_vlan *vlan;
 	struct sockaddr *addr = p;
 	uint8_t old_addr[ETH_ALEN];
 
@@ -139,12 +140,17 @@ static int batadv_interface_set_mac_addr(struct net_device *dev, void *p)
 	ether_addr_copy(dev->dev_addr, addr->sa_data);
 
 	/* only modify transtable if it has been initialized before */
-	if (atomic_read(&bat_priv->mesh_state) == BATADV_MESH_ACTIVE) {
-		batadv_tt_local_remove(bat_priv, old_addr, BATADV_NO_FLAGS,
+	if (atomic_read(&bat_priv->mesh_state) != BATADV_MESH_ACTIVE)
+		return 0;
+
+	rcu_read_lock();
+	hlist_for_each_entry_rcu(vlan, &bat_priv->softif_vlan_list, list) {
+		batadv_tt_local_remove(bat_priv, old_addr, vlan->vid,
 				       "mac address changed", false);
-		batadv_tt_local_add(dev, addr->sa_data, BATADV_NO_FLAGS,
+		batadv_tt_local_add(dev, addr->sa_data, vlan->vid,
 				    BATADV_NULL_IFINDEX, BATADV_NO_MARK);
 	}
+	rcu_read_unlock();
 
 	return 0;
 }
