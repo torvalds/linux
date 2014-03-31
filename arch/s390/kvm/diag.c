@@ -13,6 +13,7 @@
 
 #include <linux/kvm.h>
 #include <linux/kvm_host.h>
+#include <asm/pgalloc.h>
 #include <asm/virtio-ccw.h>
 #include "kvm-s390.h"
 #include "trace.h"
@@ -86,9 +87,11 @@ static int __diag_ipl_functions(struct kvm_vcpu *vcpu)
 	switch (subcode) {
 	case 3:
 		vcpu->run->s390_reset_flags = KVM_S390_RESET_CLEAR;
+		page_table_reset_pgste(current->mm, 0, TASK_SIZE);
 		break;
 	case 4:
 		vcpu->run->s390_reset_flags = 0;
+		page_table_reset_pgste(current->mm, 0, TASK_SIZE);
 		break;
 	default:
 		return -EOPNOTSUPP;

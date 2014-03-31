@@ -773,11 +773,11 @@ void __noreturn cpu_die(void)
 
 void __init smp_fill_possible_mask(void)
 {
-	unsigned int possible, cpu;
+	unsigned int possible, sclp, cpu;
 
-	possible = setup_possible_cpus;
-	if (!possible)
-		possible = MACHINE_IS_VM ? 64 : nr_cpu_ids;
+	sclp = sclp_get_max_cpu() ?: nr_cpu_ids;
+	possible = setup_possible_cpus ?: nr_cpu_ids;
+	possible = min(possible, sclp);
 	for (cpu = 0; cpu < possible && cpu < nr_cpu_ids; cpu++)
 		set_cpu_possible(cpu, true);
 }
