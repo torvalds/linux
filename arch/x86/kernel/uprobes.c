@@ -402,6 +402,64 @@ static int validate_insn_bits(struct arch_uprobe *auprobe, struct mm_struct *mm,
 }
 #endif /* CONFIG_X86_64 */
 
+struct uprobe_xol_ops {
+	bool	(*emulate)(struct arch_uprobe *, struct pt_regs *);
+	int	(*pre_xol)(struct arch_uprobe *, struct pt_regs *);
+	int	(*post_xol)(struct arch_uprobe *, struct pt_regs *);
+};
+
+static int default_pre_xol_op(struct arch_uprobe *auprobe, struct pt_regs *regs)
+{
+	pre_xol_rip_insn(auprobe, regs, &current->utask->autask);
+	return 0;
+}
+
+/*
+ * Adjust the return address pushed by a call insn executed out of line.
+ */
+static int adjust_ret_addr(unsigned long sp, long correction)
+{
+	int rasize, ncopied;
+	long ra = 0;
+
+	if (is_ia32_task())
+		rasize = 4;
+	else
+		rasize = 8;
+
+	ncopied = copy_from_user(&ra, (void __user *)sp, rasize);
+	if (unlikely(ncopied))
+		return -EFAULT;
+
+	ra += correction;
+	ncopied = copy_to_user((void __user *)sp, &ra, rasize);
+	if (unlikely(ncopied))
+		return -EFAULT;
+
+	return 0;
+}
+
+static int default_post_xol_op(struct arch_uprobe *auprobe, struct pt_regs *regs)
+{
+	struct uprobe_task *utask = current->utask;
+	long correction = (long)(utask->vaddr - utask->xol_vaddr);
+	int ret = 0;
+
+	handle_riprel_post_xol(auprobe, regs, &correction);
+	if (auprobe->fixups & UPROBE_FIX_IP)
+		regs->ip += correction;
+
+	if (auprobe->fixups & UPROBE_FIX_CALL)
+		ret = adjust_ret_addr(regs->sp, correction);
+
+	return ret;
+}
+
+static struct uprobe_xol_ops default_xol_ops = {
+	.pre_xol  = default_pre_xol_op,
+	.post_xol = default_post_xol_op,
+};
+
 /**
  * arch_uprobe_analyze_insn - instruction analysis including validity and fixups.
  * @mm: the probed address space.
@@ -464,6 +522,7 @@ int arch_uprobe_analyze_insn(struct arch_uprobe *auprobe, struct mm_struct *mm, 
 	if (fix_call)
 		auprobe->fixups |= UPROBE_FIX_CALL;
 
+	auprobe->ops = &default_xol_ops;
 	return 0;
 }
 
@@ -485,33 +544,8 @@ int arch_uprobe_pre_xol(struct arch_uprobe *auprobe, struct pt_regs *regs)
 	if (test_tsk_thread_flag(current, TIF_BLOCKSTEP))
 		set_task_blockstep(current, false);
 
-	pre_xol_rip_insn(auprobe, regs, &utask->autask);
-	return 0;
-}
-
-/*
- * This function is called by arch_uprobe_post_xol() to adjust the return
- * address pushed by a call instruction executed out of line.
- */
-static int adjust_ret_addr(unsigned long sp, long correction)
-{
-	int rasize, ncopied;
-	long ra = 0;
-
-	if (is_ia32_task())
-		rasize = 4;
-	else
-		rasize = 8;
-
-	ncopied = copy_from_user(&ra, (void __user *)sp, rasize);
-	if (unlikely(ncopied))
-		return -EFAULT;
-
-	ra += correction;
-	ncopied = copy_to_user((void __user *)sp, &ra, rasize);
-	if (unlikely(ncopied))
-		return -EFAULT;
-
+	if (auprobe->ops->pre_xol)
+		return auprobe->ops->pre_xol(auprobe, regs);
 	return 0;
 }
 
@@ -560,11 +594,8 @@ bool arch_uprobe_xol_was_trapped(struct task_struct *t)
 int arch_uprobe_post_xol(struct arch_uprobe *auprobe, struct pt_regs *regs)
 {
 	struct uprobe_task *utask = current->utask;
-	long correction;
-	int result = 0;
 
 	WARN_ON_ONCE(current->thread.trap_nr != UPROBE_TRAP_NR);
-
 	current->thread.trap_nr = utask->autask.saved_trap_nr;
 	/*
 	 * arch_uprobe_pre_xol() doesn't save the state of TIF_BLOCKSTEP
@@ -576,15 +607,9 @@ int arch_uprobe_post_xol(struct arch_uprobe *auprobe, struct pt_regs *regs)
 	else if (!(auprobe->fixups & UPROBE_FIX_SETF))
 		regs->flags &= ~X86_EFLAGS_TF;
 
-	correction = (long)(utask->vaddr - utask->xol_vaddr);
-	handle_riprel_post_xol(auprobe, regs, &correction);
-	if (auprobe->fixups & UPROBE_FIX_IP)
-		regs->ip += correction;
-
-	if (auprobe->fixups & UPROBE_FIX_CALL)
-		result = adjust_ret_addr(regs->sp, correction);
-
-	return result;
+	if (auprobe->ops->post_xol)
+		return auprobe->ops->post_xol(auprobe, regs);
+	return 0;
 }
 
 /* callback routine for handling exceptions. */
@@ -642,6 +667,10 @@ static bool __skip_sstep(struct arch_uprobe *auprobe, struct pt_regs *regs)
 {
 	int i;
 
+	if (auprobe->ops->emulate)
+		return auprobe->ops->emulate(auprobe, regs);
+
+	/* TODO: move this code into ->emulate() hook */
 	for (i = 0; i < MAX_UINSN_BYTES; i++) {
 		if (auprobe->insn[i] == 0x66)
 			continue;
