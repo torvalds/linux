@@ -1597,7 +1597,6 @@ static int do_cmdtest_ioctl(struct comedi_device *dev,
 {
 	struct comedi_cmd cmd;
 	struct comedi_subdevice *s;
-	unsigned int *chanlist = NULL;
 	unsigned int __user *user_chanlist;
 	int ret;
 
@@ -1625,8 +1624,6 @@ static int do_cmdtest_ioctl(struct comedi_device *dev,
 		dev_dbg(dev->class_dev, "bad cmd address\n");
 		ret = -EFAULT;
 	}
-
-	kfree(chanlist);
 
 	return ret;
 }
