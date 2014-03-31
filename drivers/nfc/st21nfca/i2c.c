@@ -555,14 +555,9 @@ static int st21nfca_hci_i2c_probe(struct i2c_client *client,
 		return r;
 	}
 
-	r = st21nfca_hci_probe(phy, &i2c_phy_ops, LLC_SHDLC_NAME,
+	return st21nfca_hci_probe(phy, &i2c_phy_ops, LLC_SHDLC_NAME,
 			       ST21NFCA_FRAME_HEADROOM, ST21NFCA_FRAME_TAILROOM,
 			       ST21NFCA_HCI_LLC_MAX_PAYLOAD, &phy->hdev);
-
-	if (r < 0)
-		return r;
-
-	return 0;
 }
 
 static int st21nfca_hci_i2c_remove(struct i2c_client *client)
