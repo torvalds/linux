@@ -1,5 +1,5 @@
 /*
- * Copyright (C) 2013 Broadcom Corporation
+ * Copyright (C) 2012-2014 Broadcom Corporation
  *
  * This program is free software; you can redistribute it and/or
  * modify it under the terms of the GNU General Public License as
@@ -11,7 +11,4 @@
  * GNU General Public License for more details.
  */
 
-#include <linux/reboot.h>
-
-void bcm_kona_setup_restart(void);
-void bcm_kona_restart(enum reboot_mode mode, const char *cmd);
+void __init kona_l2_cache_init(void);
