@@ -225,7 +225,7 @@ int nfc_hci_target_discovered(struct nfc_hci_dev *hdev, u8 gate)
 			goto exit;
 		}
 
-		targets->sens_res = be16_to_cpu(*(u16 *)atqa_skb->data);
+		targets->sens_res = be16_to_cpu(*(__be16 *)atqa_skb->data);
 		targets->sel_res = sak_skb->data[0];
 
 		r = nfc_hci_get_param(hdev, NFC_HCI_RF_READER_A_GATE,
