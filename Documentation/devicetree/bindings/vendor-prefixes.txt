@@ -38,6 +38,7 @@ denx	Denx Software Engineering
 digi	Digi International Inc.
 dlink	D-Link Corporation
 dmo	Data Modul AG
+ebv	EBV Elektronik
 edt	Emerging Display Technologies
 emmicro	EM Microelectronic
 epfl	Ecole Polytechnique Fédérale de Lausanne
