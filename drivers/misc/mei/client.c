@@ -768,10 +768,9 @@ int mei_cl_read_start(struct mei_cl *cl, size_t length)
 
 	cb->fop_type = MEI_FOP_READ;
 	if (mei_hbuf_acquire(dev)) {
-		if (mei_hbm_cl_flow_control_req(dev, cl)) {
-			rets = -ENODEV;
+		rets = mei_hbm_cl_flow_control_req(dev, cl);
+		if (rets < 0)
 			goto out;
-		}
 
 		list_add_tail(&cb->list, &dev->read_list.list);
 	} else {

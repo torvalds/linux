@@ -247,7 +247,7 @@ static int ___mei_cl_send(struct mei_cl *cl, u8 *buf, size_t length,
 		return id;
 
 	if (length > dev->me_clients[id].props.max_msg_length)
-		return -EINVAL;
+		return -EFBIG;
 
 	cb = mei_io_cb_init(cl, NULL);
 	if (!cb)
