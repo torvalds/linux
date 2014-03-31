@@ -1879,7 +1879,6 @@ static int rt5640_probe(struct snd_soc_codec *codec)
 
 	rt5640->codec = codec;
 
-	codec->dapm.idle_bias_off = 1;
 	rt5640_set_bias_level(codec, SND_SOC_BIAS_OFF);
 
 	snd_soc_update_bits(codec, RT5640_DUMMY1, 0x0301, 0x0301);
@@ -1988,6 +1987,7 @@ static struct snd_soc_codec_driver soc_codec_dev_rt5640 = {
 	.suspend = rt5640_suspend,
 	.resume = rt5640_resume,
 	.set_bias_level = rt5640_set_bias_level,
+	.idle_bias_off = true,
 	.controls = rt5640_snd_controls,
 	.num_controls = ARRAY_SIZE(rt5640_snd_controls),
 	.dapm_widgets = rt5640_dapm_widgets,
