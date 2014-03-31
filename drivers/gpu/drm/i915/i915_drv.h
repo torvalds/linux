@@ -1253,7 +1253,7 @@ struct intel_pipe_crc {
 	wait_queue_head_t wq;
 };
 
-typedef struct drm_i915_private {
+struct drm_i915_private {
 	struct drm_device *dev;
 	struct kmem_cache *slab;
 
@@ -1459,7 +1459,7 @@ typedef struct drm_i915_private {
 	struct i915_dri1_state dri1;
 	/* Old ums support infrastructure, same warning applies. */
 	struct i915_ums_state ums;
-} drm_i915_private_t;
+};
 
 static inline struct drm_i915_private *to_i915(const struct drm_device *dev)
 {

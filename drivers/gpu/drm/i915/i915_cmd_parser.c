@@ -730,7 +730,7 @@ finish:
  */
 bool i915_needs_cmd_parser(struct intel_ring_buffer *ring)
 {
-	drm_i915_private_t *dev_priv = ring->dev->dev_private;
+	struct drm_i915_private *dev_priv = ring->dev->dev_private;
 
 	/* No command tables indicates a platform without parsing */
 	if (!ring->cmd_tables)
