@@ -23,11 +23,34 @@
 #include <linux/uaccess.h>
 #include <linux/proc_ns.h>
 #include <linux/magic.h>
+#include <linux/bootmem.h>
 #include "pnode.h"
 #include "internal.h"
 
-#define HASH_SHIFT ilog2(PAGE_SIZE / sizeof(struct list_head))
-#define HASH_SIZE (1UL << HASH_SHIFT)
+static unsigned int m_hash_mask __read_mostly;
+static unsigned int m_hash_shift __read_mostly;
+static unsigned int mp_hash_mask __read_mostly;
+static unsigned int mp_hash_shift __read_mostly;
+
+static __initdata unsigned long mhash_entries;
+static int __init set_mhash_entries(char *str)
+{
+	if (!str)
+		return 0;
+	mhash_entries = simple_strtoul(str, &str, 0);
+	return 1;
+}
+__setup("mhash_entries=", set_mhash_entries);
+
+static __initdata unsigned long mphash_entries;
+static int __init set_mphash_entries(char *str)
+{
+	if (!str)
+		return 0;
+	mphash_entries = simple_strtoul(str, &str, 0);
+	return 1;
+}
+__setup("mphash_entries=", set_mphash_entries);
 
 static int event;
 static DEFINE_IDA(mnt_id_ida);
@@ -36,8 +59,8 @@ static DEFINE_SPINLOCK(mnt_id_lock);
 static int mnt_id_start = 0;
 static int mnt_group_start = 1;
 
-static struct list_head *mount_hashtable __read_mostly;
-static struct list_head *mountpoint_hashtable __read_mostly;
+static struct hlist_head *mount_hashtable __read_mostly;
+static struct hlist_head *mountpoint_hashtable __read_mostly;
 static struct kmem_cache *mnt_cache __read_mostly;
 static DECLARE_RWSEM(namespace_sem);
 
@@ -55,12 +78,19 @@ EXPORT_SYMBOL_GPL(fs_kobj);
  */
 __cacheline_aligned_in_smp DEFINE_SEQLOCK(mount_lock);
 
-static inline unsigned long hash(struct vfsmount *mnt, struct dentry *dentry)
+static inline struct hlist_head *m_hash(struct vfsmount *mnt, struct dentry *dentry)
 {
 	unsigned long tmp = ((unsigned long)mnt / L1_CACHE_BYTES);
 	tmp += ((unsigned long)dentry / L1_CACHE_BYTES);
-	tmp = tmp + (tmp >> HASH_SHIFT);
-	return tmp & (HASH_SIZE - 1);
+	tmp = tmp + (tmp >> m_hash_shift);
+	return &mount_hashtable[tmp & m_hash_mask];
+}
+
+static inline struct hlist_head *mp_hash(struct dentry *dentry)
+{
+	unsigned long tmp = ((unsigned long)dentry / L1_CACHE_BYTES);
+	tmp = tmp + (tmp >> mp_hash_shift);
+	return &mountpoint_hashtable[tmp & mp_hash_mask];
 }
 
 /*
@@ -187,7 +217,7 @@ static struct mount *alloc_vfsmnt(const char *name)
 		mnt->mnt_writers = 0;
 #endif
 
-		INIT_LIST_HEAD(&mnt->mnt_hash);
+		INIT_HLIST_NODE(&mnt->mnt_hash);
 		INIT_LIST_HEAD(&mnt->mnt_child);
 		INIT_LIST_HEAD(&mnt->mnt_mounts);
 		INIT_LIST_HEAD(&mnt->mnt_list);
@@ -575,10 +605,10 @@ bool legitimize_mnt(struct vfsmount *bastard, unsigned seq)
  */
 struct mount *__lookup_mnt(struct vfsmount *mnt, struct dentry *dentry)
 {
-	struct list_head *head = mount_hashtable + hash(mnt, dentry);
+	struct hlist_head *head = m_hash(mnt, dentry);
 	struct mount *p;
 
-	list_for_each_entry_rcu(p, head, mnt_hash)
+	hlist_for_each_entry_rcu(p, head, mnt_hash)
 		if (&p->mnt_parent->mnt == mnt && p->mnt_mountpoint == dentry)
 			return p;
 	return NULL;
@@ -590,13 +620,17 @@ struct mount *__lookup_mnt(struct vfsmount *mnt, struct dentry *dentry)
  */
 struct mount *__lookup_mnt_last(struct vfsmount *mnt, struct dentry *dentry)
 {
-	struct list_head *head = mount_hashtable + hash(mnt, dentry);
-	struct mount *p;
-
-	list_for_each_entry_reverse(p, head, mnt_hash)
-		if (&p->mnt_parent->mnt == mnt && p->mnt_mountpoint == dentry)
-			return p;
-	return NULL;
+	struct mount *p, *res;
+	res = p = __lookup_mnt(mnt, dentry);
+	if (!p)
+		goto out;
+	hlist_for_each_entry_continue(p, mnt_hash) {
+		if (&p->mnt_parent->mnt != mnt || p->mnt_mountpoint != dentry)
+			break;
+		res = p;
+	}
+out:
+	return res;
 }
 
 /*
@@ -633,11 +667,11 @@ struct vfsmount *lookup_mnt(struct path *path)
 
 static struct mountpoint *new_mountpoint(struct dentry *dentry)
 {
-	struct list_head *chain = mountpoint_hashtable + hash(NULL, dentry);
+	struct hlist_head *chain = mp_hash(dentry);
 	struct mountpoint *mp;
 	int ret;
 
-	list_for_each_entry(mp, chain, m_hash) {
+	hlist_for_each_entry(mp, chain, m_hash) {
 		if (mp->m_dentry == dentry) {
 			/* might be worth a WARN_ON() */
 			if (d_unlinked(dentry))
@@ -659,7 +693,7 @@ static struct mountpoint *new_mountpoint(struct dentry *dentry)
 
 	mp->m_dentry = dentry;
 	mp->m_count = 1;
-	list_add(&mp->m_hash, chain);
+	hlist_add_head(&mp->m_hash, chain);
 	return mp;
 }
 
@@ -670,7 +704,7 @@ static void put_mountpoint(struct mountpoint *mp)
 		spin_lock(&dentry->d_lock);
 		dentry->d_flags &= ~DCACHE_MOUNTED;
 		spin_unlock(&dentry->d_lock);
-		list_del(&mp->m_hash);
+		hlist_del(&mp->m_hash);
 		kfree(mp);
 	}
 }
@@ -712,7 +746,7 @@ static void detach_mnt(struct mount *mnt, struct path *old_path)
 	mnt->mnt_parent = mnt;
 	mnt->mnt_mountpoint = mnt->mnt.mnt_root;
 	list_del_init(&mnt->mnt_child);
-	list_del_init(&mnt->mnt_hash);
+	hlist_del_init_rcu(&mnt->mnt_hash);
 	put_mountpoint(mnt->mnt_mp);
 	mnt->mnt_mp = NULL;
 }
@@ -739,15 +773,14 @@ static void attach_mnt(struct mount *mnt,
 			struct mountpoint *mp)
 {
 	mnt_set_mountpoint(parent, mp, mnt);
-	list_add_tail(&mnt->mnt_hash, mount_hashtable +
-			hash(&parent->mnt, mp->m_dentry));
+	hlist_add_head_rcu(&mnt->mnt_hash, m_hash(&parent->mnt, mp->m_dentry));
 	list_add_tail(&mnt->mnt_child, &parent->mnt_mounts);
 }
 
 /*
  * vfsmount lock must be held for write
  */
-static void commit_tree(struct mount *mnt)
+static void commit_tree(struct mount *mnt, struct mount *shadows)
 {
 	struct mount *parent = mnt->mnt_parent;
 	struct mount *m;
@@ -762,8 +795,11 @@ static void commit_tree(struct mount *mnt)
 
 	list_splice(&head, n->list.prev);
 
-	list_add_tail(&mnt->mnt_hash, mount_hashtable +
-				hash(&parent->mnt, mnt->mnt_mountpoint));
+	if (shadows)
+		hlist_add_after_rcu(&shadows->mnt_hash, &mnt->mnt_hash);
+	else
+		hlist_add_head_rcu(&mnt->mnt_hash,
+				m_hash(&parent->mnt, mnt->mnt_mountpoint));
 	list_add_tail(&mnt->mnt_child, &parent->mnt_mounts);
 	touch_mnt_namespace(n);
 }
@@ -1153,26 +1189,28 @@ int may_umount(struct vfsmount *mnt)
 
 EXPORT_SYMBOL(may_umount);
 
-static LIST_HEAD(unmounted);	/* protected by namespace_sem */
+static HLIST_HEAD(unmounted);	/* protected by namespace_sem */
 
 static void namespace_unlock(void)
 {
 	struct mount *mnt;
-	LIST_HEAD(head);
+	struct hlist_head head = unmounted;
 
-	if (likely(list_empty(&unmounted))) {
+	if (likely(hlist_empty(&head))) {
 		up_write(&namespace_sem);
 		return;
 	}
 
-	list_splice_init(&unmounted, &head);
+	head.first->pprev = &head.first;
+	INIT_HLIST_HEAD(&unmounted);
+
 	up_write(&namespace_sem);
 
 	synchronize_rcu();
 
-	while (!list_empty(&head)) {
-		mnt = list_first_entry(&head, struct mount, mnt_hash);
-		list_del_init(&mnt->mnt_hash);
+	while (!hlist_empty(&head)) {
+		mnt = hlist_entry(head.first, struct mount, mnt_hash);
+		hlist_del_init(&mnt->mnt_hash);
 		if (mnt->mnt_ex_mountpoint.mnt)
 			path_put(&mnt->mnt_ex_mountpoint);
 		mntput(&mnt->mnt);
@@ -1193,16 +1231,19 @@ static inline void namespace_lock(void)
  */
 void umount_tree(struct mount *mnt, int how)
 {
-	LIST_HEAD(tmp_list);
+	HLIST_HEAD(tmp_list);
 	struct mount *p;
+	struct mount *last = NULL;
 
-	for (p = mnt; p; p = next_mnt(p, mnt))
-		list_move(&p->mnt_hash, &tmp_list);
+	for (p = mnt; p; p = next_mnt(p, mnt)) {
+		hlist_del_init_rcu(&p->mnt_hash);
+		hlist_add_head(&p->mnt_hash, &tmp_list);
+	}
 
 	if (how)
 		propagate_umount(&tmp_list);
 
-	list_for_each_entry(p, &tmp_list, mnt_hash) {
+	hlist_for_each_entry(p, &tmp_list, mnt_hash) {
 		list_del_init(&p->mnt_expire);
 		list_del_init(&p->mnt_list);
 		__touch_mnt_namespace(p->mnt_ns);
@@ -1220,8 +1261,13 @@ void umount_tree(struct mount *mnt, int how)
 			p->mnt_mp = NULL;
 		}
 		change_mnt_propagation(p, MS_PRIVATE);
+		last = p;
 	}
-	list_splice(&tmp_list, &unmounted);
+	if (last) {
+		last->mnt_hash.next = unmounted.first;
+		unmounted.first = tmp_list.first;
+		unmounted.first->pprev = &unmounted.first;
+	}
 }
 
 static void shrink_submounts(struct mount *mnt);
@@ -1605,24 +1651,23 @@ static int attach_recursive_mnt(struct mount *source_mnt,
 			struct mountpoint *dest_mp,
 			struct path *parent_path)
 {
-	LIST_HEAD(tree_list);
+	HLIST_HEAD(tree_list);
 	struct mount *child, *p;
+	struct hlist_node *n;
 	int err;
 
 	if (IS_MNT_SHARED(dest_mnt)) {
 		err = invent_group_ids(source_mnt, true);
 		if (err)
 			goto out;
-	}
-	err = propagate_mnt(dest_mnt, dest_mp, source_mnt, &tree_list);
-	if (err)
-		goto out_cleanup_ids;
-
-	lock_mount_hash();
-
-	if (IS_MNT_SHARED(dest_mnt)) {
+		err = propagate_mnt(dest_mnt, dest_mp, source_mnt, &tree_list);
+		if (err)
+			goto out_cleanup_ids;
+		lock_mount_hash();
 		for (p = source_mnt; p; p = next_mnt(p, source_mnt))
 			set_mnt_shared(p);
+	} else {
+		lock_mount_hash();
 	}
 	if (parent_path) {
 		detach_mnt(source_mnt, parent_path);
@@ -1630,20 +1675,22 @@ static int attach_recursive_mnt(struct mount *source_mnt,
 		touch_mnt_namespace(source_mnt->mnt_ns);
 	} else {
 		mnt_set_mountpoint(dest_mnt, dest_mp, source_mnt);
-		commit_tree(source_mnt);
+		commit_tree(source_mnt, NULL);
 	}
 
-	list_for_each_entry_safe(child, p, &tree_list, mnt_hash) {
-		list_del_init(&child->mnt_hash);
-		commit_tree(child);
+	hlist_for_each_entry_safe(child, n, &tree_list, mnt_hash) {
+		struct mount *q;
+		hlist_del_init(&child->mnt_hash);
+		q = __lookup_mnt_last(&child->mnt_parent->mnt,
+				      child->mnt_mountpoint);
+		commit_tree(child, q);
 	}
 	unlock_mount_hash();
 
 	return 0;
 
  out_cleanup_ids:
-	if (IS_MNT_SHARED(dest_mnt))
-		cleanup_group_ids(source_mnt, NULL);
+	cleanup_group_ids(source_mnt, NULL);
  out:
 	return err;
 }
@@ -2777,18 +2824,24 @@ void __init mnt_init(void)
 	mnt_cache = kmem_cache_create("mnt_cache", sizeof(struct mount),
 			0, SLAB_HWCACHE_ALIGN | SLAB_PANIC, NULL);
 
-	mount_hashtable = (struct list_head *)__get_free_page(GFP_ATOMIC);
-	mountpoint_hashtable = (struct list_head *)__get_free_page(GFP_ATOMIC);
+	mount_hashtable = alloc_large_system_hash("Mount-cache",
+				sizeof(struct hlist_head),
+				mhash_entries, 19,
+				0,
+				&m_hash_shift, &m_hash_mask, 0, 0);
+	mountpoint_hashtable = alloc_large_system_hash("Mountpoint-cache",
+				sizeof(struct hlist_head),
+				mphash_entries, 19,
+				0,
+				&mp_hash_shift, &mp_hash_mask, 0, 0);
 
 	if (!mount_hashtable || !mountpoint_hashtable)
 		panic("Failed to allocate mount hash table\n");
 
-	printk(KERN_INFO "Mount-cache hash table entries: %lu\n", HASH_SIZE);
-
-	for (u = 0; u < HASH_SIZE; u++)
-		INIT_LIST_HEAD(&mount_hashtable[u]);
-	for (u = 0; u < HASH_SIZE; u++)
-		INIT_LIST_HEAD(&mountpoint_hashtable[u]);
+	for (u = 0; u <= m_hash_mask; u++)
+		INIT_HLIST_HEAD(&mount_hashtable[u]);
+	for (u = 0; u <= mp_hash_mask; u++)
+		INIT_HLIST_HEAD(&mountpoint_hashtable[u]);
 
 	kernfs_init();
 
