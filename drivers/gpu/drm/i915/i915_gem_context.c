@@ -606,8 +606,8 @@ mi_set_context(struct intel_ring_buffer *ring,
 	if (ret)
 		return ret;
 
-	/* WaProgramMiArbOnOffAroundMiSetContext:ivb,vlv,hsw */
-	if (IS_GEN7(ring->dev))
+	/* WaProgramMiArbOnOffAroundMiSetContext:ivb,vlv,hsw,bdw */
+	if (INTEL_INFO(ring->dev)->gen >= 7)
 		intel_ring_emit(ring, MI_ARB_ON_OFF | MI_ARB_DISABLE);
 	else
 		intel_ring_emit(ring, MI_NOOP);
@@ -625,7 +625,7 @@ mi_set_context(struct intel_ring_buffer *ring,
 	 */
 	intel_ring_emit(ring, MI_NOOP);
 
-	if (IS_GEN7(ring->dev))
+	if (INTEL_INFO(ring->dev)->gen >= 7)
 		intel_ring_emit(ring, MI_ARB_ON_OFF | MI_ARB_ENABLE);
 	else
 		intel_ring_emit(ring, MI_NOOP);
