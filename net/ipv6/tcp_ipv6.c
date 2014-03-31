@@ -252,6 +252,7 @@ static int tcp_v6_connect(struct sock *sk, struct sockaddr *uaddr,
 	fl6.flowi6_mark = sk->sk_mark;
 	fl6.fl6_dport = usin->sin6_port;
 	fl6.fl6_sport = inet->inet_sport;
+	fl6.flowi6_uid = sock_i_uid(sk);
 
 	final_p = fl6_update_dst(&fl6, np->opt, &final);
 
