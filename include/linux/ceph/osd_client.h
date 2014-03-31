@@ -138,6 +138,7 @@ struct ceph_osd_request {
 	__le64           *r_request_pool;
 	void             *r_request_pgid;
 	__le32           *r_request_attempts;
+	bool              r_paused;
 	struct ceph_eversion *r_request_reassert_version;
 
 	int               r_result;
