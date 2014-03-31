@@ -620,7 +620,10 @@ static int mei_txe_write(struct mei_device *dev,
 	mei_txe_input_ready_interrupt_enable(dev);
 
 	if (!mei_txe_is_input_ready(dev)) {
-		dev_err(&dev->pdev->dev, "Input is not ready");
+		struct mei_fw_status fw_status;
+		mei_fw_status(dev, &fw_status);
+		dev_err(&dev->pdev->dev, "Input is not ready " FW_STS_FMT "\n",
+			FW_STS_PRM(fw_status));
 		return -EAGAIN;
 	}
 
@@ -1039,8 +1042,40 @@ end:
 	return IRQ_HANDLED;
 }
 
+
+/**
+ * mei_txe_fw_status - retrieve fw status from the pci config space
+ *
+ * @dev: the device structure
+ * @fw_status: fw status registers storage
+ *
+ * returns: 0 on success an error code otherwise
+ */
+static int mei_txe_fw_status(struct mei_device *dev,
+			     struct mei_fw_status *fw_status)
+{
+	const u32 pci_cfg_reg[] = {PCI_CFG_TXE_FW_STS0, PCI_CFG_TXE_FW_STS1};
+	int i;
+
+	if (!fw_status)
+		return -EINVAL;
+
+	fw_status->count = 2;
+
+	for (i = 0; i < fw_status->count && i < MEI_FW_STATUS_MAX; i++) {
+		int ret;
+		ret = pci_read_config_dword(dev->pdev,
+				pci_cfg_reg[i], &fw_status->status[i]);
+		if (ret)
+			return ret;
+	}
+
+	return 0;
+}
+
 static const struct mei_hw_ops mei_txe_hw_ops = {
 
+	.fw_status = mei_txe_fw_status,
 	.host_is_ready = mei_txe_host_is_ready,
 
 	.pg_state = mei_txe_pg_state,

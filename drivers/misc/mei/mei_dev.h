@@ -153,6 +153,20 @@ struct mei_msg_data {
 	unsigned char *data;
 };
 
+/* Maximum number of processed FW status registers */
+#define MEI_FW_STATUS_MAX 2
+
+/*
+ * struct mei_fw_status - storage of FW status data
+ *
+ * @count - number of actually available elements in array
+ * @status - FW status registers
+ */
+struct mei_fw_status {
+	int count;
+	u32 status[MEI_FW_STATUS_MAX];
+};
+
 /**
  * struct mei_me_client - representation of me (fw) client
  *
@@ -213,6 +227,7 @@ struct mei_cl {
 
 /** struct mei_hw_ops
  *
+ * @fw_status        - read FW status from PCI config space
  * @host_is_ready    - query for host readiness
 
  * @hw_is_ready      - query if hw is ready
@@ -240,6 +255,8 @@ struct mei_cl {
  */
 struct mei_hw_ops {
 
+	int (*fw_status)(struct mei_device *dev,
+		struct mei_fw_status *fw_status);
 	bool (*host_is_ready)(struct mei_device *dev);
 
 	bool (*hw_is_ready)(struct mei_device *dev);
@@ -680,6 +697,17 @@ static inline int mei_count_full_read_slots(struct mei_device *dev)
 {
 	return dev->ops->rdbuf_full_slots(dev);
 }
+
+static inline int mei_fw_status(struct mei_device *dev,
+				struct mei_fw_status *fw_status)
+{
+	return dev->ops->fw_status(dev, fw_status);
+}
+
+#define FW_STS_FMT "%08X %08X"
+#define FW_STS_PRM(fw_status) \
+	(fw_status).count > 0 ? (fw_status).status[0] : 0xDEADBEEF, \
+	(fw_status).count > 1 ? (fw_status).status[1] : 0xDEADBEEF
 
 bool mei_hbuf_acquire(struct mei_device *dev);
 

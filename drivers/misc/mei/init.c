@@ -74,9 +74,13 @@ int mei_reset(struct mei_device *dev)
 	if (state != MEI_DEV_INITIALIZING &&
 	    state != MEI_DEV_DISABLED &&
 	    state != MEI_DEV_POWER_DOWN &&
-	    state != MEI_DEV_POWER_UP)
-		dev_warn(&dev->pdev->dev, "unexpected reset: dev_state = %s\n",
-			 mei_dev_state_str(state));
+	    state != MEI_DEV_POWER_UP) {
+		struct mei_fw_status fw_status;
+		mei_fw_status(dev, &fw_status);
+		dev_warn(&dev->pdev->dev,
+			"unexpected reset: dev_state = %s " FW_STS_FMT "\n",
+			mei_dev_state_str(state), FW_STS_PRM(fw_status));
+	}
 
 	/* we're already in reset, cancel the init timer
 	 * if the reset was called due the hbm protocol error
