@@ -98,23 +98,49 @@ do {								\
 		       16, 1, (skb)->data, (skb)->len, 0);	\
 } while (0)
 
-static void st21nfca_hci_platform_init(struct st21nfca_i2c_phy *phy)
+/*
+ * In order to get the CLF in a known state we generate an internal reboot
+ * using a proprietary command.
+ * Once the reboot is completed, we expect to receive a ST21NFCA_SOF_EOF
+ * fill buffer.
+ */
+static int st21nfca_hci_platform_init(struct st21nfca_i2c_phy *phy)
 {
 	u16 wait_reboot[] = { 50, 300, 1000 };
 	char reboot_cmd[] = { 0x7E, 0x66, 0x48, 0xF6, 0x7E };
 	u8 tmp[ST21NFCA_HCI_LLC_MAX_SIZE];
 	int i, r = -1;
 
-	for (i = 0; i < ARRAY_SIZE(wait_reboot) && r < 0; i++)
-		r = i2c_master_recv(phy->i2c_dev, tmp,
-				    ST21NFCA_HCI_LLC_MAX_SIZE);
-
-	r = -1;
-	for (i = 0; i < ARRAY_SIZE(wait_reboot) && r < 0; i++)
+	for (i = 0; i < ARRAY_SIZE(wait_reboot) && r < 0; i++) {
 		r = i2c_master_send(phy->i2c_dev, reboot_cmd,
 				    sizeof(reboot_cmd));
-	usleep_range(1000, 1500);
+		if (r < 0)
+			msleep(wait_reboot[i]);
+	}
+	if (r < 0)
+		return r;
 
+	/* CLF is spending about 20ms to do an internal reboot */
+	msleep(20);
+	r = -1;
+	for (i = 0; i < ARRAY_SIZE(wait_reboot) && r < 0; i++) {
+		r = i2c_master_recv(phy->i2c_dev, tmp,
+				    ST21NFCA_HCI_LLC_MAX_SIZE);
+		if (r < 0)
+			msleep(wait_reboot[i]);
+	}
+	if (r < 0)
+		return r;
+
+	for (i = 0; i < ST21NFCA_HCI_LLC_MAX_SIZE &&
+		tmp[i] == ST21NFCA_SOF_EOF; i++)
+		;
+
+	if (r != ST21NFCA_HCI_LLC_MAX_SIZE)
+		return -ENODEV;
+
+	usleep_range(1000, 1500);
+	return 0;
 }
 
 static int st21nfca_hci_i2c_enable(void *phy_id)
@@ -554,7 +580,12 @@ static int st21nfca_hci_i2c_probe(struct i2c_client *client,
 	}
 	client->irq = irq;
 
-	st21nfca_hci_platform_init(phy);
+	r = st21nfca_hci_platform_init(phy);
+	if (r < 0) {
+		nfc_err(&client->dev, "Unable to reboot st21nfca\n");
+		return -ENODEV;
+	}
+
 	r = devm_request_threaded_irq(&client->dev, client->irq, NULL,
 				st21nfca_hci_irq_thread_fn,
 				phy->irq_polarity | IRQF_ONESHOT,
