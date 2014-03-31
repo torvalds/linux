@@ -1,8 +1,8 @@
 /dts-v1/;
 
 #include "rk3288.dtsi"
-#include "lcd-LP097Qx1.dtsi"
-
+//#include "lcd-b101ew05.dtsi"
+#include "lcd-ld089wu1-mipi.dtsi"
 / {
 	fiq-debugger {
 		status = "okay";
@@ -33,7 +33,7 @@
         pinctrl-0 = <&uart0_rts>;
         pinctrl-1 = <&uart0_rts_gpio>;
 
-        //BT,power_gpio = <&gpio4 GPIO_D3 GPIO_ACTIVE_HIGH>;
+        BT,power_gpio = <&gpio4 GPIO_D3 GPIO_ACTIVE_HIGH>;
         BT,reset_gpio = <&gpio4 GPIO_D5 GPIO_ACTIVE_HIGH>;
         BT,wake_gpio = <&gpio4 GPIO_D2 GPIO_ACTIVE_HIGH>;
         BT,wake_host_irq = <&gpio4 GPIO_D7 GPIO_ACTIVE_LOW>;
@@ -51,7 +51,7 @@
 		compatible = "pwm-backlight";
 		pwms = <&pwm0 0 25000>;
 		brightness-levels = <255 254 253 252 251 250 249 248 247 246 245 244 243 242 241 240 239 238 237 236 235 234 233 232 231 230 229 228 227 226 225 224 223 222 221 220 219 218 217 216 215 214 213 212 211 210 209 208 207 206 205 204 203 202 201 200 199 198 197 196 195 194 193 192 191 190 189 188 187 186 185 184 183 182 181 180 179 178 177 176 175 174 173 172 171 170 169 168 167 166 165 164 163 162 161 160 159 158 157 156 155 154 153 152 151 150 149 148 147 146 145 144 143 142 141 140 139 138 137 136 135 134 133 132 131 130 129 128 127 126 125 124 123 122 121 120 119 118 117 116 115 114 113 112 111 110 109 108 107 106 105 104 103 102 101 100 99 98 97 96 95 94 93 92 91 90 89 88 87 86 85 84 83 82 81 80 79 78 77 76 75 74 73 72 71 70 69 68 67 66 65 64 63 62 61 60 59 58 57 56 55 54 53 52 51 50 49 48 47 46 45 44 43 42 41 40 39 38 37 36 35 34 33 32 31 30 29 28 27 26 25 24 23 22 21 20 19 18 17 16 15 14 13 12 11 10 9 8 7 6 5 4 3 2 1 0>;
-		default-brightness-level = <20>;
+		default-brightness-level = <200>;
 		enable-gpios = <&gpio7 GPIO_A2 GPIO_ACTIVE_HIGH>;
 	};
 
@@ -134,7 +134,42 @@
 			};
 		};
 	};
+
+	rockchip-rt3224 {
+		compatible = "rockchip-rt3261";
+		dais {
+			dai0 {
+				audio-codec = <&rt3261>;
+				i2s-controller = <&i2s>;
+				format = "i2s";
+				//continuous-clock;
+				//bitclock-inversion;
+				//frame-inversion;
+				//bitclock-master;
+				//frame-master;
+			};
+			dai1 {
+				audio-codec = <&rt3261>;
+				i2s-controller = <&i2s>;
+				format = "i2s";
+				//continuous-clock;
+				//bitclock-inversion;
+				//frame-inversion;
+				//bitclock-master;
+				//frame-master;
+			};
+		};
+	};
+
 };
+
+&gmac {
+//	power_ctl_by = "gpio";	//"gpio" "pmu"
+	power-gpio = <&gpio0 GPIO_A6 GPIO_ACTIVE_HIGH>;
+//	power-pmu = "act_ldo"
+	reset-gpio = <&gpio4 GPIO_A7 GPIO_ACTIVE_LOW>;
+};
+
 &pinctrl {
 	gpio0_gpio {
 			gpio0_c2: gpio0-c2 {
@@ -158,37 +193,32 @@
 };
 
 &emmc {
-	clock-frequency = <200000000>;
-        clock-freq-min-max = <400000 200000000>;
-
+		clock-frequency = <200000000>;
+	 	clock-freq-min-max = <400000 200000000>;
         supports-highspeed;
-	supports-emmc;
-        bootpart-no-access;
+		supports-emmc;
+		bootpart-no-access;
         ignore-pm-notify;
 		keep-power-in-suspend;
     	status = "okay";
 };
     
 &sdmmc {
-	clock-frequency = <50000000>;
-	lock-freq-min-max = <400000 50000000>;	            
-	    
-	supports-highspeed;
-	supports-sd;
-	broken-cd;
-	card-detect-delay = <200>;
-
-	
-        vmmc-supply = <&rk808_ldo5_reg>;
-	status = "okay";
+		clock-frequency = <50000000>;
+		lock-freq-min-max = <400000 50000000>;
+		supports-highspeed;
+		supports-sd;
+		broken-cd;
+		card-detect-delay = <200>;
+		vmmc-supply = <&rk808_ldo5_reg>;
+		status = "okay";
 };
 		
 &sdio {
-	clock-frequency = <50000000>;
-        clock-freq-min-max = <200000 50000000>;
-		
-  	supports-highspeed;		
-	supports-sdio;
+		clock-frequency = <50000000>;
+		clock-freq-min-max = <200000 50000000>;
+		supports-highspeed;
+		supports-sdio;
 		ignore-pm-notify;
 		keep-power-in-suspend;
 		//cap-sdio-irq;
@@ -269,6 +299,7 @@
 	};
 	*/
 };
+
 &uart_bt {
         status = "okay";
         dma-names = "!tx", "!rx";
@@ -282,7 +313,6 @@
 		status = "okay";
 	};
 	
-
 
 	CW2015@62 {
 		compatible = "cw201x";
@@ -306,20 +336,23 @@
 		reg = <0x51>;
 	};
 	
-	sensor@1d {
-		compatible = "gs_mma8452";
-		reg = <0x1d>;
+	
+		sensor@19 {
+		compatible = "gs_lis3dh";
+		reg = <0x19>;
 		type = <SENSOR_TYPE_ACCEL>;
-		irq-gpio = <&gpio8 GPIO_A0 IRQ_TYPE_LEVEL_LOW>;
+		irq-gpio = <&gpio0 GPIO_A0 IRQ_TYPE_LEVEL_LOW>;
 		irq_enable = <1>;
 		poll_delay_ms = <30>;
-		layout = <8>;
+		layout = <1>;
 	};
-	sensor@0d {
-		compatible = "ak8975";
-		reg = <0x0d>;
-		type = <SENSOR_TYPE_COMPASS>;
-		irq-gpio = <&gpio8 GPIO_A1 IRQ_TYPE_EDGE_RISING>;
+		
+	
+		sensor@6b {
+		compatible = "l3g20d_gyro";
+		reg = <0x6b>;
+		type = <SENSOR_TYPE_GYROSCOPE>;
+		irq-gpio = <&gpio8 GPIO_A3 IRQ_TYPE_LEVEL_LOW>;
 		irq_enable = <1>;
 		poll_delay_ms = <30>;
 		layout = <1>;
@@ -338,13 +371,29 @@
 
 &i2c2 {
 	status = "okay";
-
 	rt5631: rt5631@1a {
 		compatible = "rt5631";
 		reg = <0x1a>;
-		phone_det_level = <1>;
 	};
-	
+	es8323: es8323@10 {
+		compatible = "es8323";
+		reg = <0x10>;
+	};
+	rt3261: rt3261@1c {
+		compatible = "rt3261";
+		reg = <0x1c>;
+	//	codec-en-gpio = <0>;//sdk default high level
+		spk-num= <2>;
+		modem-input-mode = <1>;
+		lout-to-modem_mode = <1>;
+		spk-amplify = <2>;
+		playback-if1-data_control = <0>;
+		playback-if2-data_control = <0>;
+	};
+	rt5616: rt5616@1b {
+		compatible = "rt5616";
+		reg = <0x1b>;
+	};
 };
 
 &i2c3 {
@@ -353,16 +402,14 @@
 
 &i2c4 {
 	status = "okay";
-	
-	ts@01 {
-		compatible = "ct,ct36x";
-		reg = <0x01>;
-		ct-model = <363>;
+	ts@3a {
+		compatible = "goodix,gt8xx";
+		reg = <0x3a>;
 		touch-gpio = <&gpio7 GPIO_A6 IRQ_TYPE_LEVEL_LOW>;
-		reset-gpio = <&gpio7 GPIO_A5 GPIO_ACTIVE_HIGH>;
-		max-x = <2048>;
-		max-y = <1536>;
-		orientation=<1 0 0 1>;
+		reset-gpio = <&gpio7 GPIO_A5 GPIO_ACTIVE_LOW>;
+		//power-gpio = <&gpio0 GPIO_C5 GPIO_ACTIVE_LOW>;
+		max-x = <1920>;
+		max-y = <1200>;
 	};
 };
 
@@ -384,19 +431,19 @@
 	power_ctr: power_ctr {
 		rockchip,debug = <0>;
 		rockchip,mirror = <NO_MIRROR>;
-		/*
 		lcd_en:lcd_en {
 			rockchip,power_type = <GPIO>;
 			gpios = <&gpio7 GPIO_A3 GPIO_ACTIVE_HIGH>;
 			rockchip,delay = <10>;
 		};
-		*/
-		/*lcd_cs:lcd_cs {
-			rockchip,power_type = <REGULATOR>;
+		
+		lcd_cs:lcd_cs {
+rockchip,power_type = <GPIO>;
+			gpios = <&gpio7 GPIO_A4 GPIO_ACTIVE_HIGH>;
 			rockchip,delay = <10>;
 		};
 
-		lcd_rst:lcd_rst {
+		/*lcd_rst:lcd_rst {
 			rockchip,power_type = <GPIO>;
 			gpios = <&gpio3 GPIO_D6 GPIO_ACTIVE_HIGH>;
 			rockchip,delay = <5>;
@@ -417,6 +464,17 @@
 &adc {
 	status = "okay";
 
+	rockchip_headset {
+		compatible = "rockchip_headset";
+		headset_gpio = <&gpio0 GPIO_C2 GPIO_ACTIVE_LOW>;
+		pinctrl-names = "default";
+		pinctrl-0 = <&gpio0_c2>;
+		io-channels = <&adc 2>; 
+       /*
+               hook_gpio = ;
+               hook_down_type = ; //interrupt hook key down status 
+		*/       
+       };
 
 	key {
 		compatible = "rockchip,key";
@@ -441,12 +499,12 @@
 			gpio-key,wakeup;
 		};
 
-		back-key {
-			linux,code = <158>;
-			label = "back";
+		menu-key {
+			linux,code = <139>;
+			label = "menu";
 			rockchip,adc_value = <355>;
 		};
-/*
+
 		home-key {
 			linux,code = <102>;
 			label = "home";
@@ -458,7 +516,7 @@
 			label = "back";
 			rockchip,adc_value = <560>;
 		};
-*/
+
 		camera-key {
 			linux,code = <212>;
 			label = "camera";
