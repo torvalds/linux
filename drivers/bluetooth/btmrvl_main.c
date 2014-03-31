@@ -214,6 +214,23 @@ int btmrvl_send_module_cfg_cmd(struct btmrvl_private *priv, u8 subcmd)
 }
 EXPORT_SYMBOL_GPL(btmrvl_send_module_cfg_cmd);
 
+int btmrvl_pscan_window_reporting(struct btmrvl_private *priv, u8 subcmd)
+{
+	struct btmrvl_sdio_card *card = priv->btmrvl_dev.card;
+	int ret;
+
+	if (!card->support_pscan_win_report)
+		return 0;
+
+	ret = btmrvl_send_sync_cmd(priv, BT_CMD_PSCAN_WIN_REPORT_ENABLE,
+				   &subcmd, 1);
+	if (ret)
+		BT_ERR("PSCAN_WIN_REPORT_ENABLE command failed: %#x", ret);
+
+	return ret;
+}
+EXPORT_SYMBOL_GPL(btmrvl_pscan_window_reporting);
+
 int btmrvl_send_hscfg_cmd(struct btmrvl_private *priv)
 {
 	int ret;
@@ -488,6 +505,8 @@ static int btmrvl_setup(struct hci_dev *hdev)
 	btmrvl_send_module_cfg_cmd(priv, MODULE_BRINGUP_REQ);
 
 	btmrvl_cal_data_dt(priv);
+
+	btmrvl_pscan_window_reporting(priv, 0x01);
 
 	priv->btmrvl_dev.psmode = 1;
 	btmrvl_enable_ps(priv);
