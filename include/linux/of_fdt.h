@@ -78,7 +78,7 @@ extern void of_fdt_unflatten_tree(unsigned long *blob,
 /* TBD: Temporary export of fdt globals - remove when code fully merged */
 extern int __initdata dt_root_addr_cells;
 extern int __initdata dt_root_size_cells;
-extern struct boot_param_header *initial_boot_params;
+extern void *initial_boot_params;
 
 extern char __dtb_start[];
 extern char __dtb_end[];
