@@ -74,4 +74,7 @@ struct ieee802154_mlme_ops mac802154_mlme_wpan = {
 	.get_pan_id = mac802154_dev_get_pan_id,
 	.get_short_addr = mac802154_dev_get_short_addr,
 	.get_dsn = mac802154_dev_get_dsn,
+
+	.set_mac_params = mac802154_set_mac_params,
+	.get_mac_params = mac802154_get_mac_params,
 };

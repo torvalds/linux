@@ -102,6 +102,87 @@ static int mac802154_wpan_mac_addr(struct net_device *dev, void *p)
 	return 0;
 }
 
+int mac802154_set_mac_params(struct net_device *dev,
+			     const struct ieee802154_mac_params *params)
+{
+	struct mac802154_sub_if_data *priv = netdev_priv(dev);
+
+	mutex_lock(&priv->hw->slaves_mtx);
+	priv->mac_params = *params;
+	mutex_unlock(&priv->hw->slaves_mtx);
+
+	return 0;
+}
+
+void mac802154_get_mac_params(struct net_device *dev,
+			      struct ieee802154_mac_params *params)
+{
+	struct mac802154_sub_if_data *priv = netdev_priv(dev);
+
+	mutex_lock(&priv->hw->slaves_mtx);
+	*params = priv->mac_params;
+	mutex_unlock(&priv->hw->slaves_mtx);
+}
+
+int mac802154_wpan_open(struct net_device *dev)
+{
+	int rc;
+	struct mac802154_sub_if_data *priv = netdev_priv(dev);
+	struct wpan_phy *phy = priv->hw->phy;
+
+	rc = mac802154_slave_open(dev);
+	if (rc < 0)
+		return rc;
+
+	mutex_lock(&phy->pib_lock);
+
+	if (phy->set_txpower) {
+		rc = phy->set_txpower(phy, priv->mac_params.transmit_power);
+		if (rc < 0)
+			goto out;
+	}
+
+	if (phy->set_lbt) {
+		rc = phy->set_lbt(phy, priv->mac_params.lbt);
+		if (rc < 0)
+			goto out;
+	}
+
+	if (phy->set_cca_mode) {
+		rc = phy->set_cca_mode(phy, priv->mac_params.cca_mode);
+		if (rc < 0)
+			goto out;
+	}
+
+	if (phy->set_cca_ed_level) {
+		rc = phy->set_cca_ed_level(phy, priv->mac_params.cca_ed_level);
+		if (rc < 0)
+			goto out;
+	}
+
+	if (phy->set_csma_params) {
+		rc = phy->set_csma_params(phy, priv->mac_params.min_be,
+					  priv->mac_params.max_be,
+					  priv->mac_params.csma_retries);
+		if (rc < 0)
+			goto out;
+	}
+
+	if (phy->set_frame_retries) {
+		rc = phy->set_frame_retries(phy,
+					    priv->mac_params.frame_retries);
+		if (rc < 0)
+			goto out;
+	}
+
+	mutex_unlock(&phy->pib_lock);
+	return 0;
+
+out:
+	mutex_unlock(&phy->pib_lock);
+	return rc;
+}
+
 static int mac802154_header_create(struct sk_buff *skb,
 				   struct net_device *dev,
 				   unsigned short type,
@@ -204,7 +285,7 @@ static struct header_ops mac802154_header_ops = {
 };
 
 static const struct net_device_ops mac802154_wpan_ops = {
-	.ndo_open		= mac802154_slave_open,
+	.ndo_open		= mac802154_wpan_open,
 	.ndo_stop		= mac802154_slave_close,
 	.ndo_start_xmit		= mac802154_wpan_xmit,
 	.ndo_do_ioctl		= mac802154_wpan_ioctl,
@@ -241,6 +322,12 @@ void mac802154_wpan_setup(struct net_device *dev)
 
 	get_random_bytes(&priv->bsn, 1);
 	get_random_bytes(&priv->dsn, 1);
+
+	/* defaults per 802.15.4-2011 */
+	priv->mac_params.min_be = 3;
+	priv->mac_params.max_be = 5;
+	priv->mac_params.csma_retries = 4;
+	priv->mac_params.frame_retries = -1; /* for compatibility, actual default is 3 */
 
 	priv->pan_id = cpu_to_le16(IEEE802154_PANID_BROADCAST);
 	priv->short_addr = cpu_to_le16(IEEE802154_ADDR_BROADCAST);

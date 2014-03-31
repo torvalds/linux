@@ -23,6 +23,8 @@
 #ifndef MAC802154_H
 #define MAC802154_H
 
+#include <net/ieee802154_netdev.h>
+
 /* mac802154 device private data */
 struct mac802154_priv {
 	struct ieee802154_dev hw;
@@ -82,6 +84,8 @@ struct mac802154_sub_if_data {
 	u8 chan;
 	u8 page;
 
+	struct ieee802154_mac_params mac_params;
+
 	/* MAC BSN field */
 	u8 bsn;
 	/* MAC DSN field */
@@ -115,5 +119,10 @@ __le16 mac802154_dev_get_pan_id(const struct net_device *dev);
 void mac802154_dev_set_pan_id(struct net_device *dev, __le16 val);
 void mac802154_dev_set_page_channel(struct net_device *dev, u8 page, u8 chan);
 u8 mac802154_dev_get_dsn(const struct net_device *dev);
+
+int mac802154_set_mac_params(struct net_device *dev,
+			     const struct ieee802154_mac_params *params);
+void mac802154_get_mac_params(struct net_device *dev,
+			      struct ieee802154_mac_params *params);
 
 #endif /* MAC802154_H */

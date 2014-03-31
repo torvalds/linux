@@ -115,7 +115,6 @@ static const struct genl_ops ieee8021154_ops[] = {
 			ieee802154_dump_phy),
 	IEEE802154_OP(IEEE802154_ADD_IFACE, ieee802154_add_iface),
 	IEEE802154_OP(IEEE802154_DEL_IFACE, ieee802154_del_iface),
-	IEEE802154_OP(IEEE802154_SET_PHYPARAMS, ieee802154_set_phyparams),
 	/* see nl-mac.c */
 	IEEE802154_OP(IEEE802154_ASSOCIATE_REQ, ieee802154_associate_req),
 	IEEE802154_OP(IEEE802154_ASSOCIATE_RESP, ieee802154_associate_resp),
@@ -124,6 +123,7 @@ static const struct genl_ops ieee8021154_ops[] = {
 	IEEE802154_OP(IEEE802154_START_REQ, ieee802154_start_req),
 	IEEE802154_DUMP(IEEE802154_LIST_IFACE, ieee802154_list_iface,
 			ieee802154_dump_iface),
+	IEEE802154_OP(IEEE802154_SET_MACPARAMS, ieee802154_set_macparams),
 };
 
 static const struct genl_multicast_group ieee802154_mcgrps[] = {

@@ -264,6 +264,7 @@ static int ieee802154_nl_fill_iface(struct sk_buff *msg, u32 portid,
 {
 	void *hdr;
 	struct wpan_phy *phy;
+	struct ieee802154_mlme_ops *ops;
 	__le16 short_addr, pan_id;
 
 	pr_debug("%s\n", __func__);
@@ -273,11 +274,12 @@ static int ieee802154_nl_fill_iface(struct sk_buff *msg, u32 portid,
 	if (!hdr)
 		goto out;
 
-	phy = ieee802154_mlme_ops(dev)->get_phy(dev);
+	ops = ieee802154_mlme_ops(dev);
+	phy = ops->get_phy(dev);
 	BUG_ON(!phy);
 
-	short_addr = ieee802154_mlme_ops(dev)->get_short_addr(dev);
-	pan_id = ieee802154_mlme_ops(dev)->get_pan_id(dev);
+	short_addr = ops->get_short_addr(dev);
+	pan_id = ops->get_pan_id(dev);
 
 	if (nla_put_string(msg, IEEE802154_ATTR_DEV_NAME, dev->name) ||
 	    nla_put_string(msg, IEEE802154_ATTR_PHY_NAME, wpan_phy_name(phy)) ||
@@ -287,6 +289,30 @@ static int ieee802154_nl_fill_iface(struct sk_buff *msg, u32 portid,
 	    nla_put_shortaddr(msg, IEEE802154_ATTR_SHORT_ADDR, short_addr) ||
 	    nla_put_shortaddr(msg, IEEE802154_ATTR_PAN_ID, pan_id))
 		goto nla_put_failure;
+
+	if (ops->get_mac_params) {
+		struct ieee802154_mac_params params;
+
+		ops->get_mac_params(dev, &params);
+
+		if (nla_put_s8(msg, IEEE802154_ATTR_TXPOWER,
+			       params.transmit_power) ||
+		    nla_put_u8(msg, IEEE802154_ATTR_LBT_ENABLED, params.lbt) ||
+		    nla_put_u8(msg, IEEE802154_ATTR_CCA_MODE,
+			       params.cca_mode) ||
+		    nla_put_s32(msg, IEEE802154_ATTR_CCA_ED_LEVEL,
+				params.cca_ed_level) ||
+		    nla_put_u8(msg, IEEE802154_ATTR_CSMA_RETRIES,
+			       params.csma_retries) ||
+		    nla_put_u8(msg, IEEE802154_ATTR_CSMA_MIN_BE,
+			       params.min_be) ||
+		    nla_put_u8(msg, IEEE802154_ATTR_CSMA_MAX_BE,
+			       params.max_be) ||
+		    nla_put_s8(msg, IEEE802154_ATTR_FRAME_RETRIES,
+			       params.frame_retries))
+			goto nla_put_failure;
+	}
+
 	wpan_phy_put(phy);
 	return genlmsg_end(msg, hdr);
 
@@ -598,4 +624,94 @@ cont:
 	cb->args[0] = idx;
 
 	return skb->len;
+}
+
+int ieee802154_set_macparams(struct sk_buff *skb, struct genl_info *info)
+{
+	struct net_device *dev = NULL;
+	struct ieee802154_mlme_ops *ops;
+	struct ieee802154_mac_params params;
+	struct wpan_phy *phy;
+	int rc = -EINVAL;
+
+	pr_debug("%s\n", __func__);
+
+	dev = ieee802154_nl_get_dev(info);
+	if (!dev)
+		return -ENODEV;
+
+	ops = ieee802154_mlme_ops(dev);
+
+	if (!ops->get_mac_params || !ops->set_mac_params) {
+		rc = -EOPNOTSUPP;
+		goto out;
+	}
+
+	if (netif_running(dev)) {
+		rc = -EBUSY;
+		goto out;
+	}
+
+	if (!info->attrs[IEEE802154_ATTR_LBT_ENABLED] &&
+	    !info->attrs[IEEE802154_ATTR_CCA_MODE] &&
+	    !info->attrs[IEEE802154_ATTR_CCA_ED_LEVEL] &&
+	    !info->attrs[IEEE802154_ATTR_CSMA_RETRIES] &&
+	    !info->attrs[IEEE802154_ATTR_CSMA_MIN_BE] &&
+	    !info->attrs[IEEE802154_ATTR_CSMA_MAX_BE] &&
+	    !info->attrs[IEEE802154_ATTR_FRAME_RETRIES])
+		goto out;
+
+	phy = ops->get_phy(dev);
+
+	if ((!phy->set_lbt && info->attrs[IEEE802154_ATTR_LBT_ENABLED]) ||
+	    (!phy->set_cca_mode && info->attrs[IEEE802154_ATTR_CCA_MODE]) ||
+	    (!phy->set_cca_ed_level &&
+	     info->attrs[IEEE802154_ATTR_CCA_ED_LEVEL]) ||
+	    (!phy->set_csma_params &&
+	     (info->attrs[IEEE802154_ATTR_CSMA_RETRIES] ||
+	      info->attrs[IEEE802154_ATTR_CSMA_MIN_BE] ||
+	      info->attrs[IEEE802154_ATTR_CSMA_MAX_BE])) ||
+	    (!phy->set_frame_retries &&
+	     info->attrs[IEEE802154_ATTR_FRAME_RETRIES])) {
+		rc = -EOPNOTSUPP;
+		goto out_phy;
+	}
+
+	ops->get_mac_params(dev, &params);
+
+	if (info->attrs[IEEE802154_ATTR_TXPOWER])
+		params.transmit_power = nla_get_s8(info->attrs[IEEE802154_ATTR_TXPOWER]);
+
+	if (info->attrs[IEEE802154_ATTR_LBT_ENABLED])
+		params.lbt = nla_get_u8(info->attrs[IEEE802154_ATTR_LBT_ENABLED]);
+
+	if (info->attrs[IEEE802154_ATTR_CCA_MODE])
+		params.cca_mode = nla_get_u8(info->attrs[IEEE802154_ATTR_CCA_MODE]);
+
+	if (info->attrs[IEEE802154_ATTR_CCA_ED_LEVEL])
+		params.cca_ed_level = nla_get_s32(info->attrs[IEEE802154_ATTR_CCA_ED_LEVEL]);
+
+	if (info->attrs[IEEE802154_ATTR_CSMA_RETRIES])
+		params.csma_retries = nla_get_u8(info->attrs[IEEE802154_ATTR_CSMA_RETRIES]);
+
+	if (info->attrs[IEEE802154_ATTR_CSMA_MIN_BE])
+		params.min_be = nla_get_u8(info->attrs[IEEE802154_ATTR_CSMA_MIN_BE]);
+
+	if (info->attrs[IEEE802154_ATTR_CSMA_MAX_BE])
+		params.max_be = nla_get_u8(info->attrs[IEEE802154_ATTR_CSMA_MAX_BE]);
+
+	if (info->attrs[IEEE802154_ATTR_FRAME_RETRIES])
+		params.frame_retries = nla_get_s8(info->attrs[IEEE802154_ATTR_FRAME_RETRIES]);
+
+	rc = ops->set_mac_params(dev, &params);
+
+	wpan_phy_put(phy);
+	dev_put(dev);
+	return rc;
+
+out_phy:
+	wpan_phy_put(phy);
+out:
+	dev_put(dev);
+	return rc;
 }
