@@ -171,10 +171,10 @@ static const struct drm_ioctl_desc vmw_ioctls[] = {
 	VMW_IOCTL_DEF(VMW_EXECBUF, vmw_execbuf_ioctl,
 		      DRM_AUTH | DRM_UNLOCKED | DRM_RENDER_ALLOW),
 	VMW_IOCTL_DEF(VMW_FENCE_WAIT, vmw_fence_obj_wait_ioctl,
-		      DRM_AUTH | DRM_UNLOCKED | DRM_RENDER_ALLOW),
+		      DRM_UNLOCKED | DRM_RENDER_ALLOW),
 	VMW_IOCTL_DEF(VMW_FENCE_SIGNALED,
 		      vmw_fence_obj_signaled_ioctl,
-		      DRM_AUTH | DRM_UNLOCKED | DRM_RENDER_ALLOW),
+		      DRM_UNLOCKED | DRM_RENDER_ALLOW),
 	VMW_IOCTL_DEF(VMW_FENCE_UNREF, vmw_fence_obj_unref_ioctl,
 		      DRM_UNLOCKED | DRM_RENDER_ALLOW),
 	VMW_IOCTL_DEF(VMW_FENCE_EVENT, vmw_fence_event_ioctl,
@@ -205,7 +205,7 @@ static const struct drm_ioctl_desc vmw_ioctls[] = {
 		      DRM_AUTH | DRM_UNLOCKED | DRM_RENDER_ALLOW),
 	VMW_IOCTL_DEF(VMW_SYNCCPU,
 		      vmw_user_dmabuf_synccpu_ioctl,
-		      DRM_AUTH | DRM_UNLOCKED | DRM_RENDER_ALLOW),
+		      DRM_UNLOCKED | DRM_RENDER_ALLOW),
 };
 
 static struct pci_device_id vmw_pci_id_list[] = {
