@@ -1791,17 +1791,23 @@ static void intel_disable_dp(struct intel_encoder *encoder)
 		intel_dp_link_down(intel_dp);
 }
 
-static void intel_post_disable_dp(struct intel_encoder *encoder)
+static void g4x_post_disable_dp(struct intel_encoder *encoder)
 {
 	struct intel_dp *intel_dp = enc_to_intel_dp(&encoder->base);
 	enum port port = dp_to_dig_port(intel_dp)->port;
-	struct drm_device *dev = encoder->base.dev;
 
-	if (port == PORT_A || IS_VALLEYVIEW(dev)) {
-		intel_dp_link_down(intel_dp);
-		if (!IS_VALLEYVIEW(dev))
-			ironlake_edp_pll_off(intel_dp);
-	}
+	if (port != PORT_A)
+		return;
+
+	intel_dp_link_down(intel_dp);
+	ironlake_edp_pll_off(intel_dp);
+}
+
+static void vlv_post_disable_dp(struct intel_encoder *encoder)
+{
+	struct intel_dp *intel_dp = enc_to_intel_dp(&encoder->base);
+
+	intel_dp_link_down(intel_dp);
 }
 
 static void intel_enable_dp(struct intel_encoder *encoder)
@@ -3845,16 +3851,17 @@ intel_dp_init(struct drm_device *dev, int output_reg, enum port port)
 	intel_encoder->compute_config = intel_dp_compute_config;
 	intel_encoder->mode_set = intel_dp_mode_set;
 	intel_encoder->disable = intel_disable_dp;
-	intel_encoder->post_disable = intel_post_disable_dp;
 	intel_encoder->get_hw_state = intel_dp_get_hw_state;
 	intel_encoder->get_config = intel_dp_get_config;
 	if (IS_VALLEYVIEW(dev)) {
 		intel_encoder->pre_pll_enable = vlv_dp_pre_pll_enable;
 		intel_encoder->pre_enable = vlv_pre_enable_dp;
 		intel_encoder->enable = vlv_enable_dp;
+		intel_encoder->post_disable = vlv_post_disable_dp;
 	} else {
 		intel_encoder->pre_enable = g4x_pre_enable_dp;
 		intel_encoder->enable = g4x_enable_dp;
+		intel_encoder->post_disable = g4x_post_disable_dp;
 	}
 
 	intel_dig_port->port = port;
