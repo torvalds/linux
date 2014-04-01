@@ -5280,6 +5280,9 @@ bool intel_display_power_enabled(struct drm_i915_private *dev_priv,
 	bool is_enabled;
 	int i;
 
+	if (dev_priv->pm.suspended)
+		return false;
+
 	power_domains = &dev_priv->power_domains;
 
 	is_enabled = true;
