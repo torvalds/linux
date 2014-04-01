@@ -186,8 +186,8 @@ static inline void ixgbe_write_reg(struct ixgbe_hw *hw, u32 reg, u32 value)
 }
 #define IXGBE_WRITE_REG(h, r, v) ixgbe_write_reg(h, r, v)
 
-u32 ixgbe_read_reg(struct ixgbe_hw *hw, u32 reg);
-#define IXGBE_READ_REG(h, r) ixgbe_read_reg(h, r)
+u32 ixgbevf_read_reg(struct ixgbe_hw *hw, u32 reg);
+#define IXGBE_READ_REG(h, r) ixgbevf_read_reg(h, r)
 
 static inline void ixgbe_write_reg_array(struct ixgbe_hw *hw, u32 reg,
 					  u32 offset, u32 value)
@@ -199,7 +199,7 @@ static inline void ixgbe_write_reg_array(struct ixgbe_hw *hw, u32 reg,
 static inline u32 ixgbe_read_reg_array(struct ixgbe_hw *hw, u32 reg,
 					u32 offset)
 {
-	return ixgbe_read_reg(hw, reg + (offset << 2));
+	return ixgbevf_read_reg(hw, reg + (offset << 2));
 }
 #define IXGBE_READ_REG_ARRAY(h, r, o) ixgbe_read_reg_array(h, r, o)
 

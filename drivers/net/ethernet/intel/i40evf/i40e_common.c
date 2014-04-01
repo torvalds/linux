@@ -565,8 +565,7 @@ i40e_status i40e_aq_send_msg_to_pf(struct i40e_hw *hw,
 		details.async = true;
 		cmd_details = &details;
 	}
-	status = i40evf_asq_send_command(hw, (struct i40e_aq_desc *)&desc, msg,
-				       msglen, cmd_details);
+	status = i40evf_asq_send_command(hw, &desc, msg, msglen, cmd_details);
 	return status;
 }
 

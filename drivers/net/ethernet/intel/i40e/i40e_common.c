@@ -1775,9 +1775,9 @@ static void i40e_parse_discover_capabilities(struct i40e_hw *hw, void *buff,
 	cap = (struct i40e_aqc_list_capabilities_element_resp *) buff;
 
 	if (list_type_opc == i40e_aqc_opc_list_dev_capabilities)
-		p = (struct i40e_hw_capabilities *)&hw->dev_caps;
+		p = &hw->dev_caps;
 	else if (list_type_opc == i40e_aqc_opc_list_func_capabilities)
-		p = (struct i40e_hw_capabilities *)&hw->func_caps;
+		p = &hw->func_caps;
 	else
 		return;
 

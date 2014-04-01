@@ -540,10 +540,10 @@ static bool reg_pattern_test(struct ixgbevf_adapter *adapter, u64 *data,
 		return true;
 	}
 	for (pat = 0; pat < ARRAY_SIZE(register_test_patterns); pat++) {
-		before = ixgbe_read_reg(&adapter->hw, reg);
+		before = ixgbevf_read_reg(&adapter->hw, reg);
 		ixgbe_write_reg(&adapter->hw, reg,
 				register_test_patterns[pat] & write);
-		val = ixgbe_read_reg(&adapter->hw, reg);
+		val = ixgbevf_read_reg(&adapter->hw, reg);
 		if (val != (register_test_patterns[pat] & write & mask)) {
 			hw_dbg(&adapter->hw,
 			       "pattern test reg %04X failed: got 0x%08X expected 0x%08X\n",
@@ -567,9 +567,9 @@ static bool reg_set_and_check(struct ixgbevf_adapter *adapter, u64 *data,
 		*data = 1;
 		return true;
 	}
-	before = ixgbe_read_reg(&adapter->hw, reg);
+	before = ixgbevf_read_reg(&adapter->hw, reg);
 	ixgbe_write_reg(&adapter->hw, reg, write & mask);
-	val = ixgbe_read_reg(&adapter->hw, reg);
+	val = ixgbevf_read_reg(&adapter->hw, reg);
 	if ((write & mask) != (val & mask)) {
 		pr_err("set/check reg %04X test failed: got 0x%08X expected 0x%08X\n",
 		       reg, (val & mask), write & mask);
