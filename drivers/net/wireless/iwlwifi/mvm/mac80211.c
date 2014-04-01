@@ -1223,6 +1223,10 @@ static int iwl_mvm_configure_bcast_filter(struct iwl_mvm *mvm,
 	if (!(mvm->fw->ucode_capa.flags & IWL_UCODE_TLV_FLAGS_BCAST_FILTERING))
 		return 0;
 
+	/* bcast filtering isn't supported for P2P client */
+	if (vif->p2p)
+		return 0;
+
 	if (!iwl_mvm_bcast_filter_build_cmd(mvm, &cmd))
 		return 0;
 
