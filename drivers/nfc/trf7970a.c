@@ -105,7 +105,7 @@
 
 #define TRF7970A_SUPPORTED_PROTOCOLS \
 		(NFC_PROTO_MIFARE_MASK | NFC_PROTO_ISO14443_MASK |	\
-		 NFC_PROTO_ISO15693_MASK)
+		 NFC_PROTO_ISO14443_B_MASK | NFC_PROTO_ISO15693_MASK)
 
 #define TRF7970A_AUTOSUSPEND_DELAY		30000 /* 30 seconds */
 
@@ -863,6 +863,10 @@ static int trf7970a_config_rf_tech(struct trf7970a *trf, int tech)
 		trf->iso_ctrl_tech = TRF7970A_ISO_CTRL_14443A_106;
 		trf->modulator_sys_clk_ctrl = TRF7970A_MODULATOR_DEPTH_OOK;
 		break;
+	case NFC_DIGITAL_RF_TECH_106B:
+		trf->iso_ctrl_tech = TRF7970A_ISO_CTRL_14443B_106;
+		trf->modulator_sys_clk_ctrl = TRF7970A_MODULATOR_DEPTH_ASK10;
+		break;
 	case NFC_DIGITAL_RF_TECH_ISO15693:
 		trf->iso_ctrl_tech = TRF7970A_ISO_CTRL_15693_SGL_1OF4_2648;
 		trf->modulator_sys_clk_ctrl = TRF7970A_MODULATOR_DEPTH_OOK;
@@ -892,6 +896,8 @@ static int trf7970a_config_framing(struct trf7970a *trf, int framing)
 		break;
 	case NFC_DIGITAL_FRAMING_NFCA_STANDARD_WITH_CRC_A:
 	case NFC_DIGITAL_FRAMING_NFCA_T4T:
+	case NFC_DIGITAL_FRAMING_NFCB:
+	case NFC_DIGITAL_FRAMING_NFCB_T4T:
 	case NFC_DIGITAL_FRAMING_ISO15693_INVENTORY:
 	case NFC_DIGITAL_FRAMING_ISO15693_T5T:
 		trf->tx_cmd = TRF7970A_CMD_TRANSMIT;
