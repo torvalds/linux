@@ -154,14 +154,14 @@ static int rt5640_voice_hw_params(struct snd_pcm_substream *substream,
 	return 0;
 }
 
-static const struct snd_soc_dapm_widget rt5640_dapm_widgets[] = {
+static const struct snd_soc_dapm_widget rk_rt5640_dapm_widgets[] = {
 	SND_SOC_DAPM_MIC("Mic Jack", NULL),
 	SND_SOC_DAPM_MIC("Headset Jack", NULL),	
 	SND_SOC_DAPM_SPK("Ext Spk", NULL),
 	SND_SOC_DAPM_HP("Headphone Jack", NULL),
 };
 
-static const struct snd_soc_dapm_route audio_map[]={
+static const struct snd_soc_dapm_route rk_rt5640_audio_map[]={
 
 	/* Mic Jack --> MIC_IN*/
 	{"micbias1", NULL, "Mic Jack"},
@@ -180,7 +180,7 @@ static const struct snd_soc_dapm_route audio_map[]={
 	{"Headphone Jack", NULL, "HPOR"},
 } ;
 
-static const struct snd_kcontrol_new rk_controls[] = {
+static const struct snd_kcontrol_new rk_rt5640_controls[] = {
 	SOC_DAPM_PIN_SWITCH("Mic Jack"),
 	SOC_DAPM_PIN_SWITCH("Headset Jack"),
 	SOC_DAPM_PIN_SWITCH("Ext Spk"),
@@ -196,15 +196,6 @@ static int rk29_rt5640_init(struct snd_soc_pcm_runtime *rtd)
 	struct snd_soc_dapm_context *dapm = &codec->dapm;
 
 	DBG("Enter::%s----%d\n",__FUNCTION__,__LINE__);
-
-	snd_soc_add_codec_controls(codec, rk_controls,
-			ARRAY_SIZE(rk_controls));
-
-	/* Add specific widgets */
-	snd_soc_dapm_new_controls(dapm, rt5640_dapm_widgets,
-				  ARRAY_SIZE(rt5640_dapm_widgets));
-	/* Set up specific audio path audio_mapnects */
-	snd_soc_dapm_add_routes(dapm, audio_map, ARRAY_SIZE(audio_map));
 
 	mutex_lock(&dapm->card->dapm_mutex);
 
@@ -248,6 +239,12 @@ static struct snd_soc_card rockchip_rt5640_snd_card = {
 	.name = "RK_RT5640",
 	.dai_link = rk29_dai,
 	.num_links = 2,
+	.controls = rk_rt5640_controls,
+	.num_controls = ARRAY_SIZE(rk_rt5640_controls),
+	.dapm_widgets    = rk_rt5640_dapm_widgets,
+	.num_dapm_widgets = ARRAY_SIZE(rk_rt5640_dapm_widgets),
+	.dapm_routes    = rk_rt5640_audio_map,
+	.num_dapm_routes = ARRAY_SIZE(rk_rt5640_audio_map),
 };
 
 static int rockchip_rt5640_audio_probe(struct platform_device *pdev)

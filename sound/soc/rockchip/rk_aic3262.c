@@ -162,28 +162,6 @@ static int rk29_aic3262_init(struct snd_soc_pcm_runtime *rtd)
 
 	DBG_AIC3262("rk29_aic3262_init\n");
 
-	ret = snd_soc_add_codec_controls(codec, rk29_aic326x_controls,
-				   ARRAY_SIZE(rk29_aic326x_controls));
-
-	if (ret < 0) {
-		printk("rk29_aic3262: Err snd_soc_add_codec_controls ret: %d\n", ret );
-		return ret;
-	}
-
-	/* Add rk29 specific widgets */
-	ret = snd_soc_dapm_new_controls(dapm, rk29_aic3262_dapm_widgets,
-				ARRAY_SIZE(rk29_aic3262_dapm_widgets));
-	if (ret)
-		return ret;
-
-	/* Set up rk29 specific audio path audio_map */
-	snd_soc_dapm_add_routes(dapm, audio_map, ARRAY_SIZE(audio_map));
-
-
-	ret = snd_soc_dapm_sync(dapm);
-	if (ret)
-		return ret;
-
 	/* Headset jack detection */
 	/*ret = snd_soc_jack_new(codec, "Headset Jack",
 				SND_JACK_HEADSET, &hs_jack);
@@ -456,6 +434,12 @@ static struct snd_soc_card rockchip_aic3262_snd_card = {
 	.name = "RK_AIC3262",
 	.dai_link = rk29_dai,
 	.num_links = ARRAY_SIZE(rk29_dai),
+	.controls = rk29_aic326x_controls,
+	.num_controls = ARRAY_SIZE(rk29_aic326x_controls),
+	.dapm_widgets    = rk29_aic3262_dapm_widgets,
+	.num_dapm_widgets = ARRAY_SIZE(rk29_aic3262_dapm_widgets),
+	.dapm_routes    = audio_map,
+	.num_dapm_routes = ARRAY_SIZE(audio_map),
 };
 
 static int rockchip_aic3262_audio_probe(struct platform_device *pdev)

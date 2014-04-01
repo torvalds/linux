@@ -54,14 +54,14 @@ static bool get_hdmi_state(void)
 			return false;
 }
 
-static const struct snd_soc_dapm_widget rk_dapm_widgets[] = {
+static const struct snd_soc_dapm_widget rk_rk616_dapm_widgets[] = {
 	SND_SOC_DAPM_MIC("Mic Jack", NULL),
 	SND_SOC_DAPM_MIC("Headset Jack", NULL),
 	SND_SOC_DAPM_SPK("Ext Spk", NULL),
 	SND_SOC_DAPM_HP("Headphone Jack", NULL),
 };
 
-static const struct snd_soc_dapm_route rk_audio_map[]={
+static const struct snd_soc_dapm_route rk_rk616_audio_map[]={
 
 	/* Mic Jack --> MIC_IN*/
 	{"Mic1 Bias", NULL, "Mic Jack"},
@@ -80,7 +80,7 @@ static const struct snd_soc_dapm_route rk_audio_map[]={
 	{"Headphone Jack", NULL, "HPOUTL"},
 } ;
 
-static const struct snd_kcontrol_new rk_controls[] = {
+static const struct snd_kcontrol_new rk_rk616_controls[] = {
 	SOC_DAPM_PIN_SWITCH("Mic Jack"),
 	SOC_DAPM_PIN_SWITCH("Headset Jack"),
 	SOC_DAPM_PIN_SWITCH("Ext Spk"),
@@ -98,15 +98,6 @@ static int rk616_init(struct snd_soc_pcm_runtime *rtd)
 		return 0;
 
 	DBG("Enter::%s----%d\n",__FUNCTION__,__LINE__);
-
-	snd_soc_add_codec_controls(codec, rk_controls,
-			ARRAY_SIZE(rk_controls));
-
-	/* Add specific widgets */
-	snd_soc_dapm_new_controls(dapm, rk_dapm_widgets,
-				  ARRAY_SIZE(rk_dapm_widgets));
-	/* Set up specific audio path audio_mapnects */
-	snd_soc_dapm_add_routes(dapm, rk_audio_map, ARRAY_SIZE(rk_audio_map));
 
 	mutex_lock(&dapm->card->dapm_mutex);
 
@@ -289,6 +280,12 @@ static struct snd_soc_card rockchip_rk616_snd_card = {
 	.name = "RK_RK616",
 	.dai_link = rk_dai,
 	.num_links = 2,
+	.controls = rk_rk616_controls,
+	.num_controls = ARRAY_SIZE(rk_rk616_controls),
+	.dapm_widgets    = rk_rk616_dapm_widgets,
+	.num_dapm_widgets = ARRAY_SIZE(rk_rk616_dapm_widgets),
+	.dapm_routes    = rk_rk616_audio_map,
+	.num_dapm_routes = ARRAY_SIZE(rk_rk616_audio_map),
 };
 /*
 dts:

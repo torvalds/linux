@@ -67,27 +67,7 @@ static int rk3190_init(struct snd_soc_pcm_runtime *rtd)
 	struct snd_soc_dapm_context *dapm = &codec->dapm;
 
 	DBG("Enter::%s----%d\n",__FUNCTION__,__LINE__);
-#if 0
-	snd_soc_add_codec_controls(codec, rk_controls,
-			ARRAY_SIZE(rk_controls));
 
-	/* Add specific widgets */
-	snd_soc_dapm_new_controls(dapm, rk_dapm_widgets,
-				  ARRAY_SIZE(rk_dapm_widgets));
-	/* Set up specific audio path audio_mapnects */
-	snd_soc_dapm_add_routes(dapm, rk_audio_map, ARRAY_SIZE(rk_audio_map));
-
-	mutex_lock(&dapm->card->dapm_mutex);
-
-	snd_soc_dapm_enable_pin(dapm, "Mic Jack");
-	snd_soc_dapm_enable_pin(dapm, "Headset Jack");
-	snd_soc_dapm_enable_pin(dapm, "Ext Spk");
-	snd_soc_dapm_enable_pin(dapm, "Headphone Jack");
-
-	mutex_unlock(&dapm->card->dapm_mutex);
-
-	snd_soc_dapm_sync(dapm);
-#endif
 	return 0;
 }
 

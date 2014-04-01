@@ -197,15 +197,6 @@ static int rockchip_rt3261_init(struct snd_soc_pcm_runtime *rtd)
 
 	DBG("Enter::%s----%d\n",__FUNCTION__,__LINE__);
 
-	snd_soc_add_codec_controls(codec, rockchip_rt3261_controls,
-			ARRAY_SIZE(rockchip_rt3261_controls));
-
-	/* Add specific widgets */
-	snd_soc_dapm_new_controls(dapm, rockchip_rt3261_dapm_widgets,
-				  ARRAY_SIZE(rockchip_rt3261_dapm_widgets));
-	/* Set up specific audio path audio_mapnects */
-	snd_soc_dapm_add_routes(dapm, audio_map, ARRAY_SIZE(audio_map));
-
 	mutex_lock(&dapm->card->dapm_mutex);
 
 	snd_soc_dapm_enable_pin(dapm, "Mic Jack");
@@ -253,6 +244,12 @@ static struct snd_soc_card rockchip_rt3261_snd_card = {
 	.owner = THIS_MODULE,
 	.dai_link = rockchip_rt3261_dai,
 	.num_links = ARRAY_SIZE(rockchip_rt3261_dai),
+	.controls = rockchip_rt3261_controls,
+	.num_controls = ARRAY_SIZE(rockchip_rt3261_controls),
+	.dapm_widgets    = rockchip_rt3261_dapm_widgets,
+	.num_dapm_widgets = ARRAY_SIZE(rockchip_rt3261_dapm_widgets),
+	.dapm_routes    = audio_map,
+	.num_dapm_routes = ARRAY_SIZE(audio_map),
 };
 
 /*

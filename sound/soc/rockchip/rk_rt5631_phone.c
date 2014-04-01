@@ -157,7 +157,7 @@ static int rk29_hw_params_voice(struct snd_pcm_substream *substream,
 	return 0;
 }
 
-static const struct snd_soc_dapm_widget rt5631_dapm_widgets[] = {
+static const struct snd_soc_dapm_widget rk_rt5631_dapm_widgets[] = {
 	
 	SND_SOC_DAPM_MIC("Mic Jack", NULL),
 	SND_SOC_DAPM_SPK("Ext Spk", NULL),
@@ -165,7 +165,7 @@ static const struct snd_soc_dapm_widget rt5631_dapm_widgets[] = {
 
 };
 
-static const struct snd_soc_dapm_route audio_map[]={
+static const struct snd_soc_dapm_route rk_rt5631_audio_map[]={
 	{"Headphone Jack", NULL, "HPOL"},
 	{"Headphone Jack", NULL, "HPOR"},
 	{"Ext Spk", NULL, "SPOL"},
@@ -174,7 +174,7 @@ static const struct snd_soc_dapm_route audio_map[]={
 	{"MIC Bias1", NULL, "Mic Jack"},
 } ;
 //bard 7-5 s
-static const struct snd_kcontrol_new rk29_controls[] = {
+static const struct snd_kcontrol_new rk_rt5631_controls[] = {
 	SOC_DAPM_PIN_SWITCH("Mic Jack"),
 	SOC_DAPM_PIN_SWITCH("Ext Spk"),
 	SOC_DAPM_PIN_SWITCH("Headphone Jack"),
@@ -189,15 +189,7 @@ static int rk29_rt5631_init(struct snd_soc_pcm_runtime *rtd)
 	struct snd_soc_dapm_context *dapm = &codec->dapm;
 
 	DBG("Enter::%s----%d\n",__FUNCTION__,__LINE__);
-//bard 7-5 s
-	snd_soc_add_codec_controls(codec, rk29_controls,
-			ARRAY_SIZE(rk29_controls));
-//bard 7-5 e
-	/* Add specific widgets */
-	snd_soc_dapm_new_controls(dapm, rt5631_dapm_widgets,
-				  ARRAY_SIZE(rt5631_dapm_widgets));
-	/* Set up specific audio path audio_mapnects */
-	snd_soc_dapm_add_routes(dapm, audio_map, ARRAY_SIZE(audio_map));
+
 //	snd_soc_dapm_nc_pin(dapm, "MONO");
 //	snd_soc_dapm_nc_pin(dapm, "MONOIN_RXN");
 //	snd_soc_dapm_nc_pin(dapm, "MONOIN_RXP");
@@ -234,6 +226,12 @@ static struct snd_soc_card rockchip_rt5631_snd_card = {
 	.name = "RK_RT5631",
 	.dai_link = rk29_dai,
 	.num_links = 2,
+	.controls = rk_rt5631_controls,
+	.num_controls = ARRAY_SIZE(rk_rt5631_controls),
+	.dapm_widgets    = rk_rt5631_dapm_widgets,
+	.num_dapm_widgets = ARRAY_SIZE(rk_rt5631_dapm_widgets),
+	.dapm_routes    = rk_rt5631_audio_map,
+	.num_dapm_routes = ARRAY_SIZE(rk_rt5631_audio_map),
 };
 
 static int rockchip_rt5631_audio_probe(struct platform_device *pdev)

@@ -69,15 +69,6 @@ static int rk3026_init(struct snd_soc_pcm_runtime *rtd)
 
 	DBG("Enter::%s----%d\n",__FUNCTION__,__LINE__);
 
-	snd_soc_add_codec_controls(codec, rk_controls,
-			ARRAY_SIZE(rk_controls));
-
-	/* Add specific widgets */
-	snd_soc_dapm_new_controls(dapm, rk_dapm_widgets,
-				  ARRAY_SIZE(rk_dapm_widgets));
-	/* Set up specific audio path audio_mapnects */
-	snd_soc_dapm_add_routes(dapm, rk_audio_map, ARRAY_SIZE(rk_audio_map));
-
 	mutex_lock(&dapm->card->dapm_mutex);
 
 	snd_soc_dapm_enable_pin(dapm, "Mic Jack");
@@ -236,6 +227,12 @@ static struct snd_soc_card rockchip_rk3026_snd_card = {
 	.name = "RK_RK3026",
 	.dai_link = rk_dai,
 	.num_links = 2,
+	.controls = rk_controls,
+	.num_controls = ARRAY_SIZE(rk_controls),
+	.dapm_widgets    = rk_dapm_widgets,
+	.num_dapm_widgets = ARRAY_SIZE(rk_dapm_widgets),
+	.dapm_routes    = rk_audio_map,
+	.num_dapm_routes = ARRAY_SIZE(rk_audio_map),
 };
 
 static int rockchip_rk3026_audio_probe(struct platform_device *pdev)
