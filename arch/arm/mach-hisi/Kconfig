@@ -1,8 +1,16 @@
-config ARCH_HI3xxx
-	bool "Hisilicon Hi36xx/Hi37xx family" if ARCH_MULTI_V7
+config ARCH_HISI
+	bool "Hisilicon SoC Support"
+	depends on ARCH_MULTIPLATFORM
 	select ARM_AMBA
 	select ARM_GIC
 	select ARM_TIMER_SP804
+
+if ARCH_HISI
+
+menu "Hisilicon platform type"
+
+config ARCH_HI3xxx
+	bool "Hisilicon Hi36xx/Hi37xx family" if ARCH_MULTI_V7
 	select CACHE_L2X0
 	select HAVE_ARM_SCU if SMP
 	select HAVE_ARM_TWD if SMP
@@ -10,3 +18,7 @@ config ARCH_HI3xxx
 	select PINCTRL_SINGLE
 	help
 	  Support for Hisilicon Hi36xx/Hi37xx processor family
+
+endmenu
+
+endif
