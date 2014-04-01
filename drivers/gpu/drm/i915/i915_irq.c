@@ -2875,13 +2875,24 @@ static void ibx_irq_preinstall(struct drm_device *dev)
 
 	if (HAS_PCH_CPT(dev) || HAS_PCH_LPT(dev))
 		I915_WRITE(SERR_INT, 0xffffffff);
+}
 
-	/*
-	 * SDEIER is also touched by the interrupt handler to work around missed
-	 * PCH interrupts. Hence we can't update it after the interrupt handler
-	 * is enabled - instead we unconditionally enable all PCH interrupt
-	 * sources here, but then only unmask them as needed with SDEIMR.
-	 */
+/*
+ * SDEIER is also touched by the interrupt handler to work around missed PCH
+ * interrupts. Hence we can't update it after the interrupt handler is enabled -
+ * instead we unconditionally enable all PCH interrupt sources here, but then
+ * only unmask them as needed with SDEIMR.
+ *
+ * This function needs to be called before interrupts are enabled.
+ */
+static void ibx_irq_pre_postinstall(struct drm_device *dev)
+{
+	struct drm_i915_private *dev_priv = dev->dev_private;
+
+	if (HAS_PCH_NOP(dev))
+		return;
+
+	WARN_ON(I915_READ(SDEIER) != 0);
 	I915_WRITE(SDEIER, 0xffffffff);
 	POSTING_READ(SDEIER);
 }
@@ -3077,6 +3088,8 @@ static int ironlake_irq_postinstall(struct drm_device *dev)
 
 	dev_priv->irq_mask = ~display_mask;
 
+	ibx_irq_pre_postinstall(dev);
+
 	GEN5_IRQ_INIT(DE, dev_priv->irq_mask, display_mask | extra_mask);
 
 	gen5_gt_irq_postinstall(dev);
@@ -3264,6 +3277,8 @@ static void gen8_de_irq_postinstall(struct drm_i915_private *dev_priv)
 static int gen8_irq_postinstall(struct drm_device *dev)
 {
 	struct drm_i915_private *dev_priv = dev->dev_private;
+
+	ibx_irq_pre_postinstall(dev);
 
 	gen8_gt_irq_postinstall(dev_priv);
 	gen8_de_irq_postinstall(dev_priv);
