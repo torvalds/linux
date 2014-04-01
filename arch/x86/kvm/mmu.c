@@ -3606,9 +3606,9 @@ void update_permission_bitmask(struct kvm_vcpu *vcpu,
 {
 	unsigned bit, byte, pfec;
 	u8 map;
-	bool fault, x, w, u, wf, uf, ff, smapf, cr4_smap, smep, smap = 0;
+	bool fault, x, w, u, wf, uf, ff, smapf, cr4_smap, cr4_smep, smap = 0;
 
-	smep = kvm_read_cr4_bits(vcpu, X86_CR4_SMEP);
+	cr4_smep = kvm_read_cr4_bits(vcpu, X86_CR4_SMEP);
 	cr4_smap = kvm_read_cr4_bits(vcpu, X86_CR4_SMAP);
 	for (byte = 0; byte < ARRAY_SIZE(mmu->permissions); ++byte) {
 		pfec = byte << 1;
@@ -3633,7 +3633,7 @@ void update_permission_bitmask(struct kvm_vcpu *vcpu,
 				/* Allow supervisor writes if !cr0.wp */
 				w |= !is_write_protection(vcpu) && !uf;
 				/* Disallow supervisor fetches of user code if cr4.smep */
-				x &= !(smep && u && !uf);
+				x &= !(cr4_smep && u && !uf);
 
 				/*
 				 * SMAP:kernel-mode data accesses from user-mode
