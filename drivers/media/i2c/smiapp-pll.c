@@ -391,6 +391,7 @@ static int __smiapp_pll_calculate(
 out_skip_vt_calc:
 	pll->pixel_rate_csi =
 		op_pll->pix_clk_freq_hz * lane_op_clock_ratio;
+	pll->pixel_rate_pixel_array = pll->vt.pix_clk_freq_hz;
 
 	return check_all_bounds(dev, limits, op_limits, pll, op_pll);
 }

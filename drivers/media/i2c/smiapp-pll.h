@@ -71,6 +71,7 @@ struct smiapp_pll {
 	struct smiapp_pll_branch op;
 
 	uint32_t pixel_rate_csi;
+	uint32_t pixel_rate_pixel_array;
 };
 
 struct smiapp_pll_branch_limits {
