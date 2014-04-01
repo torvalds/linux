@@ -633,7 +633,7 @@ int clk_enable_dvfs(struct dvfs_node *clk_dvfs_node)
 		clk_dvfs_node->freq_limit_en = 1;
 		dvfs_table_round_volt(clk_dvfs_node);
 		clk_dvfs_node->set_freq = clk_dvfs_node_get_rate_kz(clk_dvfs_node->clk);
-		clk_dvfs_node->last_set_rate = clk_dvfs_node->set_freq;
+		clk_dvfs_node->last_set_rate = clk_dvfs_node->set_freq*1000;
 		
 		DVFS_DBG("%s: %s get freq %u!\n", 
 			__func__, clk_dvfs_node->name, clk_dvfs_node->set_freq);

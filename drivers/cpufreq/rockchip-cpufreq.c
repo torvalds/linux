@@ -74,6 +74,7 @@ static bool gpu_is_mali400;
 struct dvfs_node *clk_cpu_dvfs_node = NULL;
 struct dvfs_node *clk_gpu_dvfs_node = NULL;
 struct dvfs_node *clk_vepu_dvfs_node = NULL;
+struct dvfs_node *clk_ddr_dvfs_node = NULL;
 /*******************************************************/
 static unsigned int cpufreq_get_rate(unsigned int cpu)
 {
@@ -181,6 +182,11 @@ static int cpufreq_init_cpu0(struct cpufreq_policy *policy)
 	clk_vepu_dvfs_node = clk_get_dvfs_node("clk_vepu");
 	if (clk_vepu_dvfs_node){
 		clk_enable_dvfs(clk_vepu_dvfs_node);
+	}
+
+	clk_ddr_dvfs_node = clk_get_dvfs_node("clk_ddr");
+	if (clk_ddr_dvfs_node){
+		clk_enable_dvfs(clk_ddr_dvfs_node);
 	}
 
 	clk_cpu_dvfs_node = clk_get_dvfs_node("clk_core");

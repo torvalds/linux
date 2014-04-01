@@ -571,13 +571,18 @@ rockchip,power_type = <GPIO>;
 &clk_core_dvfs_table {
 	operating-points = <
 		/* KHz    uV */
+		126000 850000
+		216000 850000
 		312000 850000
-		504000 850000
+		408000 850000
+		600000 850000
+		696000 900000
 		816000 950000
 		1008000 1000000
 		1200000 1050000
 		1416000 1150000
 		>;
+	status="okay";
 };
 
 &clk_gpu_dvfs_table {
@@ -589,14 +594,16 @@ rockchip,power_type = <GPIO>;
 		400000 1000000
 		600000 1250000
 		>;
+	status="okay";
 };
 
 &clk_ddr_dvfs_table {
 	operating-points = <
 		/* KHz    uV */
-		200000 1200000
-		300000 1200000
-		400000 1200000
+		200000 950000
+		300000 950000
+		400000 1000000
+		533000 1050000
 		>;
 
 	freq_table = <
@@ -606,6 +613,7 @@ rockchip,power_type = <GPIO>;
 		SYS_STATUS_VIDEO	300000
 		SYS_STATUS_DUALVIEW	500000
 		>;
+	status="okay";
 };
 
 /include/ "rk808.dtsi"

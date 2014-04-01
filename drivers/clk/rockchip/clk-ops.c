@@ -425,7 +425,7 @@ static long clk_ddr_determine_rate(struct clk_hw *hw, unsigned long rate,
 
 	if (!ddr_round_rate) {
 		/* Do nothing before ddr init */
-		best = __clk_get_rate(hw->clk);
+		best = rate;//__clk_get_rate(hw->clk);
 	} else {
 		/* Func provided by ddr driver */
 		best = ddr_round_rate(rate/MHZ) * MHZ;

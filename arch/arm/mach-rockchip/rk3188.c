@@ -371,12 +371,14 @@ static void __init rk3188_init_suspend(void)
 
 static int __init rk3188_ddr_init(void)
 {
-	ddr_change_freq = _ddr_change_freq;
-	ddr_round_rate = _ddr_round_rate;
-	ddr_set_auto_self_refresh = _ddr_set_auto_self_refresh;
-	
-	if (cpu_is_rk3188())
+	if (cpu_is_rk3188()) {
+
+		ddr_change_freq = _ddr_change_freq;
+		ddr_round_rate = _ddr_round_rate;
+		ddr_set_auto_self_refresh = _ddr_set_auto_self_refresh;
+
 		ddr_init(DDR3_DEFAULT, 300);
+	}
 
 	return 0;
 }

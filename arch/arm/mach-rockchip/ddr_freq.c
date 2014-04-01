@@ -433,4 +433,4 @@ err:
 
 	return ret;
 }
-late_initcall(ddrfreq_init);
+//late_initcall(ddrfreq_init);
