@@ -635,3 +635,6 @@ void opal_shutdown(void)
 			mdelay(10);
 	}
 }
+
+/* Export this so that test modules can use it */
+EXPORT_SYMBOL_GPL(opal_invalid_call);

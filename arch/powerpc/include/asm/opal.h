@@ -87,6 +87,7 @@ extern int opal_enter_rtas(struct rtas_args *args,
 #define OPAL_ASYNC_COMPLETION	-15
 
 /* API Tokens (in r0) */
+#define OPAL_INVALID_CALL			-1
 #define OPAL_CONSOLE_WRITE			1
 #define OPAL_CONSOLE_READ			2
 #define OPAL_RTC_READ				3
@@ -734,6 +735,7 @@ extern struct kobject *opal_kobj;
 extern struct device_node *opal_node;
 
 /* API functions */
+int64_t opal_invalid_call(void);
 int64_t opal_console_write(int64_t term_number, __be64 *length,
 			   const uint8_t *buffer);
 int64_t opal_console_read(int64_t term_number, __be64 *length,
