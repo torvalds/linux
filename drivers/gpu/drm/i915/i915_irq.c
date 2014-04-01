@@ -3310,6 +3310,8 @@ static void gen8_irq_uninstall(struct drm_device *dev)
 	GEN5_IRQ_RESET(GEN8_DE_PORT_);
 	GEN5_IRQ_RESET(GEN8_DE_MISC_);
 	GEN5_IRQ_RESET(GEN8_PCU_);
+
+	ibx_irq_uninstall(dev);
 }
 
 static void valleyview_irq_uninstall(struct drm_device *dev)
