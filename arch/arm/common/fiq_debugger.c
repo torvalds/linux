@@ -253,21 +253,130 @@ static void dump_kernel_log(struct fiq_debugger_state *state)
 #ifdef CONFIG_RK_LAST_LOG
 #include <linux/ctype.h>
 extern char *last_log_get(unsigned *size);
-static void dump_last_kernel_log(struct fiq_debugger_state *state)
-{
-	unsigned size, i, c;
-	char *s = last_log_get(&size);
 
+enum log_flags {
+	LOG_NOCONS	= 1,	/* already flushed, do not print to console */
+	LOG_NEWLINE	= 2,	/* text ended with a newline */
+	LOG_PREFIX	= 4,	/* text started with a prefix */
+	LOG_CONT	= 8,	/* text is a fragment of a continuation line */
+};
+
+struct log {
+	u64 ts_nsec;		/* timestamp in nanoseconds */
+	u16 len;		/* length of entire record */
+	u16 text_len;		/* length of text buffer */
+	u16 dict_len;		/* length of dictionary buffer */
+	u8 facility;		/* syslog facility */
+	u8 flags:5;		/* internal record flags */
+	u8 level:3;		/* syslog level */
+};
+
+static void dump_last_kernel_log_raw(struct fiq_debugger_state *state)
+{
+	unsigned size, i, c, w = 0;
+	char *s = last_log_get(&size);
 	for (i = 0; i < size; i++) {
 		if (i % 1024 == 0)
 			wdt_keepalive();
 		c = s[i];
-		if (c == '\n') {
-			debug_putc(state->pdev, '\r');
-			debug_putc(state->pdev, c);
-		} else if (isascii(c) && isprint(c)) {
-			debug_putc(state->pdev, c);
+		if (w % 80 == 79) {
+			debug_putc(state, '\r');
+			debug_putc(state, '\n');
+			w = 0;
 		}
+		if (c == '\n') {
+			debug_putc(state, '\r');
+			debug_putc(state, c);
+			w = 0;
+		} else if (isascii(c) && isprint(c)) {
+			debug_putc(state, c);
+			w++;
+		}
+	}
+}
+
+static void dump_last_kernel_log(struct fiq_debugger_state *state)
+{
+	unsigned size, i, c;
+	char *s = last_log_get(&size);
+	unsigned int prev = 0;
+
+	for (;;) {
+		size_t sz;
+		struct log *l;
+		bool prefix = true;
+		bool newline = true;
+		const char *text;
+		unsigned int text_size;
+
+		sz = sizeof(struct log);
+		if (size < sz)
+			break;
+		l = (struct log *)s;
+		size -= sz;
+		s += sz;
+
+		if (l->len == 0)
+			break;
+
+		sz = l->len - sz;
+		text = s;
+		text_size = l->text_len;
+		if (size < sz)
+			break;
+		size -= sz;
+		s += sz;
+
+		if ((prev & LOG_CONT) && !(l->flags & LOG_PREFIX))
+			prefix = false;
+
+		if (l->flags & LOG_CONT) {
+			if ((prev & LOG_CONT) && !(prev & LOG_NEWLINE))
+				prefix = false;
+
+			if (!(l->flags & LOG_NEWLINE))
+				newline = false;
+		}
+
+		do {
+			char *next = memchr(text, '\n', text_size);
+			size_t text_len;
+
+			if (next) {
+				text_len = next - text;
+				next++;
+				text_size -= next - text;
+			} else {
+				text_len = text_size;
+			}
+
+			if (prefix) {
+				char buf[32];
+				size_t len = 0;
+				unsigned long rem_nsec = do_div(l->ts_nsec, 1000000000);
+				unsigned int prefix = (l->facility << 3) | l->level;
+
+				len += snprintf(buf, sizeof(buf), "<%u>", prefix);
+				len += snprintf(buf + len, sizeof(buf) - len, "[%5lu.%06lu] ", (unsigned long)l->ts_nsec, rem_nsec / 1000);
+				debug_puts(state, buf);
+			}
+			for (i = 0; i < text_len; i++) {
+				c = text[i];
+				if (c == '\n') {
+					debug_putc(state, '\r');
+					debug_putc(state, c);
+				} else if (isascii(c) && isprint(c)) {
+					debug_putc(state, c);
+				}
+			}
+			if (next || newline) {
+				debug_putc(state, '\r');
+				debug_putc(state, '\n');
+			}
+			prefix = true;
+			text = next;
+		} while (text);
+		wdt_keepalive();
 	}
 }
 #endif
@@ -741,6 +850,7 @@ static char cmd_buf[][16] = {
 		{"kmsg"},
 #ifdef CONFIG_RK_LAST_LOG
 		{"last_kmsg"},
+		{"last_kmsg_raw"},
 #endif
 		{"version"},
 		{"sleep"},
@@ -770,6 +880,7 @@ static void debug_help(struct fiq_debugger_state *state)
 				" version       Kernel version\n");
 #ifdef CONFIG_RK_LAST_LOG
 	debug_printf(state,	" last_kmsg     Last kernel log\n");
+	debug_printf(state,	" last_kmsg_raw Last kernel log raw\n");
 #endif
 	debug_printf(state,	" sleep         Allow sleep while in FIQ\n"
 				" nosleep       Disable sleep while in FIQ\n"
@@ -850,6 +961,8 @@ static bool debug_fiq_exec(struct fiq_debugger_state *state,
 	} else if (!strcmp(cmd, "kmsg")) {
 		dump_kernel_log(state);
 #ifdef CONFIG_RK_LAST_LOG
+	} else if (!strcmp(cmd, "last_kmsg_raw")) {
+		dump_last_kernel_log_raw(state);
 	} else if (!strcmp(cmd, "last_kmsg")) {
 		dump_last_kernel_log(state);
 #endif

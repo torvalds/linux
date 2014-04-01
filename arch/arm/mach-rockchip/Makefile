@@ -9,6 +9,7 @@ obj-$(CONFIG_CPU_IDLE) += cpuidle.o
 obj-$(CONFIG_SMP) += platsmp.o
 obj-$(CONFIG_HOTPLUG_CPU) += hotplug.o
 obj-$(CONFIG_FIQ_DEBUGGER) += rk_fiq_debugger.o
+obj-$(CONFIG_RK_LAST_LOG) += last_log.o
 obj-$(CONFIG_DVFS) += dvfs.o
 obj-$(CONFIG_RK_VCODEC) += vcodec_service.o
 obj-$(CONFIG_RK_VPU) += vpu_service.o
