@@ -894,7 +894,12 @@ static int usbhid_set_raw_report(struct hid_device *hid, unsigned int reportnum,
 	int ret, skipped_report_id = 0;
 
 	/* Byte 0 is the report number. Report data starts at byte 1.*/
-	buf[0] = reportnum;
+	if ((rtype == HID_OUTPUT_REPORT) &&
+	    (hid->quirks & HID_QUIRK_SKIP_OUTPUT_REPORT_ID))
+		buf[0] = 0;
+	else
+		buf[0] = reportnum;
+
 	if (buf[0] == 0x0) {
 		/* Don't send the Report ID */
 		buf++;
@@ -922,7 +927,7 @@ static int usbhid_output_report(struct hid_device *hid, __u8 *buf, size_t count)
 	int actual_length, skipped_report_id = 0, ret;
 
 	if (!usbhid->urbout)
-		return -EIO;
+		return -ENOSYS;
 
 	if (buf[0] == 0x0) {
 		/* Don't send the Report ID */
@@ -943,17 +948,6 @@ static int usbhid_output_report(struct hid_device *hid, __u8 *buf, size_t count)
 	}
 
 	return ret;
-}
-
-static int usbhid_output_raw_report(struct hid_device *hid, __u8 *buf,
-		size_t count, unsigned char report_type)
-{
-	struct usbhid_device *usbhid = hid->driver_data;
-
-	if (usbhid->urbout && report_type != HID_FEATURE_REPORT)
-		return usbhid_output_report(hid, buf, count);
-
-	return usbhid_set_raw_report(hid, buf[0], buf, count, report_type);
 }
 
 static void usbhid_restart_queues(struct usbhid_device *usbhid)
@@ -1289,7 +1283,6 @@ static int usbhid_probe(struct usb_interface *intf, const struct usb_device_id *
 
 	usb_set_intfdata(intf, hid);
 	hid->ll_driver = &usb_hid_driver;
-	hid->hid_output_raw_report = usbhid_output_raw_report;
 	hid->ff_init = hid_pidff_init;
 #ifdef CONFIG_USB_HIDDEV
 	hid->hiddev_connect = hiddev_connect;

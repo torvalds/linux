@@ -287,6 +287,8 @@ struct hid_item {
 #define HID_QUIRK_NO_EMPTY_INPUT		0x00000100
 #define HID_QUIRK_NO_INIT_INPUT_REPORTS		0x00000200
 #define HID_QUIRK_SKIP_OUTPUT_REPORTS		0x00010000
+#define HID_QUIRK_SKIP_OUTPUT_REPORT_ID		0x00020000
+#define HID_QUIRK_NO_OUTPUT_REPORTS_ON_INTR_EP	0x00040000
 #define HID_QUIRK_FULLSPEED_INTERVAL		0x10000000
 #define HID_QUIRK_NO_INIT_REPORTS		0x20000000
 #define HID_QUIRK_NO_IGNORE			0x40000000
@@ -507,9 +509,6 @@ struct hid_device {							/* device report descriptor */
 	void (*hiddev_hid_event) (struct hid_device *, struct hid_field *field,
 				  struct hid_usage *, __s32);
 	void (*hiddev_report_event) (struct hid_device *, struct hid_report *);
-
-	/* handler for raw output data, used by hidraw */
-	int (*hid_output_raw_report) (struct hid_device *, __u8 *, size_t, unsigned char);
 
 	/* debugging support via debugfs */
 	unsigned short debug;
@@ -753,6 +752,7 @@ struct hid_field *hidinput_get_led_field(struct hid_device *hid);
 unsigned int hidinput_count_leds(struct hid_device *hid);
 __s32 hidinput_calc_abs_res(const struct hid_field *field, __u16 code);
 void hid_output_report(struct hid_report *report, __u8 *data);
+void __hid_request(struct hid_device *hid, struct hid_report *rep, int reqtype);
 u8 *hid_alloc_report_buf(struct hid_report *report, gfp_t flags);
 struct hid_device *hid_allocate_device(void);
 struct hid_report *hid_register_report(struct hid_device *device, unsigned type, unsigned id);
@@ -965,7 +965,9 @@ static inline void hid_hw_request(struct hid_device *hdev,
 				  struct hid_report *report, int reqtype)
 {
 	if (hdev->ll_driver->request)
-		hdev->ll_driver->request(hdev, report, reqtype);
+		return hdev->ll_driver->request(hdev, report, reqtype);
+
+	__hid_request(hdev, report, reqtype);
 }
 
 /**
@@ -986,11 +988,11 @@ static inline int hid_hw_raw_request(struct hid_device *hdev,
 				  unsigned char reportnum, __u8 *buf,
 				  size_t len, unsigned char rtype, int reqtype)
 {
-	if (hdev->ll_driver->raw_request)
-		return hdev->ll_driver->raw_request(hdev, reportnum, buf, len,
-						    rtype, reqtype);
+	if (len < 1 || len > HID_MAX_BUFFER_SIZE || !buf)
+		return -EINVAL;
 
-	return -ENOSYS;
+	return hdev->ll_driver->raw_request(hdev, reportnum, buf, len,
+						    rtype, reqtype);
 }
 
 /**
@@ -1005,26 +1007,13 @@ static inline int hid_hw_raw_request(struct hid_device *hdev,
 static inline int hid_hw_output_report(struct hid_device *hdev, __u8 *buf,
 					size_t len)
 {
+	if (len < 1 || len > HID_MAX_BUFFER_SIZE || !buf)
+		return -EINVAL;
+
 	if (hdev->ll_driver->output_report)
 		return hdev->ll_driver->output_report(hdev, buf, len);
 
 	return -ENOSYS;
-}
-
-/**
- * hid_output_raw_report - send an output or a feature report to the device
- *
- * @hdev: hid device
- * @buf: raw data to transfer
- * @len: length of buf
- * @report_type: HID_FEATURE_REPORT or HID_OUTPUT_REPORT
- *
- * @return: count of data transfered, negative if error
- */
-static inline int hid_output_raw_report(struct hid_device *hdev, __u8 *buf,
-					size_t len, unsigned char report_type)
-{
-	return hdev->hid_output_raw_report(hdev, buf, len, report_type);
 }
 
 /**

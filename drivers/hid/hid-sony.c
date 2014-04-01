@@ -29,7 +29,6 @@
 #include <linux/hid.h>
 #include <linux/module.h>
 #include <linux/slab.h>
-#include <linux/usb.h>
 #include <linux/leds.h>
 #include <linux/power_supply.h>
 #include <linux/spinlock.h>
@@ -1007,45 +1006,6 @@ static int sony_mapping(struct hid_device *hdev, struct hid_input *hi,
 }
 
 /*
- * The Sony Sixaxis does not handle HID Output Reports on the Interrupt EP
- * like it should according to usbhid/hid-core.c::usbhid_output_raw_report()
- * so we need to override that forcing HID Output Reports on the Control EP.
- *
- * There is also another issue about HID Output Reports via USB, the Sixaxis
- * does not want the report_id as part of the data packet, so we have to
- * discard buf[0] when sending the actual control message, even for numbered
- * reports, humpf!
- */
-static int sixaxis_usb_output_raw_report(struct hid_device *hid, __u8 *buf,
-		size_t count, unsigned char report_type)
-{
-	struct usb_interface *intf = to_usb_interface(hid->dev.parent);
-	struct usb_device *dev = interface_to_usbdev(intf);
-	struct usb_host_interface *interface = intf->cur_altsetting;
-	int report_id = buf[0];
-	int ret;
-
-	if (report_type == HID_OUTPUT_REPORT) {
-		/* Don't send the Report ID */
-		buf++;
-		count--;
-	}
-
-	ret = usb_control_msg(dev, usb_sndctrlpipe(dev, 0),
-		HID_REQ_SET_REPORT,
-		USB_DIR_OUT | USB_TYPE_CLASS | USB_RECIP_INTERFACE,
-		((report_type + 1) << 8) | report_id,
-		interface->desc.bInterfaceNumber, buf, count,
-		USB_CTRL_SET_TIMEOUT);
-
-	/* Count also the Report ID, in case of an Output report. */
-	if (ret > 0 && report_type == HID_OUTPUT_REPORT)
-		ret++;
-
-	return ret;
-}
-
-/*
  * Sending HID_REQ_GET_REPORT changes the operation mode of the ps3 controller
  * to "operational".  Without this, the ps3 controller will not report any
  * events.
@@ -1072,8 +1032,8 @@ static int sixaxis_set_operational_usb(struct hid_device *hdev)
 static int sixaxis_set_operational_bt(struct hid_device *hdev)
 {
 	unsigned char buf[] = { 0xf4,  0x42, 0x03, 0x00, 0x00 };
-	return hid_output_raw_report(hdev, buf, sizeof(buf),
-				     HID_FEATURE_REPORT);
+	return hid_hw_raw_request(hdev, buf[0], buf, sizeof(buf),
+				  HID_FEATURE_REPORT, HID_REQ_SET_REPORT);
 }
 
 /*
@@ -1305,11 +1265,8 @@ static void sixaxis_state_worker(struct work_struct *work)
 	buf[10] |= sc->led_state[2] << 3;
 	buf[10] |= sc->led_state[3] << 4;
 
-	if (sc->quirks & SIXAXIS_CONTROLLER_USB)
-		hid_output_raw_report(sc->hdev, buf, sizeof(buf), HID_OUTPUT_REPORT);
-	else
-		hid_hw_raw_request(sc->hdev, 0x01, buf, sizeof(buf),
-				HID_OUTPUT_REPORT, HID_REQ_SET_REPORT);
+	hid_hw_raw_request(sc->hdev, 0x01, buf, sizeof(buf), HID_OUTPUT_REPORT,
+			HID_REQ_SET_REPORT);
 }
 
 static void dualshock4_state_worker(struct work_struct *work)
@@ -1659,7 +1616,18 @@ static int sony_probe(struct hid_device *hdev, const struct hid_device_id *id)
 	}
 
 	if (sc->quirks & SIXAXIS_CONTROLLER_USB) {
-		hdev->hid_output_raw_report = sixaxis_usb_output_raw_report;
+		/*
+		 * The Sony Sixaxis does not handle HID Output Reports on the
+		 * Interrupt EP like it could, so we need to force HID Output
+		 * Reports to use HID_REQ_SET_REPORT on the Control EP.
+		 *
+		 * There is also another issue about HID Output Reports via USB,
+		 * the Sixaxis does not want the report_id as part of the data
+		 * packet, so we have to discard buf[0] when sending the actual
+		 * control message, even for numbered reports, humpf!
+		 */
+		hdev->quirks |= HID_QUIRK_NO_OUTPUT_REPORTS_ON_INTR_EP;
+		hdev->quirks |= HID_QUIRK_SKIP_OUTPUT_REPORT_ID;
 		ret = sixaxis_set_operational_usb(hdev);
 		sc->worker_initialized = 1;
 		INIT_WORK(&sc->state_worker, sixaxis_state_worker);
