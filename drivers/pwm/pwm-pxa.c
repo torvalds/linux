@@ -127,7 +127,7 @@ static struct pwm_ops pxa_pwm_ops = {
 
 #ifdef CONFIG_OF
 /*
- * Device tree users must create one device instance for each pwm channel.
+ * Device tree users must create one device instance for each PWM channel.
  * Hence we dispense with the HAS_SECONDARY_PWM and "tell" the original driver
  * code that this is a single channel pxa25x-pwm.  Currently all devices are
  * supported identically.
