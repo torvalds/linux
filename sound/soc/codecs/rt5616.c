@@ -1251,10 +1251,11 @@ static int rt5616_prepare(struct snd_pcm_substream *substream,
 
 static int rt5616_set_gpio(struct rt5616_priv *rt5616, int gpio, bool level)
 {	
-	//printk("%s : set %s ctl gpio %s\n", __func__,
+#if 0
+	printk("%s : set %s ctl gpio %s\n", __func__,
 		gpio & rt5616_CODEC_SET_SPK ? "spk" : "",
 		level ? "HIGH" : "LOW");
-
+#endif
 	if ((gpio & rt5616_CODEC_SET_SPK) && gpio_is_valid(rt5616->spk_ctl_gpio)) {
 		mdelay(100);
 		gpio_set_value(rt5616->spk_ctl_gpio, level);		
