@@ -451,7 +451,7 @@ acpi_gpio_adr_space_handler(u32 function, acpi_physical_address address,
 		if (function == ACPI_WRITE)
 			gpiod_set_raw_value(desc, !!((1 << i) & *value));
 		else
-			*value |= gpiod_get_raw_value(desc) << i;
+			*value |= (u64)gpiod_get_raw_value(desc) << i;
 	}
 
 out:
