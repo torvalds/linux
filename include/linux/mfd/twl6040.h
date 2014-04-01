@@ -157,6 +157,7 @@
 #define TWL6040_I2CSEL			0x01
 #define TWL6040_RESETSPLIT		0x04
 #define TWL6040_INTCLRMODE		0x08
+#define TWL6040_I2CMODE(x)		((x & 0x3) << 4)
 
 /* STATUS (0x2E) fields */
 

@@ -87,8 +87,13 @@ static struct reg_default twl6040_defaults[] = {
 };
 
 static struct reg_default twl6040_patch[] = {
-	/* Select I2C bus access to dual access registers */
-	{ TWL6040_REG_ACCCTL, 0x09 },
+	/*
+	 * Select I2C bus access to dual access registers
+	 * Interrupt register is cleared on read
+	 * Select fast mode for i2c (400KHz)
+	 */
+	{ TWL6040_REG_ACCCTL,
+		TWL6040_I2CSEL | TWL6040_INTCLRMODE | TWL6040_I2CMODE(1) },
 };
 
 
