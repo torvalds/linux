@@ -359,7 +359,7 @@ struct drm_i915_error_state {
 		u64 bbaddr;
 		u64 acthd;
 		u32 fault_reg;
-		u32 faddr;
+		u64 faddr;
 		u32 rc_psmi; /* sleep state */
 		u32 semaphore_mboxes[I915_NUM_RINGS - 1];
 

@@ -835,6 +835,7 @@ enum punit_power_well {
 #define RING_INSTDONE(base)	((base)+0x6c)
 #define RING_INSTPS(base)	((base)+0x70)
 #define RING_DMA_FADD(base)	((base)+0x78)
+#define RING_DMA_FADD_UDW(base)	((base)+0x60) /* gen8+ */
 #define RING_INSTPM(base)	((base)+0xc0)
 #define RING_MI_MODE(base)	((base)+0x9c)
 #define INSTPS		0x02070 /* 965+ only */
