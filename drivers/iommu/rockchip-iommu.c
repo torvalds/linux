@@ -29,7 +29,6 @@
 #define SPAGE_ORDER 12
 #define SPAGE_SIZE (1 << SPAGE_ORDER)
 #define SPAGE_MASK (~(SPAGE_SIZE - 1))
-
 typedef enum sysmmu_entry_flags 
 {
 	SYSMMU_FLAGS_PRESENT = 0x01,
@@ -150,7 +149,6 @@ typedef enum sysmmu_status_bits
 #define INVALID_PAGE ((u32)(~0))
 
 static struct kmem_cache *lv2table_kmem_cache;
-
 static unsigned long *section_entry(unsigned long *pgtable, unsigned long iova)
 {
 	return pgtable + lv1ent_offset(iova);
@@ -199,7 +197,7 @@ static void sysmmu_disable_stall(void __iomem *sfrbase)
 	u32 mmu_status = __raw_readl(sfrbase+SYSMMU_REGISTER_STATUS);
 	if ( 0 == (mmu_status & SYSMMU_STATUS_BIT_PAGING_ENABLED )) 
 	{
-		pr_err("MMU disable skipped since it was not enabled.\n");
+		//pr_err("MMU disable skipped since it was not enabled.\n");
 		return;
 	}
 	if (mmu_status & SYSMMU_STATUS_BIT_PAGE_FAULT_ACTIVE) 
@@ -236,7 +234,7 @@ static bool sysmmu_enable_stall(void __iomem *sfrbase)
 
 	if ( 0 == (mmu_status & SYSMMU_STATUS_BIT_PAGING_ENABLED) ) 
 	{
-		pr_info("MMU stall is implicit when Paging is not enabled.\n");
+		//pr_info("MMU stall is implicit when Paging is not enabled.\n");
 		return true;
 	}
 	if ( mmu_status & SYSMMU_STATUS_BIT_PAGE_FAULT_ACTIVE ) 
@@ -285,7 +283,7 @@ static bool sysmmu_enable_paging(void __iomem *sfrbase)
 	{
 		if (__raw_readl(sfrbase + SYSMMU_REGISTER_STATUS) & SYSMMU_STATUS_BIT_PAGING_ENABLED) 
 		{
-			pr_info("Enable paging request success.\n");
+			//pr_info("Enable paging request success.\n");
 			break;
 		}
 	}
@@ -296,6 +294,27 @@ static bool sysmmu_enable_paging(void __iomem *sfrbase)
 	}
 	return true;
 }
+static bool sysmmu_disable_paging(void __iomem *sfrbase)
+{
+	int i;
+	__raw_writel(SYSMMU_COMMAND_DISABLE_PAGING, sfrbase + SYSMMU_REGISTER_COMMAND);
+
+	for (i = 0; i < SYSMMU_REG_POLL_COUNT_FAST; ++i) 
+	{
+		if (!(__raw_readl(sfrbase + SYSMMU_REGISTER_STATUS) & SYSMMU_STATUS_BIT_PAGING_ENABLED)) 
+		{
+			//pr_info("Disable paging request success.\n");
+			break;
+		}
+	}
+	if (SYSMMU_REG_POLL_COUNT_FAST == i)
+	{
+		pr_err("Disable paging request failed, MMU status is 0x%08X\n", __raw_readl(sfrbase + SYSMMU_REGISTER_STATUS));
+		return false;
+	}
+	return true;
+}
+
 void sysmmu_page_fault_done(void __iomem *sfrbase,const char *dbgname)
 {
 	pr_info("MMU: %s: Leaving page fault mode\n", dbgname);
@@ -314,7 +333,7 @@ bool sysmmu_zap_tlb(void __iomem *sfrbase)
 	sysmmu_disable_stall(sfrbase);
 	return true;
 }
-static inline int sysmmu_raw_reset(void __iomem *sfrbase)
+static inline bool sysmmu_raw_reset(void __iomem *sfrbase)
 {
 	int i;
 	__raw_writel(0xCAFEBABE, sfrbase + SYSMMU_REGISTER_DTE_ADDR);
@@ -322,7 +341,7 @@ static inline int sysmmu_raw_reset(void __iomem *sfrbase)
 	if(!(0xCAFEB000 == __raw_readl(sfrbase+SYSMMU_REGISTER_DTE_ADDR)))
 	{
 		pr_err("error when %s.\n",__func__);
-		return -1;
+		return false;
 	}
 	__raw_writel(SYSMMU_COMMAND_HARD_RESET, sfrbase + SYSMMU_REGISTER_COMMAND);
 
@@ -334,34 +353,10 @@ static inline int sysmmu_raw_reset(void __iomem *sfrbase)
 		}
 	}
 	if (SYSMMU_REG_POLL_COUNT_FAST == i) {
-		pr_err("Reset request failed, MMU status is 0x%08X\n", __raw_readl(sfrbase + SYSMMU_REGISTER_DTE_ADDR));
-		return -1;
+		pr_err("%s,Reset request failed, MMU status is 0x%08X\n", __func__,__raw_readl(sfrbase + SYSMMU_REGISTER_DTE_ADDR));
+		return false;
 	}
-	return 0;
-}
-
-static bool sysmmu_reset(void __iomem *sfrbase,const char *dbgname)
-{
-	bool err = false;
-	bool stall_success;
-	
-	stall_success = sysmmu_enable_stall(sfrbase);
-	if(!stall_success)
-	{
-		pr_info("sysmmu reset:stall failed: %s\n",dbgname);
-		return err ;
-	}
-	if(0 == sysmmu_raw_reset(sfrbase))
-	{
-		__raw_writel(SYSMMU_INTERRUPT_PAGE_FAULT|SYSMMU_INTERRUPT_READ_BUS_ERROR, sfrbase+SYSMMU_REGISTER_INT_MASK);
-		err = sysmmu_enable_paging(sfrbase);
-	}
-	sysmmu_disable_stall(sfrbase);
-	if(err)
-		pr_info("SYSMMU: reset successed: %s\n",dbgname);
-	else
-		pr_info("SYSMMU: reset failed: %s\n", dbgname);
-	return err;
+	return true;
 }
 
 static void __sysmmu_set_ptbase(void __iomem *sfrbase,unsigned long pgd)
@@ -369,6 +364,28 @@ static void __sysmmu_set_ptbase(void __iomem *sfrbase,unsigned long pgd)
 	__raw_writel(pgd, sfrbase + SYSMMU_REGISTER_DTE_ADDR);
 
 }
+
+static bool sysmmu_reset(void __iomem *sfrbase,const char *dbgname)
+{
+	bool err = true;
+	
+	err = sysmmu_enable_stall(sfrbase);
+	if(!err)
+	{
+		pr_info("%s:stall failed: %s\n",__func__,dbgname);
+		return err;
+	}
+	err = sysmmu_raw_reset(sfrbase);
+	if(err)
+	{
+		__raw_writel(SYSMMU_INTERRUPT_PAGE_FAULT|SYSMMU_INTERRUPT_READ_BUS_ERROR, sfrbase+SYSMMU_REGISTER_INT_MASK);
+	}
+	sysmmu_disable_stall(sfrbase);
+	if(!err)
+		pr_info("%s: failed: %s\n", __func__,dbgname);
+	return err;
+}
+
 static inline void pgtable_flush(void *vastart, void *vaend)
 {
 	dmac_flush_range(vastart, vaend);
@@ -400,6 +417,11 @@ static int default_fault_handler(struct device *dev,
 {
 	struct sysmmu_drvdata *data = dev_get_drvdata(dev->archdata.iommu);
 
+	if(!data)
+	{
+		pr_info("%s,iommu device not assigned yet\n",__func__);
+		return 0;
+	}
 	if ((itype >= SYSMMU_FAULTS_NUM) || (itype < SYSMMU_PAGEFAULT))
 		itype = SYSMMU_FAULT_UNKNOWN;
 
@@ -413,14 +435,30 @@ static int default_fault_handler(struct device *dev,
 				(status & 32) ? "write" : "read",
 				data->dbgname
 				);
-	
+
 	pr_err("Generating Kernel OOPS... because it is unrecoverable.\n");
 
 	BUG();
 
 	return 0;
 }
+static void dump_pagetbl(u32 fault_address,unsigned long addr_dte)
+{
+	u32  offset1;
+	u32  offset2;
+	u32 *level2_base;
+	u32 *level1_entry;
+	u32 *level2_entry;
+	offset1 = lv1ent_offset(fault_address);
+	offset2 = lv2ent_offset(fault_address);
+	level1_entry = (u32 *)__va(addr_dte)+offset1;
+	level2_base = (u32 *)__va((*level1_entry)&0xfffffffe);
+	level2_entry = level2_base+offset2;
+	pr_info("level1 offset=%d,level2 offset=%d,level1_entry=0x%08x\n",offset1,offset2,(u32)level1_entry);
+	pr_info("*level1_entry = 0x%08x\n",*level1_entry);
+	pr_info("*level2_entry = 0x%08x\n",*level2_entry);
 
+}
 static irqreturn_t rockchip_sysmmu_irq(int irq, void *dev_id)
 {
 	/* SYSMMU is in blocked when interrupt occurred. */
@@ -432,13 +470,21 @@ static irqreturn_t rockchip_sysmmu_irq(int irq, void *dev_id)
 	u32 rawstat;
 	u32 int_status;
 	u32 fault_address;
-	int i, ret = -ENOSYS;
+	int i, ret = 0;
 
 	read_lock(&data->lock);
-
+	
+#if 0
 	WARN_ON(!is_sysmmu_active(data));
-
+#else
+	if(!is_sysmmu_active(data))
+	{
+		read_unlock(&data->lock);
+		return IRQ_HANDLED;
+	}
+#endif	
 	pdev = to_platform_device(data->sysmmu);
+
 	for (i = 0; i < data->num_res_irq; i++) 
 	{
 		irqres = platform_get_resource(pdev, IORESOURCE_IRQ, i);
@@ -459,6 +505,7 @@ static irqreturn_t rockchip_sysmmu_irq(int irq, void *dev_id)
 			__raw_writel(0x00,data->res_bases[i] + SYSMMU_REGISTER_INT_MASK);
 			
 			rawstat = __raw_readl(data->res_bases[i] + SYSMMU_REGISTER_INT_RAWSTAT);
+
 			if(rawstat & SYSMMU_INTERRUPT_PAGE_FAULT)
 			{
 				fault_address = __raw_readl(data->res_bases[i] + SYSMMU_REGISTER_PAGE_FAULT_ADDR);
@@ -472,19 +519,15 @@ static irqreturn_t rockchip_sysmmu_irq(int irq, void *dev_id)
 			{
 				goto out;
 			}
+			dump_pagetbl(fault_address,__raw_readl(data->res_bases[i] + SYSMMU_REGISTER_DTE_ADDR));
 		}
 		else
 			goto out;
 	}
-
-	if (data->domain)
-		ret = report_iommu_fault(data->domain, data->dev,fault_address, itype);
-
-	if ((ret == -ENOSYS) && data->fault_handler) 
+	
+	if (data->fault_handler) 
 	{
-		unsigned long base = data->pgtable;
-		if (itype != SYSMMU_FAULT_UNKNOWN)
-			base = __raw_readl(data->res_bases[i] + SYSMMU_REGISTER_DTE_ADDR);
+		unsigned long base = __raw_readl(data->res_bases[i] + SYSMMU_REGISTER_DTE_ADDR);
 		status = __raw_readl(data->res_bases[i] + SYSMMU_REGISTER_STATUS);
 		ret = data->fault_handler(data->dev, itype, base, fault_address,status);
 	}
@@ -495,8 +538,8 @@ static irqreturn_t rockchip_sysmmu_irq(int irq, void *dev_id)
 		{
 			sysmmu_zap_tlb(data->res_bases[i]);
 			sysmmu_page_fault_done(data->res_bases[i],data->dbgname);
+			__raw_writel(SYSMMU_INTERRUPT_PAGE_FAULT|SYSMMU_INTERRUPT_READ_BUS_ERROR, data->res_bases[i]+SYSMMU_REGISTER_INT_MASK);
 		}
-		sysmmu_reset(data->res_bases[i],data->dbgname);
 	}
 	else
 		pr_err("(%s) %s is not handled.\n",data->dbgname, sysmmu_fault_name[itype]);
@@ -519,9 +562,9 @@ static bool __rockchip_sysmmu_disable(struct sysmmu_drvdata *data)
 
 	for(i=0;i<data->num_res_mem;i++)
 	{
-		if(!sysmmu_reset(data->res_bases[i],data->dbgname))
-		goto finish;
+		sysmmu_disable_paging(data->res_bases[i]);
 	}
+
 	disabled = true;
 	data->pgtable = 0;
 	data->domain = NULL;
@@ -574,6 +617,7 @@ static int __rockchip_sysmmu_enable(struct sysmmu_drvdata *data,unsigned long pg
 			__sysmmu_set_ptbase(data->res_bases[i], pgtable);
 			__raw_writel(SYSMMU_COMMAND_ZAP_CACHE, data->res_bases[i] + SYSMMU_REGISTER_COMMAND);
 		}
+		sysmmu_enable_paging(data->res_bases[i]);
 		sysmmu_disable_stall(data->res_bases[i]);
 	}
 
@@ -699,7 +743,7 @@ static size_t rockchip_iommu_unmap(struct iommu_domain *domain,unsigned long iov
 	goto done;
 
 done:
-	pr_info("%s:unmap iova 0x%lx/0x%x bytes\n",__func__, iova,size);
+	//pr_info("%s:unmap iova 0x%lx/0x%x bytes\n",__func__, iova,size);
 	spin_unlock_irqrestore(&priv->pgtablelock, flags);
 
 	return size;
@@ -727,7 +771,7 @@ static int rockchip_iommu_map(struct iommu_domain *domain, unsigned long iova,
 	
 	if (ret)
 	{
-		pr_debug("%s: Failed to map iova 0x%lx/0x%x bytes\n",__func__, iova, size);
+		pr_err("%s: Failed to map iova 0x%lx/0x%x bytes\n",__func__, iova, size);
 	}
 	spin_unlock_irqrestore(&priv->pgtablelock, flags);
 
@@ -863,7 +907,7 @@ static int rockchip_iommu_domain_init(struct iommu_domain *domain)
 	return 0;
 
 err_counter:
-	free_pages((unsigned long)priv->pgtable, 2);
+	free_pages((unsigned long)priv->pgtable, 0);	
 err_pgtable:
 	kfree(priv);
 	return -ENOMEM;
@@ -915,11 +959,6 @@ again:
 		num_resources++;
 		goto again;
 	}
-		
-	if(IORESOURCE_MEM == type)
-		pr_info("have memory resource %d\r\n",num_resources);
-	if(IORESOURCE_IRQ == type)
-		pr_info("have IRQ resource %d\r\n",num_resources);
 	return num_resources;
 }
 
@@ -953,6 +992,17 @@ static int rockchip_sysmmu_probe(struct platform_device *pdev)
 		goto err_init;
 	}
 	
+	if(pdev->dev.of_node)
+	{
+		of_property_read_string(pdev->dev.of_node,"dbgname",&(data->dbgname));
+	}
+	else
+	{
+		pr_info("dbgname not assigned in device tree or device node not exist\r\n");
+	}
+
+	pr_info("(%s) Enter\n", data->dbgname);
+
 	/*rk32xx sysmmu need both irq and memory */
 	data->num_res_mem = rockchip_get_sysmmu_resource_num(pdev,IORESOURCE_MEM);
 	if(0 == data->num_res_mem)
@@ -960,6 +1010,7 @@ static int rockchip_sysmmu_probe(struct platform_device *pdev)
 		pr_err("can't find sysmmu memory resource \r\n");
 		goto err_init;
 	}
+	pr_info("data->num_res_mem=%d\n",data->num_res_mem);
 	data->num_res_irq = rockchip_get_sysmmu_resource_num(pdev,IORESOURCE_IRQ);
 	if(0 == data->num_res_irq)
 	{
@@ -986,6 +1037,7 @@ static int rockchip_sysmmu_probe(struct platform_device *pdev)
 			goto err_res;
 		}
 		data->res_bases[i] = ioremap(res->start, resource_size(res));
+		pr_info("res->start = 0x%08x  ioremap to  data->res_bases[%d] = 0x%08x\n",res->start,i,(unsigned int)data->res_bases[i]);
 		if (!data->res_bases[i]) 
 		{
 			pr_err("Unable to map IOMEM @ PA:%#x\n",res->start);
@@ -1015,20 +1067,11 @@ static int rockchip_sysmmu_probe(struct platform_device *pdev)
 			goto err_irq;
 		}
 	}
-	
-	if(pdev->dev.of_node)
-	{
-		of_property_read_string(pdev->dev.of_node,"dbgname",&(data->dbgname));
-		pr_info("dbgname : %s\n",data->dbgname);
-	}
-	else
-	{
-		pr_info("dbgname not assigned in device tree or device node not exist\r\n");
-	}
 	ret = rockchip_init_iovmm(dev, &data->vmm);
 	if (ret)
 		goto err_irq;
-
+	
+	
 	data->sysmmu = dev;
 	rwlock_init(&data->lock);
 	INIT_LIST_HEAD(&data->node);
@@ -1062,12 +1105,11 @@ static const struct of_device_id sysmmu_dt_ids[] =
 {
 	{ .compatible = IEP_SYSMMU_COMPATIBLE_NAME},
 	{ .compatible = VIP_SYSMMU_COMPATIBLE_NAME},
-	{ .compatible = ISP_SYSMMU0_COMPATIBLE_NAME},
-	{ .compatible = ISP_SYSMMU1_COMPATIBLE_NAME},
 	{ .compatible = VOPB_SYSMMU_COMPATIBLE_NAME},
 	{ .compatible = VOPL_SYSMMU_COMPATIBLE_NAME},
 	{ .compatible = HEVC_SYSMMU_COMPATIBLE_NAME},
 	{ .compatible = VPU_SYSMMU_COMPATIBLE_NAME},
+	{ .compatible = ISP_SYSMMU_COMPATIBLE_NAME},
 	{ /* end */ }
 };
 MODULE_DEVICE_TABLE(of, sysmmu_dt_ids);

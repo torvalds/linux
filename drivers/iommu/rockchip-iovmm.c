@@ -137,7 +137,7 @@ dma_addr_t iovmm_map(struct device *dev,struct scatterlist *sg, off_t offset,siz
 
 	rockchip_sysmmu_tlb_invalidate(dev);
 
-	dev_dbg(dev, "IOVMM: Allocated VM region @ %#x/%#X bytes.\n",region->start, region->size);
+	pr_err("IOVMM: Allocated VM region @ %#x/%#X bytes.\n",region->start, region->size);
 
 	return region->start;
 
@@ -147,7 +147,7 @@ err_map_map:
 err_map_noiomem:
 	kfree(region);
 err_map_nomem:
-	dev_dbg(dev, "IOVMM: Failed to allocated VM region for %#x bytes.\n",size);
+	pr_err("IOVMM: Failed to allocated VM region for %#x bytes.\n",size);
 	return (dma_addr_t)ret;
 }
 
@@ -182,7 +182,7 @@ void iovmm_unmap(struct device *dev, dma_addr_t iova)
 	gen_pool_free(vmm->vmm_pool, region->start, region->size);
 
 	WARN_ON(unmapped_size != region->size);
-	dev_dbg(dev, "IOVMM: Unmapped %#x bytes from %#x.\n",unmapped_size, region->start);
+	pr_err("IOVMM: Unmapped %#x bytes from %#x.\n",unmapped_size, region->start);
 
 	kfree(region);
 }
@@ -290,7 +290,6 @@ int rockchip_init_iovmm(struct device *sysmmu, struct rk_iovmm *vmm)
 	INIT_LIST_HEAD(&vmm->regions_list);
 	
 	pr_info("IOVMM: Created %#x B IOVMM from %#x.\n",IOVM_SIZE, IOVA_START);
-	dev_dbg(sysmmu, "IOVMM: Created %#x B IOVMM from %#x.\n",IOVM_SIZE, IOVA_START);
 	return 0;
 err_setup_domain:
 	gen_pool_destroy(vmm->vmm_pool);

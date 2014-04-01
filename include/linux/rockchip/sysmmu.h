@@ -16,8 +16,7 @@
 #define IEP_SYSMMU_COMPATIBLE_NAME "iommu,iep_mmu"
 #define VIP_SYSMMU_COMPATIBLE_NAME "iommu,vip_mmu"
 
-#define ISP_SYSMMU0_COMPATIBLE_NAME "iommu,isp_mmu0"
-#define ISP_SYSMMU1_COMPATIBLE_NAME "iommu,isp_mmu1"
+#define ISP_SYSMMU_COMPATIBLE_NAME "iommu,isp_mmu"
 
 #define VOPB_SYSMMU_COMPATIBLE_NAME "iommu,vopb_mmu"
 #define VOPL_SYSMMU_COMPATIBLE_NAME "iommu,vopl_mmu"

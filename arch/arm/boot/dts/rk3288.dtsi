@@ -1081,23 +1081,6 @@
         interrupts = <GIC_SPI 13 IRQ_TYPE_LEVEL_HIGH>;
         interrupt-names = "vip_mmu";
     };
-
-    isp_mmu0{
-        dbgname = "isp_mmu0";
-        compatible = "iommu,isp_mmu0";
-        reg = <0xff914000 0x100>;
-        interrupts = <GIC_SPI 14 IRQ_TYPE_LEVEL_HIGH>;
-        interrupt-names = "isp_mmu0";
-    };
-
-    isp_mmu1{
-        dbgname = "isp_mmu1";
-        compatible = "iommu,isp_mmu1";
-        reg = <0xff915000 0x100>;
-        interrupts = <GIC_SPI 14 IRQ_TYPE_LEVEL_HIGH>;
-        interrupt-names = "isp_mmu1";
-    };
-
     vopb_mmu{
         dbgname = "vopb";
         compatible = "iommu,vopb_mmu";
@@ -1117,7 +1100,8 @@
     hevc_mmu{
         dbgname = "hevc";
         compatible = "iommu,hevc_mmu";
-        reg = <0xff9c0800 0x100>;
+        reg = <0xff9c0440 0x100>,
+			  <0xff9c0480 0x100>;
         interrupts = <GIC_SPI 111 IRQ_TYPE_LEVEL_HIGH>;
         interrupt-names = "hevc_mmu";
     };
@@ -1130,6 +1114,16 @@
         interrupt-names = "vpu_mmu";
     };
     
+	isp_mmu{
+       dbgname = "isp_mmu";
+       compatible = "iommu,isp_mmu";
+       reg = <0xff914000 0x100>,
+			 <0xff915000 0x100>;
+       interrupts = <GIC_SPI 14 IRQ_TYPE_LEVEL_HIGH>;
+       interrupt-names = "isp_mmu";
+    };
+
+
     rockchip_suspend {     
                   rockchip,ctrbits = <    
                                             (0
