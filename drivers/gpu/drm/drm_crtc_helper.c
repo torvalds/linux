@@ -289,8 +289,6 @@ static void __drm_helper_disable_unused_functions(struct drm_device *dev)
 	list_for_each_entry(connector, &dev->mode_config.connector_list, head) {
 		if (!connector->encoder)
 			continue;
-		if (connector->status == connector_status_disconnected)
-			connector->encoder = NULL;
 	}
 
 	list_for_each_entry(encoder, &dev->mode_config.encoder_list, head) {
