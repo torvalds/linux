@@ -92,6 +92,17 @@ static const struct of_device_id rk_adc_match[] = {
 };
 MODULE_DEVICE_TABLE(of, rk_adc_match);
 
+static void rk_adc_dump(struct iio_dev *indio_dev)
+{
+    struct rk_adc *info = iio_priv(indio_dev);
+
+    printk("saradc-reg[0x00-0x0c]: 0x%08x 0x%08x 0x%08x 0x%08x\n",
+                        readl_relaxed(info->regs + 0x00),
+                        readl_relaxed(info->regs + 0x04),
+                        readl_relaxed(info->regs + 0x08),
+                        readl_relaxed(info->regs + 0x0c));
+}
+
 static int rk_read_raw(struct iio_dev *indio_dev,
 				struct iio_chan_spec const *chan,
 				int *val,
@@ -106,9 +117,8 @@ static int rk_read_raw(struct iio_dev *indio_dev,
 
 	mutex_lock(&indio_dev->mlock);
 
-	/* Select the channel to be used and Trigger conversion */
-	//adc_writel(0, dev->regs + ADC_CTRL);
-    writel_relaxed(0x08, info->regs + ADC_DELAY_PU_SOC);
+        /* Select the channel to be used and Trigger conversion */
+        writel_relaxed(0x08, info->regs + ADC_DELAY_PU_SOC);
 	writel_relaxed(ADC_CTRL_POWER_UP|ADC_CTRL_CH(chan->channel)|ADC_CTRL_IRQ_ENABLE, info->regs + ADC_CTRL);
 
 	timeout = wait_for_completion_timeout
@@ -117,9 +127,13 @@ static int rk_read_raw(struct iio_dev *indio_dev,
 	
 	mutex_unlock(&indio_dev->mlock);
 	RK_ADC_DBG("read adc value: %d form channel: %d\n", *val, chan->channel);
-
 	if (timeout == 0)
-		return -ETIMEDOUT;
+	{
+	    rk_adc_dump(indio_dev);
+            writel_relaxed(0, info->regs + ADC_CTRL);
+            writel_relaxed(0, info->regs + ADC_DELAY_PU_SOC);
+            return -ETIMEDOUT;
+	}
 
 	return IIO_VAL_INT;
 }
@@ -131,7 +145,8 @@ static irqreturn_t rk_adc_isr(int irq, void *dev_id)
 	/* Read value */
 	info->value = readl_relaxed(info->regs + ADC_DATA) & ADC_DATA_MASK;
 	/* clear irq & power down adc*/
-    writel_relaxed(0, info->regs + ADC_CTRL);
+        writel_relaxed(0, info->regs + ADC_CTRL);
+        writel_relaxed(0, info->regs + ADC_DELAY_PU_SOC);
 
 	complete(&info->completion);
 
