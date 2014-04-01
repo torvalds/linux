@@ -143,8 +143,8 @@
 				//frame-master;
 			};
 			dai1 {
-				audio-codec = <&codec_of_node>;
-				i2s-controller = <&cpu_of_node>;
+				audio-codec = <&rt3261>;
+				i2s-controller = <&i2s>;
 				format = "dsp_a";
 				//continuous-clock;
 				bitclock-inversion;
