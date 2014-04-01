@@ -1300,7 +1300,7 @@ i40e_status i40e_aq_send_driver_version(struct i40e_hw *hw,
 	struct i40e_aqc_driver_version *cmd =
 		(struct i40e_aqc_driver_version *)&desc.params.raw;
 	i40e_status status;
-	int len;
+	u16 len;
 
 	if (dv == NULL)
 		return I40E_ERR_PARAM;
