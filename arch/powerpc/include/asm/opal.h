@@ -730,6 +730,9 @@ typedef struct oppanel_line {
 /* /sys/firmware/opal */
 extern struct kobject *opal_kobj;
 
+/* /ibm,opal */
+extern struct device_node *opal_node;
+
 /* API functions */
 int64_t opal_console_write(int64_t term_number, __be64 *length,
 			   const uint8_t *buffer);
@@ -920,6 +923,7 @@ extern void opal_flash_init(void);
 extern int opal_elog_init(void);
 extern void opal_platform_dump_init(void);
 extern void opal_sys_param_init(void);
+extern void opal_msglog_init(void);
 
 extern int opal_machine_check(struct pt_regs *regs);
 extern bool opal_mce_check_early_recovery(struct pt_regs *regs);
