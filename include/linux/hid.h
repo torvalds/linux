@@ -700,8 +700,14 @@ struct hid_ll_driver {
 			struct hid_report *report, int reqtype);
 
 	int (*wait)(struct hid_device *hdev);
-	int (*idle)(struct hid_device *hdev, int report, int idle, int reqtype);
 
+	int (*raw_request) (struct hid_device *hdev, unsigned char reportnum,
+			    __u8 *buf, size_t len, unsigned char rtype,
+			    int reqtype);
+
+	int (*output_report) (struct hid_device *hdev, __u8 *buf, size_t len);
+
+	int (*idle)(struct hid_device *hdev, int report, int idle, int reqtype);
 };
 
 #define	PM_HINT_FULLON	1<<5
