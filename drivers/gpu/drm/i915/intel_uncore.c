@@ -866,7 +866,7 @@ int i915_reg_read_ioctl(struct drm_device *dev,
 	struct drm_i915_private *dev_priv = dev->dev_private;
 	struct drm_i915_reg_read *reg = data;
 	struct register_whitelist const *entry = whitelist;
-	int i;
+	int i, ret = 0;
 
 	for (i = 0; i < ARRAY_SIZE(whitelist); i++, entry++) {
 		if (entry->offset == reg->offset &&
@@ -876,6 +876,8 @@ int i915_reg_read_ioctl(struct drm_device *dev,
 
 	if (i == ARRAY_SIZE(whitelist))
 		return -EINVAL;
+
+	intel_runtime_pm_get(dev_priv);
 
 	switch (entry->size) {
 	case 8:
@@ -892,10 +894,13 @@ int i915_reg_read_ioctl(struct drm_device *dev,
 		break;
 	default:
 		WARN_ON(1);
-		return -EINVAL;
+		ret = -EINVAL;
+		goto out;
 	}
 
-	return 0;
+out:
+	intel_runtime_pm_put(dev_priv);
+	return ret;
 }
 
 int i915_get_reset_stats_ioctl(struct drm_device *dev,
