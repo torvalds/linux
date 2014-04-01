@@ -550,11 +550,12 @@ gen6_read##x(struct drm_i915_private *dev_priv, off_t reg, bool trace) { \
 	    NEEDS_FORCE_WAKE((dev_priv), (reg))) { \
 		dev_priv->uncore.funcs.force_wake_get(dev_priv, \
 						      FORCEWAKE_ALL); \
-		dev_priv->uncore.forcewake_count++; \
-		mod_timer_pinned(&dev_priv->uncore.force_wake_timer, \
-				 jiffies + 1); \
+		val = __raw_i915_read##x(dev_priv, reg); \
+		dev_priv->uncore.funcs.force_wake_put(dev_priv, \
+						      FORCEWAKE_ALL); \
+	} else { \
+		val = __raw_i915_read##x(dev_priv, reg); \
 	} \
-	val = __raw_i915_read##x(dev_priv, reg); \
 	REG_READ_FOOTER; \
 }
 
