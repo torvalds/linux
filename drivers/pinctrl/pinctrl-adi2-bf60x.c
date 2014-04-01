@@ -259,37 +259,6 @@ static const unsigned lp3_pins[] = {
 	GPIO_PF12, GPIO_PF13, GPIO_PF14, GPIO_PF15,
 };
 
-static const struct adi_pin_group adi_pin_groups[] = {
-	ADI_PIN_GROUP("uart0grp", uart0_pins),
-	ADI_PIN_GROUP("uart0ctsrtsgrp", uart0_ctsrts_pins),
-	ADI_PIN_GROUP("uart1grp", uart1_pins),
-	ADI_PIN_GROUP("uart1ctsrtsgrp", uart1_ctsrts_pins),
-	ADI_PIN_GROUP("rsi0grp", rsi0_pins),
-	ADI_PIN_GROUP("eth0grp", eth0_pins),
-	ADI_PIN_GROUP("eth1grp", eth1_pins),
-	ADI_PIN_GROUP("spi0grp", spi0_pins),
-	ADI_PIN_GROUP("spi1grp", spi1_pins),
-	ADI_PIN_GROUP("twi0grp", twi0_pins),
-	ADI_PIN_GROUP("twi1grp", twi1_pins),
-	ADI_PIN_GROUP("rotarygrp", rotary_pins),
-	ADI_PIN_GROUP("can0grp", can0_pins),
-	ADI_PIN_GROUP("smc0grp", smc0_pins),
-	ADI_PIN_GROUP("sport0grp", sport0_pins),
-	ADI_PIN_GROUP("sport1grp", sport1_pins),
-	ADI_PIN_GROUP("sport2grp", sport2_pins),
-	ADI_PIN_GROUP("ppi0_8bgrp", ppi0_8b_pins),
-	ADI_PIN_GROUP("ppi0_16bgrp", ppi0_16b_pins),
-	ADI_PIN_GROUP("ppi0_24bgrp", ppi0_24b_pins),
-	ADI_PIN_GROUP("ppi1_8bgrp", ppi1_8b_pins),
-	ADI_PIN_GROUP("ppi1_16bgrp", ppi1_16b_pins),
-	ADI_PIN_GROUP("ppi2_8bgrp", ppi2_8b_pins),
-	ADI_PIN_GROUP("ppi2_16bgrp", ppi2_16b_pins),
-	ADI_PIN_GROUP("lp0grp", lp0_pins),
-	ADI_PIN_GROUP("lp1grp", lp1_pins),
-	ADI_PIN_GROUP("lp2grp", lp2_pins),
-	ADI_PIN_GROUP("lp3grp", lp3_pins),
-};
-
 static const unsigned short uart0_mux[] = {
 	P_UART0_TX, P_UART0_RX,
 	0
@@ -446,6 +415,37 @@ static const unsigned short lp3_mux[] = {
         0
 };
 
+static const struct adi_pin_group adi_pin_groups[] = {
+	ADI_PIN_GROUP("uart0grp", uart0_pins, uart0_mux),
+	ADI_PIN_GROUP("uart0ctsrtsgrp", uart0_ctsrts_pins, uart0_ctsrts_mux),
+	ADI_PIN_GROUP("uart1grp", uart1_pins, uart1_mux),
+	ADI_PIN_GROUP("uart1ctsrtsgrp", uart1_ctsrts_pins, uart1_ctsrts_mux),
+	ADI_PIN_GROUP("rsi0grp", rsi0_pins, rsi0_mux),
+	ADI_PIN_GROUP("eth0grp", eth0_pins, eth0_mux),
+	ADI_PIN_GROUP("eth1grp", eth1_pins, eth1_mux),
+	ADI_PIN_GROUP("spi0grp", spi0_pins, spi0_mux),
+	ADI_PIN_GROUP("spi1grp", spi1_pins, spi1_mux),
+	ADI_PIN_GROUP("twi0grp", twi0_pins, twi0_mux),
+	ADI_PIN_GROUP("twi1grp", twi1_pins, twi1_mux),
+	ADI_PIN_GROUP("rotarygrp", rotary_pins, rotary_mux),
+	ADI_PIN_GROUP("can0grp", can0_pins, can0_mux),
+	ADI_PIN_GROUP("smc0grp", smc0_pins, smc0_mux),
+	ADI_PIN_GROUP("sport0grp", sport0_pins, sport0_mux),
+	ADI_PIN_GROUP("sport1grp", sport1_pins, sport1_mux),
+	ADI_PIN_GROUP("sport2grp", sport2_pins, sport2_mux),
+	ADI_PIN_GROUP("ppi0_8bgrp", ppi0_8b_pins, ppi0_8b_mux),
+	ADI_PIN_GROUP("ppi0_16bgrp", ppi0_16b_pins, ppi0_16b_mux),
+	ADI_PIN_GROUP("ppi0_24bgrp", ppi0_24b_pins, ppi0_24b_mux),
+	ADI_PIN_GROUP("ppi1_8bgrp", ppi1_8b_pins, ppi1_8b_mux),
+	ADI_PIN_GROUP("ppi1_16bgrp", ppi1_16b_pins, ppi1_16b_mux),
+	ADI_PIN_GROUP("ppi2_8bgrp", ppi2_8b_pins, ppi2_8b_mux),
+	ADI_PIN_GROUP("ppi2_16bgrp", ppi2_16b_pins, ppi2_16b_mux),
+	ADI_PIN_GROUP("lp0grp", lp0_pins, lp0_mux),
+	ADI_PIN_GROUP("lp1grp", lp1_pins, lp1_mux),
+	ADI_PIN_GROUP("lp2grp", lp2_pins, lp2_mux),
+	ADI_PIN_GROUP("lp3grp", lp3_pins, lp3_mux),
+};
+
 static const char * const uart0grp[] = { "uart0grp" };
 static const char * const uart0ctsrtsgrp[] = { "uart0ctsrtsgrp" };
 static const char * const uart1grp[] = { "uart1grp" };
@@ -463,47 +463,43 @@ static const char * const smc0grp[] = { "smc0grp" };
 static const char * const sport0grp[] = { "sport0grp" };
 static const char * const sport1grp[] = { "sport1grp" };
 static const char * const sport2grp[] = { "sport2grp" };
-static const char * const ppi0_8bgrp[] = { "ppi0_8bgrp" };
-static const char * const ppi0_16bgrp[] = { "ppi0_16bgrp" };
-static const char * const ppi0_24bgrp[] = { "ppi0_24bgrp" };
-static const char * const ppi1_8bgrp[] = { "ppi1_8bgrp" };
-static const char * const ppi1_16bgrp[] = { "ppi1_16bgrp" };
-static const char * const ppi2_8bgrp[] = { "ppi2_8bgrp" };
-static const char * const ppi2_16bgrp[] = { "ppi2_16bgrp" };
+static const char * const ppi0grp[] = { "ppi0_8bgrp",
+					"ppi0_16bgrp",
+					"ppi0_24bgrp" };
+static const char * const ppi1grp[] = { "ppi1_8bgrp",
+					"ppi1_16bgrp" };
+static const char * const ppi2grp[] = { "ppi2_8bgrp",
+					"ppi2_16bgrp" };
 static const char * const lp0grp[] = { "lp0grp" };
 static const char * const lp1grp[] = { "lp1grp" };
 static const char * const lp2grp[] = { "lp2grp" };
 static const char * const lp3grp[] = { "lp3grp" };
 
 static const struct adi_pmx_func adi_pmx_functions[] = {
-	ADI_PMX_FUNCTION("uart0", uart0grp, uart0_mux),
-	ADI_PMX_FUNCTION("uart0_ctsrts", uart0ctsrtsgrp, uart0_ctsrts_mux),
-	ADI_PMX_FUNCTION("uart1", uart1grp, uart1_mux),
-	ADI_PMX_FUNCTION("uart1_ctsrts", uart1ctsrtsgrp, uart1_ctsrts_mux),
-	ADI_PMX_FUNCTION("rsi0", rsi0grp, rsi0_mux),
-	ADI_PMX_FUNCTION("eth0", eth0grp, eth0_mux),
-	ADI_PMX_FUNCTION("eth1", eth1grp, eth1_mux),
-	ADI_PMX_FUNCTION("spi0", spi0grp, spi0_mux),
-	ADI_PMX_FUNCTION("spi1", spi1grp, spi1_mux),
-	ADI_PMX_FUNCTION("twi0", twi0grp, twi0_mux),
-	ADI_PMX_FUNCTION("twi1", twi1grp, twi1_mux),
-	ADI_PMX_FUNCTION("rotary", rotarygrp, rotary_mux),
-	ADI_PMX_FUNCTION("can0", can0grp, can0_mux),
-	ADI_PMX_FUNCTION("smc0", smc0grp, smc0_mux),
-	ADI_PMX_FUNCTION("sport0", sport0grp, sport0_mux),
-	ADI_PMX_FUNCTION("sport1", sport1grp, sport1_mux),
-	ADI_PMX_FUNCTION("sport2", sport2grp, sport2_mux),
-	ADI_PMX_FUNCTION("ppi0_8b", ppi0_8bgrp, ppi0_8b_mux),
-	ADI_PMX_FUNCTION("ppi0_16b", ppi0_16bgrp, ppi0_16b_mux),
-	ADI_PMX_FUNCTION("ppi0_24b", ppi0_24bgrp, ppi0_24b_mux),
-	ADI_PMX_FUNCTION("ppi1_8b", ppi1_8bgrp, ppi1_8b_mux),
-	ADI_PMX_FUNCTION("ppi1_16b", ppi1_16bgrp, ppi1_16b_mux),
-	ADI_PMX_FUNCTION("ppi2_8b", ppi2_8bgrp, ppi2_8b_mux),
-	ADI_PMX_FUNCTION("ppi2_16b", ppi2_16bgrp, ppi2_16b_mux),
-	ADI_PMX_FUNCTION("lp0", lp0grp, lp0_mux),
-	ADI_PMX_FUNCTION("lp1", lp1grp, lp1_mux),
-	ADI_PMX_FUNCTION("lp2", lp2grp, lp2_mux),
-	ADI_PMX_FUNCTION("lp3", lp3grp, lp3_mux),
+	ADI_PMX_FUNCTION("uart0", uart0grp),
+	ADI_PMX_FUNCTION("uart0_ctsrts", uart0ctsrtsgrp),
+	ADI_PMX_FUNCTION("uart1", uart1grp),
+	ADI_PMX_FUNCTION("uart1_ctsrts", uart1ctsrtsgrp),
+	ADI_PMX_FUNCTION("rsi0", rsi0grp),
+	ADI_PMX_FUNCTION("eth0", eth0grp),
+	ADI_PMX_FUNCTION("eth1", eth1grp),
+	ADI_PMX_FUNCTION("spi0", spi0grp),
+	ADI_PMX_FUNCTION("spi1", spi1grp),
+	ADI_PMX_FUNCTION("twi0", twi0grp),
+	ADI_PMX_FUNCTION("twi1", twi1grp),
+	ADI_PMX_FUNCTION("rotary", rotarygrp),
+	ADI_PMX_FUNCTION("can0", can0grp),
+	ADI_PMX_FUNCTION("smc0", smc0grp),
+	ADI_PMX_FUNCTION("sport0", sport0grp),
+	ADI_PMX_FUNCTION("sport1", sport1grp),
+	ADI_PMX_FUNCTION("sport2", sport2grp),
+	ADI_PMX_FUNCTION("ppi0", ppi0grp),
+	ADI_PMX_FUNCTION("ppi1", ppi1grp),
+	ADI_PMX_FUNCTION("ppi2", ppi2grp),
+	ADI_PMX_FUNCTION("lp0", lp0grp),
+	ADI_PMX_FUNCTION("lp1", lp1grp),
+	ADI_PMX_FUNCTION("lp2", lp2grp),
+	ADI_PMX_FUNCTION("lp3", lp3grp),
 };
 
 static const struct adi_pinctrl_soc_data adi_bf60x_soc = {
