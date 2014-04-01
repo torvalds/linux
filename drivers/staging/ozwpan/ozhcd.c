@@ -354,7 +354,8 @@ static struct oz_endpoint *oz_ep_alloc(int buffer_size, gfp_t mem_flags)
  * disabled.
  * Context: softirq or process
  */
-static struct oz_urb_link *oz_uncancel_urb(struct oz_hcd *ozhcd, struct urb *urb)
+static struct oz_urb_link *oz_uncancel_urb(struct oz_hcd *ozhcd,
+		struct urb *urb)
 {
 	struct oz_urb_link *urbl;
 	struct list_head *e;
@@ -1986,8 +1987,7 @@ static void oz_get_hub_descriptor(struct usb_hcd *hcd,
 	memset(desc, 0, sizeof(*desc));
 	desc->bDescriptorType = 0x29;
 	desc->bDescLength = 9;
-	desc->wHubCharacteristics = (__force __u16)
-			__constant_cpu_to_le16(0x0001);
+	desc->wHubCharacteristics = (__force __u16)cpu_to_le16(0x0001);
 	desc->bNbrPorts = OZ_NB_PORTS;
 }
 
@@ -2181,7 +2181,7 @@ static int oz_hcd_hub_control(struct usb_hcd *hcd, u16 req_type, u16 wvalue,
 		break;
 	case GetHubStatus:
 		oz_dbg(HUB, "GetHubStatus: req_type = 0x%x\n", req_type);
-		put_unaligned(__constant_cpu_to_le32(0), (__le32 *)buf);
+		put_unaligned(cpu_to_le32(0), (__le32 *)buf);
 		break;
 	case GetPortStatus:
 		err = oz_get_port_status(hcd, windex, buf);

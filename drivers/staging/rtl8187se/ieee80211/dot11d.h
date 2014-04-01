@@ -11,13 +11,13 @@ typedef struct _CHNL_TXPOWER_TRIPLE {
 	u8 FirstChnl;
 	u8  NumChnls;
 	u8  MaxTxPowerInDbm;
-}CHNL_TXPOWER_TRIPLE, *PCHNL_TXPOWER_TRIPLE;
+} CHNL_TXPOWER_TRIPLE, *PCHNL_TXPOWER_TRIPLE;
 
 typedef enum _DOT11D_STATE {
 	DOT11D_STATE_NONE = 0,
 	DOT11D_STATE_LEARNED,
 	DOT11D_STATE_DONE,
-}DOT11D_STATE;
+} DOT11D_STATE;
 
 typedef struct _RT_DOT11D_INFO {
 	/* DECLARE_RT_OBJECT(RT_DOT12D_INFO); */
@@ -35,9 +35,10 @@ typedef struct _RT_DOT11D_INFO {
 	u8  MaxTxPwrDbmList[MAX_CHANNEL_NUMBER+1];
 
 	DOT11D_STATE State;
-}RT_DOT11D_INFO, *PRT_DOT11D_INFO;
-#define eqMacAddr(a,b)		( ((a)[0]==(b)[0] && (a)[1]==(b)[1] && (a)[2]==(b)[2] && (a)[3]==(b)[3] && (a)[4]==(b)[4] && (a)[5]==(b)[5]) ? 1:0 )
-#define cpMacAddr(des,src)	      ((des)[0]=(src)[0],(des)[1]=(src)[1],(des)[2]=(src)[2],(des)[3]=(src)[3],(des)[4]=(src)[4],(des)[5]=(src)[5])
+} RT_DOT11D_INFO, *PRT_DOT11D_INFO;
+
+#define eqMacAddr(a, b) (((a)[0] == (b)[0] && (a)[1] == (b)[1] && (a)[2] == (b)[2] && (a)[3] == (b)[3] && (a)[4] == (b)[4] && (a)[5] == (b)[5]) ? 1:0)
+#define cpMacAddr(des, src) ((des)[0] = (src)[0], (des)[1] = (src)[1], (des)[2] = (src)[2], (des)[3] = (src)[3], (des)[4] = (src)[4], (des)[5] = (src)[5])
 #define GET_DOT11D_INFO(__pIeeeDev) ((PRT_DOT11D_INFO)((__pIeeeDev)->pDot11dInfo))
 
 #define IS_DOT11D_ENABLE(__pIeeeDev) GET_DOT11D_INFO(__pIeeeDev)->bEnabled

@@ -299,7 +299,7 @@ dt3155_buf_queue(struct vb2_buffer *vb)
  *	end driver-specific callbacks
  */
 
-const struct vb2_ops q_ops = {
+static const struct vb2_ops q_ops = {
 	.queue_setup = dt3155_queue_setup,
 	.wait_prepare = dt3155_wait_prepare,
 	.wait_finish = dt3155_wait_finish,

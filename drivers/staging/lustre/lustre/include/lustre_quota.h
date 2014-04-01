@@ -140,7 +140,7 @@ struct qsd_instance;
  *		(i.e. when ->ldo_recovery_complete is called). This is used
  *		to notify the qsd layer that quota should now be enforced
  *		again via the qsd_op_begin/end functions. The last step of the
- *		reintegration prodecure (namely usage reconciliation) will be
+ *		reintegration procedure (namely usage reconciliation) will be
  *		completed during start.
  *
  * - qsd_fini(): is used to release a qsd_instance structure allocated with

@@ -1152,7 +1152,7 @@ struct ieee80211_probe_request {
 
 struct ieee80211_probe_response {
 	struct ieee80211_hdr_3addr header;
-	u32 time_stamp[2];
+	__le32 time_stamp[2];
 	__le16 beacon_interval;
 	__le16 capability;
 	/* SSID, supported rates, FH params, DS params,

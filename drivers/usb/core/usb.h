@@ -2,7 +2,7 @@
 #include <linux/acpi.h>
 
 struct usb_hub_descriptor;
-struct dev_state;
+struct usb_dev_state;
 
 /* Functions local to drivers/usb/core/ */
 
@@ -57,12 +57,8 @@ extern int usb_match_device(struct usb_device *dev,
 extern void usb_forced_unbind_intf(struct usb_interface *intf);
 extern void usb_rebind_intf(struct usb_interface *intf);
 
-extern int usb_hub_claim_port(struct usb_device *hdev, unsigned port,
-		struct dev_state *owner);
-extern int usb_hub_release_port(struct usb_device *hdev, unsigned port,
-		struct dev_state *owner);
 extern void usb_hub_release_all_ports(struct usb_device *hdev,
-		struct dev_state *owner);
+		struct usb_dev_state *owner);
 extern bool usb_device_is_owned(struct usb_device *udev);
 
 extern int  usb_hub_init(void);

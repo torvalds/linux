@@ -1358,13 +1358,76 @@
 				status = "disabled";
 
 				lvds-channel@0 {
+					#address-cells = <1>;
+					#size-cells = <0>;
 					reg = <0>;
 					status = "disabled";
+
+					port@0 {
+						reg = <0>;
+
+						lvds0_mux_0: endpoint {
+							remote-endpoint = <&ipu1_di0_lvds0>;
+						};
+					};
+
+					port@1 {
+						reg = <1>;
+
+						lvds0_mux_1: endpoint {
+							remote-endpoint = <&ipu1_di1_lvds0>;
+						};
+					};
 				};
 
 				lvds-channel@1 {
+					#address-cells = <1>;
+					#size-cells = <0>;
 					reg = <1>;
 					status = "disabled";
+
+					port@0 {
+						reg = <0>;
+
+						lvds1_mux_0: endpoint {
+							remote-endpoint = <&ipu1_di0_lvds1>;
+						};
+					};
+
+					port@1 {
+						reg = <1>;
+
+						lvds1_mux_1: endpoint {
+							remote-endpoint = <&ipu1_di1_lvds1>;
+						};
+					};
+				};
+			};
+
+			hdmi: hdmi@0120000 {
+				#address-cells = <1>;
+				#size-cells = <0>;
+				reg = <0x00120000 0x9000>;
+				interrupts = <0 115 0x04>;
+				gpr = <&gpr>;
+				clocks = <&clks 123>, <&clks 124>;
+				clock-names = "iahb", "isfr";
+				status = "disabled";
+
+				port@0 {
+					reg = <0>;
+
+					hdmi_mux_0: endpoint {
+						remote-endpoint = <&ipu1_di0_hdmi>;
+					};
+				};
+
+				port@1 {
+					reg = <1>;
+
+					hdmi_mux_1: endpoint {
+						remote-endpoint = <&ipu1_di1_hdmi>;
+					};
 				};
 			};
 
@@ -1579,8 +1642,27 @@
 				reg = <0x021dc000 0x4000>;
 			};
 
-			mipi@021e0000 { /* MIPI-DSI */
+			mipi_dsi: mipi@021e0000 {
+				#address-cells = <1>;
+				#size-cells = <0>;
 				reg = <0x021e0000 0x4000>;
+				status = "disabled";
+
+				port@0 {
+					reg = <0>;
+
+					mipi_mux_0: endpoint {
+						remote-endpoint = <&ipu1_di0_mipi>;
+					};
+				};
+
+				port@1 {
+					reg = <1>;
+
+					mipi_mux_1: endpoint {
+						remote-endpoint = <&ipu1_di1_mipi>;
+					};
+				};
 			};
 
 			vdoa@021e4000 {
@@ -1634,13 +1716,64 @@
 		};
 
 		ipu1: ipu@02400000 {
-			#crtc-cells = <1>;
+			#address-cells = <1>;
+			#size-cells = <0>;
 			compatible = "fsl,imx6q-ipu";
 			reg = <0x02400000 0x400000>;
 			interrupts = <0 6 0x4 0 5 0x4>;
 			clocks = <&clks 130>, <&clks 131>, <&clks 132>;
 			clock-names = "bus", "di0", "di1";
 			resets = <&src 2>;
+
+			ipu1_di0: port@2 {
+				#address-cells = <1>;
+				#size-cells = <0>;
+				reg = <2>;
+
+				ipu1_di0_disp0: endpoint@0 {
+				};
+
+				ipu1_di0_hdmi: endpoint@1 {
+					remote-endpoint = <&hdmi_mux_0>;
+				};
+
+				ipu1_di0_mipi: endpoint@2 {
+					remote-endpoint = <&mipi_mux_0>;
+				};
+
+				ipu1_di0_lvds0: endpoint@3 {
+					remote-endpoint = <&lvds0_mux_0>;
+				};
+
+				ipu1_di0_lvds1: endpoint@4 {
+					remote-endpoint = <&lvds1_mux_0>;
+				};
+			};
+
+			ipu1_di1: port@3 {
+				#address-cells = <1>;
+				#size-cells = <0>;
+				reg = <3>;
+
+				ipu1_di0_disp1: endpoint@0 {
+				};
+
+				ipu1_di1_hdmi: endpoint@1 {
+					remote-endpoint = <&hdmi_mux_1>;
+				};
+
+				ipu1_di1_mipi: endpoint@2 {
+					remote-endpoint = <&mipi_mux_1>;
+				};
+
+				ipu1_di1_lvds0: endpoint@3 {
+					remote-endpoint = <&lvds0_mux_1>;
+				};
+
+				ipu1_di1_lvds1: endpoint@4 {
+					remote-endpoint = <&lvds1_mux_1>;
+				};
+			};
 		};
 	};
 };

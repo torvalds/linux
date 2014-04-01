@@ -366,6 +366,8 @@ struct usb_bus {
 #endif
 };
 
+struct usb_dev_state;
+
 /* ----------------------------------------------------------------------- */
 
 struct usb_tt;
@@ -749,6 +751,11 @@ extern struct usb_host_interface *usb_find_alt_setting(
 		unsigned int iface_num,
 		unsigned int alt_num);
 
+/* port claiming functions */
+int usb_hub_claim_port(struct usb_device *hdev, unsigned port1,
+		struct usb_dev_state *owner);
+int usb_hub_release_port(struct usb_device *hdev, unsigned port1,
+		struct usb_dev_state *owner);
 
 /**
  * usb_make_path - returns stable device path in the usb tree
@@ -1665,6 +1672,10 @@ extern void usb_reset_endpoint(struct usb_device *dev, unsigned int epaddr);
 
 /* this request isn't really synchronous, but it belongs with the others */
 extern int usb_driver_set_configuration(struct usb_device *udev, int config);
+
+/* choose and set configuration for device */
+extern int usb_choose_configuration(struct usb_device *udev);
+extern int usb_set_configuration(struct usb_device *dev, int configuration);
 
 /*
  * timeouts, in milliseconds, used for sending/receiving control messages

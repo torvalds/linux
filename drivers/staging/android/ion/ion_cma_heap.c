@@ -135,7 +135,7 @@ static int ion_cma_phys(struct ion_heap *heap, struct ion_buffer *buffer,
 	struct device *dev = cma_heap->dev;
 	struct ion_cma_buffer_info *info = buffer->priv_virt;
 
-	dev_dbg(dev, "Return buffer %p physical address 0x%pa\n", buffer,
+	dev_dbg(dev, "Return buffer %p physical address %pa\n", buffer,
 		&info->handle);
 
 	*addr = info->handle;

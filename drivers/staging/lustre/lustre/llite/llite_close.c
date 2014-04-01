@@ -348,7 +348,7 @@ static int ll_close_thread(void *arg)
 			break;
 
 		inode = ll_info2i(lli);
-		CDEBUG(D_INFO, "done_writting for inode %lu/%u\n",
+		CDEBUG(D_INFO, "done_writing for inode %lu/%u\n",
 		       inode->i_ino, inode->i_generation);
 		ll_done_writing(inode);
 		iput(inode);

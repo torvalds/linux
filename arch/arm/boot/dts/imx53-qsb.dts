@@ -21,9 +21,8 @@
 		reg = <0x70000000 0x40000000>;
 	};
 
-	display@di0 {
+	display0: display@di0 {
 		compatible = "fsl,imx-parallel-display";
-		crtcs = <&ipu 0>;
 		interface-pix-fmt = "rgb565";
 		pinctrl-names = "default";
 		pinctrl-0 = <&pinctrl_ipu_disp0_1>;
@@ -44,6 +43,12 @@
 				vsync-active = <0>;
 				de-active = <1>;
 				pixelclk-active = <0>;
+			};
+		};
+
+		port {
+			display0_in: endpoint {
+				remote-endpoint = <&ipu_di0_disp0>;
 			};
 		};
 	};
@@ -124,6 +129,10 @@
 	pinctrl-names = "default";
 	pinctrl-0 = <&pinctrl_esdhc1_1>;
 	status = "okay";
+};
+
+&ipu_di0_disp0 {
+	remote-endpoint = <&display0_in>;
 };
 
 &ssi2 {

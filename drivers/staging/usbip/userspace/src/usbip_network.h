@@ -10,7 +10,6 @@
 #endif
 
 #include <sys/types.h>
-#include <sysfs/libsysfs.h>
 
 #include <stdint.h>
 

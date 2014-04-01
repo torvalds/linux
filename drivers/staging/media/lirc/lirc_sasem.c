@@ -74,7 +74,7 @@ static void usb_tx_callback(struct urb *urb);
 static int vfd_open(struct inode *inode, struct file *file);
 static long vfd_ioctl(struct file *file, unsigned cmd, unsigned long arg);
 static int vfd_close(struct inode *inode, struct file *file);
-static ssize_t vfd_write(struct file *file, const char *buf,
+static ssize_t vfd_write(struct file *file, const char __user *buf,
 				size_t n_bytes, loff_t *pos);
 
 /* LIRC driver function prototypes */
@@ -120,7 +120,7 @@ struct sasem_context {
 static const struct file_operations vfd_fops = {
 	.owner		= THIS_MODULE,
 	.open		= &vfd_open,
-	.write		= &vfd_write,
+	.write		= vfd_write,
 	.unlocked_ioctl	= &vfd_ioctl,
 	.release	= &vfd_close,
 	.llseek		= noop_llseek,
@@ -360,7 +360,7 @@ static int send_packet(struct sasem_context *context)
  * and requires data in 9 consecutive USB interrupt packets,
  * each packet carrying 8 bytes.
  */
-static ssize_t vfd_write(struct file *file, const char *buf,
+static ssize_t vfd_write(struct file *file, const char __user *buf,
 				size_t n_bytes, loff_t *pos)
 {
 	int i;
@@ -389,7 +389,7 @@ static ssize_t vfd_write(struct file *file, const char *buf,
 		goto exit;
 	}
 
-	data_buf = memdup_user(buf, n_bytes);
+	data_buf = memdup_user((void const __user *)buf, n_bytes);
 	if (IS_ERR(data_buf)) {
 		retval = PTR_ERR(data_buf);
 		goto exit;
@@ -865,15 +865,20 @@ alloc_status_switch:
 			usb_free_urb(tx_urb);
 	case 6:
 		usb_free_urb(rx_urb);
+		/* fall-through */
 	case 5:
 		lirc_buffer_free(rbuf);
+		/* fall-through */
 	case 4:
 		kfree(rbuf);
+		/* fall-through */
 	case 3:
 		kfree(driver);
+		/* fall-through */
 	case 2:
 		kfree(context);
 		context = NULL;
+		/* fall-through */
 	case 1:
 		if (retval == 0)
 			retval = -ENOMEM;

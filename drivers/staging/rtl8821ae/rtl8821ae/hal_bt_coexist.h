@@ -142,7 +142,7 @@ void rtl8821ae_dm_bt_hw_coex_all_off(struct ieee80211_hw *hw);
 long rtl8821ae_dm_bt_get_rx_ss(struct ieee80211_hw *hw);
 void rtl8821ae_dm_bt_balance(struct ieee80211_hw *hw,
 			bool b_balance_on, u8 ms0, u8 ms1);
-void rtl8821ae_dm_bt_agc_table(struct ieee80211_hw *hw, u8 tyep);
+void rtl8821ae_dm_bt_agc_table(struct ieee80211_hw *hw, u8 type);
 void rtl8821ae_dm_bt_bb_back_off_level(struct ieee80211_hw *hw, u8 type);
 u8 rtl8821ae_dm_bt_check_coex_rssi_state(struct ieee80211_hw *hw,
 						u8	level_num, u8	rssi_thresh, u8 rssi_thresh1);

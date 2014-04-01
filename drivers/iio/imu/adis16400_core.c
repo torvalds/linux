@@ -281,7 +281,7 @@ static ssize_t adis16400_write_frequency(struct device *dev,
 	st->variant->set_freq(st, val);
 	mutex_unlock(&indio_dev->mlock);
 
-	return ret ? ret : len;
+	return len;
 }
 
 /* Power down the device */

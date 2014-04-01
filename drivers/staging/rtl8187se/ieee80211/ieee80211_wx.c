@@ -1,38 +1,38 @@
-/******************************************************************************
+/*
+ *  Copyright(c) 2004 Intel Corporation. All rights reserved.
+ *
+ * Portions of this file are based on the WEP enablement code provided by the
+ * Host AP project hostap-drivers v0.1.3
+ * Copyright (c) 2001-2002, SSH Communications Security Corp and Jouni Malinen
+ * <jkmaline@cc.hut.fi>
+ * Copyright (c) 2002-2003, Jouni Malinen <jkmaline@cc.hut.fi>
+ *
+ * This program is free software; you can redistribute it and/or modify it
+ * under the terms of version 2 of the GNU General Public License as
+ * published by the Free Software Foundation.
+ *
+ * This program is distributed in the hope that it will be useful, but WITHOUT
+ * ANY WARRANTY; without even the implied warranty of MERCHANTABILITY or
+ * FITNESS FOR A PARTICULAR PURPOSE.  See the GNU General Public License for
+ * more details.
+ *
+ * You should have received a copy of the GNU General Public License along with
+ * this program; if not, write to the Free Software Foundation, Inc., 59
+ * Temple Place - Suite 330, Boston, MA  02111-1307, USA.
+ *
+ * The full GNU General Public License is included in this distribution in the
+ * file called LICENSE.
+ *
+ * Contact Information:
+ * James P. Ketrenos <ipw2100-admin@linux.intel.com>
+ * Intel Corporation, 5200 N.E. Elam Young Parkway, Hillsboro, OR 97124-6497
+ */
 
-  Copyright(c) 2004 Intel Corporation. All rights reserved.
-
-  Portions of this file are based on the WEP enablement code provided by the
-  Host AP project hostap-drivers v0.1.3
-  Copyright (c) 2001-2002, SSH Communications Security Corp and Jouni Malinen
-  <jkmaline@cc.hut.fi>
-  Copyright (c) 2002-2003, Jouni Malinen <jkmaline@cc.hut.fi>
-
-  This program is free software; you can redistribute it and/or modify it
-  under the terms of version 2 of the GNU General Public License as
-  published by the Free Software Foundation.
-
-  This program is distributed in the hope that it will be useful, but WITHOUT
-  ANY WARRANTY; without even the implied warranty of MERCHANTABILITY or
-  FITNESS FOR A PARTICULAR PURPOSE.  See the GNU General Public License for
-  more details.
-
-  You should have received a copy of the GNU General Public License along with
-  this program; if not, write to the Free Software Foundation, Inc., 59
-  Temple Place - Suite 330, Boston, MA  02111-1307, USA.
-
-  The full GNU General Public License is included in this distribution in the
-  file called LICENSE.
-
-  Contact Information:
-  James P. Ketrenos <ipw2100-admin@linux.intel.com>
-  Intel Corporation, 5200 N.E. Elam Young Parkway, Hillsboro, OR 97124-6497
-
-******************************************************************************/
 #include <linux/wireless.h>
 #include <linux/kmod.h>
 #include <linux/slab.h>
 #include <linux/module.h>
+#include <linux/etherdevice.h>
 
 #include "ieee80211.h"
 static const char *ieee80211_modes[] = {
@@ -54,7 +54,7 @@ static inline char *rtl818x_translate_scan(struct ieee80211_device *ieee,
 	/* First entry *MUST* be the AP MAC address */
 	iwe.cmd = SIOCGIWAP;
 	iwe.u.ap_addr.sa_family = ARPHRD_ETHER;
-	memcpy(iwe.u.ap_addr.sa_data, network->bssid, ETH_ALEN);
+	ether_addr_copy(iwe.u.ap_addr.sa_data, network->bssid);
 	start = iwe_stream_add_event(info, start, stop, &iwe, IW_EV_ADDR_LEN);
 
 	/* Remaining entries will be displayed in the order we provide them */
@@ -62,17 +62,13 @@ static inline char *rtl818x_translate_scan(struct ieee80211_device *ieee,
 	/* Add the ESSID */
 	iwe.cmd = SIOCGIWESSID;
 	iwe.u.data.flags = 1;
-	//YJ,modified,080903,for hidden ap
-	//if (network->flags & NETWORK_EMPTY_ESSID) {
 	if (network->ssid_len == 0) {
-	//YJ,modified,080903,end
 		iwe.u.data.length = sizeof("<hidden>");
 		start = iwe_stream_add_point(info, start, stop, &iwe, "<hidden>");
 	} else {
-		iwe.u.data.length = min(network->ssid_len, (u8)32);
+		iwe.u.data.length = min_t(u8, network->ssid_len, 32);
 		start = iwe_stream_add_point(info, start, stop, &iwe, network->ssid);
 	}
-	//printk("ESSID: %s\n",network->ssid);
 	/* Add the protocol name */
 	iwe.cmd = SIOCGIWNAME;
 	snprintf(iwe.u.name, IFNAMSIZ, "IEEE 802.11%s", ieee80211_modes[network->mode]);
@@ -92,8 +88,6 @@ static inline char *rtl818x_translate_scan(struct ieee80211_device *ieee,
 
 	/* Add frequency/channel */
 	iwe.cmd = SIOCGIWFREQ;
-/*	iwe.u.freq.m = ieee80211_frequency(network->channel, network->mode);
-	iwe.u.freq.e = 3; */
 	iwe.u.freq.m = network->channel;
 	iwe.u.freq.e = 0;
 	iwe.u.freq.i = 0;
@@ -145,10 +139,9 @@ static inline char *rtl818x_translate_scan(struct ieee80211_device *ieee,
 	/* Add quality statistics */
 	/* TODO: Fix these values... */
 	if (network->stats.signal == 0 || network->stats.rssi == 0)
-		printk("========>signal:%d, rssi:%d\n", network->stats.signal,
-		       network->stats.rssi);
+		netdev_info(ieee->dev, "========>signal:%d, rssi:%d\n",
+			    network->stats.signal, network->stats.rssi);
 	iwe.cmd = IWEVQUAL;
-//	printk("SIGNAL: %d,RSSI: %d,NOISE: %d\n",network->stats.signal,network->stats.rssi,network->stats.noise);
 	iwe.u.qual.qual = network->stats.signalstrength;
 	iwe.u.qual.level = network->stats.signal;
 	iwe.u.qual.noise = network->stats.noise;
@@ -171,7 +164,6 @@ static inline char *rtl818x_translate_scan(struct ieee80211_device *ieee,
 
 	memset(&iwe, 0, sizeof(iwe));
 	if (network->wpa_ie_len) {
-	//	printk("wpa_ie_len:%d\n", network->wpa_ie_len);
 		char buf[MAX_WPA_IE_LEN];
 		memcpy(buf, network->wpa_ie, network->wpa_ie_len);
 		iwe.cmd = IWEVGENIE;
@@ -181,7 +173,6 @@ static inline char *rtl818x_translate_scan(struct ieee80211_device *ieee,
 
 	memset(&iwe, 0, sizeof(iwe));
 	if (network->rsn_ie_len) {
-	//	printk("=====>rsn_ie_len:\n", network->rsn_ie_len);
 		char buf[MAX_WPA_IE_LEN];
 		memcpy(buf, network->rsn_ie, network->rsn_ie_len);
 		iwe.cmd = IWEVGENIE;
@@ -190,7 +181,8 @@ static inline char *rtl818x_translate_scan(struct ieee80211_device *ieee,
 	}
 
 	/* Add EXTRA: Age to display seconds since last beacon/probe response
-	 * for given network. */
+	 * for given network.
+	 */
 	iwe.cmd = IWEVCUSTOM;
 	p = custom;
 	p += snprintf(p, MAX_CUSTOM_LEN - (p - custom),
@@ -210,8 +202,7 @@ int ieee80211_wx_get_scan(struct ieee80211_device *ieee,
 	unsigned long flags;
 	int err = 0;
 	char *ev = extra;
-	char *stop = ev + wrqu->data.length;//IW_SCAN_MAX_DATA;
-	//char *stop = ev + IW_SCAN_MAX_DATA;
+	char *stop = ev + wrqu->data.length;
 	int i = 0;
 
 	IEEE80211_DEBUG_WX("Getting scan\n");
@@ -287,7 +278,8 @@ int ieee80211_wx_set_encode(struct ieee80211_device *ieee,
 			IEEE80211_DEBUG_WX("Disabling encryption.\n");
 
 		/* Check all the keys to see if any are still configured,
-		 * and if no key index was provided, de-init them all */
+		 * and if no key index was provided, de-init them all.
+		 */
 		for (i = 0; i < WEP_KEYS; i++) {
 			if (ieee->crypt[i] != NULL) {
 				if (key_provided)
@@ -306,15 +298,14 @@ int ieee80211_wx_set_encode(struct ieee80211_device *ieee,
 		goto done;
 	}
 
-
-
 	sec.enabled = 1;
 	sec.flags |= SEC_ENABLED;
 
 	if (*crypt != NULL && (*crypt)->ops != NULL &&
 	    strcmp((*crypt)->ops->name, "WEP") != 0) {
 		/* changing to use WEP; deinit previously used algorithm
-		 * on this key */
+		 * on this key.
+		 */
 		ieee80211_crypt_delayed_deinit(ieee, crypt);
 	}
 
@@ -359,10 +350,11 @@ int ieee80211_wx_set_encode(struct ieee80211_device *ieee,
 				       (*crypt)->priv);
 		sec.flags |= (1 << key);
 		/* This ensures a key will be activated if no key is
-		 * explicitly set */
+		 * explicitly set.
+		 */
 		if (key == sec.active_key)
 			sec.flags |= SEC_ACTIVE_KEY;
-		ieee->tx_keyidx = key;//by wb 080312
+		ieee->tx_keyidx = key;
 	} else {
 		len = (*crypt)->ops->get_key(sec.keys[key], WEP_KEY_LEN,
 					     NULL, (*crypt)->priv);
@@ -395,7 +387,8 @@ int ieee80211_wx_set_encode(struct ieee80211_device *ieee,
 			   "OPEN" : "SHARED KEY");
 
 	/* For now we just support WEP, so only set that security level...
-	 * TODO: When WPA is added this is one place that needs to change */
+	 * TODO: When WPA is added this is one place that needs to change
+	 */
 	sec.flags |= SEC_LEVEL;
 	sec.level = SEC_LEVEL_1; /* 40 and 104 bit WEP */
 
@@ -406,7 +399,8 @@ int ieee80211_wx_set_encode(struct ieee80211_device *ieee,
 	 * generate new IEEE 802.11 authentication which may end up in looping
 	 * with IEEE 802.1X.  If your hardware requires a reset after WEP
 	 * configuration (for example... Prism2), implement the reset_port in
-	 * the callbacks structures used to initialize the 802.11 stack. */
+	 * the callbacks structures used to initialize the 802.11 stack.
+	 */
 	if (ieee->reset_on_keychange &&
 	    ieee->iw_mode != IW_MODE_INFRA &&
 	    ieee->reset_port && ieee->reset_port(dev)) {
@@ -448,7 +442,8 @@ int ieee80211_wx_get_encode(struct ieee80211_device *ieee,
 
 	if (strcmp(crypt->ops->name, "WEP") != 0) {
 		/* only WEP is supported with wireless extensions, so just
-		 * report that encryption is used */
+		 * report that encryption is used.
+		 */
 		erq->length = 0;
 		erq->flags |= IW_ENCODE_ENABLED;
 		return 0;
@@ -483,7 +478,6 @@ int ieee80211_wx_set_encode_ext(struct ieee80211_device *ieee,
 	struct ieee80211_security sec = {
 		.flags = 0,
 	};
-	//printk("======>encoding flag:%x,ext flag:%x, ext alg:%d\n", encoding->flags,ext->ext_flags, ext->alg);
 	idx = encoding->flags & IW_ENCODE_INDEX;
 	if (idx) {
 		if (idx < 1 || idx > WEP_KEYS)
@@ -497,7 +491,6 @@ int ieee80211_wx_set_encode_ext(struct ieee80211_device *ieee,
 		group_key = 1;
 	} else {
 		/* some Cisco APs use idx>0 for unicast in dynamic WEP */
-		//printk("not group key, flags:%x, ext->alg:%d\n", ext->ext_flags, ext->alg);
 		if (idx != 0 && ext->alg != IW_ENCODE_ALG_WEP)
 			return -EINVAL;
 		if (ieee->iw_mode == IW_MODE_INFRA)
@@ -506,7 +499,7 @@ int ieee80211_wx_set_encode_ext(struct ieee80211_device *ieee,
 			return -EINVAL;
 	}
 
-	sec.flags |= SEC_ENABLED;// | SEC_ENCRYPT;
+	sec.flags |= SEC_ENABLED;
 	if ((encoding->flags & IW_ENCODE_DISABLED) ||
 	    ext->alg == IW_ENCODE_ALG_NONE) {
 		if (*crypt)
@@ -518,16 +511,13 @@ int ieee80211_wx_set_encode_ext(struct ieee80211_device *ieee,
 
 		if (i == WEP_KEYS) {
 			sec.enabled = 0;
-			// sec.encrypt = 0;
 			sec.level = SEC_LEVEL_0;
 			sec.flags |= SEC_LEVEL;
 		}
-		//printk("disabled: flag:%x\n", encoding->flags);
 		goto done;
 	}
 
 	sec.enabled = 1;
-    //    sec.encrypt = 1;
 
 	switch (ext->alg) {
 	case IW_ENCODE_ALG_WEP:
@@ -545,7 +535,6 @@ int ieee80211_wx_set_encode_ext(struct ieee80211_device *ieee,
 		ret = -EINVAL;
 		goto done;
 	}
-//	printk("8-09-08-9=====>%s, alg name:%s\n",__func__, alg);
 
 	ops = ieee80211_get_crypto_ops(alg);
 	if (ops == NULL)
@@ -553,7 +542,8 @@ int ieee80211_wx_set_encode_ext(struct ieee80211_device *ieee,
 	if (ops == NULL) {
 		IEEE80211_DEBUG_WX("%s: unknown crypto alg %d\n",
 				   dev->name, ext->alg);
-		printk("========>unknown crypto alg %d\n", ext->alg);
+		netdev_err(ieee->dev, "========>unknown crypto alg %d\n",
+			   ext->alg);
 		ret = -EINVAL;
 		goto done;
 	}
@@ -584,13 +574,11 @@ int ieee80211_wx_set_encode_ext(struct ieee80211_device *ieee,
 	    (*crypt)->ops->set_key(ext->key, ext->key_len, ext->rx_seq,
 				   (*crypt)->priv) < 0) {
 		IEEE80211_DEBUG_WX("%s: key setting failed\n", dev->name);
-		printk("key setting failed\n");
+		netdev_err(ieee->dev, "key setting failed\n");
 		ret = -EINVAL;
 		goto done;
 	}
 #if 1
- //skip_host_crypt:
-	//printk("skip_host_crypt:ext_flags:%x\n", ext->ext_flags);
 	if (ext->ext_flags & IW_ENCODE_EXT_SET_TX_KEY) {
 		ieee->tx_keyidx = idx;
 		sec.active_key = idx;
@@ -602,15 +590,12 @@ int ieee80211_wx_set_encode_ext(struct ieee80211_device *ieee,
 		sec.key_sizes[idx] = ext->key_len;
 		sec.flags |= (1 << idx);
 		if (ext->alg == IW_ENCODE_ALG_WEP) {
-		      //  sec.encode_alg[idx] = SEC_ALG_WEP;
 			sec.flags |= SEC_LEVEL;
 			sec.level = SEC_LEVEL_1;
 		} else if (ext->alg == IW_ENCODE_ALG_TKIP) {
-		      //  sec.encode_alg[idx] = SEC_ALG_TKIP;
 			sec.flags |= SEC_LEVEL;
 			sec.level = SEC_LEVEL_2;
 		} else if (ext->alg == IW_ENCODE_ALG_CCMP) {
-		       // sec.encode_alg[idx] = SEC_ALG_CCMP;
 			sec.flags |= SEC_LEVEL;
 			sec.level = SEC_LEVEL_3;
 		}
@@ -632,20 +617,19 @@ done:
 
 	return ret;
 }
+
 int ieee80211_wx_set_mlme(struct ieee80211_device *ieee,
 			  struct iw_request_info *info,
 			  union iwreq_data *wrqu, char *extra)
 {
 	struct iw_mlme *mlme = (struct iw_mlme *) extra;
-//	printk("\ndkgadfslkdjgalskdf===============>%s(), cmd:%x\n", __func__, mlme->cmd);
 #if 1
 	switch (mlme->cmd) {
 	case IW_MLME_DEAUTH:
 	case IW_MLME_DISASSOC:
-	//	printk("disassoc now\n");
 		ieee80211_disassociate(ieee);
 		break;
-	 default:
+	default:
 		return -EOPNOTSUPP;
 	}
 #endif
@@ -656,24 +640,16 @@ int ieee80211_wx_set_auth(struct ieee80211_device *ieee,
 			  struct iw_request_info *info,
 			  struct iw_param *data, char *extra)
 {
-/*
-	 struct ieee80211_security sec = {
-		.flags = SEC_AUTH_MODE,
-	}
-*/
-	//printk("set auth:flag:%x, data value:%x\n", data->flags, data->value);
 	switch (data->flags & IW_AUTH_INDEX) {
 	case IW_AUTH_WPA_VERSION:
-	     /*need to support wpa2 here*/
-		//printk("wpa version:%x\n", data->value);
+		/* need to support wpa2 here */
 		break;
 	case IW_AUTH_CIPHER_PAIRWISE:
 	case IW_AUTH_CIPHER_GROUP:
 	case IW_AUTH_KEY_MGMT:
-		/*
- *                  * Host AP driver does not use these parameters and allows
- *                                   * wpa_supplicant to control them internally.
- *                                                    */
+		/* Host AP driver does not use these parameters and allows
+		 * wpa_supplicant to control them internally.
+		 */
 		break;
 	case IW_AUTH_TKIP_COUNTERMEASURES:
 		ieee->tkip_countermeasures = data->value;
@@ -684,13 +660,11 @@ int ieee80211_wx_set_auth(struct ieee80211_device *ieee,
 
 	case IW_AUTH_80211_AUTH_ALG:
 		ieee->open_wep = (data->value&IW_AUTH_ALG_OPEN_SYSTEM) ? 1 : 0;
-		//printk("open_wep:%d\n", ieee->open_wep);
 		break;
 
 #if 1
 	case IW_AUTH_WPA_ENABLED:
 		ieee->wpa_enabled = (data->value) ? 1 : 0;
-		//printk("enable wpa:%d\n", ieee->wpa_enabled);
 		break;
 
 #endif
@@ -712,13 +686,13 @@ int ieee80211_wx_set_gen_ie(struct ieee80211_device *ieee, u8 *ie, size_t len)
 	u8 *buf = NULL;
 
 	if (len > MAX_WPA_IE_LEN || (len && ie == NULL)) {
-		printk("return error out, len:%zu\n", len);
+		netdev_err(ieee->dev, "return error out, len:%zu\n", len);
 	return -EINVAL;
 	}
 
 	if (len) {
 		if (len != ie[1]+2) {
-			printk("len:%zu, ie:%d\n", len, ie[1]);
+			netdev_err(ieee->dev, "len:%zu, ie:%d\n", len, ie[1]);
 			return -EINVAL;
 		}
 		buf = kmemdup(ie, len, GFP_KERNEL);
@@ -732,7 +706,6 @@ int ieee80211_wx_set_gen_ie(struct ieee80211_device *ieee, u8 *ie, size_t len)
 		ieee->wpa_ie = NULL;
 		ieee->wpa_ie_len = 0;
 	}
-//	printk("<=====out %s()\n", __func__);
 
 	return 0;
 

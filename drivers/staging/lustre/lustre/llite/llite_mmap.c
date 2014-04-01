@@ -285,7 +285,7 @@ static inline int to_fault_error(int result)
  * Lustre implementation of a vm_operations_struct::fault() method, called by
  * VM to server page fault (both in kernel and user space).
  *
- * \param vma - is virtiual area struct related to page fault
+ * \param vma - is virtual area struct related to page fault
  * \param vmf - structure which describe type and address where hit fault
  *
  * \return allocated and filled _locked_ page for address
@@ -370,7 +370,7 @@ restart:
 			goto restart;
 		}
 
-		result |= VM_FAULT_LOCKED;
+		result = VM_FAULT_LOCKED;
 	}
 	cfs_restore_sigs(set);
 	return result;

@@ -213,7 +213,6 @@ struct sbe_card_info
     struct sbe_card_info *next;
     u_int32_t  *eeprombase;     /* mapped address of board's EEPROM */
     c4cpld_t   *cpldbase;       /* mapped address of board's CPLD hardware */
-    char       *release;        /* SBE ID string w/in sbeRelease.c */
     void       *hdw_info;
 #ifdef CONFIG_PROC_FS
     struct proc_dir_entry *dir_dev;

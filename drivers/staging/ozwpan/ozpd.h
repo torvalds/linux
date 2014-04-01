@@ -22,6 +22,11 @@
 #define OZ_TIMER_HEARTBEAT	2
 #define OZ_TIMER_STOP		3
 
+/*
+ *External spinlock variable
+ */
+extern spinlock_t g_polling_lock;
+
 /* Data structure that hold information on a frame for transmisson. This is
  * built when the frame is first transmitted and is used to rebuild the frame
  * if a re-transmission is required.

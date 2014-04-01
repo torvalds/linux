@@ -175,8 +175,12 @@ enum {
 	CONFIG_T_CONFIG  = 0,
 	CONFIG_T_SPTLRPC = 1,
 	CONFIG_T_RECOVER = 2,
-	CONFIG_T_MAX     = 3
+	CONFIG_T_PARAMS  = 3,
+	CONFIG_T_MAX     = 4
 };
+
+#define PARAMS_FILENAME	"params"
+#define LCTL_UPCALL	"lctl"
 
 /* list of active configuration logs  */
 struct config_llog_data {
@@ -185,7 +189,8 @@ struct config_llog_data {
 	struct list_head		  cld_list_chain;
 	atomic_t		cld_refcount;
 	struct config_llog_data    *cld_sptlrpc;/* depended sptlrpc log */
-	struct config_llog_data    *cld_recover;    /* imperative recover log */
+	struct config_llog_data	   *cld_params;	/* common parameters log */
+	struct config_llog_data    *cld_recover;/* imperative recover log */
 	struct obd_export	  *cld_mgcexp;
 	struct mutex		    cld_lock;
 	int			 cld_type;
@@ -1626,7 +1631,7 @@ static inline int obd_health_check(const struct lu_env *env,
 {
 	/* returns: 0 on healthy
 	 *	 >0 on unhealthy + reason code/flag
-	 *	    however the only suppored reason == 1 right now
+	 *	    however the only supported reason == 1 right now
 	 *	    We'll need to define some better reasons
 	 *	    or flags in the future.
 	 *	 <0 on error
@@ -1996,11 +2001,11 @@ static inline int md_getxattr(struct obd_export *exp,
 
 static inline int md_set_open_replay_data(struct obd_export *exp,
 					  struct obd_client_handle *och,
-					  struct ptlrpc_request *open_req)
+					  struct lookup_intent *it)
 {
 	EXP_CHECK_MD_OP(exp, set_open_replay_data);
 	EXP_MD_COUNTER_INCREMENT(exp, set_open_replay_data);
-	return MDP(exp->exp_obd, set_open_replay_data)(exp, och, open_req);
+	return MDP(exp->exp_obd, set_open_replay_data)(exp, och, it);
 }
 
 static inline int md_clear_open_replay_data(struct obd_export *exp,

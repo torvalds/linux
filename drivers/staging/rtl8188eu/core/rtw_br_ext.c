@@ -409,7 +409,7 @@ static void __nat25_db_network_insert(struct adapter *priv,
 	db = priv->nethash[hash];
 	while (db != NULL) {
 		if (!memcmp(db->networkAddr, networkAddr, MAX_NETWORK_ADDR_LEN)) {
-			memcpy(db->macAddr, macAddr, ETH_ALEN);
+			ether_addr_copy(db->macAddr, macAddr);
 			db->ageing_timer = jiffies;
 			spin_unlock_bh(&priv->br_ext_lock);
 			return;
@@ -422,7 +422,7 @@ static void __nat25_db_network_insert(struct adapter *priv,
 		return;
 	}
 	memcpy(db->networkAddr, networkAddr, MAX_NETWORK_ADDR_LEN);
-	memcpy(db->macAddr, macAddr, ETH_ALEN);
+	ether_addr_copy(db->macAddr, macAddr);
 	atomic_set(&db->use_count, 1);
 	db->ageing_timer = jiffies;
 
@@ -543,13 +543,14 @@ int nat25_db_handle(struct adapter *priv, struct sk_buff *skb, int method)
 			if (!__nat25_db_network_lookup_and_replace(priv, skb, networkAddr)) {
 				if (*((unsigned char *)&iph->daddr + 3) == 0xff) {
 					/*  L2 is unicast but L3 is broadcast, make L2 bacome broadcast */
-					DEBUG_INFO("NAT25: Set DA as boardcast\n");
+					DEBUG_INFO("NAT25: Set DA as broadcast\n");
 					memset(skb->data, 0xff, ETH_ALEN);
 				} else {
-					/*  forward unknow IP packet to upper TCP/IP */
+					/*  forward unknown IP packet to upper TCP/IP */
 					DEBUG_INFO("NAT25: Replace DA with BR's MAC\n");
 					if ((*(u32 *)priv->br_mac) == 0 && (*(u16 *)(priv->br_mac+4)) == 0) {
-						printk("Re-init netdev_br_init() due to br_mac == 0!\n");
+						netdev_info(skb->dev,
+								"Re-init netdev_br_init() due to br_mac == 0!\n");
 						netdev_br_init(priv->pnetdev);
 					}
 					memcpy(skb->data, priv->br_mac, ETH_ALEN);
@@ -932,7 +933,7 @@ int nat25_db_handle(struct adapter *priv, struct sk_buff *skb, int method)
 						(ph->code == PADO_CODE ? "PADO" : "PADS"),	skb->dev->name);
 				} else { /*  not add relay tag */
 					if (!priv->pppoe_connection_in_progress) {
-						DEBUG_ERR("Discard PPPoE packet due to no connection in progresss!\n");
+						DEBUG_ERR("Discard PPPoE packet due to no connection in progress!\n");
 						return -1;
 					}
 					memcpy(skb->data, priv->pppoe_addr, ETH_ALEN);

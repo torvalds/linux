@@ -527,9 +527,9 @@ EXPORT_SYMBOL_GPL(mite_dma_disarm);
 int mite_sync_input_dma(struct mite_channel *mite_chan,
 			struct comedi_async *async)
 {
+	struct comedi_subdevice *s = async->subdevice;
 	int count;
 	unsigned int nbytes, old_alloc_count;
-	const unsigned bytes_per_scan = cfc_bytes_per_scan(async->subdevice);
 
 	old_alloc_count = async->buf_write_alloc_count;
 	/* write alloc as much as we can */
@@ -538,7 +538,7 @@ int mite_sync_input_dma(struct mite_channel *mite_chan,
 	nbytes = mite_bytes_written_to_memory_lb(mite_chan);
 	if ((int)(mite_bytes_written_to_memory_ub(mite_chan) -
 		  old_alloc_count) > 0) {
-		dev_warn(async->subdevice->device->class_dev,
+		dev_warn(s->device->class_dev,
 			 "mite: DMA overwrite of free area\n");
 		async->events |= COMEDI_CB_OVERFLOW;
 		return -1;
@@ -551,12 +551,7 @@ int mite_sync_input_dma(struct mite_channel *mite_chan,
 		return 0;
 
 	comedi_buf_write_free(async, count);
-
-	async->scan_progress += count;
-	if (async->scan_progress >= bytes_per_scan) {
-		async->scan_progress %= bytes_per_scan;
-		async->events |= COMEDI_CB_EOS;
-	}
+	cfc_inc_scan_progress(s, count);
 	async->events |= COMEDI_CB_BLOCK;
 	return 0;
 }

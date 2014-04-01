@@ -40,6 +40,7 @@
 
 #include "../comedidev.h"
 
+#include "comedi_fc.h"
 #include "mite.h"
 #include "ni_tio.h"
 
@@ -789,13 +790,7 @@ static void ni_660x_handle_gpct_interrupt(struct comedi_device *dev,
 	struct ni_gpct *counter = s->private;
 
 	ni_tio_handle_interrupt(counter, s);
-	if (s->async->events) {
-		if (s->async->events & (COMEDI_CB_EOA | COMEDI_CB_ERROR |
-					COMEDI_CB_OVERFLOW)) {
-			ni_660x_cancel(dev, s);
-		}
-		comedi_event(dev, s);
-	}
+	cfc_handle_events(dev, s);
 }
 
 static irqreturn_t ni_660x_interrupt(int irq, void *d)
@@ -1187,7 +1182,7 @@ static int ni_660x_auto_attach(struct comedi_device *dev,
 		global_interrupt_config_bits |= Cascade_Int_Enable_Bit;
 	ni_660x_write_register(dev, 0, global_interrupt_config_bits,
 			       NI660X_GLOBAL_INT_CFG);
-	dev_info(dev->class_dev, "ni_660x: %s attached\n", dev->board_name);
+
 	return 0;
 }
 

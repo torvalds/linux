@@ -21,9 +21,8 @@
 		reg = <0x90000000 0x20000000>;
 	};
 
-	display@di0 {
+	display0: display@di0 {
 		compatible = "fsl,imx-parallel-display";
-		crtcs = <&ipu 0>;
 		interface-pix-fmt = "rgb24";
 		pinctrl-names = "default";
 		pinctrl-0 = <&pinctrl_ipu_disp1_1>;
@@ -41,11 +40,16 @@
 				vsync-len = <10>;
 			};
 		};
+
+		port {
+			display0_in: endpoint {
+				remote-endpoint = <&ipu_di0_disp0>;
+			};
+		};
 	};
 
-	display@di1 {
+	display1: display@di1 {
 		compatible = "fsl,imx-parallel-display";
-		crtcs = <&ipu 1>;
 		interface-pix-fmt = "rgb565";
 		pinctrl-names = "default";
 		pinctrl-0 = <&pinctrl_ipu_disp2_1>;
@@ -66,6 +70,12 @@
 				vsync-active = <0>;
 				de-active = <1>;
 				pixelclk-active = <0>;
+			};
+		};
+
+		port {
+			display1_in: endpoint {
+				remote-endpoint = <&ipu_di1_disp1>;
 			};
 		};
 	};
@@ -256,6 +266,14 @@
 			reg = <0x40000 0x3c0000>;
 		};
 	};
+};
+
+&ipu_di0_disp0 {
+	remote-endpoint = <&display0_in>;
+};
+
+&ipu_di1_disp1 {
+	remote-endpoint = <&display1_in>;
 };
 
 &ssi2 {

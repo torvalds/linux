@@ -1920,6 +1920,7 @@ free_interfaces:
 	usb_autosuspend_device(dev);
 	return 0;
 }
+EXPORT_SYMBOL_GPL(usb_set_configuration);
 
 static LIST_HEAD(set_config_list);
 static DEFINE_SPINLOCK(set_config_lock);
