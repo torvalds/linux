@@ -230,8 +230,8 @@ static void altera_gpio_irq_handler(unsigned int irq, struct irq_desc *desc)
 	chained_irq_enter(chip, desc);
 	/* Handling for level trigger and edge trigger is different */
 	if (altera_gc->interrupt_trigger == IRQ_TYPE_LEVEL_HIGH) {
-		status = readl_relaxed(mm_gc->regs + ALTERA_GPIO_DATA);
-		status &= readl_relaxed(mm_gc->regs + ALTERA_GPIO_IRQ_MASK);
+		status = readl(mm_gc->regs + ALTERA_GPIO_DATA);
+		status &= readl(mm_gc->regs + ALTERA_GPIO_IRQ_MASK);
 
 		for (i = 0; i < mm_gc->gc.ngpio; i++) {
 			if (status & BIT(i)) {
@@ -241,10 +241,9 @@ static void altera_gpio_irq_handler(unsigned int irq, struct irq_desc *desc)
 		}
 	} else {
 		while ((status =
-			(readl_relaxed(mm_gc->regs + ALTERA_GPIO_EDGE_CAP) &
-			readl_relaxed(mm_gc->regs + ALTERA_GPIO_IRQ_MASK)))) {
-			writel_relaxed(status,
-				mm_gc->regs + ALTERA_GPIO_EDGE_CAP);
+			(readl(mm_gc->regs + ALTERA_GPIO_EDGE_CAP) &
+			readl(mm_gc->regs + ALTERA_GPIO_IRQ_MASK)))) {
+			writel(status, mm_gc->regs + ALTERA_GPIO_EDGE_CAP);
 			for (i = 0; i < mm_gc->gc.ngpio; i++) {
 				if (status & BIT(i)) {
 					generic_handle_irq(irq_find_mapping(
