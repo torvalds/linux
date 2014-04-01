@@ -1904,6 +1904,8 @@ struct rt5616_priv {
 	int pll_src;
 	int pll_in;
 	int pll_out;
+	int spk_ctl_gpio;
+	int spk_gpio_level;
 
 	int dmic_en;
 };

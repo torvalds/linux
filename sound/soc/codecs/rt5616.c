@@ -17,6 +17,7 @@
 #include <linux/i2c.h>
 #include <linux/platform_device.h>
 #include <linux/spi/spi.h>
+#include <linux/of_gpio.h>
 #include <sound/core.h>
 #include <sound/pcm.h>
 #include <sound/pcm_params.h>
@@ -28,6 +29,9 @@
 #include "rt5616.h"
 
 #define POWER_ON_MICBIAS1
+
+//for gpio
+#define rt5616_CODEC_SET_SPK	1
 
 struct rt5616_init_reg {
 	u8 reg;
@@ -415,6 +419,65 @@ static unsigned int bst_tlv[] = {
 	8, 8, TLV_DB_SCALE_ITEM(5200, 0, 0),
 };
 
+int snd_soc_get_gpio_enum_double(struct snd_kcontrol *kcontrol,
+	struct snd_ctl_elem_value *ucontrol)
+{
+	struct soc_enum *e = (struct soc_enum *)kcontrol->private_value;
+	struct snd_soc_codec *codec = snd_kcontrol_chip(kcontrol);
+	struct rt5616_priv *rt5616 = snd_soc_codec_get_drvdata(codec);
+
+	if (!rt5616) {
+		printk("%s : rt5616 is NULL\n", __func__);
+		return -EINVAL;
+	}
+
+	switch(e->reg) {
+	case rt5616_CODEC_SET_SPK:
+		ucontrol->value.enumerated.item[0] = rt5616->spk_gpio_level;
+		break;
+	default:
+		return -EINVAL;
+	}
+	return 0;
+}
+
+int snd_soc_put_gpio_enum_double(struct snd_kcontrol *kcontrol,
+	struct snd_ctl_elem_value *ucontrol)
+{
+	struct soc_enum *e = (struct soc_enum *)kcontrol->private_value;
+	struct snd_soc_codec *codec = snd_kcontrol_chip(kcontrol);
+	struct rt5616_priv *rt5616 = snd_soc_codec_get_drvdata(codec);
+
+	if (!rt5616) {
+		printk("%s : rt5616 is NULL\n", __func__);
+		return -EINVAL;
+	}
+
+	if (ucontrol->value.enumerated.item[0] > e->max - 1)
+		return -EINVAL;
+
+	//The gpio of SPK HP and RCV will be setting in digital_mute for pop noise.
+	switch(e->reg) {
+	case rt5616_CODEC_SET_SPK:
+		rt5616->spk_gpio_level = ucontrol->value.enumerated.item[0];
+		break;
+	default:
+		return -EINVAL;
+	}
+
+	return 0;
+}
+
+#define SOC_GPIO_ENUM(xname, xenum) \
+{	.iface = SNDRV_CTL_ELEM_IFACE_MIXER, .name = xname,\
+	.info = snd_soc_info_enum_double, \
+	.get = snd_soc_get_gpio_enum_double, .put = snd_soc_put_gpio_enum_double, \
+	.private_value = (unsigned long)&xenum }
+static const char *rt5616_gpio_sel[] = {"Low", "High"};
+static const struct soc_enum rt5616_gpio_enum[] = {
+	SOC_ENUM_SINGLE(rt5616_CODEC_SET_SPK, 0, 2, rt5616_gpio_sel),
+};
+
 /* IN1/IN2 Input Type */
 static const char *rt5616_input_mode[] = {
 	"Single ended", "Differential"};
@@ -462,7 +525,7 @@ static int rt5616_vol_rescale_put(struct snd_kcontrol *kcontrol,
 static const struct snd_kcontrol_new rt5616_snd_controls[] = {
 	/* Headphone Output Volume */
 	SOC_DOUBLE("HP Playback Switch", RT5616_HP_VOL,
-		RT5616_L_MUTE_SFT, RT5616_R_MUTE_SFT, 1, 1),
+		RT5616_L_MUTE_SFT, RT5616_R_MUTE_SFT, 1, 0),
 	SOC_DOUBLE_EXT_TLV("HP Playback Volume", RT5616_HP_VOL,
 		RT5616_L_VOL_SFT, RT5616_R_VOL_SFT, RT5616_VOL_RSCL_RANGE, 0,
 		rt5616_vol_rescale_get, rt5616_vol_rescale_put, out_vol_tlv),
@@ -500,6 +563,8 @@ static const struct snd_kcontrol_new rt5616_snd_controls[] = {
 	SOC_DOUBLE_TLV("ADC Boost Gain", RT5616_ADC_BST_VOL,
 			RT5616_ADC_L_BST_SFT, RT5616_ADC_R_BST_SFT,
 			3, 0, adc_bst_tlv),
+
+	SOC_GPIO_ENUM("SPK GPIO Control",  rt5616_gpio_enum[0]),
 };
 
 static int check_sysclk1_source(struct snd_soc_dapm_widget *source,
@@ -650,8 +715,8 @@ void rt5616_hp_amp_power(struct snd_soc_codec *codec, int on)
 			snd_soc_update_bits(codec, RT5616_DEPOP_M2,
 				RT5616_DEPOP_MASK, RT5616_DEPOP_MAN);
 			snd_soc_update_bits(codec, RT5616_DEPOP_M1,
-				RT5616_HP_CP_MASK | RT5616_HP_SG_MASK | RT5616_HP_CB_MASK,
-				RT5616_HP_CP_PU | RT5616_HP_SG_DIS | RT5616_HP_CB_PU);
+				RT5616_HP_CP_MASK | RT5616_HP_SG_MASK | RT5616_HP_CB_MASK | RT5616_HP_CD_PD_MASK,
+				RT5616_HP_CP_PU | RT5616_HP_SG_DIS | RT5616_HP_CB_PU | RT5616_HP_CD_PD_DIS);
 			rt5616_index_write(codec, RT5616_HP_DCC_INT1, 0x9f00);
 			/* headphone amp power on */
 			snd_soc_update_bits(codec, RT5616_PWR_ANLG1,
@@ -767,7 +832,7 @@ static int rt5616_hp_event(struct snd_soc_dapm_widget *w,
 		break;
 
 	case SND_SOC_DAPM_PRE_PMD:
-		rt5616_pmd_depop(codec);
+		//rt5616_pmd_depop(codec);
 		break;
 
 	default:
@@ -1184,6 +1249,35 @@ static int rt5616_prepare(struct snd_pcm_substream *substream,
 	return 0;
 }
 
+static int rt5616_set_gpio(struct rt5616_priv *rt5616, int gpio, bool level)
+{	
+	//printk("%s : set %s ctl gpio %s\n", __func__,
+		gpio & rt5616_CODEC_SET_SPK ? "spk" : "",
+		level ? "HIGH" : "LOW");
+
+	if ((gpio & rt5616_CODEC_SET_SPK) && gpio_is_valid(rt5616->spk_ctl_gpio)) {
+		mdelay(100);
+		gpio_set_value(rt5616->spk_ctl_gpio, level);		
+	}
+
+	return 0;
+}
+
+static int rt5616_digital_mute(struct snd_soc_dai *dai, int mute)
+{
+	struct snd_soc_codec *codec = dai->codec;
+	struct rt5616_priv *rt5616 = snd_soc_codec_get_drvdata(codec);
+	
+	if (mute) {
+		rt5616_set_gpio(rt5616,rt5616_CODEC_SET_SPK, 0);
+	} else {
+		if (rt5616->spk_gpio_level)
+			rt5616_set_gpio(rt5616,rt5616_CODEC_SET_SPK, rt5616->spk_gpio_level);
+	}
+
+	return 0;
+}
+
 static int rt5616_set_dai_fmt(struct snd_soc_dai *dai, unsigned int fmt)
 {
 	struct snd_soc_codec *codec = dai->codec;
@@ -1508,7 +1602,7 @@ static int rt5616_probe(struct snd_soc_codec *codec)
 	codec->dapm.bias_level = SND_SOC_BIAS_STANDBY;
 	rt5616->codec = codec;
 
-      rt5616_codec = codec;
+        rt5616_codec = codec;
       
 	snd_soc_add_codec_controls(codec, rt5616_snd_controls,
 			ARRAY_SIZE(rt5616_snd_controls));
@@ -1561,6 +1655,7 @@ struct snd_soc_dai_ops rt5616_aif_dai_ops = {
 	.set_fmt = rt5616_set_dai_fmt,
 	.set_sysclk = rt5616_set_dai_sysclk,
 	.set_pll = rt5616_set_dai_pll,
+	.digital_mute = rt5616_digital_mute,
 };
 
 struct snd_soc_dai_driver rt5616_dai[] = {
@@ -1599,6 +1694,49 @@ static struct snd_soc_codec_driver soc_codec_dev_rt5616 = {
 	.reg_cache_step = 1,
 };
 
+#ifdef CONFIG_OF
+static int rt5616_codec_parse_dt_property(struct device *dev,
+				  struct rt5616_priv *rt5616)
+{
+	struct device_node *node = dev->of_node;
+	enum of_gpio_flags flags;
+	int ret;
+
+	printk("%s()\n", __FUNCTION__);
+
+	if (!node) {
+		printk("%s() dev->of_node is NULL\n", __FUNCTION__);
+		return -ENODEV;
+	}
+
+	rt5616->spk_ctl_gpio = of_get_named_gpio_flags(node, "spk-ctl-gpio", 0, &flags);
+	if(rt5616->spk_ctl_gpio  < 0){
+		printk("%s() parse gpio : spk-ctl-gpio ERROR\n", __FUNCTION__);
+	}
+	else
+	{
+		ret = devm_gpio_request(dev, rt5616->spk_ctl_gpio, NULL);
+		if(ret < 0){
+			printk("%s()request ERROR\n", __FUNCTION__);
+			return ret;
+		}
+		ret = gpio_direction_output(rt5616->spk_ctl_gpio , 0); //set gpio to low level
+		if(ret < 0){
+			printk("%s() %s set ERROR\n", __FUNCTION__);
+			return ret;
+		}
+	}
+
+	return 0;
+}
+#else
+static int rt5616_codec_parse_dt_property(struct device *dev,
+				  struct rt5616_priv *rt5616)
+{
+	return -ENOSYS;
+}
+#endif //#ifdef CONFIG_OF
+
 static const struct i2c_device_id rt5616_i2c_id[] = {
 	{ "rt5616", 0 },
 	{ }
@@ -1617,12 +1755,20 @@ static int rt5616_i2c_probe(struct i2c_client *i2c,
 		return -ENOMEM;
 
 	i2c_set_clientdata(i2c, rt5616);
-
+	
+#ifdef CONFIG_OF
+	ret = rt5616_codec_parse_dt_property(&i2c->dev, rt5616);
+	if (ret < 0) {
+		printk("%s() parse device tree property error %d\n", __FUNCTION__, ret);
+		goto err_r;
+	}
+#endif
 	ret = snd_soc_register_codec(&i2c->dev, &soc_codec_dev_rt5616,
 			rt5616_dai, ARRAY_SIZE(rt5616_dai));
+
+err_r:
 	if (ret < 0)
 		kfree(rt5616);
-
 	return ret;
 }
 
