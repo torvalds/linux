@@ -993,9 +993,7 @@ static void qt_close(struct usb_serial_port *port)
 	struct quatech_port *qt_port;
 	struct quatech_port *port0;
 	struct tty_struct *tty;
-	int status;
 	unsigned int index;
-	status = 0;
 
 	tty = tty_port_tty_get(&port->port);
 	index = port->port_number;
@@ -1015,8 +1013,7 @@ static void qt_close(struct usb_serial_port *port)
 	tty_kref_put(tty);
 
 	/* Close uart channel */
-	status = qt_close_channel(serial, index);
-	if (status < 0)
+	if (qt_close_channel(serial, index) < 0)
 		dev_dbg(&port->dev, "%s - qt_close_channel failed.\n",
 			__func__);
 
