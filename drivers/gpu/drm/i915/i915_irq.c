@@ -2905,6 +2905,9 @@ static void ironlake_irq_preinstall(struct drm_device *dev)
 
 	GEN5_IRQ_RESET(DE);
 
+	if (IS_GEN7(dev))
+		I915_WRITE(GEN7_ERR_INT, 0xffffffff);
+
 	gen5_gt_irq_preinstall(dev);
 
 	ibx_irq_preinstall(dev);
@@ -3063,8 +3066,6 @@ static int ironlake_irq_postinstall(struct drm_device *dev)
 				DE_PLANEA_FLIP_DONE_IVB | DE_AUX_CHANNEL_A_IVB);
 		extra_mask = (DE_PIPEC_VBLANK_IVB | DE_PIPEB_VBLANK_IVB |
 			      DE_PIPEA_VBLANK_IVB | DE_ERR_INT_IVB);
-
-		I915_WRITE(GEN7_ERR_INT, I915_READ(GEN7_ERR_INT));
 	} else {
 		display_mask = (DE_MASTER_IRQ_CONTROL | DE_GSE | DE_PCH_EVENT |
 				DE_PLANEA_FLIP_DONE | DE_PLANEB_FLIP_DONE |
@@ -3343,7 +3344,7 @@ static void ironlake_irq_uninstall(struct drm_device *dev)
 
 	GEN5_IRQ_RESET(DE);
 	if (IS_GEN7(dev))
-		I915_WRITE(GEN7_ERR_INT, I915_READ(GEN7_ERR_INT));
+		I915_WRITE(GEN7_ERR_INT, 0xffffffff);
 
 	GEN5_IRQ_RESET(GT);
 	if (INTEL_INFO(dev)->gen >= 6)
