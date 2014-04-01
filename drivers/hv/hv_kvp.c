@@ -113,7 +113,7 @@ kvp_register(int reg_value)
 		kvp_msg->kvp_hdr.operation = reg_value;
 		strcpy(version, HV_DRV_VERSION);
 		msg->len = sizeof(struct hv_kvp_msg);
-		cn_netlink_send(msg, 0, GFP_ATOMIC);
+		cn_netlink_send(msg, 0, 0, GFP_ATOMIC);
 		kfree(msg);
 	}
 }
@@ -435,7 +435,7 @@ kvp_send_key(struct work_struct *dummy)
 	}
 
 	msg->len = sizeof(struct hv_kvp_msg);
-	cn_netlink_send(msg, 0, GFP_ATOMIC);
+	cn_netlink_send(msg, 0, 0, GFP_ATOMIC);
 	kfree(msg);
 
 	return;

@@ -29,7 +29,6 @@
 #include <linux/of.h>
 #include <linux/of_platform.h>
 #include <linux/extcon.h>
-#include <linux/extcon/of_extcon.h>
 #include <linux/regulator/consumer.h>
 
 #include <linux/usb/otg.h>
@@ -522,7 +521,7 @@ static int dwc3_omap_probe(struct platform_device *pdev)
 	dwc3_omap_enable_irqs(omap);
 
 	if (of_property_read_bool(node, "extcon")) {
-		edev = of_extcon_get_extcon_dev(dev, 0);
+		edev = extcon_get_edev_by_phandle(dev, 0);
 		if (IS_ERR(edev)) {
 			dev_vdbg(dev, "couldn't get extcon device\n");
 			ret = -EPROBE_DEFER;

@@ -410,6 +410,7 @@ Your cooperation is appreciated.
 		194 = /dev/zkshim	Zero-Knowledge network shim control
 		195 = /dev/elographics/e2201	Elographics touchscreen E271-2201
 		196 = /dev/vfio/vfio	VFIO userspace driver interface
+		197 = /dev/pxa3xx-gcu	PXA3xx graphics controller unit driver
 		198 = /dev/sexec	Signed executable interface
 		199 = /dev/scanners/cuecat :CueCat barcode scanner
 		200 = /dev/net/tun	TAP/TUN network device
@@ -451,6 +452,7 @@ Your cooperation is appreciated.
 		236 = /dev/mapper/control	Device-Mapper control device
 		237 = /dev/loop-control Loopback control device
 		238 = /dev/vhost-net	Host kernel accelerator for virtio net
+		239 = /dev/uhid		User-space I/O driver support for HID subsystem
 
 		240-254			Reserved for local use
 		255			Reserved for MISC_DYNAMIC_MINOR

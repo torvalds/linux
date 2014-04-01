@@ -155,6 +155,16 @@ config MCP3422
 	  This driver can also be built as a module. If so, the module will be
 	  called mcp3422.
 
+config MEN_Z188_ADC
+	tristate "MEN 16z188 ADC IP Core support"
+	depends on MCB
+	help
+	  Say yes here to enable support for the MEN 16z188 ADC IP-Core on a MCB
+	  carrier.
+
+	  This driver can also be built as a module. If so, the module will be
+	  called men_z188_adc.
+
 config NAU7802
 	tristate "Nuvoton NAU7802 ADC driver"
 	depends on I2C

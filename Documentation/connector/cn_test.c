@@ -145,7 +145,7 @@ static void cn_test_timer_func(unsigned long __data)
 
 		memcpy(m + 1, data, m->len);
 
-		cn_netlink_send(m, 0, GFP_ATOMIC);
+		cn_netlink_send(m, 0, 0, GFP_ATOMIC);
 		kfree(m);
 	}
 

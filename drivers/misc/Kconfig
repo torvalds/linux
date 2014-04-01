@@ -235,7 +235,7 @@ config SGI_XP
 
 config CS5535_MFGPT
 	tristate "CS5535/CS5536 Geode Multi-Function General Purpose Timer (MFGPT) support"
-	depends on PCI && X86 && MFD_CS5535
+	depends on MFD_CS5535
 	default n
 	help
 	  This driver provides access to MFGPT functionality for other
