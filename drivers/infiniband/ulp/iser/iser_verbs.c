@@ -745,9 +745,8 @@ static int iser_disconnected_handler(struct rdma_cm_id *cma_id)
 	 * terminated asynchronously from the iSCSI layer's perspective.  */
 	if (iser_conn_state_comp_exch(ib_conn, ISER_CONN_UP,
 					ISER_CONN_TERMINATING)){
-		if (ib_conn->iser_conn)
-			iscsi_conn_failure(ib_conn->iser_conn->iscsi_conn,
-					   ISCSI_ERR_CONN_FAILED);
+		if (ib_conn->iscsi_conn)
+			iscsi_conn_failure(ib_conn->iscsi_conn, ISCSI_ERR_CONN_FAILED);
 		else
 			iser_err("iscsi_iser connection isn't bound\n");
 	}
@@ -951,7 +950,7 @@ void iser_unreg_mem_fastreg(struct iscsi_iser_task *iser_task,
 			    enum iser_data_dir cmd_dir)
 {
 	struct iser_mem_reg *reg = &iser_task->rdma_regd[cmd_dir].reg;
-	struct iser_conn *ib_conn = iser_task->iser_conn->ib_conn;
+	struct iser_conn *ib_conn = iser_task->ib_conn;
 	struct fast_reg_descriptor *desc = reg->mem_h;
 
 	if (!reg->is_mr)
@@ -1061,7 +1060,7 @@ static void iser_handle_comp_error(struct iser_tx_desc *desc,
 		 * perspective.                                             */
 		if (iser_conn_state_comp_exch(ib_conn, ISER_CONN_UP,
 		    ISER_CONN_TERMINATING))
-			iscsi_conn_failure(ib_conn->iser_conn->iscsi_conn,
+			iscsi_conn_failure(ib_conn->iscsi_conn,
 					   ISCSI_ERR_CONN_FAILED);
 
 		/* no more non completed posts to the QP, complete the

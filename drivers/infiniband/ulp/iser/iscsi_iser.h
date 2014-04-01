@@ -214,7 +214,6 @@ struct iser_data_buf {
 /* fwd declarations */
 struct iser_device;
 struct iser_cq_desc;
-struct iscsi_iser_conn;
 struct iscsi_iser_task;
 struct iscsi_endpoint;
 
@@ -319,7 +318,7 @@ struct fast_reg_descriptor {
 };
 
 struct iser_conn {
-	struct iscsi_iser_conn       *iser_conn; /* iser conn for upcalls  */
+	struct iscsi_conn	     *iscsi_conn;
 	struct iscsi_endpoint	     *ep;
 	enum iser_ib_conn_state	     state;	    /* rdma connection state   */
 	atomic_t		     refcount;
@@ -358,14 +357,9 @@ struct iser_conn {
 	};
 };
 
-struct iscsi_iser_conn {
-	struct iscsi_conn            *iscsi_conn;/* ptr to iscsi conn */
-	struct iser_conn             *ib_conn;   /* iSER IB conn      */
-};
-
 struct iscsi_iser_task {
 	struct iser_tx_desc          desc;
-	struct iscsi_iser_conn	     *iser_conn;
+	struct iser_conn	     *ib_conn;
 	enum iser_task_status 	     status;
 	struct scsi_cmnd	     *sc;
 	int                          command_sent;  /* set if command  sent  */
