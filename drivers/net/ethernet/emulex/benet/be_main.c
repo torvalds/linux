@@ -2862,8 +2862,11 @@ static int be_open(struct net_device *netdev)
 	netif_tx_start_all_queues(netdev);
 	be_roce_dev_open(adapter);
 
+#ifdef CONFIG_BE2NET_VXLAN
 	if (skyhawk_chip(adapter))
 		vxlan_get_rx_port(netdev);
+#endif
+
 	return 0;
 err:
 	be_close(adapter->netdev);
@@ -3019,6 +3022,7 @@ static void be_mac_clear(struct be_adapter *adapter)
 	}
 }
 
+#ifdef CONFIG_BE2NET_VXLAN
 static void be_disable_vxlan_offloads(struct be_adapter *adapter)
 {
 	if (adapter->flags & BE_FLAGS_VXLAN_OFFLOADS)
@@ -3031,6 +3035,7 @@ static void be_disable_vxlan_offloads(struct be_adapter *adapter)
 	adapter->flags &= ~BE_FLAGS_VXLAN_OFFLOADS;
 	adapter->vxlan_port = 0;
 }
+#endif
 
 static int be_clear(struct be_adapter *adapter)
 {
@@ -3039,8 +3044,9 @@ static int be_clear(struct be_adapter *adapter)
 	if (sriov_enabled(adapter))
 		be_vf_clear(adapter);
 
+#ifdef CONFIG_BE2NET_VXLAN
 	be_disable_vxlan_offloads(adapter);
-
+#endif
 	/* delete the primary mac along with the uc-mac list */
 	be_mac_clear(adapter);
 
@@ -4165,6 +4171,7 @@ static int be_ndo_bridge_getlink(struct sk_buff *skb, u32 pid, u32 seq,
 				       BRIDGE_MODE_VEPA : BRIDGE_MODE_VEB);
 }
 
+#ifdef CONFIG_BE2NET_VXLAN
 static void be_add_vxlan_port(struct net_device *netdev, sa_family_t sa_family,
 			      __be16 port)
 {
@@ -4223,6 +4230,7 @@ static void be_del_vxlan_port(struct net_device *netdev, sa_family_t sa_family,
 		 "Disabled VxLAN offloads for UDP port %d\n",
 		 be16_to_cpu(port));
 }
+#endif
 
 static const struct net_device_ops be_netdev_ops = {
 	.ndo_open		= be_open,
@@ -4248,8 +4256,10 @@ static const struct net_device_ops be_netdev_ops = {
 #ifdef CONFIG_NET_RX_BUSY_POLL
 	.ndo_busy_poll		= be_busy_poll,
 #endif
+#ifdef CONFIG_BE2NET_VXLAN
 	.ndo_add_vxlan_port	= be_add_vxlan_port,
 	.ndo_del_vxlan_port	= be_del_vxlan_port,
+#endif
 };
 
 static void be_netdev_init(struct net_device *netdev)
