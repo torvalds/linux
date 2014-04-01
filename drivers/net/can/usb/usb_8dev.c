@@ -697,8 +697,8 @@ static netdev_tx_t usb_8dev_start_xmit(struct sk_buff *skb,
 	return NETDEV_TX_OK;
 
 nofreecontext:
-	usb_unanchor_urb(urb);
 	usb_free_coherent(priv->udev, size, buf, urb->transfer_dma);
+	usb_free_urb(urb);
 
 	netdev_warn(netdev, "couldn't find free context");
 
