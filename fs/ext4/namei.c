@@ -3084,6 +3084,10 @@ static int ext4_rename(struct inode *old_dir, struct dentry *old_dentry,
 			retval = -ENOTEMPTY;
 			if (!empty_dir(new.inode))
 				goto end_rename;
+		} else {
+			retval = -EMLINK;
+			if (new.dir != old.dir && EXT4_DIR_LINK_MAX(new.dir))
+				goto end_rename;
 		}
 		retval = -EIO;
 		old.dir_bh = ext4_get_first_dir_block(handle, old.inode,
@@ -3092,10 +3096,6 @@ static int ext4_rename(struct inode *old_dir, struct dentry *old_dentry,
 		if (!old.dir_bh)
 			goto end_rename;
 		if (le32_to_cpu(old.parent_de->inode) != old.dir->i_ino)
-			goto end_rename;
-		retval = -EMLINK;
-		if (!new.inode && new.dir != old.dir &&
-		    EXT4_DIR_LINK_MAX(new.dir))
 			goto end_rename;
 		BUFFER_TRACE(old.dir_bh, "get_write_access");
 		retval = ext4_journal_get_write_access(handle, old.dir_bh);
