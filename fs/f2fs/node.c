@@ -958,7 +958,7 @@ repeat:
 		goto got_it;
 
 	lock_page(page);
-	if (unlikely(!PageUptodate(page))) {
+	if (unlikely(!PageUptodate(page) || nid != nid_of_node(page))) {
 		f2fs_put_page(page, 1);
 		return ERR_PTR(-EIO);
 	}
@@ -967,7 +967,6 @@ repeat:
 		goto repeat;
 	}
 got_it:
-	f2fs_bug_on(nid != nid_of_node(page));
 	mark_page_accessed(page);
 	return page;
 }
