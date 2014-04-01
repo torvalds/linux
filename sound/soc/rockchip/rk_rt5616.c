@@ -100,14 +100,14 @@ static const struct snd_soc_dapm_widget rt5616_dapm_widgets[] = {
 static const struct snd_soc_dapm_route audio_map[]={
 
 	/* Mic Jack --> MIC_IN*/
-	{"Mic Bias1", NULL, "Mic Jack"},
-	{"MIC1", NULL, "Mic Bias1"},
+	{"MIC1", NULL, "Mic Jack"},
+	//{"MIC1", NULL, "Mic Bias1"},
 	/* HP_OUT --> Headphone Jack */
 	{"Headphone Jack", NULL, "HPOL"},
 	{"Headphone Jack", NULL, "HPOR"},
 	/* LINE_OUT --> Ext Speaker */
-	{"Ext Spk", NULL, "SPOL"},
-	{"Ext Spk", NULL, "SPOR"},
+	{"Ext Spk", NULL, "LOUTL"},
+	{"Ext Spk", NULL, "LOUTR"},
 
 } ;
 
@@ -128,9 +128,11 @@ static int rk29_rt5616_init(struct snd_soc_pcm_runtime *rtd)
         /* Set up specific audio path audio_mapnects */
         snd_soc_dapm_add_routes(dapm, audio_map, ARRAY_SIZE(audio_map));
         DBG("Enter::%s----%d\n",__FUNCTION__,__LINE__);
-        snd_soc_dapm_nc_pin(dapm, "HP_L");
+        snd_soc_dapm_enable_pin(dapm, "Headphone Jack");
         DBG("Enter::%s----%d\n",__FUNCTION__,__LINE__);
-	snd_soc_dapm_nc_pin(dapm, "HP_R");
+        snd_soc_dapm_enable_pin(dapm, "Ext Spk");
+        DBG("Enter::%s----%d\n",__FUNCTION__,__LINE__)
+	snd_soc_dapm_enable_pin(dapm, "MIC1");
 	DBG("Enter::%s----%d\n",__FUNCTION__,__LINE__);
         snd_soc_dapm_sync(dapm);
         DBG("Enter::%s----%d\n",__FUNCTION__,__LINE__);
