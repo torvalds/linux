@@ -340,8 +340,8 @@ iser_create_fastreg_desc(struct ib_device *ib_device, struct ib_pd *pd,
 	}
 	desc->reg_indicators &= ~ISER_FASTREG_PROTECTED;
 
-	iser_info("Create fr_desc %p page_list %p\n",
-		  desc, desc->data_frpl->page_list);
+	iser_dbg("Create fr_desc %p page_list %p\n",
+		 desc, desc->data_frpl->page_list);
 
 	return 0;
 sig_mr_failure:
@@ -728,6 +728,11 @@ failure:
 static void iser_connected_handler(struct rdma_cm_id *cma_id)
 {
 	struct iser_conn *ib_conn;
+	struct ib_qp_attr attr;
+	struct ib_qp_init_attr init_attr;
+
+	(void)ib_query_qp(cma_id->qp, &attr, ~0, &init_attr);
+	iser_info("remote qpn:%x my qpn:%x\n", attr.dest_qp_num, cma_id->qp->qp_num);
 
 	ib_conn = (struct iser_conn *)cma_id->context;
 	ib_conn->state = ISER_CONN_UP;
