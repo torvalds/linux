@@ -2334,14 +2334,15 @@ static int i915_display_info(struct seq_file *m, void *unused)
 		seq_printf(m, "CRTC %d: pipe: %c, active: %s\n",
 			   crtc->base.base.id, pipe_name(crtc->pipe),
 			   yesno(crtc->active));
-		if (crtc->active)
+		if (crtc->active) {
 			intel_crtc_info(m, crtc);
 
-		active = cursor_position(dev, crtc->pipe, &x, &y);
-		seq_printf(m, "\tcursor visible? %s, position (%d, %d), addr 0x%08x, active? %s\n",
-			   yesno(crtc->cursor_visible),
-			   x, y, crtc->cursor_addr,
-			   yesno(active));
+			active = cursor_position(dev, crtc->pipe, &x, &y);
+			seq_printf(m, "\tcursor visible? %s, position (%d, %d), addr 0x%08x, active? %s\n",
+				   yesno(crtc->cursor_visible),
+				   x, y, crtc->cursor_addr,
+				   yesno(active));
+		}
 	}
 
 	seq_printf(m, "\n");
