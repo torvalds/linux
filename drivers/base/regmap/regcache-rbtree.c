@@ -23,16 +23,16 @@ static int regcache_rbtree_write(struct regmap *map, unsigned int reg,
 static int regcache_rbtree_exit(struct regmap *map);
 
 struct regcache_rbtree_node {
-	/* the actual rbtree node holding this block */
-	struct rb_node node;
-	/* base register handled by this block */
-	unsigned int base_reg;
 	/* block of adjacent registers */
 	void *block;
 	/* Which registers are present */
 	long *cache_present;
+	/* base register handled by this block */
+	unsigned int base_reg;
 	/* number of registers available in the block */
 	unsigned int blklen;
+	/* the actual rbtree node holding this block */
+	struct rb_node node;
 } __attribute__ ((packed));
 
 struct regcache_rbtree_ctx {
