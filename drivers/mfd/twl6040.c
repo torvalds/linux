@@ -679,6 +679,9 @@ static int twl6040_probe(struct i2c_client *client,
 					    GPIOF_OUT_INIT_LOW, "audpwron");
 		if (ret)
 			goto gpio_err;
+
+		/* Clear any pending interrupt */
+		twl6040_reg_read(twl6040, TWL6040_REG_INTID);
 	}
 
 	ret = regmap_add_irq_chip(twl6040->regmap, twl6040->irq, IRQF_ONESHOT,
