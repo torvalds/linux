@@ -523,7 +523,7 @@ static int bq24296_battery_probe(struct i2c_client *client,const struct i2c_devi
 	u8 retval = 0;
 	struct bq24296_board *pdev;
 	struct device_node *bq24296_node;
-	int ret=0,irq=0;
+	int ret=0;
 	
 	 DBG("%s,line=%d\n", __func__,__LINE__);
 	 
@@ -578,8 +578,8 @@ static int bq24296_battery_probe(struct i2c_client *client,const struct i2c_devi
 
 
 	if (gpio_is_valid(pdev->chg_irq_pin)){
-		irq = gpio_to_irq(pdev->chg_irq_pin);
-		ret = request_threaded_irq(irq, NULL,chg_irq_func, IRQF_TRIGGER_FALLING| IRQF_ONESHOT, "bq24296_chg_irq", di);
+		pdev->chg_irq = gpio_to_irq(pdev->chg_irq_pin);
+		ret = request_threaded_irq(pdev->chg_irq, NULL, chg_irq_func, IRQF_TRIGGER_FALLING| IRQF_ONESHOT, "bq24296_chg_irq", di);
 		if (ret) {
 			ret = -EINVAL;
 			printk("failed to request bq24296_chg_irq\n");
@@ -600,12 +600,12 @@ batt_failed_2:
 
 static void bq24296_battery_shutdown(struct i2c_client *client)
 {
+	struct bq24296_device_info *di = i2c_get_clientdata(client);
 
-	if (gpio_is_valid(bq24296_pdata->chg_irq_pin)){
-	free_irq(gpio_to_irq(bq24296_pdata->chg_irq_pin), NULL);
-	}
-	
+	if (bq24296_pdata->chg_irq)
+		free_irq(bq24296_pdata->chg_irq, di);
 }
+
 static int bq24296_battery_remove(struct i2c_client *client)
 {
 	struct bq24296_device_info *di = i2c_get_clientdata(client);

@@ -153,6 +153,7 @@ struct bq24296_platform_data {
 struct bq24296_board {
 	unsigned int otg_usb_pin;
 	unsigned int chg_irq_pin;
+	unsigned int chg_irq;
 	unsigned int dc_det_pin;
 	unsigned int psel_pin;
 	struct device_node *of_node;
