@@ -22,6 +22,7 @@
 #include <sound/pcm_params.h>
 
 #include "fsl_sai.h"
+#include "imx-pcm.h"
 
 #define FSL_SAI_FLAGS (FSL_SAI_CSR_SEIE |\
 		       FSL_SAI_CSR_FEIE)
@@ -592,6 +593,9 @@ static int fsl_sai_probe(struct platform_device *pdev)
 
 	sai->pdev = pdev;
 
+	if (of_device_is_compatible(pdev->dev.of_node, "fsl,imx6sx-sai"))
+		sai->sai_on_imx = true;
+
 	sai->big_endian_regs = of_property_read_bool(np, "big-endian-regs");
 	if (sai->big_endian_regs)
 		fsl_sai_regmap_config.val_format_endian = REGMAP_ENDIAN_BIG;
@@ -634,12 +638,16 @@ static int fsl_sai_probe(struct platform_device *pdev)
 	if (ret)
 		return ret;
 
-	return devm_snd_dmaengine_pcm_register(&pdev->dev, NULL,
-			SND_DMAENGINE_PCM_FLAG_NO_RESIDUE);
+	if (sai->sai_on_imx)
+		return imx_pcm_dma_init(pdev);
+	else
+		return devm_snd_dmaengine_pcm_register(&pdev->dev, NULL,
+				SND_DMAENGINE_PCM_FLAG_NO_RESIDUE);
 }
 
 static const struct of_device_id fsl_sai_ids[] = {
 	{ .compatible = "fsl,vf610-sai", },
+	{ .compatible = "fsl,imx6sx-sai", },
 	{ /* sentinel */ }
 };
 

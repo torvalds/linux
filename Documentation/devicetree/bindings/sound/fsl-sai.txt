@@ -7,7 +7,7 @@ codec/DSP interfaces.
 
 
 Required properties:
-- compatible: Compatible list, contains "fsl,vf610-sai".
+- compatible: Compatible list, contains "fsl,vf610-sai" or "fsl,imx6sx-sai".
 - reg: Offset and length of the register set for the device.
 - clocks: Must contain an entry for each entry in clock-names.
 - clock-names : Must include the "sai" entry.
