@@ -223,51 +223,6 @@ static void hidp_input_report(struct hidp_session *session, struct sk_buff *skb)
 	input_sync(dev);
 }
 
-static int hidp_send_report(struct hidp_session *session, struct hid_report *report)
-{
-	unsigned char hdr;
-	u8 *buf;
-	int rsize, ret;
-
-	buf = hid_alloc_report_buf(report, GFP_ATOMIC);
-	if (!buf)
-		return -EIO;
-
-	hid_output_report(report, buf);
-	hdr = HIDP_TRANS_DATA | HIDP_DATA_RTYPE_OUPUT;
-
-	rsize = ((report->size - 1) >> 3) + 1 + (report->id > 0);
-	ret = hidp_send_intr_message(session, hdr, buf, rsize);
-
-	kfree(buf);
-	return ret;
-}
-
-static int hidp_hidinput_event(struct input_dev *dev, unsigned int type,
-			       unsigned int code, int value)
-{
-	struct hid_device *hid = input_get_drvdata(dev);
-	struct hidp_session *session = hid->driver_data;
-	struct hid_field *field;
-	int offset;
-
-	BT_DBG("session %p type %d code %d value %d",
-	       session, type, code, value);
-
-	if (type != EV_LED)
-		return -1;
-
-	offset = hidinput_find_field(hid, type, code, &field);
-	if (offset == -1) {
-		hid_warn(dev, "event field not found\n");
-		return -1;
-	}
-
-	hid_set_field(field, offset, value);
-
-	return hidp_send_report(session, field->report);
-}
-
 static int hidp_get_raw_report(struct hid_device *hid,
 		unsigned char report_number,
 		unsigned char *data, size_t count,
@@ -418,62 +373,13 @@ err:
 	return ret;
 }
 
-static int hidp_output_raw_report(struct hid_device *hid, unsigned char *data, size_t count,
-		unsigned char report_type)
+static int hidp_output_report(struct hid_device *hid, __u8 *data, size_t count)
 {
 	struct hidp_session *session = hid->driver_data;
-	int ret;
 
-	if (report_type == HID_OUTPUT_REPORT) {
-		report_type = HIDP_TRANS_DATA | HIDP_DATA_RTYPE_OUPUT;
-		return hidp_send_intr_message(session, report_type,
-					      data, count);
-	} else if (report_type != HID_FEATURE_REPORT) {
-		return -EINVAL;
-	}
-
-	if (mutex_lock_interruptible(&session->report_mutex))
-		return -ERESTARTSYS;
-
-	/* Set up our wait, and send the report request to the device. */
-	set_bit(HIDP_WAITING_FOR_SEND_ACK, &session->flags);
-	report_type = HIDP_TRANS_SET_REPORT | HIDP_DATA_RTYPE_FEATURE;
-	ret = hidp_send_ctrl_message(session, report_type, data, count);
-	if (ret)
-		goto err;
-
-	/* Wait for the ACK from the device. */
-	while (test_bit(HIDP_WAITING_FOR_SEND_ACK, &session->flags) &&
-	       !atomic_read(&session->terminate)) {
-		int res;
-
-		res = wait_event_interruptible_timeout(session->report_queue,
-			!test_bit(HIDP_WAITING_FOR_SEND_ACK, &session->flags)
-				|| atomic_read(&session->terminate),
-			10*HZ);
-		if (res == 0) {
-			/* timeout */
-			ret = -EIO;
-			goto err;
-		}
-		if (res < 0) {
-			/* signal */
-			ret = -ERESTARTSYS;
-			goto err;
-		}
-	}
-
-	if (!session->output_report_success) {
-		ret = -EIO;
-		goto err;
-	}
-
-	ret = count;
-
-err:
-	clear_bit(HIDP_WAITING_FOR_SEND_ACK, &session->flags);
-	mutex_unlock(&session->report_mutex);
-	return ret;
+	return hidp_send_intr_message(session,
+				      HIDP_TRANS_DATA | HIDP_DATA_RTYPE_OUPUT,
+				      data, count);
 }
 
 static int hidp_raw_request(struct hid_device *hid, unsigned char reportnum,
@@ -488,15 +394,6 @@ static int hidp_raw_request(struct hid_device *hid, unsigned char reportnum,
 	default:
 		return -EIO;
 	}
-}
-
-static int hidp_output_report(struct hid_device *hid, __u8 *data, size_t count)
-{
-	struct hidp_session *session = hid->driver_data;
-
-	return hidp_send_intr_message(session,
-				      HIDP_TRANS_DATA | HIDP_DATA_RTYPE_OUPUT,
-				      data, count);
 }
 
 static void hidp_idle_timeout(unsigned long arg)
@@ -829,7 +726,6 @@ static struct hid_ll_driver hidp_hid_driver = {
 	.close = hidp_close,
 	.raw_request = hidp_raw_request,
 	.output_report = hidp_output_report,
-	.hidinput_input_event = hidp_hidinput_event,
 };
 
 /* This function sets up the hid device. It does not add it
@@ -871,14 +767,14 @@ static int hidp_setup_hid(struct hidp_session *session,
 	snprintf(hid->phys, sizeof(hid->phys), "%pMR",
 		 &l2cap_pi(session->ctrl_sock->sk)->chan->src);
 
+	/* NOTE: Some device modules depend on the dst address being stored in
+	 * uniq. Please be aware of this before making changes to this behavior.
+	 */
 	snprintf(hid->uniq, sizeof(hid->uniq), "%pMR",
 		 &l2cap_pi(session->ctrl_sock->sk)->chan->dst);
 
 	hid->dev.parent = &session->conn->hcon->dev;
 	hid->ll_driver = &hidp_hid_driver;
-
-	hid->hid_get_raw_report = hidp_get_raw_report;
-	hid->hid_output_raw_report = hidp_output_raw_report;
 
 	/* True if device is blacklisted in drivers/hid/hid-core.c */
 	if (hid_ignore(hid)) {
