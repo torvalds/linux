@@ -314,7 +314,8 @@ static bool edp_have_panel_vdd(struct intel_dp *intel_dp)
 	struct drm_device *dev = intel_dp_to_dev(intel_dp);
 	struct drm_i915_private *dev_priv = dev->dev_private;
 
-	return (I915_READ(_pp_ctrl_reg(intel_dp)) & EDP_FORCE_VDD) != 0;
+	return !dev_priv->pm.suspended &&
+	       (I915_READ(_pp_ctrl_reg(intel_dp)) & EDP_FORCE_VDD) != 0;
 }
 
 static void
