@@ -368,8 +368,6 @@ int regmap_add_irq_chip(struct regmap *map, int irq, int irq_flags,
 	if (!d)
 		return -ENOMEM;
 
-	*data = d;
-
 	d->status_buf = kzalloc(sizeof(unsigned int) * chip->num_regs,
 				GFP_KERNEL);
 	if (!d->status_buf)
@@ -506,6 +504,8 @@ int regmap_add_irq_chip(struct regmap *map, int irq, int irq_flags,
 		goto err_domain;
 	}
 
+	*data = d;
+
 	return 0;
 
 err_domain:
@@ -533,7 +533,7 @@ void regmap_del_irq_chip(int irq, struct regmap_irq_chip_data *d)
 		return;
 
 	free_irq(irq, d);
-	/* We should unmap the domain but... */
+	irq_domain_remove(d->domain);
 	kfree(d->wake_buf);
 	kfree(d->mask_buf_def);
 	kfree(d->mask_buf);
