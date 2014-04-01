@@ -697,8 +697,8 @@
                 pinctrl-names = "default", "gpio";
                 pinctrl-0 = <&i2c5_sda &i2c5_scl>;
                 pinctrl-1 = <&i2c5_gpio>;
-                clocks = <&clk_gates16 9>;
-                clock-names = "pclk_hdmi";
+                clocks = <&clk_gates16 9>, <&clk_gates5 12>;
+                clock-names = "pclk_hdmi", "hdcp_clk_hdmi";
                 status = "disabled";
         };
 
