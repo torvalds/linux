@@ -80,10 +80,25 @@ static const u32 hpd_status_i915[] = { /* i915 and valleyview are the same */
 	[HPD_PORT_D] = PORTD_HOTPLUG_INT_STATUS
 };
 
+/* IIR can theoretically queue up two events. Be paranoid. */
+#define GEN8_IRQ_INIT_NDX(type, which) do { \
+	I915_WRITE(GEN8_##type##_IMR(which), 0xffffffff); \
+	POSTING_READ(GEN8_##type##_IMR(which)); \
+	I915_WRITE(GEN8_##type##_IER(which), 0); \
+	I915_WRITE(GEN8_##type##_IIR(which), 0xffffffff); \
+	POSTING_READ(GEN8_##type##_IIR(which)); \
+	I915_WRITE(GEN8_##type##_IIR(which), 0xffffffff); \
+	POSTING_READ(GEN8_##type##_IIR(which)); \
+} while (0)
+
 #define GEN5_IRQ_INIT(type) do { \
 	I915_WRITE(type##IMR, 0xffffffff); \
+	POSTING_READ(type##IMR); \
 	I915_WRITE(type##IER, 0); \
-	POSTING_READ(type##IER); \
+	I915_WRITE(type##IIR, 0xffffffff); \
+	POSTING_READ(type##IIR); \
+	I915_WRITE(type##IIR, 0xffffffff); \
+	POSTING_READ(type##IIR); \
 } while (0)
 
 /* For display hotplug interrupt */
@@ -2899,25 +2914,6 @@ static void gen8_irq_preinstall(struct drm_device *dev)
 	I915_WRITE(GEN8_MASTER_IRQ, 0);
 	POSTING_READ(GEN8_MASTER_IRQ);
 
-	/* IIR can theoretically queue up two events. Be paranoid */
-#define GEN8_IRQ_INIT_NDX(type, which) do { \
-		I915_WRITE(GEN8_##type##_IMR(which), 0xffffffff); \
-		POSTING_READ(GEN8_##type##_IMR(which)); \
-		I915_WRITE(GEN8_##type##_IER(which), 0); \
-		I915_WRITE(GEN8_##type##_IIR(which), 0xffffffff); \
-		POSTING_READ(GEN8_##type##_IIR(which)); \
-		I915_WRITE(GEN8_##type##_IIR(which), 0xffffffff); \
-	} while (0)
-
-#define GEN8_IRQ_INIT(type) do { \
-		I915_WRITE(GEN8_##type##_IMR, 0xffffffff); \
-		POSTING_READ(GEN8_##type##_IMR); \
-		I915_WRITE(GEN8_##type##_IER, 0); \
-		I915_WRITE(GEN8_##type##_IIR, 0xffffffff); \
-		POSTING_READ(GEN8_##type##_IIR); \
-		I915_WRITE(GEN8_##type##_IIR, 0xffffffff); \
-	} while (0)
-
 	GEN8_IRQ_INIT_NDX(GT, 0);
 	GEN8_IRQ_INIT_NDX(GT, 1);
 	GEN8_IRQ_INIT_NDX(GT, 2);
@@ -2927,13 +2923,9 @@ static void gen8_irq_preinstall(struct drm_device *dev)
 		GEN8_IRQ_INIT_NDX(DE_PIPE, pipe);
 	}
 
-	GEN8_IRQ_INIT(DE_PORT);
-	GEN8_IRQ_INIT(DE_MISC);
-	GEN8_IRQ_INIT(PCU);
-#undef GEN8_IRQ_INIT
-#undef GEN8_IRQ_INIT_NDX
-
-	POSTING_READ(GEN8_PCU_IIR);
+	GEN5_IRQ_INIT(GEN8_DE_PORT_);
+	GEN5_IRQ_INIT(GEN8_DE_MISC_);
+	GEN5_IRQ_INIT(GEN8_PCU_);
 
 	ibx_irq_preinstall(dev);
 }
