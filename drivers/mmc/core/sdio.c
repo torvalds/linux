@@ -1022,7 +1022,12 @@ static int mmc_sdio_resume(struct mmc_host *host)
 	}
 
 	/* No need to reinitialize powered-resumed nonremovable cards */
-	if (mmc_card_is_removable(host) || !mmc_card_keep_power(host)) {
+    // tmp modify for wifi abnormal after suspend (gwl)
+    // mmc2: error -110 during resume (card was removed?)
+    // dpm_run_callback(): mmc_bus_resume+0x0/0x78 returns -110
+    // PM: Device mmc2:0001 failed to resume: error -110
+	if (!(host->restrict_caps & RESTRICT_CARD_TYPE_SDIO) &&
+           (mmc_card_is_removable(host) || !mmc_card_keep_power(host))) {
 		sdio_reset(host);
 		mmc_go_idle(host);
 		err = mmc_sdio_init_card(host, host->card->ocr, host->card,
