@@ -874,12 +874,19 @@ static inline bool drm_encoder_crtc_ok(struct drm_encoder *encoder,
 	return !!(encoder->possible_crtcs & drm_crtc_mask(crtc));
 }
 
+extern int drm_universal_plane_init(struct drm_device *dev,
+				    struct drm_plane *plane,
+				    unsigned long possible_crtcs,
+				    const struct drm_plane_funcs *funcs,
+				    const uint32_t *formats,
+				    uint32_t format_count,
+				    enum drm_plane_type type);
 extern int drm_plane_init(struct drm_device *dev,
 			  struct drm_plane *plane,
 			  unsigned long possible_crtcs,
 			  const struct drm_plane_funcs *funcs,
 			  const uint32_t *formats, uint32_t format_count,
-			  bool priv);
+			  bool is_primary);
 extern void drm_plane_cleanup(struct drm_plane *plane);
 extern void drm_plane_force_disable(struct drm_plane *plane);
 extern int drm_crtc_check_viewport(const struct drm_crtc *crtc,
