@@ -56,27 +56,6 @@ static struct usb_device_id usb_prism_tbl[] = {
 };
 MODULE_DEVICE_TABLE(usb, usb_prism_tbl);
 
-/*----------------------------------------------------------------
-* prism2sta_probe_usb
-*
-* Probe routine called by the USB subsystem.
-*
-* Arguments:
-*	dev		ptr to the usb_device struct
-*	ifnum		interface number being offered
-*
-* Returns:
-*	NULL		- we're not claiming the device+interface
-*	non-NULL	- we are claiming the device+interface and
-*			  this is a ptr to the data we want back
-*			  when disconnect is called.
-*
-* Side effects:
-*
-* Call context:
-*	I'm not sure, assume it's interrupt.
-*
-----------------------------------------------------------------*/
 static int prism2sta_probe_usb(struct usb_interface *interface,
 			       const struct usb_device_id *id)
 {
@@ -152,25 +131,6 @@ done:
 	return result;
 }
 
-/*----------------------------------------------------------------
-* prism2sta_disconnect_usb
-*
-* Called when a device previously claimed by probe is removed
-* from the USB.
-*
-* Arguments:
-*	dev		ptr to the usb_device struct
-*	ptr		ptr returned by probe() when the device
-*                       was claimed.
-*
-* Returns:
-*	Nothing
-*
-* Side effects:
-*
-* Call context:
-*	process
-----------------------------------------------------------------*/
 static void prism2sta_disconnect_usb(struct usb_interface *interface)
 {
 	wlandevice_t *wlandev;
