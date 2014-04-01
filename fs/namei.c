@@ -4031,6 +4031,8 @@ int vfs_rename(struct inode *old_dir, struct dentry *old_dentry,
 	const unsigned char *old_name;
 	struct inode *source = old_dentry->d_inode;
 	struct inode *target = new_dentry->d_inode;
+	bool new_is_dir = false;
+	unsigned max_links = new_dir->i_sb->s_max_links;
 
 	if (source == target)
 		return 0;
@@ -4039,10 +4041,16 @@ int vfs_rename(struct inode *old_dir, struct dentry *old_dentry,
 	if (error)
 		return error;
 
-	if (!target)
+	if (!target) {
 		error = may_create(new_dir, new_dentry);
-	else
-		error = may_delete(new_dir, new_dentry, is_dir);
+	} else {
+		new_is_dir = d_is_dir(new_dentry);
+
+		if (!(flags & RENAME_EXCHANGE))
+			error = may_delete(new_dir, new_dentry, is_dir);
+		else
+			error = may_delete(new_dir, new_dentry, new_is_dir);
+	}
 	if (error)
 		return error;
 
@@ -4056,10 +4064,17 @@ int vfs_rename(struct inode *old_dir, struct dentry *old_dentry,
 	 * If we are going to change the parent - check write permissions,
 	 * we'll need to flip '..'.
 	 */
-	if (is_dir && new_dir != old_dir) {
-		error = inode_permission(source, MAY_WRITE);
-		if (error)
-			return error;
+	if (new_dir != old_dir) {
+		if (is_dir) {
+			error = inode_permission(source, MAY_WRITE);
+			if (error)
+				return error;
+		}
+		if ((flags & RENAME_EXCHANGE) && new_is_dir) {
+			error = inode_permission(target, MAY_WRITE);
+			if (error)
+				return error;
+		}
 	}
 
 	error = security_inode_rename(old_dir, old_dentry, new_dir, new_dentry,
@@ -4069,7 +4084,7 @@ int vfs_rename(struct inode *old_dir, struct dentry *old_dentry,
 
 	old_name = fsnotify_oldname_init(old_dentry->d_name.name);
 	dget(new_dentry);
-	if (!is_dir)
+	if (!is_dir || (flags & RENAME_EXCHANGE))
 		lock_two_nondirectories(source, target);
 	else if (target)
 		mutex_lock(&target->i_mutex);
@@ -4078,25 +4093,25 @@ int vfs_rename(struct inode *old_dir, struct dentry *old_dentry,
 	if (d_mountpoint(old_dentry) || d_mountpoint(new_dentry))
 		goto out;
 
-	if (is_dir) {
-		unsigned max_links = new_dir->i_sb->s_max_links;
-
+	if (max_links && new_dir != old_dir) {
 		error = -EMLINK;
-		if (max_links && !target && new_dir != old_dir &&
-		    new_dir->i_nlink >= max_links)
+		if (is_dir && !new_is_dir && new_dir->i_nlink >= max_links)
 			goto out;
-
-		if (target)
-			shrink_dcache_parent(new_dentry);
-	} else {
+		if ((flags & RENAME_EXCHANGE) && !is_dir && new_is_dir &&
+		    old_dir->i_nlink >= max_links)
+			goto out;
+	}
+	if (is_dir && !(flags & RENAME_EXCHANGE) && target)
+		shrink_dcache_parent(new_dentry);
+	if (!is_dir) {
 		error = try_break_deleg(source, delegated_inode);
 		if (error)
 			goto out;
-		if (target) {
-			error = try_break_deleg(target, delegated_inode);
-			if (error)
-				goto out;
-		}
+	}
+	if (target && !new_is_dir) {
+		error = try_break_deleg(target, delegated_inode);
+		if (error)
+			goto out;
 	}
 	if (!flags) {
 		error = old_dir->i_op->rename(old_dir, old_dentry,
@@ -4108,22 +4123,31 @@ int vfs_rename(struct inode *old_dir, struct dentry *old_dentry,
 	if (error)
 		goto out;
 
-	if (target) {
+	if (!(flags & RENAME_EXCHANGE) && target) {
 		if (is_dir)
 			target->i_flags |= S_DEAD;
 		dont_mount(new_dentry);
 	}
-	if (!(old_dir->i_sb->s_type->fs_flags & FS_RENAME_DOES_D_MOVE))
-		d_move(old_dentry, new_dentry);
+	if (!(old_dir->i_sb->s_type->fs_flags & FS_RENAME_DOES_D_MOVE)) {
+		if (!(flags & RENAME_EXCHANGE))
+			d_move(old_dentry, new_dentry);
+		else
+			d_exchange(old_dentry, new_dentry);
+	}
 out:
-	if (!is_dir)
+	if (!is_dir || (flags & RENAME_EXCHANGE))
 		unlock_two_nondirectories(source, target);
 	else if (target)
 		mutex_unlock(&target->i_mutex);
 	dput(new_dentry);
-	if (!error)
+	if (!error) {
 		fsnotify_move(old_dir, new_dir, old_name, is_dir,
-			      target, old_dentry);
+			      !(flags & RENAME_EXCHANGE) ? target : NULL, old_dentry);
+		if (flags & RENAME_EXCHANGE) {
+			fsnotify_move(new_dir, old_dir, old_dentry->d_name.name,
+				      new_is_dir, NULL, new_dentry);
+		}
+	}
 	fsnotify_oldname_free(old_name);
 
 	return error;
@@ -4143,7 +4167,10 @@ SYSCALL_DEFINE5(renameat2, int, olddfd, const char __user *, oldname,
 	bool should_retry = false;
 	int error;
 
-	if (flags & ~RENAME_NOREPLACE)
+	if (flags & ~(RENAME_NOREPLACE | RENAME_EXCHANGE))
+		return -EINVAL;
+
+	if ((flags & RENAME_NOREPLACE) && (flags & RENAME_EXCHANGE))
 		return -EINVAL;
 
 retry:
@@ -4180,7 +4207,8 @@ retry:
 
 	oldnd.flags &= ~LOOKUP_PARENT;
 	newnd.flags &= ~LOOKUP_PARENT;
-	newnd.flags |= LOOKUP_RENAME_TARGET;
+	if (!(flags & RENAME_EXCHANGE))
+		newnd.flags |= LOOKUP_RENAME_TARGET;
 
 retry_deleg:
 	trap = lock_rename(new_dir, old_dir);
@@ -4200,12 +4228,23 @@ retry_deleg:
 	error = -EEXIST;
 	if ((flags & RENAME_NOREPLACE) && d_is_positive(new_dentry))
 		goto exit5;
+	if (flags & RENAME_EXCHANGE) {
+		error = -ENOENT;
+		if (d_is_negative(new_dentry))
+			goto exit5;
+
+		if (!d_is_dir(new_dentry)) {
+			error = -ENOTDIR;
+			if (newnd.last.name[newnd.last.len])
+				goto exit5;
+		}
+	}
 	/* unless the source is a directory trailing slashes give -ENOTDIR */
 	if (!d_is_dir(old_dentry)) {
 		error = -ENOTDIR;
 		if (oldnd.last.name[oldnd.last.len])
 			goto exit5;
-		if (newnd.last.name[newnd.last.len])
+		if (!(flags & RENAME_EXCHANGE) && newnd.last.name[newnd.last.len])
 			goto exit5;
 	}
 	/* source should not be ancestor of target */
@@ -4213,7 +4252,8 @@ retry_deleg:
 	if (old_dentry == trap)
 		goto exit5;
 	/* target should not be an ancestor of source */
-	error = -ENOTEMPTY;
+	if (!(flags & RENAME_EXCHANGE))
+		error = -ENOTEMPTY;
 	if (new_dentry == trap)
 		goto exit5;
 
