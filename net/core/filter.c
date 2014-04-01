@@ -125,10 +125,10 @@ noinline u64 __bpf_call_base(u64 r1, u64 r2, u64 r3, u64 r4, u64 r5)
 /**
  *	__sk_run_filter - run a filter on a given context
  *	@ctx: buffer to run the filter on
- *	@fentry: filter to apply
+ *	@insn: filter to apply
  *
  * Decode and apply filter instructions to the skb->data. Return length to
- * keep, 0 for none. @ctx is the data we are operating on, @filter is the
+ * keep, 0 for none. @ctx is the data we are operating on, @insn is the
  * array of filter instructions.
  */
 unsigned int __sk_run_filter(void *ctx, const struct sock_filter_int *insn)
