@@ -116,11 +116,6 @@ static int check_all_bounds(struct device *dev,
 			"op_sys_clk_div");
 	if (!rval)
 		rval = bounds_check(
-			dev, op_pll->pix_clk_div,
-			op_limits->min_pix_clk_div, op_limits->max_pix_clk_div,
-			"op_pix_clk_div");
-	if (!rval)
-		rval = bounds_check(
 			dev, op_pll->sys_clk_freq_hz,
 			op_limits->min_sys_clk_freq_hz,
 			op_limits->max_sys_clk_freq_hz,
