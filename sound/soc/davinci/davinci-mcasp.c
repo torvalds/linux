@@ -620,7 +620,7 @@ static int davinci_mcasp_hw_params(struct snd_pcm_substream *substream,
 	if (mcasp->bclk_master) {
 		unsigned int bclk_freq = snd_soc_params_to_bclk(params);
 		if (mcasp->sysclk_freq % bclk_freq != 0) {
-			dev_err(mcasp->dev, "Can't produce requred BCLK\n");
+			dev_err(mcasp->dev, "Can't produce required BCLK\n");
 			return -EINVAL;
 		}
 		davinci_mcasp_set_clkdiv(
