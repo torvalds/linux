@@ -565,10 +565,17 @@ static int efx_ef10_dimension_resources(struct efx_nic *efx)
 	 * several of each (in fact that's the only option if host
 	 * page size is >4K).  So we may allocate some extra VIs just
 	 * for writing PIO buffers through.
+	 *
+	 * The UC mapping contains (min_vis - 1) complete VIs and the
+	 * first half of the next VI.  Then the WC mapping begins with
+	 * the second half of this last VI.
 	 */
 	uc_mem_map_size = PAGE_ALIGN((min_vis - 1) * EFX_VI_PAGE_SIZE +
 				     ER_DZ_TX_PIOBUF);
 	if (nic_data->n_piobufs) {
+		/* pio_write_vi_base rounds down to give the number of complete
+		 * VIs inside the UC mapping.
+		 */
 		pio_write_vi_base = uc_mem_map_size / EFX_VI_PAGE_SIZE;
 		wc_mem_map_size = (PAGE_ALIGN((pio_write_vi_base +
 					       nic_data->n_piobufs) *
