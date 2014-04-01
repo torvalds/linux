@@ -1,6 +1,7 @@
 config SYSFS
 	bool "sysfs file system support" if EXPERT
 	default y
+	select KERNFS
 	help
 	The sysfs filesystem is a virtual filesystem that the kernel uses to
 	export internal kernel objects, their attributes, and their
