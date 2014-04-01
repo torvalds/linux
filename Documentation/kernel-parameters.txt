@@ -229,6 +229,14 @@ bytes respectively. Such letter suffixes can also be entirely omitted.
 			use by PCI
 			Format: <irq>,<irq>...
 
+	acpi_no_auto_serialize	[HW,ACPI]
+			Disable auto-serialization of AML methods
+			AML control methods that contain the opcodes to create
+			named objects will be marked as "Serialized" by the
+			auto-serialization feature.
+			This feature is enabled by default.
+			This option allows to turn off the feature.
+
 	acpi_no_auto_ssdt	[HW,ACPI] Disable automatic loading of SSDT
 
 	acpica_no_return_repair [HW, ACPI]
@@ -305,8 +313,6 @@ bytes respectively. Such letter suffixes can also be entirely omitted.
 
 	acpi_sci=	[HW,ACPI] ACPI System Control Interrupt trigger mode
 			Format: { level | edge | high | low }
-
-	acpi_serialize	[HW,ACPI] force serialization of AML methods
 
 	acpi_skip_timer_override [HW,ACPI]
 			Recognize and ignore IRQ0/pin2 Interrupt Override.
