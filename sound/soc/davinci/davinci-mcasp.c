@@ -529,8 +529,19 @@ static int mcasp_common_hw_param(struct davinci_mcasp *mcasp, int stream,
 	/* AFIFO is not in use */
 	if (!numevt) {
 		/* Configure the burst size for platform drivers */
-		dma_params->fifo_level = 0;
-		dma_data->maxburst = 0;
+		if (active_serializers > 1) {
+			/*
+			 * If more than one serializers are in use we have one
+			 * DMA request to provide data for all serializers.
+			 * For example if three serializers are enabled the DMA
+			 * need to transfer three words per DMA request.
+			 */
+			dma_params->fifo_level = active_serializers;
+			dma_data->maxburst = active_serializers;
+		} else {
+			dma_params->fifo_level = 0;
+			dma_data->maxburst = 0;
+		}
 		return 0;
 	}
 
@@ -558,6 +569,8 @@ static int mcasp_common_hw_param(struct davinci_mcasp *mcasp, int stream,
 	mcasp_mod_bits(mcasp, reg, NUMEVT(numevt), NUMEVT_MASK);
 
 	/* Configure the burst size for platform drivers */
+	if (numevt == 1)
+		numevt = 0;
 	dma_params->fifo_level = numevt;
 	dma_data->maxburst = numevt;
 
