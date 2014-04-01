@@ -542,6 +542,11 @@ struct drbd_backing_dev {
 };
 
 struct drbd_md_io {
+	struct page *page;
+	unsigned long start_jif;	/* last call to drbd_md_get_buffer */
+	unsigned long submit_jif;	/* last _drbd_md_sync_page_io() submit */
+	const char *current_use;
+	atomic_t in_use;
 	unsigned int done;
 	int error;
 };
@@ -795,9 +800,7 @@ struct drbd_device {
 	atomic_t pp_in_use;		/* allocated from page pool */
 	atomic_t pp_in_use_by_net;	/* sendpage()d, still referenced by tcp */
 	wait_queue_head_t ee_wait;
-	struct page *md_io_page;	/* one page buffer for md_io */
 	struct drbd_md_io md_io;
-	atomic_t md_io_in_use;		/* protects the md_io, md_io_page and md_io_tmpp */
 	spinlock_t al_lock;
 	wait_queue_head_t al_wait;
 	struct lru_cache *act_log;	/* activity log */
@@ -1336,7 +1339,7 @@ extern void resume_next_sg(struct drbd_device *device);
 extern void suspend_other_sg(struct drbd_device *device);
 extern int drbd_resync_finished(struct drbd_device *device);
 /* maybe rather drbd_main.c ? */
-extern void *drbd_md_get_buffer(struct drbd_device *device);
+extern void *drbd_md_get_buffer(struct drbd_device *device, const char *intent);
 extern void drbd_md_put_buffer(struct drbd_device *device);
 extern int drbd_md_sync_page_io(struct drbd_device *device,
 		struct drbd_backing_dev *bdev, sector_t sector, int rw);

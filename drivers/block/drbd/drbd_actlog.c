@@ -92,20 +92,26 @@ struct __packed al_transaction_on_disk {
 	__be32	context[AL_CONTEXT_PER_TRANSACTION];
 };
 
-void *drbd_md_get_buffer(struct drbd_device *device)
+void *drbd_md_get_buffer(struct drbd_device *device, const char *intent)
 {
 	int r;
 
 	wait_event(device->misc_wait,
-		   (r = atomic_cmpxchg(&device->md_io_in_use, 0, 1)) == 0 ||
+		   (r = atomic_cmpxchg(&device->md_io.in_use, 0, 1)) == 0 ||
 		   device->state.disk <= D_FAILED);
 
-	return r ? NULL : page_address(device->md_io_page);
+	if (r)
+		return NULL;
+
+	device->md_io.current_use = intent;
+	device->md_io.start_jif = jiffies;
+	device->md_io.submit_jif = device->md_io.start_jif - 1;
+	return page_address(device->md_io.page);
 }
 
 void drbd_md_put_buffer(struct drbd_device *device)
 {
-	if (atomic_dec_and_test(&device->md_io_in_use))
+	if (atomic_dec_and_test(&device->md_io.in_use))
 		wake_up(&device->misc_wait);
 }
 
@@ -150,7 +156,7 @@ static int _drbd_md_sync_page_io(struct drbd_device *device,
 	err = -EIO;
 	if (bio_add_page(bio, page, size, 0) != size)
 		goto out;
-	bio->bi_private = &device->md_io;
+	bio->bi_private = device;
 	bio->bi_end_io = drbd_md_io_complete;
 	bio->bi_rw = rw;
 
@@ -165,7 +171,8 @@ static int _drbd_md_sync_page_io(struct drbd_device *device,
 	}
 
 	bio_get(bio); /* one bio_put() is in the completion handler */
-	atomic_inc(&device->md_io_in_use); /* drbd_md_put_buffer() is in the completion handler */
+	atomic_inc(&device->md_io.in_use); /* drbd_md_put_buffer() is in the completion handler */
+	device->md_io.submit_jif = jiffies;
 	if (drbd_insert_fault(device, (rw & WRITE) ? DRBD_FAULT_MD_WR : DRBD_FAULT_MD_RD))
 		bio_endio(bio, -EIO);
 	else
@@ -183,9 +190,9 @@ int drbd_md_sync_page_io(struct drbd_device *device, struct drbd_backing_dev *bd
 			 sector_t sector, int rw)
 {
 	int err;
-	struct page *iop = device->md_io_page;
+	struct page *iop = device->md_io.page;
 
-	D_ASSERT(device, atomic_read(&device->md_io_in_use) == 1);
+	D_ASSERT(device, atomic_read(&device->md_io.in_use) == 1);
 
 	BUG_ON(!bdev->md_bdev);
 
@@ -465,7 +472,8 @@ int al_write_transaction(struct drbd_device *device)
 		return -EIO;
 	}
 
-	buffer = drbd_md_get_buffer(device); /* protects md_io_buffer, al_tr_cycle, ... */
+	/* protects md_io_buffer, al_tr_cycle, ... */
+	buffer = drbd_md_get_buffer(device, __func__);
 	if (!buffer) {
 		drbd_err(device, "disk failed while waiting for md_io buffer\n");
 		put_ldev(device);

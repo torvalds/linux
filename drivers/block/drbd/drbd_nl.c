@@ -887,7 +887,7 @@ drbd_determine_dev_size(struct drbd_device *device, enum dds_flags flags, struct
 	 * still lock the act_log to not trigger ASSERTs there.
 	 */
 	drbd_suspend_io(device);
-	buffer = drbd_md_get_buffer(device); /* Lock meta-data IO */
+	buffer = drbd_md_get_buffer(device, __func__); /* Lock meta-data IO */
 	if (!buffer) {
 		drbd_resume_io(device);
 		return DS_ERROR;
@@ -1899,7 +1899,7 @@ static int adm_detach(struct drbd_device *device, int force)
 	}
 
 	drbd_suspend_io(device); /* so no-one is stuck in drbd_al_begin_io */
-	drbd_md_get_buffer(device); /* make sure there is no in-flight meta-data IO */
+	drbd_md_get_buffer(device, __func__); /* make sure there is no in-flight meta-data IO */
 	retcode = drbd_request_state(device, NS(disk, D_FAILED));
 	drbd_md_put_buffer(device);
 	/* D_FAILED will transition to DISKLESS. */
