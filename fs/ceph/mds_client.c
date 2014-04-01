@@ -1311,6 +1311,9 @@ static int trim_caps(struct ceph_mds_client *mdsc,
 			trim_caps - session->s_trim_caps);
 		session->s_trim_caps = 0;
 	}
+
+	ceph_add_cap_releases(mdsc, session);
+	ceph_send_cap_releases(mdsc, session);
 	return 0;
 }
 
