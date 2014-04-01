@@ -1,13 +1,8 @@
-# liblockdep version
-LL_VERSION = 0
-LL_PATCHLEVEL = 0
-LL_EXTRAVERSION = 1
-
 # file format version
 FILE_VERSION = 1
 
 MAKEFLAGS += --no-print-directory
-
+LIBLOCKDEP_VERSION=$(shell make -sC ../../.. kernelversion)
 
 # Makefiles suck: This macro sets a default value of $(2) for the
 # variable named by $(1), unless the variable has been set by
@@ -98,7 +93,7 @@ export prefix libdir bindir src obj
 libdir_SQ = $(subst ','\'',$(libdir))
 bindir_SQ = $(subst ','\'',$(bindir))
 
-LIB_FILE = liblockdep.a liblockdep.so
+LIB_FILE = liblockdep.a liblockdep.so.$(LIBLOCKDEP_VERSION)
 BIN_FILE = lockdep
 
 CONFIG_INCLUDES =
@@ -109,8 +104,6 @@ OBJ		= $@
 N		=
 
 export Q VERBOSE
-
-LIBLOCKDEP_VERSION = $(LL_VERSION).$(LL_PATCHLEVEL).$(LL_EXTRAVERSION)
 
 INCLUDES = -I. -I/usr/local/include -I./uinclude -I./include $(CONFIG_INCLUDES)
 
@@ -146,7 +139,7 @@ do_app_build =						\
 
 do_compile_shared_library =			\
 	($(print_shared_lib_compile)		\
-	$(CC) --shared $^ -o $@ -lpthread -ldl)
+	$(CC) --shared $^ -o $@ -lpthread -ldl -Wl,-soname='"$@"';$(shell ln -s $@ liblockdep.so))
 
 do_build_static_lib =				\
 	($(print_static_lib_build)		\
@@ -177,7 +170,7 @@ all: all_cmd
 
 all_cmd: $(CMD_TARGETS)
 
-liblockdep.so: $(PEVENT_LIB_OBJS)
+liblockdep.so.$(LIBLOCKDEP_VERSION): $(PEVENT_LIB_OBJS)
 	$(Q)$(do_compile_shared_library)
 
 liblockdep.a: $(PEVENT_LIB_OBJS)
