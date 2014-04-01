@@ -1936,7 +1936,7 @@ do { \
 } while (0)
 static noinline void rk30_pm_dump_irq(void)
 {
-	u32 irq_gpio = (readl_relaxed(RK_GIC_VIRT + GIC_DIST_PENDING_SET + 8) >> 22) & 0x7F;
+	u32 irq_gpio = (readl_relaxed(RK_GIC_VIRT + GIC_DIST_PENDING_SET + 12) >> 17) & 0x1FF;
 	printk("wakeup irq: %08x %08x %08x %08x\n",
 		readl_relaxed(RK_GIC_VIRT + GIC_DIST_PENDING_SET + 4),
 		readl_relaxed(RK_GIC_VIRT + GIC_DIST_PENDING_SET + 8),
