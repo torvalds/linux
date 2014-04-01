@@ -2872,6 +2872,10 @@ static void ibx_irq_preinstall(struct drm_device *dev)
 		return;
 
 	GEN5_IRQ_RESET(SDE);
+
+	if (HAS_PCH_CPT(dev) || HAS_PCH_LPT(dev))
+		I915_WRITE(SERR_INT, 0xffffffff);
+
 	/*
 	 * SDEIER is also touched by the interrupt handler to work around missed
 	 * PCH interrupts. Hence we can't update it after the interrupt handler
@@ -3002,13 +3006,10 @@ static void ibx_irq_postinstall(struct drm_device *dev)
 	if (HAS_PCH_NOP(dev))
 		return;
 
-	if (HAS_PCH_IBX(dev)) {
+	if (HAS_PCH_IBX(dev))
 		mask = SDE_GMBUS | SDE_AUX_MASK | SDE_POISON;
-	} else {
+	else
 		mask = SDE_GMBUS_CPT | SDE_AUX_MASK_CPT;
-
-		I915_WRITE(SERR_INT, I915_READ(SERR_INT));
-	}
 
 	GEN5_ASSERT_IIR_IS_ZERO(SDEIIR);
 	I915_WRITE(SDEIMR, ~mask);
@@ -3353,7 +3354,7 @@ static void ironlake_irq_uninstall(struct drm_device *dev)
 
 	GEN5_IRQ_RESET(SDE);
 	if (HAS_PCH_CPT(dev) || HAS_PCH_LPT(dev))
-		I915_WRITE(SERR_INT, I915_READ(SERR_INT));
+		I915_WRITE(SERR_INT, 0xffffffff);
 }
 
 static void i8xx_irq_preinstall(struct drm_device * dev)
