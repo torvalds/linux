@@ -37,7 +37,7 @@
 #include "hw_iep_reg.h"
 
 #define IEP_MAJOR		255
-//#define IEP_CLK_ENABLE
+#define IEP_CLK_ENABLE
 //#define IEP_TEST_CASE
 
 //#undef dmac_flush_range
@@ -872,8 +872,8 @@ err_irq:
         devm_release_mem_region(&pdev->dev, res->start, resource_size(res));
     }
 err_ioremap:
-err_clock:
     wake_lock_destroy(&data->wake_lock);
+err_clock:
     kfree(data);
 
     return ret;

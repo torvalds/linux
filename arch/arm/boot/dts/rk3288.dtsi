@@ -953,7 +953,7 @@
 		reg = <0xff900000 0x800>;
 		interrupts = <GIC_SPI 17 IRQ_TYPE_LEVEL_HIGH>;
 		clocks = <&clk_gates15 2>, <&clk_gates15 3>;
-		clock_names = "aclk_iep", "hclk_iep";
+		clock-names = "aclk_iep", "hclk_iep";
 		status = "okay";
 	};
 
