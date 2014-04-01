@@ -291,8 +291,9 @@ int ceph_atomic_open(struct inode *dir, struct dentry *dentry,
 		}
 		err = finish_open(file, dentry, ceph_open, opened);
 	}
-
 out_err:
+	if (!req->r_err && req->r_target_inode)
+		ceph_put_fmode(ceph_inode(req->r_target_inode), req->r_fmode);
 	ceph_mdsc_put_request(req);
 	dout("atomic_open result=%d\n", err);
 	return err;
