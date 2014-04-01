@@ -236,7 +236,7 @@ static void sxgbe_disable_rx_csum(void __iomem *ioaddr)
 	writel(ctrl, ioaddr + SXGBE_CORE_RX_CONFIG_REG);
 }
 
-const struct sxgbe_core_ops core_ops = {
+static const struct sxgbe_core_ops core_ops = {
 	.core_init		= sxgbe_core_init,
 	.dump_regs		= sxgbe_core_dump_regs,
 	.host_irq_status	= sxgbe_core_host_irq_status,
