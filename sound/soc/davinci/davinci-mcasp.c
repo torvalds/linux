@@ -468,6 +468,8 @@ static int davinci_config_channel_size(struct davinci_mcasp *mcasp,
 static int mcasp_common_hw_param(struct davinci_mcasp *mcasp, int stream,
 				    int channels)
 {
+	struct davinci_pcm_dma_params *dma_params = &mcasp->dma_params[stream];
+	struct snd_dmaengine_dai_dma_data *dma_data = &mcasp->dma_data[stream];
 	int i;
 	u8 tx_ser = 0;
 	u8 rx_ser = 0;
@@ -524,9 +526,14 @@ static int mcasp_common_hw_param(struct davinci_mcasp *mcasp, int stream,
 		return -EINVAL;
 	}
 
+
 	/* AFIFO is not in use */
-	if (!numevt)
+	if (!numevt) {
+		/* Configure the burst size for platform drivers */
+		dma_params->fifo_level = 0;
+		dma_data->maxburst = 0;
 		return 0;
+	}
 
 	if (numevt * active_serializers > MCASP_MAX_AFIFO_DEPTH)
 		numevt = active_serializers;
@@ -535,6 +542,10 @@ static int mcasp_common_hw_param(struct davinci_mcasp *mcasp, int stream,
 	numevt *= active_serializers;
 	mcasp_mod_bits(mcasp, reg, active_serializers, NUMDMA_MASK);
 	mcasp_mod_bits(mcasp, reg, NUMEVT(numevt), NUMEVT_MASK);
+
+	/* Configure the burst size for platform drivers */
+	dma_params->fifo_level = numevt;
+	dma_data->maxburst = numevt;
 
 	return 0;
 }
@@ -607,12 +618,7 @@ static int davinci_mcasp_hw_params(struct snd_pcm_substream *substream,
 	struct davinci_mcasp *mcasp = snd_soc_dai_get_drvdata(cpu_dai);
 	struct davinci_pcm_dma_params *dma_params =
 					&mcasp->dma_params[substream->stream];
-	struct snd_dmaengine_dai_dma_data *dma_data =
-					&mcasp->dma_data[substream->stream];
 	int word_length;
-	u8 fifo_level;
-	u8 slots = mcasp->tdm_slots;
-	u8 active_serializers;
 	int channels = params_channels(params);
 	int ret;
 
@@ -671,20 +677,10 @@ static int davinci_mcasp_hw_params(struct snd_pcm_substream *substream,
 		return -EINVAL;
 	}
 
-	/* Calculate FIFO level */
-	active_serializers = (channels + slots - 1) / slots;
-	if (substream->stream == SNDRV_PCM_STREAM_PLAYBACK)
-		fifo_level = mcasp->txnumevt * active_serializers;
-	else
-		fifo_level = mcasp->rxnumevt * active_serializers;
-
-	if (mcasp->version == MCASP_VERSION_2 && !fifo_level)
+	if (mcasp->version == MCASP_VERSION_2 && !dma_params->fifo_level)
 		dma_params->acnt = 4;
 	else
 		dma_params->acnt = dma_params->data_type;
-
-	dma_params->fifo_level = fifo_level;
-	dma_data->maxburst = fifo_level;
 
 	davinci_config_channel_size(mcasp, word_length);
 
