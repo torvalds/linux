@@ -4027,6 +4027,8 @@ static void i40e_dcb_reconfigure(struct i40e_pf *pf)
 				 pf->vsi[v]->seid);
 			/* Will try to configure as many components */
 		} else {
+			/* Re-configure VSI vectors based on updated TC map */
+			i40e_vsi_map_rings_to_vectors(pf->vsi[v]);
 			if (pf->vsi[v]->netdev)
 				i40e_dcbnl_set_all(pf->vsi[v]);
 		}
