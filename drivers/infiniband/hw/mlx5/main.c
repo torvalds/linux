@@ -282,6 +282,8 @@ static int mlx5_ib_query_device(struct ib_device *ibdev,
 		props->sig_guard_cap = IB_GUARD_T10DIF_CRC |
 				       IB_GUARD_T10DIF_CSUM;
 	}
+	if (flags & MLX5_DEV_CAP_FLAG_BLOCK_MCAST)
+		props->device_cap_flags |= IB_DEVICE_BLOCK_MULTICAST_LOOPBACK;
 
 	props->vendor_id	   = be32_to_cpup((__be32 *)(out_mad->data + 36)) &
 		0xffffff;
