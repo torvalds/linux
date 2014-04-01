@@ -27,6 +27,7 @@
 #include <linux/module.h>
 #include <linux/net_tstamp.h>
 #include <linux/netdevice.h>
+#include <linux/if_vlan.h>
 #include <linux/phy.h>
 #include <linux/ptp_classify.h>
 #include <linux/ptp_clock_kernel.h>
