@@ -559,8 +559,10 @@ struct mlx4_en_priv {
 	struct work_struct linkstate_task;
 	struct delayed_work stats_task;
 	struct delayed_work service_task;
+#ifdef CONFIG_MLX4_EN_VXLAN
 	struct work_struct vxlan_add_task;
 	struct work_struct vxlan_del_task;
+#endif
 	struct mlx4_en_perf_stats pstats;
 	struct mlx4_en_pkt_stats pkstats;
 	struct mlx4_en_port_stats port_stats;
