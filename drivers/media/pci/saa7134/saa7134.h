@@ -782,6 +782,7 @@ extern struct video_device saa7134_radio_template;
 
 int saa7134_s_std(struct file *file, void *priv, v4l2_std_id id);
 int saa7134_g_std(struct file *file, void *priv, v4l2_std_id *id);
+int saa7134_querystd(struct file *file, void *priv, v4l2_std_id *std);
 int saa7134_enum_input(struct file *file, void *priv, struct v4l2_input *i);
 int saa7134_g_input(struct file *file, void *priv, unsigned int *i);
 int saa7134_s_input(struct file *file, void *priv, unsigned int i);

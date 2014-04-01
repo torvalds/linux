@@ -452,18 +452,25 @@ static void video_mux(struct saa7134_dev *dev, int input)
 
 static void saa7134_set_decoder(struct saa7134_dev *dev)
 {
-	int luma_control, sync_control, mux;
+	int luma_control, sync_control, chroma_ctrl1, mux;
 
 	struct saa7134_tvnorm *norm = dev->tvnorm;
 	mux = card_in(dev, dev->ctl_input).vmux;
 
 	luma_control = norm->luma_control;
 	sync_control = norm->sync_control;
+	chroma_ctrl1 = norm->chroma_ctrl1;
 
 	if (mux > 5)
 		luma_control |= 0x80; /* svideo */
 	if (noninterlaced || dev->nosignal)
 		sync_control |= 0x20;
+
+	/* switch on auto standard detection */
+	sync_control |= SAA7134_SYNC_CTRL_AUFD;
+	chroma_ctrl1 |= SAA7134_CHROMA_CTRL1_AUTO0;
+	chroma_ctrl1 &= ~SAA7134_CHROMA_CTRL1_FCTC;
+	luma_control &= ~SAA7134_LUMA_CTRL_LDEL;
 
 	/* setup video decoder */
 	saa_writeb(SAA7134_INCR_DELAY,            0x08);
@@ -487,7 +494,7 @@ static void saa7134_set_decoder(struct saa7134_dev *dev)
 		dev->ctl_invert ? -dev->ctl_saturation : dev->ctl_saturation);
 
 	saa_writeb(SAA7134_DEC_CHROMA_HUE,        dev->ctl_hue);
-	saa_writeb(SAA7134_CHROMA_CTRL1,          norm->chroma_ctrl1);
+	saa_writeb(SAA7134_CHROMA_CTRL1,          chroma_ctrl1);
 	saa_writeb(SAA7134_CHROMA_GAIN,           norm->chroma_gain);
 
 	saa_writeb(SAA7134_CHROMA_CTRL2,          norm->chroma_ctrl2);
@@ -1686,6 +1693,35 @@ int saa7134_g_std(struct file *file, void *priv, v4l2_std_id *id)
 }
 EXPORT_SYMBOL_GPL(saa7134_g_std);
 
+static v4l2_std_id saa7134_read_std(struct saa7134_dev *dev)
+{
+	static v4l2_std_id stds[] = {
+		V4L2_STD_UNKNOWN,
+		V4L2_STD_NTSC,
+		V4L2_STD_PAL,
+		V4L2_STD_SECAM };
+
+	v4l2_std_id result = 0;
+
+	u8 st1 = saa_readb(SAA7134_STATUS_VIDEO1);
+	u8 st2 = saa_readb(SAA7134_STATUS_VIDEO2);
+
+	if (!(st2 & 0x1)) /* RDCAP == 0 */
+		result = V4L2_STD_UNKNOWN;
+	else
+		result = stds[st1 & 0x03];
+
+	return result;
+}
+
+int saa7134_querystd(struct file *file, void *priv, v4l2_std_id *std)
+{
+	struct saa7134_dev *dev = video_drvdata(file);
+	*std &= saa7134_read_std(dev);
+	return 0;
+}
+EXPORT_SYMBOL_GPL(saa7134_querystd);
+
 static int saa7134_cropcap(struct file *file, void *priv,
 					struct v4l2_cropcap *cap)
 {
@@ -2079,6 +2115,7 @@ static const struct v4l2_ioctl_ops video_ioctl_ops = {
 	.vidioc_dqbuf			= saa7134_dqbuf,
 	.vidioc_s_std			= saa7134_s_std,
 	.vidioc_g_std			= saa7134_g_std,
+	.vidioc_querystd		= saa7134_querystd,
 	.vidioc_enum_input		= saa7134_enum_input,
 	.vidioc_g_input			= saa7134_g_input,
 	.vidioc_s_input			= saa7134_s_input,
