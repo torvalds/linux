@@ -3,7 +3,7 @@
 Required properties :
 
  - reg : Offset and length of the register set for the device
- - compatible : should be "efm32,i2c"
+ - compatible : should be "energymicro,efm32-i2c"
  - interrupts : the interrupt number
  - clocks : reference to the module clock
 
@@ -17,12 +17,12 @@ Example:
 	i2c0: i2c@4000a000 {
 		#address-cells = <1>;
 		#size-cells = <0>;
-		compatible = "efm32,i2c";
+		compatible = "energymicro,efm32-i2c";
 		reg = <0x4000a000 0x400>;
 		interrupts = <9>;
 		clocks = <&cmu clk_HFPERCLKI2C0>;
 		clock-frequency = <100000>;
-		status = "disabled";
+		status = "ok";
 		efm32,location = <3>;
 
 		eeprom@50 {
