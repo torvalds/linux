@@ -4062,7 +4062,8 @@ int vfs_rename(struct inode *old_dir, struct dentry *old_dentry,
 			return error;
 	}
 
-	error = security_inode_rename(old_dir, old_dentry, new_dir, new_dentry);
+	error = security_inode_rename(old_dir, old_dentry, new_dir, new_dentry,
+				      flags);
 	if (error)
 		return error;
 
@@ -4217,7 +4218,7 @@ retry_deleg:
 		goto exit5;
 
 	error = security_path_rename(&oldnd.path, old_dentry,
-				     &newnd.path, new_dentry);
+				     &newnd.path, new_dentry, flags);
 	if (error)
 		goto exit5;
 	error = vfs_rename(old_dir->d_inode, old_dentry,
