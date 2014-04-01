@@ -37,6 +37,8 @@
 #include "davinci-pcm.h"
 #include "davinci-mcasp.h"
 
+#define MCASP_MAX_AFIFO_DEPTH	64
+
 struct davinci_mcasp_context {
 	u32	txfmtctl;
 	u32	rxfmtctl;
@@ -469,9 +471,9 @@ static int mcasp_common_hw_param(struct davinci_mcasp *mcasp, int stream,
 	int i;
 	u8 tx_ser = 0;
 	u8 rx_ser = 0;
-	u8 ser;
 	u8 slots = mcasp->tdm_slots;
 	u8 max_active_serializers = (channels + slots - 1) / slots;
+	u8 active_serializers, numevt;
 	u32 reg;
 	/* Default configuration */
 	if (mcasp->version != MCASP_VERSION_4)
@@ -505,36 +507,34 @@ static int mcasp_common_hw_param(struct davinci_mcasp *mcasp, int stream,
 		}
 	}
 
-	if (stream == SNDRV_PCM_STREAM_PLAYBACK)
-		ser = tx_ser;
-	else
-		ser = rx_ser;
+	if (stream == SNDRV_PCM_STREAM_PLAYBACK) {
+		active_serializers = tx_ser;
+		numevt = mcasp->txnumevt;
+		reg = mcasp->fifo_base + MCASP_WFIFOCTL_OFFSET;
+	} else {
+		active_serializers = rx_ser;
+		numevt = mcasp->rxnumevt;
+		reg = mcasp->fifo_base + MCASP_RFIFOCTL_OFFSET;
+	}
 
-	if (ser < max_active_serializers) {
+	if (active_serializers < max_active_serializers) {
 		dev_warn(mcasp->dev, "stream has more channels (%d) than are "
-			"enabled in mcasp (%d)\n", channels, ser * slots);
+			 "enabled in mcasp (%d)\n", channels,
+			 active_serializers * slots);
 		return -EINVAL;
 	}
 
-	if (mcasp->txnumevt && stream == SNDRV_PCM_STREAM_PLAYBACK) {
-		if (mcasp->txnumevt * tx_ser > 64)
-			mcasp->txnumevt = 1;
+	/* AFIFO is not in use */
+	if (!numevt)
+		return 0;
 
-		reg = mcasp->fifo_base + MCASP_WFIFOCTL_OFFSET;
-		mcasp_mod_bits(mcasp, reg, tx_ser, NUMDMA_MASK);
-		mcasp_mod_bits(mcasp, reg, ((mcasp->txnumevt * tx_ser) << 8),
-			       NUMEVT_MASK);
-	}
+	if (numevt * active_serializers > MCASP_MAX_AFIFO_DEPTH)
+		numevt = active_serializers;
 
-	if (mcasp->rxnumevt && stream == SNDRV_PCM_STREAM_CAPTURE) {
-		if (mcasp->rxnumevt * rx_ser > 64)
-			mcasp->rxnumevt = 1;
-
-		reg = mcasp->fifo_base + MCASP_RFIFOCTL_OFFSET;
-		mcasp_mod_bits(mcasp, reg, rx_ser, NUMDMA_MASK);
-		mcasp_mod_bits(mcasp, reg, ((mcasp->rxnumevt * rx_ser) << 8),
-			       NUMEVT_MASK);
-	}
+	/* Configure the AFIFO */
+	numevt *= active_serializers;
+	mcasp_mod_bits(mcasp, reg, active_serializers, NUMDMA_MASK);
+	mcasp_mod_bits(mcasp, reg, NUMEVT(numevt), NUMEVT_MASK);
 
 	return 0;
 }
