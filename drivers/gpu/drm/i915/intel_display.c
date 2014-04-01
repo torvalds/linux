@@ -6853,8 +6853,6 @@ static void assert_can_disable_lcpll(struct drm_i915_private *dev_priv)
 	struct drm_device *dev = dev_priv->dev;
 	struct intel_ddi_plls *plls = &dev_priv->ddi_plls;
 	struct intel_crtc *crtc;
-	unsigned long irqflags;
-	uint32_t val;
 
 	list_for_each_entry(crtc, &dev->mode_config.crtc_list, base.head)
 		WARN(crtc->active, "CRTC for pipe %c enabled\n",
@@ -6875,14 +6873,13 @@ static void assert_can_disable_lcpll(struct drm_i915_private *dev_priv)
 	     "Utility pin enabled\n");
 	WARN(I915_READ(PCH_GTC_CTL) & PCH_GTC_ENABLE, "PCH GTC enabled\n");
 
-	spin_lock_irqsave(&dev_priv->irq_lock, irqflags);
-	val = I915_READ(DEIMR);
-	WARN((val | DE_PCH_EVENT_IVB) != 0xffffffff,
-	     "Unexpected DEIMR bits enabled: 0x%x\n", val);
-	val = I915_READ(SDEIMR);
-	WARN((val | SDE_HOTPLUG_MASK_CPT) != 0xffffffff,
-	     "Unexpected SDEIMR bits enabled: 0x%x\n", val);
-	spin_unlock_irqrestore(&dev_priv->irq_lock, irqflags);
+	/*
+	 * In theory we can still leave IRQs enabled, as long as only the HPD
+	 * interrupts remain enabled. We used to check for that, but since it's
+	 * gen-specific and since we only disable LCPLL after we fully disable
+	 * the interrupts, the check below should be enough.
+	 */
+	WARN(!dev_priv->pm.irqs_disabled, "IRQs enabled\n");
 }
 
 static void hsw_write_dcomp(struct drm_i915_private *dev_priv, uint32_t val)
