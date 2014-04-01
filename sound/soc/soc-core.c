@@ -1127,9 +1127,17 @@ static int soc_probe_codec(struct snd_soc_card *card,
 
 	soc_init_codec_debugfs(codec);
 
-	if (driver->dapm_widgets)
-		snd_soc_dapm_new_controls(&codec->dapm, driver->dapm_widgets,
-					  driver->num_dapm_widgets);
+	if (driver->dapm_widgets) {
+		ret = snd_soc_dapm_new_controls(&codec->dapm,
+						driver->dapm_widgets,
+					 	driver->num_dapm_widgets);
+
+		if (ret != 0) {
+			dev_err(codec->dev,
+				"Failed to create new controls %d\n", ret);
+			goto err_probe;
+		}
+	}
 
 	/* Create DAPM widgets for each DAI stream */
 	list_for_each_entry(dai, &codec->component.dai_list, list) {
