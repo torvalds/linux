@@ -2827,8 +2827,7 @@ static void ibx_irq_preinstall(struct drm_device *dev)
 	if (HAS_PCH_NOP(dev))
 		return;
 
-	/* south display irq */
-	I915_WRITE(SDEIMR, 0xffffffff);
+	GEN5_IRQ_INIT(SDE);
 	/*
 	 * SDEIER is also touched by the interrupt handler to work around missed
 	 * PCH interrupts. Hence we can't update it after the interrupt handler
