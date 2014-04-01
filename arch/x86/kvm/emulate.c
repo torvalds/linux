@@ -1588,34 +1588,28 @@ static void write_register_operand(struct operand *op)
 
 static int writeback(struct x86_emulate_ctxt *ctxt, struct operand *op)
 {
-	int rc;
-
 	switch (op->type) {
 	case OP_REG:
 		write_register_operand(op);
 		break;
 	case OP_MEM:
 		if (ctxt->lock_prefix)
-			rc = segmented_cmpxchg(ctxt,
+			return segmented_cmpxchg(ctxt,
+						 op->addr.mem,
+						 &op->orig_val,
+						 &op->val,
+						 op->bytes);
+		else
+			return segmented_write(ctxt,
 					       op->addr.mem,
-					       &op->orig_val,
 					       &op->val,
 					       op->bytes);
-		else
-			rc = segmented_write(ctxt,
-					     op->addr.mem,
-					     &op->val,
-					     op->bytes);
-		if (rc != X86EMUL_CONTINUE)
-			return rc;
 		break;
 	case OP_MEM_STR:
-		rc = segmented_write(ctxt,
-				op->addr.mem,
-				op->data,
-				op->bytes * op->count);
-		if (rc != X86EMUL_CONTINUE)
-			return rc;
+		return segmented_write(ctxt,
+				       op->addr.mem,
+				       op->data,
+				       op->bytes * op->count);
 		break;
 	case OP_XMM:
 		write_sse_reg(ctxt, &op->vec_val, op->addr.xmm);
