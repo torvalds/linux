@@ -65,6 +65,7 @@ config RK_PM_TESTS
 	bool "/sys/pm_tests/ support"
 	default n
 	select DVFS
+	select WATCHDOG
 
 config RK_VPU
 	tristate "VPU (Video Processing Unit) service driver in kernel"
