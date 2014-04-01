@@ -101,6 +101,18 @@ static const u32 hpd_status_i915[] = { /* i915 and valleyview are the same */
 	POSTING_READ(type##IIR); \
 } while (0)
 
+#define GEN8_IRQ_INIT_NDX(type, which, imr_val, ier_val) do { \
+	I915_WRITE(GEN8_##type##_IMR(which), (imr_val)); \
+	I915_WRITE(GEN8_##type##_IER(which), (ier_val)); \
+	POSTING_READ(GEN8_##type##_IER(which)); \
+} while (0)
+
+#define GEN5_IRQ_INIT(type, imr_val, ier_val) do { \
+	I915_WRITE(type##IMR, (imr_val)); \
+	I915_WRITE(type##IER, (ier_val)); \
+	POSTING_READ(type##IER); \
+} while (0)
+
 /* For display hotplug interrupt */
 static void
 ironlake_enable_display_irq(struct drm_i915_private *dev_priv, u32 mask)
@@ -3008,9 +3020,7 @@ static void gen5_gt_irq_postinstall(struct drm_device *dev)
 	}
 
 	I915_WRITE(GTIIR, I915_READ(GTIIR));
-	I915_WRITE(GTIMR, dev_priv->gt_irq_mask);
-	I915_WRITE(GTIER, gt_irqs);
-	POSTING_READ(GTIER);
+	GEN5_IRQ_INIT(GT, dev_priv->gt_irq_mask, gt_irqs);
 
 	if (INTEL_INFO(dev)->gen >= 6) {
 		pm_irqs |= dev_priv->pm_rps_events;
@@ -3020,9 +3030,7 @@ static void gen5_gt_irq_postinstall(struct drm_device *dev)
 
 		dev_priv->pm_irq_mask = 0xffffffff;
 		I915_WRITE(GEN6_PMIIR, I915_READ(GEN6_PMIIR));
-		I915_WRITE(GEN6_PMIMR, dev_priv->pm_irq_mask);
-		I915_WRITE(GEN6_PMIER, pm_irqs);
-		POSTING_READ(GEN6_PMIER);
+		GEN5_IRQ_INIT(GEN6_PM, dev_priv->pm_irq_mask, pm_irqs);
 	}
 }
 
@@ -3055,9 +3063,7 @@ static int ironlake_irq_postinstall(struct drm_device *dev)
 
 	/* should always can generate irq */
 	I915_WRITE(DEIIR, I915_READ(DEIIR));
-	I915_WRITE(DEIMR, dev_priv->irq_mask);
-	I915_WRITE(DEIER, display_mask | extra_mask);
-	POSTING_READ(DEIER);
+	GEN5_IRQ_INIT(DE, dev_priv->irq_mask, display_mask | extra_mask);
 
 	gen5_gt_irq_postinstall(dev);
 
@@ -3222,10 +3228,8 @@ static void gen8_gt_irq_postinstall(struct drm_i915_private *dev_priv)
 		if (tmp)
 			DRM_ERROR("Interrupt (%d) should have been masked in pre-install 0x%08x\n",
 				  i, tmp);
-		I915_WRITE(GEN8_GT_IMR(i), ~gt_interrupts[i]);
-		I915_WRITE(GEN8_GT_IER(i), gt_interrupts[i]);
+		GEN8_IRQ_INIT_NDX(GT, i, ~gt_interrupts[i], gt_interrupts[i]);
 	}
-	POSTING_READ(GEN8_GT_IER(0));
 }
 
 static void gen8_de_irq_postinstall(struct drm_i915_private *dev_priv)
@@ -3246,14 +3250,11 @@ static void gen8_de_irq_postinstall(struct drm_i915_private *dev_priv)
 		if (tmp)
 			DRM_ERROR("Interrupt (%d) should have been masked in pre-install 0x%08x\n",
 				  pipe, tmp);
-		I915_WRITE(GEN8_DE_PIPE_IMR(pipe), dev_priv->de_irq_mask[pipe]);
-		I915_WRITE(GEN8_DE_PIPE_IER(pipe), de_pipe_enables);
+		GEN8_IRQ_INIT_NDX(DE_PIPE, pipe, dev_priv->de_irq_mask[pipe],
+				  de_pipe_enables);
 	}
-	POSTING_READ(GEN8_DE_PIPE_ISR(0));
 
-	I915_WRITE(GEN8_DE_PORT_IMR, ~GEN8_AUX_CHANNEL_A);
-	I915_WRITE(GEN8_DE_PORT_IER, GEN8_AUX_CHANNEL_A);
-	POSTING_READ(GEN8_DE_PORT_IER);
+	GEN5_IRQ_INIT(GEN8_DE_PORT_, ~GEN8_AUX_CHANNEL_A, GEN8_AUX_CHANNEL_A);
 }
 
 static int gen8_irq_postinstall(struct drm_device *dev)
