@@ -222,7 +222,7 @@ static int smm665_read_adc(struct smm665_data *data, int adc)
 	rv = i2c_smbus_read_word_swapped(client, 0);
 	if (rv < 0) {
 		dev_dbg(&client->dev, "Failed to read ADC value: error %d", rv);
-		return -1;
+		return rv;
 	}
 	/*
 	 * Validate/verify readback adc channel (in bit 11..14).
