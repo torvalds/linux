@@ -1265,9 +1265,9 @@ static void qt_set_termios(struct tty_struct *tty,
 	if (I_IXOFF(tty) || I_IXON(tty)) {
 		unsigned char stop_char = STOP_CHAR(tty);
 		unsigned char start_char = START_CHAR(tty);
-		status =
-		    box_set_sw_flow_ctrl(port->serial, index, stop_char,
-				      start_char);
+
+		status = box_set_sw_flow_ctrl(port->serial, index, stop_char,
+					      start_char);
 		if (status < 0)
 			dev_dbg(&port->dev,
 				"box_set_sw_flow_ctrl (enabled) failed\n");
