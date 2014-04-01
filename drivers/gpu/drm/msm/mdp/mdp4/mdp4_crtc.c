@@ -740,6 +740,9 @@ void mdp4_crtc_attach(struct drm_crtc *crtc, struct drm_plane *plane)
 
 void mdp4_crtc_detach(struct drm_crtc *crtc, struct drm_plane *plane)
 {
+	/* don't actually detatch our primary plane: */
+	if (to_mdp4_crtc(crtc)->plane == plane)
+		return;
 	set_attach(crtc, mdp4_plane_pipe(plane), NULL);
 }
 
@@ -791,7 +794,7 @@ struct drm_crtc *mdp4_crtc_init(struct drm_device *dev,
 
 	INIT_FENCE_CB(&mdp4_crtc->pageflip_cb, pageflip_cb);
 
-	drm_crtc_init(dev, crtc, &mdp4_crtc_funcs);
+	drm_crtc_init_with_planes(dev, crtc, plane, NULL, &mdp4_crtc_funcs);
 	drm_crtc_helper_add(crtc, &mdp4_crtc_helper_funcs);
 
 	mdp4_plane_install_properties(mdp4_crtc->plane, &crtc->base);
