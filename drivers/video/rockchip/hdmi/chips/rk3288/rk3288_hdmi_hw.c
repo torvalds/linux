@@ -279,10 +279,11 @@ static int rk3288_hdmi_video_frameComposer(struct hdmi *hdmi_drv, struct hdmi_vi
 
 	v_sync = mode->vsync_len;
 	hdmi_writel(hdmi_dev, FC_VSYNCINWIDTH, (v_sync & 0xff));
-#if 0
+
 	/*Set the control period minimum duration(min. of 12 pixel clock cycles, refer to HDMI 1.4b specification)*/
 	hdmi_writel(hdmi_dev, FC_CTRLDUR, 12);
 	hdmi_writel(hdmi_dev, FC_EXCTRLDUR, 32);
+#if 0
 
 	/* spacing < 256^2 * config / tmdsClock, spacing <= 50ms
 	 * worst case: tmdsClock == 25MHz => config <= 19
