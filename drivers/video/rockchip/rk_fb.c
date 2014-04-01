@@ -138,6 +138,11 @@ int rk_fb_pixel_width(int data_format)
 	case YUV444:
 		pixel_width = 1*8;
 		break;
+	case YUV422_A:
+	case YUV420_A:
+	case YUV444_A:
+		pixel_width = 10;
+		break;		
 	default:
 		printk(KERN_WARNING "%s:un supported format:0x%x\n",
 			__func__,data_format);
@@ -175,6 +180,15 @@ static int rk_fb_data_fmt(int data_format,int bits_per_pixel)
 		case HAL_PIXEL_FORMAT_YCrCb_444: // yuv444
 			fb_data_fmt = YUV444;
 			break;
+		case HAL_PIXEL_FORMAT_YCrCb_NV12_10: // yuv444
+			fb_data_fmt = YUV420_A;
+			break;
+		case HAL_PIXEL_FORMAT_YCbCr_422_SP_10: // yuv444
+			fb_data_fmt = YUV422_A;
+			break;
+		case HAL_PIXEL_FORMAT_YCrCb_420_SP_10: // yuv444
+			fb_data_fmt = YUV444_A;
+			break;			
 		default:
 			printk(KERN_WARNING "%s:un supported format:0x%x\n",
 				__func__,data_format);
@@ -444,6 +458,15 @@ char *get_format_string(enum data_format format, char *fmt)
 	case YUV444:
 		strcpy(fmt, "YUV444");
 		break;
+	case YUV420_A:
+		strcpy(fmt, "YUV420_A");
+		break;
+	case YUV422_A:
+		strcpy(fmt, "YUV422_A");
+		break;
+	case YUV444_A:
+		strcpy(fmt, "YUV444_A");
+		break;		
 	case XRGB888:
 		strcpy(fmt, "XRGB888");
 		break;
@@ -801,8 +824,6 @@ static int rk_fb_pan_display(struct fb_var_screeninfo *var, struct fb_info *info
 	u32 stride,uv_stride;
     	u32 stride_32bit_1;
     	u32 stride_32bit_2;
-    	u32 stride_128bit_1;
-    	u32 stride_128bit_2;
 	u16 uv_x_off,uv_y_off,uv_y_act;
 	u8  is_pic_yuv=0;
 
@@ -822,8 +843,6 @@ static int rk_fb_pan_display(struct fb_var_screeninfo *var, struct fb_info *info
 	}
 	pixel_width = rk_fb_pixel_width(win->format);
 	vir_width_bit = pixel_width * xvir;
-	stride_128bit_1 = ((vir_width_bit   + 127) & (~127))/8; //pixel_width = byte_num *8
-	stride_128bit_2 = ((vir_width_bit*2 + 127) & (~127))/8; //pixel_width = byte_num *8
 	stride_32bit_1	= ((vir_width_bit   + 31 ) & (~31 ))/8; //pixel_width = byte_num *8
 	stride_32bit_2	= ((vir_width_bit*2 + 31 ) & (~31 ))/8; //pixel_width = byte_num *8
 
@@ -832,6 +851,7 @@ static int rk_fb_pan_display(struct fb_var_screeninfo *var, struct fb_info *info
 
 	switch (win->format){
 	case YUV422:
+	case YUV422_A:	
 		is_pic_yuv = 1;
 		stride	   = stride_32bit_1;
 		uv_stride  = stride_32bit_1>> 1 ;//
@@ -841,6 +861,7 @@ static int rk_fb_pan_display(struct fb_var_screeninfo *var, struct fb_info *info
 		uv_y_act = win->area[0].yact>>1;
 		break;
 	case YUV420://420sp
+	case YUV420_A:
 		is_pic_yuv = 1;
 		stride	   = stride_32bit_1;
 		uv_stride  = stride_32bit_1;
@@ -850,6 +871,7 @@ static int rk_fb_pan_display(struct fb_var_screeninfo *var, struct fb_info *info
 		uv_y_act = win->area[0].yact>>1;
 		break;
 	case YUV444:
+	case YUV444_A:	
 		is_pic_yuv = 1;
 		stride	   = stride_32bit_1;
 		uv_stride  = stride_32bit_2;
@@ -902,7 +924,7 @@ static int rk_fb_pan_display(struct fb_var_screeninfo *var, struct fb_info *info
 
 
 	win->area[0].smem_start = fix->smem_start;
-	win->area[0].cbr_start = fix->smem_start + xvir * yvir;
+	win->area[0].cbr_start = fix->mmio_start;//fix->smem_start + xvir * yvir;
 	win->state=1;
 	win->area[0].state=1;
 	win->area_num = 1;
@@ -1375,8 +1397,6 @@ static int rk_fb_set_win_buffer(struct fb_info *info,
 		#endif
 
 		vir_width_bit = pixel_width * xvir;
-		stride_128bit_1 = ((vir_width_bit   + 127) & (~127))/8; //pixel_width = byte_num *8
-		stride_128bit_2 = ((vir_width_bit*2 + 127) & (~127))/8; //pixel_width = byte_num *8
 		stride_32bit_1	= ((vir_width_bit   + 31 ) & (~31 ))/8; //pixel_width = byte_num *8
 		stride_32bit_2	= ((vir_width_bit*2 + 31 ) & (~31 ))/8; //pixel_width = byte_num *8
 
@@ -1410,6 +1430,7 @@ static int rk_fb_set_win_buffer(struct fb_info *info,
 	}
 	switch (fb_data_fmt) {
 	case YUV422:
+	case YUV422_A:	
 		is_pic_yuv = 1;
 		stride	   = stride_32bit_1;
 		uv_stride  = stride_32bit_1>> 1 ;//
@@ -1419,6 +1440,7 @@ static int rk_fb_set_win_buffer(struct fb_info *info,
 		uv_y_act = win_par->area_par[0].yact>>1;
 		break;
 	case YUV420://420sp
+	case YUV420_A:
 		is_pic_yuv = 1;
 		stride	   = stride_32bit_1;
 		uv_stride  = stride_32bit_1;
@@ -1428,6 +1450,7 @@ static int rk_fb_set_win_buffer(struct fb_info *info,
 		uv_y_act = win_par->area_par[0].yact>>1;
 		break;
 	case YUV444:
+	case YUV444_A:	
 		is_pic_yuv = 1;
 		stride	   = stride_32bit_1;
 		uv_stride  = stride_32bit_2;
@@ -1985,8 +2008,6 @@ if (rk_fb->disp_mode != DUAL) {
 	fb_data_fmt = rk_fb_data_fmt(data_format,var->bits_per_pixel);
 	pixel_width = rk_fb_pixel_width(fb_data_fmt);
 	vir_width_bit = pixel_width * xvir;
-	stride_128bit_1 = ((vir_width_bit   + 127) & (~127))/8; //pixel_width = byte_num *8
-	stride_128bit_2 = ((vir_width_bit*2 + 127) & (~127))/8; //pixel_width = byte_num *8
 	stride_32bit_1	= ((vir_width_bit   + 31 ) & (~31 ))/8; //pixel_width = byte_num *8
 	stride_32bit_2	= ((vir_width_bit*2 + 31 ) & (~31 ))/8; //pixel_width = byte_num *8
 
@@ -1994,6 +2015,7 @@ if (rk_fb->disp_mode != DUAL) {
 	fix->line_length = stride;
 	switch (fb_data_fmt){
 	case YUV422:
+	case YUV422_A:	
 		is_pic_yuv = 1;
 		stride	   = stride_32bit_1;
 		uv_stride  = stride_32bit_1>> 1 ;//
@@ -2004,6 +2026,7 @@ if (rk_fb->disp_mode != DUAL) {
 		uv_y_act = win->area[0].yact>>1;
 		break;
 	case YUV420://420sp
+	case YUV420_A:
 		is_pic_yuv = 1;
 		stride	   = stride_32bit_1;
 		uv_stride  = stride_32bit_1;
@@ -2014,6 +2037,7 @@ if (rk_fb->disp_mode != DUAL) {
 		uv_y_act = win->area[0].yact>>1;
 		break;
 	case YUV444:
+	case YUV444_A:	
 		is_pic_yuv = 1;
 		stride	   = stride_32bit_1;
 		uv_stride  = stride_32bit_2;

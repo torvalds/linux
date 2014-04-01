@@ -1369,18 +1369,21 @@ static int rk3288_lcdc_cal_scl_fac(struct rk_lcdc_win *win)
 	/*cbcr scl mode*/
 	switch (win->format) {
 	case YUV422:
+	case YUV422_A:	
 		cbcr_srcW = srcW/2;
 		cbcr_dstW = dstW;
 		cbcr_srcH = srcH;
 		cbcr_dstH = dstH;
 		break;
 	case YUV420:
+	case YUV420_A:	
 		cbcr_srcW = srcW/2;
 		cbcr_dstW = dstW;
 		cbcr_srcH = srcH/2;
 		cbcr_dstH = dstH;
 		break;
 	case YUV444:
+	case YUV444_A:	
 		cbcr_srcW = srcW;
 		cbcr_dstW = dstW;
 		cbcr_srcH = srcH;
@@ -1417,7 +1420,7 @@ static int rk3288_lcdc_cal_scl_fac(struct rk_lcdc_win *win)
 		win->cbr_hor_scl_mode,win->cbr_ver_scl_mode);
 
     /*line buffer mode*/
-    	if((win->format == YUV422) || (win->format == YUV420)){
+    	if((win->format == YUV422) || (win->format == YUV420) || (win->format == YUV422_A) || (win->format == YUV420_A)){
         	if(win->cbr_hor_scl_mode == SCALE_DOWN){
             		if(cbcr_dstW > 3840){
                 		pr_err("ERROR cbcr_dst_width exceeds 3840\n");                
@@ -1751,13 +1754,27 @@ static int win0_set_par(struct lcdc_device *lcdc_dev,
 			fmt_cfg = 5;
 			win->swap_rb = 0;		
 			break;
-		case YUV420:
+		case YUV420:	
 			fmt_cfg = 4;
 			win->swap_rb = 0;		
 			break;
-		case YUV444:
+		case YUV444:	
 			fmt_cfg = 6;
-			win->swap_rb = 0;		
+			win->swap_rb = 0;
+		case YUV422_A:
+			fmt_cfg = 5;
+			win->swap_rb = 0;
+			win->fmt_10 = 1;
+			break;
+		case YUV420_A:	
+			fmt_cfg = 4;
+			win->swap_rb = 0;
+			win->fmt_10 = 1;
+			break;
+		case YUV444_A:	
+			fmt_cfg = 6;
+			win->swap_rb = 0;
+			win->fmt_10 = 1;
 			break;
 		default:
 			dev_err(lcdc_dev->driver.dev, "%s:un supported format!\n",
@@ -1770,7 +1787,7 @@ static int win0_set_par(struct lcdc_device *lcdc_dev,
 		xact = win->area[0].xact;
 		yact = win->area[0].yact;
 		xvir = win->area[0].xvir;
-		yvir = win->area[0].xvir;
+		yvir = win->area[0].yvir;
 	}
 	rk3288_win_0_1_reg_update(&lcdc_dev->driver,0);
 	spin_unlock(&lcdc_dev->reg_lock);
@@ -1826,6 +1843,21 @@ static int win1_set_par(struct lcdc_device *lcdc_dev,
 			fmt_cfg = 6;
 			win->swap_rb = 0;		
 			break;
+		case YUV422_A:
+			fmt_cfg = 5;
+			win->swap_rb = 0;
+			win->fmt_10 = 1;
+			break;
+		case YUV420_A:	
+			fmt_cfg = 4;
+			win->swap_rb = 0;
+			win->fmt_10 = 1;
+			break;
+		case YUV444_A:	
+			fmt_cfg = 6;
+			win->swap_rb = 0;
+			win->fmt_10 = 1;
+			break;			
 		default:
 			dev_err(lcdc_dev->driver.dev, "%s:un supported format!\n",
 				__func__);
@@ -1837,7 +1869,7 @@ static int win1_set_par(struct lcdc_device *lcdc_dev,
 		xact = win->area[0].xact;
 		yact = win->area[0].yact;
 		xvir = win->area[0].xvir;
-		yvir = win->area[0].xvir;
+		yvir = win->area[0].yvir;
 	}
 	rk3288_win_0_1_reg_update(&lcdc_dev->driver,1);
 	spin_unlock(&lcdc_dev->reg_lock);
