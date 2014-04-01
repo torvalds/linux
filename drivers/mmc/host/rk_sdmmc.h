@@ -299,6 +299,9 @@ struct dw_mci_slot {
 struct dw_mci_tuning_data {
 	const u8 *blk_pattern;
 	unsigned int blksz;
+
+	u8 con_id;
+	u8 tuning_type;
 };
 
 /**

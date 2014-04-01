@@ -12,35 +12,32 @@
 #include <linux/module.h>
 #include <linux/platform_device.h>
 #include <linux/clk.h>
-
-#include <linux/slab.h>
-
 #include <linux/mmc/host.h>
+#include <linux/mmc/mmc.h>
 #include <linux/mmc/rk_mmc.h>
 #include <linux/of.h>
 #include <linux/of_gpio.h>
+#include <linux/slab.h>
 
 #include "rk_sdmmc.h"
 #include "dw_mmc-pltfm.h"
+#include "../../clk/rockchip/clk-ops.h"
 
 #include "rk_sdmmc_of.h"
 
-#define NUM_PINS(x)			(x + 2)
-
-/* SDMMC_CLKSEL is not used in Rockchip
-#define SDMMC_CLKSEL			0x09C
-#define SDMMC_CLKSEL_CCLK_SAMPLE(x)	(((x) & 7) << 0)
-#define SDMMC_CLKSEL_CCLK_DRIVE(x)	(((x) & 7) << 16)
-#define SDMMC_CLKSEL_CCLK_DIVIDER(x)	(((x) & 7) << 24)
-#define SDMMC_CLKSEL_GET_DRV_WD3(x)	(((x) >> 16) & 0x7)
-#define SDMMC_CLKSEL_TIMING(x, y, z)	(SDMMC_CLKSEL_CCLK_SAMPLE(x) |	\
-					SDMMC_CLKSEL_CCLK_DRIVE(y) |	\
-					SDMMC_CLKSEL_CCLK_DIVIDER(z))
+/*CRU SDMMC TUNING*/
+/*
+*   sdmmc,sdio0,sdio1,emmc id=0~3
+*   cclk_in_drv, cclk_in_sample  i=0,1
 */
-#define SDMMC_CMD_USE_HOLD_REG		BIT(29)
+#define CRU_SDMMC_CON(id, tuning_type)	(0x200 + ((id) * 8) + ((tuning_type) * 4))
 
-//#define EXYNOS4210_FIXED_CIU_CLK_DIV	2
-//#define EXYNOS4412_FIXED_CIU_CLK_DIV	4
+#define SDMMC_TUNING_SEL(tuning_type)           ( tuning_type? 10:11 )
+#define SDMMC_TUNING_DELAYNUM(tuning_type)      ( tuning_type? 2:3 )
+#define SDMMC_TUNING_DEGREE(tuning_type)        ( tuning_type? 0:1 )
+#define SDMMC_TUNING_INIT_STATE                 (0)
+
+#define SDMMC_CMD_USE_HOLD_REG		BIT(29)
 
 /* Variations in Rockchip specific dw-mshc controller */
 enum dw_mci_rockchip_type {
@@ -54,6 +51,7 @@ struct dw_mci_rockchip_priv_data {
 	u8				ciu_div;
 	u32				sdr_timing;
 	u32				ddr_timing;
+	u32				cur_speed;
 };
 
 static struct dw_mci_rockchip_compatible {
@@ -96,71 +94,182 @@ static int dw_mci_rockchip_setup_clock(struct dw_mci *host)
 
 	if (priv->ctrl_type == DW_MCI_TYPE_RK3288)
 		host->bus_hz /= (priv->ciu_div + 1);
-	/*else if (priv->ctrl_type == DW_MCI_TYPE_EXYNOS4412)
-		host->bus_hz /= EXYNOS4412_FIXED_CIU_CLK_DIV;
-	else if (priv->ctrl_type == DW_MCI_TYPE_EXYNOS4210)
-		host->bus_hz /= EXYNOS4210_FIXED_CIU_CLK_DIV;
-    */
+
 	return 0;
 }
 
 static void dw_mci_rockchip_prepare_command(struct dw_mci *host, u32 *cmdr)
 {
-	/*
-	 * Exynos4412 and Exynos5250 extends the use of CMD register with the
-	 * use of bit 29 (which is reserved on standard MSHC controllers) for
-	 * optionally bypassing the HOLD register for command and data. The
-	 * HOLD register should be bypassed in case there is no phase shift
-	 * applied on CMD/DATA that is sent to the card.
-	 */
 //	if (SDMMC_CLKSEL_GET_DRV_WD3(mci_readl(host, CLKSEL)))
 //		*cmdr |= SDMMC_CMD_USE_HOLD_REG;
 }
 
 static void dw_mci_rockchip_set_ios(struct dw_mci *host, struct mmc_ios *ios)
 {
-	//struct dw_mci_rockchip_priv_data *priv = host->priv;
-/*
-	if (ios->timing == MMC_TIMING_UHS_DDR50)
-		mci_writel(host, CLKSEL, priv->ddr_timing);
-	else
-		mci_writel(host, CLKSEL, priv->sdr_timing);
-*/
+
 }
 
 static int dw_mci_rockchip_parse_dt(struct dw_mci *host)
 {
-/*
-	struct dw_mci_rockchip_priv_data *priv = host->priv;
-	struct device_node *np = host->dev->of_node;
-	u32 timing[2];
-	u32 div = 0;
-	int ret;
-        //rk set the timing in CRU
-	of_property_read_u32(np, "samsung,dw-mshc-ciu-div", &div);
-	priv->ciu_div = div;
 
-	ret = of_property_read_u32_array(np,
-			"samsung,dw-mshc-sdr-timing", timing, 2);
-	if (ret)
-		return ret;
-
-	priv->sdr_timing = SDMMC_CLKSEL_TIMING(timing[0], timing[1], div);
-
-	ret = of_property_read_u32_array(np,
-			"samsung,dw-mshc-ddr-timing", timing, 2);
-	if (ret)
-		return ret;
-
-	priv->ddr_timing = SDMMC_CLKSEL_TIMING(timing[0], timing[1], div);
-	*/
 	return 0;
+}
+static inline u8 dw_mci_rockchip_get_delaynum(struct dw_mci *host, u8 con_id, u8 tuning_type)
+{
+    u32 regs;
+    u8 delaynum;
+	regs =  cru_readl(CRU_SDMMC_CON(con_id, tuning_type)) ;
+	delaynum = (regs>>SDMMC_TUNING_DELAYNUM(tuning_type)) & 0xff;
+
+	return delaynum;
+}
+
+static inline void dw_mci_rockchip_set_delaynum(struct dw_mci *host, u8 con_id, u8 tuning_type, u8 delaynum)
+{
+    u32 regs;
+	regs = cru_readl(CRU_SDMMC_CON(con_id, tuning_type)) ;
+	regs &= ~( 0xff << SDMMC_TUNING_DELAYNUM(tuning_type));
+	regs |= (delaynum  << SDMMC_TUNING_DELAYNUM(tuning_type));
+	regs |= (0xff  << (SDMMC_TUNING_DELAYNUM(tuning_type)+16));
+    MMC_DBG_INFO_FUNC(host->mmc,"tuning_result: con_id=%d, tuning_type=%d,SDMMC_CON=0x%x. [%s]",
+        con_id,tuning_type,regs, mmc_hostname(host->mmc));	
+    cru_writel(regs, CRU_SDMMC_CON(con_id, tuning_type));
+}
+
+static inline void dw_mci_rockchip_set_degree(struct dw_mci *host, u8 con_id, u8 tuning_type, u8 phase)
+{
+    u32 regs;
+	regs = cru_readl(CRU_SDMMC_CON(con_id, tuning_type)) ;
+	regs &= ~( 0x3 << SDMMC_TUNING_DEGREE(tuning_type));
+	regs |= (phase  << SDMMC_TUNING_DEGREE(tuning_type));
+	regs |= (0x3  << (SDMMC_TUNING_DEGREE(tuning_type)+16));
+    cru_writel(regs, CRU_SDMMC_CON(con_id, tuning_type));
+}
+
+
+static inline u8 dw_mci_rockchip_get_phase(struct dw_mci *host, u8 con_id, u8 tuning_type)
+{
+	return 0;
+}
+
+static inline u8 dw_mci_rockchip_move_next_clksmpl(struct dw_mci *host, u8 con_id, u8 tuning_type, u8 val)
+{
+    u32 regs;
+    //u8 delaynum;
+	regs = cru_readl(CRU_SDMMC_CON(con_id, tuning_type)) ;
+
+	if(tuning_type) {
+	    val = (regs>>SDMMC_TUNING_DELAYNUM(tuning_type)) & 0xff;
+	}
+
+	return val;
+}
+
+
+static u8 dw_mci_rockchip_get_best_clksmpl(u8 *candiates)
+{
+    u8 pos, i;
+    u8 bestval =0;
+    
+    for(pos=31; pos>0;pos--)
+        if(candiates[pos] != 0) {
+            for(i=7; i>0; i--)
+            {
+                if(candiates[pos]& (1<<i))
+                   bestval = pos*8+i; 
+            }          
+        }
+
+    return bestval;
+}
+
+static int dw_mci_rockchip_execute_tuning(struct dw_mci_slot *slot, u32 opcode,
+					struct dw_mci_tuning_data *tuning_data)
+{
+	struct dw_mci *host = slot->host;
+	struct mmc_host *mmc = slot->mmc;
+	const u8 *blk_pattern = tuning_data->blk_pattern;
+	u8 *blk_test;
+	unsigned int blksz = tuning_data->blksz;
+	u8 start_smpl, smpl, pos,index;
+	u8 candiates[32];
+	u8 found = 0;
+	int ret = 0;
+
+	blk_test = kmalloc(blksz, GFP_KERNEL);
+	if (!blk_test)
+		return -ENOMEM;
+
+    //start_smpl = dw_mci_rockchip_get_delaynum(host, tuning_data->con_id, tuning_data->tuning_type);
+    start_smpl = 0;
+    smpl = 0xff;
+    
+    for(pos=0; pos<32; pos++)
+        candiates[pos] = 0;
+        
+	do {
+		struct mmc_request mrq = {NULL};
+		struct mmc_command cmd = {0};
+		struct mmc_command stop = {0};
+		struct mmc_data data = {0};
+		struct scatterlist sg;
+
+		cmd.opcode = opcode;
+		cmd.arg = 0;
+		cmd.flags = MMC_RSP_R1 | MMC_CMD_ADTC;
+
+		stop.opcode = MMC_STOP_TRANSMISSION;
+		stop.arg = 0;
+		stop.flags = MMC_RSP_R1B | MMC_CMD_AC;
+
+		data.blksz = blksz;
+		data.blocks = 1;
+		data.flags = MMC_DATA_READ;
+		data.sg = &sg;
+		data.sg_len = 1;
+
+		sg_init_one(&sg, blk_test, blksz);
+		mrq.cmd = &cmd;
+		mrq.stop = &stop;
+		mrq.data = &data;
+		host->mrq = &mrq;
+
+		mci_writel(host, TMOUT, ~0);
+		//smpl = smpl >> 1;//smpl = dw_mci_rockchip_move_next_clksmpl(host);
+
+		mmc_wait_for_req(mmc, &mrq);
+
+		if (!cmd.error && !data.error) {
+			if (!memcmp(blk_pattern, blk_test, blksz)) {
+			    pos = smpl/8;
+			    index = smpl%8;
+			    candiates[pos] |= (1 << index);
+
+			    //temporary settings,!!!!!!!!!!!!!!!
+			    if(smpl<64)
+			        break;
+			}				
+		} else {
+			dev_dbg(host->dev,
+				"Tuning error: cmd.error:%d, data.error:%d\n",
+				cmd.error, data.error);
+		}
+		smpl = smpl >> 1;
+	} while (start_smpl != smpl);
+
+	found = dw_mci_rockchip_get_best_clksmpl((u8 *)&candiates[0]);
+	if (found >= 0)
+		dw_mci_rockchip_set_delaynum(host, tuning_data->con_id, tuning_data->tuning_type, found);//dw_mci_rockchip_set_clksmpl(host, found);
+	else
+		ret = -EIO;
+
+	kfree(blk_test);
+	return ret;
 }
 
 /* Common capabilities of RK32XX SoC */
 static unsigned long rockchip_dwmmc_caps[4] = {
-	/*MMC_CAP_UHS_DDR50 | MMC_CAP_1_8V_DDR | //Temporarily comment out!!!!!!, deleted by xbw, at 2014-03-12*/
-	MMC_CAP_8_BIT_DATA|MMC_CAP_4_BIT_DATA|MMC_CAP_CMD23|MMC_CAP_UHS_SDR12|MMC_CAP_UHS_SDR25|MMC_CAP_UHS_SDR50|MMC_CAP_UHS_SDR104|MMC_CAP_ERASE,
+	MMC_CAP_CMD23,
 	MMC_CAP_CMD23,
 	MMC_CAP_CMD23,
 	MMC_CAP_CMD23,
@@ -176,6 +285,7 @@ static const struct dw_mci_drv_data rockchip_drv_data = {
 	.prepare_command	= dw_mci_rockchip_prepare_command,
 	.set_ios		= dw_mci_rockchip_set_ios,
 	.parse_dt		= dw_mci_rockchip_parse_dt,
+	.execute_tuning		= dw_mci_rockchip_execute_tuning,
 };
 
 static const struct of_device_id dw_mci_rockchip_match[] = {

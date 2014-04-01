@@ -164,6 +164,10 @@
         supports-highspeed;
 	supports-emmc;
         bootpart-no-access;
+
+	supports-DDR_MODE;
+	caps2-mmc-hs200;
+
         ignore-pm-notify;
 		keep-power-in-suspend;
     	status = "okay";
@@ -192,7 +196,7 @@
 		ignore-pm-notify;
 		keep-power-in-suspend;
 		//cap-sdio-irq;
-		status = "okay";
+		status = "disabled";
 };
 
 &spi0 {

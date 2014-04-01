@@ -242,8 +242,8 @@
 		clocks = <&clk_emmc>, <&clk_gates8 6>;
 		clock-names = "clk_mmc", "hclk_mmc";
 		num-slots = <1>;	  	
-  	  	fifo-depth = <0x80>;
-		bus-width = <4>;
+  	  	fifo-depth = <0x100>;
+		bus-width = <8>;
 	};
 
 	sdmmc: rksdmmc@ff0c0000 {

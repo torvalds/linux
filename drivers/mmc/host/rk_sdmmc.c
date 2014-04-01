@@ -883,8 +883,8 @@ static void dw_mci_setup_bus(struct dw_mci_slot *slot, bool force_clkinit)
 			     SDMMC_CMD_UPD_CLK | SDMMC_CMD_PRV_DAT_WAIT, 0);
 
 		/* set clock to desired speed */
-		mci_writel(host, CLKDIV, div);
-
+		mci_writel(host, CLKDIV, div>>1); // *2 due to fix divider 2 in controller
+		host->current_div = div;
 		/* inform CIU */
 		mci_send_cmd(slot,
 			     SDMMC_CMD_UPD_CLK | SDMMC_CMD_PRV_DAT_WAIT, 0);
@@ -1330,6 +1330,17 @@ static int dw_mci_execute_tuning(struct mmc_host *mmc, u32 opcode)
 			"Undefined command(%d) for tuning\n", opcode);
 		return -EINVAL;
 	}
+
+    /////////////////////////////////////////////////
+	//temporary settings,!!!!!!!!!!!!!!!
+	if (mmc->restrict_caps & RESTRICT_CARD_TYPE_EMMC)
+	    tuning_data.con_id = 3;
+	else if (mmc->restrict_caps & RESTRICT_CARD_TYPE_SDIO)
+	    tuning_data.con_id = 1;
+	else
+	    tuning_data.con_id = 0;	    
+	tuning_data.tuning_type = 1; //0--drv, 1--sample
+    /////////////////////////////////////////////////
 
 	if (drv_data && drv_data->execute_tuning)
 		err = drv_data->execute_tuning(slot, opcode, &tuning_data);
@@ -2301,12 +2312,7 @@ static void dw_mci_work_routine_card(struct work_struct *work)
 
 			/* Power down slot */
 			if (present == 0) {
-
-				/*
-				 * Clear down the FIFO - doing so generates a
-				 * block interrupt, hence setting the
-				 * scatter-gather pointer to NULL.
-				 */
+				/* Clear down the FIFO */
 				dw_mci_fifo_reset(host);
 #ifdef CONFIG_MMC_DW_IDMAC
 				dw_mci_idmac_reset(host);
@@ -2557,6 +2563,9 @@ static int dw_mci_init_slot(struct dw_mci *host, unsigned int id)
 		mmc->caps |= drv_data->caps[ctrl_id];
 	if (drv_data && drv_data->hold_reg_flag)
 		mmc->hold_reg_flag |= drv_data->hold_reg_flag[ctrl_id];		
+
+	//set the compatibility of driver.	
+    mmc->caps |= MMC_CAP_UHS_SDR12|MMC_CAP_UHS_SDR25|MMC_CAP_UHS_SDR50|MMC_CAP_UHS_SDR104|MMC_CAP_ERASE;
 
 	if (host->pdata->caps2)
 		mmc->caps2 = host->pdata->caps2;
@@ -2849,6 +2858,15 @@ static struct dw_mci_board *dw_mci_parse_dt(struct dw_mci *host)
 
 	if (of_find_property(np, "supports-highspeed", NULL))
 		pdata->caps |= MMC_CAP_SD_HIGHSPEED | MMC_CAP_MMC_HIGHSPEED;
+		
+    if (of_find_property(np, "supports-UHS_SDR104", NULL))
+		pdata->caps |= MMC_CAP_UHS_SDR104 | MMC_CAP_UHS_SDR50;
+
+    if (of_find_property(np, "supports-DDR_MODE", NULL))
+		pdata->caps |= MMC_CAP_1_8V_DDR | MMC_CAP_1_2V_DDR;
+
+    if (of_find_property(np, "caps2-mmc-hs200", NULL))
+		pdata->caps2 |= MMC_CAP2_HS200;
 
 	if (of_find_property(np, "caps2-mmc-hs200-1_8v", NULL))
 		pdata->caps2 |= MMC_CAP2_HS200_1_8V_SDR;
@@ -2937,6 +2955,7 @@ int dw_mci_probe(struct dw_mci *host)
 
 	host->quirks = host->pdata->quirks;
     host->irq_state = true;
+    host->current_div = 0;
 
 	spin_lock_init(&host->lock);
 	INIT_LIST_HEAD(&host->queue);
