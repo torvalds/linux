@@ -311,9 +311,6 @@ struct drm_crtc {
 	struct drm_plane *primary;
 	struct drm_plane *cursor;
 
-	/* framebuffer the connector is currently bound to */
-	struct drm_framebuffer *fb;
-
 	/* Temporary tracking of the old fb while a modeset is ongoing. Used
 	 * by drm_mode_set_config_internal to implement correct refcounting. */
 	struct drm_framebuffer *old_fb;
