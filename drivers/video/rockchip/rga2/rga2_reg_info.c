@@ -535,8 +535,23 @@ RGA2_set_reg_dst_info(u8 *base, struct rga2_req *msg)
     }
 
     *bRGA_DST_BASE0 = (RK_U32)yrgb_addr;
-    *bRGA_DST_BASE1 = (RK_U32)u_addr;
-    *bRGA_DST_BASE2 = (RK_U32)v_addr;
+
+    if((msg->dst.format == RGA2_FORMAT_YCbCr_420_P) || (msg->dst.format == RGA2_FORMAT_YCrCb_420_P))
+    {
+        if(dst_cbcr_swp == 0) {
+            *bRGA_DST_BASE1 = (RK_U32)v_addr;
+            *bRGA_DST_BASE2 = (RK_U32)u_addr;
+        }
+        else {
+            *bRGA_DST_BASE1 = (RK_U32)u_addr;
+            *bRGA_DST_BASE2 = (RK_U32)v_addr;
+        }
+    }
+    else {
+        *bRGA_DST_BASE1 = (RK_U32)u_addr;
+        *bRGA_DST_BASE2 = (RK_U32)v_addr;
+    }
+
     *bRGA_SRC_BASE3 = (RK_U32)s_y_lt_addr;
 }
 
