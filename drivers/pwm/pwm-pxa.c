@@ -132,7 +132,7 @@ static struct pwm_ops pxa_pwm_ops = {
  * code that this is a single channel pxa25x-pwm.  Currently all devices are
  * supported identically.
  */
-static struct of_device_id pwm_of_match[] = {
+static const struct of_device_id pwm_of_match[] = {
 	{ .compatible = "marvell,pxa250-pwm", .data = &pwm_id_table[0]},
 	{ .compatible = "marvell,pxa270-pwm", .data = &pwm_id_table[0]},
 	{ .compatible = "marvell,pxa168-pwm", .data = &pwm_id_table[0]},
