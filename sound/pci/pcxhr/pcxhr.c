@@ -284,7 +284,7 @@ static int pcxhr_get_clock_reg(struct pcxhr_mgr *mgr, unsigned int rate,
 			rmh.cmd_len = 3;
 			err = pcxhr_send_msg(mgr, &rmh);
 			if (err < 0) {
-				snd_printk(KERN_ERR
+				dev_err(&mgr->pci->dev,
 					   "error CMD_ACCESS_IO_WRITE "
 					   "for PLL register : %x!\n", err);
 				return err;
@@ -357,7 +357,7 @@ static int pcxhr_sub_set_clock(struct pcxhr_mgr *mgr,
 			return err;
 	}
 	/* set the new frequency */
-	snd_printdd("clock register : set %x\n", val);
+	dev_dbg(&mgr->pci->dev, "clock register : set %x\n", val);
 	err = pcxhr_write_io_num_reg_cont(mgr, PCXHR_FREQ_REG_MASK,
 					  val, changed);
 	if (err)
@@ -380,7 +380,7 @@ static int pcxhr_sub_set_clock(struct pcxhr_mgr *mgr,
 		mgr->codec_speed = speed;	/* save new codec speed */
 	}
 
-	snd_printdd("pcxhr_sub_set_clock to %dHz (realfreq=%d)\n",
+	dev_dbg(&mgr->pci->dev, "pcxhr_sub_set_clock to %dHz (realfreq=%d)\n",
 		    rate, realfreq);
 	return 0;
 }
@@ -480,7 +480,7 @@ static int pcxhr_sub_get_external_clock(struct pcxhr_mgr *mgr,
 	case REG_STATUS_SYNC_192000 :	rate = 192000; break;
 	default: rate = 0;
 	}
-	snd_printdd("External clock is at %d Hz\n", rate);
+	dev_dbg(&mgr->pci->dev, "External clock is at %d Hz\n", rate);
 	*sample_rate = rate;
 	return 0;
 }
@@ -537,8 +537,8 @@ static int pcxhr_set_stream_state(struct pcxhr_stream *stream)
 
 	err = pcxhr_send_msg(chip->mgr, &rmh);
 	if (err)
-		snd_printk(KERN_ERR "ERROR pcxhr_set_stream_state err=%x;\n",
-			   err);
+		dev_err(chip->card->dev,
+			"ERROR pcxhr_set_stream_state err=%x;\n", err);
 	stream->status =
 	  start ? PCXHR_STREAM_STATUS_STARTED : PCXHR_STREAM_STATUS_STOPPED;
 	return err;
@@ -628,7 +628,8 @@ static int pcxhr_set_format(struct pcxhr_stream *stream)
 	rmh.cmd[rmh.cmd_len++] = (header & 0xff) << 16;
 	err = pcxhr_send_msg(chip->mgr, &rmh);
 	if (err)
-		snd_printk(KERN_ERR "ERROR pcxhr_set_format err=%x;\n", err);
+		dev_err(chip->card->dev,
+			"ERROR pcxhr_set_format err=%x;\n", err);
 	return err;
 }
 
@@ -665,7 +666,7 @@ static int pcxhr_update_r_buffer(struct pcxhr_stream *stream)
 	rmh.cmd_len = 4;
 	err = pcxhr_send_msg(chip->mgr, &rmh);
 	if (err)
-		snd_printk(KERN_ERR
+		dev_err(chip->card->dev,
 			   "ERROR CMD_UPDATE_R_BUFFERS err=%x;\n", err);
 	return err;
 }
@@ -735,11 +736,11 @@ static void pcxhr_trigger_tasklet(unsigned long arg)
 	}
 	if (capture_mask == 0 && playback_mask == 0) {
 		mutex_unlock(&mgr->setup_mutex);
-		snd_printk(KERN_ERR "pcxhr_trigger_tasklet : no pipes\n");
+		dev_err(&mgr->pci->dev, "pcxhr_trigger_tasklet : no pipes\n");
 		return;
 	}
 
-	snd_printdd("pcxhr_trigger_tasklet : "
+	dev_dbg(&mgr->pci->dev, "pcxhr_trigger_tasklet : "
 		    "playback_mask=%x capture_mask=%x\n",
 		    playback_mask, capture_mask);
 
@@ -747,7 +748,7 @@ static void pcxhr_trigger_tasklet(unsigned long arg)
 	err = pcxhr_set_pipe_state(mgr,  playback_mask, capture_mask, 0);
 	if (err) {
 		mutex_unlock(&mgr->setup_mutex);
-		snd_printk(KERN_ERR "pcxhr_trigger_tasklet : "
+		dev_err(&mgr->pci->dev, "pcxhr_trigger_tasklet : "
 			   "error stop pipes (P%x C%x)\n",
 			   playback_mask, capture_mask);
 		return;
@@ -792,7 +793,7 @@ static void pcxhr_trigger_tasklet(unsigned long arg)
 	err = pcxhr_set_pipe_state(mgr, playback_mask, capture_mask, 1);
 	if (err) {
 		mutex_unlock(&mgr->setup_mutex);
-		snd_printk(KERN_ERR "pcxhr_trigger_tasklet : "
+		dev_err(&mgr->pci->dev, "pcxhr_trigger_tasklet : "
 			   "error start pipes (P%x C%x)\n",
 			   playback_mask, capture_mask);
 		return;
@@ -825,7 +826,7 @@ static void pcxhr_trigger_tasklet(unsigned long arg)
 
 #ifdef CONFIG_SND_DEBUG_VERBOSE
 	do_gettimeofday(&my_tv2);
-	snd_printdd("***TRIGGER TASKLET*** TIME = %ld (err = %x)\n",
+	dev_dbg(&mgr->pci->dev, "***TRIGGER TASKLET*** TIME = %ld (err = %x)\n",
 		    (long)(my_tv2.tv_usec - my_tv1.tv_usec), err);
 #endif
 }
@@ -902,7 +903,7 @@ static int pcxhr_hardware_timer(struct pcxhr_mgr *mgr, int start)
 	}
 	err = pcxhr_send_msg(mgr, &rmh);
 	if (err < 0)
-		snd_printk(KERN_ERR "error pcxhr_hardware_timer err(%x)\n",
+		dev_err(&mgr->pci->dev, "error pcxhr_hardware_timer err(%x)\n",
 			   err);
 	return err;
 }
@@ -916,7 +917,8 @@ static int pcxhr_prepare(struct snd_pcm_substream *subs)
 	struct pcxhr_mgr *mgr = chip->mgr;
 	int err = 0;
 
-	snd_printdd("pcxhr_prepare : period_size(%lx) periods(%x) buffer_size(%lx)\n",
+	dev_dbg(chip->card->dev,
+		"pcxhr_prepare : period_size(%lx) periods(%x) buffer_size(%lx)\n",
 		    subs->runtime->period_size, subs->runtime->periods,
 		    subs->runtime->buffer_size);
 
@@ -1025,11 +1027,11 @@ static int pcxhr_open(struct snd_pcm_substream *subs)
 	runtime->hw = pcxhr_caps;
 
 	if( subs->stream == SNDRV_PCM_STREAM_PLAYBACK ) {
-		snd_printdd("pcxhr_open playback chip%d subs%d\n",
+		dev_dbg(chip->card->dev, "pcxhr_open playback chip%d subs%d\n",
 			    chip->chip_idx, subs->number);
 		stream = &chip->playback_stream[subs->number];
 	} else {
-		snd_printdd("pcxhr_open capture chip%d subs%d\n",
+		dev_dbg(chip->card->dev, "pcxhr_open capture chip%d subs%d\n",
 			    chip->chip_idx, subs->number);
 		if (mgr->mono_capture)
 			runtime->hw.channels_max = 1;
@@ -1039,7 +1041,7 @@ static int pcxhr_open(struct snd_pcm_substream *subs)
 	}
 	if (stream->status != PCXHR_STREAM_STATUS_FREE){
 		/* streams in use */
-		snd_printk(KERN_ERR "pcxhr_open chip%d subs%d in use\n",
+		dev_err(chip->card->dev, "pcxhr_open chip%d subs%d in use\n",
 			   chip->chip_idx, subs->number);
 		mutex_unlock(&mgr->setup_mutex);
 		return -EBUSY;
@@ -1105,7 +1107,7 @@ static int pcxhr_close(struct snd_pcm_substream *subs)
 
 	mutex_lock(&mgr->setup_mutex);
 
-	snd_printdd("pcxhr_close chip%d subs%d\n",
+	dev_dbg(chip->card->dev, "pcxhr_close chip%d subs%d\n",
 		    chip->chip_idx, subs->number);
 
 	/* sample rate released */
@@ -1168,7 +1170,7 @@ int pcxhr_create_pcm(struct snd_pcxhr *chip)
 	if ((err = snd_pcm_new(chip->card, name, 0,
 			       chip->nb_streams_play,
 			       chip->nb_streams_capt, &pcm)) < 0) {
-		snd_printk(KERN_ERR "cannot create pcm %s\n", name);
+		dev_err(chip->card->dev, "cannot create pcm %s\n", name);
 		return err;
 	}
 	pcm->private_data = chip;
@@ -1214,7 +1216,7 @@ static int pcxhr_create(struct pcxhr_mgr *mgr,
 
 	chip = kzalloc(sizeof(*chip), GFP_KERNEL);
 	if (! chip) {
-		snd_printk(KERN_ERR "cannot allocate chip\n");
+		dev_err(card->dev, "cannot allocate chip\n");
 		return -ENOMEM;
 	}
 
@@ -1239,7 +1241,6 @@ static int pcxhr_create(struct pcxhr_mgr *mgr,
 	}
 
 	mgr->chip[idx] = chip;
-	snd_card_set_dev(card, &mgr->pci->dev);
 
 	return 0;
 }
@@ -1488,7 +1489,7 @@ static int pcxhr_free(struct pcxhr_mgr *mgr)
 	/* reset board if some firmware was loaded */
 	if(mgr->dsp_loaded) {
 		pcxhr_reset_board(mgr);
-		snd_printdd("reset pcxhr !\n");
+		dev_dbg(&mgr->pci->dev, "reset pcxhr !\n");
 	}
 
 	/* release irq  */
@@ -1537,8 +1538,8 @@ static int pcxhr_probe(struct pci_dev *pci,
 
 	/* check if we can restrict PCI DMA transfers to 32 bits */
 	if (pci_set_dma_mask(pci, DMA_BIT_MASK(32)) < 0) {
-		snd_printk(KERN_ERR "architecture does not support "
-			   "32bit PCI busmaster DMA\n");
+		dev_err(&pci->dev,
+			"architecture does not support 32bit PCI busmaster DMA\n");
 		pci_disable_device(pci);
 		return -ENXIO;
 	}
@@ -1589,7 +1590,7 @@ static int pcxhr_probe(struct pci_dev *pci,
 
 	if (request_irq(pci->irq, pcxhr_interrupt, IRQF_SHARED,
 			KBUILD_MODNAME, mgr)) {
-		snd_printk(KERN_ERR "unable to grab IRQ %d\n", pci->irq);
+		dev_err(&pci->dev, "unable to grab IRQ %d\n", pci->irq);
 		pcxhr_free(mgr);
 		return -EBUSY;
 	}
@@ -1638,10 +1639,11 @@ static int pcxhr_probe(struct pci_dev *pci,
 
 		snprintf(tmpid, sizeof(tmpid), "%s-%d",
 			 id[dev] ? id[dev] : card_name, i);
-		err = snd_card_create(idx, tmpid, THIS_MODULE, 0, &card);
+		err = snd_card_new(&pci->dev, idx, tmpid, THIS_MODULE,
+				   0, &card);
 
 		if (err < 0) {
-			snd_printk(KERN_ERR "cannot allocate the card %d\n", i);
+			dev_err(card->dev, "cannot allocate the card %d\n", i);
 			pcxhr_free(mgr);
 			return err;
 		}

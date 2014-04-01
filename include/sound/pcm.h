@@ -1141,4 +1141,12 @@ static inline u64 pcm_format_to_bits(snd_pcm_format_t pcm_format)
 	return 1ULL << (__force int) pcm_format;
 }
 
+/* printk helpers */
+#define pcm_err(pcm, fmt, args...) \
+	dev_err((pcm)->card->dev, fmt, ##args)
+#define pcm_warn(pcm, fmt, args...) \
+	dev_warn((pcm)->card->dev, fmt, ##args)
+#define pcm_dbg(pcm, fmt, args...) \
+	dev_dbg((pcm)->card->dev, fmt, ##args)
+
 #endif /* __SOUND_PCM_H */

@@ -197,7 +197,7 @@ static int snd_wl1273_set_audio_route(struct snd_kcontrol *kcontrol,
 		return 0;
 
 	/* Do not allow changes while stream is running */
-	if (codec->active)
+	if (snd_soc_codec_is_active(codec))
 		return -EPERM;
 
 	if (ucontrol->value.integer.value[0] < 0 ||
@@ -209,8 +209,7 @@ static int snd_wl1273_set_audio_route(struct snd_kcontrol *kcontrol,
 	return 1;
 }
 
-static const struct soc_enum wl1273_enum =
-	SOC_ENUM_SINGLE_EXT(ARRAY_SIZE(wl1273_audio_route), wl1273_audio_route);
+static SOC_ENUM_SINGLE_EXT_DECL(wl1273_enum, wl1273_audio_route);
 
 static int snd_wl1273_fm_audio_get(struct snd_kcontrol *kcontrol,
 				   struct snd_ctl_elem_value *ucontrol)
@@ -247,9 +246,7 @@ static int snd_wl1273_fm_audio_put(struct snd_kcontrol *kcontrol,
 
 static const char * const wl1273_audio_strings[] = { "Digital", "Analog" };
 
-static const struct soc_enum wl1273_audio_enum =
-	SOC_ENUM_SINGLE_EXT(ARRAY_SIZE(wl1273_audio_strings),
-			    wl1273_audio_strings);
+static SOC_ENUM_SINGLE_EXT_DECL(wl1273_audio_enum, wl1273_audio_strings);
 
 static int snd_wl1273_fm_volume_get(struct snd_kcontrol *kcontrol,
 				    struct snd_ctl_elem_value *ucontrol)

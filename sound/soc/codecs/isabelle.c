@@ -918,8 +918,7 @@ static int isabelle_hw_params(struct snd_pcm_substream *substream,
 			      struct snd_pcm_hw_params *params,
 			      struct snd_soc_dai *dai)
 {
-	struct snd_soc_pcm_runtime *rtd = substream->private_data;
-	struct snd_soc_codec *codec = rtd->codec;
+	struct snd_soc_codec *codec = dai->codec;
 	u16 aif = 0;
 	unsigned int fs_val = 0;
 
@@ -1090,23 +1089,7 @@ static struct snd_soc_dai_driver isabelle_dai[] = {
 	},
 };
 
-static int isabelle_probe(struct snd_soc_codec *codec)
-{
-	int ret = 0;
-
-	codec->control_data = dev_get_regmap(codec->dev, NULL);
-
-	ret = snd_soc_codec_set_cache_io(codec, 8, 8, SND_SOC_REGMAP);
-	if (ret < 0) {
-		dev_err(codec->dev, "Failed to set cache I/O: %d\n", ret);
-		return ret;
-	}
-
-	return 0;
-}
-
 static struct snd_soc_codec_driver soc_codec_dev_isabelle = {
-	.probe = isabelle_probe,
 	.set_bias_level = isabelle_set_bias_level,
 	.controls = isabelle_snd_controls,
 	.num_controls = ARRAY_SIZE(isabelle_snd_controls),

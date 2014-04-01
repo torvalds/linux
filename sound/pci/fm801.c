@@ -254,7 +254,7 @@ static void snd_fm801_codec_write(struct snd_ac97 *ac97,
 			goto ok1;
 		udelay(10);
 	}
-	snd_printk(KERN_ERR "AC'97 interface is busy (1)\n");
+	dev_err(chip->card->dev, "AC'97 interface is busy (1)\n");
 	return;
 
  ok1:
@@ -269,7 +269,7 @@ static void snd_fm801_codec_write(struct snd_ac97 *ac97,
 			return;
 		udelay(10);
 	}
-	snd_printk(KERN_ERR "AC'97 interface #%d is busy (2)\n", ac97->num);
+	dev_err(chip->card->dev, "AC'97 interface #%d is busy (2)\n", ac97->num);
 }
 
 static unsigned short snd_fm801_codec_read(struct snd_ac97 *ac97, unsigned short reg)
@@ -285,7 +285,7 @@ static unsigned short snd_fm801_codec_read(struct snd_ac97 *ac97, unsigned short
 			goto ok1;
 		udelay(10);
 	}
-	snd_printk(KERN_ERR "AC'97 interface is busy (1)\n");
+	dev_err(chip->card->dev, "AC'97 interface is busy (1)\n");
 	return 0;
 
  ok1:
@@ -297,7 +297,7 @@ static unsigned short snd_fm801_codec_read(struct snd_ac97 *ac97, unsigned short
 			goto ok2;
 		udelay(10);
 	}
-	snd_printk(KERN_ERR "AC'97 interface #%d is busy (2)\n", ac97->num);
+	dev_err(chip->card->dev, "AC'97 interface #%d is busy (2)\n", ac97->num);
 	return 0;
 
  ok2:
@@ -306,7 +306,7 @@ static unsigned short snd_fm801_codec_read(struct snd_ac97 *ac97, unsigned short
 			goto ok3;
 		udelay(10);
 	}
-	snd_printk(KERN_ERR "AC'97 interface #%d is not valid (2)\n", ac97->num);
+	dev_err(chip->card->dev, "AC'97 interface #%d is not valid (2)\n", ac97->num);
 	return 0;
 
  ok3:
@@ -1100,8 +1100,8 @@ static int snd_fm801_chip_init(struct fm801 *chip, int resume)
 
 	if (wait_for_codec(chip, 0, AC97_RESET, msecs_to_jiffies(750)) < 0)
 		if (!resume) {
-			snd_printk(KERN_INFO "Primary AC'97 codec not found, "
-					    "assume SF64-PCR (tuner-only)\n");
+			dev_info(chip->card->dev,
+				 "Primary AC'97 codec not found, assume SF64-PCR (tuner-only)\n");
 			chip->tea575x_tuner = 3 | TUNER_ONLY;
 			goto __ac97_ok;
 		}
@@ -1225,7 +1225,7 @@ static int snd_fm801_create(struct snd_card *card,
 	if ((tea575x_tuner & TUNER_ONLY) == 0) {
 		if (request_irq(pci->irq, snd_fm801_interrupt, IRQF_SHARED,
 				KBUILD_MODNAME, chip)) {
-			snd_printk(KERN_ERR "unable to grab IRQ %d\n", chip->irq);
+			dev_err(card->dev, "unable to grab IRQ %d\n", chip->irq);
 			snd_fm801_free(chip);
 			return -EBUSY;
 		}
@@ -1251,8 +1251,6 @@ static int snd_fm801_create(struct snd_card *card,
 		return err;
 	}
 
-	snd_card_set_dev(card, &pci->dev);
-
 #ifdef CONFIG_SND_FM801_TEA575X_BOOL
 	err = v4l2_device_register(&pci->dev, &chip->v4l2_dev);
 	if (err < 0) {
@@ -1267,7 +1265,7 @@ static int snd_fm801_create(struct snd_card *card,
 	if ((tea575x_tuner & TUNER_TYPE_MASK) > 0 &&
 	    (tea575x_tuner & TUNER_TYPE_MASK) < 4) {
 		if (snd_tea575x_init(&chip->tea, THIS_MODULE)) {
-			snd_printk(KERN_ERR "TEA575x radio not found\n");
+			dev_err(card->dev, "TEA575x radio not found\n");
 			snd_fm801_free(chip);
 			return -ENODEV;
 		}
@@ -1276,13 +1274,14 @@ static int snd_fm801_create(struct snd_card *card,
 		for (tea575x_tuner = 1; tea575x_tuner <= 3; tea575x_tuner++) {
 			chip->tea575x_tuner = tea575x_tuner;
 			if (!snd_tea575x_init(&chip->tea, THIS_MODULE)) {
-				snd_printk(KERN_INFO "detected TEA575x radio type %s\n",
+				dev_info(card->dev,
+					 "detected TEA575x radio type %s\n",
 					   get_tea575x_gpio(chip)->name);
 				break;
 			}
 		}
 		if (tea575x_tuner == 4) {
-			snd_printk(KERN_ERR "TEA575x radio not found\n");
+			dev_err(card->dev, "TEA575x radio not found\n");
 			chip->tea575x_tuner = TUNER_DISABLED;
 		}
 	}
@@ -1312,7 +1311,8 @@ static int snd_card_fm801_probe(struct pci_dev *pci,
 		return -ENOENT;
 	}
 
-	err = snd_card_create(index[dev], id[dev], THIS_MODULE, 0, &card);
+	err = snd_card_new(&pci->dev, index[dev], id[dev], THIS_MODULE,
+			   0, &card);
 	if (err < 0)
 		return err;
 	if ((err = snd_fm801_create(card, pci, tea575x_tuner[dev], radio_nr[dev], &chip)) < 0) {
@@ -1411,8 +1411,7 @@ static int snd_fm801_resume(struct device *dev)
 	pci_set_power_state(pci, PCI_D0);
 	pci_restore_state(pci);
 	if (pci_enable_device(pci) < 0) {
-		printk(KERN_ERR "fm801: pci_enable_device failed, "
-		       "disabling device\n");
+		dev_err(dev, "pci_enable_device failed, disabling device\n");
 		snd_card_disconnect(card);
 		return -EIO;
 	}
