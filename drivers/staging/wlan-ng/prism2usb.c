@@ -96,7 +96,8 @@ static int prism2sta_probe_usb(struct usb_interface *interface,
 					   prism2_reset_settletime, 0);
 		if (result != 0) {
 			result = -EIO;
-			dev_err(&interface->dev, "hfa384x_corereset() failed.\n");
+			dev_err(&interface->dev,
+				"hfa384x_corereset() failed.\n");
 			goto failed_reset;
 		}
 	}
@@ -136,7 +137,6 @@ static void prism2sta_disconnect_usb(struct usb_interface *interface)
 	wlandevice_t *wlandev;
 
 	wlandev = (wlandevice_t *) usb_get_intfdata(interface);
-
 	if (wlandev != NULL) {
 		LIST_HEAD(cleanlist);
 		struct list_head *entry;
@@ -228,6 +228,7 @@ static int prism2sta_suspend(struct usb_interface *interface,
 {
 	hfa384x_t *hw = NULL;
 	wlandevice_t *wlandev;
+
 	wlandev = (wlandevice_t *) usb_get_intfdata(interface);
 	if (!wlandev)
 		return -ENODEV;
@@ -250,6 +251,7 @@ static int prism2sta_resume(struct usb_interface *interface)
 	int result = 0;
 	hfa384x_t *hw = NULL;
 	wlandevice_t *wlandev;
+
 	wlandev = (wlandevice_t *) usb_get_intfdata(interface);
 	if (!wlandev)
 		return -ENODEV;
