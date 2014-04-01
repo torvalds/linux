@@ -41,24 +41,15 @@ MODULE_PARM_DESC(nowayout,
 
 static void indydog_start(void)
 {
-	u32 mc_ctrl0;
-
 	spin_lock(&indydog_lock);
-	mc_ctrl0 = sgimc->cpuctrl0;
-	mc_ctrl0 = sgimc->cpuctrl0 | SGIMC_CCTRL0_WDOG;
-	sgimc->cpuctrl0 = mc_ctrl0;
+	sgimc->cpuctrl0 |= SGIMC_CCTRL0_WDOG;
 	spin_unlock(&indydog_lock);
 }
 
 static void indydog_stop(void)
 {
-	u32 mc_ctrl0;
-
 	spin_lock(&indydog_lock);
-
-	mc_ctrl0 = sgimc->cpuctrl0;
-	mc_ctrl0 &= ~SGIMC_CCTRL0_WDOG;
-	sgimc->cpuctrl0 = mc_ctrl0;
+	sgimc->cpuctrl0 &= ~SGIMC_CCTRL0_WDOG;
 	spin_unlock(&indydog_lock);
 
 	pr_info("Stopped watchdog timer\n");
