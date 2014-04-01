@@ -1609,6 +1609,33 @@ static void valleyview_pipestat_irq_handler(struct drm_device *dev, u32 iir)
 		gmbus_irq_handler(dev);
 }
 
+static void i9xx_hpd_irq_handler(struct drm_device *dev)
+{
+	struct drm_i915_private *dev_priv = dev->dev_private;
+	u32 hotplug_status = I915_READ(PORT_HOTPLUG_STAT);
+
+	if (IS_G4X(dev)) {
+		u32 hotplug_trigger = hotplug_status & HOTPLUG_INT_STATUS_G4X;
+
+		intel_hpd_irq_handler(dev, hotplug_trigger, hpd_status_g4x);
+	} else {
+		u32 hotplug_trigger = hotplug_status & HOTPLUG_INT_STATUS_I915;
+
+		intel_hpd_irq_handler(dev, hotplug_trigger, hpd_status_i915);
+	}
+
+	if ((IS_G4X(dev) || IS_VALLEYVIEW(dev)) &&
+	    hotplug_status & DP_AUX_CHANNEL_MASK_INT_STATUS_G4X)
+		dp_aux_irq_handler(dev);
+
+	I915_WRITE(PORT_HOTPLUG_STAT, hotplug_status);
+	/*
+	 * Make sure hotplug status is cleared before we clear IIR, or else we
+	 * may miss hotplug events.
+	 */
+	POSTING_READ(PORT_HOTPLUG_STAT);
+}
+
 static irqreturn_t valleyview_irq_handler(int irq, void *arg)
 {
 	struct drm_device *dev = (struct drm_device *) arg;
@@ -1631,19 +1658,8 @@ static irqreturn_t valleyview_irq_handler(int irq, void *arg)
 		valleyview_pipestat_irq_handler(dev, iir);
 
 		/* Consume port.  Then clear IIR or we'll miss events */
-		if (iir & I915_DISPLAY_PORT_INTERRUPT) {
-			u32 hotplug_status = I915_READ(PORT_HOTPLUG_STAT);
-			u32 hotplug_trigger = hotplug_status & HOTPLUG_INT_STATUS_I915;
-
-			intel_hpd_irq_handler(dev, hotplug_trigger, hpd_status_i915);
-
-			if (hotplug_status & DP_AUX_CHANNEL_MASK_INT_STATUS_G4X)
-				dp_aux_irq_handler(dev);
-
-			I915_WRITE(PORT_HOTPLUG_STAT, hotplug_status);
-			I915_READ(PORT_HOTPLUG_STAT);
-		}
-
+		if (iir & I915_DISPLAY_PORT_INTERRUPT)
+			i9xx_hpd_irq_handler(dev);
 
 		if (pm_iir)
 			gen6_rps_irq_handler(dev_priv, pm_iir);
@@ -3675,16 +3691,9 @@ static irqreturn_t i915_irq_handler(int irq, void *arg)
 			break;
 
 		/* Consume port.  Then clear IIR or we'll miss events */
-		if ((I915_HAS_HOTPLUG(dev)) &&
-		    (iir & I915_DISPLAY_PORT_INTERRUPT)) {
-			u32 hotplug_status = I915_READ(PORT_HOTPLUG_STAT);
-			u32 hotplug_trigger = hotplug_status & HOTPLUG_INT_STATUS_I915;
-
-			intel_hpd_irq_handler(dev, hotplug_trigger, hpd_status_i915);
-
-			I915_WRITE(PORT_HOTPLUG_STAT, hotplug_status);
-			POSTING_READ(PORT_HOTPLUG_STAT);
-		}
+		if (I915_HAS_HOTPLUG(dev) &&
+		    iir & I915_DISPLAY_PORT_INTERRUPT)
+			i9xx_hpd_irq_handler(dev);
 
 		I915_WRITE(IIR, iir & ~flip_mask);
 		new_iir = I915_READ(IIR); /* Flush posted writes */
@@ -3918,22 +3927,8 @@ static irqreturn_t i965_irq_handler(int irq, void *arg)
 		ret = IRQ_HANDLED;
 
 		/* Consume port.  Then clear IIR or we'll miss events */
-		if (iir & I915_DISPLAY_PORT_INTERRUPT) {
-			u32 hotplug_status = I915_READ(PORT_HOTPLUG_STAT);
-			u32 hotplug_trigger = hotplug_status & (IS_G4X(dev) ?
-								  HOTPLUG_INT_STATUS_G4X :
-								  HOTPLUG_INT_STATUS_I915);
-
-			intel_hpd_irq_handler(dev, hotplug_trigger,
-					      IS_G4X(dev) ? hpd_status_g4x : hpd_status_i915);
-
-			if (IS_G4X(dev) &&
-			    (hotplug_status & DP_AUX_CHANNEL_MASK_INT_STATUS_G4X))
-				dp_aux_irq_handler(dev);
-
-			I915_WRITE(PORT_HOTPLUG_STAT, hotplug_status);
-			I915_READ(PORT_HOTPLUG_STAT);
-		}
+		if (iir & I915_DISPLAY_PORT_INTERRUPT)
+			i9xx_hpd_irq_handler(dev);
 
 		I915_WRITE(IIR, iir & ~flip_mask);
 		new_iir = I915_READ(IIR); /* Flush posted writes */
