@@ -37,9 +37,12 @@
 static int set_audio_clock_rate(unsigned long pll_rate,
 				unsigned long audio_rate)
 {
-	struct clk *hclk_spdif, *sclk_spdif;
+	struct clk *sclk_spdif;
+#if defined (CONFIG_ARCH_RK30) || defined (CONFIG_ARCH_RK3188)
+	struct clk *hclk_spdif;
+#endif
 
-#if defined (CONFIG_ARCH_RK30) || (CONFIG_ARCH_RK3188)	
+#if defined (CONFIG_ARCH_RK30) || defined (CONFIG_ARCH_RK3188)
 	hclk_spdif = clk_get(NULL, "hclk_spdif");
 	if (IS_ERR(hclk_spdif)) {
 		printk(KERN_ERR "spdif:failed to get hclk_spdif\n");
@@ -131,9 +134,7 @@ static struct snd_soc_ops rk_spdif_ops = {
 static struct snd_soc_dai_link rk_dai = {
 	.name = "SPDIF",
 	.stream_name = "SPDIF PCM Playback",
-	.cpu_dai_name = "rockchip-spdif",
 	.codec_dai_name = "rk-hdmi-spdif-hifi",
-	.codec_name = "hdmi-spdif",
 	.ops = &rk_spdif_ops,
 };
 
@@ -150,7 +151,7 @@ static int rockchip_hdmi_spdif_audio_probe(struct platform_device *pdev)
 
 	card->dev = &pdev->dev;
 
-	ret = rockchip_of_get_sound_card_info(card);
+	ret = rockchip_of_get_sound_card_info_(card, false);
 	if (ret) {
 		printk("%s() get sound card info failed:%d\n", __FUNCTION__, ret);
 		return ret;

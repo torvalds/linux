@@ -109,14 +109,8 @@
 			dai0 {
 				audio-codec = <&codec_hdmi_spdif>;
 				i2s-controller = <&spdif>;
-				format = "spdif";
-				//continuous-clock;
-				//bitclock-inversion;
-				//frame-inversion;
-				//bitclock-master;
-				//frame-master;
 			};
-		};		
+		};
 	};
 
 	rockchip-rt5631 {
@@ -149,11 +143,11 @@
 				//frame-master;
 			};
 			dai1 {
-				audio-codec = <&rt3261>;
-				i2s-controller = <&i2s>;
-				format = "i2s";
+				audio-codec = <&codec_of_node>;
+				i2s-controller = <&cpu_of_node>;
+				format = "dsp_a";
 				//continuous-clock;
-				//bitclock-inversion;
+				bitclock-inversion;
 				//frame-inversion;
 				//bitclock-master;
 				//frame-master;

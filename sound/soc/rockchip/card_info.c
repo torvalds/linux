@@ -58,7 +58,7 @@
 			};
 		};
  */
-int rockchip_of_get_sound_card_info(struct snd_soc_card *card)
+int rockchip_of_get_sound_card_info_(struct snd_soc_card *card, bool is_need_fmt)
 {
 	struct device_node *dai_node, *child_dai_node;
 	int dai_num;
@@ -73,18 +73,20 @@ int rockchip_of_get_sound_card_info(struct snd_soc_card *card)
 
 	for_each_child_of_node(dai_node, child_dai_node) {
 
-		card->dai_link[dai_num].dai_fmt = snd_soc_of_parse_daifmt(child_dai_node, NULL);
-		if ((card->dai_link[dai_num].dai_fmt & SND_SOC_DAIFMT_MASTER_MASK) == 0) {
-			dev_err(card->dev,
-				"Property 'format' missing or invalid\n");
-			return -EINVAL;
+		if (is_need_fmt) {
+			card->dai_link[dai_num].dai_fmt = snd_soc_of_parse_daifmt(child_dai_node, NULL);
+			if ((card->dai_link[dai_num].dai_fmt & SND_SOC_DAIFMT_MASTER_MASK) == 0) {
+				dev_err(card->dev,
+					"Property 'format' missing or invalid\n");
+				return -EINVAL;
+			}
 		}
 
 		card->dai_link[dai_num].codec_name = NULL;
 		card->dai_link[dai_num].cpu_dai_name = NULL;
-		card->dai_link[dai_num].platform_name= NULL;
+		card->dai_link[dai_num].platform_name = NULL;
 
-		card->dai_link[dai_num].codec_of_node= of_parse_phandle(child_dai_node,
+		card->dai_link[dai_num].codec_of_node = of_parse_phandle(child_dai_node,
 			"audio-codec", 0);
 		if (!card->dai_link[dai_num].codec_of_node) {
 			dev_err(card->dev,
@@ -92,7 +94,7 @@ int rockchip_of_get_sound_card_info(struct snd_soc_card *card)
 			return -EINVAL;
 		}
 
-		card->dai_link[dai_num].cpu_of_node= of_parse_phandle(child_dai_node,
+		card->dai_link[dai_num].cpu_of_node = of_parse_phandle(child_dai_node,
 			"i2s-controller", 0);
 		if (!card->dai_link[dai_num].cpu_of_node) {
 			dev_err(card->dev,
@@ -113,6 +115,12 @@ int rockchip_of_get_sound_card_info(struct snd_soc_card *card)
 	}
 
 	return 0;
+}
+EXPORT_SYMBOL_GPL(rockchip_of_get_sound_card_info_);
+
+int rockchip_of_get_sound_card_info(struct snd_soc_card *card)
+{
+	return rockchip_of_get_sound_card_info_(card, true);
 }
 EXPORT_SYMBOL_GPL(rockchip_of_get_sound_card_info);
 
