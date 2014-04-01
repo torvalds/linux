@@ -2908,11 +2908,9 @@ static void gen5_gt_irq_reset(struct drm_device *dev)
 
 /* drm_dma.h hooks
 */
-static void ironlake_irq_preinstall(struct drm_device *dev)
+static void ironlake_irq_reset(struct drm_device *dev)
 {
 	struct drm_i915_private *dev_priv = dev->dev_private;
-
-	I915_WRITE(HWSTAM, 0xeffe);
 
 	GEN5_IRQ_RESET(DE);
 	if (IS_GEN7(dev))
@@ -2921,6 +2919,15 @@ static void ironlake_irq_preinstall(struct drm_device *dev)
 	gen5_gt_irq_reset(dev);
 
 	ibx_irq_reset(dev);
+}
+
+static void ironlake_irq_preinstall(struct drm_device *dev)
+{
+	struct drm_i915_private *dev_priv = dev->dev_private;
+
+	I915_WRITE(HWSTAM, 0xeffe);
+
+	ironlake_irq_reset(dev);
 }
 
 static void valleyview_irq_preinstall(struct drm_device *dev)
@@ -3360,13 +3367,7 @@ static void ironlake_irq_uninstall(struct drm_device *dev)
 
 	I915_WRITE(HWSTAM, 0xffffffff);
 
-	GEN5_IRQ_RESET(DE);
-	if (IS_GEN7(dev))
-		I915_WRITE(GEN7_ERR_INT, 0xffffffff);
-
-	gen5_gt_irq_reset(dev);
-
-	ibx_irq_reset(dev);
+	ironlake_irq_reset(dev);
 }
 
 static void i8xx_irq_preinstall(struct drm_device * dev)
