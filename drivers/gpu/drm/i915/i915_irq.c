@@ -3299,6 +3299,8 @@ static void gen8_irq_uninstall(struct drm_device *dev)
 	if (!dev_priv)
 		return;
 
+	intel_hpd_irq_uninstall(dev_priv);
+
 	I915_WRITE(GEN8_MASTER_IRQ, 0);
 
 	GEN8_IRQ_RESET_NDX(GT, 0);
