@@ -190,7 +190,7 @@ ffs_sb_create_file(struct super_block *sb, const char *name, void *data,
 /* Devices management *******************************************************/
 
 DEFINE_MUTEX(ffs_lock);
-EXPORT_SYMBOL(ffs_lock);
+EXPORT_SYMBOL_GPL(ffs_lock);
 
 static struct ffs_dev *_ffs_find_dev(const char *name);
 static struct ffs_dev *_ffs_alloc_dev(void);
@@ -2876,7 +2876,7 @@ int ffs_name_dev(struct ffs_dev *dev, const char *name)
 
 	return ret;
 }
-EXPORT_SYMBOL(ffs_name_dev);
+EXPORT_SYMBOL_GPL(ffs_name_dev);
 
 int ffs_single_dev(struct ffs_dev *dev)
 {
@@ -2893,7 +2893,7 @@ int ffs_single_dev(struct ffs_dev *dev)
 	ffs_dev_unlock();
 	return ret;
 }
-EXPORT_SYMBOL(ffs_single_dev);
+EXPORT_SYMBOL_GPL(ffs_single_dev);
 
 /*
  * ffs_lock must be taken by the caller of this function

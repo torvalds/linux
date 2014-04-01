@@ -1005,7 +1005,7 @@ void unregister_gadget_item(struct config_item *item)
 
 	unregister_gadget(gi);
 }
-EXPORT_SYMBOL(unregister_gadget_item);
+EXPORT_SYMBOL_GPL(unregister_gadget_item);
 
 static int __init gadget_cfs_init(void)
 {

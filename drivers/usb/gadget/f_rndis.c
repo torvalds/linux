@@ -834,7 +834,7 @@ void rndis_borrow_net(struct usb_function_instance *f, struct net_device *net)
 	opts->borrowed_net = opts->bound = true;
 	opts->net = net;
 }
-EXPORT_SYMBOL(rndis_borrow_net);
+EXPORT_SYMBOL_GPL(rndis_borrow_net);
 
 static inline struct f_rndis_opts *to_f_rndis_opts(struct config_item *item)
 {
