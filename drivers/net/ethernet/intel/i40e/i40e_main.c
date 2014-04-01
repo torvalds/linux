@@ -6783,9 +6783,11 @@ static int i40e_config_netdev(struct i40e_vsi *vsi)
 			   NETIF_F_TSO_ECN	       |
 			   NETIF_F_TSO6		       |
 			   NETIF_F_RXCSUM	       |
-			   NETIF_F_NTUPLE	       |
 			   NETIF_F_RXHASH	       |
 			   0;
+
+	if (!(pf->flags & I40E_FLAG_MFP_ENABLED))
+		netdev->features |= NETIF_F_NTUPLE;
 
 	/* copy netdev features into list of user selectable features */
 	netdev->hw_features |= netdev->features;
