@@ -231,7 +231,7 @@
 		};
 
 		timer@01c20c00 {
-			compatible = "allwinner,sun4i-timer";
+			compatible = "allwinner,sun4i-a10-timer";
 			reg = <0x01c20c00 0xa0>;
 			interrupts = <0 18 4>,
 				     <0 19 4>,
