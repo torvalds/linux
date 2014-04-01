@@ -190,7 +190,7 @@ static void exynos_drm_crtc_disable(struct drm_crtc *crtc)
 
 	exynos_drm_crtc_dpms(crtc, DRM_MODE_DPMS_OFF);
 
-	list_for_each_entry(plane, &crtc->dev->mode_config.plane_list, head) {
+	drm_for_each_legacy_plane(plane, &crtc->dev->mode_config.plane_list) {
 		if (plane->crtc != crtc)
 			continue;
 
