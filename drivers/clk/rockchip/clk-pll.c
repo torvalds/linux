@@ -145,8 +145,8 @@ static const struct apll_clk_set rk3288_apll_table[] = {
 	_RK3288_APLL_SET_CLKS(312,	1,	52,	4,	2,      2,      4,      4,      4),
 	_RK3288_APLL_SET_CLKS(252,	1,	84,	8,	2,      2,      4,      4,      4),
 	_RK3288_APLL_SET_CLKS(216,	1,	72,	8,	2,      2,      4,      4,      4),
-	_RK3288_APLL_SET_CLKS(126,	1,	84,	16,	2,      2,      4,      4,      4),
-	_RK3288_APLL_SET_CLKS(48,  	1,	32,	16,	2,      2,      4,      4,      4),
+	_RK3288_APLL_SET_CLKS(126,	2,	84,	8,	2,      2,      4,      4,      4),
+	_RK3288_APLL_SET_CLKS(48,  	2,	32,	8,	2,      2,      4,      4,      4),
 	_RK3288_APLL_SET_CLKS(0,	1,	32,	16,	2,      2,      4,      4,      4),
 };
 
