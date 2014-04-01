@@ -192,7 +192,7 @@ static int cdv_hdmi_set_property(struct drm_connector *connector,
 		    crtc->saved_mode.vdisplay != 0) {
 			if (centre) {
 				if (!drm_crtc_helper_set_mode(encoder->crtc, &crtc->saved_mode,
-					    encoder->crtc->x, encoder->crtc->y, encoder->crtc->fb))
+					    encoder->crtc->x, encoder->crtc->y, encoder->crtc->primary->fb))
 					return -1;
 			} else {
 				struct drm_encoder_helper_funcs *helpers

@@ -102,7 +102,7 @@ static void update_fb(struct drm_crtc *crtc, struct drm_framebuffer *new_fb)
 
 	/* grab reference to incoming scanout fb: */
 	drm_framebuffer_reference(new_fb);
-	mdp5_crtc->base.fb = new_fb;
+	mdp5_crtc->base.primary->fb = new_fb;
 	mdp5_crtc->fb = new_fb;
 
 	if (old_fb)
@@ -289,14 +289,14 @@ static int mdp5_crtc_mode_set(struct drm_crtc *crtc,
 			mode->type, mode->flags);
 
 	/* grab extra ref for update_scanout() */
-	drm_framebuffer_reference(crtc->fb);
+	drm_framebuffer_reference(crtc->primary->fb);
 
-	ret = mdp5_plane_mode_set(mdp5_crtc->plane, crtc, crtc->fb,
+	ret = mdp5_plane_mode_set(mdp5_crtc->plane, crtc, crtc->primary->fb,
 			0, 0, mode->hdisplay, mode->vdisplay,
 			x << 16, y << 16,
 			mode->hdisplay << 16, mode->vdisplay << 16);
 	if (ret) {
-		drm_framebuffer_unreference(crtc->fb);
+		drm_framebuffer_unreference(crtc->primary->fb);
 		dev_err(crtc->dev->dev, "%s: failed to set mode on plane: %d\n",
 				mdp5_crtc->name, ret);
 		return ret;
@@ -306,8 +306,8 @@ static int mdp5_crtc_mode_set(struct drm_crtc *crtc,
 			MDP5_LM_OUT_SIZE_WIDTH(mode->hdisplay) |
 			MDP5_LM_OUT_SIZE_HEIGHT(mode->vdisplay));
 
-	update_fb(crtc, crtc->fb);
-	update_scanout(crtc, crtc->fb);
+	update_fb(crtc, crtc->primary->fb);
+	update_scanout(crtc, crtc->primary->fb);
 
 	return 0;
 }
@@ -338,19 +338,19 @@ static int mdp5_crtc_mode_set_base(struct drm_crtc *crtc, int x, int y,
 	int ret;
 
 	/* grab extra ref for update_scanout() */
-	drm_framebuffer_reference(crtc->fb);
+	drm_framebuffer_reference(crtc->primary->fb);
 
-	ret = mdp5_plane_mode_set(plane, crtc, crtc->fb,
+	ret = mdp5_plane_mode_set(plane, crtc, crtc->primary->fb,
 			0, 0, mode->hdisplay, mode->vdisplay,
 			x << 16, y << 16,
 			mode->hdisplay << 16, mode->vdisplay << 16);
 	if (ret) {
-		drm_framebuffer_unreference(crtc->fb);
+		drm_framebuffer_unreference(crtc->primary->fb);
 		return ret;
 	}
 
-	update_fb(crtc, crtc->fb);
-	update_scanout(crtc, crtc->fb);
+	update_fb(crtc, crtc->primary->fb);
+	update_scanout(crtc, crtc->primary->fb);
 
 	return 0;
 }

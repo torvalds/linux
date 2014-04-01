@@ -468,7 +468,7 @@ static int do_surface_dirty_sou(struct vmw_private *dev_priv,
 	num_units = 0;
 	list_for_each_entry(crtc, &dev_priv->dev->mode_config.crtc_list,
 			    head) {
-		if (crtc->fb != &framebuffer->base)
+		if (crtc->primary->fb != &framebuffer->base)
 			continue;
 		units[num_units++] = vmw_crtc_to_du(crtc);
 	}
@@ -882,7 +882,7 @@ static int do_dmabuf_dirty_sou(struct drm_file *file_priv,
 
 	num_units = 0;
 	list_for_each_entry(crtc, &dev_priv->dev->mode_config.crtc_list, head) {
-		if (crtc->fb != &framebuffer->base)
+		if (crtc->primary->fb != &framebuffer->base)
 			continue;
 		units[num_units++] = vmw_crtc_to_du(crtc);
 	}
@@ -1243,7 +1243,7 @@ int vmw_kms_present(struct vmw_private *dev_priv,
 
 	num_units = 0;
 	list_for_each_entry(crtc, &dev_priv->dev->mode_config.crtc_list, head) {
-		if (crtc->fb != &vfb->base)
+		if (crtc->primary->fb != &vfb->base)
 			continue;
 		units[num_units++] = vmw_crtc_to_du(crtc);
 	}
@@ -1380,7 +1380,7 @@ int vmw_kms_readback(struct vmw_private *dev_priv,
 
 	num_units = 0;
 	list_for_each_entry(crtc, &dev_priv->dev->mode_config.crtc_list, head) {
-		if (crtc->fb != &vfb->base)
+		if (crtc->primary->fb != &vfb->base)
 			continue;
 		units[num_units++] = vmw_crtc_to_du(crtc);
 	}
@@ -1723,7 +1723,7 @@ int vmw_du_page_flip(struct drm_crtc *crtc,
 		     uint32_t page_flip_flags)
 {
 	struct vmw_private *dev_priv = vmw_priv(crtc->dev);
-	struct drm_framebuffer *old_fb = crtc->fb;
+	struct drm_framebuffer *old_fb = crtc->primary->fb;
 	struct vmw_framebuffer *vfb = vmw_framebuffer_to_vfb(fb);
 	struct drm_file *file_priv ;
 	struct vmw_fence_obj *fence = NULL;
@@ -1741,7 +1741,7 @@ int vmw_du_page_flip(struct drm_crtc *crtc,
 	if (!vmw_kms_screen_object_flippable(dev_priv, crtc))
 		return -EINVAL;
 
-	crtc->fb = fb;
+	crtc->primary->fb = fb;
 
 	/* do a full screen dirty update */
 	clips.x1 = clips.y1 = 0;
@@ -1781,7 +1781,7 @@ int vmw_du_page_flip(struct drm_crtc *crtc,
 	return ret;
 
 out_no_fence:
-	crtc->fb = old_fb;
+	crtc->primary->fb = old_fb;
 	return ret;
 }
 

@@ -312,7 +312,7 @@ struct drm_connector *omap_framebuffer_get_next_connector(
 		if (connector != from) {
 			struct drm_encoder *encoder = connector->encoder;
 			struct drm_crtc *crtc = encoder ? encoder->crtc : NULL;
-			if (crtc && crtc->fb == fb)
+			if (crtc && crtc->primary->fb == fb)
 				return connector;
 
 		}

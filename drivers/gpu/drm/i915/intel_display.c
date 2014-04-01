@@ -744,7 +744,7 @@ bool intel_crtc_active(struct drm_crtc *crtc)
 	 * We can ditch the crtc->fb check as soon as we can
 	 * properly reconstruct framebuffers.
 	 */
-	return intel_crtc->active && crtc->fb &&
+	return intel_crtc->active && crtc->primary->fb &&
 		intel_crtc->config.adjusted_mode.crtc_clock;
 }
 
@@ -2291,8 +2291,8 @@ void intel_display_handle_reset(struct drm_device *dev)
 		 * disabling them without disabling the entire crtc) allow again
 		 * a NULL crtc->fb.
 		 */
-		if (intel_crtc->active && crtc->fb)
-			dev_priv->display.update_plane(crtc, crtc->fb,
+		if (intel_crtc->active && crtc->primary->fb)
+			dev_priv->display.update_plane(crtc, crtc->primary->fb,
 						       crtc->x, crtc->y);
 		mutex_unlock(&crtc->mutex);
 	}
@@ -2417,8 +2417,8 @@ intel_pipe_set_base(struct drm_crtc *crtc, int x, int y,
 		return ret;
 	}
 
-	old_fb = crtc->fb;
-	crtc->fb = fb;
+	old_fb = crtc->primary->fb;
+	crtc->primary->fb = fb;
 	crtc->x = x;
 	crtc->y = y;
 
@@ -3009,7 +3009,7 @@ static void intel_crtc_wait_for_pending_flips(struct drm_crtc *crtc)
 	struct drm_device *dev = crtc->dev;
 	struct drm_i915_private *dev_priv = dev->dev_private;
 
-	if (crtc->fb == NULL)
+	if (crtc->primary->fb == NULL)
 		return;
 
 	WARN_ON(waitqueue_active(&dev_priv->pending_flip_queue));
@@ -3018,7 +3018,7 @@ static void intel_crtc_wait_for_pending_flips(struct drm_crtc *crtc)
 		   !intel_crtc_has_pending_flip(crtc));
 
 	mutex_lock(&dev->struct_mutex);
-	intel_finish_fb(crtc->fb);
+	intel_finish_fb(crtc->primary->fb);
 	mutex_unlock(&dev->struct_mutex);
 }
 
@@ -4466,11 +4466,11 @@ static void intel_crtc_disable(struct drm_crtc *crtc)
 	assert_cursor_disabled(dev_priv, to_intel_crtc(crtc)->pipe);
 	assert_pipe_disabled(dev->dev_private, to_intel_crtc(crtc)->pipe);
 
-	if (crtc->fb) {
+	if (crtc->primary->fb) {
 		mutex_lock(&dev->struct_mutex);
-		intel_unpin_fb_obj(to_intel_framebuffer(crtc->fb)->obj);
+		intel_unpin_fb_obj(to_intel_framebuffer(crtc->primary->fb)->obj);
 		mutex_unlock(&dev->struct_mutex);
-		crtc->fb = NULL;
+		crtc->primary->fb = NULL;
 	}
 
 	/* Update computed state. */
@@ -8249,7 +8249,7 @@ void intel_mark_idle(struct drm_device *dev)
 		goto out;
 
 	list_for_each_entry(crtc, &dev->mode_config.crtc_list, head) {
-		if (!crtc->fb)
+		if (!crtc->primary->fb)
 			continue;
 
 		intel_decrease_pllclock(crtc);
@@ -8272,10 +8272,10 @@ void intel_mark_fb_busy(struct drm_i915_gem_object *obj,
 		return;
 
 	list_for_each_entry(crtc, &dev->mode_config.crtc_list, head) {
-		if (!crtc->fb)
+		if (!crtc->primary->fb)
 			continue;
 
-		if (to_intel_framebuffer(crtc->fb)->obj != obj)
+		if (to_intel_framebuffer(crtc->primary->fb)->obj != obj)
 			continue;
 
 		intel_increase_pllclock(crtc);
@@ -8703,7 +8703,7 @@ static int intel_crtc_page_flip(struct drm_crtc *crtc,
 {
 	struct drm_device *dev = crtc->dev;
 	struct drm_i915_private *dev_priv = dev->dev_private;
-	struct drm_framebuffer *old_fb = crtc->fb;
+	struct drm_framebuffer *old_fb = crtc->primary->fb;
 	struct drm_i915_gem_object *obj = to_intel_framebuffer(fb)->obj;
 	struct intel_crtc *intel_crtc = to_intel_crtc(crtc);
 	struct intel_unpin_work *work;
@@ -8711,7 +8711,7 @@ static int intel_crtc_page_flip(struct drm_crtc *crtc,
 	int ret;
 
 	/* Can't change pixel format via MI display flips. */
-	if (fb->pixel_format != crtc->fb->pixel_format)
+	if (fb->pixel_format != crtc->primary->fb->pixel_format)
 		return -EINVAL;
 
 	/*
@@ -8719,8 +8719,8 @@ static int intel_crtc_page_flip(struct drm_crtc *crtc,
 	 * Note that pitch changes could also affect these register.
 	 */
 	if (INTEL_INFO(dev)->gen > 3 &&
-	    (fb->offsets[0] != crtc->fb->offsets[0] ||
-	     fb->pitches[0] != crtc->fb->pitches[0]))
+	    (fb->offsets[0] != crtc->primary->fb->offsets[0] ||
+	     fb->pitches[0] != crtc->primary->fb->pitches[0]))
 		return -EINVAL;
 
 	if (i915_terminally_wedged(&dev_priv->gpu_error))
@@ -8763,7 +8763,7 @@ static int intel_crtc_page_flip(struct drm_crtc *crtc,
 	drm_gem_object_reference(&work->old_fb_obj->base);
 	drm_gem_object_reference(&obj->base);
 
-	crtc->fb = fb;
+	crtc->primary->fb = fb;
 
 	work->pending_flip_obj = obj;
 
@@ -8786,7 +8786,7 @@ static int intel_crtc_page_flip(struct drm_crtc *crtc,
 
 cleanup_pending:
 	atomic_dec(&intel_crtc->unpin_work_count);
-	crtc->fb = old_fb;
+	crtc->primary->fb = old_fb;
 	drm_gem_object_unreference(&work->old_fb_obj->base);
 	drm_gem_object_unreference(&obj->base);
 	mutex_unlock(&dev->struct_mutex);
@@ -9803,7 +9803,7 @@ static int intel_set_mode(struct drm_crtc *crtc,
 
 void intel_crtc_restore_mode(struct drm_crtc *crtc)
 {
-	intel_set_mode(crtc, &crtc->mode, crtc->x, crtc->y, crtc->fb);
+	intel_set_mode(crtc, &crtc->mode, crtc->x, crtc->y, crtc->primary->fb);
 }
 
 #undef for_each_intel_crtc_masked
@@ -9927,9 +9927,9 @@ intel_set_config_compute_mode_changes(struct drm_mode_set *set,
 	 * and then just flip_or_move it */
 	if (is_crtc_connector_off(set)) {
 		config->mode_changed = true;
-	} else if (set->crtc->fb != set->fb) {
+	} else if (set->crtc->primary->fb != set->fb) {
 		/* If we have no fb then treat it as a full mode set */
-		if (set->crtc->fb == NULL) {
+		if (set->crtc->primary->fb == NULL) {
 			struct intel_crtc *intel_crtc =
 				to_intel_crtc(set->crtc);
 
@@ -9943,7 +9943,7 @@ intel_set_config_compute_mode_changes(struct drm_mode_set *set,
 		} else if (set->fb == NULL) {
 			config->mode_changed = true;
 		} else if (set->fb->pixel_format !=
-			   set->crtc->fb->pixel_format) {
+			   set->crtc->primary->fb->pixel_format) {
 			config->mode_changed = true;
 		} else {
 			config->fb_changed = true;
@@ -10156,7 +10156,7 @@ static int intel_crtc_set_config(struct drm_mode_set *set)
 	save_set.mode = &set->crtc->mode;
 	save_set.x = set->crtc->x;
 	save_set.y = set->crtc->y;
-	save_set.fb = set->crtc->fb;
+	save_set.fb = set->crtc->primary->fb;
 
 	/* Compute whether we need a full modeset, only an fb base update or no
 	 * change at all. In the future we might also check whether only the
@@ -11473,7 +11473,7 @@ void intel_modeset_setup_hw_state(struct drm_device *dev,
 				dev_priv->pipe_to_crtc_mapping[pipe];
 
 			__intel_set_mode(crtc, &crtc->mode, crtc->x, crtc->y,
-					 crtc->fb);
+					 crtc->primary->fb);
 		}
 	} else {
 		intel_modeset_update_staged_output_state(dev);
@@ -11522,7 +11522,7 @@ void intel_modeset_cleanup(struct drm_device *dev)
 
 	list_for_each_entry(crtc, &dev->mode_config.crtc_list, head) {
 		/* Skip inactive CRTCs */
-		if (!crtc->fb)
+		if (!crtc->primary->fb)
 			continue;
 
 		intel_increase_pllclock(crtc);

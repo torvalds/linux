@@ -89,7 +89,7 @@ static void radeon_property_change_mode(struct drm_encoder *encoder)
 
 	if (crtc && crtc->enabled) {
 		drm_crtc_helper_set_mode(crtc, &crtc->mode,
-					 crtc->x, crtc->y, crtc->fb);
+					 crtc->x, crtc->y, crtc->primary->fb);
 	}
 }
 

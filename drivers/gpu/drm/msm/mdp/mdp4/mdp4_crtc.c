@@ -120,7 +120,7 @@ static void update_fb(struct drm_crtc *crtc, struct drm_framebuffer *new_fb)
 
 	/* grab reference to incoming scanout fb: */
 	drm_framebuffer_reference(new_fb);
-	mdp4_crtc->base.fb = new_fb;
+	mdp4_crtc->base.primary->fb = new_fb;
 	mdp4_crtc->fb = new_fb;
 
 	if (old_fb)
@@ -182,7 +182,7 @@ static void pageflip_cb(struct msm_fence_cb *cb)
 	struct mdp4_crtc *mdp4_crtc =
 		container_of(cb, struct mdp4_crtc, pageflip_cb);
 	struct drm_crtc *crtc = &mdp4_crtc->base;
-	struct drm_framebuffer *fb = crtc->fb;
+	struct drm_framebuffer *fb = crtc->primary->fb;
 
 	if (!fb)
 		return;
@@ -348,14 +348,14 @@ static int mdp4_crtc_mode_set(struct drm_crtc *crtc,
 			mode->type, mode->flags);
 
 	/* grab extra ref for update_scanout() */
-	drm_framebuffer_reference(crtc->fb);
+	drm_framebuffer_reference(crtc->primary->fb);
 
-	ret = mdp4_plane_mode_set(mdp4_crtc->plane, crtc, crtc->fb,
+	ret = mdp4_plane_mode_set(mdp4_crtc->plane, crtc, crtc->primary->fb,
 			0, 0, mode->hdisplay, mode->vdisplay,
 			x << 16, y << 16,
 			mode->hdisplay << 16, mode->vdisplay << 16);
 	if (ret) {
-		drm_framebuffer_unreference(crtc->fb);
+		drm_framebuffer_unreference(crtc->primary->fb);
 		dev_err(crtc->dev->dev, "%s: failed to set mode on plane: %d\n",
 				mdp4_crtc->name, ret);
 		return ret;
@@ -368,7 +368,7 @@ static int mdp4_crtc_mode_set(struct drm_crtc *crtc,
 	/* take data from pipe: */
 	mdp4_write(mdp4_kms, REG_MDP4_DMA_SRC_BASE(dma), 0);
 	mdp4_write(mdp4_kms, REG_MDP4_DMA_SRC_STRIDE(dma),
-			crtc->fb->pitches[0]);
+			crtc->primary->fb->pitches[0]);
 	mdp4_write(mdp4_kms, REG_MDP4_DMA_DST_SIZE(dma),
 			MDP4_DMA_DST_SIZE_WIDTH(0) |
 			MDP4_DMA_DST_SIZE_HEIGHT(0));
@@ -378,7 +378,7 @@ static int mdp4_crtc_mode_set(struct drm_crtc *crtc,
 			MDP4_OVLP_SIZE_WIDTH(mode->hdisplay) |
 			MDP4_OVLP_SIZE_HEIGHT(mode->vdisplay));
 	mdp4_write(mdp4_kms, REG_MDP4_OVLP_STRIDE(ovlp),
-			crtc->fb->pitches[0]);
+			crtc->primary->fb->pitches[0]);
 
 	mdp4_write(mdp4_kms, REG_MDP4_OVLP_CFG(ovlp), 1);
 
@@ -388,8 +388,8 @@ static int mdp4_crtc_mode_set(struct drm_crtc *crtc,
 		mdp4_write(mdp4_kms, REG_MDP4_DMA_E_QUANT(2), 0x00ff0000);
 	}
 
-	update_fb(crtc, crtc->fb);
-	update_scanout(crtc, crtc->fb);
+	update_fb(crtc, crtc->primary->fb);
+	update_scanout(crtc, crtc->primary->fb);
 
 	return 0;
 }
@@ -420,19 +420,19 @@ static int mdp4_crtc_mode_set_base(struct drm_crtc *crtc, int x, int y,
 	int ret;
 
 	/* grab extra ref for update_scanout() */
-	drm_framebuffer_reference(crtc->fb);
+	drm_framebuffer_reference(crtc->primary->fb);
 
-	ret = mdp4_plane_mode_set(plane, crtc, crtc->fb,
+	ret = mdp4_plane_mode_set(plane, crtc, crtc->primary->fb,
 			0, 0, mode->hdisplay, mode->vdisplay,
 			x << 16, y << 16,
 			mode->hdisplay << 16, mode->vdisplay << 16);
 	if (ret) {
-		drm_framebuffer_unreference(crtc->fb);
+		drm_framebuffer_unreference(crtc->primary->fb);
 		return ret;
 	}
 
-	update_fb(crtc, crtc->fb);
-	update_scanout(crtc, crtc->fb);
+	update_fb(crtc, crtc->primary->fb);
+	update_scanout(crtc, crtc->primary->fb);
 
 	return 0;
 }
