@@ -8394,6 +8394,7 @@ static int i40e_probe(struct pci_dev *pdev, const struct pci_device_id *ent)
 	dv.minor_version = DRV_VERSION_MINOR;
 	dv.build_version = DRV_VERSION_BUILD;
 	dv.subbuild_version = 0;
+	strncpy(dv.driver_string, DRV_VERSION, sizeof(dv.driver_string));
 	i40e_aq_send_driver_version(&pf->hw, &dv, NULL);
 
 	/* since everything's happy, start the service_task timer */
