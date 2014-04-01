@@ -2864,7 +2864,7 @@ void i915_queue_hangcheck(struct drm_device *dev)
 		  round_jiffies_up(jiffies + DRM_I915_HANGCHECK_JIFFIES));
 }
 
-static void ibx_irq_preinstall(struct drm_device *dev)
+static void ibx_irq_reset(struct drm_device *dev)
 {
 	struct drm_i915_private *dev_priv = dev->dev_private;
 
@@ -2920,7 +2920,7 @@ static void ironlake_irq_preinstall(struct drm_device *dev)
 
 	gen5_gt_irq_reset(dev);
 
-	ibx_irq_preinstall(dev);
+	ibx_irq_reset(dev);
 }
 
 static void valleyview_irq_preinstall(struct drm_device *dev)
@@ -2973,7 +2973,7 @@ static void gen8_irq_preinstall(struct drm_device *dev)
 	GEN5_IRQ_RESET(GEN8_DE_MISC_);
 	GEN5_IRQ_RESET(GEN8_PCU_);
 
-	ibx_irq_preinstall(dev);
+	ibx_irq_reset(dev);
 }
 
 static void ibx_hpd_irq_setup(struct drm_device *dev)
@@ -3291,19 +3291,6 @@ static int gen8_irq_postinstall(struct drm_device *dev)
 	return 0;
 }
 
-static void ibx_irq_uninstall(struct drm_device *dev)
-{
-	struct drm_i915_private *dev_priv = dev->dev_private;
-
-	if (HAS_PCH_NOP(dev))
-		return;
-
-	GEN5_IRQ_RESET(SDE);
-
-	if (HAS_PCH_CPT(dev) || HAS_PCH_LPT(dev))
-		I915_WRITE(SERR_INT, 0xffffffff);
-}
-
 static void gen8_irq_uninstall(struct drm_device *dev)
 {
 	struct drm_i915_private *dev_priv = dev->dev_private;
@@ -3326,7 +3313,7 @@ static void gen8_irq_uninstall(struct drm_device *dev)
 	GEN5_IRQ_RESET(GEN8_DE_MISC_);
 	GEN5_IRQ_RESET(GEN8_PCU_);
 
-	ibx_irq_uninstall(dev);
+	ibx_irq_reset(dev);
 }
 
 static void valleyview_irq_uninstall(struct drm_device *dev)
@@ -3377,7 +3364,7 @@ static void ironlake_irq_uninstall(struct drm_device *dev)
 
 	gen5_gt_irq_reset(dev);
 
-	ibx_irq_uninstall(dev);
+	ibx_irq_reset(dev);
 }
 
 static void i8xx_irq_preinstall(struct drm_device * dev)
