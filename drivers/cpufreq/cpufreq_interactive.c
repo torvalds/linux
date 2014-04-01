@@ -1167,16 +1167,14 @@ static int cpufreq_governor_interactive(struct cpufreq_policy *policy,
 			unsigned int index;
 			freq_table = cpufreq_frequency_get_table(policy->cpu);
 			tunables->hispeed_freq = policy->max;
-			if (policy->min < 816000)
-				tunables->hispeed_freq = 816000;
+			if (policy->min < 600000)
+				tunables->hispeed_freq = 600000;
 			else if (cpufreq_frequency_table_target(policy, freq_table, policy->min + 1, CPUFREQ_RELATION_L, &index) == 0)
 				tunables->hispeed_freq = freq_table[index].frequency;
-			if (policy->max > 1416000) {
-				tunables->timer_slack_val = 20 * USEC_PER_MSEC;
-				tunables->min_sample_time = 40 * USEC_PER_MSEC;
-				tunables->above_hispeed_delay[0] = 80 * USEC_PER_MSEC;
-				store_target_loads(tunables, "70 1200000:80 1416000:99", 0);
-			}
+			tunables->timer_slack_val = 20 * USEC_PER_MSEC;
+			tunables->min_sample_time = 40 * USEC_PER_MSEC;
+			tunables->above_hispeed_delay[0] = 80 * USEC_PER_MSEC;
+			store_target_loads(tunables, "70 1008000:80 1296000:99", 0);
 			tunables->boostpulse_duration_val = 500 * USEC_PER_MSEC;
 		}
 #endif
