@@ -319,7 +319,8 @@ static int drm_open_helper(struct inode *inode, struct file *filp,
 			pci_dev_put(pci_dev);
 		}
 		if (!dev->hose) {
-			struct pci_bus *b = pci_bus_b(pci_root_buses.next);
+			struct pci_bus *b = list_entry(pci_root_buses.next,
+				struct pci_bus, node);
 			if (b)
 				dev->hose = b->sysdata;
 		}

@@ -37,15 +37,15 @@ find_bus_among_children(struct pci_bus *bus,
                         struct device_node *dn)
 {
 	struct pci_bus *child = NULL;
-	struct list_head *tmp;
+	struct pci_bus *tmp;
 	struct device_node *busdn;
 
 	busdn = pci_bus_to_OF_node(bus);
 	if (busdn == dn)
 		return bus;
 
-	list_for_each(tmp, &bus->children) {
-		child = find_bus_among_children(pci_bus_b(tmp), dn);
+	list_for_each_entry(tmp, &bus->children, node) {
+		child = find_bus_among_children(tmp, dn);
 		if (child)
 			break;
 	};
