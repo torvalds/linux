@@ -34,13 +34,6 @@
 
 #define CHGIN_ILIM_STEP_20mA			20000
 
-struct max77693_pmic_dev {
-	struct device *dev;
-	struct max77693_dev *iodev;
-	int num_regulators;
-	struct regulator_dev **rdev;
-};
-
 /* CHARGER regulator ops */
 /* CHARGER regulator uses two bits for enabling */
 static int max77693_chg_is_enabled(struct regulator_dev *rdev)
@@ -170,19 +163,22 @@ static int max77693_pmic_dt_parse_rdata(struct device *dev,
 	struct max77693_regulator_data *tmp;
 	int i, matched = 0;
 
-	np = of_find_node_by_name(dev->parent->of_node, "regulators");
+	np = of_get_child_by_name(dev->parent->of_node, "regulators");
 	if (!np)
 		return -EINVAL;
 
 	rmatch = devm_kzalloc(dev,
 		 sizeof(*rmatch) * ARRAY_SIZE(regulators), GFP_KERNEL);
-	if (!rmatch)
+	if (!rmatch) {
+		of_node_put(np);
 		return -ENOMEM;
+	}
 
 	for (i = 0; i < ARRAY_SIZE(regulators); i++)
 		rmatch[i].name = regulators[i].name;
 
 	matched = of_regulator_match(dev, np, rmatch, ARRAY_SIZE(regulators));
+	of_node_put(np);
 	if (matched <= 0)
 		return matched;
 	*rdata = devm_kzalloc(dev, sizeof(**rdata) * matched, GFP_KERNEL);
@@ -229,7 +225,6 @@ static int max77693_pmic_init_rdata(struct device *dev,
 static int max77693_pmic_probe(struct platform_device *pdev)
 {
 	struct max77693_dev *iodev = dev_get_drvdata(pdev->dev.parent);
-	struct max77693_pmic_dev *max77693_pmic;
 	struct max77693_regulator_data *rdata = NULL;
 	int num_rdata, i;
 	struct regulator_config config;
@@ -240,39 +235,22 @@ static int max77693_pmic_probe(struct platform_device *pdev)
 		return -ENODEV;
 	}
 
-	max77693_pmic = devm_kzalloc(&pdev->dev,
-				sizeof(struct max77693_pmic_dev),
-				GFP_KERNEL);
-	if (!max77693_pmic)
-		return -ENOMEM;
-
-	max77693_pmic->rdev = devm_kzalloc(&pdev->dev,
-				sizeof(struct regulator_dev *) * num_rdata,
-				GFP_KERNEL);
-	if (!max77693_pmic->rdev)
-		return -ENOMEM;
-
-	max77693_pmic->dev = &pdev->dev;
-	max77693_pmic->iodev = iodev;
-	max77693_pmic->num_regulators = num_rdata;
-
 	config.dev = &pdev->dev;
 	config.regmap = iodev->regmap;
-	config.driver_data = max77693_pmic;
-	platform_set_drvdata(pdev, max77693_pmic);
 
-	for (i = 0; i < max77693_pmic->num_regulators; i++) {
+	for (i = 0; i < num_rdata; i++) {
 		int id = rdata[i].id;
+		struct regulator_dev *rdev;
 
 		config.init_data = rdata[i].initdata;
 		config.of_node = rdata[i].of_node;
 
-		max77693_pmic->rdev[i] = devm_regulator_register(&pdev->dev,
+		rdev = devm_regulator_register(&pdev->dev,
 						&regulators[id], &config);
-		if (IS_ERR(max77693_pmic->rdev[i])) {
-			dev_err(max77693_pmic->dev,
+		if (IS_ERR(rdev)) {
+			dev_err(&pdev->dev,
 				"Failed to initialize regulator-%d\n", id);
-			return PTR_ERR(max77693_pmic->rdev[i]);
+			return PTR_ERR(rdev);
 		}
 	}
 

@@ -26,7 +26,9 @@
 #include <linux/mfd/samsung/core.h>
 #include <linux/mfd/samsung/irq.h>
 #include <linux/mfd/samsung/rtc.h>
+#include <linux/mfd/samsung/s2mpa01.h>
 #include <linux/mfd/samsung/s2mps11.h>
+#include <linux/mfd/samsung/s2mps14.h>
 #include <linux/mfd/samsung/s5m8763.h>
 #include <linux/mfd/samsung/s5m8767.h>
 #include <linux/regmap.h>
@@ -69,17 +71,52 @@ static const struct mfd_cell s2mps11_devs[] = {
 	}
 };
 
+static const struct mfd_cell s2mps14_devs[] = {
+	{
+		.name = "s2mps14-pmic",
+	}, {
+		.name = "s2mps14-rtc",
+	}, {
+		.name = "s2mps14-clk",
+	}
+};
+
+static const struct mfd_cell s2mpa01_devs[] = {
+	{
+		.name = "s2mpa01-pmic",
+	},
+};
+
 #ifdef CONFIG_OF
 static struct of_device_id sec_dt_match[] = {
 	{	.compatible = "samsung,s5m8767-pmic",
 		.data = (void *)S5M8767X,
-	},
-	{	.compatible = "samsung,s2mps11-pmic",
+	}, {
+		.compatible = "samsung,s2mps11-pmic",
 		.data = (void *)S2MPS11X,
+	}, {
+		.compatible = "samsung,s2mps14-pmic",
+		.data = (void *)S2MPS14X,
+	}, {
+		.compatible = "samsung,s2mpa01-pmic",
+		.data = (void *)S2MPA01,
+	}, {
+		/* Sentinel */
 	},
-	{},
 };
 #endif
+
+static bool s2mpa01_volatile(struct device *dev, unsigned int reg)
+{
+	switch (reg) {
+	case S2MPA01_REG_INT1M:
+	case S2MPA01_REG_INT2M:
+	case S2MPA01_REG_INT3M:
+		return false;
+	default:
+		return true;
+	}
+}
 
 static bool s2mps11_volatile(struct device *dev, unsigned int reg)
 {
@@ -111,11 +148,29 @@ static const struct regmap_config sec_regmap_config = {
 	.val_bits = 8,
 };
 
+static const struct regmap_config s2mpa01_regmap_config = {
+	.reg_bits = 8,
+	.val_bits = 8,
+
+	.max_register = S2MPA01_REG_LDO_OVCB4,
+	.volatile_reg = s2mpa01_volatile,
+	.cache_type = REGCACHE_FLAT,
+};
+
 static const struct regmap_config s2mps11_regmap_config = {
 	.reg_bits = 8,
 	.val_bits = 8,
 
 	.max_register = S2MPS11_REG_L38CTRL,
+	.volatile_reg = s2mps11_volatile,
+	.cache_type = REGCACHE_FLAT,
+};
+
+static const struct regmap_config s2mps14_regmap_config = {
+	.reg_bits = 8,
+	.val_bits = 8,
+
+	.max_register = S2MPS14_REG_LDODSCH3,
 	.volatile_reg = s2mps11_volatile,
 	.cache_type = REGCACHE_FLAT,
 };
@@ -138,9 +193,18 @@ static const struct regmap_config s5m8767_regmap_config = {
 	.cache_type = REGCACHE_FLAT,
 };
 
-static const struct regmap_config sec_rtc_regmap_config = {
+static const struct regmap_config s5m_rtc_regmap_config = {
 	.reg_bits = 8,
 	.val_bits = 8,
+
+	.max_register = SEC_RTC_REG_MAX,
+};
+
+static const struct regmap_config s2mps14_rtc_regmap_config = {
+	.reg_bits = 8,
+	.val_bits = 8,
+
+	.max_register = S2MPS_RTC_REG_MAX,
 };
 
 #ifdef CONFIG_OF
@@ -180,24 +244,24 @@ static struct sec_platform_data *sec_pmic_i2c_parse_dt_pdata(
 }
 #endif
 
-static inline int sec_i2c_get_driver_data(struct i2c_client *i2c,
+static inline unsigned long sec_i2c_get_driver_data(struct i2c_client *i2c,
 						const struct i2c_device_id *id)
 {
 #ifdef CONFIG_OF
 	if (i2c->dev.of_node) {
 		const struct of_device_id *match;
 		match = of_match_node(sec_dt_match, i2c->dev.of_node);
-		return (int)match->data;
+		return (unsigned long)match->data;
 	}
 #endif
-	return (int)id->driver_data;
+	return id->driver_data;
 }
 
 static int sec_pmic_probe(struct i2c_client *i2c,
 			    const struct i2c_device_id *id)
 {
 	struct sec_platform_data *pdata = dev_get_platdata(&i2c->dev);
-	const struct regmap_config *regmap;
+	const struct regmap_config *regmap, *regmap_rtc;
 	struct sec_pmic_dev *sec_pmic;
 	int ret;
 
@@ -229,17 +293,34 @@ static int sec_pmic_probe(struct i2c_client *i2c,
 	}
 
 	switch (sec_pmic->device_type) {
+	case S2MPA01:
+		regmap = &s2mpa01_regmap_config;
+		break;
 	case S2MPS11X:
 		regmap = &s2mps11_regmap_config;
+		/*
+		 * The rtc-s5m driver does not support S2MPS11 and there
+		 * is no mfd_cell for S2MPS11 RTC device.
+		 * However we must pass something to devm_regmap_init_i2c()
+		 * so use S5M-like regmap config even though it wouldn't work.
+		 */
+		regmap_rtc = &s5m_rtc_regmap_config;
+		break;
+	case S2MPS14X:
+		regmap = &s2mps14_regmap_config;
+		regmap_rtc = &s2mps14_rtc_regmap_config;
 		break;
 	case S5M8763X:
 		regmap = &s5m8763_regmap_config;
+		regmap_rtc = &s5m_rtc_regmap_config;
 		break;
 	case S5M8767X:
 		regmap = &s5m8767_regmap_config;
+		regmap_rtc = &s5m_rtc_regmap_config;
 		break;
 	default:
 		regmap = &sec_regmap_config;
+		regmap_rtc = &s5m_rtc_regmap_config;
 		break;
 	}
 
@@ -252,10 +333,13 @@ static int sec_pmic_probe(struct i2c_client *i2c,
 	}
 
 	sec_pmic->rtc = i2c_new_dummy(i2c->adapter, RTC_I2C_ADDR);
+	if (!sec_pmic->rtc) {
+		dev_err(&i2c->dev, "Failed to allocate I2C for RTC\n");
+		return -ENODEV;
+	}
 	i2c_set_clientdata(sec_pmic->rtc, sec_pmic);
 
-	sec_pmic->regmap_rtc = devm_regmap_init_i2c(sec_pmic->rtc,
-			&sec_rtc_regmap_config);
+	sec_pmic->regmap_rtc = devm_regmap_init_i2c(sec_pmic->rtc, regmap_rtc);
 	if (IS_ERR(sec_pmic->regmap_rtc)) {
 		ret = PTR_ERR(sec_pmic->regmap_rtc);
 		dev_err(&i2c->dev, "Failed to allocate RTC register map: %d\n",
@@ -283,9 +367,17 @@ static int sec_pmic_probe(struct i2c_client *i2c,
 		ret = mfd_add_devices(sec_pmic->dev, -1, s5m8767_devs,
 				      ARRAY_SIZE(s5m8767_devs), NULL, 0, NULL);
 		break;
+	case S2MPA01:
+		ret = mfd_add_devices(sec_pmic->dev, -1, s2mpa01_devs,
+				      ARRAY_SIZE(s2mpa01_devs), NULL, 0, NULL);
+		break;
 	case S2MPS11X:
 		ret = mfd_add_devices(sec_pmic->dev, -1, s2mps11_devs,
 				      ARRAY_SIZE(s2mps11_devs), NULL, 0, NULL);
+		break;
+	case S2MPS14X:
+		ret = mfd_add_devices(sec_pmic->dev, -1, s2mps14_devs,
+				      ARRAY_SIZE(s2mps14_devs), NULL, 0, NULL);
 		break;
 	default:
 		/* If this happens the probe function is problem */
