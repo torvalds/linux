@@ -143,7 +143,6 @@ static int sh_cpufreq_cpu_exit(struct cpufreq_policy *policy)
 	unsigned int cpu = policy->cpu;
 	struct clk *cpuclk = &per_cpu(sh_cpuclk, cpu);
 
-	cpufreq_frequency_table_put_attr(cpu);
 	clk_put(cpuclk);
 
 	return 0;

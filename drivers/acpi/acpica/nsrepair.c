@@ -5,7 +5,7 @@
  *****************************************************************************/
 
 /*
- * Copyright (C) 2000 - 2013, Intel Corp.
+ * Copyright (C) 2000 - 2014, Intel Corp.
  * All rights reserved.
  *
  * Redistribution and use in source and binary forms, with or without
@@ -207,13 +207,30 @@ acpi_ns_simple_repair(struct acpi_evaluate_info *info,
 	 * this predefined name. Either one return value is expected, or none,
 	 * for both methods and other objects.
 	 *
-	 * Exit now if there is no return object. Warning if one was expected.
+	 * Try to fix if there was no return object. Warning if failed to fix.
 	 */
 	if (!return_object) {
 		if (expected_btypes && (!(expected_btypes & ACPI_RTYPE_NONE))) {
-			ACPI_WARN_PREDEFINED((AE_INFO, info->full_pathname,
-					      ACPI_WARN_ALWAYS,
-					      "Missing expected return value"));
+			if (package_index != ACPI_NOT_PACKAGE_ELEMENT) {
+				ACPI_WARN_PREDEFINED((AE_INFO,
+						      info->full_pathname,
+						      ACPI_WARN_ALWAYS,
+						      "Found unexpected NULL package element"));
+
+				status =
+				    acpi_ns_repair_null_element(info,
+								expected_btypes,
+								package_index,
+								return_object_ptr);
+				if (ACPI_SUCCESS(status)) {
+					return (AE_OK);	/* Repair was successful */
+				}
+			} else {
+				ACPI_WARN_PREDEFINED((AE_INFO,
+						      info->full_pathname,
+						      ACPI_WARN_ALWAYS,
+						      "Missing expected return value"));
+			}
 
 			return (AE_AML_NO_RETURN_VALUE);
 		}
@@ -448,7 +465,7 @@ acpi_ns_repair_null_element(struct acpi_evaluate_info * info,
  * RETURN:      None.
  *
  * DESCRIPTION: Remove all NULL package elements from packages that contain
- *              a variable number of sub-packages. For these types of
+ *              a variable number of subpackages. For these types of
  *              packages, NULL elements can be safely removed.
  *
  *****************************************************************************/
@@ -469,7 +486,7 @@ acpi_ns_remove_null_elements(struct acpi_evaluate_info *info,
 	/*
 	 * We can safely remove all NULL elements from these package types:
 	 * PTYPE1_VAR packages contain a variable number of simple data types.
-	 * PTYPE2 packages contain a variable number of sub-packages.
+	 * PTYPE2 packages contain a variable number of subpackages.
 	 */
 	switch (package_type) {
 	case ACPI_PTYPE1_VAR:

@@ -325,6 +325,14 @@ source "drivers/cpufreq/Kconfig"
 
 endmenu
 
+menu "Power management options"
+
+source "kernel/power/Kconfig"
+
+source "drivers/cpufreq/Kconfig"
+
+endmenu
+
 source "net/Kconfig"
 
 source "drivers/Kconfig"

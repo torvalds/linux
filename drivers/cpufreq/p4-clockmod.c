@@ -237,7 +237,6 @@ static struct cpufreq_driver p4clockmod_driver = {
 	.verify		= cpufreq_generic_frequency_table_verify,
 	.target_index	= cpufreq_p4_target,
 	.init		= cpufreq_p4_cpu_init,
-	.exit		= cpufreq_generic_exit,
 	.get		= cpufreq_p4_get,
 	.name		= "p4-clockmod",
 	.attr		= cpufreq_generic_attr,
