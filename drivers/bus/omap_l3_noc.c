@@ -134,7 +134,7 @@ static int omap4_l3_probe(struct platform_device *pdev)
 	struct resource	*res;
 	int ret;
 
-	l3 = kzalloc(sizeof(*l3), GFP_KERNEL);
+	l3 = devm_kzalloc(&pdev->dev, sizeof(*l3), GFP_KERNEL);
 	if (!l3)
 		return -ENOMEM;
 
@@ -142,15 +142,13 @@ static int omap4_l3_probe(struct platform_device *pdev)
 	res = platform_get_resource(pdev, IORESOURCE_MEM, 0);
 	if (!res) {
 		dev_err(&pdev->dev, "couldn't find resource 0\n");
-		ret = -ENODEV;
-		goto err0;
+		return -ENODEV;
 	}
 
 	l3->l3_base[0] = ioremap(res->start, resource_size(res));
 	if (!l3->l3_base[0]) {
 		dev_err(&pdev->dev, "ioremap failed\n");
-		ret = -ENOMEM;
-		goto err0;
+		return -ENOMEM;
 	}
 
 	res = platform_get_resource(pdev, IORESOURCE_MEM, 1);
@@ -214,8 +212,6 @@ err2:
 	iounmap(l3->l3_base[1]);
 err1:
 	iounmap(l3->l3_base[0]);
-err0:
-	kfree(l3);
 	return ret;
 }
 
@@ -228,7 +224,6 @@ static int omap4_l3_remove(struct platform_device *pdev)
 	iounmap(l3->l3_base[0]);
 	iounmap(l3->l3_base[1]);
 	iounmap(l3->l3_base[2]);
-	kfree(l3);
 
 	return 0;
 }
