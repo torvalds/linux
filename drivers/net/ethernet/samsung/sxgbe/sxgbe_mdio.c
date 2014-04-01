@@ -219,13 +219,6 @@ int sxgbe_mdio_register(struct net_device *ndev)
 		}
 	}
 
-	if (!err) {
-		netdev_err(ndev, "PHY not found\n");
-		mdiobus_unregister(mdio_bus);
-		mdiobus_free(mdio_bus);
-		goto mdiobus_err;
-	}
-
 	priv->mii = mdio_bus;
 
 	return 0;
