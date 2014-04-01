@@ -101,6 +101,7 @@ static const struct snd_soc_dapm_route audio_map[]={
 
 	/* Mic Jack --> MIC_IN*/
 	{"MIC1", NULL, "Mic Jack"},
+	{"MIC2", NULL, "Mic Jack"},
 	//{"MIC1", NULL, "Mic Bias1"},
 	/* HP_OUT --> Headphone Jack */
 	{"Headphone Jack", NULL, "HPOL"},

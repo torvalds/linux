@@ -28,7 +28,7 @@
 
 #include "rt5616.h"
 
-#define POWER_ON_MICBIAS1
+//#define POWER_ON_MICBIAS1
 
 //for gpio
 #define rt5616_CODEC_SET_SPK	1
@@ -1067,13 +1067,14 @@ static const struct snd_soc_dapm_route rt5616_dapm_routes[] = {
 	{"IN2P", NULL, "MIC2"},
 	{"IN2N", NULL, "MIC2"},
 
-	{"BST1", NULL, "IN1P"},
-	{"BST2", NULL, "IN2P"},
-	{"BST2", NULL, "IN2N"},
-#ifdef POWER_ON_MICBIAS1
+	{"micbias1", NULL, "IN1P"},
+	{"micbias1", NULL, "IN2P"},
+	{"micbias1", NULL, "IN2N"},
+
+//#ifdef POWER_ON_MICBIAS1
 	{"BST1", NULL, "micbias1"},
 	{"BST2", NULL, "micbias1"},
-#endif
+//#endif
 
 	{"INL1 VOL", NULL, "IN2P"},
 	{"INR1 VOL", NULL, "IN2N"},
