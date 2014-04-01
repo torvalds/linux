@@ -59,8 +59,7 @@ struct rk30_i2s_info {
 
 	struct clk *i2s_clk;// i2s clk ,is bclk lrck
 	struct clk *i2s_mclk;//i2s mclk,rk32xx can different i2s clk.
-	struct clk *i2s_hclk;
-	struct clk *i2s_gclk;
+
 	struct snd_dmaengine_dai_dma_data capture_dma_data;
 	struct snd_dmaengine_dai_dma_data playback_dma_data;
 
@@ -550,21 +549,6 @@ static int rockchip_i2s_probe(struct platform_device *pdev)
 	}
 
 	rk30_i2s = i2s;
-
-	i2s->i2s_hclk = clk_get(&pdev->dev, "i2s_hclk");
-	if(IS_ERR(i2s->i2s_hclk) ) {
-                dev_err(&pdev->dev, "get i2s_hclk failed.\n");
-        } else{
-		clk_prepare_enable(i2s->i2s_hclk);
-	}
-
-	i2s->i2s_gclk = clk_get(&pdev->dev, "i2s_gclk");
-	if(IS_ERR(i2s->i2s_gclk)) {
-		dev_err(&pdev->dev, "get i2s_gclk failed.\n");
-	} else {
-		clk_prepare_enable(i2s->i2s_gclk);
-	}
-
 	i2s->i2s_clk= clk_get(&pdev->dev, "i2s_clk");
 	if (IS_ERR(i2s->i2s_clk)) {
 		dev_err(&pdev->dev, "Can't retrieve i2s clock\n");

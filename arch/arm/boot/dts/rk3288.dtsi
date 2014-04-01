@@ -755,8 +755,8 @@
 		compatible = "rockchip-i2s";
 		reg = <0xff890000 0x10000>;
 		i2s-id = <0>;
-		clocks = <&clk_i2s>, <&clk_i2s_out>, <&clk_gates10 8>, <&clk_gates4 3>;
-		clock-names = "i2s_clk", "i2s_mclk", "i2s_hclk", "i2s_gclk";
+		clocks = <&clk_i2s>, <&clk_i2s_out>;
+		clock-names = "i2s_clk","i2s_mclk";
 		interrupts = <GIC_SPI 85 IRQ_TYPE_LEVEL_HIGH>;
 		dmas = <&pdma0 0>,
 			<&pdma0 1>;
