@@ -365,6 +365,7 @@ static int fsl_sai_trigger(struct snd_pcm_substream *substream, int cmd,
 		struct snd_soc_dai *cpu_dai)
 {
 	struct fsl_sai *sai = snd_soc_dai_get_drvdata(cpu_dai);
+	bool tx = substream->stream == SNDRV_PCM_STREAM_PLAYBACK;
 	u32 tcsr, rcsr;
 
 	/*
@@ -379,14 +380,6 @@ static int fsl_sai_trigger(struct snd_pcm_substream *substream, int cmd,
 	regmap_read(sai->regmap, FSL_SAI_TCSR, &tcsr);
 	regmap_read(sai->regmap, FSL_SAI_RCSR, &rcsr);
 
-	if (substream->stream == SNDRV_PCM_STREAM_PLAYBACK) {
-		tcsr |= FSL_SAI_CSR_FRDE;
-		rcsr &= ~FSL_SAI_CSR_FRDE;
-	} else {
-		rcsr |= FSL_SAI_CSR_FRDE;
-		tcsr &= ~FSL_SAI_CSR_FRDE;
-	}
-
 	/*
 	 * It is recommended that the transmitter is the last enabled
 	 * and the first disabled.
@@ -395,22 +388,28 @@ static int fsl_sai_trigger(struct snd_pcm_substream *substream, int cmd,
 	case SNDRV_PCM_TRIGGER_START:
 	case SNDRV_PCM_TRIGGER_RESUME:
 	case SNDRV_PCM_TRIGGER_PAUSE_RELEASE:
-		tcsr |= FSL_SAI_CSR_TERE;
-		rcsr |= FSL_SAI_CSR_TERE;
+		if (!(tcsr & FSL_SAI_CSR_FRDE || rcsr & FSL_SAI_CSR_FRDE)) {
+			regmap_update_bits(sai->regmap, FSL_SAI_RCSR,
+					   FSL_SAI_CSR_TERE, FSL_SAI_CSR_TERE);
+			regmap_update_bits(sai->regmap, FSL_SAI_TCSR,
+					   FSL_SAI_CSR_TERE, FSL_SAI_CSR_TERE);
+		}
 
-		regmap_write(sai->regmap, FSL_SAI_RCSR, rcsr);
-		regmap_write(sai->regmap, FSL_SAI_TCSR, tcsr);
+		regmap_update_bits(sai->regmap, FSL_SAI_xCSR(tx),
+				   FSL_SAI_CSR_FRDE, FSL_SAI_CSR_FRDE);
 		break;
 	case SNDRV_PCM_TRIGGER_STOP:
 	case SNDRV_PCM_TRIGGER_SUSPEND:
 	case SNDRV_PCM_TRIGGER_PAUSE_PUSH:
-		if (!(cpu_dai->playback_active || cpu_dai->capture_active)) {
-			tcsr &= ~FSL_SAI_CSR_TERE;
-			rcsr &= ~FSL_SAI_CSR_TERE;
-		}
+		regmap_update_bits(sai->regmap, FSL_SAI_xCSR(tx),
+				   FSL_SAI_CSR_FRDE, 0);
 
-		regmap_write(sai->regmap, FSL_SAI_TCSR, tcsr);
-		regmap_write(sai->regmap, FSL_SAI_RCSR, rcsr);
+		if (!(tcsr & FSL_SAI_CSR_FRDE || rcsr & FSL_SAI_CSR_FRDE)) {
+			regmap_update_bits(sai->regmap, FSL_SAI_TCSR,
+					   FSL_SAI_CSR_TERE, 0);
+			regmap_update_bits(sai->regmap, FSL_SAI_RCSR,
+					   FSL_SAI_CSR_TERE, 0);
+		}
 		break;
 	default:
 		return -EINVAL;
