@@ -66,6 +66,7 @@ static struct map_desc rk3288_io_desc[] __initdata = {
 	RK3288_SERVICE_DEVICE(VIO),
 	RK3288_SERVICE_DEVICE(VIDEO),
 	RK3288_SERVICE_DEVICE(HEVC),
+	RK3288_SERVICE_DEVICE(BUS),
 	RK_DEVICE(RK_DDR_VIRT, RK3288_DDR_PCTL0_PHYS, RK3288_DDR_PCTL_SIZE),
 	RK_DEVICE(RK_DDR_VIRT + RK3288_DDR_PCTL_SIZE, RK3288_DDR_PUBL0_PHYS, RK3288_DDR_PUBL_SIZE),
 	RK_DEVICE(RK_DDR_VIRT + RK3288_DDR_PCTL_SIZE + RK3288_DDR_PUBL_SIZE, RK3288_DDR_PCTL1_PHYS, RK3288_DDR_PCTL_SIZE),
@@ -564,3 +565,21 @@ static void rk3288_init_suspend(void)
 }
 
 #endif
+#define sram_printascii(s) do {} while (0) /* FIXME */
+#include "ddr_rk32.c"
+
+static int __init rk3288_ddr_init(void)
+{
+    if (cpu_is_rk3288())
+    {
+        ddr_change_freq = _ddr_change_freq;
+        ddr_round_rate = _ddr_round_rate;
+        ddr_set_auto_self_refresh = _ddr_set_auto_self_refresh;
+
+        ddr_init(DDR3_DEFAULT, 300);
+    }
+
+    return 0;
+}
+arch_initcall_sync(rk3288_ddr_init);
+
