@@ -86,6 +86,10 @@ void ieee80211_apply_htcap_overrides(struct ieee80211_sub_if_data *sdata,
 	__check_htcap_disable(ht_capa, ht_capa_mask, ht_cap,
 			      IEEE80211_HT_CAP_MAX_AMSDU);
 
+	/* Allow user to disable LDPC */
+	__check_htcap_disable(ht_capa, ht_capa_mask, ht_cap,
+			      IEEE80211_HT_CAP_LDPC_CODING);
+
 	/* Allow user to decrease AMPDU factor */
 	if (ht_capa_mask->ampdu_params_info &
 	    IEEE80211_HT_AMPDU_PARM_FACTOR) {

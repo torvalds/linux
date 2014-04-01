@@ -444,7 +444,8 @@ static const struct ieee80211_ht_cap mac80211_ht_capa_mod_mask = {
 	.cap_info = cpu_to_le16(IEEE80211_HT_CAP_SUP_WIDTH_20_40 |
 				IEEE80211_HT_CAP_MAX_AMSDU |
 				IEEE80211_HT_CAP_SGI_20 |
-				IEEE80211_HT_CAP_SGI_40),
+				IEEE80211_HT_CAP_SGI_40 |
+				IEEE80211_HT_CAP_LDPC_CODING),
 	.mcs = {
 		.rx_mask = { 0xff, 0xff, 0xff, 0xff, 0xff,
 			     0xff, 0xff, 0xff, 0xff, 0xff, },
