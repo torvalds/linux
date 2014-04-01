@@ -2319,9 +2319,11 @@ static int i915_display_info(struct seq_file *m, void *unused)
 {
 	struct drm_info_node *node = (struct drm_info_node *) m->private;
 	struct drm_device *dev = node->minor->dev;
+	struct drm_i915_private *dev_priv = dev->dev_private;
 	struct intel_crtc *crtc;
 	struct drm_connector *connector;
 
+	intel_runtime_pm_get(dev_priv);
 	drm_modeset_lock_all(dev);
 	seq_printf(m, "CRTC info\n");
 	seq_printf(m, "---------\n");
@@ -2349,6 +2351,7 @@ static int i915_display_info(struct seq_file *m, void *unused)
 		intel_connector_info(m, connector);
 	}
 	drm_modeset_unlock_all(dev);
+	intel_runtime_pm_put(dev_priv);
 
 	return 0;
 }
