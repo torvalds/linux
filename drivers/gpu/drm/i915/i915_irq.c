@@ -3364,6 +3364,8 @@ static void ironlake_irq_uninstall(struct drm_device *dev)
 		I915_WRITE(GEN7_ERR_INT, I915_READ(GEN7_ERR_INT));
 
 	GEN5_IRQ_FINI(GT);
+	if (INTEL_INFO(dev)->gen >= 6)
+		GEN5_IRQ_FINI(GEN6_PM);
 
 	if (HAS_PCH_NOP(dev))
 		return;
