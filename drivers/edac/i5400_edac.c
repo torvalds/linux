@@ -1408,6 +1408,8 @@ static void i5400_remove_one(struct pci_dev *pdev)
 	/* retrieve references to resources, and free those resources */
 	i5400_put_devices(mci);
 
+	pci_disable_device(pdev);
+
 	edac_mc_free(mci);
 }
 
