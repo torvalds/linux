@@ -101,6 +101,12 @@ static const u32 hpd_status_i915[] = { /* i915 and valleyview are the same */
 	POSTING_READ(type##IIR); \
 } while (0)
 
+#define GEN5_IRQ_FINI(type) do { \
+	I915_WRITE(type##IMR, 0xffffffff); \
+	I915_WRITE(type##IER, 0); \
+	I915_WRITE(type##IIR, I915_READ(type##IIR)); \
+} while (0)
+
 /* For display hotplug interrupt */
 static void
 ironlake_enable_display_irq(struct drm_i915_private *dev_priv, u32 mask)
@@ -3353,22 +3359,16 @@ static void ironlake_irq_uninstall(struct drm_device *dev)
 
 	I915_WRITE(HWSTAM, 0xffffffff);
 
-	I915_WRITE(DEIMR, 0xffffffff);
-	I915_WRITE(DEIER, 0x0);
-	I915_WRITE(DEIIR, I915_READ(DEIIR));
+	GEN5_IRQ_FINI(DE);
 	if (IS_GEN7(dev))
 		I915_WRITE(GEN7_ERR_INT, I915_READ(GEN7_ERR_INT));
 
-	I915_WRITE(GTIMR, 0xffffffff);
-	I915_WRITE(GTIER, 0x0);
-	I915_WRITE(GTIIR, I915_READ(GTIIR));
+	GEN5_IRQ_FINI(GT);
 
 	if (HAS_PCH_NOP(dev))
 		return;
 
-	I915_WRITE(SDEIMR, 0xffffffff);
-	I915_WRITE(SDEIER, 0x0);
-	I915_WRITE(SDEIIR, I915_READ(SDEIIR));
+	GEN5_IRQ_FINI(SDE);
 	if (HAS_PCH_CPT(dev) || HAS_PCH_LPT(dev))
 		I915_WRITE(SERR_INT, I915_READ(SERR_INT));
 }
