@@ -87,7 +87,6 @@ static int rfkill_gpio_probe(struct platform_device *pdev)
 {
 	struct rfkill_gpio_platform_data *pdata = pdev->dev.platform_data;
 	struct rfkill_gpio_data *rfkill;
-	const char *clk_name = NULL;
 	struct gpio_desc *gpio;
 	int ret;
 	int len;
@@ -101,7 +100,6 @@ static int rfkill_gpio_probe(struct platform_device *pdev)
 		if (ret)
 			return ret;
 	} else if (pdata) {
-		clk_name = pdata->power_clk_name;
 		rfkill->name = pdata->name;
 		rfkill->type = pdata->type;
 	} else {
@@ -120,7 +118,7 @@ static int rfkill_gpio_probe(struct platform_device *pdev)
 	snprintf(rfkill->reset_name, len + 6 , "%s_reset", rfkill->name);
 	snprintf(rfkill->shutdown_name, len + 9, "%s_shutdown", rfkill->name);
 
-	rfkill->clk = devm_clk_get(&pdev->dev, clk_name);
+	rfkill->clk = devm_clk_get(&pdev->dev, NULL);
 
 	gpio = devm_gpiod_get_index(&pdev->dev, rfkill->reset_name, 0);
 	if (!IS_ERR(gpio)) {
@@ -146,14 +144,6 @@ static int rfkill_gpio_probe(struct platform_device *pdev)
 		return -EINVAL;
 	}
 
-	if (pdata && pdata->gpio_runtime_setup) {
-		ret = pdata->gpio_runtime_setup(pdev);
-		if (ret) {
-			dev_err(&pdev->dev, "can't set up gpio\n");
-			return ret;
-		}
-	}
-
 	rfkill->rfkill_dev = rfkill_alloc(rfkill->name, &pdev->dev,
 					  rfkill->type, &rfkill_gpio_ops,
 					  rfkill);
@@ -174,10 +164,7 @@ static int rfkill_gpio_probe(struct platform_device *pdev)
 static int rfkill_gpio_remove(struct platform_device *pdev)
 {
 	struct rfkill_gpio_data *rfkill = platform_get_drvdata(pdev);
-	struct rfkill_gpio_platform_data *pdata = pdev->dev.platform_data;
 
-	if (pdata && pdata->gpio_runtime_close)
-		pdata->gpio_runtime_close(pdev);
 	rfkill_unregister(rfkill->rfkill_dev);
 	rfkill_destroy(rfkill->rfkill_dev);
 
