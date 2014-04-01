@@ -3279,8 +3279,10 @@ static void gen8_enable_rps(struct drm_device *dev)
 				    rc6_mask);
 
 	/* 4 Program defaults and thresholds for RPS*/
-	I915_WRITE(GEN6_RPNSWREQ, HSW_FREQUENCY(10)); /* Request 500 MHz */
-	I915_WRITE(GEN6_RC_VIDEO_FREQ, HSW_FREQUENCY(12)); /* Request 600 MHz */
+	I915_WRITE(GEN6_RPNSWREQ,
+		   HSW_FREQUENCY(dev_priv->rps.rp1_freq));
+	I915_WRITE(GEN6_RC_VIDEO_FREQ,
+		   HSW_FREQUENCY(dev_priv->rps.rp1_freq));
 	/* NB: Docs say 1s, and 1000000 - which aren't equivalent */
 	I915_WRITE(GEN6_RP_DOWN_TIMEOUT, 100000000 / 128); /* 1 second timeout */
 
