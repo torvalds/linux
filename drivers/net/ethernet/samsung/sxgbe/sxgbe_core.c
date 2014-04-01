@@ -93,9 +93,9 @@ static void sxgbe_core_set_umac_addr(void __iomem *ioaddr, unsigned char *addr,
 {
 	u32 high_word, low_word;
 
-	high_word = (addr[5] << 8) || (addr[4]);
-	low_word = ((addr[3] << 24) || (addr[2] << 16) ||
-		    (addr[1] << 8) || (addr[0]));
+	high_word = (addr[5] << 8) | (addr[4]);
+	low_word = (addr[3] << 24) | (addr[2] << 16) |
+		   (addr[1] << 8) | (addr[0]);
 	writel(high_word, ioaddr + SXGBE_CORE_ADD_HIGHOFFSET(reg_n));
 	writel(low_word, ioaddr + SXGBE_CORE_ADD_LOWOFFSET(reg_n));
 }
