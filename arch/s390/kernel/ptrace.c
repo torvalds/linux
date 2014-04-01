@@ -64,7 +64,7 @@ void update_cr_regs(struct task_struct *task)
 		if (task->thread.per_flags & PER_FLAG_NO_TE)
 			cr_new &= ~(1UL << 55);
 		if (cr_new != cr)
-			__ctl_load(cr, 0, 0);
+			__ctl_load(cr_new, 0, 0);
 		/* Set or clear transaction execution TDC bits 62 and 63. */
 		__ctl_store(cr, 2, 2);
 		cr_new = cr & ~3UL;
