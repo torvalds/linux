@@ -732,7 +732,7 @@ static int rt3261_asrc_get(struct snd_kcontrol *kcontrol,
 	struct snd_soc_codec *codec = snd_kcontrol_chip(kcontrol);
 	struct rt3261_priv *rt3261 = snd_soc_codec_get_drvdata(codec);
 
-	printk("%s\n", __FUNCTION__);
+	DBG("%s\n", __FUNCTION__);
 	ucontrol->value.integer.value[0] = rt3261->asrc_en;
 
 	return 0;
@@ -744,14 +744,14 @@ static int rt3261_asrc_put(struct snd_kcontrol *kcontrol,
 	struct snd_soc_codec *codec = snd_kcontrol_chip(kcontrol);
 	struct rt3261_priv *rt3261 = snd_soc_codec_get_drvdata(codec);
 
-	printk("%s\n", __FUNCTION__);
+	DBG("%s\n", __FUNCTION__);
 	if (rt3261->asrc_en == ucontrol->value.integer.value[0])
 		return 0;
 
 	rt3261->asrc_en = ucontrol->value.integer.value[0];
 	switch (rt3261->asrc_en) {
 	case RT3261_ASRC_DIS://disable ASRC
-		printk("%s disable\n", __FUNCTION__);
+		DBG("%s disable\n", __FUNCTION__);
 		snd_soc_write(codec, RT3261_ASRC_1, 0x0);			
 		snd_soc_write(codec, RT3261_ASRC_2, 0x0);
 		snd_soc_update_bits(codec, RT3261_GEN_CTRL1, 0x70, 0x0); //bard 8-29
@@ -763,7 +763,7 @@ static int rt3261_asrc_put(struct snd_kcontrol *kcontrol,
 		break;
 
 	case RT3261_ASRC_EN://enable ASRC
-		printk("%s enable\n", __FUNCTION__);
+		DBG("%s enable\n", __FUNCTION__);
 		snd_soc_write(codec, RT3261_ASRC_1, 0x9800);			
 		snd_soc_write(codec, RT3261_ASRC_2, 0xF800);
 		snd_soc_update_bits(codec, RT3261_GEN_CTRL1, 0x70, 0x70); //bard 8-29
@@ -852,7 +852,7 @@ static int rt3261_mic2_put(struct snd_kcontrol *kcontrol,
 void rt3261_hp_amp_power(struct snd_soc_codec *codec, int on)
 {
 	static int hp_amp_power_count;
-	printk("rt3261_hp_amp_power on=%d hp_amp_power_count=%d\n",on,hp_amp_power_count);
+	DBG("rt3261_hp_amp_power on=%d hp_amp_power_count=%d\n",on,hp_amp_power_count);
 //	dump_reg(codec);
 	if(on) {
 		if(hp_amp_power_count <= 0) {

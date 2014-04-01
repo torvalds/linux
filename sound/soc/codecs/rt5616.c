@@ -419,7 +419,7 @@ static unsigned int bst_tlv[] = {
 	8, 8, TLV_DB_SCALE_ITEM(5200, 0, 0),
 };
 
-int snd_soc_get_gpio_enum_double(struct snd_kcontrol *kcontrol,
+static int snd_soc_get_gpio_enum_double(struct snd_kcontrol *kcontrol,
 	struct snd_ctl_elem_value *ucontrol)
 {
 	struct soc_enum *e = (struct soc_enum *)kcontrol->private_value;
@@ -441,7 +441,7 @@ int snd_soc_get_gpio_enum_double(struct snd_kcontrol *kcontrol,
 	return 0;
 }
 
-int snd_soc_put_gpio_enum_double(struct snd_kcontrol *kcontrol,
+static int snd_soc_put_gpio_enum_double(struct snd_kcontrol *kcontrol,
 	struct snd_ctl_elem_value *ucontrol)
 {
 	struct soc_enum *e = (struct soc_enum *)kcontrol->private_value;
@@ -1578,14 +1578,17 @@ static int rt5616_probe(struct snd_soc_codec *codec)
 {
 	struct rt5616_priv *rt5616 = snd_soc_codec_get_drvdata(codec);
 	int ret;
-	printk("enter %s\n",__func__);
+
 	ret = snd_soc_codec_set_cache_io(codec, 8, 16, SND_SOC_I2C);
 	if (ret != 0) {
 		dev_err(codec->dev, "Failed to set cache I/O: %d\n", ret);
 		return ret;
 	}
 
-	rt5616_reset(codec);
+	ret = rt5616_reset(codec);	
+	if (ret < 0)
+			return ret;
+
 	snd_soc_update_bits(codec, RT5616_PWR_ANLG1,
 		RT5616_PWR_VREF1 | RT5616_PWR_MB |
 		RT5616_PWR_BG | RT5616_PWR_VREF2,

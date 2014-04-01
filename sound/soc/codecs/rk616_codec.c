@@ -986,7 +986,7 @@ int snd_soc_put_step_volsw(struct snd_kcontrol *kcontrol,
 	return err;
 }
 
-int snd_soc_get_gpio_enum_double(struct snd_kcontrol *kcontrol,
+static int snd_soc_get_gpio_enum_double(struct snd_kcontrol *kcontrol,
 	struct snd_ctl_elem_value *ucontrol)
 {
 	struct soc_enum *e = (struct soc_enum *)kcontrol->private_value;
@@ -1016,7 +1016,7 @@ int snd_soc_get_gpio_enum_double(struct snd_kcontrol *kcontrol,
 	return 0;
 }
 
-int snd_soc_put_gpio_enum_double(struct snd_kcontrol *kcontrol,
+static int snd_soc_put_gpio_enum_double(struct snd_kcontrol *kcontrol,
 	struct snd_ctl_elem_value *ucontrol)
 {
 	struct soc_enum *e = (struct soc_enum *)kcontrol->private_value;
