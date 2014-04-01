@@ -541,6 +541,12 @@ struct drm_plane_funcs {
 			    struct drm_property *property, uint64_t val);
 };
 
+enum drm_plane_type {
+	DRM_PLANE_TYPE_OVERLAY,
+	DRM_PLANE_TYPE_PRIMARY,
+	DRM_PLANE_TYPE_CURSOR,
+};
+
 /**
  * drm_plane - central DRM plane control structure
  * @dev: DRM device this plane belongs to
@@ -553,6 +559,7 @@ struct drm_plane_funcs {
  * @fb: currently bound fb
  * @funcs: helper functions
  * @properties: property tracking for this plane
+ * @type: type of plane (overlay, primary, cursor)
  */
 struct drm_plane {
 	struct drm_device *dev;
@@ -570,6 +577,8 @@ struct drm_plane {
 	const struct drm_plane_funcs *funcs;
 
 	struct drm_object_properties properties;
+
+	enum drm_plane_type type;
 };
 
 /**
@@ -732,7 +741,15 @@ struct drm_mode_config {
 	struct list_head bridge_list;
 	int num_encoder;
 	struct list_head encoder_list;
-	int num_plane;
+
+	/*
+	 * Track # of overlay planes separately from # of total planes.  By
+	 * default we only advertise overlay planes to userspace; if userspace
+	 * sets the "universal plane" capability bit, we'll go ahead and
+	 * expose all planes.
+	 */
+	int num_overlay_plane;
+	int num_total_plane;
 	struct list_head plane_list;
 
 	int num_crtc;
@@ -1035,5 +1052,10 @@ static inline struct drm_encoder *drm_encoder_find(struct drm_device *dev,
 	mo = drm_mode_object_find(dev, id, DRM_MODE_OBJECT_ENCODER);
 	return mo ? obj_to_encoder(mo) : NULL;
 }
+
+/* Plane list iterator for legacy (overlay only) planes. */
+#define drm_for_each_legacy_plane(plane, planelist) \
+	list_for_each_entry(plane, planelist, head) \
+		if (plane->type == DRM_PLANE_TYPE_OVERLAY)
 
 #endif /* __DRM_CRTC_H__ */

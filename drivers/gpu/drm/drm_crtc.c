@@ -1044,6 +1044,7 @@ int drm_plane_init(struct drm_device *dev, struct drm_plane *plane,
 	memcpy(plane->format_types, formats, format_count * sizeof(uint32_t));
 	plane->format_count = format_count;
 	plane->possible_crtcs = possible_crtcs;
+	plane->type = DRM_PLANE_TYPE_OVERLAY;
 
 	/* private planes are not exposed to userspace, but depending on
 	 * display hardware, might be convenient to allow sharing programming
@@ -1051,7 +1052,9 @@ int drm_plane_init(struct drm_device *dev, struct drm_plane *plane,
 	 */
 	if (!priv) {
 		list_add_tail(&plane->head, &dev->mode_config.plane_list);
-		dev->mode_config.num_plane++;
+		dev->mode_config.num_total_plane++;
+		if (plane->type == DRM_PLANE_TYPE_OVERLAY)
+			dev->mode_config.num_overlay_plane++;
 	} else {
 		INIT_LIST_HEAD(&plane->head);
 	}
@@ -1081,7 +1084,9 @@ void drm_plane_cleanup(struct drm_plane *plane)
 	/* if not added to a list, it must be a private plane */
 	if (!list_empty(&plane->head)) {
 		list_del(&plane->head);
-		dev->mode_config.num_plane--;
+	        dev->mode_config.num_total_plane--;
+		if (plane->type == DRM_PLANE_TYPE_OVERLAY)
+			dev->mode_config.num_overlay_plane--;
 	}
 	drm_modeset_unlock_all(dev);
 }
@@ -1908,11 +1913,15 @@ int drm_mode_getplane_res(struct drm_device *dev, void *data,
 	 * This ioctl is called twice, once to determine how much space is
 	 * needed, and the 2nd time to fill it.
 	 */
-	if (config->num_plane &&
-	    (plane_resp->count_planes >= config->num_plane)) {
+	if (config->num_overlay_plane &&
+	    (plane_resp->count_planes >= config->num_overlay_plane)) {
 		plane_ptr = (uint32_t __user *)(unsigned long)plane_resp->plane_id_ptr;
 
 		list_for_each_entry(plane, &config->plane_list, head) {
+			/* Only advertise overlays to userspace for now. */
+			if (plane->type != DRM_PLANE_TYPE_OVERLAY)
+				continue;
+
 			if (put_user(plane->base.id, plane_ptr + copied)) {
 				ret = -EFAULT;
 				goto out;
@@ -1920,7 +1929,7 @@ int drm_mode_getplane_res(struct drm_device *dev, void *data,
 			copied++;
 		}
 	}
-	plane_resp->count_planes = config->num_plane;
+	plane_resp->count_planes = config->num_overlay_plane;
 
 out:
 	drm_modeset_unlock_all(dev);
@@ -4534,6 +4543,8 @@ void drm_mode_config_init(struct drm_device *dev)
 	dev->mode_config.num_connector = 0;
 	dev->mode_config.num_crtc = 0;
 	dev->mode_config.num_encoder = 0;
+	dev->mode_config.num_overlay_plane = 0;
+	dev->mode_config.num_total_plane = 0;
 }
 EXPORT_SYMBOL(drm_mode_config_init);
 
