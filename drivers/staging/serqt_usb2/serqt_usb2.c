@@ -990,16 +990,10 @@ static void qt_block_until_empty(struct tty_struct *tty,
 static void qt_close(struct usb_serial_port *port)
 {
 	struct usb_serial *serial = port->serial;
-	struct quatech_port *qt_port;
-	struct quatech_port *port0;
-	struct tty_struct *tty;
-	unsigned int index;
-
-	tty = tty_port_tty_get(&port->port);
-	index = port->port_number;
-
-	qt_port = qt_get_port_private(port);
-	port0 = qt_get_port_private(serial->port[0]);
+	struct tty_struct *tty = tty_port_tty_get(&port->port);
+	unsigned int index = port->port_number;
+	struct quatech_port *qt_port = qt_get_port_private(port);
+	struct quatech_port *port0 = qt_get_port_private(serial->port[0]);
 
 	/* shutdown any bulk reads that might be going on */
 	if (serial->num_bulk_out)
