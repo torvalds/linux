@@ -80,6 +80,12 @@ static const u32 hpd_status_i915[] = { /* i915 and valleyview are the same */
 	[HPD_PORT_D] = PORTD_HOTPLUG_INT_STATUS
 };
 
+#define GEN5_IRQ_INIT(type) do { \
+	I915_WRITE(type##IMR, 0xffffffff); \
+	I915_WRITE(type##IER, 0); \
+	POSTING_READ(type##IER); \
+} while (0)
+
 /* For display hotplug interrupt */
 static void
 ironlake_enable_display_irq(struct drm_i915_private *dev_priv, u32 mask)
@@ -2837,17 +2843,9 @@ static void gen5_gt_irq_preinstall(struct drm_device *dev)
 {
 	struct drm_i915_private *dev_priv = dev->dev_private;
 
-	/* and GT */
-	I915_WRITE(GTIMR, 0xffffffff);
-	I915_WRITE(GTIER, 0x0);
-	POSTING_READ(GTIER);
-
-	if (INTEL_INFO(dev)->gen >= 6) {
-		/* and PM */
-		I915_WRITE(GEN6_PMIMR, 0xffffffff);
-		I915_WRITE(GEN6_PMIER, 0x0);
-		POSTING_READ(GEN6_PMIER);
-	}
+	GEN5_IRQ_INIT(GT);
+	if (INTEL_INFO(dev)->gen >= 6)
+		GEN5_IRQ_INIT(GEN6_PM);
 }
 
 /* drm_dma.h hooks
@@ -2858,9 +2856,7 @@ static void ironlake_irq_preinstall(struct drm_device *dev)
 
 	I915_WRITE(HWSTAM, 0xeffe);
 
-	I915_WRITE(DEIMR, 0xffffffff);
-	I915_WRITE(DEIER, 0x0);
-	POSTING_READ(DEIER);
+	GEN5_IRQ_INIT(DE);
 
 	gen5_gt_irq_preinstall(dev);
 
