@@ -675,6 +675,9 @@ static int twl6040_probe(struct i2c_client *client,
 	mutex_init(&twl6040->mutex);
 	init_completion(&twl6040->ready);
 
+	regmap_register_patch(twl6040->regmap, twl6040_patch,
+			      ARRAY_SIZE(twl6040_patch));
+
 	twl6040->rev = twl6040_reg_read(twl6040, TWL6040_REG_ASICREV);
 	if (twl6040->rev < 0) {
 		dev_err(&client->dev, "Failed to read revision register: %d\n",
@@ -724,10 +727,6 @@ static int twl6040_probe(struct i2c_client *client,
 		dev_err(twl6040->dev, "Thermal IRQ request failed: %d\n", ret);
 		goto readyirq_err;
 	}
-
-	/* dual-access registers controlled by I2C only */
-	regmap_register_patch(twl6040->regmap, twl6040_patch,
-			      ARRAY_SIZE(twl6040_patch));
 
 	/*
 	 * The main functionality of twl6040 to provide audio on OMAP4+ systems.
