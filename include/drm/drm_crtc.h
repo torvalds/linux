@@ -270,6 +270,8 @@ struct drm_crtc_funcs {
  * @dev: parent DRM device
  * @head: list management
  * @base: base KMS object for ID tracking etc.
+ * @primary: primary plane for this CRTC
+ * @cursor: cursor plane for this CRTC
  * @enabled: is this CRTC enabled?
  * @mode: current mode timings
  * @hwmode: mode timings as programmed to hw regs
@@ -304,6 +306,10 @@ struct drm_crtc {
 	struct mutex mutex;
 
 	struct drm_mode_object base;
+
+	/* primary and cursor planes for CRTC */
+	struct drm_plane *primary;
+	struct drm_plane *cursor;
 
 	/* framebuffer the connector is currently bound to */
 	struct drm_framebuffer *fb;
@@ -824,6 +830,11 @@ extern void drm_modeset_lock_all(struct drm_device *dev);
 extern void drm_modeset_unlock_all(struct drm_device *dev);
 extern void drm_warn_on_modeset_not_all_locked(struct drm_device *dev);
 
+extern int drm_crtc_init_with_planes(struct drm_device *dev,
+				     struct drm_crtc *crtc,
+				     struct drm_plane *primary,
+				     void *cursor,
+				     const struct drm_crtc_funcs *funcs);
 extern int drm_crtc_init(struct drm_device *dev,
 			 struct drm_crtc *crtc,
 			 const struct drm_crtc_funcs *funcs);

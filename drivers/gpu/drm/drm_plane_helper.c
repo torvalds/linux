@@ -310,3 +310,24 @@ struct drm_plane *drm_primary_helper_create_plane(struct drm_device *dev,
 }
 EXPORT_SYMBOL(drm_primary_helper_create_plane);
 
+/**
+ * drm_crtc_init - Legacy CRTC initialization function
+ * @dev: DRM device
+ * @crtc: CRTC object to init
+ * @funcs: callbacks for the new CRTC
+ *
+ * Initialize a CRTC object with a default helper-provided primary plane and no
+ * cursor plane.
+ *
+ * Returns:
+ * Zero on success, error code on failure.
+ */
+int drm_crtc_init(struct drm_device *dev, struct drm_crtc *crtc,
+		  const struct drm_crtc_funcs *funcs)
+{
+	struct drm_plane *primary;
+
+	primary = drm_primary_helper_create_plane(dev, NULL, 0);
+	return drm_crtc_init_with_planes(dev, crtc, primary, NULL, funcs);
+}
+EXPORT_SYMBOL(drm_crtc_init);
