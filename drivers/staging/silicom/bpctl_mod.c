@@ -219,8 +219,12 @@ static int bp_device_event(struct notifier_block *unused,
 			if (netif_carrier_ok(dev))
 				return NOTIFY_DONE;
 
-			if (((dev_num = get_dev_idx(dev->ifindex)) == -1) ||
-			    (!(pbpctl_dev = &bpctl_dev_arr[dev_num])))
+			dev_num = get_dev_idx(dev->ifindex);
+			if (dev_num == -1)
+				return NOTIFY_DONE;
+
+			pbpctl_dev = &bpctl_dev_arr[dev_num];
+			if (!pbpctl_dev)
 				return NOTIFY_DONE;
 
 			if ((is_bypass_fn(pbpctl_dev)) == 1)
