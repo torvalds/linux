@@ -1112,8 +1112,12 @@ static void iser_cq_tasklet_fn(unsigned long data)
 	 struct iser_rx_desc *desc;
 	 unsigned long	     xfer_len;
 	struct iser_conn *ib_conn;
-	int completed_tx, completed_rx;
-	completed_tx = completed_rx = 0;
+	int completed_tx, completed_rx = 0;
+
+	/* First do tx drain, so in a case where we have rx flushes and a successful
+	 * tx completion we will still go through completion error handling.
+	 */
+	completed_tx = iser_drain_tx_cq(device, cq_index);
 
 	while (ib_poll_cq(cq, 1, &wc) == 1) {
 		desc	 = (struct iser_rx_desc *) (unsigned long) wc.wr_id;
@@ -1141,7 +1145,6 @@ static void iser_cq_tasklet_fn(unsigned long data)
 	 * " would not cause interrupts to be missed"                       */
 	ib_req_notify_cq(cq, IB_CQ_NEXT_COMP);
 
-	completed_tx += iser_drain_tx_cq(device, cq_index);
 	iser_dbg("got %d rx %d tx completions\n", completed_rx, completed_tx);
 }
 
