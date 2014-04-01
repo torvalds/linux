@@ -1923,6 +1923,7 @@ struct i915_params {
 	bool prefault_disable;
 	bool reset;
 	bool disable_display;
+	bool disable_vtd_wa;
 };
 extern struct i915_params i915 __read_mostly;
 
