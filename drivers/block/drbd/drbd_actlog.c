@@ -137,10 +137,11 @@ void wait_until_done_or_force_detached(struct drbd_device *device, struct drbd_b
 
 static int _drbd_md_sync_page_io(struct drbd_device *device,
 				 struct drbd_backing_dev *bdev,
-				 struct page *page, sector_t sector,
-				 int rw, int size)
+				 sector_t sector, int rw)
 {
 	struct bio *bio;
+	/* we do all our meta data IO in aligned 4k blocks. */
+	const int size = 4096;
 	int err;
 
 	device->md_io.done = 0;
@@ -154,7 +155,7 @@ static int _drbd_md_sync_page_io(struct drbd_device *device,
 	bio->bi_bdev = bdev->md_bdev;
 	bio->bi_iter.bi_sector = sector;
 	err = -EIO;
-	if (bio_add_page(bio, page, size, 0) != size)
+	if (bio_add_page(bio, device->md_io.page, size, 0) != size)
 		goto out;
 	bio->bi_private = device;
 	bio->bi_end_io = drbd_md_io_complete;
@@ -190,8 +191,6 @@ int drbd_md_sync_page_io(struct drbd_device *device, struct drbd_backing_dev *bd
 			 sector_t sector, int rw)
 {
 	int err;
-	struct page *iop = device->md_io.page;
-
 	D_ASSERT(device, atomic_read(&device->md_io.in_use) == 1);
 
 	BUG_ON(!bdev->md_bdev);
@@ -207,8 +206,7 @@ int drbd_md_sync_page_io(struct drbd_device *device, struct drbd_backing_dev *bd
 		     current->comm, current->pid, __func__,
 		     (unsigned long long)sector, (rw & WRITE) ? "WRITE" : "READ");
 
-	/* we do all our meta data IO in aligned 4k blocks. */
-	err = _drbd_md_sync_page_io(device, bdev, iop, sector, rw, 4096);
+	err = _drbd_md_sync_page_io(device, bdev, sector, rw);
 	if (err) {
 		drbd_err(device, "drbd_md_sync_page_io(,%llus,%s) failed with error %d\n",
 		    (unsigned long long)sector, (rw & WRITE) ? "WRITE" : "READ", err);
