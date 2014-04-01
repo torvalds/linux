@@ -2886,7 +2886,7 @@ static void ibx_irq_preinstall(struct drm_device *dev)
 	POSTING_READ(SDEIER);
 }
 
-static void gen5_gt_irq_preinstall(struct drm_device *dev)
+static void gen5_gt_irq_reset(struct drm_device *dev)
 {
 	struct drm_i915_private *dev_priv = dev->dev_private;
 
@@ -2908,7 +2908,7 @@ static void ironlake_irq_preinstall(struct drm_device *dev)
 	if (IS_GEN7(dev))
 		I915_WRITE(GEN7_ERR_INT, 0xffffffff);
 
-	gen5_gt_irq_preinstall(dev);
+	gen5_gt_irq_reset(dev);
 
 	ibx_irq_preinstall(dev);
 }
@@ -2928,7 +2928,7 @@ static void valleyview_irq_preinstall(struct drm_device *dev)
 	I915_WRITE(GTIIR, I915_READ(GTIIR));
 	I915_WRITE(GTIIR, I915_READ(GTIIR));
 
-	gen5_gt_irq_preinstall(dev);
+	gen5_gt_irq_reset(dev);
 
 	I915_WRITE(DPINVGTT, 0xff);
 
@@ -3346,9 +3346,7 @@ static void ironlake_irq_uninstall(struct drm_device *dev)
 	if (IS_GEN7(dev))
 		I915_WRITE(GEN7_ERR_INT, 0xffffffff);
 
-	GEN5_IRQ_RESET(GT);
-	if (INTEL_INFO(dev)->gen >= 6)
-		GEN5_IRQ_RESET(GEN6_PM);
+	gen5_gt_irq_reset(dev);
 
 	if (HAS_PCH_NOP(dev))
 		return;
