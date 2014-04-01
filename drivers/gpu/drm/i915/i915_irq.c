@@ -2959,7 +2959,7 @@ static void valleyview_irq_preinstall(struct drm_device *dev)
 	POSTING_READ(VLV_IER);
 }
 
-static void gen8_irq_preinstall(struct drm_device *dev)
+static void gen8_irq_reset(struct drm_device *dev)
 {
 	struct drm_i915_private *dev_priv = dev->dev_private;
 	int pipe;
@@ -2972,15 +2972,19 @@ static void gen8_irq_preinstall(struct drm_device *dev)
 	GEN8_IRQ_RESET_NDX(GT, 2);
 	GEN8_IRQ_RESET_NDX(GT, 3);
 
-	for_each_pipe(pipe) {
+	for_each_pipe(pipe)
 		GEN8_IRQ_RESET_NDX(DE_PIPE, pipe);
-	}
 
 	GEN5_IRQ_RESET(GEN8_DE_PORT_);
 	GEN5_IRQ_RESET(GEN8_DE_MISC_);
 	GEN5_IRQ_RESET(GEN8_PCU_);
 
 	ibx_irq_reset(dev);
+}
+
+static void gen8_irq_preinstall(struct drm_device *dev)
+{
+	gen8_irq_reset(dev);
 }
 
 static void ibx_hpd_irq_setup(struct drm_device *dev)
@@ -3301,28 +3305,13 @@ static int gen8_irq_postinstall(struct drm_device *dev)
 static void gen8_irq_uninstall(struct drm_device *dev)
 {
 	struct drm_i915_private *dev_priv = dev->dev_private;
-	int pipe;
 
 	if (!dev_priv)
 		return;
 
 	intel_hpd_irq_uninstall(dev_priv);
 
-	I915_WRITE(GEN8_MASTER_IRQ, 0);
-
-	GEN8_IRQ_RESET_NDX(GT, 0);
-	GEN8_IRQ_RESET_NDX(GT, 1);
-	GEN8_IRQ_RESET_NDX(GT, 2);
-	GEN8_IRQ_RESET_NDX(GT, 3);
-
-	for_each_pipe(pipe)
-		GEN8_IRQ_RESET_NDX(DE_PIPE, pipe);
-
-	GEN5_IRQ_RESET(GEN8_DE_PORT_);
-	GEN5_IRQ_RESET(GEN8_DE_MISC_);
-	GEN5_IRQ_RESET(GEN8_PCU_);
-
-	ibx_irq_reset(dev);
+	gen8_irq_reset(dev);
 }
 
 static void valleyview_irq_uninstall(struct drm_device *dev)
