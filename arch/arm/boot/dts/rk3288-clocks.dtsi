@@ -2167,7 +2167,7 @@
 
 					clock-output-names =
 						"clk_i2s_out",		"clk_i2s_pll",
-						"i2s_frac",		"g_clk_i2s",
+						"i2s_frac",		"clk_i2s",
 
 						"spdif_div",		"spdif_frac",
 						"clk_spdif",		"spdif_8ch_div",
