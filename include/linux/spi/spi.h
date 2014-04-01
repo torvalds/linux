@@ -24,6 +24,9 @@
 #include <linux/slab.h>
 #include <linux/kthread.h>
 #include <linux/completion.h>
+#include <linux/scatterlist.h>
+
+struct dma_chan;
 
 /*
  * INTERFACES between SPI master-side drivers and SPI infrastructure.
@@ -266,6 +269,7 @@ static inline void spi_unregister_driver(struct spi_driver *sdrv)
  * @auto_runtime_pm: the core should ensure a runtime PM reference is held
  *                   while the hardware is prepared, using the parent
  *                   device for the spidev
+ * @max_dma_len: Maximum length of a DMA transfer for the device.
  * @prepare_transfer_hardware: a message will soon arrive from the queue
  *	so the subsystem requests the driver to prepare the transfer hardware
  *	by issuing this call
@@ -348,6 +352,8 @@ struct spi_master {
 #define SPI_MASTER_HALF_DUPLEX	BIT(0)		/* can't do full duplex */
 #define SPI_MASTER_NO_RX	BIT(1)		/* can't do buffer read */
 #define SPI_MASTER_NO_TX	BIT(2)		/* can't do buffer write */
+#define SPI_MASTER_MUST_RX      BIT(3)		/* requires rx */
+#define SPI_MASTER_MUST_TX      BIT(4)		/* requires tx */
 
 	/* lock and mutex for SPI bus locking */
 	spinlock_t		bus_lock_spinlock;
@@ -390,6 +396,17 @@ struct spi_master {
 	void			(*cleanup)(struct spi_device *spi);
 
 	/*
+	 * Used to enable core support for DMA handling, if can_dma()
+	 * exists and returns true then the transfer will be mapped
+	 * prior to transfer_one() being called.  The driver should
+	 * not modify or store xfer and dma_tx and dma_rx must be set
+	 * while the device is prepared.
+	 */
+	bool			(*can_dma)(struct spi_master *master,
+					   struct spi_device *spi,
+					   struct spi_transfer *xfer);
+
+	/*
 	 * These hooks are for drivers that want to use the generic
 	 * master transfer queueing mechanism. If these are used, the
 	 * transfer() function above must NOT be specified by the driver.
@@ -407,7 +424,9 @@ struct spi_master {
 	bool				rt;
 	bool				auto_runtime_pm;
 	bool                            cur_msg_prepared;
+	bool				cur_msg_mapped;
 	struct completion               xfer_completion;
+	size_t				max_dma_len;
 
 	int (*prepare_transfer_hardware)(struct spi_master *master);
 	int (*transfer_one_message)(struct spi_master *master,
@@ -428,6 +447,14 @@ struct spi_master {
 
 	/* gpio chip select */
 	int			*cs_gpios;
+
+	/* DMA channels for use with core dmaengine helpers */
+	struct dma_chan		*dma_tx;
+	struct dma_chan		*dma_rx;
+
+	/* dummy data for full duplex devices */
+	void			*dummy_rx;
+	void			*dummy_tx;
 };
 
 static inline void *spi_master_get_devdata(struct spi_master *master)
@@ -512,6 +539,8 @@ extern struct spi_master *spi_busnum_to_master(u16 busnum);
  *	(optionally) changing the chipselect status, then starting
  *	the next transfer or completing this @spi_message.
  * @transfer_list: transfers are sequenced through @spi_message.transfers
+ * @tx_sg: Scatterlist for transmit, currently not for client use
+ * @rx_sg: Scatterlist for receive, currently not for client use
  *
  * SPI transfers always write the same number of bytes as they read.
  * Protocol drivers should always provide @rx_buf and/or @tx_buf.
@@ -579,6 +608,8 @@ struct spi_transfer {
 
 	dma_addr_t	tx_dma;
 	dma_addr_t	rx_dma;
+	struct sg_table tx_sg;
+	struct sg_table rx_sg;
 
 	unsigned	cs_change:1;
 	unsigned	tx_nbits:3;
