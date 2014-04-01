@@ -33,7 +33,6 @@
 #define POWERNV_MAX_PSTATES	256
 
 static struct cpufreq_frequency_table powernv_freqs[POWERNV_MAX_PSTATES+1];
-static int powernv_pstate_ids[POWERNV_MAX_PSTATES+1];
 
 /*
  * Note: The set of pstates consists of contiguous integers, the
@@ -112,7 +111,7 @@ static int init_powernv_pstates(void)
 
 		pr_debug("PState id %d freq %d MHz\n", id, freq);
 		powernv_freqs[i].frequency = freq * 1000; /* kHz */
-		powernv_pstate_ids[i] = id;
+		powernv_freqs[i].driver_data = id;
 	}
 	/* End of list marker entry */
 	powernv_freqs[i].frequency = CPUFREQ_TABLE_END;
@@ -283,7 +282,7 @@ static int powernv_cpufreq_target_index(struct cpufreq_policy *policy,
 {
 	struct powernv_smp_call_data freq_data;
 
-	freq_data.pstate_id = powernv_pstate_ids[new_index];
+	freq_data.pstate_id = powernv_freqs[new_index].driver_data;
 
 	/*
 	 * Use smp_call_function to send IPI and execute the
