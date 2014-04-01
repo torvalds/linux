@@ -2912,6 +2912,8 @@ static void ironlake_irq_reset(struct drm_device *dev)
 {
 	struct drm_i915_private *dev_priv = dev->dev_private;
 
+	I915_WRITE(HWSTAM, 0xffffffff);
+
 	GEN5_IRQ_RESET(DE);
 	if (IS_GEN7(dev))
 		I915_WRITE(GEN7_ERR_INT, 0xffffffff);
@@ -2923,10 +2925,6 @@ static void ironlake_irq_reset(struct drm_device *dev)
 
 static void ironlake_irq_preinstall(struct drm_device *dev)
 {
-	struct drm_i915_private *dev_priv = dev->dev_private;
-
-	I915_WRITE(HWSTAM, 0xeffe);
-
 	ironlake_irq_reset(dev);
 }
 
@@ -3098,6 +3096,8 @@ static int ironlake_irq_postinstall(struct drm_device *dev)
 	}
 
 	dev_priv->irq_mask = ~display_mask;
+
+	I915_WRITE(HWSTAM, 0xeffe);
 
 	ibx_irq_pre_postinstall(dev);
 
@@ -3353,8 +3353,6 @@ static void ironlake_irq_uninstall(struct drm_device *dev)
 		return;
 
 	intel_hpd_irq_uninstall(dev_priv);
-
-	I915_WRITE(HWSTAM, 0xffffffff);
 
 	ironlake_irq_reset(dev);
 }
