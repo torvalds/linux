@@ -2049,10 +2049,11 @@ int i40e_ndo_set_vf_mac(struct net_device *netdev, int vf_id, u8 *mac)
 	}
 
 	/* delete the temporary mac address */
-	i40e_del_filter(vsi, vf->default_lan_addr.addr, 0, true, false);
+	i40e_del_filter(vsi, vf->default_lan_addr.addr, vf->port_vlan_id,
+			true, false);
 
 	/* add the new mac address */
-	f = i40e_add_filter(vsi, mac, 0, true, false);
+	f = i40e_add_filter(vsi, mac, vf->port_vlan_id, true, false);
 	if (!f) {
 		dev_err(&pf->pdev->dev,
 			"Unable to add VF ucast filter\n");
