@@ -1680,10 +1680,6 @@ static int sony_probe(struct hid_device *hdev, const struct hid_device_id *id)
 			goto err_stop;
 	}
 
-	if (sc->quirks & SONY_FF_SUPPORT) {
-		ret = sony_init_ff(hdev);
-		if (ret < 0)
-			goto err_stop;
 	if (sc->quirks & SONY_BATTERY_SUPPORT) {
 		ret = sony_battery_probe(sc);
 		if (ret < 0)
