@@ -882,6 +882,10 @@ extern int drm_plane_init(struct drm_device *dev,
 			  bool priv);
 extern void drm_plane_cleanup(struct drm_plane *plane);
 extern void drm_plane_force_disable(struct drm_plane *plane);
+extern int drm_crtc_check_viewport(const struct drm_crtc *crtc,
+				   int x, int y,
+				   const struct drm_display_mode *mode,
+				   const struct drm_framebuffer *fb);
 
 extern void drm_encoder_cleanup(struct drm_encoder *encoder);
 
