@@ -15,6 +15,8 @@ enum {
     SYNOP_BC_VDATDETENB,
     SYNOP_BC_CHRGSEL,
     SYNOP_BC_CHGDET,
+    SYNOP_BC_FSVPLUS,
+    SYNOP_BC_FSVMINUS,
     SYNOP_BC_MAX,	
 };
 
@@ -28,10 +30,15 @@ enum {
     RK_BC_MAX,
 };
 
-#define T_DCD_TIMEOUT	 (200)
+#define T_DCD_TIMEOUT	 (400)
 #define T_BC_WAIT_CHGDET (40)
-#define T_BC_SRC_OFF     (10)
+#define T_BC_CHGDET_VALID (200)
 
+enum {
+	DCD_POSITIVE = 0,
+	DCD_PASSED,
+	DCD_TIMEOUT,
+};
 
 /***********************************
 USB Port Type

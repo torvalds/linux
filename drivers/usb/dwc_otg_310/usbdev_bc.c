@@ -65,6 +65,8 @@ inline static void uoc_init_synop(struct device_node *np)
     uoc_init_field(np, "rk_usb,vdatdetenb", &pBC_UOC_FIELDS[SYNOP_BC_VDATDETENB]);
     uoc_init_field(np, "rk_usb,chrgsel",  &pBC_UOC_FIELDS[SYNOP_BC_CHRGSEL]);
     uoc_init_field(np, "rk_usb,chgdet",   &pBC_UOC_FIELDS[SYNOP_BC_CHGDET]);
+    uoc_init_field(np, "rk_usb,fsvplus",  &pBC_UOC_FIELDS[SYNOP_BC_FSVPLUS]);
+    uoc_init_field(np, "rk_usb,fsvminus", &pBC_UOC_FIELDS[SYNOP_BC_FSVMINUS]);
 }
 
 inline static void uoc_init_rk(struct device_node *np)
@@ -132,61 +134,74 @@ int usb_battery_charger_detect_inno(bool wait)
 //wait wait for dcd timeout 900ms
 int usb_battery_charger_detect_synop(bool wait)
 {
-    int port_type = USB_BC_TYPE_DISCNT;
-    int timeout;
-    //VBUS Valid detect
+	int port_type = USB_BC_TYPE_DISCNT;
+	int dcd_state;
+	int timeout = 0, i = 0;
+	//VBUS Valid detect
+	if(BC_GET(SYNOP_BC_BVALID)) {
+		if(wait) {
+			//Do DCD
+			dcd_state = DCD_TIMEOUT;
+			BC_SET(SYNOP_BC_DCDENB, 1);
+			timeout = T_DCD_TIMEOUT;
+			while(timeout--) {
+				if(!BC_GET(SYNOP_BC_FSVPLUS))
+					i++;
+				if(i >= 3) {//It is a filter here to assure data lines contacted for at least 3ms
+					dcd_state = DCD_POSITIVE;
+					break;
+				}
 
-    if(BC_GET(SYNOP_BC_BVALID)) {
-        //todo : add DCD !
-        mdelay(wait ? T_DCD_TIMEOUT : 1);
+				mdelay(1);
+			}
+			BC_SET(SYNOP_BC_DCDENB, 0);
+		} else{
+			dcd_state = DCD_PASSED;
+		}
+		if(dcd_state == DCD_TIMEOUT){
+			port_type = USB_BC_TYPE_UNKNOW;
+			goto out;
+		}
 
-        /* Turn on VDPSRC */
-        //Primary Detection
-        BC_SET(SYNOP_BC_VDATSRCENB, 1);
-        BC_SET(SYNOP_BC_VDATDETENB, 1);
-        BC_SET(SYNOP_BC_CHRGSEL, 0);
+		/* Turn on VDPSRC */
+		//Primary Detection
+		BC_SET(SYNOP_BC_VDATSRCENB, 1);
+		BC_SET(SYNOP_BC_VDATDETENB, 1);
+		BC_SET(SYNOP_BC_CHRGSEL, 0);
+		
+		udelay(T_BC_CHGDET_VALID);
+		
+		/* SDP and CDP/DCP distinguish */
+		if(BC_GET(SYNOP_BC_CHGDET)) {
+			/* Turn off VDPSRC */
+			BC_SET(SYNOP_BC_VDATSRCENB, 0);
+			BC_SET(SYNOP_BC_VDATDETENB, 0);
 
-        timeout = wait ? T_BC_WAIT_CHGDET : 1;
-        while(timeout--) {
-            if(BC_GET(SYNOP_BC_CHGDET))
-                break;
-            mdelay(1);
-        }
+			udelay(T_BC_CHGDET_VALID);
 
-        /* SDP and CDP/DCP distinguish */
-        if(BC_GET(SYNOP_BC_CHGDET)) {
-            /* Turn off VDPSRC */
-            BC_SET(SYNOP_BC_VDATSRCENB, 0);
-            BC_SET(SYNOP_BC_VDATDETENB, 0);
+			/* Turn on VDMSRC */
+			BC_SET(SYNOP_BC_VDATSRCENB, 1);
+			BC_SET(SYNOP_BC_VDATDETENB, 1);
+			BC_SET(SYNOP_BC_CHRGSEL, 1);
+			udelay(T_BC_CHGDET_VALID);
+			if(BC_GET(SYNOP_BC_CHGDET))
+				port_type = USB_BC_TYPE_DCP;
+			else
+				port_type = USB_BC_TYPE_CDP;
+		} else {
+			port_type = USB_BC_TYPE_SDP;
+		}
+		BC_SET(SYNOP_BC_VDATSRCENB, 0);
+		BC_SET(SYNOP_BC_VDATDETENB, 0);
+		BC_SET(SYNOP_BC_CHRGSEL, 0);
 
-            timeout = wait ? T_BC_SRC_OFF : 1;
-            while(timeout--) {
-                if(!BC_GET(SYNOP_BC_CHGDET))
-                    break;
-                mdelay(1);
-            };
-
-            /* Turn on VDMSRC */
-            BC_SET(SYNOP_BC_VDATSRCENB, 1);
-            BC_SET(SYNOP_BC_VDATDETENB, 1);
-            BC_SET(SYNOP_BC_CHRGSEL, 1);
-            udelay(200);
-            if(BC_GET(SYNOP_BC_CHGDET))
-                port_type = USB_BC_TYPE_DCP;
-            else
-                port_type = USB_BC_TYPE_CDP;
-        } else {
-            port_type = USB_BC_TYPE_SDP;
-        }
-        BC_SET(SYNOP_BC_VDATSRCENB, 0);
-        BC_SET(SYNOP_BC_VDATDETENB, 0);
-        BC_SET(SYNOP_BC_CHRGSEL, 0);
-
-    }
-
-    printk("%s , battery_charger_detect %d\n", __func__, port_type);
-    return port_type;
+	}
+out:
+	printk("%s , battery_charger_detect %d, %s DCD, dcd_state = %d\n",
+		__func__, port_type, wait ? "wait" : "pass", dcd_state);
+	return port_type;
 }
+
 
 int usb_battery_charger_detect(bool wait)
 {
