@@ -3423,22 +3423,28 @@ static void intel_enable_planes(struct drm_crtc *crtc)
 {
 	struct drm_device *dev = crtc->dev;
 	enum pipe pipe = to_intel_crtc(crtc)->pipe;
+	struct drm_plane *plane;
 	struct intel_plane *intel_plane;
 
-	list_for_each_entry(intel_plane, &dev->mode_config.plane_list, base.head)
+	drm_for_each_legacy_plane(plane, &dev->mode_config.plane_list) {
+		intel_plane = to_intel_plane(plane);
 		if (intel_plane->pipe == pipe)
 			intel_plane_restore(&intel_plane->base);
+	}
 }
 
 static void intel_disable_planes(struct drm_crtc *crtc)
 {
 	struct drm_device *dev = crtc->dev;
 	enum pipe pipe = to_intel_crtc(crtc)->pipe;
+	struct drm_plane *plane;
 	struct intel_plane *intel_plane;
 
-	list_for_each_entry(intel_plane, &dev->mode_config.plane_list, base.head)
+	drm_for_each_legacy_plane(plane, &dev->mode_config.plane_list) {
+		intel_plane = to_intel_plane(plane);
 		if (intel_plane->pipe == pipe)
 			intel_plane_disable(&intel_plane->base);
+	}
 }
 
 void hsw_enable_ips(struct intel_crtc *crtc)

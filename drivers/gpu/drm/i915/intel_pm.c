@@ -2129,7 +2129,7 @@ static void ilk_compute_wm_parameters(struct drm_crtc *crtc,
 	list_for_each_entry(crtc, &dev->mode_config.crtc_list, head)
 		config->num_pipes_active += intel_crtc_active(crtc);
 
-	list_for_each_entry(plane, &dev->mode_config.plane_list, head) {
+	drm_for_each_legacy_plane(plane, &dev->mode_config.plane_list) {
 		struct intel_plane *intel_plane = to_intel_plane(plane);
 
 		if (intel_plane->pipe == pipe)
