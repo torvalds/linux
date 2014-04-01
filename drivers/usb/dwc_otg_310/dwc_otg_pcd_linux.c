@@ -1616,7 +1616,9 @@ int dwc_vbus_status( void )
 {
 #ifdef CONFIG_USB20_OTG
 	dwc_otg_pcd_t *pcd = 0;
-	pcd = gadget_wrapper->pcd;
+	if(gadget_wrapper){
+		pcd = gadget_wrapper->pcd;
+	}
 
 	if(!pcd)
 		return 0;
