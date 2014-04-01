@@ -4816,12 +4816,12 @@ static long ext4_zero_range(struct file *file, loff_t offset,
 
 	inode->i_mtime = inode->i_ctime = ext4_current_time(inode);
 
-	if (!ret && new_size) {
+	if (new_size) {
 		if (new_size > i_size_read(inode))
 			i_size_write(inode, new_size);
 		if (new_size > EXT4_I(inode)->i_disksize)
 			ext4_update_i_disksize(inode, new_size);
-	} else if (!ret && !new_size) {
+	} else {
 		/*
 		* Mark that we allocate beyond EOF so the subsequent truncate
 		* can proceed even if the new size is the same as i_size.
@@ -4923,14 +4923,14 @@ long ext4_fallocate(struct file *file, int mode, loff_t offset, loff_t len)
 
 	tv = inode->i_ctime = ext4_current_time(inode);
 
-	if (!ret && new_size) {
+	if (new_size) {
 		if (new_size > i_size_read(inode)) {
 			i_size_write(inode, new_size);
 			inode->i_mtime = tv;
 		}
 		if (new_size > EXT4_I(inode)->i_disksize)
 			ext4_update_i_disksize(inode, new_size);
-	} else if (!ret && !new_size) {
+	} else {
 		/*
 		* Mark that we allocate beyond EOF so the subsequent truncate
 		* can proceed even if the new size is the same as i_size.
