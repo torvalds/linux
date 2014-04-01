@@ -101,13 +101,30 @@ static const u32 hpd_status_i915[] = { /* i915 and valleyview are the same */
 	POSTING_READ(type##IIR); \
 } while (0)
 
+/*
+ * We should clear IMR at preinstall/uninstall, and just check at postinstall.
+ */
+#define GEN5_ASSERT_IIR_IS_ZERO(reg) do { \
+	u32 val = I915_READ(reg); \
+	if (val) { \
+		WARN(1, "Interrupt register 0x%x is not zero: 0x%08x\n", \
+		     (reg), val); \
+		I915_WRITE((reg), 0xffffffff); \
+		POSTING_READ(reg); \
+		I915_WRITE((reg), 0xffffffff); \
+		POSTING_READ(reg); \
+	} \
+} while (0)
+
 #define GEN8_IRQ_INIT_NDX(type, which, imr_val, ier_val) do { \
+	GEN5_ASSERT_IIR_IS_ZERO(GEN8_##type##_IIR(which)); \
 	I915_WRITE(GEN8_##type##_IMR(which), (imr_val)); \
 	I915_WRITE(GEN8_##type##_IER(which), (ier_val)); \
 	POSTING_READ(GEN8_##type##_IER(which)); \
 } while (0)
 
 #define GEN5_IRQ_INIT(type, imr_val, ier_val) do { \
+	GEN5_ASSERT_IIR_IS_ZERO(type##IIR); \
 	I915_WRITE(type##IMR, (imr_val)); \
 	I915_WRITE(type##IER, (ier_val)); \
 	POSTING_READ(type##IER); \
@@ -2993,7 +3010,7 @@ static void ibx_irq_postinstall(struct drm_device *dev)
 		I915_WRITE(SERR_INT, I915_READ(SERR_INT));
 	}
 
-	I915_WRITE(SDEIIR, I915_READ(SDEIIR));
+	GEN5_ASSERT_IIR_IS_ZERO(SDEIIR);
 	I915_WRITE(SDEIMR, ~mask);
 }
 
@@ -3019,7 +3036,6 @@ static void gen5_gt_irq_postinstall(struct drm_device *dev)
 		gt_irqs |= GT_BLT_USER_INTERRUPT | GT_BSD_USER_INTERRUPT;
 	}
 
-	I915_WRITE(GTIIR, I915_READ(GTIIR));
 	GEN5_IRQ_INIT(GT, dev_priv->gt_irq_mask, gt_irqs);
 
 	if (INTEL_INFO(dev)->gen >= 6) {
@@ -3029,7 +3045,6 @@ static void gen5_gt_irq_postinstall(struct drm_device *dev)
 			pm_irqs |= PM_VEBOX_USER_INTERRUPT;
 
 		dev_priv->pm_irq_mask = 0xffffffff;
-		I915_WRITE(GEN6_PMIIR, I915_READ(GEN6_PMIIR));
 		GEN5_IRQ_INIT(GEN6_PM, dev_priv->pm_irq_mask, pm_irqs);
 	}
 }
@@ -3061,8 +3076,6 @@ static int ironlake_irq_postinstall(struct drm_device *dev)
 
 	dev_priv->irq_mask = ~display_mask;
 
-	/* should always can generate irq */
-	I915_WRITE(DEIIR, I915_READ(DEIIR));
 	GEN5_IRQ_INIT(DE, dev_priv->irq_mask, display_mask | extra_mask);
 
 	gen5_gt_irq_postinstall(dev);
@@ -3223,13 +3236,8 @@ static void gen8_gt_irq_postinstall(struct drm_i915_private *dev_priv)
 		GT_RENDER_USER_INTERRUPT << GEN8_VECS_IRQ_SHIFT
 		};
 
-	for (i = 0; i < ARRAY_SIZE(gt_interrupts); i++) {
-		u32 tmp = I915_READ(GEN8_GT_IIR(i));
-		if (tmp)
-			DRM_ERROR("Interrupt (%d) should have been masked in pre-install 0x%08x\n",
-				  i, tmp);
+	for (i = 0; i < ARRAY_SIZE(gt_interrupts); i++)
 		GEN8_IRQ_INIT_NDX(GT, i, ~gt_interrupts[i], gt_interrupts[i]);
-	}
 }
 
 static void gen8_de_irq_postinstall(struct drm_i915_private *dev_priv)
@@ -3245,14 +3253,9 @@ static void gen8_de_irq_postinstall(struct drm_i915_private *dev_priv)
 	dev_priv->de_irq_mask[PIPE_B] = ~de_pipe_masked;
 	dev_priv->de_irq_mask[PIPE_C] = ~de_pipe_masked;
 
-	for_each_pipe(pipe) {
-		u32 tmp = I915_READ(GEN8_DE_PIPE_IIR(pipe));
-		if (tmp)
-			DRM_ERROR("Interrupt (%d) should have been masked in pre-install 0x%08x\n",
-				  pipe, tmp);
+	for_each_pipe(pipe)
 		GEN8_IRQ_INIT_NDX(DE_PIPE, pipe, dev_priv->de_irq_mask[pipe],
 				  de_pipe_enables);
-	}
 
 	GEN5_IRQ_INIT(GEN8_DE_PORT_, ~GEN8_AUX_CHANNEL_A, GEN8_AUX_CHANNEL_A);
 }
