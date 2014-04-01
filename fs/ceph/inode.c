@@ -1112,7 +1112,7 @@ retry_lookup:
 
 		err = fill_inode(in, &rinfo->targeti, NULL,
 				session, req->r_request_started,
-				(le32_to_cpu(rinfo->head->result) == 0) ?
+				(!req->r_aborted && rinfo->head->result == 0) ?
 				req->r_fmode : -1,
 				&req->r_caps_reservation);
 		if (err < 0) {
