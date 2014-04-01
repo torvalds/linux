@@ -320,7 +320,7 @@ static int  keys_probe(struct platform_device *pdev)
 	}
 	platform_set_drvdata(pdev, ddata);
 
-	input->name = pdev->name;
+	input->name = "rk29-keypad";//pdev->name;
 	input->phys = "gpio-keys/input0";
 	input->dev.parent = dev;
 
