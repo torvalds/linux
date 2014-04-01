@@ -196,7 +196,7 @@
 		ignore-pm-notify;
 		keep-power-in-suspend;
 		//cap-sdio-irq;
-		status = "disabled";
+		status = "okay";
 };
 
 &spi0 {
