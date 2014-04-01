@@ -466,7 +466,7 @@ static int davinci_config_channel_size(struct davinci_mcasp *mcasp,
 }
 
 static int mcasp_common_hw_param(struct davinci_mcasp *mcasp, int stream,
-				    int channels)
+				 int period_words, int channels)
 {
 	struct davinci_pcm_dma_params *dma_params = &mcasp->dma_params[stream];
 	struct snd_dmaengine_dai_dma_data *dma_data = &mcasp->dma_data[stream];
@@ -475,7 +475,7 @@ static int mcasp_common_hw_param(struct davinci_mcasp *mcasp, int stream,
 	u8 rx_ser = 0;
 	u8 slots = mcasp->tdm_slots;
 	u8 max_active_serializers = (channels + slots - 1) / slots;
-	u8 active_serializers, numevt;
+	int active_serializers, numevt, n;
 	u32 reg;
 	/* Default configuration */
 	if (mcasp->version != MCASP_VERSION_4)
@@ -526,7 +526,6 @@ static int mcasp_common_hw_param(struct davinci_mcasp *mcasp, int stream,
 		return -EINVAL;
 	}
 
-
 	/* AFIFO is not in use */
 	if (!numevt) {
 		/* Configure the burst size for platform drivers */
@@ -535,11 +534,26 @@ static int mcasp_common_hw_param(struct davinci_mcasp *mcasp, int stream,
 		return 0;
 	}
 
-	if (numevt * active_serializers > MCASP_MAX_AFIFO_DEPTH)
+	if (period_words % active_serializers) {
+		dev_err(mcasp->dev, "Invalid combination of period words and "
+			"active serializers: %d, %d\n", period_words,
+			active_serializers);
+		return -EINVAL;
+	}
+
+	/*
+	 * Calculate the optimal AFIFO depth for platform side:
+	 * The number of words for numevt need to be in steps of active
+	 * serializers.
+	 */
+	n = numevt % active_serializers;
+	if (n)
+		numevt += (active_serializers - n);
+	while (period_words % numevt && numevt > 0)
+		numevt -= active_serializers;
+	if (numevt <= 0)
 		numevt = active_serializers;
 
-	/* Configure the AFIFO */
-	numevt *= active_serializers;
 	mcasp_mod_bits(mcasp, reg, active_serializers, NUMDMA_MASK);
 	mcasp_mod_bits(mcasp, reg, NUMEVT(numevt), NUMEVT_MASK);
 
@@ -620,6 +634,7 @@ static int davinci_mcasp_hw_params(struct snd_pcm_substream *substream,
 					&mcasp->dma_params[substream->stream];
 	int word_length;
 	int channels = params_channels(params);
+	int period_size = params_period_size(params);
 	int ret;
 
 	/* If mcasp is BCLK master we need to set BCLK divider */
@@ -633,7 +648,8 @@ static int davinci_mcasp_hw_params(struct snd_pcm_substream *substream,
 			cpu_dai, 1, mcasp->sysclk_freq / bclk_freq);
 	}
 
-	ret = mcasp_common_hw_param(mcasp, substream->stream, channels);
+	ret = mcasp_common_hw_param(mcasp, substream->stream,
+				    period_size * channels, channels);
 	if (ret)
 		return ret;
 
