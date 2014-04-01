@@ -21,7 +21,9 @@
 #include <linux/aer.h>
 #include <linux/log2.h>
 #include <linux/pci.h>
+#ifdef CONFIG_QLCNIC_VXLAN
 #include <net/vxlan.h>
+#endif
 
 MODULE_DESCRIPTION("QLogic 1/10 GbE Converged/Intelligent Ethernet Driver");
 MODULE_LICENSE("GPL");
@@ -462,6 +464,7 @@ static int qlcnic_get_phys_port_id(struct net_device *netdev,
 	return 0;
 }
 
+#ifdef CONFIG_QLCNIC_VXLAN
 static void qlcnic_add_vxlan_port(struct net_device *netdev,
 				  sa_family_t sa_family, __be16 port)
 {
@@ -490,6 +493,7 @@ static void qlcnic_del_vxlan_port(struct net_device *netdev,
 
 	adapter->flags |= QLCNIC_DEL_VXLAN_PORT;
 }
+#endif
 
 static const struct net_device_ops qlcnic_netdev_ops = {
 	.ndo_open	   = qlcnic_open,
@@ -509,8 +513,10 @@ static const struct net_device_ops qlcnic_netdev_ops = {
 	.ndo_fdb_del		= qlcnic_fdb_del,
 	.ndo_fdb_dump		= qlcnic_fdb_dump,
 	.ndo_get_phys_port_id	= qlcnic_get_phys_port_id,
+#ifdef CONFIG_QLCNIC_VXLAN
 	.ndo_add_vxlan_port	= qlcnic_add_vxlan_port,
 	.ndo_del_vxlan_port	= qlcnic_del_vxlan_port,
+#endif
 #ifdef CONFIG_NET_POLL_CONTROLLER
 	.ndo_poll_controller = qlcnic_poll_controller,
 #endif
@@ -1975,8 +1981,10 @@ qlcnic_attach(struct qlcnic_adapter *adapter)
 
 	qlcnic_create_sysfs_entries(adapter);
 
+#ifdef CONFIG_QLCNIC_VXLAN
 	if (qlcnic_encap_rx_offload(adapter))
 		vxlan_get_rx_port(netdev);
+#endif
 
 	adapter->is_up = QLCNIC_ADAPTER_UP_MAGIC;
 	return 0;
