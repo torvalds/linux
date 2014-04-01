@@ -81,7 +81,7 @@ static const u32 hpd_status_i915[] = { /* i915 and valleyview are the same */
 };
 
 /* IIR can theoretically queue up two events. Be paranoid. */
-#define GEN8_IRQ_INIT_NDX(type, which) do { \
+#define GEN8_IRQ_RESET_NDX(type, which) do { \
 	I915_WRITE(GEN8_##type##_IMR(which), 0xffffffff); \
 	POSTING_READ(GEN8_##type##_IMR(which)); \
 	I915_WRITE(GEN8_##type##_IER(which), 0); \
@@ -91,7 +91,7 @@ static const u32 hpd_status_i915[] = { /* i915 and valleyview are the same */
 	POSTING_READ(GEN8_##type##_IIR(which)); \
 } while (0)
 
-#define GEN5_IRQ_INIT(type) do { \
+#define GEN5_IRQ_RESET(type) do { \
 	I915_WRITE(type##IMR, 0xffffffff); \
 	POSTING_READ(type##IMR); \
 	I915_WRITE(type##IER, 0); \
@@ -99,12 +99,6 @@ static const u32 hpd_status_i915[] = { /* i915 and valleyview are the same */
 	POSTING_READ(type##IIR); \
 	I915_WRITE(type##IIR, 0xffffffff); \
 	POSTING_READ(type##IIR); \
-} while (0)
-
-#define GEN5_IRQ_FINI(type) do { \
-	I915_WRITE(type##IMR, 0xffffffff); \
-	I915_WRITE(type##IER, 0); \
-	I915_WRITE(type##IIR, I915_READ(type##IIR)); \
 } while (0)
 
 /* For display hotplug interrupt */
@@ -2848,7 +2842,7 @@ static void ibx_irq_preinstall(struct drm_device *dev)
 	if (HAS_PCH_NOP(dev))
 		return;
 
-	GEN5_IRQ_INIT(SDE);
+	GEN5_IRQ_RESET(SDE);
 	/*
 	 * SDEIER is also touched by the interrupt handler to work around missed
 	 * PCH interrupts. Hence we can't update it after the interrupt handler
@@ -2863,9 +2857,9 @@ static void gen5_gt_irq_preinstall(struct drm_device *dev)
 {
 	struct drm_i915_private *dev_priv = dev->dev_private;
 
-	GEN5_IRQ_INIT(GT);
+	GEN5_IRQ_RESET(GT);
 	if (INTEL_INFO(dev)->gen >= 6)
-		GEN5_IRQ_INIT(GEN6_PM);
+		GEN5_IRQ_RESET(GEN6_PM);
 }
 
 /* drm_dma.h hooks
@@ -2876,7 +2870,7 @@ static void ironlake_irq_preinstall(struct drm_device *dev)
 
 	I915_WRITE(HWSTAM, 0xeffe);
 
-	GEN5_IRQ_INIT(DE);
+	GEN5_IRQ_RESET(DE);
 
 	gen5_gt_irq_preinstall(dev);
 
@@ -2920,18 +2914,18 @@ static void gen8_irq_preinstall(struct drm_device *dev)
 	I915_WRITE(GEN8_MASTER_IRQ, 0);
 	POSTING_READ(GEN8_MASTER_IRQ);
 
-	GEN8_IRQ_INIT_NDX(GT, 0);
-	GEN8_IRQ_INIT_NDX(GT, 1);
-	GEN8_IRQ_INIT_NDX(GT, 2);
-	GEN8_IRQ_INIT_NDX(GT, 3);
+	GEN8_IRQ_RESET_NDX(GT, 0);
+	GEN8_IRQ_RESET_NDX(GT, 1);
+	GEN8_IRQ_RESET_NDX(GT, 2);
+	GEN8_IRQ_RESET_NDX(GT, 3);
 
 	for_each_pipe(pipe) {
-		GEN8_IRQ_INIT_NDX(DE_PIPE, pipe);
+		GEN8_IRQ_RESET_NDX(DE_PIPE, pipe);
 	}
 
-	GEN5_IRQ_INIT(GEN8_DE_PORT_);
-	GEN5_IRQ_INIT(GEN8_DE_MISC_);
-	GEN5_IRQ_INIT(GEN8_PCU_);
+	GEN5_IRQ_RESET(GEN8_DE_PORT_);
+	GEN5_IRQ_RESET(GEN8_DE_MISC_);
+	GEN5_IRQ_RESET(GEN8_PCU_);
 
 	ibx_irq_preinstall(dev);
 }
@@ -3287,34 +3281,17 @@ static void gen8_irq_uninstall(struct drm_device *dev)
 
 	I915_WRITE(GEN8_MASTER_IRQ, 0);
 
-#define GEN8_IRQ_FINI_NDX(type, which) do { \
-		I915_WRITE(GEN8_##type##_IMR(which), 0xffffffff); \
-		I915_WRITE(GEN8_##type##_IER(which), 0); \
-		I915_WRITE(GEN8_##type##_IIR(which), 0xffffffff); \
-	} while (0)
+	GEN8_IRQ_RESET_NDX(GT, 0);
+	GEN8_IRQ_RESET_NDX(GT, 1);
+	GEN8_IRQ_RESET_NDX(GT, 2);
+	GEN8_IRQ_RESET_NDX(GT, 3);
 
-#define GEN8_IRQ_FINI(type) do { \
-		I915_WRITE(GEN8_##type##_IMR, 0xffffffff); \
-		I915_WRITE(GEN8_##type##_IER, 0); \
-		I915_WRITE(GEN8_##type##_IIR, 0xffffffff); \
-	} while (0)
+	for_each_pipe(pipe)
+		GEN8_IRQ_RESET_NDX(DE_PIPE, pipe);
 
-	GEN8_IRQ_FINI_NDX(GT, 0);
-	GEN8_IRQ_FINI_NDX(GT, 1);
-	GEN8_IRQ_FINI_NDX(GT, 2);
-	GEN8_IRQ_FINI_NDX(GT, 3);
-
-	for_each_pipe(pipe) {
-		GEN8_IRQ_FINI_NDX(DE_PIPE, pipe);
-	}
-
-	GEN8_IRQ_FINI(DE_PORT);
-	GEN8_IRQ_FINI(DE_MISC);
-	GEN8_IRQ_FINI(PCU);
-#undef GEN8_IRQ_FINI
-#undef GEN8_IRQ_FINI_NDX
-
-	POSTING_READ(GEN8_PCU_IIR);
+	GEN5_IRQ_RESET(GEN8_DE_PORT_);
+	GEN5_IRQ_RESET(GEN8_DE_MISC_);
+	GEN5_IRQ_RESET(GEN8_PCU_);
 }
 
 static void valleyview_irq_uninstall(struct drm_device *dev)
@@ -3359,18 +3336,18 @@ static void ironlake_irq_uninstall(struct drm_device *dev)
 
 	I915_WRITE(HWSTAM, 0xffffffff);
 
-	GEN5_IRQ_FINI(DE);
+	GEN5_IRQ_RESET(DE);
 	if (IS_GEN7(dev))
 		I915_WRITE(GEN7_ERR_INT, I915_READ(GEN7_ERR_INT));
 
-	GEN5_IRQ_FINI(GT);
+	GEN5_IRQ_RESET(GT);
 	if (INTEL_INFO(dev)->gen >= 6)
-		GEN5_IRQ_FINI(GEN6_PM);
+		GEN5_IRQ_RESET(GEN6_PM);
 
 	if (HAS_PCH_NOP(dev))
 		return;
 
-	GEN5_IRQ_FINI(SDE);
+	GEN5_IRQ_RESET(SDE);
 	if (HAS_PCH_CPT(dev) || HAS_PCH_LPT(dev))
 		I915_WRITE(SERR_INT, I915_READ(SERR_INT));
 }
