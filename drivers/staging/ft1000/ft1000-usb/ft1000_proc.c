@@ -32,17 +32,20 @@
 
 
 #define seq_putx(m, message, size, var) \
-	seq_printf(m, message);	\
-	for (i = 0; i < (size - 1); i++) \
-		seq_printf(m, "%02x:", var[i]); \
-	seq_printf(m, "%02x\n", var[i])
+	do { \
+		seq_printf(m, message);	\
+		for (i = 0; i < (size - 1); i++) \
+			seq_printf(m, "%02x:", var[i]); \
+		seq_printf(m, "%02x\n", var[i]);	\
+	} while (0)
 
 #define seq_putd(m, message, size, var) \
-	seq_printf(m, message); \
-	for (i = 0; i < (size - 1); i++) \
-		seq_printf(m, "%d.", var[i]); \
-	seq_printf(m, "%d\n", var[i])
-
+	do { \
+		seq_printf(m, message); \
+		for (i = 0; i < (size - 1); i++) \
+			seq_printf(m, "%d.", var[i]); \
+		seq_printf(m, "%d\n", var[i]);	      \
+	} while (0)
 
 #define FTNET_PROC init_net.proc_net
 
