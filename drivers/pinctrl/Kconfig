@@ -232,7 +232,7 @@ config PINCTRL_APQ8064
 
 config PINCTRL_MSM8X74
 	tristate "Qualcomm 8x74 pin controller driver"
-	depends on GPIOLIB && OF
+	depends on GPIOLIB && OF && (ARCH_QCOM || COMPILE_TEST)
 	select PINCTRL_MSM
 	help
 	  This is the pinctrl, pinmux, pinconf and gpiolib driver for the
