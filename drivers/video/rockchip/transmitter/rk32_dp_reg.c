@@ -1064,8 +1064,6 @@ int rk32_edp_is_slave_video_stream_clock_on(struct rk32_edp *edp)
 	writel(val, edp->regs + SYS_CTL_2);
 
 	val = readl(edp->regs + SYS_CTL_2);
-	dev_dbg(edp->dev, "wait SYS_CTL_2.\n");
-
 	if (val & CHA_STA) {
 		dev_dbg(edp->dev, "Input stream clk is changing\n");
 		return -EINVAL;
@@ -1136,11 +1134,13 @@ int rk32_edp_bist_cfg(struct rk32_edp *edp)
 	y_total = screen->mode.upper_margin + screen->mode.lower_margin +
 			screen->mode.yres + screen->mode.vsync_len;
 	x_act = screen->mode.xres;
+
 	rk32_edp_set_video_cr_mn(edp, CALCULATED_M, 0, 0);
 	rk32_edp_set_video_color_format(edp, video_info->color_depth,
 					video_info->color_space,
 					video_info->dynamic_range,
 					video_info->ycbcr_coeff);
+
 	val = y_total & 0xff;
 	writel(val, edp->regs + TOTAL_LINE_CFG_L);
 	val = (y_total >> 8);
@@ -1176,19 +1176,17 @@ int rk32_edp_bist_cfg(struct rk32_edp *edp)
 	val = screen->mode.left_margin  >> 8;
 	writel(val, edp->regs + HB_PORCHH_REG);
 
-	val = BIST_EN;
+	val = BIST_EN | BIST_WH_64 | BIST_TYPE_COLR_BAR;
 	writel(val, edp->regs + VIDEO_CTL_4);
 
 #ifndef CONFIG_RK_FPGA
-	val = (GRF_EDP_BIST_EN << 16) | GRF_EDP_BIST_EN;
-	writel_relaxed(val,RK_GRF_VIRT + RK3288_GRF_SOC_CON8);
+	//val = (GRF_EDP_BIST_EN << 16) | GRF_EDP_BIST_EN;
+	//writel_relaxed(val,RK_GRF_VIRT + RK3288_GRF_SOC_CON8);
 #endif
-
 
 	val = readl(edp->regs + VIDEO_CTL_10);
 	val &= ~F_SEL;
 	writel(val, edp->regs + VIDEO_CTL_10);
-	
 	return 0;
 	
 }

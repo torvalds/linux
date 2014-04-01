@@ -36,6 +36,7 @@
 #define DPCD_TRAINING_SCORE_LANE1                       0x209
 #define DPCD_TRAINING_SCORE_LANE2                       0x20a
 #define DPCD_TRAINING_SCORE_LANE3                       0x20b
+#define DPCD_SYMBOL_ERR_CONUT_LANE0			0x210
 #define DPCD_SINK_POWER_STATE				0x0600
 
 /* DPCD_ADDR_MAX_LANE_COUNT */
