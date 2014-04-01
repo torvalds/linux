@@ -165,7 +165,6 @@
 				rockchip,pins = <UART0BT_SIN>,
 						<UART0BT_SOUT>;
 				rockchip,pull = <VALUE_PULL_DISABLE>;
-				rockchip,voltage = <VALUE_VOL_DEFAULT>;
 				rockchip,drive = <VALUE_DRV_DEFAULT>;
 				//rockchip,tristate = <VALUE_TRI_DEFAULT>;
 			};
@@ -173,7 +172,6 @@
 			uart0_cts: uart0-cts {
 				rockchip,pins = <UART0BT_CTSN>;
 				rockchip,pull = <VALUE_PULL_DISABLE>;
-				//rockchip,voltage = <VALUE_VOL_DEFAULT>;
 				rockchip,drive = <VALUE_DRV_DEFAULT>;
 				//rockchip,tristate = <VALUE_TRI_DEFAULT>;
 			};
@@ -181,7 +179,6 @@
 			uart0_rts: uart0-rts {
 				rockchip,pins = <UART0BT_RTSN>;
 				rockchip,pull = <VALUE_PULL_DISABLE>;
-				//rockchip,voltage = <VALUE_VOL_DEFAULT>;
 				rockchip,drive = <VALUE_DRV_DEFAULT>;
 				//rockchip,tristate = <VALUE_TRI_DEFAULT>;
 			};
@@ -197,7 +194,6 @@
 				rockchip,pins = <UART1BB_SIN>,
 						<UART1BB_SOUT>;
 				rockchip,pull = <VALUE_PULL_DISABLE>;
-				//rockchip,voltage = <VALUE_VOL_DEFAULT>;
 				rockchip,drive = <VALUE_DRV_DEFAULT>;
 				//rockchip,tristate = <VALUE_TRI_DEFAULT>;
 			};
@@ -205,7 +201,6 @@
 			uart1_cts: uart1-cts {
 				rockchip,pins = <UART1BB_CTSN>;
 				rockchip,pull = <VALUE_PULL_DISABLE>;
-				//rockchip,voltage = <VALUE_VOL_DEFAULT>;
 				rockchip,drive = <VALUE_DRV_DEFAULT>;
 				//rockchip,tristate = <VALUE_TRI_DEFAULT>;
 			};
@@ -213,7 +208,6 @@
 			uart1_rts: uart1-rts {
 				rockchip,pins = <UART1BB_RTSN>;
 				rockchip,pull = <VALUE_PULL_DISABLE>;
-				//rockchip,voltage = <VALUE_VOL_DEFAULT>;
 				rockchip,drive = <VALUE_DRV_DEFAULT>;
 				//rockchip,tristate = <VALUE_TRI_DEFAULT>;
 			};
@@ -229,7 +223,6 @@
 				rockchip,pins = <UART2DBG_SIN>,
 						<UART2DBG_SOUT>;
 				rockchip,pull = <VALUE_PULL_DISABLE>;
-				//rockchip,voltage = <VALUE_VOL_DEFAULT>;
 				rockchip,drive = <VALUE_DRV_DEFAULT>;
 				//rockchip,tristate = <VALUE_TRI_DEFAULT>;
 			};
@@ -241,7 +234,6 @@
 				rockchip,pins = <UART3GPS_SIN>,
 						<UART3GPS_SOUT>;
 				rockchip,pull = <VALUE_PULL_DISABLE>;
-				//rockchip,voltage = <VALUE_VOL_DEFAULT>;
 				rockchip,drive = <VALUE_DRV_DEFAULT>;
 				//rockchip,tristate = <VALUE_TRI_DEFAULT>;
 			};
@@ -249,7 +241,6 @@
 			uart3_cts: uart3-cts {
 				rockchip,pins = <UART3GPS_CTSN>;
 				rockchip,pull = <VALUE_PULL_DISABLE>;
-				//rockchip,voltage = <VALUE_VOL_DEFAULT>;
 				rockchip,drive = <VALUE_DRV_DEFAULT>;
 				//rockchip,tristate = <VALUE_TRI_DEFAULT>;
 			};
@@ -257,7 +248,6 @@
 			uart3_rts: uart3-rts {
 				rockchip,pins = <UART3GPS_RTSN>;
 				rockchip,pull = <VALUE_PULL_DISABLE>;
-				//rockchip,voltage = <VALUE_VOL_DEFAULT>;
 				rockchip,drive = <VALUE_DRV_DEFAULT>;
 				//rockchip,tristate = <VALUE_TRI_DEFAULT>;
 			};
@@ -268,7 +258,6 @@
 				rockchip,pins = <UART4EXP_SIN>,
 						<UART4EXP_SOUT>;
 				rockchip,pull = <VALUE_PULL_DISABLE>;
-				//rockchip,voltage = <VALUE_VOL_DEFAULT>;
 				rockchip,drive = <VALUE_DRV_DEFAULT>;
 				//rockchip,tristate = <VALUE_TRI_DEFAULT>;
 			};
@@ -276,7 +265,6 @@
 			uart4_cts: uart4-cts {
 				rockchip,pins = <UART4EXP_CTSN>;
 				rockchip,pull = <VALUE_PULL_DISABLE>;
-				//rockchip,voltage = <VALUE_VOL_DEFAULT>;
 				rockchip,drive = <VALUE_DRV_DEFAULT>;
 				//rockchip,tristate = <VALUE_TRI_DEFAULT>;
 			};
@@ -284,7 +272,6 @@
 			uart4_rts: uart4-rts {
 				rockchip,pins = <UART4EXP_RTSN>;
 				rockchip,pull = <VALUE_PULL_DISABLE>;
-				//rockchip,voltage = <VALUE_VOL_DEFAULT>;
 				rockchip,drive = <VALUE_DRV_DEFAULT>;
 				//rockchip,tristate = <VALUE_TRI_DEFAULT>;
 			};
@@ -294,7 +281,6 @@
 			i2c0_sda:i2c0-sda {
 				rockchip,pins = <I2C0PMU_SDA>;
 				rockchip,pull = <VALUE_PULL_DISABLE>;
-				//rockchip,voltage = <VALUE_VOL_DEFAULT>;
 				rockchip,drive = <VALUE_DRV_DEFAULT>;
 				//rockchip,tristate = <VALUE_TRI_DEFAULT>;
 			};
@@ -302,7 +288,6 @@
 			i2c0_scl:i2c0-scl {
 				rockchip,pins = <I2C0PMU_SCL>;
 				rockchip,pull = <VALUE_PULL_DISABLE>;
-				//rockchip,voltage = <VALUE_VOL_DEFAULT>;
 				rockchip,drive = <VALUE_DRV_DEFAULT>;
 				//rockchip,tristate = <VALUE_TRI_DEFAULT>;
 			};
@@ -317,7 +302,6 @@
 			i2c1_sda:i2c1-sda {
 				rockchip,pins = <I2C1SENSOR_SDA>;
 				rockchip,pull = <VALUE_PULL_DISABLE>;
-				//rockchip,voltage = <VALUE_VOL_DEFAULT>;
 				rockchip,drive = <VALUE_DRV_DEFAULT>;
 				//rockchip,tristate = <VALUE_TRI_DEFAULT>;
 			};
@@ -325,7 +309,6 @@
 			i2c1_scl:i2c1-scl {
 				rockchip,pins = <I2C1SENSOR_SCL>;
 				rockchip,pull = <VALUE_PULL_DISABLE>;
-				//rockchip,voltage = <VALUE_VOL_DEFAULT>;
 				rockchip,drive = <VALUE_DRV_DEFAULT>;
 				//rockchip,tristate = <VALUE_TRI_DEFAULT>;
 			};
@@ -340,7 +323,6 @@
 			i2c2_sda:i2c2-sda {
 				rockchip,pins = <I2C2AUDIO_SDA>;
 				rockchip,pull = <VALUE_PULL_DISABLE>;
-				//rockchip,voltage = <VALUE_VOL_DEFAULT>;
 				rockchip,drive = <VALUE_DRV_DEFAULT>;
 				//rockchip,tristate = <VALUE_TRI_DEFAULT>;
 			};
@@ -348,7 +330,6 @@
 			i2c2_scl:i2c2-scl {
 				rockchip,pins = <I2C2AUDIO_SCL>;
 				rockchip,pull = <VALUE_PULL_DISABLE>;
-				//rockchip,voltage = <VALUE_VOL_DEFAULT>;
 				rockchip,drive = <VALUE_DRV_DEFAULT>;
 				//rockchip,tristate = <VALUE_TRI_DEFAULT>;
 			};
@@ -363,7 +344,6 @@
 			i2c3_sda:i2c3-sda {
 				rockchip,pins = <I2C3CAM_SDA>;
 				rockchip,pull = <VALUE_PULL_DISABLE>;
-				//rockchip,voltage = <VALUE_VOL_DEFAULT>;
 				rockchip,drive = <VALUE_DRV_DEFAULT>;
 				//rockchip,tristate = <VALUE_TRI_DEFAULT>;
 			};
@@ -371,7 +351,6 @@
 			i2c3_scl:i2c3-scl {
 				rockchip,pins = <I2C3CAM_SCL>;
 				rockchip,pull = <VALUE_PULL_DISABLE>;
-				//rockchip,voltage = <VALUE_VOL_DEFAULT>;
 				rockchip,drive = <VALUE_DRV_DEFAULT>;
 				//rockchip,tristate = <VALUE_TRI_DEFAULT>;
 			};
@@ -386,7 +365,6 @@
 			i2c4_sda:i2c4-sda {
 				rockchip,pins = <I2C4TP_SDA>;
 				rockchip,pull = <VALUE_PULL_DISABLE>;
-				//rockchip,voltage = <VALUE_VOL_DEFAULT>;
 				rockchip,drive = <VALUE_DRV_DEFAULT>;
 				//rockchip,tristate = <VALUE_TRI_DEFAULT>;
 			};
@@ -394,7 +372,6 @@
 			i2c4_scl:i2c4-scl {
 				rockchip,pins = <I2C4TP_SCL>;
 				rockchip,pull = <VALUE_PULL_DISABLE>;
-				//rockchip,voltage = <VALUE_VOL_DEFAULT>;
 				rockchip,drive = <VALUE_DRV_DEFAULT>;
 				//rockchip,tristate = <VALUE_TRI_DEFAULT>;
 			};
@@ -409,7 +386,6 @@
 			i2c5_sda:i2c5-sda {
 				rockchip,pins = <I2C5HDMI_SDA>;
 				rockchip,pull = <VALUE_PULL_DISABLE>;
-				//rockchip,voltage = <VALUE_VOL_DEFAULT>;
 				rockchip,drive = <VALUE_DRV_DEFAULT>;
 				//rockchip,tristate = <VALUE_TRI_DEFAULT>;
 			};
@@ -417,7 +393,6 @@
 			i2c5_scl:i2c5-scl {
 				rockchip,pins = <I2C5HDMI_SCL>;
 				rockchip,pull = <VALUE_PULL_DISABLE>;
-				//rockchip,voltage = <VALUE_VOL_DEFAULT>;
 				rockchip,drive = <VALUE_DRV_DEFAULT>;
 				//rockchip,tristate = <VALUE_TRI_DEFAULT>;
 			};
@@ -432,7 +407,6 @@
 			spi0_txd:spi0-txd {
 				rockchip,pins = <SPI0_TXD>;
 				rockchip,pull = <VALUE_PULL_DISABLE>;
-				//rockchip,voltage = <VALUE_VOL_DEFAULT>;
 				rockchip,drive = <VALUE_DRV_DEFAULT>;
 				//rockchip,tristate = <VALUE_TRI_DEFAULT>;
 			};
@@ -440,7 +414,6 @@
 			spi0_rxd:spi0-rxd {
 				rockchip,pins = <SPI0_RXD>;
 				rockchip,pull = <VALUE_PULL_DISABLE>;
-				//rockchip,voltage = <VALUE_VOL_DEFAULT>;
 				rockchip,drive = <VALUE_DRV_DEFAULT>;
 				//rockchip,tristate = <VALUE_TRI_DEFAULT>;
 			};
@@ -448,7 +421,6 @@
 			spi0_clk:spi0-clk {
 				rockchip,pins = <SPI0_CLK>;
 				rockchip,pull = <VALUE_PULL_DISABLE>;
-				//rockchip,voltage = <VALUE_VOL_DEFAULT>;
 				rockchip,drive = <VALUE_DRV_DEFAULT>;
 				//rockchip,tristate = <VALUE_TRI_DEFAULT>;
 			};
@@ -456,7 +428,6 @@
 			spi0_cs0:spi0-cs0 {
 				rockchip,pins = <SPI0_CS0>;
 				rockchip,pull = <VALUE_PULL_DISABLE>;
-				//rockchip,voltage = <VALUE_VOL_DEFAULT>;
 				rockchip,drive = <VALUE_DRV_DEFAULT>;
 				//rockchip,tristate = <VALUE_TRI_DEFAULT>;
 			};
@@ -464,7 +435,6 @@
 			spi0_cs1:spi0-cs1 {
 				rockchip,pins = <SPI0_CS1>;
 				rockchip,pull = <VALUE_PULL_DISABLE>;
-				//rockchip,voltage = <VALUE_VOL_DEFAULT>;
 				rockchip,drive = <VALUE_DRV_DEFAULT>;
 				//rockchip,tristate = <VALUE_TRI_DEFAULT>;
 			};
@@ -475,7 +445,6 @@
 			spi1_txd:spi1-txd {
 				rockchip,pins = <SPI1_TXD>;
 				rockchip,pull = <VALUE_PULL_DISABLE>;
-				//rockchip,voltage = <VALUE_VOL_DEFAULT>;
 				rockchip,drive = <VALUE_DRV_DEFAULT>;
 				//rockchip,tristate = <VALUE_TRI_DEFAULT>;
 			};
@@ -483,7 +452,6 @@
 			spi1_rxd:spi1-rxd {
 				rockchip,pins = <SPI1_RXD>;
 				rockchip,pull = <VALUE_PULL_DISABLE>;
-				//rockchip,voltage = <VALUE_VOL_DEFAULT>;
 				rockchip,drive = <VALUE_DRV_DEFAULT>;
 				//rockchip,tristate = <VALUE_TRI_DEFAULT>;
 			};
@@ -491,7 +459,6 @@
 			spi1_clk:spi1-clk {
 				rockchip,pins = <SPI1_CLK>;
 				rockchip,pull = <VALUE_PULL_DISABLE>;
-				//rockchip,voltage = <VALUE_VOL_DEFAULT>;
 				rockchip,drive = <VALUE_DRV_DEFAULT>;
 				//rockchip,tristate = <VALUE_TRI_DEFAULT>;
 			};
@@ -499,7 +466,6 @@
 			spi1_cs0:spi1-cs0 {
 				rockchip,pins = <SPI1_CS0>;
 				rockchip,pull = <VALUE_PULL_DISABLE>;
-				//rockchip,voltage = <VALUE_VOL_DEFAULT>;
 				rockchip,drive = <VALUE_DRV_DEFAULT>;
 				//rockchip,tristate = <VALUE_TRI_DEFAULT>;
 			};
@@ -510,7 +476,6 @@
 			spi2_txd:spi2-txd {
 				rockchip,pins = <SPI2_TXD>;
 				rockchip,pull = <VALUE_PULL_DISABLE>;
-				//rockchip,voltage = <VALUE_VOL_DEFAULT>;
 				rockchip,drive = <VALUE_DRV_DEFAULT>;
 				//rockchip,tristate = <VALUE_TRI_DEFAULT>;
 			};
@@ -518,7 +483,6 @@
 			spi2_rxd:spi2-rxd {
 				rockchip,pins = <SPI2_RXD>;
 				rockchip,pull = <VALUE_PULL_DISABLE>;
-				//rockchip,voltage = <VALUE_VOL_DEFAULT>;
 				rockchip,drive = <VALUE_DRV_DEFAULT>;
 				//rockchip,tristate = <VALUE_TRI_DEFAULT>;
 			};
@@ -526,7 +490,6 @@
 			spi2_clk:spi2-clk {
 				rockchip,pins = <SPI2_CLK>;
 				rockchip,pull = <VALUE_PULL_DISABLE>;
-				//rockchip,voltage = <VALUE_VOL_DEFAULT>;
 				rockchip,drive = <VALUE_DRV_DEFAULT>;
 				//rockchip,tristate = <VALUE_TRI_DEFAULT>;
 			};
@@ -534,7 +497,6 @@
 			spi2_cs0:spi2-cs0 {
 				rockchip,pins = <SPI2_CS0>;
 				rockchip,pull = <VALUE_PULL_DISABLE>;
-				//rockchip,voltage = <VALUE_VOL_DEFAULT>;
 				rockchip,drive = <VALUE_DRV_DEFAULT>;
 				//rockchip,tristate = <VALUE_TRI_DEFAULT>;
 			};
@@ -542,7 +504,6 @@
 			spi2_cs1:spi2-cs1 {
 				rockchip,pins = <SPI2_CS1>;
 				rockchip,pull = <VALUE_PULL_DISABLE>;
-				//rockchip,voltage = <VALUE_VOL_DEFAULT>;
 				rockchip,drive = <VALUE_DRV_DEFAULT>;
 				//rockchip,tristate = <VALUE_TRI_DEFAULT>;
 			};
@@ -554,7 +515,6 @@
 			i2s_mclk:i2s-mclk {
 				rockchip,pins = <I2S_CLK>;
 				rockchip,pull = <VALUE_PULL_DISABLE>;
-				//rockchip,voltage = <VALUE_VOL_DEFAULT>;
 				rockchip,drive = <VALUE_DRV_DEFAULT>;
 				//rockchip,tristate = <VALUE_TRI_DEFAULT>;
 
@@ -563,7 +523,6 @@
 			i2s_sclk:i2s-sclk {
 				rockchip,pins = <I2S_SCLK>;
 				rockchip,pull = <VALUE_PULL_DISABLE>;
-				//rockchip,voltage = <VALUE_VOL_DEFAULT>;
 				rockchip,drive = <VALUE_DRV_DEFAULT>;
 				//rockchip,tristate = <VALUE_TRI_DEFAULT>;
 
@@ -572,7 +531,6 @@
 			i2s_lrckrx:i2s-lrckrx {
 				rockchip,pins = <I2S_LRCKRX>;
 				rockchip,pull = <VALUE_PULL_DISABLE>;
-				//rockchip,voltage = <VALUE_VOL_DEFAULT>;
 				rockchip,drive = <VALUE_DRV_DEFAULT>;
 				//rockchip,tristate = <VALUE_TRI_DEFAULT>;
 
@@ -581,7 +539,6 @@
 			i2s_lrcktx:i2s-lrcktx {
 				rockchip,pins = <I2S_LRCKTX>;
 				rockchip,pull = <VALUE_PULL_DISABLE>;
-				//rockchip,voltage = <VALUE_VOL_DEFAULT>;
 				rockchip,drive = <VALUE_DRV_DEFAULT>;
 				//rockchip,tristate = <VALUE_TRI_DEFAULT>;
 
@@ -590,7 +547,6 @@
 			i2s_sdo0:i2s-sdo0 {
 				rockchip,pins = <I2S_SDO0>;
 				rockchip,pull = <VALUE_PULL_DISABLE>;
-				//rockchip,voltage = <VALUE_VOL_DEFAULT>;
 				rockchip,drive = <VALUE_DRV_DEFAULT>;
 				//rockchip,tristate = <VALUE_TRI_DEFAULT>;
 
@@ -599,7 +555,6 @@
 			i2s_sdo1:i2s-sdo1 {
 				rockchip,pins = <I2S_SDO1>;
 				rockchip,pull = <VALUE_PULL_DISABLE>;
-				//rockchip,voltage = <VALUE_VOL_DEFAULT>;
 				rockchip,drive = <VALUE_DRV_DEFAULT>;
 				//rockchip,tristate = <VALUE_TRI_DEFAULT>;
 
@@ -608,7 +563,6 @@
 			i2s_sdo2:i2s-sdo2 {
 				rockchip,pins = <I2S_SDO2>;
 				rockchip,pull = <VALUE_PULL_DISABLE>;
-				//rockchip,voltage = <VALUE_VOL_DEFAULT>;
 				rockchip,drive = <VALUE_DRV_DEFAULT>;
 				//rockchip,tristate = <VALUE_TRI_DEFAULT>;
 
@@ -617,7 +571,6 @@
 			i2s_sdo3:i2s-sdo3 {
 				rockchip,pins = <I2S_SDO3>;
 				rockchip,pull = <VALUE_PULL_DISABLE>;
-				//rockchip,voltage = <VALUE_VOL_DEFAULT>;
 				rockchip,drive = <VALUE_DRV_DEFAULT>;
 				//rockchip,tristate = <VALUE_TRI_DEFAULT>;
 
@@ -626,7 +579,6 @@
 			i2s_sdi:i2s-sdi {
 				rockchip,pins = <I2S_SDI>;
 				rockchip,pull = <VALUE_PULL_DISABLE>;
-				//rockchip,voltage = <VALUE_VOL_DEFAULT>;
 				rockchip,drive = <VALUE_DRV_DEFAULT>;
 				//rockchip,tristate = <VALUE_TRI_DEFAULT>;
 
@@ -675,7 +627,6 @@
 			spdif_tx: spdif-tx {
 				rockchip,pins = <SPDIF_TX>;
 				rockchip,pull = <VALUE_PULL_DISABLE>;
-				//rockchip,voltage = <VALUE_VOL_DEFAULT>;
 				rockchip,drive = <VALUE_DRV_DEFAULT>;
 				//rockchip,tristate = <VALUE_TRI_DEFAULT>;
 
@@ -686,7 +637,6 @@
 			pwm0_pin:pwm0 {
 				rockchip,pins = <PWM0>;
 				rockchip,pull = <VALUE_PULL_DISABLE>;
-				//rockchip,voltage = <VALUE_VOL_DEFAULT>;
 				rockchip,drive = <VALUE_DRV_DEFAULT>;
 				//rockchip,tristate = <VALUE_TRI_DEFAULT>;
 
@@ -696,7 +646,6 @@
 			pwm1_pin:pwm1 {
 				rockchip,pins = <PWM1>;
 				rockchip,pull = <VALUE_PULL_DISABLE>;
-				//rockchip,voltage = <VALUE_VOL_DEFAULT>;
 				rockchip,drive = <VALUE_DRV_DEFAULT>;
 				//rockchip,tristate = <VALUE_TRI_DEFAULT>;
 			};
@@ -705,7 +654,6 @@
 			pwm2_pin:pwm2 {
 				rockchip,pins = <PWM2>;
 				rockchip,pull = <VALUE_PULL_DISABLE>;
-				//rockchip,voltage = <VALUE_VOL_DEFAULT>;
 				rockchip,drive = <VALUE_DRV_DEFAULT>;
 				//rockchip,tristate = <VALUE_TRI_DEFAULT>;
 			};
@@ -714,7 +662,6 @@
 			pwm3_pin:pwm3 {
 				rockchip,pins = <PWM3>;
 				rockchip,pull = <VALUE_PULL_DISABLE>;
-				//rockchip,voltage = <VALUE_VOL_DEFAULT>;
 				rockchip,drive = <VALUE_DRV_DEFAULT>;
 				//rockchip,tristate = <VALUE_TRI_DEFAULT>;
 			};
@@ -725,7 +672,6 @@
 			emmc0_clk: emmc0-clk {
 				rockchip,pins = <EMMC_CLKOUT>;
 				rockchip,pull = <VALUE_PULL_DISABLE>;
-				//rockchip,voltage = <VALUE_VOL_DEFAULT>;
 				rockchip,drive = <VALUE_DRV_DEFAULT>;
 				//rockchip,tristate = <VALUE_TRI_DEFAULT>;
 			};
@@ -733,7 +679,6 @@
 			emmc0_cmd: emmc0-cmd {
 				rockchip,pins = <EMMC_CMD>;
 				rockchip,pull = <VALUE_PULL_UP>;
-				//rockchip,voltage = <VALUE_VOL_DEFAULT>;
 				rockchip,drive = <VALUE_DRV_DEFAULT>;
 				//rockchip,tristate = <VALUE_TRI_DEFAULT>;
 			};
@@ -741,7 +686,6 @@
 			emmc0_rstnout: emmc0-rstnout {
 				rockchip,pins = <EMMC_RSTNOUT>;
 				rockchip,pull = <VALUE_PULL_UP>;
-				//rockchip,voltage = <VALUE_VOL_DEFAULT>;
 				rockchip,drive = <VALUE_DRV_DEFAULT>;
 				//rockchip,tristate = <VALUE_TRI_DEFAULT>;
 			};
@@ -750,7 +694,6 @@
 			emmc0_pwr: emmc0-pwr {
 				rockchip,pins = <EMMC_PWREN>;
 				rockchip,pull = <VALUE_PULL_DISABLE>;
-				//rockchip,voltage = <VALUE_VOL_DEFAULT>;
 				rockchip,drive = <VALUE_DRV_DEFAULT>;
 				//rockchip,tristate = <VALUE_TRI_DEFAULT>;
 			};
@@ -758,7 +701,6 @@
 			emmc0_bus1: emmc0-bus-width1 {
 				rockchip,pins = <EMMC_DATA0>;
 				rockchip,pull = <VALUE_PULL_UP>;
-				//rockchip,voltage = <VALUE_VOL_DEFAULT>;
 				rockchip,drive = <VALUE_DRV_DEFAULT>;
 				//rockchip,tristate = <VALUE_TRI_DEFAULT>;
 			};
@@ -769,7 +711,6 @@
 						<EMMC_DATA2 >,
 						<EMMC_DATA3>;
 				rockchip,pull = <VALUE_PULL_UP>;
-				//rockchip,voltage = <VALUE_VOL_DEFAULT>;
 				rockchip,drive = <VALUE_DRV_DEFAULT>;
 				//rockchip,tristate = <VALUE_TRI_DEFAULT>;
 			};
@@ -780,7 +721,6 @@
 			sdmmc0_clk: sdmmc0-clk {
 				rockchip,pins = <SDMMC0_CLKOUT>;
 				rockchip,pull = <VALUE_PULL_DISABLE>;
-				//rockchip,voltage = <VALUE_VOL_DEFAULT>;
 				rockchip,drive = <VALUE_DRV_DEFAULT>;
 				//rockchip,tristate = <VALUE_TRI_DEFAULT>;
 			};
@@ -788,7 +728,6 @@
 			sdmmc0_cmd: sdmmc0-cmd {
 				rockchip,pins = <SDMMC0_CMD>;
 				rockchip,pull = <VALUE_PULL_UP>;
-				//rockchip,voltage = <VALUE_VOL_DEFAULT>;
 				rockchip,drive = <VALUE_DRV_DEFAULT>;
 				//rockchip,tristate = <VALUE_TRI_DEFAULT>;
 			};
@@ -796,7 +735,6 @@
 			sdmmc0_dectn: sdmmc0-dectn{
 				rockchip,pins = <SDMMC0_DECTN>;
 				rockchip,pull = <VALUE_PULL_UP>;
-				//rockchip,voltage = <VALUE_VOL_DEFAULT>;
 				rockchip,drive = <VALUE_DRV_DEFAULT>;
 				//rockchip,tristate = <VALUE_TRI_DEFAULT>;
 			};
@@ -805,7 +743,6 @@
 			sdmmc0_bus1: sdmmc0-bus-width1 {
 				rockchip,pins = <SDMMC0_DATA0>;
 				rockchip,pull = <VALUE_PULL_UP>;
-				//rockchip,voltage = <VALUE_VOL_DEFAULT>;
 				rockchip,drive = <VALUE_DRV_DEFAULT>;
 				//rockchip,tristate = <VALUE_TRI_DEFAULT>;
 			};
@@ -816,7 +753,6 @@
 						<SDMMC0_DATA2>,
 						<SDMMC0_DATA3>;
 				rockchip,pull = <VALUE_PULL_UP>;
-				//rockchip,voltage = <VALUE_VOL_DEFAULT>;
 				rockchip,drive = <VALUE_DRV_DEFAULT>;
 				//rockchip,tristate = <VALUE_TRI_DEFAULT>;
 			};
@@ -831,7 +767,6 @@
 					<GPIO6_C2>,  //D2
 				   	<GPIO6_C3>;  //D3
 				rockchip,pull = <VALUE_PULL_UP>;
-				//rockchip,voltage = <VALUE_VOL_DEFAULT>;
 				rockchip,drive = <VALUE_DRV_DEFAULT>;
 				//rockchip,tristate = <VALUE_TRI_DEFAULT>;
 			};
@@ -843,7 +778,6 @@
 				sdio0_clk: sdio0_clk {
                 rockchip,pins = <SDIO0_CLKOUT>;
                 rockchip,pull = <VALUE_PULL_DISABLE>;
-                //rockchip,voltage = <VALUE_VOL_DEFAULT>;
                 rockchip,drive = <VALUE_DRV_DEFAULT>;
                 //rockchip,tristate = <VALUE_TRI_DEFAULT>;
             	};
@@ -851,7 +785,6 @@
             	sdio0_cmd: sdio0_cmd {
                 	rockchip,pins = <SDIO0_CMD>;
                 	rockchip,pull = <VALUE_PULL_UP>;
-                	//rockchip,voltage = <VALUE_VOL_DEFAULT>;
                 	rockchip,drive = <VALUE_DRV_DEFAULT>;
                 	//rockchip,tristate = <VALUE_TRI_DEFAULT>;
             	};
@@ -859,7 +792,6 @@
             	sdio0_dectn: sdio0-dectn{
                 	rockchip,pins = <SDIO0_DETECTN>;
                 	rockchip,pull = <VALUE_PULL_UP>;
-                	//rockchip,voltage = <VALUE_VOL_DEFAULT>;
                 	rockchip,drive = <VALUE_DRV_DEFAULT>;
                 	//rockchip,tristate = <VALUE_TRI_DEFAULT>;
             	};
@@ -867,7 +799,6 @@
 				sdio0_wrprt: sdio0_wrprt{
                 	rockchip,pins = <SDIO0_WRPRT>;
                 	rockchip,pull = <VALUE_PULL_UP>;
-                	//rockchip,voltage = <VALUE_VOL_DEFAULT>;
                 	rockchip,drive = <VALUE_DRV_DEFAULT>;
                 	//rockchip,tristate = <VALUE_TRI_DEFAULT>;
             	};
@@ -875,7 +806,6 @@
 				sdio0_pwr: sdio0-pwren{
                 	rockchip,pins = <SDIO0_PWREN>;
                 	rockchip,pull = <VALUE_PULL_UP>;
-                	//rockchip,voltage = <VALUE_VOL_DEFAULT>;
                 	rockchip,drive = <VALUE_DRV_DEFAULT>;
                 	//rockchip,tristate = <VALUE_TRI_DEFAULT>;
             	};
@@ -883,7 +813,6 @@
 				sdio0_bkpwr: sdio0-bkpwr{
                 	rockchip,pins = <SDIO0_BKPWR>;
                 	rockchip,pull = <VALUE_PULL_UP>;
-                	//rockchip,voltage = <VALUE_VOL_DEFAULT>;
                 	rockchip,drive = <VALUE_DRV_DEFAULT>;
                 	//rockchip,tristate = <VALUE_TRI_DEFAULT>;
             	};
@@ -891,7 +820,6 @@
 				sdio0_intn: sdio0-intn{
                 	rockchip,pins = <SDIO0_INTN>;
                 	rockchip,pull = <VALUE_PULL_UP>;
-                	//rockchip,voltage = <VALUE_VOL_DEFAULT>;
                 	rockchip,drive = <VALUE_DRV_DEFAULT>;
                 	//rockchip,tristate = <VALUE_TRI_DEFAULT>;
             	};
@@ -900,7 +828,6 @@
             	sdio0_bus1: sdio0-bus-width1 {
                 	rockchip,pins = <SDIO0_DATA0>;
                 	rockchip,pull = <VALUE_PULL_UP>;
-                	//rockchip,voltage = <VALUE_VOL_DEFAULT>;
                 	rockchip,drive = <VALUE_DRV_DEFAULT>;
                 	//rockchip,tristate = <VALUE_TRI_DEFAULT>;
             	};
@@ -911,7 +838,6 @@
                         <SDIO0_DATA2>,
                         <SDIO0_DATA3>;
                 	rockchip,pull = <VALUE_PULL_UP>;
-                	//rockchip,voltage = <VALUE_VOL_DEFAULT>;
                 	rockchip,drive = <VALUE_DRV_DEFAULT>;
                 	//rockchip,tristate = <VALUE_TRI_DEFAULT>;
             	};
@@ -930,7 +856,6 @@
 						<GPIO4_C6>,   //D3
 						<GPIO4_C7>;   //INTN
 					rockchip,pull = <VALUE_PULL_UP>;
-					//rockchip,voltage = <VALUE_VOL_DEFAULT>;
 					rockchip,drive = <VALUE_DRV_DEFAULT>;
 					//rockchip,tristate = <VALUE_TRI_DEFAULT>;
 				};
@@ -940,7 +865,6 @@
 			gps_mag:gps-mag {
 				rockchip,pins = <GPS_MAG>;
 				rockchip,pull = <VALUE_PULL_DISABLE>;
-				//rockchip,voltage = <VALUE_VOL_DEFAULT>;
 				rockchip,drive = <VALUE_DRV_DEFAULT>;
 				//rockchip,tristate = <VALUE_TRI_DEFAULT>;
 
@@ -949,7 +873,6 @@
 			gps_sig:gps-sig {
 				rockchip,pins = <GPS_SIG>;
 				rockchip,pull = <VALUE_PULL_DISABLE>;
-				//rockchip,voltage = <VALUE_VOL_DEFAULT>;
 				rockchip,drive = <VALUE_DRV_DEFAULT>;
 				//rockchip,tristate = <VALUE_TRI_DEFAULT>;
 
@@ -959,7 +882,6 @@
 			gps_rfclk:gps-rfclk {
 				rockchip,pins = <GPS_RFCLK>;
 				rockchip,pull = <VALUE_PULL_DISABLE>;
-				//rockchip,voltage = <VALUE_VOL_DEFAULT>;
 				rockchip,drive = <VALUE_DRV_DEFAULT>;
 				//rockchip,tristate = <VALUE_TRI_DEFAULT>;
 
@@ -971,7 +893,6 @@
 			mac_clk: mac-clk {
 				rockchip,pins = <MAC_CLK>;
 				rockchip,pull = <VALUE_PULL_DISABLE>;
-				//rockchip,voltage = <VALUE_VOL_DEFAULT>;
 				rockchip,drive = <VALUE_DRV_DEFAULT>;
 				//rockchip,tristate = <VALUE_TRI_DEFAULT>;
 			};
@@ -979,7 +900,6 @@
 			mac_txpins: mac-txpins {
 				rockchip,pins = <MAC_TXD0>, <MAC_TXD1>, <MAC_TXD2>, <MAC_TXD3>, <MAC_TXEN>, <MAC_TXCLK>;
 				rockchip,pull = <VALUE_PULL_DISABLE>;
-				//rockchip,voltage = <VALUE_VOL_DEFAULT>;
 				rockchip,drive = <VALUE_DRV_DEFAULT>;
 				//rockchip,tristate = <VALUE_TRI_DEFAULT>;
 			};
@@ -987,7 +907,6 @@
 			mac_rxpins: mac-rxpins {
 				rockchip,pins = <MAC_RXD0>, <MAC_RXD1>, <MAC_RXD2>, <MAC_RXD3>, <MAC_RXDV>, <MAC_RXER>, <MAC_RXCLK>, <MAC_COL>;
 				rockchip,pull = <VALUE_PULL_DISABLE>;
-				//rockchip,voltage = <VALUE_VOL_DEFAULT>;
 				rockchip,drive = <VALUE_DRV_DEFAULT>;
 				//rockchip,tristate = <VALUE_TRI_DEFAULT>;
 			};
@@ -995,7 +914,6 @@
 			mac_crs: mac-crs {
 				rockchip,pins = <MAC_CRS>;
 				rockchip,pull = <VALUE_PULL_DISABLE>;
-				//rockchip,voltage = <VALUE_VOL_DEFAULT>;
 				rockchip,drive = <VALUE_DRV_DEFAULT>;
 				//rockchip,tristate = <VALUE_TRI_DEFAULT>;
 			};
@@ -1003,7 +921,6 @@
 			mac_mdpins: mac-mdpins {
 				rockchip,pins = <MAC_MDIO>, <MAC_MDC>;
 				rockchip,pull = <VALUE_PULL_DISABLE>;
-				//rockchip,voltage = <VALUE_VOL_DEFAULT>;
 				rockchip,drive = <VALUE_DRV_DEFAULT>;
 				//rockchip,tristate = <VALUE_TRI_DEFAULT>;
 			};
@@ -1180,7 +1097,6 @@
 			isp_mipi:isp_mipi{
 				rockchip,pins =	<CIF_CLKOUT>;
 				rockchip,pull = <VALUE_PULL_DISABLE>;
-				//rockchip,voltage = <VALUE_VOL_DEFAULT>;
 				rockchip,drive = <VALUE_DRV_DEFAULT>;
 				//rockchip,tristate = <VALUE_TRI_DEFAULT>;			
 			};
@@ -1192,7 +1108,6 @@
 								<CIF_VSYNC>,<CIF_HREF>,
 								<CIF_CLKIN>,<CIF_CLKOUT>;
 				rockchip,pull = <VALUE_PULL_DISABLE>;
-				//rockchip,voltage = <VALUE_VOL_DEFAULT>;
 				rockchip,drive = <VALUE_DRV_DEFAULT>;
 				//rockchip,tristate = <VALUE_TRI_DEFAULT>;
 
@@ -1201,7 +1116,6 @@
 			isp_dvp_d0d1:isp_d0d1	{
 				rockchip,pins = <CIF_DATA0>,<CIF_DATA1>;
 				rockchip,pull = <VALUE_PULL_DISABLE>;
-				//rockchip,voltage = <VALUE_VOL_DEFAULT>;
 				rockchip,drive = <VALUE_DRV_DEFAULT>;
 				//rockchip,tristate = <VALUE_TRI_DEFAULT>;
 			};
@@ -1209,7 +1123,6 @@
 			isp_dvpd10d11:ispd10d11	{
 				rockchip,pins = <CIF_DATA10>,<CIF_DATA11>;
 				rockchip,pull = <VALUE_PULL_DISABLE>;
-				//rockchip,voltage = <VALUE_VOL_DEFAULT>;
 				rockchip,drive = <VALUE_DRV_DEFAULT>;
 				//rockchip,tristate = <VALUE_TRI_DEFAULT>;
 			};
@@ -1217,7 +1130,6 @@
 			isp_shutter:isp_shutter		{
 				rockchip,pins = <ISP_SHUTTEREN>,<ISP_SHUTTERTRIG>;
 				rockchip,pull = <VALUE_PULL_DISABLE>;
-				//rockchip,voltage = <VALUE_VOL_DEFAULT>;
 				rockchip,drive = <VALUE_DRV_DEFAULT>;
 				//rockchip,tristate = <VALUE_TRI_DEFAULT>;
 			};
@@ -1225,7 +1137,6 @@
 			isp_flash_trigger:isp_trigger {
 				rockchip,pins = <ISP_FLASHTRIGOUTSPI1_CS0>;
 				rockchip,pull = <VALUE_PULL_DISABLE>;
-				//rockchip,voltage = <VALUE_VOL_DEFAULT>;
 				rockchip,drive = <VALUE_DRV_DEFAULT>;
 				//rockchip,tristate = <VALUE_TRI_DEFAULT>;
 			};
@@ -1233,7 +1144,6 @@
 			isp_prelight:isp_prelight	{
 				rockchip,pins = <ISP_PRELIGHTTRIGSPI1_RXD>;
 				rockchip,pull = <VALUE_PULL_DISABLE>;
-				//rockchip,voltage = <VALUE_VOL_DEFAULT>;
 				rockchip,drive = <VALUE_DRV_DEFAULT>;
 				//rockchip,tristate = <VALUE_TRI_DEFAULT>;
 			};
