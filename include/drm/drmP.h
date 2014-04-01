@@ -409,6 +409,11 @@ struct drm_file {
 	unsigned is_master :1;
 	/* true when the client has asked us to expose stereo 3D mode flags */
 	unsigned stereo_allowed :1;
+	/*
+	 * true if client understands CRTC primary planes and cursor planes
+	 * in the plane list
+	 */
+	unsigned universal_planes:1;
 
 	struct pid *pid;
 	kuid_t uid;
@@ -1409,6 +1414,7 @@ extern void drm_put_dev(struct drm_device *dev);
 extern void drm_unplug_dev(struct drm_device *dev);
 extern unsigned int drm_debug;
 extern unsigned int drm_rnodes;
+extern unsigned int drm_universal_planes;
 
 extern unsigned int drm_vblank_offdelay;
 extern unsigned int drm_timestamp_precision;

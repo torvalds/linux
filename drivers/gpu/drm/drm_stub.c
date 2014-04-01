@@ -45,6 +45,10 @@ EXPORT_SYMBOL(drm_debug);
 unsigned int drm_rnodes = 0;	/* 1 to enable experimental render nodes API */
 EXPORT_SYMBOL(drm_rnodes);
 
+/* 1 to allow user space to request universal planes (experimental) */
+unsigned int drm_universal_planes = 0;
+EXPORT_SYMBOL(drm_universal_planes);
+
 unsigned int drm_vblank_offdelay = 5000;    /* Default to 5000 msecs. */
 EXPORT_SYMBOL(drm_vblank_offdelay);
 
@@ -68,6 +72,7 @@ MODULE_PARM_DESC(timestamp_monotonic, "Use monotonic timestamps");
 
 module_param_named(debug, drm_debug, int, 0600);
 module_param_named(rnodes, drm_rnodes, int, 0600);
+module_param_named(universal_planes, drm_universal_planes, int, 0600);
 module_param_named(vblankoffdelay, drm_vblank_offdelay, int, 0600);
 module_param_named(timestamp_precision_usec, drm_timestamp_precision, int, 0600);
 module_param_named(timestamp_monotonic, drm_timestamp_monotonic, int, 0600);

@@ -1959,6 +1959,7 @@ int drm_mode_getplane_res(struct drm_device *dev, void *data,
 	struct drm_plane *plane;
 	uint32_t __user *plane_ptr;
 	int copied = 0, ret = 0;
+	unsigned num_planes;
 
 	if (!drm_core_check_feature(dev, DRIVER_MODESET))
 		return -EINVAL;
@@ -1966,17 +1967,26 @@ int drm_mode_getplane_res(struct drm_device *dev, void *data,
 	drm_modeset_lock_all(dev);
 	config = &dev->mode_config;
 
+	if (file_priv->universal_planes)
+		num_planes = config->num_total_plane;
+	else
+		num_planes = config->num_overlay_plane;
+
 	/*
 	 * This ioctl is called twice, once to determine how much space is
 	 * needed, and the 2nd time to fill it.
 	 */
-	if (config->num_overlay_plane &&
-	    (plane_resp->count_planes >= config->num_overlay_plane)) {
+	if (num_planes &&
+	    (plane_resp->count_planes >= num_planes)) {
 		plane_ptr = (uint32_t __user *)(unsigned long)plane_resp->plane_id_ptr;
 
 		list_for_each_entry(plane, &config->plane_list, head) {
-			/* Only advertise overlays to userspace for now. */
-			if (plane->type != DRM_PLANE_TYPE_OVERLAY)
+			/*
+			 * Unless userspace set the 'universal planes'
+			 * capability bit, only advertise overlays.
+			 */
+			if (plane->type != DRM_PLANE_TYPE_OVERLAY &&
+			    !file_priv->universal_planes)
 				continue;
 
 			if (put_user(plane->base.id, plane_ptr + copied)) {
@@ -1986,7 +1996,7 @@ int drm_mode_getplane_res(struct drm_device *dev, void *data,
 			copied++;
 		}
 	}
-	plane_resp->count_planes = config->num_overlay_plane;
+	plane_resp->count_planes = num_planes;
 
 out:
 	drm_modeset_unlock_all(dev);
