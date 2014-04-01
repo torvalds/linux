@@ -2770,6 +2770,14 @@ static bool img_obj_request_simple(struct rbd_obj_request *obj_request)
 		return true;
 
 	/*
+	 * Entire-object layered writes - we will overwrite whatever
+	 * parent data there is anyway.
+	 */
+	if (!obj_request->offset &&
+	    obj_request->length == rbd_obj_bytes(&rbd_dev->header))
+		return true;
+
+	/*
 	 * If the object is known to already exist, its parent data has
 	 * already been copied.
 	 */
