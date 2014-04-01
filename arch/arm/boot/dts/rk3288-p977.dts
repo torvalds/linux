@@ -489,7 +489,6 @@
 		1008000 1000000
 		1200000 1050000
 		1416000 1150000
-		1608000 1250000
 		>;
 };
 
@@ -589,8 +588,8 @@
 		};
 
 		rk808_ldo5_reg: regulator@8 {
-			regulator-name= "rk_ldo5";
-			regulator-min-microvolt = <3300000>;
+			regulator-name= "vcc_sd";
+			regulator-min-microvolt = <1800000>;
 			regulator-max-microvolt = <3300000>;
 			regulator-always-on;
 			regulator-boot-on;
@@ -619,5 +618,49 @@
 			regulator-always-on;
 			regulator-boot-on;
 		};
+
+		rk808_ldo9_reg: regulator@12 {
+			regulator-name= "rk_ldo9";
+			regulator-always-on;
+			regulator-boot-on;
+		};
+
+		rk808_ldo10_reg: regulator@13 {
+			regulator-name= "rk_ldo10";
+			regulator-always-on;
+			regulator-boot-on;
+		};
 	};
 };
+
+&lcdc_vdd_domain {
+	regulator-name = "vcc30_lcd";
+	};
+&dpio_vdd_domain{
+	regulator-name = "vcc18_cif";	
+	};
+&flash0_vdd_domain{
+	regulator-name = "vcc_flash";	
+	};
+&flash1_vdd_domain{
+	regulator-name = "vcc_flash";			
+	};
+&apio3_vdd_domain{
+	regulator-name = "vccio_wl";		
+	};
+&apio5_vdd_domain{
+	regulator-name = "vccio";		
+	};
+&apio4_vdd_domain{
+	regulator-name = "vccio";		
+	};
+&apio1_vdd_domain{
+	regulator-name = "vccio";			
+	};
+&apio2_vdd_domain{
+	regulator-name = "vccio";		
+	};
+&sdmmc0_vdd_domain{
+	regulator-name = "vcc_sd";			
+	};
+	
