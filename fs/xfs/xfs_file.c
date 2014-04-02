@@ -229,31 +229,26 @@ xfs_file_fsync(
 }
 
 STATIC ssize_t
-xfs_file_aio_read(
+xfs_file_read_iter(
 	struct kiocb		*iocb,
-	const struct iovec	*iovp,
-	unsigned long		nr_segs,
-	loff_t			pos)
+	struct iov_iter		*to)
 {
 	struct file		*file = iocb->ki_filp;
 	struct inode		*inode = file->f_mapping->host;
 	struct xfs_inode	*ip = XFS_I(inode);
 	struct xfs_mount	*mp = ip->i_mount;
-	size_t			size = 0;
+	size_t			size = iov_iter_count(to);
 	ssize_t			ret = 0;
 	int			ioflags = 0;
 	xfs_fsize_t		n;
+	loff_t			pos = iocb->ki_pos;
 
 	XFS_STATS_INC(xs_read_calls);
-
-	BUG_ON(iocb->ki_pos != pos);
 
 	if (unlikely(file->f_flags & O_DIRECT))
 		ioflags |= IO_ISDIRECT;
 	if (file->f_mode & FMODE_NOCMTIME)
 		ioflags |= IO_INVIS;
-
-	size = iov_length(iovp, nr_segs);
 
 	if (unlikely(ioflags & IO_ISDIRECT)) {
 		xfs_buftarg_t	*target =
@@ -307,7 +302,7 @@ xfs_file_aio_read(
 
 	trace_xfs_file_read(ip, size, pos, ioflags);
 
-	ret = generic_file_aio_read(iocb, iovp, nr_segs, pos);
+	ret = generic_file_read_iter(iocb, to);
 	if (ret > 0)
 		XFS_STATS_ADD(xs_read_bytes, ret);
 
@@ -1453,9 +1448,9 @@ xfs_file_llseek(
 
 const struct file_operations xfs_file_operations = {
 	.llseek		= xfs_file_llseek,
-	.read		= do_sync_read,
+	.read		= new_sync_read,
 	.write		= do_sync_write,
-	.aio_read	= xfs_file_aio_read,
+	.read_iter	= xfs_file_read_iter,
 	.aio_write	= xfs_file_aio_write,
 	.splice_read	= xfs_file_splice_read,
 	.splice_write	= xfs_file_splice_write,
