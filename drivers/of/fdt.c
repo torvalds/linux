@@ -20,6 +20,7 @@
 #include <linux/errno.h>
 #include <linux/slab.h>
 #include <linux/memblock.h>
+#include <linux/libfdt.h>
 
 #include <asm/setup.h>  /* for COMMAND_LINE_SIZE */
 #ifdef CONFIG_PPC
@@ -27,54 +28,6 @@
 #endif /* CONFIG_PPC */
 
 #include <asm/page.h>
-
-char *of_fdt_get_string(struct boot_param_header *blob, u32 offset)
-{
-	return ((char *)blob) +
-		be32_to_cpu(blob->off_dt_strings) + offset;
-}
-
-/**
- * of_fdt_get_property - Given a node in the given flat blob, return
- * the property ptr
- */
-void *of_fdt_get_property(struct boot_param_header *blob,
-		       unsigned long node, const char *name,
-		       int *size)
-{
-	unsigned long p = node;
-
-	do {
-		u32 tag = be32_to_cpup((__be32 *)p);
-		u32 sz, noff;
-		const char *nstr;
-
-		p += 4;
-		if (tag == OF_DT_NOP)
-			continue;
-		if (tag != OF_DT_PROP)
-			return NULL;
-
-		sz = be32_to_cpup((__be32 *)p);
-		noff = be32_to_cpup((__be32 *)(p + 4));
-		p += 8;
-		if (be32_to_cpu(blob->version) < 0x10)
-			p = ALIGN(p, sz >= 8 ? 8 : 4);
-
-		nstr = of_fdt_get_string(blob, noff);
-		if (nstr == NULL) {
-			pr_warning("Can't find property index name !\n");
-			return NULL;
-		}
-		if (strcmp(name, nstr) == 0) {
-			if (size)
-				*size = sz;
-			return (void *)p;
-		}
-		p += sz;
-		p = ALIGN(p, 4);
-	} while (1);
-}
 
 /**
  * of_fdt_is_compatible - Return true if given node from the given blob has
@@ -93,7 +46,7 @@ int of_fdt_is_compatible(struct boot_param_header *blob,
 	int cplen;
 	unsigned long l, score = 0;
 
-	cp = of_fdt_get_property(blob, node, "compatible", &cplen);
+	cp = fdt_getprop(blob, node, "compatible", &cplen);
 	if (cp == NULL)
 		return 0;
 	while (cplen > 0) {
@@ -129,12 +82,12 @@ int of_fdt_match(struct boot_param_header *blob, unsigned long node,
 	return score;
 }
 
-static void *unflatten_dt_alloc(unsigned long *mem, unsigned long size,
+static void *unflatten_dt_alloc(void **mem, unsigned long size,
 				       unsigned long align)
 {
 	void *res;
 
-	*mem = ALIGN(*mem, align);
+	*mem = PTR_ALIGN(*mem, align);
 	res = (void *)*mem;
 	*mem += size;
 
@@ -150,30 +103,29 @@ static void *unflatten_dt_alloc(unsigned long *mem, unsigned long size,
  * @allnextpp: pointer to ->allnext from last allocated device_node
  * @fpsize: Size of the node path up at the current depth.
  */
-static unsigned long unflatten_dt_node(struct boot_param_header *blob,
-				unsigned long mem,
-				unsigned long *p,
+static void * unflatten_dt_node(struct boot_param_header *blob,
+				void *mem,
+				int *poffset,
 				struct device_node *dad,
 				struct device_node ***allnextpp,
 				unsigned long fpsize)
 {
+	const __be32 *p;
 	struct device_node *np;
 	struct property *pp, **prev_pp = NULL;
-	char *pathp;
-	u32 tag;
+	const char *pathp;
 	unsigned int l, allocl;
+	static int depth = 0;
+	int old_depth;
+	int offset;
 	int has_name = 0;
 	int new_format = 0;
 
-	tag = be32_to_cpup((__be32 *)(*p));
-	if (tag != OF_DT_BEGIN_NODE) {
-		pr_err("Weird tag at start of node: %x\n", tag);
+	pathp = fdt_get_name(blob, *poffset, &l);
+	if (!pathp)
 		return mem;
-	}
-	*p += 4;
-	pathp = (char *)*p;
-	l = allocl = strlen(pathp) + 1;
-	*p = ALIGN(*p + l, 4);
+
+	allocl = l++;
 
 	/* version 0x10 has a more compact unit name here instead of the full
 	 * path. we accumulate the full path size using "fpsize", we'll rebuild
@@ -191,7 +143,7 @@ static unsigned long unflatten_dt_node(struct boot_param_header *blob,
 			fpsize = 1;
 			allocl = 2;
 			l = 1;
-			*pathp = '\0';
+			pathp = "";
 		} else {
 			/* account for '/' and path size minus terminal 0
 			 * already in 'l'
@@ -239,32 +191,23 @@ static unsigned long unflatten_dt_node(struct boot_param_header *blob,
 		kref_init(&np->kref);
 	}
 	/* process properties */
-	while (1) {
-		u32 sz, noff;
-		char *pname;
+	for (offset = fdt_first_property_offset(blob, *poffset);
+	     (offset >= 0);
+	     (offset = fdt_next_property_offset(blob, offset))) {
+		const char *pname;
+		u32 sz;
 
-		tag = be32_to_cpup((__be32 *)(*p));
-		if (tag == OF_DT_NOP) {
-			*p += 4;
-			continue;
-		}
-		if (tag != OF_DT_PROP)
+		if (!(p = fdt_getprop_by_offset(blob, offset, &pname, &sz))) {
+			offset = -FDT_ERR_INTERNAL;
 			break;
-		*p += 4;
-		sz = be32_to_cpup((__be32 *)(*p));
-		noff = be32_to_cpup((__be32 *)((*p) + 4));
-		*p += 8;
-		if (be32_to_cpu(blob->version) < 0x10)
-			*p = ALIGN(*p, sz >= 8 ? 8 : 4);
+		}
 
-		pname = of_fdt_get_string(blob, noff);
 		if (pname == NULL) {
 			pr_info("Can't find property name in list !\n");
 			break;
 		}
 		if (strcmp(pname, "name") == 0)
 			has_name = 1;
-		l = strlen(pname) + 1;
 		pp = unflatten_dt_alloc(&mem, sizeof(struct property),
 					__alignof__(struct property));
 		if (allnextpp) {
@@ -276,26 +219,25 @@ static unsigned long unflatten_dt_node(struct boot_param_header *blob,
 			if ((strcmp(pname, "phandle") == 0) ||
 			    (strcmp(pname, "linux,phandle") == 0)) {
 				if (np->phandle == 0)
-					np->phandle = be32_to_cpup((__be32*)*p);
+					np->phandle = be32_to_cpup(p);
 			}
 			/* And we process the "ibm,phandle" property
 			 * used in pSeries dynamic device tree
 			 * stuff */
 			if (strcmp(pname, "ibm,phandle") == 0)
-				np->phandle = be32_to_cpup((__be32 *)*p);
-			pp->name = pname;
+				np->phandle = be32_to_cpup(p);
+			pp->name = (char *)pname;
 			pp->length = sz;
-			pp->value = (void *)*p;
+			pp->value = (__be32 *)p;
 			*prev_pp = pp;
 			prev_pp = &pp->next;
 		}
-		*p = ALIGN((*p) + sz, 4);
 	}
 	/* with version 0x10 we may not have the name property, recreate
 	 * it here from the unit name if absent
 	 */
 	if (!has_name) {
-		char *p1 = pathp, *ps = pathp, *pa = NULL;
+		const char *p1 = pathp, *ps = pathp, *pa = NULL;
 		int sz;
 
 		while (*p1) {
@@ -332,19 +274,18 @@ static unsigned long unflatten_dt_node(struct boot_param_header *blob,
 		if (!np->type)
 			np->type = "<NULL>";
 	}
-	while (tag == OF_DT_BEGIN_NODE || tag == OF_DT_NOP) {
-		if (tag == OF_DT_NOP)
-			*p += 4;
-		else
-			mem = unflatten_dt_node(blob, mem, p, np, allnextpp,
-						fpsize);
-		tag = be32_to_cpup((__be32 *)(*p));
-	}
-	if (tag != OF_DT_END_NODE) {
-		pr_err("Weird tag at end of node: %x\n", tag);
-		return mem;
-	}
-	*p += 4;
+
+	old_depth = depth;
+	*poffset = fdt_next_node(blob, *poffset, &depth);
+	if (depth < 0)
+		depth = 0;
+	while (*poffset > 0 && depth > old_depth)
+		mem = unflatten_dt_node(blob, mem, poffset, np, allnextpp,
+					fpsize);
+
+	if (*poffset < 0 && *poffset != -FDT_ERR_NOTFOUND)
+		pr_err("unflatten: error %d processing FDT\n", *poffset);
+
 	return mem;
 }
 
@@ -364,7 +305,9 @@ static void __unflatten_device_tree(struct boot_param_header *blob,
 			     struct device_node **mynodes,
 			     void * (*dt_alloc)(u64 size, u64 align))
 {
-	unsigned long start, mem, size;
+	unsigned long size;
+	int start;
+	void *mem;
 	struct device_node **allnextp = mynodes;
 
 	pr_debug(" -> unflatten_device_tree()\n");
@@ -385,28 +328,23 @@ static void __unflatten_device_tree(struct boot_param_header *blob,
 	}
 
 	/* First pass, scan for size */
-	start = ((unsigned long)blob) +
-		be32_to_cpu(blob->off_dt_struct);
-	size = unflatten_dt_node(blob, 0, &start, NULL, NULL, 0);
-	size = (size | 3) + 1;
+	start = 0;
+	size = (unsigned long)unflatten_dt_node(blob, 0, &start, NULL, NULL, 0);
+	size = ALIGN(size, 4);
 
 	pr_debug("  size is %lx, allocating...\n", size);
 
 	/* Allocate memory for the expanded device tree */
-	mem = (unsigned long)
-		dt_alloc(size + 4, __alignof__(struct device_node));
+	mem = dt_alloc(size + 4, __alignof__(struct device_node));
 
 	((__be32 *)mem)[size / 4] = cpu_to_be32(0xdeadbeef);
 
-	pr_debug("  unflattening %lx...\n", mem);
+	pr_debug("  unflattening %p...\n", mem);
 
 	/* Second pass, do actual unflattening */
-	start = ((unsigned long)blob) +
-		be32_to_cpu(blob->off_dt_struct);
+	start = 0;
 	unflatten_dt_node(blob, mem, &start, NULL, &allnextp, 0);
-	if (be32_to_cpup((__be32 *)start) != OF_DT_END)
-		pr_warning("Weird tag at end of tree: %08x\n", *((u32 *)start));
-	if (be32_to_cpu(((__be32 *)mem)[size / 4]) != 0xdeadbeef)
+	if (be32_to_cpup(mem + size) != 0xdeadbeef)
 		pr_warning("End of tree marker overwritten: %08x\n",
 			   be32_to_cpu(((__be32 *)mem)[size / 4]));
 	*allnextp = NULL;
@@ -581,47 +519,19 @@ int __init of_scan_flat_dt(int (*it)(unsigned long node,
 				     void *data),
 			   void *data)
 {
-	unsigned long p = ((unsigned long)initial_boot_params) +
-		be32_to_cpu(initial_boot_params->off_dt_struct);
-	int rc = 0;
-	int depth = -1;
+	const void *blob = initial_boot_params;
+	const char *pathp;
+	int offset, rc = 0, depth = -1;
 
-	do {
-		u32 tag = be32_to_cpup((__be32 *)p);
-		const char *pathp;
+        for (offset = fdt_next_node(blob, -1, &depth);
+             offset >= 0 && depth >= 0 && !rc;
+             offset = fdt_next_node(blob, offset, &depth)) {
 
-		p += 4;
-		if (tag == OF_DT_END_NODE) {
-			depth--;
-			continue;
-		}
-		if (tag == OF_DT_NOP)
-			continue;
-		if (tag == OF_DT_END)
-			break;
-		if (tag == OF_DT_PROP) {
-			u32 sz = be32_to_cpup((__be32 *)p);
-			p += 8;
-			if (be32_to_cpu(initial_boot_params->version) < 0x10)
-				p = ALIGN(p, sz >= 8 ? 8 : 4);
-			p += sz;
-			p = ALIGN(p, 4);
-			continue;
-		}
-		if (tag != OF_DT_BEGIN_NODE) {
-			pr_err("Invalid tag %x in flat device tree!\n", tag);
-			return -EINVAL;
-		}
-		depth++;
-		pathp = (char *)p;
-		p = ALIGN(p + strlen(pathp) + 1, 4);
+		pathp = fdt_get_name(blob, offset, NULL);
 		if (*pathp == '/')
 			pathp = kbasename(pathp);
-		rc = it(p, pathp, depth, data);
-		if (rc != 0)
-			break;
-	} while (1);
-
+		rc = it(offset, pathp, depth, data);
+	}
 	return rc;
 }
 
@@ -630,14 +540,7 @@ int __init of_scan_flat_dt(int (*it)(unsigned long node,
  */
 unsigned long __init of_get_flat_dt_root(void)
 {
-	unsigned long p = ((unsigned long)initial_boot_params) +
-		be32_to_cpu(initial_boot_params->off_dt_struct);
-
-	while (be32_to_cpup((__be32 *)p) == OF_DT_NOP)
-		p += 4;
-	BUG_ON(be32_to_cpup((__be32 *)p) != OF_DT_BEGIN_NODE);
-	p += 4;
-	return ALIGN(p + strlen((char *)p) + 1, 4);
+	return 0;
 }
 
 /**
@@ -649,7 +552,7 @@ unsigned long __init of_get_flat_dt_root(void)
 const void *__init of_get_flat_dt_prop(unsigned long node, const char *name,
 				       int *size)
 {
-	return of_fdt_get_property(initial_boot_params, node, name, size);
+	return fdt_getprop(initial_boot_params, node, name, size);
 }
 
 /**
