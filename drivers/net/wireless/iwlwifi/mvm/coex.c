@@ -580,6 +580,8 @@ int iwl_send_bt_init_conf(struct iwl_mvm *mvm)
 	bt_cmd->bt4_antenna_isolation = iwlwifi_mod_params.ant_coupling;
 	bt_cmd->bt4_tx_tx_delta_freq_thr = 15;
 	bt_cmd->bt4_tx_rx_max_freq0 = 15;
+	bt_cmd->override_primary_lut = BT_COEX_INVALID_LUT;
+	bt_cmd->override_secondary_lut = BT_COEX_INVALID_LUT;
 
 	flags = iwlwifi_mod_params.bt_coex_active ?
 			BT_COEX_NW : BT_COEX_DISABLE;
