@@ -693,14 +693,14 @@ static int rga2_convert_dma_buf(struct rga2_req *req)
         }
 	    ion_phys(rga2_drvdata->ion_client, hdl, &phy_addr, &len);
         req->src.yrgb_addr = phy_addr;
-        req->src.uv_addr = req->src.yrgb_addr + (req->dst.vir_w * req->dst.vir_h);
-        req->src.v_addr = req->src.uv_addr + (req->dst.vir_w * req->dst.vir_h)/4;
+        req->src.uv_addr = req->src.yrgb_addr + (req->src.vir_w * req->src.vir_h);
+        req->src.v_addr = req->src.uv_addr + (req->src.vir_w * req->src.vir_h)/4;
         ion_free(rga2_drvdata->ion_client, hdl);
     }
     else {
         req->src.yrgb_addr = req->src.uv_addr;
-        req->src.uv_addr = req->src.yrgb_addr + (req->dst.vir_w * req->dst.vir_h);
-        req->src.v_addr = req->src.uv_addr + (req->dst.vir_w * req->dst.vir_h)/4;
+        req->src.uv_addr = req->src.yrgb_addr + (req->src.vir_w * req->src.vir_h);
+        req->src.v_addr = req->src.uv_addr + (req->src.vir_w * req->src.vir_h)/4;
     }
 
     if(req->dst.yrgb_addr) {
