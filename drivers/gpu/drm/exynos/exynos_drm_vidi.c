@@ -533,12 +533,6 @@ static int vidi_get_modes(struct drm_connector *connector)
 	return drm_add_edid_modes(connector, edid);
 }
 
-static int vidi_mode_valid(struct drm_connector *connector,
-			struct drm_display_mode *mode)
-{
-	return MODE_OK;
-}
-
 static struct drm_encoder *vidi_best_encoder(struct drm_connector *connector)
 {
 	struct vidi_context *ctx = ctx_from_connector(connector);
@@ -548,7 +542,6 @@ static struct drm_encoder *vidi_best_encoder(struct drm_connector *connector)
 
 static struct drm_connector_helper_funcs vidi_connector_helper_funcs = {
 	.get_modes = vidi_get_modes,
-	.mode_valid = vidi_mode_valid,
 	.best_encoder = vidi_best_encoder,
 };
 

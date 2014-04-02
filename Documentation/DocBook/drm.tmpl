@@ -1903,8 +1903,8 @@ void intel_crt_init(struct drm_device *dev)
           <para>
             The function filters out modes larger than
             <parameter>max_width</parameter> and <parameter>max_height</parameter>
-            if specified. It then calls the connector
-            <methodname>mode_valid</methodname> helper operation for  each mode in
+            if specified. It then calls the optional connector
+            <methodname>mode_valid</methodname> helper operation for each mode in
             the probed list to check whether the mode is valid for the connector.
           </para>
         </listitem>
@@ -2265,7 +2265,7 @@ void intel_crt_init(struct drm_device *dev)
           <para>
             Verify whether a mode is valid for the connector. Return MODE_OK for
             supported modes and one of the enum drm_mode_status values (MODE_*)
-            for unsupported modes. This operation is mandatory.
+            for unsupported modes. This operation is optional.
           </para>
           <para>
             As the mode rejection reason is currently not used beside for

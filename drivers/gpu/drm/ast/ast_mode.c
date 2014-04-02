@@ -743,12 +743,6 @@ static int ast_get_modes(struct drm_connector *connector)
 	return 0;
 }
 
-static int ast_mode_valid(struct drm_connector *connector,
-			  struct drm_display_mode *mode)
-{
-	return MODE_OK;
-}
-
 static void ast_connector_destroy(struct drm_connector *connector)
 {
 	struct ast_connector *ast_connector = to_ast_connector(connector);
@@ -765,7 +759,6 @@ ast_connector_detect(struct drm_connector *connector, bool force)
 }
 
 static const struct drm_connector_helper_funcs ast_connector_helper_funcs = {
-	.mode_valid = ast_mode_valid,
 	.get_modes = ast_get_modes,
 	.best_encoder = ast_best_single_encoder,
 };
