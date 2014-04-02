@@ -66,7 +66,7 @@
 /*#define PTL_MD_LUSTRE_COMPLETION_SEMANTICS */
 
 /* Can compare handles directly on Cray Portals */
-#define PtlHandleIsEqual(a,b) ((a) == (b))
+#define PtlHandleIsEqual(a, b) ((a) == (b))
 
 /* Different error types on Cray Portals*/
 #define ptl_err_t ptl_ni_fail_t
