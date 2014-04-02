@@ -71,6 +71,7 @@ spc_emulate_inquiry_std(struct se_cmd *cmd, unsigned char *buf)
 {
 	struct se_lun *lun = cmd->se_lun;
 	struct se_device *dev = cmd->se_dev;
+	struct se_session *sess = cmd->se_sess;
 
 	/* Set RMB (removable media) for tape devices */
 	if (dev->transport->get_device_type(dev) == TYPE_TAPE)
@@ -101,10 +102,13 @@ spc_emulate_inquiry_std(struct se_cmd *cmd, unsigned char *buf)
 	if (dev->dev_attrib.emulate_3pc)
 		buf[5] |= 0x8;
 	/*
-	 * Set Protection (PROTECT) bit when DIF has been enabled.
+	 * Set Protection (PROTECT) bit when DIF has been enabled on the
+	 * device, and the transport supports VERIFY + PASS.
 	 */
-	if (dev->dev_attrib.pi_prot_type)
-		buf[5] |= 0x1;
+	if (sess->sup_prot_ops & (TARGET_PROT_DIN_PASS | TARGET_PROT_DOUT_PASS)) {
+		if (dev->dev_attrib.pi_prot_type)
+			buf[5] |= 0x1;
+	}
 
 	buf[7] = 0x2; /* CmdQue=1 */
 
@@ -473,16 +477,19 @@ static sense_reason_t
 spc_emulate_evpd_86(struct se_cmd *cmd, unsigned char *buf)
 {
 	struct se_device *dev = cmd->se_dev;
+	struct se_session *sess = cmd->se_sess;
 
 	buf[3] = 0x3c;
 	/*
 	 * Set GRD_CHK + REF_CHK for TYPE1 protection, or GRD_CHK
 	 * only for TYPE3 protection.
 	 */
-	if (dev->dev_attrib.pi_prot_type == TARGET_DIF_TYPE1_PROT)
-		buf[4] = 0x5;
-	else if (dev->dev_attrib.pi_prot_type == TARGET_DIF_TYPE3_PROT)
-		buf[4] = 0x4;
+	if (sess->sup_prot_ops & (TARGET_PROT_DIN_PASS | TARGET_PROT_DOUT_PASS)) {
+		if (dev->dev_attrib.pi_prot_type == TARGET_DIF_TYPE1_PROT)
+			buf[4] = 0x5;
+		else if (dev->dev_attrib.pi_prot_type == TARGET_DIF_TYPE3_PROT)
+			buf[4] = 0x4;
+	}
 
 	/* Set HEADSUP, ORDSUP, SIMPSUP */
 	buf[5] = 0x07;
