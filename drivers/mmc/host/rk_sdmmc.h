@@ -15,7 +15,6 @@
 
 #ifndef _DW_MMC_H_
 #define _DW_MMC_H_
-#include "rk_sdmmc_of.h"
 
 #define DW_MMC_240A			0x240a
 
@@ -322,10 +321,8 @@ struct dw_mci_tuning_data {
 struct dw_mci_drv_data {
 	unsigned long	*caps;
 	unsigned int    *hold_reg_flag;
-	#ifdef MMC_QUIRK_INIT_IMPROVE
 	struct delayed_work	dw_mci_sdmmc_delayed_work;
 	struct delayed_work	dw_mci_sdio_delayed_work;
-	#endif
 	int		(*init)(struct dw_mci *host);
 	int		(*setup_clock)(struct dw_mci *host);
 	void		(*prepare_command)(struct dw_mci *host, u32 *cmdr);

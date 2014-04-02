@@ -23,11 +23,6 @@
 #define DRIVER_VER  "Dw-mci-rockchip"
 #define DW_MMC_OF_PROBE 0
 
-#ifdef CONFIG_AP6335
-#define MMC_QUIRK_INIT_IMPROVE
-#endif
-
-
 enum MMC_DBG_MASK{
      MMC_DBG_NONE = 0,
      MMC_DBG_BOOT = BIT(0),    
