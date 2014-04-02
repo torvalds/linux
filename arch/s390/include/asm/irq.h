@@ -16,6 +16,19 @@
 /* This number is used when no interrupt has been assigned */
 #define NO_IRQ		0
 
+/* External interruption codes */
+#define EXT_IRQ_INTERRUPT_KEY	0x0040
+#define EXT_IRQ_CLK_COMP	0x1004
+#define EXT_IRQ_CPU_TIMER	0x1005
+#define EXT_IRQ_WARNING_TRACK	0x1007
+#define EXT_IRQ_MALFUNC_ALERT	0x1200
+#define EXT_IRQ_EMERGENCY_SIG	0x1201
+#define EXT_IRQ_EXTERNAL_CALL	0x1202
+#define EXT_IRQ_TIMING_ALERT	0x1406
+#define EXT_IRQ_MEASURE_ALERT	0x1407
+#define EXT_IRQ_SERVICE_SIG	0x2401
+#define EXT_IRQ_IUCV		0x4000
+
 #ifndef __ASSEMBLY__
 
 #include <linux/hardirq.h>
