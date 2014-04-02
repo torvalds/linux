@@ -23,6 +23,7 @@
 #include <asm/ptrace.h>
 #include <asm/domain.h>
 #include <asm/opcodes-virt.h>
+#include <asm/asm-offsets.h>
 
 #define IOMEM(x)	(x)
 
@@ -183,6 +184,37 @@
  THUMB(	lsr	\rd, \rd, #13		)
 	mov	\rd, \rd, lsl #13
 	.endm
+
+/*
+ * Increment/decrement the preempt count.
+ */
+#ifdef CONFIG_PREEMPT_COUNT
+	.macro	inc_preempt_count, ti, tmp
+	ldr	\tmp, [\ti, #TI_PREEMPT]	@ get preempt count
+	add	\tmp, \tmp, #1			@ increment it
+	str	\tmp, [\ti, #TI_PREEMPT]
+	.endm
+
+	.macro	dec_preempt_count, ti, tmp
+	ldr	\tmp, [\ti, #TI_PREEMPT]	@ get preempt count
+	sub	\tmp, \tmp, #1			@ decrement it
+	str	\tmp, [\ti, #TI_PREEMPT]
+	.endm
+
+	.macro	dec_preempt_count_ti, ti, tmp
+	get_thread_info \ti
+	dec_preempt_count \ti, \tmp
+	.endm
+#else
+	.macro	inc_preempt_count, ti, tmp
+	.endm
+
+	.macro	dec_preempt_count, ti, tmp
+	.endm
+
+	.macro	dec_preempt_count_ti, ti, tmp
+	.endm
+#endif
 
 #define USER(x...)				\
 9999:	x;					\
