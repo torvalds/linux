@@ -84,7 +84,6 @@ extern char __dtb_start[];
 extern char __dtb_end[];
 
 /* For scanning the flat device-tree at boot time */
-extern char *find_flat_dt_string(u32 offset);
 extern int of_scan_flat_dt(int (*it)(unsigned long node, const char *uname,
 				     int depth, void *data),
 			   void *data);
