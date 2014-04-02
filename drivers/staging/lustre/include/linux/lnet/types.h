@@ -112,7 +112,7 @@ static inline void LNetInvalidateHandle(lnet_handle_any_t *h)
  */
 static inline int LNetHandleIsEqual (lnet_handle_any_t h1, lnet_handle_any_t h2)
 {
-	return (h1.cookie == h2.cookie);
+	return h1.cookie == h2.cookie;
 }
 
 /**
@@ -122,7 +122,7 @@ static inline int LNetHandleIsEqual (lnet_handle_any_t h1, lnet_handle_any_t h2)
  */
 static inline int LNetHandleIsInvalid(lnet_handle_any_t h)
 {
-	return (LNET_WIRE_HANDLE_COOKIE_NONE == h.cookie);
+	return LNET_WIRE_HANDLE_COOKIE_NONE == h.cookie;
 }
 
 /**
@@ -381,7 +381,7 @@ typedef enum {
 
 #define LNET_SEQ_BASETYPE       long
 typedef unsigned LNET_SEQ_BASETYPE lnet_seq_t;
-#define LNET_SEQ_GT(a,b)	(((signed LNET_SEQ_BASETYPE)((a) - (b))) > 0)
+#define LNET_SEQ_GT(a, b)	(((signed LNET_SEQ_BASETYPE)((a) - (b))) > 0)
 
 /**
  * Information about an event on a MD.
