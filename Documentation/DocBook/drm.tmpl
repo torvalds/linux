@@ -1194,7 +1194,7 @@ int max_width, max_height;</synopsis>
           pointer to CRTC functions.
         </para>
       </sect3>
-      <sect3>
+      <sect3 id="drm-kms-crtcops">
         <title>CRTC Operations</title>
         <sect4>
           <title>Set Configuration</title>
@@ -1335,15 +1335,47 @@ int max_width, max_height;</synopsis>
 	optionally scale it to a destination size. The result is then blended
 	with or overlayed on top of a CRTC.
       </para>
+      <para>
+      The DRM core recognizes three types of planes:
+      <itemizedlist>
+        <listitem>
+        DRM_PLANE_TYPE_PRIMARY represents a "main" plane for a CRTC.  Primary
+        planes are the planes operated upon by by CRTC modesetting and flipping
+        operations described in <xref linkend="drm-kms-crtcops"/>.
+        </listitem>
+        <listitem>
+        DRM_PLANE_TYPE_CURSOR represents a "cursor" plane for a CRTC.  Cursor
+        planes are the planes operated upon by the DRM_IOCTL_MODE_CURSOR and
+        DRM_IOCTL_MODE_CURSOR2 ioctls.
+        </listitem>
+        <listitem>
+        DRM_PLANE_TYPE_OVERLAY represents all non-primary, non-cursor planes.
+        Some drivers refer to these types of planes as "sprites" internally.
+        </listitem>
+      </itemizedlist>
+      For compatibility with legacy userspace, only overlay planes are made
+      available to userspace by default.  Userspace clients may set the
+      DRM_CLIENT_CAP_UNIVERSAL_PLANES client capability bit to indicate that
+      they wish to receive a universal plane list containing all plane types.
+      </para>
       <sect3>
         <title>Plane Initialization</title>
         <para>
-          Planes are optional. To create a plane, a KMS drivers allocates and
+          To create a plane, a KMS drivers allocates and
           zeroes an instances of struct <structname>drm_plane</structname>
           (possibly as part of a larger structure) and registers it with a call
-          to <function>drm_plane_init</function>. The function takes a bitmask
+          to <function>drm_universal_plane_init</function>. The function takes a bitmask
           of the CRTCs that can be associated with the plane, a pointer to the
-          plane functions and a list of format supported formats.
+          plane functions, a list of format supported formats, and the type of
+          plane (primary, cursor, or overlay) being initialized.
+        </para>
+        <para>
+          Cursor and overlay planes are optional.  All drivers should provide
+          one primary plane per CRTC (although this requirement may change in
+          the future); drivers that do not wish to provide special handling for
+          primary planes may make use of the helper functions described in
+          <xref linkend="drm-kms-planehelpers"/> to create and register a
+          primary plane with standard capabilities.
         </para>
       </sect3>
       <sect3>
@@ -1774,7 +1806,7 @@ void intel_crt_init(struct drm_device *dev)
   <sect1>
     <title>Mode Setting Helper Functions</title>
     <para>
-      The CRTC, encoder and connector functions provided by the drivers
+      The plane, CRTC, encoder and connector functions provided by the drivers
       implement the DRM API. They're called by the DRM core and ioctl handlers
       to handle device state changes and configuration request. As implementing
       those functions often requires logic not specific to drivers, mid-layer
@@ -1782,8 +1814,8 @@ void intel_crt_init(struct drm_device *dev)
     </para>
     <para>
       The DRM core contains one mid-layer implementation. The mid-layer provides
-      implementations of several CRTC, encoder and connector functions (called
-      from the top of the mid-layer) that pre-process requests and call
+      implementations of several plane, CRTC, encoder and connector functions
+      (called from the top of the mid-layer) that pre-process requests and call
       lower-level functions provided by the driver (at the bottom of the
       mid-layer). For instance, the
       <function>drm_crtc_helper_set_config</function> function can be used to
@@ -2292,6 +2324,10 @@ void intel_crt_init(struct drm_device *dev)
       </para>
 !Iinclude/linux/hdmi.h
 !Edrivers/video/hdmi.c
+    </sect2>
+    <sect2>
+      <title id="drm-kms-planehelpers">Plane Helper Reference</title>
+!Edrivers/gpu/drm/drm_plane_helper.c Plane Helpers
     </sect2>
   </sect1>
 

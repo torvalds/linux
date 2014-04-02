@@ -369,7 +369,7 @@ static int radeon_crtc_page_flip(struct drm_crtc *crtc,
 	work->event = event;
 	work->rdev = rdev;
 	work->crtc_id = radeon_crtc->crtc_id;
-	old_radeon_fb = to_radeon_framebuffer(crtc->fb);
+	old_radeon_fb = to_radeon_framebuffer(crtc->primary->fb);
 	new_radeon_fb = to_radeon_framebuffer(fb);
 	/* schedule unpin of the old buffer */
 	obj = old_radeon_fb->obj;
@@ -460,7 +460,7 @@ static int radeon_crtc_page_flip(struct drm_crtc *crtc,
 	spin_unlock_irqrestore(&dev->event_lock, flags);
 
 	/* update crtc fb */
-	crtc->fb = fb;
+	crtc->primary->fb = fb;
 
 	r = drm_vblank_get(dev, radeon_crtc->crtc_id);
 	if (r) {

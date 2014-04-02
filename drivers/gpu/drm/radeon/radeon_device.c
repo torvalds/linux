@@ -1424,7 +1424,7 @@ int radeon_suspend_kms(struct drm_device *dev, bool suspend, bool fbcon)
 
 	/* unpin the front buffers */
 	list_for_each_entry(crtc, &dev->mode_config.crtc_list, head) {
-		struct radeon_framebuffer *rfb = to_radeon_framebuffer(crtc->fb);
+		struct radeon_framebuffer *rfb = to_radeon_framebuffer(crtc->primary->fb);
 		struct radeon_bo *robj;
 
 		if (rfb == NULL || rfb->obj == NULL) {
