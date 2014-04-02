@@ -49,7 +49,7 @@
 #define DBG(x...) do { } while (0)
 #endif
 
-#define HOOK_ADC_SAMPLE_TIME	50
+#define HOOK_ADC_SAMPLE_TIME	100
 #define HOOK_LEVEL_HIGH  		410		//1V*1024/2.5
 #define HOOK_LEVEL_LOW  		204		//0.5V*1024/2.5
 #define HOOK_DEFAULT_VAL  		1024	
@@ -173,7 +173,7 @@ static irqreturn_t headset_interrupt(int irq, void *dev_id)
 		if(pdata->chan != 0)
 		{
 			//detect Hook key
-			schedule_delayed_work(&headset_info->h_delayed_work[HOOK],msecs_to_jiffies(0));
+			schedule_delayed_work(&headset_info->h_delayed_work[HOOK],msecs_to_jiffies(200));
 		}
 		else
 		{
