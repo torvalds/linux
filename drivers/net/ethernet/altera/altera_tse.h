@@ -23,7 +23,23 @@
 
 #include <linux/netdevice.h>
 #include <linux/phy.h>
-#include <linux/bitops.h>
+
+#define __packed_1_	__attribute__((packed, aligned(1)))
+
+/*** Define architecture specific parameters ***/
+
+#define ALT_TSE_TOTAL_SGDMA_DESC_COUNT	128	/* Maximum number of descriptors
+						   for TX and RX
+						 */
+#define ALT_TSE_TX_SGDMA_DESC_COUNT	64	/* Maximum number of descriptors
+						   for TX
+						 */
+#define ALT_TSE_RX_SGDMA_DESC_COUNT	64	/* Maximum number of descriptors
+						   for RX
+						 */
+#define ALT_TSE_TOTAL_SGDMA_DESC_SIZE	(ALT_TSE_TOTAL_SGDMA_DESC_COUNT*0x20)
+#define ALT_TX_RING_MOD_MASK		(ALT_TSE_TX_SGDMA_DESC_COUNT - 1)
+#define ALT_RX_RING_MOD_MASK		(ALT_TSE_RX_SGDMA_DESC_COUNT - 1)
 
 /************************************************************************/
 /*                                                                      */
@@ -31,28 +47,159 @@
 /*                                                                      */
 /************************************************************************/
 
+#define ENABLE_PHY_LOOPBACK		0	/* set 1 for enable loopback
+						 */
+
+/* Assume TSE_MAC_FIFO_WIDTH == 32 from SOPC builder */
+#define ALT_TSE_MAC_FIFO_WIDTH			4	/* TX/RX FIFO width in
+							   bytes
+							 */
+
+#define ALT_TSE_DEFAULT_DUPLEX_MODE		1
+#define ALT_TSE_DEFAULT_SPEED			1
+
 #define ALT_TSE_SW_RESET_WATCHDOG_CNTR		10000
+#define ALT_TSE_SGDMA_BUSY_WATCHDOG_CNTR	5000000
+#define ALT_AUTONEG_TIMEOUT_THRESHOLD		250000
+#define ALT_CHECKLINK_TIMEOUT_THRESHOLD		1000000
+#define ALT_NOMDIO_TIMEOUT_THRESHOLD		1000000
+#define ALT_DISGIGA_TIMEOUT_THRESHOLD		5000000
+#define ALT_ALARM_TIMEOUT_THRESHOLD		0xFFFFFFFF
 
-/* MAC Command_Config Register Bit Definitions
- */
-#define MAC_CMDCFG_TX_ENA		BIT(0)
-#define MAC_CMDCFG_RX_ENA		BIT(1)
-#define MAC_CMDCFG_ETH_SPEED		BIT(3)
-#define MAC_CMDCFG_PROMIS_EN		BIT(4)
-#define MAC_CMDCFG_PAD_EN		BIT(5)
-#define MAC_CMDCFG_CRC_FWD		BIT(6)
-#define MAC_CMDCFG_TX_ADDR_INS		BIT(9)
-#define MAC_CMDCFG_HD_ENA		BIT(10)
-#define MAC_CMDCFG_SW_RESET		BIT(13)
-#define MAC_CMDCFG_LOOP_ENA		BIT(15)
-#define MAC_CMDCFG_TX_ADDR_SEL(x)	(((x) & 0x7) << 16)
-#define MAC_CMDCFG_CNTL_FRM_ENA		BIT(23)
-#define MAC_CMDCFG_ENA_10		BIT(25)
-#define MAC_CMDCFG_RX_ERR_DISC		BIT(26)
-#define MAC_CMDCFG_CNT_RESET		BIT(31)
+/* Command_Config Register Bit Definitions */
 
-/* MDIO registers within MAC register Space
- */
+typedef volatile union __alt_tse_command_config {
+unsigned int image;
+struct {
+unsigned int transmit_enable:1,	/* bit 0 enables transmit datapath */
+	receive_enable:1,	/* bit 1 enables receive datapath */
+	pause_frame_xon_gen:1,	/* bit 2 generates a pause frame with pause
+				   quanta 0
+				 */
+	ethernet_speed:1, /* bit 3 speed control for MAC : 10/100/1000 Mb*/
+	promiscuous_enable:1,	/* bit 4 enables mac promiscuous operation */
+	pad_enable:1,	/* bit 5 removes pad field from received frame */
+	crc_forward:1,	/* bit 6 removes/forwards CRC field from received frame
+			   before forwarding it to application
+			 */
+	pause_frame_forward:1, /* bit 7 terminates or forwards pause frame */
+	pause_frame_ignore:1, /* bit 8 ignore pause frame quanta */
+	set_mac_address_on_tx:1, /* bit 9 overwrite source MAC address in
+				    transmit frame as per setting in MAC core
+				  */
+	halfduplex_enable:1, /* bit 10 enable half duplex mode */
+	excessive_collision:1, /* bit 11 discard frame after detecting
+				  collision on 16 consecutive retransmitions
+				*/
+	late_collision:1, /* bit 12 detects a collision after 64 bytes
+			     are transmitted, and discards the frame
+			   */
+	software_reset:1, /* bit 13 disable the transmit and receive
+			     logic, flush the receive FIFO, and reset
+			     the statistics counters.
+			   */
+	multicast_hash_mode_sel:1, /* bit 14 select multicasts
+				      address-resolution hash-code mode.
+				    */
+	loopback_enable:1,	/* bit 15 enables a loopback.*/
+	src_mac_addr_sel_on_tx:3, /* bit 18:16 determines which address the
+				     MAC function selects to overwrite the
+				     source MAC address
+				   */
+	magic_packet_detect:1, /* bit 19 Enable magic packet detection or
+				  Wake-on-LAN
+				*/
+	sleep_mode_enable:1, /* bit 20 1 puts the MAC function into sleep mode*/
+	wake_up_request:1, /* bit 21 indicate node wake up request */
+	pause_frame_xoff_gen:1, /* bit 22 generate a pause frame with the
+				   pause quanta set to the value configured
+				   in the pause_quant register
+				 */
+	control_frame_enable:1, /* bit 23 enable to accept and forward MAC
+				   control frame
+				 */
+	payload_len_chk_disable:1, /* bit 24 check the actual payload length
+				      of received frames against the length
+				      field in the received frames
+				    */
+	enable_10mbps_intf:1,	/* bit 25 enables the 10Mbps interface*/
+	rx_error_discard_enable:1, /* bit 26 discards erroneous frames received
+				    */
+	reserved_bits:4,	/* bit 30:27 reserve   */
+	self_clear_counter_reset:1; /* bit 31 clears the statistics counters*/
+} __packed_1_ bits;
+} __packed_1_ alt_tse_command_config;
+
+
+#define ALTERA_TSE_CMD_TX_ENA_MSK		(0x00000001)
+#define ALTERA_TSE_CMD_RX_ENA_MSK		(0x00000002)
+#define ALTERA_TSE_CMD_XON_GEN_MSK		(0x00000004)
+#define ALTERA_TSE_CMD_ETH_SPEED_MSK		(0x00000008)
+#define ALTERA_TSE_CMD_PROMIS_EN_MSK		(0x00000010)
+#define ALTERA_TSE_CMD_PAD_EN_MSK		(0x00000020)
+#define ALTERA_TSE_CMD_CRC_FWD_MSK		(0x00000040)
+#define ALTERA_TSE_CMD_PAUSE_FWD_MSK		(0x00000080)
+#define ALTERA_TSE_CMD_PAUSE_IGNORE_MSK		(0x00000100)
+#define ALTERA_TSE_CMD_TX_ADDR_INS_MSK		(0x00000200)
+#define ALTERA_TSE_CMD_HD_ENA_MSK		(0x00000400)
+#define ALTERA_TSE_CMD_EXCESS_COL_MSK		(0x00000800)
+#define ALTERA_TSE_CMD_LATE_COL_MSK		(0x00001000)
+#define ALTERA_TSE_CMD_SW_RESET_MSK		(0x00002000)
+#define ALTERA_TSE_CMD_MHASH_SEL_MSK		(0x00004000)
+#define ALTERA_TSE_CMD_LOOPBACK_MSK		(0x00008000)
+/* Bits (18:16) = address select */
+#define ALTERA_TSE_CMD_TX_ADDR_SEL_MSK		(0x00070000)
+#define ALTERA_TSE_CMD_MAGIC_ENA_MSK		(0x00080000)
+#define ALTERA_TSE_CMD_SLEEP_MSK		(0x00100000)
+#define ALTERA_TSE_CMD_WAKEUP_MSK		(0x00200000)
+#define ALTERA_TSE_CMD_XOFF_GEN_MSK		(0x00400000)
+#define ALTERA_TSE_CMD_CNTL_FRM_ENA_MSK		(0x00800000)
+#define ALTERA_TSE_CMD_NO_LENGTH_CHECK_MSK	(0x01000000)
+#define ALTERA_TSE_CMD_ENA_10_MSK		(0x02000000)
+#define ALTERA_TSE_CMD_RX_ERR_DISC_MSK		(0x04000000)
+/* Bits (30..27) reserved */
+#define ALTERA_TSE_CMD_CNT_RESET_MSK		(0x80000000)
+
+/* Tx_Cmd_Stat Register Bit Definitions */
+
+typedef volatile union __alt_tse_tx_cmd_stat {
+	unsigned int image;
+	struct {
+	unsigned int reserved_lsbs:17,	/* bit 16:0 */
+		omit_crc:1,	/* bit 17    enable or disable to calculate and
+					     append the CRC to the frame in
+					     MAC
+				 */
+		tx_shift16:1,	/* bit 18    remove the first two bytes from the
+					     frame before transmitting it for
+					     excepting 32 bits word aligned
+					     frames
+				 */
+		reserved_msbs:13;	/* bit 31:19 */
+
+	} __packed_1_ bits;
+} alt_tse_tx_cmd_stat;
+#define ALTERA_TSE_TX_CMD_STAT_TX_SHIFT16   (0x00040000)
+#define ALTERA_TSE_TX_CMD_STAT_OMIT_CRC     (0x00020000)
+
+/* Rx_Cmd_Stat Register Bit Definitions */
+
+typedef volatile union __alt_tse_rx_cmd_stat {
+	unsigned int image;
+	struct {
+	unsigned int  reserved_lsbs:25,	/* bit 24:0  */
+		rx_shift16:1,	/* bit 25   shifts the beginning of the packet
+					    to the right by 2 bytes and inserts
+					    zeros in the empty bytes to word
+					    align the packet
+				 */
+		reserved_msbs:6;	/* bit 31:26 */
+	} __packed_1_ bits;
+} alt_tse_rx_cmd_stat;
+#define ALTERA_TSE_RX_CMD_STAT_RX_SHIFT16   (0x02000000)
+
+/* MDIO registers within MAC register Space */
+
 struct alt_tse_mdio {
 	unsigned int control;	/* PHY device operation control register */
 	unsigned int status;	/* PHY device operation status register */
@@ -89,11 +236,13 @@ struct alt_tse_mdio {
 	unsigned int reg1d;
 	unsigned int reg1e;
 	unsigned int reg1f;
-};
+} ;
 
-/* MAC register Space
- */
-struct alt_tse_mac {
+
+
+/* MAC register Space */
+
+typedef volatile struct {
 	/* Bits 15:0: MegaCore function revision (0x0800). Bit 31:16: Customer
 	   specific revision
 	 */
@@ -105,7 +254,7 @@ struct alt_tse_mac {
 	/* The host processor uses this register to control and configure the
 	  MAC block.
 	 */
-	unsigned int	command_config;
+	alt_tse_command_config	command_config;
 	/* 32-bit primary MAC address word 0 bits 0 to 31 of the primary
 	  MAC address.
 	 */
@@ -115,40 +264,40 @@ struct alt_tse_mac {
 	 */
 	unsigned int	mac_addr_1;
 	/* 14-bit maximum frame length. The MAC receive logic */
-	unsigned int	frm_length;
+	unsigned int	max_frame_length;
 	/* The pause quanta is used in each pause frame sent to a remote
 	   Ethernet device, in increments of 512 Ethernet bit times.
 	 */
 	unsigned int	pause_quanta;
 	/* 12-bit receive FIFO section-empty threshold. */
-	unsigned int	rx_section_empty;
+	unsigned int	rx_sel_empty_threshold;
 	/* 12-bit receive FIFO section-full threshold */
-	unsigned int	rx_section_full;
+	unsigned int	rx_sel_full_threshold;
 	/* 12-bit transmit FIFO section-empty threshold. */
-	unsigned int	tx_section_empty;
+	unsigned int	tx_sel_empty_threshold;
 	/* 12-bit transmit FIFO section-full threshold. */
-	unsigned int	tx_section_full;
+	unsigned int	tx_sel_full_threshold;
 	/* 12-bit receive FIFO almost-empty threshold */
-	unsigned int	rx_almost_empty;
+	unsigned int	rx_almost_empty_threshold;
 	/* 12-bit receive FIFO almost-full threshold. */
-	unsigned int	rx_almost_full;
+	unsigned int	rx_almost_full_threshold;
 	/* 12-bit transmit FIFO almost-empty threshold */
-	unsigned int	tx_almost_empty;
+	unsigned int	tx_almost_empty_threshold;
 	/* 12-bit transmit FIFO almost-full threshold */
-	unsigned int	tx_almost_full;
+	unsigned int	tx_almost_full_threshold;
 	/* MDIO address of PHY Device 0. Bits 0 to 4 hold a 5-bit PHY address.*/
 	unsigned int	mdio_phy0_addr;
 	/* MDIO address of PHY Device 1. Bits 0 to 4 hold a 5-bit PHY address.*/
 	unsigned int	mdio_phy1_addr;
 
-	/* Bit[15:0]—16-bit holdoff quanta */
-	unsigned int	holdoff_quant;
-
 	/* only if 100/1000 BaseX PCS, reserved otherwise */
 	unsigned int	reservedx44[5];
-
+	/* This register is used to check the correct completion of register
+	  read access
+	 */
+	unsigned int	reg_read_access_status;
 	/* Minimum IPG between consecutive transmit frame in terms of bytes */
-	unsigned int	tx_ipg_length;
+	unsigned int	min_tx_ipg_length;
 
 	/* IEEE 802.3 oEntity Managed Object Support */
 	unsigned int	aMACID_1;	/*The MAC addresses*/
@@ -184,7 +333,7 @@ struct alt_tse_mac {
 					*/
 	unsigned int	ifInMulticastPkts; /*Number of valid received multicasts
 					     frames (without pause).
-				tse_priv->mac_dev->command_config.image	    */
+					    */
 	unsigned int	ifInBroadcastPkts;	/*Number of valid received
 						  broadcast frames.
 						 */
@@ -194,7 +343,7 @@ struct alt_tse_mac {
 	unsigned int	ifOutBroadcastPkts;
 
 	/* IETF RMON MIB Object Support */
-	unsigned int	etherStatsDropEvents;	/* Counts the number of dropped
+	unsigned int	etherStatsDropEvent;	/* Counts the number of dropped
 						  packets due to internal errors
 						  of the MAC client.
 						 */
@@ -240,20 +389,20 @@ struct alt_tse_mac {
 	unsigned int	reservedxE4;
 
 	/* FIFO control register. */
-	unsigned int	tx_cmd_stat;
-	unsigned int	rx_cmd_stat;
+	alt_tse_tx_cmd_stat	tx_cmd_stat;
+	alt_tse_rx_cmd_stat	rx_cmd_stat;
 
-	/* Extended Statistics Counters */
-	unsigned int	msb_aOctetsTransmittedOK;
-	unsigned int	msb_aOctetsReceivedOK;
-	unsigned int	msb_etherStatsOctets;
-
-	unsigned int	reserved1;
+	unsigned int		ipaccTxConf;	/* TX configuration */
+	unsigned int		ipaccRxConf;	/* RX configuration */
+	unsigned int		ipaccRxStat;	/* IP status */
+	unsigned int		ipaccRxStatSum;	/* current frame's IP payload
+						   sum result
+						 */
 
 	/* Multicast address resolution table, mapped in the controller address
 	  space.
 	 */
-	unsigned int	hash_table[64];
+	unsigned int		hash_table[64];
 
 	/* Registers 0 to 31 within PHY device 0/1 connected to the MDIO PHY
 	  management interface.
@@ -262,73 +411,67 @@ struct alt_tse_mac {
 	struct alt_tse_mdio	mdio_phy1;
 
 	/*4 Supplemental MAC Addresses*/
-	unsigned int	supp_mac_addr_0_0;
-	unsigned int	supp_mac_addr_0_1;
-	unsigned int	supp_mac_addr_1_0;
-	unsigned int	supp_mac_addr_1_1;
-	unsigned int	supp_mac_addr_2_0;
-	unsigned int	supp_mac_addr_2_1;
-	unsigned int	supp_mac_addr_3_0;
-	unsigned int	supp_mac_addr_3_1;
+	unsigned int		supp_mac_addr_0_0;
+	unsigned int		supp_mac_addr_0_1;
+	unsigned int		supp_mac_addr_1_0;
+	unsigned int		supp_mac_addr_1_1;
+	unsigned int		supp_mac_addr_2_0;
+	unsigned int		supp_mac_addr_2_1;
+	unsigned int		supp_mac_addr_3_0;
+	unsigned int		supp_mac_addr_3_1;
 
-	unsigned int	reserved2[8];
+	unsigned int		reservedx320[56];
+} alt_tse_mac;
 
-	/* IEEE 1588v2 Feature */
-	unsigned int	tx_period;
-	unsigned int	tx_adjust_fns;
-	unsigned int	tx_adjust_ns;
-	unsigned int	rx_period;
-	unsigned int	rx_adjust_fns;
-	unsigned int	rx_adjust_ns;
-
-	unsigned int	reservedx320[42];
-};
-
-/* Transmit and Receive Command Registers Bit Definitions
- */
-#define ALT_TSE_TX_CMD_STAT_OMIT_CRC	BIT(17)
-#define ALT_TSE_TX_CMD_STAT_TX_SHIFT16	BIT(18)
-#define ALT_TSE_RX_CMD_STAT_RX_SHIFT16	BIT(25)
-
-/* This structure is private to each device.
+/* This structure is private to each device. It is used to pass
+ * packets in and out, so there is place for a packet
  */
 struct alt_tse_private {
 	struct net_device *dev;
-	struct device *device;
 
-	/* NAPI struct for NAPI interface */
+/* NAPI struct for NAPI interface */
 	struct napi_struct napi;
-	struct tse_regs *regs;
 
-	unsigned int max_frame_size;
-	unsigned int max_data_size;
+	alt_tse_mac *mac_dev;
 
-	/* Rx bufers queue */
-	dma_addr_t *rx_skbuff_dma;
-	struct sk_buff **rx_skbuff;
-	unsigned int rx_desc_num;
-	unsigned int cur_rx_desc;
-	unsigned int dirty_rx_desc;
+	volatile struct alt_sgdma_registers *rx_sgdma_dev;
+	volatile struct alt_sgdma_registers *tx_sgdma_dev;
 
-	/* Tx buffers queue */
-	dma_addr_t *tx_skbuff_dma;
-	struct sk_buff **tx_skbuff;
-	unsigned int cur_tx;
-	unsigned int dirty_tx;
-	unsigned int dma_tx_size;
-
-	unsigned int enable_sup_addr;
-	unsigned int ena_hash;
+	void __iomem *desc_mem_base;	/* Descriptor memory base address */
 
 	/* Interrupts */
 	unsigned int tx_irq;
 	unsigned int rx_irq;
 
-	/* RX/TX FIFO depths */
-	unsigned int tx_fifo_depth;
-	unsigned int rx_fifo_depth;
+	unsigned char tx_shift_16_ok;
+	unsigned char rx_shift_16_ok;
+	unsigned char last_tx_shift_16;
+	unsigned char last_rx_shift_16;
 
-	spinlock_t mac_cfg_lock;
+	/* RX/TX FIFO depths */
+	unsigned int tse_tx_depth;
+	unsigned int tse_rx_depth;
+
+	/* Location for the SGDMA Descriptors */
+	volatile struct alt_sgdma_descriptor *desc;
+	volatile struct alt_sgdma_descriptor *sgdma_rx_desc;
+	volatile struct alt_sgdma_descriptor *sgdma_tx_desc;
+
+	unsigned int current_mtu;
+
+	volatile unsigned int rx_sgdma_imask;
+	volatile unsigned int tx_sgdma_imask;
+
+	unsigned int rx_sgdma_descriptor_tail;
+	unsigned int rx_sgdma_descriptor_head;
+
+	unsigned int tx_sgdma_descriptor_tail;
+	unsigned int tx_sgdma_descriptor_head;
+
+	struct sk_buff *rx_skb[ALT_TSE_RX_SGDMA_DESC_COUNT];
+	struct sk_buff *tx_skb[ALT_TSE_TX_SGDMA_DESC_COUNT];
+
+	spinlock_t rx_lock;
 	spinlock_t tx_lock;
 
 	/* PHY */
@@ -346,117 +489,107 @@ struct alt_tse_private {
 
 /************************************************************************/
 /*                                                                      */
-/* Altera Modular SGDMA related definitions                             */
+/* Altera SG-DMA related definitions                                    */
 /*                                                                      */
 /************************************************************************/
 
-/* mSGDMA standard descriptor format
- */
-struct msgdma_desc {
-	u32 read_addr;	/* data buffer source address */
-	u32 write_addr;	/* data buffer destination address */
-	u32 len;	/* the number of bytes to transfer per descriptor */
-	u32 control;	/* characteristics of the transfer */
-};
 
-/* mSGDMA extended descriptor format
- */
-struct msgdma_extended_desc {
-	u32 read_addr_lo;	/* data buffer source address low bits */
-	u32 write_addr_lo;	/* data buffer destination address low bits */
-	u32 len;		/* the number of bytes to transfer
-				   per descriptor
-				 */
-	u32 burst_seq_num;	/* bit 31:24 write burst
-				   bit 23:16 read burst
-				   bit 15:0  sequence number
-				 */
-	u32 stride;		/* bit 31:16 write stride
-				   bit 15:0  read stride
-				 */
-	u32 read_addr_hi;	/* data buffer source address high bits */
-	u32 write_addr_hi;	/* data buffer destination address high bits */
-	u32 control;		/* characteristics of the transfer */
-};
 
-/* mSGDMA descriptor control field bit definitions
- */
-#define MSGDMA_DESC_CTL_SET_CH(x)	((x) & 0xff)
-#define MSGDMA_DESC_CTL_GEN_SOP		BIT(8)
-#define MSGDMA_DESC_CTL_GEN_EOP		BIT(9)
-#define MSGDMA_DESC_CTL_PARK_READS	BIT(10)
-#define MSGDMA_DESC_CTL_PARK_WRITES	BIT(11)
-#define MSGDMA_DESC_CTL_END_ON_EOP	BIT(12)
-#define MSGDMA_DESC_CTL_END_ON_LEN	BIT(13)
-#define MSGDMA_DESC_CTL_TR_COMP_IRQ	BIT(14)
-#define MSGDMA_DESC_CTL_EARLY_IRQ	BIT(15)
-#define MSGDMA_DESC_CTL_TR_ERR_IRQ_MSK	(0xff << 16)
-#define MSGDMA_DESC_CTL_EARLY_DONE	BIT(24)
-/* Writing ‘1’ to the ‘go’ bit commits the entire descriptor into the
- * descriptor FIFO(s)
- */
-#define MSGDMA_DESC_CTL_GO		BIT(31)
+#define ALT_SGDMA_STATUS_ERROR_MSK				(0x00000001)
+#define ALT_SGDMA_STATUS_EOP_ENCOUNTERED_MSK			(0x00000002)
+#define ALT_SGDMA_STATUS_DESC_COMPLETED_MSK			(0x00000004)
+#define ALT_SGDMA_STATUS_CHAIN_COMPLETED_MSK			(0x00000008)
+#define ALT_SGDMA_STATUS_BUSY_MSK				(0x00000010)
 
-/* mSGDMA dispatcher control and status register map
- */
-struct msgdma_csr {
-	u32 status;		/* Read/Clear */
-	u32 control;		/* Read/Write */
-	u32 rw_fill_level;	/* bit 31:16 - write fill level
-				   bit 15:0  - read fill level
-				 */
-	u32 resp_fill_level;	/* bit 15:0 */
-	u32 rw_seq_num;		/* bit 31:16 - write sequence number
-				   bit 15:0  - read sequence number
-				 */
-	u32 pad[3];		/* reserved */
-};
+#define ALT_SGDMA_CONTROL_IE_ERROR_MSK				(0x00000001)
+#define ALT_SGDMA_CONTROL_IE_EOP_ENCOUNTERED_MSK		(0x00000002)
+#define ALT_SGDMA_CONTROL_IE_DESC_COMPLETED_MSK			(0x00000004)
+#define ALT_SGDMA_CONTROL_IE_CHAIN_COMPLETED_MSK		(0x00000008)
+#define ALT_SGDMA_CONTROL_IE_GLOBAL_MSK				(0x00000010)
+#define ALT_SGDMA_CONTROL_RUN_MSK				(0x00000020)
+#define ALT_SGDMA_CONTROL_STOP_DMA_ER_MSK			(0x00000040)
+#define ALT_SGDMA_CONTROL_IE_MAX_DESC_PROCESSED_MSK		(0x00000080)
+#define ALT_SGDMA_CONTROL_MAX_DESC_PROCESSED_MSK		(0x0000FF00)
+#define ALT_SGDMA_CONTROL_SOFTWARERESET_MSK			(0x00010000)
+#define ALT_SGDMA_CONTROL_PARK_MSK				(0x00020000)
+#define ALT_SGDMA_CONTROL_CLEAR_INTERRUPT_MSK			(0x80000000)
 
-/* mSGDMA CSR status register bit definitions
- */
-#define MSGDMA_CSR_STAT_BUSY			BIT(0)
-#define MSGDMA_CSR_STAT_DESC_BUF_EMPTY		BIT(1)
-#define MSGDMA_CSR_STAT_DESC_BUF_FULL		BIT(2)
-#define MSGDMA_CSR_STAT_RESP_BUF_EMPTY		BIT(3)
-#define MSGDMA_CSR_STAT_RESP_BUF_FULL		BIT(4)
-#define MSGDMA_CSR_STAT_STOPPED			BIT(5)
-#define MSGDMA_CSR_STAT_RESETTING		BIT(6)
-#define MSGDMA_CSR_STAT_STOPPED_ON_ERR		BIT(7)
-#define MSGDMA_CSR_STAT_STOPPED_ON_EARLY	BIT(8)
-#define MSGDMA_CSR_STAT_IRQ			BIT(9)
-#define MSGDMA_CSR_STAT_MASK			0x3FF
-#define MSGDMA_CSR_STAT_MASK_WITHOUT_IRQ	0x1FF
+#define ALTERA_TSE_SGDMA_INTR_MASK			\
+				(ALT_SGDMA_CONTROL_IE_CHAIN_COMPLETED_MSK \
+				| ALT_SGDMA_STATUS_DESC_COMPLETED_MSK	\
+				| ALT_SGDMA_CONTROL_IE_GLOBAL_MSK)
 
-/* mSGDMA CSR control register bit definitions
+/* Buffer Descriptor data structure
+ *
+ * The SGDMA controller buffer descriptor allocates
+ * 64 bits for each address. To support ANSI C, the
+ * struct implementing a descriptor places 32-bits
+ * of padding directly above each address; each pad must
+ * be cleared when initializing a descriptor.
  */
-#define MSGDMA_CSR_CTL_STOP			BIT(0)
-#define MSGDMA_CSR_CTL_RESET			BIT(1)
-#define MSGDMA_CSR_CTL_STOP_ON_ERR		BIT(2)
-#define MSGDMA_CSR_CTL_STOP_ON_EARLY		BIT(3)
-#define MSGDMA_CSR_CTL_GLOBAL_INTR		BIT(4)
-#define MSGDMA_CSR_CTL_STOP_DESCS		BIT(5)
+struct alt_sgdma_descriptor {
+	/*Specifies the address of data to be read.*/
+	unsigned int	*source;
+	unsigned int	source_pad;
+	/*Specifies the address to which data should be written.*/
+	unsigned int	*destination;
+	unsigned int	destination_pad;
+	/*Specifies the next descriptor in the linked list.*/
+	unsigned int	*next;
+	unsigned int	next_pad;
 
-/* mSGDMA response register map
- */
-struct msgdma_response {
-	u32 bytes_transferred;
-	u32 status;
-};
+	/*Specifies the number of bytes to transfer*/
+	unsigned short	bytes_to_transfer;
+	unsigned char	read_burst;
+	unsigned char	write_burst;
 
-/* mSGDMA response register bit definitions
- */
-#define MSGDMA_RESP_EARLY_TERM	BIT(8)
-#define MSGDMA_RESP_ERR_MASK	0xFF
+	/* Specifies the number of bytes that are successfully transferred by
+	   the DMA hardware
+	 */
+	unsigned short	actual_bytes_transferred;
+	unsigned char	descriptor_status;
+	unsigned char	descriptor_control;
 
-/* TSE I/O registers map
+} __packed_1_;
+
+
+/* Descriptor control bit masks & offsets
+ *
+ * Note: The control byte physically occupies bits [31:24] in memory.
+ *       The following bit-offsets are expressed relative to the LSB of
+ *       the control register bitfield.
  */
-struct tse_regs {
-	struct alt_tse_mac mac;
-	struct msgdma_csr tx_csr;		/* MM -> ST */
-	struct msgdma_extended_desc tx_desc;	/* MM -> ST */
-	struct msgdma_csr rx_csr;		/* MM <- ST */
-	struct msgdma_extended_desc rx_desc;	/* MM <- ST */
-	struct msgdma_response rx_resp;		/* MM <- ST */
+#define ALT_SGDMA_DESCRIPTOR_CONTROL_GENERATE_EOP_MSK		(0x00000001)
+#define ALT_SGDMA_DESCRIPTOR_CONTROL_READ_FIXED_ADDRESS_MSK	(0x00000002)
+#define ALT_SGDMA_DESCRIPTOR_CONTROL_WRITE_FIXED_ADDRESS_MSK	(0x00000004)
+#define ALT_SGDMA_DESCRIPTOR_CONTROL_ATLANTIC_CHANNEL_MSK	(0x00000008)
+#define ALT_SGDMA_DESCRIPTOR_CONTROL_OWNED_BY_HW_MSK		(0x00000080)
+
+/* Descriptor status bit masks & offsets
+ *
+ * Note: The status byte physically occupies bits [23:16] in memory.
+ *       The following bit-offsets are expressed relative to the LSB of
+ *       the status register bitfield.
+ */
+#define ALT_SGDMA_DESCRIPTOR_STATUS_E_CRC_MSK			(0x00000001)
+#define ALT_SGDMA_DESCRIPTOR_STATUS_E_PARITY_MSK		(0x00000002)
+#define ALT_SGDMA_DESCRIPTOR_STATUS_E_OVERFLOW_MSK		(0x00000004)
+#define ALT_SGDMA_DESCRIPTOR_STATUS_E_SYNC_MSK			(0x00000008)
+#define ALT_SGDMA_DESCRIPTOR_STATUS_E_UEOP_MSK			(0x00000010)
+#define ALT_SGDMA_DESCRIPTOR_STATUS_E_MEOP_MSK			(0x00000020)
+#define ALT_SGDMA_DESCRIPTOR_STATUS_E_MSOP_MSK			(0x00000040)
+#define ALT_SGDMA_DESCRIPTOR_STATUS_TERMINATED_BY_EOP_MSK	(0x00000080)
+#define ALT_SGDMA_DESCRIPTOR_STATUS_ERROR_MSK			(0x0000007F)
+
+/* SG-DMA Control/Status Slave registers map */
+
+struct alt_sgdma_registers {
+	unsigned int	status;
+	unsigned int	status_pad[3];
+	unsigned int	control;
+	unsigned int	control_pad[3];
+	unsigned int	next_descriptor_pointer;
+	unsigned int	descriptor_pad[3];
 };
 
 /* Function prototypes */
