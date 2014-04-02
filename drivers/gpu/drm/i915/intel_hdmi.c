@@ -557,10 +557,12 @@ static void vlv_set_infoframes(struct drm_encoder *encoder,
 			       struct drm_display_mode *adjusted_mode)
 {
 	struct drm_i915_private *dev_priv = encoder->dev->dev_private;
+	struct intel_digital_port *intel_dig_port = enc_to_dig_port(encoder);
 	struct intel_crtc *intel_crtc = to_intel_crtc(encoder->crtc);
 	struct intel_hdmi *intel_hdmi = enc_to_intel_hdmi(encoder);
 	u32 reg = VLV_TVIDEO_DIP_CTL(intel_crtc->pipe);
 	u32 val = I915_READ(reg);
+	u32 port = VIDEO_DIP_PORT(intel_dig_port->port);
 
 	assert_hdmi_port_disabled(intel_hdmi);
 
@@ -574,6 +576,16 @@ static void vlv_set_infoframes(struct drm_encoder *encoder,
 		I915_WRITE(reg, val);
 		POSTING_READ(reg);
 		return;
+	}
+
+	if (port != (val & VIDEO_DIP_PORT_MASK)) {
+		if (val & VIDEO_DIP_ENABLE) {
+			val &= ~VIDEO_DIP_ENABLE;
+			I915_WRITE(reg, val);
+			POSTING_READ(reg);
+		}
+		val &= ~VIDEO_DIP_PORT_MASK;
+		val |= port;
 	}
 
 	val |= VIDEO_DIP_ENABLE;
