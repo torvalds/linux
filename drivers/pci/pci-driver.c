@@ -107,13 +107,33 @@ store_new_id(struct device_driver *driver, const char *buf, size_t count)
 		subdevice=PCI_ANY_ID, class=0, class_mask=0;
 	unsigned long driver_data=0;
 	int fields=0;
-	int retval;
+	int retval = 0;
 
 	fields = sscanf(buf, "%x %x %x %x %x %x %lx",
 			&vendor, &device, &subvendor, &subdevice,
 			&class, &class_mask, &driver_data);
 	if (fields < 2)
 		return -EINVAL;
+
+	if (fields != 7) {
+		struct pci_dev *pdev = kzalloc(sizeof(*pdev), GFP_KERNEL);
+		if (!pdev)
+			return -ENOMEM;
+
+		pdev->vendor = vendor;
+		pdev->device = device;
+		pdev->subsystem_vendor = subvendor;
+		pdev->subsystem_device = subdevice;
+		pdev->class = class;
+
+		if (pci_match_id(pdrv->id_table, pdev))
+			retval = -EEXIST;
+
+		kfree(pdev);
+
+		if (retval)
+			return retval;
+	}
 
 	/* Only accept driver_data values that match an existing id_table
 	   entry */
