@@ -1758,15 +1758,15 @@ static int at91udc_probe(struct platform_device *pdev)
 
 	/* newer chips have more FIFO memory than rm9200 */
 	if (cpu_is_at91sam9260() || cpu_is_at91sam9g20()) {
-		usb_ep_set_maxpacket_limit(&udc->ep[0].ep, 64);
-		usb_ep_set_maxpacket_limit(&udc->ep[3].ep, 64);
-		usb_ep_set_maxpacket_limit(&udc->ep[4].ep, 512);
-		usb_ep_set_maxpacket_limit(&udc->ep[5].ep, 512);
+		udc->ep[0].maxpacket = 64;
+		udc->ep[3].maxpacket = 64;
+		udc->ep[4].maxpacket = 512;
+		udc->ep[5].maxpacket = 512;
 	} else if (cpu_is_at91sam9261() || cpu_is_at91sam9g10()) {
-		usb_ep_set_maxpacket_limit(&udc->ep[3].ep, 64);
+		udc->ep[3].maxpacket = 64;
 	} else if (cpu_is_at91sam9263()) {
-		usb_ep_set_maxpacket_limit(&udc->ep[0].ep, 64);
-		usb_ep_set_maxpacket_limit(&udc->ep[3].ep, 64);
+		udc->ep[0].maxpacket = 64;
+		udc->ep[3].maxpacket = 64;
 	}
 
 	udc->udp_baseaddr = ioremap(res->start, resource_size(res));

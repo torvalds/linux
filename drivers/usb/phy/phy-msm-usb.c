@@ -1428,7 +1428,8 @@ static int __init msm_otg_probe(struct platform_device *pdev)
 	motg->phy.otg = kzalloc(sizeof(struct usb_otg), GFP_KERNEL);
 	if (!motg->phy.otg) {
 		dev_err(&pdev->dev, "unable to allocate msm_otg\n");
-		return -ENOMEM;
+		ret = -ENOMEM;
+		goto free_motg;
 	}
 
 	motg->pdata = dev_get_platdata(&pdev->dev);

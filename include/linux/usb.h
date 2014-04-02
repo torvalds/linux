@@ -57,6 +57,7 @@ struct ep_device;
  * @extra: descriptors following this endpoint in the configuration
  * @extralen: how many bytes of "extra" are valid
  * @enabled: URBs may be submitted to this endpoint
+ * @streams: number of USB-3 streams allocated on the endpoint
  *
  * USB requests are always queued to a given endpoint, identified by a
  * descriptor within an active interface in a given USB configuration.
@@ -71,6 +72,7 @@ struct usb_host_endpoint {
 	unsigned char *extra;   /* Extra descriptors */
 	int extralen;
 	int enabled;
+	int streams;
 };
 
 /* host-side wrapper for one interface setting's parsed descriptors */
@@ -202,6 +204,8 @@ static inline void usb_set_intfdata(struct usb_interface *intf, void *data)
 struct usb_interface *usb_get_intf(struct usb_interface *intf);
 void usb_put_intf(struct usb_interface *intf);
 
+/* Hard limit */
+#define USB_MAXENDPOINTS	30
 /* this maximum is arbitrary */
 #define USB_MAXINTERFACES	32
 #define USB_MAXIADS		(USB_MAXINTERFACES/2)

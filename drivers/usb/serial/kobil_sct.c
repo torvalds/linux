@@ -557,7 +557,8 @@ static int kobil_ioctl(struct tty_struct *tty,
 			);
 
 		dev_dbg(&port->dev,
-			"%s - Send reset_all_queues (FLUSH) URB returns: %i", __func__, result);
+			"%s - Send reset_all_queues (FLUSH) URB returns: %i\n",
+			__func__, result);
 		kfree(transfer_buffer);
 		return (result < 0) ? -EIO: 0;
 	default:

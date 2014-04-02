@@ -961,4 +961,7 @@
 #define USB_DEVICE_ID_PRIMAX_KEYBOARD	0x4e05
 
 
+#define USB_VENDOR_ID_RISO_KAGAKU	0x1294	/* Riso Kagaku Corp. */
+#define USB_DEVICE_ID_RI_KA_WEBMAIL	0x1320	/* Webmail Notifier */
+
 #endif

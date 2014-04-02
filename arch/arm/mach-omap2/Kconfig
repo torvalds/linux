@@ -21,7 +21,6 @@ config ARCH_OMAP3
 	select PM_OPP if PM
 	select PM_RUNTIME if CPU_IDLE
 	select SOC_HAS_OMAP2_SDRC
-	select USB_ARCH_HAS_EHCI if USB_SUPPORT
 
 config ARCH_OMAP4
 	bool "TI OMAP4"
@@ -42,7 +41,6 @@ config ARCH_OMAP4
 	select PL310_ERRATA_727915
 	select PM_OPP if PM
 	select PM_RUNTIME if CPU_IDLE
-	select USB_ARCH_HAS_EHCI if USB_SUPPORT
 	select ARM_ERRATA_754322
 	select ARM_ERRATA_775420
 

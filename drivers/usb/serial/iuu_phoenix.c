@@ -1151,7 +1151,7 @@ static ssize_t vcc_mode_store(struct device *dev,
 		goto fail_store_vcc_mode;
 	}
 
-	dev_dbg(dev, "%s: setting vcc_mode = %ld", __func__, v);
+	dev_dbg(dev, "%s: setting vcc_mode = %ld\n", __func__, v);
 
 	if ((v != 3) && (v != 5)) {
 		dev_err(dev, "%s - vcc_mode %ld is invalid\n", __func__, v);
