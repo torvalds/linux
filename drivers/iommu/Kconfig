@@ -272,6 +272,18 @@ config SHMOBILE_IOMMU_L1SIZE
 	default 256 if SHMOBILE_IOMMU_ADDRSIZE_64MB
 	default 128 if SHMOBILE_IOMMU_ADDRSIZE_32MB
 
+config IPMMU_VMSA
+	bool "Renesas VMSA-compatible IPMMU"
+	depends on ARM_LPAE
+	depends on ARCH_SHMOBILE || COMPILE_TEST
+	select IOMMU_API
+	select ARM_DMA_USE_IOMMU
+	help
+	  Support for the Renesas VMSA-compatible IPMMU Renesas found in the
+	  R-Mobile APE6 and R-Car H2/M2 SoCs.
+
+	  If unsure, say N.
+
 config SPAPR_TCE_IOMMU
 	bool "sPAPR TCE IOMMU Support"
 	depends on PPC_POWERNV || PPC_PSERIES
