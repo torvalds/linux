@@ -337,7 +337,7 @@ int mmc_of_parse(struct mmc_host *host)
 		break;
 	default:
 		dev_err(host->parent,
-			"Invalid \"bus-width\" value %ud!\n", bus_width);
+			"Invalid \"bus-width\" value %u!\n", bus_width);
 		return -EINVAL;
 	}
 

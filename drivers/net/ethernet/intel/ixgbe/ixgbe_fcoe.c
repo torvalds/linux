@@ -585,7 +585,7 @@ static int ixgbe_fcoe_dma_pool_alloc(struct ixgbe_fcoe *fcoe,
 	struct dma_pool *pool;
 	char pool_name[32];
 
-	snprintf(pool_name, 32, "ixgbe_fcoe_ddp_%d", cpu);
+	snprintf(pool_name, 32, "ixgbe_fcoe_ddp_%u", cpu);
 
 	pool = dma_pool_create(pool_name, dev, IXGBE_FCPTR_MAX,
 			       IXGBE_FCPTR_ALIGN, PAGE_SIZE);

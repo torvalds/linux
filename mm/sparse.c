@@ -268,7 +268,7 @@ sparse_early_usemaps_alloc_pgdat_section(struct pglist_data *pgdat,
 	/*
 	 * A page may contain usemaps for other sections preventing the
 	 * page being freed and making a section unremovable while
-	 * other sections referencing the usemap retmain active. Similarly,
+	 * other sections referencing the usemap remain active. Similarly,
 	 * a pgdat can prevent a section being removed. If section A
 	 * contains a pgdat and section B contains the usemap, both
 	 * sections become inter-dependent. This allocates usemaps

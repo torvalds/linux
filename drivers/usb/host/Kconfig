@@ -314,7 +314,6 @@ config USB_ISP1760_HCD
 
 config USB_ISP1362_HCD
 	tristate "ISP1362 HCD support"
-	default N
 	---help---
 	  Supports the Philips ISP1362 chip as a host controller
 
@@ -326,7 +325,6 @@ config USB_ISP1362_HCD
 config USB_FUSBH200_HCD
 	tristate "FUSBH200 HCD support"
 	depends on USB
-	default N
 	---help---
 	Faraday FUSBH200 is designed to meet USB2.0 EHCI specification
 	with minor modification.
@@ -337,7 +335,6 @@ config USB_FUSBH200_HCD
 config USB_FOTG210_HCD
 	tristate "FOTG210 HCD support"
 	depends on USB
-	default N
 	---help---
 	  Faraday FOTG210 is an OTG controller which can be configured as
 	  an USB2.0 host. It is designed to meet USB2.0 EHCI specification

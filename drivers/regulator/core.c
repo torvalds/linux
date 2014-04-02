@@ -2138,7 +2138,7 @@ EXPORT_SYMBOL_GPL(regulator_is_enabled);
  * @regulator: regulator source
  *
  * Returns positive if the regulator driver backing the source/client
- * can change its voltage, false otherwise. Usefull for detecting fixed
+ * can change its voltage, false otherwise. Useful for detecting fixed
  * or dummy regulators and disabling voltage change logic in the client
  * driver.
  */

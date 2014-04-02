@@ -3446,7 +3446,7 @@ out:
  *	@rx_handler: receive handler to register
  *	@rx_handler_data: data pointer that is used by rx handler
  *
- *	Register a receive hander for a device. This handler will then be
+ *	Register a receive handler for a device. This handler will then be
  *	called from __netif_receive_skb. A negative errno code is returned
  *	on a failure.
  *

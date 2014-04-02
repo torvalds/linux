@@ -2038,7 +2038,7 @@ static inline void skb_propagate_pfmemalloc(struct page *page,
 }
 
 /**
- * skb_frag_page - retrieve the page refered to by a paged fragment
+ * skb_frag_page - retrieve the page referred to by a paged fragment
  * @frag: the paged fragment
  *
  * Returns the &struct page associated with @frag.

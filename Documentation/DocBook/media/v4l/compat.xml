@@ -397,7 +397,7 @@ linkend="control" />.</para>
 
       <para>The <structfield>depth</structfield> (average number of
 bits per pixel) of a video image is implied by the selected image
-format. V4L2 does not explicitely provide such information assuming
+format. V4L2 does not explicitly provide such information assuming
 applications recognizing the format are aware of the image depth and
 others need not know. The <structfield>palette</structfield> field
 moved into the &v4l2-pix-format;:<informaltable>

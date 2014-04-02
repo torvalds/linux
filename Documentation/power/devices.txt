@@ -391,7 +391,7 @@ When resuming from freeze, standby or memory sleep, the phases are:
 	the resume methods.  This generally involves undoing the actions of the
 	preceding suspend_late phase.
 
-    3	The resume methods should bring the the device back to its operating
+    3	The resume methods should bring the device back to its operating
 	state, so that it can perform normal I/O.  This generally involves
 	undoing the actions of the suspend phase.
 

@@ -541,7 +541,7 @@ initialized. This is the beginning of the struct:
 92         } _sifields;
 93 } siginfo_t;
 
-On 64-bit, the int is 4 bytes long, so it must the the union member that has
+On 64-bit, the int is 4 bytes long, so it must the union member that has
 not been initialized. We can verify this using gdb:
 
 	$ gdb vmlinux

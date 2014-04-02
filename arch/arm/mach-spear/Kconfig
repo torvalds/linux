@@ -92,7 +92,7 @@ config MACH_SPEAR600
 	depends on ARCH_SPEAR6XX
 	select USE_OF
 	help
-	  Supports ST SPEAr600 boards configured via the device-treesource "arch/arm/mach-spear6xx/Kconfig"
+	  Supports ST SPEAr600 boards configured via the device-tree
 
 config ARCH_SPEAR_AUTO
 	def_bool PLAT_SPEAR_SINGLE
