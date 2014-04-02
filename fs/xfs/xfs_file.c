@@ -623,10 +623,7 @@ restart:
 STATIC ssize_t
 xfs_file_dio_aio_write(
 	struct kiocb		*iocb,
-	const struct iovec	*iovp,
-	unsigned long		nr_segs,
-	loff_t			pos,
-	size_t			count)
+	struct iov_iter		*from)
 {
 	struct file		*file = iocb->ki_filp;
 	struct address_space	*mapping = file->f_mapping;
@@ -636,15 +633,14 @@ xfs_file_dio_aio_write(
 	ssize_t			ret = 0;
 	int			unaligned_io = 0;
 	int			iolock;
+	size_t			count = iov_iter_count(from);
+	loff_t			pos = iocb->ki_pos;
 	struct xfs_buftarg	*target = XFS_IS_REALTIME_INODE(ip) ?
 					mp->m_rtdev_targp : mp->m_ddev_targp;
-	struct iov_iter		from;
 
 	/* DIO must be aligned to device logical sector size */
 	if ((pos | count) & target->bt_logical_sectormask)
 		return -XFS_ERROR(EINVAL);
-
-	iov_iter_init(&from, WRITE, iovp, nr_segs, count);
 
 	/* "unaligned" here means not aligned to a filesystem block */
 	if ((pos & mp->m_blockmask) || ((pos + count) & mp->m_blockmask))
@@ -677,7 +673,7 @@ xfs_file_dio_aio_write(
 	ret = xfs_file_aio_write_checks(file, &pos, &count, &iolock);
 	if (ret)
 		goto out;
-	iov_iter_truncate(&from, count);
+	iov_iter_truncate(from, count);
 
 	if (mapping->nrpages) {
 		ret = filemap_write_and_wait_range(VFS_I(ip)->i_mapping,
@@ -699,7 +695,7 @@ xfs_file_dio_aio_write(
 	}
 
 	trace_xfs_file_direct_write(ip, count, iocb->ki_pos, 0);
-	ret = generic_file_direct_write(iocb, &from, pos);
+	ret = generic_file_direct_write(iocb, from, pos);
 
 out:
 	xfs_rw_iunlock(ip, iolock);
@@ -712,10 +708,7 @@ out:
 STATIC ssize_t
 xfs_file_buffered_aio_write(
 	struct kiocb		*iocb,
-	const struct iovec	*iovp,
-	unsigned long		nr_segs,
-	loff_t			pos,
-	size_t			count)
+	struct iov_iter		*from)
 {
 	struct file		*file = iocb->ki_filp;
 	struct address_space	*mapping = file->f_mapping;
@@ -724,7 +717,8 @@ xfs_file_buffered_aio_write(
 	ssize_t			ret;
 	int			enospc = 0;
 	int			iolock = XFS_IOLOCK_EXCL;
-	struct iov_iter		from;
+	loff_t			pos = iocb->ki_pos;
+	size_t			count = iov_iter_count(from);
 
 	xfs_rw_ilock(ip, iolock);
 
@@ -732,13 +726,13 @@ xfs_file_buffered_aio_write(
 	if (ret)
 		goto out;
 
-	iov_iter_init(&from, WRITE, iovp, nr_segs, count);
+	iov_iter_truncate(from, count);
 	/* We can write back this queue in page reclaim */
 	current->backing_dev_info = mapping->backing_dev_info;
 
 write_retry:
 	trace_xfs_file_buffered_write(ip, count, iocb->ki_pos, 0);
-	ret = generic_perform_write(file, &from, pos);
+	ret = generic_perform_write(file, from, pos);
 	if (likely(ret >= 0))
 		iocb->ki_pos = pos + ret;
 	/*
@@ -771,6 +765,7 @@ xfs_file_aio_write(
 	struct xfs_inode	*ip = XFS_I(inode);
 	ssize_t			ret;
 	size_t			ocount = 0;
+	struct iov_iter		from;
 
 	XFS_STATS_INC(xs_write_calls);
 
@@ -779,6 +774,7 @@ xfs_file_aio_write(
 	ocount = iov_length(iovp, nr_segs);
 	if (ocount == 0)
 		return 0;
+	iov_iter_init(&from, WRITE, iovp, nr_segs, ocount);
 
 	if (XFS_FORCED_SHUTDOWN(ip->i_mount)) {
 		ret = -EIO;
@@ -786,10 +782,9 @@ xfs_file_aio_write(
 	}
 
 	if (unlikely(file->f_flags & O_DIRECT))
-		ret = xfs_file_dio_aio_write(iocb, iovp, nr_segs, pos, ocount);
+		ret = xfs_file_dio_aio_write(iocb, &from);
 	else
-		ret = xfs_file_buffered_aio_write(iocb, iovp, nr_segs, pos,
-						  ocount);
+		ret = xfs_file_buffered_aio_write(iocb, &from);
 
 	if (ret > 0) {
 		ssize_t err;
