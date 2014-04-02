@@ -2200,8 +2200,8 @@ static int ntfs_file_fsync(struct file *filp, loff_t start, loff_t end,
 
 const struct file_operations ntfs_file_ops = {
 	.llseek		= generic_file_llseek,	 /* Seek inside file. */
-	.read		= do_sync_read,		 /* Read from file. */
-	.aio_read	= generic_file_aio_read, /* Async read from file. */
+	.read		= new_sync_read,	 /* Read from file. */
+	.read_iter	= generic_file_read_iter, /* Async read from file. */
 #ifdef NTFS_RW
 	.write		= do_sync_write,	 /* Write to file. */
 	.aio_write	= ntfs_file_aio_write,	 /* Async write to file. */

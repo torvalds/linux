@@ -27,8 +27,8 @@ static int affs_file_release(struct inode *inode, struct file *filp);
 
 const struct file_operations affs_file_operations = {
 	.llseek		= generic_file_llseek,
-	.read		= do_sync_read,
-	.aio_read	= generic_file_aio_read,
+	.read		= new_sync_read,
+	.read_iter	= generic_file_read_iter,
 	.write		= do_sync_write,
 	.aio_write	= generic_file_aio_write,
 	.mmap		= generic_file_mmap,

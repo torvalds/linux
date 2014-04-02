@@ -593,9 +593,9 @@ loff_t ext4_llseek(struct file *file, loff_t offset, int whence)
 
 const struct file_operations ext4_file_operations = {
 	.llseek		= ext4_llseek,
-	.read		= do_sync_read,
+	.read		= new_sync_read,
 	.write		= do_sync_write,
-	.aio_read	= generic_file_aio_read,
+	.read_iter	= generic_file_read_iter,
 	.aio_write	= ext4_file_write,
 	.unlocked_ioctl = ext4_ioctl,
 #ifdef CONFIG_COMPAT

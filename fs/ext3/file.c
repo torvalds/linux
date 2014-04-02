@@ -50,9 +50,9 @@ static int ext3_release_file (struct inode * inode, struct file * filp)
 
 const struct file_operations ext3_file_operations = {
 	.llseek		= generic_file_llseek,
-	.read		= do_sync_read,
+	.read		= new_sync_read,
 	.write		= do_sync_write,
-	.aio_read	= generic_file_aio_read,
+	.read_iter	= generic_file_read_iter,
 	.aio_write	= generic_file_aio_write,
 	.unlocked_ioctl	= ext3_ioctl,
 #ifdef CONFIG_COMPAT

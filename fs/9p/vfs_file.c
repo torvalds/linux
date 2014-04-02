@@ -695,7 +695,7 @@ v9fs_cached_file_read(struct file *filp, char __user *data, size_t count,
 {
 	if (filp->f_flags & O_DIRECT)
 		return v9fs_direct_read(filp, data, count, offset);
-	return do_sync_read(filp, data, count, offset);
+	return new_sync_read(filp, data, count, offset);
 }
 
 /**
@@ -850,7 +850,7 @@ const struct file_operations v9fs_cached_file_operations = {
 	.llseek = generic_file_llseek,
 	.read = v9fs_cached_file_read,
 	.write = v9fs_cached_file_write,
-	.aio_read = generic_file_aio_read,
+	.read_iter = generic_file_read_iter,
 	.aio_write = generic_file_aio_write,
 	.open = v9fs_file_open,
 	.release = v9fs_dir_release,
@@ -863,7 +863,7 @@ const struct file_operations v9fs_cached_file_operations_dotl = {
 	.llseek = generic_file_llseek,
 	.read = v9fs_cached_file_read,
 	.write = v9fs_cached_file_write,
-	.aio_read = generic_file_aio_read,
+	.read_iter = generic_file_read_iter,
 	.aio_write = generic_file_aio_write,
 	.open = v9fs_file_open,
 	.release = v9fs_dir_release,

@@ -679,9 +679,9 @@ long f2fs_compat_ioctl(struct file *file, unsigned int cmd, unsigned long arg)
 
 const struct file_operations f2fs_file_operations = {
 	.llseek		= generic_file_llseek,
-	.read		= do_sync_read,
+	.read		= new_sync_read,
 	.write		= do_sync_write,
-	.aio_read	= generic_file_aio_read,
+	.read_iter	= generic_file_read_iter,
 	.aio_write	= generic_file_aio_write,
 	.open		= generic_file_open,
 	.mmap		= f2fs_file_mmap,

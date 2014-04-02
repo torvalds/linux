@@ -235,7 +235,7 @@ int reiserfs_commit_page(struct inode *inode, struct page *page,
 }
 
 const struct file_operations reiserfs_file_operations = {
-	.read = do_sync_read,
+	.read = new_sync_read,
 	.write = do_sync_write,
 	.unlocked_ioctl = reiserfs_ioctl,
 #ifdef CONFIG_COMPAT
@@ -245,7 +245,7 @@ const struct file_operations reiserfs_file_operations = {
 	.open = reiserfs_file_open,
 	.release = reiserfs_file_release,
 	.fsync = reiserfs_sync_file,
-	.aio_read = generic_file_aio_read,
+	.read_iter = generic_file_read_iter,
 	.aio_write = generic_file_aio_write,
 	.splice_read = generic_file_splice_read,
 	.splice_write = generic_file_splice_write,

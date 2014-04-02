@@ -888,9 +888,9 @@ const struct inode_operations cifs_symlink_inode_ops = {
 };
 
 const struct file_operations cifs_file_ops = {
-	.read = do_sync_read,
+	.read = new_sync_read,
 	.write = do_sync_write,
-	.aio_read = generic_file_aio_read,
+	.read_iter = generic_file_read_iter,
 	.aio_write = cifs_file_aio_write,
 	.open = cifs_open,
 	.release = cifs_close,
@@ -946,9 +946,9 @@ const struct file_operations cifs_file_direct_ops = {
 };
 
 const struct file_operations cifs_file_nobrl_ops = {
-	.read = do_sync_read,
+	.read = new_sync_read,
 	.write = do_sync_write,
-	.aio_read = generic_file_aio_read,
+	.read_iter = generic_file_read_iter,
 	.aio_write = cifs_file_aio_write,
 	.open = cifs_open,
 	.release = cifs_close,

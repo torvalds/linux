@@ -1582,9 +1582,9 @@ const struct inode_operations ubifs_symlink_inode_operations = {
 
 const struct file_operations ubifs_file_operations = {
 	.llseek         = generic_file_llseek,
-	.read           = do_sync_read,
+	.read           = new_sync_read,
 	.write          = do_sync_write,
-	.aio_read       = generic_file_aio_read,
+	.read_iter      = generic_file_read_iter,
 	.aio_write      = ubifs_aio_write,
 	.mmap           = ubifs_file_mmap,
 	.fsync          = ubifs_fsync,
