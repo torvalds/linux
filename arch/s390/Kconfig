@@ -141,6 +141,7 @@ config S390
 	select OLD_SIGACTION
 	select OLD_SIGSUSPEND3
 	select SYSCTL_EXCEPTION_TRACE
+	select TTY
 	select VIRT_CPU_ACCOUNTING
 	select VIRT_TO_BUS
 
@@ -415,6 +416,10 @@ config ARCH_ENABLE_MEMORY_HOTPLUG
 
 config ARCH_ENABLE_MEMORY_HOTREMOVE
 	def_bool y
+
+config ARCH_ENABLE_SPLIT_PMD_PTLOCK
+	def_bool y
+	depends on 64BIT
 
 config FORCE_MAX_ZONEORDER
 	int

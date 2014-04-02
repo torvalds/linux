@@ -122,7 +122,7 @@ static int xtensa_mx_irq_retrigger(struct irq_data *d)
 static int xtensa_mx_irq_set_affinity(struct irq_data *d,
 		const struct cpumask *dest, bool force)
 {
-	unsigned mask = 1u << cpumask_any(dest);
+	unsigned mask = 1u << cpumask_any_and(dest, cpu_online_mask);
 
 	set_er(mask, MIROUT(d->hwirq - HW_IRQ_MX_BASE));
 	return 0;

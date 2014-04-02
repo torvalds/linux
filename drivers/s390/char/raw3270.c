@@ -276,6 +276,15 @@ __raw3270_start(struct raw3270 *rp, struct raw3270_view *view,
 }
 
 int
+raw3270_view_active(struct raw3270_view *view)
+{
+	struct raw3270 *rp = view->dev;
+
+	return rp && rp->view == view &&
+		!test_bit(RAW3270_FLAGS_FROZEN, &rp->flags);
+}
+
+int
 raw3270_start(struct raw3270_view *view, struct raw3270_request *rq)
 {
 	unsigned long flags;
@@ -776,15 +785,23 @@ raw3270_setup_device(struct ccw_device *cdev, struct raw3270 *rp, char *ascebc)
 }
 
 #ifdef CONFIG_TN3270_CONSOLE
+/* Tentative definition - see below for actual definition. */
+static struct ccw_driver raw3270_ccw_driver;
+
 /*
  * Setup 3270 device configured as console.
  */
-struct raw3270 __init *raw3270_setup_console(struct ccw_device *cdev)
+struct raw3270 __init *raw3270_setup_console(void)
 {
+	struct ccw_device *cdev;
 	unsigned long flags;
 	struct raw3270 *rp;
 	char *ascebc;
 	int rc;
+
+	cdev = ccw_device_create_console(&raw3270_ccw_driver);
+	if (IS_ERR(cdev))
+		return ERR_CAST(cdev);
 
 	rp = kzalloc(sizeof(struct raw3270), GFP_KERNEL | GFP_DMA);
 	ascebc = kzalloc(256, GFP_KERNEL);
@@ -792,6 +809,13 @@ struct raw3270 __init *raw3270_setup_console(struct ccw_device *cdev)
 	if (rc)
 		return ERR_PTR(rc);
 	set_bit(RAW3270_FLAGS_CONSOLE, &rp->flags);
+
+	rc = ccw_device_enable_console(cdev);
+	if (rc) {
+		ccw_device_destroy_console(cdev);
+		return ERR_PTR(rc);
+	}
+
 	spin_lock_irqsave(get_ccwdev_lock(rp->cdev), flags);
 	do {
 		__raw3270_reset_device(rp);
