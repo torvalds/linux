@@ -16,6 +16,7 @@ config ARCH_MVEBU
 	select ARCH_REQUIRE_GPIOLIB
 	select MIGHT_HAVE_PCI
 	select PCI_QUIRKS if PCI
+	select OF_ADDRESS_PCI
 
 if ARCH_MVEBU
 
