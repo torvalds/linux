@@ -650,8 +650,8 @@ static void intel_hdmi_mode_set(struct intel_encoder *encoder)
 	else
 		hdmi_val |= SDVO_COLOR_FORMAT_8bpc;
 
-	/* Required on CPT */
-	if (intel_hdmi->has_hdmi_sink && HAS_PCH_CPT(dev))
+	if (intel_hdmi->has_hdmi_sink &&
+	    (HAS_PCH_CPT(dev) || IS_VALLEYVIEW(dev)))
 		hdmi_val |= HDMI_MODE_SELECT_HDMI;
 
 	if (intel_hdmi->has_audio) {
