@@ -152,9 +152,9 @@ static int start_log_trans(struct btrfs_trans_handle *trans,
 
 		if (!root->log_start_pid) {
 			root->log_start_pid = current->pid;
-			root->log_multiple_pids = false;
+			clear_bit(BTRFS_ROOT_MULTI_LOG_TASKS, &root->state);
 		} else if (root->log_start_pid != current->pid) {
-			root->log_multiple_pids = true;
+			set_bit(BTRFS_ROOT_MULTI_LOG_TASKS, &root->state);
 		}
 
 		atomic_inc(&root->log_batch);
@@ -181,7 +181,7 @@ static int start_log_trans(struct btrfs_trans_handle *trans,
 		if (ret)
 			goto out;
 	}
-	root->log_multiple_pids = false;
+	clear_bit(BTRFS_ROOT_MULTI_LOG_TASKS, &root->state);
 	root->log_start_pid = current->pid;
 	atomic_inc(&root->log_batch);
 	atomic_inc(&root->log_writers);
@@ -2500,7 +2500,8 @@ int btrfs_sync_log(struct btrfs_trans_handle *trans,
 	while (1) {
 		int batch = atomic_read(&root->log_batch);
 		/* when we're on an ssd, just kick the log commit out */
-		if (!btrfs_test_opt(root, SSD) && root->log_multiple_pids) {
+		if (!btrfs_test_opt(root, SSD) &&
+		    test_bit(BTRFS_ROOT_MULTI_LOG_TASKS, &root->state)) {
 			mutex_unlock(&root->log_mutex);
 			schedule_timeout_uninterruptible(1);
 			mutex_lock(&root->log_mutex);

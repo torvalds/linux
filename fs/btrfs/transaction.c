@@ -241,18 +241,19 @@ loop:
 static int record_root_in_trans(struct btrfs_trans_handle *trans,
 			       struct btrfs_root *root)
 {
-	if (root->ref_cows && root->last_trans < trans->transid) {
+	if (test_bit(BTRFS_ROOT_REF_COWS, &root->state) &&
+	    root->last_trans < trans->transid) {
 		WARN_ON(root == root->fs_info->extent_root);
 		WARN_ON(root->commit_root != root->node);
 
 		/*
-		 * see below for in_trans_setup usage rules
+		 * see below for IN_TRANS_SETUP usage rules
 		 * we have the reloc mutex held now, so there
 		 * is only one writer in this function
 		 */
-		root->in_trans_setup = 1;
+		set_bit(BTRFS_ROOT_IN_TRANS_SETUP, &root->state);
 
-		/* make sure readers find in_trans_setup before
+		/* make sure readers find IN_TRANS_SETUP before
 		 * they find our root->last_trans update
 		 */
 		smp_wmb();
@@ -279,7 +280,7 @@ static int record_root_in_trans(struct btrfs_trans_handle *trans,
 		 * But, we have to set root->last_trans before we
 		 * init the relocation root, otherwise, we trip over warnings
 		 * in ctree.c.  The solution used here is to flag ourselves
-		 * with root->in_trans_setup.  When this is 1, we're still
+		 * with root IN_TRANS_SETUP.  When this is 1, we're still
 		 * fixing up the reloc trees and everyone must wait.
 		 *
 		 * When this is zero, they can trust root->last_trans and fly
@@ -288,8 +289,8 @@ static int record_root_in_trans(struct btrfs_trans_handle *trans,
 		 * done before we pop in the zero below
 		 */
 		btrfs_init_reloc_root(trans, root);
-		smp_wmb();
-		root->in_trans_setup = 0;
+		smp_mb__before_clear_bit();
+		clear_bit(BTRFS_ROOT_IN_TRANS_SETUP, &root->state);
 	}
 	return 0;
 }
@@ -298,16 +299,16 @@ static int record_root_in_trans(struct btrfs_trans_handle *trans,
 int btrfs_record_root_in_trans(struct btrfs_trans_handle *trans,
 			       struct btrfs_root *root)
 {
-	if (!root->ref_cows)
+	if (!test_bit(BTRFS_ROOT_REF_COWS, &root->state))
 		return 0;
 
 	/*
-	 * see record_root_in_trans for comments about in_trans_setup usage
+	 * see record_root_in_trans for comments about IN_TRANS_SETUP usage
 	 * and barriers
 	 */
 	smp_rmb();
 	if (root->last_trans == trans->transid &&
-	    !root->in_trans_setup)
+	    !test_bit(BTRFS_ROOT_IN_TRANS_SETUP, &root->state))
 		return 0;
 
 	mutex_lock(&root->fs_info->reloc_mutex);
@@ -365,7 +366,7 @@ static int may_wait_transaction(struct btrfs_root *root, int type)
 static inline bool need_reserve_reloc_root(struct btrfs_root *root)
 {
 	if (!root->fs_info->reloc_ctl ||
-	    !root->ref_cows ||
+	    !test_bit(BTRFS_ROOT_REF_COWS, &root->state) ||
 	    root->root_key.objectid == BTRFS_TREE_RELOC_OBJECTID ||
 	    root->reloc_root)
 		return false;
@@ -1049,8 +1050,8 @@ static noinline int commit_fs_roots(struct btrfs_trans_handle *trans,
 			btrfs_save_ino_cache(root, trans);
 
 			/* see comments in should_cow_block() */
-			root->force_cow = 0;
-			smp_wmb();
+			clear_bit(BTRFS_ROOT_FORCE_COW, &root->state);
+			smp_mb__after_clear_bit();
 
 			if (root->commit_root != root->node) {
 				list_add_tail(&root->dirty_list,
@@ -1081,7 +1082,7 @@ int btrfs_defrag_root(struct btrfs_root *root)
 	struct btrfs_trans_handle *trans;
 	int ret;
 
-	if (xchg(&root->defrag_running, 1))
+	if (test_and_set_bit(BTRFS_ROOT_DEFRAG_RUNNING, &root->state))
 		return 0;
 
 	while (1) {
@@ -1104,7 +1105,7 @@ int btrfs_defrag_root(struct btrfs_root *root)
 			break;
 		}
 	}
-	root->defrag_running = 0;
+	clear_bit(BTRFS_ROOT_DEFRAG_RUNNING, &root->state);
 	return ret;
 }
 
@@ -1271,7 +1272,7 @@ static noinline int create_pending_snapshot(struct btrfs_trans_handle *trans,
 	}
 
 	/* see comments in should_cow_block() */
-	root->force_cow = 1;
+	set_bit(BTRFS_ROOT_FORCE_COW, &root->state);
 	smp_wmb();
 
 	btrfs_set_root_node(new_root_item, tmp);

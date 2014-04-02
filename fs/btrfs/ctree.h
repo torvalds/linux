@@ -1711,6 +1711,26 @@ struct btrfs_subvolume_writers {
 };
 
 /*
+ * The state of btrfs root
+ */
+/*
+ * btrfs_record_root_in_trans is a multi-step process,
+ * and it can race with the balancing code.   But the
+ * race is very small, and only the first time the root
+ * is added to each transaction.  So IN_TRANS_SETUP
+ * is used to tell us when more checks are required
+ */
+#define BTRFS_ROOT_IN_TRANS_SETUP	0
+#define BTRFS_ROOT_REF_COWS		1
+#define BTRFS_ROOT_TRACK_DIRTY		2
+#define BTRFS_ROOT_IN_RADIX		3
+#define BTRFS_ROOT_DUMMY_ROOT		4
+#define BTRFS_ROOT_ORPHAN_ITEM_INSERTED	5
+#define BTRFS_ROOT_DEFRAG_RUNNING	6
+#define BTRFS_ROOT_FORCE_COW		7
+#define BTRFS_ROOT_MULTI_LOG_TASKS	8
+
+/*
  * in ram representation of the tree.  extent_root is used for all allocations
  * and for the extent tree extent_root root.
  */
@@ -1721,6 +1741,7 @@ struct btrfs_root {
 	struct btrfs_root *log_root;
 	struct btrfs_root *reloc_root;
 
+	unsigned long state;
 	struct btrfs_root_item root_item;
 	struct btrfs_key root_key;
 	struct btrfs_fs_info *fs_info;
@@ -1755,7 +1776,6 @@ struct btrfs_root {
 	/* Just be updated when the commit succeeds. */
 	int last_log_commit;
 	pid_t log_start_pid;
-	bool log_multiple_pids;
 
 	u64 objectid;
 	u64 last_trans;
@@ -1775,23 +1795,9 @@ struct btrfs_root {
 
 	u64 highest_objectid;
 
-	/* btrfs_record_root_in_trans is a multi-step process,
-	 * and it can race with the balancing code.   But the
-	 * race is very small, and only the first time the root
-	 * is added to each transaction.  So in_trans_setup
-	 * is used to tell us when more checks are required
-	 */
-	unsigned long in_trans_setup;
-	int ref_cows;
-	int track_dirty;
-	int in_radix;
-#ifdef CONFIG_BTRFS_FS_RUN_SANITY_TESTS
-	int dummy_root;
-#endif
 	u64 defrag_trans_start;
 	struct btrfs_key defrag_progress;
 	struct btrfs_key defrag_max;
-	int defrag_running;
 	char *name;
 
 	/* the dirty list is only used by non-reference counted roots */
@@ -1805,7 +1811,6 @@ struct btrfs_root {
 	spinlock_t orphan_lock;
 	atomic_t orphan_inodes;
 	struct btrfs_block_rsv *orphan_block_rsv;
-	int orphan_item_inserted;
 	int orphan_cleanup_state;
 
 	spinlock_t inode_lock;
@@ -1822,8 +1827,6 @@ struct btrfs_root {
 	 * for stat.  It may be used for more later
 	 */
 	dev_t anon_dev;
-
-	int force_cow;
 
 	spinlock_t root_item_lock;
 	atomic_t refs;

@@ -2983,7 +2983,7 @@ static int __btrfs_mod_ref(struct btrfs_trans_handle *trans,
 	nritems = btrfs_header_nritems(buf);
 	level = btrfs_header_level(buf);
 
-	if (!root->ref_cows && level == 0)
+	if (!test_bit(BTRFS_ROOT_REF_COWS, &root->state) && level == 0)
 		return 0;
 
 	if (inc)
@@ -4472,7 +4472,7 @@ static struct btrfs_block_rsv *get_block_rsv(
 {
 	struct btrfs_block_rsv *block_rsv = NULL;
 
-	if (root->ref_cows)
+	if (test_bit(BTRFS_ROOT_REF_COWS, &root->state))
 		block_rsv = trans->block_rsv;
 
 	if (root == root->fs_info->csum_root && trans->adding_csums)
@@ -7838,7 +7838,7 @@ int btrfs_drop_snapshot(struct btrfs_root *root,
 		}
 	}
 
-	if (root->in_radix) {
+	if (test_bit(BTRFS_ROOT_IN_RADIX, &root->state)) {
 		btrfs_drop_and_free_fs_root(tree_root->fs_info, root);
 	} else {
 		free_extent_buffer(root->node);

@@ -1201,10 +1201,7 @@ static void __setup_root(u32 nodesize, u32 leafsize, u32 sectorsize,
 	root->nodesize = nodesize;
 	root->leafsize = leafsize;
 	root->stripesize = stripesize;
-	root->ref_cows = 0;
-	root->track_dirty = 0;
-	root->in_radix = 0;
-	root->orphan_item_inserted = 0;
+	root->state = 0;
 	root->orphan_cleanup_state = 0;
 
 	root->objectid = objectid;
@@ -1265,7 +1262,6 @@ static void __setup_root(u32 nodesize, u32 leafsize, u32 sectorsize,
 	else
 		root->defrag_trans_start = 0;
 	init_completion(&root->kobj_unregister);
-	root->defrag_running = 0;
 	root->root_key.objectid = objectid;
 	root->anon_dev = 0;
 
@@ -1290,7 +1286,7 @@ struct btrfs_root *btrfs_alloc_dummy_root(void)
 	if (!root)
 		return ERR_PTR(-ENOMEM);
 	__setup_root(4096, 4096, 4096, 4096, root, NULL, 1);
-	root->dummy_root = 1;
+	set_bit(BTRFS_ROOT_DUMMY_ROOT, &root->state);
 
 	return root;
 }
@@ -1341,8 +1337,7 @@ struct btrfs_root *btrfs_create_tree(struct btrfs_trans_handle *trans,
 	btrfs_mark_buffer_dirty(leaf);
 
 	root->commit_root = btrfs_root_node(root);
-	root->track_dirty = 1;
-
+	set_bit(BTRFS_ROOT_TRACK_DIRTY, &root->state);
 
 	root->root_item.flags = 0;
 	root->root_item.byte_limit = 0;
@@ -1396,13 +1391,15 @@ static struct btrfs_root *alloc_log_tree(struct btrfs_trans_handle *trans,
 	root->root_key.objectid = BTRFS_TREE_LOG_OBJECTID;
 	root->root_key.type = BTRFS_ROOT_ITEM_KEY;
 	root->root_key.offset = BTRFS_TREE_LOG_OBJECTID;
+
 	/*
+	 * DON'T set REF_COWS for log trees
+	 *
 	 * log trees do not get reference counted because they go away
 	 * before a real commit is actually done.  They do store pointers
 	 * to file data extents, and those reference counts still get
 	 * updated (along with back refs to the log tree).
 	 */
-	root->ref_cows = 0;
 
 	leaf = btrfs_alloc_free_block(trans, root, root->leafsize, 0,
 				      BTRFS_TREE_LOG_OBJECTID, NULL,
@@ -1536,7 +1533,7 @@ struct btrfs_root *btrfs_read_fs_root(struct btrfs_root *tree_root,
 		return root;
 
 	if (root->root_key.objectid != BTRFS_TREE_LOG_OBJECTID) {
-		root->ref_cows = 1;
+		set_bit(BTRFS_ROOT_REF_COWS, &root->state);
 		btrfs_check_and_init_root_item(&root->root_item);
 	}
 
@@ -1606,7 +1603,7 @@ int btrfs_insert_fs_root(struct btrfs_fs_info *fs_info,
 				(unsigned long)root->root_key.objectid,
 				root);
 	if (ret == 0)
-		root->in_radix = 1;
+		set_bit(BTRFS_ROOT_IN_RADIX, &root->state);
 	spin_unlock(&fs_info->fs_roots_radix_lock);
 	radix_tree_preload_end();
 
@@ -1662,7 +1659,7 @@ again:
 	if (ret < 0)
 		goto fail;
 	if (ret == 0)
-		root->orphan_item_inserted = 1;
+		set_bit(BTRFS_ROOT_ORPHAN_ITEM_INSERTED, &root->state);
 
 	ret = btrfs_insert_fs_root(fs_info, root);
 	if (ret) {
@@ -2101,7 +2098,7 @@ static void del_fs_roots(struct btrfs_fs_info *fs_info)
 				     struct btrfs_root, root_list);
 		list_del(&gang[0]->root_list);
 
-		if (gang[0]->in_radix) {
+		if (test_bit(BTRFS_ROOT_IN_RADIX, &gang[0]->state)) {
 			btrfs_drop_and_free_fs_root(fs_info, gang[0]);
 		} else {
 			free_extent_buffer(gang[0]->node);
@@ -2694,7 +2691,7 @@ retry_root_backup:
 		ret = PTR_ERR(extent_root);
 		goto recovery_tree_root;
 	}
-	extent_root->track_dirty = 1;
+	set_bit(BTRFS_ROOT_TRACK_DIRTY, &extent_root->state);
 	fs_info->extent_root = extent_root;
 
 	location.objectid = BTRFS_DEV_TREE_OBJECTID;
@@ -2703,7 +2700,7 @@ retry_root_backup:
 		ret = PTR_ERR(dev_root);
 		goto recovery_tree_root;
 	}
-	dev_root->track_dirty = 1;
+	set_bit(BTRFS_ROOT_TRACK_DIRTY, &dev_root->state);
 	fs_info->dev_root = dev_root;
 	btrfs_init_devices_late(fs_info);
 
@@ -2713,13 +2710,13 @@ retry_root_backup:
 		ret = PTR_ERR(csum_root);
 		goto recovery_tree_root;
 	}
-	csum_root->track_dirty = 1;
+	set_bit(BTRFS_ROOT_TRACK_DIRTY, &csum_root->state);
 	fs_info->csum_root = csum_root;
 
 	location.objectid = BTRFS_QUOTA_TREE_OBJECTID;
 	quota_root = btrfs_read_tree_root(tree_root, &location);
 	if (!IS_ERR(quota_root)) {
-		quota_root->track_dirty = 1;
+		set_bit(BTRFS_ROOT_TRACK_DIRTY, &quota_root->state);
 		fs_info->quota_enabled = 1;
 		fs_info->pending_quota_state = 1;
 		fs_info->quota_root = quota_root;
@@ -2734,7 +2731,7 @@ retry_root_backup:
 		create_uuid_tree = true;
 		check_uuid_tree = false;
 	} else {
-		uuid_root->track_dirty = 1;
+		set_bit(BTRFS_ROOT_TRACK_DIRTY, &uuid_root->state);
 		fs_info->uuid_root = uuid_root;
 		create_uuid_tree = false;
 		check_uuid_tree =
