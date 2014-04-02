@@ -92,8 +92,8 @@ COMPAT_SYSCALL_DEFINE4(utimensat, unsigned int, dfd, const char __user *, filena
 	struct timespec tv[2];
 
 	if  (t) {
-		if (get_compat_timespec(&tv[0], &t[0]) ||
-		    get_compat_timespec(&tv[1], &t[1]))
+		if (compat_get_timespec(&tv[0], &t[0]) ||
+		    compat_get_timespec(&tv[1], &t[1]))
 			return -EFAULT;
 
 		if (tv[0].tv_nsec == UTIME_OMIT && tv[1].tv_nsec == UTIME_OMIT)
@@ -505,7 +505,7 @@ COMPAT_SYSCALL_DEFINE5(io_getevents, compat_aio_context_t, ctx_id,
 	struct timespec __user *ut = NULL;
 
 	if (timeout) {
-		if (get_compat_timespec(&t, timeout))
+		if (compat_get_timespec(&t, timeout))
 			return -EFAULT;
 
 		ut = compat_alloc_user_space(sizeof(*ut));
