@@ -613,11 +613,15 @@ iwl_mvm_power_set_pm(struct iwl_mvm *mvm,
 		ap_same_channel = (bss_mvmvif->phy_ctxt->id ==
 				   ap_mvmvif->phy_ctxt->id);
 
-	/* bss is not stand alone: enable PM if alone on its channel */
-	if (vifs->bss_active && !(client_same_channel || ap_same_channel) &&
+	/* clients are not stand alone: enable PM if DCM */
+	if (!(client_same_channel || ap_same_channel) &&
 	    (mvm->fw->ucode_capa.flags & IWL_UCODE_TLV_FLAGS_BSS_P2P_PS_DCM)) {
+		if (vifs->bss_active)
 			bss_mvmvif->pm_enabled = true;
-			return;
+		if (vifs->p2p_active &&
+		    (mvm->fw->ucode_capa.flags & IWL_UCODE_TLV_FLAGS_P2P_PM))
+			p2p_mvmvif->pm_enabled = true;
+		return;
 	}
 
 	/*
