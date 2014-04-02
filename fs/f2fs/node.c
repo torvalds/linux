@@ -1313,7 +1313,6 @@ static void __del_from_free_nid_list(struct f2fs_nm_info *nm_i,
 {
 	list_del(&i->list);
 	radix_tree_delete(&nm_i->free_nid_root, i->nid);
-	kmem_cache_free(free_nid_slab, i);
 }
 
 static int add_free_nid(struct f2fs_nm_info *nm_i, nid_t nid, bool build)
@@ -1360,13 +1359,19 @@ static int add_free_nid(struct f2fs_nm_info *nm_i, nid_t nid, bool build)
 static void remove_free_nid(struct f2fs_nm_info *nm_i, nid_t nid)
 {
 	struct free_nid *i;
+	bool need_free = false;
+
 	spin_lock(&nm_i->free_nid_list_lock);
 	i = __lookup_free_nid_list(nm_i, nid);
 	if (i && i->state == NID_NEW) {
 		__del_from_free_nid_list(nm_i, i);
 		nm_i->fcnt--;
+		need_free = true;
 	}
 	spin_unlock(&nm_i->free_nid_list_lock);
+
+	if (need_free)
+		kmem_cache_free(free_nid_slab, i);
 }
 
 static void scan_nat_page(struct f2fs_nm_info *nm_i,
@@ -1491,6 +1496,8 @@ void alloc_nid_done(struct f2fs_sb_info *sbi, nid_t nid)
 	f2fs_bug_on(!i || i->state != NID_ALLOC);
 	__del_from_free_nid_list(nm_i, i);
 	spin_unlock(&nm_i->free_nid_list_lock);
+
+	kmem_cache_free(free_nid_slab, i);
 }
 
 /*
@@ -1500,6 +1507,7 @@ void alloc_nid_failed(struct f2fs_sb_info *sbi, nid_t nid)
 {
 	struct f2fs_nm_info *nm_i = NM_I(sbi);
 	struct free_nid *i;
+	bool need_free = false;
 
 	if (!nid)
 		return;
@@ -1509,11 +1517,15 @@ void alloc_nid_failed(struct f2fs_sb_info *sbi, nid_t nid)
 	f2fs_bug_on(!i || i->state != NID_ALLOC);
 	if (!available_free_memory(nm_i, FREE_NIDS)) {
 		__del_from_free_nid_list(nm_i, i);
+		need_free = true;
 	} else {
 		i->state = NID_NEW;
 		nm_i->fcnt++;
 	}
 	spin_unlock(&nm_i->free_nid_list_lock);
+
+	if (need_free)
+		kmem_cache_free(free_nid_slab, i);
 }
 
 void recover_node_page(struct f2fs_sb_info *sbi, struct page *page,
@@ -1925,6 +1937,9 @@ void destroy_node_manager(struct f2fs_sb_info *sbi)
 		f2fs_bug_on(i->state == NID_ALLOC);
 		__del_from_free_nid_list(nm_i, i);
 		nm_i->fcnt--;
+		spin_unlock(&nm_i->free_nid_list_lock);
+		kmem_cache_free(free_nid_slab, i);
+		spin_lock(&nm_i->free_nid_list_lock);
 	}
 	f2fs_bug_on(nm_i->fcnt);
 	spin_unlock(&nm_i->free_nid_list_lock);

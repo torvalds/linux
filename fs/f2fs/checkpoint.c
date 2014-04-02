@@ -347,10 +347,11 @@ void remove_orphan_inode(struct f2fs_sb_info *sbi, nid_t ino)
 	list_for_each_entry(orphan, head, list) {
 		if (orphan->ino == ino) {
 			list_del(&orphan->list);
-			kmem_cache_free(orphan_entry_slab, orphan);
 			f2fs_bug_on(sbi->n_orphans == 0);
 			sbi->n_orphans--;
-			break;
+			spin_unlock(&sbi->orphan_inode_lock);
+			kmem_cache_free(orphan_entry_slab, orphan);
+			return;
 		}
 	}
 	spin_unlock(&sbi->orphan_inode_lock);
@@ -577,6 +578,7 @@ void set_dirty_dir_page(struct inode *inode, struct page *page)
 {
 	struct f2fs_sb_info *sbi = F2FS_SB(inode->i_sb);
 	struct dir_inode_entry *new;
+	int ret = 0;
 
 	if (!S_ISDIR(inode->i_mode))
 		return;
@@ -586,12 +588,13 @@ void set_dirty_dir_page(struct inode *inode, struct page *page)
 	INIT_LIST_HEAD(&new->list);
 
 	spin_lock(&sbi->dir_inode_lock);
-	if (__add_dirty_inode(inode, new))
-		kmem_cache_free(inode_entry_slab, new);
-
+	ret = __add_dirty_inode(inode, new);
 	inode_inc_dirty_dents(inode);
 	SetPagePrivate(page);
 	spin_unlock(&sbi->dir_inode_lock);
+
+	if (ret)
+		kmem_cache_free(inode_entry_slab, new);
 }
 
 void add_dirty_dir_inode(struct inode *inode)
@@ -599,20 +602,22 @@ void add_dirty_dir_inode(struct inode *inode)
 	struct f2fs_sb_info *sbi = F2FS_SB(inode->i_sb);
 	struct dir_inode_entry *new =
 			f2fs_kmem_cache_alloc(inode_entry_slab, GFP_NOFS);
+	int ret = 0;
 
 	new->inode = inode;
 	INIT_LIST_HEAD(&new->list);
 
 	spin_lock(&sbi->dir_inode_lock);
-	if (__add_dirty_inode(inode, new))
-		kmem_cache_free(inode_entry_slab, new);
+	ret = __add_dirty_inode(inode, new);
 	spin_unlock(&sbi->dir_inode_lock);
+
+	if (ret)
+		kmem_cache_free(inode_entry_slab, new);
 }
 
 void remove_dirty_dir_inode(struct inode *inode)
 {
 	struct f2fs_sb_info *sbi = F2FS_SB(inode->i_sb);
-
 	struct list_head *this, *head;
 
 	if (!S_ISDIR(inode->i_mode))
@@ -630,13 +635,15 @@ void remove_dirty_dir_inode(struct inode *inode)
 		entry = list_entry(this, struct dir_inode_entry, list);
 		if (entry->inode == inode) {
 			list_del(&entry->list);
-			kmem_cache_free(inode_entry_slab, entry);
 			stat_dec_dirty_dir(sbi);
-			break;
+			spin_unlock(&sbi->dir_inode_lock);
+			kmem_cache_free(inode_entry_slab, entry);
+			goto done;
 		}
 	}
 	spin_unlock(&sbi->dir_inode_lock);
 
+done:
 	/* Only from the recovery routine */
 	if (is_inode_flag_set(F2FS_I(inode), FI_DELAY_IPUT)) {
 		clear_inode_flag(F2FS_I(inode), FI_DELAY_IPUT);
