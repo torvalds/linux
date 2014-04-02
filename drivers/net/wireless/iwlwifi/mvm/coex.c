@@ -576,10 +576,10 @@ int iwl_send_bt_init_conf(struct iwl_mvm *mvm)
 	cmd.data[0] = bt_cmd;
 
 	bt_cmd->max_kill = 5;
-	bt_cmd->bt4_antenna_isolation_thr = BT_ANTENNA_COUPLING_THRESHOLD,
-	bt_cmd->bt4_antenna_isolation = iwlwifi_mod_params.ant_coupling,
-	bt_cmd->bt4_tx_tx_delta_freq_thr = 15,
-	bt_cmd->bt4_tx_rx_max_freq0 = 15,
+	bt_cmd->bt4_antenna_isolation_thr = BT_ANTENNA_COUPLING_THRESHOLD;
+	bt_cmd->bt4_antenna_isolation = iwlwifi_mod_params.ant_coupling;
+	bt_cmd->bt4_tx_tx_delta_freq_thr = 15;
+	bt_cmd->bt4_tx_rx_max_freq0 = 15;
 
 	flags = iwlwifi_mod_params.bt_coex_active ?
 			BT_COEX_NW : BT_COEX_DISABLE;
