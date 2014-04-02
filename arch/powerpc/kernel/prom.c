@@ -752,6 +752,11 @@ void __init early_init_devtree(void *params)
 	spinning_secondaries = boot_cpu_count - 1;
 #endif
 
+#ifdef CONFIG_PPC_POWERNV
+	/* Scan and build the list of machine check recoverable ranges */
+	of_scan_flat_dt(early_init_dt_scan_recoverable_ranges, NULL);
+#endif
+
 	DBG(" <- early_init_devtree()\n");
 }
 

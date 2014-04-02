@@ -1379,8 +1379,9 @@ void facility_unavailable_exception(struct pt_regs *regs)
 	if (!arch_irq_disabled_regs(regs))
 		local_irq_enable();
 
-	pr_err("%sFacility '%s' unavailable, exception at 0x%lx, MSR=%lx\n",
-	       hv ? "Hypervisor " : "", facility, regs->nip, regs->msr);
+	pr_err_ratelimited(
+		"%sFacility '%s' unavailable, exception at 0x%lx, MSR=%lx\n",
+		hv ? "Hypervisor " : "", facility, regs->nip, regs->msr);
 
 	if (user_mode(regs)) {
 		_exception(SIGILL, regs, ILL_ILLOPC, regs->nip);
