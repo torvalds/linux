@@ -4585,7 +4585,9 @@ conf_is_ht40(struct ieee80211_conf *conf)
 static inline bool
 conf_is_ht(struct ieee80211_conf *conf)
 {
-	return conf->chandef.width != NL80211_CHAN_WIDTH_20_NOHT;
+	return (conf->chandef.width != NL80211_CHAN_WIDTH_5) &&
+		(conf->chandef.width != NL80211_CHAN_WIDTH_10) &&
+		(conf->chandef.width != NL80211_CHAN_WIDTH_20_NOHT);
 }
 
 static inline enum nl80211_iftype
