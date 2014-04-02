@@ -551,6 +551,7 @@ struct intel_uncore {
 	func(is_ivybridge) sep \
 	func(is_valleyview) sep \
 	func(is_haswell) sep \
+	func(is_skylake) sep \
 	func(is_preliminary) sep \
 	func(has_fbc) sep \
 	func(has_pipe_cxsr) sep \
@@ -2093,6 +2094,7 @@ struct drm_i915_cmd_table {
 #define IS_CHERRYVIEW(dev)	(INTEL_INFO(dev)->is_valleyview && IS_GEN8(dev))
 #define IS_HASWELL(dev)	(INTEL_INFO(dev)->is_haswell)
 #define IS_BROADWELL(dev)	(!INTEL_INFO(dev)->is_valleyview && IS_GEN8(dev))
+#define IS_SKYLAKE(dev)	(INTEL_INFO(dev)->is_skylake)
 #define IS_MOBILE(dev)		(INTEL_INFO(dev)->is_mobile)
 #define IS_HSW_EARLY_SDV(dev)	(IS_HASWELL(dev) && \
 				 (INTEL_DEVID(dev) & 0xFF00) == 0x0C00)
