@@ -51,6 +51,7 @@ enum {
 	Opt_disable_ext_identify,
 	Opt_inline_xattr,
 	Opt_inline_data,
+	Opt_flush_merge,
 	Opt_err,
 };
 
@@ -67,6 +68,7 @@ static match_table_t f2fs_tokens = {
 	{Opt_disable_ext_identify, "disable_ext_identify"},
 	{Opt_inline_xattr, "inline_xattr"},
 	{Opt_inline_data, "inline_data"},
+	{Opt_flush_merge, "flush_merge"},
 	{Opt_err, NULL},
 };
 
@@ -334,6 +336,9 @@ static int parse_options(struct super_block *sb, char *options)
 		case Opt_inline_data:
 			set_opt(sbi, INLINE_DATA);
 			break;
+		case Opt_flush_merge:
+			set_opt(sbi, FLUSH_MERGE);
+			break;
 		default:
 			f2fs_msg(sb, KERN_ERR,
 				"Unrecognized mount option \"%s\" or missing value",
@@ -537,6 +542,8 @@ static int f2fs_show_options(struct seq_file *seq, struct dentry *root)
 		seq_puts(seq, ",disable_ext_identify");
 	if (test_opt(sbi, INLINE_DATA))
 		seq_puts(seq, ",inline_data");
+	if (test_opt(sbi, FLUSH_MERGE))
+		seq_puts(seq, ",flush_merge");
 	seq_printf(seq, ",active_logs=%u", sbi->active_logs);
 
 	return 0;

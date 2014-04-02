@@ -186,7 +186,7 @@ int f2fs_sync_file(struct file *file, loff_t start, loff_t end, int datasync)
 		ret = wait_on_node_pages_writeback(sbi, inode->i_ino);
 		if (ret)
 			goto out;
-		ret = blkdev_issue_flush(inode->i_sb->s_bdev, GFP_KERNEL, NULL);
+		ret = f2fs_issue_flush(F2FS_SB(inode->i_sb));
 	}
 out:
 	trace_f2fs_sync_file_exit(inode, need_cp, datasync, ret);
