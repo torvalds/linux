@@ -116,9 +116,9 @@ enum stack_type {
 
 static enum stack_type
 analyze_stack(int cpu, struct task_struct *task, unsigned long *stack,
-	      unsigned long **stack_end, unsigned *used, char **id)
+	      unsigned long **stack_end, unsigned long *irq_stack,
+	      unsigned *used, char **id)
 {
-	unsigned long *irq_stack;
 	unsigned long addr;
 
 	addr = ((unsigned long)stack & (~(THREAD_SIZE - 1)));
@@ -130,11 +130,11 @@ analyze_stack(int cpu, struct task_struct *task, unsigned long *stack,
 	if (*stack_end)
 		return STACK_IS_EXCEPTION;
 
-	*stack_end = (unsigned long *)per_cpu(irq_stack_ptr, cpu);
-	if (!*stack_end)
-		return STACK_IS_UNKNOWN;
+	if (!irq_stack)
+		return STACK_IS_NORMAL;
 
-	irq_stack = *stack_end - irq_stack_size;
+	*stack_end = irq_stack;
+	irq_stack = irq_stack - irq_stack_size;
 
 	if (in_irq_stack(stack, irq_stack, *stack_end))
 		return STACK_IS_IRQ;
@@ -155,7 +155,7 @@ void dump_trace(struct task_struct *task, struct pt_regs *regs,
 {
 	const unsigned cpu = get_cpu();
 	struct thread_info *tinfo;
-	unsigned long *irq_stack;
+	unsigned long *irq_stack = (unsigned long *)per_cpu(irq_stack_ptr, cpu);
 	unsigned long dummy;
 	unsigned used = 0;
 	int graph = 0;
@@ -186,7 +186,8 @@ void dump_trace(struct task_struct *task, struct pt_regs *regs,
 		enum stack_type stype;
 		char *id;
 
-		stype = analyze_stack(cpu, task, stack, &stack_end, &used, &id);
+		stype = analyze_stack(cpu, task, stack, &stack_end,
+				      irq_stack, &used, &id);
 
 		/* Default finish unless specified to continue */
 		done = 1;
@@ -226,7 +227,7 @@ void dump_trace(struct task_struct *task, struct pt_regs *regs,
 			 * pointer (index -1 to end) in the IRQ stack:
 			 */
 			stack = (unsigned long *) (stack_end[-1]);
-			irq_stack = stack_end - irq_stack_size;
+			irq_stack = NULL;
 			ops->stack(data, "EOI");
 			done = 0;
 			break;
