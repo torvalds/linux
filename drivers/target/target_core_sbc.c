@@ -1096,6 +1096,50 @@ err:
 }
 EXPORT_SYMBOL(sbc_execute_unmap);
 
+void
+sbc_dif_generate(struct se_cmd *cmd)
+{
+	struct se_device *dev = cmd->se_dev;
+	struct se_dif_v1_tuple *sdt;
+	struct scatterlist *dsg, *psg = cmd->t_prot_sg;
+	sector_t sector = cmd->t_task_lba;
+	void *daddr, *paddr;
+	int i, j, offset = 0;
+
+	for_each_sg(cmd->t_data_sg, dsg, cmd->t_data_nents, i) {
+		daddr = kmap_atomic(sg_page(dsg)) + dsg->offset;
+		paddr = kmap_atomic(sg_page(psg)) + psg->offset;
+
+		for (j = 0; j < dsg->length; j += dev->dev_attrib.block_size) {
+
+			if (offset >= psg->length) {
+				kunmap_atomic(paddr);
+				psg = sg_next(psg);
+				paddr = kmap_atomic(sg_page(psg)) + psg->offset;
+				offset = 0;
+			}
+
+			sdt = paddr + offset;
+			sdt->guard_tag = cpu_to_be16(crc_t10dif(daddr + j,
+						dev->dev_attrib.block_size));
+			if (dev->dev_attrib.pi_prot_type == TARGET_DIF_TYPE1_PROT)
+				sdt->ref_tag = cpu_to_be32(sector & 0xffffffff);
+			sdt->app_tag = 0;
+
+			pr_debug("DIF WRITE INSERT sector: %llu guard_tag: 0x%04x"
+				 " app_tag: 0x%04x ref_tag: %u\n",
+				 (unsigned long long)sector, sdt->guard_tag,
+				 sdt->app_tag, be32_to_cpu(sdt->ref_tag));
+
+			sector++;
+			offset += sizeof(struct se_dif_v1_tuple);
+		}
+
+		kunmap_atomic(paddr);
+		kunmap_atomic(daddr);
+	}
+}
+
 static sense_reason_t
 sbc_dif_v1_verify(struct se_device *dev, struct se_dif_v1_tuple *sdt,
 		  const void *p, sector_t sector, unsigned int ei_lba)

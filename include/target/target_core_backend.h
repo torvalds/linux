@@ -73,6 +73,7 @@ sense_reason_t sbc_execute_unmap(struct se_cmd *cmd,
 	sense_reason_t (*do_unmap_fn)(struct se_cmd *cmd, void *priv,
 				      sector_t lba, sector_t nolb),
 	void *priv);
+void	sbc_dif_generate(struct se_cmd *);
 sense_reason_t	sbc_dif_verify_write(struct se_cmd *, sector_t, unsigned int,
 				     unsigned int, struct scatterlist *, int);
 sense_reason_t	sbc_dif_verify_read(struct se_cmd *, sector_t, unsigned int,
