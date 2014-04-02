@@ -275,6 +275,7 @@ static int packet_direct_xmit(struct sk_buff *skb)
 
 	return ret;
 drop:
+	atomic_long_inc(&dev->tx_dropped);
 	kfree_skb(skb);
 	return NET_XMIT_DROP;
 }
