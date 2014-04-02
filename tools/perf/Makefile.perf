@@ -738,13 +738,13 @@ LIBAPIKFS_SOURCES = $(wildcard $(LIB_PATH)fs/*.[ch])
 # already
 $(LIBAPIKFS): $(LIBAPIKFS_SOURCES)
 ifeq ($(subdir),)
-	$(QUIET_SUBDIR0)$(LIB_DIR) $(QUIET_SUBDIR1) O=$(OUTPUT) libapikfs.a
+	$(QUIET_SUBDIR0)$(LIB_DIR) $(QUIET_SUBDIR1) CROSS_COMPILE=$(CROSS_COMPILE) O=$(OUTPUT) libapikfs.a
 endif
 
 $(LIBAPIKFS)-clean:
 ifeq ($(subdir),)
 	$(call QUIET_CLEAN, libapikfs)
-	@$(MAKE) -C $(LIB_DIR) O=$(OUTPUT) clean >/dev/null
+	@$(MAKE) -C $(LIB_DIR) CROSS_COMPILE=$(CROSS_COMPILE) O=$(OUTPUT) clean >/dev/null
 endif
 
 help:
