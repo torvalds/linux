@@ -139,6 +139,14 @@ config REGULATOR_AS3722
 	  AS3722 PMIC. This will enable support for all the software
 	  controllable DCDC/LDO regulators.
 
+config REGULATOR_BCM590XX
+	tristate "Broadcom BCM590xx PMU Regulators"
+	depends on MFD_BCM590XX
+	help
+	  This driver provides support for the voltage regulators on the
+	  BCM590xx PMUs. This will enable support for the software
+	  controllable LDO/Switching regulators.
+
 config REGULATOR_DA903X
 	tristate "Dialog Semiconductor DA9030/DA9034 regulators"
 	depends on PMIC_DA903X
