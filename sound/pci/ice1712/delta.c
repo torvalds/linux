@@ -580,6 +580,28 @@ static struct snd_ak4xxx_private akm_vx442_priv = {
 static int snd_ice1712_delta_resume(struct snd_ice1712 *ice)
 {
 	unsigned char akm_backup[AK4XXX_IMAGE_SIZE];
+
+	/* init spdif */
+	switch (ice->eeprom.subvendor) {
+	case ICE1712_SUBDEVICE_AUDIOPHILE:
+	case ICE1712_SUBDEVICE_DELTA410:
+	case ICE1712_SUBDEVICE_DELTA1010E:
+	case ICE1712_SUBDEVICE_DELTA1010LT:
+	case ICE1712_SUBDEVICE_VX442:
+	case ICE1712_SUBDEVICE_DELTA66E:
+		snd_cs8427_init(ice->i2c, ice->cs8427);
+		break;
+	case ICE1712_SUBDEVICE_DELTA1010:
+	case ICE1712_SUBDEVICE_MEDIASTATION:
+		/* nothing */
+		break;
+	case ICE1712_SUBDEVICE_DELTADIO2496:
+	case ICE1712_SUBDEVICE_DELTA66:
+		/* Set spdif defaults */
+		snd_ice1712_delta_cs8403_spdif_write(ice, ice->spdif.cs8403_bits);
+		break;
+	}
+
 	/* init codec and restore registers */
 	if (ice->akm_codecs) {
 		memcpy(akm_backup, ice->akm->images, sizeof(akm_backup));
