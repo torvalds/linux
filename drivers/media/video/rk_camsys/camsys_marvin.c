@@ -133,8 +133,8 @@ static int camsys_mrv_clkin_cb(void *ptr, unsigned int on)
         clk_prepare_enable(clk->aclk_isp);
         clk_prepare_enable(clk->hclk_isp);
         clk_prepare_enable(clk->isp);
-        clk_prepare_enable( clk->isp_jpe);
-        
+        clk_prepare_enable(clk->isp_jpe);
+        clk_prepare_enable(clk->clk_mipi_24m); 
 
  //       clk_enable(clk->pd_isp);
   //      clk_enable(clk->aclk_isp);
@@ -151,10 +151,11 @@ static int camsys_mrv_clkin_cb(void *ptr, unsigned int on)
     } else if (!on && clk->in_on) {
 
 
-         clk_disable_unprepare(clk->aclk_isp);
+        clk_disable_unprepare(clk->aclk_isp);
         clk_disable_unprepare(clk->hclk_isp);
         clk_disable_unprepare(clk->isp);
-        clk_disable_unprepare( clk->isp_jpe);
+        clk_disable_unprepare(clk->isp_jpe);
+        clk_disable_unprepare(clk->clk_mipi_24m); 
 
   //      clk_disable(clk->pd_isp);
   //      clk_disable(clk->aclk_isp);
@@ -337,16 +338,16 @@ int camsys_mrv_probe_cb(struct platform_device *pdev, camsys_dev_t *camsys_dev)
      
    // mrv_clk->pd_isp = devm_clk_get(&pdev->dev, "pd_isp");
     mrv_clk->pd_isp = NULL;
-    mrv_clk->aclk_isp = devm_clk_get(&pdev->dev, "g_aclk_isp");
-    mrv_clk->hclk_isp = devm_clk_get(&pdev->dev, "g_hclk_isp");
+    mrv_clk->aclk_isp = devm_clk_get(&pdev->dev, "aclk_isp");
+    mrv_clk->hclk_isp = devm_clk_get(&pdev->dev, "hclk_isp");
     mrv_clk->isp = devm_clk_get(&pdev->dev, "clk_isp");
     mrv_clk->isp_jpe = devm_clk_get(&pdev->dev, "clk_isp_jpe");
     mrv_clk->pclkin_isp = devm_clk_get(&pdev->dev, "pclkin_isp");
-    mrv_clk->cif_clk_out = devm_clk_get(&pdev->dev, "clk_cif_out");
-    
+    mrv_clk->cif_clk_out = devm_clk_get(&pdev->dev, "clk_vipout");
+    mrv_clk->clk_mipi_24m = devm_clk_get(&pdev->dev,"clk_mipi_24m"); 
     if (/*IS_ERR_OR_NULL(mrv_clk->pd_isp) ||*/ IS_ERR_OR_NULL(mrv_clk->aclk_isp) || IS_ERR_OR_NULL(mrv_clk->hclk_isp) ||
         IS_ERR_OR_NULL(mrv_clk->isp) || IS_ERR_OR_NULL(mrv_clk->isp_jpe) /*|| IS_ERR_OR_NULL(mrv_clk->pclkin_isp)*/ || 
-        IS_ERR_OR_NULL(mrv_clk->cif_clk_out)) {
+        IS_ERR_OR_NULL(mrv_clk->cif_clk_out) || IS_ERR_OR_NULL(mrv_clk->clk_mipi_24m)) {
         camsys_err("Get %s clock resouce failed!\n",miscdev_name);
         err = -EINVAL;
         goto clk_failed;

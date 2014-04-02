@@ -29,6 +29,7 @@ typedef struct camsys_mrv_clk_s {
     struct clk      *isp;
     struct clk      *isp_jpe;
     struct clk      *pclkin_isp;
+    struct clk      *clk_mipi_24m;
     bool             in_on;
 
     struct clk      *cif_clk_out;
