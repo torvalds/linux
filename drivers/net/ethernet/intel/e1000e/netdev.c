@@ -1165,7 +1165,7 @@ static void e1000e_tx_hwtstamp_work(struct work_struct *work)
 		dev_kfree_skb_any(adapter->tx_hwtstamp_skb);
 		adapter->tx_hwtstamp_skb = NULL;
 		adapter->tx_hwtstamp_timeouts++;
-		e_warn("clearing Tx timestamp hang");
+		e_warn("clearing Tx timestamp hang\n");
 	} else {
 		/* reschedule to check later */
 		schedule_work(&adapter->tx_hwtstamp_work);

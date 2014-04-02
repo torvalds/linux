@@ -418,7 +418,7 @@ int i40e_add_del_fdir(struct i40e_vsi *vsi,
 		}
 		break;
 	default:
-		dev_info(&pf->pdev->dev, "Could not specify spec type %d",
+		dev_info(&pf->pdev->dev, "Could not specify spec type %d\n",
 			 input->flow_type);
 		ret = -EINVAL;
 	}
@@ -478,7 +478,7 @@ static void i40e_fd_handle_status(struct i40e_ring *rx_ring,
 				pf->flags |= I40E_FLAG_FDIR_REQUIRES_REINIT;
 			}
 		} else {
-			dev_info(&pdev->dev, "FD filter programming error");
+			dev_info(&pdev->dev, "FD filter programming error\n");
 		}
 	} else if (error ==
 			  (0x1 << I40E_RX_PROG_STATUS_DESC_NO_FD_ENTRY_SHIFT)) {
