@@ -174,6 +174,16 @@
 	restore_irqs_notrace \oldcpsr
 	.endm
 
+/*
+ * Get current thread_info.
+ */
+	.macro	get_thread_info, rd
+ ARM(	mov	\rd, sp, lsr #13	)
+ THUMB(	mov	\rd, sp			)
+ THUMB(	lsr	\rd, \rd, #13		)
+	mov	\rd, \rd, lsl #13
+	.endm
+
 #define USER(x...)				\
 9999:	x;					\
 	.pushsection __ex_table,"a";		\
