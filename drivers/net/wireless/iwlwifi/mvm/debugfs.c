@@ -316,7 +316,7 @@ static ssize_t iwl_dbgfs_bt_notif_read(struct file *file, char __user *user_buf,
 				       size_t count, loff_t *ppos)
 {
 	struct iwl_mvm *mvm = file->private_data;
-	struct iwl_bt_coex_profile_notif *notif = &mvm->last_bt_notif;
+	struct iwl_bt_coex_profile_notif_old *notif = &mvm->last_bt_notif;
 	char *buf;
 	int ret, pos = 0, bufsz = sizeof(char) * 1024;
 
@@ -411,7 +411,7 @@ static ssize_t iwl_dbgfs_bt_cmd_read(struct file *file, char __user *user_buf,
 				     size_t count, loff_t *ppos)
 {
 	struct iwl_mvm *mvm = file->private_data;
-	struct iwl_bt_coex_ci_cmd *cmd = &mvm->last_bt_ci_cmd;
+	struct iwl_bt_coex_ci_cmd_old *cmd = &mvm->last_bt_ci_cmd;
 	char buf[256];
 	int bufsz = sizeof(buf);
 	int pos = 0;

@@ -72,13 +72,13 @@
  * enum iwl_bt_coex_flags - flags for BT_COEX command
  * @BT_COEX_MODE_POS:
  * @BT_COEX_MODE_MSK:
- * @BT_COEX_DISABLE:
- * @BT_COEX_2W:
- * @BT_COEX_3W:
- * @BT_COEX_NW:
- * @BT_COEX_AUTO:
- * @BT_COEX_BT: Antenna is for BT (manufacuring tests)
- * @BT_COEX_WIFI: Antenna is for BT (manufacuring tests)
+ * @BT_COEX_DISABLE_OLD:
+ * @BT_COEX_2W_OLD:
+ * @BT_COEX_3W_OLD:
+ * @BT_COEX_NW_OLD:
+ * @BT_COEX_AUTO_OLD:
+ * @BT_COEX_BT_OLD: Antenna is for BT (manufacuring tests)
+ * @BT_COEX_WIFI_OLD: Antenna is for BT (manufacuring tests)
  * @BT_COEX_SYNC2SCO:
  * @BT_COEX_CORUNNING:
  * @BT_COEX_MPLUT:
@@ -88,13 +88,13 @@
 enum iwl_bt_coex_flags {
 	BT_COEX_MODE_POS		= 3,
 	BT_COEX_MODE_MSK		= BITS(3) << BT_COEX_MODE_POS,
-	BT_COEX_DISABLE			= 0x0 << BT_COEX_MODE_POS,
-	BT_COEX_2W			= 0x1 << BT_COEX_MODE_POS,
-	BT_COEX_3W			= 0x2 << BT_COEX_MODE_POS,
-	BT_COEX_NW			= 0x3 << BT_COEX_MODE_POS,
-	BT_COEX_AUTO			= 0x5 << BT_COEX_MODE_POS,
-	BT_COEX_BT			= 0x6 << BT_COEX_MODE_POS,
-	BT_COEX_WIFI			= 0x7 << BT_COEX_MODE_POS,
+	BT_COEX_DISABLE_OLD		= 0x0 << BT_COEX_MODE_POS,
+	BT_COEX_2W_OLD			= 0x1 << BT_COEX_MODE_POS,
+	BT_COEX_3W_OLD			= 0x2 << BT_COEX_MODE_POS,
+	BT_COEX_NW_OLD			= 0x3 << BT_COEX_MODE_POS,
+	BT_COEX_AUTO_OLD		= 0x5 << BT_COEX_MODE_POS,
+	BT_COEX_BT_OLD			= 0x6 << BT_COEX_MODE_POS,
+	BT_COEX_WIFI_OLD		= 0x7 << BT_COEX_MODE_POS,
 	BT_COEX_SYNC2SCO		= BIT(7),
 	BT_COEX_CORUNNING		= BIT(8),
 	BT_COEX_MPLUT			= BIT(9),
@@ -157,7 +157,7 @@ enum iwl_bt_coex_lut_type {
 #define BT_REDUCED_TX_POWER_BIT BIT(7)
 
 /**
- * struct iwl_bt_coex_cmd - bt coex configuration command
+ * struct iwl_bt_coex_cmd_old - bt coex configuration command
  * @flags:&enum iwl_bt_coex_flags
  * @max_kill:
  * @bt_reduced_tx_power: enum %iwl_bt_reduced_tx_power
@@ -182,7 +182,7 @@ enum iwl_bt_coex_lut_type {
  *
  * The structure is used for the BT_COEX command.
  */
-struct iwl_bt_coex_cmd {
+struct iwl_bt_coex_cmd_old {
 	__le32 flags;
 	u8 max_kill;
 	u8 bt_reduced_tx_power;
@@ -219,7 +219,7 @@ struct iwl_bt_coex_cmd {
  *
  * Used for BT_COEX_CI command
  */
-struct iwl_bt_coex_ci_cmd {
+struct iwl_bt_coex_ci_cmd_old {
 	__le64 bt_primary_ci;
 	__le64 bt_secondary_ci;
 
@@ -310,7 +310,7 @@ enum iwl_bt_activity_grading {
  * @secondary_ch_lut: LUT used for secondary channel
  * @bt_activity_grading: the activity of BT enum %iwl_bt_activity_grading
  */
-struct iwl_bt_coex_profile_notif {
+struct iwl_bt_coex_profile_notif_old {
 	__le32 mbox_msg[4];
 	__le32 msg_idx;
 	u8 bt_status;

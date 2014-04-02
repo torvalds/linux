@@ -630,8 +630,12 @@ struct iwl_mvm {
 
 	/* BT-Coex */
 	u8 bt_kill_msk;
-	struct iwl_bt_coex_profile_notif last_bt_notif;
-	struct iwl_bt_coex_ci_cmd last_bt_ci_cmd;
+
+	struct iwl_bt_coex_profile_notif_old last_bt_notif_old;
+	struct iwl_bt_coex_ci_cmd_old last_bt_ci_cmd_old;
+	struct iwl_bt_coex_profile_notif_old last_bt_notif;
+	struct iwl_bt_coex_ci_cmd_old last_bt_ci_cmd;
+
 	u32 last_ant_isol;
 	u8 last_corun_lut;
 	u8 bt_tx_prio;
@@ -973,6 +977,24 @@ bool iwl_mvm_bt_coex_is_tpc_allowed(struct iwl_mvm *mvm,
 				    enum ieee80211_band band);
 u8 iwl_mvm_bt_coex_tx_prio(struct iwl_mvm *mvm, struct ieee80211_hdr *hdr,
 			   struct ieee80211_tx_info *info, u8 ac);
+
+bool iwl_mvm_bt_coex_is_shared_ant_avail_old(struct iwl_mvm *mvm);
+void iwl_mvm_bt_coex_vif_change_old(struct iwl_mvm *mvm);
+int iwl_send_bt_init_conf_old(struct iwl_mvm *mvm);
+int iwl_mvm_rx_bt_coex_notif_old(struct iwl_mvm *mvm,
+				 struct iwl_rx_cmd_buffer *rxb,
+				 struct iwl_device_cmd *cmd);
+void iwl_mvm_bt_rssi_event_old(struct iwl_mvm *mvm, struct ieee80211_vif *vif,
+			       enum ieee80211_rssi_event rssi_event);
+u16 iwl_mvm_coex_agg_time_limit_old(struct iwl_mvm *mvm,
+				    struct ieee80211_sta *sta);
+bool iwl_mvm_bt_coex_is_mimo_allowed_old(struct iwl_mvm *mvm,
+					 struct ieee80211_sta *sta);
+bool iwl_mvm_bt_coex_is_tpc_allowed_old(struct iwl_mvm *mvm,
+					enum ieee80211_band band);
+int iwl_mvm_rx_ant_coupling_notif_old(struct iwl_mvm *mvm,
+				      struct iwl_rx_cmd_buffer *rxb,
+				      struct iwl_device_cmd *cmd);
 
 enum iwl_bt_kill_msk {
 	BT_KILL_MSK_DEFAULT,
