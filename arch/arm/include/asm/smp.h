@@ -86,6 +86,8 @@ extern void arch_send_wakeup_ipi_mask(const struct cpumask *mask);
 
 extern int register_ipi_completion(struct completion *completion, int cpu);
 
+extern void smp_send_all_cpu_backtrace(void);
+
 struct smp_operations {
 #ifdef CONFIG_SMP
 	/*

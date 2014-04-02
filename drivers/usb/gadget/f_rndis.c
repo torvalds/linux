@@ -822,6 +822,62 @@ fail:
 	return status;
 }
 
+static void
+rndis_old_unbind(struct usb_configuration *c, struct usb_function *f)
+{
+	struct f_rndis		*rndis = func_to_rndis(f);
+
+	rndis_deregister(rndis->config);
+
+	usb_free_all_descriptors(f);
+
+	kfree(rndis->notify_req->buf);
+	usb_ep_free_request(rndis->notify, rndis->notify_req);
+
+	kfree(rndis);
+}
+
+int
+rndis_bind_config_vendor(struct usb_configuration *c, u8 ethaddr[ETH_ALEN],
+		u32 vendorID, const char *manufacturer, struct eth_dev *dev)
+{
+	struct f_rndis	*rndis;
+	int		status;
+
+	/* allocate and initialize one new instance */
+	status = -ENOMEM;
+	rndis = kzalloc(sizeof *rndis, GFP_KERNEL);
+	if (!rndis)
+		goto fail;
+
+	memcpy(rndis->ethaddr, ethaddr, ETH_ALEN);
+	rndis->vendorID = vendorID;
+	rndis->manufacturer = manufacturer;
+
+	rndis->port.ioport = dev;
+	/* RNDIS activates when the host changes this filter */
+	rndis->port.cdc_filter = 0;
+
+	/* RNDIS has special (and complex) framing */
+	rndis->port.header_len = sizeof(struct rndis_packet_msg_type);
+	rndis->port.wrap = rndis_add_header;
+	rndis->port.unwrap = rndis_rm_hdr;
+
+	rndis->port.func.name = "rndis";
+	/* descriptors are per-instance copies */
+	rndis->port.func.bind = rndis_bind;
+	rndis->port.func.unbind = rndis_old_unbind;
+	rndis->port.func.set_alt = rndis_set_alt;
+	rndis->port.func.setup = rndis_setup;
+	rndis->port.func.disable = rndis_disable;
+
+	status = usb_add_function(c, &rndis->port.func);
+	if (status)
+		kfree(rndis);
+fail:
+	return status;
+}
+
 void rndis_borrow_net(struct usb_function_instance *f, struct net_device *net)
 {
 	struct f_rndis_opts *opts;
