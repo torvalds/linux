@@ -589,8 +589,8 @@ static void vlv_set_infoframes(struct drm_encoder *encoder,
 	}
 
 	val |= VIDEO_DIP_ENABLE;
-	val &= ~(VIDEO_DIP_ENABLE_VENDOR | VIDEO_DIP_ENABLE_GAMUT |
-		 VIDEO_DIP_ENABLE_GCP);
+	val &= ~(VIDEO_DIP_ENABLE_AVI | VIDEO_DIP_ENABLE_VENDOR |
+		 VIDEO_DIP_ENABLE_GAMUT | VIDEO_DIP_ENABLE_GCP);
 
 	I915_WRITE(reg, val);
 	POSTING_READ(reg);
