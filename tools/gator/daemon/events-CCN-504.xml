@@ -1,0 +1,122 @@
+  <counter_set name="CCN-504_cnt" count="4"/>
+  <category name="CCN-504" counter_set="CCN-504_cnt">
+    <event counter="CCN-504_ccnt" title="CCN-504 Clock" name="Cycles" display="hertz" units="Hz" average_selection="yes" description="The number of core clock cycles"/>
+
+    <option_set name="XP_Region">
+      <option event_delta="0x400000" name="XP 0" description="Crosspoint 0"/>
+      <option event_delta="0x410000" name="XP 1" description="Crosspoint 1"/>
+      <option event_delta="0x420000" name="XP 2" description="Crosspoint 2"/>
+      <option event_delta="0x430000" name="XP 3" description="Crosspoint 3"/>
+      <option event_delta="0x440000" name="XP 4" description="Crosspoint 4"/>
+      <option event_delta="0x450000" name="XP 5" description="Crosspoint 5"/>
+      <option event_delta="0x460000" name="XP 6" description="Crosspoint 6"/>
+      <option event_delta="0x470000" name="XP 7" description="Crosspoint 7"/>
+      <option event_delta="0x480000" name="XP 8" description="Crosspoint 8"/>
+      <option event_delta="0x490000" name="XP 9" description="Crosspoint 9"/>
+      <option event_delta="0x4A0000" name="XP 10" description="Crosspoint 10"/>
+    </option_set>
+
+    <event event="0x0801" option_set="XP_Region" title="CCN-504" name="Bus 0: REQ: H-bit" description="Bus 0: REQ: Set H-bit, signaled when this XP sets the H-bit."/>
+    <event event="0x0802" option_set="XP_Region" title="CCN-504" name="Bus 0: REQ: S-bit" description="Bus 0: REQ: Set S-bit, signaled when this XP sets the S-bit."/>
+    <event event="0x0803" option_set="XP_Region" title="CCN-504" name="Bus 0: REQ: P-Cnt" description="Bus 0: REQ: Set P-Cnt, signaled when this XP sets the P-Cnt. This is not applicable for the SNP VC."/>
+    <event event="0x0804" option_set="XP_Region" title="CCN-504" name="Bus 0: REQ: TknV" description="Bus 0: REQ: No TknV, signaled when this XP transmits a valid packet."/>
+    <event event="0x0809" option_set="XP_Region" title="CCN-504" name="Bus 1: REQ: H-bit" description="Bus 1: REQ: Set H-bit, signaled when this XP sets the H-bit."/>
+    <event event="0x080A" option_set="XP_Region" title="CCN-504" name="Bus 1: REQ: S-bit" description="Bus 1: REQ: Set S-bit, signaled when this XP sets the S-bit."/>
+    <event event="0x080B" option_set="XP_Region" title="CCN-504" name="Bus 1: REQ: P-Cnt" description="Bus 1: REQ: Set P-Cnt, signaled when this XP sets the P-Cnt. This is not applicable for the SNP VC."/>
+    <event event="0x080C" option_set="XP_Region" title="CCN-504" name="Bus 1: REQ: TknV" description="Bus 1: REQ: No TknV, signaled when this XP transmits a valid packet."/>
+    <event event="0x0811" option_set="XP_Region" title="CCN-504" name="Bus 0: RSP: H-bit" description="Bus 0: RSP: Set H-bit, signaled when this XP sets the H-bit."/>
+    <event event="0x0812" option_set="XP_Region" title="CCN-504" name="Bus 0: RSP: S-bit" description="Bus 0: RSP: Set S-bit, signaled when this XP sets the S-bit."/>
+    <event event="0x0813" option_set="XP_Region" title="CCN-504" name="Bus 0: RSP: P-Cnt" description="Bus 0: RSP: Set P-Cnt, signaled when this XP sets the P-Cnt. This is not applicable for the SNP VC."/>
+    <event event="0x0814" option_set="XP_Region" title="CCN-504" name="Bus 0: RSP: TknV" description="Bus 0: RSP: No TknV, signaled when this XP transmits a valid packet."/>
+    <event event="0x0819" option_set="XP_Region" title="CCN-504" name="Bus 1: RSP: H-bit" description="Bus 1: RSP: Set H-bit, signaled when this XP sets the H-bit."/>
+    <event event="0x081A" option_set="XP_Region" title="CCN-504" name="Bus 1: RSP: S-bit" description="Bus 1: RSP: Set S-bit, signaled when this XP sets the S-bit."/>
+    <event event="0x081B" option_set="XP_Region" title="CCN-504" name="Bus 1: RSP: P-Cnt" description="Bus 1: RSP: Set P-Cnt, signaled when this XP sets the P-Cnt. This is not applicable for the SNP VC."/>
+    <event event="0x081C" option_set="XP_Region" title="CCN-504" name="Bus 1: RSP: TknV" description="Bus 1: RSP: No TknV, signaled when this XP transmits a valid packet."/>
+    <event event="0x0821" option_set="XP_Region" title="CCN-504" name="Bus 0: SNP: H-bit" description="Bus 0: SNP: Set H-bit, signaled when this XP sets the H-bit."/>
+    <event event="0x0822" option_set="XP_Region" title="CCN-504" name="Bus 0: SNP: S-bit" description="Bus 0: SNP: Set S-bit, signaled when this XP sets the S-bit."/>
+    <event event="0x0823" option_set="XP_Region" title="CCN-504" name="Bus 0: SNP: P-Cnt" description="Bus 0: SNP: Set P-Cnt, signaled when this XP sets the P-Cnt. This is not applicable for the SNP VC."/>
+    <event event="0x0824" option_set="XP_Region" title="CCN-504" name="Bus 0: SNP: TknV" description="Bus 0: SNP: No TknV, signaled when this XP transmits a valid packet."/>
+    <event event="0x0829" option_set="XP_Region" title="CCN-504" name="Bus 1: SNP: H-bit" description="Bus 1: SNP: Set H-bit, signaled when this XP sets the H-bit."/>
+    <event event="0x082A" option_set="XP_Region" title="CCN-504" name="Bus 1: SNP: S-bit" description="Bus 1: SNP: Set S-bit, signaled when this XP sets the S-bit."/>
+    <event event="0x082B" option_set="XP_Region" title="CCN-504" name="Bus 1: SNP: P-Cnt" description="Bus 1: SNP: Set P-Cnt, signaled when this XP sets the P-Cnt. This is not applicable for the SNP VC."/>
+    <event event="0x082C" option_set="XP_Region" title="CCN-504" name="Bus 1: SNP: TknV" description="Bus 1: SNP: No TknV, signaled when this XP transmits a valid packet."/>
+    <event event="0x0831" option_set="XP_Region" title="CCN-504" name="Bus 0: DAT: H-bit" description="Bus 0: DAT: Set H-bit, signaled when this XP sets the H-bit."/>
+    <event event="0x0832" option_set="XP_Region" title="CCN-504" name="Bus 0: DAT: S-bit" description="Bus 0: DAT: Set S-bit, signaled when this XP sets the S-bit."/>
+    <event event="0x0833" option_set="XP_Region" title="CCN-504" name="Bus 0: DAT: P-Cnt" description="Bus 0: DAT: Set P-Cnt, signaled when this XP sets the P-Cnt. This is not applicable for the SNP VC."/>
+    <event event="0x0834" option_set="XP_Region" title="CCN-504" name="Bus 0: DAT: TknV" description="Bus 0: DAT: No TknV, signaled when this XP transmits a valid packet."/>
+    <event event="0x0839" option_set="XP_Region" title="CCN-504" name="Bus 1: DAT: H-bit" description="Bus 1: DAT: Set H-bit, signaled when this XP sets the H-bit."/>
+    <event event="0x083A" option_set="XP_Region" title="CCN-504" name="Bus 1: DAT: S-bit" description="Bus 1: DAT: Set S-bit, signaled when this XP sets the S-bit."/>
+    <event event="0x083B" option_set="XP_Region" title="CCN-504" name="Bus 1: DAT: P-Cnt" description="Bus 1: DAT: Set P-Cnt, signaled when this XP sets the P-Cnt. This is not applicable for the SNP VC."/>
+    <event event="0x083C" option_set="XP_Region" title="CCN-504" name="Bus 1: DAT: TknV" description="Bus 1: DAT: No TknV, signaled when this XP transmits a valid packet."/>
+    <event event="0x0871" option_set="XP_Region" title="CCN-504" name="Bus 0: DATB: H-bit" description="Bus 0: DATB: Set H-bit, signaled when this XP sets the H-bit."/>
+    <event event="0x0872" option_set="XP_Region" title="CCN-504" name="Bus 0: DATB: S-bit" description="Bus 0: DATB: Set S-bit, signaled when this XP sets the S-bit."/>
+    <event event="0x0873" option_set="XP_Region" title="CCN-504" name="Bus 0: DATB: P-Cnt" description="Bus 0: DATB: Set P-Cnt, signaled when this XP sets the P-Cnt. This is not applicable for the SNP VC."/>
+    <event event="0x0874" option_set="XP_Region" title="CCN-504" name="Bus 0: DATB: TknV" description="Bus 0: DATB: No TknV, signaled when this XP transmits a valid packet."/>
+    <event event="0x0879" option_set="XP_Region" title="CCN-504" name="Bus 1: DATB: H-bit" description="Bus 1: DATB: Set H-bit, signaled when this XP sets the H-bit."/>
+    <event event="0x087A" option_set="XP_Region" title="CCN-504" name="Bus 1: DATB: S-bit" description="Bus 1: DATB: Set S-bit, signaled when this XP sets the S-bit."/>
+    <event event="0x087B" option_set="XP_Region" title="CCN-504" name="Bus 1: DATB: P-Cnt" description="Bus 1: DATB: Set P-Cnt, signaled when this XP sets the P-Cnt. This is not applicable for the SNP VC."/>
+    <event event="0x087C" option_set="XP_Region" title="CCN-504" name="Bus 1: DATB: TknV" description="Bus 1: DATB: No TknV, signaled when this XP transmits a valid packet."/>
+
+    <option_set name="HN-F_Region">
+      <option event_delta="0x200000" name="HN-F 3" description="Fully-coherent Home Node 3"/>
+      <option event_delta="0x210000" name="HN-F 5" description="Fully-coherent Home Node 5"/>
+      <option event_delta="0x220000" name="HN-F 7" description="Fully-coherent Home Node 7"/>
+      <option event_delta="0x230000" name="HN-F 8" description="Fully-coherent Home Node 8"/>
+      <option event_delta="0x240000" name="HN-F 13" description="Fully-coherent Home Node 13"/>
+      <option event_delta="0x250000" name="HN-F 15" description="Fully-coherent Home Node 15"/>
+      <option event_delta="0x260000" name="HN-F 17" description="Fully-coherent Home Node 17"/>
+      <option event_delta="0x270000" name="HN-F 18" description="Fully-coherent Home Node 18"/>
+    </option_set>
+
+    <event event="0x0401" option_set="HN-F_Region" title="CCN-504" name="Cache Miss" description="Counts the total cache misses. This is the first time lookup result, and is high priority."/>
+    <event event="0x0402" option_set="HN-F_Region" title="CCN-504" name="L3 SF Cache Access" description="Counts the number of cache accesses. This is the first time access, and is high priority."/>
+    <event event="0x0403" option_set="HN-F_Region" title="CCN-504" name="Cache Fill" description="Counts the total allocations in the HN L3 cache, and all cache line allocations to the L3 cache."/>
+    <event event="0x0404" option_set="HN-F_Region" title="CCN-504" name="POCQ Retry" description="Counts the number of requests that have been retried."/>
+    <event event="0x0405" option_set="HN-F_Region" title="CCN-504" name="POCQ Reqs Recvd" description="Counts the number of requests received by HN."/>
+    <event event="0x0406" option_set="HN-F_Region" title="CCN-504" name="SF Hit" description="Counts the number of snoop filter hits."/>
+    <event event="0x0407" option_set="HN-F_Region" title="CCN-504" name="SF Evictions" description="Counts the number of snoop filter evictions. Cache invalidations are initiated."/>
+    <event event="0x0408" option_set="HN-F_Region" title="CCN-504" name="Snoops Sent" description="Counts the number of snoops sent. Does not differentiate between broadcast or directed snoops."/>
+    <event event="0x0409" option_set="HN-F_Region" title="CCN-504" name="Snoops Broadcast" description="Counts the number of snoop broadcasts sent."/>
+    <event event="0x040A" option_set="HN-F_Region" title="CCN-504" name="L3 Eviction" description="Counts the number of L3 evictions."/>
+    <event event="0x040B" option_set="HN-F_Region" title="CCN-504" name="L3 Fill Invalid Way" description="Counts the number of L3 fills to an invalid way."/>
+    <event event="0x040C" option_set="HN-F_Region" title="CCN-504" name="MC Retries" description="Counts the number of transactions retried by the memory controller."/>
+    <event event="0x040D" option_set="HN-F_Region" title="CCN-504" name="MC Reqs" description="Counts the number of requests to the memory controller."/>
+    <event event="0x040E" option_set="HN-F_Region" title="CCN-504" name="QOS HH Retry" description="Counts the number of times a highest-priority QoS class was retried at the HN-F."/>
+
+    <option_set name="RN-I_Region">
+      <option event_delta="0x800000" name="RN-I 0" description="I/O-coherent Requesting Node 0"/>
+      <option event_delta="0x820000" name="RN-I 2" description="I/O-coherent Requesting Node 2"/>
+      <option event_delta="0x860000" name="RN-I 6" description="I/O-coherent Requesting Node 6"/>
+      <option event_delta="0x8C0000" name="RN-I 12" description="I/O-coherent Requesting Node 12"/>
+      <option event_delta="0x900000" name="RN-I 16" description="I/O-coherent Requesting Node 16"/>
+      <option event_delta="0x940000" name="RN-I 20" description="I/O-coherent Requesting Node 20"/>
+    </option_set>
+
+    <event event="0x1601" option_set="RN-I_Region" title="CCN-504" name="S0 RDataBeats" description="S0 RDataBeats."/>
+    <event event="0x1602" option_set="RN-I_Region" title="CCN-504" name="S1 RDataBeats" description="S1 RDataBeats."/>
+    <event event="0x1603" option_set="RN-I_Region" title="CCN-504" name="S2 RDataBeats" description="S2 RDataBeats."/>
+    <event event="0x1604" option_set="RN-I_Region" title="CCN-504" name="RXDAT Flits received" description="RXDAT Flits received."/>
+    <event event="0x1605" option_set="RN-I_Region" title="CCN-504" name="TXDAT Flits sent" description="TXDAT Flits sent."/>
+    <event event="0x1606" option_set="RN-I_Region" title="CCN-504" name="Total TXREQ Flits sent" description="Total TXREQ Flits sent."/>
+    <event event="0x1607" option_set="RN-I_Region" title="CCN-504" name="Retried TXREQ Flits sent" description="Retried TXREQ Flits sent."/>
+    <event event="0x1608" option_set="RN-I_Region" title="CCN-504" name="RRT full" description="RRT full."/>
+    <event event="0x1609" option_set="RN-I_Region" title="CCN-504" name="WRT full" description="WRT full."/>
+    <event event="0x160A" option_set="RN-I_Region" title="CCN-504" name="Replayed TXREQ Flits" description="Replayed TXREQ Flits."/>
+
+    <option_set name="SBAS_Region">
+      <option event_delta="0x810000" name="SBAS 1" description="ACE master to CHI protocol bridge 1"/>
+      <option event_delta="0x890000" name="SBAS 9" description="ACE master to CHI protocol bridge 9"/>
+      <option event_delta="0x8B0000" name="SBAS 11" description="ACE master to CHI protocol bridge 11"/>
+      <option event_delta="0x930000" name="SBAS 19" description="ACE master to CHI protocol bridge 19"/>
+    </option_set>
+
+    <event event="0x1001" option_set="SBAS_Region" title="CCN-504" name="S0 RDataBeats" description="S0 RDataBeats."/>
+    <event event="0x1004" option_set="SBAS_Region" title="CCN-504" name="RXDAT Flits received" description="RXDAT Flits received."/>
+    <event event="0x1005" option_set="SBAS_Region" title="CCN-504" name="TXDAT Flits sent" description="TXDAT Flits sent."/>
+    <event event="0x1006" option_set="SBAS_Region" title="CCN-504" name="Total TXREQ Flits sent" description="Total TXREQ Flits sent."/>
+    <event event="0x1007" option_set="SBAS_Region" title="CCN-504" name="Retried TXREQ Flits sent" description="Retried TXREQ Flits sent."/>
+    <event event="0x1008" option_set="SBAS_Region" title="CCN-504" name="RRT full" description="RRT full."/>
+    <event event="0x1009" option_set="SBAS_Region" title="CCN-504" name="WRT full" description="WRT full."/>
+    <event event="0x100A" option_set="SBAS_Region" title="CCN-504" name="Replayed TXREQ Flits" description="Replayed TXREQ Flits."/>
+
+  </category>

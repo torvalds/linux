@@ -1,0 +1,29 @@
+#!/bin/sh
+
+NAME=gator-module
+PACKAGE_NAME=$NAME-dkms
+VERSION=`dpkg-query -W -f='${Version}' $PACKAGE_NAME | awk -F "-" '{print $1}' | cut -d\: -f2`
+
+set -e
+
+case "$1" in
+    remove|upgrade|deconfigure)
+      if [  "`dkms status -m $NAME`" ]; then
+         dkms remove -m $NAME -v $VERSION --all
+      fi
+    ;;
+
+    failed-upgrade)
+    ;;
+
+    *)
+        echo "prerm called with unknown argument \`$1'" >&2
+        exit 1
+    ;;
+esac
+
+#DEBHELPER#
+
+exit 0
+
+

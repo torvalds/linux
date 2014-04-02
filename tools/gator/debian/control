@@ -1,0 +1,38 @@
+Source: gator
+Section: devel
+Priority: extra
+Maintainer: Pawel Moll <pawel.moll@arm.com>
+Build-Depends: debhelper (>= 7.0.5), vim-common
+Standards-Version: 3.9.2
+Homepage: http://www.arm.com/ds-5
+
+Package: gator
+Architecture: armhf
+Depends: ${misc:Depends}, gator-daemon (>= 5.9.0)
+Description: ARM Streamline gator
+ This meta-package depends on gator target packages required to use
+ ARM Streamline Performance Analyzer.
+
+Package: gator-daemon
+Architecture: armhf
+Depends: ${shlibs:Depends}, ${misc:Depends}
+Description: ARM Streamline gator daemon
+ The target-side daemon gathering data for ARM Streamline
+ Performance Analyzer.
+
+Package: arm-ds5-target
+Architecture: armhf
+Depends: ${misc:Depends}, gdbserver (>= 6.8), openssh-server | ssh-server, gator (>= 5.9.0)
+Description: ARM DS-5 target dependencies
+ This meta-package depends on all components required to receive
+ full ARM DS-5 experience.
+
+Package: gator-module-dkms
+Architecture: armhf
+Section: kernel
+Depends: ${misc:Depends}, dkms (>= 1.95), make
+Description: ARM Streamline gator module - dkms version
+ The target-side kernel module gathering data for ARM Streamline
+ Performance Analyzer.
+ .
+ This package contains the source to be built with dkms.

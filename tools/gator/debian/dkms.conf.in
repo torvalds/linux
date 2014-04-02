@@ -1,0 +1,7 @@
+PACKAGE_NAME="gator-module"
+PACKAGE_VERSION="__VERSION__"
+MAKE[0]="make -C ${kernel_source_dir} M=${dkms_tree}/${PACKAGE_NAME}/${PACKAGE_VERSION}/build"
+CLEAN="make -C ${kernel_source_dir} M=${dkms_tree}/${PACKAGE_NAME}/${PACKAGE_VERSION}/build clean"
+BUILT_MODULE_NAME[0]="gator"
+DEST_MODULE_LOCATION[0]="/extra"
+AUTOINSTALL=yes

@@ -1,0 +1,15 @@
+#!/usr/bin/make -f
+
+DEB_HOST_GNU_TYPE  = $(shell dpkg-architecture -qDEB_HOST_GNU_TYPE)
+DEB_BUILD_GNU_TYPE = $(shell dpkg-architecture -qDEB_BUILD_GNU_TYPE)
+
+ifneq ($(DEB_BUILD_GNU_TYPE),$(DEB_HOST_GNU_TYPE))
+	CROSS_COMPILE ?= $(DEB_HOST_GNU_TYPE)-
+endif
+
+export CROSS_COMPILE
+
+export DH_OPTIONS
+
+%:
+	dh $@
