@@ -1060,7 +1060,8 @@ void rk_fb_free_dma_buf(struct device *dev,struct rk_fb_reg_win_data *reg_win_da
 			dma_buf_detach(area_data->dma_buf, area_data->attachment);
 			dma_buf_put(area_data->dma_buf);
 			#endif
-			ion_free(rk_fb->ion_client, area_data->ion_handle);
+			if(area_data->ion_handle != NULL)
+				ion_free(rk_fb->ion_client, area_data->ion_handle);
 		}
 	}
 	memset(reg_win_data, 0, sizeof(struct rk_fb_reg_win_data));
@@ -1321,6 +1322,12 @@ static int rk_fb_set_win_buffer(struct fb_info *info,
 				}
 				if(j == i){
 					hdl = ion_import_dma_buf(rk_fb->ion_client, ion_fd);
+					if (IS_ERR(hdl)) {
+						pr_info("%s: Could not import handle: %d\n",
+							__func__, (int)hdl);
+						/*return -EINVAL;*/
+						break;
+					}
 					reg_win_data->reg_area_data[i].ion_handle = hdl;
 					#ifndef USE_ION_MMU
 						ion_phys(rk_fb->ion_client, hdl, &phy_addr, &len);
