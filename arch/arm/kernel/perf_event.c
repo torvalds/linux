@@ -12,6 +12,7 @@
  */
 #define pr_fmt(fmt) "hw perfevents: " fmt
 
+#include <linux/cpumask.h>
 #include <linux/kernel.h>
 #include <linux/platform_device.h>
 #include <linux/pm_runtime.h>
@@ -86,6 +87,9 @@ armpmu_map_event(struct perf_event *event,
 		return armpmu_map_cache_event(cache_map, config);
 	case PERF_TYPE_RAW:
 		return armpmu_map_raw_event(raw_event_mask, config);
+	default:
+		if (event->attr.type >= PERF_TYPE_MAX)
+			return armpmu_map_raw_event(raw_event_mask, config);
 	}
 
 	return -ENOENT;
@@ -159,6 +163,8 @@ armpmu_stop(struct perf_event *event, int flags)
 	struct arm_pmu *armpmu = to_arm_pmu(event->pmu);
 	struct hw_perf_event *hwc = &event->hw;
 
+	if (!cpumask_test_cpu(smp_processor_id(), &armpmu->valid_cpus))
+		return;
 	/*
 	 * ARM pmu always has to update the counter, so ignore
 	 * PERF_EF_UPDATE, see comments in armpmu_start().
@@ -175,6 +181,8 @@ static void armpmu_start(struct perf_event *event, int flags)
 	struct arm_pmu *armpmu = to_arm_pmu(event->pmu);
 	struct hw_perf_event *hwc = &event->hw;
 
+	if (!cpumask_test_cpu(smp_processor_id(), &armpmu->valid_cpus))
+		return;
 	/*
 	 * ARM pmu always has to reprogram the period, so ignore
 	 * PERF_EF_RELOAD, see the comment below.
@@ -202,6 +210,9 @@ armpmu_del(struct perf_event *event, int flags)
 	struct hw_perf_event *hwc = &event->hw;
 	int idx = hwc->idx;
 
+	if (!cpumask_test_cpu(smp_processor_id(), &armpmu->valid_cpus))
+		return;
+
 	armpmu_stop(event, PERF_EF_UPDATE);
 	hw_events->events[idx] = NULL;
 	clear_bit(idx, hw_events->used_mask);
@@ -217,6 +228,10 @@ armpmu_add(struct perf_event *event, int flags)
 	struct hw_perf_event *hwc = &event->hw;
 	int idx;
 	int err = 0;
+
+	/* An event following a process won't be stopped earlier */
+	if (!cpumask_test_cpu(smp_processor_id(), &armpmu->valid_cpus))
+		return 0;
 
 	perf_pmu_disable(event->pmu);
 
@@ -418,6 +433,10 @@ static int armpmu_event_init(struct perf_event *event)
 	struct arm_pmu *armpmu = to_arm_pmu(event->pmu);
 	int err = 0;
 	atomic_t *active_events = &armpmu->active_events;
+
+	if (event->cpu != -1 &&
+		!cpumask_test_cpu(event->cpu, &armpmu->valid_cpus))
+		return -ENOENT;
 
 	/* does not support taken branch sampling */
 	if (has_branch_stack(event))
