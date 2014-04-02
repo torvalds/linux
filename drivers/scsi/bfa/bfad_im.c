@@ -73,9 +73,14 @@ bfa_cb_ioim_done(void *drv, struct bfad_ioim_s *dio,
 
 		break;
 
-	case BFI_IOIM_STS_ABORTED:
 	case BFI_IOIM_STS_TIMEDOUT:
+		host_status = DID_TIME_OUT;
+		cmnd->result = ScsiResult(host_status, 0);
+		break;
 	case BFI_IOIM_STS_PATHTOV:
+		host_status = DID_TRANSPORT_DISRUPTED;
+		cmnd->result = ScsiResult(host_status, 0);
+		break;
 	default:
 		host_status = DID_ERROR;
 		cmnd->result = ScsiResult(host_status, 0);

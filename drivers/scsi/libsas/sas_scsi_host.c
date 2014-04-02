@@ -862,7 +862,7 @@ out:
 
 enum blk_eh_timer_return sas_scsi_timed_out(struct scsi_cmnd *cmd)
 {
-	scmd_printk(KERN_DEBUG, cmd, "command %p timed out\n", cmd);
+	scmd_dbg(cmd, "command %p timed out\n", cmd);
 
 	return BLK_EH_NOT_HANDLED;
 }

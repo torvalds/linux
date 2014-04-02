@@ -228,24 +228,25 @@ static int beiscsi_eh_abort(struct scsi_cmnd *sc)
 	struct invalidate_command_table *inv_tbl;
 	struct be_dma_mem nonemb_cmd;
 	unsigned int cid, tag, num_invalidate;
+	int rc;
 
 	cls_session = starget_to_session(scsi_target(sc->device));
 	session = cls_session->dd_data;
 
-	spin_lock_bh(&session->lock);
+	spin_lock_bh(&session->frwd_lock);
 	if (!aborted_task || !aborted_task->sc) {
 		/* we raced */
-		spin_unlock_bh(&session->lock);
+		spin_unlock_bh(&session->frwd_lock);
 		return SUCCESS;
 	}
 
 	aborted_io_task = aborted_task->dd_data;
 	if (!aborted_io_task->scsi_cmnd) {
 		/* raced or invalid command */
-		spin_unlock_bh(&session->lock);
+		spin_unlock_bh(&session->frwd_lock);
 		return SUCCESS;
 	}
-	spin_unlock_bh(&session->lock);
+	spin_unlock_bh(&session->frwd_lock);
 	/* Invalidate WRB Posted for this Task */
 	AMAP_SET_BITS(struct amap_iscsi_wrb, invld,
 		      aborted_io_task->pwrb_handle->pwrb,
@@ -285,9 +286,11 @@ static int beiscsi_eh_abort(struct scsi_cmnd *sc)
 		return FAILED;
 	}
 
-	beiscsi_mccq_compl(phba, tag, NULL, nonemb_cmd.va);
-	pci_free_consistent(phba->ctrl.pdev, nonemb_cmd.size,
-			    nonemb_cmd.va, nonemb_cmd.dma);
+	rc = beiscsi_mccq_compl(phba, tag, NULL, &nonemb_cmd);
+	if (rc != -EBUSY)
+		pci_free_consistent(phba->ctrl.pdev, nonemb_cmd.size,
+				    nonemb_cmd.va, nonemb_cmd.dma);
+
 	return iscsi_eh_abort(sc);
 }
 
@@ -303,13 +306,14 @@ static int beiscsi_eh_device_reset(struct scsi_cmnd *sc)
 	struct invalidate_command_table *inv_tbl;
 	struct be_dma_mem nonemb_cmd;
 	unsigned int cid, tag, i, num_invalidate;
+	int rc;
 
 	/* invalidate iocbs */
 	cls_session = starget_to_session(scsi_target(sc->device));
 	session = cls_session->dd_data;
-	spin_lock_bh(&session->lock);
+	spin_lock_bh(&session->frwd_lock);
 	if (!session->leadconn || session->state != ISCSI_STATE_LOGGED_IN) {
-		spin_unlock_bh(&session->lock);
+		spin_unlock_bh(&session->frwd_lock);
 		return FAILED;
 	}
 	conn = session->leadconn;
@@ -338,7 +342,7 @@ static int beiscsi_eh_device_reset(struct scsi_cmnd *sc)
 		num_invalidate++;
 		inv_tbl++;
 	}
-	spin_unlock_bh(&session->lock);
+	spin_unlock_bh(&session->frwd_lock);
 	inv_tbl = phba->inv_tbl;
 
 	nonemb_cmd.va = pci_alloc_consistent(phba->ctrl.pdev,
@@ -363,9 +367,10 @@ static int beiscsi_eh_device_reset(struct scsi_cmnd *sc)
 		return FAILED;
 	}
 
-	beiscsi_mccq_compl(phba, tag, NULL, nonemb_cmd.va);
-	pci_free_consistent(phba->ctrl.pdev, nonemb_cmd.size,
-			    nonemb_cmd.va, nonemb_cmd.dma);
+	rc = beiscsi_mccq_compl(phba, tag, NULL, &nonemb_cmd);
+	if (rc != -EBUSY)
+		pci_free_consistent(phba->ctrl.pdev, nonemb_cmd.size,
+				    nonemb_cmd.va, nonemb_cmd.dma);
 	return iscsi_eh_device_reset(sc);
 }
 
@@ -674,8 +679,19 @@ static int beiscsi_enable_pci(struct pci_dev *pcidev)
 	}
 
 	pci_set_master(pcidev);
-	if (pci_set_consistent_dma_mask(pcidev, DMA_BIT_MASK(64))) {
-		ret = pci_set_consistent_dma_mask(pcidev, DMA_BIT_MASK(32));
+	ret = pci_set_dma_mask(pcidev, DMA_BIT_MASK(64));
+	if (ret) {
+		ret = pci_set_dma_mask(pcidev, DMA_BIT_MASK(32));
+		if (ret) {
+			dev_err(&pcidev->dev, "Could not set PCI DMA Mask\n");
+			pci_disable_device(pcidev);
+			return ret;
+		} else {
+			ret = pci_set_consistent_dma_mask(pcidev,
+							  DMA_BIT_MASK(32));
+		}
+	} else {
+		ret = pci_set_consistent_dma_mask(pcidev, DMA_BIT_MASK(64));
 		if (ret) {
 			dev_err(&pcidev->dev, "Could not set PCI DMA Mask\n");
 			pci_disable_device(pcidev);
@@ -804,14 +820,23 @@ static void hwi_ring_eq_db(struct beiscsi_hba *phba,
 			   unsigned char rearm, unsigned char event)
 {
 	u32 val = 0;
-	val |= id & DB_EQ_RING_ID_MASK;
+
 	if (rearm)
 		val |= 1 << DB_EQ_REARM_SHIFT;
 	if (clr_interrupt)
 		val |= 1 << DB_EQ_CLR_SHIFT;
 	if (event)
 		val |= 1 << DB_EQ_EVNT_SHIFT;
+
 	val |= num_processed << DB_EQ_NUM_POPPED_SHIFT;
+	/* Setting lower order EQ_ID Bits */
+	val |= (id & DB_EQ_RING_ID_LOW_MASK);
+
+	/* Setting Higher order EQ_ID Bits */
+	val |= (((id >> DB_EQ_HIGH_FEILD_SHIFT) &
+		  DB_EQ_RING_ID_HIGH_MASK)
+		  << DB_EQ_HIGH_SET_SHIFT);
+
 	iowrite32(val, phba->db_va + DB_EQ_OFFSET);
 }
 
@@ -1093,15 +1118,25 @@ free_msix_irqs:
 	return ret;
 }
 
-static void hwi_ring_cq_db(struct beiscsi_hba *phba,
+void hwi_ring_cq_db(struct beiscsi_hba *phba,
 			   unsigned int id, unsigned int num_processed,
 			   unsigned char rearm, unsigned char event)
 {
 	u32 val = 0;
-	val |= id & DB_CQ_RING_ID_MASK;
+
 	if (rearm)
 		val |= 1 << DB_CQ_REARM_SHIFT;
+
 	val |= num_processed << DB_CQ_NUM_POPPED_SHIFT;
+
+	/* Setting lower order CQ_ID Bits */
+	val |= (id & DB_CQ_RING_ID_LOW_MASK);
+
+	/* Setting Higher order CQ_ID Bits */
+	val |= (((id >> DB_CQ_HIGH_FEILD_SHIFT) &
+		  DB_CQ_RING_ID_HIGH_MASK)
+		  << DB_CQ_HIGH_SET_SHIFT);
+
 	iowrite32(val, phba->db_va + DB_CQ_OFFSET);
 }
 
@@ -1150,9 +1185,9 @@ beiscsi_process_async_pdu(struct beiscsi_conn *beiscsi_conn,
 		return 1;
 	}
 
-	spin_lock_bh(&session->lock);
+	spin_lock_bh(&session->back_lock);
 	__iscsi_complete_pdu(conn, (struct iscsi_hdr *)ppdu, pbuffer, buf_len);
-	spin_unlock_bh(&session->lock);
+	spin_unlock_bh(&session->back_lock);
 	return 0;
 }
 
@@ -1342,8 +1377,10 @@ be_complete_io(struct beiscsi_conn *beiscsi_conn,
 	resid = csol_cqe->res_cnt;
 
 	if (!task->sc) {
-		if (io_task->scsi_cmnd)
+		if (io_task->scsi_cmnd) {
 			scsi_dma_unmap(io_task->scsi_cmnd);
+			io_task->scsi_cmnd = NULL;
+		}
 
 		return;
 	}
@@ -1380,6 +1417,7 @@ be_complete_io(struct beiscsi_conn *beiscsi_conn,
 		conn->rxdata_octets += resid;
 unmap:
 	scsi_dma_unmap(io_task->scsi_cmnd);
+	io_task->scsi_cmnd = NULL;
 	iscsi_complete_scsi_task(task, exp_cmdsn, max_cmdsn);
 }
 
@@ -1568,7 +1606,7 @@ static void hwi_complete_cmd(struct beiscsi_conn *beiscsi_conn,
 	pwrb = pwrb_handle->pwrb;
 	type = ((struct beiscsi_io_task *)task->dd_data)->wrb_type;
 
-	spin_lock_bh(&session->lock);
+	spin_lock_bh(&session->back_lock);
 	switch (type) {
 	case HWH_TYPE_IO:
 	case HWH_TYPE_IO_RD:
@@ -1607,7 +1645,7 @@ static void hwi_complete_cmd(struct beiscsi_conn *beiscsi_conn,
 		break;
 	}
 
-	spin_unlock_bh(&session->lock);
+	spin_unlock_bh(&session->back_lock);
 }
 
 static struct list_head *hwi_get_async_busy_list(struct hwi_async_pdu_context
@@ -4360,12 +4398,16 @@ static int beiscsi_get_boot_info(struct beiscsi_hba *phba)
 		goto boot_freemem;
 	}
 
-	ret = beiscsi_mccq_compl(phba, tag, NULL, nonemb_cmd.va);
+	ret = beiscsi_mccq_compl(phba, tag, NULL, &nonemb_cmd);
 	if (ret) {
 		beiscsi_log(phba, KERN_ERR,
 			    BEISCSI_LOG_INIT | BEISCSI_LOG_CONFIG,
 			    "BM_%d : beiscsi_get_session_info Failed");
-		goto boot_freemem;
+
+		if (ret != -EBUSY)
+			goto boot_freemem;
+		else
+			return ret;
 	}
 
 	session_resp = nonemb_cmd.va ;
@@ -4625,6 +4667,11 @@ static void beiscsi_cleanup_task(struct iscsi_task *task)
 			spin_unlock(&phba->io_sgl_lock);
 			io_task->psgl_handle = NULL;
 		}
+
+		if (io_task->scsi_cmnd) {
+			scsi_dma_unmap(io_task->scsi_cmnd);
+			io_task->scsi_cmnd = NULL;
+		}
 	} else {
 		if (!beiscsi_conn->login_in_progress)
 			beiscsi_free_mgmt_task_handles(beiscsi_conn, task);
@@ -4646,9 +4693,9 @@ beiscsi_offload_connection(struct beiscsi_conn *beiscsi_conn,
 	 * login/startup related tasks.
 	 */
 	beiscsi_conn->login_in_progress = 0;
-	spin_lock_bh(&session->lock);
+	spin_lock_bh(&session->back_lock);
 	beiscsi_cleanup_task(task);
-	spin_unlock_bh(&session->lock);
+	spin_unlock_bh(&session->back_lock);
 
 	pwrb_handle = alloc_wrb_handle(phba, beiscsi_conn->beiscsi_conn_cid);
 
@@ -5273,6 +5320,8 @@ static void beiscsi_shutdown(struct pci_dev *pcidev)
 		return;
 	}
 
+	phba->state = BE_ADAPTER_STATE_SHUTDOWN;
+	iscsi_host_for_each_session(phba->shost, be2iscsi_fail_session);
 	beiscsi_quiesce(phba, BEISCSI_CLEAN_UNLOAD);
 	pci_disable_device(pcidev);
 }
@@ -5594,6 +5643,8 @@ static int beiscsi_dev_probe(struct pci_dev *pcidev,
 		phba->ctrl.mcc_tag[i] = i + 1;
 		phba->ctrl.mcc_numtag[i + 1] = 0;
 		phba->ctrl.mcc_tag_available++;
+		memset(&phba->ctrl.ptag_state[i].tag_mem_state, 0,
+		       sizeof(struct beiscsi_mcc_tag_state));
 	}
 
 	phba->ctrl.mcc_alloc_index = phba->ctrl.mcc_free_index = 0;
