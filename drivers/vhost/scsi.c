@@ -1745,7 +1745,8 @@ static int tcm_vhost_make_nexus(struct tcm_vhost_tpg *tpg,
 	 */
 	tv_nexus->tvn_se_sess = transport_init_session_tags(
 					TCM_VHOST_DEFAULT_TAGS,
-					sizeof(struct tcm_vhost_cmd));
+					sizeof(struct tcm_vhost_cmd),
+					TARGET_PROT_NORMAL);
 	if (IS_ERR(tv_nexus->tvn_se_sess)) {
 		mutex_unlock(&tpg->tv_tpg_mutex);
 		kfree(tv_nexus);

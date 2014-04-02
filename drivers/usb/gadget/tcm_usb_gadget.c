@@ -1731,7 +1731,7 @@ static int tcm_usbg_make_nexus(struct usbg_tpg *tpg, char *name)
 		pr_err("Unable to allocate struct tcm_vhost_nexus\n");
 		goto err_unlock;
 	}
-	tv_nexus->tvn_se_sess = transport_init_session();
+	tv_nexus->tvn_se_sess = transport_init_session(TARGET_PROT_NORMAL);
 	if (IS_ERR(tv_nexus->tvn_se_sess))
 		goto err_free;
 

@@ -442,14 +442,18 @@ struct se_tmr_req {
 };
 
 enum target_prot_op {
-	TARGET_PROT_NORMAL = 0,
-	TARGET_PROT_DIN_INSERT,
-	TARGET_PROT_DOUT_INSERT,
-	TARGET_PROT_DIN_STRIP,
-	TARGET_PROT_DOUT_STRIP,
-	TARGET_PROT_DIN_PASS,
-	TARGET_PROT_DOUT_PASS,
+	TARGET_PROT_NORMAL	= 0,
+	TARGET_PROT_DIN_INSERT	= (1 << 0),
+	TARGET_PROT_DOUT_INSERT	= (1 << 1),
+	TARGET_PROT_DIN_STRIP	= (1 << 2),
+	TARGET_PROT_DOUT_STRIP	= (1 << 3),
+	TARGET_PROT_DIN_PASS	= (1 << 4),
+	TARGET_PROT_DOUT_PASS	= (1 << 5),
 };
+
+#define TARGET_PROT_ALL	TARGET_PROT_DIN_INSERT | TARGET_PROT_DOUT_INSERT | \
+			TARGET_PROT_DIN_STRIP | TARGET_PROT_DOUT_STRIP | \
+			TARGET_PROT_DIN_PASS | TARGET_PROT_DOUT_PASS
 
 enum target_prot_type {
 	TARGET_DIF_TYPE0_PROT,
@@ -605,6 +609,7 @@ struct se_node_acl {
 struct se_session {
 	unsigned		sess_tearing_down:1;
 	u64			sess_bin_isid;
+	enum target_prot_op	sup_prot_ops;
 	struct se_node_acl	*se_node_acl;
 	struct se_portal_group *se_tpg;
 	void			*fabric_sess_ptr;

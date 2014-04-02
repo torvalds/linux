@@ -210,7 +210,7 @@ static struct sbp_session *sbp_session_create(
 		return ERR_PTR(-ENOMEM);
 	}
 
-	sess->se_sess = transport_init_session();
+	sess->se_sess = transport_init_session(TARGET_PROT_NORMAL);
 	if (IS_ERR(sess->se_sess)) {
 		pr_err("failed to init se_session\n");
 

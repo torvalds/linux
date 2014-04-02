@@ -2196,6 +2196,18 @@ isert_aborted_task(struct iscsi_conn *conn, struct iscsi_cmd *cmd)
 	device->unreg_rdma_mem(isert_cmd, isert_conn);
 }
 
+static enum target_prot_op
+isert_get_sup_prot_ops(struct iscsi_conn *conn)
+{
+	struct isert_conn *isert_conn = (struct isert_conn *)conn->context;
+	struct isert_device *device = isert_conn->conn_device;
+
+	if (device->pi_capable)
+		return TARGET_PROT_ALL;
+
+	return TARGET_PROT_NORMAL;
+}
+
 static int
 isert_put_nopin(struct iscsi_cmd *cmd, struct iscsi_conn *conn,
 		bool nopout_response)
@@ -3252,6 +3264,7 @@ static struct iscsit_transport iser_target_transport = {
 	.iscsit_queue_data_in	= isert_put_datain,
 	.iscsit_queue_status	= isert_put_response,
 	.iscsit_aborted_task	= isert_aborted_task,
+	.iscsit_get_sup_prot_ops = isert_get_sup_prot_ops,
 };
 
 static int __init isert_init(void)

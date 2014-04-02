@@ -1018,7 +1018,7 @@ static int tcm_loop_make_nexus(
 	/*
 	 * Initialize the struct se_session pointer
 	 */
-	tl_nexus->se_sess = transport_init_session();
+	tl_nexus->se_sess = transport_init_session(TARGET_PROT_ALL);
 	if (IS_ERR(tl_nexus->se_sess)) {
 		ret = PTR_ERR(tl_nexus->se_sess);
 		goto out;

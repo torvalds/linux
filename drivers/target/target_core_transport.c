@@ -235,7 +235,7 @@ void transport_subsystem_check_init(void)
 	sub_api_initialized = 1;
 }
 
-struct se_session *transport_init_session(void)
+struct se_session *transport_init_session(enum target_prot_op sup_prot_ops)
 {
 	struct se_session *se_sess;
 
@@ -251,6 +251,7 @@ struct se_session *transport_init_session(void)
 	INIT_LIST_HEAD(&se_sess->sess_wait_list);
 	spin_lock_init(&se_sess->sess_cmd_lock);
 	kref_init(&se_sess->sess_kref);
+	se_sess->sup_prot_ops = sup_prot_ops;
 
 	return se_sess;
 }
@@ -288,12 +289,13 @@ int transport_alloc_session_tags(struct se_session *se_sess,
 EXPORT_SYMBOL(transport_alloc_session_tags);
 
 struct se_session *transport_init_session_tags(unsigned int tag_num,
-					       unsigned int tag_size)
+					       unsigned int tag_size,
+					       enum target_prot_op sup_prot_ops)
 {
 	struct se_session *se_sess;
 	int rc;
 
-	se_sess = transport_init_session();
+	se_sess = transport_init_session(sup_prot_ops);
 	if (IS_ERR(se_sess))
 		return se_sess;
 
