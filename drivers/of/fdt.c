@@ -20,6 +20,7 @@
 #include <linux/errno.h>
 #include <linux/slab.h>
 #include <linux/libfdt.h>
+#include <linux/debugfs.h>
 
 #include <asm/setup.h>  /* for COMMAND_LINE_SIZE */
 #include <asm/page.h>
@@ -915,5 +916,28 @@ void __init unflatten_and_copy_device_tree(void)
 	}
 	unflatten_device_tree();
 }
+
+#if defined(CONFIG_DEBUG_FS) && defined(DEBUG)
+static struct debugfs_blob_wrapper flat_dt_blob;
+
+static int __init of_flat_dt_debugfs_export_fdt(void)
+{
+	struct dentry *d = debugfs_create_dir("device-tree", NULL);
+
+	if (!d)
+		return -ENOENT;
+
+	flat_dt_blob.data = initial_boot_params;
+	flat_dt_blob.size = fdt_totalsize(initial_boot_params);
+
+	d = debugfs_create_blob("flat-device-tree", S_IFREG | S_IRUSR,
+				d, &flat_dt_blob);
+	if (!d)
+		return -ENOENT;
+
+	return 0;
+}
+module_init(of_flat_dt_debugfs_export_fdt);
+#endif
 
 #endif /* CONFIG_OF_EARLY_FLATTREE */
