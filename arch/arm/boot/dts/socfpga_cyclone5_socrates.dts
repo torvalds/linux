@@ -36,6 +36,15 @@
 	status = "okay";
 };
 
+&i2c0 {
+	status = "okay";
+
+	rtc: rtc@68 {
+		compatible = "stm,m41t82";
+		reg = <0x68>;
+	};
+};
+
 &mmc {
 	status = "okay";
 };
