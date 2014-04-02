@@ -129,16 +129,11 @@ static int altera_tse_mdio_create(struct net_device *dev, unsigned int id)
 	struct altera_tse_private *priv = netdev_priv(dev);
 	int ret;
 	int i;
-	struct device_node *mdio_node = NULL;
-	struct mii_bus *mdio = NULL;
-	struct device_node *child_node = NULL;
+	struct device_node *mdio_node;
+	struct mii_bus *mdio;
 
-	for_each_child_of_node(priv->device->of_node, child_node) {
-		if (of_device_is_compatible(child_node, "altr,tse-mdio")) {
-			mdio_node = child_node;
-			break;
-		}
-	}
+	mdio_node = of_find_compatible_node(priv->device->of_node, NULL,
+		"altr,tse-mdio");
 
 	if (mdio_node) {
 		dev_dbg(priv->device, "FOUND MDIO subnode\n");
