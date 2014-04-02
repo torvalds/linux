@@ -827,6 +827,7 @@ enum punit_power_well {
 # define MI_FLUSH_ENABLE				(1 << 12)
 # define ASYNC_FLIP_PERF_DISABLE			(1 << 14)
 # define MODE_IDLE					(1 << 9)
+# define STOP_RING					(1 << 8)
 
 #define GEN6_GT_MODE	0x20d0
 #define GEN7_GT_MODE	0x7008
