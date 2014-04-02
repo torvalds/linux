@@ -906,7 +906,7 @@ int i915_parse_cmds(struct intel_ring_buffer *ring,
 			length = ((*cmd & desc->length.mask) + LENGTH_BIAS);
 
 		if ((batch_end - cmd) < length) {
-			DRM_DEBUG_DRIVER("CMD: Command length exceeds batch length: 0x%08X length=%d batchlen=%td\n",
+			DRM_DEBUG_DRIVER("CMD: Command length exceeds batch length: 0x%08X length=%u batchlen=%td\n",
 					 *cmd,
 					 length,
 					 batch_end - cmd);
