@@ -680,7 +680,7 @@ static int wpa_get_scan(PSDevice pDevice,
 		ret = -EFAULT;
 	}
 	param->u.scan_results.scan_count = count;
-	DBG_PRT(MSG_LEVEL_DEBUG, KERN_INFO " param->u.scan_results.scan_count = %d\n", count)
+	DBG_PRT(MSG_LEVEL_DEBUG, KERN_INFO " param->u.scan_results.scan_count = %d\n", count);
 
 		kfree(pBuf);
 	return ret;
