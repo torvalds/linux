@@ -47,7 +47,16 @@
 enum drm_mm_search_flags {
 	DRM_MM_SEARCH_DEFAULT =		0,
 	DRM_MM_SEARCH_BEST =		1 << 0,
+	DRM_MM_SEARCH_BELOW =		1 << 1,
 };
+
+enum drm_mm_allocator_flags {
+	DRM_MM_CREATE_DEFAULT =		0,
+	DRM_MM_CREATE_TOP =		1 << 0,
+};
+
+#define DRM_MM_BOTTOMUP DRM_MM_SEARCH_DEFAULT, DRM_MM_CREATE_DEFAULT
+#define DRM_MM_TOPDOWN DRM_MM_SEARCH_BELOW, DRM_MM_CREATE_TOP
 
 struct drm_mm_node {
 	struct list_head node_list;
@@ -186,6 +195,9 @@ static inline unsigned long drm_mm_hole_node_end(struct drm_mm_node *hole_node)
  * Implementation Note:
  * We need to inline list_for_each_entry in order to be able to set hole_start
  * and hole_end on each iteration while keeping the macro sane.
+ *
+ * The __drm_mm_for_each_hole version is similar, but with added support for
+ * going backwards.
  */
 #define drm_mm_for_each_hole(entry, mm, hole_start, hole_end) \
 	for (entry = list_entry((mm)->hole_stack.next, struct drm_mm_node, hole_stack); \
@@ -194,6 +206,14 @@ static inline unsigned long drm_mm_hole_node_end(struct drm_mm_node *hole_node)
 	     hole_end = drm_mm_hole_node_end(entry), \
 	     1 : 0; \
 	     entry = list_entry(entry->hole_stack.next, struct drm_mm_node, hole_stack))
+
+#define __drm_mm_for_each_hole(entry, mm, hole_start, hole_end, backwards) \
+	for (entry = list_entry((backwards) ? (mm)->hole_stack.prev : (mm)->hole_stack.next, struct drm_mm_node, hole_stack); \
+	     &entry->hole_stack != &(mm)->hole_stack ? \
+	     hole_start = drm_mm_hole_node_start(entry), \
+	     hole_end = drm_mm_hole_node_end(entry), \
+	     1 : 0; \
+	     entry = list_entry((backwards) ? entry->hole_stack.prev : entry->hole_stack.next, struct drm_mm_node, hole_stack))
 
 /*
  * Basic range manager support (drm_mm.c)
@@ -205,7 +225,8 @@ int drm_mm_insert_node_generic(struct drm_mm *mm,
 			       unsigned long size,
 			       unsigned alignment,
 			       unsigned long color,
-			       enum drm_mm_search_flags flags);
+			       enum drm_mm_search_flags sflags,
+			       enum drm_mm_allocator_flags aflags);
 /**
  * drm_mm_insert_node - search for space and insert @node
  * @mm: drm_mm to allocate from
@@ -228,7 +249,8 @@ static inline int drm_mm_insert_node(struct drm_mm *mm,
 				     unsigned alignment,
 				     enum drm_mm_search_flags flags)
 {
-	return drm_mm_insert_node_generic(mm, node, size, alignment, 0, flags);
+	return drm_mm_insert_node_generic(mm, node, size, alignment, 0, flags,
+					  DRM_MM_CREATE_DEFAULT);
 }
 
 int drm_mm_insert_node_in_range_generic(struct drm_mm *mm,
@@ -238,7 +260,8 @@ int drm_mm_insert_node_in_range_generic(struct drm_mm *mm,
 					unsigned long color,
 					unsigned long start,
 					unsigned long end,
-					enum drm_mm_search_flags flags);
+					enum drm_mm_search_flags sflags,
+					enum drm_mm_allocator_flags aflags);
 /**
  * drm_mm_insert_node_in_range - ranged search for space and insert @node
  * @mm: drm_mm to allocate from
@@ -266,7 +289,8 @@ static inline int drm_mm_insert_node_in_range(struct drm_mm *mm,
 					      enum drm_mm_search_flags flags)
 {
 	return drm_mm_insert_node_in_range_generic(mm, node, size, alignment,
-						   0, start, end, flags);
+						   0, start, end, flags,
+						   DRM_MM_CREATE_DEFAULT);
 }
 
 void drm_mm_remove_node(struct drm_mm_node *node);
