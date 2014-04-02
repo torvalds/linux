@@ -528,38 +528,46 @@ static void set_enabled(struct drm_crtc *crtc, bool enable)
 	struct drm_device *dev = crtc->dev;
 	struct omap_crtc *omap_crtc = to_omap_crtc(crtc);
 	enum omap_channel channel = omap_crtc->channel;
-	struct omap_irq_wait *wait = NULL;
+	struct omap_irq_wait *wait;
+	u32 framedone_irq, vsync_irq;
+	int ret;
 
 	if (dispc_mgr_is_enabled(channel) == enable)
 		return;
 
-	/* ignore sync-lost irqs during enable/disable */
+	/*
+	 * Digit output produces some sync lost interrupts during the first
+	 * frame when enabling, so we need to ignore those.
+	 */
 	omap_irq_unregister(crtc->dev, &omap_crtc->error_irq);
 
-	if (dispc_mgr_get_framedone_irq(channel)) {
-		if (!enable) {
-			wait = omap_irq_wait_init(dev,
-					dispc_mgr_get_framedone_irq(channel), 1);
-		}
+	framedone_irq = dispc_mgr_get_framedone_irq(channel);
+	vsync_irq = dispc_mgr_get_vsync_irq(channel);
+
+	if (enable) {
+		wait = omap_irq_wait_init(dev, vsync_irq, 1);
 	} else {
 		/*
-		 * When we disable digit output, we need to wait until fields
-		 * are done.  Otherwise the DSS is still working, and turning
-		 * off the clocks prevents DSS from going to OFF mode. And when
-		 * enabling, we need to wait for the extra sync losts
+		 * When we disable the digit output, we need to wait for
+		 * FRAMEDONE to know that DISPC has finished with the output.
+		 *
+		 * OMAP2/3 does not have FRAMEDONE irq for digit output, and in
+		 * that case we need to use vsync interrupt, and wait for both
+		 * even and odd frames.
 		 */
-		wait = omap_irq_wait_init(dev,
-				dispc_mgr_get_vsync_irq(channel), 2);
+
+		if (framedone_irq)
+			wait = omap_irq_wait_init(dev, framedone_irq, 1);
+		else
+			wait = omap_irq_wait_init(dev, vsync_irq, 2);
 	}
 
 	dispc_mgr_enable(channel, enable);
 
-	if (wait) {
-		int ret = omap_irq_wait(dev, wait, msecs_to_jiffies(100));
-		if (ret) {
-			dev_err(dev->dev, "%s: timeout waiting for %s\n",
-					omap_crtc->name, enable ? "enable" : "disable");
-		}
+	ret = omap_irq_wait(dev, wait, msecs_to_jiffies(100));
+	if (ret) {
+		dev_err(dev->dev, "%s: timeout waiting for %s\n",
+				omap_crtc->name, enable ? "enable" : "disable");
 	}
 
 	omap_irq_register(crtc->dev, &omap_crtc->error_irq);
