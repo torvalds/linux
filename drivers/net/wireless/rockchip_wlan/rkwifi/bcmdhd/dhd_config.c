@@ -168,6 +168,14 @@ dhd_conf_set_fw_name_by_chip(dhd_pub_t *dhd, char *dst, char *src)
                 if (chiprev == BCM4339A0_CHIP_REV)
                     strcpy(&dst[i+1], bcm4339a0ag_fw_name[fw_type]);
                 break;
+            case BCM43362_CHIP_ID:
+                if (chiprev==BCM43362A0_CHIP_REV)
+                    strcpy(&dst[i+1], bcm43362a0_fw_name[fw_type]);
+                else
+                    strcpy(&dst[i+1], bcm43362a2_fw_name[fw_type]);
+                bzero(nv_path, MOD_PARAM_PATHLEN);
+                strcpy(nv_path, "/system/etc/firmware/nvram_AP6210.txt");
+                break;
         }
     }
 
