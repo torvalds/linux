@@ -1250,22 +1250,12 @@ int iwl_mvm_rx_ant_coupling_notif(struct iwl_mvm *mvm,
 {
 	struct iwl_rx_packet *pkt = rxb_addr(rxb);
 	u32 ant_isolation = le32_to_cpup((void *)pkt->data);
+	struct iwl_bt_coex_corun_lut_update_cmd cmd = {};
 	u8 __maybe_unused lower_bound, upper_bound;
-	int ret;
 	u8 lut;
-
-	struct iwl_bt_coex_cmd_old *bt_cmd;
-	struct iwl_host_cmd cmd = {
-		.id = BT_CONFIG,
-		.len = { sizeof(*bt_cmd), },
-		.dataflags = { IWL_HCMD_DFL_NOCOPY, },
-	};
 
 	if (!(mvm->fw->ucode_capa.api[0] & IWL_UCODE_TLV_API_BT_COEX_SPLIT))
 		return iwl_mvm_rx_ant_coupling_notif_old(mvm, rxb, dev_cmd);
-
-	/* TODO */
-	return 0;
 
 	if (!IWL_MVM_BT_COEX_CORUNNING)
 		return 0;
@@ -1300,25 +1290,13 @@ int iwl_mvm_rx_ant_coupling_notif(struct iwl_mvm *mvm,
 
 	mvm->last_corun_lut = lut;
 
-	bt_cmd = kzalloc(sizeof(*bt_cmd), GFP_KERNEL);
-	if (!bt_cmd)
-		return 0;
-	cmd.data[0] = bt_cmd;
-
-	bt_cmd->flags = cpu_to_le32(BT_COEX_NW_OLD);
-	bt_cmd->valid_bit_msk |= cpu_to_le32(BT_VALID_ENABLE |
-					     BT_VALID_CORUN_LUT_20 |
-					     BT_VALID_CORUN_LUT_40);
-
 	/* For the moment, use the same LUT for 20GHz and 40GHz */
-	memcpy(bt_cmd->bt4_corun_lut20, antenna_coupling_ranges[lut].lut20,
-	       sizeof(bt_cmd->bt4_corun_lut20));
+	memcpy(&cmd.corun_lut20, antenna_coupling_ranges[lut].lut20,
+	       sizeof(cmd.corun_lut20));
 
-	memcpy(bt_cmd->bt4_corun_lut40, antenna_coupling_ranges[lut].lut20,
-	       sizeof(bt_cmd->bt4_corun_lut40));
+	memcpy(&cmd.corun_lut40, antenna_coupling_ranges[lut].lut20,
+	       sizeof(cmd.corun_lut40));
 
-	ret = iwl_mvm_send_cmd(mvm, &cmd);
-
-	kfree(bt_cmd);
-	return ret;
+	return iwl_mvm_send_cmd_pdu(mvm, BT_COEX_UPDATE_CORUN_LUT, 0,
+				    sizeof(cmd), &cmd);
 }
