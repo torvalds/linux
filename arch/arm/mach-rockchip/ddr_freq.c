@@ -19,6 +19,9 @@
 #include <linux/rockchip/common.h>
 #include <linux/rockchip/dvfs.h>
 #include <dt-bindings/clock/ddr.h>
+#include <asm/io.h>
+#include <linux/rockchip/grf.h>
+#include <linux/rockchip/iomap.h>
 
 enum {
 	DEBUG_DDR = 1U << 0,
@@ -344,12 +347,16 @@ int of_init_ddr_freq_table(void)
 
 	return 0;
 }
-
+#if defined(CONFIG_RK_PM_TESTS)
+static void ddrfreq_tst_init(void);
+#endif
 static int ddrfreq_init(void)
 {
 	struct sched_param param = { .sched_priority = MAX_RT_PRIO - 1 };
 	int ret;
-
+#if defined(CONFIG_RK_PM_TESTS)
+        ddrfreq_tst_init();
+#endif
 	ddr.clk_dvfs_node = clk_get_dvfs_node("clk_ddr");
 	if (!ddr.clk_dvfs_node){
 		return -EINVAL;
@@ -434,3 +441,154 @@ err:
 	return ret;
 }
 late_initcall(ddrfreq_init);
+
+/****************************ddr bandwith tst************************************/
+#if defined(CONFIG_RK_PM_TESTS)
+
+#define USE_NORMAL_TIME
+
+#ifdef USE_NORMAL_TIME
+static struct timer_list ddrbw_timer;
+#else
+static struct hrtimer ddrbw_hrtimer;
+#endif
+enum ddr_bandwidth_id{
+    ddrbw_wr_num=0,
+    ddrbw_rd_num,
+    ddrbw_act_num,
+    ddrbw_time_num,  
+    ddrbw_eff,
+    ddrbw_id_end
+};
+#define grf_readl(offset)	readl_relaxed(RK_GRF_VIRT + offset)
+#define grf_writel(v, offset)	do { writel_relaxed(v, RK_GRF_VIRT + offset); dsb(); } while (0)
+
+static u32 ddr_bw_show_st=0;
+
+#define  ddr_monitor_start() grf_writel(0xc000c000,RK3288_GRF_SOC_CON4)
+#define  ddr_monitor_end() grf_writel(0xc0000000,RK3288_GRF_SOC_CON4)
+
+static ssize_t ddrbw_dyn_show(struct kobject *kobj, struct kobj_attribute *attr,
+		char *buf)
+{
+	char *s = buf;
+	return (s - buf);
+}
+
+static ssize_t ddrbw_dyn_store(struct kobject *kobj, struct kobj_attribute *attr,
+		const char *buf, size_t n)
+{
+	//const char *pbuf;
+
+	if((strncmp(buf, "start", strlen("start")) == 0)) {
+            ddr_bw_show_st=1;
+            ddr_monitor_start();
+            
+            #ifdef USE_NORMAL_TIME
+            mod_timer(&ddrbw_timer, jiffies + msecs_to_jiffies(500));
+            #else
+            hrtimer_start(&ddrbw_hrtimer, ktime_set(0, 5 * 1000 * 1000*1000), HRTIMER_MODE_REL);
+            #endif
+
+	} else if((strncmp(buf, "stop", strlen("stop")) == 0)) {
+	    ddr_bw_show_st=0;
+            ddr_monitor_end();
+	}
+
+	return n;
+}
+
+static void ddr_bandwidth_get(void)
+{
+    u32 ddr_bw_val[2][ddrbw_id_end];
+    int i,j;
+    u64 temp64;
+    
+    
+    for(j=0;j<2;j++)
+    for(i=0;i<ddrbw_eff;i++)
+    {
+        ddr_bw_val[j][i]=grf_readl(RK3288_GRF_SOC_STATUS11+i*4+j*16);
+    }
+    ddr_monitor_end();//stop
+    ddr_monitor_start();
+    
+    temp64=((u64)ddr_bw_val[0][0]+ddr_bw_val[0][1])*8*100;
+    
+   // printk("ch0 %llu\n",temp64);
+
+    do_div(temp64,ddr_bw_val[0][ddrbw_time_num]);
+    ddr_bw_val[0][ddrbw_eff]= temp64;
+    temp64=((u64)ddr_bw_val[1][0]+ddr_bw_val[1][1])*8*100;
+    
+    //printk("ch1 %llu\n",temp64);
+
+    do_div(temp64,ddr_bw_val[1][ddrbw_time_num]);   
+    ddr_bw_val[1][ddrbw_eff]=  temp64;
+
+    printk("ddrch0,wr,rd,act,time,percent(%x,%x,%x,%x,%d)\n", 
+                               ddr_bw_val[0][0],ddr_bw_val[0][1],ddr_bw_val[0][2],ddr_bw_val[0][3],ddr_bw_val[0][4]);
+    printk("ddrch1,wr,rd,act,time,percent(%x,%x,%x,%x,%d)\n", 
+                               ddr_bw_val[1][0],ddr_bw_val[1][1],ddr_bw_val[1][2],ddr_bw_val[1][3],ddr_bw_val[1][4]);
+    
+}
+
+#ifdef USE_NORMAL_TIME
+static void ddrbw_timer_fn(unsigned long data)
+{
+	//int i;
+        ddr_bandwidth_get();
+        if(ddr_bw_show_st)
+        {
+            mod_timer(&ddrbw_timer, jiffies + msecs_to_jiffies(500));
+         }
+}
+#else
+struct hrtimer ddrbw_hrtimer;
+static enum hrtimer_restart ddrbw_hrtimer_timer_func(struct hrtimer *timer)
+{
+	int i;
+        ddr_bandwidth_get();
+        if(ddr_bw_show_st)
+        hrtimer_start(timer, ktime_set(0, 1 * 1000 * 1000), HRTIMER_MODE_REL);
+
+}
+#endif
+
+struct ddrfreq_attribute {
+	struct attribute	attr;
+	ssize_t (*show)(struct kobject *kobj, struct kobj_attribute *attr,
+			char *buf);
+	ssize_t (*store)(struct kobject *kobj, struct kobj_attribute *attr,
+			const char *buf, size_t n);
+};
+
+static struct ddrfreq_attribute ddrfreq_attrs[] = {
+	/*     node_name	permision		show_func	store_func */    
+	__ATTR(ddrbw,	S_IRUSR | S_IRGRP | S_IWUSR,ddrbw_dyn_show,	ddrbw_dyn_store),
+};
+int rk_pm_tests_kobj_atrradd(const struct attribute *attr);
+
+static void ddrfreq_tst_init(void)
+{
+        int i,ret;
+#ifdef USE_NORMAL_TIME
+            init_timer(&ddrbw_timer);
+            //ddrbw_timer.expires = jiffies+msecs_to_jiffies(1);
+            ddrbw_timer.function = ddrbw_timer_fn;
+            //mod_timer(&ddrbw_timer,jiffies+msecs_to_jiffies(1));
+#else
+            hrtimer_init(&ddrbw_hrtimer, CLOCK_MONOTONIC, HRTIMER_MODE_REL);
+            ddrbw_hrtimer.function = ddrbw_hrtimer_timer_func;
+            //hrtimer_start(&ddrbw_hrtimer,ktime_set(0, 5*1000*1000),HRTIMER_MODE_REL);
+#endif
+            printk("*****%s*****\n",__FUNCTION__);
+
+            ret = rk_pm_tests_kobj_atrradd(&ddrfreq_attrs[0].attr);
+            if (ret != 0) {
+                printk("create ddrfreq sysfs node error\n");
+                return;
+            }
+
+}
+#endif
