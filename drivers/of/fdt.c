@@ -324,7 +324,7 @@ static void __unflatten_device_tree(void *blob,
 
 	/* First pass, scan for size */
 	start = 0;
-	size = (unsigned long)unflatten_dt_node(blob, 0, &start, NULL, NULL, 0);
+	size = (unsigned long)unflatten_dt_node(blob, NULL, &start, NULL, NULL, 0);
 	size = ALIGN(size, 4);
 
 	pr_debug("  size is %lx, allocating...\n", size);
