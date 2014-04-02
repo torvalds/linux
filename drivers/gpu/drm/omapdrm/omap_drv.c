@@ -727,18 +727,33 @@ static struct platform_driver pdev = {
 
 static int __init omap_drm_init(void)
 {
+	int r;
+
 	DBG("init");
-	if (platform_driver_register(&omap_dmm_driver)) {
-		/* we can continue on without DMM.. so not fatal */
-		dev_err(NULL, "DMM registration failed\n");
+
+	r = platform_driver_register(&omap_dmm_driver);
+	if (r) {
+		pr_err("DMM driver registration failed\n");
+		return r;
 	}
-	return platform_driver_register(&pdev);
+
+	r = platform_driver_register(&pdev);
+	if (r) {
+		pr_err("omapdrm driver registration failed\n");
+		platform_driver_unregister(&omap_dmm_driver);
+		return r;
+	}
+
+	return 0;
 }
 
 static void __exit omap_drm_fini(void)
 {
 	DBG("fini");
+
 	platform_driver_unregister(&pdev);
+
+	platform_driver_unregister(&omap_dmm_driver);
 }
 
 /* need late_initcall() so we load after dss_driver's are loaded */
