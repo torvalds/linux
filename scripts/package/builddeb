@@ -43,7 +43,11 @@ create_package() {
 	mips*)
 		debarch=mips$(grep -q CPU_LITTLE_ENDIAN=y $KCONFIG_CONFIG && echo el || true) ;;
 	arm*)
-		debarch=arm$(grep -q CONFIG_AEABI=y $KCONFIG_CONFIG && echo el || true) ;;
+		if grep -q '^CONFIG_ARM64=y' $KCONFIG_CONFIG ; then
+			debarch=arm64
+		else
+			debarch=arm$(grep -q CONFIG_AEABI=y $KCONFIG_CONFIG && echo el || true)
+		fi ;;
 	*)
 		echo "" >&2
 		echo "** ** **  WARNING  ** ** **" >&2
@@ -98,6 +102,9 @@ um)
 	;;
 parisc|mips|powerpc)
 	installed_image_path="boot/vmlinux-$version"
+	;;
+arm64)
+	installed_image_path="boot/Image-$version"
 	;;
 *)
 	installed_image_path="boot/vmlinuz-$version"
@@ -155,11 +162,11 @@ if grep -q '^CONFIG_MODULES=y' $KCONFIG_CONFIG ; then
 			for module in $(find lib/modules/ -name *.ko); do
 				mkdir -p $(dirname $dbg_dir/usr/lib/debug/$module)
 				# only keep debug symbols in the debug file
-				objcopy --only-keep-debug $module $dbg_dir/usr/lib/debug/$module
+				$OBJCOPY --only-keep-debug $module $dbg_dir/usr/lib/debug/$module
 				# strip original module from debug symbols
-				objcopy --strip-debug $module
+				$OBJCOPY --strip-debug $module
 				# then add a link to those
-				objcopy --add-gnu-debuglink=$dbg_dir/usr/lib/debug/$module $module
+				$OBJCOPY --add-gnu-debuglink=$dbg_dir/usr/lib/debug/$module $module
 			done
 		)
 	fi
@@ -324,6 +331,17 @@ Description: Linux kernel firmware, version $version
 EOF
 
 	create_package "$fwpackagename" "$fwdir"
+fi
+
+# Copy device tree files if generated
+stat arch/$ARCH/boot/dts/*.dtb && {
+	mkdir -p "$tmpdir/lib/firmware/$version/device-tree"
+	cp arch/$ARCH/boot/dts/*.dtb "$tmpdir/lib/firmware/$version/device-tree"
+}
+
+# Copy boot wrapper files if built
+if [ "$ARCH" = "arm64" ] ; then
+	stat arch/arm64/boot/*.axf && cp arch/arm64/boot/*.axf "$tmpdir/boot"
 fi
 
 cat <<EOF >> debian/control
