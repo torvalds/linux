@@ -840,7 +840,7 @@
 						816000 1100000
 						1008000 1100000
 						>;
-					temp-channel=<1>;
+					//temp-channel=<1>;
 					temp-limit = <
 						/*temp    freq*/
 						50	1608000
@@ -897,7 +897,7 @@
 						300000 1200000
 						400000 1200000
 						>;
-					temp-channel=<2>;
+					//temp-channel=<2>;
 					temp-limit = <
 						/*temp    freq*/
 						50	600000
