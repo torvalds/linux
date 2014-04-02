@@ -444,17 +444,4 @@ struct audit_rule_data {
 	char		buf[0];	/* string fields buffer */
 };
 
-/* audit_rule is supported to maintain backward compatibility with
- * userspace.  It supports integer fields only and corresponds to
- * AUDIT_ADD, AUDIT_DEL and AUDIT_LIST requests.
- */
-struct audit_rule {		/* for AUDIT_LIST, AUDIT_ADD, and AUDIT_DEL */
-	__u32		flags;	/* AUDIT_PER_{TASK,CALL}, AUDIT_PREPEND */
-	__u32		action;	/* AUDIT_NEVER, AUDIT_POSSIBLE, AUDIT_ALWAYS */
-	__u32		field_count;
-	__u32		mask[AUDIT_BITMASK_SIZE];
-	__u32		fields[AUDIT_MAX_FIELDS];
-	__u32		values[AUDIT_MAX_FIELDS];
-};
-
 #endif /* _UAPI_LINUX_AUDIT_H_ */
