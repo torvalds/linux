@@ -26,10 +26,9 @@
 #include <linux/ratelimit.h>
 #include <linux/percpu_counter.h>
 #include "hash.h"
-#include "ctree.h"
+#include "tree-log.h"
 #include "disk-io.h"
 #include "print-tree.h"
-#include "transaction.h"
 #include "volumes.h"
 #include "raid56.h"
 #include "locking.h"
@@ -8714,7 +8713,7 @@ int btrfs_make_block_group(struct btrfs_trans_handle *trans,
 
 	extent_root = root->fs_info->extent_root;
 
-	root->fs_info->last_trans_log_full_commit = trans->transid;
+	btrfs_set_log_full_commit(root->fs_info, trans);
 
 	cache = btrfs_create_block_group_cache(root, chunk_offset, size);
 	if (!cache)
