@@ -696,10 +696,11 @@ static int pdev_remove(struct platform_device *device)
 {
 	DBG("");
 
+	drm_put_dev(platform_get_drvdata(device));
+
 	omap_disconnect_dssdevs();
 	omap_crtc_pre_uninit();
 
-	drm_put_dev(platform_get_drvdata(device));
 	return 0;
 }
 
