@@ -115,19 +115,18 @@ enum stack_type {
 };
 
 static enum stack_type
-analyze_stack(int cpu, struct task_struct *task,
-	      unsigned long *stack, unsigned long **stack_end, char **id)
+analyze_stack(int cpu, struct task_struct *task, unsigned long *stack,
+	      unsigned long **stack_end, unsigned *used, char **id)
 {
 	unsigned long *irq_stack;
 	unsigned long addr;
-	unsigned used = 0;
 
 	addr = ((unsigned long)stack & (~(THREAD_SIZE - 1)));
 	if ((unsigned long)task_stack_page(task) == addr)
 		return STACK_IS_NORMAL;
 
 	*stack_end = in_exception_stack(cpu, (unsigned long)stack,
-					 &used, id);
+					used, id);
 	if (*stack_end)
 		return STACK_IS_EXCEPTION;
 
@@ -158,6 +157,7 @@ void dump_trace(struct task_struct *task, struct pt_regs *regs,
 	struct thread_info *tinfo;
 	unsigned long *irq_stack;
 	unsigned long dummy;
+	unsigned used = 0;
 	int graph = 0;
 	int done = 0;
 
@@ -186,7 +186,7 @@ void dump_trace(struct task_struct *task, struct pt_regs *regs,
 		enum stack_type stype;
 		char *id;
 
-		stype = analyze_stack(cpu, task, stack, &stack_end, &id);
+		stype = analyze_stack(cpu, task, stack, &stack_end, &used, &id);
 
 		/* Default finish unless specified to continue */
 		done = 1;
