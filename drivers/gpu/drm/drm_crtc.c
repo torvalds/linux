@@ -121,6 +121,13 @@ static const struct drm_prop_enum_list drm_dpms_enum_list[] =
 
 DRM_ENUM_NAME_FN(drm_get_dpms_name, drm_dpms_enum_list)
 
+static const struct drm_prop_enum_list drm_plane_type_enum_list[] =
+{
+	{ DRM_PLANE_TYPE_OVERLAY, "Overlay" },
+	{ DRM_PLANE_TYPE_PRIMARY, "Primary" },
+	{ DRM_PLANE_TYPE_CURSOR, "Cursor" },
+};
+
 /*
  * Optional properties
  */
@@ -1050,6 +1057,10 @@ int drm_universal_plane_init(struct drm_device *dev, struct drm_plane *plane,
 	if (plane->type == DRM_PLANE_TYPE_OVERLAY)
 		dev->mode_config.num_overlay_plane++;
 
+	drm_object_attach_property(&plane->base,
+				   dev->mode_config.plane_type_property,
+				   plane->type);
+
  out:
 	drm_modeset_unlock_all(dev);
 
@@ -1157,6 +1168,21 @@ static int drm_mode_create_standard_connector_properties(struct drm_device *dev)
 				   "DPMS", drm_dpms_enum_list,
 				   ARRAY_SIZE(drm_dpms_enum_list));
 	dev->mode_config.dpms_property = dpms;
+
+	return 0;
+}
+
+static int drm_mode_create_standard_plane_properties(struct drm_device *dev)
+{
+	struct drm_property *type;
+
+	/*
+	 * Standard properties (apply to all planes)
+	 */
+	type = drm_property_create_enum(dev, DRM_MODE_PROP_IMMUTABLE,
+					"type", drm_plane_type_enum_list,
+					ARRAY_SIZE(drm_plane_type_enum_list));
+	dev->mode_config.plane_type_property = type;
 
 	return 0;
 }
@@ -4564,6 +4590,7 @@ void drm_mode_config_init(struct drm_device *dev)
 
 	drm_modeset_lock_all(dev);
 	drm_mode_create_standard_connector_properties(dev);
+	drm_mode_create_standard_plane_properties(dev);
 	drm_modeset_unlock_all(dev);
 
 	/* Just to be sure */
