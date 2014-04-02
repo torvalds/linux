@@ -247,7 +247,7 @@ static int rsi_process_pkt(struct rsi_common *common)
 	if (!common->rx_data_pkt) {
 		rsi_dbg(ERR_ZONE, "%s: Failed in memory allocation\n",
 			__func__);
-		return -1;
+		return -ENOMEM;
 	}
 
 	status = rsi_sdio_host_intf_read_pkt(adapter,
@@ -260,12 +260,10 @@ static int rsi_process_pkt(struct rsi_common *common)
 	}
 
 	status = rsi_read_pkt(common, rcv_pkt_len);
-	kfree(common->rx_data_pkt);
-	return status;
 
 fail:
 	kfree(common->rx_data_pkt);
-	return -1;
+	return status;
 }
 
 /**
