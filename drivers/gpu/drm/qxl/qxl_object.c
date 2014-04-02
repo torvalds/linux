@@ -36,7 +36,6 @@ static void qxl_ttm_bo_destroy(struct ttm_buffer_object *tbo)
 	qdev = (struct qxl_device *)bo->gem_base.dev->dev_private;
 
 	qxl_surface_evict(qdev, bo, false);
-	qxl_fence_fini(&bo->fence);
 	mutex_lock(&qdev->gem.mutex);
 	list_del_init(&bo->list);
 	mutex_unlock(&qdev->gem.mutex);
@@ -102,7 +101,6 @@ int qxl_bo_create(struct qxl_device *qdev,
 	bo->type = domain;
 	bo->pin_count = pinned ? 1 : 0;
 	bo->surface_id = 0;
-	qxl_fence_init(qdev, &bo->fence);
 	INIT_LIST_HEAD(&bo->list);
 
 	if (surf)

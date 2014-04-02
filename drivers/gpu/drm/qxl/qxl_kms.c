@@ -223,6 +223,8 @@ static int qxl_device_init(struct qxl_device *qdev,
 
 	idr_init(&qdev->release_idr);
 	spin_lock_init(&qdev->release_idr_lock);
+	spin_lock_init(&qdev->release_lock);
+	spin_lock_init(&qdev->fence_lock);
 
 	idr_init(&qdev->surf_id_idr);
 	spin_lock_init(&qdev->surf_id_idr_lock);
