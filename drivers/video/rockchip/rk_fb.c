@@ -843,8 +843,16 @@ static int rk_fb_pan_display(struct fb_var_screeninfo *var, struct fb_info *info
 	}
 	pixel_width = rk_fb_pixel_width(win->format);
 	vir_width_bit = pixel_width * xvir;
-	stride_32bit_1	= ((vir_width_bit   + 31 ) & (~31 ))/8; //pixel_width = byte_num *8
-	stride_32bit_2	= ((vir_width_bit*2 + 31 ) & (~31 ))/8; //pixel_width = byte_num *8
+	if((win->format == YUV420_A)||(win->format == YUV422_A)||(win->format == YUV444_A)){
+		vir_width_bit = xvir * 8;
+		stride_32bit_1 = xvir;
+		stride_32bit_2 = xvir*2;
+	}else{
+		vir_width_bit = pixel_width * xvir;
+		stride_32bit_1	= ((vir_width_bit   + 31 ) & (~31 ))/8; //pixel_width = byte_num *8
+		stride_32bit_2	= ((vir_width_bit*2 + 31 ) & (~31 ))/8; //pixel_width = byte_num *8
+	}
+
 
 	stride	  = stride_32bit_1;//default rgb
 	fix->line_length = stride;
@@ -2007,10 +2015,15 @@ if (rk_fb->disp_mode != DUAL) {
 
 	fb_data_fmt = rk_fb_data_fmt(data_format,var->bits_per_pixel);
 	pixel_width = rk_fb_pixel_width(fb_data_fmt);
-	vir_width_bit = pixel_width * xvir;
-	stride_32bit_1	= ((vir_width_bit   + 31 ) & (~31 ))/8; //pixel_width = byte_num *8
-	stride_32bit_2	= ((vir_width_bit*2 + 31 ) & (~31 ))/8; //pixel_width = byte_num *8
-
+	if((fb_data_fmt == YUV420_A)||(fb_data_fmt == YUV422_A)||(fb_data_fmt == YUV444_A)){
+		vir_width_bit = xvir * 8;
+		stride_32bit_1 = xvir;
+		stride_32bit_2 = xvir*2;
+	}else{
+		vir_width_bit = pixel_width * xvir;
+		stride_32bit_1	= ((vir_width_bit   + 31 ) & (~31 ))/8; //pixel_width = byte_num *8
+		stride_32bit_2	= ((vir_width_bit*2 + 31 ) & (~31 ))/8; //pixel_width = byte_num *8
+	}
 	stride	  = stride_32bit_1;//default rgb
 	fix->line_length = stride;
 	switch (fb_data_fmt){
