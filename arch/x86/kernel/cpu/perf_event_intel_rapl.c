@@ -59,7 +59,7 @@
 #define INTEL_RAPL_PKG		0x2	/* pseudo-encoding */
 #define RAPL_IDX_RAM_NRG_STAT	2	/* DRAM */
 #define INTEL_RAPL_RAM		0x3	/* pseudo-encoding */
-#define RAPL_IDX_PP1_NRG_STAT	3	/* DRAM */
+#define RAPL_IDX_PP1_NRG_STAT	3	/* gpu */
 #define INTEL_RAPL_PP1		0x4	/* pseudo-encoding */
 
 /* Clients have PP0, PKG */
@@ -71,6 +71,12 @@
 #define RAPL_IDX_SRV	(1<<RAPL_IDX_PP0_NRG_STAT|\
 			 1<<RAPL_IDX_PKG_NRG_STAT|\
 			 1<<RAPL_IDX_RAM_NRG_STAT)
+
+/* Servers have PP0, PKG, RAM, PP1 */
+#define RAPL_IDX_HSW	(1<<RAPL_IDX_PP0_NRG_STAT|\
+			 1<<RAPL_IDX_PKG_NRG_STAT|\
+			 1<<RAPL_IDX_RAM_NRG_STAT|\
+			 1<<RAPL_IDX_PP1_NRG_STAT)
 
 /*
  * event code: LSB 8 bits, passed in attr->config
@@ -425,6 +431,24 @@ static struct attribute *rapl_events_cln_attr[] = {
 	NULL,
 };
 
+static struct attribute *rapl_events_hsw_attr[] = {
+	EVENT_PTR(rapl_cores),
+	EVENT_PTR(rapl_pkg),
+	EVENT_PTR(rapl_gpu),
+	EVENT_PTR(rapl_ram),
+
+	EVENT_PTR(rapl_cores_unit),
+	EVENT_PTR(rapl_pkg_unit),
+	EVENT_PTR(rapl_gpu_unit),
+	EVENT_PTR(rapl_ram_unit),
+
+	EVENT_PTR(rapl_cores_scale),
+	EVENT_PTR(rapl_pkg_scale),
+	EVENT_PTR(rapl_gpu_scale),
+	EVENT_PTR(rapl_ram_scale),
+	NULL,
+};
+
 static struct attribute_group rapl_pmu_events_group = {
 	.name = "events",
 	.attrs = NULL, /* patched at runtime */
@@ -631,10 +655,13 @@ static int __init rapl_pmu_init(void)
 	switch (boot_cpu_data.x86_model) {
 	case 42: /* Sandy Bridge */
 	case 58: /* Ivy Bridge */
-	case 60: /* Haswell */
-	case 69: /* Haswell-Celeron */
 		rapl_cntr_mask = RAPL_IDX_CLN;
 		rapl_pmu_events_group.attrs = rapl_events_cln_attr;
+		break;
+	case 60: /* Haswell */
+	case 69: /* Haswell-Celeron */
+		rapl_cntr_mask = RAPL_IDX_HSW;
+		rapl_pmu_events_group.attrs = rapl_events_hsw_attr;
 		break;
 	case 45: /* Sandy Bridge-EP */
 	case 62: /* IvyTown */
