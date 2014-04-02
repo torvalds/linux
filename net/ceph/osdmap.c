@@ -1005,6 +1005,8 @@ static int decode_new_primary_affinity(void **p, void *end,
 		ret = set_primary_affinity(map, osd, aff);
 		if (ret)
 			return ret;
+
+		pr_info("osd%d primary-affinity 0x%x\n", osd, aff);
 	}
 
 	return 0;
