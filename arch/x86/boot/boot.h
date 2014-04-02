@@ -231,8 +231,10 @@ void *copy_from_gs(void *dst, addr_t src, size_t len);
 void *memcpy(void *dst, void *src, size_t len);
 void *memset(void *dst, int c, size_t len);
 
+#ifndef __clang__ /* PR18415 */
 #define memcpy(d,s,l) __builtin_memcpy(d,s,l)
 #define memset(d,c,l) __builtin_memset(d,c,l)
+#endif
 
 /* a20.c */
 int enable_a20(void);

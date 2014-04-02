@@ -19,13 +19,20 @@ LIBGCC 		:= $(shell $(CC) $(KBUILD_CFLAGS) -print-libgcc-file-name)
 
 KBUILD_DEFCONFIG := defconfig
 
-KBUILD_CFLAGS	+= -mgeneral-regs-only
-ifeq ($(CONFIG_CPU_BIG_ENDIAN), y)
-KBUILD_CPPFLAGS	+= -mbig-endian
+ifeq ($(COMPILER),clang)
+# Clang options
+KBUILD_CPPFLAGS	+= $(call cc-option,-target $(CROSS_COMPILE:-=),)
+KBUILD_CFLAGS   += $(call cc-option,-fno-builtin,)
+KBUILD_CFLAGS   += $(call cc-disable-warning,asm-operand-widths)
+endif
+
+KBUILD_CFLAGS	+= $(call cc-option,-mgeneral-regs-only,)
+ifeq ($(CONFIG_CPU_BG_ENDIAN), y)
+KBUILD_CPPFLAGS	+= $(call cc-option,-mbig-endian,)
 AS		+= -EB
 LD		+= -EB
 else
-KBUILD_CPPFLAGS	+= -mlittle-endian
+KBUILD_CPPFLAGS	+= $(call cc-option,-mlittle-endian,)
 AS		+= -EL
 LD		+= -EL
 endif

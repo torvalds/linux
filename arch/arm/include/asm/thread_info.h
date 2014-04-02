@@ -100,14 +100,34 @@ struct thread_info {
 #define init_stack		(init_thread_union.stack)
 
 /*
+ * how to get the current stack pointer in C
+ */
+#if defined(CONFIG_BUILTIN_STACK_POINTER)
+/* compiler has __builtin_stack_pointer support already */
+
+#elif defined(__clang__)
+#define __builtin_stack_pointer() ({ \
+	unsigned long current_sp; \
+	asm ("mov %0, sp" : "=r" (current_sp)); \
+	current_sp; \
+})
+#define current_stack_pointer __builtin_stack_pointer()
+
+#else /* gcc */
+register unsigned long current_stack_pointer asm ("sp");
+#define __builtin_stack_pointer() current_stack_pointer
+#endif
+
+/*
  * how to get the thread information struct from C
  */
 static inline struct thread_info *current_thread_info(void) __attribute_const__;
 
 static inline struct thread_info *current_thread_info(void)
 {
-	register unsigned long sp asm ("sp");
-	return (struct thread_info *)(sp & ~(THREAD_SIZE - 1));
+	return (struct thread_info *)
+		((u32)(__builtin_stack_pointer())
+		& ~(THREAD_SIZE - 1));
 }
 
 #define thread_saved_pc(tsk)	\

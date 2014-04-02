@@ -55,6 +55,15 @@ KBUILD_CFLAGS	:= $(USERINCLUDE) $(REALMODE_CFLAGS) -D_SETUP
 KBUILD_AFLAGS	:= $(KBUILD_CFLAGS) -D__ASSEMBLY__
 GCOV_PROFILE := n
 
+
+# For clang we need to rely on no-integrated-as for .code16 . We use gas.
+ifeq ($(COMPILER),clang)
+KBUILD_CFLAGS  += -Wno-unused-value -Wno-unused-parameter -mno-sse \
+                  $(call cc-option,-no-integrated-as,)
+KBUILD_AFLAGS	:= $(KBUILD_CFLAGS) -D__ASSEMBLY__
+endif
+
+
 $(obj)/bzImage: asflags-y  := $(SVGA_MODE)
 
 quiet_cmd_image = BUILD   $@

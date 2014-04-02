@@ -27,21 +27,10 @@ static inline void set_my_cpu_offset(unsigned long off)
 	asm volatile("mcr p15, 0, %0, c13, c0, 4" : : "r" (off) : "memory");
 }
 
-static inline unsigned long __my_cpu_offset(void)
-{
-	unsigned long off;
-	register unsigned long *sp asm ("sp");
+#include "asm/compiler.h"
 
-	/*
-	 * Read TPIDRPRW.
-	 * We want to allow caching the value, so avoid using volatile and
-	 * instead use a fake stack read to hazard against barrier().
-	 */
-	asm("mrc p15, 0, %0, c13, c0, 4" : "=r" (off) : "Q" (*sp));
+#define __my_cpu_offset read_TPIDRPRW()
 
-	return off;
-}
-#define __my_cpu_offset __my_cpu_offset()
 #else
 #define set_my_cpu_offset(x)	do {} while(0)
 

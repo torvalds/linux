@@ -63,8 +63,13 @@ static int detect_memory_e820(void)
 			count = 0;
 			break;
 		}
-
+#ifdef __clang__
+		/* PR18415 */
+		memcpy(desc, &buf, sizeof(*desc));
+		desc++;
+#else
 		*desc++ = buf;
+#endif
 		count++;
 	} while (ireg.ebx && count < ARRAY_SIZE(boot_params.e820_map));
 
