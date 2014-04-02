@@ -484,7 +484,8 @@ void iwl_mvm_tt_handler(struct iwl_mvm *mvm)
 		IWL_WARN(mvm,
 			 "Due to high temperature thermal throttling initiated\n");
 		tt->throttle = true;
-	} else if (tt->throttle && !tt->dynamic_smps && tt->tx_backoff == 0 &&
+	} else if (tt->throttle && !tt->dynamic_smps &&
+		   tt->tx_backoff == tt->min_backoff &&
 		   temperature <= params->tx_protection_exit) {
 		IWL_WARN(mvm,
 			 "Temperature is back to normal thermal throttling stopped\n");
