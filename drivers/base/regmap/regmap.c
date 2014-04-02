@@ -192,6 +192,13 @@ static void regmap_format_16_be(void *buf, unsigned int val, unsigned int shift)
 	b[0] = cpu_to_be16(val << shift);
 }
 
+static void regmap_format_16_le(void *buf, unsigned int val, unsigned int shift)
+{
+	__le16 *b = buf;
+
+	b[0] = cpu_to_le16(val << shift);
+}
+
 static void regmap_format_16_native(void *buf, unsigned int val,
 				    unsigned int shift)
 {
@@ -214,6 +221,13 @@ static void regmap_format_32_be(void *buf, unsigned int val, unsigned int shift)
 	__be32 *b = buf;
 
 	b[0] = cpu_to_be32(val << shift);
+}
+
+static void regmap_format_32_le(void *buf, unsigned int val, unsigned int shift)
+{
+	__le32 *b = buf;
+
+	b[0] = cpu_to_le32(val << shift);
 }
 
 static void regmap_format_32_native(void *buf, unsigned int val,
@@ -240,11 +254,25 @@ static unsigned int regmap_parse_16_be(const void *buf)
 	return be16_to_cpu(b[0]);
 }
 
+static unsigned int regmap_parse_16_le(const void *buf)
+{
+	const __le16 *b = buf;
+
+	return le16_to_cpu(b[0]);
+}
+
 static void regmap_parse_16_be_inplace(void *buf)
 {
 	__be16 *b = buf;
 
 	b[0] = be16_to_cpu(b[0]);
+}
+
+static void regmap_parse_16_le_inplace(void *buf)
+{
+	__le16 *b = buf;
+
+	b[0] = le16_to_cpu(b[0]);
 }
 
 static unsigned int regmap_parse_16_native(const void *buf)
@@ -269,11 +297,25 @@ static unsigned int regmap_parse_32_be(const void *buf)
 	return be32_to_cpu(b[0]);
 }
 
+static unsigned int regmap_parse_32_le(const void *buf)
+{
+	const __le32 *b = buf;
+
+	return le32_to_cpu(b[0]);
+}
+
 static void regmap_parse_32_be_inplace(void *buf)
 {
 	__be32 *b = buf;
 
 	b[0] = be32_to_cpu(b[0]);
+}
+
+static void regmap_parse_32_le_inplace(void *buf)
+{
+	__le32 *b = buf;
+
+	b[0] = le32_to_cpu(b[0]);
 }
 
 static unsigned int regmap_parse_32_native(const void *buf)
@@ -608,6 +650,11 @@ struct regmap *regmap_init(struct device *dev,
 			map->format.parse_val = regmap_parse_16_be;
 			map->format.parse_inplace = regmap_parse_16_be_inplace;
 			break;
+		case REGMAP_ENDIAN_LITTLE:
+			map->format.format_val = regmap_format_16_le;
+			map->format.parse_val = regmap_parse_16_le;
+			map->format.parse_inplace = regmap_parse_16_le_inplace;
+			break;
 		case REGMAP_ENDIAN_NATIVE:
 			map->format.format_val = regmap_format_16_native;
 			map->format.parse_val = regmap_parse_16_native;
@@ -628,6 +675,11 @@ struct regmap *regmap_init(struct device *dev,
 			map->format.format_val = regmap_format_32_be;
 			map->format.parse_val = regmap_parse_32_be;
 			map->format.parse_inplace = regmap_parse_32_be_inplace;
+			break;
+		case REGMAP_ENDIAN_LITTLE:
+			map->format.format_val = regmap_format_32_le;
+			map->format.parse_val = regmap_parse_32_le;
+			map->format.parse_inplace = regmap_parse_32_le_inplace;
 			break;
 		case REGMAP_ENDIAN_NATIVE:
 			map->format.format_val = regmap_format_32_native;
