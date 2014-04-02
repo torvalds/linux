@@ -152,8 +152,8 @@
 };
 
 &emmc {
-	clock-frequency = <400000000>;
-	clock-freq-min-max = <400000 400000000>;
+	clock-frequency = <200000000>;
+        clock-freq-min-max = <400000 200000000>;
 
         supports-highspeed;
 	supports-emmc;
@@ -163,7 +163,7 @@
 	caps2-mmc-hs200;
 
         ignore-pm-notify;
-	keep-power-in-suspend;
+		keep-power-in-suspend;
     	status = "okay";
 };
     
