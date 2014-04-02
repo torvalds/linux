@@ -54,7 +54,7 @@ config LOGO_PARISC_CLUT224
 
 config LOGO_SGI_CLUT224
 	bool "224-color SGI Linux logo"
-	depends on SGI_IP22 || SGI_IP27 || SGI_IP32 || X86_VISWS
+	depends on SGI_IP22 || SGI_IP27 || SGI_IP32
 	default y
 
 config LOGO_SUN_CLUT224
