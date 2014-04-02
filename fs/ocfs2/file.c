@@ -2529,7 +2529,7 @@ static ssize_t ocfs2_file_splice_read(struct file *in,
 			in->f_path.dentry->d_name.name, len);
 
 	/*
-	 * See the comment in ocfs2_file_aio_read()
+	 * See the comment in ocfs2_file_read_iter()
 	 */
 	ret = ocfs2_inode_lock_atime(inode, in->f_path.mnt, &lock_level);
 	if (ret < 0) {
@@ -2544,10 +2544,8 @@ bail:
 	return ret;
 }
 
-static ssize_t ocfs2_file_aio_read(struct kiocb *iocb,
-				   const struct iovec *iov,
-				   unsigned long nr_segs,
-				   loff_t pos)
+static ssize_t ocfs2_file_read_iter(struct kiocb *iocb,
+				   struct iov_iter *to)
 {
 	int ret = 0, rw_level = -1, have_alloc_sem = 0, lock_level = 0;
 	struct file *filp = iocb->ki_filp;
@@ -2556,7 +2554,8 @@ static ssize_t ocfs2_file_aio_read(struct kiocb *iocb,
 	trace_ocfs2_file_aio_read(inode, filp, filp->f_path.dentry,
 			(unsigned long long)OCFS2_I(inode)->ip_blkno,
 			filp->f_path.dentry->d_name.len,
-			filp->f_path.dentry->d_name.name, nr_segs);
+			filp->f_path.dentry->d_name.name,
+			to->nr_segs);	/* GRRRRR */
 
 
 	if (!inode) {
@@ -2601,7 +2600,7 @@ static ssize_t ocfs2_file_aio_read(struct kiocb *iocb,
 	}
 	ocfs2_inode_unlock(inode, lock_level);
 
-	ret = generic_file_aio_read(iocb, iov, nr_segs, iocb->ki_pos);
+	ret = generic_file_read_iter(iocb, to);
 	trace_generic_file_aio_read_ret(ret);
 
 	/* buffered aio wouldn't have proper lock coverage today */
@@ -2700,13 +2699,13 @@ const struct inode_operations ocfs2_special_file_iops = {
  */
 const struct file_operations ocfs2_fops = {
 	.llseek		= ocfs2_file_llseek,
-	.read		= do_sync_read,
+	.read		= new_sync_read,
 	.write		= do_sync_write,
 	.mmap		= ocfs2_mmap,
 	.fsync		= ocfs2_sync_file,
 	.release	= ocfs2_file_release,
 	.open		= ocfs2_file_open,
-	.aio_read	= ocfs2_file_aio_read,
+	.read_iter	= ocfs2_file_read_iter,
 	.aio_write	= ocfs2_file_aio_write,
 	.unlocked_ioctl	= ocfs2_ioctl,
 #ifdef CONFIG_COMPAT
@@ -2748,13 +2747,13 @@ const struct file_operations ocfs2_dops = {
  */
 const struct file_operations ocfs2_fops_no_plocks = {
 	.llseek		= ocfs2_file_llseek,
-	.read		= do_sync_read,
+	.read		= new_sync_read,
 	.write		= do_sync_write,
 	.mmap		= ocfs2_mmap,
 	.fsync		= ocfs2_sync_file,
 	.release	= ocfs2_file_release,
 	.open		= ocfs2_file_open,
-	.aio_read	= ocfs2_file_aio_read,
+	.read_iter	= ocfs2_file_read_iter,
 	.aio_write	= ocfs2_file_aio_write,
 	.unlocked_ioctl	= ocfs2_ioctl,
 #ifdef CONFIG_COMPAT
