@@ -343,7 +343,7 @@ static int shmobile_iommu_add_device(struct device *dev)
 	mapping = archdata->iommu_mapping;
 	if (!mapping) {
 		mapping = arm_iommu_create_mapping(&platform_bus_type, 0,
-						   L1_LEN << 20, 0);
+						   L1_LEN << 20);
 		if (IS_ERR(mapping))
 			return PTR_ERR(mapping);
 		archdata->iommu_mapping = mapping;
