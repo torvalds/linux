@@ -621,6 +621,25 @@ static void omap_crtc_post_apply(struct omap_drm_apply *apply)
 	/* nothing needed for post-apply */
 }
 
+void omap_crtc_flush(struct drm_crtc *crtc)
+{
+	struct omap_crtc *omap_crtc = to_omap_crtc(crtc);
+	int loops = 0;
+
+	while (!list_empty(&omap_crtc->pending_applies) ||
+		!list_empty(&omap_crtc->queued_applies) ||
+		omap_crtc->event || omap_crtc->old_fb) {
+
+		if (++loops > 10) {
+			dev_err(crtc->dev->dev,
+				"omap_crtc_flush() timeout\n");
+			break;
+		}
+
+		schedule_timeout_uninterruptible(msecs_to_jiffies(20));
+	}
+}
+
 static const char *channel_names[] = {
 		[OMAP_DSS_CHANNEL_LCD] = "lcd",
 		[OMAP_DSS_CHANNEL_DIGIT] = "tv",
