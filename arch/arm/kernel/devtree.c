@@ -247,7 +247,7 @@ const struct machine_desc * __init setup_machine_fdt(unsigned int dt_phys)
 
 	if (!mdesc) {
 		const char *prop;
-		long size;
+		int size;
 		unsigned long dt_root;
 
 		early_print("\nError: unrecognized/unsupported "
