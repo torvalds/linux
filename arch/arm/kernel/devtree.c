@@ -32,33 +32,6 @@ void __init early_init_dt_add_memory_arch(u64 base, u64 size)
 	arm_add_memory(base, size);
 }
 
-void __init arm_dt_memblock_reserve(void)
-{
-	u64 *reserve_map, base, size;
-
-	if (!initial_boot_params)
-		return;
-
-	/* Reserve the dtb region */
-	memblock_reserve(virt_to_phys(initial_boot_params),
-			 be32_to_cpu(initial_boot_params->totalsize));
-
-	/*
-	 * Process the reserve map.  This will probably overlap the initrd
-	 * and dtb locations which are already reserved, but overlaping
-	 * doesn't hurt anything
-	 */
-	reserve_map = ((void*)initial_boot_params) +
-			be32_to_cpu(initial_boot_params->off_mem_rsvmap);
-	while (1) {
-		base = be64_to_cpup(reserve_map++);
-		size = be64_to_cpup(reserve_map++);
-		if (!size)
-			break;
-		memblock_reserve(base, size);
-	}
-}
-
 #ifdef CONFIG_SMP
 extern struct of_cpu_method __cpu_method_of_table_begin[];
 extern struct of_cpu_method __cpu_method_of_table_end[];
