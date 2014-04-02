@@ -25,6 +25,7 @@
 #include <linux/errno.h>
 #include <linux/fs.h>
 #include <linux/genhd.h>
+#include <linux/hdreg.h>
 #include <linux/idr.h>
 #include <linux/init.h>
 #include <linux/interrupt.h>
@@ -1714,12 +1715,22 @@ static void nvme_release(struct gendisk *disk, fmode_t mode)
 	kref_put(&dev->kref, nvme_free_dev);
 }
 
+static int nvme_getgeo(struct block_device *bd, struct hd_geometry *geo)
+{
+	/* some standard values */
+	geo->heads = 1 << 6;
+	geo->sectors = 1 << 5;
+	geo->cylinders = get_capacity(bd->bd_disk) >> 11;
+	return 0;
+}
+
 static const struct block_device_operations nvme_fops = {
 	.owner		= THIS_MODULE,
 	.ioctl		= nvme_ioctl,
 	.compat_ioctl	= nvme_compat_ioctl,
 	.open		= nvme_open,
 	.release	= nvme_release,
+	.getgeo		= nvme_getgeo,
 };
 
 static void nvme_resubmit_bios(struct nvme_queue *nvmeq)
