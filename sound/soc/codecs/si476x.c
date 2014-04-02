@@ -231,7 +231,7 @@ static struct snd_soc_dai_driver si476x_dai = {
 	.ops		= &si476x_dai_ops,
 };
 
-struct regmap *si476x_get_regmap(struct device *dev)
+static struct regmap *si476x_get_regmap(struct device *dev)
 {
 	return dev_get_regmap(dev->parent, NULL);
 }

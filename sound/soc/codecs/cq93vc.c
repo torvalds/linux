@@ -152,7 +152,7 @@ static int cq93vc_remove(struct snd_soc_codec *codec)
 	return 0;
 }
 
-struct regmap *cq93vc_get_regmap(struct device *dev)
+static struct regmap *cq93vc_get_regmap(struct device *dev)
 {
 	struct davinci_vc *davinci_vc = codec->dev->platform_data;
 

@@ -1358,7 +1358,7 @@ static int pm860x_remove(struct snd_soc_codec *codec)
 	return 0;
 }
 
-struct regmap *pm860x_get_regmap(struct device *dev)
+static struct regmap *pm860x_get_regmap(struct device *dev)
 {
 	struct pm860x_priv *pm860x = dev_get_drvdata(dev);
 

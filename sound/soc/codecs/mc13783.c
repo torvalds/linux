@@ -727,7 +727,7 @@ static struct snd_soc_dai_driver mc13783_dai_sync[] = {
 	}
 };
 
-struct regmap *mc13783_get_regmap(struct device *dev)
+static struct regmap *mc13783_get_regmap(struct device *dev)
 {
 	return dev_get_regmap(dev->parent, NULL);
 }

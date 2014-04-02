@@ -4432,7 +4432,7 @@ static int wm8994_codec_remove(struct snd_soc_codec *codec)
 	return 0;
 }
 
-struct regmap *wm8994_get_regmap(struct device *dev)
+static struct regmap *wm8994_get_regmap(struct device *dev)
 {
 	struct wm8994 *control = dev_get_drvdata(dev->parent);
 

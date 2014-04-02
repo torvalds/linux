@@ -1606,7 +1606,7 @@ static int  wm8350_codec_remove(struct snd_soc_codec *codec)
 	return 0;
 }
 
-struct regmap *wm8350_get_regmap(struct device *dev)
+static struct regmap *wm8350_get_regmap(struct device *dev)
 {
 	struct wm8350 *wm8350 = dev_get_platdata(dev);
 

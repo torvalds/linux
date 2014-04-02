@@ -1081,7 +1081,7 @@ static unsigned int wm8997_digital_vu[] = {
 	ARIZONA_DAC_DIGITAL_VOLUME_5R,
 };
 
-struct regmap *wm8997_get_regmap(struct device *dev)
+static struct regmap *wm8997_get_regmap(struct device *dev)
 {
 	struct wm8997_priv *priv = dev_get_drvdata(dev);
 
