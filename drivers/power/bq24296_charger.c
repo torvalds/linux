@@ -523,7 +523,7 @@ static int bq24296_battery_probe(struct i2c_client *client,const struct i2c_devi
 	u8 retval = 0;
 	struct bq24296_board *pdev;
 	struct device_node *bq24296_node;
-	int ret=0;
+	int ret = -EINVAL;
 	
 	 DBG("%s,line=%d\n", __func__,__LINE__);
 	 
@@ -535,7 +535,7 @@ static int bq24296_battery_probe(struct i2c_client *client,const struct i2c_devi
 	di = devm_kzalloc(&client->dev,sizeof(*di), GFP_KERNEL);
 	if (!di) {
 		dev_err(&client->dev, "failed to allocate device info data\n");
-		retval = -ENOMEM;
+		ret = -ENOMEM;
 		goto batt_failed_2;
 	}
 	i2c_set_clientdata(client, di);
@@ -595,7 +595,7 @@ static int bq24296_battery_probe(struct i2c_client *client,const struct i2c_devi
 err_chgirq_failed:
 	free_irq(gpio_to_irq(pdev->chg_irq_pin), NULL);
 batt_failed_2:
-	return retval;
+	return ret;
 }
 
 static void bq24296_battery_shutdown(struct i2c_client *client)
