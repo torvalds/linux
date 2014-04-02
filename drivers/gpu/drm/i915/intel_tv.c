@@ -1639,9 +1639,8 @@ intel_tv_init(struct drm_device *dev)
 	intel_connector_attach_encoder(intel_connector, intel_encoder);
 	intel_encoder->type = INTEL_OUTPUT_TVOUT;
 	intel_encoder->crtc_mask = (1 << 0) | (1 << 1);
-	intel_encoder->cloneable = false;
+	intel_encoder->cloneable = 0;
 	intel_encoder->base.possible_crtcs = ((1 << 0) | (1 << 1));
-	intel_encoder->base.possible_clones = (1 << INTEL_OUTPUT_TVOUT);
 	intel_tv->type = DRM_MODE_CONNECTOR_Unknown;
 
 	/* BIOS margin values */

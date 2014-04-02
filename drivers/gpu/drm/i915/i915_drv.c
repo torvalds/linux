@@ -428,7 +428,6 @@ static int i915_drm_freeze(struct drm_device *dev)
 
 	/* We do a lot of poking in a lot of registers, make sure they work
 	 * properly. */
-	hsw_disable_package_c8(dev_priv);
 	intel_display_set_init_power(dev_priv, true);
 
 	drm_kms_helper_poll_disable(dev);
@@ -467,6 +466,7 @@ static int i915_drm_freeze(struct drm_device *dev)
 	i915_save_state(dev);
 
 	intel_opregion_fini(dev);
+	intel_uncore_fini(dev);
 
 	console_lock();
 	intel_fbdev_set_suspend(dev, FBINFO_STATE_SUSPENDED);
@@ -602,10 +602,6 @@ static int __i915_drm_thaw(struct drm_device *dev, bool restore_gtt_mappings)
 	} else {
 		schedule_work(&dev_priv->console_resume_work);
 	}
-
-	/* Undo what we did at i915_drm_freeze so the refcount goes back to the
-	 * expected level. */
-	hsw_enable_package_c8(dev_priv);
 
 	mutex_lock(&dev_priv->modeset_restore_lock);
 	dev_priv->modeset_restore = MODESET_DONE;
@@ -848,6 +844,9 @@ static int i915_runtime_suspend(struct device *device)
 
 	DRM_DEBUG_KMS("Suspending device\n");
 
+	if (HAS_PC8(dev))
+		hsw_enable_pc8(dev_priv);
+
 	i915_gem_release_all_mmaps(dev_priv);
 
 	del_timer_sync(&dev_priv->gpu_error.hangcheck_timer);
@@ -862,6 +861,7 @@ static int i915_runtime_suspend(struct device *device)
 	 */
 	intel_opregion_notify_adapter(dev, PCI_D1);
 
+	DRM_DEBUG_KMS("Device suspended\n");
 	return 0;
 }
 
@@ -878,6 +878,10 @@ static int i915_runtime_resume(struct device *device)
 	intel_opregion_notify_adapter(dev, PCI_D0);
 	dev_priv->pm.suspended = false;
 
+	if (HAS_PC8(dev))
+		hsw_disable_pc8(dev_priv);
+
+	DRM_DEBUG_KMS("Device resumed\n");
 	return 0;
 }
 

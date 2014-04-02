@@ -215,6 +215,7 @@ create_vm_for_ctx(struct drm_device *dev, struct i915_hw_context *ctx)
 		return ERR_PTR(ret);
 	}
 
+	ppgtt->ctx = ctx;
 	return ppgtt;
 }
 
@@ -775,9 +776,11 @@ int i915_switch_context(struct intel_ring_buffer *ring,
 
 	BUG_ON(file && to == NULL);
 
-	/* We have the fake context, but don't supports switching. */
-	if (!HAS_HW_CONTEXTS(ring->dev))
+	/* We have the fake context */
+	if (!HAS_HW_CONTEXTS(ring->dev)) {
+		ring->last_context = to;
 		return 0;
+	}
 
 	return do_switch(ring, to);
 }

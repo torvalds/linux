@@ -1461,7 +1461,7 @@ static void intel_enable_sdvo(struct intel_encoder *encoder)
 	u32 temp;
 	bool input1, input2;
 	int i;
-	u8 status;
+	bool success;
 
 	temp = I915_READ(intel_sdvo->sdvo_reg);
 	if ((temp & SDVO_ENABLE) == 0) {
@@ -1475,12 +1475,12 @@ static void intel_enable_sdvo(struct intel_encoder *encoder)
 	for (i = 0; i < 2; i++)
 		intel_wait_for_vblank(dev, intel_crtc->pipe);
 
-	status = intel_sdvo_get_trained_inputs(intel_sdvo, &input1, &input2);
+	success = intel_sdvo_get_trained_inputs(intel_sdvo, &input1, &input2);
 	/* Warn if the device reported failure to sync.
 	 * A lot of SDVO devices fail to notify of sync, but it's
 	 * a given it the status is a success, we succeeded.
 	 */
-	if (status == SDVO_CMD_STATUS_SUCCESS && !input1) {
+	if (success && !input1) {
 		DRM_DEBUG_KMS("First %s output reported failure to "
 				"sync\n", SDVO_NAME(intel_sdvo));
 	}
@@ -3032,7 +3032,7 @@ bool intel_sdvo_init(struct drm_device *dev, uint32_t sdvo_reg, bool is_sdvob)
 	 * simplistic anyway to express such constraints, so just give up on
 	 * cloning for SDVO encoders.
 	 */
-	intel_sdvo->base.cloneable = false;
+	intel_sdvo->base.cloneable = 0;
 
 	intel_sdvo_select_ddc_bus(dev_priv, intel_sdvo, sdvo_reg);
 

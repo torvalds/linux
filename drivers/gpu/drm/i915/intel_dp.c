@@ -91,7 +91,7 @@ static struct intel_dp *intel_attached_dp(struct drm_connector *connector)
 }
 
 static void intel_dp_link_down(struct intel_dp *intel_dp);
-static void edp_panel_vdd_on(struct intel_dp *intel_dp);
+static bool _edp_panel_vdd_on(struct intel_dp *intel_dp);
 static void edp_panel_vdd_off(struct intel_dp *intel_dp, bool sync);
 
 static int
@@ -460,6 +460,9 @@ intel_dp_aux_ch(struct intel_dp *intel_dp,
 	uint32_t status;
 	int try, clock = 0;
 	bool has_aux_irq = HAS_AUX_IRQ(dev);
+	bool vdd;
+
+	vdd = _edp_panel_vdd_on(intel_dp);
 
 	/* dp aux is extremely sensitive to irq latency, hence request the
 	 * lowest possible wakeup latency and so prevent the cpu from going into
@@ -565,223 +568,130 @@ out:
 	pm_qos_update_request(&dev_priv->pm_qos, PM_QOS_DEFAULT_VALUE);
 	intel_aux_display_runtime_put(dev_priv);
 
+	if (vdd)
+		edp_panel_vdd_off(intel_dp, false);
+
 	return ret;
 }
 
-/* Write data to the aux channel in native mode */
-static int
-intel_dp_aux_native_write(struct intel_dp *intel_dp,
-			  uint16_t address, uint8_t *send, int send_bytes)
+#define HEADER_SIZE	4
+static ssize_t
+intel_dp_aux_transfer(struct drm_dp_aux *aux, struct drm_dp_aux_msg *msg)
 {
+	struct intel_dp *intel_dp = container_of(aux, struct intel_dp, aux);
+	uint8_t txbuf[20], rxbuf[20];
+	size_t txsize, rxsize;
 	int ret;
-	uint8_t	msg[20];
-	int msg_bytes;
-	uint8_t	ack;
-	int retry;
 
-	if (WARN_ON(send_bytes > 16))
-		return -E2BIG;
+	txbuf[0] = msg->request << 4;
+	txbuf[1] = msg->address >> 8;
+	txbuf[2] = msg->address & 0xff;
+	txbuf[3] = msg->size - 1;
 
-	intel_dp_check_edp(intel_dp);
-	msg[0] = DP_AUX_NATIVE_WRITE << 4;
-	msg[1] = address >> 8;
-	msg[2] = address & 0xff;
-	msg[3] = send_bytes - 1;
-	memcpy(&msg[4], send, send_bytes);
-	msg_bytes = send_bytes + 4;
-	for (retry = 0; retry < 7; retry++) {
-		ret = intel_dp_aux_ch(intel_dp, msg, msg_bytes, &ack, 1);
-		if (ret < 0)
-			return ret;
-		ack >>= 4;
-		if ((ack & DP_AUX_NATIVE_REPLY_MASK) == DP_AUX_NATIVE_REPLY_ACK)
-			return send_bytes;
-		else if ((ack & DP_AUX_NATIVE_REPLY_MASK) == DP_AUX_NATIVE_REPLY_DEFER)
-			usleep_range(400, 500);
-		else
-			return -EIO;
-	}
+	switch (msg->request & ~DP_AUX_I2C_MOT) {
+	case DP_AUX_NATIVE_WRITE:
+	case DP_AUX_I2C_WRITE:
+		txsize = HEADER_SIZE + msg->size;
+		rxsize = 1;
 
-	DRM_ERROR("too many retries, giving up\n");
-	return -EIO;
-}
+		if (WARN_ON(txsize > 20))
+			return -E2BIG;
 
-/* Write a single byte to the aux channel in native mode */
-static int
-intel_dp_aux_native_write_1(struct intel_dp *intel_dp,
-			    uint16_t address, uint8_t byte)
-{
-	return intel_dp_aux_native_write(intel_dp, address, &byte, 1);
-}
+		memcpy(txbuf + HEADER_SIZE, msg->buffer, msg->size);
 
-/* read bytes from a native aux channel */
-static int
-intel_dp_aux_native_read(struct intel_dp *intel_dp,
-			 uint16_t address, uint8_t *recv, int recv_bytes)
-{
-	uint8_t msg[4];
-	int msg_bytes;
-	uint8_t reply[20];
-	int reply_bytes;
-	uint8_t ack;
-	int ret;
-	int retry;
+		ret = intel_dp_aux_ch(intel_dp, txbuf, txsize, rxbuf, rxsize);
+		if (ret > 0) {
+			msg->reply = rxbuf[0] >> 4;
 
-	if (WARN_ON(recv_bytes > 19))
-		return -E2BIG;
-
-	intel_dp_check_edp(intel_dp);
-	msg[0] = DP_AUX_NATIVE_READ << 4;
-	msg[1] = address >> 8;
-	msg[2] = address & 0xff;
-	msg[3] = recv_bytes - 1;
-
-	msg_bytes = 4;
-	reply_bytes = recv_bytes + 1;
-
-	for (retry = 0; retry < 7; retry++) {
-		ret = intel_dp_aux_ch(intel_dp, msg, msg_bytes,
-				      reply, reply_bytes);
-		if (ret == 0)
-			return -EPROTO;
-		if (ret < 0)
-			return ret;
-		ack = reply[0] >> 4;
-		if ((ack & DP_AUX_NATIVE_REPLY_MASK) == DP_AUX_NATIVE_REPLY_ACK) {
-			memcpy(recv, reply + 1, ret - 1);
-			return ret - 1;
+			/* Return payload size. */
+			ret = msg->size;
 		}
-		else if ((ack & DP_AUX_NATIVE_REPLY_MASK) == DP_AUX_NATIVE_REPLY_DEFER)
-			usleep_range(400, 500);
-		else
-			return -EIO;
+		break;
+
+	case DP_AUX_NATIVE_READ:
+	case DP_AUX_I2C_READ:
+		txsize = HEADER_SIZE;
+		rxsize = msg->size + 1;
+
+		if (WARN_ON(rxsize > 20))
+			return -E2BIG;
+
+		ret = intel_dp_aux_ch(intel_dp, txbuf, txsize, rxbuf, rxsize);
+		if (ret > 0) {
+			msg->reply = rxbuf[0] >> 4;
+			/*
+			 * Assume happy day, and copy the data. The caller is
+			 * expected to check msg->reply before touching it.
+			 *
+			 * Return payload size.
+			 */
+			ret--;
+			memcpy(msg->buffer, rxbuf + 1, ret);
+		}
+		break;
+
+	default:
+		ret = -EINVAL;
+		break;
 	}
 
-	DRM_ERROR("too many retries, giving up\n");
-	return -EIO;
+	return ret;
 }
 
-static int
-intel_dp_i2c_aux_ch(struct i2c_adapter *adapter, int mode,
-		    uint8_t write_byte, uint8_t *read_byte)
+static void
+intel_dp_aux_init(struct intel_dp *intel_dp, struct intel_connector *connector)
 {
-	struct i2c_algo_dp_aux_data *algo_data = adapter->algo_data;
-	struct intel_dp *intel_dp = container_of(adapter,
-						struct intel_dp,
-						adapter);
-	uint16_t address = algo_data->address;
-	uint8_t msg[5];
-	uint8_t reply[2];
-	unsigned retry;
-	int msg_bytes;
-	int reply_bytes;
+	struct drm_device *dev = intel_dp_to_dev(intel_dp);
+	struct intel_digital_port *intel_dig_port = dp_to_dig_port(intel_dp);
+	enum port port = intel_dig_port->port;
+	const char *name = NULL;
 	int ret;
 
-	edp_panel_vdd_on(intel_dp);
-	intel_dp_check_edp(intel_dp);
-	/* Set up the command byte */
-	if (mode & MODE_I2C_READ)
-		msg[0] = DP_AUX_I2C_READ << 4;
-	else
-		msg[0] = DP_AUX_I2C_WRITE << 4;
-
-	if (!(mode & MODE_I2C_STOP))
-		msg[0] |= DP_AUX_I2C_MOT << 4;
-
-	msg[1] = address >> 8;
-	msg[2] = address;
-
-	switch (mode) {
-	case MODE_I2C_WRITE:
-		msg[3] = 0;
-		msg[4] = write_byte;
-		msg_bytes = 5;
-		reply_bytes = 1;
+	switch (port) {
+	case PORT_A:
+		intel_dp->aux_ch_ctl_reg = DPA_AUX_CH_CTL;
+		name = "DPDDC-A";
 		break;
-	case MODE_I2C_READ:
-		msg[3] = 0;
-		msg_bytes = 4;
-		reply_bytes = 2;
+	case PORT_B:
+		intel_dp->aux_ch_ctl_reg = PCH_DPB_AUX_CH_CTL;
+		name = "DPDDC-B";
+		break;
+	case PORT_C:
+		intel_dp->aux_ch_ctl_reg = PCH_DPC_AUX_CH_CTL;
+		name = "DPDDC-C";
+		break;
+	case PORT_D:
+		intel_dp->aux_ch_ctl_reg = PCH_DPD_AUX_CH_CTL;
+		name = "DPDDC-D";
 		break;
 	default:
-		msg_bytes = 3;
-		reply_bytes = 1;
-		break;
+		BUG();
 	}
 
-	/*
-	 * DP1.2 sections 2.7.7.1.5.6.1 and 2.7.7.1.6.6.1: A DP Source device is
-	 * required to retry at least seven times upon receiving AUX_DEFER
-	 * before giving up the AUX transaction.
-	 */
-	for (retry = 0; retry < 7; retry++) {
-		ret = intel_dp_aux_ch(intel_dp,
-				      msg, msg_bytes,
-				      reply, reply_bytes);
-		if (ret < 0) {
-			DRM_DEBUG_KMS("aux_ch failed %d\n", ret);
-			goto out;
-		}
+	if (!HAS_DDI(dev))
+		intel_dp->aux_ch_ctl_reg = intel_dp->output_reg + 0x10;
 
-		switch ((reply[0] >> 4) & DP_AUX_NATIVE_REPLY_MASK) {
-		case DP_AUX_NATIVE_REPLY_ACK:
-			/* I2C-over-AUX Reply field is only valid
-			 * when paired with AUX ACK.
-			 */
-			break;
-		case DP_AUX_NATIVE_REPLY_NACK:
-			DRM_DEBUG_KMS("aux_ch native nack\n");
-			ret = -EREMOTEIO;
-			goto out;
-		case DP_AUX_NATIVE_REPLY_DEFER:
-			/*
-			 * For now, just give more slack to branch devices. We
-			 * could check the DPCD for I2C bit rate capabilities,
-			 * and if available, adjust the interval. We could also
-			 * be more careful with DP-to-Legacy adapters where a
-			 * long legacy cable may force very low I2C bit rates.
-			 */
-			if (intel_dp->dpcd[DP_DOWNSTREAMPORT_PRESENT] &
-			    DP_DWN_STRM_PORT_PRESENT)
-				usleep_range(500, 600);
-			else
-				usleep_range(300, 400);
-			continue;
-		default:
-			DRM_ERROR("aux_ch invalid native reply 0x%02x\n",
-				  reply[0]);
-			ret = -EREMOTEIO;
-			goto out;
-		}
+	intel_dp->aux.name = name;
+	intel_dp->aux.dev = dev->dev;
+	intel_dp->aux.transfer = intel_dp_aux_transfer;
 
-		switch ((reply[0] >> 4) & DP_AUX_I2C_REPLY_MASK) {
-		case DP_AUX_I2C_REPLY_ACK:
-			if (mode == MODE_I2C_READ) {
-				*read_byte = reply[1];
-			}
-			ret = reply_bytes - 1;
-			goto out;
-		case DP_AUX_I2C_REPLY_NACK:
-			DRM_DEBUG_KMS("aux_i2c nack\n");
-			ret = -EREMOTEIO;
-			goto out;
-		case DP_AUX_I2C_REPLY_DEFER:
-			DRM_DEBUG_KMS("aux_i2c defer\n");
-			udelay(100);
-			break;
-		default:
-			DRM_ERROR("aux_i2c invalid reply 0x%02x\n", reply[0]);
-			ret = -EREMOTEIO;
-			goto out;
-		}
+	DRM_DEBUG_KMS("registering %s bus for %s\n", name,
+		      connector->base.kdev->kobj.name);
+
+	ret = drm_dp_aux_register_i2c_bus(&intel_dp->aux);
+	if (ret < 0) {
+		DRM_ERROR("drm_dp_aux_register_i2c_bus() for %s failed (%d)\n",
+			  name, ret);
+		return;
 	}
 
-	DRM_ERROR("too many retries, giving up\n");
-	ret = -EREMOTEIO;
-
-out:
-	edp_panel_vdd_off(intel_dp, false);
-	return ret;
+	ret = sysfs_create_link(&connector->base.kdev->kobj,
+				&intel_dp->aux.ddc.dev.kobj,
+				intel_dp->aux.ddc.dev.kobj.name);
+	if (ret < 0) {
+		DRM_ERROR("sysfs_create_link() for %s failed (%d)\n", name, ret);
+		drm_dp_aux_unregister_i2c_bus(&intel_dp->aux);
+	}
 }
 
 static void
@@ -790,41 +700,8 @@ intel_dp_connector_unregister(struct intel_connector *intel_connector)
 	struct intel_dp *intel_dp = intel_attached_dp(&intel_connector->base);
 
 	sysfs_remove_link(&intel_connector->base.kdev->kobj,
-			  intel_dp->adapter.dev.kobj.name);
+			  intel_dp->aux.ddc.dev.kobj.name);
 	intel_connector_unregister(intel_connector);
-}
-
-static int
-intel_dp_i2c_init(struct intel_dp *intel_dp,
-		  struct intel_connector *intel_connector, const char *name)
-{
-	int	ret;
-
-	DRM_DEBUG_KMS("i2c_init %s\n", name);
-	intel_dp->algo.running = false;
-	intel_dp->algo.address = 0;
-	intel_dp->algo.aux_ch = intel_dp_i2c_aux_ch;
-
-	memset(&intel_dp->adapter, '\0', sizeof(intel_dp->adapter));
-	intel_dp->adapter.owner = THIS_MODULE;
-	intel_dp->adapter.class = I2C_CLASS_DDC;
-	strncpy(intel_dp->adapter.name, name, sizeof(intel_dp->adapter.name) - 1);
-	intel_dp->adapter.name[sizeof(intel_dp->adapter.name) - 1] = '\0';
-	intel_dp->adapter.algo_data = &intel_dp->algo;
-	intel_dp->adapter.dev.parent = intel_connector->base.dev->dev;
-
-	ret = i2c_dp_aux_add_bus(&intel_dp->adapter);
-	if (ret < 0)
-		return ret;
-
-	ret = sysfs_create_link(&intel_connector->base.kdev->kobj,
-				&intel_dp->adapter.dev.kobj,
-				intel_dp->adapter.dev.kobj.name);
-
-	if (ret < 0)
-		i2c_del_adapter(&intel_dp->adapter);
-
-	return ret;
 }
 
 static void
@@ -1162,23 +1039,21 @@ static  u32 ironlake_get_pp_control(struct intel_dp *intel_dp)
 	return control;
 }
 
-static void edp_panel_vdd_on(struct intel_dp *intel_dp)
+static bool _edp_panel_vdd_on(struct intel_dp *intel_dp)
 {
 	struct drm_device *dev = intel_dp_to_dev(intel_dp);
 	struct drm_i915_private *dev_priv = dev->dev_private;
 	u32 pp;
 	u32 pp_stat_reg, pp_ctrl_reg;
+	bool need_to_disable = !intel_dp->want_panel_vdd;
 
 	if (!is_edp(intel_dp))
-		return;
-
-	WARN(intel_dp->want_panel_vdd,
-	     "eDP VDD already requested on\n");
+		return false;
 
 	intel_dp->want_panel_vdd = true;
 
 	if (edp_have_panel_vdd(intel_dp))
-		return;
+		return need_to_disable;
 
 	intel_runtime_pm_get(dev_priv);
 
@@ -1203,6 +1078,17 @@ static void edp_panel_vdd_on(struct intel_dp *intel_dp)
 	if (!edp_have_panel_power(intel_dp)) {
 		DRM_DEBUG_KMS("eDP was not running\n");
 		msleep(intel_dp->panel_power_up_delay);
+	}
+
+	return need_to_disable;
+}
+
+void intel_edp_panel_vdd_on(struct intel_dp *intel_dp)
+{
+	if (is_edp(intel_dp)) {
+		bool vdd = _edp_panel_vdd_on(intel_dp);
+
+		WARN(!vdd, "eDP VDD already requested on\n");
 	}
 }
 
@@ -1330,6 +1216,8 @@ void intel_edp_panel_off(struct intel_dp *intel_dp)
 
 	edp_wait_backlight_off(intel_dp);
 
+	WARN(!intel_dp->want_panel_vdd, "Need VDD to turn off panel\n");
+
 	pp = ironlake_get_pp_control(intel_dp);
 	/* We need to switch off panel power _and_ force vdd, for otherwise some
 	 * panels get very unhappy and cease to work. */
@@ -1338,11 +1226,16 @@ void intel_edp_panel_off(struct intel_dp *intel_dp)
 
 	pp_ctrl_reg = _pp_ctrl_reg(intel_dp);
 
+	intel_dp->want_panel_vdd = false;
+
 	I915_WRITE(pp_ctrl_reg, pp);
 	POSTING_READ(pp_ctrl_reg);
 
 	intel_dp->last_power_cycle = jiffies;
 	wait_panel_off(intel_dp);
+
+	/* We got a reference when we enabled the VDD. */
+	intel_runtime_pm_put(dev_priv);
 }
 
 void intel_edp_backlight_on(struct intel_dp *intel_dp)
@@ -1459,8 +1352,8 @@ void intel_dp_sink_dpms(struct intel_dp *intel_dp, int mode)
 		return;
 
 	if (mode != DRM_MODE_DPMS_ON) {
-		ret = intel_dp_aux_native_write_1(intel_dp, DP_SET_POWER,
-						  DP_SET_POWER_D3);
+		ret = drm_dp_dpcd_writeb(&intel_dp->aux, DP_SET_POWER,
+					 DP_SET_POWER_D3);
 		if (ret != 1)
 			DRM_DEBUG_DRIVER("failed to write sink power state\n");
 	} else {
@@ -1469,9 +1362,8 @@ void intel_dp_sink_dpms(struct intel_dp *intel_dp, int mode)
 		 * time to wake up.
 		 */
 		for (i = 0; i < 3; i++) {
-			ret = intel_dp_aux_native_write_1(intel_dp,
-							  DP_SET_POWER,
-							  DP_SET_POWER_D0);
+			ret = drm_dp_dpcd_writeb(&intel_dp->aux, DP_SET_POWER,
+						 DP_SET_POWER_D0);
 			if (ret == 1)
 				break;
 			msleep(1);
@@ -1695,13 +1587,11 @@ static void intel_edp_psr_enable_sink(struct intel_dp *intel_dp)
 
 	/* Enable PSR in sink */
 	if (intel_dp->psr_dpcd[1] & DP_PSR_NO_TRAIN_ON_EXIT)
-		intel_dp_aux_native_write_1(intel_dp, DP_PSR_EN_CFG,
-					    DP_PSR_ENABLE &
-					    ~DP_PSR_MAIN_LINK_ACTIVE);
+		drm_dp_dpcd_writeb(&intel_dp->aux, DP_PSR_EN_CFG,
+				   DP_PSR_ENABLE & ~DP_PSR_MAIN_LINK_ACTIVE);
 	else
-		intel_dp_aux_native_write_1(intel_dp, DP_PSR_EN_CFG,
-					    DP_PSR_ENABLE |
-					    DP_PSR_MAIN_LINK_ACTIVE);
+		drm_dp_dpcd_writeb(&intel_dp->aux, DP_PSR_EN_CFG,
+				   DP_PSR_ENABLE | DP_PSR_MAIN_LINK_ACTIVE);
 
 	/* Setup AUX registers */
 	I915_WRITE(EDP_PSR_AUX_DATA1(dev), EDP_PSR_DPCD_COMMAND);
@@ -1876,11 +1766,10 @@ static void intel_disable_dp(struct intel_encoder *encoder)
 
 	/* Make sure the panel is off before trying to change the mode. But also
 	 * ensure that we have vdd while we switch off the panel. */
-	edp_panel_vdd_on(intel_dp);
+	intel_edp_panel_vdd_on(intel_dp);
 	intel_edp_backlight_off(intel_dp);
 	intel_dp_sink_dpms(intel_dp, DRM_MODE_DPMS_OFF);
 	intel_edp_panel_off(intel_dp);
-	edp_panel_vdd_off(intel_dp, true);
 
 	/* cpu edp my only be disable _after_ the cpu pipe/plane is disabled. */
 	if (!(port == PORT_A || IS_VALLEYVIEW(dev)))
@@ -1910,7 +1799,7 @@ static void intel_enable_dp(struct intel_encoder *encoder)
 	if (WARN_ON(dp_reg & DP_PORT_EN))
 		return;
 
-	edp_panel_vdd_on(intel_dp);
+	intel_edp_panel_vdd_on(intel_dp);
 	intel_dp_sink_dpms(intel_dp, DRM_MODE_DPMS_ON);
 	intel_dp_start_link_train(intel_dp);
 	intel_edp_panel_on(intel_dp);
@@ -2013,26 +1902,25 @@ static void vlv_dp_pre_pll_enable(struct intel_encoder *encoder)
 /*
  * Native read with retry for link status and receiver capability reads for
  * cases where the sink may still be asleep.
+ *
+ * Sinks are *supposed* to come up within 1ms from an off state, but we're also
+ * supposed to retry 3 times per the spec.
  */
-static bool
-intel_dp_aux_native_read_retry(struct intel_dp *intel_dp, uint16_t address,
-			       uint8_t *recv, int recv_bytes)
+static ssize_t
+intel_dp_dpcd_read_wake(struct drm_dp_aux *aux, unsigned int offset,
+			void *buffer, size_t size)
 {
-	int ret, i;
+	ssize_t ret;
+	int i;
 
-	/*
-	 * Sinks are *supposed* to come up within 1ms from an off state,
-	 * but we're also supposed to retry 3 times per the spec.
-	 */
 	for (i = 0; i < 3; i++) {
-		ret = intel_dp_aux_native_read(intel_dp, address, recv,
-					       recv_bytes);
-		if (ret == recv_bytes)
-			return true;
+		ret = drm_dp_dpcd_read(aux, offset, buffer, size);
+		if (ret == size)
+			return ret;
 		msleep(1);
 	}
 
-	return false;
+	return ret;
 }
 
 /*
@@ -2042,10 +1930,10 @@ intel_dp_aux_native_read_retry(struct intel_dp *intel_dp, uint16_t address,
 static bool
 intel_dp_get_link_status(struct intel_dp *intel_dp, uint8_t link_status[DP_LINK_STATUS_SIZE])
 {
-	return intel_dp_aux_native_read_retry(intel_dp,
-					      DP_LANE0_1_STATUS,
-					      link_status,
-					      DP_LINK_STATUS_SIZE);
+	return intel_dp_dpcd_read_wake(&intel_dp->aux,
+				       DP_LANE0_1_STATUS,
+				       link_status,
+				       DP_LINK_STATUS_SIZE) == DP_LINK_STATUS_SIZE;
 }
 
 /*
@@ -2559,8 +2447,8 @@ intel_dp_set_link_train(struct intel_dp *intel_dp,
 		len = intel_dp->lane_count + 1;
 	}
 
-	ret = intel_dp_aux_native_write(intel_dp, DP_TRAINING_PATTERN_SET,
-					buf, len);
+	ret = drm_dp_dpcd_write(&intel_dp->aux, DP_TRAINING_PATTERN_SET,
+				buf, len);
 
 	return ret == len;
 }
@@ -2589,9 +2477,8 @@ intel_dp_update_link_train(struct intel_dp *intel_dp, uint32_t *DP,
 	I915_WRITE(intel_dp->output_reg, *DP);
 	POSTING_READ(intel_dp->output_reg);
 
-	ret = intel_dp_aux_native_write(intel_dp, DP_TRAINING_LANE0_SET,
-					intel_dp->train_set,
-					intel_dp->lane_count);
+	ret = drm_dp_dpcd_write(&intel_dp->aux, DP_TRAINING_LANE0_SET,
+				intel_dp->train_set, intel_dp->lane_count);
 
 	return ret == intel_dp->lane_count;
 }
@@ -2647,11 +2534,11 @@ intel_dp_start_link_train(struct intel_dp *intel_dp)
 	link_config[1] = intel_dp->lane_count;
 	if (drm_dp_enhanced_frame_cap(intel_dp->dpcd))
 		link_config[1] |= DP_LANE_COUNT_ENHANCED_FRAME_EN;
-	intel_dp_aux_native_write(intel_dp, DP_LINK_BW_SET, link_config, 2);
+	drm_dp_dpcd_write(&intel_dp->aux, DP_LINK_BW_SET, link_config, 2);
 
 	link_config[0] = 0;
 	link_config[1] = DP_SET_ANSI_8B10B;
-	intel_dp_aux_native_write(intel_dp, DP_DOWNSPREAD_CTRL, link_config, 2);
+	drm_dp_dpcd_write(&intel_dp->aux, DP_DOWNSPREAD_CTRL, link_config, 2);
 
 	DP |= DP_PORT_EN;
 
@@ -2894,8 +2781,8 @@ intel_dp_get_dpcd(struct intel_dp *intel_dp)
 
 	char dpcd_hex_dump[sizeof(intel_dp->dpcd) * 3];
 
-	if (intel_dp_aux_native_read_retry(intel_dp, 0x000, intel_dp->dpcd,
-					   sizeof(intel_dp->dpcd)) == 0)
+	if (intel_dp_dpcd_read_wake(&intel_dp->aux, 0x000, intel_dp->dpcd,
+				    sizeof(intel_dp->dpcd)) < 0)
 		return false; /* aux transfer failed */
 
 	hex_dump_to_buffer(intel_dp->dpcd, sizeof(intel_dp->dpcd),
@@ -2908,9 +2795,9 @@ intel_dp_get_dpcd(struct intel_dp *intel_dp)
 	/* Check if the panel supports PSR */
 	memset(intel_dp->psr_dpcd, 0, sizeof(intel_dp->psr_dpcd));
 	if (is_edp(intel_dp)) {
-		intel_dp_aux_native_read_retry(intel_dp, DP_PSR_SUPPORT,
-					       intel_dp->psr_dpcd,
-					       sizeof(intel_dp->psr_dpcd));
+		intel_dp_dpcd_read_wake(&intel_dp->aux, DP_PSR_SUPPORT,
+					intel_dp->psr_dpcd,
+					sizeof(intel_dp->psr_dpcd));
 		if (intel_dp->psr_dpcd[0] & DP_PSR_IS_SUPPORTED) {
 			dev_priv->psr.sink_support = true;
 			DRM_DEBUG_KMS("Detected EDP PSR Panel.\n");
@@ -2932,9 +2819,9 @@ intel_dp_get_dpcd(struct intel_dp *intel_dp)
 	if (intel_dp->dpcd[DP_DPCD_REV] == 0x10)
 		return true; /* no per-port downstream info */
 
-	if (intel_dp_aux_native_read_retry(intel_dp, DP_DOWNSTREAM_PORT_0,
-					   intel_dp->downstream_ports,
-					   DP_MAX_DOWNSTREAM_PORTS) == 0)
+	if (intel_dp_dpcd_read_wake(&intel_dp->aux, DP_DOWNSTREAM_PORT_0,
+				    intel_dp->downstream_ports,
+				    DP_MAX_DOWNSTREAM_PORTS) < 0)
 		return false; /* downstream port status fetch failed */
 
 	return true;
@@ -2948,13 +2835,13 @@ intel_dp_probe_oui(struct intel_dp *intel_dp)
 	if (!(intel_dp->dpcd[DP_DOWN_STREAM_PORT_COUNT] & DP_OUI_SUPPORT))
 		return;
 
-	edp_panel_vdd_on(intel_dp);
+	intel_edp_panel_vdd_on(intel_dp);
 
-	if (intel_dp_aux_native_read_retry(intel_dp, DP_SINK_OUI, buf, 3))
+	if (intel_dp_dpcd_read_wake(&intel_dp->aux, DP_SINK_OUI, buf, 3) == 3)
 		DRM_DEBUG_KMS("Sink OUI: %02hx%02hx%02hx\n",
 			      buf[0], buf[1], buf[2]);
 
-	if (intel_dp_aux_native_read_retry(intel_dp, DP_BRANCH_OUI, buf, 3))
+	if (intel_dp_dpcd_read_wake(&intel_dp->aux, DP_BRANCH_OUI, buf, 3) == 3)
 		DRM_DEBUG_KMS("Branch OUI: %02hx%02hx%02hx\n",
 			      buf[0], buf[1], buf[2]);
 
@@ -2969,46 +2856,40 @@ int intel_dp_sink_crc(struct intel_dp *intel_dp, u8 *crc)
 		to_intel_crtc(intel_dig_port->base.base.crtc);
 	u8 buf[1];
 
-	if (!intel_dp_aux_native_read(intel_dp, DP_TEST_SINK_MISC, buf, 1))
+	if (drm_dp_dpcd_readb(&intel_dp->aux, DP_TEST_SINK_MISC, buf) < 0)
 		return -EAGAIN;
 
 	if (!(buf[0] & DP_TEST_CRC_SUPPORTED))
 		return -ENOTTY;
 
-	if (!intel_dp_aux_native_write_1(intel_dp, DP_TEST_SINK,
-					 DP_TEST_SINK_START))
+	if (drm_dp_dpcd_writeb(&intel_dp->aux, DP_TEST_SINK,
+			       DP_TEST_SINK_START) < 0)
 		return -EAGAIN;
 
 	/* Wait 2 vblanks to be sure we will have the correct CRC value */
 	intel_wait_for_vblank(dev, intel_crtc->pipe);
 	intel_wait_for_vblank(dev, intel_crtc->pipe);
 
-	if (!intel_dp_aux_native_read(intel_dp, DP_TEST_CRC_R_CR, crc, 6))
+	if (drm_dp_dpcd_read(&intel_dp->aux, DP_TEST_CRC_R_CR, crc, 6) < 0)
 		return -EAGAIN;
 
-	intel_dp_aux_native_write_1(intel_dp, DP_TEST_SINK, 0);
+	drm_dp_dpcd_writeb(&intel_dp->aux, DP_TEST_SINK, 0);
 	return 0;
 }
 
 static bool
 intel_dp_get_sink_irq(struct intel_dp *intel_dp, u8 *sink_irq_vector)
 {
-	int ret;
-
-	ret = intel_dp_aux_native_read_retry(intel_dp,
-					     DP_DEVICE_SERVICE_IRQ_VECTOR,
-					     sink_irq_vector, 1);
-	if (!ret)
-		return false;
-
-	return true;
+	return intel_dp_dpcd_read_wake(&intel_dp->aux,
+				       DP_DEVICE_SERVICE_IRQ_VECTOR,
+				       sink_irq_vector, 1) == 1;
 }
 
 static void
 intel_dp_handle_test_request(struct intel_dp *intel_dp)
 {
 	/* NAK by default */
-	intel_dp_aux_native_write_1(intel_dp, DP_TEST_RESPONSE, DP_TEST_NAK);
+	drm_dp_dpcd_writeb(&intel_dp->aux, DP_TEST_RESPONSE, DP_TEST_NAK);
 }
 
 /*
@@ -3047,9 +2928,9 @@ intel_dp_check_link_status(struct intel_dp *intel_dp)
 	if (intel_dp->dpcd[DP_DPCD_REV] >= 0x11 &&
 	    intel_dp_get_sink_irq(intel_dp, &sink_irq_vector)) {
 		/* Clear interrupt source */
-		intel_dp_aux_native_write_1(intel_dp,
-					    DP_DEVICE_SERVICE_IRQ_VECTOR,
-					    sink_irq_vector);
+		drm_dp_dpcd_writeb(&intel_dp->aux,
+				   DP_DEVICE_SERVICE_IRQ_VECTOR,
+				   sink_irq_vector);
 
 		if (sink_irq_vector & DP_AUTOMATED_TEST_REQUEST)
 			intel_dp_handle_test_request(intel_dp);
@@ -3084,15 +2965,17 @@ intel_dp_detect_dpcd(struct intel_dp *intel_dp)
 	if (intel_dp->dpcd[DP_DPCD_REV] >= 0x11 &&
 	    intel_dp->downstream_ports[0] & DP_DS_PORT_HPD) {
 		uint8_t reg;
-		if (!intel_dp_aux_native_read_retry(intel_dp, DP_SINK_COUNT,
-						    &reg, 1))
+
+		if (intel_dp_dpcd_read_wake(&intel_dp->aux, DP_SINK_COUNT,
+					    &reg, 1) < 0)
 			return connector_status_unknown;
+
 		return DP_GET_SINK_COUNT(reg) ? connector_status_connected
 					      : connector_status_disconnected;
 	}
 
 	/* If no HPD, poke DDC gently */
-	if (drm_probe_ddc(&intel_dp->adapter))
+	if (drm_probe_ddc(&intel_dp->aux.ddc))
 		return connector_status_connected;
 
 	/* Well we tried, say unknown for unreliable port types */
@@ -3260,7 +3143,7 @@ intel_dp_detect(struct drm_connector *connector, bool force)
 	if (intel_dp->force_audio != HDMI_AUDIO_AUTO) {
 		intel_dp->has_audio = (intel_dp->force_audio == HDMI_AUDIO_ON);
 	} else {
-		edid = intel_dp_get_edid(connector, &intel_dp->adapter);
+		edid = intel_dp_get_edid(connector, &intel_dp->aux.ddc);
 		if (edid) {
 			intel_dp->has_audio = drm_detect_monitor_audio(edid);
 			kfree(edid);
@@ -3296,7 +3179,7 @@ static int intel_dp_get_modes(struct drm_connector *connector)
 	power_domain = intel_display_port_power_domain(intel_encoder);
 	intel_display_power_get(dev_priv, power_domain);
 
-	ret = intel_dp_get_edid_modes(connector, &intel_dp->adapter);
+	ret = intel_dp_get_edid_modes(connector, &intel_dp->aux.ddc);
 	intel_display_power_put(dev_priv, power_domain);
 	if (ret)
 		return ret;
@@ -3329,7 +3212,7 @@ intel_dp_detect_audio(struct drm_connector *connector)
 	power_domain = intel_display_port_power_domain(intel_encoder);
 	intel_display_power_get(dev_priv, power_domain);
 
-	edid = intel_dp_get_edid(connector, &intel_dp->adapter);
+	edid = intel_dp_get_edid(connector, &intel_dp->aux.ddc);
 	if (edid) {
 		has_audio = drm_detect_monitor_audio(edid);
 		kfree(edid);
@@ -3451,7 +3334,7 @@ void intel_dp_encoder_destroy(struct drm_encoder *encoder)
 	struct intel_dp *intel_dp = &intel_dig_port->dp;
 	struct drm_device *dev = intel_dp_to_dev(intel_dp);
 
-	i2c_del_adapter(&intel_dp->adapter);
+	drm_dp_aux_unregister_i2c_bus(&intel_dp->aux);
 	drm_encoder_cleanup(encoder);
 	if (is_edp(intel_dp)) {
 		cancel_delayed_work_sync(&intel_dp->panel_vdd_work);
@@ -3745,7 +3628,7 @@ static bool intel_edp_init_connector(struct intel_dp *intel_dp,
 		return true;
 
 	/* Cache DPCD and EDID for edp. */
-	edp_panel_vdd_on(intel_dp);
+	intel_edp_panel_vdd_on(intel_dp);
 	has_dpcd = intel_dp_get_dpcd(intel_dp);
 	edp_panel_vdd_off(intel_dp, false);
 
@@ -3764,7 +3647,7 @@ static bool intel_edp_init_connector(struct intel_dp *intel_dp,
 	intel_dp_init_panel_power_sequencer_registers(dev, intel_dp, power_seq);
 
 	mutex_lock(&dev->mode_config.mutex);
-	edid = drm_get_edid(connector, &intel_dp->adapter);
+	edid = drm_get_edid(connector, &intel_dp->aux.ddc);
 	if (edid) {
 		if (drm_add_edid_modes(connector, edid)) {
 			drm_mode_connector_update_edid_property(connector,
@@ -3813,8 +3696,7 @@ intel_dp_init_connector(struct intel_digital_port *intel_dig_port,
 	struct drm_i915_private *dev_priv = dev->dev_private;
 	enum port port = intel_dig_port->port;
 	struct edp_power_seq power_seq = { 0 };
-	const char *name = NULL;
-	int type, error;
+	int type;
 
 	/* intel_dp vfuncs */
 	if (IS_VALLEYVIEW(dev))
@@ -3867,43 +3749,19 @@ intel_dp_init_connector(struct intel_digital_port *intel_dig_port,
 		intel_connector->get_hw_state = intel_connector_get_hw_state;
 	intel_connector->unregister = intel_dp_connector_unregister;
 
-	intel_dp->aux_ch_ctl_reg = intel_dp->output_reg + 0x10;
-	if (HAS_DDI(dev)) {
-		switch (intel_dig_port->port) {
-		case PORT_A:
-			intel_dp->aux_ch_ctl_reg = DPA_AUX_CH_CTL;
-			break;
-		case PORT_B:
-			intel_dp->aux_ch_ctl_reg = PCH_DPB_AUX_CH_CTL;
-			break;
-		case PORT_C:
-			intel_dp->aux_ch_ctl_reg = PCH_DPC_AUX_CH_CTL;
-			break;
-		case PORT_D:
-			intel_dp->aux_ch_ctl_reg = PCH_DPD_AUX_CH_CTL;
-			break;
-		default:
-			BUG();
-		}
-	}
-
-	/* Set up the DDC bus. */
+	/* Set up the hotplug pin. */
 	switch (port) {
 	case PORT_A:
 		intel_encoder->hpd_pin = HPD_PORT_A;
-		name = "DPDDC-A";
 		break;
 	case PORT_B:
 		intel_encoder->hpd_pin = HPD_PORT_B;
-		name = "DPDDC-B";
 		break;
 	case PORT_C:
 		intel_encoder->hpd_pin = HPD_PORT_C;
-		name = "DPDDC-C";
 		break;
 	case PORT_D:
 		intel_encoder->hpd_pin = HPD_PORT_D;
-		name = "DPDDC-D";
 		break;
 	default:
 		BUG();
@@ -3914,14 +3772,12 @@ intel_dp_init_connector(struct intel_digital_port *intel_dig_port,
 		intel_dp_init_panel_power_sequencer(dev, intel_dp, &power_seq);
 	}
 
-	error = intel_dp_i2c_init(intel_dp, intel_connector, name);
-	WARN(error, "intel_dp_i2c_init failed with error %d for port %c\n",
-	     error, port_name(port));
+	intel_dp_aux_init(intel_dp, intel_connector);
 
 	intel_dp->psr_setup_done = false;
 
 	if (!intel_edp_init_connector(intel_dp, intel_connector, &power_seq)) {
-		i2c_del_adapter(&intel_dp->adapter);
+		drm_dp_aux_unregister_i2c_bus(&intel_dp->aux);
 		if (is_edp(intel_dp)) {
 			cancel_delayed_work_sync(&intel_dp->panel_vdd_work);
 			mutex_lock(&dev->mode_config.mutex);
@@ -3991,7 +3847,7 @@ intel_dp_init(struct drm_device *dev, int output_reg, enum port port)
 
 	intel_encoder->type = INTEL_OUTPUT_DISPLAYPORT;
 	intel_encoder->crtc_mask = (1 << 0) | (1 << 1) | (1 << 2);
-	intel_encoder->cloneable = false;
+	intel_encoder->cloneable = 0;
 	intel_encoder->hot_plug = intel_dp_hot_plug;
 
 	if (!intel_dp_init_connector(intel_dig_port, intel_connector)) {

@@ -620,7 +620,7 @@ bool intel_dsi_init(struct drm_device *dev)
 	intel_encoder->type = INTEL_OUTPUT_DSI;
 	intel_encoder->crtc_mask = (1 << 0); /* XXX */
 
-	intel_encoder->cloneable = false;
+	intel_encoder->cloneable = 0;
 	drm_connector_init(dev, connector, &intel_dsi_connector_funcs,
 			   DRM_MODE_CONNECTOR_DSI);
 

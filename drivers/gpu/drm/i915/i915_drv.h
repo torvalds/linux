@@ -406,6 +406,7 @@ struct drm_i915_error_state {
 
 struct intel_connector;
 struct intel_crtc_config;
+struct intel_plane_config;
 struct intel_crtc;
 struct intel_limit;
 struct dpll;
@@ -444,6 +445,8 @@ struct drm_i915_display_funcs {
 	 * fills out the pipe-config with the hw state. */
 	bool (*get_pipe_config)(struct intel_crtc *,
 				struct intel_crtc_config *);
+	void (*get_plane_config)(struct intel_crtc *,
+				 struct intel_plane_config *);
 	int (*crtc_mode_set)(struct drm_crtc *crtc,
 			     int x, int y,
 			     struct drm_framebuffer *old_fb);
@@ -459,8 +462,9 @@ struct drm_i915_display_funcs {
 			  struct drm_framebuffer *fb,
 			  struct drm_i915_gem_object *obj,
 			  uint32_t flags);
-	int (*update_plane)(struct drm_crtc *crtc, struct drm_framebuffer *fb,
-			    int x, int y);
+	int (*update_primary_plane)(struct drm_crtc *crtc,
+				    struct drm_framebuffer *fb,
+				    int x, int y);
 	void (*hpd_irq_setup)(struct drm_device *dev);
 	/* clock updates for mode set */
 	/* cursor updates */
@@ -721,6 +725,8 @@ struct i915_hw_ppgtt {
 		dma_addr_t *gen8_pt_dma_addr[4];
 	};
 
+	struct i915_hw_context *ctx;
+
 	int (*enable)(struct i915_hw_ppgtt *ppgtt);
 	int (*switch_mm)(struct i915_hw_ppgtt *ppgtt,
 			 struct intel_ring_buffer *ring,
@@ -976,13 +982,24 @@ struct intel_gen6_power_mgmt {
 	struct work_struct work;
 	u32 pm_iir;
 
-	u8 cur_delay;
-	u8 min_delay;
-	u8 max_delay;
-	u8 rpe_delay;
-	u8 rp1_delay;
-	u8 rp0_delay;
-	u8 hw_max;
+	/* Frequencies are stored in potentially platform dependent multiples.
+	 * In other words, *_freq needs to be multiplied by X to be interesting.
+	 * Soft limits are those which are used for the dynamic reclocking done
+	 * by the driver (raise frequencies under heavy loads, and lower for
+	 * lighter loads). Hard limits are those imposed by the hardware.
+	 *
+	 * A distinction is made for overclocking, which is never enabled by
+	 * default, and is considered to be above the hard limit if it's
+	 * possible at all.
+	 */
+	u8 cur_freq;		/* Current frequency (cached, may not == HW) */
+	u8 min_freq_softlimit;	/* Minimum frequency permitted by the driver */
+	u8 max_freq_softlimit;	/* Max frequency permitted by the driver */
+	u8 max_freq;		/* Maximum frequency, RP0 if not overclocking */
+	u8 min_freq;		/* AKA RPn. Minimum frequency */
+	u8 efficient_freq;	/* AKA RPe. Pre-determined balanced frequency */
+	u8 rp1_freq;		/* "less than" RP0 power/freqency */
+	u8 rp0_freq;		/* Non-overclocked max frequency. */
 
 	bool rp_up_masked;
 	bool rp_down_masked;
@@ -1333,43 +1350,19 @@ struct ilk_wm_values {
 };
 
 /*
- * This struct tracks the state needed for the Package C8+ feature.
+ * This struct helps tracking the state needed for runtime PM, which puts the
+ * device in PCI D3 state. Notice that when this happens, nothing on the
+ * graphics device works, even register access, so we don't get interrupts nor
+ * anything else.
  *
- * Package states C8 and deeper are really deep PC states that can only be
- * reached when all the devices on the system allow it, so even if the graphics
- * device allows PC8+, it doesn't mean the system will actually get to these
- * states.
+ * Every piece of our code that needs to actually touch the hardware needs to
+ * either call intel_runtime_pm_get or call intel_display_power_get with the
+ * appropriate power domain.
  *
- * Our driver only allows PC8+ when all the outputs are disabled, the power well
- * is disabled and the GPU is idle. When these conditions are met, we manually
- * do the other conditions: disable the interrupts, clocks and switch LCPLL
- * refclk to Fclk.
- *
- * When we really reach PC8 or deeper states (not just when we allow it) we lose
- * the state of some registers, so when we come back from PC8+ we need to
- * restore this state. We don't get into PC8+ if we're not in RC6, so we don't
- * need to take care of the registers kept by RC6.
- *
- * The interrupt disabling is part of the requirements. We can only leave the
- * PCH HPD interrupts enabled. If we're in PC8+ and we get another interrupt we
- * can lock the machine.
- *
- * Ideally every piece of our code that needs PC8+ disabled would call
- * hsw_disable_package_c8, which would increment disable_count and prevent the
- * system from reaching PC8+. But we don't have a symmetric way to do this for
- * everything, so we have the requirements_met variable. When we switch
- * requirements_met to true we decrease disable_count, and increase it in the
- * opposite case. The requirements_met variable is true when all the CRTCs,
- * encoders and the power well are disabled.
- *
- * In addition to everything, we only actually enable PC8+ if disable_count
- * stays at zero for at least some seconds. This is implemented with the
- * enable_work variable. We do this so we don't enable/disable PC8 dozens of
- * consecutive times when all screens are disabled and some background app
- * queries the state of our connectors, or we have some application constantly
- * waking up to use the GPU. Only after the enable_work function actually
- * enables PC8+ the "enable" variable will become true, which means that it can
- * be false even if disable_count is 0.
+ * Our driver uses the autosuspend delay feature, which means we'll only really
+ * suspend if we stay with zero refcount for a certain amount of time. The
+ * default value is currently very conservative (see intel_init_runtime_pm), but
+ * it can be changed with the standard runtime PM files from sysfs.
  *
  * The irqs_disabled variable becomes true exactly after we disable the IRQs and
  * goes back to false exactly before we reenable the IRQs. We use this variable
@@ -1379,16 +1372,11 @@ struct ilk_wm_values {
  * inside struct regsave so when we restore the IRQs they will contain the
  * latest expected values.
  *
- * For more, read "Display Sequences for Package C8" on our documentation.
+ * For more, read the Documentation/power/runtime_pm.txt.
  */
-struct i915_package_c8 {
-	bool requirements_met;
+struct i915_runtime_pm {
+	bool suspended;
 	bool irqs_disabled;
-	/* Only true after the delayed work task actually enables it. */
-	bool enabled;
-	int disable_count;
-	struct mutex lock;
-	struct delayed_work enable_work;
 
 	struct {
 		uint32_t deimr;
@@ -1397,10 +1385,6 @@ struct i915_package_c8 {
 		uint32_t gtier;
 		uint32_t gen6_pmimr;
 	} regsave;
-};
-
-struct i915_runtime_pm {
-	bool suspended;
 };
 
 enum intel_pipe_crc_source {
@@ -1610,6 +1594,7 @@ typedef struct drm_i915_private {
 
 	u32 fdi_rx_config;
 
+	u32 suspend_count;
 	struct i915_suspend_saved_registers regfile;
 
 	struct {
@@ -1629,8 +1614,6 @@ typedef struct drm_i915_private {
 		struct ilk_wm_values hw;
 	} wm;
 
-	struct i915_package_c8 pc8;
-
 	struct i915_runtime_pm pm;
 
 	/* Old dri1 support infrastructure, beware the dragons ya fools entering
@@ -1638,8 +1621,6 @@ typedef struct drm_i915_private {
 	struct i915_dri1_state dri1;
 	/* Old ums support infrastructure, same warning applies. */
 	struct i915_ums_state ums;
-
-	u32 suspend_count;
 } drm_i915_private_t;
 
 static inline struct drm_i915_private *to_i915(const struct drm_device *dev)
@@ -2092,8 +2073,6 @@ struct i915_params {
 	unsigned int preliminary_hw_support;
 	int disable_power_well;
 	int enable_ips;
-	int enable_pc8;
-	int pc8_timeout;
 	int invert_brightness;
 	int enable_cmd_parser;
 	/* leave bools at the end to not create holes */
@@ -2757,6 +2736,12 @@ void vlv_force_wake_put(struct drm_i915_private *dev_priv, int fw_engine);
 #define I915_READ_NOTRACE(reg)		dev_priv->uncore.funcs.mmio_readl(dev_priv, (reg), false)
 #define I915_WRITE_NOTRACE(reg, val)	dev_priv->uncore.funcs.mmio_writel(dev_priv, (reg), (val), false)
 
+/* Be very careful with read/write 64-bit values. On 32-bit machines, they
+ * will be implemented using 2 32-bit writes in an arbitrary order with
+ * an arbitrary delay between them. This can cause the hardware to
+ * act upon the intermediate value, possibly leading to corruption and
+ * machine death. You have been warned.
+ */
 #define I915_WRITE64(reg, val)	dev_priv->uncore.funcs.mmio_writeq(dev_priv, (reg), (val), true)
 #define I915_READ64(reg)	dev_priv->uncore.funcs.mmio_readq(dev_priv, (reg), true)
 

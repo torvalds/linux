@@ -86,9 +86,9 @@ ironlake_enable_display_irq(drm_i915_private_t *dev_priv, u32 mask)
 {
 	assert_spin_locked(&dev_priv->irq_lock);
 
-	if (dev_priv->pc8.irqs_disabled) {
+	if (dev_priv->pm.irqs_disabled) {
 		WARN(1, "IRQs disabled\n");
-		dev_priv->pc8.regsave.deimr &= ~mask;
+		dev_priv->pm.regsave.deimr &= ~mask;
 		return;
 	}
 
@@ -104,9 +104,9 @@ ironlake_disable_display_irq(drm_i915_private_t *dev_priv, u32 mask)
 {
 	assert_spin_locked(&dev_priv->irq_lock);
 
-	if (dev_priv->pc8.irqs_disabled) {
+	if (dev_priv->pm.irqs_disabled) {
 		WARN(1, "IRQs disabled\n");
-		dev_priv->pc8.regsave.deimr |= mask;
+		dev_priv->pm.regsave.deimr |= mask;
 		return;
 	}
 
@@ -129,10 +129,10 @@ static void ilk_update_gt_irq(struct drm_i915_private *dev_priv,
 {
 	assert_spin_locked(&dev_priv->irq_lock);
 
-	if (dev_priv->pc8.irqs_disabled) {
+	if (dev_priv->pm.irqs_disabled) {
 		WARN(1, "IRQs disabled\n");
-		dev_priv->pc8.regsave.gtimr &= ~interrupt_mask;
-		dev_priv->pc8.regsave.gtimr |= (~enabled_irq_mask &
+		dev_priv->pm.regsave.gtimr &= ~interrupt_mask;
+		dev_priv->pm.regsave.gtimr |= (~enabled_irq_mask &
 						interrupt_mask);
 		return;
 	}
@@ -167,10 +167,10 @@ static void snb_update_pm_irq(struct drm_i915_private *dev_priv,
 
 	assert_spin_locked(&dev_priv->irq_lock);
 
-	if (dev_priv->pc8.irqs_disabled) {
+	if (dev_priv->pm.irqs_disabled) {
 		WARN(1, "IRQs disabled\n");
-		dev_priv->pc8.regsave.gen6_pmimr &= ~interrupt_mask;
-		dev_priv->pc8.regsave.gen6_pmimr |= (~enabled_irq_mask &
+		dev_priv->pm.regsave.gen6_pmimr &= ~interrupt_mask;
+		dev_priv->pm.regsave.gen6_pmimr |= (~enabled_irq_mask &
 						     interrupt_mask);
 		return;
 	}
@@ -313,11 +313,11 @@ static void ibx_display_interrupt_update(struct drm_i915_private *dev_priv,
 
 	assert_spin_locked(&dev_priv->irq_lock);
 
-	if (dev_priv->pc8.irqs_disabled &&
+	if (dev_priv->pm.irqs_disabled &&
 	    (interrupt_mask & SDE_HOTPLUG_MASK_CPT)) {
 		WARN(1, "IRQs disabled\n");
-		dev_priv->pc8.regsave.sdeimr &= ~interrupt_mask;
-		dev_priv->pc8.regsave.sdeimr |= (~enabled_irq_mask &
+		dev_priv->pm.regsave.sdeimr &= ~interrupt_mask;
+		dev_priv->pm.regsave.sdeimr |= (~enabled_irq_mask &
 						 interrupt_mask);
 		return;
 	}
@@ -1075,7 +1075,7 @@ void gen6_set_pm_mask(struct drm_i915_private *dev_priv,
 			     u32 pm_iir, int new_delay)
 {
 	if (pm_iir & GEN6_PM_RP_UP_THRESHOLD) {
-		if (new_delay >= dev_priv->rps.max_delay) {
+		if (new_delay >= dev_priv->rps.max_freq_softlimit) {
 			/* Mask UP THRESHOLD Interrupts */
 			I915_WRITE(GEN6_PMINTRMSK,
 				   I915_READ(GEN6_PMINTRMSK) |
@@ -1090,7 +1090,7 @@ void gen6_set_pm_mask(struct drm_i915_private *dev_priv,
 			dev_priv->rps.rp_down_masked = false;
 		}
 	} else if (pm_iir & GEN6_PM_RP_DOWN_THRESHOLD) {
-		if (new_delay <= dev_priv->rps.min_delay) {
+		if (new_delay <= dev_priv->rps.min_freq_softlimit) {
 			/* Mask DOWN THRESHOLD Interrupts */
 			I915_WRITE(GEN6_PMINTRMSK,
 				   I915_READ(GEN6_PMINTRMSK) |
@@ -1136,38 +1136,39 @@ static void gen6_pm_rps_work(struct work_struct *work)
 			adj *= 2;
 		else
 			adj = 1;
-		new_delay = dev_priv->rps.cur_delay + adj;
+		new_delay = dev_priv->rps.cur_freq + adj;
 
 		/*
 		 * For better performance, jump directly
 		 * to RPe if we're below it.
 		 */
-		if (new_delay < dev_priv->rps.rpe_delay)
-			new_delay = dev_priv->rps.rpe_delay;
+		if (new_delay < dev_priv->rps.efficient_freq)
+			new_delay = dev_priv->rps.efficient_freq;
 	} else if (pm_iir & GEN6_PM_RP_DOWN_TIMEOUT) {
-		if (dev_priv->rps.cur_delay > dev_priv->rps.rpe_delay)
-			new_delay = dev_priv->rps.rpe_delay;
+		if (dev_priv->rps.cur_freq > dev_priv->rps.efficient_freq)
+			new_delay = dev_priv->rps.efficient_freq;
 		else
-			new_delay = dev_priv->rps.min_delay;
+			new_delay = dev_priv->rps.min_freq_softlimit;
 		adj = 0;
 	} else if (pm_iir & GEN6_PM_RP_DOWN_THRESHOLD) {
 		if (adj < 0)
 			adj *= 2;
 		else
 			adj = -1;
-		new_delay = dev_priv->rps.cur_delay + adj;
+		new_delay = dev_priv->rps.cur_freq + adj;
 	} else { /* unknown event */
-		new_delay = dev_priv->rps.cur_delay;
+		new_delay = dev_priv->rps.cur_freq;
 	}
 
 	/* sysfs frequency interfaces may have snuck in while servicing the
 	 * interrupt
 	 */
 	new_delay = clamp_t(int, new_delay,
-			    dev_priv->rps.min_delay, dev_priv->rps.max_delay);
+			    dev_priv->rps.min_freq_softlimit,
+			    dev_priv->rps.max_freq_softlimit);
 
 	gen6_set_pm_mask(dev_priv, pm_iir, new_delay);
-	dev_priv->rps.last_adj = new_delay - dev_priv->rps.cur_delay;
+	dev_priv->rps.last_adj = new_delay - dev_priv->rps.cur_freq;
 
 	if (IS_VALLEYVIEW(dev_priv->dev))
 		valleyview_set_rps(dev_priv->dev, new_delay);
@@ -3074,7 +3075,7 @@ static void valleyview_display_irqs_uninstall(struct drm_i915_private *dev_priv)
 
 	iir_mask = I915_DISPLAY_PORT_INTERRUPT |
 		   I915_DISPLAY_PIPE_A_EVENT_INTERRUPT |
-		   I915_DISPLAY_PIPE_A_EVENT_INTERRUPT;
+		   I915_DISPLAY_PIPE_B_EVENT_INTERRUPT;
 
 	dev_priv->irq_mask |= iir_mask;
 	I915_WRITE(VLV_IER, ~dev_priv->irq_mask);
@@ -4118,32 +4119,32 @@ void intel_hpd_init(struct drm_device *dev)
 	spin_unlock_irqrestore(&dev_priv->irq_lock, irqflags);
 }
 
-/* Disable interrupts so we can allow Package C8+. */
-void hsw_pc8_disable_interrupts(struct drm_device *dev)
+/* Disable interrupts so we can allow runtime PM. */
+void hsw_runtime_pm_disable_interrupts(struct drm_device *dev)
 {
 	struct drm_i915_private *dev_priv = dev->dev_private;
 	unsigned long irqflags;
 
 	spin_lock_irqsave(&dev_priv->irq_lock, irqflags);
 
-	dev_priv->pc8.regsave.deimr = I915_READ(DEIMR);
-	dev_priv->pc8.regsave.sdeimr = I915_READ(SDEIMR);
-	dev_priv->pc8.regsave.gtimr = I915_READ(GTIMR);
-	dev_priv->pc8.regsave.gtier = I915_READ(GTIER);
-	dev_priv->pc8.regsave.gen6_pmimr = I915_READ(GEN6_PMIMR);
+	dev_priv->pm.regsave.deimr = I915_READ(DEIMR);
+	dev_priv->pm.regsave.sdeimr = I915_READ(SDEIMR);
+	dev_priv->pm.regsave.gtimr = I915_READ(GTIMR);
+	dev_priv->pm.regsave.gtier = I915_READ(GTIER);
+	dev_priv->pm.regsave.gen6_pmimr = I915_READ(GEN6_PMIMR);
 
 	ironlake_disable_display_irq(dev_priv, 0xffffffff);
 	ibx_disable_display_interrupt(dev_priv, 0xffffffff);
 	ilk_disable_gt_irq(dev_priv, 0xffffffff);
 	snb_disable_pm_irq(dev_priv, 0xffffffff);
 
-	dev_priv->pc8.irqs_disabled = true;
+	dev_priv->pm.irqs_disabled = true;
 
 	spin_unlock_irqrestore(&dev_priv->irq_lock, irqflags);
 }
 
-/* Restore interrupts so we can recover from Package C8+. */
-void hsw_pc8_restore_interrupts(struct drm_device *dev)
+/* Restore interrupts so we can recover from runtime PM. */
+void hsw_runtime_pm_restore_interrupts(struct drm_device *dev)
 {
 	struct drm_i915_private *dev_priv = dev->dev_private;
 	unsigned long irqflags;
@@ -4163,13 +4164,13 @@ void hsw_pc8_restore_interrupts(struct drm_device *dev)
 	val = I915_READ(GEN6_PMIMR);
 	WARN(val != 0xffffffff, "GEN6_PMIMR is 0x%08x\n", val);
 
-	dev_priv->pc8.irqs_disabled = false;
+	dev_priv->pm.irqs_disabled = false;
 
-	ironlake_enable_display_irq(dev_priv, ~dev_priv->pc8.regsave.deimr);
-	ibx_enable_display_interrupt(dev_priv, ~dev_priv->pc8.regsave.sdeimr);
-	ilk_enable_gt_irq(dev_priv, ~dev_priv->pc8.regsave.gtimr);
-	snb_enable_pm_irq(dev_priv, ~dev_priv->pc8.regsave.gen6_pmimr);
-	I915_WRITE(GTIER, dev_priv->pc8.regsave.gtier);
+	ironlake_enable_display_irq(dev_priv, ~dev_priv->pm.regsave.deimr);
+	ibx_enable_display_interrupt(dev_priv, ~dev_priv->pm.regsave.sdeimr);
+	ilk_enable_gt_irq(dev_priv, ~dev_priv->pm.regsave.gtimr);
+	snb_enable_pm_irq(dev_priv, ~dev_priv->pm.regsave.gen6_pmimr);
+	I915_WRITE(GTIER, dev_priv->pm.regsave.gtier);
 
 	spin_unlock_irqrestore(&dev_priv->irq_lock, irqflags);
 }

@@ -748,6 +748,7 @@ enum punit_power_well {
 #define RING_INSTPS(base)	((base)+0x70)
 #define RING_DMA_FADD(base)	((base)+0x78)
 #define RING_INSTPM(base)	((base)+0xc0)
+#define RING_MI_MODE(base)	((base)+0x9c)
 #define INSTPS		0x02070 /* 965+ only */
 #define INSTDONE1	0x0207c /* 965+ only */
 #define ACTHD_I965	0x02074
@@ -824,6 +825,7 @@ enum punit_power_well {
 # define VS_TIMER_DISPATCH				(1 << 6)
 # define MI_FLUSH_ENABLE				(1 << 12)
 # define ASYNC_FLIP_PERF_DISABLE			(1 << 14)
+# define MODE_IDLE					(1 << 9)
 
 #define GEN6_GT_MODE	0x20d0
 #define GEN7_GT_MODE	0x7008
@@ -3551,7 +3553,11 @@ enum punit_power_well {
 /* New style CUR*CNTR flags */
 #define   CURSOR_MODE		0x27
 #define   CURSOR_MODE_DISABLE   0x00
+#define   CURSOR_MODE_128_32B_AX 0x02
+#define   CURSOR_MODE_256_32B_AX 0x03
 #define   CURSOR_MODE_64_32B_AX 0x07
+#define   CURSOR_MODE_128_ARGB_AX ((1 << 5) | CURSOR_MODE_128_32B_AX)
+#define   CURSOR_MODE_256_ARGB_AX ((1 << 5) | CURSOR_MODE_256_32B_AX)
 #define   CURSOR_MODE_64_ARGB_AX ((1 << 5) | CURSOR_MODE_64_32B_AX)
 #define   MCURSOR_PIPE_SELECT	(1 << 28)
 #define   MCURSOR_PIPE_A	0x00

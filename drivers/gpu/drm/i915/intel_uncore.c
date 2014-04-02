@@ -280,12 +280,17 @@ void vlv_force_wake_put(struct drm_i915_private *dev_priv,
 
 	spin_lock_irqsave(&dev_priv->uncore.lock, irqflags);
 
-	if (fw_engine & FORCEWAKE_RENDER &&
-	    --dev_priv->uncore.fw_rendercount != 0)
-		fw_engine &= ~FORCEWAKE_RENDER;
-	if (fw_engine & FORCEWAKE_MEDIA &&
-	    --dev_priv->uncore.fw_mediacount != 0)
-		fw_engine &= ~FORCEWAKE_MEDIA;
+	if (fw_engine & FORCEWAKE_RENDER) {
+		WARN_ON(!dev_priv->uncore.fw_rendercount);
+		if (--dev_priv->uncore.fw_rendercount != 0)
+			fw_engine &= ~FORCEWAKE_RENDER;
+	}
+
+	if (fw_engine & FORCEWAKE_MEDIA) {
+		WARN_ON(!dev_priv->uncore.fw_mediacount);
+		if (--dev_priv->uncore.fw_mediacount != 0)
+			fw_engine &= ~FORCEWAKE_MEDIA;
+	}
 
 	if (fw_engine)
 		dev_priv->uncore.funcs.force_wake_put(dev_priv, fw_engine);
@@ -301,6 +306,8 @@ static void gen6_force_wake_timer(unsigned long arg)
 	assert_device_not_suspended(dev_priv);
 
 	spin_lock_irqsave(&dev_priv->uncore.lock, irqflags);
+	WARN_ON(!dev_priv->uncore.forcewake_count);
+
 	if (--dev_priv->uncore.forcewake_count == 0)
 		dev_priv->uncore.funcs.force_wake_put(dev_priv, FORCEWAKE_ALL);
 	spin_unlock_irqrestore(&dev_priv->uncore.lock, irqflags);
@@ -308,9 +315,17 @@ static void gen6_force_wake_timer(unsigned long arg)
 	intel_runtime_pm_put(dev_priv);
 }
 
-static void intel_uncore_forcewake_reset(struct drm_device *dev)
+static void intel_uncore_forcewake_reset(struct drm_device *dev, bool restore)
 {
 	struct drm_i915_private *dev_priv = dev->dev_private;
+	unsigned long irqflags;
+
+	del_timer_sync(&dev_priv->uncore.force_wake_timer);
+
+	/* Hold uncore.lock across reset to prevent any register access
+	 * with forcewake not set correctly
+	 */
+	spin_lock_irqsave(&dev_priv->uncore.lock, irqflags);
 
 	if (IS_VALLEYVIEW(dev))
 		vlv_force_wake_reset(dev_priv);
@@ -319,6 +334,35 @@ static void intel_uncore_forcewake_reset(struct drm_device *dev)
 
 	if (IS_IVYBRIDGE(dev) || IS_HASWELL(dev) || IS_GEN8(dev))
 		__gen7_gt_force_wake_mt_reset(dev_priv);
+
+	if (restore) { /* If reset with a user forcewake, try to restore */
+		unsigned fw = 0;
+
+		if (IS_VALLEYVIEW(dev)) {
+			if (dev_priv->uncore.fw_rendercount)
+				fw |= FORCEWAKE_RENDER;
+
+			if (dev_priv->uncore.fw_mediacount)
+				fw |= FORCEWAKE_MEDIA;
+		} else {
+			if (dev_priv->uncore.forcewake_count)
+				fw = FORCEWAKE_ALL;
+		}
+
+		if (fw)
+			dev_priv->uncore.funcs.force_wake_get(dev_priv, fw);
+
+		if (IS_GEN6(dev) || IS_GEN7(dev))
+			dev_priv->uncore.fifo_count =
+				__raw_i915_read32(dev_priv, GTFIFOCTL) &
+				GT_FIFO_FREE_ENTRIES_MASK;
+	} else {
+		dev_priv->uncore.forcewake_count = 0;
+		dev_priv->uncore.fw_rendercount = 0;
+		dev_priv->uncore.fw_mediacount = 0;
+	}
+
+	spin_unlock_irqrestore(&dev_priv->uncore.lock, irqflags);
 }
 
 void intel_uncore_early_sanitize(struct drm_device *dev)
@@ -344,7 +388,7 @@ void intel_uncore_early_sanitize(struct drm_device *dev)
 		__raw_i915_write32(dev_priv, GTFIFODBG,
 				   __raw_i915_read32(dev_priv, GTFIFODBG));
 
-	intel_uncore_forcewake_reset(dev);
+	intel_uncore_forcewake_reset(dev, false);
 }
 
 void intel_uncore_sanitize(struct drm_device *dev)
@@ -415,6 +459,8 @@ void gen6_gt_force_wake_put(struct drm_i915_private *dev_priv, int fw_engine)
 
 
 	spin_lock_irqsave(&dev_priv->uncore.lock, irqflags);
+	WARN_ON(!dev_priv->uncore.forcewake_count);
+
 	if (--dev_priv->uncore.forcewake_count == 0) {
 		dev_priv->uncore.forcewake_count++;
 		delayed = true;
@@ -690,6 +736,8 @@ void intel_uncore_init(struct drm_device *dev)
 	setup_timer(&dev_priv->uncore.force_wake_timer,
 		    gen6_force_wake_timer, (unsigned long)dev_priv);
 
+	intel_uncore_early_sanitize(dev);
+
 	if (IS_VALLEYVIEW(dev)) {
 		dev_priv->uncore.funcs.force_wake_get = __vlv_force_wake_get;
 		dev_priv->uncore.funcs.force_wake_put = __vlv_force_wake_put;
@@ -798,13 +846,9 @@ void intel_uncore_init(struct drm_device *dev)
 
 void intel_uncore_fini(struct drm_device *dev)
 {
-	struct drm_i915_private *dev_priv = dev->dev_private;
-
-	del_timer_sync(&dev_priv->uncore.force_wake_timer);
-
 	/* Paranoia: make sure we have disabled everything before we exit. */
 	intel_uncore_sanitize(dev);
-	intel_uncore_forcewake_reset(dev);
+	intel_uncore_forcewake_reset(dev, false);
 }
 
 static const struct register_whitelist {
@@ -953,13 +997,6 @@ static int gen6_do_reset(struct drm_device *dev)
 {
 	struct drm_i915_private *dev_priv = dev->dev_private;
 	int	ret;
-	unsigned long irqflags;
-	u32 fw_engine = 0;
-
-	/* Hold uncore.lock across reset to prevent any register access
-	 * with forcewake not set correctly
-	 */
-	spin_lock_irqsave(&dev_priv->uncore.lock, irqflags);
 
 	/* Reset the chip */
 
@@ -972,29 +1009,8 @@ static int gen6_do_reset(struct drm_device *dev)
 	/* Spin waiting for the device to ack the reset request */
 	ret = wait_for((__raw_i915_read32(dev_priv, GEN6_GDRST) & GEN6_GRDOM_FULL) == 0, 500);
 
-	intel_uncore_forcewake_reset(dev);
+	intel_uncore_forcewake_reset(dev, true);
 
-	/* If reset with a user forcewake, try to restore */
-	if (IS_VALLEYVIEW(dev)) {
-		if (dev_priv->uncore.fw_rendercount)
-			fw_engine |= FORCEWAKE_RENDER;
-
-		if (dev_priv->uncore.fw_mediacount)
-			fw_engine |= FORCEWAKE_MEDIA;
-	} else {
-		if (dev_priv->uncore.forcewake_count)
-			fw_engine = FORCEWAKE_ALL;
-	}
-
-	if (fw_engine)
-		dev_priv->uncore.funcs.force_wake_get(dev_priv, fw_engine);
-
-	if (IS_GEN6(dev) || IS_GEN7(dev))
-		dev_priv->uncore.fifo_count =
-			__raw_i915_read32(dev_priv, GTFIFOCTL) &
-			GT_FIFO_FREE_ENTRIES_MASK;
-
-	spin_unlock_irqrestore(&dev_priv->uncore.lock, irqflags);
 	return ret;
 }
 
