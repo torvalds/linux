@@ -528,20 +528,19 @@ static struct rk_lcdc_driver *rk_get_prmry_lcdc_drv(void)
 int rk_fb_get_prmry_screen_ft(void)
 {
 	struct rk_lcdc_driver *dev_drv = rk_get_prmry_lcdc_drv();
-	uint32_t htotal, vtotal, pix_total, ft_us, dclk_mhz;
+	uint32_t htotal, vtotal, pix_total, ft_us, pixclock_ns;
 
 	if (unlikely(!dev_drv))
 		return 0;
 
-	dclk_mhz = dev_drv->pixclock/(1000*1000);
+	pixclock_ns = dev_drv->pixclock/1000;
 
 	htotal = (dev_drv->cur_screen->mode.upper_margin + dev_drv->cur_screen->mode.lower_margin +
 		dev_drv->cur_screen->mode.yres + dev_drv->cur_screen->mode.vsync_len);
 	vtotal = (dev_drv->cur_screen->mode.left_margin + dev_drv->cur_screen->mode.right_margin +
 		dev_drv->cur_screen->mode.xres + dev_drv->cur_screen->mode.hsync_len);
-	pix_total = htotal*vtotal;
-	ft_us = pix_total / dclk_mhz;
-
+	pix_total = htotal*vtotal/1000;
+	ft_us = pix_total * pixclock_ns;
 	return ft_us;
 }
 
