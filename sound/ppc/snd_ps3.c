@@ -984,7 +984,8 @@ static int snd_ps3_driver_probe(struct ps3_system_bus_device *dev)
 	}
 
 	/* create card instance */
-	ret = snd_card_create(index, id, THIS_MODULE, 0, &the_card.card);
+	ret = snd_card_new(&dev->core, index, id, THIS_MODULE,
+			   0, &the_card.card);
 	if (ret < 0)
 		goto clean_irq;
 
@@ -1052,7 +1053,6 @@ static int snd_ps3_driver_probe(struct ps3_system_bus_device *dev)
 	snd_ps3_init_avsetting(&the_card);
 
 	/* register the card */
-	snd_card_set_dev(the_card.card, &dev->core);
 	ret = snd_card_register(the_card.card);
 	if (ret < 0)
 		goto clean_dma_map;

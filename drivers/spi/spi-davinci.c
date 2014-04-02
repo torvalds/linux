@@ -802,8 +802,7 @@ static int spi_davinci_get_pdata(struct platform_device *pdev,
 	pdata = &dspi->pdata;
 
 	pdata->version = SPI_VERSION_1;
-	match = of_match_device(of_match_ptr(davinci_spi_of_match),
-				&pdev->dev);
+	match = of_match_device(davinci_spi_of_match, &pdev->dev);
 	if (!match)
 		return -ENODEV;
 
@@ -824,7 +823,6 @@ static int spi_davinci_get_pdata(struct platform_device *pdev,
 	return 0;
 }
 #else
-#define davinci_spi_of_match NULL
 static struct davinci_spi_platform_data
 	*spi_davinci_get_pdata(struct platform_device *pdev,
 		struct davinci_spi *dspi)
@@ -864,10 +862,6 @@ static int davinci_spi_probe(struct platform_device *pdev)
 	platform_set_drvdata(pdev, master);
 
 	dspi = spi_master_get_devdata(master);
-	if (dspi == NULL) {
-		ret = -ENOENT;
-		goto free_master;
-	}
 
 	if (dev_get_platdata(&pdev->dev)) {
 		pdata = dev_get_platdata(&pdev->dev);
@@ -908,10 +902,6 @@ static int davinci_spi_probe(struct platform_device *pdev)
 		goto free_master;
 
 	dspi->bitbang.master = master;
-	if (dspi->bitbang.master == NULL) {
-		ret = -ENODEV;
-		goto free_master;
-	}
 
 	dspi->clk = devm_clk_get(&pdev->dev, NULL);
 	if (IS_ERR(dspi->clk)) {
@@ -1040,7 +1030,7 @@ static struct platform_driver davinci_spi_driver = {
 	.driver = {
 		.name = "spi_davinci",
 		.owner = THIS_MODULE,
-		.of_match_table = davinci_spi_of_match,
+		.of_match_table = of_match_ptr(davinci_spi_of_match),
 	},
 	.probe = davinci_spi_probe,
 	.remove = davinci_spi_remove,

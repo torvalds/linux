@@ -485,8 +485,6 @@ struct et131x_adapter {
 	u8 eeprom_data[2];
 
 	/* Spinlocks */
-	spinlock_t lock;
-
 	spinlock_t tcb_send_qlock;
 	spinlock_t tcb_ready_qlock;
 	spinlock_t send_hw_lock;
@@ -1388,6 +1386,7 @@ static int et131x_phy_mii_read(struct et131x_adapter *adapter, u8 addr,
 			    mii_indicator);
 
 		status = -EIO;
+		goto out;
 	}
 
 	/* If we hit here we were able to read the register and we need to
@@ -1395,6 +1394,7 @@ static int et131x_phy_mii_read(struct et131x_adapter *adapter, u8 addr,
 	 */
 	*value = readl(&mac->mii_mgmt_stat) & ET_MAC_MIIMGMT_STAT_PHYCRTL_MASK;
 
+out:
 	/* Stop the read operation */
 	writel(0, &mac->mii_mgmt_cmd);
 
@@ -2124,7 +2124,11 @@ static int et131x_rx_dma_memory_alloc(struct et131x_adapter *adapter)
 
 	/* Alloc memory for the lookup table */
 	rx_ring->fbr[0] = kmalloc(sizeof(struct fbr_lookup), GFP_KERNEL);
+	if (rx_ring->fbr[0] == NULL)
+		return -ENOMEM;
 	rx_ring->fbr[1] = kmalloc(sizeof(struct fbr_lookup), GFP_KERNEL);
+	if (rx_ring->fbr[1] == NULL)
+		return -ENOMEM;
 
 	/* The first thing we will do is configure the sizes of the buffer
 	 * rings. These will change based on jumbo packet support.  Larger
@@ -2289,7 +2293,7 @@ static void et131x_rx_dma_memory_free(struct et131x_adapter *adapter)
 	for (id = 0; id < NUM_FBRS; id++) {
 		fbr = rx_ring->fbr[id];
 
-		if (!fbr->ring_virtaddr)
+		if (!fbr || !fbr->ring_virtaddr)
 			continue;
 
 		/* First the packet memory */
@@ -3523,7 +3527,7 @@ static int et131x_pci_init(struct et131x_adapter *adapter,
 			goto err_out;
 		}
 	}
-	memcpy(adapter->addr, adapter->rom_addr, ETH_ALEN);
+	ether_addr_copy(adapter->addr, adapter->rom_addr);
 out:
 	return rc;
 err_out:
@@ -3591,6 +3595,7 @@ static int et131x_adapter_memory_alloc(struct et131x_adapter *adapter)
 	if (status) {
 		dev_err(&adapter->pdev->dev,
 			  "et131x_tx_dma_memory_alloc FAILED\n");
+		et131x_tx_dma_memory_free(adapter);
 		return status;
 	}
 	/* Receive buffer memory allocation */
@@ -3598,7 +3603,7 @@ static int et131x_adapter_memory_alloc(struct et131x_adapter *adapter)
 	if (status) {
 		dev_err(&adapter->pdev->dev,
 			  "et131x_rx_dma_memory_alloc FAILED\n");
-		et131x_tx_dma_memory_free(adapter);
+		et131x_adapter_memory_free(adapter);
 		return status;
 	}
 
@@ -3760,7 +3765,6 @@ static struct et131x_adapter *et131x_adapter_init(struct net_device *netdev,
 	adapter->netdev = netdev;
 
 	/* Initialize spinlocks here */
-	spin_lock_init(&adapter->lock);
 	spin_lock_init(&adapter->tcb_send_qlock);
 	spin_lock_init(&adapter->tcb_ready_qlock);
 	spin_lock_init(&adapter->send_hw_lock);
@@ -3770,7 +3774,7 @@ static struct et131x_adapter *et131x_adapter_init(struct net_device *netdev,
 	adapter->registry_jumbo_packet = 1514;	/* 1514-9216 */
 
 	/* Set the MAC address to a default */
-	memcpy(adapter->addr, default_mac, ETH_ALEN);
+	ether_addr_copy(adapter->addr, default_mac);
 
 	return adapter;
 }
@@ -4292,11 +4296,8 @@ static void et131x_multicast(struct net_device *netdev)
 {
 	struct et131x_adapter *adapter = netdev_priv(netdev);
 	int packet_filter;
-	unsigned long flags;
 	struct netdev_hw_addr *ha;
 	int i;
-
-	spin_lock_irqsave(&adapter->lock, flags);
 
 	/* Before we modify the platform-independent filter flags, store them
 	 * locally. This allows us to determine if anything's changed and if
@@ -4349,8 +4350,6 @@ static void et131x_multicast(struct net_device *netdev)
 	 */
 	if (packet_filter != adapter->packet_filter)
 		et131x_set_packet_filter(adapter);
-
-	spin_unlock_irqrestore(&adapter->lock, flags);
 }
 
 /* et131x_tx - The handler to tx a packet on the device */

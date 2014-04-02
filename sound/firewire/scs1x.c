@@ -391,10 +391,10 @@ static int scs_probe(struct fw_unit *unit, const struct ieee1394_device_id *id)
 	struct scs *scs;
 	int err;
 
-	err = snd_card_create(-16, NULL, THIS_MODULE, sizeof(*scs), &card);
+	err = snd_card_new(&unit->device, -16, NULL, THIS_MODULE,
+			   sizeof(*scs), &card);
 	if (err < 0)
 		return err;
-	snd_card_set_dev(card, &unit->device);
 
 	scs = card->private_data;
 	scs->card = card;

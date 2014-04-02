@@ -13,9 +13,6 @@
  * more details.
  *
  */
-
-#define pr_fmt(fmt) KBUILD_MODNAME ": " fmt
-
 #include <linux/module.h>
 #include <linux/moduleparam.h>
 #include <linux/kernel.h>
@@ -27,7 +24,6 @@
 #include <linux/aio.h>
 #include <linux/pci.h>
 #include <linux/poll.h>
-#include <linux/init.h>
 #include <linux/ioctl.h>
 #include <linux/cdev.h>
 #include <linux/sched.h>
@@ -40,11 +36,12 @@
 #include <linux/mei.h>
 
 #include "mei_dev.h"
-#include "hw-me.h"
 #include "client.h"
+#include "hw-me-regs.h"
+#include "hw-me.h"
 
 /* mei_pci_tbl - PCI Device ID Table */
-static DEFINE_PCI_DEVICE_TABLE(mei_me_pci_tbl) = {
+static const struct pci_device_id mei_me_pci_tbl[] = {
 	{PCI_DEVICE(PCI_VENDOR_ID_INTEL, MEI_DEV_ID_82946GZ)},
 	{PCI_DEVICE(PCI_VENDOR_ID_INTEL, MEI_DEV_ID_82G35)},
 	{PCI_DEVICE(PCI_VENDOR_ID_INTEL, MEI_DEV_ID_82Q965)},
@@ -270,7 +267,7 @@ static void mei_me_remove(struct pci_dev *pdev)
 
 
 }
-#ifdef CONFIG_PM
+#ifdef CONFIG_PM_SLEEP
 static int mei_me_pci_suspend(struct device *device)
 {
 	struct pci_dev *pdev = to_pci_dev(device);
@@ -330,11 +327,12 @@ static int mei_me_pci_resume(struct device *device)
 
 	return 0;
 }
+
 static SIMPLE_DEV_PM_OPS(mei_me_pm_ops, mei_me_pci_suspend, mei_me_pci_resume);
 #define MEI_ME_PM_OPS	(&mei_me_pm_ops)
 #else
 #define MEI_ME_PM_OPS	NULL
-#endif /* CONFIG_PM */
+#endif /* CONFIG_PM_SLEEP */
 /*
  *  PCI driver structure
  */

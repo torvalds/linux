@@ -57,7 +57,6 @@ static struct cpufreq_driver cris_freq_driver = {
 	.verify	= cpufreq_generic_frequency_table_verify,
 	.target_index = cris_freq_target,
 	.init	= cris_freq_cpu_init,
-	.exit	= cpufreq_generic_exit,
 	.name	= "cris_freq",
 	.attr	= cpufreq_generic_attr,
 };

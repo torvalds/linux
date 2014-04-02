@@ -1578,8 +1578,8 @@ qla8044_need_reset_handler(struct scsi_qla_host *vha)
 		do {
 			if (time_after_eq(jiffies, dev_init_timeout)) {
 				ql_log(ql_log_info, vha, 0xb0c4,
-				    "%s: Non Reset owner DEV INIT "
-				    "TIMEOUT!\n", __func__);
+				    "%s: Non Reset owner: Reset Ack Timeout!\n",
+				    __func__);
 				break;
 			}
 
@@ -2014,8 +2014,6 @@ qla8044_watchdog(struct scsi_qla_host *vha)
 
 	/* don't poll if reset is going on or FW hang in quiescent state */
 	if (!(test_bit(ABORT_ISP_ACTIVE, &vha->dpc_flags) ||
-	    test_bit(ISP_ABORT_NEEDED, &vha->dpc_flags) ||
-	    test_bit(ISP_ABORT_RETRY, &vha->dpc_flags) ||
 	    test_bit(FCOE_CTX_RESET_NEEDED, &vha->dpc_flags))) {
 		dev_state = qla8044_rd_direct(vha, QLA8044_CRB_DEV_STATE_INDEX);
 
@@ -3715,3 +3713,19 @@ exit_isp_reset:
 	return rval;
 }
 
+void
+qla8044_fw_dump(scsi_qla_host_t *vha, int hardware_locked)
+{
+	struct qla_hw_data *ha = vha->hw;
+
+	if (!ha->allow_cna_fw_dump)
+		return;
+
+	scsi_block_requests(vha->host);
+	ha->flags.isp82xx_no_md_cap = 1;
+	qla8044_idc_lock(ha);
+	qla82xx_set_reset_owner(vha);
+	qla8044_idc_unlock(ha);
+	qla2x00_wait_for_chip_reset(vha);
+	scsi_unblock_requests(vha->host);
+}

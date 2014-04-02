@@ -1,7 +1,7 @@
 /*
  * Pinctrl data for the NVIDIA Tegra124 pinmux
  *
- * Copyright (c) 2013, NVIDIA CORPORATION.  All rights reserved.
+ * Copyright (c) 2013-2014, NVIDIA CORPORATION.  All rights reserved.
  *
  * This program is free software; you can redistribute it and/or modify it
  * under the terms and conditions of the GNU General Public License,
@@ -212,8 +212,8 @@
 #define TEGRA_PIN_PFF2				_GPIO(250)
 
 /* All non-GPIO pins follow */
-#define NUM_GPIOS	(TEGRA_PIN_PFF2 + 1)
-#define _PIN(offset)	(NUM_GPIOS + (offset))
+#define NUM_GPIOS				(TEGRA_PIN_PFF2 + 1)
+#define _PIN(offset)				(NUM_GPIOS + (offset))
 
 /* Non-GPIO pins */
 #define TEGRA_PIN_CORE_PWR_REQ			_PIN(0)
@@ -325,13 +325,13 @@ static const struct pinctrl_pin_desc tegra124_pins[] = {
 	PINCTRL_PIN(TEGRA_PIN_KB_ROW8_PS0, "KB_ROW8 PS0"),
 	PINCTRL_PIN(TEGRA_PIN_KB_ROW9_PS1, "KB_ROW9 PS1"),
 	PINCTRL_PIN(TEGRA_PIN_KB_ROW10_PS2, "KB_ROW10 PS2"),
-	PINCTRL_PIN(TEGRA_PIN_KB_ROW11_PS3, "KB_ROW10 PS3"),
-	PINCTRL_PIN(TEGRA_PIN_KB_ROW12_PS4, "KB_ROW10 PS4"),
-	PINCTRL_PIN(TEGRA_PIN_KB_ROW13_PS5, "KB_ROW10 PS5"),
-	PINCTRL_PIN(TEGRA_PIN_KB_ROW14_PS6, "KB_ROW10 PS6"),
-	PINCTRL_PIN(TEGRA_PIN_KB_ROW15_PS7, "KB_ROW10 PS7"),
-	PINCTRL_PIN(TEGRA_PIN_KB_ROW16_PT0, "KB_ROW10 PT0"),
-	PINCTRL_PIN(TEGRA_PIN_KB_ROW17_PT1, "KB_ROW10 PT1"),
+	PINCTRL_PIN(TEGRA_PIN_KB_ROW11_PS3, "KB_ROW11 PS3"),
+	PINCTRL_PIN(TEGRA_PIN_KB_ROW12_PS4, "KB_ROW12 PS4"),
+	PINCTRL_PIN(TEGRA_PIN_KB_ROW13_PS5, "KB_ROW13 PS5"),
+	PINCTRL_PIN(TEGRA_PIN_KB_ROW14_PS6, "KB_ROW14 PS6"),
+	PINCTRL_PIN(TEGRA_PIN_KB_ROW15_PS7, "KB_ROW15 PS7"),
+	PINCTRL_PIN(TEGRA_PIN_KB_ROW16_PT0, "KB_ROW16 PT0"),
+	PINCTRL_PIN(TEGRA_PIN_KB_ROW17_PT1, "KB_ROW17 PT1"),
 	PINCTRL_PIN(TEGRA_PIN_GEN2_I2C_SCL_PT5, "GEN2_I2C_SCL PT5"),
 	PINCTRL_PIN(TEGRA_PIN_GEN2_I2C_SDA_PT6, "GEN2_I2C_SDA PT6"),
 	PINCTRL_PIN(TEGRA_PIN_SDMMC4_CMD_PT7, "SDMMC4_CMD PT7"),
@@ -406,16 +406,16 @@ static const struct pinctrl_pin_desc tegra124_pins[] = {
 	PINCTRL_PIN(TEGRA_PIN_HDMI_CEC_PEE3, "HDMI_CEC PEE3"),
 	PINCTRL_PIN(TEGRA_PIN_SDMMC3_CLK_LB_OUT_PEE4, "SDMMC3_CLK_LB_OUT PEE4"),
 	PINCTRL_PIN(TEGRA_PIN_SDMMC3_CLK_LB_IN_PEE5, "SDMMC3_CLK_LB_IN PEE5"),
-	PINCTRL_PIN(TEGRA_PIN_CORE_PWR_REQ, "CORE_PWR_REQ"),
-	PINCTRL_PIN(TEGRA_PIN_CPU_PWR_REQ, "CPU_PWR_REQ"),
-	PINCTRL_PIN(TEGRA_PIN_OWR, "OWR"),
-	PINCTRL_PIN(TEGRA_PIN_PWR_INT_N, "PWR_INT_N"),
-	PINCTRL_PIN(TEGRA_PIN_RESET_OUT_N, "RESET_OUT_N"),
 	PINCTRL_PIN(TEGRA_PIN_DP_HPD_PFF0, "DP_HPD PFF0"),
 	PINCTRL_PIN(TEGRA_PIN_USB_VBUS_EN2_PFF1, "USB_VBUS_EN2 PFF1"),
 	PINCTRL_PIN(TEGRA_PIN_PFF2, "PFF2"),
-	PINCTRL_PIN(TEGRA_PIN_CLK_32K_IN, "CLK_32K_IN"),
+	PINCTRL_PIN(TEGRA_PIN_CORE_PWR_REQ, "CORE_PWR_REQ"),
+	PINCTRL_PIN(TEGRA_PIN_CPU_PWR_REQ, "CPU_PWR_REQ"),
+	PINCTRL_PIN(TEGRA_PIN_PWR_INT_N, "PWR_INT_N"),
 	PINCTRL_PIN(TEGRA_PIN_GMI_CLK_LB, "GMI_CLK_LB"),
+	PINCTRL_PIN(TEGRA_PIN_RESET_OUT_N, "RESET_OUT_N"),
+	PINCTRL_PIN(TEGRA_PIN_OWR, "OWR"),
+	PINCTRL_PIN(TEGRA_PIN_CLK_32K_IN, "CLK_32K_IN"),
 	PINCTRL_PIN(TEGRA_PIN_JTAG_RTCK, "JTAG_RTCK"),
 };
 
@@ -1138,6 +1138,7 @@ static const unsigned sdmmc3_clk_lb_out_pee4_pins[] = {
 static const unsigned sdmmc3_clk_lb_in_pee5_pins[] = {
 	TEGRA_PIN_SDMMC3_CLK_LB_IN_PEE5,
 };
+
 static const unsigned dp_hpd_pff0_pins[] = {
 	TEGRA_PIN_DP_HPD_PFF0,
 };
@@ -1158,24 +1159,24 @@ static const unsigned cpu_pwr_req_pins[] = {
 	TEGRA_PIN_CPU_PWR_REQ,
 };
 
-static const unsigned owr_pins[] = {
-	TEGRA_PIN_OWR,
-};
-
 static const unsigned pwr_int_n_pins[] = {
 	TEGRA_PIN_PWR_INT_N,
+};
+
+static const unsigned gmi_clk_lb_pins[] = {
+	TEGRA_PIN_GMI_CLK_LB,
 };
 
 static const unsigned reset_out_n_pins[] = {
 	TEGRA_PIN_RESET_OUT_N,
 };
 
-static const unsigned clk_32k_in_pins[] = {
-	TEGRA_PIN_CLK_32K_IN,
+static const unsigned owr_pins[] = {
+	TEGRA_PIN_OWR,
 };
 
-static const unsigned gmi_clk_lb_pins[] = {
-	TEGRA_PIN_GMI_CLK_LB,
+static const unsigned clk_32k_in_pins[] = {
+	TEGRA_PIN_CLK_32K_IN,
 };
 
 static const unsigned jtag_rtck_pins[] = {
@@ -1441,13 +1442,13 @@ static const unsigned drive_gpv_pins[] = {
 	TEGRA_PIN_PFF2,
 };
 
-static const unsigned drive_cec_pins[] = {
-	TEGRA_PIN_HDMI_CEC_PEE3,
-};
-
 static const unsigned drive_dev3_pins[] = {
 	TEGRA_PIN_CLK3_OUT_PEE0,
 	TEGRA_PIN_CLK3_REQ_PEE1,
+};
+
+static const unsigned drive_cec_pins[] = {
+	TEGRA_PIN_HDMI_CEC_PEE3,
 };
 
 static const unsigned drive_at6_pins[] = {
@@ -1496,8 +1497,10 @@ static const unsigned drive_ao4_pins[] = {
 
 enum tegra_mux {
 	TEGRA_MUX_BLINK,
+	TEGRA_MUX_CCLA,
 	TEGRA_MUX_CEC,
 	TEGRA_MUX_CLDVFS,
+	TEGRA_MUX_CLK,
 	TEGRA_MUX_CLK12,
 	TEGRA_MUX_CPU,
 	TEGRA_MUX_DAP,
@@ -1507,6 +1510,7 @@ enum tegra_mux {
 	TEGRA_MUX_DISPLAYA,
 	TEGRA_MUX_DISPLAYA_ALT,
 	TEGRA_MUX_DISPLAYB,
+	TEGRA_MUX_DP,
 	TEGRA_MUX_DTV,
 	TEGRA_MUX_EXTPERIPH1,
 	TEGRA_MUX_EXTPERIPH2,
@@ -1528,6 +1532,9 @@ enum tegra_mux {
 	TEGRA_MUX_IRDA,
 	TEGRA_MUX_KBC,
 	TEGRA_MUX_OWR,
+	TEGRA_MUX_PE,
+	TEGRA_MUX_PE0,
+	TEGRA_MUX_PE1,
 	TEGRA_MUX_PMI,
 	TEGRA_MUX_PWM0,
 	TEGRA_MUX_PWM1,
@@ -1539,6 +1546,8 @@ enum tegra_mux {
 	TEGRA_MUX_RSVD2,
 	TEGRA_MUX_RSVD3,
 	TEGRA_MUX_RSVD4,
+	TEGRA_MUX_RTCK,
+	TEGRA_MUX_SATA,
 	TEGRA_MUX_SDMMC1,
 	TEGRA_MUX_SDMMC2,
 	TEGRA_MUX_SDMMC3,
@@ -1551,6 +1560,8 @@ enum tegra_mux {
 	TEGRA_MUX_SPI4,
 	TEGRA_MUX_SPI5,
 	TEGRA_MUX_SPI6,
+	TEGRA_MUX_SYS,
+	TEGRA_MUX_TMDS,
 	TEGRA_MUX_TRACE,
 	TEGRA_MUX_UARTA,
 	TEGRA_MUX_UARTB,
@@ -1569,1134 +1580,19 @@ enum tegra_mux {
 	TEGRA_MUX_VI_ALT3,
 	TEGRA_MUX_VIMCLK2,
 	TEGRA_MUX_VIMCLK2_ALT,
-	TEGRA_MUX_SATA,
-	TEGRA_MUX_CCLA,
-	TEGRA_MUX_PE0,
-	TEGRA_MUX_PE,
-	TEGRA_MUX_PE1,
-	TEGRA_MUX_DP,
-	TEGRA_MUX_RTCK,
-	TEGRA_MUX_SYS,
-	TEGRA_MUX_CLK,
-	TEGRA_MUX_TMDS,
-};
-
-static const char * const blink_groups[] = {
-	"clk_32k_out_pa0",
-};
-
-static const char * const cec_groups[] = {
-	"hdmi_cec_pee3",
-};
-
-static const char * const cldvfs_groups[] = {
-	"ph2",
-	"ph3",
-	"kb_row7_pr7",
-	"kb_row8_ps0",
-	"dvfs_pwm_px0",
-	"dvfs_clk_px2",
-};
-
-static const char * const clk12_groups[] = {
-	"sdmmc1_wp_n_pv3",
-	"sdmmc1_clk_pz0",
-};
-
-static const char * const cpu_groups[] = {
-	"cpu_pwr_req",
-};
-
-static const char * const dap_groups[] = {
-	"dap_mclk1_pee2",
-	"clk2_req_pcc5",
-};
-
-static const char * const dap1_groups[] = {
-	"dap_mclk1_pee2",
-};
-
-static const char * const dap2_groups[] = {
-	"dap_mclk1_pw4",
-	"gpio_x4_aud_px4",
-};
-
-static const char * const dev3_groups[] = {
-	"clk3_req_pee1",
-};
-
-static const char * const displaya_groups[] = {
-	"dap3_fs_pp0",
-	"dap3_din_pp1",
-	"dap3_dout_pp2",
-	"ph1",
-	"pi4",
-	"pbb3",
-	"pbb4",
-	"pbb5",
-	"kb_row3_pr3",
-	"kb_row4_pr4",
-	"kb_row5_pr5",
-	"kb_row6_pr6",
-	"kb_col3_pq3",
-	"sdmmc3_dat2_pb5",
-};
-
-static const char * const displaya_alt_groups[] = {
-	"kb_row6_pr6",
-};
-
-static const char * const displayb_groups[] = {
-	"dap3_fs_pp0",
-	"dap3_din_pp1",
-	"dap3_sclk_pp3",
-
-	"pu3",
-	"pu4",
-	"pu5",
-
-	"pbb3",
-	"pbb4",
-	"pbb6",
-
-	"kb_row3_pr3",
-	"kb_row4_pr4",
-	"kb_row5_pr5",
-	"kb_row6_pr6",
-
-	"sdmmc3_dat3_pb4",
-};
-
-static const char * const dtv_groups[] = {
-	"uart3_cts_n_pa1",
-	"uart3_rts_n_pc0",
-	"dap4_fs_pp4",
-	"dap4_dout_pp6",
-	"pi7",
-	"ph0",
-	"ph6",
-	"ph7",
-};
-
-static const char * const extperiph1_groups[] = {
-	"dap_mclk1_pw4",
-};
-
-static const char * const extperiph2_groups[] = {
-	"clk2_out_pw5",
-};
-
-static const char * const extperiph3_groups[] = {
-	"clk3_out_pee0",
-};
-
-static const char * const gmi_groups[] = {
-	"uart2_cts_n_pj5",
-	"uart2_rts_n_pj6",
-	"uart3_txd_pw6",
-	"uart3_rxd_pw7",
-	"uart3_cts_n_pa1",
-	"uart3_rts_n_pc0",
-
-	"pu0",
-	"pu1",
-	"pu2",
-	"pu3",
-	"pu4",
-	"pu5",
-	"pu6",
-
-	"dap4_fs_pp4",
-	"dap4_din_pp5",
-	"dap4_dout_pp6",
-	"dap4_sclk_pp7",
-
-	"pc7",
-
-	"pg0",
-	"pg1",
-	"pg2",
-	"pg3",
-	"pg4",
-	"pg5",
-	"pg6",
-	"pg7",
-
-	"ph0",
-	"ph1",
-	"ph2",
-	"ph3",
-	"ph4",
-	"ph5",
-	"ph6",
-	"ph7",
-
-	"pi0",
-	"pi1",
-	"pi2",
-	"pi3",
-	"pi4",
-	"pi5",
-	"pi6",
-	"pi7",
-
-	"pj0",
-	"pj2",
-
-	"pk0",
-	"pk1",
-	"pk2",
-	"pk3",
-	"pk4",
-
-	"pj7",
-	"pb0",
-	"pb1",
-	"pk7",
-
-	"gen2_i2c_scl_pt5",
-	"gen2_i2c_sda_pt6",
-
-	"sdmmc4_dat0_paa0",
-	"sdmmc4_dat1_paa1",
-	"sdmmc4_dat2_paa2",
-	"sdmmc4_dat3_paa3",
-	"sdmmc4_dat4_paa4",
-	"sdmmc4_dat6_paa6",
-	"sdmmc4_dat7_paa7",
-	"sdmmc4_clk_pcc4",
-	"sdmmc4_cmd_pt7",
-	"gmi_clk_lb",
-
-	"dap1_fs_pn0",
-	"dap1_din_pn1",
-	"dap1_dout_pn2",
-	"dap1_sclk_pn3",
-
-	"dap2_fs_pa2",
-	"dap2_din_pa4",
-	"dap2_dout_pa5",
-	"dap2_sclk_pa3",
-
-	"dvfs_pwm_px0",
-	"dvfs_clk_px2",
-	"gpio_x1_aud_px1",
-	"gpio_x3_aud_px3",
-	"gpio_x4_aud_px4",
-	"gpio_x5_aud_px5",
-	"gpio_x6_aud_px6",
-};
-
-static const char * const gmi_alt_groups[] = {
-	"pc7",
-	"pk4",
-	"pj7",
-};
-
-static const char * const hda_groups[] = {
-	"dap1_fs_pn0",
-	"dap1_din_pn1",
-	"dap1_dout_pn2",
-	"dap1_sclk_pn3",
-	"dap2_fs_pa2",
-	"dap2_sclk_pa3",
-	"dap2_din_pa4",
-	"dap2_dout_pa5",
-};
-
-static const char * const hsi_groups[] = {
-	"ulpi_data0_po1",
-	"ulpi_data1_po2",
-	"ulpi_data2_po3",
-	"ulpi_data3_po4",
-	"ulpi_data4_po5",
-	"ulpi_data5_po6",
-	"ulpi_data6_po7",
-	"ulpi_data7_po0",
-};
-
-static const char * const i2c1_groups[] = {
-	"gen1_i2c_scl_pc4",
-	"gen1_i2c_sda_pc5",
-	"gpio_w2_aud_pw2",
-	"gpio_w3_aud_pw3",
-};
-
-static const char * const i2c2_groups[] = {
-	"gen2_i2c_scl_pt5",
-	"gen2_i2c_sda_pt6",
-};
-
-static const char * const i2c3_groups[] = {
-	"spdif_in_pk6",
-	"spdif_out_pk5",
-	"cam_i2c_scl_pbb1",
-	"cam_i2c_sda_pbb2",
-};
-
-static const char * const i2c4_groups[] = {
-	"ddc_scl_pv4",
-	"ddc_sda_pv5",
-};
-
-static const char * const i2cpwr_groups[] = {
-	"pwr_i2c_scl_pz6",
-	"pwr_i2c_sda_pz7",
-};
-
-static const char * const i2s0_groups[] = {
-	"dap1_fs_pn0",
-	"dap1_din_pn1",
-	"dap1_dout_pn2",
-	"dap1_sclk_pn3",
-};
-
-static const char * const i2s1_groups[] = {
-	"dap2_fs_pa2",
-	"dap2_sclk_pa3",
-	"dap2_din_pa4",
-	"dap2_dout_pa5",
-};
-
-static const char * const i2s2_groups[] = {
-	"dap3_fs_pp0",
-	"dap3_din_pp1",
-	"dap3_dout_pp2",
-	"dap3_sclk_pp3",
-};
-
-static const char * const i2s3_groups[] = {
-	"dap4_fs_pp4",
-	"dap4_din_pp5",
-	"dap4_dout_pp6",
-	"dap4_sclk_pp7",
-};
-
-static const char * const i2s4_groups[] = {
-	"pcc1",
-	"pbb6",
-	"pbb7",
-	"pcc2",
-};
-
-static const char * const irda_groups[] = {
-	"uart2_rxd_pc3",
-	"uart2_txd_pc2",
-	"kb_row11_ps3",
-	"kb_row12_ps4",
-};
-
-static const char * const kbc_groups[] = {
-	"kb_row0_pr0",
-	"kb_row1_pr1",
-	"kb_row2_pr2",
-	"kb_row3_pr3",
-	"kb_row4_pr4",
-	"kb_row5_pr5",
-	"kb_row6_pr6",
-	"kb_row7_pr7",
-	"kb_row8_ps0",
-	"kb_row9_ps1",
-	"kb_row10_ps2",
-	"kb_row11_ps3",
-	"kb_row12_ps4",
-	"kb_row13_ps5",
-	"kb_row14_ps6",
-	"kb_row15_ps7",
-	"kb_row16_pt0",
-	"kb_row17_pt1",
-
-	"kb_col0_pq0",
-	"kb_col1_pq1",
-	"kb_col2_pq2",
-	"kb_col3_pq3",
-	"kb_col4_pq4",
-	"kb_col5_pq5",
-	"kb_col6_pq6",
-	"kb_col7_pq7",
-};
-
-static const char * const owr_groups[] = {
-	"pu0",
-	"kb_col4_pq4",
-	"owr",
-	"sdmmc3_cd_n_pv2",
-};
-
-static const char * const pmi_groups[] = {
-	"pwr_int_n",
-};
-
-static const char * const pwm0_groups[] = {
-	"sdmmc1_dat2_py5",
-	"uart3_rts_n_pc0",
-	"pu3",
-	"ph0",
-	"sdmmc3_dat3_pb4",
-};
-
-static const char * const pwm1_groups[] = {
-	"sdmmc1_dat1_py6",
-	"pu4",
-	"ph1",
-	"sdmmc3_dat2_pb5",
-};
-
-static const char * const pwm2_groups[] = {
-	"pu5",
-	"ph2",
-	"kb_col3_pq3",
-	"sdmmc3_dat1_pb6",
-};
-
-static const char * const pwm3_groups[] = {
-	"pu6",
-	"ph3",
-	"sdmmc3_cmd_pa7",
-};
-
-static const char * const pwron_groups[] = {
-	"core_pwr_req",
-};
-
-static const char * const reset_out_n_groups[] = {
-	"reset_out_n",
-};
-
-static const char * const rsvd1_groups[] = {
-	"pv0",
-	"pv1",
-
-	"hdmi_int_pn7",
-	"pu1",
-	"pu2",
-	"pc7",
-	"pi7",
-	"pk0",
-	"pj0",
-	"pj2",
-	"pk2",
-	"pi3",
-	"pi6",
-
-	"pg0",
-	"pg1",
-	"pg2",
-	"pg3",
-	"pg4",
-	"pg5",
-	"pg6",
-	"pg7",
-
-	"pi0",
-	"pi1",
-
-	"gpio_x7_aud_px7",
-
-	"reset_out_n",
-};
-
-static const char * const rsvd2_groups[] = {
-	"pv0",
-	"pv1",
-
-	"sdmmc1_dat0_py7",
-	"clk2_out_pw5",
-	"clk2_req_pcc5",
-	"hdmi_int_pn7",
-	"ddc_scl_pv4",
-	"ddc_sda_pv5",
-
-	"uart3_txd_pw6",
-	"uart3_rxd_pw7",
-
-	"gen1_i2c_scl_pc4",
-	"gen1_i2c_sda_pc5",
-
-	"clk2_out_pee0",
-	"clk2_req_pee1",
-	"pc7",
-	"pi5",
-	"pj0",
-	"pj2",
-
-	"pk4",
-	"pk2",
-	"pi3",
-	"pi6",
-	"pg0",
-	"pg1",
-	"pg5",
-	"pg6",
-	"pg7",
-
-	"ph4",
-	"ph5",
-	"pj7",
-	"pb0",
-	"pb1",
-	"pk7",
-	"pi0",
-	"pi1",
-
-	"gen2_i2c_scl_pt5",
-	"gen2_i2c_sda_pt6",
-	"sdmmc4_clk_pcc4",
-	"sdmmc4_cmd_pt7",
-	"sdmmc4_dat7_paa7",
-	"pcc1",
-	"pbb6",
-	"pbb7",
-	"pcc2",
-	"jtag_rtck",
-
-	"pwr_i2c_scl_pz6",
-	"pwr_i2c_sda_pz7",
-
-	"kb_row0_pr0",
-	"kb_row1_pr1",
-	"kb_row2_pr2",
-	"kb_row7_pr7",
-	"kb_row8_ps0",
-	"kb_row9_ps1",
-	"kb_row10_ps2",
-	"kb_row11_ps3",
-	"kb_row12_ps4",
-	"kb_row13_ps5",
-	"kb_row14_ps6",
-
-	"kb_col0_pq0",
-	"kb_col1_pq1",
-	"kb_col2_pq2",
-	"kb_col5_pq5",
-	"kb_col6_pq6",
-	"kb_col7_pq7",
-
-	"core_pwr_req",
-	"cpu_pwr_req",
-	"pwr_int_n",
-	"clk_32k_in",
-	"owr",
-
-	"spdif_in_pk6",
-	"spdif_out_pk5",
-	"gpio_x1_aud_px1",
-
-	"sdmmc3_clk_pa6",
-	"sdmmc3_dat0_pb7",
-
-	"pex_l0_rst_n_pdd1",
-	"pex_l0_clkreq_n_pdd2",
-	"pex_wake_n_pdd3",
-	"pex_l1_rst_n_pdd5",
-	"pex_l1_clkreq_n_pdd6",
-	"hdmi_cec_pee3",
-
-	"gpio_w2_aud_pw2",
-	"usb_vbus_en0_pn4",
-	"usb_vbus_en1_pn5",
-	"sdmmc3_clk_lb_out_pee4",
-	"sdmmc3_clk_lb_in_pee5",
-	"gmi_clk_lb",
-	"reset_out_n",
-	"kb_row16_pt0",
-	"kb_row17_pt1",
-	"dp_hpd_pff0",
-	"usb_vbus_en2_pff1",
-	"pff2",
-};
-
-static const char * const rsvd3_groups[] = {
-	"dap3_sclk_pp3",
-	"pv0",
-	"pv1",
-	"sdmmc1_clk_pz0",
-	"clk2_out_pw5",
-	"clk2_req_pcc5",
-	"hdmi_int_pn7",
-
-	"ddc_scl_pv4",
-	"ddc_sda_pv5",
-
-	"pu6",
-
-	"gen1_i2c_scl_pc4",
-	"gen1_i2c_sda_pc5",
-
-	"dap4_din_pp5",
-	"dap4_sclk_pp7",
-
-	"clk3_out_pee0",
-	"clk3_req_pee1",
-
-	"sdmmc4_dat5_paa5",
-	"gpio_pcc1",
-	"cam_i2c_scl_pbb1",
-	"cam_i2c_sda_pbb2",
-	"pbb5",
-	"pbb7",
-	"jtag_rtck",
-	"pwr_i2c_scl_pz6",
-	"pwr_i2c_sda_pz7",
-
-	"kb_row0_pr0",
-	"kb_row1_pr1",
-	"kb_row2_pr2",
-	"kb_row4_pr4",
-	"kb_row5_pr5",
-	"kb_row9_ps1",
-	"kb_row10_ps2",
-	"kb_row11_ps3",
-	"kb_row12_ps4",
-	"kb_row15_ps7",
-
-	"clk_32k_out_pa0",
-	"core_pwr_req",
-	"cpu_pwr_req",
-	"pwr_int_n",
-	"clk_32k_in",
-	"owr",
-
-	"dap_mclk1_pw4",
-	"spdif_in_pk6",
-	"spdif_out_pk5",
-	"sdmmc3_clk_pa6",
-	"sdmmc3_dat0_pb7",
-
-	"pex_l0_rst_n_pdd1",
-	"pex_l0_clkreq_n_pdd2",
-	"pex_wake_n_pdd3",
-	"pex_l1_rst_n_pdd5",
-	"pex_l1_clkreq_n_pdd6",
-	"hdmi_cec_pee3",
-
-	"sdmmc3_cd_n_pv2",
-	"usb_vbus_en0_pn4",
-	"usb_vbus_en1_pn5",
-	"sdmmc3_clk_lb_out_pee4",
-	"sdmmc3_clk_lb_in_pee5",
-	"reset_out_n",
-	"kb_row16_pt0",
-	"kb_row17_pt1",
-	"dp_hpd_pff0",
-	"usb_vbus_en2_pff1",
-	"pff2",
-};
-
-static const char * const rsvd4_groups[] = {
-	"dap3_dout_pp2",
-	"pv0",
-	"pv1",
-	"sdmmc1_clk_pz0",
-
-	"clk2_out_pw5",
-	"clk2_req_pcc5",
-	"hdmi_int_pn7",
-	"ddc_scl_pv4",
-	"ddc_sda_pv5",
-
-	"uart2_rts_n_pj6",
-	"uart2_cts_n_pj5",
-	"uart3_txd_pw6",
-	"uart3_rxd_pw7",
-
-	"pu0",
-	"pu1",
-	"pu2",
-
-	"gen1_i2c_scl_pc4",
-	"gen1_i2c_sda_pc5",
-
-	"dap4_fs_pp4",
-	"dap4_dout_pp6",
-	"dap4_din_pp5",
-	"dap4_sclk_pp7",
-
-	"clk3_out_pee0",
-	"clk3_req_pee1",
-
-	"pi5",
-	"pk1",
-	"pk2",
-	"pg0",
-	"pg1",
-	"pg2",
-	"pg3",
-	"ph4",
-	"ph5",
-	"pb0",
-	"pb1",
-	"pk7",
-	"pi0",
-	"pi1",
-	"pi2",
-
-	"gen2_i2c_scl_pt5",
-	"gen2_i2c_sda_pt6",
-
-	"sdmmc4_cmd_pt7",
-	"sdmmc4_dat0_paa0",
-	"sdmmc4_dat1_paa1",
-	"sdmmc4_dat2_paa2",
-	"sdmmc4_dat3_paa3",
-	"sdmmc4_dat4_paa4",
-	"sdmmc4_dat5_paa5",
-	"sdmmc4_dat6_paa6",
-	"sdmmc4_dat7_paa7",
-
-	"jtag_rtck",
-	"pwr_i2c_scl_pz6",
-	"pwr_i2c_sda_pz7",
-
-	"kb_row0_pr0",
-	"kb_row1_pr1",
-	"kb_row2_pr2",
-	"kb_row13_ps5",
-	"kb_row14_ps6",
-	"kb_row15_ps7",
-
-	"kb_col0_pq0",
-	"kb_col1_pq1",
-	"kb_col2_pq2",
-	"kb_col5_pq5",
-
-	"clk_32k_out_pa0",
-	"core_pwr_req",
-	"cpu_pwr_req",
-	"pwr_int_n",
-	"clk_32k_in",
-	"owr",
-
-	"dap1_fs_pn0",
-	"dap1_din_pn1",
-	"dap1_sclk_pn3",
-	"dap_mclk1_req_pee2",
-	"dap_mclk1_pw5",
-
-	"dap2_fs_pa2",
-	"dap2_din_pa4",
-	"dap2_dout_pa5",
-	"dap2_sclk_pa3",
-
-	"dvfs_pwm_px0",
-	"dvfs_clk_px2",
-	"gpio_x1_aud_px1",
-	"gpio_x3_aud_px3",
-
-	"gpio_x5_aud_px5",
-	"gpio_x7_aud_px7",
-
-	"pex_l0_rst_n_pdd1",
-	"pex_l0_clkreq_n_pdd2",
-	"pex_wake_n_pdd3",
-	"pex_l1_rst_n_pdd5",
-	"pex_l1_clkreq_n_pdd6",
-	"hdmi_cec_pee3",
-
-	"sdmmc3_cd_n_pv2",
-	"usb_vbus_en0_pn4",
-	"usb_vbus_en1_pn5",
-	"sdmmc3_clk_lb_out_pee4",
-	"sdmmc3_clk_lb_in_pee5",
-	"gmi_clk_lb",
-
-	"dp_hpd_pff0",
-	"usb_vbus_en2_pff1",
-	"pff2",
-};
-
-static const char * const sdmmc1_groups[] = {
-	"sdmmc1_clk_pz0",
-	"sdmmc1_cmd_pz1",
-	"sdmmc1_dat3_py4",
-	"sdmmc1_dat2_py5",
-	"sdmmc1_dat1_py6",
-	"sdmmc1_dat0_py7",
-	"clk2_out_pw5",
-	"clk2_req_pcc",
-	"uart3_cts_n_pa1",
-	"sdmmc1_wp_n_pv3",
-};
-
-static const char * const sdmmc2_groups[] = {
-	"pi5",
-	"pk1",
-	"pk3",
-	"pk4",
-	"pi6",
-	"ph4",
-	"ph5",
-	"ph6",
-	"ph7",
-	"pi2",
-	"cam_mclk_pcc0",
-	"pcc1",
-	"pbb0",
-	"cam_i2c_scl_pbb1",
-	"cam_i2c_sda_pbb2",
-	"pbb3",
-	"pbb4",
-	"pbb5",
-	"pbb6",
-	"pbb7",
-	"pcc2",
-	"gmi_clk_lb",
-};
-
-static const char * const sdmmc3_groups[] = {
-	"pk0",
-	"pcc2",
-
-	"kb_col4_pq4",
-	"kb_col5_pq5",
-
-	"sdmmc3_clk_pa6",
-	"sdmmc3_cmd_pa7",
-	"sdmmc3_dat0_pb7",
-	"sdmmc3_dat1_pb6",
-	"sdmmc3_dat2_pb5",
-	"sdmmc3_dat3_pb4",
-
-	"sdmmc3_cd_n_pv2",
-	"sdmmc3_clk_lb_in_pee5",
-	"sdmmc3_clk_lb_out_pee4",
-};
-
-static const char * const sdmmc4_groups[] = {
-	"sdmmc4_clk_pcc4",
-	"sdmmc4_cmd_pt7",
-	"sdmmc4_dat0_paa0",
-	"sdmmc4_dat1_paa1",
-	"sdmmc4_dat2_paa2",
-	"sdmmc4_dat3_paa3",
-	"sdmmc4_dat4_paa4",
-	"sdmmc4_dat5_paa5",
-	"sdmmc4_dat6_paa6",
-	"sdmmc4_dat7_paa7",
-};
-
-static const char * const soc_groups[] = {
-	"pk0",
-	"pj2",
-	"kb_row15_ps7",
-	"clk_32k_out_pa0",
-};
-
-static const char * const spdif_groups[] = {
-	"sdmmc1_cmd_pz1",
-	"sdmmc1_dat3_py4",
-	"uart2_rxd_pc3",
-	"uart2_txd_pc2",
-	"spdif_in_pk6",
-	"spdif_out_pk5",
-};
-
-static const char * const spi1_groups[] = {
-	"ulpi_clk_py0",
-	"ulpi_dir_py1",
-	"ulpi_nxt_py2",
-	"ulpi_stp_py3",
-	"gpio_x3_aud_px3",
-	"gpio_x4_aud_px4",
-	"gpio_x5_aud_px5",
-	"gpio_x6_aud_px6",
-	"gpio_x7_aud_px7",
-	"gpio_w3_aud_pw3",
-};
-
-static const char * const spi2_groups[] = {
-	"ulpi_data4_po5",
-	"ulpi_data5_po6",
-	"ulpi_data6_po7",
-	"ulpi_data7_po0",
-
-	"kb_row13_ps5",
-	"kb_row14_ps6",
-	"kb_row15_ps7",
-	"kb_col0_pq0",
-	"kb_col1_pq1",
-	"kb_col2_pq2",
-	"kb_col6_pq6",
-	"kb_col7_pq7",
-	"gpio_x4_aud_px4",
-	"gpio_x5_aud_px5",
-	"gpio_x6_aud_px6",
-	"gpio_x7_aud_px7",
-	"gpio_w2_aud_pw2",
-	"gpio_w3_aud_pw3",
-};
-
-static const char * const spi3_groups[] = {
-	"ulpi_data0_po1",
-	"ulpi_data1_po2",
-	"ulpi_data2_po3",
-	"ulpi_data3_po4",
-	"sdmmc4_dat0_paa0",
-	"sdmmc4_dat1_paa1",
-	"sdmmc4_dat2_paa2",
-	"sdmmc4_dat3_paa3",
-	"sdmmc4_dat4_paa4",
-	"sdmmc4_dat5_paa5",
-	"sdmmc4_dat6_paa6",
-	"sdmmc3_clk_pa6",
-	"sdmmc3_cmd_pa7",
-	"sdmmc3_dat0_pb7",
-	"sdmmc3_dat1_pb6",
-	"sdmmc3_dat2_pb5",
-	"sdmmc3_dat3_pb4",
-};
-
-static const char * const spi4_groups[] = {
-	"sdmmc1_cmd_pz1",
-	"sdmmc1_dat3_py4",
-	"sdmmc1_dat2_py5",
-	"sdmmc1_dat1_py6",
-	"sdmmc1_dat0_py7",
-
-	"uart2_rxd_pc3",
-	"uart2_txd_pc2",
-	"uart2_rts_n_pj6",
-	"uart2_cts_n_pj5",
-	"uart3_txd_pw6",
-	"uart3_rxd_pw7",
-
-	"pi3",
-	"pg4",
-	"pg5",
-	"pg6",
-	"pg7",
-	"ph3",
-	"pi4",
-	"sdmmc1_wp_n_pv3",
-};
-
-static const char * const spi5_groups[] = {
-	"ulpi_clk_py0",
-	"ulpi_dir_py1",
-	"ulpi_nxt_py2",
-	"ulpi_stp_py3",
-	"dap3_fs_pp0",
-	"dap3_din_pp1",
-	"dap3_dout_pp2",
-	"dap3_sclk_pp3",
-};
-
-static const char * const spi6_groups[] = {
-	"dvfs_pwm_px0",
-	"gpio_x1_aud_px1",
-	"gpio_x3_aud_px3",
-	"dvfs_clk_px2",
-	"gpio_x6_aud_px6",
-	"gpio_w2_aud_pw2",
-	"gpio_w3_aud_pw3",
-};
-
-static const char * const trace_groups[] = {
-	"pi2",
-	"pi4",
-	"pi7",
-	"ph0",
-	"ph6",
-	"ph7",
-	"pg2",
-	"pg3",
-	"pk1",
-	"pk3",
-};
-
-static const char * const uarta_groups[] = {
-	"ulpi_data0_po1",
-	"ulpi_data1_po2",
-	"ulpi_data2_po3",
-	"ulpi_data3_po4",
-	"ulpi_data4_po5",
-	"ulpi_data5_po6",
-	"ulpi_data6_po7",
-	"ulpi_data7_po0",
-
-	"sdmmc1_cmd_pz1",
-	"sdmmc1_dat3_py4",
-	"sdmmc1_dat2_py5",
-	"sdmmc1_dat1_py6",
-	"sdmmc1_dat0_py7",
-
-
-	"uart2_rxd_pc3",
-	"uart2_txd_pc2",
-	"uart2_rts_n_pj6",
-	"uart2_cts_n_pj5",
-
-	"pu0",
-	"pu1",
-	"pu2",
-	"pu3",
-	"pu4",
-	"pu5",
-	"pu6",
-
-	"kb_row7_pr7",
-	"kb_row8_ps0",
-	"kb_row9_ps1",
-	"kb_row10_ps2",
-	"kb_col3_pq3",
-	"kb_col4_pq4",
-
-	"sdmmc3_cmd_pa7",
-	"sdmmc3_dat1_pb6",
-	"sdmmc1_wp_n_pv3",
-
-};
-
-static const char * const uartb_groups[] = {
-	"uart2_rts_n_pj6",
-	"uart2_cts_n_pj5",
-};
-
-static const char * const uartc_groups[] = {
-	"uart3_txd_pw6",
-	"uart3_rxd_pw7",
-	"uart3_cts_n_pa1",
-	"uart3_rts_n_pc0",
-	"kb_row16_pt0",
-	"kn_row17_pt1",
-};
-
-static const char * const uartd_groups[] = {
-	"ulpi_clk_py0",
-	"ulpi_dir_py1",
-	"ulpi_nxt_py2",
-	"ulpi_stp_py3",
-	"pj7",
-	"pb0",
-	"pb1",
-	"pk7",
-	"kb_col6_pq6",
-	"kb_col7_pq7",
-};
-
-static const char * const ulpi_groups[] = {
-	"ulpi_data0_po1",
-	"ulpi_data1_po2",
-	"ulpi_data2_po3",
-	"ulpi_data3_po4",
-	"ulpi_data4_po5",
-	"ulpi_data5_po6",
-	"ulpi_data6_po7",
-	"ulpi_data7_po0",
-	"ulpi_clk_py0",
-	"ulpi_dir_py1",
-	"ulpi_nxt_py2",
-	"ulpi_stp_py3",
-};
-
-static const char * const usb_groups[] = {
-	"pj0",
-	"usb_vbus_en0_pn4",
-	"usb_vbus_en1_pn5",
-	"usb_vbus_en2_pff1",
-};
-
-static const char * const vgp1_groups[] = {
-	"cam_i2c_scl_pbb1",
-};
-
-static const char * const vgp2_groups[] = {
-	"cam_i2c_sda_pbb2",
-};
-
-static const char * const vgp3_groups[] = {
-	"pbb3",
-};
-
-static const char * const vgp4_groups[] = {
-	"pbb4",
-};
-
-static const char * const vgp5_groups[] = {
-	"pbb5",
-};
-
-static const char * const vgp6_groups[] = {
-	"pbb0",
-};
-
-static const char * const vi_groups[] = {
-	"cam_mclk_pcc0",
-};
-
-static const char * const vi_alt1_groups[] = {
-	"cam_mclk_pcc0",
-};
-
-static const char * const vi_alt3_groups[] = {
-	"cam_mclk_pcc0",
-};
-
-static const char * const vimclk2_groups[] = {
-	"pbb0",
-};
-
-static const char * const vimclk2_alt_groups[] = {
-	"pbb0",
-};
-
-static const char * const sata_groups[] = {
-	"dap_mclk1_req_pee2",
-	"dap1_dout_pn2",
-	"pff2",
-};
-
-static const char * const ccla_groups[] = {
-	"pk3",
-};
-
-static const char * const rtck_groups[] = {
-	"jtag_rtck",
-};
-
-static const char * const sys_groups[] = {
-	"kb_row3_pr3",
-};
-
-static const char * const pe0_groups[] = {
-	"pex_l0_rst_n_pdd1",
-	"pex_l0_clkreq_n_pdd2",
-};
-
-static const char * const pe_groups[] = {
-	"pex_wake_n_pdd3",
-};
-
-static const char * const pe1_groups[] = {
-	"pex_l1_rst_n_pdd5",
-	"pex_l1_clkreq_n_pdd6",
-};
-
-static const char * const dp_groups[] = {
-	"dp_hpd_pff0",
-};
-
-static const char * const clk_groups[] = {
-	"clk_32k_in",
-};
-
-static const char * const tmds_groups[] = {
-	"pg4",
-	"ph1",
-	"ph2",
 };
 
 #define FUNCTION(fname)					\
 	{						\
 		.name = #fname,				\
-		.groups = fname##_groups,		\
-		.ngroups = ARRAY_SIZE(fname##_groups),	\
 	}
 
-static const struct tegra_function tegra124_functions[] = {
+static struct tegra_function tegra124_functions[] = {
 	FUNCTION(blink),
+	FUNCTION(ccla),
 	FUNCTION(cec),
 	FUNCTION(cldvfs),
+	FUNCTION(clk),
 	FUNCTION(clk12),
 	FUNCTION(cpu),
 	FUNCTION(dap),
@@ -2706,6 +1602,7 @@ static const struct tegra_function tegra124_functions[] = {
 	FUNCTION(displaya),
 	FUNCTION(displaya_alt),
 	FUNCTION(displayb),
+	FUNCTION(dp),
 	FUNCTION(dtv),
 	FUNCTION(extperiph1),
 	FUNCTION(extperiph2),
@@ -2727,6 +1624,9 @@ static const struct tegra_function tegra124_functions[] = {
 	FUNCTION(irda),
 	FUNCTION(kbc),
 	FUNCTION(owr),
+	FUNCTION(pe),
+	FUNCTION(pe0),
+	FUNCTION(pe1),
 	FUNCTION(pmi),
 	FUNCTION(pwm0),
 	FUNCTION(pwm1),
@@ -2738,6 +1638,8 @@ static const struct tegra_function tegra124_functions[] = {
 	FUNCTION(rsvd2),
 	FUNCTION(rsvd3),
 	FUNCTION(rsvd4),
+	FUNCTION(rtck),
+	FUNCTION(sata),
 	FUNCTION(sdmmc1),
 	FUNCTION(sdmmc2),
 	FUNCTION(sdmmc3),
@@ -2750,6 +1652,8 @@ static const struct tegra_function tegra124_functions[] = {
 	FUNCTION(spi4),
 	FUNCTION(spi5),
 	FUNCTION(spi6),
+	FUNCTION(sys),
+	FUNCTION(tmds),
 	FUNCTION(trace),
 	FUNCTION(uarta),
 	FUNCTION(uartb),
@@ -2768,23 +1672,13 @@ static const struct tegra_function tegra124_functions[] = {
 	FUNCTION(vi_alt3),
 	FUNCTION(vimclk2),
 	FUNCTION(vimclk2_alt),
-	FUNCTION(sata),
-	FUNCTION(ccla),
-	FUNCTION(pe0),
-	FUNCTION(pe),
-	FUNCTION(pe1),
-	FUNCTION(dp),
-	FUNCTION(rtck),
-	FUNCTION(sys),
-	FUNCTION(clk),
-	FUNCTION(tmds),
 };
 
-#define DRV_PINGROUP_REG_A	0x868	/* bank 0 */
-#define PINGROUP_REG_A		0x3000	/* bank 1 */
+#define DRV_PINGROUP_REG_A		0x868	/* bank 0 */
+#define PINGROUP_REG_A			0x3000	/* bank 1 */
 
-#define PINGROUP_REG_Y(r)	((r) - PINGROUP_REG_A)
-#define PINGROUP_REG_N(r)	-1
+#define PINGROUP_REG_Y(r)		((r) - PINGROUP_REG_A)
+#define PINGROUP_REG_N(r)		-1
 
 #define PINGROUP(pg_name, f0, f1, f2, f3, f_safe, r, od, ior, rcv_sel)	\
 	{								\
@@ -2792,12 +1686,12 @@ static const struct tegra_function tegra124_functions[] = {
 		.pins = pg_name##_pins,					\
 		.npins = ARRAY_SIZE(pg_name##_pins),			\
 		.funcs = {						\
-			TEGRA_MUX_ ## f0,				\
-			TEGRA_MUX_ ## f1,				\
-			TEGRA_MUX_ ## f2,				\
-			TEGRA_MUX_ ## f3,				\
+			TEGRA_MUX_##f0,					\
+			TEGRA_MUX_##f1,					\
+			TEGRA_MUX_##f2,					\
+			TEGRA_MUX_##f3,					\
 		},							\
-		.func_safe = TEGRA_MUX_ ## f_safe,			\
+		.func_safe = TEGRA_MUX_##f_safe,			\
 		.mux_reg = PINGROUP_REG_Y(r),				\
 		.mux_bank = 1,						\
 		.mux_bit = 0,						\
@@ -2826,8 +1720,9 @@ static const struct tegra_function tegra124_functions[] = {
 		.drvtype_reg = -1,					\
 	}
 
-#define DRV_PINGROUP_DVRTYPE_Y(r) ((r) - DRV_PINGROUP_REG_A)
-#define DRV_PINGROUP_DVRTYPE_N(r) -1
+#define DRV_PINGROUP_REG_Y(r)		((r) - DRV_PINGROUP_REG_A)
+#define DRV_PINGROUP_REG_N(r)		-1
+
 
 #define DRV_PINGROUP(pg_name, r, hsm_b, schmitt_b, lpmd_b,		\
 		     drvdn_b, drvdn_w, drvup_b, drvup_w,		\
@@ -2845,7 +1740,7 @@ static const struct tegra_function tegra124_functions[] = {
 		.lock_reg = -1,						\
 		.ioreset_reg = -1,					\
 		.rcv_sel_reg = -1,					\
-		.drv_reg = DRV_PINGROUP_DVRTYPE_Y(r),			\
+		.drv_reg = DRV_PINGROUP_REG_Y(r),			\
 		.drv_bank = 0,						\
 		.hsm_bit = hsm_b,					\
 		.schmitt_bit = schmitt_b,				\
@@ -2858,7 +1753,7 @@ static const struct tegra_function tegra124_functions[] = {
 		.slwr_width = slwr_w,					\
 		.slwf_bit = slwf_b,					\
 		.slwf_width = slwf_w,					\
-		.drvtype_reg = DRV_PINGROUP_DVRTYPE_##drvtype(r),	\
+		.drvtype_reg = DRV_PINGROUP_REG_##drvtype(r),		\
 		.drvtype_bank = 0,					\
 		.drvtype_bit = 6,					\
 	}
@@ -2909,8 +1804,8 @@ static const struct tegra_pingroup tegra124_groups[] = {
        PINGROUP(pu4,                    PWM1,       UARTA,      GMI,          DISPLAYB,    PWM1,       0x3194,  N,  N,  N),
        PINGROUP(pu5,                    PWM2,       UARTA,      GMI,          DISPLAYB,    PWM2,       0x3198,  N,  N,  N),
        PINGROUP(pu6,                    PWM3,       UARTA,      RSVD3,        GMI,         RSVD3,      0x319c,  N,  N,  N),
-       PINGROUP(gen1_i2c_scl_pc4,       I2C1,       RSVD2,      RSVD3,        RSVD4,       I2C1,       0x31a0,  Y,  N,  N),
-       PINGROUP(gen1_i2c_sda_pc5,       I2C1,       RSVD2,      RSVD3,        RSVD4,       I2C1,       0x31a4,  Y,  N,  N),
+       PINGROUP(gen1_i2c_sda_pc5,       I2C1,       RSVD2,      RSVD3,        RSVD4,       I2C1,       0x31a0,  Y,  N,  N),
+       PINGROUP(gen1_i2c_scl_pc4,       I2C1,       RSVD2,      RSVD3,        RSVD4,       I2C1,       0x31a4,  Y,  N,  N),
        PINGROUP(dap4_fs_pp4,            I2S3,       GMI,        DTV,          RSVD4,       I2S3,       0x31a8,  N,  N,  N),
        PINGROUP(dap4_din_pp5,           I2S3,       GMI,        RSVD3,        RSVD4,       I2S3,       0x31ac,  N,  N,  N),
        PINGROUP(dap4_dout_pp6,          I2S3,       GMI,        DTV,          RSVD4,       I2S3,       0x31b0,  N,  N,  N),
@@ -2964,9 +1859,9 @@ static const struct tegra_pingroup tegra124_groups[] = {
        PINGROUP(sdmmc4_dat4_paa4,       SDMMC4,     SPI3,       GMI,          RSVD4,       SDMMC4,     0x3270,  N,  Y,  N),
        PINGROUP(sdmmc4_dat5_paa5,       SDMMC4,     SPI3,       RSVD3,        RSVD4,       SDMMC4,     0x3274,  N,  Y,  N),
        PINGROUP(sdmmc4_dat6_paa6,       SDMMC4,     SPI3,       GMI,          RSVD4,       SDMMC4,     0x3278,  N,  Y,  N),
-       PINGROUP(sdmmc4_dat7_paa7,       SDMMC4,     RSVD1,      GMI,          RSVD4,       SDMMC4,     0x327c,  N,  Y,  N),
+       PINGROUP(sdmmc4_dat7_paa7,       SDMMC4,     RSVD2,      GMI,          RSVD4,       SDMMC4,     0x327c,  N,  Y,  N),
        PINGROUP(cam_mclk_pcc0,          VI,         VI_ALT1,    VI_ALT3,      SDMMC2,      VI,         0x3284,  N,  N,  N),
-       PINGROUP(pcc1,                   I2S4,       RSVD1,      RSVD3,        SDMMC2,      I2S4,       0x3288,  N,  N,  N),
+       PINGROUP(pcc1,                   I2S4,       RSVD2,      RSVD3,        SDMMC2,      I2S4,       0x3288,  N,  N,  N),
        PINGROUP(pbb0,                   VGP6,       VIMCLK2,    SDMMC2,       VIMCLK2_ALT, VGP6,       0x328c,  N,  N,  N),
        PINGROUP(cam_i2c_scl_pbb1,       VGP1,       I2C3,       RSVD3,        SDMMC2,      VGP1,       0x3290,  Y,  N,  N),
        PINGROUP(cam_i2c_sda_pbb2,       VGP2,       I2C3,       RSVD3,        SDMMC2,      VGP2,       0x3294,  Y,  N,  N),
@@ -3047,8 +1942,8 @@ static const struct tegra_pingroup tegra124_groups[] = {
        PINGROUP(gpio_w3_aud_pw3,        SPI6,       SPI1,       SPI2,         I2C1,        SPI1,       0x33f0,  N,  N,  N),
        PINGROUP(usb_vbus_en0_pn4,       USB,        RSVD2,      RSVD3,        RSVD4,       USB,        0x33f4,  Y,  N,  N),
        PINGROUP(usb_vbus_en1_pn5,       USB,        RSVD2,      RSVD3,        RSVD4,       USB,        0x33f8,  Y,  N,  N),
-       PINGROUP(sdmmc3_clk_lb_out_pee4, SDMMC3,     RSVD2,      RSVD3,        RSVD4,       SDMMC3,     0x33fc,  N,  N,  N),
-       PINGROUP(sdmmc3_clk_lb_in_pee5,  SDMMC3,     RSVD2,      RSVD3,        RSVD4,       SDMMC3,     0x3400,  N,  N,  N),
+       PINGROUP(sdmmc3_clk_lb_in_pee5,  SDMMC3,     RSVD2,      RSVD3,        RSVD4,       SDMMC3,     0x33fc,  N,  N,  N),
+       PINGROUP(sdmmc3_clk_lb_out_pee4, SDMMC3,     RSVD2,      RSVD3,        RSVD4,       SDMMC3,     0x3400,  N,  N,  N),
        PINGROUP(gmi_clk_lb,             SDMMC2,     RSVD2,      GMI,          RSVD4,       SDMMC2,     0x3404,  N,  N,  N),
        PINGROUP(reset_out_n,            RSVD1,      RSVD2,      RSVD3,        RESET_OUT_N, RSVD1,      0x3408,  N,  N,  N),
        PINGROUP(kb_row16_pt0,           KBC,        RSVD2,      RSVD3,        UARTC,       KBC,        0x340c,  N,  N,  N),

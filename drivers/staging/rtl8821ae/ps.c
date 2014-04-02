@@ -257,7 +257,7 @@ void rtl_ips_nic_off_wq_callback(void *data)
 		 *Do not enter IPS in the following conditions:
 		 *(1) RF is already OFF or Sleep
 		 *(2) b_swrf_processing (indicates the IPS is still under going)
-		 *(3) Connectted (only disconnected can trigger IPS)
+		 *(3) Connected (only disconnected can trigger IPS)
 		 *(4) IBSS (send Beacon)
 		 *(5) AP mode (send Beacon)
 		 *(6) monitor mode (rcv packet)

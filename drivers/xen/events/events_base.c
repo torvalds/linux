@@ -336,9 +336,8 @@ static void bind_evtchn_to_cpu(unsigned int chn, unsigned int cpu)
 
 	BUG_ON(irq == -1);
 #ifdef CONFIG_SMP
-	cpumask_copy(irq_to_desc(irq)->irq_data.affinity, cpumask_of(cpu));
+	cpumask_copy(irq_get_irq_data(irq)->affinity, cpumask_of(cpu));
 #endif
-
 	xen_evtchn_port_bind_to_cpu(info, cpu);
 
 	info->cpu = cpu;
@@ -373,10 +372,8 @@ static void xen_irq_init(unsigned irq)
 {
 	struct irq_info *info;
 #ifdef CONFIG_SMP
-	struct irq_desc *desc = irq_to_desc(irq);
-
 	/* By default all event channels notify CPU#0. */
-	cpumask_copy(desc->irq_data.affinity, cpumask_of(0));
+	cpumask_copy(irq_get_irq_data(irq)->affinity, cpumask_of(0));
 #endif
 
 	info = kzalloc(sizeof(*info), GFP_KERNEL);
@@ -490,13 +487,6 @@ static void pirq_query_unmask(int irq)
 		info->u.pirq.flags |= PIRQ_NEEDS_EOI;
 }
 
-static bool probing_irq(int irq)
-{
-	struct irq_desc *desc = irq_to_desc(irq);
-
-	return desc && desc->action == NULL;
-}
-
 static void eoi_pirq(struct irq_data *data)
 {
 	int evtchn = evtchn_from_irq(data->irq);
@@ -538,8 +528,7 @@ static unsigned int __startup_pirq(unsigned int irq)
 					BIND_PIRQ__WILL_SHARE : 0;
 	rc = HYPERVISOR_event_channel_op(EVTCHNOP_bind_pirq, &bind_pirq);
 	if (rc != 0) {
-		if (!probing_irq(irq))
-			pr_info("Failed to obtain physical IRQ %d\n", irq);
+		pr_warn("Failed to obtain physical IRQ %d\n", irq);
 		return 0;
 	}
 	evtchn = bind_pirq.port;
@@ -772,16 +761,11 @@ error_irq:
 
 int xen_destroy_irq(int irq)
 {
-	struct irq_desc *desc;
 	struct physdev_unmap_pirq unmap_irq;
 	struct irq_info *info = info_for_irq(irq);
 	int rc = -ENOENT;
 
 	mutex_lock(&irq_mapping_update_lock);
-
-	desc = irq_to_desc(irq);
-	if (!desc)
-		goto out;
 
 	if (xen_initial_domain()) {
 		unmap_irq.pirq = info->u.pirq.pirq;
@@ -1251,6 +1235,7 @@ void xen_evtchn_do_upcall(struct pt_regs *regs)
 #ifdef CONFIG_X86
 	exit_idle();
 #endif
+	inc_irq_stat(irq_hv_callback_count);
 
 	__xen_evtchn_do_upcall();
 
@@ -1339,7 +1324,7 @@ static int rebind_irq_to_cpu(unsigned irq, unsigned tcpu)
 static int set_affinity_irq(struct irq_data *data, const struct cpumask *dest,
 			    bool force)
 {
-	unsigned tcpu = cpumask_first(dest);
+	unsigned tcpu = cpumask_first_and(dest, cpu_online_mask);
 
 	return rebind_irq_to_cpu(data->irq, tcpu);
 }

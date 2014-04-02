@@ -1,0 +1,174 @@
+
+Overview
+
+This document describes the driver set for Unisys Secure Partitioning (s-Par®).
+
+s-Par is firmware that provides hardware partitioning capabilities for
+splitting large-scale Intel x86 servers into multiple isolated
+partitions. s-Par provides a set of para-virtualized device drivers to
+allow guest partitions on the same server to share devices that would
+normally be unsharable; specifically, PCI network interfaces and host
+bus adapters that do not support shared access via SR-IOV. The shared
+device is owned and managed by a small, single-purpose service
+partition, which communicates with each guest partition sharing that
+device through an area of shared memory called a channel. Additional
+drivers provide support interfaces for communicating with s-Par
+services, logging and diagnostics, and accessing the Linux console
+from the s-Par user interface.
+
+The driver stack consists of a set of support modules, a set of bus
+modules, and a set of device driver modules. The support modules
+handle a number of common functions across each of the other
+drivers. The bus modules provide organization for the device driver
+modules, which provide the shared device functionality.
+
+These drivers are for the Unisys virtual PCI hardware model where the
+hypervisor need not intervene (other than normal interrupt handling)
+in the interactions between the client drivers and the virtual adapter
+firmware in the adapter service partition.
+
+Driver Descriptions
+
+Device Modules
+
+The modules in this section handle shared devices and the virtual
+buses required to support them. These modules use functions in and
+depend on the modules described in the support modules section.
+
+visorchipset
+
+The visorchipset module receives device creation and destruction
+events from the Command service partition of s-Par, as well as
+controlling registration of shared device drivers with the s-Par
+driver core. The events received are used to populate other s-Par
+modules with their assigned shared devices. Visorchipset is required
+for shared device drivers to function properly. Visorchipset also
+stores information for handling dump disk device creation during
+kdump.
+
+In operation, the visorchipset module processes device creation and
+destruction messages sent by s-Par's Command service partition through
+a channel. These messages result in creation (or destruction) of each
+virtual bus and virtual device. Each bus and device is also associated
+with a communication channel, which is used to communicate with one or
+more IO service partitions to perform device IO on behalf of the
+guest.
+
+virthba
+
+The virthba module provides access to a shared SCSI host bus adapter
+and one or more disk devices, by proxying SCSI commands between the
+guest and the service partition that owns the shared SCSI adapter,
+using a channel between the guest and the service partition. The disks
+that appear on the shared bus are defined by the s-Par configuration
+and enforced by the service partition, while the guest driver handles
+sending commands and handling responses. Each disk is shared as a
+whole to a guest. Sharing the bus adapter in this way provides
+resiliency; should the device encounter an error, only the service
+partition is rebooted, and the device is reinitialized. This allows
+guests to continue running and to recover from the error.
+
+virtnic
+
+The virtnic module provides a paravirtualized network interface to a
+guest by proxying buffer information between the guest and the service
+partition that owns the shared network interface, using a channel
+between the guest and the service partition. The connectivity of this
+interface with the shared interface and possibly other guest
+partitions is defined by the s-Par configuration and enforced by the
+service partition; the guest driver handles communication and link
+status.
+
+visorserial
+
+The visorserial module allows the console of the linux guest to be
+accessed via the s-Par console serial channel. It creates devices in
+/dev/visorserialclientX which behave like a serial terminal and are
+connected to the diagnostics system in s-Par. By assigning a getty to
+the terminal in the guest, a user could log into and access the guest
+from the s-Par diagnostics SWITCH RUN terminal.
+
+visorbus
+
+The visorbus module handles the bus functions for most functional
+drivers except visorserial, visordiag, virthba, and virtnic. It
+maintains the sysfs subtree /sys/devices/visorbus*/. It is responsible
+for device creation and destruction of the devices on its bus.
+
+visorclientbus
+
+The visorclientbus module forwards the bus functions for virthba, and
+virtnic to the virtpci driver.
+
+virtpci
+
+The virtpci module handles the bus functions for virthba, and virtnic.
+
+s-Par Integration Modules
+
+The modules in this section provide integration with s-Par guest
+partition services like diagnostics and remote desktop. These modules
+depend on functions in the modules described in the support modules
+section.
+
+visorvideoclient
+
+The visorvideoclient module provides functionality for video support
+for the Unisys s-Par Partition Desktop application. The guest OS must
+also have the UEFI GOP protocol enabled for the partition desktop to
+function.  visorconinclient The visorconinclient module provides
+keyboard and mouse support for the Unisys s-Par Partition Desktop
+application.
+
+sparstop
+
+The sparstop module handles requests from the Unisys s-Par platform to
+shutdown the linux guest. It allows a program on the guest to perform
+clean-up functions on the guest before the guest is shut down or
+rebooted using ACPI.
+
+visordiag
+
+This driver provides the ability for the guest to write information
+into the s-Par diagnostics subsystem. It creates a set of devices
+named /dev/visordiag.X which can be written to by the guest to add
+text to the s-Par system log.
+
+Support Modules
+
+The modules described in this section provide functions and
+abstractions to support the modules described in the previous
+sections, to avoid having duplicated functionality.
+
+visornoop
+
+The visornoop module is a placeholder that responds to device
+create/destroy messages that are currently not in use by linux guests.
+
+visoruislib
+
+The visoruislib module is a support library, used to handle requests
+from virtpci.
+
+visorchannelstub
+
+The visorchannelstub module provides support routines for storing and
+retrieving data from a channel.
+
+visorchannel
+
+The visorchannel module is a support library that abstracts reading
+and writing a channel in memory.
+
+visorutil
+
+The visorutil module is a support library required by all other s-Par
+driver modules. Among its features it abstracts reading, writing, and
+manipulating a block of memory.
+
+Minimum Required Driver Set
+
+The drivers required to boot a Linux guest are visorchipset, visorbus,
+visorvideoclient, visorconinclient, visoruislib, visorchannelstub,
+visorchannel, and visorutil. The other drivers are required by the
+product configurations that are currently being marketed.

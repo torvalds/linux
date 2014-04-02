@@ -123,7 +123,7 @@ int lustre_msg_early_size(void)
 		 * with the old client (< 2.3) which doesn't have pb_jobid
 		 * in the ptlrpc_body.
 		 *
-		 * XXX Remove this whenever we dorp interoprability with such
+		 * XXX Remove this whenever we drop interoprability with such
 		 *     client.
 		 */
 		__u32 pblen = sizeof(struct ptlrpc_body_v2);
@@ -244,15 +244,7 @@ int lustre_pack_request(struct ptlrpc_request *req, __u32 magic, int count,
 	LASSERT(lens[MSG_PTLRPC_BODY_OFF] == sizeof(struct ptlrpc_body));
 
 	/* only use new format, we don't need to be compatible with 1.4 */
-	magic = LUSTRE_MSG_MAGIC_V2;
-
-	switch (magic) {
-	case LUSTRE_MSG_MAGIC_V2:
-		return lustre_pack_request_v2(req, count, lens, bufs);
-	default:
-		LASSERTF(0, "incorrect message magic: %08x\n", magic);
-		return -EINVAL;
-	}
+	return lustre_pack_request_v2(req, count, lens, bufs);
 }
 EXPORT_SYMBOL(lustre_pack_request);
 
@@ -1545,7 +1537,7 @@ void lustre_msg_set_jobid(struct lustre_msg *msg, char *jobid)
 		__u32 opc = lustre_msg_get_opc(msg);
 		struct ptlrpc_body *pb;
 
-		/* Don't set jobid for ldlm ast RPCs, they've been shrinked.
+		/* Don't set jobid for ldlm ast RPCs, they've been shrunk.
 		 * See the comment in ptlrpc_request_pack(). */
 		if (!opc || opc == LDLM_BL_CALLBACK ||
 		    opc == LDLM_CP_CALLBACK || opc == LDLM_GL_CALLBACK)

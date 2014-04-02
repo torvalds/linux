@@ -98,7 +98,7 @@ struct lov_stripe_md *lsm_alloc_plain(__u16 stripe_count, int *size)
 
 	OBD_ALLOC_LARGE(lsm, *size);
 	if (!lsm)
-		return NULL;;
+		return NULL;
 
 	for (i = 0; i < stripe_count; i++) {
 		OBD_SLAB_ALLOC_PTR_GFP(loi, lov_oinfo_slab, __GFP_IO);

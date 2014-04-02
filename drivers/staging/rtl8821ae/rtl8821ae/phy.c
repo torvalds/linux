@@ -86,7 +86,7 @@ void rtl8812ae_fixspur(
 			/* 0x8AC[11:10] = 2'b10*/
 
 
-		/* <20120914, Kordan> A workarould to resolve
+		/* <20120914, Kordan> A workaround to resolve
 		2480Mhz spur by setting ADC clock as 160M. (Asked by Binson)*/
 		if (band_width == HT_CHANNEL_WIDTH_20 &&
 			(channel == 13 || channel == 14)) {
@@ -107,7 +107,7 @@ void rtl8812ae_fixspur(
 	}
 	else if (rtlhal->hw_type == HARDWARE_TYPE_RTL8812AE)
 	{
-		/* <20120914, Kordan> A workarould to resolve
+		/* <20120914, Kordan> A workaround to resolve
 		2480Mhz spur by setting ADC clock as 160M. (Asked by Binson)*/
 		if (band_width == HT_CHANNEL_WIDTH_20 &&
 			(channel == 13 || channel == 14))
@@ -441,8 +441,8 @@ u32 phy_get_tx_bb_swing_8812A(
 	struct rtl_dm *rtldm = rtl_dm(rtlpriv);
 	struct rtl_efuse *rtlefuse = rtl_efuse(rtl_priv(hw));
 
-	char bb_swing_2g = (char) (-1 * 0xFF);
-	char bb_swing_5g = (char) (-1 * 0xFF);
+	char bb_swing_2g = (char) ((-1 * 0xFF) & 0xFF);
+	char bb_swing_5g = (char) ((-1 * 0xFF) & 0xFF);
 	u32  out = 0x200;
 	const char auto_temp = -1;
 

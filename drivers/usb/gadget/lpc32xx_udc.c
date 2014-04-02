@@ -3295,9 +3295,9 @@ usb_clk_enable_fail:
 pll_set_fail:
 	clk_disable(udc->usb_pll_clk);
 pll_enable_fail:
-	clk_put(udc->usb_slv_clk);
-usb_otg_clk_get_fail:
 	clk_put(udc->usb_otg_clk);
+usb_otg_clk_get_fail:
+	clk_put(udc->usb_slv_clk);
 usb_clk_get_fail:
 	clk_put(udc->usb_pll_clk);
 pll_get_fail:

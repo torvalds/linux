@@ -584,7 +584,6 @@ config FHCI_DEBUG
 config USB_U132_HCD
 	tristate "Elan U132 Adapter Host Controller"
 	depends on USB_FTDI_ELAN
-	default M
 	help
 	  The U132 adapter is a USB to CardBus adapter specifically designed
 	  for PC cards that contain an OHCI host controller. Typical PC cards

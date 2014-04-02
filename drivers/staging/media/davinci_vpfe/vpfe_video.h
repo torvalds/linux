@@ -32,7 +32,7 @@ struct vpfe_device;
  *		if there was no buffer previously queued.
  */
 struct vpfe_video_operations {
-	int(*queue) (struct vpfe_device *vpfe_dev, unsigned long addr);
+	int (*queue)(struct vpfe_device *vpfe_dev, unsigned long addr);
 };
 
 enum vpfe_pipeline_stream_state {

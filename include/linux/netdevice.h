@@ -3014,7 +3014,7 @@ struct sk_buff *skb_gso_segment(struct sk_buff *skb, netdev_features_t features)
 {
 	return __skb_gso_segment(skb, features, true);
 }
-__be16 skb_network_protocol(struct sk_buff *skb);
+__be16 skb_network_protocol(struct sk_buff *skb, int *depth);
 
 static inline bool can_checksum_protocol(netdev_features_t features,
 					 __be16 protocol)

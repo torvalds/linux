@@ -1404,8 +1404,6 @@ static int sis_chip_create(struct snd_card *card,
 	if (rc)
 		goto error_out_cleanup;
 
-	snd_card_set_dev(card, &pci->dev);
-
 	return 0;
 
 error_out_cleanup:
@@ -1440,7 +1438,8 @@ static int snd_sis7019_probe(struct pci_dev *pci,
 	if (!codecs)
 		codecs = SIS_PRIMARY_CODEC_PRESENT;
 
-	rc = snd_card_create(index, id, THIS_MODULE, sizeof(*sis), &card);
+	rc = snd_card_new(&pci->dev, index, id, THIS_MODULE,
+			  sizeof(*sis), &card);
 	if (rc < 0)
 		goto error_out;
 

@@ -5,7 +5,7 @@
  *****************************************************************************/
 
 /*
- * Copyright (C) 2000 - 2013, Intel Corp.
+ * Copyright (C) 2000 - 2014, Intel Corp.
  * All rights reserved.
  *
  * Redistribution and use in source and binary forms, with or without
@@ -46,7 +46,7 @@
 
 /* Current ACPICA subsystem version in YYYYMMDD format */
 
-#define ACPI_CA_VERSION                 0x20131218
+#define ACPI_CA_VERSION                 0x20140214
 
 #include <acpi/acconfig.h>
 #include <acpi/actypes.h>
@@ -228,6 +228,10 @@ acpi_status
 acpi_attach_data(acpi_handle object, acpi_object_handler handler, void *data);
 
 acpi_status acpi_detach_data(acpi_handle object, acpi_object_handler handler);
+
+acpi_status
+acpi_get_data_full(acpi_handle object, acpi_object_handler handler, void **data,
+		   void (*callback)(void *));
 
 acpi_status
 acpi_get_data(acpi_handle object, acpi_object_handler handler, void **data);

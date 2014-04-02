@@ -23,7 +23,6 @@
 
 #include <linux/init.h>
 #include <linux/slab.h>
-#include <linux/pci.h>
 #include <linux/module.h>
 #include <sound/core.h>
 #include "hda_codec.h"
@@ -32,6 +31,9 @@
 #include "hda_jack.h"
 #include "hda_generic.h"
 
+#undef ENABLE_CMI_STATIC_QUIRKS
+
+#ifdef ENABLE_CMI_STATIC_QUIRKS
 #define NUM_PINS	11
 
 
@@ -45,10 +47,12 @@ enum {
 	CMI_AUTO,	/* let driver guess it */
 	CMI_MODELS
 };
+#endif /* ENABLE_CMI_STATIC_QUIRKS */
 
 struct cmi_spec {
 	struct hda_gen_spec gen;
 
+#ifdef ENABLE_CMI_STATIC_QUIRKS
 	/* below are only for static models */
 
 	int board_config;
@@ -81,8 +85,10 @@ struct cmi_spec {
 
 	/* multichannel pins */
 	struct hda_verb multi_init[9];	/* 2 verbs for each pin + terminator */
+#endif /* ENABLE_CMI_STATIC_QUIRKS */
 };
 
+#ifdef ENABLE_CMI_STATIC_QUIRKS
 /*
  * input MUX
  */
@@ -566,6 +572,7 @@ static const struct hda_codec_ops cmi9880_patch_ops = {
 	.init = cmi9880_init,
 	.free = cmi9880_free,
 };
+#endif /* ENABLE_CMI_STATIC_QUIRKS */
 
 /*
  * stuff for auto-parser
@@ -588,14 +595,19 @@ static int cmi_parse_auto_config(struct hda_codec *codec)
 
 	err = snd_hda_parse_pin_defcfg(codec, cfg, NULL, 0);
 	if (err < 0)
-		return err;
+		goto error;
 	err = snd_hda_gen_parse_auto_config(codec, cfg);
 	if (err < 0)
-		return err;
+		goto error;
 
 	codec->patch_ops = cmi_auto_patch_ops;
 	return 0;
+
+ error:
+	snd_hda_gen_free(codec);
+	return err;
 }
+
 
 static int patch_cmi9880(struct hda_codec *codec)
 {
@@ -606,23 +618,18 @@ static int patch_cmi9880(struct hda_codec *codec)
 		return -ENOMEM;
 
 	codec->spec = spec;
+#ifdef ENABLE_CMI_STATIC_QUIRKS
 	spec->board_config = snd_hda_check_board_config(codec, CMI_MODELS,
 							cmi9880_models,
 							cmi9880_cfg_tbl);
 	if (spec->board_config < 0) {
-		snd_printdd(KERN_INFO "hda_codec: %s: BIOS auto-probing.\n",
+		codec_dbg(codec, "%s: BIOS auto-probing.\n",
 			    codec->chip_name);
 		spec->board_config = CMI_AUTO; /* try everything */
 	}
 
-	if (spec->board_config == CMI_AUTO) {
-		int err = cmi_parse_auto_config(codec);
-		if (err < 0) {
-			snd_hda_gen_free(codec);
-			return err;
-		}
-		return 0;
-	}
+	if (spec->board_config == CMI_AUTO)
+		return cmi_parse_auto_config(codec);
 
 	/* copy default DAC NIDs */
 	memcpy(spec->dac_nids, cmi9880_dac_nids, sizeof(spec->dac_nids));
@@ -669,6 +676,9 @@ static int patch_cmi9880(struct hda_codec *codec)
 	codec->patch_ops = cmi9880_patch_ops;
 
 	return 0;
+#else
+	return cmi_parse_auto_config(codec);
+#endif
 }
 
 /*

@@ -577,7 +577,7 @@ static void ll_agl_trigger(struct inode *inode, struct ll_statahead_info *sai)
 	 * Someone triggered glimpse within 1 sec before.
 	 * 1) The former glimpse succeeded with glimpse lock granted by OST, and
 	 *    if the lock is still cached on client, AGL needs to do nothing. If
-	 *    it is cancelled by other client, AGL maybe cannot obtaion new lock
+	 *    it is cancelled by other client, AGL maybe cannot obtain new lock
 	 *    for no glimpse callback triggered by AGL.
 	 * 2) The former glimpse succeeded, but OST did not grant glimpse lock.
 	 *    Under such case, it is quite possible that the OST will not grant
@@ -875,9 +875,6 @@ static int do_sa_revalidate(struct inode *dir, struct ll_sa_entry *entry,
 		return 1;
 
 	if (d_mountpoint(dentry))
-		return 1;
-
-	if (unlikely(dentry == dentry->d_sb->s_root))
 		return 1;
 
 	entry->se_inode = igrab(inode);
@@ -1588,8 +1585,15 @@ int do_statahead_enter(struct inode *dir, struct dentry **dentryp,
 						ll_inode2fid(inode), &bits);
 			if (rc == 1) {
 				if ((*dentryp)->d_inode == NULL) {
-					*dentryp = ll_splice_alias(inode,
+					struct dentry *alias;
+
+					alias = ll_splice_alias(inode,
 								   *dentryp);
+					if (IS_ERR(alias)) {
+						ll_sai_unplug(sai, entry);
+						return PTR_ERR(alias);
+					}
+					*dentryp = alias;
 				} else if ((*dentryp)->d_inode != inode) {
 					/* revalidate, but inode is recreated */
 					CDEBUG(D_READA,

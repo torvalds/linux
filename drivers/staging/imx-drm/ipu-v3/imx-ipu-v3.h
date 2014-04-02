@@ -25,6 +25,8 @@ enum ipuv3_type {
 	IPUV3H,
 };
 
+#define IPU_PIX_FMT_GBR24	v4l2_fourcc('G', 'B', 'R', '3')
+
 /*
  * Bitfield of Display Interface signal polarities.
  */

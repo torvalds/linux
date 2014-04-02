@@ -5,7 +5,7 @@
  *****************************************************************************/
 
 /*
- * Copyright (C) 2000 - 2013, Intel Corp.
+ * Copyright (C) 2000 - 2014, Intel Corp.
  * All rights reserved.
  *
  * Redistribution and use in source and binary forms, with or without
@@ -55,18 +55,16 @@
 #error ACPI_MACHINE_WIDTH not defined
 #endif
 
-/*! [Begin] no source code translation */
-
 /*
  * Data type ranges
  * Note: These macros are designed to be compiler independent as well as
  * working around problems that some 32-bit compilers have with 64-bit
  * constants.
  */
-#define ACPI_UINT8_MAX                  (UINT8) (~((UINT8)  0))	/* 0xFF               */
-#define ACPI_UINT16_MAX                 (UINT16)(~((UINT16) 0))	/* 0xFFFF             */
-#define ACPI_UINT32_MAX                 (UINT32)(~((UINT32) 0))	/* 0xFFFFFFFF         */
-#define ACPI_UINT64_MAX                 (UINT64)(~((UINT64) 0))	/* 0xFFFFFFFFFFFFFFFF */
+#define ACPI_UINT8_MAX                  (u8) (~((u8)  0))	/* 0xFF               */
+#define ACPI_UINT16_MAX                 (u16)(~((u16) 0))	/* 0xFFFF             */
+#define ACPI_UINT32_MAX                 (u32)(~((u32) 0))	/* 0xFFFFFFFF         */
+#define ACPI_UINT64_MAX                 (u64)(~((u64) 0))	/* 0xFFFFFFFFFFFFFFFF */
 #define ACPI_ASCII_MAX                  0x7F
 
 /*
@@ -77,18 +75,18 @@
  *
  * 1) The following types are of fixed size for all targets (16/32/64):
  *
- * BOOLEAN      Logical boolean
+ * u8           Logical boolean
  *
- * UINT8        8-bit  (1 byte) unsigned value
- * UINT16       16-bit (2 byte) unsigned value
- * UINT32       32-bit (4 byte) unsigned value
- * UINT64       64-bit (8 byte) unsigned value
+ * u8           8-bit  (1 byte) unsigned value
+ * u16          16-bit (2 byte) unsigned value
+ * u32          32-bit (4 byte) unsigned value
+ * u64          64-bit (8 byte) unsigned value
  *
- * INT16        16-bit (2 byte) signed value
- * INT32        32-bit (4 byte) signed value
- * INT64        64-bit (8 byte) signed value
+ * s16          16-bit (2 byte) signed value
+ * s32          32-bit (4 byte) signed value
+ * s64          64-bit (8 byte) signed value
  *
- * COMPILER_DEPENDENT_UINT64/INT64 - These types are defined in the
+ * COMPILER_DEPENDENT_UINT64/s64 - These types are defined in the
  * compiler-dependent header(s) and were introduced because there is no common
  * 64-bit integer type across the various compilation models, as shown in
  * the table below.
@@ -110,11 +108,11 @@
  * usually used for memory allocation, efficient loop counters, and array
  * indexes. The types are similar to the size_t type in the C library and are
  * required because there is no C type that consistently represents the native
- * data width. ACPI_SIZE is needed because there is no guarantee that a
+ * data width. acpi_size is needed because there is no guarantee that a
  * kernel-level C library is present.
  *
- * ACPI_SIZE        16/32/64-bit unsigned value
- * ACPI_NATIVE_INT  16/32/64-bit signed value
+ * acpi_size        16/32/64-bit unsigned value
+ * acpi_native_int  16/32/64-bit signed value
  */
 
 /*******************************************************************************
@@ -123,13 +121,15 @@
  *
  ******************************************************************************/
 
-typedef unsigned char BOOLEAN;
-typedef unsigned char UINT8;
-typedef unsigned short UINT16;
-typedef COMPILER_DEPENDENT_UINT64 UINT64;
-typedef COMPILER_DEPENDENT_INT64 INT64;
+#ifndef ACPI_USE_SYSTEM_INTTYPES
 
-/*! [End] no source code translation !*/
+typedef unsigned char u8;
+typedef unsigned char u8;
+typedef unsigned short u16;
+typedef COMPILER_DEPENDENT_UINT64 u64;
+typedef COMPILER_DEPENDENT_INT64 s64;
+
+#endif				/* ACPI_USE_SYSTEM_INTTYPES */
 
 /*
  * Value returned by acpi_os_get_thread_id. There is no standard "thread_id"
@@ -149,12 +149,12 @@ typedef COMPILER_DEPENDENT_INT64 INT64;
 
 #if ACPI_MACHINE_WIDTH == 64
 
-/*! [Begin] no source code translation (keep the typedefs as-is) */
+#ifndef ACPI_USE_SYSTEM_INTTYPES
 
-typedef unsigned int UINT32;
-typedef int INT32;
+typedef unsigned int u32;
+typedef int s32;
 
-/*! [End] no source code translation !*/
+#endif				/* ACPI_USE_SYSTEM_INTTYPES */
 
 typedef s64 acpi_native_int;
 
@@ -188,12 +188,12 @@ typedef u64 acpi_physical_address;
 
 #elif ACPI_MACHINE_WIDTH == 32
 
-/*! [Begin] no source code translation (keep the typedefs as-is) */
+#ifndef ACPI_USE_SYSTEM_INTTYPES
 
-typedef unsigned int UINT32;
-typedef int INT32;
+typedef unsigned int u32;
+typedef int s32;
 
-/*! [End] no source code translation !*/
+#endif				/* ACPI_USE_SYSTEM_INTTYPES */
 
 typedef s32 acpi_native_int;
 

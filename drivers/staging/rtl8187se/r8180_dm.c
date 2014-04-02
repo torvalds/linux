@@ -1116,14 +1116,14 @@ bool CheckTxPwrTracking(struct net_device *dev)
 void SwAntennaDiversityTimerCallback(struct net_device *dev)
 {
 	struct r8180_priv *priv = (struct r8180_priv *)ieee80211_priv(dev);
-	RT_RF_POWER_STATE rtState;
+	enum rt_rf_power_state rtState;
 
 	 /* We do NOT need to switch antenna while RF is off. */
 	rtState = priv->eRFPowerState;
 	do {
-		if (rtState == eRfOff) {
+		if (rtState == RF_OFF) {
 			break;
-		} else if (rtState == eRfSleep) {
+		} else if (rtState == RF_SLEEP) {
 			/* Don't access BB/RF under Disable PLL situation. */
 			break;
 		}

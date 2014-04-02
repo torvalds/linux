@@ -78,8 +78,8 @@ int __init pci_visws_init(void)
 		"bridge B (PIIX4) bus: %u\n", pci_bus1, pci_bus0);
 
 	raw_pci_ops = &pci_direct_conf1;
-	pci_scan_bus_with_sysdata(pci_bus0);
-	pci_scan_bus_with_sysdata(pci_bus1);
+	pcibios_scan_root(pci_bus0);
+	pcibios_scan_root(pci_bus1);
 	pci_fixup_irqs(pci_common_swizzle, visws_map_irq);
 	pcibios_resource_survey();
 	/* Request bus scan */

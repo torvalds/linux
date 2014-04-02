@@ -427,7 +427,6 @@ static struct cpufreq_driver pxa_cpufreq_driver = {
 	.verify	= cpufreq_generic_frequency_table_verify,
 	.target_index = pxa_set_target,
 	.init	= pxa_cpufreq_init,
-	.exit	= cpufreq_generic_exit,
 	.get	= pxa_cpufreq_get,
 	.name	= "PXA2xx",
 };

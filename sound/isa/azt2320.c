@@ -184,8 +184,9 @@ static int snd_card_azt2320_probe(int dev,
 	struct snd_wss *chip;
 	struct snd_opl3 *opl3;
 
-	error = snd_card_create(index[dev], id[dev], THIS_MODULE,
-				sizeof(struct snd_card_azt2320), &card);
+	error = snd_card_new(&pcard->card->dev,
+			     index[dev], id[dev], THIS_MODULE,
+			     sizeof(struct snd_card_azt2320), &card);
 	if (error < 0)
 		return error;
 	acard = card->private_data;
@@ -194,7 +195,6 @@ static int snd_card_azt2320_probe(int dev,
 		snd_card_free(card);
 		return error;
 	}
-	snd_card_set_dev(card, &pcard->card->dev);
 
 	if ((error = snd_card_azt2320_enable_wss(port[dev]))) {
 		snd_card_free(card);

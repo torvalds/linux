@@ -96,6 +96,7 @@ identify_qemu () {
 		echo qemu-system-ppc64
 	else
 		echo Cannot figure out what qemu command to use! 1>&2
+		echo file $1 output: $u
 		# Usually this will be one of /usr/bin/qemu-system-*
 		# Use RCU_QEMU_CMD environment variable or appropriate
 		# argument to top-level script.

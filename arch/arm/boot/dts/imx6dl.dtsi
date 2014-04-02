@@ -70,6 +70,15 @@
 			};
 		};
 	};
+
+	display-subsystem {
+		compatible = "fsl,imx-display-subsystem";
+		ports = <&ipu1_di0>, <&ipu1_di1>;
+	};
+};
+
+&hdmi {
+	compatible = "fsl,imx6dl-hdmi";
 };
 
 &ldb {
@@ -79,12 +88,4 @@
 	clock-names = "di0_pll", "di1_pll",
 		      "di0_sel", "di1_sel",
 		      "di0", "di1";
-
-	lvds-channel@0 {
-		crtcs = <&ipu1 0>, <&ipu1 1>;
-	};
-
-	lvds-channel@1 {
-		crtcs = <&ipu1 0>, <&ipu1 1>;
-	};
 };

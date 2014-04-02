@@ -299,7 +299,7 @@ EXPORT_SYMBOL(ldlm_completion_ast);
  * A helper to build a blocking AST function
  *
  * Perform a common operation for blocking ASTs:
- * defferred lock cancellation.
+ * deferred lock cancellation.
  *
  * \param lock the lock blocking or canceling AST was called on
  * \retval 0

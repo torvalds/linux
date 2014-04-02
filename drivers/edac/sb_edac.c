@@ -1263,7 +1263,7 @@ static int sbridge_get_onedevice(struct pci_dev **prev,
 	struct pci_dev *pdev = NULL;
 	u8 bus = 0;
 
-	sbridge_printk(KERN_INFO,
+	sbridge_printk(KERN_DEBUG,
 		"Seeking for: dev %02x.%d PCI ID %04x:%04x\n",
 		dev_descr->dev, dev_descr->func,
 		PCI_VENDOR_ID_INTEL, dev_descr->dev_id);

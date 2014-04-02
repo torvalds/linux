@@ -26,7 +26,6 @@
 #include <linux/mei_cl_bus.h>
 
 #include "mei_dev.h"
-#include "hw-me.h"
 #include "client.h"
 
 #define to_mei_cl_driver(d) container_of(d, struct mei_cl_driver, driver)
@@ -145,9 +144,9 @@ static struct device_type mei_cl_device_type = {
 static struct mei_cl *mei_bus_find_mei_cl_by_uuid(struct mei_device *dev,
 						uuid_le uuid)
 {
-	struct mei_cl *cl, *next;
+	struct mei_cl *cl;
 
-	list_for_each_entry_safe(cl, next, &dev->device_list, device_link) {
+	list_for_each_entry(cl, &dev->device_list, device_link) {
 		if (!uuid_le_cmp(uuid, cl->device_uuid))
 			return cl;
 	}
@@ -522,6 +521,22 @@ void mei_cl_bus_rx_event(struct mei_cl *cl)
 	set_bit(MEI_CL_EVENT_RX, &device->events);
 
 	schedule_work(&device->event_work);
+}
+
+void mei_cl_bus_remove_devices(struct mei_device *dev)
+{
+	struct mei_cl *cl, *next;
+
+	mutex_lock(&dev->device_lock);
+	list_for_each_entry_safe(cl, next, &dev->device_list, device_link) {
+		if (cl->device)
+			mei_cl_remove_device(cl->device);
+
+		list_del(&cl->device_link);
+		mei_cl_unlink(cl);
+		kfree(cl);
+	}
+	mutex_unlock(&dev->device_lock);
 }
 
 int __init mei_cl_bus_init(void)

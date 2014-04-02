@@ -73,11 +73,11 @@ static const DECLARE_TLV_DB_SCALE(ngth, -7650, 150, 0);
 static const char * const ml26124_companding[] = {"16bit PCM", "u-law",
 						  "A-law"};
 
-static const struct soc_enum ml26124_adc_companding_enum
-	= SOC_ENUM_SINGLE(ML26124_SAI_TRANS_CTL, 6, 3, ml26124_companding);
+static SOC_ENUM_SINGLE_DECL(ml26124_adc_companding_enum,
+			    ML26124_SAI_TRANS_CTL, 6, ml26124_companding);
 
-static const struct soc_enum ml26124_dac_companding_enum
-	= SOC_ENUM_SINGLE(ML26124_SAI_RCV_CTL, 6, 3, ml26124_companding);
+static SOC_ENUM_SINGLE_DECL(ml26124_dac_companding_enum,
+			    ML26124_SAI_RCV_CTL, 6, ml26124_companding);
 
 static const struct snd_kcontrol_new ml26124_snd_controls[] = {
 	SOC_SINGLE_TLV("Capture Digital Volume", ML26124_RECORD_DIG_VOL, 0,
@@ -136,8 +136,8 @@ static const struct snd_kcontrol_new ml26124_output_mixer_controls[] = {
 static const char * const ml26124_input_select[] = {"Analog MIC SingleEnded in",
 				"Digital MIC in", "Analog MIC Differential in"};
 
-static const struct soc_enum ml26124_insel_enum =
-	SOC_ENUM_SINGLE(ML26124_MIC_IF_CTL, 0, 3, ml26124_input_select);
+static SOC_ENUM_SINGLE_DECL(ml26124_insel_enum,
+			    ML26124_MIC_IF_CTL, 0, ml26124_input_select);
 
 static const struct snd_kcontrol_new ml26124_input_mux_controls =
 	SOC_DAPM_ENUM("Input Select", ml26124_insel_enum);
@@ -586,16 +586,6 @@ static int ml26124_resume(struct snd_soc_codec *codec)
 
 static int ml26124_probe(struct snd_soc_codec *codec)
 {
-	int ret;
-	struct ml26124_priv *priv = snd_soc_codec_get_drvdata(codec);
-	codec->control_data = priv->regmap;
-
-	ret = snd_soc_codec_set_cache_io(codec, 7, 9, SND_SOC_REGMAP);
-	if (ret < 0) {
-		dev_err(codec->dev, "Failed to set cache I/O: %d\n", ret);
-		return ret;
-	}
-
 	/* Software Reset */
 	snd_soc_update_bits(codec, ML26124_SW_RST, 0x01, 1);
 	snd_soc_update_bits(codec, ML26124_SW_RST, 0x01, 0);

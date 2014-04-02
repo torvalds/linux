@@ -516,7 +516,7 @@ static int tw2815_setup(struct solo_dev *solo_dev, u8 dev_addr)
 static void saa712x_write_regs(struct solo_dev *dev, const uint8_t *vals,
 		int start, int n)
 {
-	for (;start < n; start++, vals++) {
+	for (; start < n; start++, vals++) {
 		/* Skip read-only registers */
 		switch (start) {
 		/* case 0x00 ... 0x25: */

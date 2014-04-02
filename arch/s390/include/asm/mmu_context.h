@@ -48,13 +48,42 @@ static inline void update_mm(struct mm_struct *mm, struct task_struct *tsk)
 static inline void switch_mm(struct mm_struct *prev, struct mm_struct *next,
 			     struct task_struct *tsk)
 {
-	cpumask_set_cpu(smp_processor_id(), mm_cpumask(next));
-	update_mm(next, tsk);
+	int cpu = smp_processor_id();
+
+	if (prev == next)
+		return;
+	if (atomic_inc_return(&next->context.attach_count) >> 16) {
+		/* Delay update_mm until all TLB flushes are done. */
+		set_tsk_thread_flag(tsk, TIF_TLB_WAIT);
+	} else {
+		cpumask_set_cpu(cpu, mm_cpumask(next));
+		update_mm(next, tsk);
+		if (next->context.flush_mm)
+			/* Flush pending TLBs */
+			__tlb_flush_mm(next);
+	}
 	atomic_dec(&prev->context.attach_count);
 	WARN_ON(atomic_read(&prev->context.attach_count) < 0);
-	atomic_inc(&next->context.attach_count);
-	/* Check for TLBs not flushed yet */
-	__tlb_flush_mm_lazy(next);
+}
+
+#define finish_arch_post_lock_switch finish_arch_post_lock_switch
+static inline void finish_arch_post_lock_switch(void)
+{
+	struct task_struct *tsk = current;
+	struct mm_struct *mm = tsk->mm;
+
+	if (!test_tsk_thread_flag(tsk, TIF_TLB_WAIT))
+		return;
+	preempt_disable();
+	clear_tsk_thread_flag(tsk, TIF_TLB_WAIT);
+	while (atomic_read(&mm->context.attach_count) >> 16)
+		cpu_relax();
+
+	cpumask_set_cpu(smp_processor_id(), mm_cpumask(mm));
+	update_mm(mm, tsk);
+	if (mm->context.flush_mm)
+		__tlb_flush_mm(mm);
+	preempt_enable();
 }
 
 #define enter_lazy_tlb(mm,tsk)	do { } while (0)

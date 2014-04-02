@@ -268,9 +268,9 @@ static int opt_set_filter(const struct option *opt __maybe_unused,
 	return 0;
 }
 
-static void init_params(void)
+static int init_params(void)
 {
-	line_range__init(&params.line_range);
+	return line_range__init(&params.line_range);
 }
 
 static void cleanup_params(void)
@@ -515,9 +515,11 @@ int cmd_probe(int argc, const char **argv, const char *prefix)
 {
 	int ret;
 
-	init_params();
-	ret = __cmd_probe(argc, argv, prefix);
-	cleanup_params();
+	ret = init_params();
+	if (!ret) {
+		ret = __cmd_probe(argc, argv, prefix);
+		cleanup_params();
+	}
 
 	return ret;
 }

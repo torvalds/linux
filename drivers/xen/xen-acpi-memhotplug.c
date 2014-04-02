@@ -285,7 +285,7 @@ static void acpi_memory_device_notify(acpi_handle handle, u32 event, void *data)
 		return;
 	}
 
-	(void) acpi_evaluate_hotplug_ost(handle, event, ost_code, NULL);
+	(void) acpi_evaluate_ost(handle, event, ost_code, NULL);
 	return;
 }
 

@@ -46,9 +46,9 @@ static inline int put_compat_mq_attr(const struct mq_attr *attr,
 		| __put_user(attr->mq_curmsgs, &uattr->mq_curmsgs);
 }
 
-asmlinkage long compat_sys_mq_open(const char __user *u_name,
-			int oflag, compat_mode_t mode,
-			struct compat_mq_attr __user *u_attr)
+COMPAT_SYSCALL_DEFINE4(mq_open, const char __user *, u_name,
+		       int, oflag, compat_mode_t, mode,
+		       struct compat_mq_attr __user *, u_attr)
 {
 	void __user *p = NULL;
 	if (u_attr && oflag & O_CREAT) {
@@ -78,10 +78,10 @@ static int compat_prepare_timeout(struct timespec __user **p,
 	return 0;
 }
 
-asmlinkage long compat_sys_mq_timedsend(mqd_t mqdes,
-			const char __user *u_msg_ptr,
-			size_t msg_len, unsigned int msg_prio,
-			const struct compat_timespec __user *u_abs_timeout)
+COMPAT_SYSCALL_DEFINE5(mq_timedsend, mqd_t, mqdes,
+		       const char __user *, u_msg_ptr,
+		       compat_size_t, msg_len, unsigned int, msg_prio,
+		       const struct compat_timespec __user *, u_abs_timeout)
 {
 	struct timespec __user *u_ts;
 
@@ -92,10 +92,10 @@ asmlinkage long compat_sys_mq_timedsend(mqd_t mqdes,
 			msg_prio, u_ts);
 }
 
-asmlinkage ssize_t compat_sys_mq_timedreceive(mqd_t mqdes,
-			char __user *u_msg_ptr,
-			size_t msg_len, unsigned int __user *u_msg_prio,
-			const struct compat_timespec __user *u_abs_timeout)
+COMPAT_SYSCALL_DEFINE5(mq_timedreceive, mqd_t, mqdes,
+		       char __user *, u_msg_ptr,
+		       compat_size_t, msg_len, unsigned int __user *, u_msg_prio,
+		       const struct compat_timespec __user *, u_abs_timeout)
 {
 	struct timespec __user *u_ts;
 	if (compat_prepare_timeout(&u_ts, u_abs_timeout))
@@ -105,8 +105,8 @@ asmlinkage ssize_t compat_sys_mq_timedreceive(mqd_t mqdes,
 			u_msg_prio, u_ts);
 }
 
-asmlinkage long compat_sys_mq_notify(mqd_t mqdes,
-			const struct compat_sigevent __user *u_notification)
+COMPAT_SYSCALL_DEFINE2(mq_notify, mqd_t, mqdes,
+		       const struct compat_sigevent __user *, u_notification)
 {
 	struct sigevent __user *p = NULL;
 	if (u_notification) {
@@ -122,9 +122,9 @@ asmlinkage long compat_sys_mq_notify(mqd_t mqdes,
 	return sys_mq_notify(mqdes, p);
 }
 
-asmlinkage long compat_sys_mq_getsetattr(mqd_t mqdes,
-			const struct compat_mq_attr __user *u_mqstat,
-			struct compat_mq_attr __user *u_omqstat)
+COMPAT_SYSCALL_DEFINE3(mq_getsetattr, mqd_t, mqdes,
+		       const struct compat_mq_attr __user *, u_mqstat,
+		       struct compat_mq_attr __user *, u_omqstat)
 {
 	struct mq_attr mqstat;
 	struct mq_attr __user *p = compat_alloc_user_space(2 * sizeof(*p));

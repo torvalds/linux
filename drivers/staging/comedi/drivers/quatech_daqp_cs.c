@@ -214,7 +214,6 @@ static enum irqreturn daqp_interrupt(int irq, void *dev_id)
 				s->async->events |=
 				    COMEDI_CB_EOA | COMEDI_CB_OVERFLOW;
 				dev_warn(dev->class_dev, "data lost\n");
-				daqp_ai_cancel(dev, s);
 				break;
 			}
 
@@ -231,7 +230,6 @@ static enum irqreturn daqp_interrupt(int irq, void *dev_id)
 			if (devpriv->count > 0) {
 				devpriv->count--;
 				if (devpriv->count == 0) {
-					daqp_ai_cancel(dev, s);
 					s->async->events |= COMEDI_CB_EOA;
 					break;
 				}
@@ -244,13 +242,12 @@ static enum irqreturn daqp_interrupt(int irq, void *dev_id)
 		if (loop_limit <= 0) {
 			dev_warn(dev->class_dev,
 				 "loop_limit reached in daqp_interrupt()\n");
-			daqp_ai_cancel(dev, s);
 			s->async->events |= COMEDI_CB_EOA | COMEDI_CB_ERROR;
 		}
 
 		s->async->events |= COMEDI_CB_BLOCK;
 
-		comedi_event(dev, s);
+		cfc_handle_events(dev, s);
 	}
 	return IRQ_HANDLED;
 }

@@ -372,7 +372,7 @@ static int qt2_open(struct tty_struct *tty, struct usb_serial_port *port)
 				 device_port, data, 2, QT2_USB_TIMEOUT);
 
 	if (status < 0) {
-		dev_err(&port->dev, "%s - open port failed %i", __func__,
+		dev_err(&port->dev, "%s - open port failed %i\n", __func__,
 			status);
 		kfree(data);
 		return status;

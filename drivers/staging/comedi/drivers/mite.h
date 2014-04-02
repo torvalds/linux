@@ -29,9 +29,9 @@
 #define MAX_MITE_DMA_CHANNELS 8
 
 struct mite_dma_descriptor {
-	u32 count;
-	u32 addr;
-	u32 next;
+	__le32 count;
+	__le32 addr;
+	__le32 next;
 	u32 dar;
 };
 

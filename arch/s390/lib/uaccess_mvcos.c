@@ -6,8 +6,11 @@
  *		 Gerald Schaefer (gerald.schaefer@de.ibm.com)
  */
 
+#include <linux/jump_label.h>
 #include <linux/errno.h>
+#include <linux/init.h>
 #include <linux/mm.h>
+#include <asm/facility.h>
 #include <asm/uaccess.h>
 #include <asm/futex.h>
 #include "uaccess.h"
@@ -26,7 +29,10 @@
 #define SLR	"slgr"
 #endif
 
-static size_t copy_from_user_mvcos(size_t size, const void __user *ptr, void *x)
+static struct static_key have_mvcos = STATIC_KEY_INIT_TRUE;
+
+static inline unsigned long copy_from_user_mvcos(void *x, const void __user *ptr,
+						 unsigned long size)
 {
 	register unsigned long reg0 asm("0") = 0x81UL;
 	unsigned long tmp1, tmp2;
@@ -65,7 +71,16 @@ static size_t copy_from_user_mvcos(size_t size, const void __user *ptr, void *x)
 	return size;
 }
 
-static size_t copy_to_user_mvcos(size_t size, void __user *ptr, const void *x)
+unsigned long __copy_from_user(void *to, const void __user *from, unsigned long n)
+{
+	if (static_key_true(&have_mvcos))
+		return copy_from_user_mvcos(to, from, n);
+	return copy_from_user_pt(to, from, n);
+}
+EXPORT_SYMBOL(__copy_from_user);
+
+static inline unsigned long copy_to_user_mvcos(void __user *ptr, const void *x,
+					       unsigned long size)
 {
 	register unsigned long reg0 asm("0") = 0x810000UL;
 	unsigned long tmp1, tmp2;
@@ -94,8 +109,16 @@ static size_t copy_to_user_mvcos(size_t size, void __user *ptr, const void *x)
 	return size;
 }
 
-static size_t copy_in_user_mvcos(size_t size, void __user *to,
-				 const void __user *from)
+unsigned long __copy_to_user(void __user *to, const void *from, unsigned long n)
+{
+	if (static_key_true(&have_mvcos))
+		return copy_to_user_mvcos(to, from, n);
+	return copy_to_user_pt(to, from, n);
+}
+EXPORT_SYMBOL(__copy_to_user);
+
+static inline unsigned long copy_in_user_mvcos(void __user *to, const void __user *from,
+					       unsigned long size)
 {
 	register unsigned long reg0 asm("0") = 0x810081UL;
 	unsigned long tmp1, tmp2;
@@ -117,7 +140,15 @@ static size_t copy_in_user_mvcos(size_t size, void __user *to,
 	return size;
 }
 
-static size_t clear_user_mvcos(size_t size, void __user *to)
+unsigned long __copy_in_user(void __user *to, const void __user *from, unsigned long n)
+{
+	if (static_key_true(&have_mvcos))
+		return copy_in_user_mvcos(to, from, n);
+	return copy_in_user_pt(to, from, n);
+}
+EXPORT_SYMBOL(__copy_in_user);
+
+static inline unsigned long clear_user_mvcos(void __user *to, unsigned long size)
 {
 	register unsigned long reg0 asm("0") = 0x810000UL;
 	unsigned long tmp1, tmp2;
@@ -145,17 +176,26 @@ static size_t clear_user_mvcos(size_t size, void __user *to)
 	return size;
 }
 
-static size_t strnlen_user_mvcos(size_t count, const char __user *src)
+unsigned long __clear_user(void __user *to, unsigned long size)
 {
-	size_t done, len, offset, len_str;
+	if (static_key_true(&have_mvcos))
+		return clear_user_mvcos(to, size);
+	return clear_user_pt(to, size);
+}
+EXPORT_SYMBOL(__clear_user);
+
+static inline unsigned long strnlen_user_mvcos(const char __user *src,
+					       unsigned long count)
+{
+	unsigned long done, len, offset, len_str;
 	char buf[256];
 
 	done = 0;
 	do {
-		offset = (size_t)src & ~PAGE_MASK;
+		offset = (unsigned long)src & ~PAGE_MASK;
 		len = min(256UL, PAGE_SIZE - offset);
 		len = min(count - done, len);
-		if (copy_from_user_mvcos(len, src, buf))
+		if (copy_from_user_mvcos(buf, src, len))
 			return 0;
 		len_str = strnlen(buf, len);
 		done += len_str;
@@ -164,18 +204,26 @@ static size_t strnlen_user_mvcos(size_t count, const char __user *src)
 	return done + 1;
 }
 
-static size_t strncpy_from_user_mvcos(size_t count, const char __user *src,
-				      char *dst)
+unsigned long __strnlen_user(const char __user *src, unsigned long count)
 {
-	size_t done, len, offset, len_str;
+	if (static_key_true(&have_mvcos))
+		return strnlen_user_mvcos(src, count);
+	return strnlen_user_pt(src, count);
+}
+EXPORT_SYMBOL(__strnlen_user);
 
-	if (unlikely(!count))
+static inline long strncpy_from_user_mvcos(char *dst, const char __user *src,
+					   long count)
+{
+	unsigned long done, len, offset, len_str;
+
+	if (unlikely(count <= 0))
 		return 0;
 	done = 0;
 	do {
-		offset = (size_t)src & ~PAGE_MASK;
+		offset = (unsigned long)src & ~PAGE_MASK;
 		len = min(count - done, PAGE_SIZE - offset);
-		if (copy_from_user_mvcos(len, src, dst))
+		if (copy_from_user_mvcos(dst, src, len))
 			return -EFAULT;
 		len_str = strnlen(dst, len);
 		done += len_str;
@@ -185,13 +233,31 @@ static size_t strncpy_from_user_mvcos(size_t count, const char __user *src,
 	return done;
 }
 
-struct uaccess_ops uaccess_mvcos = {
-	.copy_from_user = copy_from_user_mvcos,
-	.copy_to_user = copy_to_user_mvcos,
-	.copy_in_user = copy_in_user_mvcos,
-	.clear_user = clear_user_mvcos,
-	.strnlen_user = strnlen_user_mvcos,
-	.strncpy_from_user = strncpy_from_user_mvcos,
-	.futex_atomic_op = futex_atomic_op_pt,
-	.futex_atomic_cmpxchg = futex_atomic_cmpxchg_pt,
-};
+long __strncpy_from_user(char *dst, const char __user *src, long count)
+{
+	if (static_key_true(&have_mvcos))
+		return strncpy_from_user_mvcos(dst, src, count);
+	return strncpy_from_user_pt(dst, src, count);
+}
+EXPORT_SYMBOL(__strncpy_from_user);
+
+/*
+ * The uaccess page tabe walk variant can be enforced with the "uaccesspt"
+ * kernel parameter. This is mainly for debugging purposes.
+ */
+static int force_uaccess_pt __initdata;
+
+static int __init parse_uaccess_pt(char *__unused)
+{
+	force_uaccess_pt = 1;
+	return 0;
+}
+early_param("uaccesspt", parse_uaccess_pt);
+
+static int __init uaccess_init(void)
+{
+	if (IS_ENABLED(CONFIG_32BIT) || force_uaccess_pt || !test_facility(27))
+		static_key_slow_dec(&have_mvcos);
+	return 0;
+}
+early_initcall(uaccess_init);

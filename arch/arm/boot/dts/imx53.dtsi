@@ -45,6 +45,11 @@
 		};
 	};
 
+	display-subsystem {
+		compatible = "fsl,imx-display-subsystem";
+		ports = <&ipu_di0>, <&ipu_di1>;
+	};
+
 	tzic: tz-interrupt-controller@0fffc000 {
 		compatible = "fsl,imx53-tzic", "fsl,tzic";
 		interrupt-controller;
@@ -85,13 +90,49 @@
 		ranges;
 
 		ipu: ipu@18000000 {
-			#crtc-cells = <1>;
+			#address-cells = <1>;
+			#size-cells = <0>;
 			compatible = "fsl,imx53-ipu";
 			reg = <0x18000000 0x080000000>;
 			interrupts = <11 10>;
 			clocks = <&clks 59>, <&clks 110>, <&clks 61>;
 			clock-names = "bus", "di0", "di1";
 			resets = <&src 2>;
+
+			ipu_di0: port@2 {
+				#address-cells = <1>;
+				#size-cells = <0>;
+				reg = <2>;
+
+				ipu_di0_disp0: endpoint@0 {
+					reg = <0>;
+				};
+
+				ipu_di0_lvds0: endpoint@1 {
+					reg = <1>;
+					remote-endpoint = <&lvds0_in>;
+				};
+			};
+
+			ipu_di1: port@3 {
+				#address-cells = <1>;
+				#size-cells = <0>;
+				reg = <3>;
+
+				ipu_di1_disp1: endpoint@0 {
+					reg = <0>;
+				};
+
+				ipu_di1_lvds1: endpoint@1 {
+					reg = <1>;
+					remote-endpoint = <&lvds1_in>;
+				};
+
+				ipu_di1_tve: endpoint@2 {
+					reg = <2>;
+					remote-endpoint = <&tve_in>;
+				};
+			};
 		};
 
 		aips@50000000 { /* AIPS1 */
@@ -838,14 +879,24 @@
 
 				lvds-channel@0 {
 					reg = <0>;
-					crtcs = <&ipu 0>;
 					status = "disabled";
+
+					port {
+						lvds0_in: endpoint {
+							remote-endpoint = <&ipu_di0_lvds0>;
+						};
+					};
 				};
 
 				lvds-channel@1 {
 					reg = <1>;
-					crtcs = <&ipu 1>;
 					status = "disabled";
+
+					port {
+						lvds1_in: endpoint {
+							remote-endpoint = <&ipu_di0_lvds0>;
+						};
+					};
 				};
 			};
 
@@ -1103,8 +1154,13 @@
 				interrupts = <92>;
 				clocks = <&clks 69>, <&clks 116>;
 				clock-names = "tve", "di_sel";
-				crtcs = <&ipu 1>;
 				status = "disabled";
+
+				port {
+					tve_in: endpoint {
+						remote-endpoint = <&ipu_di1_tve>;
+					};
+				};
 			};
 
 			vpu: vpu@63ff4000 {

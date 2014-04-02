@@ -2867,7 +2867,7 @@ static int get_ms_information(struct scsi_cmnd *srb, struct rtsx_chip *chip)
 		set_sense_type(chip, lun, SENSE_TYPE_MEDIA_NOT_PRESENT);
 		TRACE_RET(chip, TRANSPORT_FAILED);
 	}
-	if ((get_lun_card(chip, lun) != MS_CARD)) {
+	if (get_lun_card(chip, lun) != MS_CARD) {
 		set_sense_type(chip, lun, SENSE_TYPE_MEDIA_LUN_NOT_SUPPORT);
 		TRACE_RET(chip, TRANSPORT_FAILED);
 	}
@@ -2983,7 +2983,7 @@ static int sd_extention_cmnd(struct scsi_cmnd *srb, struct rtsx_chip *chip)
 		set_sense_type(chip, lun, SENSE_TYPE_MEDIA_NOT_PRESENT);
 		TRACE_RET(chip, TRANSPORT_FAILED);
 	}
-	if ((get_lun_card(chip, lun) != SD_CARD)) {
+	if (get_lun_card(chip, lun) != SD_CARD) {
 		set_sense_type(chip, lun, SENSE_TYPE_MEDIA_LUN_NOT_SUPPORT);
 		TRACE_RET(chip, TRANSPORT_FAILED);
 	}
@@ -3046,7 +3046,7 @@ static int mg_report_key(struct scsi_cmnd *srb, struct rtsx_chip *chip)
 		set_sense_type(chip, lun, SENSE_TYPE_MEDIA_NOT_PRESENT);
 		TRACE_RET(chip, TRANSPORT_FAILED);
 	}
-	if ((get_lun_card(chip, lun) != MS_CARD)) {
+	if (get_lun_card(chip, lun) != MS_CARD) {
 		set_sense_type(chip, lun, SENSE_TYPE_MEDIA_LUN_NOT_SUPPORT);
 		TRACE_RET(chip, TRANSPORT_FAILED);
 	}
@@ -3151,7 +3151,7 @@ static int mg_send_key(struct scsi_cmnd *srb, struct rtsx_chip *chip)
 		set_sense_type(chip, lun, SENSE_TYPE_MEDIA_WRITE_PROTECT);
 		TRACE_RET(chip, TRANSPORT_FAILED);
 	}
-	if ((get_lun_card(chip, lun) != MS_CARD)) {
+	if (get_lun_card(chip, lun) != MS_CARD) {
 		set_sense_type(chip, lun, SENSE_TYPE_MEDIA_LUN_NOT_SUPPORT);
 		TRACE_RET(chip, TRANSPORT_FAILED);
 	}

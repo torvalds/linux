@@ -8,5 +8,4 @@ usbip_SOURCES := usbip.h utils.h usbip.c utils.c usbip_network.c \
 		 usbip_attach.c usbip_detach.c usbip_list.c \
 		 usbip_bind.c usbip_unbind.c usbip_port.c
 
-
 usbipd_SOURCES := usbip_network.h usbipd.c usbip_network.c

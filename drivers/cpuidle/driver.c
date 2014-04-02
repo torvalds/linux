@@ -209,7 +209,7 @@ static void poll_idle_init(struct cpuidle_driver *drv)
 	state->exit_latency = 0;
 	state->target_residency = 0;
 	state->power_usage = -1;
-	state->flags = 0;
+	state->flags = CPUIDLE_FLAG_TIME_VALID;
 	state->enter = poll_idle;
 	state->disabled = false;
 }

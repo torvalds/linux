@@ -62,10 +62,9 @@ int iio_trigger_register(struct iio_trigger *trig_info)
 	int ret;
 
 	trig_info->id = ida_simple_get(&iio_trigger_ida, 0, 0, GFP_KERNEL);
-	if (trig_info->id < 0) {
-		ret = trig_info->id;
-		goto error_ret;
-	}
+	if (trig_info->id < 0)
+		return trig_info->id;
+
 	/* Set the name used for the sysfs directory etc */
 	dev_set_name(&trig_info->dev, "trigger%ld",
 		     (unsigned long) trig_info->id);
@@ -83,7 +82,6 @@ int iio_trigger_register(struct iio_trigger *trig_info)
 
 error_unregister_id:
 	ida_simple_remove(&iio_trigger_ida, trig_info->id);
-error_ret:
 	return ret;
 }
 EXPORT_SYMBOL(iio_trigger_register);
@@ -234,13 +232,12 @@ static int iio_trigger_detach_poll_func(struct iio_trigger *trig,
 	if (trig->ops && trig->ops->set_trigger_state && no_other_users) {
 		ret = trig->ops->set_trigger_state(trig, false);
 		if (ret)
-			goto error_ret;
+			return ret;
 	}
 	iio_trigger_put_irq(trig, pf->irq);
 	free_irq(pf->irq, pf);
 	module_put(pf->indio_dev->info->driver_module);
 
-error_ret:
 	return ret;
 }
 

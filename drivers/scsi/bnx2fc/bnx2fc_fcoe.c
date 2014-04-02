@@ -22,7 +22,7 @@ DEFINE_PER_CPU(struct bnx2fc_percpu_s, bnx2fc_percpu);
 
 #define DRV_MODULE_NAME		"bnx2fc"
 #define DRV_MODULE_VERSION	BNX2FC_VERSION
-#define DRV_MODULE_RELDATE	"Sep 17, 2013"
+#define DRV_MODULE_RELDATE	"Dec 11, 2013"
 
 
 static char version[] =
@@ -850,6 +850,9 @@ static void bnx2fc_indicate_netevent(void *context, unsigned long event,
 				__bnx2fc_destroy(interface);
 		}
 		mutex_unlock(&bnx2fc_dev_lock);
+
+		/* Ensure ALL destroy work has been completed before return */
+		flush_workqueue(bnx2fc_wq);
 		return;
 
 	default:
@@ -2388,6 +2391,9 @@ static void bnx2fc_ulp_exit(struct cnic_dev *dev)
 		if (interface->hba == hba)
 			__bnx2fc_destroy(interface);
 	mutex_unlock(&bnx2fc_dev_lock);
+
+	/* Ensure ALL destroy work has been completed before return */
+	flush_workqueue(bnx2fc_wq);
 
 	bnx2fc_ulp_stop(hba);
 	/* unregister cnic device */

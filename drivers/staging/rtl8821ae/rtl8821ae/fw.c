@@ -164,7 +164,7 @@ static int _rtl8821ae_fw_free_to_go(struct ieee80211_hw *hw)
 
 	if (counter >= FW_8821AE_POLLING_TIMEOUT_COUNT) {
 		RT_TRACE(COMP_ERR, DBG_LOUD,
-			 ("chksum report faill ! REG_MCUFWDL:0x%08x .\n",
+			 ("chksum report fail ! REG_MCUFWDL:0x%08x .\n",
 			  value32));
 		goto exit;
 	}
@@ -368,7 +368,7 @@ static void _rtl8821ae_fill_h2c_command(struct ieee80211_hw *hw,
 				wait_h2c_limmit--;
 				if (wait_h2c_limmit == 0) {
 					RT_TRACE(COMP_CMD, DBG_LOUD,
-						 ("Wating too long for FW read "
+						 ("Waiting too long for FW read "
 						  "clear HMEBox(%d)!\n", boxnum));
 					break;
 				}
@@ -378,7 +378,7 @@ static void _rtl8821ae_fill_h2c_command(struct ieee80211_hw *hw,
 				isfw_read = _rtl8821ae_check_fw_read_last_h2c(hw, boxnum);
 				u1b_tmp = rtl_read_byte(rtlpriv, 0x130);
 				RT_TRACE(COMP_CMD, DBG_LOUD,
-					 ("Wating for FW read clear HMEBox(%d)!!! "
+					 ("Waiting for FW read clear HMEBox(%d)!!! "
 					  "0x130 = %2x\n", boxnum, u1b_tmp));
 			}
 		}
@@ -1179,7 +1179,7 @@ void rtl8821ae_set_fw_rsvdpagepkt(struct ieee80211_hw *hw, bool b_dl_finished)
 			 ("Set RSVD page location to Fw FAIL!!!!!!.\n"));
 }
 
-/*Shoud check FW support p2p or not.*/
+/*Should check FW support p2p or not.*/
 void rtl8821ae_set_p2p_ctw_period_cmd(struct ieee80211_hw *hw, u8 ctwindow)
 {
 	u8 u1_ctwindow_period[1] ={ ctwindow};

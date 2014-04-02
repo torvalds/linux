@@ -1,5 +1,6 @@
 config SND_SOC_FSL_SAI
 	tristate
+	select REGMAP_MMIO
 	select SND_SOC_GENERIC_DMAENGINE_PCM
 
 config SND_SOC_FSL_SSI
@@ -7,9 +8,12 @@ config SND_SOC_FSL_SSI
 
 config SND_SOC_FSL_SPDIF
 	tristate
+	select REGMAP_MMIO
 
 config SND_SOC_FSL_ESAI
 	tristate
+	select REGMAP_MMIO
+	select SND_SOC_FSL_UTILS
 
 config SND_SOC_FSL_UTILS
 	tristate
@@ -117,6 +121,7 @@ if SND_IMX_SOC
 
 config SND_SOC_IMX_SSI
 	tristate
+	select SND_SOC_FSL_UTILS
 
 config SND_SOC_IMX_PCM_FIQ
 	tristate
@@ -168,12 +173,14 @@ config SND_SOC_EUKREA_TLV320
 	depends on MACH_EUKREA_MBIMX27_BASEBOARD \
 		|| MACH_EUKREA_MBIMXSD25_BASEBOARD \
 		|| MACH_EUKREA_MBIMXSD35_BASEBOARD \
-		|| MACH_EUKREA_MBIMXSD51_BASEBOARD
+		|| MACH_EUKREA_MBIMXSD51_BASEBOARD \
+		|| (OF && ARM)
 	depends on I2C
-	select SND_SOC_TLV320AIC23
-	select SND_SOC_IMX_PCM_FIQ
+	select SND_SOC_TLV320AIC23_I2C
 	select SND_SOC_IMX_AUDMUX
 	select SND_SOC_IMX_SSI
+	select SND_SOC_FSL_SSI
+	select SND_SOC_IMX_PCM_DMA
 	help
 	  Enable I2S based access to the TLV320AIC23B codec attached
 	  to the SSI interface
@@ -204,7 +211,6 @@ config SND_SOC_IMX_SPDIF
 	tristate "SoC Audio support for i.MX boards with S/PDIF"
 	select SND_SOC_IMX_PCM_DMA
 	select SND_SOC_FSL_SPDIF
-	select REGMAP_MMIO
 	help
 	  SoC Audio support for i.MX boards with S/PDIF
 	  Say Y if you want to add support for SoC audio on an i.MX board with

@@ -115,10 +115,10 @@ struct ni_gpct {
 
 struct ni_gpct_device {
 	struct comedi_device *dev;
-	void (*write_register) (struct ni_gpct *counter, unsigned bits,
-				enum ni_gpct_register reg);
-	unsigned (*read_register) (struct ni_gpct *counter,
-				   enum ni_gpct_register reg);
+	void (*write_register)(struct ni_gpct *counter, unsigned bits,
+			       enum ni_gpct_register reg);
+	unsigned (*read_register)(struct ni_gpct *counter,
+				  enum ni_gpct_register reg);
 	enum ni_gpct_variant variant;
 	struct ni_gpct *counters;
 	unsigned num_counters;

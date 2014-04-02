@@ -1065,18 +1065,6 @@ char *__init pcibios_setup(char *str)
 }
 
 /*
- * Enable memory address decoding, as appropriate, for the
- * device described by the 'dev' struct.
- *
- * This is called from the generic PCI layer, and can be called
- * for bridges or endpoints.
- */
-int pcibios_enable_device(struct pci_dev *dev, int mask)
-{
-	return pci_enable_resources(dev, mask);
-}
-
-/*
  * Called for each device after PCI setup is done.
  * We initialize the PCI device capabilities conservatively, assuming that
  * all devices can only address the 32-bit DMA space. The exception here is

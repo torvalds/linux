@@ -26,7 +26,8 @@ FILES=					\
 	test-libunwind-debug-frame.bin	\
 	test-on-exit.bin		\
 	test-stackprotector-all.bin	\
-	test-timerfd.bin
+	test-timerfd.bin		\
+	test-libdw-dwarf-unwind.bin
 
 CC := $(CROSS_COMPILE)gcc -MD
 PKG_CONFIG := $(CROSS_COMPILE)pkg-config
@@ -139,6 +140,9 @@ test-backtrace.bin:
 	$(BUILD)
 
 test-timerfd.bin:
+	$(BUILD)
+
+test-libdw-dwarf-unwind.bin:
 	$(BUILD)
 
 -include *.d
