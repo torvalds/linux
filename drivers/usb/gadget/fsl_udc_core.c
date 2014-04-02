@@ -2532,8 +2532,8 @@ static int __exit fsl_udc_remove(struct platform_device *pdev)
 	if (!udc_controller)
 		return -ENODEV;
 
-	usb_del_gadget_udc(&udc_controller->gadget);
 	udc_controller->done = &done;
+	usb_del_gadget_udc(&udc_controller->gadget);
 
 	fsl_udc_clk_release();
 
