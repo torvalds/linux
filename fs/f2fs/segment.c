@@ -1049,15 +1049,14 @@ static inline bool is_merged_page(struct f2fs_sb_info *sbi,
 {
 	enum page_type btype = PAGE_TYPE_OF_BIO(type);
 	struct f2fs_bio_info *io = &sbi->write_io[btype];
-	struct bio *bio = io->bio;
 	struct bio_vec *bvec;
 	int i;
 
 	down_read(&io->io_rwsem);
-	if (!bio)
+	if (!io->bio)
 		goto out;
 
-	bio_for_each_segment_all(bvec, bio, i) {
+	bio_for_each_segment_all(bvec, io->bio, i) {
 		if (page == bvec->bv_page) {
 			up_read(&io->io_rwsem);
 			return true;
