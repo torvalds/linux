@@ -104,7 +104,7 @@ bool radeon_ttm_bo_is_radeon_bo(struct ttm_buffer_object *bo)
 
 void radeon_ttm_placement_from_domain(struct radeon_bo *rbo, u32 domain)
 {
-	u32 c = 0;
+	u32 c = 0, i;
 
 	rbo->placement.fpfn = 0;
 	rbo->placement.lpfn = 0;
@@ -131,6 +131,17 @@ void radeon_ttm_placement_from_domain(struct radeon_bo *rbo, u32 domain)
 		rbo->placements[c++] = TTM_PL_MASK_CACHING | TTM_PL_FLAG_SYSTEM;
 	rbo->placement.num_placement = c;
 	rbo->placement.num_busy_placement = c;
+
+	/*
+	 * Use two-ended allocation depending on the buffer size to
+	 * improve fragmentation quality.
+	 * 512kb was measured as the most optimal number.
+	 */
+	if (rbo->tbo.mem.size > 512 * 1024) {
+		for (i = 0; i < c; i++) {
+			rbo->placements[i] |= TTM_PL_FLAG_TOPDOWN;
+		}
+	}
 }
 
 int radeon_bo_create(struct radeon_device *rdev,
