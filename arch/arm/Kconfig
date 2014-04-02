@@ -207,6 +207,9 @@ config ZONE_DMA
 config NEED_DMA_MAP_STATE
        def_bool y
 
+config ARCH_SUPPORTS_UPROBES
+	def_bool y
+
 config ARCH_HAS_DMA_SET_COHERENT_MASK
 	bool
 

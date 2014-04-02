@@ -201,10 +201,14 @@
 #include <linux/module.h>
 #include <linux/slab.h>
 #include <linux/kprobes.h>
-
+#include <linux/errno.h>
+#include <linux/stddef.h>
+#include <linux/bug.h>
 #include <asm/opcodes.h>
 
 #include "kprobes.h"
+#include "probes-arm.h"
+#include "probes-thumb.h"
 #include "kprobes-test.h"
 
 
@@ -1608,7 +1612,7 @@ static int __init run_all_tests(void)
 		goto out;
 
 	pr_info("ARM instruction simulation\n");
-	ret = run_test_cases(kprobe_arm_test_cases, kprobe_decode_arm_table);
+	ret = run_test_cases(kprobe_arm_test_cases, probes_decode_arm_table);
 	if (ret)
 		goto out;
 
@@ -1631,13 +1635,13 @@ static int __init run_all_tests(void)
 
 	pr_info("16-bit Thumb instruction simulation\n");
 	ret = run_test_cases(kprobe_thumb16_test_cases,
-				kprobe_decode_thumb16_table);
+				probes_decode_thumb16_table);
 	if (ret)
 		goto out;
 
 	pr_info("32-bit Thumb instruction simulation\n");
 	ret = run_test_cases(kprobe_thumb32_test_cases,
-				kprobe_decode_thumb32_table);
+				probes_decode_thumb32_table);
 	if (ret)
 		goto out;
 #endif
