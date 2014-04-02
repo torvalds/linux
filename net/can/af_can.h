@@ -59,12 +59,14 @@ struct receiver {
 	char *ident;
 };
 
+#define CAN_SFF_RCV_ARRAY_SZ (1 << CAN_SFF_ID_BITS)
+
 enum { RX_ERR, RX_ALL, RX_FIL, RX_INV, RX_EFF, RX_MAX };
 
 /* per device receive filters linked at dev->ml_priv */
 struct dev_rcv_lists {
 	struct hlist_head rx[RX_MAX];
-	struct hlist_head rx_sff[0x800];
+	struct hlist_head rx_sff[CAN_SFF_RCV_ARRAY_SZ];
 	int remove_on_zero_entries;
 	int entries;
 };

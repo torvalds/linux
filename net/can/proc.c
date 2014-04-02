@@ -389,25 +389,26 @@ static const struct file_operations can_rcvlist_proc_fops = {
 	.release	= single_release,
 };
 
-static inline void can_rcvlist_sff_proc_show_one(struct seq_file *m,
-						 struct net_device *dev,
-						 struct dev_rcv_lists *d)
+static inline void can_rcvlist_proc_show_array(struct seq_file *m,
+					       struct net_device *dev,
+					       struct hlist_head *rcv_array,
+					       unsigned int rcv_array_sz)
 {
-	int i;
+	unsigned int i;
 	int all_empty = 1;
 
 	/* check whether at least one list is non-empty */
-	for (i = 0; i < 0x800; i++)
-		if (!hlist_empty(&d->rx_sff[i])) {
+	for (i = 0; i < rcv_array_sz; i++)
+		if (!hlist_empty(&rcv_array[i])) {
 			all_empty = 0;
 			break;
 		}
 
 	if (!all_empty) {
 		can_print_recv_banner(m);
-		for (i = 0; i < 0x800; i++) {
-			if (!hlist_empty(&d->rx_sff[i]))
-				can_print_rcvlist(m, &d->rx_sff[i], dev);
+		for (i = 0; i < rcv_array_sz; i++) {
+			if (!hlist_empty(&rcv_array[i]))
+				can_print_rcvlist(m, &rcv_array[i], dev);
 		}
 	} else
 		seq_printf(m, "  (%s: no entry)\n", DNAME(dev));
@@ -425,12 +426,15 @@ static int can_rcvlist_sff_proc_show(struct seq_file *m, void *v)
 
 	/* sff receive list for 'all' CAN devices (dev == NULL) */
 	d = &can_rx_alldev_list;
-	can_rcvlist_sff_proc_show_one(m, NULL, d);
+	can_rcvlist_proc_show_array(m, NULL, d->rx_sff, ARRAY_SIZE(d->rx_sff));
 
 	/* sff receive list for registered CAN devices */
 	for_each_netdev_rcu(&init_net, dev) {
-		if (dev->type == ARPHRD_CAN && dev->ml_priv)
-			can_rcvlist_sff_proc_show_one(m, dev, dev->ml_priv);
+		if (dev->type == ARPHRD_CAN && dev->ml_priv) {
+			d = dev->ml_priv;
+			can_rcvlist_proc_show_array(m, dev, d->rx_sff,
+						    ARRAY_SIZE(d->rx_sff));
+		}
 	}
 
 	rcu_read_unlock();
