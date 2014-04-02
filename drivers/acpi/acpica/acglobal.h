@@ -93,12 +93,13 @@
 ACPI_INIT_GLOBAL(u8, acpi_gbl_enable_interpreter_slack, FALSE);
 
 /*
- * Automatically serialize ALL control methods? Default is FALSE, meaning
- * to use the Serialized/not_serialized method flags on a per method basis.
- * Only change this if the ASL code is poorly written and cannot handle
- * reentrancy even though methods are marked "NotSerialized".
+ * Automatically serialize all methods that create named objects? Default
+ * is TRUE, meaning that all non_serialized methods are scanned once at
+ * table load time to determine those that create named objects. Methods
+ * that create named objects are marked Serialized in order to prevent
+ * possible run-time problems if they are entered by more than one thread.
  */
-ACPI_INIT_GLOBAL(u8, acpi_gbl_all_methods_serialized, FALSE);
+ACPI_INIT_GLOBAL(u8, acpi_gbl_auto_serialize_methods, TRUE);
 
 /*
  * Create the predefined _OSI method in the namespace? Default is TRUE

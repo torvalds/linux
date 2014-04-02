@@ -963,9 +963,9 @@ static int transition_frequency_fidvid(struct powernow_k8_data *data,
 	policy = cpufreq_cpu_get(smp_processor_id());
 	cpufreq_cpu_put(policy);
 
-	cpufreq_notify_transition(policy, &freqs, CPUFREQ_PRECHANGE);
+	cpufreq_freq_transition_begin(policy, &freqs);
 	res = transition_fid_vid(data, fid, vid);
-	cpufreq_notify_post_transition(policy, &freqs, res);
+	cpufreq_freq_transition_end(policy, &freqs, res);
 
 	return res;
 }

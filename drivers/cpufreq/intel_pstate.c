@@ -778,7 +778,7 @@ static void intel_pstate_stop_cpu(struct cpufreq_policy *policy)
 
 	pr_info("intel_pstate CPU %d exiting\n", cpu_num);
 
-	del_timer(&all_cpu_data[cpu_num]->timer);
+	del_timer_sync(&all_cpu_data[cpu_num]->timer);
 	intel_pstate_set_pstate(cpu, cpu->pstate.min_pstate);
 	kfree(all_cpu_data[cpu_num]);
 	all_cpu_data[cpu_num] = NULL;
