@@ -869,6 +869,16 @@ void idr_init(struct idr *idp)
 }
 EXPORT_SYMBOL(idr_init);
 
+static int idr_has_entry(int id, void *p, void *data)
+{
+	return 1;
+}
+
+bool idr_is_empty(struct idr *idp)
+{
+	return !idr_for_each(idp, idr_has_entry, NULL);
+}
+EXPORT_SYMBOL(idr_is_empty);
 
 /**
  * DOC: IDA description

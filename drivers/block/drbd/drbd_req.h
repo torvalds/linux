@@ -275,17 +275,17 @@ struct bio_and_error {
 	int error;
 };
 
-extern void start_new_tl_epoch(struct drbd_tconn *tconn);
+extern void start_new_tl_epoch(struct drbd_connection *connection);
 extern void drbd_req_destroy(struct kref *kref);
 extern void _req_may_be_done(struct drbd_request *req,
 		struct bio_and_error *m);
 extern int __req_mod(struct drbd_request *req, enum drbd_req_event what,
 		struct bio_and_error *m);
-extern void complete_master_bio(struct drbd_conf *mdev,
+extern void complete_master_bio(struct drbd_device *device,
 		struct bio_and_error *m);
 extern void request_timer_fn(unsigned long data);
-extern void tl_restart(struct drbd_tconn *tconn, enum drbd_req_event what);
-extern void _tl_restart(struct drbd_tconn *tconn, enum drbd_req_event what);
+extern void tl_restart(struct drbd_connection *connection, enum drbd_req_event what);
+extern void _tl_restart(struct drbd_connection *connection, enum drbd_req_event what);
 
 /* this is in drbd_main.c */
 extern void drbd_restart_request(struct drbd_request *req);
@@ -294,14 +294,14 @@ extern void drbd_restart_request(struct drbd_request *req);
  * outside the spinlock, e.g. when walking some list on cleanup. */
 static inline int _req_mod(struct drbd_request *req, enum drbd_req_event what)
 {
-	struct drbd_conf *mdev = req->w.mdev;
+	struct drbd_device *device = req->device;
 	struct bio_and_error m;
 	int rv;
 
 	/* __req_mod possibly frees req, do not touch req after that! */
 	rv = __req_mod(req, what, &m);
 	if (m.bio)
-		complete_master_bio(mdev, &m);
+		complete_master_bio(device, &m);
 
 	return rv;
 }
@@ -314,16 +314,16 @@ static inline int req_mod(struct drbd_request *req,
 		enum drbd_req_event what)
 {
 	unsigned long flags;
-	struct drbd_conf *mdev = req->w.mdev;
+	struct drbd_device *device = req->device;
 	struct bio_and_error m;
 	int rv;
 
-	spin_lock_irqsave(&mdev->tconn->req_lock, flags);
+	spin_lock_irqsave(&device->resource->req_lock, flags);
 	rv = __req_mod(req, what, &m);
-	spin_unlock_irqrestore(&mdev->tconn->req_lock, flags);
+	spin_unlock_irqrestore(&device->resource->req_lock, flags);
 
 	if (m.bio)
-		complete_master_bio(mdev, &m);
+		complete_master_bio(device, &m);
 
 	return rv;
 }

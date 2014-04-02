@@ -478,6 +478,12 @@ static inline void bch_keylist_init(struct keylist *l)
 	l->top_p = l->keys_p = l->inline_keys;
 }
 
+static inline void bch_keylist_init_single(struct keylist *l, struct bkey *k)
+{
+	l->keys = k;
+	l->top = bkey_next(k);
+}
+
 static inline void bch_keylist_push(struct keylist *l)
 {
 	l->top = bkey_next(l->top);
