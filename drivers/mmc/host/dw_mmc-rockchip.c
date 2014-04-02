@@ -299,24 +299,9 @@ MODULE_DEVICE_TABLE(of, dw_mci_rockchip_match);
 extern void rockchip_mmc_of_probe(struct device_node *np,struct rk_sdmmc_of *mmc_property);
 #endif
 
-static struct platform_device *sdmmc_pdev;
-static struct dw_mci_drv_data *sdmmc_drv_data;
-static struct platform_device *sdio_pdev;
-static struct dw_mci_drv_data *sdio_drv_data;
-
-static void dw_mci_sdmmc_delayed_work(struct work_struct *work)
-{
-    dw_mci_pltfm_register(sdmmc_pdev, sdmmc_drv_data);
-}
-static void dw_mci_sdio_delayed_work(struct work_struct *work)
-{
-    dw_mci_pltfm_register(sdio_pdev, sdio_drv_data);
-}
-
-
 static int dw_mci_rockchip_probe(struct platform_device *pdev)
 {
-	struct dw_mci_drv_data *drv_data;
+	const struct dw_mci_drv_data *drv_data;
 	const struct of_device_id *match;
 	
 	#if DW_MMC_OF_PROBE
@@ -338,21 +323,7 @@ static int dw_mci_rockchip_probe(struct platform_device *pdev)
 
 	match = of_match_node(dw_mci_rockchip_match, pdev->dev.of_node);
 	drv_data = match->data;
-	
-	if(strcmp(pdev->dev.of_node->type,"sdmmc") == 0){
-	    sdmmc_pdev = pdev;
-	    sdmmc_drv_data = drv_data;
-	    INIT_DELAYED_WORK(&drv_data->dw_mci_sdmmc_delayed_work, dw_mci_sdmmc_delayed_work);
-	    return schedule_delayed_work(&drv_data->dw_mci_sdmmc_delayed_work, msecs_to_jiffies(50));
-	}else if (strcmp(pdev->dev.of_node->type,"sdio") == 0){
-	    sdio_pdev = pdev;
-	    sdio_drv_data = drv_data;
-	    INIT_DELAYED_WORK(&drv_data->dw_mci_sdio_delayed_work, dw_mci_sdio_delayed_work);
-	    return schedule_delayed_work(&drv_data->dw_mci_sdio_delayed_work, msecs_to_jiffies(50));
-	}else{
-        /*eMMC*/
-	    return dw_mci_pltfm_register(pdev, drv_data);
-	}
+	return dw_mci_pltfm_register(pdev, drv_data);
 }
 
 static struct platform_driver dw_mci_rockchip_pltfm_driver = {

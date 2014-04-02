@@ -321,8 +321,6 @@ struct dw_mci_tuning_data {
 struct dw_mci_drv_data {
 	unsigned long	*caps;
 	unsigned int    *hold_reg_flag;
-	struct delayed_work	dw_mci_sdmmc_delayed_work;
-	struct delayed_work	dw_mci_sdio_delayed_work;
 	int		(*init)(struct dw_mci *host);
 	int		(*setup_clock)(struct dw_mci *host);
 	void		(*prepare_command)(struct dw_mci *host, u32 *cmdr);
