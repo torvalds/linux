@@ -62,15 +62,15 @@ struct boot_param_header {
 struct device_node;
 
 /* For scanning an arbitrary device-tree at any time */
-extern char *of_fdt_get_string(struct boot_param_header *blob, u32 offset);
-extern void *of_fdt_get_property(struct boot_param_header *blob,
+extern char *of_fdt_get_string(const void *blob, u32 offset);
+extern void *of_fdt_get_property(const void *blob,
 				 unsigned long node,
 				 const char *name,
 				 int *size);
-extern int of_fdt_is_compatible(struct boot_param_header *blob,
+extern int of_fdt_is_compatible(const void *blob,
 				unsigned long node,
 				const char *compat);
-extern int of_fdt_match(struct boot_param_header *blob, unsigned long node,
+extern int of_fdt_match(const void *blob, unsigned long node,
 			const char *const *compat);
 extern void of_fdt_unflatten_tree(unsigned long *blob,
 			       struct device_node **mynodes);
