@@ -316,7 +316,7 @@ static ssize_t iwl_dbgfs_bt_notif_read(struct file *file, char __user *user_buf,
 				       size_t count, loff_t *ppos)
 {
 	struct iwl_mvm *mvm = file->private_data;
-	struct iwl_bt_coex_profile_notif_old *notif = &mvm->last_bt_notif;
+	struct iwl_bt_coex_profile_notif *notif = &mvm->last_bt_notif;
 	char *buf;
 	int ret, pos = 0, bufsz = sizeof(char) * 1024;
 
@@ -378,14 +378,6 @@ static ssize_t iwl_dbgfs_bt_notif_read(struct file *file, char __user *user_buf,
 	BT_MBOX_PRINT(3, SSN_2, false);
 	BT_MBOX_PRINT(3, UPDATE_REQUEST, true);
 
-	pos += scnprintf(buf+pos, bufsz-pos, "bt_status = %d\n",
-			 notif->bt_status);
-	pos += scnprintf(buf+pos, bufsz-pos, "bt_open_conn = %d\n",
-			 notif->bt_open_conn);
-	pos += scnprintf(buf+pos, bufsz-pos, "bt_traffic_load = %d\n",
-			 notif->bt_traffic_load);
-	pos += scnprintf(buf+pos, bufsz-pos, "bt_agg_traffic_load = %d\n",
-			 notif->bt_agg_traffic_load);
 	pos += scnprintf(buf+pos, bufsz-pos, "bt_ci_compliance = %d\n",
 			 notif->bt_ci_compliance);
 	pos += scnprintf(buf+pos, bufsz-pos, "primary_ch_lut = %d\n",
@@ -411,7 +403,7 @@ static ssize_t iwl_dbgfs_bt_cmd_read(struct file *file, char __user *user_buf,
 				     size_t count, loff_t *ppos)
 {
 	struct iwl_mvm *mvm = file->private_data;
-	struct iwl_bt_coex_ci_cmd_old *cmd = &mvm->last_bt_ci_cmd;
+	struct iwl_bt_coex_ci_cmd *cmd = &mvm->last_bt_ci_cmd;
 	char buf[256];
 	int bufsz = sizeof(buf);
 	int pos = 0;
@@ -420,13 +412,11 @@ static ssize_t iwl_dbgfs_bt_cmd_read(struct file *file, char __user *user_buf,
 
 	pos += scnprintf(buf+pos, bufsz-pos, "Channel inhibition CMD\n");
 	pos += scnprintf(buf+pos, bufsz-pos,
-		       "\tPrimary Channel Bitmap 0x%016llx Fat: %d\n",
-		       le64_to_cpu(cmd->bt_primary_ci),
-		       !!cmd->co_run_bw_primary);
+		       "\tPrimary Channel Bitmap 0x%016llx\n",
+		       le64_to_cpu(cmd->bt_primary_ci));
 	pos += scnprintf(buf+pos, bufsz-pos,
-		       "\tSecondary Channel Bitmap 0x%016llx Fat: %d\n",
-		       le64_to_cpu(cmd->bt_secondary_ci),
-		       !!cmd->co_run_bw_secondary);
+		       "\tSecondary Channel Bitmap 0x%016llx\n",
+		       le64_to_cpu(cmd->bt_secondary_ci));
 
 	pos += scnprintf(buf+pos, bufsz-pos, "BT Configuration CMD\n");
 	pos += scnprintf(buf+pos, bufsz-pos, "\tACK Kill Mask 0x%08x\n",

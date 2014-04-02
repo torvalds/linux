@@ -633,8 +633,8 @@ struct iwl_mvm {
 
 	struct iwl_bt_coex_profile_notif_old last_bt_notif_old;
 	struct iwl_bt_coex_ci_cmd_old last_bt_ci_cmd_old;
-	struct iwl_bt_coex_profile_notif_old last_bt_notif;
-	struct iwl_bt_coex_ci_cmd_old last_bt_ci_cmd;
+	struct iwl_bt_coex_profile_notif last_bt_notif;
+	struct iwl_bt_coex_ci_cmd last_bt_ci_cmd;
 
 	u32 last_ant_isol;
 	u8 last_corun_lut;
