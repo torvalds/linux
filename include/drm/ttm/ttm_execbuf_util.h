@@ -39,16 +39,11 @@
  *
  * @head:           list head for thread-private list.
  * @bo:             refcounted buffer object pointer.
- * @reserved:       Indicates whether @bo has been reserved for validation.
- * @removed:        Indicates whether @bo has been removed from lru lists.
- * @put_count:      Number of outstanding references on bo::list_kref.
- * @old_sync_obj:   Pointer to a sync object about to be unreferenced
  */
 
 struct ttm_validate_buffer {
 	struct list_head head;
 	struct ttm_buffer_object *bo;
-	void *old_sync_obj;
 };
 
 /**
@@ -100,7 +95,7 @@ extern int ttm_eu_reserve_buffers(struct ww_acquire_ctx *ticket,
  *
  * @ticket:      ww_acquire_ctx from reserve call
  * @list:        thread private list of ttm_validate_buffer structs.
- * @sync_obj:    The new sync object for the buffers.
+ * @fence:       The new exclusive fence for the buffers.
  *
  * This function should be called when command submission is complete, and
  * it will add a new sync object to bos pointed to by entries on @list.
@@ -109,6 +104,7 @@ extern int ttm_eu_reserve_buffers(struct ww_acquire_ctx *ticket,
  */
 
 extern void ttm_eu_fence_buffer_objects(struct ww_acquire_ctx *ticket,
-					struct list_head *list, void *sync_obj);
+					struct list_head *list,
+					struct fence *fence);
 
 #endif

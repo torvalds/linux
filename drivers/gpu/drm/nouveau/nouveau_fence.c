@@ -185,17 +185,18 @@ static void nouveau_fence_work_cb(struct fence *fence, struct fence_cb *cb)
 }
 
 void
-nouveau_fence_work(struct nouveau_fence *fence,
+nouveau_fence_work(struct fence *fence,
 		   void (*func)(void *), void *data)
 {
 	struct nouveau_fence_work *work;
 
-	if (fence_is_signaled(&fence->base))
+	if (fence_is_signaled(fence))
 		goto err;
 
 	work = kmalloc(sizeof(*work), GFP_KERNEL);
 	if (!work) {
-		WARN_ON(nouveau_fence_wait(fence, false, false));
+		WARN_ON(nouveau_fence_wait((struct nouveau_fence *)fence,
+					   false, false));
 		goto err;
 	}
 
@@ -203,7 +204,7 @@ nouveau_fence_work(struct nouveau_fence *fence,
 	work->func = func;
 	work->data = data;
 
-	if (fence_add_callback(&fence->base, &work->cb, nouveau_fence_work_cb) < 0)
+	if (fence_add_callback(fence, &work->cb, nouveau_fence_work_cb) < 0)
 		goto err_free;
 	return;
 
@@ -349,14 +350,9 @@ nouveau_fence_sync(struct nouveau_bo *nvbo, struct nouveau_channel *chan)
 	struct reservation_object_list *fobj;
 	int ret = 0, i;
 
-	fence = nvbo->bo.sync_obj;
-	if (fence && fence_is_signaled(fence)) {
-		nouveau_fence_unref((struct nouveau_fence **)
-				    &nvbo->bo.sync_obj);
-		fence = NULL;
-	}
+	fence = reservation_object_get_excl(resv);
 
-	if (fence) {
+	if (fence && !fence_is_signaled(fence)) {
 		struct nouveau_fence *f = from_fence(fence);
 		struct nouveau_channel *prev = f->channel;
 
@@ -370,12 +366,8 @@ nouveau_fence_sync(struct nouveau_bo *nvbo, struct nouveau_channel *chan)
 	if (ret)
 		return ret;
 
-	fence = reservation_object_get_excl(resv);
-	if (fence && !nouveau_local_fence(fence, chan->drm))
-		ret = fence_wait(fence, true);
-
 	fobj = reservation_object_get_list(resv);
-	if (!fobj || ret)
+	if (!fobj)
 		return ret;
 
 	for (i = 0; i < fobj->shared_count && !ret; ++i) {

@@ -270,12 +270,12 @@ static int radeon_move_blit(struct ttm_buffer_object *bo,
 	BUILD_BUG_ON((PAGE_SIZE % RADEON_GPU_PAGE_SIZE) != 0);
 
 	/* sync other rings */
-	fence = bo->sync_obj;
+	fence = (struct radeon_fence *)reservation_object_get_excl(bo->resv);
 	r = radeon_copy(rdev, old_start, new_start,
 			new_mem->num_pages * (PAGE_SIZE / RADEON_GPU_PAGE_SIZE), /* GPU pages */
 			&fence);
 	/* FIXME: handle copy error */
-	r = ttm_bo_move_accel_cleanup(bo, (void *)fence,
+	r = ttm_bo_move_accel_cleanup(bo, &fence->base,
 				      evict, no_wait_gpu, new_mem);
 	radeon_fence_unref(&fence);
 	return r;
@@ -486,31 +486,6 @@ static int radeon_ttm_io_mem_reserve(struct ttm_bo_device *bdev, struct ttm_mem_
 
 static void radeon_ttm_io_mem_free(struct ttm_bo_device *bdev, struct ttm_mem_reg *mem)
 {
-}
-
-static int radeon_sync_obj_wait(void *sync_obj, bool lazy, bool interruptible)
-{
-	return radeon_fence_wait((struct radeon_fence *)sync_obj, interruptible);
-}
-
-static int radeon_sync_obj_flush(void *sync_obj)
-{
-	return 0;
-}
-
-static void radeon_sync_obj_unref(void **sync_obj)
-{
-	radeon_fence_unref((struct radeon_fence **)sync_obj);
-}
-
-static void *radeon_sync_obj_ref(void *sync_obj)
-{
-	return radeon_fence_ref((struct radeon_fence *)sync_obj);
-}
-
-static bool radeon_sync_obj_signaled(void *sync_obj)
-{
-	return radeon_fence_signaled((struct radeon_fence *)sync_obj);
 }
 
 /*
@@ -847,11 +822,6 @@ static struct ttm_bo_driver radeon_bo_driver = {
 	.evict_flags = &radeon_evict_flags,
 	.move = &radeon_bo_move,
 	.verify_access = &radeon_verify_access,
-	.sync_obj_signaled = &radeon_sync_obj_signaled,
-	.sync_obj_wait = &radeon_sync_obj_wait,
-	.sync_obj_flush = &radeon_sync_obj_flush,
-	.sync_obj_unref = &radeon_sync_obj_unref,
-	.sync_obj_ref = &radeon_sync_obj_ref,
 	.move_notify = &radeon_bo_move_notify,
 	.fault_reserve_notify = &radeon_bo_fault_reserve_notify,
 	.io_mem_reserve = &radeon_ttm_io_mem_reserve,

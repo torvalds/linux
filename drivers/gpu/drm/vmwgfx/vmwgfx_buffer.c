@@ -802,41 +802,6 @@ static int vmw_ttm_fault_reserve_notify(struct ttm_buffer_object *bo)
 }
 
 /**
- * FIXME: We're using the old vmware polling method to sync.
- * Do this with fences instead.
- */
-
-static void *vmw_sync_obj_ref(void *sync_obj)
-{
-
-	return (void *)
-		vmw_fence_obj_reference((struct vmw_fence_obj *) sync_obj);
-}
-
-static void vmw_sync_obj_unref(void **sync_obj)
-{
-	vmw_fence_obj_unreference((struct vmw_fence_obj **) sync_obj);
-}
-
-static int vmw_sync_obj_flush(void *sync_obj)
-{
-	vmw_fence_obj_flush((struct vmw_fence_obj *) sync_obj);
-	return 0;
-}
-
-static bool vmw_sync_obj_signaled(void *sync_obj)
-{
-	return vmw_fence_obj_signaled((struct vmw_fence_obj *) sync_obj);
-}
-
-static int vmw_sync_obj_wait(void *sync_obj, bool lazy, bool interruptible)
-{
-	return vmw_fence_obj_wait((struct vmw_fence_obj *) sync_obj,
-				  lazy, interruptible,
-				  VMW_FENCE_WAIT_TIMEOUT);
-}
-
-/**
  * vmw_move_notify - TTM move_notify_callback
  *
  * @bo:             The TTM buffer object about to move.
@@ -873,11 +838,6 @@ struct ttm_bo_driver vmw_bo_driver = {
 	.evict_flags = vmw_evict_flags,
 	.move = NULL,
 	.verify_access = vmw_verify_access,
-	.sync_obj_signaled = vmw_sync_obj_signaled,
-	.sync_obj_wait = vmw_sync_obj_wait,
-	.sync_obj_flush = vmw_sync_obj_flush,
-	.sync_obj_unref = vmw_sync_obj_unref,
-	.sync_obj_ref = vmw_sync_obj_ref,
 	.move_notify = vmw_move_notify,
 	.swap_notify = vmw_swap_notify,
 	.fault_reserve_notify = &vmw_ttm_fault_reserve_notify,

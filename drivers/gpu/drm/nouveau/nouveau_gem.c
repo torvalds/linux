@@ -98,13 +98,12 @@ static void
 nouveau_gem_object_unmap(struct nouveau_bo *nvbo, struct nouveau_vma *vma)
 {
 	const bool mapped = nvbo->bo.mem.mem_type != TTM_PL_SYSTEM;
-	struct nouveau_fence *fence = NULL;
+	struct fence *fence = NULL;
 
 	list_del(&vma->head);
 
-	if (mapped) {
-		fence = nouveau_fence_ref(nvbo->bo.sync_obj);
-	}
+	if (mapped)
+		fence = reservation_object_get_excl(nvbo->bo.resv);
 
 	if (fence) {
 		nouveau_fence_work(fence, nouveau_gem_object_delete, vma);
@@ -114,7 +113,6 @@ nouveau_gem_object_unmap(struct nouveau_bo *nvbo, struct nouveau_vma *vma)
 		nouveau_vm_put(vma);
 		kfree(vma);
 	}
-	nouveau_fence_unref(&fence);
 }
 
 void
@@ -874,8 +872,12 @@ nouveau_gem_ioctl_cpu_prep(struct drm_device *dev, void *data,
 	ret = ttm_bo_reserve(&nvbo->bo, true, false, false, NULL);
 	if (!ret) {
 		ret = ttm_bo_wait(&nvbo->bo, true, true, true);
-		if (!no_wait && ret)
-			fence = nouveau_fence_ref(nvbo->bo.sync_obj);
+		if (!no_wait && ret) {
+			struct fence *excl;
+
+			excl = reservation_object_get_excl(nvbo->bo.resv);
+			fence = nouveau_fence_ref((struct nouveau_fence *)excl);
+		}
 
 		ttm_bo_unreserve(&nvbo->bo);
 	}

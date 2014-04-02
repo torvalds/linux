@@ -357,105 +357,6 @@ static int qxl_bo_move(struct ttm_buffer_object *bo,
 	return ttm_bo_move_memcpy(bo, evict, no_wait_gpu, new_mem);
 }
 
-static bool qxl_sync_obj_signaled(void *sync_obj);
-
-static int qxl_sync_obj_wait(void *sync_obj,
-			     bool lazy, bool interruptible)
-{
-	struct qxl_bo *bo = (struct qxl_bo *)sync_obj;
-	struct qxl_device *qdev = bo->gem_base.dev->dev_private;
-	struct reservation_object_list *fobj;
-	int count = 0, sc = 0, num_release = 0;
-	bool have_drawable_releases;
-
-retry:
-	if (sc == 0) {
-		if (bo->type == QXL_GEM_DOMAIN_SURFACE)
-			qxl_update_surface(qdev, bo);
-	} else if (sc >= 1) {
-		qxl_io_notify_oom(qdev);
-	}
-
-	sc++;
-
-	for (count = 0; count < 10; count++) {
-		if (qxl_sync_obj_signaled(sync_obj))
-			return 0;
-
-		if (!qxl_queue_garbage_collect(qdev, true))
-			break;
-	}
-
-	have_drawable_releases = false;
-	num_release = 0;
-
-	spin_lock(&qdev->release_lock);
-	fobj = bo->tbo.resv->fence;
-	for (count = 0; fobj && count < fobj->shared_count; count++) {
-		struct qxl_release *release;
-
-		release = container_of(fobj->shared[count],
-				       struct qxl_release, base);
-
-		if (fence_is_signaled(&release->base))
-			continue;
-
-		num_release++;
-
-		if (release->type == QXL_RELEASE_DRAWABLE)
-			have_drawable_releases = true;
-	}
-	spin_unlock(&qdev->release_lock);
-
-	qxl_queue_garbage_collect(qdev, true);
-
-	if (have_drawable_releases || sc < 4) {
-		if (sc > 2)
-			/* back off */
-			usleep_range(500, 1000);
-		if (have_drawable_releases && sc > 300) {
-			WARN(1, "sync obj %d still has outstanding releases %d %d %d %ld %d\n", sc, bo->surface_id, bo->is_primary, bo->pin_count, (unsigned long)bo->gem_base.size, num_release);
-			return -EBUSY;
-		}
-		goto retry;
-	}
-	return 0;
-}
-
-static int qxl_sync_obj_flush(void *sync_obj)
-{
-	return 0;
-}
-
-static void qxl_sync_obj_unref(void **sync_obj)
-{
-	*sync_obj = NULL;
-}
-
-static void *qxl_sync_obj_ref(void *sync_obj)
-{
-	return sync_obj;
-}
-
-static bool qxl_sync_obj_signaled(void *sync_obj)
-{
-	struct qxl_bo *qbo = (struct qxl_bo *)sync_obj;
-	struct qxl_device *qdev = qbo->gem_base.dev->dev_private;
-	struct reservation_object_list *fobj;
-	bool ret = true;
-	unsigned i;
-
-	spin_lock(&qdev->release_lock);
-	fobj = qbo->tbo.resv->fence;
-	for (i = 0; fobj && i < fobj->shared_count; ++i) {
-		ret = fence_is_signaled(fobj->shared[i]);
-		if (!ret)
-			break;
-	}
-	spin_unlock(&qdev->release_lock);
-	return ret;
-}
-
 static void qxl_bo_move_notify(struct ttm_buffer_object *bo,
 			       struct ttm_mem_reg *new_mem)
 {
@@ -482,11 +383,6 @@ static struct ttm_bo_driver qxl_bo_driver = {
 	.verify_access = &qxl_verify_access,
 	.io_mem_reserve = &qxl_ttm_io_mem_reserve,
 	.io_mem_free = &qxl_ttm_io_mem_free,
-	.sync_obj_signaled = &qxl_sync_obj_signaled,
-	.sync_obj_wait = &qxl_sync_obj_wait,
-	.sync_obj_flush = &qxl_sync_obj_flush,
-	.sync_obj_unref = &qxl_sync_obj_unref,
-	.sync_obj_ref = &qxl_sync_obj_ref,
 	.move_notify = &qxl_bo_move_notify,
 };
 

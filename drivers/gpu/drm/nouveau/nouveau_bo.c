@@ -88,13 +88,13 @@ nv10_bo_get_tile_region(struct drm_device *dev, int i)
 
 static void
 nv10_bo_put_tile_region(struct drm_device *dev, struct nouveau_drm_tile *tile,
-			struct nouveau_fence *fence)
+			struct fence *fence)
 {
 	struct nouveau_drm *drm = nouveau_drm(dev);
 
 	if (tile) {
 		spin_lock(&drm->tile.lock);
-		tile->fence = nouveau_fence_ref(fence);
+		tile->fence = nouveau_fence_ref((struct nouveau_fence *)fence);
 		tile->used = false;
 		spin_unlock(&drm->tile.lock);
 	}
@@ -976,7 +976,8 @@ nouveau_bo_move_m2mf(struct ttm_buffer_object *bo, int evict, bool intr,
 		if (ret == 0) {
 			ret = nouveau_fence_new(chan, false, &fence);
 			if (ret == 0) {
-				ret = ttm_bo_move_accel_cleanup(bo, fence,
+				ret = ttm_bo_move_accel_cleanup(bo,
+								&fence->base,
 								evict,
 								no_wait_gpu,
 								new_mem);
@@ -1167,8 +1168,9 @@ nouveau_bo_vm_cleanup(struct ttm_buffer_object *bo,
 {
 	struct nouveau_drm *drm = nouveau_bdev(bo->bdev);
 	struct drm_device *dev = drm->dev;
+	struct fence *fence = reservation_object_get_excl(bo->resv);
 
-	nv10_bo_put_tile_region(dev, *old_tile, bo->sync_obj);
+	nv10_bo_put_tile_region(dev, *old_tile, fence);
 	*old_tile = new_tile;
 }
 
@@ -1455,45 +1457,12 @@ nouveau_ttm_tt_unpopulate(struct ttm_tt *ttm)
 	ttm_pool_unpopulate(ttm);
 }
 
-static void
-nouveau_bo_fence_unref(void **sync_obj)
-{
-	nouveau_fence_unref((struct nouveau_fence **)sync_obj);
-}
-
 void
 nouveau_bo_fence(struct nouveau_bo *nvbo, struct nouveau_fence *fence)
 {
 	struct reservation_object *resv = nvbo->bo.resv;
 
-	nouveau_bo_fence_unref(&nvbo->bo.sync_obj);
-	nvbo->bo.sync_obj = nouveau_fence_ref(fence);
-
 	reservation_object_add_excl_fence(resv, &fence->base);
-}
-
-static void *
-nouveau_bo_fence_ref(void *sync_obj)
-{
-	return nouveau_fence_ref(sync_obj);
-}
-
-static bool
-nouveau_bo_fence_signalled(void *sync_obj)
-{
-	return nouveau_fence_done(sync_obj);
-}
-
-static int
-nouveau_bo_fence_wait(void *sync_obj, bool lazy, bool intr)
-{
-	return nouveau_fence_wait(sync_obj, lazy, intr);
-}
-
-static int
-nouveau_bo_fence_flush(void *sync_obj)
-{
-	return 0;
 }
 
 struct ttm_bo_driver nouveau_bo_driver = {
@@ -1506,11 +1475,6 @@ struct ttm_bo_driver nouveau_bo_driver = {
 	.move_notify = nouveau_bo_move_ntfy,
 	.move = nouveau_bo_move,
 	.verify_access = nouveau_bo_verify_access,
-	.sync_obj_signaled = nouveau_bo_fence_signalled,
-	.sync_obj_wait = nouveau_bo_fence_wait,
-	.sync_obj_flush = nouveau_bo_fence_flush,
-	.sync_obj_unref = nouveau_bo_fence_unref,
-	.sync_obj_ref = nouveau_bo_fence_ref,
 	.fault_reserve_notify = &nouveau_ttm_fault_reserve_notify,
 	.io_mem_reserve = &nouveau_ttm_io_mem_reserve,
 	.io_mem_free = &nouveau_ttm_io_mem_free,

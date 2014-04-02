@@ -280,9 +280,7 @@ struct qxl_device {
 	uint8_t		slot_gen_bits;
 	uint64_t	va_slot_mask;
 
-	/* XXX: when rcu becomes available, release_lock can be killed */
 	spinlock_t	release_lock;
-	spinlock_t	fence_lock;
 	struct idr	release_idr;
 	uint32_t	release_seqno;
 	spinlock_t release_idr_lock;

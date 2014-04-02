@@ -464,9 +464,6 @@ void qxl_release_fence_buffer_objects(struct qxl_release *release)
 		bo = entry->bo;
 		qbo = to_qxl_bo(bo);
 
-		if (!entry->bo->sync_obj)
-			entry->bo->sync_obj = qbo;
-
 		reservation_object_add_shared_fence(bo->resv, &release->base);
 		ttm_bo_add_to_lru(bo);
 		__ttm_bo_unreserve(bo);

@@ -163,7 +163,7 @@ int ttm_eu_reserve_buffers(struct ww_acquire_ctx *ticket,
 EXPORT_SYMBOL(ttm_eu_reserve_buffers);
 
 void ttm_eu_fence_buffer_objects(struct ww_acquire_ctx *ticket,
-				 struct list_head *list, void *sync_obj)
+				 struct list_head *list, struct fence *fence)
 {
 	struct ttm_validate_buffer *entry;
 	struct ttm_buffer_object *bo;
@@ -183,18 +183,12 @@ void ttm_eu_fence_buffer_objects(struct ww_acquire_ctx *ticket,
 
 	list_for_each_entry(entry, list, head) {
 		bo = entry->bo;
-		entry->old_sync_obj = bo->sync_obj;
-		bo->sync_obj = driver->sync_obj_ref(sync_obj);
+		reservation_object_add_excl_fence(bo->resv, fence);
 		ttm_bo_add_to_lru(bo);
 		__ttm_bo_unreserve(bo);
 	}
 	spin_unlock(&glob->lru_lock);
 	if (ticket)
 		ww_acquire_fini(ticket);
-
-	list_for_each_entry(entry, list, head) {
-		if (entry->old_sync_obj)
-			driver->sync_obj_unref(&entry->old_sync_obj);
-	}
 }
 EXPORT_SYMBOL(ttm_eu_fence_buffer_objects);

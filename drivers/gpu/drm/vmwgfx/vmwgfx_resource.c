@@ -1420,22 +1420,16 @@ void vmw_fence_single_bo(struct ttm_buffer_object *bo,
 			 struct vmw_fence_obj *fence)
 {
 	struct ttm_bo_device *bdev = bo->bdev;
-	struct vmw_fence_obj *old_fence_obj;
+
 	struct vmw_private *dev_priv =
 		container_of(bdev, struct vmw_private, bdev);
 
 	if (fence == NULL) {
 		vmw_execbuf_fence_commands(NULL, dev_priv, &fence, NULL);
+		reservation_object_add_excl_fence(bo->resv, &fence->base);
+		fence_put(&fence->base);
 	} else
-		vmw_fence_obj_reference(fence);
-
-	reservation_object_add_excl_fence(bo->resv, &fence->base);
-
-	old_fence_obj = bo->sync_obj;
-	bo->sync_obj = fence;
-
-	if (old_fence_obj)
-		vmw_fence_obj_unreference(&old_fence_obj);
+		reservation_object_add_excl_fence(bo->resv, &fence->base);
 }
 
 /**

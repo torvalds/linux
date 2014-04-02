@@ -40,6 +40,7 @@
 #include <linux/file.h>
 #include <linux/module.h>
 #include <linux/atomic.h>
+#include <linux/reservation.h>
 
 #define TTM_ASSERT_LOCKED(param)
 #define TTM_DEBUG(fmt, arg...)
@@ -142,7 +143,6 @@ static void ttm_bo_release_list(struct kref *list_kref)
 	BUG_ON(atomic_read(&bo->list_kref.refcount));
 	BUG_ON(atomic_read(&bo->kref.refcount));
 	BUG_ON(atomic_read(&bo->cpu_writers));
-	BUG_ON(bo->sync_obj != NULL);
 	BUG_ON(bo->mem.mm_node != NULL);
 	BUG_ON(!list_empty(&bo->lru));
 	BUG_ON(!list_empty(&bo->ddestroy));
@@ -403,12 +403,30 @@ static void ttm_bo_cleanup_memtype_use(struct ttm_buffer_object *bo)
 	ww_mutex_unlock (&bo->resv->lock);
 }
 
+static void ttm_bo_flush_all_fences(struct ttm_buffer_object *bo)
+{
+	struct reservation_object_list *fobj;
+	struct fence *fence;
+	int i;
+
+	fobj = reservation_object_get_list(bo->resv);
+	fence = reservation_object_get_excl(bo->resv);
+	if (fence && !fence->ops->signaled)
+		fence_enable_sw_signaling(fence);
+
+	for (i = 0; fobj && i < fobj->shared_count; ++i) {
+		fence = rcu_dereference_protected(fobj->shared[i],
+					reservation_object_held(bo->resv));
+
+		if (!fence->ops->signaled)
+			fence_enable_sw_signaling(fence);
+	}
+}
+
 static void ttm_bo_cleanup_refs_or_queue(struct ttm_buffer_object *bo)
 {
 	struct ttm_bo_device *bdev = bo->bdev;
 	struct ttm_bo_global *glob = bo->glob;
-	struct ttm_bo_driver *driver = bdev->driver;
-	void *sync_obj = NULL;
 	int put_count;
 	int ret;
 
@@ -416,9 +434,7 @@ static void ttm_bo_cleanup_refs_or_queue(struct ttm_buffer_object *bo)
 	ret = __ttm_bo_reserve(bo, false, true, false, NULL);
 
 	if (!ret) {
-		(void) ttm_bo_wait(bo, false, false, true);
-
-		if (!bo->sync_obj) {
+		if (!ttm_bo_wait(bo, false, false, true)) {
 			put_count = ttm_bo_del_from_lru(bo);
 
 			spin_unlock(&glob->lru_lock);
@@ -427,8 +443,8 @@ static void ttm_bo_cleanup_refs_or_queue(struct ttm_buffer_object *bo)
 			ttm_bo_list_ref_sub(bo, put_count, true);
 
 			return;
-		}
-		sync_obj = driver->sync_obj_ref(bo->sync_obj);
+		} else
+			ttm_bo_flush_all_fences(bo);
 
 		/*
 		 * Make NO_EVICT bos immediately available to
@@ -447,12 +463,68 @@ static void ttm_bo_cleanup_refs_or_queue(struct ttm_buffer_object *bo)
 	list_add_tail(&bo->ddestroy, &bdev->ddestroy);
 	spin_unlock(&glob->lru_lock);
 
-	if (sync_obj) {
-		driver->sync_obj_flush(sync_obj);
-		driver->sync_obj_unref(&sync_obj);
-	}
 	schedule_delayed_work(&bdev->wq,
 			      ((HZ / 100) < 1) ? 1 : HZ / 100);
+}
+
+static int ttm_bo_unreserve_and_wait(struct ttm_buffer_object *bo,
+				     bool interruptible)
+{
+	struct ttm_bo_global *glob = bo->glob;
+	struct reservation_object_list *fobj;
+	struct fence *excl = NULL;
+	struct fence **shared = NULL;
+	u32 shared_count = 0, i;
+	int ret = 0;
+
+	fobj = reservation_object_get_list(bo->resv);
+	if (fobj && fobj->shared_count) {
+		shared = kmalloc(sizeof(*shared) * fobj->shared_count,
+				 GFP_KERNEL);
+
+		if (!shared) {
+			ret = -ENOMEM;
+			__ttm_bo_unreserve(bo);
+			spin_unlock(&glob->lru_lock);
+			return ret;
+		}
+
+		for (i = 0; i < fobj->shared_count; ++i) {
+			if (!fence_is_signaled(fobj->shared[i])) {
+				fence_get(fobj->shared[i]);
+				shared[shared_count++] = fobj->shared[i];
+			}
+		}
+		if (!shared_count) {
+			kfree(shared);
+			shared = NULL;
+		}
+	}
+
+	excl = reservation_object_get_excl(bo->resv);
+	if (excl && !fence_is_signaled(excl))
+		fence_get(excl);
+	else
+		excl = NULL;
+
+	__ttm_bo_unreserve(bo);
+	spin_unlock(&glob->lru_lock);
+
+	if (excl) {
+		ret = fence_wait(excl, interruptible);
+		fence_put(excl);
+	}
+
+	if (shared_count > 0) {
+		for (i = 0; i < shared_count; ++i) {
+			if (!ret)
+				ret = fence_wait(shared[i], interruptible);
+			fence_put(shared[i]);
+		}
+		kfree(shared);
+	}
+
+	return ret;
 }
 
 /**
@@ -471,8 +543,6 @@ static int ttm_bo_cleanup_refs_and_unlock(struct ttm_buffer_object *bo,
 					  bool interruptible,
 					  bool no_wait_gpu)
 {
-	struct ttm_bo_device *bdev = bo->bdev;
-	struct ttm_bo_driver *driver = bdev->driver;
 	struct ttm_bo_global *glob = bo->glob;
 	int put_count;
 	int ret;
@@ -480,20 +550,7 @@ static int ttm_bo_cleanup_refs_and_unlock(struct ttm_buffer_object *bo,
 	ret = ttm_bo_wait(bo, false, false, true);
 
 	if (ret && !no_wait_gpu) {
-		void *sync_obj;
-
-		/*
-		 * Take a reference to the fence and unreserve,
-		 * at this point the buffer should be dead, so
-		 * no new sync objects can be attached.
-		 */
-		sync_obj = driver->sync_obj_ref(bo->sync_obj);
-
-		__ttm_bo_unreserve(bo);
-		spin_unlock(&glob->lru_lock);
-
-		ret = driver->sync_obj_wait(sync_obj, false, interruptible);
-		driver->sync_obj_unref(&sync_obj);
+		ret = ttm_bo_unreserve_and_wait(bo, interruptible);
 		if (ret)
 			return ret;
 
@@ -1498,41 +1555,51 @@ void ttm_bo_unmap_virtual(struct ttm_buffer_object *bo)
 
 EXPORT_SYMBOL(ttm_bo_unmap_virtual);
 
-
 int ttm_bo_wait(struct ttm_buffer_object *bo,
 		bool lazy, bool interruptible, bool no_wait)
 {
-	struct ttm_bo_driver *driver = bo->bdev->driver;
-	void *sync_obj;
-	int ret = 0;
+	struct reservation_object_list *fobj;
+	struct reservation_object *resv;
+	struct fence *excl;
+	long timeout = 15 * HZ;
+	int i;
 
-	lockdep_assert_held(&bo->resv->lock.base);
+	resv = bo->resv;
+	fobj = reservation_object_get_list(resv);
+	excl = reservation_object_get_excl(resv);
+	if (excl) {
+		if (!fence_is_signaled(excl)) {
+			if (no_wait)
+				return -EBUSY;
 
-	if (likely(bo->sync_obj == NULL))
-		return 0;
-
-	if (bo->sync_obj) {
-		if (driver->sync_obj_signaled(bo->sync_obj)) {
-			driver->sync_obj_unref(&bo->sync_obj);
-			clear_bit(TTM_BO_PRIV_FLAG_MOVING, &bo->priv_flags);
-			return 0;
+			timeout = fence_wait_timeout(excl,
+						     interruptible, timeout);
 		}
-
-		if (no_wait)
-			return -EBUSY;
-
-		sync_obj = driver->sync_obj_ref(bo->sync_obj);
-		ret = driver->sync_obj_wait(sync_obj,
-					    lazy, interruptible);
-
-		if (likely(ret == 0)) {
-			clear_bit(TTM_BO_PRIV_FLAG_MOVING,
-				  &bo->priv_flags);
-			driver->sync_obj_unref(&bo->sync_obj);
-		}
-		driver->sync_obj_unref(&sync_obj);
 	}
-	return ret;
+
+	for (i = 0; fobj && timeout > 0 && i < fobj->shared_count; ++i) {
+		struct fence *fence;
+		fence = rcu_dereference_protected(fobj->shared[i],
+						reservation_object_held(resv));
+
+		if (!fence_is_signaled(fence)) {
+			if (no_wait)
+				return -EBUSY;
+
+			timeout = fence_wait_timeout(fence,
+						     interruptible, timeout);
+		}
+	}
+
+	if (timeout < 0)
+		return timeout;
+
+	if (timeout == 0)
+		return -EBUSY;
+
+	reservation_object_add_excl_fence(resv, NULL);
+	clear_bit(TTM_BO_PRIV_FLAG_MOVING, &bo->priv_flags);
+	return 0;
 }
 EXPORT_SYMBOL(ttm_bo_wait);
 

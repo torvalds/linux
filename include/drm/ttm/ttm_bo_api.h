@@ -173,7 +173,6 @@ struct ttm_tt;
  * @lru: List head for the lru list.
  * @ddestroy: List head for the delayed destroy list.
  * @swap: List head for swap LRU list.
- * @sync_obj: Pointer to a synchronization object.
  * @priv_flags: Flags describing buffer object internal state.
  * @vma_node: Address space manager node.
  * @offset: The current GPU offset, which can have different meanings
@@ -240,7 +239,6 @@ struct ttm_buffer_object {
 	 * Members protected by a bo reservation.
 	 */
 
-	void *sync_obj;
 	unsigned long priv_flags;
 
 	struct drm_vma_offset_node vma_node;
