@@ -17,7 +17,7 @@
 #include <linux/device.h>
 #include <linux/serial.h>
 #include <linux/tty.h>
-#include <linux/export.h>
+#include <linux/module.h>
 
 struct ttyprintk_port {
 	struct tty_port port;
@@ -214,4 +214,15 @@ error:
 	tty_port_destroy(&tpk_port.port);
 	return ret;
 }
+
+static void __exit ttyprintk_exit(void)
+{
+	tty_unregister_driver(ttyprintk_driver);
+	put_tty_driver(ttyprintk_driver);
+	tty_port_destroy(&tpk_port.port);
+}
+
 device_initcall(ttyprintk_init);
+module_exit(ttyprintk_exit);
+
+MODULE_LICENSE("GPL");
