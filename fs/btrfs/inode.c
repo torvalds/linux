@@ -8500,19 +8500,20 @@ static int __start_delalloc_inodes(struct btrfs_root *root, int delay_iput,
 			else
 				iput(inode);
 			ret = -ENOMEM;
-			break;
+			goto out;
 		}
 		list_add_tail(&work->list, &works);
 		btrfs_queue_work(root->fs_info->flush_workers,
 				 &work->work);
 		ret++;
 		if (nr != -1 && ret >= nr)
-			break;
+			goto out;
 		cond_resched();
 		spin_lock(&root->delalloc_lock);
 	}
 	spin_unlock(&root->delalloc_lock);
 
+out:
 	list_for_each_entry_safe(work, next, &works, list) {
 		list_del_init(&work->list);
 		btrfs_wait_and_free_delalloc_work(work);
