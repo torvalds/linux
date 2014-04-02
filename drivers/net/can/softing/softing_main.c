@@ -713,8 +713,6 @@ DEV_ATTR_RO(firmware_version, id.fw_version);
 DEV_ATTR_RO_STR(hardware, pdat->name);
 DEV_ATTR_RO(hardware_version, id.hw_version);
 DEV_ATTR_RO(license, id.license);
-DEV_ATTR_RO(frequency, id.freq);
-DEV_ATTR_RO(txpending, tx.pending);
 
 static struct attribute *softing_pdev_attrs[] = {
 	&dev_attr_serial.attr,
@@ -723,8 +721,6 @@ static struct attribute *softing_pdev_attrs[] = {
 	&dev_attr_hardware.attr,
 	&dev_attr_hardware_version.attr,
 	&dev_attr_license.attr,
-	&dev_attr_frequency.attr,
-	&dev_attr_txpending.attr,
 	NULL,
 };
 
