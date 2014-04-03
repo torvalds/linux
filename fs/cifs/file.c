@@ -2385,14 +2385,12 @@ cifs_uncached_retry_writev(struct cifs_writedata *wdata)
 }
 
 static ssize_t
-cifs_iovec_write(struct file *file, const struct iovec *iov,
-		 unsigned long nr_segs, loff_t *poffset)
+cifs_iovec_write(struct file *file, struct iov_iter *from, loff_t *poffset)
 {
 	unsigned long nr_pages, i;
 	size_t bytes, copied, len, cur_len;
 	ssize_t total_written = 0;
 	loff_t offset;
-	struct iov_iter it;
 	struct cifsFileInfo *open_file;
 	struct cifs_tcon *tcon;
 	struct cifs_sb_info *cifs_sb;
@@ -2401,13 +2399,15 @@ cifs_iovec_write(struct file *file, const struct iovec *iov,
 	int rc;
 	pid_t pid;
 
-	len = iov_length(iov, nr_segs);
-	if (!len)
-		return 0;
-
+	len = iov_iter_count(from);
 	rc = generic_write_checks(file, poffset, &len, 0);
 	if (rc)
 		return rc;
+
+	if (!len)
+		return 0;
+
+	iov_iter_truncate(from, len);
 
 	INIT_LIST_HEAD(&wdata_list);
 	cifs_sb = CIFS_SB(file->f_path.dentry->d_sb);
@@ -2424,7 +2424,6 @@ cifs_iovec_write(struct file *file, const struct iovec *iov,
 	else
 		pid = current->tgid;
 
-	iov_iter_init(&it, WRITE, iov, nr_segs, len);
 	do {
 		size_t save_len;
 
@@ -2446,7 +2445,7 @@ cifs_iovec_write(struct file *file, const struct iovec *iov,
 		for (i = 0; i < nr_pages; i++) {
 			bytes = min_t(size_t, cur_len, PAGE_SIZE);
 			copied = copy_page_from_iter(wdata->pages[i], 0, bytes,
-						     &it);
+						     from);
 			cur_len -= copied;
 			/*
 			 * If we didn't copy as much as we expected, then that
@@ -2545,11 +2544,11 @@ restart_loop:
 	return total_written ? total_written : (ssize_t)rc;
 }
 
-ssize_t cifs_user_writev(struct kiocb *iocb, const struct iovec *iov,
-				unsigned long nr_segs, loff_t pos)
+ssize_t cifs_user_writev(struct kiocb *iocb, struct iov_iter *from)
 {
 	ssize_t written;
 	struct inode *inode;
+	loff_t pos = iocb->ki_pos;
 
 	inode = file_inode(iocb->ki_filp);
 
@@ -2559,7 +2558,7 @@ ssize_t cifs_user_writev(struct kiocb *iocb, const struct iovec *iov,
 	 * write request.
 	 */
 
-	written = cifs_iovec_write(iocb->ki_filp, iov, nr_segs, &pos);
+	written = cifs_iovec_write(iocb->ki_filp, from, &pos);
 	if (written > 0) {
 		CIFS_I(inode)->invalid_mapping = true;
 		iocb->ki_pos = pos;
@@ -2569,8 +2568,7 @@ ssize_t cifs_user_writev(struct kiocb *iocb, const struct iovec *iov,
 }
 
 static ssize_t
-cifs_writev(struct kiocb *iocb, const struct iovec *iov,
-	    unsigned long nr_segs, loff_t pos)
+cifs_writev(struct kiocb *iocb, struct iov_iter *from)
 {
 	struct file *file = iocb->ki_filp;
 	struct cifsFileInfo *cfile = (struct cifsFileInfo *)file->private_data;
@@ -2588,10 +2586,10 @@ cifs_writev(struct kiocb *iocb, const struct iovec *iov,
 	mutex_lock(&inode->i_mutex);
 	if (file->f_flags & O_APPEND)
 		lock_pos = i_size_read(inode);
-	if (!cifs_find_lock_conflict(cfile, lock_pos, iov_length(iov, nr_segs),
+	if (!cifs_find_lock_conflict(cfile, lock_pos, iov_iter_count(from),
 				     server->vals->exclusive_lock_type, NULL,
 				     CIFS_WRITE_OP)) {
-		rc = __generic_file_aio_write(iocb, iov, nr_segs);
+		rc = __generic_file_write_iter(iocb, from);
 		mutex_unlock(&inode->i_mutex);
 
 		if (rc > 0) {
@@ -2609,8 +2607,7 @@ cifs_writev(struct kiocb *iocb, const struct iovec *iov,
 }
 
 ssize_t
-cifs_strict_writev(struct kiocb *iocb, const struct iovec *iov,
-		   unsigned long nr_segs, loff_t pos)
+cifs_strict_writev(struct kiocb *iocb, struct iov_iter *from)
 {
 	struct inode *inode = file_inode(iocb->ki_filp);
 	struct cifsInodeInfo *cinode = CIFS_I(inode);
@@ -2628,11 +2625,10 @@ cifs_strict_writev(struct kiocb *iocb, const struct iovec *iov,
 		if (cap_unix(tcon->ses) &&
 		(CIFS_UNIX_FCNTL_CAP & le64_to_cpu(tcon->fsUnixInfo.Capability))
 		  && ((cifs_sb->mnt_cifs_flags & CIFS_MOUNT_NOPOSIXBRL) == 0)) {
-			written = generic_file_aio_write(
-					iocb, iov, nr_segs, pos);
+			written = generic_file_write_iter(iocb, from);
 			goto out;
 		}
-		written = cifs_writev(iocb, iov, nr_segs, pos);
+		written = cifs_writev(iocb, from);
 		goto out;
 	}
 	/*
@@ -2641,7 +2637,7 @@ cifs_strict_writev(struct kiocb *iocb, const struct iovec *iov,
 	 * affected pages because it may cause a error with mandatory locks on
 	 * these pages but not on the region from pos to ppos+len-1.
 	 */
-	written = cifs_user_writev(iocb, iov, nr_segs, pos);
+	written = cifs_user_writev(iocb, from);
 	if (written > 0 && CIFS_CACHE_READ(cinode)) {
 		/*
 		 * Windows 7 server can delay breaking level2 oplock if a write
