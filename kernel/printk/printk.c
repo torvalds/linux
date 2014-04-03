@@ -1883,6 +1883,7 @@ void suspend_console(void)
 	console_lock();
 	console_suspended = 1;
 	up(&console_sem);
+	mutex_release(&console_lock_dep_map, 1, _RET_IP_);
 }
 
 void resume_console(void)
@@ -1890,6 +1891,7 @@ void resume_console(void)
 	if (!console_suspend_enabled)
 		return;
 	down(&console_sem);
+	mutex_acquire(&console_lock_dep_map, 0, 0, _RET_IP_);
 	console_suspended = 0;
 	console_unlock();
 }
