@@ -634,23 +634,21 @@ static int nfs_need_sync_write(struct file *filp, struct inode *inode)
 	return 0;
 }
 
-ssize_t nfs_file_write(struct kiocb *iocb, const struct iovec *iov,
-		       unsigned long nr_segs, loff_t pos)
+ssize_t nfs_file_write(struct kiocb *iocb, struct iov_iter *from)
 {
 	struct file *file = iocb->ki_filp;
 	struct inode *inode = file_inode(file);
 	unsigned long written = 0;
 	ssize_t result;
-	size_t count = iov_length(iov, nr_segs);
-	struct iov_iter from;
-	iov_iter_init(&from, WRITE, iov, nr_segs, count);
+	size_t count = iov_iter_count(from);
+	loff_t pos = iocb->ki_pos;
 
 	result = nfs_key_timeout_notify(file, inode);
 	if (result)
 		return result;
 
 	if (file->f_flags & O_DIRECT)
-		return nfs_file_direct_write(iocb, &from, pos, true);
+		return nfs_file_direct_write(iocb, from, pos, true);
 
 	dprintk("NFS: write(%pD2, %zu@%Ld)\n",
 		file, count, (long long) pos);
@@ -671,7 +669,7 @@ ssize_t nfs_file_write(struct kiocb *iocb, const struct iovec *iov,
 	if (!count)
 		goto out;
 
-	result = generic_file_aio_write(iocb, iov, nr_segs, pos);
+	result = generic_file_write_iter(iocb, from);
 	if (result > 0)
 		written = result;
 
@@ -941,9 +939,9 @@ EXPORT_SYMBOL_GPL(nfs_setlease);
 const struct file_operations nfs_file_operations = {
 	.llseek		= nfs_file_llseek,
 	.read		= new_sync_read,
-	.write		= do_sync_write,
+	.write		= new_sync_write,
 	.read_iter	= nfs_file_read,
-	.aio_write	= nfs_file_write,
+	.write_iter	= nfs_file_write,
 	.mmap		= nfs_file_mmap,
 	.open		= nfs_file_open,
 	.flush		= nfs_file_flush,
