@@ -48,12 +48,6 @@ extern int tracepoint_probe_register(const char *name, void *probe, void *data);
 extern int
 tracepoint_probe_unregister(const char *name, void *probe, void *data);
 
-extern int tracepoint_probe_register_noupdate(const char *name, void *probe,
-					      void *data);
-extern int tracepoint_probe_unregister_noupdate(const char *name, void *probe,
-						void *data);
-extern void tracepoint_probe_update_all(void);
-
 #ifdef CONFIG_MODULES
 struct tp_module {
 	struct list_head list;
@@ -67,18 +61,6 @@ static inline bool trace_module_has_bad_taint(struct module *mod)
 	return false;
 }
 #endif /* CONFIG_MODULES */
-
-struct tracepoint_iter {
-#ifdef CONFIG_MODULES
-	struct tp_module *module;
-#endif /* CONFIG_MODULES */
-	struct tracepoint * const *tracepoint;
-};
-
-extern void tracepoint_iter_start(struct tracepoint_iter *iter);
-extern void tracepoint_iter_next(struct tracepoint_iter *iter);
-extern void tracepoint_iter_stop(struct tracepoint_iter *iter);
-extern void tracepoint_iter_reset(struct tracepoint_iter *iter);
 
 /*
  * tracepoint_synchronize_unregister must be called between the last tracepoint

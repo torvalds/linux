@@ -15,7 +15,7 @@
 #include <linux/stringify.h>
 #include <linux/kobject.h>
 #include <linux/moduleparam.h>
-#include <linux/tracepoint.h>
+#include <linux/jump_label.h>
 #include <linux/export.h>
 
 #include <linux/percpu.h>

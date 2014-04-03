@@ -210,6 +210,11 @@ struct trace_array {
 	struct list_head	events;
 	cpumask_var_t		tracing_cpumask; /* only trace on set CPUs */
 	int			ref;
+#ifdef CONFIG_FUNCTION_TRACER
+	struct ftrace_ops	*ops;
+	/* function tracing enabled */
+	int			function_enabled;
+#endif
 };
 
 enum {
@@ -355,14 +360,16 @@ struct tracer {
 	void			(*print_header)(struct seq_file *m);
 	enum print_line_t	(*print_line)(struct trace_iterator *iter);
 	/* If you handled the flag setting, return 0 */
-	int			(*set_flag)(u32 old_flags, u32 bit, int set);
+	int			(*set_flag)(struct trace_array *tr,
+					    u32 old_flags, u32 bit, int set);
 	/* Return 0 if OK with change, else return non-zero */
-	int			(*flag_changed)(struct tracer *tracer,
+	int			(*flag_changed)(struct trace_array *tr,
 						u32 mask, int set);
 	struct tracer		*next;
 	struct tracer_flags	*flags;
+	int			enabled;
 	bool			print_max;
-	bool			enabled;
+	bool			allow_instances;
 #ifdef CONFIG_TRACER_MAX_TRACE
 	bool			use_max_tr;
 #endif
@@ -812,13 +819,36 @@ static inline int ftrace_trace_task(struct task_struct *task)
 	return test_tsk_trace_trace(task);
 }
 extern int ftrace_is_dead(void);
+int ftrace_create_function_files(struct trace_array *tr,
+				 struct dentry *parent);
+void ftrace_destroy_function_files(struct trace_array *tr);
 #else
 static inline int ftrace_trace_task(struct task_struct *task)
 {
 	return 1;
 }
 static inline int ftrace_is_dead(void) { return 0; }
-#endif
+static inline int
+ftrace_create_function_files(struct trace_array *tr,
+			     struct dentry *parent)
+{
+	return 0;
+}
+static inline void ftrace_destroy_function_files(struct trace_array *tr) { }
+#endif /* CONFIG_FUNCTION_TRACER */
+
+#if defined(CONFIG_FUNCTION_TRACER) && defined(CONFIG_DYNAMIC_FTRACE)
+void ftrace_create_filter_files(struct ftrace_ops *ops,
+				struct dentry *parent);
+void ftrace_destroy_filter_files(struct ftrace_ops *ops);
+#else
+/*
+ * The ops parameter passed in is usually undefined.
+ * This must be a macro.
+ */
+#define ftrace_create_filter_files(ops, parent) do { } while (0)
+#define ftrace_destroy_filter_files(ops) do { } while (0)
+#endif /* CONFIG_FUNCTION_TRACER && CONFIG_DYNAMIC_FTRACE */
 
 int ftrace_event_is_function(struct ftrace_event_call *call);
 

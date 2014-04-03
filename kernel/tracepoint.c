@@ -62,14 +62,12 @@ struct tracepoint_entry {
 	struct hlist_node hlist;
 	struct tracepoint_func *funcs;
 	int refcount;	/* Number of times armed. 0 if disarmed. */
+	int enabled;	/* Tracepoint enabled */
 	char name[0];
 };
 
 struct tp_probes {
-	union {
-		struct rcu_head rcu;
-		struct list_head list;
-	} u;
+	struct rcu_head rcu;
 	struct tracepoint_func probes[0];
 };
 
@@ -82,7 +80,7 @@ static inline void *allocate_probes(int count)
 
 static void rcu_free_old_probes(struct rcu_head *head)
 {
-	kfree(container_of(head, struct tp_probes, u.rcu));
+	kfree(container_of(head, struct tp_probes, rcu));
 }
 
 static inline void release_probes(struct tracepoint_func *old)
@@ -90,7 +88,7 @@ static inline void release_probes(struct tracepoint_func *old)
 	if (old) {
 		struct tp_probes *tp_probes = container_of(old,
 			struct tp_probes, probes[0]);
-		call_rcu_sched(&tp_probes->u.rcu, rcu_free_old_probes);
+		call_rcu_sched(&tp_probes->rcu, rcu_free_old_probes);
 	}
 }
 
@@ -237,6 +235,7 @@ static struct tracepoint_entry *add_tracepoint(const char *name)
 	memcpy(&e->name[0], name, name_len);
 	e->funcs = NULL;
 	e->refcount = 0;
+	e->enabled = 0;
 	hlist_add_head(&e->hlist, head);
 	return e;
 }
@@ -316,6 +315,7 @@ static void tracepoint_update_probe_range(struct tracepoint * const *begin,
 		if (mark_entry) {
 			set_tracepoint(&mark_entry, *iter,
 					!!mark_entry->refcount);
+			mark_entry->enabled = !!mark_entry->refcount;
 		} else {
 			disable_tracepoint(*iter);
 		}
@@ -373,13 +373,26 @@ tracepoint_add_probe(const char *name, void *probe, void *data)
  * tracepoint_probe_register -  Connect a probe to a tracepoint
  * @name: tracepoint name
  * @probe: probe handler
+ * @data: probe private data
  *
- * Returns 0 if ok, error value on error.
+ * Returns:
+ * - 0 if the probe was successfully registered, and tracepoint
+ *   callsites are currently loaded for that probe,
+ * - -ENODEV if the probe was successfully registered, but no tracepoint
+ *   callsite is currently loaded for that probe,
+ * - other negative error value on error.
+ *
+ * When tracepoint_probe_register() returns either 0 or -ENODEV,
+ * parameters @name, @probe, and @data may be used by the tracepoint
+ * infrastructure until the probe is unregistered.
+ *
  * The probe address must at least be aligned on the architecture pointer size.
  */
 int tracepoint_probe_register(const char *name, void *probe, void *data)
 {
 	struct tracepoint_func *old;
+	struct tracepoint_entry *entry;
+	int ret = 0;
 
 	mutex_lock(&tracepoints_mutex);
 	old = tracepoint_add_probe(name, probe, data);
@@ -388,9 +401,13 @@ int tracepoint_probe_register(const char *name, void *probe, void *data)
 		return PTR_ERR(old);
 	}
 	tracepoint_update_probes();		/* may update entry */
+	entry = get_tracepoint(name);
+	/* Make sure the entry was enabled */
+	if (!entry || !entry->enabled)
+		ret = -ENODEV;
 	mutex_unlock(&tracepoints_mutex);
 	release_probes(old);
-	return 0;
+	return ret;
 }
 EXPORT_SYMBOL_GPL(tracepoint_probe_register);
 
@@ -415,6 +432,7 @@ tracepoint_remove_probe(const char *name, void *probe, void *data)
  * tracepoint_probe_unregister -  Disconnect a probe from a tracepoint
  * @name: tracepoint name
  * @probe: probe function pointer
+ * @data: probe private data
  *
  * We do not need to call a synchronize_sched to make sure the probes have
  * finished running before doing a module unload, because the module unload
@@ -438,197 +456,6 @@ int tracepoint_probe_unregister(const char *name, void *probe, void *data)
 }
 EXPORT_SYMBOL_GPL(tracepoint_probe_unregister);
 
-static LIST_HEAD(old_probes);
-static int need_update;
-
-static void tracepoint_add_old_probes(void *old)
-{
-	need_update = 1;
-	if (old) {
-		struct tp_probes *tp_probes = container_of(old,
-			struct tp_probes, probes[0]);
-		list_add(&tp_probes->u.list, &old_probes);
-	}
-}
-
-/**
- * tracepoint_probe_register_noupdate -  register a probe but not connect
- * @name: tracepoint name
- * @probe: probe handler
- *
- * caller must call tracepoint_probe_update_all()
- */
-int tracepoint_probe_register_noupdate(const char *name, void *probe,
-				       void *data)
-{
-	struct tracepoint_func *old;
-
-	mutex_lock(&tracepoints_mutex);
-	old = tracepoint_add_probe(name, probe, data);
-	if (IS_ERR(old)) {
-		mutex_unlock(&tracepoints_mutex);
-		return PTR_ERR(old);
-	}
-	tracepoint_add_old_probes(old);
-	mutex_unlock(&tracepoints_mutex);
-	return 0;
-}
-EXPORT_SYMBOL_GPL(tracepoint_probe_register_noupdate);
-
-/**
- * tracepoint_probe_unregister_noupdate -  remove a probe but not disconnect
- * @name: tracepoint name
- * @probe: probe function pointer
- *
- * caller must call tracepoint_probe_update_all()
- */
-int tracepoint_probe_unregister_noupdate(const char *name, void *probe,
-					 void *data)
-{
-	struct tracepoint_func *old;
-
-	mutex_lock(&tracepoints_mutex);
-	old = tracepoint_remove_probe(name, probe, data);
-	if (IS_ERR(old)) {
-		mutex_unlock(&tracepoints_mutex);
-		return PTR_ERR(old);
-	}
-	tracepoint_add_old_probes(old);
-	mutex_unlock(&tracepoints_mutex);
-	return 0;
-}
-EXPORT_SYMBOL_GPL(tracepoint_probe_unregister_noupdate);
-
-/**
- * tracepoint_probe_update_all -  update tracepoints
- */
-void tracepoint_probe_update_all(void)
-{
-	LIST_HEAD(release_probes);
-	struct tp_probes *pos, *next;
-
-	mutex_lock(&tracepoints_mutex);
-	if (!need_update) {
-		mutex_unlock(&tracepoints_mutex);
-		return;
-	}
-	if (!list_empty(&old_probes))
-		list_replace_init(&old_probes, &release_probes);
-	need_update = 0;
-	tracepoint_update_probes();
-	mutex_unlock(&tracepoints_mutex);
-	list_for_each_entry_safe(pos, next, &release_probes, u.list) {
-		list_del(&pos->u.list);
-		call_rcu_sched(&pos->u.rcu, rcu_free_old_probes);
-	}
-}
-EXPORT_SYMBOL_GPL(tracepoint_probe_update_all);
-
-/**
- * tracepoint_get_iter_range - Get a next tracepoint iterator given a range.
- * @tracepoint: current tracepoints (in), next tracepoint (out)
- * @begin: beginning of the range
- * @end: end of the range
- *
- * Returns whether a next tracepoint has been found (1) or not (0).
- * Will return the first tracepoint in the range if the input tracepoint is
- * NULL.
- */
-static int tracepoint_get_iter_range(struct tracepoint * const **tracepoint,
-	struct tracepoint * const *begin, struct tracepoint * const *end)
-{
-	if (!*tracepoint && begin != end) {
-		*tracepoint = begin;
-		return 1;
-	}
-	if (*tracepoint >= begin && *tracepoint < end)
-		return 1;
-	return 0;
-}
-
-#ifdef CONFIG_MODULES
-static void tracepoint_get_iter(struct tracepoint_iter *iter)
-{
-	int found = 0;
-	struct tp_module *iter_mod;
-
-	/* Core kernel tracepoints */
-	if (!iter->module) {
-		found = tracepoint_get_iter_range(&iter->tracepoint,
-				__start___tracepoints_ptrs,
-				__stop___tracepoints_ptrs);
-		if (found)
-			goto end;
-	}
-	/* Tracepoints in modules */
-	mutex_lock(&tracepoints_mutex);
-	list_for_each_entry(iter_mod, &tracepoint_module_list, list) {
-		/*
-		 * Sorted module list
-		 */
-		if (iter_mod < iter->module)
-			continue;
-		else if (iter_mod > iter->module)
-			iter->tracepoint = NULL;
-		found = tracepoint_get_iter_range(&iter->tracepoint,
-			iter_mod->tracepoints_ptrs,
-			iter_mod->tracepoints_ptrs
-				+ iter_mod->num_tracepoints);
-		if (found) {
-			iter->module = iter_mod;
-			break;
-		}
-	}
-	mutex_unlock(&tracepoints_mutex);
-end:
-	if (!found)
-		tracepoint_iter_reset(iter);
-}
-#else /* CONFIG_MODULES */
-static void tracepoint_get_iter(struct tracepoint_iter *iter)
-{
-	int found = 0;
-
-	/* Core kernel tracepoints */
-	found = tracepoint_get_iter_range(&iter->tracepoint,
-			__start___tracepoints_ptrs,
-			__stop___tracepoints_ptrs);
-	if (!found)
-		tracepoint_iter_reset(iter);
-}
-#endif /* CONFIG_MODULES */
-
-void tracepoint_iter_start(struct tracepoint_iter *iter)
-{
-	tracepoint_get_iter(iter);
-}
-EXPORT_SYMBOL_GPL(tracepoint_iter_start);
-
-void tracepoint_iter_next(struct tracepoint_iter *iter)
-{
-	iter->tracepoint++;
-	/*
-	 * iter->tracepoint may be invalid because we blindly incremented it.
-	 * Make sure it is valid by marshalling on the tracepoints, getting the
-	 * tracepoints from following modules if necessary.
-	 */
-	tracepoint_get_iter(iter);
-}
-EXPORT_SYMBOL_GPL(tracepoint_iter_next);
-
-void tracepoint_iter_stop(struct tracepoint_iter *iter)
-{
-}
-EXPORT_SYMBOL_GPL(tracepoint_iter_stop);
-
-void tracepoint_iter_reset(struct tracepoint_iter *iter)
-{
-#ifdef CONFIG_MODULES
-	iter->module = NULL;
-#endif /* CONFIG_MODULES */
-	iter->tracepoint = NULL;
-}
-EXPORT_SYMBOL_GPL(tracepoint_iter_reset);
 
 #ifdef CONFIG_MODULES
 bool trace_module_has_bad_taint(struct module *mod)
@@ -638,8 +465,11 @@ bool trace_module_has_bad_taint(struct module *mod)
 
 static int tracepoint_module_coming(struct module *mod)
 {
-	struct tp_module *tp_mod, *iter;
+	struct tp_module *tp_mod;
 	int ret = 0;
+
+	if (!mod->num_tracepoints)
+		return 0;
 
 	/*
 	 * We skip modules that taint the kernel, especially those with different
@@ -656,23 +486,7 @@ static int tracepoint_module_coming(struct module *mod)
 	}
 	tp_mod->num_tracepoints = mod->num_tracepoints;
 	tp_mod->tracepoints_ptrs = mod->tracepoints_ptrs;
-
-	/*
-	 * tracepoint_module_list is kept sorted by struct module pointer
-	 * address for iteration on tracepoints from a seq_file that can release
-	 * the mutex between calls.
-	 */
-	list_for_each_entry_reverse(iter, &tracepoint_module_list, list) {
-		BUG_ON(iter == tp_mod);	/* Should never be in the list twice */
-		if (iter < tp_mod) {
-			/* We belong to the location right after iter. */
-			list_add(&tp_mod->list, &iter->list);
-			goto module_added;
-		}
-	}
-	/* We belong to the beginning of the list */
-	list_add(&tp_mod->list, &tracepoint_module_list);
-module_added:
+	list_add_tail(&tp_mod->list, &tracepoint_module_list);
 	tracepoint_update_probe_range(mod->tracepoints_ptrs,
 		mod->tracepoints_ptrs + mod->num_tracepoints);
 end:
@@ -683,6 +497,9 @@ end:
 static int tracepoint_module_going(struct module *mod)
 {
 	struct tp_module *pos;
+
+	if (!mod->num_tracepoints)
+		return 0;
 
 	mutex_lock(&tracepoints_mutex);
 	tracepoint_update_probe_range(mod->tracepoints_ptrs,

@@ -35,11 +35,6 @@ struct trace_kprobe {
 	struct trace_probe	tp;
 };
 
-struct event_file_link {
-	struct ftrace_event_file	*file;
-	struct list_head		list;
-};
-
 #define SIZEOF_TRACE_KPROBE(n)				\
 	(offsetof(struct trace_kprobe, tp.args) +	\
 	(sizeof(struct probe_arg) * (n)))
@@ -385,18 +380,6 @@ enable_trace_kprobe(struct trace_kprobe *tk, struct ftrace_event_file *file)
 	}
  out:
 	return ret;
-}
-
-static struct event_file_link *
-find_event_file_link(struct trace_probe *tp, struct ftrace_event_file *file)
-{
-	struct event_file_link *link;
-
-	list_for_each_entry(link, &tp->files, list)
-		if (link->file == file)
-			return link;
-
-	return NULL;
 }
 
 /*
