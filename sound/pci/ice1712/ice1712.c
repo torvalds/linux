@@ -1048,6 +1048,8 @@ __out:
 	old = inb(ICEMT(ice, RATE));
 	if (!force && old == val)
 		goto __out;
+
+	ice->cur_rate = rate;
 	outb(val, ICEMT(ice, RATE));
 	spin_unlock_irqrestore(&ice->reg_lock, flags);
 
@@ -2832,6 +2834,12 @@ static int snd_ice1712_suspend(struct device *dev)
 	snd_pcm_suspend_all(ice->pcm_ds);
 	snd_ac97_suspend(ice->ac97);
 
+	spin_lock_irq(&ice->reg_lock);
+	ice->pm_saved_is_spdif_master = is_spdif_master(ice);
+	ice->pm_saved_spdif_ctrl = inw(ICEMT(ice, ROUTE_SPDOUT));
+	ice->pm_saved_route = inw(ICEMT(ice, ROUTE_PSDOUT03));
+	spin_unlock_irq(&ice->reg_lock);
+
 	if (ice->pm_suspend)
 		ice->pm_suspend(ice);
 
@@ -2846,6 +2854,7 @@ static int snd_ice1712_resume(struct device *dev)
 	struct pci_dev *pci = to_pci_dev(dev);
 	struct snd_card *card = dev_get_drvdata(dev);
 	struct snd_ice1712 *ice = card->private_data;
+	int rate;
 
 	if (!ice->pm_suspend_enabled)
 		return 0;
@@ -2860,13 +2869,36 @@ static int snd_ice1712_resume(struct device *dev)
 
 	pci_set_master(pci);
 
+	if (ice->cur_rate)
+		rate = ice->cur_rate;
+	else
+		rate = PRO_RATE_DEFAULT;
+
 	if (snd_ice1712_chip_init(ice) < 0) {
 		snd_card_disconnect(card);
 		return -EIO;
 	}
 
+	ice->cur_rate = rate;
+
 	if (ice->pm_resume)
 		ice->pm_resume(ice);
+
+	if (ice->pm_saved_is_spdif_master) {
+		/* switching to external clock via SPDIF */
+		spin_lock_irq(&ice->reg_lock);
+		outb(inb(ICEMT(ice, RATE)) | ICE1712_SPDIF_MASTER,
+			ICEMT(ice, RATE));
+		spin_unlock_irq(&ice->reg_lock);
+		snd_ice1712_set_input_clock_source(ice, 1);
+	} else {
+		/* internal on-card clock */
+		snd_ice1712_set_pro_rate(ice, rate, 1);
+		snd_ice1712_set_input_clock_source(ice, 0);
+	}
+
+	outw(ice->pm_saved_spdif_ctrl, ICEMT(ice, ROUTE_SPDOUT));
+	outw(ice->pm_saved_route, ICEMT(ice, ROUTE_PSDOUT03));
 
 	if (ice->ac97)
 		snd_ac97_resume(ice->ac97);
