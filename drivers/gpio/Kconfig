@@ -740,7 +740,7 @@ config GPIO_SODAVILLE
 
 config GPIO_TIMBERDALE
 	bool "Support for timberdale GPIO IP"
-	depends on MFD_TIMBERDALE && HAS_IOMEM
+	depends on MFD_TIMBERDALE
 	---help---
 	Add support for the GPIO IP in the timberdale FPGA.
 
