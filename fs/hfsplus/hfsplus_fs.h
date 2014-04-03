@@ -367,7 +367,7 @@ typedef int (*search_strategy_t)(struct hfs_bnode *,
  */
 
 /* attributes.c */
-int hfsplus_create_attr_tree_cache(void);
+int __init hfsplus_create_attr_tree_cache(void);
 void hfsplus_destroy_attr_tree_cache(void);
 hfsplus_attr_entry *hfsplus_alloc_attr_entry(void);
 void hfsplus_destroy_attr_entry(hfsplus_attr_entry *entry_p);
