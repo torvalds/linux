@@ -388,6 +388,13 @@ our @mode_permission_funcs = (
 	["(?:CLASS|DEVICE|SENSOR)_ATTR", 2],
 );
 
+#Create a search pattern for all these functions to speed up a loop below
+our $mode_perms_search = "";
+foreach my $entry (@mode_permission_funcs) {
+	$mode_perms_search .= '|' if ($mode_perms_search ne "");
+	$mode_perms_search .= $entry->[0];
+}
+
 our $allowed_asm_includes = qr{(?x:
 	irq|
 	memory
@@ -4524,26 +4531,30 @@ sub process {
 			     "Exporting world writable files is usually an error. Consider more restrictive permissions.\n" . $herecurr);
 		}
 
-		foreach my $entry (@mode_permission_funcs) {
-			my $func = $entry->[0];
-			my $arg_pos = $entry->[1];
+# Mode permission misuses where it seems decimal should be octal
+# This uses a shortcut match to avoid unnecessary uses of a slow foreach loop
+		if ($^V && $^V ge 5.10.0 &&
+		    $line =~ /$mode_perms_search/) {
+			foreach my $entry (@mode_permission_funcs) {
+				my $func = $entry->[0];
+				my $arg_pos = $entry->[1];
 
-			my $skip_args = "";
-			if ($arg_pos > 1) {
-				$arg_pos--;
-				$skip_args = "(?:\\s*$FuncArg\\s*,\\s*){$arg_pos,$arg_pos}";
-			}
-			my $test = "\\b$func\\s*\\(${skip_args}([\\d]+)\\s*[,\\)]";
-			if ($^V && $^V ge 5.10.0 &&
-			    $line =~ /$test/) {
-				my $val = $1;
-				$val = $6 if ($skip_args ne "");
+				my $skip_args = "";
+				if ($arg_pos > 1) {
+					$arg_pos--;
+					$skip_args = "(?:\\s*$FuncArg\\s*,\\s*){$arg_pos,$arg_pos}";
+				}
+				my $test = "\\b$func\\s*\\(${skip_args}([\\d]+)\\s*[,\\)]";
+				if ($line =~ /$test/) {
+					my $val = $1;
+					$val = $6 if ($skip_args ne "");
 
-				if ($val !~ /^0$/ &&
-				    (($val =~ /^$Int$/ && $val !~ /^$Octal$/) ||
-				     length($val) ne 4)) {
-					ERROR("NON_OCTAL_PERMISSIONS",
-					      "Use 4 digit octal (0777) not decimal permissions\n" . $herecurr);
+					if ($val !~ /^0$/ &&
+					    (($val =~ /^$Int$/ && $val !~ /^$Octal$/) ||
+					     length($val) ne 4)) {
+						ERROR("NON_OCTAL_PERMISSIONS",
+						      "Use 4 digit octal (0777) not decimal permissions\n" . $herecurr);
+					}
 				}
 			}
 		}
