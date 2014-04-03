@@ -82,6 +82,8 @@ struct nilfs_inode {
 	__le32	i_pad;
 };
 
+#define NILFS_MIN_INODE_SIZE		128
+
 /**
  * struct nilfs_super_root - structure of super root
  * @sr_sum: check sum
@@ -482,6 +484,8 @@ struct nilfs_dat_entry {
 	__le64 de_rsv;
 };
 
+#define NILFS_MIN_DAT_ENTRY_SIZE	32
+
 /**
  * struct nilfs_snapshot_list - snapshot list
  * @ssl_next: next checkpoint number on snapshot list
@@ -519,6 +523,8 @@ struct nilfs_checkpoint {
 	   additional fields should be added behind cp_ifile_inode. */
 	struct nilfs_inode cp_ifile_inode;
 };
+
+#define NILFS_MIN_CHECKPOINT_SIZE	(64 + NILFS_MIN_INODE_SIZE)
 
 /* checkpoint flags */
 enum {
@@ -614,6 +620,8 @@ struct nilfs_segment_usage {
 	__le32 su_nblocks;
 	__le32 su_flags;
 };
+
+#define NILFS_MIN_SEGMENT_USAGE_SIZE	16
 
 /* segment usage flag */
 enum {

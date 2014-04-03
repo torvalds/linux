@@ -1169,6 +1169,18 @@ int nilfs_sufile_read(struct super_block *sb, size_t susize,
 	void *kaddr;
 	int err;
 
+	if (susize > sb->s_blocksize) {
+		printk(KERN_ERR
+		       "NILFS: too large segment usage size: %zu bytes.\n",
+		       susize);
+		return -EINVAL;
+	} else if (susize < NILFS_MIN_SEGMENT_USAGE_SIZE) {
+		printk(KERN_ERR
+		       "NILFS: too small segment usage size: %zu bytes.\n",
+		       susize);
+		return -EINVAL;
+	}
+
 	sufile = nilfs_iget_locked(sb, NULL, NILFS_SUFILE_INO);
 	if (unlikely(!sufile))
 		return -ENOMEM;
