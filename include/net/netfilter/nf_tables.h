@@ -436,6 +436,16 @@ struct nft_trans_chain {
 #define nft_trans_chain_policy(trans)	\
 	(((struct nft_trans_chain *)trans->data)->policy)
 
+struct nft_trans_table {
+	bool		update;
+	bool		enable;
+};
+
+#define nft_trans_table_update(trans)	\
+	(((struct nft_trans_table *)trans->data)->update)
+#define nft_trans_table_enable(trans)	\
+	(((struct nft_trans_table *)trans->data)->enable)
+
 static inline struct nft_expr *nft_expr_first(const struct nft_rule *rule)
 {
 	return (struct nft_expr *)&rule->data[0];
