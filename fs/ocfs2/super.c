@@ -1612,14 +1612,9 @@ static int ocfs2_show_options(struct seq_file *s, struct dentry *root)
 	return 0;
 }
 
-wait_queue_head_t ocfs2__ioend_wq[OCFS2_IOEND_WQ_HASH_SZ];
-
 static int __init ocfs2_init(void)
 {
-	int status, i;
-
-	for (i = 0; i < OCFS2_IOEND_WQ_HASH_SZ; i++)
-		init_waitqueue_head(&ocfs2__ioend_wq[i]);
+	int status;
 
 	status = init_ocfs2_uptodate_cache();
 	if (status < 0)
@@ -1761,7 +1756,7 @@ static void ocfs2_inode_init_once(void *data)
 	ocfs2_extent_map_init(&oi->vfs_inode);
 	INIT_LIST_HEAD(&oi->ip_io_markers);
 	oi->ip_dir_start_lookup = 0;
-	atomic_set(&oi->ip_unaligned_aio, 0);
+	mutex_init(&oi->ip_unaligned_aio);
 	init_rwsem(&oi->ip_alloc_sem);
 	init_rwsem(&oi->ip_xattr_sem);
 	mutex_init(&oi->ip_io_mutex);
