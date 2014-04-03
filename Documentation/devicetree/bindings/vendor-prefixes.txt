@@ -75,6 +75,7 @@ moxa	Moxa
 national	National Semiconductor
 neonode		Neonode Inc.
 netgear	NETGEAR
+newhaven	Newhaven Display International
 nintendo	Nintendo
 nokia	Nokia
 nvidia	NVIDIA
