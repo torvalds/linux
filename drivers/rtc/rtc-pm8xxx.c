@@ -9,7 +9,7 @@
  * MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the
  * GNU General Public License for more details.
  */
-
+#include <linux/of.h>
 #include <linux/module.h>
 #include <linux/init.h>
 #include <linux/rtc.h>
@@ -18,9 +18,6 @@
 #include <linux/regmap.h>
 #include <linux/slab.h>
 #include <linux/spinlock.h>
-
-#include <linux/mfd/pm8xxx/rtc.h>
-
 
 /* RTC Register offsets from RTC CTRL REG */
 #define PM8XXX_ALARM_CTRL_OFFSET	0x01
@@ -39,6 +36,7 @@
  * struct pm8xxx_rtc -  rtc driver internal structure
  * @rtc:		rtc device for this driver.
  * @regmap:		regmap used to access RTC registers
+ * @allow_set_time:	indicates whether writing to the RTC is allowed
  * @rtc_alarm_irq:	rtc alarm irq number.
  * @rtc_base:		address of rtc control register.
  * @rtc_read_base:	base address of read registers.
@@ -51,6 +49,7 @@
 struct pm8xxx_rtc {
 	struct rtc_device *rtc;
 	struct regmap *regmap;
+	bool allow_set_time;
 	int rtc_alarm_irq;
 	int rtc_base;
 	int rtc_read_base;
@@ -74,6 +73,9 @@ static int pm8xxx_rtc_set_time(struct device *dev, struct rtc_time *tm)
 	unsigned long secs, irq_flags;
 	u8 value[NUM_8_BIT_RTC_REGS], alarm_enabled = 0, ctrl_reg;
 	struct pm8xxx_rtc *rtc_dd = dev_get_drvdata(dev);
+
+	if (!rtc_dd->allow_set_time)
+		return -EACCES;
 
 	rtc_tm_to_time(tm, &secs);
 
@@ -298,8 +300,9 @@ rtc_rw_fail:
 	return rc;
 }
 
-static struct rtc_class_ops pm8xxx_rtc_ops = {
+static const struct rtc_class_ops pm8xxx_rtc_ops = {
 	.read_time	= pm8xxx_rtc_read_time,
+	.set_time	= pm8xxx_rtc_set_time,
 	.set_alarm	= pm8xxx_rtc_set_alarm,
 	.read_alarm	= pm8xxx_rtc_read_alarm,
 	.alarm_irq_enable = pm8xxx_rtc_alarm_irq_enable,
@@ -353,18 +356,26 @@ rtc_alarm_handled:
 	return IRQ_HANDLED;
 }
 
+/*
+ * Hardcoded RTC bases until IORESOURCE_REG mapping is figured out
+ */
+static const struct of_device_id pm8xxx_id_table[] = {
+	{ .compatible = "qcom,pm8921-rtc", .data = (void *) 0x11D },
+	{ .compatible = "qcom,pm8058-rtc", .data = (void *) 0x1E8 },
+	{ },
+};
+MODULE_DEVICE_TABLE(of, pm8xxx_id_table);
+
 static int pm8xxx_rtc_probe(struct platform_device *pdev)
 {
 	int rc;
 	unsigned int ctrl_reg;
-	bool rtc_write_enable = false;
 	struct pm8xxx_rtc *rtc_dd;
-	struct resource *rtc_resource;
-	const struct pm8xxx_rtc_platform_data *pdata =
-						dev_get_platdata(&pdev->dev);
+	const struct of_device_id *match;
 
-	if (pdata != NULL)
-		rtc_write_enable = pdata->rtc_write_enable;
+	match = of_match_node(pm8xxx_id_table, pdev->dev.of_node);
+	if (!match)
+		return -ENXIO;
 
 	rtc_dd = devm_kzalloc(&pdev->dev, sizeof(*rtc_dd), GFP_KERNEL);
 	if (rtc_dd == NULL)
@@ -385,14 +396,10 @@ static int pm8xxx_rtc_probe(struct platform_device *pdev)
 		return -ENXIO;
 	}
 
-	rtc_resource = platform_get_resource_byname(pdev, IORESOURCE_IO,
-						    "pmic_rtc_base");
-	if (!(rtc_resource && rtc_resource->start)) {
-		dev_err(&pdev->dev, "RTC IO resource absent!\n");
-		return -ENXIO;
-	}
+	rtc_dd->allow_set_time = of_property_read_bool(pdev->dev.of_node,
+						      "allow-set-time");
 
-	rtc_dd->rtc_base = rtc_resource->start;
+	rtc_dd->rtc_base = (long) match->data;
 
 	/* Setup RTC register addresses */
 	rtc_dd->rtc_write_base = rtc_dd->rtc_base + PM8XXX_RTC_WRITE_OFFSET;
@@ -419,8 +426,6 @@ static int pm8xxx_rtc_probe(struct platform_device *pdev)
 	}
 
 	rtc_dd->ctrl_reg = ctrl_reg;
-	if (rtc_write_enable)
-		pm8xxx_rtc_ops.set_time = pm8xxx_rtc_set_time;
 
 	platform_set_drvdata(pdev, rtc_dd);
 
@@ -479,9 +484,10 @@ static SIMPLE_DEV_PM_OPS(pm8xxx_rtc_pm_ops,
 static struct platform_driver pm8xxx_rtc_driver = {
 	.probe		= pm8xxx_rtc_probe,
 	.driver	= {
-		.name	= PM8XXX_RTC_DEV_NAME,
-		.owner	= THIS_MODULE,
-		.pm	= &pm8xxx_rtc_pm_ops,
+		.name		= "rtc-pm8xxx",
+		.owner		= THIS_MODULE,
+		.pm		= &pm8xxx_rtc_pm_ops,
+		.of_match_table	= pm8xxx_id_table,
 	},
 };
 
