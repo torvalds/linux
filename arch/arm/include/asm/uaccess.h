@@ -19,7 +19,7 @@
 #include <asm/unified.h>
 #include <asm/compiler.h>
 
-#if __LINUX_ARM_ARCH__ < 6
+#ifndef CONFIG_HAVE_EFFICIENT_UNALIGNED_ACCESS
 #include <asm-generic/uaccess-unaligned.h>
 #else
 #define __get_user_unaligned __get_user

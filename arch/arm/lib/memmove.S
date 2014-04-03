@@ -147,24 +147,24 @@ ENTRY(memmove)
 
 12:	PLD(	pld	[r1, #-128]		)
 13:		ldmdb   r1!, {r7, r8, r9, ip}
-		mov     lr, r3, push #\push
+		mov     lr, r3, lspush #\push
 		subs    r2, r2, #32
 		ldmdb   r1!, {r3, r4, r5, r6}
-		orr     lr, lr, ip, pull #\pull
-		mov     ip, ip, push #\push
-		orr     ip, ip, r9, pull #\pull
-		mov     r9, r9, push #\push
-		orr     r9, r9, r8, pull #\pull
-		mov     r8, r8, push #\push
-		orr     r8, r8, r7, pull #\pull
-		mov     r7, r7, push #\push
-		orr     r7, r7, r6, pull #\pull
-		mov     r6, r6, push #\push
-		orr     r6, r6, r5, pull #\pull
-		mov     r5, r5, push #\push
-		orr     r5, r5, r4, pull #\pull
-		mov     r4, r4, push #\push
-		orr     r4, r4, r3, pull #\pull
+		orr     lr, lr, ip, lspull #\pull
+		mov     ip, ip, lspush #\push
+		orr     ip, ip, r9, lspull #\pull
+		mov     r9, r9, lspush #\push
+		orr     r9, r9, r8, lspull #\pull
+		mov     r8, r8, lspush #\push
+		orr     r8, r8, r7, lspull #\pull
+		mov     r7, r7, lspush #\push
+		orr     r7, r7, r6, lspull #\pull
+		mov     r6, r6, lspush #\push
+		orr     r6, r6, r5, lspull #\pull
+		mov     r5, r5, lspush #\push
+		orr     r5, r5, r4, lspull #\pull
+		mov     r4, r4, lspush #\push
+		orr     r4, r4, r3, lspull #\pull
 		stmdb   r0!, {r4 - r9, ip, lr}
 		bge	12b
 	PLD(	cmn	r2, #96			)
@@ -175,10 +175,10 @@ ENTRY(memmove)
 14:		ands	ip, r2, #28
 		beq	16f
 
-15:		mov     lr, r3, push #\push
+15:		mov     lr, r3, lspush #\push
 		ldr	r3, [r1, #-4]!
 		subs	ip, ip, #4
-		orr	lr, lr, r3, pull #\pull
+		orr	lr, lr, r3, lspull #\pull
 		str	lr, [r0, #-4]!
 		bgt	15b
 	CALGN(	cmp	r2, #0			)
