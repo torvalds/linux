@@ -346,7 +346,7 @@ static int get_key_beholdm6xx(struct IR_i2c *ir, enum rc_type *protocol,
 		return 0;
 
 	*protocol = RC_TYPE_NEC;
-	*scancode = RC_SCANCODE_NECX(((data[10] << 8) | data[11]), data[9]);
+	*scancode = RC_SCANCODE_NECX(data[11] << 8 | data[10], data[9]);
 	*toggle = 0;
 	return 1;
 }
