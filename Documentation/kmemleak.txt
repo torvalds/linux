@@ -11,9 +11,7 @@ with the difference that the orphan objects are not freed but only
 reported via /sys/kernel/debug/kmemleak. A similar method is used by the
 Valgrind tool (memcheck --leak-check) to detect the memory leaks in
 user-space applications.
-
-Please check DEBUG_KMEMLEAK dependencies in lib/Kconfig.debug for supported
-architectures.
+Kmemleak is supported on x86, arm, powerpc, sparc, sh, microblaze, ppc, mips, s390, metag and tile.
 
 Usage
 -----
@@ -69,7 +67,7 @@ Basic Algorithm
 
 The memory allocations via kmalloc, vmalloc, kmem_cache_alloc and
 friends are traced and the pointers, together with additional
-information like size and stack trace, are stored in a prio search tree.
+information like size and stack trace, are stored in a rbtree.
 The corresponding freeing function calls are tracked and the pointers
 removed from the kmemleak data structures.
 
@@ -85,7 +83,7 @@ The scanning algorithm steps:
   1. mark all objects as white (remaining white objects will later be
      considered orphan)
   2. scan the memory starting with the data section and stacks, checking
-     the values against the addresses stored in the prio search tree. If
+     the values against the addresses stored in the rbtree. If
      a pointer to a white object is found, the object is added to the
      gray list
   3. scan the gray objects for matching addresses (some white objects
