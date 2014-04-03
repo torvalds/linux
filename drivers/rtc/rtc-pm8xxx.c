@@ -396,10 +396,8 @@ static int pm8xxx_rtc_probe(struct platform_device *pdev)
 		rtc_write_enable = pdata->rtc_write_enable;
 
 	rtc_dd = devm_kzalloc(&pdev->dev, sizeof(*rtc_dd), GFP_KERNEL);
-	if (rtc_dd == NULL) {
-		dev_err(&pdev->dev, "Unable to allocate memory!\n");
+	if (rtc_dd == NULL)
 		return -ENOMEM;
-	}
 
 	/* Initialise spinlock to protect RTC control register */
 	spin_lock_init(&rtc_dd->ctrl_reg_lock);
