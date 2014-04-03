@@ -287,7 +287,7 @@ static int st_rc_probe(struct platform_device *pdev)
 	st_rc_hardware_init(rc_dev);
 
 	rdev->driver_type = RC_DRIVER_IR_RAW;
-	rc_set_allowed_protocols(rdev, RC_BIT_ALL);
+	rdev->allowed_protocols = RC_BIT_ALL;
 	/* rx sampling rate is 10Mhz */
 	rdev->rx_resolution = 100;
 	rdev->timeout = US_TO_NS(MAX_SYMB_TIME);

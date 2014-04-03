@@ -48,7 +48,7 @@ static int ir_sharp_decode(struct rc_dev *dev, struct ir_raw_event ev)
 	struct sharp_dec *data = &dev->raw->sharp;
 	u32 msg, echo, address, command, scancode;
 
-	if (!rc_protocols_enabled(dev, RC_BIT_SHARP))
+	if (!(dev->enabled_protocols & RC_BIT_SHARP))
 		return 0;
 
 	if (!is_timing_event(ev)) {

@@ -556,8 +556,8 @@ static void img_ir_set_decoder(struct img_ir_priv *priv,
 	hw->mode = IMG_IR_M_NORMAL;
 
 	/* clear the wakeup scancode filter */
-	rdev->scancode_filters[RC_FILTER_WAKEUP].data = 0;
-	rdev->scancode_filters[RC_FILTER_WAKEUP].mask = 0;
+	rdev->scancode_wakeup_filter.data = 0;
+	rdev->scancode_wakeup_filter.mask = 0;
 
 	/* clear raw filters */
 	_img_ir_set_filter(priv, NULL);
@@ -661,8 +661,8 @@ success:
 	wakeup_protocols = *ir_type;
 	if (!hw->decoder || !hw->decoder->filter)
 		wakeup_protocols = 0;
-	rc_set_allowed_wakeup_protocols(rdev, wakeup_protocols);
-	rc_set_enabled_wakeup_protocols(rdev, wakeup_protocols);
+	rdev->allowed_wakeup_protocols = wakeup_protocols;
+	rdev->enabled_wakeup_protocols = wakeup_protocols;
 	return 0;
 }
 
@@ -676,9 +676,9 @@ static void img_ir_set_protocol(struct img_ir_priv *priv, u64 proto)
 	spin_unlock_irq(&rdev->rc_map.lock);
 
 	mutex_lock(&rdev->lock);
-	rc_set_enabled_protocols(rdev, proto);
-	rc_set_allowed_wakeup_protocols(rdev, proto);
-	rc_set_enabled_wakeup_protocols(rdev, proto);
+	rdev->enabled_protocols = proto;
+	rdev->allowed_wakeup_protocols = proto;
+	rdev->enabled_wakeup_protocols = proto;
 	mutex_unlock(&rdev->lock);
 }
 
@@ -1003,7 +1003,7 @@ int img_ir_probe_hw(struct img_ir_priv *priv)
 	}
 	rdev->priv = priv;
 	rdev->map_name = RC_MAP_EMPTY;
-	rc_set_allowed_protocols(rdev, img_ir_allowed_protos(priv));
+	rdev->allowed_protocols = img_ir_allowed_protos(priv);
 	rdev->input_name = "IMG Infrared Decoder";
 	rdev->s_filter = img_ir_set_normal_filter;
 	rdev->s_wakeup_filter = img_ir_set_wakeup_filter;

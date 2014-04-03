@@ -46,8 +46,8 @@ static int ir_sony_decode(struct rc_dev *dev, struct ir_raw_event ev)
 	u32 scancode;
 	u8 device, subdevice, function;
 
-	if (!rc_protocols_enabled(dev, RC_BIT_SONY12 | RC_BIT_SONY15 |
-				  RC_BIT_SONY20))
+	if (!(dev->enabled_protocols &
+	      (RC_BIT_SONY12 | RC_BIT_SONY15 | RC_BIT_SONY20)))
 		return 0;
 
 	if (!is_timing_event(ev)) {
@@ -125,7 +125,7 @@ static int ir_sony_decode(struct rc_dev *dev, struct ir_raw_event ev)
 
 		switch (data->count) {
 		case 12:
-			if (!rc_protocols_enabled(dev, RC_BIT_SONY12)) {
+			if (!(dev->enabled_protocols & RC_BIT_SONY12)) {
 				data->state = STATE_INACTIVE;
 				return 0;
 			}
@@ -135,7 +135,7 @@ static int ir_sony_decode(struct rc_dev *dev, struct ir_raw_event ev)
 			protocol = RC_TYPE_SONY12;
 			break;
 		case 15:
-			if (!rc_protocols_enabled(dev, RC_BIT_SONY15)) {
+			if (!(dev->enabled_protocols & RC_BIT_SONY15)) {
 				data->state = STATE_INACTIVE;
 				return 0;
 			}
@@ -145,7 +145,7 @@ static int ir_sony_decode(struct rc_dev *dev, struct ir_raw_event ev)
 			protocol = RC_TYPE_SONY15;
 			break;
 		case 20:
-			if (!rc_protocols_enabled(dev, RC_BIT_SONY20)) {
+			if (!(dev->enabled_protocols & RC_BIT_SONY20)) {
 				data->state = STATE_INACTIVE;
 				return 0;
 			}

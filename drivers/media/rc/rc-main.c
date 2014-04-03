@@ -857,14 +857,14 @@ static ssize_t show_protocols(struct device *device,
 	mutex_lock(&dev->lock);
 
 	if (fattr->type == RC_FILTER_NORMAL) {
-		enabled = dev->enabled_protocols[RC_FILTER_NORMAL];
+		enabled = dev->enabled_protocols;
 		if (dev->raw)
 			allowed = ir_raw_get_allowed_protocols();
 		else
-			allowed = dev->allowed_protocols[RC_FILTER_NORMAL];
+			allowed = dev->allowed_protocols;
 	} else {
-		enabled = dev->enabled_protocols[RC_FILTER_WAKEUP];
-		allowed = dev->allowed_protocols[RC_FILTER_WAKEUP];
+		enabled = dev->enabled_wakeup_protocols;
+		allowed = dev->allowed_wakeup_protocols;
 	}
 
 	mutex_unlock(&dev->lock);
@@ -989,15 +989,15 @@ static ssize_t store_protocols(struct device *device,
 
 	if (fattr->type == RC_FILTER_NORMAL) {
 		IR_dprintk(1, "Normal protocol change requested\n");
-		current_protocols = &dev->enabled_protocols[RC_FILTER_NORMAL];
+		current_protocols = &dev->enabled_protocols;
 		change_protocol = dev->change_protocol;
-		filter = &dev->scancode_filters[RC_FILTER_NORMAL];
+		filter = &dev->scancode_filter;
 		set_filter = dev->s_filter;
 	} else {
 		IR_dprintk(1, "Wakeup protocol change requested\n");
-		current_protocols = &dev->enabled_protocols[RC_FILTER_WAKEUP];
+		current_protocols = &dev->enabled_wakeup_protocols;
 		change_protocol = dev->change_wakeup_protocol;
-		filter = &dev->scancode_filters[RC_FILTER_WAKEUP];
+		filter = &dev->scancode_wakeup_filter;
 		set_filter = dev->s_wakeup_filter;
 	}
 
@@ -1085,9 +1085,9 @@ static ssize_t show_filter(struct device *device,
 		return -EINVAL;
 
 	if (fattr->type == RC_FILTER_NORMAL)
-		filter = &dev->scancode_filters[RC_FILTER_NORMAL];
+		filter = &dev->scancode_filter;
 	else
-		filter = &dev->scancode_filters[RC_FILTER_WAKEUP];
+		filter = &dev->scancode_wakeup_filter;
 
 	mutex_lock(&dev->lock);
 	if (fattr->mask)
@@ -1140,12 +1140,12 @@ static ssize_t store_filter(struct device *device,
 
 	if (fattr->type == RC_FILTER_NORMAL) {
 		set_filter = dev->s_filter;
-		enabled_protocols = &dev->enabled_protocols[RC_FILTER_NORMAL];
-		filter = &dev->scancode_filters[RC_FILTER_NORMAL];
+		enabled_protocols = &dev->enabled_protocols;
+		filter = &dev->scancode_filter;
 	} else {
 		set_filter = dev->s_wakeup_filter;
-		enabled_protocols = &dev->enabled_protocols[RC_FILTER_WAKEUP];
-		filter = &dev->scancode_filters[RC_FILTER_WAKEUP];
+		enabled_protocols = &dev->enabled_wakeup_protocols;
+		filter = &dev->scancode_wakeup_filter;
 	}
 
 	if (!set_filter)
@@ -1424,7 +1424,7 @@ int rc_register_device(struct rc_dev *dev)
 		rc = dev->change_protocol(dev, &rc_type);
 		if (rc < 0)
 			goto out_raw;
-		dev->enabled_protocols[RC_FILTER_NORMAL] = rc_type;
+		dev->enabled_protocols = rc_type;
 	}
 
 	mutex_unlock(&dev->lock);

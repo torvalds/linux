@@ -485,7 +485,7 @@ int cx88_ir_init(struct cx88_core *core, struct pci_dev *pci)
 		dev->timeout = 10 * 1000 * 1000; /* 10 ms */
 	} else {
 		dev->driver_type = RC_DRIVER_SCANCODE;
-		rc_set_allowed_protocols(dev, rc_type);
+		dev->allowed_protocols = rc_type;
 	}
 
 	ir->core = core;

@@ -745,7 +745,7 @@ static int em28xx_ir_init(struct em28xx *dev)
 		case EM2820_BOARD_HAUPPAUGE_WINTV_USB_2:
 			rc->map_name = RC_MAP_HAUPPAUGE;
 			ir->get_key_i2c = em28xx_get_key_em_haup;
-			rc_set_allowed_protocols(rc, RC_BIT_RC5);
+			rc->allowed_protocols = RC_BIT_RC5;
 			break;
 		case EM2820_BOARD_LEADTEK_WINFAST_USBII_DELUXE:
 			rc->map_name = RC_MAP_WINFAST_USBII_DELUXE;
@@ -761,7 +761,7 @@ static int em28xx_ir_init(struct em28xx *dev)
 		switch (dev->chip_id) {
 		case CHIP_ID_EM2860:
 		case CHIP_ID_EM2883:
-			rc_set_allowed_protocols(rc, RC_BIT_RC5 | RC_BIT_NEC);
+			rc->allowed_protocols = RC_BIT_RC5 | RC_BIT_NEC;
 			ir->get_key = default_polling_getkey;
 			break;
 		case CHIP_ID_EM2884:
@@ -769,8 +769,8 @@ static int em28xx_ir_init(struct em28xx *dev)
 		case CHIP_ID_EM28174:
 		case CHIP_ID_EM28178:
 			ir->get_key = em2874_polling_getkey;
-			rc_set_allowed_protocols(rc, RC_BIT_RC5 | RC_BIT_NEC |
-						 RC_BIT_RC6_0);
+			rc->allowed_protocols = RC_BIT_RC5 | RC_BIT_NEC |
+					     RC_BIT_RC6_0;
 			break;
 		default:
 			err = -ENODEV;

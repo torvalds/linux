@@ -1563,7 +1563,7 @@ static int ite_probe(struct pnp_dev *pdev, const struct pnp_device_id
 	/* set up ir-core props */
 	rdev->priv = itdev;
 	rdev->driver_type = RC_DRIVER_IR_RAW;
-	rc_set_allowed_protocols(rdev, RC_BIT_ALL);
+	rdev->allowed_protocols = RC_BIT_ALL;
 	rdev->open = ite_open;
 	rdev->close = ite_close;
 	rdev->s_idle = ite_s_idle;
