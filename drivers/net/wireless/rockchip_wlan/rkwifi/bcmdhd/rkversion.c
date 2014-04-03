@@ -10,7 +10,7 @@
  */
 
 
-const char RKWIFI_DRV_VERSION[] = "4.77.WFD.OOB";
+const char RKWIFI_DRV_VERSION[] = "4.78.WFD.OOB";
 
 const char WIFI_MODULE_NAME[] = "";
 const char CONFIG_BCMDHD_FW_PATH[] = "";

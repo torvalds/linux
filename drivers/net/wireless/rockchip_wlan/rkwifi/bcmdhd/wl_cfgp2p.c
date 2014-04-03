@@ -2614,7 +2614,9 @@ wl_cfgp2p_stop_p2p_device(struct wiphy *wiphy, struct wireless_dev *wdev)
 		goto exit;
 	}
 
-	p2p_on(wl) = false;
+    // Fix for p2p NULL pointer (gwl)
+    if(wl->p2p)
+	    p2p_on(wl) = false;
 
 	CFGP2P_DBG(("P2P interface stopped\n"));
 
