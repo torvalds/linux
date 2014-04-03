@@ -2645,17 +2645,6 @@ out:
 }
 EXPORT_SYMBOL(__generic_file_write_iter);
 
-ssize_t __generic_file_aio_write(struct kiocb *iocb, const struct iovec *iov,
-				 unsigned long nr_segs)
-{
-	size_t count = iov_length(iov, nr_segs);
-	struct iov_iter from;
-
-	iov_iter_init(&from, WRITE, iov, nr_segs, count);
-	return __generic_file_write_iter(iocb, &from);
-}
-EXPORT_SYMBOL(__generic_file_aio_write);
-
 /**
  * generic_file_write_iter - write data to a file
  * @iocb:	IO state structure
