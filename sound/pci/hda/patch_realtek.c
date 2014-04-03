@@ -3026,6 +3026,11 @@ static void alc283_init(struct hda_codec *codec)
 	bool hp_pin_sense;
 	int val;
 
+	if (!spec->gen.autocfg.hp_outs) {
+		if (spec->gen.autocfg.line_out_type == AC_JACK_HP_OUT)
+			hp_pin = spec->gen.autocfg.line_out_pins[0];
+	}
+
 	alc283_restore_default_value(codec);
 
 	if (!hp_pin)
@@ -3061,6 +3066,11 @@ static void alc283_shutup(struct hda_codec *codec)
 	hda_nid_t hp_pin = spec->gen.autocfg.hp_pins[0];
 	bool hp_pin_sense;
 	int val;
+
+	if (!spec->gen.autocfg.hp_outs) {
+		if (spec->gen.autocfg.line_out_type == AC_JACK_HP_OUT)
+			hp_pin = spec->gen.autocfg.line_out_pins[0];
+	}
 
 	if (!hp_pin) {
 		alc269_shutup(codec);
