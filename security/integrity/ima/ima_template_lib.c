@@ -27,7 +27,6 @@ static bool ima_template_hash_algo_allowed(u8 algo)
 enum data_formats {
 	DATA_FMT_DIGEST = 0,
 	DATA_FMT_DIGEST_WITH_ALGO,
-	DATA_FMT_EVENT_NAME,
 	DATA_FMT_STRING,
 	DATA_FMT_HEX
 };
@@ -37,18 +36,10 @@ static int ima_write_template_field_data(const void *data, const u32 datalen,
 					 struct ima_field_data *field_data)
 {
 	u8 *buf, *buf_ptr;
-	u32 buflen;
+	u32 buflen = datalen;
 
-	switch (datafmt) {
-	case DATA_FMT_EVENT_NAME:
-		buflen = IMA_EVENT_NAME_LEN_MAX + 1;
-		break;
-	case DATA_FMT_STRING:
+	if (datafmt == DATA_FMT_STRING)
 		buflen = datalen + 1;
-		break;
-	default:
-		buflen = datalen;
-	}
 
 	buf = kzalloc(buflen, GFP_KERNEL);
 	if (!buf)
@@ -63,7 +54,7 @@ static int ima_write_template_field_data(const void *data, const u32 datalen,
 	 * split into multiple template fields (the space is the delimitator
 	 * character for measurements lists in ASCII format).
 	 */
-	if (datafmt == DATA_FMT_EVENT_NAME || datafmt == DATA_FMT_STRING) {
+	if (datafmt == DATA_FMT_STRING) {
 		for (buf_ptr = buf; buf_ptr - buf < datalen; buf_ptr++)
 			if (*buf_ptr == ' ')
 				*buf_ptr = '_';
@@ -109,13 +100,16 @@ static void ima_show_template_data_binary(struct seq_file *m,
 					  enum data_formats datafmt,
 					  struct ima_field_data *field_data)
 {
-	if (show != IMA_SHOW_BINARY_NO_FIELD_LEN)
-		ima_putc(m, &field_data->len, sizeof(u32));
+	u32 len = (show == IMA_SHOW_BINARY_OLD_STRING_FMT) ?
+	    strlen(field_data->data) : field_data->len;
 
-	if (!field_data->len)
+	if (show != IMA_SHOW_BINARY_NO_FIELD_LEN)
+		ima_putc(m, &len, sizeof(len));
+
+	if (!len)
 		return;
 
-	ima_putc(m, field_data->data, field_data->len);
+	ima_putc(m, field_data->data, len);
 }
 
 static void ima_show_template_field_data(struct seq_file *m,
@@ -129,6 +123,7 @@ static void ima_show_template_field_data(struct seq_file *m,
 		break;
 	case IMA_SHOW_BINARY:
 	case IMA_SHOW_BINARY_NO_FIELD_LEN:
+	case IMA_SHOW_BINARY_OLD_STRING_FMT:
 		ima_show_template_data_binary(m, show, datafmt, field_data);
 		break;
 	default:
@@ -277,8 +272,6 @@ static int ima_eventname_init_common(struct integrity_iint_cache *iint,
 {
 	const char *cur_filename = NULL;
 	u32 cur_filename_len = 0;
-	enum data_formats fmt = size_limit ?
-	    DATA_FMT_EVENT_NAME : DATA_FMT_STRING;
 
 	BUG_ON(filename == NULL && file == NULL);
 
@@ -301,7 +294,7 @@ static int ima_eventname_init_common(struct integrity_iint_cache *iint,
 		cur_filename_len = IMA_EVENT_NAME_LEN_MAX;
 out:
 	return ima_write_template_field_data(cur_filename, cur_filename_len,
-					     fmt, field_data);
+					     DATA_FMT_STRING, field_data);
 }
 
 /*

@@ -177,11 +177,11 @@ int ima_appraise_measurement(int func, struct integrity_iint_cache *iint,
 			     struct evm_ima_xattr_data *xattr_value,
 			     int xattr_len)
 {
+	static const char op[] = "appraise_data";
+	char *cause = "unknown";
 	struct dentry *dentry = file->f_dentry;
 	struct inode *inode = dentry->d_inode;
 	enum integrity_status status = INTEGRITY_UNKNOWN;
-	const char *op = "appraise_data";
-	char *cause = "unknown";
 	int rc = xattr_len, hash_start = 0;
 
 	if (!ima_appraise)

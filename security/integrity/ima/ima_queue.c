@@ -18,6 +18,9 @@
  *       The measurement list is append-only. No entry is
  *       ever removed or changed during the boot-cycle.
  */
+
+#define pr_fmt(fmt) KBUILD_MODNAME ": " fmt
+
 #include <linux/module.h>
 #include <linux/rculist.h>
 #include <linux/slab.h>
@@ -72,7 +75,7 @@ static int ima_add_digest_entry(struct ima_template_entry *entry)
 
 	qe = kmalloc(sizeof(*qe), GFP_KERNEL);
 	if (qe == NULL) {
-		pr_err("IMA: OUT OF MEMORY ERROR creating queue entry.\n");
+		pr_err("OUT OF MEMORY ERROR creating queue entry\n");
 		return -ENOMEM;
 	}
 	qe->entry = entry;
@@ -95,8 +98,7 @@ static int ima_pcr_extend(const u8 *hash)
 
 	result = tpm_pcr_extend(TPM_ANY_NUM, CONFIG_IMA_MEASURE_PCR_IDX, hash);
 	if (result != 0)
-		pr_err("IMA: Error Communicating to TPM chip, result: %d\n",
-		       result);
+		pr_err("Error Communicating to TPM chip, result: %d\n", result);
 	return result;
 }
 
@@ -115,7 +117,7 @@ int ima_add_template_entry(struct ima_template_entry *entry, int violation,
 
 	mutex_lock(&ima_extend_list_mutex);
 	if (!violation) {
-		memcpy(digest, entry->digest, sizeof digest);
+		memcpy(digest, entry->digest, sizeof(digest));
 		if (ima_lookup_digest_entry(digest)) {
 			audit_cause = "hash_exists";
 			result = -EEXIST;
@@ -131,7 +133,7 @@ int ima_add_template_entry(struct ima_template_entry *entry, int violation,
 	}
 
 	if (violation)		/* invalidate pcr */
-		memset(digest, 0xff, sizeof digest);
+		memset(digest, 0xff, sizeof(digest));
 
 	tpmresult = ima_pcr_extend(digest);
 	if (tpmresult != 0) {
