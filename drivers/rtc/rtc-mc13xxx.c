@@ -338,7 +338,7 @@ static int __init mc13xxx_rtc_probe(struct platform_device *pdev)
 
 	priv->valid = !rtcrst_pending;
 
-	ret = mc13xxx_irq_request_nounmask(mc13xxx, MC13XXX_IRQ_1HZ,
+	ret = mc13xxx_irq_request(mc13xxx, MC13XXX_IRQ_1HZ,
 			mc13xxx_rtc_update_handler, DRIVER_NAME, priv);
 	if (ret)
 		goto err_reset_irq_status;
