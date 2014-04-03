@@ -118,9 +118,9 @@ nfs4_file_fsync(struct file *file, loff_t start, loff_t end, int datasync)
 
 const struct file_operations nfs4_file_operations = {
 	.llseek		= nfs_file_llseek,
-	.read		= do_sync_read,
+	.read		= new_sync_read,
 	.write		= do_sync_write,
-	.aio_read	= nfs_file_read,
+	.read_iter	= nfs_file_read,
 	.aio_write	= nfs_file_write,
 	.mmap		= nfs_file_mmap,
 	.open		= nfs4_file_open,

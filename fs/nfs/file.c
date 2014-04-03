@@ -165,26 +165,21 @@ nfs_file_flush(struct file *file, fl_owner_t id)
 EXPORT_SYMBOL_GPL(nfs_file_flush);
 
 ssize_t
-nfs_file_read(struct kiocb *iocb, const struct iovec *iov,
-		unsigned long nr_segs, loff_t pos)
+nfs_file_read(struct kiocb *iocb, struct iov_iter *to)
 {
 	struct inode *inode = file_inode(iocb->ki_filp);
-	size_t count = iov_length(iov, nr_segs);
 	ssize_t result;
-	struct iov_iter to;
-
-	iov_iter_init(&to, READ, iov, nr_segs, count);
 
 	if (iocb->ki_filp->f_flags & O_DIRECT)
-		return nfs_file_direct_read(iocb, &to, pos, true);
+		return nfs_file_direct_read(iocb, to, iocb->ki_pos, true);
 
 	dprintk("NFS: read(%pD2, %zu@%lu)\n",
 		iocb->ki_filp,
-		count, (unsigned long) pos);
+		iov_iter_count(to), (unsigned long) iocb->ki_pos);
 
 	result = nfs_revalidate_mapping(inode, iocb->ki_filp->f_mapping);
 	if (!result) {
-		result = generic_file_read_iter(iocb, &to);
+		result = generic_file_read_iter(iocb, to);
 		if (result > 0)
 			nfs_add_stats(inode, NFSIOS_NORMALREADBYTES, result);
 	}
@@ -945,9 +940,9 @@ EXPORT_SYMBOL_GPL(nfs_setlease);
 
 const struct file_operations nfs_file_operations = {
 	.llseek		= nfs_file_llseek,
-	.read		= do_sync_read,
+	.read		= new_sync_read,
 	.write		= do_sync_write,
-	.aio_read	= nfs_file_read,
+	.read_iter	= nfs_file_read,
 	.aio_write	= nfs_file_write,
 	.mmap		= nfs_file_mmap,
 	.open		= nfs_file_open,
