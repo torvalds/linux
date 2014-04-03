@@ -304,6 +304,7 @@ static dma_async_tx_callback __ld_cleanup(struct shdma_chan *schan, bool all)
 	dma_async_tx_callback callback = NULL;
 	void *param = NULL;
 	unsigned long flags;
+	LIST_HEAD(cyclic_list);
 
 	spin_lock_irqsave(&schan->chan_lock, flags);
 	list_for_each_entry_safe(desc, _desc, &schan->ld_queue, node) {
@@ -369,10 +370,16 @@ static dma_async_tx_callback __ld_cleanup(struct shdma_chan *schan, bool all)
 		if (((desc->mark == DESC_COMPLETED ||
 		      desc->mark == DESC_WAITING) &&
 		     async_tx_test_ack(&desc->async_tx)) || all) {
-			/* Remove from ld_queue list */
-			desc->mark = DESC_IDLE;
 
-			list_move(&desc->node, &schan->ld_free);
+			if (all || !desc->cyclic) {
+				/* Remove from ld_queue list */
+				desc->mark = DESC_IDLE;
+				list_move(&desc->node, &schan->ld_free);
+			} else {
+				/* reuse as cyclic */
+				desc->mark = DESC_SUBMITTED;
+				list_move_tail(&desc->node, &cyclic_list);
+			}
 
 			if (list_empty(&schan->ld_queue)) {
 				dev_dbg(schan->dev, "Bring down channel %d\n", schan->id);
@@ -388,6 +395,8 @@ static dma_async_tx_callback __ld_cleanup(struct shdma_chan *schan, bool all)
 		 * uncompleted cookies
 		 */
 		schan->dma_chan.completed_cookie = schan->dma_chan.cookie;
+
+	list_splice_tail(&cyclic_list, &schan->ld_queue);
 
 	spin_unlock_irqrestore(&schan->chan_lock, flags);
 
@@ -521,7 +530,7 @@ static struct shdma_desc *shdma_add_desc(struct shdma_chan *schan,
  */
 static struct dma_async_tx_descriptor *shdma_prep_sg(struct shdma_chan *schan,
 	struct scatterlist *sgl, unsigned int sg_len, dma_addr_t *addr,
-	enum dma_transfer_direction direction, unsigned long flags)
+	enum dma_transfer_direction direction, unsigned long flags, bool cyclic)
 {
 	struct scatterlist *sg;
 	struct shdma_desc *first = NULL, *new = NULL /* compiler... */;
@@ -569,7 +578,11 @@ static struct dma_async_tx_descriptor *shdma_prep_sg(struct shdma_chan *schan,
 			if (!new)
 				goto err_get_desc;
 
-			new->chunks = chunks--;
+			new->cyclic = cyclic;
+			if (cyclic)
+				new->chunks = 1;
+			else
+				new->chunks = chunks--;
 			list_add_tail(&new->node, &tx_list);
 		} while (len);
 	}
@@ -612,7 +625,8 @@ static struct dma_async_tx_descriptor *shdma_prep_memcpy(
 	sg_dma_address(&sg) = dma_src;
 	sg_dma_len(&sg) = len;
 
-	return shdma_prep_sg(schan, &sg, 1, &dma_dest, DMA_MEM_TO_MEM, flags);
+	return shdma_prep_sg(schan, &sg, 1, &dma_dest, DMA_MEM_TO_MEM,
+			     flags, false);
 }
 
 static struct dma_async_tx_descriptor *shdma_prep_slave_sg(
@@ -640,7 +654,50 @@ static struct dma_async_tx_descriptor *shdma_prep_slave_sg(
 	slave_addr = ops->slave_addr(schan);
 
 	return shdma_prep_sg(schan, sgl, sg_len, &slave_addr,
-			      direction, flags);
+			     direction, flags, false);
+}
+
+struct dma_async_tx_descriptor *shdma_prep_dma_cyclic(
+	struct dma_chan *chan, dma_addr_t buf_addr, size_t buf_len,
+	size_t period_len, enum dma_transfer_direction direction,
+	unsigned long flags, void *context)
+{
+	struct shdma_chan *schan = to_shdma_chan(chan);
+	struct shdma_dev *sdev = to_shdma_dev(schan->dma_chan.device);
+	const struct shdma_ops *ops = sdev->ops;
+	unsigned int sg_len = buf_len / period_len;
+	int slave_id = schan->slave_id;
+	dma_addr_t slave_addr;
+	struct scatterlist sgl[sg_len];
+	int i;
+
+	if (!chan)
+		return NULL;
+
+	BUG_ON(!schan->desc_num);
+
+	/* Someone calling slave DMA on a generic channel? */
+	if (slave_id < 0 || (buf_len < period_len)) {
+		dev_warn(schan->dev,
+			"%s: bad parameter: buf_len=%d, period_len=%d, id=%d\n",
+			__func__, buf_len, period_len, slave_id);
+		return NULL;
+	}
+
+	slave_addr = ops->slave_addr(schan);
+
+	sg_init_table(sgl, sg_len);
+	for (i = 0; i < sg_len; i++) {
+		dma_addr_t src = buf_addr + (period_len * i);
+
+		sg_set_page(&sgl[i], pfn_to_page(PFN_DOWN(src)), period_len,
+			    offset_in_page(src));
+		sg_dma_address(&sgl[i]) = src;
+		sg_dma_len(&sgl[i]) = period_len;
+	}
+
+	return shdma_prep_sg(schan, sgl, sg_len, &slave_addr,
+			     direction, flags, true);
 }
 
 static int shdma_control(struct dma_chan *chan, enum dma_ctrl_cmd cmd,
@@ -915,6 +972,7 @@ int shdma_init(struct device *dev, struct shdma_dev *sdev,
 
 	/* Compulsory for DMA_SLAVE fields */
 	dma_dev->device_prep_slave_sg = shdma_prep_slave_sg;
+	dma_dev->device_prep_dma_cyclic = shdma_prep_dma_cyclic;
 	dma_dev->device_control = shdma_control;
 
 	dma_dev->dev = dev;
