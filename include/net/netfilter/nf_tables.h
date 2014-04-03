@@ -390,11 +390,13 @@ struct nft_rule {
  *	struct nft_trans - nf_tables object update in transaction
  *
  *	@list: used internally
+ *	@msg_type: message type
  *	@ctx: transaction context
  *	@data: internal information related to the transaction
  */
 struct nft_trans {
 	struct list_head		list;
+	int				msg_type;
 	struct nft_ctx			ctx;
 	char				data[0];
 };
