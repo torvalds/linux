@@ -1363,17 +1363,17 @@ static inline int mctime_update_needed(const struct inode *inode,
 
 /**
  * update_ctime - update mtime and ctime of an inode.
- * @c: UBIFS file-system description object
  * @inode: inode to update
  *
  * This function updates mtime and ctime of the inode if it is not equivalent to
  * current time. Returns zero in case of success and a negative error code in
  * case of failure.
  */
-static int update_mctime(struct ubifs_info *c, struct inode *inode)
+static int update_mctime(struct inode *inode)
 {
 	struct timespec now = ubifs_current_time(inode);
 	struct ubifs_inode *ui = ubifs_inode(inode);
+	struct ubifs_info *c = inode->i_sb->s_fs_info;
 
 	if (mctime_update_needed(inode, &now)) {
 		int err, release;
@@ -1396,18 +1396,13 @@ static int update_mctime(struct ubifs_info *c, struct inode *inode)
 	return 0;
 }
 
-static ssize_t ubifs_aio_write(struct kiocb *iocb, const struct iovec *iov,
-			       unsigned long nr_segs, loff_t pos)
+static ssize_t ubifs_write_iter(struct kiocb *iocb, struct iov_iter *from)
 {
-	int err;
-	struct inode *inode = iocb->ki_filp->f_mapping->host;
-	struct ubifs_info *c = inode->i_sb->s_fs_info;
-
-	err = update_mctime(c, inode);
+	int err = update_mctime(file_inode(iocb->ki_filp));
 	if (err)
 		return err;
 
-	return generic_file_aio_write(iocb, iov, nr_segs, pos);
+	return generic_file_write_iter(iocb, from);
 }
 
 static int ubifs_set_page_dirty(struct page *page)
@@ -1583,9 +1578,9 @@ const struct inode_operations ubifs_symlink_inode_operations = {
 const struct file_operations ubifs_file_operations = {
 	.llseek         = generic_file_llseek,
 	.read           = new_sync_read,
-	.write          = do_sync_write,
+	.write          = new_sync_write,
 	.read_iter      = generic_file_read_iter,
-	.aio_write      = ubifs_aio_write,
+	.write_iter     = ubifs_write_iter,
 	.mmap           = ubifs_file_mmap,
 	.fsync          = ubifs_fsync,
 	.unlocked_ioctl = ubifs_ioctl,
