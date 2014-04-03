@@ -418,8 +418,8 @@ static int ds3232_probe(struct i2c_client *client,
 	}
 
 	if (client->irq >= 0) {
-		ret = devm_request_irq(&client->dev, client->irq, ds3232_irq, 0,
-				 "ds3232", client);
+		ret = devm_request_irq(&client->dev, client->irq, ds3232_irq,
+				       IRQF_SHARED, "ds3232", client);
 		if (ret) {
 			dev_err(&client->dev, "unable to request IRQ\n");
 		}
