@@ -1182,18 +1182,17 @@ static ssize_t fuse_perform_write(struct file *file,
 	return res > 0 ? res : err;
 }
 
-static ssize_t fuse_file_aio_write(struct kiocb *iocb, const struct iovec *iov,
-				   unsigned long nr_segs, loff_t pos)
+static ssize_t fuse_file_write_iter(struct kiocb *iocb, struct iov_iter *from)
 {
 	struct file *file = iocb->ki_filp;
 	struct address_space *mapping = file->f_mapping;
-	size_t count;
+	size_t count = iov_iter_count(from);
 	ssize_t written = 0;
 	ssize_t written_buffered = 0;
 	struct inode *inode = mapping->host;
 	ssize_t err;
-	struct iov_iter i;
 	loff_t endbyte = 0;
+	loff_t pos = iocb->ki_pos;
 
 	if (get_fuse_conn(inode)->writeback_cache) {
 		/* Update size (EOF optimization) and mode (SUID clearing) */
@@ -1201,13 +1200,9 @@ static ssize_t fuse_file_aio_write(struct kiocb *iocb, const struct iovec *iov,
 		if (err)
 			return err;
 
-		return generic_file_aio_write(iocb, iov, nr_segs, pos);
+		return generic_file_write_iter(iocb, from);
 	}
 
-	WARN_ON(iocb->ki_pos != pos);
-
-	count = iov_length(iov, nr_segs);
-	iov_iter_init(&i, WRITE, iov, nr_segs, count);
 	mutex_lock(&inode->i_mutex);
 
 	/* We can write back this queue in page reclaim */
@@ -1220,7 +1215,7 @@ static ssize_t fuse_file_aio_write(struct kiocb *iocb, const struct iovec *iov,
 	if (count == 0)
 		goto out;
 
-	iov_iter_truncate(&i, count);
+	iov_iter_truncate(from, count);
 	err = file_remove_suid(file);
 	if (err)
 		goto out;
@@ -1230,13 +1225,13 @@ static ssize_t fuse_file_aio_write(struct kiocb *iocb, const struct iovec *iov,
 		goto out;
 
 	if (file->f_flags & O_DIRECT) {
-		written = generic_file_direct_write(iocb, &i, pos);
-		if (written < 0 || !iov_iter_count(&i))
+		written = generic_file_direct_write(iocb, from, pos);
+		if (written < 0 || !iov_iter_count(from))
 			goto out;
 
 		pos += written;
 
-		written_buffered = fuse_perform_write(file, mapping, &i, pos);
+		written_buffered = fuse_perform_write(file, mapping, from, pos);
 		if (written_buffered < 0) {
 			err = written_buffered;
 			goto out;
@@ -1255,7 +1250,7 @@ static ssize_t fuse_file_aio_write(struct kiocb *iocb, const struct iovec *iov,
 		written += written_buffered;
 		iocb->ki_pos = pos + written_buffered;
 	} else {
-		written = fuse_perform_write(file, mapping, &i, pos);
+		written = fuse_perform_write(file, mapping, from, pos);
 		if (written >= 0)
 			iocb->ki_pos = pos + written;
 	}
@@ -3039,8 +3034,8 @@ static const struct file_operations fuse_file_operations = {
 	.llseek		= fuse_file_llseek,
 	.read		= new_sync_read,
 	.read_iter	= fuse_file_read_iter,
-	.write		= do_sync_write,
-	.aio_write	= fuse_file_aio_write,
+	.write		= new_sync_write,
+	.write_iter	= fuse_file_write_iter,
 	.mmap		= fuse_file_mmap,
 	.open		= fuse_open,
 	.flush		= fuse_flush,
