@@ -857,6 +857,11 @@ config  TOUCHSCREEN_GT801
        help
           GT801 touchscreen driver
 
+config TOUCHSCREEN_GT801_2PLUS1_TS
+       tristate "GT801_2PLUS1_TS touchscreen driver"
+       help
+          GT801_2PLUS1_TS touchscreen driver
+
 config  TOUCHSCREEN_GT811
        tristate  "dpt microelctronics gt811 touchscreen driver"
        depends on I2C
