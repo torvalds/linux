@@ -2233,15 +2233,13 @@ out:
 	return ret;
 }
 
-static ssize_t ocfs2_file_aio_write(struct kiocb *iocb,
-				    const struct iovec *iov,
-				    unsigned long nr_segs,
-				    loff_t pos)
+static ssize_t ocfs2_file_write_iter(struct kiocb *iocb,
+				    struct iov_iter *from)
 {
 	int ret, direct_io, appending, rw_level, have_alloc_sem  = 0;
 	int can_do_direct, has_refcount = 0;
 	ssize_t written = 0;
-	size_t count;		/* after file limit checks */
+	size_t count = iov_iter_count(from);
 	loff_t old_size, *ppos = &iocb->ki_pos;
 	u32 old_clusters;
 	struct file *file = iocb->ki_filp;
@@ -2250,16 +2248,12 @@ static ssize_t ocfs2_file_aio_write(struct kiocb *iocb,
 	int full_coherency = !(osb->s_mount_opt &
 			       OCFS2_MOUNT_COHERENCY_BUFFERED);
 	int unaligned_dio = 0;
-	struct iov_iter from;
-
-	count = iov_length(iov, nr_segs);
-	iov_iter_init(&from, WRITE, iov, nr_segs, count);
 
 	trace_ocfs2_file_aio_write(inode, file, file->f_path.dentry,
 		(unsigned long long)OCFS2_I(inode)->ip_blkno,
 		file->f_path.dentry->d_name.len,
 		file->f_path.dentry->d_name.name,
-		(unsigned int)nr_segs);
+		(unsigned int)from->nr_segs);	/* GRRRRR */
 
 	if (iocb->ki_nbytes == 0)
 		return 0;
@@ -2362,16 +2356,16 @@ relock:
 	if (ret)
 		goto out_dio;
 
-	iov_iter_truncate(&from, count);
+	iov_iter_truncate(from, count);
 	if (direct_io) {
-		written = generic_file_direct_write(iocb, &from, *ppos);
+		written = generic_file_direct_write(iocb, from, *ppos);
 		if (written < 0) {
 			ret = written;
 			goto out_dio;
 		}
 	} else {
 		current->backing_dev_info = file->f_mapping->backing_dev_info;
-		written = generic_perform_write(file, &from, *ppos);
+		written = generic_perform_write(file, from, *ppos);
 		if (likely(written >= 0))
 			iocb->ki_pos = *ppos + written;
 		current->backing_dev_info = NULL;
@@ -2606,7 +2600,7 @@ static ssize_t ocfs2_file_read_iter(struct kiocb *iocb,
 	/* buffered aio wouldn't have proper lock coverage today */
 	BUG_ON(ret == -EIOCBQUEUED && !(filp->f_flags & O_DIRECT));
 
-	/* see ocfs2_file_aio_write */
+	/* see ocfs2_file_write_iter */
 	if (ret == -EIOCBQUEUED || !ocfs2_iocb_is_rw_locked(iocb)) {
 		rw_level = -1;
 		have_alloc_sem = 0;
@@ -2700,13 +2694,13 @@ const struct inode_operations ocfs2_special_file_iops = {
 const struct file_operations ocfs2_fops = {
 	.llseek		= ocfs2_file_llseek,
 	.read		= new_sync_read,
-	.write		= do_sync_write,
+	.write		= new_sync_write,
 	.mmap		= ocfs2_mmap,
 	.fsync		= ocfs2_sync_file,
 	.release	= ocfs2_file_release,
 	.open		= ocfs2_file_open,
 	.read_iter	= ocfs2_file_read_iter,
-	.aio_write	= ocfs2_file_aio_write,
+	.write_iter	= ocfs2_file_write_iter,
 	.unlocked_ioctl	= ocfs2_ioctl,
 #ifdef CONFIG_COMPAT
 	.compat_ioctl   = ocfs2_compat_ioctl,
@@ -2748,13 +2742,13 @@ const struct file_operations ocfs2_dops = {
 const struct file_operations ocfs2_fops_no_plocks = {
 	.llseek		= ocfs2_file_llseek,
 	.read		= new_sync_read,
-	.write		= do_sync_write,
+	.write		= new_sync_write,
 	.mmap		= ocfs2_mmap,
 	.fsync		= ocfs2_sync_file,
 	.release	= ocfs2_file_release,
 	.open		= ocfs2_file_open,
 	.read_iter	= ocfs2_file_read_iter,
-	.aio_write	= ocfs2_file_aio_write,
+	.write_iter	= ocfs2_file_write_iter,
 	.unlocked_ioctl	= ocfs2_ioctl,
 #ifdef CONFIG_COMPAT
 	.compat_ioctl   = ocfs2_compat_ioctl,
