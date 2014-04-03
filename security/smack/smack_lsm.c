@@ -960,18 +960,20 @@ static void smack_inode_post_setxattr(struct dentry *dentry, const char *name,
 		return;
 	}
 
-	skp = smk_import_entry(value, size);
 	if (strcmp(name, XATTR_NAME_SMACK) == 0) {
+		skp = smk_import_entry(value, size);
 		if (skp != NULL)
 			isp->smk_inode = skp->smk_known;
 		else
 			isp->smk_inode = smack_known_invalid.smk_known;
 	} else if (strcmp(name, XATTR_NAME_SMACKEXEC) == 0) {
+		skp = smk_import_entry(value, size);
 		if (skp != NULL)
 			isp->smk_task = skp;
 		else
 			isp->smk_task = &smack_known_invalid;
 	} else if (strcmp(name, XATTR_NAME_SMACKMMAP) == 0) {
+		skp = smk_import_entry(value, size);
 		if (skp != NULL)
 			isp->smk_mmap = skp;
 		else
