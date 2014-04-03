@@ -1532,23 +1532,19 @@ ssize_t blkdev_aio_write(struct kiocb *iocb, const struct iovec *iov,
 }
 EXPORT_SYMBOL_GPL(blkdev_aio_write);
 
-static ssize_t blkdev_aio_read(struct kiocb *iocb, const struct iovec *iov,
-			 unsigned long nr_segs, loff_t pos)
+static ssize_t blkdev_read_iter(struct kiocb *iocb, struct iov_iter *to)
 {
 	struct file *file = iocb->ki_filp;
 	struct inode *bd_inode = file->f_mapping->host;
 	loff_t size = i_size_read(bd_inode);
-	size_t count = iocb->ki_nbytes;
-	struct iov_iter to;
-
-	iov_iter_init(&to, READ, iov, nr_segs, count);
+	loff_t pos = iocb->ki_pos;
 
 	if (pos >= size)
 		return 0;
 
 	size -= pos;
-	iov_iter_truncate(&to, size);
-	return generic_file_read_iter(iocb, &to);
+	iov_iter_truncate(to, size);
+	return generic_file_read_iter(iocb, to);
 }
 
 /*
@@ -1580,9 +1576,9 @@ const struct file_operations def_blk_fops = {
 	.open		= blkdev_open,
 	.release	= blkdev_close,
 	.llseek		= block_llseek,
-	.read		= do_sync_read,
+	.read		= new_sync_read,
 	.write		= do_sync_write,
-	.aio_read	= blkdev_aio_read,
+	.read_iter	= blkdev_read_iter,
 	.aio_write	= blkdev_aio_write,
 	.mmap		= generic_file_mmap,
 	.fsync		= blkdev_fsync,
