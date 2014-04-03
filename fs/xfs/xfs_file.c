@@ -748,38 +748,29 @@ out:
 }
 
 STATIC ssize_t
-xfs_file_aio_write(
+xfs_file_write_iter(
 	struct kiocb		*iocb,
-	const struct iovec	*iovp,
-	unsigned long		nr_segs,
-	loff_t			pos)
+	struct iov_iter		*from)
 {
 	struct file		*file = iocb->ki_filp;
 	struct address_space	*mapping = file->f_mapping;
 	struct inode		*inode = mapping->host;
 	struct xfs_inode	*ip = XFS_I(inode);
 	ssize_t			ret;
-	size_t			ocount = 0;
-	struct iov_iter		from;
+	size_t			ocount = iov_iter_count(from);
 
 	XFS_STATS_INC(xs_write_calls);
 
-	BUG_ON(iocb->ki_pos != pos);
-
-	ocount = iov_length(iovp, nr_segs);
 	if (ocount == 0)
 		return 0;
-	iov_iter_init(&from, WRITE, iovp, nr_segs, ocount);
 
-	if (XFS_FORCED_SHUTDOWN(ip->i_mount)) {
-		ret = -EIO;
-		goto out;
-	}
+	if (XFS_FORCED_SHUTDOWN(ip->i_mount))
+		return -EIO;
 
 	if (unlikely(file->f_flags & O_DIRECT))
-		ret = xfs_file_dio_aio_write(iocb, &from);
+		ret = xfs_file_dio_aio_write(iocb, from);
 	else
-		ret = xfs_file_buffered_aio_write(iocb, &from);
+		ret = xfs_file_buffered_aio_write(iocb, from);
 
 	if (ret > 0) {
 		ssize_t err;
@@ -791,8 +782,6 @@ xfs_file_aio_write(
 		if (err < 0)
 			ret = err;
 	}
-
-out:
 	return ret;
 }
 
@@ -1449,9 +1438,9 @@ xfs_file_llseek(
 const struct file_operations xfs_file_operations = {
 	.llseek		= xfs_file_llseek,
 	.read		= new_sync_read,
-	.write		= do_sync_write,
+	.write		= new_sync_write,
 	.read_iter	= xfs_file_read_iter,
-	.aio_write	= xfs_file_aio_write,
+	.write_iter	= xfs_file_write_iter,
 	.splice_read	= xfs_file_splice_read,
 	.splice_write	= xfs_file_splice_write,
 	.unlocked_ioctl	= xfs_file_ioctl,
