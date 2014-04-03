@@ -312,20 +312,21 @@ static int rockchip_rt3261_audio_remove(struct platform_device *pdev)
 
 #ifdef CONFIG_OF
 static const struct of_device_id rockchip_rt3261_of_match[] = {
-        { .compatible = "rockchip-rt3261", },
-        {},
+	{ .compatible = "rockchip-rt3261", },
+	{},
 };
 MODULE_DEVICE_TABLE(of, rockchip_rt3261_of_match);
 #endif /* CONFIG_OF */
 
 static struct platform_driver rockchip_rt3261_audio_driver = {
-        .driver         = {
-                .name   = "rockchip-rt3261",
-                .owner  = THIS_MODULE,
-                .of_match_table = of_match_ptr(rockchip_rt3261_of_match),
-        },
-        .probe          = rockchip_rt3261_audio_probe,
-        .remove         = rockchip_rt3261_audio_remove,
+	.driver         = {
+		.name   = "rockchip-rt3261",
+		.owner  = THIS_MODULE,
+		.pm = &snd_soc_pm_ops,
+		.of_match_table = of_match_ptr(rockchip_rt3261_of_match),
+	},
+	.probe          = rockchip_rt3261_audio_probe,
+	.remove         = rockchip_rt3261_audio_remove,
 };
 
 module_platform_driver(rockchip_rt3261_audio_driver);

@@ -151,20 +151,21 @@ static int rockchip_rk610_audio_remove(struct platform_device *pdev)
 
 #ifdef CONFIG_OF
 static const struct of_device_id rockchip_rk610_of_match[] = {
-        { .compatible = "rockchip-rk610", },
-        {},
+	{ .compatible = "rockchip-rk610", },
+	{},
 };
 MODULE_DEVICE_TABLE(of, rockchip_rk610_of_match);
 #endif /* CONFIG_OF */
 
 static struct platform_driver rockchip_rk610_audio_driver = {
-        .driver         = {
-                .name   = "rockchip-rk610",
-                .owner  = THIS_MODULE,
-                .of_match_table = of_match_ptr(rockchip_rk610_of_match),
-        },
-        .probe          = rockchip_rk610_audio_probe,
-        .remove         = rockchip_rk610_audio_remove,
+	.driver         = {
+	.name   = "rockchip-rk610",
+		.owner  = THIS_MODULE,
+		.pm = &snd_soc_pm_ops,
+		.of_match_table = of_match_ptr(rockchip_rk610_of_match),
+	},
+	.probe          = rockchip_rk610_audio_probe,
+	.remove         = rockchip_rk610_audio_remove,
 };
 
 module_platform_driver(rockchip_rk610_audio_driver);

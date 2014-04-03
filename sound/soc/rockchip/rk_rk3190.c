@@ -244,20 +244,21 @@ static int rockchip_rk3190_audio_remove(struct platform_device *pdev)
 
 #ifdef CONFIG_OF
 static const struct of_device_id rockchip_rk3190_of_match[] = {
-        { .compatible = "rockchip-rk3190", },
-        {},
+	{ .compatible = "rockchip-rk3190", },
+	{},
 };
 MODULE_DEVICE_TABLE(of, rockchip_rk3190_of_match);
 #endif /* CONFIG_OF */
 
 static struct platform_driver rockchip_rk3190_audio_driver = {
-        .driver         = {
-                .name   = "rockchip-rk3190",
-                .owner  = THIS_MODULE,
-                .of_match_table = of_match_ptr(rockchip_rk3190_of_match),
-        },
-        .probe          = rockchip_rk3190_audio_probe,
-        .remove         = rockchip_rk3190_audio_remove,
+	.driver         = {
+		.name   = "rockchip-rk3190",
+		.owner  = THIS_MODULE,
+		.pm = &snd_soc_pm_ops,
+		.of_match_table = of_match_ptr(rockchip_rk3190_of_match),
+	},
+	.probe          = rockchip_rk3190_audio_probe,
+	.remove         = rockchip_rk3190_audio_remove,
 };
 
 module_platform_driver(rockchip_rk3190_audio_driver);

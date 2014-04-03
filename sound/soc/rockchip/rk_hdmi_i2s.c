@@ -128,13 +128,14 @@ MODULE_DEVICE_TABLE(of, rockchip_hdmi_i2s_of_match);
 #endif /* CONFIG_OF */
 
 static struct platform_driver rockchip_hdmi_i2s_audio_driver = {
-        .driver         = {
-                .name   = "rockchip-hdmi-i2s",
-                .owner  = THIS_MODULE,
-                .of_match_table = of_match_ptr(rockchip_hdmi_i2s_of_match),
-        },
-        .probe          = rockchip_hdmi_i2s_audio_probe,
-        .remove         = rockchip_hdmi_i2s_audio_remove,
+	.driver         = {
+		.name   = "rockchip-hdmi-i2s",
+		.owner  = THIS_MODULE,
+		.pm = &snd_soc_pm_ops,
+		.of_match_table = of_match_ptr(rockchip_hdmi_i2s_of_match),
+	},
+	.probe          = rockchip_hdmi_i2s_audio_probe,
+	.remove         = rockchip_hdmi_i2s_audio_remove,
 };
 
 module_platform_driver(rockchip_hdmi_i2s_audio_driver);
