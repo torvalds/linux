@@ -3931,6 +3931,19 @@ sub process {
 			}
 		}
 
+# don't use __constant_<foo> functions outside of include/uapi/
+		if ($realfile !~ m@^include/uapi/@ &&
+		    $line =~ /(__constant_(?:htons|ntohs|[bl]e(?:16|32|64)_to_cpu|cpu_to_[bl]e(?:16|32|64)))\s*\(/) {
+			my $constant_func = $1;
+			my $func = $constant_func;
+			$func =~ s/^__constant_//;
+			if (WARN("CONSTANT_CONVERSION",
+				 "$constant_func should be $func\n" . $herecurr) &&
+			    $fix) {
+				$fixed[$linenr - 1] =~ s/\b$constant_func\b/$func/g;
+			}
+		}
+
 # prefer usleep_range over udelay
 		if ($line =~ /\budelay\s*\(\s*(\d+)\s*\)/) {
 			my $delay = $1;
