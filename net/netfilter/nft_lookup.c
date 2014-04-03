@@ -56,8 +56,14 @@ static int nft_lookup_init(const struct nft_ctx *ctx,
 		return -EINVAL;
 
 	set = nf_tables_set_lookup(ctx->table, tb[NFTA_LOOKUP_SET]);
-	if (IS_ERR(set))
-		return PTR_ERR(set);
+	if (IS_ERR(set)) {
+		if (tb[NFTA_LOOKUP_SET_ID]) {
+			set = nf_tables_set_lookup_byid(ctx->net,
+							tb[NFTA_LOOKUP_SET_ID]);
+		}
+		if (IS_ERR(set))
+			return PTR_ERR(set);
+	}
 
 	priv->sreg = ntohl(nla_get_be32(tb[NFTA_LOOKUP_SREG]));
 	err = nft_validate_input_register(priv->sreg);

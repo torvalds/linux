@@ -268,6 +268,8 @@ static inline void *nft_set_priv(const struct nft_set *set)
 
 struct nft_set *nf_tables_set_lookup(const struct nft_table *table,
 				     const struct nlattr *nla);
+struct nft_set *nf_tables_set_lookup_byid(const struct net *net,
+					  const struct nlattr *nla);
 
 /**
  *	struct nft_set_binding - nf_tables set binding
@@ -407,6 +409,16 @@ struct nft_trans_rule {
 
 #define nft_trans_rule(trans)	\
 	(((struct nft_trans_rule *)trans->data)->rule)
+
+struct nft_trans_set {
+	struct nft_set	*set;
+	u32		set_id;
+};
+
+#define nft_trans_set(trans)	\
+	(((struct nft_trans_set *)trans->data)->set)
+#define nft_trans_set_id(trans)	\
+	(((struct nft_trans_set *)trans->data)->set_id)
 
 static inline struct nft_expr *nft_expr_first(const struct nft_rule *rule)
 {
