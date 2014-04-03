@@ -98,11 +98,6 @@ dontdiff ファイルには Linux カーネルのビルドプロセスの過程�
 Quilt:
 http://savannah.nongnu.org/projects/quilt
 
-Andrew Morton's patch scripts:
-http://userweb.kernel.org/~akpm/stuff/patch-scripts.tar.gz
-このリンクの先のスクリプトの代わりとして、quilt がパッチマネジメント
-ツールとして推奨されています(上のリンクを見てください)。
-
 2) パッチに対する説明
 
 パッチの中の変更点に対する技術的な詳細について説明してください。

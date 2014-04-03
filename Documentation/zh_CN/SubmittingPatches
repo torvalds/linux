@@ -82,10 +82,6 @@ Documentation/SubmittingDrivers 。
 Quilt:
 http://savannah.nongnu.org/projects/quilt
 
-Andrew Morton 的补丁脚本:
-http://userweb.kernel.org/~akpm/stuff/patch-scripts.tar.gz
-作为这些脚本的替代，quilt 是值得推荐的补丁管理工具(看上面的链接)。
-
 2)描述你的改动。
 描述你的改动包含的技术细节。
 
