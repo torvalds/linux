@@ -930,52 +930,58 @@ read_rtc:
 	ds1307->rtc = devm_rtc_device_register(&client->dev, client->name,
 				&ds13xx_rtc_ops, THIS_MODULE);
 	if (IS_ERR(ds1307->rtc)) {
-		err = PTR_ERR(ds1307->rtc);
-		dev_err(&client->dev,
-			"unable to register the class device\n");
-		goto exit;
+		return PTR_ERR(ds1307->rtc);
 	}
 
 	if (want_irq) {
 		err = request_irq(client->irq, ds1307_irq, IRQF_SHARED,
 			  ds1307->rtc->name, client);
 		if (err) {
-			dev_err(&client->dev,
-				"unable to request IRQ!\n");
-			goto exit;
-		}
+			client->irq = 0;
+			dev_err(&client->dev, "unable to request IRQ!\n");
+		} else {
 
-		device_set_wakeup_capable(&client->dev, 1);
-		set_bit(HAS_ALARM, &ds1307->flags);
-		dev_dbg(&client->dev, "got IRQ %d\n", client->irq);
+			device_set_wakeup_capable(&client->dev, 1);
+			set_bit(HAS_ALARM, &ds1307->flags);
+			dev_dbg(&client->dev, "got IRQ %d\n", client->irq);
+		}
 	}
 
 	if (chip->nvram_size) {
+
 		ds1307->nvram = devm_kzalloc(&client->dev,
 					sizeof(struct bin_attribute),
 					GFP_KERNEL);
 		if (!ds1307->nvram) {
-			err = -ENOMEM;
-			goto err_irq;
+			dev_err(&client->dev, "cannot allocate memory for nvram sysfs\n");
+		} else {
+
+			ds1307->nvram->attr.name = "nvram";
+			ds1307->nvram->attr.mode = S_IRUGO | S_IWUSR;
+
+			sysfs_bin_attr_init(ds1307->nvram);
+
+			ds1307->nvram->read = ds1307_nvram_read;
+			ds1307->nvram->write = ds1307_nvram_write;
+			ds1307->nvram->size = chip->nvram_size;
+			ds1307->nvram_offset = chip->nvram_offset;
+
+			err = sysfs_create_bin_file(&client->dev.kobj,
+						    ds1307->nvram);
+			if (err) {
+				dev_err(&client->dev,
+					"unable to create sysfs file: %s\n",
+					ds1307->nvram->attr.name);
+			} else {
+				set_bit(HAS_NVRAM, &ds1307->flags);
+				dev_info(&client->dev, "%zu bytes nvram\n",
+					 ds1307->nvram->size);
+			}
 		}
-		ds1307->nvram->attr.name = "nvram";
-		ds1307->nvram->attr.mode = S_IRUGO | S_IWUSR;
-		sysfs_bin_attr_init(ds1307->nvram);
-		ds1307->nvram->read = ds1307_nvram_read;
-		ds1307->nvram->write = ds1307_nvram_write;
-		ds1307->nvram->size = chip->nvram_size;
-		ds1307->nvram_offset = chip->nvram_offset;
-		err = sysfs_create_bin_file(&client->dev.kobj, ds1307->nvram);
-		if (err)
-			goto err_irq;
-		set_bit(HAS_NVRAM, &ds1307->flags);
-		dev_info(&client->dev, "%zu bytes nvram\n", ds1307->nvram->size);
 	}
 
 	return 0;
 
-err_irq:
-	free_irq(client->irq, client);
 exit:
 	return err;
 }

@@ -204,8 +204,11 @@ static int ds1742_rtc_probe(struct platform_device *pdev)
 		return PTR_ERR(rtc);
 
 	ret = sysfs_create_bin_file(&pdev->dev.kobj, &pdata->nvram_attr);
+	if (ret)
+		dev_err(&pdev->dev, "Unable to create sysfs entry: %s\n",
+			pdata->nvram_attr.attr.name);
 
-	return ret;
+	return 0;
 }
 
 static int ds1742_rtc_remove(struct platform_device *pdev)

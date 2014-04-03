@@ -414,7 +414,6 @@ static int ds3232_probe(struct i2c_client *client,
 	ds3232->rtc = devm_rtc_device_register(&client->dev, client->name,
 					  &ds3232_rtc_ops, THIS_MODULE);
 	if (IS_ERR(ds3232->rtc)) {
-		dev_err(&client->dev, "unable to register the class device\n");
 		return PTR_ERR(ds3232->rtc);
 	}
 
@@ -423,7 +422,6 @@ static int ds3232_probe(struct i2c_client *client,
 				 "ds3232", client);
 		if (ret) {
 			dev_err(&client->dev, "unable to request IRQ\n");
-			return ret;
 		}
 	}
 

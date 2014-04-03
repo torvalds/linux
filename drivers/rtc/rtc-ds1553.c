@@ -278,7 +278,6 @@ static struct bin_attribute ds1553_nvram_attr = {
 
 static int ds1553_rtc_probe(struct platform_device *pdev)
 {
-	struct rtc_device *rtc;
 	struct resource *res;
 	unsigned int cen, sec;
 	struct rtc_plat_data *pdata;
@@ -311,6 +310,12 @@ static int ds1553_rtc_probe(struct platform_device *pdev)
 	spin_lock_init(&pdata->lock);
 	pdata->last_jiffies = jiffies;
 	platform_set_drvdata(pdev, pdata);
+
+	pdata->rtc = devm_rtc_device_register(&pdev->dev, pdev->name,
+				  &ds1553_rtc_ops, THIS_MODULE);
+	if (IS_ERR(pdata->rtc))
+		return PTR_ERR(pdata->rtc);
+
 	if (pdata->irq > 0) {
 		writeb(0, ioaddr + RTC_INTERRUPTS);
 		if (devm_request_irq(&pdev->dev, pdata->irq,
@@ -321,15 +326,12 @@ static int ds1553_rtc_probe(struct platform_device *pdev)
 		}
 	}
 
-	rtc = devm_rtc_device_register(&pdev->dev, pdev->name,
-				  &ds1553_rtc_ops, THIS_MODULE);
-	if (IS_ERR(rtc))
-		return PTR_ERR(rtc);
-	pdata->rtc = rtc;
-
 	ret = sysfs_create_bin_file(&pdev->dev.kobj, &ds1553_nvram_attr);
+	if (ret)
+		dev_err(&pdev->dev, "unable to create sysfs file: %s\n",
+			ds1553_nvram_attr.attr.name);
 
-	return ret;
+	return 0;
 }
 
 static int ds1553_rtc_remove(struct platform_device *pdev)

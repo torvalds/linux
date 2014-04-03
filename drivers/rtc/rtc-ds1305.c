@@ -756,19 +756,17 @@ static int ds1305_probe(struct spi_device *spi)
 		status = devm_request_irq(&spi->dev, spi->irq, ds1305_irq,
 				0, dev_name(&ds1305->rtc->dev), ds1305);
 		if (status < 0) {
-			dev_dbg(&spi->dev, "request_irq %d --> %d\n",
+			dev_err(&spi->dev, "request_irq %d --> %d\n",
 					spi->irq, status);
-			return status;
+		} else {
+			device_set_wakeup_capable(&spi->dev, 1);
 		}
-
-		device_set_wakeup_capable(&spi->dev, 1);
 	}
 
 	/* export NVRAM */
 	status = sysfs_create_bin_file(&spi->dev.kobj, &nvram);
 	if (status < 0) {
-		dev_dbg(&spi->dev, "register nvram --> %d\n", status);
-		return status;
+		dev_err(&spi->dev, "register nvram --> %d\n", status);
 	}
 
 	return 0;
