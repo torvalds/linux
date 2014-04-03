@@ -62,6 +62,16 @@ enum rc_type {
 			 RC_BIT_RC6_0 | RC_BIT_RC6_6A_20 | RC_BIT_RC6_6A_24 | \
 			 RC_BIT_RC6_6A_32 | RC_BIT_RC6_MCE | RC_BIT_SHARP)
 
+#define RC_SCANCODE_UNKNOWN(x)			(x)
+#define RC_SCANCODE_OTHER(x)			(x)
+#define RC_SCANCODE_NEC(addr, cmd)		(((addr) << 8) | (cmd))
+#define RC_SCANCODE_NECX(addr, cmd)		(((addr) << 8) | (cmd))
+#define RC_SCANCODE_NEC32(data)			((data) & 0xffffffff)
+#define RC_SCANCODE_RC5(sys, cmd)		(((sys) << 8) | (cmd))
+#define RC_SCANCODE_RC5_SZ(sys, cmd)		(((sys) << 8) | (cmd))
+#define RC_SCANCODE_RC6_0(sys, cmd)		(((sys) << 8) | (cmd))
+#define RC_SCANCODE_RC6_6A(vendor, sys, cmd)	(((vendor) << 16) | ((sys) << 8) | (cmd))
+
 struct rc_map_table {
 	u32	scancode;
 	u32	keycode;

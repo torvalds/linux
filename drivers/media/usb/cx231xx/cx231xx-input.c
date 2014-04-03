@@ -21,11 +21,12 @@
 #include "cx231xx.h"
 #include <linux/usb.h>
 #include <linux/slab.h>
+#include <linux/bitrev.h>
 
 #define MODULE_NAME "cx231xx-input"
 
-static int get_key_isdbt(struct IR_i2c *ir, u32 *ir_key,
-			 u32 *ir_raw)
+static int get_key_isdbt(struct IR_i2c *ir, enum rc_type *protocol,
+			 u32 *pscancode, u8 *toggle)
 {
 	int	rc;
 	u8	cmd, scancode;
@@ -46,21 +47,14 @@ static int get_key_isdbt(struct IR_i2c *ir, u32 *ir_key,
 	if (cmd == 0xff)
 		return 0;
 
-	scancode =
-		 ((cmd & 0x01) ? 0x80 : 0) |
-		 ((cmd & 0x02) ? 0x40 : 0) |
-		 ((cmd & 0x04) ? 0x20 : 0) |
-		 ((cmd & 0x08) ? 0x10 : 0) |
-		 ((cmd & 0x10) ? 0x08 : 0) |
-		 ((cmd & 0x20) ? 0x04 : 0) |
-		 ((cmd & 0x40) ? 0x02 : 0) |
-		 ((cmd & 0x80) ? 0x01 : 0);
+	scancode = bitrev8(cmd);
 
 	dev_dbg(&ir->rc->input_dev->dev, "cmd %02x, scan = %02x\n",
 		cmd, scancode);
 
-	*ir_key = scancode;
-	*ir_raw = scancode;
+	*protocol = RC_TYPE_OTHER;
+	*pscancode = scancode;
+	*toggle = 0;
 	return 1;
 }
 

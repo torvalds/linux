@@ -336,7 +336,8 @@ static void bttv_ir_stop(struct bttv *btv)
  * Get_key functions used by I2C remotes
  */
 
-static int get_key_pv951(struct IR_i2c *ir, u32 *ir_key, u32 *ir_raw)
+static int get_key_pv951(struct IR_i2c *ir, enum rc_type *protocol,
+			 u32 *scancode, u8 *toggle)
 {
 	unsigned char b;
 
@@ -363,8 +364,9 @@ static int get_key_pv951(struct IR_i2c *ir, u32 *ir_key, u32 *ir_raw)
 	 * 	   the device is bound to the vendor-provided RC.
 	 */
 
-	*ir_key = b;
-	*ir_raw = b;
+	*protocol = RC_TYPE_UNKNOWN;
+	*scancode = b;
+	*toggle = 0;
 	return 1;
 }
 

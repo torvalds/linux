@@ -539,7 +539,8 @@ void cx88_ir_irq(struct cx88_core *core)
 	ir_raw_event_handle(ir->dev);
 }
 
-static int get_key_pvr2000(struct IR_i2c *ir, u32 *ir_key, u32 *ir_raw)
+static int get_key_pvr2000(struct IR_i2c *ir, enum rc_type *protocol,
+			   u32 *scancode, u8 *toggle)
 {
 	int flags, code;
 
@@ -563,8 +564,9 @@ static int get_key_pvr2000(struct IR_i2c *ir, u32 *ir_key, u32 *ir_raw)
 	dprintk("IR Key/Flags: (0x%02x/0x%02x)\n",
 		   code & 0xff, flags & 0xff);
 
-	*ir_key = code & 0xff;
-	*ir_raw = code;
+	*protocol = RC_TYPE_UNKNOWN;
+	*scancode = code & 0xff;
+	*toggle = 0;
 	return 1;
 }
 
