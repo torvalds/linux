@@ -1402,8 +1402,7 @@ shmem_write_end(struct file *file, struct address_space *mapping,
 	return copied;
 }
 
-static ssize_t shmem_file_aio_read(struct kiocb *iocb,
-		const struct iovec *iov, unsigned long nr_segs, loff_t pos)
+static ssize_t shmem_file_read_iter(struct kiocb *iocb, struct iov_iter *to)
 {
 	struct file *file = iocb->ki_filp;
 	struct inode *inode = file_inode(file);
@@ -1413,11 +1412,7 @@ static ssize_t shmem_file_aio_read(struct kiocb *iocb,
 	enum sgp_type sgp = SGP_READ;
 	int error = 0;
 	ssize_t retval = 0;
-	size_t count = iov_length(iov, nr_segs);
 	loff_t *ppos = &iocb->ki_pos;
-	struct iov_iter iter;
-
-	iov_iter_init(&iter, READ, iov, nr_segs, count);
 
 	/*
 	 * Might this read be for a stacking filesystem?  Then when reading
@@ -1493,14 +1488,14 @@ static ssize_t shmem_file_aio_read(struct kiocb *iocb,
 		 * Ok, we have the page, and it's up-to-date, so
 		 * now we can copy it to user space...
 		 */
-		ret = copy_page_to_iter(page, offset, nr, &iter);
+		ret = copy_page_to_iter(page, offset, nr, to);
 		retval += ret;
 		offset += ret;
 		index += offset >> PAGE_CACHE_SHIFT;
 		offset &= ~PAGE_CACHE_MASK;
 
 		page_cache_release(page);
-		if (!iov_iter_count(&iter))
+		if (!iov_iter_count(to))
 			break;
 		if (ret < nr) {
 			error = -EFAULT;
@@ -2622,9 +2617,9 @@ static const struct file_operations shmem_file_operations = {
 	.mmap		= shmem_mmap,
 #ifdef CONFIG_TMPFS
 	.llseek		= shmem_file_llseek,
-	.read		= do_sync_read,
+	.read		= new_sync_read,
 	.write		= do_sync_write,
-	.aio_read	= shmem_file_aio_read,
+	.read_iter	= shmem_file_read_iter,
 	.aio_write	= generic_file_aio_write,
 	.fsync		= noop_fsync,
 	.splice_read	= shmem_file_splice_read,
