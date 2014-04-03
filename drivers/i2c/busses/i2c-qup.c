@@ -562,7 +562,7 @@ static int qup_i2c_probe(struct platform_device *pdev)
 	u32 io_mode, hw_ver, size;
 	int ret, fs_div, hs_div;
 	int src_clk_freq;
-	int clk_freq = 100000;
+	u32 clk_freq = 100000;
 
 	qup = devm_kzalloc(&pdev->dev, sizeof(*qup), GFP_KERNEL);
 	if (!qup)
