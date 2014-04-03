@@ -684,7 +684,7 @@ static int vme_user_match(struct vme_dev *vdev)
 static int vme_user_probe(struct vme_dev *vdev)
 {
 	int i, err;
-	char name[12];
+	char *name;
 
 	/* Save pointer to the bridge device */
 	if (vme_user_bridge != NULL) {
@@ -794,13 +794,13 @@ static int vme_user_probe(struct vme_dev *vdev)
 
 		switch (type[i]) {
 		case MASTER_MINOR:
-			sprintf(name, "bus/vme/m%%d");
+			name = "bus/vme/m%d";
 			break;
 		case CONTROL_MINOR:
-			sprintf(name, "bus/vme/ctl");
+			name = "bus/vme/ctl";
 			break;
 		case SLAVE_MINOR:
-			sprintf(name, "bus/vme/s%%d");
+			name = "bus/vme/s%d";
 			break;
 		default:
 			err = -EINVAL;
