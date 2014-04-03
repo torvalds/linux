@@ -262,6 +262,16 @@ config MFD_INTEL_MSIC
 	  Passage) chip. This chip embeds audio, battery, GPIO, etc.
 	  devices used in Intel Medfield platforms.
 
+config MFD_IPAQ_MICRO
+	bool "Atmel Micro ASIC (iPAQ h3100/h3600/h3700) Support"
+	depends on SA1100_H3100 || SA1100_H3600
+	select MFD_CORE
+	help
+	  Select this to get support for the Microcontroller found in
+	  the Compaq iPAQ handheld computers. This is an Atmel
+	  AT90LS8535 microcontroller flashed with a special iPAQ
+	  firmware using the custom protocol implemented in this driver.
+
 config MFD_JANZ_CMODIO
 	tristate "Janz CMOD-IO PCI MODULbus Carrier Board"
 	select MFD_CORE
