@@ -1051,18 +1051,16 @@ void rk_fb_free_dma_buf(struct device *dev,struct rk_fb_reg_win_data *reg_win_da
 	for(i=0;i<reg_win_data->area_num;i++){
 		area_data = &reg_win_data->reg_area_data[i];
 		index_buf = area_data->index_buf;
-		if(index_buf == 1){
-			#ifdef USE_ION_MMU
-			iovmm_unmap(dev,area_data->dma_addr);
-			dma_buf_unmap_attachment(area_data->attachment, area_data->sg_table,
-				DMA_BIDIRECTIONAL);
-			dma_buf_detach(area_data->dma_buf, area_data->attachment);
-			dma_buf_put(area_data->dma_buf);
-			#endif
-			if(area_data->ion_handle != NULL)
-				ion_free(rk_fb->ion_client, area_data->ion_handle);
+#ifdef USE_ION_MMU
+		iovmm_unmap(dev,area_data->dma_addr);
+		dma_buf_unmap_attachment(area_data->attachment, area_data->sg_table,
+			DMA_BIDIRECTIONAL);
+		dma_buf_detach(area_data->dma_buf, area_data->attachment);
+		dma_buf_put(area_data->dma_buf);
+#endif
+		if(area_data->ion_handle != NULL)
+			ion_free(rk_fb->ion_client, area_data->ion_handle);
 		}
-	}
 	memset(reg_win_data, 0, sizeof(struct rk_fb_reg_win_data));
 }
 
@@ -1311,42 +1309,30 @@ static int rk_fb_set_win_buffer(struct fb_info *info,
 		for(i=0;i<RK_WIN_MAX_AREA;i++){	
 			ion_fd = win_par->area_par[i].ion_fd;
 			if(ion_fd > 0){
+				hdl = ion_import_dma_buf(rk_fb->ion_client, ion_fd);
+				if (IS_ERR(hdl)) {
+					pr_info("%s: Could not import handle: %d\n",
+						__func__, (int)hdl);
+					/*return -EINVAL;*/
+					break;
+				}
 				reg_win_data->area_num++;
-				for(j=0;j<i;j++){
-					if(ion_fd == win_par->area_par[j].ion_fd){
-						printk("region[%d] fd is same to region[%d]:fd=%d",
-							i,j,ion_fd);
-						break;
-					}	
-				}
-				if(j == i){
-					hdl = ion_import_dma_buf(rk_fb->ion_client, ion_fd);
-					if (IS_ERR(hdl)) {
-						pr_info("%s: Could not import handle: %d\n",
-							__func__, (int)hdl);
-						/*return -EINVAL;*/
-						break;
+				reg_win_data->reg_area_data[i].ion_handle = hdl;
+				#ifndef USE_ION_MMU
+					ion_phys(rk_fb->ion_client, hdl, &phy_addr, &len);
+					reg_win_data->reg_area_data[i].smem_start = phy_addr;
+				#else
+					buf = ion_share_dma_buf(rk_fb->ion_client, hdl);
+					if (IS_ERR_OR_NULL(buf)) {
+						dev_err(info->dev, "ion_share_dma_buf() failed\n");
+						goto err_share_dma_buf;
 					}
-					reg_win_data->reg_area_data[i].ion_handle = hdl;
-					#ifndef USE_ION_MMU
-						ion_phys(rk_fb->ion_client, hdl, &phy_addr, &len);
-						reg_win_data->reg_area_data[i].smem_start = phy_addr;
-					#else
-						buf = ion_share_dma_buf(rk_fb->ion_client, hdl);
-						if (IS_ERR_OR_NULL(buf)) {
-							dev_err(info->dev, "ion_share_dma_buf() failed\n");
-							goto err_share_dma_buf;
-						}
-						rk_fb_map_ion_handle(info,&reg_win_data->reg_area_data[i],hdl,buf);
-						reg_win_data->reg_area_data[i].smem_start = 
-							reg_win_data->reg_area_data[i].dma_addr;
-					#endif
-					reg_win_data->area_buf_num++;
-					reg_win_data->reg_area_data[i].index_buf = 1;
-				}else{
+					rk_fb_map_ion_handle(info,&reg_win_data->reg_area_data[i],hdl,buf);
 					reg_win_data->reg_area_data[i].smem_start = 
-						reg_win_data->reg_area_data[j].smem_start;			
-				}
+						reg_win_data->reg_area_data[i].dma_addr;
+				#endif
+				reg_win_data->area_buf_num++;
+				reg_win_data->reg_area_data[i].index_buf = 1;
 			}
 			#if 0
 			printk("i=%d,ion_fd=%d,addr=0x%x,area_num=%d,area_buf_num=%d\n",
