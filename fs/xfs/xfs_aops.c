@@ -659,10 +659,10 @@ xfs_check_page_type(
 			if (type == XFS_IO_UNWRITTEN)
 				return true;
 		} else if (buffer_delay(bh)) {
-			if (type == XFS_IO_DELALLOC);
+			if (type == XFS_IO_DELALLOC)
 				return true;
 		} else if (buffer_dirty(bh) && buffer_mapped(bh)) {
-			if (type == XFS_IO_OVERWRITE);
+			if (type == XFS_IO_OVERWRITE)
 				return true;
 		}
 
