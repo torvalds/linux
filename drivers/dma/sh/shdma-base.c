@@ -73,8 +73,7 @@ static void shdma_chan_xfer_ld_queue(struct shdma_chan *schan)
 static dma_cookie_t shdma_tx_submit(struct dma_async_tx_descriptor *tx)
 {
 	struct shdma_desc *chunk, *c, *desc =
-		container_of(tx, struct shdma_desc, async_tx),
-		*last = desc;
+		container_of(tx, struct shdma_desc, async_tx);
 	struct shdma_chan *schan = to_shdma_chan(tx->chan);
 	dma_async_tx_callback callback = tx->callback;
 	dma_cookie_t cookie;
@@ -98,18 +97,19 @@ static dma_cookie_t shdma_tx_submit(struct dma_async_tx_descriptor *tx)
 				      &chunk->node == &schan->ld_free))
 			break;
 		chunk->mark = DESC_SUBMITTED;
-		/* Callback goes to the last chunk */
-		chunk->async_tx.callback = NULL;
+		if (chunk->chunks == 1) {
+			chunk->async_tx.callback = callback;
+			chunk->async_tx.callback_param = tx->callback_param;
+		} else {
+			/* Callback goes to the last chunk */
+			chunk->async_tx.callback = NULL;
+		}
 		chunk->cookie = cookie;
 		list_move_tail(&chunk->node, &schan->ld_queue);
-		last = chunk;
 
 		dev_dbg(schan->dev, "submit #%d@%p on %d\n",
-			tx->cookie, &last->async_tx, schan->id);
+			tx->cookie, &chunk->async_tx, schan->id);
 	}
-
-	last->async_tx.callback = callback;
-	last->async_tx.callback_param = tx->callback_param;
 
 	if (power_up) {
 		int ret;
