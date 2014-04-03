@@ -443,16 +443,22 @@ static int default_post_xol_op(struct arch_uprobe *auprobe, struct pt_regs *regs
 {
 	struct uprobe_task *utask = current->utask;
 	long correction = (long)(utask->vaddr - utask->xol_vaddr);
-	int ret = 0;
 
 	handle_riprel_post_xol(auprobe, regs, &correction);
 	if (auprobe->fixups & UPROBE_FIX_IP)
 		regs->ip += correction;
 
-	if (auprobe->fixups & UPROBE_FIX_CALL)
-		ret = adjust_ret_addr(regs->sp, correction);
+	if (auprobe->fixups & UPROBE_FIX_CALL) {
+		if (adjust_ret_addr(regs->sp, correction)) {
+			if (is_ia32_task())
+				regs->sp += 4;
+			else
+				regs->sp += 8;
+			return -ERESTART;
+		}
+	}
 
-	return ret;
+	return 0;
 }
 
 static struct uprobe_xol_ops default_xol_ops = {
@@ -599,6 +605,12 @@ int arch_uprobe_post_xol(struct arch_uprobe *auprobe, struct pt_regs *regs)
 		int err = auprobe->ops->post_xol(auprobe, regs);
 		if (err) {
 			arch_uprobe_abort_xol(auprobe, regs);
+			/*
+			 * Restart the probed insn. ->post_xol() must ensure
+			 * this is really possible if it returns -ERESTART.
+			 */
+			if (err == -ERESTART)
+				return 0;
 			return err;
 		}
 	}
