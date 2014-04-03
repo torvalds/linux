@@ -2257,6 +2257,21 @@ sub process {
 			     "networking block comments put the trailing */ on a separate line\n" . $herecurr);
 		}
 
+# check for missing blank lines after declarations
+		if ($realfile =~ m@^(drivers/net/|net/)@ &&
+		    $prevline =~ /^\+\s+$Declare\s+$Ident/ &&
+		    !($prevline =~ /(?:$Compare|$Assignment|$Operators)\s*$/ ||
+		      $prevline =~ /(?:\{\s*|\\)$/) &&		#extended lines
+		    $sline =~ /^\+\s+/ &&			#Not at char 1
+		    !($sline =~ /^\+\s+$Declare/ ||
+		      $sline =~ /^\+\s+$Ident\s+$Ident/ ||	#eg: typedef foo
+		      $sline =~ /^\+\s+(?:union|struct|enum|typedef)\b/ ||
+		      $sline =~ /^\+\s+(?:$|[\{\}\.\#\"\?\:\(])/ ||
+		      $sline =~ /^\+\s+\(?\s*(?:$Compare|$Assignment|$Operators)/)) {
+			WARN("SPACING",
+			     "networking uses a blank line after declarations\n" . $hereprev);
+		}
+
 # check for spaces at the beginning of a line.
 # Exceptions:
 #  1) within comments
