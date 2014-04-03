@@ -531,8 +531,10 @@ __i915_enable_pipestat(struct drm_i915_private *dev_priv, enum pipe pipe,
 
 	assert_spin_locked(&dev_priv->irq_lock);
 
-	if (WARN_ON_ONCE(enable_mask & ~PIPESTAT_INT_ENABLE_MASK ||
-	                 status_mask & ~PIPESTAT_INT_STATUS_MASK))
+	if (WARN_ONCE(enable_mask & ~PIPESTAT_INT_ENABLE_MASK ||
+		      status_mask & ~PIPESTAT_INT_STATUS_MASK,
+		      "pipe %c: enable_mask=0x%x, status_mask=0x%x\n",
+		      pipe_name(pipe), enable_mask, status_mask))
 		return;
 
 	if ((pipestat & enable_mask) == enable_mask)
@@ -555,8 +557,10 @@ __i915_disable_pipestat(struct drm_i915_private *dev_priv, enum pipe pipe,
 
 	assert_spin_locked(&dev_priv->irq_lock);
 
-	if (WARN_ON_ONCE(enable_mask & ~PIPESTAT_INT_ENABLE_MASK ||
-	                 status_mask & ~PIPESTAT_INT_STATUS_MASK))
+	if (WARN_ONCE(enable_mask & ~PIPESTAT_INT_ENABLE_MASK ||
+		      status_mask & ~PIPESTAT_INT_STATUS_MASK,
+		      "pipe %c: enable_mask=0x%x, status_mask=0x%x\n",
+		      pipe_name(pipe), enable_mask, status_mask))
 		return;
 
 	if ((pipestat & enable_mask) == 0)
