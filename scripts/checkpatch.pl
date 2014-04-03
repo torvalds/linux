@@ -4512,9 +4512,11 @@ sub process {
 				my $val = $1;
 				$val = $6 if ($skip_args ne "");
 
-				if ($val =~ /^$Int$/ && $val !~ /^$Octal$/) {
+				if ($val !~ /^0$/ &&
+				    (($val =~ /^$Int$/ && $val !~ /^$Octal$/) ||
+				     length($val) ne 4)) {
 					ERROR("NON_OCTAL_PERMISSIONS",
-					      "Use octal not decimal permissions\n" . $herecurr);
+					      "Use 4 digit octal (0777) not decimal permissions\n" . $herecurr);
 				}
 			}
 		}
