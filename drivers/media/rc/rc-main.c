@@ -285,8 +285,8 @@ static unsigned int ir_establish_scancode(struct rc_dev *dev,
 	 * IR tables from other remotes. So, we support specifying a mask to
 	 * indicate the valid bits of the scancodes.
 	 */
-	if (dev->scanmask)
-		scancode &= dev->scanmask;
+	if (dev->scancode_mask)
+		scancode &= dev->scancode_mask;
 
 	/* First check if we already have a mapping for this ir command */
 	for (i = 0; i < rc_map->len; i++) {

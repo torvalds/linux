@@ -478,7 +478,7 @@ int cx88_ir_init(struct cx88_core *core, struct pci_dev *pci)
 	dev->priv = core;
 	dev->open = cx88_ir_open;
 	dev->close = cx88_ir_close;
-	dev->scanmask = hardware_mask;
+	dev->scancode_mask = hardware_mask;
 
 	if (ir->sampling) {
 		dev->driver_type = RC_DRIVER_IR_RAW;

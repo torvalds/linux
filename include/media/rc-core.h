@@ -80,11 +80,12 @@ enum rc_filter_type {
  * @enabled_wakeup_protocols: bitmask with the enabled RC_BIT_* wakeup protocols
  * @scancode_filter: scancode filter
  * @scancode_wakeup_filter: scancode wakeup filters
- * @scanmask: some hardware decoders are not capable of providing the full
+ * @scancode_mask: some hardware decoders are not capable of providing the full
  *	scancode to the application. As this is a hardware limit, we can't do
  *	anything with it. Yet, as the same keycode table can be used with other
  *	devices, a mask is provided to allow its usage. Drivers should generally
  *	leave this field in blank
+ * @users: number of current users of the device
  * @priv: driver-specific data
  * @keylock: protects the remaining members of the struct
  * @keypressed: whether a key is currently pressed
@@ -139,8 +140,8 @@ struct rc_dev {
 	u64				enabled_wakeup_protocols;
 	struct rc_scancode_filter	scancode_filter;
 	struct rc_scancode_filter	scancode_wakeup_filter;
+	u32				scancode_mask;
 	u32				users;
-	u32				scanmask;
 	void				*priv;
 	spinlock_t			keylock;
 	bool				keypressed;

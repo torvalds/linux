@@ -234,7 +234,7 @@ static int msp430_ir_init(struct budget_ci *budget_ci)
 		break;
 	}
 	if (!budget_ci->ir.full_rc5)
-		dev->scanmask = 0xff;
+		dev->scancode_mask = 0xff;
 
 	error = rc_register_device(dev);
 	if (error) {

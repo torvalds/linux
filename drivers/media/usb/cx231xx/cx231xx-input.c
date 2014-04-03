@@ -91,7 +91,7 @@ int cx231xx_ir_init(struct cx231xx *dev)
 	dev->init_data.get_key = get_key_isdbt;
 	dev->init_data.ir_codes = cx231xx_boards[dev->model].rc_map_name;
 	/* The i2c micro-controller only outputs the cmd part of NEC protocol */
-	dev->init_data.rc_dev->scanmask = 0xff;
+	dev->init_data.rc_dev->scancode_mask = 0xff;
 	dev->init_data.rc_dev->driver_name = "cx231xx";
 	dev->init_data.type = RC_BIT_NEC;
 	info.addr = 0x30;
