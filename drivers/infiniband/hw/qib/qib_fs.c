@@ -105,6 +105,7 @@ static int create_file(const char *name, umode_t mode,
 static ssize_t driver_stats_read(struct file *file, char __user *buf,
 				 size_t count, loff_t *ppos)
 {
+	qib_stats.sps_ints = qib_sps_ints();
 	return simple_read_from_buffer(buf, count, ppos, &qib_stats,
 				       sizeof qib_stats);
 }
