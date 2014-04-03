@@ -805,6 +805,8 @@ static enum drm_connector_status hdmi_detect(struct drm_connector *connector,
 {
 	struct hdmi_context *hdata = ctx_from_connector(connector);
 
+	hdata->hpd = gpio_get_value(hdata->hpd_gpio);
+
 	return hdata->hpd ? connector_status_connected :
 			connector_status_disconnected;
 }
