@@ -42,15 +42,15 @@ static int mc13xxx_rtc_irq_enable_unlocked(struct device *dev,
 	return func(priv->mc13xxx, irq);
 }
 
-static int mc13xxx_rtc_irq_enable(struct device *dev,
-		unsigned int enabled, int irq)
+static int mc13xxx_rtc_alarm_irq_enable(struct device *dev,
+					unsigned int enabled)
 {
 	struct mc13xxx_rtc *priv = dev_get_drvdata(dev);
 	int ret;
 
 	mc13xxx_lock(priv->mc13xxx);
 
-	ret = mc13xxx_rtc_irq_enable_unlocked(dev, enabled, irq);
+	ret = mc13xxx_rtc_irq_enable_unlocked(dev, enabled, MC13XXX_IRQ_TODA);
 
 	mc13xxx_unlock(priv->mc13xxx);
 
@@ -280,12 +280,6 @@ static irqreturn_t mc13xxx_rtc_update_handler(int irq, void *dev)
 	mc13xxx_irq_ack(mc13xxx, irq);
 
 	return IRQ_HANDLED;
-}
-
-static int mc13xxx_rtc_alarm_irq_enable(struct device *dev,
-		unsigned int enabled)
-{
-	return mc13xxx_rtc_irq_enable(dev, enabled, MC13XXX_IRQ_TODA);
 }
 
 static const struct rtc_class_ops mc13xxx_rtc_ops = {
