@@ -1666,10 +1666,8 @@ static inline int __early_pfn_to_nid(unsigned long pfn)
 #else
 /* please see mm/page_alloc.c */
 extern int __meminit early_pfn_to_nid(unsigned long pfn);
-#ifdef CONFIG_HAVE_ARCH_EARLY_PFN_TO_NID
 /* there is a per-arch backend function. */
 extern int __meminit __early_pfn_to_nid(unsigned long pfn);
-#endif /* CONFIG_HAVE_ARCH_EARLY_PFN_TO_NID */
 #endif
 
 extern void set_dma_reserve(unsigned long new_dma_reserve);
