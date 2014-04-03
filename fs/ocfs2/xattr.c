@@ -369,7 +369,7 @@ static void ocfs2_xattr_bucket_free(struct ocfs2_xattr_bucket *bucket)
  * them fully.
  */
 static int ocfs2_init_xattr_bucket(struct ocfs2_xattr_bucket *bucket,
-				   u64 xb_blkno)
+				   u64 xb_blkno, int new)
 {
 	int i, rc = 0;
 
@@ -383,9 +383,16 @@ static int ocfs2_init_xattr_bucket(struct ocfs2_xattr_bucket *bucket,
 		}
 
 		if (!ocfs2_buffer_uptodate(INODE_CACHE(bucket->bu_inode),
-					   bucket->bu_bhs[i]))
-			ocfs2_set_new_buffer_uptodate(INODE_CACHE(bucket->bu_inode),
-						      bucket->bu_bhs[i]);
+					   bucket->bu_bhs[i])) {
+			if (new)
+				ocfs2_set_new_buffer_uptodate(INODE_CACHE(bucket->bu_inode),
+							      bucket->bu_bhs[i]);
+			else {
+				set_buffer_uptodate(bucket->bu_bhs[i]);
+				ocfs2_set_buffer_uptodate(INODE_CACHE(bucket->bu_inode),
+							  bucket->bu_bhs[i]);
+			}
+		}
 	}
 
 	if (rc)
@@ -4303,7 +4310,7 @@ static int ocfs2_xattr_create_index_block(struct inode *inode,
 
 	trace_ocfs2_xattr_create_index_block((unsigned long long)blkno);
 
-	ret = ocfs2_init_xattr_bucket(xs->bucket, blkno);
+	ret = ocfs2_init_xattr_bucket(xs->bucket, blkno, 1);
 	if (ret) {
 		mlog_errno(ret);
 		goto out;
@@ -4647,7 +4654,7 @@ static int ocfs2_divide_xattr_bucket(struct inode *inode,
 	 * Even if !new_bucket_head, we're overwriting t_bucket.  Thus,
 	 * there's no need to read it.
 	 */
-	ret = ocfs2_init_xattr_bucket(t_bucket, new_blk);
+	ret = ocfs2_init_xattr_bucket(t_bucket, new_blk, new_bucket_head);
 	if (ret) {
 		mlog_errno(ret);
 		goto out;
@@ -4813,7 +4820,7 @@ static int ocfs2_cp_xattr_bucket(struct inode *inode,
 	 * Even if !t_is_new, we're overwriting t_bucket.  Thus,
 	 * there's no need to read it.
 	 */
-	ret = ocfs2_init_xattr_bucket(t_bucket, t_blkno);
+	ret = ocfs2_init_xattr_bucket(t_bucket, t_blkno, t_is_new);
 	if (ret)
 		goto out;
 
@@ -6840,7 +6847,7 @@ static int ocfs2_reflink_xattr_bucket(handle_t *handle,
 			break;
 		}
 
-		ret = ocfs2_init_xattr_bucket(args->new_bucket, new_blkno);
+		ret = ocfs2_init_xattr_bucket(args->new_bucket, new_blkno, 1);
 		if (ret) {
 			mlog_errno(ret);
 			break;
