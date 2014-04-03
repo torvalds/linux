@@ -211,14 +211,6 @@ static int prepare_for_access_response(struct fsnotify_group *group,
 	re->fd = fd;
 
 	mutex_lock(&group->fanotify_data.access_mutex);
-
-	if (atomic_read(&group->fanotify_data.bypass_perm)) {
-		mutex_unlock(&group->fanotify_data.access_mutex);
-		kmem_cache_free(fanotify_response_event_cache, re);
-		FANOTIFY_E(event)->response = FAN_ALLOW;
-		return 0;
-	}
-		
 	list_add_tail(&re->list, &group->fanotify_data.access_list);
 	mutex_unlock(&group->fanotify_data.access_mutex);
 
