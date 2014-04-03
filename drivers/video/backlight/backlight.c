@@ -34,7 +34,7 @@ static const char *const backlight_types[] = {
 			   defined(CONFIG_BACKLIGHT_CLASS_DEVICE_MODULE))
 /* This callback gets called when something important happens inside a
  * framebuffer driver. We're looking if that important event is blanking,
- * and if it is, we're switching backlight power as well ...
+ * and if it is and necessary, we're switching backlight power as well ...
  */
 static int fb_notifier_callback(struct notifier_block *self,
 				unsigned long event, void *data)
@@ -60,6 +60,7 @@ static int fb_notifier_callback(struct notifier_block *self,
 				if (!bd->use_count++) {
 					bd->props.state &= ~BL_CORE_FBBLANK;
 					bd->props.fb_blank = FB_BLANK_UNBLANK;
+					backlight_update_status(bd);
 				}
 			} else if (fb_blank != FB_BLANK_UNBLANK &&
 				   bd->fb_bl_on[node]) {
@@ -67,9 +68,9 @@ static int fb_notifier_callback(struct notifier_block *self,
 				if (!(--bd->use_count)) {
 					bd->props.state |= BL_CORE_FBBLANK;
 					bd->props.fb_blank = fb_blank;
+					backlight_update_status(bd);
 				}
 			}
-			backlight_update_status(bd);
 		}
 	mutex_unlock(&bd->ops_lock);
 	return 0;
