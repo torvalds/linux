@@ -1877,12 +1877,6 @@ static int dlm_join_domain(struct dlm_ctxt *dlm)
 		goto bail;
 	}
 
-	status = dlm_debug_init(dlm);
-	if (status < 0) {
-		mlog_errno(status);
-		goto bail;
-	}
-
 	status = dlm_launch_thread(dlm);
 	if (status < 0) {
 		mlog_errno(status);
@@ -1890,6 +1884,12 @@ static int dlm_join_domain(struct dlm_ctxt *dlm)
 	}
 
 	status = dlm_launch_recovery_thread(dlm);
+	if (status < 0) {
+		mlog_errno(status);
+		goto bail;
+	}
+
+	status = dlm_debug_init(dlm);
 	if (status < 0) {
 		mlog_errno(status);
 		goto bail;
