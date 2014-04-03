@@ -154,10 +154,10 @@ static void bttv_input_timer(unsigned long data)
  * testing.
  */
 
-#define RC5_START(x)	(((x) >> 12) & 3)
-#define RC5_TOGGLE(x)	(((x) >> 11) & 1)
-#define RC5_ADDR(x)	(((x) >> 6) & 31)
-#define RC5_INSTR(x)	((x) & 63)
+#define RC5_START(x)	(((x) >> 12) & 0x03)
+#define RC5_TOGGLE(x)	(((x) >> 11) & 0x01)
+#define RC5_ADDR(x)	(((x) >> 6)  & 0x1f)
+#define RC5_INSTR(x)	(((x) >> 0)  & 0x3f)
 
 /* decode raw bit pattern to RC5 code */
 static u32 bttv_rc5_decode(unsigned int code)
@@ -195,8 +195,8 @@ static void bttv_rc5_timer_end(unsigned long data)
 {
 	struct bttv_ir *ir = (struct bttv_ir *)data;
 	struct timeval tv;
-	u32 gap;
-	u32 rc5 = 0;
+	u32 gap, rc5, scancode;
+	u8 toggle, command, system;
 
 	/* get time */
 	do_gettimeofday(&tv);
@@ -221,26 +221,29 @@ static void bttv_rc5_timer_end(unsigned long data)
 	if (ir->last_bit < 20) {
 		/* ignore spurious codes (caused by light/other remotes) */
 		dprintk("short code: %x\n", ir->code);
-	} else {
-		ir->code = (ir->code << ir->shift_by) | 1;
-		rc5 = bttv_rc5_decode(ir->code);
-
-		/* two start bits? */
-		if (RC5_START(rc5) != ir->start) {
-			pr_info(DEVNAME ":"
-			       " rc5 start bits invalid: %u\n", RC5_START(rc5));
-
-			/* right address? */
-		} else if (RC5_ADDR(rc5) == ir->addr) {
-			u32 toggle = RC5_TOGGLE(rc5);
-			u32 instr = RC5_INSTR(rc5);
-
-			/* Good code */
-			rc_keydown(ir->dev, instr, toggle);
-			dprintk("instruction %x, toggle %x\n",
-				instr, toggle);
-		}
+		return;
 	}
+
+	ir->code = (ir->code << ir->shift_by) | 1;
+	rc5 = bttv_rc5_decode(ir->code);
+
+	toggle = RC5_TOGGLE(rc5);
+	system = RC5_ADDR(rc5);
+	command = RC5_INSTR(rc5);
+
+	switch (RC5_START(rc5)) {
+	case 0x3:
+		break;
+	case 0x2:
+		command += 0x40;
+		break;
+	default:
+		return;
+	}
+
+	scancode = system << 8 | command;
+	rc_keydown(ir->dev, scancode, toggle);
+	dprintk("scancode %x, toggle %x\n", scancode, toggle);
 }
 
 static int bttv_rc5_irq(struct bttv *btv)
@@ -310,8 +313,6 @@ static void bttv_ir_start(struct bttv *btv, struct bttv_ir *ir)
 		/* set timer_end for code completion */
 		setup_timer(&ir->timer, bttv_rc5_timer_end, (unsigned long)ir);
 		ir->shift_by = 1;
-		ir->start = 3;
-		ir->addr = 0x0;
 		ir->rc5_remote_gap = ir_rc5_remote_gap;
 	}
 }
@@ -490,8 +491,8 @@ int bttv_input_init(struct bttv *btv)
 		ir->polling      = 50; // ms
 		break;
 	case BTTV_BOARD_NEBULA_DIGITV:
-		ir_codes = RC_MAP_NEBULA;
-		ir->rc5_gpio = true;
+		ir_codes         = RC_MAP_NEBULA;
+		ir->rc5_gpio     = true;
 		break;
 	case BTTV_BOARD_MACHTV_MAGICTV:
 		ir_codes         = RC_MAP_APAC_VIEWCOMP;
@@ -514,7 +515,8 @@ int bttv_input_init(struct bttv *btv)
 						   ir->mask_keycode);
 		break;
 	}
-	if (NULL == ir_codes) {
+
+	if (!ir_codes) {
 		dprintk("Ooops: IR config error [card=%d]\n", btv->c.type);
 		err = -ENODEV;
 		goto err_out_free;
