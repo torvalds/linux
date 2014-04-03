@@ -187,8 +187,6 @@ extern void zone_statistics(struct zone *, struct zone *, gfp_t gfp);
 #define add_zone_page_state(__z, __i, __d) mod_zone_page_state(__z, __i, __d)
 #define sub_zone_page_state(__z, __i, __d) mod_zone_page_state(__z, __i, -(__d))
 
-extern void inc_zone_state(struct zone *, enum zone_stat_item);
-
 #ifdef CONFIG_SMP
 void __mod_zone_page_state(struct zone *, enum zone_stat_item item, int);
 void __inc_zone_page_state(struct page *, enum zone_stat_item);
@@ -230,16 +228,16 @@ static inline void __inc_zone_state(struct zone *zone, enum zone_stat_item item)
 	atomic_long_inc(&vm_stat[item]);
 }
 
-static inline void __inc_zone_page_state(struct page *page,
-			enum zone_stat_item item)
-{
-	__inc_zone_state(page_zone(page), item);
-}
-
 static inline void __dec_zone_state(struct zone *zone, enum zone_stat_item item)
 {
 	atomic_long_dec(&zone->vm_stat[item]);
 	atomic_long_dec(&vm_stat[item]);
+}
+
+static inline void __inc_zone_page_state(struct page *page,
+			enum zone_stat_item item)
+{
+	__inc_zone_state(page_zone(page), item);
 }
 
 static inline void __dec_zone_page_state(struct page *page,
@@ -255,6 +253,9 @@ static inline void __dec_zone_page_state(struct page *page,
 #define inc_zone_page_state __inc_zone_page_state
 #define dec_zone_page_state __dec_zone_page_state
 #define mod_zone_page_state __mod_zone_page_state
+
+#define inc_zone_state __inc_zone_state
+#define dec_zone_state __dec_zone_state
 
 #define set_pgdat_percpu_threshold(pgdat, callback) { }
 

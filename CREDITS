@@ -2564,6 +2564,10 @@ N: Wolfgang Muees
 E: wolfgang@iksw-muees.de
 D: Auerswald USB driver
 
+N: Paul Mundt
+E: paul.mundt@gmail.com
+D: SuperH maintainer
+
 N: Ian A. Murdock
 E: imurdock@gnu.ai.mit.edu
 D: Creator of Debian distribution
@@ -2706,6 +2710,9 @@ D: Original author and maintainer of IDE/ATAPI floppy/tape drivers
 N: Greg Page
 E: gpage@sovereign.org
 D: IPX development and support
+
+N: Venkatesh Pallipadi (Venki)
+D: x86/HPET
 
 N: David Parsons
 E: orc@pell.chi.il.us

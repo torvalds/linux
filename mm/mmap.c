@@ -405,7 +405,7 @@ static void validate_mm_rb(struct rb_root *root, struct vm_area_struct *ignore)
 	}
 }
 
-void validate_mm(struct mm_struct *mm)
+static void validate_mm(struct mm_struct *mm)
 {
 	int bug = 0;
 	int i = 0;

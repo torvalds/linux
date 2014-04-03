@@ -273,6 +273,16 @@ config FHANDLE
 	  get renamed. Enables open_by_handle_at(2) and name_to_handle_at(2)
 	  syscalls.
 
+config USELIB
+	bool "uselib syscall"
+	default y
+	help
+	  This option enables the uselib syscall, a system call used in the
+	  dynamic linker from libc5 and earlier.  glibc does not use this
+	  system call.  If you intend to run programs built on libc5 or
+	  earlier, you may need to enable this syscall.  Current systems
+	  running glibc can safely disable this.
+
 config AUDIT
 	bool "Auditing support"
 	depends on NET
@@ -1290,6 +1300,16 @@ config UID16
 	default y
 	help
 	  This enables the legacy 16-bit UID syscall wrappers.
+
+config SYSFS_SYSCALL
+	bool "Sysfs syscall support" if EXPERT
+	default y
+	---help---
+	  sys_sysfs is an obsolete system call no longer supported in libc.
+	  Note that disabling this option is more secure but might break
+	  compatibility with some systems.
+
+	  If unsure say Y here.
 
 config SYSCTL_SYSCALL
 	bool "Sysctl syscall support" if EXPERT

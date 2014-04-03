@@ -73,7 +73,7 @@ static void init_once(void *foo)
 	inode_init_once(&ei->vfs_inode);
 }
 
-int coda_init_inodecache(void)
+int __init coda_init_inodecache(void)
 {
 	coda_inode_cachep = kmem_cache_create("coda_inode_cache",
 				sizeof(struct coda_inode_info),
@@ -250,7 +250,7 @@ static void coda_put_super(struct super_block *sb)
 
 static void coda_evict_inode(struct inode *inode)
 {
-	truncate_inode_pages(&inode->i_data, 0);
+	truncate_inode_pages_final(&inode->i_data);
 	clear_inode(inode);
 	coda_cache_clear_inode(inode);
 }

@@ -296,7 +296,7 @@ ncp_iget(struct super_block *sb, struct ncp_entry_info *info)
 static void
 ncp_evict_inode(struct inode *inode)
 {
-	truncate_inode_pages(&inode->i_data, 0);
+	truncate_inode_pages_final(&inode->i_data);
 	clear_inode(inode);
 
 	if (S_ISDIR(inode->i_mode)) {

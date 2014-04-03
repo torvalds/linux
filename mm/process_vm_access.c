@@ -412,7 +412,7 @@ SYSCALL_DEFINE6(process_vm_writev, pid_t, pid,
 
 #ifdef CONFIG_COMPAT
 
-asmlinkage ssize_t
+static ssize_t
 compat_process_vm_rw(compat_pid_t pid,
 		     const struct compat_iovec __user *lvec,
 		     unsigned long liovcnt,

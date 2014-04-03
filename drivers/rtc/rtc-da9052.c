@@ -26,7 +26,6 @@
 struct da9052_rtc {
 	struct rtc_device *rtc;
 	struct da9052 *da9052;
-	int irq;
 };
 
 static int da9052_rtc_enable_alarm(struct da9052 *da9052, bool enable)
@@ -240,8 +239,7 @@ static int da9052_rtc_probe(struct platform_device *pdev)
 
 	rtc->da9052 = dev_get_drvdata(pdev->dev.parent);
 	platform_set_drvdata(pdev, rtc);
-	rtc->irq =  DA9052_IRQ_ALARM;
-	ret = da9052_request_irq(rtc->da9052, rtc->irq, "ALM",
+	ret = da9052_request_irq(rtc->da9052, DA9052_IRQ_ALARM, "ALM",
 				da9052_rtc_irq, rtc);
 	if (ret != 0) {
 		rtc_err(rtc->da9052, "irq registration failed: %d\n", ret);

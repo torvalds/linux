@@ -37,7 +37,6 @@
 #include "dlmglue.h"
 #include "file.h"
 #include "inode.h"
-#include "super.h"
 #include "ocfs2_trace.h"
 
 void ocfs2_dentry_attach_gen(struct dentry *dentry)
@@ -346,52 +345,6 @@ out_attach:
 	return ret;
 }
 
-DEFINE_SPINLOCK(dentry_list_lock);
-
-/* We limit the number of dentry locks to drop in one go. We have
- * this limit so that we don't starve other users of ocfs2_wq. */
-#define DL_INODE_DROP_COUNT 64
-
-/* Drop inode references from dentry locks */
-static void __ocfs2_drop_dl_inodes(struct ocfs2_super *osb, int drop_count)
-{
-	struct ocfs2_dentry_lock *dl;
-
-	spin_lock(&dentry_list_lock);
-	while (osb->dentry_lock_list && (drop_count < 0 || drop_count--)) {
-		dl = osb->dentry_lock_list;
-		osb->dentry_lock_list = dl->dl_next;
-		spin_unlock(&dentry_list_lock);
-		iput(dl->dl_inode);
-		kfree(dl);
-		spin_lock(&dentry_list_lock);
-	}
-	spin_unlock(&dentry_list_lock);
-}
-
-void ocfs2_drop_dl_inodes(struct work_struct *work)
-{
-	struct ocfs2_super *osb = container_of(work, struct ocfs2_super,
-					       dentry_lock_work);
-
-	__ocfs2_drop_dl_inodes(osb, DL_INODE_DROP_COUNT);
-	/*
-	 * Don't queue dropping if umount is in progress. We flush the
-	 * list in ocfs2_dismount_volume
-	 */
-	spin_lock(&dentry_list_lock);
-	if (osb->dentry_lock_list &&
-	    !ocfs2_test_osb_flag(osb, OCFS2_OSB_DROP_DENTRY_LOCK_IMMED))
-		queue_work(ocfs2_wq, &osb->dentry_lock_work);
-	spin_unlock(&dentry_list_lock);
-}
-
-/* Flush the whole work queue */
-void ocfs2_drop_all_dl_inodes(struct ocfs2_super *osb)
-{
-	__ocfs2_drop_dl_inodes(osb, -1);
-}
-
 /*
  * ocfs2_dentry_iput() and friends.
  *
@@ -416,24 +369,16 @@ void ocfs2_drop_all_dl_inodes(struct ocfs2_super *osb)
 static void ocfs2_drop_dentry_lock(struct ocfs2_super *osb,
 				   struct ocfs2_dentry_lock *dl)
 {
+	iput(dl->dl_inode);
 	ocfs2_simple_drop_lockres(osb, &dl->dl_lockres);
 	ocfs2_lock_res_free(&dl->dl_lockres);
-
-	/* We leave dropping of inode reference to ocfs2_wq as that can
-	 * possibly lead to inode deletion which gets tricky */
-	spin_lock(&dentry_list_lock);
-	if (!osb->dentry_lock_list &&
-	    !ocfs2_test_osb_flag(osb, OCFS2_OSB_DROP_DENTRY_LOCK_IMMED))
-		queue_work(ocfs2_wq, &osb->dentry_lock_work);
-	dl->dl_next = osb->dentry_lock_list;
-	osb->dentry_lock_list = dl;
-	spin_unlock(&dentry_list_lock);
+	kfree(dl);
 }
 
 void ocfs2_dentry_lock_put(struct ocfs2_super *osb,
 			   struct ocfs2_dentry_lock *dl)
 {
-	int unlock;
+	int unlock = 0;
 
 	BUG_ON(dl->dl_count == 0);
 

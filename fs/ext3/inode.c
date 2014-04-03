@@ -228,7 +228,7 @@ void ext3_evict_inode (struct inode *inode)
 		log_wait_commit(journal, commit_tid);
 		filemap_write_and_wait(&inode->i_data);
 	}
-	truncate_inode_pages(&inode->i_data, 0);
+	truncate_inode_pages_final(&inode->i_data);
 
 	ext3_discard_reservation(inode);
 	rsv = ei->i_block_alloc_info;

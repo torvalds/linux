@@ -286,7 +286,7 @@ cifs_destroy_inode(struct inode *inode)
 static void
 cifs_evict_inode(struct inode *inode)
 {
-	truncate_inode_pages(&inode->i_data, 0);
+	truncate_inode_pages_final(&inode->i_data);
 	clear_inode(inode);
 	cifs_fscache_release_inode_cookie(inode);
 }
@@ -1005,7 +1005,7 @@ cifs_init_once(void *inode)
 	init_rwsem(&cifsi->lock_sem);
 }
 
-static int
+static int __init
 cifs_init_inodecache(void)
 {
 	cifs_inode_cachep = kmem_cache_create("cifs_inode_cache",

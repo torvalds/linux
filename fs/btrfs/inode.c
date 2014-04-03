@@ -4593,7 +4593,7 @@ static void evict_inode_truncate_pages(struct inode *inode)
 	struct rb_node *node;
 
 	ASSERT(inode->i_state & I_FREEING);
-	truncate_inode_pages(&inode->i_data, 0);
+	truncate_inode_pages_final(&inode->i_data);
 
 	write_lock(&map_tree->lock);
 	while (!RB_EMPTY_ROOT(&map_tree->map)) {

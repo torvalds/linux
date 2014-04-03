@@ -603,11 +603,25 @@ static struct kobj_attribute ocfs2_attr_cluster_stack =
 	       ocfs2_cluster_stack_show,
 	       ocfs2_cluster_stack_store);
 
+
+
+static ssize_t ocfs2_dlm_recover_show(struct kobject *kobj,
+					struct kobj_attribute *attr,
+					char *buf)
+{
+	return snprintf(buf, PAGE_SIZE, "1\n");
+}
+
+static struct kobj_attribute ocfs2_attr_dlm_recover_support =
+	__ATTR(dlm_recover_callback_support, S_IRUGO,
+	       ocfs2_dlm_recover_show, NULL);
+
 static struct attribute *ocfs2_attrs[] = {
 	&ocfs2_attr_max_locking_protocol.attr,
 	&ocfs2_attr_loaded_cluster_plugins.attr,
 	&ocfs2_attr_active_cluster_plugin.attr,
 	&ocfs2_attr_cluster_stack.attr,
+	&ocfs2_attr_dlm_recover_support.attr,
 	NULL,
 };
 

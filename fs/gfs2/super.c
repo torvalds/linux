@@ -1558,7 +1558,7 @@ out_unlock:
 		fs_warn(sdp, "gfs2_evict_inode: %d\n", error);
 out:
 	/* Case 3 starts here */
-	truncate_inode_pages(&inode->i_data, 0);
+	truncate_inode_pages_final(&inode->i_data);
 	gfs2_rs_delete(ip, NULL);
 	gfs2_ordered_del_inode(ip);
 	clear_inode(inode);
