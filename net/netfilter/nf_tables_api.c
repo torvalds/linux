@@ -1827,86 +1827,6 @@ static int nf_tables_delrule(struct sock *nlsk, struct sk_buff *skb,
 	return err;
 }
 
-static int nf_tables_commit(struct sk_buff *skb)
-{
-	struct net *net = sock_net(skb->sk);
-	struct nft_trans *trans, *next;
-
-	/* Bump generation counter, invalidate any dump in progress */
-	net->nft.genctr++;
-
-	/* A new generation has just started */
-	net->nft.gencursor = gencursor_next(net);
-
-	/* Make sure all packets have left the previous generation before
-	 * purging old rules.
-	 */
-	synchronize_rcu();
-
-	list_for_each_entry_safe(trans, next, &net->nft.commit_list, list) {
-		/* This rule was inactive in the past and just became active.
-		 * Clear the next bit of the genmask since its meaning has
-		 * changed, now it is the future.
-		 */
-		if (nft_rule_is_active(net, nft_trans_rule(trans))) {
-			nft_rule_clear(net, nft_trans_rule(trans));
-			nf_tables_rule_notify(skb, trans->ctx.nlh,
-					      trans->ctx.table,
-					      trans->ctx.chain,
-					      nft_trans_rule(trans),
-					      NFT_MSG_NEWRULE, 0,
-					      trans->ctx.afi->family);
-			nft_trans_destroy(trans);
-			continue;
-		}
-
-		/* This rule is in the past, get rid of it */
-		list_del_rcu(&nft_trans_rule(trans)->list);
-		nf_tables_rule_notify(skb, trans->ctx.nlh,
-				      trans->ctx.table, trans->ctx.chain,
-				      nft_trans_rule(trans), NFT_MSG_DELRULE,
-				      0, trans->ctx.afi->family);
-	}
-
-	/* Make sure we don't see any packet traversing old rules */
-	synchronize_rcu();
-
-	/* Now we can safely release unused old rules */
-	list_for_each_entry_safe(trans, next, &net->nft.commit_list, list) {
-		nf_tables_rule_destroy(&trans->ctx, nft_trans_rule(trans));
-		nft_trans_destroy(trans);
-	}
-
-	return 0;
-}
-
-static int nf_tables_abort(struct sk_buff *skb)
-{
-	struct net *net = sock_net(skb->sk);
-	struct nft_trans *trans, *next;
-
-	list_for_each_entry_safe(trans, next, &net->nft.commit_list, list) {
-		if (!nft_rule_is_active_next(net, nft_trans_rule(trans))) {
-			nft_rule_clear(net, nft_trans_rule(trans));
-			nft_trans_destroy(trans);
-			continue;
-		}
-
-		/* This rule is inactive, get rid of it */
-		list_del_rcu(&nft_trans_rule(trans)->list);
-	}
-
-	/* Make sure we don't see any packet accessing aborted rules */
-	synchronize_rcu();
-
-	list_for_each_entry_safe(trans, next, &net->nft.commit_list, list) {
-		nf_tables_rule_destroy(&trans->ctx, nft_trans_rule(trans));
-		nft_trans_destroy(trans);
-	}
-
-	return 0;
-}
-
 /*
  * Sets
  */
@@ -3176,6 +3096,86 @@ static const struct nfnl_callback nf_tables_cb[NFT_MSG_MAX] = {
 		.policy		= nft_set_elem_list_policy,
 	},
 };
+
+static int nf_tables_commit(struct sk_buff *skb)
+{
+	struct net *net = sock_net(skb->sk);
+	struct nft_trans *trans, *next;
+
+	/* Bump generation counter, invalidate any dump in progress */
+	net->nft.genctr++;
+
+	/* A new generation has just started */
+	net->nft.gencursor = gencursor_next(net);
+
+	/* Make sure all packets have left the previous generation before
+	 * purging old rules.
+	 */
+	synchronize_rcu();
+
+	list_for_each_entry_safe(trans, next, &net->nft.commit_list, list) {
+		/* This rule was inactive in the past and just became active.
+		 * Clear the next bit of the genmask since its meaning has
+		 * changed, now it is the future.
+		 */
+		if (nft_rule_is_active(net, nft_trans_rule(trans))) {
+			nft_rule_clear(net, nft_trans_rule(trans));
+			nf_tables_rule_notify(skb, trans->ctx.nlh,
+					      trans->ctx.table,
+					      trans->ctx.chain,
+					      nft_trans_rule(trans),
+					      NFT_MSG_NEWRULE, 0,
+					      trans->ctx.afi->family);
+			nft_trans_destroy(trans);
+			continue;
+		}
+
+		/* This rule is in the past, get rid of it */
+		list_del_rcu(&nft_trans_rule(trans)->list);
+		nf_tables_rule_notify(skb, trans->ctx.nlh,
+				      trans->ctx.table, trans->ctx.chain,
+				      nft_trans_rule(trans), NFT_MSG_DELRULE,
+				      0, trans->ctx.afi->family);
+	}
+
+	/* Make sure we don't see any packet traversing old rules */
+	synchronize_rcu();
+
+	/* Now we can safely release unused old rules */
+	list_for_each_entry_safe(trans, next, &net->nft.commit_list, list) {
+		nf_tables_rule_destroy(&trans->ctx, nft_trans_rule(trans));
+		nft_trans_destroy(trans);
+	}
+
+	return 0;
+}
+
+static int nf_tables_abort(struct sk_buff *skb)
+{
+	struct net *net = sock_net(skb->sk);
+	struct nft_trans *trans, *next;
+
+	list_for_each_entry_safe(trans, next, &net->nft.commit_list, list) {
+		if (!nft_rule_is_active_next(net, nft_trans_rule(trans))) {
+			nft_rule_clear(net, nft_trans_rule(trans));
+			nft_trans_destroy(trans);
+			continue;
+		}
+
+		/* This rule is inactive, get rid of it */
+		list_del_rcu(&nft_trans_rule(trans)->list);
+	}
+
+	/* Make sure we don't see any packet accessing aborted rules */
+	synchronize_rcu();
+
+	list_for_each_entry_safe(trans, next, &net->nft.commit_list, list) {
+		nf_tables_rule_destroy(&trans->ctx, nft_trans_rule(trans));
+		nft_trans_destroy(trans);
+	}
+
+	return 0;
+}
 
 static const struct nfnetlink_subsystem nf_tables_subsys = {
 	.name		= "nf_tables",
