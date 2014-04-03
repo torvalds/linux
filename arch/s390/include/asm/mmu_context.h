@@ -15,6 +15,7 @@
 static inline int init_new_context(struct task_struct *tsk,
 				   struct mm_struct *mm)
 {
+	cpumask_clear(&mm->context.cpu_attach_mask);
 	atomic_set(&mm->context.attach_count, 0);
 	mm->context.flush_mm = 0;
 	mm->context.asce_bits = _ASCE_TABLE_LENGTH | _ASCE_USER_BITS;
@@ -59,6 +60,8 @@ static inline void switch_mm(struct mm_struct *prev, struct mm_struct *next,
 
 	if (prev == next)
 		return;
+	if (MACHINE_HAS_TLB_LC)
+		cpumask_set_cpu(cpu, &next->context.cpu_attach_mask);
 	if (atomic_inc_return(&next->context.attach_count) >> 16) {
 		/* Delay update_user_asce until all TLB flushes are done. */
 		set_tsk_thread_flag(tsk, TIF_TLB_WAIT);
@@ -73,6 +76,8 @@ static inline void switch_mm(struct mm_struct *prev, struct mm_struct *next,
 	}
 	atomic_dec(&prev->context.attach_count);
 	WARN_ON(atomic_read(&prev->context.attach_count) < 0);
+	if (MACHINE_HAS_TLB_LC)
+		cpumask_clear_cpu(cpu, &prev->context.cpu_attach_mask);
 }
 
 #define finish_arch_post_lock_switch finish_arch_post_lock_switch

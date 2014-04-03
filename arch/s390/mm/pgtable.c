@@ -200,7 +200,7 @@ static int gmap_unlink_segment(struct gmap *gmap, unsigned long *table)
 static void gmap_flush_tlb(struct gmap *gmap)
 {
 	if (MACHINE_HAS_IDTE)
-		__tlb_flush_idte((unsigned long) gmap->table |
+		__tlb_flush_asce(gmap->mm, (unsigned long) gmap->table |
 				 _ASCE_TYPE_REGION1);
 	else
 		__tlb_flush_global();
@@ -219,7 +219,7 @@ void gmap_free(struct gmap *gmap)
 
 	/* Flush tlb. */
 	if (MACHINE_HAS_IDTE)
-		__tlb_flush_idte((unsigned long) gmap->table |
+		__tlb_flush_asce(gmap->mm, (unsigned long) gmap->table |
 				 _ASCE_TYPE_REGION1);
 	else
 		__tlb_flush_global();
