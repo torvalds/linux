@@ -64,12 +64,10 @@ static int mc13xxx_rtc_read_time(struct device *dev, struct rtc_time *tm)
 	unsigned long s1970;
 	int ret;
 
-	mc13xxx_lock(priv->mc13xxx);
+	if (!priv->valid)
+		return -ENODATA;
 
-	if (!priv->valid) {
-		ret = -ENODATA;
-		goto out;
-	}
+	mc13xxx_lock(priv->mc13xxx);
 
 	ret = mc13xxx_reg_read(priv->mc13xxx, MC13XXX_RTCDAY, &days1);
 	if (unlikely(ret))
@@ -154,11 +152,14 @@ static int mc13xxx_rtc_set_mmss(struct device *dev, unsigned long secs)
 			goto out;
 	}
 
-	ret = mc13xxx_irq_ack(priv->mc13xxx, MC13XXX_IRQ_RTCRST);
-	if (unlikely(ret))
-		goto out;
+	if (!priv->valid) {
+		ret = mc13xxx_irq_ack(priv->mc13xxx, MC13XXX_IRQ_RTCRST);
+		if (unlikely(ret))
+			goto out;
 
-	ret = mc13xxx_irq_unmask(priv->mc13xxx, MC13XXX_IRQ_RTCRST);
+		ret = mc13xxx_irq_unmask(priv->mc13xxx, MC13XXX_IRQ_RTCRST);
+	}
+
 out:
 	priv->valid = !ret;
 
@@ -295,7 +296,7 @@ static irqreturn_t mc13xxx_rtc_reset_handler(int irq, void *dev)
 	struct mc13xxx_rtc *priv = dev;
 	struct mc13xxx *mc13xxx = priv->mc13xxx;
 
-	dev_dbg(&priv->rtc->dev, "RTCRST\n");
+	dev_warn(&priv->rtc->dev, "Contents of the RTC are no longer valid\n");
 	priv->valid = 0;
 
 	mc13xxx_irq_mask(mc13xxx, irq);
@@ -308,7 +309,6 @@ static int __init mc13xxx_rtc_probe(struct platform_device *pdev)
 	int ret;
 	struct mc13xxx_rtc *priv;
 	struct mc13xxx *mc13xxx;
-	int rtcrst_pending;
 
 	priv = devm_kzalloc(&pdev->dev, sizeof(*priv), GFP_KERNEL);
 	if (!priv)
@@ -316,6 +316,7 @@ static int __init mc13xxx_rtc_probe(struct platform_device *pdev)
 
 	mc13xxx = dev_get_drvdata(pdev->dev.parent);
 	priv->mc13xxx = mc13xxx;
+	priv->valid = 1;
 
 	platform_set_drvdata(pdev, priv);
 
@@ -326,17 +327,12 @@ static int __init mc13xxx_rtc_probe(struct platform_device *pdev)
 
 	mc13xxx_lock(mc13xxx);
 
+	mc13xxx_irq_ack(mc13xxx, MC13XXX_IRQ_RTCRST);
+
 	ret = mc13xxx_irq_request(mc13xxx, MC13XXX_IRQ_RTCRST,
 			mc13xxx_rtc_reset_handler, DRIVER_NAME, priv);
 	if (ret)
 		goto err_reset_irq_request;
-
-	ret = mc13xxx_irq_status(mc13xxx, MC13XXX_IRQ_RTCRST,
-			NULL, &rtcrst_pending);
-	if (ret)
-		goto err_reset_irq_status;
-
-	priv->valid = !rtcrst_pending;
 
 	ret = mc13xxx_irq_request(mc13xxx, MC13XXX_IRQ_1HZ,
 			mc13xxx_rtc_update_handler, DRIVER_NAME, priv);
