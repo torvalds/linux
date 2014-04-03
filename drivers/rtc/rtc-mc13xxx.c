@@ -375,7 +375,7 @@ err_reset_irq_request:
 	return ret;
 }
 
-static int __exit mc13xxx_rtc_remove(struct platform_device *pdev)
+static int mc13xxx_rtc_remove(struct platform_device *pdev)
 {
 	struct mc13xxx_rtc *priv = platform_get_drvdata(pdev);
 
@@ -404,7 +404,7 @@ MODULE_DEVICE_TABLE(platform, mc13xxx_rtc_idtable);
 
 static struct platform_driver mc13xxx_rtc_driver = {
 	.id_table = mc13xxx_rtc_idtable,
-	.remove = __exit_p(mc13xxx_rtc_remove),
+	.remove = mc13xxx_rtc_remove,
 	.driver = {
 		.name = DRIVER_NAME,
 		.owner = THIS_MODULE,
