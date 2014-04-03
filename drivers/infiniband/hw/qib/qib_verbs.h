@@ -664,6 +664,13 @@ struct qib_opcode_stats_perctx {
 	struct qib_opcode_stats stats[128];
 };
 
+struct qib_pma_counters {
+	u64 n_unicast_xmit;     /* total unicast packets sent */
+	u64 n_unicast_rcv;      /* total unicast packets received */
+	u64 n_multicast_xmit;   /* total multicast packets sent */
+	u64 n_multicast_rcv;    /* total multicast packets received */
+};
+
 struct qib_ibport {
 	struct qib_qp __rcu *qp0;
 	struct qib_qp __rcu *qp1;
@@ -680,10 +687,11 @@ struct qib_ibport {
 	__be64 mkey;
 	__be64 guids[QIB_GUIDS_PER_PORT	- 1];	/* writable GUIDs */
 	u64 tid;		/* TID for traps */
-	u64 n_unicast_xmit;     /* total unicast packets sent */
-	u64 n_unicast_rcv;      /* total unicast packets received */
-	u64 n_multicast_xmit;   /* total multicast packets sent */
-	u64 n_multicast_rcv;    /* total multicast packets received */
+	struct qib_pma_counters __percpu *pmastats;
+	u64 z_unicast_xmit;     /* starting count for PMA */
+	u64 z_unicast_rcv;      /* starting count for PMA */
+	u64 z_multicast_xmit;   /* starting count for PMA */
+	u64 z_multicast_rcv;    /* starting count for PMA */
 	u64 z_symbol_error_counter;             /* starting count for PMA */
 	u64 z_link_error_recovery_counter;      /* starting count for PMA */
 	u64 z_link_downed_counter;              /* starting count for PMA */

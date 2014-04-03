@@ -2534,16 +2534,6 @@ static void ehca_dma_unmap_sg(struct ib_device *dev, struct scatterlist *sg,
 	/* This is only a stub; nothing to be done here */
 }
 
-static u64 ehca_dma_address(struct ib_device *dev, struct scatterlist *sg)
-{
-	return sg->dma_address;
-}
-
-static unsigned int ehca_dma_len(struct ib_device *dev, struct scatterlist *sg)
-{
-	return sg->length;
-}
-
 static void ehca_dma_sync_single_for_cpu(struct ib_device *dev, u64 addr,
 					 size_t size,
 					 enum dma_data_direction dir)
@@ -2596,8 +2586,6 @@ struct ib_dma_mapping_ops ehca_dma_mapping_ops = {
 	.unmap_page             = ehca_dma_unmap_page,
 	.map_sg                 = ehca_dma_map_sg,
 	.unmap_sg               = ehca_dma_unmap_sg,
-	.dma_address            = ehca_dma_address,
-	.dma_len                = ehca_dma_len,
 	.sync_single_for_cpu    = ehca_dma_sync_single_for_cpu,
 	.sync_single_for_device = ehca_dma_sync_single_for_device,
 	.alloc_coherent         = ehca_dma_alloc_coherent,

@@ -1412,10 +1412,6 @@ struct ib_dma_mapping_ops {
 	void		(*unmap_sg)(struct ib_device *dev,
 				    struct scatterlist *sg, int nents,
 				    enum dma_data_direction direction);
-	u64		(*dma_address)(struct ib_device *dev,
-				       struct scatterlist *sg);
-	unsigned int	(*dma_len)(struct ib_device *dev,
-				   struct scatterlist *sg);
 	void		(*sync_single_for_cpu)(struct ib_device *dev,
 					       u64 dma_handle,
 					       size_t size,
@@ -2240,12 +2236,13 @@ static inline void ib_dma_unmap_sg_attrs(struct ib_device *dev,
  * ib_sg_dma_address - Return the DMA address from a scatter/gather entry
  * @dev: The device for which the DMA addresses were created
  * @sg: The scatter/gather entry
+ *
+ * Note: this function is obsolete. To do: change all occurrences of
+ * ib_sg_dma_address() into sg_dma_address().
  */
 static inline u64 ib_sg_dma_address(struct ib_device *dev,
 				    struct scatterlist *sg)
 {
-	if (dev->dma_ops)
-		return dev->dma_ops->dma_address(dev, sg);
 	return sg_dma_address(sg);
 }
 
@@ -2253,12 +2250,13 @@ static inline u64 ib_sg_dma_address(struct ib_device *dev,
  * ib_sg_dma_len - Return the DMA length from a scatter/gather entry
  * @dev: The device for which the DMA addresses were created
  * @sg: The scatter/gather entry
+ *
+ * Note: this function is obsolete. To do: change all occurrences of
+ * ib_sg_dma_len() into sg_dma_len().
  */
 static inline unsigned int ib_sg_dma_len(struct ib_device *dev,
 					 struct scatterlist *sg)
 {
-	if (dev->dma_ops)
-		return dev->dma_ops->dma_len(dev, sg);
 	return sg_dma_len(sg);
 }
 

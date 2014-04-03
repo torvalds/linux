@@ -675,7 +675,7 @@ int c4iw_post_send(struct ib_qp *ibqp, struct ib_send_wr *wr,
 		fw_flags = 0;
 		if (wr->send_flags & IB_SEND_SOLICITED)
 			fw_flags |= FW_RI_SOLICITED_EVENT_FLAG;
-		if (wr->send_flags & IB_SEND_SIGNALED)
+		if (wr->send_flags & IB_SEND_SIGNALED || qhp->sq_sig_all)
 			fw_flags |= FW_RI_COMPLETION_FLAG;
 		swsqe = &qhp->wq.sq.sw_sq[qhp->wq.sq.pidx];
 		switch (wr->opcode) {
@@ -736,7 +736,8 @@ int c4iw_post_send(struct ib_qp *ibqp, struct ib_send_wr *wr,
 		}
 		swsqe->idx = qhp->wq.sq.pidx;
 		swsqe->complete = 0;
-		swsqe->signaled = (wr->send_flags & IB_SEND_SIGNALED);
+		swsqe->signaled = (wr->send_flags & IB_SEND_SIGNALED) ||
+				  qhp->sq_sig_all;
 		swsqe->flushed = 0;
 		swsqe->wr_id = wr->wr_id;
 
@@ -1533,7 +1534,7 @@ struct ib_qp *c4iw_create_qp(struct ib_pd *pd, struct ib_qp_init_attr *attrs,
 	struct c4iw_cq *schp;
 	struct c4iw_cq *rchp;
 	struct c4iw_create_qp_resp uresp;
-	int sqsize, rqsize;
+	unsigned int sqsize, rqsize;
 	struct c4iw_ucontext *ucontext;
 	int ret;
 	struct c4iw_mm_entry *mm1, *mm2, *mm3, *mm4, *mm5 = NULL;
@@ -1605,6 +1606,7 @@ struct ib_qp *c4iw_create_qp(struct ib_pd *pd, struct ib_qp_init_attr *attrs,
 	qhp->attr.enable_bind = 1;
 	qhp->attr.max_ord = 1;
 	qhp->attr.max_ird = 1;
+	qhp->sq_sig_all = attrs->sq_sig_type == IB_SIGNAL_ALL_WR;
 	spin_lock_init(&qhp->lock);
 	mutex_init(&qhp->mutex);
 	init_waitqueue_head(&qhp->wait);
