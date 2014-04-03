@@ -28,6 +28,7 @@
 #include <linux/interrupt.h>
 #include <linux/mfd/core.h>
 #include <linux/regulator/consumer.h>
+#include <linux/clk.h>
 
 #define TWL6040_REG_ASICID		0x01
 #define TWL6040_REG_ASICREV		0x02
@@ -223,6 +224,7 @@ struct twl6040 {
 	struct regmap *regmap;
 	struct regmap_irq_chip_data *irq_data;
 	struct regulator_bulk_data supplies[2]; /* supplies for vio, v2v1 */
+	struct clk *clk32k;
 	struct mutex mutex;
 	struct mutex irq_mutex;
 	struct mfd_cell cells[TWL6040_CELLS];
