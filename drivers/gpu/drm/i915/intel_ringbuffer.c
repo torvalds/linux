@@ -612,13 +612,6 @@ static int init_render_ring(struct intel_ring_buffer *ring)
 		 */
 		I915_WRITE(CACHE_MODE_0,
 			   _MASKED_BIT_DISABLE(CM0_STC_EVICT_DISABLE_LRA_SNB));
-
-		/* This is not explicitly set for GEN6, so read the register.
-		 * see intel_ring_mi_set_context() for why we care.
-		 * TODO: consider explicitly setting the bit for GEN5
-		 */
-		ring->itlb_before_ctx_switch =
-			!!(I915_READ(GFX_MODE) & GFX_TLB_INVALIDATE_EXPLICIT);
 	}
 
 	if (INTEL_INFO(dev)->gen >= 6)

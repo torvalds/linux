@@ -596,7 +596,7 @@ mi_set_context(struct intel_ring_buffer *ring,
 	 * explicitly, so we rely on the value at ring init, stored in
 	 * itlb_before_ctx_switch.
 	 */
-	if (IS_GEN6(ring->dev) && ring->itlb_before_ctx_switch) {
+	if (IS_GEN6(ring->dev)) {
 		ret = ring->flush(ring, I915_GEM_GPU_DOMAINS, 0);
 		if (ret)
 			return ret;
