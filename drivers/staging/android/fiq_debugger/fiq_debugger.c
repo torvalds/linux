@@ -35,7 +35,9 @@
 #include <linux/tty_flip.h>
 #include <linux/wakelock.h>
 
+#ifdef CONFIG_FIQ_GLUE
 #include <asm/fiq_glue.h>
+#endif
 #include <asm/stacktrace.h>
 
 #include <linux/uaccess.h>
@@ -52,7 +54,9 @@
 		((unsigned long)(sp) & ~(THREAD_SIZE - 1)))
 
 struct fiq_debugger_state {
+#ifdef CONFIG_FIQ_GLUE
 	struct fiq_glue_handler handler;
+#endif
 
 	int fiq;
 	int uart_irq;
@@ -154,6 +158,7 @@ static inline bool fiq_debugger_have_fiq(struct fiq_debugger_state *state)
 	return (state->fiq >= 0);
 }
 
+#ifdef CONFIG_FIQ_GLUE
 static void fiq_debugger_force_irq(struct fiq_debugger_state *state)
 {
 	unsigned int irq = state->signal_irq;
@@ -168,6 +173,7 @@ static void fiq_debugger_force_irq(struct fiq_debugger_state *state)
 			chip->irq_retrigger(irq_get_irq_data(irq));
 	}
 }
+#endif
 
 static void fiq_debugger_uart_enable(struct fiq_debugger_state *state)
 {
@@ -928,6 +934,7 @@ static bool fiq_debugger_handle_uart_interrupt(struct fiq_debugger_state *state,
 	return signal_helper;
 }
 
+#ifdef CONFIG_FIQ_GLUE
 static void fiq_debugger_fiq(struct fiq_glue_handler *h, void *regs,
 		void *svc_sp)
 {
@@ -941,6 +948,7 @@ static void fiq_debugger_fiq(struct fiq_glue_handler *h, void *regs,
 	if (need_irq)
 		fiq_debugger_force_irq(state);
 }
+#endif
 
 /*
  * When not using FIQs, we only use this single interrupt as an entry point.
@@ -981,6 +989,7 @@ static irqreturn_t fiq_debugger_signal_irq(int irq, void *dev)
 	return IRQ_HANDLED;
 }
 
+#ifdef CONFIG_FIQ_GLUE
 static void fiq_debugger_resume(struct fiq_glue_handler *h)
 {
 	struct fiq_debugger_state *state =
@@ -988,6 +997,7 @@ static void fiq_debugger_resume(struct fiq_glue_handler *h)
 	if (state->pdata->uart_resume)
 		state->pdata->uart_resume(state->pdev);
 }
+#endif
 
 #if defined(CONFIG_FIQ_DEBUGGER_CONSOLE)
 struct tty_driver *fiq_debugger_console_device(struct console *co, int *index)
@@ -1305,17 +1315,20 @@ static int fiq_debugger_probe(struct platform_device *pdev)
 				"<hit enter %sto activate fiq debugger>\n",
 				state->no_sleep ? "" : "twice ");
 
+#ifdef CONFIG_FIQ_GLUE
 	if (fiq_debugger_have_fiq(state)) {
 		state->handler.fiq = fiq_debugger_fiq;
 		state->handler.resume = fiq_debugger_resume;
 		ret = fiq_glue_register_handler(&state->handler);
 		if (ret) {
 			pr_err("%s: could not install fiq handler\n", __func__);
-			goto err_register_fiq;
+			goto err_register_irq;
 		}
 
 		pdata->fiq_enable(pdev, state->fiq, 1);
-	} else {
+	} else
+#endif
+	{
 		ret = request_irq(state->uart_irq, fiq_debugger_uart_irq,
 				  IRQF_NO_SUSPEND, "debug", state);
 		if (ret) {
@@ -1373,7 +1386,6 @@ static int fiq_debugger_probe(struct platform_device *pdev)
 	return 0;
 
 err_register_irq:
-err_register_fiq:
 	if (pdata->uart_free)
 		pdata->uart_free(pdev);
 err_uart_init:
