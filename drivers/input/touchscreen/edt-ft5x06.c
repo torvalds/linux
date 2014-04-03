@@ -291,9 +291,10 @@ static int edt_ft5x06_register_read(struct edt_ft5x06_ts_data *tsdata,
 		wrbuf[1] = tsdata->factory_mode ? addr & 0x7f : addr & 0x3f;
 		wrbuf[1] |= tsdata->factory_mode ? 0x80 : 0x40;
 
-		error = edt_ft5x06_ts_readwrite(tsdata->client,
-						2, wrbuf, 2, rdbuf);
-		return error;
+		error = edt_ft5x06_ts_readwrite(tsdata->client, 2, wrbuf, 2,
+						rdbuf);
+		if (error)
+			return error;
 
 		if ((wrbuf[0] ^ wrbuf[1] ^ rdbuf[0]) != rdbuf[1]) {
 			dev_err(&tsdata->client->dev,
