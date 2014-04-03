@@ -771,6 +771,7 @@ static int ocfs2_block_group_alloc(struct ocfs2_super *osb,
 	spin_unlock(&OCFS2_I(alloc_inode)->ip_lock);
 	i_size_write(alloc_inode, le64_to_cpu(fe->i_size));
 	alloc_inode->i_blocks = ocfs2_inode_sector_count(alloc_inode);
+	ocfs2_update_inode_fsync_trans(handle, alloc_inode, 0);
 
 	status = 0;
 
@@ -2091,7 +2092,7 @@ int ocfs2_find_new_inode_loc(struct inode *dir,
 
 	ac->ac_find_loc_priv = res;
 	*fe_blkno = res->sr_blkno;
-
+	ocfs2_update_inode_fsync_trans(handle, dir, 0);
 out:
 	if (handle)
 		ocfs2_commit_trans(OCFS2_SB(dir->i_sb), handle);
