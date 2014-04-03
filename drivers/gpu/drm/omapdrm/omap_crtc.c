@@ -33,6 +33,7 @@ struct omap_crtc {
 	int pipe;
 	enum omap_channel channel;
 	struct omap_overlay_manager_info info;
+	struct drm_encoder *current_encoder;
 
 	/*
 	 * Temporary: eventually this will go away, but it is needed
@@ -593,6 +594,11 @@ static void omap_crtc_pre_apply(struct omap_drm_apply *apply)
 			}
 		}
 	}
+
+	if (omap_crtc->current_encoder && encoder != omap_crtc->current_encoder)
+		omap_encoder_set_enabled(omap_crtc->current_encoder, false);
+
+	omap_crtc->current_encoder = encoder;
 
 	if (!omap_crtc->enabled) {
 		set_enabled(&omap_crtc->base, false);
