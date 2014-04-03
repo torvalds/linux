@@ -3447,7 +3447,7 @@ regulator_register(const struct regulator_desc *regulator_desc,
 
 	/* register with sysfs */
 	rdev->dev.class = &regulator_class;
-	rdev->dev.of_node = config->of_node;
+	rdev->dev.of_node = of_node_get(config->of_node);
 	rdev->dev.parent = dev;
 	dev_set_name(&rdev->dev, "regulator.%d",
 		     atomic_inc_return(&regulator_no) - 1);
@@ -3589,6 +3589,7 @@ void regulator_unregister(struct regulator_dev *rdev)
 	list_del(&rdev->list);
 	kfree(rdev->constraints);
 	regulator_ena_gpio_free(rdev);
+	of_node_put(rdev->dev.of_node);
 	device_unregister(&rdev->dev);
 	mutex_unlock(&regulator_list_mutex);
 }
