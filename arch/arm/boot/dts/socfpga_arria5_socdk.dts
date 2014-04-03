@@ -15,7 +15,7 @@
  * along with this program.  If not, see <http://www.gnu.org/licenses/>.
  */
 
-/include/ "socfpga_arria5.dtsi"
+#include "socfpga_arria5.dtsi"
 
 / {
 	model = "Altera SOCFPGA Arria V SoC Development Kit";
