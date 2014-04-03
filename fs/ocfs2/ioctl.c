@@ -413,11 +413,12 @@ int ocfs2_info_handle_freeinode(struct inode *inode,
 		}
 
 		status = ocfs2_info_scan_inode_alloc(osb, inode_alloc, blkno, oifi, i);
-		if (status < 0)
-			goto bail;
 
 		iput(inode_alloc);
 		inode_alloc = NULL;
+
+		if (status < 0)
+			goto bail;
 	}
 
 	o2info_set_request_filled(&oifi->ifi_req);
