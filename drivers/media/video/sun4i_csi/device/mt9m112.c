@@ -928,7 +928,6 @@ static int sensor_detect(struct v4l2_subdev *sd)
 	}
 
 	regs.reg_num[0] = 0x00;
-	regs.reg_num[1] = 0x00;
 	ret = sensor_read(sd, regs.reg_num, regs.value);
 	if (ret < 0) {
 		csi_dev_err("sensor_read err at sensor_detect!\n");
