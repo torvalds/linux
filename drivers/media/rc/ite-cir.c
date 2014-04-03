@@ -1709,12 +1709,12 @@ static struct pnp_driver ite_driver = {
 	.shutdown	= ite_shutdown,
 };
 
-static int ite_init(void)
+static int __init ite_init(void)
 {
 	return pnp_register_driver(&ite_driver);
 }
 
-static void ite_exit(void)
+static void __exit ite_exit(void)
 {
 	pnp_unregister_driver(&ite_driver);
 }

@@ -1221,12 +1221,12 @@ static struct pnp_driver nvt_driver = {
 	.shutdown	= nvt_shutdown,
 };
 
-static int nvt_init(void)
+static int __init nvt_init(void)
 {
 	return pnp_register_driver(&nvt_driver);
 }
 
-static void nvt_exit(void)
+static void __exit nvt_exit(void)
 {
 	pnp_unregister_driver(&nvt_driver);
 }

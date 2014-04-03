@@ -78,11 +78,11 @@ static int display_open(struct inode *inode, struct file *file);
 static int display_close(struct inode *inode, struct file *file);
 
 /* VFD write operation */
-static ssize_t vfd_write(struct file *file, const char *buf,
+static ssize_t vfd_write(struct file *file, const char __user *buf,
 			 size_t n_bytes, loff_t *pos);
 
 /* LCD file_operations override function prototypes */
-static ssize_t lcd_write(struct file *file, const char *buf,
+static ssize_t lcd_write(struct file *file, const char __user *buf,
 			 size_t n_bytes, loff_t *pos);
 
 /*** G L O B A L S ***/
@@ -825,7 +825,7 @@ static struct attribute_group imon_rf_attr_group = {
  * than 32 bytes are provided spaces will be appended to
  * generate a full screen.
  */
-static ssize_t vfd_write(struct file *file, const char *buf,
+static ssize_t vfd_write(struct file *file, const char __user *buf,
 			 size_t n_bytes, loff_t *pos)
 {
 	int i;
@@ -912,7 +912,7 @@ exit:
  * display whatever diacritics you need, and so on), but it's also
  * a lot more complicated than most LCDs...
  */
-static ssize_t lcd_write(struct file *file, const char *buf,
+static ssize_t lcd_write(struct file *file, const char __user *buf,
 			 size_t n_bytes, loff_t *pos)
 {
 	int retval = 0;
