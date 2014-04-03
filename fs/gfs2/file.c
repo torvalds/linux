@@ -684,7 +684,7 @@ static int gfs2_fsync(struct file *file, loff_t start, loff_t end,
 }
 
 /**
- * gfs2_file_aio_write - Perform a write to a file
+ * gfs2_file_write_iter - Perform a write to a file
  * @iocb: The io context
  * @iov: The data to write
  * @nr_segs: Number of @iov segments
@@ -697,11 +697,9 @@ static int gfs2_fsync(struct file *file, loff_t start, loff_t end,
  *
  */
 
-static ssize_t gfs2_file_aio_write(struct kiocb *iocb, const struct iovec *iov,
-				   unsigned long nr_segs, loff_t pos)
+static ssize_t gfs2_file_write_iter(struct kiocb *iocb, struct iov_iter *from)
 {
 	struct file *file = iocb->ki_filp;
-	size_t writesize = iov_length(iov, nr_segs);
 	struct gfs2_inode *ip = GFS2_I(file_inode(file));
 	int ret;
 
@@ -709,7 +707,7 @@ static ssize_t gfs2_file_aio_write(struct kiocb *iocb, const struct iovec *iov,
 	if (ret)
 		return ret;
 
-	gfs2_size_hint(file, pos, writesize);
+	gfs2_size_hint(file, iocb->ki_pos, iov_iter_count(from));
 
 	if (file->f_flags & O_APPEND) {
 		struct gfs2_holder gh;
@@ -720,7 +718,7 @@ static ssize_t gfs2_file_aio_write(struct kiocb *iocb, const struct iovec *iov,
 		gfs2_glock_dq_uninit(&gh);
 	}
 
-	return generic_file_aio_write(iocb, iov, nr_segs, pos);
+	return generic_file_write_iter(iocb, from);
 }
 
 static int fallocate_chunk(struct inode *inode, loff_t offset, loff_t len,
@@ -1060,8 +1058,8 @@ const struct file_operations gfs2_file_fops = {
 	.llseek		= gfs2_llseek,
 	.read		= new_sync_read,
 	.read_iter	= generic_file_read_iter,
-	.write		= do_sync_write,
-	.aio_write	= gfs2_file_aio_write,
+	.write		= new_sync_write,
+	.write_iter	= gfs2_file_write_iter,
 	.unlocked_ioctl	= gfs2_ioctl,
 	.mmap		= gfs2_mmap,
 	.open		= gfs2_open,
@@ -1092,8 +1090,8 @@ const struct file_operations gfs2_file_fops_nolock = {
 	.llseek		= gfs2_llseek,
 	.read		= new_sync_read,
 	.read_iter	= generic_file_read_iter,
-	.write		= do_sync_write,
-	.aio_write	= gfs2_file_aio_write,
+	.write		= new_sync_write,
+	.write_iter	= gfs2_file_write_iter,
 	.unlocked_ioctl	= gfs2_ioctl,
 	.mmap		= gfs2_mmap,
 	.open		= gfs2_open,
