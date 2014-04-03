@@ -579,7 +579,12 @@
 #define HDMI_TG_3D			HDMI_TG_BASE(0x00F0)
 
 /* HDMI PHY Registers Offsets*/
-#define HDMIPHY_MODE_SET_DONE		(0x7C >> 2)
+#define HDMIPHY_POWER		(0x74 >> 2)
+#define HDMIPHY_MODE_SET_DONE		(0x7c >> 2)
+
+/* HDMI PHY Values */
+#define HDMI_PHY_POWER_ON              0x80
+#define HDMI_PHY_POWER_OFF             0xff
 
 /* HDMI PHY Values */
 #define HDMI_PHY_DISABLE_MODE_SET	0x80
