@@ -795,8 +795,7 @@ out:
  *
  * Hmm, the sync read case isn't actually async... should it be?
  */
-static ssize_t ceph_aio_read(struct kiocb *iocb, const struct iovec *iov,
-			     unsigned long nr_segs, loff_t pos)
+static ssize_t ceph_read_iter(struct kiocb *iocb, struct iov_iter *to)
 {
 	struct file *filp = iocb->ki_filp;
 	struct ceph_file_info *fi = filp->private_data;
@@ -806,9 +805,6 @@ static ssize_t ceph_aio_read(struct kiocb *iocb, const struct iovec *iov,
 	ssize_t ret;
 	int want, got = 0;
 	int checkeof = 0, read = 0;
-	struct iov_iter i;
-
-	iov_iter_init(&i, READ, iov, nr_segs, len);
 
 again:
 	dout("aio_read %p %llx.%llx %llu~%u trying to get caps on %p\n",
@@ -831,13 +827,13 @@ again:
 		     ceph_cap_string(got));
 
 		/* hmm, this isn't really async... */
-		ret = ceph_sync_read(iocb, &i, &checkeof);
+		ret = ceph_sync_read(iocb, to, &checkeof);
 	} else {
 		dout("aio_read %p %llx.%llx %llu~%u got cap refs on %s\n",
-		     inode, ceph_vinop(inode), pos, (unsigned)len,
+		     inode, ceph_vinop(inode), iocb->ki_pos, (unsigned)len,
 		     ceph_cap_string(got));
 
-		ret = generic_file_read_iter(iocb, &i);
+		ret = generic_file_read_iter(iocb, to);
 	}
 	dout("aio_read %p %llx.%llx dropping cap refs on %s = %d\n",
 	     inode, ceph_vinop(inode), ceph_cap_string(got), (int)ret);
@@ -854,7 +850,7 @@ again:
 			     ", reading more\n", iocb->ki_pos,
 			     inode->i_size);
 
-			iov_iter_advance(&i, ret);
+			iov_iter_advance(to, ret);
 			read += ret;
 			len -= ret;
 			checkeof = 0;
@@ -1257,9 +1253,9 @@ const struct file_operations ceph_file_fops = {
 	.open = ceph_open,
 	.release = ceph_release,
 	.llseek = ceph_llseek,
-	.read = do_sync_read,
+	.read = new_sync_read,
 	.write = do_sync_write,
-	.aio_read = ceph_aio_read,
+	.read_iter = ceph_read_iter,
 	.aio_write = ceph_aio_write,
 	.mmap = ceph_mmap,
 	.fsync = ceph_fsync,
