@@ -1,7 +1,7 @@
 config FIQ_DEBUGGER
 	bool "FIQ Mode Serial Debugger"
 	default n
-	depends on ARM
+	depends on ARM || ARM64
 	help
 	  The FIQ serial debugger can accept commands even when the
 	  kernel is unresponsive due to being stuck with interrupts
