@@ -910,10 +910,14 @@ static int tsi148_master_set(struct vme_master_resource *image, int enabled,
 	unsigned long long pci_bound, vme_offset, pci_base;
 	struct vme_bridge *tsi148_bridge;
 	struct tsi148_driver *bridge;
+	struct pci_bus_region region;
+	struct pci_dev *pdev;
 
 	tsi148_bridge = image->parent;
 
 	bridge = tsi148_bridge->driver_priv;
+
+	pdev = container_of(tsi148_bridge->parent, struct pci_dev, dev);
 
 	/* Verify input data */
 	if (vme_base & 0xFFFF) {
@@ -949,7 +953,9 @@ static int tsi148_master_set(struct vme_master_resource *image, int enabled,
 		pci_bound = 0;
 		vme_offset = 0;
 	} else {
-		pci_base = (unsigned long long)image->bus_resource.start;
+		pcibios_resource_to_bus(pdev->bus, &region,
+					&image->bus_resource);
+		pci_base = region.start;
 
 		/*
 		 * Bound address is a valid address for the window, adjust
