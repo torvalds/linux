@@ -24,75 +24,10 @@
 #include "ccp-crypto.h"
 
 
-struct ccp_sha_result {
-	struct completion completion;
-	int err;
-};
-
-static void ccp_sync_hash_complete(struct crypto_async_request *req, int err)
-{
-	struct ccp_sha_result *result = req->data;
-
-	if (err == -EINPROGRESS)
-		return;
-
-	result->err = err;
-	complete(&result->completion);
-}
-
-static int ccp_sync_hash(struct crypto_ahash *tfm, u8 *buf,
-			 struct scatterlist *sg, unsigned int len)
-{
-	struct ccp_sha_result result;
-	struct ahash_request *req;
-	int ret;
-
-	init_completion(&result.completion);
-
-	req = ahash_request_alloc(tfm, GFP_KERNEL);
-	if (!req)
-		return -ENOMEM;
-
-	ahash_request_set_callback(req, CRYPTO_TFM_REQ_MAY_BACKLOG,
-				   ccp_sync_hash_complete, &result);
-	ahash_request_set_crypt(req, sg, buf, len);
-
-	ret = crypto_ahash_digest(req);
-	if ((ret == -EINPROGRESS) || (ret == -EBUSY)) {
-		ret = wait_for_completion_interruptible(&result.completion);
-		if (!ret)
-			ret = result.err;
-	}
-
-	ahash_request_free(req);
-
-	return ret;
-}
-
-static int ccp_sha_finish_hmac(struct crypto_async_request *async_req)
-{
-	struct ahash_request *req = ahash_request_cast(async_req);
-	struct crypto_ahash *tfm = crypto_ahash_reqtfm(req);
-	struct ccp_ctx *ctx = crypto_ahash_ctx(tfm);
-	struct ccp_sha_req_ctx *rctx = ahash_request_ctx(req);
-	struct scatterlist sg[2];
-	unsigned int block_size =
-		crypto_tfm_alg_blocksize(crypto_ahash_tfm(tfm));
-	unsigned int digest_size = crypto_ahash_digestsize(tfm);
-
-	sg_init_table(sg, ARRAY_SIZE(sg));
-	sg_set_buf(&sg[0], ctx->u.sha.opad, block_size);
-	sg_set_buf(&sg[1], rctx->ctx, digest_size);
-
-	return ccp_sync_hash(ctx->u.sha.hmac_tfm, req->result, sg,
-			     block_size + digest_size);
-}
-
 static int ccp_sha_complete(struct crypto_async_request *async_req, int ret)
 {
 	struct ahash_request *req = ahash_request_cast(async_req);
 	struct crypto_ahash *tfm = crypto_ahash_reqtfm(req);
-	struct ccp_ctx *ctx = crypto_ahash_ctx(tfm);
 	struct ccp_sha_req_ctx *rctx = ahash_request_ctx(req);
 	unsigned int digest_size = crypto_ahash_digestsize(tfm);
 
@@ -112,10 +47,6 @@ static int ccp_sha_complete(struct crypto_async_request *async_req, int ret)
 	if (req->result)
 		memcpy(req->result, rctx->ctx, digest_size);
 
-	/* If we're doing an HMAC, we need to perform that on the final op */
-	if (rctx->final && ctx->u.sha.key_len)
-		ret = ccp_sha_finish_hmac(async_req);
-
 e_free:
 	sg_free_table(&rctx->data_sg);
 
@@ -126,6 +57,7 @@ static int ccp_do_sha_update(struct ahash_request *req, unsigned int nbytes,
 			     unsigned int final)
 {
 	struct crypto_ahash *tfm = crypto_ahash_reqtfm(req);
+	struct ccp_ctx *ctx = crypto_ahash_ctx(tfm);
 	struct ccp_sha_req_ctx *rctx = ahash_request_ctx(req);
 	struct scatterlist *sg;
 	unsigned int block_size =
@@ -196,6 +128,11 @@ static int ccp_do_sha_update(struct ahash_request *req, unsigned int nbytes,
 	rctx->cmd.u.sha.ctx_len = sizeof(rctx->ctx);
 	rctx->cmd.u.sha.src = sg;
 	rctx->cmd.u.sha.src_len = rctx->hash_cnt;
+	rctx->cmd.u.sha.opad = ctx->u.sha.key_len ?
+		&ctx->u.sha.opad_sg : NULL;
+	rctx->cmd.u.sha.opad_len = ctx->u.sha.key_len ?
+		ctx->u.sha.opad_count : 0;
+	rctx->cmd.u.sha.first = rctx->first;
 	rctx->cmd.u.sha.final = rctx->final;
 	rctx->cmd.u.sha.msg_bits = rctx->msg_bits;
 
@@ -218,7 +155,6 @@ static int ccp_sha_init(struct ahash_request *req)
 
 	memset(rctx, 0, sizeof(*rctx));
 
-	memcpy(rctx->ctx, alg->init, sizeof(rctx->ctx));
 	rctx->type = alg->type;
 	rctx->first = 1;
 
@@ -261,10 +197,13 @@ static int ccp_sha_setkey(struct crypto_ahash *tfm, const u8 *key,
 			  unsigned int key_len)
 {
 	struct ccp_ctx *ctx = crypto_tfm_ctx(crypto_ahash_tfm(tfm));
-	struct scatterlist sg;
-	unsigned int block_size =
-		crypto_tfm_alg_blocksize(crypto_ahash_tfm(tfm));
-	unsigned int digest_size = crypto_ahash_digestsize(tfm);
+	struct crypto_shash *shash = ctx->u.sha.hmac_tfm;
+	struct {
+		struct shash_desc sdesc;
+		char ctx[crypto_shash_descsize(shash)];
+	} desc;
+	unsigned int block_size = crypto_shash_blocksize(shash);
+	unsigned int digest_size = crypto_shash_digestsize(shash);
 	int i, ret;
 
 	/* Set to zero until complete */
@@ -277,8 +216,12 @@ static int ccp_sha_setkey(struct crypto_ahash *tfm, const u8 *key,
 
 	if (key_len > block_size) {
 		/* Must hash the input key */
-		sg_init_one(&sg, key, key_len);
-		ret = ccp_sync_hash(tfm, ctx->u.sha.key, &sg, key_len);
+		desc.sdesc.tfm = shash;
+		desc.sdesc.flags = crypto_ahash_get_flags(tfm) &
+			CRYPTO_TFM_REQ_MAY_SLEEP;
+
+		ret = crypto_shash_digest(&desc.sdesc, key, key_len,
+					  ctx->u.sha.key);
 		if (ret) {
 			crypto_ahash_set_flags(tfm, CRYPTO_TFM_RES_BAD_KEY_LEN);
 			return -EINVAL;
@@ -292,6 +235,9 @@ static int ccp_sha_setkey(struct crypto_ahash *tfm, const u8 *key,
 		ctx->u.sha.ipad[i] = ctx->u.sha.key[i] ^ 0x36;
 		ctx->u.sha.opad[i] = ctx->u.sha.key[i] ^ 0x5c;
 	}
+
+	sg_init_one(&ctx->u.sha.opad_sg, ctx->u.sha.opad, block_size);
+	ctx->u.sha.opad_count = block_size;
 
 	ctx->u.sha.key_len = key_len;
 
@@ -319,10 +265,9 @@ static int ccp_hmac_sha_cra_init(struct crypto_tfm *tfm)
 {
 	struct ccp_ctx *ctx = crypto_tfm_ctx(tfm);
 	struct ccp_crypto_ahash_alg *alg = ccp_crypto_ahash_alg(tfm);
-	struct crypto_ahash *hmac_tfm;
+	struct crypto_shash *hmac_tfm;
 
-	hmac_tfm = crypto_alloc_ahash(alg->child_alg,
-				      CRYPTO_ALG_TYPE_AHASH, 0);
+	hmac_tfm = crypto_alloc_shash(alg->child_alg, 0, 0);
 	if (IS_ERR(hmac_tfm)) {
 		pr_warn("could not load driver %s need for HMAC support\n",
 			alg->child_alg);
@@ -339,35 +284,14 @@ static void ccp_hmac_sha_cra_exit(struct crypto_tfm *tfm)
 	struct ccp_ctx *ctx = crypto_tfm_ctx(tfm);
 
 	if (ctx->u.sha.hmac_tfm)
-		crypto_free_ahash(ctx->u.sha.hmac_tfm);
+		crypto_free_shash(ctx->u.sha.hmac_tfm);
 
 	ccp_sha_cra_exit(tfm);
 }
 
-static const __be32 sha1_init[CCP_SHA_CTXSIZE / sizeof(__be32)] = {
-	cpu_to_be32(SHA1_H0), cpu_to_be32(SHA1_H1),
-	cpu_to_be32(SHA1_H2), cpu_to_be32(SHA1_H3),
-	cpu_to_be32(SHA1_H4), 0, 0, 0,
-};
-
-static const __be32 sha224_init[CCP_SHA_CTXSIZE / sizeof(__be32)] = {
-	cpu_to_be32(SHA224_H0), cpu_to_be32(SHA224_H1),
-	cpu_to_be32(SHA224_H2), cpu_to_be32(SHA224_H3),
-	cpu_to_be32(SHA224_H4), cpu_to_be32(SHA224_H5),
-	cpu_to_be32(SHA224_H6), cpu_to_be32(SHA224_H7),
-};
-
-static const __be32 sha256_init[CCP_SHA_CTXSIZE / sizeof(__be32)] = {
-	cpu_to_be32(SHA256_H0), cpu_to_be32(SHA256_H1),
-	cpu_to_be32(SHA256_H2), cpu_to_be32(SHA256_H3),
-	cpu_to_be32(SHA256_H4), cpu_to_be32(SHA256_H5),
-	cpu_to_be32(SHA256_H6), cpu_to_be32(SHA256_H7),
-};
-
 struct ccp_sha_def {
 	const char *name;
 	const char *drv_name;
-	const __be32 *init;
 	enum ccp_sha_type type;
 	u32 digest_size;
 	u32 block_size;
@@ -377,7 +301,6 @@ static struct ccp_sha_def sha_algs[] = {
 	{
 		.name		= "sha1",
 		.drv_name	= "sha1-ccp",
-		.init		= sha1_init,
 		.type		= CCP_SHA_TYPE_1,
 		.digest_size	= SHA1_DIGEST_SIZE,
 		.block_size	= SHA1_BLOCK_SIZE,
@@ -385,7 +308,6 @@ static struct ccp_sha_def sha_algs[] = {
 	{
 		.name		= "sha224",
 		.drv_name	= "sha224-ccp",
-		.init		= sha224_init,
 		.type		= CCP_SHA_TYPE_224,
 		.digest_size	= SHA224_DIGEST_SIZE,
 		.block_size	= SHA224_BLOCK_SIZE,
@@ -393,7 +315,6 @@ static struct ccp_sha_def sha_algs[] = {
 	{
 		.name		= "sha256",
 		.drv_name	= "sha256-ccp",
-		.init		= sha256_init,
 		.type		= CCP_SHA_TYPE_256,
 		.digest_size	= SHA256_DIGEST_SIZE,
 		.block_size	= SHA256_BLOCK_SIZE,
@@ -460,7 +381,6 @@ static int ccp_register_sha_alg(struct list_head *head,
 
 	INIT_LIST_HEAD(&ccp_alg->entry);
 
-	ccp_alg->init = def->init;
 	ccp_alg->type = def->type;
 
 	alg = &ccp_alg->alg;

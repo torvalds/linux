@@ -1,11 +1,8 @@
 /*
- * Cryptographic API.
+ * Support for OMAP DES and Triple DES HW acceleration.
  *
- * Support for OMAP AES HW acceleration.
- *
- * Copyright (c) 2010 Nokia Corporation
- * Author: Dmitry Kasatkin <dmitry.kasatkin@nokia.com>
- * Copyright (c) 2011 Texas Instruments Incorporated
+ * Copyright (c) 2013 Texas Instruments Incorporated
+ * Author: Joel Fernandes <joelf@ti.com>
  *
  * This program is free software; you can redistribute it and/or modify
  * it under the terms of the GNU General Public License version 2 as published
@@ -13,9 +10,15 @@
  *
  */
 
-#define pr_fmt(fmt) "%20s: " fmt, __func__
-#define prn(num) pr_debug(#num "=%d\n", num)
-#define prx(num) pr_debug(#num "=%x\n", num)
+#define pr_fmt(fmt) "%s: " fmt, __func__
+
+#ifdef DEBUG
+#define prn(num) printk(#num "=%d\n", num)
+#define prx(num) printk(#num "=%x\n", num)
+#else
+#define prn(num) do { } while (0)
+#define prx(num)  do { } while (0)
+#endif
 
 #include <linux/err.h>
 #include <linux/module.h>
@@ -35,93 +38,71 @@
 #include <linux/crypto.h>
 #include <linux/interrupt.h>
 #include <crypto/scatterwalk.h>
-#include <crypto/aes.h>
+#include <crypto/des.h>
 
-#define DST_MAXBURST			4
-#define DMA_MIN				(DST_MAXBURST * sizeof(u32))
+#define DST_MAXBURST			2
+
+#define DES_BLOCK_WORDS		(DES_BLOCK_SIZE >> 2)
 
 #define _calc_walked(inout) (dd->inout##_walk.offset - dd->inout##_sg->offset)
 
-/* OMAP TRM gives bitfields as start:end, where start is the higher bit
-   number. For example 7:0 */
-#define FLD_MASK(start, end)	(((1 << ((start) - (end) + 1)) - 1) << (end))
-#define FLD_VAL(val, start, end) (((val) << (end)) & FLD_MASK(start, end))
-
-#define AES_REG_KEY(dd, x)		((dd)->pdata->key_ofs - \
+#define DES_REG_KEY(dd, x)		((dd)->pdata->key_ofs - \
 						((x ^ 0x01) * 0x04))
-#define AES_REG_IV(dd, x)		((dd)->pdata->iv_ofs + ((x) * 0x04))
 
-#define AES_REG_CTRL(dd)		((dd)->pdata->ctrl_ofs)
-#define AES_REG_CTRL_CTR_WIDTH_MASK	(3 << 7)
-#define AES_REG_CTRL_CTR_WIDTH_32		(0 << 7)
-#define AES_REG_CTRL_CTR_WIDTH_64		(1 << 7)
-#define AES_REG_CTRL_CTR_WIDTH_96		(2 << 7)
-#define AES_REG_CTRL_CTR_WIDTH_128		(3 << 7)
-#define AES_REG_CTRL_CTR		(1 << 6)
-#define AES_REG_CTRL_CBC		(1 << 5)
-#define AES_REG_CTRL_KEY_SIZE		(3 << 3)
-#define AES_REG_CTRL_DIRECTION		(1 << 2)
-#define AES_REG_CTRL_INPUT_READY	(1 << 1)
-#define AES_REG_CTRL_OUTPUT_READY	(1 << 0)
+#define DES_REG_IV(dd, x)		((dd)->pdata->iv_ofs + ((x) * 0x04))
 
-#define AES_REG_DATA_N(dd, x)		((dd)->pdata->data_ofs + ((x) * 0x04))
+#define DES_REG_CTRL(dd)		((dd)->pdata->ctrl_ofs)
+#define DES_REG_CTRL_CBC		BIT(4)
+#define DES_REG_CTRL_TDES		BIT(3)
+#define DES_REG_CTRL_DIRECTION		BIT(2)
+#define DES_REG_CTRL_INPUT_READY	BIT(1)
+#define DES_REG_CTRL_OUTPUT_READY	BIT(0)
 
-#define AES_REG_REV(dd)			((dd)->pdata->rev_ofs)
+#define DES_REG_DATA_N(dd, x)		((dd)->pdata->data_ofs + ((x) * 0x04))
 
-#define AES_REG_MASK(dd)		((dd)->pdata->mask_ofs)
-#define AES_REG_MASK_SIDLE		(1 << 6)
-#define AES_REG_MASK_START		(1 << 5)
-#define AES_REG_MASK_DMA_OUT_EN		(1 << 3)
-#define AES_REG_MASK_DMA_IN_EN		(1 << 2)
-#define AES_REG_MASK_SOFTRESET		(1 << 1)
-#define AES_REG_AUTOIDLE		(1 << 0)
+#define DES_REG_REV(dd)			((dd)->pdata->rev_ofs)
 
-#define AES_REG_LENGTH_N(x)		(0x54 + ((x) * 0x04))
+#define DES_REG_MASK(dd)		((dd)->pdata->mask_ofs)
 
-#define AES_REG_IRQ_STATUS(dd)         ((dd)->pdata->irq_status_ofs)
-#define AES_REG_IRQ_ENABLE(dd)         ((dd)->pdata->irq_enable_ofs)
-#define AES_REG_IRQ_DATA_IN            BIT(1)
-#define AES_REG_IRQ_DATA_OUT           BIT(2)
-#define DEFAULT_TIMEOUT		(5*HZ)
+#define DES_REG_LENGTH_N(x)		(0x24 + ((x) * 0x04))
+
+#define DES_REG_IRQ_STATUS(dd)         ((dd)->pdata->irq_status_ofs)
+#define DES_REG_IRQ_ENABLE(dd)         ((dd)->pdata->irq_enable_ofs)
+#define DES_REG_IRQ_DATA_IN            BIT(1)
+#define DES_REG_IRQ_DATA_OUT           BIT(2)
 
 #define FLAGS_MODE_MASK		0x000f
 #define FLAGS_ENCRYPT		BIT(0)
 #define FLAGS_CBC		BIT(1)
-#define FLAGS_GIV		BIT(2)
-#define FLAGS_CTR		BIT(3)
-
 #define FLAGS_INIT		BIT(4)
-#define FLAGS_FAST		BIT(5)
 #define FLAGS_BUSY		BIT(6)
 
-#define AES_BLOCK_WORDS		(AES_BLOCK_SIZE >> 2)
-
-struct omap_aes_ctx {
-	struct omap_aes_dev *dd;
+struct omap_des_ctx {
+	struct omap_des_dev *dd;
 
 	int		keylen;
-	u32		key[AES_KEYSIZE_256 / sizeof(u32)];
+	u32		key[(3 * DES_KEY_SIZE) / sizeof(u32)];
 	unsigned long	flags;
 };
 
-struct omap_aes_reqctx {
+struct omap_des_reqctx {
 	unsigned long mode;
 };
 
-#define OMAP_AES_QUEUE_LENGTH	1
-#define OMAP_AES_CACHE_SIZE	0
+#define OMAP_DES_QUEUE_LENGTH	1
+#define OMAP_DES_CACHE_SIZE	0
 
-struct omap_aes_algs_info {
+struct omap_des_algs_info {
 	struct crypto_alg	*algs_list;
 	unsigned int		size;
 	unsigned int		registered;
 };
 
-struct omap_aes_pdata {
-	struct omap_aes_algs_info	*algs_info;
+struct omap_des_pdata {
+	struct omap_des_algs_info	*algs_info;
 	unsigned int	algs_info_size;
 
-	void		(*trigger)(struct omap_aes_dev *dd, int length);
+	void		(*trigger)(struct omap_des_dev *dd, int length);
 
 	u32		key_ofs;
 	u32		iv_ofs;
@@ -142,15 +123,16 @@ struct omap_aes_pdata {
 	u32		minor_shift;
 };
 
-struct omap_aes_dev {
+struct omap_des_dev {
 	struct list_head	list;
 	unsigned long		phys_base;
 	void __iomem		*io_base;
-	struct omap_aes_ctx	*ctx;
+	struct omap_des_ctx	*ctx;
 	struct device		*dev;
 	unsigned long		flags;
 	int			err;
 
+	/* spinlock used for queues */
 	spinlock_t		lock;
 	struct crypto_queue	queue;
 
@@ -158,13 +140,12 @@ struct omap_aes_dev {
 	struct tasklet_struct	queue_task;
 
 	struct ablkcipher_request	*req;
-
 	/*
 	 * total is used by PIO mode for book keeping so introduce
 	 * variable total_save as need it to calc page_order
 	 */
-	size_t				total;
-	size_t				total_save;
+	size_t                          total;
+	size_t                          total_save;
 
 	struct scatterlist		*in_sg;
 	struct scatterlist		*out_sg;
@@ -184,7 +165,7 @@ struct omap_aes_dev {
 	int			in_sg_len;
 	int			out_sg_len;
 	int			pio_only;
-	const struct omap_aes_pdata	*pdata;
+	const struct omap_des_pdata	*pdata;
 };
 
 /* keep registered devices data here */
@@ -192,56 +173,63 @@ static LIST_HEAD(dev_list);
 static DEFINE_SPINLOCK(list_lock);
 
 #ifdef DEBUG
-#define omap_aes_read(dd, offset)				\
-({								\
-	int _read_ret;						\
-	_read_ret = __raw_readl(dd->io_base + offset);		\
-	pr_debug("omap_aes_read(" #offset "=%#x)= %#x\n",	\
-		 offset, _read_ret);				\
-	_read_ret;						\
-})
+#define omap_des_read(dd, offset)                               \
+	({                                                              \
+	 int _read_ret;                                          \
+	 _read_ret = __raw_readl(dd->io_base + offset);          \
+	 pr_err("omap_des_read(" #offset "=%#x)= %#x\n",       \
+		 offset, _read_ret);                            \
+	 _read_ret;                                              \
+	 })
 #else
-static inline u32 omap_aes_read(struct omap_aes_dev *dd, u32 offset)
+static inline u32 omap_des_read(struct omap_des_dev *dd, u32 offset)
 {
 	return __raw_readl(dd->io_base + offset);
 }
 #endif
 
 #ifdef DEBUG
-#define omap_aes_write(dd, offset, value)				\
-	do {								\
-		pr_debug("omap_aes_write(" #offset "=%#x) value=%#x\n",	\
-			 offset, value);				\
-		__raw_writel(value, dd->io_base + offset);		\
+#define omap_des_write(dd, offset, value)                               \
+	do {                                                            \
+		pr_err("omap_des_write(" #offset "=%#x) value=%#x\n", \
+				offset, value);                                \
+		__raw_writel(value, dd->io_base + offset);              \
 	} while (0)
 #else
-static inline void omap_aes_write(struct omap_aes_dev *dd, u32 offset,
-				  u32 value)
+static inline void omap_des_write(struct omap_des_dev *dd, u32 offset,
+		u32 value)
 {
 	__raw_writel(value, dd->io_base + offset);
 }
 #endif
 
-static inline void omap_aes_write_mask(struct omap_aes_dev *dd, u32 offset,
+static inline void omap_des_write_mask(struct omap_des_dev *dd, u32 offset,
 					u32 value, u32 mask)
 {
 	u32 val;
 
-	val = omap_aes_read(dd, offset);
+	val = omap_des_read(dd, offset);
 	val &= ~mask;
 	val |= value;
-	omap_aes_write(dd, offset, val);
+	omap_des_write(dd, offset, val);
 }
 
-static void omap_aes_write_n(struct omap_aes_dev *dd, u32 offset,
+static void omap_des_write_n(struct omap_des_dev *dd, u32 offset,
 					u32 *value, int count)
 {
 	for (; count--; value++, offset += 4)
-		omap_aes_write(dd, offset, *value);
+		omap_des_write(dd, offset, *value);
 }
 
-static int omap_aes_hw_init(struct omap_aes_dev *dd)
+static int omap_des_hw_init(struct omap_des_dev *dd)
 {
+	/*
+	 * clocks are enabled when request starts and disabled when finished.
+	 * It may be long delays between requests.
+	 * Device might go to off mode to save power.
+	 */
+	pm_runtime_get_sync(dd->dev);
+
 	if (!(dd->flags & FLAGS_INIT)) {
 		dd->flags |= FLAGS_INIT;
 		dd->err = 0;
@@ -250,13 +238,13 @@ static int omap_aes_hw_init(struct omap_aes_dev *dd)
 	return 0;
 }
 
-static int omap_aes_write_ctrl(struct omap_aes_dev *dd)
+static int omap_des_write_ctrl(struct omap_des_dev *dd)
 {
 	unsigned int key32;
 	int i, err;
-	u32 val, mask = 0;
+	u32 val = 0, mask = 0;
 
-	err = omap_aes_hw_init(dd);
+	err = omap_des_hw_init(dd);
 	if (err)
 		return err;
 
@@ -264,34 +252,32 @@ static int omap_aes_write_ctrl(struct omap_aes_dev *dd)
 
 	/* it seems a key should always be set even if it has not changed */
 	for (i = 0; i < key32; i++) {
-		omap_aes_write(dd, AES_REG_KEY(dd, i),
-			__le32_to_cpu(dd->ctx->key[i]));
+		omap_des_write(dd, DES_REG_KEY(dd, i),
+			       __le32_to_cpu(dd->ctx->key[i]));
 	}
 
-	if ((dd->flags & (FLAGS_CBC | FLAGS_CTR)) && dd->req->info)
-		omap_aes_write_n(dd, AES_REG_IV(dd, 0), dd->req->info, 4);
+	if ((dd->flags & FLAGS_CBC) && dd->req->info)
+		omap_des_write_n(dd, DES_REG_IV(dd, 0), dd->req->info, 2);
 
-	val = FLD_VAL(((dd->ctx->keylen >> 3) - 1), 4, 3);
 	if (dd->flags & FLAGS_CBC)
-		val |= AES_REG_CTRL_CBC;
-	if (dd->flags & FLAGS_CTR) {
-		val |= AES_REG_CTRL_CTR | AES_REG_CTRL_CTR_WIDTH_128;
-		mask = AES_REG_CTRL_CTR | AES_REG_CTRL_CTR_WIDTH_MASK;
-	}
+		val |= DES_REG_CTRL_CBC;
 	if (dd->flags & FLAGS_ENCRYPT)
-		val |= AES_REG_CTRL_DIRECTION;
+		val |= DES_REG_CTRL_DIRECTION;
+	if (key32 == 6)
+		val |= DES_REG_CTRL_TDES;
 
-	mask |= AES_REG_CTRL_CBC | AES_REG_CTRL_DIRECTION |
-			AES_REG_CTRL_KEY_SIZE;
+	mask |= DES_REG_CTRL_CBC | DES_REG_CTRL_DIRECTION | DES_REG_CTRL_TDES;
 
-	omap_aes_write_mask(dd, AES_REG_CTRL(dd), val, mask);
+	omap_des_write_mask(dd, DES_REG_CTRL(dd), val, mask);
 
 	return 0;
 }
 
-static void omap_aes_dma_trigger_omap2(struct omap_aes_dev *dd, int length)
+static void omap_des_dma_trigger_omap4(struct omap_des_dev *dd, int length)
 {
 	u32 mask, val;
+
+	omap_des_write(dd, DES_REG_LENGTH_N(0), length);
 
 	val = dd->pdata->dma_start;
 
@@ -303,36 +289,27 @@ static void omap_aes_dma_trigger_omap2(struct omap_aes_dev *dd, int length)
 	mask = dd->pdata->dma_enable_out | dd->pdata->dma_enable_in |
 	       dd->pdata->dma_start;
 
-	omap_aes_write_mask(dd, AES_REG_MASK(dd), val, mask);
-
+	omap_des_write_mask(dd, DES_REG_MASK(dd), val, mask);
 }
 
-static void omap_aes_dma_trigger_omap4(struct omap_aes_dev *dd, int length)
-{
-	omap_aes_write(dd, AES_REG_LENGTH_N(0), length);
-	omap_aes_write(dd, AES_REG_LENGTH_N(1), 0);
-
-	omap_aes_dma_trigger_omap2(dd, length);
-}
-
-static void omap_aes_dma_stop(struct omap_aes_dev *dd)
+static void omap_des_dma_stop(struct omap_des_dev *dd)
 {
 	u32 mask;
 
 	mask = dd->pdata->dma_enable_out | dd->pdata->dma_enable_in |
 	       dd->pdata->dma_start;
 
-	omap_aes_write_mask(dd, AES_REG_MASK(dd), 0, mask);
+	omap_des_write_mask(dd, DES_REG_MASK(dd), 0, mask);
 }
 
-static struct omap_aes_dev *omap_aes_find_dev(struct omap_aes_ctx *ctx)
+static struct omap_des_dev *omap_des_find_dev(struct omap_des_ctx *ctx)
 {
-	struct omap_aes_dev *dd = NULL, *tmp;
+	struct omap_des_dev *dd = NULL, *tmp;
 
 	spin_lock_bh(&list_lock);
 	if (!ctx->dd) {
 		list_for_each_entry(tmp, &dev_list, list) {
-			/* FIXME: take fist available aes core */
+			/* FIXME: take fist available des core */
 			dd = tmp;
 			break;
 		}
@@ -346,15 +323,15 @@ static struct omap_aes_dev *omap_aes_find_dev(struct omap_aes_ctx *ctx)
 	return dd;
 }
 
-static void omap_aes_dma_out_callback(void *data)
+static void omap_des_dma_out_callback(void *data)
 {
-	struct omap_aes_dev *dd = data;
+	struct omap_des_dev *dd = data;
 
 	/* dma_lch_out - completed */
 	tasklet_schedule(&dd->done_task);
 }
 
-static int omap_aes_dma_init(struct omap_aes_dev *dd)
+static int omap_des_dma_init(struct omap_des_dev *dd)
 {
 	int err = -ENOMEM;
 	dma_cap_mask_t mask;
@@ -393,7 +370,7 @@ err_dma_in:
 	return err;
 }
 
-static void omap_aes_dma_cleanup(struct omap_aes_dev *dd)
+static void omap_des_dma_cleanup(struct omap_des_dev *dd)
 {
 	dma_release_channel(dd->dma_lch_out);
 	dma_release_channel(dd->dma_lch_in);
@@ -413,12 +390,12 @@ static void sg_copy_buf(void *buf, struct scatterlist *sg,
 	scatterwalk_done(&walk, out, 0);
 }
 
-static int omap_aes_crypt_dma(struct crypto_tfm *tfm,
+static int omap_des_crypt_dma(struct crypto_tfm *tfm,
 		struct scatterlist *in_sg, struct scatterlist *out_sg,
 		int in_sg_len, int out_sg_len)
 {
-	struct omap_aes_ctx *ctx = crypto_tfm_ctx(tfm);
-	struct omap_aes_dev *dd = ctx->dd;
+	struct omap_des_ctx *ctx = crypto_tfm_ctx(tfm);
+	struct omap_des_dev *dd = ctx->dd;
 	struct dma_async_tx_descriptor *tx_in, *tx_out;
 	struct dma_slave_config cfg;
 	int ret;
@@ -429,7 +406,7 @@ static int omap_aes_crypt_dma(struct crypto_tfm *tfm,
 
 		/* Enable DATAIN interrupt and let it take
 		   care of the rest */
-		omap_aes_write(dd, AES_REG_IRQ_ENABLE(dd), 0x2);
+		omap_des_write(dd, DES_REG_IRQ_ENABLE(dd), 0x2);
 		return 0;
 	}
 
@@ -437,8 +414,8 @@ static int omap_aes_crypt_dma(struct crypto_tfm *tfm,
 
 	memset(&cfg, 0, sizeof(cfg));
 
-	cfg.src_addr = dd->phys_base + AES_REG_DATA_N(dd, 0);
-	cfg.dst_addr = dd->phys_base + AES_REG_DATA_N(dd, 0);
+	cfg.src_addr = dd->phys_base + DES_REG_DATA_N(dd, 0);
+	cfg.dst_addr = dd->phys_base + DES_REG_DATA_N(dd, 0);
 	cfg.src_addr_width = DMA_SLAVE_BUSWIDTH_4_BYTES;
 	cfg.dst_addr_width = DMA_SLAVE_BUSWIDTH_4_BYTES;
 	cfg.src_maxburst = DST_MAXBURST;
@@ -479,7 +456,7 @@ static int omap_aes_crypt_dma(struct crypto_tfm *tfm,
 		return -EINVAL;
 	}
 
-	tx_out->callback = omap_aes_dma_out_callback;
+	tx_out->callback = omap_des_dma_out_callback;
 	tx_out->callback_param = dd;
 
 	dmaengine_submit(tx_in);
@@ -494,7 +471,7 @@ static int omap_aes_crypt_dma(struct crypto_tfm *tfm,
 	return 0;
 }
 
-static int omap_aes_crypt_dma_start(struct omap_aes_dev *dd)
+static int omap_des_crypt_dma_start(struct omap_des_dev *dd)
 {
 	struct crypto_tfm *tfm = crypto_ablkcipher_tfm(
 					crypto_ablkcipher_reqtfm(dd->req));
@@ -518,7 +495,7 @@ static int omap_aes_crypt_dma_start(struct omap_aes_dev *dd)
 		}
 	}
 
-	err = omap_aes_crypt_dma(tfm, dd->in_sg, dd->out_sg, dd->in_sg_len,
+	err = omap_des_crypt_dma(tfm, dd->in_sg, dd->out_sg, dd->in_sg_len,
 				 dd->out_sg_len);
 	if (err && !dd->pio_only) {
 		dma_unmap_sg(dd->dev, dd->in_sg, dd->in_sg_len, DMA_TO_DEVICE);
@@ -529,49 +506,58 @@ static int omap_aes_crypt_dma_start(struct omap_aes_dev *dd)
 	return err;
 }
 
-static void omap_aes_finish_req(struct omap_aes_dev *dd, int err)
+static void omap_des_finish_req(struct omap_des_dev *dd, int err)
 {
 	struct ablkcipher_request *req = dd->req;
 
 	pr_debug("err: %d\n", err);
 
+	pm_runtime_put(dd->dev);
 	dd->flags &= ~FLAGS_BUSY;
 
 	req->base.complete(&req->base, err);
 }
 
-static int omap_aes_crypt_dma_stop(struct omap_aes_dev *dd)
+static int omap_des_crypt_dma_stop(struct omap_des_dev *dd)
 {
 	int err = 0;
 
 	pr_debug("total: %d\n", dd->total);
 
-	omap_aes_dma_stop(dd);
+	omap_des_dma_stop(dd);
 
 	dmaengine_terminate_all(dd->dma_lch_in);
 	dmaengine_terminate_all(dd->dma_lch_out);
 
+	dma_unmap_sg(dd->dev, dd->in_sg, dd->in_sg_len, DMA_TO_DEVICE);
+	dma_unmap_sg(dd->dev, dd->out_sg, dd->out_sg_len, DMA_FROM_DEVICE);
+
 	return err;
 }
 
-static int omap_aes_check_aligned(struct scatterlist *sg)
+static int omap_des_copy_needed(struct scatterlist *sg)
 {
 	while (sg) {
 		if (!IS_ALIGNED(sg->offset, 4))
 			return -1;
-		if (!IS_ALIGNED(sg->length, AES_BLOCK_SIZE))
+		if (!IS_ALIGNED(sg->length, DES_BLOCK_SIZE))
 			return -1;
 		sg = sg_next(sg);
 	}
 	return 0;
 }
 
-static int omap_aes_copy_sgs(struct omap_aes_dev *dd)
+static int omap_des_copy_sgs(struct omap_des_dev *dd)
 {
 	void *buf_in, *buf_out;
 	int pages;
 
-	pages = get_order(dd->total);
+	pages = dd->total >> PAGE_SHIFT;
+
+	if (dd->total & (PAGE_SIZE-1))
+		pages++;
+
+	BUG_ON(!pages);
 
 	buf_in = (void *)__get_free_pages(GFP_ATOMIC, pages);
 	buf_out = (void *)__get_free_pages(GFP_ATOMIC, pages);
@@ -596,12 +582,12 @@ static int omap_aes_copy_sgs(struct omap_aes_dev *dd)
 	return 0;
 }
 
-static int omap_aes_handle_queue(struct omap_aes_dev *dd,
+static int omap_des_handle_queue(struct omap_des_dev *dd,
 			       struct ablkcipher_request *req)
 {
 	struct crypto_async_request *async_req, *backlog;
-	struct omap_aes_ctx *ctx;
-	struct omap_aes_reqctx *rctx;
+	struct omap_des_ctx *ctx;
+	struct omap_des_reqctx *rctx;
 	unsigned long flags;
 	int err, ret = 0;
 
@@ -633,9 +619,9 @@ static int omap_aes_handle_queue(struct omap_aes_dev *dd,
 	dd->in_sg = req->src;
 	dd->out_sg = req->dst;
 
-	if (omap_aes_check_aligned(dd->in_sg) ||
-	    omap_aes_check_aligned(dd->out_sg)) {
-		if (omap_aes_copy_sgs(dd))
+	if (omap_des_copy_needed(dd->in_sg) ||
+	    omap_des_copy_needed(dd->out_sg)) {
+		if (omap_des_copy_sgs(dd))
 			pr_err("Failed to copy SGs for unaligned cases\n");
 		dd->sgs_copied = 1;
 	} else {
@@ -654,21 +640,21 @@ static int omap_aes_handle_queue(struct omap_aes_dev *dd,
 	dd->ctx = ctx;
 	ctx->dd = dd;
 
-	err = omap_aes_write_ctrl(dd);
+	err = omap_des_write_ctrl(dd);
 	if (!err)
-		err = omap_aes_crypt_dma_start(dd);
+		err = omap_des_crypt_dma_start(dd);
 	if (err) {
-		/* aes_task will not finish it, so do it here */
-		omap_aes_finish_req(dd, err);
+		/* des_task will not finish it, so do it here */
+		omap_des_finish_req(dd, err);
 		tasklet_schedule(&dd->queue_task);
 	}
 
 	return ret; /* return ret, which is enqueue return value */
 }
 
-static void omap_aes_done_task(unsigned long data)
+static void omap_des_done_task(unsigned long data)
 {
-	struct omap_aes_dev *dd = (struct omap_aes_dev *)data;
+	struct omap_des_dev *dd = (struct omap_des_dev *)data;
 	void *buf_in, *buf_out;
 	int pages;
 
@@ -680,7 +666,7 @@ static void omap_aes_done_task(unsigned long data)
 		dma_unmap_sg(dd->dev, dd->in_sg, dd->in_sg_len, DMA_TO_DEVICE);
 		dma_unmap_sg(dd->dev, dd->out_sg, dd->out_sg_len,
 			     DMA_FROM_DEVICE);
-		omap_aes_crypt_dma_stop(dd);
+		omap_des_crypt_dma_stop(dd);
 	}
 
 	if (dd->sgs_copied) {
@@ -694,53 +680,52 @@ static void omap_aes_done_task(unsigned long data)
 		free_pages((unsigned long)buf_out, pages);
 	}
 
-	omap_aes_finish_req(dd, 0);
-	omap_aes_handle_queue(dd, NULL);
+	omap_des_finish_req(dd, 0);
+	omap_des_handle_queue(dd, NULL);
 
 	pr_debug("exit\n");
 }
 
-static void omap_aes_queue_task(unsigned long data)
+static void omap_des_queue_task(unsigned long data)
 {
-	struct omap_aes_dev *dd = (struct omap_aes_dev *)data;
+	struct omap_des_dev *dd = (struct omap_des_dev *)data;
 
-	omap_aes_handle_queue(dd, NULL);
+	omap_des_handle_queue(dd, NULL);
 }
 
-static int omap_aes_crypt(struct ablkcipher_request *req, unsigned long mode)
+static int omap_des_crypt(struct ablkcipher_request *req, unsigned long mode)
 {
-	struct omap_aes_ctx *ctx = crypto_ablkcipher_ctx(
+	struct omap_des_ctx *ctx = crypto_ablkcipher_ctx(
 			crypto_ablkcipher_reqtfm(req));
-	struct omap_aes_reqctx *rctx = ablkcipher_request_ctx(req);
-	struct omap_aes_dev *dd;
+	struct omap_des_reqctx *rctx = ablkcipher_request_ctx(req);
+	struct omap_des_dev *dd;
 
 	pr_debug("nbytes: %d, enc: %d, cbc: %d\n", req->nbytes,
-		  !!(mode & FLAGS_ENCRYPT),
-		  !!(mode & FLAGS_CBC));
+		 !!(mode & FLAGS_ENCRYPT),
+		 !!(mode & FLAGS_CBC));
 
-	if (!IS_ALIGNED(req->nbytes, AES_BLOCK_SIZE)) {
-		pr_err("request size is not exact amount of AES blocks\n");
+	if (!IS_ALIGNED(req->nbytes, DES_BLOCK_SIZE)) {
+		pr_err("request size is not exact amount of DES blocks\n");
 		return -EINVAL;
 	}
 
-	dd = omap_aes_find_dev(ctx);
+	dd = omap_des_find_dev(ctx);
 	if (!dd)
 		return -ENODEV;
 
 	rctx->mode = mode;
 
-	return omap_aes_handle_queue(dd, req);
+	return omap_des_handle_queue(dd, req);
 }
 
 /* ********************** ALG API ************************************ */
 
-static int omap_aes_setkey(struct crypto_ablkcipher *tfm, const u8 *key,
+static int omap_des_setkey(struct crypto_ablkcipher *tfm, const u8 *key,
 			   unsigned int keylen)
 {
-	struct omap_aes_ctx *ctx = crypto_ablkcipher_ctx(tfm);
+	struct omap_des_ctx *ctx = crypto_ablkcipher_ctx(tfm);
 
-	if (keylen != AES_KEYSIZE_128 && keylen != AES_KEYSIZE_192 &&
-		   keylen != AES_KEYSIZE_256)
+	if (keylen != DES_KEY_SIZE && keylen != (3*DES_KEY_SIZE))
 		return -EINVAL;
 
 	pr_debug("enter, keylen: %d\n", keylen);
@@ -751,220 +736,155 @@ static int omap_aes_setkey(struct crypto_ablkcipher *tfm, const u8 *key,
 	return 0;
 }
 
-static int omap_aes_ecb_encrypt(struct ablkcipher_request *req)
+static int omap_des_ecb_encrypt(struct ablkcipher_request *req)
 {
-	return omap_aes_crypt(req, FLAGS_ENCRYPT);
+	return omap_des_crypt(req, FLAGS_ENCRYPT);
 }
 
-static int omap_aes_ecb_decrypt(struct ablkcipher_request *req)
+static int omap_des_ecb_decrypt(struct ablkcipher_request *req)
 {
-	return omap_aes_crypt(req, 0);
+	return omap_des_crypt(req, 0);
 }
 
-static int omap_aes_cbc_encrypt(struct ablkcipher_request *req)
+static int omap_des_cbc_encrypt(struct ablkcipher_request *req)
 {
-	return omap_aes_crypt(req, FLAGS_ENCRYPT | FLAGS_CBC);
+	return omap_des_crypt(req, FLAGS_ENCRYPT | FLAGS_CBC);
 }
 
-static int omap_aes_cbc_decrypt(struct ablkcipher_request *req)
+static int omap_des_cbc_decrypt(struct ablkcipher_request *req)
 {
-	return omap_aes_crypt(req, FLAGS_CBC);
+	return omap_des_crypt(req, FLAGS_CBC);
 }
 
-static int omap_aes_ctr_encrypt(struct ablkcipher_request *req)
+static int omap_des_cra_init(struct crypto_tfm *tfm)
 {
-	return omap_aes_crypt(req, FLAGS_ENCRYPT | FLAGS_CTR);
-}
+	pr_debug("enter\n");
 
-static int omap_aes_ctr_decrypt(struct ablkcipher_request *req)
-{
-	return omap_aes_crypt(req, FLAGS_CTR);
-}
-
-static int omap_aes_cra_init(struct crypto_tfm *tfm)
-{
-	struct omap_aes_dev *dd = NULL;
-	int err;
-
-	/* Find AES device, currently picks the first device */
-	spin_lock_bh(&list_lock);
-	list_for_each_entry(dd, &dev_list, list) {
-		break;
-	}
-	spin_unlock_bh(&list_lock);
-
-	err = pm_runtime_get_sync(dd->dev);
-	if (err < 0) {
-		dev_err(dd->dev, "%s: failed to get_sync(%d)\n",
-			__func__, err);
-		return err;
-	}
-
-	tfm->crt_ablkcipher.reqsize = sizeof(struct omap_aes_reqctx);
+	tfm->crt_ablkcipher.reqsize = sizeof(struct omap_des_reqctx);
 
 	return 0;
 }
 
-static void omap_aes_cra_exit(struct crypto_tfm *tfm)
+static void omap_des_cra_exit(struct crypto_tfm *tfm)
 {
-	struct omap_aes_dev *dd = NULL;
-
-	/* Find AES device, currently picks the first device */
-	spin_lock_bh(&list_lock);
-	list_for_each_entry(dd, &dev_list, list) {
-		break;
-	}
-	spin_unlock_bh(&list_lock);
-
-	pm_runtime_put_sync(dd->dev);
+	pr_debug("enter\n");
 }
 
 /* ********************** ALGS ************************************ */
 
 static struct crypto_alg algs_ecb_cbc[] = {
 {
-	.cra_name		= "ecb(aes)",
-	.cra_driver_name	= "ecb-aes-omap",
+	.cra_name		= "ecb(des)",
+	.cra_driver_name	= "ecb-des-omap",
 	.cra_priority		= 100,
 	.cra_flags		= CRYPTO_ALG_TYPE_ABLKCIPHER |
 				  CRYPTO_ALG_KERN_DRIVER_ONLY |
 				  CRYPTO_ALG_ASYNC,
-	.cra_blocksize		= AES_BLOCK_SIZE,
-	.cra_ctxsize		= sizeof(struct omap_aes_ctx),
+	.cra_blocksize		= DES_BLOCK_SIZE,
+	.cra_ctxsize		= sizeof(struct omap_des_ctx),
 	.cra_alignmask		= 0,
 	.cra_type		= &crypto_ablkcipher_type,
 	.cra_module		= THIS_MODULE,
-	.cra_init		= omap_aes_cra_init,
-	.cra_exit		= omap_aes_cra_exit,
+	.cra_init		= omap_des_cra_init,
+	.cra_exit		= omap_des_cra_exit,
 	.cra_u.ablkcipher = {
-		.min_keysize	= AES_MIN_KEY_SIZE,
-		.max_keysize	= AES_MAX_KEY_SIZE,
-		.setkey		= omap_aes_setkey,
-		.encrypt	= omap_aes_ecb_encrypt,
-		.decrypt	= omap_aes_ecb_decrypt,
+		.min_keysize	= DES_KEY_SIZE,
+		.max_keysize	= DES_KEY_SIZE,
+		.setkey		= omap_des_setkey,
+		.encrypt	= omap_des_ecb_encrypt,
+		.decrypt	= omap_des_ecb_decrypt,
 	}
 },
 {
-	.cra_name		= "cbc(aes)",
-	.cra_driver_name	= "cbc-aes-omap",
+	.cra_name		= "cbc(des)",
+	.cra_driver_name	= "cbc-des-omap",
 	.cra_priority		= 100,
 	.cra_flags		= CRYPTO_ALG_TYPE_ABLKCIPHER |
 				  CRYPTO_ALG_KERN_DRIVER_ONLY |
 				  CRYPTO_ALG_ASYNC,
-	.cra_blocksize		= AES_BLOCK_SIZE,
-	.cra_ctxsize		= sizeof(struct omap_aes_ctx),
+	.cra_blocksize		= DES_BLOCK_SIZE,
+	.cra_ctxsize		= sizeof(struct omap_des_ctx),
 	.cra_alignmask		= 0,
 	.cra_type		= &crypto_ablkcipher_type,
 	.cra_module		= THIS_MODULE,
-	.cra_init		= omap_aes_cra_init,
-	.cra_exit		= omap_aes_cra_exit,
+	.cra_init		= omap_des_cra_init,
+	.cra_exit		= omap_des_cra_exit,
 	.cra_u.ablkcipher = {
-		.min_keysize	= AES_MIN_KEY_SIZE,
-		.max_keysize	= AES_MAX_KEY_SIZE,
-		.ivsize		= AES_BLOCK_SIZE,
-		.setkey		= omap_aes_setkey,
-		.encrypt	= omap_aes_cbc_encrypt,
-		.decrypt	= omap_aes_cbc_decrypt,
+		.min_keysize	= DES_KEY_SIZE,
+		.max_keysize	= DES_KEY_SIZE,
+		.ivsize		= DES_BLOCK_SIZE,
+		.setkey		= omap_des_setkey,
+		.encrypt	= omap_des_cbc_encrypt,
+		.decrypt	= omap_des_cbc_decrypt,
+	}
+},
+{
+	.cra_name		= "ecb(des3_ede)",
+	.cra_driver_name	= "ecb-des3-omap",
+	.cra_priority		= 100,
+	.cra_flags		= CRYPTO_ALG_TYPE_ABLKCIPHER |
+				  CRYPTO_ALG_KERN_DRIVER_ONLY |
+				  CRYPTO_ALG_ASYNC,
+	.cra_blocksize		= DES_BLOCK_SIZE,
+	.cra_ctxsize		= sizeof(struct omap_des_ctx),
+	.cra_alignmask		= 0,
+	.cra_type		= &crypto_ablkcipher_type,
+	.cra_module		= THIS_MODULE,
+	.cra_init		= omap_des_cra_init,
+	.cra_exit		= omap_des_cra_exit,
+	.cra_u.ablkcipher = {
+		.min_keysize	= 3*DES_KEY_SIZE,
+		.max_keysize	= 3*DES_KEY_SIZE,
+		.setkey		= omap_des_setkey,
+		.encrypt	= omap_des_ecb_encrypt,
+		.decrypt	= omap_des_ecb_decrypt,
+	}
+},
+{
+	.cra_name		= "cbc(des3_ede)",
+	.cra_driver_name	= "cbc-des3-omap",
+	.cra_priority		= 100,
+	.cra_flags		= CRYPTO_ALG_TYPE_ABLKCIPHER |
+				  CRYPTO_ALG_KERN_DRIVER_ONLY |
+				  CRYPTO_ALG_ASYNC,
+	.cra_blocksize		= DES_BLOCK_SIZE,
+	.cra_ctxsize		= sizeof(struct omap_des_ctx),
+	.cra_alignmask		= 0,
+	.cra_type		= &crypto_ablkcipher_type,
+	.cra_module		= THIS_MODULE,
+	.cra_init		= omap_des_cra_init,
+	.cra_exit		= omap_des_cra_exit,
+	.cra_u.ablkcipher = {
+		.min_keysize	= 3*DES_KEY_SIZE,
+		.max_keysize	= 3*DES_KEY_SIZE,
+		.ivsize		= DES_BLOCK_SIZE,
+		.setkey		= omap_des_setkey,
+		.encrypt	= omap_des_cbc_encrypt,
+		.decrypt	= omap_des_cbc_decrypt,
 	}
 }
 };
 
-static struct crypto_alg algs_ctr[] = {
-{
-	.cra_name		= "ctr(aes)",
-	.cra_driver_name	= "ctr-aes-omap",
-	.cra_priority		= 100,
-	.cra_flags		= CRYPTO_ALG_TYPE_ABLKCIPHER |
-				  CRYPTO_ALG_KERN_DRIVER_ONLY |
-				  CRYPTO_ALG_ASYNC,
-	.cra_blocksize		= AES_BLOCK_SIZE,
-	.cra_ctxsize		= sizeof(struct omap_aes_ctx),
-	.cra_alignmask		= 0,
-	.cra_type		= &crypto_ablkcipher_type,
-	.cra_module		= THIS_MODULE,
-	.cra_init		= omap_aes_cra_init,
-	.cra_exit		= omap_aes_cra_exit,
-	.cra_u.ablkcipher = {
-		.min_keysize	= AES_MIN_KEY_SIZE,
-		.max_keysize	= AES_MAX_KEY_SIZE,
-		.geniv		= "eseqiv",
-		.ivsize		= AES_BLOCK_SIZE,
-		.setkey		= omap_aes_setkey,
-		.encrypt	= omap_aes_ctr_encrypt,
-		.decrypt	= omap_aes_ctr_decrypt,
-	}
-} ,
-};
-
-static struct omap_aes_algs_info omap_aes_algs_info_ecb_cbc[] = {
+static struct omap_des_algs_info omap_des_algs_info_ecb_cbc[] = {
 	{
 		.algs_list	= algs_ecb_cbc,
 		.size		= ARRAY_SIZE(algs_ecb_cbc),
 	},
-};
-
-static const struct omap_aes_pdata omap_aes_pdata_omap2 = {
-	.algs_info	= omap_aes_algs_info_ecb_cbc,
-	.algs_info_size	= ARRAY_SIZE(omap_aes_algs_info_ecb_cbc),
-	.trigger	= omap_aes_dma_trigger_omap2,
-	.key_ofs	= 0x1c,
-	.iv_ofs		= 0x20,
-	.ctrl_ofs	= 0x30,
-	.data_ofs	= 0x34,
-	.rev_ofs	= 0x44,
-	.mask_ofs	= 0x48,
-	.dma_enable_in	= BIT(2),
-	.dma_enable_out	= BIT(3),
-	.dma_start	= BIT(5),
-	.major_mask	= 0xf0,
-	.major_shift	= 4,
-	.minor_mask	= 0x0f,
-	.minor_shift	= 0,
 };
 
 #ifdef CONFIG_OF
-static struct omap_aes_algs_info omap_aes_algs_info_ecb_cbc_ctr[] = {
-	{
-		.algs_list	= algs_ecb_cbc,
-		.size		= ARRAY_SIZE(algs_ecb_cbc),
-	},
-	{
-		.algs_list	= algs_ctr,
-		.size		= ARRAY_SIZE(algs_ctr),
-	},
-};
-
-static const struct omap_aes_pdata omap_aes_pdata_omap3 = {
-	.algs_info	= omap_aes_algs_info_ecb_cbc_ctr,
-	.algs_info_size	= ARRAY_SIZE(omap_aes_algs_info_ecb_cbc_ctr),
-	.trigger	= omap_aes_dma_trigger_omap2,
-	.key_ofs	= 0x1c,
-	.iv_ofs		= 0x20,
-	.ctrl_ofs	= 0x30,
-	.data_ofs	= 0x34,
-	.rev_ofs	= 0x44,
-	.mask_ofs	= 0x48,
-	.dma_enable_in	= BIT(2),
-	.dma_enable_out	= BIT(3),
-	.dma_start	= BIT(5),
-	.major_mask	= 0xf0,
-	.major_shift	= 4,
-	.minor_mask	= 0x0f,
-	.minor_shift	= 0,
-};
-
-static const struct omap_aes_pdata omap_aes_pdata_omap4 = {
-	.algs_info	= omap_aes_algs_info_ecb_cbc_ctr,
-	.algs_info_size	= ARRAY_SIZE(omap_aes_algs_info_ecb_cbc_ctr),
-	.trigger	= omap_aes_dma_trigger_omap4,
-	.key_ofs	= 0x3c,
-	.iv_ofs		= 0x40,
-	.ctrl_ofs	= 0x50,
-	.data_ofs	= 0x60,
-	.rev_ofs	= 0x80,
-	.mask_ofs	= 0x84,
-	.irq_status_ofs = 0x8c,
-	.irq_enable_ofs = 0x90,
+static const struct omap_des_pdata omap_des_pdata_omap4 = {
+	.algs_info	= omap_des_algs_info_ecb_cbc,
+	.algs_info_size	= ARRAY_SIZE(omap_des_algs_info_ecb_cbc),
+	.trigger	= omap_des_dma_trigger_omap4,
+	.key_ofs	= 0x14,
+	.iv_ofs		= 0x18,
+	.ctrl_ofs	= 0x20,
+	.data_ofs	= 0x28,
+	.rev_ofs	= 0x30,
+	.mask_ofs	= 0x34,
+	.irq_status_ofs = 0x3c,
+	.irq_enable_ofs = 0x40,
 	.dma_enable_in	= BIT(5),
 	.dma_enable_out	= BIT(6),
 	.major_mask	= 0x0700,
@@ -973,15 +893,15 @@ static const struct omap_aes_pdata omap_aes_pdata_omap4 = {
 	.minor_shift	= 0,
 };
 
-static irqreturn_t omap_aes_irq(int irq, void *dev_id)
+static irqreturn_t omap_des_irq(int irq, void *dev_id)
 {
-	struct omap_aes_dev *dd = dev_id;
+	struct omap_des_dev *dd = dev_id;
 	u32 status, i;
 	u32 *src, *dst;
 
-	status = omap_aes_read(dd, AES_REG_IRQ_STATUS(dd));
-	if (status & AES_REG_IRQ_DATA_IN) {
-		omap_aes_write(dd, AES_REG_IRQ_ENABLE(dd), 0x0);
+	status = omap_des_read(dd, DES_REG_IRQ_STATUS(dd));
+	if (status & DES_REG_IRQ_DATA_IN) {
+		omap_des_write(dd, DES_REG_IRQ_ENABLE(dd), 0x0);
 
 		BUG_ON(!dd->in_sg);
 
@@ -989,8 +909,8 @@ static irqreturn_t omap_aes_irq(int irq, void *dev_id)
 
 		src = sg_virt(dd->in_sg) + _calc_walked(in);
 
-		for (i = 0; i < AES_BLOCK_WORDS; i++) {
-			omap_aes_write(dd, AES_REG_DATA_N(dd, i), *src);
+		for (i = 0; i < DES_BLOCK_WORDS; i++) {
+			omap_des_write(dd, DES_REG_DATA_N(dd, i), *src);
 
 			scatterwalk_advance(&dd->in_walk, 4);
 			if (dd->in_sg->length == _calc_walked(in)) {
@@ -1007,14 +927,14 @@ static irqreturn_t omap_aes_irq(int irq, void *dev_id)
 		}
 
 		/* Clear IRQ status */
-		status &= ~AES_REG_IRQ_DATA_IN;
-		omap_aes_write(dd, AES_REG_IRQ_STATUS(dd), status);
+		status &= ~DES_REG_IRQ_DATA_IN;
+		omap_des_write(dd, DES_REG_IRQ_STATUS(dd), status);
 
 		/* Enable DATA_OUT interrupt */
-		omap_aes_write(dd, AES_REG_IRQ_ENABLE(dd), 0x4);
+		omap_des_write(dd, DES_REG_IRQ_ENABLE(dd), 0x4);
 
-	} else if (status & AES_REG_IRQ_DATA_OUT) {
-		omap_aes_write(dd, AES_REG_IRQ_ENABLE(dd), 0x0);
+	} else if (status & DES_REG_IRQ_DATA_OUT) {
+		omap_des_write(dd, DES_REG_IRQ_ENABLE(dd), 0x0);
 
 		BUG_ON(!dd->out_sg);
 
@@ -1022,8 +942,8 @@ static irqreturn_t omap_aes_irq(int irq, void *dev_id)
 
 		dst = sg_virt(dd->out_sg) + _calc_walked(out);
 
-		for (i = 0; i < AES_BLOCK_WORDS; i++) {
-			*dst = omap_aes_read(dd, AES_REG_DATA_N(dd, i));
+		for (i = 0; i < DES_BLOCK_WORDS; i++) {
+			*dst = omap_des_read(dd, DES_REG_DATA_N(dd, i));
 			scatterwalk_advance(&dd->out_walk, 4);
 			if (dd->out_sg->length == _calc_walked(out)) {
 				dd->out_sg = scatterwalk_sg_next(dd->out_sg);
@@ -1038,98 +958,65 @@ static irqreturn_t omap_aes_irq(int irq, void *dev_id)
 			}
 		}
 
-		dd->total -= AES_BLOCK_SIZE;
+		dd->total -= DES_BLOCK_SIZE;
 
 		BUG_ON(dd->total < 0);
 
 		/* Clear IRQ status */
-		status &= ~AES_REG_IRQ_DATA_OUT;
-		omap_aes_write(dd, AES_REG_IRQ_STATUS(dd), status);
+		status &= ~DES_REG_IRQ_DATA_OUT;
+		omap_des_write(dd, DES_REG_IRQ_STATUS(dd), status);
 
 		if (!dd->total)
 			/* All bytes read! */
 			tasklet_schedule(&dd->done_task);
 		else
 			/* Enable DATA_IN interrupt for next block */
-			omap_aes_write(dd, AES_REG_IRQ_ENABLE(dd), 0x2);
+			omap_des_write(dd, DES_REG_IRQ_ENABLE(dd), 0x2);
 	}
 
 	return IRQ_HANDLED;
 }
 
-static const struct of_device_id omap_aes_of_match[] = {
+static const struct of_device_id omap_des_of_match[] = {
 	{
-		.compatible	= "ti,omap2-aes",
-		.data		= &omap_aes_pdata_omap2,
-	},
-	{
-		.compatible	= "ti,omap3-aes",
-		.data		= &omap_aes_pdata_omap3,
-	},
-	{
-		.compatible	= "ti,omap4-aes",
-		.data		= &omap_aes_pdata_omap4,
+		.compatible	= "ti,omap4-des",
+		.data		= &omap_des_pdata_omap4,
 	},
 	{},
 };
-MODULE_DEVICE_TABLE(of, omap_aes_of_match);
+MODULE_DEVICE_TABLE(of, omap_des_of_match);
 
-static int omap_aes_get_res_of(struct omap_aes_dev *dd,
-		struct device *dev, struct resource *res)
+static int omap_des_get_of(struct omap_des_dev *dd,
+		struct platform_device *pdev)
 {
-	struct device_node *node = dev->of_node;
 	const struct of_device_id *match;
-	int err = 0;
 
-	match = of_match_device(of_match_ptr(omap_aes_of_match), dev);
+	match = of_match_device(of_match_ptr(omap_des_of_match), &pdev->dev);
 	if (!match) {
-		dev_err(dev, "no compatible OF match\n");
-		err = -EINVAL;
-		goto err;
-	}
-
-	err = of_address_to_resource(node, 0, res);
-	if (err < 0) {
-		dev_err(dev, "can't translate OF node address\n");
-		err = -EINVAL;
-		goto err;
+		dev_err(&pdev->dev, "no compatible OF match\n");
+		return -EINVAL;
 	}
 
 	dd->dma_out = -1; /* Dummy value that's unused */
 	dd->dma_in = -1; /* Dummy value that's unused */
-
 	dd->pdata = match->data;
 
-err:
-	return err;
+	return 0;
 }
 #else
-static const struct of_device_id omap_aes_of_match[] = {
-	{},
-};
-
-static int omap_aes_get_res_of(struct omap_aes_dev *dd,
-		struct device *dev, struct resource *res)
+static int omap_des_get_of(struct omap_des_dev *dd,
+		struct device *dev)
 {
 	return -EINVAL;
 }
 #endif
 
-static int omap_aes_get_res_pdev(struct omap_aes_dev *dd,
-		struct platform_device *pdev, struct resource *res)
+static int omap_des_get_pdev(struct omap_des_dev *dd,
+		struct platform_device *pdev)
 {
 	struct device *dev = &pdev->dev;
 	struct resource *r;
 	int err = 0;
-
-	/* Get the base address */
-	r = platform_get_resource(pdev, IORESOURCE_MEM, 0);
-	if (!r) {
-		dev_err(dev, "no MEM resource info\n");
-		err = -ENODEV;
-		goto err;
-	}
-	memcpy(res, r, sizeof(*res));
 
 	/* Get the DMA out channel */
 	r = platform_get_resource(pdev, IORESOURCE_DMA, 0);
@@ -1149,23 +1036,23 @@ static int omap_aes_get_res_pdev(struct omap_aes_dev *dd,
 	}
 	dd->dma_in = r->start;
 
-	/* Only OMAP2/3 can be non-DT */
-	dd->pdata = &omap_aes_pdata_omap2;
+	/* non-DT devices get pdata from pdev */
+	dd->pdata = pdev->dev.platform_data;
 
 err:
 	return err;
 }
 
-static int omap_aes_probe(struct platform_device *pdev)
+static int omap_des_probe(struct platform_device *pdev)
 {
 	struct device *dev = &pdev->dev;
-	struct omap_aes_dev *dd;
+	struct omap_des_dev *dd;
 	struct crypto_alg *algp;
-	struct resource res;
+	struct resource *res;
 	int err = -ENOMEM, i, j, irq = -1;
 	u32 reg;
 
-	dd = devm_kzalloc(dev, sizeof(struct omap_aes_dev), GFP_KERNEL);
+	dd = devm_kzalloc(dev, sizeof(struct omap_des_dev), GFP_KERNEL);
 	if (dd == NULL) {
 		dev_err(dev, "unable to alloc data struct.\n");
 		goto err_data;
@@ -1174,43 +1061,45 @@ static int omap_aes_probe(struct platform_device *pdev)
 	platform_set_drvdata(pdev, dd);
 
 	spin_lock_init(&dd->lock);
-	crypto_init_queue(&dd->queue, OMAP_AES_QUEUE_LENGTH);
+	crypto_init_queue(&dd->queue, OMAP_DES_QUEUE_LENGTH);
 
-	err = (dev->of_node) ? omap_aes_get_res_of(dd, dev, &res) :
-			       omap_aes_get_res_pdev(dd, pdev, &res);
+	res = platform_get_resource(pdev, IORESOURCE_MEM, 0);
+	if (!res) {
+		dev_err(dev, "no MEM resource info\n");
+		goto err_res;
+	}
+
+	err = (dev->of_node) ? omap_des_get_of(dd, pdev) :
+			       omap_des_get_pdev(dd, pdev);
 	if (err)
 		goto err_res;
 
-	dd->io_base = devm_ioremap_resource(dev, &res);
-	if (IS_ERR(dd->io_base)) {
-		err = PTR_ERR(dd->io_base);
+	dd->io_base = devm_request_and_ioremap(dev, res);
+	if (!dd->io_base) {
+		dev_err(dev, "can't ioremap\n");
+		err = -ENOMEM;
 		goto err_res;
 	}
-	dd->phys_base = res.start;
+	dd->phys_base = res->start;
 
 	pm_runtime_enable(dev);
-	err = pm_runtime_get_sync(dev);
-	if (err < 0) {
-		dev_err(dev, "%s: failed to get_sync(%d)\n",
-			__func__, err);
-		goto err_res;
-	}
+	pm_runtime_get_sync(dev);
 
-	omap_aes_dma_stop(dd);
+	omap_des_dma_stop(dd);
 
-	reg = omap_aes_read(dd, AES_REG_REV(dd));
+	reg = omap_des_read(dd, DES_REG_REV(dd));
 
 	pm_runtime_put_sync(dev);
 
-	dev_info(dev, "OMAP AES hw accel rev: %u.%u\n",
+	dev_info(dev, "OMAP DES hw accel rev: %u.%u\n",
 		 (reg & dd->pdata->major_mask) >> dd->pdata->major_shift,
 		 (reg & dd->pdata->minor_mask) >> dd->pdata->minor_shift);
 
-	tasklet_init(&dd->done_task, omap_aes_done_task, (unsigned long)dd);
-	tasklet_init(&dd->queue_task, omap_aes_queue_task, (unsigned long)dd);
+	tasklet_init(&dd->done_task, omap_des_done_task, (unsigned long)dd);
+	tasklet_init(&dd->queue_task, omap_des_queue_task, (unsigned long)dd);
 
-	err = omap_aes_dma_init(dd);
-	if (err && AES_REG_IRQ_STATUS(dd) && AES_REG_IRQ_ENABLE(dd)) {
+	err = omap_des_dma_init(dd);
+	if (err && DES_REG_IRQ_STATUS(dd) && DES_REG_IRQ_ENABLE(dd)) {
 		dd->pio_only = 1;
 
 		irq = platform_get_irq(pdev, 0);
@@ -1219,10 +1108,10 @@ static int omap_aes_probe(struct platform_device *pdev)
 			goto err_irq;
 		}
 
-		err = devm_request_irq(dev, irq, omap_aes_irq, 0,
+		err = devm_request_irq(dev, irq, omap_des_irq, 0,
 				dev_name(dev), dd);
 		if (err) {
-			dev_err(dev, "Unable to grab omap-aes IRQ\n");
+			dev_err(dev, "Unable to grab omap-des IRQ\n");
 			goto err_irq;
 		}
 	}
@@ -1255,7 +1144,7 @@ err_algs:
 			crypto_unregister_alg(
 					&dd->pdata->algs_info[i].algs_list[j]);
 	if (!dd->pio_only)
-		omap_aes_dma_cleanup(dd);
+		omap_des_dma_cleanup(dd);
 err_irq:
 	tasklet_kill(&dd->done_task);
 	tasklet_kill(&dd->queue_task);
@@ -1267,9 +1156,9 @@ err_data:
 	return err;
 }
 
-static int omap_aes_remove(struct platform_device *pdev)
+static int omap_des_remove(struct platform_device *pdev)
 {
-	struct omap_aes_dev *dd = platform_get_drvdata(pdev);
+	struct omap_des_dev *dd = platform_get_drvdata(pdev);
 	int i, j;
 
 	if (!dd)
@@ -1286,7 +1175,7 @@ static int omap_aes_remove(struct platform_device *pdev)
 
 	tasklet_kill(&dd->done_task);
 	tasklet_kill(&dd->queue_task);
-	omap_aes_dma_cleanup(dd);
+	omap_des_dma_cleanup(dd);
 	pm_runtime_disable(dd->dev);
 	dd = NULL;
 
@@ -1294,35 +1183,34 @@ static int omap_aes_remove(struct platform_device *pdev)
 }
 
 #ifdef CONFIG_PM_SLEEP
-static int omap_aes_suspend(struct device *dev)
+static int omap_des_suspend(struct device *dev)
 {
 	pm_runtime_put_sync(dev);
 	return 0;
 }
 
-static int omap_aes_resume(struct device *dev)
+static int omap_des_resume(struct device *dev)
 {
 	pm_runtime_get_sync(dev);
 	return 0;
 }
 #endif
 
-static SIMPLE_DEV_PM_OPS(omap_aes_pm_ops, omap_aes_suspend, omap_aes_resume);
+static SIMPLE_DEV_PM_OPS(omap_des_pm_ops, omap_des_suspend, omap_des_resume);
 
-static struct platform_driver omap_aes_driver = {
-	.probe	= omap_aes_probe,
-	.remove	= omap_aes_remove,
+static struct platform_driver omap_des_driver = {
+	.probe	= omap_des_probe,
+	.remove	= omap_des_remove,
 	.driver	= {
-		.name	= "omap-aes",
+		.name	= "omap-des",
 		.owner	= THIS_MODULE,
-		.pm	= &omap_aes_pm_ops,
-		.of_match_table	= omap_aes_of_match,
+		.pm	= &omap_des_pm_ops,
+		.of_match_table	= of_match_ptr(omap_des_of_match),
 	},
 };
 
-module_platform_driver(omap_aes_driver);
+module_platform_driver(omap_des_driver);
 
-MODULE_DESCRIPTION("OMAP AES hw acceleration support.");
+MODULE_DESCRIPTION("OMAP DES hw acceleration support.");
 MODULE_LICENSE("GPL v2");
-MODULE_AUTHOR("Dmitry Kasatkin");
-
+MODULE_AUTHOR("Joel Fernandes <joelf@ti.com>");
