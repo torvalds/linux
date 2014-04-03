@@ -3138,10 +3138,13 @@ sub process {
 				# // is a comment
 				} elsif ($op eq '//') {
 
+				#   :   when part of a bitfield
+				} elsif ($opv eq ':B') {
+					# skip the bitfield test for now
+
 				# No spaces for:
 				#   ->
-				#   :   when part of a bitfield
-				} elsif ($op eq '->' || $opv eq ':B') {
+				} elsif ($op eq '->') {
 					if ($ctx =~ /Wx.|.xW/) {
 						if (ERROR("SPACING",
 							  "spaces prohibited around that '$op' $at\n" . $hereptr)) {
