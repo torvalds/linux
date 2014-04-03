@@ -1562,13 +1562,14 @@ static int nvme_trans_send_fw_cmd(struct nvme_ns *ns, struct sg_io_hdr *hdr,
 			res = PTR_ERR(iod);
 			goto out;
 		}
-		length = nvme_setup_prps(dev, &c.common, iod, tot_len,
-								GFP_KERNEL);
+		length = nvme_setup_prps(dev, iod, tot_len, GFP_KERNEL);
 		if (length != tot_len) {
 			res = -ENOMEM;
 			goto out_unmap;
 		}
 
+		c.dlfw.prp1 = cpu_to_le64(sg_dma_address(iod->sg));
+		c.dlfw.prp2 = cpu_to_le64(iod->first_dma);
 		c.dlfw.numd = cpu_to_le32((tot_len/BYTES_TO_DWORDS) - 1);
 		c.dlfw.offset = cpu_to_le32(offset/BYTES_TO_DWORDS);
 	} else if (opcode == nvme_admin_activate_fw) {
@@ -2092,8 +2093,7 @@ static int nvme_trans_do_nvme_io(struct nvme_ns *ns, struct sg_io_hdr *hdr,
 			res = PTR_ERR(iod);
 			goto out;
 		}
-		retcode = nvme_setup_prps(dev, &c.common, iod, unit_len,
-							GFP_KERNEL);
+		retcode = nvme_setup_prps(dev, iod, unit_len, GFP_KERNEL);
 		if (retcode != unit_len) {
 			nvme_unmap_user_pages(dev,
 				(is_write) ? DMA_TO_DEVICE : DMA_FROM_DEVICE,
@@ -2102,6 +2102,8 @@ static int nvme_trans_do_nvme_io(struct nvme_ns *ns, struct sg_io_hdr *hdr,
 			res = -ENOMEM;
 			goto out;
 		}
+		c.rw.prp1 = cpu_to_le64(sg_dma_address(iod->sg));
+		c.rw.prp2 = cpu_to_le64(iod->first_dma);
 
 		nvme_offset += unit_num_blocks;
 

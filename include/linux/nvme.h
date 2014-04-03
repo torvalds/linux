@@ -136,6 +136,7 @@ struct nvme_iod {
 	int length;		/* Of data, in bytes */
 	unsigned long start_time;
 	dma_addr_t first_dma;
+	struct list_head node;
 	struct scatterlist sg[0];
 };
 
@@ -151,8 +152,7 @@ static inline u64 nvme_block_nr(struct nvme_ns *ns, sector_t sector)
  */
 void nvme_free_iod(struct nvme_dev *dev, struct nvme_iod *iod);
 
-int nvme_setup_prps(struct nvme_dev *dev, struct nvme_common_command *cmd,
-			struct nvme_iod *iod, int total_len, gfp_t gfp);
+int nvme_setup_prps(struct nvme_dev *, struct nvme_iod *, int , gfp_t);
 struct nvme_iod *nvme_map_user_pages(struct nvme_dev *dev, int write,
 				unsigned long addr, unsigned length);
 void nvme_unmap_user_pages(struct nvme_dev *dev, int write,
