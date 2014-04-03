@@ -4077,12 +4077,6 @@ static int wm8994_codec_probe(struct snd_soc_codec *codec)
 	wm8994_request_irq(wm8994->wm8994, WM8994_IRQ_TEMP_SHUT,
 			   wm8994_temp_shut, "Thermal shutdown", codec);
 
-	ret = wm8994_request_irq(wm8994->wm8994, WM8994_IRQ_DCS_DONE,
-				 wm_hubs_dcs_done, "DC servo done",
-				 &wm8994->hubs);
-	if (ret == 0)
-		wm8994->hubs.dcs_done_irq = true;
-
 	switch (control->type) {
 	case WM8994:
 		if (wm8994->micdet_irq) {
@@ -4313,6 +4307,11 @@ static int wm8994_codec_probe(struct snd_soc_codec *codec)
 	}
 
 	wm_hubs_add_analogue_routes(codec, 0, 0);
+	ret = wm8994_request_irq(wm8994->wm8994, WM8994_IRQ_DCS_DONE,
+				 wm_hubs_dcs_done, "DC servo done",
+				 &wm8994->hubs);
+	if (ret == 0)
+		wm8994->hubs.dcs_done_irq = true;
 	snd_soc_dapm_add_routes(dapm, intercon, ARRAY_SIZE(intercon));
 
 	switch (control->type) {

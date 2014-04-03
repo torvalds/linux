@@ -132,12 +132,17 @@ static inline struct annotation *symbol__annotation(struct symbol *sym)
 	return &a->annotation;
 }
 
-int symbol__inc_addr_samples(struct symbol *sym, struct map *map,
-			     int evidx, u64 addr);
+int addr_map_symbol__inc_samples(struct addr_map_symbol *ams, int evidx);
+
+int hist_entry__inc_addr_samples(struct hist_entry *he, int evidx, u64 addr);
+
 int symbol__alloc_hist(struct symbol *sym);
 void symbol__annotate_zero_histograms(struct symbol *sym);
 
 int symbol__annotate(struct symbol *sym, struct map *map, size_t privsize);
+
+int hist_entry__annotate(struct hist_entry *he, size_t privsize);
+
 int symbol__annotate_init(struct map *map __maybe_unused, struct symbol *sym);
 int symbol__annotate_printf(struct symbol *sym, struct map *map,
 			    struct perf_evsel *evsel, bool full_paths,

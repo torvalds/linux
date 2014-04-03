@@ -104,6 +104,19 @@ config PINCTRL_BCM2835
 	select PINMUX
 	select PINCONF
 
+config PINCTRL_CAPRI
+	bool "Broadcom Capri pinctrl driver"
+	depends on OF
+	select PINMUX
+	select PINCONF
+	select GENERIC_PINCONF
+	select REGMAP_MMIO
+	help
+	  Say Y here to support Broadcom Capri pinctrl driver, which is used for
+	  the BCM281xx SoC family, including BCM11130, BCM11140, BCM11351,
+	  BCM28145, and BCM28155 SoCs.  This driver requires the pinctrl
+	  framework.  GPIO is provided by a separate GPIO driver.
+
 config PINCTRL_IMX
 	bool
 	select PINMUX
@@ -116,15 +129,22 @@ config PINCTRL_IMX1_CORE
 
 config PINCTRL_IMX27
 	bool "IMX27 pinctrl driver"
-	depends on OF
 	depends on SOC_IMX27
 	select PINCTRL_IMX1_CORE
 	help
 	  Say Y here to enable the imx27 pinctrl driver
 
+
+config PINCTRL_IMX25
+        bool "IMX25 pinctrl driver"
+        depends on OF
+        depends on SOC_IMX25
+        select PINCTRL_IMX
+        help
+          Say Y here to enable the imx25 pinctrl driver
+
 config PINCTRL_IMX35
 	bool "IMX35 pinctrl driver"
-	depends on OF
 	depends on SOC_IMX35
 	select PINCTRL_IMX
 	help
@@ -132,7 +152,6 @@ config PINCTRL_IMX35
 
 config PINCTRL_IMX50
 	bool "IMX50 pinctrl driver"
-	depends on OF
 	depends on SOC_IMX50
 	select PINCTRL_IMX
 	help
@@ -140,7 +159,6 @@ config PINCTRL_IMX50
 
 config PINCTRL_IMX51
 	bool "IMX51 pinctrl driver"
-	depends on OF
 	depends on SOC_IMX51
 	select PINCTRL_IMX
 	help
@@ -148,7 +166,6 @@ config PINCTRL_IMX51
 
 config PINCTRL_IMX53
 	bool "IMX53 pinctrl driver"
-	depends on OF
 	depends on SOC_IMX53
 	select PINCTRL_IMX
 	help
@@ -156,7 +173,6 @@ config PINCTRL_IMX53
 
 config PINCTRL_IMX6Q
 	bool "IMX6Q/DL pinctrl driver"
-	depends on OF
 	depends on SOC_IMX6Q
 	select PINCTRL_IMX
 	help
@@ -164,7 +180,6 @@ config PINCTRL_IMX6Q
 
 config PINCTRL_IMX6SL
 	bool "IMX6SL pinctrl driver"
-	depends on OF
 	depends on SOC_IMX6SL
 	select PINCTRL_IMX
 	help
@@ -172,7 +187,6 @@ config PINCTRL_IMX6SL
 
 config PINCTRL_VF610
 	bool "Freescale Vybrid VF610 pinctrl driver"
-	depends on OF
 	depends on SOC_VF610
 	select PINCTRL_IMX
 	help
@@ -201,6 +215,20 @@ config PINCTRL_IMX23
 config PINCTRL_IMX28
 	bool
 	select PINCTRL_MXS
+
+config PINCTRL_MSM
+	tristate
+	select PINMUX
+	select PINCONF
+	select GENERIC_PINCONF
+
+config PINCTRL_MSM8X74
+	tristate "Qualcomm 8x74 pin controller driver"
+	depends on GPIOLIB && OF && OF_IRQ
+	select PINCTRL_MSM
+	help
+	  This is the pinctrl, pinmux, pinconf and gpiolib driver for the
+	  Qualcomm TLMM block found in the Qualcomm 8974 platform.
 
 config PINCTRL_NOMADIK
 	bool "Nomadik pin controller driver"
@@ -265,6 +293,10 @@ config PINCTRL_TEGRA30
 	select PINCTRL_TEGRA
 
 config PINCTRL_TEGRA114
+	bool
+	select PINCTRL_TEGRA
+
+config PINCTRL_TEGRA124
 	bool
 	select PINCTRL_TEGRA
 

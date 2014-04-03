@@ -79,7 +79,6 @@
  *     availability of the different required components (blocks,
  *     rpipes, segment slots, etc), we go scheduling them. Painful.
  */
-#include <linux/init.h>
 #include <linux/spinlock.h>
 #include <linux/slab.h>
 #include <linux/hash.h>
@@ -124,6 +123,8 @@ struct wa_seg {
 	u8 index;			/* which segment we are */
 	int isoc_frame_count;	/* number of isoc frames in this segment. */
 	int isoc_frame_offset;	/* starting frame offset in the xfer URB. */
+	/* Isoc frame that the current transfer buffer corresponds to. */
+	int isoc_frame_index;
 	int isoc_size;	/* size of all isoc frames sent by this seg. */
 	enum wa_seg_status status;
 	ssize_t result;			/* bytes xfered or error */
@@ -158,8 +159,6 @@ struct wa_xfer {
 	unsigned is_dma:1;
 	size_t seg_size;
 	int result;
-	/* Isoc frame that the current transfer buffer corresponds to. */
-	int dto_isoc_frame_index;
 
 	gfp_t gfp;			/* allocation mask */
 
@@ -282,6 +281,7 @@ static void wa_xfer_giveback(struct wa_xfer *xfer)
 
 	spin_lock_irqsave(&xfer->wa->xfer_list_lock, flags);
 	list_del_init(&xfer->list_node);
+	usb_hcd_unlink_urb_from_ep(&(xfer->wa->wusb->usb_hcd), xfer->urb);
 	spin_unlock_irqrestore(&xfer->wa->xfer_list_lock, flags);
 	/* FIXME: segmentation broken -- kills DWA */
 	wusbhc_giveback_urb(xfer->wa->wusb, xfer->urb, xfer->result);
@@ -372,10 +372,10 @@ static unsigned __wa_xfer_is_done(struct wa_xfer *xfer)
 				seg->result);
 			goto out;
 		case WA_SEG_ABORTED:
-			dev_dbg(dev, "xfer %p ID %08X#%u ABORTED: result %d\n",
-				xfer, wa_xfer_id(xfer), seg->index,
-				urb->status);
-			xfer->result = urb->status;
+			xfer->result = seg->result;
+			dev_dbg(dev, "xfer %p ID %08X#%u: ABORTED result %zu(0x%08zX)\n",
+				xfer, wa_xfer_id(xfer), seg->index, seg->result,
+				seg->result);
 			goto out;
 		default:
 			dev_warn(dev, "xfer %p ID %08X#%u: is_done bad state %d\n",
@@ -487,13 +487,14 @@ static int __wa_seg_calculate_isoc_frame_count(struct wa_xfer *xfer,
 		&& ((segment_size + iso_frame_desc[index].length)
 				<= xfer->seg_size)) {
 		/*
-		 * For Alereon HWA devices, only include an isoc frame in a
-		 * segment if it is physically contiguous with the previous
+		 * For Alereon HWA devices, only include an isoc frame in an
+		 * out segment if it is physically contiguous with the previous
 		 * frame.  This is required because those devices expect
 		 * the isoc frames to be sent as a single USB transaction as
 		 * opposed to one transaction per frame with standard HWA.
 		 */
 		if ((xfer->wa->quirks & WUSB_QUIRK_ALEREON_HWA_CONCAT_ISOC)
+			&& (xfer->is_inbound == 0)
 			&& (index > isoc_frame_offset)
 			&& ((iso_frame_desc[index - 1].offset +
 				iso_frame_desc[index - 1].length) !=
@@ -536,14 +537,8 @@ static ssize_t __wa_xfer_setup_sizes(struct wa_xfer *xfer,
 		result = sizeof(struct wa_xfer_bi);
 		break;
 	case USB_ENDPOINT_XFER_ISOC:
-		if (usb_pipeout(urb->pipe)) {
-			*pxfer_type = WA_XFER_TYPE_ISO;
-			result = sizeof(struct wa_xfer_hwaiso);
-		} else {
-			dev_err(dev, "FIXME: ISOC IN not implemented\n");
-			result = -ENOSYS;
-			goto error;
-		}
+		*pxfer_type = WA_XFER_TYPE_ISO;
+		result = sizeof(struct wa_xfer_hwaiso);
 		break;
 	default:
 		/* never happens */
@@ -554,10 +549,22 @@ static ssize_t __wa_xfer_setup_sizes(struct wa_xfer *xfer,
 	xfer->is_dma = urb->transfer_flags & URB_NO_TRANSFER_DMA_MAP ? 1 : 0;
 
 	maxpktsize = le16_to_cpu(rpipe->descr.wMaxPacketSize);
+	xfer->seg_size = le16_to_cpu(rpipe->descr.wBlocks)
+		* 1 << (xfer->wa->wa_descr->bRPipeBlockSize - 1);
+	/* Compute the segment size and make sure it is a multiple of
+	 * the maxpktsize (WUSB1.0[8.3.3.1])...not really too much of
+	 * a check (FIXME) */
+	if (xfer->seg_size < maxpktsize) {
+		dev_err(dev,
+			"HW BUG? seg_size %zu smaller than maxpktsize %zu\n",
+			xfer->seg_size, maxpktsize);
+		result = -EINVAL;
+		goto error;
+	}
+	xfer->seg_size = (xfer->seg_size / maxpktsize) * maxpktsize;
 	if ((rpipe->descr.bmAttribute & 0x3) == USB_ENDPOINT_XFER_ISOC) {
 		int index = 0;
 
-		xfer->seg_size = maxpktsize;
 		xfer->segs = 0;
 		/*
 		 * loop over urb->number_of_packets to determine how many
@@ -570,19 +577,6 @@ static ssize_t __wa_xfer_setup_sizes(struct wa_xfer *xfer,
 			++xfer->segs;
 		}
 	} else {
-		xfer->seg_size = le16_to_cpu(rpipe->descr.wBlocks)
-			* 1 << (xfer->wa->wa_descr->bRPipeBlockSize - 1);
-		/* Compute the segment size and make sure it is a multiple of
-		 * the maxpktsize (WUSB1.0[8.3.3.1])...not really too much of
-		 * a check (FIXME) */
-		if (xfer->seg_size < maxpktsize) {
-			dev_err(dev,
-				"HW BUG? seg_size %zu smaller than maxpktsize %zu\n",
-				xfer->seg_size, maxpktsize);
-			result = -EINVAL;
-			goto error;
-		}
-		xfer->seg_size = (xfer->seg_size / maxpktsize) * maxpktsize;
 		xfer->segs = DIV_ROUND_UP(urb->transfer_buffer_length,
 						xfer->seg_size);
 		if (xfer->segs == 0 && *pxfer_type == WA_XFER_TYPE_CTL)
@@ -700,23 +694,23 @@ static void wa_seg_dto_cb(struct urb *urb)
 	if (usb_pipeisoc(xfer->urb->pipe)) {
 		/* Alereon HWA sends all isoc frames in a single transfer. */
 		if (wa->quirks & WUSB_QUIRK_ALEREON_HWA_CONCAT_ISOC)
-			xfer->dto_isoc_frame_index += seg->isoc_frame_count;
+			seg->isoc_frame_index += seg->isoc_frame_count;
 		else
-			xfer->dto_isoc_frame_index += 1;
-		if (xfer->dto_isoc_frame_index < seg->isoc_frame_count) {
+			seg->isoc_frame_index += 1;
+		if (seg->isoc_frame_index < seg->isoc_frame_count) {
 			data_send_done = 0;
 			holding_dto = 1; /* checked in error cases. */
 			/*
 			 * if this is the last isoc frame of the segment, we
 			 * can release DTO after sending this frame.
 			 */
-			if ((xfer->dto_isoc_frame_index + 1) >=
+			if ((seg->isoc_frame_index + 1) >=
 				seg->isoc_frame_count)
 				release_dto = 1;
 		}
 		dev_dbg(dev, "xfer 0x%08X#%u: isoc frame = %d, holding_dto = %d, release_dto = %d.\n",
-			wa_xfer_id(xfer), seg->index,
-			xfer->dto_isoc_frame_index, holding_dto, release_dto);
+			wa_xfer_id(xfer), seg->index, seg->isoc_frame_index,
+			holding_dto, release_dto);
 	}
 	spin_unlock_irqrestore(&xfer->lock, flags);
 
@@ -736,8 +730,7 @@ static void wa_seg_dto_cb(struct urb *urb)
 			 * send the URB and release DTO if we no longer need it.
 			 */
 			 __wa_populate_dto_urb_isoc(xfer, seg,
-				seg->isoc_frame_offset +
-				xfer->dto_isoc_frame_index);
+				seg->isoc_frame_offset + seg->isoc_frame_index);
 
 			/* resubmit the URB with the next isoc frame. */
 			result = usb_submit_urb(seg->dto_urb, GFP_ATOMIC);
@@ -844,7 +837,7 @@ static void wa_seg_iso_pack_desc_cb(struct urb *urb)
 				wa_xfer_id(xfer), seg->index, urb->status);
 		if (edc_inc(&wa->nep_edc, EDC_MAX_ERRORS,
 			    EDC_ERROR_TIMEFRAME)){
-			dev_err(dev, "DTO: URB max acceptable errors exceeded, resetting device\n");
+			dev_err(dev, "iso xfer: URB max acceptable errors exceeded, resetting device\n");
 			wa_reset_all(wa);
 		}
 		if (seg->status != WA_SEG_ERROR) {
@@ -1108,7 +1101,7 @@ static int __wa_xfer_setup_segs(struct wa_xfer *xfer, size_t xfer_hdr_size)
 	const struct usb_endpoint_descriptor *dto_epd = xfer->wa->dto_epd;
 	struct wa_seg *seg;
 	size_t buf_itr, buf_size, buf_itr_size;
-	int xfer_isoc_frame_offset = 0;
+	int isoc_frame_offset = 0;
 
 	result = -ENOMEM;
 	xfer->seg = kcalloc(xfer->segs, sizeof(xfer->seg[0]), GFP_ATOMIC);
@@ -1121,10 +1114,14 @@ static int __wa_xfer_setup_segs(struct wa_xfer *xfer, size_t xfer_hdr_size)
 		size_t iso_pkt_descr_size = 0;
 		int seg_isoc_frame_count = 0, seg_isoc_size = 0;
 
+		/*
+		 * Adjust the size of the segment object to contain space for
+		 * the isoc packet descriptor buffer.
+		 */
 		if (usb_pipeisoc(xfer->urb->pipe)) {
 			seg_isoc_frame_count =
 				__wa_seg_calculate_isoc_frame_count(xfer,
-					xfer_isoc_frame_offset, &seg_isoc_size);
+					isoc_frame_offset, &seg_isoc_size);
 
 			iso_pkt_descr_size =
 				sizeof(struct wa_xfer_packet_info_hwaiso) +
@@ -1137,15 +1134,40 @@ static int __wa_xfer_setup_segs(struct wa_xfer *xfer, size_t xfer_hdr_size)
 		wa_seg_init(seg);
 		seg->xfer = xfer;
 		seg->index = cnt;
-		seg->isoc_frame_count = seg_isoc_frame_count;
-		seg->isoc_frame_offset = xfer_isoc_frame_offset;
-		seg->isoc_size = seg_isoc_size;
 		usb_fill_bulk_urb(&seg->tr_urb, usb_dev,
 				  usb_sndbulkpipe(usb_dev,
 						  dto_epd->bEndpointAddress),
 				  &seg->xfer_hdr, xfer_hdr_size,
 				  wa_seg_tr_cb, seg);
 		buf_itr_size = min(buf_size, xfer->seg_size);
+
+		if (usb_pipeisoc(xfer->urb->pipe)) {
+			seg->isoc_frame_count = seg_isoc_frame_count;
+			seg->isoc_frame_offset = isoc_frame_offset;
+			seg->isoc_size = seg_isoc_size;
+			/* iso packet descriptor. */
+			seg->isoc_pack_desc_urb =
+					usb_alloc_urb(0, GFP_ATOMIC);
+			if (seg->isoc_pack_desc_urb == NULL)
+				goto error_iso_pack_desc_alloc;
+			/*
+			 * The buffer for the isoc packet descriptor starts
+			 * after the transfer request header in the
+			 * segment object memory buffer.
+			 */
+			usb_fill_bulk_urb(
+				seg->isoc_pack_desc_urb, usb_dev,
+				usb_sndbulkpipe(usb_dev,
+					dto_epd->bEndpointAddress),
+				(void *)(&seg->xfer_hdr) +
+					xfer_hdr_size,
+				iso_pkt_descr_size,
+				wa_seg_iso_pack_desc_cb, seg);
+
+			/* adjust starting frame offset for next seg. */
+			isoc_frame_offset += seg_isoc_frame_count;
+		}
+
 		if (xfer->is_inbound == 0 && buf_size > 0) {
 			/* outbound data. */
 			seg->dto_urb = usb_alloc_urb(0, GFP_ATOMIC);
@@ -1158,25 +1180,6 @@ static int __wa_xfer_setup_segs(struct wa_xfer *xfer, size_t xfer_hdr_size)
 				NULL, 0, wa_seg_dto_cb, seg);
 
 			if (usb_pipeisoc(xfer->urb->pipe)) {
-				/* iso packet descriptor. */
-				seg->isoc_pack_desc_urb =
-						usb_alloc_urb(0, GFP_ATOMIC);
-				if (seg->isoc_pack_desc_urb == NULL)
-					goto error_iso_pack_desc_alloc;
-				/*
-				 * The buffer for the isoc packet descriptor
-				 * after the transfer request header in the
-				 * segment object memory buffer.
-				 */
-				usb_fill_bulk_urb(
-					seg->isoc_pack_desc_urb, usb_dev,
-					usb_sndbulkpipe(usb_dev,
-						dto_epd->bEndpointAddress),
-					(void *)(&seg->xfer_hdr) +
-						xfer_hdr_size,
-					iso_pkt_descr_size,
-					wa_seg_iso_pack_desc_cb, seg);
-
 				/*
 				 * Fill in the xfer buffer information for the
 				 * first isoc frame.  Subsequent frames in this
@@ -1184,9 +1187,7 @@ static int __wa_xfer_setup_segs(struct wa_xfer *xfer, size_t xfer_hdr_size)
 				 * DTO completion routine, if needed.
 				 */
 				__wa_populate_dto_urb_isoc(xfer, seg,
-					xfer_isoc_frame_offset);
-				/* adjust starting frame offset for next seg. */
-				xfer_isoc_frame_offset += seg_isoc_frame_count;
+					seg->isoc_frame_offset);
 			} else {
 				/* fill in the xfer buffer information. */
 				result = __wa_populate_dto_urb(xfer, seg,
@@ -1207,10 +1208,11 @@ static int __wa_xfer_setup_segs(struct wa_xfer *xfer, size_t xfer_hdr_size)
 	 * Use the fact that cnt is left at were it failed.  The remaining
 	 * segments will be cleaned up by wa_xfer_destroy.
 	 */
-error_iso_pack_desc_alloc:
 error_seg_outbound_populate:
 	usb_free_urb(xfer->seg[cnt]->dto_urb);
 error_dto_alloc:
+	usb_free_urb(xfer->seg[cnt]->isoc_pack_desc_urb);
+error_iso_pack_desc_alloc:
 	kfree(xfer->seg[cnt]);
 	xfer->seg[cnt] = NULL;
 error_seg_kmalloc:
@@ -1259,8 +1261,11 @@ static int __wa_xfer_setup(struct wa_xfer *xfer, struct urb *urb)
 		for (cnt = 1; cnt < xfer->segs; cnt++) {
 			struct wa_xfer_packet_info_hwaiso *packet_desc;
 			struct wa_seg *seg = xfer->seg[cnt];
+			struct wa_xfer_hwaiso *xfer_iso;
 
 			xfer_hdr = &seg->xfer_hdr;
+			xfer_iso = container_of(xfer_hdr,
+						struct wa_xfer_hwaiso, hdr);
 			packet_desc = ((void *)xfer_hdr) + xfer_hdr_size;
 			/*
 			 * Copy values from the 0th header. Segment specific
@@ -1270,6 +1275,8 @@ static int __wa_xfer_setup(struct wa_xfer *xfer, struct urb *urb)
 			xfer_hdr->bTransferSegment = cnt;
 			xfer_hdr->dwTransferLength =
 				cpu_to_le32(seg->isoc_size);
+			xfer_iso->dwNumOfPackets =
+					cpu_to_le32(seg->isoc_frame_count);
 			__wa_setup_isoc_packet_descr(packet_desc, xfer, seg);
 			seg->status = WA_SEG_READY;
 		}
@@ -1320,15 +1327,23 @@ static int __wa_seg_submit(struct wa_rpipe *rpipe, struct wa_xfer *xfer,
 	}
 	/* submit the isoc packet descriptor if present. */
 	if (seg->isoc_pack_desc_urb) {
-		struct wahc *wa = xfer->wa;
-
 		result = usb_submit_urb(seg->isoc_pack_desc_urb, GFP_ATOMIC);
+		seg->isoc_frame_index = 0;
 		if (result < 0) {
 			pr_err("%s: xfer %p#%u: ISO packet descriptor submit failed: %d\n",
 			       __func__, xfer, seg->index, result);
 			goto error_iso_pack_desc_submit;
 		}
-		xfer->dto_isoc_frame_index = 0;
+	}
+	/* submit the out data if this is an out request. */
+	if (seg->dto_urb) {
+		struct wahc *wa = xfer->wa;
+		result = usb_submit_urb(seg->dto_urb, GFP_ATOMIC);
+		if (result < 0) {
+			pr_err("%s: xfer %p#%u: DTO submit failed: %d\n",
+			       __func__, xfer, seg->index, result);
+			goto error_dto_submit;
+		}
 		/*
 		 * If this segment contains more than one isoc frame, hold
 		 * onto the dto resource until we send all frames.
@@ -1337,15 +1352,6 @@ static int __wa_seg_submit(struct wa_rpipe *rpipe, struct wa_xfer *xfer,
 		if (((wa->quirks & WUSB_QUIRK_ALEREON_HWA_CONCAT_ISOC) == 0)
 			&& (seg->isoc_frame_count > 1))
 			*dto_done = 0;
-	}
-	/* submit the out data if this is an out request. */
-	if (seg->dto_urb) {
-		result = usb_submit_urb(seg->dto_urb, GFP_ATOMIC);
-		if (result < 0) {
-			pr_err("%s: xfer %p#%u: DTO submit failed: %d\n",
-			       __func__, xfer, seg->index, result);
-			goto error_dto_submit;
-		}
 	}
 	seg->status = WA_SEG_SUBMITTED;
 	rpipe_avail_dec(rpipe);
@@ -1567,7 +1573,8 @@ static int wa_urb_enqueue_b(struct wa_xfer *xfer)
 	wusb_dev = __wusb_dev_get_by_usb_dev(wusbhc, urb->dev);
 	if (wusb_dev == NULL) {
 		mutex_unlock(&wusbhc->mutex);
-		pr_err("%s: error wusb dev gone\n", __func__);
+		dev_err(&(urb->dev->dev), "%s: error wusb dev gone\n",
+			__func__);
 		goto error_dev_gone;
 	}
 	mutex_unlock(&wusbhc->mutex);
@@ -1576,18 +1583,18 @@ static int wa_urb_enqueue_b(struct wa_xfer *xfer)
 	xfer->wusb_dev = wusb_dev;
 	result = urb->status;
 	if (urb->status != -EINPROGRESS) {
-		pr_err("%s: error_dequeued\n", __func__);
+		dev_err(&(urb->dev->dev), "%s: error_dequeued\n", __func__);
 		goto error_dequeued;
 	}
 
 	result = __wa_xfer_setup(xfer, urb);
 	if (result < 0) {
-		pr_err("%s: error_xfer_setup\n", __func__);
+		dev_err(&(urb->dev->dev), "%s: error_xfer_setup\n", __func__);
 		goto error_xfer_setup;
 	}
 	result = __wa_xfer_submit(xfer);
 	if (result < 0) {
-		pr_err("%s: error_xfer_submit\n", __func__);
+		dev_err(&(urb->dev->dev), "%s: error_xfer_submit\n", __func__);
 		goto error_xfer_submit;
 	}
 	spin_unlock_irqrestore(&xfer->lock, flags);
@@ -1730,6 +1737,12 @@ int wa_urb_enqueue(struct wahc *wa, struct usb_host_endpoint *ep,
 		dump_stack();
 	}
 
+	spin_lock_irqsave(&wa->xfer_list_lock, my_flags);
+	result = usb_hcd_link_urb_to_ep(&(wa->wusb->usb_hcd), urb);
+	spin_unlock_irqrestore(&wa->xfer_list_lock, my_flags);
+	if (result < 0)
+		goto error_link_urb;
+
 	result = -ENOMEM;
 	xfer = kzalloc(sizeof(*xfer), gfp);
 	if (xfer == NULL)
@@ -1769,6 +1782,9 @@ int wa_urb_enqueue(struct wahc *wa, struct usb_host_endpoint *ep,
 			   __func__, result);
 			wa_put(xfer->wa);
 			wa_xfer_put(xfer);
+			spin_lock_irqsave(&wa->xfer_list_lock, my_flags);
+			usb_hcd_unlink_urb_from_ep(&(wa->wusb->usb_hcd), urb);
+			spin_unlock_irqrestore(&wa->xfer_list_lock, my_flags);
 			return result;
 		}
 	}
@@ -1777,6 +1793,10 @@ int wa_urb_enqueue(struct wahc *wa, struct usb_host_endpoint *ep,
 error_dequeued:
 	kfree(xfer);
 error_kmalloc:
+	spin_lock_irqsave(&wa->xfer_list_lock, my_flags);
+	usb_hcd_unlink_urb_from_ep(&(wa->wusb->usb_hcd), urb);
+	spin_unlock_irqrestore(&wa->xfer_list_lock, my_flags);
+error_link_urb:
 	return result;
 }
 EXPORT_SYMBOL_GPL(wa_urb_enqueue);
@@ -1799,7 +1819,7 @@ EXPORT_SYMBOL_GPL(wa_urb_enqueue);
  * asynch request] and then make sure we cancel each segment.
  *
  */
-int wa_urb_dequeue(struct wahc *wa, struct urb *urb)
+int wa_urb_dequeue(struct wahc *wa, struct urb *urb, int status)
 {
 	unsigned long flags, flags2;
 	struct wa_xfer *xfer;
@@ -1807,6 +1827,14 @@ int wa_urb_dequeue(struct wahc *wa, struct urb *urb)
 	struct wa_rpipe *rpipe;
 	unsigned cnt, done = 0, xfer_abort_pending;
 	unsigned rpipe_ready = 0;
+	int result;
+
+	/* check if it is safe to unlink. */
+	spin_lock_irqsave(&wa->xfer_list_lock, flags);
+	result = usb_hcd_check_unlink_urb(&(wa->wusb->usb_hcd), urb, status);
+	spin_unlock_irqrestore(&wa->xfer_list_lock, flags);
+	if (result)
+		return result;
 
 	xfer = urb->hcpriv;
 	if (xfer == NULL) {
@@ -1822,9 +1850,10 @@ int wa_urb_dequeue(struct wahc *wa, struct urb *urb)
 	pr_debug("%s: DEQUEUE xfer id 0x%08X\n", __func__, wa_xfer_id(xfer));
 	rpipe = xfer->ep->hcpriv;
 	if (rpipe == NULL) {
-		pr_debug("%s: xfer id 0x%08X has no RPIPE.  %s",
-			__func__, wa_xfer_id(xfer),
+		pr_debug("%s: xfer %p id 0x%08X has no RPIPE.  %s",
+			__func__, xfer, wa_xfer_id(xfer),
 			"Probably already aborted.\n" );
+		result = -ENOENT;
 		goto out_unlock;
 	}
 	/* Check the delayed list -> if there, release and complete */
@@ -1855,6 +1884,7 @@ int wa_urb_dequeue(struct wahc *wa, struct urb *urb)
 			 * segments will be completed in the DTI interrupt.
 			 */
 			seg->status = WA_SEG_ABORTED;
+			seg->result = -ENOENT;
 			spin_lock_irqsave(&rpipe->seg_lock, flags2);
 			list_del(&seg->list_node);
 			xfer->segs_done++;
@@ -1894,12 +1924,12 @@ int wa_urb_dequeue(struct wahc *wa, struct urb *urb)
 		wa_xfer_completion(xfer);
 	if (rpipe_ready)
 		wa_xfer_delayed_run(rpipe);
-	return 0;
+	return result;
 
 out_unlock:
 	spin_unlock_irqrestore(&xfer->lock, flags);
 out:
-	return 0;
+	return result;
 
 dequeue_delayed:
 	list_del_init(&xfer->list_node);
@@ -1935,7 +1965,7 @@ static int wa_xfer_status_to_errno(u8 status)
 		[WA_XFER_STATUS_NOT_FOUND] =		0,
 		[WA_XFER_STATUS_INSUFFICIENT_RESOURCE] = -ENOMEM,
 		[WA_XFER_STATUS_TRANSACTION_ERROR] = 	-EILSEQ,
-		[WA_XFER_STATUS_ABORTED] = 		-EINTR,
+		[WA_XFER_STATUS_ABORTED] =		-ENOENT,
 		[WA_XFER_STATUS_RPIPE_NOT_READY] = 	EINVAL,
 		[WA_XFER_INVALID_FORMAT] = 		EINVAL,
 		[WA_XFER_UNEXPECTED_SEGMENT_NUMBER] = 	EINVAL,
@@ -1968,7 +1998,7 @@ static int wa_xfer_status_to_errno(u8 status)
  * the xfer will complete cleanly.
  */
 static void wa_complete_remaining_xfer_segs(struct wa_xfer *xfer,
-		struct wa_seg *incoming_seg)
+		struct wa_seg *incoming_seg, enum wa_seg_status status)
 {
 	int index;
 	struct wa_rpipe *rpipe = xfer->ep->hcpriv;
@@ -1990,7 +2020,7 @@ static void wa_complete_remaining_xfer_segs(struct wa_xfer *xfer,
 		 */
 		case WA_SEG_DELAYED:
 			xfer->segs_done++;
-			current_seg->status = incoming_seg->status;
+			current_seg->status = status;
 			break;
 		case WA_SEG_ABORTED:
 			break;
@@ -2001,6 +2031,77 @@ static void wa_complete_remaining_xfer_segs(struct wa_xfer *xfer,
 			break;
 		}
 	}
+}
+
+/* Populate the wa->buf_in_urb based on the current isoc transfer state. */
+static void __wa_populate_buf_in_urb_isoc(struct wahc *wa, struct wa_xfer *xfer,
+	struct wa_seg *seg, int curr_iso_frame)
+{
+	BUG_ON(wa->buf_in_urb->status == -EINPROGRESS);
+
+	/* this should always be 0 before a resubmit. */
+	wa->buf_in_urb->num_mapped_sgs	= 0;
+	wa->buf_in_urb->transfer_dma = xfer->urb->transfer_dma +
+		xfer->urb->iso_frame_desc[curr_iso_frame].offset;
+	wa->buf_in_urb->transfer_buffer_length =
+		xfer->urb->iso_frame_desc[curr_iso_frame].length;
+	wa->buf_in_urb->transfer_flags |= URB_NO_TRANSFER_DMA_MAP;
+	wa->buf_in_urb->transfer_buffer = NULL;
+	wa->buf_in_urb->sg = NULL;
+	wa->buf_in_urb->num_sgs = 0;
+	wa->buf_in_urb->context = seg;
+}
+
+/* Populate the wa->buf_in_urb based on the current transfer state. */
+static int wa_populate_buf_in_urb(struct wahc *wa, struct wa_xfer *xfer,
+	unsigned int seg_idx, unsigned int bytes_transferred)
+{
+	int result = 0;
+	struct wa_seg *seg = xfer->seg[seg_idx];
+
+	BUG_ON(wa->buf_in_urb->status == -EINPROGRESS);
+	/* this should always be 0 before a resubmit. */
+	wa->buf_in_urb->num_mapped_sgs	= 0;
+
+	if (xfer->is_dma) {
+		wa->buf_in_urb->transfer_dma = xfer->urb->transfer_dma
+			+ (seg_idx * xfer->seg_size);
+		wa->buf_in_urb->transfer_flags |= URB_NO_TRANSFER_DMA_MAP;
+		wa->buf_in_urb->transfer_buffer = NULL;
+		wa->buf_in_urb->sg = NULL;
+		wa->buf_in_urb->num_sgs = 0;
+	} else {
+		/* do buffer or SG processing. */
+		wa->buf_in_urb->transfer_flags &= ~URB_NO_TRANSFER_DMA_MAP;
+
+		if (xfer->urb->transfer_buffer) {
+			wa->buf_in_urb->transfer_buffer =
+				xfer->urb->transfer_buffer
+				+ (seg_idx * xfer->seg_size);
+			wa->buf_in_urb->sg = NULL;
+			wa->buf_in_urb->num_sgs = 0;
+		} else {
+			/* allocate an SG list to store seg_size bytes
+				and copy the subset of the xfer->urb->sg
+				that matches the buffer subset we are
+				about to read. */
+			wa->buf_in_urb->sg = wa_xfer_create_subset_sg(
+				xfer->urb->sg,
+				seg_idx * xfer->seg_size,
+				bytes_transferred,
+				&(wa->buf_in_urb->num_sgs));
+
+			if (!(wa->buf_in_urb->sg)) {
+				wa->buf_in_urb->num_sgs	= 0;
+				result = -ENOMEM;
+			}
+			wa->buf_in_urb->transfer_buffer = NULL;
+		}
+	}
+	wa->buf_in_urb->transfer_buffer_length = bytes_transferred;
+	wa->buf_in_urb->context = seg;
+
+	return result;
 }
 
 /*
@@ -2016,12 +2117,13 @@ static void wa_xfer_result_chew(struct wahc *wa, struct wa_xfer *xfer,
 	int result;
 	struct device *dev = &wa->usb_iface->dev;
 	unsigned long flags;
-	u8 seg_idx;
+	unsigned int seg_idx;
 	struct wa_seg *seg;
 	struct wa_rpipe *rpipe;
 	unsigned done = 0;
 	u8 usb_status;
 	unsigned rpipe_ready = 0;
+	unsigned bytes_transferred = le32_to_cpu(xfer_result->dwTransferLength);
 
 	spin_lock_irqsave(&xfer->lock, flags);
 	seg_idx = xfer_result->bTransferSegment & 0x7f;
@@ -2054,66 +2156,34 @@ static void wa_xfer_result_chew(struct wahc *wa, struct wa_xfer *xfer,
 	/* FIXME: we ignore warnings, tally them for stats */
 	if (usb_status & 0x40) 		/* Warning?... */
 		usb_status = 0;		/* ... pass */
-	if (usb_pipeisoc(xfer->urb->pipe)) {
+	/*
+	 * If the last segment bit is set, complete the remaining segments.
+	 * When the current segment is completed, either in wa_buf_in_cb for
+	 * transfers with data or below for no data, the xfer will complete.
+	 */
+	if (xfer_result->bTransferSegment & 0x80)
+		wa_complete_remaining_xfer_segs(xfer, seg, WA_SEG_DONE);
+	if (usb_pipeisoc(xfer->urb->pipe)
+		&& (le32_to_cpu(xfer_result->dwNumOfPackets) > 0)) {
 		/* set up WA state to read the isoc packet status next. */
 		wa->dti_isoc_xfer_in_progress = wa_xfer_id(xfer);
 		wa->dti_isoc_xfer_seg = seg_idx;
 		wa->dti_state = WA_DTI_ISOC_PACKET_STATUS_PENDING;
-	} else if (xfer->is_inbound) {	/* IN data phase: read to buffer */
+	} else if (xfer->is_inbound && !usb_pipeisoc(xfer->urb->pipe)
+			&& (bytes_transferred > 0)) {
+		/* IN data phase: read to buffer */
 		seg->status = WA_SEG_DTI_PENDING;
-		BUG_ON(wa->buf_in_urb->status == -EINPROGRESS);
-		/* this should always be 0 before a resubmit. */
-		wa->buf_in_urb->num_mapped_sgs	= 0;
-
-		if (xfer->is_dma) {
-			wa->buf_in_urb->transfer_dma =
-				xfer->urb->transfer_dma
-				+ (seg_idx * xfer->seg_size);
-			wa->buf_in_urb->transfer_flags
-				|= URB_NO_TRANSFER_DMA_MAP;
-			wa->buf_in_urb->transfer_buffer = NULL;
-			wa->buf_in_urb->sg = NULL;
-			wa->buf_in_urb->num_sgs = 0;
-		} else {
-			/* do buffer or SG processing. */
-			wa->buf_in_urb->transfer_flags
-				&= ~URB_NO_TRANSFER_DMA_MAP;
-
-			if (xfer->urb->transfer_buffer) {
-				wa->buf_in_urb->transfer_buffer =
-					xfer->urb->transfer_buffer
-					+ (seg_idx * xfer->seg_size);
-				wa->buf_in_urb->sg = NULL;
-				wa->buf_in_urb->num_sgs = 0;
-			} else {
-				/* allocate an SG list to store seg_size bytes
-					and copy the subset of the xfer->urb->sg
-					that matches the buffer subset we are
-					about to read. */
-				wa->buf_in_urb->sg = wa_xfer_create_subset_sg(
-					xfer->urb->sg,
-					seg_idx * xfer->seg_size,
-					le32_to_cpu(
-						xfer_result->dwTransferLength),
-					&(wa->buf_in_urb->num_sgs));
-
-				if (!(wa->buf_in_urb->sg)) {
-					wa->buf_in_urb->num_sgs	= 0;
-					goto error_sg_alloc;
-				}
-				wa->buf_in_urb->transfer_buffer = NULL;
-			}
-		}
-		wa->buf_in_urb->transfer_buffer_length =
-			le32_to_cpu(xfer_result->dwTransferLength);
-		wa->buf_in_urb->context = seg;
+		result = wa_populate_buf_in_urb(wa, xfer, seg_idx,
+			bytes_transferred);
+		if (result < 0)
+			goto error_buf_in_populate;
 		result = usb_submit_urb(wa->buf_in_urb, GFP_ATOMIC);
 		if (result < 0)
 			goto error_submit_buf_in;
 	} else {
-		/* OUT data phase, complete it -- */
+		/* OUT data phase or no data, complete it -- */
 		seg->status = WA_SEG_DONE;
-		seg->result = le32_to_cpu(xfer_result->dwTransferLength);
+		seg->result = bytes_transferred;
 		xfer->segs_done++;
 		rpipe_ready = rpipe_avail_inc(rpipe);
 		done = __wa_xfer_is_done(xfer);
@@ -2137,13 +2207,13 @@ error_submit_buf_in:
 	seg->result = result;
 	kfree(wa->buf_in_urb->sg);
 	wa->buf_in_urb->sg = NULL;
-error_sg_alloc:
+error_buf_in_populate:
 	__wa_xfer_abort(xfer);
 	seg->status = WA_SEG_ERROR;
 error_complete:
 	xfer->segs_done++;
 	rpipe_ready = rpipe_avail_inc(rpipe);
-	wa_complete_remaining_xfer_segs(xfer, seg);
+	wa_complete_remaining_xfer_segs(xfer, seg, seg->status);
 	done = __wa_xfer_is_done(xfer);
 	/*
 	 * queue work item to clear STALL for control endpoints.
@@ -2172,7 +2242,7 @@ error_complete:
 
 error_bad_seg:
 	spin_unlock_irqrestore(&xfer->lock, flags);
-	wa_urb_dequeue(wa, xfer->urb);
+	wa_urb_dequeue(wa, xfer->urb, -ENOENT);
 	if (printk_ratelimit())
 		dev_err(dev, "xfer %p#%u: bad segment\n", xfer, seg_idx);
 	if (edc_inc(&wa->dti_edc, EDC_MAX_ERRORS, EDC_ERROR_TIMEFRAME)) {
@@ -2192,7 +2262,7 @@ segment_aborted:
  *
  * inbound transfers: need to schedule a buf_in_urb read
  */
-static void wa_process_iso_packet_status(struct wahc *wa, struct urb *urb)
+static int wa_process_iso_packet_status(struct wahc *wa, struct urb *urb)
 {
 	struct device *dev = &wa->usb_iface->dev;
 	struct wa_xfer_packet_status_hwaiso *packet_status;
@@ -2201,8 +2271,8 @@ static void wa_process_iso_packet_status(struct wahc *wa, struct urb *urb)
 	unsigned long flags;
 	struct wa_seg *seg;
 	struct wa_rpipe *rpipe;
-	unsigned done = 0;
-	unsigned rpipe_ready = 0, seg_index;
+	unsigned done = 0, dti_busy = 0, data_frame_count = 0, seg_index;
+	unsigned first_frame_index = 0, rpipe_ready = 0;
 	int expected_size;
 
 	/* We have a xfer result buffer; check it */
@@ -2238,18 +2308,48 @@ static void wa_process_iso_packet_status(struct wahc *wa, struct urb *urb)
 			le16_to_cpu(packet_status->wLength));
 		goto error_bad_seg;
 	}
-	/* isoc packet status and lengths back xfer urb. */
+	/* write isoc packet status and lengths back to the xfer urb. */
 	status_array = packet_status->PacketStatus;
+	xfer->urb->start_frame =
+		wa->wusb->usb_hcd.driver->get_frame_number(&wa->wusb->usb_hcd);
 	for (seg_index = 0; seg_index < seg->isoc_frame_count; ++seg_index) {
-		xfer->urb->iso_frame_desc[seg->index].status =
+		struct usb_iso_packet_descriptor *iso_frame_desc =
+			xfer->urb->iso_frame_desc;
+		const int urb_frame_index =
+			seg->isoc_frame_offset + seg_index;
+
+		iso_frame_desc[urb_frame_index].status =
 			wa_xfer_status_to_errno(
 			le16_to_cpu(status_array[seg_index].PacketStatus));
-		xfer->urb->iso_frame_desc[seg->index].actual_length =
+		iso_frame_desc[urb_frame_index].actual_length =
 			le16_to_cpu(status_array[seg_index].PacketLength);
+		/* track the number of frames successfully transferred. */
+		if (iso_frame_desc[urb_frame_index].actual_length > 0) {
+			/* save the starting frame index for buf_in_urb. */
+			if (!data_frame_count)
+				first_frame_index = seg_index;
+			++data_frame_count;
+		}
 	}
 
-	if (!xfer->is_inbound) {
-		/* OUT transfer, complete it -- */
+	if (xfer->is_inbound && data_frame_count) {
+		int result;
+
+		seg->isoc_frame_index = first_frame_index;
+		/* submit a read URB for the first frame with data. */
+		__wa_populate_buf_in_urb_isoc(wa, xfer, seg,
+			seg->isoc_frame_index + seg->isoc_frame_offset);
+
+		result = usb_submit_urb(wa->buf_in_urb, GFP_ATOMIC);
+		if (result < 0) {
+			dev_err(dev, "DTI Error: Could not submit buf in URB (%d)",
+				result);
+			wa_reset_all(wa);
+		} else if (data_frame_count > 1)
+			/* If we need to read multiple frames, set DTI busy. */
+			dti_busy = 1;
+	} else {
+		/* OUT transfer or no more IN data, complete it -- */
 		seg->status = WA_SEG_DONE;
 		xfer->segs_done++;
 		rpipe_ready = rpipe_avail_inc(rpipe);
@@ -2262,13 +2362,13 @@ static void wa_process_iso_packet_status(struct wahc *wa, struct urb *urb)
 	if (rpipe_ready)
 		wa_xfer_delayed_run(rpipe);
 	wa_xfer_put(xfer);
-	return;
+	return dti_busy;
 
 error_bad_seg:
 	spin_unlock_irqrestore(&xfer->lock, flags);
 	wa_xfer_put(xfer);
 error_parse_buffer:
-	return;
+	return dti_busy;
 }
 
 /*
@@ -2288,7 +2388,7 @@ static void wa_buf_in_cb(struct urb *urb)
 	struct wahc *wa;
 	struct device *dev;
 	struct wa_rpipe *rpipe;
-	unsigned rpipe_ready;
+	unsigned rpipe_ready = 0, seg_index, isoc_data_frame_count = 0;
 	unsigned long flags;
 	u8 done = 0;
 
@@ -2296,19 +2396,61 @@ static void wa_buf_in_cb(struct urb *urb)
 	kfree(urb->sg);
 	urb->sg = NULL;
 
+	spin_lock_irqsave(&xfer->lock, flags);
+	wa = xfer->wa;
+	dev = &wa->usb_iface->dev;
+
+	if (usb_pipeisoc(xfer->urb->pipe)) {
+		/*
+		 * Find the next isoc frame with data.  Bail out after
+		 * isoc_data_frame_count > 1 since there is no need to walk
+		 * the entire frame array.  We just need to know if
+		 * isoc_data_frame_count is 0, 1, or >1.
+		 */
+		seg_index = seg->isoc_frame_index + 1;
+		while ((seg_index < seg->isoc_frame_count)
+			&& (isoc_data_frame_count <= 1)) {
+			struct usb_iso_packet_descriptor *iso_frame_desc =
+				xfer->urb->iso_frame_desc;
+			const int urb_frame_index =
+				seg->isoc_frame_offset + seg_index;
+
+			if (iso_frame_desc[urb_frame_index].actual_length > 0) {
+				/* save the index of the next frame with data */
+				if (!isoc_data_frame_count)
+					seg->isoc_frame_index = seg_index;
+				++isoc_data_frame_count;
+			}
+			++seg_index;
+		}
+	}
+	spin_unlock_irqrestore(&xfer->lock, flags);
+
 	switch (urb->status) {
 	case 0:
 		spin_lock_irqsave(&xfer->lock, flags);
-		wa = xfer->wa;
-		dev = &wa->usb_iface->dev;
-		rpipe = xfer->ep->hcpriv;
-		dev_dbg(dev, "xfer %p#%u: data in done (%zu bytes)\n",
-			xfer, seg->index, (size_t)urb->actual_length);
-		seg->status = WA_SEG_DONE;
-		seg->result = urb->actual_length;
-		xfer->segs_done++;
-		rpipe_ready = rpipe_avail_inc(rpipe);
-		done = __wa_xfer_is_done(xfer);
+
+		seg->result += urb->actual_length;
+		if (isoc_data_frame_count > 0) {
+			int result;
+			/* submit a read URB for the first frame with data. */
+			__wa_populate_buf_in_urb_isoc(wa, xfer, seg,
+				seg->isoc_frame_index + seg->isoc_frame_offset);
+			result = usb_submit_urb(wa->buf_in_urb, GFP_ATOMIC);
+			if (result < 0) {
+				dev_err(dev, "DTI Error: Could not submit buf in URB (%d)",
+					result);
+				wa_reset_all(wa);
+			}
+		} else {
+			rpipe = xfer->ep->hcpriv;
+			seg->status = WA_SEG_DONE;
+			dev_dbg(dev, "xfer %p#%u: data in done (%zu bytes)\n",
+				xfer, seg->index, seg->result);
+			xfer->segs_done++;
+			rpipe_ready = rpipe_avail_inc(rpipe);
+			done = __wa_xfer_is_done(xfer);
+		}
 		spin_unlock_irqrestore(&xfer->lock, flags);
 		if (done)
 			wa_xfer_completion(xfer);
@@ -2320,8 +2462,6 @@ static void wa_buf_in_cb(struct urb *urb)
 		break;
 	default:		/* Other errors ... */
 		spin_lock_irqsave(&xfer->lock, flags);
-		wa = xfer->wa;
-		dev = &wa->usb_iface->dev;
 		rpipe = xfer->ep->hcpriv;
 		if (printk_ratelimit())
 			dev_err(dev, "xfer %p#%u: data in error %d\n",
@@ -2343,6 +2483,20 @@ static void wa_buf_in_cb(struct urb *urb)
 			wa_xfer_completion(xfer);
 		if (rpipe_ready)
 			wa_xfer_delayed_run(rpipe);
+	}
+	/*
+	 * If we are in this callback and isoc_data_frame_count > 0, it means
+	 * that the dti_urb submission was delayed in wa_dti_cb.  Once
+	 * isoc_data_frame_count gets to 1, we can submit the deferred URB
+	 * since the last buf_in_urb was just submitted.
+	 */
+	if (isoc_data_frame_count == 1) {
+		int result = usb_submit_urb(wa->dti_urb, GFP_ATOMIC);
+		if (result < 0) {
+			dev_err(dev, "DTI Error: Could not submit DTI URB (%d)\n",
+				result);
+			wa_reset_all(wa);
+		}
 	}
 }
 
@@ -2374,7 +2528,7 @@ static void wa_buf_in_cb(struct urb *urb)
  */
 static void wa_dti_cb(struct urb *urb)
 {
-	int result;
+	int result, dti_busy = 0;
 	struct wahc *wa = urb->context;
 	struct device *dev = &wa->usb_iface->dev;
 	u32 xfer_id;
@@ -2422,7 +2576,7 @@ static void wa_dti_cb(struct urb *urb)
 			wa_xfer_result_chew(wa, xfer, xfer_result);
 			wa_xfer_put(xfer);
 		} else if (wa->dti_state == WA_DTI_ISOC_PACKET_STATUS_PENDING) {
-			wa_process_iso_packet_status(wa, urb);
+			dti_busy = wa_process_iso_packet_status(wa, urb);
 		} else {
 			dev_err(dev, "DTI Error: unexpected EP state = %d\n",
 				wa->dti_state);
@@ -2445,12 +2599,15 @@ static void wa_dti_cb(struct urb *urb)
 			dev_err(dev, "DTI: URB error %d\n", urb->status);
 		break;
 	}
-	/* Resubmit the DTI URB */
-	result = usb_submit_urb(wa->dti_urb, GFP_ATOMIC);
-	if (result < 0) {
-		dev_err(dev, "DTI Error: Could not submit DTI URB (%d), "
-			"resetting\n", result);
-		wa_reset_all(wa);
+
+	/* Resubmit the DTI URB if we are not busy processing isoc in frames. */
+	if (!dti_busy) {
+		result = usb_submit_urb(wa->dti_urb, GFP_ATOMIC);
+		if (result < 0) {
+			dev_err(dev, "DTI Error: Could not submit DTI URB (%d)\n",
+				result);
+			wa_reset_all(wa);
+		}
 	}
 out:
 	return;
@@ -2517,8 +2674,8 @@ void wa_handle_notif_xfer(struct wahc *wa, struct wa_notif_hdr *notif_hdr)
 		NULL, 0, wa_buf_in_cb, wa);
 	result = usb_submit_urb(wa->dti_urb, GFP_KERNEL);
 	if (result < 0) {
-		dev_err(dev, "DTI Error: Could not submit DTI URB (%d), "
-			"resetting\n", result);
+		dev_err(dev, "DTI Error: Could not submit DTI URB (%d) resetting\n",
+			result);
 		goto error_dti_urb_submit;
 	}
 out:

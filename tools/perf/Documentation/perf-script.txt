@@ -115,7 +115,7 @@ OPTIONS
 -f::
 --fields::
         Comma separated list of fields to print. Options are:
-        comm, tid, pid, time, cpu, event, trace, ip, sym, dso, addr, symoff.
+        comm, tid, pid, time, cpu, event, trace, ip, sym, dso, addr, symoff, srcline.
         Field list can be prepended with the type, trace, sw or hw,
         to indicate to which event type the field list applies.
         e.g., -f sw:comm,tid,time,ip,sym  and -f trace:time,cpu,trace
@@ -202,6 +202,18 @@ OPTIONS
 
 --show-kernel-path::
 	Try to resolve the path of [kernel.kallsyms]
+
+--show-task-events
+	Display task related events (e.g. FORK, COMM, EXIT).
+
+--show-mmap-events
+	Display mmap related events (e.g. MMAP, MMAP2).
+
+--header
+	Show perf.data header.
+
+--header-only
+	Show only perf.data header.
 
 SEE ALSO
 --------

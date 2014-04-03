@@ -12,6 +12,7 @@
 #ifndef _SYSFS_H_
 #define _SYSFS_H_
 
+#include <linux/kernfs.h>
 #include <linux/compiler.h>
 #include <linux/errno.h>
 #include <linux/list.h>
@@ -175,8 +176,6 @@ struct sysfs_ops {
 	ssize_t	(*store)(struct kobject *, struct attribute *, const char *, size_t);
 };
 
-struct sysfs_dirent;
-
 #ifdef CONFIG_SYSFS
 
 int sysfs_schedule_callback(struct kobject *kobj, void (*func)(void *),
@@ -244,12 +243,6 @@ void sysfs_remove_link_from_group(struct kobject *kobj, const char *group_name,
 				  const char *link_name);
 
 void sysfs_notify(struct kobject *kobj, const char *dir, const char *attr);
-void sysfs_notify_dirent(struct sysfs_dirent *sd);
-struct sysfs_dirent *sysfs_get_dirent_ns(struct sysfs_dirent *parent_sd,
-					 const unsigned char *name,
-					 const void *ns);
-struct sysfs_dirent *sysfs_get(struct sysfs_dirent *sd);
-void sysfs_put(struct sysfs_dirent *sd);
 
 int __must_check sysfs_init(void);
 
@@ -419,22 +412,6 @@ static inline void sysfs_notify(struct kobject *kobj, const char *dir,
 				const char *attr)
 {
 }
-static inline void sysfs_notify_dirent(struct sysfs_dirent *sd)
-{
-}
-static inline struct sysfs_dirent *
-sysfs_get_dirent_ns(struct sysfs_dirent *parent_sd, const unsigned char *name,
-		    const void *ns)
-{
-	return NULL;
-}
-static inline struct sysfs_dirent *sysfs_get(struct sysfs_dirent *sd)
-{
-	return NULL;
-}
-static inline void sysfs_put(struct sysfs_dirent *sd)
-{
-}
 
 static inline int __must_check sysfs_init(void)
 {
@@ -461,10 +438,26 @@ static inline int sysfs_rename_link(struct kobject *kobj, struct kobject *target
 	return sysfs_rename_link_ns(kobj, target, old_name, new_name, NULL);
 }
 
-static inline struct sysfs_dirent *
-sysfs_get_dirent(struct sysfs_dirent *parent_sd, const unsigned char *name)
+static inline void sysfs_notify_dirent(struct kernfs_node *kn)
 {
-	return sysfs_get_dirent_ns(parent_sd, name, NULL);
+	kernfs_notify(kn);
+}
+
+static inline struct kernfs_node *sysfs_get_dirent(struct kernfs_node *parent,
+						   const unsigned char *name)
+{
+	return kernfs_find_and_get(parent, name);
+}
+
+static inline struct kernfs_node *sysfs_get(struct kernfs_node *kn)
+{
+	kernfs_get(kn);
+	return kn;
+}
+
+static inline void sysfs_put(struct kernfs_node *kn)
+{
+	kernfs_put(kn);
 }
 
 #endif /* _SYSFS_H_ */

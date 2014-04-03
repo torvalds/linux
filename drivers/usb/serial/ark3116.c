@@ -23,7 +23,6 @@
  */
 
 #include <linux/kernel.h>
-#include <linux/init.h>
 #include <linux/ioctl.h>
 #include <linux/tty.h>
 #include <linux/slab.h>
@@ -71,7 +70,7 @@ struct ark3116_private {
 	__u32			lcr;	/* line control register value */
 	__u32			hcr;	/* handshake control register (0x8)
 					 * value */
-	__u32			mcr;	/* modem contol register value */
+	__u32			mcr;	/* modem control register value */
 
 	/* protects the status values below */
 	spinlock_t		status_lock;
@@ -609,7 +608,7 @@ static void ark3116_read_int_callback(struct urb *urb)
 }
 
 
-/* Data comes in via the bulk (data) URB, erors/interrupts via the int URB.
+/* Data comes in via the bulk (data) URB, errors/interrupts via the int URB.
  * This means that we cannot be sure which data byte has an associated error
  * condition, so we report an error for all data in the next bulk read.
  *

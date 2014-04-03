@@ -31,7 +31,7 @@
 #define Bit(_b) (1 << (_b))
 
 #define OCRDMA_GEN1_FAMILY	0xB
-#define OCRDMA_GEN2_FAMILY	0x2
+#define OCRDMA_GEN2_FAMILY	0x0F
 
 #define OCRDMA_SUBSYS_ROCE 10
 enum {
@@ -1694,7 +1694,7 @@ struct ocrdma_grh {
 	u16	rsvd;
 } __packed;
 
-#define OCRDMA_AV_VALID		Bit(0)
+#define OCRDMA_AV_VALID		Bit(7)
 #define OCRDMA_AV_VLAN_VALID	Bit(1)
 
 struct ocrdma_av {

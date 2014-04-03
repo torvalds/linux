@@ -121,8 +121,8 @@ void ODM_MacStatusQuery(struct odm_dm_struct *pDM_Odm,
 			bool	bPacketBeacon);
 
 enum HAL_STATUS ODM_ConfigRFWithHeaderFile(struct odm_dm_struct *pDM_Odm,
-					   enum ODM_RF_RADIO_PATH Content,
-					   enum ODM_RF_RADIO_PATH eRFPath);
+					   enum rf_radio_path Content,
+					   enum rf_radio_path eRFPath);
 
 enum HAL_STATUS ODM_ConfigBBWithHeaderFile(struct odm_dm_struct *pDM_Odm,
 					   enum odm_bb_config_type ConfigType);

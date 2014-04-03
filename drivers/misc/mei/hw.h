@@ -111,7 +111,8 @@ struct mei_msg_hdr {
 	u32 me_addr:8;
 	u32 host_addr:8;
 	u32 length:9;
-	u32 reserved:6;
+	u32 reserved:5;
+	u32 internal:1;
 	u32 msg_complete:1;
 } __packed;
 

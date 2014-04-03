@@ -25,7 +25,6 @@
 #include <asm/mach/map.h>
 
 #include "setup.h"
-#include "devices.h"
 
 #include "board-mop500.h"
 #include "db8500-regs.h"
@@ -64,12 +63,7 @@ void __init ux500_init_irq(void)
 	} else
 		ux500_unknown_soc();
 
-#ifdef CONFIG_OF
-	if (of_have_populated_dt())
-		irqchip_init();
-	else
-#endif
-		gic_init(0, 29, dist_base, cpu_base);
+	irqchip_init();
 
 	/*
 	 * Init clocks here so that they are available for system timer
@@ -79,16 +73,11 @@ void __init ux500_init_irq(void)
 		prcmu_early_init(U8500_PRCMU_BASE, SZ_8K - 1);
 		ux500_pm_init(U8500_PRCMU_BASE, SZ_8K - 1);
 
-		if (of_have_populated_dt())
-			u8500_of_clk_init(U8500_CLKRST1_BASE,
-					  U8500_CLKRST2_BASE,
-					  U8500_CLKRST3_BASE,
-					  U8500_CLKRST5_BASE,
-					  U8500_CLKRST6_BASE);
-		else
-			u8500_clk_init(U8500_CLKRST1_BASE, U8500_CLKRST2_BASE,
-				       U8500_CLKRST3_BASE, U8500_CLKRST5_BASE,
-				       U8500_CLKRST6_BASE);
+		u8500_of_clk_init(U8500_CLKRST1_BASE,
+				  U8500_CLKRST2_BASE,
+				  U8500_CLKRST3_BASE,
+				  U8500_CLKRST5_BASE,
+				  U8500_CLKRST6_BASE);
 	} else if (cpu_is_u9540()) {
 		prcmu_early_init(U8500_PRCMU_BASE, SZ_8K - 1);
 		ux500_pm_init(U8500_PRCMU_BASE, SZ_8K - 1);

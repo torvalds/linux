@@ -99,6 +99,7 @@ struct fsnotify_group *fsnotify_alloc_group(const struct fsnotify_ops *ops)
 	INIT_LIST_HEAD(&group->marks_list);
 
 	group->ops = ops;
+	fsnotify_init_event(&group->overflow_event, NULL, FS_Q_OVERFLOW);
 
 	return group;
 }

@@ -14,8 +14,6 @@
 #include <asm/thread_notify.h>
 #include <asm/v7m.h>
 
-#include <mach/entry-macro.S>
-
 #include "entry-header.S"
 
 #ifdef CONFIG_TRACE_IRQFLAGS

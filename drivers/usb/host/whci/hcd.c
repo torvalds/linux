@@ -293,6 +293,7 @@ static int whc_probe(struct umc_dev *umc)
 		dev_err(dev, "cannot add HCD: %d\n", ret);
 		goto error_usb_add_hcd;
 	}
+	device_wakeup_enable(usb_hcd->self.controller);
 
 	ret = wusbhc_b_create(wusbhc);
 	if (ret) {

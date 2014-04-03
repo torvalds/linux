@@ -223,8 +223,7 @@ static void __init of_psc_clk_init(struct device_node *node, spinlock_t *lock)
 	data->domain_base = of_iomap(node, i);
 	if (!data->domain_base) {
 		pr_err("%s: domain ioremap failed\n", __func__);
-		iounmap(data->control_base);
-		goto out;
+		goto unmap_ctrl;
 	}
 
 	of_property_read_u32(node, "domain-id", &data->domain_id);
@@ -237,16 +236,21 @@ static void __init of_psc_clk_init(struct device_node *node, spinlock_t *lock)
 	parent_name = of_clk_get_parent_name(node, 0);
 	if (!parent_name) {
 		pr_err("%s: Parent clock not found\n", __func__);
-		goto out;
+		goto unmap_domain;
 	}
 
 	clk = clk_register_psc(NULL, clk_name, parent_name, data, lock);
-	if (clk) {
+	if (!IS_ERR(clk)) {
 		of_clk_add_provider(node, of_clk_src_simple_get, clk);
 		return;
 	}
 
 	pr_err("%s: error registering clk %s\n", __func__, node->name);
+
+unmap_domain:
+	iounmap(data->domain_base);
+unmap_ctrl:
+	iounmap(data->control_base);
 out:
 	kfree(data);
 	return;

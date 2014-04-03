@@ -704,7 +704,7 @@ struct sk_buff *ip_check_defrag(struct sk_buff *skb, u32 user)
 			memset(IPCB(skb), 0, sizeof(struct inet_skb_parm));
 			if (ip_defrag(skb, user))
 				return NULL;
-			skb->rxhash = 0;
+			skb_clear_hash(skb);
 		}
 	}
 	return skb;

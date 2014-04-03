@@ -100,7 +100,8 @@ static int jornada_lcd_probe(struct platform_device *pdev)
 	struct lcd_device *lcd_device;
 	int ret;
 
-	lcd_device = lcd_device_register(S1D_DEVICENAME, &pdev->dev, NULL, &jornada_lcd_props);
+	lcd_device = devm_lcd_device_register(&pdev->dev, S1D_DEVICENAME,
+					&pdev->dev, NULL, &jornada_lcd_props);
 
 	if (IS_ERR(lcd_device)) {
 		ret = PTR_ERR(lcd_device);
@@ -119,18 +120,8 @@ static int jornada_lcd_probe(struct platform_device *pdev)
 	return 0;
 }
 
-static int jornada_lcd_remove(struct platform_device *pdev)
-{
-	struct lcd_device *lcd_device = platform_get_drvdata(pdev);
-
-	lcd_device_unregister(lcd_device);
-
-	return 0;
-}
-
 static struct platform_driver jornada_lcd_driver = {
 	.probe	= jornada_lcd_probe,
-	.remove	= jornada_lcd_remove,
 	.driver	= {
 		.name	= "jornada_lcd",
 	},

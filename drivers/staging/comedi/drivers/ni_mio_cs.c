@@ -47,8 +47,6 @@ See the notes in the ni_atmio.o driver.
 #include <pcmcia/cistpl.h>
 #include <pcmcia/ds.h>
 
-#undef DEBUG
-
 #define ATMIO 1
 #undef PCIMIO
 

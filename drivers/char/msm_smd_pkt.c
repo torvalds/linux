@@ -182,7 +182,7 @@ static int smd_pkt_write(struct file *file, const char __user *buf,
 	if (count > MAX_BUF_SIZE)
 		return -EINVAL;
 
-	DBG("writting %d bytes\n", count);
+	DBG("writing %d bytes\n", count);
 
 	smd_pkt_devp = file->private_data;
 	if (!smd_pkt_devp || !smd_pkt_devp->ch)

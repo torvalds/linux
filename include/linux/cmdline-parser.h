@@ -37,9 +37,9 @@ int cmdline_parts_parse(struct cmdline_parts **parts, const char *cmdline);
 struct cmdline_parts *cmdline_parts_find(struct cmdline_parts *parts,
 					 const char *bdev);
 
-void cmdline_parts_set(struct cmdline_parts *parts, sector_t disk_size,
-		       int slot,
-		       int (*add_part)(int, struct cmdline_subpart *, void *),
-		       void *param);
+int cmdline_parts_set(struct cmdline_parts *parts, sector_t disk_size,
+		      int slot,
+		      int (*add_part)(int, struct cmdline_subpart *, void *),
+		      void *param);
 
 #endif /* CMDLINEPARSEH */

@@ -1,0 +1,6 @@
+initrd
+linux-2.6
+b[0-9]*
+rcu-test-image
+res
+*.swp

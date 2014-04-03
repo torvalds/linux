@@ -86,11 +86,21 @@ static inline long ldsem_atomic_update(long delta, struct ld_semaphore *sem)
 	return atomic_long_add_return(delta, (atomic_long_t *)&sem->count);
 }
 
+/*
+ * ldsem_cmpxchg() updates @*old with the last-known sem->count value.
+ * Returns 1 if count was successfully changed; @*old will have @new value.
+ * Returns 0 if count was not changed; @*old will have most recent sem->count
+ */
 static inline int ldsem_cmpxchg(long *old, long new, struct ld_semaphore *sem)
 {
-	long tmp = *old;
-	*old = atomic_long_cmpxchg(&sem->count, *old, new);
-	return *old == tmp;
+	long tmp = atomic_long_cmpxchg(&sem->count, *old, new);
+	if (tmp == *old) {
+		*old = new;
+		return 1;
+	} else {
+		*old = tmp;
+		return 0;
+	}
 }
 
 /*

@@ -28,10 +28,8 @@
 #include <linux/module.h>
 #include <linux/types.h>
 #include <linux/syscore_ops.h>
-#include <acpi/acpi_bus.h>
-#include <acpi/acpi_drivers.h>
+#include <linux/acpi.h>
 #include <acpi/processor.h>
-
 #include <xen/xen.h>
 #include <xen/interface/platform.h>
 #include <asm/xen/hypercall.h>

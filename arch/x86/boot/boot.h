@@ -26,9 +26,8 @@
 #include <asm/boot.h>
 #include <asm/setup.h>
 #include "bitops.h"
-#include <asm/cpufeature.h>
-#include <asm/processor-flags.h>
 #include "ctype.h"
+#include "cpuflags.h"
 
 /* Useful macros */
 #define BUILD_BUG_ON(condition) ((void)sizeof(char[1 - 2*!!(condition)]))
@@ -307,14 +306,7 @@ static inline int cmdline_find_option_bool(const char *option)
 	return __cmdline_find_option_bool(cmd_line_ptr, option);
 }
 
-
 /* cpu.c, cpucheck.c */
-struct cpu_features {
-	int level;		/* Family, or 64 for x86-64 */
-	int model;
-	u32 flags[NCAPINTS];
-};
-extern struct cpu_features cpu;
 int check_cpu(int *cpu_level_ptr, int *req_level_ptr, u32 **err_flags_ptr);
 int validate_cpu(void);
 

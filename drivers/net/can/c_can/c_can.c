@@ -808,17 +808,19 @@ static int c_can_do_rx_poll(struct net_device *dev, int quota)
 	u32 num_rx_pkts = 0;
 	unsigned int msg_obj, msg_ctrl_save;
 	struct c_can_priv *priv = netdev_priv(dev);
-	u32 val = c_can_read_reg32(priv, C_CAN_INTPND1_REG);
+	u16 val;
 
-	for (msg_obj = C_CAN_MSG_OBJ_RX_FIRST;
-			msg_obj <= C_CAN_MSG_OBJ_RX_LAST && quota > 0;
-			val = c_can_read_reg32(priv, C_CAN_INTPND1_REG),
-			msg_obj++) {
-		/*
-		 * as interrupt pending register's bit n-1 corresponds to
-		 * message object n, we need to handle the same properly.
-		 */
-		if (val & (1 << (msg_obj - 1))) {
+	/*
+	 * It is faster to read only one 16bit register. This is only possible
+	 * for a maximum number of 16 objects.
+	 */
+	BUILD_BUG_ON_MSG(C_CAN_MSG_OBJ_RX_LAST > 16,
+			"Implementation does not support more message objects than 16");
+
+	while (quota > 0 && (val = priv->read_reg(priv, C_CAN_INTPND1_REG))) {
+		while ((msg_obj = ffs(val)) && quota > 0) {
+			val &= ~BIT(msg_obj - 1);
+
 			c_can_object_get(dev, 0, msg_obj, IF_COMM_ALL &
 					~IF_COMM_TXRQST);
 			msg_ctrl_save = priv->read_reg(priv,

@@ -1,4 +1,4 @@
-/* Copyright (C) 2007-2013 B.A.T.M.A.N. contributors:
+/* Copyright (C) 2007-2014 B.A.T.M.A.N. contributors:
  *
  * Marek Lindner
  *
@@ -12,9 +12,7 @@
  * General Public License for more details.
  *
  * You should have received a copy of the GNU General Public License
- * along with this program; if not, write to the Free Software
- * Foundation, Inc., 51 Franklin Street, Fifth Floor, Boston, MA
- * 02110-1301, USA
+ * along with this program; if not, see <http://www.gnu.org/licenses/>.
  */
 
 #include "main.h"
@@ -194,7 +192,7 @@ static ssize_t batadv_socket_write(struct file *file, const char __user *buff,
 		goto free_skb;
 	}
 
-	if (icmp_header->header.packet_type != BATADV_ICMP) {
+	if (icmp_header->packet_type != BATADV_ICMP) {
 		batadv_dbg(BATADV_DBG_BATMAN, bat_priv,
 			   "Error - can't send packet from char device: got bogus packet type (expected: BAT_ICMP)\n");
 		len = -EINVAL;
@@ -217,7 +215,8 @@ static ssize_t batadv_socket_write(struct file *file, const char __user *buff,
 		if (!orig_node)
 			goto dst_unreach;
 
-		neigh_node = batadv_orig_node_get_router(orig_node);
+		neigh_node = batadv_orig_router_get(orig_node,
+						    BATADV_IF_DEFAULT);
 		if (!neigh_node)
 			goto dst_unreach;
 
@@ -243,9 +242,9 @@ static ssize_t batadv_socket_write(struct file *file, const char __user *buff,
 
 	icmp_header->uid = socket_client->index;
 
-	if (icmp_header->header.version != BATADV_COMPAT_VERSION) {
+	if (icmp_header->version != BATADV_COMPAT_VERSION) {
 		icmp_header->msg_type = BATADV_PARAMETER_PROBLEM;
-		icmp_header->header.version = BATADV_COMPAT_VERSION;
+		icmp_header->version = BATADV_COMPAT_VERSION;
 		batadv_socket_add_packet(socket_client, icmp_header,
 					 packet_len);
 		goto free_skb;

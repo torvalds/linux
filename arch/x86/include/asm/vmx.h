@@ -100,6 +100,7 @@
 
 #define VMX_MISC_PREEMPTION_TIMER_RATE_MASK	0x0000001f
 #define VMX_MISC_SAVE_EFER_LMA			0x00000020
+#define VMX_MISC_ACTIVITY_HLT			0x00000040
 
 /* VMCS Encodings */
 enum vmcs_field {

@@ -33,8 +33,12 @@ struct rd_dev {
 	u32		rd_page_count;
 	/* Number of SG tables in sg_table_array */
 	u32		sg_table_count;
+	/* Number of SG tables in sg_prot_array */
+	u32		sg_prot_count;
 	/* Array of rd_dev_sg_table_t containing scatterlists */
 	struct rd_dev_sg_table *sg_table_array;
+	/* Array of rd_dev_sg_table containing protection scatterlists */
+	struct rd_dev_sg_table *sg_prot_array;
 	/* Ramdisk HBA device is connected to */
 	struct rd_host *rd_host;
 } ____cacheline_aligned;

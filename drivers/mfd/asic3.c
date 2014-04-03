@@ -695,7 +695,7 @@ static int ds1wm_disable(struct platform_device *pdev)
 	return 0;
 }
 
-static struct mfd_cell asic3_cell_ds1wm = {
+static const struct mfd_cell asic3_cell_ds1wm = {
 	.name          = "ds1wm",
 	.enable        = ds1wm_enable,
 	.disable       = ds1wm_disable,
@@ -797,7 +797,7 @@ static int asic3_mmc_disable(struct platform_device *pdev)
 	return 0;
 }
 
-static struct mfd_cell asic3_cell_mmc = {
+static const struct mfd_cell asic3_cell_mmc = {
 	.name          = "tmio-mmc",
 	.enable        = asic3_mmc_enable,
 	.disable       = asic3_mmc_disable,

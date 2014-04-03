@@ -222,7 +222,7 @@ void cirrus_fbdev_fini(struct cirrus_device *cdev);
 void cirrus_driver_irq_preinstall(struct drm_device *dev);
 int cirrus_driver_irq_postinstall(struct drm_device *dev);
 void cirrus_driver_irq_uninstall(struct drm_device *dev);
-irqreturn_t cirrus_driver_irq_handler(DRM_IRQ_ARGS);
+irqreturn_t cirrus_driver_irq_handler(int irq, void *arg);
 
 				/* cirrus_kms.c */
 int cirrus_driver_load(struct drm_device *dev, unsigned long flags);

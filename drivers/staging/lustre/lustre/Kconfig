@@ -55,6 +55,6 @@ config LUSTRE_TRANSLATE_ERRNOS
 	default y
 
 config LUSTRE_LLITE_LLOOP
-	bool "Lustre virtual block device"
+	tristate "Lustre virtual block device"
 	depends on LUSTRE_FS && BLOCK
 	default m

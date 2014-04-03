@@ -115,9 +115,10 @@ static int jornada_bl_probe(struct platform_device *pdev)
 	memset(&props, 0, sizeof(struct backlight_properties));
 	props.type = BACKLIGHT_RAW;
 	props.max_brightness = BL_MAX_BRIGHT;
-	bd = backlight_device_register(S1D_DEVICENAME, &pdev->dev, NULL,
-				       &jornada_bl_ops, &props);
 
+	bd = devm_backlight_device_register(&pdev->dev, S1D_DEVICENAME,
+					&pdev->dev, NULL, &jornada_bl_ops,
+					&props);
 	if (IS_ERR(bd)) {
 		ret = PTR_ERR(bd);
 		dev_err(&pdev->dev, "failed to register device, err=%x\n", ret);
@@ -139,18 +140,8 @@ static int jornada_bl_probe(struct platform_device *pdev)
 	return 0;
 }
 
-static int jornada_bl_remove(struct platform_device *pdev)
-{
-	struct backlight_device *bd = platform_get_drvdata(pdev);
-
-	backlight_device_unregister(bd);
-
-	return 0;
-}
-
 static struct platform_driver jornada_bl_driver = {
 	.probe		= jornada_bl_probe,
-	.remove		= jornada_bl_remove,
 	.driver	= {
 		.name	= "jornada_bl",
 	},

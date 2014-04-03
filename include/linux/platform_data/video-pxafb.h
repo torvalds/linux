@@ -1,6 +1,4 @@
 /*
- *  arch/arm/mach-pxa/include/mach/pxafb.h
- *
  *  Support for the xscale frame buffer.
  *
  *  Author:     Jean-Frederic Clere

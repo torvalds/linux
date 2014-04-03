@@ -237,7 +237,7 @@ void uwb_rsv_backoff_win_increment(struct uwb_rc *rc)
 	/* reset the timer associated variables */
 	timeout_us = bow->n * UWB_SUPERFRAME_LENGTH_US;
 	bow->total_expired = 0;
-	mod_timer(&bow->timer, jiffies + usecs_to_jiffies(timeout_us));		
+	mod_timer(&bow->timer, jiffies + usecs_to_jiffies(timeout_us));
 }
 
 static void uwb_rsv_stroke_timer(struct uwb_rsv *rsv)
@@ -257,7 +257,7 @@ static void uwb_rsv_stroke_timer(struct uwb_rsv *rsv)
 			sframes = 1;
 		if (rsv->state == UWB_RSV_STATE_O_ESTABLISHED)
 			sframes = 0;
-		
+
 	}
 
 	if (sframes > 0) {
@@ -611,7 +611,7 @@ int uwb_rsv_try_move(struct uwb_rsv *rsv, struct uwb_mas_bm *available)
 	struct device *dev = &rc->uwb_dev.dev;
 	struct uwb_rsv_move *mv;
 	int ret = 0;
- 
+
 	if (bow->can_reserve_extra_mases == false)
 		return -EBUSY;
 
@@ -628,7 +628,7 @@ int uwb_rsv_try_move(struct uwb_rsv *rsv, struct uwb_mas_bm *available)
 	} else {
 		dev_dbg(dev, "new allocation not found\n");
 	}
-	
+
 	return ret;
 }
 
@@ -640,7 +640,7 @@ void uwb_rsv_handle_drp_avail_change(struct uwb_rc *rc)
 	struct uwb_drp_backoff_win *bow = &rc->bow;
 	struct uwb_rsv *rsv;
 	struct uwb_mas_bm mas;
-	
+
 	if (bow->can_reserve_extra_mases == false)
 		return;
 
@@ -652,7 +652,7 @@ void uwb_rsv_handle_drp_avail_change(struct uwb_rc *rc)
 			uwb_rsv_try_move(rsv, &mas);
 		}
 	}
-	
+
 }
 
 /**
@@ -916,10 +916,10 @@ static void uwb_rsv_alien_bp_work(struct work_struct *work)
 	struct uwb_rsv *rsv;
 
 	mutex_lock(&rc->rsvs_mutex);
-	
+
 	list_for_each_entry(rsv, &rc->reservations, rc_node) {
 		if (rsv->type != UWB_DRP_TYPE_ALIEN_BP) {
-			rsv->callback(rsv);
+			uwb_rsv_callback(rsv);
 		}
 	}
 

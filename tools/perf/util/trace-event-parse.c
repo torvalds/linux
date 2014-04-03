@@ -28,19 +28,6 @@
 #include "util.h"
 #include "trace-event.h"
 
-struct pevent *read_trace_init(int file_bigendian, int host_bigendian)
-{
-	struct pevent *pevent = pevent_alloc();
-
-	if (pevent != NULL) {
-		pevent_set_flag(pevent, PEVENT_NSEC_OUTPUT);
-		pevent_set_file_bigendian(pevent, file_bigendian);
-		pevent_set_host_bigendian(pevent, host_bigendian);
-	}
-
-	return pevent;
-}
-
 static int get_common_field(struct scripting_context *context,
 			    int *offset, int *size, const char *type)
 {

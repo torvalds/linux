@@ -381,17 +381,7 @@ static int arc_emac_open(struct net_device *ndev)
 	phy_dev->autoneg = AUTONEG_ENABLE;
 	phy_dev->speed = 0;
 	phy_dev->duplex = 0;
-	phy_dev->advertising = phy_dev->supported;
-
-	if (priv->max_speed > 100) {
-		phy_dev->advertising &= PHY_GBIT_FEATURES;
-	} else if (priv->max_speed <= 100) {
-		phy_dev->advertising &= PHY_BASIC_FEATURES;
-		if (priv->max_speed <= 10) {
-			phy_dev->advertising &= ~SUPPORTED_100baseT_Half;
-			phy_dev->advertising &= ~SUPPORTED_100baseT_Full;
-		}
-	}
+	phy_dev->advertising &= phy_dev->supported;
 
 	priv->last_rx_bd = 0;
 
@@ -565,6 +555,8 @@ static int arc_emac_tx(struct sk_buff *skb, struct net_device *ndev)
 	/* Make sure pointer to data buffer is set */
 	wmb();
 
+	skb_tx_timestamp(skb);
+
 	*info = cpu_to_le32(FOR_EMAC | FIRST_OR_LAST_MASK | len);
 
 	/* Increment index to point to the next BD */
@@ -578,8 +570,6 @@ static int arc_emac_tx(struct sk_buff *skb, struct net_device *ndev)
 		netif_stop_queue(ndev);
 
 	arc_reg_set(priv, R_STATUS, TXPL_MASK);
-
-	skb_tx_timestamp(skb);
 
 	return NETDEV_TX_OK;
 }
@@ -703,14 +693,6 @@ static int arc_emac_probe(struct platform_device *pdev)
 
 	/* Set poll rate so that it polls every 1 ms */
 	arc_reg_set(priv, R_POLLRATE, clock_frequency / 1000000);
-
-	/* Get max speed of operation from device tree */
-	if (of_property_read_u32(pdev->dev.of_node, "max-speed",
-				 &priv->max_speed)) {
-		dev_err(&pdev->dev, "failed to retrieve <max-speed> from device tree\n");
-		err = -EINVAL;
-		goto out;
-	}
 
 	ndev->irq = irq;
 	dev_info(&pdev->dev, "IRQ is %d\n", ndev->irq);

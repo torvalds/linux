@@ -1,7 +1,7 @@
 /*
  * bq2415x charger driver
  *
- * Copyright (C) 2011-2012  Pali Rohár <pali.rohar@gmail.com>
+ * Copyright (C) 2011-2013  Pali Rohár <pali.rohar@gmail.com>
  *
  * This program is free software; you can redistribute it and/or modify
  * it under the terms of the GNU General Public License as published by
@@ -31,46 +31,9 @@
  * termination current. It it is less or equal to zero, configuring charge
  * and termination current will not be possible.
  *
- * Function set_mode_hook is needed for automode (setting correct current
- * limit when charger is connected/disconnected or setting boost mode).
- * When is NULL, automode function is disabled. When is not NULL, it must
- * have this prototype:
- *
- *    int (*set_mode_hook)(
- *      void (*hook)(enum bq2415x_mode mode, void *data),
- *      void *data)
- *
- * hook is hook function (see below) and data is pointer to driver private
- * data
- *
- * bq2415x driver will call it as:
- *
- *    platform_data->set_mode_hook(bq2415x_hook_function, bq2415x_device);
- *
- * Board/platform function set_mode_hook return non zero value when hook
- * function was successful registered. Platform code should call that hook
- * function (which get from pointer, with data) every time when charger
- * was connected/disconnected or require to enable boost mode. bq2415x
- * driver then will set correct current limit, enable/disable charger or
- * boost mode.
- *
- * Hook function has this prototype:
- *
- *    void hook(enum bq2415x_mode mode, void *data);
- *
- * mode is bq2415x mode (charger or boost)
- * data is pointer to driver private data (which get from
- * set_charger_type_hook)
- *
- * When bq driver is being unloaded, it call function:
- *
- *    platform_data->set_mode_hook(NULL, NULL);
- *
- * (hook function and driver private data are NULL)
- *
- * After that board/platform code must not call driver hook function! It
- * is possible that pointer to hook function will not be valid and calling
- * will cause undefined result.
+ * For automode support is needed to provide name of power supply device
+ * in value notify_device. Device driver must immediately report property
+ * POWER_SUPPLY_PROP_CURRENT_MAX when current changed.
  */
 
 /* Supported modes with maximal current limit */
@@ -89,8 +52,7 @@ struct bq2415x_platform_data {
 	int charge_current;		/* mA */
 	int termination_current;	/* mA */
 	int resistor_sense;		/* m ohm */
-	int (*set_mode_hook)(void (*hook)(enum bq2415x_mode mode, void *data),
-			     void *data);
+	const char *notify_device;	/* name */
 };
 
 #endif

@@ -162,6 +162,14 @@ extern struct list_head net_namespace_list;
 struct net *get_net_ns_by_pid(pid_t pid);
 struct net *get_net_ns_by_fd(int pid);
 
+#ifdef CONFIG_SYSCTL
+void ipx_register_sysctl(void);
+void ipx_unregister_sysctl(void);
+#else
+#define ipx_register_sysctl()
+#define ipx_unregister_sysctl()
+#endif
+
 #ifdef CONFIG_NET_NS
 void __put_net(struct net *net);
 

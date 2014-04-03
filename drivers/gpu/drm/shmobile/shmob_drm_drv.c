@@ -336,7 +336,9 @@ static int shmob_drm_probe(struct platform_device *pdev)
 
 static int shmob_drm_remove(struct platform_device *pdev)
 {
-	drm_platform_exit(&shmob_drm_driver, pdev);
+	struct shmob_drm_device *sdev = platform_get_drvdata(pdev);
+
+	drm_put_dev(sdev->ddev);
 
 	return 0;
 }

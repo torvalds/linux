@@ -324,8 +324,8 @@ static struct inode *befs_iget(struct super_block *sb, unsigned long ino)
 	befs_debug(sb, "---> befs_read_inode() " "inode = %lu", ino);
 
 	inode = iget_locked(sb, ino);
-	if (IS_ERR(inode))
-		return inode;
+	if (!inode)
+		return ERR_PTR(-ENOMEM);
 	if (!(inode->i_state & I_NEW))
 		return inode;
 

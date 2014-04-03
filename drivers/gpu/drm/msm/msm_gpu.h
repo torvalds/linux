@@ -78,14 +78,18 @@ struct msm_gpu {
 	void __iomem *mmio;
 	int irq;
 
-	struct iommu_domain *iommu;
+	struct msm_mmu *mmu;
 	int id;
 
 	/* Power Control: */
 	struct regulator *gpu_reg, *gpu_cx;
 	struct clk *ebi1_clk, *grp_clks[5];
 	uint32_t fast_rate, slow_rate, bus_freq;
+
+#ifdef CONFIG_MSM_BUS_SCALING
+	struct msm_bus_scale_pdata *bus_scale_table;
 	uint32_t bsc;
+#endif
 
 	/* Hang Detction: */
 #define DRM_MSM_HANGCHECK_PERIOD 500 /* in ms */

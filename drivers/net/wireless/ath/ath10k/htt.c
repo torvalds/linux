@@ -104,8 +104,8 @@ err_htc_attach:
 
 static int ath10k_htt_verify_version(struct ath10k_htt *htt)
 {
-	ath10k_info("htt target version %d.%d\n",
-		    htt->target_version_major, htt->target_version_minor);
+	ath10k_dbg(ATH10K_DBG_BOOT, "htt target version %d.%d\n",
+		   htt->target_version_major, htt->target_version_minor);
 
 	if (htt->target_version_major != 2 &&
 	    htt->target_version_major != 3) {

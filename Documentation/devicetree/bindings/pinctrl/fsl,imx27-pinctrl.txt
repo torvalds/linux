@@ -52,12 +52,25 @@ Required properties for pin configuration node:
   CONFIG can be 0 or 1, meaning Pullup disable/enable.
 
 
+The iomux controller has gpio child nodes which are embedded in the iomux
+control registers. They have to be defined as child nodes of the iomux device
+node. If gpio subnodes are defined "#address-cells", "#size-cells" and "ranges"
+properties for the iomux device node are required.
 
 Example:
 
 iomuxc: iomuxc@10015000 {
 	compatible = "fsl,imx27-iomuxc";
 	reg = <0x10015000 0x600>;
+	#address-cells = <1>;
+	#size-cells = <1>;
+	ranges;
+
+	gpio1: gpio@10015000 {
+		...
+	};
+
+	...
 
 	uart {
 		pinctrl_uart1: uart-1 {
@@ -83,6 +96,15 @@ The above example using macros:
 iomuxc: iomuxc@10015000 {
 	compatible = "fsl,imx27-iomuxc";
 	reg = <0x10015000 0x600>;
+	#address-cells = <1>;
+	#size-cells = <1>;
+	ranges;
+
+	gpio1: gpio@10015000 {
+		...
+	};
+
+	...
 
 	uart {
 		pinctrl_uart1: uart-1 {

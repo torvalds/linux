@@ -51,7 +51,7 @@ static int find_comm(struct perf_evlist *evlist, const char *comm)
  */
 int test__keep_tracking(void)
 {
-	struct perf_record_opts opts = {
+	struct record_opts opts = {
 		.mmap_pages	     = UINT_MAX,
 		.user_freq	     = UINT_MAX,
 		.user_interval	     = ULLONG_MAX,
@@ -142,14 +142,11 @@ int test__keep_tracking(void)
 out_err:
 	if (evlist) {
 		perf_evlist__disable(evlist);
-		perf_evlist__munmap(evlist);
-		perf_evlist__close(evlist);
 		perf_evlist__delete(evlist);
-	}
-	if (cpus)
+	} else {
 		cpu_map__delete(cpus);
-	if (threads)
 		thread_map__delete(threads);
+	}
 
 	return err;
 }

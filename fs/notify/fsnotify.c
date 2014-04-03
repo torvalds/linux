@@ -128,8 +128,7 @@ static int send_to_group(struct inode *to_tell,
 			 struct fsnotify_mark *vfsmount_mark,
 			 __u32 mask, void *data,
 			 int data_is, u32 cookie,
-			 const unsigned char *file_name,
-			 struct fsnotify_event **event)
+			 const unsigned char *file_name)
 {
 	struct fsnotify_group *group = NULL;
 	__u32 inode_test_mask = 0;
@@ -170,27 +169,17 @@ static int send_to_group(struct inode *to_tell,
 
 	pr_debug("%s: group=%p to_tell=%p mask=%x inode_mark=%p"
 		 " inode_test_mask=%x vfsmount_mark=%p vfsmount_test_mask=%x"
-		 " data=%p data_is=%d cookie=%d event=%p\n",
+		 " data=%p data_is=%d cookie=%d\n",
 		 __func__, group, to_tell, mask, inode_mark,
 		 inode_test_mask, vfsmount_mark, vfsmount_test_mask, data,
-		 data_is, cookie, *event);
+		 data_is, cookie);
 
 	if (!inode_test_mask && !vfsmount_test_mask)
 		return 0;
 
-	if (group->ops->should_send_event(group, to_tell, inode_mark,
-					  vfsmount_mark, mask, data,
-					  data_is) == false)
-		return 0;
-
-	if (!*event) {
-		*event = fsnotify_create_event(to_tell, mask, data,
-						data_is, file_name,
-						cookie, GFP_KERNEL);
-		if (!*event)
-			return -ENOMEM;
-	}
-	return group->ops->handle_event(group, inode_mark, vfsmount_mark, *event);
+	return group->ops->handle_event(group, to_tell, inode_mark,
+					vfsmount_mark, mask, data, data_is,
+					file_name);
 }
 
 /*
@@ -205,7 +194,6 @@ int fsnotify(struct inode *to_tell, __u32 mask, void *data, int data_is,
 	struct hlist_node *inode_node = NULL, *vfsmount_node = NULL;
 	struct fsnotify_mark *inode_mark = NULL, *vfsmount_mark = NULL;
 	struct fsnotify_group *inode_group, *vfsmount_group;
-	struct fsnotify_event *event = NULL;
 	struct mount *mnt;
 	int idx, ret = 0;
 	/* global tests shouldn't care about events on child only the specific event */
@@ -258,18 +246,18 @@ int fsnotify(struct inode *to_tell, __u32 mask, void *data, int data_is,
 
 		if (inode_group > vfsmount_group) {
 			/* handle inode */
-			ret = send_to_group(to_tell, inode_mark, NULL, mask, data,
-					    data_is, cookie, file_name, &event);
+			ret = send_to_group(to_tell, inode_mark, NULL, mask,
+					    data, data_is, cookie, file_name);
 			/* we didn't use the vfsmount_mark */
 			vfsmount_group = NULL;
 		} else if (vfsmount_group > inode_group) {
-			ret = send_to_group(to_tell, NULL, vfsmount_mark, mask, data,
-					    data_is, cookie, file_name, &event);
+			ret = send_to_group(to_tell, NULL, vfsmount_mark, mask,
+					    data, data_is, cookie, file_name);
 			inode_group = NULL;
 		} else {
 			ret = send_to_group(to_tell, inode_mark, vfsmount_mark,
-					    mask, data, data_is, cookie, file_name,
-					    &event);
+					    mask, data, data_is, cookie,
+					    file_name);
 		}
 
 		if (ret && (mask & ALL_FSNOTIFY_PERM_EVENTS))
@@ -285,12 +273,6 @@ int fsnotify(struct inode *to_tell, __u32 mask, void *data, int data_is,
 	ret = 0;
 out:
 	srcu_read_unlock(&fsnotify_mark_srcu, idx);
-	/*
-	 * fsnotify_create_event() took a reference so the event can't be cleaned
-	 * up while we are still trying to add it to lists, drop that one.
-	 */
-	if (event)
-		fsnotify_put_event(event);
 
 	return ret;
 }

@@ -17,8 +17,8 @@
  */
 
 /* include hw specification */
-#include "host1x01.h"
-#include "host1x01_hardware.h"
+#include "host1x02.h"
+#include "host1x02_hardware.h"
 
 /* include code */
 #include "cdma_hw.c"

@@ -15,7 +15,6 @@
 
 #include <asm/unaligned.h>
 #include <linux/errno.h>
-#include <linux/init.h>
 #include <linux/slab.h>
 #include <linux/tty.h>
 #include <linux/tty_driver.h>
@@ -676,10 +675,8 @@ static int qt2_setup_urbs(struct usb_serial *serial)
 
 	serial_priv = usb_get_serial_data(serial);
 	serial_priv->read_urb = usb_alloc_urb(0, GFP_KERNEL);
-	if (!serial_priv->read_urb) {
-		dev_err(&serial->dev->dev, "No free urbs available\n");
+	if (!serial_priv->read_urb)
 		return -ENOMEM;
-	}
 
 	usb_fill_bulk_urb(serial_priv->read_urb, serial->dev,
 			  usb_rcvbulkpipe(serial->dev,
@@ -715,10 +712,8 @@ static int qt2_attach(struct usb_serial *serial)
 	}
 
 	serial_priv = kzalloc(sizeof(*serial_priv), GFP_KERNEL);
-	if (!serial_priv) {
-		dev_err(&serial->dev->dev, "%s - Out of memory\n", __func__);
+	if (!serial_priv)
 		return -ENOMEM;
-	}
 
 	serial_priv->read_buffer = kmalloc(QT2_READ_BUFFER_SIZE, GFP_KERNEL);
 	if (!serial_priv->read_buffer) {

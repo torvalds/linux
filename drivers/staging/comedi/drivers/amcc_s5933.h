@@ -145,12 +145,12 @@
 #define AINT_READ_COMPL		0x00008000
 #define AINT_WRITE_COMPL	0x00004000
 
-#define AINT_OMB_ENABLE 	0x00001000
-#define AINT_OMB_SELECT 	0x00000c00
+#define AINT_OMB_ENABLE		0x00001000
+#define AINT_OMB_SELECT		0x00000c00
 #define AINT_OMB_BYTE		0x00000300
 
-#define AINT_IMB_ENABLE 	0x00000010
-#define AINT_IMB_SELECT 	0x0000000c
+#define AINT_IMB_ENABLE		0x00000010
+#define AINT_IMB_SELECT		0x0000000c
 #define AINT_IMB_BYTE		0x00000003
 
 /* these are bits from various different registers, needs cleanup XXX */

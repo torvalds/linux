@@ -230,25 +230,21 @@
 					interrupt-parent = <&mpic>;
 					interrupts = <10 1>;
 					reg = <0x1f>;
-					device_type = "ethernet-phy";
 				};
 				phy1: ethernet-phy@0 {
 					interrupt-parent = <&mpic>;
 					interrupts = <10 1>;
 					reg = <0>;
-					device_type = "ethernet-phy";
 				};
 				phy2: ethernet-phy@1 {
 					interrupt-parent = <&mpic>;
 					interrupts = <10 1>;
 					reg = <1>;
-					device_type = "ethernet-phy";
 				};
 				phy3: ethernet-phy@2 {
 					interrupt-parent = <&mpic>;
 					interrupts = <10 1>;
 					reg = <2>;
-					device_type = "ethernet-phy";
 				};
 				tbi0: tbi-phy@11 {
 					reg = <0x11>;

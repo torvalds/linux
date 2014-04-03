@@ -176,8 +176,12 @@ config MD_FAULTY
 
 source "drivers/md/bcache/Kconfig"
 
+config BLK_DEV_DM_BUILTIN
+	boolean
+
 config BLK_DEV_DM
 	tristate "Device mapper support"
+	select BLK_DEV_DM_BUILTIN
 	---help---
 	  Device-mapper is a low level volume manager.  It works by allowing
 	  people to specify mappings for ranges of logical sectors.  Various
@@ -238,6 +242,7 @@ config DM_CRYPT
 config DM_SNAPSHOT
        tristate "Snapshot target"
        depends on BLK_DEV_DM
+       select DM_BUFIO
        ---help---
          Allow volume managers to take writable snapshots of a device.
 
@@ -250,12 +255,12 @@ config DM_THIN_PROVISIONING
          Provides thin provisioning and snapshots that share a data store.
 
 config DM_DEBUG_BLOCK_STACK_TRACING
-	boolean "Keep stack trace of thin provisioning block lock holders"
-	depends on STACKTRACE_SUPPORT && DM_THIN_PROVISIONING
+	boolean "Keep stack trace of persistent data block lock holders"
+	depends on STACKTRACE_SUPPORT && DM_PERSISTENT_DATA
 	select STACKTRACE
 	---help---
 	  Enable this for messages that may help debug problems with the
-	  block manager locking used by thin provisioning.
+	  block manager locking used by thin provisioning and caching.
 
 	  If unsure, say N.
 

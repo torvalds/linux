@@ -19,6 +19,7 @@
  */
 extern void * __init trap_set_handler(int cause, void *handler);
 extern void do_unhandled(struct pt_regs *regs, unsigned long exccause);
+void secondary_trap_init(void);
 
 static inline void spill_registers(void)
 {

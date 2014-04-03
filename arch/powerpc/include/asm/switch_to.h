@@ -25,17 +25,15 @@ static inline void save_tar(struct thread_struct *prev)
 static inline void save_tar(struct thread_struct *prev) {}
 #endif
 
-extern void load_up_fpu(void);
 extern void enable_kernel_fp(void);
 extern void enable_kernel_altivec(void);
-extern void load_up_altivec(struct task_struct *);
 extern int emulate_altivec(struct pt_regs *);
 extern void __giveup_vsx(struct task_struct *);
 extern void giveup_vsx(struct task_struct *);
 extern void enable_kernel_spe(void);
 extern void giveup_spe(struct task_struct *);
 extern void load_up_spe(struct task_struct *);
-extern void switch_booke_debug_regs(struct thread_struct *new_thread);
+extern void switch_booke_debug_regs(struct debug_reg *new_debug);
 
 #ifndef CONFIG_SMP
 extern void discard_lazy_cpu_state(void);

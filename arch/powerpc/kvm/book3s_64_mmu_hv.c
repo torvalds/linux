@@ -262,7 +262,7 @@ int kvmppc_mmu_hv_init(void)
 
 static void kvmppc_mmu_book3s_64_hv_reset_msr(struct kvm_vcpu *vcpu)
 {
-	kvmppc_set_msr(vcpu, MSR_SF | MSR_ME);
+	kvmppc_set_msr(vcpu, vcpu->arch.intr_msr);
 }
 
 /*
@@ -469,11 +469,14 @@ static int kvmppc_mmu_book3s_64_hv_xlate(struct kvm_vcpu *vcpu, gva_t eaddr,
 		slb_v = vcpu->kvm->arch.vrma_slb_v;
 	}
 
+	preempt_disable();
 	/* Find the HPTE in the hash table */
 	index = kvmppc_hv_find_lock_hpte(kvm, eaddr, slb_v,
 					 HPTE_V_VALID | HPTE_V_ABSENT);
-	if (index < 0)
+	if (index < 0) {
+		preempt_enable();
 		return -ENOENT;
+	}
 	hptep = (unsigned long *)(kvm->arch.hpt_virt + (index << 4));
 	v = hptep[0] & ~HPTE_V_HVLOCK;
 	gr = kvm->arch.revmap[index].guest_rpte;
@@ -481,6 +484,7 @@ static int kvmppc_mmu_book3s_64_hv_xlate(struct kvm_vcpu *vcpu, gva_t eaddr,
 	/* Unlock the HPTE */
 	asm volatile("lwsync" : : : "memory");
 	hptep[0] = v;
+	preempt_enable();
 
 	gpte->eaddr = eaddr;
 	gpte->vpage = ((v & HPTE_V_AVPN) << 4) | ((eaddr >> 12) & 0xfff);
@@ -558,7 +562,7 @@ static int kvmppc_hv_emulate_mmio(struct kvm_run *run, struct kvm_vcpu *vcpu,
 	 * we just return and retry the instruction.
 	 */
 
-	if (instruction_is_store(vcpu->arch.last_inst) != !!is_store)
+	if (instruction_is_store(kvmppc_get_last_inst(vcpu)) != !!is_store)
 		return RESUME_GUEST;
 
 	/*
@@ -665,6 +669,7 @@ int kvmppc_book3s_hv_page_fault(struct kvm_run *run, struct kvm_vcpu *vcpu,
 			return -EFAULT;
 	} else {
 		page = pages[0];
+		pfn = page_to_pfn(page);
 		if (PageHuge(page)) {
 			page = compound_head(page);
 			pte_size <<= compound_order(page);
@@ -689,7 +694,6 @@ int kvmppc_book3s_hv_page_fault(struct kvm_run *run, struct kvm_vcpu *vcpu,
 			}
 			rcu_read_unlock_sched();
 		}
-		pfn = page_to_pfn(page);
 	}
 
 	ret = -EFAULT;
@@ -707,8 +711,14 @@ int kvmppc_book3s_hv_page_fault(struct kvm_run *run, struct kvm_vcpu *vcpu,
 		r = (r & ~(HPTE_R_W|HPTE_R_I|HPTE_R_G)) | HPTE_R_M;
 	}
 
-	/* Set the HPTE to point to pfn */
-	r = (r & ~(HPTE_R_PP0 - pte_size)) | (pfn << PAGE_SHIFT);
+	/*
+	 * Set the HPTE to point to pfn.
+	 * Since the pfn is at PAGE_SIZE granularity, make sure we
+	 * don't mask out lower-order bits if psize < PAGE_SIZE.
+	 */
+	if (psize < PAGE_SIZE)
+		psize = PAGE_SIZE;
+	r = (r & ~(HPTE_R_PP0 - psize)) | ((pfn << PAGE_SHIFT) & ~(psize - 1));
 	if (hpte_is_writable(r) && !write_ok)
 		r = hpte_make_readonly(r);
 	ret = RESUME_GUEST;

@@ -152,6 +152,7 @@ config I2C_PIIX4
 	    ATI SB700/SP5100
 	    ATI SB800
 	    AMD Hudson-2
+	    AMD ML
 	    AMD CZ
 	    Serverworks OSB4
 	    Serverworks CSB5
@@ -412,7 +413,6 @@ config I2C_DESIGNWARE_CORE
 
 config I2C_DESIGNWARE_PLATFORM
 	tristate "Synopsys DesignWare Platform"
-	depends on HAVE_CLK
 	select I2C_DESIGNWARE_CORE
 	help
 	  If you say yes to this option, support will be included for the
@@ -648,6 +648,16 @@ config I2C_PXA_SLAVE
 	  is necessary for systems where the PXA may be a target on the
 	  I2C bus.
 
+config I2C_RIIC
+	tristate "Renesas RIIC adapter"
+	depends on ARCH_SHMOBILE || COMPILE_TEST
+	help
+	  If you say yes to this option, support will be included for the
+	  Renesas RIIC I2C interface.
+
+	  This driver can also be built as a module.  If so, the module
+	  will be called i2c-riic.
+
 config HAVE_S3C2410_I2C
 	bool
 	help
@@ -683,7 +693,7 @@ config I2C_SH7760
 
 config I2C_SH_MOBILE
 	tristate "SuperH Mobile I2C Controller"
-	depends on SUPERH || ARM || COMPILE_TEST
+	depends on SUPERH || ARCH_SHMOBILE || COMPILE_TEST
 	help
 	  If you say yes to this option, support will be included for the
 	  built-in I2C interface on the Renesas SH-Mobile processor.
@@ -796,7 +806,7 @@ config I2C_XLR
 
 config I2C_RCAR
 	tristate "Renesas R-Car I2C Controller"
-	depends on ARM || COMPILE_TEST
+	depends on ARCH_SHMOBILE || COMPILE_TEST
 	help
 	  If you say yes to this option, support will be included for the
 	  R-Car I2C controller.
@@ -864,6 +874,16 @@ config I2C_PARPORT_LIGHT
 
 	  This support is also available as a module.  If so, the module
 	  will be called i2c-parport-light.
+
+config I2C_ROBOTFUZZ_OSIF
+	tristate "RobotFuzz Open Source InterFace USB adapter"
+	depends on USB
+	help
+	  If you say yes to this option, support will be included for the
+	  RobotFuzz Open Source InterFace USB to I2C interface.
+
+	  This driver can also be built as a module.  If so, the module
+	  will be called i2c-osif.
 
 config I2C_TAOS_EVM
 	tristate "TAOS evaluation module"

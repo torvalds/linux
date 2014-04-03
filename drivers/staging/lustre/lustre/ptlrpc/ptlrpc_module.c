@@ -112,7 +112,7 @@ __init int ptlrpc_init(void)
 	return 0;
 
 cleanup:
-	switch(cleanup_phase) {
+	switch (cleanup_phase) {
 	case 8:
 		ptlrpc_nrs_fini();
 	case 7:

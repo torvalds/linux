@@ -12,7 +12,8 @@
 #include <linux/mm.h>
 #include <linux/slab.h>
 #include <linux/acpi.h>
-#include <linux/acpi_io.h>
+
+#include "internal.h"
 
 /* ACPI NVS regions, APEI may use it */
 

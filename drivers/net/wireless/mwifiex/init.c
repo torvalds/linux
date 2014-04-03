@@ -643,7 +643,8 @@ mwifiex_shutdown_drv(struct mwifiex_adapter *adapter)
 			if (priv)
 				priv->stats.rx_dropped++;
 
-			adapter->if_ops.data_complete(adapter, skb);
+			dev_kfree_skb_any(skb);
+			adapter->if_ops.data_complete(adapter);
 		}
 	}
 

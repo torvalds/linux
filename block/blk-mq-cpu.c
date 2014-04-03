@@ -28,36 +28,6 @@ static int blk_mq_main_cpu_notify(struct notifier_block *self,
 	return NOTIFY_OK;
 }
 
-static void blk_mq_cpu_notify(void *data, unsigned long action,
-			      unsigned int cpu)
-{
-	if (action == CPU_DEAD || action == CPU_DEAD_FROZEN) {
-		/*
-		 * If the CPU goes away, ensure that we run any pending
-		 * completions.
-		 */
-		struct llist_node *node;
-		struct request *rq;
-
-		local_irq_disable();
-
-		node = llist_del_all(&per_cpu(ipi_lists, cpu));
-		while (node) {
-			struct llist_node *next = node->next;
-
-			rq = llist_entry(node, struct request, ll_list);
-			__blk_mq_end_io(rq, rq->errors);
-			node = next;
-		}
-
-		local_irq_enable();
-	}
-}
-
-static struct notifier_block __cpuinitdata blk_mq_main_cpu_notifier = {
-	.notifier_call	= blk_mq_main_cpu_notify,
-};
-
 void blk_mq_register_cpu_notifier(struct blk_mq_cpu_notifier *notifier)
 {
 	BUG_ON(!notifier->notify);
@@ -82,12 +52,7 @@ void blk_mq_init_cpu_notifier(struct blk_mq_cpu_notifier *notifier,
 	notifier->data = data;
 }
 
-static struct blk_mq_cpu_notifier __cpuinitdata cpu_notifier = {
-	.notify = blk_mq_cpu_notify,
-};
-
 void __init blk_mq_cpu_init(void)
 {
-	register_hotcpu_notifier(&blk_mq_main_cpu_notifier);
-	blk_mq_register_cpu_notifier(&cpu_notifier);
+	hotcpu_notifier(blk_mq_main_cpu_notify, 0);
 }

@@ -304,8 +304,7 @@ static int imx_ssi_trigger(struct snd_pcm_substream *substream, int cmd,
 			scr |= SSI_SCR_RE;
 		sier |= sier_bits;
 
-		if (++ssi->enabled == 1)
-			scr |= SSI_SCR_SSIEN;
+		scr |= SSI_SCR_SSIEN;
 
 		break;
 
@@ -318,7 +317,7 @@ static int imx_ssi_trigger(struct snd_pcm_substream *substream, int cmd,
 			scr &= ~SSI_SCR_RE;
 		sier &= ~sier_bits;
 
-		if (--ssi->enabled == 0)
+		if (!(scr & (SSI_SCR_TE | SSI_SCR_RE)))
 			scr &= ~SSI_SCR_SSIEN;
 
 		break;
@@ -536,7 +535,9 @@ static int imx_ssi_probe(struct platform_device *pdev)
 			ret);
 		goto failed_clk;
 	}
-	clk_prepare_enable(ssi->clk);
+	ret = clk_prepare_enable(ssi->clk);
+	if (ret)
+		goto failed_clk;
 
 	res = platform_get_resource(pdev, IORESOURCE_MEM, 0);
 	ssi->base = devm_ioremap_resource(&pdev->dev, res);
@@ -623,9 +624,6 @@ failed_clk:
 static int imx_ssi_remove(struct platform_device *pdev)
 {
 	struct imx_ssi *ssi = platform_get_drvdata(pdev);
-
-	if (!ssi->dma_init)
-		imx_pcm_dma_exit(pdev);
 
 	if (!ssi->fiq_init)
 		imx_pcm_fiq_exit(pdev);

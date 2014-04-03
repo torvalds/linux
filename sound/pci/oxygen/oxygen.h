@@ -198,7 +198,7 @@ void oxygen_write_ac97(struct oxygen *chip, unsigned int codec,
 void oxygen_write_ac97_masked(struct oxygen *chip, unsigned int codec,
 			      unsigned int index, u16 data, u16 mask);
 
-void oxygen_write_spi(struct oxygen *chip, u8 control, unsigned int data);
+int oxygen_write_spi(struct oxygen *chip, u8 control, unsigned int data);
 void oxygen_write_i2c(struct oxygen *chip, u8 device, u8 map, u8 data);
 
 void oxygen_reset_uart(struct oxygen *chip);

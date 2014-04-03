@@ -5,7 +5,7 @@
  *
  * GPL LICENSE SUMMARY
  *
- * Copyright(c) 2012 - 2013 Intel Corporation. All rights reserved.
+ * Copyright(c) 2012 - 2014 Intel Corporation. All rights reserved.
  *
  * This program is free software; you can redistribute it and/or modify
  * it under the terms of version 2 of the GNU General Public License as
@@ -30,7 +30,7 @@
  *
  * BSD LICENSE
  *
- * Copyright(c) 2012 - 2013 Intel Corporation. All rights reserved.
+ * Copyright(c) 2012 - 2014 Intel Corporation. All rights reserved.
  * All rights reserved.
  *
  * Redistribution and use in source and binary forms, with or without
@@ -253,8 +253,7 @@ static void iwl_mvm_set_tx_cmd_crypto(struct iwl_mvm *mvm,
 		memcpy(&tx_cmd->key[3], keyconf->key, keyconf->keylen);
 		break;
 	default:
-		IWL_ERR(mvm, "Unknown encode cipher %x\n", keyconf->cipher);
-		break;
+		tx_cmd->sec_ctl |= TX_CMD_SEC_EXT;
 	}
 }
 
@@ -276,6 +275,7 @@ iwl_mvm_set_tx_params(struct iwl_mvm *mvm, struct sk_buff *skb,
 		return NULL;
 
 	memset(dev_cmd, 0, sizeof(*dev_cmd));
+	dev_cmd->hdr.cmd = TX_CMD;
 	tx_cmd = (struct iwl_tx_cmd *)dev_cmd->payload;
 
 	if (info->control.hw_key)
@@ -361,7 +361,7 @@ int iwl_mvm_tx_skb(struct iwl_mvm *mvm, struct sk_buff *skb,
 	u8 txq_id = info->hw_queue;
 	bool is_data_qos = false, is_ampdu = false;
 
-	mvmsta = (void *)sta->drv_priv;
+	mvmsta = iwl_mvm_sta_from_mac80211(sta);
 	fc = hdr->frame_control;
 
 	if (WARN_ON_ONCE(!mvmsta))
@@ -390,7 +390,6 @@ int iwl_mvm_tx_skb(struct iwl_mvm *mvm, struct sk_buff *skb,
 		seq_number &= IEEE80211_SCTL_SEQ;
 		hdr->seq_ctrl &= cpu_to_le16(IEEE80211_SCTL_FRAG);
 		hdr->seq_ctrl |= cpu_to_le16(seq_number);
-		seq_number += 0x10;
 		is_data_qos = true;
 		is_ampdu = info->flags & IEEE80211_TX_CTL_AMPDU;
 	}
@@ -407,13 +406,13 @@ int iwl_mvm_tx_skb(struct iwl_mvm *mvm, struct sk_buff *skb,
 	}
 
 	IWL_DEBUG_TX(mvm, "TX to [%d|%d] Q:%d - seq: 0x%x\n", mvmsta->sta_id,
-		     tid, txq_id, seq_number);
+		     tid, txq_id, IEEE80211_SEQ_TO_SN(seq_number));
 
 	if (iwl_trans_tx(mvm->trans, skb, dev_cmd, txq_id))
 		goto drop_unlock_sta;
 
 	if (is_data_qos && !ieee80211_has_morefrags(fc))
-		mvmsta->tid_data[tid].seq_number = seq_number;
+		mvmsta->tid_data[tid].seq_number = seq_number + 0x10;
 
 	spin_unlock(&mvmsta->lock);
 
@@ -432,7 +431,7 @@ drop:
 static void iwl_mvm_check_ratid_empty(struct iwl_mvm *mvm,
 				      struct ieee80211_sta *sta, u8 tid)
 {
-	struct iwl_mvm_sta *mvmsta = (void *)sta->drv_priv;
+	struct iwl_mvm_sta *mvmsta = iwl_mvm_sta_from_mac80211(sta);
 	struct iwl_mvm_tid_data *tid_data = &mvmsta->tid_data[tid];
 	struct ieee80211_vif *vif = mvmsta->vif;
 
@@ -660,9 +659,15 @@ static void iwl_mvm_rx_tx_cmd_single(struct iwl_mvm *mvm,
 	rcu_read_lock();
 
 	sta = rcu_dereference(mvm->fw_id_to_mac_id[sta_id]);
+	/*
+	 * sta can't be NULL otherwise it'd mean that the sta has been freed in
+	 * the firmware while we still have packets for it in the Tx queues.
+	 */
+	if (WARN_ON_ONCE(!sta))
+		goto out;
 
-	if (!IS_ERR_OR_NULL(sta)) {
-		mvmsta = (void *)sta->drv_priv;
+	if (!IS_ERR(sta)) {
+		mvmsta = iwl_mvm_sta_from_mac80211(sta);
 
 		if (tid != IWL_TID_NON_QOS) {
 			struct iwl_mvm_tid_data *tid_data =
@@ -676,7 +681,6 @@ static void iwl_mvm_rx_tx_cmd_single(struct iwl_mvm *mvm,
 			spin_unlock_bh(&mvmsta->lock);
 		}
 	} else {
-		sta = NULL;
 		mvmsta = NULL;
 	}
 
@@ -684,42 +688,38 @@ static void iwl_mvm_rx_tx_cmd_single(struct iwl_mvm *mvm,
 	 * If the txq is not an AMPDU queue, there is no chance we freed
 	 * several skbs. Check that out...
 	 */
-	if (txq_id < mvm->first_agg_queue && !WARN_ON(skb_freed > 1) &&
-	    atomic_sub_and_test(skb_freed, &mvm->pending_frames[sta_id])) {
-		if (mvmsta) {
-			/*
-			 * If there are no pending frames for this STA, notify
-			 * mac80211 that this station can go to sleep in its
-			 * STA table.
-			 */
-			if (mvmsta->vif->type == NL80211_IFTYPE_AP)
-				ieee80211_sta_block_awake(mvm->hw, sta, false);
-			/*
-			 * We might very well have taken mvmsta pointer while
-			 * the station was being removed. The remove flow might
-			 * have seen a pending_frame (because we didn't take
-			 * the lock) even if now the queues are drained. So make
-			 * really sure now that this the station is not being
-			 * removed. If it is, run the drain worker to remove it.
-			 */
-			spin_lock_bh(&mvmsta->lock);
-			sta = rcu_dereference(mvm->fw_id_to_mac_id[sta_id]);
-			if (IS_ERR_OR_NULL(sta)) {
-				/*
-				 * Station disappeared in the meantime:
-				 * so we are draining.
-				 */
-				set_bit(sta_id, mvm->sta_drained);
-				schedule_work(&mvm->sta_drained_wk);
-			}
-			spin_unlock_bh(&mvmsta->lock);
-		} else if (!mvmsta) {
-			/* Tx response without STA, so we are draining */
-			set_bit(sta_id, mvm->sta_drained);
-			schedule_work(&mvm->sta_drained_wk);
-		}
+	if (txq_id >= mvm->first_agg_queue)
+		goto out;
+
+	/* We can't free more than one frame at once on a shared queue */
+	WARN_ON(skb_freed > 1);
+
+	/* If we have still frames from this STA nothing to do here */
+	if (!atomic_sub_and_test(skb_freed, &mvm->pending_frames[sta_id]))
+		goto out;
+
+	if (mvmsta && mvmsta->vif->type == NL80211_IFTYPE_AP) {
+		/*
+		 * If there are no pending frames for this STA, notify
+		 * mac80211 that this station can go to sleep in its
+		 * STA table.
+		 * If mvmsta is not NULL, sta is valid.
+		 */
+		ieee80211_sta_block_awake(mvm->hw, sta, false);
 	}
 
+	if (PTR_ERR(sta) == -EBUSY || PTR_ERR(sta) == -ENOENT) {
+		/*
+		 * We are draining and this was the last packet - pre_rcu_remove
+		 * has been called already. We might be after the
+		 * synchronize_net already.
+		 * Don't rely on iwl_mvm_rm_sta to see the empty Tx queues.
+		 */
+		set_bit(sta_id, mvm->sta_drained);
+		schedule_work(&mvm->sta_drained_wk);
+	}
+
+out:
 	rcu_read_unlock();
 }
 
@@ -793,7 +793,7 @@ static void iwl_mvm_rx_tx_cmd_agg(struct iwl_mvm *mvm,
 	sta = rcu_dereference(mvm->fw_id_to_mac_id[sta_id]);
 
 	if (!WARN_ON_ONCE(IS_ERR_OR_NULL(sta))) {
-		struct iwl_mvm_sta *mvmsta = (void *)sta->drv_priv;
+		struct iwl_mvm_sta *mvmsta = iwl_mvm_sta_from_mac80211(sta);
 		mvmsta->tid_data[tid].rate_n_flags =
 			le32_to_cpu(tx_resp->initial_rate);
 	}
@@ -849,7 +849,7 @@ int iwl_mvm_rx_ba_notif(struct iwl_mvm *mvm, struct iwl_rx_cmd_buffer *rxb,
 		return 0;
 	}
 
-	mvmsta = (void *)sta->drv_priv;
+	mvmsta = iwl_mvm_sta_from_mac80211(sta);
 	tid_data = &mvmsta->tid_data[tid];
 
 	if (WARN_ONCE(tid_data->txq_id != scd_flow, "Q %d, tid %d, flow %d",

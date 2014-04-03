@@ -85,7 +85,6 @@ struct btmrvl_sdio_card {
 	u32 ioport;
 	const char *helper;
 	const char *firmware;
-	const char *cal_data;
 	const struct btmrvl_sdio_card_reg *reg;
 	u16 sd_blksz_fw_dl;
 	u8 rx_unit;
@@ -95,7 +94,6 @@ struct btmrvl_sdio_card {
 struct btmrvl_sdio_device {
 	const char *helper;
 	const char *firmware;
-	const char *cal_data;
 	const struct btmrvl_sdio_card_reg *reg;
 	u16 sd_blksz_fw_dl;
 };

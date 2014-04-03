@@ -46,7 +46,7 @@
 #define Cpu2HstMbx1		0x00100F04
 #define MbxStat1		0x00100F08
 #define Stream2Host_Intr_Sts	0x00100F24
-#define C011_RET_SUCCESS	0x0 /* Reutrn status of firmware command. */
+#define C011_RET_SUCCESS	0x0 /* Return status of firmware command. */
 
 /* TS input status register */
 #define TS_StreamAFIFOStatus	0x0010044C
@@ -141,7 +141,7 @@ union link_misc_perst_deco_ctrl {
 		uint32_t	reserved0:3;		/* Reserved.No Effect*/
 		uint32_t	stop_bcm_7412_clk:1;	/* 1 ->Stops branch of
 						27MHz clk used to clk BCM7412*/
-		uint32_t	reserved1:27;		/* Reseved. No Effect*/
+		uint32_t	reserved1:27;		/* Reserved. No Effect*/
 	};
 
 	uint32_t	whole_reg;
@@ -176,7 +176,7 @@ union link_misc_perst_decoder_ctrl {
 		uint32_t	res0:3; /* Reserved.No Effect*/
 		uint32_t	stop_7412_clk:1; /* 1 ->Stops branch of 27MHz
 						 clk used to clk BCM7412*/
-		uint32_t	res1:27; /* Reseved. No Effect */
+		uint32_t	res1:27; /* Reserved. No Effect */
 	};
 
 	uint32_t	whole_reg;

@@ -30,6 +30,8 @@
 #endif
 #define current_text_addr() ({ void *pc; current_ia(pc); pc; })
 
+#define HAVE_ARCH_PICK_MMAP_LAYOUT
+
 #define TASK_SIZE_OF(tsk)       ((tsk)->thread.task_size)
 #define TASK_SIZE	        TASK_SIZE_OF(current)
 #define TASK_UNMAPPED_BASE      (current->thread.map_base)

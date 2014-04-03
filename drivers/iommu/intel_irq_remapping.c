@@ -6,11 +6,11 @@
 #include <linux/hpet.h>
 #include <linux/pci.h>
 #include <linux/irq.h>
+#include <linux/intel-iommu.h>
+#include <linux/acpi.h>
 #include <asm/io_apic.h>
 #include <asm/smp.h>
 #include <asm/cpu.h>
-#include <linux/intel-iommu.h>
-#include <acpi/acpi.h>
 #include <asm/irq_remapping.h>
 #include <asm/pci-direct.h>
 #include <asm/msidef.h>
@@ -40,13 +40,15 @@ static int ir_ioapic_num, ir_hpet_num;
 
 static DEFINE_RAW_SPINLOCK(irq_2_ir_lock);
 
+static int __init parse_ioapics_under_ir(void);
+
 static struct irq_2_iommu *irq_2_iommu(unsigned int irq)
 {
 	struct irq_cfg *cfg = irq_get_chip_data(irq);
 	return cfg ? &cfg->irq_2_iommu : NULL;
 }
 
-int get_irte(int irq, struct irte *entry)
+static int get_irte(int irq, struct irte *entry)
 {
 	struct irq_2_iommu *irq_iommu = irq_2_iommu(irq);
 	unsigned long flags;
@@ -69,18 +71,12 @@ static int alloc_irte(struct intel_iommu *iommu, int irq, u16 count)
 	struct ir_table *table = iommu->ir_table;
 	struct irq_2_iommu *irq_iommu = irq_2_iommu(irq);
 	struct irq_cfg *cfg = irq_get_chip_data(irq);
-	u16 index, start_index;
 	unsigned int mask = 0;
 	unsigned long flags;
-	int i;
+	int index;
 
 	if (!count || !irq_iommu)
 		return -1;
-
-	/*
-	 * start the IRTE search from index 0.
-	 */
-	index = start_index = 0;
 
 	if (count > 1) {
 		count = __roundup_pow_of_two(count);
@@ -96,32 +92,17 @@ static int alloc_irte(struct intel_iommu *iommu, int irq, u16 count)
 	}
 
 	raw_spin_lock_irqsave(&irq_2_ir_lock, flags);
-	do {
-		for (i = index; i < index + count; i++)
-			if  (table->base[i].present)
-				break;
-		/* empty index found */
-		if (i == index + count)
-			break;
-
-		index = (index + count) % INTR_REMAP_TABLE_ENTRIES;
-
-		if (index == start_index) {
-			raw_spin_unlock_irqrestore(&irq_2_ir_lock, flags);
-			printk(KERN_ERR "can't allocate an IRTE\n");
-			return -1;
-		}
-	} while (1);
-
-	for (i = index; i < index + count; i++)
-		table->base[i].present = 1;
-
-	cfg->remapped = 1;
-	irq_iommu->iommu = iommu;
-	irq_iommu->irte_index =  index;
-	irq_iommu->sub_handle = 0;
-	irq_iommu->irte_mask = mask;
-
+	index = bitmap_find_free_region(table->bitmap,
+					INTR_REMAP_TABLE_ENTRIES, mask);
+	if (index < 0) {
+		pr_warn("IR%d: can't allocate an IRTE\n", iommu->seq_id);
+	} else {
+		cfg->remapped = 1;
+		irq_iommu->iommu = iommu;
+		irq_iommu->irte_index =  index;
+		irq_iommu->sub_handle = 0;
+		irq_iommu->irte_mask = mask;
+	}
 	raw_spin_unlock_irqrestore(&irq_2_ir_lock, flags);
 
 	return index;
@@ -254,6 +235,8 @@ static int clear_entries(struct irq_2_iommu *irq_iommu)
 		set_64bit(&entry->low, 0);
 		set_64bit(&entry->high, 0);
 	}
+	bitmap_release_region(iommu->ir_table->bitmap, index,
+			      irq_iommu->irte_mask);
 
 	return qi_flush_iec(iommu, index, irq_iommu->irte_mask);
 }
@@ -336,7 +319,7 @@ static int set_ioapic_sid(struct irte *irte, int apic)
 		return -1;
 	}
 
-	set_irte_sid(irte, 1, 0, sid);
+	set_irte_sid(irte, SVT_VERIFY_SID_SQ, SQ_ALL_16, sid);
 
 	return 0;
 }
@@ -453,6 +436,7 @@ static int intel_setup_irq_remapping(struct intel_iommu *iommu, int mode)
 {
 	struct ir_table *ir_table;
 	struct page *pages;
+	unsigned long *bitmap;
 
 	ir_table = iommu->ir_table = kzalloc(sizeof(struct ir_table),
 					     GFP_ATOMIC);
@@ -464,13 +448,23 @@ static int intel_setup_irq_remapping(struct intel_iommu *iommu, int mode)
 				 INTR_REMAP_PAGE_ORDER);
 
 	if (!pages) {
-		printk(KERN_ERR "failed to allocate pages of order %d\n",
-		       INTR_REMAP_PAGE_ORDER);
+		pr_err("IR%d: failed to allocate pages of order %d\n",
+		       iommu->seq_id, INTR_REMAP_PAGE_ORDER);
 		kfree(iommu->ir_table);
 		return -ENOMEM;
 	}
 
+	bitmap = kcalloc(BITS_TO_LONGS(INTR_REMAP_TABLE_ENTRIES),
+			 sizeof(long), GFP_ATOMIC);
+	if (bitmap == NULL) {
+		pr_err("IR%d: failed to allocate bitmap\n", iommu->seq_id);
+		__free_pages(pages, INTR_REMAP_PAGE_ORDER);
+		kfree(ir_table);
+		return -ENOMEM;
+	}
+
 	ir_table->base = page_address(pages);
+	ir_table->bitmap = bitmap;
 
 	iommu_set_irq_remapping(iommu, mode);
 	return 0;
@@ -521,6 +515,7 @@ static int __init dmar_x2apic_optout(void)
 static int __init intel_irq_remapping_supported(void)
 {
 	struct dmar_drhd_unit *drhd;
+	struct intel_iommu *iommu;
 
 	if (disable_irq_remap)
 		return 0;
@@ -539,12 +534,9 @@ static int __init intel_irq_remapping_supported(void)
 	if (!dmar_ir_support())
 		return 0;
 
-	for_each_drhd_unit(drhd) {
-		struct intel_iommu *iommu = drhd->iommu;
-
+	for_each_iommu(iommu, drhd)
 		if (!ecap_ir_support(iommu->ecap))
 			return 0;
-	}
 
 	return 1;
 }
@@ -552,6 +544,7 @@ static int __init intel_irq_remapping_supported(void)
 static int __init intel_enable_irq_remapping(void)
 {
 	struct dmar_drhd_unit *drhd;
+	struct intel_iommu *iommu;
 	bool x2apic_present;
 	int setup = 0;
 	int eim = 0;
@@ -564,6 +557,8 @@ static int __init intel_enable_irq_remapping(void)
 	}
 
 	if (x2apic_present) {
+		pr_info("Queued invalidation will be enabled to support x2apic and Intr-remapping.\n");
+
 		eim = !dmar_x2apic_optout();
 		if (!eim)
 			printk(KERN_WARNING
@@ -572,9 +567,7 @@ static int __init intel_enable_irq_remapping(void)
 				"Use 'intremap=no_x2apic_optout' to override BIOS request.\n");
 	}
 
-	for_each_drhd_unit(drhd) {
-		struct intel_iommu *iommu = drhd->iommu;
-
+	for_each_iommu(iommu, drhd) {
 		/*
 		 * If the queued invalidation is already initialized,
 		 * shouldn't disable it.
@@ -599,9 +592,7 @@ static int __init intel_enable_irq_remapping(void)
 	/*
 	 * check for the Interrupt-remapping support
 	 */
-	for_each_drhd_unit(drhd) {
-		struct intel_iommu *iommu = drhd->iommu;
-
+	for_each_iommu(iommu, drhd) {
 		if (!ecap_ir_support(iommu->ecap))
 			continue;
 
@@ -615,10 +606,8 @@ static int __init intel_enable_irq_remapping(void)
 	/*
 	 * Enable queued invalidation for all the DRHD's.
 	 */
-	for_each_drhd_unit(drhd) {
-		int ret;
-		struct intel_iommu *iommu = drhd->iommu;
-		ret = dmar_enable_qi(iommu);
+	for_each_iommu(iommu, drhd) {
+		int ret = dmar_enable_qi(iommu);
 
 		if (ret) {
 			printk(KERN_ERR "DRHD %Lx: failed to enable queued, "
@@ -631,9 +620,7 @@ static int __init intel_enable_irq_remapping(void)
 	/*
 	 * Setup Interrupt-remapping for all the DRHD's now.
 	 */
-	for_each_drhd_unit(drhd) {
-		struct intel_iommu *iommu = drhd->iommu;
-
+	for_each_iommu(iommu, drhd) {
 		if (!ecap_ir_support(iommu->ecap))
 			continue;
 
@@ -774,22 +761,20 @@ static int ir_parse_ioapic_hpet_scope(struct acpi_dmar_header *header,
  * Finds the assocaition between IOAPIC's and its Interrupt-remapping
  * hardware unit.
  */
-int __init parse_ioapics_under_ir(void)
+static int __init parse_ioapics_under_ir(void)
 {
 	struct dmar_drhd_unit *drhd;
+	struct intel_iommu *iommu;
 	int ir_supported = 0;
 	int ioapic_idx;
 
-	for_each_drhd_unit(drhd) {
-		struct intel_iommu *iommu = drhd->iommu;
-
+	for_each_iommu(iommu, drhd)
 		if (ecap_ir_support(iommu->ecap)) {
 			if (ir_parse_ioapic_hpet_scope(drhd->hdr, iommu))
 				return -1;
 
 			ir_supported = 1;
 		}
-	}
 
 	if (!ir_supported)
 		return 0;
@@ -807,7 +792,7 @@ int __init parse_ioapics_under_ir(void)
 	return 1;
 }
 
-int __init ir_dev_scope_init(void)
+static int __init ir_dev_scope_init(void)
 {
 	if (!irq_remapping_enabled)
 		return 0;

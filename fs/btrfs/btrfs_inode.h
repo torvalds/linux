@@ -43,6 +43,7 @@
 #define BTRFS_INODE_COPY_EVERYTHING		8
 #define BTRFS_INODE_IN_DELALLOC_LIST		9
 #define BTRFS_INODE_READDIO_NEED_LOCK		10
+#define BTRFS_INODE_HAS_PROPS		        11
 
 /* in memory btrfs inode */
 struct btrfs_inode {
@@ -134,6 +135,9 @@ struct btrfs_inode {
 	 * number for new files that are created
 	 */
 	u64 index_cnt;
+
+	/* Cache the directory index number to speed the dir/file remove */
+	u64 dir_index;
 
 	/* the fsync log has some corner cases that mean we have to check
 	 * directories to see if any unlinks have been done before

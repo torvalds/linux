@@ -60,7 +60,7 @@ static s32 iol_execute(struct adapter *padapter, u8 control)
 	reg_0x88 = rtw_read8(padapter, REG_HMEBOX_E0);
 	rtw_write8(padapter, REG_HMEBOX_E0,  reg_0x88|control);
 
-	start = rtw_get_current_time();
+	start = jiffies;
 	while ((reg_0x88 = rtw_read8(padapter, REG_HMEBOX_E0)) & control &&
 	       (passing_time = rtw_get_passing_time_ms(start)) < 1000) {
 		;
@@ -238,11 +238,11 @@ static void efuse_read_phymap_from_txpktbuf(
 		rtw_write16(adapter, REG_PKTBUF_DBG_ADDR, dbg_addr+i);
 
 		rtw_write8(adapter, REG_TXPKTBUF_DBG, 0);
-		start = rtw_get_current_time();
+		start = jiffies;
 		while (!(reg_0x143 = rtw_read8(adapter, REG_TXPKTBUF_DBG)) &&
 		       (passing_time = rtw_get_passing_time_ms(start)) < 1000) {
 			DBG_88E("%s polling reg_0x143:0x%02x, reg_0x106:0x%02x\n", __func__, reg_0x143, rtw_read8(adapter, 0x106));
-			rtw_usleep_os(100);
+			msleep(1);
 		}
 
 		lo32 = rtw_read32(adapter, REG_PKTBUF_DBG_DATA_L);
@@ -372,7 +372,7 @@ void rtw_IOL_cmd_tx_pkt_buf_dump(struct adapter *Adapter, int data_len)
 	if (pbuf) {
 		for (addr = 0; addr < data_cnts; addr++) {
 			rtw_write32(Adapter, 0x140, addr);
-			rtw_usleep_os(2);
+			msleep(1);
 			loop = 0;
 			do {
 				rstatus = (reg_140 = rtw_read32(Adapter, REG_PKTBUF_DBG_CTRL)&BIT24);
@@ -383,7 +383,7 @@ void rtw_IOL_cmd_tx_pkt_buf_dump(struct adapter *Adapter, int data_len)
 					fifo_data = rtw_read32(Adapter, REG_PKTBUF_DBG_DATA_H);
 					memcpy(pbuf+(addr*8+4), &fifo_data, 4);
 				}
-				rtw_usleep_os(2);
+				msleep(1);
 			} while (!rstatus && (loop++ < 10));
 		}
 		rtw_IOL_cmd_buf_dump(Adapter, data_len, pbuf);
@@ -574,7 +574,7 @@ static s32 _FWFreeToGo(struct adapter *padapter)
 			DBG_88E("%s: Polling FW ready success!! REG_MCUFWDL:0x%08x\n", __func__, value32);
 			return _SUCCESS;
 		}
-		rtw_udelay_os(5);
+		udelay(5);
 	} while (counter++ < POLLING_READY_TIMEOUT_COUNT);
 
 	DBG_88E("%s: Polling FW ready fail!! REG_MCUFWDL:0x%08x\n", __func__, value32);
@@ -660,7 +660,7 @@ s32 rtl8188e_FirmwareDownload(struct adapter *padapter)
 	}
 
 	_FWDownloadEnable(padapter, true);
-	fwdl_start_time = rtw_get_current_time();
+	fwdl_start_time = jiffies;
 	while (1) {
 		/* reset the FWDL chksum */
 		rtw_write8(padapter, REG_MCUFWDL, rtw_read8(padapter, REG_MCUFWDL) | FWDL_ChkSum_rpt);
@@ -2304,7 +2304,7 @@ void Hal_ReadAntennaDiversity88E(struct adapter *pAdapter, u8 *PROMContent, bool
 		if (registry_par->antdiv_cfg == 2) { /*  2:By EFUSE */
 			pHalData->AntDivCfg = (PROMContent[EEPROM_RF_BOARD_OPTION_88E]&0x18)>>3;
 			if (PROMContent[EEPROM_RF_BOARD_OPTION_88E] == 0xFF)
-				pHalData->AntDivCfg = (EEPROM_DEFAULT_BOARD_OPTION&0x18)>>3;;
+				pHalData->AntDivCfg = (EEPROM_DEFAULT_BOARD_OPTION&0x18)>>3;
 		} else {
 			pHalData->AntDivCfg = registry_par->antdiv_cfg;  /*  0:OFF , 1:ON, 2:By EFUSE */
 		}

@@ -6,6 +6,10 @@
 #include "spk_priv.h"
 #include "serialio.h"
 
+#ifndef SERIAL_PORT_DFNS
+#define SERIAL_PORT_DFNS
+#endif
+
 static void start_serial_interrupt(int irq);
 
 static const struct old_serial_port rs_table[] = {

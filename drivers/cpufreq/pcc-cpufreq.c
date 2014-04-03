@@ -213,6 +213,7 @@ static int pcc_cpufreq_target(struct cpufreq_policy *policy,
 		cpu, target_freq,
 		(pcch_virt_addr + pcc_cpu_data->input_offset));
 
+	freqs.old = policy->cur;
 	freqs.new = target_freq;
 	cpufreq_notify_transition(policy, &freqs, CPUFREQ_PRECHANGE);
 
@@ -228,25 +229,20 @@ static int pcc_cpufreq_target(struct cpufreq_policy *policy,
 	memset_io((pcch_virt_addr + pcc_cpu_data->input_offset), 0, BUF_SZ);
 
 	status = ioread16(&pcch_hdr->status);
+	iowrite16(0, &pcch_hdr->status);
+
+	cpufreq_notify_post_transition(policy, &freqs, status != CMD_COMPLETE);
+	spin_unlock(&pcc_lock);
+
 	if (status != CMD_COMPLETE) {
 		pr_debug("target: FAILED for cpu %d, with status: 0x%x\n",
 			cpu, status);
-		goto cmd_incomplete;
+		return -EINVAL;
 	}
-	iowrite16(0, &pcch_hdr->status);
 
-	cpufreq_notify_transition(policy, &freqs, CPUFREQ_POSTCHANGE);
 	pr_debug("target: was SUCCESSFUL for cpu %d\n", cpu);
-	spin_unlock(&pcc_lock);
 
 	return 0;
-
-cmd_incomplete:
-	freqs.new = freqs.old;
-	cpufreq_notify_transition(policy, &freqs, CPUFREQ_POSTCHANGE);
-	iowrite16(0, &pcch_hdr->status);
-	spin_unlock(&pcc_lock);
-	return -EINVAL;
 }
 
 static int pcc_get_offset(int cpu)

@@ -678,6 +678,7 @@ int cfs_tracefile_dump_all_pages(char *filename)
 	struct file		*filp;
 	struct cfs_trace_page	*tage;
 	struct cfs_trace_page	*tmp;
+	char			*buf;
 	int rc;
 
 	DECL_MMSPACE;
@@ -708,8 +709,11 @@ int cfs_tracefile_dump_all_pages(char *filename)
 
 		__LASSERT_TAGE_INVARIANT(tage);
 
-		rc = filp_write(filp, page_address(tage->page),
-				tage->used, filp_poff(filp));
+		buf = kmap(tage->page);
+		rc = vfs_write(filp, (__force const char __user *)buf,
+			       tage->used, &filp->f_pos);
+		kunmap(tage->page);
+
 		if (rc != (int)tage->used) {
 			printk(KERN_WARNING "wanted to write %u but wrote "
 			       "%d\n", tage->used, rc);
@@ -721,7 +725,7 @@ int cfs_tracefile_dump_all_pages(char *filename)
 		cfs_tage_free(tage);
 	}
 	MMSPACE_CLOSE;
-	rc = filp_fsync(filp);
+	rc = vfs_fsync(filp, 1);
 	if (rc)
 		printk(KERN_ERR "sync returns %d\n", rc);
 close:
@@ -971,6 +975,7 @@ static int tracefiled(void *arg)
 	struct cfs_trace_page *tage;
 	struct cfs_trace_page *tmp;
 	struct file *filp;
+	char *buf;
 	int last_loop = 0;
 	int rc;
 
@@ -1020,11 +1025,14 @@ static int tracefiled(void *arg)
 
 			if (f_pos >= (off_t)cfs_tracefile_size)
 				f_pos = 0;
-			else if (f_pos > (off_t)filp_size(filp))
-				f_pos = filp_size(filp);
+			else if (f_pos > i_size_read(filp->f_dentry->d_inode))
+				f_pos = i_size_read(filp->f_dentry->d_inode);
 
-			rc = filp_write(filp, page_address(tage->page),
-					tage->used, &f_pos);
+			buf = kmap(tage->page);
+			rc = vfs_write(filp, (__force const char __user *)buf,
+				       tage->used, &f_pos);
+			kunmap(tage->page);
+
 			if (rc != (int)tage->used) {
 				printk(KERN_WARNING "wanted to write %u "
 				       "but wrote %d\n", tage->used, rc);

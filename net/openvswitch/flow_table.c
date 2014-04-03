@@ -25,7 +25,7 @@
 #include <linux/if_vlan.h>
 #include <net/llc_pdu.h>
 #include <linux/kernel.h>
-#include <linux/jhash.h>
+#include <linux/hash.h>
 #include <linux/jiffies.h>
 #include <linux/llc.h>
 #include <linux/module.h>
@@ -43,8 +43,6 @@
 #include <net/ip.h>
 #include <net/ipv6.h>
 #include <net/ndisc.h>
-
-#include "datapath.h"
 
 #define TBL_MIN_BUCKETS		1024
 #define REHASH_INTERVAL		(10 * 60 * HZ)
@@ -72,19 +70,42 @@ void ovs_flow_mask_key(struct sw_flow_key *dst, const struct sw_flow_key *src,
 		*d++ = *s++ & *m++;
 }
 
-struct sw_flow *ovs_flow_alloc(void)
+struct sw_flow *ovs_flow_alloc(bool percpu_stats)
 {
 	struct sw_flow *flow;
+	int cpu;
 
 	flow = kmem_cache_alloc(flow_cache, GFP_KERNEL);
 	if (!flow)
 		return ERR_PTR(-ENOMEM);
 
-	spin_lock_init(&flow->lock);
 	flow->sf_acts = NULL;
 	flow->mask = NULL;
 
+	flow->stats.is_percpu = percpu_stats;
+
+	if (!percpu_stats) {
+		flow->stats.stat = kzalloc(sizeof(*flow->stats.stat), GFP_KERNEL);
+		if (!flow->stats.stat)
+			goto err;
+
+		spin_lock_init(&flow->stats.stat->lock);
+	} else {
+		flow->stats.cpu_stats = alloc_percpu(struct flow_stats);
+		if (!flow->stats.cpu_stats)
+			goto err;
+
+		for_each_possible_cpu(cpu) {
+			struct flow_stats *cpu_stats;
+
+			cpu_stats = per_cpu_ptr(flow->stats.cpu_stats, cpu);
+			spin_lock_init(&cpu_stats->lock);
+		}
+	}
 	return flow;
+err:
+	kmem_cache_free(flow_cache, flow);
+	return ERR_PTR(-ENOMEM);
 }
 
 int ovs_flow_tbl_count(struct flow_table *table)
@@ -118,6 +139,10 @@ static struct flex_array *alloc_buckets(unsigned int n_buckets)
 static void flow_free(struct sw_flow *flow)
 {
 	kfree((struct sf_flow_acts __force *)flow->sf_acts);
+	if (flow->stats.is_percpu)
+		free_percpu(flow->stats.cpu_stats);
+	else
+		kfree(flow->stats.stat);
 	kmem_cache_free(flow_cache, flow);
 }
 
@@ -128,36 +153,29 @@ static void rcu_free_flow_callback(struct rcu_head *rcu)
 	flow_free(flow);
 }
 
-static void rcu_free_sw_flow_mask_cb(struct rcu_head *rcu)
-{
-	struct sw_flow_mask *mask = container_of(rcu, struct sw_flow_mask, rcu);
-
-	kfree(mask);
-}
-
-static void flow_mask_del_ref(struct sw_flow_mask *mask, bool deferred)
-{
-	if (!mask)
-		return;
-
-	BUG_ON(!mask->ref_count);
-	mask->ref_count--;
-
-	if (!mask->ref_count) {
-		list_del_rcu(&mask->list);
-		if (deferred)
-			call_rcu(&mask->rcu, rcu_free_sw_flow_mask_cb);
-		else
-			kfree(mask);
-	}
-}
-
 void ovs_flow_free(struct sw_flow *flow, bool deferred)
 {
 	if (!flow)
 		return;
 
-	flow_mask_del_ref(flow->mask, deferred);
+	if (flow->mask) {
+		struct sw_flow_mask *mask = flow->mask;
+
+		/* ovs-lock is required to protect mask-refcount and
+		 * mask list.
+		 */
+		ASSERT_OVSL();
+		BUG_ON(!mask->ref_count);
+		mask->ref_count--;
+
+		if (!mask->ref_count) {
+			list_del_rcu(&mask->list);
+			if (deferred)
+				kfree_rcu(mask, rcu);
+			else
+				kfree(mask);
+		}
+	}
 
 	if (deferred)
 		call_rcu(&flow->rcu, rcu_free_flow_callback);
@@ -170,26 +188,9 @@ static void free_buckets(struct flex_array *buckets)
 	flex_array_free(buckets);
 }
 
+
 static void __table_instance_destroy(struct table_instance *ti)
 {
-	int i;
-
-	if (ti->keep_flows)
-		goto skip_flows;
-
-	for (i = 0; i < ti->n_buckets; i++) {
-		struct sw_flow *flow;
-		struct hlist_head *head = flex_array_get(ti->buckets, i);
-		struct hlist_node *n;
-		int ver = ti->node_ver;
-
-		hlist_for_each_entry_safe(flow, n, head, hash_node[ver]) {
-			hlist_del(&flow->hash_node[ver]);
-			ovs_flow_free(flow, false);
-		}
-	}
-
-skip_flows:
 	free_buckets(ti->buckets);
 	kfree(ti);
 }
@@ -240,20 +241,38 @@ static void flow_tbl_destroy_rcu_cb(struct rcu_head *rcu)
 
 static void table_instance_destroy(struct table_instance *ti, bool deferred)
 {
+	int i;
+
 	if (!ti)
 		return;
 
+	if (ti->keep_flows)
+		goto skip_flows;
+
+	for (i = 0; i < ti->n_buckets; i++) {
+		struct sw_flow *flow;
+		struct hlist_head *head = flex_array_get(ti->buckets, i);
+		struct hlist_node *n;
+		int ver = ti->node_ver;
+
+		hlist_for_each_entry_safe(flow, n, head, hash_node[ver]) {
+			hlist_del_rcu(&flow->hash_node[ver]);
+			ovs_flow_free(flow, deferred);
+		}
+	}
+
+skip_flows:
 	if (deferred)
 		call_rcu(&ti->rcu, flow_tbl_destroy_rcu_cb);
 	else
 		__table_instance_destroy(ti);
 }
 
-void ovs_flow_tbl_destroy(struct flow_table *table)
+void ovs_flow_tbl_destroy(struct flow_table *table, bool deferred)
 {
 	struct table_instance *ti = ovsl_dereference(table->ti);
 
-	table_instance_destroy(ti, false);
+	table_instance_destroy(ti, deferred);
 }
 
 struct sw_flow *ovs_flow_tbl_dump_next(struct table_instance *ti,
@@ -362,7 +381,7 @@ static u32 flow_hash(const struct sw_flow_key *key, int key_start,
 	/* Make sure number of hash bytes are multiple of u32. */
 	BUILD_BUG_ON(sizeof(long) % sizeof(u32));
 
-	return jhash2(hash_key, hash_u32s, 0);
+	return arch_fast_hash2(hash_key, hash_u32s, 0);
 }
 
 static int flow_key_start(const struct sw_flow_key *key)
@@ -429,11 +448,11 @@ static struct sw_flow *masked_flow_lookup(struct table_instance *ti,
 	return NULL;
 }
 
-struct sw_flow *ovs_flow_tbl_lookup(struct flow_table *tbl,
+struct sw_flow *ovs_flow_tbl_lookup_stats(struct flow_table *tbl,
 				    const struct sw_flow_key *key,
 				    u32 *n_mask_hit)
 {
-	struct table_instance *ti = rcu_dereference(tbl->ti);
+	struct table_instance *ti = rcu_dereference_ovsl(tbl->ti);
 	struct sw_flow_mask *mask;
 	struct sw_flow *flow;
 
@@ -445,6 +464,14 @@ struct sw_flow *ovs_flow_tbl_lookup(struct flow_table *tbl,
 			return flow;
 	}
 	return NULL;
+}
+
+struct sw_flow *ovs_flow_tbl_lookup(struct flow_table *tbl,
+				    const struct sw_flow_key *key)
+{
+	u32 __always_unused n_mask_hit;
+
+	return ovs_flow_tbl_lookup_stats(tbl, key, &n_mask_hit);
 }
 
 int ovs_flow_tbl_num_masks(const struct flow_table *table)
@@ -478,14 +505,9 @@ static struct sw_flow_mask *mask_alloc(void)
 
 	mask = kmalloc(sizeof(*mask), GFP_KERNEL);
 	if (mask)
-		mask->ref_count = 0;
+		mask->ref_count = 1;
 
 	return mask;
-}
-
-static void mask_add_ref(struct sw_flow_mask *mask)
-{
-	mask->ref_count++;
 }
 
 static bool mask_equal(const struct sw_flow_mask *a,
@@ -514,11 +536,7 @@ static struct sw_flow_mask *flow_mask_find(const struct flow_table *tbl,
 	return NULL;
 }
 
-/**
- * add a new mask into the mask list.
- * The caller needs to make sure that 'mask' is not the same
- * as any masks that are already on the list.
- */
+/* Add 'mask' into the mask list, if it is not already there. */
 static int flow_mask_insert(struct flow_table *tbl, struct sw_flow *flow,
 			    struct sw_flow_mask *new)
 {
@@ -532,9 +550,11 @@ static int flow_mask_insert(struct flow_table *tbl, struct sw_flow *flow,
 		mask->key = new->key;
 		mask->range = new->range;
 		list_add_rcu(&mask->list, &tbl->mask_list);
+	} else {
+		BUG_ON(!mask->ref_count);
+		mask->ref_count++;
 	}
 
-	mask_add_ref(mask);
 	flow->mask = mask;
 	return 0;
 }

@@ -80,6 +80,7 @@ static int omap_enter_idle_coupled(struct cpuidle_device *dev,
 			int index)
 {
 	struct idle_statedata *cx = state_ptr + index;
+	u32 mpuss_can_lose_context = 0;
 
 	/*
 	 * CPU0 has to wait and stay ON until CPU1 is OFF state.
@@ -104,6 +105,9 @@ static int omap_enter_idle_coupled(struct cpuidle_device *dev,
 		}
 	}
 
+	mpuss_can_lose_context = (cx->mpu_state == PWRDM_POWER_RET) &&
+				 (cx->mpu_logic_state == PWRDM_POWER_OFF);
+
 	/*
 	 * Call idle CPU PM enter notifier chain so that
 	 * VFP and per CPU interrupt context is saved.
@@ -118,9 +122,8 @@ static int omap_enter_idle_coupled(struct cpuidle_device *dev,
 		 * Call idle CPU cluster PM enter notifier chain
 		 * to save GIC and wakeupgen context.
 		 */
-		if ((cx->mpu_state == PWRDM_POWER_RET) &&
-			(cx->mpu_logic_state == PWRDM_POWER_OFF))
-				cpu_cluster_pm_enter();
+		if (mpuss_can_lose_context)
+			cpu_cluster_pm_enter();
 	}
 
 	omap4_enter_lowpower(dev->cpu, cx->cpu_state);
@@ -128,9 +131,23 @@ static int omap_enter_idle_coupled(struct cpuidle_device *dev,
 
 	/* Wakeup CPU1 only if it is not offlined */
 	if (dev->cpu == 0 && cpumask_test_cpu(1, cpu_online_mask)) {
+
+		if (IS_PM44XX_ERRATUM(PM_OMAP4_ROM_SMP_BOOT_ERRATUM_GICD) &&
+		    mpuss_can_lose_context)
+			gic_dist_disable();
+
 		clkdm_wakeup(cpu_clkdm[1]);
 		omap_set_pwrdm_state(cpu_pd[1], PWRDM_POWER_ON);
 		clkdm_allow_idle(cpu_clkdm[1]);
+
+		if (IS_PM44XX_ERRATUM(PM_OMAP4_ROM_SMP_BOOT_ERRATUM_GICD) &&
+		    mpuss_can_lose_context) {
+			while (gic_dist_disabled()) {
+				udelay(1);
+				cpu_relax();
+			}
+			gic_timer_retrigger();
+		}
 	}
 
 	/*
@@ -143,8 +160,7 @@ static int omap_enter_idle_coupled(struct cpuidle_device *dev,
 	 * Call idle CPU cluster PM exit notifier chain
 	 * to restore GIC and wakeupgen context.
 	 */
-	if (dev->cpu == 0 && (cx->mpu_state == PWRDM_POWER_RET) &&
-		(cx->mpu_logic_state == PWRDM_POWER_OFF))
+	if (dev->cpu == 0 && mpuss_can_lose_context)
 		cpu_cluster_pm_exit();
 
 fail:

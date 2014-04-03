@@ -33,6 +33,7 @@
 #define CTL_SDIO_IRQ_MASK 0x38
 #define CTL_DMA_ENABLE 0xd8
 #define CTL_RESET_SD 0xe0
+#define CTL_VERSION 0xe2
 #define CTL_SDIO_REGS 0x100
 #define CTL_CLK_AND_WAIT_CTL 0x138
 #define CTL_RESET_SDIO 0x1e0

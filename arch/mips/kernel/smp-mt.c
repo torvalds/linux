@@ -71,6 +71,7 @@ static unsigned int __init smvp_vpe_init(unsigned int tc, unsigned int mvpconf0,
 
 		/* Record this as available CPU */
 		set_cpu_possible(tc, true);
+		set_cpu_present(tc, true);
 		__cpu_number_map[tc]	= ++ncpu;
 		__cpu_logical_map[ncpu] = tc;
 	}
@@ -112,12 +113,39 @@ static void __init smvp_tc_init(unsigned int tc, unsigned int mvpconf0)
 	write_tc_c0_tchalt(TCHALT_H);
 }
 
+#ifdef CONFIG_IRQ_GIC
+static void mp_send_ipi_single(int cpu, unsigned int action)
+{
+	unsigned long flags;
+
+	local_irq_save(flags);
+
+	switch (action) {
+	case SMP_CALL_FUNCTION:
+		gic_send_ipi(plat_ipi_call_int_xlate(cpu));
+		break;
+
+	case SMP_RESCHEDULE_YOURSELF:
+		gic_send_ipi(plat_ipi_resched_int_xlate(cpu));
+		break;
+	}
+
+	local_irq_restore(flags);
+}
+#endif
+
 static void vsmp_send_ipi_single(int cpu, unsigned int action)
 {
 	int i;
 	unsigned long flags;
 	int vpflags;
 
+#ifdef CONFIG_IRQ_GIC
+	if (gic_present) {
+		mp_send_ipi_single(cpu, action);
+		return;
+	}
+#endif
 	local_irq_save(flags);
 
 	vpflags = dvpe();	/* can't access the other CPU's registers whilst MVPE enabled */

@@ -268,7 +268,6 @@ int t4vf_wait_dev_ready(struct adapter *);
 int t4vf_port_init(struct adapter *, int);
 
 int t4vf_fw_reset(struct adapter *);
-int t4vf_query_params(struct adapter *, unsigned int, const u32 *, u32 *);
 int t4vf_set_params(struct adapter *, unsigned int, const u32 *, const u32 *);
 
 int t4vf_get_sge_params(struct adapter *);

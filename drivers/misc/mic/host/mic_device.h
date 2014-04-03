@@ -112,7 +112,7 @@ struct mic_device {
 	struct work_struct shutdown_work;
 	u8 state;
 	u8 shutdown_status;
-	struct sysfs_dirent *state_sysfs;
+	struct kernfs_node *state_sysfs;
 	struct completion reset_wait;
 	void *log_buf_addr;
 	int *log_buf_len;
@@ -134,6 +134,8 @@ struct mic_device {
  * @send_intr: Send an interrupt for a particular doorbell on the card.
  * @ack_interrupt: Hardware specific operations to ack the h/w on
  * receipt of an interrupt.
+ * @intr_workarounds: Hardware specific workarounds needed after
+ * handling an interrupt.
  * @reset: Reset the remote processor.
  * @reset_fw_ready: Reset firmware ready field.
  * @is_fw_ready: Check if firmware is ready for OS download.
@@ -149,6 +151,7 @@ struct mic_hw_ops {
 	void (*write_spad)(struct mic_device *mdev, unsigned int idx, u32 val);
 	void (*send_intr)(struct mic_device *mdev, int doorbell);
 	u32 (*ack_interrupt)(struct mic_device *mdev);
+	void (*intr_workarounds)(struct mic_device *mdev);
 	void (*reset)(struct mic_device *mdev);
 	void (*reset_fw_ready)(struct mic_device *mdev);
 	bool (*is_fw_ready)(struct mic_device *mdev);

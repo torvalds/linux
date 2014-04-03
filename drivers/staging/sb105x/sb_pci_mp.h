@@ -9,7 +9,6 @@
 #include <linux/sched.h>
 
 #include <linux/kernel.h>
-#include <linux/init.h>
 #include <linux/slab.h>
 #include <linux/wait.h>
 #include <linux/tty_driver.h>

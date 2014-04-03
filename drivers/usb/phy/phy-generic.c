@@ -241,7 +241,6 @@ int usb_phy_gen_create_phy(struct device *dev, struct usb_phy_gen_xceiv *nop,
 	nop->phy.otg->set_host		= nop_set_host;
 	nop->phy.otg->set_peripheral	= nop_set_peripheral;
 
-	ATOMIC_INIT_NOTIFIER_HEAD(&nop->phy.notifier);
 	return 0;
 }
 EXPORT_SYMBOL_GPL(usb_phy_gen_create_phy);

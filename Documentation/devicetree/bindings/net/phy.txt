@@ -2,7 +2,6 @@ PHY nodes
 
 Required properties:
 
- - device_type : Should be "ethernet-phy"
  - interrupts : <a b> where a is the interrupt number and b is a
    field that represents an encoding of the sense and level
    information for the interrupt.  This should be encoded based on
@@ -11,8 +10,6 @@ Required properties:
  - interrupt-parent : the phandle for the interrupt controller that
    services interrupts for this device.
  - reg : The ID number for the phy, usually a small integer
- - linux,phandle :  phandle for this node; likely referenced by an
-   ethernet controller node.
 
 Optional Properties:
 
@@ -22,14 +19,13 @@ Optional Properties:
   specifications. If neither of these are specified, the default is to
   assume clause 22. The compatible list may also contain other
   elements.
+- max-speed: Maximum PHY supported speed (10, 100, 1000...)
 
 Example:
 
 ethernet-phy@0 {
 	compatible = "ethernet-phy-ieee802.3-c22";
-	linux,phandle = <2452000>;
 	interrupt-parent = <40000>;
 	interrupts = <35 1>;
 	reg = <0>;
-	device_type = "ethernet-phy";
 };

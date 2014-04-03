@@ -171,6 +171,7 @@ nouveau_gart_manager_new(struct ttm_mem_type_manager *man,
 	node = kzalloc(sizeof(*node), GFP_KERNEL);
 	if (!node)
 		return -ENOMEM;
+
 	node->page_shift = 12;
 
 	switch (nv_device(drm->device)->card_type) {

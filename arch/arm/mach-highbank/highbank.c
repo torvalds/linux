@@ -53,6 +53,7 @@ static void __init highbank_scu_map_io(void)
 
 static void highbank_l2x0_disable(void)
 {
+	outer_flush_all();
 	/* Disable PL310 L2 Cache controller */
 	highbank_smc1(0x102, 0x0);
 }

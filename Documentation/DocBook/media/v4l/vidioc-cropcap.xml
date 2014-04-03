@@ -133,18 +133,14 @@ rectangle, in pixels.</entry>
 rectangle, in pixels.</entry>
 	  </row>
 	  <row>
-	    <entry>__s32</entry>
+	    <entry>__u32</entry>
 	    <entry><structfield>width</structfield></entry>
 	    <entry>Width of the rectangle, in pixels.</entry>
 	  </row>
 	  <row>
-	    <entry>__s32</entry>
+	    <entry>__u32</entry>
 	    <entry><structfield>height</structfield></entry>
-	    <entry>Height of the rectangle, in pixels. Width
-and height cannot be negative, the fields are signed for
-hysterical reasons. <!-- video4linux-list@redhat.com
-on 22 Oct 2002 subject "Re:[V4L][patches!] Re:v4l2/kernel-2.5" -->
-</entry>
+	    <entry>Height of the rectangle, in pixels.</entry>
 	  </row>
 	</tbody>
       </tgroup>

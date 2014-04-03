@@ -469,12 +469,6 @@ static int sunxi_pinctrl_gpio_get(struct gpio_chip *chip, unsigned offset)
 	return val;
 }
 
-static int sunxi_pinctrl_gpio_direction_output(struct gpio_chip *chip,
-					unsigned offset, int value)
-{
-	return pinctrl_gpio_direction_output(chip->base + offset);
-}
-
 static void sunxi_pinctrl_gpio_set(struct gpio_chip *chip,
 				unsigned offset, int value)
 {
@@ -496,6 +490,13 @@ static void sunxi_pinctrl_gpio_set(struct gpio_chip *chip,
 	writel(regval, pctl->membase + reg);
 
 	spin_unlock_irqrestore(&pctl->lock, flags);
+}
+
+static int sunxi_pinctrl_gpio_direction_output(struct gpio_chip *chip,
+					unsigned offset, int value)
+{
+	sunxi_pinctrl_gpio_set(chip, offset, value);
+	return pinctrl_gpio_direction_output(chip->base + offset);
 }
 
 static int sunxi_pinctrl_gpio_of_xlate(struct gpio_chip *gc,
@@ -547,7 +548,7 @@ static struct gpio_chip sunxi_pinctrl_gpio_chip = {
 	.of_xlate		= sunxi_pinctrl_gpio_of_xlate,
 	.to_irq			= sunxi_pinctrl_gpio_to_irq,
 	.of_gpio_n_cells	= 3,
-	.can_sleep		= 0,
+	.can_sleep		= false,
 };
 
 static int sunxi_pinctrl_irq_set_type(struct irq_data *d,

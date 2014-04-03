@@ -19,8 +19,7 @@
 #include <linux/platform_device.h>
 #include <linux/regmap.h>
 #include <linux/log2.h>
-
-#include <linux/input/pmic8xxx-pwrkey.h>
+#include <linux/of.h>
 
 #define PON_CNTL_1 0x1C
 #define PON_CNTL_PULL_UP BIT(7)
@@ -89,15 +88,15 @@ static int pmic8xxx_pwrkey_probe(struct platform_device *pdev)
 	unsigned int pon_cntl;
 	struct regmap *regmap;
 	struct pmic8xxx_pwrkey *pwrkey;
-	const struct pm8xxx_pwrkey_platform_data *pdata =
-					dev_get_platdata(&pdev->dev);
+	u32 kpd_delay;
+	bool pull_up;
 
-	if (!pdata) {
-		dev_err(&pdev->dev, "power key platform data not supplied\n");
-		return -EINVAL;
-	}
+	if (of_property_read_u32(pdev->dev.of_node, "debounce", &kpd_delay))
+		kpd_delay = 0;
 
-	if (pdata->kpd_trigger_delay_us > 62500) {
+	pull_up = of_property_read_bool(pdev->dev.of_node, "pull-up");
+
+	if (kpd_delay > 62500) {
 		dev_err(&pdev->dev, "invalid power key trigger delay\n");
 		return -EINVAL;
 	}
@@ -125,7 +124,7 @@ static int pmic8xxx_pwrkey_probe(struct platform_device *pdev)
 	pwr->name = "pmic8xxx_pwrkey";
 	pwr->phys = "pmic8xxx_pwrkey/input0";
 
-	delay = (pdata->kpd_trigger_delay_us << 10) / USEC_PER_SEC;
+	delay = (kpd_delay << 10) / USEC_PER_SEC;
 	delay = 1 + ilog2(delay);
 
 	err = regmap_read(regmap, PON_CNTL_1, &pon_cntl);
@@ -136,7 +135,7 @@ static int pmic8xxx_pwrkey_probe(struct platform_device *pdev)
 
 	pon_cntl &= ~PON_CNTL_TRIG_DELAY_MASK;
 	pon_cntl |= (delay & PON_CNTL_TRIG_DELAY_MASK);
-	if (pdata->pull_up)
+	if (pull_up)
 		pon_cntl |= PON_CNTL_PULL_UP;
 	else
 		pon_cntl &= ~PON_CNTL_PULL_UP;
@@ -172,7 +171,7 @@ static int pmic8xxx_pwrkey_probe(struct platform_device *pdev)
 	}
 
 	platform_set_drvdata(pdev, pwrkey);
-	device_init_wakeup(&pdev->dev, pdata->wakeup);
+	device_init_wakeup(&pdev->dev, 1);
 
 	return 0;
 }
@@ -184,13 +183,21 @@ static int pmic8xxx_pwrkey_remove(struct platform_device *pdev)
 	return 0;
 }
 
+static const struct of_device_id pm8xxx_pwr_key_id_table[] = {
+	{ .compatible = "qcom,pm8058-pwrkey" },
+	{ .compatible = "qcom,pm8921-pwrkey" },
+	{ }
+};
+MODULE_DEVICE_TABLE(of, pm8xxx_pwr_key_id_table);
+
 static struct platform_driver pmic8xxx_pwrkey_driver = {
 	.probe		= pmic8xxx_pwrkey_probe,
 	.remove		= pmic8xxx_pwrkey_remove,
 	.driver		= {
-		.name	= PM8XXX_PWRKEY_DEV_NAME,
+		.name	= "pm8xxx-pwrkey",
 		.owner	= THIS_MODULE,
 		.pm	= &pm8xxx_pwr_key_pm_ops,
+		.of_match_table = pm8xxx_pwr_key_id_table,
 	},
 };
 module_platform_driver(pmic8xxx_pwrkey_driver);

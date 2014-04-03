@@ -322,6 +322,10 @@ do {									\
 #define	BNA_CQ_EF_REMOTE	(1 << 19)
 
 #define	BNA_CQ_EF_LOCAL		(1 << 20)
+/* CAT2 ASIC does not use bit 21 as per the SPEC.
+ * Bit 31 is set in every end of frame completion
+ */
+#define BNA_CQ_EF_EOP		(1 << 31)
 
 /* Data structures */
 

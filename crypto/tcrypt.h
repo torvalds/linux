@@ -22,6 +22,11 @@ struct cipher_speed_template {
 	unsigned int klen;
 };
 
+struct aead_speed_template {
+	const char *key;
+	unsigned int klen;
+};
+
 struct hash_speed {
 	unsigned int blen;	/* buffer length */
 	unsigned int plen;	/* per-update length */
@@ -56,6 +61,11 @@ static u8 speed_template_32_40_48[] = {32, 40, 48, 0};
 static u8 speed_template_32_48[] = {32, 48, 0};
 static u8 speed_template_32_48_64[] = {32, 48, 64, 0};
 static u8 speed_template_32_64[] = {32, 64, 0};
+
+/*
+ * AEAD speed tests
+ */
+static u8 aead_speed_template_20[] = {20, 0};
 
 /*
  * Digest speed tests

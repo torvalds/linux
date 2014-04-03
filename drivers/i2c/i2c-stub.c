@@ -2,7 +2,7 @@
     i2c-stub.c - I2C/SMBus chip emulator
 
     Copyright (c) 2004 Mark M. Hoffman <mhoffman@lightlink.com>
-    Copyright (C) 2007, 2012 Jean Delvare <khali@linux-fr.org>
+    Copyright (C) 2007, 2012 Jean Delvare <jdelvare@suse.de>
 
     This program is free software; you can redistribute it and/or modify
     it under the terms of the GNU General Public License as published by

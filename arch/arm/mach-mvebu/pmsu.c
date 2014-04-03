@@ -22,6 +22,7 @@
 #include <linux/io.h>
 #include <linux/smp.h>
 #include <asm/smp_plat.h>
+#include "pmsu.h"
 
 static void __iomem *pmsu_mp_base;
 static void __iomem *pmsu_reset_base;
@@ -58,7 +59,7 @@ int armada_xp_boot_cpu(unsigned int cpu_id, void *boot_addr)
 }
 #endif
 
-int __init armada_370_xp_pmsu_init(void)
+static int __init armada_370_xp_pmsu_init(void)
 {
 	struct device_node *np;
 

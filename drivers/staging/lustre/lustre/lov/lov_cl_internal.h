@@ -168,6 +168,22 @@ enum lov_layout_type {
 	LLT_NR
 };
 
+static inline char *llt2str(enum lov_layout_type llt)
+{
+	switch (llt) {
+	case LLT_EMPTY:
+		return "EMPTY";
+	case LLT_RAID0:
+		return "RAID0";
+	case LLT_RELEASED:
+		return "RELEASED";
+	case LLT_NR:
+		LBUG();
+	}
+	LBUG();
+	return "";
+}
+
 /**
  * lov-specific file state.
  *

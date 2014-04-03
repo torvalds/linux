@@ -16,9 +16,7 @@
  * GNU General Public License for more details.
  *
  * You should have received a copy of the GNU General Public License
- * along with this program; if not, write to the
- * Free Software Foundation, Inc.,
- * 59 Temple Place - Suite 330, Boston, MA 02111-1307, USA.
+ * along with this program; if not, see <http://www.gnu.org/licenses/>.
  */
 
 #define pr_fmt(fmt) KBUILD_MODNAME ": %s: " fmt, __func__
@@ -135,11 +133,8 @@ int nfc_dev_up(struct nfc_dev *dev)
 		dev->dev_up = true;
 
 	/* We have to enable the device before discovering SEs */
-	if (dev->ops->discover_se) {
-		rc = dev->ops->discover_se(dev);
-		if (rc)
-			pr_warn("SE discovery failed\n");
-	}
+	if (dev->ops->discover_se && dev->ops->discover_se(dev))
+		pr_err("SE discovery failed\n");
 
 error:
 	device_unlock(&dev->dev);
@@ -384,7 +379,7 @@ int nfc_dep_link_is_up(struct nfc_dev *dev, u32 target_idx,
 {
 	dev->dep_link_up = true;
 
-	if (!dev->active_target) {
+	if (!dev->active_target && rf_mode == NFC_RF_INITIATOR) {
 		struct nfc_target *target;
 
 		target = nfc_find_target(dev, target_idx);

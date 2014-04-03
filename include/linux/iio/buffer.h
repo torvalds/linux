@@ -21,6 +21,8 @@ struct iio_buffer;
  * struct iio_buffer_access_funcs - access functions for buffers.
  * @store_to:		actually store stuff to the buffer
  * @read_first_n:	try to get a specified number of bytes (must exist)
+ * @data_available:	indicates whether data for reading from the buffer is
+ *			available.
  * @request_update:	if a parameter change has been marked, update underlying
  *			storage.
  * @get_bytes_per_datum:get current bytes per datum
@@ -43,6 +45,7 @@ struct iio_buffer_access_funcs {
 	int (*read_first_n)(struct iio_buffer *buffer,
 			    size_t n,
 			    char __user *buf);
+	bool (*data_available)(struct iio_buffer *buffer);
 
 	int (*request_update)(struct iio_buffer *buffer);
 

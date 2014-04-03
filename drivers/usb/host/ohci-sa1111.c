@@ -211,8 +211,10 @@ static int ohci_hcd_sa1111_probe(struct sa1111_dev *dev)
 		goto err2;
 
 	ret = usb_add_hcd(hcd, dev->irq[1], 0);
-	if (ret == 0)
+	if (ret == 0) {
+		device_wakeup_enable(hcd->self.controller);
 		return ret;
+	}
 
 	sa1111_stop_hc(dev);
  err2:

@@ -1160,7 +1160,7 @@ static void i7300_remove_one(struct pci_dev *pdev)
  *
  * Has only 8086:360c PCI ID
  */
-static DEFINE_PCI_DEVICE_TABLE(i7300_pci_tbl) = {
+static const struct pci_device_id i7300_pci_tbl[] = {
 	{PCI_DEVICE(PCI_VENDOR_ID_INTEL, PCI_DEVICE_ID_INTEL_I7300_MCH_ERR)},
 	{0,}			/* 0 terminated list. */
 };

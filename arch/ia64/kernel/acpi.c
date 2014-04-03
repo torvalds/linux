@@ -53,7 +53,6 @@
 #include <asm/numa.h>
 #include <asm/sal.h>
 #include <asm/cyclone.h>
-#include <asm/xen/hypervisor.h>
 
 #define BAD_MADT_ENTRY(entry, end) (                                        \
 		(!entry) || (unsigned long)entry + sizeof(*entry) > end ||  \
@@ -61,7 +60,6 @@
 
 #define PREFIX			"ACPI: "
 
-u32 acpi_rsdt_forced;
 unsigned int acpi_cpei_override;
 unsigned int acpi_cpei_phys_cpuid;
 
@@ -120,8 +118,6 @@ acpi_get_sysname(void)
 			return "uv";
 		else
 			return "sn2";
-	} else if (xen_pv_domain() && !strcmp(hdr->oem_id, "XEN")) {
-		return "xen";
 	}
 
 #ifdef CONFIG_INTEL_IOMMU

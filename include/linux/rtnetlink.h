@@ -24,6 +24,11 @@ extern int rtnl_trylock(void);
 extern int rtnl_is_locked(void);
 #ifdef CONFIG_PROVE_LOCKING
 extern int lockdep_rtnl_is_held(void);
+#else
+static inline int lockdep_rtnl_is_held(void)
+{
+	return 1;
+}
 #endif /* #ifdef CONFIG_PROVE_LOCKING */
 
 /**

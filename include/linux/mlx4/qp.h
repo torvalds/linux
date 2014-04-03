@@ -109,6 +109,10 @@ enum {
 	MLX4_RSS_TCP_IPV4			= 1 << 4,
 	MLX4_RSS_IPV4				= 1 << 5,
 
+	MLX4_RSS_BY_OUTER_HEADERS		= 0 << 6,
+	MLX4_RSS_BY_INNER_HEADERS		= 2 << 6,
+	MLX4_RSS_BY_INNER_HEADERS_IPONLY	= 3 << 6,
+
 	/* offset of mlx4_rss_context within mlx4_qp_context.pri_path */
 	MLX4_RSS_OFFSET_IN_QPC_PRI_PATH		= 0x24,
 	/* offset of being RSS indirection QP within mlx4_qp_context.flags */
@@ -252,6 +256,8 @@ enum { /* param3 */
 
 enum {
 	MLX4_WQE_CTRL_NEC		= 1 << 29,
+	MLX4_WQE_CTRL_IIP		= 1 << 28,
+	MLX4_WQE_CTRL_ILP		= 1 << 27,
 	MLX4_WQE_CTRL_FENCE		= 1 << 6,
 	MLX4_WQE_CTRL_CQ_UPDATE		= 3 << 2,
 	MLX4_WQE_CTRL_SOLICITED		= 1 << 1,

@@ -64,14 +64,14 @@ lnet_accept_magic(__u32 magic, __u32 constant)
 
 static char *accept = "secure";
 
-CFS_MODULE_PARM(accept, "s", charp, 0444,
-		"Accept connections (secure|all|none)");
-CFS_MODULE_PARM(accept_port, "i", int, 0444,
-		"Acceptor's port (same on all nodes)");
-CFS_MODULE_PARM(accept_backlog, "i", int, 0444,
-		"Acceptor's listen backlog");
-CFS_MODULE_PARM(accept_timeout, "i", int, 0644,
-		"Acceptor's timeout (seconds)");
+module_param(accept, charp, 0444);
+MODULE_PARM_DESC(accept, "Accept connections (secure|all|none)");
+module_param(accept_port, int, 0444);
+MODULE_PARM_DESC(accept_port, "Acceptor's port (same on all nodes)");
+module_param(accept_backlog, int, 0444);
+MODULE_PARM_DESC(accept_backlog, "Acceptor's listen backlog");
+module_param(accept_timeout, int, 0644);
+MODULE_PARM_DESC(accept_timeout, "Acceptor's timeout (seconds)");
 
 static char *accept_type;
 

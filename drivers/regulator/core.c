@@ -1272,6 +1272,8 @@ static struct regulator_dev *regulator_dev_lookup(struct device *dev,
 				if (r->dev.parent &&
 					node == r->dev.of_node)
 					return r;
+			*ret = -EPROBE_DEFER;
+			return NULL;
 		} else {
 			/*
 			 * If we couldn't even get the node then it's
@@ -1312,7 +1314,7 @@ static struct regulator *_regulator_get(struct device *dev, const char *id,
 	struct regulator_dev *rdev;
 	struct regulator *regulator = ERR_PTR(-EPROBE_DEFER);
 	const char *devname = NULL;
-	int ret = -EPROBE_DEFER;
+	int ret;
 
 	if (id == NULL) {
 		pr_err("get() with no identifier\n");
@@ -1321,6 +1323,11 @@ static struct regulator *_regulator_get(struct device *dev, const char *id,
 
 	if (dev)
 		devname = dev_name(dev);
+
+	if (have_full_constraints())
+		ret = -ENODEV;
+	else
+		ret = -EPROBE_DEFER;
 
 	mutex_lock(&regulator_list_mutex);
 
@@ -1334,9 +1341,8 @@ static struct regulator *_regulator_get(struct device *dev, const char *id,
 	 * If we have return value from dev_lookup fail, we do not expect to
 	 * succeed, so, quit with appropriate error value
 	 */
-	if (ret && ret != -ENODEV) {
+	if (ret && ret != -ENODEV)
 		goto out;
-	}
 
 	if (!devname)
 		devname = "deviceless";
@@ -1351,8 +1357,9 @@ static struct regulator *_regulator_get(struct device *dev, const char *id,
 
 		rdev = dummy_regulator_rdev;
 		goto found;
-	} else {
-		dev_err(dev, "dummy supplies not allowed\n");
+	/* Don't log an error when called from regulator_get_optional() */
+	} else if (!have_full_constraints() || exclusive) {
+		dev_warn(dev, "dummy supplies not allowed\n");
 	}
 
 	mutex_unlock(&regulator_list_mutex);
@@ -2244,7 +2251,7 @@ int regulator_is_supported_voltage(struct regulator *regulator,
 	if (!(rdev->constraints->valid_ops_mask & REGULATOR_CHANGE_VOLTAGE)) {
 		ret = regulator_get_voltage(regulator);
 		if (ret >= 0)
-			return (min_uV <= ret && ret <= max_uV);
+			return min_uV <= ret && ret <= max_uV;
 		else
 			return ret;
 	}
@@ -2416,7 +2423,7 @@ int regulator_set_voltage(struct regulator *regulator, int min_uV, int max_uV)
 	ret = regulator_check_voltage(rdev, &min_uV, &max_uV);
 	if (ret < 0)
 		goto out;
-	
+
 	/* restore original values in case of error */
 	old_min_uV = regulator->min_uV;
 	old_max_uV = regulator->max_uV;
@@ -2430,7 +2437,7 @@ int regulator_set_voltage(struct regulator *regulator, int min_uV, int max_uV)
 	ret = _regulator_do_set_voltage(rdev, min_uV, max_uV);
 	if (ret < 0)
 		goto out2;
-	
+
 out:
 	mutex_unlock(&rdev->mutex);
 	return ret;
@@ -3835,9 +3842,8 @@ static int __init regulator_init_complete(void)
 			 * goes wrong. */
 			rdev_info(rdev, "disabling\n");
 			ret = ops->disable(rdev);
-			if (ret != 0) {
+			if (ret != 0)
 				rdev_err(rdev, "couldn't disable: %d\n", ret);
-			}
 		} else {
 			/* The intention is that in future we will
 			 * assume that full constraints are provided

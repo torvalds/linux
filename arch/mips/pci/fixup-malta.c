@@ -54,6 +54,7 @@ int pcibios_plat_dev_init(struct pci_dev *dev)
 static void malta_piix_func0_fixup(struct pci_dev *pdev)
 {
 	unsigned char reg_val;
+	u32 reg_val32;
 	/* PIIX PIRQC[A:D] irq mappings */
 	static int piixirqmap[PIIX4_FUNC0_PIRQRC_IRQ_ROUTING_MAX] = {
 		0,  0,	0,  3,
@@ -83,6 +84,16 @@ static void malta_piix_func0_fixup(struct pci_dev *pdev)
 		pci_write_config_byte(pdev, PIIX4_FUNC0_TOM, reg_val |
 				PIIX4_FUNC0_TOM_TOP_OF_MEMORY_MASK);
 	}
+
+	/* Mux SERIRQ to its pin */
+	pci_read_config_dword(pdev, PIIX4_FUNC0_GENCFG, &reg_val32);
+	pci_write_config_dword(pdev, PIIX4_FUNC0_GENCFG,
+			       reg_val32 | PIIX4_FUNC0_GENCFG_SERIRQ);
+
+	/* Enable SERIRQ */
+	pci_read_config_byte(pdev, PIIX4_FUNC0_SERIRQC, &reg_val);
+	reg_val |= PIIX4_FUNC0_SERIRQC_EN | PIIX4_FUNC0_SERIRQC_CONT;
+	pci_write_config_byte(pdev, PIIX4_FUNC0_SERIRQC, reg_val);
 }
 
 DECLARE_PCI_FIXUP_HEADER(PCI_VENDOR_ID_INTEL, PCI_DEVICE_ID_INTEL_82371AB_0,

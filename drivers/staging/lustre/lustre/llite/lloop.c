@@ -194,10 +194,10 @@ static int do_bio_lustrebacked(struct lloop_device *lo, struct bio *head)
 	struct cl_object     *obj = ll_i2info(inode)->lli_clob;
 	pgoff_t	       offset;
 	int		   ret;
-	int		   i;
 	int		   rw;
 	obd_count	     page_count = 0;
-	struct bio_vec       *bvec;
+	struct bio_vec       bvec;
+	struct bvec_iter   iter;
 	struct bio	   *bio;
 	ssize_t	       bytes;
 
@@ -220,15 +220,15 @@ static int do_bio_lustrebacked(struct lloop_device *lo, struct bio *head)
 	for (bio = head; bio != NULL; bio = bio->bi_next) {
 		LASSERT(rw == bio->bi_rw);
 
-		offset = (pgoff_t)(bio->bi_sector << 9) + lo->lo_offset;
-		bio_for_each_segment(bvec, bio, i) {
-			BUG_ON(bvec->bv_offset != 0);
-			BUG_ON(bvec->bv_len != PAGE_CACHE_SIZE);
+		offset = (pgoff_t)(bio->bi_iter.bi_sector << 9) + lo->lo_offset;
+		bio_for_each_segment(bvec, bio, iter) {
+			BUG_ON(bvec.bv_offset != 0);
+			BUG_ON(bvec.bv_len != PAGE_CACHE_SIZE);
 
-			pages[page_count] = bvec->bv_page;
+			pages[page_count] = bvec.bv_page;
 			offsets[page_count] = offset;
 			page_count++;
-			offset += bvec->bv_len;
+			offset += bvec.bv_len;
 		}
 		LASSERT(page_count <= LLOOP_MAX_SEGMENTS);
 	}
@@ -313,7 +313,8 @@ static unsigned int loop_get_bio(struct lloop_device *lo, struct bio **req)
 	bio = &lo->lo_bio;
 	while (*bio && (*bio)->bi_rw == rw) {
 		CDEBUG(D_INFO, "bio sector %llu size %u count %u vcnt%u \n",
-		       (unsigned long long)(*bio)->bi_sector, (*bio)->bi_size,
+		       (unsigned long long)(*bio)->bi_iter.bi_sector,
+		       (*bio)->bi_iter.bi_size,
 		       page_count, (*bio)->bi_vcnt);
 		if (page_count + (*bio)->bi_vcnt > LLOOP_MAX_SEGMENTS)
 			break;
@@ -347,7 +348,8 @@ static void loop_make_request(struct request_queue *q, struct bio *old_bio)
 		goto err;
 
 	CDEBUG(D_INFO, "submit bio sector %llu size %u\n",
-	       (unsigned long long)old_bio->bi_sector, old_bio->bi_size);
+	       (unsigned long long)old_bio->bi_iter.bi_sector,
+	       old_bio->bi_iter.bi_size);
 
 	spin_lock_irq(&lo->lo_lock);
 	inactive = (lo->lo_state != LLOOP_BOUND);
@@ -367,7 +369,7 @@ static void loop_make_request(struct request_queue *q, struct bio *old_bio)
 	loop_add_bio(lo, old_bio);
 	return;
 err:
-	cfs_bio_io_error(old_bio, old_bio->bi_size);
+	cfs_bio_io_error(old_bio, old_bio->bi_iter.bi_size);
 }
 
 
@@ -378,7 +380,7 @@ static inline void loop_handle_bio(struct lloop_device *lo, struct bio *bio)
 	while (bio) {
 		struct bio *tmp = bio->bi_next;
 		bio->bi_next = NULL;
-		cfs_bio_endio(bio, bio->bi_size, ret);
+		cfs_bio_endio(bio, bio->bi_iter.bi_size, ret);
 		bio = tmp;
 	}
 }
@@ -856,7 +858,8 @@ static void lloop_exit(void)
 module_init(lloop_init);
 module_exit(lloop_exit);
 
-CFS_MODULE_PARM(max_loop, "i", int, 0444, "maximum of lloop_device");
+module_param(max_loop, int, 0444);
+MODULE_PARM_DESC(max_loop, "maximum of lloop_device");
 MODULE_AUTHOR("Sun Microsystems, Inc. <http://www.lustre.org/>");
 MODULE_DESCRIPTION("Lustre virtual block device");
 MODULE_LICENSE("GPL");

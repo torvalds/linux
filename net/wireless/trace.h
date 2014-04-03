@@ -186,6 +186,28 @@
 
 #define BOOL_TO_STR(bo) (bo) ? "true" : "false"
 
+#define QOS_MAP_ENTRY __field(u8, num_des)			\
+		      __array(u8, dscp_exception,		\
+			      2 * IEEE80211_QOS_MAP_MAX_EX)	\
+		      __array(u8, up, IEEE80211_QOS_MAP_LEN_MIN)
+#define QOS_MAP_ASSIGN(qos_map)					\
+	do {							\
+		if ((qos_map)) {				\
+			__entry->num_des = (qos_map)->num_des;	\
+			memcpy(__entry->dscp_exception,		\
+			       &(qos_map)->dscp_exception,	\
+			       2 * IEEE80211_QOS_MAP_MAX_EX);	\
+			memcpy(__entry->up, &(qos_map)->up,	\
+			       IEEE80211_QOS_MAP_LEN_MIN);	\
+		} else {					\
+			__entry->num_des = 0;			\
+			memset(__entry->dscp_exception, 0,	\
+			       2 * IEEE80211_QOS_MAP_MAX_EX);	\
+			memset(__entry->up, 0,			\
+			       IEEE80211_QOS_MAP_LEN_MIN);	\
+		}						\
+	} while (0)
+
 /*************************************************************
  *			rdev->ops traces		     *
  *************************************************************/
@@ -1653,9 +1675,8 @@ TRACE_EVENT(rdev_cancel_remain_on_channel,
 
 TRACE_EVENT(rdev_mgmt_tx,
 	TP_PROTO(struct wiphy *wiphy, struct wireless_dev *wdev,
-		 struct ieee80211_channel *chan, bool offchan,
-		 unsigned int wait, bool no_cck, bool dont_wait_for_ack),
-	TP_ARGS(wiphy, wdev, chan, offchan, wait, no_cck, dont_wait_for_ack),
+		 struct cfg80211_mgmt_tx_params *params),
+	TP_ARGS(wiphy, wdev, params),
 	TP_STRUCT__entry(
 		WIPHY_ENTRY
 		WDEV_ENTRY
@@ -1668,11 +1689,11 @@ TRACE_EVENT(rdev_mgmt_tx,
 	TP_fast_assign(
 		WIPHY_ASSIGN;
 		WDEV_ASSIGN;
-		CHAN_ASSIGN(chan);
-		__entry->offchan = offchan;
-		__entry->wait = wait;
-		__entry->no_cck = no_cck;
-		__entry->dont_wait_for_ack = dont_wait_for_ack;
+		CHAN_ASSIGN(params->chan);
+		__entry->offchan = params->offchan;
+		__entry->wait = params->wait;
+		__entry->no_cck = params->no_cck;
+		__entry->dont_wait_for_ack = params->dont_wait_for_ack;
 	),
 	TP_printk(WIPHY_PR_FMT ", " WDEV_PR_FMT ", " CHAN_PR_FMT ", offchan: %s,"
 		  " wait: %u, no cck: %s, dont wait for ack: %s",
@@ -1874,6 +1895,24 @@ TRACE_EVENT(rdev_channel_switch,
 		  __entry->block_tx, __entry->count, __entry->radar_required,
 		  __entry->counter_offset_beacon,
 		  __entry->counter_offset_presp)
+);
+
+TRACE_EVENT(rdev_set_qos_map,
+	TP_PROTO(struct wiphy *wiphy, struct net_device *netdev,
+		 struct cfg80211_qos_map *qos_map),
+	TP_ARGS(wiphy, netdev, qos_map),
+	TP_STRUCT__entry(
+		WIPHY_ENTRY
+		NETDEV_ENTRY
+		QOS_MAP_ENTRY
+	),
+	TP_fast_assign(
+		WIPHY_ASSIGN;
+		NETDEV_ASSIGN;
+		QOS_MAP_ASSIGN(qos_map);
+	),
+	TP_printk(WIPHY_PR_FMT ", " NETDEV_PR_FMT ", num_des: %u",
+		  WIPHY_PR_ARG, NETDEV_PR_ARG, __entry->num_des)
 );
 
 /*************************************************************

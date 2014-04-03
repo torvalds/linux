@@ -412,21 +412,12 @@ static int ad7816_probe(struct spi_device *spi_dev)
 			return ret;
 	}
 
-	ret = iio_device_register(indio_dev);
+	ret = devm_iio_device_register(&spi_dev->dev, indio_dev);
 	if (ret)
 		return ret;
 
 	dev_info(&spi_dev->dev, "%s temperature sensor and ADC registered.\n",
 			 indio_dev->name);
-
-	return 0;
-}
-
-static int ad7816_remove(struct spi_device *spi_dev)
-{
-	struct iio_dev *indio_dev = dev_get_drvdata(&spi_dev->dev);
-
-	iio_device_unregister(indio_dev);
 
 	return 0;
 }
@@ -446,7 +437,6 @@ static struct spi_driver ad7816_driver = {
 		.owner = THIS_MODULE,
 	},
 	.probe = ad7816_probe,
-	.remove = ad7816_remove,
 	.id_table = ad7816_id,
 };
 module_spi_driver(ad7816_driver);

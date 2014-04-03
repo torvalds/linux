@@ -348,7 +348,7 @@ static int txx9spi_probe(struct platform_device *dev)
 	INIT_LIST_HEAD(&c->queue);
 	init_waitqueue_head(&c->waitq);
 
-	c->clk = clk_get(&dev->dev, "spi-baseclk");
+	c->clk = devm_clk_get(&dev->dev, "spi-baseclk");
 	if (IS_ERR(c->clk)) {
 		ret = PTR_ERR(c->clk);
 		c->clk = NULL;
@@ -356,7 +356,6 @@ static int txx9spi_probe(struct platform_device *dev)
 	}
 	ret = clk_enable(c->clk);
 	if (ret) {
-		clk_put(c->clk);
 		c->clk = NULL;
 		goto exit;
 	}
@@ -415,10 +414,8 @@ exit_busy:
 exit:
 	if (c->workqueue)
 		destroy_workqueue(c->workqueue);
-	if (c->clk) {
+	if (c->clk)
 		clk_disable(c->clk);
-		clk_put(c->clk);
-	}
 	spi_master_put(master);
 	return ret;
 }
@@ -430,7 +427,6 @@ static int txx9spi_remove(struct platform_device *dev)
 
 	destroy_workqueue(c->workqueue);
 	clk_disable(c->clk);
-	clk_put(c->clk);
 	return 0;
 }
 

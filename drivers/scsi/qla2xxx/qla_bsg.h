@@ -23,6 +23,7 @@
 #define QL_VND_WRITE_I2C	0x10
 #define QL_VND_READ_I2C		0x11
 #define QL_VND_FX00_MGMT_CMD	0x12
+#define QL_VND_SERDES_OP	0x13
 
 /* BSG Vendor specific subcode returns */
 #define EXT_STATUS_OK			0
@@ -210,6 +211,18 @@ struct qla_i2c_access {
 	uint16_t option;
 	uint16_t length;
 	uint8_t  buffer[0x40];
+} __packed;
+
+/* 26xx serdes register interface */
+
+/* serdes reg commands */
+#define INT_SC_SERDES_READ_REG		1
+#define INT_SC_SERDES_WRITE_REG		2
+
+struct qla_serdes_reg {
+	uint16_t cmd;
+	uint16_t addr;
+	uint16_t val;
 } __packed;
 
 #endif

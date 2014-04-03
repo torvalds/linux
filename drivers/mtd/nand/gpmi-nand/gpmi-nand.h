@@ -26,8 +26,6 @@
 struct resources {
 	void __iomem  *gpmi_regs;
 	void __iomem  *bch_regs;
-	unsigned int  bch_low_interrupt;
-	unsigned int  bch_high_interrupt;
 	unsigned int  dma_low_channel;
 	unsigned int  dma_high_channel;
 	struct clk    *clock[GPMI_CLK_MAX];

@@ -90,17 +90,17 @@
 
 		green-status {
 			label = "gtw:green:Status";
-			gpios = <&gpio0 20 0>;
+			gpios = <&gpio0 20 GPIO_ACTIVE_HIGH>;
 		};
 
 		red-status {
 			label = "gtw:red:Status";
-			gpios = <&gpio0 21 0>;
+			gpios = <&gpio0 21 GPIO_ACTIVE_HIGH>;
 		};
 
 		green-usb {
 			label = "gtw:green:USB";
-			gpios = <&gpio0 12 0>;
+			gpios = <&gpio0 12 GPIO_ACTIVE_HIGH>;
 		};
 	};
 
@@ -113,13 +113,13 @@
 
 		button@1 {
 			label = "SWR Button";
-			linux,code = <0x198>; /* KEY_RESTART */
-			gpios = <&gpio1 15 1>;
+			linux,code = <KEY_RESTART>;
+			gpios = <&gpio1 15 GPIO_ACTIVE_LOW>;
 		};
 		button@2 {
 			label = "WPS Button";
-			linux,code = <0x211>; /* KEY_WPS_BUTTON */
-			gpios = <&gpio1 14 1>;
+			linux,code = <KEY_WPS_BUTTON>;
+			gpios = <&gpio1 14 GPIO_ACTIVE_LOW>;
 		};
 	};
 };

@@ -58,4 +58,9 @@ int __init s3c64xx_pm_late_initcall(void);
 static inline int s3c64xx_pm_late_initcall(void) { return 0; }
 #endif
 
+#ifdef CONFIG_S3C64XX_PL080
+extern struct pl08x_platform_data s3c64xx_dma0_plat_data;
+extern struct pl08x_platform_data s3c64xx_dma1_plat_data;
+#endif
+
 #endif /* __ARCH_ARM_MACH_S3C64XX_COMMON_H */

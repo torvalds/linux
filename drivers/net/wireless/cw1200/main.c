@@ -21,7 +21,6 @@
  */
 
 #include <linux/module.h>
-#include <linux/init.h>
 #include <linux/firmware.h>
 #include <linux/etherdevice.h>
 #include <linux/vmalloc.h>
@@ -302,7 +301,6 @@ static struct ieee80211_hw *cw1200_init_common(const u8 *macaddr,
 
 	hw->wiphy->flags |= WIPHY_FLAG_AP_UAPSD;
 
-	hw->channel_change_time = 1000;	/* TODO: find actual value */
 	hw->queues = 4;
 
 	priv->rts_threshold = -1;

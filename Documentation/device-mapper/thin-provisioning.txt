@@ -235,6 +235,8 @@ i) Constructor
       read_only: Don't allow any changes to be made to the pool
 		 metadata.
 
+      error_if_no_space: Error IOs, instead of queueing, if no space.
+
     Data block size must be between 64KB (128 sectors) and 1GB
     (2097152 sectors) inclusive.
 
@@ -275,6 +277,11 @@ ii) Status
 	no further I/O will be permitted and the status will just
 	contain the string 'Fail'.  The userspace recovery tools
 	should then be used.
+
+    error_if_no_space|queue_if_no_space
+	If the pool runs out of data or metadata space, the pool will
+	either queue or error the IO destined to the data device.  The
+	default is to queue the IO until more space is added.
 
 iii) Messages
 

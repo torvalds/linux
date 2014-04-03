@@ -39,13 +39,23 @@ struct vpdma_data {
 	bool ready;
 };
 
+enum vpdma_data_format_type {
+	VPDMA_DATA_FMT_TYPE_YUV,
+	VPDMA_DATA_FMT_TYPE_RGB,
+	VPDMA_DATA_FMT_TYPE_MISC,
+};
+
 struct vpdma_data_format {
+	enum vpdma_data_format_type type;
 	int data_type;
 	u8 depth;
 };
 
 #define VPDMA_DESC_ALIGN		16	/* 16-byte descriptor alignment */
-
+#define VPDMA_STRIDE_ALIGN		16	/*
+						 * line stride of source and dest
+						 * buffers should be 16 byte aligned
+						 */
 #define VPDMA_DTD_DESC_SIZE		32	/* 8 words */
 #define VPDMA_CFD_CTD_DESC_SIZE		16	/* 4 words */
 

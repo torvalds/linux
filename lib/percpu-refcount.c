@@ -120,6 +120,9 @@ static void percpu_ref_kill_rcu(struct rcu_head *rcu)
 
 	atomic_add((int) count - PCPU_COUNT_BIAS, &ref->count);
 
+	WARN_ONCE(atomic_read(&ref->count) <= 0, "percpu ref <= 0 (%i)",
+		  atomic_read(&ref->count));
+
 	/* @ref is viewed as dead on all CPUs, send out kill confirmation */
 	if (ref->confirm_kill)
 		ref->confirm_kill(ref);

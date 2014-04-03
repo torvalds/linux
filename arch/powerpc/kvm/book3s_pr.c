@@ -41,6 +41,7 @@
 #include <linux/vmalloc.h>
 #include <linux/highmem.h>
 #include <linux/module.h>
+#include <linux/miscdevice.h>
 
 #include "book3s.h"
 
@@ -66,6 +67,7 @@ static void kvmppc_core_vcpu_load_pr(struct kvm_vcpu *vcpu, int cpu)
 	struct kvmppc_book3s_shadow_vcpu *svcpu = svcpu_get(vcpu);
 	memcpy(svcpu->slb, to_book3s(vcpu)->slb_shadow, sizeof(svcpu->slb));
 	svcpu->slb_max = to_book3s(vcpu)->slb_shadow_max;
+	svcpu->in_use = 0;
 	svcpu_put(svcpu);
 #endif
 	vcpu->cpu = smp_processor_id();
@@ -78,6 +80,9 @@ static void kvmppc_core_vcpu_put_pr(struct kvm_vcpu *vcpu)
 {
 #ifdef CONFIG_PPC_BOOK3S_64
 	struct kvmppc_book3s_shadow_vcpu *svcpu = svcpu_get(vcpu);
+	if (svcpu->in_use) {
+		kvmppc_copy_from_svcpu(vcpu, svcpu);
+	}
 	memcpy(to_book3s(vcpu)->slb_shadow, svcpu->slb, sizeof(svcpu->slb));
 	to_book3s(vcpu)->slb_shadow_max = svcpu->slb_max;
 	svcpu_put(svcpu);
@@ -110,12 +115,26 @@ void kvmppc_copy_to_svcpu(struct kvmppc_book3s_shadow_vcpu *svcpu,
 	svcpu->ctr = vcpu->arch.ctr;
 	svcpu->lr  = vcpu->arch.lr;
 	svcpu->pc  = vcpu->arch.pc;
+	svcpu->in_use = true;
 }
 
 /* Copy data touched by real-mode code from shadow vcpu back to vcpu */
 void kvmppc_copy_from_svcpu(struct kvm_vcpu *vcpu,
 			    struct kvmppc_book3s_shadow_vcpu *svcpu)
 {
+	/*
+	 * vcpu_put would just call us again because in_use hasn't
+	 * been updated yet.
+	 */
+	preempt_disable();
+
+	/*
+	 * Maybe we were already preempted and synced the svcpu from
+	 * our preempt notifiers. Don't bother touching this svcpu then.
+	 */
+	if (!svcpu->in_use)
+		goto out;
+
 	vcpu->arch.gpr[0] = svcpu->gpr[0];
 	vcpu->arch.gpr[1] = svcpu->gpr[1];
 	vcpu->arch.gpr[2] = svcpu->gpr[2];
@@ -139,6 +158,10 @@ void kvmppc_copy_from_svcpu(struct kvm_vcpu *vcpu,
 	vcpu->arch.fault_dar   = svcpu->fault_dar;
 	vcpu->arch.fault_dsisr = svcpu->fault_dsisr;
 	vcpu->arch.last_inst   = svcpu->last_inst;
+	svcpu->in_use = false;
+
+out:
+	preempt_enable();
 }
 
 static int kvmppc_core_check_requests_pr(struct kvm_vcpu *vcpu)
@@ -544,12 +567,6 @@ static inline int get_fpr_index(int i)
 void kvmppc_giveup_ext(struct kvm_vcpu *vcpu, ulong msr)
 {
 	struct thread_struct *t = &current->thread;
-	u64 *vcpu_fpr = vcpu->arch.fpr;
-#ifdef CONFIG_VSX
-	u64 *vcpu_vsx = vcpu->arch.vsr;
-#endif
-	u64 *thread_fpr = &t->fp_state.fpr[0][0];
-	int i;
 
 	/*
 	 * VSX instructions can access FP and vector registers, so if
@@ -572,26 +589,16 @@ void kvmppc_giveup_ext(struct kvm_vcpu *vcpu, ulong msr)
 		 * both the traditional FP registers and the added VSX
 		 * registers into thread.fp_state.fpr[].
 		 */
-		if (current->thread.regs->msr & MSR_FP)
+		if (t->regs->msr & MSR_FP)
 			giveup_fpu(current);
-		for (i = 0; i < ARRAY_SIZE(vcpu->arch.fpr); i++)
-			vcpu_fpr[i] = thread_fpr[get_fpr_index(i)];
-
-		vcpu->arch.fpscr = t->fp_state.fpscr;
-
-#ifdef CONFIG_VSX
-		if (cpu_has_feature(CPU_FTR_VSX))
-			for (i = 0; i < ARRAY_SIZE(vcpu->arch.vsr) / 2; i++)
-				vcpu_vsx[i] = thread_fpr[get_fpr_index(i) + 1];
-#endif
+		t->fp_save_area = NULL;
 	}
 
 #ifdef CONFIG_ALTIVEC
 	if (msr & MSR_VEC) {
 		if (current->thread.regs->msr & MSR_VEC)
 			giveup_altivec(current);
-		memcpy(vcpu->arch.vr, t->vr_state.vr, sizeof(vcpu->arch.vr));
-		vcpu->arch.vscr = t->vr_state.vscr;
+		t->vr_save_area = NULL;
 	}
 #endif
 
@@ -639,12 +646,6 @@ static int kvmppc_handle_ext(struct kvm_vcpu *vcpu, unsigned int exit_nr,
 			     ulong msr)
 {
 	struct thread_struct *t = &current->thread;
-	u64 *vcpu_fpr = vcpu->arch.fpr;
-#ifdef CONFIG_VSX
-	u64 *vcpu_vsx = vcpu->arch.vsr;
-#endif
-	u64 *thread_fpr = &t->fp_state.fpr[0][0];
-	int i;
 
 	/* When we have paired singles, we emulate in software */
 	if (vcpu->arch.hflags & BOOK3S_HFLAG_PAIRED_SINGLE)
@@ -682,27 +683,20 @@ static int kvmppc_handle_ext(struct kvm_vcpu *vcpu, unsigned int exit_nr,
 #endif
 
 	if (msr & MSR_FP) {
-		for (i = 0; i < ARRAY_SIZE(vcpu->arch.fpr); i++)
-			thread_fpr[get_fpr_index(i)] = vcpu_fpr[i];
-#ifdef CONFIG_VSX
-		for (i = 0; i < ARRAY_SIZE(vcpu->arch.vsr) / 2; i++)
-			thread_fpr[get_fpr_index(i) + 1] = vcpu_vsx[i];
-#endif
-		t->fp_state.fpscr = vcpu->arch.fpscr;
-		t->fpexc_mode = 0;
-		kvmppc_load_up_fpu();
+		enable_kernel_fp();
+		load_fp_state(&vcpu->arch.fp);
+		t->fp_save_area = &vcpu->arch.fp;
 	}
 
 	if (msr & MSR_VEC) {
 #ifdef CONFIG_ALTIVEC
-		memcpy(t->vr_state.vr, vcpu->arch.vr, sizeof(vcpu->arch.vr));
-		t->vr_state.vscr = vcpu->arch.vscr;
-		t->vrsave = -1;
-		kvmppc_load_up_altivec();
+		enable_kernel_altivec();
+		load_vr_state(&vcpu->arch.vr);
+		t->vr_save_area = &vcpu->arch.vr;
 #endif
 	}
 
-	current->thread.regs->msr |= msr;
+	t->regs->msr |= msr;
 	vcpu->arch.guest_owned_ext |= msr;
 	kvmppc_recalc_shadow_msr(vcpu);
 
@@ -721,11 +715,15 @@ static void kvmppc_handle_lost_ext(struct kvm_vcpu *vcpu)
 	if (!lost_ext)
 		return;
 
-	if (lost_ext & MSR_FP)
-		kvmppc_load_up_fpu();
+	if (lost_ext & MSR_FP) {
+		enable_kernel_fp();
+		load_fp_state(&vcpu->arch.fp);
+	}
 #ifdef CONFIG_ALTIVEC
-	if (lost_ext & MSR_VEC)
-		kvmppc_load_up_altivec();
+	if (lost_ext & MSR_VEC) {
+		enable_kernel_altivec();
+		load_vr_state(&vcpu->arch.vr);
+	}
 #endif
 	current->thread.regs->msr |= lost_ext;
 }
@@ -851,6 +849,7 @@ int kvmppc_handle_exit_pr(struct kvm_run *run, struct kvm_vcpu *vcpu,
 	/* We're good on these - the host merely wanted to get our attention */
 	case BOOK3S_INTERRUPT_DECREMENTER:
 	case BOOK3S_INTERRUPT_HV_DECREMENTER:
+	case BOOK3S_INTERRUPT_DOORBELL:
 		vcpu->stat.dec_exits++;
 		r = RESUME_GUEST;
 		break;
@@ -1023,14 +1022,14 @@ program_interrupt:
 		 * and if we really did time things so badly, then we just exit
 		 * again due to a host external interrupt.
 		 */
-		local_irq_disable();
 		s = kvmppc_prepare_to_enter(vcpu);
-		if (s <= 0) {
-			local_irq_enable();
+		if (s <= 0)
 			r = s;
-		} else {
+		else {
+			/* interrupts now hard-disabled */
 			kvmppc_fix_ee_before_entry();
 		}
+
 		kvmppc_handle_lost_ext(vcpu);
 	}
 
@@ -1111,19 +1110,6 @@ static int kvmppc_get_one_reg_pr(struct kvm_vcpu *vcpu, u64 id,
 	case KVM_REG_PPC_HIOR:
 		*val = get_reg_val(id, to_book3s(vcpu)->hior);
 		break;
-#ifdef CONFIG_VSX
-	case KVM_REG_PPC_VSR0 ... KVM_REG_PPC_VSR31: {
-		long int i = id - KVM_REG_PPC_VSR0;
-
-		if (!cpu_has_feature(CPU_FTR_VSX)) {
-			r = -ENXIO;
-			break;
-		}
-		val->vsxval[0] = vcpu->arch.fpr[i];
-		val->vsxval[1] = vcpu->arch.vsr[i];
-		break;
-	}
-#endif /* CONFIG_VSX */
 	default:
 		r = -EINVAL;
 		break;
@@ -1142,19 +1128,6 @@ static int kvmppc_set_one_reg_pr(struct kvm_vcpu *vcpu, u64 id,
 		to_book3s(vcpu)->hior = set_reg_val(id, *val);
 		to_book3s(vcpu)->hior_explicit = true;
 		break;
-#ifdef CONFIG_VSX
-	case KVM_REG_PPC_VSR0 ... KVM_REG_PPC_VSR31: {
-		long int i = id - KVM_REG_PPC_VSR0;
-
-		if (!cpu_has_feature(CPU_FTR_VSX)) {
-			r = -ENXIO;
-			break;
-		}
-		vcpu->arch.fpr[i] = val->vsxval[0];
-		vcpu->arch.vsr[i] = val->vsxval[1];
-		break;
-	}
-#endif /* CONFIG_VSX */
 	default:
 		r = -EINVAL;
 		break;
@@ -1252,17 +1225,9 @@ static void kvmppc_core_vcpu_free_pr(struct kvm_vcpu *vcpu)
 static int kvmppc_vcpu_run_pr(struct kvm_run *kvm_run, struct kvm_vcpu *vcpu)
 {
 	int ret;
-	struct thread_fp_state fp;
-	int fpexc_mode;
 #ifdef CONFIG_ALTIVEC
-	struct thread_vr_state vr;
 	unsigned long uninitialized_var(vrsave);
-	int used_vr;
 #endif
-#ifdef CONFIG_VSX
-	int used_vsr;
-#endif
-	ulong ext_msr;
 
 	/* Check if we can run the vcpu at all */
 	if (!vcpu->arch.sane) {
@@ -1277,39 +1242,26 @@ static int kvmppc_vcpu_run_pr(struct kvm_run *kvm_run, struct kvm_vcpu *vcpu)
 	 * really did time things so badly, then we just exit again due to
 	 * a host external interrupt.
 	 */
-	local_irq_disable();
 	ret = kvmppc_prepare_to_enter(vcpu);
-	if (ret <= 0) {
-		local_irq_enable();
+	if (ret <= 0)
 		goto out;
-	}
+	/* interrupts now hard-disabled */
 
-	/* Save FPU state in stack */
+	/* Save FPU state in thread_struct */
 	if (current->thread.regs->msr & MSR_FP)
 		giveup_fpu(current);
-	fp = current->thread.fp_state;
-	fpexc_mode = current->thread.fpexc_mode;
 
 #ifdef CONFIG_ALTIVEC
-	/* Save Altivec state in stack */
-	used_vr = current->thread.used_vr;
-	if (used_vr) {
-		if (current->thread.regs->msr & MSR_VEC)
-			giveup_altivec(current);
-		vr = current->thread.vr_state;
-		vrsave = current->thread.vrsave;
-	}
+	/* Save Altivec state in thread_struct */
+	if (current->thread.regs->msr & MSR_VEC)
+		giveup_altivec(current);
 #endif
 
 #ifdef CONFIG_VSX
-	/* Save VSX state in stack */
-	used_vsr = current->thread.used_vsr;
-	if (used_vsr && (current->thread.regs->msr & MSR_VSX))
+	/* Save VSX state in thread_struct */
+	if (current->thread.regs->msr & MSR_VSX)
 		__giveup_vsx(current);
 #endif
-
-	/* Remember the MSR with disabled extensions */
-	ext_msr = current->thread.regs->msr;
 
 	/* Preload FPU if it's enabled */
 	if (vcpu->arch.shared->msr & MSR_FP)
@@ -1324,25 +1276,6 @@ static int kvmppc_vcpu_run_pr(struct kvm_run *kvm_run, struct kvm_vcpu *vcpu)
 
 	/* Make sure we save the guest FPU/Altivec/VSX state */
 	kvmppc_giveup_ext(vcpu, MSR_FP | MSR_VEC | MSR_VSX);
-
-	current->thread.regs->msr = ext_msr;
-
-	/* Restore FPU/VSX state from stack */
-	current->thread.fp_state = fp;
-	current->thread.fpexc_mode = fpexc_mode;
-
-#ifdef CONFIG_ALTIVEC
-	/* Restore Altivec state from stack */
-	if (used_vr && current->thread.used_vr) {
-		current->thread.vr_state = vr;
-		current->thread.vrsave = vrsave;
-	}
-	current->thread.used_vr = used_vr;
-#endif
-
-#ifdef CONFIG_VSX
-	current->thread.used_vsr = used_vsr;
-#endif
 
 out:
 	vcpu->mode = OUTSIDE_GUEST_MODE;
@@ -1584,4 +1517,6 @@ module_init(kvmppc_book3s_init_pr);
 module_exit(kvmppc_book3s_exit_pr);
 
 MODULE_LICENSE("GPL");
+MODULE_ALIAS_MISCDEV(KVM_MINOR);
+MODULE_ALIAS("devname:kvm");
 #endif

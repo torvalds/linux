@@ -220,7 +220,7 @@ static int __init amiga_a3000_scsi_probe(struct platform_device *pdev)
 
 	instance->irq = IRQ_AMIGA_PORTS;
 
-	regs = (struct a3000_scsiregs *)ZTWO_VADDR(res->start);
+	regs = ZTWO_VADDR(res->start);
 	regs->DAWR = DAWR_A3000;
 
 	wdregs.SASR = &regs->SASR;

@@ -62,6 +62,7 @@ static int tmio_mmc_probe(struct platform_device *pdev)
 	const struct mfd_cell *cell = mfd_get_cell(pdev);
 	struct tmio_mmc_data *pdata;
 	struct tmio_mmc_host *host;
+	struct resource *res;
 	int ret = -EINVAL, irq;
 
 	if (pdev->num_resources != 2)
@@ -83,6 +84,14 @@ static int tmio_mmc_probe(struct platform_device *pdev)
 		if (ret)
 			goto out;
 	}
+
+	res = platform_get_resource(pdev, IORESOURCE_MEM, 0);
+	if (!res)
+		return -EINVAL;
+
+	/* SD control register space size is 0x200, 0x400 for bus_shift=1 */
+	pdata->bus_shift = resource_size(res) >> 10;
+	pdata->flags |= TMIO_MMC_HAVE_HIGH_REG;
 
 	ret = tmio_mmc_host_probe(&host, pdev, pdata);
 	if (ret)

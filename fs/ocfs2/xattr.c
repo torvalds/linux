@@ -99,8 +99,8 @@ static struct ocfs2_xattr_def_value_root def_xv = {
 
 const struct xattr_handler *ocfs2_xattr_handlers[] = {
 	&ocfs2_xattr_user_handler,
-	&ocfs2_xattr_acl_access_handler,
-	&ocfs2_xattr_acl_default_handler,
+	&posix_acl_access_xattr_handler,
+	&posix_acl_default_xattr_handler,
 	&ocfs2_xattr_trusted_handler,
 	&ocfs2_xattr_security_handler,
 	NULL
@@ -109,9 +109,9 @@ const struct xattr_handler *ocfs2_xattr_handlers[] = {
 static const struct xattr_handler *ocfs2_xattr_handler_map[OCFS2_XATTR_MAX] = {
 	[OCFS2_XATTR_INDEX_USER]	= &ocfs2_xattr_user_handler,
 	[OCFS2_XATTR_INDEX_POSIX_ACL_ACCESS]
-					= &ocfs2_xattr_acl_access_handler,
+					= &posix_acl_access_xattr_handler,
 	[OCFS2_XATTR_INDEX_POSIX_ACL_DEFAULT]
-					= &ocfs2_xattr_acl_default_handler,
+					= &posix_acl_default_xattr_handler,
 	[OCFS2_XATTR_INDEX_TRUSTED]	= &ocfs2_xattr_trusted_handler,
 	[OCFS2_XATTR_INDEX_SECURITY]	= &ocfs2_xattr_security_handler,
 };
@@ -7190,10 +7190,12 @@ out:
  */
 int ocfs2_init_security_and_acl(struct inode *dir,
 				struct inode *inode,
-				const struct qstr *qstr)
+				const struct qstr *qstr,
+				struct posix_acl *default_acl,
+				struct posix_acl *acl)
 {
-	int ret = 0;
 	struct buffer_head *dir_bh = NULL;
+	int ret = 0;
 
 	ret = ocfs2_init_security_get(inode, dir, qstr, NULL);
 	if (ret) {
@@ -7207,9 +7209,10 @@ int ocfs2_init_security_and_acl(struct inode *dir,
 		goto leave;
 	}
 
-	ret = ocfs2_init_acl(NULL, inode, dir, NULL, dir_bh, NULL, NULL);
-	if (ret)
-		mlog_errno(ret);
+	if (!ret && default_acl)
+		ret = ocfs2_iop_set_acl(inode, default_acl, ACL_TYPE_DEFAULT);
+	if (!ret && acl)
+		ret = ocfs2_iop_set_acl(inode, acl, ACL_TYPE_ACCESS);
 
 	ocfs2_inode_unlock(dir, 0);
 	brelse(dir_bh);

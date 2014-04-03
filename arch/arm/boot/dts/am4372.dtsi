@@ -67,6 +67,32 @@
 		ranges;
 		ti,hwmods = "l3_main";
 
+		prcm: prcm@44df0000 {
+			compatible = "ti,am4-prcm";
+			reg = <0x44df0000 0x11000>;
+
+			prcm_clocks: clocks {
+				#address-cells = <1>;
+				#size-cells = <0>;
+			};
+
+			prcm_clockdomains: clockdomains {
+			};
+		};
+
+		scrm: scrm@44e10000 {
+			compatible = "ti,am4-scrm";
+			reg = <0x44e10000 0x2000>;
+
+			scrm_clocks: clocks {
+				#address-cells = <1>;
+				#size-cells = <0>;
+			};
+
+			scrm_clockdomains: clockdomains {
+			};
+		};
+
 		edma: edma@49000000 {
 			compatible = "ti,edma3";
 			ti,hwmods = "tpcc", "tptc0", "tptc1", "tptc2";
@@ -665,3 +691,5 @@
 		};
 	};
 };
+
+/include/ "am43xx-clocks.dtsi"

@@ -8,7 +8,6 @@
 
 #include <linux/cper.h>
 #include <linux/acpi.h>
-#include <linux/acpi_io.h>
 
 struct apei_exec_context;
 

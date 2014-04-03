@@ -13,8 +13,7 @@
  * GNU General Public License for more details.
  *
  * You should have received a copy of the GNU General Public License
- * along with this program; if not, write to the Free Software
- * Foundation, Inc., 59 Temple Place - Suite 330, Boston, MA  02111-1307, USA.
+ * along with this program; if not, see <http://www.gnu.org/licenses/>.
  *
  ***************************************************************************
  */
@@ -1541,7 +1540,7 @@ static int smsc9420_resume(struct pci_dev *pdev)
 
 	pci_set_master(pdev);
 
-	err = pci_enable_wake(pdev, 0, 0);
+	err = pci_enable_wake(pdev, PCI_D0, 0);
 	if (err)
 		netif_warn(pd, ifup, pd->dev, "pci_enable_wake failed: %d\n",
 			   err);

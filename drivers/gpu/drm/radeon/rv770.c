@@ -1071,7 +1071,8 @@ static void rv770_mc_program(struct radeon_device *rdev)
  */
 void r700_cp_stop(struct radeon_device *rdev)
 {
-	radeon_ttm_set_active_vram_size(rdev, rdev->mc.visible_vram_size);
+	if (rdev->asic->copy.copy_ring_index == RADEON_RING_TYPE_GFX_INDEX)
+		radeon_ttm_set_active_vram_size(rdev, rdev->mc.visible_vram_size);
 	WREG32(CP_ME_CNTL, (CP_ME_HALT | CP_PFP_HALT));
 	WREG32(SCRATCH_UMSK, 0);
 	rdev->ring[RADEON_RING_TYPE_GFX_INDEX].ready = false;
@@ -1121,6 +1122,35 @@ void r700_cp_fini(struct radeon_device *rdev)
 	r700_cp_stop(rdev);
 	radeon_ring_fini(rdev, ring);
 	radeon_scratch_free(rdev, ring->rptr_save_reg);
+}
+
+void rv770_set_clk_bypass_mode(struct radeon_device *rdev)
+{
+	u32 tmp, i;
+
+	if (rdev->flags & RADEON_IS_IGP)
+		return;
+
+	tmp = RREG32(CG_SPLL_FUNC_CNTL_2);
+	tmp &= SCLK_MUX_SEL_MASK;
+	tmp |= SCLK_MUX_SEL(1) | SCLK_MUX_UPDATE;
+	WREG32(CG_SPLL_FUNC_CNTL_2, tmp);
+
+	for (i = 0; i < rdev->usec_timeout; i++) {
+		if (RREG32(CG_SPLL_STATUS) & SPLL_CHG_STATUS)
+			break;
+		udelay(1);
+	}
+
+	tmp &= ~SCLK_MUX_UPDATE;
+	WREG32(CG_SPLL_FUNC_CNTL_2, tmp);
+
+	tmp = RREG32(MPLL_CNTL_MODE);
+	if ((rdev->family == CHIP_RV710) || (rdev->family == CHIP_RV730))
+		tmp &= ~RV730_MPLL_MCLK_SEL;
+	else
+		tmp &= ~MPLL_MCLK_SEL;
+	WREG32(MPLL_CNTL_MODE, tmp);
 }
 
 /*
@@ -1665,14 +1695,6 @@ static int rv770_startup(struct radeon_device *rdev)
 
 	rv770_mc_program(rdev);
 
-	if (!rdev->me_fw || !rdev->pfp_fw || !rdev->rlc_fw) {
-		r = r600_init_microcode(rdev);
-		if (r) {
-			DRM_ERROR("Failed to load firmware!\n");
-			return r;
-		}
-	}
-
 	if (rdev->flags & RADEON_IS_AGP) {
 		rv770_agp_enable(rdev);
 	} else {
@@ -1728,14 +1750,12 @@ static int rv770_startup(struct radeon_device *rdev)
 
 	ring = &rdev->ring[RADEON_RING_TYPE_GFX_INDEX];
 	r = radeon_ring_init(rdev, ring, ring->ring_size, RADEON_WB_CP_RPTR_OFFSET,
-			     R600_CP_RB_RPTR, R600_CP_RB_WPTR,
 			     RADEON_CP_PACKET2);
 	if (r)
 		return r;
 
 	ring = &rdev->ring[R600_RING_TYPE_DMA_INDEX];
 	r = radeon_ring_init(rdev, ring, ring->ring_size, R600_WB_DMA_RPTR_OFFSET,
-			     DMA_RB_RPTR, DMA_RB_WPTR,
 			     DMA_PACKET(DMA_PACKET_NOP, 0, 0, 0));
 	if (r)
 		return r;
@@ -1754,7 +1774,6 @@ static int rv770_startup(struct radeon_device *rdev)
 	ring = &rdev->ring[R600_RING_TYPE_UVD_INDEX];
 	if (ring->ring_size) {
 		r = radeon_ring_init(rdev, ring, ring->ring_size, 0,
-				     UVD_RBC_RB_RPTR, UVD_RBC_RB_WPTR,
 				     RADEON_CP_PACKET2);
 		if (!r)
 			r = uvd_v1_0_init(rdev);
@@ -1792,6 +1811,8 @@ int rv770_resume(struct radeon_device *rdev)
 	/* init golden registers */
 	rv770_init_golden_registers(rdev);
 
+	radeon_pm_resume(rdev);
+
 	rdev->accel_working = true;
 	r = rv770_startup(rdev);
 	if (r) {
@@ -1806,6 +1827,7 @@ int rv770_resume(struct radeon_device *rdev)
 
 int rv770_suspend(struct radeon_device *rdev)
 {
+	radeon_pm_suspend(rdev);
 	r600_audio_fini(rdev);
 	uvd_v1_0_fini(rdev);
 	radeon_uvd_suspend(rdev);
@@ -1876,6 +1898,17 @@ int rv770_init(struct radeon_device *rdev)
 	if (r)
 		return r;
 
+	if (!rdev->me_fw || !rdev->pfp_fw || !rdev->rlc_fw) {
+		r = r600_init_microcode(rdev);
+		if (r) {
+			DRM_ERROR("Failed to load firmware!\n");
+			return r;
+		}
+	}
+
+	/* Initialize power management */
+	radeon_pm_init(rdev);
+
 	rdev->ring[RADEON_RING_TYPE_GFX_INDEX].ring_obj = NULL;
 	r600_ring_init(rdev, &rdev->ring[RADEON_RING_TYPE_GFX_INDEX], 1024 * 1024);
 
@@ -1915,6 +1948,7 @@ int rv770_init(struct radeon_device *rdev)
 
 void rv770_fini(struct radeon_device *rdev)
 {
+	radeon_pm_fini(rdev);
 	r700_cp_fini(rdev);
 	r600_dma_fini(rdev);
 	r600_irq_fini(rdev);

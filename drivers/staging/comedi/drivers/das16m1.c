@@ -110,18 +110,18 @@ irq can be omitted, although the cmd interface will not work without it.
 #define DAS16M1_82C55                  0x400
 #define DAS16M1_8254_THIRD             0x404
 
-static const struct comedi_lrange range_das16m1 = { 9,
-	{
-	 BIP_RANGE(5),
-	 BIP_RANGE(2.5),
-	 BIP_RANGE(1.25),
-	 BIP_RANGE(0.625),
-	 UNI_RANGE(10),
-	 UNI_RANGE(5),
-	 UNI_RANGE(2.5),
-	 UNI_RANGE(1.25),
-	 BIP_RANGE(10),
-	 }
+static const struct comedi_lrange range_das16m1 = {
+	9, {
+		BIP_RANGE(5),
+		BIP_RANGE(2.5),
+		BIP_RANGE(1.25),
+		BIP_RANGE(0.625),
+		UNI_RANGE(10),
+		UNI_RANGE(5),
+		UNI_RANGE(2.5),
+		UNI_RANGE(1.25),
+		BIP_RANGE(10)
+	}
 };
 
 struct das16m1_private_struct {
@@ -268,11 +268,6 @@ static int das16m1_cmd_exec(struct comedi_device *dev,
 	struct comedi_async *async = s->async;
 	struct comedi_cmd *cmd = &async->cmd;
 	unsigned int byte, i;
-
-	if (dev->irq == 0) {
-		comedi_error(dev, "irq required to execute comedi_cmd");
-		return -1;
-	}
 
 	/* disable interrupts and internal pacer */
 	devpriv->control_state &= ~INTE & ~PACER_MASK;
@@ -508,38 +503,26 @@ static irqreturn_t das16m1_interrupt(int irq, void *d)
 
 static int das16m1_irq_bits(unsigned int irq)
 {
-	int ret;
-
 	switch (irq) {
 	case 10:
-		ret = 0x0;
-		break;
+		return 0x0;
 	case 11:
-		ret = 0x1;
-		break;
+		return 0x1;
 	case 12:
-		ret = 0x2;
-		break;
+		return 0x2;
 	case 15:
-		ret = 0x3;
-		break;
+		return 0x3;
 	case 2:
-		ret = 0x4;
-		break;
+		return 0x4;
 	case 3:
-		ret = 0x5;
-		break;
+		return 0x5;
 	case 5:
-		ret = 0x6;
-		break;
+		return 0x6;
 	case 7:
-		ret = 0x7;
-		break;
+		return 0x7;
 	default:
-		return -1;
-		break;
+		return 0x0;
 	}
-	return ret << 4;
 }
 
 /*
@@ -553,7 +536,6 @@ static int das16m1_attach(struct comedi_device *dev,
 	struct das16m1_private_struct *devpriv;
 	struct comedi_subdevice *s;
 	int ret;
-	unsigned int irq;
 
 	devpriv = comedi_alloc_devpriv(dev, sizeof(*devpriv));
 	if (!devpriv)
@@ -569,24 +551,12 @@ static int das16m1_attach(struct comedi_device *dev,
 		return ret;
 	devpriv->extra_iobase = dev->iobase + DAS16M1_82C55;
 
-	/* now for the irq */
-	irq = it->options[1];
-	/*  make sure it is valid */
-	if (das16m1_irq_bits(irq) >= 0) {
-		ret = request_irq(irq, das16m1_interrupt, 0,
-				  dev->driver->driver_name, dev);
-		if (ret < 0)
-			return ret;
-		dev->irq = irq;
-		printk
-		    ("irq %u\n", irq);
-	} else if (irq == 0) {
-		printk
-		    (", no irq\n");
-	} else {
-		comedi_error(dev, "invalid irq\n"
-			     " valid irqs are 2, 3, 5, 7, 10, 11, 12, or 15\n");
-		return -EINVAL;
+	/* only irqs 2, 3, 4, 5, 6, 7, 10, 11, 12, 14, and 15 are valid */
+	if ((1 << it->options[1]) & 0xdcfc) {
+		ret = request_irq(it->options[1], das16m1_interrupt, 0,
+				  dev->board_name, dev);
+		if (ret == 0)
+			dev->irq = it->options[1];
 	}
 
 	ret = comedi_alloc_subdevices(dev, 4);
@@ -594,20 +564,22 @@ static int das16m1_attach(struct comedi_device *dev,
 		return ret;
 
 	s = &dev->subdevices[0];
-	dev->read_subdev = s;
 	/* ai */
 	s->type = COMEDI_SUBD_AI;
-	s->subdev_flags = SDF_READABLE | SDF_CMD_READ;
+	s->subdev_flags = SDF_READABLE | SDF_DIFF;
 	s->n_chan = 8;
-	s->subdev_flags = SDF_DIFF;
-	s->len_chanlist = 256;
 	s->maxdata = (1 << 12) - 1;
 	s->range_table = &range_das16m1;
 	s->insn_read = das16m1_ai_rinsn;
-	s->do_cmdtest = das16m1_cmd_test;
-	s->do_cmd = das16m1_cmd_exec;
-	s->cancel = das16m1_cancel;
-	s->poll = das16m1_poll;
+	if (dev->irq) {
+		dev->read_subdev = s;
+		s->subdev_flags |= SDF_CMD_READ;
+		s->len_chanlist = 256;
+		s->do_cmdtest = das16m1_cmd_test;
+		s->do_cmd = das16m1_cmd_exec;
+		s->cancel = das16m1_cancel;
+		s->poll = das16m1_poll;
+	}
 
 	s = &dev->subdevices[1];
 	/* di */
@@ -640,10 +612,7 @@ static int das16m1_attach(struct comedi_device *dev,
 	outb(0, dev->iobase + DAS16M1_DIO);
 
 	/* set the interrupt level */
-	if (dev->irq)
-		devpriv->control_state = das16m1_irq_bits(dev->irq);
-	else
-		devpriv->control_state = 0;
+	devpriv->control_state = das16m1_irq_bits(dev->irq) << 4;
 	outb(devpriv->control_state, dev->iobase + DAS16M1_INTR_CONTROL);
 
 	return 0;

@@ -2118,8 +2118,16 @@ ctnetlink_nfqueue_parse_ct(const struct nlattr *cda[], struct nf_conn *ct)
 			return err;
 	}
 #if defined(CONFIG_NF_CONNTRACK_MARK)
-	if (cda[CTA_MARK])
-		ct->mark = ntohl(nla_get_be32(cda[CTA_MARK]));
+	if (cda[CTA_MARK]) {
+		u32 mask = 0, mark, newmark;
+		if (cda[CTA_MARK_MASK])
+			mask = ~ntohl(nla_get_be32(cda[CTA_MARK_MASK]));
+
+		mark = ntohl(nla_get_be32(cda[CTA_MARK]));
+		newmark = (ct->mark & mask) ^ mark;
+		if (newmark != ct->mark)
+			ct->mark = newmark;
+	}
 #endif
 	return 0;
 }

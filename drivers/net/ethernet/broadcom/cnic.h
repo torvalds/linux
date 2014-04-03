@@ -186,6 +186,8 @@ struct kcq_info {
 	u16		(*hw_idx)(u16);
 };
 
+#define UIO_USE_TX_DOORBELL 0x017855DB
+
 struct cnic_uio_dev {
 	struct uio_info		cnic_uinfo;
 	u32			uio_dev;

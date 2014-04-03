@@ -31,7 +31,7 @@ module_param_string(channel, test_channel, sizeof(test_channel),
 		S_IRUGO | S_IWUSR);
 MODULE_PARM_DESC(channel, "Bus ID of the channel to test (default: any)");
 
-static char test_device[20];
+static char test_device[32];
 module_param_string(device, test_device, sizeof(test_device),
 		S_IRUGO | S_IWUSR);
 MODULE_PARM_DESC(device, "Bus ID of the DMA Engine to test (default: any)");
@@ -89,7 +89,7 @@ MODULE_PARM_DESC(verbose, "Enable \"success\" result messages (default: off)");
 struct dmatest_params {
 	unsigned int	buf_size;
 	char		channel[20];
-	char		device[20];
+	char		device[32];
 	unsigned int	threads_per_chan;
 	unsigned int	max_channels;
 	unsigned int	iterations;
@@ -539,9 +539,9 @@ static int dmatest_func(void *data)
 
 		um->len = params->buf_size;
 		for (i = 0; i < src_cnt; i++) {
-			unsigned long buf = (unsigned long) thread->srcs[i];
+			void *buf = thread->srcs[i];
 			struct page *pg = virt_to_page(buf);
-			unsigned pg_off = buf & ~PAGE_MASK;
+			unsigned pg_off = (unsigned long) buf & ~PAGE_MASK;
 
 			um->addr[i] = dma_map_page(dev->dev, pg, pg_off,
 						   um->len, DMA_TO_DEVICE);
@@ -559,9 +559,9 @@ static int dmatest_func(void *data)
 		/* map with DMA_BIDIRECTIONAL to force writeback/invalidate */
 		dsts = &um->addr[src_cnt];
 		for (i = 0; i < dst_cnt; i++) {
-			unsigned long buf = (unsigned long) thread->dsts[i];
+			void *buf = thread->dsts[i];
 			struct page *pg = virt_to_page(buf);
-			unsigned pg_off = buf & ~PAGE_MASK;
+			unsigned pg_off = (unsigned long) buf & ~PAGE_MASK;
 
 			dsts[i] = dma_map_page(dev->dev, pg, pg_off, um->len,
 					       DMA_BIDIRECTIONAL);

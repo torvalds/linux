@@ -31,6 +31,7 @@
 #include <linux/cpufreq.h>
 #include <linux/cpumask.h>
 #include <linux/cpu_cooling.h>
+#include <linux/of.h>
 
 #include "ti-thermal.h"
 #include "ti-bandgap.h"
@@ -44,6 +45,7 @@ struct ti_thermal_data {
 	enum thermal_device_mode mode;
 	struct work_struct thermal_wq;
 	int sensor_id;
+	bool our_zone;
 };
 
 static void ti_thermal_work(struct work_struct *work)
@@ -75,11 +77,10 @@ static inline int ti_thermal_hotspot_temperature(int t, int s, int c)
 
 /* thermal zone ops */
 /* Get temperature callback function for thermal zone*/
-static inline int ti_thermal_get_temp(struct thermal_zone_device *thermal,
-				      unsigned long *temp)
+static inline int __ti_thermal_get_temp(void *devdata, long *temp)
 {
 	struct thermal_zone_device *pcb_tz = NULL;
-	struct ti_thermal_data *data = thermal->devdata;
+	struct ti_thermal_data *data = devdata;
 	struct ti_bandgap *bgp;
 	const struct ti_temp_sensor *s;
 	int ret, tmp, slope, constant;
@@ -116,6 +117,14 @@ static inline int ti_thermal_get_temp(struct thermal_zone_device *thermal,
 	*temp = ti_thermal_hotspot_temperature(tmp, slope, constant);
 
 	return ret;
+}
+
+static inline int ti_thermal_get_temp(struct thermal_zone_device *thermal,
+				      unsigned long *temp)
+{
+	struct ti_thermal_data *data = thermal->devdata;
+
+	return __ti_thermal_get_temp(data, temp);
 }
 
 /* Bind callback functions for thermal zone */
@@ -230,11 +239,9 @@ static int ti_thermal_get_trip_temp(struct thermal_zone_device *thermal,
 	return 0;
 }
 
-/* Get the temperature trend callback functions for thermal zone */
-static int ti_thermal_get_trend(struct thermal_zone_device *thermal,
-				int trip, enum thermal_trend *trend)
+static int __ti_thermal_get_trend(void *p, long *trend)
 {
-	struct ti_thermal_data *data = thermal->devdata;
+	struct ti_thermal_data *data = p;
 	struct ti_bandgap *bgp;
 	int id, tr, ret = 0;
 
@@ -242,6 +249,22 @@ static int ti_thermal_get_trend(struct thermal_zone_device *thermal,
 	id = data->sensor_id;
 
 	ret = ti_bandgap_get_trend(bgp, id, &tr);
+	if (ret)
+		return ret;
+
+	*trend = tr;
+
+	return 0;
+}
+
+/* Get the temperature trend callback functions for thermal zone */
+static int ti_thermal_get_trend(struct thermal_zone_device *thermal,
+				int trip, enum thermal_trend *trend)
+{
+	int ret;
+	long tr;
+
+	ret = __ti_thermal_get_trend(thermal->devdata, &tr);
 	if (ret)
 		return ret;
 
@@ -308,16 +331,23 @@ int ti_thermal_expose_sensor(struct ti_bandgap *bgp, int id,
 	if (!data)
 		return -EINVAL;
 
-	/* Create thermal zone */
-	data->ti_thermal = thermal_zone_device_register(domain,
+	/* in case this is specified by DT */
+	data->ti_thermal = thermal_zone_of_sensor_register(bgp->dev, id,
+					data, __ti_thermal_get_temp,
+					__ti_thermal_get_trend);
+	if (IS_ERR(data->ti_thermal)) {
+		/* Create thermal zone */
+		data->ti_thermal = thermal_zone_device_register(domain,
 				OMAP_TRIP_NUMBER, 0, data, &ti_thermal_ops,
 				NULL, FAST_TEMP_MONITORING_RATE,
 				FAST_TEMP_MONITORING_RATE);
-	if (IS_ERR(data->ti_thermal)) {
-		dev_err(bgp->dev, "thermal zone device is NULL\n");
-		return PTR_ERR(data->ti_thermal);
+		if (IS_ERR(data->ti_thermal)) {
+			dev_err(bgp->dev, "thermal zone device is NULL\n");
+			return PTR_ERR(data->ti_thermal);
+		}
+		data->ti_thermal->polling_delay = FAST_TEMP_MONITORING_RATE;
+		data->our_zone = true;
 	}
-	data->ti_thermal->polling_delay = FAST_TEMP_MONITORING_RATE;
 	ti_bandgap_set_sensor_data(bgp, id, data);
 	ti_bandgap_write_update_interval(bgp, data->sensor_id,
 					data->ti_thermal->polling_delay);
@@ -331,7 +361,13 @@ int ti_thermal_remove_sensor(struct ti_bandgap *bgp, int id)
 
 	data = ti_bandgap_get_sensor_data(bgp, id);
 
-	thermal_zone_device_unregister(data->ti_thermal);
+	if (data && data->ti_thermal) {
+		if (data->our_zone)
+			thermal_zone_device_unregister(data->ti_thermal);
+		else
+			thermal_zone_of_sensor_unregister(bgp->dev,
+							  data->ti_thermal);
+	}
 
 	return 0;
 }
@@ -350,6 +386,15 @@ int ti_thermal_report_sensor_temperature(struct ti_bandgap *bgp, int id)
 int ti_thermal_register_cpu_cooling(struct ti_bandgap *bgp, int id)
 {
 	struct ti_thermal_data *data;
+	struct device_node *np = bgp->dev->of_node;
+
+	/*
+	 * We are assuming here that if one deploys the zone
+	 * using DT, then it must be aware that the cooling device
+	 * loading has to happen via cpufreq driver.
+	 */
+	if (of_find_property(np, "#thermal-sensor-cells", NULL))
+		return 0;
 
 	data = ti_bandgap_get_sensor_data(bgp, id);
 	if (!data || IS_ERR(data))
@@ -380,7 +425,9 @@ int ti_thermal_unregister_cpu_cooling(struct ti_bandgap *bgp, int id)
 	struct ti_thermal_data *data;
 
 	data = ti_bandgap_get_sensor_data(bgp, id);
-	cpufreq_cooling_unregister(data->cool_dev);
+
+	if (data && data->cool_dev)
+		cpufreq_cooling_unregister(data->cool_dev);
 
 	return 0;
 }

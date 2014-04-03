@@ -351,7 +351,6 @@ static void skfp_remove_one(struct pci_dev *pdev)
 	free_netdev(p);
 
 	pci_disable_device(pdev);
-	pci_set_drvdata(pdev, NULL);
 }
 
 /*

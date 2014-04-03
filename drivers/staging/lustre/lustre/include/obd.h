@@ -399,8 +399,8 @@ struct client_obd {
 
 	/* mgc datastruct */
 	struct semaphore	 cl_mgc_sem;
-	struct vfsmount	 *cl_mgc_vfsmnt;
-	struct dentry	   *cl_mgc_configs_dir;
+	struct local_oid_storage *cl_mgc_los;
+	struct dt_object	*cl_mgc_configs_dir;
 	atomic_t	     cl_mgc_refcount;
 	struct obd_export       *cl_mgc_mgsexp;
 
@@ -1022,6 +1022,7 @@ struct lu_context;
 #define IT_LAYOUT   (1 << 10)
 #define IT_QUOTA_DQACQ (1 << 11)
 #define IT_QUOTA_CONN  (1 << 12)
+#define IT_SETXATTR (1 << 13)
 
 static inline int it_to_lock_mode(struct lookup_intent *it)
 {
@@ -1031,6 +1032,10 @@ static inline int it_to_lock_mode(struct lookup_intent *it)
 	else if (it->it_op & (IT_READDIR | IT_GETATTR | IT_OPEN | IT_LOOKUP |
 			      IT_LAYOUT))
 		return LCK_CR;
+	else if (it->it_op &  IT_GETXATTR)
+		return LCK_PR;
+	else if (it->it_op &  IT_SETXATTR)
+		return LCK_PW;
 
 	LASSERTF(0, "Invalid it_op: %d\n", it->it_op);
 	return -EINVAL;
@@ -1070,7 +1075,7 @@ struct md_op_data {
 	struct obd_capa	*op_capa2;
 
 	/* Various operation flags. */
-	__u32		   op_bias;
+	enum mds_op_bias        op_bias;
 
 	/* Operation type */
 	__u32		   op_opc;
@@ -1084,6 +1089,10 @@ struct md_op_data {
 	/* used to transfer info between the stacks of MD client
 	 * see enum op_cli_flags */
 	__u32			op_cli_flags;
+
+	/* File object data version for HSM release, on client */
+	__u64			op_data_version;
+	struct lustre_handle	op_lease_handle;
 };
 
 enum op_cli_flags {

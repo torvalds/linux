@@ -197,7 +197,7 @@ static int handle_tpi(struct kvm_vcpu *vcpu)
 	if (addr & 3)
 		return kvm_s390_inject_program_int(vcpu, PGM_SPECIFICATION);
 	cc = 0;
-	inti = kvm_s390_get_io_int(vcpu->kvm, vcpu->run->s.regs.crs[6], 0);
+	inti = kvm_s390_get_io_int(vcpu->kvm, vcpu->arch.sie_block->gcr[6], 0);
 	if (!inti)
 		goto no_interrupt;
 	cc = 1;
@@ -275,7 +275,7 @@ static int handle_io_inst(struct kvm_vcpu *vcpu)
 		return -EOPNOTSUPP;
 	} else {
 		/*
-		 * Set condition code 3 to stop the guest from issueing channel
+		 * Set condition code 3 to stop the guest from issuing channel
 		 * I/O instructions.
 		 */
 		kvm_s390_set_psw_cc(vcpu, 3);
@@ -638,7 +638,6 @@ static int handle_pfmf(struct kvm_vcpu *vcpu)
 
 static const intercept_handler_t b9_handlers[256] = {
 	[0x8d] = handle_epsw,
-	[0x9c] = handle_io_inst,
 	[0xaf] = handle_pfmf,
 };
 
@@ -731,7 +730,6 @@ static int handle_lctlg(struct kvm_vcpu *vcpu)
 
 static const intercept_handler_t eb_handlers[256] = {
 	[0x2f] = handle_lctlg,
-	[0x8a] = handle_io_inst,
 };
 
 int kvm_s390_handle_eb(struct kvm_vcpu *vcpu)

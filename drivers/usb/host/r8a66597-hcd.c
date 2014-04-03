@@ -27,7 +27,6 @@
 #include <linux/kernel.h>
 #include <linux/sched.h>
 #include <linux/errno.h>
-#include <linux/init.h>
 #include <linux/timer.h>
 #include <linux/delay.h>
 #include <linux/list.h>
@@ -95,7 +94,7 @@ static int r8a66597_clock_enable(struct r8a66597 *r8a66597)
 	int i = 0;
 
 	if (r8a66597->pdata->on_chip) {
-		clk_enable(r8a66597->clk);
+		clk_prepare_enable(r8a66597->clk);
 		do {
 			r8a66597_write(r8a66597, SCKE, SYSCFG0);
 			tmp = r8a66597_read(r8a66597, SYSCFG0);
@@ -139,7 +138,7 @@ static void r8a66597_clock_disable(struct r8a66597 *r8a66597)
 	udelay(1);
 
 	if (r8a66597->pdata->on_chip) {
-		clk_disable(r8a66597->clk);
+		clk_disable_unprepare(r8a66597->clk);
 	} else {
 		r8a66597_bclr(r8a66597, PLLC, SYSCFG0);
 		r8a66597_bclr(r8a66597, XCKE, SYSCFG0);
@@ -2514,6 +2513,7 @@ static int r8a66597_probe(struct platform_device *pdev)
 		dev_err(&pdev->dev, "Failed to add hcd\n");
 		goto clean_up3;
 	}
+	device_wakeup_enable(hcd->self.controller);
 
 	return 0;
 
@@ -2534,7 +2534,7 @@ static struct platform_driver r8a66597_driver = {
 	.probe =	r8a66597_probe,
 	.remove =	r8a66597_remove,
 	.driver		= {
-		.name = (char *) hcd_name,
+		.name = hcd_name,
 		.owner	= THIS_MODULE,
 		.pm	= R8A66597_DEV_PM_OPS,
 	},

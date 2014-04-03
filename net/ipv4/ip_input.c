@@ -314,7 +314,7 @@ static int ip_rcv_finish(struct sk_buff *skb)
 	const struct iphdr *iph = ip_hdr(skb);
 	struct rtable *rt;
 
-	if (sysctl_ip_early_demux && !skb_dst(skb)) {
+	if (sysctl_ip_early_demux && !skb_dst(skb) && skb->sk == NULL) {
 		const struct net_protocol *ipprot;
 		int protocol = iph->protocol;
 

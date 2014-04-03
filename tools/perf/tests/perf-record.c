@@ -34,14 +34,14 @@ realloc:
 
 int test__PERF_RECORD(void)
 {
-	struct perf_record_opts opts = {
+	struct record_opts opts = {
 		.target = {
 			.uid = UINT_MAX,
 			.uses_mmap = true,
 		},
-		.no_delay   = true,
-		.freq	    = 10,
-		.mmap_pages = 256,
+		.no_buffering = true,
+		.freq	      = 10,
+		.mmap_pages   = 256,
 	};
 	cpu_set_t cpu_mask;
 	size_t cpu_mask_size = sizeof(cpu_mask);
@@ -83,11 +83,10 @@ int test__PERF_RECORD(void)
 	 * so that we have time to open the evlist (calling sys_perf_event_open
 	 * on all the fds) and then mmap them.
 	 */
-	err = perf_evlist__prepare_workload(evlist, &opts.target, argv,
-					    false, false);
+	err = perf_evlist__prepare_workload(evlist, &opts.target, argv, false, NULL);
 	if (err < 0) {
 		pr_debug("Couldn't run the workload!\n");
-		goto out_delete_maps;
+		goto out_delete_evlist;
 	}
 
 	/*
@@ -102,7 +101,7 @@ int test__PERF_RECORD(void)
 	err = sched__get_first_possible_cpu(evlist->workload.pid, &cpu_mask);
 	if (err < 0) {
 		pr_debug("sched__get_first_possible_cpu: %s\n", strerror(errno));
-		goto out_delete_maps;
+		goto out_delete_evlist;
 	}
 
 	cpu = err;
@@ -112,7 +111,7 @@ int test__PERF_RECORD(void)
 	 */
 	if (sched_setaffinity(evlist->workload.pid, cpu_mask_size, &cpu_mask) < 0) {
 		pr_debug("sched_setaffinity: %s\n", strerror(errno));
-		goto out_delete_maps;
+		goto out_delete_evlist;
 	}
 
 	/*
@@ -122,7 +121,7 @@ int test__PERF_RECORD(void)
 	err = perf_evlist__open(evlist);
 	if (err < 0) {
 		pr_debug("perf_evlist__open: %s\n", strerror(errno));
-		goto out_delete_maps;
+		goto out_delete_evlist;
 	}
 
 	/*
@@ -133,7 +132,7 @@ int test__PERF_RECORD(void)
 	err = perf_evlist__mmap(evlist, opts.mmap_pages, false);
 	if (err < 0) {
 		pr_debug("perf_evlist__mmap: %s\n", strerror(errno));
-		goto out_close_evlist;
+		goto out_delete_evlist;
 	}
 
 	/*
@@ -166,7 +165,7 @@ int test__PERF_RECORD(void)
 					if (verbose)
 						perf_event__fprintf(event, stderr);
 					pr_debug("Couldn't parse sample\n");
-					goto out_err;
+					goto out_delete_evlist;
 				}
 
 				if (verbose) {
@@ -303,12 +302,6 @@ found_exit:
 		pr_debug("PERF_RECORD_MMAP for %s missing!\n", "[vdso]");
 		++errs;
 	}
-out_err:
-	perf_evlist__munmap(evlist);
-out_close_evlist:
-	perf_evlist__close(evlist);
-out_delete_maps:
-	perf_evlist__delete_maps(evlist);
 out_delete_evlist:
 	perf_evlist__delete(evlist);
 out:

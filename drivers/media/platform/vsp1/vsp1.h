@@ -28,8 +28,11 @@ struct clk;
 struct device;
 
 struct vsp1_platform_data;
+struct vsp1_hsit;
 struct vsp1_lif;
+struct vsp1_lut;
 struct vsp1_rwpf;
+struct vsp1_sru;
 struct vsp1_uds;
 
 #define VPS1_MAX_RPF		5
@@ -47,8 +50,12 @@ struct vsp1_device {
 	struct mutex lock;
 	int ref_count;
 
+	struct vsp1_hsit *hsi;
+	struct vsp1_hsit *hst;
 	struct vsp1_lif *lif;
+	struct vsp1_lut *lut;
 	struct vsp1_rwpf *rpf[VPS1_MAX_RPF];
+	struct vsp1_sru *sru;
 	struct vsp1_uds *uds[VPS1_MAX_UDS];
 	struct vsp1_rwpf *wpf[VPS1_MAX_WPF];
 

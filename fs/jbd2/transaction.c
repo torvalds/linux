@@ -514,11 +514,13 @@ int jbd2_journal_start_reserved(handle_t *handle, unsigned int type,
 	 * similarly constrained call sites
 	 */
 	ret = start_this_handle(journal, handle, GFP_NOFS);
-	if (ret < 0)
+	if (ret < 0) {
 		jbd2_journal_free_reserved(handle);
+		return ret;
+	}
 	handle->h_type = type;
 	handle->h_line_no = line_no;
-	return ret;
+	return 0;
 }
 EXPORT_SYMBOL(jbd2_journal_start_reserved);
 
@@ -932,7 +934,7 @@ repeat:
 					jbd2_alloc(jh2bh(jh)->b_size,
 							 GFP_NOFS);
 				if (!frozen_buffer) {
-					printk(KERN_EMERG
+					printk(KERN_ERR
 					       "%s: OOM for frozen_buffer\n",
 					       __func__);
 					JBUFFER_TRACE(jh, "oom!");
@@ -1166,7 +1168,7 @@ repeat:
 	if (!jh->b_committed_data) {
 		committed_data = jbd2_alloc(jh2bh(jh)->b_size, GFP_NOFS);
 		if (!committed_data) {
-			printk(KERN_EMERG "%s: No memory for committed data\n",
+			printk(KERN_ERR "%s: No memory for committed data\n",
 				__func__);
 			err = -ENOMEM;
 			goto out;
@@ -1290,7 +1292,10 @@ int jbd2_journal_dirty_metadata(handle_t *handle, struct buffer_head *bh)
 		 * once a transaction -bzzz
 		 */
 		jh->b_modified = 1;
-		J_ASSERT_JH(jh, handle->h_buffer_credits > 0);
+		if (handle->h_buffer_credits <= 0) {
+			ret = -ENOSPC;
+			goto out_unlock_bh;
+		}
 		handle->h_buffer_credits--;
 	}
 
@@ -1305,7 +1310,7 @@ int jbd2_journal_dirty_metadata(handle_t *handle, struct buffer_head *bh)
 		JBUFFER_TRACE(jh, "fastpath");
 		if (unlikely(jh->b_transaction !=
 			     journal->j_running_transaction)) {
-			printk(KERN_EMERG "JBD: %s: "
+			printk(KERN_ERR "JBD2: %s: "
 			       "jh->b_transaction (%llu, %p, %u) != "
 			       "journal->j_running_transaction (%p, %u)",
 			       journal->j_devname,
@@ -1332,7 +1337,7 @@ int jbd2_journal_dirty_metadata(handle_t *handle, struct buffer_head *bh)
 		JBUFFER_TRACE(jh, "already on other transaction");
 		if (unlikely(jh->b_transaction !=
 			     journal->j_committing_transaction)) {
-			printk(KERN_EMERG "JBD: %s: "
+			printk(KERN_ERR "JBD2: %s: "
 			       "jh->b_transaction (%llu, %p, %u) != "
 			       "journal->j_committing_transaction (%p, %u)",
 			       journal->j_devname,
@@ -1345,7 +1350,7 @@ int jbd2_journal_dirty_metadata(handle_t *handle, struct buffer_head *bh)
 			ret = -EINVAL;
 		}
 		if (unlikely(jh->b_next_transaction != transaction)) {
-			printk(KERN_EMERG "JBD: %s: "
+			printk(KERN_ERR "JBD2: %s: "
 			       "jh->b_next_transaction (%llu, %p, %u) != "
 			       "transaction (%p, %u)",
 			       journal->j_devname,
@@ -1373,7 +1378,6 @@ out_unlock_bh:
 	jbd2_journal_put_journal_head(jh);
 out:
 	JBUFFER_TRACE(jh, "exit");
-	WARN_ON(ret);	/* All errors are bugs, so dump the stack */
 	return ret;
 }
 

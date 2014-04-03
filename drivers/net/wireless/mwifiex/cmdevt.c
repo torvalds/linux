@@ -312,14 +312,14 @@ static int mwifiex_dnld_sleep_confirm_cmd(struct mwifiex_adapter *adapter)
 	}
 	if (GET_BSS_ROLE(mwifiex_get_priv(adapter, MWIFIEX_BSS_ROLE_ANY))
 	    == MWIFIEX_BSS_ROLE_STA) {
-		if (!sleep_cfm_buf->resp_ctrl)
+		if (!le16_to_cpu(sleep_cfm_buf->resp_ctrl))
 			/* Response is not needed for sleep
 			   confirm command */
 			adapter->ps_state = PS_STATE_SLEEP;
 		else
 			adapter->ps_state = PS_STATE_SLEEP_CFM;
 
-		if (!sleep_cfm_buf->resp_ctrl &&
+		if (!le16_to_cpu(sleep_cfm_buf->resp_ctrl) &&
 		    (adapter->is_hs_configured &&
 		     !adapter->sleep_period.period)) {
 			adapter->pm_wakeup_card_req = true;

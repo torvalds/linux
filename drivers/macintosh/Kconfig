@@ -32,7 +32,7 @@ config ADB_MACII
 
 config ADB_MACIISI
 	bool "Include Mac IIsi ADB driver"
-	depends on ADB && MAC
+	depends on ADB && MAC && BROKEN
 	help
 	  Say Y here if want your kernel to support Macintosh systems that use
 	  the Mac IIsi style ADB.  This includes the IIsi, IIvi, IIvx, Classic

@@ -33,6 +33,11 @@ show up in /proc/sys/kernel:
 - domainname
 - hostname
 - hotplug
+- hung_task_panic
+- hung_task_check_count
+- hung_task_timeout_secs
+- hung_task_warnings
+- kexec_load_disabled
 - kptr_restrict
 - kstack_depth_to_print       [ X86 only ]
 - l2cr                        [ PPC only ]
@@ -287,6 +292,56 @@ Default value is "/sbin/hotplug".
 
 ==============================================================
 
+hung_task_panic:
+
+Controls the kernel's behavior when a hung task is detected.
+This file shows up if CONFIG_DETECT_HUNG_TASK is enabled.
+
+0: continue operation. This is the default behavior.
+
+1: panic immediately.
+
+==============================================================
+
+hung_task_check_count:
+
+The upper bound on the number of tasks that are checked.
+This file shows up if CONFIG_DETECT_HUNG_TASK is enabled.
+
+==============================================================
+
+hung_task_timeout_secs:
+
+Check interval. When a task in D state did not get scheduled
+for more than this value report a warning.
+This file shows up if CONFIG_DETECT_HUNG_TASK is enabled.
+
+0: means infinite timeout - no checking done.
+
+==============================================================
+
+hung_task_warning:
+
+The maximum number of warnings to report. During a check interval
+When this value is reached, no more the warnings will be reported.
+This file shows up if CONFIG_DETECT_HUNG_TASK is enabled.
+
+-1: report an infinite number of warnings.
+
+==============================================================
+
+kexec_load_disabled:
+
+A toggle indicating if the kexec_load syscall has been disabled. This
+value defaults to 0 (false: kexec_load enabled), but can be set to 1
+(true: kexec_load disabled). Once true, kexec can no longer be used, and
+the toggle cannot be set back to false. This allows a kexec image to be
+loaded before disabling the syscall, allowing a system to set up (and
+later use) an image without it being altered. Generally used together
+with the "modules_disabled" sysctl.
+
+==============================================================
+
 kptr_restrict:
 
 This toggle indicates whether restrictions are placed on
@@ -331,7 +386,7 @@ A toggle value indicating if modules are allowed to be loaded
 in an otherwise modular kernel.  This toggle defaults to off
 (0), but can be set true (1).  Once true, modules can be
 neither loaded nor unloaded, and the toggle cannot be set back
-to false.
+to false.  Generally used with the "kexec_load_disabled" toggle.
 
 ==============================================================
 
@@ -427,11 +482,6 @@ rate for each task.
 
 numa_balancing_scan_size_mb is how many megabytes worth of pages are
 scanned for a given scan.
-
-numa_balancing_settle_count is how many scan periods must complete before
-the schedule balancer stops pushing the task towards a preferred node. This
-gives the scheduler a chance to place the task on an alternative node if the
-preferred node is overloaded.
 
 numa_balancing_migrate_deferred is how many page migrations get skipped
 unconditionally, after a page migration is skipped because a page is shared
