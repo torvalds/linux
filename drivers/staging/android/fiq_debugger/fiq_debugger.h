@@ -1,5 +1,5 @@
 /*
- * arch/arm/include/asm/fiq_debugger.h
+ * drivers/staging/android/fiq_debugger/fiq_debugger.h
  *
  * Copyright (C) 2010 Google, Inc.
  * Author: Colin Cross <ccross@android.com>

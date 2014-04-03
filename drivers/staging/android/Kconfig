@@ -35,6 +35,8 @@ config ANDROID_LOW_MEMORY_KILLER_AUTODETECT_OOM_ADJ_VALUES
 
 source "drivers/staging/android/ion/Kconfig"
 
+source "drivers/staging/android/fiq_debugger/Kconfig"
+
 endif # if ANDROID
 
 endmenu

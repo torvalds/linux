@@ -1,5 +1,5 @@
 /*
- * arch/arm/common/fiq_debugger.c
+ * drivers/staging/android/fiq_debugger.c
  *
  * Serial Debugger Interface accessed through an FIQ interrupt.
  *
@@ -35,12 +35,12 @@
 #include <linux/tty_flip.h>
 #include <linux/wakelock.h>
 
-#include <asm/fiq_debugger.h>
 #include <asm/fiq_glue.h>
 #include <asm/stacktrace.h>
 
 #include <linux/uaccess.h>
 
+#include "fiq_debugger.h"
 #include "fiq_debugger_ringbuf.h"
 
 #define DEBUG_MAX 64
