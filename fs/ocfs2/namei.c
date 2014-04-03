@@ -495,6 +495,7 @@ static int __ocfs2_mknod_locked(struct inode *dir,
 	struct ocfs2_dinode *fe = NULL;
 	struct ocfs2_extent_list *fel;
 	u16 feat;
+	struct ocfs2_inode_info *oi = OCFS2_I(inode);
 
 	*new_fe_bh = NULL;
 
@@ -575,6 +576,9 @@ static int __ocfs2_mknod_locked(struct inode *dir,
 		if (status < 0)
 			mlog_errno(status);
 	}
+
+	oi->i_sync_tid = handle->h_transaction->t_tid;
+	oi->i_datasync_tid = handle->h_transaction->t_tid;
 
 	status = 0; /* error in ocfs2_create_new_inode_locks is not
 		     * critical */

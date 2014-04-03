@@ -561,6 +561,9 @@ static struct inode *ocfs2_alloc_inode(struct super_block *sb)
 	if (!oi)
 		return NULL;
 
+	oi->i_sync_tid = 0;
+	oi->i_datasync_tid = 0;
+
 	jbd2_journal_init_jbd_inode(&oi->ip_jinode, &oi->vfs_inode);
 	return &oi->vfs_inode;
 }

@@ -130,6 +130,7 @@ struct inode *ocfs2_iget(struct ocfs2_super *osb, u64 blkno, unsigned flags,
 	struct inode *inode = NULL;
 	struct super_block *sb = osb->sb;
 	struct ocfs2_find_inode_args args;
+	journal_t *journal = OCFS2_SB(sb)->journal->j_journal;
 
 	trace_ocfs2_iget_begin((unsigned long long)blkno, flags,
 			       sysfile_type);
@@ -167,6 +168,32 @@ struct inode *ocfs2_iget(struct ocfs2_super *osb, u64 blkno, unsigned flags,
 		iput(inode);
 		inode = ERR_PTR(-ESTALE);
 		goto bail;
+	}
+
+	/*
+	 * Set transaction id's of transactions that have to be committed
+	 * to finish f[data]sync. We set them to currently running transaction
+	 * as we cannot be sure that the inode or some of its metadata isn't
+	 * part of the transaction - the inode could have been reclaimed and
+	 * now it is reread from disk.
+	 */
+	if (journal) {
+		transaction_t *transaction;
+		tid_t tid;
+		struct ocfs2_inode_info *oi = OCFS2_I(inode);
+
+		read_lock(&journal->j_state_lock);
+		if (journal->j_running_transaction)
+			transaction = journal->j_running_transaction;
+		else
+			transaction = journal->j_committing_transaction;
+		if (transaction)
+			tid = transaction->t_tid;
+		else
+			tid = journal->j_commit_sequence;
+		read_unlock(&journal->j_state_lock);
+		oi->i_sync_tid = tid;
+		oi->i_datasync_tid = tid;
 	}
 
 bail:
@@ -1260,6 +1287,7 @@ int ocfs2_mark_inode_dirty(handle_t *handle,
 	fe->i_mtime_nsec = cpu_to_le32(inode->i_mtime.tv_nsec);
 
 	ocfs2_journal_dirty(handle, bh);
+	ocfs2_update_inode_fsync_trans(handle, inode, 1);
 leave:
 	return status;
 }
