@@ -1431,21 +1431,25 @@ sub possible {
 my $prefix = '';
 
 sub show_type {
-	return defined $use_type{$_[0]} if (scalar keys %use_type > 0);
+	my ($type) = @_;
 
-	return !defined $ignore_type{$_[0]};
+	return defined $use_type{$type} if (scalar keys %use_type > 0);
+
+	return !defined $ignore_type{$type};
 }
 
 sub report {
-	if (!show_type($_[1]) ||
-	    (defined $tst_only && $_[2] !~ /\Q$tst_only\E/)) {
+	my ($level, $type, $msg) = @_;
+
+	if (!show_type($type) ||
+	    (defined $tst_only && $msg !~ /\Q$tst_only\E/)) {
 		return 0;
 	}
 	my $line;
 	if ($show_types) {
-		$line = "$prefix$_[0]:$_[1]: $_[2]\n";
+		$line = "$prefix$level:$type: $msg\n";
 	} else {
-		$line = "$prefix$_[0]: $_[2]\n";
+		$line = "$prefix$level: $msg\n";
 	}
 	$line = (split('\n', $line))[0] . "\n" if ($terse);
 
@@ -1453,12 +1457,15 @@ sub report {
 
 	return 1;
 }
+
 sub report_dump {
 	our @report;
 }
 
 sub ERROR {
-	if (report("ERROR", $_[0], $_[1])) {
+	my ($type, $msg) = @_;
+
+	if (report("ERROR", $type, $msg)) {
 		our $clean = 0;
 		our $cnt_error++;
 		return 1;
@@ -1466,7 +1473,9 @@ sub ERROR {
 	return 0;
 }
 sub WARN {
-	if (report("WARNING", $_[0], $_[1])) {
+	my ($type, $msg) = @_;
+
+	if (report("WARNING", $type, $msg)) {
 		our $clean = 0;
 		our $cnt_warn++;
 		return 1;
@@ -1474,7 +1483,9 @@ sub WARN {
 	return 0;
 }
 sub CHK {
-	if ($check && report("CHECK", $_[0], $_[1])) {
+	my ($type, $msg) = @_;
+
+	if ($check && report("CHECK", $type, $msg)) {
 		our $clean = 0;
 		our $cnt_chk++;
 		return 1;
