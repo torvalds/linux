@@ -924,6 +924,7 @@ static void i915_record_ring_state(struct drm_device *dev,
 		ering->vm_info.gfx_mode = I915_READ(RING_MODE_GEN7(ring));
 
 		switch (INTEL_INFO(dev)->gen) {
+		case 9:
 		case 8:
 			for (i = 0; i < 4; i++) {
 				ering->vm_info.pdp[i] =
