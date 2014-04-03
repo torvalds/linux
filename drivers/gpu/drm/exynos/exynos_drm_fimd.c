@@ -24,7 +24,6 @@
 #include <video/of_display_timing.h>
 #include <video/of_videomode.h>
 #include <video/samsung_fimd.h>
-#include <drm/drm_panel.h>
 #include <drm/exynos_drm.h>
 
 #include "exynos_drm_drv.h"
@@ -124,6 +123,7 @@ struct fimd_context {
 
 	struct exynos_drm_panel_info panel;
 	struct fimd_driver_data *driver_data;
+	struct exynos_drm_display *display;
 };
 
 static const struct of_device_id fimd_driver_dt_match[] = {
@@ -882,12 +882,49 @@ out:
 
 static int fimd_bind(struct device *dev, struct device *master, void *data)
 {
-	struct platform_device *pdev = to_platform_device(dev);
+	struct fimd_context *ctx = fimd_manager.ctx;
 	struct drm_device *drm_dev = data;
-	struct fimd_context *ctx;
-	struct device_node *dn;
-	struct resource *res;
 	int win;
+
+	fimd_mgr_initialize(&fimd_manager, drm_dev);
+	exynos_drm_crtc_create(&fimd_manager);
+	if (ctx->display)
+		exynos_drm_create_enc_conn(drm_dev, ctx->display);
+
+	for (win = 0; win < WINDOWS_NR; win++)
+		fimd_clear_win(ctx, win);
+
+	return 0;
+
+}
+
+static void fimd_unbind(struct device *dev, struct device *master,
+			void *data)
+{
+	struct exynos_drm_manager *mgr = dev_get_drvdata(dev);
+	struct fimd_context *ctx = fimd_manager.ctx;
+	struct drm_crtc *crtc = mgr->crtc;
+
+	fimd_dpms(mgr, DRM_MODE_DPMS_OFF);
+
+	if (ctx->display)
+		exynos_dpi_remove(dev);
+
+	fimd_mgr_remove(mgr);
+
+	crtc->funcs->destroy(crtc);
+}
+
+static const struct component_ops fimd_component_ops = {
+	.bind	= fimd_bind,
+	.unbind = fimd_unbind,
+};
+
+static int fimd_probe(struct platform_device *pdev)
+{
+	struct device *dev = &pdev->dev;
+	struct fimd_context *ctx;
+	struct resource *res;
 	int ret = -EINVAL;
 
 	if (!dev->of_node)
@@ -943,68 +980,10 @@ static int fimd_bind(struct device *dev, struct device *master, void *data)
 	platform_set_drvdata(pdev, &fimd_manager);
 
 	fimd_manager.ctx = ctx;
-	fimd_mgr_initialize(&fimd_manager, drm_dev);
 
-	exynos_drm_crtc_create(&fimd_manager);
-
-	dn = exynos_dpi_of_find_panel_node(&pdev->dev);
-	if (dn) {
-		/*
-		 * It should be called after exynos_drm_crtc_create call
-		 * because exynos_dpi_probe call will try to find same lcd
-		 * type of manager to setup possible_crtcs.
-		 */
-		exynos_dpi_probe(drm_dev, dev);
-	}
-
-	for (win = 0; win < WINDOWS_NR; win++)
-		fimd_clear_win(ctx, win);
-
-	return 0;
-}
-
-static void fimd_unbind(struct device *dev, struct device *master,
-			void *data)
-{
-	struct exynos_drm_manager *mgr = dev_get_drvdata(dev);
-	struct drm_crtc *crtc = mgr->crtc;
-	struct device_node *dn;
-
-	fimd_dpms(mgr, DRM_MODE_DPMS_OFF);
-
-	dn = exynos_dpi_of_find_panel_node(dev);
-	if (dn)
-		exynos_dpi_remove(mgr->drm_dev, dev);
-
-	fimd_mgr_remove(mgr);
-
-	crtc->funcs->destroy(crtc);
-}
-
-static const struct component_ops fimd_component_ops = {
-	.bind	= fimd_bind,
-	.unbind = fimd_unbind,
-};
-
-static int fimd_probe(struct platform_device *pdev)
-{
-	struct device_node *dn;
-
-	/* Check if fimd node has port node. */
-	dn = exynos_dpi_of_find_panel_node(&pdev->dev);
-	if (dn) {
-		struct drm_panel *panel;
-
-		/*
-		 * Do not bind if there is the port node but a drm_panel
-		 * isn't added to panel_list yet.
-		 * In this case, fimd_probe will be called by defered probe
-		 * again after the drm_panel is added to panel_list.
-		 */
-		panel = of_drm_find_panel(dn);
-		if (!panel)
-			return -EPROBE_DEFER;
-	}
+	ctx->display = exynos_dpi_probe(dev);
+	if (IS_ERR(ctx->display))
+		return PTR_ERR(ctx->display);
 
 	pm_runtime_enable(&pdev->dev);
 

@@ -332,17 +332,12 @@ int exynos_platform_device_ipp_register(void);
 void exynos_platform_device_ipp_unregister(void);
 
 #ifdef CONFIG_DRM_EXYNOS_DPI
-int exynos_dpi_probe(struct drm_device *drm_dev, struct device *dev);
-int exynos_dpi_remove(struct drm_device *drm_dev, struct device *dev);
-struct device_node *exynos_dpi_of_find_panel_node(struct device *dev);
+struct exynos_drm_display * exynos_dpi_probe(struct device *dev);
+int exynos_dpi_remove(struct device *dev);
 #else
-static inline int exynos_dpi_probe(struct drm_device *drm_dev,
-					struct device *dev) { return 0; }
-static inline int exynos_dpi_remove(struct drm_device *drm_dev,
-					struct device *dev) { return 0; }
-static inline struct device_node
-			*exynos_dpi_of_find_panel_node(struct device *dev)
-{ return NULL; }
+static inline struct exynos_drm_display *
+exynos_dpi_probe(struct device *dev) { return 0; }
+static inline int exynos_dpi_remove(struct device *dev) { return 0; }
 #endif
 
 /*
