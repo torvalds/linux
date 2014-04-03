@@ -53,7 +53,8 @@ Memory scanning parameters can be modified at run-time by writing to the
 		  (default 600, 0 to stop the automatic scanning)
   scan		- trigger a memory scan
   clear		- clear list of current memory leak suspects, done by
-		  marking all current reported unreferenced objects grey
+		  marking all current reported unreferenced objects grey,
+		  or free all kmemleak objects if kmemleak has been disabled.
   dump=<addr>	- dump information about the object found at <addr>
 
 Kmemleak can also be disabled at boot-time by passing "kmemleak=off" on
@@ -119,6 +120,18 @@ To test a critical section on demand with a clean kmemleak do:
 Then as usual to get your report with:
 
   # cat /sys/kernel/debug/kmemleak
+
+Freeing kmemleak internal objects
+---------------------------------
+
+To allow access to previosuly found memory leaks after kmemleak has been
+disabled by the user or due to an fatal error, internal kmemleak objects
+won't be freed when kmemleak is disabled, and those objects may occupy
+a large part of physical memory.
+
+In this situation, you may reclaim memory with:
+
+  # echo clear > /sys/kernel/debug/kmemleak
 
 Kmemleak API
 ------------
