@@ -22,6 +22,7 @@
 #include <linux/vmalloc.h>
 #include <linux/ftrace.h>
 #include <linux/bug.h>
+#include <linux/uaccess.h>
 #include <asm/module.h>
 #include <asm/firmware.h>
 #include <asm/code-patching.h>
@@ -102,7 +103,9 @@ static unsigned int local_entry_offset(const Elf64_Sym *sym)
    jump, actually, to reset r2 (TOC+0x8000). */
 struct ppc64_stub_entry
 {
-	/* 28 byte jump instruction sequence (7 instructions) */
+	/* 28 byte jump instruction sequence (7 instructions). We only
+	 * need 6 instructions on ABIv2 but we always allocate 7 so
+	 * so we don't have to modify the trampoline load instruction. */
 	u32 jump[7];
 	u32 unused;
 	/* Data for the above code */
@@ -122,8 +125,8 @@ struct ppc64_stub_entry
  * end of the stub code, and patch the stub address (32-bits relative
  * to the TOC ptr, r2) into the stub.
  */
-static struct ppc64_stub_entry ppc64_stub =
-{ .jump = {
+
+static u32 ppc64_stub_insns[] = {
 	0x3d620000,			/* addis   r11,r2, <high> */
 	0x396b0000,			/* addi    r11,r11, <low> */
 	/* Save current r2 value in magic place on the stack. */
@@ -135,7 +138,45 @@ static struct ppc64_stub_entry ppc64_stub =
 #endif
 	0x7d8903a6,			/* mtctr   r12 */
 	0x4e800420			/* bctr */
-} };
+};
+
+#ifdef CONFIG_DYNAMIC_FTRACE
+
+static u32 ppc64_stub_mask[] = {
+	0xffff0000,
+	0xffff0000,
+	0xffffffff,
+	0xffffffff,
+#if !defined(_CALL_ELF) || _CALL_ELF != 2
+	0xffffffff,
+#endif
+	0xffffffff,
+	0xffffffff
+};
+
+bool is_module_trampoline(u32 *p)
+{
+	unsigned int i;
+	u32 insns[ARRAY_SIZE(ppc64_stub_insns)];
+
+	BUILD_BUG_ON(sizeof(ppc64_stub_insns) != sizeof(ppc64_stub_mask));
+
+	if (probe_kernel_read(insns, p, sizeof(insns)))
+		return -EFAULT;
+
+	for (i = 0; i < ARRAY_SIZE(ppc64_stub_insns); i++) {
+		u32 insna = insns[i];
+		u32 insnb = ppc64_stub_insns[i];
+		u32 mask = ppc64_stub_mask[i];
+
+		if ((insna & mask) != (insnb & mask))
+			return false;
+	}
+
+	return true;
+}
+
+#endif
 
 /* Count how many different 24-bit relocations (different symbol,
    different addend) */
@@ -350,7 +391,7 @@ static inline int create_stub(Elf64_Shdr *sechdrs,
 {
 	long reladdr;
 
-	*entry = ppc64_stub;
+	memcpy(entry->jump, ppc64_stub_insns, sizeof(ppc64_stub_insns));
 
 	/* Stub uses address relative to r2. */
 	reladdr = (unsigned long)entry - my_r2(sechdrs, me);

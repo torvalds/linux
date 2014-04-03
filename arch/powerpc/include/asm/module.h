@@ -78,6 +78,7 @@ struct mod_arch_specific {
 #    endif	/* MODULE */
 #endif
 
+bool is_module_trampoline(u32 *insns);
 
 struct exception_table_entry;
 void sort_ex_table(struct exception_table_entry *start,
