@@ -119,7 +119,8 @@ EXPORT_SYMBOL_GPL(of_get_regulator_init_data);
  * regulator. The data parsed from a child node will be matched to a regulator
  * based on either the deprecated property regulator-compatible if present,
  * or otherwise the child node's name. Note that the match table is modified
- * in place.
+ * in place and an additional of_node reference is taken for each matched
+ * regulator.
  *
  * Returns the number of matches found or a negative error code on failure.
  */
@@ -162,7 +163,7 @@ int of_regulator_match(struct device *dev, struct device_node *node,
 					child->name);
 				return -EINVAL;
 			}
-			match->of_node = child;
+			match->of_node = of_node_get(child);
 			count++;
 			break;
 		}
