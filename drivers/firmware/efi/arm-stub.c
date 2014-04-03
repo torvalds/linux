@@ -12,6 +12,30 @@
  *
  */
 
+static int __init efi_secureboot_enabled(efi_system_table_t *sys_table_arg)
+{
+	static efi_guid_t const var_guid __initconst = EFI_GLOBAL_VARIABLE_GUID;
+	static efi_char16_t const var_name[] __initconst = {
+		'S', 'e', 'c', 'u', 'r', 'e', 'B', 'o', 'o', 't', 0 };
+
+	efi_get_variable_t *f_getvar = sys_table_arg->runtime->get_variable;
+	unsigned long size = sizeof(u8);
+	efi_status_t status;
+	u8 val;
+
+	status = f_getvar((efi_char16_t *)var_name, (efi_guid_t *)&var_guid,
+			  NULL, &size, &val);
+
+	switch (status) {
+	case EFI_SUCCESS:
+		return val;
+	case EFI_NOT_FOUND:
+		return 0;
+	default:
+		return 1;
+	}
+}
+
 static efi_status_t efi_open_volume(efi_system_table_t *sys_table_arg,
 				    void *__image, void **__fh)
 {
@@ -144,7 +168,7 @@ unsigned long __init efi_entry(void *handle, efi_system_table_t *sys_table,
 	/* addr/point and size pairs for memory management*/
 	unsigned long initrd_addr;
 	u64 initrd_size = 0;
-	unsigned long fdt_addr;  /* Original DTB */
+	unsigned long fdt_addr = 0;  /* Original DTB */
 	u64 fdt_size = 0;  /* We don't get size from configuration table */
 	char *cmdline_ptr = NULL;
 	int cmdline_size = 0;
@@ -196,9 +220,13 @@ unsigned long __init efi_entry(void *handle, efi_system_table_t *sys_table,
 		goto fail_free_image;
 	}
 
-	/* Load a device tree from the configuration table, if present. */
-	fdt_addr = (uintptr_t)get_fdt(sys_table);
-	if (!fdt_addr) {
+	/*
+	 * Unauthenticated device tree data is a security hazard, so
+	 * ignore 'dtb=' unless UEFI Secure Boot is disabled.
+	 */
+	if (efi_secureboot_enabled(sys_table)) {
+		pr_efi(sys_table, "UEFI Secure Boot is enabled.\n");
+	} else {
 		status = handle_cmdline_files(sys_table, image, cmdline_ptr,
 					      "dtb=",
 					      ~0UL, (unsigned long *)&fdt_addr,
@@ -209,6 +237,9 @@ unsigned long __init efi_entry(void *handle, efi_system_table_t *sys_table,
 			goto fail_free_cmdline;
 		}
 	}
+	if (!fdt_addr)
+		/* Look for a device tree configuration table entry. */
+		fdt_addr = (uintptr_t)get_fdt(sys_table);
 
 	status = handle_cmdline_files(sys_table, image, cmdline_ptr,
 				      "initrd=", dram_base + SZ_512M,
