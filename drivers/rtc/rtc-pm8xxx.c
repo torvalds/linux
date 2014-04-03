@@ -434,9 +434,10 @@ static int pm8xxx_rtc_probe(struct platform_device *pdev)
 	}
 
 	/* Request the alarm IRQ */
-	rc = request_any_context_irq(rtc_dd->rtc_alarm_irq,
-				     pm8xxx_alarm_trigger, IRQF_TRIGGER_RISING,
-				     "pm8xxx_rtc_alarm", rtc_dd);
+	rc = devm_request_any_context_irq(&pdev->dev, rtc_dd->rtc_alarm_irq,
+					  pm8xxx_alarm_trigger,
+					  IRQF_TRIGGER_RISING,
+					  "pm8xxx_rtc_alarm", rtc_dd);
 	if (rc < 0) {
 		dev_err(&pdev->dev, "Request IRQ failed (%d)\n", rc);
 		return rc;
@@ -445,16 +446,6 @@ static int pm8xxx_rtc_probe(struct platform_device *pdev)
 	device_init_wakeup(&pdev->dev, 1);
 
 	dev_dbg(&pdev->dev, "Probe success !!\n");
-
-	return 0;
-}
-
-static int pm8xxx_rtc_remove(struct platform_device *pdev)
-{
-	struct pm8xxx_rtc *rtc_dd = platform_get_drvdata(pdev);
-
-	device_init_wakeup(&pdev->dev, 0);
-	free_irq(rtc_dd->rtc_alarm_irq, rtc_dd);
 
 	return 0;
 }
@@ -487,7 +478,6 @@ static SIMPLE_DEV_PM_OPS(pm8xxx_rtc_pm_ops,
 
 static struct platform_driver pm8xxx_rtc_driver = {
 	.probe		= pm8xxx_rtc_probe,
-	.remove		= pm8xxx_rtc_remove,
 	.driver	= {
 		.name	= PM8XXX_RTC_DEV_NAME,
 		.owner	= THIS_MODULE,
