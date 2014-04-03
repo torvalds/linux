@@ -54,7 +54,7 @@ static void __crst_table_upgrade(void *arg)
 	struct mm_struct *mm = arg;
 
 	if (current->active_mm == mm)
-		update_mm(mm, current);
+		update_user_asce(mm);
 	__tlb_flush_local();
 }
 
@@ -107,8 +107,10 @@ void crst_table_downgrade(struct mm_struct *mm, unsigned long limit)
 {
 	pgd_t *pgd;
 
-	if (current->active_mm == mm)
+	if (current->active_mm == mm) {
+		clear_user_asce(mm);
 		__tlb_flush_mm(mm);
+	}
 	while (mm->context.asce_limit > limit) {
 		pgd = mm->pgd;
 		switch (pgd_val(*pgd) & _REGION_ENTRY_TYPE_MASK) {
@@ -132,7 +134,7 @@ void crst_table_downgrade(struct mm_struct *mm, unsigned long limit)
 		crst_table_free(mm, (unsigned long *) pgd);
 	}
 	if (current->active_mm == mm)
-		update_mm(mm, current);
+		update_user_asce(mm);
 }
 #endif
 

@@ -35,7 +35,7 @@ static inline int init_new_context(struct task_struct *tsk,
 #define LCTL_OPCODE "lctlg"
 #endif
 
-static inline void update_mm(struct mm_struct *mm, struct task_struct *tsk)
+static inline void update_user_asce(struct mm_struct *mm)
 {
 	pgd_t *pgd = mm->pgd;
 
@@ -43,6 +43,13 @@ static inline void update_mm(struct mm_struct *mm, struct task_struct *tsk)
 	/* Load primary space page table origin. */
 	asm volatile(LCTL_OPCODE" 1,1,%0\n" : : "m" (S390_lowcore.user_asce));
 	set_fs(current->thread.mm_segment);
+}
+
+static inline void clear_user_asce(struct mm_struct *mm)
+{
+	S390_lowcore.user_asce = S390_lowcore.kernel_asce;
+	asm volatile(LCTL_OPCODE" 1,1,%0\n" : : "m" (S390_lowcore.user_asce));
+	asm volatile(LCTL_OPCODE" 7,7,%0\n" : : "m" (S390_lowcore.user_asce));
 }
 
 static inline void switch_mm(struct mm_struct *prev, struct mm_struct *next,
@@ -53,11 +60,13 @@ static inline void switch_mm(struct mm_struct *prev, struct mm_struct *next,
 	if (prev == next)
 		return;
 	if (atomic_inc_return(&next->context.attach_count) >> 16) {
-		/* Delay update_mm until all TLB flushes are done. */
+		/* Delay update_user_asce until all TLB flushes are done. */
 		set_tsk_thread_flag(tsk, TIF_TLB_WAIT);
+		/* Clear old ASCE by loading the kernel ASCE. */
+		clear_user_asce(next);
 	} else {
 		cpumask_set_cpu(cpu, mm_cpumask(next));
-		update_mm(next, tsk);
+		update_user_asce(next);
 		if (next->context.flush_mm)
 			/* Flush pending TLBs */
 			__tlb_flush_mm(next);
@@ -80,7 +89,7 @@ static inline void finish_arch_post_lock_switch(void)
 		cpu_relax();
 
 	cpumask_set_cpu(smp_processor_id(), mm_cpumask(mm));
-	update_mm(mm, tsk);
+	update_user_asce(mm);
 	if (mm->context.flush_mm)
 		__tlb_flush_mm(mm);
 	preempt_enable();
