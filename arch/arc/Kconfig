@@ -356,7 +356,6 @@ config ARC_CURR_IN_REG
 
 config ARC_MISALIGN_ACCESS
 	bool "Emulate unaligned memory access (userspace only)"
-	default N
 	select SYSCTL_ARCH_UNALIGN_NO_WARN
 	select SYSCTL_ARCH_UNALIGN_ALLOW
 	help

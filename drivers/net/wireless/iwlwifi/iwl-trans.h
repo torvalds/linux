@@ -193,12 +193,23 @@ static inline u32 iwl_rx_packet_payload_len(const struct iwl_rx_packet *pkt)
  * @CMD_ASYNC: Return right away and don't wait for the response
  * @CMD_WANT_SKB: valid only with CMD_SYNC. The caller needs the buffer of the
  *	response. The caller needs to call iwl_free_resp when done.
+ * @CMD_HIGH_PRIO: The command is high priority - it goes to the front of the
+ *	command queue, but after other high priority commands. valid only
+ *	with CMD_ASYNC.
+ * @CMD_SEND_IN_IDLE: The command should be sent even when the trans is idle.
+ * @CMD_MAKE_TRANS_IDLE: The command response should mark the trans as idle.
+ * @CMD_WAKE_UP_TRANS: The command response should wake up the trans
+ *	(i.e. mark it as non-idle).
  */
 enum CMD_MODE {
 	CMD_SYNC		= 0,
 	CMD_ASYNC		= BIT(0),
 	CMD_WANT_SKB		= BIT(1),
 	CMD_SEND_IN_RFKILL	= BIT(2),
+	CMD_HIGH_PRIO		= BIT(3),
+	CMD_SEND_IN_IDLE	= BIT(4),
+	CMD_MAKE_TRANS_IDLE	= BIT(5),
+	CMD_WAKE_UP_TRANS	= BIT(6),
 };
 
 #define DEF_CMD_PAYLOAD_SIZE 320
@@ -335,6 +346,9 @@ enum iwl_d3_status {
  * @STATUS_INT_ENABLED: interrupts are enabled
  * @STATUS_RFKILL: the HW RFkill switch is in KILL position
  * @STATUS_FW_ERROR: the fw is in error state
+ * @STATUS_TRANS_GOING_IDLE: shutting down the trans, only special commands
+ *	are sent
+ * @STATUS_TRANS_IDLE: the trans is idle - general commands are not to be sent
  */
 enum iwl_trans_status {
 	STATUS_SYNC_HCMD_ACTIVE,
@@ -343,6 +357,8 @@ enum iwl_trans_status {
 	STATUS_INT_ENABLED,
 	STATUS_RFKILL,
 	STATUS_FW_ERROR,
+	STATUS_TRANS_GOING_IDLE,
+	STATUS_TRANS_IDLE,
 };
 
 /**
@@ -377,7 +393,7 @@ struct iwl_trans_config {
 	bool rx_buf_size_8k;
 	bool bc_table_dword;
 	unsigned int queue_watchdog_timeout;
-	const char **command_names;
+	const char *const *command_names;
 };
 
 struct iwl_trans;
@@ -443,6 +459,11 @@ struct iwl_trans;
  * @release_nic_access: let the NIC go to sleep. The "flags" parameter
  *	must be the same one that was sent before to the grab_nic_access.
  * @set_bits_mask - set SRAM register according to value and mask.
+ * @ref: grab a reference to the transport/FW layers, disallowing
+ *	certain low power states
+ * @unref: release a reference previously taken with @ref. Note that
+ *	initially the reference count is 1, making an initial @unref
+ *	necessary to allow low power states.
  */
 struct iwl_trans_ops {
 
@@ -489,6 +510,8 @@ struct iwl_trans_ops {
 				   unsigned long *flags);
 	void (*set_bits_mask)(struct iwl_trans *trans, u32 reg, u32 mask,
 			      u32 value);
+	void (*ref)(struct iwl_trans *trans);
+	void (*unref)(struct iwl_trans *trans);
 };
 
 /**
@@ -523,6 +546,7 @@ enum iwl_trans_state {
  *	starting the firmware, used for tracing
  * @rx_mpdu_cmd_hdr_size: used for tracing, amount of data before the
  *	start of the 802.11 header in the @rx_mpdu_cmd
+ * @dflt_pwr_limit: default power limit fetched from the platform (ACPI)
  */
 struct iwl_trans {
 	const struct iwl_trans_ops *ops;
@@ -550,6 +574,8 @@ struct iwl_trans {
 #ifdef CONFIG_LOCKDEP
 	struct lockdep_map sync_cmd_lockdep_map;
 #endif
+
+	u64 dflt_pwr_limit;
 
 	/* pointer to trans specific struct */
 	/*Ensure that this pointer will always be aligned to sizeof pointer */
@@ -625,6 +651,18 @@ static inline int iwl_trans_d3_resume(struct iwl_trans *trans,
 {
 	might_sleep();
 	return trans->ops->d3_resume(trans, status, test);
+}
+
+static inline void iwl_trans_ref(struct iwl_trans *trans)
+{
+	if (trans->ops->ref)
+		trans->ops->ref(trans);
+}
+
+static inline void iwl_trans_unref(struct iwl_trans *trans)
+{
+	if (trans->ops->unref)
+		trans->ops->unref(trans);
 }
 
 static inline int iwl_trans_send_cmd(struct iwl_trans *trans,

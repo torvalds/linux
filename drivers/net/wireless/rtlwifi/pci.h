@@ -137,12 +137,22 @@ struct rtl_tx_cmd_desc {
 	u32 dword[16];
 } __packed;
 
+/* In new TRX flow, Buffer_desc is new concept
+ * But TX wifi info == TX descriptor in old flow
+ * RX wifi info == RX descriptor in old flow
+ */
+struct rtl_tx_buffer_desc {
+	u32 dword[8]; /*seg = 4*/
+} __packed;
+
 struct rtl8192_tx_ring {
 	struct rtl_tx_desc *desc;
 	dma_addr_t dma;
 	unsigned int idx;
 	unsigned int entries;
 	struct sk_buff_head queue;
+	/*add for new trx flow*/
+	struct rtl_tx_buffer_desc *buffer_desc; /*tx buffer descriptor*/
 };
 
 struct rtl8192_rx_ring {
@@ -199,6 +209,10 @@ struct rtl_pci {
 
 	u16 shortretry_limit;
 	u16 longretry_limit;
+
+	/* MSI support */
+	bool msi_support;
+	bool using_msi;
 };
 
 struct mp_adapter {

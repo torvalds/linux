@@ -459,6 +459,7 @@ static int mwifiex_usb_suspend(struct usb_interface *intf, pm_message_t message)
 	 * 'suspended' state and a 'disconnect' one.
 	 */
 	adapter->is_suspended = true;
+	adapter->hs_enabling = false;
 
 	if (atomic_read(&card->rx_cmd_urb_pending) && card->rx_cmd.urb)
 		usb_kill_urb(card->rx_cmd.urb);
@@ -766,11 +767,13 @@ static int mwifiex_register_dev(struct mwifiex_adapter *adapter)
 	switch (le16_to_cpu(card->udev->descriptor.idProduct)) {
 	case USB8897_PID_1:
 	case USB8897_PID_2:
+		adapter->tx_buf_size = MWIFIEX_TX_DATA_BUF_SIZE_4K;
 		strcpy(adapter->fw_name, USB8897_DEFAULT_FW_NAME);
 		break;
 	case USB8797_PID_1:
 	case USB8797_PID_2:
 	default:
+		adapter->tx_buf_size = MWIFIEX_TX_DATA_BUF_SIZE_2K;
 		strcpy(adapter->fw_name, USB8797_DEFAULT_FW_NAME);
 		break;
 	}
@@ -1024,7 +1027,6 @@ static void mwifiex_usb_cleanup_module(void)
 
 	if (usb_card && usb_card->adapter) {
 		struct mwifiex_adapter *adapter = usb_card->adapter;
-		int i;
 
 		/* In case driver is removed when asynchronous FW downloading is
 		 * in progress
@@ -1035,11 +1037,8 @@ static void mwifiex_usb_cleanup_module(void)
 		if (adapter->is_suspended)
 			mwifiex_usb_resume(usb_card->intf);
 #endif
-		for (i = 0; i < adapter->priv_num; i++)
-			if ((GET_BSS_ROLE(adapter->priv[i]) ==
-			     MWIFIEX_BSS_ROLE_STA) &&
-			    adapter->priv[i]->media_connected)
-				mwifiex_deauthenticate(adapter->priv[i], NULL);
+
+		mwifiex_deauthenticate_all(adapter);
 
 		mwifiex_init_shutdown_fw(mwifiex_get_priv(adapter,
 							  MWIFIEX_BSS_ROLE_ANY),

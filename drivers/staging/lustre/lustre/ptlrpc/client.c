@@ -48,6 +48,7 @@
 #include "ptlrpc_internal.h"
 
 static int ptlrpc_send_new_req(struct ptlrpc_request *req);
+static int ptlrpcd_check_work(struct ptlrpc_request *req);
 
 /**
  * Initialize passed in client structure \a cl.
@@ -62,7 +63,7 @@ void ptlrpc_init_client(int req_portal, int rep_portal, char *name,
 EXPORT_SYMBOL(ptlrpc_init_client);
 
 /**
- * Return PortalRPC connection for remore uud \a uuid
+ * Return PortalRPC connection for remote uud \a uuid
  */
 struct ptlrpc_connection *ptlrpc_uuid_to_connection(struct obd_uuid *uuid)
 {
@@ -127,7 +128,7 @@ struct ptlrpc_bulk_desc *ptlrpc_new_bulk(unsigned npages, unsigned max_brw,
  * Prepare bulk descriptor for specified outgoing request \a req that
  * can fit \a npages * pages. \a type is bulk type. \a portal is where
  * the bulk to be sent. Used on client-side.
- * Returns pointer to newly allocatrd initialized bulk descriptor or NULL on
+ * Returns pointer to newly allocated initialized bulk descriptor or NULL on
  * error.
  */
 struct ptlrpc_bulk_desc *ptlrpc_prep_bulk_imp(struct ptlrpc_request *req,
@@ -631,7 +632,7 @@ int ptlrpc_request_pack(struct ptlrpc_request *request,
 
 	/* For some old 1.8 clients (< 1.8.7), they will LASSERT the size of
 	 * ptlrpc_body sent from server equal to local ptlrpc_body size, so we
-	 * have to send old ptlrpc_body to keep interoprability with these
+	 * have to send old ptlrpc_body to keep interoperability with these
 	 * clients.
 	 *
 	 * Only three kinds of server->client RPCs so far:
@@ -639,7 +640,7 @@ int ptlrpc_request_pack(struct ptlrpc_request *request,
 	 *  - LDLM_CP_CALLBACK
 	 *  - LDLM_GL_CALLBACK
 	 *
-	 * XXX This should be removed whenever we drop the interoprability with
+	 * XXX This should be removed whenever we drop the interoperability with
 	 *     the these old clients.
 	 */
 	if (opcode == LDLM_BL_CALLBACK || opcode == LDLM_CP_CALLBACK ||
@@ -686,7 +687,7 @@ struct ptlrpc_request *__ptlrpc_request_alloc(struct obd_import *imp,
 
 /**
  * Helper function for creating a request.
- * Calls __ptlrpc_request_alloc to allocate new request sturcture and inits
+ * Calls __ptlrpc_request_alloc to allocate new request structure and inits
  * buffer structures according to capsule template \a format.
  * Returns allocated request structure pointer or NULL on error.
  */
@@ -743,7 +744,7 @@ void ptlrpc_request_free(struct ptlrpc_request *request)
 EXPORT_SYMBOL(ptlrpc_request_free);
 
 /**
- * Allocate new request for operatione \a opcode and immediatelly pack it for
+ * Allocate new request for operation \a opcode and immediately pack it for
  * network transfer.
  * Only used for simple requests like OBD_PING where the only important
  * part of the request is operation itself.
@@ -768,7 +769,7 @@ struct ptlrpc_request *ptlrpc_request_alloc_pack(struct obd_import *imp,
 EXPORT_SYMBOL(ptlrpc_request_alloc_pack);
 
 /**
- * Prepare request (fetched from pool \a poolif not NULL) on import \a imp
+ * Prepare request (fetched from pool \a pool if not NULL) on import \a imp
  * for operation \a opcode. Request would contain \a count buffers.
  * Sizes of buffers are described in array \a lengths and buffers themselves
  * are provided by a pointer \a bufs.
@@ -1073,7 +1074,7 @@ static int ptlrpc_import_delay_req(struct obd_import *imp,
 }
 
 /**
- * Decide if the eror message regarding provided request \a req
+ * Decide if the error message regarding provided request \a req
  * should be printed to the console or not.
  * Makes it's decision on request status and other properties.
  * Returns 1 to print error on the system console or 0 if not.
@@ -1159,7 +1160,7 @@ static void ptlrpc_save_versions(struct ptlrpc_request *req)
 /**
  * Callback function called when client receives RPC reply for \a req.
  * Returns 0 on success or error code.
- * The return alue would be assigned to req->rq_status by the caller
+ * The return value would be assigned to req->rq_status by the caller
  * as request processing status.
  * This function also decides if the request needs to be saved for later replay.
  */
@@ -1190,7 +1191,9 @@ static int after_reply(struct ptlrpc_request *req)
 		 * will roundup it */
 		req->rq_replen       = req->rq_nob_received;
 		req->rq_nob_received = 0;
+		spin_lock(&req->rq_lock);
 		req->rq_resend       = 1;
+		spin_unlock(&req->rq_lock);
 		return 0;
 	}
 
@@ -1313,7 +1316,11 @@ static int after_reply(struct ptlrpc_request *req)
 			/** version recovery */
 			ptlrpc_save_versions(req);
 			ptlrpc_retain_replayable_request(req, imp);
-		} else if (req->rq_commit_cb != NULL) {
+		} else if (req->rq_commit_cb != NULL &&
+			   list_empty(&req->rq_replay_list)) {
+			/* NB: don't call rq_commit_cb if it's already on
+			 * rq_replay_list, ptlrpc_free_committed() will call
+			 * it later, see LU-3618 for details */
 			spin_unlock(&imp->imp_lock);
 			req->rq_commit_cb(req);
 			spin_lock(&imp->imp_lock);
@@ -1408,7 +1415,9 @@ static int ptlrpc_send_new_req(struct ptlrpc_request *req)
 			req->rq_status = rc;
 			return 1;
 		} else {
+			spin_lock(&req->rq_lock);
 			req->rq_wait_ctx = 1;
+			spin_unlock(&req->rq_lock);
 			return 0;
 		}
 	}
@@ -1423,7 +1432,9 @@ static int ptlrpc_send_new_req(struct ptlrpc_request *req)
 	rc = ptl_send_rpc(req, 0);
 	if (rc) {
 		DEBUG_REQ(D_HA, req, "send failed (%d); expect timeout", rc);
+		spin_lock(&req->rq_lock);
 		req->rq_net_err = 1;
+		spin_unlock(&req->rq_lock);
 		return rc;
 	}
 	return 0;
@@ -1688,6 +1699,7 @@ int ptlrpc_check_set(const struct lu_env *env, struct ptlrpc_request_set *set)
 					spin_lock(&req->rq_lock);
 					req->rq_net_err = 1;
 					spin_unlock(&req->rq_lock);
+					continue;
 				}
 				/* need to reset the timeout */
 				force_timer_recalc = 1;
@@ -1773,6 +1785,10 @@ interpret:
 
 		ptlrpc_req_interpret(env, req, req->rq_status);
 
+		if (ptlrpcd_check_work(req)) {
+			atomic_dec(&set->set_remaining);
+			continue;
+		}
 		ptlrpc_rqphase_move(req, RQ_PHASE_COMPLETE);
 
 		CDEBUG(req->rq_reqmsg != NULL ? D_RPCTRACE : 0,
@@ -2031,7 +2047,7 @@ int ptlrpc_set_next_timeout(struct ptlrpc_request_set *set)
 EXPORT_SYMBOL(ptlrpc_set_next_timeout);
 
 /**
- * Send all unset request from the set and then wait untill all
+ * Send all unset request from the set and then wait until all
  * requests in the set complete (either get a reply, timeout, get an
  * error or otherwise be interrupted).
  * Returns 0 on success or error code otherwise.
@@ -2156,7 +2172,7 @@ int ptlrpc_set_wait(struct ptlrpc_request_set *set)
 EXPORT_SYMBOL(ptlrpc_set_wait);
 
 /**
- * Helper fuction for request freeing.
+ * Helper function for request freeing.
  * Called when request count reached zero and request needs to be freed.
  * Removes request from all sorts of sending/replay lists it might be on,
  * frees network buffers if any are present.
@@ -2223,7 +2239,7 @@ static void __ptlrpc_free_req(struct ptlrpc_request *request, int locked)
 static int __ptlrpc_req_finished(struct ptlrpc_request *request, int locked);
 /**
  * Drop one request reference. Must be called with import imp_lock held.
- * When reference count drops to zero, reuqest is freed.
+ * When reference count drops to zero, request is freed.
  */
 void ptlrpc_req_finished_with_imp_lock(struct ptlrpc_request *request)
 {
@@ -2236,7 +2252,7 @@ EXPORT_SYMBOL(ptlrpc_req_finished_with_imp_lock);
  * Helper function
  * Drops one reference count for request \a request.
  * \a locked set indicates that caller holds import imp_lock.
- * Frees the request whe reference count reaches zero.
+ * Frees the request when reference count reaches zero.
  */
 static int __ptlrpc_req_finished(struct ptlrpc_request *request, int locked)
 {
@@ -2360,19 +2376,52 @@ int ptlrpc_unregister_reply(struct ptlrpc_request *request, int async)
 }
 EXPORT_SYMBOL(ptlrpc_unregister_reply);
 
+static void ptlrpc_free_request(struct ptlrpc_request *req)
+{
+	spin_lock(&req->rq_lock);
+	req->rq_replay = 0;
+	spin_unlock(&req->rq_lock);
+
+	if (req->rq_commit_cb != NULL)
+		req->rq_commit_cb(req);
+	list_del_init(&req->rq_replay_list);
+
+	__ptlrpc_req_finished(req, 1);
+}
+
+/**
+ * the request is committed and dropped from the replay list of its import
+ */
+void ptlrpc_request_committed(struct ptlrpc_request *req, int force)
+{
+	struct obd_import	*imp = req->rq_import;
+
+	spin_lock(&imp->imp_lock);
+	if (list_empty(&req->rq_replay_list)) {
+		spin_unlock(&imp->imp_lock);
+		return;
+	}
+
+	if (force || req->rq_transno <= imp->imp_peer_committed_transno)
+		ptlrpc_free_request(req);
+
+	spin_unlock(&imp->imp_lock);
+}
+EXPORT_SYMBOL(ptlrpc_request_committed);
+
 /**
  * Iterates through replay_list on import and prunes
  * all requests have transno smaller than last_committed for the
  * import and don't have rq_replay set.
- * Since requests are sorted in transno order, stops when meetign first
+ * Since requests are sorted in transno order, stops when meeting first
  * transno bigger than last_committed.
  * caller must hold imp->imp_lock
  */
 void ptlrpc_free_committed(struct obd_import *imp)
 {
-	struct list_head *tmp, *saved;
-	struct ptlrpc_request *req;
+	struct ptlrpc_request *req, *saved;
 	struct ptlrpc_request *last_req = NULL; /* temporary fire escape */
+	bool		       skip_committed_list = true;
 
 	LASSERT(imp != NULL);
 
@@ -2388,13 +2437,15 @@ void ptlrpc_free_committed(struct obd_import *imp)
 	CDEBUG(D_RPCTRACE, "%s: committing for last_committed "LPU64" gen %d\n",
 	       imp->imp_obd->obd_name, imp->imp_peer_committed_transno,
 	       imp->imp_generation);
+
+	if (imp->imp_generation != imp->imp_last_generation_checked)
+		skip_committed_list = false;
+
 	imp->imp_last_transno_checked = imp->imp_peer_committed_transno;
 	imp->imp_last_generation_checked = imp->imp_generation;
 
-	list_for_each_safe(tmp, saved, &imp->imp_replay_list) {
-		req = list_entry(tmp, struct ptlrpc_request,
-				     rq_replay_list);
-
+	list_for_each_entry_safe(req, saved, &imp->imp_replay_list,
+				 rq_replay_list) {
 		/* XXX ok to remove when 1357 resolved - rread 05/29/03  */
 		LASSERT(req != last_req);
 		last_req = req;
@@ -2408,27 +2459,34 @@ void ptlrpc_free_committed(struct obd_import *imp)
 			GOTO(free_req, 0);
 		}
 
-		if (req->rq_replay) {
-			DEBUG_REQ(D_RPCTRACE, req, "keeping (FL_REPLAY)");
-			continue;
-		}
-
 		/* not yet committed */
 		if (req->rq_transno > imp->imp_peer_committed_transno) {
 			DEBUG_REQ(D_RPCTRACE, req, "stopping search");
 			break;
 		}
 
+		if (req->rq_replay) {
+			DEBUG_REQ(D_RPCTRACE, req, "keeping (FL_REPLAY)");
+			list_move_tail(&req->rq_replay_list,
+				       &imp->imp_committed_list);
+			continue;
+		}
+
 		DEBUG_REQ(D_INFO, req, "commit (last_committed "LPU64")",
 			  imp->imp_peer_committed_transno);
 free_req:
-		spin_lock(&req->rq_lock);
-		req->rq_replay = 0;
-		spin_unlock(&req->rq_lock);
-		if (req->rq_commit_cb != NULL)
-			req->rq_commit_cb(req);
-		list_del_init(&req->rq_replay_list);
-		__ptlrpc_req_finished(req, 1);
+		ptlrpc_free_request(req);
+	}
+	if (skip_committed_list)
+		return;
+
+	list_for_each_entry_safe(req, saved, &imp->imp_committed_list,
+				 rq_replay_list) {
+		LASSERT(req->rq_transno != 0);
+		if (req->rq_import_generation < imp->imp_generation) {
+			DEBUG_REQ(D_RPCTRACE, req, "free stale open request");
+			ptlrpc_free_request(req);
+		}
 	}
 }
 
@@ -2585,7 +2643,7 @@ struct ptlrpc_replay_async_args {
 
 /**
  * Callback used for replayed requests reply processing.
- * In case of succesful reply calls registeresd request replay callback.
+ * In case of successful reply calls registered request replay callback.
  * In case of error restart replay process.
  */
 static int ptlrpc_replay_interpret(const struct lu_env *env,
@@ -2834,7 +2892,7 @@ void ptlrpc_init_xid(void)
 		ptlrpc_last_xid = (__u64)now << 20;
 	}
 
-	/* Need to always be aligned to a power-of-two for mutli-bulk BRW */
+	/* Always need to be aligned to a power-of-two for multi-bulk BRW */
 	CLASSERT((PTLRPC_BULK_OPS_COUNT & (PTLRPC_BULK_OPS_COUNT - 1)) == 0);
 	ptlrpc_last_xid &= PTLRPC_BULK_OPS_MASK;
 }
@@ -2904,22 +2962,50 @@ EXPORT_SYMBOL(ptlrpc_sample_next_xid);
  *    have delay before it really runs by ptlrpcd thread.
  */
 struct ptlrpc_work_async_args {
-	__u64   magic;
 	int   (*cb)(const struct lu_env *, void *);
 	void   *cbdata;
 };
 
-#define PTLRPC_WORK_MAGIC 0x6655436b676f4f44ULL /* magic code */
+static void ptlrpcd_add_work_req(struct ptlrpc_request *req)
+{
+	/* re-initialize the req */
+	req->rq_timeout		= obd_timeout;
+	req->rq_sent		= cfs_time_current_sec();
+	req->rq_deadline	= req->rq_sent + req->rq_timeout;
+	req->rq_reply_deadline	= req->rq_deadline;
+	req->rq_phase		= RQ_PHASE_INTERPRET;
+	req->rq_next_phase	= RQ_PHASE_COMPLETE;
+	req->rq_xid		= ptlrpc_next_xid();
+	req->rq_import_generation = req->rq_import->imp_generation;
+
+	ptlrpcd_add_req(req, PDL_POLICY_ROUND, -1);
+}
 
 static int work_interpreter(const struct lu_env *env,
 			    struct ptlrpc_request *req, void *data, int rc)
 {
 	struct ptlrpc_work_async_args *arg = data;
 
-	LASSERT(arg->magic == PTLRPC_WORK_MAGIC);
+	LASSERT(ptlrpcd_check_work(req));
 	LASSERT(arg->cb != NULL);
 
-	return arg->cb(env, arg->cbdata);
+	rc = arg->cb(env, arg->cbdata);
+
+	list_del_init(&req->rq_set_chain);
+	req->rq_set = NULL;
+
+	if (atomic_dec_return(&req->rq_refcount) > 1) {
+		atomic_set(&req->rq_refcount, 2);
+		ptlrpcd_add_work_req(req);
+	}
+	return rc;
+}
+
+static int worker_format;
+
+static int ptlrpcd_check_work(struct ptlrpc_request *req)
+{
+	return req->rq_pill.rc_fmt == (void *)&worker_format;
 }
 
 /**
@@ -2952,6 +3038,7 @@ void *ptlrpcd_alloc_work(struct obd_import *imp,
 	req->rq_receiving_reply = 0;
 	req->rq_must_unlink = 0;
 	req->rq_no_delay = req->rq_no_resend = 1;
+	req->rq_pill.rc_fmt = (void *)&worker_format;
 
 	spin_lock_init(&req->rq_lock);
 	INIT_LIST_HEAD(&req->rq_list);
@@ -2965,7 +3052,6 @@ void *ptlrpcd_alloc_work(struct obd_import *imp,
 
 	CLASSERT(sizeof(*args) <= sizeof(req->rq_async_args));
 	args = ptlrpc_req_async_args(req);
-	args->magic  = PTLRPC_WORK_MAGIC;
 	args->cb     = cb;
 	args->cbdata = cbdata;
 
@@ -2995,25 +3081,8 @@ int ptlrpcd_queue_work(void *handler)
 	 * req as opaque data. - Jinshan
 	 */
 	LASSERT(atomic_read(&req->rq_refcount) > 0);
-	if (atomic_read(&req->rq_refcount) > 1)
-		return -EBUSY;
-
-	if (atomic_inc_return(&req->rq_refcount) > 2) { /* race */
-		atomic_dec(&req->rq_refcount);
-		return -EBUSY;
-	}
-
-	/* re-initialize the req */
-	req->rq_timeout	= obd_timeout;
-	req->rq_sent	   = cfs_time_current_sec();
-	req->rq_deadline       = req->rq_sent + req->rq_timeout;
-	req->rq_reply_deadline = req->rq_deadline;
-	req->rq_phase	  = RQ_PHASE_INTERPRET;
-	req->rq_next_phase     = RQ_PHASE_COMPLETE;
-	req->rq_xid	    = ptlrpc_next_xid();
-	req->rq_import_generation = req->rq_import->imp_generation;
-
-	ptlrpcd_add_req(req, PDL_POLICY_ROUND, -1);
+	if (atomic_inc_return(&req->rq_refcount) == 2)
+		ptlrpcd_add_work_req(req);
 	return 0;
 }
 EXPORT_SYMBOL(ptlrpcd_queue_work);

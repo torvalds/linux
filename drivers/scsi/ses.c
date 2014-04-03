@@ -25,6 +25,7 @@
 #include <linux/module.h>
 #include <linux/kernel.h>
 #include <linux/enclosure.h>
+#include <asm/unaligned.h>
 
 #include <scsi/scsi.h>
 #include <scsi/scsi_cmnd.h>
@@ -448,27 +449,18 @@ static void ses_enclosure_data_process(struct enclosure_device *edev,
 static void ses_match_to_enclosure(struct enclosure_device *edev,
 				   struct scsi_device *sdev)
 {
-	unsigned char *buf;
 	unsigned char *desc;
-	unsigned int vpd_len;
 	struct efd efd = {
 		.addr = 0,
 	};
 
-	buf = kmalloc(INIT_ALLOC_SIZE, GFP_KERNEL);
-	if (!buf || scsi_get_vpd_page(sdev, 0x83, buf, INIT_ALLOC_SIZE))
-		goto free;
-
 	ses_enclosure_data_process(edev, to_scsi_device(edev->edev.parent), 0);
 
-	vpd_len = ((buf[2] << 8) | buf[3]) + 4;
-	kfree(buf);
-	buf = kmalloc(vpd_len, GFP_KERNEL);
-	if (!buf ||scsi_get_vpd_page(sdev, 0x83, buf, vpd_len))
-		goto free;
+	if (!sdev->vpd_pg83_len)
+		return;
 
-	desc = buf + 4;
-	while (desc < buf + vpd_len) {
+	desc = sdev->vpd_pg83 + 4;
+	while (desc < sdev->vpd_pg83 + sdev->vpd_pg83_len) {
 		enum scsi_protocol proto = desc[0] >> 4;
 		u8 code_set = desc[0] & 0x0f;
 		u8 piv = desc[1] & 0x80;
@@ -478,25 +470,15 @@ static void ses_match_to_enclosure(struct enclosure_device *edev,
 
 		if (piv && code_set == 1 && assoc == 1
 		    && proto == SCSI_PROTOCOL_SAS && type == 3 && len == 8)
-			efd.addr = (u64)desc[4] << 56 |
-				(u64)desc[5] << 48 |
-				(u64)desc[6] << 40 |
-				(u64)desc[7] << 32 |
-				(u64)desc[8] << 24 |
-				(u64)desc[9] << 16 |
-				(u64)desc[10] << 8 |
-				(u64)desc[11];
+			efd.addr = get_unaligned_be64(&desc[4]);
 
 		desc += len + 4;
 	}
-	if (!efd.addr)
-		goto free;
+	if (efd.addr) {
+		efd.dev = &sdev->sdev_gendev;
 
-	efd.dev = &sdev->sdev_gendev;
-
-	enclosure_for_each_device(ses_enclosure_find_by_addr, &efd);
- free:
-	kfree(buf);
+		enclosure_for_each_device(ses_enclosure_find_by_addr, &efd);
+	}
 }
 
 static int ses_intf_add(struct device *cdev,

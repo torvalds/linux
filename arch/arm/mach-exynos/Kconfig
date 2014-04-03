@@ -36,7 +36,6 @@ config ARCH_EXYNOS5
 	select HAVE_ARM_SCU if SMP
 	select HAVE_SMP
 	select PINCTRL
-	select USB_ARCH_HAS_XHCI
 	help
 	  Samsung EXYNOS5 (Cortex-A15) SoC based systems
 

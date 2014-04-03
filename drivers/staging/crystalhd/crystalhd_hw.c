@@ -433,10 +433,12 @@ static void crystalhd_rx_pkt_rel_call_back(void *context, void *data)
 }
 
 #define crystalhd_hw_delete_ioq(adp, q)		\
+do {						\
 	if (q) {				\
 		crystalhd_delete_dioq(adp, q);	\
 		q = NULL;			\
-	}
+	}					\
+} while (0)
 
 static void crystalhd_hw_delete_ioqs(struct crystalhd_hw *hw)
 {
@@ -1437,7 +1439,7 @@ static bool crystalhd_rx_list0_handler(struct crystalhd_hw *hw,
 		crystalhd_reg_wr(hw->adp, MISC1_UV_RX_ERROR_STATUS, tmp);
 	}
 
-	return (tmp_lsts != hw->rx_list_sts[0]);
+	return tmp_lsts != hw->rx_list_sts[0];
 }
 
 static bool crystalhd_rx_list1_handler(struct crystalhd_hw *hw,
@@ -1507,7 +1509,7 @@ static bool crystalhd_rx_list1_handler(struct crystalhd_hw *hw,
 		crystalhd_reg_wr(hw->adp, MISC1_UV_RX_ERROR_STATUS, tmp);
 	}
 
-	return (tmp_lsts != hw->rx_list_sts[1]);
+	return tmp_lsts != hw->rx_list_sts[1];
 }
 
 

@@ -473,7 +473,7 @@ enum {
 };
 
 struct ieee80211_header_data {
-	u16 frame_ctl;
+	__le16 frame_ctl;
 	u16 duration_id;
 	u8 addr1[6];
 	u8 addr2[6];
@@ -482,7 +482,7 @@ struct ieee80211_header_data {
 };
 
 struct ieee80211_hdr_4addr {
-	u16 frame_ctl;
+	__le16 frame_ctl;
 	u16 duration_id;
 	u8 addr1[ETH_ALEN];
 	u8 addr2[ETH_ALEN];
@@ -709,10 +709,10 @@ enum {WMM_all_frame, WMM_two_frame, WMM_four_frame, WMM_six_frame};
 
 #define MAX_IE_LEN						0xFF //+YJ,080625
 
-typedef struct _CHANNEL_LIST{
-	u8	Channel[MAX_CHANNEL_NUMBER + 1];
-	u8	Len;
-}CHANNEL_LIST, *PCHANNEL_LIST;
+struct rtl8187se_channel_list {
+	u8	channel[MAX_CHANNEL_NUMBER + 1];
+	u8	len;
+};
 
 //by amy for ps
 #define IEEE80211_WATCH_DOG_TIME    2000

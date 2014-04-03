@@ -2,20 +2,20 @@
  *
  * Copyright(c) 2009-2010  Realtek Corporation.
  *
- * Tmis program is free software; you can redistribute it and/or modify it
+ * This program is free software; you can redistribute it and/or modify it
  * under the terms of version 2 of the GNU General Public License as
  * published by the Free Software Foundation.
  *
- * Tmis program is distributed in the hope that it will be useful, but WITHOUT
+ * This program is distributed in the hope that it will be useful, but WITHOUT
  * ANY WARRANTY; without even the implied warranty of MERCHANTABILITY or
  * FITNESS FOR A PARTICULAR PURPOSE.  See the GNU General Public License for
  * more details.
  *
  * You should have received a copy of the GNU General Public License along with
- * tmis program; if not, write to the Free Software Foundation, Inc.,
+ * this program; if not, write to the Free Software Foundation, Inc.,
  * 51 Franklin Street, Fifth Floor, Boston, MA 02110, USA
  *
- * Tme full GNU General Public License is included in this distribution in the
+ * The full GNU General Public License is included in this distribution in the
  * file called LICENSE.
  *
  * Contact Information:
@@ -44,7 +44,7 @@
 #define DBG_EMERG			0
 
 /*
- *Abnormal, rare, or unexpeted cases.
+ *Abnormal, rare, or unexpected cases.
  *For example, Packet/IO Ctl canceled,
  *device suprisely unremoved and so on.
  */
@@ -54,7 +54,7 @@
  *Normal case driver developer should
  *open, we can see link status like
  *assoc/AddBA/DHCP/adapter start and
- *so on basic and useful infromations.
+ *so on basic and useful informations.
  */
 #define DBG_DMESG			3
 

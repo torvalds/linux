@@ -564,7 +564,7 @@ drm_crtc_helper_disable(struct drm_crtc *crtc)
  * Caller must hold mode config lock.
  *
  * Setup a new configuration, provided by the upper layers (either an ioctl call
- * from userspace or internally e.g. from the fbdev suppport code) in @set, and
+ * from userspace or internally e.g. from the fbdev support code) in @set, and
  * enable it. This is the main helper functions for drivers that implement
  * kernel mode setting with the crtc helper functions and the assorted
  * ->prepare(), ->modeset() and ->commit() helper callbacks.

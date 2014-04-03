@@ -77,32 +77,9 @@ typedef void (*RT_WORKITEM_CALL_BACK)(void *pContext);
 
 /*  =========== EXtern Function Prototype */
 
-u8 ODM_Read1Byte(struct odm_dm_struct *pDM_Odm, u32 RegAddr);
-
-u16 ODM_Read2Byte(struct odm_dm_struct *pDM_Odm, u32 RegAddr);
-
-u32 ODM_Read4Byte(struct odm_dm_struct *pDM_Odm, u32 RegAddr);
-
-void ODM_Write1Byte(struct odm_dm_struct *pDM_Odm, u32 RegAddr, u8 Data);
-
-void ODM_Write2Byte(struct odm_dm_struct *pDM_Odm, u32 RegAddr, u16 Data);
-
-void ODM_Write4Byte(struct odm_dm_struct *pDM_Odm, u32 RegAddr, u32 Data);
-
 /*  Memory Relative Function. */
-void ODM_AllocateMemory(struct odm_dm_struct *pDM_Odm, void **pPtr, u32 length);
-void ODM_FreeMemory(struct odm_dm_struct *pDM_Odm, void *pPtr, u32 length);
-
-s32 ODM_CompareMemory(struct odm_dm_struct *pDM_Odm, void *pBuf1, void *pBuf2,
-		      u32 length);
 
 /*  ODM Timer relative API. */
-void ODM_SetTimer(struct odm_dm_struct *pDM_Odm, struct timer_list *pTimer,
-		  u32 msDelay);
-
-void ODM_InitializeTimer(struct odm_dm_struct *pDM_Odm,
-			 struct timer_list *pTimer, void *CallBackFunc,
-			 void *pContext, const char *szID);
 
 void ODM_CancelTimer(struct odm_dm_struct *pDM_Odm, struct timer_list *pTimer);
 

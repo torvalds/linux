@@ -197,16 +197,17 @@ static void probe_spram(char *type,
 }
 void spram_config(void)
 {
-	struct cpuinfo_mips *c = &current_cpu_data;
 	unsigned int config0;
 
-	switch (c->cputype) {
+	switch (current_cpu_type()) {
 	case CPU_24K:
 	case CPU_34K:
 	case CPU_74K:
 	case CPU_1004K:
+	case CPU_1074K:
 	case CPU_INTERAPTIV:
 	case CPU_PROAPTIV:
+	case CPU_P5600:
 		config0 = read_c0_config();
 		/* FIXME: addresses are Malta specific */
 		if (config0 & (1<<24)) {

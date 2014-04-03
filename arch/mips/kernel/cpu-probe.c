@@ -23,6 +23,8 @@
 #include <asm/cpu-type.h>
 #include <asm/fpu.h>
 #include <asm/mipsregs.h>
+#include <asm/mipsmtregs.h>
+#include <asm/msa.h>
 #include <asm/watch.h>
 #include <asm/elf.h>
 #include <asm/spram.h>
@@ -126,6 +128,20 @@ static inline int __cpu_has_fpu(void)
 	return ((cpu_get_fpu_id() & FPIR_IMP_MASK) != FPIR_IMP_NONE);
 }
 
+static inline unsigned long cpu_get_msa_id(void)
+{
+	unsigned long status, conf5, msa_id;
+
+	status = read_c0_status();
+	__enable_fpu(FPU_64BIT);
+	conf5 = read_c0_config5();
+	enable_msa();
+	msa_id = read_msa_ir();
+	write_c0_config5(conf5);
+	write_c0_status(status);
+	return msa_id;
+}
+
 static inline void cpu_probe_vmbits(struct cpuinfo_mips *c)
 {
 #ifdef __NEED_VMBITS_PROBE
@@ -166,11 +182,12 @@ static char unknown_isa[] = KERN_ERR \
 static void set_ftlb_enable(struct cpuinfo_mips *c, int enable)
 {
 	unsigned int config6;
-	/*
-	 * Config6 is implementation dependent and it's currently only
-	 * used by proAptiv
-	 */
-	if (c->cputype == CPU_PROAPTIV) {
+
+	/* It's implementation dependent how the FTLB can be enabled */
+	switch (c->cputype) {
+	case CPU_PROAPTIV:
+	case CPU_P5600:
+		/* proAptiv & related cores use Config6 to enable the FTLB */
 		config6 = read_c0_config6();
 		if (enable)
 			/* Enable FTLB */
@@ -179,6 +196,7 @@ static void set_ftlb_enable(struct cpuinfo_mips *c, int enable)
 			/* Disable FTLB */
 			write_c0_config6(config6 &  ~MIPS_CONF6_FTLBEN);
 		back_to_back_c0_hazard();
+		break;
 	}
 }
 
@@ -301,6 +319,8 @@ static inline unsigned int decode_config3(struct cpuinfo_mips *c)
 		c->ases |= MIPS_ASE_VZ;
 	if (config3 & MIPS_CONF3_SC)
 		c->options |= MIPS_CPU_SEGMENTS;
+	if (config3 & MIPS_CONF3_MSA)
+		c->ases |= MIPS_ASE_MSA;
 
 	return config3 & MIPS_CONF_M;
 }
@@ -367,6 +387,9 @@ static inline unsigned int decode_config5(struct cpuinfo_mips *c)
 	config5 &= ~MIPS_CONF5_UFR;
 	write_c0_config5(config5);
 
+	if (config5 & MIPS_CONF5_EVA)
+		c->options |= MIPS_CPU_EVA;
+
 	return config5 & MIPS_CONF_M;
 }
 
@@ -398,8 +421,13 @@ static void decode_configs(struct cpuinfo_mips *c)
 
 	mips_probe_watch_registers(c);
 
-	if (cpu_has_mips_r2)
+#ifndef CONFIG_MIPS_CPS
+	if (cpu_has_mips_r2) {
 		c->core = read_c0_ebase() & 0x3ff;
+		if (cpu_has_mipsmt)
+			c->core >>= fls(core_nvpes()) - 1;
+	}
+#endif
 }
 
 #define R4K_OPTS (MIPS_CPU_TLB | MIPS_CPU_4KEX | MIPS_CPU_4K_CACHE \
@@ -710,16 +738,22 @@ static inline void cpu_probe_legacy(struct cpuinfo_mips *c, unsigned int cpu)
 			     MIPS_CPU_LLSC;
 		c->tlbsize = 64;
 		break;
-	case PRID_IMP_LOONGSON2:
-		c->cputype = CPU_LOONGSON2;
-		__cpu_name[cpu] = "ICT Loongson-2";
-
+	case PRID_IMP_LOONGSON_64:  /* Loongson-2/3 */
 		switch (c->processor_id & PRID_REV_MASK) {
 		case PRID_REV_LOONGSON2E:
+			c->cputype = CPU_LOONGSON2;
+			__cpu_name[cpu] = "ICT Loongson-2";
 			set_elf_platform(cpu, "loongson2e");
 			break;
 		case PRID_REV_LOONGSON2F:
+			c->cputype = CPU_LOONGSON2;
+			__cpu_name[cpu] = "ICT Loongson-2";
 			set_elf_platform(cpu, "loongson2f");
+			break;
+		case PRID_REV_LOONGSON3A:
+			c->cputype = CPU_LOONGSON3;
+			__cpu_name[cpu] = "ICT Loongson-3";
+			set_elf_platform(cpu, "loongson3a");
 			break;
 		}
 
@@ -729,7 +763,7 @@ static inline void cpu_probe_legacy(struct cpuinfo_mips *c, unsigned int cpu)
 			     MIPS_CPU_32FPR;
 		c->tlbsize = 64;
 		break;
-	case PRID_IMP_LOONGSON1:
+	case PRID_IMP_LOONGSON_32:  /* Loongson-1 */
 		decode_configs(c);
 
 		c->cputype = CPU_LOONGSON1;
@@ -806,7 +840,7 @@ static inline void cpu_probe_mips(struct cpuinfo_mips *c, unsigned int cpu)
 		__cpu_name[cpu] = "MIPS 1004Kc";
 		break;
 	case PRID_IMP_1074K:
-		c->cputype = CPU_74K;
+		c->cputype = CPU_1074K;
 		__cpu_name[cpu] = "MIPS 1074Kc";
 		break;
 	case PRID_IMP_INTERAPTIV_UP:
@@ -824,6 +858,14 @@ static inline void cpu_probe_mips(struct cpuinfo_mips *c, unsigned int cpu)
 	case PRID_IMP_PROAPTIV_MP:
 		c->cputype = CPU_PROAPTIV;
 		__cpu_name[cpu] = "MIPS proAptiv (multi)";
+		break;
+	case PRID_IMP_P5600:
+		c->cputype = CPU_P5600;
+		__cpu_name[cpu] = "MIPS P5600";
+		break;
+	case PRID_IMP_M5150:
+		c->cputype = CPU_M5150;
+		__cpu_name[cpu] = "MIPS M5150";
 		break;
 	}
 
@@ -1176,6 +1218,12 @@ void cpu_probe(void)
 	else
 		c->srsets = 1;
 
+	if (cpu_has_msa) {
+		c->msa_id = cpu_get_msa_id();
+		WARN(c->msa_id & MSA_IR_WRPF,
+		     "Vector register partitioning unimplemented!");
+	}
+
 	cpu_probe_vmbits(c);
 
 #ifdef CONFIG_64BIT
@@ -1192,4 +1240,6 @@ void cpu_report(void)
 		smp_processor_id(), c->processor_id, cpu_name_string());
 	if (c->options & MIPS_CPU_FPU)
 		printk(KERN_INFO "FPU revision is: %08x\n", c->fpu_id);
+	if (cpu_has_msa)
+		pr_info("MSA revision is: %08x\n", c->msa_id);
 }

@@ -183,15 +183,7 @@ static int sc18is602_setup_transfer(struct sc18is602 *hw, u32 hz, u8 mode)
 static int sc18is602_check_transfer(struct spi_device *spi,
 				    struct spi_transfer *t, int tlen)
 {
-	uint32_t hz;
-
 	if (t && t->len + tlen > SC18IS602_BUFSIZ)
-		return -EINVAL;
-
-	hz = spi->max_speed_hz;
-	if (t && t->speed_hz)
-		hz = t->speed_hz;
-	if (hz == 0)
 		return -EINVAL;
 
 	return 0;
@@ -205,22 +197,15 @@ static int sc18is602_transfer_one(struct spi_master *master,
 	struct spi_transfer *t;
 	int status = 0;
 
-	/* SC18IS602 does not support CS2 */
-	if (hw->id == sc18is602 && spi->chip_select == 2) {
-		status = -ENXIO;
-		goto error;
-	}
-
 	hw->tlen = 0;
 	list_for_each_entry(t, &m->transfers, transfer_list) {
-		u32 hz = t->speed_hz ? : spi->max_speed_hz;
 		bool do_transfer;
 
 		status = sc18is602_check_transfer(spi, t, hw->tlen);
 		if (status < 0)
 			break;
 
-		status = sc18is602_setup_transfer(hw, hz, spi->mode);
+		status = sc18is602_setup_transfer(hw, t->speed_hz, spi->mode);
 		if (status < 0)
 			break;
 
@@ -238,7 +223,6 @@ static int sc18is602_transfer_one(struct spi_master *master,
 		if (t->delay_usecs)
 			udelay(t->delay_usecs);
 	}
-error:
 	m->status = status;
 	spi_finalize_current_message(master);
 
@@ -247,10 +231,13 @@ error:
 
 static int sc18is602_setup(struct spi_device *spi)
 {
-	if (spi->mode & ~(SPI_CPHA | SPI_CPOL | SPI_LSB_FIRST))
-		return -EINVAL;
+	struct sc18is602 *hw = spi_master_get_devdata(spi->master);
 
-	return sc18is602_check_transfer(spi, NULL, 0);
+	/* SC18IS602 does not support CS2 */
+	if (hw->id == sc18is602 && spi->chip_select == 2)
+		return -ENXIO;
+
+	return 0;
 }
 
 static int sc18is602_probe(struct i2c_client *client,
@@ -309,6 +296,8 @@ static int sc18is602_probe(struct i2c_client *client,
 	master->setup = sc18is602_setup;
 	master->transfer_one_message = sc18is602_transfer_one;
 	master->dev.of_node = np;
+	master->min_speed_hz = hw->freq / 128;
+	master->max_speed_hz = hw->freq / 4;
 
 	error = devm_spi_register_master(dev, master);
 	if (error)

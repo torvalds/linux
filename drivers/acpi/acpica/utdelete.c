@@ -5,7 +5,7 @@
  ******************************************************************************/
 
 /*
- * Copyright (C) 2000 - 2013, Intel Corp.
+ * Copyright (C) 2000 - 2014, Intel Corp.
  * All rights reserved.
  *
  * Redistribution and use in source and binary forms, with or without
@@ -75,6 +75,7 @@ static void acpi_ut_delete_internal_obj(union acpi_operand_object *object)
 	union acpi_operand_object *handler_desc;
 	union acpi_operand_object *second_desc;
 	union acpi_operand_object *next_desc;
+	union acpi_operand_object *start_desc;
 	union acpi_operand_object **last_obj_ptr;
 
 	ACPI_FUNCTION_TRACE_PTR(ut_delete_internal_obj, object);
@@ -235,10 +236,11 @@ static void acpi_ut_delete_internal_obj(union acpi_operand_object *object)
 			if (handler_desc) {
 				next_desc =
 				    handler_desc->address_space.region_list;
+				start_desc = next_desc;
 				last_obj_ptr =
 				    &handler_desc->address_space.region_list;
 
-				/* Remove the region object from the handler's list */
+				/* Remove the region object from the handler list */
 
 				while (next_desc) {
 					if (next_desc == object) {
@@ -247,10 +249,19 @@ static void acpi_ut_delete_internal_obj(union acpi_operand_object *object)
 						break;
 					}
 
-					/* Walk the linked list of handler */
+					/* Walk the linked list of handlers */
 
 					last_obj_ptr = &next_desc->region.next;
 					next_desc = next_desc->region.next;
+
+					/* Prevent infinite loop if list is corrupted */
+
+					if (next_desc == start_desc) {
+						ACPI_ERROR((AE_INFO,
+							    "Circular region list in address handler object %p",
+							    handler_desc));
+						return_VOID;
+					}
 				}
 
 				if (handler_desc->address_space.handler_flags &

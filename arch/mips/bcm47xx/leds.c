@@ -292,6 +292,21 @@ bcm47xx_leds_linksys_wrt310nv1[] __initconst = {
 };
 
 static const struct gpio_led
+bcm47xx_leds_linksys_wrt54gsv1[] __initconst = {
+	BCM47XX_GPIO_LED(0, "unk", "dmz", 1, LEDS_GPIO_DEFSTATE_OFF),
+	BCM47XX_GPIO_LED(1, "unk", "power", 0, LEDS_GPIO_DEFSTATE_ON),
+	BCM47XX_GPIO_LED(5, "white", "wps", 1, LEDS_GPIO_DEFSTATE_OFF),
+	BCM47XX_GPIO_LED(7, "orange", "wps", 1, LEDS_GPIO_DEFSTATE_OFF),
+};
+
+static const struct gpio_led
+bcm47xx_leds_linksys_wrt54g3gv2[] __initconst = {
+	BCM47XX_GPIO_LED(1, "unk", "power", 0, LEDS_GPIO_DEFSTATE_ON),
+	BCM47XX_GPIO_LED(2, "green", "3g", 0, LEDS_GPIO_DEFSTATE_OFF),
+	BCM47XX_GPIO_LED(3, "blue", "3g", 0, LEDS_GPIO_DEFSTATE_OFF),
+};
+
+static const struct gpio_led
 bcm47xx_leds_linksys_wrt610nv1[] __initconst = {
 	BCM47XX_GPIO_LED(0, "unk", "usb",  1, LEDS_GPIO_DEFSTATE_OFF),
 	BCM47XX_GPIO_LED(1, "unk", "power",  0, LEDS_GPIO_DEFSTATE_OFF),
@@ -306,6 +321,15 @@ bcm47xx_leds_linksys_wrt610nv2[] __initconst = {
 	BCM47XX_GPIO_LED(3, "blue", "wps", 1, LEDS_GPIO_DEFSTATE_OFF),
 	BCM47XX_GPIO_LED(5, "unk", "power", 0, LEDS_GPIO_DEFSTATE_ON),
 	BCM47XX_GPIO_LED(7, "unk", "usb", 0, LEDS_GPIO_DEFSTATE_OFF),
+};
+
+static const struct gpio_led
+bcm47xx_leds_linksys_wrtsl54gs[] __initconst = {
+	BCM47XX_GPIO_LED(0, "unk", "wlan", 1, LEDS_GPIO_DEFSTATE_OFF),
+	BCM47XX_GPIO_LED(1, "unk", "power", 0, LEDS_GPIO_DEFSTATE_ON),
+	BCM47XX_GPIO_LED(2, "white", "wps", 1, LEDS_GPIO_DEFSTATE_OFF),
+	BCM47XX_GPIO_LED(3, "orange", "wps", 1, LEDS_GPIO_DEFSTATE_OFF),
+	BCM47XX_GPIO_LED(7, "unk", "dmz", 1, LEDS_GPIO_DEFSTATE_OFF),
 };
 
 /* Motorola */
@@ -357,6 +381,14 @@ bcm47xx_leds_netgear_wnr834bv2[] __initconst = {
 	BCM47XX_GPIO_LED(2, "green", "power", 0, LEDS_GPIO_DEFSTATE_ON),
 	BCM47XX_GPIO_LED(3, "amber", "power", 0, LEDS_GPIO_DEFSTATE_OFF),
 	BCM47XX_GPIO_LED(7, "unk", "connected", 0, LEDS_GPIO_DEFSTATE_OFF),
+};
+
+/* Siemens */
+static const struct gpio_led
+bcm47xx_leds_siemens_se505v2[] __initconst = {
+	BCM47XX_GPIO_LED(0, "unk", "dmz", 1, LEDS_GPIO_DEFSTATE_OFF),
+	BCM47XX_GPIO_LED(3, "unk", "wlan", 1, LEDS_GPIO_DEFSTATE_OFF),
+	BCM47XX_GPIO_LED(5, "unk", "power", 1, LEDS_GPIO_DEFSTATE_ON),
 };
 
 /* SimpleTech */
@@ -425,7 +457,11 @@ void __init bcm47xx_leds_register(void)
 		bcm47xx_set_pdata(bcm47xx_leds_asus_wlhdd);
 		break;
 
+	case BCM47XX_BOARD_BELKIN_F7D3301:
+	case BCM47XX_BOARD_BELKIN_F7D3302:
 	case BCM47XX_BOARD_BELKIN_F7D4301:
+	case BCM47XX_BOARD_BELKIN_F7D4302:
+	case BCM47XX_BOARD_BELKIN_F7D4401:
 		bcm47xx_set_pdata(bcm47xx_leds_belkin_f7d4301);
 		break;
 
@@ -502,11 +538,20 @@ void __init bcm47xx_leds_register(void)
 	case BCM47XX_BOARD_LINKSYS_WRT310NV1:
 		bcm47xx_set_pdata(bcm47xx_leds_linksys_wrt310nv1);
 		break;
+	case BCM47XX_BOARD_LINKSYS_WRT54G:
+		bcm47xx_set_pdata(bcm47xx_leds_linksys_wrt54gsv1);
+		break;
+	case BCM47XX_BOARD_LINKSYS_WRT54G3GV2:
+		bcm47xx_set_pdata(bcm47xx_leds_linksys_wrt54g3gv2);
+		break;
 	case BCM47XX_BOARD_LINKSYS_WRT610NV1:
 		bcm47xx_set_pdata(bcm47xx_leds_linksys_wrt610nv1);
 		break;
 	case BCM47XX_BOARD_LINKSYS_WRT610NV2:
 		bcm47xx_set_pdata(bcm47xx_leds_linksys_wrt610nv2);
+		break;
+	case BCM47XX_BOARD_LINKSYS_WRTSL54GS:
+		bcm47xx_set_pdata(bcm47xx_leds_linksys_wrtsl54gs);
 		break;
 
 	case BCM47XX_BOARD_MOTOROLA_WE800G:
@@ -527,6 +572,10 @@ void __init bcm47xx_leds_register(void)
 		break;
 	case BCM47XX_BOARD_NETGEAR_WNR834BV2:
 		bcm47xx_set_pdata(bcm47xx_leds_netgear_wnr834bv2);
+		break;
+
+	case BCM47XX_BOARD_SIEMENS_SE505V2:
+		bcm47xx_set_pdata(bcm47xx_leds_siemens_se505v2);
 		break;
 
 	case BCM47XX_BOARD_SIMPLETECH_SIMPLESHARE:

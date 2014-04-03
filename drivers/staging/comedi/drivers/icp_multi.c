@@ -171,12 +171,27 @@ static void setup_channel_list(struct comedi_device *dev,
 	}
 }
 
+static int icp_multi_ai_eoc(struct comedi_device *dev,
+			    struct comedi_subdevice *s,
+			    struct comedi_insn *insn,
+			    unsigned long context)
+{
+	struct icp_multi_private *devpriv = dev->private;
+	unsigned int status;
+
+	status = readw(devpriv->io_addr + ICP_MULTI_ADC_CSR);
+	if ((status & ADC_BSY) == 0)
+		return 0;
+	return -EBUSY;
+}
+
 static int icp_multi_insn_read_ai(struct comedi_device *dev,
 				  struct comedi_subdevice *s,
 				  struct comedi_insn *insn, unsigned int *data)
 {
 	struct icp_multi_private *devpriv = dev->private;
-	int n, timeout;
+	int ret = 0;
+	int n;
 
 	/*  Disable A/D conversion ready interrupt */
 	devpriv->IntEnable &= ~ADC_READY;
@@ -199,33 +214,10 @@ static int icp_multi_insn_read_ai(struct comedi_device *dev,
 		udelay(1);
 
 		/*  Wait for conversion to complete, or get fed up waiting */
-		timeout = 100;
-		while (timeout--) {
-			if (!(readw(devpriv->io_addr +
-				    ICP_MULTI_ADC_CSR) & ADC_BSY))
-				goto conv_finish;
+		ret = comedi_timeout(dev, s, insn, icp_multi_ai_eoc, 0);
+		if (ret)
+			break;
 
-			udelay(1);
-		}
-
-		/*  If we reach here, a timeout has occurred */
-		comedi_error(dev, "A/D insn timeout");
-
-		/*  Disable interrupt */
-		devpriv->IntEnable &= ~ADC_READY;
-		writew(devpriv->IntEnable, devpriv->io_addr + ICP_MULTI_INT_EN);
-
-		/*  Clear interrupt status */
-		devpriv->IntStatus |= ADC_READY;
-		writew(devpriv->IntStatus,
-		       devpriv->io_addr + ICP_MULTI_INT_STAT);
-
-		/*  Clear data received */
-		data[n] = 0;
-
-		return -ETIME;
-
-conv_finish:
 		data[n] =
 		    (readw(devpriv->io_addr + ICP_MULTI_AI) >> 4) & 0x0fff;
 	}
@@ -238,7 +230,21 @@ conv_finish:
 	devpriv->IntStatus |= ADC_READY;
 	writew(devpriv->IntStatus, devpriv->io_addr + ICP_MULTI_INT_STAT);
 
-	return n;
+	return ret ? ret : n;
+}
+
+static int icp_multi_ao_eoc(struct comedi_device *dev,
+			    struct comedi_subdevice *s,
+			    struct comedi_insn *insn,
+			    unsigned long context)
+{
+	struct icp_multi_private *devpriv = dev->private;
+	unsigned int status;
+
+	status = readw(devpriv->io_addr + ICP_MULTI_DAC_CSR);
+	if ((status & DAC_BSY) == 0)
+		return 0;
+	return -EBUSY;
 }
 
 static int icp_multi_insn_write_ao(struct comedi_device *dev,
@@ -246,7 +252,8 @@ static int icp_multi_insn_write_ao(struct comedi_device *dev,
 				   struct comedi_insn *insn, unsigned int *data)
 {
 	struct icp_multi_private *devpriv = dev->private;
-	int n, chan, range, timeout;
+	int n, chan, range;
+	int ret;
 
 	/*  Disable D/A conversion ready interrupt */
 	devpriv->IntEnable &= ~DAC_READY;
@@ -274,33 +281,24 @@ static int icp_multi_insn_write_ao(struct comedi_device *dev,
 	for (n = 0; n < insn->n; n++) {
 		/*  Wait for analogue output data register to be
 		 *  ready for new data, or get fed up waiting */
-		timeout = 100;
-		while (timeout--) {
-			if (!(readw(devpriv->io_addr +
-				    ICP_MULTI_DAC_CSR) & DAC_BSY))
-				goto dac_ready;
+		ret = comedi_timeout(dev, s, insn, icp_multi_ao_eoc, 0);
+		if (ret) {
+			/*  Disable interrupt */
+			devpriv->IntEnable &= ~DAC_READY;
+			writew(devpriv->IntEnable,
+			       devpriv->io_addr + ICP_MULTI_INT_EN);
 
-			udelay(1);
+			/*  Clear interrupt status */
+			devpriv->IntStatus |= DAC_READY;
+			writew(devpriv->IntStatus,
+			       devpriv->io_addr + ICP_MULTI_INT_STAT);
+
+			/*  Clear data received */
+			devpriv->ao_data[chan] = 0;
+
+			return ret;
 		}
 
-		/*  If we reach here, a timeout has occurred */
-		comedi_error(dev, "D/A insn timeout");
-
-		/*  Disable interrupt */
-		devpriv->IntEnable &= ~DAC_READY;
-		writew(devpriv->IntEnable, devpriv->io_addr + ICP_MULTI_INT_EN);
-
-		/*  Clear interrupt status */
-		devpriv->IntStatus |= DAC_READY;
-		writew(devpriv->IntStatus,
-		       devpriv->io_addr + ICP_MULTI_INT_STAT);
-
-		/*  Clear data received */
-		devpriv->ao_data[chan] = 0;
-
-		return -ETIME;
-
-dac_ready:
 		/*  Write data to analogue output data register */
 		writew(data[n], devpriv->io_addr + ICP_MULTI_AO);
 
@@ -564,9 +562,6 @@ static int icp_multi_auto_attach(struct comedi_device *dev,
 	s->insn_write = icp_multi_insn_write_ctr;
 
 	devpriv->valid = 1;
-
-	dev_info(dev->class_dev, "%s attached, irq %sabled\n",
-		dev->board_name, dev->irq ? "en" : "dis");
 
 	return 0;
 }

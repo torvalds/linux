@@ -17,10 +17,7 @@ extern void cpu_idle(void);
 
 typedef void (*smp_call_func_t)(void *info);
 struct call_single_data {
-	union {
-		struct list_head list;
-		struct llist_node llist;
-	};
+	struct llist_node llist;
 	smp_call_func_t func;
 	void *info;
 	u16 flags;
@@ -53,8 +50,7 @@ void on_each_cpu_cond(bool (*cond_func)(int cpu, void *info),
 		smp_call_func_t func, void *info, bool wait,
 		gfp_t gfp_flags);
 
-void __smp_call_function_single(int cpuid, struct call_single_data *data,
-				int wait);
+int smp_call_function_single_async(int cpu, struct call_single_data *csd);
 
 #ifdef CONFIG_SMP
 

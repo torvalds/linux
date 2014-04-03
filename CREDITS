@@ -1229,7 +1229,7 @@ E: philip@gladstonefamily.net
 D: Kernel / timekeeping stuff
 S: Carlisle, MA 01741
 S: USA
-  
+
 N: Jan-Benedict Glaw
 E: jbglaw@lug-owl.de
 D: SRM environment driver (for Alpha systems)
@@ -2560,7 +2560,7 @@ S: 22 Seaview St
 S: Fullarton 5063
 S: South Australia
 
-N. Wolfgang Muees
+N: Wolfgang Muees
 E: wolfgang@iksw-muees.de
 D: Auerswald USB driver
 

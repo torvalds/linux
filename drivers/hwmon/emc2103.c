@@ -349,7 +349,7 @@ static ssize_t set_fan_div(struct device *dev, struct device_attribute *da,
 		dev_dbg(&client->dev, "reg 0x%02x, err %d\n",
 			REG_FAN_CONF1, status);
 		mutex_unlock(&data->update_lock);
-		return -EIO;
+		return status;
 	}
 	status &= 0x9F;
 	status |= (new_range_bits << 5);

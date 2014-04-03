@@ -37,7 +37,7 @@
 /* Load Delay Locked Loop (DLL) settings for clock delay */
 #define MEM_DLL_CLOCK_DELAY	(1<<0)
 /* Memory controller power down function */
-#define MEM_POWER_DOWN  	(1<<8)
+#define MEM_POWER_DOWN		(1<<8)
 /* Memory controller software reset */
 #define MEM_SOFT_RESET		(1<<0)
 

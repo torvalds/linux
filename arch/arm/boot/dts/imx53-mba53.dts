@@ -38,9 +38,14 @@
 		compatible = "fsl,imx-parallel-display";
 		pinctrl-names = "default";
 		pinctrl-0 = <&pinctrl_disp1_1>;
-		crtcs = <&ipu 1>;
 		interface-pix-fmt = "rgb24";
 		status = "disabled";
+
+		port {
+			display1_in: endpoint {
+				remote-endpoint = <&ipu_di1_disp1>;
+			};
+		};
 	};
 
 	reg_3p2v: 3p2v {
@@ -141,6 +146,10 @@
 	};
 };
 
+&ipu_di1_disp1 {
+	remote-endpoint = <&display1_in>;
+};
+
 &cspi {
 	status = "okay";
 };
@@ -228,7 +237,7 @@
 &tve {
 	pinctrl-names = "default";
 	pinctrl-0 = <&pinctrl_vga_sync_1>;
-	ddc = <&i2c3>;
+	i2c-ddc-bus = <&i2c3>;
 	fsl,tve-mode = "vga";
 	fsl,hsync-pin = <4>;
 	fsl,vsync-pin = <6>;

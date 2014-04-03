@@ -407,7 +407,9 @@ int parse_options_step(struct parse_opt_ctx_t *ctx,
 		if (internal_help && !strcmp(arg + 2, "help"))
 			return usage_with_options_internal(usagestr, options, 0);
 		if (!strcmp(arg + 2, "list-opts"))
-			return PARSE_OPT_LIST;
+			return PARSE_OPT_LIST_OPTS;
+		if (!strcmp(arg + 2, "list-cmds"))
+			return PARSE_OPT_LIST_SUBCMDS;
 		switch (parse_long_opt(ctx, arg + 2, options)) {
 		case -1:
 			return parse_options_usage(usagestr, options, arg + 2, 0);
@@ -433,12 +435,28 @@ int parse_options_end(struct parse_opt_ctx_t *ctx)
 	return ctx->cpidx + ctx->argc;
 }
 
-int parse_options(int argc, const char **argv, const struct option *options,
-		  const char * const usagestr[], int flags)
+int parse_options_subcommand(int argc, const char **argv, const struct option *options,
+			const char *const subcommands[], const char *usagestr[], int flags)
 {
 	struct parse_opt_ctx_t ctx;
 
 	perf_header__set_cmdline(argc, argv);
+
+	/* build usage string if it's not provided */
+	if (subcommands && !usagestr[0]) {
+		struct strbuf buf = STRBUF_INIT;
+
+		strbuf_addf(&buf, "perf %s [<options>] {", argv[0]);
+		for (int i = 0; subcommands[i]; i++) {
+			if (i)
+				strbuf_addstr(&buf, "|");
+			strbuf_addstr(&buf, subcommands[i]);
+		}
+		strbuf_addstr(&buf, "}");
+
+		usagestr[0] = strdup(buf.buf);
+		strbuf_release(&buf);
+	}
 
 	parse_options_start(&ctx, argc, argv, flags);
 	switch (parse_options_step(&ctx, options, usagestr)) {
@@ -446,11 +464,15 @@ int parse_options(int argc, const char **argv, const struct option *options,
 		exit(129);
 	case PARSE_OPT_DONE:
 		break;
-	case PARSE_OPT_LIST:
+	case PARSE_OPT_LIST_OPTS:
 		while (options->type != OPTION_END) {
 			printf("--%s ", options->long_name);
 			options++;
 		}
+		exit(130);
+	case PARSE_OPT_LIST_SUBCMDS:
+		for (int i = 0; subcommands[i]; i++)
+			printf("%s ", subcommands[i]);
 		exit(130);
 	default: /* PARSE_OPT_UNKNOWN */
 		if (ctx.argv[0][1] == '-') {
@@ -462,6 +484,13 @@ int parse_options(int argc, const char **argv, const struct option *options,
 	}
 
 	return parse_options_end(&ctx);
+}
+
+int parse_options(int argc, const char **argv, const struct option *options,
+		  const char * const usagestr[], int flags)
+{
+	return parse_options_subcommand(argc, argv, options, NULL,
+					(const char **) usagestr, flags);
 }
 
 #define USAGE_OPTS_WIDTH 24

@@ -72,7 +72,7 @@ enum tegra_pinconf_tristate {
  */
 struct tegra_function {
 	const char *name;
-	const char * const *groups;
+	const char **groups;
 	unsigned ngroups;
 };
 
@@ -193,7 +193,7 @@ struct tegra_pinctrl_soc_data {
 	unsigned ngpios;
 	const struct pinctrl_pin_desc *pins;
 	unsigned npins;
-	const struct tegra_function *functions;
+	struct tegra_function *functions;
 	unsigned nfunctions;
 	const struct tegra_pingroup *groups;
 	unsigned ngroups;

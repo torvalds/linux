@@ -72,7 +72,6 @@ config W1_SLAVE_DS2433_CRC
 
 config W1_SLAVE_DS2760
 	tristate "Dallas 2760 battery monitor chip (HP iPAQ & others)"
-	depends on W1
 	help
 	  If you enable this you will have the DS2760 battery monitor
 	  chip support.
@@ -85,7 +84,6 @@ config W1_SLAVE_DS2760
 
 config W1_SLAVE_DS2780
 	tristate "Dallas 2780 battery monitor chip"
-	depends on W1
 	help
 	  If you enable this you will have the DS2780 battery monitor
 	  chip support.
@@ -98,7 +96,6 @@ config W1_SLAVE_DS2780
 
 config W1_SLAVE_DS2781
 	tristate "Dallas 2781 battery monitor chip"
-	depends on W1
 	help
 	  If you enable this you will have the DS2781 battery monitor
 	  chip support.
@@ -111,7 +108,6 @@ config W1_SLAVE_DS2781
 
 config W1_SLAVE_DS28E04
 	tristate "4096-Bit Addressable 1-Wire EEPROM with PIO (DS28E04-100)"
-	depends on W1
 	select CRC16
 	help
 	  If you enable this you will have the DS28E04-100
@@ -124,7 +120,6 @@ config W1_SLAVE_DS28E04
 
 config W1_SLAVE_BQ27000
 	tristate "BQ27000 slave support"
-	depends on W1
 	help
 	  Say Y here if you want to use a hdq
 	  bq27000 slave support.

@@ -737,7 +737,7 @@ int lastid_compat_check(const struct lu_env *env, struct dt_device *dev,
  * All dynamic fids will be generated with the same sequence and incremented
  * OIDs
  *
- * Returned local_oid_storage is in-memory representaion of OID storage
+ * Returned local_oid_storage is in-memory representation of OID storage
  */
 int local_oid_storage_init(const struct lu_env *env, struct dt_device *dev,
 			   const struct lu_fid *first_fid,

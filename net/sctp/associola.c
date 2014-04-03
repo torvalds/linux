@@ -1319,8 +1319,7 @@ void sctp_assoc_update_retran_path(struct sctp_association *asoc)
 			break;
 	}
 
-	if (trans_next != NULL)
-		asoc->peer.retran_path = trans_next;
+	asoc->peer.retran_path = trans_next;
 
 	pr_debug("%s: association:%p updated new path to addr:%pISpc\n",
 		 __func__, asoc, &asoc->peer.retran_path->ipaddr.sa);

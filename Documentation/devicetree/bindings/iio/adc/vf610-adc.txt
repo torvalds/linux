@@ -1,0 +1,22 @@
+Freescale vf610 Analog to Digital Converter bindings
+
+The devicetree bindings are for the new ADC driver written for
+vf610/i.MX6slx and upward SoCs from Freescale.
+
+Required properties:
+- compatible: Should contain "fsl,vf610-adc"
+- reg: Offset and length of the register set for the device
+- interrupts: Should contain the interrupt for the device
+- clocks: The clock is needed by the ADC controller, ADC clock source is ipg clock.
+- clock-names: Must contain "adc", matching entry in the clocks property.
+- vref-supply: The regulator supply ADC refrence voltage.
+
+Example:
+adc0: adc@4003b000 {
+	compatible = "fsl,vf610-adc";
+	reg = <0x4003b000 0x1000>;
+	interrupts = <0 53 0x04>;
+	clocks = <&clks VF610_CLK_ADC0>;
+	clock-names = "adc";
+	vref-supply = <&reg_vcc_3v3_mcu>;
+};

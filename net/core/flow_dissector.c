@@ -61,7 +61,7 @@ bool skb_flow_dissect(const struct sk_buff *skb, struct flow_keys *flow)
 
 again:
 	switch (proto) {
-	case __constant_htons(ETH_P_IP): {
+	case htons(ETH_P_IP): {
 		const struct iphdr *iph;
 		struct iphdr _iph;
 ip:
@@ -77,7 +77,7 @@ ip:
 		iph_to_flow_copy_addrs(flow, iph);
 		break;
 	}
-	case __constant_htons(ETH_P_IPV6): {
+	case htons(ETH_P_IPV6): {
 		const struct ipv6hdr *iph;
 		struct ipv6hdr _iph;
 ipv6:
@@ -91,8 +91,8 @@ ipv6:
 		nhoff += sizeof(struct ipv6hdr);
 		break;
 	}
-	case __constant_htons(ETH_P_8021AD):
-	case __constant_htons(ETH_P_8021Q): {
+	case htons(ETH_P_8021AD):
+	case htons(ETH_P_8021Q): {
 		const struct vlan_hdr *vlan;
 		struct vlan_hdr _vlan;
 
@@ -104,7 +104,7 @@ ipv6:
 		nhoff += sizeof(*vlan);
 		goto again;
 	}
-	case __constant_htons(ETH_P_PPP_SES): {
+	case htons(ETH_P_PPP_SES): {
 		struct {
 			struct pppoe_hdr hdr;
 			__be16 proto;
@@ -115,9 +115,9 @@ ipv6:
 		proto = hdr->proto;
 		nhoff += PPPOE_SES_HLEN;
 		switch (proto) {
-		case __constant_htons(PPP_IP):
+		case htons(PPP_IP):
 			goto ip;
-		case __constant_htons(PPP_IPV6):
+		case htons(PPP_IPV6):
 			goto ipv6;
 		default:
 			return false;
@@ -203,8 +203,8 @@ static __always_inline u32 __flow_hash_1word(u32 a)
 
 /*
  * __skb_get_hash: calculate a flow hash based on src/dst addresses
- * and src/dst port numbers.  Sets rxhash in skb to non-zero hash value
- * on success, zero indicates no valid hash.  Also, sets l4_rxhash in skb
+ * and src/dst port numbers.  Sets hash in skb to non-zero hash value
+ * on success, zero indicates no valid hash.  Also, sets l4_hash in skb
  * if hash is a canonical 4-tuple hash over transport ports.
  */
 void __skb_get_hash(struct sk_buff *skb)
@@ -216,7 +216,7 @@ void __skb_get_hash(struct sk_buff *skb)
 		return;
 
 	if (keys.ports)
-		skb->l4_rxhash = 1;
+		skb->l4_hash = 1;
 
 	/* get a consistent hash (same value on both flow directions) */
 	if (((__force u32)keys.dst < (__force u32)keys.src) ||
@@ -232,7 +232,7 @@ void __skb_get_hash(struct sk_buff *skb)
 	if (!hash)
 		hash = 1;
 
-	skb->rxhash = hash;
+	skb->hash = hash;
 }
 EXPORT_SYMBOL(__skb_get_hash);
 
@@ -344,7 +344,7 @@ static inline int get_xps_queue(struct net_device *dev, struct sk_buff *skb)
 					hash = skb->sk->sk_hash;
 				else
 					hash = (__force u16) skb->protocol ^
-					    skb->rxhash;
+					    skb->hash;
 				hash = __flow_hash_1word(hash);
 				queue_index = map->queues[
 				    ((u64)hash * map->len) >> 32];

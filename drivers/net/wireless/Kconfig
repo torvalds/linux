@@ -53,7 +53,7 @@ config LIBERTAS_THINFIRM_USB
 
 config AIRO
 	tristate "Cisco/Aironet 34X/35X/4500/4800 ISA and PCI cards"
-	depends on ISA_DMA_API && (PCI || BROKEN)
+	depends on CFG80211 && ISA_DMA_API && (PCI || BROKEN)
 	select WIRELESS_EXT
 	select CRYPTO
 	select WEXT_SPY
@@ -73,7 +73,7 @@ config AIRO
 
 config ATMEL
       tristate "Atmel at76c50x chipset  802.11b support"
-      depends on (PCI || PCMCIA)
+      depends on CFG80211 && (PCI || PCMCIA)
       select WIRELESS_EXT
       select WEXT_PRIV
       select FW_LOADER
@@ -116,7 +116,7 @@ config AT76C50X_USB
 
 config AIRO_CS
 	tristate "Cisco/Aironet 34X/35X/4500/4800 PCMCIA cards"
-	depends on PCMCIA && (BROKEN || !M32R)
+	depends on CFG80211 && PCMCIA && (BROKEN || !M32R)
 	select WIRELESS_EXT
 	select WEXT_SPY
 	select WEXT_PRIV
@@ -138,7 +138,7 @@ config AIRO_CS
 
 config PCMCIA_WL3501
 	tristate "Planet WL3501 PCMCIA cards"
-	depends on PCMCIA
+	depends on CFG80211 && PCMCIA
 	select WIRELESS_EXT
 	select WEXT_SPY
 	help
@@ -168,7 +168,7 @@ config PRISM54
 
 config USB_ZD1201
 	tristate "USB ZD1201 based Wireless device support"
-	depends on USB
+	depends on CFG80211 && USB
 	select WIRELESS_EXT
 	select WEXT_PRIV
 	select FW_LOADER
@@ -281,5 +281,6 @@ source "drivers/net/wireless/ti/Kconfig"
 source "drivers/net/wireless/zd1211rw/Kconfig"
 source "drivers/net/wireless/mwifiex/Kconfig"
 source "drivers/net/wireless/cw1200/Kconfig"
+source "drivers/net/wireless/rsi/Kconfig"
 
 endif # WLAN

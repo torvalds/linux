@@ -35,6 +35,7 @@
 #include "rts51x_scsi.h"
 #include "rts51x_card.h"
 #include "rts51x_chip.h"
+#include "sd_cprm.h"
 #include "sd.h"
 
 #ifdef SUPPORT_CPRM

@@ -28,6 +28,7 @@
 #include <linux/reboot.h>
 #include <linux/hyperv.h>
 
+#include "hyperv_vmbus.h"
 
 #define SD_MAJOR	3
 #define SD_MINOR	0
@@ -80,6 +81,12 @@ static struct hv_util_service util_vss = {
 	.util_cb = hv_vss_onchannelcallback,
 	.util_init = hv_vss_init,
 	.util_deinit = hv_vss_deinit,
+};
+
+static struct hv_util_service util_fcopy = {
+	.util_cb = hv_fcopy_onchannelcallback,
+	.util_init = hv_fcopy_init,
+	.util_deinit = hv_fcopy_deinit,
 };
 
 static void perform_shutdown(struct work_struct *dummy)
@@ -400,6 +407,10 @@ static const struct hv_vmbus_device_id id_table[] = {
 	/* VSS GUID */
 	{ HV_VSS_GUID,
 	  .driver_data = (unsigned long)&util_vss
+	},
+	/* File copy GUID */
+	{ HV_FCOPY_GUID,
+	  .driver_data = (unsigned long)&util_fcopy
 	},
 	{ },
 };

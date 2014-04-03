@@ -211,10 +211,10 @@ static inline int libcfs_ioctl_is_invalid(struct libcfs_ioctl_data *data)
 }
 
 
-extern int libcfs_register_ioctl(struct libcfs_ioctl_handler *hand);
-extern int libcfs_deregister_ioctl(struct libcfs_ioctl_handler *hand);
-extern int libcfs_ioctl_getdata(char *buf, char *end, void *arg);
-extern int libcfs_ioctl_popdata(void *arg, void *buf, int size);
+int libcfs_register_ioctl(struct libcfs_ioctl_handler *hand);
+int libcfs_deregister_ioctl(struct libcfs_ioctl_handler *hand);
+int libcfs_ioctl_getdata(char *buf, char *end, void *arg);
+int libcfs_ioctl_popdata(void *arg, void *buf, int size);
 
 
 #endif /* __LIBCFS_IOCTL_H__ */

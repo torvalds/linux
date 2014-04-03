@@ -1928,7 +1928,7 @@ EXPORT_SYMBOL(submit_bio);
  *    in some cases below, so export this function.
  *    Request stacking drivers like request-based dm may change the queue
  *    limits while requests are in the queue (e.g. dm's table swapping).
- *    Such request stacking drivers should check those requests agaist
+ *    Such request stacking drivers should check those requests against
  *    the new queue limits again when they dispatch those requests,
  *    although such checkings are also done against the old queue limits
  *    when submitting requests.
@@ -2353,7 +2353,7 @@ bool blk_update_request(struct request *req, int error, unsigned int nr_bytes)
 	if (!req->bio)
 		return false;
 
-	trace_block_rq_complete(req->q, req);
+	trace_block_rq_complete(req->q, req, nr_bytes);
 
 	/*
 	 * For fs requests, rq is just carrier of independent bio's

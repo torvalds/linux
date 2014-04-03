@@ -3878,7 +3878,7 @@ bfa_sfp_show_comp(struct bfa_sfp_s *sfp, struct bfi_mbmsg_s *msg)
 		bfa_trc(sfp, sfp->data_valid);
 		if (sfp->data_valid) {
 			u32	size = sizeof(struct sfp_mem_s);
-			u8 *des = (u8 *) &(sfp->sfpmem->srlid_base);
+			u8 *des = (u8 *) &(sfp->sfpmem);
 			memcpy(des, sfp->dbuf_kva, size);
 		}
 		/*
@@ -6851,7 +6851,7 @@ static u32
 bfa_flash_status_read(void __iomem *pci_bar)
 {
 	union bfa_flash_dev_status_reg_u	dev_status;
-	u32				status;
+	int				status;
 	u32			ret_status;
 	int				i;
 
@@ -6899,7 +6899,7 @@ static u32
 bfa_flash_read_start(void __iomem *pci_bar, u32 offset, u32 len,
 			 char *buf)
 {
-	u32 status;
+	int status;
 
 	/*
 	 * len must be mutiple of 4 and not exceeding fifo size
@@ -7006,7 +7006,7 @@ bfa_flash_sem_get(void __iomem *bar)
 	while (!bfa_raw_sem_get(bar)) {
 		if (--n <= 0)
 			return BFA_STATUS_BADFLASH;
-		udelay(10000);
+		mdelay(10);
 	}
 	return BFA_STATUS_OK;
 }
@@ -7021,7 +7021,8 @@ bfa_status_t
 bfa_flash_raw_read(void __iomem *pci_bar, u32 offset, char *buf,
 		       u32 len)
 {
-	u32 n, status;
+	u32 n;
+	int status;
 	u32 off, l, s, residue, fifo_sz;
 
 	residue = len;

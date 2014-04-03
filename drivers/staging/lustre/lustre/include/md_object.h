@@ -35,7 +35,7 @@
  *
  * lustre/include/md_object.h
  *
- * Extention of lu_object.h for metadata objects
+ * Extension of lu_object.h for metadata objects
  */
 
 #ifndef _LUSTRE_MD_OBJECT_H

@@ -5,8 +5,8 @@ Message types.
 =============
 
 There are three types of messages between w1 core and userspace:
-1. Events. They are generated each time new master or slave device
-	found either due to automatic or requested search.
+1. Events. They are generated each time a new master or slave device
+	is found either due to automatic or requested search.
 2. Userspace commands.
 3. Replies to userspace commands.
 
@@ -131,7 +131,7 @@ of the w1_netlink_cmd structure and cn_msg.len will be equal to the sum
 of the sizeof(struct w1_netlink_msg) and sizeof(struct w1_netlink_cmd).
 If reply is generated for master or root command (which do not have
 w1_netlink_cmd attached), reply will contain only cn_msg and w1_netlink_msg
-structires.
+structures.
 
 w1_netlink_msg.status field will carry positive error value
 (EINVAL for example) or zero in case of success.
@@ -160,7 +160,7 @@ procedure is started to select given device.
 Then all requested in w1_netlink_msg operations are performed one by one.
 If command requires reply (like read command) it is sent on command completion.
 
-When all commands (w1_netlink_cmd) are processed muster device is unlocked
+When all commands (w1_netlink_cmd) are processed master device is unlocked
 and next w1_netlink_msg header processing started.
 
 

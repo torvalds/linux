@@ -65,6 +65,9 @@
 
 #define WL12XX_RX_BA_MAX_SESSIONS 3
 
+#define WL12XX_MAX_AP_STATIONS 8
+#define WL12XX_MAX_LINKS 12
+
 struct wl127x_rx_mem_pool_addr {
 	u32 addr;
 	u32 addr_extra;
@@ -78,5 +81,55 @@ struct wl12xx_priv {
 
 	struct wl127x_rx_mem_pool_addr *rx_mem_addr;
 };
+
+struct wl12xx_fw_packet_counters {
+	/* Cumulative counter of released packets per AC */
+	u8 tx_released_pkts[NUM_TX_QUEUES];
+
+	/* Cumulative counter of freed packets per HLID */
+	u8 tx_lnk_free_pkts[WL12XX_MAX_LINKS];
+
+	/* Cumulative counter of released Voice memory blocks */
+	u8 tx_voice_released_blks;
+
+	/* Tx rate of the last transmitted packet */
+	u8 tx_last_rate;
+
+	u8 padding[2];
+} __packed;
+
+/* FW status registers */
+struct wl12xx_fw_status {
+	__le32 intr;
+	u8  fw_rx_counter;
+	u8  drv_rx_counter;
+	u8  reserved;
+	u8  tx_results_counter;
+	__le32 rx_pkt_descs[WL12XX_NUM_RX_DESCRIPTORS];
+
+	__le32 fw_localtime;
+
+	/*
+	 * A bitmap (where each bit represents a single HLID)
+	 * to indicate if the station is in PS mode.
+	 */
+	__le32 link_ps_bitmap;
+
+	/*
+	 * A bitmap (where each bit represents a single HLID) to indicate
+	 * if the station is in Fast mode
+	 */
+	__le32 link_fast_bitmap;
+
+	/* Cumulative counter of total released mem blocks since FW-reset */
+	__le32 total_released_blks;
+
+	/* Size (in Memory Blocks) of TX pool */
+	__le32 tx_total;
+
+	struct wl12xx_fw_packet_counters counters;
+
+	__le32 log_start_addr;
+} __packed;
 
 #endif /* __WL12XX_PRIV_H__ */

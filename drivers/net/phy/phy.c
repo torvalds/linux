@@ -38,6 +38,26 @@
 
 #include <asm/irq.h>
 
+static const char *phy_speed_to_str(int speed)
+{
+	switch (speed) {
+	case SPEED_10:
+		return "10Mbps";
+	case SPEED_100:
+		return "100Mbps";
+	case SPEED_1000:
+		return "1Gbps";
+	case SPEED_2500:
+		return "2.5Gbps";
+	case SPEED_10000:
+		return "10Gbps";
+	case SPEED_UNKNOWN:
+		return "Unknown";
+	default:
+		return "Unsupported (update phy.c)";
+	}
+}
+
 /**
  * phy_print_status - Convenience function to print out the current phy status
  * @phydev: the phy_device struct
@@ -45,12 +65,13 @@
 void phy_print_status(struct phy_device *phydev)
 {
 	if (phydev->link) {
-		pr_info("%s - Link is Up - %d/%s\n",
-			dev_name(&phydev->dev),
-			phydev->speed,
-			DUPLEX_FULL == phydev->duplex ? "Full" : "Half");
+		netdev_info(phydev->attached_dev,
+			"Link is Up - %s/%s - flow control %s\n",
+			phy_speed_to_str(phydev->speed),
+			DUPLEX_FULL == phydev->duplex ? "Full" : "Half",
+			phydev->pause ? "rx/tx" : "off");
 	} else	{
-		pr_info("%s - Link is Down\n", dev_name(&phydev->dev));
+		netdev_info(phydev->attached_dev, "Link is Down\n");
 	}
 }
 EXPORT_SYMBOL(phy_print_status);
@@ -62,7 +83,7 @@ EXPORT_SYMBOL(phy_print_status);
  * If the @phydev driver has an ack_interrupt function, call it to
  * ack and clear the phy device's interrupt.
  *
- * Returns 0 on success on < 0 on error.
+ * Returns 0 on success or < 0 on error.
  */
 static int phy_clear_interrupt(struct phy_device *phydev)
 {
@@ -77,7 +98,7 @@ static int phy_clear_interrupt(struct phy_device *phydev)
  * @phydev: the phy_device struct
  * @interrupts: interrupt flags to configure for this @phydev
  *
- * Returns 0 on success on < 0 on error.
+ * Returns 0 on success or < 0 on error.
  */
 static int phy_config_interrupt(struct phy_device *phydev, u32 interrupts)
 {
@@ -93,15 +114,16 @@ static int phy_config_interrupt(struct phy_device *phydev, u32 interrupts)
  * phy_aneg_done - return auto-negotiation status
  * @phydev: target phy_device struct
  *
- * Description: Reads the status register and returns 0 either if
- *   auto-negotiation is incomplete, or if there was an error.
- *   Returns BMSR_ANEGCOMPLETE if auto-negotiation is done.
+ * Description: Return the auto-negotiation status from this @phydev
+ * Returns > 0 on success or < 0 on error. 0 means that auto-negotiation
+ * is still pending.
  */
 static inline int phy_aneg_done(struct phy_device *phydev)
 {
-	int retval = phy_read(phydev, MII_BMSR);
+	if (phydev->drv->aneg_done)
+		return phydev->drv->aneg_done(phydev);
 
-	return (retval < 0) ? retval : (retval & BMSR_ANEGCOMPLETE);
+	return genphy_aneg_done(phydev);
 }
 
 /* A structure for mapping a particular speed and duplex
@@ -283,7 +305,10 @@ int phy_ethtool_gset(struct phy_device *phydev, struct ethtool_cmd *cmd)
 
 	ethtool_cmd_speed_set(cmd, phydev->speed);
 	cmd->duplex = phydev->duplex;
-	cmd->port = PORT_MII;
+	if (phydev->interface == PHY_INTERFACE_MODE_MOCA)
+		cmd->port = PORT_BNC;
+	else
+		cmd->port = PORT_MII;
 	cmd->phy_address = phydev->addr;
 	cmd->transceiver = phy_is_internal(phydev) ?
 		XCVR_INTERNAL : XCVR_EXTERNAL;

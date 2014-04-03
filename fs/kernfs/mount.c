@@ -19,11 +19,48 @@
 
 struct kmem_cache *kernfs_node_cache;
 
-static const struct super_operations kernfs_sops = {
+static int kernfs_sop_remount_fs(struct super_block *sb, int *flags, char *data)
+{
+	struct kernfs_root *root = kernfs_info(sb)->root;
+	struct kernfs_syscall_ops *scops = root->syscall_ops;
+
+	if (scops && scops->remount_fs)
+		return scops->remount_fs(root, flags, data);
+	return 0;
+}
+
+static int kernfs_sop_show_options(struct seq_file *sf, struct dentry *dentry)
+{
+	struct kernfs_root *root = kernfs_root(dentry->d_fsdata);
+	struct kernfs_syscall_ops *scops = root->syscall_ops;
+
+	if (scops && scops->show_options)
+		return scops->show_options(sf, root);
+	return 0;
+}
+
+const struct super_operations kernfs_sops = {
 	.statfs		= simple_statfs,
 	.drop_inode	= generic_delete_inode,
 	.evict_inode	= kernfs_evict_inode,
+
+	.remount_fs	= kernfs_sop_remount_fs,
+	.show_options	= kernfs_sop_show_options,
 };
+
+/**
+ * kernfs_root_from_sb - determine kernfs_root associated with a super_block
+ * @sb: the super_block in question
+ *
+ * Return the kernfs_root associated with @sb.  If @sb is not a kernfs one,
+ * %NULL is returned.
+ */
+struct kernfs_root *kernfs_root_from_sb(struct super_block *sb)
+{
+	if (sb->s_op == &kernfs_sops)
+		return kernfs_info(sb)->root;
+	return NULL;
+}
 
 static int kernfs_fill_super(struct super_block *sb)
 {

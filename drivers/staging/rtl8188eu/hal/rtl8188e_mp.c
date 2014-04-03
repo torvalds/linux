@@ -115,14 +115,12 @@ void Hal_MPT_CCKTxPowerAdjust(struct adapter *Adapter, bool bInCH14)
 
 
 		/* Write 0xa24 ~ 0xa27 */
-		TempVal2 = 0;
 		TempVal2 = CCKSwingTable_Ch1_Ch13[CCKSwingIndex][2] +
 				(CCKSwingTable_Ch1_Ch13[CCKSwingIndex][3]<<8) +
 				(CCKSwingTable_Ch1_Ch13[CCKSwingIndex][4]<<16)+
 				(CCKSwingTable_Ch1_Ch13[CCKSwingIndex][5]<<24);
 
 		/* Write 0xa28  0xa29 */
-		TempVal3 = 0;
 		TempVal3 = CCKSwingTable_Ch1_Ch13[CCKSwingIndex][6] +
 				(CCKSwingTable_Ch1_Ch13[CCKSwingIndex][7]<<8);
 	} else {
@@ -139,14 +137,12 @@ void Hal_MPT_CCKTxPowerAdjust(struct adapter *Adapter, bool bInCH14)
 				(CCKSwingTable_Ch14[CCKSwingIndex][1]<<8);
 
 		/* Write 0xa24 ~ 0xa27 */
-		TempVal2 = 0;
 		TempVal2 = CCKSwingTable_Ch14[CCKSwingIndex][2] +
 				(CCKSwingTable_Ch14[CCKSwingIndex][3]<<8) +
 				(CCKSwingTable_Ch14[CCKSwingIndex][4]<<16)+
 				(CCKSwingTable_Ch14[CCKSwingIndex][5]<<24);
 
 		/* Write 0xa28  0xa29 */
-		TempVal3 = 0;
 		TempVal3 = CCKSwingTable_Ch14[CCKSwingIndex][6] +
 				(CCKSwingTable_Ch14[CCKSwingIndex][7]<<8);
 	}
@@ -184,12 +180,12 @@ void Hal_MPT_CCKTxPowerAdjustbyIndex(struct adapter *pAdapter, bool beven)
 		TempCCk = read_bbreg(pAdapter, rCCK0_TxFilter2, bMaskDWord) & bMaskCCK;
 		for (i = 0; i < CCK_TABLE_SIZE; i++) {
 			if (pDM_Odm->RFCalibrateInfo.bCCKinCH14) {
-				if (_rtw_memcmp((void *)&TempCCk, (void *)&CCKSwingTable_Ch14[i][2], 4)) {
+				if (!memcmp((void *)&TempCCk, (void *)&CCKSwingTable_Ch14[i][2], 4)) {
 					CCK_index_old = (u8)i;
 					break;
 				}
 			} else {
-				if (_rtw_memcmp((void *)&TempCCk, (void *)&CCKSwingTable_Ch1_Ch13[i][2], 4)) {
+				if (!memcmp((void *)&TempCCk, (void *)&CCKSwingTable_Ch1_Ch13[i][2], 4)) {
 					CCK_index_old = (u8)i;
 					break;
 				}
@@ -201,6 +197,8 @@ void Hal_MPT_CCKTxPowerAdjustbyIndex(struct adapter *pAdapter, bool beven)
 		else
 			CCK_index = CCK_index_old + 1;
 
+		if (CCK_index > 32)
+			CCK_index = 32;
 		/* Adjust CCK according to gain index */
 		if (!pDM_Odm->RFCalibrateInfo.bCCKinCH14) {
 			rtw_write8(pAdapter, 0xa22, CCKSwingTable_Ch1_Ch13[CCK_index][0]);

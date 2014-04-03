@@ -358,6 +358,36 @@ ret:
 		kfree_skb(skb);
 }
 
+static void ath9k_htc_fw_panic_report(struct htc_target *htc_handle,
+				      struct sk_buff *skb)
+{
+	uint32_t *pattern = (uint32_t *)skb->data;
+
+	switch (*pattern) {
+	case 0x33221199:
+		{
+		struct htc_panic_bad_vaddr *htc_panic;
+		htc_panic = (struct htc_panic_bad_vaddr *) skb->data;
+		dev_err(htc_handle->dev, "ath: firmware panic! "
+			"exccause: 0x%08x; pc: 0x%08x; badvaddr: 0x%08x.\n",
+			htc_panic->exccause, htc_panic->pc,
+			htc_panic->badvaddr);
+		break;
+		}
+	case 0x33221299:
+		{
+		struct htc_panic_bad_epid *htc_panic;
+		htc_panic = (struct htc_panic_bad_epid *) skb->data;
+		dev_err(htc_handle->dev, "ath: firmware panic! "
+			"bad epid: 0x%08x\n", htc_panic->epid);
+		break;
+		}
+	default:
+		dev_err(htc_handle->dev, "ath: uknown panic pattern!\n");
+		break;
+	}
+}
+
 /*
  * HTC Messages are handled directly here and the obtained SKB
  * is freed.
@@ -378,6 +408,12 @@ void ath9k_htc_rx_msg(struct htc_target *htc_handle,
 
 	htc_hdr = (struct htc_frame_hdr *) skb->data;
 	epid = htc_hdr->endpoint_id;
+
+	if (epid == 0x99) {
+		ath9k_htc_fw_panic_report(htc_handle, skb);
+		kfree_skb(skb);
+		return;
+	}
 
 	if (epid >= ENDPOINT_MAX) {
 		if (pipe_id != USB_REG_IN_PIPE)

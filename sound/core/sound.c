@@ -118,7 +118,7 @@ void *snd_lookup_minor_data(unsigned int minor, int type)
 	if (mreg && mreg->type == type) {
 		private_data = mreg->private_data;
 		if (private_data && mreg->card_ptr)
-			atomic_inc(&mreg->card_ptr->refcount);
+			get_device(&mreg->card_ptr->card_dev);
 	} else
 		private_data = NULL;
 	mutex_unlock(&sound_mutex);
@@ -355,22 +355,25 @@ int snd_unregister_device(int type, struct snd_card *card, int dev)
 
 EXPORT_SYMBOL(snd_unregister_device);
 
-int snd_add_device_sysfs_file(int type, struct snd_card *card, int dev,
-			      struct device_attribute *attr)
+/* get the assigned device to the given type and device number;
+ * the caller needs to release it via put_device() after using it
+ */
+struct device *snd_get_device(int type, struct snd_card *card, int dev)
 {
-	int minor, ret = -EINVAL;
-	struct device *d;
+	int minor;
+	struct device *d = NULL;
 
 	mutex_lock(&sound_mutex);
 	minor = find_snd_minor(type, card, dev);
-	if (minor >= 0 && (d = snd_minors[minor]->dev) != NULL)
-		ret = device_create_file(d, attr);
+	if (minor >= 0) {
+		d = snd_minors[minor]->dev;
+		if (d)
+			get_device(d);
+	}
 	mutex_unlock(&sound_mutex);
-	return ret;
-
+	return d;
 }
-
-EXPORT_SYMBOL(snd_add_device_sysfs_file);
+EXPORT_SYMBOL(snd_get_device);
 
 #ifdef CONFIG_PROC_FS
 /*
@@ -458,7 +461,7 @@ static int __init alsa_sound_init(void)
 	snd_major = major;
 	snd_ecards_limit = cards_limit;
 	if (register_chrdev(major, "alsa", &snd_fops)) {
-		snd_printk(KERN_ERR "unable to register native major device number %d\n", major);
+		pr_err("ALSA core: unable to register native major device number %d\n", major);
 		return -EIO;
 	}
 	if (snd_info_init() < 0) {
@@ -467,7 +470,7 @@ static int __init alsa_sound_init(void)
 	}
 	snd_info_minor_register();
 #ifndef MODULE
-	printk(KERN_INFO "Advanced Linux Sound Architecture Driver Initialized.\n");
+	pr_info("Advanced Linux Sound Architecture Driver Initialized.\n");
 #endif
 	return 0;
 }

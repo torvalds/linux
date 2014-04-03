@@ -64,6 +64,7 @@ static const char * scsi_debug_version_date = "20100324";
 /* Additional Sense Code (ASC) */
 #define NO_ADDITIONAL_SENSE 0x0
 #define LOGICAL_UNIT_NOT_READY 0x4
+#define LOGICAL_UNIT_COMMUNICATION_FAILURE 0x8
 #define UNRECOVERED_READ_ERR 0x11
 #define PARAMETER_LIST_LENGTH_ERR 0x1a
 #define INVALID_OPCODE 0x20
@@ -195,6 +196,7 @@ static unsigned int scsi_debug_unmap_max_blocks = DEF_UNMAP_MAX_BLOCKS;
 static unsigned int scsi_debug_unmap_max_desc = DEF_UNMAP_MAX_DESC;
 static unsigned int scsi_debug_write_same_length = DEF_WRITESAME_LENGTH;
 static bool scsi_debug_removable = DEF_REMOVABLE;
+static bool scsi_debug_clustering;
 
 static int scsi_debug_cmnd_count = 0;
 
@@ -1780,7 +1782,6 @@ static int dif_verify(struct sd_dif_tuple *sdt, const void *data,
 	    be32_to_cpu(sdt->ref_tag) != ei_lba) {
 		pr_err("%s: REF check failed on sector %lu\n",
 			__func__, (unsigned long)sector);
-			dif_errors++;
 		return 0x03;
 	}
 	return 0;
@@ -1789,23 +1790,27 @@ static int dif_verify(struct sd_dif_tuple *sdt, const void *data,
 static void dif_copy_prot(struct scsi_cmnd *SCpnt, sector_t sector,
 			  unsigned int sectors, bool read)
 {
-	unsigned int i, resid;
-	struct scatterlist *psgl;
+	size_t resid;
 	void *paddr;
 	const void *dif_store_end = dif_storep + sdebug_store_sectors;
+	struct sg_mapping_iter miter;
 
 	/* Bytes of protection data to copy into sgl */
 	resid = sectors * sizeof(*dif_storep);
 
-	scsi_for_each_prot_sg(SCpnt, psgl, scsi_prot_sg_count(SCpnt), i) {
-		int len = min(psgl->length, resid);
+	sg_miter_start(&miter, scsi_prot_sglist(SCpnt),
+			scsi_prot_sg_count(SCpnt), SG_MITER_ATOMIC |
+			(read ? SG_MITER_TO_SG : SG_MITER_FROM_SG));
+
+	while (sg_miter_next(&miter) && resid > 0) {
+		size_t len = min(miter.length, resid);
 		void *start = dif_store(sector);
-		int rest = 0;
+		size_t rest = 0;
 
 		if (dif_store_end < start + len)
 			rest = start + len - dif_store_end;
 
-		paddr = kmap_atomic(sg_page(psgl)) + psgl->offset;
+		paddr = miter.addr;
 
 		if (read)
 			memcpy(paddr, start, len - rest);
@@ -1821,8 +1826,8 @@ static void dif_copy_prot(struct scsi_cmnd *SCpnt, sector_t sector,
 
 		sector += len / sizeof(*dif_storep);
 		resid -= len;
-		kunmap_atomic(paddr);
 	}
+	sg_miter_stop(&miter);
 }
 
 static int prot_verify_read(struct scsi_cmnd *SCpnt, sector_t start_sec,
@@ -1832,7 +1837,7 @@ static int prot_verify_read(struct scsi_cmnd *SCpnt, sector_t start_sec,
 	struct sd_dif_tuple *sdt;
 	sector_t sector;
 
-	for (i = 0; i < sectors; i++) {
+	for (i = 0; i < sectors; i++, ei_lba++) {
 		int ret;
 
 		sector = start_sec + i;
@@ -1846,8 +1851,6 @@ static int prot_verify_read(struct scsi_cmnd *SCpnt, sector_t start_sec,
 			dif_errors++;
 			return ret;
 		}
-
-		ei_lba++;
 	}
 
 	dif_copy_prot(SCpnt, start_sec, sectors, true);
@@ -1886,17 +1889,19 @@ static int resp_read(struct scsi_cmnd *SCpnt, unsigned long long lba,
 		return check_condition_result;
 	}
 
+	read_lock_irqsave(&atomic_rw, iflags);
+
 	/* DIX + T10 DIF */
 	if (scsi_debug_dix && scsi_prot_sg_count(SCpnt)) {
 		int prot_ret = prot_verify_read(SCpnt, lba, num, ei_lba);
 
 		if (prot_ret) {
+			read_unlock_irqrestore(&atomic_rw, iflags);
 			mk_sense_buffer(devip, ABORTED_COMMAND, 0x10, prot_ret);
 			return illegal_condition_result;
 		}
 	}
 
-	read_lock_irqsave(&atomic_rw, iflags);
 	ret = do_device_access(SCpnt, devip, lba, num, 0);
 	read_unlock_irqrestore(&atomic_rw, iflags);
 	if (ret == -1)
@@ -1931,55 +1936,62 @@ void dump_sector(unsigned char *buf, int len)
 static int prot_verify_write(struct scsi_cmnd *SCpnt, sector_t start_sec,
 			     unsigned int sectors, u32 ei_lba)
 {
-	int i, j, ret;
+	int ret;
 	struct sd_dif_tuple *sdt;
-	struct scatterlist *dsgl;
-	struct scatterlist *psgl = scsi_prot_sglist(SCpnt);
-	void *daddr, *paddr;
+	void *daddr;
 	sector_t sector = start_sec;
 	int ppage_offset;
+	int dpage_offset;
+	struct sg_mapping_iter diter;
+	struct sg_mapping_iter piter;
 
 	BUG_ON(scsi_sg_count(SCpnt) == 0);
 	BUG_ON(scsi_prot_sg_count(SCpnt) == 0);
 
-	ppage_offset = 0;
+	sg_miter_start(&piter, scsi_prot_sglist(SCpnt),
+			scsi_prot_sg_count(SCpnt),
+			SG_MITER_ATOMIC | SG_MITER_FROM_SG);
+	sg_miter_start(&diter, scsi_sglist(SCpnt), scsi_sg_count(SCpnt),
+			SG_MITER_ATOMIC | SG_MITER_FROM_SG);
 
-	/* For each data page */
-	scsi_for_each_sg(SCpnt, dsgl, scsi_sg_count(SCpnt), i) {
-		daddr = kmap_atomic(sg_page(dsgl)) + dsgl->offset;
-		paddr = kmap_atomic(sg_page(psgl)) + psgl->offset;
+	/* For each protection page */
+	while (sg_miter_next(&piter)) {
+		dpage_offset = 0;
+		if (WARN_ON(!sg_miter_next(&diter))) {
+			ret = 0x01;
+			goto out;
+		}
 
-		/* For each sector-sized chunk in data page */
-		for (j = 0; j < dsgl->length; j += scsi_debug_sector_size) {
-
+		for (ppage_offset = 0; ppage_offset < piter.length;
+		     ppage_offset += sizeof(struct sd_dif_tuple)) {
 			/* If we're at the end of the current
-			 * protection page advance to the next one
+			 * data page advance to the next one
 			 */
-			if (ppage_offset >= psgl->length) {
-				kunmap_atomic(paddr);
-				psgl = sg_next(psgl);
-				BUG_ON(psgl == NULL);
-				paddr = kmap_atomic(sg_page(psgl))
-					+ psgl->offset;
-				ppage_offset = 0;
+			if (dpage_offset >= diter.length) {
+				if (WARN_ON(!sg_miter_next(&diter))) {
+					ret = 0x01;
+					goto out;
+				}
+				dpage_offset = 0;
 			}
 
-			sdt = paddr + ppage_offset;
+			sdt = piter.addr + ppage_offset;
+			daddr = diter.addr + dpage_offset;
 
-			ret = dif_verify(sdt, daddr + j, sector, ei_lba);
+			ret = dif_verify(sdt, daddr, sector, ei_lba);
 			if (ret) {
-				dump_sector(daddr + j, scsi_debug_sector_size);
+				dump_sector(daddr, scsi_debug_sector_size);
 				goto out;
 			}
 
 			sector++;
 			ei_lba++;
-			ppage_offset += sizeof(struct sd_dif_tuple);
+			dpage_offset += scsi_debug_sector_size;
 		}
-
-		kunmap_atomic(paddr);
-		kunmap_atomic(daddr);
+		diter.consumed = dpage_offset;
+		sg_miter_stop(&diter);
 	}
+	sg_miter_stop(&piter);
 
 	dif_copy_prot(SCpnt, start_sec, sectors, false);
 	dix_writes++;
@@ -1988,8 +2000,8 @@ static int prot_verify_write(struct scsi_cmnd *SCpnt, sector_t start_sec,
 
 out:
 	dif_errors++;
-	kunmap_atomic(paddr);
-	kunmap_atomic(daddr);
+	sg_miter_stop(&diter);
+	sg_miter_stop(&piter);
 	return ret;
 }
 
@@ -2089,17 +2101,19 @@ static int resp_write(struct scsi_cmnd *SCpnt, unsigned long long lba,
 	if (ret)
 		return ret;
 
+	write_lock_irqsave(&atomic_rw, iflags);
+
 	/* DIX + T10 DIF */
 	if (scsi_debug_dix && scsi_prot_sg_count(SCpnt)) {
 		int prot_ret = prot_verify_write(SCpnt, lba, num, ei_lba);
 
 		if (prot_ret) {
+			write_unlock_irqrestore(&atomic_rw, iflags);
 			mk_sense_buffer(devip, ILLEGAL_REQUEST, 0x10, prot_ret);
 			return illegal_condition_result;
 		}
 	}
 
-	write_lock_irqsave(&atomic_rw, iflags);
 	ret = do_device_access(SCpnt, devip, lba, num, 1);
 	if (scsi_debug_lbp())
 		map_region(lba, num);
@@ -2178,6 +2192,7 @@ static int resp_unmap(struct scsi_cmnd * scmd, struct sdebug_dev_info * devip)
 	struct unmap_block_desc *desc;
 	unsigned int i, payload_len, descriptors;
 	int ret;
+	unsigned long iflags;
 
 	ret = check_readiness(scmd, 1, devip);
 	if (ret)
@@ -2199,6 +2214,8 @@ static int resp_unmap(struct scsi_cmnd * scmd, struct sdebug_dev_info * devip)
 
 	desc = (void *)&buf[8];
 
+	write_lock_irqsave(&atomic_rw, iflags);
+
 	for (i = 0 ; i < descriptors ; i++) {
 		unsigned long long lba = get_unaligned_be64(&desc[i].lba);
 		unsigned int num = get_unaligned_be32(&desc[i].blocks);
@@ -2213,6 +2230,7 @@ static int resp_unmap(struct scsi_cmnd * scmd, struct sdebug_dev_info * devip)
 	ret = 0;
 
 out:
+	write_unlock_irqrestore(&atomic_rw, iflags);
 	kfree(buf);
 
 	return ret;
@@ -2313,36 +2331,37 @@ static int resp_report_luns(struct scsi_cmnd * scp,
 static int resp_xdwriteread(struct scsi_cmnd *scp, unsigned long long lba,
 			    unsigned int num, struct sdebug_dev_info *devip)
 {
-	int i, j, ret = -1;
+	int j;
 	unsigned char *kaddr, *buf;
 	unsigned int offset;
-	struct scatterlist *sg;
 	struct scsi_data_buffer *sdb = scsi_in(scp);
+	struct sg_mapping_iter miter;
 
 	/* better not to use temporary buffer. */
 	buf = kmalloc(scsi_bufflen(scp), GFP_ATOMIC);
-	if (!buf)
-		return ret;
+	if (!buf) {
+		mk_sense_buffer(devip, NOT_READY,
+				LOGICAL_UNIT_COMMUNICATION_FAILURE, 0);
+		return check_condition_result;
+	}
 
 	scsi_sg_copy_to_buffer(scp, buf, scsi_bufflen(scp));
 
 	offset = 0;
-	for_each_sg(sdb->table.sgl, sg, sdb->table.nents, i) {
-		kaddr = (unsigned char *)kmap_atomic(sg_page(sg));
-		if (!kaddr)
-			goto out;
+	sg_miter_start(&miter, sdb->table.sgl, sdb->table.nents,
+			SG_MITER_ATOMIC | SG_MITER_TO_SG);
 
-		for (j = 0; j < sg->length; j++)
-			*(kaddr + sg->offset + j) ^= *(buf + offset + j);
+	while (sg_miter_next(&miter)) {
+		kaddr = miter.addr;
+		for (j = 0; j < miter.length; j++)
+			*(kaddr + j) ^= *(buf + offset + j);
 
-		offset += sg->length;
-		kunmap_atomic(kaddr);
+		offset += miter.length;
 	}
-	ret = 0;
-out:
+	sg_miter_stop(&miter);
 	kfree(buf);
 
-	return ret;
+	return 0;
 }
 
 /* When timer goes off this function is called. */
@@ -2744,6 +2763,7 @@ static int schedule_resp(struct scsi_cmnd * cmnd,
  */
 module_param_named(add_host, scsi_debug_add_host, int, S_IRUGO | S_IWUSR);
 module_param_named(ato, scsi_debug_ato, int, S_IRUGO);
+module_param_named(clustering, scsi_debug_clustering, bool, S_IRUGO | S_IWUSR);
 module_param_named(delay, scsi_debug_delay, int, S_IRUGO | S_IWUSR);
 module_param_named(dev_size_mb, scsi_debug_dev_size_mb, int, S_IRUGO);
 module_param_named(dif, scsi_debug_dif, int, S_IRUGO);
@@ -2787,6 +2807,7 @@ MODULE_VERSION(SCSI_DEBUG_VERSION);
 
 MODULE_PARM_DESC(add_host, "0..127 hosts allowed(def=1)");
 MODULE_PARM_DESC(ato, "application tag ownership: 0=disk 1=host (def=1)");
+MODULE_PARM_DESC(clustering, "when set enables larger transfers (def=0)");
 MODULE_PARM_DESC(delay, "# of jiffies to delay response(def=1)");
 MODULE_PARM_DESC(dev_size_mb, "size in MB of ram shared by devs(def=8)");
 MODULE_PARM_DESC(dif, "data integrity field type: 0-3 (def=0)");
@@ -3248,7 +3269,7 @@ static struct attribute *sdebug_drv_attrs[] = {
 };
 ATTRIBUTE_GROUPS(sdebug_drv);
 
-struct device *pseudo_primary;
+static struct device *pseudo_primary;
 
 static int __init scsi_debug_init(void)
 {
@@ -3934,6 +3955,8 @@ static int sdebug_driver_probe(struct device * dev)
 	sdbg_host = to_sdebug_host(dev);
 
 	sdebug_driver_template.can_queue = scsi_debug_max_queue;
+	if (scsi_debug_clustering)
+		sdebug_driver_template.use_clustering = ENABLE_CLUSTERING;
 	hpnt = scsi_host_alloc(&sdebug_driver_template, sizeof(sdbg_host));
 	if (NULL == hpnt) {
 		printk(KERN_ERR "%s: scsi_register failed\n", __func__);

@@ -213,7 +213,7 @@ static struct wmi_cmd_map wmi_10x_cmd_map = {
 	.p2p_go_set_beacon_ie = WMI_10X_P2P_GO_SET_BEACON_IE,
 	.p2p_go_set_probe_resp_ie = WMI_10X_P2P_GO_SET_PROBE_RESP_IE,
 	.p2p_set_vendor_ie_data_cmdid = WMI_CMD_UNSUPPORTED,
-	.ap_ps_peer_param_cmdid = WMI_CMD_UNSUPPORTED,
+	.ap_ps_peer_param_cmdid = WMI_10X_AP_PS_PEER_PARAM_CMDID,
 	.ap_ps_peer_uapsd_coex_cmdid = WMI_CMD_UNSUPPORTED,
 	.peer_rate_retry_sched_cmdid = WMI_10X_PEER_RATE_RETRY_SCHED_CMDID,
 	.wlan_profile_trigger_cmdid = WMI_10X_WLAN_PROFILE_TRIGGER_CMDID,
@@ -420,7 +420,6 @@ static struct wmi_pdev_param_map wmi_pdev_param_map = {
 	.bcnflt_stats_update_period = WMI_PDEV_PARAM_BCNFLT_STATS_UPDATE_PERIOD,
 	.pmf_qos = WMI_PDEV_PARAM_PMF_QOS,
 	.arp_ac_override = WMI_PDEV_PARAM_ARP_AC_OVERRIDE,
-	.arpdhcp_ac_override = WMI_PDEV_PARAM_UNSUPPORTED,
 	.dcs = WMI_PDEV_PARAM_DCS,
 	.ani_enable = WMI_PDEV_PARAM_ANI_ENABLE,
 	.ani_poll_period = WMI_PDEV_PARAM_ANI_POLL_PERIOD,
@@ -472,8 +471,7 @@ static struct wmi_pdev_param_map wmi_10x_pdev_param_map = {
 	.bcnflt_stats_update_period =
 				WMI_10X_PDEV_PARAM_BCNFLT_STATS_UPDATE_PERIOD,
 	.pmf_qos = WMI_10X_PDEV_PARAM_PMF_QOS,
-	.arp_ac_override = WMI_PDEV_PARAM_UNSUPPORTED,
-	.arpdhcp_ac_override = WMI_10X_PDEV_PARAM_ARPDHCP_AC_OVERRIDE,
+	.arp_ac_override = WMI_10X_PDEV_PARAM_ARPDHCP_AC_OVERRIDE,
 	.dcs = WMI_10X_PDEV_PARAM_DCS,
 	.ani_enable = WMI_10X_PDEV_PARAM_ANI_ENABLE,
 	.ani_poll_period = WMI_10X_PDEV_PARAM_ANI_POLL_PERIOD,
@@ -561,7 +559,6 @@ err_pull:
 
 static void ath10k_wmi_tx_beacon_nowait(struct ath10k_vif *arvif)
 {
-	struct wmi_bcn_tx_arg arg = {0};
 	int ret;
 
 	lockdep_assert_held(&arvif->ar->data_lock);
@@ -569,18 +566,16 @@ static void ath10k_wmi_tx_beacon_nowait(struct ath10k_vif *arvif)
 	if (arvif->beacon == NULL)
 		return;
 
-	arg.vdev_id = arvif->vdev_id;
-	arg.tx_rate = 0;
-	arg.tx_power = 0;
-	arg.bcn = arvif->beacon->data;
-	arg.bcn_len = arvif->beacon->len;
+	if (arvif->beacon_sent)
+		return;
 
-	ret = ath10k_wmi_beacon_send_nowait(arvif->ar, &arg);
+	ret = ath10k_wmi_beacon_send_ref_nowait(arvif);
 	if (ret)
 		return;
 
-	dev_kfree_skb_any(arvif->beacon);
-	arvif->beacon = NULL;
+	/* We need to retain the arvif->beacon reference for DMA unmapping and
+	 * freeing the skbuff later. */
+	arvif->beacon_sent = true;
 }
 
 static void ath10k_wmi_tx_beacons_iter(void *data, u8 *mac,
@@ -1116,7 +1111,27 @@ static void ath10k_wmi_event_vdev_stopped(struct ath10k *ar,
 static void ath10k_wmi_event_peer_sta_kickout(struct ath10k *ar,
 					      struct sk_buff *skb)
 {
-	ath10k_dbg(ATH10K_DBG_WMI, "WMI_PEER_STA_KICKOUT_EVENTID\n");
+	struct wmi_peer_sta_kickout_event *ev;
+	struct ieee80211_sta *sta;
+
+	ev = (struct wmi_peer_sta_kickout_event *)skb->data;
+
+	ath10k_dbg(ATH10K_DBG_WMI, "wmi event peer sta kickout %pM\n",
+		   ev->peer_macaddr.addr);
+
+	rcu_read_lock();
+
+	sta = ieee80211_find_sta_by_ifaddr(ar->hw, ev->peer_macaddr.addr, NULL);
+	if (!sta) {
+		ath10k_warn("Spurious quick kickout for STA %pM\n",
+			    ev->peer_macaddr.addr);
+		goto exit;
+	}
+
+	ieee80211_report_low_ack(sta, 10);
+
+exit:
+	rcu_read_unlock();
 }
 
 /*
@@ -1216,6 +1231,13 @@ static void ath10k_wmi_update_tim(struct ath10k *ar,
 
 	tim->bitmap_ctrl = !!__le32_to_cpu(bcn_info->tim_info.tim_mcast);
 	memcpy(tim->virtual_map, arvif->u.ap.tim_bitmap, pvm_len);
+
+	if (tim->dtim_count == 0) {
+		ATH10K_SKB_CB(bcn)->bcn.dtim_zero = true;
+
+		if (__le32_to_cpu(bcn_info->tim_info.tim_mcast) == 1)
+			ATH10K_SKB_CB(bcn)->bcn.deliver_cab = true;
+	}
 
 	ath10k_dbg(ATH10K_DBG_MGMT, "dtim %d/%d mcast %d pvmlen %d\n",
 		   tim->dtim_count, tim->dtim_period,
@@ -1338,7 +1360,7 @@ static void ath10k_wmi_event_host_swba(struct ath10k *ar, struct sk_buff *skb)
 	struct wmi_bcn_info *bcn_info;
 	struct ath10k_vif *arvif;
 	struct sk_buff *bcn;
-	int vdev_id = 0;
+	int ret, vdev_id = 0;
 
 	ath10k_dbg(ATH10K_DBG_MGMT, "WMI_HOST_SWBA_EVENTID\n");
 
@@ -1385,6 +1407,17 @@ static void ath10k_wmi_event_host_swba(struct ath10k *ar, struct sk_buff *skb)
 			continue;
 		}
 
+		/* There are no completions for beacons so wait for next SWBA
+		 * before telling mac80211 to decrement CSA counter
+		 *
+		 * Once CSA counter is completed stop sending beacons until
+		 * actual channel switch is done */
+		if (arvif->vif->csa_active &&
+		    ieee80211_csa_is_complete(arvif->vif)) {
+			ieee80211_csa_finish(arvif->vif);
+			continue;
+		}
+
 		bcn = ieee80211_beacon_get(ar->hw, arvif->vif);
 		if (!bcn) {
 			ath10k_warn("could not get mac80211 beacon\n");
@@ -1396,15 +1429,33 @@ static void ath10k_wmi_event_host_swba(struct ath10k *ar, struct sk_buff *skb)
 		ath10k_wmi_update_noa(ar, arvif, bcn, bcn_info);
 
 		spin_lock_bh(&ar->data_lock);
+
 		if (arvif->beacon) {
-			ath10k_warn("SWBA overrun on vdev %d\n",
-				    arvif->vdev_id);
+			if (!arvif->beacon_sent)
+				ath10k_warn("SWBA overrun on vdev %d\n",
+					    arvif->vdev_id);
+
+			dma_unmap_single(arvif->ar->dev,
+					 ATH10K_SKB_CB(arvif->beacon)->paddr,
+					 arvif->beacon->len, DMA_TO_DEVICE);
 			dev_kfree_skb_any(arvif->beacon);
 		}
 
+		ATH10K_SKB_CB(bcn)->paddr = dma_map_single(arvif->ar->dev,
+							   bcn->data, bcn->len,
+							   DMA_TO_DEVICE);
+		ret = dma_mapping_error(arvif->ar->dev,
+					ATH10K_SKB_CB(bcn)->paddr);
+		if (ret) {
+			ath10k_warn("failed to map beacon: %d\n", ret);
+			goto skip;
+		}
+
 		arvif->beacon = bcn;
+		arvif->beacon_sent = false;
 
 		ath10k_wmi_tx_beacon_nowait(arvif);
+skip:
 		spin_unlock_bh(&ar->data_lock);
 	}
 }
@@ -2031,11 +2082,11 @@ static int ath10k_wmi_ready_event_rx(struct ath10k *ar, struct sk_buff *skb)
 	memcpy(ar->mac_addr, ev->mac_addr.addr, ETH_ALEN);
 
 	ath10k_dbg(ATH10K_DBG_WMI,
-		   "wmi event ready sw_version %u abi_version %u mac_addr %pM status %d\n",
+		   "wmi event ready sw_version %u abi_version %u mac_addr %pM status %d skb->len %i ev-sz %zu\n",
 		   __le32_to_cpu(ev->sw_version),
 		   __le32_to_cpu(ev->abi_version),
 		   ev->mac_addr.addr,
-		   __le32_to_cpu(ev->status));
+		   __le32_to_cpu(ev->status), skb->len, sizeof(*ev));
 
 	complete(&ar->wmi.unified_ready);
 	return 0;
@@ -2403,7 +2454,7 @@ int ath10k_wmi_pdev_set_channel(struct ath10k *ar,
 				   ar->wmi.cmd->pdev_set_channel_cmdid);
 }
 
-int ath10k_wmi_pdev_suspend_target(struct ath10k *ar)
+int ath10k_wmi_pdev_suspend_target(struct ath10k *ar, u32 suspend_opt)
 {
 	struct wmi_pdev_suspend_cmd *cmd;
 	struct sk_buff *skb;
@@ -2413,7 +2464,7 @@ int ath10k_wmi_pdev_suspend_target(struct ath10k *ar)
 		return -ENOMEM;
 
 	cmd = (struct wmi_pdev_suspend_cmd *)skb->data;
-	cmd->suspend_opt = WMI_PDEV_SUSPEND;
+	cmd->suspend_opt = __cpu_to_le32(suspend_opt);
 
 	return ath10k_wmi_cmd_send(ar, skb, ar->wmi.cmd->pdev_suspend_cmdid);
 }
@@ -3342,7 +3393,6 @@ int ath10k_wmi_scan_chan_list(struct ath10k *ar,
 		ci->max_power         = ch->max_power;
 		ci->reg_power         = ch->max_reg_power;
 		ci->antenna_max       = ch->max_antenna_gain;
-		ci->antenna_max       = 0;
 
 		/* mode & flags share storage */
 		ci->mode              = ch->mode;
@@ -3411,25 +3461,41 @@ int ath10k_wmi_peer_assoc(struct ath10k *ar,
 	return ath10k_wmi_cmd_send(ar, skb, ar->wmi.cmd->peer_assoc_cmdid);
 }
 
-int ath10k_wmi_beacon_send_nowait(struct ath10k *ar,
-				  const struct wmi_bcn_tx_arg *arg)
+/* This function assumes the beacon is already DMA mapped */
+int ath10k_wmi_beacon_send_ref_nowait(struct ath10k_vif *arvif)
 {
-	struct wmi_bcn_tx_cmd *cmd;
+	struct wmi_bcn_tx_ref_cmd *cmd;
 	struct sk_buff *skb;
+	struct sk_buff *beacon = arvif->beacon;
+	struct ath10k *ar = arvif->ar;
+	struct ieee80211_hdr *hdr;
 	int ret;
+	u16 fc;
 
-	skb = ath10k_wmi_alloc_skb(sizeof(*cmd) + arg->bcn_len);
+	skb = ath10k_wmi_alloc_skb(sizeof(*cmd));
 	if (!skb)
 		return -ENOMEM;
 
-	cmd = (struct wmi_bcn_tx_cmd *)skb->data;
-	cmd->hdr.vdev_id  = __cpu_to_le32(arg->vdev_id);
-	cmd->hdr.tx_rate  = __cpu_to_le32(arg->tx_rate);
-	cmd->hdr.tx_power = __cpu_to_le32(arg->tx_power);
-	cmd->hdr.bcn_len  = __cpu_to_le32(arg->bcn_len);
-	memcpy(cmd->bcn, arg->bcn, arg->bcn_len);
+	hdr = (struct ieee80211_hdr *)beacon->data;
+	fc = le16_to_cpu(hdr->frame_control);
 
-	ret = ath10k_wmi_cmd_send_nowait(ar, skb, ar->wmi.cmd->bcn_tx_cmdid);
+	cmd = (struct wmi_bcn_tx_ref_cmd *)skb->data;
+	cmd->vdev_id = __cpu_to_le32(arvif->vdev_id);
+	cmd->data_len = __cpu_to_le32(beacon->len);
+	cmd->data_ptr = __cpu_to_le32(ATH10K_SKB_CB(beacon)->paddr);
+	cmd->msdu_id = 0;
+	cmd->frame_control = __cpu_to_le32(fc);
+	cmd->flags = 0;
+
+	if (ATH10K_SKB_CB(beacon)->bcn.dtim_zero)
+		cmd->flags |= __cpu_to_le32(WMI_BCN_TX_REF_FLAG_DTIM_ZERO);
+
+	if (ATH10K_SKB_CB(beacon)->bcn.deliver_cab)
+		cmd->flags |= __cpu_to_le32(WMI_BCN_TX_REF_FLAG_DELIVER_CAB);
+
+	ret = ath10k_wmi_cmd_send_nowait(ar, skb,
+					 ar->wmi.cmd->pdev_send_bcn_cmdid);
+
 	if (ret)
 		dev_kfree_skb(skb);
 

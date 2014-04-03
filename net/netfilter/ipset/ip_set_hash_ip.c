@@ -25,7 +25,8 @@
 
 #define IPSET_TYPE_REV_MIN	0
 /*				1	   Counters support */
-#define IPSET_TYPE_REV_MAX	2	/* Comments support */
+/*				2	   Comments support */
+#define IPSET_TYPE_REV_MAX	3	/* Forceadd support */
 
 MODULE_LICENSE("GPL");
 MODULE_AUTHOR("Jozsef Kadlecsik <kadlec@blackhole.kfki.hu>");

@@ -76,11 +76,10 @@ Efuse_Write1ByteToFakeContent(
 {
 	if (Offset >= EFUSE_MAX_HW_SIZE)
 		return false;
-	if (fakeEfuseBank == 0) {
+	if (fakeEfuseBank == 0)
 		fakeEfuseContent[Offset] = Value;
-	} else {
+	else
 		fakeBTEfuseContent[fakeEfuseBank-1][Offset] = Value;
-	}
 	return true;
 }
 
@@ -156,17 +155,15 @@ Efuse_CalculateWordCnts(u8 word_en)
 	return word_cnts;
 }
 
-/*  */
-/* 	Description: */
-/* 		Execute E-Fuse read byte operation. */
-/* 		Referred from SD1 Richard. */
-/*  */
-/* 	Assumption: */
-/* 		1. Boot from E-Fuse and successfully auto-load. */
-/* 		2. PASSIVE_LEVEL (USB interface) */
-/*  */
-/* 	Created by Roger, 2008.10.21. */
-/*  */
+/*
+ * Description:
+ * Execute E-Fuse read byte operation.
+ * Referred from SD1 Richard.
+ * Assumption:
+ *		1. Boot from E-Fuse and successfully auto-load.
+ *		2. PASSIVE_LEVEL (USB interface)
+ * Created by Roger, 2008.10.21.
+ */
 void
 ReadEFuseByte(
 		struct adapter *Adapter,
@@ -210,23 +207,21 @@ ReadEFuseByte(
 	*pbuf = (u8)(value32 & 0xff);
 }
 
-/*  */
-/* 	Description: */
-/* 		1. Execute E-Fuse read byte operation according as map offset and */
-/* 		    save to E-Fuse table. */
-/* 		2. Referred from SD1 Richard. */
-/*  */
-/* 	Assumption: */
-/* 		1. Boot from E-Fuse and successfully auto-load. */
-/* 		2. PASSIVE_LEVEL (USB interface) */
-/*  */
-/* 	Created by Roger, 2008.10.21. */
-/*  */
-/* 	2008/12/12 MH	1. Reorganize code flow and reserve bytes. and add description. */
-/* 					2. Add efuse utilization collect. */
-/* 	2008/12/22 MH	Read Efuse must check if we write section 1 data again!!! Sec1 */
-/* 					write addr must be after sec5. */
-/*  */
+/* Description:
+ *	1. Execute E-Fuse read byte operation according as map offset and
+ *	save to E-Fuse table.
+ *	2. Referred from SD1 Richard.
+ * Assumption:
+ *	1. Boot from E-Fuse and successfully auto-load.
+ *	2. PASSIVE_LEVEL (USB interface)
+ *	Created by Roger, 2008.10.21.
+ * 2008/12/12 MH
+ *	1. Reorganize code flow and reserve bytes. and add description.
+ *	2. Add efuse utilization collect.
+ * 2008/12/22 MH
+ *	Read Efuse must check if we write section 1 data again!!!
+ *	Sec1 write addr must be after sec5.
+ */
 
 static void efuse_ReadEFuse(struct adapter *Adapter, u8 efuseType, u16 _offset, u16 _size_byte, u8 *pbuf, bool pseudo)
 {
@@ -450,7 +445,7 @@ u8 rtw_efuse_access(struct adapter *padapter, u8 write, u16 start_addr, u16 cnts
 {
 	int i = 0;
 	u16 real_content_len = 0, max_available_size = 0;
-	u8 res = _FAIL ;
+	u8 res = _FAIL;
 	u8 (*rw8)(struct adapter *, u16, u8*);
 
 	EFUSE_GetEfuseDefinition(padapter, EFUSE_WIFI, TYPE_EFUSE_REAL_CONTENT_LEN, (void *)&real_content_len, false);

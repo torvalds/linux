@@ -52,34 +52,34 @@ struct us_unusual_dev {
 #define FDIR_READ         1
 
 struct keucr_sd_status {
-	BYTE    Insert:1;
-	BYTE    Ready:1;
-	BYTE    MediaChange:1;
-	BYTE    IsMMC:1;
-	BYTE    HiCapacity:1;
-	BYTE    HiSpeed:1;
-	BYTE    WtP:1;
-	BYTE    Reserved:1;
+	u8    Insert:1;
+	u8    Ready:1;
+	u8    MediaChange:1;
+	u8    IsMMC:1;
+	u8    HiCapacity:1;
+	u8    HiSpeed:1;
+	u8    WtP:1;
+	u8    Reserved:1;
 };
 
 struct keucr_ms_status {
-	BYTE    Insert:1;
-	BYTE    Ready:1;
-	BYTE    MediaChange:1;
-	BYTE    IsMSPro:1;
-	BYTE    IsMSPHG:1;
-	BYTE    Reserved1:1;
-	BYTE    WtP:1;
-	BYTE    Reserved2:1;
+	u8    Insert:1;
+	u8    Ready:1;
+	u8    MediaChange:1;
+	u8    IsMSPro:1;
+	u8    IsMSPHG:1;
+	u8    Reserved1:1;
+	u8    WtP:1;
+	u8    Reserved2:1;
 };
 
 struct keucr_sm_status {
-	BYTE    Insert:1;
-	BYTE    Ready:1;
-	BYTE    MediaChange:1;
-	BYTE    Reserved:3;
-	BYTE    WtP:1;
-	BYTE    IsMS:1;
+	u8    Insert:1;
+	u8    Ready:1;
+	u8    MediaChange:1;
+	u8    Reserved:3;
+	u8    WtP:1;
+	u8    IsMS:1;
 };
 
 /* SD Block Length */
@@ -184,38 +184,38 @@ struct us_data {
 
 	/* ----- SD Control Data ---------------- */
 	/* SD_REGISTER SD_Regs; */
-	WORD        SD_Block_Mult;
-	BYTE        SD_READ_BL_LEN;
-	WORD        SD_C_SIZE;
-	BYTE        SD_C_SIZE_MULT;
+	u16        SD_Block_Mult;
+	u8        SD_READ_BL_LEN;
+	u16        SD_C_SIZE;
+	u8        SD_C_SIZE_MULT;
 
 	/* SD/MMC New spec. */
-	BYTE        SD_SPEC_VER;
-	BYTE        SD_CSD_VER;
-	BYTE        SD20_HIGH_CAPACITY;
-	DWORD       HC_C_SIZE;
-	BYTE        MMC_SPEC_VER;
-	BYTE        MMC_BusWidth;
-	BYTE        MMC_HIGH_CAPACITY;
+	u8        SD_SPEC_VER;
+	u8        SD_CSD_VER;
+	u8        SD20_HIGH_CAPACITY;
+	u32       HC_C_SIZE;
+	u8        MMC_SPEC_VER;
+	u8        MMC_BusWidth;
+	u8        MMC_HIGH_CAPACITY;
 
 	/* ----- MS Control Data ---------------- */
-	BOOLEAN             MS_SWWP;
-	DWORD               MSP_TotalBlock;
+	bool             MS_SWWP;
+	u32               MSP_TotalBlock;
 	/* MS_LibControl       MS_Lib; */
-	BOOLEAN             MS_IsRWPage;
-	WORD                MS_Model;
+	bool             MS_IsRWPage;
+	u16                MS_Model;
 
 	/* ----- SM Control Data ---------------- */
-	BYTE		SM_DeviceID;
-	BYTE		SM_CardID;
+	u8		SM_DeviceID;
+	u8		SM_CardID;
 
-	PBYTE		testbuf;
-	BYTE		BIN_FLAG;
-	DWORD		bl_num;
+	u8 *testbuf;
+	u8		BIN_FLAG;
+	u32		bl_num;
 	int		SrbStatus;
 
 	/* ------Power Managerment --------------- */
-	BOOLEAN         Power_IsResum;
+	bool         Power_IsResum;
 };
 
 /* Convert between us_data and the corresponding Scsi_Host */

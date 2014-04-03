@@ -56,6 +56,15 @@ enum ath_device_state {
 	ATH_HW_INITIALIZED,
 };
 
+enum ath_op_flags {
+	ATH_OP_INVALID,
+	ATH_OP_BEACONS,
+	ATH_OP_ANI_RUN,
+	ATH_OP_PRIM_STA_VIF,
+	ATH_OP_HW_RESET,
+	ATH_OP_SCANNING,
+};
+
 enum ath_bus_type {
 	ATH_PCI,
 	ATH_AHB,
@@ -63,7 +72,7 @@ enum ath_bus_type {
 };
 
 struct reg_dmn_pair_mapping {
-	u16 regDmnEnum;
+	u16 reg_domain;
 	u16 reg_5ghz_ctl;
 	u16 reg_2ghz_ctl;
 };
@@ -130,6 +139,7 @@ struct ath_common {
 	struct ieee80211_hw *hw;
 	int debug_mask;
 	enum ath_device_state state;
+	unsigned long op_flags;
 
 	struct ath_ani ani;
 
@@ -161,6 +171,9 @@ struct ath_common {
 	bool btcoex_enabled;
 	bool disable_ani;
 	bool bt_ant_diversity;
+
+	int last_rssi;
+	struct ieee80211_supported_band sbands[IEEE80211_NUM_BANDS];
 };
 
 struct sk_buff *ath_rxbuf_alloc(struct ath_common *common,

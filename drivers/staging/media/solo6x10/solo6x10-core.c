@@ -40,7 +40,7 @@ MODULE_AUTHOR("Bluecherry <maintainers@bluecherrydvr.com>");
 MODULE_VERSION(SOLO6X10_VERSION);
 MODULE_LICENSE("GPL");
 
-unsigned video_nr = -1;
+static unsigned video_nr = -1;
 module_param(video_nr, uint, 0644);
 MODULE_PARM_DESC(video_nr, "videoX start number, -1 is autodetect (default)");
 

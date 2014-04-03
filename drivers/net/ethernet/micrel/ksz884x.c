@@ -4832,7 +4832,7 @@ static inline void copy_old_skb(struct sk_buff *old, struct sk_buff *skb)
 	skb->csum = old->csum;
 	skb_set_network_header(skb, ETH_HLEN);
 
-	dev_kfree_skb(old);
+	dev_consume_skb_any(old);
 }
 
 /**

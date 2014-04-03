@@ -842,7 +842,7 @@ void i915_gem_suspend_gtt_mappings(struct drm_device *dev)
 	dev_priv->gtt.base.clear_range(&dev_priv->gtt.base,
 				       dev_priv->gtt.base.start / PAGE_SIZE,
 				       dev_priv->gtt.base.total / PAGE_SIZE,
-				       false);
+				       true);
 }
 
 void i915_gem_restore_gtt_mappings(struct drm_device *dev)

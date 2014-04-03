@@ -1,9 +1,9 @@
 /*
  * Hardware monitoring driver for LTC2974, LTC2977, LTC2978, LTC3880,
- * and LTC3883
+ * LTC3883, and LTM4676
  *
  * Copyright (c) 2011 Ericsson AB.
- * Copyright (c) 2013 Guenter Roeck
+ * Copyright (c) 2013, 2014 Guenter Roeck
  *
  * This program is free software; you can redistribute it and/or modify
  * it under the terms of the GNU General Public License as published by
@@ -14,10 +14,6 @@
  * but WITHOUT ANY WARRANTY; without even the implied warranty of
  * MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE. See the
  * GNU General Public License for more details.
- *
- * You should have received a copy of the GNU General Public License
- * along with this program; if not, write to the Free Software
- * Foundation, Inc., 675 Mass Ave, Cambridge, MA 02139, USA.
  */
 
 #include <linux/kernel.h>
@@ -28,7 +24,7 @@
 #include <linux/i2c.h>
 #include "pmbus.h"
 
-enum chips { ltc2974, ltc2977, ltc2978, ltc3880, ltc3883 };
+enum chips { ltc2974, ltc2977, ltc2978, ltc3880, ltc3883, ltm4676 };
 
 /* Common for all chips */
 #define LTC2978_MFR_VOUT_PEAK		0xdd
@@ -45,7 +41,7 @@ enum chips { ltc2974, ltc2977, ltc2978, ltc3880, ltc3883 };
 #define LTC2974_MFR_IOUT_PEAK		0xd7
 #define LTC2974_MFR_IOUT_MIN		0xd8
 
-/* LTC3880 and LTC3883 */
+/* LTC3880, LTC3883, and LTM4676 */
 #define LTC3880_MFR_IOUT_PEAK		0xd7
 #define LTC3880_MFR_CLEAR_PEAKS		0xe3
 #define LTC3880_MFR_TEMPERATURE2_PEAK	0xf4
@@ -53,7 +49,8 @@ enum chips { ltc2974, ltc2977, ltc2978, ltc3880, ltc3883 };
 /* LTC3883 only */
 #define LTC3883_MFR_IIN_PEAK		0xe1
 
-#define LTC2974_ID			0x0212
+#define LTC2974_ID_REV1			0x0212
+#define LTC2974_ID_REV2			0x0213
 #define LTC2977_ID			0x0130
 #define LTC2978_ID_REV1			0x0121
 #define LTC2978_ID_REV2			0x0122
@@ -62,6 +59,8 @@ enum chips { ltc2974, ltc2977, ltc2978, ltc3880, ltc3883 };
 #define LTC3880_ID_MASK			0xff00
 #define LTC3883_ID			0x4300
 #define LTC3883_ID_MASK			0xff00
+#define LTM4676_ID			0x4480	/* datasheet claims 0x440X */
+#define LTM4676_ID_MASK			0xfff0
 
 #define LTC2974_NUM_PAGES		4
 #define LTC2978_NUM_PAGES		8
@@ -370,6 +369,7 @@ static const struct i2c_device_id ltc2978_id[] = {
 	{"ltc2978", ltc2978},
 	{"ltc3880", ltc3880},
 	{"ltc3883", ltc3883},
+	{"ltm4676", ltm4676},
 	{}
 };
 MODULE_DEVICE_TABLE(i2c, ltc2978_id);
@@ -394,7 +394,7 @@ static int ltc2978_probe(struct i2c_client *client,
 	if (chip_id < 0)
 		return chip_id;
 
-	if (chip_id == LTC2974_ID) {
+	if (chip_id == LTC2974_ID_REV1 || chip_id == LTC2974_ID_REV2) {
 		data->id = ltc2974;
 	} else if (chip_id == LTC2977_ID) {
 		data->id = ltc2977;
@@ -405,6 +405,8 @@ static int ltc2978_probe(struct i2c_client *client,
 		data->id = ltc3880;
 	} else if ((chip_id & LTC3883_ID_MASK) == LTC3883_ID) {
 		data->id = ltc3883;
+	} else if ((chip_id & LTM4676_ID_MASK) == LTM4676_ID) {
+		data->id = ltm4676;
 	} else {
 		dev_err(&client->dev, "Unsupported chip ID 0x%x\n", chip_id);
 		return -ENODEV;
@@ -458,6 +460,7 @@ static int ltc2978_probe(struct i2c_client *client,
 		}
 		break;
 	case ltc3880:
+	case ltm4676:
 		info->read_word_data = ltc3880_read_word_data;
 		info->pages = LTC3880_NUM_PAGES;
 		info->func[0] = PMBUS_HAVE_VIN | PMBUS_HAVE_IIN
@@ -500,5 +503,5 @@ static struct i2c_driver ltc2978_driver = {
 module_i2c_driver(ltc2978_driver);
 
 MODULE_AUTHOR("Guenter Roeck");
-MODULE_DESCRIPTION("PMBus driver for LTC2974, LTC2978, LTC3880, and LTC3883");
+MODULE_DESCRIPTION("PMBus driver for LTC2974, LTC2978, LTC3880, LTC3883, and LTM4676");
 MODULE_LICENSE("GPL");

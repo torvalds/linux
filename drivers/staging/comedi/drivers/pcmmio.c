@@ -589,16 +589,17 @@ static int pcmmio_cmdtest(struct comedi_device *dev,
 	return 0;
 }
 
-static int pcmmio_ai_wait_for_eoc(unsigned long iobase, unsigned int timeout)
+static int pcmmio_ai_eoc(struct comedi_device *dev,
+			 struct comedi_subdevice *s,
+			 struct comedi_insn *insn,
+			 unsigned long context)
 {
 	unsigned char status;
 
-	while (timeout--) {
-		status = inb(iobase + PCMMIO_AI_STATUS_REG);
-		if (status & PCMMIO_AI_STATUS_DATA_READY)
-			return 0;
-	}
-	return -ETIME;
+	status = inb(dev->iobase + PCMMIO_AI_STATUS_REG);
+	if (status & PCMMIO_AI_STATUS_DATA_READY)
+		return 0;
+	return -EBUSY;
 }
 
 static int pcmmio_ai_insn_read(struct comedi_device *dev,
@@ -643,7 +644,8 @@ static int pcmmio_ai_insn_read(struct comedi_device *dev,
 	cmd |= PCMMIO_AI_CMD_RANGE(range);
 
 	outb(cmd, iobase + PCMMIO_AI_CMD_REG);
-	ret = pcmmio_ai_wait_for_eoc(iobase, 100000);
+
+	ret = comedi_timeout(dev, s, insn, pcmmio_ai_eoc, 0);
 	if (ret)
 		return ret;
 
@@ -652,7 +654,8 @@ static int pcmmio_ai_insn_read(struct comedi_device *dev,
 
 	for (i = 0; i < insn->n; i++) {
 		outb(cmd, iobase + PCMMIO_AI_CMD_REG);
-		ret = pcmmio_ai_wait_for_eoc(iobase, 100000);
+
+		ret = comedi_timeout(dev, s, insn, pcmmio_ai_eoc, 0);
 		if (ret)
 			return ret;
 
@@ -684,16 +687,17 @@ static int pcmmio_ao_insn_read(struct comedi_device *dev,
 	return insn->n;
 }
 
-static int pcmmio_ao_wait_for_eoc(unsigned long iobase, unsigned int timeout)
+static int pcmmio_ao_eoc(struct comedi_device *dev,
+			 struct comedi_subdevice *s,
+			 struct comedi_insn *insn,
+			 unsigned long context)
 {
 	unsigned char status;
 
-	while (timeout--) {
-		status = inb(iobase + PCMMIO_AO_STATUS_REG);
-		if (status & PCMMIO_AO_STATUS_DATA_READY)
-			return 0;
-	}
-	return -ETIME;
+	status = inb(dev->iobase + PCMMIO_AO_STATUS_REG);
+	if (status & PCMMIO_AO_STATUS_DATA_READY)
+		return 0;
+	return -EBUSY;
 }
 
 static int pcmmio_ao_insn_write(struct comedi_device *dev,
@@ -726,7 +730,8 @@ static int pcmmio_ao_insn_write(struct comedi_device *dev,
 	outb(PCMMIO_AO_LSB_SPAN(range), iobase + PCMMIO_AO_LSB_REG);
 	outb(0, iobase + PCMMIO_AO_MSB_REG);
 	outb(cmd | PCMMIO_AO_CMD_WR_SPAN_UPDATE, iobase + PCMMIO_AO_CMD_REG);
-	ret = pcmmio_ao_wait_for_eoc(iobase, 100000);
+
+	ret = comedi_timeout(dev, s, insn, pcmmio_ao_eoc, 0);
 	if (ret)
 		return ret;
 
@@ -738,7 +743,8 @@ static int pcmmio_ao_insn_write(struct comedi_device *dev,
 		outb((val >> 8) & 0xff, iobase + PCMMIO_AO_MSB_REG);
 		outb(cmd | PCMMIO_AO_CMD_WR_CODE_UPDATE,
 		     iobase + PCMMIO_AO_CMD_REG);
-		ret = pcmmio_ao_wait_for_eoc(iobase, 100000);
+
+		ret = comedi_timeout(dev, s, insn, pcmmio_ao_eoc, 0);
 		if (ret)
 			return ret;
 

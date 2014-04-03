@@ -586,8 +586,8 @@ struct kvm_fpu {
 
 4.24 KVM_CREATE_IRQCHIP
 
-Capability: KVM_CAP_IRQCHIP
-Architectures: x86, ia64, ARM, arm64
+Capability: KVM_CAP_IRQCHIP, KVM_CAP_S390_IRQCHIP (s390)
+Architectures: x86, ia64, ARM, arm64, s390
 Type: vm ioctl
 Parameters: none
 Returns: 0 on success, -1 on error
@@ -596,7 +596,10 @@ Creates an interrupt controller model in the kernel.  On x86, creates a virtual
 ioapic, a virtual PIC (two PICs, nested), and sets up future vcpus to have a
 local APIC.  IRQ routing for GSIs 0-15 is set to both PIC and IOAPIC; GSI 16-23
 only go to the IOAPIC.  On ia64, a IOSAPIC is created. On ARM/arm64, a GIC is
-created.
+created. On s390, a dummy irq routing table is created.
+
+Note that on s390 the KVM_CAP_S390_IRQCHIP vm capability needs to be enabled
+before KVM_CREATE_IRQCHIP can be used.
 
 
 4.25 KVM_IRQ_LINE
@@ -611,6 +614,20 @@ Sets the level of a GSI input to the interrupt controller model in the kernel.
 On some architectures it is required that an interrupt controller model has
 been previously created with KVM_CREATE_IRQCHIP.  Note that edge-triggered
 interrupts require the level to be set to 1 and then back to 0.
+
+On real hardware, interrupt pins can be active-low or active-high.  This
+does not matter for the level field of struct kvm_irq_level: 1 always
+means active (asserted), 0 means inactive (deasserted).
+
+x86 allows the operating system to program the interrupt polarity
+(active-low/active-high) for level-triggered interrupts, and KVM used
+to consider the polarity.  However, due to bitrot in the handling of
+active-low interrupts, the above convention is now valid on x86 too.
+This is signaled by KVM_CAP_X86_IOAPIC_POLARITY_IGNORED.  Userspace
+should not present interrupts to the guest as active-low unless this
+capability is present (or unless it is not using the in-kernel irqchip,
+of course).
+
 
 ARM/arm64 can signal an interrupt either at the CPU level, or at the
 in-kernel irqchip (GIC), and for in-kernel irqchip can tell the GIC to
@@ -628,7 +645,7 @@ The irq_type field has the following values:
 
 (The irq_id field thus corresponds nicely to the IRQ ID in the ARM GIC specs)
 
-In both cases, level is used to raise/lower the line.
+In both cases, level is used to assert/deassert the line.
 
 struct kvm_irq_level {
 	union {
@@ -918,9 +935,9 @@ documentation when it pops into existence).
 
 4.37 KVM_ENABLE_CAP
 
-Capability: KVM_CAP_ENABLE_CAP
+Capability: KVM_CAP_ENABLE_CAP, KVM_CAP_ENABLE_CAP_VM
 Architectures: ppc, s390
-Type: vcpu ioctl
+Type: vcpu ioctl, vm ioctl (with KVM_CAP_ENABLE_CAP_VM)
 Parameters: struct kvm_enable_cap (in)
 Returns: 0 on success; -1 on error
 
@@ -951,6 +968,8 @@ function properly, this is the place to put them.
        __u8  pad[64];
 };
 
+The vcpu ioctl should be used for vcpu-specific capabilities, the vm ioctl
+for vm-wide capabilities.
 
 4.38 KVM_GET_MP_STATE
 
@@ -1320,7 +1339,7 @@ KVM_ASSIGN_DEV_IRQ. Partial deassignment of host or guest IRQ is allowed.
 4.52 KVM_SET_GSI_ROUTING
 
 Capability: KVM_CAP_IRQ_ROUTING
-Architectures: x86 ia64
+Architectures: x86 ia64 s390
 Type: vm ioctl
 Parameters: struct kvm_irq_routing (in)
 Returns: 0 on success, -1 on error
@@ -1343,6 +1362,7 @@ struct kvm_irq_routing_entry {
 	union {
 		struct kvm_irq_routing_irqchip irqchip;
 		struct kvm_irq_routing_msi msi;
+		struct kvm_irq_routing_s390_adapter adapter;
 		__u32 pad[8];
 	} u;
 };
@@ -1350,6 +1370,7 @@ struct kvm_irq_routing_entry {
 /* gsi routing entry types */
 #define KVM_IRQ_ROUTING_IRQCHIP 1
 #define KVM_IRQ_ROUTING_MSI 2
+#define KVM_IRQ_ROUTING_S390_ADAPTER 3
 
 No flags are specified so far, the corresponding field must be set to zero.
 
@@ -1363,6 +1384,14 @@ struct kvm_irq_routing_msi {
 	__u32 address_hi;
 	__u32 data;
 	__u32 pad;
+};
+
+struct kvm_irq_routing_s390_adapter {
+	__u64 ind_addr;
+	__u64 summary_addr;
+	__u64 ind_offset;
+	__u32 summary_offset;
+	__u32 adapter_id;
 };
 
 
@@ -1462,7 +1491,7 @@ struct kvm_lapic_state {
 	char regs[KVM_APIC_REG_SIZE];
 };
 
-Copies the input argument into the the Local APIC registers.  The data format
+Copies the input argument into the Local APIC registers.  The data format
 and layout are the same as documented in the architecture manual.
 
 
@@ -2565,6 +2594,10 @@ If exit_reason is KVM_EXIT_MMIO, then the vcpu has
 executed a memory-mapped I/O instruction which could not be satisfied
 by kvm.  The 'data' member contains the written data if 'is_write' is
 true, and should be filled by application code otherwise.
+
+The 'data' member contains, in its first 'len' bytes, the value as it would
+appear if the VCPU performed a load or store of the appropriate width directly
+to the byte array.
 
 NOTE: For KVM_EXIT_IO, KVM_EXIT_MMIO, KVM_EXIT_OSI, KVM_EXIT_DCR,
       KVM_EXIT_PAPR and KVM_EXIT_EPR the corresponding

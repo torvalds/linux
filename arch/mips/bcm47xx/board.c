@@ -72,7 +72,11 @@ struct bcm47xx_board_type_list1 bcm47xx_board_list_hardware_version[] __initcons
 	{{BCM47XX_BOARD_ASUS_WL500W, "Asus WL500W"}, "WL500gW-"},
 	{{BCM47XX_BOARD_ASUS_WL520GC, "Asus WL520GC"}, "WL520GC-"},
 	{{BCM47XX_BOARD_ASUS_WL520GU, "Asus WL520GU"}, "WL520GU-"},
+	{{BCM47XX_BOARD_BELKIN_F7D3301, "Belkin F7D3301"}, "F7D3301"},
+	{{BCM47XX_BOARD_BELKIN_F7D3302, "Belkin F7D3302"}, "F7D3302"},
 	{{BCM47XX_BOARD_BELKIN_F7D4301, "Belkin F7D4301"}, "F7D4301"},
+	{{BCM47XX_BOARD_BELKIN_F7D4302, "Belkin F7D4302"}, "F7D4302"},
+	{{BCM47XX_BOARD_BELKIN_F7D4401, "Belkin F7D4401"}, "F7D4401"},
 	{ {0}, NULL},
 };
 
@@ -176,7 +180,16 @@ struct bcm47xx_board_type_list3 bcm47xx_board_list_board[] __initconst = {
 	{{BCM47XX_BOARD_PHICOMM_M1, "Phicomm M1"}, "0x0590", "80", "0x1104"},
 	{{BCM47XX_BOARD_ZTE_H218N, "ZTE H218N"}, "0x053d", "1234", "0x1305"},
 	{{BCM47XX_BOARD_NETGEAR_WNR3500L, "Netgear WNR3500L"}, "0x04CF", "3500", "02"},
-	{{BCM47XX_BOARD_LINKSYS_WRT54GSV1, "Linksys WRT54GS V1"}, "0x0101", "42", "0x10"},
+	{{BCM47XX_BOARD_LINKSYS_WRT54G, "Linksys WRT54G/GS/GL"}, "0x0101", "42", "0x10"},
+	{{BCM47XX_BOARD_LINKSYS_WRT54G, "Linksys WRT54G/GS/GL"}, "0x0467", "42", "0x10"},
+	{{BCM47XX_BOARD_LINKSYS_WRT54G, "Linksys WRT54G/GS/GL"}, "0x0708", "42", "0x10"},
+	{ {0}, NULL},
+};
+
+/* boardtype, boardrev */
+static const
+struct bcm47xx_board_type_list2 bcm47xx_board_list_board_type_rev[] __initconst = {
+	{{BCM47XX_BOARD_SIEMENS_SE505V2, "Siemens SE505 V2"}, "0x0101", "0x10"},
 	{ {0}, NULL},
 };
 
@@ -271,6 +284,16 @@ static __init const struct bcm47xx_board_type *bcm47xx_board_get_nvram(void)
 			    !strcmp(buf2, e3->value2) &&
 			    !strcmp(buf3, e3->value3))
 				return &e3->board;
+		}
+	}
+
+	if (bcm47xx_nvram_getenv("boardtype", buf1, sizeof(buf1)) >= 0 &&
+	    bcm47xx_nvram_getenv("boardrev", buf2, sizeof(buf2)) >= 0 &&
+	    bcm47xx_nvram_getenv("boardnum", buf3, sizeof(buf3)) ==  -ENOENT) {
+		for (e2 = bcm47xx_board_list_board_type_rev; e2->value1; e2++) {
+			if (!strcmp(buf1, e2->value1) &&
+			    !strcmp(buf2, e2->value2))
+				return &e2->board;
 		}
 	}
 	return bcm47xx_board_unknown;

@@ -900,8 +900,8 @@ static int em28xx_audio_init(struct em28xx *dev)
 	printk(KERN_INFO
 	       "em28xx-audio.c: Copyright (C) 2007-2014 Mauro Carvalho Chehab\n");
 
-	err = snd_card_create(index[devnr], "Em28xx Audio", THIS_MODULE, 0,
-			      &card);
+	err = snd_card_new(&dev->udev->dev, index[devnr], "Em28xx Audio",
+			   THIS_MODULE, 0, &card);
 	if (err < 0)
 		return err;
 
@@ -918,7 +918,6 @@ static int em28xx_audio_init(struct em28xx *dev)
 	pcm->private_data = dev;
 	strcpy(pcm->name, "Empia 28xx Capture");
 
-	snd_card_set_dev(card, &dev->udev->dev);
 	strcpy(card->driver, "Em28xx-Audio");
 	strcpy(card->shortname, "Em28xx Audio");
 	strcpy(card->longname, "Empia Em28xx Audio");
