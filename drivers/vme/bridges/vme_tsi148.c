@@ -741,7 +741,7 @@ static int tsi148_slave_get(struct vme_slave_resource *image, int *enabled,
 	reg_join(vme_bound_high, vme_bound_low, &vme_bound);
 	reg_join(pci_offset_high, pci_offset_low, &pci_offset);
 
-	*pci_base = (dma_addr_t)vme_base + pci_offset;
+	*pci_base = (dma_addr_t)(*vme_base + pci_offset);
 
 	*enabled = 0;
 	*aspace = 0;
