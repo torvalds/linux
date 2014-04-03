@@ -3200,8 +3200,15 @@ meta_guess:
 			clusters_add += 1;
 		}
 	} else {
-		meta_add += 1;
 		credits += OCFS2_XATTR_BLOCK_CREATE_CREDITS;
+		if (xi->xi_value_len > OCFS2_XATTR_INLINE_SIZE) {
+			struct ocfs2_extent_list *el = &def_xv.xv.xr_list;
+			meta_add += ocfs2_extend_meta_needed(el);
+			credits += ocfs2_calc_extend_credits(inode->i_sb,
+							     el);
+		} else {
+			meta_add += 1;
+		}
 	}
 out:
 	if (clusters_need)
