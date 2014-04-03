@@ -332,7 +332,7 @@ static int altera_mbox_probe(struct platform_device *pdev)
 	mbox->ipc_con.ops = &altera_mbox_ops;
 
 	if ((strlen(np->name) + 1) > sizeof(mbox->ipc_con.controller_name))
-		dev_warn(&pdev->dev, "Length of mailbox controller name is greater than %d\n",
+		dev_warn(&pdev->dev, "Length of mailbox controller name is greater than %zu\n",
 		sizeof(mbox->ipc_con.controller_name));
 
 	ret = of_property_read_string(np, "linux,mailbox-name", &mbox_name);
