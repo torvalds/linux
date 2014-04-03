@@ -540,7 +540,10 @@ master_here:
 		/* success!  see if any other nodes need recovery */
 		mlog(0, "DONE mastering recovery of %s:%u here(this=%u)!\n",
 		     dlm->name, dlm->reco.dead_node, dlm->node_num);
-		dlm_reset_recovery(dlm);
+		spin_lock(&dlm->spinlock);
+		__dlm_reset_recovery(dlm);
+		dlm->reco.state &= ~DLM_RECO_STATE_FINALIZE;
+		spin_unlock(&dlm->spinlock);
 	}
 	dlm_end_recovery(dlm);
 
@@ -697,6 +700,14 @@ static int dlm_remaster_locks(struct dlm_ctxt *dlm, u8 dead_node)
 		     all_nodes_done?"yes":"no");
 		if (all_nodes_done) {
 			int ret;
+
+			/* Set this flag on recovery master to avoid
+			 * a new recovery for another dead node start
+			 * before the recovery is not done. That may
+			 * cause recovery hung.*/
+			spin_lock(&dlm->spinlock);
+			dlm->reco.state |= DLM_RECO_STATE_FINALIZE;
+			spin_unlock(&dlm->spinlock);
 
 			/* all nodes are now in DLM_RECO_NODE_DATA_DONE state
 	 		 * just send a finalize message to everyone and
@@ -2869,8 +2880,8 @@ int dlm_finalize_reco_handler(struct o2net_msg *msg, u32 len, void *data,
 				BUG();
 			}
 			dlm->reco.state &= ~DLM_RECO_STATE_FINALIZE;
+			__dlm_reset_recovery(dlm);
 			spin_unlock(&dlm->spinlock);
-			dlm_reset_recovery(dlm);
 			dlm_kick_recovery_thread(dlm);
 			break;
 		default:
