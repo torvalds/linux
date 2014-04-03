@@ -675,8 +675,8 @@ static int _prepare_for_striping(struct ore_io_state *ios)
 	si->cur_pg = si->unit_off / PAGE_SIZE;
 
 	while (length) {
-		unsigned comp = dev - first_dev;
-		struct ore_per_dev_state *per_dev = &ios->per_dev[comp];
+		struct ore_per_dev_state *per_dev =
+						&ios->per_dev[dev - first_dev];
 		unsigned cur_len, page_off = 0;
 
 		if (!per_dev->length) {
@@ -708,11 +708,9 @@ static int _prepare_for_striping(struct ore_io_state *ios)
 		if (unlikely(ret))
 			goto out;
 
-		dev += mirrors_p1;
-		dev = (dev % devs_in_group) + first_dev;
-
 		length -= cur_len;
 
+		dev = ((dev + mirrors_p1) % devs_in_group) + first_dev;
 		si->cur_comp = (si->cur_comp + 1) % group_width;
 		if (unlikely((dev == si->par_dev) || (!length && ios->sp2d))) {
 			if (!length && ios->sp2d) {
@@ -721,11 +719,6 @@ static int _prepare_for_striping(struct ore_io_state *ios)
 				 */
 				dev = si->par_dev;
 			}
-			if (ios->sp2d)
-				/* In writes cur_len just means if it's the
-				 * last one. See _ore_add_parity_unit.
-				 */
-				cur_len = length;
 			per_dev = &ios->per_dev[dev - first_dev];
 			if (!per_dev->length) {
 				/* Only/always the parity unit of the first
@@ -736,7 +729,11 @@ static int _prepare_for_striping(struct ore_io_state *ios)
 				per_dev->offset = si->obj_offset - si->unit_off;
 			}
 
-			ret = _ore_add_parity_unit(ios, si, per_dev, cur_len);
+			/* In writes cur_len just means if it's the
+			 * last one. See _ore_add_parity_unit.
+			 */
+			ret = _ore_add_parity_unit(ios, si, per_dev,
+						ios->sp2d ? length : cur_len);
 			if (unlikely(ret))
 					goto out;
 

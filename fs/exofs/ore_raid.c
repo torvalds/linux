@@ -226,9 +226,7 @@ static void _gen_xor_unit(struct __stripe_pages_2d *sp2d)
 
 		init_async_submit(&_1ps->submit,
 			ASYNC_TX_XOR_ZERO_DST | ASYNC_TX_ACK,
-			NULL,
-			NULL, NULL,
-			(addr_conv_t *)_1ps->scribble);
+			NULL, NULL, NULL, (addr_conv_t *)_1ps->scribble);
 
 		/* TODO: raid6 */
 		_1ps->tx = async_xor(_1ps->pages[sp2d->data_devs], _1ps->pages,
