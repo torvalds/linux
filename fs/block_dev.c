@@ -1509,28 +1509,24 @@ static long block_ioctl(struct file *file, unsigned cmd, unsigned long arg)
  * Does not take i_mutex for the write and thus is not for general purpose
  * use.
  */
-ssize_t blkdev_aio_write(struct kiocb *iocb, const struct iovec *iov,
-			 unsigned long nr_segs, loff_t pos)
+ssize_t blkdev_write_iter(struct kiocb *iocb, struct iov_iter *from)
 {
 	struct file *file = iocb->ki_filp;
 	struct blk_plug plug;
 	ssize_t ret;
 
-	BUG_ON(iocb->ki_pos != pos);
-
 	blk_start_plug(&plug);
-	ret = __generic_file_aio_write(iocb, iov, nr_segs);
+	ret = __generic_file_write_iter(iocb, from);
 	if (ret > 0) {
 		ssize_t err;
-
-		err = generic_write_sync(file, pos, ret);
+		err = generic_write_sync(file, iocb->ki_pos - ret, ret);
 		if (err < 0)
 			ret = err;
 	}
 	blk_finish_plug(&plug);
 	return ret;
 }
-EXPORT_SYMBOL_GPL(blkdev_aio_write);
+EXPORT_SYMBOL_GPL(blkdev_write_iter);
 
 static ssize_t blkdev_read_iter(struct kiocb *iocb, struct iov_iter *to)
 {
@@ -1577,9 +1573,9 @@ const struct file_operations def_blk_fops = {
 	.release	= blkdev_close,
 	.llseek		= block_llseek,
 	.read		= new_sync_read,
-	.write		= do_sync_write,
+	.write		= new_sync_write,
 	.read_iter	= blkdev_read_iter,
-	.aio_write	= blkdev_aio_write,
+	.write_iter	= blkdev_write_iter,
 	.mmap		= generic_file_mmap,
 	.fsync		= blkdev_fsync,
 	.unlocked_ioctl	= block_ioctl,
