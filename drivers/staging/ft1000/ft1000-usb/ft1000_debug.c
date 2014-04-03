@@ -785,7 +785,7 @@ static int ft1000_release(struct inode *inode, struct file *file)
 
     /* initialize application information */
     ft1000dev->appcnt--;
-    DEBUG("ft1000_chdev:%s:appcnt = %d\n", __FUNCTION__, ft1000dev->appcnt);
+    DEBUG("ft1000_chdev:%s:appcnt = %d\n", __func__, ft1000dev->appcnt);
     ft1000dev->app_info[i].fileobject = NULL;
 
     return 0;
