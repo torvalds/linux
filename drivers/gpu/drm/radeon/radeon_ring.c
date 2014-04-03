@@ -139,7 +139,7 @@ int radeon_ib_schedule(struct radeon_device *rdev, struct radeon_ib *ib,
 	}
 
 	/* 64 dwords should be enough for fence too */
-	r = radeon_ring_lock(rdev, ring, 64 + RADEON_NUM_RINGS * 8);
+	r = radeon_ring_lock(rdev, ring, 64 + RADEON_NUM_SYNCS * 8);
 	if (r) {
 		dev_err(rdev->dev, "scheduling IB failed (%d).\n", r);
 		return r;

@@ -30,6 +30,7 @@
 #include <asm/platform.h>
 
 unsigned long ccount_freq;		/* ccount Hz */
+EXPORT_SYMBOL(ccount_freq);
 
 static cycle_t ccount_read(struct clocksource *cs)
 {

@@ -668,8 +668,8 @@ void oz_binding_add(const char *net_dev)
 	if (binding) {
 		binding->ptype.type = __constant_htons(OZ_ETHERTYPE);
 		binding->ptype.func = oz_pkt_recv;
-		memcpy(binding->name, net_dev, OZ_MAX_BINDING_LEN);
 		if (net_dev && *net_dev) {
+			memcpy(binding->name, net_dev, OZ_MAX_BINDING_LEN);
 			oz_dbg(ON, "Adding binding: %s\n", net_dev);
 			binding->ptype.dev =
 				dev_get_by_name(&init_net, net_dev);
@@ -680,6 +680,7 @@ void oz_binding_add(const char *net_dev)
 			}
 		} else {
 			oz_dbg(ON, "Binding to all netcards\n");
+			memset(binding->name, 0, OZ_MAX_BINDING_LEN);
 			binding->ptype.dev = NULL;
 		}
 		if (binding) {

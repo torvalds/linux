@@ -440,8 +440,8 @@ check_scsi_name:
 		padding = ((-scsi_target_len) & 3);
 		if (padding)
 			scsi_target_len += padding;
-		if (scsi_name_len > 256)
-			scsi_name_len = 256;
+		if (scsi_target_len > 256)
+			scsi_target_len = 256;
 
 		buf[off-1] = scsi_target_len;
 		off += scsi_target_len;

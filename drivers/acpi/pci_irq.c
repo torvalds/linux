@@ -430,6 +430,7 @@ int acpi_pci_irq_enable(struct pci_dev *dev)
 				 pin_name(pin));
 		}
 
+		kfree(entry);
 		return 0;
 	}
 

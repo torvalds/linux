@@ -607,7 +607,7 @@ static enum g2d_reg_type g2d_get_reg_type(int reg_offset)
 		reg_type = REG_TYPE_NONE;
 		DRM_ERROR("Unknown register offset![%d]\n", reg_offset);
 		break;
-	};
+	}
 
 	return reg_type;
 }

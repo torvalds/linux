@@ -2,6 +2,8 @@
 	- this file.
 sched-arch.txt
 	- CPU Scheduler implementation hints for architecture specific code.
+sched-bwc.txt
+	- CFS bandwidth control overview.
 sched-design-CFS.txt
 	- goals, design and implementation of the Completely Fair Scheduler.
 sched-domains.txt

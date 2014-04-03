@@ -27,6 +27,7 @@
 #include <linux/interrupt.h>
 #include <linux/bug.h>
 #include <linux/cpuidle.h>
+#include <linux/pci.h>
 
 #include <asm/machdep.h>
 #include <asm/firmware.h>
@@ -141,6 +142,13 @@ static void pnv_progress(char *s, unsigned short hex)
 {
 }
 
+static int pnv_dma_set_mask(struct device *dev, u64 dma_mask)
+{
+	if (dev_is_pci(dev))
+		return pnv_pci_dma_set_mask(to_pci_dev(dev), dma_mask);
+	return __dma_set_mask(dev, dma_mask);
+}
+
 static void pnv_shutdown(void)
 {
 	/* Let the PCI code clear up IODA tables */
@@ -238,6 +246,7 @@ define_machine(powernv) {
 	.machine_shutdown	= pnv_shutdown,
 	.power_save             = powernv_idle,
 	.calibrate_decr		= generic_calibrate_decr,
+	.dma_set_mask		= pnv_dma_set_mask,
 #ifdef CONFIG_KEXEC
 	.kexec_cpu_down		= pnv_kexec_cpu_down,
 #endif

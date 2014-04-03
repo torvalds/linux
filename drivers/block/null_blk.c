@@ -60,7 +60,9 @@ enum {
 	NULL_IRQ_NONE		= 0,
 	NULL_IRQ_SOFTIRQ	= 1,
 	NULL_IRQ_TIMER		= 2,
+};
 
+enum {
 	NULL_Q_BIO		= 0,
 	NULL_Q_RQ		= 1,
 	NULL_Q_MQ		= 2,
@@ -172,18 +174,20 @@ static struct nullb_cmd *alloc_cmd(struct nullb_queue *nq, int can_wait)
 
 static void end_cmd(struct nullb_cmd *cmd)
 {
-	if (cmd->rq) {
-		if (queue_mode == NULL_Q_MQ)
-			blk_mq_end_io(cmd->rq, 0);
-		else {
-			INIT_LIST_HEAD(&cmd->rq->queuelist);
-			blk_end_request_all(cmd->rq, 0);
-		}
-	} else if (cmd->bio)
+	switch (queue_mode)  {
+	case NULL_Q_MQ:
+		blk_mq_end_io(cmd->rq, 0);
+		return;
+	case NULL_Q_RQ:
+		INIT_LIST_HEAD(&cmd->rq->queuelist);
+		blk_end_request_all(cmd->rq, 0);
+		break;
+	case NULL_Q_BIO:
 		bio_endio(cmd->bio, 0);
+		break;
+	}
 
-	if (queue_mode != NULL_Q_MQ)
-		free_cmd(cmd);
+	free_cmd(cmd);
 }
 
 static enum hrtimer_restart null_cmd_timer_expired(struct hrtimer *timer)
@@ -195,6 +199,7 @@ static enum hrtimer_restart null_cmd_timer_expired(struct hrtimer *timer)
 	cq = &per_cpu(completion_queues, smp_processor_id());
 
 	while ((entry = llist_del_all(&cq->list)) != NULL) {
+		entry = llist_reverse_order(entry);
 		do {
 			cmd = container_of(entry, struct nullb_cmd, ll_list);
 			end_cmd(cmd);
@@ -221,61 +226,31 @@ static void null_cmd_end_timer(struct nullb_cmd *cmd)
 
 static void null_softirq_done_fn(struct request *rq)
 {
-	blk_end_request_all(rq, 0);
+	end_cmd(rq->special);
 }
-
-#ifdef CONFIG_SMP
-
-static void null_ipi_cmd_end_io(void *data)
-{
-	struct completion_queue *cq;
-	struct llist_node *entry, *next;
-	struct nullb_cmd *cmd;
-
-	cq = &per_cpu(completion_queues, smp_processor_id());
-
-	entry = llist_del_all(&cq->list);
-
-	while (entry) {
-		next = entry->next;
-		cmd = llist_entry(entry, struct nullb_cmd, ll_list);
-		end_cmd(cmd);
-		entry = next;
-	}
-}
-
-static void null_cmd_end_ipi(struct nullb_cmd *cmd)
-{
-	struct call_single_data *data = &cmd->csd;
-	int cpu = get_cpu();
-	struct completion_queue *cq = &per_cpu(completion_queues, cpu);
-
-	cmd->ll_list.next = NULL;
-
-	if (llist_add(&cmd->ll_list, &cq->list)) {
-		data->func = null_ipi_cmd_end_io;
-		data->flags = 0;
-		__smp_call_function_single(cpu, data, 0);
-	}
-
-	put_cpu();
-}
-
-#endif /* CONFIG_SMP */
 
 static inline void null_handle_cmd(struct nullb_cmd *cmd)
 {
 	/* Complete IO by inline, softirq or timer */
 	switch (irqmode) {
+	case NULL_IRQ_SOFTIRQ:
+		switch (queue_mode)  {
+		case NULL_Q_MQ:
+			blk_mq_complete_request(cmd->rq);
+			break;
+		case NULL_Q_RQ:
+			blk_complete_request(cmd->rq);
+			break;
+		case NULL_Q_BIO:
+			/*
+			 * XXX: no proper submitting cpu information available.
+			 */
+			end_cmd(cmd);
+			break;
+		}
+		break;
 	case NULL_IRQ_NONE:
 		end_cmd(cmd);
-		break;
-	case NULL_IRQ_SOFTIRQ:
-#ifdef CONFIG_SMP
-		null_cmd_end_ipi(cmd);
-#else
-		end_cmd(cmd);
-#endif
 		break;
 	case NULL_IRQ_TIMER:
 		null_cmd_end_timer(cmd);
@@ -411,6 +386,7 @@ static struct blk_mq_ops null_mq_ops = {
 	.queue_rq       = null_queue_rq,
 	.map_queue      = blk_mq_map_queue,
 	.init_hctx	= null_init_hctx,
+	.complete	= null_softirq_done_fn,
 };
 
 static struct blk_mq_reg null_mq_reg = {
@@ -609,13 +585,6 @@ static int __init null_init(void)
 {
 	unsigned int i;
 
-#if !defined(CONFIG_SMP)
-	if (irqmode == NULL_IRQ_SOFTIRQ) {
-		pr_warn("null_blk: softirq completions not available.\n");
-		pr_warn("null_blk: using direct completions.\n");
-		irqmode = NULL_IRQ_NONE;
-	}
-#endif
 	if (bs > PAGE_SIZE) {
 		pr_warn("null_blk: invalid block size\n");
 		pr_warn("null_blk: defaults block size to %lu\n", PAGE_SIZE);

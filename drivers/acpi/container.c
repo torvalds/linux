@@ -79,9 +79,10 @@ static int container_device_attach(struct acpi_device *adev,
 	ACPI_COMPANION_SET(dev, adev);
 	dev->release = acpi_container_release;
 	ret = device_register(dev);
-	if (ret)
+	if (ret) {
+		put_device(dev);
 		return ret;
-
+	}
 	adev->driver_data = dev;
 	return 1;
 }

@@ -376,10 +376,10 @@ config SPI_PXA2XX_PCI
 	def_tristate SPI_PXA2XX && PCI
 
 config SPI_RSPI
-	tristate "Renesas RSPI controller"
+	tristate "Renesas RSPI/QSPI controller"
 	depends on (SUPERH && SH_DMAE_BASE) || ARCH_SHMOBILE
 	help
-	  SPI driver for Renesas RSPI blocks.
+	  SPI driver for Renesas RSPI and QSPI blocks.
 
 config SPI_S3C24XX
 	tristate "Samsung S3C24XX series SPI"

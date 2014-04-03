@@ -25,7 +25,6 @@ struct nft_queue {
 	u16	queuenum;
 	u16	queues_total;
 	u16	flags;
-	u8	family;
 };
 
 static void nft_queue_eval(const struct nft_expr *expr,
@@ -43,7 +42,7 @@ static void nft_queue_eval(const struct nft_expr *expr,
 			queue = priv->queuenum + cpu % priv->queues_total;
 		} else {
 			queue = nfqueue_hash(pkt->skb, queue,
-					     priv->queues_total, priv->family,
+					     priv->queues_total, pkt->ops->pf,
 					     jhash_initval);
 		}
 	}
@@ -71,7 +70,6 @@ static int nft_queue_init(const struct nft_ctx *ctx,
 		return -EINVAL;
 
 	init_hashrandom(&jhash_initval);
-	priv->family = ctx->afi->family;
 	priv->queuenum = ntohs(nla_get_be16(tb[NFTA_QUEUE_NUM]));
 
 	if (tb[NFTA_QUEUE_TOTAL] != NULL)

@@ -2783,6 +2783,8 @@ static void addrconf_gre_config(struct net_device *dev)
 	ipv6_addr_set(&addr,  htonl(0xFE800000), 0, 0, 0);
 	if (!ipv6_generate_eui64(addr.s6_addr + 8, dev))
 		addrconf_add_linklocal(idev, &addr);
+	else
+		addrconf_prefix_route(&addr, 64, dev, 0, 0);
 }
 #endif
 

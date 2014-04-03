@@ -298,8 +298,6 @@ int msm_gpu_submit(struct msm_gpu *gpu, struct msm_gem_submit *submit,
 	struct msm_drm_private *priv = dev->dev_private;
 	int i, ret;
 
-	mutex_lock(&dev->struct_mutex);
-
 	submit->fence = ++priv->next_fence;
 
 	gpu->submitted_fence = submit->fence;
@@ -331,7 +329,6 @@ int msm_gpu_submit(struct msm_gpu *gpu, struct msm_gem_submit *submit,
 			msm_gem_move_to_active(&msm_obj->base, gpu, true, submit->fence);
 	}
 	hangcheck_timer_reset(gpu);
-	mutex_unlock(&dev->struct_mutex);
 
 	return ret;
 }

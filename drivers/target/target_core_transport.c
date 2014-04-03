@@ -669,9 +669,6 @@ void target_complete_cmd(struct se_cmd *cmd, u8 scsi_status)
 		return;
 	}
 
-	if (!success)
-		cmd->transport_state |= CMD_T_FAILED;
-
 	/*
 	 * Check for case where an explicit ABORT_TASK has been received
 	 * and transport_wait_for_tasks() will be waiting for completion..
@@ -681,7 +678,7 @@ void target_complete_cmd(struct se_cmd *cmd, u8 scsi_status)
 		spin_unlock_irqrestore(&cmd->t_state_lock, flags);
 		complete(&cmd->t_transport_stop_comp);
 		return;
-	} else if (cmd->transport_state & CMD_T_FAILED) {
+	} else if (!success) {
 		INIT_WORK(&cmd->work, target_complete_failure_work);
 	} else {
 		INIT_WORK(&cmd->work, target_complete_ok_work);
@@ -1604,6 +1601,9 @@ void transport_generic_request_failure(struct se_cmd *cmd,
 	case TCM_CHECK_CONDITION_ABORT_CMD:
 	case TCM_CHECK_CONDITION_UNIT_ATTENTION:
 	case TCM_CHECK_CONDITION_NOT_READY:
+	case TCM_LOGICAL_BLOCK_GUARD_CHECK_FAILED:
+	case TCM_LOGICAL_BLOCK_APP_TAG_CHECK_FAILED:
+	case TCM_LOGICAL_BLOCK_REF_TAG_CHECK_FAILED:
 		break;
 	case TCM_OUT_OF_RESOURCES:
 		sense_reason = TCM_LOGICAL_UNIT_COMMUNICATION_FAILURE;

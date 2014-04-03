@@ -46,7 +46,7 @@ static struct {
 struct sdi_clk_calc_ctx {
 	unsigned long pck_min, pck_max;
 
-	unsigned long long fck;
+	unsigned long fck;
 	struct dispc_clock_info dispc_cinfo;
 };
 

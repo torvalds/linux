@@ -121,7 +121,7 @@
 		ti,model = "AM335x-EVMSK";
 		ti,audio-codec = <&tlv320aic3106>;
 		ti,mcasp-controller = <&mcasp1>;
-		ti,codec-clock-rate = <24576000>;
+		ti,codec-clock-rate = <24000000>;
 		ti,audio-routing =
 			"Headphone Jack",       "HPLOUT",
 			"Headphone Jack",       "HPROUT";
@@ -253,6 +253,12 @@
 			/* MDIO reset value */
 			0x148 (PIN_INPUT_PULLDOWN | MUX_MODE7)
 			0x14c (PIN_INPUT_PULLDOWN | MUX_MODE7)
+		>;
+	};
+
+	mmc1_pins: pinmux_mmc1_pins {
+		pinctrl-single,pins = <
+			0x160 (PIN_INPUT | MUX_MODE7) /* spi0_cs1.gpio0_6 */
 		>;
 	};
 
@@ -456,6 +462,9 @@
 	status = "okay";
 	vmmc-supply = <&vmmc_reg>;
 	bus-width = <4>;
+	pinctrl-names = "default";
+	pinctrl-0 = <&mmc1_pins>;
+	cd-gpios = <&gpio0 6 GPIO_ACTIVE_HIGH>;
 };
 
 &sham {

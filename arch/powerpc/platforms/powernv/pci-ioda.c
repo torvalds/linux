@@ -21,6 +21,7 @@
 #include <linux/irq.h>
 #include <linux/io.h>
 #include <linux/msi.h>
+#include <linux/memblock.h>
 
 #include <asm/sections.h>
 #include <asm/io.h>
@@ -460,7 +461,37 @@ static void pnv_pci_ioda_dma_dev_setup(struct pnv_phb *phb, struct pci_dev *pdev
 		return;
 
 	pe = &phb->ioda.pe_array[pdn->pe_number];
+	WARN_ON(get_dma_ops(&pdev->dev) != &dma_iommu_ops);
 	set_iommu_table_base_and_group(&pdev->dev, &pe->tce32_table);
+}
+
+static int pnv_pci_ioda_dma_set_mask(struct pnv_phb *phb,
+				     struct pci_dev *pdev, u64 dma_mask)
+{
+	struct pci_dn *pdn = pci_get_pdn(pdev);
+	struct pnv_ioda_pe *pe;
+	uint64_t top;
+	bool bypass = false;
+
+	if (WARN_ON(!pdn || pdn->pe_number == IODA_INVALID_PE))
+		return -ENODEV;;
+
+	pe = &phb->ioda.pe_array[pdn->pe_number];
+	if (pe->tce_bypass_enabled) {
+		top = pe->tce_bypass_base + memblock_end_of_DRAM() - 1;
+		bypass = (dma_mask >= top);
+	}
+
+	if (bypass) {
+		dev_info(&pdev->dev, "Using 64-bit DMA iommu bypass\n");
+		set_dma_ops(&pdev->dev, &dma_direct_ops);
+		set_dma_offset(&pdev->dev, pe->tce_bypass_base);
+	} else {
+		dev_info(&pdev->dev, "Using 32-bit DMA via iommu\n");
+		set_dma_ops(&pdev->dev, &dma_iommu_ops);
+		set_iommu_table_base(&pdev->dev, &pe->tce32_table);
+	}
+	return 0;
 }
 
 static void pnv_ioda_setup_bus_dma(struct pnv_ioda_pe *pe, struct pci_bus *bus)
@@ -657,6 +688,56 @@ static void pnv_pci_ioda_setup_dma_pe(struct pnv_phb *phb,
 		__free_pages(tce_mem, get_order(TCE32_TABLE_SIZE * segs));
 }
 
+static void pnv_pci_ioda2_set_bypass(struct iommu_table *tbl, bool enable)
+{
+	struct pnv_ioda_pe *pe = container_of(tbl, struct pnv_ioda_pe,
+					      tce32_table);
+	uint16_t window_id = (pe->pe_number << 1 ) + 1;
+	int64_t rc;
+
+	pe_info(pe, "%sabling 64-bit DMA bypass\n", enable ? "En" : "Dis");
+	if (enable) {
+		phys_addr_t top = memblock_end_of_DRAM();
+
+		top = roundup_pow_of_two(top);
+		rc = opal_pci_map_pe_dma_window_real(pe->phb->opal_id,
+						     pe->pe_number,
+						     window_id,
+						     pe->tce_bypass_base,
+						     top);
+	} else {
+		rc = opal_pci_map_pe_dma_window_real(pe->phb->opal_id,
+						     pe->pe_number,
+						     window_id,
+						     pe->tce_bypass_base,
+						     0);
+
+		/*
+		 * We might want to reset the DMA ops of all devices on
+		 * this PE. However in theory, that shouldn't be necessary
+		 * as this is used for VFIO/KVM pass-through and the device
+		 * hasn't yet been returned to its kernel driver
+		 */
+	}
+	if (rc)
+		pe_err(pe, "OPAL error %lld configuring bypass window\n", rc);
+	else
+		pe->tce_bypass_enabled = enable;
+}
+
+static void pnv_pci_ioda2_setup_bypass_pe(struct pnv_phb *phb,
+					  struct pnv_ioda_pe *pe)
+{
+	/* TVE #1 is selected by PCI address bit 59 */
+	pe->tce_bypass_base = 1ull << 59;
+
+	/* Install set_bypass callback for VFIO */
+	pe->tce32_table.set_bypass = pnv_pci_ioda2_set_bypass;
+
+	/* Enable bypass by default */
+	pnv_pci_ioda2_set_bypass(&pe->tce32_table, true);
+}
+
 static void pnv_pci_ioda2_setup_dma_pe(struct pnv_phb *phb,
 				       struct pnv_ioda_pe *pe)
 {
@@ -727,6 +808,8 @@ static void pnv_pci_ioda2_setup_dma_pe(struct pnv_phb *phb,
 	else
 		pnv_ioda_setup_bus_dma(pe, pe->pbus);
 
+	/* Also create a bypass window */
+	pnv_pci_ioda2_setup_bypass_pe(phb, pe);
 	return;
 fail:
 	if (pe->tce32_seg >= 0)
@@ -1286,6 +1369,7 @@ void __init pnv_pci_init_ioda_phb(struct device_node *np,
 
 	/* Setup TCEs */
 	phb->dma_dev_setup = pnv_pci_ioda_dma_dev_setup;
+	phb->dma_set_mask = pnv_pci_ioda_dma_set_mask;
 
 	/* Setup shutdown function for kexec */
 	phb->shutdown = pnv_pci_ioda_shutdown;

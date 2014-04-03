@@ -1430,7 +1430,7 @@ static struct kuc_hdr *changelog_kuc_hdr(char *buf, int len, int flags)
 {
 	struct kuc_hdr *lh = (struct kuc_hdr *)buf;
 
-	LASSERT(len <= CR_MAXSIZE);
+	LASSERT(len <= KUC_CHANGELOG_MSG_MAXSIZE);
 
 	lh->kuc_magic = KUC_MAGIC;
 	lh->kuc_transport = KUC_TRANSPORT_CHANGELOG;
@@ -1503,7 +1503,7 @@ static int mdc_changelog_send_thread(void *csdata)
 	CDEBUG(D_CHANGELOG, "changelog to fp=%p start "LPU64"\n",
 	       cs->cs_fp, cs->cs_startrec);
 
-	OBD_ALLOC(cs->cs_buf, CR_MAXSIZE);
+	OBD_ALLOC(cs->cs_buf, KUC_CHANGELOG_MSG_MAXSIZE);
 	if (cs->cs_buf == NULL)
 		GOTO(out, rc = -ENOMEM);
 
@@ -1540,7 +1540,7 @@ out:
 	if (ctxt)
 		llog_ctxt_put(ctxt);
 	if (cs->cs_buf)
-		OBD_FREE(cs->cs_buf, CR_MAXSIZE);
+		OBD_FREE(cs->cs_buf, KUC_CHANGELOG_MSG_MAXSIZE);
 	OBD_FREE_PTR(cs);
 	return rc;
 }

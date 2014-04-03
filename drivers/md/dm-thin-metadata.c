@@ -483,7 +483,7 @@ static int __write_initial_superblock(struct dm_pool_metadata *pmd)
 
 	disk_super->data_mapping_root = cpu_to_le64(pmd->root);
 	disk_super->device_details_root = cpu_to_le64(pmd->details_root);
-	disk_super->metadata_block_size = cpu_to_le32(THIN_METADATA_BLOCK_SIZE >> SECTOR_SHIFT);
+	disk_super->metadata_block_size = cpu_to_le32(THIN_METADATA_BLOCK_SIZE);
 	disk_super->metadata_nr_blocks = cpu_to_le64(bdev_size >> SECTOR_TO_BLOCK_SHIFT);
 	disk_super->data_block_size = cpu_to_le32(pmd->data_block_size);
 
@@ -651,7 +651,7 @@ static int __create_persistent_data_objects(struct dm_pool_metadata *pmd, bool f
 {
 	int r;
 
-	pmd->bm = dm_block_manager_create(pmd->bdev, THIN_METADATA_BLOCK_SIZE,
+	pmd->bm = dm_block_manager_create(pmd->bdev, THIN_METADATA_BLOCK_SIZE << SECTOR_SHIFT,
 					  THIN_METADATA_CACHE_SIZE,
 					  THIN_MAX_CONCURRENT_LOCKS);
 	if (IS_ERR(pmd->bm)) {
@@ -1485,6 +1485,23 @@ bool dm_thin_changed_this_transaction(struct dm_thin_device *td)
 	down_read(&td->pmd->root_lock);
 	r = td->changed;
 	up_read(&td->pmd->root_lock);
+
+	return r;
+}
+
+bool dm_pool_changed_this_transaction(struct dm_pool_metadata *pmd)
+{
+	bool r = false;
+	struct dm_thin_device *td, *tmp;
+
+	down_read(&pmd->root_lock);
+	list_for_each_entry_safe(td, tmp, &pmd->thin_devices, list) {
+		if (td->changed) {
+			r = td->changed;
+			break;
+		}
+	}
+	up_read(&pmd->root_lock);
 
 	return r;
 }

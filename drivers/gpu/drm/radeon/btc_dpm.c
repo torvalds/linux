@@ -29,6 +29,7 @@
 #include "cypress_dpm.h"
 #include "btc_dpm.h"
 #include "atom.h"
+#include <linux/seq_file.h>
 
 #define MC_CG_ARB_FREQ_F0           0x0a
 #define MC_CG_ARB_FREQ_F1           0x0b
@@ -2754,6 +2755,37 @@ void btc_dpm_fini(struct radeon_device *rdev)
 	kfree(rdev->pm.dpm.priv);
 	kfree(rdev->pm.dpm.dyn_state.vddc_dependency_on_dispclk.entries);
 	r600_free_extended_power_table(rdev);
+}
+
+void btc_dpm_debugfs_print_current_performance_level(struct radeon_device *rdev,
+						     struct seq_file *m)
+{
+	struct evergreen_power_info *eg_pi = evergreen_get_pi(rdev);
+	struct radeon_ps *rps = &eg_pi->current_rps;
+	struct rv7xx_ps *ps = rv770_get_ps(rps);
+	struct rv7xx_pl *pl;
+	u32 current_index =
+		(RREG32(TARGET_AND_CURRENT_PROFILE_INDEX) & CURRENT_PROFILE_INDEX_MASK) >>
+		CURRENT_PROFILE_INDEX_SHIFT;
+
+	if (current_index > 2) {
+		seq_printf(m, "invalid dpm profile %d\n", current_index);
+	} else {
+		if (current_index == 0)
+			pl = &ps->low;
+		else if (current_index == 1)
+			pl = &ps->medium;
+		else /* current_index == 2 */
+			pl = &ps->high;
+		seq_printf(m, "uvd    vclk: %d dclk: %d\n", rps->vclk, rps->dclk);
+		if (rdev->family >= CHIP_CEDAR) {
+			seq_printf(m, "power level %d    sclk: %u mclk: %u vddc: %u vddci: %u\n",
+				   current_index, pl->sclk, pl->mclk, pl->vddc, pl->vddci);
+		} else {
+			seq_printf(m, "power level %d    sclk: %u mclk: %u vddc: %u\n",
+				   current_index, pl->sclk, pl->mclk, pl->vddc);
+		}
+	}
 }
 
 u32 btc_dpm_get_sclk(struct radeon_device *rdev, bool low)

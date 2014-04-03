@@ -611,7 +611,6 @@ EXPORT_SYMBOL(bio_clone_fast);
 struct bio *bio_clone_bioset(struct bio *bio_src, gfp_t gfp_mask,
 			     struct bio_set *bs)
 {
-	unsigned nr_iovecs = 0;
 	struct bvec_iter iter;
 	struct bio_vec bv;
 	struct bio *bio;
@@ -638,10 +637,7 @@ struct bio *bio_clone_bioset(struct bio *bio_src, gfp_t gfp_mask,
 	 *    __bio_clone_fast() anyways.
 	 */
 
-	bio_for_each_segment(bv, bio_src, iter)
-		nr_iovecs++;
-
-	bio = bio_alloc_bioset(gfp_mask, nr_iovecs, bs);
+	bio = bio_alloc_bioset(gfp_mask, bio_segments(bio_src), bs);
 	if (!bio)
 		return NULL;
 
@@ -650,9 +646,18 @@ struct bio *bio_clone_bioset(struct bio *bio_src, gfp_t gfp_mask,
 	bio->bi_iter.bi_sector	= bio_src->bi_iter.bi_sector;
 	bio->bi_iter.bi_size	= bio_src->bi_iter.bi_size;
 
+	if (bio->bi_rw & REQ_DISCARD)
+		goto integrity_clone;
+
+	if (bio->bi_rw & REQ_WRITE_SAME) {
+		bio->bi_io_vec[bio->bi_vcnt++] = bio_src->bi_io_vec[0];
+		goto integrity_clone;
+	}
+
 	bio_for_each_segment(bv, bio_src, iter)
 		bio->bi_io_vec[bio->bi_vcnt++] = bv;
 
+integrity_clone:
 	if (bio_integrity(bio_src)) {
 		int ret;
 

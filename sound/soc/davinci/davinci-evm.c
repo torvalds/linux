@@ -399,6 +399,7 @@ static struct platform_driver davinci_evm_driver = {
 	.driver		= {
 		.name	= "davinci_evm",
 		.owner	= THIS_MODULE,
+		.pm	= &snd_soc_pm_ops,
 		.of_match_table = of_match_ptr(davinci_evm_dt_ids),
 	},
 };

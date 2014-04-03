@@ -25,7 +25,7 @@
 
 #ifdef CONFIG_MMU
 
-#if XCHAL_HAVE_PTP_MMU && XCHAL_HAVE_SPANNING_WAY && CONFIG_OF
+#if XCHAL_HAVE_PTP_MMU && XCHAL_HAVE_SPANNING_WAY && defined(CONFIG_OF)
 extern unsigned long xtensa_kio_paddr;
 
 static inline unsigned long xtensa_get_kio_paddr(void)

@@ -25,6 +25,37 @@
 #define PM_BRU_FIN			0x10068
 #define PM_BR_MPRED_CMPL		0x400f6
 
+/* All L1 D cache load references counted at finish, gated by reject */
+#define PM_LD_REF_L1			0x100ee
+/* Load Missed L1 */
+#define PM_LD_MISS_L1			0x3e054
+/* Store Missed L1 */
+#define PM_ST_MISS_L1			0x300f0
+/* L1 cache data prefetches */
+#define PM_L1_PREF			0x0d8b8
+/* Instruction fetches from L1 */
+#define PM_INST_FROM_L1			0x04080
+/* Demand iCache Miss */
+#define PM_L1_ICACHE_MISS		0x200fd
+/* Instruction Demand sectors wriittent into IL1 */
+#define PM_L1_DEMAND_WRITE		0x0408c
+/* Instruction prefetch written into IL1 */
+#define PM_IC_PREF_WRITE		0x0408e
+/* The data cache was reloaded from local core's L3 due to a demand load */
+#define PM_DATA_FROM_L3			0x4c042
+/* Demand LD - L3 Miss (not L2 hit and not L3 hit) */
+#define PM_DATA_FROM_L3MISS		0x300fe
+/* All successful D-side store dispatches for this thread */
+#define PM_L2_ST			0x17080
+/* All successful D-side store dispatches for this thread that were L2 Miss */
+#define PM_L2_ST_MISS			0x17082
+/* Total HW L3 prefetches(Load+store) */
+#define PM_L3_PREF_ALL			0x4e052
+/* Data PTEG reload */
+#define PM_DTLB_MISS			0x300fc
+/* ITLB Reloaded */
+#define PM_ITLB_MISS			0x400fc
+
 
 /*
  * Raw event encoding for POWER8:
@@ -557,6 +588,8 @@ static int power8_generic_events[] = {
 	[PERF_COUNT_HW_INSTRUCTIONS] =			PM_INST_CMPL,
 	[PERF_COUNT_HW_BRANCH_INSTRUCTIONS] =		PM_BRU_FIN,
 	[PERF_COUNT_HW_BRANCH_MISSES] =			PM_BR_MPRED_CMPL,
+	[PERF_COUNT_HW_CACHE_REFERENCES] =		PM_LD_REF_L1,
+	[PERF_COUNT_HW_CACHE_MISSES] =			PM_LD_MISS_L1,
 };
 
 static u64 power8_bhrb_filter_map(u64 branch_sample_type)
@@ -596,6 +629,116 @@ static void power8_config_bhrb(u64 pmu_bhrb_filter)
 	mtspr(SPRN_MMCRA, (mfspr(SPRN_MMCRA) | pmu_bhrb_filter));
 }
 
+#define C(x)	PERF_COUNT_HW_CACHE_##x
+
+/*
+ * Table of generalized cache-related events.
+ * 0 means not supported, -1 means nonsensical, other values
+ * are event codes.
+ */
+static int power8_cache_events[C(MAX)][C(OP_MAX)][C(RESULT_MAX)] = {
+	[ C(L1D) ] = {
+		[ C(OP_READ) ] = {
+			[ C(RESULT_ACCESS) ] = PM_LD_REF_L1,
+			[ C(RESULT_MISS)   ] = PM_LD_MISS_L1,
+		},
+		[ C(OP_WRITE) ] = {
+			[ C(RESULT_ACCESS) ] = 0,
+			[ C(RESULT_MISS)   ] = PM_ST_MISS_L1,
+		},
+		[ C(OP_PREFETCH) ] = {
+			[ C(RESULT_ACCESS) ] = PM_L1_PREF,
+			[ C(RESULT_MISS)   ] = 0,
+		},
+	},
+	[ C(L1I) ] = {
+		[ C(OP_READ) ] = {
+			[ C(RESULT_ACCESS) ] = PM_INST_FROM_L1,
+			[ C(RESULT_MISS)   ] = PM_L1_ICACHE_MISS,
+		},
+		[ C(OP_WRITE) ] = {
+			[ C(RESULT_ACCESS) ] = PM_L1_DEMAND_WRITE,
+			[ C(RESULT_MISS)   ] = -1,
+		},
+		[ C(OP_PREFETCH) ] = {
+			[ C(RESULT_ACCESS) ] = PM_IC_PREF_WRITE,
+			[ C(RESULT_MISS)   ] = 0,
+		},
+	},
+	[ C(LL) ] = {
+		[ C(OP_READ) ] = {
+			[ C(RESULT_ACCESS) ] = PM_DATA_FROM_L3,
+			[ C(RESULT_MISS)   ] = PM_DATA_FROM_L3MISS,
+		},
+		[ C(OP_WRITE) ] = {
+			[ C(RESULT_ACCESS) ] = PM_L2_ST,
+			[ C(RESULT_MISS)   ] = PM_L2_ST_MISS,
+		},
+		[ C(OP_PREFETCH) ] = {
+			[ C(RESULT_ACCESS) ] = PM_L3_PREF_ALL,
+			[ C(RESULT_MISS)   ] = 0,
+		},
+	},
+	[ C(DTLB) ] = {
+		[ C(OP_READ) ] = {
+			[ C(RESULT_ACCESS) ] = 0,
+			[ C(RESULT_MISS)   ] = PM_DTLB_MISS,
+		},
+		[ C(OP_WRITE) ] = {
+			[ C(RESULT_ACCESS) ] = -1,
+			[ C(RESULT_MISS)   ] = -1,
+		},
+		[ C(OP_PREFETCH) ] = {
+			[ C(RESULT_ACCESS) ] = -1,
+			[ C(RESULT_MISS)   ] = -1,
+		},
+	},
+	[ C(ITLB) ] = {
+		[ C(OP_READ) ] = {
+			[ C(RESULT_ACCESS) ] = 0,
+			[ C(RESULT_MISS)   ] = PM_ITLB_MISS,
+		},
+		[ C(OP_WRITE) ] = {
+			[ C(RESULT_ACCESS) ] = -1,
+			[ C(RESULT_MISS)   ] = -1,
+		},
+		[ C(OP_PREFETCH) ] = {
+			[ C(RESULT_ACCESS) ] = -1,
+			[ C(RESULT_MISS)   ] = -1,
+		},
+	},
+	[ C(BPU) ] = {
+		[ C(OP_READ) ] = {
+			[ C(RESULT_ACCESS) ] = PM_BRU_FIN,
+			[ C(RESULT_MISS)   ] = PM_BR_MPRED_CMPL,
+		},
+		[ C(OP_WRITE) ] = {
+			[ C(RESULT_ACCESS) ] = -1,
+			[ C(RESULT_MISS)   ] = -1,
+		},
+		[ C(OP_PREFETCH) ] = {
+			[ C(RESULT_ACCESS) ] = -1,
+			[ C(RESULT_MISS)   ] = -1,
+		},
+	},
+	[ C(NODE) ] = {
+		[ C(OP_READ) ] = {
+			[ C(RESULT_ACCESS) ] = -1,
+			[ C(RESULT_MISS)   ] = -1,
+		},
+		[ C(OP_WRITE) ] = {
+			[ C(RESULT_ACCESS) ] = -1,
+			[ C(RESULT_MISS)   ] = -1,
+		},
+		[ C(OP_PREFETCH) ] = {
+			[ C(RESULT_ACCESS) ] = -1,
+			[ C(RESULT_MISS)   ] = -1,
+		},
+	},
+};
+
+#undef C
+
 static struct power_pmu power8_pmu = {
 	.name			= "POWER8",
 	.n_counter		= 6,
@@ -611,6 +754,7 @@ static struct power_pmu power8_pmu = {
 	.flags			= PPMU_HAS_SSLOT | PPMU_HAS_SIER | PPMU_BHRB | PPMU_EBB,
 	.n_generic		= ARRAY_SIZE(power8_generic_events),
 	.generic_events		= power8_generic_events,
+	.cache_events		= &power8_cache_events,
 	.attr_groups		= power8_pmu_attr_groups,
 	.bhrb_nr		= 32,
 };

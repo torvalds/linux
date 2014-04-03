@@ -862,6 +862,8 @@ int bind_evtchn_to_irq(unsigned int evtchn)
 			irq = ret;
 			goto out;
 		}
+		/* New interdomain events are bound to VCPU 0. */
+		bind_evtchn_to_cpu(evtchn, 0);
 	} else {
 		struct irq_info *info = info_for_irq(irq);
 		WARN_ON(info == NULL || info->type != IRQT_EVTCHN);
