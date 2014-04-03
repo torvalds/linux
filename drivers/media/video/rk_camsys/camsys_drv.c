@@ -80,6 +80,7 @@ static int camsys_i2c_write(camsys_i2c_info_t *i2cinfo, camsys_dev_t *camsys_dev
     }
 
 end:
+#if 0
     #if ((defined CONFIG_ARCH_RK319X) || (CONFIG_ARCH_ROCKCHIP))
     if (!list_empty(&camsys_dev->extdevs.active)) {
         list_for_each_entry(extdev, &camsys_dev->extdevs.active, active) {
@@ -92,6 +93,7 @@ end:
         }
     }
     #endif
+#endif
     return err;
 }
 
@@ -149,6 +151,7 @@ static int camsys_i2c_read(camsys_i2c_info_t *i2cinfo, camsys_dev_t *camsys_dev)
     }
     
 end:
+#if 0
     #if ((defined CONFIG_ARCH_RK319X) || (CONFIG_ARCH_ROCKCHIP))
     if (!list_empty(&camsys_dev->extdevs.active)) {
         list_for_each_entry(extdev, &camsys_dev->extdevs.active, active) {
@@ -161,6 +164,7 @@ end:
         }
     }
     #endif
+#endif 
     return err;
 }
 
