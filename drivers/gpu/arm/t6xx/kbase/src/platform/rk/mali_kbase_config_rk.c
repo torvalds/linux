@@ -43,7 +43,7 @@ int get_cpu_clock_speed(u32 *cpu_clock);
 #define KBASE_VE_MEMORY_PER_PROCESS_LIMIT       (512 * 1024 * 1024UL)	/* 512MB */
 #define KBASE_VE_MEMORY_OS_SHARED_MAX           (2048 * 1024 * 1024UL)	/* 768MB */
 #define KBASE_VE_MEMORY_OS_SHARED_PERF_GPU      KBASE_MEM_PERF_FAST/*KBASE_MEM_PERF_SLOW*/
-#define KBASE_VE_GPU_FREQ_KHZ_MAX               600000
+#define KBASE_VE_GPU_FREQ_KHZ_MAX               500000
 #define KBASE_VE_GPU_FREQ_KHZ_MIN               100000
 #ifdef CONFIG_UMP
 #define KBASE_VE_UMP_DEVICE                     UMP_DEVICE_Z_SHIFT

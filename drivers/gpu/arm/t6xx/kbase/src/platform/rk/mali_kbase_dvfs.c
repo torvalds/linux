@@ -60,7 +60,7 @@ static mali_dvfs_info mali_dvfs_infotbl[] = {
       {1025000, 266, 60, 78, 0},
       {1075000, 350, 65, 75, 0},
       {1125000, 400, 70, 75, 0},
-      {1200000, 600, 90, 100, 0},
+      {1200000, 500, 90, 100, 0},
 };
 
 #define MALI_DVFS_STEP	ARRAY_SIZE(mali_dvfs_infotbl)
@@ -409,8 +409,8 @@ void kbase_platform_dvfs_set_clock(kbase_device *kbdev, int freq)
 		return;
 	}
 	switch (freq) {
-		case 600:
-			aclk_400_rate = 600000000;
+		case 500:
+			aclk_400_rate = 500000000;
 			break;
 		case 400:
 			aclk_400_rate = 400000000;
