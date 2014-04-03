@@ -1390,6 +1390,7 @@ void i915_get_extra_instdone(struct drm_device *dev, uint32_t *instdone)
 		WARN_ONCE(1, "Unsupported platform\n");
 	case 7:
 	case 8:
+	case 9:
 		instdone[0] = I915_READ(GEN7_INSTDONE_1);
 		instdone[1] = I915_READ(GEN7_SC_INSTDONE);
 		instdone[2] = I915_READ(GEN7_SAMPLER_INSTDONE);
