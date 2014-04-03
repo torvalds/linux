@@ -325,6 +325,11 @@ static int __init mc13xxx_rtc_probe(struct platform_device *pdev)
 
 	platform_set_drvdata(pdev, priv);
 
+	priv->rtc = devm_rtc_device_register(&pdev->dev, pdev->name,
+					     &mc13xxx_rtc_ops, THIS_MODULE);
+	if (IS_ERR(priv->rtc))
+		return PTR_ERR(priv->rtc);
+
 	mc13xxx_lock(mc13xxx);
 
 	ret = mc13xxx_irq_request(mc13xxx, MC13XXX_IRQ_RTCRST,
@@ -342,35 +347,20 @@ static int __init mc13xxx_rtc_probe(struct platform_device *pdev)
 	ret = mc13xxx_irq_request_nounmask(mc13xxx, MC13XXX_IRQ_1HZ,
 			mc13xxx_rtc_update_handler, DRIVER_NAME, priv);
 	if (ret)
-		goto err_update_irq_request;
+		goto err_reset_irq_status;
 
 	ret = mc13xxx_irq_request_nounmask(mc13xxx, MC13XXX_IRQ_TODA,
 			mc13xxx_rtc_alarm_handler, DRIVER_NAME, priv);
-	if (ret)
-		goto err_alarm_irq_request;
+	if (!ret)
+		goto err_reset_irq_request;
 
-	mc13xxx_unlock(mc13xxx);
-
-	priv->rtc = devm_rtc_device_register(&pdev->dev, pdev->name,
-					&mc13xxx_rtc_ops, THIS_MODULE);
-	if (IS_ERR(priv->rtc)) {
-		ret = PTR_ERR(priv->rtc);
-
-		mc13xxx_lock(mc13xxx);
-
-		mc13xxx_irq_free(mc13xxx, MC13XXX_IRQ_TODA, priv);
-err_alarm_irq_request:
-
-		mc13xxx_irq_free(mc13xxx, MC13XXX_IRQ_1HZ, priv);
-err_update_irq_request:
+	mc13xxx_irq_free(mc13xxx, MC13XXX_IRQ_1HZ, priv);
 
 err_reset_irq_status:
+	mc13xxx_irq_free(mc13xxx, MC13XXX_IRQ_RTCRST, priv);
 
-		mc13xxx_irq_free(mc13xxx, MC13XXX_IRQ_RTCRST, priv);
 err_reset_irq_request:
-
-		mc13xxx_unlock(mc13xxx);
-	}
+	mc13xxx_unlock(mc13xxx);
 
 	return ret;
 }
