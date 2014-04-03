@@ -134,8 +134,7 @@ const struct address_space_operations udf_adinicb_aops = {
 	.direct_IO	= udf_adinicb_direct_IO,
 };
 
-static ssize_t udf_file_aio_write(struct kiocb *iocb, const struct iovec *iov,
-				  unsigned long nr_segs, loff_t ppos)
+static ssize_t udf_file_write_iter(struct kiocb *iocb, struct iov_iter *from)
 {
 	ssize_t retval;
 	struct file *file = iocb->ki_filp;
@@ -150,7 +149,7 @@ static ssize_t udf_file_aio_write(struct kiocb *iocb, const struct iovec *iov,
 		if (file->f_flags & O_APPEND)
 			pos = inode->i_size;
 		else
-			pos = ppos;
+			pos = iocb->ki_pos;
 
 		if (inode->i_sb->s_blocksize <
 				(udf_file_entry_alloc_offset(inode) +
@@ -171,7 +170,7 @@ static ssize_t udf_file_aio_write(struct kiocb *iocb, const struct iovec *iov,
 	} else
 		up_write(&iinfo->i_data_sem);
 
-	retval = __generic_file_aio_write(iocb, iov, nr_segs);
+	retval = __generic_file_write_iter(iocb, from);
 	mutex_unlock(&inode->i_mutex);
 
 	if (retval > 0) {
@@ -257,8 +256,8 @@ const struct file_operations udf_file_operations = {
 	.unlocked_ioctl		= udf_ioctl,
 	.open			= generic_file_open,
 	.mmap			= generic_file_mmap,
-	.write			= do_sync_write,
-	.aio_write		= udf_file_aio_write,
+	.write			= new_sync_write,
+	.write_iter		= udf_file_write_iter,
 	.release		= udf_release_file,
 	.fsync			= generic_file_fsync,
 	.splice_read		= generic_file_splice_read,
