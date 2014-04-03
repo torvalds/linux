@@ -264,12 +264,8 @@ static int sirfsoc_rtc_probe(struct platform_device *pdev)
 
 	rtcdrv = devm_kzalloc(&pdev->dev,
 		sizeof(struct sirfsoc_rtc_drv), GFP_KERNEL);
-	if (rtcdrv == NULL) {
-		dev_err(&pdev->dev,
-			"%s: can't alloc mem for drv struct\n",
-			pdev->name);
+	if (rtcdrv == NULL)
 		return -ENOMEM;
-	}
 
 	err = of_property_read_u32(np, "reg", &rtcdrv->rtc_base);
 	if (err) {
