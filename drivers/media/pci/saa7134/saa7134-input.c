@@ -83,14 +83,14 @@ static int build_key(struct saa7134_dev *dev)
 		if (data == ir->mask_keycode)
 			rc_keyup(ir->dev);
 		else
-			rc_keydown_notimeout(ir->dev, data, 0);
+			rc_keydown_notimeout(ir->dev, RC_TYPE_UNKNOWN, data, 0);
 		return 0;
 	}
 
 	if (ir->polling) {
 		if ((ir->mask_keydown  &&  (0 != (gpio & ir->mask_keydown))) ||
 		    (ir->mask_keyup    &&  (0 == (gpio & ir->mask_keyup)))) {
-			rc_keydown_notimeout(ir->dev, data, 0);
+			rc_keydown_notimeout(ir->dev, RC_TYPE_UNKNOWN, data, 0);
 		} else {
 			rc_keyup(ir->dev);
 		}
@@ -98,7 +98,7 @@ static int build_key(struct saa7134_dev *dev)
 	else {	/* IRQ driven mode - handle key press and release in one go */
 		if ((ir->mask_keydown  &&  (0 != (gpio & ir->mask_keydown))) ||
 		    (ir->mask_keyup    &&  (0 == (gpio & ir->mask_keyup)))) {
-			rc_keydown_notimeout(ir->dev, data, 0);
+			rc_keydown_notimeout(ir->dev, RC_TYPE_UNKNOWN, data, 0);
 			rc_keyup(ir->dev);
 		}
 	}

@@ -541,7 +541,7 @@ static int cxusb_tt_ct2_4400_rc_query(struct dvb_usb_device *d)
 		rc5_addr = (cmd & 0x07C0) >> 6; /* bits 7-11 for address */
 		rc5_toggle = (cmd & 0x0800) >> 11; /* bit 12 for toggle */
 		keycode = (rc5_addr << 8) | rc5_cmd;
-		rc_keydown(d->rc_dev, keycode, rc5_toggle);
+		rc_keydown(d->rc_dev, RC_BIT_RC5, keycode, rc5_toggle);
 	}
 
 	return 0;

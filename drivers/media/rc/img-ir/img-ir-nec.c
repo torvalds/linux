@@ -13,7 +13,8 @@
 #include <linux/bitrev.h>
 
 /* Convert NEC data to a scancode */
-static int img_ir_nec_scancode(int len, u64 raw, int *scancode, u64 protocols)
+static int img_ir_nec_scancode(int len, u64 raw, enum rc_type *protocol,
+			       u32 *scancode, u64 enabled_protocols)
 {
 	unsigned int addr, addr_inv, data, data_inv;
 	/* a repeat code has no data */
@@ -45,6 +46,7 @@ static int img_ir_nec_scancode(int len, u64 raw, int *scancode, u64 protocols)
 		*scancode = addr << 8 |
 			    data;
 	}
+	*protocol = RC_TYPE_NEC;
 	return IMG_IR_SCANCODE;
 }
 

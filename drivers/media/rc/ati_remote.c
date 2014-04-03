@@ -622,8 +622,8 @@ static void ati_remote_input_report(struct urb *urb)
 				* it would cause ghost repeats which would be a
 				* regression for this driver.
 				*/
-				rc_keydown_notimeout(ati_remote->rdev, scancode,
-						     data[2]);
+				rc_keydown_notimeout(ati_remote->rdev, RC_TYPE_OTHER,
+						     scancode, data[2]);
 				rc_keyup(ati_remote->rdev);
 			}
 			return;

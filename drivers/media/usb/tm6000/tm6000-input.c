@@ -162,11 +162,42 @@ static int tm6000_ir_config(struct tm6000_IR *ir)
 	return 0;
 }
 
+static void tm6000_ir_keydown(struct tm6000_IR *ir,
+			      const char *buf, unsigned int len)
+{
+	u8 device, command;
+	u32 scancode;
+	enum rc_type protocol;
+
+	if (len < 1)
+		return;
+
+	command = buf[0];
+	device = (len > 1 ? buf[1] : 0x0);
+	switch (ir->rc_type) {
+	case RC_BIT_RC5:
+		protocol = RC_TYPE_RC5;
+		scancode = RC_SCANCODE_RC5(device, command);
+		break;
+	case RC_BIT_NEC:
+		protocol = RC_TYPE_NEC;
+		scancode = RC_SCANCODE_NEC(device, command);
+		break;
+	default:
+		protocol = RC_TYPE_OTHER;
+		scancode = RC_SCANCODE_OTHER(device << 8 | command);
+		break;
+	}
+
+	dprintk(1, "%s, protocol: 0x%04x, scancode: 0x%08x\n",
+		__func__, protocol, scancode);
+	rc_keydown(ir->rc, protocol, scancode, 0);
+}
+
 static void tm6000_ir_urb_received(struct urb *urb)
 {
 	struct tm6000_core *dev = urb->context;
 	struct tm6000_IR *ir = dev->ir;
-	struct tm6000_ir_poll_result poll_result;
 	char *buf;
 
 	dprintk(2, "%s\n",__func__);
@@ -184,12 +215,7 @@ static void tm6000_ir_urb_received(struct urb *urb)
 			       DUMP_PREFIX_OFFSET,16, 1,
 			       buf, urb->actual_length, false);
 
-	poll_result.rc_data = buf[0];
-	if (urb->actual_length > 1)
-		poll_result.rc_data |= buf[1] << 8;
-
-	dprintk(1, "%s, scancode: 0x%04x\n",__func__, poll_result.rc_data);
-	rc_keydown(ir->rc, poll_result.rc_data, 0);
+	tm6000_ir_keydown(ir, urb->transfer_buffer, urb->actual_length);
 
 	usb_submit_urb(urb, GFP_ATOMIC);
 	/*
@@ -204,7 +230,6 @@ static void tm6000_ir_handle_key(struct work_struct *work)
 {
 	struct tm6000_IR *ir = container_of(work, struct tm6000_IR, work.work);
 	struct tm6000_core *dev = ir->dev;
-	struct tm6000_ir_poll_result poll_result;
 	int rc;
 	u8 buf[2];
 
@@ -219,13 +244,8 @@ static void tm6000_ir_handle_key(struct work_struct *work)
 	if (rc < 0)
 		return;
 
-	if (rc > 1)
-		poll_result.rc_data = buf[0] | buf[1] << 8;
-	else
-		poll_result.rc_data = buf[0];
-
 	/* Check if something was read */
-	if ((poll_result.rc_data & 0xff) == 0xff) {
+	if ((buf[0] & 0xff) == 0xff) {
 		if (!ir->pwled) {
 			tm6000_flash_led(dev, 1);
 			ir->pwled = 1;
@@ -233,8 +253,7 @@ static void tm6000_ir_handle_key(struct work_struct *work)
 		return;
 	}
 
-	dprintk(1, "%s, scancode: 0x%04x\n",__func__, poll_result.rc_data);
-	rc_keydown(ir->rc, poll_result.rc_data, 0);
+	tm6000_ir_keydown(ir, buf, rc);
 	tm6000_flash_led(dev, 0);
 	ir->pwled = 0;
 

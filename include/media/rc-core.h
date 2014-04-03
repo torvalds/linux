@@ -89,6 +89,7 @@ enum rc_filter_type {
  * @keyup_jiffies: time (in jiffies) when the current keypress should be released
  * @timer_keyup: timer for releasing a keypress
  * @last_keycode: keycode of last keypress
+ * @last_protocol: protocol of last keypress
  * @last_scancode: scancode of last keypress
  * @last_toggle: toggle value of last command
  * @timeout: optional time after which device stops sending data
@@ -113,7 +114,7 @@ enum rc_filter_type {
  *	device doesn't interrupt host until it sees IR pulses
  * @s_learning_mode: enable wide band receiver used for learning
  * @s_carrier_report: enable carrier reports
- * @s_filter: set the scancode filter 
+ * @s_filter: set the scancode filter
  * @s_wakeup_filter: set the wakeup scancode filter
  */
 struct rc_dev {
@@ -141,6 +142,7 @@ struct rc_dev {
 	unsigned long			keyup_jiffies;
 	struct timer_list		timer_keyup;
 	u32				last_keycode;
+	enum rc_type			last_protocol;
 	u32				last_scancode;
 	u8				last_toggle;
 	u32				timeout;
@@ -221,8 +223,8 @@ int rc_open(struct rc_dev *rdev);
 void rc_close(struct rc_dev *rdev);
 
 void rc_repeat(struct rc_dev *dev);
-void rc_keydown(struct rc_dev *dev, int scancode, u8 toggle);
-void rc_keydown_notimeout(struct rc_dev *dev, int scancode, u8 toggle);
+void rc_keydown(struct rc_dev *dev, enum rc_type protocol, u32 scancode, u8 toggle);
+void rc_keydown_notimeout(struct rc_dev *dev, enum rc_type protocol, u32 scancode, u8 toggle);
 void rc_keyup(struct rc_dev *dev);
 u32 rc_g_keycode_from_table(struct rc_dev *dev, u32 scancode);
 

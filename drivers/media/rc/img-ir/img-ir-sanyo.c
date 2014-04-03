@@ -23,7 +23,8 @@
 #include "img-ir-hw.h"
 
 /* Convert Sanyo data to a scancode */
-static int img_ir_sanyo_scancode(int len, u64 raw, int *scancode, u64 protocols)
+static int img_ir_sanyo_scancode(int len, u64 raw, enum rc_type *protocol,
+				 u32 *scancode, u64 enabled_protocols)
 {
 	unsigned int addr, addr_inv, data, data_inv;
 	/* a repeat code has no data */
@@ -43,6 +44,7 @@ static int img_ir_sanyo_scancode(int len, u64 raw, int *scancode, u64 protocols)
 		return -EINVAL;
 
 	/* Normal Sanyo */
+	*protocol = RC_TYPE_SANYO;
 	*scancode = addr << 8 | data;
 	return IMG_IR_SCANCODE;
 }

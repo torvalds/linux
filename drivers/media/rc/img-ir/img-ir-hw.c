@@ -512,7 +512,7 @@ unlock:
 static int img_ir_set_normal_filter(struct rc_dev *dev,
 				    struct rc_scancode_filter *sc_filter)
 {
-	return img_ir_set_filter(dev, RC_FILTER_NORMAL, sc_filter); 
+	return img_ir_set_filter(dev, RC_FILTER_NORMAL, sc_filter);
 }
 
 static int img_ir_set_wakeup_filter(struct rc_dev *dev,
@@ -795,9 +795,11 @@ static void img_ir_handle_data(struct img_ir_priv *priv, u32 len, u64 raw)
 	struct img_ir_priv_hw *hw = &priv->hw;
 	const struct img_ir_decoder *dec = hw->decoder;
 	int ret = IMG_IR_SCANCODE;
-	int scancode;
+	u32 scancode;
+	enum rc_type protocol = RC_TYPE_UNKNOWN;
+
 	if (dec->scancode)
-		ret = dec->scancode(len, raw, &scancode, hw->enabled_protocols);
+		ret = dec->scancode(len, raw, &protocol, &scancode, hw->enabled_protocols);
 	else if (len >= 32)
 		scancode = (u32)raw;
 	else if (len < 32)
@@ -806,7 +808,7 @@ static void img_ir_handle_data(struct img_ir_priv *priv, u32 len, u64 raw)
 		len, (unsigned long long)raw);
 	if (ret == IMG_IR_SCANCODE) {
 		dev_dbg(priv->dev, "decoded scan code %#x\n", scancode);
-		rc_keydown(hw->rdev, scancode, 0);
+		rc_keydown(hw->rdev, protocol, scancode, 0);
 		img_ir_end_repeat(priv);
 	} else if (ret == IMG_IR_REPEATCODE) {
 		if (hw->mode == IMG_IR_M_REPEATING) {

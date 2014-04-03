@@ -167,7 +167,7 @@ static int ir_sanyo_decode(struct rc_dev *dev, struct ir_raw_event ev)
 
 		scancode = address << 8 | command;
 		IR_dprintk(1, "SANYO scancode: 0x%06x\n", scancode);
-		rc_keydown(dev, scancode, 0);
+		rc_keydown(dev, RC_TYPE_SANYO, scancode, 0);
 		data->state = STATE_INACTIVE;
 		return 0;
 	}

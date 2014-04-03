@@ -1490,7 +1490,7 @@ static int dw2102_rc_query(struct dvb_usb_device *d)
 		if (msg.buf[0] != 0xff) {
 			deb_rc("%s: rc code: %x, %x\n",
 					__func__, key[0], key[1]);
-			rc_keydown(d->rc_dev, key[0], 1);
+			rc_keydown(d->rc_dev, RC_TYPE_UNKNOWN, key[0], 0);
 		}
 	}
 
@@ -1511,7 +1511,7 @@ static int prof_rc_query(struct dvb_usb_device *d)
 		if (msg.buf[0] != 0xff) {
 			deb_rc("%s: rc code: %x, %x\n",
 					__func__, key[0], key[1]);
-			rc_keydown(d->rc_dev, key[0]^0xff, 1);
+			rc_keydown(d->rc_dev, RC_TYPE_UNKNOWN, key[0]^0xff, 0);
 		}
 	}
 
@@ -1532,7 +1532,8 @@ static int su3000_rc_query(struct dvb_usb_device *d)
 		if (msg.buf[0] != 0xff) {
 			deb_rc("%s: rc code: %x, %x\n",
 					__func__, key[0], key[1]);
-			rc_keydown(d->rc_dev, key[1] << 8 | key[0], 1);
+			rc_keydown(d->rc_dev, RC_TYPE_RC5,
+				   RC_SCANCODE_RC5(key[1], key[0]), 0);
 		}
 	}
 

@@ -130,25 +130,41 @@ static void cx88_ir_handle_key(struct cx88_IR *ir)
 
 		data = (data << 4) | ((gpio_key & 0xf0) >> 4);
 
-		rc_keydown(ir->dev, data, 0);
+		rc_keydown(ir->dev, RC_TYPE_UNKNOWN, data, 0);
+
+	} else if (ir->core->boardnr == CX88_BOARD_PROLINK_PLAYTVPVR ||
+		   ir->core->boardnr == CX88_BOARD_PIXELVIEW_PLAYTV_ULTRA_PRO) {
+		/* bit cleared on keydown, NEC scancode, 0xAAAACC, A = 0x866b */
+		u16 addr;
+		u8 cmd;
+		u32 scancode;
+
+		addr = (data >> 8) & 0xffff;
+		cmd  = (data >> 0) & 0x00ff;
+		scancode = RC_SCANCODE_NECX(addr, cmd);
+
+		if (0 == (gpio & ir->mask_keyup))
+			rc_keydown_notimeout(ir->dev, RC_TYPE_NEC, scancode, 0);
+		else
+			rc_keyup(ir->dev);
 
 	} else if (ir->mask_keydown) {
 		/* bit set on keydown */
 		if (gpio & ir->mask_keydown)
-			rc_keydown_notimeout(ir->dev, data, 0);
+			rc_keydown_notimeout(ir->dev, RC_TYPE_UNKNOWN, data, 0);
 		else
 			rc_keyup(ir->dev);
 
 	} else if (ir->mask_keyup) {
 		/* bit cleared on keydown */
 		if (0 == (gpio & ir->mask_keyup))
-			rc_keydown_notimeout(ir->dev, data, 0);
+			rc_keydown_notimeout(ir->dev, RC_TYPE_UNKNOWN, data, 0);
 		else
 			rc_keyup(ir->dev);
 
 	} else {
 		/* can't distinguish keydown/up :-/ */
-		rc_keydown_notimeout(ir->dev, data, 0);
+		rc_keydown_notimeout(ir->dev, RC_TYPE_UNKNOWN, data, 0);
 		rc_keyup(ir->dev);
 	}
 }
@@ -329,6 +345,7 @@ int cx88_ir_init(struct cx88_core *core, struct pci_dev *pci)
 		 * 002-T mini RC, provided with newer PV hardware
 		 */
 		ir_codes = RC_MAP_PIXELVIEW_MK12;
+		rc_type = RC_BIT_NEC;
 		ir->gpio_addr = MO_GP1_IO;
 		ir->mask_keyup = 0x80;
 		ir->polling = 10; /* ms */
@@ -416,7 +433,6 @@ int cx88_ir_init(struct cx88_core *core, struct pci_dev *pci)
 		break;
 	case CX88_BOARD_TWINHAN_VP1027_DVBS:
 		ir_codes         = RC_MAP_TWINHAN_VP1027_DVBS;
-		rc_type          = RC_BIT_NEC;
 		ir->sampling     = 0xff00; /* address */
 		break;
 	}

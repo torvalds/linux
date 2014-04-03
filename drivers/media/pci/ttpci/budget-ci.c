@@ -161,14 +161,14 @@ static void msp430_ir_interrupt(unsigned long data)
 		return;
 
 	if (budget_ci->ir.full_rc5) {
-		rc_keydown(dev,
-			   budget_ci->ir.rc5_device <<8 | budget_ci->ir.ir_key,
-			   (command & 0x20) ? 1 : 0);
+		rc_keydown(dev, RC_TYPE_RC5,
+			   RC_SCANCODE_RC5(budget_ci->ir.rc5_device, budget_ci->ir.ir_key),
+			   !!(command & 0x20));
 		return;
 	}
 
 	/* FIXME: We should generate complete scancodes for all devices */
-	rc_keydown(dev, budget_ci->ir.ir_key, (command & 0x20) ? 1 : 0);
+	rc_keydown(dev, RC_TYPE_UNKNOWN, budget_ci->ir.ir_key, !!(command & 0x20));
 }
 
 static int msp430_ir_init(struct budget_ci *budget_ci)

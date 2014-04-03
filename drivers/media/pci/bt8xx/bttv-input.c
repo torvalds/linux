@@ -73,12 +73,12 @@ static void ir_handle_key(struct bttv *btv)
 
 	if ((ir->mask_keydown && (gpio & ir->mask_keydown)) ||
 	    (ir->mask_keyup   && !(gpio & ir->mask_keyup))) {
-		rc_keydown_notimeout(ir->dev, data, 0);
+		rc_keydown_notimeout(ir->dev, RC_TYPE_UNKNOWN, data, 0);
 	} else {
 		/* HACK: Probably, ir->mask_keydown is missing
 		   for this board */
 		if (btv->c.type == BTTV_BOARD_WINFAST2000)
-			rc_keydown_notimeout(ir->dev, data, 0);
+			rc_keydown_notimeout(ir->dev, RC_TYPE_UNKNOWN, data, 0);
 
 		rc_keyup(ir->dev);
 	}
@@ -103,7 +103,7 @@ static void ir_enltv_handle_key(struct bttv *btv)
 			gpio, data,
 			(gpio & ir->mask_keyup) ? " up" : "up/down");
 
-		rc_keydown_notimeout(ir->dev, data, 0);
+		rc_keydown_notimeout(ir->dev, RC_TYPE_UNKNOWN, data, 0);
 		if (keyup)
 			rc_keyup(ir->dev);
 	} else {
@@ -117,7 +117,7 @@ static void ir_enltv_handle_key(struct bttv *btv)
 		if (keyup)
 			rc_keyup(ir->dev);
 		else
-			rc_keydown_notimeout(ir->dev, data, 0);
+			rc_keydown_notimeout(ir->dev, RC_TYPE_UNKNOWN, data, 0);
 	}
 
 	ir->last_gpio = data | keyup;
@@ -241,8 +241,8 @@ static void bttv_rc5_timer_end(unsigned long data)
 		return;
 	}
 
-	scancode = system << 8 | command;
-	rc_keydown(ir->dev, scancode, toggle);
+	scancode = RC_SCANCODE_RC5(system, command);
+	rc_keydown(ir->dev, RC_TYPE_RC5, scancode, toggle);
 	dprintk("scancode %x, toggle %x\n", scancode, toggle);
 }
 

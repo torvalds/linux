@@ -512,7 +512,8 @@ static u8 rc_request[] = { REQUEST_POLL_RC, 0 };
 static int dib0700_rc_query_old_firmware(struct dvb_usb_device *d)
 {
 	u8 key[4];
-	u32 keycode;
+	enum rc_type protocol;
+	u32 scancode;
 	u8 toggle;
 	int i;
 	struct dib0700_state *st = d->priv;
@@ -539,28 +540,29 @@ static int dib0700_rc_query_old_firmware(struct dvb_usb_device *d)
 
 	dib0700_rc_setup(d, NULL); /* reset ir sensor data to prevent false events */
 
-	d->last_event = 0;
 	switch (d->props.rc.core.protocol) {
 	case RC_BIT_NEC:
 		/* NEC protocol sends repeat code as 0 0 0 FF */
 		if ((key[3-2] == 0x00) && (key[3-3] == 0x00) &&
-		    (key[3] == 0xff))
-			keycode = d->last_event;
-		else {
-			keycode = key[3-2] << 8 | key[3-3];
-			d->last_event = keycode;
+		    (key[3] == 0xff)) {
+			rc_repeat(d->rc_dev);
+			return 0;
 		}
 
-		rc_keydown(d->rc_dev, keycode, 0);
+		protocol = RC_TYPE_NEC;
+		scancode = RC_SCANCODE_NEC(key[3-2], key[3-3]);
+		toggle = 0;
 		break;
+
 	default:
 		/* RC-5 protocol changes toggle bit on new keypress */
-		keycode = key[3-2] << 8 | key[3-3];
+		protocol = RC_TYPE_RC5;
+		scancode = RC_SCANCODE_RC5(key[3-2], key[3-3]);
 		toggle = key[3-1];
-		rc_keydown(d->rc_dev, keycode, toggle);
-
 		break;
 	}
+
+	rc_keydown(d->rc_dev, protocol, scancode, toggle);
 	return 0;
 }
 

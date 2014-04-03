@@ -51,6 +51,7 @@ static int ir_rc5_decode(struct rc_dev *dev, struct ir_raw_event ev)
 	struct rc5_dec *data = &dev->raw->rc5;
 	u8 toggle;
 	u32 scancode;
+	enum rc_type protocol;
 
 	if (!rc_protocols_enabled(dev, RC_BIT_RC5 | RC_BIT_RC5X))
 		return 0;
@@ -138,6 +139,7 @@ again:
 			toggle   = (data->bits & 0x20000) ? 1 : 0;
 			command += (data->bits & 0x01000) ? 0 : 0x40;
 			scancode = system << 16 | command << 8 | xdata;
+			protocol = RC_TYPE_RC5X;
 
 			IR_dprintk(1, "RC5X scancode 0x%06x (toggle: %u)\n",
 				   scancode, toggle);
@@ -154,12 +156,13 @@ again:
 			toggle   = (data->bits & 0x00800) ? 1 : 0;
 			command += (data->bits & 0x01000) ? 0 : 0x40;
 			scancode = system << 8 | command;
+			protocol = RC_TYPE_RC5;
 
 			IR_dprintk(1, "RC5 scancode 0x%04x (toggle: %u)\n",
 				   scancode, toggle);
 		}
 
-		rc_keydown(dev, scancode, toggle);
+		rc_keydown(dev, protocol, scancode, toggle);
 		data->state = STATE_INACTIVE;
 		return 0;
 	}

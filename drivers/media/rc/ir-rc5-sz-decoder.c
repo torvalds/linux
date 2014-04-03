@@ -115,7 +115,7 @@ again:
 		IR_dprintk(1, "RC5-sz scancode 0x%04x (toggle: %u)\n",
 			   scancode, toggle);
 
-		rc_keydown(dev, scancode, toggle);
+		rc_keydown(dev, RC_TYPE_RC5_SZ, scancode, toggle);
 		data->state = STATE_INACTIVE;
 		return 0;
 	}

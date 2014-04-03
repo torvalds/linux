@@ -162,7 +162,8 @@ struct img_ir_decoder {
 	struct img_ir_control		control;
 
 	/* scancode logic */
-	int (*scancode)(int len, u64 raw, int *scancode, u64 protocols);
+	int (*scancode)(int len, u64 raw, enum rc_type *protocol,
+			u32 *scancode, u64 enabled_protocols);
 	int (*filter)(const struct rc_scancode_filter *in,
 		      struct img_ir_filter *out, u64 protocols);
 };
