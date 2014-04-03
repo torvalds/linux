@@ -172,3 +172,24 @@ int of_regulator_match(struct device *dev, struct device_node *node,
 	return count;
 }
 EXPORT_SYMBOL_GPL(of_regulator_match);
+
+/**
+ * of_regulator_put_match - put the of_node references from an
+ *                          of_regulator_match structure
+ * @matches: match table for the regulators
+ * @num_matches: number of entries in match table
+ *
+ * This function goes through a match table and calls of_node_put on each
+ * of_node.
+ */
+int of_regulator_put_match(struct of_regulator_match *matches,
+			   unsigned int num_matches)
+{
+	int i;
+
+	for (i = 0; i < num_matches; i++)
+		of_node_put(matches[i].of_node);
+
+	return 0;
+}
+EXPORT_SYMBOL_GPL(of_regulator_put_match);

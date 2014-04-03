@@ -20,6 +20,8 @@ extern struct regulator_init_data
 extern int of_regulator_match(struct device *dev, struct device_node *node,
 			      struct of_regulator_match *matches,
 			      unsigned int num_matches);
+extern int of_regulator_put_match(struct of_regulator_match *matches,
+				  unsigned int num_matches);
 #else
 static inline struct regulator_init_data
 	*of_get_regulator_init_data(struct device *dev,
@@ -32,6 +34,11 @@ static inline int of_regulator_match(struct device *dev,
 				     struct device_node *node,
 				     struct of_regulator_match *matches,
 				     unsigned int num_matches)
+{
+	return 0;
+}
+static inline int of_regulator_put_match(struct of_regulator_match *matches,
+					 unsigned int num_matches);
 {
 	return 0;
 }
