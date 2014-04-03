@@ -152,6 +152,7 @@ cond_syscall(sys_process_vm_readv);
 cond_syscall(sys_process_vm_writev);
 cond_syscall(compat_sys_process_vm_readv);
 cond_syscall(compat_sys_process_vm_writev);
+cond_syscall(sys_uselib);
 
 /* arch-specific weak syscall entries */
 cond_syscall(sys_pciconfig_read);
