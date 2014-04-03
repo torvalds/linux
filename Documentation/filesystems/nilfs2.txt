@@ -111,6 +111,13 @@ Table of NILFS2 specific ioctls
 			        nilfs_resize utilities and by nilfs_cleanerd
 			        daemon.
 
+ NILFS_IOCTL_SET_SUINFO         Modify segment usage info of requested
+				segments. This ioctl is used by
+				nilfs_cleanerd daemon to skip unnecessary
+				cleaning operation of segments and reduce
+				performance penalty or wear of flash device
+				due to redundant move of in-use blocks.
+
  NILFS_IOCTL_GET_SUSTAT         Return segment usage statistics. This ioctl
 			        is used in lssu, nilfs_resize utilities and
 			        by nilfs_cleanerd daemon.
