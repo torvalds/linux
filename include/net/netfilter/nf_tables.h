@@ -83,9 +83,9 @@ struct nft_ctx {
 	struct net			*net;
 	const struct sk_buff		*skb;
 	const struct nlmsghdr		*nlh;
-	const struct nft_af_info	*afi;
-	const struct nft_table		*table;
-	const struct nft_chain		*chain;
+	struct nft_af_info		*afi;
+	struct nft_table		*table;
+	struct nft_chain		*chain;
 	const struct nlattr * const 	*nla;
 };
 
