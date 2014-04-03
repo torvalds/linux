@@ -73,7 +73,6 @@ extern int initrd_below_start_ok;
 #endif
 
 #ifdef CONFIG_OF
-extern u32 __dtb_start[];
 void *dtb_start = __dtb_start;
 #endif
 

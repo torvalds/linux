@@ -105,10 +105,6 @@
 
 extern char _heap_start[];
 
-#ifdef CONFIG_METAG_BUILTIN_DTB
-extern u32 __dtb_start[];
-#endif
-
 #ifdef CONFIG_DA_CONSOLE
 /* Our early channel based console driver */
 extern struct console dash_console;

@@ -28,8 +28,6 @@
 __iomem void *rt_sysc_membase;
 __iomem void *rt_memc_membase;
 
-extern char __dtb_start[];
-
 __iomem void *plat_of_remap_node(const char *node)
 {
 	struct resource res;
