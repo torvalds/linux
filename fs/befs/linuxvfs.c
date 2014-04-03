@@ -791,7 +791,7 @@ befs_fill_super(struct super_block *sb, void *data, int silent)
 
 	save_mount_options(sb, data);
 
-	sb->s_fs_info = kmalloc(sizeof (*befs_sb), GFP_KERNEL);
+	sb->s_fs_info = kzalloc(sizeof(*befs_sb), GFP_KERNEL);
 	if (sb->s_fs_info == NULL) {
 		printk(KERN_ERR
 		       "BeFS(%s): Unable to allocate memory for private "
@@ -799,7 +799,6 @@ befs_fill_super(struct super_block *sb, void *data, int silent)
 		goto unacquire_none;
 	}
 	befs_sb = BEFS_SB(sb);
-	memset(befs_sb, 0, sizeof(befs_sb_info));
 
 	if (!parse_options((char *) data, &befs_sb->mount_opts)) {
 		befs_error(sb, "cannot parse mount options");
