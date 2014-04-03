@@ -320,7 +320,7 @@ static int tsi148_irq_init(struct vme_bridge *tsi148_bridge)
 	struct pci_dev *pdev;
 	struct tsi148_driver *bridge;
 
-	pdev = container_of(tsi148_bridge->parent, struct pci_dev, dev);
+	pdev = to_pci_dev(tsi148_bridge->parent);
 
 	bridge = tsi148_bridge->driver_priv;
 
@@ -433,9 +433,7 @@ static void tsi148_irq_set(struct vme_bridge *tsi148_bridge, int level,
 		iowrite32be(tmp, bridge->base + TSI148_LCSR_INTEO);
 
 		if (sync != 0) {
-			pdev = container_of(tsi148_bridge->parent,
-				struct pci_dev, dev);
-
+			pdev = to_pci_dev(tsi148_bridge->parent);
 			synchronize_irq(pdev->irq);
 		}
 	} else {
@@ -814,7 +812,7 @@ static int tsi148_alloc_resource(struct vme_master_resource *image,
 
 	tsi148_bridge = image->parent;
 
-	pdev = container_of(tsi148_bridge->parent, struct pci_dev, dev);
+	pdev = to_pci_dev(tsi148_bridge->parent);
 
 	existing_size = (unsigned long long)(image->bus_resource.end -
 		image->bus_resource.start);
@@ -917,7 +915,7 @@ static int tsi148_master_set(struct vme_master_resource *image, int enabled,
 
 	bridge = tsi148_bridge->driver_priv;
 
-	pdev = container_of(tsi148_bridge->parent, struct pci_dev, dev);
+	pdev = to_pci_dev(tsi148_bridge->parent);
 
 	/* Verify input data */
 	if (vme_base & 0xFFFF) {
@@ -2238,7 +2236,7 @@ static void *tsi148_alloc_consistent(struct device *parent, size_t size,
 	struct pci_dev *pdev;
 
 	/* Find pci_dev container of dev */
-	pdev = container_of(parent, struct pci_dev, dev);
+	pdev = to_pci_dev(parent);
 
 	return pci_alloc_consistent(pdev, size, dma);
 }
@@ -2249,7 +2247,7 @@ static void tsi148_free_consistent(struct device *parent, size_t size,
 	struct pci_dev *pdev;
 
 	/* Find pci_dev container of dev */
-	pdev = container_of(parent, struct pci_dev, dev);
+	pdev = to_pci_dev(parent);
 
 	pci_free_consistent(pdev, size, vaddr, dma);
 }
