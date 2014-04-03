@@ -106,6 +106,11 @@ I.e., the patch (series) and its description should be self-contained.
 This benefits both the patch merger(s) and reviewers.  Some reviewers
 probably didn't even receive earlier versions of the patch.
 
+Describe your changes in imperative mood, e.g. "make xyzzy do frotz"
+instead of "[This patch] makes xyzzy do frotz" or "[I] changed xyzzy
+to do frotz", as if you are giving orders to the codebase to change
+its behaviour.
+
 If the patch fixes a logged bug entry, refer to that bug entry by
 number and URL.
 
