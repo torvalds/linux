@@ -2579,19 +2579,32 @@ cifs_writev(struct kiocb *iocb, const struct iovec *iov,
 	struct cifsInodeInfo *cinode = CIFS_I(inode);
 	struct TCP_Server_Info *server = tlink_tcon(cfile->tlink)->ses->server;
 	ssize_t rc = -EACCES;
-	loff_t lock_pos = pos;
+	loff_t lock_pos = iocb->ki_pos;
 
-	if (file->f_flags & O_APPEND)
-		lock_pos = i_size_read(inode);
 	/*
 	 * We need to hold the sem to be sure nobody modifies lock list
 	 * with a brlock that prevents writing.
 	 */
 	down_read(&cinode->lock_sem);
+	mutex_lock(&inode->i_mutex);
+	if (file->f_flags & O_APPEND)
+		lock_pos = i_size_read(inode);
 	if (!cifs_find_lock_conflict(cfile, lock_pos, iov_length(iov, nr_segs),
 				     server->vals->exclusive_lock_type, NULL,
-				     CIFS_WRITE_OP))
-		rc = generic_file_aio_write(iocb, iov, nr_segs, pos);
+				     CIFS_WRITE_OP)) {
+		rc = __generic_file_aio_write(iocb, iov, nr_segs);
+		mutex_unlock(&inode->i_mutex);
+
+		if (rc > 0) {
+			ssize_t err;
+
+			err = generic_write_sync(file, iocb->ki_pos - rc, rc);
+			if (rc < 0)
+				rc = err;
+		}
+	} else {
+		mutex_unlock(&inode->i_mutex);
+	}
 	up_read(&cinode->lock_sem);
 	return rc;
 }
