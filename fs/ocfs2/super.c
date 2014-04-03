@@ -2072,7 +2072,6 @@ static int ocfs2_initialize_super(struct super_block *sb,
 	struct ocfs2_dinode *di = (struct ocfs2_dinode *)bh->b_data;
 	struct inode *inode = NULL;
 	struct ocfs2_journal *journal;
-	__le32 uuid_net_key;
 	struct ocfs2_super *osb;
 	u64 total_blocks;
 
@@ -2305,8 +2304,6 @@ static int ocfs2_initialize_super(struct super_block *sb,
 		status = -ENOMEM;
 		goto bail;
 	}
-
-	memcpy(&uuid_net_key, di->id2.i_super.s_uuid, sizeof(uuid_net_key));
 
 	strncpy(osb->vol_label, di->id2.i_super.s_label, 63);
 	osb->vol_label[63] = '\0';
