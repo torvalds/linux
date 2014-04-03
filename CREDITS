@@ -2711,6 +2711,9 @@ N: Greg Page
 E: gpage@sovereign.org
 D: IPX development and support
 
+N: Venkatesh Pallipadi (Venki)
+D: x86/HPET
+
 N: David Parsons
 E: orc@pell.chi.il.us
 D: improved memory detection code.
