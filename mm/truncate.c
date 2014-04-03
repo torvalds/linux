@@ -25,6 +25,9 @@
 static void clear_exceptional_entry(struct address_space *mapping,
 				    pgoff_t index, void *entry)
 {
+	struct radix_tree_node *node;
+	void **slot;
+
 	/* Handled by shmem itself */
 	if (shmem_mapping(mapping))
 		return;
@@ -35,8 +38,27 @@ static void clear_exceptional_entry(struct address_space *mapping,
 	 * without the tree itself locked.  These unlocked entries
 	 * need verification under the tree lock.
 	 */
-	if (radix_tree_delete_item(&mapping->page_tree, index, entry) == entry)
-		mapping->nrshadows--;
+	if (!__radix_tree_lookup(&mapping->page_tree, index, &node, &slot))
+		goto unlock;
+	if (*slot != entry)
+		goto unlock;
+	radix_tree_replace_slot(slot, NULL);
+	mapping->nrshadows--;
+	if (!node)
+		goto unlock;
+	workingset_node_shadows_dec(node);
+	/*
+	 * Don't track node without shadow entries.
+	 *
+	 * Avoid acquiring the list_lru lock if already untracked.
+	 * The list_empty() test is safe as node->private_list is
+	 * protected by mapping->tree_lock.
+	 */
+	if (!workingset_node_shadows(node) &&
+	    !list_empty(&node->private_list))
+		list_lru_del(&workingset_shadow_nodes, &node->private_list);
+	__radix_tree_delete_node(&mapping->page_tree, node);
+unlock:
 	spin_unlock_irq(&mapping->tree_lock);
 }
 

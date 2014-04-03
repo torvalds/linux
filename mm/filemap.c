@@ -110,11 +110,17 @@
 static void page_cache_tree_delete(struct address_space *mapping,
 				   struct page *page, void *shadow)
 {
-	if (shadow) {
-		void **slot;
+	struct radix_tree_node *node;
+	unsigned long index;
+	unsigned int offset;
+	unsigned int tag;
+	void **slot;
 
-		slot = radix_tree_lookup_slot(&mapping->page_tree, page->index);
-		radix_tree_replace_slot(slot, shadow);
+	VM_BUG_ON(!PageLocked(page));
+
+	__radix_tree_lookup(&mapping->page_tree, page->index, &node, &slot);
+
+	if (shadow) {
 		mapping->nrshadows++;
 		/*
 		 * Make sure the nrshadows update is committed before
@@ -123,9 +129,45 @@ static void page_cache_tree_delete(struct address_space *mapping,
 		 * same time and miss a shadow entry.
 		 */
 		smp_wmb();
-	} else
-		radix_tree_delete(&mapping->page_tree, page->index);
+	}
 	mapping->nrpages--;
+
+	if (!node) {
+		/* Clear direct pointer tags in root node */
+		mapping->page_tree.gfp_mask &= __GFP_BITS_MASK;
+		radix_tree_replace_slot(slot, shadow);
+		return;
+	}
+
+	/* Clear tree tags for the removed page */
+	index = page->index;
+	offset = index & RADIX_TREE_MAP_MASK;
+	for (tag = 0; tag < RADIX_TREE_MAX_TAGS; tag++) {
+		if (test_bit(offset, node->tags[tag]))
+			radix_tree_tag_clear(&mapping->page_tree, index, tag);
+	}
+
+	/* Delete page, swap shadow entry */
+	radix_tree_replace_slot(slot, shadow);
+	workingset_node_pages_dec(node);
+	if (shadow)
+		workingset_node_shadows_inc(node);
+	else
+		if (__radix_tree_delete_node(&mapping->page_tree, node))
+			return;
+
+	/*
+	 * Track node that only contains shadow entries.
+	 *
+	 * Avoid acquiring the list_lru lock if already tracked.  The
+	 * list_empty() test is safe as node->private_list is
+	 * protected by mapping->tree_lock.
+	 */
+	if (!workingset_node_pages(node) &&
+	    list_empty(&node->private_list)) {
+		node->private_data = mapping;
+		list_lru_add(&workingset_shadow_nodes, &node->private_list);
+	}
 }
 
 /*
@@ -471,27 +513,43 @@ EXPORT_SYMBOL_GPL(replace_page_cache_page);
 static int page_cache_tree_insert(struct address_space *mapping,
 				  struct page *page, void **shadowp)
 {
+	struct radix_tree_node *node;
 	void **slot;
 	int error;
 
-	slot = radix_tree_lookup_slot(&mapping->page_tree, page->index);
-	if (slot) {
+	error = __radix_tree_create(&mapping->page_tree, page->index,
+				    &node, &slot);
+	if (error)
+		return error;
+	if (*slot) {
 		void *p;
 
 		p = radix_tree_deref_slot_protected(slot, &mapping->tree_lock);
 		if (!radix_tree_exceptional_entry(p))
 			return -EEXIST;
-		radix_tree_replace_slot(slot, page);
-		mapping->nrshadows--;
-		mapping->nrpages++;
 		if (shadowp)
 			*shadowp = p;
-		return 0;
+		mapping->nrshadows--;
+		if (node)
+			workingset_node_shadows_dec(node);
 	}
-	error = radix_tree_insert(&mapping->page_tree, page->index, page);
-	if (!error)
-		mapping->nrpages++;
-	return error;
+	radix_tree_replace_slot(slot, page);
+	mapping->nrpages++;
+	if (node) {
+		workingset_node_pages_inc(node);
+		/*
+		 * Don't track node that contains actual pages.
+		 *
+		 * Avoid acquiring the list_lru lock if already
+		 * untracked.  The list_empty() test is safe as
+		 * node->private_list is protected by
+		 * mapping->tree_lock.
+		 */
+		if (!list_empty(&node->private_list))
+			list_lru_del(&workingset_shadow_nodes,
+				     &node->private_list);
+	}
+	return 0;
 }
 
 static int __add_to_page_cache_locked(struct page *page,
