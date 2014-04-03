@@ -2618,9 +2618,9 @@ static const struct file_operations shmem_file_operations = {
 #ifdef CONFIG_TMPFS
 	.llseek		= shmem_file_llseek,
 	.read		= new_sync_read,
-	.write		= do_sync_write,
+	.write		= new_sync_write,
 	.read_iter	= shmem_file_read_iter,
-	.aio_write	= generic_file_aio_write,
+	.write_iter	= generic_file_write_iter,
 	.fsync		= noop_fsync,
 	.splice_read	= shmem_file_splice_read,
 	.splice_write	= generic_file_splice_write,

@@ -2542,10 +2542,9 @@ again:
 EXPORT_SYMBOL(generic_perform_write);
 
 /**
- * __generic_file_aio_write - write data to a file
+ * __generic_file_write_iter - write data to a file
  * @iocb:	IO state structure (file, offset, etc.)
- * @iov:	vector with data to write
- * @nr_segs:	number of segments in the vector
+ * @from:	iov_iter with data to write
  *
  * This function does all the work needed for actually writing data to a
  * file. It does all basic checks, removes SUID from the file, updates
@@ -2559,21 +2558,16 @@ EXPORT_SYMBOL(generic_perform_write);
  * A caller has to handle it. This is mainly due to the fact that we want to
  * avoid syncing under i_mutex.
  */
-ssize_t __generic_file_aio_write(struct kiocb *iocb, const struct iovec *iov,
-				 unsigned long nr_segs)
+ssize_t __generic_file_write_iter(struct kiocb *iocb, struct iov_iter *from)
 {
 	struct file *file = iocb->ki_filp;
 	struct address_space * mapping = file->f_mapping;
-	size_t count;		/* after file limit checks */
 	struct inode 	*inode = mapping->host;
 	loff_t		pos = iocb->ki_pos;
 	ssize_t		written = 0;
 	ssize_t		err;
 	ssize_t		status;
-	struct iov_iter from;
-
-	count = iov_length(iov, nr_segs);
-	iov_iter_init(&from, WRITE, iov, nr_segs, count);
+	size_t		count = iov_iter_count(from);
 
 	/* We can write back this queue in page reclaim */
 	current->backing_dev_info = mapping->backing_dev_info;
@@ -2584,7 +2578,7 @@ ssize_t __generic_file_aio_write(struct kiocb *iocb, const struct iovec *iov,
 	if (count == 0)
 		goto out;
 
-	iov_iter_truncate(&from, count);
+	iov_iter_truncate(from, count);
 
 	err = file_remove_suid(file);
 	if (err)
@@ -2598,7 +2592,7 @@ ssize_t __generic_file_aio_write(struct kiocb *iocb, const struct iovec *iov,
 	if (unlikely(file->f_flags & O_DIRECT)) {
 		loff_t endbyte;
 
-		written = generic_file_direct_write(iocb, &from, pos);
+		written = generic_file_direct_write(iocb, from, pos);
 		if (written < 0 || written == count)
 			goto out;
 
@@ -2609,7 +2603,7 @@ ssize_t __generic_file_aio_write(struct kiocb *iocb, const struct iovec *iov,
 		pos += written;
 		count -= written;
 
-		status = generic_perform_write(file, &from, pos);
+		status = generic_perform_write(file, from, pos);
 		/*
 		 * If generic_perform_write() returned a synchronous error
 		 * then we want to return the number of bytes which were
@@ -2641,7 +2635,7 @@ ssize_t __generic_file_aio_write(struct kiocb *iocb, const struct iovec *iov,
 			 */
 		}
 	} else {
-		written = generic_perform_write(file, &from, pos);
+		written = generic_perform_write(file, from, pos);
 		if (likely(written >= 0))
 			iocb->ki_pos = pos + written;
 	}
@@ -2649,30 +2643,36 @@ out:
 	current->backing_dev_info = NULL;
 	return written ? written : err;
 }
+EXPORT_SYMBOL(__generic_file_write_iter);
+
+ssize_t __generic_file_aio_write(struct kiocb *iocb, const struct iovec *iov,
+				 unsigned long nr_segs)
+{
+	size_t count = iov_length(iov, nr_segs);
+	struct iov_iter from;
+
+	iov_iter_init(&from, WRITE, iov, nr_segs, count);
+	return __generic_file_write_iter(iocb, &from);
+}
 EXPORT_SYMBOL(__generic_file_aio_write);
 
 /**
- * generic_file_aio_write - write data to a file
+ * generic_file_write_iter - write data to a file
  * @iocb:	IO state structure
- * @iov:	vector with data to write
- * @nr_segs:	number of segments in the vector
- * @pos:	position in file where to write
+ * @from:	iov_iter with data to write
  *
- * This is a wrapper around __generic_file_aio_write() to be used by most
+ * This is a wrapper around __generic_file_write_iter() to be used by most
  * filesystems. It takes care of syncing the file in case of O_SYNC file
  * and acquires i_mutex as needed.
  */
-ssize_t generic_file_aio_write(struct kiocb *iocb, const struct iovec *iov,
-		unsigned long nr_segs, loff_t pos)
+ssize_t generic_file_write_iter(struct kiocb *iocb, struct iov_iter *from)
 {
 	struct file *file = iocb->ki_filp;
 	struct inode *inode = file->f_mapping->host;
 	ssize_t ret;
 
-	BUG_ON(iocb->ki_pos != pos);
-
 	mutex_lock(&inode->i_mutex);
-	ret = __generic_file_aio_write(iocb, iov, nr_segs);
+	ret = __generic_file_write_iter(iocb, from);
 	mutex_unlock(&inode->i_mutex);
 
 	if (ret > 0) {
@@ -2683,6 +2683,19 @@ ssize_t generic_file_aio_write(struct kiocb *iocb, const struct iovec *iov,
 			ret = err;
 	}
 	return ret;
+}
+EXPORT_SYMBOL(generic_file_write_iter);
+
+ssize_t generic_file_aio_write(struct kiocb *iocb, const struct iovec *iov,
+		unsigned long nr_segs, loff_t pos)
+{
+	size_t count = iov_length(iov, nr_segs);
+	struct iov_iter from;
+
+	BUG_ON(iocb->ki_pos != pos);
+
+	iov_iter_init(&from, WRITE, iov, nr_segs, count);
+	return generic_file_write_iter(iocb, &from);
 }
 EXPORT_SYMBOL(generic_file_aio_write);
 

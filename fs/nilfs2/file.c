@@ -153,9 +153,9 @@ static int nilfs_file_mmap(struct file *file, struct vm_area_struct *vma)
 const struct file_operations nilfs_file_operations = {
 	.llseek		= generic_file_llseek,
 	.read		= new_sync_read,
-	.write		= do_sync_write,
+	.write		= new_sync_write,
 	.read_iter	= generic_file_read_iter,
-	.aio_write	= generic_file_aio_write,
+	.write_iter	= generic_file_write_iter,
 	.unlocked_ioctl	= nilfs_ioctl,
 #ifdef CONFIG_COMPAT
 	.compat_ioctl	= nilfs_compat_ioctl,

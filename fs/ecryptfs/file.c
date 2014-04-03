@@ -353,8 +353,8 @@ const struct file_operations ecryptfs_main_fops = {
 	.llseek = generic_file_llseek,
 	.read = new_sync_read,
 	.read_iter = ecryptfs_read_update_atime,
-	.write = do_sync_write,
-	.aio_write = generic_file_aio_write,
+	.write = new_sync_write,
+	.write_iter = generic_file_write_iter,
 	.iterate = ecryptfs_readdir,
 	.unlocked_ioctl = ecryptfs_unlocked_ioctl,
 #ifdef CONFIG_COMPAT
