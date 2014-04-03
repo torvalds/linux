@@ -112,7 +112,15 @@ to do frotz", as if you are giving orders to the codebase to change
 its behaviour.
 
 If the patch fixes a logged bug entry, refer to that bug entry by
-number and URL.
+number and URL.  If the patch follows from a mailing list discussion,
+give a URL to the mailing list archive; use the https://lkml.kernel.org/
+redirector with a Message-Id, to ensure that the links cannot become
+stale.
+
+However, try to make your explanation understandable without external
+resources.  In addition to giving a URL to a mailing list archive or
+bug, summarize the relevant points of the discussion that led to the
+patch as submitted.
 
 If you want to refer to a specific commit, don't just refer to the
 SHA-1 ID of the commit. Please also include the oneline summary of
