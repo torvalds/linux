@@ -1946,8 +1946,6 @@ static int hdmi_resources_init(struct hdmi_context *hdata)
 
 	DRM_DEBUG_KMS("HDMI resource init\n");
 
-	memset(res, 0, sizeof(*res));
-
 	/* get clocks, power */
 	res->hdmi = devm_clk_get(dev, "hdmi");
 	if (IS_ERR(res->hdmi)) {
