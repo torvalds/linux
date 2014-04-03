@@ -320,7 +320,7 @@ static int camsys_extdev_deregister(unsigned int dev_id, camsys_dev_t *camsys_de
         }
 
         gpio = &extdev->pwrdn;
-        for (i=0; i<4; i++) {
+        for (i=0; i<5; i++) {
             if (gpio->io!=0xffffffff) {                    
                 gpio_free(gpio->io);
             }
@@ -354,7 +354,7 @@ static int camsys_extdev_deregister(unsigned int dev_id, camsys_dev_t *camsys_de
                 }
 
                 gpio = &extdev->pwrdn;
-                for (i=0; i<4; i++) {
+                for (i=0; i<5; i++) {
                     if (gpio->io!=0xffffffff) {                    
                         gpio_free(gpio->io);
                     }
@@ -709,6 +709,10 @@ static int camsys_open(struct inode *inode, struct file *file)
         }
     }
     spin_unlock(&camsys_devs.lock);
+
+    //zyc add
+    INIT_LIST_HEAD(&camsys_dev->extdevs.active);
+
     
     if (file->private_data == NULL) {
         camsys_err("Cann't find camsys_dev!");
@@ -725,7 +729,7 @@ end:
 static int camsys_release(struct inode *inode, struct file *file)
 {
     camsys_dev_t *camsys_dev = (camsys_dev_t*)file->private_data;
-    
+
     camsys_irq_disconnect(NULL,camsys_dev, true);
 
     camsys_trace(1,"%s(%p) is closed",dev_name(camsys_dev->miscdev.this_device),camsys_dev);
