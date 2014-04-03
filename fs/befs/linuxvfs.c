@@ -39,7 +39,6 @@ static struct dentry *befs_lookup(struct inode *, struct dentry *, unsigned int)
 static struct inode *befs_iget(struct super_block *, unsigned long);
 static struct inode *befs_alloc_inode(struct super_block *sb);
 static void befs_destroy_inode(struct inode *inode);
-static int befs_init_inodecache(void);
 static void befs_destroy_inodecache(void);
 static void *befs_follow_link(struct dentry *, struct nameidata *);
 static void *befs_fast_follow_link(struct dentry *, struct nameidata *);
@@ -445,7 +444,7 @@ static struct inode *befs_iget(struct super_block *sb, unsigned long ino)
  *
  * Taken from NFS implementation by Al Viro.
  */
-static int
+static int __init
 befs_init_inodecache(void)
 {
 	befs_inode_cachep = kmem_cache_create("befs_inode_cache",
