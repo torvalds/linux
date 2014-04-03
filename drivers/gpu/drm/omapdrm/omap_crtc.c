@@ -121,13 +121,25 @@ static void omap_crtc_start_update(struct omap_overlay_manager *mgr)
 {
 }
 
+static void set_enabled(struct drm_crtc *crtc, bool enable);
+
 static int omap_crtc_enable(struct omap_overlay_manager *mgr)
 {
+	struct omap_crtc *omap_crtc = omap_crtcs[mgr->id];
+
+	dispc_mgr_setup(omap_crtc->channel, &omap_crtc->info);
+	dispc_mgr_set_timings(omap_crtc->channel,
+			&omap_crtc->timings);
+	set_enabled(&omap_crtc->base, true);
+
 	return 0;
 }
 
 static void omap_crtc_disable(struct omap_overlay_manager *mgr)
 {
+	struct omap_crtc *omap_crtc = omap_crtcs[mgr->id];
+
+	set_enabled(&omap_crtc->base, false);
 }
 
 static void omap_crtc_set_timings(struct omap_overlay_manager *mgr,
@@ -601,7 +613,6 @@ static void omap_crtc_pre_apply(struct omap_drm_apply *apply)
 	omap_crtc->current_encoder = encoder;
 
 	if (!omap_crtc->enabled) {
-		set_enabled(&omap_crtc->base, false);
 		if (encoder)
 			omap_encoder_set_enabled(encoder, false);
 	} else {
@@ -610,13 +621,7 @@ static void omap_crtc_pre_apply(struct omap_drm_apply *apply)
 			omap_encoder_update(encoder, omap_crtc->mgr,
 					&omap_crtc->timings);
 			omap_encoder_set_enabled(encoder, true);
-			omap_crtc->full_update = false;
 		}
-
-		dispc_mgr_setup(omap_crtc->channel, &omap_crtc->info);
-		dispc_mgr_set_timings(omap_crtc->channel,
-				&omap_crtc->timings);
-		set_enabled(&omap_crtc->base, true);
 	}
 
 	omap_crtc->full_update = false;
