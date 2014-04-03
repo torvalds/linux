@@ -580,9 +580,6 @@ static int __ocfs2_mknod_locked(struct inode *dir,
 	oi->i_sync_tid = handle->h_transaction->t_tid;
 	oi->i_datasync_tid = handle->h_transaction->t_tid;
 
-	status = 0; /* error in ocfs2_create_new_inode_locks is not
-		     * critical */
-
 leave:
 	if (status < 0) {
 		if (*new_fe_bh) {
