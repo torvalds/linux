@@ -126,6 +126,7 @@ static void iwl_mvm_roc_finished(struct iwl_mvm *mvm)
 	 * in iwl_mvm_te_handle_notif).
 	 */
 	clear_bit(IWL_MVM_STATUS_ROC_RUNNING, &mvm->status);
+	iwl_mvm_unref(mvm, IWL_MVM_REF_ROC);
 
 	/*
 	 * Of course, our status bit is just as racy as mac80211, so in
@@ -210,6 +211,7 @@ static void iwl_mvm_te_handle_notif(struct iwl_mvm *mvm,
 
 		if (te_data->vif->type == NL80211_IFTYPE_P2P_DEVICE) {
 			set_bit(IWL_MVM_STATUS_ROC_RUNNING, &mvm->status);
+			iwl_mvm_ref(mvm, IWL_MVM_REF_ROC);
 			ieee80211_ready_on_channel(mvm->hw);
 		}
 	} else {
@@ -436,7 +438,8 @@ void iwl_mvm_protect_session(struct iwl_mvm *mvm,
 	time_cmd.duration = cpu_to_le32(duration);
 	time_cmd.repeat = 1;
 	time_cmd.policy = cpu_to_le16(TE_V2_NOTIF_HOST_EVENT_START |
-				      TE_V2_NOTIF_HOST_EVENT_END);
+				      TE_V2_NOTIF_HOST_EVENT_END |
+				      T2_V2_START_IMMEDIATELY);
 
 	iwl_mvm_time_event_send_add(mvm, vif, te_data, &time_cmd);
 }
@@ -551,7 +554,8 @@ int iwl_mvm_start_p2p_roc(struct iwl_mvm *mvm, struct ieee80211_vif *vif,
 	time_cmd.duration = cpu_to_le32(MSEC_TO_TU(duration));
 	time_cmd.repeat = 1;
 	time_cmd.policy = cpu_to_le16(TE_V2_NOTIF_HOST_EVENT_START |
-				      TE_V2_NOTIF_HOST_EVENT_END);
+				      TE_V2_NOTIF_HOST_EVENT_END |
+				      T2_V2_START_IMMEDIATELY);
 
 	return iwl_mvm_time_event_send_add(mvm, vif, te_data, &time_cmd);
 }

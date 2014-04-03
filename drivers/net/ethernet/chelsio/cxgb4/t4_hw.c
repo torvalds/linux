@@ -573,7 +573,7 @@ int get_vpd_params(struct adapter *adapter, struct vpd_params *p)
 {
 	u32 cclk_param, cclk_val;
 	int i, ret, addr;
-	int ec, sn;
+	int ec, sn, pn;
 	u8 *vpd, csum;
 	unsigned int vpdr_len, kw_offset, id_len;
 
@@ -638,6 +638,7 @@ int get_vpd_params(struct adapter *adapter, struct vpd_params *p)
 
 	FIND_VPD_KW(ec, "EC");
 	FIND_VPD_KW(sn, "SN");
+	FIND_VPD_KW(pn, "PN");
 #undef FIND_VPD_KW
 
 	memcpy(p->id, vpd + PCI_VPD_LRDT_TAG_SIZE, id_len);
@@ -647,6 +648,8 @@ int get_vpd_params(struct adapter *adapter, struct vpd_params *p)
 	i = pci_vpd_info_field_size(vpd + sn - PCI_VPD_INFO_FLD_HDR_SIZE);
 	memcpy(p->sn, vpd + sn, min(i, SERNUM_LEN));
 	strim(p->sn);
+	memcpy(p->pn, vpd + pn, min(i, PN_LEN));
+	strim(p->pn);
 
 	/*
 	 * Ask firmware for the Core Clock since it knows how to translate the
@@ -1155,7 +1158,8 @@ out:
 }
 
 #define ADVERT_MASK (FW_PORT_CAP_SPEED_100M | FW_PORT_CAP_SPEED_1G |\
-		     FW_PORT_CAP_SPEED_10G | FW_PORT_CAP_ANEG)
+		     FW_PORT_CAP_SPEED_10G | FW_PORT_CAP_SPEED_40G | \
+		     FW_PORT_CAP_ANEG)
 
 /**
  *	t4_link_start - apply link configuration to MAC/PHY
@@ -2247,6 +2251,36 @@ static unsigned int get_mps_bg_map(struct adapter *adap, int idx)
 }
 
 /**
+ *      t4_get_port_type_description - return Port Type string description
+ *      @port_type: firmware Port Type enumeration
+ */
+const char *t4_get_port_type_description(enum fw_port_type port_type)
+{
+	static const char *const port_type_description[] = {
+		"R XFI",
+		"R XAUI",
+		"T SGMII",
+		"T XFI",
+		"T XAUI",
+		"KX4",
+		"CX4",
+		"KX",
+		"KR",
+		"R SFP+",
+		"KR/KX",
+		"KR/KX/KX4",
+		"R QSFP_10G",
+		"",
+		"R QSFP",
+		"R BP40_BA",
+	};
+
+	if (port_type < ARRAY_SIZE(port_type_description))
+		return port_type_description[port_type];
+	return "UNKNOWN";
+}
+
+/**
  *	t4_get_port_stats - collect port statistics
  *	@adap: the adapter
  *	@idx: the port index
@@ -2560,6 +2594,112 @@ int t4_mdio_wr(struct adapter *adap, unsigned int mbox, unsigned int phy_addr,
 	c.u.mdio.rval = htons(val);
 
 	return t4_wr_mbox(adap, mbox, &c, sizeof(c), NULL);
+}
+
+/**
+ *	t4_sge_decode_idma_state - decode the idma state
+ *	@adap: the adapter
+ *	@state: the state idma is stuck in
+ */
+void t4_sge_decode_idma_state(struct adapter *adapter, int state)
+{
+	static const char * const t4_decode[] = {
+		"IDMA_IDLE",
+		"IDMA_PUSH_MORE_CPL_FIFO",
+		"IDMA_PUSH_CPL_MSG_HEADER_TO_FIFO",
+		"Not used",
+		"IDMA_PHYSADDR_SEND_PCIEHDR",
+		"IDMA_PHYSADDR_SEND_PAYLOAD_FIRST",
+		"IDMA_PHYSADDR_SEND_PAYLOAD",
+		"IDMA_SEND_FIFO_TO_IMSG",
+		"IDMA_FL_REQ_DATA_FL_PREP",
+		"IDMA_FL_REQ_DATA_FL",
+		"IDMA_FL_DROP",
+		"IDMA_FL_H_REQ_HEADER_FL",
+		"IDMA_FL_H_SEND_PCIEHDR",
+		"IDMA_FL_H_PUSH_CPL_FIFO",
+		"IDMA_FL_H_SEND_CPL",
+		"IDMA_FL_H_SEND_IP_HDR_FIRST",
+		"IDMA_FL_H_SEND_IP_HDR",
+		"IDMA_FL_H_REQ_NEXT_HEADER_FL",
+		"IDMA_FL_H_SEND_NEXT_PCIEHDR",
+		"IDMA_FL_H_SEND_IP_HDR_PADDING",
+		"IDMA_FL_D_SEND_PCIEHDR",
+		"IDMA_FL_D_SEND_CPL_AND_IP_HDR",
+		"IDMA_FL_D_REQ_NEXT_DATA_FL",
+		"IDMA_FL_SEND_PCIEHDR",
+		"IDMA_FL_PUSH_CPL_FIFO",
+		"IDMA_FL_SEND_CPL",
+		"IDMA_FL_SEND_PAYLOAD_FIRST",
+		"IDMA_FL_SEND_PAYLOAD",
+		"IDMA_FL_REQ_NEXT_DATA_FL",
+		"IDMA_FL_SEND_NEXT_PCIEHDR",
+		"IDMA_FL_SEND_PADDING",
+		"IDMA_FL_SEND_COMPLETION_TO_IMSG",
+		"IDMA_FL_SEND_FIFO_TO_IMSG",
+		"IDMA_FL_REQ_DATAFL_DONE",
+		"IDMA_FL_REQ_HEADERFL_DONE",
+	};
+	static const char * const t5_decode[] = {
+		"IDMA_IDLE",
+		"IDMA_ALMOST_IDLE",
+		"IDMA_PUSH_MORE_CPL_FIFO",
+		"IDMA_PUSH_CPL_MSG_HEADER_TO_FIFO",
+		"IDMA_SGEFLRFLUSH_SEND_PCIEHDR",
+		"IDMA_PHYSADDR_SEND_PCIEHDR",
+		"IDMA_PHYSADDR_SEND_PAYLOAD_FIRST",
+		"IDMA_PHYSADDR_SEND_PAYLOAD",
+		"IDMA_SEND_FIFO_TO_IMSG",
+		"IDMA_FL_REQ_DATA_FL",
+		"IDMA_FL_DROP",
+		"IDMA_FL_DROP_SEND_INC",
+		"IDMA_FL_H_REQ_HEADER_FL",
+		"IDMA_FL_H_SEND_PCIEHDR",
+		"IDMA_FL_H_PUSH_CPL_FIFO",
+		"IDMA_FL_H_SEND_CPL",
+		"IDMA_FL_H_SEND_IP_HDR_FIRST",
+		"IDMA_FL_H_SEND_IP_HDR",
+		"IDMA_FL_H_REQ_NEXT_HEADER_FL",
+		"IDMA_FL_H_SEND_NEXT_PCIEHDR",
+		"IDMA_FL_H_SEND_IP_HDR_PADDING",
+		"IDMA_FL_D_SEND_PCIEHDR",
+		"IDMA_FL_D_SEND_CPL_AND_IP_HDR",
+		"IDMA_FL_D_REQ_NEXT_DATA_FL",
+		"IDMA_FL_SEND_PCIEHDR",
+		"IDMA_FL_PUSH_CPL_FIFO",
+		"IDMA_FL_SEND_CPL",
+		"IDMA_FL_SEND_PAYLOAD_FIRST",
+		"IDMA_FL_SEND_PAYLOAD",
+		"IDMA_FL_REQ_NEXT_DATA_FL",
+		"IDMA_FL_SEND_NEXT_PCIEHDR",
+		"IDMA_FL_SEND_PADDING",
+		"IDMA_FL_SEND_COMPLETION_TO_IMSG",
+	};
+	static const u32 sge_regs[] = {
+		SGE_DEBUG_DATA_LOW_INDEX_2,
+		SGE_DEBUG_DATA_LOW_INDEX_3,
+		SGE_DEBUG_DATA_HIGH_INDEX_10,
+	};
+	const char **sge_idma_decode;
+	int sge_idma_decode_nstates;
+	int i;
+
+	if (is_t4(adapter->params.chip)) {
+		sge_idma_decode = (const char **)t4_decode;
+		sge_idma_decode_nstates = ARRAY_SIZE(t4_decode);
+	} else {
+		sge_idma_decode = (const char **)t5_decode;
+		sge_idma_decode_nstates = ARRAY_SIZE(t5_decode);
+	}
+
+	if (state < sge_idma_decode_nstates)
+		CH_WARN(adapter, "idma state %s\n", sge_idma_decode[state]);
+	else
+		CH_WARN(adapter, "idma state %d unknown\n", state);
+
+	for (i = 0; i < ARRAY_SIZE(sge_regs); i++)
+		CH_WARN(adapter, "SGE register %#x value %#x\n",
+			sge_regs[i], t4_read_reg(adapter, sge_regs[i]));
 }
 
 /**
@@ -3533,11 +3673,13 @@ int t4_handle_fw_rpl(struct adapter *adap, const __be64 *rpl)
 		if (stat & FW_PORT_CMD_TXPAUSE)
 			fc |= PAUSE_TX;
 		if (stat & FW_PORT_CMD_LSPEED(FW_PORT_CAP_SPEED_100M))
-			speed = SPEED_100;
+			speed = 100;
 		else if (stat & FW_PORT_CMD_LSPEED(FW_PORT_CAP_SPEED_1G))
-			speed = SPEED_1000;
+			speed = 1000;
 		else if (stat & FW_PORT_CMD_LSPEED(FW_PORT_CAP_SPEED_10G))
-			speed = SPEED_10000;
+			speed = 10000;
+		else if (stat & FW_PORT_CMD_LSPEED(FW_PORT_CAP_SPEED_40G))
+			speed = 40000;
 
 		if (link_ok != lc->link_ok || speed != lc->speed ||
 		    fc != lc->fc) {                    /* something changed */

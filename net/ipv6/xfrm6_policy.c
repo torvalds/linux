@@ -389,11 +389,17 @@ int __init xfrm6_init(void)
 	if (ret)
 		goto out_policy;
 
+	ret = xfrm6_protocol_init();
+	if (ret)
+		goto out_state;
+
 #ifdef CONFIG_SYSCTL
 	register_pernet_subsys(&xfrm6_net_ops);
 #endif
 out:
 	return ret;
+out_state:
+	xfrm6_state_fini();
 out_policy:
 	xfrm6_policy_fini();
 	goto out;
@@ -404,6 +410,7 @@ void xfrm6_fini(void)
 #ifdef CONFIG_SYSCTL
 	unregister_pernet_subsys(&xfrm6_net_ops);
 #endif
+	xfrm6_protocol_fini();
 	xfrm6_policy_fini();
 	xfrm6_state_fini();
 	dst_entries_destroy(&xfrm6_dst_ops);

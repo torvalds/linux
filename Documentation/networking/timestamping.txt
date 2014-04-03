@@ -202,6 +202,9 @@ Time stamps for outgoing packets are to be generated as follows:
   and not free the skb. A driver not supporting hardware time stamping doesn't
   do that. A driver must never touch sk_buff::tstamp! It is used to store
   software generated time stamps by the network subsystem.
+- Driver should call skb_tx_timestamp() as close to passing sk_buff to hardware
+  as possible. skb_tx_timestamp() provides a software time stamp if requested
+  and hardware timestamping is not possible (SKBTX_IN_PROGRESS not set).
 - As soon as the driver has sent the packet and/or obtained a
   hardware time stamp for it, it passes the time stamp back by
   calling skb_hwtstamp_tx() with the original skb, the raw
@@ -212,6 +215,3 @@ Time stamps for outgoing packets are to be generated as follows:
   this would occur at a later time in the processing pipeline than other
   software time stamping and therefore could lead to unexpected deltas
   between time stamps.
-- If the driver did not set the SKBTX_IN_PROGRESS flag (see above), then
-  dev_hard_start_xmit() checks whether software time stamping
-  is wanted as fallback and potentially generates the time stamp.

@@ -86,12 +86,12 @@
 
 #define I40E_NVM_VERSION_LO_SHIFT  0
 #define I40E_NVM_VERSION_LO_MASK   (0xff << I40E_NVM_VERSION_LO_SHIFT)
-#define I40E_NVM_VERSION_HI_SHIFT  8
-#define I40E_NVM_VERSION_HI_MASK   (0xff << I40E_NVM_VERSION_HI_SHIFT)
+#define I40E_NVM_VERSION_HI_SHIFT  12
+#define I40E_NVM_VERSION_HI_MASK   (0xf << I40E_NVM_VERSION_HI_SHIFT)
 
 /* The values in here are decimal coded as hex as is the case in the NVM map*/
 #define I40E_CURRENT_NVM_VERSION_HI 0x2
-#define I40E_CURRENT_NVM_VERSION_LO 0x30
+#define I40E_CURRENT_NVM_VERSION_LO 0x40
 
 /* magic for getting defines into strings */
 #define STRINGIFY(foo)  #foo
@@ -136,6 +136,7 @@ enum i40e_state_t {
 	__I40E_EMP_RESET_REQUESTED,
 	__I40E_FILTER_OVERFLOW_PROMISC,
 	__I40E_SUSPENDED,
+	__I40E_BAD_EEPROM,
 };
 
 enum i40e_interrupt_policy {
@@ -152,8 +153,21 @@ struct i40e_lump_tracking {
 };
 
 #define I40E_DEFAULT_ATR_SAMPLE_RATE	20
-#define I40E_FDIR_MAX_RAW_PACKET_LOOKUP 512
-struct i40e_fdir_data {
+#define I40E_FDIR_MAX_RAW_PACKET_SIZE	512
+#define I40E_FDIR_BUFFER_FULL_MARGIN	10
+#define I40E_FDIR_BUFFER_HEAD_ROOM	200
+
+struct i40e_fdir_filter {
+	struct hlist_node fdir_node;
+	/* filter ipnut set */
+	u8 flow_type;
+	u8 ip4_proto;
+	__be32 dst_ip[4];
+	__be32 src_ip[4];
+	__be16 src_port;
+	__be16 dst_port;
+	__be32 sctp_v_tag;
+	/* filter control */
 	u16 q_index;
 	u8  flex_off;
 	u8  pctype;
@@ -162,7 +176,6 @@ struct i40e_fdir_data {
 	u8  fd_status;
 	u16 cnt_index;
 	u32 fd_id;
-	u8  *raw_packet;
 };
 
 #define I40E_ETH_P_LLDP			0x88cc
@@ -196,7 +209,7 @@ struct i40e_pf {
 	bool fc_autoneg_status;
 
 	u16 eeprom_version;
-	u16 num_vmdq_vsis;         /* num vmdq pools this pf has set up */
+	u16 num_vmdq_vsis;         /* num vmdq vsis this pf has set up */
 	u16 num_vmdq_qps;          /* num queue pairs per vmdq pool */
 	u16 num_vmdq_msix;         /* num queue vectors per vmdq pool */
 	u16 num_req_vfs;           /* num vfs requested for this vf */
@@ -209,6 +222,9 @@ struct i40e_pf {
 	u16 fdir_pf_filter_count;  /* num of guaranteed filters for this PF */
 	u8 atr_sample_rate;
 	bool wol_en;
+
+	struct hlist_head fdir_filter_list;
+	u16 fdir_pf_active_filters;
 
 #ifdef CONFIG_I40E_VXLAN
 	__be16  vxlan_ports[I40E_MAX_PF_UDP_OFFLOAD_PORTS];
@@ -250,6 +266,9 @@ struct i40e_pf {
 #ifdef CONFIG_I40E_VXLAN
 #define I40E_FLAG_VXLAN_FILTER_SYNC            (u64)(1 << 27)
 #endif
+
+	/* tracks features that get auto disabled by errors */
+	u64 auto_disable_flags;
 
 	bool stat_offsets_loaded;
 	struct i40e_hw_port_stats stats;
@@ -477,10 +496,10 @@ static inline char *i40e_fw_version_str(struct i40e_hw *hw)
 		 "f%d.%d a%d.%d n%02x.%02x e%08x",
 		 hw->aq.fw_maj_ver, hw->aq.fw_min_ver,
 		 hw->aq.api_maj_ver, hw->aq.api_min_ver,
-		 (hw->nvm.version & I40E_NVM_VERSION_HI_MASK)
-						>> I40E_NVM_VERSION_HI_SHIFT,
-		 (hw->nvm.version & I40E_NVM_VERSION_LO_MASK)
-						>> I40E_NVM_VERSION_LO_SHIFT,
+		 (hw->nvm.version & I40E_NVM_VERSION_HI_MASK) >>
+			I40E_NVM_VERSION_HI_SHIFT,
+		 (hw->nvm.version & I40E_NVM_VERSION_LO_MASK) >>
+			I40E_NVM_VERSION_LO_SHIFT,
 		 hw->nvm.eetrack);
 
 	return buf;
@@ -534,9 +553,13 @@ struct rtnl_link_stats64 *i40e_get_vsi_stats_struct(struct i40e_vsi *vsi);
 int i40e_fetch_switch_configuration(struct i40e_pf *pf,
 				    bool printconfig);
 
-int i40e_program_fdir_filter(struct i40e_fdir_data *fdir_data,
+int i40e_program_fdir_filter(struct i40e_fdir_filter *fdir_data, u8 *raw_packet,
 			     struct i40e_pf *pf, bool add);
-
+int i40e_add_del_fdir(struct i40e_vsi *vsi,
+		      struct i40e_fdir_filter *input, bool add);
+void i40e_fdir_check_and_reenable(struct i40e_pf *pf);
+int i40e_get_current_fd_count(struct i40e_pf *pf);
+bool i40e_set_ntuple(struct i40e_pf *pf, netdev_features_t features);
 void i40e_set_ethtool_ops(struct net_device *netdev);
 struct i40e_mac_filter *i40e_add_filter(struct i40e_vsi *vsi,
 					u8 *macaddr, s16 vlan,
@@ -575,6 +598,7 @@ void i40e_irq_dynamic_enable(struct i40e_vsi *vsi, int vector);
 void i40e_irq_dynamic_disable_icr0(struct i40e_pf *pf);
 void i40e_irq_dynamic_enable_icr0(struct i40e_pf *pf);
 int i40e_ioctl(struct net_device *netdev, struct ifreq *ifr, int cmd);
+int i40e_vsi_open(struct i40e_vsi *vsi);
 void i40e_vlan_stripping_disable(struct i40e_vsi *vsi);
 int i40e_vsi_add_vlan(struct i40e_vsi *vsi, s16 vid);
 int i40e_vsi_kill_vlan(struct i40e_vsi *vsi, s16 vid);

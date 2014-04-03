@@ -819,7 +819,7 @@ static struct batadv_nc_node
 
 	/* Initialize nc_node */
 	INIT_LIST_HEAD(&nc_node->list);
-	memcpy(nc_node->addr, orig_node->orig, ETH_ALEN);
+	ether_addr_copy(nc_node->addr, orig_node->orig);
 	nc_node->orig_node = orig_neigh_node;
 	atomic_set(&nc_node->refcount, 2);
 
@@ -941,8 +941,8 @@ static struct batadv_nc_path *batadv_nc_get_path(struct batadv_priv *bat_priv,
 	spin_lock_init(&nc_path->packet_list_lock);
 	atomic_set(&nc_path->refcount, 2);
 	nc_path->last_valid = jiffies;
-	memcpy(nc_path->next_hop, dst, ETH_ALEN);
-	memcpy(nc_path->prev_hop, src, ETH_ALEN);
+	ether_addr_copy(nc_path->next_hop, dst);
+	ether_addr_copy(nc_path->prev_hop, src);
 
 	batadv_dbg(BATADV_DBG_NC, bat_priv, "Adding nc_path %pM -> %pM\n",
 		   nc_path->prev_hop,
@@ -1114,15 +1114,15 @@ static bool batadv_nc_code_packets(struct batadv_priv *bat_priv,
 	coded_packet->ttl = packet1->ttl;
 
 	/* Info about first unicast packet */
-	memcpy(coded_packet->first_source, first_source, ETH_ALEN);
-	memcpy(coded_packet->first_orig_dest, packet1->dest, ETH_ALEN);
+	ether_addr_copy(coded_packet->first_source, first_source);
+	ether_addr_copy(coded_packet->first_orig_dest, packet1->dest);
 	coded_packet->first_crc = packet_id1;
 	coded_packet->first_ttvn = packet1->ttvn;
 
 	/* Info about second unicast packet */
-	memcpy(coded_packet->second_dest, second_dest, ETH_ALEN);
-	memcpy(coded_packet->second_source, second_source, ETH_ALEN);
-	memcpy(coded_packet->second_orig_dest, packet2->dest, ETH_ALEN);
+	ether_addr_copy(coded_packet->second_dest, second_dest);
+	ether_addr_copy(coded_packet->second_source, second_source);
+	ether_addr_copy(coded_packet->second_orig_dest, packet2->dest);
 	coded_packet->second_crc = packet_id2;
 	coded_packet->second_ttl = packet2->ttl;
 	coded_packet->second_ttvn = packet2->ttvn;
@@ -1349,8 +1349,8 @@ static void batadv_nc_skb_store_before_coding(struct batadv_priv *bat_priv,
 
 	/* Set the mac header as if we actually sent the packet uncoded */
 	ethhdr = eth_hdr(skb);
-	memcpy(ethhdr->h_source, ethhdr->h_dest, ETH_ALEN);
-	memcpy(ethhdr->h_dest, eth_dst_new, ETH_ALEN);
+	ether_addr_copy(ethhdr->h_source, ethhdr->h_dest);
+	ether_addr_copy(ethhdr->h_dest, eth_dst_new);
 
 	/* Set data pointer to MAC header to mimic packets from our tx path */
 	skb_push(skb, ETH_HLEN);
@@ -1636,7 +1636,7 @@ batadv_nc_skb_decode_packet(struct batadv_priv *bat_priv, struct sk_buff *skb,
 
 	/* Reconstruct original mac header */
 	ethhdr = eth_hdr(skb);
-	memcpy(ethhdr, &ethhdr_tmp, sizeof(*ethhdr));
+	*ethhdr = ethhdr_tmp;
 
 	/* Select the correct unicast header information based on the location
 	 * of our mac address in the coded_packet header
@@ -1646,7 +1646,7 @@ batadv_nc_skb_decode_packet(struct batadv_priv *bat_priv, struct sk_buff *skb,
 		 * so the Ethernet address must be copied to h_dest and
 		 * pkt_type changed from PACKET_OTHERHOST to PACKET_HOST
 		 */
-		memcpy(ethhdr->h_dest, coded_packet_tmp.second_dest, ETH_ALEN);
+		ether_addr_copy(ethhdr->h_dest, coded_packet_tmp.second_dest);
 		skb->pkt_type = PACKET_HOST;
 
 		orig_dest = coded_packet_tmp.second_orig_dest;
@@ -1682,7 +1682,7 @@ batadv_nc_skb_decode_packet(struct batadv_priv *bat_priv, struct sk_buff *skb,
 	unicast_packet->packet_type = BATADV_UNICAST;
 	unicast_packet->version = BATADV_COMPAT_VERSION;
 	unicast_packet->ttl = ttl;
-	memcpy(unicast_packet->dest, orig_dest, ETH_ALEN);
+	ether_addr_copy(unicast_packet->dest, orig_dest);
 	unicast_packet->ttvn = ttvn;
 
 	batadv_nc_packet_free(nc_packet);

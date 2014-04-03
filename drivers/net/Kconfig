@@ -177,11 +177,6 @@ config NETCONSOLE_DYNAMIC
 config NETPOLL
 	def_bool NETCONSOLE
 
-config NETPOLL_TRAP
-	bool "Netpoll traffic trapping"
-	default n
-	depends on NETPOLL
-
 config NET_POLL_CONTROLLER
 	def_bool NETPOLL
 

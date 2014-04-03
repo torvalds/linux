@@ -29,6 +29,7 @@
 
 #include "../wifi.h"
 #include "../pci.h"
+#include "../core.h"
 #include "../ps.h"
 #include "reg.h"
 #include "def.h"
@@ -151,18 +152,7 @@ static bool config_bb_with_pgheader(struct ieee80211_hw *hw,
 			v2 = table_pg[i + 1];
 
 			if (v1 < 0xcdcdcdcd) {
-				if (table_pg[i] == 0xfe)
-					mdelay(50);
-				else if (table_pg[i] == 0xfd)
-					mdelay(5);
-				else if (table_pg[i] == 0xfc)
-					mdelay(1);
-				else if (table_pg[i] == 0xfb)
-					udelay(50);
-				else if (table_pg[i] == 0xfa)
-					udelay(5);
-				else if (table_pg[i] == 0xf9)
-					udelay(1);
+				rtl_addr_delay(table_pg[i]);
 
 				store_pwrindex_offset(hw, table_pg[i],
 						      table_pg[i + 1],
@@ -672,24 +662,9 @@ static void _rtl8188e_config_rf_reg(struct ieee80211_hw *hw,
 				    u32 addr, u32 data, enum radio_path rfpath,
 				    u32 regaddr)
 {
-	if (addr == 0xffe) {
-		mdelay(50);
-	} else if (addr == 0xfd) {
-		mdelay(5);
-	} else if (addr == 0xfc) {
-		mdelay(1);
-	} else if (addr == 0xfb) {
-		udelay(50);
-	} else if (addr == 0xfa) {
-		udelay(5);
-	} else if (addr == 0xf9) {
-		udelay(1);
-	} else {
-		rtl_set_rfreg(hw, rfpath, regaddr,
-			      RFREG_OFFSET_MASK,
-			      data);
-		udelay(1);
-	}
+	rtl_rfreg_delay(hw, rfpath, regaddr,
+			RFREG_OFFSET_MASK,
+			data);
 }
 
 static void rtl88_config_s(struct ieee80211_hw *hw,
@@ -701,28 +676,6 @@ static void rtl88_config_s(struct ieee80211_hw *hw,
 	_rtl8188e_config_rf_reg(hw, addr, data, RF90_PATH_A,
 				addr | maskforphyset);
 }
-
-static void _rtl8188e_config_bb_reg(struct ieee80211_hw *hw,
-				    u32 addr, u32 data)
-{
-	if (addr == 0xfe) {
-		mdelay(50);
-	} else if (addr == 0xfd) {
-		mdelay(5);
-	} else if (addr == 0xfc) {
-		mdelay(1);
-	} else if (addr == 0xfb) {
-		udelay(50);
-	} else if (addr == 0xfa) {
-		udelay(5);
-	} else if (addr == 0xf9) {
-		udelay(1);
-	} else {
-		rtl_set_bbreg(hw, addr, MASKDWORD, data);
-		udelay(1);
-	}
-}
-
 
 #define NEXT_PAIR(v1, v2, i)				\
 	do {						\
@@ -795,7 +748,7 @@ static void set_baseband_phy_config(struct ieee80211_hw *hw)
 		v1 = array_table[i];
 		v2 = array_table[i + 1];
 		if (v1 < 0xcdcdcdcd) {
-			_rtl8188e_config_bb_reg(hw, v1, v2);
+			rtl_bb_delay(hw, v1, v2);
 		} else {/*This line is the start line of branch.*/
 			if (!check_cond(hw, array_table[i])) {
 				/*Discard the following (offset, data) pairs*/
@@ -811,7 +764,7 @@ static void set_baseband_phy_config(struct ieee80211_hw *hw)
 				while (v2 != 0xDEAD &&
 				       v2 != 0xCDEF &&
 				       v2 != 0xCDCD && i < arraylen - 2) {
-					_rtl8188e_config_bb_reg(hw, v1, v2);
+					rtl_bb_delay(hw, v1, v2);
 					NEXT_PAIR(v1, v2, i);
 				}
 
@@ -1002,7 +955,7 @@ bool rtl88e_phy_config_rf_with_headerfile(struct ieee80211_hw *hw,
 			}
 		}
 
-		if (rtlhal->oem_id == RT_CID_819x_HP)
+		if (rtlhal->oem_id == RT_CID_819X_HP)
 			rtl88_config_s(hw, 0x52, 0x7E4BD);
 
 		break;

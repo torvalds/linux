@@ -21,7 +21,7 @@
 
 struct rate_control_ref {
 	struct ieee80211_local *local;
-	struct rate_control_ops *ops;
+	const struct rate_control_ops *ops;
 	void *priv;
 };
 

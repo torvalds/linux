@@ -790,7 +790,7 @@ void ath6kl_cfg80211_connect_event(struct ath6kl_vif *vif, u16 channel,
 	if (nw_type & ADHOC_NETWORK) {
 		ath6kl_dbg(ATH6KL_DBG_WLAN_CFG, "ad-hoc %s selected\n",
 			   nw_type & ADHOC_CREATOR ? "creator" : "joiner");
-		cfg80211_ibss_joined(vif->ndev, bssid, GFP_KERNEL);
+		cfg80211_ibss_joined(vif->ndev, bssid, chan, GFP_KERNEL);
 		cfg80211_put_bss(ar->wiphy, bss);
 		return;
 	}
@@ -861,13 +861,9 @@ void ath6kl_cfg80211_disconnect_event(struct ath6kl_vif *vif, u8 reason,
 	}
 
 	if (vif->nw_type & ADHOC_NETWORK) {
-		if (vif->wdev.iftype != NL80211_IFTYPE_ADHOC) {
+		if (vif->wdev.iftype != NL80211_IFTYPE_ADHOC)
 			ath6kl_dbg(ATH6KL_DBG_WLAN_CFG,
 				   "%s: ath6k not in ibss mode\n", __func__);
-			return;
-		}
-		memset(bssid, 0, ETH_ALEN);
-		cfg80211_ibss_joined(vif->ndev, bssid, GFP_KERNEL);
 		return;
 	}
 
@@ -3256,6 +3252,15 @@ static int ath6kl_cfg80211_sscan_start(struct wiphy *wiphy,
 	struct ath6kl_vif *vif = netdev_priv(dev);
 	u16 interval;
 	int ret, rssi_thold;
+	int n_match_sets = request->n_match_sets;
+
+	/*
+	 * If there's a matchset w/o an SSID, then assume it's just for
+	 * the RSSI (nothing else is currently supported) and ignore it.
+	 * The device only supports a global RSSI filter that we set below.
+	 */
+	if (n_match_sets == 1 && !request->match_sets[0].ssid.ssid_len)
+		n_match_sets = 0;
 
 	if (ar->state != ATH6KL_STATE_ON)
 		return -EIO;
@@ -3268,11 +3273,11 @@ static int ath6kl_cfg80211_sscan_start(struct wiphy *wiphy,
 	ret = ath6kl_set_probed_ssids(ar, vif, request->ssids,
 				      request->n_ssids,
 				      request->match_sets,
-				      request->n_match_sets);
+				      n_match_sets);
 	if (ret < 0)
 		return ret;
 
-	if (!request->n_match_sets) {
+	if (!n_match_sets) {
 		ret = ath6kl_wmi_bssfilter_cmd(ar->wmi, vif->fw_vif_idx,
 					       ALL_BSS_FILTER, 0);
 		if (ret < 0)
@@ -3286,12 +3291,12 @@ static int ath6kl_cfg80211_sscan_start(struct wiphy *wiphy,
 
 	if (test_bit(ATH6KL_FW_CAPABILITY_RSSI_SCAN_THOLD,
 		     ar->fw_capabilities)) {
-		if (request->rssi_thold <= NL80211_SCAN_RSSI_THOLD_OFF)
+		if (request->min_rssi_thold <= NL80211_SCAN_RSSI_THOLD_OFF)
 			rssi_thold = 0;
-		else if (request->rssi_thold < -127)
+		else if (request->min_rssi_thold < -127)
 			rssi_thold = -127;
 		else
-			rssi_thold = request->rssi_thold;
+			rssi_thold = request->min_rssi_thold;
 
 		ret = ath6kl_wmi_set_rssi_filter_cmd(ar->wmi, vif->fw_vif_idx,
 						     rssi_thold);

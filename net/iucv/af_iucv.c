@@ -1382,6 +1382,7 @@ static int iucv_sock_recvmsg(struct kiocb *iocb, struct socket *sock,
 		if (sk->sk_type == SOCK_STREAM) {
 			if (copied < rlen) {
 				IUCV_SKB_CB(skb)->offset = offset + copied;
+				skb_queue_head(&sk->sk_receive_queue, skb);
 				goto done;
 			}
 		}

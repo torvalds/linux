@@ -784,6 +784,7 @@ static int ath_pci_probe(struct pci_dev *pdev, const struct pci_device_id *id)
 {
 	struct ath_softc *sc;
 	struct ieee80211_hw *hw;
+	struct ath_common *common;
 	u8 csz;
 	u32 val;
 	int ret = 0;
@@ -858,9 +859,6 @@ static int ath_pci_probe(struct pci_dev *pdev, const struct pci_device_id *id)
 	sc->mem = pcim_iomap_table(pdev)[0];
 	sc->driver_data = id->driver_data;
 
-	/* Will be cleared in ath9k_start() */
-	set_bit(SC_OP_INVALID, &sc->sc_flags);
-
 	ret = request_irq(pdev->irq, ath_isr, IRQF_SHARED, "ath9k", sc);
 	if (ret) {
 		dev_err(&pdev->dev, "request_irq failed\n");
@@ -878,6 +876,10 @@ static int ath_pci_probe(struct pci_dev *pdev, const struct pci_device_id *id)
 	ath9k_hw_name(sc->sc_ah, hw_name, sizeof(hw_name));
 	wiphy_info(hw->wiphy, "%s mem=0x%lx, irq=%d\n",
 		   hw_name, (unsigned long)sc->mem, pdev->irq);
+
+	/* Will be cleared in ath9k_start() */
+	common = ath9k_hw_common(sc->sc_ah);
+	set_bit(ATH_OP_INVALID, &common->op_flags);
 
 	return 0;
 

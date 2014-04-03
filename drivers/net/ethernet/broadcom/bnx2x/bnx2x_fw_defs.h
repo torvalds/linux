@@ -87,7 +87,6 @@
 	(IRO[156].base + ((vfId) * IRO[156].m1))
 #define CSTORM_VF_TO_PF_OFFSET(funcId) \
 	(IRO[150].base + ((funcId) * IRO[150].m1))
-#define TSTORM_ACCEPT_CLASSIFY_FAILED_OFFSET (IRO[204].base)
 #define TSTORM_APPROXIMATE_MATCH_MULTICAST_FILTERING_OFFSET(pfId) \
 	(IRO[203].base + ((pfId) * IRO[203].m1))
 #define TSTORM_ASSERT_LIST_INDEX_OFFSET	(IRO[102].base)

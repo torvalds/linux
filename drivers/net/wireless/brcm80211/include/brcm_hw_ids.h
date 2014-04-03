@@ -43,5 +43,6 @@
 #define BCM4335_CHIP_ID		0x4335
 #define BCM43362_CHIP_ID	43362
 #define BCM4339_CHIP_ID		0x4339
+#define BCM4354_CHIP_ID		0x4354
 
 #endif				/* _BRCM_HW_IDS_H_ */

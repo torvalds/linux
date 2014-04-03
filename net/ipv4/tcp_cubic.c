@@ -476,10 +476,6 @@ static int __init cubictcp_register(void)
 	/* divide by bic_scale and by constant Srtt (100ms) */
 	do_div(cube_factor, bic_scale * 10);
 
-	/* hystart needs ms clock resolution */
-	if (hystart && HZ < 1000)
-		cubictcp.flags |= TCP_CONG_RTT_STAMP;
-
 	return tcp_register_congestion_control(&cubictcp);
 }
 

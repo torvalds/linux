@@ -154,7 +154,7 @@ void mlx4_ib_notify_slaves_on_guid_change(struct mlx4_ib_dev *dev,
 			continue;
 
 		slave_id = (block_num * NUM_ALIAS_GUID_IN_REC) + i ;
-		if (slave_id >= dev->dev->num_slaves)
+		if (slave_id >= dev->dev->num_vfs + 1)
 			return;
 		tmp_cur_ag = *(__be64 *)&p_data[i * GUID_REC_SIZE];
 		form_cache_ag = get_cached_alias_guid(dev, port_num,
