@@ -63,13 +63,6 @@ MODULE_DEVICE_TABLE(usb, streamzap_table);
 /* number of samples buffered */
 #define SZ_BUF_LEN 128
 
-/* from ir-rc5-sz-decoder.c */
-#ifdef CONFIG_IR_RC5_SZ_DECODER_MODULE
-#define load_rc5_sz_decode()    request_module("ir-rc5-sz-decoder")
-#else
-#define load_rc5_sz_decode()    {}
-#endif
-
 enum StreamzapDecoderState {
 	PulseSpace,
 	FullPulse,
@@ -451,9 +444,6 @@ static int streamzap_probe(struct usb_interface *intf,
 
 	dev_info(sz->dev, "Registered %s on usb%d:%d\n", name,
 		 usbdev->bus->busnum, usbdev->devnum);
-
-	/* Load the streamzap not-quite-rc5 decoder too */
-	load_rc5_sz_decode();
 
 	return 0;
 

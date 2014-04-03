@@ -84,18 +84,6 @@ config IR_SONY_DECODER
 	   Enable this option if you have an infrared remote control which
 	   uses the Sony protocol, and you need software decoding support.
 
-config IR_RC5_SZ_DECODER
-	tristate "Enable IR raw decoder for the RC-5 (streamzap) protocol"
-	depends on RC_CORE
-	select BITREVERSE
-	default y
-
-	---help---
-	   Enable this option if you have IR with RC-5 (streamzap) protocol,
-	   and if the IR is decoded in software. (The Streamzap PC Remote
-	   uses an IR protocol that is almost standard RC-5, but not quite,
-	   as it uses an additional bit).
-
 config IR_SANYO_DECODER
 	tristate "Enable IR raw decoder for the Sanyo protocol"
 	depends on RC_CORE
