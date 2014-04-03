@@ -275,35 +275,37 @@ static ssize_t fanotify_read(struct file *file, char __user *buf,
 		kevent = get_one_event(group, count);
 		mutex_unlock(&group->notification_mutex);
 
-		if (kevent) {
+		if (IS_ERR(kevent)) {
 			ret = PTR_ERR(kevent);
-			if (IS_ERR(kevent))
+			break;
+		}
+
+		if (!kevent) {
+			ret = -EAGAIN;
+			if (file->f_flags & O_NONBLOCK)
 				break;
-			ret = copy_event_to_user(group, kevent, buf);
-			/*
-			 * Permission events get queued to wait for response.
-			 * Other events can be destroyed now.
-			 */
-			if (!(kevent->mask & FAN_ALL_PERM_EVENTS))
-				fsnotify_destroy_event(group, kevent);
-			if (ret < 0)
+
+			ret = -ERESTARTSYS;
+			if (signal_pending(current))
 				break;
-			buf += ret;
-			count -= ret;
+
+			if (start != buf)
+				break;
+			schedule();
 			continue;
 		}
 
-		ret = -EAGAIN;
-		if (file->f_flags & O_NONBLOCK)
+		ret = copy_event_to_user(group, kevent, buf);
+		/*
+		 * Permission events get queued to wait for response.  Other
+		 * events can be destroyed now.
+		 */
+		if (!(kevent->mask & FAN_ALL_PERM_EVENTS))
+			fsnotify_destroy_event(group, kevent);
+		if (ret < 0)
 			break;
-		ret = -ERESTARTSYS;
-		if (signal_pending(current))
-			break;
-
-		if (start != buf)
-			break;
-
-		schedule();
+		buf += ret;
+		count -= ret;
 	}
 
 	finish_wait(&group->notification_waitq, &wait);
