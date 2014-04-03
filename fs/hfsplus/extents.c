@@ -227,10 +227,8 @@ int hfsplus_get_block(struct inode *inode, sector_t iblock,
 	u32 ablock, dblock, mask;
 	sector_t sector;
 	int was_dirty = 0;
-	int shift;
 
 	/* Convert inode block to disk allocation block */
-	shift = sbi->alloc_blksz_shift - sb->s_blocksize_bits;
 	ablock = iblock >> sbi->fs_shift;
 
 	if (iblock >= hip->fs_blocks) {
