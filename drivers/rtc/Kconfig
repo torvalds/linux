@@ -573,6 +573,18 @@ config RTC_DRV_DS1305
 	  This driver can also be built as a module. If so, the module
 	  will be called rtc-ds1305.
 
+config RTC_DRV_DS1347
+	tristate "Dallas/Maxim DS1347"
+	help
+	  If you say yes here you get support for the
+	  Dallas/Maxim DS1347 chips.
+
+	  This driver only supports the RTC feature, and not other chip
+	  features such as alarms.
+
+	  This driver can also be built as a module. If so, the module
+	  will be called rtc-ds1347.
+
 config RTC_DRV_DS1390
 	tristate "Dallas/Maxim DS1390/93/94"
 	help
