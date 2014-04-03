@@ -10,7 +10,7 @@
 #include <asm/ppc_asm.h>
 
 	.align	7
-_GLOBAL(memcpy)
+_GLOBAL_TOC(memcpy)
 BEGIN_FTR_SECTION
 	std	r3,-STACKFRAMESIZE+STK_REG(R31)(r1)	/* save destination pointer for return value */
 FTR_SECTION_ELSE
