@@ -486,10 +486,8 @@ static int __init davinci_rtc_probe(struct platform_device *pdev)
 	int ret = 0;
 
 	davinci_rtc = devm_kzalloc(&pdev->dev, sizeof(struct davinci_rtc), GFP_KERNEL);
-	if (!davinci_rtc) {
-		dev_dbg(dev, "could not allocate memory for private data\n");
+	if (!davinci_rtc)
 		return -ENOMEM;
-	}
 
 	davinci_rtc->irq = platform_get_irq(pdev, 0);
 	if (davinci_rtc->irq < 0) {
