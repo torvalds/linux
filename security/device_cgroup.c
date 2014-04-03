@@ -58,10 +58,8 @@ static inline struct dev_cgroup *css_to_devcgroup(struct cgroup_subsys_state *s)
 
 static inline struct dev_cgroup *task_devcgroup(struct task_struct *task)
 {
-	return css_to_devcgroup(task_css(task, devices_subsys_id));
+	return css_to_devcgroup(task_css(task, devices_cgrp_id));
 }
-
-struct cgroup_subsys devices_subsys;
 
 /*
  * called under devcgroup_mutex
@@ -498,7 +496,7 @@ static inline bool has_children(struct dev_cgroup *devcgroup)
  * parent cgroup has the access you're asking for.
  */
 static int devcgroup_update_access(struct dev_cgroup *devcgroup,
-				   int filetype, const char *buffer)
+				   int filetype, char *buffer)
 {
 	const char *b;
 	char temp[12];		/* 11 + 1 characters needed for a u32 */
@@ -654,7 +652,7 @@ static int devcgroup_update_access(struct dev_cgroup *devcgroup,
 }
 
 static int devcgroup_access_write(struct cgroup_subsys_state *css,
-				  struct cftype *cft, const char *buffer)
+				  struct cftype *cft, char *buffer)
 {
 	int retval;
 
@@ -684,13 +682,11 @@ static struct cftype dev_cgroup_files[] = {
 	{ }	/* terminate */
 };
 
-struct cgroup_subsys devices_subsys = {
-	.name = "devices",
+struct cgroup_subsys devices_cgrp_subsys = {
 	.css_alloc = devcgroup_css_alloc,
 	.css_free = devcgroup_css_free,
 	.css_online = devcgroup_online,
 	.css_offline = devcgroup_offline,
-	.subsys_id = devices_subsys_id,
 	.base_cftypes = dev_cgroup_files,
 };
 
