@@ -4188,7 +4188,7 @@ sub process {
 # check for naked sscanf
 		if ($^V && $^V ge 5.10.0 &&
 		    defined $stat &&
-		    $stat =~ /\bsscanf\b/ &&
+		    $line =~ /\bsscanf\b/ &&
 		    ($stat !~ /$Ident\s*=\s*sscanf\s*$balanced_parens/ &&
 		     $stat !~ /\bsscanf\s*$balanced_parens\s*(?:$Compare)/ &&
 		     $stat !~ /(?:$Compare)\s*\bsscanf\s*$balanced_parens/)) {
