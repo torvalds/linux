@@ -1608,6 +1608,21 @@ out:
 	return ret;
 }
 
+void ocfs2_rollback_alloc_dinode_counts(struct inode *inode,
+				       struct buffer_head *di_bh,
+				       u32 num_bits,
+				       u16 chain)
+{
+	u32 tmp_used;
+	struct ocfs2_dinode *di = (struct ocfs2_dinode *) di_bh->b_data;
+	struct ocfs2_chain_list *cl;
+
+	cl = (struct ocfs2_chain_list *)&di->id2.i_chain;
+	tmp_used = le32_to_cpu(di->id1.bitmap1.i_used);
+	di->id1.bitmap1.i_used = cpu_to_le32(tmp_used - num_bits);
+	le32_add_cpu(&cl->cl_recs[chain].c_free, num_bits);
+}
+
 static int ocfs2_bg_discontig_fix_by_rec(struct ocfs2_suballoc_result *res,
 					 struct ocfs2_extent_rec *rec,
 					 struct ocfs2_chain_list *cl)
@@ -1708,8 +1723,12 @@ static int ocfs2_search_one_group(struct ocfs2_alloc_context *ac,
 
 	ret = ocfs2_block_group_set_bits(handle, alloc_inode, gd, group_bh,
 					 res->sr_bit_offset, res->sr_bits);
-	if (ret < 0)
+	if (ret < 0) {
+		ocfs2_rollback_alloc_dinode_counts(alloc_inode, ac->ac_bh,
+					       res->sr_bits,
+					       le16_to_cpu(gd->bg_chain));
 		mlog_errno(ret);
+	}
 
 out_loc_only:
 	*bits_left = le16_to_cpu(gd->bg_free_bits_count);
@@ -1839,6 +1858,8 @@ static int ocfs2_search_chain(struct ocfs2_alloc_context *ac,
 					    res->sr_bit_offset,
 					    res->sr_bits);
 	if (status < 0) {
+		ocfs2_rollback_alloc_dinode_counts(alloc_inode,
+					ac->ac_bh, res->sr_bits, chain);
 		mlog_errno(status);
 		goto bail;
 	}
@@ -2150,6 +2171,8 @@ int ocfs2_claim_new_inode_at_loc(handle_t *handle,
 					 res->sr_bit_offset,
 					 res->sr_bits);
 	if (ret < 0) {
+		ocfs2_rollback_alloc_dinode_counts(ac->ac_inode,
+					       ac->ac_bh, res->sr_bits, chain);
 		mlog_errno(ret);
 		goto out;
 	}

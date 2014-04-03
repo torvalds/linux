@@ -691,8 +691,11 @@ static int ocfs2_move_extent(struct ocfs2_move_extents_context *context,
 
 	ret = ocfs2_block_group_set_bits(handle, gb_inode, gd, gd_bh,
 					 goal_bit, len);
-	if (ret)
+	if (ret) {
+		ocfs2_rollback_alloc_dinode_counts(gb_inode, gb_bh, len,
+					       le16_to_cpu(gd->bg_chain));
 		mlog_errno(ret);
+	}
 
 	/*
 	 * Here we should write the new page out first if we are
