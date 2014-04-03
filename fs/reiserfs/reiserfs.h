@@ -2831,6 +2831,7 @@ void reiserfs_init_alloc_options(struct super_block *s);
  */
 __le32 reiserfs_choose_packing(struct inode *dir);
 
+void show_alloc_options(struct seq_file *seq, struct super_block *s);
 int reiserfs_init_bitmap_cache(struct super_block *sb);
 void reiserfs_free_bitmap_cache(struct super_block *sb);
 void reiserfs_cache_bitmap_metadata(struct super_block *sb, struct buffer_head *bh, struct reiserfs_bitmap_info *info);
