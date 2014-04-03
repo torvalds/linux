@@ -1855,11 +1855,6 @@ static void hdmi_poweroff(struct exynos_drm_display *display)
 		goto out;
 	mutex_unlock(&hdata->hdmi_mutex);
 
-	/*
-	 * The TV power domain needs any condition of hdmiphy to turn off and
-	 * its reset state seems to meet the condition.
-	 */
-	hdmiphy_conf_reset(hdata);
 	hdmiphy_poweroff(hdata);
 
 	clk_disable_unprepare(res->sclk_hdmi);
