@@ -387,17 +387,24 @@ struct nft_rule {
 };
 
 /**
- *	struct nft_rule_trans - nf_tables rule update in transaction
+ *	struct nft_trans - nf_tables object update in transaction
  *
  *	@list: used internally
- *	@ctx: rule context
- *	@rule: rule that needs to be updated
+ *	@ctx: transaction context
+ *	@data: internal information related to the transaction
  */
-struct nft_rule_trans {
+struct nft_trans {
 	struct list_head		list;
 	struct nft_ctx			ctx;
+	char				data[0];
+};
+
+struct nft_trans_rule {
 	struct nft_rule			*rule;
 };
+
+#define nft_trans_rule(trans)	\
+	(((struct nft_trans_rule *)trans->data)->rule)
 
 static inline struct nft_expr *nft_expr_first(const struct nft_rule *rule)
 {

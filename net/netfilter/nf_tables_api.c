@@ -105,6 +105,25 @@ static void nft_ctx_init(struct nft_ctx *ctx,
 	ctx->nla   = nla;
 }
 
+static struct nft_trans *nft_trans_alloc(struct nft_ctx *ctx, u32 size)
+{
+	struct nft_trans *trans;
+
+	trans = kzalloc(sizeof(struct nft_trans) + size, GFP_KERNEL);
+	if (trans == NULL)
+		return NULL;
+
+	trans->ctx	= *ctx;
+
+	return trans;
+}
+
+static void nft_trans_destroy(struct nft_trans *trans)
+{
+	list_del(&trans->list);
+	kfree(trans);
+}
+
 /*
  * Tables
  */
@@ -1557,25 +1576,24 @@ static void nf_tables_rule_destroy(const struct nft_ctx *ctx,
 	kfree(rule);
 }
 
+static struct nft_trans *nft_trans_rule_add(struct nft_ctx *ctx,
+					    struct nft_rule *rule)
+{
+	struct nft_trans *trans;
+
+	trans = nft_trans_alloc(ctx, sizeof(struct nft_trans_rule));
+	if (trans == NULL)
+		return NULL;
+
+	nft_trans_rule(trans) = rule;
+	list_add_tail(&trans->list, &ctx->net->nft.commit_list);
+
+	return trans;
+}
+
 #define NFT_RULE_MAXEXPRS	128
 
 static struct nft_expr_info *info;
-
-static struct nft_rule_trans *
-nf_tables_trans_add(struct nft_ctx *ctx, struct nft_rule *rule)
-{
-	struct nft_rule_trans *rupd;
-
-	rupd = kmalloc(sizeof(struct nft_rule_trans), GFP_KERNEL);
-	if (rupd == NULL)
-	       return NULL;
-
-	rupd->ctx = *ctx;
-	rupd->rule = rule;
-	list_add_tail(&rupd->list, &ctx->net->nft.commit_list);
-
-	return rupd;
-}
 
 static int nf_tables_newrule(struct sock *nlsk, struct sk_buff *skb,
 			     const struct nlmsghdr *nlh,
@@ -1587,7 +1605,7 @@ static int nf_tables_newrule(struct sock *nlsk, struct sk_buff *skb,
 	struct nft_table *table;
 	struct nft_chain *chain;
 	struct nft_rule *rule, *old_rule = NULL;
-	struct nft_rule_trans *repl = NULL;
+	struct nft_trans *trans = NULL;
 	struct nft_expr *expr;
 	struct nft_ctx ctx;
 	struct nlattr *tmp;
@@ -1685,8 +1703,8 @@ static int nf_tables_newrule(struct sock *nlsk, struct sk_buff *skb,
 
 	if (nlh->nlmsg_flags & NLM_F_REPLACE) {
 		if (nft_rule_is_active_next(net, old_rule)) {
-			repl = nf_tables_trans_add(&ctx, old_rule);
-			if (repl == NULL) {
+			trans = nft_trans_rule_add(&ctx, old_rule);
+			if (trans == NULL) {
 				err = -ENOMEM;
 				goto err2;
 			}
@@ -1708,7 +1726,7 @@ static int nf_tables_newrule(struct sock *nlsk, struct sk_buff *skb,
 			list_add_rcu(&rule->list, &chain->rules);
 	}
 
-	if (nf_tables_trans_add(&ctx, rule) == NULL) {
+	if (nft_trans_rule_add(&ctx, rule) == NULL) {
 		err = -ENOMEM;
 		goto err3;
 	}
@@ -1716,11 +1734,10 @@ static int nf_tables_newrule(struct sock *nlsk, struct sk_buff *skb,
 
 err3:
 	list_del_rcu(&rule->list);
-	if (repl) {
-		list_del_rcu(&repl->rule->list);
-		list_del(&repl->list);
-		nft_rule_clear(net, repl->rule);
-		kfree(repl);
+	if (trans) {
+		list_del_rcu(&nft_trans_rule(trans)->list);
+		nft_rule_clear(net, nft_trans_rule(trans));
+		nft_trans_destroy(trans);
 	}
 err2:
 	nf_tables_rule_destroy(&ctx, rule);
@@ -1737,7 +1754,7 @@ nf_tables_delrule_one(struct nft_ctx *ctx, struct nft_rule *rule)
 {
 	/* You cannot delete the same rule twice */
 	if (nft_rule_is_active_next(ctx->net, rule)) {
-		if (nf_tables_trans_add(ctx, rule) == NULL)
+		if (nft_trans_rule_add(ctx, rule) == NULL)
 			return -ENOMEM;
 		nft_rule_disactivate_next(ctx->net, rule);
 		return 0;
@@ -1813,7 +1830,7 @@ static int nf_tables_delrule(struct sock *nlsk, struct sk_buff *skb,
 static int nf_tables_commit(struct sk_buff *skb)
 {
 	struct net *net = sock_net(skb->sk);
-	struct nft_rule_trans *rupd, *tmp;
+	struct nft_trans *trans, *next;
 
 	/* Bump generation counter, invalidate any dump in progress */
 	net->nft.genctr++;
@@ -1826,38 +1843,38 @@ static int nf_tables_commit(struct sk_buff *skb)
 	 */
 	synchronize_rcu();
 
-	list_for_each_entry_safe(rupd, tmp, &net->nft.commit_list, list) {
+	list_for_each_entry_safe(trans, next, &net->nft.commit_list, list) {
 		/* This rule was inactive in the past and just became active.
 		 * Clear the next bit of the genmask since its meaning has
 		 * changed, now it is the future.
 		 */
-		if (nft_rule_is_active(net, rupd->rule)) {
-			nft_rule_clear(net, rupd->rule);
-			nf_tables_rule_notify(skb, rupd->ctx.nlh,
-					      rupd->ctx.table, rupd->ctx.chain,
-					      rupd->rule, NFT_MSG_NEWRULE, 0,
-					      rupd->ctx.afi->family);
-			list_del(&rupd->list);
-			kfree(rupd);
+		if (nft_rule_is_active(net, nft_trans_rule(trans))) {
+			nft_rule_clear(net, nft_trans_rule(trans));
+			nf_tables_rule_notify(skb, trans->ctx.nlh,
+					      trans->ctx.table,
+					      trans->ctx.chain,
+					      nft_trans_rule(trans),
+					      NFT_MSG_NEWRULE, 0,
+					      trans->ctx.afi->family);
+			nft_trans_destroy(trans);
 			continue;
 		}
 
 		/* This rule is in the past, get rid of it */
-		list_del_rcu(&rupd->rule->list);
-		nf_tables_rule_notify(skb, rupd->ctx.nlh,
-				      rupd->ctx.table, rupd->ctx.chain,
-				      rupd->rule, NFT_MSG_DELRULE, 0,
-				      rupd->ctx.afi->family);
+		list_del_rcu(&nft_trans_rule(trans)->list);
+		nf_tables_rule_notify(skb, trans->ctx.nlh,
+				      trans->ctx.table, trans->ctx.chain,
+				      nft_trans_rule(trans), NFT_MSG_DELRULE,
+				      0, trans->ctx.afi->family);
 	}
 
 	/* Make sure we don't see any packet traversing old rules */
 	synchronize_rcu();
 
 	/* Now we can safely release unused old rules */
-	list_for_each_entry_safe(rupd, tmp, &net->nft.commit_list, list) {
-		nf_tables_rule_destroy(&rupd->ctx, rupd->rule);
-		list_del(&rupd->list);
-		kfree(rupd);
+	list_for_each_entry_safe(trans, next, &net->nft.commit_list, list) {
+		nf_tables_rule_destroy(&trans->ctx, nft_trans_rule(trans));
+		nft_trans_destroy(trans);
 	}
 
 	return 0;
@@ -1866,27 +1883,25 @@ static int nf_tables_commit(struct sk_buff *skb)
 static int nf_tables_abort(struct sk_buff *skb)
 {
 	struct net *net = sock_net(skb->sk);
-	struct nft_rule_trans *rupd, *tmp;
+	struct nft_trans *trans, *next;
 
-	list_for_each_entry_safe(rupd, tmp, &net->nft.commit_list, list) {
-		if (!nft_rule_is_active_next(net, rupd->rule)) {
-			nft_rule_clear(net, rupd->rule);
-			list_del(&rupd->list);
-			kfree(rupd);
+	list_for_each_entry_safe(trans, next, &net->nft.commit_list, list) {
+		if (!nft_rule_is_active_next(net, nft_trans_rule(trans))) {
+			nft_rule_clear(net, nft_trans_rule(trans));
+			nft_trans_destroy(trans);
 			continue;
 		}
 
 		/* This rule is inactive, get rid of it */
-		list_del_rcu(&rupd->rule->list);
+		list_del_rcu(&nft_trans_rule(trans)->list);
 	}
 
 	/* Make sure we don't see any packet accessing aborted rules */
 	synchronize_rcu();
 
-	list_for_each_entry_safe(rupd, tmp, &net->nft.commit_list, list) {
-		nf_tables_rule_destroy(&rupd->ctx, rupd->rule);
-		list_del(&rupd->list);
-		kfree(rupd);
+	list_for_each_entry_safe(trans, next, &net->nft.commit_list, list) {
+		nf_tables_rule_destroy(&trans->ctx, nft_trans_rule(trans));
+		nft_trans_destroy(trans);
 	}
 
 	return 0;
