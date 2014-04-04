@@ -50,7 +50,7 @@
 
 struct target_fabric_configfs *ft_configfs;
 
-LIST_HEAD(ft_lport_list);
+static LIST_HEAD(ft_lport_list);
 DEFINE_MUTEX(ft_lport_lock);
 
 unsigned int ft_debug_logging;
