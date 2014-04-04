@@ -176,6 +176,35 @@ bool is_module_trampoline(u32 *p)
 	return true;
 }
 
+int module_trampoline_target(struct module *mod, u32 *trampoline,
+			     unsigned long *target)
+{
+	u32 buf[2];
+	u16 upper, lower;
+	long offset;
+	void *toc_entry;
+
+	if (probe_kernel_read(buf, trampoline, sizeof(buf)))
+		return -EFAULT;
+
+	upper = buf[0] & 0xffff;
+	lower = buf[1] & 0xffff;
+
+	/* perform the addis/addi, both signed */
+	offset = ((short)upper << 16) + (short)lower;
+
+	/*
+	 * Now get the address this trampoline jumps to. This
+	 * is always 32 bytes into our trampoline stub.
+	 */
+	toc_entry = (void *)mod->arch.toc + offset + 32;
+
+	if (probe_kernel_read(target, toc_entry, sizeof(*target)))
+		return -EFAULT;
+
+	return 0;
+}
+
 #endif
 
 /* Count how many different 24-bit relocations (different symbol,
