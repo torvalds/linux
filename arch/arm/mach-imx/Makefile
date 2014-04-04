@@ -109,7 +109,6 @@ endif
 obj-$(CONFIG_SOC_IMX6) += pm-imx6.o
 
 # i.MX5 based machines
-obj-$(CONFIG_MACH_MX51_BABBAGE) += mach-mx51_babbage.o
 obj-$(CONFIG_MACH_EUKREA_CPUIMX51SD) += mach-cpuimx51sd.o
 obj-$(CONFIG_MACH_EUKREA_MBIMXSD51_BASEBOARD) += eukrea_mbimxsd51-baseboard.o
 
