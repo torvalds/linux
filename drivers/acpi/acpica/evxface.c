@@ -457,6 +457,8 @@ exit:
 	return_ACPI_STATUS(status);
 }
 
+ACPI_EXPORT_SYMBOL(acpi_install_sci_handler)
+
 /*******************************************************************************
  *
  * FUNCTION:    acpi_remove_sci_handler
@@ -468,7 +470,6 @@ exit:
  * DESCRIPTION: Remove a handler for a System Control Interrupt.
  *
  ******************************************************************************/
-
 acpi_status acpi_remove_sci_handler(acpi_sci_handler address)
 {
 	struct acpi_sci_handler_info *prev_sci_handler;
@@ -522,6 +523,8 @@ unlock_and_exit:
 	return_ACPI_STATUS(status);
 }
 
+ACPI_EXPORT_SYMBOL(acpi_remove_sci_handler)
+
 /*******************************************************************************
  *
  * FUNCTION:    acpi_install_global_event_handler
@@ -537,7 +540,6 @@ unlock_and_exit:
  *              Can be used to update event counters, etc.
  *
  ******************************************************************************/
-
 acpi_status
 acpi_install_global_event_handler(acpi_gbl_event_handler handler, void *context)
 {
