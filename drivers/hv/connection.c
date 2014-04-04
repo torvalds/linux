@@ -55,6 +55,9 @@ static __u32 vmbus_get_next_version(__u32 current_version)
 	case (VERSION_WIN8):
 		return VERSION_WIN7;
 
+	case (VERSION_WIN8_1):
+		return VERSION_WIN8;
+
 	case (VERSION_WS2008):
 	default:
 		return VERSION_INVAL;
@@ -79,6 +82,9 @@ static int vmbus_negotiate_version(struct vmbus_channel_msginfo *msginfo,
 	msg->monitor_page2 = virt_to_phys(
 			(void *)((unsigned long)vmbus_connection.monitor_pages +
 				 PAGE_SIZE));
+
+	if (version == VERSION_WIN8_1)
+		msg->target_vcpu = hv_context.vp_index[smp_processor_id()];
 
 	/*
 	 * Add to list before we send the request since we may
