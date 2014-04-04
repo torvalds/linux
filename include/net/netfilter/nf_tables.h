@@ -446,6 +446,16 @@ struct nft_trans_table {
 #define nft_trans_table_enable(trans)	\
 	(((struct nft_trans_table *)trans->data)->enable)
 
+struct nft_trans_elem {
+	struct nft_set		*set;
+	struct nft_set_elem	elem;
+};
+
+#define nft_trans_elem_set(trans)	\
+	(((struct nft_trans_elem *)trans->data)->set)
+#define nft_trans_elem(trans)	\
+	(((struct nft_trans_elem *)trans->data)->elem)
+
 static inline struct nft_expr *nft_expr_first(const struct nft_rule *rule)
 {
 	return (struct nft_expr *)&rule->data[0];
