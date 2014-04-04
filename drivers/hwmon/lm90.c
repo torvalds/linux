@@ -1057,6 +1057,15 @@ static const struct attribute_group lm90_group = {
 	.attrs = lm90_attributes,
 };
 
+static struct attribute *lm90_temp2_offset_attributes[] = {
+	&sensor_dev_attr_temp2_offset.dev_attr.attr,
+	NULL
+};
+
+static const struct attribute_group lm90_temp2_offset_group = {
+	.attrs = lm90_temp2_offset_attributes,
+};
+
 /*
  * Additional attributes for devices with emergency sensors
  */
@@ -1404,7 +1413,7 @@ static void lm90_remove_files(struct i2c_client *client, struct lm90_data *data)
 	if (data->flags & LM90_HAVE_EMERGENCY)
 		sysfs_remove_group(&dev->kobj, &lm90_emergency_group);
 	if (data->flags & LM90_HAVE_OFFSET)
-		device_remove_file(dev, &sensor_dev_attr_temp2_offset.dev_attr);
+		sysfs_remove_group(&dev->kobj, &lm90_temp2_offset_group);
 	device_remove_file(dev, &dev_attr_pec);
 	sysfs_remove_group(&dev->kobj, &lm90_group);
 }
@@ -1574,8 +1583,7 @@ static int lm90_probe(struct i2c_client *client,
 			goto exit_remove_files;
 	}
 	if (data->flags & LM90_HAVE_OFFSET) {
-		err = device_create_file(dev,
-					&sensor_dev_attr_temp2_offset.dev_attr);
+		err = sysfs_create_group(&dev->kobj, &lm90_temp2_offset_group);
 		if (err)
 			goto exit_remove_files;
 	}
