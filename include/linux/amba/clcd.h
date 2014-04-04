@@ -243,6 +243,9 @@ static inline void clcdfb_decode(struct clcd_fb *fb, struct clcd_regs *regs)
 			val |= CNTL_BGR;
 	}
 
+	/* Reset the current colour depth */
+	val &= ~CNTL_LCDBPP16_444;
+
 	switch (var->bits_per_pixel) {
 	case 1:
 		val |= CNTL_LCDBPP1;
@@ -264,14 +267,15 @@ static inline void clcdfb_decode(struct clcd_fb *fb, struct clcd_regs *regs)
 		 */
 		if (amba_part(fb->dev) == 0x110 ||
 		    var->green.length == 5)
-			val |= CNTL_LCDBPP16;
+			val |= CNTL_LCDBPP16 | CNTL_BGR;
 		else if (var->green.length == 6)
-			val |= CNTL_LCDBPP16_565;
+			val |= CNTL_LCDBPP16_565 | CNTL_BGR;
 		else
-			val |= CNTL_LCDBPP16_444;
+			val |= CNTL_LCDBPP16_444 | CNTL_BGR;
 		break;
 	case 32:
 		val |= CNTL_LCDBPP24;
+		val &= ~CNTL_BGR;
 		break;
 	}
 
