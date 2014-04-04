@@ -580,6 +580,18 @@ acpi_tb_install_non_fixed_table(acpi_physical_address address,
 		return_ACPI_STATUS(status);
 	}
 
+	/*
+	 * Optionally do not load any SSDTs from the RSDT/XSDT. This can
+	 * be useful for debugging ACPI problems on some machines.
+	 */
+	if (!reload && acpi_gbl_disable_ssdt_table_install &&
+	    ACPI_COMPARE_NAME(&new_table_desc.signature, ACPI_SIG_SSDT)) {
+		ACPI_INFO((AE_INFO, "Ignoring installation of %4.4s at %p",
+			   new_table_desc.signature.ascii, ACPI_CAST_PTR(void,
+									 address)));
+		goto release_and_exit;
+	}
+
 	/* Validate and verify a table before installation */
 
 	status = acpi_tb_verify_table(&new_table_desc, NULL);

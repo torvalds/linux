@@ -179,19 +179,6 @@ static acpi_status acpi_tb_load_namespace(void)
 			continue;
 		}
 
-		/*
-		 * Optionally do not load any SSDTs from the RSDT/XSDT. This can
-		 * be useful for debugging ACPI problems on some machines.
-		 */
-		if (acpi_gbl_disable_ssdt_table_load) {
-			ACPI_INFO((AE_INFO, "Ignoring %4.4s at %p",
-				   acpi_gbl_root_table_list.tables[i].signature.
-				   ascii, ACPI_CAST_PTR(void,
-							acpi_gbl_root_table_list.
-							tables[i].address)));
-			continue;
-		}
-
 		/* Ignore errors while loading tables, get as many as possible */
 
 		(void)acpi_ut_release_mutex(ACPI_MTX_TABLES);

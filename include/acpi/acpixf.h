@@ -75,7 +75,7 @@ extern u8 acpi_gbl_auto_serialize_methods;
 extern u8 acpi_gbl_copy_dsdt_locally;
 extern u8 acpi_gbl_create_osi_method;
 extern u8 acpi_gbl_disable_auto_repair;
-extern u8 acpi_gbl_disable_ssdt_table_load;
+extern u8 acpi_gbl_disable_ssdt_table_install;
 extern u8 acpi_gbl_do_not_use_xsdt;
 extern u8 acpi_gbl_enable_aml_debug_object;
 extern u8 acpi_gbl_enable_interpreter_slack;
