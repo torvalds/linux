@@ -226,7 +226,7 @@ static void omap3xxx_prm_restore_irqen(u32 *saved_mask)
  * that any peripheral wake-up events occurring while attempting to
  * clear the PM_WKST_x are detected and cleared.
  */
-int omap3xxx_prm_clear_mod_irqs(s16 module, u8 regs, u32 wkst_mask)
+static int omap3xxx_prm_clear_mod_irqs(s16 module, u8 regs, u32 wkst_mask)
 {
 	u32 wkst, fclk, iclk, clken;
 	u16 wkst_off = (regs == 3) ? OMAP3430ES2_PM_WKST3 : PM_WKST1;
@@ -664,6 +664,7 @@ static struct prm_ll_data omap3xxx_prm_ll_data = {
 	.deassert_hardreset = &omap2_prm_deassert_hardreset,
 	.is_hardreset_asserted = &omap2_prm_is_hardreset_asserted,
 	.reset_system = &omap3xxx_prm_dpll3_reset,
+	.clear_mod_irqs = &omap3xxx_prm_clear_mod_irqs,
 };
 
 int __init omap3xxx_prm_init(void)

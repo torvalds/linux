@@ -534,6 +534,27 @@ void omap_prm_reset_system(void)
 }
 
 /**
+ * omap_prm_clear_mod_irqs - clear wake-up events from PRCM interrupt
+ * @module: PRM module to clear wakeups from
+ * @regs: register to clear
+ * @wkst_mask: wkst bits to clear
+ *
+ * Clears any wakeup events for the module and register set defined.
+ * Uses SoC specific implementation to do the actual wakeup status
+ * clearing.
+ */
+int omap_prm_clear_mod_irqs(s16 module, u8 regs, u32 wkst_mask)
+{
+	if (!prm_ll_data->clear_mod_irqs) {
+		WARN_ONCE(1, "prm: %s: no mapping function defined\n",
+			  __func__);
+		return -EINVAL;
+	}
+
+	return prm_ll_data->clear_mod_irqs(module, regs, wkst_mask);
+}
+
+/**
  * prm_register - register per-SoC low-level data with the PRM
  * @pld: low-level per-SoC OMAP PRM data & function pointers to register
  *
