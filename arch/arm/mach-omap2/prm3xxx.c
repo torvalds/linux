@@ -96,7 +96,7 @@ static struct omap3_vp omap3_vp[] = {
 
 #define MAX_VP_ID ARRAY_SIZE(omap3_vp);
 
-u32 omap3_prm_vp_check_txdone(u8 vp_id)
+static u32 omap3_prm_vp_check_txdone(u8 vp_id)
 {
 	struct omap3_vp *vp = &omap3_vp[vp_id];
 	u32 irqstatus;
@@ -106,7 +106,7 @@ u32 omap3_prm_vp_check_txdone(u8 vp_id)
 	return irqstatus & vp->tranxdone_status;
 }
 
-void omap3_prm_vp_clear_txdone(u8 vp_id)
+static void omap3_prm_vp_clear_txdone(u8 vp_id)
 {
 	struct omap3_vp *vp = &omap3_vp[vp_id];
 
@@ -665,6 +665,8 @@ static struct prm_ll_data omap3xxx_prm_ll_data = {
 	.is_hardreset_asserted = &omap2_prm_is_hardreset_asserted,
 	.reset_system = &omap3xxx_prm_dpll3_reset,
 	.clear_mod_irqs = &omap3xxx_prm_clear_mod_irqs,
+	.vp_check_txdone = &omap3_prm_vp_check_txdone,
+	.vp_clear_txdone = &omap3_prm_vp_clear_txdone,
 };
 
 int __init omap3xxx_prm_init(void)

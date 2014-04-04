@@ -132,10 +132,6 @@
 
 #ifndef __ASSEMBLER__
 
-/* OMAP3-specific VP functions */
-u32 omap3_prm_vp_check_txdone(u8 vp_id);
-void omap3_prm_vp_clear_txdone(u8 vp_id);
-
 /*
  * OMAP3 access functions for voltage controller (VC) and
  * voltage proccessor (VP) in the PRM.

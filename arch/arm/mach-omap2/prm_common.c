@@ -555,6 +555,40 @@ int omap_prm_clear_mod_irqs(s16 module, u8 regs, u32 wkst_mask)
 }
 
 /**
+ * omap_prm_vp_check_txdone - check voltage processor TX done status
+ *
+ * Checks if voltage processor transmission has been completed.
+ * Returns non-zero if a transmission has completed, 0 otherwise.
+ */
+u32 omap_prm_vp_check_txdone(u8 vp_id)
+{
+	if (!prm_ll_data->vp_check_txdone) {
+		WARN_ONCE(1, "prm: %s: no mapping function defined\n",
+			  __func__);
+		return 0;
+	}
+
+	return prm_ll_data->vp_check_txdone(vp_id);
+}
+
+/**
+ * omap_prm_vp_clear_txdone - clears voltage processor TX done status
+ *
+ * Clears the status bit for completed voltage processor transmission
+ * returned by prm_vp_check_txdone.
+ */
+void omap_prm_vp_clear_txdone(u8 vp_id)
+{
+	if (!prm_ll_data->vp_clear_txdone) {
+		WARN_ONCE(1, "prm: %s: no mapping function defined\n",
+			  __func__);
+		return;
+	}
+
+	prm_ll_data->vp_clear_txdone(vp_id);
+}
+
+/**
  * prm_register - register per-SoC low-level data with the PRM
  * @pld: low-level per-SoC OMAP PRM data & function pointers to register
  *

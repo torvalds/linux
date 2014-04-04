@@ -138,7 +138,7 @@ static struct omap4_vp omap4_vp[] = {
 	},
 };
 
-u32 omap4_prm_vp_check_txdone(u8 vp_id)
+static u32 omap4_prm_vp_check_txdone(u8 vp_id)
 {
 	struct omap4_vp *vp = &omap4_vp[vp_id];
 	u32 irqstatus;
@@ -149,7 +149,7 @@ u32 omap4_prm_vp_check_txdone(u8 vp_id)
 	return irqstatus & vp->tranxdone_status;
 }
 
-void omap4_prm_vp_clear_txdone(u8 vp_id)
+static void omap4_prm_vp_clear_txdone(u8 vp_id)
 {
 	struct omap4_vp *vp = &omap4_vp[vp_id];
 
@@ -699,6 +699,8 @@ static struct prm_ll_data omap44xx_prm_ll_data = {
 	.deassert_hardreset	= omap4_prminst_deassert_hardreset,
 	.is_hardreset_asserted	= omap4_prminst_is_hardreset_asserted,
 	.reset_system		= omap4_prminst_global_warm_sw_reset,
+	.vp_check_txdone	= omap4_prm_vp_check_txdone,
+	.vp_clear_txdone	= omap4_prm_vp_clear_txdone,
 };
 
 int __init omap44xx_prm_init(void)
