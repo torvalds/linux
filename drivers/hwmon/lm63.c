@@ -1121,7 +1121,6 @@ static int lm63_probe(struct i2c_client *client,
 		return -ENOMEM;
 
 	data->client = client;
-	data->valid = 0;
 	mutex_init(&data->update_lock);
 
 	/* Set the device type */
