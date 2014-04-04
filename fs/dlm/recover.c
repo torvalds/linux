@@ -526,7 +526,7 @@ int dlm_recover_masters(struct dlm_ls *ls)
 	int nodir = dlm_no_directory(ls);
 	int error;
 
-	log_debug(ls, "dlm_recover_masters");
+	log_rinfo(ls, "dlm_recover_masters");
 
 	down_read(&ls->ls_root_sem);
 	list_for_each_entry(r, &ls->ls_root_list, res_root_list) {
@@ -552,7 +552,7 @@ int dlm_recover_masters(struct dlm_ls *ls)
 	}
 	up_read(&ls->ls_root_sem);
 
-	log_debug(ls, "dlm_recover_masters %u of %u", count, total);
+	log_rinfo(ls, "dlm_recover_masters %u of %u", count, total);
 
 	error = dlm_wait_function(ls, &recover_idr_empty);
  out:
@@ -685,7 +685,7 @@ int dlm_recover_locks(struct dlm_ls *ls)
 	}
 	up_read(&ls->ls_root_sem);
 
-	log_debug(ls, "dlm_recover_locks %d out", count);
+	log_rinfo(ls, "dlm_recover_locks %d out", count);
 
 	error = dlm_wait_function(ls, &recover_list_empty);
  out:
@@ -883,7 +883,7 @@ void dlm_recover_rsbs(struct dlm_ls *ls)
 	up_read(&ls->ls_root_sem);
 
 	if (count)
-		log_debug(ls, "dlm_recover_rsbs %d done", count);
+		log_rinfo(ls, "dlm_recover_rsbs %d done", count);
 }
 
 /* Create a single list of all root rsb's to be used during recovery */
@@ -950,6 +950,6 @@ void dlm_clear_toss(struct dlm_ls *ls)
 	}
 
 	if (count)
-		log_debug(ls, "dlm_clear_toss %u done", count);
+		log_rinfo(ls, "dlm_clear_toss %u done", count);
 }
 

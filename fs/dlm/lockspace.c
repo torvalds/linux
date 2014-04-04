@@ -190,7 +190,7 @@ static int do_uevent(struct dlm_ls *ls, int in)
 	else
 		kobject_uevent(&ls->ls_kobj, KOBJ_OFFLINE);
 
-	log_debug(ls, "%s the lockspace group...", in ? "joining" : "leaving");
+	log_rinfo(ls, "%s the lockspace group...", in ? "joining" : "leaving");
 
 	/* dlm_controld will see the uevent, do the necessary group management
 	   and then write to sysfs to wake us */
@@ -198,7 +198,7 @@ static int do_uevent(struct dlm_ls *ls, int in)
 	error = wait_event_interruptible(ls->ls_uevent_wait,
 			test_and_clear_bit(LSFL_UEVENT_WAIT, &ls->ls_flags));
 
-	log_debug(ls, "group event done %d %d", error, ls->ls_uevent_result);
+	log_rinfo(ls, "group event done %d %d", error, ls->ls_uevent_result);
 
 	if (error)
 		goto out;
@@ -640,7 +640,7 @@ static int new_lockspace(const char *name, const char *cluster,
 
 	dlm_create_debug_file(ls);
 
-	log_debug(ls, "join complete");
+	log_rinfo(ls, "join complete");
 	*lockspace = ls;
 	return 0;
 
@@ -835,7 +835,7 @@ static int release_lockspace(struct dlm_ls *ls, int force)
 	dlm_clear_members(ls);
 	dlm_clear_members_gone(ls);
 	kfree(ls->ls_node_array);
-	log_debug(ls, "release_lockspace final free");
+	log_rinfo(ls, "release_lockspace final free");
 	kobject_put(&ls->ls_kobj);
 	/* The ls structure will be freed when the kobject is done with */
 
