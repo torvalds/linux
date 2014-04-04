@@ -11,6 +11,7 @@
  *  similar parts.  The other devices are supported by different drivers.
  *
  *  Supports: IT8603E  Super I/O chip w/LPC interface
+ *            IT8623E  Super I/O chip w/LPC interface
  *            IT8705F  Super I/O chip w/LPC interface
  *            IT8712F  Super I/O chip w/LPC interface
  *            IT8716F  Super I/O chip w/LPC interface
@@ -148,6 +149,7 @@ static inline void superio_exit(void)
 #define IT8782F_DEVID 0x8782
 #define IT8783E_DEVID 0x8783
 #define IT8603E_DEVID 0x8603
+#define IT8623E_DEVID 0x8623
 #define IT87_ACT_REG  0x30
 #define IT87_BASE_REG 0x60
 
@@ -1767,6 +1769,7 @@ static int __init it87_find(unsigned short *address,
 		sio_data->type = it8783;
 		break;
 	case IT8603E_DEVID:
+	case IT8623E_DEVID:
 		sio_data->type = it8603;
 		break;
 	case 0xffff:	/* No device at all */
