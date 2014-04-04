@@ -346,7 +346,7 @@ acpi_get_table_with_size(char *signature,
 		}
 
 		status =
-		    acpi_tb_verify_table(&acpi_gbl_root_table_list.tables[i]);
+		    acpi_tb_validate_table(&acpi_gbl_root_table_list.tables[i]);
 		if (ACPI_SUCCESS(status)) {
 			*out_table = acpi_gbl_root_table_list.tables[i].pointer;
 			*tbl_size = acpi_gbl_root_table_list.tables[i].length;
@@ -416,8 +416,8 @@ acpi_get_table_by_index(u32 table_index, struct acpi_table_header ** table)
 		/* Table is not mapped, map it */
 
 		status =
-		    acpi_tb_verify_table(&acpi_gbl_root_table_list.
-					 tables[table_index]);
+		    acpi_tb_validate_table(&acpi_gbl_root_table_list.
+					   tables[table_index]);
 		if (ACPI_FAILURE(status)) {
 			(void)acpi_ut_release_mutex(ACPI_MTX_TABLES);
 			return_ACPI_STATUS(status);

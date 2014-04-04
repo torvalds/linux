@@ -178,7 +178,7 @@ struct acpi_table_header *acpi_tb_copy_dsdt(u32 table_index)
 	}
 
 	ACPI_MEMCPY(new_table, table_desc->pointer, table_desc->length);
-	acpi_tb_delete_table(table_desc);
+	acpi_tb_uninstall_table(table_desc);
 	table_desc->address = ACPI_PTR_TO_PHYSADDR(new_table);
 	table_desc->pointer = new_table;
 	table_desc->flags = ACPI_TABLE_ORIGIN_ALLOCATED;
@@ -268,7 +268,7 @@ acpi_tb_install_table(acpi_physical_address address,
 	 * fully mapped later (in verify table). In any case, we must
 	 * unmap the header that was mapped above.
 	 */
-	final_table = acpi_tb_table_override(table, table_desc);
+	final_table = acpi_tb_override_table(table, table_desc);
 	if (!final_table) {
 		final_table = table;	/* There was no override */
 	}
@@ -290,7 +290,12 @@ acpi_tb_install_table(acpi_physical_address address,
 	 * flag set and will not be deleted below.
 	 */
 	if (final_table != table) {
-		acpi_tb_delete_table(table_desc);
+		/*
+		 * Table is in "INSTALLED" state, the final_table pointer is not
+		 * maintained in the root table list.
+		 */
+		acpi_tb_release_table(final_table, table_desc->length,
+				      table_desc->flags);
 	}
 
 unmap_and_exit:

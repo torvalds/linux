@@ -72,12 +72,23 @@ acpi_tb_find_table(char *signature,
  */
 acpi_status acpi_tb_resize_root_table_list(void);
 
-acpi_status acpi_tb_verify_table(struct acpi_table_desc *table_desc);
+acpi_status acpi_tb_validate_table(struct acpi_table_desc *table_desc);
 
-struct acpi_table_header *acpi_tb_table_override(struct acpi_table_header
+void acpi_tb_invalidate_table(struct acpi_table_desc *table_desc);
+
+struct acpi_table_header *acpi_tb_override_table(struct acpi_table_header
 						 *table_header,
 						 struct acpi_table_desc
 						 *table_desc);
+
+acpi_status
+acpi_tb_acquire_table(struct acpi_table_desc *table_desc,
+		      struct acpi_table_header **table_ptr,
+		      u32 *table_length, u8 *table_flags);
+
+void
+acpi_tb_release_table(struct acpi_table_header *table,
+		      u32 table_length, u8 table_flags);
 
 acpi_status
 acpi_tb_add_table(struct acpi_table_desc *table_desc, u32 *table_index);
@@ -87,7 +98,7 @@ acpi_tb_store_table(acpi_physical_address address,
 		    struct acpi_table_header *table,
 		    u32 length, u8 flags, u32 *table_index);
 
-void acpi_tb_delete_table(struct acpi_table_desc *table_desc);
+void acpi_tb_uninstall_table(struct acpi_table_desc *table_desc);
 
 void acpi_tb_terminate(void);
 

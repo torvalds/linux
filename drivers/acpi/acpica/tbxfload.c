@@ -117,7 +117,7 @@ static acpi_status acpi_tb_load_namespace(void)
 				tables[ACPI_TABLE_INDEX_DSDT].signature),
 			       ACPI_SIG_DSDT)
 	    ||
-	    ACPI_FAILURE(acpi_tb_verify_table
+	    ACPI_FAILURE(acpi_tb_validate_table
 			 (&acpi_gbl_root_table_list.
 			  tables[ACPI_TABLE_INDEX_DSDT]))) {
 		status = AE_NO_ACPI_TABLES;
@@ -128,7 +128,7 @@ static acpi_status acpi_tb_load_namespace(void)
 	 * Save the DSDT pointer for simple access. This is the mapped memory
 	 * address. We must take care here because the address of the .Tables
 	 * array can change dynamically as tables are loaded at run-time. Note:
-	 * .Pointer field is not validated until after call to acpi_tb_verify_table.
+	 * .Pointer field is not validated until after call to acpi_tb_validate_table.
 	 */
 	acpi_gbl_DSDT =
 	    acpi_gbl_root_table_list.tables[ACPI_TABLE_INDEX_DSDT].pointer;
@@ -174,7 +174,7 @@ static acpi_status acpi_tb_load_namespace(void)
 					(acpi_gbl_root_table_list.tables[i].
 					 signature), ACPI_SIG_PSDT))
 		    ||
-		    ACPI_FAILURE(acpi_tb_verify_table
+		    ACPI_FAILURE(acpi_tb_validate_table
 				 (&acpi_gbl_root_table_list.tables[i]))) {
 			continue;
 		}
