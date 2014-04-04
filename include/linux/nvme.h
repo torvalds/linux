@@ -66,7 +66,8 @@ enum {
 
 #define NVME_VS(major, minor)	(major << 16 | minor)
 
-#define NVME_IO_TIMEOUT	(5 * HZ)
+extern unsigned char io_timeout;
+#define NVME_IO_TIMEOUT	(io_timeout * HZ)
 
 /*
  * Represents an NVM Express device.  Each nvme_dev is a PCI function.
