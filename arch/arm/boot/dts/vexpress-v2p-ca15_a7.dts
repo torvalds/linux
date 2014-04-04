@@ -258,6 +258,19 @@
 		clock-output-names = "oscclk6a";
 	};
 
+/* PSCI requires support from firmware and is not present in the normal TC2
+ * distribution, so this node is commented out by default...
+
+	psci {
+		compatible      = "arm,psci";
+		method          = "smc";
+		cpu_suspend     = <0x80100001>;
+		cpu_off         = <0x80100002>;
+		cpu_on          = <0x80100003>;
+		migrate         = <0x80100004>;
+	};
+*/
+
 	dcc {
 		compatible = "arm,vexpress,config-bus";
 		arm,vexpress,config-bridge = <&v2m_sysreg>;

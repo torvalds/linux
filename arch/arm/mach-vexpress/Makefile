@@ -14,5 +14,9 @@ CFLAGS_REMOVE_spc.o			= -pg
 obj-$(CONFIG_ARCH_VEXPRESS_TC2_PM)	+= tc2_pm.o
 CFLAGS_tc2_pm.o				+= -march=armv7-a
 CFLAGS_REMOVE_tc2_pm.o			= -pg
+ifeq ($(CONFIG_ARCH_VEXPRESS_TC2_PM),y)
+obj-$(CONFIG_ARM_PSCI)			+= tc2_pm_psci.o
+CFLAGS_REMOVE_tc2_pm_psci.o		= -pg
+endif
 obj-$(CONFIG_SMP)			+= platsmp.o
 obj-$(CONFIG_HOTPLUG_CPU)		+= hotplug.o
