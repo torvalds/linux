@@ -10938,7 +10938,7 @@ lpfc_sli4_oas_verify(struct lpfc_hba *phba)
 	if (phba->sli4_hba.pc_sli4_params.oas_supported) {
 		phba->cfg_fof = 1;
 	} else {
-		phba->cfg_EnableXLane = 0;
+		phba->cfg_fof = 0;
 		if (phba->device_data_mem_pool)
 			mempool_destroy(phba->device_data_mem_pool);
 		phba->device_data_mem_pool = NULL;
@@ -10968,7 +10968,7 @@ lpfc_fof_queue_setup(struct lpfc_hba *phba)
 	if (rc)
 		return -ENOMEM;
 
-	if (phba->cfg_EnableXLane) {
+	if (phba->cfg_fof) {
 
 		rc = lpfc_cq_create(phba, phba->sli4_hba.oas_cq,
 				    phba->sli4_hba.fof_eq, LPFC_WCQ, LPFC_FCP);
@@ -10987,8 +10987,7 @@ lpfc_fof_queue_setup(struct lpfc_hba *phba)
 	return 0;
 
 out_oas_wq:
-	if (phba->cfg_EnableXLane)
-		lpfc_cq_destroy(phba, phba->sli4_hba.oas_cq);
+	lpfc_cq_destroy(phba, phba->sli4_hba.oas_cq);
 out_oas_cq:
 	lpfc_eq_destroy(phba, phba->sli4_hba.fof_eq);
 	return rc;
@@ -11022,7 +11021,7 @@ lpfc_fof_queue_create(struct lpfc_hba *phba)
 
 	phba->sli4_hba.fof_eq = qdesc;
 
-	if (phba->cfg_EnableXLane) {
+	if (phba->cfg_fof) {
 
 		/* Create OAS CQ */
 		qdesc = lpfc_sli4_queue_alloc(phba, phba->sli4_hba.cq_esize,

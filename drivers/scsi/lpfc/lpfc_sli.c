@@ -5079,7 +5079,7 @@ lpfc_sli4_arm_cqeq_intr(struct lpfc_hba *phba)
 		} while (++fcp_eqidx < phba->cfg_fcp_io_channel);
 	}
 
-	if (phba->cfg_EnableXLane)
+	if (phba->cfg_fof)
 		lpfc_sli4_cq_release(phba->sli4_hba.oas_cq, LPFC_QUEUE_REARM);
 
 	if (phba->sli4_hba.hba_eq) {
@@ -8714,8 +8714,7 @@ __lpfc_sli_issue_iocb_s4(struct lpfc_hba *phba, uint32_t ring_number,
 
 	if ((piocb->iocb_flag & LPFC_IO_FCP) ||
 	    (piocb->iocb_flag & LPFC_USE_FCPWQIDX)) {
-		if (!phba->cfg_EnableXLane || (!(piocb->iocb_flag &
-			LPFC_IO_OAS))) {
+		if (!phba->cfg_fof || (!(piocb->iocb_flag & LPFC_IO_OAS))) {
 			wq = phba->sli4_hba.fcp_wq[piocb->fcp_wqidx];
 		} else {
 			wq = phba->sli4_hba.oas_wq;
@@ -8810,7 +8809,7 @@ lpfc_sli_issue_iocb(struct lpfc_hba *phba, uint32_t ring_number,
 
 	if (phba->sli_rev == LPFC_SLI_REV4) {
 		if (piocb->iocb_flag &  LPFC_IO_FCP) {
-			if (!phba->cfg_EnableXLane || (!(piocb->iocb_flag &
+			if (!phba->cfg_fof || (!(piocb->iocb_flag &
 				LPFC_IO_OAS))) {
 				if (unlikely(!phba->sli4_hba.fcp_wq))
 					return IOCB_ERROR;
