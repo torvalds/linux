@@ -1,10 +1,31 @@
 /*
- * ARM Ltd. Fast Models
+ * Copyright (c) 2013, ARM Limited. All rights reserved.
  *
- * Versatile Express (VE) system model
- * Motherboard component
+ * Redistribution and use in source and binary forms, with or without
+ * modification, are permitted provided that the following conditions are met:
  *
- * VEMotherBoard.lisa
+ * Redistributions of source code must retain the above copyright notice, this
+ * list of conditions and the following disclaimer.
+ *
+ * Redistributions in binary form must reproduce the above copyright notice,
+ * this list of conditions and the following disclaimer in the documentation
+ * and/or other materials provided with the distribution.
+ *
+ * Neither the name of the ARM nor the names of its contributors may be used
+ * to endorse or promote products derived from this software without specific
+ * prior written permission.
+ *
+ * THIS SOFTWARE IS PROVIDED BY THE COPYRIGHT HOLDERS AND CONTRIBUTORS "AS IS"
+ * AND ANY EXPRESS OR IMPLIED WARRANTIES, INCLUDING, BUT NOT LIMITED TO, THE
+ * IMPLIED WARRANTIES OF MERCHANTABILITY AND FITNESS FOR A PARTICULAR PURPOSE
+ * ARE DISCLAIMED. IN NO EVENT SHALL THE COPYRIGHT HOLDER OR CONTRIBUTORS BE
+ * LIABLE FOR ANY DIRECT, INDIRECT, INCIDENTAL, SPECIAL, EXEMPLARY, OR
+ * CONSEQUENTIAL DAMAGES (INCLUDING, BUT NOT LIMITED TO, PROCUREMENT OF
+ * SUBSTITUTE GOODS OR SERVICES; LOSS OF USE, DATA, OR PROFITS; OR BUSINESS
+ * INTERRUPTION) HOWEVER CAUSED AND ON ANY THEORY OF LIABILITY, WHETHER IN
+ * CONTRACT, STRICT LIABILITY, OR TORT (INCLUDING NEGLIGENCE OR OTHERWISE)
+ * ARISING IN ANY WAY OUT OF THE USE OF THIS SOFTWARE, EVEN IF ADVISED OF THE
+ * POSSIBILITY OF SUCH DAMAGE.
  */
 
 	motherboard {
@@ -14,18 +35,6 @@
 		#size-cells = <1>;
 		#interrupt-cells = <1>;
 		ranges;
-
-		flash@0,00000000 {
-			compatible = "arm,vexpress-flash", "cfi-flash";
-			reg = <0 0x00000000 0x04000000>,
-			      <4 0x00000000 0x04000000>;
-			bank-width = <4>;
-		};
-
-		vram@2,00000000 {
-			compatible = "arm,vexpress-vram";
-			reg = <2 0x00000000 0x00800000>;
-		};
 
 		ethernet@2,02000000 {
 			compatible = "smsc,lan91c111";
@@ -74,42 +83,6 @@
 				clock-names = "refclk", "timclk", "apb_pclk";
 				#clock-cells = <1>;
 				clock-output-names = "timerclken0", "timerclken1", "timerclken2", "timerclken3";
-			};
-
-			aaci@040000 {
-				compatible = "arm,pl041", "arm,primecell";
-				reg = <0x040000 0x1000>;
-				interrupts = <11>;
-				clocks = <&v2m_clk24mhz>;
-				clock-names = "apb_pclk";
-			};
-
-			mmci@050000 {
-				compatible = "arm,pl180", "arm,primecell";
-				reg = <0x050000 0x1000>;
-				interrupts = <9 10>;
-				cd-gpios = <&v2m_sysreg 0 0>;
-				wp-gpios = <&v2m_sysreg 1 0>;
-				max-frequency = <12000000>;
-				vmmc-supply = <&v2m_fixed_3v3>;
-				clocks = <&v2m_clk24mhz>, <&v2m_clk24mhz>;
-				clock-names = "mclk", "apb_pclk";
-			};
-
-			kmi@060000 {
-				compatible = "arm,pl050", "arm,primecell";
-				reg = <0x060000 0x1000>;
-				interrupts = <12>;
-				clocks = <&v2m_clk24mhz>, <&v2m_clk24mhz>;
-				clock-names = "KMIREFCLK", "apb_pclk";
-			};
-
-			kmi@070000 {
-				compatible = "arm,pl050", "arm,primecell";
-				reg = <0x070000 0x1000>;
-				interrupts = <13>;
-				clocks = <&v2m_clk24mhz>, <&v2m_clk24mhz>;
-				clock-names = "KMIREFCLK", "apb_pclk";
 			};
 
 			v2m_serial0: uart@090000 {
@@ -176,21 +149,10 @@
 				clock-names = "apb_pclk";
 			};
 
-			clcd@1f0000 {
-				compatible = "arm,pl111", "arm,primecell";
-				reg = <0x1f0000 0x1000>;
-				interrupts = <14>;
-				clocks = <&v2m_oscclk1>, <&v2m_clk24mhz>;
-				clock-names = "clcdclk", "apb_pclk";
-				mode = "XVGA";
-				use_dma = <0>;
-				framebuffer = <0x18000000 0x00180000>;
-			};
-
 			virtio_block@0130000 {
 				compatible = "virtio,mmio";
-				reg = <0x130000 0x200>;
-				interrupts = <42>;
+				reg = <0x130000 0x1000>;
+				interrupts = <0x2a>;
 			};
 		};
 
@@ -202,18 +164,10 @@
 			regulator-always-on;
 		};
 
+
 		mcc {
 			compatible = "arm,vexpress,config-bus", "simple-bus";
 			arm,vexpress,config-bridge = <&v2m_sysreg>;
-
-			v2m_oscclk1: osc@1 {
-				/* CLCD clock */
-				compatible = "arm,vexpress-osc";
-				arm,vexpress-sysreg,func = <1 1>;
-				freq-range = <23750000 63500000>;
-				#clock-cells = <0>;
-				clock-output-names = "v2m:oscclk1";
-			};
 
 			reset@0 {
 				compatible = "arm,vexpress-reset";
