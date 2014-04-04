@@ -314,6 +314,9 @@ reread:
 		error = bp->b_error;
 		if (loud)
 			xfs_warn(mp, "SB validate failed with error %d.", error);
+		/* bad CRC means corrupted metadata */
+		if (error == EFSBADCRC)
+			error = EFSCORRUPTED;
 		goto release_buf;
 	}
 
