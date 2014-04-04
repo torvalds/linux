@@ -811,8 +811,9 @@ static int pcl812_ai_cmd(struct comedi_device *dev, struct comedi_subdevice *s)
 				devpriv->ai_dma = 0;
 				break;
 			}
-	} else
+	} else {
 		devpriv->ai_dma = 0;
+	}
 
 	devpriv->ai_act_scan = 0;
 	devpriv->ai_poll_ptr = 0;
