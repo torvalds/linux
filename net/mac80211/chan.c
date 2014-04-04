@@ -249,7 +249,7 @@ ieee80211_new_chanctx(struct ieee80211_local *local,
 
 	if (!local->use_chanctx) {
 		local->_oper_chandef = *chandef;
-		ieee80211_hw_config(local, 0);
+		ieee80211_hw_config(local, IEEE80211_CONF_CHANGE_CHANNEL);
 	} else {
 		err = drv_add_chanctx(local, ctx);
 		if (err) {
@@ -286,7 +286,7 @@ static void ieee80211_free_chanctx(struct ieee80211_local *local,
 			check_single_channel = true;
 		local->hw.conf.radar_enabled = false;
 
-		ieee80211_hw_config(local, 0);
+		ieee80211_hw_config(local, IEEE80211_CONF_CHANGE_CHANNEL);
 	} else {
 		drv_remove_chanctx(local, ctx);
 	}
