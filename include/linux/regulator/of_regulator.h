@@ -38,7 +38,7 @@ static inline int of_regulator_match(struct device *dev,
 	return 0;
 }
 static inline int of_regulator_put_match(struct of_regulator_match *matches,
-					 unsigned int num_matches);
+					 unsigned int num_matches)
 {
 	return 0;
 }
