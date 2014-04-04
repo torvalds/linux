@@ -86,15 +86,14 @@ acpi_tb_acquire_table(struct acpi_table_desc *table_desc,
 	struct acpi_table_header *table = NULL;
 
 	switch (table_desc->flags & ACPI_TABLE_ORIGIN_MASK) {
-	case ACPI_TABLE_ORIGIN_MAPPED:
+	case ACPI_TABLE_ORIGIN_INTERN_PHYSICAL:
 
 		table =
 		    acpi_os_map_memory(table_desc->address, table_desc->length);
 		break;
 
-	case ACPI_TABLE_ORIGIN_ALLOCATED:
-	case ACPI_TABLE_ORIGIN_UNKNOWN:
-	case ACPI_TABLE_ORIGIN_OVERRIDE:
+	case ACPI_TABLE_ORIGIN_INTERN_VIRTUAL:
+	case ACPI_TABLE_ORIGIN_EXTERN_VIRTUAL:
 
 		table =
 		    ACPI_CAST_PTR(struct acpi_table_header,
@@ -140,14 +139,13 @@ acpi_tb_release_table(struct acpi_table_header *table,
 		      u32 table_length, u8 table_flags)
 {
 	switch (table_flags & ACPI_TABLE_ORIGIN_MASK) {
-	case ACPI_TABLE_ORIGIN_MAPPED:
+	case ACPI_TABLE_ORIGIN_INTERN_PHYSICAL:
 
 		acpi_os_unmap_memory(table, table_length);
 		break;
 
-	case ACPI_TABLE_ORIGIN_ALLOCATED:
-	case ACPI_TABLE_ORIGIN_UNKNOWN:
-	case ACPI_TABLE_ORIGIN_OVERRIDE:
+	case ACPI_TABLE_ORIGIN_INTERN_VIRTUAL:
+	case ACPI_TABLE_ORIGIN_EXTERN_VIRTUAL:
 	default:
 
 		break;
@@ -333,7 +331,7 @@ acpi_tb_acquire_temporal_table(struct acpi_table_desc *table_desc,
 	struct acpi_table_header *table_header;
 
 	switch (flags & ACPI_TABLE_ORIGIN_MASK) {
-	case ACPI_TABLE_ORIGIN_MAPPED:
+	case ACPI_TABLE_ORIGIN_INTERN_PHYSICAL:
 
 		/* Try to obtain the length of the table */
 
@@ -348,9 +346,8 @@ acpi_tb_acquire_temporal_table(struct acpi_table_desc *table_desc,
 				     sizeof(struct acpi_table_header));
 		return (AE_OK);
 
-	case ACPI_TABLE_ORIGIN_ALLOCATED:
-	case ACPI_TABLE_ORIGIN_UNKNOWN:
-	case ACPI_TABLE_ORIGIN_OVERRIDE:
+	case ACPI_TABLE_ORIGIN_INTERN_VIRTUAL:
+	case ACPI_TABLE_ORIGIN_EXTERN_VIRTUAL:
 
 		table_header = ACPI_CAST_PTR(struct acpi_table_header, address);
 		if (!table_header) {
@@ -473,7 +470,7 @@ acpi_tb_install_fixed_table(acpi_physical_address address,
 	/* Fill a table descriptor for validation */
 
 	status = acpi_tb_acquire_temporal_table(&new_table_desc, address,
-						ACPI_TABLE_ORIGIN_MAPPED);
+						ACPI_TABLE_ORIGIN_INTERN_PHYSICAL);
 	if (ACPI_FAILURE(status)) {
 		ACPI_ERROR((AE_INFO, "Could not acquire table length at %p",
 			    ACPI_CAST_PTR(void, address)));
@@ -546,7 +543,7 @@ acpi_tb_is_equivalent_table(struct acpi_table_desc *table_desc, u32 table_index)
  *
  * FUNCTION:    acpi_tb_install_non_fixed_table
  *
- * PARAMETERS:  address             - Address of the table (might be a logical
+ * PARAMETERS:  address             - Address of the table (might be a virtual
  *                                    address depending on the table_flags)
  *              flags               - Flags for the table
  *              reload              - Whether reload should be performed
@@ -720,7 +717,7 @@ void acpi_tb_override_table(struct acpi_table_desc *old_table_desc)
 	if (ACPI_SUCCESS(status) && table) {
 		acpi_tb_acquire_temporal_table(&new_table_desc,
 					       ACPI_PTR_TO_PHYSADDR(table),
-					       ACPI_TABLE_ORIGIN_OVERRIDE);
+					       ACPI_TABLE_ORIGIN_EXTERN_VIRTUAL);
 		override_type = "Logical";
 		goto finish_override;
 	}
@@ -731,7 +728,7 @@ void acpi_tb_override_table(struct acpi_table_desc *old_table_desc)
 						 &address, &length);
 	if (ACPI_SUCCESS(status) && address && length) {
 		acpi_tb_acquire_temporal_table(&new_table_desc, address,
-					       ACPI_TABLE_ORIGIN_MAPPED);
+					       ACPI_TABLE_ORIGIN_INTERN_PHYSICAL);
 		override_type = "Physical";
 		goto finish_override;
 	}
@@ -928,7 +925,7 @@ void acpi_tb_uninstall_table(struct acpi_table_desc *table_desc)
 	acpi_tb_invalidate_table(table_desc);
 
 	if ((table_desc->flags & ACPI_TABLE_ORIGIN_MASK) ==
-	    ACPI_TABLE_ORIGIN_ALLOCATED) {
+	    ACPI_TABLE_ORIGIN_INTERN_VIRTUAL) {
 		ACPI_FREE(ACPI_CAST_PTR(void, table_desc->address));
 	}
 

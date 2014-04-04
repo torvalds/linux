@@ -248,7 +248,7 @@ acpi_status acpi_load_table(struct acpi_table_header *table)
 	ACPI_INFO((AE_INFO, "Host-directed Dynamic ACPI Table Load:"));
 	(void)acpi_ut_acquire_mutex(ACPI_MTX_TABLES);
 	status = acpi_tb_install_non_fixed_table(ACPI_PTR_TO_PHYSADDR(table),
-						 ACPI_TABLE_ORIGIN_UNKNOWN,
+						 ACPI_TABLE_ORIGIN_EXTERN_VIRTUAL,
 						 TRUE, &table_index);
 	(void)acpi_ut_release_mutex(ACPI_MTX_TABLES);
 	if (ACPI_FAILURE(status)) {
