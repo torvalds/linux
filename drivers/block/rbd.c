@@ -2332,7 +2332,6 @@ static int rbd_img_request_fill(struct rbd_img_request *img_request,
 		(int)type, data_desc);
 
 	img_offset = img_request->offset;
-	img_end = rbd_dev->header.image_size;
 	resid = img_request->length;
 	rbd_assert(resid > 0);
 
@@ -2397,13 +2396,20 @@ static int rbd_img_request_fill(struct rbd_img_request *img_request,
 			if (!offset && (length == object_size)
 				&& (!img_request_layered_test(img_request) ||
 					(rbd_dev->parent_overlap <=
-						obj_request->img_offset)))
+						obj_request->img_offset))) {
 				opcode = CEPH_OSD_OP_DELETE;
-			else if ((offset + length == object_size) ||
-				(obj_request->img_offset + length == img_end))
+			} else if ((offset + length == object_size)) {
 				opcode = CEPH_OSD_OP_TRUNCATE;
-			else
-				opcode = CEPH_OSD_OP_ZERO;
+			} else {
+				down_read(&rbd_dev->header_rwsem);
+				img_end = rbd_dev->header.image_size;
+				up_read(&rbd_dev->header_rwsem);
+
+				if (obj_request->img_offset + length == img_end)
+					opcode = CEPH_OSD_OP_TRUNCATE;
+				else
+					opcode = CEPH_OSD_OP_ZERO;
+			}
 		} else if (img_request_write_test(img_request)) {
 			op_type = OBJ_OP_WRITE;
 			opcode = CEPH_OSD_OP_WRITE;
