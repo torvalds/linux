@@ -418,7 +418,7 @@ static ssize_t ceph_sync_read(struct kiocb *iocb, struct iov_iter *i,
 	struct page **pages;
 	u64 off = iocb->ki_pos;
 	int num_pages, ret;
-	size_t len = i->count;
+	size_t len = iov_iter_count(i);
 
 	dout("sync_read on file %p %llu~%u %s\n", file, off,
 	     (unsigned)len,
@@ -436,25 +436,26 @@ static ssize_t ceph_sync_read(struct kiocb *iocb, struct iov_iter *i,
 
 	if (file->f_flags & O_DIRECT) {
 		while (iov_iter_count(i)) {
-			void __user *data = i->iov[0].iov_base + i->iov_offset;
-			size_t len = i->iov[0].iov_len - i->iov_offset;
+			size_t start;
+			ssize_t n;
 
-			num_pages = calc_pages_for((unsigned long)data, len);
-			pages = ceph_get_direct_page_vector(data,
-							    num_pages, true);
-			if (IS_ERR(pages))
-				return PTR_ERR(pages);
+			n = iov_iter_get_pages_alloc(i, &pages, INT_MAX, &start);
+			if (n < 0)
+				return n;
 
-			ret = striped_read(inode, off, len,
+			num_pages = (n + start + PAGE_SIZE - 1) / PAGE_SIZE;
+
+			ret = striped_read(inode, off, n,
 					   pages, num_pages, checkeof,
-					   1, (unsigned long)data & ~PAGE_MASK);
+					   1, start);
+
 			ceph_put_page_vector(pages, num_pages, true);
 
 			if (ret <= 0)
 				break;
 			off += ret;
 			iov_iter_advance(i, ret);
-			if (ret < len)
+			if (ret < n)
 				break;
 		}
 	} else {
@@ -466,25 +467,14 @@ static ssize_t ceph_sync_read(struct kiocb *iocb, struct iov_iter *i,
 					num_pages, checkeof, 0, 0);
 		if (ret > 0) {
 			int l, k = 0;
-			size_t left = len = ret;
+			size_t left = ret;
 
 			while (left) {
-				void __user *data = i->iov[0].iov_base
-							+ i->iov_offset;
-				l = min(i->iov[0].iov_len - i->iov_offset,
-					left);
-
-				ret = ceph_copy_page_vector_to_user(&pages[k],
-								    data, off,
-								    l);
-				if (ret > 0) {
-					iov_iter_advance(i, ret);
-					left -= ret;
-					off += ret;
-					k = calc_pages_for(iocb->ki_pos,
-							   len - left + 1) - 1;
-					BUG_ON(k >= num_pages && left);
-				} else
+				int copy = min_t(size_t, PAGE_SIZE, left);
+				l = copy_page_to_iter(pages[k++], 0, copy, i);
+				off += l;
+				left -= l;
+				if (l < copy)
 					break;
 			}
 		}
