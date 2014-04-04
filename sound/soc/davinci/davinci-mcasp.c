@@ -502,7 +502,7 @@ static int mcasp_common_hw_param(struct davinci_mcasp *mcasp, int stream,
 	int active_serializers, numevt, n;
 	u32 reg;
 	/* Default configuration */
-	if (mcasp->version != MCASP_VERSION_4)
+	if (mcasp->version < MCASP_VERSION_3)
 		mcasp_set_bits(mcasp, DAVINCI_MCASP_PWREMUMGT_REG, MCASP_SOFT);
 
 	/* All PINS as McASP */
