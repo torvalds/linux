@@ -332,15 +332,15 @@ void acpi_tb_parse_fadt(u32 table_index)
 
 	/* Obtain the DSDT and FACS tables via their addresses within the FADT */
 
-	acpi_tb_install_table((acpi_physical_address) acpi_gbl_FADT.Xdsdt,
-			      ACPI_SIG_DSDT, ACPI_TABLE_INDEX_DSDT);
+	acpi_tb_install_fixed_table((acpi_physical_address) acpi_gbl_FADT.Xdsdt,
+				    ACPI_SIG_DSDT, ACPI_TABLE_INDEX_DSDT);
 
 	/* If Hardware Reduced flag is set, there is no FACS */
 
 	if (!acpi_gbl_reduced_hardware) {
-		acpi_tb_install_table((acpi_physical_address) acpi_gbl_FADT.
-				      Xfacs, ACPI_SIG_FACS,
-				      ACPI_TABLE_INDEX_FACS);
+		acpi_tb_install_fixed_table((acpi_physical_address)
+					    acpi_gbl_FADT.Xfacs, ACPI_SIG_FACS,
+					    ACPI_TABLE_INDEX_FACS);
 	}
 }
 

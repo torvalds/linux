@@ -226,7 +226,6 @@ unlock_and_exit:
 acpi_status acpi_load_table(struct acpi_table_header *table)
 {
 	acpi_status status;
-	struct acpi_table_desc table_desc;
 	u32 table_index;
 
 	ACPI_FUNCTION_TRACE(acpi_load_table);
@@ -236,14 +235,6 @@ acpi_status acpi_load_table(struct acpi_table_header *table)
 	if (!table) {
 		return_ACPI_STATUS(AE_BAD_PARAMETER);
 	}
-
-	/* Init local table descriptor */
-
-	ACPI_MEMSET(&table_desc, 0, sizeof(struct acpi_table_desc));
-	table_desc.address = ACPI_PTR_TO_PHYSADDR(table);
-	table_desc.pointer = table;
-	table_desc.length = table->length;
-	table_desc.flags = ACPI_TABLE_ORIGIN_UNKNOWN;
 
 	/* Must acquire the interpreter lock during this operation */
 
@@ -255,7 +246,22 @@ acpi_status acpi_load_table(struct acpi_table_header *table)
 	/* Install the table and load it into the namespace */
 
 	ACPI_INFO((AE_INFO, "Host-directed Dynamic ACPI Table Load:"));
-	status = acpi_tb_add_table(&table_desc, &table_index);
+	(void)acpi_ut_acquire_mutex(ACPI_MTX_TABLES);
+	status = acpi_tb_install_non_fixed_table(ACPI_PTR_TO_PHYSADDR(table),
+						 ACPI_TABLE_ORIGIN_UNKNOWN,
+						 TRUE, &table_index);
+	(void)acpi_ut_release_mutex(ACPI_MTX_TABLES);
+	if (ACPI_FAILURE(status)) {
+		goto unlock_and_exit;
+	}
+
+	/*
+	 * Note: Now table is "INSTALLED", it must be validated before
+	 * using.
+	 */
+	status =
+	    acpi_tb_validate_table(&acpi_gbl_root_table_list.
+				   tables[table_index]);
 	if (ACPI_FAILURE(status)) {
 		goto unlock_and_exit;
 	}

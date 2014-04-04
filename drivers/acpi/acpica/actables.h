@@ -76,10 +76,10 @@ acpi_status acpi_tb_validate_table(struct acpi_table_desc *table_desc);
 
 void acpi_tb_invalidate_table(struct acpi_table_desc *table_desc);
 
-struct acpi_table_header *acpi_tb_override_table(struct acpi_table_header
-						 *table_header,
-						 struct acpi_table_desc
-						 *table_desc);
+acpi_status
+acpi_tb_verify_table(struct acpi_table_desc *table_desc, char *signature);
+
+void acpi_tb_override_table(struct acpi_table_desc *old_table_desc);
 
 acpi_status
 acpi_tb_acquire_table(struct acpi_table_desc *table_desc,
@@ -91,7 +91,8 @@ acpi_tb_release_table(struct acpi_table_header *table,
 		      u32 table_length, u8 table_flags);
 
 acpi_status
-acpi_tb_add_table(struct acpi_table_desc *table_desc, u32 *table_index);
+acpi_tb_install_non_fixed_table(acpi_physical_address address,
+				u8 flags, u8 reload, u32 *table_index);
 
 acpi_status
 acpi_tb_store_table(acpi_physical_address address,
@@ -135,8 +136,17 @@ void acpi_tb_check_dsdt_header(void);
 struct acpi_table_header *acpi_tb_copy_dsdt(u32 table_index);
 
 void
-acpi_tb_install_table(acpi_physical_address address,
-		      char *signature, u32 table_index);
+acpi_tb_install_table(struct acpi_table_desc *table_desc,
+		      acpi_physical_address address,
+		      u8 flags, struct acpi_table_header *table);
+
+void
+acpi_tb_install_and_override_table(u32 table_index,
+				   struct acpi_table_desc *new_table_desc);
+
+acpi_status
+acpi_tb_install_fixed_table(acpi_physical_address address,
+			    char *signature, u32 table_index);
 
 acpi_status acpi_tb_parse_root_table(acpi_physical_address rsdp_address);
 
