@@ -368,12 +368,20 @@ static int alienware_zone_init(struct platform_device *dev)
 	zone_dev_attrs =
 	    kzalloc(sizeof(struct device_attribute) * (quirks->num_zones + 1),
 		    GFP_KERNEL);
+	if (!zone_dev_attrs)
+		return -ENOMEM;
+
 	zone_attrs =
 	    kzalloc(sizeof(struct attribute *) * (quirks->num_zones + 2),
 		    GFP_KERNEL);
+	if (!zone_attrs)
+		return -ENOMEM;
+
 	zone_data =
 	    kzalloc(sizeof(struct platform_zone) * (quirks->num_zones),
 		    GFP_KERNEL);
+	if (!zone_data)
+		return -ENOMEM;
 
 	for (i = 0; i < quirks->num_zones; i++) {
 		sprintf(buffer, "zone%02X", i);
@@ -546,9 +554,9 @@ module_init(alienware_wmi_init);
 
 static void __exit alienware_wmi_exit(void)
 {
-	alienware_zone_exit(platform_device);
-	remove_hdmi(platform_device);
 	if (platform_device) {
+		alienware_zone_exit(platform_device);
+		remove_hdmi(platform_device);
 		platform_device_unregister(platform_device);
 		platform_driver_unregister(&platform_driver);
 	}
