@@ -836,19 +836,28 @@ lpfc_hba_free_post_buf(struct lpfc_hba *phba)
 	struct lpfc_sli *psli = &phba->sli;
 	struct lpfc_sli_ring *pring;
 	struct lpfc_dmabuf *mp, *next_mp;
+	LIST_HEAD(buflist);
+	int count;
 
 	if (phba->sli3_options & LPFC_SLI3_HBQ_ENABLED)
 		lpfc_sli_hbqbuf_free_all(phba);
 	else {
 		/* Cleanup preposted buffers on the ELS ring */
-		spin_lock_irq(&phba->hbalock);
 		pring = &psli->ring[LPFC_ELS_RING];
-		list_for_each_entry_safe(mp, next_mp, &pring->postbufq, list) {
+		spin_lock_irq(&phba->hbalock);
+		list_splice_init(&pring->postbufq, &buflist);
+		spin_unlock_irq(&phba->hbalock);
+
+		count = 0;
+		list_for_each_entry_safe(mp, next_mp, &buflist, list) {
 			list_del(&mp->list);
-			pring->postbufq_cnt--;
+			count++;
 			lpfc_mbuf_free(phba, mp->virt, mp->phys);
 			kfree(mp);
 		}
+
+		spin_lock_irq(&phba->hbalock);
+		pring->postbufq_cnt -= count;
 		spin_unlock_irq(&phba->hbalock);
 	}
 }
