@@ -240,7 +240,15 @@ __create_hw_context(struct drm_device *dev,
 		return ERR_PTR(-ENOMEM);
 	}
 
-	if (INTEL_INFO(dev)->gen >= 7) {
+	/*
+	 * Try to make the context utilize L3 as well as LLC.
+	 *
+	 * On VLV we don't have L3 controls in the PTEs so we
+	 * shouldn't touch the cache level, especially as that
+	 * would make the object snooped which might have a
+	 * negative performance impact.
+	 */
+	if (INTEL_INFO(dev)->gen >= 7 && !IS_VALLEYVIEW(dev)) {
 		ret = i915_gem_object_set_cache_level(ctx->obj,
 						      I915_CACHE_L3_LLC);
 		/* Failure shouldn't ever happen this early */
