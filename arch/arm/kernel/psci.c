@@ -42,6 +42,7 @@ static u32 psci_function_id[PSCI_FN_MAX];
 #define PSCI_RET_EOPNOTSUPP		-1
 #define PSCI_RET_EINVAL			-2
 #define PSCI_RET_EPERM			-3
+#define PSCI_RET_EALREADYON		-4
 
 static int psci_to_linux_errno(int errno)
 {
@@ -54,6 +55,8 @@ static int psci_to_linux_errno(int errno)
 		return -EINVAL;
 	case PSCI_RET_EPERM:
 		return -EPERM;
+	case PSCI_RET_EALREADYON:
+		return -EAGAIN;
 	};
 
 	return -EINVAL;
@@ -153,7 +156,7 @@ static int psci_migrate(unsigned long cpuid)
 	return psci_to_linux_errno(err);
 }
 
-static const struct of_device_id psci_of_match[] __initconst = {
+static const struct of_device_id psci_of_match[] = {
 	{ .compatible = "arm,psci",	},
 	{},
 };
@@ -207,4 +210,17 @@ void __init psci_init(void)
 out_put_node:
 	of_node_put(np);
 	return;
+}
+
+int psci_probe(void)
+{
+	struct device_node *np;
+	int ret = -ENODEV;
+
+	np = of_find_matching_node(NULL, psci_of_match);
+	if (np)
+		ret = 0;
+
+	of_node_put(np);
+	return ret;
 }
