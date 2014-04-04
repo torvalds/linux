@@ -219,13 +219,13 @@ acpi_install_table(acpi_physical_address address, u8 physical)
 	ACPI_FUNCTION_TRACE(acpi_install_table);
 
 	if (physical) {
-		flags = ACPI_TABLE_ORIGIN_EXTERN_VIRTUAL;
+		flags = ACPI_TABLE_ORIGIN_EXTERNAL_VIRTUAL;
 	} else {
-		flags = ACPI_TABLE_ORIGIN_INTERN_PHYSICAL;
+		flags = ACPI_TABLE_ORIGIN_INTERNAL_PHYSICAL;
 	}
 
-	status = acpi_tb_install_non_fixed_table(address, flags,
-						 FALSE, FALSE, &table_index);
+	status = acpi_tb_install_standard_table(address, flags,
+						FALSE, FALSE, &table_index);
 
 	return_ACPI_STATUS(status);
 }
@@ -272,9 +272,11 @@ acpi_status acpi_load_table(struct acpi_table_header *table)
 
 	ACPI_INFO((AE_INFO, "Host-directed Dynamic ACPI Table Load:"));
 	(void)acpi_ut_acquire_mutex(ACPI_MTX_TABLES);
-	status = acpi_tb_install_non_fixed_table(ACPI_PTR_TO_PHYSADDR(table),
-						 ACPI_TABLE_ORIGIN_EXTERN_VIRTUAL,
-						 TRUE, FALSE, &table_index);
+
+	status = acpi_tb_install_standard_table(ACPI_PTR_TO_PHYSADDR(table),
+						ACPI_TABLE_ORIGIN_EXTERNAL_VIRTUAL,
+						TRUE, FALSE, &table_index);
+
 	(void)acpi_ut_release_mutex(ACPI_MTX_TABLES);
 	if (ACPI_FAILURE(status)) {
 		goto unlock_and_exit;
