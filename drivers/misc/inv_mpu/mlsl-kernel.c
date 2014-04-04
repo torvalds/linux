@@ -20,7 +20,7 @@
 #include "mlsl.h"
 #include <linux/i2c.h>
 #include "log.h"
-#include "mpu3050.h"
+#include "mpu6050b1.h"
 
 #define MPU_I2C_RATE 100*1000
 static int inv_i2c_write(struct i2c_adapter *i2c_adap,
@@ -42,13 +42,13 @@ static int inv_i2c_write(struct i2c_adapter *i2c_adap,
 	msgs[0].scl_rate = MPU_I2C_RATE;
 
 	res = i2c_transfer(i2c_adap, msgs, 1);
-	if (res == 1)
-		return 0;
-	else if(res == 0)
-		return -EBUSY;
-	else
+	if (res < 1) {
+		if (res == 0)
+			res = -EIO;
+		LOG_RESULT_LOCATION(res);
 		return res;
-
+	} else
+		return 0;
 }
 
 static int inv_i2c_write_register(struct i2c_adapter *i2c_adap,
@@ -87,13 +87,13 @@ static int inv_i2c_read(struct i2c_adapter *i2c_adap,
 	msgs[1].scl_rate = MPU_I2C_RATE;	
 
 	res = i2c_transfer(i2c_adap, msgs, 2);
-	if (res == 2)
-		return 0;
-	else if(res == 0)
-		return -EBUSY;
-	else
+	if (res < 2) {
+		if (res >= 0)
+			res = -EIO;
+		LOG_RESULT_LOCATION(res);
 		return res;
-
+	} else
+		return 0;
 }
 
 static int mpu_memory_read(struct i2c_adapter *i2c_adap,

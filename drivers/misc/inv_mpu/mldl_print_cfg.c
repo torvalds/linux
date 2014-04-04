@@ -50,16 +50,16 @@ void mldl_print_cfg(struct mldl_cfg *mldl_cfg)
 	int ii;
 
 	/* mpu_gyro_cfg */
-	MPL_LOGI("int_config     = %02x\n", mpu_gyro_cfg->int_config);
-	MPL_LOGI("ext_sync       = %02x\n", mpu_gyro_cfg->ext_sync);
-	MPL_LOGI("full_scale     = %02x\n", mpu_gyro_cfg->full_scale);
-	MPL_LOGI("lpf            = %02x\n", mpu_gyro_cfg->lpf);
-	MPL_LOGI("clk_src        = %02x\n", mpu_gyro_cfg->clk_src);
-	MPL_LOGI("divider        = %02x\n", mpu_gyro_cfg->divider);
-	MPL_LOGI("dmp_enable     = %02x\n", mpu_gyro_cfg->dmp_enable);
-	MPL_LOGI("fifo_enable    = %02x\n", mpu_gyro_cfg->fifo_enable);
-	MPL_LOGI("dmp_cfg1       = %02x\n", mpu_gyro_cfg->dmp_cfg1);
-	MPL_LOGI("dmp_cfg2       = %02x\n", mpu_gyro_cfg->dmp_cfg2);
+	MPL_LOGV("int_config     = %02x\n", mpu_gyro_cfg->int_config);
+	MPL_LOGV("ext_sync       = %02x\n", mpu_gyro_cfg->ext_sync);
+	MPL_LOGV("full_scale     = %02x\n", mpu_gyro_cfg->full_scale);
+	MPL_LOGV("lpf            = %02x\n", mpu_gyro_cfg->lpf);
+	MPL_LOGV("clk_src        = %02x\n", mpu_gyro_cfg->clk_src);
+	MPL_LOGV("divider        = %02x\n", mpu_gyro_cfg->divider);
+	MPL_LOGV("dmp_enable     = %02x\n", mpu_gyro_cfg->dmp_enable);
+	MPL_LOGV("fifo_enable    = %02x\n", mpu_gyro_cfg->fifo_enable);
+	MPL_LOGV("dmp_cfg1       = %02x\n", mpu_gyro_cfg->dmp_cfg1);
+	MPL_LOGV("dmp_cfg2       = %02x\n", mpu_gyro_cfg->dmp_cfg2);
 	/* mpu_offsets */
 	MPL_LOGV("tc[0]      = %02x\n", mpu_offsets->tc[0]);
 	MPL_LOGV("tc[1]      = %02x\n", mpu_offsets->tc[1]);
@@ -75,6 +75,7 @@ void mldl_print_cfg(struct mldl_cfg *mldl_cfg)
 	MPL_LOGV("product_revision = %02x\n", mpu_chip_info->product_revision);
 	MPL_LOGV("product_id       = %02x\n", mpu_chip_info->product_id);
 	MPL_LOGV("gyro_sens_trim   = %02x\n", mpu_chip_info->gyro_sens_trim);
+	MPL_LOGV("accel_sens_trim  = %02x\n", mpu_chip_info->accel_sens_trim);
 
 	MPL_LOGV("requested_sensors = %04x\n", inv_mpu_cfg->requested_sensors);
 	MPL_LOGV("ignore_system_suspend= %04x\n",

@@ -31,7 +31,7 @@
 #include "mltypes.h"
 #include "mlsl.h"
 #include <linux/mpu.h>
-#include "mpu3050.h"
+#include "mpu6050b1.h"
 
 #include "log.h"
 

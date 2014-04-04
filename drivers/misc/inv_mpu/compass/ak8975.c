@@ -27,7 +27,6 @@
  */
 
 /* -------------------------------------------------------------------------- */
-#define DEBUG
 
 #include <linux/i2c.h>
 #include <linux/module.h>
@@ -68,6 +67,8 @@ struct ak8975_private_data {
 	struct ak8975_config init;
 };
 
+struct ext_slave_platform_data ak8975_data;
+
 /* -------------------------------------------------------------------------- */
 static int ak8975_init(void *mlsl_handle,
 		       struct ext_slave_descr *slave,
@@ -82,7 +83,7 @@ static int ak8975_init(void *mlsl_handle,
 
 	if (!private_data)
 		return INV_ERROR_MEMORY_EXAUSTED;
-#if 0
+
 	result = inv_serial_single_write(mlsl_handle, pdata->address,
 					 AK8975_REG_CNTL,
 					 AK8975_CNTL_MODE_POWER_DOWN);
@@ -100,7 +101,7 @@ static int ak8975_init(void *mlsl_handle,
 		LOG_RESULT_LOCATION(result);
 		return result;
 	}
-#endif
+
 	/* Wait at least 200us */
 	udelay(200);
 
@@ -117,7 +118,7 @@ static int ak8975_init(void *mlsl_handle,
 	private_data->init.asa[0] = serial_data[0];
 	private_data->init.asa[1] = serial_data[1];
 	private_data->init.asa[2] = serial_data[2];
-#if 0
+
 	result = inv_serial_single_write(mlsl_handle, pdata->address,
 					 AK8975_REG_CNTL,
 					 AK8975_CNTL_MODE_POWER_DOWN);
@@ -125,7 +126,7 @@ static int ak8975_init(void *mlsl_handle,
 		LOG_RESULT_LOCATION(result);
 		return result;
 	}
-#endif
+
 	udelay(100);
 	return INV_SUCCESS;
 }
@@ -390,21 +391,139 @@ struct ak8975_mod_private_data {
 
 static unsigned short normal_i2c[] = { I2C_CLIENT_END };
 
+static int ak8975_parse_dt(struct i2c_client *client,
+				  struct ext_slave_platform_data *data)
+{
+	int ret;
+	struct device_node *np = client->dev.of_node;
+	//enum of_gpio_flags gpioflags;
+	int length = 0,size = 0;
+	struct property *prop;
+	int debug = 1;
+	int i;
+	int orig_x,orig_y,orig_z;
+	u32 orientation[9];
+
+	ret = of_property_read_u32(np,"compass-bus",&data->bus);
+	if(ret!=0){
+		dev_err(&client->dev, "get compass-bus error\n");
+		return -EIO;
+		}
+
+	ret = of_property_read_u32(np,"compass-adapt_num",&data->adapt_num);
+	if(ret!=0){
+		dev_err(&client->dev, "get compass-adapt_num error\n");
+		return -EIO;
+		}
+
+	prop = of_find_property(np, "compass-orientation", &length);
+	if (!prop){
+		dev_err(&client->dev, "get compass-orientation length error\n");
+		return -EINVAL;
+	}
+
+	size = length / sizeof(int);
+
+	if((size > 0)&&(size <10)){
+		ret = of_property_read_u32_array(np, "compass-orientation",
+					 orientation,
+					 size);
+		if(ret<0){
+			dev_err(&client->dev, "get compass-orientation data error\n");
+			return -EINVAL;
+		}
+	}
+	else{
+		printk(" use default orientation\n");
+	}
+
+	for(i=0;i<9;i++)
+		data->orientation[i]= orientation[i];
+
+
+	ret = of_property_read_u32(np,"orientation-x",&orig_x);
+	if(ret!=0){
+		dev_err(&client->dev, "get orientation-x error\n");
+		return -EIO;
+	}
+
+	if(orig_x>0){
+		for(i=0;i<3;i++)
+			if(data->orientation[i])
+				data->orientation[i]=-1;
+	}
+
+
+	ret = of_property_read_u32(np,"orientation-y",&orig_y);
+	if(ret!=0){
+		dev_err(&client->dev, "get orientation-y error\n");
+		return -EIO;
+	}
+
+	if(orig_y>0){
+		for(i=3;i<6;i++)
+			if(data->orientation[i])
+				data->orientation[i]=-1;
+	}
+
+
+	ret = of_property_read_u32(np,"orientation-z",&orig_z);
+	if(ret!=0){
+		dev_err(&client->dev, "get orientation-z error\n");
+		return -EIO;
+	}
+
+	if(orig_z>0){
+		for(i=6;i<9;i++)
+			if(data->orientation[i])
+				data->orientation[i]=-1;
+	}
+	
+
+	ret = of_property_read_u32(np,"compass-debug",&debug);
+	if(ret!=0){
+		dev_err(&client->dev, "get compass-debug error\n");
+		return -EINVAL;
+	}
+
+	if(client->addr)
+		data->address=client->addr;
+	else
+		dev_err(&client->dev, "compass-addr error\n");
+
+	if(debug){
+		printk("bus=%d,adapt_num=%d,addr=%x\n",data->bus, \
+			data->adapt_num,data->address);
+
+		for(i=0;i<size;i++)
+			printk("%d ",data->orientation[i]);	
+		
+		printk("\n");	
+
+	}
+	return 0;
+}
+
 static int ak8975_mod_probe(struct i2c_client *client,
 			   const struct i2c_device_id *devid)
 {
 	struct ext_slave_platform_data *pdata;
 	struct ak8975_mod_private_data *private_data;
 	int result = 0;
+	int ret;
 
-	dev_info(&client->adapter->dev, "%s: %s,0x%x\n", __func__, devid->name,(unsigned int)client);
+	
+	ret = ak8975_parse_dt(client,&ak8975_data);
+	if(ret< 0)
+		printk("parse ak8975 dts failed\n");
+	dev_info(&client->adapter->dev, "%s: %s\n", __func__, devid->name);
 
 	if (!i2c_check_functionality(client->adapter, I2C_FUNC_I2C)) {
 		result = -ENODEV;
 		goto out_no_free;
 	}
 
-	pdata = client->dev.platform_data;
+	pdata = &ak8975_data;;
 	if (!pdata) {
 		dev_err(&client->adapter->dev,
 			"Missing platform data for slave %s\n", devid->name);
@@ -461,6 +580,11 @@ static const struct i2c_device_id ak8975_mod_id[] = {
 
 MODULE_DEVICE_TABLE(i2c, ak8975_mod_id);
 
+static const struct of_device_id of_mpu_ak8975_match[] = {
+	{ .compatible = "ak8975" },
+	{ /* Sentinel */ }
+};
+
 static struct i2c_driver ak8975_mod_driver = {
 	.class = I2C_CLASS_HWMON,
 	.probe = ak8975_mod_probe,
@@ -469,6 +593,7 @@ static struct i2c_driver ak8975_mod_driver = {
 	.driver = {
 		   .owner = THIS_MODULE,
 		   .name = "ak8975_mod",
+		   .of_match_table	= of_mpu_ak8975_match,	   
 		   },
 	.address_list = normal_i2c,
 };

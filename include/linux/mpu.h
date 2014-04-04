@@ -153,6 +153,7 @@ enum ext_slave_id {
 
 	COMPASS_ID_AK8975,
 	COMPASS_ID_AK8972,
+	COMPASS_ID_AK8963,
 	COMPASS_ID_AMI30X,
 	COMPASS_ID_AMI306,
 	COMPASS_ID_YAS529,
@@ -161,6 +162,7 @@ enum ext_slave_id {
 	COMPASS_ID_LSM303DLH,
 	COMPASS_ID_LSM303DLM,
 	COMPASS_ID_MMC314X,
+	COMPASS_ID_MMC328X,
 	COMPASS_ID_HSCDTD002B,
 	COMPASS_ID_HSCDTD004A,
 
@@ -300,8 +302,8 @@ struct ext_slave_descr {
  * column should have exactly 1 non-zero value.
  */
 struct mpu_platform_data {
-	__u8 int_config;
-	__u8 level_shifter;
+	__u32 int_config;
+	__u32 level_shifter;
 	__s8 orientation[GYRO_NUM_AXES * GYRO_NUM_AXES];
 };
 

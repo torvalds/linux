@@ -31,6 +31,8 @@ inv_mpu_hscdtd004a-objs +=	hscdtd004a.o
 obj-$(CONFIG_MPU_SENSORS_AK8975) += inv_mpu_ak8975.o
 inv_mpu_ak8975-objs +=	ak8975.o
 
+obj-$(CONFIG_MPU_SENSORS_AK8963) += inv_mpu_ak8963.o
+inv_mpu_ak8963-objs +=	ak8963.o
 obj-$(CONFIG_MPU_SENSORS_AK8972) += inv_mpu_ak8972.o
 inv_mpu_ak8972-objs +=	ak8972.o
 

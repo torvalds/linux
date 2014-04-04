@@ -71,7 +71,7 @@ static void timerirq_handler(unsigned long arg)
 	data->data.irqtime = (((long long)irqtime.tv_sec) << 32);
 	data->data.irqtime += irqtime.tv_usec;
 	data->data.data_type |= 1;
-
+	
 	dev_dbg(data->dev->this_device,
 		"%s, %lld, %ld\n", __func__, data->data.irqtime,
 		(unsigned long)data);
@@ -207,6 +207,7 @@ static long timerirq_ioctl(struct file *file,
 		"%s current->pid %d, %d, %ld\n",
 		__func__, current->pid, cmd, arg);
 
+	
 	if (!data)
 		return -EFAULT;
 

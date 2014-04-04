@@ -36,7 +36,7 @@
 #include <linux/wait.h>
 #include <linux/uaccess.h>
 #include <linux/io.h>
-#include <linux/gpio.h>
+
 #include <linux/mpu.h>
 #include "mpuirq.h"
 #include "mldl_cfg.h"
@@ -202,8 +202,8 @@ int mpuirq_init(struct i2c_client *mpu_client, struct mldl_cfg *mldl_cfg)
 
 	dev_info(&mpu_client->adapter->dev,
 		 "Module Param interface = %s\n", interface);
-	
-	mpuirq_dev_data.irq = gpio_to_irq(mpu_client->irq);
+
+	mpuirq_dev_data.irq = mpu_client->irq;
 	mpuirq_dev_data.pid = 0;
 	mpuirq_dev_data.accel_divider = -1;
 	mpuirq_dev_data.data_ready = 0;
@@ -217,10 +217,12 @@ int mpuirq_init(struct i2c_client *mpu_client, struct mldl_cfg *mldl_cfg)
 		else
 			flags = IRQF_TRIGGER_RISING;
 
-		flags |= IRQF_SHARED;
-		res =
-		    request_irq(mpuirq_dev_data.irq, mpuirq_handler, flags,
-				interface, &mpuirq_dev_data.irq);
+		flags =IRQF_TRIGGER_RISING;//|= IRQF_SHARED;
+
+		res =devm_request_threaded_irq(&mpu_client->dev, mpuirq_dev_data.irq, NULL, mpuirq_handler, flags|IRQF_ONESHOT, interface, &mpuirq_dev_data.irq);
+		//res =
+		 //   request_irq(mpuirq_dev_data.irq, mpuirq_handler, flags,
+		//		interface, &mpuirq_dev_data.irq);  
 		if (res) {
 			dev_err(&mpu_client->adapter->dev,
 				"myirqtest: cannot register IRQ %d\n",
