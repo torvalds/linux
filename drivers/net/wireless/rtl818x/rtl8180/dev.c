@@ -910,7 +910,10 @@ static int rtl8180_init_hw(struct ieee80211_hw *dev)
 		reg32 &= 0x00ffff00;
 		reg32 |= 0xb8000054;
 		rtl818x_iowrite32(priv, &priv->map->RF_PARA, reg32);
-	}
+	} else
+		/* stop unused queus (no dma alloc) */
+		rtl818x_iowrite8(priv, &priv->map->TX_DMA_POLLING,
+			    (1<<1) | (1<<2));
 
 	priv->rf->init(dev);
 
