@@ -729,8 +729,8 @@ static void ftdi_elan_write_bulk_callback(struct urb *urb)
 
 	if (status && !(status == -ENOENT || status == -ECONNRESET ||
 	    status == -ESHUTDOWN)) {
-                dev_err(&ftdi->udev->dev, "urb=%p write bulk status received: %"
-                        "d\n", urb, status);
+		dev_err(&ftdi->udev->dev,
+			"urb=%p write bulk status received: %d\n", urb, status);
         }
         usb_free_coherent(urb->dev, urb->transfer_buffer_length,
                 urb->transfer_buffer, urb->transfer_dma);
@@ -1181,8 +1181,8 @@ static ssize_t ftdi_elan_write(struct file *file,
         urb->transfer_flags |= URB_NO_TRANSFER_DMA_MAP;
         retval = usb_submit_urb(urb, GFP_KERNEL);
         if (retval) {
-                dev_err(&ftdi->udev->dev, "failed submitting write urb, error %"
-                        "d\n", retval);
+		dev_err(&ftdi->udev->dev,
+			"failed submitting write urb, error %d\n", retval);
                 goto error_3;
         }
         usb_free_urb(urb);
