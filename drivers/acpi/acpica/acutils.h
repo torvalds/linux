@@ -741,6 +741,6 @@ acpi_ut_method_error(const char *module_name,
  */
 const struct ah_predefined_name *acpi_ah_match_predefined_name(char *nameseg);
 
-const AH_DEVICE_ID *acpi_ah_match_hardware_id(char *hid);
+const struct ah_device_id *acpi_ah_match_hardware_id(char *hid);
 
 #endif				/* _ACUTILS_H */

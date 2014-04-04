@@ -509,6 +509,6 @@ ACPI_INIT_GLOBAL(ACPI_FILE, acpi_gbl_debug_file, NULL);
  ****************************************************************************/
 
 extern const struct ah_predefined_name asl_predefined_info[];
-extern const AH_DEVICE_ID asl_device_ids[];
+extern const struct ah_device_id asl_device_ids[];
 
 #endif				/* __ACGLOBAL_H__ */
