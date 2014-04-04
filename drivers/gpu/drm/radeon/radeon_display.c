@@ -937,6 +937,9 @@ void radeon_compute_pll_avivo(struct radeon_pll *pll,
 	}
 	post_div = post_div_best;
 
+	/* limit reference * post divider to a maximum */
+	ref_div_max = min(210 / post_div, ref_div_max);
+
 	/* get matching reference and feedback divider */
 	ref_div = max(den / post_div, 1u);
 	fb_div = nom;
