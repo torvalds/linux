@@ -1,7 +1,7 @@
 /*
  * Analog Devices SPI3 controller driver
  *
- * Copyright (c) 2011 Analog Devices Inc.
+ * Copyright (c) 2014 Analog Devices Inc.
  *
  * This program is free software; you can redistribute it and/or modify
  * it under the terms of the GNU General Public License version 2 as
@@ -11,14 +11,10 @@
  * but WITHOUT ANY WARRANTY; without even the implied warranty of
  * MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the
  * GNU General Public License for more details.
- *
- * You should have received a copy of the GNU General Public License
- * along with this program; if not, write to the Free Software
- * Foundation, Inc., 675 Mass Ave, Cambridge, MA 02139, USA.
  */
 
-#ifndef _SPI_CHANNEL_H_
-#define _SPI_CHANNEL_H_
+#ifndef _ADI_SPI3_H_
+#define _ADI_SPI3_H_
 
 #include <linux/types.h>
 
@@ -209,9 +205,9 @@
 #define SPI_ILAT_CLR_TFI            0x00000800    /* Transmit Finish Indication */
 
 /*
- * bfin spi3 registers layout
+ * adi spi3 registers layout
  */
-struct bfin_spi_regs {
+struct adi_spi_regs {
 	u32 revid;
 	u32 control;
 	u32 rx_control;
@@ -240,7 +236,7 @@ struct bfin_spi_regs {
 #define MAX_CTRL_CS          8  /* cs in spi controller */
 
 /* device.platform_data for SSP controller devices */
-struct bfin_spi3_master {
+struct adi_spi3_master {
 	u16 num_chipselect;
 	u16 pin_req[7];
 };
@@ -248,11 +244,11 @@ struct bfin_spi3_master {
 /* spi_board_info.controller_data for SPI slave devices,
  * copied to spi_device.platform_data ... mostly for dma tuning
  */
-struct bfin_spi3_chip {
+struct adi_spi3_chip {
 	u32 control;
 	u16 cs_chg_udelay; /* Some devices require 16-bit delays */
 	u32 tx_dummy_val; /* tx value for rx only transfer */
 	bool enable_dma;
 };
 
-#endif /* _SPI_CHANNEL_H_ */
+#endif /* _ADI_SPI3_H_ */
