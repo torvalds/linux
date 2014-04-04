@@ -376,6 +376,13 @@ config I2C_BLACKFIN_TWI_CLK_KHZ
 	help
 	  The unit of the TWI clock is kHz.
 
+config I2C_CADENCE
+	tristate "Cadence I2C Controller"
+	depends on COMMON_CLK
+	help
+	  Say yes here to select Cadence I2C Host Controller. This controller is
+	  e.g. used by Xilinx Zynq.
+
 config I2C_CBUS_GPIO
 	tristate "CBUS I2C driver"
 	depends on GPIOLIB
