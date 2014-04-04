@@ -236,7 +236,8 @@ static irqreturn_t ras_error_interrupt(int irq, void *dev_id)
 
 	rtas_elog = (struct rtas_error_log *)ras_log_buf;
 
-	if ((status == 0) && (rtas_elog->severity >= RTAS_SEVERITY_ERROR_SYNC))
+	if (status == 0 &&
+	    rtas_error_severity(rtas_elog) >= RTAS_SEVERITY_ERROR_SYNC)
 		fatal = 1;
 	else
 		fatal = 0;
@@ -300,13 +301,14 @@ static struct rtas_error_log *fwnmi_get_errinfo(struct pt_regs *regs)
 
 	/* If it isn't an extended log we can use the per cpu 64bit buffer */
 	h = (struct rtas_error_log *)&savep[1];
-	if (!h->extended) {
+	if (!rtas_error_extended(h)) {
 		memcpy(&__get_cpu_var(mce_data_buf), h, sizeof(__u64));
 		errhdr = (struct rtas_error_log *)&__get_cpu_var(mce_data_buf);
 	} else {
-		int len;
+		int len, error_log_length;
 
-		len = max_t(int, 8+h->extended_log_length, RTAS_ERROR_LOG_MAX);
+		error_log_length = 8 + rtas_error_extended_log_length(h);
+		len = max_t(int, error_log_length, RTAS_ERROR_LOG_MAX);
 		memset(global_mce_data_buf, 0, RTAS_ERROR_LOG_MAX);
 		memcpy(global_mce_data_buf, h, len);
 		errhdr = (struct rtas_error_log *)global_mce_data_buf;
@@ -350,23 +352,24 @@ int pSeries_system_reset_exception(struct pt_regs *regs)
 static int recover_mce(struct pt_regs *regs, struct rtas_error_log *err)
 {
 	int recovered = 0;
+	int disposition = rtas_error_disposition(err);
 
 	if (!(regs->msr & MSR_RI)) {
 		/* If MSR_RI isn't set, we cannot recover */
 		recovered = 0;
 
-	} else if (err->disposition == RTAS_DISP_FULLY_RECOVERED) {
+	} else if (disposition == RTAS_DISP_FULLY_RECOVERED) {
 		/* Platform corrected itself */
 		recovered = 1;
 
-	} else if (err->disposition == RTAS_DISP_LIMITED_RECOVERY) {
+	} else if (disposition == RTAS_DISP_LIMITED_RECOVERY) {
 		/* Platform corrected itself but could be degraded */
 		printk(KERN_ERR "MCE: limited recovery, system may "
 		       "be degraded\n");
 		recovered = 1;
 
 	} else if (user_mode(regs) && !is_global_init(current) &&
-		   err->severity == RTAS_SEVERITY_ERROR_SYNC) {
+		   rtas_error_severity(err) == RTAS_SEVERITY_ERROR_SYNC) {
 
 		/*
 		 * If we received a synchronous error when in userspace
