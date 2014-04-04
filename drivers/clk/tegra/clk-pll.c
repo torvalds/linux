@@ -58,9 +58,9 @@
 #define PLLDU_LFCON_SET_DIVN 600
 
 #define PLLE_BASE_DIVCML_SHIFT 24
-#define PLLE_BASE_DIVCML_WIDTH 4
+#define PLLE_BASE_DIVCML_MASK 0xf
 #define PLLE_BASE_DIVP_SHIFT 16
-#define PLLE_BASE_DIVP_WIDTH 7
+#define PLLE_BASE_DIVP_WIDTH 6
 #define PLLE_BASE_DIVN_SHIFT 8
 #define PLLE_BASE_DIVN_WIDTH 8
 #define PLLE_BASE_DIVM_SHIFT 0
@@ -730,8 +730,10 @@ static int clk_plle_enable(struct clk_hw *hw)
 	if (pll->params->flags & TEGRA_PLLE_CONFIGURE) {
 		/* configure dividers */
 		val = pll_readl_base(pll);
-		val &= ~(divm_mask(pll) | divn_mask(pll) | divp_mask(pll));
-		val &= ~(PLLE_BASE_DIVCML_WIDTH << PLLE_BASE_DIVCML_SHIFT);
+		val &= ~(divp_mask(pll) << PLLE_BASE_DIVP_SHIFT |
+			 divn_mask(pll) << PLLE_BASE_DIVN_SHIFT |
+			 divm_mask(pll) << PLLE_BASE_DIVM_SHIFT);
+		val &= ~(PLLE_BASE_DIVCML_MASK << PLLE_BASE_DIVCML_SHIFT);
 		val |= sel.m << pll->params->div_nmp->divm_shift;
 		val |= sel.n << pll->params->div_nmp->divn_shift;
 		val |= sel.p << pll->params->div_nmp->divp_shift;
@@ -745,6 +747,7 @@ static int clk_plle_enable(struct clk_hw *hw)
 	pll_writel_misc(val, pll);
 
 	val = readl(pll->clk_base + PLLE_SS_CTRL);
+	val &= ~PLLE_SS_COEFFICIENTS_MASK;
 	val |= PLLE_SS_DISABLE;
 	writel(val, pll->clk_base + PLLE_SS_CTRL);
 
@@ -1292,8 +1295,10 @@ static int clk_plle_tegra114_enable(struct clk_hw *hw)
 	pll_writel(val, PLLE_SS_CTRL, pll);
 
 	val = pll_readl_base(pll);
-	val &= ~(divm_mask(pll) | divn_mask(pll) | divp_mask(pll));
-	val &= ~(PLLE_BASE_DIVCML_WIDTH << PLLE_BASE_DIVCML_SHIFT);
+	val &= ~(divp_mask(pll) << PLLE_BASE_DIVP_SHIFT |
+		 divn_mask(pll) << PLLE_BASE_DIVN_SHIFT |
+		 divm_mask(pll) << PLLE_BASE_DIVM_SHIFT);
+	val &= ~(PLLE_BASE_DIVCML_MASK << PLLE_BASE_DIVCML_SHIFT);
 	val |= sel.m << pll->params->div_nmp->divm_shift;
 	val |= sel.n << pll->params->div_nmp->divn_shift;
 	val |= sel.cpcon << PLLE_BASE_DIVCML_SHIFT;
@@ -1410,6 +1415,15 @@ struct clk *tegra_clk_register_pll(const char *name, const char *parent_name,
 	return clk;
 }
 
+static struct div_nmp pll_e_nmp = {
+	.divn_shift = PLLE_BASE_DIVN_SHIFT,
+	.divn_width = PLLE_BASE_DIVN_WIDTH,
+	.divm_shift = PLLE_BASE_DIVM_SHIFT,
+	.divm_width = PLLE_BASE_DIVM_WIDTH,
+	.divp_shift = PLLE_BASE_DIVP_SHIFT,
+	.divp_width = PLLE_BASE_DIVP_WIDTH,
+};
+
 struct clk *tegra_clk_register_plle(const char *name, const char *parent_name,
 		void __iomem *clk_base, void __iomem *pmc,
 		unsigned long flags, struct tegra_clk_pll_params *pll_params,
@@ -1420,6 +1434,10 @@ struct clk *tegra_clk_register_plle(const char *name, const char *parent_name,
 
 	pll_params->flags |= TEGRA_PLL_LOCK_MISC | TEGRA_PLL_BYPASS;
 	pll_params->flags |= TEGRA_PLL_HAS_LOCK_ENABLE;
+
+	if (!pll_params->div_nmp)
+		pll_params->div_nmp = &pll_e_nmp;
+
 	pll = _tegra_init_pll(clk_base, pmc, pll_params, lock);
 	if (IS_ERR(pll))
 		return ERR_CAST(pll);
