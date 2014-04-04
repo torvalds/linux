@@ -126,10 +126,16 @@ void pinctrl_utils_dt_free_map(struct pinctrl_dev *pctldev,
 {
 	int i;
 
-	for (i = 0; i < num_maps; i++)
-		if (map[i].type == PIN_MAP_TYPE_CONFIGS_GROUP)
+	for (i = 0; i < num_maps; i++) {
+		switch (map[i].type) {
+		case PIN_MAP_TYPE_CONFIGS_GROUP:
+		case PIN_MAP_TYPE_CONFIGS_PIN:
 			kfree(map[i].data.configs.configs);
-
+			break;
+		default:
+			break;
+		}
+	}
 	kfree(map);
 }
 EXPORT_SYMBOL_GPL(pinctrl_utils_dt_free_map);
