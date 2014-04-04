@@ -944,24 +944,22 @@ EXPORT_SYMBOL(unlock_new_inode);
 
 /**
  * lock_two_nondirectories - take two i_mutexes on non-directory objects
+ *
+ * Lock any non-NULL argument that is not a directory.
+ * Zero, one or two objects may be locked by this function.
+ *
  * @inode1: first inode to lock
  * @inode2: second inode to lock
  */
 void lock_two_nondirectories(struct inode *inode1, struct inode *inode2)
 {
-	WARN_ON_ONCE(S_ISDIR(inode1->i_mode));
-	if (inode1 == inode2 || !inode2) {
+	if (inode1 > inode2)
+		swap(inode1, inode2);
+
+	if (inode1 && !S_ISDIR(inode1->i_mode))
 		mutex_lock(&inode1->i_mutex);
-		return;
-	}
-	WARN_ON_ONCE(S_ISDIR(inode2->i_mode));
-	if (inode1 < inode2) {
-		mutex_lock(&inode1->i_mutex);
+	if (inode2 && !S_ISDIR(inode2->i_mode) && inode2 != inode1)
 		mutex_lock_nested(&inode2->i_mutex, I_MUTEX_NONDIR2);
-	} else {
-		mutex_lock(&inode2->i_mutex);
-		mutex_lock_nested(&inode1->i_mutex, I_MUTEX_NONDIR2);
-	}
 }
 EXPORT_SYMBOL(lock_two_nondirectories);
 
@@ -972,8 +970,9 @@ EXPORT_SYMBOL(lock_two_nondirectories);
  */
 void unlock_two_nondirectories(struct inode *inode1, struct inode *inode2)
 {
-	mutex_unlock(&inode1->i_mutex);
-	if (inode2 && inode2 != inode1)
+	if (inode1 && !S_ISDIR(inode1->i_mode))
+		mutex_unlock(&inode1->i_mutex);
+	if (inode2 && !S_ISDIR(inode2->i_mode) && inode2 != inode1)
 		mutex_unlock(&inode2->i_mutex);
 }
 EXPORT_SYMBOL(unlock_two_nondirectories);
