@@ -68,9 +68,9 @@ static int osdmap_show(struct seq_file *s, void *p)
 		struct ceph_pg_pool_info *pool =
 			rb_entry(n, struct ceph_pg_pool_info, node);
 
-		seq_printf(s, "pg_pool %llu pg_num %d / %d\n",
-			   (unsigned long long)pool->id, pool->pg_num,
-			   pool->pg_num_mask);
+		seq_printf(s, "pool %lld pg_num %u (%d) read_tier %lld write_tier %lld\n",
+			   pool->id, pool->pg_num, pool->pg_num_mask,
+			   pool->read_tier, pool->write_tier);
 	}
 	for (i = 0; i < map->max_osd; i++) {
 		struct ceph_entity_addr *addr = &map->osd_addr[i];
