@@ -206,8 +206,8 @@ acpi_status
 acpi_get_table_header(char *signature,
 		      u32 instance, struct acpi_table_header *out_table_header)
 {
-       u32 i;
-       u32 j;
+	u32 i;
+	u32 j;
 	struct acpi_table_header *header;
 
 	/* Parameter validation */
@@ -321,8 +321,8 @@ acpi_get_table_with_size(char *signature,
 	       u32 instance, struct acpi_table_header **out_table,
 	       acpi_size *tbl_size)
 {
-       u32 i;
-       u32 j;
+	u32 i;
+	u32 j;
 	acpi_status status;
 
 	/* Parameter validation */
@@ -390,7 +390,7 @@ ACPI_EXPORT_SYMBOL(acpi_get_table)
  *
  ******************************************************************************/
 acpi_status
-acpi_get_table_by_index(u32 table_index, struct acpi_table_header **table)
+acpi_get_table_by_index(u32 table_index, struct acpi_table_header ** table)
 {
 	acpi_status status;
 

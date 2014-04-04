@@ -582,8 +582,8 @@ acpi_status __init acpi_tb_parse_root_table(acpi_physical_address rsdp_address)
 			if (ACPI_FAILURE(status)) {
 				ACPI_WARNING((AE_INFO,
 					      "Truncating %u table entries!",
-					      (unsigned) (table_count -
-					       (acpi_gbl_root_table_list.
+					      (unsigned)(table_count -
+							 (acpi_gbl_root_table_list.
 							  current_table_count -
 							  2))));
 				break;

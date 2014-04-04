@@ -75,6 +75,7 @@ acpi_status acpi_tb_verify_table(struct acpi_table_desc *table_desc)
 			    acpi_os_map_memory(table_desc->address,
 					       table_desc->length);
 		}
+
 		if (!table_desc->pointer) {
 			return_ACPI_STATUS(AE_NO_MEMORY);
 		}
@@ -459,10 +460,13 @@ acpi_tb_store_table(acpi_physical_address address,
 
 void acpi_tb_delete_table(struct acpi_table_desc *table_desc)
 {
+
 	/* Table must be mapped or allocated */
+
 	if (!table_desc->pointer) {
 		return;
 	}
+
 	switch (table_desc->flags & ACPI_TABLE_ORIGIN_MASK) {
 	case ACPI_TABLE_ORIGIN_MAPPED:
 
@@ -657,7 +661,7 @@ acpi_status acpi_tb_release_owner_id(u32 table_index)
  *
  ******************************************************************************/
 
-acpi_status acpi_tb_get_owner_id(u32 table_index, acpi_owner_id *owner_id)
+acpi_status acpi_tb_get_owner_id(u32 table_index, acpi_owner_id * owner_id)
 {
 	acpi_status status = AE_BAD_PARAMETER;
 
