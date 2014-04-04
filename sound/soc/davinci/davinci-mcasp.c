@@ -280,7 +280,6 @@ static int davinci_mcasp_set_dai_fmt(struct snd_soc_dai *cpu_dai,
 	case SND_SOC_DAIFMT_DSP_A:
 		mcasp_clr_bits(mcasp, DAVINCI_MCASP_TXFMCTL_REG, FSXDUR);
 		mcasp_clr_bits(mcasp, DAVINCI_MCASP_RXFMCTL_REG, FSRDUR);
-
 		/* 1st data bit occur one ACLK cycle after the frame sync */
 		data_delay = 1;
 		break;
@@ -288,7 +287,6 @@ static int davinci_mcasp_set_dai_fmt(struct snd_soc_dai *cpu_dai,
 	case SND_SOC_DAIFMT_AC97:
 		mcasp_clr_bits(mcasp, DAVINCI_MCASP_TXFMCTL_REG, FSXDUR);
 		mcasp_clr_bits(mcasp, DAVINCI_MCASP_RXFMCTL_REG, FSRDUR);
-
 		/* No delay after FS */
 		data_delay = 0;
 		break;
@@ -296,7 +294,6 @@ static int davinci_mcasp_set_dai_fmt(struct snd_soc_dai *cpu_dai,
 		/* configure a full-word SYNC pulse (LRCLK) */
 		mcasp_set_bits(mcasp, DAVINCI_MCASP_TXFMCTL_REG, FSXDUR);
 		mcasp_set_bits(mcasp, DAVINCI_MCASP_RXFMCTL_REG, FSRDUR);
-
 		/* 1st data bit occur one ACLK cycle after the frame sync */
 		data_delay = 1;
 		/* FS need to be inverted */
@@ -356,7 +353,6 @@ static int davinci_mcasp_set_dai_fmt(struct snd_soc_dai *cpu_dai,
 			       ACLKX | AHCLKX | AFSX | ACLKR | AHCLKR | AFSR);
 		mcasp->bclk_master = 0;
 		break;
-
 	default:
 		ret = -EINVAL;
 		goto out;
@@ -368,25 +364,21 @@ static int davinci_mcasp_set_dai_fmt(struct snd_soc_dai *cpu_dai,
 		mcasp_clr_bits(mcasp, DAVINCI_MCASP_ACLKRCTL_REG, ACLKRPOL);
 		fs_pol_rising = true;
 		break;
-
 	case SND_SOC_DAIFMT_NB_IF:
 		mcasp_set_bits(mcasp, DAVINCI_MCASP_ACLKXCTL_REG, ACLKXPOL);
 		mcasp_set_bits(mcasp, DAVINCI_MCASP_ACLKRCTL_REG, ACLKRPOL);
 		fs_pol_rising = false;
 		break;
-
 	case SND_SOC_DAIFMT_IB_IF:
 		mcasp_clr_bits(mcasp, DAVINCI_MCASP_ACLKXCTL_REG, ACLKXPOL);
 		mcasp_clr_bits(mcasp, DAVINCI_MCASP_ACLKRCTL_REG, ACLKRPOL);
 		fs_pol_rising = false;
 		break;
-
 	case SND_SOC_DAIFMT_NB_NF:
 		mcasp_set_bits(mcasp, DAVINCI_MCASP_ACLKXCTL_REG, ACLKXPOL);
 		mcasp_set_bits(mcasp, DAVINCI_MCASP_ACLKRCTL_REG, ACLKRPOL);
 		fs_pol_rising = true;
 		break;
-
 	default:
 		ret = -EINVAL;
 		goto out;
