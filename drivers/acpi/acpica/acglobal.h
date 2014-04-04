@@ -103,8 +103,8 @@ ACPI_INIT_GLOBAL(u8, acpi_gbl_auto_serialize_methods, TRUE);
 
 /*
  * Create the predefined _OSI method in the namespace? Default is TRUE
- * because ACPI CA is fully compatible with other ACPI implementations.
- * Changing this will revert ACPI CA (and machine ASL) to pre-OSI behavior.
+ * because ACPICA is fully compatible with other ACPI implementations.
+ * Changing this will revert ACPICA (and machine ASL) to pre-OSI behavior.
  */
 ACPI_INIT_GLOBAL(u8, acpi_gbl_create_osi_method, TRUE);
 
