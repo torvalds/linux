@@ -53,6 +53,18 @@ config ACERHDF
 	  If you have an Acer Aspire One netbook, say Y or M
 	  here.
 
+config ALIENWARE_WMI
+	tristate "Alienware Special feature control"
+	depends on ACPI
+	depends on LEDS_CLASS
+	depends on NEW_LEDS
+	depends on ACPI_WMI
+	---help---
+	 This is a driver for controlling Alienware BIOS driven
+	 features.  It exposes an interface for controlling the AlienFX
+	 zones on Alienware machines that don't contain a dedicated AlienFX
+	 USB MCU such as the X51 and X51-R2.
+
 config ASUS_LAPTOP
 	tristate "Asus Laptop Extras"
 	depends on ACPI
