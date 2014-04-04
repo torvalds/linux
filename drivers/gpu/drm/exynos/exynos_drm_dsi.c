@@ -1507,7 +1507,6 @@ static struct of_device_id exynos_dsi_of_match[] = {
 	{ }
 };
 
-MODULE_DEVICE_TABLE(of, exynos_dsi_of_match);
 struct platform_driver dsi_driver = {
 	.probe = exynos_dsi_probe,
 	.remove = exynos_dsi_remove,
