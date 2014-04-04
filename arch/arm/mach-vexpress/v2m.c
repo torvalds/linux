@@ -7,6 +7,7 @@
 #include <linux/io.h>
 #include <linux/smp.h>
 #include <linux/init.h>
+#include <linux/memblock.h>
 #include <linux/of_address.h>
 #include <linux/of_fdt.h>
 #include <linux/of_irq.h>
@@ -369,6 +370,31 @@ MACHINE_START(VEXPRESS, "ARM-Versatile Express")
 	.init_machine	= v2m_init,
 MACHINE_END
 
+static void __init v2m_dt_hdlcd_init(void)
+{
+	struct device_node *node;
+	int len, na, ns;
+	const __be32 *prop;
+	phys_addr_t fb_base, fb_size;
+
+	node = of_find_compatible_node(NULL, NULL, "arm,hdlcd");
+	if (!node)
+		return;
+
+	na = of_n_addr_cells(node);
+	ns = of_n_size_cells(node);
+
+	prop = of_get_property(node, "framebuffer", &len);
+	if (WARN_ON(!prop || len < (na + ns) * sizeof(*prop)))
+		return;
+
+	fb_base = of_read_number(prop, na);
+	fb_size = of_read_number(prop + na, ns);
+
+	if (WARN_ON(memblock_remove(fb_base, fb_size)))
+		return;
+};
+
 static struct map_desc v2m_rs1_io_desc __initdata = {
 	.virtual	= V2M_PERIPH,
 	.pfn		= __phys_to_pfn(0x1c000000),
@@ -421,6 +447,8 @@ void __init v2m_dt_init_early(void)
 	}
 
 	versatile_sched_clock_init(vexpress_get_24mhz_clock_base(), 24000000);
+
+	v2m_dt_hdlcd_init();
 }
 
 static const struct of_device_id v2m_dt_bus_match[] __initconst = {

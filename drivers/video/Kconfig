@@ -332,6 +332,21 @@ config FB_ARMCLCD
 	  here and read <file:Documentation/kbuild/modules.txt>.  The module
 	  will be called amba-clcd.
 
+config FB_ARMHDLCD
+	tristate "ARM High Definition LCD support"
+	depends on FB && ARM
+	select FB_CFB_FILLRECT
+	select FB_CFB_COPYAREA
+	select FB_CFB_IMAGEBLIT
+	help
+	  This framebuffer device driver is for the ARM High Definition
+	  Colour LCD controller.
+
+	  If you want to compile this as a module (=code which can be
+	  inserted into and removed from the running kernel), say M
+	  here and read <file:Documentation/kbuild/modules.txt>.  The module
+	  will be called arm-hdlcd.
+
 config FB_ACORN
 	bool "Acorn VIDC support"
 	depends on (FB = y) && ARM && ARCH_ACORN
