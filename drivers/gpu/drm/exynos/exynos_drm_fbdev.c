@@ -123,14 +123,7 @@ static int exynos_drm_fbdev_update(struct drm_fb_helper *helper,
 
 	dev->mode_config.fb_base = (resource_size_t)buffer->dma_addr;
 	fbi->screen_base = buffer->kvaddr + offset;
-	if (is_drm_iommu_supported(dev))
-		fbi->fix.smem_start = (unsigned long)
-			(page_to_phys(sg_page(buffer->sgt->sgl)) + offset);
-	else
-		fbi->fix.smem_start = (unsigned long)buffer->dma_addr;
-
 	fbi->screen_size = size;
-	fbi->fix.smem_len = size;
 
 	return 0;
 }
