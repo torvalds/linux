@@ -680,7 +680,7 @@ static int i40evf_set_rxfh_indir(struct net_device *netdev, const u32 *indir)
 	return 0;
 }
 
-static struct ethtool_ops i40evf_ethtool_ops = {
+static const struct ethtool_ops i40evf_ethtool_ops = {
 	.get_settings		= i40evf_get_settings,
 	.get_drvinfo		= i40evf_get_drvinfo,
 	.get_link		= ethtool_op_get_link,
