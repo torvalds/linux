@@ -531,8 +531,7 @@ static void ceph_sync_write_unsafe(struct ceph_osd_request *req, bool unsafe)
  * objects, rollback on failure, etc.)
  */
 static ssize_t
-ceph_sync_direct_write(struct kiocb *iocb, const struct iovec *iov,
-		       unsigned long nr_segs, size_t count)
+ceph_sync_direct_write(struct kiocb *iocb, struct iov_iter *from)
 {
 	struct file *file = iocb->ki_filp;
 	struct inode *inode = file_inode(file);
@@ -549,7 +548,7 @@ ceph_sync_direct_write(struct kiocb *iocb, const struct iovec *iov,
 	int ret;
 	struct timespec mtime = CURRENT_TIME;
 	loff_t pos = iocb->ki_pos;
-	struct iov_iter i;
+	size_t count = iov_iter_count(from);
 
 	if (ceph_snap(file_inode(file)) != CEPH_NOSNAP)
 		return -EROFS;
@@ -571,10 +570,8 @@ ceph_sync_direct_write(struct kiocb *iocb, const struct iovec *iov,
 		CEPH_OSD_FLAG_ONDISK |
 		CEPH_OSD_FLAG_WRITE;
 
-	iov_iter_init(&i, WRITE, iov, nr_segs, count);
-
-	while (iov_iter_count(&i) > 0) {
-		u64 len = iov_iter_single_seg_count(&i);
+	while (iov_iter_count(from) > 0) {
+		u64 len = iov_iter_single_seg_count(from);
 		size_t start;
 		ssize_t n;
 
@@ -592,7 +589,7 @@ ceph_sync_direct_write(struct kiocb *iocb, const struct iovec *iov,
 			break;
 		}
 
-		n = iov_iter_get_pages_alloc(&i, &pages, len, &start);
+		n = iov_iter_get_pages_alloc(from, &pages, len, &start);
 		if (unlikely(n < 0)) {
 			ret = n;
 			ceph_osdc_put_request(req);
@@ -623,7 +620,7 @@ ceph_sync_direct_write(struct kiocb *iocb, const struct iovec *iov,
 			break;
 		pos += n;
 		written += n;
-		iov_iter_advance(&i, n);
+		iov_iter_advance(from, n);
 
 		if (pos > i_size_read(inode)) {
 			check_caps = ceph_inode_set_size(inode, pos);
@@ -649,8 +646,7 @@ ceph_sync_direct_write(struct kiocb *iocb, const struct iovec *iov,
  * correct atomic write, we should e.g. take write locks on all
  * objects, rollback on failure, etc.)
  */
-static ssize_t ceph_sync_write(struct kiocb *iocb, const struct iovec *iov,
-			       unsigned long nr_segs, size_t count)
+static ssize_t ceph_sync_write(struct kiocb *iocb, struct iov_iter *from)
 {
 	struct file *file = iocb->ki_filp;
 	struct inode *inode = file_inode(file);
@@ -668,7 +664,7 @@ static ssize_t ceph_sync_write(struct kiocb *iocb, const struct iovec *iov,
 	int ret;
 	struct timespec mtime = CURRENT_TIME;
 	loff_t pos = iocb->ki_pos;
-	struct iov_iter i;
+	size_t count = iov_iter_count(from);
 
 	if (ceph_snap(file_inode(file)) != CEPH_NOSNAP)
 		return -EROFS;
@@ -690,9 +686,7 @@ static ssize_t ceph_sync_write(struct kiocb *iocb, const struct iovec *iov,
 		CEPH_OSD_FLAG_WRITE |
 		CEPH_OSD_FLAG_ACK;
 
-	iov_iter_init(&i, WRITE, iov, nr_segs, count);
-
-	while ((len = iov_iter_count(&i)) > 0) {
+	while ((len = iov_iter_count(from)) > 0) {
 		size_t left;
 		int n;
 
@@ -724,7 +718,7 @@ static ssize_t ceph_sync_write(struct kiocb *iocb, const struct iovec *iov,
 		left = len;
 		for (n = 0; n < num_pages; n++) {
 			size_t plen = min_t(size_t, left, PAGE_SIZE);
-			ret = copy_page_from_iter(pages[n], 0, plen, &i);
+			ret = copy_page_from_iter(pages[n], 0, plen, from);
 			if (ret != plen) {
 				ret = -EFAULT;
 				break;
@@ -861,8 +855,7 @@ again:
  *
  * If we are near ENOSPC, write synchronously.
  */
-static ssize_t ceph_aio_write(struct kiocb *iocb, const struct iovec *iov,
-		       unsigned long nr_segs, loff_t pos)
+static ssize_t ceph_write_iter(struct kiocb *iocb, struct iov_iter *from)
 {
 	struct file *file = iocb->ki_filp;
 	struct ceph_file_info *fi = file->private_data;
@@ -870,15 +863,14 @@ static ssize_t ceph_aio_write(struct kiocb *iocb, const struct iovec *iov,
 	struct ceph_inode_info *ci = ceph_inode(inode);
 	struct ceph_osd_client *osdc =
 		&ceph_sb_to_client(inode->i_sb)->client->osdc;
-	ssize_t count, written = 0;
+	ssize_t count = iov_iter_count(from), written = 0;
 	int err, want, got;
+	loff_t pos = iocb->ki_pos;
 
 	if (ceph_snap(inode) != CEPH_NOSNAP)
 		return -EROFS;
 
 	mutex_lock(&inode->i_mutex);
-
-	count = iov_length(iov, nr_segs);
 
 	/* We can write back this queue in page reclaim */
 	current->backing_dev_info = file->f_mapping->backing_dev_info;
@@ -889,6 +881,7 @@ static ssize_t ceph_aio_write(struct kiocb *iocb, const struct iovec *iov,
 
 	if (count == 0)
 		goto out;
+	iov_iter_truncate(from, count);
 
 	err = file_remove_suid(file);
 	if (err)
@@ -920,23 +913,26 @@ retry_snap:
 
 	if ((got & (CEPH_CAP_FILE_BUFFER|CEPH_CAP_FILE_LAZYIO)) == 0 ||
 	    (file->f_flags & O_DIRECT) || (fi->flags & CEPH_F_SYNC)) {
+		struct iov_iter data;
 		mutex_unlock(&inode->i_mutex);
+		/* we might need to revert back to that point */
+		data = *from;
 		if (file->f_flags & O_DIRECT)
-			written = ceph_sync_direct_write(iocb, iov,
-							 nr_segs, count);
+			written = ceph_sync_direct_write(iocb, &data);
 		else
-			written = ceph_sync_write(iocb, iov, nr_segs, count);
+			written = ceph_sync_write(iocb, &data);
 		if (written == -EOLDSNAPC) {
 			dout("aio_write %p %llx.%llx %llu~%u"
 				"got EOLDSNAPC, retrying\n",
 				inode, ceph_vinop(inode),
-				pos, (unsigned)iov->iov_len);
+				pos, (unsigned)count);
 			mutex_lock(&inode->i_mutex);
 			goto retry_snap;
 		}
+		if (written > 0)
+			iov_iter_advance(from, written);
 	} else {
 		loff_t old_size = inode->i_size;
-		struct iov_iter from;
 		/*
 		 * No need to acquire the i_truncate_mutex. Because
 		 * the MDS revokes Fwb caps before sending truncate
@@ -944,8 +940,7 @@ retry_snap:
 		 * are pending vmtruncate. So write and vmtruncate
 		 * can not run at the same time
 		 */
-		iov_iter_init(&from, WRITE, iov, nr_segs, count);
-		written = generic_perform_write(file, &from, pos);
+		written = generic_perform_write(file, from, pos);
 		if (likely(written >= 0))
 			iocb->ki_pos = pos + written;
 		if (inode->i_size > old_size)
@@ -963,7 +958,7 @@ retry_snap:
 	}
 
 	dout("aio_write %p %llx.%llx %llu~%u  dropping cap refs on %s\n",
-	     inode, ceph_vinop(inode), pos, (unsigned)iov->iov_len,
+	     inode, ceph_vinop(inode), pos, (unsigned)count,
 	     ceph_cap_string(got));
 	ceph_put_cap_refs(ci, got);
 
@@ -1241,9 +1236,9 @@ const struct file_operations ceph_file_fops = {
 	.release = ceph_release,
 	.llseek = ceph_llseek,
 	.read = new_sync_read,
-	.write = do_sync_write,
+	.write = new_sync_write,
 	.read_iter = ceph_read_iter,
-	.aio_write = ceph_aio_write,
+	.write_iter = ceph_write_iter,
 	.mmap = ceph_mmap,
 	.fsync = ceph_fsync,
 	.lock = ceph_lock,
