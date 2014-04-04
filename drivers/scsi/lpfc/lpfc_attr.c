@@ -919,10 +919,15 @@ lpfc_sli4_pdev_reg_request(struct lpfc_hba *phba, uint32_t opcode)
 		phba->cfg_sriov_nr_virtfn = 0;
 	}
 
+	if (opcode == LPFC_FW_DUMP)
+		phba->hba_flag |= HBA_FW_DUMP_OP;
+
 	status = lpfc_do_offline(phba, LPFC_EVT_OFFLINE);
 
-	if (status != 0)
+	if (status != 0) {
+		phba->hba_flag &= ~HBA_FW_DUMP_OP;
 		return status;
+	}
 
 	/* wait for the device to be quiesced before firmware reset */
 	msleep(100);

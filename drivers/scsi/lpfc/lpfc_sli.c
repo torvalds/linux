@@ -4057,12 +4057,13 @@ lpfc_sli4_brdreset(struct lpfc_hba *phba)
 {
 	struct lpfc_sli *psli = &phba->sli;
 	uint16_t cfg_value;
-	int rc;
+	int rc = 0;
 
 	/* Reset HBA */
 	lpfc_printf_log(phba, KERN_INFO, LOG_SLI,
-			"0295 Reset HBA Data: x%x x%x\n",
-			phba->pport->port_state, psli->sli_flag);
+			"0295 Reset HBA Data: x%x x%x x%x\n",
+			phba->pport->port_state, psli->sli_flag,
+			phba->hba_flag);
 
 	/* perform board reset */
 	phba->fc_eventTag = 0;
@@ -4074,6 +4075,12 @@ lpfc_sli4_brdreset(struct lpfc_hba *phba)
 	psli->sli_flag &= ~(LPFC_PROCESS_LA);
 	phba->fcf.fcf_flag = 0;
 	spin_unlock_irq(&phba->hbalock);
+
+	/* SLI4 INTF 2: if FW dump is being taken skip INIT_PORT */
+	if (phba->hba_flag & HBA_FW_DUMP_OP) {
+		phba->hba_flag &= ~HBA_FW_DUMP_OP;
+		return rc;
+	}
 
 	/* Now physically reset the device */
 	lpfc_printf_log(phba, KERN_INFO, LOG_INIT,
