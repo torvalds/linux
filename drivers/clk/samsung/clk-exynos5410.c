@@ -60,6 +60,31 @@ enum exynos5410_plls {
 	nr_plls                 /* number of PLLs */
 };
 
+/*
+ * list of controller registers to be saved and restored during a
+ * suspend/resume cycle.
+ */
+static unsigned long exynos5410_clk_regs[] __initdata = {
+	SRC_CPU,
+	DIV_CPU0,
+	GATE_BUS_FSYS0,
+	SRC_TOP0,
+	SRC_TOP1,
+	SRC_TOP2,
+	SRC_FSYS,
+	DIV_TOP0,
+	DIV_TOP1,
+	DIV_FSYS1,
+	DIV_FSYS2,
+	SRC_MASK_FSYS,
+	SRC_MASK_PERIC0,
+	GATE_IP_FSYS,
+	GATE_IP_PERIS,
+	SRC_CDREX,
+	SRC_KFC,
+	DIV_KFC0,
+};
+
 /* list of all parent clocks */
 PNAME(apll_p)		= { "fin_pll", "fout_apll", };
 PNAME(bpll_p)		= { "fin_pll", "fout_bpll", };
@@ -191,7 +216,9 @@ static void __init exynos5410_clk_init(struct device_node *np)
 	if (!reg_base)
 		panic("%s: failed to map registers\n", __func__);
 
-	samsung_clk_init(np, reg_base, CLK_NR_CLKS);
+	samsung_clk_init(np, reg_base, CLK_NR_CLKS,
+			exynos5410_clk_regs, ARRAY_SIZE(exynos5410_clk_regs),
+			NULL, 0);
 
 	samsung_clk_register_pll(exynos5410_plls, ARRAY_SIZE(exynos5410_plls),
 					reg_base);
