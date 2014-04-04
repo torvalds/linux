@@ -63,7 +63,7 @@ static struct cpufreq_frequency_table *freq_table = default_freq_table;
 #define MASK_FURTHER_CPUFREQ            0x30
 /* With 0x00(NOCHANGE), it depends on the previous "further" status */
 #define CPUFREQ_PRIVATE                 0x100
-static int no_cpufreq_access;
+static unsigned int no_cpufreq_access = 0;
 static unsigned int suspend_freq = 816 * 1000;
 static unsigned int suspend_volt = 1000000; // 1V
 static unsigned int low_battery_freq = 600 * 1000;
@@ -309,7 +309,7 @@ static int cpufreq_target(struct cpufreq_policy *policy, unsigned int target_fre
 	is_private = relation & CPUFREQ_PRIVATE;
 	relation &= ~CPUFREQ_PRIVATE;
 
-	if (relation & ENABLE_FURTHER_CPUFREQ)
+	if ((relation & ENABLE_FURTHER_CPUFREQ) && no_cpufreq_access)
 		no_cpufreq_access--;
 	if (no_cpufreq_access) {
 		FREQ_LOG("denied access to %s as it is disabled temporarily\n", __func__);
@@ -365,6 +365,10 @@ static int cpufreq_pm_notifier_event(struct notifier_block *this, unsigned long 
 		break;
 	case PM_POST_RESTORE:
 	case PM_POST_SUSPEND:
+		//if (target_freq == policy->cur) then cpufreq_driver_target
+		//will return, and our target will not be called, it casue
+		//ENABLE_FURTHER_CPUFREQ flag invalid, avoid that.
+		policy->cur++;
 		cpufreq_driver_target(policy, suspend_freq, ENABLE_FURTHER_CPUFREQ | CPUFREQ_RELATION_H);
 		ret = NOTIFY_OK;
 		break;
