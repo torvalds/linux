@@ -899,7 +899,7 @@ bio_pageinc(struct bio *bio)
 		 * but this has never been seen here.
 		 */
 		if (unlikely(PageCompound(page)))
-			if (compound_trans_head(page) != page) {
+			if (compound_head(page) != page) {
 				pr_crit("page tail used for block I/O\n");
 				BUG();
 			}
