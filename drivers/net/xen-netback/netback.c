@@ -956,7 +956,7 @@ static int xenvif_tx_check_gop(struct xenvif *vif,
 	if (unlikely(err)) {
 		if (net_ratelimit())
 			netdev_dbg(vif->dev,
-				   "Grant copy of header failed! status: %d pending_idx% %u ref: %u\n",
+				   "Grant copy of header failed! status: %d pending_idx: %u ref: %u\n",
 				   (*gopp_copy)->status,
 				   pending_idx,
 				   (*gopp_copy)->source.u.ref);
@@ -985,7 +985,7 @@ check_frags:
 		/* Error on this fragment: respond to client with an error. */
 		if (net_ratelimit())
 			netdev_dbg(vif->dev,
-				   "Grant map of %d. frag failed! status: %d pending_idx% %u ref: %u\n",
+				   "Grant map of %d. frag failed! status: %d pending_idx: %u ref: %u\n",
 				   i,
 				   gop_map->status,
 				   pending_idx,
