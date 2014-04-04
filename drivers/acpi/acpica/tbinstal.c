@@ -203,12 +203,6 @@ acpi_tb_add_table(struct acpi_table_desc *table_desc, u32 *table_index)
 		 * need to be unregistered when they are unloaded, and slots in the
 		 * root table list should be reused when empty.
 		 */
-
-		/*
-		 * Table is already registered.
-		 * We can delete the table that was passed as a parameter.
-		 */
-		acpi_tb_delete_table(table_desc);
 		*table_index = i;
 
 		if (acpi_gbl_root_table_list.tables[i].
@@ -221,6 +215,7 @@ acpi_tb_add_table(struct acpi_table_desc *table_desc, u32 *table_index)
 		} else {
 			/* Table was unloaded, allow it to be reloaded */
 
+			acpi_tb_delete_table(table_desc);
 			table_desc->pointer =
 			    acpi_gbl_root_table_list.tables[i].pointer;
 			table_desc->address =

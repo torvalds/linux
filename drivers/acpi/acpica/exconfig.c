@@ -504,7 +504,7 @@ acpi_ex_load_op(union acpi_operand_object *obj_desc,
 
 		/* Delete allocated table buffer */
 
-		acpi_tb_delete_table(&table_desc);
+		ACPI_FREE(table_desc.pointer);
 		return_ACPI_STATUS(status);
 	}
 
