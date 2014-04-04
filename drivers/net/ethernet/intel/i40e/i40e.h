@@ -97,10 +97,6 @@
 #define STRINGIFY(foo)  #foo
 #define XSTRINGIFY(bar) STRINGIFY(bar)
 
-#ifndef ARCH_HAS_PREFETCH
-#define prefetch(X)
-#endif
-
 #define I40E_RX_DESC(R, i)			\
 	((ring_is_16byte_desc_enabled(R))	\
 		? (union i40e_32byte_rx_desc *)	\

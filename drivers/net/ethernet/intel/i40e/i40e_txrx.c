@@ -24,6 +24,7 @@
  *
  ******************************************************************************/
 
+#include <linux/prefetch.h>
 #include "i40e.h"
 #include "i40e_prototype.h"
 
