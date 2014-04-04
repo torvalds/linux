@@ -94,19 +94,19 @@ struct ft_lun {
  */
 struct ft_tpg {
 	u32 index;
-	struct ft_lport_acl *lport_acl;
+	struct ft_lport_wwn *lport_wwn;
 	struct ft_tport *tport;		/* active tport or NULL */
 	struct list_head lun_list;	/* head of LUNs */
 	struct se_portal_group se_tpg;
 	struct workqueue_struct *workqueue;
 };
 
-struct ft_lport_acl {
+struct ft_lport_wwn {
 	u64 wwpn;
 	char name[FT_NAMELEN];
+	struct list_head ft_wwn_node;
 	struct ft_tpg *tpg;
-	struct list_head list;
-	struct se_wwn fc_lport_wwn;
+	struct se_wwn se_wwn;
 };
 
 /*
