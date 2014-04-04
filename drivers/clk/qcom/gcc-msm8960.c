@@ -1,5 +1,5 @@
 /*
- * Copyright (c) 2013, The Linux Foundation. All rights reserved.
+ * Copyright (c) 2013-2014, The Linux Foundation. All rights reserved.
  *
  * This software is licensed under the terms of the GNU General Public
  * License version 2, as published by the Free Software Foundation, and
@@ -2868,6 +2868,16 @@ static const struct qcom_reset_map gcc_msm8960_resets[] = {
 	[RIVA_RESET] = { 0x35e0 },
 };
 
+static struct clk_regmap *gcc_apq8064_clks[] = {
+	[PLL8] = &pll8.clkr,
+	[PLL8_VOTE] = &pll8_vote,
+	[GSBI7_UART_SRC] = &gsbi7_uart_src.clkr,
+	[GSBI7_UART_CLK] = &gsbi7_uart_clk.clkr,
+	[GSBI7_QUP_SRC] = &gsbi7_qup_src.clkr,
+	[GSBI7_QUP_CLK] = &gsbi7_qup_clk.clkr,
+	[GSBI7_H_CLK] = &gsbi7_h_clk.clkr,
+};
+
 static const struct regmap_config gcc_msm8960_regmap_config = {
 	.reg_bits	= 32,
 	.reg_stride	= 4,
@@ -2884,8 +2894,17 @@ static const struct qcom_cc_desc gcc_msm8960_desc = {
 	.num_resets = ARRAY_SIZE(gcc_msm8960_resets),
 };
 
+static const struct qcom_cc_desc gcc_apq8064_desc = {
+	.config = &gcc_msm8960_regmap_config,
+	.clks = gcc_apq8064_clks,
+	.num_clks = ARRAY_SIZE(gcc_apq8064_clks),
+	.resets = gcc_msm8960_resets,
+	.num_resets = ARRAY_SIZE(gcc_msm8960_resets),
+};
+
 static const struct of_device_id gcc_msm8960_match_table[] = {
-	{ .compatible = "qcom,gcc-msm8960" },
+	{ .compatible = "qcom,gcc-msm8960", .data = &gcc_msm8960_desc },
+	{ .compatible = "qcom,gcc-apq8064", .data = &gcc_apq8064_desc },
 	{ }
 };
 MODULE_DEVICE_TABLE(of, gcc_msm8960_match_table);
@@ -2894,6 +2913,11 @@ static int gcc_msm8960_probe(struct platform_device *pdev)
 {
 	struct clk *clk;
 	struct device *dev = &pdev->dev;
+	const struct of_device_id *match;
+
+	match = of_match_device(gcc_msm8960_match_table, &pdev->dev);
+	if (!match)
+		return -EINVAL;
 
 	/* Temporary until RPM clocks supported */
 	clk = clk_register_fixed_rate(dev, "cxo", NULL, CLK_IS_ROOT, 19200000);
@@ -2904,7 +2928,7 @@ static int gcc_msm8960_probe(struct platform_device *pdev)
 	if (IS_ERR(clk))
 		return PTR_ERR(clk);
 
-	return qcom_cc_probe(pdev, &gcc_msm8960_desc);
+	return qcom_cc_probe(pdev, match->data);
 }
 
 static int gcc_msm8960_remove(struct platform_device *pdev)
