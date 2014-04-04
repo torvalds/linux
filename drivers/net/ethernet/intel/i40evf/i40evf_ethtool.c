@@ -59,10 +59,12 @@ static const struct i40evf_stats i40evf_gstrings_stats[] = {
 };
 
 #define I40EVF_GLOBAL_STATS_LEN ARRAY_SIZE(i40evf_gstrings_stats)
-#define I40EVF_QUEUE_STATS_LEN \
+#define I40EVF_QUEUE_STATS_LEN(_dev) \
 	(((struct i40evf_adapter *) \
-		netdev_priv(netdev))->vsi_res->num_queue_pairs * 4)
-#define I40EVF_STATS_LEN (I40EVF_GLOBAL_STATS_LEN + I40EVF_QUEUE_STATS_LEN)
+		netdev_priv(_dev))->vsi_res->num_queue_pairs \
+		  * 2 * (sizeof(struct i40e_queue_stats) / sizeof(u64)))
+#define I40EVF_STATS_LEN(_dev) \
+	(I40EVF_GLOBAL_STATS_LEN + I40EVF_QUEUE_STATS_LEN(_dev))
 
 /**
  * i40evf_get_settings - Get Link Speed and Duplex settings
@@ -97,9 +99,9 @@ static int i40evf_get_settings(struct net_device *netdev,
 static int i40evf_get_sset_count(struct net_device *netdev, int sset)
 {
 	if (sset == ETH_SS_STATS)
-		return I40EVF_STATS_LEN;
+		return I40EVF_STATS_LEN(netdev);
 	else
-		return -ENOTSUPP;
+		return -EINVAL;
 }
 
 /**
