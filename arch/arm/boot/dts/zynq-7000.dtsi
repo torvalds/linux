@@ -24,6 +24,7 @@
 			device_type = "cpu";
 			reg = <0>;
 			clocks = <&clkc 3>;
+			clock-latency = <1000>;
 			operating-points = <
 				/* kHz    uV */
 				666667  1000000
