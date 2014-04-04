@@ -179,6 +179,7 @@ struct acpi_table_header *acpi_tb_copy_dsdt(u32 table_index)
 
 	ACPI_MEMCPY(new_table, table_desc->pointer, table_desc->length);
 	acpi_tb_delete_table(table_desc);
+	table_desc->address = ACPI_PTR_TO_PHYSADDR(new_table);
 	table_desc->pointer = new_table;
 	table_desc->flags = ACPI_TABLE_ORIGIN_ALLOCATED;
 

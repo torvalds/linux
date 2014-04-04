@@ -435,7 +435,7 @@ acpi_ex_load_op(union acpi_operand_object *obj_desc,
 			return_ACPI_STATUS(status);
 		}
 
-		table_desc.address = obj_desc->region.address;
+		table_desc.address = ACPI_PTR_TO_PHYSADDR(table_desc.pointer);
 		break;
 
 	case ACPI_TYPE_BUFFER:	/* Buffer or resolved region_field */
@@ -476,7 +476,7 @@ acpi_ex_load_op(union acpi_operand_object *obj_desc,
 		}
 
 		ACPI_MEMCPY(table_desc.pointer, table, length);
-		table_desc.address = ACPI_TO_INTEGER(table_desc.pointer);
+		table_desc.address = ACPI_PTR_TO_PHYSADDR(table_desc.pointer);
 		break;
 
 	default:

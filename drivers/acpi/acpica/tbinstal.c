@@ -69,11 +69,26 @@ acpi_status acpi_tb_verify_table(struct acpi_table_desc *table_desc)
 	/* Map the table if necessary */
 
 	if (!table_desc->pointer) {
-		if ((table_desc->flags & ACPI_TABLE_ORIGIN_MASK) ==
-		    ACPI_TABLE_ORIGIN_MAPPED) {
+		switch (table_desc->flags & ACPI_TABLE_ORIGIN_MASK) {
+		case ACPI_TABLE_ORIGIN_MAPPED:
+
 			table_desc->pointer =
 			    acpi_os_map_memory(table_desc->address,
 					       table_desc->length);
+			break;
+
+		case ACPI_TABLE_ORIGIN_ALLOCATED:
+		case ACPI_TABLE_ORIGIN_UNKNOWN:
+		case ACPI_TABLE_ORIGIN_OVERRIDE:
+
+			table_desc->pointer =
+			    ACPI_CAST_PTR(struct acpi_table_header,
+					  table_desc->address);
+			break;
+
+		default:
+
+			break;
 		}
 
 		if (!table_desc->pointer) {
@@ -476,6 +491,7 @@ void acpi_tb_delete_table(struct acpi_table_desc *table_desc)
 	case ACPI_TABLE_ORIGIN_ALLOCATED:
 
 		ACPI_FREE(table_desc->pointer);
+		table_desc->address = ACPI_PTR_TO_PHYSADDR(NULL);
 		break;
 
 		/* Not mapped or allocated, there is nothing we can do */
