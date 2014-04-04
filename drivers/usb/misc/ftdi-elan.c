@@ -55,8 +55,8 @@ MODULE_LICENSE("GPL");
 #define INT_MODULE_PARM(n, v) static int n = v;module_param(n, int, 0444)
 static bool distrust_firmware = 1;
 module_param(distrust_firmware, bool, 0);
-MODULE_PARM_DESC(distrust_firmware, "true to distrust firmware power/overcurren"
-		 "t setup");
+MODULE_PARM_DESC(distrust_firmware,
+		 "true to distrust firmware power/overcurrent setup");
 extern struct platform_driver u132_platform_driver;
 static struct workqueue_struct *status_queue;
 static struct workqueue_struct *command_queue;
@@ -590,8 +590,7 @@ static void ftdi_elan_status_work(struct work_struct *work)
 				ftdi_elan_flush_targets(ftdi);
 			work_delay_in_msec = 250;
 		} else {
-			dev_err(&ftdi->udev->dev, "PCI device has disappeared\n"
-				);
+			dev_err(&ftdi->udev->dev, "PCI device has disappeared\n");
 			ftdi_elan_cancel_targets(ftdi);
 			work_delay_in_msec = 500;
 			ftdi->enumerated = 0;
