@@ -100,9 +100,9 @@
 #define PTE_HYP			PTE_USER
 
 /*
- * 40-bit physical address supported.
+ * Highest possible physical address supported.
  */
-#define PHYS_MASK_SHIFT		(40)
+#define PHYS_MASK_SHIFT		(48)
 #define PHYS_MASK		((UL(1) << PHYS_MASK_SHIFT) - 1)
 
 /*
@@ -122,7 +122,6 @@
 #define TCR_SHARED		((UL(3) << 12) | (UL(3) << 28))
 #define TCR_TG0_64K		(UL(1) << 14)
 #define TCR_TG1_64K		(UL(1) << 30)
-#define TCR_IPS_40BIT		(UL(2) << 32)
 #define TCR_ASID16		(UL(1) << 36)
 #define TCR_TBI0		(UL(1) << 37)
 
