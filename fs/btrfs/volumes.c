@@ -415,7 +415,8 @@ loop_lock:
 			device->running_pending = 1;
 
 			spin_unlock(&device->io_lock);
-			btrfs_requeue_work(&device->work);
+			btrfs_queue_work(fs_info->submit_workers,
+					 &device->work);
 			goto done;
 		}
 		/* unplug every 64 requests just for good measure */
@@ -5263,6 +5264,7 @@ int btrfs_rmap_block(struct btrfs_mapping_tree *map_tree,
 static void btrfs_end_bio(struct bio *bio, int err)
 {
 	struct btrfs_bio *bbio = bio->bi_private;
+	struct btrfs_device *dev = bbio->stripes[0].dev;
 	int is_orig_bio = 0;
 
 	if (err) {
@@ -5270,7 +5272,6 @@ static void btrfs_end_bio(struct bio *bio, int err)
 		if (err == -EIO || err == -EREMOTEIO) {
 			unsigned int stripe_index =
 				btrfs_io_bio(bio)->stripe_index;
-			struct btrfs_device *dev;
 
 			BUG_ON(stripe_index >= bbio->num_stripes);
 			dev = bbio->stripes[stripe_index].dev;
@@ -5291,6 +5292,8 @@ static void btrfs_end_bio(struct bio *bio, int err)
 
 	if (bio == bbio->orig_bio)
 		is_orig_bio = 1;
+
+	btrfs_bio_counter_dec(bbio->fs_info);
 
 	if (atomic_dec_and_test(&bbio->stripes_pending)) {
 		if (!is_orig_bio) {
@@ -5327,13 +5330,6 @@ static void btrfs_end_bio(struct bio *bio, int err)
 		bio_put(bio);
 	}
 }
-
-struct async_sched {
-	struct bio *bio;
-	int rw;
-	struct btrfs_fs_info *info;
-	struct btrfs_work work;
-};
 
 /*
  * see run_scheduled_bios for a description of why bios are collected for
@@ -5391,8 +5387,8 @@ static noinline void btrfs_schedule_bio(struct btrfs_root *root,
 	spin_unlock(&device->io_lock);
 
 	if (should_queue)
-		btrfs_queue_worker(&root->fs_info->submit_workers,
-				   &device->work);
+		btrfs_queue_work(root->fs_info->submit_workers,
+				 &device->work);
 }
 
 static int bio_size_ok(struct block_device *bdev, struct bio *bio,
@@ -5447,6 +5443,9 @@ static void submit_stripe_bio(struct btrfs_root *root, struct btrfs_bio *bbio,
 	}
 #endif
 	bio->bi_bdev = dev->bdev;
+
+	btrfs_bio_counter_inc_noblocked(root->fs_info);
+
 	if (async)
 		btrfs_schedule_bio(root, dev, rw, bio);
 	else
@@ -5515,28 +5514,38 @@ int btrfs_map_bio(struct btrfs_root *root, int rw, struct bio *bio,
 	length = bio->bi_iter.bi_size;
 	map_length = length;
 
+	btrfs_bio_counter_inc_blocked(root->fs_info);
 	ret = __btrfs_map_block(root->fs_info, rw, logical, &map_length, &bbio,
 			      mirror_num, &raid_map);
-	if (ret) /* -ENOMEM */
+	if (ret) {
+		btrfs_bio_counter_dec(root->fs_info);
 		return ret;
+	}
 
 	total_devs = bbio->num_stripes;
 	bbio->orig_bio = first_bio;
 	bbio->private = first_bio->bi_private;
 	bbio->end_io = first_bio->bi_end_io;
+	bbio->fs_info = root->fs_info;
 	atomic_set(&bbio->stripes_pending, bbio->num_stripes);
 
 	if (raid_map) {
 		/* In this case, map_length has been set to the length of
 		   a single stripe; not the whole write */
 		if (rw & WRITE) {
-			return raid56_parity_write(root, bio, bbio,
-						   raid_map, map_length);
+			ret = raid56_parity_write(root, bio, bbio,
+						  raid_map, map_length);
 		} else {
-			return raid56_parity_recover(root, bio, bbio,
-						     raid_map, map_length,
-						     mirror_num);
+			ret = raid56_parity_recover(root, bio, bbio,
+						    raid_map, map_length,
+						    mirror_num);
 		}
+		/*
+		 * FIXME, replace dosen't support raid56 yet, please fix
+		 * it in the future.
+		 */
+		btrfs_bio_counter_dec(root->fs_info);
+		return ret;
 	}
 
 	if (map_length < length) {
@@ -5578,6 +5587,7 @@ int btrfs_map_bio(struct btrfs_root *root, int rw, struct bio *bio,
 				  async_submit);
 		dev_nr++;
 	}
+	btrfs_bio_counter_dec(root->fs_info);
 	return 0;
 }
 
@@ -5666,7 +5676,7 @@ struct btrfs_device *btrfs_alloc_device(struct btrfs_fs_info *fs_info,
 	else
 		generate_random_uuid(dev->uuid);
 
-	dev->work.func = pending_bios_fn;
+	btrfs_init_work(&dev->work, pending_bios_fn, NULL, NULL);
 
 	return dev;
 }

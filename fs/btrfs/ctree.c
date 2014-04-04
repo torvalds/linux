@@ -5376,6 +5376,8 @@ int btrfs_compare_trees(struct btrfs_root *left_root,
 	int advance_right;
 	u64 left_blockptr;
 	u64 right_blockptr;
+	u64 left_gen;
+	u64 right_gen;
 	u64 left_start_ctransid;
 	u64 right_start_ctransid;
 	u64 ctransid;
@@ -5640,7 +5642,14 @@ int btrfs_compare_trees(struct btrfs_root *left_root,
 				right_blockptr = btrfs_node_blockptr(
 						right_path->nodes[right_level],
 						right_path->slots[right_level]);
-				if (left_blockptr == right_blockptr) {
+				left_gen = btrfs_node_ptr_generation(
+						left_path->nodes[left_level],
+						left_path->slots[left_level]);
+				right_gen = btrfs_node_ptr_generation(
+						right_path->nodes[right_level],
+						right_path->slots[right_level]);
+				if (left_blockptr == right_blockptr &&
+				    left_gen == right_gen) {
 					/*
 					 * As we're on a shared block, don't
 					 * allow to go deeper.
