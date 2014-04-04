@@ -130,6 +130,11 @@ void core_tmr_abort_task(
 
 		if (dev != se_cmd->se_dev)
 			continue;
+
+		/* skip se_cmd associated with tmr */
+		if (tmr->task_cmd == se_cmd)
+			continue;
+
 		ref_tag = se_cmd->se_tfo->get_task_tag(se_cmd);
 		if (tmr->ref_task_tag != ref_tag)
 			continue;
