@@ -765,7 +765,7 @@ static void g4x_wait_for_vblank(struct drm_device *dev, int pipe)
 	frame = I915_READ(frame_reg);
 
 	if (wait_for(I915_READ_NOTRACE(frame_reg) != frame, 50))
-		DRM_DEBUG_KMS("vblank wait timed out\n");
+		WARN(1, "vblank wait timed out\n");
 }
 
 /**
