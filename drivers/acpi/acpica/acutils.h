@@ -737,4 +737,11 @@ acpi_ut_method_error(const char *module_name,
 		     struct acpi_namespace_node *node,
 		     const char *path, acpi_status lookup_status);
 
+/*
+ * Utility functions for ACPI names and IDs
+ */
+const struct ah_predefined_name *acpi_ah_match_predefined_name(char *nameseg);
+
+const AH_DEVICE_ID *acpi_ah_match_hardware_id(char *hid);
+
 #endif				/* _ACUTILS_H */
