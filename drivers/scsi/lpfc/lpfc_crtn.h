@@ -311,6 +311,9 @@ int lpfc_sli_issue_abort_iotag(struct lpfc_hba *, struct lpfc_sli_ring *,
 int lpfc_sli_sum_iocb(struct lpfc_vport *, uint16_t, uint64_t, lpfc_ctx_cmd);
 int lpfc_sli_abort_iocb(struct lpfc_vport *, struct lpfc_sli_ring *, uint16_t,
 			uint64_t, lpfc_ctx_cmd);
+int
+lpfc_sli_abort_taskmgmt(struct lpfc_vport *, struct lpfc_sli_ring *,
+			uint16_t, uint64_t, lpfc_ctx_cmd);
 
 void lpfc_mbox_timeout(unsigned long);
 void lpfc_mbox_timeout_handler(struct lpfc_hba *);

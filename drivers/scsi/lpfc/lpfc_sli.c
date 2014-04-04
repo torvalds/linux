@@ -10118,6 +10118,124 @@ lpfc_sli_abort_iocb(struct lpfc_vport *vport, struct lpfc_sli_ring *pring,
 }
 
 /**
+ * lpfc_sli_abort_taskmgmt - issue abort for all commands on a host/target/LUN
+ * @vport: Pointer to virtual port.
+ * @pring: Pointer to driver SLI ring object.
+ * @tgt_id: SCSI ID of the target.
+ * @lun_id: LUN ID of the scsi device.
+ * @taskmgmt_cmd: LPFC_CTX_LUN/LPFC_CTX_TGT/LPFC_CTX_HOST.
+ *
+ * This function sends an abort command for every SCSI command
+ * associated with the given virtual port pending on the ring
+ * filtered by lpfc_sli_validate_fcp_iocb function.
+ * When taskmgmt_cmd == LPFC_CTX_LUN, the function sends abort only to the
+ * FCP iocbs associated with lun specified by tgt_id and lun_id
+ * parameters
+ * When taskmgmt_cmd == LPFC_CTX_TGT, the function sends abort only to the
+ * FCP iocbs associated with SCSI target specified by tgt_id parameter.
+ * When taskmgmt_cmd == LPFC_CTX_HOST, the function sends abort to all
+ * FCP iocbs associated with virtual port.
+ * This function returns number of iocbs it aborted .
+ * This function is called with no locks held right after a taskmgmt
+ * command is sent.
+ **/
+int
+lpfc_sli_abort_taskmgmt(struct lpfc_vport *vport, struct lpfc_sli_ring *pring,
+			uint16_t tgt_id, uint64_t lun_id, lpfc_ctx_cmd cmd)
+{
+	struct lpfc_hba *phba = vport->phba;
+	struct lpfc_iocbq *abtsiocbq;
+	struct lpfc_iocbq *iocbq;
+	IOCB_t *icmd;
+	int sum, i, ret_val;
+	unsigned long iflags;
+	struct lpfc_sli_ring *pring_s4;
+	uint32_t ring_number;
+
+	spin_lock_irq(&phba->hbalock);
+
+	/* all I/Os are in process of being flushed */
+	if (phba->hba_flag & HBA_FCP_IOQ_FLUSH) {
+		spin_unlock_irq(&phba->hbalock);
+		return 0;
+	}
+	sum = 0;
+
+	for (i = 1; i <= phba->sli.last_iotag; i++) {
+		iocbq = phba->sli.iocbq_lookup[i];
+
+		if (lpfc_sli_validate_fcp_iocb(iocbq, vport, tgt_id, lun_id,
+					       cmd) != 0)
+			continue;
+
+		/*
+		 * If the iocbq is already being aborted, don't take a second
+		 * action, but do count it.
+		 */
+		if (iocbq->iocb_flag & LPFC_DRIVER_ABORTED)
+			continue;
+
+		/* issue ABTS for this IOCB based on iotag */
+		abtsiocbq = __lpfc_sli_get_iocbq(phba);
+		if (abtsiocbq == NULL)
+			continue;
+
+		icmd = &iocbq->iocb;
+		abtsiocbq->iocb.un.acxri.abortType = ABORT_TYPE_ABTS;
+		abtsiocbq->iocb.un.acxri.abortContextTag = icmd->ulpContext;
+		if (phba->sli_rev == LPFC_SLI_REV4)
+			abtsiocbq->iocb.un.acxri.abortIoTag =
+							 iocbq->sli4_xritag;
+		else
+			abtsiocbq->iocb.un.acxri.abortIoTag = icmd->ulpIoTag;
+		abtsiocbq->iocb.ulpLe = 1;
+		abtsiocbq->iocb.ulpClass = icmd->ulpClass;
+		abtsiocbq->vport = vport;
+
+		/* ABTS WQE must go to the same WQ as the WQE to be aborted */
+		abtsiocbq->fcp_wqidx = iocbq->fcp_wqidx;
+		if (iocbq->iocb_flag & LPFC_IO_FCP)
+			abtsiocbq->iocb_flag |= LPFC_USE_FCPWQIDX;
+
+		if (lpfc_is_link_up(phba))
+			abtsiocbq->iocb.ulpCommand = CMD_ABORT_XRI_CN;
+		else
+			abtsiocbq->iocb.ulpCommand = CMD_CLOSE_XRI_CN;
+
+		/* Setup callback routine and issue the command. */
+		abtsiocbq->iocb_cmpl = lpfc_sli_abort_fcp_cmpl;
+
+		/*
+		 * Indicate the IO is being aborted by the driver and set
+		 * the caller's flag into the aborted IO.
+		 */
+		iocbq->iocb_flag |= LPFC_DRIVER_ABORTED;
+
+		if (phba->sli_rev == LPFC_SLI_REV4) {
+			ring_number = MAX_SLI3_CONFIGURED_RINGS +
+					 iocbq->fcp_wqidx;
+			pring_s4 = &phba->sli.ring[ring_number];
+			/* Note: both hbalock and ring_lock must be set here */
+			spin_lock_irqsave(&pring_s4->ring_lock, iflags);
+			ret_val = __lpfc_sli_issue_iocb(phba, pring_s4->ringno,
+							abtsiocbq, 0);
+			spin_unlock_irqrestore(&pring_s4->ring_lock, iflags);
+		} else {
+			ret_val = __lpfc_sli_issue_iocb(phba, pring->ringno,
+							abtsiocbq, 0);
+		}
+
+
+		if (ret_val == IOCB_ERROR)
+			__lpfc_sli_release_iocbq(phba, abtsiocbq);
+		else
+			sum++;
+	}
+	spin_unlock_irq(&phba->hbalock);
+	return sum;
+}
+
+/**
  * lpfc_sli_wake_iocb_wait - lpfc_sli_issue_iocb_wait's completion handler
  * @phba: Pointer to HBA context object.
  * @cmdiocbq: Pointer to command iocb.

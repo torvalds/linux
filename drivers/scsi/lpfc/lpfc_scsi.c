@@ -4783,7 +4783,9 @@ lpfc_abort_handler(struct scsi_cmnd *cmnd)
 	struct lpfc_scsi_buf *lpfc_cmd;
 	IOCB_t *cmd, *icmd;
 	int ret = SUCCESS, status = 0;
-	unsigned long flags;
+	struct lpfc_sli_ring *pring_s4;
+	int ring_number, ret_val;
+	unsigned long flags, iflags;
 	DECLARE_WAIT_QUEUE_HEAD_ONSTACK(waitq);
 
 	status = fc_block_scsi_eh(cmnd);
@@ -4880,11 +4882,23 @@ lpfc_abort_handler(struct scsi_cmnd *cmnd)
 
 	abtsiocb->iocb_cmpl = lpfc_sli_abort_fcp_cmpl;
 	abtsiocb->vport = vport;
+	if (phba->sli_rev == LPFC_SLI_REV4) {
+		ring_number = MAX_SLI3_CONFIGURED_RINGS + iocb->fcp_wqidx;
+		pring_s4 = &phba->sli.ring[ring_number];
+		/* Note: both hbalock and ring_lock must be set here */
+		spin_lock_irqsave(&pring_s4->ring_lock, iflags);
+		ret_val = __lpfc_sli_issue_iocb(phba, pring_s4->ringno,
+						abtsiocb, 0);
+		spin_unlock_irqrestore(&pring_s4->ring_lock, iflags);
+	} else {
+		ret_val = __lpfc_sli_issue_iocb(phba, LPFC_FCP_RING,
+						abtsiocb, 0);
+	}
 	/* no longer need the lock after this point */
 	spin_unlock_irqrestore(&phba->hbalock, flags);
 
-	if (lpfc_sli_issue_iocb(phba, LPFC_FCP_RING, abtsiocb, 0) ==
-	    IOCB_ERROR) {
+
+	if (ret_val == IOCB_ERROR) {
 		lpfc_sli_release_iocbq(phba, abtsiocb);
 		ret = FAILED;
 		goto out;
@@ -5185,8 +5199,9 @@ lpfc_reset_flush_io_context(struct lpfc_vport *vport, uint16_t tgt_id,
 
 	cnt = lpfc_sli_sum_iocb(vport, tgt_id, lun_id, context);
 	if (cnt)
-		lpfc_sli_abort_iocb(vport, &phba->sli.ring[phba->sli.fcp_ring],
-				    tgt_id, lun_id, context);
+		lpfc_sli_abort_taskmgmt(vport,
+					&phba->sli.ring[phba->sli.fcp_ring],
+					tgt_id, lun_id, context);
 	later = msecs_to_jiffies(2 * vport->cfg_devloss_tmo * 1000) + jiffies;
 	while (time_after(later, jiffies) && cnt) {
 		schedule_timeout_uninterruptible(msecs_to_jiffies(20));
