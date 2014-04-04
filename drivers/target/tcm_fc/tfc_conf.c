@@ -318,6 +318,11 @@ static struct se_portal_group *ft_add_tpg(
 	if (index > UINT_MAX)
 		return NULL;
 
+	if ((index != 1)) {
+		pr_err("Error, a single TPG=1 is used for HW port mappings\n");
+		return ERR_PTR(-ENOSYS);
+	}
+
 	lacl = container_of(wwn, struct ft_lport_acl, fc_lport_wwn);
 	tpg = kzalloc(sizeof(*tpg), GFP_KERNEL);
 	if (!tpg)
@@ -342,7 +347,7 @@ static struct se_portal_group *ft_add_tpg(
 	tpg->workqueue = wq;
 
 	mutex_lock(&ft_lport_lock);
-	list_add_tail(&tpg->list, &lacl->tpg_list);
+	lacl->tpg = tpg;
 	mutex_unlock(&ft_lport_lock);
 
 	return &tpg->se_tpg;
@@ -351,6 +356,7 @@ static struct se_portal_group *ft_add_tpg(
 static void ft_del_tpg(struct se_portal_group *se_tpg)
 {
 	struct ft_tpg *tpg = container_of(se_tpg, struct ft_tpg, se_tpg);
+	struct ft_lport_acl *lacl = tpg->lport_acl;
 
 	pr_debug("del tpg %s\n",
 		    config_item_name(&tpg->se_tpg.tpg_group.cg_item));
@@ -361,7 +367,8 @@ static void ft_del_tpg(struct se_portal_group *se_tpg)
 	synchronize_rcu();
 
 	mutex_lock(&ft_lport_lock);
-	list_del(&tpg->list);
+	lacl->tpg = NULL;
+
 	if (tpg->tport) {
 		tpg->tport->tpg = NULL;
 		tpg->tport = NULL;
@@ -381,14 +388,10 @@ static void ft_del_tpg(struct se_portal_group *se_tpg)
 struct ft_tpg *ft_lport_find_tpg(struct fc_lport *lport)
 {
 	struct ft_lport_acl *lacl;
-	struct ft_tpg *tpg;
 
 	list_for_each_entry(lacl, &ft_lport_list, list) {
-		if (lacl->wwpn == lport->wwpn) {
-			list_for_each_entry(tpg, &lacl->tpg_list, list)
-				return tpg; /* XXX for now return first entry */
-			return NULL;
-		}
+		if (lacl->wwpn == lport->wwpn)
+			return lacl->tpg;
 	}
 	return NULL;
 }
@@ -417,7 +420,6 @@ static struct se_wwn *ft_add_lport(
 	if (!lacl)
 		return NULL;
 	lacl->wwpn = wwpn;
-	INIT_LIST_HEAD(&lacl->tpg_list);
 
 	mutex_lock(&ft_lport_lock);
 	list_for_each_entry(old_lacl, &ft_lport_list, list) {

@@ -96,7 +96,6 @@ struct ft_tpg {
 	u32 index;
 	struct ft_lport_acl *lport_acl;
 	struct ft_tport *tport;		/* active tport or NULL */
-	struct list_head list;		/* linkage in ft_lport_acl tpg_list */
 	struct list_head lun_list;	/* head of LUNs */
 	struct se_portal_group se_tpg;
 	struct workqueue_struct *workqueue;
@@ -105,8 +104,8 @@ struct ft_tpg {
 struct ft_lport_acl {
 	u64 wwpn;
 	char name[FT_NAMELEN];
+	struct ft_tpg *tpg;
 	struct list_head list;
-	struct list_head tpg_list;
 	struct se_wwn fc_lport_wwn;
 };
 
