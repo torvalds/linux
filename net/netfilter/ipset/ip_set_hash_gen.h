@@ -1093,7 +1093,7 @@ IPSET_TOKEN(HTYPE, _create)(struct net *net, struct ip_set *set,
 	if (tb[IPSET_ATTR_MARKMASK]) {
 		markmask = ntohl(nla_get_u32(tb[IPSET_ATTR_MARKMASK]));
 
-		if ((markmask > 4294967295u) || markmask == 0)
+		if (markmask == 0)
 			return -IPSET_ERR_INVALID_MARKMASK;
 	}
 #endif
