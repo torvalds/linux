@@ -1663,6 +1663,14 @@ out:
 	return written ? written : error;
 }
 
+/**
+ * generic_file_read_iter - generic filesystem read routine
+ * @iocb:	kernel I/O control block
+ * @iter:	destination for the data read
+ *
+ * This is the "read_iter()" routine for all filesystems
+ * that can use the page cache directly.
+ */
 ssize_t
 generic_file_read_iter(struct kiocb *iocb, struct iov_iter *iter)
 {
@@ -1712,28 +1720,6 @@ out:
 	return retval;
 }
 EXPORT_SYMBOL(generic_file_read_iter);
-
-/**
- * generic_file_aio_read - generic filesystem read routine
- * @iocb:	kernel I/O control block
- * @iov:	io vector request
- * @nr_segs:	number of segments in the iovec
- * @pos:	current file position
- *
- * This is the "read()" routine for all filesystems
- * that can use the page cache directly.
- */
-ssize_t
-generic_file_aio_read(struct kiocb *iocb, const struct iovec *iov,
-		unsigned long nr_segs, loff_t pos)
-{
-	size_t count = iov_length(iov, nr_segs);
-	struct iov_iter i;
-
-	iov_iter_init(&i, READ, iov, nr_segs, count);
-	return generic_file_read_iter(iocb, &i);
-}
-EXPORT_SYMBOL(generic_file_aio_read);
 
 #ifdef CONFIG_MMU
 /**
@@ -2674,19 +2660,6 @@ ssize_t generic_file_write_iter(struct kiocb *iocb, struct iov_iter *from)
 	return ret;
 }
 EXPORT_SYMBOL(generic_file_write_iter);
-
-ssize_t generic_file_aio_write(struct kiocb *iocb, const struct iovec *iov,
-		unsigned long nr_segs, loff_t pos)
-{
-	size_t count = iov_length(iov, nr_segs);
-	struct iov_iter from;
-
-	BUG_ON(iocb->ki_pos != pos);
-
-	iov_iter_init(&from, WRITE, iov, nr_segs, count);
-	return generic_file_write_iter(iocb, &from);
-}
-EXPORT_SYMBOL(generic_file_aio_write);
 
 /**
  * try_to_release_page() - release old fs-specific metadata on a page
