@@ -122,8 +122,9 @@ static struct i40e_stats i40e_gstrings_stats[] = {
 };
 
 #define I40E_QUEUE_STATS_LEN(n) \
-  ((((struct i40e_netdev_priv *)netdev_priv((n)))->vsi->num_queue_pairs + \
-    ((struct i40e_netdev_priv *)netdev_priv((n)))->vsi->num_queue_pairs) * 2)
+	(((struct i40e_netdev_priv *)netdev_priv((n)))->vsi->num_queue_pairs \
+	    * 2 /* Tx and Rx together */                                     \
+	    * (sizeof(struct i40e_queue_stats) / sizeof(u64)))
 #define I40E_GLOBAL_STATS_LEN	ARRAY_SIZE(i40e_gstrings_stats)
 #define I40E_NETDEV_STATS_LEN   ARRAY_SIZE(i40e_gstrings_net_stats)
 #define I40E_VSI_STATS_LEN(n)   (I40E_NETDEV_STATS_LEN + \
