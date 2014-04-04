@@ -51,7 +51,7 @@ static void ft_sess_delete_all(struct ft_tport *);
  * Lookup or allocate target local port.
  * Caller holds ft_lport_lock.
  */
-static struct ft_tport *ft_tport_create(struct fc_lport *lport)
+static struct ft_tport *ft_tport_get(struct fc_lport *lport)
 {
 	struct ft_tpg *tpg;
 	struct ft_tport *tport;
@@ -115,7 +115,7 @@ static void ft_tport_delete(struct ft_tport *tport)
 void ft_lport_add(struct fc_lport *lport, void *arg)
 {
 	mutex_lock(&ft_lport_lock);
-	ft_tport_create(lport);
+	ft_tport_get(lport);
 	mutex_unlock(&ft_lport_lock);
 }
 
@@ -352,7 +352,7 @@ static int ft_prli_locked(struct fc_rport_priv *rdata, u32 spp_len,
 	struct ft_node_acl *acl;
 	u32 fcp_parm;
 
-	tport = ft_tport_create(rdata->local_port);
+	tport = ft_tport_get(rdata->local_port);
 	if (!tport)
 		goto not_target;	/* not a target for this local port */
 
