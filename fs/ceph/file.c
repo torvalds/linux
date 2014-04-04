@@ -546,7 +546,6 @@ ceph_sync_direct_write(struct kiocb *iocb, const struct iovec *iov,
 	int written = 0;
 	int flags;
 	int check_caps = 0;
-	int page_align;
 	int ret;
 	struct timespec mtime = CURRENT_TIME;
 	loff_t pos = iocb->ki_pos;
@@ -575,10 +574,9 @@ ceph_sync_direct_write(struct kiocb *iocb, const struct iovec *iov,
 	iov_iter_init(&i, WRITE, iov, nr_segs, count);
 
 	while (iov_iter_count(&i) > 0) {
-		void __user *data = i.iov->iov_base + i.iov_offset;
-		u64 len = i.iov->iov_len - i.iov_offset;
-
-		page_align = (unsigned long)data & ~PAGE_MASK;
+		u64 len = iov_iter_single_seg_count(&i);
+		size_t start;
+		ssize_t n;
 
 		snapc = ci->i_snap_realm->cached_context;
 		vino = ceph_vino(inode);
@@ -594,20 +592,21 @@ ceph_sync_direct_write(struct kiocb *iocb, const struct iovec *iov,
 			break;
 		}
 
-		num_pages = calc_pages_for(page_align, len);
-		pages = ceph_get_direct_page_vector(data, num_pages, false);
-		if (IS_ERR(pages)) {
-			ret = PTR_ERR(pages);
-			goto out;
+		n = iov_iter_get_pages_alloc(&i, &pages, len, &start);
+		if (unlikely(n < 0)) {
+			ret = n;
+			ceph_osdc_put_request(req);
+			break;
 		}
 
+		num_pages = (n + start + PAGE_SIZE - 1) / PAGE_SIZE;
 		/*
 		 * throw out any page cache pages in this range. this
 		 * may block.
 		 */
 		truncate_inode_pages_range(inode->i_mapping, pos,
-				   (pos+len) | (PAGE_CACHE_SIZE-1));
-		osd_req_op_extent_osd_data_pages(req, 0, pages, len, page_align,
+				   (pos+n) | (PAGE_CACHE_SIZE-1));
+		osd_req_op_extent_osd_data_pages(req, 0, pages, n, start,
 						false, false);
 
 		/* BUG_ON(vino.snap != CEPH_NOSNAP); */
@@ -619,22 +618,20 @@ ceph_sync_direct_write(struct kiocb *iocb, const struct iovec *iov,
 
 		ceph_put_page_vector(pages, num_pages, false);
 
-out:
 		ceph_osdc_put_request(req);
-		if (ret == 0) {
-			pos += len;
-			written += len;
-			iov_iter_advance(&i, (size_t)len);
-
-			if (pos > i_size_read(inode)) {
-				check_caps = ceph_inode_set_size(inode, pos);
-				if (check_caps)
-					ceph_check_caps(ceph_inode(inode),
-							CHECK_CAPS_AUTHONLY,
-							NULL);
-			}
-		} else
+		if (ret)
 			break;
+		pos += n;
+		written += n;
+		iov_iter_advance(&i, n);
+
+		if (pos > i_size_read(inode)) {
+			check_caps = ceph_inode_set_size(inode, pos);
+			if (check_caps)
+				ceph_check_caps(ceph_inode(inode),
+						CHECK_CAPS_AUTHONLY,
+						NULL);
+		}
 	}
 
 	if (ret != -EOLDSNAPC && written > 0) {
