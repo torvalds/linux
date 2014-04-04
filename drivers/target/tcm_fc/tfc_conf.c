@@ -403,7 +403,7 @@ struct ft_tpg *ft_lport_find_tpg(struct fc_lport *lport)
  * Add lport to allowed config.
  * The name is the WWPN in lower-case ASCII, colon-separated bytes.
  */
-static struct se_wwn *ft_add_lport(
+static struct se_wwn *ft_add_wwn(
 	struct target_fabric_configfs *tf,
 	struct config_group *group,
 	const char *name)
@@ -412,7 +412,7 @@ static struct se_wwn *ft_add_lport(
 	struct ft_lport_wwn *old_ft_wwn;
 	u64 wwpn;
 
-	pr_debug("add lport %s\n", name);
+	pr_debug("add wwn %s\n", name);
 	if (ft_parse_wwn(name, &wwpn, 1) < 0)
 		return NULL;
 	ft_wwn = kzalloc(sizeof(*ft_wwn), GFP_KERNEL);
@@ -435,12 +435,12 @@ static struct se_wwn *ft_add_lport(
 	return &ft_wwn->se_wwn;
 }
 
-static void ft_del_lport(struct se_wwn *wwn)
+static void ft_del_wwn(struct se_wwn *wwn)
 {
 	struct ft_lport_wwn *ft_wwn = container_of(wwn,
 				struct ft_lport_wwn, se_wwn);
 
-	pr_debug("del lport %s\n", ft_wwn->name);
+	pr_debug("del wwn %s\n", ft_wwn->name);
 	mutex_lock(&ft_lport_lock);
 	list_del(&ft_wwn->ft_wwn_node);
 	mutex_unlock(&ft_lport_lock);
@@ -542,8 +542,8 @@ static struct target_core_fabric_ops ft_fabric_ops = {
 	 * Setup function pointers for generic logic in
 	 * target_core_fabric_configfs.c
 	 */
-	.fabric_make_wwn =		&ft_add_lport,
-	.fabric_drop_wwn =		&ft_del_lport,
+	.fabric_make_wwn =		&ft_add_wwn,
+	.fabric_drop_wwn =		&ft_del_wwn,
 	.fabric_make_tpg =		&ft_add_tpg,
 	.fabric_drop_tpg =		&ft_del_tpg,
 	.fabric_post_link =		NULL,
