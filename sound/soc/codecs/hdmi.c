@@ -20,6 +20,7 @@
  */
 #include <linux/module.h>
 #include <sound/soc.h>
+#include <linux/of.h>
 #include <linux/of_device.h>
 
 #define DRV_NAME "hdmi-audio-codec"
