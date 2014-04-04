@@ -80,7 +80,7 @@ static int i40evf_get_settings(struct net_device *netdev,
 	/* In the future the VF will be able to query the PF for
 	 * some information - for now use a dummy value
 	 */
-	ecmd->supported = SUPPORTED_10000baseT_Full;
+	ecmd->supported = 0;
 	ecmd->autoneg = AUTONEG_DISABLE;
 	ecmd->transceiver = XCVR_DUMMY1;
 	ecmd->port = PORT_NONE;
