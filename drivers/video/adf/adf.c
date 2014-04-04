@@ -920,6 +920,7 @@ done:
 
 	return ret;
 }
+EXPORT_SYMBOL(adf_attachment_allow);
 
 /**
  * adf_obj_type_str - string representation of an adf_obj_type
