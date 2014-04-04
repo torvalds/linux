@@ -2688,11 +2688,11 @@ static int DRXD_init(struct drxd_state *state, const u8 *fw, u32 fw_size)
 		status = EnableAndResetMB(state);
 		if (status < 0)
 			break;
-		if (state->type_A)
+		if (state->type_A) {
 			status = ResetCEFR(state);
 			if (status < 0)
 				break;
-
+		}
 		if (fw) {
 			status = DownloadMicrocode(state, fw, fw_size);
 			if (status < 0)

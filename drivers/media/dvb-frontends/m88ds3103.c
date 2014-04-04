@@ -271,6 +271,13 @@ static int m88ds3103_set_frontend(struct dvb_frontend *fe)
 		ret = fe->ops.tuner_ops.get_frequency(fe, &tuner_frequency);
 		if (ret)
 			goto err;
+	} else {
+		/*
+		 * Use nominal target frequency as tuner driver does not provide
+		 * actual frequency used. Carrier offset calculation is not
+		 * valid.
+		 */
+		tuner_frequency = c->frequency;
 	}
 
 	/* reset */
@@ -428,16 +435,8 @@ static int m88ds3103_set_frontend(struct dvb_frontend *fe)
 		goto err;
 
 	switch (target_mclk) {
-	case 72000:
-		u8tmp1 = 0x00; /* 0b00 */
-		u8tmp2 = 0x03; /* 0b11 */
-		break;
 	case 96000:
 		u8tmp1 = 0x02; /* 0b10 */
-		u8tmp2 = 0x01; /* 0b01 */
-		break;
-	case 115200:
-		u8tmp1 = 0x01; /* 0b01 */
 		u8tmp2 = 0x01; /* 0b01 */
 		break;
 	case 144000:
@@ -448,10 +447,6 @@ static int m88ds3103_set_frontend(struct dvb_frontend *fe)
 		u8tmp1 = 0x03; /* 0b11 */
 		u8tmp2 = 0x00; /* 0b00 */
 		break;
-	default:
-		dev_dbg(&priv->i2c->dev, "%s: invalid target_mclk\n", __func__);
-		ret = -EINVAL;
-		goto err;
 	}
 
 	ret = m88ds3103_wr_reg_mask(priv, 0x22, u8tmp1 << 6, 0xc0);
@@ -711,9 +706,6 @@ static int m88ds3103_get_frontend(struct dvb_frontend *fe)
 		case 1:
 			c->inversion = INVERSION_ON;
 			break;
-		default:
-			dev_dbg(&priv->i2c->dev, "%s: invalid inversion\n",
-					__func__);
 		}
 
 		switch ((buf[1] >> 5) & 0x07) {
@@ -793,9 +785,6 @@ static int m88ds3103_get_frontend(struct dvb_frontend *fe)
 		case 1:
 			c->pilot = PILOT_ON;
 			break;
-		default:
-			dev_dbg(&priv->i2c->dev, "%s: invalid pilot\n",
-					__func__);
 		}
 
 		switch ((buf[0] >> 6) & 0x07) {
@@ -823,9 +812,6 @@ static int m88ds3103_get_frontend(struct dvb_frontend *fe)
 		case 1:
 			c->inversion = INVERSION_ON;
 			break;
-		default:
-			dev_dbg(&priv->i2c->dev, "%s: invalid inversion\n",
-					__func__);
 		}
 
 		switch ((buf[2] >> 0) & 0x03) {
@@ -958,7 +944,7 @@ static int m88ds3103_set_tone(struct dvb_frontend *fe,
 	switch (fe_sec_tone_mode) {
 	case SEC_TONE_ON:
 		tone = 0;
-		reg_a1_mask = 0x87;
+		reg_a1_mask = 0x47;
 		break;
 	case SEC_TONE_OFF:
 		tone = 1;

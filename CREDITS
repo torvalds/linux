@@ -630,6 +630,13 @@ N: Michael Elizabeth Chastain
 E: mec@shout.net
 D: Configure, Menuconfig, xconfig
 
+N: Mauro Carvalho Chehab
+E: m.chehab@samsung.org
+E: mchehab@infradead.org
+D: Media subsystem (V4L/DVB) drivers and core
+D: EDAC drivers and EDAC 3.0 core rework
+S: Brazil
+
 N: Raymond Chen
 E: raymondc@microsoft.com
 D: Author of Configure script

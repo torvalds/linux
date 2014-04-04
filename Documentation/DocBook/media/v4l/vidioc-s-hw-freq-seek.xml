@@ -121,7 +121,9 @@ field and the &v4l2-tuner; <structfield>index</structfield> field.</entry>
 	    <entry>If non-zero, the lowest tunable frequency of the band to
 search in units of 62.5 kHz, or if the &v4l2-tuner;
 <structfield>capability</structfield> field has the
-<constant>V4L2_TUNER_CAP_LOW</constant> flag set, in units of 62.5 Hz.
+<constant>V4L2_TUNER_CAP_LOW</constant> flag set, in units of 62.5 Hz or if the &v4l2-tuner;
+<structfield>capability</structfield> field has the
+<constant>V4L2_TUNER_CAP_1HZ</constant> flag set, in units of 1 Hz.
 If <structfield>rangelow</structfield> is zero a reasonable default value
 is used.</entry>
 	  </row>
@@ -131,7 +133,9 @@ is used.</entry>
 	    <entry>If non-zero, the highest tunable frequency of the band to
 search in units of 62.5 kHz, or if the &v4l2-tuner;
 <structfield>capability</structfield> field has the
-<constant>V4L2_TUNER_CAP_LOW</constant> flag set, in units of 62.5 Hz.
+<constant>V4L2_TUNER_CAP_LOW</constant> flag set, in units of 62.5 Hz or if the &v4l2-tuner;
+<structfield>capability</structfield> field has the
+<constant>V4L2_TUNER_CAP_1HZ</constant> flag set, in units of 1 Hz.
 If <structfield>rangehigh</structfield> is zero a reasonable default value
 is used.</entry>
 	  </row>

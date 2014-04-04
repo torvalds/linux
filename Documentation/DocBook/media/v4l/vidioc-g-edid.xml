@@ -1,12 +1,12 @@
-<refentry id="vidioc-subdev-g-edid">
+<refentry id="vidioc-g-edid">
   <refmeta>
-    <refentrytitle>ioctl VIDIOC_SUBDEV_G_EDID, VIDIOC_SUBDEV_S_EDID</refentrytitle>
+    <refentrytitle>ioctl VIDIOC_G_EDID, VIDIOC_S_EDID</refentrytitle>
     &manvol;
   </refmeta>
 
   <refnamediv>
-    <refname>VIDIOC_SUBDEV_G_EDID</refname>
-    <refname>VIDIOC_SUBDEV_S_EDID</refname>
+    <refname>VIDIOC_G_EDID</refname>
+    <refname>VIDIOC_S_EDID</refname>
     <refpurpose>Get or set the EDID of a video receiver/transmitter</refpurpose>
   </refnamediv>
 
@@ -16,7 +16,7 @@
 	<funcdef>int <function>ioctl</function></funcdef>
 	<paramdef>int <parameter>fd</parameter></paramdef>
 	<paramdef>int <parameter>request</parameter></paramdef>
-	<paramdef>struct v4l2_subdev_edid *<parameter>argp</parameter></paramdef>
+	<paramdef>struct v4l2_edid *<parameter>argp</parameter></paramdef>
       </funcprototype>
     </funcsynopsis>
     <funcsynopsis>
@@ -24,7 +24,7 @@
 	<funcdef>int <function>ioctl</function></funcdef>
 	<paramdef>int <parameter>fd</parameter></paramdef>
 	<paramdef>int <parameter>request</parameter></paramdef>
-	<paramdef>const struct v4l2_subdev_edid *<parameter>argp</parameter></paramdef>
+	<paramdef>const struct v4l2_edid *<parameter>argp</parameter></paramdef>
       </funcprototype>
     </funcsynopsis>
   </refsynopsisdiv>
@@ -42,7 +42,7 @@
       <varlistentry>
 	<term><parameter>request</parameter></term>
 	<listitem>
-	  <para>VIDIOC_SUBDEV_G_EDID, VIDIOC_SUBDEV_S_EDID</para>
+	  <para>VIDIOC_G_EDID, VIDIOC_S_EDID</para>
 	</listitem>
       </varlistentry>
       <varlistentry>
@@ -56,12 +56,20 @@
 
   <refsect1>
     <title>Description</title>
-    <para>These ioctls can be used to get or set an EDID associated with an input pad
-    from a receiver or an output pad of a transmitter subdevice.</para>
+    <para>These ioctls can be used to get or set an EDID associated with an input
+    from a receiver or an output of a transmitter device. They can be
+    used with subdevice nodes (/dev/v4l-subdevX) or with video nodes (/dev/videoX).</para>
+
+    <para>When used with video nodes the <structfield>pad</structfield> field represents the
+    input (for video capture devices) or output (for video output devices) index as
+    is returned by &VIDIOC-ENUMINPUT; and &VIDIOC-ENUMOUTPUT; respectively. When used
+    with subdevice nodes the <structfield>pad</structfield> field represents the
+    input or output pad of the subdevice. If there is no EDID support for the given
+    <structfield>pad</structfield> value, then the &EINVAL; will be returned.</para>
 
     <para>To get the EDID data the application has to fill in the <structfield>pad</structfield>,
     <structfield>start_block</structfield>, <structfield>blocks</structfield> and <structfield>edid</structfield>
-    fields and call <constant>VIDIOC_SUBDEV_G_EDID</constant>. The current EDID from block
+    fields and call <constant>VIDIOC_G_EDID</constant>. The current EDID from block
     <structfield>start_block</structfield> and of size <structfield>blocks</structfield>
     will be placed in the memory <structfield>edid</structfield> points to. The <structfield>edid</structfield>
     pointer must point to memory at least <structfield>blocks</structfield>&nbsp;*&nbsp;128 bytes
@@ -91,15 +99,17 @@
     data in some way. In any case, the end result is the same: the EDID is no longer available.
     </para>
 
-    <table pgwide="1" frame="none" id="v4l2-subdev-edid">
-      <title>struct <structname>v4l2_subdev_edid</structname></title>
+    <table pgwide="1" frame="none" id="v4l2-edid">
+      <title>struct <structname>v4l2_edid</structname></title>
       <tgroup cols="3">
         &cs-str;
 	<tbody valign="top">
 	  <row>
 	    <entry>__u32</entry>
 	    <entry><structfield>pad</structfield></entry>
-	    <entry>Pad for which to get/set the EDID blocks.</entry>
+	    <entry>Pad for which to get/set the EDID blocks. When used with a video device
+	    node the pad represents the input or output index as returned by
+	    &VIDIOC-ENUMINPUT; and &VIDIOC-ENUMOUTPUT; respectively.</entry>
 	  </row>
 	  <row>
 	    <entry>__u32</entry>

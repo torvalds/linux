@@ -16,9 +16,9 @@
 
 #include "tvp5150_reg.h"
 
-#define TVP5150_H_MAX		720
-#define TVP5150_V_MAX_525_60	480
-#define TVP5150_V_MAX_OTHERS	576
+#define TVP5150_H_MAX		720U
+#define TVP5150_V_MAX_525_60	480U
+#define TVP5150_V_MAX_OTHERS	576U
 #define TVP5150_MAX_CROP_LEFT	511
 #define TVP5150_MAX_CROP_TOP	127
 #define TVP5150_CROP_SHIFT	2
@@ -29,7 +29,7 @@ MODULE_LICENSE("GPL");
 
 
 static int debug;
-module_param(debug, int, 0);
+module_param(debug, int, 0644);
 MODULE_PARM_DESC(debug, "Debug level (0-2)");
 
 struct tvp5150 {

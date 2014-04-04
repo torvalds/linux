@@ -139,6 +139,7 @@ enum v4l2_buf_type {
 #endif
 	V4L2_BUF_TYPE_VIDEO_CAPTURE_MPLANE = 9,
 	V4L2_BUF_TYPE_VIDEO_OUTPUT_MPLANE  = 10,
+	V4L2_BUF_TYPE_SDR_CAPTURE          = 11,
 	/* Deprecated, do not use */
 	V4L2_BUF_TYPE_PRIVATE              = 0x80,
 };
@@ -159,6 +160,8 @@ enum v4l2_tuner_type {
 	V4L2_TUNER_RADIO	     = 1,
 	V4L2_TUNER_ANALOG_TV	     = 2,
 	V4L2_TUNER_DIGITAL_TV	     = 3,
+	V4L2_TUNER_ADC               = 4,
+	V4L2_TUNER_RF                = 5,
 };
 
 enum v4l2_memory {
@@ -263,6 +266,8 @@ struct v4l2_capability {
 #define V4L2_CAP_AUDIO			0x00020000  /* has audio support */
 #define V4L2_CAP_RADIO			0x00040000  /* is a radio device */
 #define V4L2_CAP_MODULATOR		0x00080000  /* has a modulator */
+
+#define V4L2_CAP_SDR_CAPTURE		0x00100000  /* Is a SDR capture device */
 
 #define V4L2_CAP_READWRITE              0x01000000  /* read/write systemcalls */
 #define V4L2_CAP_ASYNCIO                0x02000000  /* async I/O */
@@ -430,6 +435,10 @@ struct v4l2_pix_format {
 #define V4L2_PIX_FMT_JPGL	v4l2_fourcc('J', 'P', 'G', 'L') /* JPEG-Lite */
 #define V4L2_PIX_FMT_SE401      v4l2_fourcc('S', '4', '0', '1') /* se401 janggu compressed rgb */
 #define V4L2_PIX_FMT_S5C_UYVY_JPG v4l2_fourcc('S', '5', 'C', 'I') /* S5C73M3 interleaved UYVY/JPEG */
+
+/* SDR formats - used only for Software Defined Radio devices */
+#define V4L2_SDR_FMT_CU8          v4l2_fourcc('C', 'U', '0', '8') /* IQ u8 */
+#define V4L2_SDR_FMT_CU16LE       v4l2_fourcc('C', 'U', '1', '6') /* IQ u16le */
 
 /*
  *	F O R M A T   E N U M E R A T I O N
@@ -669,24 +678,36 @@ struct v4l2_buffer {
 };
 
 /*  Flags for 'flags' field */
-#define V4L2_BUF_FLAG_MAPPED	0x0001  /* Buffer is mapped (flag) */
-#define V4L2_BUF_FLAG_QUEUED	0x0002	/* Buffer is queued for processing */
-#define V4L2_BUF_FLAG_DONE	0x0004	/* Buffer is ready */
-#define V4L2_BUF_FLAG_KEYFRAME	0x0008	/* Image is a keyframe (I-frame) */
-#define V4L2_BUF_FLAG_PFRAME	0x0010	/* Image is a P-frame */
-#define V4L2_BUF_FLAG_BFRAME	0x0020	/* Image is a B-frame */
+/* Buffer is mapped (flag) */
+#define V4L2_BUF_FLAG_MAPPED			0x00000001
+/* Buffer is queued for processing */
+#define V4L2_BUF_FLAG_QUEUED			0x00000002
+/* Buffer is ready */
+#define V4L2_BUF_FLAG_DONE			0x00000004
+/* Image is a keyframe (I-frame) */
+#define V4L2_BUF_FLAG_KEYFRAME			0x00000008
+/* Image is a P-frame */
+#define V4L2_BUF_FLAG_PFRAME			0x00000010
+/* Image is a B-frame */
+#define V4L2_BUF_FLAG_BFRAME			0x00000020
 /* Buffer is ready, but the data contained within is corrupted. */
-#define V4L2_BUF_FLAG_ERROR	0x0040
-#define V4L2_BUF_FLAG_TIMECODE	0x0100	/* timecode field is valid */
-#define V4L2_BUF_FLAG_PREPARED	0x0400	/* Buffer is prepared for queuing */
+#define V4L2_BUF_FLAG_ERROR			0x00000040
+/* timecode field is valid */
+#define V4L2_BUF_FLAG_TIMECODE			0x00000100
+/* Buffer is prepared for queuing */
+#define V4L2_BUF_FLAG_PREPARED			0x00000400
 /* Cache handling flags */
-#define V4L2_BUF_FLAG_NO_CACHE_INVALIDATE	0x0800
-#define V4L2_BUF_FLAG_NO_CACHE_CLEAN		0x1000
+#define V4L2_BUF_FLAG_NO_CACHE_INVALIDATE	0x00000800
+#define V4L2_BUF_FLAG_NO_CACHE_CLEAN		0x00001000
 /* Timestamp type */
-#define V4L2_BUF_FLAG_TIMESTAMP_MASK		0xe000
-#define V4L2_BUF_FLAG_TIMESTAMP_UNKNOWN		0x0000
-#define V4L2_BUF_FLAG_TIMESTAMP_MONOTONIC	0x2000
-#define V4L2_BUF_FLAG_TIMESTAMP_COPY		0x4000
+#define V4L2_BUF_FLAG_TIMESTAMP_MASK		0x0000e000
+#define V4L2_BUF_FLAG_TIMESTAMP_UNKNOWN		0x00000000
+#define V4L2_BUF_FLAG_TIMESTAMP_MONOTONIC	0x00002000
+#define V4L2_BUF_FLAG_TIMESTAMP_COPY		0x00004000
+/* Timestamp sources. */
+#define V4L2_BUF_FLAG_TSTAMP_SRC_MASK		0x00070000
+#define V4L2_BUF_FLAG_TSTAMP_SRC_EOF		0x00000000
+#define V4L2_BUF_FLAG_TSTAMP_SRC_SOE		0x00010000
 
 /**
  * struct v4l2_exportbuffer - export of video buffer as DMABUF file descriptor
@@ -1059,14 +1080,14 @@ struct v4l2_bt_timings {
 
 /* A few useful defines to calculate the total blanking and frame sizes */
 #define V4L2_DV_BT_BLANKING_WIDTH(bt) \
-	(bt->hfrontporch + bt->hsync + bt->hbackporch)
+	((bt)->hfrontporch + (bt)->hsync + (bt)->hbackporch)
 #define V4L2_DV_BT_FRAME_WIDTH(bt) \
-	(bt->width + V4L2_DV_BT_BLANKING_WIDTH(bt))
+	((bt)->width + V4L2_DV_BT_BLANKING_WIDTH(bt))
 #define V4L2_DV_BT_BLANKING_HEIGHT(bt) \
-	(bt->vfrontporch + bt->vsync + bt->vbackporch + \
-	 bt->il_vfrontporch + bt->il_vsync + bt->il_vbackporch)
+	((bt)->vfrontporch + (bt)->vsync + (bt)->vbackporch + \
+	 (bt)->il_vfrontporch + (bt)->il_vsync + (bt)->il_vbackporch)
 #define V4L2_DV_BT_FRAME_HEIGHT(bt) \
-	(bt->height + V4L2_DV_BT_BLANKING_HEIGHT(bt))
+	((bt)->height + V4L2_DV_BT_BLANKING_HEIGHT(bt))
 
 /** struct v4l2_dv_timings - DV timings
  * @type:	the type of the timings
@@ -1339,6 +1360,7 @@ struct v4l2_modulator {
 #define V4L2_TUNER_CAP_RDS_CONTROLS	0x0200
 #define V4L2_TUNER_CAP_FREQ_BANDS	0x0400
 #define V4L2_TUNER_CAP_HWSEEK_PROG_LIM	0x0800
+#define V4L2_TUNER_CAP_1HZ		0x1000
 
 /*  Flags for the 'rxsubchans' field */
 #define V4L2_TUNER_SUB_MONO		0x0001
@@ -1692,6 +1714,15 @@ struct v4l2_pix_format_mplane {
 } __attribute__ ((packed));
 
 /**
+ * struct v4l2_sdr_format - SDR format definition
+ * @pixelformat:	little endian four character code (fourcc)
+ */
+struct v4l2_sdr_format {
+	__u32				pixelformat;
+	__u8				reserved[28];
+} __attribute__ ((packed));
+
+/**
  * struct v4l2_format - stream data format
  * @type:	enum v4l2_buf_type; type of the data stream
  * @pix:	definition of an image format
@@ -1709,6 +1740,7 @@ struct v4l2_format {
 		struct v4l2_window		win;     /* V4L2_BUF_TYPE_VIDEO_OVERLAY */
 		struct v4l2_vbi_format		vbi;     /* V4L2_BUF_TYPE_VBI_CAPTURE */
 		struct v4l2_sliced_vbi_format	sliced;  /* V4L2_BUF_TYPE_SLICED_VBI_CAPTURE */
+		struct v4l2_sdr_format		sdr;     /* V4L2_BUF_TYPE_SDR_CAPTURE */
 		__u8	raw_data[200];                   /* user-defined */
 	} fmt;
 };
@@ -1885,6 +1917,8 @@ struct v4l2_create_buffers {
 #define VIDIOC_QUERYMENU	_IOWR('V', 37, struct v4l2_querymenu)
 #define VIDIOC_G_INPUT		 _IOR('V', 38, int)
 #define VIDIOC_S_INPUT		_IOWR('V', 39, int)
+#define VIDIOC_G_EDID		_IOWR('V', 40, struct v4l2_edid)
+#define VIDIOC_S_EDID		_IOWR('V', 41, struct v4l2_edid)
 #define VIDIOC_G_OUTPUT		 _IOR('V', 46, int)
 #define VIDIOC_S_OUTPUT		_IOWR('V', 47, int)
 #define VIDIOC_ENUMOUTPUT	_IOWR('V', 48, struct v4l2_output)

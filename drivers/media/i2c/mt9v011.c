@@ -1,7 +1,7 @@
 /*
  * mt9v011 -Micron 1/4-Inch VGA Digital Image Sensor
  *
- * Copyright (c) 2009 Mauro Carvalho Chehab (mchehab@redhat.com)
+ * Copyright (c) 2009 Mauro Carvalho Chehab
  * This code is placed under the terms of the GNU General Public License v2
  */
 
@@ -16,7 +16,7 @@
 #include <media/mt9v011.h>
 
 MODULE_DESCRIPTION("Micron mt9v011 sensor driver");
-MODULE_AUTHOR("Mauro Carvalho Chehab <mchehab@redhat.com>");
+MODULE_AUTHOR("Mauro Carvalho Chehab");
 MODULE_LICENSE("GPL");
 
 static int debug;
