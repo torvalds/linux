@@ -54,6 +54,26 @@ acpi_status acpi_tb_validate_rsdp(struct acpi_table_rsdp *rsdp);
 u8 *acpi_tb_scan_memory_for_rsdp(u8 *start_address, u32 length);
 
 /*
+ * tbdata - table data structure management
+ */
+acpi_status acpi_tb_get_next_root_index(u32 *table_index);
+
+void
+acpi_tb_init_table_descriptor(struct acpi_table_desc *table_desc,
+			      acpi_physical_address address,
+			      u8 flags, struct acpi_table_header *table);
+
+acpi_status
+acpi_tb_acquire_temp_table(struct acpi_table_desc *table_desc,
+			   acpi_physical_address address, u8 flags);
+
+void acpi_tb_release_temp_table(struct acpi_table_desc *table_desc);
+
+u8 acpi_tb_is_table_loaded(u32 table_index);
+
+void acpi_tb_set_table_loaded_flag(u32 table_index, u8 is_loaded);
+
+/*
  * tbfadt - FADT parse/convert/validate
  */
 void acpi_tb_parse_fadt(u32 table_index);
@@ -112,10 +132,6 @@ acpi_status acpi_tb_release_owner_id(u32 table_index);
 
 acpi_status acpi_tb_get_owner_id(u32 table_index, acpi_owner_id *owner_id);
 
-u8 acpi_tb_is_table_loaded(u32 table_index);
-
-void acpi_tb_set_table_loaded_flag(u32 table_index, u8 is_loaded);
-
 /*
  * tbutils - table manager utilities
  */
@@ -135,11 +151,6 @@ acpi_tb_verify_checksum(struct acpi_table_header *table, u32 length);
 void acpi_tb_check_dsdt_header(void);
 
 struct acpi_table_header *acpi_tb_copy_dsdt(u32 table_index);
-
-void
-acpi_tb_init_table_descriptor(struct acpi_table_desc *table_desc,
-			      acpi_physical_address address,
-			      u8 flags, struct acpi_table_header *table);
 
 void
 acpi_tb_install_table_with_override(u32 table_index,

@@ -135,6 +135,7 @@ acpi-y +=		\
 	rsxface.o
 
 acpi-y +=		\
+	tbdata.o	\
 	tbfadt.o	\
 	tbfind.o	\
 	tbinstal.o	\
