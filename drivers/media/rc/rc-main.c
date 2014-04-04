@@ -923,6 +923,7 @@ static ssize_t store_protocols(struct device *device,
 	int rc, i, count = 0;
 	ssize_t ret;
 	int (*change_protocol)(struct rc_dev *dev, u64 *rc_type);
+	int (*set_filter)(struct rc_dev *dev, struct rc_scancode_filter *filter);
 	struct rc_scancode_filter local_filter, *filter;
 
 	/* Device is being removed */
@@ -1007,24 +1008,27 @@ static ssize_t store_protocols(struct device *device,
 	 * Fall back to clearing the filter.
 	 */
 	filter = &dev->scancode_filters[fattr->type];
+	set_filter = (fattr->type == RC_FILTER_NORMAL)
+		? dev->s_filter : dev->s_wakeup_filter;
+
 	if (old_type != type && filter->mask) {
 		local_filter = *filter;
 		if (!type) {
 			/* no protocol => clear filter */
 			ret = -1;
-		} else if (!dev->s_filter) {
+		} else if (!set_filter) {
 			/* generic filtering => accept any filter */
 			ret = 0;
 		} else {
 			/* hardware filtering => try setting, otherwise clear */
-			ret = dev->s_filter(dev, fattr->type, &local_filter);
+			ret = set_filter(dev, &local_filter);
 		}
 		if (ret < 0) {
 			/* clear the filter */
 			local_filter.data = 0;
 			local_filter.mask = 0;
-			if (dev->s_filter)
-				dev->s_filter(dev, fattr->type, &local_filter);
+			if (set_filter)
+				set_filter(dev, &local_filter);
 		}
 
 		/* commit the new filter */
@@ -1106,6 +1110,7 @@ static ssize_t store_filter(struct device *device,
 	struct rc_scancode_filter local_filter, *filter;
 	int ret;
 	unsigned long val;
+	int (*set_filter)(struct rc_dev *dev, struct rc_scancode_filter *filter);
 
 	/* Device is being removed */
 	if (!dev)
@@ -1115,8 +1120,11 @@ static ssize_t store_filter(struct device *device,
 	if (ret < 0)
 		return ret;
 
+	set_filter = (fattr->type == RC_FILTER_NORMAL) ? dev->s_filter :
+							 dev->s_wakeup_filter;
+
 	/* Scancode filter not supported (but still accept 0) */
-	if (!dev->s_filter && fattr->type != RC_FILTER_NORMAL)
+	if (!set_filter && fattr->type == RC_FILTER_WAKEUP)
 		return val ? -EINVAL : count;
 
 	mutex_lock(&dev->lock);
@@ -1128,13 +1136,15 @@ static ssize_t store_filter(struct device *device,
 		local_filter.mask = val;
 	else
 		local_filter.data = val;
+
 	if (!dev->enabled_protocols[fattr->type] && local_filter.mask) {
 		/* refuse to set a filter unless a protocol is enabled */
 		ret = -EINVAL;
 		goto unlock;
 	}
-	if (dev->s_filter) {
-		ret = dev->s_filter(dev, fattr->type, &local_filter);
+
+	if (set_filter) {
+		ret = set_filter(dev, &local_filter);
 		if (ret < 0)
 			goto unlock;
 	}
