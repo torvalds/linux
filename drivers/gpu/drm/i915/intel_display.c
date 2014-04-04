@@ -11106,7 +11106,7 @@ static void intel_setup_outputs(struct drm_device *dev)
 
 	intel_lvds_init(dev);
 
-	if (!IS_ULT(dev) && !IS_CHERRYVIEW(dev))
+	if (!IS_ULT(dev) && !IS_CHERRYVIEW(dev) && dev_priv->vbt.int_crt_support)
 		intel_crt_init(dev);
 
 	if (HAS_DDI(dev)) {
