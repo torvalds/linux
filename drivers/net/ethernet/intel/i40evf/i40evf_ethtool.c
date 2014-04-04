@@ -295,14 +295,13 @@ static int i40evf_get_coalesce(struct net_device *netdev,
 	ec->rx_max_coalesced_frames = vsi->work_limit;
 
 	if (ITR_IS_DYNAMIC(vsi->rx_itr_setting))
-		ec->rx_coalesce_usecs = 1;
-	else
-		ec->rx_coalesce_usecs = vsi->rx_itr_setting;
+		ec->use_adaptive_rx_coalesce = 1;
 
 	if (ITR_IS_DYNAMIC(vsi->tx_itr_setting))
-		ec->tx_coalesce_usecs = 1;
-	else
-		ec->tx_coalesce_usecs = vsi->tx_itr_setting;
+		ec->use_adaptive_tx_coalesce = 1;
+
+	ec->rx_coalesce_usecs = vsi->rx_itr_setting & ~I40E_ITR_DYNAMIC;
+	ec->tx_coalesce_usecs = vsi->tx_itr_setting & ~I40E_ITR_DYNAMIC;
 
 	return 0;
 }
@@ -323,40 +322,34 @@ static int i40evf_set_coalesce(struct net_device *netdev,
 	struct i40e_q_vector *q_vector;
 	int i;
 
-	if (ec->tx_max_coalesced_frames || ec->rx_max_coalesced_frames)
-		vsi->work_limit = ec->tx_max_coalesced_frames;
+	if (ec->tx_max_coalesced_frames_irq || ec->rx_max_coalesced_frames_irq)
+		vsi->work_limit = ec->tx_max_coalesced_frames_irq;
 
-	switch (ec->rx_coalesce_usecs) {
-	case 0:
-		vsi->rx_itr_setting = 0;
-		break;
-	case 1:
-		vsi->rx_itr_setting = (I40E_ITR_DYNAMIC
-				       | ITR_REG_TO_USEC(I40E_ITR_RX_DEF));
-		break;
-	default:
-		if ((ec->rx_coalesce_usecs < (I40E_MIN_ITR << 1)) ||
-		    (ec->rx_coalesce_usecs > (I40E_MAX_ITR << 1)))
-			return -EINVAL;
+	if ((ec->rx_coalesce_usecs >= (I40E_MIN_ITR << 1)) &&
+	    (ec->rx_coalesce_usecs <= (I40E_MAX_ITR << 1)))
 		vsi->rx_itr_setting = ec->rx_coalesce_usecs;
-		break;
-	}
 
-	switch (ec->tx_coalesce_usecs) {
-	case 0:
-		vsi->tx_itr_setting = 0;
-		break;
-	case 1:
-		vsi->tx_itr_setting = (I40E_ITR_DYNAMIC
-				       | ITR_REG_TO_USEC(I40E_ITR_TX_DEF));
-		break;
-	default:
-		if ((ec->tx_coalesce_usecs < (I40E_MIN_ITR << 1)) ||
-		    (ec->tx_coalesce_usecs > (I40E_MAX_ITR << 1)))
-			return -EINVAL;
+	else
+		return -EINVAL;
+
+	if ((ec->tx_coalesce_usecs >= (I40E_MIN_ITR << 1)) &&
+	    (ec->tx_coalesce_usecs <= (I40E_MAX_ITR << 1)))
 		vsi->tx_itr_setting = ec->tx_coalesce_usecs;
-		break;
-	}
+	else if (ec->use_adaptive_tx_coalesce)
+		vsi->tx_itr_setting = (I40E_ITR_DYNAMIC |
+				       ITR_REG_TO_USEC(I40E_ITR_RX_DEF));
+	else
+		return -EINVAL;
+
+	if (ec->use_adaptive_rx_coalesce)
+		vsi->rx_itr_setting |= I40E_ITR_DYNAMIC;
+	else
+		vsi->rx_itr_setting &= ~I40E_ITR_DYNAMIC;
+
+	if (ec->use_adaptive_tx_coalesce)
+		vsi->tx_itr_setting |= I40E_ITR_DYNAMIC;
+	else
+		vsi->tx_itr_setting &= ~I40E_ITR_DYNAMIC;
 
 	for (i = 0; i < adapter->num_msix_vectors - NONQ_VECS; i++) {
 		q_vector = adapter->q_vector[i];
