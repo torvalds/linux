@@ -1186,6 +1186,7 @@ static int fsl_spdif_probe(struct platform_device *pdev)
 
 static const struct of_device_id fsl_spdif_dt_ids[] = {
 	{ .compatible = "fsl,imx35-spdif", },
+	{ .compatible = "fsl,vf610-spdif", },
 	{}
 };
 MODULE_DEVICE_TABLE(of, fsl_spdif_dt_ids);
