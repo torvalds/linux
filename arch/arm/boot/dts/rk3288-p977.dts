@@ -346,7 +346,7 @@
 	orientation-y= <0>;
 	orientation-z= <1>;
 	irq-gpio = <&gpio8 GPIO_A0 IRQ_TYPE_LEVEL_LOW>;			
-	mpu-debug = <1>;
+	mpu-debug = <0>;
 	};
 /*
 	ak8963:compass@0d{
@@ -367,11 +367,11 @@
 	reg = <0x0d>;
 	compass-bus = <0>;
 	compass-adapt_num = <0>;
-	compass-orientation = <1 0 0 0 1 0 0 0 1>;
-	orientation-x= <1>;
+	compass-orientation = <0 1 0 1 0 0 0 0 1>;
+	orientation-x= <0>;
 	orientation-y= <0>;
-	orientation-z= <1>;	
-	compass-debug = <1>;
+	orientation-z= <0>;	
+	compass-debug = <0>;
 	};
 
 };
