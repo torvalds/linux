@@ -8,7 +8,7 @@ static const struct phy_mpll_config_tab PHY_MPLL_TABLE[] = {	//opmode: 0:HDMI1.4
 	{27000000,	0,	8,	0,	0,	0,	2,	3,	0,	3,	7,	0,	3},
 	{74250000, 	0,	8, 	0,	0,	0, 	4, 	3,	3,	2,	7,	0, 	3},
 	{148500000, 	0, 	8,  	0, 	0,	0,	4,	3,	3,	2,	7,	0,	3},
-	{297000000,	0, 	8,	0, 	0, 	0, 	1, 	3, 	0, 	2, 	7, 	0, 	3},
+	{297000000,	0, 	8,	0, 	0, 	0, 	1, 	1, 	0, 	1, 	7, 	0, 	3},
 	{297000000, 	0, 	16,  	3, 	3, 	1, 	1, 	1, 	0, 	0, 	5, 	0, 	3},
 	{594000000,	0, 	8, 	0, 	3, 	1, 	1, 	0, 	0, 	0, 	3, 	0, 	3},
 };
@@ -426,9 +426,9 @@ static int rk3288_hdmi_read_phy(struct rk3288_hdmi_device *hdmi_dev, int reg_add
 		msleep(100);
 #else
 		msleep(300);
-		val = (hdmi_readl(hdmi_dev, PHY_I2CM_DATAI_1) >> 8) & 0xff;
+		val = (hdmi_readl(hdmi_dev, PHY_I2CM_DATAI_1) & 0xff) << 8;
 		val += (hdmi_readl(hdmi_dev, PHY_I2CM_DATAI_0) & 0xff);
-		printk(">>>reg%x:%x", reg_addr, val);
+		printk("phy_reg0x%02x: 0x%04x", reg_addr, val);
 		return val;
 #endif
 	}
@@ -528,7 +528,7 @@ int rk3288_hdmi_config_phy(struct hdmi *hdmi_drv)
 		//TODO Daisen wait to add and modify
 		rk3288_hdmi_write_phy(hdmi_dev, PHYTX_TERM_RESIS, v_TX_TERM(R13333_Ohms));
 	}
-	rk3288_hdmi_write_phy(hdmi_dev, PHYTX_VLEVCTRL, v_SUP_TXLVL(10) | v_SUP_CLKLVL(10));
+	rk3288_hdmi_write_phy(hdmi_dev, PHYTX_VLEVCTRL, v_SUP_TXLVL(16) | v_SUP_CLKLVL(17));
 
 	//power on PHY
 	hdmi_writel(hdmi_dev, PHY_CONF0, 0x6e);
