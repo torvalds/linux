@@ -292,19 +292,24 @@ static int
 __ftrace_make_call(struct dyn_ftrace *rec, unsigned long addr)
 {
 	unsigned int op[2];
-	unsigned long ip = rec->ip;
+	void *ip = (void *)rec->ip;
 
 	/* read where this goes */
-	if (probe_kernel_read(op, (void *)ip, MCOUNT_INSN_SIZE * 2))
+	if (probe_kernel_read(op, ip, sizeof(op)))
 		return -EFAULT;
 
 	/*
-	 * It should be pointing to two nops or
-	 *  b +8; ld r2,40(r1)
+	 * We expect to see:
+	 *
+	 * b +8
+	 * ld r2,XX(r1)
+	 *
+	 * The load offset is different depending on the ABI. For simplicity
+	 * just mask it out when doing the compare.
 	 */
-	if (((op[0] != 0x48000008) || (op[1] != 0xe8410028)) &&
-	    ((op[0] != PPC_INST_NOP) || (op[1] != PPC_INST_NOP))) {
-		printk(KERN_ERR "Expected NOPs but have %x %x\n", op[0], op[1]);
+	if ((op[0] != 0x48000008) || ((op[1] & 0xffff00000) != 0xe8410000)) {
+		printk(KERN_ERR "Unexpected call sequence: %x %x\n",
+			op[0], op[1]);
 		return -EINVAL;
 	}
 
@@ -314,23 +319,16 @@ __ftrace_make_call(struct dyn_ftrace *rec, unsigned long addr)
 		return -EINVAL;
 	}
 
-	/* create the branch to the trampoline */
-	op[0] = create_branch((unsigned int *)ip,
-			      rec->arch.mod->arch.tramp, BRANCH_SET_LINK);
-	if (!op[0]) {
-		printk(KERN_ERR "REL24 out of range!\n");
+	/* Ensure branch is within 24 bits */
+	if (create_branch(ip, rec->arch.mod->arch.tramp, BRANCH_SET_LINK)) {
+		printk(KERN_ERR "Branch out of range");
 		return -EINVAL;
 	}
 
-	/* ld r2,40(r1) */
-	op[1] = 0xe8410028;
-
-	pr_devel("write to %lx\n", rec->ip);
-
-	if (probe_kernel_write((void *)ip, op, MCOUNT_INSN_SIZE * 2))
-		return -EPERM;
-
-	flush_icache_range(ip, ip + 8);
+	if (patch_branch(ip, rec->arch.mod->arch.tramp, BRANCH_SET_LINK)) {
+		printk(KERN_ERR "REL24 out of range!\n");
+		return -EINVAL;
+	}
 
 	return 0;
 }
