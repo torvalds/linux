@@ -4664,7 +4664,10 @@ lpfc_reset_hba(struct lpfc_hba *phba)
 		phba->link_state = LPFC_HBA_ERROR;
 		return;
 	}
-	lpfc_offline_prep(phba, LPFC_MBX_WAIT);
+	if (phba->sli.sli_flag & LPFC_SLI_ACTIVE)
+		lpfc_offline_prep(phba, LPFC_MBX_WAIT);
+	else
+		lpfc_offline_prep(phba, LPFC_MBX_NO_WAIT);
 	lpfc_offline(phba);
 	lpfc_sli_brdrestart(phba);
 	lpfc_online(phba);

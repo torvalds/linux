@@ -4834,6 +4834,14 @@ lpfc_abort_handler(struct scsi_cmnd *cmnd)
 
 	BUG_ON(iocb->context1 != lpfc_cmd);
 
+	/* abort issued in recovery is still in progress */
+	if (iocb->iocb_flag & LPFC_DRIVER_ABORTED) {
+		lpfc_printf_vlog(vport, KERN_WARNING, LOG_FCP,
+			 "3389 SCSI Layer I/O Abort Request is pending\n");
+		spin_unlock_irqrestore(&phba->hbalock, flags);
+		goto wait_for_cmpl;
+	}
+
 	abtsiocb = __lpfc_sli_get_iocbq(phba);
 	if (abtsiocb == NULL) {
 		ret = FAILED;
@@ -4886,12 +4894,16 @@ lpfc_abort_handler(struct scsi_cmnd *cmnd)
 		lpfc_sli_handle_fast_ring_event(phba,
 			&phba->sli.ring[LPFC_FCP_RING], HA_R0RE_REQ);
 
+wait_for_cmpl:
 	lpfc_cmd->waitq = &waitq;
 	/* Wait for abort to complete */
 	wait_event_timeout(waitq,
 			  (lpfc_cmd->pCmd != cmnd),
 			   msecs_to_jiffies(2*vport->cfg_devloss_tmo*1000));
+
+	spin_lock_irqsave(shost->host_lock, flags);
 	lpfc_cmd->waitq = NULL;
+	spin_unlock_irqrestore(shost->host_lock, flags);
 
 	if (lpfc_cmd->pCmd == cmnd) {
 		ret = FAILED;
