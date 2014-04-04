@@ -347,3 +347,4 @@ err:
 		gpio_free(ptn_bridge->gpio_rst_n);
 	return ret;
 }
+EXPORT_SYMBOL(ptn3460_init);
