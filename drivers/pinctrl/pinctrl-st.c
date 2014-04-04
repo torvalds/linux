@@ -1312,25 +1312,23 @@ static void st_gpio_irq_unmask(struct irq_data *d)
 	writel(BIT(d->hwirq), bank->base + REG_PIO_SET_PMASK);
 }
 
-static unsigned int st_gpio_irq_startup(struct irq_data *d)
+static int st_gpio_irq_reqres(struct irq_data *d)
 {
 	struct st_gpio_bank *bank = irq_data_get_irq_chip_data(d);
 
-	if (gpio_lock_as_irq(&bank->gpio_chip, d->hwirq))
+	if (gpio_lock_as_irq(&bank->gpio_chip, d->hwirq)) {
 		dev_err(bank->gpio_chip.dev,
 			"unable to lock HW IRQ %lu for IRQ\n",
 			d->hwirq);
-
-	st_gpio_irq_unmask(d);
-
+		return -EINVAL;
+	}
 	return 0;
 }
 
-static void st_gpio_irq_shutdown(struct irq_data *d)
+static void st_gpio_irq_relres(struct irq_data *d)
 {
 	struct st_gpio_bank *bank = irq_data_get_irq_chip_data(d);
 
-	st_gpio_irq_mask(d);
 	gpio_unlock_as_irq(&bank->gpio_chip, d->hwirq);
 }
 
@@ -1491,8 +1489,8 @@ static struct irq_chip st_gpio_irqchip = {
 	.irq_mask	= st_gpio_irq_mask,
 	.irq_unmask	= st_gpio_irq_unmask,
 	.irq_set_type	= st_gpio_irq_set_type,
-	.irq_startup	= st_gpio_irq_startup,
-	.irq_shutdown	= st_gpio_irq_shutdown,
+	.irq_request_resources = st_gpio_irq_reqres,
+	.irq_release_resources = st_gpio_irq_relres,
 };
 
 static int st_gpio_irq_domain_map(struct irq_domain *h,
