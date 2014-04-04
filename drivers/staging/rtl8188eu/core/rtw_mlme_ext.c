@@ -6600,13 +6600,13 @@ u8 collect_bss_info(struct adapter *padapter, struct recv_frame *precv_frame, st
 		return _FAIL;
 	}
 
-	if (*(p + 1)) {
+	if (len) {
 		if (len > NDIS_802_11_LENGTH_SSID) {
 			DBG_88E("%s()-%d: IE too long (%d) for survey event\n", __func__, __LINE__, len);
 			return _FAIL;
 		}
-		memcpy(bssid->Ssid.Ssid, (p + 2), *(p + 1));
-		bssid->Ssid.SsidLength = *(p + 1);
+		memcpy(bssid->Ssid.Ssid, (p + 2), len);
+		bssid->Ssid.SsidLength = len;
 	} else {
 		bssid->Ssid.SsidLength = 0;
 	}
