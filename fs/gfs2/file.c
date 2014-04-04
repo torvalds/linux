@@ -811,6 +811,8 @@ static long gfs2_fallocate(struct file *file, int mode, loff_t offset,
 	loff_t bsize_mask = ~((loff_t)sdp->sd_sb.sb_bsize - 1);
 	loff_t next = (offset + len - 1) >> sdp->sd_sb.sb_bsize_shift;
 	loff_t max_chunk_size = UINT_MAX & bsize_mask;
+	struct gfs2_holder gh;
+
 	next = (next + 1) << sdp->sd_sb.sb_bsize_shift;
 
 	/* We only support the FALLOC_FL_KEEP_SIZE mode */
@@ -831,8 +833,10 @@ static long gfs2_fallocate(struct file *file, int mode, loff_t offset,
 	if (error)
 		return error;
 
-	gfs2_holder_init(ip->i_gl, LM_ST_EXCLUSIVE, 0, &ip->i_gh);
-	error = gfs2_glock_nq(&ip->i_gh);
+	mutex_lock(&inode->i_mutex);
+
+	gfs2_holder_init(ip->i_gl, LM_ST_EXCLUSIVE, 0, &gh);
+	error = gfs2_glock_nq(&gh);
 	if (unlikely(error))
 		goto out_uninit;
 
@@ -900,9 +904,10 @@ out_trans_fail:
 out_qunlock:
 	gfs2_quota_unlock(ip);
 out_unlock:
-	gfs2_glock_dq(&ip->i_gh);
+	gfs2_glock_dq(&gh);
 out_uninit:
-	gfs2_holder_uninit(&ip->i_gh);
+	gfs2_holder_uninit(&gh);
+	mutex_unlock(&inode->i_mutex);
 	return error;
 }
 
