@@ -78,7 +78,7 @@ MODULE_LICENSE("GPL");
  * However the ACPI methods seem to be incomplete in some areas (for
  * example they allow setting, but not reading, the LCD brightness value),
  * so this is still useful.
- * 
+ *
  * SCI stands for "System Configuration Interface" which aim is to
  * conceal differences in hardware between different models.
  */
@@ -456,7 +456,7 @@ static enum led_brightness toshiba_illumination_get(struct led_classdev *cdev)
 
 	return state ? LED_FULL : LED_OFF;
 }
- 
+
 /* KBD Illumination */
 static int toshiba_kbd_illum_status_set(struct toshiba_acpi_dev *dev, u32 time)
 {
@@ -539,7 +539,7 @@ static void toshiba_kbd_backlight_set(struct led_classdev *cdev,
 		return;
 	}
 }
- 
+
 /* TouchPad support */
 static int toshiba_touchpad_set(struct toshiba_acpi_dev *dev, u32 state)
 {
@@ -631,7 +631,7 @@ static void toshiba_eco_mode_set_status(struct led_classdev *cdev,
 		return;
 	}
 }
- 
+
 /* Accelerometer support */
 static int toshiba_accelerometer_supported(struct toshiba_acpi_dev *dev)
 {
@@ -1200,7 +1200,7 @@ static const struct backlight_ops toshiba_backlight_data = {
 	.get_brightness = get_lcd_brightness,
 	.update_status  = set_lcd_status,
 };
- 
+
 /*
  * Sysfs files
  */
@@ -1280,7 +1280,7 @@ static ssize_t toshiba_kbd_bl_timeout_show(struct device *dev,
 
 	return sprintf(buf, "%i\n", time >> HCI_MISC_SHIFT);
 }
- 
+
 static ssize_t toshiba_touchpad_store(struct device *dev,
 				      struct device_attribute *attr,
 				      const char *buf, size_t count)
@@ -1310,7 +1310,7 @@ static ssize_t toshiba_touchpad_show(struct device *dev,
 
 	return sprintf(buf, "%i\n", state);
 }
- 
+
 static ssize_t toshiba_position_show(struct device *dev,
 				     struct device_attribute *attr, char *buf)
 {
@@ -1573,7 +1573,7 @@ static int toshiba_acpi_remove(struct acpi_device *acpi_dev)
 	struct toshiba_acpi_dev *dev = acpi_driver_data(acpi_dev);
 
 	remove_toshiba_proc_entries(dev);
- 
+
 	if (dev->sysfs_created)
 		sysfs_remove_group(&dev->acpi_dev->dev.kobj,
 				   &toshiba_attr_group);
@@ -1598,10 +1598,10 @@ static int toshiba_acpi_remove(struct acpi_device *acpi_dev)
 
 	if (dev->illumination_supported)
 		led_classdev_unregister(&dev->led_dev);
- 
+
 	if (dev->kbd_led_registered)
 		led_classdev_unregister(&dev->kbd_led);
- 
+
 	if (dev->eco_supported)
 		led_classdev_unregister(&dev->eco_led);
 
@@ -1690,7 +1690,7 @@ static int toshiba_acpi_add(struct acpi_device *acpi_dev)
 		if (!led_classdev_register(&acpi_dev->dev, &dev->led_dev))
 			dev->illumination_supported = 1;
 	}
- 
+
 	if (toshiba_eco_mode_available(dev)) {
 		dev->eco_led.name = "toshiba::eco_mode";
 		dev->eco_led.max_brightness = 1;
@@ -1699,7 +1699,7 @@ static int toshiba_acpi_add(struct acpi_device *acpi_dev)
 		if (!led_classdev_register(&dev->acpi_dev->dev, &dev->eco_led))
 			dev->eco_supported = 1;
 	}
- 
+
 	ret = toshiba_kbd_illum_status_get(dev, &dummy);
 	if (!ret) {
 		dev->kbd_time = dummy >> HCI_MISC_SHIFT;
@@ -1718,10 +1718,10 @@ static int toshiba_acpi_add(struct acpi_device *acpi_dev)
 		if (!led_classdev_register(&dev->acpi_dev->dev, &dev->kbd_led))
 			dev->kbd_led_registered = 1;
 	}
- 
+
 	ret = toshiba_touchpad_get(dev, &dummy);
 	dev->touchpad_supported = !ret;
- 
+
 	ret = toshiba_accelerometer_supported(dev);
 	dev->accelerometer_supported = !ret;
 
