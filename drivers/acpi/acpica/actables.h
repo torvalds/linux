@@ -92,7 +92,8 @@ acpi_tb_release_table(struct acpi_table_header *table,
 
 acpi_status
 acpi_tb_install_non_fixed_table(acpi_physical_address address,
-				u8 flags, u8 reload, u32 *table_index);
+				u8 flags,
+				u8 reload, u8 override, u32 *table_index);
 
 acpi_status
 acpi_tb_store_table(acpi_physical_address address,
@@ -142,7 +143,8 @@ acpi_tb_install_table(struct acpi_table_desc *table_desc,
 
 void
 acpi_tb_install_and_override_table(u32 table_index,
-				   struct acpi_table_desc *new_table_desc);
+				   struct acpi_table_desc *new_table_desc,
+				   u8 override);
 
 acpi_status
 acpi_tb_install_fixed_table(acpi_physical_address address,

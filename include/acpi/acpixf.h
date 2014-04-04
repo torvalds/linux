@@ -164,6 +164,9 @@ acpi_decode_pld_buffer(u8 *in_buffer,
 /*
  * ACPI table load/unload interfaces
  */
+acpi_status __init
+acpi_install_table(acpi_physical_address address, u8 physical);
+
 acpi_status acpi_load_table(struct acpi_table_header *table);
 
 acpi_status acpi_unload_parent_table(acpi_handle object);

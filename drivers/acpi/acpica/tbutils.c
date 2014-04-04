@@ -474,7 +474,7 @@ acpi_status __init acpi_tb_parse_root_table(acpi_physical_address rsdp_address)
 						    (table_entry,
 						     table_entry_size),
 						    ACPI_TABLE_ORIGIN_INTERN_PHYSICAL,
-						    FALSE, &table_index);
+						    FALSE, TRUE, &table_index);
 
 		if (ACPI_SUCCESS(status) &&
 		    ACPI_COMPARE_NAME(&acpi_gbl_root_table_list.

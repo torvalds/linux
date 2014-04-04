@@ -195,6 +195,45 @@ unlock_and_exit:
 
 /*******************************************************************************
  *
+ * FUNCTION:    acpi_install_table
+ *
+ * PARAMETERS:  address             - Address of the ACPI table to be installed.
+ *              physical            - Whether the address is a physical table
+ *                                    address or not
+ *
+ * RETURN:      Status
+ *
+ * DESCRIPTION: Dynamically install an ACPI table.
+ *              Note: This function should only be invoked after
+ *                    acpi_initialize_tables() and before acpi_load_tables().
+ *
+ ******************************************************************************/
+
+acpi_status __init
+acpi_install_table(acpi_physical_address address, u8 physical)
+{
+	acpi_status status;
+	u8 flags;
+	u32 table_index;
+
+	ACPI_FUNCTION_TRACE(acpi_install_table);
+
+	if (physical) {
+		flags = ACPI_TABLE_ORIGIN_EXTERN_VIRTUAL;
+	} else {
+		flags = ACPI_TABLE_ORIGIN_INTERN_PHYSICAL;
+	}
+
+	status = acpi_tb_install_non_fixed_table(address, flags,
+						 FALSE, FALSE, &table_index);
+
+	return_ACPI_STATUS(status);
+}
+
+ACPI_EXPORT_SYMBOL_INIT(acpi_install_table)
+
+/*******************************************************************************
+ *
  * FUNCTION:    acpi_load_table
  *
  * PARAMETERS:  table               - Pointer to a buffer containing the ACPI
@@ -209,7 +248,6 @@ unlock_and_exit:
  *              to ensure that the table is not deleted or unmapped.
  *
  ******************************************************************************/
-
 acpi_status acpi_load_table(struct acpi_table_header *table)
 {
 	acpi_status status;
@@ -236,7 +274,7 @@ acpi_status acpi_load_table(struct acpi_table_header *table)
 	(void)acpi_ut_acquire_mutex(ACPI_MTX_TABLES);
 	status = acpi_tb_install_non_fixed_table(ACPI_PTR_TO_PHYSADDR(table),
 						 ACPI_TABLE_ORIGIN_EXTERN_VIRTUAL,
-						 TRUE, &table_index);
+						 TRUE, FALSE, &table_index);
 	(void)acpi_ut_release_mutex(ACPI_MTX_TABLES);
 	if (ACPI_FAILURE(status)) {
 		goto unlock_and_exit;
