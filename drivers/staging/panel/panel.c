@@ -867,6 +867,7 @@ static void lcd_print(char c)
 static void lcd_clear_fast_s(void)
 {
 	int pos;
+
 	lcd_addr_x = lcd_addr_y = 0;
 	lcd_gotoxy();
 
@@ -887,6 +888,7 @@ static void lcd_clear_fast_s(void)
 static void lcd_clear_fast_p8(void)
 {
 	int pos;
+
 	lcd_addr_x = lcd_addr_y = 0;
 	lcd_gotoxy();
 
@@ -922,6 +924,7 @@ static void lcd_clear_fast_p8(void)
 static void lcd_clear_fast_tilcd(void)
 {
 	int pos;
+
 	lcd_addr_x = lcd_addr_y = 0;
 	lcd_gotoxy();
 
@@ -1092,6 +1095,7 @@ static inline int handle_lcd_special_code(void)
 		break;
 	case 'k': {	/* kill end of line */
 		int x;
+
 		for (x = lcd_addr_x; x < lcd_bwidth; x++)
 			lcd_write_data(' ');
 
@@ -1760,16 +1764,20 @@ static inline int input_state_high(struct logical_input *input)
 
 			if (input->high_timer == 0) {
 				char *press_str = input->u.kbd.press_str;
+
 				if (press_str[0]) {
 					int s = sizeof(input->u.kbd.press_str);
+
 					keypad_send_key(press_str, s);
 				}
 			}
 
 			if (input->u.kbd.repeat_str[0]) {
 				char *repeat_str = input->u.kbd.repeat_str;
+
 				if (input->high_timer >= KEYPAD_REP_START) {
 					int s = sizeof(input->u.kbd.repeat_str);
+
 					input->high_timer -= KEYPAD_REP_DELAY;
 					keypad_send_key(repeat_str, s);
 				}
@@ -1807,8 +1815,10 @@ static inline void input_state_falling(struct logical_input *input)
 
 			if (input->u.kbd.repeat_str[0]) {
 				char *repeat_str = input->u.kbd.repeat_str;
+
 				if (input->high_timer >= KEYPAD_REP_START) {
 					int s = sizeof(input->u.kbd.repeat_str);
+
 					input->high_timer -= KEYPAD_REP_DELAY;
 					keypad_send_key(repeat_str, s);
 				}
@@ -1824,12 +1834,15 @@ static inline void input_state_falling(struct logical_input *input)
 		/* call release event */
 		if (input->type == INPUT_TYPE_STD) {
 			void (*release_fct)(int) = input->u.std.release_fct;
+
 			if (release_fct != NULL)
 				release_fct(input->u.std.release_data);
 		} else if (input->type == INPUT_TYPE_KBD) {
 			char *release_str = input->u.kbd.release_str;
+
 			if (release_str[0]) {
 				int s = sizeof(input->u.kbd.release_str);
+
 				keypad_send_key(release_str, s);
 			}
 		}
@@ -1946,6 +1959,7 @@ static int input_name2mask(const char *name, pmask_t *mask, pmask_t *value,
 	om = im = m = v = 0ULL;
 	while (*name) {
 		int in, out, bit, neg;
+
 		for (in = 0; (in < sizeof(sigtab)) &&
 			     (sigtab[in] != *name); in++)
 			;
@@ -2053,6 +2067,7 @@ static struct logical_input *panel_bind_callback(char *name,
 static void keypad_init(void)
 {
 	int keynum;
+
 	init_waitqueue_head(&keypad_read_wait);
 	keypad_buflen = 0;	/* flushes any eventual noisy keystroke */
 
