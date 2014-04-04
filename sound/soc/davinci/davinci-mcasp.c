@@ -302,6 +302,13 @@ static int davinci_mcasp_set_dai_fmt(struct snd_soc_dai *cpu_dai,
 		/* FS need to be inverted */
 		inv_fs = true;
 		break;
+	case SND_SOC_DAIFMT_LEFT_J:
+		/* configure a full-word SYNC pulse (LRCLK) */
+		mcasp_set_bits(mcasp, DAVINCI_MCASP_TXFMCTL_REG, FSXDUR);
+		mcasp_set_bits(mcasp, DAVINCI_MCASP_RXFMCTL_REG, FSRDUR);
+		/* No delay after FS */
+		data_delay = 0;
+		break;
 	default:
 		ret = -EINVAL;
 		goto out;
