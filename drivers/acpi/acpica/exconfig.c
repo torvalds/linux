@@ -576,6 +576,13 @@ acpi_status acpi_ex_unload_table(union acpi_operand_object *ddb_handle)
 	ACPI_FUNCTION_TRACE(ex_unload_table);
 
 	/*
+	 * Temporarily emit a warning so that the ASL for the machine can be
+	 * hopefully obtained. This is to say that the Unload() operator is
+	 * extremely rare if not completely unused.
+	 */
+	ACPI_WARNING((AE_INFO, "Received request to unload an ACPI table"));
+
+	/*
 	 * Validate the handle
 	 * Although the handle is partially validated in acpi_ex_reconfiguration()
 	 * when it calls acpi_ex_resolve_operands(), the handle is more completely
