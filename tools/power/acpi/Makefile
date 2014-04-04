@@ -68,7 +68,8 @@ WARNINGS += $(call cc-supports,-Wstrict-prototypes)
 WARNINGS += $(call cc-supports,-Wdeclaration-after-statement)
 
 KERNEL_INCLUDE := ../../../include
-CFLAGS += -D_LINUX -DDEFINE_ALTERNATE_TYPES -I$(KERNEL_INCLUDE)
+ACPICA_INCLUDE := ../../../drivers/acpi/acpica
+CFLAGS += -D_LINUX -I$(KERNEL_INCLUDE) -I$(ACPICA_INCLUDE)
 CFLAGS += $(WARNINGS)
 
 ifeq ($(strip $(V)),false)
@@ -101,10 +102,29 @@ endif
 # --- ACPIDUMP BEGIN ---
 
 vpath %.c \
-	tools/acpidump
+	../../../drivers/acpi/acpica\
+	tools/acpidump\
+	common\
+	os_specific/service_layers
+
+CFLAGS += -DACPI_DUMP_APP -Itools/acpidump
 
 DUMP_OBJS = \
-	acpidump.o
+	apdump.o\
+	apfiles.o\
+	apmain.o\
+	osunixdir.o\
+	osunixmap.o\
+	tbprint.o\
+	tbxfroot.o\
+	utbuffer.o\
+	utexcep.o\
+	utmath.o\
+	utstring.o\
+	utxferror.o\
+	oslinuxtbl.o\
+	cmfsize.o\
+	getopt.o
 
 DUMP_OBJS := $(addprefix $(OUTPUT)tools/acpidump/,$(DUMP_OBJS))
 
