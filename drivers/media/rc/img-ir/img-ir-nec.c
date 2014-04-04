@@ -5,6 +5,7 @@
  */
 
 #include "img-ir-hw.h"
+#include <linux/bitrev.h>
 
 /* Convert NEC data to a scancode */
 static int img_ir_nec_scancode(int len, u64 raw, int *scancode, u64 protocols)
@@ -22,11 +23,11 @@ static int img_ir_nec_scancode(int len, u64 raw, int *scancode, u64 protocols)
 	data_inv = (raw >> 24) & 0xff;
 	if ((data_inv ^ data) != 0xff) {
 		/* 32-bit NEC (used by Apple and TiVo remotes) */
-		/* scan encoding: aaAAddDD */
-		*scancode = addr_inv << 24 |
-			    addr     << 16 |
-			    data_inv <<  8 |
-			    data;
+		/* scan encoding: as transmitted, MSBit = first received bit */
+		*scancode = bitrev8(addr)     << 24 |
+			    bitrev8(addr_inv) << 16 |
+			    bitrev8(data)     <<  8 |
+			    bitrev8(data_inv);
 	} else if ((addr_inv ^ addr) != 0xff) {
 		/* Extended NEC */
 		/* scan encoding: AAaaDD */
@@ -54,13 +55,15 @@ static int img_ir_nec_filter(const struct rc_scancode_filter *in,
 
 	if ((in->data | in->mask) & 0xff000000) {
 		/* 32-bit NEC (used by Apple and TiVo remotes) */
-		/* scan encoding: aaAAddDD */
-		addr_inv   = (in->data >> 24) & 0xff;
-		addr_inv_m = (in->mask >> 24) & 0xff;
-		addr       = (in->data >> 16) & 0xff;
-		addr_m     = (in->mask >> 16) & 0xff;
-		data_inv   = (in->data >>  8) & 0xff;
-		data_inv_m = (in->mask >>  8) & 0xff;
+		/* scan encoding: as transmitted, MSBit = first received bit */
+		addr       = bitrev8(in->data >> 24);
+		addr_m     = bitrev8(in->mask >> 24);
+		addr_inv   = bitrev8(in->data >> 16);
+		addr_inv_m = bitrev8(in->mask >> 16);
+		data       = bitrev8(in->data >>  8);
+		data_m     = bitrev8(in->mask >>  8);
+		data_inv   = bitrev8(in->data >>  0);
+		data_inv_m = bitrev8(in->mask >>  0);
 	} else if ((in->data | in->mask) & 0x00ff0000) {
 		/* Extended NEC */
 		/* scan encoding AAaaDD */
