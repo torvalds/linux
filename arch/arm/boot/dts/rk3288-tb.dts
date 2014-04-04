@@ -534,7 +534,7 @@ rockchip,power_type = <GPIO>;
 		};
 
 		menu-key {
-			linux,code = <139>;
+			linux,code = <59>;
 			label = "menu";
 			rockchip,adc_value = <355>;
 		};
