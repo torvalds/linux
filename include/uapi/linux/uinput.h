@@ -20,6 +20,8 @@
  * Author: Aristeu Sergio Rozanski Filho <aris@cathedrallabs.org>
  *
  * Changes/Revisions:
+ *	0.4	01/09/2014 (Benjamin Tissoires <benjamin.tissoires@redhat.com>)
+ *		- add UI_GET_SYSNAME ioctl
  *	0.3	24/05/2006 (Anssi Hannula <anssi.hannulagmail.com>)
  *		- update ff support for the changes in kernel interface
  *		- add UINPUT_VERSION
@@ -35,7 +37,7 @@
 #include <linux/types.h>
 #include <linux/input.h>
 
-#define UINPUT_VERSION		3
+#define UINPUT_VERSION		4
 
 
 struct uinput_ff_upload {
@@ -72,6 +74,15 @@ struct uinput_ff_erase {
 #define UI_END_FF_UPLOAD	_IOW(UINPUT_IOCTL_BASE, 201, struct uinput_ff_upload)
 #define UI_BEGIN_FF_ERASE	_IOWR(UINPUT_IOCTL_BASE, 202, struct uinput_ff_erase)
 #define UI_END_FF_ERASE		_IOW(UINPUT_IOCTL_BASE, 203, struct uinput_ff_erase)
+
+/**
+ * UI_GET_SYSNAME - get the sysfs name of the created uinput device
+ *
+ * @return the sysfs name of the created virtual input device.
+ * The complete sysfs path is then /sys/devices/virtual/input/--NAME--
+ * Usually, it is in the form "inputN"
+ */
+#define UI_GET_SYSNAME(len)	_IOC(_IOC_READ, UINPUT_IOCTL_BASE, 300, len)
 
 /*
  * To write a force-feedback-capable driver, the upload_effect
