@@ -449,8 +449,16 @@ do_translation_fault(unsigned long addr, unsigned int fsr,
 
 	if (pud_none(*pud_k))
 		goto bad_area;
-	if (!pud_present(*pud))
+	if (!pud_present(*pud)) {
 		set_pud(pud, *pud_k);
+		/*
+		 * There is a small window during free_pgtables() where the
+		 * user *pud entry is 0 but the TLB has not been invalidated
+		 * and we get a level 2 (pmd) translation fault caused by the
+		 * intermediate TLB caching of the old level 1 (pud) entry.
+		 */
+		flush_tlb_kernel_page(addr);
+	}
 
 	pmd = pmd_offset(pud, addr);
 	pmd_k = pmd_offset(pud_k, addr);
@@ -473,8 +481,9 @@ do_translation_fault(unsigned long addr, unsigned int fsr,
 #endif
 	if (pmd_none(pmd_k[index]))
 		goto bad_area;
+	if (!pmd_present(pmd[index]))
+		copy_pmd(pmd, pmd_k);
 
-	copy_pmd(pmd, pmd_k);
 	return 0;
 
 bad_area:

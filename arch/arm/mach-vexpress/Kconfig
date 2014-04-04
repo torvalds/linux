@@ -55,6 +55,7 @@ config ARCH_VEXPRESS_CORTEX_A5_A9_ERRATA
 
 config ARCH_VEXPRESS_CA9X4
 	bool "Versatile Express Cortex-A9x4 tile"
+	select ARM_ERRATA_643719
 
 config ARCH_VEXPRESS_DCSCB
 	bool "Dual Cluster System Control Block (DCSCB) support"
