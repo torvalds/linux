@@ -842,6 +842,10 @@ void i40e_free_vfs(struct i40e_pf *pf)
 	kfree(pf->vf);
 	pf->vf = NULL;
 
+	/* This check is for when the driver is unloaded while VFs are
+	 * assigned. Setting the number of VFs to 0 through sysfs is caught
+	 * before this function ever gets called.
+	 */
 	if (!i40e_vfs_are_assigned(pf)) {
 		pci_disable_sriov(pf->pdev);
 		/* Acknowledge VFLR for all VFS. Without this, VFs will fail to
@@ -978,7 +982,12 @@ int i40e_pci_sriov_configure(struct pci_dev *pdev, int num_vfs)
 	if (num_vfs)
 		return i40e_pci_sriov_enable(pdev, num_vfs);
 
-	i40e_free_vfs(pf);
+	if (!i40e_vfs_are_assigned(pf)) {
+		i40e_free_vfs(pf);
+	} else {
+		dev_warn(&pdev->dev, "Unable to free VFs because some are assigned to VMs.\n");
+		return -EINVAL;
+	}
 	return 0;
 }
 
