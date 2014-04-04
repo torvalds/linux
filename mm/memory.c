@@ -1705,15 +1705,6 @@ long __get_user_pages(struct task_struct *tsk, struct mm_struct *mm,
 
 	VM_BUG_ON(!!pages != !!(gup_flags & FOLL_GET));
 
-	/* 
-	 * Require read or write permissions.
-	 * If FOLL_FORCE is set, we only require the "MAY" flags.
-	 */
-	vm_flags  = (gup_flags & FOLL_WRITE) ?
-			(VM_WRITE | VM_MAYWRITE) : (VM_READ | VM_MAYREAD);
-	vm_flags &= (gup_flags & FOLL_FORCE) ?
-			(VM_MAYREAD | VM_MAYWRITE) : (VM_READ | VM_WRITE);
-
 	/*
 	 * If FOLL_FORCE and FOLL_NUMA are both set, handle_mm_fault
 	 * would be called on PROT_NONE ranges. We must never invoke
@@ -1741,7 +1732,7 @@ long __get_user_pages(struct task_struct *tsk, struct mm_struct *mm,
 
 			/* user gate pages are read-only */
 			if (gup_flags & FOLL_WRITE)
-				return i ? : -EFAULT;
+				goto efault;
 			if (pg > TASK_SIZE)
 				pgd = pgd_offset_k(pg);
 			else
@@ -1751,12 +1742,12 @@ long __get_user_pages(struct task_struct *tsk, struct mm_struct *mm,
 			BUG_ON(pud_none(*pud));
 			pmd = pmd_offset(pud, pg);
 			if (pmd_none(*pmd))
-				return i ? : -EFAULT;
+				goto efault;
 			VM_BUG_ON(pmd_trans_huge(*pmd));
 			pte = pte_offset_map(pmd, pg);
 			if (pte_none(*pte)) {
 				pte_unmap(pte);
-				return i ? : -EFAULT;
+				goto efault;
 			}
 			vma = get_gate_vma(mm);
 			if (pages) {
@@ -1769,7 +1760,7 @@ long __get_user_pages(struct task_struct *tsk, struct mm_struct *mm,
 						page = pte_page(*pte);
 					else {
 						pte_unmap(pte);
-						return i ? : -EFAULT;
+						goto efault;
 					}
 				}
 				pages[i] = page;
@@ -1780,10 +1771,42 @@ long __get_user_pages(struct task_struct *tsk, struct mm_struct *mm,
 			goto next_page;
 		}
 
-		if (!vma ||
-		    (vma->vm_flags & (VM_IO | VM_PFNMAP)) ||
-		    !(vm_flags & vma->vm_flags))
-			return i ? : -EFAULT;
+		if (!vma)
+			goto efault;
+		vm_flags = vma->vm_flags;
+		if (vm_flags & (VM_IO | VM_PFNMAP))
+			goto efault;
+
+		if (gup_flags & FOLL_WRITE) {
+			if (!(vm_flags & VM_WRITE)) {
+				if (!(gup_flags & FOLL_FORCE))
+					goto efault;
+				/*
+				 * We used to let the write,force case do COW
+				 * in a VM_MAYWRITE VM_SHARED !VM_WRITE vma, so
+				 * ptrace could set a breakpoint in a read-only
+				 * mapping of an executable, without corrupting
+				 * the file (yet only when that file had been
+				 * opened for writing!).  Anon pages in shared
+				 * mappings are surprising: now just reject it.
+				 */
+				if (!is_cow_mapping(vm_flags)) {
+					WARN_ON_ONCE(vm_flags & VM_MAYWRITE);
+					goto efault;
+				}
+			}
+		} else {
+			if (!(vm_flags & VM_READ)) {
+				if (!(gup_flags & FOLL_FORCE))
+					goto efault;
+				/*
+				 * Is there actually any vma we can reach here
+				 * which does not have VM_MAYREAD set?
+				 */
+				if (!(vm_flags & VM_MAYREAD))
+					goto efault;
+			}
+		}
 
 		if (is_vm_hugetlb_page(vma)) {
 			i = follow_hugetlb_page(mm, vma, pages, vmas,
@@ -1837,7 +1860,7 @@ long __get_user_pages(struct task_struct *tsk, struct mm_struct *mm,
 							return -EFAULT;
 					}
 					if (ret & VM_FAULT_SIGBUS)
-						return i ? i : -EFAULT;
+						goto efault;
 					BUG();
 				}
 
@@ -1895,6 +1918,8 @@ next_page:
 		} while (nr_pages && start < vma->vm_end);
 	} while (nr_pages);
 	return i;
+efault:
+	return i ? : -EFAULT;
 }
 EXPORT_SYMBOL(__get_user_pages);
 
@@ -1962,9 +1987,8 @@ int fixup_user_fault(struct task_struct *tsk, struct mm_struct *mm,
  * @start:	starting user address
  * @nr_pages:	number of pages from start to pin
  * @write:	whether pages will be written to by the caller
- * @force:	whether to force write access even if user mapping is
- *		readonly. This will result in the page being COWed even
- *		in MAP_SHARED mappings. You do not want this.
+ * @force:	whether to force access even when user mapping is currently
+ *		protected (but never forces write access to shared mapping).
  * @pages:	array that receives pointers to the pages pinned.
  *		Should be at least nr_pages long. Or NULL, if caller
  *		only intends to ensure the pages are faulted in.
