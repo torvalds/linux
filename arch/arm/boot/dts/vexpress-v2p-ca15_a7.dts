@@ -188,6 +188,16 @@
 			interface-type = "ace";
 			reg = <0x5000 0x1000>;
 		};
+
+		pmu@9000 {
+			 compatible = "arm,cci-400-pmu";
+			 reg = <0x9000 0x5000>;
+			 interrupts = <0 101 4>,
+				      <0 102 4>,
+				      <0 103 4>,
+				      <0 104 4>,
+				      <0 105 4>;
+		};
 	};
 
 	memory-controller@7ffd0000 {
