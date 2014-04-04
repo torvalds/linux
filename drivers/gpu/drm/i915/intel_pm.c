@@ -4625,6 +4625,9 @@ static void ironlake_init_clock_gating(struct drm_device *dev)
 	I915_WRITE(CACHE_MODE_0,
 		   _MASKED_BIT_ENABLE(CM0_PIPELINED_RENDER_FLUSH_DISABLE));
 
+	/* WaDisable_RenderCache_OperationalFlush:ilk */
+	I915_WRITE(CACHE_MODE_0, _MASKED_BIT_DISABLE(RC_OP_FLUSH_ENABLE));
+
 	g4x_disable_trickle_feed(dev);
 
 	ibx_init_clock_gating(dev);
@@ -4699,6 +4702,9 @@ static void gen6_init_clock_gating(struct drm_device *dev)
 	if (IS_SNB_GT1(dev))
 		I915_WRITE(GEN6_GT_MODE,
 			   _MASKED_BIT_ENABLE(GEN6_TD_FOUR_ROW_DISPATCH_DISABLE));
+
+	/* WaDisable_RenderCache_OperationalFlush:snb */
+	I915_WRITE(CACHE_MODE_0, _MASKED_BIT_DISABLE(RC_OP_FLUSH_ENABLE));
 
 	/*
 	 * BSpec recoomends 8x4 when MSAA is used,
@@ -4939,6 +4945,9 @@ static void haswell_init_clock_gating(struct drm_device *dev)
 	I915_WRITE(GEN7_FF_THREAD_MODE,
 		   I915_READ(GEN7_FF_THREAD_MODE) & ~GEN7_FF_VS_REF_CNT_FFME);
 
+	/* WaDisable_RenderCache_OperationalFlush:hsw */
+	I915_WRITE(CACHE_MODE_0_GEN7, _MASKED_BIT_DISABLE(RC_OP_FLUSH_ENABLE));
+
 	/* enable HiZ Raw Stall Optimization */
 	I915_WRITE(CACHE_MODE_0_GEN7,
 		   _MASKED_BIT_DISABLE(HIZ_RAW_STALL_OPT_DISABLE));
@@ -4990,6 +4999,9 @@ static void ivybridge_init_clock_gating(struct drm_device *dev)
 	if (IS_IVB_GT1(dev))
 		I915_WRITE(GEN7_HALF_SLICE_CHICKEN1,
 			   _MASKED_BIT_ENABLE(GEN7_PSD_SINGLE_PORT_DISPATCH_ENABLE));
+
+	/* WaDisable_RenderCache_OperationalFlush:ivb */
+	I915_WRITE(CACHE_MODE_0_GEN7, _MASKED_BIT_DISABLE(RC_OP_FLUSH_ENABLE));
 
 	/* Apply the WaDisableRHWOOptimizationForRenderHang:ivb workaround. */
 	I915_WRITE(GEN7_COMMON_SLICE_CHICKEN1,
@@ -5106,6 +5118,9 @@ static void valleyview_init_clock_gating(struct drm_device *dev)
 		   _MASKED_BIT_ENABLE(GEN7_MAX_PS_THREAD_DEP |
 				      GEN7_PSD_SINGLE_PORT_DISPATCH_ENABLE));
 
+	/* WaDisable_RenderCache_OperationalFlush:vlv */
+	I915_WRITE(CACHE_MODE_0_GEN7, _MASKED_BIT_DISABLE(RC_OP_FLUSH_ENABLE));
+
 	/* WaForceL3Serialization:vlv */
 	I915_WRITE(GEN7_L3SQCREG4, I915_READ(GEN7_L3SQCREG4) &
 		   ~L3SQ_URB_READ_CAM_MATCH_DISABLE);
@@ -5175,6 +5190,9 @@ static void g4x_init_clock_gating(struct drm_device *dev)
 	I915_WRITE(CACHE_MODE_0,
 		   _MASKED_BIT_ENABLE(CM0_PIPELINED_RENDER_FLUSH_DISABLE));
 
+	/* WaDisable_RenderCache_OperationalFlush:g4x */
+	I915_WRITE(CACHE_MODE_0, _MASKED_BIT_DISABLE(RC_OP_FLUSH_ENABLE));
+
 	g4x_disable_trickle_feed(dev);
 }
 
@@ -5189,6 +5207,9 @@ static void crestline_init_clock_gating(struct drm_device *dev)
 	I915_WRITE16(DEUC, 0);
 	I915_WRITE(MI_ARB_STATE,
 		   _MASKED_BIT_ENABLE(MI_ARB_DISPLAY_TRICKLE_FEED_DISABLE));
+
+	/* WaDisable_RenderCache_OperationalFlush:gen4 */
+	I915_WRITE(CACHE_MODE_0, _MASKED_BIT_DISABLE(RC_OP_FLUSH_ENABLE));
 }
 
 static void broadwater_init_clock_gating(struct drm_device *dev)
@@ -5203,6 +5224,9 @@ static void broadwater_init_clock_gating(struct drm_device *dev)
 	I915_WRITE(RENCLK_GATE_D2, 0);
 	I915_WRITE(MI_ARB_STATE,
 		   _MASKED_BIT_ENABLE(MI_ARB_DISPLAY_TRICKLE_FEED_DISABLE));
+
+	/* WaDisable_RenderCache_OperationalFlush:gen4 */
+	I915_WRITE(CACHE_MODE_0, _MASKED_BIT_DISABLE(RC_OP_FLUSH_ENABLE));
 }
 
 static void gen3_init_clock_gating(struct drm_device *dev)
