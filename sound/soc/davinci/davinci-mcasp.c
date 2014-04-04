@@ -273,6 +273,7 @@ static int davinci_mcasp_set_dai_fmt(struct snd_soc_dai *cpu_dai,
 	int ret = 0;
 	u32 data_delay;
 	bool fs_pol_rising;
+	bool inv_fs = false;
 
 	pm_runtime_get_sync(mcasp->dev);
 	switch (fmt & SND_SOC_DAIFMT_FORMAT_MASK) {
@@ -291,14 +292,19 @@ static int davinci_mcasp_set_dai_fmt(struct snd_soc_dai *cpu_dai,
 		/* No delay after FS */
 		data_delay = 0;
 		break;
-	default:
+	case SND_SOC_DAIFMT_I2S:
 		/* configure a full-word SYNC pulse (LRCLK) */
 		mcasp_set_bits(mcasp, DAVINCI_MCASP_TXFMCTL_REG, FSXDUR);
 		mcasp_set_bits(mcasp, DAVINCI_MCASP_RXFMCTL_REG, FSRDUR);
 
 		/* 1st data bit occur one ACLK cycle after the frame sync */
 		data_delay = 1;
+		/* FS need to be inverted */
+		inv_fs = true;
 		break;
+	default:
+		ret = -EINVAL;
+		goto out;
 	}
 
 	mcasp_mod_bits(mcasp, DAVINCI_MCASP_TXFMT_REG, FSXDLY(data_delay),
@@ -378,6 +384,9 @@ static int davinci_mcasp_set_dai_fmt(struct snd_soc_dai *cpu_dai,
 		ret = -EINVAL;
 		goto out;
 	}
+
+	if (inv_fs)
+		fs_pol_rising = !fs_pol_rising;
 
 	if (fs_pol_rising) {
 		mcasp_clr_bits(mcasp, DAVINCI_MCASP_TXFMCTL_REG, FSXPOL);
