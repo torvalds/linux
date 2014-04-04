@@ -915,6 +915,15 @@ static struct attribute *lm63_attributes[] = {
 	NULL
 };
 
+static struct attribute *lm63_attributes_temp2_type[] = {
+	&dev_attr_temp2_type.attr,
+	NULL
+};
+
+static const struct attribute_group lm63_group_temp2_type = {
+	.attrs = lm63_attributes_temp2_type,
+};
+
 static struct attribute *lm63_attributes_extra_lut[] = {
 	&sensor_dev_attr_pwm1_auto_point9_pwm.dev_attr.attr,
 	&sensor_dev_attr_pwm1_auto_point9_temp.dev_attr.attr,
@@ -1133,7 +1142,8 @@ static int lm63_probe(struct i2c_client *client,
 			goto exit_remove_files;
 	}
 	if (data->kind == lm96163) {
-		err = device_create_file(&client->dev, &dev_attr_temp2_type);
+		err = sysfs_create_group(&client->dev.kobj,
+					 &lm63_group_temp2_type);
 		if (err)
 			goto exit_remove_files;
 
@@ -1155,7 +1165,7 @@ exit_remove_files:
 	sysfs_remove_group(&client->dev.kobj, &lm63_group);
 	sysfs_remove_group(&client->dev.kobj, &lm63_group_fan1);
 	if (data->kind == lm96163) {
-		device_remove_file(&client->dev, &dev_attr_temp2_type);
+		sysfs_remove_group(&client->dev.kobj, &lm63_group_temp2_type);
 		sysfs_remove_group(&client->dev.kobj, &lm63_group_extra_lut);
 	}
 	return err;
@@ -1169,7 +1179,7 @@ static int lm63_remove(struct i2c_client *client)
 	sysfs_remove_group(&client->dev.kobj, &lm63_group);
 	sysfs_remove_group(&client->dev.kobj, &lm63_group_fan1);
 	if (data->kind == lm96163) {
-		device_remove_file(&client->dev, &dev_attr_temp2_type);
+		sysfs_remove_group(&client->dev.kobj, &lm63_group_temp2_type);
 		sysfs_remove_group(&client->dev.kobj, &lm63_group_extra_lut);
 	}
 
