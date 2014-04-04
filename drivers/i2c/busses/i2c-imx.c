@@ -462,6 +462,7 @@ static int i2c_imx_read(struct imx_i2c_struct *i2c_imx, struct i2c_msg *msgs)
 {
 	int i, result;
 	unsigned int temp;
+	int block_data = msgs->flags & I2C_M_RECV_LEN;
 
 	dev_dbg(&i2c_imx->adapter.dev,
 		"<%s> write slave address: addr=0x%x\n",
@@ -481,7 +482,12 @@ static int i2c_imx_read(struct imx_i2c_struct *i2c_imx, struct i2c_msg *msgs)
 	/* setup bus to read data */
 	temp = imx_i2c_read_reg(i2c_imx, IMX_I2C_I2CR);
 	temp &= ~I2CR_MTX;
-	if (msgs->len - 1)
+
+	/*
+	 * Reset the I2CR_TXAK flag initially for SMBus block read since the
+	 * length is unknown
+	 */
+	if ((msgs->len - 1) || block_data)
 		temp &= ~I2CR_TXAK;
 	imx_i2c_write_reg(temp, i2c_imx, IMX_I2C_I2CR);
 	imx_i2c_read_reg(i2c_imx, IMX_I2C_I2DR); /* dummy read */
@@ -490,9 +496,24 @@ static int i2c_imx_read(struct imx_i2c_struct *i2c_imx, struct i2c_msg *msgs)
 
 	/* read data */
 	for (i = 0; i < msgs->len; i++) {
+		u8 len = 0;
 		result = i2c_imx_trx_complete(i2c_imx);
 		if (result)
 			return result;
+		/*
+		 * First byte is the length of remaining packet
+		 * in the SMBus block data read. Add it to
+		 * msgs->len.
+		 */
+		if ((!i) && block_data) {
+			len = imx_i2c_read_reg(i2c_imx, IMX_I2C_I2DR);
+			if ((len == 0) || (len > I2C_SMBUS_BLOCK_MAX))
+				return -EPROTO;
+			dev_dbg(&i2c_imx->adapter.dev,
+				"<%s> read length: 0x%X\n",
+				__func__, len);
+			msgs->len += len;
+		}
 		if (i == (msgs->len - 1)) {
 			/* It must generate STOP before read I2DR to prevent
 			   controller from generating another clock cycle */
@@ -510,7 +531,10 @@ static int i2c_imx_read(struct imx_i2c_struct *i2c_imx, struct i2c_msg *msgs)
 			temp |= I2CR_TXAK;
 			imx_i2c_write_reg(temp, i2c_imx, IMX_I2C_I2CR);
 		}
-		msgs->buf[i] = imx_i2c_read_reg(i2c_imx, IMX_I2C_I2DR);
+		if ((!i) && block_data)
+			msgs->buf[0] = len;
+		else
+			msgs->buf[i] =  imx_i2c_read_reg(i2c_imx, IMX_I2C_I2DR);
 		dev_dbg(&i2c_imx->adapter.dev,
 			"<%s> read byte: B%d=0x%X\n",
 			__func__, i, msgs->buf[i]);
@@ -583,7 +607,8 @@ fail0:
 
 static u32 i2c_imx_func(struct i2c_adapter *adapter)
 {
-	return I2C_FUNC_I2C | I2C_FUNC_SMBUS_EMUL;
+	return I2C_FUNC_I2C | I2C_FUNC_SMBUS_EMUL
+		| I2C_FUNC_SMBUS_READ_BLOCK_DATA;
 }
 
 static struct i2c_algorithm i2c_imx_algo = {
