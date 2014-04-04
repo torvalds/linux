@@ -757,7 +757,7 @@ static int clk_plle_enable(struct clk_hw *hw)
 	val |= PLLE_SS_DISABLE;
 	writel(val, pll->clk_base + PLLE_SS_CTRL);
 
-	val |= pll_readl_base(pll);
+	val = pll_readl_base(pll);
 	val |= (PLL_BASE_BYPASS | PLL_BASE_ENABLE);
 	pll_writel_base(val, pll);
 
