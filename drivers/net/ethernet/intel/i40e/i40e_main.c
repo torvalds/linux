@@ -8368,6 +8368,7 @@ static int i40e_probe(struct pci_dev *pdev, const struct pci_device_id *ent)
 		}
 	}
 
+#ifdef CONFIG_PCI_IOV
 	/* prep for VF support */
 	if ((pf->flags & I40E_FLAG_SRIOV_ENABLED) &&
 	    (pf->flags & I40E_FLAG_MSIX_ENABLED) &&
@@ -8390,6 +8391,7 @@ static int i40e_probe(struct pci_dev *pdev, const struct pci_device_id *ent)
 					 err);
 		}
 	}
+#endif /* CONFIG_PCI_IOV */
 
 	pfs_found++;
 
