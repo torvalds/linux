@@ -39,6 +39,8 @@ static inline void __iomem *cpu_boot_reg_base(void)
 {
 	if (soc_is_exynos4210() && samsung_rev() == EXYNOS4210_REV_1_1)
 		return S5P_INFORM5;
+	if (soc_is_exynos5410())
+		return EXYNOS5410_BOOT_REG;
 	return S5P_VA_SYSRAM;
 }
 

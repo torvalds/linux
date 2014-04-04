@@ -57,6 +57,9 @@
 #define S3C_UART_OFFSET		(0x400)
 #endif
 
+#define S5P_VA_SYSRAM_NS_X(x)	(S5P_VA_SYSRAM_NS + x)
+#define EXYNOS5410_BOOT_REG	S5P_VA_SYSRAM_NS_X(0x1c)
+
 #include <plat/map-s3c.h>
 
 #endif /* __ASM_PLAT_MAP_S5P_H */
