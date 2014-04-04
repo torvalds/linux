@@ -1536,12 +1536,11 @@ static int lm90_probe(struct i2c_client *client,
 
 	err = regulator_enable(regulator);
 	if (err < 0) {
-		dev_err(&client->dev,
-			"Failed to enable regulator: %d\n", err);
+		dev_err(dev, "Failed to enable regulator: %d\n", err);
 		return err;
 	}
 
-	data = devm_kzalloc(&client->dev, sizeof(struct lm90_data), GFP_KERNEL);
+	data = devm_kzalloc(dev, sizeof(struct lm90_data), GFP_KERNEL);
 	if (!data)
 		return -ENOMEM;
 
