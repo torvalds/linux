@@ -15,7 +15,6 @@
 #include <linux/slab.h>
 #include <linux/pci.h>
 #include <linux/pci_hotplug.h>
-#include <linux/init.h>
 #include <asm/pci_debug.h>
 #include <asm/sclp.h>
 

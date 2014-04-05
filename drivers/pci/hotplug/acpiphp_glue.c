@@ -41,7 +41,6 @@
 
 #define pr_fmt(fmt) "acpiphp_glue: " fmt
 
-#include <linux/init.h>
 #include <linux/module.h>
 
 #include <linux/kernel.h>
