@@ -718,62 +718,6 @@ static int pipe_to_sendpage(struct pipe_inode_info *pipe,
 				    sd->len, &pos, more);
 }
 
-/*
- * This is a little more tricky than the file -> pipe splicing. There are
- * basically three cases:
- *
- *	- Destination page already exists in the address space and there
- *	  are users of it. For that case we have no other option that
- *	  copying the data. Tough luck.
- *	- Destination page already exists in the address space, but there
- *	  are no users of it. Make sure it's uptodate, then drop it. Fall
- *	  through to last case.
- *	- Destination page does not exist, we can add the pipe page to
- *	  the page cache and avoid the copy.
- *
- * If asked to move pages to the output file (SPLICE_F_MOVE is set in
- * sd->flags), we attempt to migrate pages from the pipe to the output
- * file address space page cache. This is possible if no one else has
- * the pipe page referenced outside of the pipe and page cache. If
- * SPLICE_F_MOVE isn't set, or we cannot move the page, we simply create
- * a new page in the output file page cache and fill/dirty that.
- */
-static int pipe_to_file(struct pipe_inode_info *pipe, struct pipe_buffer *buf,
-		 struct splice_desc *sd)
-{
-	struct file *file = sd->u.file;
-	struct address_space *mapping = file->f_mapping;
-	unsigned int offset, this_len;
-	struct page *page;
-	void *fsdata;
-	int ret;
-
-	offset = sd->pos & ~PAGE_CACHE_MASK;
-
-	this_len = sd->len;
-	if (this_len + offset > PAGE_CACHE_SIZE)
-		this_len = PAGE_CACHE_SIZE - offset;
-
-	ret = pagecache_write_begin(file, mapping, sd->pos, this_len,
-				AOP_FLAG_UNINTERRUPTIBLE, &page, &fsdata);
-	if (unlikely(ret))
-		goto out;
-
-	if (buf->page != page) {
-		char *src = kmap_atomic(buf->page);
-		char *dst = kmap_atomic(page);
-
-		memcpy(dst + offset, src + buf->offset, this_len);
-		flush_dcache_page(page);
-		kunmap_atomic(dst);
-		kunmap_atomic(src);
-	}
-	ret = pagecache_write_end(file, mapping, sd->pos, this_len, this_len,
-				page, fsdata);
-out:
-	return ret;
-}
-
 static void wakeup_pipe_writers(struct pipe_inode_info *pipe)
 {
 	smp_mb();
@@ -979,74 +923,6 @@ ssize_t splice_from_pipe(struct pipe_inode_info *pipe, struct file *out,
 
 	return ret;
 }
-
-/**
- * generic_file_splice_write - splice data from a pipe to a file
- * @pipe:	pipe info
- * @out:	file to write to
- * @ppos:	position in @out
- * @len:	number of bytes to splice
- * @flags:	splice modifier flags
- *
- * Description:
- *    Will either move or copy pages (determined by @flags options) from
- *    the given pipe inode to the given file.
- *
- */
-ssize_t
-generic_file_splice_write(struct pipe_inode_info *pipe, struct file *out,
-			  loff_t *ppos, size_t len, unsigned int flags)
-{
-	struct address_space *mapping = out->f_mapping;
-	struct inode *inode = mapping->host;
-	struct splice_desc sd = {
-		.total_len = len,
-		.flags = flags,
-		.pos = *ppos,
-		.u.file = out,
-	};
-	ssize_t ret;
-
-	pipe_lock(pipe);
-
-	splice_from_pipe_begin(&sd);
-	do {
-		ret = splice_from_pipe_next(pipe, &sd);
-		if (ret <= 0)
-			break;
-
-		mutex_lock_nested(&inode->i_mutex, I_MUTEX_CHILD);
-		ret = file_remove_suid(out);
-		if (!ret) {
-			ret = file_update_time(out);
-			if (!ret)
-				ret = splice_from_pipe_feed(pipe, &sd,
-							    pipe_to_file);
-		}
-		mutex_unlock(&inode->i_mutex);
-	} while (ret > 0);
-	splice_from_pipe_end(pipe, &sd);
-
-	pipe_unlock(pipe);
-
-	if (sd.num_spliced)
-		ret = sd.num_spliced;
-
-	if (ret > 0) {
-		int err;
-
-		err = generic_write_sync(out, *ppos, ret);
-		if (err)
-			ret = err;
-		else
-			*ppos += ret;
-		balance_dirty_pages_ratelimited(mapping);
-	}
-
-	return ret;
-}
-
-EXPORT_SYMBOL(generic_file_splice_write);
 
 /**
  * iter_file_splice_write - splice data from a pipe to a file
