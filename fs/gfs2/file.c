@@ -1068,7 +1068,7 @@ const struct file_operations gfs2_file_fops = {
 	.lock		= gfs2_lock,
 	.flock		= gfs2_flock,
 	.splice_read	= generic_file_splice_read,
-	.splice_write	= generic_file_splice_write,
+	.splice_write	= iter_file_splice_write,
 	.setlease	= gfs2_setlease,
 	.fallocate	= gfs2_fallocate,
 };
@@ -1098,7 +1098,7 @@ const struct file_operations gfs2_file_fops_nolock = {
 	.release	= gfs2_release,
 	.fsync		= gfs2_fsync,
 	.splice_read	= generic_file_splice_read,
-	.splice_write	= generic_file_splice_write,
+	.splice_write	= iter_file_splice_write,
 	.setlease	= generic_setlease,
 	.fallocate	= gfs2_fallocate,
 };

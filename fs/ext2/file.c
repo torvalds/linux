@@ -75,7 +75,7 @@ const struct file_operations ext2_file_operations = {
 	.release	= ext2_release_file,
 	.fsync		= ext2_fsync,
 	.splice_read	= generic_file_splice_read,
-	.splice_write	= generic_file_splice_write,
+	.splice_write	= iter_file_splice_write,
 };
 
 #ifdef CONFIG_EXT2_FS_XIP

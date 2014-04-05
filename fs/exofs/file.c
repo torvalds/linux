@@ -77,7 +77,7 @@ const struct file_operations exofs_file_operations = {
 	.fsync		= exofs_file_fsync,
 	.flush		= exofs_flush,
 	.splice_read	= generic_file_splice_read,
-	.splice_write	= generic_file_splice_write,
+	.splice_write	= iter_file_splice_write,
 };
 
 const struct inode_operations exofs_file_inode_operations = {

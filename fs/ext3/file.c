@@ -63,7 +63,7 @@ const struct file_operations ext3_file_operations = {
 	.release	= ext3_release_file,
 	.fsync		= ext3_sync_file,
 	.splice_read	= generic_file_splice_read,
-	.splice_write	= generic_file_splice_write,
+	.splice_write	= iter_file_splice_write,
 };
 
 const struct inode_operations ext3_file_inode_operations = {
