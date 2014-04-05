@@ -783,10 +783,10 @@ static bool reg_pattern_test(struct e1000_adapter *adapter, u64 *data,
 			      reg + (offset << 2), val,
 			      (test[pat] & write & mask));
 			*data = reg;
-			return 1;
+			return true;
 		}
 	}
-	return 0;
+	return false;
 }
 
 static bool reg_set_and_check(struct e1000_adapter *adapter, u64 *data,
@@ -799,9 +799,9 @@ static bool reg_set_and_check(struct e1000_adapter *adapter, u64 *data,
 		e_err("set/check test failed (reg 0x%05X): got 0x%08X expected 0x%08X\n",
 		      reg, (val & mask), (write & mask));
 		*data = reg;
-		return 1;
+		return true;
 	}
-	return 0;
+	return false;
 }
 
 #define REG_PATTERN_TEST_ARRAY(reg, offset, mask, write)                       \
