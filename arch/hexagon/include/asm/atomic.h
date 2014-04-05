@@ -26,7 +26,20 @@
 #include <asm/cmpxchg.h>
 
 #define ATOMIC_INIT(i)		{ (i) }
-#define atomic_set(v, i)	((v)->counter = (i))
+
+/*  Normal writes in our arch don't clear lock reservations  */
+
+static inline void atomic_set(atomic_t *v, int new)
+{
+	asm volatile(
+		"1:	r6 = memw_locked(%0);\n"
+		"	memw_locked(%0,p0) = %1;\n"
+		"	if (!P0) jump 1b;\n"
+		:
+		: "r" (&v->counter), "r" (new)
+		: "memory", "p0", "r6"
+	);
+}
 
 /**
  * atomic_read - reads a word, atomically
