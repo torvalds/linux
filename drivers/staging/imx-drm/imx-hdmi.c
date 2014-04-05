@@ -1625,7 +1625,7 @@ static int imx_hdmi_bind(struct device *dev, struct device *master, void *data)
 
 	irq = platform_get_irq(pdev, 0);
 	if (irq < 0)
-		return -EINVAL;
+		return irq;
 
 	ret = devm_request_threaded_irq(dev, irq, imx_hdmi_hardirq,
 					imx_hdmi_irq, IRQF_SHARED,
