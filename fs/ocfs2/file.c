@@ -2430,84 +2430,6 @@ out_sems:
 	return ret;
 }
 
-static int ocfs2_splice_to_file(struct pipe_inode_info *pipe,
-				struct file *out,
-				struct splice_desc *sd)
-{
-	int ret;
-
-	ret = ocfs2_prepare_inode_for_write(out, &sd->pos,
-					    sd->total_len, 0, NULL, NULL);
-	if (ret < 0) {
-		mlog_errno(ret);
-		return ret;
-	}
-
-	return splice_from_pipe_feed(pipe, sd, pipe_to_file);
-}
-
-static ssize_t ocfs2_file_splice_write(struct pipe_inode_info *pipe,
-				       struct file *out,
-				       loff_t *ppos,
-				       size_t len,
-				       unsigned int flags)
-{
-	int ret;
-	struct address_space *mapping = out->f_mapping;
-	struct inode *inode = mapping->host;
-	struct splice_desc sd = {
-		.total_len = len,
-		.flags = flags,
-		.pos = *ppos,
-		.u.file = out,
-	};
-
-
-	trace_ocfs2_file_splice_write(inode, out, out->f_path.dentry,
-			(unsigned long long)OCFS2_I(inode)->ip_blkno,
-			out->f_path.dentry->d_name.len,
-			out->f_path.dentry->d_name.name, len);
-
-	pipe_lock(pipe);
-
-	splice_from_pipe_begin(&sd);
-	do {
-		ret = splice_from_pipe_next(pipe, &sd);
-		if (ret <= 0)
-			break;
-
-		mutex_lock_nested(&inode->i_mutex, I_MUTEX_CHILD);
-		ret = ocfs2_rw_lock(inode, 1);
-		if (ret < 0)
-			mlog_errno(ret);
-		else {
-			ret = ocfs2_splice_to_file(pipe, out, &sd);
-			ocfs2_rw_unlock(inode, 1);
-		}
-		mutex_unlock(&inode->i_mutex);
-	} while (ret > 0);
-	splice_from_pipe_end(pipe, &sd);
-
-	pipe_unlock(pipe);
-
-	if (sd.num_spliced)
-		ret = sd.num_spliced;
-
-	if (ret > 0) {
-		int err;
-
-		err = generic_write_sync(out, *ppos, ret);
-		if (err)
-			ret = err;
-		else
-			*ppos += ret;
-
-		balance_dirty_pages_ratelimited(mapping);
-	}
-
-	return ret;
-}
-
 static ssize_t ocfs2_file_splice_read(struct file *in,
 				      loff_t *ppos,
 				      struct pipe_inode_info *pipe,
@@ -2708,7 +2630,7 @@ const struct file_operations ocfs2_fops = {
 	.lock		= ocfs2_lock,
 	.flock		= ocfs2_flock,
 	.splice_read	= ocfs2_file_splice_read,
-	.splice_write	= ocfs2_file_splice_write,
+	.splice_write	= iter_file_splice_write,
 	.fallocate	= ocfs2_fallocate,
 };
 
@@ -2755,7 +2677,7 @@ const struct file_operations ocfs2_fops_no_plocks = {
 #endif
 	.flock		= ocfs2_flock,
 	.splice_read	= ocfs2_file_splice_read,
-	.splice_write	= ocfs2_file_splice_write,
+	.splice_write	= iter_file_splice_write,
 	.fallocate	= ocfs2_fallocate,
 };
 
