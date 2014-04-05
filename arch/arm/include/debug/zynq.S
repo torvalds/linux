@@ -42,6 +42,9 @@
 		.endm
 
 		.macro	waituart,rd,rx
+1001:		ldr	\rd, [\rx, #UART_SR_OFFSET]
+		tst	\rd, #UART_SR_TXEMPTY
+		beq	1001b
 		.endm
 
 		.macro	busyuart,rd,rx

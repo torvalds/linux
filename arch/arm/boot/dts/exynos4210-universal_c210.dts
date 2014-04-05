@@ -17,7 +17,7 @@
 
 / {
 	model = "Samsung Universal C210 based on Exynos4210 rev0";
-	compatible = "samsung,universal_c210", "samsung,exynos4210";
+	compatible = "samsung,universal_c210", "samsung,exynos4210", "samsung,exynos4";
 
 	memory {
 		reg =  <0x40000000 0x10000000

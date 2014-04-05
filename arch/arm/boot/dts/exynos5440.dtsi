@@ -13,7 +13,7 @@
 #include "skeleton.dtsi"
 
 / {
-	compatible = "samsung,exynos5440";
+	compatible = "samsung,exynos5440", "samsung,exynos5";
 
 	interrupt-parent = <&gic>;
 

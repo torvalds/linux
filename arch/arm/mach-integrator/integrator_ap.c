@@ -44,23 +44,21 @@
 #include <linux/sched_clock.h>
 #include <linux/clk-provider.h>
 
-#include <mach/hardware.h>
-#include <mach/platform.h>
 #include <asm/hardware/arm_timer.h>
 #include <asm/setup.h>
 #include <asm/param.h>		/* HZ */
 #include <asm/mach-types.h>
-
-#include <mach/lm.h>
 
 #include <asm/mach/arch.h>
 #include <asm/mach/irq.h>
 #include <asm/mach/map.h>
 #include <asm/mach/time.h>
 
+#include "hardware.h"
 #include "cm.h"
 #include "common.h"
 #include "pci_v3.h"
+#include "lm.h"
 
 /* Base address to the AP system controller */
 void __iomem *ap_syscon_base;

@@ -1,104 +1,39 @@
 /*
- * Copyright (c) 2010-2011 Samsung Electronics Co., Ltd.
- *		http://www.samsung.com
+ * SAMSUNG EXYNOS Flattened Device Tree enabled machine
  *
- * Common Codes for EXYNOS
+ * Copyright (c) 2010-2014 Samsung Electronics Co., Ltd.
+ *		http://www.samsung.com
  *
  * This program is free software; you can redistribute it and/or modify
  * it under the terms of the GNU General Public License version 2 as
  * published by the Free Software Foundation.
  */
 
-#include <linux/kernel.h>
-#include <linux/bitops.h>
-#include <linux/interrupt.h>
-#include <linux/irq.h>
-#include <linux/irqchip.h>
+#include <linux/init.h>
 #include <linux/io.h>
-#include <linux/device.h>
-#include <linux/gpio.h>
-#include <clocksource/samsung_pwm.h>
-#include <linux/sched.h>
-#include <linux/serial_core.h>
+#include <linux/kernel.h>
 #include <linux/serial_s3c.h>
 #include <linux/of.h>
-#include <linux/of_fdt.h>
-#include <linux/of_irq.h>
-#include <linux/pm_domain.h>
-#include <linux/export.h>
-#include <linux/irqdomain.h>
 #include <linux/of_address.h>
-#include <linux/irqchip/arm-gic.h>
-#include <linux/irqchip/chained_irq.h>
+#include <linux/of_fdt.h>
+#include <linux/of_platform.h>
 #include <linux/platform_device.h>
+#include <linux/pm_domain.h>
 
-#include <asm/proc-fns.h>
-#include <asm/exception.h>
-#include <asm/hardware/cache-l2x0.h>
-#include <asm/mach/map.h>
-#include <asm/mach/irq.h>
 #include <asm/cacheflush.h>
+#include <asm/hardware/cache-l2x0.h>
+#include <asm/mach/arch.h>
+#include <asm/mach/map.h>
+#include <asm/memory.h>
 
 #include <plat/cpu.h>
-#include <plat/pm.h>
 
 #include "common.h"
+#include "mfc.h"
 #include "regs-pmu.h"
 
 #define L2_AUX_VAL 0x7C470001
 #define L2_AUX_MASK 0xC200ffff
-
-static const char name_exynos4210[] = "EXYNOS4210";
-static const char name_exynos4212[] = "EXYNOS4212";
-static const char name_exynos4412[] = "EXYNOS4412";
-static const char name_exynos5250[] = "EXYNOS5250";
-static const char name_exynos5420[] = "EXYNOS5420";
-static const char name_exynos5440[] = "EXYNOS5440";
-
-static void exynos4_map_io(void);
-static void exynos5_map_io(void);
-static int exynos_init(void);
-
-static struct cpu_table cpu_ids[] __initdata = {
-	{
-		.idcode		= EXYNOS4210_CPU_ID,
-		.idmask		= EXYNOS4_CPU_MASK,
-		.map_io		= exynos4_map_io,
-		.init		= exynos_init,
-		.name		= name_exynos4210,
-	}, {
-		.idcode		= EXYNOS4212_CPU_ID,
-		.idmask		= EXYNOS4_CPU_MASK,
-		.map_io		= exynos4_map_io,
-		.init		= exynos_init,
-		.name		= name_exynos4212,
-	}, {
-		.idcode		= EXYNOS4412_CPU_ID,
-		.idmask		= EXYNOS4_CPU_MASK,
-		.map_io		= exynos4_map_io,
-		.init		= exynos_init,
-		.name		= name_exynos4412,
-	}, {
-		.idcode		= EXYNOS5250_SOC_ID,
-		.idmask		= EXYNOS5_SOC_MASK,
-		.map_io		= exynos5_map_io,
-		.init		= exynos_init,
-		.name		= name_exynos5250,
-	}, {
-		.idcode		= EXYNOS5420_SOC_ID,
-		.idmask		= EXYNOS5_SOC_MASK,
-		.map_io		= exynos5_map_io,
-		.init		= exynos_init,
-		.name		= name_exynos5420,
-	}, {
-		.idcode		= EXYNOS5440_SOC_ID,
-		.idmask		= EXYNOS5_SOC_MASK,
-		.init		= exynos_init,
-		.name		= name_exynos5440,
-	},
-};
-
-/* Initial IO mappings */
 
 static struct map_desc exynos4_iodesc[] __initdata = {
 	{
@@ -263,19 +198,11 @@ static struct map_desc exynos5_iodesc[] __initdata = {
 	},
 };
 
-void exynos4_restart(enum reboot_mode mode, const char *cmd)
-{
-	__raw_writel(0x1, S5P_SWRESET);
-}
-
-void exynos5_restart(enum reboot_mode mode, const char *cmd)
+void exynos_restart(enum reboot_mode mode, const char *cmd)
 {
 	struct device_node *np;
-	u32 val;
-	void __iomem *addr;
-
-	val = 0x1;
-	addr = EXYNOS_SWRESET;
+	u32 val = 0x1;
+	void __iomem *addr = EXYNOS_SWRESET;
 
 	if (of_machine_is_compatible("samsung,exynos5440")) {
 		u32 status;
@@ -315,6 +242,7 @@ void __init exynos_init_late(void)
 		return;
 
 	pm_genpd_poweroff_unused();
+	exynos_pm_init();
 }
 
 static int __init exynos_fdt_map_chipid(unsigned long node, const char *uname,
@@ -345,6 +273,28 @@ static int __init exynos_fdt_map_chipid(unsigned long node, const char *uname,
  *
  * register the standard cpu IO areas
  */
+static void __init exynos_map_io(void)
+{
+	if (soc_is_exynos4())
+		iotable_init(exynos4_iodesc, ARRAY_SIZE(exynos4_iodesc));
+
+	if (soc_is_exynos5())
+		iotable_init(exynos5_iodesc, ARRAY_SIZE(exynos5_iodesc));
+
+	if (soc_is_exynos4210()) {
+		if (samsung_rev() == EXYNOS4210_REV_0)
+			iotable_init(exynos4_iodesc0,
+						ARRAY_SIZE(exynos4_iodesc0));
+		else
+			iotable_init(exynos4_iodesc1,
+						ARRAY_SIZE(exynos4_iodesc1));
+		iotable_init(exynos4210_iodesc, ARRAY_SIZE(exynos4210_iodesc));
+	}
+	if (soc_is_exynos4212() || soc_is_exynos4412())
+		iotable_init(exynos4x12_iodesc, ARRAY_SIZE(exynos4x12_iodesc));
+	if (soc_is_exynos5250())
+		iotable_init(exynos5250_iodesc, ARRAY_SIZE(exynos5250_iodesc));
+}
 
 void __init exynos_init_io(void)
 {
@@ -355,39 +305,12 @@ void __init exynos_init_io(void)
 	/* detect cpu id and rev. */
 	s5p_init_cpu(S5P_VA_CHIPID);
 
-	s3c_init_cpu(samsung_cpu_id, cpu_ids, ARRAY_SIZE(cpu_ids));
-}
-
-static void __init exynos4_map_io(void)
-{
-	iotable_init(exynos4_iodesc, ARRAY_SIZE(exynos4_iodesc));
-
-	if (soc_is_exynos4210() && samsung_rev() == EXYNOS4210_REV_0)
-		iotable_init(exynos4_iodesc0, ARRAY_SIZE(exynos4_iodesc0));
-	else
-		iotable_init(exynos4_iodesc1, ARRAY_SIZE(exynos4_iodesc1));
-
-	if (soc_is_exynos4210())
-		iotable_init(exynos4210_iodesc, ARRAY_SIZE(exynos4210_iodesc));
-	if (soc_is_exynos4212() || soc_is_exynos4412())
-		iotable_init(exynos4x12_iodesc, ARRAY_SIZE(exynos4x12_iodesc));
-}
-
-static void __init exynos5_map_io(void)
-{
-	iotable_init(exynos5_iodesc, ARRAY_SIZE(exynos5_iodesc));
-
-	if (soc_is_exynos5250())
-		iotable_init(exynos5250_iodesc, ARRAY_SIZE(exynos5250_iodesc));
+	exynos_map_io();
 }
 
 struct bus_type exynos_subsys = {
 	.name		= "exynos-core",
 	.dev_name	= "exynos-core",
-};
-
-static struct device exynos4_dev = {
-	.bus	= &exynos_subsys,
 };
 
 static int __init exynos_core_init(void)
@@ -412,9 +335,77 @@ static int __init exynos4_l2x0_cache_init(void)
 }
 early_initcall(exynos4_l2x0_cache_init);
 
-static int __init exynos_init(void)
+static void __init exynos_dt_machine_init(void)
 {
-	printk(KERN_INFO "EXYNOS: Initializing architecture\n");
+	struct device_node *i2c_np;
+	const char *i2c_compat = "samsung,s3c2440-i2c";
+	unsigned int tmp;
+	int id;
 
-	return device_register(&exynos4_dev);
+	/*
+	 * Exynos5's legacy i2c controller and new high speed i2c
+	 * controller have muxed interrupt sources. By default the
+	 * interrupts for 4-channel HS-I2C controller are enabled.
+	 * If node for first four channels of legacy i2c controller
+	 * are available then re-configure the interrupts via the
+	 * system register.
+	 */
+	if (soc_is_exynos5()) {
+		for_each_compatible_node(i2c_np, NULL, i2c_compat) {
+			if (of_device_is_available(i2c_np)) {
+				id = of_alias_get_id(i2c_np, "i2c");
+				if (id < 4) {
+					tmp = readl(EXYNOS5_SYS_I2C_CFG);
+					writel(tmp & ~(0x1 << id),
+							EXYNOS5_SYS_I2C_CFG);
+				}
+			}
+		}
+	}
+
+	exynos_cpuidle_init();
+	exynos_cpufreq_init();
+
+	of_platform_populate(NULL, of_default_bus_match_table, NULL, NULL);
 }
+
+static char const *exynos_dt_compat[] __initconst = {
+	"samsung,exynos4",
+	"samsung,exynos4210",
+	"samsung,exynos4212",
+	"samsung,exynos4412",
+	"samsung,exynos5",
+	"samsung,exynos5250",
+	"samsung,exynos5420",
+	"samsung,exynos5440",
+	NULL
+};
+
+static void __init exynos_reserve(void)
+{
+#ifdef CONFIG_S5P_DEV_MFC
+	int i;
+	char *mfc_mem[] = {
+		"samsung,mfc-v5",
+		"samsung,mfc-v6",
+		"samsung,mfc-v7",
+	};
+
+	for (i = 0; i < ARRAY_SIZE(mfc_mem); i++)
+		if (of_scan_flat_dt(s5p_fdt_alloc_mfc_mem, mfc_mem[i]))
+			break;
+#endif
+}
+
+DT_MACHINE_START(EXYNOS_DT, "SAMSUNG EXYNOS (Flattened Device Tree)")
+	/* Maintainer: Thomas Abraham <thomas.abraham@linaro.org> */
+	/* Maintainer: Kukjin Kim <kgene.kim@samsung.com> */
+	.smp		= smp_ops(exynos_smp_ops),
+	.map_io		= exynos_init_io,
+	.init_early	= exynos_firmware_init,
+	.init_machine	= exynos_dt_machine_init,
+	.init_late	= exynos_init_late,
+	.dt_compat	= exynos_dt_compat,
+	.restart	= exynos_restart,
+	.reserve	= exynos_reserve,
+MACHINE_END

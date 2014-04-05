@@ -11,9 +11,7 @@
 #include <linux/slab.h>
 #include <linux/leds.h>
 
-#include <mach/hardware.h>
-#include <mach/platform.h>
-
+#include "hardware.h"
 #include "cm.h"
 
 #if defined(CONFIG_NEW_LEDS) && defined(CONFIG_LEDS_CLASS)

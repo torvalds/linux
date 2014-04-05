@@ -14,7 +14,7 @@
 
 / {
 	model = "SAMSUNG SMDK5250 board based on EXYNOS5250";
-	compatible = "samsung,smdk5250", "samsung,exynos5250";
+	compatible = "samsung,smdk5250", "samsung,exynos5250", "samsung,exynos5";
 
 	aliases {
 	};
@@ -242,14 +242,10 @@
 		samsung,i2c-slave-addr = <0x38>;
 		status = "okay";
 
-		sata-phy {
-			compatible = "samsung,sata-phy";
+		sata_phy_i2c:sata-phy@38 {
+			compatible = "samsung,exynos-sataphy-i2c";
 			reg = <0x38>;
 		};
-	};
-
-	sata@122F0000 {
-		samsung,sata-freq = <66>;
 	};
 
 	i2c@12C80000 {
@@ -272,6 +268,15 @@
 			compatible = "samsung,exynos4212-hdmiphy";
 			reg = <0x38>;
 		};
+	};
+
+	sata@122F0000 {
+		status = "okay";
+	};
+
+	sata-phy@12170000 {
+		status = "okay";
+		samsung,exynos-sataphy-i2c-phandle = <&sata_phy_i2c>;
 	};
 
 	mmc@12200000 {
@@ -308,10 +313,6 @@
 			bus-width = <4>;
 			disable-wp;
 		};
-	};
-
-	spi_0: spi@12d20000 {
-		status = "disabled";
 	};
 
 	spi_1: spi@12d30000 {
