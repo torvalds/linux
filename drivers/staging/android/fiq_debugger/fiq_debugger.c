@@ -280,28 +280,22 @@ static int fiq_debugger_printf_nfiq(void *cookie, const char *fmt, ...)
 }
 
 static void fiq_debugger_dump_regs(struct fiq_debugger_state *state,
-		unsigned *regs)
+		const struct pt_regs *regs)
 {
 	fiq_debugger_printf(state,
 			" r0 %08x  r1 %08x  r2 %08x  r3 %08x\n",
-			regs[0], regs[1], regs[2], regs[3]);
+			regs->ARM_r0, regs->ARM_r1, regs->ARM_r2, regs->ARM_r3);
 	fiq_debugger_printf(state,
 			" r4 %08x  r5 %08x  r6 %08x  r7 %08x\n",
-			regs[4], regs[5], regs[6], regs[7]);
+			regs->ARM_r4, regs->ARM_r5, regs->ARM_r6, regs->ARM_r7);
 	fiq_debugger_printf(state,
 			" r8 %08x  r9 %08x r10 %08x r11 %08x  mode %s\n",
-			regs[8], regs[9], regs[10], regs[11],
-			mode_name(regs[16]));
-	if ((regs[16] & MODE_MASK) == USR_MODE)
-		fiq_debugger_printf(state,
-				" ip %08x  sp %08x  lr %08x  pc %08x  cpsr %08x\n",
-				regs[12], regs[13], regs[14], regs[15],
-				regs[16]);
-	else
-		fiq_debugger_printf(state,
-				" ip %08x  sp %08x  lr %08x  pc %08x  cpsr %08x  spsr %08x\n",
-				regs[12], regs[13], regs[14], regs[15],
-				regs[16], regs[17]);
+			regs->ARM_r8, regs->ARM_r9, regs->ARM_r10, regs->ARM_fp,
+			mode_name(regs->ARM_cpsr));
+	fiq_debugger_printf(state,
+			" ip %08x  sp %08x  lr %08x  pc %08x cpsr %08x\n",
+			regs->ARM_ip, regs->ARM_sp, regs->ARM_lr, regs->ARM_pc,
+			regs->ARM_cpsr);
 }
 
 struct mode_regs {
@@ -357,25 +351,33 @@ void __naked get_mode_regs(struct mode_regs *regs)
 
 
 static void fiq_debugger_dump_allregs(struct fiq_debugger_state *state,
-		unsigned *regs)
+		const struct pt_regs *regs)
 {
 	struct mode_regs mode_regs;
+	unsigned long mode = regs->ARM_cpsr & MODE_MASK;
+
 	fiq_debugger_dump_regs(state, regs);
 	get_mode_regs(&mode_regs);
+
 	fiq_debugger_printf(state,
-			" svc: sp %08x  lr %08x  spsr %08x\n",
+			"%csvc: sp %08x  lr %08x  spsr %08x\n",
+			mode == SVC_MODE ? '*' : ' ',
 			mode_regs.sp_svc, mode_regs.lr_svc, mode_regs.spsr_svc);
 	fiq_debugger_printf(state,
-			" abt: sp %08x  lr %08x  spsr %08x\n",
+			"%cabt: sp %08x  lr %08x  spsr %08x\n",
+			mode == ABT_MODE ? '*' : ' ',
 			mode_regs.sp_abt, mode_regs.lr_abt, mode_regs.spsr_abt);
 	fiq_debugger_printf(state,
-			" und: sp %08x  lr %08x  spsr %08x\n",
+			"%cund: sp %08x  lr %08x  spsr %08x\n",
+			mode == UND_MODE ? '*' : ' ',
 			mode_regs.sp_und, mode_regs.lr_und, mode_regs.spsr_und);
 	fiq_debugger_printf(state,
-			" irq: sp %08x  lr %08x  spsr %08x\n",
+			"%cirq: sp %08x  lr %08x  spsr %08x\n",
+			mode == IRQ_MODE ? '*' : ' ',
 			mode_regs.sp_irq, mode_regs.lr_irq, mode_regs.spsr_irq);
 	fiq_debugger_printf(state,
-			" fiq: r8 %08x  r9 %08x  r10 %08x  r11 %08x  r12 %08x\n",
+			"%cfiq: r8 %08x  r9 %08x  r10 %08x  r11 %08x  r12 %08x\n",
+			mode == FIQ_MODE ? '*' : ' ',
 			mode_regs.r8_fiq, mode_regs.r9_fiq, mode_regs.r10_fiq,
 			mode_regs.r11_fiq, mode_regs.r12_fiq);
 	fiq_debugger_printf(state,
@@ -459,7 +461,7 @@ static struct frame_tail *user_backtrace(struct fiq_debugger_state *state,
 }
 
 void fiq_debugger_dump_stacktrace(struct fiq_debugger_state *state,
-		struct pt_regs * const regs, unsigned int depth, void *ssp)
+		const struct pt_regs *regs, unsigned int depth, void *ssp)
 {
 	struct frame_tail *tail;
 	struct thread_info *real_thread_info = THREAD_INFO(ssp);
@@ -474,7 +476,7 @@ void fiq_debugger_dump_stacktrace(struct fiq_debugger_state *state,
 	else
 		fiq_debugger_printf(state, "pid: %d  comm: %s\n",
 			current->pid, current->comm);
-	fiq_debugger_dump_regs(state, (unsigned *)regs);
+	fiq_debugger_dump_regs(state, regs);
 
 	if (!user_mode(regs)) {
 		struct stackframe frame;
@@ -682,7 +684,8 @@ static void fiq_debugger_switch_cpu(struct fiq_debugger_state *state, int cpu)
 }
 
 static bool fiq_debugger_fiq_exec(struct fiq_debugger_state *state,
-			const char *cmd, unsigned *regs, void *svc_sp)
+			const char *cmd, const struct pt_regs *regs,
+			void *svc_sp)
 {
 	bool signal_helper = false;
 
@@ -690,14 +693,14 @@ static bool fiq_debugger_fiq_exec(struct fiq_debugger_state *state,
 		fiq_debugger_help(state);
 	} else if (!strcmp(cmd, "pc")) {
 		fiq_debugger_printf(state, " pc %08x cpsr %08x mode %s\n",
-			regs[15], regs[16], mode_name(regs[16]));
+			regs->ARM_pc, regs->ARM_cpsr,
+			mode_name(regs->ARM_cpsr));
 	} else if (!strcmp(cmd, "regs")) {
 		fiq_debugger_dump_regs(state, regs);
 	} else if (!strcmp(cmd, "allregs")) {
 		fiq_debugger_dump_allregs(state, regs);
 	} else if (!strcmp(cmd, "bt")) {
-		fiq_debugger_dump_stacktrace(state, (struct pt_regs *)regs, 100,
-				svc_sp);
+		fiq_debugger_dump_stacktrace(state, regs, 100, svc_sp);
 	} else if (!strncmp(cmd, "reset", 5)) {
 		cmd += 5;
 		while (*cmd == ' ')
@@ -844,7 +847,7 @@ static int fiq_debugger_getc(struct fiq_debugger_state *state)
 }
 
 static bool fiq_debugger_handle_uart_interrupt(struct fiq_debugger_state *state,
-			int this_cpu, struct pt_regs *regs, void *svc_sp)
+			int this_cpu, const struct pt_regs *regs, void *svc_sp)
 {
 	int c;
 	static int last_c;
@@ -935,8 +938,8 @@ static bool fiq_debugger_handle_uart_interrupt(struct fiq_debugger_state *state,
 }
 
 #ifdef CONFIG_FIQ_GLUE
-static void fiq_debugger_fiq(struct fiq_glue_handler *h, void *regs,
-		void *svc_sp)
+static void fiq_debugger_fiq(struct fiq_glue_handler *h,
+		const struct pt_regs *regs, void *svc_sp)
 {
 	struct fiq_debugger_state *state =
 		container_of(h, struct fiq_debugger_state, handler);
