@@ -329,8 +329,6 @@ void mgag200_gem_free_object(struct drm_gem_object *obj)
 {
 	struct mgag200_bo *mgag200_bo = gem_to_mga_bo(obj);
 
-	if (!mgag200_bo)
-		return;
 	mgag200_bo_unref(&mgag200_bo);
 }
 
