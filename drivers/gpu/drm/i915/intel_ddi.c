@@ -1108,7 +1108,12 @@ bool intel_ddi_connector_get_hw_state(struct intel_connector *intel_connector)
 	enum port port = intel_ddi_get_encoder_port(intel_encoder);
 	enum pipe pipe = 0;
 	enum transcoder cpu_transcoder;
+	enum intel_display_power_domain power_domain;
 	uint32_t tmp;
+
+	power_domain = intel_display_port_power_domain(intel_encoder);
+	if (!intel_display_power_enabled(dev_priv, power_domain))
+		return false;
 
 	if (!intel_encoder->get_hw_state(intel_encoder, &pipe))
 		return false;

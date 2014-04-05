@@ -351,12 +351,12 @@ struct drm_i915_error_state {
 		u32 ipeir;
 		u32 ipehr;
 		u32 instdone;
-		u32 acthd;
 		u32 bbstate;
 		u32 instpm;
 		u32 instps;
 		u32 seqno;
 		u64 bbaddr;
+		u64 acthd;
 		u32 fault_reg;
 		u32 faddr;
 		u32 rc_psmi; /* sleep state */
@@ -1001,9 +1001,6 @@ struct intel_gen6_power_mgmt {
 	u8 rp1_freq;		/* "less than" RP0 power/freqency */
 	u8 rp0_freq;		/* Non-overclocked max frequency. */
 
-	bool rp_up_masked;
-	bool rp_down_masked;
-
 	int last_adj;
 	enum { LOW_POWER, BETWEEN, HIGH_POWER } power;
 
@@ -1468,6 +1465,7 @@ typedef struct drm_i915_private {
 	};
 	u32 gt_irq_mask;
 	u32 pm_irq_mask;
+	u32 pm_rps_events;
 	u32 pipestat_irq_mask[I915_MAX_PIPES];
 
 	struct work_struct hotplug_work;
@@ -2130,11 +2128,11 @@ extern void intel_uncore_check_errors(struct drm_device *dev);
 extern void intel_uncore_fini(struct drm_device *dev);
 
 void
-i915_enable_pipestat(drm_i915_private_t *dev_priv, enum pipe pipe,
+i915_enable_pipestat(struct drm_i915_private *dev_priv, enum pipe pipe,
 		     u32 status_mask);
 
 void
-i915_disable_pipestat(drm_i915_private_t *dev_priv, enum pipe pipe,
+i915_disable_pipestat(struct drm_i915_private *dev_priv, enum pipe pipe,
 		      u32 status_mask);
 
 void valleyview_enable_display_irqs(struct drm_i915_private *dev_priv);
@@ -2504,7 +2502,7 @@ void i915_gem_object_release_stolen(struct drm_i915_gem_object *obj);
 /* i915_gem_tiling.c */
 static inline bool i915_gem_object_needs_bit17_swizzle(struct drm_i915_gem_object *obj)
 {
-	drm_i915_private_t *dev_priv = obj->base.dev->dev_private;
+	struct drm_i915_private *dev_priv = obj->base.dev->dev_private;
 
 	return dev_priv->mm.bit_6_swizzle_x == I915_BIT_6_SWIZZLE_9_10_17 &&
 		obj->tiling_mode != I915_TILING_NONE;
@@ -2744,6 +2742,17 @@ void vlv_force_wake_put(struct drm_i915_private *dev_priv, int fw_engine);
  */
 #define I915_WRITE64(reg, val)	dev_priv->uncore.funcs.mmio_writeq(dev_priv, (reg), (val), true)
 #define I915_READ64(reg)	dev_priv->uncore.funcs.mmio_readq(dev_priv, (reg), true)
+
+#define I915_READ64_2x32(lower_reg, upper_reg) ({			\
+		u32 upper = I915_READ(upper_reg);			\
+		u32 lower = I915_READ(lower_reg);			\
+		u32 tmp = I915_READ(upper_reg);				\
+		if (upper != tmp) {					\
+			upper = tmp;					\
+			lower = I915_READ(lower_reg);			\
+			WARN_ON(I915_READ(upper_reg) != upper);		\
+		}							\
+		(u64)upper << 32 | lower; })
 
 #define POSTING_READ(reg)	(void)I915_READ_NOTRACE(reg)
 #define POSTING_READ16(reg)	(void)I915_READ16_NOTRACE(reg)

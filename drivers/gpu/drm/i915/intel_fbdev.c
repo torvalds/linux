@@ -518,16 +518,29 @@ static bool intel_fbdev_init_bios(struct drm_device *dev,
 
 		/*
 		 * See if the plane fb we found above will fit on this
-		 * pipe.  Note we need to use the selected fb's bpp rather
-		 * than the current pipe's, since they could be different.
+		 * pipe.  Note we need to use the selected fb's pitch and bpp
+		 * rather than the current pipe's, since they differ.
 		 */
-		cur_size = intel_crtc->config.adjusted_mode.crtc_hdisplay *
-			intel_crtc->config.adjusted_mode.crtc_vdisplay;
-		DRM_DEBUG_KMS("pipe %c area: %d\n", pipe_name(intel_crtc->pipe),
+		cur_size = intel_crtc->config.adjusted_mode.crtc_hdisplay;
+		cur_size = cur_size * fb->base.bits_per_pixel / 8;
+		if (fb->base.pitches[0] < cur_size) {
+			DRM_DEBUG_KMS("fb not wide enough for plane %c (%d vs %d)\n",
+				      pipe_name(intel_crtc->pipe),
+				      cur_size, fb->base.pitches[0]);
+			plane_config = NULL;
+			fb = NULL;
+			break;
+		}
+
+		cur_size = intel_crtc->config.adjusted_mode.crtc_vdisplay;
+		cur_size = ALIGN(cur_size, plane_config->tiled ? (IS_GEN2(dev) ? 16 : 8) : 1);
+		cur_size *= fb->base.pitches[0];
+		DRM_DEBUG_KMS("pipe %c area: %dx%d, bpp: %d, size: %d\n",
+			      pipe_name(intel_crtc->pipe),
+			      intel_crtc->config.adjusted_mode.crtc_hdisplay,
+			      intel_crtc->config.adjusted_mode.crtc_vdisplay,
+			      fb->base.bits_per_pixel,
 			      cur_size);
-		cur_size *= fb->base.bits_per_pixel / 8;
-		DRM_DEBUG_KMS("total size %d (bpp %d)\n", cur_size,
-			      fb->base.bits_per_pixel / 8);
 
 		if (cur_size > max_size) {
 			DRM_DEBUG_KMS("fb not big enough for plane %c (%d vs %d)\n",

@@ -5375,21 +5375,26 @@ static void intel_set_pipe_timings(struct intel_crtc *intel_crtc)
 	enum transcoder cpu_transcoder = intel_crtc->config.cpu_transcoder;
 	struct drm_display_mode *adjusted_mode =
 		&intel_crtc->config.adjusted_mode;
-	uint32_t vsyncshift, crtc_vtotal, crtc_vblank_end;
+	uint32_t crtc_vtotal, crtc_vblank_end;
+	int vsyncshift = 0;
 
 	/* We need to be careful not to changed the adjusted mode, for otherwise
 	 * the hw state checker will get angry at the mismatch. */
 	crtc_vtotal = adjusted_mode->crtc_vtotal;
 	crtc_vblank_end = adjusted_mode->crtc_vblank_end;
 
-	if (!IS_GEN2(dev) && adjusted_mode->flags & DRM_MODE_FLAG_INTERLACE) {
+	if (adjusted_mode->flags & DRM_MODE_FLAG_INTERLACE) {
 		/* the chip adds 2 halflines automatically */
 		crtc_vtotal -= 1;
 		crtc_vblank_end -= 1;
-		vsyncshift = adjusted_mode->crtc_hsync_start
-			     - adjusted_mode->crtc_htotal / 2;
-	} else {
-		vsyncshift = 0;
+
+		if (intel_pipe_has_type(&intel_crtc->base, INTEL_OUTPUT_SDVO))
+			vsyncshift = (adjusted_mode->crtc_htotal - 1) / 2;
+		else
+			vsyncshift = adjusted_mode->crtc_hsync_start -
+				adjusted_mode->crtc_htotal / 2;
+		if (vsyncshift < 0)
+			vsyncshift += adjusted_mode->crtc_htotal;
 	}
 
 	if (INTEL_INFO(dev)->gen > 3)
@@ -5539,10 +5544,13 @@ static void i9xx_set_pipeconf(struct intel_crtc *intel_crtc)
 		}
 	}
 
-	if (!IS_GEN2(dev) &&
-	    intel_crtc->config.adjusted_mode.flags & DRM_MODE_FLAG_INTERLACE)
-		pipeconf |= PIPECONF_INTERLACE_W_FIELD_INDICATION;
-	else
+	if (intel_crtc->config.adjusted_mode.flags & DRM_MODE_FLAG_INTERLACE) {
+		if (INTEL_INFO(dev)->gen < 4 ||
+		    intel_pipe_has_type(&intel_crtc->base, INTEL_OUTPUT_SDVO))
+			pipeconf |= PIPECONF_INTERLACE_W_FIELD_INDICATION;
+		else
+			pipeconf |= PIPECONF_INTERLACE_W_SYNC_SHIFT;
+	} else
 		pipeconf |= PIPECONF_PROGRESSIVE;
 
 	if (IS_VALLEYVIEW(dev) && intel_crtc->config.limited_color_range)
@@ -7751,6 +7759,7 @@ static int intel_crtc_cursor_set(struct drm_crtc *crtc,
 	struct drm_i915_private *dev_priv = dev->dev_private;
 	struct intel_crtc *intel_crtc = to_intel_crtc(crtc);
 	struct drm_i915_gem_object *obj;
+	unsigned old_width;
 	uint32_t addr;
 	int ret;
 
@@ -7841,13 +7850,18 @@ static int intel_crtc_cursor_set(struct drm_crtc *crtc,
 
 	mutex_unlock(&dev->struct_mutex);
 
+	old_width = intel_crtc->cursor_width;
+
 	intel_crtc->cursor_addr = addr;
 	intel_crtc->cursor_bo = obj;
 	intel_crtc->cursor_width = width;
 	intel_crtc->cursor_height = height;
 
-	if (intel_crtc->active)
+	if (intel_crtc->active) {
+		if (old_width != width)
+			intel_update_watermarks(crtc);
 		intel_crtc_update_cursor(crtc, intel_crtc->cursor_bo != NULL);
+	}
 
 	return 0;
 fail_unpin:
@@ -8351,7 +8365,7 @@ struct drm_display_mode *intel_crtc_mode_get(struct drm_device *dev,
 static void intel_increase_pllclock(struct drm_crtc *crtc)
 {
 	struct drm_device *dev = crtc->dev;
-	drm_i915_private_t *dev_priv = dev->dev_private;
+	struct drm_i915_private *dev_priv = dev->dev_private;
 	struct intel_crtc *intel_crtc = to_intel_crtc(crtc);
 	int pipe = intel_crtc->pipe;
 	int dpll_reg = DPLL(pipe);
@@ -8382,7 +8396,7 @@ static void intel_increase_pllclock(struct drm_crtc *crtc)
 static void intel_decrease_pllclock(struct drm_crtc *crtc)
 {
 	struct drm_device *dev = crtc->dev;
-	drm_i915_private_t *dev_priv = dev->dev_private;
+	struct drm_i915_private *dev_priv = dev->dev_private;
 	struct intel_crtc *intel_crtc = to_intel_crtc(crtc);
 
 	if (HAS_PCH_SPLIT(dev))
@@ -8523,7 +8537,7 @@ static void intel_unpin_work_fn(struct work_struct *__work)
 static void do_intel_finish_page_flip(struct drm_device *dev,
 				      struct drm_crtc *crtc)
 {
-	drm_i915_private_t *dev_priv = dev->dev_private;
+	struct drm_i915_private *dev_priv = dev->dev_private;
 	struct intel_crtc *intel_crtc = to_intel_crtc(crtc);
 	struct intel_unpin_work *work;
 	unsigned long flags;
@@ -8564,7 +8578,7 @@ static void do_intel_finish_page_flip(struct drm_device *dev,
 
 void intel_finish_page_flip(struct drm_device *dev, int pipe)
 {
-	drm_i915_private_t *dev_priv = dev->dev_private;
+	struct drm_i915_private *dev_priv = dev->dev_private;
 	struct drm_crtc *crtc = dev_priv->pipe_to_crtc_mapping[pipe];
 
 	do_intel_finish_page_flip(dev, crtc);
@@ -8572,7 +8586,7 @@ void intel_finish_page_flip(struct drm_device *dev, int pipe)
 
 void intel_finish_page_flip_plane(struct drm_device *dev, int plane)
 {
-	drm_i915_private_t *dev_priv = dev->dev_private;
+	struct drm_i915_private *dev_priv = dev->dev_private;
 	struct drm_crtc *crtc = dev_priv->plane_to_crtc_mapping[plane];
 
 	do_intel_finish_page_flip(dev, crtc);
@@ -8580,7 +8594,7 @@ void intel_finish_page_flip_plane(struct drm_device *dev, int plane)
 
 void intel_prepare_page_flip(struct drm_device *dev, int plane)
 {
-	drm_i915_private_t *dev_priv = dev->dev_private;
+	struct drm_i915_private *dev_priv = dev->dev_private;
 	struct intel_crtc *intel_crtc =
 		to_intel_crtc(dev_priv->plane_to_crtc_mapping[plane]);
 	unsigned long flags;
@@ -9755,7 +9769,7 @@ check_encoder_state(struct drm_device *dev)
 static void
 check_crtc_state(struct drm_device *dev)
 {
-	drm_i915_private_t *dev_priv = dev->dev_private;
+	struct drm_i915_private *dev_priv = dev->dev_private;
 	struct intel_crtc *crtc;
 	struct intel_encoder *encoder;
 	struct intel_crtc_config pipe_config;
@@ -9823,7 +9837,7 @@ check_crtc_state(struct drm_device *dev)
 static void
 check_shared_dpll_state(struct drm_device *dev)
 {
-	drm_i915_private_t *dev_priv = dev->dev_private;
+	struct drm_i915_private *dev_priv = dev->dev_private;
 	struct intel_crtc *crtc;
 	struct intel_dpll_hw_state dpll_hw_state;
 	int i;
@@ -9896,7 +9910,7 @@ static int __intel_set_mode(struct drm_crtc *crtc,
 			    int x, int y, struct drm_framebuffer *fb)
 {
 	struct drm_device *dev = crtc->dev;
-	drm_i915_private_t *dev_priv = dev->dev_private;
+	struct drm_i915_private *dev_priv = dev->dev_private;
 	struct drm_display_mode *saved_mode;
 	struct intel_crtc_config *pipe_config = NULL;
 	struct intel_crtc *intel_crtc;
@@ -10543,7 +10557,7 @@ static void intel_shared_dpll_init(struct drm_device *dev)
 
 static void intel_crtc_init(struct drm_device *dev, int pipe)
 {
-	drm_i915_private_t *dev_priv = dev->dev_private;
+	struct drm_i915_private *dev_priv = dev->dev_private;
 	struct intel_crtc *intel_crtc;
 	int i;
 
@@ -11505,6 +11519,17 @@ static void intel_sanitize_crtc(struct intel_crtc *crtc)
 			encoder->base.crtc = NULL;
 		}
 	}
+	if (crtc->active) {
+		/*
+		 * We start out with underrun reporting disabled to avoid races.
+		 * For correct bookkeeping mark this on active crtcs.
+		 *
+		 * No protection against concurrent access is required - at
+		 * worst a fifo underrun happens which also sets this to false.
+		 */
+		crtc->cpu_fifo_underrun_disabled = true;
+		crtc->pch_fifo_underrun_disabled = true;
+	}
 }
 
 static void intel_sanitize_encoder(struct intel_encoder *encoder)
@@ -11740,6 +11765,10 @@ void intel_modeset_gem_init(struct drm_device *dev)
 	struct drm_crtc *c;
 	struct intel_framebuffer *fb;
 
+	mutex_lock(&dev->struct_mutex);
+	intel_init_gt_powersave(dev);
+	mutex_unlock(&dev->struct_mutex);
+
 	intel_modeset_init_hw(dev);
 
 	intel_setup_overlay(dev);
@@ -11826,6 +11855,10 @@ void intel_modeset_cleanup(struct drm_device *dev)
 	drm_mode_config_cleanup(dev);
 
 	intel_cleanup_overlay(dev);
+
+	mutex_lock(&dev->struct_mutex);
+	intel_cleanup_gt_powersave(dev);
+	mutex_unlock(&dev->struct_mutex);
 }
 
 /*
@@ -11920,7 +11953,7 @@ struct intel_display_error_state {
 struct intel_display_error_state *
 intel_display_capture_error_state(struct drm_device *dev)
 {
-	drm_i915_private_t *dev_priv = dev->dev_private;
+	struct drm_i915_private *dev_priv = dev->dev_private;
 	struct intel_display_error_state *error;
 	int transcoders[] = {
 		TRANSCODER_A,

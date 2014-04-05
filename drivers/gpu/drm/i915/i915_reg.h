@@ -706,6 +706,7 @@ enum punit_power_well {
 #define BLT_HWS_PGA_GEN7	(0x04280)
 #define VEBOX_HWS_PGA_GEN7	(0x04380)
 #define RING_ACTHD(base)	((base)+0x74)
+#define RING_ACTHD_UDW(base)	((base)+0x5c)
 #define RING_NOPID(base)	((base)+0x94)
 #define RING_IMR(base)		((base)+0xa8)
 #define RING_TIMESTAMP(base)	((base)+0x358)
@@ -973,7 +974,8 @@ enum punit_power_well {
 #define CACHE_MODE_0_GEN7	0x7000 /* IVB+ */
 #define   HIZ_RAW_STALL_OPT_DISABLE (1<<2)
 #define CACHE_MODE_1		0x7004 /* IVB+ */
-#define   PIXEL_SUBSPAN_COLLECT_OPT_DISABLE (1<<6)
+#define   PIXEL_SUBSPAN_COLLECT_OPT_DISABLE	(1<<6)
+#define   GEN8_4x4_STC_OPTIMIZATION_DISABLE	(1<<6)
 
 #define GEN6_BLITTER_ECOSKPD	0x221d0
 #define   GEN6_BLITTER_LOCK_SHIFT			16

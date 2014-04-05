@@ -7,3 +7,4 @@ Required properties:
 
 Optional properties:
 - local-mac-address : Ethernet mac address to use
+- vdd-supply:	supply for Ethernet mac

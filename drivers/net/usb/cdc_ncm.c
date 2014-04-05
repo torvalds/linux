@@ -68,7 +68,6 @@ static struct usb_driver cdc_ncm_driver;
 static int cdc_ncm_setup(struct usbnet *dev)
 {
 	struct cdc_ncm_ctx *ctx = (struct cdc_ncm_ctx *)dev->data[0];
-	struct usb_cdc_ncm_ntb_parameters ncm_parm;
 	u32 val;
 	u8 flags;
 	u8 iface_no;
@@ -82,22 +81,22 @@ static int cdc_ncm_setup(struct usbnet *dev)
 	err = usbnet_read_cmd(dev, USB_CDC_GET_NTB_PARAMETERS,
 			      USB_TYPE_CLASS | USB_DIR_IN
 			      |USB_RECIP_INTERFACE,
-			      0, iface_no, &ncm_parm,
-			      sizeof(ncm_parm));
+			      0, iface_no, &ctx->ncm_parm,
+			      sizeof(ctx->ncm_parm));
 	if (err < 0) {
 		dev_err(&dev->intf->dev, "failed GET_NTB_PARAMETERS\n");
 		return err; /* GET_NTB_PARAMETERS is required */
 	}
 
 	/* read correct set of parameters according to device mode */
-	ctx->rx_max = le32_to_cpu(ncm_parm.dwNtbInMaxSize);
-	ctx->tx_max = le32_to_cpu(ncm_parm.dwNtbOutMaxSize);
-	ctx->tx_remainder = le16_to_cpu(ncm_parm.wNdpOutPayloadRemainder);
-	ctx->tx_modulus = le16_to_cpu(ncm_parm.wNdpOutDivisor);
-	ctx->tx_ndp_modulus = le16_to_cpu(ncm_parm.wNdpOutAlignment);
+	ctx->rx_max = le32_to_cpu(ctx->ncm_parm.dwNtbInMaxSize);
+	ctx->tx_max = le32_to_cpu(ctx->ncm_parm.dwNtbOutMaxSize);
+	ctx->tx_remainder = le16_to_cpu(ctx->ncm_parm.wNdpOutPayloadRemainder);
+	ctx->tx_modulus = le16_to_cpu(ctx->ncm_parm.wNdpOutDivisor);
+	ctx->tx_ndp_modulus = le16_to_cpu(ctx->ncm_parm.wNdpOutAlignment);
 	/* devices prior to NCM Errata shall set this field to zero */
-	ctx->tx_max_datagrams = le16_to_cpu(ncm_parm.wNtbOutMaxDatagrams);
-	ntb_fmt_supported = le16_to_cpu(ncm_parm.bmNtbFormatsSupported);
+	ctx->tx_max_datagrams = le16_to_cpu(ctx->ncm_parm.wNtbOutMaxDatagrams);
+	ntb_fmt_supported = le16_to_cpu(ctx->ncm_parm.bmNtbFormatsSupported);
 
 	/* there are some minor differences in NCM and MBIM defaults */
 	if (cdc_ncm_comm_intf_is_mbim(ctx->control->cur_altsetting)) {
@@ -146,7 +145,7 @@ static int cdc_ncm_setup(struct usbnet *dev)
 	}
 
 	/* inform device about NTB input size changes */
-	if (ctx->rx_max != le32_to_cpu(ncm_parm.dwNtbInMaxSize)) {
+	if (ctx->rx_max != le32_to_cpu(ctx->ncm_parm.dwNtbInMaxSize)) {
 		__le32 dwNtbInMaxSize = cpu_to_le32(ctx->rx_max);
 
 		err = usbnet_write_cmd(dev, USB_CDC_SET_NTB_INPUT_SIZE,
@@ -162,14 +161,6 @@ static int cdc_ncm_setup(struct usbnet *dev)
 		dev_dbg(&dev->intf->dev, "Using default maximum transmit length=%d\n",
 			CDC_NCM_NTB_MAX_SIZE_TX);
 		ctx->tx_max = CDC_NCM_NTB_MAX_SIZE_TX;
-
-		/* Adding a pad byte here simplifies the handling in
-		 * cdc_ncm_fill_tx_frame, by making tx_max always
-		 * represent the real skb max size.
-		 */
-		if (ctx->tx_max % usb_maxpacket(dev->udev, dev->out, 1) == 0)
-			ctx->tx_max++;
-
 	}
 
 	/*
@@ -439,6 +430,10 @@ advance:
 		goto error2;
 	}
 
+	/* initialize data interface */
+	if (cdc_ncm_setup(dev))
+		goto error2;
+
 	/* configure data interface */
 	temp = usb_set_interface(dev->udev, iface_no, data_altsetting);
 	if (temp) {
@@ -450,12 +445,6 @@ advance:
 	cdc_ncm_find_endpoints(dev, ctx->control);
 	if (!dev->in || !dev->out || !dev->status) {
 		dev_dbg(&intf->dev, "failed to collect endpoints\n");
-		goto error2;
-	}
-
-	/* initialize data interface */
-	if (cdc_ncm_setup(dev))	{
-		dev_dbg(&intf->dev, "cdc_ncm_setup() failed\n");
 		goto error2;
 	}
 
@@ -474,6 +463,15 @@ advance:
 	/* usbnet use these values for sizing tx/rx queues */
 	dev->hard_mtu = ctx->tx_max;
 	dev->rx_urb_size = ctx->rx_max;
+
+	/* cdc_ncm_setup will override dwNtbOutMaxSize if it is
+	 * outside the sane range. Adding a pad byte here if necessary
+	 * simplifies the handling in cdc_ncm_fill_tx_frame, making
+	 * tx_max always represent the real skb max size.
+	 */
+	if (ctx->tx_max != le32_to_cpu(ctx->ncm_parm.dwNtbOutMaxSize) &&
+	    ctx->tx_max % usb_maxpacket(dev->udev, dev->out, 1) == 0)
+		ctx->tx_max++;
 
 	return 0;
 

@@ -1548,6 +1548,7 @@ bool ath9k_hw_check_alive(struct ath_hw *ah)
 		if (reg != last_val)
 			return true;
 
+		udelay(1);
 		last_val = reg;
 		if ((reg & 0x7E7FFFEF) == 0x00702400)
 			continue;
@@ -1560,8 +1561,6 @@ bool ath9k_hw_check_alive(struct ath_hw *ah)
 		default:
 			return true;
 		}
-
-		udelay(1);
 	} while (count-- > 0);
 
 	return false;

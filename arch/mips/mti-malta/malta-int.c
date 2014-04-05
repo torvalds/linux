@@ -119,7 +119,7 @@ static void malta_hw0_irqdispatch(void)
 
 	do_IRQ(MALTA_INT_BASE + irq);
 
-#ifdef MIPS_VPE_APSP_API
+#ifdef CONFIG_MIPS_VPE_APSP_API_MT
 	if (aprp_hook)
 		aprp_hook();
 #endif
@@ -310,7 +310,7 @@ static void ipi_call_dispatch(void)
 
 static irqreturn_t ipi_resched_interrupt(int irq, void *dev_id)
 {
-#ifdef MIPS_VPE_APSP_API
+#ifdef CONFIG_MIPS_VPE_APSP_API_CMP
 	if (aprp_hook)
 		aprp_hook();
 #endif
