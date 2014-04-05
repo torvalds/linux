@@ -246,6 +246,14 @@ static int omap_plane_update(struct drm_plane *plane,
 
 	drm_framebuffer_reference(fb);
 
+	/* omap_plane_mode_set() takes adjusted src */
+	switch (omap_plane->win.rotation & 0xf) {
+	case BIT(DRM_ROTATE_90):
+	case BIT(DRM_ROTATE_270):
+		swap(src_w, src_h);
+		break;
+	}
+
 	return omap_plane_mode_set(plane, crtc, fb,
 			crtc_x, crtc_y, crtc_w, crtc_h,
 			src_x, src_y, src_w, src_h,
