@@ -2,6 +2,8 @@
 #include <linux/kernel.h>
 #include <linux/perf_event.h>
 #include <linux/bug.h>
+
+#include <asm/compat.h>
 #include <asm/perf_regs.h>
 #include <asm/ptrace.h>
 
