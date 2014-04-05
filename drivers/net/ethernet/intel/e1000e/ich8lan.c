@@ -1320,6 +1320,7 @@ static s32 e1000_check_for_copper_link_ich8lan(struct e1000_hw *hw)
 	 */
 	if ((hw->mac.type == e1000_pch2lan) && link) {
 		u32 reg;
+
 		reg = er32(STATUS);
 		if (!(reg & (E1000_STATUS_FD | E1000_STATUS_SPEED_MASK))) {
 			reg = er32(TIPG);
