@@ -669,8 +669,6 @@ static void intel_hdmi_mode_set(struct intel_encoder *encoder)
 
 	I915_WRITE(intel_hdmi->hdmi_reg, hdmi_val);
 	POSTING_READ(intel_hdmi->hdmi_reg);
-
-	intel_hdmi->set_infoframes(&encoder->base, adjusted_mode);
 }
 
 static bool intel_hdmi_get_hw_state(struct intel_encoder *encoder,
@@ -1115,13 +1113,26 @@ done:
 	return 0;
 }
 
+static void intel_hdmi_pre_enable(struct intel_encoder *encoder)
+{
+	struct intel_hdmi *intel_hdmi = enc_to_intel_hdmi(&encoder->base);
+	struct intel_crtc *intel_crtc = to_intel_crtc(encoder->base.crtc);
+	struct drm_display_mode *adjusted_mode =
+		&intel_crtc->config.adjusted_mode;
+
+	intel_hdmi->set_infoframes(&encoder->base, adjusted_mode);
+}
+
 static void vlv_hdmi_pre_enable(struct intel_encoder *encoder)
 {
 	struct intel_digital_port *dport = enc_to_dig_port(&encoder->base);
+	struct intel_hdmi *intel_hdmi = &dport->hdmi;
 	struct drm_device *dev = encoder->base.dev;
 	struct drm_i915_private *dev_priv = dev->dev_private;
 	struct intel_crtc *intel_crtc =
 		to_intel_crtc(encoder->base.crtc);
+	struct drm_display_mode *adjusted_mode =
+		&intel_crtc->config.adjusted_mode;
 	enum dpio_channel port = vlv_dport_to_channel(dport);
 	int pipe = intel_crtc->pipe;
 	u32 val;
@@ -1154,6 +1165,8 @@ static void vlv_hdmi_pre_enable(struct intel_encoder *encoder)
 	vlv_dpio_write(dev_priv, pipe, VLV_PCS_DW14(port), 0x00760018);
 	vlv_dpio_write(dev_priv, pipe, VLV_PCS_DW23(port), 0x00400888);
 	mutex_unlock(&dev_priv->dpio_lock);
+
+	intel_hdmi->set_infoframes(&encoder->base, adjusted_mode);
 
 	intel_enable_hdmi(encoder);
 
@@ -1350,6 +1363,7 @@ void intel_hdmi_init(struct drm_device *dev, int hdmi_reg, enum port port)
 		intel_encoder->enable = vlv_enable_hdmi;
 		intel_encoder->post_disable = vlv_hdmi_post_disable;
 	} else {
+		intel_encoder->pre_enable = intel_hdmi_pre_enable;
 		intel_encoder->enable = intel_enable_hdmi;
 	}
 
