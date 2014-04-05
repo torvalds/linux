@@ -485,6 +485,17 @@ struct intel_hdmi {
 
 #define DP_MAX_DOWNSTREAM_PORTS		0x10
 
+/**
+ * HIGH_RR is the highest eDP panel refresh rate read from EDID
+ * LOW_RR is the lowest eDP panel refresh rate found from EDID
+ * parsing for same resolution.
+ */
+enum edp_drrs_refresh_rate_type {
+	DRRS_HIGH_RR,
+	DRRS_LOW_RR,
+	DRRS_MAX_RR, /* RR count */
+};
+
 struct intel_dp {
 	uint32_t output_reg;
 	uint32_t aux_ch_ctl_reg;
@@ -523,6 +534,11 @@ struct intel_dp {
 				     bool has_aux_irq,
 				     int send_bytes,
 				     uint32_t aux_clock_divider);
+	struct {
+		enum drrs_support_type type;
+		enum edp_drrs_refresh_rate_type refresh_rate_type;
+	} drrs_state;
+
 };
 
 struct intel_digital_port {

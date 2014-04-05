@@ -3632,6 +3632,42 @@ intel_dp_init_panel_power_sequencer_registers(struct drm_device *dev,
 		      I915_READ(pp_div_reg));
 }
 
+static struct drm_display_mode *
+intel_dp_drrs_init(struct intel_digital_port *intel_dig_port,
+			struct intel_connector *intel_connector,
+			struct drm_display_mode *fixed_mode)
+{
+	struct drm_connector *connector = &intel_connector->base;
+	struct intel_dp *intel_dp = &intel_dig_port->dp;
+	struct drm_device *dev = intel_dig_port->base.base.dev;
+	struct drm_i915_private *dev_priv = dev->dev_private;
+	struct drm_display_mode *downclock_mode = NULL;
+
+	if (INTEL_INFO(dev)->gen <= 6) {
+		DRM_DEBUG_KMS("DRRS supported for Gen7 and above\n");
+		return NULL;
+	}
+
+	if (dev_priv->vbt.drrs_type != SEAMLESS_DRRS_SUPPORT) {
+		DRM_INFO("VBT doesn't support DRRS\n");
+		return NULL;
+	}
+
+	downclock_mode = intel_find_panel_downclock
+					(dev, fixed_mode, connector);
+
+	if (!downclock_mode) {
+		DRM_INFO("DRRS not supported\n");
+		return NULL;
+	}
+
+	intel_dp->drrs_state.type = dev_priv->vbt.drrs_type;
+
+	intel_dp->drrs_state.refresh_rate_type = DRRS_HIGH_RR;
+	DRM_INFO("seamless DRRS supported for eDP panel.\n");
+	return downclock_mode;
+}
+
 static bool intel_edp_init_connector(struct intel_dp *intel_dp,
 				     struct intel_connector *intel_connector,
 				     struct edp_power_seq *power_seq)
@@ -3641,9 +3677,12 @@ static bool intel_edp_init_connector(struct intel_dp *intel_dp,
 	struct drm_device *dev = intel_dig_port->base.base.dev;
 	struct drm_i915_private *dev_priv = dev->dev_private;
 	struct drm_display_mode *fixed_mode = NULL;
+	struct drm_display_mode *downclock_mode = NULL;
 	bool has_dpcd;
 	struct drm_display_mode *scan;
 	struct edid *edid;
+
+	intel_dp->drrs_state.type = DRRS_NOT_SUPPORTED;
 
 	if (!is_edp(intel_dp))
 		return true;
@@ -3687,6 +3726,9 @@ static bool intel_edp_init_connector(struct intel_dp *intel_dp,
 	list_for_each_entry(scan, &connector->probed_modes, head) {
 		if ((scan->type & DRM_MODE_TYPE_PREFERRED)) {
 			fixed_mode = drm_mode_duplicate(dev, scan);
+			downclock_mode = intel_dp_drrs_init(
+						intel_dig_port,
+						intel_connector, fixed_mode);
 			break;
 		}
 	}
@@ -3700,7 +3742,7 @@ static bool intel_edp_init_connector(struct intel_dp *intel_dp,
 	}
 	mutex_unlock(&dev->mode_config.mutex);
 
-	intel_panel_init(&intel_connector->panel, fixed_mode, NULL);
+	intel_panel_init(&intel_connector->panel, fixed_mode, downclock_mode);
 	intel_panel_setup_backlight(connector);
 
 	return true;
