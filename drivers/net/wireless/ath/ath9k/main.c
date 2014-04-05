@@ -261,6 +261,8 @@ static bool ath_complete_reset(struct ath_softc *sc, bool start)
 	sc->gtt_cnt = 0;
 	ieee80211_wake_queues(sc->hw);
 
+	ath9k_p2p_ps_timer(sc);
+
 	return true;
 }
 
@@ -1119,6 +1121,8 @@ static int ath9k_add_interface(struct ieee80211_hw *hw,
 	if (ath9k_uses_beacons(vif->type))
 		ath9k_beacon_assign_slot(sc, vif);
 
+	avp->vif = vif;
+
 	an->sc = sc;
 	an->sta = NULL;
 	an->vif = vif;
@@ -1163,6 +1167,29 @@ static int ath9k_change_interface(struct ieee80211_hw *hw,
 	return 0;
 }
 
+static void
+ath9k_update_p2p_ps_timer(struct ath_softc *sc, struct ath_vif *avp)
+{
+	struct ath_hw *ah = sc->sc_ah;
+	s32 tsf, target_tsf;
+
+	if (!avp || !avp->noa.has_next_tsf)
+		return;
+
+	ath9k_hw_gen_timer_stop(ah, sc->p2p_ps_timer);
+
+	tsf = ath9k_hw_gettsf32(sc->sc_ah);
+
+	target_tsf = avp->noa.next_tsf;
+	if (!avp->noa.absent)
+		target_tsf -= ATH_P2P_PS_STOP_TIME;
+
+	if (target_tsf - tsf < ATH_P2P_PS_STOP_TIME)
+		target_tsf = tsf + ATH_P2P_PS_STOP_TIME;
+
+	ath9k_hw_gen_timer_start(ah, sc->p2p_ps_timer, (u32) target_tsf, 1000000);
+}
+
 static void ath9k_remove_interface(struct ieee80211_hw *hw,
 				   struct ieee80211_vif *vif)
 {
@@ -1173,6 +1200,13 @@ static void ath9k_remove_interface(struct ieee80211_hw *hw,
 	ath_dbg(common, CONFIG, "Detach Interface\n");
 
 	mutex_lock(&sc->mutex);
+
+	spin_lock_bh(&sc->sc_pcu_lock);
+	if (avp == sc->p2p_ps_vif) {
+		sc->p2p_ps_vif = NULL;
+		ath9k_update_p2p_ps_timer(sc, NULL);
+	}
+	spin_unlock_bh(&sc->sc_pcu_lock);
 
 	sc->nvifs--;
 	sc->tx99_vif = NULL;
@@ -1636,6 +1670,72 @@ static void ath9k_bss_assoc_iter(void *data, u8 *mac, struct ieee80211_vif *vif)
 		ath9k_set_assoc_state(sc, vif);
 }
 
+void ath9k_p2p_ps_timer(void *priv)
+{
+	struct ath_softc *sc = priv;
+	struct ath_vif *avp = sc->p2p_ps_vif;
+	struct ieee80211_vif *vif;
+	struct ieee80211_sta *sta;
+	struct ath_node *an;
+	u32 tsf;
+
+	if (!avp)
+		return;
+
+	tsf = ath9k_hw_gettsf32(sc->sc_ah);
+	if (!avp->noa.absent)
+		tsf += ATH_P2P_PS_STOP_TIME;
+
+	if (!avp->noa.has_next_tsf ||
+	    avp->noa.next_tsf - tsf > BIT(31))
+		ieee80211_update_p2p_noa(&avp->noa, tsf);
+
+	ath9k_update_p2p_ps_timer(sc, avp);
+
+	rcu_read_lock();
+
+	vif = avp->vif;
+	sta = ieee80211_find_sta(vif, vif->bss_conf.bssid);
+	if (!sta)
+		goto out;
+
+	an = (void *) sta->drv_priv;
+	if (an->sleeping == !!avp->noa.absent)
+		goto out;
+
+	an->sleeping = avp->noa.absent;
+	if (an->sleeping)
+		ath_tx_aggr_sleep(sta, sc, an);
+	else
+		ath_tx_aggr_wakeup(sc, an);
+
+out:
+	rcu_read_unlock();
+}
+
+void ath9k_update_p2p_ps(struct ath_softc *sc, struct ieee80211_vif *vif)
+{
+	struct ath_vif *avp = (void *)vif->drv_priv;
+	unsigned long flags;
+	u32 tsf;
+
+	if (!sc->p2p_ps_timer)
+		return;
+
+	if (vif->type != NL80211_IFTYPE_STATION || !vif->p2p)
+		return;
+
+	sc->p2p_ps_vif = avp;
+
+	spin_lock_irqsave(&sc->sc_pm_lock, flags);
+	if (!(sc->ps_flags & PS_BEACON_SYNC)) {
+		tsf = ath9k_hw_gettsf32(sc->sc_ah);
+		ieee80211_parse_p2p_noa(&vif->bss_conf.p2p_noa_attr, &avp->noa, tsf);
+		ath9k_update_p2p_ps_timer(sc, avp);
+	}
+	spin_unlock_irqrestore(&sc->sc_pm_lock, flags);
+}
+
 static void ath9k_bss_info_changed(struct ieee80211_hw *hw,
 				   struct ieee80211_vif *vif,
 				   struct ieee80211_bss_conf *bss_conf,
@@ -1708,6 +1808,12 @@ static void ath9k_bss_info_changed(struct ieee80211_hw *hw,
 			ah->slottime = slottime;
 			ath9k_hw_init_global_settings(ah);
 		}
+	}
+
+	if (changed & BSS_CHANGED_P2P_PS) {
+		spin_lock_bh(&sc->sc_pcu_lock);
+		ath9k_update_p2p_ps(sc, vif);
+		spin_unlock_bh(&sc->sc_pcu_lock);
 	}
 
 	if (changed & CHECK_ANI)

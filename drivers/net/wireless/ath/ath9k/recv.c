@@ -539,6 +539,9 @@ static void ath_rx_ps_beacon(struct ath_softc *sc, struct sk_buff *skb)
 		ath_dbg(common, PS,
 			"Reconfigure beacon timers based on synchronized timestamp\n");
 		ath9k_set_beacon(sc);
+
+		if (sc->p2p_ps_vif)
+			ath9k_update_p2p_ps(sc, sc->p2p_ps_vif->vif);
 	}
 
 	if (ath_beacon_dtim_pending_cab(skb)) {
