@@ -73,11 +73,7 @@ u32 tegra_uart_config[3] = {
 static void __init tegra_init_cache(void)
 {
 #ifdef CONFIG_CACHE_L2X0
-	int ret;
-
-	ret = l2x0_of_init(0x3c400001, 0xc20fc3fe);
-	if (!ret)
-		l2x0_saved_regs_addr = virt_to_phys(&l2x0_saved_regs);
+	l2x0_of_init(0x3c400001, 0xc20fc3fe);
 #endif
 }
 
