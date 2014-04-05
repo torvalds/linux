@@ -318,17 +318,7 @@ core_initcall(exynos_core_init);
 
 static int __init exynos4_l2x0_cache_init(void)
 {
-	int ret;
-
-	ret = l2x0_of_init(0x3c400001, 0xc20fffff);
-	if (ret)
-		return ret;
-
-	if (IS_ENABLED(CONFIG_S5P_SLEEP)) {
-		l2x0_regs_phys = virt_to_phys(&l2x0_saved_regs);
-		clean_dcache_area(&l2x0_regs_phys, sizeof(unsigned long));
-	}
-	return 0;
+	return l2x0_of_init(0x3c400001, 0xc20fffff);
 }
 early_initcall(exynos4_l2x0_cache_init);
 
