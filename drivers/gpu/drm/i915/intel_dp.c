@@ -737,6 +737,20 @@ intel_dp_set_clock(struct intel_encoder *encoder,
 	}
 }
 
+static void
+intel_dp_set_m2_n2(struct intel_crtc *crtc, struct intel_link_m_n *m_n)
+{
+	struct drm_device *dev = crtc->base.dev;
+	struct drm_i915_private *dev_priv = dev->dev_private;
+	enum transcoder transcoder = crtc->config.cpu_transcoder;
+
+	I915_WRITE(PIPE_DATA_M2(transcoder),
+		TU_SIZE(m_n->tu) | m_n->gmch_m);
+	I915_WRITE(PIPE_DATA_N2(transcoder), m_n->gmch_n);
+	I915_WRITE(PIPE_LINK_M2(transcoder), m_n->link_m);
+	I915_WRITE(PIPE_LINK_N2(transcoder), m_n->link_n);
+}
+
 bool
 intel_dp_compute_config(struct intel_encoder *encoder,
 			struct intel_crtc_config *pipe_config)
@@ -840,6 +854,14 @@ found:
 			       adjusted_mode->crtc_clock,
 			       pipe_config->port_clock,
 			       &pipe_config->dp_m_n);
+
+	if (intel_connector->panel.downclock_mode != NULL &&
+		intel_dp->drrs_state.type == SEAMLESS_DRRS_SUPPORT) {
+			intel_link_compute_m_n(bpp, lane_count,
+				intel_connector->panel.downclock_mode->clock,
+				pipe_config->port_clock,
+				&pipe_config->dp_m2_n2);
+	}
 
 	intel_dp_set_clock(encoder, pipe_config, intel_dp->link_bw);
 
@@ -3632,6 +3654,90 @@ intel_dp_init_panel_power_sequencer_registers(struct drm_device *dev,
 		      I915_READ(pp_div_reg));
 }
 
+void intel_dp_set_drrs_state(struct drm_device *dev, int refresh_rate)
+{
+	struct drm_i915_private *dev_priv = dev->dev_private;
+	struct intel_encoder *encoder;
+	struct intel_dp *intel_dp = NULL;
+	struct intel_crtc_config *config = NULL;
+	struct intel_crtc *intel_crtc = NULL;
+	struct intel_connector *intel_connector = dev_priv->drrs.connector;
+	u32 reg, val;
+	enum edp_drrs_refresh_rate_type index = DRRS_HIGH_RR;
+
+	if (refresh_rate <= 0) {
+		DRM_DEBUG_KMS("Refresh rate should be positive non-zero.\n");
+		return;
+	}
+
+	if (intel_connector == NULL) {
+		DRM_DEBUG_KMS("DRRS supported for eDP only.\n");
+		return;
+	}
+
+	if (INTEL_INFO(dev)->gen < 8 && intel_edp_is_psr_enabled(dev)) {
+		DRM_DEBUG_KMS("DRRS is disabled as PSR is enabled\n");
+		return;
+	}
+
+	encoder = intel_attached_encoder(&intel_connector->base);
+	intel_dp = enc_to_intel_dp(&encoder->base);
+	intel_crtc = encoder->new_crtc;
+
+	if (!intel_crtc) {
+		DRM_DEBUG_KMS("DRRS: intel_crtc not initialized\n");
+		return;
+	}
+
+	config = &intel_crtc->config;
+
+	if (intel_dp->drrs_state.type < SEAMLESS_DRRS_SUPPORT) {
+		DRM_DEBUG_KMS("Only Seamless DRRS supported.\n");
+		return;
+	}
+
+	if (intel_connector->panel.downclock_mode->vrefresh == refresh_rate)
+		index = DRRS_LOW_RR;
+
+	if (index == intel_dp->drrs_state.refresh_rate_type) {
+		DRM_DEBUG_KMS(
+			"DRRS requested for previously set RR...ignoring\n");
+		return;
+	}
+
+	if (!intel_crtc->active) {
+		DRM_DEBUG_KMS("eDP encoder disabled. CRTC not Active\n");
+		return;
+	}
+
+	if (INTEL_INFO(dev)->gen > 6 && INTEL_INFO(dev)->gen < 8) {
+		reg = PIPECONF(intel_crtc->config.cpu_transcoder);
+		val = I915_READ(reg);
+		if (index > DRRS_HIGH_RR) {
+			val |= PIPECONF_EDP_RR_MODE_SWITCH;
+			intel_dp_set_m2_n2(intel_crtc, &config->dp_m2_n2);
+		} else {
+			val &= ~PIPECONF_EDP_RR_MODE_SWITCH;
+		}
+		I915_WRITE(reg, val);
+	}
+
+	/*
+	 * mutex taken to ensure that there is no race between differnt
+	 * drrs calls trying to update refresh rate. This scenario may occur
+	 * in future when idleness detection based DRRS in kernel and
+	 * possible calls from user space to set differnt RR are made.
+	 */
+
+	mutex_lock(&intel_dp->drrs_state.mutex);
+
+	intel_dp->drrs_state.refresh_rate_type = index;
+
+	mutex_unlock(&intel_dp->drrs_state.mutex);
+
+	DRM_DEBUG_KMS("eDP Refresh Rate set to : %dHz\n", refresh_rate);
+}
+
 static struct drm_display_mode *
 intel_dp_drrs_init(struct intel_digital_port *intel_dig_port,
 			struct intel_connector *intel_connector,
@@ -3660,6 +3766,10 @@ intel_dp_drrs_init(struct intel_digital_port *intel_dig_port,
 		DRM_INFO("DRRS not supported\n");
 		return NULL;
 	}
+
+	dev_priv->drrs.connector = intel_connector;
+
+	mutex_init(&intel_dp->drrs_state.mutex);
 
 	intel_dp->drrs_state.type = dev_priv->vbt.drrs_type;
 

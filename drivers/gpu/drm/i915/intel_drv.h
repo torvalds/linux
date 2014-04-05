@@ -305,6 +305,9 @@ struct intel_crtc_config {
 	int pipe_bpp;
 	struct intel_link_m_n dp_m_n;
 
+	/* m2_n2 for eDP downclock */
+	struct intel_link_m_n dp_m2_n2;
+
 	/*
 	 * Frequence the dpll for the port should run at. Differs from the
 	 * adjusted dotclock e.g. for DP or 12bpc hdmi mode. This is also
@@ -537,6 +540,7 @@ struct intel_dp {
 	struct {
 		enum drrs_support_type type;
 		enum edp_drrs_refresh_rate_type refresh_rate_type;
+		struct mutex mutex;
 	} drrs_state;
 
 };
@@ -792,7 +796,7 @@ void intel_edp_panel_off(struct intel_dp *intel_dp);
 void intel_edp_psr_enable(struct intel_dp *intel_dp);
 void intel_edp_psr_disable(struct intel_dp *intel_dp);
 void intel_edp_psr_update(struct drm_device *dev);
-
+void intel_dp_set_drrs_state(struct drm_device *dev, int refresh_rate);
 
 /* intel_dsi.c */
 bool intel_dsi_init(struct drm_device *dev);
