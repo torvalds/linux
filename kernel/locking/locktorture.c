@@ -82,14 +82,14 @@ struct lock_writer_stress_stats {
 };
 static struct lock_writer_stress_stats *lwsa;
 
-#if defined(MODULE) || defined(CONFIG_LOCK_TORTURE_TEST_RUNNABLE)
+#if defined(MODULE)
 #define LOCKTORTURE_RUNNABLE_INIT 1
 #else
 #define LOCKTORTURE_RUNNABLE_INIT 0
 #endif
 int locktorture_runnable = LOCKTORTURE_RUNNABLE_INIT;
 module_param(locktorture_runnable, int, 0444);
-MODULE_PARM_DESC(locktorture_runnable, "Start locktorture at boot");
+MODULE_PARM_DESC(locktorture_runnable, "Start locktorture at module init");
 
 /* Forward reference. */
 static void lock_torture_cleanup(void);
