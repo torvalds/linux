@@ -913,7 +913,6 @@ static int msi3101_set_usb_adc(struct msi3101_state *s)
 
 	/* set tuner, subdev, filters according to sampling rate */
 	bandwidth_auto = v4l2_ctrl_find(&s->hdl, V4L2_CID_RF_TUNER_BANDWIDTH_AUTO);
-	bandwidth = v4l2_ctrl_find(&s->hdl, V4L2_CID_RF_TUNER_BANDWIDTH);
 	if (v4l2_ctrl_g_ctrl(bandwidth_auto)) {
 		bandwidth = v4l2_ctrl_find(&s->hdl, V4L2_CID_RF_TUNER_BANDWIDTH);
 		v4l2_ctrl_s_ctrl(bandwidth, s->f_adc);
