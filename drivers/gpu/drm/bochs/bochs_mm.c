@@ -434,9 +434,7 @@ static void bochs_bo_unref(struct bochs_bo **bo)
 
 	tbo = &((*bo)->bo);
 	ttm_bo_unref(&tbo);
-	if (tbo == NULL)
-		*bo = NULL;
-
+	*bo = NULL;
 }
 
 void bochs_gem_free_object(struct drm_gem_object *obj)
