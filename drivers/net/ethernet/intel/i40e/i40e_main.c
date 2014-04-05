@@ -5608,7 +5608,6 @@ static void i40e_handle_mdd_event(struct i40e_pf *pf)
  **/
 static void i40e_sync_vxlan_filters_subtask(struct i40e_pf *pf)
 {
-	const int vxlan_hdr_qwords = 4;
 	struct i40e_hw *hw = &pf->hw;
 	i40e_status ret;
 	u8 filter_index;
@@ -5626,7 +5625,6 @@ static void i40e_sync_vxlan_filters_subtask(struct i40e_pf *pf)
 			port = pf->vxlan_ports[i];
 			ret = port ?
 			      i40e_aq_add_udp_tunnel(hw, ntohs(port),
-						     vxlan_hdr_qwords,
 						     I40E_AQC_TUNNEL_TYPE_VXLAN,
 						     &filter_index, NULL)
 			      : i40e_aq_del_udp_tunnel(hw, i, NULL);

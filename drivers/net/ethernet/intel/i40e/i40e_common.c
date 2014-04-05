@@ -2102,8 +2102,8 @@ i40e_status i40e_aq_start_lldp(struct i40e_hw *hw,
  * @cmd_details: pointer to command details structure or NULL
  **/
 i40e_status i40e_aq_add_udp_tunnel(struct i40e_hw *hw,
-				u16 udp_port, u8 header_len,
-				u8 protocol_index, u8 *filter_index,
+				u16 udp_port, u8 protocol_index,
+				u8 *filter_index,
 				struct i40e_asq_cmd_details *cmd_details)
 {
 	struct i40e_aq_desc desc;
