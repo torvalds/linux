@@ -6693,6 +6693,7 @@ F:	Documentation/PCI/
 F:	drivers/pci/
 F:	include/linux/pci*
 F:	arch/x86/pci/
+F:	arch/x86/kernel/quirks.c
 
 PCI DRIVER FOR IMX6
 M:	Richard Zhu <r65037@freescale.com>
