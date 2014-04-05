@@ -398,9 +398,8 @@ static int submit_tx_urb(hfa384x_t *hw, struct urb *tx_urb, gfp_t memflags)
 
 	result = -ENOLINK;
 	if (netif_running(netdev)) {
-
-		if (!hw->wlandev->hwremoved
-		    && !test_bit(WORK_TX_HALT, &hw->usb_flags)) {
+		if (!hw->wlandev->hwremoved &&
+		    !test_bit(WORK_TX_HALT, &hw->usb_flags)) {
 			result = SUBMIT_URB(tx_urb, memflags);
 
 			/* Test whether we need to reset the TX pipe */
@@ -656,7 +655,6 @@ usbctlx_get_rridresult(const hfa384x_usb_rridresp_t *rridresp,
 	result->rid = le16_to_cpu(rridresp->rid);
 	result->riddata = rridresp->data;
 	result->riddata_len = ((le16_to_cpu(rridresp->frmlen) - 1) * 2);
-
 }
 
 /*----------------------------------------------------------------
@@ -2845,7 +2843,6 @@ static void hfa384x_usbctlx_reaper_task(unsigned long data)
 	}
 
 	spin_unlock_irqrestore(&hw->ctlxq.lock, flags);
-
 }
 
 /*----------------------------------------------------------------
@@ -3706,7 +3703,6 @@ static void hfa384x_usbout_callback(struct urb *urb)
 #endif
 
 	if (wlandev && wlandev->netdev) {
-
 		switch (urb->status) {
 		case 0:
 			hfa384x_usbout_tx(wlandev, usbout);
@@ -3732,8 +3728,8 @@ static void hfa384x_usbout_callback(struct urb *urb)
 				hfa384x_t *hw = wlandev->priv;
 
 				if (!test_and_set_bit
-				    (THROTTLE_TX, &hw->usb_flags)
-				    && !timer_pending(&hw->throttle)) {
+				    (THROTTLE_TX, &hw->usb_flags) &&
+				    !timer_pending(&hw->throttle)) {
 					mod_timer(&hw->throttle,
 						  jiffies + THROTTLE_JIFFIES);
 				}
