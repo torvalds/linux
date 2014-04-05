@@ -956,6 +956,7 @@ static void blk_mq_hctx_notify(void *data, unsigned long action,
 			       unsigned int cpu)
 {
 	struct blk_mq_hw_ctx *hctx = data;
+	struct request_queue *q = hctx->queue;
 	struct blk_mq_ctx *ctx;
 	LIST_HEAD(tmp);
 
@@ -965,7 +966,7 @@ static void blk_mq_hctx_notify(void *data, unsigned long action,
 	/*
 	 * Move ctx entries to new CPU, if this one is going away.
 	 */
-	ctx = __blk_mq_get_ctx(hctx->queue, cpu);
+	ctx = __blk_mq_get_ctx(q, cpu);
 
 	spin_lock(&ctx->lock);
 	if (!list_empty(&ctx->rq_list)) {
@@ -977,7 +978,7 @@ static void blk_mq_hctx_notify(void *data, unsigned long action,
 	if (list_empty(&tmp))
 		return;
 
-	ctx = blk_mq_get_ctx(hctx->queue);
+	ctx = blk_mq_get_ctx(q);
 	spin_lock(&ctx->lock);
 
 	while (!list_empty(&tmp)) {
@@ -988,10 +989,13 @@ static void blk_mq_hctx_notify(void *data, unsigned long action,
 		list_move_tail(&rq->queuelist, &ctx->rq_list);
 	}
 
+	hctx = q->mq_ops->map_queue(q, ctx->cpu);
 	blk_mq_hctx_mark_pending(hctx, ctx);
 
 	spin_unlock(&ctx->lock);
 	blk_mq_put_ctx(ctx);
+
+	blk_mq_run_hw_queue(hctx, true);
 }
 
 static int blk_mq_init_hw_commands(struct blk_mq_hw_ctx *hctx,
