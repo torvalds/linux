@@ -47,7 +47,7 @@
 		reg = <0x10050000 0x800>;
 		interrupt-parent = <&mct_map>;
 		interrupts = <0>, <1>, <2>, <3>, <4>;
-		clocks = <&clock 3>, <&clock 344>;
+		clocks = <&clock CLK_FIN_PLL>, <&clock CLK_MCT>;
 		clock-names = "fin_pll", "mct";
 
 		mct_map: mct-map {
@@ -97,13 +97,14 @@
 		compatible = "samsung,exynos4212-g2d";
 		reg = <0x10800000 0x1000>;
 		interrupts = <0 89 0>;
-		clocks = <&clock 177>, <&clock 277>;
+		clocks = <&clock CLK_SCLK_FIMG2D>, <&clock CLK_G2D>;
 		clock-names = "sclk_fimg2d", "fimg2d";
 		status = "disabled";
 	};
 
 	camera {
-		clocks = <&clock 132>, <&clock 133>, <&clock 351>, <&clock 352>;
+		clocks = <&clock CLK_SCLK_CAM0>, <&clock CLK_SCLK_CAM1>,
+			 <&clock CLK_PIXELASYNCM0>, <&clock CLK_PIXELASYNCM1>;
 		clock-names = "sclk_cam0", "sclk_cam1", "pxl_async0", "pxl_async1";
 
 		fimc_0: fimc@11800000 {
@@ -145,7 +146,7 @@
 			reg = <0x12390000 0x1000>;
 			interrupts = <0 105 0>;
 			samsung,power-domain = <&pd_isp>;
-			clocks = <&clock 353>;
+			clocks = <&clock CLK_FIMC_LITE0>;
 			clock-names = "flite";
 			status = "disabled";
 		};
@@ -155,7 +156,7 @@
 			reg = <0x123A0000 0x1000>;
 			interrupts = <0 106 0>;
 			samsung,power-domain = <&pd_isp>;
-			clocks = <&clock 354>;
+			clocks = <&clock CLK_FIMC_LITE1>;
 			clock-names = "flite";
 			status = "disabled";
 		};
@@ -165,12 +166,19 @@
 			reg = <0x12000000 0x260000>;
 			interrupts = <0 90 0>, <0 95 0>;
 			samsung,power-domain = <&pd_isp>;
-			clocks = <&clock 353>, <&clock 354>, <&clock 355>,
-				<&clock 356>, <&clock 17>, <&clock 357>,
-				<&clock 358>, <&clock 359>, <&clock 360>,
-				<&clock 450>,<&clock 451>, <&clock 452>,
-				<&clock 453>, <&clock 176>, <&clock 13>,
-				<&clock 454>, <&clock 395>, <&clock 455>;
+			clocks = <&clock CLK_FIMC_LITE0>,
+				 <&clock CLK_FIMC_LITE1>, <&clock CLK_PPMUISPX>,
+				 <&clock CLK_PPMUISPMX>,
+				 <&clock CLK_MOUT_MPLL_USER_T>,
+				 <&clock CLK_FIMC_ISP>, <&clock CLK_FIMC_DRC>,
+				 <&clock CLK_FIMC_FD>, <&clock CLK_MCUISP>,
+				 <&clock CLK_DIV_ISP0>,<&clock CLK_DIV_ISP1>,
+				 <&clock CLK_DIV_MCUISP0>,
+				 <&clock CLK_DIV_MCUISP1>,
+				 <&clock CLK_SCLK_UART_ISP>,
+				 <&clock CLK_ACLK200>, <&clock CLK_DIV_ACLK200>,
+				 <&clock CLK_ACLK400_MCUISP>,
+				 <&clock CLK_DIV_ACLK400_MCUISP>;
 			clock-names = "lite0", "lite1", "ppmuispx",
 				      "ppmuispmx", "mpll", "isp",
 				      "drc", "fd", "mcuisp",
@@ -190,7 +198,7 @@
 			i2c1_isp: i2c-isp@12140000 {
 				compatible = "samsung,exynos4212-i2c-isp";
 				reg = <0x12140000 0x100>;
-				clocks = <&clock 370>;
+				clocks = <&clock CLK_I2C1_ISP>;
 				clock-names = "i2c_isp";
 				#address-cells = <1>;
 				#size-cells = <0>;
@@ -205,7 +213,7 @@
 		#address-cells = <1>;
 		#size-cells = <0>;
 		fifo-depth = <0x80>;
-		clocks = <&clock 301>, <&clock 149>;
+		clocks = <&clock CLK_SDMMC4>, <&clock CLK_SCLK_MMC4>;
 		clock-names = "biu", "ciu";
 		status = "disabled";
 	};

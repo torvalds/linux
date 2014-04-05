@@ -10,6 +10,7 @@
  */
 
 #include "ste-dbx5x0.dtsi"
+#include "ste-href-ab8500.dtsi"
 #include "ste-href.dtsi"
 
 / {

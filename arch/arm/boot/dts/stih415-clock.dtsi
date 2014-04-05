@@ -34,5 +34,19 @@
 			compatible = "fixed-clock";
 			clock-frequency = <100000000>;
 		};
+
+		CLKS_GMAC0_PHY: clockgenA1@7 {
+			#clock-cells = <0>;
+			compatible = "fixed-clock";
+			clock-frequency = <25000000>;
+			clock-output-names = "CLKS_GMAC0_PHY";
+		};
+
+		CLKS_ETH1_PHY: clockgenA0@7 {
+			#clock-cells = <0>;
+			compatible = "fixed-clock";
+			clock-frequency = <25000000>;
+			clock-output-names = "CLKS_ETH1_PHY";
+		};
 	};
 };

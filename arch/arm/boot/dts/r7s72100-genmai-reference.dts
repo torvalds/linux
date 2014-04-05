@@ -9,7 +9,7 @@
  */
 
 /dts-v1/;
-/include/ "r7s72100.dtsi"
+#include "r7s72100.dtsi"
 
 / {
 	model = "Genmai";
@@ -27,5 +27,16 @@
 	lbsc {
 		#address-cells = <1>;
 		#size-cells = <1>;
+	};
+};
+
+&i2c2 {
+	status = "okay";
+	clock-frequency = <400000>;
+
+	eeprom@50 {
+		compatible = "renesas,24c128";
+		reg = <0x50>;
+		pagesize = <64>;
 	};
 };

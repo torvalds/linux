@@ -127,17 +127,21 @@
 
 	regulators {
 		compatible = "simple-bus";
+		#address-cells = <1>;
+		#size-cells = <0>;
 
-		reg_vddio_sd0: vddio-sd0 {
+		reg_vddio_sd0: regulator@0 {
 			compatible = "regulator-fixed";
+			reg = <0>;
 			regulator-name = "vddio-sd0";
 			regulator-min-microvolt = <3300000>;
 			regulator-max-microvolt = <3300000>;
 			gpio = <&gpio1 29 0>;
 		};
 
-		reg_lcd_3v3: lcd-3v3 {
+		reg_lcd_3v3: regulator@1 {
 			compatible = "regulator-fixed";
+			reg = <1>;
 			regulator-name = "lcd-3v3";
 			regulator-min-microvolt = <3300000>;
 			regulator-max-microvolt = <3300000>;

@@ -1,0 +1,15 @@
+SAMSUNG Exynos SoC series PMU Registers
+
+Properties:
+ - compatible : should contain two values. First value must be one from following list:
+		   - "samsung,exynos5250-pmu" - for Exynos5250 SoC,
+		   - "samsung,exynos5420-pmu" - for Exynos5420 SoC.
+		second value must be always "syscon".
+
+ - reg : offset and length of the register set.
+
+Example :
+pmu_system_controller: system-controller@10040000 {
+	compatible = "samsung,exynos5250-pmu", "syscon";
+	reg = <0x10040000 0x5000>;
+};

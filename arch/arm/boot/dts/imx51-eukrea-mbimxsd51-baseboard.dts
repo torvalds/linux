@@ -1,0 +1,175 @@
+/*
+ * Copyright 2013 Eukréa Electromatique <denis@eukrea.com>
+ *
+ * This program is free software; you can redistribute it and/or
+ * modify it under the terms of the GNU General Public License
+ * as published by the Free Software Foundation; either version 2
+ * of the License, or (at your option) any later version.
+ * This program is distributed in the hope that it will be useful,
+ * but WITHOUT ANY WARRANTY; without even the implied warranty of
+ * MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the
+ * GNU General Public License for more details.
+ *
+ * You should have received a copy of the GNU General Public License
+ * along with this program; if not, write to the Free Software
+ * Foundation, Inc., 51 Franklin Street, Fifth Floor, Boston,
+ * MA 02110-1301, USA.
+ */
+
+/dts-v1/;
+#include "imx51-eukrea-cpuimx51.dtsi"
+#include <dt-bindings/gpio/gpio.h>
+
+/ {
+	model = "Eukrea CPUIMX51";
+	compatible = "eukrea,mbimxsd51","eukrea,cpuimx51", "fsl,imx51";
+
+	gpio_keys {
+		compatible = "gpio-keys";
+		pinctrl-names = "default";
+		pinctrl-0 = <&pinctrl_gpiokeys_1>;
+
+		button-1 {
+			label = "BP1";
+			gpios = <&gpio3 31 GPIO_ACTIVE_LOW>;
+			linux,code = <256>;
+			gpio-key,wakeup;
+			linux,input-type = <1>;
+		};
+	};
+
+	leds {
+		compatible = "gpio-leds";
+		pinctrl-names = "default";
+		pinctrl-0 = <&pinctrl_gpioled>;
+
+		led1 {
+			label = "led1";
+			gpios = <&gpio3 30 GPIO_ACTIVE_LOW>;
+			linux,default-trigger = "heartbeat";
+		};
+	};
+
+	sound {
+		compatible = "eukrea,asoc-tlv320";
+		eukrea,model = "imx51-eukrea-tlv320aic23";
+		ssi-controller = <&ssi2>;
+		fsl,mux-int-port = <2>;
+		fsl,mux-ext-port = <3>;
+	};
+};
+
+&audmux {
+	pinctrl-names = "default";
+	pinctrl-0 = <&pinctrl_audmux>;
+	status = "okay";
+};
+
+&esdhc1 {
+	pinctrl-names = "default";
+	pinctrl-0 = <&pinctrl_esdhc1 &pinctrl_esdhc1_cd>;
+	fsl,cd-controller;
+	status = "okay";
+};
+
+&i2c1 {
+	tlv320aic23: codec@1a {
+		compatible = "ti,tlv320aic23";
+		reg = <0x1a>;
+	};
+};
+
+&iomuxc {
+	imx51-eukrea {
+		pinctrl_audmux: audmuxgrp {
+			fsl,pins = <
+				MX51_PAD_AUD3_BB_TXD__AUD3_TXD		0x80000000
+				MX51_PAD_AUD3_BB_RXD__AUD3_RXD		0x80000000
+				MX51_PAD_AUD3_BB_CK__AUD3_TXC		0x80000000
+				MX51_PAD_AUD3_BB_FS__AUD3_TXFS		0x80000000
+			>;
+		};
+
+		pinctrl_esdhc1: esdhc1grp {
+			fsl,pins = <
+				MX51_PAD_SD1_CMD__SD1_CMD		0x400020d5
+				MX51_PAD_SD1_CLK__SD1_CLK		0x20d5
+				MX51_PAD_SD1_DATA0__SD1_DATA0		0x20d5
+				MX51_PAD_SD1_DATA1__SD1_DATA1		0x20d5
+				MX51_PAD_SD1_DATA2__SD1_DATA2		0x20d5
+				MX51_PAD_SD1_DATA3__SD1_DATA3		0x20d5
+			>;
+		};
+
+		pinctrl_uart1: uart1grp {
+			fsl,pins = <
+				MX51_PAD_UART1_RXD__UART1_RXD		0x1c5
+				MX51_PAD_UART1_TXD__UART1_TXD		0x1c5
+			>;
+		};
+
+		pinctrl_uart3: uart3grp {
+			fsl,pins = <
+				MX51_PAD_UART3_RXD__UART3_RXD		0x1c5
+				MX51_PAD_UART3_TXD__UART3_TXD		0x1c5
+			>;
+		};
+
+		pinctrl_uart3_rtscts: uart3rtsctsgrp {
+			fsl,pins = <
+				MX51_PAD_KEY_COL4__UART3_RTS		0x1c5
+				MX51_PAD_KEY_COL5__UART3_CTS		0x1c5
+			>;
+		};
+
+		pinctrl_backlight_1: backlightgrp-1 {
+			fsl,pins = <
+				MX51_PAD_DI1_D1_CS__GPIO3_4 0x1f5
+			>;
+		};
+
+		pinctrl_esdhc1_cd: esdhc1_cd {
+			fsl,pins = <
+				MX51_PAD_GPIO1_0__SD1_CD 0x20d5
+			>;
+		};
+
+		pinctrl_gpiokeys_1: gpiokeysgrp-1 {
+			fsl,pins = <
+				MX51_PAD_NANDF_D9__GPIO3_31 0x1f5
+			>;
+		};
+
+		pinctrl_gpioled: gpioledgrp-1 {
+			fsl,pins = <
+				MX51_PAD_NANDF_D10__GPIO3_30 0x80000000
+			>;
+		};
+
+		pinctrl_reg_lcd_3v3: reg_lcd_3v3 {
+			fsl,pins = <
+				MX51_PAD_CSI1_D9__GPIO3_13 0x1f5
+			>;
+		};
+	};
+};
+
+&ssi2 {
+	codec-handle = <&tlv320aic23>;
+	fsl,mode = "i2s-slave";
+	status = "okay";
+};
+
+&uart1 {
+	pinctrl-names = "default";
+	pinctrl-0 = <&pinctrl_uart1>;
+	fsl,uart-has-rtscts;
+	status = "okay";
+};
+
+&uart3 {
+	pinctrl-names = "default";
+	pinctrl-0 = <&pinctrl_uart3 &pinctrl_uart3_rtscts>;
+	fsl,uart-has-rtscts;
+	status = "okay";
+};

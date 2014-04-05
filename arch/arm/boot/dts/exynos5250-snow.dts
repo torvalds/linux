@@ -20,6 +20,10 @@
 		i2c104 = &i2c_104;
 	};
 
+	rtc@101E0000 {
+		status = "okay";
+	};
+
 	pinctrl@11400000 {
 		sd3_clk: sd3-clk {
 			samsung,pin-drv = <0>;
