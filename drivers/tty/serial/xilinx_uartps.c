@@ -1031,17 +1031,21 @@ static struct uart_port xuartps_port[2];
  * xuartps_get_port - Configure the port from the platform device resource
  *			info
  *
+ * @id: Port id
+ *
  * Return: a pointer to a uart_port or NULL for failure
  */
-static struct uart_port *xuartps_get_port(void)
+static struct uart_port *xuartps_get_port(int id)
 {
 	struct uart_port *port;
-	int id;
 
-	/* Find the next unused port */
-	for (id = 0; id < XUARTPS_NR_PORTS; id++)
-		if (xuartps_port[id].mapbase == 0)
-			break;
+	/* Try the given port id if failed use default method */
+	if (xuartps_port[id].mapbase != 0) {
+		/* Find the next unused port */
+		for (id = 0; id < XUARTPS_NR_PORTS; id++)
+			if (xuartps_port[id].mapbase == 0)
+				break;
+	}
 
 	if (id >= XUARTPS_NR_PORTS)
 		return NULL;
@@ -1329,7 +1333,7 @@ static SIMPLE_DEV_PM_OPS(xuartps_dev_pm_ops, xuartps_suspend, xuartps_resume);
  */
 static int xuartps_probe(struct platform_device *pdev)
 {
-	int rc;
+	int rc, id;
 	struct uart_port *port;
 	struct resource *res, *res2;
 	struct xuartps *xuartps_data;
@@ -1380,9 +1384,13 @@ static int xuartps_probe(struct platform_device *pdev)
 				&xuartps_data->clk_rate_change_nb))
 		dev_warn(&pdev->dev, "Unable to register clock notifier.\n");
 #endif
+	/* Look for a serialN alias */
+	id = of_alias_get_id(pdev->dev.of_node, "serial");
+	if (id < 0)
+		id = 0;
 
 	/* Initialize the port structure */
-	port = xuartps_get_port();
+	port = xuartps_get_port(id);
 
 	if (!port) {
 		dev_err(&pdev->dev, "Cannot get uart_port structure\n");
