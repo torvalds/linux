@@ -1,7 +1,7 @@
 /*
  * This file is part of the Linux kernel.
  *
- * Copyright (c) 2011, Intel Corporation
+ * Copyright (c) 2011-2014, Intel Corporation
  * Authors: Fenghua Yu <fenghua.yu@intel.com>,
  *          H. Peter Anvin <hpa@linux.intel.com>
  *
@@ -31,10 +31,13 @@
 #define RDRAND_RETRY_LOOPS	10
 
 #define RDRAND_INT	".byte 0x0f,0xc7,0xf0"
+#define RDSEED_INT	".byte 0x0f,0xc7,0xf8"
 #ifdef CONFIG_X86_64
 # define RDRAND_LONG	".byte 0x48,0x0f,0xc7,0xf0"
+# define RDSEED_LONG	".byte 0x48,0x0f,0xc7,0xf8"
 #else
 # define RDRAND_LONG	RDRAND_INT
+# define RDSEED_LONG	RDSEED_INT
 #endif
 
 #ifdef CONFIG_ARCH_RANDOM
@@ -50,6 +53,16 @@ static inline int rdrand_long(unsigned long *v)
 		     "2:"
 		     : "=r" (ok), "=a" (*v)
 		     : "0" (RDRAND_RETRY_LOOPS));
+	return ok;
+}
+
+/* A single attempt at RDSEED */
+static inline bool rdseed_long(unsigned long *v)
+{
+	unsigned char ok;
+	asm volatile(RDSEED_LONG "\n\t"
+		     "setc %0"
+		     : "=qm" (ok), "=a" (*v));
 	return ok;
 }
 
@@ -70,21 +83,48 @@ static inline int name(type *v)					\
 	return ok;						\
 }
 
+#define GET_SEED(name, type, rdseed, nop)			\
+static inline int name(type *v)					\
+{								\
+	unsigned char ok;					\
+	alternative_io("movb $0, %0\n\t"			\
+		       nop,					\
+		       rdseed "\n\t"				\
+		       "setc %0",				\
+		       X86_FEATURE_RDSEED,                      \
+		       ASM_OUTPUT2("=q" (ok), "=a" (*v)));	\
+	return ok;						\
+}
+
 #ifdef CONFIG_X86_64
 
 GET_RANDOM(arch_get_random_long, unsigned long, RDRAND_LONG, ASM_NOP5);
 GET_RANDOM(arch_get_random_int, unsigned int, RDRAND_INT, ASM_NOP4);
+
+GET_SEED(arch_get_random_seed_long, unsigned long, RDSEED_LONG, ASM_NOP5);
+GET_SEED(arch_get_random_seed_int, unsigned int, RDSEED_INT, ASM_NOP4);
 
 #else
 
 GET_RANDOM(arch_get_random_long, unsigned long, RDRAND_LONG, ASM_NOP3);
 GET_RANDOM(arch_get_random_int, unsigned int, RDRAND_INT, ASM_NOP3);
 
+GET_SEED(arch_get_random_seed_long, unsigned long, RDSEED_LONG, ASM_NOP4);
+GET_SEED(arch_get_random_seed_int, unsigned int, RDSEED_INT, ASM_NOP4);
+
 #endif /* CONFIG_X86_64 */
+
+#define arch_has_random()	static_cpu_has(X86_FEATURE_RDRAND)
+#define arch_has_random_seed()	static_cpu_has(X86_FEATURE_RDSEED)
 
 #else
 
 static inline int rdrand_long(unsigned long *v)
+{
+	return 0;
+}
+
+static inline bool rdseed_long(unsigned long *v)
 {
 	return 0;
 }
