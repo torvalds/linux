@@ -673,7 +673,7 @@ static inline int usbctlx_cmd_completor_fn(struct usbctlx_completor *head)
 {
 	struct usbctlx_cmd_completor *complete;
 
-	complete = (struct usbctlx_cmd_completor *) head;
+	complete = (struct usbctlx_cmd_completor *)head;
 	return usbctlx_get_status(complete->cmdresp, complete->result);
 }
 
@@ -708,7 +708,7 @@ static int usbctlx_rrid_completor_fn(struct usbctlx_completor *head)
 	struct usbctlx_rrid_completor *complete;
 	hfa384x_rridresult_t rridresult;
 
-	complete = (struct usbctlx_rrid_completor *) head;
+	complete = (struct usbctlx_rrid_completor *)head;
 	usbctlx_get_rridresult(complete->rridresp, &rridresult);
 
 	/* Validate the length, note body len calculation in bytes */
@@ -2819,7 +2819,7 @@ void hfa384x_tx_timeout(wlandevice_t *wlandev)
 ----------------------------------------------------------------*/
 static void hfa384x_usbctlx_reaper_task(unsigned long data)
 {
-	hfa384x_t *hw = (hfa384x_t *) data;
+	hfa384x_t *hw = (hfa384x_t *)data;
 	struct list_head *entry;
 	struct list_head *temp;
 	unsigned long flags;
@@ -2856,7 +2856,7 @@ static void hfa384x_usbctlx_reaper_task(unsigned long data)
 ----------------------------------------------------------------*/
 static void hfa384x_usbctlx_completion_task(unsigned long data)
 {
-	hfa384x_t *hw = (hfa384x_t *) data;
+	hfa384x_t *hw = (hfa384x_t *)data;
 	struct list_head *entry;
 	struct list_head *temp;
 	unsigned long flags;
@@ -3128,7 +3128,7 @@ static void hfa384x_usbin_callback(struct urb *urb)
 {
 	wlandevice_t *wlandev = urb->context;
 	hfa384x_t *hw;
-	hfa384x_usbin_t *usbin = (hfa384x_usbin_t *) urb->transfer_buffer;
+	hfa384x_usbin_t *usbin = (hfa384x_usbin_t *)urb->transfer_buffer;
 	struct sk_buff *skb = NULL;
 	int result;
 	int urb_status;
@@ -3456,7 +3456,7 @@ static void hfa384x_usbin_txcompl(wlandevice_t *wlandev,
 ----------------------------------------------------------------*/
 static void hfa384x_usbin_rx(wlandevice_t *wlandev, struct sk_buff *skb)
 {
-	hfa384x_usbin_t *usbin = (hfa384x_usbin_t *) skb->data;
+	hfa384x_usbin_t *usbin = (hfa384x_usbin_t *)skb->data;
 	hfa384x_t *hw = wlandev->priv;
 	int hdrlen;
 	struct p80211_rxmeta *rxmeta;
@@ -3601,7 +3601,7 @@ static void hfa384x_int_rxmonitor(wlandevice_t *wlandev,
 		struct p80211_caphdr *caphdr;
 		/* The NEW header format! */
 		datap = skb_put(skb, sizeof(struct p80211_caphdr));
-		caphdr = (struct p80211_caphdr *) datap;
+		caphdr = (struct p80211_caphdr *)datap;
 
 		caphdr->version = htonl(P80211CAPTURE_VERSION);
 		caphdr->length = htonl(sizeof(struct p80211_caphdr));
@@ -3896,7 +3896,7 @@ delresp:
 ----------------------------------------------------------------*/
 static void hfa384x_usbctlx_reqtimerfn(unsigned long data)
 {
-	hfa384x_t *hw = (hfa384x_t *) data;
+	hfa384x_t *hw = (hfa384x_t *)data;
 	unsigned long flags;
 
 	spin_lock_irqsave(&hw->ctlxq.lock, flags);
@@ -3954,7 +3954,7 @@ static void hfa384x_usbctlx_reqtimerfn(unsigned long data)
 ----------------------------------------------------------------*/
 static void hfa384x_usbctlx_resptimerfn(unsigned long data)
 {
-	hfa384x_t *hw = (hfa384x_t *) data;
+	hfa384x_t *hw = (hfa384x_t *)data;
 	unsigned long flags;
 
 	spin_lock_irqsave(&hw->ctlxq.lock, flags);
@@ -3993,7 +3993,7 @@ static void hfa384x_usbctlx_resptimerfn(unsigned long data)
 ----------------------------------------------------------------*/
 static void hfa384x_usb_throttlefn(unsigned long data)
 {
-	hfa384x_t *hw = (hfa384x_t *) data;
+	hfa384x_t *hw = (hfa384x_t *)data;
 	unsigned long flags;
 
 	spin_lock_irqsave(&hw->ctlxq.lock, flags);
