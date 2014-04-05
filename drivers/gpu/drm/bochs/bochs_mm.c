@@ -441,8 +441,6 @@ void bochs_gem_free_object(struct drm_gem_object *obj)
 {
 	struct bochs_bo *bochs_bo = gem_to_bochs_bo(obj);
 
-	if (!bochs_bo)
-		return;
 	bochs_bo_unref(&bochs_bo);
 }
 
