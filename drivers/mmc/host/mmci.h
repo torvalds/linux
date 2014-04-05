@@ -38,10 +38,11 @@
 #define MCI_CPSM_INTERRUPT	(1 << 8)
 #define MCI_CPSM_PENDING	(1 << 9)
 #define MCI_CPSM_ENABLE		(1 << 10)
-#define MCI_SDIO_SUSP		(1 << 11)
-#define MCI_ENCMD_COMPL		(1 << 12)
-#define MCI_NIEN		(1 << 13)
-#define MCI_CE_ATACMD		(1 << 14)
+/* Argument flag extenstions in the ST Micro versions */
+#define MCI_ST_SDIO_SUSP	(1 << 11)
+#define MCI_ST_ENCMD_COMPL	(1 << 12)
+#define MCI_ST_NIEN		(1 << 13)
+#define MCI_ST_CE_ATACMD	(1 << 14)
 
 #define MMCIRESPCMD		0x010
 #define MMCIRESPONSE0		0x014
