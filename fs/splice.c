@@ -738,7 +738,7 @@ static int pipe_to_sendpage(struct pipe_inode_info *pipe,
  * SPLICE_F_MOVE isn't set, or we cannot move the page, we simply create
  * a new page in the output file page cache and fill/dirty that.
  */
-int pipe_to_file(struct pipe_inode_info *pipe, struct pipe_buffer *buf,
+static int pipe_to_file(struct pipe_inode_info *pipe, struct pipe_buffer *buf,
 		 struct splice_desc *sd)
 {
 	struct file *file = sd->u.file;
@@ -773,7 +773,6 @@ int pipe_to_file(struct pipe_inode_info *pipe, struct pipe_buffer *buf,
 out:
 	return ret;
 }
-EXPORT_SYMBOL(pipe_to_file);
 
 static void wakeup_pipe_writers(struct pipe_inode_info *pipe)
 {
@@ -803,7 +802,7 @@ static void wakeup_pipe_writers(struct pipe_inode_info *pipe)
  *    locking is required around copying the pipe buffers to the
  *    destination.
  */
-int splice_from_pipe_feed(struct pipe_inode_info *pipe, struct splice_desc *sd,
+static int splice_from_pipe_feed(struct pipe_inode_info *pipe, struct splice_desc *sd,
 			  splice_actor *actor)
 {
 	int ret;
@@ -850,7 +849,6 @@ int splice_from_pipe_feed(struct pipe_inode_info *pipe, struct splice_desc *sd,
 
 	return 1;
 }
-EXPORT_SYMBOL(splice_from_pipe_feed);
 
 /**
  * splice_from_pipe_next - wait for some data to splice from
@@ -862,7 +860,7 @@ EXPORT_SYMBOL(splice_from_pipe_feed);
  *    value (one) if pipe buffers are available.  It will return zero
  *    or -errno if no more data needs to be spliced.
  */
-int splice_from_pipe_next(struct pipe_inode_info *pipe, struct splice_desc *sd)
+static int splice_from_pipe_next(struct pipe_inode_info *pipe, struct splice_desc *sd)
 {
 	while (!pipe->nrbufs) {
 		if (!pipe->writers)
@@ -887,7 +885,6 @@ int splice_from_pipe_next(struct pipe_inode_info *pipe, struct splice_desc *sd)
 
 	return 1;
 }
-EXPORT_SYMBOL(splice_from_pipe_next);
 
 /**
  * splice_from_pipe_begin - start splicing from pipe
@@ -898,12 +895,11 @@ EXPORT_SYMBOL(splice_from_pipe_next);
  *    splice_from_pipe_next() and splice_from_pipe_feed() to
  *    initialize the necessary fields of @sd.
  */
-void splice_from_pipe_begin(struct splice_desc *sd)
+static void splice_from_pipe_begin(struct splice_desc *sd)
 {
 	sd->num_spliced = 0;
 	sd->need_wakeup = false;
 }
-EXPORT_SYMBOL(splice_from_pipe_begin);
 
 /**
  * splice_from_pipe_end - finish splicing from pipe
@@ -915,12 +911,11 @@ EXPORT_SYMBOL(splice_from_pipe_begin);
  *    be called after a loop containing splice_from_pipe_next() and
  *    splice_from_pipe_feed().
  */
-void splice_from_pipe_end(struct pipe_inode_info *pipe, struct splice_desc *sd)
+static void splice_from_pipe_end(struct pipe_inode_info *pipe, struct splice_desc *sd)
 {
 	if (sd->need_wakeup)
 		wakeup_pipe_writers(pipe);
 }
-EXPORT_SYMBOL(splice_from_pipe_end);
 
 /**
  * __splice_from_pipe - splice data from a pipe to given actor
