@@ -328,8 +328,6 @@ ssize_t nfs_file_write(struct kiocb *, struct iov_iter *);
 int nfs_file_release(struct inode *, struct file *);
 int nfs_lock(struct file *, int, struct file_lock *);
 int nfs_flock(struct file *, int, struct file_lock *);
-ssize_t nfs_file_splice_write(struct pipe_inode_info *, struct file *, loff_t *,
-			      size_t, unsigned int);
 int nfs_check_flags(int);
 int nfs_setlease(struct file *, long, struct file_lock **);
 

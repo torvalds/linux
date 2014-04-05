@@ -690,36 +690,6 @@ out_swapfile:
 }
 EXPORT_SYMBOL_GPL(nfs_file_write);
 
-ssize_t nfs_file_splice_write(struct pipe_inode_info *pipe,
-			      struct file *filp, loff_t *ppos,
-			      size_t count, unsigned int flags)
-{
-	struct inode *inode = file_inode(filp);
-	unsigned long written = 0;
-	ssize_t ret;
-
-	dprintk("NFS splice_write(%pD2, %lu@%llu)\n",
-		filp, (unsigned long) count, (unsigned long long) *ppos);
-
-	/*
-	 * The combination of splice and an O_APPEND destination is disallowed.
-	 */
-
-	ret = generic_file_splice_write(pipe, filp, ppos, count, flags);
-	if (ret > 0)
-		written = ret;
-
-	if (ret >= 0 && nfs_need_sync_write(filp, inode)) {
-		int err = vfs_fsync(filp, 0);
-		if (err < 0)
-			ret = err;
-	}
-	if (ret > 0)
-		nfs_add_stats(inode, NFSIOS_NORMALWRITTENBYTES, written);
-	return ret;
-}
-EXPORT_SYMBOL_GPL(nfs_file_splice_write);
-
 static int
 do_getlk(struct file *filp, int cmd, struct file_lock *fl, int is_local)
 {
@@ -950,7 +920,7 @@ const struct file_operations nfs_file_operations = {
 	.lock		= nfs_lock,
 	.flock		= nfs_flock,
 	.splice_read	= nfs_file_splice_read,
-	.splice_write	= nfs_file_splice_write,
+	.splice_write	= iter_file_splice_write,
 	.check_flags	= nfs_check_flags,
 	.setlease	= nfs_setlease,
 };
