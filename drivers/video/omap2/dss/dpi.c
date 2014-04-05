@@ -307,22 +307,21 @@ static int dpi_set_mode(struct omap_overlay_manager *mgr)
 	int r = 0;
 
 	if (dpi.dsidev)
-		r = dpi_set_dsi_clk(mgr->id, t->pixel_clock * 1000, &fck,
+		r = dpi_set_dsi_clk(mgr->id, t->pixelclock, &fck,
 				&lck_div, &pck_div);
 	else
-		r = dpi_set_dispc_clk(t->pixel_clock * 1000, &fck,
+		r = dpi_set_dispc_clk(t->pixelclock, &fck,
 				&lck_div, &pck_div);
 	if (r)
 		return r;
 
-	pck = fck / lck_div / pck_div / 1000;
+	pck = fck / lck_div / pck_div;
 
-	if (pck != t->pixel_clock) {
-		DSSWARN("Could not find exact pixel clock. "
-				"Requested %d kHz, got %lu kHz\n",
-				t->pixel_clock, pck);
+	if (pck != t->pixelclock) {
+		DSSWARN("Could not find exact pixel clock. Requested %d Hz, got %lu Hz\n",
+			t->pixelclock, pck);
 
-		t->pixel_clock = pck;
+		t->pixelclock = pck;
 	}
 
 	dss_mgr_set_timings(mgr, t);
@@ -480,17 +479,17 @@ static int dpi_check_timings(struct omap_dss_device *dssdev,
 	if (mgr && !dispc_mgr_timings_ok(mgr->id, timings))
 		return -EINVAL;
 
-	if (timings->pixel_clock == 0)
+	if (timings->pixelclock == 0)
 		return -EINVAL;
 
 	if (dpi.dsidev) {
-		ok = dpi_dsi_clk_calc(timings->pixel_clock * 1000, &ctx);
+		ok = dpi_dsi_clk_calc(timings->pixelclock, &ctx);
 		if (!ok)
 			return -EINVAL;
 
 		fck = ctx.dsi_cinfo.dsi_pll_hsdiv_dispc_clk;
 	} else {
-		ok = dpi_dss_clk_calc(timings->pixel_clock * 1000, &ctx);
+		ok = dpi_dss_clk_calc(timings->pixelclock, &ctx);
 		if (!ok)
 			return -EINVAL;
 
@@ -500,9 +499,9 @@ static int dpi_check_timings(struct omap_dss_device *dssdev,
 	lck_div = ctx.dispc_cinfo.lck_div;
 	pck_div = ctx.dispc_cinfo.pck_div;
 
-	pck = fck / lck_div / pck_div / 1000;
+	pck = fck / lck_div / pck_div;
 
-	timings->pixel_clock = pck;
+	timings->pixelclock = pck;
 
 	return 0;
 }

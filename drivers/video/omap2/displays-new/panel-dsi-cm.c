@@ -1184,7 +1184,7 @@ static int dsicm_probe(struct platform_device *pdev)
 
 	ddata->timings.x_res = 864;
 	ddata->timings.y_res = 480;
-	ddata->timings.pixel_clock = DIV_ROUND_UP(864 * 480 * 60, 1000);
+	ddata->timings.pixelclock = 864 * 480 * 60;
 
 	dssdev = &ddata->dssdev;
 	dssdev->dev = dev;

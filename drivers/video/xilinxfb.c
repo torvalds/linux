@@ -33,7 +33,6 @@
 #include <linux/of_platform.h>
 #include <linux/of_address.h>
 #include <linux/io.h>
-#include <linux/xilinxfb.h>
 #include <linux/slab.h>
 
 #ifdef CONFIG_PPC_DCR
@@ -83,6 +82,20 @@
 #define BLUE_SHIFT	0
 
 #define PALETTE_ENTRIES_NO	16	/* passed to fb_alloc_cmap() */
+
+/* ML300/403 reference design framebuffer driver platform data struct */
+struct xilinxfb_platform_data {
+	u32 rotate_screen;      /* Flag to rotate display 180 degrees */
+	u32 screen_height_mm;   /* Physical dimensions of screen in mm */
+	u32 screen_width_mm;
+	u32 xres, yres;         /* resolution of screen in pixels */
+	u32 xvirt, yvirt;       /* resolution of memory buffer */
+
+	/* Physical address of framebuffer memory; If non-zero, driver
+	* will use provided memory address instead of allocating one from
+	* the consistent pool. */
+	u32 fb_phys;
+};
 
 /*
  * Default xilinxfb configuration

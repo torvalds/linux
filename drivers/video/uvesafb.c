@@ -1474,12 +1474,7 @@ static void uvesafb_init_info(struct fb_info *info, struct vbe_mode_ib *mode)
 	 *                 used video mode, i.e. the minimum amount of
 	 *                 memory we need.
 	 */
-	if (mode != NULL) {
-		size_vmode = info->var.yres * mode->bytes_per_scan_line;
-	} else {
-		size_vmode = info->var.yres * info->var.xres *
-			     ((info->var.bits_per_pixel + 7) >> 3);
-	}
+	size_vmode = info->var.yres * mode->bytes_per_scan_line;
 
 	/*
 	 *   size_total -- all video memory we have. Used for mtrr
@@ -1812,11 +1807,9 @@ static int uvesafb_remove(struct platform_device *dev)
 		fb_destroy_modedb(info->monspecs.modedb);
 		fb_dealloc_cmap(&info->cmap);
 
-		if (par) {
-			kfree(par->vbe_modes);
-			kfree(par->vbe_state_orig);
-			kfree(par->vbe_state_saved);
-		}
+		kfree(par->vbe_modes);
+		kfree(par->vbe_state_orig);
+		kfree(par->vbe_state_saved);
 
 		framebuffer_release(info);
 	}

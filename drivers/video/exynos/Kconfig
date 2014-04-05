@@ -31,7 +31,7 @@ config EXYNOS_LCD_S6E8AX0
 
 config EXYNOS_DP
 	bool "EXYNOS DP driver support"
-	depends on OF && ARCH_EXYNOS
+	depends on ARCH_EXYNOS
 	default n
 	help
 	  This enables support for DP device.
