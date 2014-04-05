@@ -19,12 +19,21 @@ struct kvec {
 	size_t iov_len;
 };
 
+enum {
+	ITER_IOVEC = 0,
+	ITER_KVEC = 2,
+	ITER_BVEC = 4,
+};
+
 struct iov_iter {
 	int type;
-	const struct iovec *iov;
-	unsigned long nr_segs;
 	size_t iov_offset;
 	size_t count;
+	union {
+		const struct iovec *iov;
+		const struct bio_vec *bvec;
+	};
+	unsigned long nr_segs;
 };
 
 /*
@@ -54,6 +63,7 @@ static inline struct iovec iov_iter_iovec(const struct iov_iter *iter)
 }
 
 #define iov_for_each(iov, iter, start)				\
+	if (!((start).type & ITER_BVEC))			\
 	for (iter = (start);					\
 	     (iter).count &&					\
 	     ((iov = iov_iter_iovec(&(iter))), 1);		\

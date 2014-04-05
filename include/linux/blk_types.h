@@ -5,8 +5,6 @@
 #ifndef __LINUX_BLK_TYPES_H
 #define __LINUX_BLK_TYPES_H
 
-#ifdef CONFIG_BLOCK
-
 #include <linux/types.h>
 
 struct bio_set;
@@ -27,6 +25,8 @@ struct bio_vec {
 	unsigned int	bv_len;
 	unsigned int	bv_offset;
 };
+
+#ifdef CONFIG_BLOCK
 
 struct bvec_iter {
 	sector_t		bi_sector;	/* device address in 512 byte
