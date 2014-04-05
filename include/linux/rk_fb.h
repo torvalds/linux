@@ -299,6 +299,7 @@ struct rk_lcdc_win {
 	char name[5];
 	int id;
 	bool state;		/*on or off*/
+	bool last_state;		/*on or off*/
 	u32 pseudo_pal[16];
 	enum data_format format;
 	int z_order;		/*win sel layer*/
