@@ -4100,8 +4100,8 @@ static int ixgbe_hpbthresh(struct ixgbe_adapter *adapter, int pb)
 	    (tc < IXGBE_FCOE_JUMBO_FRAME_SIZE) &&
 	    (pb == ixgbe_fcoe_get_tc(adapter)))
 		tc = IXGBE_FCOE_JUMBO_FRAME_SIZE;
-
 #endif
+
 	/* Calculate delay value for device */
 	switch (hw->mac.type) {
 	case ixgbe_mac_X540:
@@ -4142,7 +4142,7 @@ static int ixgbe_hpbthresh(struct ixgbe_adapter *adapter, int pb)
  * @adapter: board private structure to calculate for
  * @pb: packet buffer to calculate
  */
-static int ixgbe_lpbthresh(struct ixgbe_adapter *adapter)
+static int ixgbe_lpbthresh(struct ixgbe_adapter *adapter, int pb)
 {
 	struct ixgbe_hw *hw = &adapter->hw;
 	struct net_device *dev = adapter->netdev;
@@ -4151,6 +4151,14 @@ static int ixgbe_lpbthresh(struct ixgbe_adapter *adapter)
 
 	/* Calculate max LAN frame size */
 	tc = dev->mtu + ETH_HLEN + ETH_FCS_LEN;
+
+#ifdef IXGBE_FCOE
+	/* FCoE traffic class uses FCOE jumbo frames */
+	if ((dev->features & NETIF_F_FCOE_MTU) &&
+	    (tc < IXGBE_FCOE_JUMBO_FRAME_SIZE) &&
+	    (pb == netdev_get_prio_tc_map(dev, adapter->fcoe.up)))
+		tc = IXGBE_FCOE_JUMBO_FRAME_SIZE;
+#endif
 
 	/* Calculate delay value for device */
 	switch (hw->mac.type) {
@@ -4178,15 +4186,17 @@ static void ixgbe_pbthresh_setup(struct ixgbe_adapter *adapter)
 	if (!num_tc)
 		num_tc = 1;
 
-	hw->fc.low_water = ixgbe_lpbthresh(adapter);
-
 	for (i = 0; i < num_tc; i++) {
 		hw->fc.high_water[i] = ixgbe_hpbthresh(adapter, i);
+		hw->fc.low_water[i] = ixgbe_lpbthresh(adapter, i);
 
 		/* Low water marks must not be larger than high water marks */
-		if (hw->fc.low_water > hw->fc.high_water[i])
-			hw->fc.low_water = 0;
+		if (hw->fc.low_water[i] > hw->fc.high_water[i])
+			hw->fc.low_water[i] = 0;
 	}
+
+	for (; i < MAX_TRAFFIC_CLASS; i++)
+		hw->fc.high_water[i] = 0;
 }
 
 static void ixgbe_configure_pb(struct ixgbe_adapter *adapter)

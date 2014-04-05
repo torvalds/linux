@@ -2746,7 +2746,7 @@ struct ixgbe_bus_info {
 /* Flow control parameters */
 struct ixgbe_fc_info {
 	u32 high_water[MAX_TRAFFIC_CLASS]; /* Flow Control High-water */
-	u32 low_water; /* Flow Control Low-water */
+	u32 low_water[MAX_TRAFFIC_CLASS]; /* Flow Control Low-water */
 	u16 pause_time; /* Flow Control Pause timer */
 	bool send_xon; /* Flow control send XON */
 	bool strict_ieee; /* Strict IEEE mode */

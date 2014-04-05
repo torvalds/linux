@@ -337,17 +337,23 @@ static s32 ixgbe_fc_enable_82598(struct ixgbe_hw *hw)
 	int i;
 	bool link_up;
 
-	/*
-	 * Validate the water mark configuration for packet buffer 0.  Zero
-	 * water marks indicate that the packet buffer was not configured
-	 * and the watermarks for packet buffer 0 should always be configured.
-	 */
-	if (!hw->fc.low_water ||
-	    !hw->fc.high_water[0] ||
-	    !hw->fc.pause_time) {
-		hw_dbg(hw, "Invalid water mark configuration\n");
+	/* Validate the water mark configuration */
+	if (!hw->fc.pause_time) {
 		ret_val = IXGBE_ERR_INVALID_LINK_SETTINGS;
 		goto out;
+	}
+
+	/* Low water mark of zero causes XOFF floods */
+	for (i = 0; i < MAX_TRAFFIC_CLASS; i++) {
+		if ((hw->fc.current_mode & ixgbe_fc_tx_pause) &&
+		    hw->fc.high_water[i]) {
+			if (!hw->fc.low_water[i] ||
+			    hw->fc.low_water[i] >= hw->fc.high_water[i]) {
+				hw_dbg(hw, "Invalid water mark configuration\n");
+				ret_val = IXGBE_ERR_INVALID_LINK_SETTINGS;
+				goto out;
+			}
+		}
 	}
 
 	/*
@@ -432,12 +438,11 @@ static s32 ixgbe_fc_enable_82598(struct ixgbe_hw *hw)
 	IXGBE_WRITE_REG(hw, IXGBE_FCTRL, fctrl_reg);
 	IXGBE_WRITE_REG(hw, IXGBE_RMCS, rmcs_reg);
 
-	fcrtl = (hw->fc.low_water << 10) | IXGBE_FCRTL_XONE;
-
 	/* Set up and enable Rx high/low water mark thresholds, enable XON. */
 	for (i = 0; i < MAX_TRAFFIC_CLASS; i++) {
 		if ((hw->fc.current_mode & ixgbe_fc_tx_pause) &&
 		    hw->fc.high_water[i]) {
+			fcrtl = (hw->fc.low_water[i] << 10) | IXGBE_FCRTL_XONE;
 			fcrth = (hw->fc.high_water[i] << 10) | IXGBE_FCRTH_FCEN;
 			IXGBE_WRITE_REG(hw, IXGBE_FCRTL(i), fcrtl);
 			IXGBE_WRITE_REG(hw, IXGBE_FCRTH(i), fcrth);
