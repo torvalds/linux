@@ -74,6 +74,7 @@ config SOC_DRA7XX
 	select ARM_CPU_SUSPEND if PM
 	select ARM_GIC
 	select HAVE_ARM_ARCH_TIMER
+	select IRQ_CROSSBAR
 
 config ARCH_OMAP2PLUS
 	bool

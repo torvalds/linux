@@ -42,6 +42,7 @@
 #include <linux/sys_soc.h>
 #include <linux/termios.h>
 #include <linux/sched_clock.h>
+#include <linux/clk-provider.h>
 
 #include <mach/hardware.h>
 #include <mach/platform.h>
@@ -402,10 +403,7 @@ static void __init ap_of_timer_init(void)
 	struct clk *clk;
 	unsigned long rate;
 
-	clk = clk_get_sys("ap_timer", NULL);
-	BUG_ON(IS_ERR(clk));
-	clk_prepare_enable(clk);
-	rate = clk_get_rate(clk);
+	of_clk_init(NULL);
 
 	err = of_property_read_string(of_aliases,
 				"arm,timer-primary", &path);
@@ -415,6 +413,12 @@ static void __init ap_of_timer_init(void)
 	base = of_iomap(node, 0);
 	if (WARN_ON(!base))
 		return;
+
+	clk = of_clk_get(node, 0);
+	BUG_ON(IS_ERR(clk));
+	clk_prepare_enable(clk);
+	rate = clk_get_rate(clk);
+
 	writel(0, base + TIMER_CTRL);
 	integrator_clocksource_init(rate, base);
 
@@ -427,6 +431,12 @@ static void __init ap_of_timer_init(void)
 	if (WARN_ON(!base))
 		return;
 	irq = irq_of_parse_and_map(node, 0);
+
+	clk = of_clk_get(node, 0);
+	BUG_ON(IS_ERR(clk));
+	clk_prepare_enable(clk);
+	rate = clk_get_rate(clk);
+
 	writel(0, base + TIMER_CTRL);
 	integrator_clockevent_init(rate, base, irq);
 }
@@ -440,7 +450,6 @@ static void __init ap_init_irq_of(void)
 {
 	cm_init();
 	of_irq_init(fpga_irq_of_match);
-	integrator_clk_init(false);
 }
 
 /* For the Device Tree, add in the UART callbacks as AUXDATA */
