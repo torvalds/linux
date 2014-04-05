@@ -1369,18 +1369,19 @@ config SERIAL_MXS_AUART_CONSOLE
 	  Enable a MXS AUART port to be the system console.
 
 config SERIAL_XILINX_PS_UART
-	tristate "Xilinx PS UART support"
+	tristate "Cadence (Xilinx Zynq) UART support"
 	depends on OF
 	select SERIAL_CORE
 	help
-	  This driver supports the Xilinx PS UART port.
+	  This driver supports the Cadence UART. It is found e.g. in Xilinx
+	  Zynq.
 
 config SERIAL_XILINX_PS_UART_CONSOLE
-	bool "Xilinx PS UART console support"
+	bool "Cadence UART console support"
 	depends on SERIAL_XILINX_PS_UART=y
 	select SERIAL_CORE_CONSOLE
 	help
-	  Enable a Xilinx PS UART port to be the system console.
+	  Enable a Cadence UART port to be the system console.
 
 config SERIAL_AR933X
 	tristate "AR933X serial port support"

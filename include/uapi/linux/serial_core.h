@@ -211,7 +211,7 @@
 /* VIA VT8500 SoC */
 #define PORT_VT8500	97
 
-/* Xilinx PSS UART */
+/* Cadence (Xilinx Zynq) UART */
 #define PORT_XUARTPS	98
 
 /* Atheros AR933X SoC */
