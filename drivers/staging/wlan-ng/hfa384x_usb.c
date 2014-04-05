@@ -714,10 +714,9 @@ static int usbctlx_rrid_completor_fn(struct usbctlx_completor *head)
 
 	/* Validate the length, note body len calculation in bytes */
 	if (rridresult.riddata_len != complete->riddatalen) {
-		printk(KERN_WARNING
-		       "RID len mismatch, rid=0x%04x hlen=%d fwlen=%d\n",
-		       rridresult.rid,
-		       complete->riddatalen, rridresult.riddata_len);
+		pr_warn("RID len mismatch, rid=0x%04x hlen=%d fwlen=%d\n",
+			rridresult.rid,
+			complete->riddatalen, rridresult.riddata_len);
 		return -ENODATA;
 	}
 
