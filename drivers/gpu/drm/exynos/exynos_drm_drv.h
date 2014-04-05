@@ -370,6 +370,7 @@ static inline int exynos_dpi_remove(struct device *dev) { return 0; }
 #endif
 
 extern struct platform_driver dp_driver;
+extern struct platform_driver dsi_driver;
 extern struct platform_driver fimd_driver;
 extern struct platform_driver hdmi_driver;
 extern struct platform_driver mixer_driver;

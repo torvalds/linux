@@ -39,6 +39,15 @@ config DRM_EXYNOS_DPI
 	help
 	  This enables support for Exynos parallel output.
 
+config DRM_EXYNOS_DSI
+	bool "EXYNOS DRM MIPI-DSI driver support"
+	depends on DRM_EXYNOS
+	select DRM_MIPI_DSI
+	select DRM_PANEL
+	default n
+	help
+	  This enables support for Exynos MIPI-DSI device.
+
 config DRM_EXYNOS_DP
 	bool "EXYNOS DRM DP driver support"
 	depends on DRM_EXYNOS && ARCH_EXYNOS
