@@ -2851,7 +2851,8 @@ static bool img_obj_request_simple(struct rbd_obj_request *obj_request)
 	rbd_dev = img_request->rbd_dev;
 
 	/* Reads */
-	if (!img_request_write_test(img_request))
+	if (!img_request_write_test(img_request) &&
+	    !img_request_discard_test(img_request))
 		return true;
 
 	/* Non-layered writes */
