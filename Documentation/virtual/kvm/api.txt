@@ -2066,7 +2066,7 @@ the "Server" class MMU emulation supported by KVM.
 This can in turn be used by userspace to generate the appropriate
 device-tree properties for the guest operating system.
 
-The structure contains some global informations, followed by an
+The structure contains some global information, followed by an
 array of supported segment page sizes:
 
       struct kvm_ppc_smmu_info {

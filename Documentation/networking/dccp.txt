@@ -86,7 +86,7 @@ built-in CCIDs.
 
 DCCP_SOCKOPT_CCID is write-only and sets both the TX and RX CCIDs at the same
 time, combining the operation of the next two socket options. This option is
-preferrable over the latter two, since often applications will use the same
+preferable over the latter two, since often applications will use the same
 type of CCID for both directions; and mixed use of CCIDs is not currently well
 understood. This socket option takes as argument at least one uint8_t value, or
 an array of uint8_t values, which must match available CCIDS (see above). CCIDs

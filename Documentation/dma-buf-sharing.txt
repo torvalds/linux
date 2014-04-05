@@ -217,7 +217,7 @@ NOTES:
     and then allow further {map,unmap}_dma_buf operations from any buffer-user
     from the migrated backing-storage.
 
-   If the exporter cannot fulfil the backing-storage constraints of the new
+   If the exporter cannot fulfill the backing-storage constraints of the new
    buffer-user device as requested, dma_buf_attach() would return an error to
    denote non-compatibility of the new buffer-sharing request with the current
    buffer.

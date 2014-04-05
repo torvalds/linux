@@ -73,9 +73,9 @@ Optional Properties (for standard pins):
 				Otherwise:
 					0: fast slew rate
 					1: normal slew rate
-- input-enable:			No arguements. Enable input (does not affect
+- input-enable:			No arguments. Enable input (does not affect
 				output.)
-- input-disable:		No arguements. Disable input (does not affect
+- input-disable:		No arguments. Disable input (does not affect
 				output.)
 - drive-strength:		Integer. Drive strength in mA.  Valid values are
 				2, 4, 6, 8, 10, 12, 14, 16 mA.
@@ -99,9 +99,9 @@ Optional Properties (for I2C pins):
 				Otherwise:
 					0: fast slew rate
 					1: normal slew rate
-- input-enable:			No arguements. Enable input (does not affect
+- input-enable:			No arguments. Enable input (does not affect
 				output.)
-- input-disable:		No arguements. Disable input (does not affect
+- input-disable:		No arguments. Disable input (does not affect
 				output.)
 
 Optional Properties (for HDMI pins):
@@ -111,9 +111,9 @@ Optional Properties (for HDMI pins):
 - slew-rate:			Integer. Controls slew rate.
 					0: Standard(100kbps)& Fast(400kbps) mode
 					1: Highspeed (3.4Mbps) mode
-- input-enable:			No arguements. Enable input (does not affect
+- input-enable:			No arguments. Enable input (does not affect
 				output.)
-- input-disable:		No arguements. Disable input (does not affect
+- input-disable:		No arguments. Disable input (does not affect
 				output.)
 
 Example:

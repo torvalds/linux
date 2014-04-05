@@ -360,13 +360,13 @@ on any tail page, would mean having to split all hugepages upfront in
 get_user_pages which is unacceptable as too many gup users are
 performance critical and they must work natively on hugepages like
 they work natively on hugetlbfs already (hugetlbfs is simpler because
-hugetlbfs pages cannot be splitted so there wouldn't be requirement of
+hugetlbfs pages cannot be split so there wouldn't be requirement of
 accounting the pins on the tail pages for hugetlbfs). If we wouldn't
 account the gup refcounts on the tail pages during gup, we won't know
 anymore which tail page is pinned by gup and which is not while we run
 split_huge_page. But we still have to add the gup pin to the head page
 too, to know when we can free the compound page in case it's never
-splitted during its lifetime. That requires changing not just
+split during its lifetime. That requires changing not just
 get_page, but put_page as well so that when put_page runs on a tail
 page (and only on a tail page) it will find its respective head page,
 and then it will decrease the head page refcount in addition to the

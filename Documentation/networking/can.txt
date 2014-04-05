@@ -706,7 +706,7 @@ solution for a couple of reasons:
 
     RX_NO_AUTOTIMER:    Prevent automatically starting the timeout monitor.
 
-    RX_ANNOUNCE_RESUME: If passed at RX_SETUP and a receive timeout occured, a
+    RX_ANNOUNCE_RESUME: If passed at RX_SETUP and a receive timeout occurred, a
       RX_CHANGED message will be generated when the (cyclic) receive restarts.
 
     TX_RESET_MULTI_IDX: Reset the index for the multiple frame transmission.
