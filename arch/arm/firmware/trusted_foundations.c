@@ -22,6 +22,15 @@
 
 #define TF_SET_CPU_BOOT_ADDR_SMC 0xfffff200
 
+#define TF_CPU_PM		0xfffffffc
+#define TF_CPU_PM_S3		0xffffffe3
+#define TF_CPU_PM_S2		0xffffffe6
+#define TF_CPU_PM_S2_NO_MC_CLK	0xffffffe5
+#define TF_CPU_PM_S1		0xffffffe4
+#define TF_CPU_PM_S1_NOFLUSH_L2	0xffffffe7
+
+static unsigned long cpu_boot_addr;
+
 static void __naked tf_generic_smc(u32 type, u32 arg1, u32 arg2)
 {
 	asm volatile(
@@ -41,13 +50,22 @@ static void __naked tf_generic_smc(u32 type, u32 arg1, u32 arg2)
 
 static int tf_set_cpu_boot_addr(int cpu, unsigned long boot_addr)
 {
-	tf_generic_smc(TF_SET_CPU_BOOT_ADDR_SMC, boot_addr, 0);
+	cpu_boot_addr = boot_addr;
+	tf_generic_smc(TF_SET_CPU_BOOT_ADDR_SMC, cpu_boot_addr, 0);
+
+	return 0;
+}
+
+static int tf_prepare_idle(void)
+{
+	tf_generic_smc(TF_CPU_PM, TF_CPU_PM_S1_NOFLUSH_L2, cpu_boot_addr);
 
 	return 0;
 }
 
 static const struct firmware_ops trusted_foundations_ops = {
 	.set_cpu_boot_addr = tf_set_cpu_boot_addr,
+	.prepare_idle = tf_prepare_idle,
 };
 
 void register_trusted_foundations(struct trusted_foundations_platform_data *pd)

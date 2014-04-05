@@ -8,7 +8,12 @@ The actual devices are instantiated from the child nodes of a WEIM node.
 
 Required properties:
 
- - compatible:		Should be set to "fsl,<soc>-weim"
+ - compatible:		Should contain one of the following:
+			  "fsl,imx1-weim"
+			  "fsl,imx27-weim"
+			  "fsl,imx51-weim"
+			  "fsl,imx50-weim"
+			  "fsl,imx6q-weim"
  - reg:			A resource specifier for the register space
 			(see the example below)
  - clocks:		the clock, see the example below.
@@ -18,6 +23,26 @@ Required properties:
 			integer values for each chip-select line in use:
 
 			   <cs-number> 0 <physical address of mapping> <size>
+
+Optional properties:
+
+ - fsl,weim-cs-gpr:	For "fsl,imx50-weim" and "fsl,imx6q-weim" type of
+			devices, it should be the phandle to the system General
+			Purpose Register controller that contains WEIM CS GPR
+			register, e.g. IOMUXC_GPR1 on i.MX6Q.  IOMUXC_GPR1[11:0]
+			should be set up as one of the following 4 possible
+			values depending on the CS space configuration.
+
+			IOMUXC_GPR1[11:0]    CS0    CS1    CS2    CS3
+			---------------------------------------------
+				05	    128M     0M     0M     0M
+				033          64M    64M     0M     0M
+				0113         64M    32M    32M     0M
+				01111        32M    32M    32M    32M
+
+			In case that the property is absent, the reset value or
+			what bootloader sets up in IOMUXC_GPR1[11:0] will be
+			used.
 
 Timing property for child nodes. It is mandatory, not optional.
 
@@ -43,6 +68,7 @@ Example for an imx6q-sabreauto board, the NOR flash connected to the WEIM:
 		#address-cells = <2>;
 		#size-cells = <1>;
 		ranges = <0 0 0x08000000 0x08000000>;
+		fsl,weim-cs-gpr = <&gpr>;
 
 		nor@0,0 {
 			compatible = "cfi-flash";

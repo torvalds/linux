@@ -25,10 +25,10 @@
 #include <asm/page.h>
 #include <asm/mach/map.h>
 #include <asm/mach/time.h>
+#include <asm/hardware/cache-feroceon-l2.h>
 #include <mach/kirkwood.h>
 #include <mach/bridge-regs.h>
 #include <linux/platform_data/asoc-kirkwood.h>
-#include <plat/cache-feroceon-l2.h>
 #include <linux/platform_data/mmc-mvsdio.h>
 #include <linux/platform_data/mtd-orion_nand.h>
 #include <linux/platform_data/usb-ehci-orion.h>
@@ -36,6 +36,7 @@
 #include <plat/time.h>
 #include <linux/platform_data/dma-mv_xor.h>
 #include "common.h"
+#include "pm.h"
 
 /* These can go away once Kirkwood uses the mvebu-mbus DT binding */
 #define KIRKWOOD_MBUS_NAND_TARGET 0x01

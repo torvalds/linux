@@ -1,0 +1,9 @@
+Marvell Armada 375 Platforms Device Tree Bindings
+-------------------------------------------------
+
+Boards with a SoC of the Marvell Armada 375 family shall have the
+following property:
+
+Required root node property:
+
+compatible: must contain "marvell,armada375"

@@ -11,30 +11,16 @@
  */
 
 #include <linux/init.h>
-#include <linux/of.h>
-#include <linux/of_platform.h>
 
 #include <asm/mach/arch.h>
-#include <asm/mach/map.h>
-
-extern struct smp_operations qcom_smp_ops;
 
 static const char * const qcom_dt_match[] __initconst = {
 	"qcom,msm8660-surf",
 	"qcom,msm8960-cdp",
-	NULL
-};
-
-static const char * const apq8074_dt_match[] __initconst = {
 	"qcom,apq8074-dragonboard",
 	NULL
 };
 
 DT_MACHINE_START(QCOM_DT, "Qualcomm (Flattened Device Tree)")
-	.smp = smp_ops(qcom_smp_ops),
 	.dt_compat = qcom_dt_match,
-MACHINE_END
-
-DT_MACHINE_START(APQ_DT, "Qualcomm (Flattened Device Tree)")
-	.dt_compat = apq8074_dt_match,
 MACHINE_END
