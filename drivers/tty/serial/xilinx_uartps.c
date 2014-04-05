@@ -437,9 +437,9 @@ static int xuartps_clk_notifier_cb(struct notifier_block *nb,
 		spin_lock_irqsave(&xuartps->port->lock, flags);
 
 		/* Disable the TX and RX to set baud rate */
-		xuartps_writel(xuartps_readl(XUARTPS_CR_OFFSET) |
-				(XUARTPS_CR_TX_DIS | XUARTPS_CR_RX_DIS),
-				XUARTPS_CR_OFFSET);
+		ctrl_reg = xuartps_readl(XUARTPS_CR_OFFSET);
+		ctrl_reg |= XUARTPS_CR_TX_DIS | XUARTPS_CR_RX_DIS;
+		xuartps_writel(ctrl_reg, XUARTPS_CR_OFFSET);
 
 		spin_unlock_irqrestore(&xuartps->port->lock, flags);
 
@@ -464,9 +464,9 @@ static int xuartps_clk_notifier_cb(struct notifier_block *nb,
 			spin_lock_irqsave(&xuartps->port->lock, flags);
 
 		/* Set TX/RX Reset */
-		xuartps_writel(xuartps_readl(XUARTPS_CR_OFFSET) |
-				(XUARTPS_CR_TXRST | XUARTPS_CR_RXRST),
-				XUARTPS_CR_OFFSET);
+		ctrl_reg = xuartps_readl(XUARTPS_CR_OFFSET);
+		ctrl_reg |= XUARTPS_CR_TXRST | XUARTPS_CR_RXRST;
+		xuartps_writel(ctrl_reg, XUARTPS_CR_OFFSET);
 
 		while (xuartps_readl(XUARTPS_CR_OFFSET) &
 				(XUARTPS_CR_TXRST | XUARTPS_CR_RXRST))
@@ -479,10 +479,9 @@ static int xuartps_clk_notifier_cb(struct notifier_block *nb,
 		 */
 		xuartps_writel(rx_timeout, XUARTPS_RXTOUT_OFFSET);
 		ctrl_reg = xuartps_readl(XUARTPS_CR_OFFSET);
-		xuartps_writel(
-			(ctrl_reg & ~(XUARTPS_CR_TX_DIS | XUARTPS_CR_RX_DIS)) |
-			(XUARTPS_CR_TX_EN | XUARTPS_CR_RX_EN),
-			XUARTPS_CR_OFFSET);
+		ctrl_reg &= ~(XUARTPS_CR_TX_DIS | XUARTPS_CR_RX_DIS);
+		ctrl_reg |= XUARTPS_CR_TX_EN | XUARTPS_CR_RX_EN;
+		xuartps_writel(ctrl_reg, XUARTPS_CR_OFFSET);
 
 		spin_unlock_irqrestore(&xuartps->port->lock, flags);
 
@@ -631,9 +630,9 @@ static void xuartps_set_termios(struct uart_port *port,
 	}
 
 	/* Disable the TX and RX to set baud rate */
-	xuartps_writel(xuartps_readl(XUARTPS_CR_OFFSET) |
-			(XUARTPS_CR_TX_DIS | XUARTPS_CR_RX_DIS),
-			XUARTPS_CR_OFFSET);
+	ctrl_reg = xuartps_readl(XUARTPS_CR_OFFSET);
+	ctrl_reg |= XUARTPS_CR_TX_DIS | XUARTPS_CR_RX_DIS;
+	xuartps_writel(ctrl_reg, XUARTPS_CR_OFFSET);
 
 	/*
 	 * Min baud rate = 6bps and Max Baud Rate is 10Mbps for 100Mhz clk
@@ -651,20 +650,18 @@ static void xuartps_set_termios(struct uart_port *port,
 	uart_update_timeout(port, termios->c_cflag, baud);
 
 	/* Set TX/RX Reset */
-	xuartps_writel(xuartps_readl(XUARTPS_CR_OFFSET) |
-			(XUARTPS_CR_TXRST | XUARTPS_CR_RXRST),
-			XUARTPS_CR_OFFSET);
-
 	ctrl_reg = xuartps_readl(XUARTPS_CR_OFFSET);
+	ctrl_reg |= XUARTPS_CR_TXRST | XUARTPS_CR_RXRST;
+	xuartps_writel(ctrl_reg, XUARTPS_CR_OFFSET);
 
 	/*
 	 * Clear the RX disable and TX disable bits and then set the TX enable
 	 * bit and RX enable bit to enable the transmitter and receiver.
 	 */
-	xuartps_writel(
-		(ctrl_reg & ~(XUARTPS_CR_TX_DIS | XUARTPS_CR_RX_DIS))
-			| (XUARTPS_CR_TX_EN | XUARTPS_CR_RX_EN),
-			XUARTPS_CR_OFFSET);
+	ctrl_reg = xuartps_readl(XUARTPS_CR_OFFSET);
+	ctrl_reg &= ~(XUARTPS_CR_TX_DIS | XUARTPS_CR_RX_DIS);
+	ctrl_reg |= XUARTPS_CR_TX_EN | XUARTPS_CR_RX_EN;
+	xuartps_writel(ctrl_reg, XUARTPS_CR_OFFSET);
 
 	xuartps_writel(rx_timeout, XUARTPS_RXTOUT_OFFSET);
 
@@ -1248,9 +1245,9 @@ static int xuartps_resume(struct device *device)
 		spin_lock_irqsave(&port->lock, flags);
 
 		/* Set TX/RX Reset */
-		xuartps_writel(xuartps_readl(XUARTPS_CR_OFFSET) |
-				(XUARTPS_CR_TXRST | XUARTPS_CR_RXRST),
-				XUARTPS_CR_OFFSET);
+		ctrl_reg = xuartps_readl(XUARTPS_CR_OFFSET);
+		ctrl_reg |= XUARTPS_CR_TXRST | XUARTPS_CR_RXRST;
+		xuartps_writel(ctrl_reg, XUARTPS_CR_OFFSET);
 		while (xuartps_readl(XUARTPS_CR_OFFSET) &
 				(XUARTPS_CR_TXRST | XUARTPS_CR_RXRST))
 			cpu_relax();
@@ -1259,10 +1256,9 @@ static int xuartps_resume(struct device *device)
 		xuartps_writel(rx_timeout, XUARTPS_RXTOUT_OFFSET);
 		/* Enable Tx/Rx */
 		ctrl_reg = xuartps_readl(XUARTPS_CR_OFFSET);
-		xuartps_writel(
-			(ctrl_reg & ~(XUARTPS_CR_TX_DIS | XUARTPS_CR_RX_DIS)) |
-			(XUARTPS_CR_TX_EN | XUARTPS_CR_RX_EN),
-			XUARTPS_CR_OFFSET);
+		ctrl_reg &= ~(XUARTPS_CR_TX_DIS | XUARTPS_CR_RX_DIS);
+		ctrl_reg |= XUARTPS_CR_TX_EN | XUARTPS_CR_RX_EN;
+		xuartps_writel(ctrl_reg, XUARTPS_CR_OFFSET);
 
 		spin_unlock_irqrestore(&port->lock, flags);
 	} else {
