@@ -26,7 +26,6 @@
 #include <net/mac802154.h>
 #include <net/ieee802154_netdev.h>
 #include <net/wpan-phy.h>
-#include <net/ieee802154_netdev.h>
 
 #include "mac802154.h"
 
