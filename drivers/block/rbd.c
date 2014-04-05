@@ -1672,6 +1672,17 @@ static bool img_request_layered_test(struct rbd_img_request *img_request)
 	return test_bit(IMG_REQ_LAYERED, &img_request->flags) != 0;
 }
 
+static enum obj_operation_type
+rbd_img_request_op_type(struct rbd_img_request *img_request)
+{
+	if (img_request_write_test(img_request))
+		return OBJ_OP_WRITE;
+	else if (img_request_discard_test(img_request))
+		return OBJ_OP_DISCARD;
+	else
+		return OBJ_OP_READ;
+}
+
 static void
 rbd_img_obj_request_read_callback(struct rbd_obj_request *obj_request)
 {
@@ -2308,6 +2319,68 @@ out:
 }
 
 /*
+ * Add individual osd ops to the given ceph_osd_request and prepare
+ * them for submission. num_ops is the current number of
+ * osd operations already to the object request.
+ */
+static void rbd_img_obj_request_fill(struct rbd_obj_request *obj_request,
+				struct ceph_osd_request *osd_request,
+				enum obj_operation_type op_type,
+				unsigned int num_ops)
+{
+	struct rbd_img_request *img_request = obj_request->img_request;
+	struct rbd_device *rbd_dev = img_request->rbd_dev;
+	u64 object_size = rbd_obj_bytes(&rbd_dev->header);
+	u64 offset = obj_request->offset;
+	u64 length = obj_request->length;
+	u64 img_end;
+	u16 opcode;
+
+	if (op_type == OBJ_OP_DISCARD) {
+		if (!offset && (length == object_size)
+			&& (!img_request_layered_test(img_request) ||
+				(rbd_dev->parent_overlap <=
+					obj_request->img_offset))) {
+			opcode = CEPH_OSD_OP_DELETE;
+		} else if ((offset + length == object_size)) {
+			opcode = CEPH_OSD_OP_TRUNCATE;
+		} else {
+			down_read(&rbd_dev->header_rwsem);
+			img_end = rbd_dev->header.image_size;
+			up_read(&rbd_dev->header_rwsem);
+
+			if (obj_request->img_offset + length == img_end)
+				opcode = CEPH_OSD_OP_TRUNCATE;
+			else
+				opcode = CEPH_OSD_OP_ZERO;
+		}
+	} else if (op_type == OBJ_OP_WRITE) {
+		opcode = CEPH_OSD_OP_WRITE;
+		osd_req_op_alloc_hint_init(osd_request, num_ops,
+					object_size, object_size);
+		num_ops++;
+	} else {
+		opcode = CEPH_OSD_OP_READ;
+	}
+
+	osd_req_op_extent_init(osd_request, num_ops, opcode, offset, length,
+				0, 0);
+	if (obj_request->type == OBJ_REQUEST_BIO)
+		osd_req_op_extent_osd_data_bio(osd_request, num_ops,
+					obj_request->bio_list, length);
+	else if (obj_request->type == OBJ_REQUEST_PAGES)
+		osd_req_op_extent_osd_data_pages(osd_request, num_ops,
+					obj_request->pages, length,
+					offset & ~PAGE_MASK, false, false);
+
+	/* Discards are also writes */
+	if (op_type == OBJ_OP_WRITE || op_type == OBJ_OP_DISCARD)
+		rbd_osd_req_format_write(obj_request);
+	else
+		rbd_osd_req_format_read(obj_request);
+}
+
+/*
  * Split up an image request into one or more object requests, each
  * to a different object.  The "type" parameter indicates whether
  * "data_desc" is the pointer to the head of a list of bio
@@ -2326,11 +2399,8 @@ static int rbd_img_request_fill(struct rbd_img_request *img_request,
 	unsigned int bio_offset = 0;
 	struct page **pages = NULL;
 	enum obj_operation_type op_type;
-	u64 object_size = rbd_obj_bytes(&rbd_dev->header);
 	u64 img_offset;
-	u64 img_end;
 	u64 resid;
-	u16 opcode;
 
 	dout("%s: img %p type %d data_desc %p\n", __func__, img_request,
 		(int)type, data_desc);
@@ -2338,6 +2408,7 @@ static int rbd_img_request_fill(struct rbd_img_request *img_request,
 	img_offset = img_request->offset;
 	resid = img_request->length;
 	rbd_assert(resid > 0);
+	op_type = rbd_img_request_op_type(img_request);
 
 	if (type == OBJ_REQUEST_BIO) {
 		bio_list = data_desc;
@@ -2352,7 +2423,6 @@ static int rbd_img_request_fill(struct rbd_img_request *img_request,
 		const char *object_name;
 		u64 offset;
 		u64 length;
-		unsigned int which = 0;
 
 		object_name = rbd_segment_name(rbd_dev, img_offset);
 		if (!object_name)
@@ -2395,66 +2465,19 @@ static int rbd_img_request_fill(struct rbd_img_request *img_request,
 			pages += page_count;
 		}
 
-		if (img_request_discard_test(img_request)) {
-			op_type = OBJ_OP_DISCARD;
-			if (!offset && (length == object_size)
-				&& (!img_request_layered_test(img_request) ||
-					(rbd_dev->parent_overlap <=
-						obj_request->img_offset))) {
-				opcode = CEPH_OSD_OP_DELETE;
-			} else if ((offset + length == object_size)) {
-				opcode = CEPH_OSD_OP_TRUNCATE;
-			} else {
-				down_read(&rbd_dev->header_rwsem);
-				img_end = rbd_dev->header.image_size;
-				up_read(&rbd_dev->header_rwsem);
-
-				if (obj_request->img_offset + length == img_end)
-					opcode = CEPH_OSD_OP_TRUNCATE;
-				else
-					opcode = CEPH_OSD_OP_ZERO;
-			}
-		} else if (img_request_write_test(img_request)) {
-			op_type = OBJ_OP_WRITE;
-			opcode = CEPH_OSD_OP_WRITE;
-		} else {
-			op_type = OBJ_OP_READ;
-			opcode = CEPH_OSD_OP_READ;
-		}
-
 		osd_req = rbd_osd_req_create(rbd_dev, op_type,
 					(op_type == OBJ_OP_WRITE) ? 2 : 1,
 					obj_request);
 		if (!osd_req)
 			goto out_unwind;
+
 		obj_request->osd_req = osd_req;
 		obj_request->callback = rbd_img_obj_callback;
-		rbd_img_request_get(img_request);
-
-		if (op_type == OBJ_OP_WRITE) {
-			osd_req_op_alloc_hint_init(osd_req, which,
-					     rbd_obj_bytes(&rbd_dev->header),
-					     rbd_obj_bytes(&rbd_dev->header));
-			which++;
-		}
-
-		osd_req_op_extent_init(osd_req, which, opcode, offset, length,
-				       0, 0);
-		if (type == OBJ_REQUEST_BIO)
-			osd_req_op_extent_osd_data_bio(osd_req, which,
-					obj_request->bio_list, length);
-		else if (type == OBJ_REQUEST_PAGES)
-			osd_req_op_extent_osd_data_pages(osd_req, which,
-					obj_request->pages, length,
-					offset & ~PAGE_MASK, false, false);
-
-		/* Discards are also writes */
-		if (op_type == OBJ_OP_WRITE || op_type == OBJ_OP_DISCARD)
-			rbd_osd_req_format_write(obj_request);
-		else
-			rbd_osd_req_format_read(obj_request);
-
 		obj_request->img_offset = img_offset;
+
+		rbd_img_obj_request_fill(obj_request, osd_req, op_type, 0);
+
+		rbd_img_request_get(img_request);
 
 		img_offset += length;
 		resid -= length;
