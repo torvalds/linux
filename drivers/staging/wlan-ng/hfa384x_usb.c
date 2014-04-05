@@ -744,14 +744,12 @@ static inline struct usbctlx_completor *init_rrid_completor(
 * Completor object:
 * Interprets the results of a synchronous RID-write
 ----------------------------------------------------------------*/
-typedef struct usbctlx_cmd_completor usbctlx_wrid_completor_t;
 #define init_wrid_completor  init_cmd_completor
 
 /*----------------------------------------------------------------
 * Completor object:
 * Interprets the results of a synchronous memory-write
 ----------------------------------------------------------------*/
-typedef struct usbctlx_cmd_completor usbctlx_wmem_completor_t;
 #define init_wmem_completor  init_cmd_completor
 
 /*----------------------------------------------------------------
@@ -765,11 +763,11 @@ struct usbctlx_rmem_completor {
 	void *data;
 	unsigned int len;
 };
-typedef struct usbctlx_rmem_completor usbctlx_rmem_completor_t;
 
 static int usbctlx_rmem_completor_fn(struct usbctlx_completor *head)
 {
-	usbctlx_rmem_completor_t *complete = (usbctlx_rmem_completor_t *) head;
+	struct usbctlx_rmem_completor *complete =
+		(struct usbctlx_rmem_completor *)head;
 
 	pr_debug("rmemresp:len=%d\n", complete->rmemresp->frmlen);
 	memcpy(complete->data, complete->rmemresp->data, complete->len);
@@ -777,7 +775,7 @@ static int usbctlx_rmem_completor_fn(struct usbctlx_completor *head)
 }
 
 static inline struct usbctlx_completor *init_rmem_completor(
-						usbctlx_rmem_completor_t
+						struct usbctlx_rmem_completor
 							*completor,
 						hfa384x_usb_rmemresp_t
 							*rmemresp,
@@ -1562,7 +1560,7 @@ hfa384x_dowrid(hfa384x_t *hw,
 	if (result != 0) {
 		kfree(ctlx);
 	} else if (mode == DOWAIT) {
-		usbctlx_wrid_completor_t completor;
+		struct usbctlx_cmd_completor completor;
 		hfa384x_cmdresult_t wridresult;
 
 		result = hfa384x_usbctlx_complete_sync(hw,
@@ -1654,7 +1652,7 @@ hfa384x_dormem(hfa384x_t *hw,
 	if (result != 0) {
 		kfree(ctlx);
 	} else if (mode == DOWAIT) {
-		usbctlx_rmem_completor_t completor;
+		struct usbctlx_rmem_completor completor;
 
 		result =
 		    hfa384x_usbctlx_complete_sync(hw, ctlx,
@@ -1744,7 +1742,7 @@ hfa384x_dowmem(hfa384x_t *hw,
 	if (result != 0) {
 		kfree(ctlx);
 	} else if (mode == DOWAIT) {
-		usbctlx_wmem_completor_t completor;
+		struct usbctlx_cmd_completor completor;
 		hfa384x_cmdresult_t wmemresult;
 
 		result = hfa384x_usbctlx_complete_sync(hw,
