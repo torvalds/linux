@@ -13,6 +13,7 @@
  * GNU General Public License for more details.
  */
 
+#include <linux/clk.h>
 #include <linux/delay.h>
 #include <linux/device.h>
 #include <linux/dma-mapping.h>
@@ -800,7 +801,7 @@ static int adi_spi_probe(struct platform_device *pdev)
 	struct adi_spi_master *drv_data;
 	struct resource *mem, *res;
 	unsigned int tx_dma, rx_dma;
-	unsigned long sclk;
+	struct clk *sclk;
 	int ret;
 
 	if (!info) {
@@ -808,10 +809,10 @@ static int adi_spi_probe(struct platform_device *pdev)
 		return -ENODEV;
 	}
 
-	sclk = get_sclk1();
-	if (!sclk) {
-		dev_err(dev, "can not get sclk1\n");
-		return -ENXIO;
+	sclk = devm_clk_get(dev, "spi");
+	if (IS_ERR(sclk)) {
+		dev_err(dev, "can not get spi clock\n");
+		return PTR_ERR(sclk);
 	}
 
 	res = platform_get_resource(pdev, IORESOURCE_DMA, 0);
@@ -852,7 +853,7 @@ static int adi_spi_probe(struct platform_device *pdev)
 	drv_data->tx_dma = tx_dma;
 	drv_data->rx_dma = rx_dma;
 	drv_data->pin_req = info->pin_req;
-	drv_data->sclk = sclk;
+	drv_data->sclk = clk_get_rate(sclk);
 
 	mem = platform_get_resource(pdev, IORESOURCE_MEM, 0);
 	drv_data->regs = devm_ioremap_resource(dev, mem);
