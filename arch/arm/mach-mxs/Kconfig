@@ -16,11 +16,7 @@ config ARCH_MXS
 	bool "Freescale MXS (i.MX23, i.MX28) support"
 	depends on ARCH_MULTI_V5
 	select ARCH_REQUIRE_GPIOLIB
-	select CLKDEV_LOOKUP
 	select CLKSRC_MMIO
-	select CLKSRC_OF
-	select GENERIC_CLOCKEVENTS
-	select HAVE_CLK_PREPARE
 	select PINCTRL
 	select SOC_BUS
 	select SOC_IMX23

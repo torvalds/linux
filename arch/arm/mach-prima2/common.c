@@ -15,7 +15,7 @@
 #include <linux/of_platform.h>
 #include "common.h"
 
-void __init sirfsoc_init_late(void)
+static void __init sirfsoc_init_late(void)
 {
 	sirfsoc_pm_init();
 }
@@ -27,7 +27,7 @@ static __init void sirfsoc_map_io(void)
 }
 
 #ifdef CONFIG_ARCH_ATLAS6
-static const char *atlas6_dt_match[] __initdata = {
+static const char *atlas6_dt_match[] __initconst = {
 	"sirf,atlas6",
 	NULL
 };
@@ -37,12 +37,11 @@ DT_MACHINE_START(ATLAS6_DT, "Generic ATLAS6 (Flattened Device Tree)")
 	.map_io         = sirfsoc_map_io,
 	.init_late	= sirfsoc_init_late,
 	.dt_compat      = atlas6_dt_match,
-	.restart	= sirfsoc_restart,
 MACHINE_END
 #endif
 
 #ifdef CONFIG_ARCH_PRIMA2
-static const char *prima2_dt_match[] __initdata = {
+static const char *prima2_dt_match[] __initconst = {
 	"sirf,prima2",
 	NULL
 };
@@ -53,12 +52,11 @@ DT_MACHINE_START(PRIMA2_DT, "Generic PRIMA2 (Flattened Device Tree)")
 	.dma_zone_size	= SZ_256M,
 	.init_late	= sirfsoc_init_late,
 	.dt_compat      = prima2_dt_match,
-	.restart	= sirfsoc_restart,
 MACHINE_END
 #endif
 
 #ifdef CONFIG_ARCH_MARCO
-static const char *marco_dt_match[] __initdata = {
+static const char *marco_dt_match[] __initconst = {
 	"sirf,marco",
 	NULL
 };
@@ -69,6 +67,5 @@ DT_MACHINE_START(MARCO_DT, "Generic MARCO (Flattened Device Tree)")
 	.map_io         = sirfsoc_map_io,
 	.init_late	= sirfsoc_init_late,
 	.dt_compat      = marco_dt_match,
-	.restart	= sirfsoc_restart,
 MACHINE_END
 #endif

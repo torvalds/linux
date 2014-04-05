@@ -24,7 +24,7 @@
 
 #include <mach/at91_rtt.h>
 #include <mach/cpu.h>
-
+#include <mach/hardware.h>
 
 /*
  * This driver uses two configurable hardware resources that live in the

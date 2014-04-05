@@ -14,9 +14,9 @@
 
 #include <linux/syscore_ops.h>
 #include <linux/serial_core.h>
+#include <linux/serial_s3c.h>
 #include <linux/io.h>
 
-#include <plat/regs-serial.h>
 #include <plat/pm.h>
 
 #include <mach/regs-gpio.h>

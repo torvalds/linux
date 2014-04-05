@@ -58,9 +58,10 @@
 			#size-cells = <1>;
 			ranges = <0xc2000000 0xc2000000 0x1000000>;
 
-			reset-controller@c2000000 {
+			rstc: reset-controller@c2000000 {
 				compatible = "sirf,marco-rstc";
 				reg = <0xc2000000 0x10000>;
+				#reset-cells = <1>;
 			};
 		};
 

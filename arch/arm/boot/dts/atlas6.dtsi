@@ -65,9 +65,10 @@
 				#clock-cells = <1>;
 			};
 
-			reset-controller@88010000 {
+			rstc: reset-controller@88010000 {
 				compatible = "sirf,prima2-rstc";
 				reg = <0x88010000 0x1000>;
+				#reset-cells = <1>;
 			};
 
 			rsc-controller@88020000 {

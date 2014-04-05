@@ -19,6 +19,7 @@
 #include <linux/of_irq.h>
 
 #include <asm/mach/time.h>
+#include <mach/hardware.h>
 
 #define AT91_PIT_MR		0x00			/* Mode Register */
 #define		AT91_PIT_PITIEN		(1 << 25)		/* Timer Interrupt Enable */
