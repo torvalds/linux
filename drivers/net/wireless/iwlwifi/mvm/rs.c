@@ -1658,85 +1658,76 @@ static enum rs_action rs_get_rate_action(struct iwl_mvm *mvm,
 {
 	enum rs_action action = RS_ACTION_STAY;
 
-	/* Too many failures, decrease rate */
 	if ((sr <= RS_SR_FORCE_DECREASE) || (current_tpt == 0)) {
 		IWL_DEBUG_RATE(mvm,
-			       "decrease rate because of low SR\n");
+			       "Decrease rate because of low SR\n");
+		return RS_ACTION_DOWNSCALE;
+	}
+
+	if ((low_tpt == IWL_INVALID_VALUE) &&
+	    (high_tpt == IWL_INVALID_VALUE) &&
+	    (high != IWL_RATE_INVALID)) {
+		IWL_DEBUG_RATE(mvm,
+			       "No data about high/low rates. Increase rate\n");
+		return RS_ACTION_UPSCALE;
+	}
+
+	if ((high_tpt == IWL_INVALID_VALUE) &&
+	    (high != IWL_RATE_INVALID) &&
+	    (low_tpt != IWL_INVALID_VALUE) &&
+	    (low_tpt < current_tpt)) {
+		IWL_DEBUG_RATE(mvm,
+			       "No data about high rate and low rate is worse. Increase rate\n");
+		return RS_ACTION_UPSCALE;
+	}
+
+	if ((high_tpt != IWL_INVALID_VALUE) &&
+	    (high_tpt > current_tpt)) {
+		IWL_DEBUG_RATE(mvm,
+			       "Higher rate is better. Increate rate\n");
+		return RS_ACTION_UPSCALE;
+	}
+
+	if ((low_tpt != IWL_INVALID_VALUE) &&
+	    (high_tpt != IWL_INVALID_VALUE) &&
+	    (low_tpt < current_tpt) &&
+	    (high_tpt < current_tpt)) {
+		IWL_DEBUG_RATE(mvm,
+			       "Both high and low are worse. Maintain rate\n");
+		return RS_ACTION_STAY;
+	}
+
+	if ((low_tpt != IWL_INVALID_VALUE) &&
+	    (low_tpt > current_tpt)) {
+		IWL_DEBUG_RATE(mvm,
+			       "Lower rate is better\n");
 		action = RS_ACTION_DOWNSCALE;
-	/* No throughput measured yet for adjacent rates; try increase. */
-	} else if ((low_tpt == IWL_INVALID_VALUE) &&
-		   (high_tpt == IWL_INVALID_VALUE)) {
-		if (high != IWL_RATE_INVALID && sr >= IWL_RATE_INCREASE_TH) {
+		goto out;
+	}
+
+	if ((low_tpt == IWL_INVALID_VALUE) &&
+	    (low != IWL_RATE_INVALID)) {
+		IWL_DEBUG_RATE(mvm,
+			       "No data about lower rate\n");
+		action = RS_ACTION_DOWNSCALE;
+		goto out;
+	}
+
+	IWL_DEBUG_RATE(mvm, "Maintain rate\n");
+
+out:
+	if ((action == RS_ACTION_DOWNSCALE) && (low != IWL_RATE_INVALID)) {
+		if (sr >= RS_SR_NO_DECREASE) {
 			IWL_DEBUG_RATE(mvm,
-				       "Good SR and no high rate measurement. "
-				       "Increase rate\n");
-			action = RS_ACTION_UPSCALE;
-		} else if (low != IWL_RATE_INVALID) {
-			IWL_DEBUG_RATE(mvm,
-				       "Remain in current rate\n");
+				       "SR is above NO DECREASE. Avoid downscale\n");
 			action = RS_ACTION_STAY;
+		} else if (current_tpt > (100 * tbl->expected_tpt[low])) {
+			IWL_DEBUG_RATE(mvm,
+				       "Current TPT is higher than max expected in low rate. Avoid downscale\n");
+			action = RS_ACTION_STAY;
+		} else {
+			IWL_DEBUG_RATE(mvm, "Decrease rate\n");
 		}
-	}
-
-	/* Both adjacent throughputs are measured, but neither one has better
-	 * throughput; we're using the best rate, don't change it!
-	 */
-	else if ((low_tpt != IWL_INVALID_VALUE) &&
-		 (high_tpt != IWL_INVALID_VALUE) &&
-		 (low_tpt < current_tpt) &&
-		 (high_tpt < current_tpt)) {
-		IWL_DEBUG_RATE(mvm,
-			       "Both high and low are worse. "
-			       "Maintain rate\n");
-		action = RS_ACTION_STAY;
-	}
-
-	/* At least one adjacent rate's throughput is measured,
-	 * and may have better performance.
-	 */
-	else {
-		/* Higher adjacent rate's throughput is measured */
-		if (high_tpt != IWL_INVALID_VALUE) {
-			/* Higher rate has better throughput */
-			if (high_tpt > current_tpt &&
-			    sr >= IWL_RATE_INCREASE_TH) {
-				IWL_DEBUG_RATE(mvm,
-					       "Higher rate is better and good "
-					       "SR. Increate rate\n");
-				action = RS_ACTION_UPSCALE;
-			} else {
-				IWL_DEBUG_RATE(mvm,
-					       "Higher rate isn't better OR "
-					       "no good SR. Maintain rate\n");
-				action = RS_ACTION_STAY;
-			}
-
-		/* Lower adjacent rate's throughput is measured */
-		} else if (low_tpt != IWL_INVALID_VALUE) {
-			/* Lower rate has better throughput */
-			if (low_tpt > current_tpt) {
-				IWL_DEBUG_RATE(mvm,
-					       "Lower rate is better. "
-					       "Decrease rate\n");
-				action = RS_ACTION_DOWNSCALE;
-			} else if (sr >= IWL_RATE_INCREASE_TH) {
-				IWL_DEBUG_RATE(mvm,
-					       "Lower rate isn't better and "
-					       "good SR. Increase rate\n");
-				action = RS_ACTION_UPSCALE;
-			}
-		}
-	}
-
-	/* Sanity check; asked for decrease, but success rate or throughput
-	 * has been good at old rate.  Don't change it.
-	 */
-	if ((action == RS_ACTION_DOWNSCALE) && (low != IWL_RATE_INVALID) &&
-	    ((sr > IWL_RATE_HIGH_TH) ||
-	     (current_tpt > (100 * tbl->expected_tpt[low])))) {
-		IWL_DEBUG_RATE(mvm,
-			       "Sanity check failed. Maintain rate\n");
-		action = RS_ACTION_STAY;
 	}
 
 	return action;
