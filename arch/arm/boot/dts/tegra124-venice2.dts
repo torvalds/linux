@@ -138,14 +138,9 @@
 				nvidia,enable-input = <TEGRA_PIN_ENABLE>;
 			};
 			sdmmc1_clk_pz0 {
-				nvidia,pins = "sdmmc1_clk_pz0",
-					      "sdmmc1_cmd_pz1",
-					      "sdmmc1_dat0_py7",
-					      "sdmmc1_dat1_py6",
-					      "sdmmc1_dat2_py5",
-					      "sdmmc1_dat3_py4";
+				nvidia,pins = "sdmmc1_clk_pz0";
 				nvidia,function = "sdmmc1";
-				nvidia,enable-input = <TEGRA_PIN_ENABLE>;
+				nvidia,enable-input = <TEGRA_PIN_DISABLE>;
 				nvidia,pull = <TEGRA_PIN_PULL_NONE>;
 				nvidia,tristate = <TEGRA_PIN_DISABLE>;
 			};
@@ -423,7 +418,6 @@
 				nvidia,pins = "drive_sdio1";
 				nvidia,high-speed-mode = <TEGRA_PIN_ENABLE>;
 				nvidia,schmitt = <TEGRA_PIN_DISABLE>;
-				nvidia,low-power-mode = <TEGRA_PIN_LP_DRIVE_DIV_1>;
 				nvidia,pull-down-strength = <32>;
 				nvidia,pull-up-strength = <42>;
 				nvidia,slew-rate-rising = <TEGRA_PIN_SLEW_RATE_FASTEST>;
@@ -433,7 +427,6 @@
 				nvidia,pins = "drive_sdio3";
 				nvidia,high-speed-mode = <TEGRA_PIN_ENABLE>;
 				nvidia,schmitt = <TEGRA_PIN_DISABLE>;
-				nvidia,low-power-mode = <TEGRA_PIN_LP_DRIVE_DIV_1>;
 				nvidia,pull-down-strength = <20>;
 				nvidia,pull-up-strength = <36>;
 				nvidia,slew-rate-rising = <TEGRA_PIN_SLEW_RATE_FASTEST>;

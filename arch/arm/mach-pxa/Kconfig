@@ -53,12 +53,16 @@ config MACH_TAVOREVB
 	select CPU_PXA930
 	select CPU_PXA935
 	select PXA3xx
+	select FB
+	select FB_PXA
 
 config MACH_SAAR
 	bool "PXA930 Handheld Platform (aka SAAR)"
 	select CPU_PXA930
 	select CPU_PXA935
 	select PXA3xx
+	select FB
+	select FB_PXA
 
 comment "Third Party Dev Platforms (sorted by vendor name)"
 
@@ -69,8 +73,7 @@ config ARCH_PXA_IDP
 config ARCH_VIPER
 	bool "Arcom/Eurotech VIPER SBC"
 	select ARCOM_PCMCIA
-	select HAVE_PWM
-	select I2C_GPIO
+	select I2C_GPIO if I2C=y
 	select ISA
 	select PXA25x
 	select PXA_HAVE_ISA_IRQS
@@ -164,7 +167,6 @@ config MACH_XCEP
 	select MTD_CFI_INTELEXT
 	select MTD_PHYSMAP
 	select PXA25x
-	select SMC91X
 	help
 	  PXA255 based Single Board Computer with SMC 91C111 ethernet chip and 64 MB of flash.
 	  Tuned for usage in Libera instruments for particle accelerators.
@@ -181,6 +183,7 @@ config MACH_TRIZEPS4
 config MACH_TRIZEPS4WL
 	bool "Keith und Koep Trizeps4-WL DIMM-Module"
 	depends on TRIZEPS_PXA
+	select MACH_TRIZEPS4
 	select PXA27x
 	select TRIZEPS_PCMCIA
 

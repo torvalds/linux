@@ -484,7 +484,7 @@ struct platform_device s3c2440_device_dma = {
 };
 #endif
 
-#if defined(CONFIG_CPUS_3C2443) || defined(CONFIG_CPU_S3C2416)
+#if defined(CONFIG_CPU_S3C2443) || defined(CONFIG_CPU_S3C2416)
 static struct resource s3c2443_dma_resource[] = {
 	[0] = DEFINE_RES_MEM(S3C24XX_PA_DMA, S3C24XX_SZ_DMA),
 	[1] = DEFINE_RES_IRQ(IRQ_S3C2443_DMA0),
