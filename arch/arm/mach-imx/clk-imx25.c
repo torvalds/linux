@@ -304,8 +304,6 @@ int __init mx25_clocks_init(void)
 int __init mx25_clocks_init_dt(void)
 {
 	struct device_node *np;
-	void __iomem *base;
-	int irq;
 	unsigned long osc_rate = 24000000;
 
 	/* retrieve the freqency of fixed clocks from device tree */
@@ -325,12 +323,7 @@ int __init mx25_clocks_init_dt(void)
 
 	__mx25_clocks_init(osc_rate);
 
-	np = of_find_compatible_node(NULL, NULL, "fsl,imx25-gpt");
-	base = of_iomap(np, 0);
-	WARN_ON(!base);
-	irq = irq_of_parse_and_map(np, 0);
-
-	mxc_timer_init(base, irq);
+	mxc_timer_init_dt(of_find_compatible_node(NULL, NULL, "fsl,imx25-gpt"));
 
 	return 0;
 }

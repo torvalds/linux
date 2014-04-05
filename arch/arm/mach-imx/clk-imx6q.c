@@ -144,7 +144,7 @@ static void __init imx6q_clocks_init(struct device_node *ccm_node)
 {
 	struct device_node *np;
 	void __iomem *base;
-	int i, irq;
+	int i;
 	int ret;
 
 	clk[dummy] = imx_clk_fixed("dummy", 0);
@@ -489,10 +489,6 @@ static void __init imx6q_clocks_init(struct device_node *ccm_node)
 	/* Set initial power mode */
 	imx6q_set_lpm(WAIT_CLOCKED);
 
-	np = of_find_compatible_node(NULL, NULL, "fsl,imx6q-gpt");
-	base = of_iomap(np, 0);
-	WARN_ON(!base);
-	irq = irq_of_parse_and_map(np, 0);
-	mxc_timer_init(base, irq);
+	mxc_timer_init_dt(of_find_compatible_node(NULL, NULL, "fsl,imx6q-gpt"));
 }
 CLK_OF_DECLARE(imx6q, "fsl,imx6q-ccm", imx6q_clocks_init);
