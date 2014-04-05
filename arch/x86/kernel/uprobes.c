@@ -461,6 +461,40 @@ static struct uprobe_xol_ops default_xol_ops = {
 	.post_xol = default_post_xol_op,
 };
 
+static bool branch_emulate_op(struct arch_uprobe *auprobe, struct pt_regs *regs)
+{
+	regs->ip += auprobe->branch.ilen + auprobe->branch.offs;
+	return true;
+}
+
+static struct uprobe_xol_ops branch_xol_ops = {
+	.emulate  = branch_emulate_op,
+};
+
+/* Returns -ENOSYS if branch_xol_ops doesn't handle this insn */
+static int branch_setup_xol_ops(struct arch_uprobe *auprobe, struct insn *insn)
+{
+
+	switch (OPCODE1(insn)) {
+	case 0xeb:	/* jmp 8 */
+	case 0xe9:	/* jmp 32 */
+		break;
+	default:
+		return -ENOSYS;
+	}
+
+	/* has the side-effect of processing the entire instruction */
+	insn_get_length(insn);
+	if (WARN_ON_ONCE(!insn_complete(insn)))
+		return -ENOEXEC;
+
+	auprobe->branch.ilen = insn->length;
+	auprobe->branch.offs = insn->immediate.value;
+
+	auprobe->ops = &branch_xol_ops;
+	return 0;
+}
+
 /**
  * arch_uprobe_analyze_insn - instruction analysis including validity and fixups.
  * @mm: the probed address space.
@@ -476,6 +510,10 @@ int arch_uprobe_analyze_insn(struct arch_uprobe *auprobe, struct mm_struct *mm, 
 
 	ret = validate_insn_bits(auprobe, mm, &insn);
 	if (ret)
+		return ret;
+
+	ret = branch_setup_xol_ops(auprobe, &insn);
+	if (ret != -ENOSYS)
 		return ret;
 
 	/*

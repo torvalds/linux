@@ -44,9 +44,15 @@ struct arch_uprobe {
 	u16				fixups;
 	const struct uprobe_xol_ops	*ops;
 
+	union {
 #ifdef CONFIG_X86_64
-	unsigned long			rip_rela_target_address;
+		unsigned long			rip_rela_target_address;
 #endif
+		struct {
+			s32	offs;
+			u8	ilen;
+		}				branch;
+	};
 };
 
 struct arch_uprobe_task {
