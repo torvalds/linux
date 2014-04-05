@@ -2599,7 +2599,8 @@ int hfa384x_drvr_start(hfa384x_t *hw)
 	 */
 	result1 = hfa384x_cmd_initialize(hw);
 	msleep(1000);
-	result = result2 = hfa384x_cmd_initialize(hw);
+	result = hfa384x_cmd_initialize(hw);
+	result2 = result;
 	if (result1 != 0) {
 		if (result2 != 0) {
 			netdev_err(hw->wlandev->netdev,
