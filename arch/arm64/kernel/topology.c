@@ -43,9 +43,6 @@ static void update_siblings_masks(unsigned int cpuid)
 		 * reset it to default behaviour
 		 */
 		pr_debug("CPU%u: No topology information configured\n", cpuid);
-		cpuid_topo->core_id = 0;
-		cpumask_set_cpu(cpuid, &cpuid_topo->core_sibling);
-		cpumask_set_cpu(cpuid, &cpuid_topo->thread_sibling);
 		return;
 	}
 
@@ -87,9 +84,12 @@ void __init init_cpu_topology(void)
 		struct cpu_topology *cpu_topo = &cpu_topology[cpu];
 
 		cpu_topo->thread_id = -1;
-		cpu_topo->core_id =  -1;
+		cpu_topo->core_id = 0;
 		cpu_topo->cluster_id = -1;
+
 		cpumask_clear(&cpu_topo->core_sibling);
+		cpumask_set_cpu(cpu, &cpu_topo->core_sibling);
 		cpumask_clear(&cpu_topo->thread_sibling);
+		cpumask_set_cpu(cpu, &cpu_topo->thread_sibling);
 	}
 }
