@@ -247,6 +247,7 @@ config GPIO_OMAP
 	bool "TI OMAP GPIO support"
 	default y if ARCH_OMAP
 	depends on ARM && ARCH_OMAP
+	select GPIOLIB_IRQCHIP
 	help
 	  Say yes here to enable GPIO support for TI OMAP SoCs.
 
