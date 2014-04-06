@@ -174,9 +174,9 @@ config MACH_DECSTATION
 	bool "DECstations"
 	select BOOT_ELF32
 	select CEVT_DS1287
-	select CEVT_R4K
+	select CEVT_R4K if CPU_R4X00
 	select CSRC_IOASIC
-	select CSRC_R4K
+	select CSRC_R4K if CPU_R4X00
 	select CPU_DADDI_WORKAROUNDS if 64BIT
 	select CPU_R4000_WORKAROUNDS if 64BIT
 	select CPU_R4400_WORKAROUNDS if 64BIT
