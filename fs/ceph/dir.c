@@ -119,7 +119,8 @@ static int fpos_cmp(loff_t l, loff_t r)
  * defined IFF we hold CEPH_CAP_FILE_SHARED (which will be revoked by
  * the MDS if/when the directory is modified).
  */
-static int __dcache_readdir(struct file *file, struct dir_context *ctx)
+static int __dcache_readdir(struct file *file,  struct dir_context *ctx,
+			    u32 shared_gen)
 {
 	struct ceph_file_info *fi = file->private_data;
 	struct dentry *parent = file->f_dentry;
@@ -133,8 +134,8 @@ static int __dcache_readdir(struct file *file, struct dir_context *ctx)
 	last = fi->dentry;
 	fi->dentry = NULL;
 
-	dout("__dcache_readdir %p at %llu (last %p)\n", dir, ctx->pos,
-	     last);
+	dout("__dcache_readdir %p v%u at %llu (last %p)\n",
+	     dir, shared_gen, ctx->pos, last);
 
 	spin_lock(&parent->d_lock);
 
@@ -161,7 +162,8 @@ more:
 			goto out_unlock;
 		}
 		spin_lock_nested(&dentry->d_lock, DENTRY_D_LOCK_NESTED);
-		if (!d_unhashed(dentry) && dentry->d_inode &&
+		if (di->lease_shared_gen == shared_gen &&
+		    !d_unhashed(dentry) && dentry->d_inode &&
 		    ceph_snap(dentry->d_inode) != CEPH_SNAPDIR &&
 		    ceph_ino(dentry->d_inode) != CEPH_INO_CEPH &&
 		    fpos_cmp(ctx->pos, di->offset) <= 0)
@@ -289,8 +291,9 @@ static int ceph_readdir(struct file *file, struct dir_context *ctx)
 	    ceph_snap(inode) != CEPH_SNAPDIR &&
 	    __ceph_dir_is_complete(ci) &&
 	    __ceph_caps_issued_mask(ci, CEPH_CAP_FILE_SHARED, 1)) {
+		u32 shared_gen = ci->i_shared_gen;
 		spin_unlock(&ci->i_ceph_lock);
-		err = __dcache_readdir(file, ctx);
+		err = __dcache_readdir(file, ctx, shared_gen);
 		if (err != -EAGAIN)
 			return err;
 	} else {
