@@ -82,15 +82,6 @@ void sort_extable(struct exception_table_entry *start,
 void sort_main_extable(void);
 void trim_init_extable(struct module *m);
 
-#ifdef MODULE
-#define MODULE_GENERIC_TABLE(gtype, name)			\
-extern const struct gtype##_id __mod_##gtype##_table		\
-  __attribute__ ((unused, alias(__stringify(name))))
-
-#else  /* !MODULE */
-#define MODULE_GENERIC_TABLE(gtype, name)
-#endif
-
 /* Generic info of form tag = "info" */
 #define MODULE_INFO(tag, info) __MODULE_INFO(tag, tag, info)
 
@@ -141,8 +132,14 @@ extern const struct gtype##_id __mod_##gtype##_table		\
 /* What your module does. */
 #define MODULE_DESCRIPTION(_description) MODULE_INFO(description, _description)
 
-#define MODULE_DEVICE_TABLE(type, name)		\
-  MODULE_GENERIC_TABLE(type##_device, name)
+#ifdef MODULE
+/* Creates an alias so file2alias.c can find device table. */
+#define MODULE_DEVICE_TABLE(type, name)					\
+  extern const struct type##_device_id __mod_##type##__##name##_device_table \
+  __attribute__ ((unused, alias(__stringify(name))))
+#else  /* !MODULE */
+#define MODULE_DEVICE_TABLE(type, name)
+#endif
 
 /* Version of form [<epoch>:]<version>[-<extra-version>].
  * Or for CVS/RCS ID version, everything but the number is stripped.

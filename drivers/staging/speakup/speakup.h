@@ -12,8 +12,6 @@
 /* proc permissions */
 #define USER_R (S_IFREG|S_IRUGO)
 #define USER_W (S_IFREG|S_IWUGO)
-#define USER_RW (S_IFREG|S_IRUGO|S_IWUGO)
-#define ROOT_W (S_IFREG|S_IRUGO|S_IWUSR)
 
 #define TOGGLE_0 .u.n = {NULL, 0, 0, 1, 0, 0, NULL }
 #define TOGGLE_1 .u.n = {NULL, 1, 0, 1, 0, 0, NULL }
