@@ -1138,9 +1138,7 @@ static int omap_gpio_probe(struct platform_device *pdev)
 	const struct omap_gpio_platform_data *pdata;
 	struct resource *res;
 	struct gpio_bank *bank;
-#ifdef CONFIG_ARCH_OMAP1
-	int irq_base;
-#endif
+	int irq_base = 0;
 
 	match = of_match_device(of_match_ptr(omap_gpio_match), dev);
 
@@ -1185,21 +1183,16 @@ static int omap_gpio_probe(struct platform_device *pdev)
 #ifdef CONFIG_ARCH_OMAP1
 	/*
 	 * REVISIT: Once we have OMAP1 supporting SPARSE_IRQ, we can drop
-	 * irq_alloc_descs() and irq_domain_add_legacy() and just use a
-	 * linear IRQ domain mapping for all OMAP platforms.
+	 * irq_alloc_descs() since a base IRQ offset will no longer be needed.
 	 */
 	irq_base = irq_alloc_descs(-1, 0, bank->width, 0);
 	if (irq_base < 0) {
 		dev_err(dev, "Couldn't allocate IRQ numbers\n");
 		return -ENODEV;
 	}
-
-	bank->domain = irq_domain_add_legacy(node, bank->width, irq_base,
-					     0, &irq_domain_simple_ops, NULL);
-#else
-	bank->domain = irq_domain_add_linear(node, bank->width,
-					     &irq_domain_simple_ops, NULL);
 #endif
+	bank->domain = irq_domain_add_simple(node, bank->width, irq_base,
+					     &irq_domain_simple_ops, NULL);
 	if (!bank->domain) {
 		dev_err(dev, "Couldn't register an IRQ domain\n");
 		return -ENODEV;
