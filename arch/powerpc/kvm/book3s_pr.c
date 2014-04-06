@@ -1153,7 +1153,7 @@ static struct kvm_vcpu *kvmppc_core_vcpu_create_pr(struct kvm *kvm,
 		goto free_vcpu;
 	vcpu->arch.book3s = vcpu_book3s;
 
-#ifdef CONFIG_KVM_BOOK3S_32
+#ifdef CONFIG_KVM_BOOK3S_32_HANDLER
 	vcpu->arch.shadow_vcpu =
 		kzalloc(sizeof(*vcpu->arch.shadow_vcpu), GFP_KERNEL);
 	if (!vcpu->arch.shadow_vcpu)
@@ -1198,7 +1198,7 @@ static struct kvm_vcpu *kvmppc_core_vcpu_create_pr(struct kvm *kvm,
 uninit_vcpu:
 	kvm_vcpu_uninit(vcpu);
 free_shadow_vcpu:
-#ifdef CONFIG_KVM_BOOK3S_32
+#ifdef CONFIG_KVM_BOOK3S_32_HANDLER
 	kfree(vcpu->arch.shadow_vcpu);
 free_vcpu3s:
 #endif
@@ -1215,7 +1215,7 @@ static void kvmppc_core_vcpu_free_pr(struct kvm_vcpu *vcpu)
 
 	free_page((unsigned long)vcpu->arch.shared & PAGE_MASK);
 	kvm_vcpu_uninit(vcpu);
-#ifdef CONFIG_KVM_BOOK3S_32
+#ifdef CONFIG_KVM_BOOK3S_32_HANDLER
 	kfree(vcpu->arch.shadow_vcpu);
 #endif
 	vfree(vcpu_book3s);
