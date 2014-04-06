@@ -1081,10 +1081,11 @@ omap_mpuio_alloc_gc(struct gpio_bank *bank, unsigned int irq_start,
 			       IRQ_NOREQUEST | IRQ_NOPROBE, 0);
 }
 
-static void omap_gpio_chip_init(struct gpio_bank *bank)
+static int omap_gpio_chip_init(struct gpio_bank *bank)
 {
 	int j;
 	static int gpio;
+	int ret;
 
 	/*
 	 * REVISIT eventually switch from OMAP-specific gpio structs
@@ -1110,7 +1111,11 @@ static void omap_gpio_chip_init(struct gpio_bank *bank)
 	}
 	bank->chip.ngpio = bank->width;
 
-	gpiochip_add(&bank->chip);
+	ret = gpiochip_add(&bank->chip);
+	if (ret) {
+		dev_err(bank->dev, "Could not register gpio chip\n", ret);
+		return ret;
+	}
 
 	for (j = 0; j < bank->width; j++) {
 		int irq = irq_create_mapping(bank->domain, j);
@@ -1139,6 +1144,7 @@ static int omap_gpio_probe(struct platform_device *pdev)
 	struct resource *res;
 	struct gpio_bank *bank;
 	int irq_base = 0;
+	int ret;
 
 	match = of_match_device(of_match_ptr(omap_gpio_match), dev);
 
@@ -1223,7 +1229,11 @@ static int omap_gpio_probe(struct platform_device *pdev)
 		mpuio_init(bank);
 
 	omap_gpio_mod_init(bank);
-	omap_gpio_chip_init(bank);
+
+	ret = omap_gpio_chip_init(bank);
+	if (ret)
+		return ret;
+
 	omap_gpio_show_rev(bank);
 
 	pm_runtime_put(bank->dev);
