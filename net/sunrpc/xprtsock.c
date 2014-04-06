@@ -1306,41 +1306,29 @@ static inline int xs_tcp_read_reply(struct rpc_xprt *xprt,
  * If we're unable to obtain the rpc_rqst we schedule the closing of the
  * connection and return -1.
  */
-static inline int xs_tcp_read_callback(struct rpc_xprt *xprt,
+static int xs_tcp_read_callback(struct rpc_xprt *xprt,
 				       struct xdr_skb_reader *desc)
 {
 	struct sock_xprt *transport =
 				container_of(xprt, struct sock_xprt, xprt);
 	struct rpc_rqst *req;
 
-	req = xprt_alloc_bc_request(xprt);
+	/* Look up and lock the request corresponding to the given XID */
+	spin_lock(&xprt->transport_lock);
+	req = xprt_lookup_bc_request(xprt, transport->tcp_xid);
 	if (req == NULL) {
+		spin_unlock(&xprt->transport_lock);
 		printk(KERN_WARNING "Callback slot table overflowed\n");
 		xprt_force_disconnect(xprt);
 		return -1;
 	}
 
-	req->rq_xid = transport->tcp_xid;
 	dprintk("RPC:       read callback  XID %08x\n", ntohl(req->rq_xid));
 	xs_tcp_read_common(xprt, desc, req);
 
-	if (!(transport->tcp_flags & TCP_RCV_COPY_DATA)) {
-		struct svc_serv *bc_serv = xprt->bc_serv;
-
-		/*
-		 * Add callback request to callback list.  The callback
-		 * service sleeps on the sv_cb_waitq waiting for new
-		 * requests.  Wake it up after adding enqueing the
-		 * request.
-		 */
-		dprintk("RPC:       add callback request to list\n");
-		spin_lock(&bc_serv->sv_cb_lock);
-		list_add(&req->rq_bc_list, &bc_serv->sv_cb_list);
-		spin_unlock(&bc_serv->sv_cb_lock);
-		wake_up(&bc_serv->sv_cb_waitq);
-	}
-
-	req->rq_private_buf.len = transport->tcp_copied;
+	if (!(transport->tcp_flags & TCP_RCV_COPY_DATA))
+		xprt_complete_bc_request(req, transport->tcp_copied);
+	spin_unlock(&xprt->transport_lock);
 
 	return 0;
 }

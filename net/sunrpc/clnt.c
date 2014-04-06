@@ -1363,6 +1363,7 @@ rpc_restart_call_prepare(struct rpc_task *task)
 	if (RPC_ASSASSINATED(task))
 		return 0;
 	task->tk_action = call_start;
+	task->tk_status = 0;
 	if (task->tk_ops->rpc_call_prepare != NULL)
 		task->tk_action = rpc_prepare_task;
 	return 1;
@@ -1379,6 +1380,7 @@ rpc_restart_call(struct rpc_task *task)
 	if (RPC_ASSASSINATED(task))
 		return 0;
 	task->tk_action = call_start;
+	task->tk_status = 0;
 	return 1;
 }
 EXPORT_SYMBOL_GPL(rpc_restart_call);
@@ -1728,9 +1730,7 @@ call_bind_status(struct rpc_task *task)
 	case -EPROTONOSUPPORT:
 		dprintk("RPC: %5u remote rpcbind version unavailable, retrying\n",
 				task->tk_pid);
-		task->tk_status = 0;
-		task->tk_action = call_bind;
-		return;
+		goto retry_timeout;
 	case -ECONNREFUSED:		/* connection problems */
 	case -ECONNRESET:
 	case -ECONNABORTED:
@@ -1756,6 +1756,7 @@ call_bind_status(struct rpc_task *task)
 	return;
 
 retry_timeout:
+	task->tk_status = 0;
 	task->tk_action = call_timeout;
 }
 
@@ -1798,21 +1799,19 @@ call_connect_status(struct rpc_task *task)
 	trace_rpc_connect_status(task, status);
 	task->tk_status = 0;
 	switch (status) {
-		/* if soft mounted, test if we've timed out */
-	case -ETIMEDOUT:
-		task->tk_action = call_timeout;
-		return;
 	case -ECONNREFUSED:
 	case -ECONNRESET:
 	case -ECONNABORTED:
 	case -ENETUNREACH:
 	case -EHOSTUNREACH:
-		/* retry with existing socket, after a delay */
-		rpc_delay(task, 3*HZ);
 		if (RPC_IS_SOFTCONN(task))
 			break;
+		/* retry with existing socket, after a delay */
+		rpc_delay(task, 3*HZ);
 	case -EAGAIN:
-		task->tk_action = call_bind;
+		/* Check for timeouts before looping back to call_bind */
+	case -ETIMEDOUT:
+		task->tk_action = call_timeout;
 		return;
 	case 0:
 		clnt->cl_stats->netreconn++;
@@ -2007,6 +2006,10 @@ call_status(struct rpc_task *task)
 	case -EHOSTDOWN:
 	case -EHOSTUNREACH:
 	case -ENETUNREACH:
+		if (RPC_IS_SOFTCONN(task)) {
+			rpc_exit(task, status);
+			break;
+		}
 		/*
 		 * Delay any retries for 3 seconds, then handle as if it
 		 * were a timeout.
