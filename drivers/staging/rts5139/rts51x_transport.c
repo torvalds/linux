@@ -646,16 +646,18 @@ int rts51x_get_epc_status(struct rts51x_chip *chip, u16 *status)
 				    chip->usb->intr_urb->actual_length);
 }
 
-static u8 media_not_present[] = {
-	0x70, 0, 0x02, 0, 0, 0, 0, 10, 0, 0, 0, 0, 0x3A, 0, 0, 0, 0, 0 };
-static u8 invalid_cmd_field[] = {
-	0x70, 0, 0x05, 0, 0, 0, 0, 10, 0, 0, 0, 0, 0x24, 0, 0, 0, 0, 0 };
-
 void rts51x_invoke_transport(struct scsi_cmnd *srb, struct rts51x_chip *chip)
 {
 	int result;
 
 #ifdef CONFIG_PM
+	static const u8 media_not_present[] = {
+		0x70, 0, 0x02, 0, 0, 0, 0, 10, 0, 0, 0, 0, 0x3A, 0, 0, 0, 0, 0
+	};
+	static const u8 invalid_cmd_field[] = {
+		0x70, 0, 0x05, 0, 0, 0, 0, 10, 0, 0, 0, 0, 0x24, 0, 0, 0, 0, 0
+	};
+
 	if (chip->option.ss_en) {
 		if (srb->cmnd[0] == TEST_UNIT_READY) {
 			if (RTS51X_CHK_STAT(chip, STAT_SS)) {
