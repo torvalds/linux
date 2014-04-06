@@ -3,6 +3,7 @@ config R8723AU
 	depends on WLAN && USB
 	select WIRELESS_EXT
 	select WEXT_PRIV
+	select CFG80211
 	default n
 	---help---
 	This option adds the Realtek RTL8723AU USB device such as found in
