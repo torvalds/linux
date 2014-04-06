@@ -466,9 +466,58 @@ static bool branch_is_call(struct arch_uprobe *auprobe)
 	return auprobe->branch.opc1 == 0xe8;
 }
 
+#define CASE_COND					\
+	COND(70, 71, XF(OF))				\
+	COND(72, 73, XF(CF))				\
+	COND(74, 75, XF(ZF))				\
+	COND(78, 79, XF(SF))				\
+	COND(7a, 7b, XF(PF))				\
+	COND(76, 77, XF(CF) || XF(ZF))			\
+	COND(7c, 7d, XF(SF) != XF(OF))			\
+	COND(7e, 7f, XF(ZF) || XF(SF) != XF(OF))
+
+#define COND(op_y, op_n, expr)				\
+	case 0x ## op_y: DO((expr) != 0)		\
+	case 0x ## op_n: DO((expr) == 0)
+
+#define XF(xf)	(!!(flags & X86_EFLAGS_ ## xf))
+
+static bool is_cond_jmp_opcode(u8 opcode)
+{
+	switch (opcode) {
+	#define DO(expr)	\
+		return true;
+	CASE_COND
+	#undef	DO
+
+	default:
+		return false;
+	}
+}
+
+static bool check_jmp_cond(struct arch_uprobe *auprobe, struct pt_regs *regs)
+{
+	unsigned long flags = regs->flags;
+
+	switch (auprobe->branch.opc1) {
+	#define DO(expr)	\
+		return expr;
+	CASE_COND
+	#undef	DO
+
+	default:	/* not a conditional jmp */
+		return true;
+	}
+}
+
+#undef	XF
+#undef	COND
+#undef	CASE_COND
+
 static bool branch_emulate_op(struct arch_uprobe *auprobe, struct pt_regs *regs)
 {
 	unsigned long new_ip = regs->ip += auprobe->branch.ilen;
+	unsigned long offs = (long)auprobe->branch.offs;
 
 	if (branch_is_call(auprobe)) {
 		unsigned long new_sp = regs->sp - sizeof_long();
@@ -484,9 +533,11 @@ static bool branch_emulate_op(struct arch_uprobe *auprobe, struct pt_regs *regs)
 		if (copy_to_user((void __user *)new_sp, &new_ip, sizeof_long()))
 			return false;
 		regs->sp = new_sp;
+	} else if (!check_jmp_cond(auprobe, regs)) {
+		offs = 0;
 	}
 
-	regs->ip = new_ip + auprobe->branch.offs;
+	regs->ip = new_ip + offs;
 	return true;
 }
 
@@ -547,8 +598,10 @@ static int branch_setup_xol_ops(struct arch_uprobe *auprobe, struct insn *insn)
 	case 0xe8:	/* call relative */
 		branch_clear_offset(auprobe, insn);
 		break;
+
 	default:
-		return -ENOSYS;
+		if (!is_cond_jmp_opcode(opc1))
+			return -ENOSYS;
 	}
 
 	auprobe->branch.opc1 = opc1;
