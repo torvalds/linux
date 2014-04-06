@@ -69,6 +69,10 @@ static void led_pwm_set(struct led_classdev *led_cdev,
 
 	duty *= brightness;
 	do_div(duty, max);
+
+	if (led_dat->active_low)
+		duty = led_dat->period - duty;
+
 	led_dat->duty = duty;
 
 	if (led_dat->can_sleep)
