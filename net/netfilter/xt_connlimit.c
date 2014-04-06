@@ -32,8 +32,14 @@
 #include <net/netfilter/nf_conntrack_tuple.h>
 #include <net/netfilter/nf_conntrack_zones.h>
 
-#define CONNLIMIT_SLOTS		32
-#define CONNLIMIT_LOCK_SLOTS	32
+#define CONNLIMIT_SLOTS		256U
+
+#ifdef CONFIG_LOCKDEP
+#define CONNLIMIT_LOCK_SLOTS	8U
+#else
+#define CONNLIMIT_LOCK_SLOTS	256U
+#endif
+
 #define CONNLIMIT_GC_MAX_NODES	8
 
 /* we will save the tuples of all connections we care about */
@@ -49,10 +55,11 @@ struct xt_connlimit_rb {
 	union nf_inet_addr addr; /* search key */
 };
 
+static spinlock_t xt_connlimit_locks[CONNLIMIT_LOCK_SLOTS] __cacheline_aligned_in_smp;
+
 struct xt_connlimit_data {
 	struct rb_root climit_root4[CONNLIMIT_SLOTS];
 	struct rb_root climit_root6[CONNLIMIT_SLOTS];
-	spinlock_t		locks[CONNLIMIT_LOCK_SLOTS];
 };
 
 static u_int32_t connlimit_rnd __read_mostly;
@@ -297,11 +304,11 @@ static int count_them(struct net *net,
 		root = &data->climit_root4[hash];
 	}
 
-	spin_lock_bh(&data->locks[hash % CONNLIMIT_LOCK_SLOTS]);
+	spin_lock_bh(&xt_connlimit_locks[hash % CONNLIMIT_LOCK_SLOTS]);
 
 	count = count_tree(net, root, tuple, addr, mask, family);
 
-	spin_unlock_bh(&data->locks[hash % CONNLIMIT_LOCK_SLOTS]);
+	spin_unlock_bh(&xt_connlimit_locks[hash % CONNLIMIT_LOCK_SLOTS]);
 
 	return count;
 }
@@ -377,9 +384,6 @@ static int connlimit_mt_check(const struct xt_mtchk_param *par)
 		return -ENOMEM;
 	}
 
-	for (i = 0; i < ARRAY_SIZE(info->data->locks); ++i)
-		spin_lock_init(&info->data->locks[i]);
-
 	for (i = 0; i < ARRAY_SIZE(info->data->climit_root4); ++i)
 		info->data->climit_root4[i] = RB_ROOT;
 	for (i = 0; i < ARRAY_SIZE(info->data->climit_root6); ++i)
@@ -435,10 +439,13 @@ static struct xt_match connlimit_mt_reg __read_mostly = {
 
 static int __init connlimit_mt_init(void)
 {
-	int ret;
+	int ret, i;
 
 	BUILD_BUG_ON(CONNLIMIT_LOCK_SLOTS > CONNLIMIT_SLOTS);
 	BUILD_BUG_ON((CONNLIMIT_SLOTS % CONNLIMIT_LOCK_SLOTS) != 0);
+
+	for (i = 0; i < CONNLIMIT_LOCK_SLOTS; ++i)
+		spin_lock_init(&xt_connlimit_locks[i]);
 
 	connlimit_conn_cachep = kmem_cache_create("xt_connlimit_conn",
 					   sizeof(struct xt_connlimit_conn),
