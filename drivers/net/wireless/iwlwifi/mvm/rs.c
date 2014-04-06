@@ -142,7 +142,7 @@ enum rs_column_mode {
 	RS_MIMO2,
 };
 
-#define MAX_NEXT_COLUMNS 5
+#define MAX_NEXT_COLUMNS 7
 #define MAX_COLUMN_CHECKS 3
 
 typedef bool (*allow_column_func_t) (struct iwl_mvm *mvm,
@@ -214,6 +214,8 @@ static const struct rs_tx_column rs_tx_columns[] = {
 			RS_COLUMN_SISO_ANT_B,
 			RS_COLUMN_MIMO2,
 			RS_COLUMN_MIMO2_SGI,
+			RS_COLUMN_INVALID,
+			RS_COLUMN_INVALID,
 		},
 	},
 	[RS_COLUMN_LEGACY_ANT_B] = {
@@ -225,6 +227,8 @@ static const struct rs_tx_column rs_tx_columns[] = {
 			RS_COLUMN_SISO_ANT_B,
 			RS_COLUMN_MIMO2,
 			RS_COLUMN_MIMO2_SGI,
+			RS_COLUMN_INVALID,
+			RS_COLUMN_INVALID,
 		},
 	},
 	[RS_COLUMN_SISO_ANT_A] = {
@@ -236,6 +240,8 @@ static const struct rs_tx_column rs_tx_columns[] = {
 			RS_COLUMN_SISO_ANT_A_SGI,
 			RS_COLUMN_SISO_ANT_B_SGI,
 			RS_COLUMN_MIMO2_SGI,
+			RS_COLUMN_LEGACY_ANT_A,
+			RS_COLUMN_LEGACY_ANT_B,
 		},
 		.checks = {
 			rs_siso_allow,
@@ -250,6 +256,8 @@ static const struct rs_tx_column rs_tx_columns[] = {
 			RS_COLUMN_SISO_ANT_B_SGI,
 			RS_COLUMN_SISO_ANT_A_SGI,
 			RS_COLUMN_MIMO2_SGI,
+			RS_COLUMN_LEGACY_ANT_A,
+			RS_COLUMN_LEGACY_ANT_B,
 		},
 		.checks = {
 			rs_siso_allow,
@@ -265,6 +273,8 @@ static const struct rs_tx_column rs_tx_columns[] = {
 			RS_COLUMN_SISO_ANT_A,
 			RS_COLUMN_SISO_ANT_B,
 			RS_COLUMN_MIMO2,
+			RS_COLUMN_LEGACY_ANT_A,
+			RS_COLUMN_LEGACY_ANT_B,
 		},
 		.checks = {
 			rs_siso_allow,
@@ -281,6 +291,8 @@ static const struct rs_tx_column rs_tx_columns[] = {
 			RS_COLUMN_SISO_ANT_B,
 			RS_COLUMN_SISO_ANT_A,
 			RS_COLUMN_MIMO2,
+			RS_COLUMN_LEGACY_ANT_A,
+			RS_COLUMN_LEGACY_ANT_B,
 		},
 		.checks = {
 			rs_siso_allow,
@@ -296,6 +308,8 @@ static const struct rs_tx_column rs_tx_columns[] = {
 			RS_COLUMN_SISO_ANT_A_SGI,
 			RS_COLUMN_SISO_ANT_B_SGI,
 			RS_COLUMN_MIMO2_SGI,
+			RS_COLUMN_LEGACY_ANT_A,
+			RS_COLUMN_LEGACY_ANT_B,
 		},
 		.checks = {
 			rs_mimo_allow,
@@ -311,6 +325,8 @@ static const struct rs_tx_column rs_tx_columns[] = {
 			RS_COLUMN_SISO_ANT_A,
 			RS_COLUMN_SISO_ANT_B,
 			RS_COLUMN_MIMO2,
+			RS_COLUMN_LEGACY_ANT_A,
+			RS_COLUMN_LEGACY_ANT_B,
 		},
 		.checks = {
 			rs_mimo_allow,
@@ -2070,8 +2086,18 @@ lq_update:
 		 * stay with best antenna legacy modulation for a while
 		 * before next round of mode comparisons. */
 		tbl1 = &(lq_sta->lq_info[lq_sta->active_tbl]);
-		if (is_legacy(&tbl1->rate) && !sta->ht_cap.ht_supported) {
+		if (is_legacy(&tbl1->rate)) {
 			IWL_DEBUG_RATE(mvm, "LQ: STAY in legacy table\n");
+
+			if (tid != IWL_MAX_TID_COUNT) {
+				tid_data = &sta_priv->tid_data[tid];
+				if (tid_data->state != IWL_AGG_OFF) {
+					IWL_DEBUG_RATE(mvm,
+						       "Stop aggregation on tid %d\n",
+						       tid);
+					ieee80211_stop_tx_ba_session(sta, tid);
+				}
+			}
 			rs_set_stay_in_table(mvm, 1, lq_sta);
 		} else {
 		/* If we're in an HT mode, and all 3 mode switch actions
