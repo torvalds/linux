@@ -20,6 +20,7 @@
 
 #include "r8180.h"
 #include "r8180_hw.h"
+#include "r8180_wx.h"
 
 #include <net/iw_handler.h>
 #include "ieee80211/dot11d.h"
