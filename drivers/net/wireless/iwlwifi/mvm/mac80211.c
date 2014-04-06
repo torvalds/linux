@@ -1694,6 +1694,11 @@ static int iwl_mvm_mac_sta_state(struct ieee80211_hw *hw,
 		ret = iwl_mvm_add_sta(mvm, vif, sta);
 	} else if (old_state == IEEE80211_STA_NONE &&
 		   new_state == IEEE80211_STA_AUTH) {
+		/*
+		 * EBS may be disabled due to previous failures reported by FW.
+		 * Reset EBS status here assuming environment has been changed.
+		 */
+		mvm->last_ebs_successful = true;
 		ret = 0;
 	} else if (old_state == IEEE80211_STA_AUTH &&
 		   new_state == IEEE80211_STA_ASSOC) {

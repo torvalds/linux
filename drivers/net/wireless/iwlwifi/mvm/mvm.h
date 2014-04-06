@@ -535,6 +535,8 @@ struct iwl_mvm {
 	/* Internal station */
 	struct iwl_mvm_int_sta aux_sta;
 
+	bool last_ebs_successful;
+
 	u8 scan_last_antenna_idx; /* to toggle TX between antennas */
 	u8 mgmt_last_antenna_idx;
 
