@@ -2651,6 +2651,11 @@ static inline int skb_copy_datagram_msg(const struct sk_buff *from, int offset,
 }
 int skb_copy_and_csum_datagram_iovec(struct sk_buff *skb, int hlen,
 				     struct iovec *iov);
+static inline int skb_copy_and_csum_datagram_msg(struct sk_buff *skb, int hlen,
+			    struct msghdr *msg)
+{
+	return skb_copy_and_csum_datagram_iovec(skb, hlen, msg->msg_iov);
+}
 int skb_copy_datagram_from_iovec(struct sk_buff *skb, int offset,
 				 const struct iovec *from, int from_offset,
 				 int len);
