@@ -311,6 +311,7 @@ struct iwl_lq_sta {
 	u32 visited_columns;    /* Bitmask marking which Tx columns were
 				 * explored during a search cycle
 				 */
+	u64 last_tx;
 	bool is_vht;
 	enum ieee80211_band band;
 
