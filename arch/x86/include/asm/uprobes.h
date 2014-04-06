@@ -51,6 +51,7 @@ struct arch_uprobe {
 		struct {
 			s32	offs;
 			u8	ilen;
+			u8	opc1;
 		}				branch;
 	};
 };

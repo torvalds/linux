@@ -461,34 +461,97 @@ static struct uprobe_xol_ops default_xol_ops = {
 	.post_xol = default_post_xol_op,
 };
 
+static bool branch_is_call(struct arch_uprobe *auprobe)
+{
+	return auprobe->branch.opc1 == 0xe8;
+}
+
 static bool branch_emulate_op(struct arch_uprobe *auprobe, struct pt_regs *regs)
 {
-	regs->ip += auprobe->branch.ilen + auprobe->branch.offs;
+	unsigned long new_ip = regs->ip += auprobe->branch.ilen;
+
+	if (branch_is_call(auprobe)) {
+		unsigned long new_sp = regs->sp - sizeof_long();
+		/*
+		 * If it fails we execute this (mangled, see the comment in
+		 * branch_clear_offset) insn out-of-line. In the likely case
+		 * this should trigger the trap, and the probed application
+		 * should die or restart the same insn after it handles the
+		 * signal, arch_uprobe_post_xol() won't be even called.
+		 *
+		 * But there is corner case, see the comment in ->post_xol().
+		 */
+		if (copy_to_user((void __user *)new_sp, &new_ip, sizeof_long()))
+			return false;
+		regs->sp = new_sp;
+	}
+
+	regs->ip = new_ip + auprobe->branch.offs;
 	return true;
+}
+
+static int branch_post_xol_op(struct arch_uprobe *auprobe, struct pt_regs *regs)
+{
+	BUG_ON(!branch_is_call(auprobe));
+	/*
+	 * We can only get here if branch_emulate_op() failed to push the ret
+	 * address _and_ another thread expanded our stack before the (mangled)
+	 * "call" insn was executed out-of-line. Just restore ->sp and restart.
+	 * We could also restore ->ip and try to call branch_emulate_op() again.
+	 */
+	regs->sp += sizeof_long();
+	return -ERESTART;
+}
+
+static void branch_clear_offset(struct arch_uprobe *auprobe, struct insn *insn)
+{
+	/*
+	 * Turn this insn into "call 1f; 1:", this is what we will execute
+	 * out-of-line if ->emulate() fails. We only need this to generate
+	 * a trap, so that the probed task receives the correct signal with
+	 * the properly filled siginfo.
+	 *
+	 * But see the comment in ->post_xol(), in the unlikely case it can
+	 * succeed. So we need to ensure that the new ->ip can not fall into
+	 * the non-canonical area and trigger #GP.
+	 *
+	 * We could turn it into (say) "pushf", but then we would need to
+	 * divorce ->insn[] and ->ixol[]. We need to preserve the 1st byte
+	 * of ->insn[] for set_orig_insn().
+	 */
+	memset(auprobe->insn + insn_offset_immediate(insn),
+		0, insn->immediate.nbytes);
 }
 
 static struct uprobe_xol_ops branch_xol_ops = {
 	.emulate  = branch_emulate_op,
+	.post_xol = branch_post_xol_op,
 };
 
 /* Returns -ENOSYS if branch_xol_ops doesn't handle this insn */
 static int branch_setup_xol_ops(struct arch_uprobe *auprobe, struct insn *insn)
 {
-
-	switch (OPCODE1(insn)) {
-	case 0xeb:	/* jmp 8 */
-	case 0xe9:	/* jmp 32 */
-	case 0x90:	/* prefix* + nop; same as jmp with .offs = 0 */
-		break;
-	default:
-		return -ENOSYS;
-	}
+	u8 opc1 = OPCODE1(insn);
 
 	/* has the side-effect of processing the entire instruction */
 	insn_get_length(insn);
 	if (WARN_ON_ONCE(!insn_complete(insn)))
 		return -ENOEXEC;
 
+	switch (opc1) {
+	case 0xeb:	/* jmp 8 */
+	case 0xe9:	/* jmp 32 */
+	case 0x90:	/* prefix* + nop; same as jmp with .offs = 0 */
+		break;
+
+	case 0xe8:	/* call relative */
+		branch_clear_offset(auprobe, insn);
+		break;
+	default:
+		return -ENOSYS;
+	}
+
+	auprobe->branch.opc1 = opc1;
 	auprobe->branch.ilen = insn->length;
 	auprobe->branch.offs = insn->immediate.value;
 
@@ -531,9 +594,6 @@ int arch_uprobe_analyze_insn(struct arch_uprobe *auprobe, struct mm_struct *mm, 
 	case 0xc2:
 	case 0xca:
 		fix_ip = false;
-		break;
-	case 0xe8:		/* call relative - Fix return addr */
-		fix_call = true;
 		break;
 	case 0x9a:		/* call absolute - Fix return addr, not ip */
 		fix_call = true;
