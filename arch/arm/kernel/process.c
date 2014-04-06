@@ -39,6 +39,7 @@
 #include <asm/processor.h>
 #include <asm/thread_notify.h>
 #include <asm/stacktrace.h>
+#include <asm/system_misc.h>
 #include <asm/mach/time.h>
 #include <asm/tls.h>
 
