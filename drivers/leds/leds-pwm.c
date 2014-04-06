@@ -154,6 +154,7 @@ static int led_pwm_create_of(struct device *dev, struct led_pwm_priv *priv)
 
 		led.default_trigger = of_get_property(child,
 						"linux,default-trigger", NULL);
+		led.active_low = of_property_read_bool(child, "active-low");
 		of_property_read_u32(child, "max-brightness",
 				     &led.max_brightness);
 
