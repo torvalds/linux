@@ -253,12 +253,16 @@ static inline void __cache_line_loop(unsigned long paddr, unsigned long vaddr,
 
 	if (cacheop == OP_INV_IC) {
 		aux_cmd = ARC_REG_IC_IVIL;
+#if (CONFIG_ARC_MMU_VER > 2)
 		aux_tag = ARC_REG_IC_PTAG;
+#endif
 	}
 	else {
 		/* d$ cmd: INV (discard or wback-n-discard) OR FLUSH (wback) */
 		aux_cmd = cacheop & OP_INV ? ARC_REG_DC_IVDL : ARC_REG_DC_FLDL;
+#if (CONFIG_ARC_MMU_VER > 2)
 		aux_tag = ARC_REG_DC_PTAG;
+#endif
 	}
 
 	/* Ensure we properly floor/ceil the non-line aligned/sized requests
