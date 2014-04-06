@@ -11,7 +11,9 @@
 #include <linux/module.h>
 #include <linux/param.h>
 #include <linux/smp.h>
+#include <linux/stringify.h>
 
+#include <asm/asm.h>
 #include <asm/compiler.h>
 #include <asm/war.h>
 
@@ -27,11 +29,7 @@ void __delay(unsigned long loops)
 	"	.set	noreorder				\n"
 	"	.align	3					\n"
 	"1:	bnez	%0, 1b					\n"
-#if BITS_PER_LONG == 32
-	"	subu	%0, %1					\n"
-#else
-	"	dsubu	%0, %1					\n"
-#endif
+	"	 " __stringify(LONG_SUBU) "	%0, %1		\n"
 	"	.set	reorder					\n"
 	: "=r" (loops)
 	: GCC_DADDI_IMM_ASM() (1), "0" (loops));
