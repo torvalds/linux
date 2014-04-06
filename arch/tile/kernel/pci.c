@@ -250,8 +250,6 @@ static void fixup_read_and_payload_sizes(void)
 
 	/* Scan for the smallest maximum payload size. */
 	for_each_pci_dev(dev) {
-		u32 devcap;
-
 		if (!pci_is_pcie(dev))
 			continue;
 

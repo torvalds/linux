@@ -25,6 +25,8 @@ obj-$(CONFIG_PCI)		+= pci_gx.o
 else
 obj-$(CONFIG_PCI)		+= pci.o
 endif
+obj-$(CONFIG_PERF_EVENTS)	+= perf_event.o
+obj-$(CONFIG_USE_PMC)		+= pmc.o
 obj-$(CONFIG_TILE_USB)		+= usb.o
 obj-$(CONFIG_TILE_HVGLUE_TRACE)	+= hvglue_trace.o
 obj-$(CONFIG_FUNCTION_TRACER)	+= ftrace.o mcount_64.o
