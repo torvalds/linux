@@ -243,6 +243,13 @@ config GPIO_OCTEON
 	  Say yes here to support the on-chip GPIO lines on the OCTEON
 	  family of SOCs.
 
+config GPIO_OMAP
+	bool "TI OMAP GPIO support"
+	default y if ARCH_OMAP
+	depends on ARM && ARCH_OMAP
+	help
+	  Say yes here to enable GPIO support for TI OMAP SoCs.
+
 config GPIO_PL061
 	bool "PrimeCell PL061 GPIO support"
 	depends on ARM_AMBA
