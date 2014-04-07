@@ -128,7 +128,7 @@ static int __init ipc_init(void)
 	register_ipcns_notifier(&init_ipc_ns);
 	return 0;
 }
-__initcall(ipc_init);
+device_initcall(ipc_init);
 
 /**
  * ipc_init_ids	- initialise ipc identifiers
