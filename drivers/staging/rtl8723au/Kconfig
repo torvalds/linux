@@ -1,6 +1,6 @@
 config R8723AU
 	tristate "Realtek RTL8723AU Wireless LAN NIC driver"
-	depends on WLAN && USB
+	depends on USB && WLAN && RFKILL
 	select WIRELESS_EXT
 	select WEXT_PRIV
 	select CFG80211
