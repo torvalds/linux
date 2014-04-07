@@ -2314,6 +2314,7 @@ static bool shrink_zones(struct zonelist *zonelist, struct scan_control *sc)
 	unsigned long lru_pages = 0;
 	bool aborted_reclaim = false;
 	struct reclaim_state *reclaim_state = current->reclaim_state;
+	gfp_t orig_mask;
 	struct shrink_control shrink = {
 		.gfp_mask = sc->gfp_mask,
 	};
@@ -2323,6 +2324,7 @@ static bool shrink_zones(struct zonelist *zonelist, struct scan_control *sc)
 	 * allowed level, force direct reclaim to scan the highmem zone as
 	 * highmem pages could be pinning lowmem pages storing buffer_heads
 	 */
+	orig_mask = sc->gfp_mask;
 	if (buffer_heads_over_limit)
 		sc->gfp_mask |= __GFP_HIGHMEM;
 
@@ -2392,6 +2394,12 @@ static bool shrink_zones(struct zonelist *zonelist, struct scan_control *sc)
 			reclaim_state->reclaimed_slab = 0;
 		}
 	}
+
+	/*
+	 * Restore to original mask to avoid the impact on the caller if we
+	 * promoted it to __GFP_HIGHMEM.
+	 */
+	sc->gfp_mask = orig_mask;
 
 	return aborted_reclaim;
 }
