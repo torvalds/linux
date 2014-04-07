@@ -346,6 +346,7 @@
 &usbh1 {
 	vbus-supply = <&reg_usb_host1>;
 	disable-over-current;
+	dr_mode = "host";
 	status = "okay";
 };
 
