@@ -81,9 +81,15 @@ static inline void zevio_gpio_port_set(struct zevio_gpio *c, unsigned pin,
 static int zevio_gpio_get(struct gpio_chip *chip, unsigned pin)
 {
 	struct zevio_gpio *controller = to_zevio_gpio(chip);
+	u32 val, dir;
 
-	/* Only reading allowed, so no spinlock needed */
-	u32 val = zevio_gpio_port_get(controller, pin, ZEVIO_GPIO_INPUT);
+	spin_lock(&controller->lock);
+	dir = zevio_gpio_port_get(controller, pin, ZEVIO_GPIO_DIRECTION);
+	if (dir & BIT(ZEVIO_GPIO_BIT(pin)))
+		val = zevio_gpio_port_get(controller, pin, ZEVIO_GPIO_INPUT);
+	else
+		val = zevio_gpio_port_get(controller, pin, ZEVIO_GPIO_OUTPUT);
+	spin_unlock(&controller->lock);
 
 	return (val >> ZEVIO_GPIO_BIT(pin)) & 0x1;
 }
