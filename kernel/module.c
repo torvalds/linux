@@ -640,7 +640,7 @@ static int module_unload_init(struct module *mod)
 	INIT_LIST_HEAD(&mod->target_list);
 
 	/* Hold reference count during initialization. */
-	__this_cpu_write(mod->refptr->incs, 1);
+	raw_cpu_write(mod->refptr->incs, 1);
 
 	return 0;
 }
