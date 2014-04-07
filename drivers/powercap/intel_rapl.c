@@ -1374,6 +1374,9 @@ static int __init rapl_init(void)
 
 		return -ENODEV;
 	}
+
+	cpu_notifier_register_begin();
+
 	/* prevent CPU hotplug during detection */
 	get_online_cpus();
 	ret = rapl_detect_topology();
@@ -1385,20 +1388,23 @@ static int __init rapl_init(void)
 		ret = -ENODEV;
 		goto done;
 	}
-	register_hotcpu_notifier(&rapl_cpu_notifier);
+	__register_hotcpu_notifier(&rapl_cpu_notifier);
 done:
 	put_online_cpus();
+	cpu_notifier_register_done();
 
 	return ret;
 }
 
 static void __exit rapl_exit(void)
 {
+	cpu_notifier_register_begin();
 	get_online_cpus();
-	unregister_hotcpu_notifier(&rapl_cpu_notifier);
+	__unregister_hotcpu_notifier(&rapl_cpu_notifier);
 	rapl_unregister_powercap();
 	rapl_cleanup_data();
 	put_online_cpus();
+	cpu_notifier_register_done();
 }
 
 module_init(rapl_init);

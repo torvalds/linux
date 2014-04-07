@@ -646,19 +646,20 @@ static int __init rapl_pmu_init(void)
 		/* unsupported */
 		return 0;
 	}
-	get_online_cpus();
+
+	cpu_notifier_register_begin();
 
 	for_each_online_cpu(cpu) {
 		rapl_cpu_prepare(cpu);
 		rapl_cpu_init(cpu);
 	}
 
-	perf_cpu_notifier(rapl_cpu_notifier);
+	__perf_cpu_notifier(rapl_cpu_notifier);
 
 	ret = perf_pmu_register(&rapl_pmu_class, "power", -1);
 	if (WARN_ON(ret)) {
 		pr_info("RAPL PMU detected, registration failed (%d), RAPL PMU disabled\n", ret);
-		put_online_cpus();
+		cpu_notifier_register_done();
 		return -1;
 	}
 
@@ -672,7 +673,7 @@ static int __init rapl_pmu_init(void)
 		hweight32(rapl_cntr_mask),
 		ktime_to_ms(pmu->timer_interval));
 
-	put_online_cpus();
+	cpu_notifier_register_done();
 
 	return 0;
 }
