@@ -524,11 +524,9 @@ static int ufs_read_cylinder_structures(struct super_block *sb)
 	struct ufs_buffer_head * ubh;
 	unsigned char * base, * space;
 	unsigned size, blks, i;
-	struct ufs_super_block_third *usb3;
 
 	UFSD("ENTER\n");
 
-	usb3 = ubh_get_usb_third(uspi);
 	/*
 	 * Read cs structures from (usually) first data block
 	 * on the device. 
