@@ -81,7 +81,7 @@ void stutter_wait(const char *title);
 int torture_stutter_init(int s);
 
 /* Initialization and cleanup. */
-void torture_init_begin(char *ttype, bool v, int *runnable);
+bool torture_init_begin(char *ttype, bool v, int *runnable);
 void torture_init_end(void);
 bool torture_cleanup(void);
 bool torture_must_stop(void);

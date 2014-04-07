@@ -355,7 +355,8 @@ static int __init lock_torture_init(void)
 		&lock_busted_ops, &spin_lock_ops, &spin_lock_irq_ops,
 	};
 
-	torture_init_begin(torture_type, verbose, &locktorture_runnable);
+	if (!torture_init_begin(torture_type, verbose, &locktorture_runnable))
+		return -EBUSY;
 
 	/* Process args and tell the world that the torturer is on the job. */
 	for (i = 0; i < ARRAY_SIZE(torture_ops); i++) {

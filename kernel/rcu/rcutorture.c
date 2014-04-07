@@ -1536,7 +1536,8 @@ rcu_torture_init(void)
 		&rcu_ops, &rcu_bh_ops, &rcu_busted_ops, &srcu_ops, &sched_ops,
 	};
 
-	torture_init_begin(torture_type, verbose, &rcutorture_runnable);
+	if (!torture_init_begin(torture_type, verbose, &rcutorture_runnable))
+		return -EBUSY;
 
 	/* Process args and tell the world that the torturer is on the job. */
 	for (i = 0; i < ARRAY_SIZE(torture_ops); i++) {
