@@ -2782,7 +2782,7 @@ reuse:
 		 */
 		if (!page_mkwrite) {
 			wait_on_page_locked(dirty_page);
-			set_page_dirty_balance(dirty_page, page_mkwrite);
+			set_page_dirty_balance(dirty_page);
 			/* file_update_time outside page_lock */
 			if (vma->vm_file)
 				file_update_time(vma->vm_file);
