@@ -1253,7 +1253,7 @@ phys_addr_t __init memblock_mem_size(unsigned long limit_pfn)
 		pages += end_pfn - start_pfn;
 	}
 
-	return (phys_addr_t)pages << PAGE_SHIFT;
+	return PFN_PHYS(pages);
 }
 
 /* lowest address */
@@ -1324,7 +1324,7 @@ int __init_memblock memblock_search_pfn_nid(unsigned long pfn,
 			 unsigned long *start_pfn, unsigned long *end_pfn)
 {
 	struct memblock_type *type = &memblock.memory;
-	int mid = memblock_search(type, (phys_addr_t)pfn << PAGE_SHIFT);
+	int mid = memblock_search(type, PFN_PHYS(pfn));
 
 	if (mid == -1)
 		return -1;
