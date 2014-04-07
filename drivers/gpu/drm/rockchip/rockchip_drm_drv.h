@@ -117,6 +117,7 @@ struct rockchip_drm_overlay {
 	unsigned int mode_width;
 	unsigned int mode_height;
 	unsigned int refresh;
+	unsigned int pixclock;
 	unsigned int scan_flag;
 	unsigned int bpp;
 	unsigned int pitch;
@@ -149,6 +150,7 @@ struct rockchip_drm_display_ops {
 	struct edid *(*get_edid)(struct device *dev,
 			struct drm_connector *connector);
 	void *(*get_panel)(struct device *dev);
+	void *(*get_modelist)(struct device *dev);
 	int (*check_timing)(struct device *dev, void *timing);
 	int (*power_on)(struct device *dev, int mode);
 };
@@ -338,6 +340,7 @@ int rockchip_platform_device_ipp_register(void);
 void rockchip_platform_device_ipp_unregister(void);
 
 extern struct platform_driver primary_platform_driver;
+extern struct platform_driver extend_platform_driver;
 extern struct platform_driver hdmi_driver;
 extern struct platform_driver mixer_driver;
 extern struct platform_driver rockchip_drm_common_hdmi_driver;

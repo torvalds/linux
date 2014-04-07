@@ -22,13 +22,14 @@ config DRM_ROCKCHIP_DMABUF
 	help
 	  Choose this option if you want to use DMABUF feature for DRM.
 
-config DRM_RK_PRIMARY
+config DRM_ROCKCHIP_PRIMARY
 	  bool "RK DRM PRIMARY"
 	  depends on OF && DRM_ROCKCHIP 
 	  select FB_MODE_HELPERS
 	  select VIDEOMODE_HELPERS
 	  help
 	  Choose this option if you want to use Rockchip PRIMARY DISPLAY for DRM.
+
 config DRM_ROCKCHIP_HDMI
 	bool "Rockchip DRM HDMI"
 	depends on DRM_ROCKCHIP 

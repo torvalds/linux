@@ -39,11 +39,10 @@ static struct device *g_dev = NULL;
 
 static bool primary_display_is_connected(struct device *dev)
 {
-	DRM_DEBUG_KMS("%s\n", __FILE__);
 
 	/* TODO. */
 
-	return true;
+	return false;
 }
 
 static void *primary_get_panel(struct device *dev)
@@ -140,12 +139,13 @@ static void primary_commit(struct device *dev)
 {
 	struct primary_context *ctx = get_primary_context(dev);
 	struct rk_drm_display *drm_disp = ctx->drm_disp;
+	struct rockchip_drm_panel_info *panel = (struct rockchip_drm_panel_info *)primary_get_panel(dev);
+	struct fb_videomode *mode;
 
 	printk(KERN_ERR"%s %d\n", __func__,__LINE__);
 	if (ctx->suspended)
 		return;
-
-	drm_disp->mode_id = drm_disp->best_mode;
+	drm_disp->mode = &panel->timing;
 	drm_disp->enable = true;
 	rk_drm_disp_handle(drm_disp,0,RK_DRM_SCREEN_SET);
 }
@@ -201,7 +201,6 @@ static void primary_event_call_back_handle(struct rk_drm_display *drm_disp,int w
 
 			drm_handle_vblank(drm_dev, manager->pipe);
 			rockchip_drm_crtc_finish_pageflip(drm_dev, manager->pipe);
-
 			/* set wait vsync event to zero and wake up queue. */
 			if (atomic_read(&ctx->wait_vsync_event)) {
 				atomic_set(&ctx->wait_vsync_event, 0);
@@ -280,7 +279,12 @@ static void primary_win_set_colkey(struct device *dev, unsigned int win)
 	DRM_DEBUG_KMS("%s\n", __FILE__);
 
 }
-
+#if 0
+static ktime_t win_start;
+static ktime_t win_end;
+static ktime_t win_start1;
+static ktime_t win_end1;
+#endif
 static void primary_win_commit(struct device *dev, int zpos)
 {
 	struct primary_context *ctx = get_primary_context(dev);
@@ -301,6 +305,14 @@ static void primary_win_commit(struct device *dev, int zpos)
 
 	if (win < 0 || win > WINDOWS_NR)
 		return;
+#if 0
+	if(win == 0){
+		win_start = ktime_get();
+		win_start = ktime_sub(win_start, win_end);
+		printk("user flip buffer time %dus\n", (int)ktime_to_us(win_start));
+	//	win_start = ktime_get();
+	}
+#endif
 	rk_win = &drm_disp->win[win];
 	win_data = &ctx->win_data[win];
 	switch(win_data->bpp){
@@ -331,6 +343,14 @@ static void primary_win_commit(struct device *dev, int zpos)
 	rk_drm_disp_handle(drm_disp,1<<win,RK_DRM_WIN_COMMIT | RK_DRM_DISPLAY_COMMIT);
 		
 	win_data->enabled = true;
+#if 0
+	if(win ==0){
+	//	win_end = ktime_get();
+	//	win_end = ktime_sub(win_end, win_start);
+	//	printk("flip buffer time %dus\n", (int)ktime_to_us(win_end));
+		win_end = ktime_get();
+	}
+#endif
 
 }
 
@@ -513,7 +533,8 @@ static int primary_probe(struct platform_device *pdev)
 	struct rockchip_drm_subdrv *subdrv;
 	struct rockchip_drm_panel_info *panel;
 	struct rk_drm_display *drm_display = NULL;
-	int ret = -EINVAL;
+	struct fb_modelist *modelist;
+	struct fb_videomode *mode;
 
 	DRM_DEBUG_KMS("%s\n", __FILE__);
 
@@ -528,7 +549,9 @@ static int primary_probe(struct platform_device *pdev)
 	drm_display = rk_drm_get_diplay(RK_DRM_PRIMARY_SCREEN);
 	ctx->drm_disp = drm_display;
 	ctx->default_win = 0;
-	memcpy(&panel->timing,drm_display->mode,sizeof(struct fb_videomode));
+	modelist = list_first_entry(drm_display->modelist, struct fb_modelist, list);
+	mode = &modelist->mode;
+	memcpy(&panel->timing,mode,sizeof(struct fb_videomode));
 
 	drm_display->event_call_back = primary_event_call_back_handle;
 
@@ -549,7 +572,7 @@ static int primary_probe(struct platform_device *pdev)
 	pm_runtime_enable(dev);
 	pm_runtime_get_sync(dev);
 	
-	primary_commit(dev);
+	//primary_commit(dev);
 	primary_activate(ctx, true);
 
 	rockchip_drm_subdrv_register(subdrv);

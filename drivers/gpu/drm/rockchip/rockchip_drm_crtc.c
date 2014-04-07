@@ -54,7 +54,7 @@ static void rockchip_drm_crtc_dpms(struct drm_crtc *crtc, int mode)
 {
 	struct rockchip_drm_crtc *rockchip_crtc = to_rockchip_crtc(crtc);
 
-	DRM_DEBUG_KMS("crtc[%d] mode[%d]\n", crtc->base.id, mode);
+//	printk(KERN_ERR"crtc[%d] mode[%d]\n", crtc->base.id, mode);
 
 	if (rockchip_crtc->dpms == mode) {
 		DRM_DEBUG_KMS("desired dpms mode is same as previous one.\n");
@@ -147,11 +147,11 @@ static int rockchip_drm_crtc_mode_set_base(struct drm_crtc *crtc, int x, int y,
 	int ret;
 
 	DRM_DEBUG_KMS("%s\n", __FILE__);
-
+	
 	/* when framebuffer changing is requested, crtc's dpms should be on */
 	if (rockchip_crtc->dpms > DRM_MODE_DPMS_ON) {
 		DRM_ERROR("failed framebuffer changing request.\n");
-		return -EPERM;
+//		return -EPERM;
 	}
 
 	crtc_w = crtc->fb->width - x;
@@ -203,6 +203,7 @@ static int rockchip_drm_crtc_page_flip(struct drm_crtc *crtc,
 	struct rockchip_drm_crtc *rockchip_crtc = to_rockchip_crtc(crtc);
 	struct drm_framebuffer *old_fb = crtc->fb;
 	int ret = -EINVAL;
+
 
 	DRM_DEBUG_KMS("%s\n", __FILE__);
 
@@ -370,7 +371,24 @@ int rockchip_drm_crtc_create(struct drm_device *dev, unsigned int nr)
 
 	return 0;
 }
+#if 0
+int rockchip_get_crtc_vblank_timestamp(struct drm_device *dev, int crtc,
+				    int *max_error,
+				    struct timeval *vblank_time,
+				    unsigned flags)
+{
+	struct rockchip_drm_private *private = dev->dev_private;
+	struct rockchip_drm_crtc *rockchip_crtc =
+		to_rockchip_crtc(private->crtc[crtc]);
 
+	if (rockchip_crtc->dpms != DRM_MODE_DPMS_ON)
+		return -EPERM;
+
+	rockchip_drm_fn_encoder(private->crtc[crtc], &crtc,
+			rockchip_get_vblank_timestamp);
+	
+}
+#endif
 int rockchip_drm_crtc_enable_vblank(struct drm_device *dev, int crtc)
 {
 	struct rockchip_drm_private *private = dev->dev_private;

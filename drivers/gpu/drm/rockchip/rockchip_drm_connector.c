@@ -57,7 +57,31 @@ convert_to_display_mode(struct drm_display_mode *mode,
 	if (timing->vmode & FB_VMODE_DOUBLE)
 		mode->flags |= DRM_MODE_FLAG_DBLSCAN;
 }
+static inline void
+convert_fbmode_to_display_mode(struct drm_display_mode *mode,
+			struct fb_videomode *timing)
+{
+	DRM_DEBUG_KMS("%s\n", __FILE__);
 
+	mode->clock = timing->pixclock / 1000;
+	mode->vrefresh = timing->refresh;
+
+	mode->hdisplay = timing->xres;
+	mode->hsync_start = mode->hdisplay + timing->right_margin;
+	mode->hsync_end = mode->hsync_start + timing->hsync_len;
+	mode->htotal = mode->hsync_end + timing->left_margin;
+
+	mode->vdisplay = timing->yres;
+	mode->vsync_start = mode->vdisplay + timing->lower_margin;
+	mode->vsync_end = mode->vsync_start + timing->vsync_len;
+	mode->vtotal = mode->vsync_end + timing->upper_margin;
+
+	if (timing->vmode & FB_VMODE_INTERLACED)
+		mode->flags |= DRM_MODE_FLAG_INTERLACE;
+
+	if (timing->vmode & FB_VMODE_DOUBLE)
+		mode->flags |= DRM_MODE_FLAG_DBLSCAN;
+}
 /* convert drm_display_mode to rockchip_video_timings */
 static inline void
 convert_to_video_timing(struct fb_videomode *timing,
@@ -130,6 +154,34 @@ static int rockchip_drm_connector_get_modes(struct drm_connector *connector)
 		}
 
 		drm_mode_connector_update_edid_property(connector, edid);
+	} else if(display_ops->get_modelist){
+		struct list_head *pos,*head;
+		struct fb_modelist *modelist;
+		struct fb_videomode *mode;
+		struct drm_display_mode *disp_mode = NULL;
+		count=0;
+		head = display_ops->get_modelist(manager->dev);
+		
+		list_for_each(pos,head){
+			modelist = list_entry(pos, struct fb_modelist, list);
+			mode = &modelist->mode;
+			disp_mode = drm_mode_create(connector->dev);
+			if (!mode) {
+				DRM_ERROR("failed to create a new display mode.\n");
+				return count;
+			}
+			convert_fbmode_to_display_mode(disp_mode, mode);
+
+			if(mode->xres == 1280 && mode->yres == 720 && mode->refresh == 60)
+				disp_mode->type |=  DRM_MODE_TYPE_PREFERRED;
+
+			drm_mode_set_name(disp_mode);
+//			snprintf(disp_mode->name, DRM_DISPLAY_MODE_LEN, "%dx%d%s-%d",
+//					disp_mode->hdisplay, disp_mode->vdisplay,
+//					!!(disp_mode->flags & DRM_MODE_FLAG_INTERLACE)? "i" : "p",disp_mode->vrefresh);
+			drm_mode_probed_add(connector, disp_mode);
+			count++;
+		}
 	} else {
 		struct rockchip_drm_panel_info *panel;
 		struct drm_display_mode *mode = drm_mode_create(connector->dev);

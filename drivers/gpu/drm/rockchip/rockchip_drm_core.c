@@ -28,7 +28,6 @@ static int rockchip_drm_create_enc_conn(struct drm_device *dev,
 
 	DRM_DEBUG_DRIVER("%s\n", __FILE__);
 
-	printk(KERN_ERR"----->yzq %s %d\n",__func__,__LINE__);
 	subdrv->manager->dev = subdrv->dev;
 
 	/* create and initialize a encoder for this sub driver. */
@@ -116,15 +115,12 @@ int rockchip_drm_device_register(struct drm_device *dev)
 
 	DRM_DEBUG_DRIVER("%s\n", __FILE__);
 
-	printk(KERN_ERR"----->yzq %s %d\n",__func__,__LINE__);
 	if (!dev)
 		return -EINVAL;
 
-	printk(KERN_ERR"----->yzq %s %d\n",__func__,__LINE__);
 	list_for_each_entry_safe(subdrv, n, &rockchip_drm_subdrv_list, list) {
 		err = rockchip_drm_subdrv_probe(dev, subdrv);
 		if (err) {
-	printk(KERN_ERR"----->yzq %s %d\n",__func__,__LINE__);
 			DRM_DEBUG("rockchip drm subdrv probe failed.\n");
 			list_del(&subdrv->list);
 			continue;
@@ -141,7 +137,6 @@ int rockchip_drm_device_register(struct drm_device *dev)
 
 		err = rockchip_drm_create_enc_conn(dev, subdrv);
 		if (err) {
-	printk(KERN_ERR"----->yzq %s %d\n",__func__,__LINE__);
 			DRM_DEBUG("failed to create encoder and connector.\n");
 			rockchip_drm_subdrv_remove(dev, subdrv);
 			list_del(&subdrv->list);
@@ -151,7 +146,6 @@ int rockchip_drm_device_register(struct drm_device *dev)
 		fine_cnt++;
 	}
 
-	printk(KERN_ERR"----->yzq %s %d\n",__func__,__LINE__);
 	if (!fine_cnt)
 		return -EINVAL;
 

@@ -252,6 +252,7 @@ static struct drm_driver rockchip_drm_driver = {
 	.get_vblank_counter	= drm_vblank_count,
 	.enable_vblank		= rockchip_drm_crtc_enable_vblank,
 	.disable_vblank		= rockchip_drm_crtc_disable_vblank,
+//	.get_vblank_timestamp   = rockchip_get_crtc_vblank_timestamp,
 	.gem_init_object	= rockchip_drm_gem_init_object,
 	.gem_free_object	= rockchip_drm_gem_free_object,
 	.gem_vm_ops		= &rockchip_drm_gem_vm_ops,
@@ -306,11 +307,18 @@ static int __init rockchip_drm_init(void)
 	DRM_DEBUG_DRIVER("%s\n", __FILE__);
 
 
-#ifdef CONFIG_DRM_RK_PRIMARY
+#ifdef CONFIG_DRM_ROCKCHIP_PRIMARY
 	ret = platform_driver_register(&primary_platform_driver);
 	if (ret < 0)
-		goto out_fimd;
+		goto out_primary;
 	platform_device_register_simple("primary-display", -1,
+			NULL, 0);
+#endif
+#ifdef CONFIG_DRM_ROCKCHIP_HDMI
+	ret = platform_driver_register(&extend_platform_driver);
+	if (ret < 0)
+		goto out_extend;
+	platform_device_register_simple("extend-display", -1,
 			NULL, 0);
 #endif
 
@@ -331,9 +339,13 @@ static int __init rockchip_drm_init(void)
 out:
 	platform_driver_unregister(&rockchip_drm_platform_driver);
 out_drm:
-#ifdef CONFIG_DRM_RK_PRIMARY
+#ifdef CONFIG_DRM_ROCKCHIP_PRIMARY
 	platform_driver_unregister(&primary_platform_driver);
-out_fimd:
+out_primary:
+#endif
+#ifdef CONFIG_DRM_ROCKCHIP_HDMI
+	platform_driver_unregister(&extend_platform_driver);
+out_extend:
 #endif
 	return ret;
 }

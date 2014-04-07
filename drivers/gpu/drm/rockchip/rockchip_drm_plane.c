@@ -136,8 +136,10 @@ int rockchip_plane_mode_set(struct drm_plane *plane, struct drm_crtc *crtc,
 	overlay->mode_width = crtc->mode.hdisplay;
 	overlay->mode_height = crtc->mode.vdisplay;
 	overlay->refresh = crtc->mode.vrefresh;
+	overlay->pixclock = crtc->mode.clock*1000;
 	overlay->scan_flag = crtc->mode.flags;
 
+//	printk("--->yzq %s crtc->mode->refresh =%d \n",__func__,crtc->mode.vrefresh);
 	DRM_DEBUG_KMS("overlay : offset_x/y(%d,%d), width/height(%d,%d)",
 			overlay->crtc_x, overlay->crtc_y,
 			overlay->crtc_width, overlay->crtc_height);

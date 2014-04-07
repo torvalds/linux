@@ -389,7 +389,34 @@ void rockchip_drm_fn_encoder(struct drm_crtc *crtc, void *data,
 		fn(encoder, data);
 	}
 }
+int rockchip_get_crtc_vblank_timestamp(struct drm_device *dev, int crtc,
+				    int *max_error,
+				    struct timeval *vblank_time,
+				    unsigned flags)
+{
+#if 0
+	ktime_t stime, etime, mono_time_offset;
+	struct timeval tv_etime;
+	struct drm_display_mode *mode;
+	int vbl_status, vtotal, vdisplay;
+	int vpos, hpos, i;
+	s64 framedur_ns, linedur_ns, pixeldur_ns, delta_ns, duration_ns;
+	bool invbl;
 
+	if (crtc < 0 || crtc >= dev->num_crtcs) {
+		DRM_ERROR("Invalid crtc %d\n", crtc);
+		return -EINVAL;
+	}
+
+	/* Scanout position query not supported? Should not happen. */
+	if (!dev->driver->get_scanout_position) {
+		DRM_ERROR("Called from driver w/o get_scanout_position()!?\n");
+		return -EIO;
+	}
+#endif
+	return 0;//vbl_status;
+
+}
 void rockchip_drm_enable_vblank(struct drm_encoder *encoder, void *data)
 {
 	struct rockchip_drm_manager *manager =

@@ -10,10 +10,8 @@ rockchipdrm-y := rockchip_drm_drv.o rockchip_drm_encoder.o rockchip_drm_connecto
 
 rockchipdrm-$(CONFIG_DRM_ROCKCHIP_IOMMU) += rockchip_drm_iommu.o
 rockchipdrm-$(CONFIG_DRM_ROCKCHIP_DMABUF) += rockchip_drm_dmabuf.o
-rockchipdrm-$(CONFIG_DRM_RK_PRIMARY)	+= rockchip_drm_primary.o
-rockchipdrm-$(CONFIG_DRM_ROCKCHIP_HDMI)	+= rockchip_hdmi.o rockchip_mixer.o \
-					   rockchip_ddc.o rockchip_hdmiphy.o \
-					   rockchip_drm_hdmi.o
+rockchipdrm-$(CONFIG_DRM_ROCKCHIP_PRIMARY)	+= rockchip_drm_primary.o
+rockchipdrm-$(CONFIG_DRM_ROCKCHIP_HDMI)	+= rockchip_drm_extend.o
 rockchipdrm-$(CONFIG_DRM_ROCKCHIP_VIDI)	+= rockchip_drm_vidi.o
 
 obj-$(CONFIG_DRM_ROCKCHIP)		+= rockchipdrm.o

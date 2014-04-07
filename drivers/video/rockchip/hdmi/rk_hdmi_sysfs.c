@@ -171,10 +171,16 @@ static struct rk_display_driver display_hdmi = {
 };
 
 static struct rk_display_device *display_device_hdmi = NULL;
+#ifdef CONFIG_DRM_ROCKCHIP
+extern void rk_drm_display_register(struct rk_display_ops *extend_ops, void *displaydata,int type);
+#endif
 
 void hdmi_register_display_sysfs(struct hdmi *hdmi, struct device *parent)
 {
 	display_device_hdmi = rk_display_device_register(&display_hdmi, parent, hdmi);
+#ifdef CONFIG_DRM_ROCKCHIP
+       rk_drm_display_register(&hdmi_display_ops,hdmi,SCREEN_HDMI);
+#endif
 }
 
 void hdmi_unregister_display_sysfs(struct hdmi *hdmi)
