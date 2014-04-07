@@ -3,20 +3,14 @@ config ARCH_U300
 	depends on MMU
 	select ARCH_REQUIRE_GPIOLIB
 	select ARM_AMBA
-	select ARM_PATCH_PHYS_VIRT
 	select ARM_VIC
 	select CLKSRC_MMIO
-	select CLKSRC_OF
-	select COMMON_CLK
 	select CPU_ARM926T
-	select GENERIC_CLOCKEVENTS
 	select HAVE_TCM
 	select PINCTRL
 	select PINCTRL_COH901
 	select PINCTRL_U300
-	select SPARSE_IRQ
 	select MFD_SYSCON
-	select USE_OF
 	help
 	  Support for ST-Ericsson U300 series mobile platforms.
 

@@ -77,7 +77,7 @@ static const struct qlcnic_mailbox_metadata qlcnic_83xx_mbx_tbl[] = {
 	{QLCNIC_CMD_GET_PORT_CONFIG, 2, 2},
 	{QLCNIC_CMD_GET_LINK_STATUS, 2, 4},
 	{QLCNIC_CMD_IDC_ACK, 5, 1},
-	{QLCNIC_CMD_INIT_NIC_FUNC, 2, 1},
+	{QLCNIC_CMD_INIT_NIC_FUNC, 3, 1},
 	{QLCNIC_CMD_STOP_NIC_FUNC, 2, 1},
 	{QLCNIC_CMD_SET_LED_CONFIG, 5, 1},
 	{QLCNIC_CMD_GET_LED_CONFIG, 1, 5},
@@ -87,6 +87,7 @@ static const struct qlcnic_mailbox_metadata qlcnic_83xx_mbx_tbl[] = {
 	{QLCNIC_CMD_BC_EVENT_SETUP, 2, 1},
 	{QLCNIC_CMD_DCB_QUERY_CAP, 1, 2},
 	{QLCNIC_CMD_DCB_QUERY_PARAM, 1, 50},
+	{QLCNIC_CMD_SET_INGRESS_ENCAP, 2, 1},
 };
 
 const u32 qlcnic_83xx_ext_reg_tbl[] = {
@@ -203,7 +204,12 @@ static struct qlcnic_hardware_ops qlcnic_83xx_hw_ops = {
 	.disable_sds_intr		= qlcnic_83xx_disable_sds_intr,
 	.enable_tx_intr			= qlcnic_83xx_enable_tx_intr,
 	.disable_tx_intr		= qlcnic_83xx_disable_tx_intr,
-
+	.get_saved_state		= qlcnic_83xx_get_saved_state,
+	.set_saved_state		= qlcnic_83xx_set_saved_state,
+	.cache_tmpl_hdr_values		= qlcnic_83xx_cache_tmpl_hdr_values,
+	.get_cap_size			= qlcnic_83xx_get_cap_size,
+	.set_sys_info			= qlcnic_83xx_set_sys_info,
+	.store_cap_mask			= qlcnic_83xx_store_cap_mask,
 };
 
 static struct qlcnic_nic_template qlcnic_83xx_ops = {
@@ -340,6 +346,7 @@ int qlcnic_83xx_setup_intr(struct qlcnic_adapter *adapter)
 			if (qlcnic_sriov_vf_check(adapter))
 				return -EINVAL;
 			num_msix = 1;
+			adapter->drv_sds_rings = QLCNIC_SINGLE_RING;
 			adapter->drv_tx_rings = QLCNIC_SINGLE_RING;
 		}
 	}

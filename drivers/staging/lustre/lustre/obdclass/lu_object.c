@@ -571,7 +571,7 @@ static struct lu_object *htable_lookup(struct lu_site *s,
 	 * drained), and moreover, lookup has to wait until object is freed.
 	 */
 
-	init_waitqueue_entry_current(waiter);
+	init_waitqueue_entry(waiter, current);
 	add_wait_queue(&bkt->lsb_marche_funebre, waiter);
 	set_current_state(TASK_UNINTERRUPTIBLE);
 	lprocfs_counter_incr(s->ls_stats, LU_SS_CACHE_DEATH_RACE);
@@ -712,7 +712,7 @@ struct lu_object *lu_object_find_at(const struct lu_env *env,
 		 * lu_object_find_try() already added waiter into the
 		 * wait queue.
 		 */
-		waitq_wait(&wait, TASK_UNINTERRUPTIBLE);
+		schedule();
 		bkt = lu_site_bkt_from_fid(dev->ld_site, (void *)f);
 		remove_wait_queue(&bkt->lsb_marche_funebre, &wait);
 	}
@@ -890,10 +890,10 @@ static unsigned lu_obj_hop_hash(struct cfs_hash *hs,
 
 	hash = fid_flatten32(fid);
 	hash += (hash >> 4) + (hash << 12); /* mixing oid and seq */
-	hash = cfs_hash_long(hash, hs->hs_bkt_bits);
+	hash = hash_long(hash, hs->hs_bkt_bits);
 
 	/* give me another random factor */
-	hash -= cfs_hash_long((unsigned long)hs, fid_oid(fid) % 11 + 3);
+	hash -= hash_long((unsigned long)hs, fid_oid(fid) % 11 + 3);
 
 	hash <<= hs->hs_cur_bits - hs->hs_bkt_bits;
 	hash |= (fid_seq(fid) + fid_oid(fid)) & (CFS_HASH_NBKT(hs) - 1);
@@ -2100,7 +2100,7 @@ void lu_object_assign_fid(const struct lu_env *env, struct lu_object *o,
 EXPORT_SYMBOL(lu_object_assign_fid);
 
 /**
- * allocates object with 0 (non-assiged) fid
+ * allocates object with 0 (non-assigned) fid
  * XXX: temporary solution to be able to assign fid in ->do_create()
  *      till we have fully-functional OST fids
  */

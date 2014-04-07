@@ -198,7 +198,6 @@ static struct cpufreq_driver elanfreq_driver = {
 	.verify		= cpufreq_generic_frequency_table_verify,
 	.target_index	= elanfreq_target,
 	.init		= elanfreq_cpu_init,
-	.exit		= cpufreq_generic_exit,
 	.name		= "elanfreq",
 	.attr		= cpufreq_generic_attr,
 };

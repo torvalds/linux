@@ -182,7 +182,7 @@ static void cmpk_handle_tx_feedback(struct net_device *dev, u8 *pmsg)
 
 }
 
-void cmdpkt_beacontimerinterrupt_819xusb(struct net_device *dev)
+static void cmdpkt_beacontimerinterrupt_819xusb(struct net_device *dev)
 {
 	struct r8192_priv *priv = ieee80211_priv(dev);
 	u16 tx_rate;

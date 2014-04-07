@@ -114,7 +114,7 @@ static int tegra30_boot_secondary(unsigned int cpu, struct task_struct *idle)
 
 		/* Wait for the power to come up. */
 		timeout = jiffies + msecs_to_jiffies(100);
-		while (tegra_pmc_cpu_is_powered(cpu)) {
+		while (!tegra_pmc_cpu_is_powered(cpu)) {
 			if (time_after(jiffies, timeout))
 				return -ETIMEDOUT;
 			udelay(10);

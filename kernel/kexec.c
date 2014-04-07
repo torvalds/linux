@@ -1039,10 +1039,10 @@ void __weak crash_unmap_reserved_pages(void)
 {}
 
 #ifdef CONFIG_COMPAT
-asmlinkage long compat_sys_kexec_load(unsigned long entry,
-				unsigned long nr_segments,
-				struct compat_kexec_segment __user *segments,
-				unsigned long flags)
+COMPAT_SYSCALL_DEFINE4(kexec_load, compat_ulong_t, entry,
+		       compat_ulong_t, nr_segments,
+		       struct compat_kexec_segment __user *, segments,
+		       compat_ulong_t, flags)
 {
 	struct compat_kexec_segment in;
 	struct kexec_segment out, __user *ksegments;
@@ -1235,7 +1235,7 @@ static int __init crash_notes_memory_init(void)
 	}
 	return 0;
 }
-module_init(crash_notes_memory_init)
+subsys_initcall(crash_notes_memory_init);
 
 
 /*
@@ -1629,7 +1629,7 @@ static int __init crash_save_vmcoreinfo_init(void)
 	return 0;
 }
 
-module_init(crash_save_vmcoreinfo_init)
+subsys_initcall(crash_save_vmcoreinfo_init);
 
 /*
  * Move into place and start executing a preloaded standalone

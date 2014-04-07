@@ -1,12 +1,16 @@
-Davinci GPIO controller bindings
+Davinci/Keystone GPIO controller bindings
 
 Required Properties:
-- compatible: should be "ti,dm6441-gpio"
+- compatible: should be "ti,dm6441-gpio", "ti,keystone-gpio"
 
 - reg: Physical base address of the controller and the size of memory mapped
        registers.
 
 - gpio-controller : Marks the device node as a gpio controller.
+
+- #gpio-cells : Should be two.
+  - first cell is the pin number
+  - second cell is used to specify optional parameters (unused)
 
 - interrupt-parent: phandle of the parent interrupt controller.
 
@@ -27,6 +31,7 @@ Example:
 gpio: gpio@1e26000 {
 	compatible = "ti,dm6441-gpio";
 	gpio-controller;
+	#gpio-cells = <2>;
 	reg = <0x226000 0x1000>;
 	interrupt-parent = <&intc>;
 	interrupts = <42 IRQ_TYPE_EDGE_BOTH 43 IRQ_TYPE_EDGE_BOTH
@@ -38,4 +43,20 @@ gpio: gpio@1e26000 {
 	ti,davinci-gpio-unbanked = <0>;
 	interrupt-controller;
 	#interrupt-cells = <2>;
+};
+
+leds {
+	compatible = "gpio-leds";
+
+	led1 {
+		label = "davinci:green:usr1";
+		gpios = <&gpio 10 GPIO_ACTIVE_HIGH>;
+		...
+	};
+
+	led2 {
+		label = "davinci:red:debug1";
+		gpios = <&gpio 11 GPIO_ACTIVE_HIGH>;
+		...
+	};
 };

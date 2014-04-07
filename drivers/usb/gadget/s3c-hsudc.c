@@ -1344,7 +1344,6 @@ static int s3c_hsudc_probe(struct platform_device *pdev)
 
 	return 0;
 err_add_udc:
-err_add_device:
 	clk_disable(hsudc->uclk);
 err_res:
 	if (!IS_ERR_OR_NULL(hsudc->transceiver))

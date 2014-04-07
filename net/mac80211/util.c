@@ -34,7 +34,7 @@
 #include "wep.h"
 
 /* privid for wiphys to determine whether they belong to us or not */
-void *mac80211_wiphy_privid = &mac80211_wiphy_privid;
+const void *const mac80211_wiphy_privid = &mac80211_wiphy_privid;
 
 struct ieee80211_hw *wiphy_to_ieee80211_hw(struct wiphy *wiphy)
 {
@@ -435,9 +435,8 @@ void ieee80211_add_pending_skb(struct ieee80211_local *local,
 	spin_unlock_irqrestore(&local->queue_stop_reason_lock, flags);
 }
 
-void ieee80211_add_pending_skbs_fn(struct ieee80211_local *local,
-				   struct sk_buff_head *skbs,
-				   void (*fn)(void *data), void *data)
+void ieee80211_add_pending_skbs(struct ieee80211_local *local,
+				struct sk_buff_head *skbs)
 {
 	struct ieee80211_hw *hw = &local->hw;
 	struct sk_buff *skb;
@@ -460,9 +459,6 @@ void ieee80211_add_pending_skbs_fn(struct ieee80211_local *local,
 
 		__skb_queue_tail(&local->pending[queue], skb);
 	}
-
-	if (fn)
-		fn(data);
 
 	for (i = 0; i < hw->queues; i++)
 		__ieee80211_wake_queue(hw, i,
@@ -1281,13 +1277,32 @@ int ieee80211_build_preq_ies(struct ieee80211_local *local, u8 *buffer,
 	 * that calculates local->scan_ies_len.
 	 */
 
-	/* add any remaining custom IEs */
+	/* insert custom IEs that go before VHT */
 	if (ie && ie_len) {
-		noffset = ie_len;
+		static const u8 before_vht[] = {
+			WLAN_EID_SSID,
+			WLAN_EID_SUPP_RATES,
+			WLAN_EID_REQUEST,
+			WLAN_EID_EXT_SUPP_RATES,
+			WLAN_EID_DS_PARAMS,
+			WLAN_EID_SUPPORTED_REGULATORY_CLASSES,
+			WLAN_EID_HT_CAPABILITY,
+			WLAN_EID_BSS_COEX_2040,
+			WLAN_EID_EXT_CAPABILITY,
+			WLAN_EID_SSID_LIST,
+			WLAN_EID_CHANNEL_USAGE,
+			WLAN_EID_INTERWORKING,
+			/* mesh ID can't happen here */
+			/* 60 GHz can't happen here right now */
+		};
+		noffset = ieee80211_ie_split(ie, ie_len,
+					     before_vht, ARRAY_SIZE(before_vht),
+					     offset);
 		if (end - pos < noffset - offset)
 			goto out_err;
 		memcpy(pos, ie + offset, noffset - offset);
 		pos += noffset - offset;
+		offset = noffset;
 	}
 
 	if (sband->vht_cap.vht_supported) {
@@ -1295,6 +1310,15 @@ int ieee80211_build_preq_ies(struct ieee80211_local *local, u8 *buffer,
 			goto out_err;
 		pos = ieee80211_ie_build_vht_cap(pos, &sband->vht_cap,
 						 sband->vht_cap.cap);
+	}
+
+	/* add any remaining custom IEs */
+	if (ie && ie_len) {
+		noffset = ie_len;
+		if (end - pos < noffset - offset)
+			goto out_err;
+		memcpy(pos, ie + offset, noffset - offset);
+		pos += noffset - offset;
 	}
 
 	return pos - buffer;
@@ -1374,7 +1398,6 @@ u32 ieee80211_sta_get_rates(struct ieee80211_sub_if_data *sdata,
 			    enum ieee80211_band band, u32 *basic_rates)
 {
 	struct ieee80211_supported_band *sband;
-	struct ieee80211_rate *bitrates;
 	size_t num_rates;
 	u32 supp_rates, rate_flags;
 	int i, j, shift;
@@ -1386,7 +1409,6 @@ u32 ieee80211_sta_get_rates(struct ieee80211_sub_if_data *sdata,
 	if (WARN_ON(!sband))
 		return 1;
 
-	bitrates = sband->bitrates;
 	num_rates = sband->n_bitrates;
 	supp_rates = 0;
 	for (i = 0; i < elems->supp_rates_len +
@@ -1741,6 +1763,26 @@ int ieee80211_reconfig(struct ieee80211_local *local)
 					IEEE80211_QUEUE_STOP_REASON_SUSPEND);
 
 	/*
+	 * Reconfigure sched scan if it was interrupted by FW restart or
+	 * suspend.
+	 */
+	mutex_lock(&local->mtx);
+	sched_scan_sdata = rcu_dereference_protected(local->sched_scan_sdata,
+						lockdep_is_held(&local->mtx));
+	if (sched_scan_sdata && local->sched_scan_req)
+		/*
+		 * Sched scan stopped, but we don't want to report it. Instead,
+		 * we're trying to reschedule.
+		 */
+		if (__ieee80211_request_sched_scan_start(sched_scan_sdata,
+							 local->sched_scan_req))
+			sched_scan_stopped = true;
+	mutex_unlock(&local->mtx);
+
+	if (sched_scan_stopped)
+		cfg80211_sched_scan_stopped(local->hw.wiphy);
+
+	/*
 	 * If this is for hw restart things are still running.
 	 * We may want to change that later, however.
 	 */
@@ -1767,26 +1809,6 @@ int ieee80211_reconfig(struct ieee80211_local *local)
 #else
 	WARN_ON(1);
 #endif
-
-	/*
-	 * Reconfigure sched scan if it was interrupted by FW restart or
-	 * suspend.
-	 */
-	mutex_lock(&local->mtx);
-	sched_scan_sdata = rcu_dereference_protected(local->sched_scan_sdata,
-						lockdep_is_held(&local->mtx));
-	if (sched_scan_sdata && local->sched_scan_req)
-		/*
-		 * Sched scan stopped, but we don't want to report it. Instead,
-		 * we're trying to reschedule.
-		 */
-		if (__ieee80211_request_sched_scan_start(sched_scan_sdata,
-							 local->sched_scan_req))
-			sched_scan_stopped = true;
-	mutex_unlock(&local->mtx);
-
-	if (sched_scan_stopped)
-		cfg80211_sched_scan_stopped(local->hw.wiphy);
 
 	return 0;
 }
@@ -2272,11 +2294,11 @@ u64 ieee80211_calculate_rx_timestamp(struct ieee80211_local *local,
 		ri.nss = status->vht_nss;
 		if (status->flag & RX_FLAG_40MHZ)
 			ri.flags |= RATE_INFO_FLAGS_40_MHZ_WIDTH;
-		if (status->flag & RX_FLAG_80MHZ)
+		if (status->vht_flag & RX_VHT_FLAG_80MHZ)
 			ri.flags |= RATE_INFO_FLAGS_80_MHZ_WIDTH;
-		if (status->flag & RX_FLAG_80P80MHZ)
+		if (status->vht_flag & RX_VHT_FLAG_80P80MHZ)
 			ri.flags |= RATE_INFO_FLAGS_80P80_MHZ_WIDTH;
-		if (status->flag & RX_FLAG_160MHZ)
+		if (status->vht_flag & RX_VHT_FLAG_160MHZ)
 			ri.flags |= RATE_INFO_FLAGS_160_MHZ_WIDTH;
 		if (status->flag & RX_FLAG_SHORT_GI)
 			ri.flags |= RATE_INFO_FLAGS_SHORT_GI;

@@ -907,6 +907,9 @@ struct drm_mode_config {
 
 	/* whether async page flip is supported or not */
 	bool async_page_flip;
+
+	/* cursor size */
+	uint32_t cursor_width, cursor_height;
 };
 
 #define obj_to_crtc(x) container_of(x, struct drm_crtc, base)

@@ -619,6 +619,7 @@ EXPORT_SYMBOL_GPL(em28xx_find_led);
 int em28xx_capture_start(struct em28xx *dev, int start)
 {
 	int rc;
+	const struct em28xx_led *led = NULL;
 
 	if (dev->chip_id == CHIP_ID_EM2874 ||
 	    dev->chip_id == CHIP_ID_EM2884 ||
@@ -643,6 +644,8 @@ int em28xx_capture_start(struct em28xx *dev, int start)
 
 			/* Enable video capture */
 			rc = em28xx_write_reg(dev, 0x48, 0x00);
+			if (rc < 0)
+				return rc;
 
 			if (dev->mode == EM28XX_ANALOG_MODE)
 				rc = em28xx_write_reg(dev,
@@ -650,6 +653,8 @@ int em28xx_capture_start(struct em28xx *dev, int start)
 			else
 				rc = em28xx_write_reg(dev,
 						    EM28XX_R12_VINENABLE, 0x37);
+			if (rc < 0)
+				return rc;
 
 			msleep(6);
 		} else {
@@ -658,19 +663,16 @@ int em28xx_capture_start(struct em28xx *dev, int start)
 		}
 	}
 
-	if (rc < 0)
-		return rc;
-
-	/* Switch (explicitly controlled) analog capturing LED on/off */
-	if (dev->mode == EM28XX_ANALOG_MODE) {
-		const struct em28xx_led *led;
+	if (dev->mode == EM28XX_ANALOG_MODE)
 		led = em28xx_find_led(dev, EM28XX_LED_ANALOG_CAPTURING);
-		if (led)
-			em28xx_write_reg_bits(dev, led->gpio_reg,
-					      (!start ^ led->inverted) ?
-					      ~led->gpio_mask : led->gpio_mask,
-					      led->gpio_mask);
-	}
+	else
+		led = em28xx_find_led(dev, EM28XX_LED_DIGITAL_CAPTURING);
+
+	if (led)
+		em28xx_write_reg_bits(dev, led->gpio_reg,
+				      (!start ^ led->inverted) ?
+				      ~led->gpio_mask : led->gpio_mask,
+				      led->gpio_mask);
 
 	return rc;
 }
@@ -1105,4 +1107,32 @@ void em28xx_close_extension(struct em28xx *dev)
 	}
 	list_del(&dev->devlist);
 	mutex_unlock(&em28xx_devlist_mutex);
+}
+
+int em28xx_suspend_extension(struct em28xx *dev)
+{
+	const struct em28xx_ops *ops = NULL;
+
+	em28xx_info("Suspending extensions");
+	mutex_lock(&em28xx_devlist_mutex);
+	list_for_each_entry(ops, &em28xx_extension_devlist, next) {
+		if (ops->suspend)
+			ops->suspend(dev);
+	}
+	mutex_unlock(&em28xx_devlist_mutex);
+	return 0;
+}
+
+int em28xx_resume_extension(struct em28xx *dev)
+{
+	const struct em28xx_ops *ops = NULL;
+
+	em28xx_info("Resuming extensions");
+	mutex_lock(&em28xx_devlist_mutex);
+	list_for_each_entry(ops, &em28xx_extension_devlist, next) {
+		if (ops->resume)
+			ops->resume(dev);
+	}
+	mutex_unlock(&em28xx_devlist_mutex);
+	return 0;
 }

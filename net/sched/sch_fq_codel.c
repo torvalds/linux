@@ -450,8 +450,7 @@ static int fq_codel_dump(struct Qdisc *sch, struct sk_buff *skb)
 			q->flows_cnt))
 		goto nla_put_failure;
 
-	nla_nest_end(skb, opts);
-	return skb->len;
+	return nla_nest_end(skb, opts);
 
 nla_put_failure:
 	return -1;

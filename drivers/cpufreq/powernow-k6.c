@@ -148,11 +148,11 @@ static int powernow_k6_target(struct cpufreq_policy *policy,
 	freqs.old = busfreq * powernow_k6_get_cpu_multiplier();
 	freqs.new = busfreq * clock_ratio[best_i].driver_data;
 
-	cpufreq_notify_transition(policy, &freqs, CPUFREQ_PRECHANGE);
+	cpufreq_freq_transition_begin(policy, &freqs);
 
 	powernow_k6_set_cpu_multiplier(best_i);
 
-	cpufreq_notify_transition(policy, &freqs, CPUFREQ_POSTCHANGE);
+	cpufreq_freq_transition_end(policy, &freqs, 0);
 
 	return 0;
 }
@@ -231,7 +231,6 @@ static int powernow_k6_cpu_exit(struct cpufreq_policy *policy)
 		if (i == max_multiplier)
 			powernow_k6_target(policy, i);
 	}
-	cpufreq_frequency_table_put_attr(policy->cpu);
 	return 0;
 }
 

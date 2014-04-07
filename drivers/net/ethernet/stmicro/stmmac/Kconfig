@@ -26,6 +26,16 @@ config STMMAC_PLATFORM
 
 	  If unsure, say N.
 
+config DWMAC_SOCFPGA
+	bool "SOCFPGA dwmac support"
+	depends on STMMAC_PLATFORM && MFD_SYSCON && (ARCH_SOCFPGA || COMPILE_TEST)
+	help
+	  Support for ethernet controller on Altera SOCFPGA
+
+	  This selects the Altera SOCFPGA SoC glue layer support
+	  for the stmmac device driver. This driver is used for
+	  arria5 and cyclone5 FPGA SoCs.
+
 config DWMAC_SUNXI
 	bool "Allwinner GMAC support"
 	depends on STMMAC_PLATFORM && ARCH_SUNXI
@@ -36,6 +46,17 @@ config DWMAC_SUNXI
 	  This selects Allwinner SoC glue layer support for the
 	  stmmac device driver. This driver is used for A20/A31
 	  GMAC 	  ethernet controller.
+
+config DWMAC_STI
+	bool "STi GMAC support"
+	depends on STMMAC_PLATFORM && ARCH_STI
+	default y
+	---help---
+	  Support for ethernet controller on STi SOCs.
+
+	  This selects STi SoC glue layer support for the stmmac
+	  device driver. This driver is used on for the STi series
+	  SOCs GMAC ethernet controller.
 
 config STMMAC_PCI
 	bool "STMMAC PCI bus support"

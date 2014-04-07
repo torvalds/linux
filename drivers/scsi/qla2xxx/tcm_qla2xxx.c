@@ -182,20 +182,6 @@ static int tcm_qla2xxx_npiv_parse_wwn(
 	return 0;
 }
 
-static ssize_t tcm_qla2xxx_npiv_format_wwn(char *buf, size_t len,
-					u64 wwpn, u64 wwnn)
-{
-	u8 b[8], b2[8];
-
-	put_unaligned_be64(wwpn, b);
-	put_unaligned_be64(wwnn, b2);
-	return snprintf(buf, len,
-		"%2.2x:%2.2x:%2.2x:%2.2x:%2.2x:%2.2x:%2.2x:%2.2x,"
-		"%2.2x:%2.2x:%2.2x:%2.2x:%2.2x:%2.2x:%2.2x:%2.2x",
-		b[0], b[1], b[2], b[3], b[4], b[5], b[6], b[7],
-		b2[0], b2[1], b2[2], b2[3], b2[4], b2[5], b2[6], b2[7]);
-}
-
 static char *tcm_qla2xxx_npiv_get_fabric_name(void)
 {
 	return "qla2xxx_npiv";
@@ -225,15 +211,6 @@ static char *tcm_qla2xxx_get_fabric_wwn(struct se_portal_group *se_tpg)
 	struct tcm_qla2xxx_lport *lport = tpg->lport;
 
 	return lport->lport_naa_name;
-}
-
-static char *tcm_qla2xxx_npiv_get_fabric_wwn(struct se_portal_group *se_tpg)
-{
-	struct tcm_qla2xxx_tpg *tpg = container_of(se_tpg,
-				struct tcm_qla2xxx_tpg, se_tpg);
-	struct tcm_qla2xxx_lport *lport = tpg->lport;
-
-	return &lport->lport_npiv_name[0];
 }
 
 static u16 tcm_qla2xxx_get_tag(struct se_portal_group *se_tpg)
@@ -941,15 +918,41 @@ static ssize_t tcm_qla2xxx_tpg_show_enable(
 			atomic_read(&tpg->lport_tpg_enabled));
 }
 
+static void tcm_qla2xxx_depend_tpg(struct work_struct *work)
+{
+	struct tcm_qla2xxx_tpg *base_tpg = container_of(work,
+				struct tcm_qla2xxx_tpg, tpg_base_work);
+	struct se_portal_group *se_tpg = &base_tpg->se_tpg;
+	struct scsi_qla_host *base_vha = base_tpg->lport->qla_vha;
+
+	if (!configfs_depend_item(se_tpg->se_tpg_tfo->tf_subsys,
+				  &se_tpg->tpg_group.cg_item)) {
+		atomic_set(&base_tpg->lport_tpg_enabled, 1);
+		qlt_enable_vha(base_vha);
+	}
+	complete(&base_tpg->tpg_base_comp);
+}
+
+static void tcm_qla2xxx_undepend_tpg(struct work_struct *work)
+{
+	struct tcm_qla2xxx_tpg *base_tpg = container_of(work,
+				struct tcm_qla2xxx_tpg, tpg_base_work);
+	struct se_portal_group *se_tpg = &base_tpg->se_tpg;
+	struct scsi_qla_host *base_vha = base_tpg->lport->qla_vha;
+
+	if (!qlt_stop_phase1(base_vha->vha_tgt.qla_tgt)) {
+		atomic_set(&base_tpg->lport_tpg_enabled, 0);
+		configfs_undepend_item(se_tpg->se_tpg_tfo->tf_subsys,
+				       &se_tpg->tpg_group.cg_item);
+	}
+	complete(&base_tpg->tpg_base_comp);
+}
+
 static ssize_t tcm_qla2xxx_tpg_store_enable(
 	struct se_portal_group *se_tpg,
 	const char *page,
 	size_t count)
 {
-	struct se_wwn *se_wwn = se_tpg->se_tpg_wwn;
-	struct tcm_qla2xxx_lport *lport = container_of(se_wwn,
-			struct tcm_qla2xxx_lport, lport_wwn);
-	struct scsi_qla_host *vha = lport->qla_vha;
 	struct tcm_qla2xxx_tpg *tpg = container_of(se_tpg,
 			struct tcm_qla2xxx_tpg, se_tpg);
 	unsigned long op;
@@ -964,19 +967,28 @@ static ssize_t tcm_qla2xxx_tpg_store_enable(
 		pr_err("Illegal value for tpg_enable: %lu\n", op);
 		return -EINVAL;
 	}
+	if (op) {
+		if (atomic_read(&tpg->lport_tpg_enabled))
+			return -EEXIST;
+
+		INIT_WORK(&tpg->tpg_base_work, tcm_qla2xxx_depend_tpg);
+	} else {
+		if (!atomic_read(&tpg->lport_tpg_enabled))
+			return count;
+
+		INIT_WORK(&tpg->tpg_base_work, tcm_qla2xxx_undepend_tpg);
+	}
+	init_completion(&tpg->tpg_base_comp);
+	schedule_work(&tpg->tpg_base_work);
+	wait_for_completion(&tpg->tpg_base_comp);
 
 	if (op) {
-		atomic_set(&tpg->lport_tpg_enabled, 1);
-		qlt_enable_vha(vha);
-	} else {
-		if (!vha->vha_tgt.qla_tgt) {
-			pr_err("struct qla_hw_data *vha->vha_tgt.qla_tgt is NULL\n");
+		if (!atomic_read(&tpg->lport_tpg_enabled))
 			return -ENODEV;
-		}
-		atomic_set(&tpg->lport_tpg_enabled, 0);
-		qlt_stop_phase1(vha->vha_tgt.qla_tgt);
+	} else {
+		if (atomic_read(&tpg->lport_tpg_enabled))
+			return -EPERM;
 	}
-
 	return count;
 }
 
@@ -1053,10 +1065,63 @@ static void tcm_qla2xxx_drop_tpg(struct se_portal_group *se_tpg)
 	/*
 	 * Clear local TPG=1 pointer for non NPIV mode.
 	 */
-		lport->tpg_1 = NULL;
-
+	lport->tpg_1 = NULL;
 	kfree(tpg);
 }
+
+static ssize_t tcm_qla2xxx_npiv_tpg_show_enable(
+	struct se_portal_group *se_tpg,
+	char *page)
+{
+	return tcm_qla2xxx_tpg_show_enable(se_tpg, page);
+}
+
+static ssize_t tcm_qla2xxx_npiv_tpg_store_enable(
+	struct se_portal_group *se_tpg,
+	const char *page,
+	size_t count)
+{
+	struct se_wwn *se_wwn = se_tpg->se_tpg_wwn;
+	struct tcm_qla2xxx_lport *lport = container_of(se_wwn,
+			struct tcm_qla2xxx_lport, lport_wwn);
+	struct scsi_qla_host *vha = lport->qla_vha;
+	struct tcm_qla2xxx_tpg *tpg = container_of(se_tpg,
+			struct tcm_qla2xxx_tpg, se_tpg);
+	unsigned long op;
+	int rc;
+
+	rc = kstrtoul(page, 0, &op);
+	if (rc < 0) {
+		pr_err("kstrtoul() returned %d\n", rc);
+		return -EINVAL;
+	}
+	if ((op != 1) && (op != 0)) {
+		pr_err("Illegal value for tpg_enable: %lu\n", op);
+		return -EINVAL;
+	}
+	if (op) {
+		if (atomic_read(&tpg->lport_tpg_enabled))
+			return -EEXIST;
+
+		atomic_set(&tpg->lport_tpg_enabled, 1);
+		qlt_enable_vha(vha);
+	} else {
+		if (!atomic_read(&tpg->lport_tpg_enabled))
+			return count;
+
+		atomic_set(&tpg->lport_tpg_enabled, 0);
+		qlt_stop_phase1(vha->vha_tgt.qla_tgt);
+	}
+
+	return count;
+}
+
+TF_TPG_BASE_ATTR(tcm_qla2xxx_npiv, enable, S_IRUGO | S_IWUSR);
+
+static struct configfs_attribute *tcm_qla2xxx_npiv_tpg_attrs[] = {
+        &tcm_qla2xxx_npiv_tpg_enable.attr,
+        NULL,
+};
 
 static struct se_portal_group *tcm_qla2xxx_npiv_make_tpg(
 	struct se_wwn *wwn,
@@ -1650,12 +1715,22 @@ static int tcm_qla2xxx_lport_register_npiv_cb(struct scsi_qla_host *base_vha,
 	struct scsi_qla_host *npiv_vha;
 	struct tcm_qla2xxx_lport *lport =
 			(struct tcm_qla2xxx_lport *)target_lport_ptr;
+	struct tcm_qla2xxx_lport *base_lport =
+			(struct tcm_qla2xxx_lport *)base_vha->vha_tgt.target_lport_ptr;
+	struct tcm_qla2xxx_tpg *base_tpg;
 	struct fc_vport_identifiers vport_id;
 
 	if (!qla_tgt_mode_enabled(base_vha)) {
 		pr_err("qla2xxx base_vha not enabled for target mode\n");
 		return -EPERM;
 	}
+
+	if (!base_lport || !base_lport->tpg_1 ||
+	    !atomic_read(&base_lport->tpg_1->lport_tpg_enabled)) {
+		pr_err("qla2xxx base_lport or tpg_1 not available\n");
+		return -EPERM;
+	}
+	base_tpg = base_lport->tpg_1;
 
 	memset(&vport_id, 0, sizeof(vport_id));
 	vport_id.port_name = npiv_wwpn;
@@ -1675,7 +1750,6 @@ static int tcm_qla2xxx_lport_register_npiv_cb(struct scsi_qla_host *base_vha,
 	npiv_vha = (struct scsi_qla_host *)vport->dd_data;
 	npiv_vha->vha_tgt.target_lport_ptr = target_lport_ptr;
 	lport->qla_vha = npiv_vha;
-
 	scsi_host_get(npiv_vha->host);
 	return 0;
 }
@@ -1714,8 +1788,6 @@ static struct se_wwn *tcm_qla2xxx_npiv_make_lport(
 	}
 	lport->lport_npiv_wwpn = npiv_wwpn;
 	lport->lport_npiv_wwnn = npiv_wwnn;
-	tcm_qla2xxx_npiv_format_wwn(&lport->lport_npiv_name[0],
-			TCM_QLA2XXX_NAMELEN, npiv_wwpn, npiv_wwnn);
 	sprintf(lport->lport_naa_name, "naa.%016llx", (unsigned long long) npiv_wwpn);
 
 	ret = tcm_qla2xxx_init_lport(lport);
@@ -1824,7 +1896,7 @@ static struct target_core_fabric_ops tcm_qla2xxx_ops = {
 static struct target_core_fabric_ops tcm_qla2xxx_npiv_ops = {
 	.get_fabric_name		= tcm_qla2xxx_npiv_get_fabric_name,
 	.get_fabric_proto_ident		= tcm_qla2xxx_get_fabric_proto_ident,
-	.tpg_get_wwn			= tcm_qla2xxx_npiv_get_fabric_wwn,
+	.tpg_get_wwn			= tcm_qla2xxx_get_fabric_wwn,
 	.tpg_get_tag			= tcm_qla2xxx_get_tag,
 	.tpg_get_default_depth		= tcm_qla2xxx_get_default_depth,
 	.tpg_get_pr_transport_id	= tcm_qla2xxx_get_pr_transport_id,
@@ -1935,7 +2007,7 @@ static int tcm_qla2xxx_register_configfs(void)
 	 */
 	npiv_fabric->tf_cit_tmpl.tfc_wwn_cit.ct_attrs = tcm_qla2xxx_wwn_attrs;
 	npiv_fabric->tf_cit_tmpl.tfc_tpg_base_cit.ct_attrs =
-	    tcm_qla2xxx_tpg_attrs;
+	    tcm_qla2xxx_npiv_tpg_attrs;
 	npiv_fabric->tf_cit_tmpl.tfc_tpg_attrib_cit.ct_attrs = NULL;
 	npiv_fabric->tf_cit_tmpl.tfc_tpg_param_cit.ct_attrs = NULL;
 	npiv_fabric->tf_cit_tmpl.tfc_tpg_np_base_cit.ct_attrs = NULL;

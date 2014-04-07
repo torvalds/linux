@@ -1614,7 +1614,7 @@ sis900_start_xmit(struct sk_buff *skb, struct net_device *net_dev)
 		skb->data, skb->len, PCI_DMA_TODEVICE);
 	if (unlikely(pci_dma_mapping_error(sis_priv->pci_dev,
 		sis_priv->tx_ring[entry].bufptr))) {
-			dev_kfree_skb(skb);
+			dev_kfree_skb_any(skb);
 			sis_priv->tx_skbuff[entry] = NULL;
 			net_dev->stats.tx_dropped++;
 			spin_unlock_irqrestore(&sis_priv->lock, flags);

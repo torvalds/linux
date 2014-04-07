@@ -1267,7 +1267,7 @@ static void pty_line_name(struct tty_driver *driver, int index, char *p)
  *	@p: output buffer of at least 7 bytes
  *
  *	Generate a name from a driver reference and write it to the output
- *	buffer. Return the number of bytes written.
+ *	buffer.
  *
  *	Locking: None
  */
@@ -3547,17 +3547,17 @@ static ssize_t show_cons_active(struct device *dev,
 			break;
 	}
 	while (i--) {
-		struct tty_driver *driver;
-		const char *name = cs[i]->name;
 		int index = cs[i]->index;
+		struct tty_driver *drv = cs[i]->device(cs[i], &index);
 
-		driver = cs[i]->device(cs[i], &index);
-		if (driver) {
-			count += tty_line_name(driver, index, buf + count);
-			count += sprintf(buf + count, "%c", i ? ' ':'\n');
-		} else
-			count += sprintf(buf + count, "%s%d%c",
-					 name, index, i ? ' ':'\n');
+		/* don't resolve tty0 as some programs depend on it */
+		if (drv && (cs[i]->index > 0 || drv->major != TTY_MAJOR))
+			count += tty_line_name(drv, index, buf + count);
+		else
+			count += sprintf(buf + count, "%s%d",
+					 cs[i]->name, cs[i]->index);
+
+		count += sprintf(buf + count, "%c", i ? ' ':'\n');
 	}
 	console_unlock();
 

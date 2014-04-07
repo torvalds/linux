@@ -13,10 +13,9 @@
 #define QLC_VF_MIN_TX_RATE	100
 #define QLC_VF_MAX_TX_RATE	9999
 #define QLC_MAC_OPCODE_MASK	0x7
-#define QLC_MAC_STAR_ADD	6
-#define QLC_MAC_STAR_DEL	7
 #define QLC_VF_FLOOD_BIT	BIT_16
 #define QLC_FLOOD_MODE		0x5
+#define QLC_SRIOV_ALLOW_VLAN0	BIT_19
 
 static int qlcnic_sriov_pf_get_vport_handle(struct qlcnic_adapter *, u8);
 
@@ -337,8 +336,11 @@ static int qlcnic_sriov_pf_cfg_vlan_filtering(struct qlcnic_adapter *adapter,
 		return err;
 
 	cmd.req.arg[1] = 0x4;
-	if (enable)
+	if (enable) {
 		cmd.req.arg[1] |= BIT_16;
+		if (qlcnic_84xx_check(adapter))
+			cmd.req.arg[1] |= QLC_SRIOV_ALLOW_VLAN0;
+	}
 
 	err = qlcnic_issue_cmd(adapter, &cmd);
 	if (err)
@@ -1205,13 +1207,6 @@ static int qlcnic_sriov_validate_cfg_macvlan(struct qlcnic_adapter *adapter,
 	struct qlcnic_macvlan_mbx *macvlan;
 	struct qlcnic_vport *vp = vf->vp;
 	u8 op, new_op;
-
-	if (((cmd->req.arg[1] & QLC_MAC_OPCODE_MASK) == QLC_MAC_STAR_ADD) ||
-	    ((cmd->req.arg[1] & QLC_MAC_OPCODE_MASK) == QLC_MAC_STAR_DEL)) {
-		netdev_err(adapter->netdev, "MAC + any VLAN filter not allowed from VF %d\n",
-			   vf->pci_func);
-		return -EINVAL;
-	}
 
 	if (!(cmd->req.arg[1] & BIT_8))
 		return -EINVAL;

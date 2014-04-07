@@ -36,8 +36,8 @@ static inline void set_mnt_shared(struct mount *mnt)
 
 void change_mnt_propagation(struct mount *, int);
 int propagate_mnt(struct mount *, struct mountpoint *, struct mount *,
-		struct list_head *);
-int propagate_umount(struct list_head *);
+		struct hlist_head *);
+int propagate_umount(struct hlist_head *);
 int propagate_mount_busy(struct mount *, int);
 void mnt_release_group_id(struct mount *);
 int get_dominating_id(struct mount *mnt, const struct path *root);

@@ -116,8 +116,11 @@ struct paca_struct {
 	/* Shared by all threads of a core -- points to tcd of first thread */
 	struct tlb_core_data *tcd_ptr;
 
-	/* We can have up to 3 levels of reentrancy in the TLB miss handler */
-	u64 extlb[3][EX_TLB_SIZE / sizeof(u64)];
+	/*
+	 * We can have up to 3 levels of reentrancy in the TLB miss handler,
+	 * in each of four exception levels (normal, crit, mcheck, debug).
+	 */
+	u64 extlb[12][EX_TLB_SIZE / sizeof(u64)];
 	u64 exmc[8];		/* used for machine checks */
 	u64 excrit[8];		/* used for crit interrupts */
 	u64 exdbg[8];		/* used for debug interrupts */
@@ -146,7 +149,7 @@ struct paca_struct {
 	u8 io_sync;			/* writel() needs spin_unlock sync */
 	u8 irq_work_pending;		/* IRQ_WORK interrupt while soft-disable */
 	u8 nap_state_lost;		/* NV GPR values lost in power7_idle */
-	u64 sprg3;			/* Saved user-visible sprg */
+	u64 sprg_vdso;			/* Saved user-visible sprg */
 #ifdef CONFIG_PPC_TRANSACTIONAL_MEM
 	u64 tm_scratch;                 /* TM scratch area for reclaim */
 #endif

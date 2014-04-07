@@ -697,7 +697,8 @@ static int snd_mtpav_probe(struct platform_device *dev)
 	int err;
 	struct mtpav *mtp_card;
 
-	err = snd_card_create(index, id, THIS_MODULE, sizeof(*mtp_card), &card);
+	err = snd_card_new(&dev->dev, index, id, THIS_MODULE,
+			   sizeof(*mtp_card), &card);
 	if (err < 0)
 		return err;
 
@@ -732,7 +733,6 @@ static int snd_mtpav_probe(struct platform_device *dev)
 
 	snd_mtpav_portscan(mtp_card);
 
-	snd_card_set_dev(card, &dev->dev);
 	err = snd_card_register(mtp_card->card);
 	if (err < 0)
 		goto __error;

@@ -315,6 +315,16 @@ static void scrub_pending_trans_workers_inc(struct scrub_ctx *sctx)
 	atomic_inc(&fs_info->scrubs_running);
 	atomic_inc(&fs_info->scrubs_paused);
 	mutex_unlock(&fs_info->scrub_lock);
+
+	/*
+	 * check if @scrubs_running=@scrubs_paused condition
+	 * inside wait_event() is not an atomic operation.
+	 * which means we may inc/dec @scrub_running/paused
+	 * at any time. Let's wake up @scrub_pause_wait as
+	 * much as we can to let commit transaction blocked less.
+	 */
+	wake_up(&fs_info->scrub_pause_wait);
+
 	atomic_inc(&sctx->workers_pending);
 }
 
@@ -418,7 +428,8 @@ struct scrub_ctx *scrub_setup_ctx(struct btrfs_device *dev, int is_dev_replace)
 		sbio->index = i;
 		sbio->sctx = sctx;
 		sbio->page_count = 0;
-		sbio->work.func = scrub_bio_end_io_worker;
+		btrfs_init_work(&sbio->work, scrub_bio_end_io_worker,
+				NULL, NULL);
 
 		if (i != SCRUB_BIOS_PER_SCTX - 1)
 			sctx->bios[i]->next_free = i + 1;
@@ -987,9 +998,10 @@ nodatasum_case:
 		fixup_nodatasum->root = fs_info->extent_root;
 		fixup_nodatasum->mirror_num = failed_mirror_index + 1;
 		scrub_pending_trans_workers_inc(sctx);
-		fixup_nodatasum->work.func = scrub_fixup_nodatasum;
-		btrfs_queue_worker(&fs_info->scrub_workers,
-				   &fixup_nodatasum->work);
+		btrfs_init_work(&fixup_nodatasum->work, scrub_fixup_nodatasum,
+				NULL, NULL);
+		btrfs_queue_work(fs_info->scrub_workers,
+				 &fixup_nodatasum->work);
 		goto out;
 	}
 
@@ -1603,8 +1615,8 @@ static void scrub_wr_bio_end_io(struct bio *bio, int err)
 	sbio->err = err;
 	sbio->bio = bio;
 
-	sbio->work.func = scrub_wr_bio_end_io_worker;
-	btrfs_queue_worker(&fs_info->scrub_wr_completion_workers, &sbio->work);
+	btrfs_init_work(&sbio->work, scrub_wr_bio_end_io_worker, NULL, NULL);
+	btrfs_queue_work(fs_info->scrub_wr_completion_workers, &sbio->work);
 }
 
 static void scrub_wr_bio_end_io_worker(struct btrfs_work *work)
@@ -2072,7 +2084,7 @@ static void scrub_bio_end_io(struct bio *bio, int err)
 	sbio->err = err;
 	sbio->bio = bio;
 
-	btrfs_queue_worker(&fs_info->scrub_workers, &sbio->work);
+	btrfs_queue_work(fs_info->scrub_workers, &sbio->work);
 }
 
 static void scrub_bio_end_io_worker(struct btrfs_work *work)
@@ -2686,10 +2698,23 @@ int scrub_enumerate_chunks(struct scrub_ctx *sctx,
 
 		wait_event(sctx->list_wait,
 			   atomic_read(&sctx->bios_in_flight) == 0);
-		atomic_set(&sctx->wr_ctx.flush_all_writes, 0);
+		atomic_inc(&fs_info->scrubs_paused);
+		wake_up(&fs_info->scrub_pause_wait);
+
+		/*
+		 * must be called before we decrease @scrub_paused.
+		 * make sure we don't block transaction commit while
+		 * we are waiting pending workers finished.
+		 */
 		wait_event(sctx->list_wait,
 			   atomic_read(&sctx->workers_pending) == 0);
-		scrub_blocked_if_needed(fs_info);
+		atomic_set(&sctx->wr_ctx.flush_all_writes, 0);
+
+		mutex_lock(&fs_info->scrub_lock);
+		__scrub_blocked_if_needed(fs_info);
+		atomic_dec(&fs_info->scrubs_paused);
+		mutex_unlock(&fs_info->scrub_lock);
+		wake_up(&fs_info->scrub_pause_wait);
 
 		btrfs_put_block_group(cache);
 		if (ret)
@@ -2757,33 +2782,35 @@ static noinline_for_stack int scrub_workers_get(struct btrfs_fs_info *fs_info,
 						int is_dev_replace)
 {
 	int ret = 0;
+	int flags = WQ_FREEZABLE | WQ_UNBOUND;
+	int max_active = fs_info->thread_pool_size;
 
 	if (fs_info->scrub_workers_refcnt == 0) {
 		if (is_dev_replace)
-			btrfs_init_workers(&fs_info->scrub_workers, "scrub", 1,
-					&fs_info->generic_worker);
+			fs_info->scrub_workers =
+				btrfs_alloc_workqueue("btrfs-scrub", flags,
+						      1, 4);
 		else
-			btrfs_init_workers(&fs_info->scrub_workers, "scrub",
-					fs_info->thread_pool_size,
-					&fs_info->generic_worker);
-		fs_info->scrub_workers.idle_thresh = 4;
-		ret = btrfs_start_workers(&fs_info->scrub_workers);
-		if (ret)
+			fs_info->scrub_workers =
+				btrfs_alloc_workqueue("btrfs-scrub", flags,
+						      max_active, 4);
+		if (!fs_info->scrub_workers) {
+			ret = -ENOMEM;
 			goto out;
-		btrfs_init_workers(&fs_info->scrub_wr_completion_workers,
-				   "scrubwrc",
-				   fs_info->thread_pool_size,
-				   &fs_info->generic_worker);
-		fs_info->scrub_wr_completion_workers.idle_thresh = 2;
-		ret = btrfs_start_workers(
-				&fs_info->scrub_wr_completion_workers);
-		if (ret)
+		}
+		fs_info->scrub_wr_completion_workers =
+			btrfs_alloc_workqueue("btrfs-scrubwrc", flags,
+					      max_active, 2);
+		if (!fs_info->scrub_wr_completion_workers) {
+			ret = -ENOMEM;
 			goto out;
-		btrfs_init_workers(&fs_info->scrub_nocow_workers, "scrubnc", 1,
-				   &fs_info->generic_worker);
-		ret = btrfs_start_workers(&fs_info->scrub_nocow_workers);
-		if (ret)
+		}
+		fs_info->scrub_nocow_workers =
+			btrfs_alloc_workqueue("btrfs-scrubnc", flags, 1, 0);
+		if (!fs_info->scrub_nocow_workers) {
+			ret = -ENOMEM;
 			goto out;
+		}
 	}
 	++fs_info->scrub_workers_refcnt;
 out:
@@ -2793,9 +2820,9 @@ out:
 static noinline_for_stack void scrub_workers_put(struct btrfs_fs_info *fs_info)
 {
 	if (--fs_info->scrub_workers_refcnt == 0) {
-		btrfs_stop_workers(&fs_info->scrub_workers);
-		btrfs_stop_workers(&fs_info->scrub_wr_completion_workers);
-		btrfs_stop_workers(&fs_info->scrub_nocow_workers);
+		btrfs_destroy_workqueue(fs_info->scrub_workers);
+		btrfs_destroy_workqueue(fs_info->scrub_wr_completion_workers);
+		btrfs_destroy_workqueue(fs_info->scrub_nocow_workers);
 	}
 	WARN_ON(fs_info->scrub_workers_refcnt < 0);
 }
@@ -3106,10 +3133,10 @@ static int copy_nocow_pages(struct scrub_ctx *sctx, u64 logical, u64 len,
 	nocow_ctx->len = len;
 	nocow_ctx->mirror_num = mirror_num;
 	nocow_ctx->physical_for_dev_replace = physical_for_dev_replace;
-	nocow_ctx->work.func = copy_nocow_pages_worker;
+	btrfs_init_work(&nocow_ctx->work, copy_nocow_pages_worker, NULL, NULL);
 	INIT_LIST_HEAD(&nocow_ctx->inodes);
-	btrfs_queue_worker(&fs_info->scrub_nocow_workers,
-			   &nocow_ctx->work);
+	btrfs_queue_work(fs_info->scrub_nocow_workers,
+			 &nocow_ctx->work);
 
 	return 0;
 }

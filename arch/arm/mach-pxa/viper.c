@@ -885,9 +885,6 @@ static int viper_cpufreq_notifier(struct notifier_block *nb,
 			viper_set_core_cpu_voltage(freq->new, 0);
 		}
 		break;
-	case CPUFREQ_RESUMECHANGE:
-		viper_set_core_cpu_voltage(freq->new, 0);
-		break;
 	default:
 		/* ignore */
 		break;

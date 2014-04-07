@@ -5,7 +5,7 @@
  *****************************************************************************/
 
 /*
- * Copyright (C) 2000 - 2013, Intel Corp.
+ * Copyright (C) 2000 - 2014, Intel Corp.
  * All rights reserved.
  *
  * Redistribution and use in source and binary forms, with or without
@@ -314,6 +314,7 @@ acpi_ev_detach_region(union acpi_operand_object *region_obj,
 {
 	union acpi_operand_object *handler_obj;
 	union acpi_operand_object *obj_desc;
+	union acpi_operand_object *start_desc;
 	union acpi_operand_object **last_obj_ptr;
 	acpi_adr_space_setup region_setup;
 	void **region_context;
@@ -341,6 +342,7 @@ acpi_ev_detach_region(union acpi_operand_object *region_obj,
 	/* Find this region in the handler's list */
 
 	obj_desc = handler_obj->address_space.region_list;
+	start_desc = obj_desc;
 	last_obj_ptr = &handler_obj->address_space.region_list;
 
 	while (obj_desc) {
@@ -438,6 +440,15 @@ acpi_ev_detach_region(union acpi_operand_object *region_obj,
 
 		last_obj_ptr = &obj_desc->region.next;
 		obj_desc = obj_desc->region.next;
+
+		/* Prevent infinite loop if list is corrupted */
+
+		if (obj_desc == start_desc) {
+			ACPI_ERROR((AE_INFO,
+				    "Circular handler list in region object %p",
+				    region_obj));
+			return_VOID;
+		}
 	}
 
 	/* If we get here, the region was not in the handler's region list */

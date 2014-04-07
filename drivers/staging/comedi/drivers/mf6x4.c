@@ -133,21 +133,18 @@ static int mf6x4_do_insn_bits(struct comedi_device *dev,
 	return insn->n;
 }
 
-static int mf6x4_ai_wait_for_eoc(struct comedi_device *dev,
-				 unsigned int timeout)
+static int mf6x4_ai_eoc(struct comedi_device *dev,
+			struct comedi_subdevice *s,
+			struct comedi_insn *insn,
+			unsigned long context)
 {
 	struct mf6x4_private *devpriv = dev->private;
-	unsigned int eolc;
+	unsigned int status;
 
-	while (timeout--) {
-		eolc = ioread32(devpriv->gpioc_R) & MF6X4_GPIOC_EOLC;
-		if (eolc)
-			return 0;
-
-		udelay(1);
-	}
-
-	return -ETIME;
+	status = ioread32(devpriv->gpioc_R);
+	if (status & MF6X4_GPIOC_EOLC)
+		return 0;
+	return -EBUSY;
 }
 
 static int mf6x4_ai_insn_read(struct comedi_device *dev,
@@ -168,7 +165,7 @@ static int mf6x4_ai_insn_read(struct comedi_device *dev,
 		/* Trigger ADC conversion by reading ADSTART */
 		ioread16(devpriv->bar1_mem + MF6X4_ADSTART_R);
 
-		ret = mf6x4_ai_wait_for_eoc(dev, 100);
+		ret = comedi_timeout(dev, s, insn, mf6x4_ai_eoc, 0);
 		if (ret)
 			return ret;
 

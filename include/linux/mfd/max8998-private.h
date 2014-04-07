@@ -163,7 +163,7 @@ struct max8998_dev {
 	int ono;
 	u8 irq_masks_cur[MAX8998_NUM_IRQ_REGS];
 	u8 irq_masks_cache[MAX8998_NUM_IRQ_REGS];
-	int type;
+	unsigned long type;
 	bool wakeup;
 };
 

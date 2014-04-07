@@ -276,15 +276,14 @@ typedef struct paramBlk {
 
 typedef PARAMBLK*   PPARAMBLK;
 
-typedef struct TransferDesc          /* Structure and type for SetTransArea */
+struct transfer_area_desc          /* Structure and type for SetTransArea */
 {
 	unsigned short        wArea;            /* number of transfer area to set up       */
 	void FAR *lpvBuff;          /* address of transfer area                */
 	unsigned int       dwLength;         /* length of area to set up                */
 	short       eSize;            /* size to move (for swapping on MAC)      */
-} TRANSFERDESC;
+};
 
-typedef TRANSFERDESC FAR *LPTRANSFERDESC;
 
 /* This is the structure used to set up a transfer area */
 typedef struct VXTransferDesc    /* use1401.c and use1432x.x use only       */

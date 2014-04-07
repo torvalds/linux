@@ -87,4 +87,20 @@ config MTD_UBI_GLUEBI
 	   work on top of UBI. Do not enable this unless you use legacy
 	   software.
 
+config MTD_UBI_BLOCK
+	bool "Read-only block devices on top of UBI volumes"
+	default n
+	depends on BLOCK
+	help
+	   This option enables read-only UBI block devices support. UBI block
+	   devices will be layered on top of UBI volumes, which means that the
+	   UBI driver will transparently handle things like bad eraseblocks and
+	   bit-flips. You can put any block-oriented file system on top of UBI
+	   volumes in read-only mode (e.g., ext4), but it is probably most
+	   practical for read-only file systems, like squashfs.
+
+	   When selected, this feature will be built in the UBI driver.
+
+	   If in doubt, say "N".
+
 endif # MTD_UBI

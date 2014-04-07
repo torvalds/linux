@@ -99,9 +99,9 @@ static int __vlan_del(struct net_port_vlans *v, u16 vid)
 	v->num_vlans--;
 	if (bitmap_empty(v->vlan_bitmap, VLAN_N_VID)) {
 		if (v->port_idx)
-			rcu_assign_pointer(v->parent.port->vlan_info, NULL);
+			RCU_INIT_POINTER(v->parent.port->vlan_info, NULL);
 		else
-			rcu_assign_pointer(v->parent.br->vlan_info, NULL);
+			RCU_INIT_POINTER(v->parent.br->vlan_info, NULL);
 		kfree_rcu(v, rcu);
 	}
 	return 0;
@@ -113,26 +113,10 @@ static void __vlan_flush(struct net_port_vlans *v)
 	v->pvid = 0;
 	bitmap_zero(v->vlan_bitmap, VLAN_N_VID);
 	if (v->port_idx)
-		rcu_assign_pointer(v->parent.port->vlan_info, NULL);
+		RCU_INIT_POINTER(v->parent.port->vlan_info, NULL);
 	else
-		rcu_assign_pointer(v->parent.br->vlan_info, NULL);
+		RCU_INIT_POINTER(v->parent.br->vlan_info, NULL);
 	kfree_rcu(v, rcu);
-}
-
-/* Strip the tag from the packet.  Will return skb with tci set 0.  */
-static struct sk_buff *br_vlan_untag(struct sk_buff *skb)
-{
-	if (skb->protocol != htons(ETH_P_8021Q)) {
-		skb->vlan_tci = 0;
-		return skb;
-	}
-
-	skb->vlan_tci = 0;
-	skb = vlan_untag(skb);
-	if (skb)
-		skb->vlan_tci = 0;
-
-	return skb;
 }
 
 struct sk_buff *br_handle_vlan(struct net_bridge *br,
@@ -144,13 +128,27 @@ struct sk_buff *br_handle_vlan(struct net_bridge *br,
 	if (!br->vlan_enabled)
 		goto out;
 
+	/* Vlan filter table must be configured at this point.  The
+	 * only exception is the bridge is set in promisc mode and the
+	 * packet is destined for the bridge device.  In this case
+	 * pass the packet as is.
+	 */
+	if (!pv) {
+		if ((br->dev->flags & IFF_PROMISC) && skb->dev == br->dev) {
+			goto out;
+		} else {
+			kfree_skb(skb);
+			return NULL;
+		}
+	}
+
 	/* At this point, we know that the frame was filtered and contains
 	 * a valid vlan id.  If the vlan id is set in the untagged bitmap,
 	 * send untagged; otherwise, send tagged.
 	 */
 	br_vlan_get_tag(skb, &vid);
 	if (test_bit(vid, pv->untagged_bitmap))
-		skb = br_vlan_untag(skb);
+		skb->vlan_tci = 0;
 
 out:
 	return skb;
@@ -173,6 +171,18 @@ bool br_allowed_ingress(struct net_bridge *br, struct net_port_vlans *v,
 	 */
 	if (!v)
 		return false;
+
+	/* If vlan tx offload is disabled on bridge device and frame was
+	 * sent from vlan device on the bridge device, it does not have
+	 * HW accelerated vlan tag.
+	 */
+	if (unlikely(!vlan_tx_tag_present(skb) &&
+		     (skb->protocol == htons(ETH_P_8021Q) ||
+		      skb->protocol == htons(ETH_P_8021AD)))) {
+		skb = vlan_untag(skb);
+		if (unlikely(!skb))
+			return false;
+	}
 
 	err = br_vlan_get_tag(skb, vid);
 	if (!*vid) {

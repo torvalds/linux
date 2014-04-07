@@ -43,4 +43,7 @@ acpi_get_gpiod_by_index(struct device *dev, int index,
 }
 #endif
 
+int gpiochip_request_own_desc(struct gpio_desc *desc, const char *label);
+void gpiochip_free_own_desc(struct gpio_desc *desc);
+
 #endif /* GPIOLIB_H */

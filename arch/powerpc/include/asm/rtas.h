@@ -283,6 +283,7 @@ extern void pSeries_log_error(char *buf, unsigned int err_type, int fatal);
 
 #ifdef CONFIG_PPC_PSERIES
 extern int pseries_devicetree_update(s32 scope);
+extern void post_mobility_fixup(void);
 #endif
 
 #ifdef CONFIG_PPC_RTAS_DAEMON

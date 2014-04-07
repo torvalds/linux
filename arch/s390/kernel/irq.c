@@ -18,6 +18,7 @@
 #include <linux/errno.h>
 #include <linux/slab.h>
 #include <linux/cpu.h>
+#include <linux/irq.h>
 #include <asm/irq_regs.h>
 #include <asm/cputime.h>
 #include <asm/lowcore.h>
@@ -84,6 +85,7 @@ static const struct irq_class irqclass_sub_desc[NR_ARCH_IRQS] = {
 	[IRQIO_PCI]  = {.name = "PCI", .desc = "[I/O] PCI Interrupt" },
 	[IRQIO_MSI]  = {.name = "MSI", .desc = "[I/O] MSI Interrupt" },
 	[IRQIO_VIR]  = {.name = "VIR", .desc = "[I/O] Virtual I/O Devices"},
+	[IRQIO_VAI]  = {.name = "VAI", .desc = "[I/O] Virtual I/O Devices AI"},
 	[NMI_NMI]    = {.name = "NMI", .desc = "[NMI] Machine Check"},
 	[CPU_RST]    = {.name = "RST", .desc = "[CPU] CPU Restart"},
 };

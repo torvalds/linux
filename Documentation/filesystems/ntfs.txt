@@ -455,8 +455,6 @@ not have this problem with odd numbers of sectors.
 ChangeLog
 =========
 
-Note, a technical ChangeLog aimed at kernel hackers is in fs/ntfs/ChangeLog.
-
 2.1.30:
 	- Fix writev() (it kept writing the first segment over and over again
 	  instead of moving onto subsequent segments).

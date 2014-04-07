@@ -55,7 +55,9 @@ struct rtl28xxu_priv {
 	u8 tuner;
 	char *tuner_name;
 	u8 page; /* integrated demod active register page */
+	struct i2c_adapter *demod_i2c_adapter;
 	bool rc_active;
+	struct i2c_client *client;
 };
 
 enum rtl28xxu_chip_id {

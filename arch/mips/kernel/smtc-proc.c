@@ -77,3 +77,26 @@ void init_smtc_stats(void)
 
 	proc_create("smtc", 0444, NULL, &smtc_proc_fops);
 }
+
+static int proc_cpuinfo_chain_call(struct notifier_block *nfb,
+	unsigned long action_unused, void *data)
+{
+	struct proc_cpuinfo_notifier_args *pcn = data;
+	struct seq_file *m = pcn->m;
+	unsigned long n = pcn->n;
+
+	if (!cpu_has_mipsmt)
+		return NOTIFY_OK;
+
+	seq_printf(m, "VPE\t\t\t: %d\n", cpu_data[n].vpe_id);
+	seq_printf(m, "TC\t\t\t: %d\n", cpu_data[n].tc_id);
+
+	return NOTIFY_OK;
+}
+
+static int __init proc_cpuinfo_notifier_init(void)
+{
+	return proc_cpuinfo_notifier(proc_cpuinfo_chain_call, 0);
+}
+
+subsys_initcall(proc_cpuinfo_notifier_init);

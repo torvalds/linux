@@ -553,13 +553,13 @@ void bpf_jit_compile(struct sk_filter *fp)
 				}
 				break;
 			case BPF_S_ANC_RXHASH:
-				BUILD_BUG_ON(FIELD_SIZEOF(struct sk_buff, rxhash) != 4);
-				if (is_imm8(offsetof(struct sk_buff, rxhash))) {
+				BUILD_BUG_ON(FIELD_SIZEOF(struct sk_buff, hash) != 4);
+				if (is_imm8(offsetof(struct sk_buff, hash))) {
 					/* mov off8(%rdi),%eax */
-					EMIT3(0x8b, 0x47, offsetof(struct sk_buff, rxhash));
+					EMIT3(0x8b, 0x47, offsetof(struct sk_buff, hash));
 				} else {
 					EMIT2(0x8b, 0x87);
-					EMIT(offsetof(struct sk_buff, rxhash), 4);
+					EMIT(offsetof(struct sk_buff, hash), 4);
 				}
 				break;
 			case BPF_S_ANC_QUEUE:
@@ -772,6 +772,7 @@ cond_branch:			f_offset = addrs[i + filter[i].jf] - addrs[i];
 		bpf_flush_icache(header, image + proglen);
 		set_memory_ro((unsigned long)header, header->pages);
 		fp->bpf_func = (void *)image;
+		fp->jited = 1;
 	}
 out:
 	kfree(addrs);
@@ -791,7 +792,7 @@ static void bpf_jit_free_deferred(struct work_struct *work)
 
 void bpf_jit_free(struct sk_filter *fp)
 {
-	if (fp->bpf_func != sk_run_filter) {
+	if (fp->jited) {
 		INIT_WORK(&fp->work, bpf_jit_free_deferred);
 		schedule_work(&fp->work);
 	} else {

@@ -33,9 +33,9 @@
 /*
  * MegaRAID SAS Driver meta data
  */
-#define MEGASAS_VERSION				"06.700.06.00-rc1"
-#define MEGASAS_RELDATE				"Aug. 31, 2013"
-#define MEGASAS_EXT_VERSION			"Sat. Aug. 31 17:00:00 PDT 2013"
+#define MEGASAS_VERSION				"06.803.01.00-rc1"
+#define MEGASAS_RELDATE				"Mar. 10, 2014"
+#define MEGASAS_EXT_VERSION			"Mon. Mar. 10 17:00:00 PDT 2014"
 
 /*
  * Device IDs
@@ -48,6 +48,7 @@
 #define	PCI_DEVICE_ID_LSI_SAS0073SKINNY		0x0073
 #define	PCI_DEVICE_ID_LSI_SAS0071SKINNY		0x0071
 #define	PCI_DEVICE_ID_LSI_FUSION		0x005b
+#define PCI_DEVICE_ID_LSI_PLASMA		0x002f
 #define PCI_DEVICE_ID_LSI_INVADER		0x005d
 #define PCI_DEVICE_ID_LSI_FURY			0x005f
 
@@ -559,7 +560,8 @@ struct megasas_ctrl_info {
 		u8 PCIE:1;
 		u8 iSCSI:1;
 		u8 SAS_3G:1;
-		u8 reserved_0:4;
+		u8 SRIOV:1;
+		u8 reserved_0:3;
 		u8 reserved_1[6];
 		u8 port_count;
 		u64 port_addr[8];
@@ -839,7 +841,12 @@ struct megasas_ctrl_info {
 
 	struct {                                /*7A4h */
 #if   defined(__BIG_ENDIAN_BITFIELD)
-		u32     reserved:11;
+		u32     reserved:5;
+		u32	activePassive:2;
+		u32	supportConfigAutoBalance:1;
+		u32	mpio:1;
+		u32	supportDataLDonSSCArray:1;
+		u32	supportPointInTimeProgress:1;
 		u32     supportUnevenSpans:1;
 		u32     dedicatedHotSparesLimited:1;
 		u32     headlessMode:1;
@@ -886,7 +893,12 @@ struct megasas_ctrl_info {
 
 
 		u32     supportUnevenSpans:1;
-		u32     reserved:11;
+		u32	supportPointInTimeProgress:1;
+		u32	supportDataLDonSSCArray:1;
+		u32	mpio:1;
+		u32	supportConfigAutoBalance:1;
+		u32	activePassive:2;
+		u32     reserved:5;
 #endif
 	} adapterOperations2;
 
@@ -914,8 +926,14 @@ struct megasas_ctrl_info {
 	} cluster;
 
 	char clusterId[16];                     /*7D4h */
+	struct {
+		u8  maxVFsSupported;            /*0x7E4*/
+		u8  numVFsEnabled;              /*0x7E5*/
+		u8  requestorId;                /*0x7E6 0:PF, 1:VF1, 2:VF2*/
+		u8  reserved;                   /*0x7E7*/
+	} iov;
 
-	u8          pad[0x800-0x7E4];           /*7E4 */
+	u8          pad[0x800-0x7E8];           /*0x7E8 pad to 2k */
 } __packed;
 
 /*
@@ -986,7 +1004,9 @@ struct megasas_ctrl_info {
 
 #define MFI_OB_INTR_STATUS_MASK			0x00000002
 #define MFI_POLL_TIMEOUT_SECS			60
-
+#define MEGASAS_SRIOV_HEARTBEAT_INTERVAL_VF	(5 * HZ)
+#define MEGASAS_OCR_SETTLE_TIME_VF		(1000 * 30)
+#define MEGASAS_ROUTINE_WAIT_TIME_VF		300
 #define MFI_REPLY_1078_MESSAGE_INTERRUPT	0x80000000
 #define MFI_REPLY_GEN2_MESSAGE_INTERRUPT	0x00000001
 #define MFI_GEN2_ENABLE_INTERRUPT_MASK		(0x00000001 | 0x00000004)
@@ -1347,9 +1367,15 @@ struct megasas_cmd;
 union megasas_evt_class_locale {
 
 	struct {
+#ifndef __BIG_ENDIAN_BITFIELD
 		u16 locale;
 		u8 reserved;
 		s8 class;
+#else
+		s8 class;
+		u8 reserved;
+		u16 locale;
+#endif
 	} __attribute__ ((packed)) members;
 
 	u32 word;
@@ -1523,6 +1549,12 @@ struct megasas_instance {
 	dma_addr_t producer_h;
 	u32 *consumer;
 	dma_addr_t consumer_h;
+	struct MR_LD_VF_AFFILIATION *vf_affiliation;
+	dma_addr_t vf_affiliation_h;
+	struct MR_LD_VF_AFFILIATION_111 *vf_affiliation_111;
+	dma_addr_t vf_affiliation_111_h;
+	struct MR_CTRL_HB_HOST_MEM *hb_host_mem;
+	dma_addr_t hb_host_mem_h;
 
 	u32 *reply_queue;
 	dma_addr_t reply_queue_h;
@@ -1598,9 +1630,72 @@ struct megasas_instance {
 	unsigned long bar;
 	long reset_flags;
 	struct mutex reset_mutex;
+	struct timer_list sriov_heartbeat_timer;
+	char skip_heartbeat_timer_del;
+	u8 requestorId;
+	u64 initiator_sas_address;
+	u64 ld_sas_address[64];
+	char PlasmaFW111;
+	char mpio;
 	int throttlequeuedepth;
 	u8 mask_interrupts;
 	u8 is_imr;
+};
+struct MR_LD_VF_MAP {
+	u32 size;
+	union MR_LD_REF ref;
+	u8 ldVfCount;
+	u8 reserved[6];
+	u8 policy[1];
+};
+
+struct MR_LD_VF_AFFILIATION {
+	u32 size;
+	u8 ldCount;
+	u8 vfCount;
+	u8 thisVf;
+	u8 reserved[9];
+	struct MR_LD_VF_MAP map[1];
+};
+
+/* Plasma 1.11 FW backward compatibility structures */
+#define IOV_111_OFFSET 0x7CE
+#define MAX_VIRTUAL_FUNCTIONS 8
+
+struct IOV_111 {
+	u8 maxVFsSupported;
+	u8 numVFsEnabled;
+	u8 requestorId;
+	u8 reserved[5];
+};
+
+struct MR_LD_VF_MAP_111 {
+	u8 targetId;
+	u8 reserved[3];
+	u8 policy[MAX_VIRTUAL_FUNCTIONS];
+};
+
+struct MR_LD_VF_AFFILIATION_111 {
+	u8 vdCount;
+	u8 vfCount;
+	u8 thisVf;
+	u8 reserved[5];
+	struct MR_LD_VF_MAP_111 map[MAX_LOGICAL_DRIVES];
+};
+
+struct MR_CTRL_HB_HOST_MEM {
+	struct {
+		u32 fwCounter;	/* Firmware heart beat counter */
+		struct {
+			u32 debugmode:1; /* 1=Firmware is in debug mode.
+					    Heart beat will not be updated. */
+			u32 reserved:31;
+		} debug;
+		u32 reserved_fw[6];
+		u32 driverCounter; /* Driver heart beat counter.  0x20 */
+		u32 reserved_driver[7];
+	} HB;
+	u8 pad[0x400-0x40];
 };
 
 enum {
@@ -1609,6 +1704,7 @@ enum {
 	MEGASAS_ADPRESET_SM_FW_RESET_SUCCESS	= 2,
 	MEGASAS_ADPRESET_SM_OPERATIONAL		= 3,
 	MEGASAS_HW_CRITICAL_ERROR		= 4,
+	MEGASAS_ADPRESET_SM_POLLING		= 5,
 	MEGASAS_ADPRESET_INPROG_SIGN		= 0xDEADDEAD,
 };
 
@@ -1728,7 +1824,7 @@ MR_BuildRaidContext(struct megasas_instance *instance,
 		    struct IO_REQUEST_INFO *io_info,
 		    struct RAID_CONTEXT *pRAID_Context,
 		    struct MR_FW_RAID_MAP_ALL *map, u8 **raidLUN);
-u16 MR_TargetIdToLdGet(u32 ldTgtId, struct MR_FW_RAID_MAP_ALL *map);
+u8 MR_TargetIdToLdGet(u32 ldTgtId, struct MR_FW_RAID_MAP_ALL *map);
 struct MR_LD_RAID *MR_LdRaidGet(u32 ld, struct MR_FW_RAID_MAP_ALL *map);
 u16 MR_ArPdGet(u32 ar, u32 arm, struct MR_FW_RAID_MAP_ALL *map);
 u16 MR_LdSpanArrayGet(u32 ld, u32 span, struct MR_FW_RAID_MAP_ALL *map);

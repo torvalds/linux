@@ -47,8 +47,8 @@ static ssize_t status_show(struct device *dev, struct device_attribute *attr,
 	 * up /proc/net/{tcp,tcp6}. Also, a userland program may remember a
 	 * port number and its peer IP address.
 	 */
-	out += sprintf(out, "prt sta spd bus dev socket           "
-		       "local_busid\n");
+	out += sprintf(out,
+		       "prt sta spd bus dev socket           local_busid\n");
 
 	for (i = 0; i < VHCI_NPORTS; i++) {
 		struct vhci_device *vdev = port_to_vdev(i);
@@ -114,7 +114,8 @@ static ssize_t store_detach(struct device *dev, struct device_attribute *attr,
 	int err;
 	__u32 rhport = 0;
 
-	sscanf(buf, "%u", &rhport);
+	if (sscanf(buf, "%u", &rhport) != 1)
+		return -EINVAL;
 
 	/* check rhport */
 	if (rhport >= VHCI_NPORTS) {
@@ -182,7 +183,8 @@ static ssize_t store_attach(struct device *dev, struct device_attribute *attr,
 	 * @devid: unique device identifier in a remote host
 	 * @speed: usb device speed in a remote host
 	 */
-	sscanf(buf, "%u %u %u %u", &rhport, &sockfd, &devid, &speed);
+	if (sscanf(buf, "%u %u %u %u", &rhport, &sockfd, &devid, &speed) != 1)
+		return -EINVAL;
 
 	usbip_dbg_vhci_sysfs("rhport(%u) sockfd(%u) devid(%u) speed(%u)\n",
 			     rhport, sockfd, devid, speed);
@@ -215,8 +217,9 @@ static ssize_t store_attach(struct device *dev, struct device_attribute *attr,
 		return -EINVAL;
 	}
 
-	dev_info(dev, "rhport(%u) sockfd(%d) devid(%u) speed(%u)\n",
-		 rhport, sockfd, devid, speed);
+	dev_info(dev,
+		 "rhport(%u) sockfd(%d) devid(%u) speed(%u) speed_str(%s)\n",
+		 rhport, sockfd, devid, speed, usb_speed_string(speed));
 
 	vdev->devid         = devid;
 	vdev->speed         = speed;

@@ -1020,10 +1020,99 @@ static int qlcnic_83xx_idc_check_state_validity(struct qlcnic_adapter *adapter,
 	return 0;
 }
 
+#ifdef CONFIG_QLCNIC_VXLAN
+#define QLC_83XX_ENCAP_TYPE_VXLAN	BIT_1
+#define QLC_83XX_MATCH_ENCAP_ID		BIT_2
+#define QLC_83XX_SET_VXLAN_UDP_DPORT	BIT_3
+#define QLC_83XX_VXLAN_UDP_DPORT(PORT)	((PORT & 0xffff) << 16)
+
+#define QLCNIC_ENABLE_INGRESS_ENCAP_PARSING 1
+#define QLCNIC_DISABLE_INGRESS_ENCAP_PARSING 0
+
+static int qlcnic_set_vxlan_port(struct qlcnic_adapter *adapter)
+{
+	u16 port = adapter->ahw->vxlan_port;
+	struct qlcnic_cmd_args cmd;
+	int ret = 0;
+
+	memset(&cmd, 0, sizeof(cmd));
+
+	ret = qlcnic_alloc_mbx_args(&cmd, adapter,
+				    QLCNIC_CMD_INIT_NIC_FUNC);
+	if (ret)
+		return ret;
+
+	cmd.req.arg[1] = QLC_83XX_MULTI_TENANCY_INFO;
+	cmd.req.arg[2] = QLC_83XX_ENCAP_TYPE_VXLAN |
+			 QLC_83XX_SET_VXLAN_UDP_DPORT |
+			 QLC_83XX_VXLAN_UDP_DPORT(port);
+
+	ret = qlcnic_issue_cmd(adapter, &cmd);
+	if (ret)
+		netdev_err(adapter->netdev,
+			   "Failed to set VXLAN port %d in adapter\n",
+			   port);
+
+	qlcnic_free_mbx_args(&cmd);
+
+	return ret;
+}
+
+static int qlcnic_set_vxlan_parsing(struct qlcnic_adapter *adapter,
+				    bool state)
+{
+	u16 vxlan_port = adapter->ahw->vxlan_port;
+	struct qlcnic_cmd_args cmd;
+	int ret = 0;
+
+	memset(&cmd, 0, sizeof(cmd));
+
+	ret = qlcnic_alloc_mbx_args(&cmd, adapter,
+				    QLCNIC_CMD_SET_INGRESS_ENCAP);
+	if (ret)
+		return ret;
+
+	cmd.req.arg[1] = state ? QLCNIC_ENABLE_INGRESS_ENCAP_PARSING :
+				 QLCNIC_DISABLE_INGRESS_ENCAP_PARSING;
+
+	ret = qlcnic_issue_cmd(adapter, &cmd);
+	if (ret)
+		netdev_err(adapter->netdev,
+			   "Failed to %s VXLAN parsing for port %d\n",
+			   state ? "enable" : "disable", vxlan_port);
+	else
+		netdev_info(adapter->netdev,
+			    "%s VXLAN parsing for port %d\n",
+			    state ? "Enabled" : "Disabled", vxlan_port);
+
+	qlcnic_free_mbx_args(&cmd);
+
+	return ret;
+}
+#endif
+
 static void qlcnic_83xx_periodic_tasks(struct qlcnic_adapter *adapter)
 {
 	if (adapter->fhash.fnum)
 		qlcnic_prune_lb_filters(adapter);
+
+#ifdef CONFIG_QLCNIC_VXLAN
+	if (adapter->flags & QLCNIC_ADD_VXLAN_PORT) {
+		if (qlcnic_set_vxlan_port(adapter))
+			return;
+
+		if (qlcnic_set_vxlan_parsing(adapter, true))
+			return;
+
+		adapter->flags &= ~QLCNIC_ADD_VXLAN_PORT;
+	} else if (adapter->flags & QLCNIC_DEL_VXLAN_PORT) {
+		if (qlcnic_set_vxlan_parsing(adapter, false))
+			return;
+
+		adapter->ahw->vxlan_port = 0;
+		adapter->flags &= ~QLCNIC_DEL_VXLAN_PORT;
+	}
+#endif
 }
 
 /**
@@ -1301,7 +1390,7 @@ static int qlcnic_83xx_copy_fw_file(struct qlcnic_adapter *adapter)
 	addr = (u64)dest;
 
 	ret = qlcnic_83xx_ms_mem_write128(adapter, addr,
-					  (u32 *)p_cache, size / 16);
+					  p_cache, size / 16);
 	if (ret) {
 		dev_err(&adapter->pdev->dev, "MS memory write failed\n");
 		release_firmware(fw);

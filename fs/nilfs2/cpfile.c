@@ -942,6 +942,18 @@ int nilfs_cpfile_read(struct super_block *sb, size_t cpsize,
 	struct inode *cpfile;
 	int err;
 
+	if (cpsize > sb->s_blocksize) {
+		printk(KERN_ERR
+		       "NILFS: too large checkpoint size: %zu bytes.\n",
+		       cpsize);
+		return -EINVAL;
+	} else if (cpsize < NILFS_MIN_CHECKPOINT_SIZE) {
+		printk(KERN_ERR
+		       "NILFS: too small checkpoint size: %zu bytes.\n",
+		       cpsize);
+		return -EINVAL;
+	}
+
 	cpfile = nilfs_iget_locked(sb, NULL, NILFS_CPFILE_INO);
 	if (unlikely(!cpfile))
 		return -ENOMEM;

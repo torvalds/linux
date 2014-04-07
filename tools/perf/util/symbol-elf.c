@@ -151,15 +151,15 @@ Elf_Scn *elf_section_by_name(Elf *elf, GElf_Ehdr *ep,
 
 		gelf_getshdr(sec, shp);
 		str = elf_strptr(elf, ep->e_shstrndx, shp->sh_name);
-		if (!strcmp(name, str)) {
+		if (str && !strcmp(name, str)) {
 			if (idx)
 				*idx = cnt;
-			break;
+			return sec;
 		}
 		++cnt;
 	}
 
-	return sec;
+	return NULL;
 }
 
 #define elf_section__for_each_rel(reldata, pos, pos_mem, idx, nr_entries) \
@@ -505,6 +505,8 @@ int filename__read_debuglink(const char *filename, char *debuglink,
 
 	/* the start of this section is a zero-terminated string */
 	strncpy(debuglink, data->d_buf, size);
+
+	err = 0;
 
 out_elf_end:
 	elf_end(elf);

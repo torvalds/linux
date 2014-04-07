@@ -1492,7 +1492,7 @@ static void __exit atm_mpoa_cleanup(void)
 
 	mpc_proc_clean();
 
-	del_timer(&mpc_timer);
+	del_timer_sync(&mpc_timer);
 	unregister_netdevice_notifier(&mpoa_notifier);
 	deregister_atm_ioctl(&atm_ioctl_ops);
 

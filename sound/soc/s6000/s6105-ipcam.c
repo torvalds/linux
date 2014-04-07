@@ -104,8 +104,8 @@ static int output_type_get(struct snd_kcontrol *kcontrol,
 static int output_type_put(struct snd_kcontrol *kcontrol,
 			   struct snd_ctl_elem_value *ucontrol)
 {
-	struct snd_soc_codec *codec = kcontrol->private_data;
-	struct snd_soc_dapm_context *dapm = &codec->dapm;
+	struct snd_soc_card *card = kcontrol->private_data;
+	struct snd_soc_dapm_context *dapm = &card->dapm;
 	unsigned int val = (ucontrol->value.enumerated.item[0] != 0);
 	char *differential = "Audio Out Differential";
 	char *stereo = "Audio Out Stereo";
@@ -137,13 +137,7 @@ static int s6105_aic3x_init(struct snd_soc_pcm_runtime *rtd)
 {
 	struct snd_soc_codec *codec = rtd->codec;
 	struct snd_soc_dapm_context *dapm = &codec->dapm;
-
-	/* Add s6105 specific widgets */
-	snd_soc_dapm_new_controls(dapm, aic3x_dapm_widgets,
-				  ARRAY_SIZE(aic3x_dapm_widgets));
-
-	/* Set up s6105 specific audio path audio_map */
-	snd_soc_dapm_add_routes(dapm, audio_map, ARRAY_SIZE(audio_map));
+	struct snd_soc_card *card = rtd->card;
 
 	/* not present */
 	snd_soc_dapm_nc_pin(dapm, "MONO_LOUT");
@@ -157,17 +151,10 @@ static int s6105_aic3x_init(struct snd_soc_pcm_runtime *rtd)
 	snd_soc_dapm_nc_pin(dapm, "RLOUT");
 	snd_soc_dapm_nc_pin(dapm, "HPRCOM");
 
-	/* always connected */
-	snd_soc_dapm_enable_pin(dapm, "Audio In");
-
 	/* must correspond to audio_out_mux.private_value initializer */
-	snd_soc_dapm_disable_pin(dapm, "Audio Out Differential");
-	snd_soc_dapm_sync(dapm);
-	snd_soc_dapm_enable_pin(dapm, "Audio Out Stereo");
+	snd_soc_dapm_disable_pin(&card->dapm, "Audio Out Differential");
 
-	snd_soc_dapm_sync(dapm);
-
-	snd_ctl_add(codec->card->snd_card, snd_ctl_new1(&audio_out_mux, codec));
+	snd_ctl_add(card->snd_card, snd_ctl_new1(&audio_out_mux, card));
 
 	return 0;
 }
@@ -190,6 +177,11 @@ static struct snd_soc_card snd_soc_card_s6105 = {
 	.owner = THIS_MODULE,
 	.dai_link = &s6105_dai,
 	.num_links = 1,
+
+	.dapm_widgets = aic3x_dapm_widgets,
+	.num_dapm_widgets = ARRAY_SIZE(aic3x_dapm_widgets),
+	.dapm_routes = audio_map,
+	.num_dapm_routes = ARRAY_SIZE(audio_map),
 };
 
 static struct s6000_snd_platform_data s6105_snd_data __initdata = {

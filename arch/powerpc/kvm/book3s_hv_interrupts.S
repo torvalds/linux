@@ -71,6 +71,14 @@ END_FTR_SECTION_IFCLR(CPU_FTR_ARCH_207S)
 	mtmsrd  r10,1
 
 	/* Save host PMU registers */
+BEGIN_FTR_SECTION
+	/* Work around P8 PMAE bug */
+	li	r3, -1
+	clrrdi	r3, r3, 10
+	mfspr	r8, SPRN_MMCR2
+	mtspr	SPRN_MMCR2, r3		/* freeze all counters using MMCR2 */
+	isync
+END_FTR_SECTION_IFSET(CPU_FTR_ARCH_207S)
 	li	r3, 1
 	sldi	r3, r3, 31		/* MMCR0_FC (freeze counters) bit */
 	mfspr	r7, SPRN_MMCR0		/* save MMCR0 */
@@ -87,9 +95,18 @@ END_FTR_SECTION_IFSET(CPU_FTR_ARCH_206)
 	cmpwi	r5, 0
 	beq	31f			/* skip if not */
 	mfspr	r5, SPRN_MMCR1
+	mfspr	r9, SPRN_SIAR
+	mfspr	r10, SPRN_SDAR
 	std	r7, HSTATE_MMCR(r13)
 	std	r5, HSTATE_MMCR + 8(r13)
 	std	r6, HSTATE_MMCR + 16(r13)
+	std	r9, HSTATE_MMCR + 24(r13)
+	std	r10, HSTATE_MMCR + 32(r13)
+BEGIN_FTR_SECTION
+	mfspr	r9, SPRN_SIER
+	std	r8, HSTATE_MMCR + 40(r13)
+	std	r9, HSTATE_MMCR + 48(r13)
+END_FTR_SECTION_IFSET(CPU_FTR_ARCH_207S)
 	mfspr	r3, SPRN_PMC1
 	mfspr	r5, SPRN_PMC2
 	mfspr	r6, SPRN_PMC3
@@ -110,6 +127,11 @@ BEGIN_FTR_SECTION
 	stw	r10, HSTATE_PMC + 24(r13)
 	stw	r11, HSTATE_PMC + 28(r13)
 END_FTR_SECTION_IFSET(CPU_FTR_ARCH_201)
+BEGIN_FTR_SECTION
+	mfspr	r9, SPRN_SIER
+	std	r8, HSTATE_MMCR + 40(r13)
+	std	r9, HSTATE_MMCR + 48(r13)
+END_FTR_SECTION_IFSET(CPU_FTR_ARCH_207S)
 31:
 
 	/*

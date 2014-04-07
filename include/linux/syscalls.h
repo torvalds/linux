@@ -98,6 +98,8 @@ struct sigaltstack;
 #define __MAP(n,...) __MAP##n(__VA_ARGS__)
 
 #define __SC_DECL(t, a)	t a
+#define __TYPE_IS_L(t)	(__same_type((t)0, 0L))
+#define __TYPE_IS_UL(t)	(__same_type((t)0, 0UL))
 #define __TYPE_IS_LL(t) (__same_type((t)0, 0LL) || __same_type((t)0, 0ULL))
 #define __SC_LONG(t, a) __typeof(__builtin_choose_expr(__TYPE_IS_LL(t), 0LL, 0L)) a
 #define __SC_CAST(t, a)	(t) a
@@ -198,6 +200,8 @@ extern struct trace_event_functions exit_syscall_print_funcs;
 	}								\
 	static inline long SYSC##name(__MAP(x,__SC_DECL,__VA_ARGS__))
 
+asmlinkage long sys32_quotactl(unsigned int cmd, const char __user *special,
+			       qid_t id, void __user *addr);
 asmlinkage long sys_time(time_t __user *tloc);
 asmlinkage long sys_stime(time_t __user *tptr);
 asmlinkage long sys_gettimeofday(struct timeval __user *tv,
@@ -281,13 +285,15 @@ asmlinkage long sys_sched_setscheduler(pid_t pid, int policy,
 asmlinkage long sys_sched_setparam(pid_t pid,
 					struct sched_param __user *param);
 asmlinkage long sys_sched_setattr(pid_t pid,
-					struct sched_attr __user *attr);
+					struct sched_attr __user *attr,
+					unsigned int flags);
 asmlinkage long sys_sched_getscheduler(pid_t pid);
 asmlinkage long sys_sched_getparam(pid_t pid,
 					struct sched_param __user *param);
 asmlinkage long sys_sched_getattr(pid_t pid,
 					struct sched_attr __user *attr,
-					unsigned int size);
+					unsigned int size,
+					unsigned int flags);
 asmlinkage long sys_sched_setaffinity(pid_t pid, unsigned int len,
 					unsigned long __user *user_mask_ptr);
 asmlinkage long sys_sched_getaffinity(pid_t pid, unsigned int len,

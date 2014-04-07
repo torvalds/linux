@@ -626,4 +626,15 @@ static inline int ocfs2_begin_ordered_truncate(struct inode *inode,
 				new_size);
 }
 
+static inline void ocfs2_update_inode_fsync_trans(handle_t *handle,
+						  struct inode *inode,
+						  int datasync)
+{
+	struct ocfs2_inode_info *oi = OCFS2_I(inode);
+
+	oi->i_sync_tid = handle->h_transaction->t_tid;
+	if (datasync)
+		oi->i_datasync_tid = handle->h_transaction->t_tid;
+}
+
 #endif /* OCFS2_JOURNAL_H */

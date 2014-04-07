@@ -371,8 +371,7 @@ ds1511_interrupt(int irq, void *dev_id)
 			events |= RTC_UF;
 		else
 			events |= RTC_AF;
-		if (likely(pdata->rtc))
-			rtc_update_irq(pdata->rtc, 1, events);
+		rtc_update_irq(pdata->rtc, 1, events);
 	}
 	spin_unlock(&pdata->lock);
 	return events ? IRQ_HANDLED : IRQ_NONE;
@@ -473,7 +472,6 @@ static struct bin_attribute ds1511_nvram_attr = {
 
 static int ds1511_rtc_probe(struct platform_device *pdev)
 {
-	struct rtc_device *rtc;
 	struct resource *res;
 	struct rtc_plat_data *pdata;
 	int ret = 0;
@@ -512,6 +510,12 @@ static int ds1511_rtc_probe(struct platform_device *pdev)
 
 	spin_lock_init(&pdata->lock);
 	platform_set_drvdata(pdev, pdata);
+
+	pdata->rtc = devm_rtc_device_register(&pdev->dev, pdev->name,
+					      &ds1511_rtc_ops, THIS_MODULE);
+	if (IS_ERR(pdata->rtc))
+		return PTR_ERR(pdata->rtc);
+
 	/*
 	 * if the platform has an interrupt in mind for this device,
 	 * then by all means, set it
@@ -526,15 +530,12 @@ static int ds1511_rtc_probe(struct platform_device *pdev)
 		}
 	}
 
-	rtc = devm_rtc_device_register(&pdev->dev, pdev->name, &ds1511_rtc_ops,
-					THIS_MODULE);
-	if (IS_ERR(rtc))
-		return PTR_ERR(rtc);
-	pdata->rtc = rtc;
-
 	ret = sysfs_create_bin_file(&pdev->dev.kobj, &ds1511_nvram_attr);
+	if (ret)
+		dev_err(&pdev->dev, "Unable to create sysfs entry: %s\n",
+			ds1511_nvram_attr.attr.name);
 
-	return ret;
+	return 0;
 }
 
 static int ds1511_rtc_remove(struct platform_device *pdev)

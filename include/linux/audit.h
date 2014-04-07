@@ -43,6 +43,7 @@ struct mq_attr;
 struct mqstat;
 struct audit_watch;
 struct audit_tree;
+struct sk_buff;
 
 struct audit_krule {
 	int			vers_ops;
@@ -463,7 +464,7 @@ extern int audit_filter_user(int type);
 extern int audit_filter_type(int type);
 extern int audit_rule_change(int type, __u32 portid, int seq,
 				void *data, size_t datasz);
-extern int audit_list_rules_send(__u32 portid, int seq);
+extern int audit_list_rules_send(struct sk_buff *request_skb, int seq);
 
 extern u32 audit_enabled;
 #else /* CONFIG_AUDIT */

@@ -57,8 +57,8 @@
 #include "en_port.h"
 
 #define DRV_NAME	"mlx4_en"
-#define DRV_VERSION	"2.0"
-#define DRV_RELDATE	"Dec 2011"
+#define DRV_VERSION	"2.2-1"
+#define DRV_RELDATE	"Feb 2014"
 
 #define MLX4_EN_MSG_LEVEL	(NETIF_MSG_LINK | NETIF_MSG_IFDOWN)
 
@@ -187,6 +187,13 @@ enum {
 #define GET_AVG_PERF_COUNTER(cnt)	(0)
 #endif /* MLX4_EN_PERF_STAT */
 
+/* Constants for TX flow */
+enum {
+	MAX_INLINE = 104, /* 128 - 16 - 4 - 4 */
+	MAX_BF = 256,
+	MIN_PKT_LEN = 17,
+};
+
 /*
  * Configurables
  */
@@ -267,10 +274,13 @@ struct mlx4_en_tx_ring {
 	unsigned long bytes;
 	unsigned long packets;
 	unsigned long tx_csum;
+	unsigned long queue_stopped;
+	unsigned long wake_queue;
 	struct mlx4_bf bf;
 	bool bf_enabled;
 	struct netdev_queue *tx_queue;
 	int hwtstamp_tx_type;
+	int inline_thold;
 };
 
 struct mlx4_en_rx_desc {
@@ -346,6 +356,7 @@ struct mlx4_en_port_profile {
 	u8 tx_pause;
 	u8 tx_ppp;
 	int rss_rings;
+	int inline_thold;
 };
 
 struct mlx4_en_profile {
@@ -548,6 +559,10 @@ struct mlx4_en_priv {
 	struct work_struct linkstate_task;
 	struct delayed_work stats_task;
 	struct delayed_work service_task;
+#ifdef CONFIG_MLX4_EN_VXLAN
+	struct work_struct vxlan_add_task;
+	struct work_struct vxlan_del_task;
+#endif
 	struct mlx4_en_perf_stats pstats;
 	struct mlx4_en_pkt_stats pkstats;
 	struct mlx4_en_port_stats port_stats;
@@ -574,6 +589,7 @@ struct mlx4_en_priv {
 	struct hlist_head filter_hash[1 << MLX4_EN_FILTER_HASH_SHIFT];
 #endif
 	u64 tunnel_reg_id;
+	__be16 vxlan_port;
 };
 
 enum mlx4_en_wol {
@@ -723,7 +739,7 @@ int mlx4_en_arm_cq(struct mlx4_en_priv *priv, struct mlx4_en_cq *cq);
 
 void mlx4_en_tx_irq(struct mlx4_cq *mcq);
 u16 mlx4_en_select_queue(struct net_device *dev, struct sk_buff *skb,
-			 void *accel_priv);
+			 void *accel_priv, select_queue_fallback_t fallback);
 netdev_tx_t mlx4_en_xmit(struct sk_buff *skb, struct net_device *dev);
 
 int mlx4_en_create_tx_ring(struct mlx4_en_priv *priv,
@@ -737,7 +753,7 @@ int mlx4_en_activate_tx_ring(struct mlx4_en_priv *priv,
 			     int cq, int user_prio);
 void mlx4_en_deactivate_tx_ring(struct mlx4_en_priv *priv,
 				struct mlx4_en_tx_ring *ring);
-
+void mlx4_en_set_num_rx_rings(struct mlx4_en_dev *mdev);
 int mlx4_en_create_rx_ring(struct mlx4_en_priv *priv,
 			   struct mlx4_en_rx_ring **pring,
 			   u32 size, u16 stride, int node);
@@ -786,7 +802,6 @@ void mlx4_en_cleanup_filters(struct mlx4_en_priv *priv);
 
 #define MLX4_EN_NUM_SELF_TEST	5
 void mlx4_en_ex_selftest(struct net_device *dev, u32 *flags, u64 *buf);
-u64 mlx4_en_mac_to_u64(u8 *addr);
 void mlx4_en_ptp_overflow_check(struct mlx4_en_dev *mdev);
 
 /*

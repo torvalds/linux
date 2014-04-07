@@ -23,7 +23,7 @@
 #define CPG_DIV6_DIV_MASK	0x3f
 
 /**
- * struct div6_clock - MSTP gating clock
+ * struct div6_clock - CPG 6 bit divider clock
  * @hw: handle between common and hardware-specific interfaces
  * @reg: IO-remapped register
  * @div: divisor value (1-64)

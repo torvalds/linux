@@ -60,14 +60,6 @@
 #define PCIE_DEBUG_CTRL         0x1a60
 #define  PCIE_DEBUG_SOFT_RESET		BIT(20)
 
-/*
- * This product ID is registered by Marvell, and used when the Marvell
- * SoC is not the root complex, but an endpoint on the PCIe bus. It is
- * therefore safe to re-use this PCI ID for our emulated PCI-to-PCI
- * bridge.
- */
-#define MARVELL_EMULATED_PCI_PCI_BRIDGE_ID 0x7846
-
 /* PCI configuration space of a PCI-to-PCI bridge */
 struct mvebu_sw_pci_bridge {
 	u16 vendor;
@@ -109,7 +101,9 @@ struct mvebu_pcie {
 	struct mvebu_pcie_port *ports;
 	struct msi_chip *msi;
 	struct resource io;
+	char io_name[30];
 	struct resource realio;
+	char mem_name[30];
 	struct resource mem;
 	struct resource busn;
 	int nports;
@@ -388,7 +382,8 @@ static void mvebu_sw_pci_bridge_init(struct mvebu_pcie_port *port)
 
 	bridge->class = PCI_CLASS_BRIDGE_PCI;
 	bridge->vendor = PCI_VENDOR_ID_MARVELL;
-	bridge->device = MARVELL_EMULATED_PCI_PCI_BRIDGE_ID;
+	bridge->device = mvebu_readl(port, PCIE_DEV_ID_OFF) >> 16;
+	bridge->revision = mvebu_readl(port, PCIE_DEV_REV_OFF) & 0xff;
 	bridge->header_type = PCI_HEADER_TYPE_BRIDGE;
 	bridge->cache_line_size = 0x10;
 
@@ -679,10 +674,30 @@ static int mvebu_pcie_setup(int nr, struct pci_sys_data *sys)
 {
 	struct mvebu_pcie *pcie = sys_to_pcie(sys);
 	int i;
+	int domain = 0;
 
-	if (resource_size(&pcie->realio) != 0)
+#ifdef CONFIG_PCI_DOMAINS
+	domain = sys->domain;
+#endif
+
+	snprintf(pcie->mem_name, sizeof(pcie->mem_name), "PCI MEM %04x",
+		 domain);
+	pcie->mem.name = pcie->mem_name;
+
+	snprintf(pcie->io_name, sizeof(pcie->io_name), "PCI I/O %04x", domain);
+	pcie->realio.name = pcie->io_name;
+
+	if (request_resource(&iomem_resource, &pcie->mem))
+		return 0;
+
+	if (resource_size(&pcie->realio) != 0) {
+		if (request_resource(&ioport_resource, &pcie->realio)) {
+			release_resource(&pcie->mem);
+			return 0;
+		}
 		pci_add_resource_offset(&sys->resources, &pcie->realio,
 					sys->io_offset);
+	}
 	pci_add_resource_offset(&sys->resources, &pcie->mem, sys->mem_offset);
 	pci_add_resource(&sys->resources, &pcie->busn);
 
@@ -804,7 +819,7 @@ static int mvebu_get_tgt_attr(struct device_node *np, int devfn,
 
 	for (i = 0; i < nranges; i++) {
 		u32 flags = of_read_number(range, 1);
-		u32 slot = of_read_number(range, 2);
+		u32 slot = of_read_number(range + 1, 1);
 		u64 cpuaddr = of_read_number(range + na, pna);
 		unsigned long rtype;
 

@@ -2382,7 +2382,7 @@ relock:
  * @regs:		user register state
  * @stepping:		nonzero if debugger single-step or block-step in use
  *
- * This function should be called when a signal has succesfully been
+ * This function should be called when a signal has successfully been
  * delivered. It updates the blocked signals accordingly (@ka->sa.sa_mask
  * is always blocked, and the signal itself is blocked unless %SA_NODEFER
  * is set in @ka->sa.sa_flags.  Tracing is notified.

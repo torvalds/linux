@@ -17,7 +17,7 @@
 
 / {
 	model = "Samsung Trats 2 based on Exynos4412";
-	compatible = "samsung,trats2", "samsung,exynos4412";
+	compatible = "samsung,trats2", "samsung,exynos4412", "samsung,exynos4";
 
 	aliases {
 		i2c8 = &i2c_ak8975;
@@ -104,6 +104,11 @@
 			debounce-interval = <10>;
 			gpio-key,wakeup;
 		};
+	};
+
+	adc: adc@126C0000 {
+		vdd-supply = <&ldo3_reg>;
+		status = "okay";
 	};
 
 	i2c@13890000 {
@@ -588,5 +593,21 @@
 				};
 			};
 		};
+	};
+
+	thermistor-ap@0 {
+		compatible = "ntc,ncp15wb473";
+		pullup-uv = <1800000>;	 /* VCC_1.8V_AP */
+		pullup-ohm = <100000>;	 /* 100K */
+		pulldown-ohm = <100000>; /* 100K */
+		io-channels = <&adc 1>;  /* AP temperature */
+	};
+
+	thermistor-battery@1 {
+		compatible = "ntc,ncp15wb473";
+		pullup-uv = <1800000>;	 /* VCC_1.8V_AP */
+		pullup-ohm = <100000>;	 /* 100K */
+		pulldown-ohm = <100000>; /* 100K */
+		io-channels = <&adc 2>;  /* Battery temperature */
 	};
 };

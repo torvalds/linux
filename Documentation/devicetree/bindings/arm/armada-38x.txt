@@ -1,0 +1,10 @@
+Marvell Armada 38x Platforms Device Tree Bindings
+-------------------------------------------------
+
+Boards with a SoC of the Marvell Armada 38x family shall have the
+following property:
+
+Required root node property:
+
+ - compatible: must contain either "marvell,armada380" or
+   "marvell,armada385" depending on the variant of the SoC being used.

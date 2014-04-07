@@ -398,7 +398,7 @@ struct Scsi_Host *scsi_host_alloc(struct scsi_host_template *sht, int privsize)
 	shost->ordered_tag = sht->ordered_tag;
 	shost->no_write_same = sht->no_write_same;
 
-	if (shost_eh_deadline == -1)
+	if (shost_eh_deadline == -1 || !sht->eh_host_reset_handler)
 		shost->eh_deadline = -1;
 	else if ((ulong) shost_eh_deadline * HZ > INT_MAX) {
 		shost_printk(KERN_WARNING, shost,

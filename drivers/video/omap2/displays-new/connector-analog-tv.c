@@ -31,7 +31,7 @@ struct panel_drv_data {
 static const struct omap_video_timings tvc_pal_timings = {
 	.x_res		= 720,
 	.y_res		= 574,
-	.pixel_clock	= 13500,
+	.pixelclock	= 13500000,
 	.hsw		= 64,
 	.hfp		= 12,
 	.hbp		= 68,

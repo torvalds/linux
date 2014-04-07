@@ -154,7 +154,7 @@ static void jtcp_rcv_established(struct sock *sk, struct sk_buff *skb,
 			p->snd_wnd = tp->snd_wnd;
 			p->rcv_wnd = tp->rcv_wnd;
 			p->ssthresh = tcp_current_ssthresh(sk);
-			p->srtt = tp->srtt >> 3;
+			p->srtt = tp->srtt_us >> 3;
 
 			tcp_probe.head = (tcp_probe.head + 1) & (bufsize - 1);
 		}

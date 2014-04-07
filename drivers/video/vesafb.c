@@ -179,7 +179,6 @@ static void vesafb_destroy(struct fb_info *info)
 	if (info->screen_base)
 		iounmap(info->screen_base);
 	release_mem_region(info->apertures->ranges[0].base, info->apertures->ranges[0].size);
-	framebuffer_release(info);
 }
 
 static struct fb_ops vesafb_ops = {
@@ -297,6 +296,7 @@ static int vesafb_probe(struct platform_device *dev)
 		release_mem_region(vesafb_fix.smem_start, size_total);
 		return -ENOMEM;
 	}
+	platform_set_drvdata(dev, info);
 	info->pseudo_palette = info->par;
 	info->par = NULL;
 
@@ -499,12 +499,23 @@ err:
 	return err;
 }
 
+static int vesafb_remove(struct platform_device *pdev)
+{
+	struct fb_info *info = platform_get_drvdata(pdev);
+
+	unregister_framebuffer(info);
+	framebuffer_release(info);
+
+	return 0;
+}
+
 static struct platform_driver vesafb_driver = {
 	.driver = {
 		.name = "vesa-framebuffer",
 		.owner = THIS_MODULE,
 	},
 	.probe = vesafb_probe,
+	.remove = vesafb_remove,
 };
 
 module_platform_driver(vesafb_driver);

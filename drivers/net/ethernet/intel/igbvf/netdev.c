@@ -1043,11 +1043,11 @@ static void igbvf_set_interrupt_capability(struct igbvf_adapter *adapter)
 		for (i = 0; i < 3; i++)
 			adapter->msix_entries[i].entry = i;
 
-		err = pci_enable_msix(adapter->pdev,
-		                      adapter->msix_entries, 3);
+		err = pci_enable_msix_range(adapter->pdev,
+		                            adapter->msix_entries, 3, 3);
 	}
 
-	if (err) {
+	if (err < 0) {
 		/* MSI-X failed */
 		dev_err(&adapter->pdev->dev,
 		        "Failed to initialize MSI-X interrupts.\n");
@@ -2014,12 +2014,12 @@ static inline bool igbvf_tx_csum(struct igbvf_adapter *adapter,
 
 		if (skb->ip_summed == CHECKSUM_PARTIAL) {
 			switch (skb->protocol) {
-			case __constant_htons(ETH_P_IP):
+			case htons(ETH_P_IP):
 				tu_cmd |= E1000_ADVTXD_TUCMD_IPV4;
 				if (ip_hdr(skb)->protocol == IPPROTO_TCP)
 					tu_cmd |= E1000_ADVTXD_TUCMD_L4T_TCP;
 				break;
-			case __constant_htons(ETH_P_IPV6):
+			case htons(ETH_P_IPV6):
 				if (ipv6_hdr(skb)->nexthdr == IPPROTO_TCP)
 					tu_cmd |= E1000_ADVTXD_TUCMD_L4T_TCP;
 				break;

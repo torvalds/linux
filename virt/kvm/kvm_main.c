@@ -102,7 +102,7 @@ static void kvm_release_pfn_dirty(pfn_t pfn);
 static void mark_page_dirty_in_slot(struct kvm *kvm,
 				    struct kvm_memory_slot *memslot, gfn_t gfn);
 
-bool kvm_rebooting;
+__visible bool kvm_rebooting;
 EXPORT_SYMBOL_GPL(kvm_rebooting);
 
 static bool largepages_enabled = true;
@@ -186,12 +186,9 @@ static bool make_all_cpus_request(struct kvm *kvm, unsigned int req)
 
 void kvm_flush_remote_tlbs(struct kvm *kvm)
 {
-	long dirty_count = kvm->tlbs_dirty;
-
-	smp_mb();
 	if (make_all_cpus_request(kvm, KVM_REQ_TLB_FLUSH))
 		++kvm->stat.remote_tlb_flush;
-	cmpxchg(&kvm->tlbs_dirty, dirty_count, 0);
+	kvm->tlbs_dirty = false;
 }
 EXPORT_SYMBOL_GPL(kvm_flush_remote_tlbs);
 
@@ -1804,7 +1801,7 @@ void kvm_vcpu_on_spin(struct kvm_vcpu *me)
 				continue;
 			if (vcpu == me)
 				continue;
-			if (waitqueue_active(&vcpu->wq))
+			if (waitqueue_active(&vcpu->wq) && !kvm_arch_vcpu_runnable(vcpu))
 				continue;
 			if (!kvm_vcpu_eligible_for_directed_yield(vcpu))
 				continue;
@@ -2282,6 +2279,11 @@ static int kvm_ioctl_create_device(struct kvm *kvm,
 #ifdef CONFIG_KVM_ARM_VGIC
 	case KVM_DEV_TYPE_ARM_VGIC_V2:
 		ops = &kvm_arm_vgic_v2_ops;
+		break;
+#endif
+#ifdef CONFIG_S390
+	case KVM_DEV_TYPE_FLIC:
+		ops = &kvm_flic_ops;
 		break;
 #endif
 	default:

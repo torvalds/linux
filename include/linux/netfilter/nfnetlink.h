@@ -44,6 +44,27 @@ int nfnetlink_unicast(struct sk_buff *skb, struct net *net, u32 portid,
 
 void nfnl_lock(__u8 subsys_id);
 void nfnl_unlock(__u8 subsys_id);
+#ifdef CONFIG_PROVE_LOCKING
+int lockdep_nfnl_is_held(__u8 subsys_id);
+#else
+static inline int lockdep_nfnl_is_held(__u8 subsys_id)
+{
+	return 1;
+}
+#endif /* CONFIG_PROVE_LOCKING */
+
+/*
+ * nfnl_dereference - fetch RCU pointer when updates are prevented by subsys mutex
+ *
+ * @p: The pointer to read, prior to dereferencing
+ * @ss: The nfnetlink subsystem ID
+ *
+ * Return the value of the specified RCU-protected pointer, but omit
+ * both the smp_read_barrier_depends() and the ACCESS_ONCE(), because
+ * caller holds the NFNL subsystem mutex.
+ */
+#define nfnl_dereference(p, ss)					\
+	rcu_dereference_protected(p, lockdep_nfnl_is_held(ss))
 
 #define MODULE_ALIAS_NFNL_SUBSYS(subsys) \
 	MODULE_ALIAS("nfnetlink-subsys-" __stringify(subsys))

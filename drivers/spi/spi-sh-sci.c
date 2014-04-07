@@ -14,7 +14,6 @@
  */
 
 #include <linux/kernel.h>
-#include <linux/init.h>
 #include <linux/delay.h>
 #include <linux/spinlock.h>
 #include <linux/workqueue.h>
@@ -109,7 +108,7 @@ static void sh_sci_spi_chipselect(struct spi_device *dev, int value)
 {
 	struct sh_sci_spi *sp = spi_master_get_devdata(dev->master);
 
-	if (sp->info && sp->info->chip_select)
+	if (sp->info->chip_select)
 		(sp->info->chip_select)(sp->info, dev->chip_select, value);
 }
 
@@ -131,6 +130,11 @@ static int sh_sci_spi_probe(struct platform_device *dev)
 
 	platform_set_drvdata(dev, sp);
 	sp->info = dev_get_platdata(&dev->dev);
+	if (!sp->info) {
+		dev_err(&dev->dev, "platform data is missing\n");
+		ret = -ENOENT;
+		goto err1;
+	}
 
 	/* setup spi bitbang adaptor */
 	sp->bitbang.master = master;

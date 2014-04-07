@@ -566,7 +566,7 @@ int btrfs_parse_options(struct btrfs_root *root, char *options)
 				kfree(num);
 
 				if (info->max_inline) {
-					info->max_inline = max_t(u64,
+					info->max_inline = min_t(u64,
 						info->max_inline,
 						root->sectorsize);
 				}
@@ -855,6 +855,7 @@ static struct dentry *get_default_root(struct super_block *sb,
 	struct btrfs_path *path;
 	struct btrfs_key location;
 	struct inode *inode;
+	struct dentry *dentry;
 	u64 dir_id;
 	int new = 0;
 
@@ -925,7 +926,13 @@ setup_root:
 		return dget(sb->s_root);
 	}
 
-	return d_obtain_alias(inode);
+	dentry = d_obtain_alias(inode);
+	if (!IS_ERR(dentry)) {
+		spin_lock(&dentry->d_lock);
+		dentry->d_flags &= ~DCACHE_DISCONNECTED;
+		spin_unlock(&dentry->d_lock);
+	}
+	return dentry;
 }
 
 static int btrfs_fill_super(struct super_block *sb,
@@ -1298,13 +1305,6 @@ error_fs_info:
 	return ERR_PTR(error);
 }
 
-static void btrfs_set_max_workers(struct btrfs_workers *workers, int new_limit)
-{
-	spin_lock_irq(&workers->lock);
-	workers->max_workers = new_limit;
-	spin_unlock_irq(&workers->lock);
-}
-
 static void btrfs_resize_thread_pool(struct btrfs_fs_info *fs_info,
 				     int new_pool_size, int old_pool_size)
 {
@@ -1316,21 +1316,20 @@ static void btrfs_resize_thread_pool(struct btrfs_fs_info *fs_info,
 	btrfs_info(fs_info, "resize thread pool %d -> %d",
 	       old_pool_size, new_pool_size);
 
-	btrfs_set_max_workers(&fs_info->generic_worker, new_pool_size);
-	btrfs_set_max_workers(&fs_info->workers, new_pool_size);
-	btrfs_set_max_workers(&fs_info->delalloc_workers, new_pool_size);
-	btrfs_set_max_workers(&fs_info->submit_workers, new_pool_size);
-	btrfs_set_max_workers(&fs_info->caching_workers, new_pool_size);
-	btrfs_set_max_workers(&fs_info->fixup_workers, new_pool_size);
-	btrfs_set_max_workers(&fs_info->endio_workers, new_pool_size);
-	btrfs_set_max_workers(&fs_info->endio_meta_workers, new_pool_size);
-	btrfs_set_max_workers(&fs_info->endio_meta_write_workers, new_pool_size);
-	btrfs_set_max_workers(&fs_info->endio_write_workers, new_pool_size);
-	btrfs_set_max_workers(&fs_info->endio_freespace_worker, new_pool_size);
-	btrfs_set_max_workers(&fs_info->delayed_workers, new_pool_size);
-	btrfs_set_max_workers(&fs_info->readahead_workers, new_pool_size);
-	btrfs_set_max_workers(&fs_info->scrub_wr_completion_workers,
-			      new_pool_size);
+	btrfs_workqueue_set_max(fs_info->workers, new_pool_size);
+	btrfs_workqueue_set_max(fs_info->delalloc_workers, new_pool_size);
+	btrfs_workqueue_set_max(fs_info->submit_workers, new_pool_size);
+	btrfs_workqueue_set_max(fs_info->caching_workers, new_pool_size);
+	btrfs_workqueue_set_max(fs_info->endio_workers, new_pool_size);
+	btrfs_workqueue_set_max(fs_info->endio_meta_workers, new_pool_size);
+	btrfs_workqueue_set_max(fs_info->endio_meta_write_workers,
+				new_pool_size);
+	btrfs_workqueue_set_max(fs_info->endio_write_workers, new_pool_size);
+	btrfs_workqueue_set_max(fs_info->endio_freespace_worker, new_pool_size);
+	btrfs_workqueue_set_max(fs_info->delayed_workers, new_pool_size);
+	btrfs_workqueue_set_max(fs_info->readahead_workers, new_pool_size);
+	btrfs_workqueue_set_max(fs_info->scrub_wr_completion_workers,
+				new_pool_size);
 }
 
 static inline void btrfs_remount_prepare(struct btrfs_fs_info *fs_info)
@@ -1381,6 +1380,7 @@ static int btrfs_remount(struct super_block *sb, int *flags, char *data)
 	unsigned int old_metadata_ratio = fs_info->metadata_ratio;
 	int ret;
 
+	sync_filesystem(sb);
 	btrfs_remount_prepare(fs_info);
 
 	ret = btrfs_parse_options(root, data);
@@ -1472,6 +1472,7 @@ static int btrfs_remount(struct super_block *sb, int *flags, char *data)
 		sb->s_flags &= ~MS_RDONLY;
 	}
 out:
+	wake_up_process(fs_info->transaction_kthread);
 	btrfs_remount_cleanup(fs_info, old_opts);
 	return 0;
 

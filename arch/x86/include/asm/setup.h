@@ -39,12 +39,6 @@ static inline void vsmp_init(void) { }
 
 void setup_bios_corruption_check(void);
 
-#ifdef CONFIG_X86_VISWS
-extern void visws_early_detect(void);
-#else
-static inline void visws_early_detect(void) { }
-#endif
-
 extern unsigned long saved_video_mode;
 
 extern void reserve_standard_io_resources(void);

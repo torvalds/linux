@@ -1076,11 +1076,10 @@ end_loop:
 				break;
 			}
 		}
-		init_waitqueue_entry_current(&__wait);
+		init_waitqueue_entry(&__wait, current);
 		add_wait_queue(&tctl->tctl_waitq, &__wait);
 		set_current_state(TASK_INTERRUPTIBLE);
-		waitq_timedwait(&__wait, TASK_INTERRUPTIBLE,
-				    cfs_time_seconds(1));
+		schedule_timeout(cfs_time_seconds(1));
 		remove_wait_queue(&tctl->tctl_waitq, &__wait);
 	}
 	complete(&tctl->tctl_stop);

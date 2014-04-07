@@ -1031,8 +1031,7 @@ static void team_port_leave(struct team *team, struct team_port *port)
 }
 
 #ifdef CONFIG_NET_POLL_CONTROLLER
-static int team_port_enable_netpoll(struct team *team, struct team_port *port,
-				    gfp_t gfp)
+static int team_port_enable_netpoll(struct team *team, struct team_port *port)
 {
 	struct netpoll *np;
 	int err;
@@ -1040,11 +1039,11 @@ static int team_port_enable_netpoll(struct team *team, struct team_port *port,
 	if (!team->dev->npinfo)
 		return 0;
 
-	np = kzalloc(sizeof(*np), gfp);
+	np = kzalloc(sizeof(*np), GFP_KERNEL);
 	if (!np)
 		return -ENOMEM;
 
-	err = __netpoll_setup(np, port->dev, gfp);
+	err = __netpoll_setup(np, port->dev);
 	if (err) {
 		kfree(np);
 		return err;
@@ -1067,8 +1066,7 @@ static void team_port_disable_netpoll(struct team_port *port)
 	kfree(np);
 }
 #else
-static int team_port_enable_netpoll(struct team *team, struct team_port *port,
-				    gfp_t gfp)
+static int team_port_enable_netpoll(struct team *team, struct team_port *port)
 {
 	return 0;
 }
@@ -1156,7 +1154,7 @@ static int team_port_add(struct team *team, struct net_device *port_dev)
 		goto err_vids_add;
 	}
 
-	err = team_port_enable_netpoll(team, port, GFP_KERNEL);
+	err = team_port_enable_netpoll(team, port);
 	if (err) {
 		netdev_err(dev, "Failed to enable netpoll on device %s\n",
 			   portname);
@@ -1540,15 +1538,9 @@ static int team_init(struct net_device *dev)
 	mutex_init(&team->lock);
 	team_set_no_mode(team);
 
-	team->pcpu_stats = alloc_percpu(struct team_pcpu_stats);
+	team->pcpu_stats = netdev_alloc_pcpu_stats(struct team_pcpu_stats);
 	if (!team->pcpu_stats)
 		return -ENOMEM;
-
-	for_each_possible_cpu(i) {
-		struct team_pcpu_stats *team_stats;
-		team_stats = per_cpu_ptr(team->pcpu_stats, i);
-		u64_stats_init(&team_stats->syncp);
-	}
 
 	for (i = 0; i < TEAM_PORT_HASHENTRIES; i++)
 		INIT_HLIST_HEAD(&team->en_port_hlist[i]);
@@ -1648,7 +1640,7 @@ static netdev_tx_t team_xmit(struct sk_buff *skb, struct net_device *dev)
 }
 
 static u16 team_select_queue(struct net_device *dev, struct sk_buff *skb,
-			     void *accel_priv)
+			     void *accel_priv, select_queue_fallback_t fallback)
 {
 	/*
 	 * This helper function exists to help dev_pick_tx get the correct
@@ -1767,13 +1759,13 @@ team_get_stats64(struct net_device *dev, struct rtnl_link_stats64 *stats)
 	for_each_possible_cpu(i) {
 		p = per_cpu_ptr(team->pcpu_stats, i);
 		do {
-			start = u64_stats_fetch_begin_bh(&p->syncp);
+			start = u64_stats_fetch_begin_irq(&p->syncp);
 			rx_packets	= p->rx_packets;
 			rx_bytes	= p->rx_bytes;
 			rx_multicast	= p->rx_multicast;
 			tx_packets	= p->tx_packets;
 			tx_bytes	= p->tx_bytes;
-		} while (u64_stats_fetch_retry_bh(&p->syncp, start));
+		} while (u64_stats_fetch_retry_irq(&p->syncp, start));
 
 		stats->rx_packets	+= rx_packets;
 		stats->rx_bytes		+= rx_bytes;
@@ -1856,7 +1848,7 @@ static void team_netpoll_cleanup(struct net_device *dev)
 }
 
 static int team_netpoll_setup(struct net_device *dev,
-			      struct netpoll_info *npifo, gfp_t gfp)
+			      struct netpoll_info *npifo)
 {
 	struct team *team = netdev_priv(dev);
 	struct team_port *port;
@@ -1864,7 +1856,7 @@ static int team_netpoll_setup(struct net_device *dev,
 
 	mutex_lock(&team->lock);
 	list_for_each_entry(port, &team->port_list, list) {
-		err = team_port_enable_netpoll(team, port, gfp);
+		err = team_port_enable_netpoll(team, port);
 		if (err) {
 			__team_netpoll_cleanup(team);
 			break;

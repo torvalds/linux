@@ -304,6 +304,11 @@ static inline ulong kvmppc_get_fault_dar(struct kvm_vcpu *vcpu)
 	return vcpu->arch.fault_dar;
 }
 
+static inline bool is_kvmppc_resume_guest(int r)
+{
+	return (r == RESUME_GUEST || r == RESUME_GUEST_NV);
+}
+
 /* Magic register values loaded into r3 and r4 before the 'sc' assembly
  * instruction for the OSI hypercalls */
 #define OSI_SC_MAGIC_R3			0x113724FA

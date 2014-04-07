@@ -574,6 +574,8 @@ static struct tegra_clk tegra20_clks[tegra_clk_max] __initdata = {
 	[tegra_clk_tvdac] = { .dt_id = TEGRA20_CLK_TVDAC, .present = true },
 	[tegra_clk_vi_sensor] = { .dt_id = TEGRA20_CLK_VI_SENSOR, .present = true },
 	[tegra_clk_afi] = { .dt_id = TEGRA20_CLK_AFI, .present = true },
+	[tegra_clk_fuse] = { .dt_id = TEGRA20_CLK_FUSE, .present = true },
+	[tegra_clk_kfuse] = { .dt_id = TEGRA20_CLK_KFUSE, .present = true },
 };
 
 static unsigned long tegra20_clk_measure_input_freq(void)

@@ -65,8 +65,6 @@
 
 #include <linux/hash.h>
 
-#define cfs_hash_long(val, bits)    hash_long(val, bits)
-
 /** disable debug */
 #define CFS_HASH_DEBUG_NONE	 0
 /** record hash depth and output to console when it's too deep,

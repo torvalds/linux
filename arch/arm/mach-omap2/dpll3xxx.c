@@ -525,7 +525,7 @@ int omap3_noncore_dpll_set_rate(struct clk_hw *hw, unsigned long rate,
 	* stuff is inherited for free
 	*/
 
-	if (!ret)
+	if (!ret && clk_get_parent(hw->clk) != new_parent)
 		__clk_reparent(hw->clk, new_parent);
 
 	return 0;
@@ -623,24 +623,11 @@ void omap3_dpll_deny_idle(struct clk_hw_omap *clk)
 
 /* Clock control for DPLL outputs */
 
-/**
- * omap3_clkoutx2_recalc - recalculate DPLL X2 output virtual clock rate
- * @clk: DPLL output struct clk
- *
- * Using parent clock DPLL data, look up DPLL state.  If locked, set our
- * rate to the dpll_clk * 2; otherwise, just use dpll_clk.
- */
-unsigned long omap3_clkoutx2_recalc(struct clk_hw *hw,
-				    unsigned long parent_rate)
+/* Find the parent DPLL for the given clkoutx2 clock */
+static struct clk_hw_omap *omap3_find_clkoutx2_dpll(struct clk_hw *hw)
 {
-	const struct dpll_data *dd;
-	unsigned long rate;
-	u32 v;
 	struct clk_hw_omap *pclk = NULL;
 	struct clk *parent;
-
-	if (!parent_rate)
-		return 0;
 
 	/* Walk up the parents of clk, looking for a DPLL */
 	do {
@@ -656,8 +643,34 @@ unsigned long omap3_clkoutx2_recalc(struct clk_hw *hw,
 	/* clk does not have a DPLL as a parent?  error in the clock data */
 	if (!pclk) {
 		WARN_ON(1);
-		return 0;
+		return NULL;
 	}
+
+	return pclk;
+}
+
+/**
+ * omap3_clkoutx2_recalc - recalculate DPLL X2 output virtual clock rate
+ * @clk: DPLL output struct clk
+ *
+ * Using parent clock DPLL data, look up DPLL state.  If locked, set our
+ * rate to the dpll_clk * 2; otherwise, just use dpll_clk.
+ */
+unsigned long omap3_clkoutx2_recalc(struct clk_hw *hw,
+				    unsigned long parent_rate)
+{
+	const struct dpll_data *dd;
+	unsigned long rate;
+	u32 v;
+	struct clk_hw_omap *pclk = NULL;
+
+	if (!parent_rate)
+		return 0;
+
+	pclk = omap3_find_clkoutx2_dpll(hw);
+
+	if (!pclk)
+		return 0;
 
 	dd = pclk->dpll_data;
 
@@ -670,6 +683,55 @@ unsigned long omap3_clkoutx2_recalc(struct clk_hw *hw,
 	else
 		rate = parent_rate * 2;
 	return rate;
+}
+
+int omap3_clkoutx2_set_rate(struct clk_hw *hw, unsigned long rate,
+					unsigned long parent_rate)
+{
+	return 0;
+}
+
+long omap3_clkoutx2_round_rate(struct clk_hw *hw, unsigned long rate,
+		unsigned long *prate)
+{
+	const struct dpll_data *dd;
+	u32 v;
+	struct clk_hw_omap *pclk = NULL;
+
+	if (!*prate)
+		return 0;
+
+	pclk = omap3_find_clkoutx2_dpll(hw);
+
+	if (!pclk)
+		return 0;
+
+	dd = pclk->dpll_data;
+
+	/* TYPE J does not have a clkoutx2 */
+	if (dd->flags & DPLL_J_TYPE) {
+		*prate = __clk_round_rate(__clk_get_parent(pclk->hw.clk), rate);
+		return *prate;
+	}
+
+	WARN_ON(!dd->enable_mask);
+
+	v = omap2_clk_readl(pclk, dd->control_reg) & dd->enable_mask;
+	v >>= __ffs(dd->enable_mask);
+
+	/* If in bypass, the rate is fixed to the bypass rate*/
+	if (v != OMAP3XXX_EN_DPLL_LOCKED)
+		return *prate;
+
+	if (__clk_get_flags(hw->clk) & CLK_SET_RATE_PARENT) {
+		unsigned long best_parent;
+
+		best_parent = (rate / 2);
+		*prate = __clk_round_rate(__clk_get_parent(hw->clk),
+				best_parent);
+	}
+
+	return *prate * 2;
 }
 
 /* OMAP3/4 non-CORE DPLL clkops */

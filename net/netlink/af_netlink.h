@@ -31,6 +31,7 @@ struct netlink_sock {
 	u32			ngroups;
 	unsigned long		*groups;
 	unsigned long		state;
+	size_t			max_recvmsg_len;
 	wait_queue_head_t	wait;
 	bool			cb_running;
 	struct netlink_callback	cb;

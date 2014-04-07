@@ -34,6 +34,7 @@
 #include <asm/perf_event.h>
 #include <asm/tlbflush.h>
 #include <asm/desc.h>
+#include <asm/debugreg.h>
 #include <asm/kvm_para.h>
 
 #include <asm/virtext.h>
@@ -303,20 +304,35 @@ static inline bool is_cr_intercept(struct vcpu_svm *svm, int bit)
 	return vmcb->control.intercept_cr & (1U << bit);
 }
 
-static inline void set_dr_intercept(struct vcpu_svm *svm, int bit)
+static inline void set_dr_intercepts(struct vcpu_svm *svm)
 {
 	struct vmcb *vmcb = get_host_vmcb(svm);
 
-	vmcb->control.intercept_dr |= (1U << bit);
+	vmcb->control.intercept_dr = (1 << INTERCEPT_DR0_READ)
+		| (1 << INTERCEPT_DR1_READ)
+		| (1 << INTERCEPT_DR2_READ)
+		| (1 << INTERCEPT_DR3_READ)
+		| (1 << INTERCEPT_DR4_READ)
+		| (1 << INTERCEPT_DR5_READ)
+		| (1 << INTERCEPT_DR6_READ)
+		| (1 << INTERCEPT_DR7_READ)
+		| (1 << INTERCEPT_DR0_WRITE)
+		| (1 << INTERCEPT_DR1_WRITE)
+		| (1 << INTERCEPT_DR2_WRITE)
+		| (1 << INTERCEPT_DR3_WRITE)
+		| (1 << INTERCEPT_DR4_WRITE)
+		| (1 << INTERCEPT_DR5_WRITE)
+		| (1 << INTERCEPT_DR6_WRITE)
+		| (1 << INTERCEPT_DR7_WRITE);
 
 	recalc_intercepts(svm);
 }
 
-static inline void clr_dr_intercept(struct vcpu_svm *svm, int bit)
+static inline void clr_dr_intercepts(struct vcpu_svm *svm)
 {
 	struct vmcb *vmcb = get_host_vmcb(svm);
 
-	vmcb->control.intercept_dr &= ~(1U << bit);
+	vmcb->control.intercept_dr = 0;
 
 	recalc_intercepts(svm);
 }
@@ -1080,23 +1096,7 @@ static void init_vmcb(struct vcpu_svm *svm)
 	set_cr_intercept(svm, INTERCEPT_CR4_WRITE);
 	set_cr_intercept(svm, INTERCEPT_CR8_WRITE);
 
-	set_dr_intercept(svm, INTERCEPT_DR0_READ);
-	set_dr_intercept(svm, INTERCEPT_DR1_READ);
-	set_dr_intercept(svm, INTERCEPT_DR2_READ);
-	set_dr_intercept(svm, INTERCEPT_DR3_READ);
-	set_dr_intercept(svm, INTERCEPT_DR4_READ);
-	set_dr_intercept(svm, INTERCEPT_DR5_READ);
-	set_dr_intercept(svm, INTERCEPT_DR6_READ);
-	set_dr_intercept(svm, INTERCEPT_DR7_READ);
-
-	set_dr_intercept(svm, INTERCEPT_DR0_WRITE);
-	set_dr_intercept(svm, INTERCEPT_DR1_WRITE);
-	set_dr_intercept(svm, INTERCEPT_DR2_WRITE);
-	set_dr_intercept(svm, INTERCEPT_DR3_WRITE);
-	set_dr_intercept(svm, INTERCEPT_DR4_WRITE);
-	set_dr_intercept(svm, INTERCEPT_DR5_WRITE);
-	set_dr_intercept(svm, INTERCEPT_DR6_WRITE);
-	set_dr_intercept(svm, INTERCEPT_DR7_WRITE);
+	set_dr_intercepts(svm);
 
 	set_exception_intercept(svm, PF_VECTOR);
 	set_exception_intercept(svm, UD_VECTOR);
@@ -1682,6 +1682,21 @@ static void svm_set_dr6(struct kvm_vcpu *vcpu, unsigned long value)
 
 	svm->vmcb->save.dr6 = value;
 	mark_dirty(svm->vmcb, VMCB_DR);
+}
+
+static void svm_sync_dirty_debug_regs(struct kvm_vcpu *vcpu)
+{
+	struct vcpu_svm *svm = to_svm(vcpu);
+
+	get_debugreg(vcpu->arch.db[0], 0);
+	get_debugreg(vcpu->arch.db[1], 1);
+	get_debugreg(vcpu->arch.db[2], 2);
+	get_debugreg(vcpu->arch.db[3], 3);
+	vcpu->arch.dr6 = svm_get_dr6(vcpu);
+	vcpu->arch.dr7 = svm->vmcb->save.dr7;
+
+	vcpu->arch.switch_db_regs &= ~KVM_DEBUGREG_WONT_EXIT;
+	set_dr_intercepts(svm);
 }
 
 static void svm_set_dr7(struct kvm_vcpu *vcpu, unsigned long value)
@@ -2842,6 +2857,7 @@ static int iret_interception(struct vcpu_svm *svm)
 	clr_intercept(svm, INTERCEPT_IRET);
 	svm->vcpu.arch.hflags |= HF_IRET_MASK;
 	svm->nmi_iret_rip = kvm_rip_read(&svm->vcpu);
+	kvm_make_request(KVM_REQ_EVENT, &svm->vcpu);
 	return 1;
 }
 
@@ -2974,6 +2990,17 @@ static int dr_interception(struct vcpu_svm *svm)
 	unsigned long val;
 	int err;
 
+	if (svm->vcpu.guest_debug == 0) {
+		/*
+		 * No more DR vmexits; force a reload of the debug registers
+		 * and reenter on this instruction.  The next vmexit will
+		 * retrieve the full state of the debug registers.
+		 */
+		clr_dr_intercepts(svm);
+		svm->vcpu.arch.switch_db_regs |= KVM_DEBUGREG_WONT_EXIT;
+		return 1;
+	}
+
 	if (!boot_cpu_has(X86_FEATURE_DECODEASSISTS))
 		return emulate_on_interception(svm);
 
@@ -3002,10 +3029,8 @@ static int cr8_write_interception(struct vcpu_svm *svm)
 	u8 cr8_prev = kvm_get_cr8(&svm->vcpu);
 	/* instruction emulation calls kvm_set_cr8() */
 	r = cr_interception(svm);
-	if (irqchip_in_kernel(svm->vcpu.kvm)) {
-		clr_cr_intercept(svm, INTERCEPT_CR8_WRITE);
+	if (irqchip_in_kernel(svm->vcpu.kvm))
 		return r;
-	}
 	if (cr8_prev <= kvm_get_cr8(&svm->vcpu))
 		return r;
 	kvm_run->exit_reason = KVM_EXIT_SET_TPR;
@@ -3567,6 +3592,8 @@ static void update_cr8_intercept(struct kvm_vcpu *vcpu, int tpr, int irr)
 	if (is_guest_mode(vcpu) && (vcpu->arch.hflags & HF_VINTR_MASK))
 		return;
 
+	clr_cr_intercept(svm, INTERCEPT_CR8_WRITE);
+
 	if (irr == -1)
 		return;
 
@@ -3649,7 +3676,7 @@ static int svm_interrupt_allowed(struct kvm_vcpu *vcpu)
 	return ret;
 }
 
-static int enable_irq_window(struct kvm_vcpu *vcpu)
+static void enable_irq_window(struct kvm_vcpu *vcpu)
 {
 	struct vcpu_svm *svm = to_svm(vcpu);
 
@@ -3663,16 +3690,15 @@ static int enable_irq_window(struct kvm_vcpu *vcpu)
 		svm_set_vintr(svm);
 		svm_inject_irq(svm, 0x0);
 	}
-	return 0;
 }
 
-static int enable_nmi_window(struct kvm_vcpu *vcpu)
+static void enable_nmi_window(struct kvm_vcpu *vcpu)
 {
 	struct vcpu_svm *svm = to_svm(vcpu);
 
 	if ((svm->vcpu.arch.hflags & (HF_NMI_MASK | HF_IRET_MASK))
 	    == HF_NMI_MASK)
-		return 0; /* IRET will cause a vm exit */
+		return; /* IRET will cause a vm exit */
 
 	/*
 	 * Something prevents NMI from been injected. Single step over possible
@@ -3681,7 +3707,6 @@ static int enable_nmi_window(struct kvm_vcpu *vcpu)
 	svm->nmi_singlestep = true;
 	svm->vmcb->save.rflags |= (X86_EFLAGS_TF | X86_EFLAGS_RF);
 	update_db_bp_intercept(vcpu);
-	return 0;
 }
 
 static int svm_set_tss_addr(struct kvm *kvm, unsigned int addr)
@@ -4064,6 +4089,11 @@ static bool svm_invpcid_supported(void)
 	return false;
 }
 
+static bool svm_mpx_supported(void)
+{
+	return false;
+}
+
 static bool svm_has_wbinvd_exit(void)
 {
 	return true;
@@ -4302,6 +4332,7 @@ static struct kvm_x86_ops svm_x86_ops = {
 	.get_dr6 = svm_get_dr6,
 	.set_dr6 = svm_set_dr6,
 	.set_dr7 = svm_set_dr7,
+	.sync_dirty_debug_regs = svm_sync_dirty_debug_regs,
 	.cache_reg = svm_cache_reg,
 	.get_rflags = svm_get_rflags,
 	.set_rflags = svm_set_rflags,
@@ -4345,6 +4376,7 @@ static struct kvm_x86_ops svm_x86_ops = {
 
 	.rdtscp_supported = svm_rdtscp_supported,
 	.invpcid_supported = svm_invpcid_supported,
+	.mpx_supported = svm_mpx_supported,
 
 	.set_supported_cpuid = svm_set_supported_cpuid,
 

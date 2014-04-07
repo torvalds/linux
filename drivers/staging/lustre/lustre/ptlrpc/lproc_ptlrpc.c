@@ -616,7 +616,7 @@ out:
 }
 
 /**
- * The longest valid command string is the maxium policy name size, plus the
+ * The longest valid command string is the maximum policy name size, plus the
  * length of the " reg" substring
  */
 #define LPROCFS_NRS_WR_MAX_CMD	(NRS_POL_NAME_MAX + sizeof(" reg") - 1)
@@ -1184,7 +1184,7 @@ int lprocfs_wr_evict_client(struct file *file, const char *buffer,
 	}
 	tmpbuf = cfs_firststr(kbuf, min_t(unsigned long, BUFLEN - 1, count));
 	/* Kludge code(deadlock situation): the lprocfs lock has been held
-	 * since the client is evicted by writting client's
+	 * since the client is evicted by writing client's
 	 * uuid/nid to procfs "evict_client" entry. However,
 	 * obd_export_evict_by_uuid() will call lprocfs_remove() to destroy
 	 * the proc entries under the being destroyed export{}, so I have

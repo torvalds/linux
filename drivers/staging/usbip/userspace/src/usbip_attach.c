@@ -17,7 +17,6 @@
  */
 
 #include <sys/stat.h>
-#include <sysfs/libsysfs.h>
 
 #include <limits.h>
 #include <stdint.h>

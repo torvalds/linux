@@ -1,5 +1,5 @@
 /*
- * System controller support for Armada 370 and XP platforms.
+ * System controller support for Armada 370, 375 and XP platforms.
  *
  * Copyright (C) 2012 Marvell
  *
@@ -11,7 +11,7 @@
  * License version 2.  This program is licensed "as is" without any
  * warranty of any kind, whether express or implied.
  *
- * The Armada 370 and Armada XP SoCs both have a range of
+ * The Armada 370, 375 and Armada XP SoCs have a range of
  * miscellaneous registers, that do not belong to a particular device,
  * but rather provide system-level features. This basic
  * system-controller driver provides a device tree binding for those
@@ -47,6 +47,13 @@ static const struct mvebu_system_controller armada_370_xp_system_controller = {
 	.system_soft_reset = 0x1,
 };
 
+static const struct mvebu_system_controller armada_375_system_controller = {
+	.rstoutn_mask_offset = 0x54,
+	.system_soft_reset_offset = 0x58,
+	.rstoutn_mask_reset_out_en = 0x1,
+	.system_soft_reset = 0x1,
+};
+
 static const struct mvebu_system_controller orion_system_controller = {
 	.rstoutn_mask_offset = 0x108,
 	.system_soft_reset_offset = 0x10c,
@@ -54,13 +61,16 @@ static const struct mvebu_system_controller orion_system_controller = {
 	.system_soft_reset = 0x1,
 };
 
-static struct of_device_id of_system_controller_table[] = {
+static const struct of_device_id of_system_controller_table[] = {
 	{
 		.compatible = "marvell,orion-system-controller",
 		.data = (void *) &orion_system_controller,
 	}, {
 		.compatible = "marvell,armada-370-xp-system-controller",
 		.data = (void *) &armada_370_xp_system_controller,
+	}, {
+		.compatible = "marvell,armada-375-system-controller",
+		.data = (void *) &armada_375_system_controller,
 	},
 	{ /* end of list */ },
 };
@@ -90,13 +100,12 @@ void mvebu_restart(enum reboot_mode mode, const char *cmd)
 
 static int __init mvebu_system_controller_init(void)
 {
+	const struct of_device_id *match;
 	struct device_node *np;
 
-	np = of_find_matching_node(NULL, of_system_controller_table);
+	np = of_find_matching_node_and_match(NULL, of_system_controller_table,
+					     &match);
 	if (np) {
-		const struct of_device_id *match =
-		    of_match_node(of_system_controller_table, np);
-		BUG_ON(!match);
 		system_controller_base = of_iomap(np, 0);
 		mvebu_sc = (struct mvebu_system_controller *)match->data;
 		of_node_put(np);

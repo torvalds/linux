@@ -89,8 +89,12 @@ config NETWORK_SECMARK
 	  to nfmark, but designated for security purposes.
 	  If you are unsure how to answer this question, answer N.
 
+config NET_PTP_CLASSIFY
+	def_bool n
+
 config NETWORK_PHY_TIMESTAMPING
 	bool "Timestamping in PHY devices"
+	select NET_PTP_CLASSIFY
 	help
 	  This allows timestamping of network packets by PHYs with
 	  hardware timestamping capabilities. This option adds some
@@ -239,7 +243,7 @@ config XPS
 	default y
 
 config CGROUP_NET_PRIO
-	tristate "Network priority cgroup"
+	bool "Network priority cgroup"
 	depends on CGROUPS
 	---help---
 	  Cgroup subsystem for use in assigning processes to network priorities on

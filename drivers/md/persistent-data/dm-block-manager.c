@@ -595,25 +595,14 @@ int dm_bm_unlock(struct dm_block *b)
 }
 EXPORT_SYMBOL_GPL(dm_bm_unlock);
 
-int dm_bm_flush_and_unlock(struct dm_block_manager *bm,
-			   struct dm_block *superblock)
+int dm_bm_flush(struct dm_block_manager *bm)
 {
-	int r;
-
 	if (bm->read_only)
 		return -EPERM;
 
-	r = dm_bufio_write_dirty_buffers(bm->bufio);
-	if (unlikely(r)) {
-		dm_bm_unlock(superblock);
-		return r;
-	}
-
-	dm_bm_unlock(superblock);
-
 	return dm_bufio_write_dirty_buffers(bm->bufio);
 }
-EXPORT_SYMBOL_GPL(dm_bm_flush_and_unlock);
+EXPORT_SYMBOL_GPL(dm_bm_flush);
 
 void dm_bm_prefetch(struct dm_block_manager *bm, dm_block_t b)
 {

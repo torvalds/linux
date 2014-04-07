@@ -74,9 +74,7 @@ static void symbol_int_callback(struct urb *urb)
 		tty_insert_flip_string(&port->port, &data[1], data_length);
 		tty_flip_buffer_push(&port->port);
 	} else {
-		dev_dbg(&port->dev,
-			"Improper amount of data received from the device, "
-			"%d bytes", urb->actual_length);
+		dev_dbg(&port->dev, "%s - short packet\n", __func__);
 	}
 
 exit:

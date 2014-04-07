@@ -1000,6 +1000,17 @@ static long uvc_v4l2_do_ioctl(struct file *file, unsigned int cmd, void *arg)
 		return uvc_query_buffer(&stream->queue, buf);
 	}
 
+	case VIDIOC_CREATE_BUFS:
+	{
+		struct v4l2_create_buffers *cb = arg;
+
+		ret = uvc_acquire_privileges(handle);
+		if (ret < 0)
+			return ret;
+
+		return uvc_create_buffers(&stream->queue, cb);
+	}
+
 	case VIDIOC_QBUF:
 		if (!uvc_has_privileges(handle))
 			return -EBUSY;

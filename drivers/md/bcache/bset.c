@@ -23,8 +23,8 @@ void bch_dump_bset(struct btree_keys *b, struct bset *i, unsigned set)
 	for (k = i->start; k < bset_bkey_last(i); k = next) {
 		next = bkey_next(k);
 
-		printk(KERN_ERR "block %u key %li/%u: ", set,
-		       (uint64_t *) k - i->d, i->keys);
+		printk(KERN_ERR "block %u key %u/%u: ", set,
+		       (unsigned) ((u64 *) k - i->d), i->keys);
 
 		if (b->ops->key_dump)
 			b->ops->key_dump(b, k);

@@ -101,14 +101,14 @@ static int dcd_uuid_from_string(char *sz_uuid, struct dsp_uuid *uuid_obj)
 	 * if the converted value doesn't fit in u32. So, convert the
 	 * last six bytes to u64 and memcpy what is needed
 	 */
-	if(sscanf(sz_uuid, "%8x%c%4hx%c%4hx%c%2hhx%2hhx%c%llx",
+	if (sscanf(sz_uuid, "%8x%c%4hx%c%4hx%c%2hhx%2hhx%c%llx",
 	       &uuid_tmp.data1, &c, &uuid_tmp.data2, &c,
 	       &uuid_tmp.data3, &c, &uuid_tmp.data4,
 	       &uuid_tmp.data5, &c, &t) != 10)
 		return -EINVAL;
 
 	t = cpu_to_be64(t);
-	memcpy(&uuid_tmp.data6[0], ((char*)&t) + 2, 6);
+	memcpy(&uuid_tmp.data6[0], ((char *)&t) + 2, 6);
 	*uuid_obj = uuid_tmp;
 
 	return 0;

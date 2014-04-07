@@ -148,11 +148,11 @@ struct rtl_pci_capabilities_header {
   * RX wifi info == RX descriptor in old flow */
 struct rtl_tx_buffer_desc {
 #if (RTL8192EE_SEG_NUM == 2)
-	u32 dword[2*(DMA_IS_64BIT + 1)*8]; //seg = 8
+	u32 dword[2*(DMA_IS_64BIT + 1)*8]; /* seg = 8 */
 #elif (RTL8192EE_SEG_NUM == 1)
-	u32 dword[2*(DMA_IS_64BIT + 1)*4]; //seg = 4
+	u32 dword[2*(DMA_IS_64BIT + 1)*4]; /* seg = 4 */
 #elif (RTL8192EE_SEG_NUM == 0)
-	u32 dword[2*(DMA_IS_64BIT + 1)*2]; //seg = 2
+	u32 dword[2*(DMA_IS_64BIT + 1)*2]; /* seg = 2 */
 #endif
 } __packed;
 
@@ -187,7 +187,7 @@ struct rtl8192_tx_ring {
 };
 
 struct rtl8192_rx_ring {
-	struct rtl_rx_desc *desc;/*for old trx flow, not uesd in new trx*/
+	struct rtl_rx_desc *desc;/*for old trx flow, not used in new trx*/
 	/*dma matches either 'desc' or 'buffer_desc'*/
 	dma_addr_t dma;
 	unsigned int idx;

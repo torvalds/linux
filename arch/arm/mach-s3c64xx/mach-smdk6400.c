@@ -16,6 +16,7 @@
 #include <linux/timer.h>
 #include <linux/init.h>
 #include <linux/serial_core.h>
+#include <linux/serial_s3c.h>
 #include <linux/platform_device.h>
 #include <linux/i2c.h>
 #include <linux/io.h>
@@ -28,8 +29,6 @@
 
 #include <mach/hardware.h>
 #include <mach/map.h>
-
-#include <plat/regs-serial.h>
 
 #include <plat/clock.h>
 #include <plat/devs.h>

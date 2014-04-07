@@ -870,14 +870,14 @@ static void __init mvebu_mbus_get_pcie_resources(struct device_node *np,
 	ret = of_property_read_u32_array(np, "pcie-mem-aperture", reg, ARRAY_SIZE(reg));
 	if (!ret) {
 		mem->start = reg[0];
-		mem->end = mem->start + reg[1];
+		mem->end = mem->start + reg[1] - 1;
 		mem->flags = IORESOURCE_MEM;
 	}
 
 	ret = of_property_read_u32_array(np, "pcie-io-aperture", reg, ARRAY_SIZE(reg));
 	if (!ret) {
 		io->start = reg[0];
-		io->end = io->start + reg[1];
+		io->end = io->start + reg[1] - 1;
 		io->flags = IORESOURCE_IO;
 	}
 }
@@ -890,13 +890,12 @@ int __init mvebu_mbus_dt_init(void)
 	const __be32 *prop;
 	int ret;
 
-	np = of_find_matching_node(NULL, of_mvebu_mbus_ids);
+	np = of_find_matching_node_and_match(NULL, of_mvebu_mbus_ids, &of_id);
 	if (!np) {
 		pr_err("could not find a matching SoC family\n");
 		return -ENODEV;
 	}
 
-	of_id = of_match_node(of_mvebu_mbus_ids, np);
 	mbus_state.soc = of_id->data;
 
 	prop = of_get_property(np, "controller", NULL);

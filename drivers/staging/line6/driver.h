@@ -204,7 +204,7 @@ extern int line6_send_sysex_message(struct usb_line6 *line6,
 extern ssize_t line6_set_raw(struct device *dev, struct device_attribute *attr,
 			     const char *buf, size_t count);
 extern void line6_start_timer(struct timer_list *timer, unsigned int msecs,
-			      void (*function) (unsigned long),
+			      void (*function)(unsigned long),
 			      unsigned long data);
 extern int line6_transmit_parameter(struct usb_line6 *line6, int param,
 				    u8 value);

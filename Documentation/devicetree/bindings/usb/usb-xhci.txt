@@ -1,14 +1,14 @@
 USB xHCI controllers
 
 Required properties:
-  - compatible: should be "xhci-platform".
+  - compatible: should be "generic-xhci" (deprecated: "xhci-platform").
   - reg: should contain address and length of the standard XHCI
     register set for the device.
   - interrupts: one XHCI interrupt should be described here.
 
 Example:
 	usb@f0931000 {
-		compatible = "xhci-platform";
+		compatible = "generic-xhci";
 		reg = <0xf0931000 0x8c8>;
 		interrupts = <0x0 0x4e 0x0>;
 	};

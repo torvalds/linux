@@ -8,6 +8,7 @@
 #include <linux/timer.h>
 #include <linux/sched.h>
 #include <linux/netdevice.h>
+#include <linux/etherdevice.h>
 #include <linux/errno.h>
 #include "ozdbg.h"
 #include "ozprotocol.h"
@@ -173,7 +174,7 @@ struct oz_pd *oz_pd_alloc(const u8 *mac_addr)
 		pd->last_rx_pkt_num = 0xffffffff;
 		oz_pd_set_state(pd, OZ_PD_S_IDLE);
 		pd->max_tx_size = OZ_MAX_TX_SIZE;
-		memcpy(pd->mac_addr, mac_addr, ETH_ALEN);
+		ether_addr_copy(pd->mac_addr, mac_addr);
 		if (0 != oz_elt_buf_init(&pd->elt_buff)) {
 			kfree(pd);
 			pd = NULL;
@@ -284,11 +285,11 @@ int oz_services_start(struct oz_pd *pd, u16 apps, int resume)
 					  ai->app_id);
 				break;
 			}
-			oz_polling_lock_bh();
+			spin_lock_bh(&g_polling_lock);
 			pd->total_apps |= (1<<ai->app_id);
 			if (resume)
 				pd->paused_apps &= ~(1<<ai->app_id);
-			oz_polling_unlock_bh();
+			spin_unlock_bh(&g_polling_lock);
 		}
 	}
 	return rc;
@@ -304,14 +305,14 @@ void oz_services_stop(struct oz_pd *pd, u16 apps, int pause)
 	oz_pd_dbg(pd, ON, "%s: (0x%x) pause(%d)\n", __func__, apps, pause);
 	for (ai = g_app_if; ai < &g_app_if[OZ_APPID_MAX]; ai++) {
 		if (apps & (1<<ai->app_id)) {
-			oz_polling_lock_bh();
+			spin_lock_bh(&g_polling_lock);
 			if (pause) {
 				pd->paused_apps |= (1<<ai->app_id);
 			} else {
 				pd->total_apps &= ~(1<<ai->app_id);
 				pd->paused_apps &= ~(1<<ai->app_id);
 			}
-			oz_polling_unlock_bh();
+			spin_unlock_bh(&g_polling_lock);
 			ai->stop(pd, pause);
 		}
 	}
@@ -349,17 +350,17 @@ void oz_pd_stop(struct oz_pd *pd)
 
 	oz_dbg(ON, "oz_pd_stop() State = 0x%x\n", pd->state);
 	oz_pd_indicate_farewells(pd);
-	oz_polling_lock_bh();
+	spin_lock_bh(&g_polling_lock);
 	stop_apps = pd->total_apps;
 	pd->total_apps = 0;
 	pd->paused_apps = 0;
-	oz_polling_unlock_bh();
+	spin_unlock_bh(&g_polling_lock);
 	oz_services_stop(pd, stop_apps, 0);
-	oz_polling_lock_bh();
+	spin_lock_bh(&g_polling_lock);
 	oz_pd_set_state(pd, OZ_PD_S_STOPPED);
 	/* Remove from PD list.*/
 	list_del(&pd->link);
-	oz_polling_unlock_bh();
+	spin_unlock_bh(&g_polling_lock);
 	oz_dbg(ON, "pd ref count = %d\n", atomic_read(&pd->ref_count));
 	oz_pd_put(pd);
 }
@@ -372,9 +373,9 @@ int oz_pd_sleep(struct oz_pd *pd)
 	int do_stop = 0;
 	u16 stop_apps;
 
-	oz_polling_lock_bh();
+	spin_lock_bh(&g_polling_lock);
 	if (pd->state & (OZ_PD_S_SLEEP | OZ_PD_S_STOPPED)) {
-		oz_polling_unlock_bh();
+		spin_unlock_bh(&g_polling_lock);
 		return 0;
 	}
 	if (pd->keep_alive && pd->session_id)
@@ -383,7 +384,7 @@ int oz_pd_sleep(struct oz_pd *pd)
 		do_stop = 1;
 
 	stop_apps = pd->total_apps;
-	oz_polling_unlock_bh();
+	spin_unlock_bh(&g_polling_lock);
 	if (do_stop) {
 		oz_pd_stop(pd);
 	} else {
@@ -999,15 +1000,15 @@ void oz_pd_indicate_farewells(struct oz_pd *pd)
 	const struct oz_app_if *ai = &g_app_if[OZ_APPID_USB-1];
 
 	while (1) {
-		oz_polling_lock_bh();
+		spin_lock_bh(&g_polling_lock);
 		if (list_empty(&pd->farewell_list)) {
-			oz_polling_unlock_bh();
+			spin_unlock_bh(&g_polling_lock);
 			break;
 		}
 		f = list_first_entry(&pd->farewell_list,
 				struct oz_farewell, link);
 		list_del(&f->link);
-		oz_polling_unlock_bh();
+		spin_unlock_bh(&g_polling_lock);
 		if (ai->farewell)
 			ai->farewell(pd, f->ep_num, f->report, f->len);
 		kfree(f);

@@ -1,0 +1,41 @@
+/*
+ * Andrew Lunn <andrew@lunn.ch>
+ * Ben Peddell <klightspeed@killerwolves.net>
+ *
+ * This file is licensed under the terms of the GNU General Public
+ * License version 2.  This program is licensed "as is" without any
+ * warranty of any kind, whether express or implied.
+ */
+
+/dts-v1/;
+
+#include "kirkwood.dtsi"
+#include "kirkwood-6281.dtsi"
+#include "kirkwood-synology.dtsi"
+
+/ {
+	model = "Synology DS110j v10 and v30";
+	compatible = "synology,ds110jv10", "synology,ds110jv30",
+		     "marvell,kirkwood";
+
+	memory {
+		device_type = "memory";
+		reg = <0x00000000 0x8000000>;
+	};
+
+	chosen {
+		bootargs = "console=ttyS0,115200n8";
+	};
+
+	gpio-fan-150-32-35 {
+		status = "okay";
+	};
+
+	gpio-leds-hdd-21-1 {
+		status = "okay";
+	};
+};
+
+&s35390a {
+	status = "okay";
+};

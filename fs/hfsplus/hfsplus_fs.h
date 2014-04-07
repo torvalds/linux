@@ -242,6 +242,7 @@ struct hfsplus_inode_info {
 	 */
 	sector_t fs_blocks;
 	u8 userflags;		/* BSD user file flags */
+	u32 subfolders;		/* Subfolder count (HFSX only) */
 	struct list_head open_dir_list;
 	loff_t phys_size;
 
@@ -366,7 +367,7 @@ typedef int (*search_strategy_t)(struct hfs_bnode *,
  */
 
 /* attributes.c */
-int hfsplus_create_attr_tree_cache(void);
+int __init hfsplus_create_attr_tree_cache(void);
 void hfsplus_destroy_attr_tree_cache(void);
 hfsplus_attr_entry *hfsplus_alloc_attr_entry(void);
 void hfsplus_destroy_attr_entry(hfsplus_attr_entry *entry_p);

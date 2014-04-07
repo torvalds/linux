@@ -24,6 +24,7 @@
 #include <linux/cdev.h>
 #include <linux/idr.h>
 #include <linux/notifier.h>
+#include <linux/irqreturn.h>
 
 #include "mic_intr.h"
 

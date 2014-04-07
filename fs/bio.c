@@ -116,7 +116,6 @@ static struct kmem_cache *bio_find_or_create_slab(unsigned int extra_size)
 	if (!slab)
 		goto out_unlock;
 
-	printk(KERN_INFO "bio: create slab <%s> at %d\n", bslab->name, entry);
 	bslab->slab = slab;
 	bslab->slab_ref = 1;
 	bslab->slab_size = sz;
@@ -1970,7 +1969,7 @@ int bio_associate_current(struct bio *bio)
 
 	/* associate blkcg if exists */
 	rcu_read_lock();
-	css = task_css(current, blkio_subsys_id);
+	css = task_css(current, blkio_cgrp_id);
 	if (css && css_tryget(css))
 		bio->bi_css = css;
 	rcu_read_unlock();

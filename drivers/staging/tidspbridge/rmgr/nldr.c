@@ -623,7 +623,7 @@ void nldr_delete(struct nldr_object *nldr_obj)
  *  ======== nldr_get_fxn_addr ========
  */
 int nldr_get_fxn_addr(struct nldr_nodeobject *nldr_node_obj,
-			     char *str_fxn, u32 * addr)
+			     char *str_fxn, u32 *addr)
 {
 	struct dbll_sym_val *dbll_sym;
 	struct nldr_object *nldr_obj;
@@ -1751,9 +1751,8 @@ static void unload_ovly(struct nldr_nodeobject *nldr_node_obj,
 	}
 	if (ref_count && (*ref_count > 0)) {
 		*ref_count -= 1;
-		if (other_ref) {
+		if (other_ref)
 			*other_ref -= 1;
-		}
 	}
 
 	if (ref_count && *ref_count == 0) {

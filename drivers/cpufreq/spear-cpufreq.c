@@ -19,6 +19,7 @@
 #include <linux/init.h>
 #include <linux/module.h>
 #include <linux/of_device.h>
+#include <linux/platform_device.h>
 #include <linux/slab.h>
 #include <linux/types.h>
 
@@ -163,11 +164,10 @@ static struct cpufreq_driver spear_cpufreq_driver = {
 	.target_index	= spear_cpufreq_target,
 	.get		= cpufreq_generic_get,
 	.init		= spear_cpufreq_init,
-	.exit		= cpufreq_generic_exit,
 	.attr		= cpufreq_generic_attr,
 };
 
-static int spear_cpufreq_driver_init(void)
+static int spear_cpufreq_probe(struct platform_device *pdev)
 {
 	struct device_node *np;
 	const struct property *prop;
@@ -235,7 +235,15 @@ out_put_node:
 	of_node_put(np);
 	return ret;
 }
-late_initcall(spear_cpufreq_driver_init);
+
+static struct platform_driver spear_cpufreq_platdrv = {
+	.driver = {
+		.name	= "spear-cpufreq",
+		.owner	= THIS_MODULE,
+	},
+	.probe		= spear_cpufreq_probe,
+};
+module_platform_driver(spear_cpufreq_platdrv);
 
 MODULE_AUTHOR("Deepak Sikri <deepak.sikri@st.com>");
 MODULE_DESCRIPTION("SPEAr CPUFreq driver");

@@ -90,7 +90,7 @@ struct fld_cache {
 	int		      fci_threshold;
 
 	/**
-	 * Prefered number of cached entries */
+	 * Preferred number of cached entries */
 	int		      fci_cache_size;
 
 	/**

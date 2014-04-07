@@ -18,7 +18,7 @@
 
 #include <linux/genalloc.h>
 
-struct snd_platform_data {
+struct davinci_mcasp_pdata {
 	u32 tx_dma_offset;
 	u32 rx_dma_offset;
 	int asp_chan_q;	/* event queue number for ASP channel */
@@ -87,6 +87,8 @@ struct snd_platform_data {
 	int tx_dma_channel;
 	int rx_dma_channel;
 };
+/* TODO: Fix arch/arm/mach-davinci/ users and remove this define */
+#define snd_platform_data davinci_mcasp_pdata
 
 enum {
 	MCASP_VERSION_1 = 0,	/* DM646x */

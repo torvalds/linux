@@ -68,15 +68,7 @@ void __armada_drm_queue_unref_work(struct drm_device *dev,
 {
 	struct armada_private *priv = dev->dev_private;
 
-	/*
-	 * Yes, we really must jump through these hoops just to store a
-	 * _pointer_ to something into the kfifo.  This is utterly insane
-	 * and idiotic, because it kfifo requires the _data_ pointed to by
-	 * the pointer const, not the pointer itself.  Not only that, but
-	 * you have to pass a pointer _to_ the pointer you want stored.
-	 */
-	const struct drm_framebuffer *silly_api_alert = fb;
-	WARN_ON(!kfifo_put(&priv->fb_unref, &silly_api_alert));
+	WARN_ON(!kfifo_put(&priv->fb_unref, fb));
 	schedule_work(&priv->fb_unref_work);
 }
 

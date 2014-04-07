@@ -376,6 +376,8 @@ nouveau_drm_load(struct drm_device *dev, unsigned long flags)
 	if (ret)
 		goto fail_device;
 
+	dev->irq_enabled = true;
+
 	/* workaround an odd issue on nvc1 by disabling the device's
 	 * nosnoop capability.  hopefully won't cause issues until a
 	 * better fix is found - assuming there is one...
@@ -475,6 +477,7 @@ nouveau_drm_remove(struct pci_dev *pdev)
 	struct nouveau_drm *drm = nouveau_drm(dev);
 	struct nouveau_object *device;
 
+	dev->irq_enabled = false;
 	device = drm->client.base.device;
 	drm_put_dev(dev);
 
@@ -863,13 +866,16 @@ static int nouveau_pmops_runtime_suspend(struct device *dev)
 	struct drm_device *drm_dev = pci_get_drvdata(pdev);
 	int ret;
 
-	if (nouveau_runtime_pm == 0)
-		return -EINVAL;
+	if (nouveau_runtime_pm == 0) {
+		pm_runtime_forbid(dev);
+		return -EBUSY;
+	}
 
 	/* are we optimus enabled? */
 	if (nouveau_runtime_pm == -1 && !nouveau_is_optimus() && !nouveau_is_v1_dsm()) {
 		DRM_DEBUG_DRIVER("failing to power off - not optimus\n");
-		return -EINVAL;
+		pm_runtime_forbid(dev);
+		return -EBUSY;
 	}
 
 	nv_debug_level(SILENT);
@@ -920,12 +926,15 @@ static int nouveau_pmops_runtime_idle(struct device *dev)
 	struct nouveau_drm *drm = nouveau_drm(drm_dev);
 	struct drm_crtc *crtc;
 
-	if (nouveau_runtime_pm == 0)
+	if (nouveau_runtime_pm == 0) {
+		pm_runtime_forbid(dev);
 		return -EBUSY;
+	}
 
 	/* are we optimus enabled? */
 	if (nouveau_runtime_pm == -1 && !nouveau_is_optimus() && !nouveau_is_v1_dsm()) {
 		DRM_DEBUG_DRIVER("failing to power off - not optimus\n");
+		pm_runtime_forbid(dev);
 		return -EBUSY;
 	}
 

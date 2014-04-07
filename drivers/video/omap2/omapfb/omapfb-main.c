@@ -723,8 +723,8 @@ int check_fb_var(struct fb_info *fbi, struct fb_var_screeninfo *var)
 		display->driver->get_timings(display, &timings);
 
 		/* pixclock in ps, the rest in pixclock */
-		var->pixclock = timings.pixel_clock != 0 ?
-			KHZ2PICOS(timings.pixel_clock) :
+		var->pixclock = timings.pixelclock != 0 ?
+			KHZ2PICOS(timings.pixelclock / 1000) :
 			0;
 		var->left_margin = timings.hbp;
 		var->right_margin = timings.hfp;
@@ -2077,7 +2077,7 @@ static int omapfb_mode_to_timings(const char *mode_str,
 		timings->sync_pclk_edge = OMAPDSS_DRIVE_SIG_OPPOSITE_EDGES;
 	}
 
-	timings->pixel_clock = PICOS2KHZ(var->pixclock);
+	timings->pixelclock = PICOS2KHZ(var->pixclock) * 1000;
 	timings->hbp = var->left_margin;
 	timings->hfp = var->right_margin;
 	timings->vbp = var->upper_margin;
@@ -2229,7 +2229,7 @@ static void fb_videomode_to_omap_timings(struct fb_videomode *m,
 
 	t->x_res = m->xres;
 	t->y_res = m->yres;
-	t->pixel_clock = PICOS2KHZ(m->pixclock);
+	t->pixelclock = PICOS2KHZ(m->pixclock) * 1000;
 	t->hsw = m->hsync_len;
 	t->hfp = m->right_margin;
 	t->hbp = m->left_margin;

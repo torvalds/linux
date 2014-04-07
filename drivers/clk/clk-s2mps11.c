@@ -27,6 +27,7 @@
 #include <linux/clk-provider.h>
 #include <linux/platform_device.h>
 #include <linux/mfd/samsung/s2mps11.h>
+#include <linux/mfd/samsung/s5m8767.h>
 #include <linux/mfd/samsung/core.h>
 
 #define s2mps11_name(a) (a->hw.init->name)
@@ -48,6 +49,7 @@ struct s2mps11_clk {
 	struct clk_lookup *lookup;
 	u32 mask;
 	bool enabled;
+	unsigned int reg;
 };
 
 static struct s2mps11_clk *to_s2mps11_clk(struct clk_hw *hw)
@@ -61,7 +63,7 @@ static int s2mps11_clk_prepare(struct clk_hw *hw)
 	int ret;
 
 	ret = regmap_update_bits(s2mps11->iodev->regmap_pmic,
-				S2MPS11_REG_RTC_CTRL,
+				 s2mps11->reg,
 				 s2mps11->mask, s2mps11->mask);
 	if (!ret)
 		s2mps11->enabled = true;
@@ -74,7 +76,7 @@ static void s2mps11_clk_unprepare(struct clk_hw *hw)
 	struct s2mps11_clk *s2mps11 = to_s2mps11_clk(hw);
 	int ret;
 
-	ret = regmap_update_bits(s2mps11->iodev->regmap_pmic, S2MPS11_REG_RTC_CTRL,
+	ret = regmap_update_bits(s2mps11->iodev->regmap_pmic, s2mps11->reg,
 			   s2mps11->mask, ~s2mps11->mask);
 
 	if (!ret)
@@ -130,9 +132,9 @@ static struct device_node *s2mps11_clk_parse_dt(struct platform_device *pdev)
 	int i;
 
 	if (!iodev->dev->of_node)
-		return NULL;
+		return ERR_PTR(-EINVAL);
 
-	clk_np = of_find_node_by_name(iodev->dev->of_node, "clocks");
+	clk_np = of_get_child_by_name(iodev->dev->of_node, "clocks");
 	if (!clk_np) {
 		dev_err(&pdev->dev, "could not find clock sub-node\n");
 		return ERR_PTR(-EINVAL);
@@ -155,6 +157,7 @@ static int s2mps11_clk_probe(struct platform_device *pdev)
 	struct sec_pmic_dev *iodev = dev_get_drvdata(pdev->dev.parent);
 	struct s2mps11_clk *s2mps11_clks, *s2mps11_clk;
 	struct device_node *clk_np = NULL;
+	unsigned int s2mps11_reg;
 	int i, ret = 0;
 	u32 val;
 
@@ -169,13 +172,26 @@ static int s2mps11_clk_probe(struct platform_device *pdev)
 	if (IS_ERR(clk_np))
 		return PTR_ERR(clk_np);
 
+	switch(platform_get_device_id(pdev)->driver_data) {
+	case S2MPS11X:
+		s2mps11_reg = S2MPS11_REG_RTC_CTRL;
+		break;
+	case S5M8767X:
+		s2mps11_reg = S5M8767_REG_CTRL1;
+		break;
+	default:
+		dev_err(&pdev->dev, "Invalid device type\n");
+		return -EINVAL;
+	};
+
 	for (i = 0; i < S2MPS11_CLKS_NUM; i++, s2mps11_clk++) {
 		s2mps11_clk->iodev = iodev;
 		s2mps11_clk->hw.init = &s2mps11_clks_init[i];
 		s2mps11_clk->mask = 1 << i;
+		s2mps11_clk->reg = s2mps11_reg;
 
 		ret = regmap_read(s2mps11_clk->iodev->regmap_pmic,
-				  S2MPS11_REG_RTC_CTRL, &val);
+				  s2mps11_clk->reg, &val);
 		if (ret < 0)
 			goto err_reg;
 
@@ -241,7 +257,8 @@ static int s2mps11_clk_remove(struct platform_device *pdev)
 }
 
 static const struct platform_device_id s2mps11_clk_id[] = {
-	{ "s2mps11-clk", 0},
+	{ "s2mps11-clk", S2MPS11X},
+	{ "s5m8767-clk", S5M8767X},
 	{ },
 };
 MODULE_DEVICE_TABLE(platform, s2mps11_clk_id);

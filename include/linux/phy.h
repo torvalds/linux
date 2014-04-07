@@ -74,7 +74,52 @@ typedef enum {
 	PHY_INTERFACE_MODE_RTBI,
 	PHY_INTERFACE_MODE_SMII,
 	PHY_INTERFACE_MODE_XGMII,
+	PHY_INTERFACE_MODE_MOCA,
+	PHY_INTERFACE_MODE_MAX,
 } phy_interface_t;
+
+/**
+ * It maps 'enum phy_interface_t' found in include/linux/phy.h
+ * into the device tree binding of 'phy-mode', so that Ethernet
+ * device driver can get phy interface from device tree.
+ */
+static inline const char *phy_modes(phy_interface_t interface)
+{
+	switch (interface) {
+	case PHY_INTERFACE_MODE_NA:
+		return "";
+	case PHY_INTERFACE_MODE_MII:
+		return "mii";
+	case PHY_INTERFACE_MODE_GMII:
+		return "gmii";
+	case PHY_INTERFACE_MODE_SGMII:
+		return "sgmii";
+	case PHY_INTERFACE_MODE_TBI:
+		return "tbi";
+	case PHY_INTERFACE_MODE_REVMII:
+		return "rev-mii";
+	case PHY_INTERFACE_MODE_RMII:
+		return "rmii";
+	case PHY_INTERFACE_MODE_RGMII:
+		return "rgmii";
+	case PHY_INTERFACE_MODE_RGMII_ID:
+		return "rgmii-id";
+	case PHY_INTERFACE_MODE_RGMII_RXID:
+		return "rgmii-rxid";
+	case PHY_INTERFACE_MODE_RGMII_TXID:
+		return "rgmii-txid";
+	case PHY_INTERFACE_MODE_RTBI:
+		return "rtbi";
+	case PHY_INTERFACE_MODE_SMII:
+		return "smii";
+	case PHY_INTERFACE_MODE_XGMII:
+		return "xgmii";
+	case PHY_INTERFACE_MODE_MOCA:
+		return "moca";
+	default:
+		return "unknown";
+	}
+}
 
 
 #define PHY_INIT_TIMEOUT	100000
@@ -308,6 +353,7 @@ struct phy_device {
 	struct phy_c45_device_ids c45_ids;
 	bool is_c45;
 	bool is_internal;
+	bool has_fixups;
 
 	enum phy_state state;
 
@@ -394,6 +440,11 @@ struct phy_driver {
 	u32 flags;
 
 	/*
+	 * Called to issue a PHY software reset
+	 */
+	int (*soft_reset)(struct phy_device *phydev);
+
+	/*
 	 * Called to initialize the PHY,
 	 * including after a reset
 	 */
@@ -416,6 +467,9 @@ struct phy_driver {
 	 * if phydev->autoneg is off
 	 */
 	int (*config_aneg)(struct phy_device *phydev);
+
+	/* Determines the auto negotiation result */
+	int (*aneg_done)(struct phy_device *phydev);
 
 	/* Determines the negotiated speed and duplex */
 	int (*read_status)(struct phy_device *phydev);
@@ -612,10 +666,12 @@ static inline int phy_read_status(struct phy_device *phydev)
 int genphy_setup_forced(struct phy_device *phydev);
 int genphy_restart_aneg(struct phy_device *phydev);
 int genphy_config_aneg(struct phy_device *phydev);
+int genphy_aneg_done(struct phy_device *phydev);
 int genphy_update_link(struct phy_device *phydev);
 int genphy_read_status(struct phy_device *phydev);
 int genphy_suspend(struct phy_device *phydev);
 int genphy_resume(struct phy_device *phydev);
+int genphy_soft_reset(struct phy_device *phydev);
 void phy_driver_unregister(struct phy_driver *drv);
 void phy_drivers_unregister(struct phy_driver *drv, int n);
 int phy_driver_register(struct phy_driver *new_driver);

@@ -317,8 +317,14 @@ static int mt9v032_power_on(struct mt9v032 *mt9v032)
 	struct i2c_client *client = v4l2_get_subdevdata(&mt9v032->subdev);
 	int ret;
 
-	clk_set_rate(mt9v032->clk, mt9v032->sysclk);
-	clk_prepare_enable(mt9v032->clk);
+	ret = clk_set_rate(mt9v032->clk, mt9v032->sysclk);
+	if (ret < 0)
+		return ret;
+
+	ret = clk_prepare_enable(mt9v032->clk);
+	if (ret)
+		return ret;
+
 	udelay(1);
 
 	/* Reset the chip and stop data read out */

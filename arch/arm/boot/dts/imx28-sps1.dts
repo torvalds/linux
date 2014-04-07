@@ -106,7 +106,7 @@
 		usb0: usb@80080000 {
 			vbus-supply = <&reg_usb0_vbus>;
 			pinctrl-names = "default";
-			pinctrl-0 = <&usbphy0_pins_b>;
+			pinctrl-0 = <&usb0_pins_b>;
 			status = "okay";
 		};
 
@@ -127,9 +127,12 @@
 
 	regulators {
 		compatible = "simple-bus";
+		#address-cells = <1>;
+		#size-cells = <0>;
 
-		reg_usb0_vbus: usb0_vbus {
+		reg_usb0_vbus: regulator@0 {
 			compatible = "regulator-fixed";
+			reg = <0>;
 			regulator-name = "usb0_vbus";
 			regulator-min-microvolt = <5000000>;
 			regulator-max-microvolt = <5000000>;

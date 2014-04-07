@@ -32,6 +32,7 @@
  */
 
 #include <linux/hash.h>
+#include <linux/init.h>
 
 #include <asm/processor.h>
 #include <asm/cpufeature.h>
@@ -39,7 +40,11 @@
 
 static inline u32 crc32_u32(u32 crc, u32 val)
 {
+#ifdef CONFIG_AS_CRC32
 	asm ("crc32l %1,%0\n" : "+r" (crc) : "rm" (val));
+#else
+	asm (".byte 0xf2, 0x0f, 0x38, 0xf1, 0xc1" : "+a" (crc) : "c" (val));
+#endif
 	return crc;
 }
 
@@ -49,19 +54,18 @@ static u32 intel_crc4_2_hash(const void *data, u32 len, u32 seed)
 	u32 i, tmp = 0;
 
 	for (i = 0; i < len / 4; i++)
-		seed = crc32_u32(*p32++, seed);
+		seed = crc32_u32(seed, *p32++);
 
-	switch (3 - (len & 0x03)) {
-	case 0:
+	switch (len & 3) {
+	case 3:
 		tmp |= *((const u8 *) p32 + 2) << 16;
 		/* fallthrough */
-	case 1:
+	case 2:
 		tmp |= *((const u8 *) p32 + 1) << 8;
 		/* fallthrough */
-	case 2:
+	case 1:
 		tmp |= *((const u8 *) p32);
-		seed = crc32_u32(tmp, seed);
-	default:
+		seed = crc32_u32(seed, tmp);
 		break;
 	}
 
@@ -74,12 +78,12 @@ static u32 intel_crc4_2_hash2(const u32 *data, u32 len, u32 seed)
 	u32 i;
 
 	for (i = 0; i < len; i++)
-		seed = crc32_u32(*p32++, seed);
+		seed = crc32_u32(seed, *p32++);
 
 	return seed;
 }
 
-void setup_arch_fast_hash(struct fast_hash_ops *ops)
+void __init setup_arch_fast_hash(struct fast_hash_ops *ops)
 {
 	if (cpu_has_xmm4_2) {
 		ops->hash  = intel_crc4_2_hash;

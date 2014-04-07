@@ -35,6 +35,7 @@
 #include <linux/workqueue.h>
 #include <linux/platform_device.h>
 #include <linux/serial_core.h>
+#include <linux/serial_s3c.h>
 #include <linux/input.h>
 #include <linux/io.h>
 #include <linux/i2c.h>
@@ -81,7 +82,6 @@
 #include <plat/devs.h>
 #include <plat/gpio-cfg.h>
 #include <plat/pm.h>
-#include <plat/regs-serial.h>
 #include <plat/samsung-time.h>
 
 #include "common.h"
@@ -196,7 +196,7 @@ static void gta02_charger_worker(struct work_struct *work)
 	 * If the PCF50633 ADC is disabled we fallback to a
 	 * 100mA limit for safety.
 	 */
-	pcf50633_mbc_usb_curlim_set(pcf, 100);
+	pcf50633_mbc_usb_curlim_set(gta02_pcf, 100);
 #endif
 }
 

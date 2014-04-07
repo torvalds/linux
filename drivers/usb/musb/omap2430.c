@@ -37,7 +37,7 @@
 #include <linux/err.h>
 #include <linux/delay.h>
 #include <linux/usb/musb-omap.h>
-#include <linux/usb/omap_control_usb.h>
+#include <linux/phy/omap_control_phy.h>
 #include <linux/of_platform.h>
 
 #include "musb_core.h"
@@ -659,7 +659,6 @@ static int omap2430_runtime_suspend(struct device *dev)
 				OTG_INTERFSEL);
 
 		omap2430_low_level_exit(musb);
-		phy_power_off(musb->phy);
 	}
 
 	return 0;
@@ -674,7 +673,6 @@ static int omap2430_runtime_resume(struct device *dev)
 		omap2430_low_level_init(musb);
 		musb_writel(musb->mregs, OTG_INTERFSEL,
 				musb->context.otg_interfsel);
-		phy_power_on(musb->phy);
 	}
 
 	return 0;
