@@ -147,6 +147,7 @@ static ssize_t goldfish_audio_write(struct file *fp, const char __user *buf,
 
 	while (count > 0) {
 		ssize_t copy = count;
+
 		if (copy > WRITE_BUFFER_SIZE)
 			copy = WRITE_BUFFER_SIZE;
 		wait_event_interruptible(data->wait, (data->buffer_status &

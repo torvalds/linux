@@ -424,6 +424,7 @@ static int goldfish_nand_remove(struct platform_device *pdev)
 {
 	struct goldfish_nand *nand = platform_get_drvdata(pdev);
 	int i;
+
 	for (i = 0; i < nand->mtd_count; i++) {
 		if (nand->mtd[i].name)
 			mtd_device_unregister(&nand->mtd[i]);
