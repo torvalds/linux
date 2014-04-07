@@ -477,3 +477,6 @@ config FRONTSWAP
 	  and swap data is stored as normal on the matching swap device.
 
 	  If unsure, say Y to enable frontswap.
+
+config GENERIC_EARLY_IOREMAP
+	bool
