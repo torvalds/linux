@@ -591,7 +591,10 @@ static void fsl_ifc_cmdfunc(struct mtd_info *mtd, unsigned int command,
 		 * The chip always seems to report that it is
 		 * write-protected, even when it is not.
 		 */
-		setbits8(ifc_nand_ctrl->addr, NAND_STATUS_WP);
+		if (chip->options & NAND_BUSWIDTH_16)
+			setbits16(ifc_nand_ctrl->addr, NAND_STATUS_WP);
+		else
+			setbits8(ifc_nand_ctrl->addr, NAND_STATUS_WP);
 		return;
 
 	case NAND_CMD_RESET:
