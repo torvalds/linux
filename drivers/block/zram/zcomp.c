@@ -153,7 +153,7 @@ static void zcomp_strm_multi_release(struct zcomp *comp, struct zcomp_strm *zstr
 }
 
 /* change max_strm limit */
-static int zcomp_strm_multi_set_max_streams(struct zcomp *comp, int num_strm)
+static bool zcomp_strm_multi_set_max_streams(struct zcomp *comp, int num_strm)
 {
 	struct zcomp_strm_multi *zs = comp->stream;
 	struct zcomp_strm *zstrm;
@@ -172,7 +172,7 @@ static int zcomp_strm_multi_set_max_streams(struct zcomp *comp, int num_strm)
 		zs->avail_strm--;
 	}
 	spin_unlock(&zs->strm_lock);
-	return 0;
+	return true;
 }
 
 static void zcomp_strm_multi_destroy(struct zcomp *comp)
@@ -232,10 +232,10 @@ static void zcomp_strm_single_release(struct zcomp *comp,
 	mutex_unlock(&zs->strm_lock);
 }
 
-static int zcomp_strm_single_set_max_streams(struct zcomp *comp, int num_strm)
+static bool zcomp_strm_single_set_max_streams(struct zcomp *comp, int num_strm)
 {
 	/* zcomp_strm_single support only max_comp_streams == 1 */
-	return -ENOTSUPP;
+	return false;
 }
 
 static void zcomp_strm_single_destroy(struct zcomp *comp)
@@ -284,7 +284,7 @@ ssize_t zcomp_available_show(const char *comp, char *buf)
 	return sz;
 }
 
-int zcomp_set_max_streams(struct zcomp *comp, int num_strm)
+bool zcomp_set_max_streams(struct zcomp *comp, int num_strm)
 {
 	return comp->set_max_streams(comp, num_strm);
 }

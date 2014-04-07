@@ -37,10 +37,11 @@ Note:
 In order to enable compression backend's multi stream support max_comp_streams
 must be initially set to desired concurrency level before ZRAM device
 initialisation. Once the device initialised as a single stream compression
-backend (max_comp_streams equals to 0) changing the value of max_comp_streams
-will not take any effect, because single stream compression backend implemented
-as a special case and does not support dynamic max_comp_streams. Only multi
-stream backend supports dynamic max_comp_streams adjustment.
+backend (max_comp_streams equals to 1), you will see error if you try to change
+the value of max_comp_streams because single stream compression backend
+implemented as a special case by lock overhead issue and does not support
+dynamic max_comp_streams. Only multi stream backend supports dynamic
+max_comp_streams adjustment.
 
 3) Select compression algorithm
 	Using comp_algorithm device attribute one can see available and
