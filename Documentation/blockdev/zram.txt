@@ -33,6 +33,11 @@ Following shows a typical sequence of steps for using zram.
             echo 512M > /sys/block/zram0/disksize
             echo 1G > /sys/block/zram0/disksize
 
+Note:
+There is little point creating a zram of greater than twice the size of memory
+since we expect a 2:1 compression ratio. Note that zram uses about 0.1% of the
+size of the disk when not in use so a huge zram is wasteful.
+
 3) Activate:
 	mkswap /dev/zram0
 	swapon /dev/zram0
