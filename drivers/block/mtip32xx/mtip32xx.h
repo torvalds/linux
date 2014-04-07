@@ -53,7 +53,7 @@
 #define MTIP_FTL_REBUILD_TIMEOUT_MS	2400000
 
 /* unaligned IO handling */
-#define MTIP_MAX_UNALIGNED_SLOTS	8
+#define MTIP_MAX_UNALIGNED_SLOTS	2
 
 /* Macro to extract the tag bit number from a tag value. */
 #define MTIP_TAG_BIT(tag)	(tag & 0x1F)

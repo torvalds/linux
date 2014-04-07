@@ -56,7 +56,6 @@
  * @name: server name
  * @imp: message importance
  * @type: socket type
- * @enabled: identify whether server is launched or not
  */
 struct tipc_server {
 	struct idr conn_idr;
@@ -74,7 +73,6 @@ struct tipc_server {
 	const char name[TIPC_SERVER_NAME_LEN];
 	int imp;
 	int type;
-	int enabled;
 };
 
 int tipc_conn_sendmsg(struct tipc_server *s, int conid,

@@ -764,7 +764,7 @@ static int rt2800usb_probe_hw(struct rt2x00_dev *rt2x00dev)
 	/*
 	 * Overwrite TX done handler
 	 */
-	PREPARE_WORK(&rt2x00dev->txdone_work, rt2800usb_work_txdone);
+	INIT_WORK(&rt2x00dev->txdone_work, rt2800usb_work_txdone);
 
 	return 0;
 }

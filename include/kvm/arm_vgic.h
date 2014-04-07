@@ -171,6 +171,11 @@ static inline int kvm_vgic_set_addr(struct kvm *kvm, unsigned long type, u64 add
 	return 0;
 }
 
+static inline int kvm_vgic_addr(struct kvm *kvm, unsigned long type, u64 *addr, bool write)
+{
+	return -ENXIO;
+}
+
 static inline int kvm_vgic_init(struct kvm *kvm)
 {
 	return 0;

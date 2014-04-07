@@ -2036,6 +2036,13 @@ static void fwserial_auto_connect(struct work_struct *work)
 		schedule_delayed_work(&peer->connect, CONNECT_RETRY_DELAY);
 }
 
+static void fwserial_peer_workfn(struct work_struct *work)
+{
+	struct fwtty_peer *peer = to_peer(work, work);
+
+	peer->workfn(work);
+}
+
 /**
  * fwserial_add_peer - add a newly probed 'serial' unit device as a 'peer'
  * @serial: aggregate representing the specific fw_card to add the peer to
@@ -2100,7 +2107,7 @@ static int fwserial_add_peer(struct fw_serial *serial, struct fw_unit *unit)
 	peer->port = NULL;
 
 	init_timer(&peer->timer);
-	INIT_WORK(&peer->work, NULL);
+	INIT_WORK(&peer->work, fwserial_peer_workfn);
 	INIT_DELAYED_WORK(&peer->connect, fwserial_auto_connect);
 
 	/* associate peer with specific fw_card */
@@ -2702,7 +2709,7 @@ static int fwserial_parse_mgmt_write(struct fwtty_peer *peer,
 
 		} else {
 			peer->work_params.plug_req = pkt->plug_req;
-			PREPARE_WORK(&peer->work, fwserial_handle_plug_req);
+			peer->workfn = fwserial_handle_plug_req;
 			queue_work(system_unbound_wq, &peer->work);
 		}
 		break;
@@ -2731,7 +2738,7 @@ static int fwserial_parse_mgmt_write(struct fwtty_peer *peer,
 			fwtty_err(&peer->unit, "unplug req: busy\n");
 			rcode = RCODE_CONFLICT_ERROR;
 		} else {
-			PREPARE_WORK(&peer->work, fwserial_handle_unplug_req);
+			peer->workfn = fwserial_handle_unplug_req;
 			queue_work(system_unbound_wq, &peer->work);
 		}
 		break;

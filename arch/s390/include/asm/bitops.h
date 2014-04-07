@@ -13,9 +13,9 @@
  *
  * The bitop functions are defined to work on unsigned longs, so for an
  * s390x system the bits end up numbered:
- *   |63..............0|127............64|191...........128|255...........196|
+ *   |63..............0|127............64|191...........128|255...........192|
  * and on s390:
- *   |31.....0|63....31|95....64|127...96|159..128|191..160|223..192|255..224|
+ *   |31.....0|63....32|95....64|127...96|159..128|191..160|223..192|255..224|
  *
  * There are a few little-endian macros used mostly for filesystem
  * bitmaps, these work on similar bit arrays layouts, but
@@ -30,7 +30,7 @@
  * on an s390x system the bits are numbered:
  *   |0..............63|64............127|128...........191|192...........255|
  * and on s390:
- *   |0.....31|31....63|64....95|96...127|128..159|160..191|192..223|224..255|
+ *   |0.....31|32....63|64....95|96...127|128..159|160..191|192..223|224..255|
  *
  * The main difference is that bit 0-63 (64b) or 0-31 (32b) in the bit
  * number field needs to be reversed compared to the LSB0 encoded bit
@@ -304,7 +304,7 @@ static inline int test_bit(unsigned long nr, const volatile unsigned long *ptr)
  * On an s390x system the bits are numbered:
  *   |0..............63|64............127|128...........191|192...........255|
  * and on s390:
- *   |0.....31|31....63|64....95|96...127|128..159|160..191|192..223|224..255|
+ *   |0.....31|32....63|64....95|96...127|128..159|160..191|192..223|224..255|
  */
 unsigned long find_first_bit_inv(const unsigned long *addr, unsigned long size);
 unsigned long find_next_bit_inv(const unsigned long *addr, unsigned long size,

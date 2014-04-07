@@ -73,8 +73,8 @@ static void blk_mq_hctx_mark_pending(struct blk_mq_hw_ctx *hctx,
 		set_bit(ctx->index_hw, hctx->ctx_map);
 }
 
-static struct request *blk_mq_alloc_rq(struct blk_mq_hw_ctx *hctx, gfp_t gfp,
-				       bool reserved)
+static struct request *__blk_mq_alloc_request(struct blk_mq_hw_ctx *hctx,
+					      gfp_t gfp, bool reserved)
 {
 	struct request *rq;
 	unsigned int tag;
@@ -193,12 +193,6 @@ static void blk_mq_rq_ctx_init(struct request_queue *q, struct blk_mq_ctx *ctx,
 	ctx->rq_dispatched[rw_is_sync(rw_flags)]++;
 }
 
-static struct request *__blk_mq_alloc_request(struct blk_mq_hw_ctx *hctx,
-					      gfp_t gfp, bool reserved)
-{
-	return blk_mq_alloc_rq(hctx, gfp, reserved);
-}
-
 static struct request *blk_mq_alloc_request_pinned(struct request_queue *q,
 						   int rw, gfp_t gfp,
 						   bool reserved)
@@ -289,38 +283,10 @@ void blk_mq_free_request(struct request *rq)
 	__blk_mq_free_request(hctx, ctx, rq);
 }
 
-static void blk_mq_bio_endio(struct request *rq, struct bio *bio, int error)
+bool blk_mq_end_io_partial(struct request *rq, int error, unsigned int nr_bytes)
 {
-	if (error)
-		clear_bit(BIO_UPTODATE, &bio->bi_flags);
-	else if (!test_bit(BIO_UPTODATE, &bio->bi_flags))
-		error = -EIO;
-
-	if (unlikely(rq->cmd_flags & REQ_QUIET))
-		set_bit(BIO_QUIET, &bio->bi_flags);
-
-	/* don't actually finish bio if it's part of flush sequence */
-	if (!(rq->cmd_flags & REQ_FLUSH_SEQ))
-		bio_endio(bio, error);
-}
-
-void blk_mq_end_io(struct request *rq, int error)
-{
-	struct bio *bio = rq->bio;
-	unsigned int bytes = 0;
-
-	trace_block_rq_complete(rq->q, rq);
-
-	while (bio) {
-		struct bio *next = bio->bi_next;
-
-		bio->bi_next = NULL;
-		bytes += bio->bi_iter.bi_size;
-		blk_mq_bio_endio(rq, bio, error);
-		bio = next;
-	}
-
-	blk_account_io_completion(rq, bytes);
+	if (blk_update_request(rq, error, blk_rq_bytes(rq)))
+		return true;
 
 	blk_account_io_done(rq);
 
@@ -328,8 +294,9 @@ void blk_mq_end_io(struct request *rq, int error)
 		rq->end_io(rq, error);
 	else
 		blk_mq_free_request(rq);
+	return false;
 }
-EXPORT_SYMBOL(blk_mq_end_io);
+EXPORT_SYMBOL(blk_mq_end_io_partial);
 
 static void __blk_mq_complete_request_remote(void *data)
 {
@@ -730,60 +697,27 @@ static void __blk_mq_insert_request(struct blk_mq_hw_ctx *hctx,
 	blk_mq_add_timer(rq);
 }
 
-void blk_mq_insert_request(struct request_queue *q, struct request *rq,
-			   bool at_head, bool run_queue)
-{
-	struct blk_mq_hw_ctx *hctx;
-	struct blk_mq_ctx *ctx, *current_ctx;
-
-	ctx = rq->mq_ctx;
-	hctx = q->mq_ops->map_queue(q, ctx->cpu);
-
-	if (rq->cmd_flags & (REQ_FLUSH | REQ_FUA)) {
-		blk_insert_flush(rq);
-	} else {
-		current_ctx = blk_mq_get_ctx(q);
-
-		if (!cpu_online(ctx->cpu)) {
-			ctx = current_ctx;
-			hctx = q->mq_ops->map_queue(q, ctx->cpu);
-			rq->mq_ctx = ctx;
-		}
-		spin_lock(&ctx->lock);
-		__blk_mq_insert_request(hctx, rq, at_head);
-		spin_unlock(&ctx->lock);
-
-		blk_mq_put_ctx(current_ctx);
-	}
-
-	if (run_queue)
-		__blk_mq_run_hw_queue(hctx);
-}
-EXPORT_SYMBOL(blk_mq_insert_request);
-
-/*
- * This is a special version of blk_mq_insert_request to bypass FLUSH request
- * check. Should only be used internally.
- */
-void blk_mq_run_request(struct request *rq, bool run_queue, bool async)
+void blk_mq_insert_request(struct request *rq, bool at_head, bool run_queue,
+		bool async)
 {
 	struct request_queue *q = rq->q;
 	struct blk_mq_hw_ctx *hctx;
-	struct blk_mq_ctx *ctx, *current_ctx;
+	struct blk_mq_ctx *ctx = rq->mq_ctx, *current_ctx;
 
 	current_ctx = blk_mq_get_ctx(q);
+	if (!cpu_online(ctx->cpu))
+		rq->mq_ctx = ctx = current_ctx;
 
-	ctx = rq->mq_ctx;
-	if (!cpu_online(ctx->cpu)) {
-		ctx = current_ctx;
-		rq->mq_ctx = ctx;
-	}
 	hctx = q->mq_ops->map_queue(q, ctx->cpu);
 
-	/* ctx->cpu might be offline */
-	spin_lock(&ctx->lock);
-	__blk_mq_insert_request(hctx, rq, false);
-	spin_unlock(&ctx->lock);
+	if (rq->cmd_flags & (REQ_FLUSH | REQ_FUA) &&
+	    !(rq->cmd_flags & (REQ_FLUSH_SEQ))) {
+		blk_insert_flush(rq);
+	} else {
+		spin_lock(&ctx->lock);
+		__blk_mq_insert_request(hctx, rq, at_head);
+		spin_unlock(&ctx->lock);
+	}
 
 	blk_mq_put_ctx(current_ctx);
 
@@ -926,6 +860,8 @@ static void blk_mq_make_request(struct request_queue *q, struct bio *bio)
 	ctx = blk_mq_get_ctx(q);
 	hctx = q->mq_ops->map_queue(q, ctx->cpu);
 
+	if (is_sync)
+		rw |= REQ_SYNC;
 	trace_block_getrq(q, bio, rw);
 	rq = __blk_mq_alloc_request(hctx, GFP_ATOMIC, false);
 	if (likely(rq))

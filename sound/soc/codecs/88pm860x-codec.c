@@ -1328,6 +1328,9 @@ static int pm860x_probe(struct snd_soc_codec *codec)
 	pm860x->codec = codec;
 
 	codec->control_data = pm860x->regmap;
+	ret = snd_soc_codec_set_cache_io(codec, 0, 0, SND_SOC_REGMAP);
+	if (ret)
+		return ret;
 
 	for (i = 0; i < 4; i++) {
 		ret = request_threaded_irq(pm860x->irq[i], NULL,

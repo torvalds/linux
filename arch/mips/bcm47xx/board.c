@@ -1,3 +1,4 @@
+#include <linux/errno.h>
 #include <linux/export.h>
 #include <linux/string.h>
 #include <bcm47xx_board.h>

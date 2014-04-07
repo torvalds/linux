@@ -166,7 +166,6 @@ static void evtchn_2l_handle_events(unsigned cpu)
 	int start_word_idx, start_bit_idx;
 	int word_idx, bit_idx;
 	int i;
-	struct irq_desc *desc;
 	struct shared_info *s = HYPERVISOR_shared_info;
 	struct vcpu_info *vcpu_info = __this_cpu_read(xen_vcpu);
 
@@ -176,11 +175,8 @@ static void evtchn_2l_handle_events(unsigned cpu)
 		unsigned int evtchn = evtchn_from_irq(irq);
 		word_idx = evtchn / BITS_PER_LONG;
 		bit_idx = evtchn % BITS_PER_LONG;
-		if (active_evtchns(cpu, s, word_idx) & (1ULL << bit_idx)) {
-			desc = irq_to_desc(irq);
-			if (desc)
-				generic_handle_irq_desc(irq, desc);
-		}
+		if (active_evtchns(cpu, s, word_idx) & (1ULL << bit_idx))
+			generic_handle_irq(irq);
 	}
 
 	/*
@@ -245,11 +241,8 @@ static void evtchn_2l_handle_events(unsigned cpu)
 			port = (word_idx * BITS_PER_EVTCHN_WORD) + bit_idx;
 			irq = get_evtchn_to_irq(port);
 
-			if (irq != -1) {
-				desc = irq_to_desc(irq);
-				if (desc)
-					generic_handle_irq_desc(irq, desc);
-			}
+			if (irq != -1)
+				generic_handle_irq(irq);
 
 			bit_idx = (bit_idx + 1) % BITS_PER_EVTCHN_WORD;
 

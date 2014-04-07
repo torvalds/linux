@@ -48,6 +48,7 @@ _TIF_WORK_INT = (_TIF_SIGPENDING | _TIF_NOTIFY_RESUME | _TIF_NEED_RESCHED | \
 		 _TIF_MCCK_PENDING)
 _TIF_TRACE    = (_TIF_SYSCALL_TRACE | _TIF_SYSCALL_AUDIT | _TIF_SECCOMP | \
 		 _TIF_SYSCALL_TRACEPOINT)
+_TIF_TRANSFER = (_TIF_MCCK_PENDING | _TIF_TLB_WAIT)
 
 #define BASED(name) name-system_call(%r13)
 
@@ -189,10 +190,12 @@ ENTRY(__switch_to)
 	lctl	%c4,%c4,__TASK_pid(%r3)		# load pid to control reg. 4
 	mvc	__LC_CURRENT_PID+4(4,%r0),__TASK_pid(%r3) # store pid of next
 	lg	%r15,__THREAD_ksp(%r3)		# load kernel stack of next
-	tm	__TI_flags+7(%r4),_TIF_MCCK_PENDING # machine check pending?
+	llill	%r6,_TIF_TRANSFER		# transfer TIF bits
+	ng	%r6,__TI_flags(%r4)		# isolate TIF bits
 	jz	0f
-	ni	__TI_flags+7(%r4),255-_TIF_MCCK_PENDING	# clear flag in prev
-	oi	__TI_flags+7(%r5),_TIF_MCCK_PENDING	# set it in next
+	og	%r6,__TI_flags(%r5)		# set TIF bits of next
+	stg	%r6,__TI_flags(%r5)
+	ni	__TI_flags+7(%r4),255-_TIF_TRANSFER # clear TIF bits of prev
 0:	lmg	%r6,%r15,__SF_GPRS(%r15)	# load gprs of next task
 	br	%r14
 

@@ -1430,8 +1430,6 @@ int r300_resume(struct radeon_device *rdev)
 	/* Initialize surface registers */
 	radeon_surface_init(rdev);
 
-	radeon_pm_resume(rdev);
-
 	rdev->accel_working = true;
 	r = r300_startup(rdev);
 	if (r) {

@@ -27,11 +27,10 @@
  * wait == 1 case since in that case write_inode() functions do
  * sync_dirty_buffer() and thus effectively write one block at a time.
  */
-static int __sync_filesystem(struct super_block *sb, int wait,
-			     unsigned long start)
+static int __sync_filesystem(struct super_block *sb, int wait)
 {
 	if (wait)
-		sync_inodes_sb(sb, start);
+		sync_inodes_sb(sb);
 	else
 		writeback_inodes_sb(sb, WB_REASON_SYNC);
 
@@ -48,7 +47,6 @@ static int __sync_filesystem(struct super_block *sb, int wait,
 int sync_filesystem(struct super_block *sb)
 {
 	int ret;
-	unsigned long start = jiffies;
 
 	/*
 	 * We need to be protected against the filesystem going from
@@ -62,17 +60,17 @@ int sync_filesystem(struct super_block *sb)
 	if (sb->s_flags & MS_RDONLY)
 		return 0;
 
-	ret = __sync_filesystem(sb, 0, start);
+	ret = __sync_filesystem(sb, 0);
 	if (ret < 0)
 		return ret;
-	return __sync_filesystem(sb, 1, start);
+	return __sync_filesystem(sb, 1);
 }
 EXPORT_SYMBOL_GPL(sync_filesystem);
 
 static void sync_inodes_one_sb(struct super_block *sb, void *arg)
 {
 	if (!(sb->s_flags & MS_RDONLY))
-		sync_inodes_sb(sb, *((unsigned long *)arg));
+		sync_inodes_sb(sb);
 }
 
 static void sync_fs_one_sb(struct super_block *sb, void *arg)
@@ -104,10 +102,9 @@ static void fdatawait_one_bdev(struct block_device *bdev, void *arg)
 SYSCALL_DEFINE0(sync)
 {
 	int nowait = 0, wait = 1;
-	unsigned long start = jiffies;
 
 	wakeup_flusher_threads(0, WB_REASON_SYNC);
-	iterate_supers(sync_inodes_one_sb, &start);
+	iterate_supers(sync_inodes_one_sb, NULL);
 	iterate_supers(sync_fs_one_sb, &nowait);
 	iterate_supers(sync_fs_one_sb, &wait);
 	iterate_bdevs(fdatawrite_one_bdev, NULL);
