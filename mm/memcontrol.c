@@ -3395,13 +3395,8 @@ static void memcg_create_cache_work_func(struct work_struct *w)
 	struct create_work *cw = container_of(w, struct create_work, work);
 	struct mem_cgroup *memcg = cw->memcg;
 	struct kmem_cache *cachep = cw->cachep;
-	struct kmem_cache *new;
 
-	new = kmem_cache_create_memcg(memcg, cachep->name,
-			cachep->object_size, cachep->align,
-			cachep->flags & ~SLAB_PANIC, cachep->ctor, cachep);
-	if (new)
-		new->allocflags |= __GFP_KMEMCG;
+	kmem_cache_create_memcg(memcg, cachep);
 	css_put(&memcg->css);
 	kfree(cw);
 }

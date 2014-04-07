@@ -638,12 +638,6 @@ static inline int memcg_cache_id(struct mem_cgroup *memcg)
 	return -1;
 }
 
-static inline char *memcg_create_cache_name(struct mem_cgroup *memcg,
-					    struct kmem_cache *root_cache)
-{
-	return NULL;
-}
-
 static inline int memcg_alloc_cache_params(struct mem_cgroup *memcg,
 		struct kmem_cache *s, struct kmem_cache *root_cache)
 {
