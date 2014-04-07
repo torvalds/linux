@@ -517,7 +517,7 @@ int imx_drm_encoder_get_mux_id(struct device_node *node,
 		of_node_put(port);
 		if (port == imx_crtc->port) {
 			ret = of_graph_parse_endpoint(ep, &endpoint);
-			return ret ? ret : endpoint.id;
+			return ret ? ret : endpoint.port;
 		}
 	} while (ep);
 
