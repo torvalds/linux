@@ -2659,7 +2659,8 @@ static void rcu_sysidle(unsigned long j)
 static void rcu_sysidle_cancel(void)
 {
 	smp_mb();
-	ACCESS_ONCE(full_sysidle_state) = RCU_SYSIDLE_NOT;
+	if (full_sysidle_state > RCU_SYSIDLE_SHORT)
+		ACCESS_ONCE(full_sysidle_state) = RCU_SYSIDLE_NOT;
 }
 
 /*
