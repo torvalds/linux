@@ -167,7 +167,6 @@ void rio_unregister_driver(struct rio_driver *rdrv)
 void rio_attach_device(struct rio_dev *rdev)
 {
 	rdev->dev.bus = &rio_bus_type;
-	rdev->dev.parent = &rio_bus;
 }
 EXPORT_SYMBOL_GPL(rio_attach_device);
 
@@ -216,9 +215,12 @@ static int rio_uevent(struct device *dev, struct kobj_uevent_env *env)
 	return 0;
 }
 
-struct device rio_bus = {
-	.init_name = "rapidio",
+struct class rio_mport_class = {
+	.name		= "rapidio_port",
+	.owner		= THIS_MODULE,
+	.dev_groups	= rio_mport_groups,
 };
+EXPORT_SYMBOL_GPL(rio_mport_class);
 
 struct bus_type rio_bus_type = {
 	.name = "rapidio",
@@ -233,14 +235,20 @@ struct bus_type rio_bus_type = {
 /**
  *  rio_bus_init - Register the RapidIO bus with the device model
  *
- *  Registers the RIO bus device and RIO bus type with the Linux
+ *  Registers the RIO mport device class and RIO bus type with the Linux
  *  device model.
  */
 static int __init rio_bus_init(void)
 {
-	if (device_register(&rio_bus) < 0)
-		printk("RIO: failed to register RIO bus device\n");
-	return bus_register(&rio_bus_type);
+	int ret;
+
+	ret = class_register(&rio_mport_class);
+	if (!ret) {
+		ret = bus_register(&rio_bus_type);
+		if (ret)
+			class_unregister(&rio_mport_class);
+	}
+	return ret;
 }
 
 postcore_initcall(rio_bus_init);
