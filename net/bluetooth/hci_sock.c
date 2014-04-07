@@ -947,7 +947,7 @@ static int hci_sock_sendmsg(struct kiocb *iocb, struct socket *sock,
 	if (!skb)
 		goto done;
 
-	if (memcpy_fromiovec(skb_put(skb, len), msg->msg_iov, len)) {
+	if (memcpy_from_msg(skb_put(skb, len), msg, len)) {
 		err = -EFAULT;
 		goto drop;
 	}

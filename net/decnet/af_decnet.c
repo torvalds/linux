@@ -2032,7 +2032,7 @@ static int dn_sendmsg(struct kiocb *iocb, struct socket *sock,
 
 		skb_reserve(skb, 64 + DN_MAX_NSP_DATA_HEADER);
 
-		if (memcpy_fromiovec(skb_put(skb, len), msg->msg_iov, len)) {
+		if (memcpy_from_msg(skb_put(skb, len), msg, len)) {
 			err = -EFAULT;
 			goto out;
 		}

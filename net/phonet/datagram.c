@@ -109,7 +109,7 @@ static int pn_sendmsg(struct kiocb *iocb, struct sock *sk,
 		return err;
 	skb_reserve(skb, MAX_PHONET_HEADER);
 
-	err = memcpy_fromiovec((void *)skb_put(skb, len), msg->msg_iov, len);
+	err = memcpy_from_msg((void *)skb_put(skb, len), msg, len);
 	if (err < 0) {
 		kfree_skb(skb);
 		return err;

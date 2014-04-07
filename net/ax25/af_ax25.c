@@ -1549,7 +1549,7 @@ static int ax25_sendmsg(struct kiocb *iocb, struct socket *sock,
 	skb_reserve(skb, size - len);
 
 	/* User data follows immediately after the AX.25 data */
-	if (memcpy_fromiovec(skb_put(skb, len), msg->msg_iov, len)) {
+	if (memcpy_from_msg(skb_put(skb, len), msg, len)) {
 		err = -EFAULT;
 		kfree_skb(skb);
 		goto out;

@@ -2687,6 +2687,11 @@ int skb_ensure_writable(struct sk_buff *skb, int write_len);
 int skb_vlan_pop(struct sk_buff *skb);
 int skb_vlan_push(struct sk_buff *skb, __be16 vlan_proto, u16 vlan_tci);
 
+static inline int memcpy_from_msg(void *data, struct msghdr *msg, int len)
+{
+	return memcpy_fromiovec(data, msg->msg_iov, len);
+}
+
 struct skb_checksum_ops {
 	__wsum (*update)(const void *mem, int len, __wsum wsum);
 	__wsum (*combine)(__wsum csum, __wsum csum2, int offset, int len);

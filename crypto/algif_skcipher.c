@@ -298,9 +298,9 @@ static int skcipher_sendmsg(struct kiocb *unused, struct socket *sock,
 			len = min_t(unsigned long, len,
 				    PAGE_SIZE - sg->offset - sg->length);
 
-			err = memcpy_fromiovec(page_address(sg_page(sg)) +
-					       sg->offset + sg->length,
-					       msg->msg_iov, len);
+			err = memcpy_from_msg(page_address(sg_page(sg)) +
+					      sg->offset + sg->length,
+					      msg, len);
 			if (err)
 				goto unlock;
 
@@ -337,8 +337,8 @@ static int skcipher_sendmsg(struct kiocb *unused, struct socket *sock,
 			if (!sg_page(sg + i))
 				goto unlock;
 
-			err = memcpy_fromiovec(page_address(sg_page(sg + i)),
-					       msg->msg_iov, plen);
+			err = memcpy_from_msg(page_address(sg_page(sg + i)),
+					      msg, plen);
 			if (err) {
 				__free_page(sg_page(sg + i));
 				sg_assign_page(sg + i, NULL);

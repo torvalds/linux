@@ -1001,7 +1001,7 @@ no_mem:
 
 /* Helper to create ABORT with a SCTP_ERROR_USER_ABORT error.  */
 struct sctp_chunk *sctp_make_abort_user(const struct sctp_association *asoc,
-					const struct msghdr *msg,
+					struct msghdr *msg,
 					size_t paylen)
 {
 	struct sctp_chunk *retval;
@@ -1018,7 +1018,7 @@ struct sctp_chunk *sctp_make_abort_user(const struct sctp_association *asoc,
 		if (!payload)
 			goto err_payload;
 
-		err = memcpy_fromiovec(payload, msg->msg_iov, paylen);
+		err = memcpy_from_msg(payload, msg, paylen);
 		if (err < 0)
 			goto err_copy;
 	}

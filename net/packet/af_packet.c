@@ -1676,7 +1676,7 @@ retry:
 			if (len < hhlen)
 				skb_reset_network_header(skb);
 		}
-		err = memcpy_fromiovec(skb_put(skb, len), msg->msg_iov, len);
+		err = memcpy_from_msg(skb_put(skb, len), msg, len);
 		if (err)
 			goto out_free;
 		goto retry;
@@ -2446,8 +2446,7 @@ static int packet_snd(struct socket *sock, struct msghdr *msg, size_t len)
 
 		len -= vnet_hdr_len;
 
-		err = memcpy_fromiovec((void *)&vnet_hdr, msg->msg_iov,
-				       vnet_hdr_len);
+		err = memcpy_from_msg((void *)&vnet_hdr, msg, vnet_hdr_len);
 		if (err < 0)
 			goto out_unlock;
 

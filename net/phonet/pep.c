@@ -1141,7 +1141,7 @@ static int pep_sendmsg(struct kiocb *iocb, struct sock *sk,
 		return err;
 
 	skb_reserve(skb, MAX_PHONET_HEADER + 3 + pn->aligned);
-	err = memcpy_fromiovec(skb_put(skb, len), msg->msg_iov, len);
+	err = memcpy_from_msg(skb_put(skb, len), msg, len);
 	if (err < 0)
 		goto outfree;
 
