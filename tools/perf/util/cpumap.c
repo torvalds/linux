@@ -365,7 +365,7 @@ static void set_max_cpu_num(void)
 		goto out;
 
 	/* get the highest possible cpu number for a sparse allocation */
-	ret = snprintf(path, PATH_MAX, "%s/devices/system/cpu/kernel_max", mnt);
+	ret = snprintf(path, PATH_MAX, "%s/devices/system/cpu/possible", mnt);
 	if (ret == PATH_MAX) {
 		pr_err("sysfs path crossed PATH_MAX(%d) size\n", PATH_MAX);
 		goto out;
