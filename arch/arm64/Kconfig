@@ -66,7 +66,7 @@ config ARCH_PHYS_ADDR_T_64BIT
 config MMU
 	def_bool y
 
-config NO_IOPORT
+config NO_IOPORT_MAP
 	def_bool y
 
 config STACKTRACE_SUPPORT

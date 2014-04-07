@@ -29,7 +29,7 @@ config GENERIC_CALIBRATE_DELAY
 	bool
 	default y
 
-config NO_IOPORT
+config NO_IOPORT_MAP
 	def_bool y
 
 config FORCE_MAX_ZONEORDER

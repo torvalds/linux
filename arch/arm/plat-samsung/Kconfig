@@ -9,7 +9,7 @@ config PLAT_SAMSUNG
 	depends on PLAT_S3C24XX || ARCH_S3C64XX || PLAT_S5P || ARCH_EXYNOS
 	default y
 	select GENERIC_IRQ_CHIP
-	select NO_IOPORT
+	select NO_IOPORT_MAP
 	help
 	  Base platform code for all Samsung SoC based systems
 
@@ -19,7 +19,7 @@ config PLAT_S5P
 	default y
 	select ARCH_REQUIRE_GPIOLIB
 	select ARM_VIC
-	select NO_IOPORT
+	select NO_IOPORT_MAP
 	select PLAT_SAMSUNG
 	select S3C_GPIO_TRACK
 	select S5P_GPIO_DRVSTR

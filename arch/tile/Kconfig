@@ -411,7 +411,7 @@ config PCI_DOMAINS
 config NO_IOMEM
 	def_bool !PCI
 
-config NO_IOPORT
+config NO_IOPORT_MAP
 	def_bool !PCI
 
 config TILE_PCI_IO

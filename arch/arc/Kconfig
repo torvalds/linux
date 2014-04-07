@@ -57,7 +57,7 @@ config ARCH_FLATMEM_ENABLE
 config MMU
 	def_bool y
 
-config NO_IOPORT
+config NO_IOPORT_MAP
 	def_bool y
 
 config GENERIC_CALIBRATE_DELAY
