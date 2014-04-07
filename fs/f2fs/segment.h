@@ -14,7 +14,7 @@
 #define NULL_SEGNO			((unsigned int)(~0))
 #define NULL_SECNO			((unsigned int)(~0))
 
-#define DEF_RECLAIM_PREFREE_SEGMENTS	100	/* 200MB of prefree segments */
+#define DEF_RECLAIM_PREFREE_SEGMENTS	5	/* 5% over total segments */
 
 /* L: Logical segment # in volume, R: Relative segment # in main area */
 #define GET_L2R_SEGNO(free_i, segno)	(segno - free_i->start_segno)
@@ -57,6 +57,9 @@
 	((blk_addr) - SM_I(sbi)->seg0_blkaddr)
 #define GET_SEGNO_FROM_SEG0(sbi, blk_addr)				\
 	(GET_SEGOFF_FROM_SEG0(sbi, blk_addr) >> sbi->log_blocks_per_seg)
+#define GET_BLKOFF_FROM_SEG0(sbi, blk_addr)				\
+	(GET_SEGOFF_FROM_SEG0(sbi, blk_addr) & (sbi->blocks_per_seg - 1))
+
 #define GET_SEGNO(sbi, blk_addr)					\
 	(((blk_addr == NULL_ADDR) || (blk_addr == NEW_ADDR)) ?		\
 	NULL_SEGNO : GET_L2R_SEGNO(FREE_I(sbi),			\
@@ -377,26 +380,12 @@ static inline void get_sit_bitmap(struct f2fs_sb_info *sbi,
 
 static inline block_t written_block_count(struct f2fs_sb_info *sbi)
 {
-	struct sit_info *sit_i = SIT_I(sbi);
-	block_t vblocks;
-
-	mutex_lock(&sit_i->sentry_lock);
-	vblocks = sit_i->written_valid_blocks;
-	mutex_unlock(&sit_i->sentry_lock);
-
-	return vblocks;
+	return SIT_I(sbi)->written_valid_blocks;
 }
 
 static inline unsigned int free_segments(struct f2fs_sb_info *sbi)
 {
-	struct free_segmap_info *free_i = FREE_I(sbi);
-	unsigned int free_segs;
-
-	read_lock(&free_i->segmap_lock);
-	free_segs = free_i->free_segments;
-	read_unlock(&free_i->segmap_lock);
-
-	return free_segs;
+	return FREE_I(sbi)->free_segments;
 }
 
 static inline int reserved_segments(struct f2fs_sb_info *sbi)
@@ -406,14 +395,7 @@ static inline int reserved_segments(struct f2fs_sb_info *sbi)
 
 static inline unsigned int free_sections(struct f2fs_sb_info *sbi)
 {
-	struct free_segmap_info *free_i = FREE_I(sbi);
-	unsigned int free_secs;
-
-	read_lock(&free_i->segmap_lock);
-	free_secs = free_i->free_sections;
-	read_unlock(&free_i->segmap_lock);
-
-	return free_secs;
+	return FREE_I(sbi)->free_sections;
 }
 
 static inline unsigned int prefree_segments(struct f2fs_sb_info *sbi)
@@ -681,4 +663,47 @@ static inline unsigned int max_hw_blocks(struct f2fs_sb_info *sbi)
 	struct block_device *bdev = sbi->sb->s_bdev;
 	struct request_queue *q = bdev_get_queue(bdev);
 	return SECTOR_TO_BLOCK(sbi, queue_max_sectors(q));
+}
+
+/*
+ * It is very important to gather dirty pages and write at once, so that we can
+ * submit a big bio without interfering other data writes.
+ * By default, 512 pages for directory data,
+ * 512 pages (2MB) * 3 for three types of nodes, and
+ * max_bio_blocks for meta are set.
+ */
+static inline int nr_pages_to_skip(struct f2fs_sb_info *sbi, int type)
+{
+	if (type == DATA)
+		return sbi->blocks_per_seg;
+	else if (type == NODE)
+		return 3 * sbi->blocks_per_seg;
+	else if (type == META)
+		return MAX_BIO_BLOCKS(max_hw_blocks(sbi));
+	else
+		return 0;
+}
+
+/*
+ * When writing pages, it'd better align nr_to_write for segment size.
+ */
+static inline long nr_pages_to_write(struct f2fs_sb_info *sbi, int type,
+					struct writeback_control *wbc)
+{
+	long nr_to_write, desired;
+
+	if (wbc->sync_mode != WB_SYNC_NONE)
+		return 0;
+
+	nr_to_write = wbc->nr_to_write;
+
+	if (type == DATA)
+		desired = 4096;
+	else if (type == NODE)
+		desired = 3 * max_hw_blocks(sbi);
+	else
+		desired = MAX_BIO_BLOCKS(max_hw_blocks(sbi));
+
+	wbc->nr_to_write = desired;
+	return desired - nr_to_write;
 }
