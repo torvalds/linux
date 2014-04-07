@@ -3342,7 +3342,22 @@ static int __do_fault(struct vm_area_struct *vma, unsigned long address,
 	return ret;
 }
 
-static void do_set_pte(struct vm_area_struct *vma, unsigned long address,
+/**
+ * do_set_pte - setup new PTE entry for given page and add reverse page mapping.
+ *
+ * @vma: virtual memory area
+ * @address: user virtual address
+ * @page: page to map
+ * @pte: pointer to target page table entry
+ * @write: true, if new entry is writable
+ * @anon: true, if it's anonymous page
+ *
+ * Caller must hold page table lock relevant for @pte.
+ *
+ * Target users are page handler itself and implementations of
+ * vm_ops->map_pages.
+ */
+void do_set_pte(struct vm_area_struct *vma, unsigned long address,
 		struct page *page, pte_t *pte, bool write, bool anon)
 {
 	pte_t entry;
@@ -3366,6 +3381,52 @@ static void do_set_pte(struct vm_area_struct *vma, unsigned long address,
 	update_mmu_cache(vma, address, pte);
 }
 
+#define FAULT_AROUND_ORDER 4
+#define FAULT_AROUND_PAGES (1UL << FAULT_AROUND_ORDER)
+#define FAULT_AROUND_MASK ~((1UL << (PAGE_SHIFT + FAULT_AROUND_ORDER)) - 1)
+
+static void do_fault_around(struct vm_area_struct *vma, unsigned long address,
+		pte_t *pte, pgoff_t pgoff, unsigned int flags)
+{
+	unsigned long start_addr;
+	pgoff_t max_pgoff;
+	struct vm_fault vmf;
+	int off;
+
+	BUILD_BUG_ON(FAULT_AROUND_PAGES > PTRS_PER_PTE);
+
+	start_addr = max(address & FAULT_AROUND_MASK, vma->vm_start);
+	off = ((address - start_addr) >> PAGE_SHIFT) & (PTRS_PER_PTE - 1);
+	pte -= off;
+	pgoff -= off;
+
+	/*
+	 *  max_pgoff is either end of page table or end of vma
+	 *  or FAULT_AROUND_PAGES from pgoff, depending what is neast.
+	 */
+	max_pgoff = pgoff - ((start_addr >> PAGE_SHIFT) & (PTRS_PER_PTE - 1)) +
+		PTRS_PER_PTE - 1;
+	max_pgoff = min3(max_pgoff, vma_pages(vma) + vma->vm_pgoff - 1,
+			pgoff + FAULT_AROUND_PAGES - 1);
+
+	/* Check if it makes any sense to call ->map_pages */
+	while (!pte_none(*pte)) {
+		if (++pgoff > max_pgoff)
+			return;
+		start_addr += PAGE_SIZE;
+		if (start_addr >= vma->vm_end)
+			return;
+		pte++;
+	}
+
+	vmf.virtual_address = (void __user *) start_addr;
+	vmf.pte = pte;
+	vmf.pgoff = pgoff;
+	vmf.max_pgoff = max_pgoff;
+	vmf.flags = flags;
+	vma->vm_ops->map_pages(vma, &vmf);
+}
+
 static int do_read_fault(struct mm_struct *mm, struct vm_area_struct *vma,
 		unsigned long address, pmd_t *pmd,
 		pgoff_t pgoff, unsigned int flags, pte_t orig_pte)
@@ -3373,7 +3434,20 @@ static int do_read_fault(struct mm_struct *mm, struct vm_area_struct *vma,
 	struct page *fault_page;
 	spinlock_t *ptl;
 	pte_t *pte;
-	int ret;
+	int ret = 0;
+
+	/*
+	 * Let's call ->map_pages() first and use ->fault() as fallback
+	 * if page by the offset is not ready to be mapped (cold cache or
+	 * something).
+	 */
+	if (vma->vm_ops->map_pages) {
+		pte = pte_offset_map_lock(mm, pmd, address, &ptl);
+		do_fault_around(vma, address, pte, pgoff, flags);
+		if (!pte_same(*pte, orig_pte))
+			goto unlock_out;
+		pte_unmap_unlock(pte, ptl);
+	}
 
 	ret = __do_fault(vma, address, pgoff, flags, &fault_page);
 	if (unlikely(ret & (VM_FAULT_ERROR | VM_FAULT_NOPAGE | VM_FAULT_RETRY)))
@@ -3387,8 +3461,9 @@ static int do_read_fault(struct mm_struct *mm, struct vm_area_struct *vma,
 		return ret;
 	}
 	do_set_pte(vma, address, fault_page, pte, false, false);
-	pte_unmap_unlock(pte, ptl);
 	unlock_page(fault_page);
+unlock_out:
+	pte_unmap_unlock(pte, ptl);
 	return ret;
 }
 
