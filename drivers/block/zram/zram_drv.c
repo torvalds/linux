@@ -533,14 +533,6 @@ static void zram_reset_device(struct zram *zram, bool reset_capacity)
 	up_write(&zram->init_lock);
 }
 
-static void zram_init_device(struct zram *zram, struct zram_meta *meta)
-{
-	/* zram devices sort of resembles non-rotational disks */
-	queue_flag_set_unlocked(QUEUE_FLAG_NONROT, zram->disk->queue);
-	zram->meta = meta;
-	pr_debug("Initialization done!\n");
-}
-
 static ssize_t disksize_store(struct device *dev,
 		struct device_attribute *attr, const char *buf, size_t len)
 {
@@ -556,17 +548,18 @@ static ssize_t disksize_store(struct device *dev,
 	meta = zram_meta_alloc(disksize);
 	if (!meta)
 		return -ENOMEM;
+
 	down_write(&zram->init_lock);
 	if (init_done(zram)) {
-		up_write(&zram->init_lock);
 		zram_meta_free(meta);
+		up_write(&zram->init_lock);
 		pr_info("Cannot change disksize for initialized device\n");
 		return -EBUSY;
 	}
 
+	zram->meta = meta;
 	zram->disksize = disksize;
 	set_capacity(zram->disk, zram->disksize >> SECTOR_SHIFT);
-	zram_init_device(zram, meta);
 	up_write(&zram->init_lock);
 
 	return len;
@@ -776,7 +769,8 @@ static int create_device(struct zram *zram, int device_id)
 
 	/* Actual capacity set using syfs (/sys/block/zram<id>/disksize */
 	set_capacity(zram->disk, 0);
-
+	/* zram devices sort of resembles non-rotational disks */
+	queue_flag_set_unlocked(QUEUE_FLAG_NONROT, zram->disk->queue);
 	/*
 	 * To ensure that we always get PAGE_SIZE aligned
 	 * and n*PAGE_SIZED sized I/O requests.
