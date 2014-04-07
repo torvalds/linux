@@ -679,6 +679,7 @@ static void armada_load_cursor_argb(void __iomem *base, uint32_t *pix,
 				       base + LCD_SPU_SRAM_WRDAT);
 			writel_relaxed(addr | SRAM_WRITE,
 				       base + LCD_SPU_SRAM_CTRL);
+			readl_relaxed(base + LCD_SPU_HWC_OVSA_HPXL_VLN);
 			addr += 1;
 			if ((addr & 0x00ff) == 0)
 				addr += 0xf00;
