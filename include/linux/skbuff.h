@@ -2692,6 +2692,11 @@ static inline int memcpy_from_msg(void *data, struct msghdr *msg, int len)
 	return memcpy_fromiovec(data, msg->msg_iov, len);
 }
 
+static inline int memcpy_to_msg(struct msghdr *msg, void *data, int len)
+{
+	return memcpy_toiovec(msg->msg_iov, data, len);
+}
+
 struct skb_checksum_ops {
 	__wsum (*update)(const void *mem, int len, __wsum wsum);
 	__wsum (*combine)(__wsum csum, __wsum csum2, int offset, int len);

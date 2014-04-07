@@ -174,7 +174,7 @@ static int hash_recvmsg(struct kiocb *unused, struct socket *sock,
 			goto unlock;
 	}
 
-	err = memcpy_toiovec(msg->msg_iov, ctx->result, len);
+	err = memcpy_to_msg(msg, ctx->result, len);
 
 unlock:
 	release_sock(sk);
