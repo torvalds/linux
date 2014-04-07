@@ -1329,7 +1329,12 @@ static int wait_task_continued(struct wait_opts *wo, struct task_struct *p)
 static int wait_consider_task(struct wait_opts *wo, int ptrace,
 				struct task_struct *p)
 {
-	int ret = eligible_child(wo, p);
+	int ret;
+
+	if (unlikely(p->exit_state == EXIT_DEAD))
+		return 0;
+
+	ret = eligible_child(wo, p);
 	if (!ret)
 		return ret;
 
@@ -1346,10 +1351,6 @@ static int wait_consider_task(struct wait_opts *wo, int ptrace,
 			wo->notask_error = ret;
 		return 0;
 	}
-
-	/* dead body doesn't have much to contribute */
-	if (unlikely(p->exit_state == EXIT_DEAD))
-		return 0;
 
 	if (unlikely(p->exit_state == EXIT_TRACE)) {
 		/*
