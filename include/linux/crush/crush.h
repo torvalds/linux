@@ -51,6 +51,7 @@ enum {
 	CRUSH_RULE_SET_CHOOSELEAF_TRIES = 9, /* override chooseleaf_descend_once */
 	CRUSH_RULE_SET_CHOOSE_LOCAL_TRIES = 10,
 	CRUSH_RULE_SET_CHOOSE_LOCAL_FALLBACK_TRIES = 11,
+	CRUSH_RULE_SET_CHOOSELEAF_VARY_R = 12
 };
 
 /*
@@ -173,6 +174,12 @@ struct crush_map {
 	 * apply to a collision: in that case we will retry as we used
 	 * to. */
 	__u32 chooseleaf_descend_once;
+
+	/* if non-zero, feed r into chooseleaf, bit-shifted right by (r-1)
+	 * bits.  a value of 1 is best for new clusters.  for legacy clusters
+	 * that want to limit reshuffling, a value of 3 or 4 will make the
+	 * mappings line up a bit better with previous mappings. */
+	__u8 chooseleaf_vary_r;
 };
 
 
