@@ -141,6 +141,34 @@ static ssize_t max_comp_streams_store(struct device *dev,
 	return len;
 }
 
+static ssize_t comp_algorithm_show(struct device *dev,
+		struct device_attribute *attr, char *buf)
+{
+	size_t sz;
+	struct zram *zram = dev_to_zram(dev);
+
+	down_read(&zram->init_lock);
+	sz = zcomp_available_show(zram->compressor, buf);
+	up_read(&zram->init_lock);
+
+	return sz;
+}
+
+static ssize_t comp_algorithm_store(struct device *dev,
+		struct device_attribute *attr, const char *buf, size_t len)
+{
+	struct zram *zram = dev_to_zram(dev);
+	down_write(&zram->init_lock);
+	if (init_done(zram)) {
+		up_write(&zram->init_lock);
+		pr_info("Can't change algorithm for initialized device\n");
+		return -EBUSY;
+	}
+	strlcpy(zram->compressor, buf, sizeof(zram->compressor));
+	up_write(&zram->init_lock);
+	return len;
+}
+
 /* flag operations needs meta->tb_lock */
 static int zram_test_flag(struct zram_meta *meta, u32 index,
 			enum zram_pageflags flag)
@@ -572,10 +600,10 @@ static ssize_t disksize_store(struct device *dev,
 		goto out_free_meta;
 	}
 
-	zram->comp = zcomp_create(default_compressor, zram->max_comp_streams);
+	zram->comp = zcomp_create(zram->compressor, zram->max_comp_streams);
 	if (!zram->comp) {
 		pr_info("Cannot initialise %s compressing backend\n",
-				default_compressor);
+				zram->compressor);
 		err = -EINVAL;
 		goto out_free_meta;
 	}
@@ -735,6 +763,8 @@ static DEVICE_ATTR(orig_data_size, S_IRUGO, orig_data_size_show, NULL);
 static DEVICE_ATTR(mem_used_total, S_IRUGO, mem_used_total_show, NULL);
 static DEVICE_ATTR(max_comp_streams, S_IRUGO | S_IWUSR,
 		max_comp_streams_show, max_comp_streams_store);
+static DEVICE_ATTR(comp_algorithm, S_IRUGO | S_IWUSR,
+		comp_algorithm_show, comp_algorithm_store);
 
 ZRAM_ATTR_RO(num_reads);
 ZRAM_ATTR_RO(num_writes);
@@ -760,6 +790,7 @@ static struct attribute *zram_disk_attrs[] = {
 	&dev_attr_compr_data_size.attr,
 	&dev_attr_mem_used_total.attr,
 	&dev_attr_max_comp_streams.attr,
+	&dev_attr_comp_algorithm.attr,
 	NULL,
 };
 
@@ -820,7 +851,7 @@ static int create_device(struct zram *zram, int device_id)
 		pr_warn("Error creating sysfs group");
 		goto out_free_disk;
 	}
-
+	strlcpy(zram->compressor, default_compressor, sizeof(zram->compressor));
 	zram->meta = NULL;
 	zram->max_comp_streams = 1;
 	return 0;
