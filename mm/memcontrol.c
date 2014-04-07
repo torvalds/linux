@@ -3321,15 +3321,10 @@ void mem_cgroup_destroy_cache(struct kmem_cache *cachep)
 	schedule_work(&cachep->memcg_params->destroy);
 }
 
-void kmem_cache_destroy_memcg_children(struct kmem_cache *s)
+int __kmem_cache_destroy_memcg_children(struct kmem_cache *s)
 {
 	struct kmem_cache *c;
-	int i;
-
-	if (!s->memcg_params)
-		return;
-	if (!s->memcg_params->is_root_cache)
-		return;
+	int i, failed = 0;
 
 	/*
 	 * If the cache is being destroyed, we trust that there is no one else
@@ -3363,8 +3358,12 @@ void kmem_cache_destroy_memcg_children(struct kmem_cache *s)
 		c->memcg_params->dead = false;
 		cancel_work_sync(&c->memcg_params->destroy);
 		kmem_cache_destroy(c);
+
+		if (cache_from_memcg_idx(s, i))
+			failed++;
 	}
 	mutex_unlock(&activate_kmem_mutex);
+	return failed;
 }
 
 static void mem_cgroup_destroy_all_caches(struct mem_cgroup *memcg)
