@@ -207,6 +207,8 @@ static struct dentry *f2fs_lookup(struct inode *dir, struct dentry *dentry,
 		inode = f2fs_iget(dir->i_sb, ino);
 		if (IS_ERR(inode))
 			return ERR_CAST(inode);
+
+		stat_inc_inline_inode(inode);
 	}
 
 	return d_splice_alias(inode, dentry);
