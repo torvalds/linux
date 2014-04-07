@@ -1362,6 +1362,22 @@ static int wait_consider_task(struct wait_opts *wo, int ptrace,
 		return 0;
 	}
 
+	if (likely(!ptrace) && unlikely(p->ptrace)) {
+		/*
+		 * If it is traced by its real parent's group, just pretend
+		 * the caller is ptrace_do_wait() and reap this child if it
+		 * is zombie.
+		 *
+		 * This also hides group stop state from real parent; otherwise
+		 * a single stop can be reported twice as group and ptrace stop.
+		 * If a ptracer wants to distinguish these two events for its
+		 * own children it should create a separate process which takes
+		 * the role of real parent.
+		 */
+		if (!ptrace_reparented(p))
+			ptrace = 1;
+	}
+
 	/* slay zombie? */
 	if (p->exit_state == EXIT_ZOMBIE) {
 		/*
@@ -1402,19 +1418,6 @@ static int wait_consider_task(struct wait_opts *wo, int ptrace,
 		if (likely(!ptrace) || (wo->wo_flags & (WCONTINUED | WEXITED)))
 			wo->notask_error = 0;
 	} else {
-		/*
-		 * If @p is ptraced by a task in its real parent's group,
-		 * hide group stop/continued state when looking at @p as
-		 * the real parent; otherwise, a single stop can be
-		 * reported twice as group and ptrace stops.
-		 *
-		 * If a ptracer wants to distinguish the two events for its
-		 * own children, it should create a separate process which
-		 * takes the role of real parent.
-		 */
-		if (likely(!ptrace) && p->ptrace && !ptrace_reparented(p))
-			return 0;
-
 		/*
 		 * @p is alive and it's gonna stop, continue or exit, so
 		 * there always is something to wait for.
