@@ -60,8 +60,6 @@ enum HW90_BLOCK {
 enum RF_RADIO_PATH {
 	RF_PATH_A = 0,			/* Radio Path A */
 	RF_PATH_B = 1,			/* Radio Path B */
-	RF_PATH_C = 2,			/* Radio Path C */
-	RF_PATH_D = 3,			/* Radio Path D */
 	RF_PATH_MAX			/* Max RF number 90 support */
 };
 
