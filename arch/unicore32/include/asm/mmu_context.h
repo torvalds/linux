@@ -14,6 +14,8 @@
 
 #include <linux/compiler.h>
 #include <linux/sched.h>
+#include <linux/mm.h>
+#include <linux/vmacache.h>
 #include <linux/io.h>
 
 #include <asm/cacheflush.h>
@@ -73,7 +75,7 @@ do { \
 		else \
 			mm->mmap = NULL; \
 		rb_erase(&high_vma->vm_rb, &mm->mm_rb); \
-		mm->mmap_cache = NULL; \
+		vmacache_invalidate(mm); \
 		mm->map_count--; \
 		remove_vma(high_vma); \
 	} \
