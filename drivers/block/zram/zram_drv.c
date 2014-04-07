@@ -580,9 +580,10 @@ static ssize_t disksize_store(struct device *dev,
 		struct device_attribute *attr, const char *buf, size_t len)
 {
 	u64 disksize;
+	struct zcomp *comp;
 	struct zram_meta *meta;
 	struct zram *zram = dev_to_zram(dev);
-	int err;
+	int err = -EINVAL;
 
 	disksize = memparse(buf, NULL);
 	if (!disksize)
@@ -593,30 +594,32 @@ static ssize_t disksize_store(struct device *dev,
 	if (!meta)
 		return -ENOMEM;
 
-	down_write(&zram->init_lock);
-	if (init_done(zram)) {
-		pr_info("Cannot change disksize for initialized device\n");
-		err = -EBUSY;
-		goto out_free_meta;
-	}
-
-	zram->comp = zcomp_create(zram->compressor, zram->max_comp_streams);
-	if (!zram->comp) {
+	comp = zcomp_create(zram->compressor, zram->max_comp_streams);
+	if (!comp) {
 		pr_info("Cannot initialise %s compressing backend\n",
 				zram->compressor);
-		err = -EINVAL;
-		goto out_free_meta;
+		goto out_cleanup;
+	}
+
+	down_write(&zram->init_lock);
+	if (init_done(zram)) {
+		up_write(&zram->init_lock);
+		pr_info("Cannot change disksize for initialized device\n");
+		err = -EBUSY;
+		goto out_cleanup;
 	}
 
 	zram->meta = meta;
+	zram->comp = comp;
 	zram->disksize = disksize;
 	set_capacity(zram->disk, zram->disksize >> SECTOR_SHIFT);
 	up_write(&zram->init_lock);
 
 	return len;
 
-out_free_meta:
-	up_write(&zram->init_lock);
+out_cleanup:
+	if (comp)
+		zcomp_destroy(comp);
 	zram_meta_free(meta);
 	return err;
 }
