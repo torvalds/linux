@@ -74,7 +74,7 @@ source "init/Kconfig"
 
 source "kernel/Kconfig.freezer"
 
-source "arch/microblaze/platform/Kconfig.platform"
+source "arch/microblaze/Kconfig.platform"
 
 menu "Processor type and features"
 
