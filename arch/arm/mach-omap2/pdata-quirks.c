@@ -141,7 +141,6 @@ static void __init omap3_sbc_t3530_legacy_init(void)
 
 static void __init omap3_igep0020_legacy_init(void)
 {
-	omap3_igep2_display_init_of();
 }
 
 static void __init omap3_evm_legacy_init(void)
@@ -247,14 +246,12 @@ static void __init nokia_n900_legacy_init(void)
 #ifdef CONFIG_ARCH_OMAP4
 static void __init omap4_sdp_legacy_init(void)
 {
-	omap_4430sdp_display_init_of();
 	legacy_init_wl12xx(WL12XX_REFCLOCK_26,
 			   WL12XX_TCXOCLOCK_26, 53);
 }
 
 static void __init omap4_panda_legacy_init(void)
 {
-	omap4_panda_display_init_of();
 	legacy_init_wl12xx(WL12XX_REFCLOCK_38, 0, 53);
 }
 #endif

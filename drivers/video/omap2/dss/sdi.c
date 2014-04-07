@@ -26,6 +26,7 @@
 #include <linux/export.h>
 #include <linux/platform_device.h>
 #include <linux/string.h>
+#include <linux/of.h>
 
 #include <video/omapdss.h>
 #include "dss.h"
@@ -41,6 +42,8 @@ static struct {
 	int datapairs;
 
 	struct omap_dss_device output;
+
+	bool port_initialized;
 } sdi;
 
 struct sdi_clk_calc_ctx {
@@ -385,4 +388,46 @@ int __init sdi_init_platform_driver(void)
 void __exit sdi_uninit_platform_driver(void)
 {
 	platform_driver_unregister(&omap_sdi_driver);
+}
+
+int __init sdi_init_port(struct platform_device *pdev, struct device_node *port)
+{
+	struct device_node *ep;
+	u32 datapairs;
+	int r;
+
+	ep = omapdss_of_get_next_endpoint(port, NULL);
+	if (!ep)
+		return 0;
+
+	r = of_property_read_u32(ep, "datapairs", &datapairs);
+	if (r) {
+		DSSERR("failed to parse datapairs\n");
+		goto err_datapairs;
+	}
+
+	sdi.datapairs = datapairs;
+
+	of_node_put(ep);
+
+	sdi.pdev = pdev;
+
+	sdi_init_output(pdev);
+
+	sdi.port_initialized = true;
+
+	return 0;
+
+err_datapairs:
+	of_node_put(ep);
+
+	return r;
+}
+
+void __exit sdi_uninit_port(void)
+{
+	if (!sdi.port_initialized)
+		return;
+
+	sdi_uninit_output(sdi.pdev);
 }
