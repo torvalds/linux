@@ -1985,6 +1985,12 @@ int filemap_fault(struct vm_area_struct *vma, struct vm_fault *vmf)
 }
 EXPORT_SYMBOL(filemap_fault);
 
+void filemap_map_pages(struct vm_area_struct *vma, struct vm_fault *vmf)
+{
+	BUG();
+}
+EXPORT_SYMBOL(filemap_map_pages);
+
 int generic_file_remap_pages(struct vm_area_struct *vma, unsigned long addr,
 			     unsigned long size, pgoff_t pgoff)
 {
