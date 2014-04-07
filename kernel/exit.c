@@ -1040,7 +1040,7 @@ static int wait_task_zombie(struct wait_opts *wo, struct task_struct *p)
 	/*
 	 * Move the task's state to DEAD/TRACE, only one thread can do this.
 	 */
-	state = traced ? EXIT_TRACE : EXIT_DEAD;
+	state = traced && thread_group_leader(p) ? EXIT_TRACE : EXIT_DEAD;
 	if (cmpxchg(&p->exit_state, EXIT_ZOMBIE, state) != EXIT_ZOMBIE)
 		return 0;
 	/*
@@ -1140,18 +1140,15 @@ static int wait_task_zombie(struct wait_opts *wo, struct task_struct *p)
 	if (!retval)
 		retval = pid;
 
-	if (traced) {
+	if (state == EXIT_TRACE) {
 		write_lock_irq(&tasklist_lock);
 		/* We dropped tasklist, ptracer could die and untrace */
 		ptrace_unlink(p);
-		/*
-		 * If this is not a sub-thread, notify the parent.
-		 * If parent wants a zombie, don't release it now.
-		 */
-		state = EXIT_DEAD;
-		if (thread_group_leader(p) &&
-		    !do_notify_parent(p, p->exit_signal))
-			state = EXIT_ZOMBIE;
+
+		/* If parent wants a zombie, don't release it now */
+		state = EXIT_ZOMBIE;
+		if (do_notify_parent(p, p->exit_signal))
+			state = EXIT_DEAD;
 		p->exit_state = state;
 		write_unlock_irq(&tasklist_lock);
 	}
