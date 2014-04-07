@@ -4005,6 +4005,10 @@ static void alc283_fixup_chromebook(struct hda_codec *codec,
 		spec->gen.mixer_nid = 0;
 		break;
 	case HDA_FIXUP_ACT_INIT:
+		/* MIC2-VREF control */
+		/* Set to manual mode */
+		val = alc_read_coef_idx(codec, 0x06);
+		alc_write_coef_idx(codec, 0x06, val & ~0x000c);
 		/* Enable Line1 input control by verb */
 		val = alc_read_coef_idx(codec, 0x1a);
 		alc_write_coef_idx(codec, 0x1a, val | (1 << 4));
