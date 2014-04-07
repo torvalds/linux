@@ -39,11 +39,20 @@ struct zcomp_strm_multi {
 	wait_queue_head_t strm_wait;
 };
 
+static struct zcomp_backend *backends[] = {
+	&zcomp_lzo,
+	NULL
+};
+
 static struct zcomp_backend *find_backend(const char *compress)
 {
-	if (strncmp(compress, "lzo", 3) == 0)
-		return &zcomp_lzo;
-	return NULL;
+	int i = 0;
+	while (backends[i]) {
+		if (sysfs_streq(compress, backends[i]->name))
+			break;
+		i++;
+	}
+	return backends[i];
 }
 
 static void zcomp_strm_free(struct zcomp *comp, struct zcomp_strm *zstrm)
@@ -249,6 +258,23 @@ static int zcomp_strm_single_create(struct zcomp *comp)
 		return -ENOMEM;
 	}
 	return 0;
+}
+
+/* show available compressors */
+ssize_t zcomp_available_show(const char *comp, char *buf)
+{
+	ssize_t sz = 0;
+	int i = 0;
+
+	while (backends[i]) {
+		if (sysfs_streq(comp, backends[i]->name))
+			sz += sprintf(buf + sz, "[%s] ", backends[i]->name);
+		else
+			sz += sprintf(buf + sz, "%s ", backends[i]->name);
+		i++;
+	}
+	sz += sprintf(buf + sz, "\n");
+	return sz;
 }
 
 int zcomp_set_max_streams(struct zcomp *comp, int num_strm)
