@@ -828,7 +828,7 @@ static int __verify_memory_type(struct vb2_queue *q,
 	 * create_bufs is called with count == 0, but count == 0 should still
 	 * do the memory and type validation.
 	 */
-	if (q->fileio) {
+	if (vb2_fileio_is_active(q)) {
 		dprintk(1, "file io in progress\n");
 		return -EBUSY;
 	}
@@ -1670,7 +1670,7 @@ int vb2_prepare_buf(struct vb2_queue *q, struct v4l2_buffer *b)
 	struct vb2_buffer *vb;
 	int ret;
 
-	if (q->fileio) {
+	if (vb2_fileio_is_active(q)) {
 		dprintk(1, "file io in progress\n");
 		return -EBUSY;
 	}
@@ -1838,7 +1838,7 @@ static int vb2_internal_qbuf(struct vb2_queue *q, struct v4l2_buffer *b)
  */
 int vb2_qbuf(struct vb2_queue *q, struct v4l2_buffer *b)
 {
-	if (q->fileio) {
+	if (vb2_fileio_is_active(q)) {
 		dprintk(1, "file io in progress\n");
 		return -EBUSY;
 	}
@@ -2058,7 +2058,7 @@ static int vb2_internal_dqbuf(struct vb2_queue *q, struct v4l2_buffer *b, bool n
  */
 int vb2_dqbuf(struct vb2_queue *q, struct v4l2_buffer *b, bool nonblocking)
 {
-	if (q->fileio) {
+	if (vb2_fileio_is_active(q)) {
 		dprintk(1, "file io in progress\n");
 		return -EBUSY;
 	}
@@ -2188,7 +2188,7 @@ static int vb2_internal_streamon(struct vb2_queue *q, enum v4l2_buf_type type)
  */
 int vb2_streamon(struct vb2_queue *q, enum v4l2_buf_type type)
 {
-	if (q->fileio) {
+	if (vb2_fileio_is_active(q)) {
 		dprintk(1, "file io in progress\n");
 		return -EBUSY;
 	}
@@ -2235,7 +2235,7 @@ static int vb2_internal_streamoff(struct vb2_queue *q, enum v4l2_buf_type type)
  */
 int vb2_streamoff(struct vb2_queue *q, enum v4l2_buf_type type)
 {
-	if (q->fileio) {
+	if (vb2_fileio_is_active(q)) {
 		dprintk(1, "file io in progress\n");
 		return -EBUSY;
 	}
@@ -2320,6 +2320,11 @@ int vb2_expbuf(struct vb2_queue *q, struct v4l2_exportbuffer *eb)
 		return -EINVAL;
 	}
 
+	if (vb2_fileio_is_active(q)) {
+		dprintk(1, "expbuf: file io in progress\n");
+		return -EBUSY;
+	}
+
 	vb_plane = &vb->planes[eb->plane];
 
 	dbuf = call_ptr_memop(vb, get_dmabuf, vb_plane->mem_priv, eb->flags & O_ACCMODE);
@@ -2394,6 +2399,10 @@ int vb2_mmap(struct vb2_queue *q, struct vm_area_struct *vma)
 			dprintk(1, "Invalid vma flags, VM_READ needed\n");
 			return -EINVAL;
 		}
+	}
+	if (vb2_fileio_is_active(q)) {
+		dprintk(1, "mmap: file io in progress\n");
+		return -EBUSY;
 	}
 
 	/*
@@ -2504,7 +2513,7 @@ unsigned int vb2_poll(struct vb2_queue *q, struct file *file, poll_table *wait)
 	/*
 	 * Start file I/O emulator only if streaming API has not been used yet.
 	 */
-	if (q->num_buffers == 0 && q->fileio == NULL) {
+	if (q->num_buffers == 0 && !vb2_fileio_is_active(q)) {
 		if (!V4L2_TYPE_IS_OUTPUT(q->type) && (q->io_modes & VB2_READ) &&
 				(req_events & (POLLIN | POLLRDNORM))) {
 			if (__vb2_init_fileio(q, 1))
@@ -2709,7 +2718,8 @@ static int __vb2_init_fileio(struct vb2_queue *q, int read)
 	fileio->req.count = count;
 	fileio->req.memory = V4L2_MEMORY_MMAP;
 	fileio->req.type = q->type;
-	ret = vb2_reqbufs(q, &fileio->req);
+	q->fileio = fileio;
+	ret = __reqbufs(q, &fileio->req);
 	if (ret)
 		goto err_kfree;
 
@@ -2747,7 +2757,7 @@ static int __vb2_init_fileio(struct vb2_queue *q, int read)
 			b->type = q->type;
 			b->memory = q->memory;
 			b->index = i;
-			ret = vb2_qbuf(q, b);
+			ret = vb2_internal_qbuf(q, b);
 			if (ret)
 				goto err_reqbufs;
 			fileio->bufs[i].queued = 1;
@@ -2763,19 +2773,18 @@ static int __vb2_init_fileio(struct vb2_queue *q, int read)
 	/*
 	 * Start streaming.
 	 */
-	ret = vb2_streamon(q, q->type);
+	ret = vb2_internal_streamon(q, q->type);
 	if (ret)
 		goto err_reqbufs;
-
-	q->fileio = fileio;
 
 	return ret;
 
 err_reqbufs:
 	fileio->req.count = 0;
-	vb2_reqbufs(q, &fileio->req);
+	__reqbufs(q, &fileio->req);
 
 err_kfree:
+	q->fileio = NULL;
 	kfree(fileio);
 	return ret;
 }
@@ -2833,7 +2842,7 @@ static size_t __vb2_perform_fileio(struct vb2_queue *q, char __user *data, size_
 	/*
 	 * Initialize emulator on first call.
 	 */
-	if (!q->fileio) {
+	if (!vb2_fileio_is_active(q)) {
 		ret = __vb2_init_fileio(q, read);
 		dprintk(3, "vb2_init_fileio result: %d\n", ret);
 		if (ret)
@@ -3201,7 +3210,7 @@ unsigned int vb2_fop_poll(struct file *file, poll_table *wait)
 
 	/* Try to be smart: only lock if polling might start fileio,
 	   otherwise locking will only introduce unwanted delays. */
-	if (q->num_buffers == 0 && q->fileio == NULL) {
+	if (q->num_buffers == 0 && !vb2_fileio_is_active(q)) {
 		if (!V4L2_TYPE_IS_OUTPUT(q->type) && (q->io_modes & VB2_READ) &&
 				(req_events & (POLLIN | POLLRDNORM)))
 			must_lock = true;
