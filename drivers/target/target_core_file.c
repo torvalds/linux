@@ -133,21 +133,24 @@ static struct se_device *fd_create_virtdevice(
 		ret = PTR_ERR(dev_p);
 		goto fail;
 	}
-#if 0
-	if (di->no_create_file)
-		flags = O_RDWR | O_LARGEFILE;
-	else
-		flags = O_RDWR | O_CREAT | O_LARGEFILE;
-#else
-	flags = O_RDWR | O_CREAT | O_LARGEFILE;
-#endif
-/*	flags |= O_DIRECT; */
 	/*
-	 * If fd_buffered_io=1 has not been set explicitly (the default),
-	 * use O_SYNC to force FILEIO writes to disk.
+	 * Use O_DSYNC by default instead of O_SYNC to forgo syncing
+	 * of pure timestamp updates.
 	 */
-	if (!(fd_dev->fbd_flags & FDBD_USE_BUFFERED_IO))
-		flags |= O_SYNC;
+	flags = O_RDWR | O_CREAT | O_LARGEFILE | O_DSYNC;
+	/*
+	 * Optionally allow fd_buffered_io=1 to be enabled for people
+	 * who want use the fs buffer cache as an WriteCache mechanism.
+	 *
+	 * This means that in event of a hard failure, there is a risk
+	 * of silent data-loss if the SCSI client has *not* performed a
+	 * forced unit access (FUA) write, or issued SYNCHRONIZE_CACHE
+	 * to write-out the entire device cache.
+	 */
+	if (fd_dev->fbd_flags & FDBD_HAS_BUFFERED_IO_WCE) {
+		pr_debug("FILEIO: Disabling O_DSYNC, using buffered FILEIO\n");
+		flags &= ~O_DSYNC;
+	}
 
 	file = filp_open(dev_p, flags, 0600);
 	if (IS_ERR(file)) {
@@ -214,6 +217,12 @@ static struct se_device *fd_create_virtdevice(
 				&dev_limits, "FILEIO", FD_VERSION);
 	if (!dev)
 		goto fail;
+
+	if (fd_dev->fbd_flags & FDBD_HAS_BUFFERED_IO_WCE) {
+		pr_debug("FILEIO: Forcing setting of emulate_write_cache=1"
+			" with FDBD_HAS_BUFFERED_IO_WCE\n");
+		dev->se_sub_dev->se_dev_attrib.emulate_write_cache = 1;
+	}
 
 	fd_dev->fd_dev_id = fd_host->fd_host_dev_id_count++;
 	fd_dev->fd_queue_depth = dev->queue_depth;
@@ -399,26 +408,6 @@ static void fd_emulate_sync_cache(struct se_task *task)
 		transport_complete_sync_cache(cmd, ret == 0);
 }
 
-/*
- * WRITE Force Unit Access (FUA) emulation on a per struct se_task
- * LBA range basis..
- */
-static void fd_emulate_write_fua(struct se_cmd *cmd, struct se_task *task)
-{
-	struct se_device *dev = cmd->se_dev;
-	struct fd_dev *fd_dev = dev->dev_ptr;
-	loff_t start = task->task_lba * dev->se_sub_dev->se_dev_attrib.block_size;
-	loff_t end = start + task->task_size;
-	int ret;
-
-	pr_debug("FILEIO: FUA WRITE LBA: %llu, bytes: %u\n",
-			task->task_lba, task->task_size);
-
-	ret = vfs_fsync_range(fd_dev->fd_file, start, end, 1);
-	if (ret != 0)
-		pr_err("FILEIO: vfs_fsync_range() failed: %d\n", ret);
-}
-
 static int fd_do_task(struct se_task *task)
 {
 	struct se_cmd *cmd = task->task_se_cmd;
@@ -433,19 +422,21 @@ static int fd_do_task(struct se_task *task)
 		ret = fd_do_readv(task);
 	} else {
 		ret = fd_do_writev(task);
-
+		/*
+		 * Perform implict vfs_fsync_range() for fd_do_writev() ops
+		 * for SCSI WRITEs with Forced Unit Access (FUA) set.
+		 * Allow this to happen independent of WCE=0 setting.
+		 */
 		if (ret > 0 &&
-		    dev->se_sub_dev->se_dev_attrib.emulate_write_cache > 0 &&
 		    dev->se_sub_dev->se_dev_attrib.emulate_fua_write > 0 &&
 		    (cmd->se_cmd_flags & SCF_FUA)) {
-			/*
-			 * We might need to be a bit smarter here
-			 * and return some sense data to let the initiator
-			 * know the FUA WRITE cache sync failed..?
-			 */
-			fd_emulate_write_fua(cmd, task);
-		}
+			struct fd_dev *fd_dev = dev->dev_ptr;
+			loff_t start = task->task_lba *
+				dev->se_sub_dev->se_dev_attrib.block_size;
+			loff_t end = start + task->task_size;
 
+			vfs_fsync_range(fd_dev->fd_file, start, end, 1);
+		}
 	}
 
 	if (ret < 0) {
@@ -544,7 +535,7 @@ static ssize_t fd_set_configfs_dev_params(
 			pr_debug("FILEIO: Using buffered I/O"
 				" operations for struct fd_dev\n");
 
-			fd_dev->fbd_flags |= FDBD_USE_BUFFERED_IO;
+			fd_dev->fbd_flags |= FDBD_HAS_BUFFERED_IO_WCE;
 			break;
 		default:
 			break;
@@ -579,8 +570,8 @@ static ssize_t fd_show_configfs_dev_params(
 	bl = sprintf(b + bl, "TCM FILEIO ID: %u", fd_dev->fd_dev_id);
 	bl += sprintf(b + bl, "        File: %s  Size: %llu  Mode: %s\n",
 		fd_dev->fd_dev_name, fd_dev->fd_dev_size,
-		(fd_dev->fbd_flags & FDBD_USE_BUFFERED_IO) ?
-		"Buffered" : "Synchronous");
+		(fd_dev->fbd_flags & FDBD_HAS_BUFFERED_IO_WCE) ?
+		"Buffered-WCE" : "O_DSYNC");
 	return bl;
 }
 
