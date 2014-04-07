@@ -1234,8 +1234,6 @@ static void __fill_vb2_buffer(struct vb2_buffer *vb, const struct v4l2_buffer *b
 					b->m.planes[plane].m.fd;
 				v4l2_planes[plane].length =
 					b->m.planes[plane].length;
-				v4l2_planes[plane].data_offset =
-					b->m.planes[plane].data_offset;
 			}
 		}
 	} else {
@@ -1245,10 +1243,8 @@ static void __fill_vb2_buffer(struct vb2_buffer *vb, const struct v4l2_buffer *b
 		 * In videobuf we use our internal V4l2_planes struct for
 		 * single-planar buffers as well, for simplicity.
 		 */
-		if (V4L2_TYPE_IS_OUTPUT(b->type)) {
+		if (V4L2_TYPE_IS_OUTPUT(b->type))
 			v4l2_planes[0].bytesused = b->bytesused;
-			v4l2_planes[0].data_offset = 0;
-		}
 
 		if (b->memory == V4L2_MEMORY_USERPTR) {
 			v4l2_planes[0].m.userptr = b->m.userptr;
@@ -1258,9 +1254,7 @@ static void __fill_vb2_buffer(struct vb2_buffer *vb, const struct v4l2_buffer *b
 		if (b->memory == V4L2_MEMORY_DMABUF) {
 			v4l2_planes[0].m.fd = b->m.fd;
 			v4l2_planes[0].length = b->length;
-			v4l2_planes[0].data_offset = 0;
 		}
-
 	}
 
 	/* Zero flags that the vb2 core handles */
@@ -1303,6 +1297,7 @@ static int __qbuf_userptr(struct vb2_buffer *vb, const struct v4l2_buffer *b)
 	int write = !V4L2_TYPE_IS_OUTPUT(q->type);
 	bool reacquired = vb->planes[0].mem_priv == NULL;
 
+	memset(planes, 0, sizeof(planes[0]) * vb->num_planes);
 	/* Copy relevant information provided by the userspace */
 	__fill_vb2_buffer(vb, b, planes);
 
@@ -1414,6 +1409,7 @@ static int __qbuf_dmabuf(struct vb2_buffer *vb, const struct v4l2_buffer *b)
 	int write = !V4L2_TYPE_IS_OUTPUT(q->type);
 	bool reacquired = vb->planes[0].mem_priv == NULL;
 
+	memset(planes, 0, sizeof(planes[0]) * vb->num_planes);
 	/* Copy relevant information provided by the userspace */
 	__fill_vb2_buffer(vb, b, planes);
 
@@ -1431,8 +1427,7 @@ static int __qbuf_dmabuf(struct vb2_buffer *vb, const struct v4l2_buffer *b)
 		if (planes[plane].length == 0)
 			planes[plane].length = dbuf->size;
 
-		if (planes[plane].length < planes[plane].data_offset +
-		    q->plane_sizes[plane]) {
+		if (planes[plane].length < q->plane_sizes[plane]) {
 			dprintk(1, "qbuf: invalid dmabuf length for plane %d\n",
 				plane);
 			ret = -EINVAL;
