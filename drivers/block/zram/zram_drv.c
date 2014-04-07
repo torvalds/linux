@@ -133,9 +133,8 @@ static ssize_t max_comp_streams_store(struct device *dev,
 		return -EINVAL;
 	down_write(&zram->init_lock);
 	if (init_done(zram)) {
-		up_write(&zram->init_lock);
-		pr_info("Can't set max_comp_streams for initialized device\n");
-		return -EBUSY;
+		if (zcomp_set_max_streams(zram->comp, num))
+			pr_info("Cannot change max compression streams\n");
 	}
 	zram->max_comp_streams = num;
 	up_write(&zram->init_lock);

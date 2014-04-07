@@ -136,6 +136,29 @@ static void zcomp_strm_multi_release(struct zcomp *comp, struct zcomp_strm *zstr
 	zcomp_strm_free(comp, zstrm);
 }
 
+/* change max_strm limit */
+static int zcomp_strm_multi_set_max_streams(struct zcomp *comp, int num_strm)
+{
+	struct zcomp_strm_multi *zs = comp->stream;
+	struct zcomp_strm *zstrm;
+
+	spin_lock(&zs->strm_lock);
+	zs->max_strm = num_strm;
+	/*
+	 * if user has lowered the limit and there are idle streams,
+	 * immediately free as much streams (and memory) as we can.
+	 */
+	while (zs->avail_strm > num_strm && !list_empty(&zs->idle_strm)) {
+		zstrm = list_entry(zs->idle_strm.next,
+				struct zcomp_strm, list);
+		list_del(&zstrm->list);
+		zcomp_strm_free(comp, zstrm);
+		zs->avail_strm--;
+	}
+	spin_unlock(&zs->strm_lock);
+	return 0;
+}
+
 static void zcomp_strm_multi_destroy(struct zcomp *comp)
 {
 	struct zcomp_strm_multi *zs = comp->stream;
@@ -158,6 +181,7 @@ static int zcomp_strm_multi_create(struct zcomp *comp, int max_strm)
 	comp->destroy = zcomp_strm_multi_destroy;
 	comp->strm_find = zcomp_strm_multi_find;
 	comp->strm_release = zcomp_strm_multi_release;
+	comp->set_max_streams = zcomp_strm_multi_set_max_streams;
 	zs = kmalloc(sizeof(struct zcomp_strm_multi), GFP_KERNEL);
 	if (!zs)
 		return -ENOMEM;
@@ -192,6 +216,12 @@ static void zcomp_strm_single_release(struct zcomp *comp,
 	mutex_unlock(&zs->strm_lock);
 }
 
+static int zcomp_strm_single_set_max_streams(struct zcomp *comp, int num_strm)
+{
+	/* zcomp_strm_single support only max_comp_streams == 1 */
+	return -ENOTSUPP;
+}
+
 static void zcomp_strm_single_destroy(struct zcomp *comp)
 {
 	struct zcomp_strm_single *zs = comp->stream;
@@ -206,6 +236,7 @@ static int zcomp_strm_single_create(struct zcomp *comp)
 	comp->destroy = zcomp_strm_single_destroy;
 	comp->strm_find = zcomp_strm_single_find;
 	comp->strm_release = zcomp_strm_single_release;
+	comp->set_max_streams = zcomp_strm_single_set_max_streams;
 	zs = kmalloc(sizeof(struct zcomp_strm_single), GFP_KERNEL);
 	if (!zs)
 		return -ENOMEM;
@@ -218,6 +249,11 @@ static int zcomp_strm_single_create(struct zcomp *comp)
 		return -ENOMEM;
 	}
 	return 0;
+}
+
+int zcomp_set_max_streams(struct zcomp *comp, int num_strm)
+{
+	return comp->set_max_streams(comp, num_strm);
 }
 
 struct zcomp_strm *zcomp_strm_find(struct zcomp *comp)
