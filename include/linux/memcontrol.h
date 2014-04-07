@@ -65,7 +65,7 @@ struct mem_cgroup_reclaim_cookie {
  * (Of course, if memcg does memory allocation in future, GFP_KERNEL is sane.)
  */
 
-extern int mem_cgroup_newpage_charge(struct page *page, struct mm_struct *mm,
+extern int mem_cgroup_charge_anon(struct page *page, struct mm_struct *mm,
 				gfp_t gfp_mask);
 /* for swap handling */
 extern int mem_cgroup_try_charge_swapin(struct mm_struct *mm,
@@ -74,7 +74,7 @@ extern void mem_cgroup_commit_charge_swapin(struct page *page,
 					struct mem_cgroup *memcg);
 extern void mem_cgroup_cancel_charge_swapin(struct mem_cgroup *memcg);
 
-extern int mem_cgroup_cache_charge(struct page *page, struct mm_struct *mm,
+extern int mem_cgroup_charge_file(struct page *page, struct mm_struct *mm,
 					gfp_t gfp_mask);
 
 struct lruvec *mem_cgroup_zone_lruvec(struct zone *, struct mem_cgroup *);
@@ -233,13 +233,13 @@ void mem_cgroup_print_bad_page(struct page *page);
 #else /* CONFIG_MEMCG */
 struct mem_cgroup;
 
-static inline int mem_cgroup_newpage_charge(struct page *page,
+static inline int mem_cgroup_charge_anon(struct page *page,
 					struct mm_struct *mm, gfp_t gfp_mask)
 {
 	return 0;
 }
 
-static inline int mem_cgroup_cache_charge(struct page *page,
+static inline int mem_cgroup_charge_file(struct page *page,
 					struct mm_struct *mm, gfp_t gfp_mask)
 {
 	return 0;
