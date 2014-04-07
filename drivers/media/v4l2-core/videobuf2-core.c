@@ -1208,15 +1208,30 @@ static void __fill_vb2_buffer(struct vb2_buffer *vb, const struct v4l2_buffer *b
 	if (V4L2_TYPE_IS_MULTIPLANAR(b->type)) {
 		/* Fill in driver-provided information for OUTPUT types */
 		if (V4L2_TYPE_IS_OUTPUT(b->type)) {
+			bool bytesused_is_used;
+
+			/* Check if bytesused == 0 for all planes */
+			for (plane = 0; plane < vb->num_planes; ++plane)
+				if (b->m.planes[plane].bytesused)
+					break;
+			bytesused_is_used = plane < vb->num_planes;
+
 			/*
 			 * Will have to go up to b->length when API starts
 			 * accepting variable number of planes.
+			 *
+			 * If bytesused_is_used is false, then fall back to the
+			 * full buffer size. In that case userspace clearly
+			 * never bothered to set it and it's a safe assumption
+			 * that they really meant to use the full plane sizes.
 			 */
 			for (plane = 0; plane < vb->num_planes; ++plane) {
-				v4l2_planes[plane].bytesused =
-					b->m.planes[plane].bytesused;
-				v4l2_planes[plane].data_offset =
-					b->m.planes[plane].data_offset;
+				struct v4l2_plane *pdst = &v4l2_planes[plane];
+				struct v4l2_plane *psrc = &b->m.planes[plane];
+
+				pdst->bytesused = bytesused_is_used ?
+					psrc->bytesused : psrc->length;
+				pdst->data_offset = psrc->data_offset;
 			}
 		}
 
@@ -1242,9 +1257,15 @@ static void __fill_vb2_buffer(struct vb2_buffer *vb, const struct v4l2_buffer *b
 		 * so fill in relevant v4l2_buffer struct fields instead.
 		 * In videobuf we use our internal V4l2_planes struct for
 		 * single-planar buffers as well, for simplicity.
+		 *
+		 * If bytesused == 0, then fall back to the full buffer size
+		 * as that's a sensible default.
 		 */
 		if (V4L2_TYPE_IS_OUTPUT(b->type))
-			v4l2_planes[0].bytesused = b->bytesused;
+			v4l2_planes[0].bytesused =
+				b->bytesused ? b->bytesused : b->length;
+		else
+			v4l2_planes[0].bytesused = 0;
 
 		if (b->memory == V4L2_MEMORY_USERPTR) {
 			v4l2_planes[0].m.userptr = b->m.userptr;
