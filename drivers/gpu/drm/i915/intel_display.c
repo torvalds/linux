@@ -8818,8 +8818,16 @@ static int intel_gen7_queue_flip(struct drm_device *dev,
 	}
 
 	len = 4;
-	if (ring->id == RCS)
+	if (ring->id == RCS) {
 		len += 6;
+		/*
+		 * On Gen 8, SRM is now taking an extra dword to accommodate
+		 * 48bits addresses, and we need a NOOP for the batch size to
+		 * stay even.
+		 */
+		if (IS_GEN8(dev))
+			len += 2;
+	}
 
 	/*
 	 * BSpec MI_DISPLAY_FLIP for IVB:
@@ -8854,10 +8862,18 @@ static int intel_gen7_queue_flip(struct drm_device *dev,
 		intel_ring_emit(ring, ~(DERRMR_PIPEA_PRI_FLIP_DONE |
 					DERRMR_PIPEB_PRI_FLIP_DONE |
 					DERRMR_PIPEC_PRI_FLIP_DONE));
-		intel_ring_emit(ring, MI_STORE_REGISTER_MEM(1) |
-				MI_SRM_LRM_GLOBAL_GTT);
+		if (IS_GEN8(dev))
+			intel_ring_emit(ring, MI_STORE_REGISTER_MEM_GEN8(1) |
+					      MI_SRM_LRM_GLOBAL_GTT);
+		else
+			intel_ring_emit(ring, MI_STORE_REGISTER_MEM(1) |
+					      MI_SRM_LRM_GLOBAL_GTT);
 		intel_ring_emit(ring, DERRMR);
 		intel_ring_emit(ring, ring->scratch.gtt_offset + 256);
+		if (IS_GEN8(dev)) {
+			intel_ring_emit(ring, 0);
+			intel_ring_emit(ring, MI_NOOP);
+		}
 	}
 
 	intel_ring_emit(ring, MI_DISPLAY_FLIP_I915 | plane_bit);
