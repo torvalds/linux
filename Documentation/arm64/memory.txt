@@ -39,7 +39,7 @@ ffffffbffa000000	ffffffbffaffffff	  16MB		PCI I/O space
 
 ffffffbffb000000	ffffffbffbbfffff	  12MB		[guard]
 
-ffffffbffbc00000	ffffffbffbdfffff	   2MB		earlyprintk device
+ffffffbffbc00000	ffffffbffbdfffff	   2MB		fixed mappings
 
 ffffffbffbe00000	ffffffbffbffffff	   2MB		[guard]
 
@@ -66,7 +66,7 @@ fffffdfffa000000	fffffdfffaffffff	  16MB		PCI I/O space
 
 fffffdfffb000000	fffffdfffbbfffff	  12MB		[guard]
 
-fffffdfffbc00000	fffffdfffbdfffff	   2MB		earlyprintk device
+fffffdfffbc00000	fffffdfffbdfffff	   2MB		fixed mappings
 
 fffffdfffbe00000	fffffdfffbffffff	   2MB		[guard]
 

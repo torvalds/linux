@@ -26,6 +26,7 @@
 #include <asm/byteorder.h>
 #include <asm/barrier.h>
 #include <asm/pgtable.h>
+#include <asm/early_ioremap.h>
 
 /*
  * Generic IO read/write.  These perform native-endian accesses.
