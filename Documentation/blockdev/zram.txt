@@ -21,7 +21,28 @@ Following shows a typical sequence of steps for using zram.
 	This creates 4 devices: /dev/zram{0,1,2,3}
 	(num_devices parameter is optional. Default: 1)
 
-2) Set Disksize
+2) Set max number of compression streams
+	Compression backend may use up to max_comp_streams compression streams,
+	thus allowing up to max_comp_streams concurrent compression operations.
+	By default, compression backend uses single compression stream.
+
+	Examples:
+	#show max compression streams number
+	cat /sys/block/zram0/max_comp_streams
+
+	#set max compression streams number to 3
+	echo 3 > /sys/block/zram0/max_comp_streams
+
+Note:
+In order to enable compression backend's multi stream support max_comp_streams
+must be initially set to desired concurrency level before ZRAM device
+initialisation. Once the device initialised as a single stream compression
+backend (max_comp_streams equals to 0) changing the value of max_comp_streams
+will not take any effect, because single stream compression backend implemented
+as a special case and does not support dynamic max_comp_streams. Only multi
+stream backend supports dynamic max_comp_streams adjustment.
+
+3) Set Disksize
         Set disk size by writing the value to sysfs node 'disksize'.
         The value can be either in bytes or you can use mem suffixes.
         Examples:
@@ -38,14 +59,14 @@ There is little point creating a zram of greater than twice the size of memory
 since we expect a 2:1 compression ratio. Note that zram uses about 0.1% of the
 size of the disk when not in use so a huge zram is wasteful.
 
-3) Activate:
+4) Activate:
 	mkswap /dev/zram0
 	swapon /dev/zram0
 
 	mkfs.ext4 /dev/zram1
 	mount /dev/zram1 /tmp
 
-4) Stats:
+5) Stats:
 	Per-device statistics are exported as various nodes under
 	/sys/block/zram<id>/
 		disksize
@@ -59,11 +80,11 @@ size of the disk when not in use so a huge zram is wasteful.
 		compr_data_size
 		mem_used_total
 
-5) Deactivate:
+6) Deactivate:
 	swapoff /dev/zram0
 	umount /dev/zram1
 
-6) Reset:
+7) Reset:
 	Write any positive value to 'reset' sysfs node
 	echo 1 > /sys/block/zram0/reset
 	echo 1 > /sys/block/zram1/reset

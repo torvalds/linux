@@ -21,6 +21,8 @@ struct zcomp_strm {
 	 * working memory)
 	 */
 	void *private;
+	/* used in multi stream backend, protected by backend strm_lock */
+	struct list_head list;
 };
 
 /* static compression backend */
@@ -47,7 +49,7 @@ struct zcomp {
 	void (*destroy)(struct zcomp *comp);
 };
 
-struct zcomp *zcomp_create(const char *comp);
+struct zcomp *zcomp_create(const char *comp, int max_strm);
 void zcomp_destroy(struct zcomp *comp);
 
 struct zcomp_strm *zcomp_strm_find(struct zcomp *comp);
