@@ -63,6 +63,7 @@
 #define R8A7791_CLK_PWM			23
 
 /* MSTP7 */
+#define R8A7791_CLK_EHCI		3
 #define R8A7791_CLK_HSUSB		4
 #define R8A7791_CLK_HSCIF2		13
 #define R8A7791_CLK_SCIF5		14
