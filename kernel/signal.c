@@ -33,6 +33,8 @@
 #include <linux/uprobes.h>
 #include <linux/compat.h>
 #include <linux/cn_proc.h>
+#include <linux/compiler.h>
+
 #define CREATE_TRACE_POINTS
 #include <trace/events/signal.h>
 
@@ -3618,7 +3620,7 @@ SYSCALL_DEFINE3(sigsuspend, int, unused1, int, unused2, old_sigset_t, mask)
 }
 #endif
 
-__attribute__((weak)) const char *arch_vma_name(struct vm_area_struct *vma)
+__weak const char *arch_vma_name(struct vm_area_struct *vma)
 {
 	return NULL;
 }
