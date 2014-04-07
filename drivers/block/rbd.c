@@ -1767,6 +1767,9 @@ static void rbd_osd_discard_callback(struct rbd_obj_request *obj_request)
 	 * it to our originally-requested length.
 	 */
 	obj_request->xferred = obj_request->length;
+	/* discarding a non-existent object is not a problem */
+	if (obj_request->result == -ENOENT)
+		obj_request->result = 0;
 	obj_request_done_set(obj_request);
 }
 
