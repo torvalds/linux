@@ -78,8 +78,6 @@ struct zram_stats {
 	atomic64_t notify_free;	/* no. of swap slot free notifications */
 	atomic_t pages_zero;		/* no. of zero filled pages */
 	atomic_t pages_stored;	/* no. of pages currently stored */
-	atomic_t good_compress;	/* % of pages with compression ratio<=50% */
-	atomic_t bad_compress;	/* % of pages with compression ratio>=75% */
 };
 
 struct zram_meta {
