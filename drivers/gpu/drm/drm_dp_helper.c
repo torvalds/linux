@@ -577,7 +577,9 @@ static u32 drm_dp_i2c_functionality(struct i2c_adapter *adapter)
 
 /*
  * Transfer a single I2C-over-AUX message and handle various error conditions,
- * retrying the transaction as appropriate.
+ * retrying the transaction as appropriate.  It is assumed that the
+ * aux->transfer function does not modify anything in the msg other than the
+ * reply field.
  */
 static int drm_dp_i2c_do_msg(struct drm_dp_aux *aux, struct drm_dp_aux_msg *msg)
 {
