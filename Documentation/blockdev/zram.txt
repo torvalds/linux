@@ -51,9 +51,10 @@ size of the disk when not in use so a huge zram is wasteful.
 		disksize
 		num_reads
 		num_writes
+		failed_reads
+		failed_writes
 		invalid_io
 		notify_free
-		discard
 		zero_pages
 		orig_data_size
 		compr_data_size
