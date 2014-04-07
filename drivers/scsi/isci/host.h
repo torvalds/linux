@@ -310,9 +310,8 @@ static inline struct isci_pci_info *to_pci_info(struct pci_dev *pdev)
 }
 
 #define for_each_isci_host(id, ihost, pdev) \
-	for (id = 0, ihost = to_pci_info(pdev)->hosts[id]; \
-	     id < ARRAY_SIZE(to_pci_info(pdev)->hosts) && ihost; \
-	     ihost = to_pci_info(pdev)->hosts[++id])
+	for (id = 0; id < SCI_MAX_CONTROLLERS && \
+	     (ihost = to_pci_info(pdev)->hosts[id]); id++)
 
 static inline enum isci_status isci_host_get_state(struct isci_host *isci_host)
 {
