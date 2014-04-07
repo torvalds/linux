@@ -5,18 +5,6 @@
 #
 
 menu "Platform options"
-choice
-	prompt "Platform"
-	default PLATFORM_MICROBLAZE_AUTO
-	help
-	  Choose which hardware board/platform you are targeting.
-
-config PLATFORM_GENERIC
-	bool "Generic"
-	help
-	  Choose this option for the Generic platform.
-
-endchoice
 
 config OPT_LIB_FUNCTION
 	bool "Optimalized lib function"
@@ -37,8 +25,45 @@ config OPT_LIB_ASM
 	  Allows turn on optimalized library function (memcpy and memmove).
 	  Function are written in asm code.
 
-if PLATFORM_GENERIC=y
-	source "arch/microblaze/platform/generic/Kconfig.auto"
-endif
+# Definitions for MICROBLAZE0
+comment "Definitions for MICROBLAZE0"
+
+config KERNEL_BASE_ADDR
+	hex "Physical address where Linux Kernel is"
+	default "0x90000000"
+	help
+	  BASE Address for kernel
+
+config XILINX_MICROBLAZE0_FAMILY
+	string "Targeted FPGA family"
+	default "virtex5"
+
+config XILINX_MICROBLAZE0_USE_MSR_INSTR
+	int "USE_MSR_INSTR range (0:1)"
+	default 0
+
+config XILINX_MICROBLAZE0_USE_PCMP_INSTR
+	int "USE_PCMP_INSTR range (0:1)"
+	default 0
+
+config XILINX_MICROBLAZE0_USE_BARREL
+	int "USE_BARREL range (0:1)"
+	default 0
+
+config XILINX_MICROBLAZE0_USE_DIV
+	int "USE_DIV range (0:1)"
+	default 0
+
+config XILINX_MICROBLAZE0_USE_HW_MUL
+	int "USE_HW_MUL values (0=NONE, 1=MUL32, 2=MUL64)"
+	default 0
+
+config XILINX_MICROBLAZE0_USE_FPU
+	int "USE_FPU values (0=NONE, 1=BASIC, 2=EXTENDED)"
+	default 0
+
+config XILINX_MICROBLAZE0_HW_VER
+	string "Core version number"
+	default 7.10.d
 
 endmenu
