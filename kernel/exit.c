@@ -802,13 +802,13 @@ void do_exit(long code)
 
 	module_put(task_thread_info(tsk)->exec_domain->module);
 
-	proc_exit_connector(tsk);
 	/*
 	 * FIXME: do that only when needed, using sched_exit tracepoint
 	 */
 	flush_ptrace_hw_breakpoint(tsk);
 
 	exit_notify(tsk, group_dead);
+	proc_exit_connector(tsk);
 #ifdef CONFIG_NUMA
 	task_lock(tsk);
 	mpol_put(tsk->mempolicy);
