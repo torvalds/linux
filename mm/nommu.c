@@ -298,7 +298,7 @@ long vwrite(char *buf, char *addr, unsigned long count)
 		count = -(unsigned long) addr;
 
 	memcpy(addr, buf, count);
-	return(count);
+	return count;
 }
 
 /*
@@ -1012,8 +1012,7 @@ static int validate_mmap_request(struct file *file,
 
 			/* we mustn't privatise shared mappings */
 			capabilities &= ~BDI_CAP_MAP_COPY;
-		}
-		else {
+		} else {
 			/* we're going to read the file into private memory we
 			 * allocate */
 			if (!(capabilities & BDI_CAP_MAP_COPY))
@@ -1044,23 +1043,20 @@ static int validate_mmap_request(struct file *file,
 		if (file->f_path.mnt->mnt_flags & MNT_NOEXEC) {
 			if (prot & PROT_EXEC)
 				return -EPERM;
-		}
-		else if ((prot & PROT_READ) && !(prot & PROT_EXEC)) {
+		} else if ((prot & PROT_READ) && !(prot & PROT_EXEC)) {
 			/* handle implication of PROT_EXEC by PROT_READ */
 			if (current->personality & READ_IMPLIES_EXEC) {
 				if (capabilities & BDI_CAP_EXEC_MAP)
 					prot |= PROT_EXEC;
 			}
-		}
-		else if ((prot & PROT_READ) &&
+		} else if ((prot & PROT_READ) &&
 			 (prot & PROT_EXEC) &&
 			 !(capabilities & BDI_CAP_EXEC_MAP)
 			 ) {
 			/* backing file is not executable, try to copy */
 			capabilities &= ~BDI_CAP_MAP_DIRECT;
 		}
-	}
-	else {
+	} else {
 		/* anonymous mappings are always memory backed and can be
 		 * privately mapped
 		 */
@@ -1668,7 +1664,7 @@ int do_munmap(struct mm_struct *mm, unsigned long start, size_t len)
 	/* find the first potentially overlapping VMA */
 	vma = find_vma(mm, start);
 	if (!vma) {
-		static int limit = 0;
+		static int limit;
 		if (limit < 5) {
 			printk(KERN_WARNING
 			       "munmap of memory not mmapped by process %d"
