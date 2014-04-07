@@ -11,6 +11,8 @@
 
 #include <linux/smp.h>
 
+#define SPINLOCK_LOCKVAL (S390_lowcore.spinlock_lockval)
+
 extern int spin_retry;
 
 static inline int
@@ -40,6 +42,11 @@ int arch_spin_trylock_retry(arch_spinlock_t *);
 void arch_spin_relax(arch_spinlock_t *);
 void arch_spin_lock_wait_flags(arch_spinlock_t *, unsigned long flags);
 
+static inline u32 arch_spin_lockval(int cpu)
+{
+	return ~cpu;
+}
+
 static inline int arch_spin_value_unlocked(arch_spinlock_t lock)
 {
 	return lock.lock == 0;
@@ -52,16 +59,12 @@ static inline int arch_spin_is_locked(arch_spinlock_t *lp)
 
 static inline int arch_spin_trylock_once(arch_spinlock_t *lp)
 {
-	unsigned int new = ~smp_processor_id();
-
-	return _raw_compare_and_swap(&lp->lock, 0, new);
+	return _raw_compare_and_swap(&lp->lock, 0, SPINLOCK_LOCKVAL);
 }
 
 static inline int arch_spin_tryrelease_once(arch_spinlock_t *lp)
 {
-	unsigned int old = ~smp_processor_id();
-
-	return _raw_compare_and_swap(&lp->lock, old, 0);
+	return _raw_compare_and_swap(&lp->lock, SPINLOCK_LOCKVAL, 0);
 }
 
 static inline void arch_spin_lock(arch_spinlock_t *lp)

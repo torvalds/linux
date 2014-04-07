@@ -139,7 +139,7 @@ struct _lowcore {
 	__u32	percpu_offset;			/* 0x02f0 */
 	__u32	machine_flags;			/* 0x02f4 */
 	__u32	ftrace_func;			/* 0x02f8 */
-	__u8	pad_0x02fc[0x0300-0x02fc];	/* 0x02fc */
+	__u32	spinlock_lockval;		/* 0x02fc */
 
 	/* Interrupt response block */
 	__u8	irb[64];			/* 0x0300 */
@@ -285,7 +285,8 @@ struct _lowcore {
 	__u64	machine_flags;			/* 0x0388 */
 	__u64	ftrace_func;			/* 0x0390 */
 	__u64	gmap;				/* 0x0398 */
-	__u8	pad_0x03a0[0x0400-0x03a0];	/* 0x03a0 */
+	__u32	spinlock_lockval;		/* 0x03a0 */
+	__u8	pad_0x03a0[0x0400-0x03a4];	/* 0x03a4 */
 
 	/* Interrupt response block. */
 	__u8	irb[64];			/* 0x0400 */
