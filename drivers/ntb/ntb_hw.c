@@ -1344,6 +1344,101 @@ static void ntb_free_callbacks(struct ntb_device *ndev)
 	kfree(ndev->db_cb);
 }
 
+static ssize_t ntb_debugfs_read(struct file *filp, char __user *ubuf,
+				size_t count, loff_t *offp)
+{
+	struct ntb_device *ndev;
+	char *buf;
+	ssize_t ret, offset, out_count;
+
+	out_count = 500;
+
+	buf = kmalloc(out_count, GFP_KERNEL);
+	if (!buf)
+		return -ENOMEM;
+
+	ndev = filp->private_data;
+	offset = 0;
+	offset += snprintf(buf + offset, out_count - offset,
+			   "NTB Device Information:\n");
+	offset += snprintf(buf + offset, out_count - offset,
+			   "Connection Type - \t\t%s\n",
+			   ndev->conn_type == NTB_CONN_TRANSPARENT ?
+			   "Transparent" : (ndev->conn_type == NTB_CONN_B2B) ?
+			   "Back to back" : "Root Port");
+	offset += snprintf(buf + offset, out_count - offset,
+			   "Device Type - \t\t\t%s\n",
+			   ndev->dev_type == NTB_DEV_USD ?
+			   "DSD/USP" : "USD/DSP");
+	offset += snprintf(buf + offset, out_count - offset,
+			   "Max Number of Callbacks - \t%u\n",
+			   ntb_max_cbs(ndev));
+	offset += snprintf(buf + offset, out_count - offset,
+			   "Link Status - \t\t\t%s\n",
+			   ntb_hw_link_status(ndev) ? "Up" : "Down");
+	if (ntb_hw_link_status(ndev)) {
+		offset += snprintf(buf + offset, out_count - offset,
+				   "Link Speed - \t\t\tPCI-E Gen %u\n",
+				   ndev->link_speed);
+		offset += snprintf(buf + offset, out_count - offset,
+				   "Link Width - \t\t\tx%u\n",
+				   ndev->link_width);
+	}
+
+	if (ndev->hw_type != BWD_HW) {
+		u32 status32;
+		u16 status16;
+		int rc;
+
+		offset += snprintf(buf + offset, out_count - offset,
+				   "\nNTB Device Statistics:\n");
+		offset += snprintf(buf + offset, out_count - offset,
+				   "Upstream Memory Miss - \t%u\n",
+				   readw(ndev->reg_base +
+					 SNB_USMEMMISS_OFFSET));
+
+		offset += snprintf(buf + offset, out_count - offset,
+				   "\nNTB Hardware Errors:\n");
+
+		rc = pci_read_config_word(ndev->pdev, SNB_DEVSTS_OFFSET,
+					  &status16);
+		if (!rc)
+			offset += snprintf(buf + offset, out_count - offset,
+					   "DEVSTS - \t%#06x\n", status16);
+
+		rc = pci_read_config_word(ndev->pdev, SNB_LINK_STATUS_OFFSET,
+					  &status16);
+		if (!rc)
+			offset += snprintf(buf + offset, out_count - offset,
+					   "LNKSTS - \t%#06x\n", status16);
+
+		rc = pci_read_config_dword(ndev->pdev, SNB_UNCERRSTS_OFFSET,
+					   &status32);
+		if (!rc)
+			offset += snprintf(buf + offset, out_count - offset,
+					   "UNCERRSTS - \t%#010x\n", status32);
+
+		rc = pci_read_config_dword(ndev->pdev, SNB_CORERRSTS_OFFSET,
+					   &status32);
+		if (!rc)
+			offset += snprintf(buf + offset, out_count - offset,
+					   "CORERRSTS - \t%#010x\n", status32);
+	}
+
+	if (offset > out_count)
+		offset = out_count;
+
+	ret = simple_read_from_buffer(ubuf, count, offp, buf, offset);
+	kfree(buf);
+	return ret;
+}
+
+static const struct file_operations ntb_debugfs_info = {
+	.owner = THIS_MODULE,
+	.open = simple_open,
+	.read = ntb_debugfs_read,
+};
+
 static void ntb_setup_debugfs(struct ntb_device *ndev)
 {
 	if (!debugfs_initialized())
@@ -1354,6 +1449,11 @@ static void ntb_setup_debugfs(struct ntb_device *ndev)
 
 	ndev->debugfs_dir = debugfs_create_dir(pci_name(ndev->pdev),
 					       debugfs_dir);
+	if (ndev->debugfs_dir)
+		ndev->debugfs_info = debugfs_create_file("info", S_IRUSR,
+							 ndev->debugfs_dir,
+							 ndev,
+							 &ntb_debugfs_info);
 }
 
 static void ntb_free_debugfs(struct ntb_device *ndev)
@@ -1542,4 +1642,5 @@ static struct pci_driver ntb_pci_driver = {
 	.probe = ntb_pci_probe,
 	.remove = ntb_pci_remove,
 };
+
 module_pci_driver(ntb_pci_driver);

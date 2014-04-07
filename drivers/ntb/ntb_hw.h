@@ -152,6 +152,7 @@ struct ntb_device {
 	struct delayed_work lr_timer;
 
 	struct dentry *debugfs_dir;
+	struct dentry *debugfs_info;
 };
 
 /**
