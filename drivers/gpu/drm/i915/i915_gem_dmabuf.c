@@ -161,12 +161,8 @@ static void i915_gem_dmabuf_vunmap(struct dma_buf *dma_buf, void *vaddr)
 {
 	struct drm_i915_gem_object *obj = dma_buf_to_obj(dma_buf);
 	struct drm_device *dev = obj->base.dev;
-	int ret;
 
-	ret = i915_mutex_lock_interruptible(dev);
-	if (ret)
-		return;
-
+	mutex_lock(&dev->struct_mutex);
 	if (--obj->vmapping_count == 0) {
 		vunmap(obj->dma_buf_vmapping);
 		obj->dma_buf_vmapping = NULL;
