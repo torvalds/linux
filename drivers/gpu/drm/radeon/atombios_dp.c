@@ -142,7 +142,8 @@ static int radeon_process_aux_ch(struct radeon_i2c_chan *chan,
 	return recv_bytes;
 }
 
-#define HEADER_SIZE 4
+#define BARE_ADDRESS_SIZE 3
+#define HEADER_SIZE (BARE_ADDRESS_SIZE + 1)
 
 static ssize_t
 radeon_dp_aux_transfer(struct drm_dp_aux *aux, struct drm_dp_aux_msg *msg)
@@ -160,13 +161,19 @@ radeon_dp_aux_transfer(struct drm_dp_aux *aux, struct drm_dp_aux_msg *msg)
 	tx_buf[0] = msg->address & 0xff;
 	tx_buf[1] = msg->address >> 8;
 	tx_buf[2] = msg->request << 4;
-	tx_buf[3] = msg->size - 1;
+	tx_buf[3] = msg->size ? (msg->size - 1) : 0;
 
 	switch (msg->request & ~DP_AUX_I2C_MOT) {
 	case DP_AUX_NATIVE_WRITE:
 	case DP_AUX_I2C_WRITE:
+		/* tx_size needs to be 4 even for bare address packets since the atom
+		 * table needs the info in tx_buf[3].
+		 */
 		tx_size = HEADER_SIZE + msg->size;
-		tx_buf[3] |= tx_size << 4;
+		if (msg->size == 0)
+			tx_buf[3] |= BARE_ADDRESS_SIZE << 4;
+		else
+			tx_buf[3] |= tx_size << 4;
 		memcpy(tx_buf + HEADER_SIZE, msg->buffer, msg->size);
 		ret = radeon_process_aux_ch(chan,
 					    tx_buf, tx_size, NULL, 0, delay, &ack);
@@ -176,8 +183,14 @@ radeon_dp_aux_transfer(struct drm_dp_aux *aux, struct drm_dp_aux_msg *msg)
 		break;
 	case DP_AUX_NATIVE_READ:
 	case DP_AUX_I2C_READ:
+		/* tx_size needs to be 4 even for bare address packets since the atom
+		 * table needs the info in tx_buf[3].
+		 */
 		tx_size = HEADER_SIZE;
-		tx_buf[3] |= tx_size << 4;
+		if (msg->size == 0)
+			tx_buf[3] |= BARE_ADDRESS_SIZE << 4;
+		else
+			tx_buf[3] |= tx_size << 4;
 		ret = radeon_process_aux_ch(chan,
 					    tx_buf, tx_size, msg->buffer, msg->size, delay, &ack);
 		break;
@@ -186,7 +199,7 @@ radeon_dp_aux_transfer(struct drm_dp_aux *aux, struct drm_dp_aux_msg *msg)
 		break;
 	}
 
-	if (ret > 0)
+	if (ret >= 0)
 		msg->reply = ack >> 4;
 
 	return ret;
