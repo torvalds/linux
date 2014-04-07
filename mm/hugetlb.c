@@ -2690,7 +2690,8 @@ retry_avoidcopy:
 				BUG_ON(huge_pte_none(pte));
 				spin_lock(ptl);
 				ptep = huge_pte_offset(mm, address & huge_page_mask(h));
-				if (likely(pte_same(huge_ptep_get(ptep), pte)))
+				if (likely(ptep &&
+					   pte_same(huge_ptep_get(ptep), pte)))
 					goto retry_avoidcopy;
 				/*
 				 * race occurs while re-acquiring page table
@@ -2734,7 +2735,7 @@ retry_avoidcopy:
 	 */
 	spin_lock(ptl);
 	ptep = huge_pte_offset(mm, address & huge_page_mask(h));
-	if (likely(pte_same(huge_ptep_get(ptep), pte))) {
+	if (likely(ptep && pte_same(huge_ptep_get(ptep), pte))) {
 		ClearPagePrivate(new_page);
 
 		/* Break COW */
