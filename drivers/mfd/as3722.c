@@ -277,6 +277,7 @@ static const struct regmap_range as3722_readable_ranges[] = {
 	regmap_reg_range(AS3722_ADC0_CONTROL_REG, AS3722_ADC_CONFIGURATION_REG),
 	regmap_reg_range(AS3722_ASIC_ID1_REG, AS3722_ASIC_ID2_REG),
 	regmap_reg_range(AS3722_LOCK_REG, AS3722_LOCK_REG),
+	regmap_reg_range(AS3722_FUSE7_REG, AS3722_FUSE7_REG),
 };
 
 static const struct regmap_access_table as3722_readable_table = {
