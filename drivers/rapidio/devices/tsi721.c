@@ -2256,6 +2256,7 @@ static int tsi721_setup_mport(struct tsi721_device *priv)
 	mport->phy_type = RIO_PHY_SERIAL;
 	mport->priv = (void *)priv;
 	mport->phys_efptr = 0x100;
+	mport->dev.parent = &pdev->dev;
 	priv->mport = mport;
 
 	INIT_LIST_HEAD(&mport->dbells);
