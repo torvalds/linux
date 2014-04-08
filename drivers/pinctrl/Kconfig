@@ -281,6 +281,7 @@ config PINCTRL_ST
 	depends on OF
 	select PINMUX
 	select PINCONF
+	select GPIOLIB_IRQCHIP
 
 config PINCTRL_TEGRA
 	bool
