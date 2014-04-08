@@ -295,9 +295,9 @@ ncp_make_closed(struct inode *inode)
 		err = ncp_close_file(NCP_SERVER(inode), NCP_FINFO(inode)->file_handle);
 
 		if (!err)
-			PPRINTK("ncp_make_closed: volnum=%d, dirent=%u, error=%d\n",
-				NCP_FINFO(inode)->volNumber,
-				NCP_FINFO(inode)->dirEntNum, err);
+			ncp_vdbg("volnum=%d, dirent=%u, error=%d\n",
+				 NCP_FINFO(inode)->volNumber,
+				 NCP_FINFO(inode)->dirEntNum, err);
 	}
 	mutex_unlock(&NCP_FINFO(inode)->open_mutex);
 	return err;

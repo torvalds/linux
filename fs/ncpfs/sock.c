@@ -823,7 +823,7 @@ int ncp_request2(struct ncp_server *server, int function,
 	result = reply->completion_code;
 
 	if (result != 0)
-		PPRINTK("ncp_request: completion code=%x\n", result);
+		ncp_vdbg("completion code=%x\n", result);
 out:
 	return result;
 }

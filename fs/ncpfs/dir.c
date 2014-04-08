@@ -736,8 +736,8 @@ ncp_do_readdir(struct file *file, struct dir_context *ctx,
 	size_t bufsize;
 
 	ncp_dbg(1, "%pD2, fpos=%ld\n", file, (unsigned long)ctx->pos);
-	PPRINTK("ncp_do_readdir: init %pD, volnum=%d, dirent=%u\n",
-		file, NCP_FINFO(dir)->volNumber, NCP_FINFO(dir)->dirEntNum);
+	ncp_vdbg("init %pD, volnum=%d, dirent=%u\n",
+		 file, NCP_FINFO(dir)->volNumber, NCP_FINFO(dir)->dirEntNum);
 
 	err = ncp_initialize_search(server, dir, &seq);
 	if (err) {
@@ -804,8 +804,7 @@ int ncp_conn_logged_in(struct super_block *sb)
 			goto out;
 		result = -ENOENT;
 		if (ncp_get_volume_root(server, __name, &volNumber, &dirEntNum, &DosDirNum)) {
-			PPRINTK("ncp_conn_logged_in: %s not found\n",
-				server->m.mounted_vol);
+			ncp_vdbg("%s not found\n", server->m.mounted_vol);
 			goto out;
 		}
 		dent = sb->s_root;
@@ -842,7 +841,7 @@ static struct dentry *ncp_lookup(struct inode *dir, struct dentry *dentry, unsig
 	if (!ncp_conn_valid(server))
 		goto finished;
 
-	PPRINTK("ncp_lookup: server lookup for %pd2\n", dentry);
+	ncp_vdbg("server lookup for %pd2\n", dentry);
 
 	len = sizeof(__name);
 	if (ncp_is_server_root(dir)) {
@@ -858,7 +857,7 @@ static struct dentry *ncp_lookup(struct inode *dir, struct dentry *dentry, unsig
 		if (!res)
 			res = ncp_obtain_info(server, dir, __name, &(finfo.i));
 	}
-	PPRINTK("ncp_lookup: looked for %pd2, res=%d\n", dentry, res);
+	ncp_vdbg("looked for %pd2, res=%d\n", dentry, res);
 	/*
 	 * If we didn't find an entry, make a negative dentry.
 	 */
@@ -882,7 +881,7 @@ add_entry:
 	}
 
 finished:
-	PPRINTK("ncp_lookup: result=%d\n", error);
+	ncp_vdbg("result=%d\n", error);
 	return ERR_PTR(error);
 }
 
@@ -905,7 +904,7 @@ out:
 	return error;
 
 out_close:
-	PPRINTK("ncp_instantiate: %pd2 failed, closing file\n", dentry);
+	ncp_vdbg("%pd2 failed, closing file\n", dentry);
 	ncp_close_file(NCP_SERVER(dir), finfo->file_handle);
 	goto out;
 }
@@ -919,7 +918,7 @@ int ncp_create_new(struct inode *dir, struct dentry *dentry, umode_t mode,
 	int opmode;
 	__u8 __name[NCP_MAXPATHLEN + 1];
 	
-	PPRINTK("ncp_create_new: creating %pd2, mode=%hx\n", dentry, mode);
+	ncp_vdbg("creating %pd2, mode=%hx\n", dentry, mode);
 
 	ncp_age_dentry(server, dentry);
 	len = sizeof(__name);
@@ -1069,7 +1068,7 @@ static int ncp_unlink(struct inode *dir, struct dentry *dentry)
 	 * Check whether to close the file ...
 	 */
 	if (inode) {
-		PPRINTK("ncp_unlink: closing file\n");
+		ncp_vdbg("closing file\n");
 		ncp_make_closed(inode);
 	}
 

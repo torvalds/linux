@@ -73,7 +73,7 @@ int ncp_make_open(struct inode *inode, int right)
 				break;
 		}
 		if (result) {
-			PPRINTK("ncp_make_open: failed, result=%d\n", result);
+			ncp_vdbg("failed, result=%d\n", result);
 			goto out_unlock;
 		}
 		/*
@@ -85,7 +85,7 @@ int ncp_make_open(struct inode *inode, int right)
 	}
 
 	access = NCP_FINFO(inode)->access;
-	PPRINTK("ncp_make_open: file open, access=%x\n", access);
+	ncp_vdbg("file open, access=%x\n", access);
 	if (access == right || access == O_RDWR) {
 		atomic_inc(&NCP_FINFO(inode)->opened);
 		error = 0;

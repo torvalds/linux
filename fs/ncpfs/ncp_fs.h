@@ -7,9 +7,14 @@
 
 #undef NCPFS_PARANOIA
 #ifdef NCPFS_PARANOIA
-#define PPRINTK(format, args...) PRINTK(format , ## args)
+#define ncp_vdbg(fmt, ...)					\
+	pr_debug(fmt, ##__VA_ARGS__)
 #else
-#define PPRINTK(format, args...)
+#define ncp_vdbg(fmt, ...)					\
+do {								\
+	if (0)							\
+		pr_debug(fmt, ##__VA_ARGS__);			\
+} while (0)
 #endif
 
 #ifndef DEBUG_NCP
