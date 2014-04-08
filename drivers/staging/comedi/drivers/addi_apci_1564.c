@@ -70,5 +70,5 @@ static struct pci_driver apci1564_pci_driver = {
 module_comedi_pci_driver(apci1564_driver, apci1564_pci_driver);
 
 MODULE_AUTHOR("Comedi http://www.comedi.org");
-MODULE_DESCRIPTION("Comedi low-level driver");
+MODULE_DESCRIPTION("ADDI-DATA APCI-1564, 32 channel DI / 32 channel DO boards");
 MODULE_LICENSE("GPL");

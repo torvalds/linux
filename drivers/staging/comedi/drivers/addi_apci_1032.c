@@ -379,5 +379,5 @@ static struct pci_driver apci1032_pci_driver = {
 module_comedi_pci_driver(apci1032_driver, apci1032_pci_driver);
 
 MODULE_AUTHOR("Comedi http://www.comedi.org");
-MODULE_DESCRIPTION("Comedi low-level driver");
+MODULE_DESCRIPTION("ADDI-DATA APCI-1032, 32 channel DI boards");
 MODULE_LICENSE("GPL");
