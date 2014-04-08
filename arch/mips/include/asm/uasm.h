@@ -105,6 +105,7 @@ Ip_u2u1s3(_daddiu);
 Ip_u3u1u2(_daddu);
 Ip_u2u1msbu3(_dins);
 Ip_u2u1msbu3(_dinsm);
+Ip_u1u2(_divu);
 Ip_u1u2u3(_dmfc0);
 Ip_u1u2u3(_dmtc0);
 Ip_u2u1u3(_drotr);

@@ -311,6 +311,7 @@ enum mm_32axf_minor_op {
 	mm_syscall_op = 0x22d,
 	mm_wait_op = 0x24d,
 	mm_eret_op = 0x3cd,
+	mm_divu_op = 0x5dc,
 };
 
 /*
