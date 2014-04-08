@@ -51,12 +51,6 @@ MODULE_PARM_DESC(immediate_undock, "1 (default) will cause the driver to "
 	" the driver to wait for userspace to write the undock sysfs file "
 	" before undocking");
 
-static const struct acpi_device_id dock_device_ids[] = {
-	{"LNXDOCK", 0},
-	{"", 0},
-};
-MODULE_DEVICE_TABLE(acpi, dock_device_ids);
-
 struct dock_station {
 	acpi_handle handle;
 	unsigned long last_dock_time;
