@@ -232,6 +232,13 @@ struct thin_c {
 	struct bio_list deferred_bio_list;
 	struct bio_list retry_on_resume_list;
 	struct rb_root sort_bio_list; /* sorted list of deferred bios */
+
+	/*
+	 * Ensures the thin is not destroyed until the worker has finished
+	 * iterating the active_thins list.
+	 */
+	atomic_t refcount;
+	struct completion can_destroy;
 };
 
 /*----------------------------------------------------------------*/
@@ -1486,6 +1493,45 @@ static void process_thin_deferred_bios(struct thin_c *tc)
 	blk_finish_plug(&plug);
 }
 
+static void thin_get(struct thin_c *tc);
+static void thin_put(struct thin_c *tc);
+
+/*
+ * We can't hold rcu_read_lock() around code that can block.  So we
+ * find a thin with the rcu lock held; bump a refcount; then drop
+ * the lock.
+ */
+static struct thin_c *get_first_thin(struct pool *pool)
+{
+	struct thin_c *tc = NULL;
+
+	rcu_read_lock();
+	if (!list_empty(&pool->active_thins)) {
+		tc = list_entry_rcu(pool->active_thins.next, struct thin_c, list);
+		thin_get(tc);
+	}
+	rcu_read_unlock();
+
+	return tc;
+}
+
+static struct thin_c *get_next_thin(struct pool *pool, struct thin_c *tc)
+{
+	struct thin_c *old_tc = tc;
+
+	rcu_read_lock();
+	list_for_each_entry_continue_rcu(tc, &pool->active_thins, list) {
+		thin_get(tc);
+		thin_put(old_tc);
+		rcu_read_unlock();
+		return tc;
+	}
+	thin_put(old_tc);
+	rcu_read_unlock();
+
+	return NULL;
+}
+
 static void process_deferred_bios(struct pool *pool)
 {
 	unsigned long flags;
@@ -1493,10 +1539,11 @@ static void process_deferred_bios(struct pool *pool)
 	struct bio_list bios;
 	struct thin_c *tc;
 
-	rcu_read_lock();
-	list_for_each_entry_rcu(tc, &pool->active_thins, list)
+	tc = get_first_thin(pool);
+	while (tc) {
 		process_thin_deferred_bios(tc);
-	rcu_read_unlock();
+		tc = get_next_thin(pool, tc);
+	}
 
 	/*
 	 * If there are any deferred flush bios, we must commit
@@ -3061,10 +3108,24 @@ static struct target_type pool_target = {
 /*----------------------------------------------------------------
  * Thin target methods
  *--------------------------------------------------------------*/
+static void thin_get(struct thin_c *tc)
+{
+	atomic_inc(&tc->refcount);
+}
+
+static void thin_put(struct thin_c *tc)
+{
+	if (atomic_dec_and_test(&tc->refcount))
+		complete(&tc->can_destroy);
+}
+
 static void thin_dtr(struct dm_target *ti)
 {
 	struct thin_c *tc = ti->private;
 	unsigned long flags;
+
+	thin_put(tc);
+	wait_for_completion(&tc->can_destroy);
 
 	spin_lock_irqsave(&tc->pool->lock, flags);
 	list_del_rcu(&tc->list);
@@ -3191,6 +3252,9 @@ static int thin_ctr(struct dm_target *ti, unsigned argc, char **argv)
 	dm_put(pool_md);
 
 	mutex_unlock(&dm_thin_pool_table.mutex);
+
+	atomic_set(&tc->refcount, 1);
+	init_completion(&tc->can_destroy);
 
 	spin_lock_irqsave(&tc->pool->lock, flags);
 	list_add_tail_rcu(&tc->list, &tc->pool->active_thins);
