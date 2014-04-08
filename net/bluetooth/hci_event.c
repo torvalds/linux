@@ -3471,6 +3471,11 @@ static void hci_io_capa_request_evt(struct hci_dev *hdev, struct sk_buff *skb)
 		/* If we are initiators, there is no remote information yet */
 		if (conn->remote_auth == 0xff) {
 			cp.authentication = conn->auth_type;
+
+			/* Use MITM protection for outgoing dedicated bonding */
+			if (conn->io_capability != HCI_IO_NO_INPUT_OUTPUT &&
+			    cp.authentication == HCI_AT_DEDICATED_BONDING)
+				cp.authentication |= 0x01;
 		} else {
 			conn->auth_type = hci_get_auth_req(conn);
 			cp.authentication = conn->auth_type;
@@ -3542,12 +3547,9 @@ static void hci_user_confirm_request_evt(struct hci_dev *hdev,
 	rem_mitm = (conn->remote_auth & 0x01);
 
 	/* If we require MITM but the remote device can't provide that
-	 * (it has NoInputNoOutput) then reject the confirmation
-	 * request. The only exception is when we're dedicated bonding
-	 * initiators (connect_cfm_cb set) since then we always have the MITM
-	 * bit set. */
-	if (!conn->connect_cfm_cb && loc_mitm &&
-	    conn->remote_cap == HCI_IO_NO_INPUT_OUTPUT) {
+	 * (it has NoInputNoOutput) then reject the confirmation request
+	 */
+	if (loc_mitm && conn->remote_cap == HCI_IO_NO_INPUT_OUTPUT) {
 		BT_DBG("Rejecting request: remote device can't provide MITM");
 		hci_send_cmd(hdev, HCI_OP_USER_CONFIRM_NEG_REPLY,
 			     sizeof(ev->bdaddr), &ev->bdaddr);
