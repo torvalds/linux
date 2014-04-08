@@ -124,12 +124,18 @@ static unsigned long clk_periclk_recalc_rate(struct clk_hw *hwclk,
 					     unsigned long parent_rate)
 {
 	struct socfpga_clk *socfpgaclk = to_socfpga_clk(hwclk);
-	u32 div;
+	u32 div, val;
 
-	if (socfpgaclk->fixed_div)
+	if (socfpgaclk->fixed_div) {
 		div = socfpgaclk->fixed_div;
-	else
+	} else {
+		if (socfpgaclk->div_reg) {
+			val = readl(socfpgaclk->div_reg) >> socfpgaclk->shift;
+			val &= div_mask(socfpgaclk->width);
+			parent_rate /= (val + 1);
+		}
 		div = ((readl(socfpgaclk->hw.reg) & 0x1ff) + 1);
+	}
 
 	return parent_rate / div;
 }
@@ -150,6 +156,7 @@ static __init struct clk *socfpga_clk_init(struct device_node *node,
 	int rc;
 	u32 fixed_div;
 	int i = 0;
+	u32 div_reg[3];
 
 	of_property_read_u32(node, "reg", &reg);
 
@@ -159,6 +166,15 @@ static __init struct clk *socfpga_clk_init(struct device_node *node,
 
 	if (reg)
 		socfpga_clk->hw.reg = clk_mgr_base_addr + reg;
+
+	rc = of_property_read_u32_array(node, "div-reg", div_reg, 3);
+	if (!rc) {
+		socfpga_clk->div_reg = clk_mgr_base_addr + div_reg[0];
+		socfpga_clk->shift = div_reg[1];
+		socfpga_clk->width = div_reg[2];
+	} else {
+		socfpga_clk->div_reg = 0;
+	}
 
 	rc = of_property_read_u32(node, "fixed-divider", &fixed_div);
 	if (rc)
