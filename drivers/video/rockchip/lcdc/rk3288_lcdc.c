@@ -589,7 +589,7 @@ static int rk3288_win_area_check_var(int win_id,int area_num,struct rk_lcdc_win_
 			struct rk_lcdc_win_area *area_now)
 {
 	if((area_pre->ypos >= area_now->ypos) ||
-		(area_pre->ypos+area_pre->ysize >= area_now->ypos)){
+		(area_pre->ypos+area_pre->ysize > area_now->ypos)){
 		area_now->state = 0;
 		pr_err("win[%d]:\n"
 			"area_pre[%d]:ypos[%d],ysize[%d]\n"
