@@ -3424,11 +3424,6 @@ static u8 hci_get_auth_req(struct hci_conn *conn)
 	    conn->remote_auth == HCI_AT_NO_BONDING_MITM)
 		return conn->remote_auth | (conn->auth_type & 0x01);
 
-	/* For general bonding, use the given auth_type */
-	if (conn->remote_auth == HCI_AT_GENERAL_BONDING ||
-	    conn->remote_auth == HCI_AT_GENERAL_BONDING_MITM)
-		return conn->auth_type;
-
 	/* If both remote and local have enough IO capabilities, require
 	 * MITM protection
 	 */
@@ -3436,8 +3431,8 @@ static u8 hci_get_auth_req(struct hci_conn *conn)
 	    conn->io_capability != HCI_IO_NO_INPUT_OUTPUT)
 		return conn->remote_auth | 0x01;
 
-	/* No MITM protection possible so remove requirement */
-	return conn->remote_auth & ~0x01;
+	/* No MITM protection possible so ignore remote requirement */
+	return (conn->remote_auth & ~0x01) | (conn->auth_type & 0x01);
 }
 
 static void hci_io_capa_request_evt(struct hci_dev *hdev, struct sk_buff *skb)
