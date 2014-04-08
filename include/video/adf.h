@@ -193,10 +193,26 @@ struct adf_obj {
 };
 
 /**
+ * struct adf_device_quirks - common display device quirks
+ *
+ * @buffer_padding: whether the last scanline of a buffer extends to the
+ * 	buffer's pitch (@ADF_BUFFER_PADDED_TO_PITCH) or just to the visible
+ * 	width (@ADF_BUFFER_UNPADDED)
+ */
+struct adf_device_quirks {
+	/* optional, defaults to ADF_BUFFER_PADDED_TO_PITCH */
+	enum {
+		ADF_BUFFER_PADDED_TO_PITCH = 0,
+		ADF_BUFFER_UNPADDED = 1,
+	} buffer_padding;
+};
+
+/**
  * struct adf_device_ops - display device implementation ops
  *
  * @owner: device's module
  * @base: common operations (see &struct adf_obj_ops)
+ * @quirks: device's quirks (see &struct adf_device_quirks)
  *
  * @attach: attach overlay engine @eng to interface @intf.  Return 0 on success
  *	or error code (<0) on failure.
@@ -228,6 +244,8 @@ struct adf_device_ops {
 	/* required */
 	struct module *owner;
 	const struct adf_obj_ops base;
+	/* optional */
+	const struct adf_device_quirks quirks;
 
 	/* optional */
 	int (*attach)(struct adf_device *dev, struct adf_overlay_engine *eng,
