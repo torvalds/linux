@@ -15,16 +15,16 @@
 #ifndef DEBUG_NCP
 #define DEBUG_NCP 0
 #endif
-#if DEBUG_NCP > 0
-#define DPRINTK(format, args...) PRINTK(format , ## args)
-#else
-#define DPRINTK(format, args...)
+
+#if DEBUG_NCP > 0 && !defined(DEBUG)
+#define DEBUG
 #endif
-#if DEBUG_NCP > 1
-#define DDPRINTK(format, args...) PRINTK(format , ## args)
-#else
-#define DDPRINTK(format, args...)
-#endif
+
+#define ncp_dbg(level, fmt, ...)				\
+do {								\
+	if (level <= DEBUG_NCP)					\
+		pr_debug(fmt, ##__VA_ARGS__);			\
+} while (0)
 
 #define NCP_MAX_RPC_TIMEOUT (6*HZ)
 

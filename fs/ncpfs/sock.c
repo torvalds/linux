@@ -406,15 +406,15 @@ void ncpdgram_rcv_proc(struct work_struct *work)
 				}
 				result = _recv(sock, buf, sizeof(buf), MSG_DONTWAIT);
 				if (result < 0) {
-					DPRINTK("recv failed with %d\n", result);
+					ncp_dbg(1, "recv failed with %d\n", result);
 					continue;
 				}
 				if (result < 10) {
-					DPRINTK("too short (%u) watchdog packet\n", result);
+					ncp_dbg(1, "too short (%u) watchdog packet\n", result);
 					continue;
 				}
 				if (buf[9] != '?') {
-					DPRINTK("bad signature (%02X) in watchdog packet\n", buf[9]);
+					ncp_dbg(1, "bad signature (%02X) in watchdog packet\n", buf[9]);
 					continue;
 				}
 				buf[9] = 'Y';
@@ -555,7 +555,7 @@ static int __ncptcp_rcv_proc(struct ncp_server *server)
 				if (result < 0) {
 					pr_err("tcp: error in recvmsg: %d\n", result);
 				} else {
-					DPRINTK(KERN_ERR "ncpfs: tcp: EOF\n");
+					ncp_dbg(1, "tcp: EOF\n");
 				}
 				return -EIO;
 			}
@@ -605,7 +605,7 @@ cont:;
 						server->rcv.len = datalen - 10;
 						break;
 					}					
-					DPRINTK("ncpfs: tcp: Unexpected NCP type %02X\n", type);
+					ncp_dbg(1, "tcp: Unexpected NCP type %02X\n", type);
 skipdata2:;
 					server->rcv.state = 2;
 skipdata:;
@@ -615,7 +615,7 @@ skipdata:;
 				}
 				req = server->rcv.creq;
 				if (!req) {
-					DPRINTK(KERN_ERR "ncpfs: Reply without appropriate request\n");
+					ncp_dbg(1, "Reply without appropriate request\n");
 					goto skipdata2;
 				}
 				if (datalen > req->datalen + 8) {
@@ -782,7 +782,7 @@ static int ncp_do_request(struct ncp_server *server, int size,
 		spin_unlock_irqrestore(&current->sighand->siglock, flags);
 	}
 
-	DDPRINTK("do_ncp_rpc_call returned %d\n", result);
+	ncp_dbg(2, "do_ncp_rpc_call returned %d\n", result);
 
 	return result;
 }
@@ -812,7 +812,7 @@ int ncp_request2(struct ncp_server *server, int function,
 
 	result = ncp_do_request(server, server->current_size, reply, size);
 	if (result < 0) {
-		DPRINTK("ncp_request_error: %d\n", result);
+		ncp_dbg(1, "ncp_request_error: %d\n", result);
 		goto out;
 	}
 	server->completion = reply->completion_code;

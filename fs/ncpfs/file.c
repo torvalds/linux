@@ -40,7 +40,7 @@ int ncp_make_open(struct inode *inode, int right)
 		goto out;
 	}
 
-	DPRINTK("ncp_make_open: opened=%d, volume # %u, dir entry # %u\n",
+	ncp_dbg(1, "opened=%d, volume # %u, dir entry # %u\n",
 		atomic_read(&NCP_FINFO(inode)->opened), 
 		NCP_FINFO(inode)->volNumber, 
 		NCP_FINFO(inode)->dirEntNum);
@@ -109,7 +109,7 @@ ncp_file_read(struct file *file, char __user *buf, size_t count, loff_t *ppos)
 	void* freepage;
 	size_t freelen;
 
-	DPRINTK("ncp_file_read: enter %pd2\n", dentry);
+	ncp_dbg(1, "enter %pd2\n", dentry);
 
 	pos = *ppos;
 
@@ -126,7 +126,7 @@ ncp_file_read(struct file *file, char __user *buf, size_t count, loff_t *ppos)
 
 	error = ncp_make_open(inode, O_RDONLY);
 	if (error) {
-		DPRINTK(KERN_ERR "ncp_file_read: open failed, error=%d\n", error);
+		ncp_dbg(1, "open failed, error=%d\n", error);
 		return error;
 	}
 
@@ -167,7 +167,7 @@ ncp_file_read(struct file *file, char __user *buf, size_t count, loff_t *ppos)
 
 	file_accessed(file);
 
-	DPRINTK("ncp_file_read: exit %pd2\n", dentry);
+	ncp_dbg(1, "exit %pd2\n", dentry);
 outrel:
 	ncp_inode_close(inode);		
 	return already_read ? already_read : error;
@@ -184,7 +184,7 @@ ncp_file_write(struct file *file, const char __user *buf, size_t count, loff_t *
 	int errno;
 	void* bouncebuffer;
 
-	DPRINTK("ncp_file_write: enter %pd2\n", dentry);
+	ncp_dbg(1, "enter %pd2\n", dentry);
 	if ((ssize_t) count < 0)
 		return -EINVAL;
 	pos = *ppos;
@@ -213,7 +213,7 @@ ncp_file_write(struct file *file, const char __user *buf, size_t count, loff_t *
 		return 0;
 	errno = ncp_make_open(inode, O_WRONLY);
 	if (errno) {
-		DPRINTK(KERN_ERR "ncp_file_write: open failed, error=%d\n", errno);
+		ncp_dbg(1, "open failed, error=%d\n", errno);
 		return errno;
 	}
 	bufsize = NCP_SERVER(inode)->buffer_size;
@@ -263,7 +263,7 @@ ncp_file_write(struct file *file, const char __user *buf, size_t count, loff_t *
 			i_size_write(inode, pos);
 		mutex_unlock(&inode->i_mutex);
 	}
-	DPRINTK("ncp_file_write: exit %pd2\n", dentry);
+	ncp_dbg(1, "exit %pd2\n", dentry);
 outrel:
 	ncp_inode_close(inode);		
 	return already_written ? already_written : errno;
@@ -271,7 +271,7 @@ outrel:
 
 static int ncp_release(struct inode *inode, struct file *file) {
 	if (ncp_make_closed(inode)) {
-		DPRINTK("ncp_release: failed to close\n");
+		ncp_dbg(1, "failed to close\n");
 	}
 	return 0;
 }
