@@ -428,9 +428,10 @@ struct ath10k {
 	struct cfg80211_chan_def chandef;
 
 	int free_vdev_map;
+	bool promisc;
+	bool monitor;
 	int monitor_vdev_id;
-	bool monitor_enabled;
-	bool monitor_present;
+	bool monitor_started;
 	unsigned int filter_flags;
 	unsigned long dev_flags;
 	u32 dfs_block_radar_events;

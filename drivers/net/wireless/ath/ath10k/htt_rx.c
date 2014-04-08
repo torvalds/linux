@@ -1120,7 +1120,7 @@ static bool ath10k_htt_rx_amsdu_allowed(struct ath10k_htt *htt,
 	if (status != HTT_RX_IND_MPDU_STATUS_OK &&
 	    status != HTT_RX_IND_MPDU_STATUS_TKIP_MIC_ERR &&
 	    status != HTT_RX_IND_MPDU_STATUS_ERR_INV_PEER &&
-	    !htt->ar->monitor_enabled) {
+	    !htt->ar->monitor_started) {
 		ath10k_dbg(ATH10K_DBG_HTT,
 			   "htt rx ignoring frame w/ status %d\n",
 			   status);
