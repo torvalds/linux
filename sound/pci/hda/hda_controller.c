@@ -187,13 +187,14 @@ azx_assign_device(struct azx *chip, struct snd_pcm_substream *substream)
 		struct azx_dev *azx_dev = &chip->azx_dev[dev];
 		dsp_lock(azx_dev);
 		if (!azx_dev->opened && !dsp_is_locked(azx_dev)) {
-			res = azx_dev;
-			if (res->assigned_key == key) {
-				res->opened = 1;
-				res->assigned_key = key;
+			if (azx_dev->assigned_key == key) {
+				azx_dev->opened = 1;
+				azx_dev->assigned_key = key;
 				dsp_unlock(azx_dev);
 				return azx_dev;
 			}
+			if (!res)
+				res = azx_dev;
 		}
 		dsp_unlock(azx_dev);
 	}
