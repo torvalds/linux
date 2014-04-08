@@ -42,14 +42,11 @@ int ___ratelimit(struct ratelimit_state *rs, const char *func)
 	if (!raw_spin_trylock_irqsave(&rs->lock, flags))
 		return 0;
 
-	if (!rs->begin)
-		rs->begin = jiffies;
-
 	if (time_is_before_jiffies(rs->begin + rs->interval)) {
 		if (rs->missed)
 			printk(KERN_WARNING "%s: %d callbacks suppressed\n",
 				func, rs->missed);
-		rs->begin   = 0;
+		rs->begin   = jiffies;
 		rs->printed = 0;
 		rs->missed  = 0;
 	}
