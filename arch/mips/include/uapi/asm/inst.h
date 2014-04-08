@@ -248,6 +248,7 @@ enum mm_32i_minor_op {
 enum mm_32a_minor_op {
 	mm_sll32_op = 0x000,
 	mm_ins_op = 0x00c,
+	mm_sllv32_op = 0x010,
 	mm_ext_op = 0x02c,
 	mm_pool32axf_op = 0x03c,
 	mm_srl32_op = 0x040,
