@@ -3467,9 +3467,11 @@ static void hci_io_capa_request_evt(struct hci_dev *hdev, struct sk_buff *skb)
 		if (conn->remote_auth == 0xff) {
 			cp.authentication = conn->auth_type;
 
-			/* Use MITM protection for outgoing dedicated bonding */
+			/* Request MITM protection if our IO caps allow it
+			 * except for the no-bonding case
+			 */
 			if (conn->io_capability != HCI_IO_NO_INPUT_OUTPUT &&
-			    cp.authentication == HCI_AT_DEDICATED_BONDING)
+			    cp.authentication != HCI_AT_NO_BONDING)
 				cp.authentication |= 0x01;
 		} else {
 			conn->auth_type = hci_get_auth_req(conn);
