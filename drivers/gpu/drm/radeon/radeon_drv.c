@@ -186,7 +186,7 @@ module_param_named(dynclks, radeon_dynclks, int, 0444);
 MODULE_PARM_DESC(r4xx_atom, "Enable ATOMBIOS modesetting for R4xx");
 module_param_named(r4xx_atom, radeon_r4xx_atom, int, 0444);
 
-MODULE_PARM_DESC(vramlimit, "Restrict VRAM for testing");
+MODULE_PARM_DESC(vramlimit, "Restrict VRAM for testing, in megabytes");
 module_param_named(vramlimit, radeon_vram_limit, int, 0600);
 
 MODULE_PARM_DESC(agpmode, "AGP Mode (-1 == PCI)");
