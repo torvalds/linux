@@ -495,8 +495,8 @@ static int imx_wm8962_late_probe(struct snd_soc_card *card)
 static int imx_wm8962_probe(struct platform_device *pdev)
 {
 	struct device_node *np = pdev->dev.of_node;
-	struct device_node *ssi_np, *codec_np;
-	struct platform_device *ssi_pdev;
+	struct device_node *cpu_np, *codec_np;
+	struct platform_device *cpu_pdev;
 	struct imx_priv *priv = &card_priv;
 	struct i2c_client *codec_dev;
 	struct imx_wm8962_data *data;
@@ -505,6 +505,16 @@ static int imx_wm8962_probe(struct platform_device *pdev)
 	int ret;
 
 	priv->pdev = pdev;
+
+	cpu_np = of_parse_phandle(pdev->dev.of_node, "cpu-dai", 0);
+	if (!cpu_np) {
+		dev_err(&pdev->dev, "cpu dai phandle missing or invalid\n");
+		ret = -EINVAL;
+		goto fail;
+	}
+
+	if (!strstr(cpu_np->name, "ssi"))
+		goto audmux_bypass;
 
 	ret = of_property_read_u32(np, "mux-int-port", &int_port);
 	if (ret) {
@@ -542,16 +552,16 @@ static int imx_wm8962_probe(struct platform_device *pdev)
 		return ret;
 	}
 
-	ssi_np = of_parse_phandle(pdev->dev.of_node, "ssi-controller", 0);
+audmux_bypass:
 	codec_np = of_parse_phandle(pdev->dev.of_node, "audio-codec", 0);
-	if (!ssi_np || !codec_np) {
+	if (!codec_np) {
 		dev_err(&pdev->dev, "phandle missing or invalid\n");
 		ret = -EINVAL;
 		goto fail;
 	}
 
-	ssi_pdev = of_find_device_by_node(ssi_np);
-	if (!ssi_pdev) {
+	cpu_pdev = of_find_device_by_node(cpu_np);
+	if (!cpu_pdev) {
 		dev_err(&pdev->dev, "failed to find SSI platform device\n");
 		ret = -EINVAL;
 		goto fail;
@@ -593,8 +603,8 @@ static int imx_wm8962_probe(struct platform_device *pdev)
 	data->dai.stream_name = "HiFi";
 	data->dai.codec_dai_name = "wm8962";
 	data->dai.codec_of_node = codec_np;
-	data->dai.cpu_dai_name = dev_name(&ssi_pdev->dev);
-	data->dai.platform_of_node = ssi_np;
+	data->dai.cpu_dai_name = dev_name(&cpu_pdev->dev);
+	data->dai.platform_of_node = cpu_np;
 	data->dai.ops = &imx_hifi_ops;
 	data->dai.dai_fmt = SND_SOC_DAIFMT_I2S | SND_SOC_DAIFMT_NB_NF |
 			    SND_SOC_DAIFMT_CBM_CFM;
@@ -656,7 +666,7 @@ fail_mic:
 	driver_remove_file(pdev->dev.driver, &driver_attr_headphone);
 fail_hp:
 fail:
-	of_node_put(ssi_np);
+	of_node_put(cpu_np);
 	of_node_put(codec_np);
 
 	return ret;

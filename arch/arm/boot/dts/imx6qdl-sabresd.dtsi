@@ -113,7 +113,7 @@
 		compatible = "fsl,imx6q-sabresd-wm8962",
 			   "fsl,imx-audio-wm8962";
 		model = "wm8962-audio";
-		ssi-controller = <&ssi2>;
+		cpu-dai = <&ssi2>;
 		audio-codec = <&codec>;
 		audio-routing =
 			"Headphone Jack", "HPOUTL",
