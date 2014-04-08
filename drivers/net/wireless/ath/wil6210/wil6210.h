@@ -301,6 +301,7 @@ struct wil_tid_ampdu_rx {
 	u16 buf_size;
 	u16 timeout;
 	u8 dialog_token;
+	bool first_time; /* is it 1-st time this buffer used? */
 };
 
 struct wil6210_stats {
