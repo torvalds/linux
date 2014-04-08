@@ -236,6 +236,9 @@ static void pcpu_prepare_secondary(struct pcpu *pcpu, int cpu)
 {
 	struct _lowcore *lc = pcpu->lowcore;
 
+	if (MACHINE_HAS_TLB_LC)
+		cpumask_set_cpu(cpu, &init_mm.context.cpu_attach_mask);
+	cpumask_set_cpu(cpu, mm_cpumask(&init_mm));
 	atomic_inc(&init_mm.context.attach_count);
 	lc->cpu_nr = cpu;
 	lc->percpu_offset = __per_cpu_offset[cpu];
@@ -760,6 +763,9 @@ void __cpu_die(unsigned int cpu)
 		cpu_relax();
 	pcpu_free_lowcore(pcpu);
 	atomic_dec(&init_mm.context.attach_count);
+	cpumask_clear_cpu(cpu, mm_cpumask(&init_mm));
+	if (MACHINE_HAS_TLB_LC)
+		cpumask_clear_cpu(cpu, &init_mm.context.cpu_attach_mask);
 }
 
 void __noreturn cpu_die(void)
@@ -785,10 +791,10 @@ void __init smp_fill_possible_mask(void)
 void __init smp_prepare_cpus(unsigned int max_cpus)
 {
 	/* request the 0x1201 emergency signal external interrupt */
-	if (register_external_interrupt(0x1201, do_ext_call_interrupt) != 0)
+	if (register_external_irq(EXT_IRQ_EMERGENCY_SIG, do_ext_call_interrupt))
 		panic("Couldn't request external interrupt 0x1201");
 	/* request the 0x1202 external call external interrupt */
-	if (register_external_interrupt(0x1202, do_ext_call_interrupt) != 0)
+	if (register_external_irq(EXT_IRQ_EXTERNAL_CALL, do_ext_call_interrupt))
 		panic("Couldn't request external interrupt 0x1202");
 	smp_detect_cpus();
 }

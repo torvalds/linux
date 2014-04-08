@@ -9,6 +9,7 @@
  */
 
 #include <linux/linkage.h>
+#include <asm/irq.h>
 
 LC_EXT_NEW_PSW		= 0x58			# addr of ext int handler
 LC_EXT_NEW_PSW_64	= 0x1b0			# addr of ext int handler 64 bit
@@ -73,9 +74,9 @@ _sclp_wait_int:
 	lpsw	.LwaitpswS1-.LbaseS1(%r13)	# wait until interrupt
 .LwaitS1:
 	lh	%r7,LC_EXT_INT_CODE
-	chi	%r7,0x1004			# timeout?
+	chi	%r7,EXT_IRQ_CLK_COMP		# timeout?
 	je	.LtimeoutS1
-	chi	%r7,0x2401			# service int?
+	chi	%r7,EXT_IRQ_SERVICE_SIG		# service int?
 	jne	.LloopS1
 	sr	%r2,%r2
 	l	%r3,LC_EXT_INT_PARAM
