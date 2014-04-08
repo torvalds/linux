@@ -3651,11 +3651,18 @@ static int rt3261_i2c_probe(struct i2c_client *i2c,
 {
 	struct rt3261_priv *rt3261;
 	int ret;
+	char reg;
 
-	rt3261 = kzalloc(sizeof(struct rt3261_priv), GFP_KERNEL);
+	reg = RT3261_VENDOR_ID;
+	ret = i2c_master_recv(i2c, &reg, 1);
+	if (ret < 0){
+		printk("rt3261 && rt3224 probe error\n");
+		return ret;
+	}
+
+	rt3261 = devm_kzalloc(&i2c->dev,sizeof(struct rt3261_priv), GFP_KERNEL);
 	if (NULL == rt3261)
 		return -ENOMEM;
-
 	rt3261->i2c = i2c;
 
 	ret = rt3261_parse_dt_property(&i2c->dev, rt3261);
@@ -3672,8 +3679,6 @@ static int rt3261_i2c_probe(struct i2c_client *i2c,
 	DBG("Enter::%s----%d\n",__FUNCTION__,__LINE__);
 	ret = snd_soc_register_codec(&i2c->dev, &soc_codec_dev_rt3261,
 			rt3261_dai, ARRAY_SIZE(rt3261_dai));
-	if (ret < 0)
-		kfree(rt3261);
 
 	return ret;
 }

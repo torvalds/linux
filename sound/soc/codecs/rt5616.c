@@ -1707,8 +1707,6 @@ static int rt5616_codec_parse_dt_property(struct device *dev,
 	enum of_gpio_flags flags;
 	int ret;
 
-	printk("%s()\n", __FUNCTION__);
-
 	if (!node) {
 		printk("%s() dev->of_node is NULL\n", __FUNCTION__);
 		return -ENODEV;
@@ -1753,9 +1751,16 @@ static int rt5616_i2c_probe(struct i2c_client *i2c,
 {
 	struct rt5616_priv *rt5616;
 	int ret;
-	printk("enter %s\n",__func__);
+	char reg;
 
-	rt5616 = kzalloc(sizeof(struct rt5616_priv), GFP_KERNEL);
+	reg = RT5616_HP_VOL;
+	ret = i2c_master_recv(i2c, &reg, 1);
+	if (ret < 0){
+		printk("RT5616 probe error\n");
+		return ret;
+	}
+
+	rt5616 = devm_kzalloc(&i2c->dev,sizeof(struct rt5616_priv), GFP_KERNEL);
 	if (NULL == rt5616)
 		return -ENOMEM;
 
@@ -1772,8 +1777,6 @@ static int rt5616_i2c_probe(struct i2c_client *i2c,
 			rt5616_dai, ARRAY_SIZE(rt5616_dai));
 
 err_r:
-	if (ret < 0)
-		kfree(rt5616);
 	return ret;
 }
 
@@ -1811,7 +1814,6 @@ struct i2c_driver rt5616_i2c_driver = {
 
 static int __init rt5616_modinit(void)
 {
-	printk("enter %s\n",__func__);
 	return i2c_add_driver(&rt5616_i2c_driver);
 }
 module_init(rt5616_modinit);

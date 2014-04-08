@@ -2159,10 +2159,18 @@ static int rt5631_i2c_probe(struct i2c_client *i2c,
 	struct rt5631_priv *rt5631;
 	struct device_node *node = i2c->dev.of_node;
 	int ret;
+	char reg;
 
 	printk("RT5631 Audio Codec %s\n", RT5631_VERSION);
 
-	rt5631 = kzalloc(sizeof(struct rt5631_priv), GFP_KERNEL);
+	reg = RT5631_SPK_OUT_VOL;
+	ret = i2c_master_recv(i2c, &reg, 1);
+	if (ret < 0){
+		printk("RT5631 probe error\n");
+		return ret;
+	}
+
+	rt5631 = devm_kzalloc(&i2c->dev,sizeof(struct rt5631_priv), GFP_KERNEL);
 	if (NULL == rt5631)
 		return -ENOMEM; 
 
@@ -2177,8 +2185,6 @@ static int rt5631_i2c_probe(struct i2c_client *i2c,
 
 	ret = snd_soc_register_codec(&i2c->dev, &soc_codec_dev_rt5631,
 			rt5631_dai, ARRAY_SIZE(rt5631_dai));
-	if (ret < 0)
-		kfree(rt5631);
 
 	return ret;
 }
