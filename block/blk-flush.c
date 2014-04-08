@@ -144,7 +144,7 @@ static bool blk_flush_queue_rq(struct request *rq, bool add_front)
 {
 	if (rq->q->mq_ops) {
 		INIT_WORK(&rq->mq_flush_work, mq_flush_run);
-		kblockd_schedule_work(rq->q, &rq->mq_flush_work);
+		kblockd_schedule_work(&rq->mq_flush_work);
 		return false;
 	} else {
 		if (add_front)

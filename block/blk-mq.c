@@ -608,11 +608,8 @@ void blk_mq_run_hw_queue(struct blk_mq_hw_ctx *hctx, bool async)
 
 	if (!async)
 		__blk_mq_run_hw_queue(hctx);
-	else {
-		struct request_queue *q = hctx->queue;
-
-		kblockd_schedule_delayed_work(q, &hctx->delayed_work, 0);
-	}
+	else
+		kblockd_schedule_delayed_work(&hctx->delayed_work, 0);
 }
 
 void blk_mq_run_queues(struct request_queue *q, bool async)
