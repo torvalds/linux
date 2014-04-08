@@ -16,6 +16,7 @@
 #include <linux/device.h>
 #include <linux/interrupt.h>
 #include <linux/module.h>
+#include <linux/of.h>
 #include <linux/platform_device.h>
 #include <linux/videodev2.h>
 
@@ -431,33 +432,58 @@ static const struct dev_pm_ops vsp1_pm_ops = {
  * Platform Driver
  */
 
-static struct vsp1_platform_data *
-vsp1_get_platform_data(struct platform_device *pdev)
+static int vsp1_validate_platform_data(struct platform_device *pdev,
+				       struct vsp1_platform_data *pdata)
 {
-	struct vsp1_platform_data *pdata = pdev->dev.platform_data;
-
 	if (pdata == NULL) {
 		dev_err(&pdev->dev, "missing platform data\n");
-		return NULL;
+		return -EINVAL;
 	}
 
 	if (pdata->rpf_count <= 0 || pdata->rpf_count > VPS1_MAX_RPF) {
 		dev_err(&pdev->dev, "invalid number of RPF (%u)\n",
 			pdata->rpf_count);
-		return NULL;
+		return -EINVAL;
 	}
 
 	if (pdata->uds_count <= 0 || pdata->uds_count > VPS1_MAX_UDS) {
 		dev_err(&pdev->dev, "invalid number of UDS (%u)\n",
 			pdata->uds_count);
-		return NULL;
+		return -EINVAL;
 	}
 
 	if (pdata->wpf_count <= 0 || pdata->wpf_count > VPS1_MAX_WPF) {
 		dev_err(&pdev->dev, "invalid number of WPF (%u)\n",
 			pdata->wpf_count);
-		return NULL;
+		return -EINVAL;
 	}
+
+	return 0;
+}
+
+static struct vsp1_platform_data *
+vsp1_get_platform_data(struct platform_device *pdev)
+{
+	struct device_node *np = pdev->dev.of_node;
+	struct vsp1_platform_data *pdata;
+
+	if (!IS_ENABLED(CONFIG_OF) || np == NULL)
+		return pdev->dev.platform_data;
+
+	pdata = devm_kzalloc(&pdev->dev, sizeof(*pdata), GFP_KERNEL);
+	if (pdata == NULL)
+		return NULL;
+
+	if (of_property_read_bool(np, "renesas,has-lif"))
+		pdata->features |= VSP1_HAS_LIF;
+	if (of_property_read_bool(np, "renesas,has-lut"))
+		pdata->features |= VSP1_HAS_LUT;
+	if (of_property_read_bool(np, "renesas,has-sru"))
+		pdata->features |= VSP1_HAS_SRU;
+
+	of_property_read_u32(np, "renesas,#rpf", &pdata->rpf_count);
+	of_property_read_u32(np, "renesas,#uds", &pdata->uds_count);
+	of_property_read_u32(np, "renesas,#wpf", &pdata->wpf_count);
 
 	return pdata;
 }
@@ -480,6 +506,10 @@ static int vsp1_probe(struct platform_device *pdev)
 	vsp1->pdata = vsp1_get_platform_data(pdev);
 	if (vsp1->pdata == NULL)
 		return -ENODEV;
+
+	ret = vsp1_validate_platform_data(pdev, vsp1->pdata);
+	if (ret < 0)
+		return ret;
 
 	/* I/O, IRQ and clock resources */
 	io = platform_get_resource(pdev, IORESOURCE_MEM, 0);
@@ -527,6 +557,11 @@ static int vsp1_remove(struct platform_device *pdev)
 	return 0;
 }
 
+static const struct of_device_id vsp1_of_match[] = {
+	{ .compatible = "renesas,vsp1" },
+	{ },
+};
+
 static struct platform_driver vsp1_platform_driver = {
 	.probe		= vsp1_probe,
 	.remove		= vsp1_remove,
@@ -534,6 +569,7 @@ static struct platform_driver vsp1_platform_driver = {
 		.owner	= THIS_MODULE,
 		.name	= "vsp1",
 		.pm	= &vsp1_pm_ops,
+		.of_match_table = vsp1_of_match,
 	},
 };
 
