@@ -64,8 +64,8 @@ config HW_RANDOM_AMD
 
 config HW_RANDOM_ATMEL
 	tristate "Atmel Random Number Generator support"
-	depends on HAVE_CLK
-	default (HW_RANDOM && ARCH_AT91)
+	depends on ARCH_AT91 && HAVE_CLK
+	default HW_RANDOM
 	---help---
 	  This driver provides kernel-side support for the Random Number
 	  Generator hardware found on Atmel AT91 devices.
@@ -232,6 +232,7 @@ config HW_RANDOM_TX4939
 config HW_RANDOM_MXC_RNGA
 	tristate "Freescale i.MX RNGA Random Number Generator"
 	depends on ARCH_HAS_RNGA
+	default HW_RANDOM
 	---help---
 	  This driver provides kernel-side support for the Random Number
 	  Generator hardware found on Freescale i.MX processors.
@@ -244,6 +245,7 @@ config HW_RANDOM_MXC_RNGA
 config HW_RANDOM_NOMADIK
 	tristate "ST-Ericsson Nomadik Random Number Generator support"
 	depends on ARCH_NOMADIK
+	default HW_RANDOM
 	---help---
 	  This driver provides kernel-side support for the Random Number
 	  Generator hardware found on ST-Ericsson SoCs (8815 and 8500).
@@ -256,6 +258,7 @@ config HW_RANDOM_NOMADIK
 config HW_RANDOM_PICOXCELL
 	tristate "Picochip picoXcell true random number generator support"
 	depends on ARCH_PICOXCELL && PICOXCELL_PC3X3
+	default HW_RANDOM
 	---help---
 	  This driver provides kernel-side support for the Random Number
 	  Generator hardware found on Picochip PC3x3 and later devices.
@@ -268,6 +271,7 @@ config HW_RANDOM_PICOXCELL
 config HW_RANDOM_PPC4XX
 	tristate "PowerPC 4xx generic true random number generator support"
 	depends on PPC && 4xx
+	default HW_RANDOM
 	---help---
 	 This driver provides the kernel-side support for the TRNG hardware
 	 found in the security function of some PowerPC 4xx SoCs.
@@ -305,7 +309,8 @@ config HW_RANDOM_POWERNV
 
 config HW_RANDOM_EXYNOS
 	tristate "EXYNOS HW random number generator support"
-	depends on HAS_IOMEM && HAVE_CLK
+	depends on ARCH_EXYNOS
+	default HW_RANDOM
 	---help---
 	  This driver provides kernel-side support for the Random Number
 	  Generator hardware found on EXYNOS SOCs.
@@ -331,6 +336,7 @@ config HW_RANDOM_TPM
 config HW_RANDOM_MSM
 	tristate "Qualcomm MSM Random Number Generator support"
 	depends on ARCH_MSM
+	default HW_RANDOM
 	---help---
 	  This driver provides kernel-side support for the Random Number
 	  Generator hardware found on Qualcomm MSM SoCs.
