@@ -4979,13 +4979,6 @@ struct nfs4_client *nfsd_find_client(struct sockaddr_storage *addr, size_t addr_
 
 #endif /* CONFIG_NFSD_FAULT_INJECTION */
 
-/* initialization to perform at module load time: */
-
-void
-nfs4_state_init(void)
-{
-}
-
 /*
  * Since the lifetime of a delegation isn't limited to that of an open, a
  * client may quite reasonably hang on to a delegation as long as it has
