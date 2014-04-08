@@ -466,7 +466,6 @@ struct rq {
 	struct cpu_stop_work active_balance_work;
 #ifdef CONFIG_SCHED_HMP
 	struct task_struct *migrate_task;
-	int wake_for_idle_pull;
 #endif
 	/* cpu of this runqueue: */
 	int cpu;
