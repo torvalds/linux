@@ -269,6 +269,7 @@ enum mm_32a_minor_op {
 	mm_addu32_op = 0x150,
 	mm_subu32_op = 0x1d0,
 	mm_wsbh_op = 0x1ec,
+	mm_mul_op = 0x210,
 	mm_and_op = 0x250,
 	mm_or32_op = 0x290,
 	mm_xor32_op = 0x310,
