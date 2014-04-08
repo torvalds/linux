@@ -1029,8 +1029,12 @@ err_hci:
 	free_irq(client->irq, phy);
 
 err_rti:
-	if (pdata->free_resources != NULL)
+	if (!pdata) {
+		gpio_free(phy->gpio_en);
+		gpio_free(phy->gpio_fw);
+	} else if (pdata->free_resources) {
 		pdata->free_resources();
+	}
 
 	return r;
 }
