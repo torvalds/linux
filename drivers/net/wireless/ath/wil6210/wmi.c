@@ -348,7 +348,7 @@ static void wmi_evt_scan_complete(struct wil6210_priv *wil, int id,
 {
 	if (wil->scan_request) {
 		struct wmi_scan_complete_event *data = d;
-		bool aborted = (data->status != 0);
+		bool aborted = (data->status != WMI_SCAN_SUCCESS);
 
 		wil_dbg_wmi(wil, "SCAN_COMPLETE(0x%08x)\n", data->status);
 		cfg80211_scan_done(wil->scan_request, aborted);
@@ -802,6 +802,7 @@ int wmi_pcp_start(struct wil6210_priv *wil, int bi, u8 wmi_nettype, u8 chan)
 		.network_type = wmi_nettype,
 		.disable_sec_offload = 1,
 		.channel = chan - 1,
+		.pcp_max_assoc_sta = WIL6210_MAX_CID,
 	};
 	struct {
 		struct wil6210_mbox_hdr_wmi wmi;
