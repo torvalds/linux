@@ -125,6 +125,7 @@ Ip_u2u1(_jalr);
 Ip_u1(_jr);
 Ip_u2s3u1(_ld);
 Ip_u3u1u2(_ldx);
+Ip_u2s3u1(_lh);
 Ip_u2s3u1(_ll);
 Ip_u2s3u1(_lld);
 Ip_u1s2(_lui);
