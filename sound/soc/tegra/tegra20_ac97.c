@@ -306,7 +306,7 @@ static const struct regmap_config tegra20_ac97_regmap_config = {
 	.readable_reg = tegra20_ac97_wr_rd_reg,
 	.volatile_reg = tegra20_ac97_volatile_reg,
 	.precious_reg = tegra20_ac97_precious_reg,
-	.cache_type = REGCACHE_RBTREE,
+	.cache_type = REGCACHE_FLAT,
 };
 
 static int tegra20_ac97_platform_probe(struct platform_device *pdev)

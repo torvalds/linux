@@ -23,21 +23,6 @@
 static int hw_write(struct snd_soc_codec *codec, unsigned int reg,
 		    unsigned int value)
 {
-	int ret;
-
-	if (!snd_soc_codec_volatile_register(codec, reg) &&
-	    reg < codec->driver->reg_cache_size &&
-	    !codec->cache_bypass) {
-		ret = snd_soc_cache_write(codec, reg, value);
-		if (ret < 0)
-			return -1;
-	}
-
-	if (codec->cache_only) {
-		codec->cache_sync = 1;
-		return 0;
-	}
-
 	return regmap_write(codec->control_data, reg, value);
 }
 
@@ -46,23 +31,11 @@ static unsigned int hw_read(struct snd_soc_codec *codec, unsigned int reg)
 	int ret;
 	unsigned int val;
 
-	if (reg >= codec->driver->reg_cache_size ||
-	    snd_soc_codec_volatile_register(codec, reg) ||
-	    codec->cache_bypass) {
-		if (codec->cache_only)
-			return -1;
-
-		ret = regmap_read(codec->control_data, reg, &val);
-		if (ret == 0)
-			return val;
-		else
-			return -1;
-	}
-
-	ret = snd_soc_cache_read(codec, reg, &val);
-	if (ret < 0)
+	ret = regmap_read(codec->control_data, reg, &val);
+	if (ret == 0)
+		return val;
+	else
 		return -1;
-	return val;
 }
 
 /**
