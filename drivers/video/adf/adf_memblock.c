@@ -147,3 +147,4 @@ struct dma_buf *adf_memblock_export(phys_addr_t base, size_t size, int flags)
 
 	return buf;
 }
+EXPORT_SYMBOL(adf_memblock_export);
