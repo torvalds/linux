@@ -261,7 +261,7 @@ static int packet_direct_xmit(struct sk_buff *skb)
 	local_bh_disable();
 
 	HARD_TX_LOCK(dev, txq, smp_processor_id());
-	if (!netif_xmit_frozen_or_stopped(txq)) {
+	if (!netif_xmit_frozen_or_drv_stopped(txq)) {
 		ret = ops->ndo_start_xmit(skb, dev);
 		if (ret == NETDEV_TX_OK)
 			txq_trans_update(txq);
@@ -275,6 +275,7 @@ static int packet_direct_xmit(struct sk_buff *skb)
 
 	return ret;
 drop:
+	atomic_long_inc(&dev->tx_dropped);
 	kfree_skb(skb);
 	return NET_XMIT_DROP;
 }

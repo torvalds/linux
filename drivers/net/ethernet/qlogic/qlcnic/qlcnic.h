@@ -23,6 +23,7 @@
 #include <linux/ethtool.h>
 #include <linux/mii.h>
 #include <linux/timer.h>
+#include <linux/irq.h>
 
 #include <linux/vmalloc.h>
 

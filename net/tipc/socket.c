@@ -301,7 +301,6 @@ static int tipc_release(struct socket *sock)
 	struct tipc_sock *tsk;
 	struct tipc_port *port;
 	struct sk_buff *buf;
-	int res;
 
 	/*
 	 * Exit if socket isn't fully initialized (occurs when a failed accept()
@@ -349,7 +348,7 @@ static int tipc_release(struct socket *sock)
 	sock_put(sk);
 	sock->sk = NULL;
 
-	return res;
+	return 0;
 }
 
 /**

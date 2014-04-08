@@ -295,43 +295,43 @@ select_insn:
 		(*(s64 *) &A) >>= K;
 		CONT;
 	BPF_ALU64_BPF_MOD_BPF_X:
+		if (unlikely(X == 0))
+			return 0;
 		tmp = A;
-		if (X)
-			A = do_div(tmp, X);
+		A = do_div(tmp, X);
 		CONT;
 	BPF_ALU_BPF_MOD_BPF_X:
+		if (unlikely(X == 0))
+			return 0;
 		tmp = (u32) A;
-		if (X)
-			A = do_div(tmp, (u32) X);
+		A = do_div(tmp, (u32) X);
 		CONT;
 	BPF_ALU64_BPF_MOD_BPF_K:
 		tmp = A;
-		if (K)
-			A = do_div(tmp, K);
+		A = do_div(tmp, K);
 		CONT;
 	BPF_ALU_BPF_MOD_BPF_K:
 		tmp = (u32) A;
-		if (K)
-			A = do_div(tmp, (u32) K);
+		A = do_div(tmp, (u32) K);
 		CONT;
 	BPF_ALU64_BPF_DIV_BPF_X:
-		if (X)
-			do_div(A, X);
+		if (unlikely(X == 0))
+			return 0;
+		do_div(A, X);
 		CONT;
 	BPF_ALU_BPF_DIV_BPF_X:
+		if (unlikely(X == 0))
+			return 0;
 		tmp = (u32) A;
-		if (X)
-			do_div(tmp, (u32) X);
+		do_div(tmp, (u32) X);
 		A = (u32) tmp;
 		CONT;
 	BPF_ALU64_BPF_DIV_BPF_K:
-		if (K)
-			do_div(A, K);
+		do_div(A, K);
 		CONT;
 	BPF_ALU_BPF_DIV_BPF_K:
 		tmp = (u32) A;
-		if (K)
-			do_div(tmp, (u32) K);
+		do_div(tmp, (u32) K);
 		A = (u32) tmp;
 		CONT;
 	BPF_ALU_BPF_END_BPF_TO_BE:

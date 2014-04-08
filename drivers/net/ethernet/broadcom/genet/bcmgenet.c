@@ -34,7 +34,6 @@
 #include <linux/dma-mapping.h>
 #include <linux/pm.h>
 #include <linux/clk.h>
-#include <linux/version.h>
 #include <linux/of.h>
 #include <linux/of_address.h>
 #include <linux/of_irq.h>
