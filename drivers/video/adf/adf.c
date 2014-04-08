@@ -1073,6 +1073,7 @@ int adf_format_validate_yuv(struct adf_device *dev, struct adf_buffer *buf,
 		u32 width = buf->w / (i != 0 ? hsub : 1);
 		u32 height = buf->h / (i != 0 ? vsub : 1);
 		u8 cpp = adf_format_plane_cpp(buf->format, i);
+		u32 last_line_size;
 
 		if (buf->pitch[i] < (u64) width * cpp) {
 			dev_err(&dev->base.dev, "plane %u pitch is shorter than buffer width (pitch = %u, width = %u, bpp = %u)\n",
@@ -1080,8 +1081,21 @@ int adf_format_validate_yuv(struct adf_device *dev, struct adf_buffer *buf,
 			return -EINVAL;
 		}
 
-		if ((u64) height * buf->pitch[i] + buf->offset[i] >
-				buf->dma_bufs[i]->size) {
+		switch (dev->ops->quirks.buffer_padding) {
+		case ADF_BUFFER_PADDED_TO_PITCH:
+			last_line_size = buf->pitch[i];
+			break;
+
+		case ADF_BUFFER_UNPADDED:
+			last_line_size = width * cpp;
+			break;
+
+		default:
+			BUG();
+		}
+
+		if ((u64) (height - 1) * buf->pitch[i] + last_line_size +
+				buf->offset[i] > buf->dma_bufs[i]->size) {
 			dev_err(&dev->base.dev, "plane %u buffer too small (height = %u, pitch = %u, offset = %u, size = %zu)\n",
 					i, height, buf->pitch[i],
 					buf->offset[i], buf->dma_bufs[i]->size);
