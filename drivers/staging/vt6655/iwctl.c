@@ -1835,19 +1835,14 @@ int iwctl_siwencodeext(struct net_device *dev,
 	size_t seq_len = 0, key_len = 0;
 //
 	// int ii;
-	u8 *buf;
-	size_t blen;
 	u8 key_array[64];
 	int ret = 0;
 
 	PRINT_K("SIOCSIWENCODEEXT...... \n");
 
-	blen = sizeof(*param);
-	buf = kmalloc((int)blen, (int)GFP_KERNEL);
-	if (buf == NULL)
+	param = kzalloc(sizeof(*param), GFP_KERNEL);
+	if (param == NULL)
 		return -ENOMEM;
-	memset(buf, 0, blen);
-	param = (struct viawget_wpa_param *)buf;
 
 //recover alg_name
 	switch (ext->alg) {
