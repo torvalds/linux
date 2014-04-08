@@ -58,3 +58,10 @@
 &usb1 {
 	status = "okay";
 };
+
+&i2c0 {
+	dtt@50 {
+		compatible = "at,24c1024";
+		reg = <0x50>;
+	};
+};

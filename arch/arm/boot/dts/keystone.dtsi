@@ -100,11 +100,6 @@
 			interrupts = <GIC_SPI 283 IRQ_TYPE_EDGE_RISING>;
 			#address-cells = <1>;
 			#size-cells = <0>;
-
-			dtt@50 {
-				compatible = "at,24c1024";
-				reg = <0x50>;
-			};
 		};
 
 		i2c1: i2c@2530400 {
