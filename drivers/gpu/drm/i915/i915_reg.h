@@ -4210,7 +4210,7 @@ enum punit_power_well {
 #define  GEN8_PIPE_SPRITE_FAULT		(1 << 9)
 #define  GEN8_PIPE_PRIMARY_FAULT	(1 << 8)
 #define  GEN8_PIPE_SPRITE_FLIP_DONE	(1 << 5)
-#define  GEN8_PIPE_FLIP_DONE		(1 << 4)
+#define  GEN8_PIPE_PRIMARY_FLIP_DONE	(1 << 4)
 #define  GEN8_PIPE_SCAN_LINE_EVENT	(1 << 2)
 #define  GEN8_PIPE_VSYNC		(1 << 1)
 #define  GEN8_PIPE_VBLANK		(1 << 0)

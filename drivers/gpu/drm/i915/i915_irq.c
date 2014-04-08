@@ -2060,7 +2060,7 @@ static irqreturn_t gen8_irq_handler(int irq, void *arg)
 		if (pipe_iir & GEN8_PIPE_VBLANK)
 			drm_handle_vblank(dev, pipe);
 
-		if (pipe_iir & GEN8_PIPE_FLIP_DONE) {
+		if (pipe_iir & GEN8_PIPE_PRIMARY_FLIP_DONE) {
 			intel_prepare_page_flip(dev, pipe);
 			intel_finish_page_flip_plane(dev, pipe);
 		}
@@ -3250,7 +3250,7 @@ static void gen8_gt_irq_postinstall(struct drm_i915_private *dev_priv)
 static void gen8_de_irq_postinstall(struct drm_i915_private *dev_priv)
 {
 	struct drm_device *dev = dev_priv->dev;
-	uint32_t de_pipe_masked = GEN8_PIPE_FLIP_DONE |
+	uint32_t de_pipe_masked = GEN8_PIPE_PRIMARY_FLIP_DONE |
 		GEN8_PIPE_CDCLK_CRC_DONE |
 		GEN8_DE_PIPE_IRQ_FAULT_ERRORS;
 	uint32_t de_pipe_enables = de_pipe_masked | GEN8_PIPE_VBLANK |
