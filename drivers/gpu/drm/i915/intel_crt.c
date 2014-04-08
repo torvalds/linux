@@ -68,7 +68,12 @@ static bool intel_crt_get_hw_state(struct intel_encoder *encoder,
 	struct drm_device *dev = encoder->base.dev;
 	struct drm_i915_private *dev_priv = dev->dev_private;
 	struct intel_crt *crt = intel_encoder_to_crt(encoder);
+	enum intel_display_power_domain power_domain;
 	u32 tmp;
+
+	power_domain = intel_display_port_power_domain(encoder);
+	if (!intel_display_power_enabled(dev_priv, power_domain))
+		return false;
 
 	tmp = I915_READ(crt->adpa_reg);
 
@@ -261,6 +266,10 @@ static bool intel_crt_compute_config(struct intel_encoder *encoder,
 	/* LPT FDI RX only supports 8bpc. */
 	if (HAS_PCH_LPT(dev))
 		pipe_config->pipe_bpp = 24;
+
+	/* FDI must always be 2.7 GHz */
+	if (HAS_DDI(dev))
+		pipe_config->port_clock = 135000 * 2;
 
 	return true;
 }
@@ -630,13 +639,21 @@ static enum drm_connector_status
 intel_crt_detect(struct drm_connector *connector, bool force)
 {
 	struct drm_device *dev = connector->dev;
+	struct drm_i915_private *dev_priv = dev->dev_private;
 	struct intel_crt *crt = intel_attached_crt(connector);
+	struct intel_encoder *intel_encoder = &crt->base;
+	enum intel_display_power_domain power_domain;
 	enum drm_connector_status status;
 	struct intel_load_detect_pipe tmp;
+
+	intel_runtime_pm_get(dev_priv);
 
 	DRM_DEBUG_KMS("[CONNECTOR:%d:%s] force=%d\n",
 		      connector->base.id, drm_get_connector_name(connector),
 		      force);
+
+	power_domain = intel_display_port_power_domain(intel_encoder);
+	intel_display_power_get(dev_priv, power_domain);
 
 	if (I915_HAS_HOTPLUG(dev)) {
 		/* We can not rely on the HPD pin always being correctly wired
@@ -645,23 +662,30 @@ intel_crt_detect(struct drm_connector *connector, bool force)
 		 */
 		if (intel_crt_detect_hotplug(connector)) {
 			DRM_DEBUG_KMS("CRT detected via hotplug\n");
-			return connector_status_connected;
+			status = connector_status_connected;
+			goto out;
 		} else
 			DRM_DEBUG_KMS("CRT not detected via hotplug\n");
 	}
 
-	if (intel_crt_detect_ddc(connector))
-		return connector_status_connected;
+	if (intel_crt_detect_ddc(connector)) {
+		status = connector_status_connected;
+		goto out;
+	}
 
 	/* Load detection is broken on HPD capable machines. Whoever wants a
 	 * broken monitor (without edid) to work behind a broken kvm (that fails
 	 * to have the right resistors for HP detection) needs to fix this up.
 	 * For now just bail out. */
-	if (I915_HAS_HOTPLUG(dev))
-		return connector_status_disconnected;
+	if (I915_HAS_HOTPLUG(dev)) {
+		status = connector_status_disconnected;
+		goto out;
+	}
 
-	if (!force)
-		return connector->status;
+	if (!force) {
+		status = connector->status;
+		goto out;
+	}
 
 	/* for pre-945g platforms use load detect */
 	if (intel_get_load_detect_pipe(connector, NULL, &tmp)) {
@@ -672,6 +696,10 @@ intel_crt_detect(struct drm_connector *connector, bool force)
 		intel_release_load_detect_pipe(connector, &tmp);
 	} else
 		status = connector_status_unknown;
+
+out:
+	intel_display_power_put(dev_priv, power_domain);
+	intel_runtime_pm_put(dev_priv);
 
 	return status;
 }
@@ -686,17 +714,28 @@ static int intel_crt_get_modes(struct drm_connector *connector)
 {
 	struct drm_device *dev = connector->dev;
 	struct drm_i915_private *dev_priv = dev->dev_private;
+	struct intel_crt *crt = intel_attached_crt(connector);
+	struct intel_encoder *intel_encoder = &crt->base;
+	enum intel_display_power_domain power_domain;
 	int ret;
 	struct i2c_adapter *i2c;
+
+	power_domain = intel_display_port_power_domain(intel_encoder);
+	intel_display_power_get(dev_priv, power_domain);
 
 	i2c = intel_gmbus_get_adapter(dev_priv, dev_priv->vbt.crt_ddc_pin);
 	ret = intel_crt_ddc_get_modes(connector, i2c);
 	if (ret || !IS_G4X(dev))
-		return ret;
+		goto out;
 
 	/* Try to probe digital port for output in DVI-I -> VGA mode. */
 	i2c = intel_gmbus_get_adapter(dev_priv, GMBUS_PORT_DPB);
-	return intel_crt_ddc_get_modes(connector, i2c);
+	ret = intel_crt_ddc_get_modes(connector, i2c);
+
+out:
+	intel_display_power_put(dev_priv, power_domain);
+
+	return ret;
 }
 
 static int intel_crt_set_property(struct drm_connector *connector,
@@ -765,6 +804,14 @@ static const struct dmi_system_id intel_no_crt[] = {
 			DMI_MATCH(DMI_PRODUCT_NAME, "ZGB"),
 		},
 	},
+	{
+		.callback = intel_no_crt_dmi_callback,
+		.ident = "DELL XPS 8700",
+		.matches = {
+			DMI_MATCH(DMI_SYS_VENDOR, "Dell Inc."),
+			DMI_MATCH(DMI_PRODUCT_NAME, "XPS 8700"),
+		},
+	},
 	{ }
 };
 
@@ -800,7 +847,7 @@ void intel_crt_init(struct drm_device *dev)
 	intel_connector_attach_encoder(intel_connector, &crt->base);
 
 	crt->base.type = INTEL_OUTPUT_ANALOG;
-	crt->base.cloneable = true;
+	crt->base.cloneable = (1 << INTEL_OUTPUT_DVO) | (1 << INTEL_OUTPUT_HDMI);
 	if (IS_I830(dev))
 		crt->base.crtc_mask = (1 << 0);
 	else
@@ -833,6 +880,7 @@ void intel_crt_init(struct drm_device *dev)
 		crt->base.get_hw_state = intel_crt_get_hw_state;
 	}
 	intel_connector->get_hw_state = intel_connector_get_hw_state;
+	intel_connector->unregister = intel_connector_unregister;
 
 	drm_connector_helper_add(connector, &intel_crt_connector_helper_funcs);
 
@@ -857,4 +905,6 @@ void intel_crt_init(struct drm_device *dev)
 
 		dev_priv->fdi_rx_config = I915_READ(_FDI_RXA_CTL) & fdi_config;
 	}
+
+	intel_crt_reset(connector);
 }

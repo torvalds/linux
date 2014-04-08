@@ -262,7 +262,7 @@ int uvd_v1_0_start(struct radeon_device *rdev)
 	/* Initialize the ring buffer's read and write pointers */
 	WREG32(UVD_RBC_RB_RPTR, 0x0);
 
-	ring->wptr = ring->rptr = RREG32(UVD_RBC_RB_RPTR);
+	ring->wptr = RREG32(UVD_RBC_RB_RPTR);
 	WREG32(UVD_RBC_RB_WPTR, ring->wptr);
 
 	/* set the ring address */

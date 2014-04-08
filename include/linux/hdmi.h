@@ -262,6 +262,18 @@ union hdmi_vendor_any_infoframe {
 	struct hdmi_vendor_infoframe hdmi;
 };
 
+/**
+ * union hdmi_infoframe - overall union of all abstract infoframe representations
+ * @any: generic infoframe
+ * @avi: avi infoframe
+ * @spd: spd infoframe
+ * @vendor: union of all vendor infoframes
+ * @audio: audio infoframe
+ *
+ * This is used by the generic pack function. This works since all infoframes
+ * have the same header which also indicates which type of infoframe should be
+ * packed.
+ */
 union hdmi_infoframe {
 	struct hdmi_any_infoframe any;
 	struct hdmi_avi_infoframe avi;

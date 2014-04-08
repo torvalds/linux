@@ -221,8 +221,8 @@ static inline __u64 drm_vma_node_offset_addr(struct drm_vma_offset_node *node)
  * @file_mapping: Address space to unmap @node from
  *
  * Unmap all userspace mappings for a given offset node. The mappings must be
- * associated with the @file_mapping address-space. If no offset exists or
- * the address-space is invalid, nothing is done.
+ * associated with the @file_mapping address-space. If no offset exists
+ * nothing is done.
  *
  * This call is unlocked. The caller must guarantee that drm_vma_offset_remove()
  * is not called on this node concurrently.
@@ -230,7 +230,7 @@ static inline __u64 drm_vma_node_offset_addr(struct drm_vma_offset_node *node)
 static inline void drm_vma_node_unmap(struct drm_vma_offset_node *node,
 				      struct address_space *file_mapping)
 {
-	if (file_mapping && drm_vma_node_has_offset(node))
+	if (drm_vma_node_has_offset(node))
 		unmap_mapping_range(file_mapping,
 				    drm_vma_node_offset_addr(node),
 				    drm_vma_node_size(node) << PAGE_SHIFT, 1);

@@ -477,6 +477,7 @@ void intel_dvo_init(struct drm_device *dev)
 	intel_encoder->compute_config = intel_dvo_compute_config;
 	intel_encoder->mode_set = intel_dvo_mode_set;
 	intel_connector->get_hw_state = intel_dvo_connector_get_hw_state;
+	intel_connector->unregister = intel_connector_unregister;
 
 	/* Now, try to find a controller */
 	for (i = 0; i < ARRAY_SIZE(intel_dvo_devices); i++) {
@@ -521,14 +522,15 @@ void intel_dvo_init(struct drm_device *dev)
 		intel_encoder->crtc_mask = (1 << 0) | (1 << 1);
 		switch (dvo->type) {
 		case INTEL_DVO_CHIP_TMDS:
-			intel_encoder->cloneable = true;
+			intel_encoder->cloneable = (1 << INTEL_OUTPUT_ANALOG) |
+				(1 << INTEL_OUTPUT_DVO);
 			drm_connector_init(dev, connector,
 					   &intel_dvo_connector_funcs,
 					   DRM_MODE_CONNECTOR_DVII);
 			encoder_type = DRM_MODE_ENCODER_TMDS;
 			break;
 		case INTEL_DVO_CHIP_LVDS:
-			intel_encoder->cloneable = false;
+			intel_encoder->cloneable = 0;
 			drm_connector_init(dev, connector,
 					   &intel_dvo_connector_funcs,
 					   DRM_MODE_CONNECTOR_LVDS);

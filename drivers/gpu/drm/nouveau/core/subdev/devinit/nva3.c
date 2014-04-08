@@ -81,6 +81,55 @@ nva3_devinit_disable(struct nouveau_devinit *devinit)
 	return disable;
 }
 
+static u32
+nva3_devinit_mmio_part[] = {
+	0x100720, 0x1008bc, 4,
+	0x100a20, 0x100adc, 4,
+	0x100d80, 0x100ddc, 4,
+	0x110000, 0x110f9c, 4,
+	0x111000, 0x11103c, 8,
+	0x111080, 0x1110fc, 4,
+	0x111120, 0x1111fc, 4,
+	0x111300, 0x1114bc, 4,
+	0,
+};
+
+static u32
+nva3_devinit_mmio(struct nouveau_devinit *devinit, u32 addr)
+{
+	struct nv50_devinit_priv *priv = (void *)devinit;
+	u32 *mmio = nva3_devinit_mmio_part;
+
+	/* the init tables on some boards have INIT_RAM_RESTRICT_ZM_REG_GROUP
+	 * instructions which touch registers that may not even exist on
+	 * some configurations (Quadro 400), which causes the register
+	 * interface to screw up for some amount of time after attempting to
+	 * write to one of these, and results in all sorts of things going
+	 * horribly wrong.
+	 *
+	 * the binary driver avoids touching these registers at all, however,
+	 * the video bios doesn't care and does what the scripts say.  it's
+	 * presumed that the io-port access to priv registers isn't effected
+	 * by the screw-up bug mentioned above.
+	 *
+	 * really, a new opcode should've been invented to handle these
+	 * requirements, but whatever, it's too late for that now.
+	 */
+	while (mmio[0]) {
+		if (addr >= mmio[0] && addr <= mmio[1]) {
+			u32 part = (addr / mmio[2]) & 7;
+			if (!priv->r001540)
+				priv->r001540 = nv_rd32(priv, 0x001540);
+			if (part >= hweight8((priv->r001540 >> 16) & 0xff))
+				return ~0;
+			return addr;
+		}
+		mmio += 3;
+	}
+
+	return addr;
+}
+
 struct nouveau_oclass *
 nva3_devinit_oclass = &(struct nouveau_devinit_impl) {
 	.base.handle = NV_SUBDEV(DEVINIT, 0xa3),
@@ -92,4 +141,5 @@ nva3_devinit_oclass = &(struct nouveau_devinit_impl) {
 	},
 	.pll_set = nva3_devinit_pll_set,
 	.disable = nva3_devinit_disable,
+	.mmio    = nva3_devinit_mmio,
 }.base;

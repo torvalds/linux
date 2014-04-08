@@ -40,9 +40,9 @@
 #include <drm/ttm/ttm_module.h>
 #include "vmwgfx_fence.h"
 
-#define VMWGFX_DRIVER_DATE "20140228"
+#define VMWGFX_DRIVER_DATE "20140325"
 #define VMWGFX_DRIVER_MAJOR 2
-#define VMWGFX_DRIVER_MINOR 5
+#define VMWGFX_DRIVER_MINOR 6
 #define VMWGFX_DRIVER_PATCHLEVEL 0
 #define VMWGFX_FILE_PAGE_OFFSET 0x00100000
 #define VMWGFX_FIFO_STATIC_SIZE (1024*1024)
@@ -485,6 +485,11 @@ struct vmw_private {
 
 	struct mutex release_mutex;
 	uint32_t num_3d_resources;
+
+	/*
+	 * Replace this with an rwsem as soon as we have down_xx_interruptible()
+	 */
+	struct ttm_lock reservation_sem;
 
 	/*
 	 * Query processing. These members

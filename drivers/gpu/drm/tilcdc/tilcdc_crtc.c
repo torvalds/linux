@@ -74,7 +74,7 @@ static void set_scanout(struct drm_crtc *crtc, int n)
 		drm_flip_work_queue(&tilcdc_crtc->unref_work, tilcdc_crtc->scanout[n]);
 		drm_flip_work_commit(&tilcdc_crtc->unref_work, priv->wq);
 	}
-	tilcdc_crtc->scanout[n] = crtc->fb;
+	tilcdc_crtc->scanout[n] = crtc->primary->fb;
 	drm_framebuffer_reference(tilcdc_crtc->scanout[n]);
 	tilcdc_crtc->dirty &= ~stat[n];
 	pm_runtime_put_sync(dev->dev);
@@ -84,7 +84,7 @@ static void update_scanout(struct drm_crtc *crtc)
 {
 	struct tilcdc_crtc *tilcdc_crtc = to_tilcdc_crtc(crtc);
 	struct drm_device *dev = crtc->dev;
-	struct drm_framebuffer *fb = crtc->fb;
+	struct drm_framebuffer *fb = crtc->primary->fb;
 	struct drm_gem_cma_object *gem;
 	unsigned int depth, bpp;
 
@@ -159,7 +159,7 @@ static int tilcdc_crtc_page_flip(struct drm_crtc *crtc,
 		return -EBUSY;
 	}
 
-	crtc->fb = fb;
+	crtc->primary->fb = fb;
 	tilcdc_crtc->event = event;
 	update_scanout(crtc);
 
@@ -339,7 +339,7 @@ static int tilcdc_crtc_mode_set(struct drm_crtc *crtc,
 	if (priv->rev == 2) {
 		unsigned int depth, bpp;
 
-		drm_fb_get_bpp_depth(crtc->fb->pixel_format, &depth, &bpp);
+		drm_fb_get_bpp_depth(crtc->primary->fb->pixel_format, &depth, &bpp);
 		switch (bpp) {
 		case 16:
 			break;

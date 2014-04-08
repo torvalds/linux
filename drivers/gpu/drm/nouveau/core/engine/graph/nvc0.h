@@ -45,6 +45,7 @@
 #define ROP_UNIT(u, r)    (0x410000 + (u) * 0x400 + (r))
 #define GPC_BCAST(r)      (0x418000 + (r))
 #define GPC_UNIT(t, r)    (0x500000 + (t) * 0x8000 + (r))
+#define PPC_UNIT(t, m, r) (0x503000 + (t) * 0x8000 + (m) * 0x200 + (r))
 #define TPC_UNIT(t, m, r) (0x504000 + (t) * 0x8000 + (m) * 0x800 + (r))
 
 struct nvc0_graph_data {
@@ -102,8 +103,6 @@ struct nvc0_graph_chan {
 	} data[4];
 };
 
-int  nvc0_grctx_generate(struct nvc0_graph_priv *);
-
 int  nvc0_graph_context_ctor(struct nouveau_object *, struct nouveau_object *,
 			     struct nouveau_oclass *, void *, u32,
 			     struct nouveau_object **);
@@ -130,34 +129,14 @@ struct nvc0_graph_init {
 	u32 data;
 };
 
-struct nvc0_graph_mthd {
-	u16 oclass;
-	struct nvc0_graph_init *init;
+struct nvc0_graph_pack {
+	const struct nvc0_graph_init *init;
+	u32 type;
 };
 
-struct nvc0_grctx {
-	struct nvc0_graph_priv *priv;
-	struct nvc0_graph_data *data;
-	struct nvc0_graph_mmio *mmio;
-	int buffer_nr;
-	u64 buffer[4];
-	u64 addr;
-};
-
-struct nvc0_grctx_oclass {
-	struct nouveau_oclass base;
-	/* main context generation function */
-	void  (*main)(struct nvc0_graph_priv *, struct nvc0_grctx *);
-	/* context-specific modify-on-first-load list generation function */
-	void  (*mods)(struct nvc0_graph_priv *, struct nvc0_grctx *);
-	void  (*unkn)(struct nvc0_graph_priv *);
-	/* mmio context data */
-	struct nvc0_graph_init **hub;
-	struct nvc0_graph_init **gpc;
-	/* indirect context data, generated with icmds/mthds */
-	struct nvc0_graph_init *icmd;
-	struct nvc0_graph_mthd *mthd;
-};
+#define pack_for_each_init(init, pack, head)                                   \
+	for (pack = head; pack && pack->init; pack++)                          \
+		  for (init = pack->init; init && init->count; init++)
 
 struct nvc0_graph_ucode {
 	struct nvc0_graph_fuc code;
@@ -171,7 +150,7 @@ struct nvc0_graph_oclass {
 	struct nouveau_oclass base;
 	struct nouveau_oclass **cclass;
 	struct nouveau_oclass *sclass;
-	struct nvc0_graph_init **mmio;
+	const struct nvc0_graph_pack *mmio;
 	struct {
 		struct nvc0_graph_ucode *ucode;
 	} fecs;
@@ -180,119 +159,72 @@ struct nvc0_graph_oclass {
 	} gpccs;
 };
 
-void nvc0_graph_mmio(struct nvc0_graph_priv *, struct nvc0_graph_init *);
-void nvc0_graph_icmd(struct nvc0_graph_priv *, struct nvc0_graph_init *);
-void nvc0_graph_mthd(struct nvc0_graph_priv *, struct nvc0_graph_mthd *);
+void nvc0_graph_mmio(struct nvc0_graph_priv *, const struct nvc0_graph_pack *);
+void nvc0_graph_icmd(struct nvc0_graph_priv *, const struct nvc0_graph_pack *);
+void nvc0_graph_mthd(struct nvc0_graph_priv *, const struct nvc0_graph_pack *);
 int  nvc0_graph_init_ctxctl(struct nvc0_graph_priv *);
 
-extern struct nvc0_graph_init nvc0_graph_init_regs[];
-extern struct nvc0_graph_init nvc0_graph_init_unk40xx[];
-extern struct nvc0_graph_init nvc0_graph_init_unk44xx[];
-extern struct nvc0_graph_init nvc0_graph_init_unk78xx[];
-extern struct nvc0_graph_init nvc0_graph_init_unk60xx[];
-extern struct nvc0_graph_init nvc0_graph_init_unk58xx[];
-extern struct nvc0_graph_init nvc0_graph_init_unk80xx[];
-extern struct nvc0_graph_init nvc0_graph_init_gpc[];
-extern struct nvc0_graph_init nvc0_graph_init_unk88xx[];
-extern struct nvc0_graph_init nvc0_graph_tpc_0[];
+/* register init value lists */
 
-extern struct nvc0_graph_init nvc3_graph_init_unk58xx[];
+extern const struct nvc0_graph_init nvc0_graph_init_main_0[];
+extern const struct nvc0_graph_init nvc0_graph_init_fe_0[];
+extern const struct nvc0_graph_init nvc0_graph_init_pri_0[];
+extern const struct nvc0_graph_init nvc0_graph_init_rstr2d_0[];
+extern const struct nvc0_graph_init nvc0_graph_init_pd_0[];
+extern const struct nvc0_graph_init nvc0_graph_init_ds_0[];
+extern const struct nvc0_graph_init nvc0_graph_init_scc_0[];
+extern const struct nvc0_graph_init nvc0_graph_init_prop_0[];
+extern const struct nvc0_graph_init nvc0_graph_init_gpc_unk_0[];
+extern const struct nvc0_graph_init nvc0_graph_init_setup_0[];
+extern const struct nvc0_graph_init nvc0_graph_init_crstr_0[];
+extern const struct nvc0_graph_init nvc0_graph_init_setup_1[];
+extern const struct nvc0_graph_init nvc0_graph_init_zcull_0[];
+extern const struct nvc0_graph_init nvc0_graph_init_gpm_0[];
+extern const struct nvc0_graph_init nvc0_graph_init_gpc_unk_1[];
+extern const struct nvc0_graph_init nvc0_graph_init_gcc_0[];
+extern const struct nvc0_graph_init nvc0_graph_init_tpccs_0[];
+extern const struct nvc0_graph_init nvc0_graph_init_tex_0[];
+extern const struct nvc0_graph_init nvc0_graph_init_pe_0[];
+extern const struct nvc0_graph_init nvc0_graph_init_l1c_0[];
+extern const struct nvc0_graph_init nvc0_graph_init_wwdx_0[];
+extern const struct nvc0_graph_init nvc0_graph_init_tpccs_1[];
+extern const struct nvc0_graph_init nvc0_graph_init_mpc_0[];
+extern const struct nvc0_graph_init nvc0_graph_init_be_0[];
+extern const struct nvc0_graph_init nvc0_graph_init_fe_1[];
+extern const struct nvc0_graph_init nvc0_graph_init_pe_1[];
 
-extern struct nvc0_graph_init nvd9_graph_init_unk58xx[];
-extern struct nvc0_graph_init nvd9_graph_init_unk64xx[];
+extern const struct nvc0_graph_init nvc4_graph_init_ds_0[];
+extern const struct nvc0_graph_init nvc4_graph_init_tex_0[];
+extern const struct nvc0_graph_init nvc4_graph_init_sm_0[];
 
-extern struct nvc0_graph_init nve4_graph_init_regs[];
-extern struct nvc0_graph_init nve4_graph_init_unk[];
-extern struct nvc0_graph_init nve4_graph_init_unk88xx[];
+extern const struct nvc0_graph_init nvc1_graph_init_gpc_unk_0[];
+extern const struct nvc0_graph_init nvc1_graph_init_setup_1[];
 
-extern struct nvc0_graph_init nvf0_graph_init_unk40xx[];
-extern struct nvc0_graph_init nvf0_graph_init_unk70xx[];
-extern struct nvc0_graph_init nvf0_graph_init_unk5bxx[];
-extern struct nvc0_graph_init nvf0_graph_init_tpc[];
+extern const struct nvc0_graph_init nvd9_graph_init_pd_0[];
+extern const struct nvc0_graph_init nvd9_graph_init_ds_0[];
+extern const struct nvc0_graph_init nvd9_graph_init_prop_0[];
+extern const struct nvc0_graph_init nvd9_graph_init_gpm_0[];
+extern const struct nvc0_graph_init nvd9_graph_init_gpc_unk_1[];
+extern const struct nvc0_graph_init nvd9_graph_init_tex_0[];
+extern const struct nvc0_graph_init nvd9_graph_init_sm_0[];
+extern const struct nvc0_graph_init nvd9_graph_init_fe_1[];
 
-int  nvc0_grctx_generate(struct nvc0_graph_priv *);
-void nvc0_grctx_generate_main(struct nvc0_graph_priv *, struct nvc0_grctx *);
-void nvc0_grctx_generate_mods(struct nvc0_graph_priv *, struct nvc0_grctx *);
-void nvc0_grctx_generate_unkn(struct nvc0_graph_priv *);
-void nvc0_grctx_generate_tpcid(struct nvc0_graph_priv *);
-void nvc0_grctx_generate_r406028(struct nvc0_graph_priv *);
-void nvc0_grctx_generate_r4060a8(struct nvc0_graph_priv *);
-void nvc0_grctx_generate_r418bb8(struct nvc0_graph_priv *);
-void nve4_grctx_generate_r418bb8(struct nvc0_graph_priv *);
-void nvc0_grctx_generate_r406800(struct nvc0_graph_priv *);
+extern const struct nvc0_graph_init nvd7_graph_init_pes_0[];
+extern const struct nvc0_graph_init nvd7_graph_init_wwdx_0[];
+extern const struct nvc0_graph_init nvd7_graph_init_cbm_0[];
 
-extern struct nouveau_oclass *nvc0_grctx_oclass;
-extern struct nvc0_graph_init *nvc0_grctx_init_hub[];
-extern struct nvc0_graph_init nvc0_grctx_init_base[];
-extern struct nvc0_graph_init nvc0_grctx_init_unk40xx[];
-extern struct nvc0_graph_init nvc0_grctx_init_unk44xx[];
-extern struct nvc0_graph_init nvc0_grctx_init_unk46xx[];
-extern struct nvc0_graph_init nvc0_grctx_init_unk47xx[];
-extern struct nvc0_graph_init nvc0_grctx_init_unk60xx[];
-extern struct nvc0_graph_init nvc0_grctx_init_unk64xx[];
-extern struct nvc0_graph_init nvc0_grctx_init_unk78xx[];
-extern struct nvc0_graph_init nvc0_grctx_init_unk80xx[];
-extern struct nvc0_graph_init nvc0_grctx_init_gpc_0[];
-extern struct nvc0_graph_init nvc0_grctx_init_gpc_1[];
-extern struct nvc0_graph_init nvc0_grctx_init_tpc[];
-extern struct nvc0_graph_init nvc0_grctx_init_icmd[];
-extern struct nvc0_graph_init nvd9_grctx_init_icmd[]; //
+extern const struct nvc0_graph_init nve4_graph_init_main_0[];
+extern const struct nvc0_graph_init nve4_graph_init_tpccs_0[];
+extern const struct nvc0_graph_init nve4_graph_init_pe_0[];
+extern const struct nvc0_graph_init nve4_graph_init_be_0[];
 
-extern struct nvc0_graph_mthd nvc0_grctx_init_mthd[];
-extern struct nvc0_graph_init nvc0_grctx_init_902d[];
-extern struct nvc0_graph_init nvc0_grctx_init_9039[];
-extern struct nvc0_graph_init nvc0_grctx_init_90c0[];
-extern struct nvc0_graph_init nvc0_grctx_init_mthd_magic[];
+extern const struct nvc0_graph_init nvf0_graph_init_fe_0[];
+extern const struct nvc0_graph_init nvf0_graph_init_sked_0[];
+extern const struct nvc0_graph_init nvf0_graph_init_cwd_0[];
+extern const struct nvc0_graph_init nvf0_graph_init_gpc_unk_1[];
+extern const struct nvc0_graph_init nvf0_graph_init_sm_0[];
 
-void nvc1_grctx_generate_mods(struct nvc0_graph_priv *, struct nvc0_grctx *);
-void nvc1_grctx_generate_unkn(struct nvc0_graph_priv *);
-extern struct nouveau_oclass *nvc1_grctx_oclass;
-extern struct nvc0_graph_init nvc1_grctx_init_9097[];
+extern const struct nvc0_graph_init nv108_graph_init_gpc_unk_0[];
 
-extern struct nouveau_oclass *nvc3_grctx_oclass;
-
-extern struct nouveau_oclass *nvc8_grctx_oclass;
-extern struct nvc0_graph_init nvc8_grctx_init_9197[];
-extern struct nvc0_graph_init nvc8_grctx_init_9297[];
-
-extern struct nouveau_oclass *nvd7_grctx_oclass;
-
-extern struct nouveau_oclass *nvd9_grctx_oclass;
-extern struct nvc0_graph_init nvd9_grctx_init_rop[];
-extern struct nvc0_graph_mthd nvd9_grctx_init_mthd[];
-
-void nve4_grctx_generate_main(struct nvc0_graph_priv *, struct nvc0_grctx *);
-void nve4_grctx_generate_unkn(struct nvc0_graph_priv *);
-extern struct nouveau_oclass *nve4_grctx_oclass;
-extern struct nvc0_graph_init nve4_grctx_init_unk46xx[];
-extern struct nvc0_graph_init nve4_grctx_init_unk47xx[];
-extern struct nvc0_graph_init nve4_grctx_init_unk58xx[];
-extern struct nvc0_graph_init nve4_grctx_init_unk80xx[];
-extern struct nvc0_graph_init nve4_grctx_init_unk90xx[];
-
-extern struct nouveau_oclass *nvf0_grctx_oclass;
-extern struct nvc0_graph_init nvf0_grctx_init_unk44xx[];
-extern struct nvc0_graph_init nvf0_grctx_init_unk5bxx[];
-extern struct nvc0_graph_init nvf0_grctx_init_unk60xx[];
-
-extern struct nouveau_oclass *nv108_grctx_oclass;
-
-#define mmio_data(s,a,p) do {                                                  \
-	info->buffer[info->buffer_nr] = round_up(info->addr, (a));             \
-	info->addr = info->buffer[info->buffer_nr++] + (s);                    \
-	info->data->size = (s);                                                \
-	info->data->align = (a);                                               \
-	info->data->access = (p);                                              \
-	info->data++;                                                          \
-} while(0)
-
-#define mmio_list(r,d,s,b) do {                                                \
-	info->mmio->addr = (r);                                                \
-	info->mmio->data = (d);                                                \
-	info->mmio->shift = (s);                                               \
-	info->mmio->buffer = (b);                                              \
-	info->mmio++;                                                          \
-	nv_wr32(priv, (r), (d) | ((s) ? (info->buffer[(b)] >> (s)) : 0));      \
-} while(0)
 
 #endif

@@ -33,8 +33,6 @@
 #include <linux/moduleparam.h>
 #include "intel_drv.h"
 
-#define PCI_LBPC 0xf4 /* legacy/combination backlight modes */
-
 void
 intel_fixed_panel_mode(const struct drm_display_mode *fixed_mode,
 		       struct drm_display_mode *adjusted_mode)
@@ -325,13 +323,6 @@ out:
 	pipe_config->gmch_pfit.lvds_border_bits = border;
 }
 
-static int i915_panel_invert_brightness;
-MODULE_PARM_DESC(invert_brightness, "Invert backlight brightness "
-	"(-1 force normal, 0 machine defaults, 1 force inversion), please "
-	"report PCI device ID, subsystem vendor and subsystem device ID "
-	"to dri-devel@lists.freedesktop.org, if your machine needs it. "
-	"It will then be included in an upcoming module version.");
-module_param_named(invert_brightness, i915_panel_invert_brightness, int, 0600);
 static u32 intel_panel_compute_brightness(struct intel_connector *connector,
 					  u32 val)
 {
@@ -341,10 +332,10 @@ static u32 intel_panel_compute_brightness(struct intel_connector *connector,
 
 	WARN_ON(panel->backlight.max == 0);
 
-	if (i915_panel_invert_brightness < 0)
+	if (i915.invert_brightness < 0)
 		return val;
 
-	if (i915_panel_invert_brightness > 0 ||
+	if (i915.invert_brightness > 0 ||
 	    dev_priv->quirks & QUIRK_INVERT_BRIGHTNESS) {
 		return panel->backlight.max - val;
 	}
@@ -810,13 +801,13 @@ intel_panel_detect(struct drm_device *dev)
 	struct drm_i915_private *dev_priv = dev->dev_private;
 
 	/* Assume that the BIOS does not lie through the OpRegion... */
-	if (!i915_panel_ignore_lid && dev_priv->opregion.lid_state) {
+	if (!i915.panel_ignore_lid && dev_priv->opregion.lid_state) {
 		return ioread32(dev_priv->opregion.lid_state) & 0x1 ?
 			connector_status_connected :
 			connector_status_disconnected;
 	}
 
-	switch (i915_panel_ignore_lid) {
+	switch (i915.panel_ignore_lid) {
 	case -2:
 		return connector_status_connected;
 	case -1:
@@ -1199,9 +1190,11 @@ void intel_panel_init_backlight_funcs(struct drm_device *dev)
 }
 
 int intel_panel_init(struct intel_panel *panel,
-		     struct drm_display_mode *fixed_mode)
+		     struct drm_display_mode *fixed_mode,
+		     struct drm_display_mode *downclock_mode)
 {
 	panel->fixed_mode = fixed_mode;
+	panel->downclock_mode = downclock_mode;
 
 	return 0;
 }

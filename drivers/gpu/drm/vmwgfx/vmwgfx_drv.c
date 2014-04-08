@@ -142,11 +142,11 @@
 
 static const struct drm_ioctl_desc vmw_ioctls[] = {
 	VMW_IOCTL_DEF(VMW_GET_PARAM, vmw_getparam_ioctl,
-		      DRM_AUTH | DRM_UNLOCKED),
+		      DRM_AUTH | DRM_UNLOCKED | DRM_RENDER_ALLOW),
 	VMW_IOCTL_DEF(VMW_ALLOC_DMABUF, vmw_dmabuf_alloc_ioctl,
-		      DRM_AUTH | DRM_UNLOCKED),
+		      DRM_AUTH | DRM_UNLOCKED | DRM_RENDER_ALLOW),
 	VMW_IOCTL_DEF(VMW_UNREF_DMABUF, vmw_dmabuf_unref_ioctl,
-		      DRM_AUTH | DRM_UNLOCKED),
+		      DRM_UNLOCKED | DRM_RENDER_ALLOW),
 	VMW_IOCTL_DEF(VMW_CURSOR_BYPASS,
 		      vmw_kms_cursor_bypass_ioctl,
 		      DRM_MASTER | DRM_CONTROL_ALLOW | DRM_UNLOCKED),
@@ -159,29 +159,28 @@ static const struct drm_ioctl_desc vmw_ioctls[] = {
 		      DRM_MASTER | DRM_CONTROL_ALLOW | DRM_UNLOCKED),
 
 	VMW_IOCTL_DEF(VMW_CREATE_CONTEXT, vmw_context_define_ioctl,
-		      DRM_AUTH | DRM_UNLOCKED),
+		      DRM_AUTH | DRM_UNLOCKED | DRM_RENDER_ALLOW),
 	VMW_IOCTL_DEF(VMW_UNREF_CONTEXT, vmw_context_destroy_ioctl,
-		      DRM_AUTH | DRM_UNLOCKED),
+		      DRM_UNLOCKED | DRM_RENDER_ALLOW),
 	VMW_IOCTL_DEF(VMW_CREATE_SURFACE, vmw_surface_define_ioctl,
-		      DRM_AUTH | DRM_UNLOCKED),
+		      DRM_AUTH | DRM_UNLOCKED | DRM_RENDER_ALLOW),
 	VMW_IOCTL_DEF(VMW_UNREF_SURFACE, vmw_surface_destroy_ioctl,
-		      DRM_AUTH | DRM_UNLOCKED),
+		      DRM_UNLOCKED | DRM_RENDER_ALLOW),
 	VMW_IOCTL_DEF(VMW_REF_SURFACE, vmw_surface_reference_ioctl,
-		      DRM_AUTH | DRM_UNLOCKED),
+		      DRM_AUTH | DRM_UNLOCKED | DRM_RENDER_ALLOW),
 	VMW_IOCTL_DEF(VMW_EXECBUF, vmw_execbuf_ioctl,
-		      DRM_AUTH | DRM_UNLOCKED),
+		      DRM_AUTH | DRM_UNLOCKED | DRM_RENDER_ALLOW),
 	VMW_IOCTL_DEF(VMW_FENCE_WAIT, vmw_fence_obj_wait_ioctl,
-		      DRM_AUTH | DRM_UNLOCKED),
+		      DRM_UNLOCKED | DRM_RENDER_ALLOW),
 	VMW_IOCTL_DEF(VMW_FENCE_SIGNALED,
 		      vmw_fence_obj_signaled_ioctl,
-		      DRM_AUTH | DRM_UNLOCKED),
+		      DRM_UNLOCKED | DRM_RENDER_ALLOW),
 	VMW_IOCTL_DEF(VMW_FENCE_UNREF, vmw_fence_obj_unref_ioctl,
-		      DRM_AUTH | DRM_UNLOCKED),
-	VMW_IOCTL_DEF(VMW_FENCE_EVENT,
-		      vmw_fence_event_ioctl,
-		      DRM_AUTH | DRM_UNLOCKED),
+		      DRM_UNLOCKED | DRM_RENDER_ALLOW),
+	VMW_IOCTL_DEF(VMW_FENCE_EVENT, vmw_fence_event_ioctl,
+		      DRM_AUTH | DRM_UNLOCKED | DRM_RENDER_ALLOW),
 	VMW_IOCTL_DEF(VMW_GET_3D_CAP, vmw_get_cap_3d_ioctl,
-		      DRM_AUTH | DRM_UNLOCKED),
+		      DRM_AUTH | DRM_UNLOCKED | DRM_RENDER_ALLOW),
 
 	/* these allow direct access to the framebuffers mark as master only */
 	VMW_IOCTL_DEF(VMW_PRESENT, vmw_present_ioctl,
@@ -194,19 +193,19 @@ static const struct drm_ioctl_desc vmw_ioctls[] = {
 		      DRM_MASTER | DRM_UNLOCKED),
 	VMW_IOCTL_DEF(VMW_CREATE_SHADER,
 		      vmw_shader_define_ioctl,
-		      DRM_AUTH | DRM_UNLOCKED),
+		      DRM_AUTH | DRM_UNLOCKED | DRM_RENDER_ALLOW),
 	VMW_IOCTL_DEF(VMW_UNREF_SHADER,
 		      vmw_shader_destroy_ioctl,
-		      DRM_AUTH | DRM_UNLOCKED),
+		      DRM_UNLOCKED | DRM_RENDER_ALLOW),
 	VMW_IOCTL_DEF(VMW_GB_SURFACE_CREATE,
 		      vmw_gb_surface_define_ioctl,
-		      DRM_AUTH | DRM_UNLOCKED),
+		      DRM_AUTH | DRM_UNLOCKED | DRM_RENDER_ALLOW),
 	VMW_IOCTL_DEF(VMW_GB_SURFACE_REF,
 		      vmw_gb_surface_reference_ioctl,
-		      DRM_AUTH | DRM_UNLOCKED),
+		      DRM_AUTH | DRM_UNLOCKED | DRM_RENDER_ALLOW),
 	VMW_IOCTL_DEF(VMW_SYNCCPU,
 		      vmw_user_dmabuf_synccpu_ioctl,
-		      DRM_AUTH | DRM_UNLOCKED),
+		      DRM_UNLOCKED | DRM_RENDER_ALLOW),
 };
 
 static struct pci_device_id vmw_pci_id_list[] = {
@@ -606,6 +605,7 @@ static int vmw_driver_load(struct drm_device *dev, unsigned long chipset)
 	mutex_init(&dev_priv->release_mutex);
 	mutex_init(&dev_priv->binding_mutex);
 	rwlock_init(&dev_priv->resource_lock);
+	ttm_lock_init(&dev_priv->reservation_sem);
 
 	for (i = vmw_res_context; i < vmw_res_max; ++i) {
 		idr_init(&dev_priv->res_idr[i]);
@@ -722,7 +722,9 @@ static int vmw_driver_load(struct drm_device *dev, unsigned long chipset)
 
 	ret = ttm_bo_device_init(&dev_priv->bdev,
 				 dev_priv->bo_global_ref.ref.object,
-				 &vmw_bo_driver, VMWGFX_FILE_PAGE_OFFSET,
+				 &vmw_bo_driver,
+				 dev->anon_inode->i_mapping,
+				 VMWGFX_FILE_PAGE_OFFSET,
 				 false);
 	if (unlikely(ret != 0)) {
 		DRM_ERROR("Failed initializing TTM buffer object driver.\n");
@@ -969,7 +971,6 @@ static int vmw_driver_open(struct drm_device *dev, struct drm_file *file_priv)
 		goto out_no_shman;
 
 	file_priv->driver_priv = vmw_fp;
-	dev_priv->bdev.dev_mapping = dev->dev_mapping;
 
 	return 0;
 
@@ -980,12 +981,70 @@ out_no_tfile:
 	return ret;
 }
 
-static long vmw_unlocked_ioctl(struct file *filp, unsigned int cmd,
-			       unsigned long arg)
+static struct vmw_master *vmw_master_check(struct drm_device *dev,
+					   struct drm_file *file_priv,
+					   unsigned int flags)
+{
+	int ret;
+	struct vmw_fpriv *vmw_fp = vmw_fpriv(file_priv);
+	struct vmw_master *vmaster;
+
+	if (file_priv->minor->type != DRM_MINOR_LEGACY ||
+	    !(flags & DRM_AUTH))
+		return NULL;
+
+	ret = mutex_lock_interruptible(&dev->master_mutex);
+	if (unlikely(ret != 0))
+		return ERR_PTR(-ERESTARTSYS);
+
+	if (file_priv->is_master) {
+		mutex_unlock(&dev->master_mutex);
+		return NULL;
+	}
+
+	/*
+	 * Check if we were previously master, but now dropped.
+	 */
+	if (vmw_fp->locked_master) {
+		mutex_unlock(&dev->master_mutex);
+		DRM_ERROR("Dropped master trying to access ioctl that "
+			  "requires authentication.\n");
+		return ERR_PTR(-EACCES);
+	}
+	mutex_unlock(&dev->master_mutex);
+
+	/*
+	 * Taking the drm_global_mutex after the TTM lock might deadlock
+	 */
+	if (!(flags & DRM_UNLOCKED)) {
+		DRM_ERROR("Refusing locked ioctl access.\n");
+		return ERR_PTR(-EDEADLK);
+	}
+
+	/*
+	 * Take the TTM lock. Possibly sleep waiting for the authenticating
+	 * master to become master again, or for a SIGTERM if the
+	 * authenticating master exits.
+	 */
+	vmaster = vmw_master(file_priv->master);
+	ret = ttm_read_lock(&vmaster->lock, true);
+	if (unlikely(ret != 0))
+		vmaster = ERR_PTR(ret);
+
+	return vmaster;
+}
+
+static long vmw_generic_ioctl(struct file *filp, unsigned int cmd,
+			      unsigned long arg,
+			      long (*ioctl_func)(struct file *, unsigned int,
+						 unsigned long))
 {
 	struct drm_file *file_priv = filp->private_data;
 	struct drm_device *dev = file_priv->minor->dev;
 	unsigned int nr = DRM_IOCTL_NR(cmd);
+	struct vmw_master *vmaster;
+	unsigned int flags;
+	long ret;
 
 	/*
 	 * Do extra checking on driver private ioctls.
@@ -994,17 +1053,43 @@ static long vmw_unlocked_ioctl(struct file *filp, unsigned int cmd,
 	if ((nr >= DRM_COMMAND_BASE) && (nr < DRM_COMMAND_END)
 	    && (nr < DRM_COMMAND_BASE + dev->driver->num_ioctls)) {
 		const struct drm_ioctl_desc *ioctl =
-		    &vmw_ioctls[nr - DRM_COMMAND_BASE];
+			&vmw_ioctls[nr - DRM_COMMAND_BASE];
 
 		if (unlikely(ioctl->cmd_drv != cmd)) {
 			DRM_ERROR("Invalid command format, ioctl %d\n",
 				  nr - DRM_COMMAND_BASE);
 			return -EINVAL;
 		}
+		flags = ioctl->flags;
+	} else if (!drm_ioctl_flags(nr, &flags))
+		return -EINVAL;
+
+	vmaster = vmw_master_check(dev, file_priv, flags);
+	if (unlikely(IS_ERR(vmaster))) {
+		DRM_INFO("IOCTL ERROR %d\n", nr);
+		return PTR_ERR(vmaster);
 	}
 
-	return drm_ioctl(filp, cmd, arg);
+	ret = ioctl_func(filp, cmd, arg);
+	if (vmaster)
+		ttm_read_unlock(&vmaster->lock);
+
+	return ret;
 }
+
+static long vmw_unlocked_ioctl(struct file *filp, unsigned int cmd,
+			       unsigned long arg)
+{
+	return vmw_generic_ioctl(filp, cmd, arg, &drm_ioctl);
+}
+
+#ifdef CONFIG_COMPAT
+static long vmw_compat_ioctl(struct file *filp, unsigned int cmd,
+			     unsigned long arg)
+{
+	return vmw_generic_ioctl(filp, cmd, arg, &drm_compat_ioctl);
+}
+#endif
 
 static void vmw_lastclose(struct drm_device *dev)
 {
@@ -1174,12 +1259,11 @@ static int vmwgfx_pm_notifier(struct notifier_block *nb, unsigned long val,
 {
 	struct vmw_private *dev_priv =
 		container_of(nb, struct vmw_private, pm_nb);
-	struct vmw_master *vmaster = dev_priv->active_master;
 
 	switch (val) {
 	case PM_HIBERNATION_PREPARE:
 	case PM_SUSPEND_PREPARE:
-		ttm_suspend_lock(&vmaster->lock);
+		ttm_suspend_lock(&dev_priv->reservation_sem);
 
 		/**
 		 * This empties VRAM and unbinds all GMR bindings.
@@ -1193,7 +1277,7 @@ static int vmwgfx_pm_notifier(struct notifier_block *nb, unsigned long val,
 	case PM_POST_HIBERNATION:
 	case PM_POST_SUSPEND:
 	case PM_POST_RESTORE:
-		ttm_suspend_unlock(&vmaster->lock);
+		ttm_suspend_unlock(&dev_priv->reservation_sem);
 
 		break;
 	case PM_RESTORE_PREPARE:
@@ -1314,14 +1398,14 @@ static const struct file_operations vmwgfx_driver_fops = {
 	.poll = vmw_fops_poll,
 	.read = vmw_fops_read,
 #if defined(CONFIG_COMPAT)
-	.compat_ioctl = drm_compat_ioctl,
+	.compat_ioctl = vmw_compat_ioctl,
 #endif
 	.llseek = noop_llseek,
 };
 
 static struct drm_driver driver = {
 	.driver_features = DRIVER_HAVE_IRQ | DRIVER_IRQ_SHARED |
-	DRIVER_MODESET | DRIVER_PRIME,
+	DRIVER_MODESET | DRIVER_PRIME | DRIVER_RENDER,
 	.load = vmw_driver_load,
 	.unload = vmw_driver_unload,
 	.lastclose = vmw_lastclose,

@@ -490,15 +490,15 @@ static void ns2501_dump_regs(struct intel_dvo_device *dvo)
 	uint8_t val;
 
 	ns2501_readb(dvo, NS2501_FREQ_LO, &val);
-	DRM_LOG_KMS("NS2501_FREQ_LO: 0x%02x\n", val);
+	DRM_DEBUG_KMS("NS2501_FREQ_LO: 0x%02x\n", val);
 	ns2501_readb(dvo, NS2501_FREQ_HI, &val);
-	DRM_LOG_KMS("NS2501_FREQ_HI: 0x%02x\n", val);
+	DRM_DEBUG_KMS("NS2501_FREQ_HI: 0x%02x\n", val);
 	ns2501_readb(dvo, NS2501_REG8, &val);
-	DRM_LOG_KMS("NS2501_REG8: 0x%02x\n", val);
+	DRM_DEBUG_KMS("NS2501_REG8: 0x%02x\n", val);
 	ns2501_readb(dvo, NS2501_REG9, &val);
-	DRM_LOG_KMS("NS2501_REG9: 0x%02x\n", val);
+	DRM_DEBUG_KMS("NS2501_REG9: 0x%02x\n", val);
 	ns2501_readb(dvo, NS2501_REGC, &val);
-	DRM_LOG_KMS("NS2501_REGC: 0x%02x\n", val);
+	DRM_DEBUG_KMS("NS2501_REGC: 0x%02x\n", val);
 }
 
 static void ns2501_destroy(struct intel_dvo_device *dvo)
