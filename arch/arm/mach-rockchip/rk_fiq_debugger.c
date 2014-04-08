@@ -263,11 +263,8 @@ void rk_serial_debug_init(void __iomem *base, int irq, int signal_irq, int wakeu
 
 #ifdef CONFIG_RK_CONSOLE_THREAD
 	t->console_task = kthread_create(console_thread, pdev, "kconsole");
-	if (!IS_ERR(t->console_task)) {
-		struct sched_param param = { .sched_priority = MAX_RT_PRIO - 1 };
+	if (!IS_ERR(t->console_task))
 		t->pdata.console_write = console_write;
-		sched_setscheduler_nocheck(t->console_task, SCHED_FIFO, &param);
-	}
 #endif
 
 	pdev->name = "fiq_debugger";
