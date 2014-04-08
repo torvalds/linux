@@ -2917,6 +2917,13 @@ int kblockd_schedule_delayed_work(struct delayed_work *dwork,
 }
 EXPORT_SYMBOL(kblockd_schedule_delayed_work);
 
+int kblockd_schedule_delayed_work_on(int cpu, struct delayed_work *dwork,
+				     unsigned long delay)
+{
+	return queue_delayed_work_on(cpu, kblockd_workqueue, dwork, delay);
+}
+EXPORT_SYMBOL(kblockd_schedule_delayed_work_on);
+
 #define PLUG_MAGIC	0x91827364
 
 /**
