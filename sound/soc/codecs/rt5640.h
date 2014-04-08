@@ -14,6 +14,9 @@
 
 #include <sound/rt5640.h>
 
+#define RT5639_RESET_ID				0x0008
+#define RT5640_RESET_ID				0x000c
+
 /* Info */
 #define RT5640_RESET				0x00
 #define RT5640_VENDOR_ID			0xfd
