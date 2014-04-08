@@ -1759,31 +1759,38 @@ static int win0_set_par(struct lcdc_device *lcdc_dev,
 		case ARGB888:
 			fmt_cfg = 0;
 			win->swap_rb = 0;
+			win->fmt_10 = 0;
 			break;
 		case XBGR888:
 		case ABGR888:
 			fmt_cfg = 0;
 			win->swap_rb = 1;
+			win->fmt_10 = 0;
 			break;
 		case RGB888:
 			fmt_cfg = 1;
 			win->swap_rb = 0;
+			win->fmt_10 = 0;
 			break;
 		case RGB565:
 			fmt_cfg = 2;
-			win->swap_rb = 0;		
+			win->swap_rb = 0;
+			win->fmt_10 = 0;
 			break;
 		case YUV422:
 			fmt_cfg = 5;
-			win->swap_rb = 0;		
+			win->swap_rb = 0;
+			win->fmt_10 = 0;
 			break;
 		case YUV420:	
 			fmt_cfg = 4;
-			win->swap_rb = 0;		
+			win->swap_rb = 0;
+			win->fmt_10 = 0;
 			break;
 		case YUV444:	
 			fmt_cfg = 6;
 			win->swap_rb = 0;
+			win->fmt_10 = 0;
 		case YUV422_A:
 			fmt_cfg = 5;
 			win->swap_rb = 0;
@@ -1840,31 +1847,38 @@ static int win1_set_par(struct lcdc_device *lcdc_dev,
 		case ARGB888:
 			fmt_cfg = 0;
 			win->swap_rb = 0;
+			win->fmt_10 = 0;
 			break;
 		case XBGR888:
 		case ABGR888:
 			fmt_cfg = 0;
 			win->swap_rb = 1;
+			win->fmt_10 = 0;
 			break;
 		case RGB888:
 			fmt_cfg = 1;
 			win->swap_rb = 0;
+			win->fmt_10 = 0;
 			break;
 		case RGB565:
 			fmt_cfg = 2;
-			win->swap_rb = 0;		
+			win->swap_rb = 0;
+			win->fmt_10 = 0;
 			break;
 		case YUV422:
 			fmt_cfg = 5;
-			win->swap_rb = 0;		
+			win->swap_rb = 0;
+			win->fmt_10 = 0;
 			break;
 		case YUV420:
 			fmt_cfg = 4;
-			win->swap_rb = 0;		
+			win->swap_rb = 0;
+			win->fmt_10 = 0;
 			break;
 		case YUV444:
 			fmt_cfg = 6;
-			win->swap_rb = 0;		
+			win->swap_rb = 0;
+			win->fmt_10 = 0;
 			break;
 		case YUV422_A:
 			fmt_cfg = 5;
