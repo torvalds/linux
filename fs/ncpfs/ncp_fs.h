@@ -2,9 +2,6 @@
 #include "ncp_fs_i.h"
 #include "ncp_fs_sb.h"
 
-/* define because it is easy to change PRINTK to {*}PRINTK */
-#define PRINTK(format, args...) printk(KERN_DEBUG format , ## args)
-
 #undef NCPFS_PARANOIA
 #ifdef NCPFS_PARANOIA
 #define ncp_vdbg(fmt, ...)					\
