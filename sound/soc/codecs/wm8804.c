@@ -92,7 +92,7 @@ WM8804_REGULATOR_EVENT(0)
 WM8804_REGULATOR_EVENT(1)
 
 static const char *txsrc_text[] = { "S/PDIF RX", "AIF" };
-static const SOC_ENUM_SINGLE_EXT_DECL(txsrc, txsrc_text);
+static SOC_ENUM_SINGLE_EXT_DECL(txsrc, txsrc_text);
 
 static const struct snd_kcontrol_new wm8804_snd_controls[] = {
 	SOC_ENUM_EXT("Input Source", txsrc, txsrc_get, txsrc_put),
