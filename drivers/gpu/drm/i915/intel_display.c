@@ -7369,9 +7369,6 @@ static void haswell_write_eld(struct drm_connector *connector,
 	int aud_config = HSW_AUD_CFG(pipe);
 	int aud_cntrl_st2 = HSW_AUD_PIN_ELD_CP_VLD;
 
-
-	DRM_DEBUG_DRIVER("HDMI: Haswell Audio initialize....\n");
-
 	/* Audio output enable */
 	DRM_DEBUG_DRIVER("HDMI audio: enable codec\n");
 	tmp = I915_READ(aud_cntrl_st2);
