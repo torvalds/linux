@@ -1386,6 +1386,7 @@ user_backtrace(struct frame_tail __user *tail,
 	return buftail.fp;
 }
 
+#ifdef CONFIG_COMPAT
 /*
  * The registers we're interested in are at the end of the variable
  * length saved register structure. The fp points at the end of this
@@ -1430,6 +1431,7 @@ compat_user_backtrace(struct compat_frame_tail __user *tail,
 
 	return (struct compat_frame_tail __user *)compat_ptr(buftail.fp) - 1;
 }
+#endif /* CONFIG_COMPAT */
 
 void perf_callchain_user(struct perf_callchain_entry *entry,
 			 struct pt_regs *regs)
@@ -1451,6 +1453,7 @@ void perf_callchain_user(struct perf_callchain_entry *entry,
 		       tail && !((unsigned long)tail & 0xf))
 			tail = user_backtrace(tail, entry);
 	} else {
+#ifdef CONFIG_COMPAT
 		/* AARCH32 compat mode */
 		struct compat_frame_tail __user *tail;
 
@@ -1459,6 +1462,7 @@ void perf_callchain_user(struct perf_callchain_entry *entry,
 		while ((entry->nr < PERF_MAX_STACK_DEPTH) &&
 			tail && !((unsigned long)tail & 0x3))
 			tail = compat_user_backtrace(tail, entry);
+#endif
 	}
 }
 
