@@ -213,7 +213,7 @@
 		reg = <1>;
 		interrupt-parent = <&irqc0>;
 		interrupts = <0 IRQ_TYPE_LEVEL_LOW>;
-		led-mode = <1>;
+		micrel,led-mode = <1>;
 	};
 };
 
