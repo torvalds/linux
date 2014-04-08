@@ -1183,6 +1183,13 @@ static int rk808_pre_init(struct rk808 *rk808)
 {
 	int ret,val;
 	 printk("%s,line=%d\n", __func__,__LINE__);
+	 /**********disable dcdc uv func****************/
+        ret = rk808_reg_write(rk808,RK808_DCDC_UV_ACT_REG,0x10);
+         if (ret <0) {
+                printk(KERN_ERR "Unable to write RK808_DCDC_UV_ACT_REG reg\n");
+                return ret;
+        }
+	/**********************************/
 	 /***********set ILIM ************/
 	val = rk808_reg_read(rk808,RK808_BUCK3_CONFIG_REG);
 	val &= (~(0x7 <<0));
