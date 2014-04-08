@@ -289,7 +289,7 @@ static int smiapp_pll_update(struct smiapp_sensor *sensor)
 		return rval;
 
 	__v4l2_ctrl_s_ctrl_int64(sensor->pixel_rate_parray,
-				 pll->vt.pix_clk_freq_hz);
+				 pll->pixel_rate_pixel_array);
 	__v4l2_ctrl_s_ctrl_int64(sensor->pixel_rate_csi, pll->pixel_rate_csi);
 
 	return 0;
@@ -894,7 +894,7 @@ static int smiapp_update_mode(struct smiapp_sensor *sensor)
 	dev_dbg(&client->dev, "hblank\t\t%d\n", sensor->hblank->val);
 
 	dev_dbg(&client->dev, "real timeperframe\t100/%d\n",
-		sensor->pll.vt.pix_clk_freq_hz /
+		sensor->pll.pixel_rate_pixel_array /
 		((sensor->pixel_array->crop[SMIAPP_PA_PAD_SRC].width
 		  + sensor->hblank->val) *
 		 (sensor->pixel_array->crop[SMIAPP_PA_PAD_SRC].height
