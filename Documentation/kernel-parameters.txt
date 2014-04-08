@@ -2558,6 +2558,13 @@ bytes respectively. Such letter suffixes can also be entirely omitted.
 
 	pcmv=		[HW,PCMCIA] BadgePAD 4
 
+	pd_ignore_unused
+			[PM]
+			Keep all power-domains already enabled by bootloader on,
+			even if no driver has claimed them. This is useful
+			for debug and development, but should not be
+			needed on a platform with proper driver support.
+
 	pd.		[PARIDE]
 			See Documentation/blockdev/paride.txt.
 
