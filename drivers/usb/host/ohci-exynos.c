@@ -190,16 +190,12 @@ static int exynos_ohci_suspend(struct device *dev)
 {
 	struct usb_hcd *hcd = dev_get_drvdata(dev);
 	struct exynos_ohci_hcd *exynos_ohci = to_exynos_ohci(hcd);
-	struct ohci_hcd *ohci = hcd_to_ohci(hcd);
 	struct platform_device *pdev = to_platform_device(dev);
 	bool do_wakeup = device_may_wakeup(dev);
-	unsigned long flags;
 	int rc = ohci_suspend(hcd, do_wakeup);
 
 	if (rc)
 		return rc;
-
-	spin_lock_irqsave(&ohci->lock, flags);
 
 	if (exynos_ohci->otg)
 		exynos_ohci->otg->set_host(exynos_ohci->otg, &hcd->self);
@@ -207,8 +203,6 @@ static int exynos_ohci_suspend(struct device *dev)
 	exynos_ohci_phy_disable(pdev);
 
 	clk_disable_unprepare(exynos_ohci->clk);
-
-	spin_unlock_irqrestore(&ohci->lock, flags);
 
 	return 0;
 }
