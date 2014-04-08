@@ -623,7 +623,7 @@ static int fill_powernow_table(struct powernow_k8_data *data,
 	if (check_pst_table(data, pst, maxvid))
 		return -EINVAL;
 
-	powernow_table = kmalloc((sizeof(*powernow_table)
+	powernow_table = kzalloc((sizeof(*powernow_table)
 		* (data->numps + 1)), GFP_KERNEL);
 	if (!powernow_table) {
 		printk(KERN_ERR PFX "powernow_table memory alloc failure\n");
@@ -793,7 +793,7 @@ static int powernow_k8_cpu_init_acpi(struct powernow_k8_data *data)
 	}
 
 	/* fill in data->powernow_table */
-	powernow_table = kmalloc((sizeof(*powernow_table)
+	powernow_table = kzalloc((sizeof(*powernow_table)
 		* (data->acpi_data.state_count + 1)), GFP_KERNEL);
 	if (!powernow_table) {
 		pr_debug("powernow_table memory alloc failure\n");
@@ -810,7 +810,6 @@ static int powernow_k8_cpu_init_acpi(struct powernow_k8_data *data)
 
 	powernow_table[data->acpi_data.state_count].frequency =
 		CPUFREQ_TABLE_END;
-	powernow_table[data->acpi_data.state_count].driver_data = 0;
 	data->powernow_table = powernow_table;
 
 	if (cpumask_first(cpu_core_mask(data->cpu)) == data->cpu)

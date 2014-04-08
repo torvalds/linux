@@ -272,6 +272,10 @@
 #define SPRN_HSRR1	0x13B	/* Hypervisor Save/Restore 1 */
 #define SPRN_IC		0x350	/* Virtual Instruction Count */
 #define SPRN_VTB	0x351	/* Virtual Time Base */
+#define SPRN_PMICR	0x354   /* Power Management Idle Control Reg */
+#define SPRN_PMSR	0x355   /* Power Management Status Reg */
+#define SPRN_PMCR	0x374	/* Power Management Control Register */
+
 /* HFSCR and FSCR bit numbers are the same */
 #define FSCR_TAR_LG	8	/* Enable Target Address Register */
 #define FSCR_EBB_LG	7	/* Enable Event Based Branching */

@@ -33,11 +33,10 @@ int cpufreq_frequency_table_cpuinfo(struct cpufreq_policy *policy,
 			continue;
 		}
 		if (!cpufreq_boost_enabled()
-		    && table[i].driver_data == CPUFREQ_BOOST_FREQ)
+		    && (table[i].flags & CPUFREQ_BOOST_FREQ))
 			continue;
 
-		pr_debug("table entry %u: %u kHz, %u driver_data\n",
-					i, freq, table[i].driver_data);
+		pr_debug("table entry %u: %u kHz\n", i, freq);
 		if (freq < min_freq)
 			min_freq = freq;
 		if (freq > max_freq)
@@ -175,8 +174,8 @@ int cpufreq_frequency_table_target(struct cpufreq_policy *policy,
 	} else
 		*index = optimal.driver_data;
 
-	pr_debug("target is %u (%u kHz, %u)\n", *index, table[*index].frequency,
-		table[*index].driver_data);
+	pr_debug("target index is %u, freq is:%u kHz\n", *index,
+		 table[*index].frequency);
 
 	return 0;
 }
@@ -230,7 +229,7 @@ static ssize_t show_available_freqs(struct cpufreq_policy *policy, char *buf,
 		 * show_boost = false and driver_data != BOOST freq
 		 * display NON BOOST freqs
 		 */
-		if (show_boost ^ (table[i].driver_data == CPUFREQ_BOOST_FREQ))
+		if (show_boost ^ (table[i].flags & CPUFREQ_BOOST_FREQ))
 			continue;
 
 		count += sprintf(&buf[count], "%d ", table[i].frequency);

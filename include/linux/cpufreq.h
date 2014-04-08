@@ -455,11 +455,14 @@ extern struct cpufreq_governor cpufreq_gov_conservative;
  *                     FREQUENCY TABLE HELPERS                       *
  *********************************************************************/
 
-#define CPUFREQ_ENTRY_INVALID ~0
-#define CPUFREQ_TABLE_END     ~1
-#define CPUFREQ_BOOST_FREQ    ~2
+/* Special Values of .frequency field */
+#define CPUFREQ_ENTRY_INVALID	~0
+#define CPUFREQ_TABLE_END	~1
+/* Special Values of .flags field */
+#define CPUFREQ_BOOST_FREQ	(1 << 0)
 
 struct cpufreq_frequency_table {
+	unsigned int	flags;
 	unsigned int	driver_data; /* driver specific data, not used by core */
 	unsigned int	frequency; /* kHz - doesn't need to be in ascending
 				    * order */
