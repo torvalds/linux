@@ -436,6 +436,10 @@ struct ath10k {
 	unsigned long dev_flags;
 	u32 dfs_block_radar_events;
 
+	/* protected by conf_mutex */
+	bool radar_enabled;
+	int num_started_vdevs;
+
 	struct wmi_pdev_set_wmm_params_arg wmm_params;
 	struct completion install_key_done;
 

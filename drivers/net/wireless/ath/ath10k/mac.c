@@ -767,49 +767,18 @@ static int ath10k_stop_cac(struct ath10k *ar)
 	return 0;
 }
 
-static const char *ath10k_dfs_state(enum nl80211_dfs_state dfs_state)
+static void ath10k_recalc_radar_detection(struct ath10k *ar)
 {
-	switch (dfs_state) {
-	case NL80211_DFS_USABLE:
-		return "USABLE";
-	case NL80211_DFS_UNAVAILABLE:
-		return "UNAVAILABLE";
-	case NL80211_DFS_AVAILABLE:
-		return "AVAILABLE";
-	default:
-		WARN_ON(1);
-		return "bug";
-	}
-}
-
-static void ath10k_config_radar_detection(struct ath10k *ar)
-{
-	struct ieee80211_channel *chan = ar->hw->conf.chandef.chan;
-	bool radar = ar->hw->conf.radar_enabled;
-	bool chan_radar = !!(chan->flags & IEEE80211_CHAN_RADAR);
-	enum nl80211_dfs_state dfs_state = chan->dfs_state;
 	int ret;
 
 	lockdep_assert_held(&ar->conf_mutex);
 
-	ath10k_dbg(ATH10K_DBG_MAC,
-		   "mac radar config update: chan %dMHz radar %d chan radar %d chan state %s\n",
-		   chan->center_freq, radar, chan_radar,
-		   ath10k_dfs_state(dfs_state));
-
-	/*
-	 * It's safe to call it even if CAC is not started.
-	 * This call here guarantees changing channel, etc. will stop CAC.
-	 */
 	ath10k_stop_cac(ar);
 
-	if (!radar)
+	if (!ar->radar_enabled)
 		return;
 
-	if (!chan_radar)
-		return;
-
-	if (dfs_state != NL80211_DFS_USABLE)
+	if (ar->num_started_vdevs > 0)
 		return;
 
 	ret = ath10k_start_cac(ar);
@@ -880,6 +849,9 @@ static int ath10k_vdev_start(struct ath10k_vif *arvif)
 		return ret;
 	}
 
+	ar->num_started_vdevs++;
+	ath10k_recalc_radar_detection(ar);
+
 	return ret;
 }
 
@@ -904,6 +876,13 @@ static int ath10k_vdev_stop(struct ath10k_vif *arvif)
 		ath10k_warn("failed to syncronise setup for vdev %i: %d\n",
 			    arvif->vdev_id, ret);
 		return ret;
+	}
+
+	WARN_ON(ar->num_started_vdevs == 0);
+
+	if (ar->num_started_vdevs != 0) {
+		ar->num_started_vdevs--;
+		ath10k_recalc_radar_detection(ar);
 	}
 
 	return ret;
@@ -2395,6 +2374,7 @@ static int ath10k_start(struct ieee80211_hw *hw)
 		goto exit;
 	}
 
+	ar->num_started_vdevs = 0;
 	ath10k_regd_update(ar);
 	ret = 0;
 
@@ -2541,15 +2521,17 @@ static int ath10k_config(struct ieee80211_hw *hw, u32 changed)
 
 	if (changed & IEEE80211_CONF_CHANGE_CHANNEL) {
 		ath10k_dbg(ATH10K_DBG_MAC,
-			   "mac config channel %d mhz flags 0x%x\n",
+			   "mac config channel %dMHz flags 0x%x radar %d\n",
 			   conf->chandef.chan->center_freq,
-			   conf->chandef.chan->flags);
+			   conf->chandef.chan->flags,
+			   conf->radar_enabled);
 
 		spin_lock_bh(&ar->data_lock);
 		ar->rx_channel = conf->chandef.chan;
 		spin_unlock_bh(&ar->data_lock);
 
-		ath10k_config_radar_detection(ar);
+		ar->radar_enabled = conf->radar_enabled;
+		ath10k_recalc_radar_detection(ar);
 
 		if (!cfg80211_chandef_identical(&ar->chandef, &conf->chandef)) {
 			ar->chandef = conf->chandef;
