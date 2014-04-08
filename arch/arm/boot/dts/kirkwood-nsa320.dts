@@ -11,7 +11,7 @@
 
 /dts-v1/;
 
-#include "kirkwood-nsa310-common.dtsi"
+#include "kirkwood-nsa3x0-common.dtsi"
 
 / {
 	model = "Zyxel NSA320";
