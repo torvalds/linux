@@ -116,7 +116,7 @@ config AHCI_ST
 
 config AHCI_IMX
 	tristate "Freescale i.MX AHCI SATA support"
-	depends on MFD_SYSCON
+	depends on MFD_SYSCON && (ARCH_MXC || COMPILE_TEST)
 	help
 	  This option enables support for the Freescale i.MX SoC's
 	  onboard AHCI SATA.
