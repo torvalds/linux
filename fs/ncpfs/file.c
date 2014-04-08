@@ -6,6 +6,8 @@
  *
  */
 
+#define pr_fmt(fmt) KBUILD_MODNAME ": " fmt
+
 #include <asm/uaccess.h>
 
 #include <linux/time.h>
@@ -34,7 +36,7 @@ int ncp_make_open(struct inode *inode, int right)
 
 	error = -EINVAL;
 	if (!inode) {
-		printk(KERN_ERR "ncp_make_open: got NULL inode\n");
+		pr_err("%s: got NULL inode\n", __func__);
 		goto out;
 	}
 
