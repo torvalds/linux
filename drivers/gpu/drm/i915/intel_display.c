@@ -7064,7 +7064,7 @@ static void haswell_set_pipeconf(struct drm_crtc *crtc)
 	I915_WRITE(GAMMA_MODE(intel_crtc->pipe), GAMMA_MODE_MODE_8BIT);
 	POSTING_READ(GAMMA_MODE(intel_crtc->pipe));
 
-	if (IS_BROADWELL(dev)) {
+	if (IS_BROADWELL(dev) || INTEL_INFO(dev)->gen >= 9) {
 		val = 0;
 
 		switch (intel_crtc->config.pipe_bpp) {
