@@ -1759,7 +1759,7 @@ irqreturn_t azx_interrupt(int irq, void *dev_id)
 
 #ifdef CONFIG_PM_RUNTIME
 	if (chip->driver_caps & AZX_DCAPS_PM_RUNTIME)
-		if (chip->card->dev->power.runtime_status != RPM_ACTIVE)
+		if (!pm_runtime_active(chip->card->dev))
 			return IRQ_NONE;
 #endif
 
