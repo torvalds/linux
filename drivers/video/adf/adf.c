@@ -2,6 +2,8 @@
  * Copyright (C) 2013 Google, Inc.
  * adf_modeinfo_{set_name,set_vrefresh} modified from
  * drivers/gpu/drm/drm_modes.c
+ * adf_format_validate_yuv modified from framebuffer_check in
+ * drivers/gpu/drm/drm_crtc.c
  *
  * This software is licensed under the terms of the GNU General Public
  * License version 2, as published by the Free Software Foundation, and
