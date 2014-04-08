@@ -253,6 +253,7 @@ enum mm_32a_minor_op {
 	mm_pool32axf_op = 0x03c,
 	mm_srl32_op = 0x040,
 	mm_sra_op = 0x080,
+	mm_srlv32_op = 0x090,
 	mm_rotr_op = 0x0c0,
 	mm_lwxs_op = 0x118,
 	mm_addu32_op = 0x150,

@@ -143,6 +143,7 @@ Ip_u2u1u3(_sll);
 Ip_u3u2u1(_sllv);
 Ip_u2u1u3(_sra);
 Ip_u2u1u3(_srl);
+Ip_u3u2u1(_srlv);
 Ip_u3u1u2(_subu);
 Ip_u2s3u1(_sw);
 Ip_u1(_sync);

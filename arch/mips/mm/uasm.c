@@ -52,9 +52,9 @@ enum opcode {
 	insn_ext, insn_ins, insn_j, insn_jal, insn_jalr, insn_jr, insn_ld,
 	insn_ldx, insn_ll, insn_lld, insn_lui, insn_lw, insn_lwx, insn_mfc0,
 	insn_mtc0, insn_or, insn_ori, insn_pref, insn_rfe, insn_rotr, insn_sc,
-	insn_scd, insn_sd, insn_sll, insn_sllv, insn_sra, insn_srl, insn_subu,
-	insn_sw, insn_sync, insn_syscall, insn_tlbp, insn_tlbr, insn_tlbwi,
-	insn_tlbwr, insn_wait, insn_xor, insn_xori, insn_yield,
+	insn_scd, insn_sd, insn_sll, insn_sllv, insn_sra, insn_srl, insn_srlv,
+	insn_subu, insn_sw, insn_sync, insn_syscall, insn_tlbp, insn_tlbr,
+	insn_tlbwi, insn_tlbwr, insn_wait, insn_xor, insn_xori, insn_yield,
 };
 
 struct insn {
@@ -283,6 +283,7 @@ I_u2u1u3(_sll)
 I_u3u2u1(_sllv)
 I_u2u1u3(_sra)
 I_u2u1u3(_srl)
+I_u3u2u1(_srlv)
 I_u2u1u3(_rotr)
 I_u3u1u2(_subu)
 I_u2s3u1(_sw)
