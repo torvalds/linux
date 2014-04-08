@@ -12758,6 +12758,10 @@ static void intel_init_display(struct drm_device *dev)
 		dev_priv->display.modeset_global_resources =
 			valleyview_modeset_global_resources;
 		dev_priv->display.write_eld = ironlake_write_eld;
+	} else if (INTEL_INFO(dev)->gen >= 9) {
+		dev_priv->display.write_eld = haswell_write_eld;
+		dev_priv->display.modeset_global_resources =
+			haswell_modeset_global_resources;
 	}
 
 	/* Default just returns -ENODEV to indicate unsupported */
