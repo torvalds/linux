@@ -144,6 +144,13 @@ Ip_u2u1u3(op)						\
 }							\
 UASM_EXPORT_SYMBOL(uasm_i##op);
 
+#define I_u3u2u1(op)					\
+Ip_u3u2u1(op)						\
+{							\
+	build_insn(buf, insn##op, c, b, a);		\
+}							\
+UASM_EXPORT_SYMBOL(uasm_i##op);
+
 #define I_u3u1u2(op)					\
 Ip_u3u1u2(op)						\
 {							\
