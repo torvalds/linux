@@ -428,6 +428,15 @@
 /* There are the 4 64-bit counter registers, one for each stream output */
 #define GEN7_SO_NUM_PRIMS_WRITTEN(n) (0x5200 + (n) * 8)
 
+#define GEN7_SO_PRIM_STORAGE_NEEDED(n)  (0x5240 + (n) * 8)
+
+#define GEN7_3DPRIM_END_OFFSET          0x2420
+#define GEN7_3DPRIM_START_VERTEX        0x2430
+#define GEN7_3DPRIM_VERTEX_COUNT        0x2434
+#define GEN7_3DPRIM_INSTANCE_COUNT      0x2438
+#define GEN7_3DPRIM_START_INSTANCE      0x243C
+#define GEN7_3DPRIM_BASE_VERTEX         0x2440
+
 #define OACONTROL 0x2360
 
 #define _GEN7_PIPEA_DE_LOAD_SL	0x70068
