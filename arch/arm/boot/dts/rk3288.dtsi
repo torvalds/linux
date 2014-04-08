@@ -230,6 +230,26 @@
 	};
 
 
+	nandc0: nandc@0xff400000 {
+		compatible = "rockchip,rk-nandc";
+		reg = <0xff400000 0x4000>;
+		interrupts = <GIC_SPI 38 IRQ_TYPE_LEVEL_HIGH>;/*irq=70*/
+		nandc_id = <0>;
+		clocks = <&clk_nandc0>, <&clk_gates5 5>, <&clk_gates7 14>;
+		clock-names = "clk_nandc", "g_clk_nandc","hclk_nandc";
+	    	status = "okay";
+	};
+
+	nandc1: nandc@0xff410000 {
+	    compatible = "rockchip,rk-nandc";
+		reg = <0xff410000 0x4000>;
+		interrupts = <GIC_SPI 40 IRQ_TYPE_LEVEL_HIGH>; /*irq=72*/
+		nandc_id = <1>;
+		clocks = <&clk_nandc1>, <&clk_gates5 6>, <&clk_gates7 15>;
+		clock-names = "clk_nandc","g_clk_nandc","hclk_nandc";
+	    	status = "okay";
+	};
+
 	emmc: rksdmmc@ff0f0000 {
 		compatible = "rockchip,rk_mmc";
 		reg = <0xff0f0000 0x4000>;

@@ -9,7 +9,9 @@
 #include <asm/io.h>
 #include <linux/platform_device.h>
 #include <linux/semaphore.h>
+#include <linux/clk.h>
 
+#define RKNAND_VERSION_AND_DATE  "rknandbase v1.0 2014-03-31"
 
 #ifdef CONFIG_OF
 #include <linux/of.h>
@@ -18,7 +20,8 @@
 struct rknand_info {
     int tag;
     int enable;
-    int reserved0[6];
+    int clk_rate[2];
+    int reserved0[8];
     
     void (*rknand_suspend)(void);
     void (*rknand_resume)(void);
@@ -33,7 +36,20 @@ struct rknand_info {
     int reserved1[16];
 };
 
+struct rk_nandc_info 
+{
+    int             id;
+    void __iomem    * reg_base ;
+    int             irq;
+    int             clk_rate;
+	struct clk	    *clk;  // flash clk
+	struct clk	    *hclk; // nandc clk
+	struct clk	    *gclk; // flash clk gate
+};
+
 struct rknand_info * gpNandInfo = NULL;
+static struct rk_nandc_info  g_nandc_info[2];
+
 static char *cmdline=NULL;
 int rknand_get_part_info(char **s)
 {
@@ -113,12 +129,12 @@ void rknand_device_unlock (void)
 EXPORT_SYMBOL(rknand_device_unlock);
 
 
-int rknand_get_device(struct rknand_info ** prknand_Info)
+int rk_nand_get_device(struct rknand_info ** prknand_Info)
 {
     *prknand_Info = gpNandInfo;
-    return 0;    
+    return 0;     
 }
-EXPORT_SYMBOL(rknand_get_device);
+EXPORT_SYMBOL(rk_nand_get_device);
 
 int rknand_dma_map_single(unsigned long ptr,int size,int dir)
 {
@@ -132,7 +148,7 @@ void rknand_dma_unmap_single(unsigned long ptr,int size,int dir)
 }
 EXPORT_SYMBOL(rknand_dma_unmap_single);
 
-int rknand_flash_cs_init(void)
+int rknand_flash_cs_init(int id)
 {
 
 }
@@ -140,41 +156,85 @@ EXPORT_SYMBOL(rknand_flash_cs_init);
 
 int rknand_get_reg_addr(int *pNandc0,int *pNandc1,int *pSDMMC0,int *pSDMMC1,int *pSDMMC2)
 {
-    //*pNandc = ioremap(RK30_NANDC_PHYS,RK30_NANDC_SIZE);
-    //*pSDMMC0 = ioremap(SDMMC0_BASE_ADDR, 0x4000);
-    //*pSDMMC1 = ioremap(SDMMC1_BASE_ADDR, 0x4000);
-    //*pSDMMC2 = ioremap(EMMC_BASE_ADDR,   0x4000);
-	*pNandc0 = ioremap(0x10500000,0x4000);
-	//*pNandc1 = NULL;
+	*pNandc0 = g_nandc_info[0].reg_base;
+	*pNandc1 = g_nandc_info[1].reg_base;
 }
-
 EXPORT_SYMBOL(rknand_get_reg_addr);
 
-static int g_nandc_irq = 59;
-int rknand_nandc_irq_init(int mode,void * pfun)
+int rknand_nandc_irq_init(int id,int mode,void * pfun)
 {
     int ret = 0;
+    int irq= g_nandc_info[id].irq;
+
     if(mode) //init
     {
-        ret = request_irq(g_nandc_irq, pfun, 0, "nandc", NULL);
-        if(ret)
-            printk("request IRQ_NANDC irq , ret=%x.........\n", ret);
+        ret = request_irq(irq, pfun, 0, "nandc", g_nandc_info[id].reg_base);
+        //if(ret)
+            printk("request IRQ_NANDC %x irq %x, ret=%x.........\n",id,irq, ret);
     }
     else //deinit
     {
-        free_irq(g_nandc_irq,  NULL);
+        free_irq(irq,  NULL);
     }
     return ret;
 }
 EXPORT_SYMBOL(rknand_nandc_irq_init);
+
 static int rknand_probe(struct platform_device *pdev)
 {
-	g_nandc_irq = platform_get_irq(pdev, 0);
-	printk("g_nandc_irq: %d\n",g_nandc_irq);
-	if (g_nandc_irq < 0) {
+	unsigned int id = 0;
+	int irq ;
+	struct resource		*mem;
+	void __iomem    *membase;
+	
+	mem = platform_get_resource(pdev, IORESOURCE_MEM, 0);
+	membase = devm_request_and_ioremap(&pdev->dev, mem);
+
+    irq = platform_get_irq(pdev, 0);
+	printk("nand irq: %d\n",irq);
+	if (irq < 0) {
 		dev_err(&pdev->dev, "no irq resource?\n");
-		return g_nandc_irq;
+		return irq;
 	}
+
+#ifdef CONFIG_OF
+	if(0==of_property_read_u32(pdev->dev.of_node, "nandc_id", &id))
+	{
+	    ;
+	}
+    pdev->id = id;
+#endif
+	printk("rknand_probe %d %x\n", pdev->id,mem);
+	
+	if(id == 0)
+	{
+        memcpy(vendor0,membase+0x1400,0x200);
+        memcpy(sn_data,membase+0x1600,0x200);
+	}
+
+    g_nandc_info[id].id = id;
+    g_nandc_info[id].irq = irq;
+    g_nandc_info[id].reg_base = membase;
+
+    g_nandc_info[id].hclk = devm_clk_get(&pdev->dev, "hclk_nandc");
+    g_nandc_info[id].clk = devm_clk_get(&pdev->dev, "clk_nandc");
+    g_nandc_info[id].gclk = devm_clk_get(&pdev->dev, "g_clk_nandc");
+
+	if (unlikely(IS_ERR(g_nandc_info[id].clk)) || unlikely(IS_ERR(g_nandc_info[id].hclk))
+	|| unlikely(IS_ERR(g_nandc_info[id].gclk))) {
+        printk("rknand_probe get clk error\n");
+        return -1;
+	}
+
+    clk_set_rate(g_nandc_info[id].clk,150*1000*1000);
+	g_nandc_info[id].clk_rate = clk_get_rate(g_nandc_info[id].clk );
+    printk("rknand_probe clk rate = %d\n",g_nandc_info[id].clk_rate);
+    gpNandInfo->clk_rate[id] = g_nandc_info[id].clk_rate;
+    
+	clk_prepare_enable( g_nandc_info[id].clk );
+	clk_prepare_enable( g_nandc_info[id].hclk);
+	clk_prepare_enable( g_nandc_info[id].gclk);
+
 	return 0;
 }
 
@@ -239,15 +299,15 @@ MODULE_ALIAS(DRIVER_NAME);
 static int __init rknand_part_init(void)
 {
 	int ret = 0;
-    char * pbuf = ioremap(0x10501400,0x400);
-    memcpy(vendor0,pbuf,0x200);
-    memcpy(sn_data,pbuf+0x200,0x200);
-    iounmap(pbuf);
+	printk("%s\n", RKNAND_VERSION_AND_DATE);
+
 	cmdline = strstr(saved_command_line, "mtdparts=") + 9;
+
 	gpNandInfo = kzalloc(sizeof(struct rknand_info), GFP_KERNEL);
 	if (!gpNandInfo)
 		return -ENOMEM;
-    memset(gpNandInfo,0,sizeof(struct rknand_info));
+    //memset(gpNandInfo,0,sizeof(struct rknand_info));// no need
+    
 	ret = platform_driver_register(&rknand_driver);
 	printk("rknand_driver:ret = %x \n",ret);
 	return ret;
