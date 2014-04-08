@@ -1271,23 +1271,8 @@ typedef struct PCTL_REG_Tag
     uint32 DFILPCFG0;
 }PCTL_REG_T;
 
-typedef struct PUBL_REG_Tag
+typedef struct PUBL_DQS_REG_Tag
 {
-    uint32 PIR;
-    uint32 PGCR;
-    uint32 DLLGCR;
-    uint32 ACDLLCR;
-    uint32 PTR[3];
-    uint32 ACIOCR;
-    uint32 DXCCR;
-    uint32 DSGCR;
-    uint32 DCR;
-    PHY_TIMING_T phy_timing;
-    uint32 ODTCR;
-    uint32 DTAR;
-    uint32 ZQ0CR0;
-    uint32 ZQ1CR0;
-
     uint32 DX0GCR;
     uint32 DX0DLLCR;
     uint32 DX0DQTR;
@@ -1307,6 +1292,24 @@ typedef struct PUBL_REG_Tag
     uint32 DX3DLLCR;
     uint32 DX3DQTR;
     uint32 DX3DQSTR;
+}PUBL_DQS_REG;
+
+typedef struct PUBL_REG_Tag
+{
+    uint32 PIR;
+    uint32 PGCR;
+    uint32 DLLGCR;
+    uint32 ACDLLCR;
+    uint32 PTR[3];
+    uint32 ACIOCR;
+    uint32 DXCCR;
+    uint32 DSGCR;
+    uint32 DCR;
+    PHY_TIMING_T phy_timing;
+    uint32 ODTCR;
+    uint32 DTAR;
+    uint32 ZQ0CR0;
+    uint32 ZQ1CR0;
 }PUBL_REG_T;
 
 typedef struct SET_REG_Tag
@@ -1319,14 +1322,13 @@ typedef struct BACKUP_REG_Tag
 {
     uint32 tag;
     /* any addr = 0xFFFFFFFF, indicate invalid */
-    uint32 pctlAddr;
+    uint32 pctlAddr[CH_MAX];
     PCTL_REG_T pctl;
-    uint32 publAddr;
+    uint32 publAddr[CH_MAX];
     PUBL_REG_T publ;
-    uint32 nocAddr;
-    MSCH_REG   noc;
-    uint32 strideAddr;
-    uint32     stride;
+    PUBL_DQS_REG dqs[CH_MAX];
+    uint32 nocAddr[CH_MAX];
+    MSCH_REG   noc[CH_MAX];
 
     uint32 pllpdAddr;
     uint32 pllpdMask;
@@ -1344,6 +1346,9 @@ typedef struct BACKUP_REG_Tag
     uint32 dpllLockMask;
     uint32 dpllLockVal;
 
+    uint32 ddrPllSrcDivAddr;
+    uint32 ddrPllSrcDiv;
+
     uint32 retenDisAddr;
     uint32 retenDisVal;
     uint32 retenStAddr;
@@ -1352,7 +1357,7 @@ typedef struct BACKUP_REG_Tag
 
     /* ddr relative grf register */
     uint32 grfRegCnt;     //if no grf, set 0
-    SET_REG_T grf;        //SET_REG_T grf[grfRegCnt];
+    SET_REG_T grf[3];        //SET_REG_T grf[grfRegCnt];
 
     /* other ddr relative register */
     //uint32 otherRegCnt; // if = 0xFFFFFFFF, indicate invalid
@@ -1689,7 +1694,7 @@ static void __sramfunc ddr_delayus(uint32 us)
     } while (0);
 }
 
-static __sramfunc void ddr_copy(uint32 *pDest, uint32 *pSrc, uint32 words)
+void PIE_FUNC(ddr_copy)(uint32 *pDest, uint32 *pSrc, uint32 words)
 {
     uint32 i;
 
@@ -1698,6 +1703,7 @@ static __sramfunc void ddr_copy(uint32 *pDest, uint32 *pSrc, uint32 words)
         pDest[i] = pSrc[i];
     }
 }
+EXPORT_PIE_SYMBOL(FUNC(ddr_copy));
 
 static void ddr_get_datatraing_addr(uint32 *pdtar)
 {
@@ -2094,8 +2100,8 @@ static noinline uint32 ddr_get_parameter(uint32 nMHz)
     uint32 cwl;
     PCTL_TIMING_T *p_pctl_timing=&(p_ddr_reg->pctl.pctl_timing);
     PHY_TIMING_T  *p_publ_timing=&(p_ddr_reg->publ.phy_timing);
-    NOC_TIMING_T  *p_noc_timing=&(p_ddr_reg->noc.ddrtiming);
-    NOC_ACTIVATE_T  *p_noc_activate=&(p_ddr_reg->noc.activate);
+    NOC_TIMING_T  *p_noc_timing=&(p_ddr_reg->noc[0].ddrtiming);
+    NOC_ACTIVATE_T  *p_noc_activate=&(p_ddr_reg->noc[0].activate);
     uint32 ch;
     uint32 mem_type;
     uint32 ddr_speed_bin=DDR3_DEFAULT;
@@ -3270,14 +3276,14 @@ static uint32 __sramfunc ddr_update_timing(uint32 ch)
     uint32 i,bl_tmp=0;
     PCTL_TIMING_T *p_pctl_timing=&(DATA(ddr_reg).pctl.pctl_timing);
     PHY_TIMING_T  *p_publ_timing=&(DATA(ddr_reg).publ.phy_timing);
-    NOC_TIMING_T  *p_noc_timing=&(DATA(ddr_reg).noc.ddrtiming);    
-    NOC_ACTIVATE_T  *p_noc_activate=&(DATA(ddr_reg).noc.activate);
+    NOC_TIMING_T  *p_noc_timing=&(DATA(ddr_reg).noc[0].ddrtiming);    
+    NOC_ACTIVATE_T  *p_noc_activate=&(DATA(ddr_reg).noc[0].activate);
     pDDR_REG_T    pDDR_Reg = DATA(ddr_ch[ch]).pDDR_Reg;
     pDDRPHY_REG_T pPHY_Reg = DATA(ddr_ch[ch]).pPHY_Reg;
     pMSCH_REG     pMSCH_Reg= DATA(ddr_ch[ch]).pMSCH_Reg;
 
-    ddr_copy((uint32 *)&(pDDR_Reg->TOGCNT1U), (uint32*)&(p_pctl_timing->togcnt1u), 34);
-    ddr_copy((uint32 *)&(pPHY_Reg->DTPR[0]), (uint32*)&(p_publ_timing->dtpr0), 3);    
+    FUNC(ddr_copy)((uint32 *)&(pDDR_Reg->TOGCNT1U), (uint32*)&(p_pctl_timing->togcnt1u), 34);
+    FUNC(ddr_copy)((uint32 *)&(pPHY_Reg->DTPR[0]), (uint32*)&(p_publ_timing->dtpr0), 3);    
     pMSCH_Reg->ddrtiming.d32 = (pMSCH_Reg->ddrtiming.b.BwRatio) | p_noc_timing->d32;
     pMSCH_Reg->activate.d32 = p_noc_activate->d32;
     // Update PCTL BL
@@ -3334,7 +3340,7 @@ static uint32 __sramfunc ddr_update_mr(uint32 ch)
 
     cs = ((pPHY_Reg->PGCR>>18) & 0xF);
     dll_off = (pPHY_Reg->MR[1] & DDR3_DLL_DISABLE) ? 1:0;
-    ddr_copy((uint32 *)&(pPHY_Reg->MR[0]), (uint32*)&(p_publ_timing->mr[0]), 4);
+    FUNC(ddr_copy)((uint32 *)&(pPHY_Reg->MR[0]), (uint32*)&(p_publ_timing->mr[0]), 4);
     if(DATA(ddr_ch[ch]).mem_type == DDR3)
     {
         if(DATA(ddr_freq)>DDR3_DDR2_DLL_DISABLE_FREQ)
@@ -3993,19 +3999,54 @@ static void __sramfunc ddr_resume(void)
 #endif
 }
 
-#if 0
-static void ddr_reg_save(void)
+//pArg:指针内容表示pll pd or not。
+void ddr_reg_save(uint32 *pArg)
 {
-    ddr_reg.tag = 0x56313030;
-    ddr_reg.pctlAddr = RK30_DDR_PCTL_PHYS;
-    ddr_reg.publAddr = RK30_DDR_PUBL_PHYS;
-    ddr_reg.nocAddr = RK30_CPU_AXI_BUS_PHYS;
-    //PCTLR
+    uint32        ch;
+    pDDR_REG_T    pDDR_Reg=NULL;
+    pDDRPHY_REG_T pPHY_Reg=NULL;
+    pMSCH_REG     pMSCH_Reg;
+    
+    p_ddr_reg->tag = 0x56313031;
+    if(p_ddr_ch[0]->mem_type != DRAM_MAX)
+    {
+        p_ddr_reg->pctlAddr[0] = RK3288_DDR_PCTL0_PHYS;
+        p_ddr_reg->publAddr[0] = RK3288_DDR_PUBL0_PHYS;
+        p_ddr_reg->nocAddr[0] = RK3288_SERVICE_BUS_PHYS;
+        pDDR_Reg = p_ddr_ch[0]->pDDR_Reg;
+        pPHY_Reg = p_ddr_ch[0]->pPHY_Reg;
+    }
+    else
+    {
+        p_ddr_reg->pctlAddr[0] = 0xFFFFFFFF;
+        p_ddr_reg->publAddr[0] = 0xFFFFFFFF;
+        p_ddr_reg->nocAddr[0] = 0xFFFFFFFF;
+    }
+    if(p_ddr_ch[1]->mem_type != DRAM_MAX)
+    {
+        p_ddr_reg->pctlAddr[1] = RK3288_DDR_PCTL1_PHYS;
+        p_ddr_reg->publAddr[1] = RK3288_DDR_PUBL1_PHYS;
+        p_ddr_reg->nocAddr[1] = RK3288_SERVICE_BUS_PHYS+0x80;
+        if((pDDR_Reg == NULL) || (pPHY_Reg == NULL))
+        {
+            pDDR_Reg = p_ddr_ch[1]->pDDR_Reg;
+            pPHY_Reg = p_ddr_ch[1]->pPHY_Reg; 
+        }
+    }
+    else
+    {
+        p_ddr_reg->pctlAddr[1] = 0xFFFFFFFF;
+        p_ddr_reg->publAddr[1] = 0xFFFFFFFF;
+        p_ddr_reg->nocAddr[1] = 0xFFFFFFFF;
+    }
+    
+    //PCTLR    
+    (fn_to_pie(rockchip_pie_chunk, &FUNC(ddr_copy)))((uint32*)&(p_ddr_reg->pctl.pctl_timing.togcnt1u), (uint32 *)&(pDDR_Reg->TOGCNT1U), 34);
     p_ddr_reg->pctl.SCFG = pDDR_Reg->SCFG.d32;
     p_ddr_reg->pctl.CMDTSTATEN = pDDR_Reg->CMDTSTATEN;
     p_ddr_reg->pctl.MCFG1 = pDDR_Reg->MCFG1;
     p_ddr_reg->pctl.MCFG = pDDR_Reg->MCFG;
-    p_ddr_reg->pctl.pctl_timing.ddrFreq = ddr_freq;
+    p_ddr_reg->pctl.pctl_timing.ddrFreq = *kern_to_pie(rockchip_pie_chunk, &DATA(ddr_freq));
     p_ddr_reg->pctl.DFITCTRLDELAY = pDDR_Reg->DFITCTRLDELAY;
     p_ddr_reg->pctl.DFIODTCFG = pDDR_Reg->DFIODTCFG;
     p_ddr_reg->pctl.DFIODTCFG1 = pDDR_Reg->DFIODTCFG1;
@@ -4032,7 +4073,8 @@ static void ddr_reg_save(void)
     p_ddr_reg->pctl.DFISTCFG2 = pDDR_Reg->DFISTCFG2;
     p_ddr_reg->pctl.DFILPCFG0 = pDDR_Reg->DFILPCFG0;
 
-    //PUBL
+    //PUBL  
+    (fn_to_pie(rockchip_pie_chunk, &FUNC(ddr_copy)))((uint32*)&(p_ddr_reg->publ.phy_timing.dtpr0), (uint32 *)&(pPHY_Reg->DTPR[0]), 7);
     p_ddr_reg->publ.PIR = pPHY_Reg->PIR;
     p_ddr_reg->publ.PGCR = pPHY_Reg->PGCR;
     p_ddr_reg->publ.DLLGCR = pPHY_Reg->DLLGCR;
@@ -4049,70 +4091,110 @@ static void ddr_reg_save(void)
     p_ddr_reg->publ.ZQ0CR0 = (pPHY_Reg->ZQ0SR[0] & 0x0FFFFFFF) | (0x1<<28);
     p_ddr_reg->publ.ZQ1CR0 = (pPHY_Reg->ZQ1SR[0] & 0x0FFFFFFF) | (0x1<<28);
 
-    p_ddr_reg->publ.DX0GCR = pPHY_Reg->DATX8[0].DXGCR;
-    p_ddr_reg->publ.DX0DLLCR = pPHY_Reg->DATX8[0].DXDLLCR;
-    p_ddr_reg->publ.DX0DQTR = pPHY_Reg->DATX8[0].DXDQTR;
-    p_ddr_reg->publ.DX0DQSTR = pPHY_Reg->DATX8[0].DXDQSTR;
+    for(ch=0;ch<CH_MAX;ch++)
+    {
+        if(p_ddr_ch[0]->mem_type != DRAM_MAX)
+        {
+            pPHY_Reg = p_ddr_ch[ch]->pPHY_Reg;         
+            p_ddr_reg->dqs[ch].DX0GCR = pPHY_Reg->DATX8[0].DXGCR;
+            p_ddr_reg->dqs[ch].DX0DLLCR = pPHY_Reg->DATX8[0].DXDLLCR;
+            p_ddr_reg->dqs[ch].DX0DQTR = pPHY_Reg->DATX8[0].DXDQTR;
+            p_ddr_reg->dqs[ch].DX0DQSTR = pPHY_Reg->DATX8[0].DXDQSTR;
 
-    p_ddr_reg->publ.DX1GCR = pPHY_Reg->DATX8[1].DXGCR;
-    p_ddr_reg->publ.DX1DLLCR = pPHY_Reg->DATX8[1].DXDLLCR;
-    p_ddr_reg->publ.DX1DQTR = pPHY_Reg->DATX8[1].DXDQTR;
-    p_ddr_reg->publ.DX1DQSTR = pPHY_Reg->DATX8[1].DXDQSTR;
+            p_ddr_reg->dqs[ch].DX1GCR = pPHY_Reg->DATX8[1].DXGCR;
+            p_ddr_reg->dqs[ch].DX1DLLCR = pPHY_Reg->DATX8[1].DXDLLCR;
+            p_ddr_reg->dqs[ch].DX1DQTR = pPHY_Reg->DATX8[1].DXDQTR;
+            p_ddr_reg->dqs[ch].DX1DQSTR = pPHY_Reg->DATX8[1].DXDQSTR;
 
-    p_ddr_reg->publ.DX2GCR = pPHY_Reg->DATX8[2].DXGCR;
-    p_ddr_reg->publ.DX2DLLCR = pPHY_Reg->DATX8[2].DXDLLCR;
-    p_ddr_reg->publ.DX2DQTR = pPHY_Reg->DATX8[2].DXDQTR;
-    p_ddr_reg->publ.DX2DQSTR = pPHY_Reg->DATX8[2].DXDQSTR;
+            p_ddr_reg->dqs[ch].DX2GCR = pPHY_Reg->DATX8[2].DXGCR;
+            p_ddr_reg->dqs[ch].DX2DLLCR = pPHY_Reg->DATX8[2].DXDLLCR;
+            p_ddr_reg->dqs[ch].DX2DQTR = pPHY_Reg->DATX8[2].DXDQTR;
+            p_ddr_reg->dqs[ch].DX2DQSTR = pPHY_Reg->DATX8[2].DXDQSTR;
 
-    p_ddr_reg->publ.DX3GCR = pPHY_Reg->DATX8[3].DXGCR;
-    p_ddr_reg->publ.DX3DLLCR = pPHY_Reg->DATX8[3].DXDLLCR;
-    p_ddr_reg->publ.DX3DQTR = pPHY_Reg->DATX8[3].DXDQTR;
-    p_ddr_reg->publ.DX3DQSTR = pPHY_Reg->DATX8[3].DXDQSTR;
+            p_ddr_reg->dqs[ch].DX3GCR = pPHY_Reg->DATX8[3].DXGCR;
+            p_ddr_reg->dqs[ch].DX3DLLCR = pPHY_Reg->DATX8[3].DXDLLCR;
+            p_ddr_reg->dqs[ch].DX3DQTR = pPHY_Reg->DATX8[3].DXDQTR;
+            p_ddr_reg->dqs[ch].DX3DQSTR = pPHY_Reg->DATX8[3].DXDQSTR;
 
-    //NOC
-    p_ddr_reg->DdrConf = *(volatile uint32_t *)SysSrv_DdrConf;
-    p_ddr_reg->DdrMode = *(volatile uint32_t *)SysSrv_DdrMode;
-    p_ddr_reg->ReadLatency = *(volatile uint32_t *)SysSrv_ReadLatency;
+            //NOC
+            pMSCH_Reg= p_ddr_ch[ch]->pMSCH_Reg;        
+            p_ddr_reg->noc[ch].ddrconf = pMSCH_Reg->ddrconf;
+            p_ddr_reg->noc[ch].ddrtiming.d32 = pMSCH_Reg->ddrtiming.d32;
+            p_ddr_reg->noc[ch].ddrmode = pMSCH_Reg->ddrmode;
+            p_ddr_reg->noc[ch].readlatency = pMSCH_Reg->readlatency;
+            p_ddr_reg->noc[ch].activate.d32 = pMSCH_Reg->activate.d32;
+            p_ddr_reg->noc[ch].devtodev = pMSCH_Reg->devtodev;
+        }
+    }
 
     //PLLPD
-    ddr_reg.pllpdAddr = (uint32_t)pArg;  //pll power-down tag
-    ddr_reg.pllpdMask = 1;
-    ddr_reg.pllpdVal = 1;
+    p_ddr_reg->pllpdAddr = (uint32_t)pArg;  //pll power-down tag addr
+    p_ddr_reg->pllpdMask = 1;
+    p_ddr_reg->pllpdVal = 1;
 
     //DPLL
-    ddr_reg.dpllmodeAddr = RK30_CRU_PHYS + 0x40;  //APCRU_MODE_CON
-    ddr_reg.dpllSlowMode = ((3<<4)<<16) | (0<<4);
-    ddr_reg.dpllNormalMode = ((3<<4)<<16) | (1<<4);
-    ddr_reg.dpllResetAddr = RK30_CRU_PHYS + 0x1c; //APCRU_DPLL_CON3
-    ddr_reg.dpllReset = (((0x1<<5)<<16) | (0x1<<5));
-    ddr_reg.dpllDeReset = (((0x1<<5)<<16) | (0x0<<5));
-    ddr_reg.dpllConAddr = RK30_CRU_PHYS + 0x10;   //APCRU_DPLL_CON0
-    ddr_reg.dpllCon[0] = pCRU_Reg->CRU_PLL_CON[DPLL][0] | (0xFFFF<<16);
-    ddr_reg.dpllCon[1] = pCRU_Reg->CRU_PLL_CON[DPLL][1] | (0xFFFF<<16);
-    ddr_reg.dpllCon[2] = pCRU_Reg->CRU_PLL_CON[DPLL][2] | (0xFFFF<<16);
-    ddr_reg.dpllCon[3] = pCRU_Reg->CRU_PLL_CON[DPLL][3] | (0xFFFF<<16);
-    ddr_reg.dpllLockAddr = RK30_GRF_PHYS + 0x74;  //GRF_SOC_STATUS0
-    ddr_reg.dpllLockMask = (1<<5);
-    ddr_reg.dpllLockVal = (1<<5);
+    p_ddr_reg->dpllmodeAddr = RK3288_CRU_PHYS + 0x50;  //APCRU_MODE_CON
+    p_ddr_reg->dpllSlowMode = ((3<<4)<<16) | (0<<4);
+    p_ddr_reg->dpllNormalMode = ((3<<4)<<16) | (1<<4);
+    p_ddr_reg->dpllResetAddr = RK3288_CRU_PHYS + 0x1c; //APCRU_DPLL_CON3
+    p_ddr_reg->dpllReset = (((0x1<<5)<<16) | (0x1<<5));
+    p_ddr_reg->dpllDeReset = (((0x1<<5)<<16) | (0x0<<5));
+    p_ddr_reg->dpllConAddr = RK3288_CRU_PHYS + 0x10;   //APCRU_DPLL_CON0
+    p_ddr_reg->dpllCon[0] = pCRU_Reg->CRU_PLL_CON[DPLL][0] | (0xFFFF<<16);
+    p_ddr_reg->dpllCon[1] = pCRU_Reg->CRU_PLL_CON[DPLL][1] | (0xFFFF<<16);
+    p_ddr_reg->dpllCon[2] = pCRU_Reg->CRU_PLL_CON[DPLL][2] | (0xFFFF<<16);
+    p_ddr_reg->dpllCon[3] = pCRU_Reg->CRU_PLL_CON[DPLL][3] | (0xFFFF<<16);
+    p_ddr_reg->dpllLockAddr = RK3288_GRF_PHYS + 0x284;  //GRF_SOC_STATUS1
+    p_ddr_reg->dpllLockMask = (1<<5);
+    p_ddr_reg->dpllLockVal = (1<<5);
 
-    ddr_reg.retenDisAddr = RK30_PMU_PHYS+0x14;  //pmu_pwrmode_con_ap
-    ddr_reg.retenDisVal = (1<<18);  //OR operation
-    ddr_reg.retenStAddr = RK30_PMU_PHYS+0x14;  //pmu_pwrmode_con_ap
-    ddr_reg.retenStMask = (1<<18);
-    ddr_reg.retenStVal = (0<<18);
+    //SET_DDR_PLL_SRC
+    p_ddr_reg->ddrPllSrcDivAddr = RK3288_CRU_PHYS + 0xc8;
+    p_ddr_reg->ddrPllSrcDiv = (pCRU_Reg->CRU_CLKSEL_CON[26] & 0x7) | (0x7<<16);
 
-    ddr_reg.grfRegCnt = 1;
-    ddr_reg.grf.addr = RK30_GRF_PHYS + 0x60;  //GRF_SOC_CON0
-    ddr_reg.grf.val = pGRF_Reg->GRF_SOC_CON[0] | (((0x5f<<9)|(1<<3))<<16);
+    p_ddr_reg->retenDisAddr = RK3288_PMU_PHYS+0x18;  //pmu_pwrmode_con
+    p_ddr_reg->retenDisVal = (3<<22);  //OR operation
+    p_ddr_reg->retenStAddr = RK3288_PMU_PHYS+0x1c;  //pmu_pwrmode_con
+    p_ddr_reg->retenStMask = (1<<6);
+    p_ddr_reg->retenStVal = (0<<6);
 
-    ddr_reg.endTag = 0xFFFFFFFF;
+    p_ddr_reg->grfRegCnt = 3;
+    //DDR_16BIT,DDR_HW_WAKEUP,DDR_TYPE
+    p_ddr_reg->grf[0].addr = RK3288_GRF_PHYS + 0x244;
+    p_ddr_reg->grf[0].val = (pGRF_Reg->GRF_SOC_CON[0] & ((0x3<<8)|(0x3<<5)|(0x3<<3))) | (((0x3<<8)|(0x3<<5)|(0x3<<3))<<16);
+    
+    //LPDDR_TYPE
+    p_ddr_reg->grf[1].addr = RK3288_GRF_PHYS + 0x24c;
+    p_ddr_reg->grf[1].val = (pGRF_Reg->GRF_SOC_CON[2] & (0x3f<<8)) | ((0x3f<<8)<<16);
+
+    //STRIDE
+    p_ddr_reg->grf[2].addr = RK3288_SGRF_PHYS + 0x8;
+    p_ddr_reg->grf[2].val = READ_DDR_STRIDE() | (0x1F<<16);
+
+    p_ddr_reg->endTag = 0xFFFFFFFF;
 }
-#endif
 
-static __attribute__((aligned(4))) __sramdata uint32 ddr_reg_resume[] =
+__attribute__((aligned(4)))   uint32 ddr_reg_resume[]=
 {
 #include "ddr_reg_resume.inc"
 };
+
+char * ddr_get_resume_code_info(u32 *size)
+{
+    *size=sizeof(ddr_reg_resume);
+    
+    return (char *)ddr_reg_resume;
+
+}
+EXPORT_SYMBOL(ddr_get_resume_code_info);
+
+char * ddr_get_resume_data_info(u32 *size)
+{
+    *size=sizeof(DATA(ddr_reg));
+    return (char *) kern_to_pie(rockchip_pie_chunk, &DATA(ddr_reg));
+}
+EXPORT_SYMBOL(ddr_get_resume_data_info);
+
 
 static int ddr_init(uint32 dram_speed_bin, uint32 freq)
 {
@@ -4122,7 +4204,7 @@ static int ddr_init(uint32 dram_speed_bin, uint32 freq)
     struct clk *clk;
     uint32 ch,cap=0,cs_cap;
 
-    ddr_print("version 1.00 20140331 \n");
+    ddr_print("version 1.00 20140404 \n");
 
     p_ddr_reg = kern_to_pie(rockchip_pie_chunk, &DATA(ddr_reg));
     p_ddr_set_pll = fn_to_pie(rockchip_pie_chunk, &FUNC(ddr_set_pll));
