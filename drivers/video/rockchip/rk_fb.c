@@ -587,11 +587,27 @@ int rk_fb_poll_prmry_screen_vblank(void)
 bool rk_fb_poll_wait_frame_complete(void)
 {
 	uint32_t timeout = RK_LF_MAX_TIMEOUT;
-	if (rk_fb_poll_prmry_screen_vblank() == RK_LF_STATUS_NC)
+	struct rk_lcdc_driver *dev_drv = rk_get_prmry_lcdc_drv();
+	
+	if (likely(dev_drv)) {
+		if (dev_drv->ops->set_irq_to_cpu)
+			dev_drv->ops->set_irq_to_cpu(dev_drv,0);
+	}
+
+       
+	if (rk_fb_poll_prmry_screen_vblank() == RK_LF_STATUS_NC){
+		if(dev_drv->ops->set_irq_to_cpu)
+                        dev_drv->ops->set_irq_to_cpu(dev_drv,1);		
 		return false;
+	}	
 
 	while (!(rk_fb_poll_prmry_screen_vblank() == RK_LF_STATUS_FR)  &&  --timeout);
 	while (!(rk_fb_poll_prmry_screen_vblank() == RK_LF_STATUS_FC)  &&  --timeout);
+
+	if (likely(dev_drv)) {
+                if (dev_drv->ops->set_irq_to_cpu)
+                        dev_drv->ops->set_irq_to_cpu(dev_drv,1);
+        }
 
 	return true;
 }

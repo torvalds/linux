@@ -2894,6 +2894,16 @@ static int rk3288_lcdc_dpi_status(struct rk_lcdc_driver *dev_drv)
 	spin_unlock(&lcdc_dev->reg_lock);
 	return ovl;
 }
+static rk3288_lcdc_set_irq_to_cpu(struct rk_lcdc_driver * dev_drv,int enable)
+{
+       struct lcdc_device *lcdc_dev =
+                                container_of(dev_drv,struct lcdc_device,driver);
+       if (enable)
+               enable_irq(lcdc_dev->irq);
+       else
+               disable_irq(lcdc_dev->irq);
+       return 0;
+}
 
 int rk3288_lcdc_poll_vblank(struct rk_lcdc_driver *dev_drv)
 {
@@ -2902,7 +2912,7 @@ int rk3288_lcdc_poll_vblank(struct rk_lcdc_driver *dev_drv)
 	u32 int_reg;
 	int ret;
 
-	if (lcdc_dev->clk_on) {
+	if (lcdc_dev->clk_on &&(!dev_drv->suspend_flag)){
 		int_reg = lcdc_readl(lcdc_dev, INTR_CTRL0);
 		if (int_reg & m_LINE_FLAG_INTR_STS) {
 			lcdc_msk_reg(lcdc_dev, INTR_CTRL0, m_LINE_FLAG_INTR_CLR,
@@ -3115,6 +3125,7 @@ static struct rk_lcdc_drv_ops lcdc_drv_ops = {
 	.dump_reg 		= rk3288_lcdc_reg_dump,
 	.mmu_en	  		= rk3288_lcdc_mmu_en,
 	.cfg_done		= rk3288_lcdc_config_done,
+	.set_irq_to_cpu  	= rk3288_lcdc_set_irq_to_cpu,
 };
 static int rk3288_lcdc_parse_irq(struct lcdc_device *lcdc_dev,unsigned int reg_val)
 {
