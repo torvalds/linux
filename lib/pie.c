@@ -64,7 +64,7 @@ struct pie_chunk *__pie_load_data(struct gen_pool *pool, bool phys,
 		goto err;
 	}
 
-	common_sz = code_start - (void *)__pie_common_start;
+	common_sz = __pie_overlay_start - __pie_common_start;
 	code_sz = code_end - code_start;
 
 	chunk->pool = pool;
