@@ -97,14 +97,8 @@ struct pt_regs {
 	unsigned long  sp;		/* Stack pointer */
 	unsigned long  gp;		/* Global pointer */
 	unsigned long  estatus;
-#ifdef __uClinux__
-	unsigned long  status_extension;	/* Status extension. Used to
-						   fake user mode */
-#endif
 	unsigned long  ea;		/* Exception return address (pc) */
-#ifndef __uClinux__
 	unsigned long  orig_r7;
-#endif
 };
 
 /*

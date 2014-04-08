@@ -18,9 +18,6 @@ typedef greg_t gregset_t[NGREG];
 
 struct mcontext {
 	int version;
-#ifdef __uClinux__
-	int status_extension;
-#endif
 	gregset_t gregs;
 };
 
