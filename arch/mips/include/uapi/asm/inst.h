@@ -206,6 +206,16 @@ enum lx_func {
 };
 
 /*
+ * BSHFL opcodes
+ */
+enum bshfl_func {
+	wsbh_op = 0x2,
+	dshd_op = 0x5,
+	seb_op  = 0x10,
+	seh_op  = 0x18,
+};
+
+/*
  * (microMIPS) Major opcodes.
  */
 enum mm_major_op {
@@ -258,6 +268,7 @@ enum mm_32a_minor_op {
 	mm_lwxs_op = 0x118,
 	mm_addu32_op = 0x150,
 	mm_subu32_op = 0x1d0,
+	mm_wsbh_op = 0x1ec,
 	mm_and_op = 0x250,
 	mm_or32_op = 0x290,
 	mm_xor32_op = 0x310,
