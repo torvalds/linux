@@ -2822,11 +2822,13 @@ static int rk3288_lcdc_config_done(struct rk_lcdc_driver *dev_drv)
 		if ((win->state == 0)&&(win->last_state == 1)) {
 			switch (win->id) {
 			case 0:
+				lcdc_writel(lcdc_dev,WIN0_CTRL1,0x0);
 				mask =  m_WIN0_EN;
 				val  =  v_WIN0_EN(0);
 				lcdc_msk_reg(lcdc_dev, WIN0_CTRL0, mask,val);	
 				break;
 			case 1:
+				lcdc_writel(lcdc_dev,WIN1_CTRL1,0x0);
 				mask =  m_WIN1_EN;
 				val  =  v_WIN1_EN(0);
 				lcdc_msk_reg(lcdc_dev, WIN1_CTRL0, mask,val);		
