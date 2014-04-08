@@ -3419,24 +3419,25 @@ unlock:
 
 static u8 hci_get_auth_req(struct hci_conn *conn)
 {
-	/* If remote requests dedicated bonding follow that lead */
-	if (conn->remote_auth == HCI_AT_DEDICATED_BONDING ||
-	    conn->remote_auth == HCI_AT_DEDICATED_BONDING_MITM) {
-		/* If both remote and local IO capabilities allow MITM
-		 * protection then require it, otherwise don't */
-		if (conn->remote_cap == HCI_IO_NO_INPUT_OUTPUT ||
-		    conn->io_capability == HCI_IO_NO_INPUT_OUTPUT)
-			return HCI_AT_DEDICATED_BONDING;
-		else
-			return HCI_AT_DEDICATED_BONDING_MITM;
-	}
-
 	/* If remote requests no-bonding follow that lead */
 	if (conn->remote_auth == HCI_AT_NO_BONDING ||
 	    conn->remote_auth == HCI_AT_NO_BONDING_MITM)
 		return conn->remote_auth | (conn->auth_type & 0x01);
 
-	return conn->auth_type;
+	/* For general bonding, use the given auth_type */
+	if (conn->remote_auth == HCI_AT_GENERAL_BONDING ||
+	    conn->remote_auth == HCI_AT_GENERAL_BONDING_MITM)
+		return conn->auth_type;
+
+	/* If both remote and local have enough IO capabilities, require
+	 * MITM protection
+	 */
+	if (conn->remote_cap != HCI_IO_NO_INPUT_OUTPUT &&
+	    conn->io_capability != HCI_IO_NO_INPUT_OUTPUT)
+		return conn->remote_auth | 0x01;
+
+	/* No MITM protection possible so remove requirement */
+	return conn->remote_auth & ~0x01;
 }
 
 static void hci_io_capa_request_evt(struct hci_dev *hdev, struct sk_buff *skb)
@@ -3466,8 +3467,14 @@ static void hci_io_capa_request_evt(struct hci_dev *hdev, struct sk_buff *skb)
 		 * to DisplayYesNo as it is not supported by BT spec. */
 		cp.capability = (conn->io_capability == 0x04) ?
 				HCI_IO_DISPLAY_YESNO : conn->io_capability;
-		conn->auth_type = hci_get_auth_req(conn);
-		cp.authentication = conn->auth_type;
+
+		/* If we are initiators, there is no remote information yet */
+		if (conn->remote_auth == 0xff) {
+			cp.authentication = conn->auth_type;
+		} else {
+			conn->auth_type = hci_get_auth_req(conn);
+			cp.authentication = conn->auth_type;
+		}
 
 		if (hci_find_remote_oob_data(hdev, &conn->dst) &&
 		    (conn->out || test_bit(HCI_CONN_REMOTE_OOB, &conn->flags)))
