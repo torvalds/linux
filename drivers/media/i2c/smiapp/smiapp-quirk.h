@@ -41,8 +41,8 @@ struct smiapp_quirk {
 	int (*post_poweron)(struct smiapp_sensor *sensor);
 	int (*pre_streamon)(struct smiapp_sensor *sensor);
 	int (*post_streamoff)(struct smiapp_sensor *sensor);
+	unsigned long (*pll_flags)(struct smiapp_sensor *sensor);
 	unsigned long flags;
-	unsigned long pll_flags;
 };
 
 #define SMIAPP_QUIRK_FLAG_8BIT_READ_ONLY			(1 << 0)
