@@ -1299,12 +1299,8 @@ void rtw23a_joinbss_event_cb(struct rtw_adapter *adapter, u8 *pbuf)
 /* FOR AP , AD-HOC mode */
 void rtw_stassoc_hw_rpt23a(struct rtw_adapter *adapter, struct sta_info *psta)
 {
-	u16 media_status;
-
-	if (psta == NULL)	return;
-
-	media_status = (psta->mac_id<<8)|1; /*   MACID|OPMODE:1 connect */
-	rtw_hal_set_hwreg23a(adapter, HW_VAR_H2C_MEDIA_STATUS_RPT, (u8 *)&media_status);
+	if (psta == NULL)
+		return;
 }
 
 void rtw_stassoc_event_callback23a(struct rtw_adapter *adapter, u8 *pbuf)
@@ -1401,13 +1397,6 @@ void rtw_stadel_event_callback23a(struct rtw_adapter *adapter, u8 *pbuf)
 		mac_id = pstadel->mac_id;
 
 	DBG_8723A("%s(mac_id=%d)=" MAC_FMT "\n", __func__, mac_id, MAC_ARG(pstadel->macaddr));
-
-	if(mac_id>=0) {
-		u16 media_status;
-		media_status = (mac_id<<8)|0; /*   MACID|OPMODE:0 means disconnect */
-		/* for STA,AP,ADHOC mode, report disconnect stauts to FW */
-		rtw_hal_set_hwreg23a(adapter, HW_VAR_H2C_MEDIA_STATUS_RPT, (u8 *)&media_status);
-	}
 
         if (check_fwstate(pmlmepriv, WIFI_AP_STATE))
         {

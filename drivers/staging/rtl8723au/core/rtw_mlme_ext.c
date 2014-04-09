@@ -8677,7 +8677,6 @@ void mlmeext_joinbss_event_callback23a(struct rtw_adapter *padapter, int join_re
 	struct mlme_ext_info *pmlmeinfo = &pmlmeext->mlmext_info;
 	struct wlan_bssid_ex *cur_network = &pmlmeinfo->network;
 	struct sta_priv		*pstapriv = &padapter->stapriv;
-	u16 media_status;
 
 	if (join_res < 0) {
 		hw_var_set_mlme_join(padapter, 1);
@@ -8736,9 +8735,6 @@ void mlmeext_joinbss_event_callback23a(struct rtw_adapter *padapter, int join_re
 
 		/* set per sta rate after updating HT cap. */
 		set_sta_rate23a(padapter, psta);
-
-		media_status = (psta->mac_id<<8)|1; /*   MACID|OPMODE: 1 means connect */
-		rtw_hal_set_hwreg23a(padapter, HW_VAR_H2C_MEDIA_STATUS_RPT, (u8 *)&media_status);
 	}
 
 	hw_var_set_mlme_join(padapter, 2);
