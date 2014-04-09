@@ -19,6 +19,7 @@
 #include <linux/mfd/syscon.h>
 #include <linux/mtd/mtd.h>
 #include <linux/mtd/partitions.h>
+#include <linux/mtd/spi-nor.h>
 #include <linux/sched.h>
 #include <linux/delay.h>
 #include <linux/io.h>
@@ -522,7 +523,7 @@ static int stfsm_mx25_en_32bit_addr_seq(struct stfsm_seq *seq)
 {
 	seq->seq_opc[0] = (SEQ_OPC_PADS_1 |
 			   SEQ_OPC_CYCLES(8) |
-			   SEQ_OPC_OPCODE(SPINOR_OP_EN4B_ADDR) |
+			   SEQ_OPC_OPCODE(SPINOR_OP_EN4B) |
 			   SEQ_OPC_CSDEASSERT);
 
 	seq->seq[0] = STFSM_INST_CMD1;
@@ -630,7 +631,7 @@ static struct stfsm_seq stfsm_seq_erase_chip = {
 		 SEQ_OPC_OPCODE(SPINOR_OP_WREN) | SEQ_OPC_CSDEASSERT),
 
 		(SEQ_OPC_PADS_1 | SEQ_OPC_CYCLES(8) |
-		 SEQ_OPC_OPCODE(SPINOR_OP_CHIPERASE) | SEQ_OPC_CSDEASSERT),
+		 SEQ_OPC_OPCODE(SPINOR_OP_CHIP_ERASE) | SEQ_OPC_CSDEASSERT),
 	},
 	.seq = {
 		STFSM_INST_CMD1,
@@ -665,7 +666,7 @@ static struct stfsm_seq stfsm_seq_write_status = {
 static int stfsm_n25q_en_32bit_addr_seq(struct stfsm_seq *seq)
 {
 	seq->seq_opc[0] = (SEQ_OPC_PADS_1 | SEQ_OPC_CYCLES(8) |
-			   SEQ_OPC_OPCODE(SPINOR_OP_EN4B_ADDR));
+			   SEQ_OPC_OPCODE(SPINOR_OP_EN4B));
 	seq->seq_opc[1] = (SEQ_OPC_PADS_1 | SEQ_OPC_CYCLES(8) |
 			   SEQ_OPC_OPCODE(SPINOR_OP_WREN) |
 			   SEQ_OPC_CSDEASSERT);
@@ -788,7 +789,7 @@ static int stfsm_write_fifo(struct stfsm *fsm, const uint32_t *buf,
 static int stfsm_enter_32bit_addr(struct stfsm *fsm, int enter)
 {
 	struct stfsm_seq *seq = &fsm->stfsm_seq_en_32bit_addr;
-	uint32_t cmd = enter ? SPINOR_OP_EN4B_ADDR : SPINOR_OP_EX4B_ADDR;
+	uint32_t cmd = enter ? SPINOR_OP_EN4B : SPINOR_OP_EX4B;
 
 	seq->seq_opc[0] = (SEQ_OPC_PADS_1 |
 			   SEQ_OPC_CYCLES(8) |
