@@ -691,6 +691,8 @@ struct ieee80211_chanctx {
 	struct list_head list;
 	struct rcu_head rcu_head;
 
+	struct list_head assigned_vifs;
+
 	enum ieee80211_chanctx_mode mode;
 	int refcount;
 	bool driver_present;
@@ -755,6 +757,8 @@ struct ieee80211_sub_if_data {
 	int csa_counter_offset_presp;
 	bool csa_radar_required;
 	struct cfg80211_chan_def csa_chandef;
+
+	struct list_head assigned_chanctx_list; /* protected by chanctx_mtx */
 
 	/* context reservation -- protected with chanctx_mtx */
 	struct ieee80211_chanctx *reserved_chanctx;
