@@ -1496,21 +1496,6 @@ static void ReadAdapterInfo8723AU(struct rtw_adapter *Adapter)
 	_ReadAdapterInfo8723AU(Adapter);
 }
 
-#define GPIO_DEBUG_PORT_NUM 0
-static void rtl8723au_trigger_gpio_0(struct rtw_adapter *padapter)
-{
-	u32 gpioctrl;
-	DBG_8723A("==> trigger_gpio_0...\n");
-	rtw_write16_async(padapter, REG_GPIO_PIN_CTRL, 0);
-	rtw_write8_async(padapter, REG_GPIO_PIN_CTRL+2, 0xFF);
-	gpioctrl = (BIT(GPIO_DEBUG_PORT_NUM) << 24)|
-		(BIT(GPIO_DEBUG_PORT_NUM) << 16);
-	rtw_write32_async(padapter, REG_GPIO_PIN_CTRL, gpioctrl);
-	gpioctrl |= (BIT(GPIO_DEBUG_PORT_NUM)<<8);
-	rtw_write32_async(padapter, REG_GPIO_PIN_CTRL, gpioctrl);
-	DBG_8723A("<=== trigger_gpio_0...\n");
-}
-
 /*
  * If variable not handled here,
  * some variables will be processed in SetHwReg8723A()
@@ -1518,9 +1503,6 @@ static void rtl8723au_trigger_gpio_0(struct rtw_adapter *padapter)
 static void SetHwReg8723AU(struct rtw_adapter *Adapter, u8 variable, u8 *val)
 {
 	switch (variable) {
-	case HW_VAR_TRIGGER_GPIO_0:
-		rtl8723au_trigger_gpio_0(Adapter);
-		break;
 	default:
 		SetHwReg8723A(Adapter, variable, val);
 		break;
