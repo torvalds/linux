@@ -181,7 +181,8 @@ static int tracepoint_add_func(struct tracepoint *tp,
 	if (tp->regfunc && !static_key_enabled(&tp->key))
 		tp->regfunc();
 
-	tp_funcs = tp->funcs;
+	tp_funcs = rcu_dereference_protected(tp->funcs,
+			lockdep_is_held(&tracepoints_mutex));
 	old = func_add(&tp_funcs, func);
 	if (IS_ERR(old)) {
 		WARN_ON_ONCE(1);
@@ -213,7 +214,8 @@ static int tracepoint_remove_func(struct tracepoint *tp,
 {
 	struct tracepoint_func *old, *tp_funcs;
 
-	tp_funcs = tp->funcs;
+	tp_funcs = rcu_dereference_protected(tp->funcs,
+			lockdep_is_held(&tracepoints_mutex));
 	old = func_remove(&tp_funcs, func);
 	if (IS_ERR(old)) {
 		WARN_ON_ONCE(1);

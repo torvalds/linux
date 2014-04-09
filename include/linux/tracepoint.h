@@ -80,6 +80,11 @@ static inline void tracepoint_synchronize_unregister(void)
 	synchronize_sched();
 }
 
+#ifdef CONFIG_HAVE_SYSCALL_TRACEPOINTS
+extern void syscall_regfunc(void);
+extern void syscall_unregfunc(void);
+#endif /* CONFIG_HAVE_SYSCALL_TRACEPOINTS */
+
 #define PARAMS(args...) args
 
 #endif /* _LINUX_TRACEPOINT_H */
