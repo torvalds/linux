@@ -118,7 +118,7 @@ acknowledge number MUST be the same + 1.
 If we receive a message and its sequence number is not equal to one we
 are expecting, then it is a new message.  If we receive a message and
 its sequence number is the same as one we are expecting, but its
-acknowledge is not equal to the acknowledge number in the original
+acknowledge is not equal to the sequence number in the original
 message + 1, then it is a new message.
 
 Obviously, the protocol header contains the above id.
