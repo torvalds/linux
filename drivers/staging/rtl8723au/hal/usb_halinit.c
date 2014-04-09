@@ -621,7 +621,6 @@ static u32 rtl8723au_hal_init(struct rtw_adapter *Adapter)
 	struct hal_data_8723a *pHalData = GET_HAL_DATA(Adapter);
 	struct pwrctrl_priv *pwrctrlpriv = &Adapter->pwrctrlpriv;
 	struct registry_priv *pregistrypriv = &Adapter->registrypriv;
-	u32 NavUpper = WiFiNavUpperUs;
 
 	unsigned long init_start_time = jiffies;
 
@@ -888,7 +887,7 @@ static u32 rtl8723au_hal_init(struct rtw_adapter *Adapter)
 	rtl8723a_InitHalDm(Adapter);
 
 	HAL_INIT_PROFILE_TAG(HAL_INIT_STAGES_MISC31);
-	rtw_hal_set_hwreg23a(Adapter, HW_VAR_NAV_UPPER, (u8 *)&NavUpper);
+	rtl8723a_set_nav_upper(Adapter, WiFiNavUpperUs);
 
 	/*  2011/03/09 MH debug only, UMC-B cut pass 2500 S5 test, but we need to fin root cause. */
 	if (((rtw_read32(Adapter, rFPGA0_RFMOD) & 0xFF000000) != 0x83000000)) {

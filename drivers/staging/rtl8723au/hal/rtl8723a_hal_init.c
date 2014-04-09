@@ -3163,9 +3163,6 @@ void SetHwReg8723A(struct rtw_adapter *padapter, u8 variable, u8 *val)
 		rtl8723a_set_apfm_on_mac(padapter, *val);
 		break;
 
-	case HW_VAR_NAV_UPPER:
-		rtl8723a_set_nav_upper(padapter, *val32);
-		break;
 	default:
 		break;
 	}
