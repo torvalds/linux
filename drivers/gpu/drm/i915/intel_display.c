@@ -6004,6 +6004,36 @@ static void i9xx_get_plane_config(struct intel_crtc *crtc,
 
 }
 
+static void chv_crtc_clock_get(struct intel_crtc *crtc,
+			       struct intel_crtc_config *pipe_config)
+{
+	struct drm_device *dev = crtc->base.dev;
+	struct drm_i915_private *dev_priv = dev->dev_private;
+	int pipe = pipe_config->cpu_transcoder;
+	enum dpio_channel port = vlv_pipe_to_channel(pipe);
+	intel_clock_t clock;
+	u32 cmn_dw13, pll_dw0, pll_dw1, pll_dw2;
+	int refclk = 100000;
+
+	mutex_lock(&dev_priv->dpio_lock);
+	cmn_dw13 = vlv_dpio_read(dev_priv, pipe, CHV_CMN_DW13(port));
+	pll_dw0 = vlv_dpio_read(dev_priv, pipe, CHV_PLL_DW0(port));
+	pll_dw1 = vlv_dpio_read(dev_priv, pipe, CHV_PLL_DW1(port));
+	pll_dw2 = vlv_dpio_read(dev_priv, pipe, CHV_PLL_DW2(port));
+	mutex_unlock(&dev_priv->dpio_lock);
+
+	clock.m1 = (pll_dw1 & 0x7) == DPIO_CHV_M1_DIV_BY_2 ? 2 : 0;
+	clock.m2 = ((pll_dw0 & 0xff) << 22) | (pll_dw2 & 0x3fffff);
+	clock.n = (pll_dw1 >> DPIO_CHV_N_DIV_SHIFT) & 0xf;
+	clock.p1 = (cmn_dw13 >> DPIO_CHV_P1_DIV_SHIFT) & 0x7;
+	clock.p2 = (cmn_dw13 >> DPIO_CHV_P2_DIV_SHIFT) & 0x1f;
+
+	chv_clock(refclk, &clock);
+
+	/* clock.dot is the fast clock */
+	pipe_config->port_clock = clock.dot / 5;
+}
+
 static bool i9xx_get_pipe_config(struct intel_crtc *crtc,
 				 struct intel_crtc_config *pipe_config)
 {
@@ -6073,7 +6103,9 @@ static bool i9xx_get_pipe_config(struct intel_crtc *crtc,
 						     DPLL_PORTB_READY_MASK);
 	}
 
-	if (IS_VALLEYVIEW(dev))
+	if (IS_CHERRYVIEW(dev))
+		chv_crtc_clock_get(crtc, pipe_config);
+	else if (IS_VALLEYVIEW(dev))
 		vlv_crtc_clock_get(crtc, pipe_config);
 	else
 		i9xx_crtc_clock_get(crtc, pipe_config);
