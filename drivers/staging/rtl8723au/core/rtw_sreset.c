@@ -99,7 +99,8 @@ static void sreset_restore_security_station(struct rtw_adapter *padapter)
 		val8 = 0xcc;
 	else
 		val8 = 0xcf;
-	rtw_hal_set_hwreg23a(padapter, HW_VAR_SEC_CFG, (u8 *)(&val8));
+
+	rtl8723a_set_sec_cfg(padapter, val8);
 
 	if ((padapter->securitypriv.dot11PrivacyAlgrthm == _TKIP_) ||
 	    (padapter->securitypriv.dot11PrivacyAlgrthm == _AES_)) {

@@ -708,8 +708,9 @@ static void start_bss_network(struct rtw_adapter *padapter, u8 *pbuf)
 	rtw_hal_set_hwreg23a(padapter, HW_VAR_AC_PARAM_BK, (u8 *)(&acparm));
 
 	/* Set Security */
-	val8 = (psecuritypriv->dot11AuthAlgrthm == dot11AuthAlgrthm_8021X)? 0xcc: 0xcf;
-	rtw_hal_set_hwreg23a(padapter, HW_VAR_SEC_CFG, (u8 *)(&val8));
+	val8 = (psecuritypriv->dot11AuthAlgrthm == dot11AuthAlgrthm_8021X) ?
+		0xcc: 0xcf;
+	rtl8723a_set_sec_cfg(padapter, val8);
 
 	/* Beacon Control related register */
 	rtl8723a_set_beacon_interval(padapter, bcn_interval);

@@ -7968,7 +7968,6 @@ u8 collect_bss_info23a(struct rtw_adapter *padapter, struct recv_frame *precv_fr
 void start_create_ibss23a(struct rtw_adapter* padapter)
 {
 	unsigned short	caps;
-	u8	val8;
 	struct mlme_ext_priv	*pmlmeext = &padapter->mlmeextpriv;
 	struct mlme_ext_info *pmlmeinfo = &pmlmeext->mlmext_info;
 	struct wlan_bssid_ex *pnetwork = &pmlmeinfo->network;
@@ -7981,10 +7980,8 @@ void start_create_ibss23a(struct rtw_adapter* padapter)
 	/* udpate capability */
 	caps = rtw_get_capability23a(pnetwork);
 	update_capinfo23a(padapter, caps);
-	if (caps&cap_IBSS)/* adhoc master */
-	{
-		val8 = 0xcf;
-		rtw_hal_set_hwreg23a(padapter, HW_VAR_SEC_CFG, (u8 *)(&val8));
+	if (caps&cap_IBSS) {	/* adhoc master */
+		rtl8723a_set_sec_cfg(padapter, 0xcf);
 
 		/* switch channel */
 		/* SelectChannel23a(padapter, pmlmeext->cur_channel, HAL_PRIME_CHNL_OFFSET_DONT_CARE); */
@@ -8044,9 +8041,10 @@ void start_clnt_join23a(struct rtw_adapter* padapter)
 
 		Set_MSR23a(padapter, WIFI_FW_STATION_STATE);
 
-		val8 = (pmlmeinfo->auth_algo == dot11AuthAlgrthm_8021X)? 0xcc: 0xcf;
+		val8 = (pmlmeinfo->auth_algo == dot11AuthAlgrthm_8021X) ?
+			0xcc: 0xcf;
 
-		rtw_hal_set_hwreg23a(padapter, HW_VAR_SEC_CFG, (u8 *)(&val8));
+		rtl8723a_set_sec_cfg(padapter, val8);
 
 		/* switch channel */
 		/* set_channel_bwmode23a(padapter, pmlmeext->cur_channel, pmlmeext->cur_ch_offset, pmlmeext->cur_bwmode); */
@@ -8059,12 +8057,10 @@ void start_clnt_join23a(struct rtw_adapter* padapter)
 			  msecs_to_jiffies((REAUTH_TO * REAUTH_LIMIT) + (REASSOC_TO*REASSOC_LIMIT) + beacon_timeout));
 		pmlmeinfo->state = WIFI_FW_AUTH_NULL | WIFI_FW_STATION_STATE;
 	}
-	else if (caps&cap_IBSS) /* adhoc client */
-	{
+	else if (caps&cap_IBSS) {	/* adhoc client */
 		Set_MSR23a(padapter, WIFI_FW_ADHOC_STATE);
 
-		val8 = 0xcf;
-		rtw_hal_set_hwreg23a(padapter, HW_VAR_SEC_CFG, (u8 *)(&val8));
+		rtl8723a_set_sec_cfg(padapter, 0xcf);
 
 		/* switch channel */
 		set_channel_bwmode23a(padapter, pmlmeext->cur_channel, pmlmeext->cur_ch_offset, pmlmeext->cur_bwmode);
