@@ -3194,9 +3194,9 @@ s32 ixgbe_set_vfta_generic(struct ixgbe_hw *hw, u32 vlan, u32 vind,
 				 * Ignore it. */
 				vfta_changed = false;
 			}
-		}
-		else
+		} else {
 			IXGBE_WRITE_REG(hw, IXGBE_VLVF(vlvf_index), 0);
+		}
 	}
 
 	if (vfta_changed)
