@@ -110,6 +110,15 @@ static void intel_dsi_device_ready(struct intel_encoder *encoder)
 
 	DRM_DEBUG_KMS("\n");
 
+	mutex_lock(&dev_priv->dpio_lock);
+	/* program rcomp for compliance, reduce from 50 ohms to 45 ohms
+	 * needed everytime after power gate */
+	vlv_flisdsi_write(dev_priv, 0x04, 0x0004);
+	mutex_unlock(&dev_priv->dpio_lock);
+
+	/* bandgap reset is needed after everytime we do power gate */
+	band_gap_reset(dev_priv);
+
 	val = I915_READ(MIPI_PORT_CTRL(pipe));
 	I915_WRITE(MIPI_PORT_CTRL(pipe), val | LP_OUTPUT_HOLD);
 	usleep_range(1000, 1500);
@@ -378,9 +387,6 @@ static void intel_dsi_mode_set(struct intel_encoder *intel_encoder)
 	u32 val, tmp;
 
 	DRM_DEBUG_KMS("pipe %c\n", pipe_name(pipe));
-
-	/* XXX: Location of the call */
-	band_gap_reset(dev_priv);
 
 	/* escape clock divider, 20MHz, shared for A and C. device ready must be
 	 * off when doing this! txclkesc? */
