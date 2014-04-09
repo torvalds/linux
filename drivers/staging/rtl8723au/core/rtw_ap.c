@@ -695,7 +695,7 @@ static void start_bss_network(struct rtw_adapter *padapter, u8 *pbuf)
 	Set_MSR23a(padapter, _HW_STATE_AP_);
 
 	/* Set BSSID REG */
-	rtw_hal_set_hwreg23a(padapter, HW_VAR_BSSID, pnetwork->MacAddress);
+	hw_var_set_bssid(padapter, pnetwork->MacAddress);
 
 	/* Set EDCA param reg */
 	acparm = 0x002F3217; /*  VO */

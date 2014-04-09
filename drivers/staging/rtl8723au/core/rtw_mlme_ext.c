@@ -8008,7 +8008,7 @@ void start_create_ibss23a(struct rtw_adapter* padapter)
 		}
 		else
 		{
-			rtw_hal_set_hwreg23a(padapter, HW_VAR_BSSID, padapter->registrypriv.dev_network.MacAddress);
+			hw_var_set_bssid(padapter, padapter->registrypriv.dev_network.MacAddress);
 			join_type = 0;
 			rtw_hal_set_hwreg23a(padapter, HW_VAR_MLME_JOIN, (u8 *)(&join_type));
 
@@ -8698,7 +8698,7 @@ void mlmeext_joinbss_event_callback23a(struct rtw_adapter *padapter, int join_re
 	{
 		join_type = 1;
 		rtw_hal_set_hwreg23a(padapter, HW_VAR_MLME_JOIN, (u8 *)(&join_type));
-		rtw_hal_set_hwreg23a(padapter, HW_VAR_BSSID, null_addr);
+		hw_var_set_bssid(padapter, null_addr);
 
 		/* restore to initial setting. */
 		update_tx_basic_rate23a(padapter, padapter->registrypriv.wireless_mode);
@@ -8833,7 +8833,7 @@ void mlmeext_sta_del_event_callback23a(struct rtw_adapter *padapter)
 		/* set_opmode_cmd(padapter, infra_client_with_mlme); */
 
 		hw_var_set_mlme_disconnect(padapter);
-		rtw_hal_set_hwreg23a(padapter, HW_VAR_BSSID, null_addr);
+		hw_var_set_bssid(padapter, null_addr);
 
 		/* restore to initial setting. */
 		update_tx_basic_rate23a(padapter, padapter->registrypriv.wireless_mode);
@@ -9386,8 +9386,7 @@ u8 join_cmd_hdl23a(struct rtw_adapter *padapter, u8 *pbuf)
 	/* rtw_hal_set_hwreg23a(padapter, HW_VAR_INITIAL_GAIN,
 	   (u8 *)(&initialgain)); */
 
-	rtw_hal_set_hwreg23a(padapter, HW_VAR_BSSID,
-			  pmlmeinfo->network.MacAddress);
+	hw_var_set_bssid(padapter, pmlmeinfo->network.MacAddress);
 	join_type = 0;
 	rtw_hal_set_hwreg23a(padapter, HW_VAR_MLME_JOIN, (u8 *)(&join_type));
 
@@ -9417,7 +9416,7 @@ u8 disconnect_hdl23a(struct rtw_adapter *padapter, unsigned char *pbuf)
 	/* pmlmeinfo->state = WIFI_FW_NULL_STATE; */
 
 	hw_var_set_mlme_disconnect(padapter);
-	rtw_hal_set_hwreg23a(padapter, HW_VAR_BSSID, null_addr);
+	hw_var_set_bssid(padapter, null_addr);
 
 	/* restore to initial setting. */
 	update_tx_basic_rate23a(padapter, padapter->registrypriv.wireless_mode);

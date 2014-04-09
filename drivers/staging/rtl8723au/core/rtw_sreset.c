@@ -142,7 +142,7 @@ static void sreset_restore_network_station(struct rtw_adapter *padapter)
 	/* disable dynamic functions, such as high power, DIG */
 	/* Switch_DM_Func23a(padapter, DYNAMIC_FUNC_DISABLE, false); */
 
-	rtw_hal_set_hwreg23a(padapter, HW_VAR_BSSID, pmlmeinfo->network.MacAddress);
+	hw_var_set_bssid(padapter, pmlmeinfo->network.MacAddress);
 
 	{
 		u8	join_type = 0;

@@ -3007,7 +3007,7 @@ void hw_var_set_macaddr(struct rtw_adapter *padapter, u8 *val)
 		rtw_write8(padapter, (reg_macid + idx), val[idx]);
 }
 
-static void hw_var_set_bssid(struct rtw_adapter *padapter, u8 *val)
+void hw_var_set_bssid(struct rtw_adapter *padapter, u8 *val)
 {
 	u8 idx = 0;
 	u32 reg_bssid;
@@ -3135,10 +3135,6 @@ void SetHwReg8723A(struct rtw_adapter *padapter, u8 variable, u8 *val)
 	u32 *val32 = (u32 *)val;
 
 	switch (variable) {
-	case HW_VAR_BSSID:
-		hw_var_set_bssid(padapter, val);
-		break;
-
 	case HW_VAR_TXPAUSE:
 		rtl8723a_set_tx_pause(padapter, *val);
 		break;
