@@ -549,8 +549,8 @@
 		/* KHz    uV */
 		200000 950000
 		300000 950000
-		400000 1000000
-		533000 1050000
+		400000 1100000
+		533000 1150000
 		>;
 
 	freq_table = <
@@ -565,7 +565,7 @@
 
 /include/ "rk808.dtsi"
 &rk808 {
-	gpios =<&gpio0 GPIO_A4 GPIO_ACTIVE_HIGH>,<&gpio0 GPIO_B3 GPIO_ACTIVE_LOW>;
+	gpios =<&gpio0 GPIO_A4 GPIO_ACTIVE_HIGH>,<&gpio0 GPIO_A7 GPIO_ACTIVE_LOW>;
 	rk808,system-power-controller;
 
 	regulators {
