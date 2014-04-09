@@ -87,6 +87,7 @@ extern int opal_enter_rtas(struct rtas_args *args,
 #define OPAL_ASYNC_COMPLETION	-15
 
 /* API Tokens (in r0) */
+#define OPAL_INVALID_CALL			-1
 #define OPAL_CONSOLE_WRITE			1
 #define OPAL_CONSOLE_READ			2
 #define OPAL_RTC_READ				3
@@ -176,6 +177,8 @@ extern int opal_enter_rtas(struct rtas_args *args,
 #define OPAL_DUMP_INFO2				94
 
 #ifndef __ASSEMBLY__
+
+#include <linux/notifier.h>
 
 /* Other enums */
 enum OpalVendorApiTokens {
@@ -422,9 +425,9 @@ enum OpalSysparamPerm {
 };
 
 struct opal_msg {
-	uint32_t msg_type;
-	uint32_t reserved;
-	uint64_t params[8];
+	__be32 msg_type;
+	__be32 reserved;
+	__be64 params[8];
 };
 
 struct opal_machine_check_event {
@@ -730,7 +733,11 @@ typedef struct oppanel_line {
 /* /sys/firmware/opal */
 extern struct kobject *opal_kobj;
 
+/* /ibm,opal */
+extern struct device_node *opal_node;
+
 /* API functions */
+int64_t opal_invalid_call(void);
 int64_t opal_console_write(int64_t term_number, __be64 *length,
 			   const uint8_t *buffer);
 int64_t opal_console_read(int64_t term_number, __be64 *length,
@@ -874,8 +881,7 @@ int64_t opal_get_param(uint64_t token, uint32_t param_id, uint64_t buffer,
 		size_t length);
 int64_t opal_set_param(uint64_t token, uint32_t param_id, uint64_t buffer,
 		size_t length);
-int64_t opal_sensor_read(uint32_t sensor_hndl, int token,
-		uint32_t *sensor_data);
+int64_t opal_sensor_read(uint32_t sensor_hndl, int token, __be32 *sensor_data);
 
 /* Internal functions */
 extern int early_init_dt_scan_opal(unsigned long node, const char *uname, int depth, void *data);
@@ -892,6 +898,8 @@ extern int early_init_dt_scan_opal(unsigned long node, const char *uname,
 				   int depth, void *data);
 
 extern int opal_notifier_register(struct notifier_block *nb);
+extern int opal_notifier_unregister(struct notifier_block *nb);
+
 extern int opal_message_notifier_register(enum OpalMessageType msg_type,
 						struct notifier_block *nb);
 extern void opal_notifier_enable(void);
@@ -919,6 +927,7 @@ extern void opal_flash_init(void);
 extern int opal_elog_init(void);
 extern void opal_platform_dump_init(void);
 extern void opal_sys_param_init(void);
+extern void opal_msglog_init(void);
 
 extern int opal_machine_check(struct pt_regs *regs);
 extern bool opal_mce_check_early_recovery(struct pt_regs *regs);
