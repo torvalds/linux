@@ -51,6 +51,93 @@ ieee80211_chanctx_reserved_chandef(struct ieee80211_local *local,
 	return compat;
 }
 
+static const struct cfg80211_chan_def *
+ieee80211_chanctx_non_reserved_chandef(struct ieee80211_local *local,
+				       struct ieee80211_chanctx *ctx,
+				       const struct cfg80211_chan_def *compat)
+{
+	struct ieee80211_sub_if_data *sdata;
+
+	lockdep_assert_held(&local->chanctx_mtx);
+
+	list_for_each_entry(sdata, &ctx->assigned_vifs,
+			    assigned_chanctx_list) {
+		if (sdata->reserved_chanctx != NULL)
+			continue;
+
+		if (!compat)
+			compat = &sdata->vif.bss_conf.chandef;
+
+		compat = cfg80211_chandef_compatible(
+				&sdata->vif.bss_conf.chandef, compat);
+		if (!compat)
+			break;
+	}
+
+	return compat;
+}
+
+static const struct cfg80211_chan_def *
+ieee80211_chanctx_combined_chandef(struct ieee80211_local *local,
+				   struct ieee80211_chanctx *ctx,
+				   const struct cfg80211_chan_def *compat)
+{
+	lockdep_assert_held(&local->chanctx_mtx);
+
+	compat = ieee80211_chanctx_reserved_chandef(local, ctx, compat);
+	if (!compat)
+		return NULL;
+
+	compat = ieee80211_chanctx_non_reserved_chandef(local, ctx, compat);
+	if (!compat)
+		return NULL;
+
+	return compat;
+}
+
+static bool
+ieee80211_chanctx_can_reserve_chandef(struct ieee80211_local *local,
+				      struct ieee80211_chanctx *ctx,
+				      const struct cfg80211_chan_def *def)
+{
+	lockdep_assert_held(&local->chanctx_mtx);
+
+	if (ieee80211_chanctx_combined_chandef(local, ctx, def))
+		return true;
+
+	if (!list_empty(&ctx->reserved_vifs) &&
+	    ieee80211_chanctx_reserved_chandef(local, ctx, def))
+		return true;
+
+	return false;
+}
+
+static struct ieee80211_chanctx *
+ieee80211_find_reservation_chanctx(struct ieee80211_local *local,
+				   const struct cfg80211_chan_def *chandef,
+				   enum ieee80211_chanctx_mode mode)
+{
+	struct ieee80211_chanctx *ctx;
+
+	lockdep_assert_held(&local->chanctx_mtx);
+
+	if (mode == IEEE80211_CHANCTX_EXCLUSIVE)
+		return NULL;
+
+	list_for_each_entry(ctx, &local->chanctx_list, list) {
+		if (ctx->mode == IEEE80211_CHANCTX_EXCLUSIVE)
+			continue;
+
+		if (!ieee80211_chanctx_can_reserve_chandef(local, ctx,
+							   chandef))
+			continue;
+
+		return ctx;
+	}
+
+	return NULL;
+}
+
 static enum nl80211_chan_width ieee80211_get_sta_bw(struct ieee80211_sta *sta)
 {
 	switch (sta->bandwidth) {
@@ -771,8 +858,7 @@ int ieee80211_vif_reserve_chanctx(struct ieee80211_sub_if_data *sdata,
 
 	curr_ctx = container_of(conf, struct ieee80211_chanctx, conf);
 
-	/* try to find another context with the chandef we want */
-	new_ctx = ieee80211_find_chanctx(local, chandef, mode);
+	new_ctx = ieee80211_find_reservation_chanctx(local, chandef, mode);
 	if (!new_ctx) {
 		if (curr_ctx->refcount == 1 &&
 		    (local->hw.flags & IEEE80211_HW_CHANGE_RUNNING_CHANCTX)) {
