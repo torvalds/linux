@@ -437,14 +437,6 @@ struct hal_data_8723a {
 	/*  Interrupt related register information. */
 	u32	IntArray[2];
 	u32	IntrMask[2];
-
-	/*  */
-	/*  For SDIO Interface HAL related */
-	/*  */
-
-	/*  Auto FSM to Turn On, include clock, isolation, power control for MAC only */
-	u8			bMacPwrCtrlOn;
-
 };
 
 #define GET_HAL_DATA(__pAdapter)	((struct hal_data_8723a *)((__pAdapter)->HalData))
