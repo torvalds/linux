@@ -131,21 +131,6 @@ static void intel_dsi_device_ready(struct intel_encoder *encoder)
 	I915_WRITE(MIPI_DEVICE_READY(pipe), DEVICE_READY);
 	usleep_range(2000, 2500);
 }
-static void intel_dsi_pre_enable(struct intel_encoder *encoder)
-{
-	struct intel_dsi *intel_dsi = enc_to_intel_dsi(&encoder->base);
-
-	DRM_DEBUG_KMS("\n");
-
-	if (intel_dsi->dev.dev_ops->panel_reset)
-		intel_dsi->dev.dev_ops->panel_reset(&intel_dsi->dev);
-
-	/* put device in ready state */
-	intel_dsi_device_ready(encoder);
-
-	if (intel_dsi->dev.dev_ops->send_otp_cmds)
-		intel_dsi->dev.dev_ops->send_otp_cmds(&intel_dsi->dev);
-}
 
 static void intel_dsi_enable(struct intel_encoder *encoder)
 {
@@ -165,15 +150,45 @@ static void intel_dsi_enable(struct intel_encoder *encoder)
 		dpi_send_cmd(intel_dsi, TURN_ON);
 		msleep(100);
 
+		if (intel_dsi->dev.dev_ops->enable)
+			intel_dsi->dev.dev_ops->enable(&intel_dsi->dev);
+
 		/* assert ip_tg_enable signal */
 		temp = I915_READ(MIPI_PORT_CTRL(pipe)) & ~LANE_CONFIGURATION_MASK;
 		temp = temp | intel_dsi->port_bits;
 		I915_WRITE(MIPI_PORT_CTRL(pipe), temp | DPI_ENABLE);
 		POSTING_READ(MIPI_PORT_CTRL(pipe));
 	}
+}
 
-	if (intel_dsi->dev.dev_ops->enable)
-		intel_dsi->dev.dev_ops->enable(&intel_dsi->dev);
+static void intel_dsi_pre_enable(struct intel_encoder *encoder)
+{
+	struct intel_dsi *intel_dsi = enc_to_intel_dsi(&encoder->base);
+
+	DRM_DEBUG_KMS("\n");
+
+	if (intel_dsi->dev.dev_ops->panel_reset)
+		intel_dsi->dev.dev_ops->panel_reset(&intel_dsi->dev);
+
+	/* put device in ready state */
+	intel_dsi_device_ready(encoder);
+
+	if (intel_dsi->dev.dev_ops->send_otp_cmds)
+		intel_dsi->dev.dev_ops->send_otp_cmds(&intel_dsi->dev);
+
+	/* Enable port in pre-enable phase itself because as per hw team
+	 * recommendation, port should be enabled befor plane & pipe */
+	intel_dsi_enable(encoder);
+}
+
+static void intel_dsi_enable_nop(struct intel_encoder *encoder)
+{
+	DRM_DEBUG_KMS("\n");
+
+	/* for DSI port enable has to be done before pipe
+	 * and plane enable, so port enable is done in
+	 * pre_enable phase itself unlike other encoders
+	 */
 }
 
 static void intel_dsi_disable(struct intel_encoder *encoder)
@@ -600,7 +615,7 @@ bool intel_dsi_init(struct drm_device *dev)
 	intel_encoder->compute_config = intel_dsi_compute_config;
 	intel_encoder->pre_pll_enable = intel_dsi_pre_pll_enable;
 	intel_encoder->pre_enable = intel_dsi_pre_enable;
-	intel_encoder->enable = intel_dsi_enable;
+	intel_encoder->enable = intel_dsi_enable_nop;
 	intel_encoder->mode_set = intel_dsi_mode_set;
 	intel_encoder->disable = intel_dsi_disable;
 	intel_encoder->post_disable = intel_dsi_post_disable;
