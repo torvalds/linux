@@ -116,7 +116,7 @@ struct ion_handle {
 	int id;
 };
 
-static void ion_iommu_force_unmap(struct ion_buffer *buffer);
+void ion_iommu_force_unmap(struct ion_buffer *buffer);
 
 bool ion_buffer_fault_user_mappings(struct ion_buffer *buffer)
 {
@@ -893,6 +893,29 @@ out:
 EXPORT_SYMBOL(ion_unmap_iommu);
 #endif
 
+static int ion_debug_client_show_buffer_map(struct seq_file *s, struct ion_buffer *buffer)
+{
+	struct ion_iommu_map *iommu_map;
+	struct rb_node *node;
+	const struct rb_root *rb = &(buffer->iommu_maps);
+
+	pr_debug("%s: (%p)\n", __func__, buffer);
+
+	mutex_lock(&buffer->lock);
+
+	while ((node = rb_first(rb)) != 0) {
+		iommu_map = rb_entry(node, struct ion_iommu_map, node);
+		/* set ref count to 1 to force release */
+		seq_printf(s, "\t%08x@%08lx : %d\n", iommu_map->mapped_size, 
+				iommu_map->iova_addr,
+				atomic_read(&iommu_map->ref.refcount));
+	}
+
+	mutex_unlock(&buffer->lock);
+
+	return 0;
+}
+
 static int ion_debug_client_show_buffer(struct seq_file *s, void *unused)
 {
 	struct ion_client *client = s->private;
@@ -901,7 +924,7 @@ static int ion_debug_client_show_buffer(struct seq_file *s, void *unused)
 	size_t len;
 
 	seq_printf(s, "----------------------------------------------------\n");
-	seq_printf(s, "%16.s: %12.s %8.s %4.s %4.s %4.s\n", "heap_name", "addr", 
+	seq_printf(s, "%16.s: %12.s %8.s %4.s %4.s %4.s\n", "heap_name", "addr",
 		"size", "HC", "IBR", "IHR");
 	mutex_lock(&client->lock);
 	for (n = rb_first(&client->handles); n; n = rb_next(n)) {
@@ -911,9 +934,10 @@ static int ion_debug_client_show_buffer(struct seq_file *s, void *unused)
 			buffer->heap->ops->phys(buffer->heap, buffer, &addr, &len);
 			seq_printf(s, "%16.16s: 0x%08lx %8zuKB %4d %4d %4d\n",
 				buffer->heap->name, addr, len>>10, buffer->handle_count,
-				atomic_read(&buffer->ref.refcount), 
+				atomic_read(&buffer->ref.refcount),
 				atomic_read(&handle->ref.refcount));
 		}
+		ion_debug_client_show_buffer_map(s, buffer);
 	}
 	mutex_unlock(&client->lock);
 
