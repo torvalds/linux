@@ -420,6 +420,22 @@ struct nft_trans_set {
 #define nft_trans_set_id(trans)	\
 	(((struct nft_trans_set *)trans->data)->set_id)
 
+struct nft_trans_chain {
+	bool		update;
+	char		name[NFT_CHAIN_MAXNAMELEN];
+	struct nft_stats __percpu *stats;
+	u8		policy;
+};
+
+#define nft_trans_chain_update(trans)	\
+	(((struct nft_trans_chain *)trans->data)->update)
+#define nft_trans_chain_name(trans)	\
+	(((struct nft_trans_chain *)trans->data)->name)
+#define nft_trans_chain_stats(trans)	\
+	(((struct nft_trans_chain *)trans->data)->stats)
+#define nft_trans_chain_policy(trans)	\
+	(((struct nft_trans_chain *)trans->data)->policy)
+
 static inline struct nft_expr *nft_expr_first(const struct nft_rule *rule)
 {
 	return (struct nft_expr *)&rule->data[0];
@@ -452,6 +468,7 @@ static inline void *nft_userdata(const struct nft_rule *rule)
 
 enum nft_chain_flags {
 	NFT_BASE_CHAIN			= 0x1,
+	NFT_CHAIN_INACTIVE		= 0x2,
 };
 
 /**
