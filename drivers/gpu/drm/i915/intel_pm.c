@@ -5393,6 +5393,10 @@ static void cherryview_init_clock_gating(struct drm_device *dev)
 	/* WaDisableSemaphoreAndSyncFlipWait:chv */
 	I915_WRITE(GEN6_RC_SLEEP_PSMI_CONTROL,
 		   _MASKED_BIT_ENABLE(GEN8_RC_SEMA_IDLE_MSG_DISABLE));
+
+	/* WaDisableCSUnitClockGating:chv */
+	I915_WRITE(GEN6_UCGCTL1, I915_READ(GEN6_UCGCTL1) |
+		   GEN6_CSUNIT_CLOCK_GATE_DISABLE);
 }
 
 static void g4x_init_clock_gating(struct drm_device *dev)
