@@ -2996,7 +2996,7 @@ void hw_var_set_opmode(struct rtw_adapter *padapter, u8 mode)
 	rtw_write8(padapter, MSR, val8);
 }
 
-static void hw_var_set_macaddr(struct rtw_adapter *padapter, u8 *val)
+void hw_var_set_macaddr(struct rtw_adapter *padapter, u8 *val)
 {
 	u8 idx = 0;
 	u32 reg_macid;
@@ -3135,10 +3135,6 @@ void SetHwReg8723A(struct rtw_adapter *padapter, u8 variable, u8 *val)
 	u32 *val32 = (u32 *)val;
 
 	switch (variable) {
-	case HW_VAR_MAC_ADDR:
-		hw_var_set_macaddr(padapter, val);
-		break;
-
 	case HW_VAR_BSSID:
 		hw_var_set_bssid(padapter, val);
 		break;

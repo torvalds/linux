@@ -165,8 +165,6 @@ void HalSetBrateCfg23a(struct rtw_adapter *padapter, u8 *mBratesOS);
 bool
 Hal_MappingOutPipe23a(struct rtw_adapter *pAdapter, u8 NumOutPipe);
 
-void hal_init_macaddr23a(struct rtw_adapter *adapter);
-
 void c2h_evt_clear23a(struct rtw_adapter *adapter);
 s32 c2h_evt_read23a(struct rtw_adapter *adapter, u8 *buf);
 

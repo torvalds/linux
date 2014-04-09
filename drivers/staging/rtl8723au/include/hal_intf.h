@@ -36,7 +36,6 @@ enum _CHIP_TYPE {
 };
 
 enum HW_VARIABLES {
-	HW_VAR_MAC_ADDR,
 	HW_VAR_BSSID,
 	HW_VAR_INIT_RTS_RATE,
 	HW_VAR_TXPAUSE,
@@ -380,5 +379,6 @@ c2h_id_filter rtw_hal_c2h_id_filter_ccx23a(struct rtw_adapter *adapter);
 void hw_var_set_correct_tsf(struct rtw_adapter *padapter);
 void hw_var_set_mlme_disconnect(struct rtw_adapter *padapter);
 void hw_var_set_opmode(struct rtw_adapter *padapter, u8 mode);
+void hw_var_set_macaddr(struct rtw_adapter *padapter, u8 *val);
 
 #endif /* __HAL_INTF_H__ */

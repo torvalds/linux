@@ -779,7 +779,7 @@ static u32 rtl8723au_hal_init(struct rtw_adapter *Adapter)
 	_InitDriverInfoSize(Adapter, DRVINFO_SZ);
 
 	_InitInterrupt(Adapter);
-	hal_init_macaddr23a(Adapter);/* set mac_address */
+	hw_var_set_macaddr(Adapter, Adapter->eeprompriv.mac_addr);
 	_InitNetworkType(Adapter);/* set msr */
 	_InitWMACSetting(Adapter);
 	_InitAdaptiveCtrl(Adapter);

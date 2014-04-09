@@ -344,12 +344,6 @@ bool Hal_MappingOutPipe23a(struct rtw_adapter *pAdapter, u8 NumOutPipe)
 	return result;
 }
 
-void hal_init_macaddr23a(struct rtw_adapter *adapter)
-{
-	rtw_hal_set_hwreg23a(adapter, HW_VAR_MAC_ADDR,
-			  adapter->eeprompriv.mac_addr);
-}
-
 /*
 * C2H event format:
 * Field	 TRIGGER		CONTENT	   CMD_SEQ	CMD_LEN		 CMD_ID
