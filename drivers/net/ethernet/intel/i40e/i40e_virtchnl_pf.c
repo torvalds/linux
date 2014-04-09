@@ -2258,6 +2258,11 @@ int i40e_ndo_set_vf_bw(struct net_device *netdev, int vf_id, int min_tx_rate,
 		goto error;
 	}
 
+	if ((max_tx_rate < 50) && (max_tx_rate > 0)) {
+		dev_warn(&pf->pdev->dev, "Setting max Tx rate to minimum usable value of 50Mbps.\n");
+		max_tx_rate = 50;
+	}
+
 	/* Tx rate credits are in values of 50Mbps, 0 is disabled*/
 	ret = i40e_aq_config_vsi_bw_limit(&pf->hw, vsi->seid, max_tx_rate / 50,
 					  0, NULL);
