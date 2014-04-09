@@ -3143,10 +3143,6 @@ void SetHwReg8723A(struct rtw_adapter *padapter, u8 variable, u8 *val)
 		rtl8723a_set_bcn_func(padapter, *val);
 		break;
 
-	case HW_VAR_ACK_PREAMBLE:
-		rtl8723a_ack_preamble(padapter, *val);
-		break;
-
 	case HW_VAR_SEC_CFG:
 		rtl8723a_set_sec_cfg(padapter, *val);
 		break;

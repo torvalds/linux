@@ -1562,22 +1562,19 @@ void update_capinfo23a(struct rtw_adapter *Adapter, u16 updateCap)
 {
 	struct mlme_ext_priv	*pmlmeext = &Adapter->mlmeextpriv;
 	struct mlme_ext_info *pmlmeinfo = &pmlmeext->mlmext_info;
-	bool		ShortPreamble;
 
 	if (updateCap & cShortPreamble) {
 		/*  Short Preamble */
 		if (pmlmeinfo->preamble_mode != PREAMBLE_SHORT) {
 			/*  PREAMBLE_LONG or PREAMBLE_AUTO */
-			ShortPreamble = true;
 			pmlmeinfo->preamble_mode = PREAMBLE_SHORT;
-			rtw_hal_set_hwreg23a(Adapter, HW_VAR_ACK_PREAMBLE, (u8 *)&ShortPreamble);
+			rtl8723a_ack_preamble(Adapter, true);
 		}
 	} else { /*  Long Preamble */
 		if (pmlmeinfo->preamble_mode != PREAMBLE_LONG) {
 			/*  PREAMBLE_SHORT or PREAMBLE_AUTO */
-			ShortPreamble = false;
 			pmlmeinfo->preamble_mode = PREAMBLE_LONG;
-			rtw_hal_set_hwreg23a(Adapter, HW_VAR_ACK_PREAMBLE, (u8 *)&ShortPreamble);
+			rtl8723a_ack_preamble(Adapter, false);
 		}
 	}
 	if (updateCap & cIBSS) {
