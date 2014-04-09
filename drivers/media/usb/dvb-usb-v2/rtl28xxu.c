@@ -24,7 +24,6 @@
 
 #include "rtl2830.h"
 #include "rtl2832.h"
-#include "rtl2832_sdr.h"
 
 #include "qt1010.h"
 #include "mt2060.h"
@@ -35,6 +34,26 @@
 #include "fc2580.h"
 #include "tua9001.h"
 #include "r820t.h"
+
+/*
+ * RTL2832_SDR module is in staging. That logic is added in order to avoid any
+ * hard dependency to drivers/staging/ directory as we want compile mainline
+ * driver even whole staging directory is missing.
+ */
+#include <media/v4l2-subdev.h>
+
+#if IS_ENABLED(CONFIG_DVB_RTL2832_SDR)
+struct dvb_frontend *rtl2832_sdr_attach(struct dvb_frontend *fe,
+	struct i2c_adapter *i2c, const struct rtl2832_config *cfg,
+	struct v4l2_subdev *sd);
+#else
+static inline struct dvb_frontend *rtl2832_sdr_attach(struct dvb_frontend *fe,
+	struct i2c_adapter *i2c, const struct rtl2832_config *cfg,
+	struct v4l2_subdev *sd)
+{
+	return NULL;
+}
+#endif
 
 static int rtl28xxu_disable_rc;
 module_param_named(disable_rc, rtl28xxu_disable_rc, int, 0644);
