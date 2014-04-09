@@ -1108,10 +1108,9 @@ This sub-routine will perform all the following:
 6. apply sw-encrypt, if necessary.
 
 */
-s32 rtw_xmitframe_coalesce23a(struct rtw_adapter *padapter, struct sk_buff *pkt,
+s32 rtw_xmitframe_coalesce23a(struct rtw_adapter *padapter, struct sk_buff *skb,
 			      struct xmit_frame *pxmitframe)
 {
-	struct pkt_file pktfile;
 	struct sta_info *psta;
 	struct xmit_priv *pxmitpriv = &padapter->xmitpriv;
 	struct pkt_attrib *pattrib = &pxmitframe->attrib;
@@ -1119,7 +1118,8 @@ s32 rtw_xmitframe_coalesce23a(struct rtw_adapter *padapter, struct sk_buff *pkt,
 	u8 *pframe, *mem_start;
 	u8 hw_hdr_offset;
 	u8 *pbuf_start;
-
+	u8 *pdata = skb->data;
+	int data_len = skb->len;
 	s32 bmcst = is_multicast_ether_addr(pattrib->ra);
 	s32 res = _SUCCESS;
 
@@ -1160,8 +1160,8 @@ s32 rtw_xmitframe_coalesce23a(struct rtw_adapter *padapter, struct sk_buff *pkt,
 		goto exit;
 	}
 
-	_rtw_open_pktfile23a(pkt, &pktfile);
-	_rtw_pktfile_read23a(&pktfile, NULL, pattrib->pkt_hdrlen);
+	pdata += pattrib->pkt_hdrlen;
+	data_len -= pattrib->pkt_hdrlen;
 
 	frg_inx = 0;
 	frg_len = pxmitpriv->frag_len - 4;/* 2346-4 = 2342 */
@@ -1228,15 +1228,17 @@ s32 rtw_xmitframe_coalesce23a(struct rtw_adapter *padapter, struct sk_buff *pkt,
 		if (pattrib->icv_len > 0 && pattrib->bswenc)
 			mpdu_len -= pattrib->icv_len;
 
-		if (bmcst) {
+		if (bmcst)
 			/*  don't do fragment to broadcat/multicast packets */
-			mem_sz = _rtw_pktfile_read23a(&pktfile, pframe,
-						      pattrib->pktlen);
-		} else {
-			mem_sz = _rtw_pktfile_read23a(&pktfile, pframe,
-						      mpdu_len);
-		}
+			mem_sz = min_t(s32, data_len, pattrib->pktlen);
+		else
+			mem_sz = min_t(s32, data_len, mpdu_len);
+
+		memcpy(pframe, pdata, mem_sz);
+
 		pframe += mem_sz;
+		pdata += mem_sz;
+		data_len -= mem_sz;
 
 		if ((pattrib->icv_len >0) && (pattrib->bswenc)) {
 			memcpy(pframe, pattrib->icv, pattrib->icv_len);
@@ -1245,7 +1247,7 @@ s32 rtw_xmitframe_coalesce23a(struct rtw_adapter *padapter, struct sk_buff *pkt,
 
 		frg_inx++;
 
-		if (bmcst || rtw_endofpktfile23a(&pktfile)) {
+		if (bmcst || data_len <= 0) {
 			pattrib->nr_frags = frg_inx;
 
 			pattrib->last_txcmdsz = pattrib->hdrlen +
