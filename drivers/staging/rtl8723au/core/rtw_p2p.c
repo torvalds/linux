@@ -3120,45 +3120,40 @@ static void restore_p2p_state_handler(struct rtw_adapter *padapter)
 static void pre_tx_invitereq_handler(struct rtw_adapter *padapter)
 {
 	struct wifidirect_info  *pwdinfo = &padapter->wdinfo;
-	u8	val8 = 1;
 
 	set_channel_bwmode23a(padapter, pwdinfo->invitereq_info.peer_ch, HAL_PRIME_CHNL_OFFSET_DONT_CARE, HT_CHANNEL_WIDTH_20);
-	padapter->HalFunc.SetHwRegHandler(padapter, HW_VAR_MLME_SITESURVEY, (u8 *)(&val8));
+	rtl8723a_mlme_sitesurvey(padapter, 1);
 	issue23a_probereq_p2p(padapter, NULL);
 	mod_timer(&pwdinfo->pre_tx_scan_timer,
 		  jiffies + msecs_to_jiffies(P2P_TX_PRESCAN_TIMEOUT));
-
-
 }
 
 static void pre_tx_provdisc_handler(struct rtw_adapter *padapter)
 {
 	struct wifidirect_info  *pwdinfo = &padapter->wdinfo;
-	u8	val8 = 1;
 
-
-	set_channel_bwmode23a(padapter, pwdinfo->tx_prov_disc_info.peer_channel_num[0], HAL_PRIME_CHNL_OFFSET_DONT_CARE, HT_CHANNEL_WIDTH_20);
-	rtw_hal_set_hwreg23a(padapter, HW_VAR_MLME_SITESURVEY, (u8 *)(&val8));
+	set_channel_bwmode23a(padapter,
+			      pwdinfo->tx_prov_disc_info.peer_channel_num[0],
+			      HAL_PRIME_CHNL_OFFSET_DONT_CARE,
+			      HT_CHANNEL_WIDTH_20);
+	rtl8723a_mlme_sitesurvey(padapter, 1);
 	issue23a_probereq_p2p(padapter, NULL);
 	mod_timer(&pwdinfo->pre_tx_scan_timer,
 		  jiffies + msecs_to_jiffies(P2P_TX_PRESCAN_TIMEOUT));
-
-
 }
 
 static void pre_tx_negoreq_handler(struct rtw_adapter *padapter)
 {
 	struct wifidirect_info  *pwdinfo = &padapter->wdinfo;
-	u8	val8 = 1;
 
-
-	set_channel_bwmode23a(padapter, pwdinfo->nego_req_info.peer_channel_num[0], HAL_PRIME_CHNL_OFFSET_DONT_CARE, HT_CHANNEL_WIDTH_20);
-	rtw_hal_set_hwreg23a(padapter, HW_VAR_MLME_SITESURVEY, (u8 *)(&val8));
+	set_channel_bwmode23a(padapter,
+			      pwdinfo->nego_req_info.peer_channel_num[0],
+			      HAL_PRIME_CHNL_OFFSET_DONT_CARE,
+			      HT_CHANNEL_WIDTH_20);
+	rtl8723a_mlme_sitesurvey(padapter, 1);
 	issue23a_probereq_p2p(padapter, NULL);
 	mod_timer(&pwdinfo->pre_tx_scan_timer,
 		  jiffies + msecs_to_jiffies(P2P_TX_PRESCAN_TIMEOUT));
-
-
 }
 
 static void ro_ch_handler(struct rtw_adapter *padapter)

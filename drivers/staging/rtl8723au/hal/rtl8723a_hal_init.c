@@ -3147,10 +3147,6 @@ void SetHwReg8723A(struct rtw_adapter *padapter, u8 variable, u8 *val)
 		rtl8723a_check_bssid(padapter, *val);
 		break;
 
-	case HW_VAR_MLME_SITESURVEY:
-		rtl8723a_mlme_sitesurvey(padapter, *val);
-		break;
-
 	case HW_VAR_MLME_JOIN:
 		hw_var_set_mlme_join(padapter, *val);
 		break;

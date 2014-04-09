@@ -7615,7 +7615,7 @@ bool IsLegal5GChannel(struct rtw_adapter *Adapter, u8 channel)
 
 void site_survey23a(struct rtw_adapter *padapter)
 {
-	unsigned char survey_channel = 0, val8;
+	unsigned char survey_channel = 0;
 	enum rt_scan_type ScanType = SCAN_PASSIVE;
 	struct mlme_ext_priv	*pmlmeext = &padapter->mlmeextpriv;
 	struct mlme_ext_info *pmlmeinfo = &pmlmeext->mlmext_info;
@@ -7761,8 +7761,7 @@ void site_survey23a(struct rtw_adapter *padapter)
 
 			}
 
-			val8 = 0; /* survey done */
-			rtw_hal_set_hwreg23a(padapter, HW_VAR_MLME_SITESURVEY, (u8 *)(&val8));
+			rtl8723a_mlme_sitesurvey(padapter, 0);
 
 			report_surveydone_event23a(padapter);
 
@@ -9518,7 +9517,6 @@ u8 sitesurvey_cmd_hdl23a(struct rtw_adapter *padapter, u8 *pbuf)
 	struct mlme_ext_priv *pmlmeext = &padapter->mlmeextpriv;
 	struct sitesurvey_parm *pparm = (struct sitesurvey_parm *)pbuf;
 	u8 bdelayscan = false;
-	u8 val8;
 	u32 initialgain;
 	u32 i;
 
@@ -9589,9 +9587,7 @@ u8 sitesurvey_cmd_hdl23a(struct rtw_adapter *padapter, u8 *pbuf)
 		/* set MSR to no link state */
 		Set_MSR23a(padapter, _HW_STATE_NOLINK_);
 
-		val8 = 1; /* under site survey */
-		rtw_hal_set_hwreg23a(padapter, HW_VAR_MLME_SITESURVEY,
-				  (u8 *)(&val8));
+		rtl8723a_mlme_sitesurvey(padapter, 1);
 
 		pmlmeext->sitesurvey_res.state = SCAN_PROCESS;
 	}
