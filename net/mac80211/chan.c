@@ -28,6 +28,29 @@ static bool ieee80211_can_create_new_chanctx(struct ieee80211_local *local)
 	return ieee80211_num_chanctx(local) < ieee80211_max_num_channels(local);
 }
 
+static const struct cfg80211_chan_def *
+ieee80211_chanctx_reserved_chandef(struct ieee80211_local *local,
+				   struct ieee80211_chanctx *ctx,
+				   const struct cfg80211_chan_def *compat)
+{
+	struct ieee80211_sub_if_data *sdata;
+
+	lockdep_assert_held(&local->chanctx_mtx);
+
+	list_for_each_entry(sdata, &ctx->reserved_vifs,
+			    reserved_chanctx_list) {
+		if (!compat)
+			compat = &sdata->reserved_chandef;
+
+		compat = cfg80211_chandef_compatible(&sdata->reserved_chandef,
+						     compat);
+		if (!compat)
+			break;
+	}
+
+	return compat;
+}
+
 static enum nl80211_chan_width ieee80211_get_sta_bw(struct ieee80211_sta *sta)
 {
 	switch (sta->bandwidth) {
@@ -187,27 +210,6 @@ static void ieee80211_change_chanctx(struct ieee80211_local *local,
 	}
 }
 
-static bool ieee80211_chanctx_is_reserved(struct ieee80211_local *local,
-					  struct ieee80211_chanctx *ctx)
-{
-	struct ieee80211_sub_if_data *sdata;
-	bool ret = false;
-
-	lockdep_assert_held(&local->chanctx_mtx);
-	rcu_read_lock();
-	list_for_each_entry_rcu(sdata, &local->interfaces, list) {
-		if (!ieee80211_sdata_running(sdata))
-			continue;
-		if (sdata->reserved_chanctx == ctx) {
-			ret = true;
-			break;
-		}
-	}
-
-	rcu_read_unlock();
-	return ret;
-}
-
 static struct ieee80211_chanctx *
 ieee80211_find_chanctx(struct ieee80211_local *local,
 		       const struct cfg80211_chan_def *chandef,
@@ -223,15 +225,15 @@ ieee80211_find_chanctx(struct ieee80211_local *local,
 	list_for_each_entry(ctx, &local->chanctx_list, list) {
 		const struct cfg80211_chan_def *compat;
 
-		/* We don't support chanctx reservation for multiple
-		 * vifs yet, so don't allow reserved chanctxs to be
-		 * reused.
-		 */
-		if ((ctx->mode == IEEE80211_CHANCTX_EXCLUSIVE) ||
-		    ieee80211_chanctx_is_reserved(local, ctx))
+		if (ctx->mode == IEEE80211_CHANCTX_EXCLUSIVE)
 			continue;
 
 		compat = cfg80211_chandef_compatible(&ctx->conf.def, chandef);
+		if (!compat)
+			continue;
+
+		compat = ieee80211_chanctx_reserved_chandef(local, ctx,
+							    compat);
 		if (!compat)
 			continue;
 
