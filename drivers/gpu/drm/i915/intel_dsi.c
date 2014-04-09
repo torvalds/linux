@@ -163,15 +163,30 @@ static void intel_dsi_enable(struct intel_encoder *encoder)
 
 static void intel_dsi_pre_enable(struct intel_encoder *encoder)
 {
+	struct drm_device *dev = encoder->base.dev;
+	struct drm_i915_private *dev_priv = dev->dev_private;
 	struct intel_dsi *intel_dsi = enc_to_intel_dsi(&encoder->base);
+	struct intel_crtc *intel_crtc = to_intel_crtc(encoder->base.crtc);
+	enum pipe pipe = intel_crtc->pipe;
+	u32 tmp;
 
 	DRM_DEBUG_KMS("\n");
 
-	if (intel_dsi->dev.dev_ops->panel_reset)
-		intel_dsi->dev.dev_ops->panel_reset(&intel_dsi->dev);
+	/* Disable DPOunit clock gating, can stall pipe
+	 * and we need DPLL REFA always enabled */
+	tmp = I915_READ(DPLL(pipe));
+	tmp |= DPLL_REFA_CLK_ENABLE_VLV;
+	I915_WRITE(DPLL(pipe), tmp);
+
+	tmp = I915_READ(DSPCLK_GATE_D);
+	tmp |= DPOUNIT_CLOCK_GATE_DISABLE;
+	I915_WRITE(DSPCLK_GATE_D, tmp);
 
 	/* put device in ready state */
 	intel_dsi_device_ready(encoder);
+
+	if (intel_dsi->dev.dev_ops->panel_reset)
+		intel_dsi->dev.dev_ops->panel_reset(&intel_dsi->dev);
 
 	if (intel_dsi->dev.dev_ops->send_otp_cmds)
 		intel_dsi->dev.dev_ops->send_otp_cmds(&intel_dsi->dev);
@@ -251,13 +266,20 @@ static void intel_dsi_clear_device_ready(struct intel_encoder *encoder)
 
 	vlv_disable_dsi_pll(encoder);
 }
+
 static void intel_dsi_post_disable(struct intel_encoder *encoder)
 {
+	struct drm_i915_private *dev_priv = encoder->base.dev->dev_private;
 	struct intel_dsi *intel_dsi = enc_to_intel_dsi(&encoder->base);
+	u32 val;
 
 	DRM_DEBUG_KMS("\n");
 
 	intel_dsi_clear_device_ready(encoder);
+
+	val = I915_READ(DSPCLK_GATE_D);
+	val &= ~DPOUNIT_CLOCK_GATE_DISABLE;
+	I915_WRITE(DSPCLK_GATE_D, val);
 
 	if (intel_dsi->dev.dev_ops->disable_panel_power)
 		intel_dsi->dev.dev_ops->disable_panel_power(&intel_dsi->dev);
