@@ -3157,10 +3157,6 @@ void SetHwReg8723A(struct rtw_adapter *padapter, u8 variable, u8 *val)
 		rtl8723a_odm_support_ability_clr(padapter, *val32);
 		break;
 
-	case HW_VAR_CAM_EMPTY_ENTRY:
-		rtl8723a_cam_empty_entry(padapter, *val);
-		break;
-
 	case HW_VAR_CAM_WRITE:
 		rtl8723a_cam_write(padapter, val32[0], val32[1]);
 		break;

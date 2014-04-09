@@ -11232,8 +11232,10 @@ void HALBT_RemoveKey(struct rtw_adapter *padapter, u8 EntryNum)
 
 	if (pBTinfo->BtAsocEntry[EntryNum].HwCAMIndex != 0) {
 		/*  ToDo : add New HALBT_RemoveKey function !! */
-		if (pBtAssocEntry->HwCAMIndex >= BT_HWCAM_STAR && pBtAssocEntry->HwCAMIndex < HALF_CAM_ENTRY)
-			CAM_empty_entry23a(padapter, pBtAssocEntry->HwCAMIndex);
+		if (pBtAssocEntry->HwCAMIndex >= BT_HWCAM_STAR &&
+		    pBtAssocEntry->HwCAMIndex < HALF_CAM_ENTRY)
+			rtl8723a_cam_empty_entry(padapter,
+						 pBtAssocEntry->HwCAMIndex);
 		pBTinfo->BtAsocEntry[EntryNum].HwCAMIndex = 0;
 	}
 }

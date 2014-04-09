@@ -478,11 +478,6 @@ unsigned int decide_wait_for_beacon_timeout23a(unsigned int bcn_interval)
 		return bcn_interval << 2;
 }
 
-void CAM_empty_entry23a(struct rtw_adapter *Adapter, u8 ucIndex)
-{
-	rtw_hal_set_hwreg23a(Adapter, HW_VAR_CAM_EMPTY_ENTRY, (u8 *)(&ucIndex));
-}
-
 void invalidate_cam_all23a(struct rtw_adapter *padapter)
 {
 	rtl8723a_cam_invalid_all(padapter);

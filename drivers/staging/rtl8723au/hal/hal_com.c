@@ -670,11 +670,13 @@ void rtl8723a_cam_empty_entry(struct rtw_adapter *padapter, u8 ucIndex)
 		/* delay_ms(40); */
 		rtw_write32(padapter, WCAMI, ulContent);
 		/* RT_TRACE(COMP_SEC, DBG_LOUD,
-		   ("CAM_empty_entry23a(): WRITE A4: %lx \n", ulContent));*/
+		   ("rtl8723a_cam_empty_entry(): WRITE A4: %lx \n",
+		   ulContent));*/
 		/* delay_ms(40); */
 		rtw_write32(padapter, RWCAM, ulCommand);
 		/* RT_TRACE(COMP_SEC, DBG_LOUD,
-		   ("CAM_empty_entry23a(): WRITE A0: %lx \n", ulCommand));*/
+		   ("rtl8723a_cam_empty_entry(): WRITE A0: %lx \n",
+		   ulCommand));*/
 	}
 }
 

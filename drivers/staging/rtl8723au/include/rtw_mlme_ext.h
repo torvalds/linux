@@ -500,7 +500,6 @@ void write_cam23a(struct rtw_adapter *padapter, u8 entry, u16 ctrl,
 void clear_cam_entry23a(struct rtw_adapter *padapter, u8 entry);
 
 void invalidate_cam_all23a(struct rtw_adapter *padapter);
-void CAM_empty_entry23a(struct rtw_adapter *Adapter, u8 ucIndex);
 
 int allocate_fw_sta_entry23a(struct rtw_adapter *padapter);
 void flush_all_cam_entry23a(struct rtw_adapter *padapter);
