@@ -8,6 +8,22 @@
 #include "debug.h"
 #include "comm.h"
 
+int thread__init_map_groups(struct thread *thread, struct machine *machine)
+{
+	struct thread *leader;
+	pid_t pid = thread->pid_;
+
+	if (pid == thread->tid) {
+		thread->mg = map_groups__new();
+	} else {
+		leader = machine__findnew_thread(machine, pid, pid);
+		if (leader)
+			thread->mg = map_groups__get(leader->mg);
+	}
+
+	return thread->mg ? 0 : -1;
+}
+
 struct thread *thread__new(pid_t pid, pid_t tid)
 {
 	char *comm_str;
@@ -15,10 +31,6 @@ struct thread *thread__new(pid_t pid, pid_t tid)
 	struct thread *thread = zalloc(sizeof(*thread));
 
 	if (thread != NULL) {
-		thread->mg = map_groups__new();
-		if (thread->mg == NULL)
-			goto out_free;
-
 		thread->pid_ = pid;
 		thread->tid = tid;
 		thread->ppid = -1;
@@ -40,8 +52,6 @@ struct thread *thread__new(pid_t pid, pid_t tid)
 	return thread;
 
 err_thread:
-	map_groups__delete(thread->mg);
-out_free:
 	free(thread);
 	return NULL;
 }
@@ -126,9 +136,26 @@ void thread__insert_map(struct thread *thread, struct map *map)
 	map_groups__insert(thread->mg, map);
 }
 
+static int thread__clone_map_groups(struct thread *thread,
+				    struct thread *parent)
+{
+	int i;
+
+	/* This is new thread, we share map groups for process. */
+	if (thread->pid_ == parent->pid_)
+		return 0;
+
+	/* But this one is new process, copy maps. */
+	for (i = 0; i < MAP__NR_TYPES; ++i)
+		if (map_groups__clone(thread->mg, parent->mg, i) < 0)
+			return -ENOMEM;
+
+	return 0;
+}
+
 int thread__fork(struct thread *thread, struct thread *parent, u64 timestamp)
 {
-	int i, err;
+	int err;
 
 	if (parent->comm_set) {
 		const char *comm = thread__comm_str(parent);
@@ -140,13 +167,8 @@ int thread__fork(struct thread *thread, struct thread *parent, u64 timestamp)
 		thread->comm_set = true;
 	}
 
-	for (i = 0; i < MAP__NR_TYPES; ++i)
-		if (map_groups__clone(thread->mg, parent->mg, i) < 0)
-			return -ENOMEM;
-
 	thread->ppid = parent->tid;
-
-	return 0;
+	return thread__clone_map_groups(thread, parent);
 }
 
 void thread__find_cpumode_addr_location(struct thread *thread,

@@ -30,6 +30,7 @@ struct machine;
 struct comm;
 
 struct thread *thread__new(pid_t pid, pid_t tid);
+int thread__init_map_groups(struct thread *thread, struct machine *machine);
 void thread__delete(struct thread *thread);
 static inline void thread__exited(struct thread *thread)
 {
