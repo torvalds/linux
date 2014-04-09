@@ -6454,8 +6454,7 @@ void issue_assocreq23a(struct rtw_adapter *padapter)
 			pmlmeinfo->HT_caps.u.HT_cap_element.HT_caps_info |=
 				0x000c;
 
-			rtw23a_hal_get_hwreg(padapter, HW_VAR_RF_TYPE,
-					     (u8 *)(&rf_type));
+			rf_type = rtl8723a_get_rf_type(padapter);
 			/* switch (pregpriv->rf_config) */
 			switch (rf_type)
 			{

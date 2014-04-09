@@ -4347,7 +4347,7 @@ void rtw_cfg80211_init_wiphy(struct rtw_adapter *padapter)
 	struct wireless_dev *pwdev = padapter->rtw_wdev;
 	struct wiphy *wiphy = pwdev->wiphy;
 
-	rtw23a_hal_get_hwreg(padapter, HW_VAR_RF_TYPE, (u8 *)(&rf_type));
+	rf_type = rtl8723a_get_rf_type(padapter);
 
 	DBG_8723A("%s:rf_type =%d\n", __func__, rf_type);
 

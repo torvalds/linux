@@ -374,9 +374,9 @@ void add_RATid23a(struct rtw_adapter *padapter, struct sta_info *psta, u8 rssi_l
 			tx_ra_bitmap |= rtw_get_bit_value_from_ieee_value23a(psta->bssrateset[i]&0x7f);
 	}
 	/* n mode ra_bitmap */
-	if (psta_ht->ht_option)
-	{
-		rtw23a_hal_get_hwreg(padapter, HW_VAR_RF_TYPE, (u8 *)(&rf_type));
+	if (psta_ht->ht_option) {
+		rf_type = rtl8723a_get_rf_type(padapter);
+
 		if (rf_type == RF_2T2R)
 			limit = 16;/*  2R */
 		else
@@ -989,7 +989,7 @@ int rtw_check_beacon_data23a(struct rtw_adapter *padapter, u8 *pbuf,  int len)
 		ht_cap = true;
 		network_type |= WIRELESS_11_24N;
 
-		rtw23a_hal_get_hwreg(padapter, HW_VAR_RF_TYPE, (u8 *)(&rf_type));
+		rf_type = rtl8723a_get_rf_type(padapter);
 
 		if ((psecuritypriv->wpa_pairwise_cipher & WPA_CIPHER_CCMP) ||
 		    (psecuritypriv->wpa2_pairwise_cipher & WPA_CIPHER_CCMP))

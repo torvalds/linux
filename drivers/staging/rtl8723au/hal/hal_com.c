@@ -889,3 +889,10 @@ void rtl8723a_set_rpwm(struct rtw_adapter *padapter, u8 val)
 {
 	rtw_write8(padapter, REG_USB_HRPWM, val);
 }
+
+u8 rtl8723a_get_rf_type(struct rtw_adapter *padapter)
+{
+	struct hal_data_8723a *pHalData = GET_HAL_DATA(padapter);
+
+	return pHalData->rf_type;
+}

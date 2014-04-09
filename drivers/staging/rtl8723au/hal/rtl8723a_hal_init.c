@@ -3134,13 +3134,7 @@ void hw_var_set_mlme_join(struct rtw_adapter *padapter, u8 type)
 
 void GetHwReg8723A(struct rtw_adapter *padapter, u8 variable, u8 *val)
 {
-	struct hal_data_8723a *pHalData = GET_HAL_DATA(padapter);
-
 	switch (variable) {
-	case HW_VAR_RF_TYPE:
-		*val = pHalData->rf_type;
-		break;
-
 	case HW_VAR_FWLPS_RF_ON:
 	{
 		/*  When we halt NIC, we should check if FW LPS is leave. */
