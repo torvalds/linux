@@ -570,6 +570,20 @@ vlv_dport_to_channel(struct intel_digital_port *dport)
 	}
 }
 
+static inline int
+vlv_pipe_to_channel(enum pipe pipe)
+{
+	switch (pipe) {
+	case PIPE_A:
+	case PIPE_C:
+		return DPIO_CH0;
+	case PIPE_B:
+		return DPIO_CH1;
+	default:
+		BUG();
+	}
+}
+
 static inline struct drm_crtc *
 intel_get_crtc_for_pipe(struct drm_device *dev, int pipe)
 {
