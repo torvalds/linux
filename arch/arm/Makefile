@@ -339,6 +339,5 @@ kernel.img: zImage
 	@echo '  Image:  kernel.img (with $*.dtb) is ready'
 
 %.img: %.dtb kernel.img
-	$(Q)$(srctree)/scripts/pnmtodtsi -t clut224 -o $(srctree)/arch/arm/boot/dts/linux_logo.dtsi $(srctree)/drivers/video/logo/logo_linux_clut224.ppm
 	$(Q)$(srctree)/resource_tool $(objtree)/arch/arm/boot/dts/$*.dtb
 	@echo '  Image:  resource.img (with $*.dtb) is ready'
