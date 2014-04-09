@@ -52,7 +52,6 @@ enum HW_VARIABLES {
 	/*  Unit in microsecond. 0 means disable this function. */
 	HW_VAR_RPT_TIMER_SETTING,
 	HW_VAR_TX_RPT_MAX_MACID,
-	HW_VAR_CHK_HI_QUEUE_EMPTY,
 	HW_VAR_READ_LLT_TAB,
 };
 

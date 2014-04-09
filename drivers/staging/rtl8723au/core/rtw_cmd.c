@@ -1441,11 +1441,11 @@ static void rtw_chk_hi_queue_hdl(struct rtw_adapter *padapter)
 		return;
 
 	if (psta_bmc->sleepq_len == 0) {
-		u8 val = 0;
+		bool val;
 
-		rtw23a_hal_get_hwreg(padapter, HW_VAR_CHK_HI_QUEUE_EMPTY, &val);
+		val = rtl8723a_chk_hi_queue_empty(padapter);
 
-		while(val == false) {
+		while (val == false) {
 			msleep(100);
 
 			cnt++;
@@ -1453,8 +1453,7 @@ static void rtw_chk_hi_queue_hdl(struct rtw_adapter *padapter)
 			if (cnt>10)
 				break;
 
-			rtw23a_hal_get_hwreg(padapter,
-					     HW_VAR_CHK_HI_QUEUE_EMPTY, &val);
+			val = rtl8723a_chk_hi_queue_empty(padapter);
 		}
 
 		if (cnt <= 10) {

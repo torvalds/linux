@@ -3135,11 +3135,6 @@ void hw_var_set_mlme_join(struct rtw_adapter *padapter, u8 type)
 void GetHwReg8723A(struct rtw_adapter *padapter, u8 variable, u8 *val)
 {
 	switch (variable) {
-	case HW_VAR_CHK_HI_QUEUE_EMPTY:
-		*val =
-		    ((rtw_read32(padapter, REG_HGQ_INFORMATION) & 0x0000ff00) ==
-		     0) ? true : false;
-		break;
 	}
 }
 

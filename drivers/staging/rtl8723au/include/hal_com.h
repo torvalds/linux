@@ -209,5 +209,6 @@ void rtl8723a_odm_support_ability_clr(struct rtw_adapter *padapter, u32 val);
 void rtl8723a_set_rpwm(struct rtw_adapter *padapter, u8 val);
 u8 rtl8723a_get_rf_type(struct rtw_adapter *padapter);
 bool rtl8723a_get_fwlps_rf_on(struct rtw_adapter *padapter);
+bool rtl8723a_chk_hi_queue_empty(struct rtw_adapter *padapter);
 
 #endif /* __HAL_COMMON_H__ */

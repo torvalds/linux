@@ -919,3 +919,12 @@ bool rtl8723a_get_fwlps_rf_on(struct rtw_adapter *padapter)
 
 	return retval;
 }
+
+bool rtl8723a_chk_hi_queue_empty(struct rtw_adapter *padapter)
+{
+	u32 hgq;
+
+	hgq = rtw_read32(padapter, REG_HGQ_INFORMATION);
+
+	return ((hgq & 0x0000ff00) == 0) ? true : false;
+}
