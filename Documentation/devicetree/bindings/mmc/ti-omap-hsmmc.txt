@@ -10,6 +10,7 @@ Required properties:
 - compatible:
  Should be "ti,omap2-hsmmc", for OMAP2 controllers
  Should be "ti,omap3-hsmmc", for OMAP3 controllers
+ Should be "ti,omap3-pre-es3-hsmmc" for OMAP3 controllers pre ES3.0
  Should be "ti,omap4-hsmmc", for OMAP4 controllers
 - ti,hwmods: Must be "mmc<n>", n is controller instance starting 1
 

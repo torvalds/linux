@@ -18,17 +18,9 @@
 /*
  * struct sdhci_plat_data: spear sdhci platform data structure
  *
- * @card_power_gpio: gpio pin for enabling/disabling power to sdhci socket
- * @power_active_high: if set, enable power to sdhci socket by setting
- *			card_power_gpio
- * @power_always_enb: If set, then enable power on probe, otherwise enable only
- *			on card insertion and disable on card removal.
  * card_int_gpio: gpio pin used for card detection
  */
 struct sdhci_plat_data {
-	int card_power_gpio;
-	int power_active_high;
-	int power_always_enb;
 	int card_int_gpio;
 };
 
