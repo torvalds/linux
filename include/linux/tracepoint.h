@@ -47,8 +47,7 @@ for_each_kernel_tracepoint(void (*fct)(struct tracepoint *tp, void *priv),
 #ifdef CONFIG_MODULES
 struct tp_module {
 	struct list_head list;
-	unsigned int num_tracepoints;
-	struct tracepoint * const *tracepoints_ptrs;
+	struct module *mod;
 };
 
 bool trace_module_has_bad_taint(struct module *mod);

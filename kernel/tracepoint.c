@@ -374,8 +374,7 @@ static int tracepoint_module_coming(struct module *mod)
 		ret = -ENOMEM;
 		goto end;
 	}
-	tp_mod->num_tracepoints = mod->num_tracepoints;
-	tp_mod->tracepoints_ptrs = mod->tracepoints_ptrs;
+	tp_mod->mod = mod;
 	list_add_tail(&tp_mod->list, &tracepoint_module_list);
 	blocking_notifier_call_chain(&tracepoint_notify_list,
 			MODULE_STATE_COMING, tp_mod);
@@ -393,7 +392,7 @@ static void tracepoint_module_going(struct module *mod)
 
 	mutex_lock(&tracepoint_module_list_mutex);
 	list_for_each_entry(tp_mod, &tracepoint_module_list, list) {
-		if (tp_mod->tracepoints_ptrs == mod->tracepoints_ptrs) {
+		if (tp_mod->mod == mod) {
 			blocking_notifier_call_chain(&tracepoint_notify_list,
 					MODULE_STATE_GOING, tp_mod);
 			list_del(&tp_mod->list);
@@ -447,9 +446,9 @@ static __init int init_tracepoints(void)
 	int ret;
 
 	ret = register_module_notifier(&tracepoint_module_nb);
-	if (ret) {
+	if (ret)
 		pr_warning("Failed to register tracepoint module enter notifier\n");
-	}
+
 	return ret;
 }
 __initcall(init_tracepoints);
