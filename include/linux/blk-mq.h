@@ -19,6 +19,7 @@ struct blk_mq_hw_ctx {
 
 	unsigned long		state;		/* BLK_MQ_S_* flags */
 	struct delayed_work	delayed_work;
+	cpumask_var_t		cpumask;
 
 	unsigned long		flags;		/* BLK_MQ_F_* flags */
 
