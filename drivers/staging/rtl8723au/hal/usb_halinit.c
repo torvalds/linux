@@ -1496,15 +1496,6 @@ static void ReadAdapterInfo8723AU(struct rtw_adapter *Adapter)
 	_ReadAdapterInfo8723AU(Adapter);
 }
 
-/*
- * If variable not handled here,
- * some variables will be processed in GetHwReg8723A()
- */
-static void GetHwReg8723AU(struct rtw_adapter *Adapter, u8 variable, u8 *val)
-{
-	GetHwReg8723A(Adapter, variable, val);
-}
-
 /*  */
 /*	Description: */
 /*		Query setting of specified variable. */
@@ -1782,7 +1773,6 @@ int rtl8723au_set_hal_ops(struct rtw_adapter *padapter)
 	pHalFunc->init_default_value = &rtl8723au_init_default_value;
 	pHalFunc->intf_chip_configure = &rtl8723au_interface_configure;
 	pHalFunc->read_adapter_info = &ReadAdapterInfo8723AU;
-	pHalFunc->GetHwRegHandler = &GetHwReg8723AU;
 	pHalFunc->GetHalDefVarHandler = &GetHalDefVar8192CUsb;
 	pHalFunc->SetHalDefVarHandler = &SetHalDefVar8192CUsb;
 	pHalFunc->UpdateRAMaskHandler = &UpdateHalRAMask8192CUsb;

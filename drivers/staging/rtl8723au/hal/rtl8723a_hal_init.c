@@ -3132,12 +3132,6 @@ void hw_var_set_mlme_join(struct rtw_adapter *padapter, u8 type)
 #endif
 }
 
-void GetHwReg8723A(struct rtw_adapter *padapter, u8 variable, u8 *val)
-{
-	switch (variable) {
-	}
-}
-
 #ifdef CONFIG_8723AU_BT_COEXIST
 
 void rtl8723a_SingleDualAntennaDetection(struct rtw_adapter *padapter)
