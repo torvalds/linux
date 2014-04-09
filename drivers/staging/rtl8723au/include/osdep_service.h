@@ -147,16 +147,6 @@ extern unsigned char	MCS_rate_1R23A[16];
 void	_rtw_init_queue23a(struct rtw_queue *pqueue);
 u32	_rtw_queue_empty23a(struct rtw_queue *pqueue);
 
-static inline u32 bitshift(u32 bitmask)
-{
-	u32 i;
-
-	for (i = 0; i <= 31; i++)
-		if (((bitmask>>i) &  0x1) == 1) break;
-
-	return i;
-}
-
 void rtw_suspend_lock_init(void);
 void rtw_suspend_lock_uninit(void);
 void rtw_lock_suspend(void);
