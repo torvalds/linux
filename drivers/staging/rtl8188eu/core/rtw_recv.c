@@ -545,7 +545,7 @@ static struct recv_frame *decryptor(struct adapter *padapter,
 static struct recv_frame *portctrl(struct adapter *adapter,
 				   struct recv_frame *precv_frame)
 {
-	u8   *psta_addr = NULL, *ptr;
+	u8   *psta_addr, *ptr;
 	uint  auth_alg;
 	struct recv_frame *pfhdr;
 	struct sta_info *psta;
@@ -558,7 +558,6 @@ static struct recv_frame *portctrl(struct adapter *adapter,
 
 
 	pstapriv = &adapter->stapriv;
-	psta = rtw_get_stainfo(pstapriv, psta_addr);
 
 	auth_alg = adapter->securitypriv.dot11AuthAlgrthm;
 
@@ -566,6 +565,7 @@ static struct recv_frame *portctrl(struct adapter *adapter,
 	pfhdr = precv_frame;
 	pattrib = &pfhdr->attrib;
 	psta_addr = pattrib->ta;
+	psta = rtw_get_stainfo(pstapriv, psta_addr);
 
 	prtnframe = NULL;
 
