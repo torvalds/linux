@@ -1519,8 +1519,6 @@ static void rtl8723au_trigger_gpio_0(struct rtw_adapter *padapter)
 static void SetHwReg8723AU(struct rtw_adapter *Adapter, u8 variable, u8 *val)
 {
 	switch (variable) {
-	case HW_VAR_RXDMA_AGG_PG_TH:
-		break;
 	case HW_VAR_SET_RPWM:
 		rtl8723a_set_rpwm(Adapter, *val);
 		break;

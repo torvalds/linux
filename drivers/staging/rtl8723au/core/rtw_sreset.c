@@ -132,13 +132,13 @@ static void sreset_restore_network_station(struct rtw_adapter *padapter)
 			threshold = 1;
 		else
 			threshold = 0;
-		rtw_hal_set_hwreg23a(padapter, HW_VAR_RXDMA_AGG_PG_TH, (u8 *)(&threshold));
-	} else {
+	} else
 		threshold = 1;
-		rtw_hal_set_hwreg23a(padapter, HW_VAR_RXDMA_AGG_PG_TH, (u8 *)(&threshold));
-	}
 
-	set_channel_bwmode23a(padapter, pmlmeext->cur_channel, pmlmeext->cur_ch_offset, pmlmeext->cur_bwmode);
+	rtl8723a_set_rxdma_agg_pg_th(padapter, threshold);
+
+	set_channel_bwmode23a(padapter, pmlmeext->cur_channel,
+			      pmlmeext->cur_ch_offset, pmlmeext->cur_bwmode);
 
 	/* disable dynamic functions, such as high power, DIG */
 	/* Switch_DM_Func23a(padapter, DYNAMIC_FUNC_DISABLE, false); */

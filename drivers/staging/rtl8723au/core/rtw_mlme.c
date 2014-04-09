@@ -2193,13 +2193,10 @@ void rtw_joinbss_reset23a(struct rtw_adapter *padapter)
 			threshold = 1;
 		else
 			threshold = 0;
-		rtw_hal_set_hwreg23a(padapter, HW_VAR_RXDMA_AGG_PG_TH,
-				  (u8 *)(&threshold));
-	} else {
+	} else
 		threshold = 1;
-		rtw_hal_set_hwreg23a(padapter, HW_VAR_RXDMA_AGG_PG_TH,
-				  (u8 *)(&threshold));
-	}
+
+	rtl8723a_set_rxdma_agg_pg_th(padapter, threshold);
 }
 
 /* the fucntion is >= passive_level */

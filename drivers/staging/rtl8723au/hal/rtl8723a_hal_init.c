@@ -3153,10 +3153,6 @@ void SetHwReg8723A(struct rtw_adapter *padapter, u8 variable, u8 *val)
 		rtl8723a_odm_support_ability_clr(padapter, *val32);
 		break;
 
-	case HW_VAR_RXDMA_AGG_PG_TH:
-		rtl8723a_set_rxdma_agg_pg_th(padapter, *val);
-		break;
-
 	case HW_VAR_H2C_FW_PWRMODE:
 		rtl8723a_set_FwPwrMode_cmd(padapter, *val);
 		break;
