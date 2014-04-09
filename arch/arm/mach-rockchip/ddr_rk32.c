@@ -4153,7 +4153,7 @@ void ddr_reg_save(uint32 *pArg)
     p_ddr_reg->ddrPllSrcDiv = (pCRU_Reg->CRU_CLKSEL_CON[26] & 0x7) | (0x7<<16);
 
     p_ddr_reg->retenDisAddr = RK3288_PMU_PHYS+0x18;  //pmu_pwrmode_con
-    p_ddr_reg->retenDisVal = (3<<22);  //OR operation
+    p_ddr_reg->retenDisVal = (3<<21);  //OR operation
     p_ddr_reg->retenStAddr = RK3288_PMU_PHYS+0x1c;  //pmu_pwrmode_con
     p_ddr_reg->retenStMask = (1<<6);
     p_ddr_reg->retenStVal = (0<<6);
