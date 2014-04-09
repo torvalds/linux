@@ -30,7 +30,6 @@
 #include <linux/kref.h>
 #include <linux/netdevice.h>
 #include <linux/skbuff.h>
-#include <linux/circ_buf.h>
 #include <asm/uaccess.h>
 #include <asm/byteorder.h>
 #include <asm/atomic.h>
@@ -40,7 +39,6 @@
 #include <linux/sched.h>
 #include <linux/etherdevice.h>
 #include <linux/wireless.h>
-#include <net/iw_handler.h>
 #include <linux/if_arp.h>
 #include <linux/rtnetlink.h>
 #include <linux/delay.h>
