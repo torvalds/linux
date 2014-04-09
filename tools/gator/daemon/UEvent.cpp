@@ -8,9 +8,10 @@
 
 #include "UEvent.h"
 
+#include <sys/socket.h>
 #include <linux/netlink.h>
 #include <string.h>
-#include <sys/socket.h>
+
 #include <unistd.h>
 
 #include "Logging.h"
