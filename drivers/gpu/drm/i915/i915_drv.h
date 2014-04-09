@@ -92,7 +92,7 @@ enum port {
 };
 #define port_name(p) ((p) + 'A')
 
-#define I915_NUM_PHYS_VLV 1
+#define I915_NUM_PHYS_VLV 2
 
 enum dpio_channel {
 	DPIO_CH0,
