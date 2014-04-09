@@ -5515,7 +5515,7 @@ static void chv_update_pll(struct intel_crtc *crtc)
 	int pipe = crtc->pipe;
 	int dpll_reg = DPLL(crtc->pipe);
 	enum dpio_channel port = vlv_pipe_to_channel(pipe);
-	u32 val, loopfilter, intcoeff;
+	u32 loopfilter, intcoeff;
 	u32 bestn, bestm1, bestm2, bestp1, bestp2, bestm2_frac;
 	int refclk;
 
@@ -5542,11 +5542,6 @@ static void chv_update_pll(struct intel_crtc *crtc)
 		   crtc->config.dpll_hw_state.dpll & ~DPLL_VCO_ENABLE);
 
 	mutex_lock(&dev_priv->dpio_lock);
-
-	/* Propagate soft reset to data lane reset */
-	val = vlv_dpio_read(dev_priv, pipe, VLV_PCS_DW0(port));
-	val &= ~(DPIO_PCS_TX_LANE2_RESET | DPIO_PCS_TX_LANE1_RESET);
-	vlv_dpio_write(dev_priv, pipe, VLV_PCS_DW0(port), val);
 
 	/* p1 and p2 divider */
 	vlv_dpio_write(dev_priv, pipe, CHV_CMN_DW13(port),

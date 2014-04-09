@@ -1245,6 +1245,27 @@ static void vlv_hdmi_post_disable(struct intel_encoder *encoder)
 	mutex_unlock(&dev_priv->dpio_lock);
 }
 
+static void chv_hdmi_post_disable(struct intel_encoder *encoder)
+{
+	struct intel_digital_port *dport = enc_to_dig_port(&encoder->base);
+	struct drm_device *dev = encoder->base.dev;
+	struct drm_i915_private *dev_priv = dev->dev_private;
+	struct intel_crtc *intel_crtc =
+		to_intel_crtc(encoder->base.crtc);
+	enum dpio_channel ch = vlv_dport_to_channel(dport);
+	enum pipe pipe = intel_crtc->pipe;
+	u32 val;
+
+	mutex_lock(&dev_priv->dpio_lock);
+
+	/* Propagate soft reset to data lane reset */
+	val = vlv_dpio_read(dev_priv, pipe, VLV_PCS_DW0(ch));
+	val &= ~(DPIO_PCS_TX_LANE2_RESET | DPIO_PCS_TX_LANE1_RESET);
+	vlv_dpio_write(dev_priv, pipe, VLV_PCS_DW0(ch), val);
+
+	mutex_unlock(&dev_priv->dpio_lock);
+}
+
 static void chv_hdmi_pre_enable(struct intel_encoder *encoder)
 {
 	struct intel_digital_port *dport = enc_to_dig_port(&encoder->base);
@@ -1469,6 +1490,7 @@ void intel_hdmi_init(struct drm_device *dev, int hdmi_reg, enum port port)
 	if (IS_CHERRYVIEW(dev)) {
 		intel_encoder->pre_enable = chv_hdmi_pre_enable;
 		intel_encoder->enable = vlv_enable_hdmi;
+		intel_encoder->post_disable = chv_hdmi_post_disable;
 	} else if (IS_VALLEYVIEW(dev)) {
 		intel_encoder->pre_pll_enable = vlv_hdmi_pre_pll_enable;
 		intel_encoder->pre_enable = vlv_hdmi_pre_enable;

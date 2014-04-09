@@ -1865,6 +1865,30 @@ static void vlv_post_disable_dp(struct intel_encoder *encoder)
 	intel_dp_link_down(intel_dp);
 }
 
+static void chv_post_disable_dp(struct intel_encoder *encoder)
+{
+	struct intel_dp *intel_dp = enc_to_intel_dp(&encoder->base);
+	struct intel_digital_port *dport = dp_to_dig_port(intel_dp);
+	struct drm_device *dev = encoder->base.dev;
+	struct drm_i915_private *dev_priv = dev->dev_private;
+	struct intel_crtc *intel_crtc =
+		to_intel_crtc(encoder->base.crtc);
+	enum dpio_channel ch = vlv_dport_to_channel(dport);
+	enum pipe pipe = intel_crtc->pipe;
+	u32 val;
+
+	intel_dp_link_down(intel_dp);
+
+	mutex_lock(&dev_priv->dpio_lock);
+
+	/* Propagate soft reset to data lane reset */
+	val = vlv_dpio_read(dev_priv, pipe, VLV_PCS_DW0(ch));
+	val &= ~(DPIO_PCS_TX_LANE2_RESET | DPIO_PCS_TX_LANE1_RESET);
+	vlv_dpio_write(dev_priv, pipe, VLV_PCS_DW0(ch), val);
+
+	mutex_unlock(&dev_priv->dpio_lock);
+}
+
 static void intel_enable_dp(struct intel_encoder *encoder)
 {
 	struct intel_dp *intel_dp = enc_to_intel_dp(&encoder->base);
@@ -4243,6 +4267,7 @@ intel_dp_init(struct drm_device *dev, int output_reg, enum port port)
 	if (IS_CHERRYVIEW(dev)) {
 		intel_encoder->pre_enable = chv_pre_enable_dp;
 		intel_encoder->enable = vlv_enable_dp;
+		intel_encoder->post_disable = chv_post_disable_dp;
 	} else if (IS_VALLEYVIEW(dev)) {
 		intel_encoder->pre_pll_enable = vlv_dp_pre_pll_enable;
 		intel_encoder->pre_enable = vlv_pre_enable_dp;
