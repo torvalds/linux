@@ -566,7 +566,8 @@ static int build_fastreg(struct t4_sq *sq, union t4_wr *wqe,
 	int pbllen = roundup(wr->wr.fast_reg.page_list_len * sizeof(u64), 32);
 	int rem;
 
-	if (wr->wr.fast_reg.page_list_len > T4_MAX_FR_DEPTH)
+	if (wr->wr.fast_reg.page_list_len >
+	    t4_max_fr_depth(use_dsgl))
 		return -EINVAL;
 
 	wqe->fr.qpbinde_to_dcacpu = 0;
