@@ -2384,6 +2384,11 @@ static void i915_gem_reset_ring_cleanup(struct drm_i915_private *dev_priv,
 
 		i915_gem_free_request(request);
 	}
+
+	/* These may not have been flush before the reset, do so now */
+	kfree(ring->preallocated_lazy_request);
+	ring->preallocated_lazy_request = NULL;
+	ring->outstanding_lazy_seqno = 0;
 }
 
 void i915_gem_restore_fences(struct drm_device *dev)
@@ -2423,8 +2428,6 @@ void i915_gem_reset(struct drm_device *dev)
 
 	for_each_ring(ring, dev_priv, i)
 		i915_gem_reset_ring_cleanup(dev_priv, ring);
-
-	i915_gem_cleanup_ringbuffer(dev);
 
 	i915_gem_context_reset(dev);
 
@@ -4233,6 +4236,17 @@ void i915_gem_vma_destroy(struct i915_vma *vma)
 	kfree(vma);
 }
 
+static void
+i915_gem_stop_ringbuffers(struct drm_device *dev)
+{
+	struct drm_i915_private *dev_priv = dev->dev_private;
+	struct intel_ring_buffer *ring;
+	int i;
+
+	for_each_ring(ring, dev_priv, i)
+		intel_stop_ring_buffer(ring);
+}
+
 int
 i915_gem_suspend(struct drm_device *dev)
 {
@@ -4254,7 +4268,7 @@ i915_gem_suspend(struct drm_device *dev)
 		i915_gem_evict_everything(dev);
 
 	i915_kernel_lost_context(dev);
-	i915_gem_cleanup_ringbuffer(dev);
+	i915_gem_stop_ringbuffers(dev);
 
 	/* Hack!  Don't let anybody do execbuf while we don't control the chip.
 	 * We need to replace this with a semaphore, or something.

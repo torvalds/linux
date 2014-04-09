@@ -1305,45 +1305,39 @@ static void cleanup_status_page(struct intel_ring_buffer *ring)
 
 static int init_status_page(struct intel_ring_buffer *ring)
 {
-	struct drm_device *dev = ring->dev;
 	struct drm_i915_gem_object *obj;
-	int ret;
 
-	obj = i915_gem_alloc_object(dev, 4096);
-	if (obj == NULL) {
-		DRM_ERROR("Failed to allocate status page\n");
-		ret = -ENOMEM;
-		goto err;
+	if ((obj = ring->status_page.obj) == NULL) {
+		int ret;
+
+		obj = i915_gem_alloc_object(ring->dev, 4096);
+		if (obj == NULL) {
+			DRM_ERROR("Failed to allocate status page\n");
+			return -ENOMEM;
+		}
+
+		ret = i915_gem_object_set_cache_level(obj, I915_CACHE_LLC);
+		if (ret)
+			goto err_unref;
+
+		ret = i915_gem_obj_ggtt_pin(obj, 4096, 0);
+		if (ret) {
+err_unref:
+			drm_gem_object_unreference(&obj->base);
+			return ret;
+		}
+
+		ring->status_page.obj = obj;
 	}
-
-	ret = i915_gem_object_set_cache_level(obj, I915_CACHE_LLC);
-	if (ret)
-		goto err_unref;
-
-	ret = i915_gem_obj_ggtt_pin(obj, 4096, 0);
-	if (ret)
-		goto err_unref;
 
 	ring->status_page.gfx_addr = i915_gem_obj_ggtt_offset(obj);
 	ring->status_page.page_addr = kmap(sg_page(obj->pages->sgl));
-	if (ring->status_page.page_addr == NULL) {
-		ret = -ENOMEM;
-		goto err_unpin;
-	}
-	ring->status_page.obj = obj;
 	memset(ring->status_page.page_addr, 0, PAGE_SIZE);
 
 	DRM_DEBUG_DRIVER("%s hws offset: 0x%08x\n",
 			ring->name, ring->status_page.gfx_addr);
 
 	return 0;
-
-err_unpin:
-	i915_gem_object_ggtt_unpin(obj);
-err_unref:
-	drm_gem_object_unreference(&obj->base);
-err:
-	return ret;
 }
 
 static int init_phys_status_page(struct intel_ring_buffer *ring)
@@ -1363,11 +1357,53 @@ static int init_phys_status_page(struct intel_ring_buffer *ring)
 	return 0;
 }
 
+static int allocate_ring_buffer(struct intel_ring_buffer *ring)
+{
+	struct drm_device *dev = ring->dev;
+	struct drm_i915_private *dev_priv = to_i915(dev);
+	struct drm_i915_gem_object *obj;
+	int ret;
+
+	if (ring->obj)
+		return 0;
+
+	obj = NULL;
+	if (!HAS_LLC(dev))
+		obj = i915_gem_object_create_stolen(dev, ring->size);
+	if (obj == NULL)
+		obj = i915_gem_alloc_object(dev, ring->size);
+	if (obj == NULL)
+		return -ENOMEM;
+
+	ret = i915_gem_obj_ggtt_pin(obj, PAGE_SIZE, PIN_MAPPABLE);
+	if (ret)
+		goto err_unref;
+
+	ret = i915_gem_object_set_to_gtt_domain(obj, true);
+	if (ret)
+		goto err_unpin;
+
+	ring->virtual_start =
+		ioremap_wc(dev_priv->gtt.mappable_base + i915_gem_obj_ggtt_offset(obj),
+			   ring->size);
+	if (ring->virtual_start == NULL) {
+		ret = -EINVAL;
+		goto err_unpin;
+	}
+
+	ring->obj = obj;
+	return 0;
+
+err_unpin:
+	i915_gem_object_ggtt_unpin(obj);
+err_unref:
+	drm_gem_object_unreference(&obj->base);
+	return ret;
+}
+
 static int intel_init_ring_buffer(struct drm_device *dev,
 				  struct intel_ring_buffer *ring)
 {
-	struct drm_i915_gem_object *obj;
-	struct drm_i915_private *dev_priv = dev->dev_private;
 	int ret;
 
 	ring->dev = dev;
@@ -1389,80 +1425,34 @@ static int intel_init_ring_buffer(struct drm_device *dev,
 			return ret;
 	}
 
-	obj = NULL;
-	if (!HAS_LLC(dev))
-		obj = i915_gem_object_create_stolen(dev, ring->size);
-	if (obj == NULL)
-		obj = i915_gem_alloc_object(dev, ring->size);
-	if (obj == NULL) {
-		DRM_ERROR("Failed to allocate ringbuffer\n");
-		ret = -ENOMEM;
-		goto err_hws;
+	ret = allocate_ring_buffer(ring);
+	if (ret) {
+		DRM_ERROR("Failed to allocate ringbuffer %s: %d\n", ring->name, ret);
+		return ret;
 	}
-
-	ring->obj = obj;
-
-	ret = i915_gem_obj_ggtt_pin(obj, PAGE_SIZE, PIN_MAPPABLE);
-	if (ret)
-		goto err_unref;
-
-	ret = i915_gem_object_set_to_gtt_domain(obj, true);
-	if (ret)
-		goto err_unpin;
-
-	ring->virtual_start =
-		ioremap_wc(dev_priv->gtt.mappable_base + i915_gem_obj_ggtt_offset(obj),
-			   ring->size);
-	if (ring->virtual_start == NULL) {
-		DRM_ERROR("Failed to map ringbuffer.\n");
-		ret = -EINVAL;
-		goto err_unpin;
-	}
-
-	ret = ring->init(ring);
-	if (ret)
-		goto err_unmap;
 
 	/* Workaround an erratum on the i830 which causes a hang if
 	 * the TAIL pointer points to within the last 2 cachelines
 	 * of the buffer.
 	 */
 	ring->effective_size = ring->size;
-	if (IS_I830(ring->dev) || IS_845G(ring->dev))
+	if (IS_I830(dev) || IS_845G(dev))
 		ring->effective_size -= 2 * CACHELINE_BYTES;
 
 	i915_cmd_parser_init_ring(ring);
 
-	return 0;
-
-err_unmap:
-	iounmap(ring->virtual_start);
-err_unpin:
-	i915_gem_object_ggtt_unpin(obj);
-err_unref:
-	drm_gem_object_unreference(&obj->base);
-	ring->obj = NULL;
-err_hws:
-	cleanup_status_page(ring);
-	return ret;
+	return ring->init(ring);
 }
 
 void intel_cleanup_ring_buffer(struct intel_ring_buffer *ring)
 {
-	struct drm_i915_private *dev_priv;
-	int ret;
+	struct drm_i915_private *dev_priv = to_i915(ring->dev);
 
 	if (ring->obj == NULL)
 		return;
 
-	/* Disable the ring buffer. The ring must be idle at this point */
-	dev_priv = ring->dev->dev_private;
-	ret = intel_ring_idle(ring);
-	if (ret && !i915_reset_in_progress(&dev_priv->gpu_error))
-		DRM_ERROR("failed to quiesce %s whilst cleaning up: %d\n",
-			  ring->name, ret);
-
-	I915_WRITE_CTL(ring, 0);
+	intel_stop_ring_buffer(ring);
+	WARN_ON((I915_READ_MODE(ring) & MODE_IDLE) == 0);
 
 	iounmap(ring->virtual_start);
 
@@ -2251,4 +2241,20 @@ intel_ring_invalidate_all_caches(struct intel_ring_buffer *ring)
 
 	ring->gpu_caches_dirty = false;
 	return 0;
+}
+
+void
+intel_stop_ring_buffer(struct intel_ring_buffer *ring)
+{
+	int ret;
+
+	if (!intel_ring_initialized(ring))
+		return;
+
+	ret = intel_ring_idle(ring);
+	if (ret && !i915_reset_in_progress(&to_i915(ring->dev)->gpu_error))
+		DRM_ERROR("failed to quiesce %s whilst cleaning up: %d\n",
+			  ring->name, ret);
+
+	stop_ring(ring);
 }

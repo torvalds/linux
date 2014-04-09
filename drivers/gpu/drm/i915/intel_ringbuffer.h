@@ -263,6 +263,7 @@ intel_write_status_page(struct intel_ring_buffer *ring,
 #define I915_GEM_HWS_SCRATCH_INDEX	0x30
 #define I915_GEM_HWS_SCRATCH_ADDR (I915_GEM_HWS_SCRATCH_INDEX << MI_STORE_DWORD_INDEX_SHIFT)
 
+void intel_stop_ring_buffer(struct intel_ring_buffer *ring);
 void intel_cleanup_ring_buffer(struct intel_ring_buffer *ring);
 
 int __must_check intel_ring_begin(struct intel_ring_buffer *ring, int n);
