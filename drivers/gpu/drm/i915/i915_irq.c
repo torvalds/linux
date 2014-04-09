@@ -1672,6 +1672,9 @@ static void valleyview_pipestat_irq_handler(struct drm_device *dev, u32 iir)
 		case PIPE_B:
 			iir_bit = I915_DISPLAY_PIPE_B_EVENT_INTERRUPT;
 			break;
+		case PIPE_C:
+			iir_bit = I915_DISPLAY_PIPE_C_EVENT_INTERRUPT;
+			break;
 		}
 		if (iir & iir_bit)
 			mask |= dev_priv->pipestat_irq_mask[pipe];
@@ -1783,78 +1786,22 @@ static irqreturn_t cherryview_irq_handler(int irq, void *arg)
 	struct drm_i915_private *dev_priv = dev->dev_private;
 	u32 master_ctl, iir;
 	irqreturn_t ret = IRQ_NONE;
-	unsigned int pipes = 0;
 
-	master_ctl = I915_READ(GEN8_MASTER_IRQ);
+	master_ctl = I915_READ(GEN8_MASTER_IRQ) & ~DE_MASTER_IRQ_CONTROL;
+	iir = I915_READ(VLV_IIR);
+
+	if (master_ctl == 0 && iir == 0)
+		return IRQ_NONE;
 
 	I915_WRITE(GEN8_MASTER_IRQ, 0);
 
-	ret = gen8_gt_irq_handler(dev, dev_priv, master_ctl);
+	gen8_gt_irq_handler(dev, dev_priv, master_ctl);
 
-	iir = I915_READ(VLV_IIR);
-
-	if (iir & (I915_DISPLAY_PIPE_A_VBLANK_INTERRUPT | I915_DISPLAY_PIPE_A_EVENT_INTERRUPT))
-		pipes |= 1 << 0;
-	if (iir & (I915_DISPLAY_PIPE_B_VBLANK_INTERRUPT | I915_DISPLAY_PIPE_B_EVENT_INTERRUPT))
-		pipes |= 1 << 1;
-	if (iir & (I915_DISPLAY_PIPE_C_VBLANK_INTERRUPT | I915_DISPLAY_PIPE_C_EVENT_INTERRUPT))
-		pipes |= 1 << 2;
-
-	if (pipes) {
-		u32 pipe_stats[I915_MAX_PIPES] = {};
-		unsigned long irqflags;
-		int pipe;
-
-		spin_lock_irqsave(&dev_priv->irq_lock, irqflags);
-		for_each_pipe(pipe) {
-			unsigned int reg;
-
-			if (!(pipes & (1 << pipe)))
-				continue;
-
-			reg = PIPESTAT(pipe);
-			pipe_stats[pipe] = I915_READ(reg);
-
-			/*
-			 * Clear the PIPE*STAT regs before the IIR
-			 */
-			if (pipe_stats[pipe] & 0x8000ffff) {
-				if (pipe_stats[pipe] & PIPE_FIFO_UNDERRUN_STATUS)
-					DRM_DEBUG_DRIVER("pipe %c underrun\n",
-							 pipe_name(pipe));
-				I915_WRITE(reg, pipe_stats[pipe]);
-			}
-		}
-		spin_unlock_irqrestore(&dev_priv->irq_lock, irqflags);
-
-		for_each_pipe(pipe) {
-			if (pipe_stats[pipe] & PIPE_VBLANK_INTERRUPT_STATUS)
-				drm_handle_vblank(dev, pipe);
-
-			if (pipe_stats[pipe] & PLANE_FLIP_DONE_INT_STATUS_VLV) {
-				intel_prepare_page_flip(dev, pipe);
-				intel_finish_page_flip(dev, pipe);
-			}
-		}
-
-		if (pipe_stats[0] & PIPE_GMBUS_INTERRUPT_STATUS)
-			gmbus_irq_handler(dev);
-
-		ret = IRQ_HANDLED;
-	}
+	valleyview_pipestat_irq_handler(dev, iir);
 
 	/* Consume port.  Then clear IIR or we'll miss events */
 	if (iir & I915_DISPLAY_PORT_INTERRUPT) {
-		u32 hotplug_status = I915_READ(PORT_HOTPLUG_STAT);
-
-		I915_WRITE(PORT_HOTPLUG_STAT, hotplug_status);
-
-		DRM_DEBUG_DRIVER("hotplug event received, stat 0x%08x\n",
-				 hotplug_status);
-		if (hotplug_status & HOTPLUG_INT_STATUS_I915)
-			queue_work(dev_priv->wq,
-				   &dev_priv->hotplug_work);
-
+		i9xx_hpd_irq_handler(dev);
 		ret = IRQ_HANDLED;
 	}
 
@@ -1862,6 +1809,8 @@ static irqreturn_t cherryview_irq_handler(int irq, void *arg)
 
 	I915_WRITE(GEN8_MASTER_IRQ, DE_MASTER_IRQ_CONTROL);
 	POSTING_READ(GEN8_MASTER_IRQ);
+
+	ret = IRQ_HANDLED;
 
 	return ret;
 }
@@ -3492,12 +3441,10 @@ static int cherryview_irq_postinstall(struct drm_device *dev)
 	struct drm_i915_private *dev_priv = dev->dev_private;
 	u32 enable_mask = I915_DISPLAY_PORT_INTERRUPT |
 		I915_DISPLAY_PIPE_A_EVENT_INTERRUPT |
-		I915_DISPLAY_PIPE_A_VBLANK_INTERRUPT |
 		I915_DISPLAY_PIPE_B_EVENT_INTERRUPT |
-		I915_DISPLAY_PIPE_B_VBLANK_INTERRUPT |
-		I915_DISPLAY_PIPE_C_EVENT_INTERRUPT |
-		I915_DISPLAY_PIPE_C_VBLANK_INTERRUPT;
-	u32 pipestat_enable = PLANE_FLIP_DONE_INT_EN_VLV;
+		I915_DISPLAY_PIPE_C_EVENT_INTERRUPT;
+	u32 pipestat_enable = PLANE_FLIP_DONE_INT_STATUS_VLV |
+		PIPE_CRC_DONE_INTERRUPT_STATUS;
 	unsigned long irqflags;
 	int pipe;
 
@@ -3505,16 +3452,13 @@ static int cherryview_irq_postinstall(struct drm_device *dev)
 	 * Leave vblank interrupts masked initially.  enable/disable will
 	 * toggle them based on usage.
 	 */
-	dev_priv->irq_mask = ~enable_mask |
-		I915_DISPLAY_PIPE_A_VBLANK_INTERRUPT |
-		I915_DISPLAY_PIPE_B_VBLANK_INTERRUPT |
-		I915_DISPLAY_PIPE_C_VBLANK_INTERRUPT;
+	dev_priv->irq_mask = ~enable_mask;
 
 	for_each_pipe(pipe)
 		I915_WRITE(PIPESTAT(pipe), 0xffff);
 
 	spin_lock_irqsave(&dev_priv->irq_lock, irqflags);
-	i915_enable_pipestat(dev_priv, 0, PIPE_GMBUS_EVENT_ENABLE);
+	i915_enable_pipestat(dev_priv, PIPE_A, PIPE_GMBUS_INTERRUPT_STATUS);
 	for_each_pipe(pipe)
 		i915_enable_pipestat(dev_priv, pipe, pipestat_enable);
 	spin_unlock_irqrestore(&dev_priv->irq_lock, irqflags);
