@@ -847,6 +847,7 @@ static void s6e8aa0_read_mtp_id(struct s6e8aa0 *ctx)
 	if (i >= ARRAY_SIZE(s6e8aa0_variants)) {
 		dev_err(ctx->dev, "unsupported display version %d\n", id[1]);
 		ctx->error = -EINVAL;
+		return;
 	}
 
 	ctx->variant = &s6e8aa0_variants[i];
