@@ -3157,14 +3157,6 @@ void SetHwReg8723A(struct rtw_adapter *padapter, u8 variable, u8 *val)
 		rtl8723a_odm_support_ability_clr(padapter, *val32);
 		break;
 
-	case HW_VAR_AMPDU_MIN_SPACE:
-		rtl8723a_set_ampdu_min_space(padapter, *val);
-		break;
-
-	case HW_VAR_AMPDU_FACTOR:
-		rtl8723a_set_ampdu_factor(padapter, *val);
-		break;
-
 	case HW_VAR_RXDMA_AGG_PG_TH:
 		rtl8723a_set_rxdma_agg_pg_th(padapter, *val);
 		break;

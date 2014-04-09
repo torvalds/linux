@@ -632,9 +632,8 @@ static void update_hw_ht_param(struct rtw_adapter *padapter)
 
 	min_MPDU_spacing = (pmlmeinfo->HT_caps.u.HT_cap_element.AMPDU_para & 0x1c) >> 2;
 
-	rtw_hal_set_hwreg23a(padapter, HW_VAR_AMPDU_MIN_SPACE, (u8 *)(&min_MPDU_spacing));
-
-	rtw_hal_set_hwreg23a(padapter, HW_VAR_AMPDU_FACTOR, (u8 *)(&max_AMPDU_len));
+	rtl8723a_set_ampdu_min_space(padapter, min_MPDU_spacing);
+	rtl8723a_set_ampdu_factor(padapter, max_AMPDU_len);
 
 	/*  Config SM Power Save setting */
 	pmlmeinfo->SM_PS = (pmlmeinfo->HT_caps.u.HT_cap_element.HT_caps_info & 0x0C) >> 2;

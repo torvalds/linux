@@ -849,9 +849,8 @@ void HTOnAssocRsp23a(struct rtw_adapter *padapter)
 
 	min_MPDU_spacing = (pmlmeinfo->HT_caps.u.HT_cap_element.AMPDU_para & 0x1c) >> 2;
 
-	rtw_hal_set_hwreg23a(padapter, HW_VAR_AMPDU_MIN_SPACE, (u8 *)(&min_MPDU_spacing));
-
-	rtw_hal_set_hwreg23a(padapter, HW_VAR_AMPDU_FACTOR, (u8 *)(&max_AMPDU_len));
+	rtl8723a_set_ampdu_min_space(padapter, min_MPDU_spacing);
+	rtl8723a_set_ampdu_factor(padapter, max_AMPDU_len);
 }
 
 void ERP_IE_handler23a(struct rtw_adapter *padapter, struct ndis_802_11_var_ies * pIE)
