@@ -5132,6 +5132,8 @@ enum punit_power_well {
 #define  PORT_TRANS_SEL_CPT(pipe)	((pipe) << 29)
 #define  PORT_TO_PIPE(val)	(((val) & (1<<30)) >> 30)
 #define  PORT_TO_PIPE_CPT(val)	(((val) & PORT_TRANS_SEL_MASK) >> 29)
+#define  SDVO_PORT_TO_PIPE_CHV(val)	(((val) & (3<<24)) >> 24)
+#define  DP_PORT_TO_PIPE_CHV(val)	(((val) & (3<<16)) >> 16)
 
 #define TRANS_DP_CTL_A		0xe0300
 #define TRANS_DP_CTL_B		0xe1300

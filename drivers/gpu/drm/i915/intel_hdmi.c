@@ -697,6 +697,8 @@ static bool intel_hdmi_get_hw_state(struct intel_encoder *encoder,
 
 	if (HAS_PCH_CPT(dev))
 		*pipe = PORT_TO_PIPE_CPT(tmp);
+	else if (IS_CHERRYVIEW(dev))
+		*pipe = SDVO_PORT_TO_PIPE_CHV(tmp);
 	else
 		*pipe = PORT_TO_PIPE(tmp);
 

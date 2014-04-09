@@ -1457,6 +1457,8 @@ static bool intel_dp_get_hw_state(struct intel_encoder *encoder,
 
 	if (port == PORT_A && IS_GEN7(dev) && !IS_VALLEYVIEW(dev)) {
 		*pipe = PORT_TO_PIPE_CPT(tmp);
+	} else if (IS_CHERRYVIEW(dev)) {
+		*pipe = DP_PORT_TO_PIPE_CHV(tmp);
 	} else if (!HAS_PCH_CPT(dev) || port == PORT_A) {
 		*pipe = PORT_TO_PIPE(tmp);
 	} else {
