@@ -4452,15 +4452,11 @@ i915_gem_init_hw(struct drm_device *dev)
 	 * the do_switch), but before enabling PPGTT. So don't move this.
 	 */
 	ret = i915_gem_context_enable(dev_priv);
-	if (ret) {
+	if (ret && ret != -EIO) {
 		DRM_ERROR("Context enable failed %d\n", ret);
-		goto err_out;
+		i915_gem_cleanup_ringbuffer(dev);
 	}
 
-	return 0;
-
-err_out:
-	i915_gem_cleanup_ringbuffer(dev);
 	return ret;
 }
 
@@ -4487,18 +4483,21 @@ int i915_gem_init(struct drm_device *dev)
 	}
 
 	ret = i915_gem_init_hw(dev);
-	mutex_unlock(&dev->struct_mutex);
-	if (ret) {
-		WARN_ON(dev_priv->mm.aliasing_ppgtt);
-		i915_gem_context_fini(dev);
-		drm_mm_takedown(&dev_priv->gtt.base.mm);
-		return ret;
+	if (ret == -EIO) {
+		/* Allow ring initialisation to fail by marking the GPU as
+		 * wedged. But we only want to do this where the GPU is angry,
+		 * for all other failure, such as an allocation failure, bail.
+		 */
+		DRM_ERROR("Failed to initialize GPU, declaring it wedged\n");
+		atomic_set_mask(I915_WEDGED, &dev_priv->gpu_error.reset_counter);
+		ret = 0;
 	}
+	mutex_unlock(&dev->struct_mutex);
 
 	/* Allow hardware batchbuffers unless told otherwise, but not for KMS. */
 	if (!drm_core_check_feature(dev, DRIVER_MODESET))
 		dev_priv->dri1.allow_batchbuffer = 1;
-	return 0;
+	return ret;
 }
 
 void
