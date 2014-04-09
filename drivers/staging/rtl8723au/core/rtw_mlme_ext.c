@@ -7718,7 +7718,7 @@ void site_survey23a(struct rtw_adapter *padapter)
 			/* restore RX GAIN */
 			rtl8723a_set_initial_gain(padapter, 0xff);
 			/* turn on dynamic functions */
-			Restore_DM_Func_Flag23a(padapter);
+			rtl8723a_odm_support_ability_restore(padapter);
 			/* Switch_DM_Func23a(padapter, DYNAMIC_FUNC_DIG|DYNAMIC_FUNC_HP|DYNAMIC_FUNC_SS, true); */
 
 			mod_timer(&pwdinfo->find_phase_timer, jiffies +
@@ -7747,7 +7747,7 @@ void site_survey23a(struct rtw_adapter *padapter)
 			/* restore RX GAIN */
 			rtl8723a_set_initial_gain(padapter, 0xff);
 			/* turn on dynamic functions */
-			Restore_DM_Func_Flag23a(padapter);
+			rtl8723a_odm_support_ability_restore(padapter);
 			/* Switch_DM_Func23a(padapter, DYNAMIC_ALL_FUNC_ENABLE, true); */
 
 			if (is_client_associated_to_ap23a(padapter) == true)
@@ -9223,7 +9223,8 @@ u8 createbss_hdl23a(struct rtw_adapter *padapter, u8 *pbuf)
 		pmlmeinfo->candidate_tid_bitmap = 0;
 
 		/* disable dynamic functions, such as high power, DIG */
-		Save_DM_Func_Flag23a(padapter);
+		rtl8723a_odm_support_ability_backup(padapter);
+
 		Switch_DM_Func23a(padapter, DYNAMIC_FUNC_DISABLE, false);
 
 		/* cancel link timer */
@@ -9535,7 +9536,7 @@ u8 sitesurvey_cmd_hdl23a(struct rtw_adapter *padapter, u8 *pbuf)
 	if ((pmlmeext->sitesurvey_res.state == SCAN_START) ||
 	    (pmlmeext->sitesurvey_res.state == SCAN_TXNULL)) {
 		/* disable dynamic functions, such as high power, DIG */
-		Save_DM_Func_Flag23a(padapter);
+		rtl8723a_odm_support_ability_backup(padapter);
 		Switch_DM_Func23a(padapter, DYNAMIC_FUNC_DISABLE, false);
 
 		/* config the initial gain under scaning, need to

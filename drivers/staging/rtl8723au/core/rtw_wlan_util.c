@@ -283,19 +283,6 @@ void Update23aTblForSoftAP(u8 *bssrateset, u32 bssratelen)
 	}
 }
 
-void Save_DM_Func_Flag23a(struct rtw_adapter *padapter)
-{
-	u8	bSaveFlag = true;
-
-	rtw_hal_set_hwreg23a(padapter, HW_VAR_DM_FUNC_OP, (u8 *)(&bSaveFlag));
-}
-
-void Restore_DM_Func_Flag23a(struct rtw_adapter *padapter)
-{
-	u8	bSaveFlag = false;
-	rtw_hal_set_hwreg23a(padapter, HW_VAR_DM_FUNC_OP, (u8 *)(&bSaveFlag));
-}
-
 void Switch_DM_Func23a(struct rtw_adapter *padapter, unsigned long mode, u8 enable)
 {
 	if (enable == true)

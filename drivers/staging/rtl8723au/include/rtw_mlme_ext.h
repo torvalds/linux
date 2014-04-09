@@ -474,8 +474,6 @@ void get_rate_set23a(struct rtw_adapter *padapter, unsigned char *pbssrate,
 void UpdateBrateTbl23a(struct rtw_adapter *padapter,u8 *mBratesOS);
 void Update23aTblForSoftAP(u8 *bssrateset, u32 bssratelen);
 
-void Save_DM_Func_Flag23a(struct rtw_adapter *padapter);
-void Restore_DM_Func_Flag23a(struct rtw_adapter *padapter);
 void Switch_DM_Func23a(struct rtw_adapter *padapter, unsigned long mode, u8 enable);
 
 void Set_MSR23a(struct rtw_adapter *padapter, u8 type);
