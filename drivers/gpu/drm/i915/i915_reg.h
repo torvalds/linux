@@ -2457,6 +2457,7 @@ enum punit_power_well {
 #define GEN3_SDVOC	0x61160
 #define GEN4_HDMIB	GEN3_SDVOB
 #define GEN4_HDMIC	GEN3_SDVOC
+#define CHV_HDMID	0x6116C
 #define PCH_SDVOB	0xe1140
 #define PCH_HDMIB	PCH_SDVOB
 #define PCH_HDMIC	0xe1150

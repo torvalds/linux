@@ -11053,6 +11053,15 @@ static void intel_setup_outputs(struct drm_device *dev)
 				intel_dp_init(dev, VLV_DISPLAY_BASE + DP_C, PORT_C);
 		}
 
+		if (IS_CHERRYVIEW(dev)) {
+			if (I915_READ(VLV_DISPLAY_BASE + CHV_HDMID) & SDVO_DETECTED) {
+				intel_hdmi_init(dev, VLV_DISPLAY_BASE + CHV_HDMID,
+						PORT_D);
+				if (I915_READ(VLV_DISPLAY_BASE + DP_D) & DP_DETECTED)
+					intel_dp_init(dev, VLV_DISPLAY_BASE + DP_D, PORT_D);
+			}
+		}
+
 		intel_dsi_init(dev);
 	} else if (SUPPORTS_DIGITAL_OUTPUTS(dev)) {
 		bool found = false;
