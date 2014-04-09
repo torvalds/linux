@@ -36,6 +36,7 @@
 #include <linux/dma-buf.h>
 #include <linux/idr.h>
 #include <linux/rockchip_ion.h>
+#include <asm-generic/dma-contiguous.h>
 
 #include "ion.h"
 #include "ion_priv.h"
@@ -900,7 +901,8 @@ static int ion_debug_client_show_buffer(struct seq_file *s, void *unused)
 	size_t len;
 
 	seq_printf(s, "----------------------------------------------------\n");
-	seq_printf(s, "%16.s: %12.s %8.s %4.s %4.s %4.s\n", "heap_name", "addr", "size", "HC", "IBR", "IHR");
+	seq_printf(s, "%16.s: %12.s %8.s %4.s %4.s %4.s\n", "heap_name", "addr", 
+		"size", "HC", "IBR", "IHR");
 	mutex_lock(&client->lock);
 	for (n = rb_first(&client->handles); n; n = rb_next(n)) {
 		struct ion_handle *handle = rb_entry(n, struct ion_handle, node);
@@ -909,7 +911,8 @@ static int ion_debug_client_show_buffer(struct seq_file *s, void *unused)
 			buffer->heap->ops->phys(buffer->heap, buffer, &addr, &len);
 			seq_printf(s, "%16.16s: 0x%08lx %8zuKB %4d %4d %4d\n",
 				buffer->heap->name, addr, len>>10, buffer->handle_count,
-				atomic_read(&buffer->ref.refcount), atomic_read(&handle->ref.refcount));
+				atomic_read(&buffer->ref.refcount), 
+				atomic_read(&handle->ref.refcount));
 		}
 	}
 	mutex_unlock(&client->lock);
@@ -1777,6 +1780,65 @@ DEFINE_SIMPLE_ATTRIBUTE(debug_shrink_fops, debug_shrink_get,
 			debug_shrink_set, "%llu\n");
 #endif
 
+#ifdef CONFIG_CMA
+// struct "cma" quoted from drivers/base/dma-contiguous.c
+struct cma {
+	unsigned long	base_pfn;
+	unsigned long	count;
+	unsigned long	*bitmap;
+};
+
+// struct "ion_cma_heap" quoted from drivers/staging/android/ion/ion_cma_heap.c
+struct ion_cma_heap {
+	struct ion_heap heap;
+	struct device *dev;
+};
+
+static int ion_cma_heap_debug_show(struct seq_file *s, void *unused)
+{
+	struct ion_heap *heap = s->private;
+	struct ion_cma_heap *cma_heap = container_of(heap,
+							struct ion_cma_heap,
+							heap);
+	struct device *dev = cma_heap->dev;
+	struct cma *cma = dev_get_cma_area(dev);
+	int i;
+	int rows = cma->count/(SZ_1M >> PAGE_SHIFT);
+	phys_addr_t base = __pfn_to_phys(cma->base_pfn);
+
+	seq_printf(s, "%s Heap bitmap:\n", heap->name);
+
+	for(i = rows - 1; i>= 0; i--){
+		seq_printf(s, "%.4uM@0x%08x: %08lx %08lx %08lx %08lx %08lx %08lx %08lx %08lx\n",
+				i+1, base+(i)*SZ_1M,
+				cma->bitmap[i*8 + 7],
+				cma->bitmap[i*8 + 6],
+				cma->bitmap[i*8 + 5],
+				cma->bitmap[i*8 + 4],
+				cma->bitmap[i*8 + 3],
+				cma->bitmap[i*8 + 2],
+				cma->bitmap[i*8 + 1],
+				cma->bitmap[i*8]);
+	}
+	seq_printf(s, "Heap size: %luM, Heap base: 0x%08x\n",
+		(cma->count)>>8, base);
+
+	return 0;
+}
+
+static int ion_debug_heap_bitmap_open(struct inode *inode, struct file *file)
+{
+	return single_open(file, ion_cma_heap_debug_show, inode->i_private);
+}
+
+static const struct file_operations debug_heap_bitmap_fops = {
+	.open = ion_debug_heap_bitmap_open,
+	.read = seq_read,
+	.llseek = seq_lseek,
+	.release = single_release,
+};
+#endif
+
 void ion_device_add_heap(struct ion_device *dev, struct ion_heap *heap)
 {
 	struct dentry *debug_file;
@@ -1823,6 +1885,22 @@ void ion_device_add_heap(struct ion_device *dev, struct ion_heap *heap)
 			pr_err("Failed to create heap shrinker debugfs at %s/%s\n",
 				path, debug_name);
 		}
+	}
+#endif
+#ifdef CONFIG_CMA
+	if (ION_HEAP_TYPE_DMA==heap->type) {
+		char* heap_bitmap_name = kasprintf(
+			GFP_KERNEL, "%s-bitmap", heap->name);
+		debug_file = debugfs_create_file(heap_bitmap_name, 0664,
+						dev->heaps_debug_root, heap,
+						&debug_heap_bitmap_fops);
+		if (!debug_file) {
+			char buf[256], *path;
+			path = dentry_path(dev->heaps_debug_root, buf, 256);
+			pr_err("Failed to create heap debugfs at %s/%s\n",
+				path, heap_bitmap_name);
+		}
+		kfree(heap_bitmap_name);
 	}
 #endif
 	up_write(&dev->lock);

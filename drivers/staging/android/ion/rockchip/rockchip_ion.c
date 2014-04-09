@@ -176,55 +176,6 @@ free_heaps:
 	return ERR_PTR(ret);
 }
 
-#ifdef CONFIG_CMA
-
-// struct "cma" quoted from drivers/base/dma-contiguous.c
-struct cma {
-	unsigned long	base_pfn;
-	unsigned long	count;
-	unsigned long	*bitmap;
-};
-
-// struct "ion_cma_heap" quoted from drivers/staging/android/ion/ion_cma_heap.c
-struct ion_cma_heap {
-	struct ion_heap heap;
-	struct device *dev;
-};
-
-static int ion_cma_heap_debug_show(struct ion_heap *heap, struct seq_file *s,
-				      void *unused)
-{
-	struct ion_cma_heap *cma_heap = container_of(heap,
-							struct ion_cma_heap,
-							heap);
-	struct device *dev = cma_heap->dev;
-	struct cma *cma = dev_get_cma_area(dev);
-	int i;
-	int rows = cma->count/(SZ_1M >> PAGE_SHIFT);
-	phys_addr_t base = __pfn_to_phys(cma->base_pfn);
-
-	seq_printf(s, "Heap bitmap:\n");
-
-	for(i = rows - 1; i>= 0; i--){
-		seq_printf(s, "%.4uM@0x%08x: %08lx %08lx %08lx %08lx %08lx %08lx %08lx %08lx\n",
-				i+1, base+(i)*SZ_1M,
-				cma->bitmap[i*8 + 7],
-				cma->bitmap[i*8 + 6],
-				cma->bitmap[i*8 + 5],
-				cma->bitmap[i*8 + 4],
-				cma->bitmap[i*8 + 3],
-				cma->bitmap[i*8 + 2],
-				cma->bitmap[i*8 + 1],
-				cma->bitmap[i*8]);
-	}
-	seq_printf(s, "Heap size: %luM, Heap base: 0x%08x\n",
-		(cma->count)>>8, base);
-
-	return 0;
-}
-
-#endif
-
 struct ion_client *rockchip_ion_client_create(const char *name)
 {
 	return ion_client_create(idev, name);
@@ -415,10 +366,6 @@ static int rockchip_ion_probe(struct platform_device *pdev)
 			err = PTR_ERR(heaps[i]);
 			goto err;
 		}
-#ifdef CONFIG_CMA
-		if (ION_HEAP_TYPE_DMA==heap_data->type)
-			heaps[i]->debug_show = ion_cma_heap_debug_show;
-#endif
 		ion_device_add_heap(idev, heaps[i]);
 	}
 	platform_set_drvdata(pdev, idev);
