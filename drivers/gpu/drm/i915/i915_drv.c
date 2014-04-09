@@ -551,7 +551,6 @@ static int i915_drm_thaw_early(struct drm_device *dev)
 static int __i915_drm_thaw(struct drm_device *dev, bool restore_gtt_mappings)
 {
 	struct drm_i915_private *dev_priv = dev->dev_private;
-	int error = 0;
 
 	if (drm_core_check_feature(dev, DRIVER_MODESET) &&
 	    restore_gtt_mappings) {
@@ -569,8 +568,10 @@ static int __i915_drm_thaw(struct drm_device *dev, bool restore_gtt_mappings)
 		drm_mode_config_reset(dev);
 
 		mutex_lock(&dev->struct_mutex);
-
-		error = i915_gem_init_hw(dev);
+		if (i915_gem_init_hw(dev)) {
+			DRM_ERROR("failed to re-initialize GPU, declaring wedged!\n");
+			atomic_set_mask(I915_WEDGED, &dev_priv->gpu_error.reset_counter);
+		}
 		mutex_unlock(&dev->struct_mutex);
 
 		/* We need working interrupts for modeset enabling ... */
@@ -613,7 +614,7 @@ static int __i915_drm_thaw(struct drm_device *dev, bool restore_gtt_mappings)
 	mutex_unlock(&dev_priv->modeset_restore_lock);
 
 	intel_runtime_pm_put(dev_priv);
-	return error;
+	return 0;
 }
 
 static int i915_drm_thaw(struct drm_device *dev)
