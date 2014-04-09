@@ -398,7 +398,30 @@ static int netvsc_start_xmit(struct sk_buff *skb, struct net_device *net)
 		csum_info->transmit.tcp_checksum = 1;
 		csum_info->transmit.tcp_header_offset = hdr_offset;
 	} else if (net_trans_info & INFO_UDP) {
-		csum_info->transmit.udp_checksum = 1;
+		/* UDP checksum offload is not supported on ws2008r2.
+		 * Furthermore, on ws2012 and ws2012r2, there are some
+		 * issues with udp checksum offload from Linux guests.
+		 * (these are host issues).
+		 * For now compute the checksum here.
+		 */
+		struct udphdr *uh;
+		u16 udp_len;
+
+		ret = skb_cow_head(skb, 0);
+		if (ret)
+			goto drop;
+
+		uh = udp_hdr(skb);
+		udp_len = ntohs(uh->len);
+		uh->check = 0;
+		uh->check = csum_tcpudp_magic(ip_hdr(skb)->saddr,
+					      ip_hdr(skb)->daddr,
+					      udp_len, IPPROTO_UDP,
+					      csum_partial(uh, udp_len, 0));
+		if (uh->check == 0)
+			uh->check = CSUM_MANGLED_0;
+
+		csum_info->transmit.udp_checksum = 0;
 	}
 	goto do_send;
 
@@ -438,6 +461,7 @@ do_send:
 
 	ret = netvsc_send(net_device_ctx->device_ctx, packet);
 
+drop:
 	if (ret == 0) {
 		net->stats.tx_bytes += skb->len;
 		net->stats.tx_packets++;
