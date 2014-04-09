@@ -12,8 +12,6 @@
 #include <linux/slab.h>
 #include <linux/gpio.h>
 #include <linux/of.h>
-#include <linux/irq.h>
-#include <linux/irqdomain.h>
 #include <linux/interrupt.h>
 #include <linux/mfd/tc3589x.h>
 
@@ -31,7 +29,6 @@ struct tc3589x_gpio {
 	struct tc3589x *tc3589x;
 	struct device *dev;
 	struct mutex irq_lock;
-	struct irq_domain *domain;
 	/* Caches of interrupt control registers for bus_lock */
 	u8 regs[CACHE_NR_REGS][CACHE_NR_BANKS];
 	u8 oldregs[CACHE_NR_REGS][CACHE_NR_BANKS];
@@ -92,30 +89,6 @@ static int tc3589x_gpio_direction_input(struct gpio_chip *chip,
 	return tc3589x_set_bits(tc3589x, reg, 1 << pos, 0);
 }
 
-/**
- * tc3589x_gpio_irq_get_irq(): Map a hardware IRQ on a chip to a Linux IRQ
- *
- * @tc3589x_gpio: tc3589x_gpio_irq controller to operate on.
- * @irq: index of the hardware interrupt requested in the chip IRQs
- *
- * Useful for drivers to request their own IRQs.
- */
-static int tc3589x_gpio_irq_get_irq(struct tc3589x_gpio *tc3589x_gpio,
-				     int hwirq)
-{
-	if (!tc3589x_gpio)
-		return -EINVAL;
-
-	return irq_create_mapping(tc3589x_gpio->domain, hwirq);
-}
-
-static int tc3589x_gpio_to_irq(struct gpio_chip *chip, unsigned offset)
-{
-	struct tc3589x_gpio *tc3589x_gpio = to_tc3589x_gpio(chip);
-
-	return tc3589x_gpio_irq_get_irq(tc3589x_gpio, offset);
-}
-
 static struct gpio_chip template_chip = {
 	.label			= "tc3589x",
 	.owner			= THIS_MODULE,
@@ -123,13 +96,13 @@ static struct gpio_chip template_chip = {
 	.get			= tc3589x_gpio_get,
 	.direction_output	= tc3589x_gpio_direction_output,
 	.set			= tc3589x_gpio_set,
-	.to_irq			= tc3589x_gpio_to_irq,
 	.can_sleep		= true,
 };
 
 static int tc3589x_gpio_irq_set_type(struct irq_data *d, unsigned int type)
 {
-	struct tc3589x_gpio *tc3589x_gpio = irq_data_get_irq_chip_data(d);
+	struct gpio_chip *gc = irq_data_get_irq_chip_data(d);
+	struct tc3589x_gpio *tc3589x_gpio = container_of(gc, struct tc3589x_gpio, chip);
 	int offset = d->hwirq;
 	int regoffset = offset / 8;
 	int mask = 1 << (offset % 8);
@@ -156,14 +129,16 @@ static int tc3589x_gpio_irq_set_type(struct irq_data *d, unsigned int type)
 
 static void tc3589x_gpio_irq_lock(struct irq_data *d)
 {
-	struct tc3589x_gpio *tc3589x_gpio = irq_data_get_irq_chip_data(d);
+	struct gpio_chip *gc = irq_data_get_irq_chip_data(d);
+	struct tc3589x_gpio *tc3589x_gpio = container_of(gc, struct tc3589x_gpio, chip);
 
 	mutex_lock(&tc3589x_gpio->irq_lock);
 }
 
 static void tc3589x_gpio_irq_sync_unlock(struct irq_data *d)
 {
-	struct tc3589x_gpio *tc3589x_gpio = irq_data_get_irq_chip_data(d);
+	struct gpio_chip *gc = irq_data_get_irq_chip_data(d);
+	struct tc3589x_gpio *tc3589x_gpio = container_of(gc, struct tc3589x_gpio, chip);
 	struct tc3589x *tc3589x = tc3589x_gpio->tc3589x;
 	static const u8 regmap[] = {
 		[REG_IBE]	= TC3589x_GPIOIBE0,
@@ -191,7 +166,8 @@ static void tc3589x_gpio_irq_sync_unlock(struct irq_data *d)
 
 static void tc3589x_gpio_irq_mask(struct irq_data *d)
 {
-	struct tc3589x_gpio *tc3589x_gpio = irq_data_get_irq_chip_data(d);
+	struct gpio_chip *gc = irq_data_get_irq_chip_data(d);
+	struct tc3589x_gpio *tc3589x_gpio = container_of(gc, struct tc3589x_gpio, chip);
 	int offset = d->hwirq;
 	int regoffset = offset / 8;
 	int mask = 1 << (offset % 8);
@@ -201,7 +177,8 @@ static void tc3589x_gpio_irq_mask(struct irq_data *d)
 
 static void tc3589x_gpio_irq_unmask(struct irq_data *d)
 {
-	struct tc3589x_gpio *tc3589x_gpio = irq_data_get_irq_chip_data(d);
+	struct gpio_chip *gc = irq_data_get_irq_chip_data(d);
+	struct tc3589x_gpio *tc3589x_gpio = container_of(gc, struct tc3589x_gpio, chip);
 	int offset = d->hwirq;
 	int regoffset = offset / 8;
 	int mask = 1 << (offset % 8);
@@ -239,7 +216,8 @@ static irqreturn_t tc3589x_gpio_irq(int irq, void *dev)
 		while (stat) {
 			int bit = __ffs(stat);
 			int line = i * 8 + bit;
-			int irq = tc3589x_gpio_irq_get_irq(tc3589x_gpio, line);
+			int irq = irq_find_mapping(tc3589x_gpio->chip.irqdomain,
+						   line);
 
 			handle_nested_irq(irq);
 			stat &= ~(1 << bit);
@@ -249,59 +227,6 @@ static irqreturn_t tc3589x_gpio_irq(int irq, void *dev)
 	}
 
 	return IRQ_HANDLED;
-}
-
-static int tc3589x_gpio_irq_map(struct irq_domain *d, unsigned int irq,
-				irq_hw_number_t hwirq)
-{
-	struct tc3589x *tc3589x_gpio = d->host_data;
-
-	irq_set_chip_data(irq, tc3589x_gpio);
-	irq_set_chip_and_handler(irq, &tc3589x_gpio_irq_chip,
-				handle_simple_irq);
-	irq_set_nested_thread(irq, 1);
-#ifdef CONFIG_ARM
-	set_irq_flags(irq, IRQF_VALID);
-#else
-	irq_set_noprobe(irq);
-#endif
-
-	return 0;
-}
-
-static void tc3589x_gpio_irq_unmap(struct irq_domain *d, unsigned int irq)
-{
-#ifdef CONFIG_ARM
-	set_irq_flags(irq, 0);
-#endif
-	irq_set_chip_and_handler(irq, NULL, NULL);
-	irq_set_chip_data(irq, NULL);
-}
-
-static struct irq_domain_ops tc3589x_irq_ops = {
-	.map    = tc3589x_gpio_irq_map,
-	.unmap  = tc3589x_gpio_irq_unmap,
-	.xlate  = irq_domain_xlate_twocell,
-};
-
-static int tc3589x_gpio_irq_init(struct tc3589x_gpio *tc3589x_gpio,
-				struct device_node *np)
-{
-	/*
-	 * If this results in a linear domain, irq_create_mapping() will
-	 * take care of allocating IRQ descriptors at runtime. When a base
-	 * is provided, the IRQ descriptors will be allocated when the
-	 * domain is instantiated.
-	 */
-	tc3589x_gpio->domain = irq_domain_add_simple(np,
-			tc3589x_gpio->chip.ngpio, 0, &tc3589x_irq_ops,
-			tc3589x_gpio);
-	if (!tc3589x_gpio->domain) {
-		dev_err(tc3589x_gpio->dev, "Failed to create irqdomain\n");
-		return -ENOSYS;
-	}
-
-	return 0;
 }
 
 static int tc3589x_gpio_probe(struct platform_device *pdev)
@@ -349,10 +274,6 @@ static int tc3589x_gpio_probe(struct platform_device *pdev)
 	if (ret < 0)
 		return ret;
 
-	ret = tc3589x_gpio_irq_init(tc3589x_gpio, np);
-	if (ret)
-		return ret;
-
 	ret = devm_request_threaded_irq(&pdev->dev,
 					irq, NULL, tc3589x_gpio_irq,
 					IRQF_ONESHOT, "tc3589x-gpio",
@@ -365,6 +286,17 @@ static int tc3589x_gpio_probe(struct platform_device *pdev)
 	ret = gpiochip_add(&tc3589x_gpio->chip);
 	if (ret) {
 		dev_err(&pdev->dev, "unable to add gpiochip: %d\n", ret);
+		return ret;
+	}
+
+	ret =  gpiochip_irqchip_add(&tc3589x_gpio->chip,
+				    &tc3589x_gpio_irq_chip,
+				    0,
+				    handle_simple_irq,
+				    IRQ_TYPE_NONE);
+	if (ret) {
+		dev_err(&pdev->dev,
+			"could not connect irqchip to gpiochip\n");
 		return ret;
 	}
 
