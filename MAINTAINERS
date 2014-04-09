@@ -1832,8 +1832,8 @@ F:	net/bluetooth/
 F:	include/net/bluetooth/
 
 BONDING DRIVER
-M:	Jay Vosburgh <fubar@us.ibm.com>
-M:	Veaceslav Falico <vfalico@redhat.com>
+M:	Jay Vosburgh <j.vosburgh@gmail.com>
+M:	Veaceslav Falico <vfalico@gmail.com>
 M:	Andy Gospodarek <andy@greyhouse.net>
 L:	netdev@vger.kernel.org
 W:	http://sourceforge.net/projects/bonding/
@@ -2808,9 +2808,9 @@ S:	Supported
 F:	drivers/acpi/dock.c
 
 DOCUMENTATION
-M:	Rob Landley <rob@landley.net>
+M:	Randy Dunlap <rdunlap@infradead.org>
 L:	linux-doc@vger.kernel.org
-T:	TBD
+T:	quilt http://www.infradead.org/~rdunlap/Doc/patches/
 S:	Maintained
 F:	Documentation/
 
@@ -6013,6 +6013,7 @@ F:	include/uapi/linux/net.h
 F:	include/uapi/linux/netdevice.h
 F:	tools/net/
 F:	tools/testing/selftests/net/
+F:	lib/random32.c
 
 NETWORKING [IPv4/IPv6]
 M:	"David S. Miller" <davem@davemloft.net>
