@@ -3132,15 +3132,10 @@ void hw_var_set_mlme_join(struct rtw_adapter *padapter, u8 type)
 void SetHwReg8723A(struct rtw_adapter *padapter, u8 variable, u8 *val)
 {
 	struct hal_data_8723a *pHalData = GET_HAL_DATA(padapter);
-	u32 *val32 = (u32 *)val;
 
 	switch (variable) {
 	case HW_VAR_TXPAUSE:
 		rtl8723a_set_tx_pause(padapter, *val);
-		break;
-
-	case HW_VAR_DM_FLAG:
-		rtl8723a_odm_support_ability_write(padapter, *val32);
 		break;
 
 	case HW_VAR_EFUSE_BYTES:
@@ -3170,13 +3165,6 @@ void GetHwReg8723A(struct rtw_adapter *padapter, u8 variable, u8 *val)
 
 	case HW_VAR_RF_TYPE:
 		*val = pHalData->rf_type;
-		break;
-
-	case HW_VAR_DM_FLAG:
-	{
-		struct dm_odm_t *podmpriv = &pHalData->odmpriv;
-		*((u32 *) val) = podmpriv->SupportAbility;
-	}
 		break;
 
 	case HW_VAR_FWLPS_RF_ON:
