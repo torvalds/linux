@@ -304,14 +304,9 @@ void Switch_DM_Func23a(struct rtw_adapter *padapter, unsigned long mode, u8 enab
 		rtw_hal_set_hwreg23a(padapter, HW_VAR_DM_FUNC_CLR, (u8 *)(&mode));
 }
 
-static void Set_NETYPE0_MSR(struct rtw_adapter *padapter, u8 type)
-{
-	rtw_hal_set_hwreg23a(padapter, HW_VAR_MEDIA_STATUS, (u8 *)(&type));
-}
-
 void Set_MSR23a(struct rtw_adapter *padapter, u8 type)
 {
-		Set_NETYPE0_MSR(padapter, type);
+	rtl8723a_set_media_status(padapter, type);
 }
 
 inline u8 rtw_get_oper_ch23a(struct rtw_adapter *adapter)
