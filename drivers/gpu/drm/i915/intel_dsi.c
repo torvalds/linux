@@ -495,10 +495,17 @@ static void intel_dsi_mode_set(struct intel_encoder *intel_encoder)
 	/* dphy stuff */
 
 	/* in terms of low power clock */
-	I915_WRITE(MIPI_INIT_COUNT(pipe), txclkesc(ESCAPE_CLOCK_DIVIDER_1, 100));
+	I915_WRITE(MIPI_INIT_COUNT(pipe), txclkesc(intel_dsi->escape_clk_div, 100));
+
+	val = 0;
+	if (intel_dsi->eotp_pkt == 0)
+		val |= EOT_DISABLE;
+
+	if (intel_dsi->clock_stop)
+		val |= CLOCKSTOP;
 
 	/* recovery disables */
-	I915_WRITE(MIPI_EOT_DISABLE(pipe), intel_dsi->eot_disable);
+	I915_WRITE(MIPI_EOT_DISABLE(pipe), val);
 
 	/* in terms of txbyteclkhs. actual high to low switch +
 	 * MIPI_STOP_STATE_STALL * MIPI_LP_BYTECLK.
