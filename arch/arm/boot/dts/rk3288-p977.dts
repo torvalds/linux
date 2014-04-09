@@ -303,7 +303,7 @@
 		compatible = "nxp,pcf8563";
 		reg = <0x51>;
 	};
-/*
+	
 	sensor@1d {
 		compatible = "gs_mma8452";
 		reg = <0x1d>;
@@ -325,7 +325,7 @@
 		layout = <1>;
 		status = "disabled";
 	};
-*/
+
 	sensor@10 {
               compatible = "ls_cm3218";
               reg = <0x10>;
@@ -335,7 +335,7 @@
               poll_delay_ms = <30>;
               layout = <1>;
        };
-	      
+/*	      
  	mpu6050:mpu@68{
 	compatible = "mpu6050";
 	reg = <0x68>;
@@ -348,7 +348,7 @@
 	irq-gpio = <&gpio8 GPIO_A0 IRQ_TYPE_LEVEL_LOW>;			
 	mpu-debug = <0>;
 	};
-/*
+
 	ak8963:compass@0d{
 	compatible = "ak8963";
 	reg = <0x0d>;
@@ -361,7 +361,7 @@
 	compass-debug = <1>;
 	status = "disabled";
 	};
-*/
+
 	ak8975:compass@0d{
 	compatible = "ak8975";
 	reg = <0x0d>;
@@ -373,7 +373,7 @@
 	orientation-z= <0>;	
 	compass-debug = <0>;
 	};
-
+*/
 };
 
 &i2c2 {
