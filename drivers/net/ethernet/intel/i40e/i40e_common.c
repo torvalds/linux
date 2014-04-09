@@ -1949,6 +1949,12 @@ static void i40e_parse_discover_capabilities(struct i40e_hw *hw, void *buff,
 		}
 	}
 
+	/* Software override ensuring FCoE is disabled if npar or mfp
+	 * mode because it is not supported in these modes.
+	 */
+	if (p->npar_enable || p->mfp_mode_1)
+		p->fcoe = false;
+
 	/* additional HW specific goodies that might
 	 * someday be HW version specific
 	 */
