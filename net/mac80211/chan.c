@@ -351,19 +351,17 @@ static bool ieee80211_is_radar_required(struct ieee80211_local *local)
 }
 
 static struct ieee80211_chanctx *
-ieee80211_new_chanctx(struct ieee80211_local *local,
-		      const struct cfg80211_chan_def *chandef,
-		      enum ieee80211_chanctx_mode mode)
+ieee80211_alloc_chanctx(struct ieee80211_local *local,
+			const struct cfg80211_chan_def *chandef,
+			enum ieee80211_chanctx_mode mode)
 {
 	struct ieee80211_chanctx *ctx;
-	u32 changed;
-	int err;
 
 	lockdep_assert_held(&local->chanctx_mtx);
 
 	ctx = kzalloc(sizeof(*ctx) + local->hw.chanctx_data_size, GFP_KERNEL);
 	if (!ctx)
-		return ERR_PTR(-ENOMEM);
+		return NULL;
 
 	INIT_LIST_HEAD(&ctx->assigned_vifs);
 	INIT_LIST_HEAD(&ctx->reserved_vifs);
@@ -373,31 +371,63 @@ ieee80211_new_chanctx(struct ieee80211_local *local,
 	ctx->mode = mode;
 	ctx->conf.radar_enabled = ieee80211_is_radar_required(local);
 	ieee80211_recalc_chanctx_min_def(local, ctx);
+
+	return ctx;
+}
+
+static int ieee80211_add_chanctx(struct ieee80211_local *local,
+				 struct ieee80211_chanctx *ctx)
+{
+	u32 changed;
+	int err;
+
+	lockdep_assert_held(&local->mtx);
+	lockdep_assert_held(&local->chanctx_mtx);
+
 	if (!local->use_chanctx)
 		local->hw.conf.radar_enabled = ctx->conf.radar_enabled;
 
-	/* we hold the mutex to prevent idle from changing */
-	lockdep_assert_held(&local->mtx);
 	/* turn idle off *before* setting channel -- some drivers need that */
 	changed = ieee80211_idle_off(local);
 	if (changed)
 		ieee80211_hw_config(local, changed);
 
 	if (!local->use_chanctx) {
-		local->_oper_chandef = *chandef;
+		local->_oper_chandef = ctx->conf.def;
 		ieee80211_hw_config(local, 0);
 	} else {
 		err = drv_add_chanctx(local, ctx);
 		if (err) {
-			kfree(ctx);
 			ieee80211_recalc_idle(local);
-			return ERR_PTR(err);
+			return err;
 		}
 	}
 
-	/* and keep the mutex held until the new chanctx is on the list */
-	list_add_rcu(&ctx->list, &local->chanctx_list);
+	return 0;
+}
 
+static struct ieee80211_chanctx *
+ieee80211_new_chanctx(struct ieee80211_local *local,
+		      const struct cfg80211_chan_def *chandef,
+		      enum ieee80211_chanctx_mode mode)
+{
+	struct ieee80211_chanctx *ctx;
+	int err;
+
+	lockdep_assert_held(&local->mtx);
+	lockdep_assert_held(&local->chanctx_mtx);
+
+	ctx = ieee80211_alloc_chanctx(local, chandef, mode);
+	if (!ctx)
+		return ERR_PTR(-ENOMEM);
+
+	err = ieee80211_add_chanctx(local, ctx);
+	if (err) {
+		kfree(ctx);
+		return ERR_PTR(err);
+	}
+
+	list_add_rcu(&ctx->list, &local->chanctx_list);
 	return ctx;
 }
 
