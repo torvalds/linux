@@ -52,8 +52,6 @@ enum HW_VARIABLES {
 	HW_VAR_ANTENNA_DIVERSITY_LINK,
 	HW_VAR_ANTENNA_DIVERSITY_SELECT,
 	HW_VAR_SWITCH_EPHY_WoWLAN,
-	HW_VAR_EFUSE_BYTES,
-	HW_VAR_EFUSE_BT_BYTES,
 	/*  The valid upper nav range for the HW updating, if the true value is larger than the upper range, the HW won't update it. */
 	/*  Unit in microsecond. 0 means disable this function. */
 	HW_VAR_RPT_TIMER_SETTING,
