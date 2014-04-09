@@ -39,9 +39,13 @@ struct nfs4_acl;
 struct svc_fh;
 struct svc_rqst;
 
-/* Maximum ACL we'll accept from client; chosen (somewhat arbitrarily) to
- * fit in a page: */
-#define NFS4_ACL_MAX 170
+/*
+ * Maximum ACL we'll accept from a client; chosen (somewhat
+ * arbitrarily) so that kmalloc'ing the ACL shouldn't require a
+ * high-order allocation.  This allows 204 ACEs on x86_64:
+ */
+#define NFS4_ACL_MAX ((PAGE_SIZE - sizeof(struct nfs4_acl)) \
+			/ sizeof(struct nfs4_ace))
 
 struct nfs4_acl *nfs4_acl_new(int);
 int nfs4_acl_get_whotype(char *, u32);

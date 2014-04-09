@@ -1538,7 +1538,7 @@ out_err:
 }
 
 /*
- * Cache a reply. nfsd4_check_drc_limit() has bounded the cache size.
+ * Cache a reply. nfsd4_check_resp_size() has bounded the cache size.
  */
 void
 nfsd4_store_cache_entry(struct nfsd4_compoundres *resp)
@@ -1596,7 +1596,7 @@ nfsd4_enc_sequence_replay(struct nfsd4_compoundargs *args,
  * The sequence operation is not cached because we can use the slot and
  * session values.
  */
-__be32
+static __be32
 nfsd4_replay_cache_entry(struct nfsd4_compoundres *resp,
 			 struct nfsd4_sequence *seq)
 {
@@ -1605,9 +1605,8 @@ nfsd4_replay_cache_entry(struct nfsd4_compoundres *resp,
 
 	dprintk("--> %s slot %p\n", __func__, slot);
 
-	/* Either returns 0 or nfserr_retry_uncached */
 	status = nfsd4_enc_sequence_replay(resp->rqstp->rq_argp, resp);
-	if (status == nfserr_retry_uncached_rep)
+	if (status)
 		return status;
 
 	/* The sequence operation has been encoded, cstate->datap set. */
@@ -2287,7 +2286,8 @@ out:
 	if (!list_empty(&clp->cl_revoked))
 		seq->status_flags |= SEQ4_STATUS_RECALLABLE_STATE_REVOKED;
 out_no_session:
-	kfree(conn);
+	if (conn)
+		free_conn(conn);
 	spin_unlock(&nn->client_lock);
 	return status;
 out_put_session:
@@ -3627,8 +3627,11 @@ static __be32 nfsd4_lookup_stateid(stateid_t *stateid, unsigned char typemask,
 		return nfserr_bad_stateid;
 	status = lookup_clientid(&stateid->si_opaque.so_clid, sessions,
 							nn, &cl);
-	if (status == nfserr_stale_clientid)
+	if (status == nfserr_stale_clientid) {
+		if (sessions)
+			return nfserr_bad_stateid;
 		return nfserr_stale_stateid;
+	}
 	if (status)
 		return status;
 	*s = find_stateid_by_type(cl, stateid, typemask);
@@ -5062,7 +5065,6 @@ nfs4_state_destroy_net(struct net *net)
 	int i;
 	struct nfs4_client *clp = NULL;
 	struct nfsd_net *nn = net_generic(net, nfsd_net_id);
-	struct rb_node *node, *tmp;
 
 	for (i = 0; i < CLIENT_HASH_SIZE; i++) {
 		while (!list_empty(&nn->conf_id_hashtbl[i])) {
@@ -5071,13 +5073,11 @@ nfs4_state_destroy_net(struct net *net)
 		}
 	}
 
-	node = rb_first(&nn->unconf_name_tree);
-	while (node != NULL) {
-		tmp = node;
-		node = rb_next(tmp);
-		clp = rb_entry(tmp, struct nfs4_client, cl_namenode);
-		rb_erase(tmp, &nn->unconf_name_tree);
-		destroy_client(clp);
+	for (i = 0; i < CLIENT_HASH_SIZE; i++) {
+		while (!list_empty(&nn->unconf_id_hashtbl[i])) {
+			clp = list_entry(nn->unconf_id_hashtbl[i].next, struct nfs4_client, cl_idhash);
+			destroy_client(clp);
+		}
 	}
 
 	kfree(nn->sessionid_hashtbl);

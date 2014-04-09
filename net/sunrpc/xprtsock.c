@@ -909,6 +909,12 @@ static void xs_tcp_close(struct rpc_xprt *xprt)
 		xs_tcp_shutdown(xprt);
 }
 
+static void xs_xprt_free(struct rpc_xprt *xprt)
+{
+	xs_free_peer_addresses(xprt);
+	xprt_free(xprt);
+}
+
 /**
  * xs_destroy - prepare to shutdown a transport
  * @xprt: doomed transport
@@ -919,8 +925,7 @@ static void xs_destroy(struct rpc_xprt *xprt)
 	dprintk("RPC:       xs_destroy xprt %p\n", xprt);
 
 	xs_close(xprt);
-	xs_free_peer_addresses(xprt);
-	xprt_free(xprt);
+	xs_xprt_free(xprt);
 	module_put(THIS_MODULE);
 }
 
@@ -2532,6 +2537,10 @@ static void bc_close(struct rpc_xprt *xprt)
 
 static void bc_destroy(struct rpc_xprt *xprt)
 {
+	dprintk("RPC:       bc_destroy xprt %p\n", xprt);
+
+	xs_xprt_free(xprt);
+	module_put(THIS_MODULE);
 }
 
 static struct rpc_xprt_ops xs_local_ops = {
@@ -2732,7 +2741,7 @@ static struct rpc_xprt *xs_setup_local(struct xprt_create *args)
 		return xprt;
 	ret = ERR_PTR(-EINVAL);
 out_err:
-	xprt_free(xprt);
+	xs_xprt_free(xprt);
 	return ret;
 }
 
@@ -2810,7 +2819,7 @@ static struct rpc_xprt *xs_setup_udp(struct xprt_create *args)
 		return xprt;
 	ret = ERR_PTR(-EINVAL);
 out_err:
-	xprt_free(xprt);
+	xs_xprt_free(xprt);
 	return ret;
 }
 
@@ -2885,12 +2894,11 @@ static struct rpc_xprt *xs_setup_tcp(struct xprt_create *args)
 				xprt->address_strings[RPC_DISPLAY_ADDR],
 				xprt->address_strings[RPC_DISPLAY_PROTO]);
 
-
 	if (try_module_get(THIS_MODULE))
 		return xprt;
 	ret = ERR_PTR(-EINVAL);
 out_err:
-	xprt_free(xprt);
+	xs_xprt_free(xprt);
 	return ret;
 }
 
@@ -2907,15 +2915,6 @@ static struct rpc_xprt *xs_setup_bc_tcp(struct xprt_create *args)
 	struct svc_sock *bc_sock;
 	struct rpc_xprt *ret;
 
-	if (args->bc_xprt->xpt_bc_xprt) {
-		/*
-		 * This server connection already has a backchannel
-		 * transport; we can't create a new one, as we wouldn't
-		 * be able to match replies based on xid any more.  So,
-		 * reuse the already-existing one:
-		 */
-		 return args->bc_xprt->xpt_bc_xprt;
-	}
 	xprt = xs_setup_xprt(args, xprt_tcp_slot_table_entries,
 			xprt_tcp_slot_table_entries);
 	if (IS_ERR(xprt))
@@ -2973,13 +2972,14 @@ static struct rpc_xprt *xs_setup_bc_tcp(struct xprt_create *args)
 	 */
 	xprt_set_connected(xprt);
 
-
 	if (try_module_get(THIS_MODULE))
 		return xprt;
+
+	args->bc_xprt->xpt_bc_xprt = NULL;
 	xprt_put(xprt);
 	ret = ERR_PTR(-EINVAL);
 out_err:
-	xprt_free(xprt);
+	xs_xprt_free(xprt);
 	return ret;
 }
 
