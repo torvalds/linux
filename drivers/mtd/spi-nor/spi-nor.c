@@ -1014,16 +1014,16 @@ int spi_nor_scan(struct spi_nor *nor, const struct spi_device_id *id,
 	/* Default commands */
 	switch (nor->flash_read) {
 	case SPI_NOR_QUAD:
-		nor->read_opcode = SPINOR_OP_QUAD_READ;
+		nor->read_opcode = SPINOR_OP_READ_1_1_4;
 		break;
 	case SPI_NOR_DUAL:
-		nor->read_opcode = SPINOR_OP_DUAL_READ;
+		nor->read_opcode = SPINOR_OP_READ_1_1_2;
 		break;
 	case SPI_NOR_FAST:
-		nor->read_opcode = SPINOR_OP_FAST_READ;
+		nor->read_opcode = SPINOR_OP_READ_FAST;
 		break;
 	case SPI_NOR_NORMAL:
-		nor->read_opcode = SPINOR_OP_NORM_READ;
+		nor->read_opcode = SPINOR_OP_READ;
 		break;
 	default:
 		dev_err(dev, "No Read opcode defined\n");
@@ -1041,16 +1041,16 @@ int spi_nor_scan(struct spi_nor *nor, const struct spi_device_id *id,
 			/* Dedicated 4-byte command set */
 			switch (nor->flash_read) {
 			case SPI_NOR_QUAD:
-				nor->read_opcode = SPINOR_OP_QUAD_READ_4B;
+				nor->read_opcode = SPINOR_OP_READ4_1_1_4;
 				break;
 			case SPI_NOR_DUAL:
-				nor->read_opcode = SPINOR_OP_DUAL_READ_4B;
+				nor->read_opcode = SPINOR_OP_READ4_1_1_2;
 				break;
 			case SPI_NOR_FAST:
-				nor->read_opcode = SPINOR_OP_FAST_READ_4B;
+				nor->read_opcode = SPINOR_OP_READ4_FAST;
 				break;
 			case SPI_NOR_NORMAL:
-				nor->read_opcode = SPINOR_OP_NORM_READ_4B;
+				nor->read_opcode = SPINOR_OP_READ4;
 				break;
 			}
 			nor->program_opcode = SPINOR_OP_PP_4B;

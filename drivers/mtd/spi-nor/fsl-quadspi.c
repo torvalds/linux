@@ -294,12 +294,12 @@ static void fsl_qspi_init_lut(struct fsl_qspi *q)
 	lut_base = SEQID_QUAD_READ * 4;
 
 	if (q->nor_size <= SZ_16M) {
-		cmd = SPINOR_OP_QUAD_READ;
+		cmd = SPINOR_OP_READ_1_1_4;
 		addrlen = ADDR24BIT;
 		dummy = 8;
 	} else {
 		/* use the 4-byte address */
-		cmd = SPINOR_OP_QUAD_READ;
+		cmd = SPINOR_OP_READ_1_1_4;
 		addrlen = ADDR32BIT;
 		dummy = 8;
 	}
@@ -388,7 +388,7 @@ static void fsl_qspi_init_lut(struct fsl_qspi *q)
 static int fsl_qspi_get_seqid(struct fsl_qspi *q, u8 cmd)
 {
 	switch (cmd) {
-	case SPINOR_OP_QUAD_READ:
+	case SPINOR_OP_READ_1_1_4:
 		return SEQID_QUAD_READ;
 	case SPINOR_OP_WREN:
 		return SEQID_WREN;

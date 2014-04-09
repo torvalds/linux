@@ -10,14 +10,22 @@
 #ifndef __LINUX_MTD_SPI_NOR_H
 #define __LINUX_MTD_SPI_NOR_H
 
+/*
+ * Note on opcode nomenclature: some opcodes have a format like
+ * SPINOR_OP_FUNCTION{4,}_x_y_z. The numbers x, y, and z stand for the number
+ * of I/O lines used for the opcode, address, and data (respectively). The
+ * FUNCTION has an optional suffix of '4', to represent an opcode which
+ * requires a 4-byte (32-bit) address.
+ */
+
 /* Flash opcodes. */
 #define SPINOR_OP_WREN		0x06	/* Write enable */
 #define SPINOR_OP_RDSR		0x05	/* Read status register */
 #define SPINOR_OP_WRSR		0x01	/* Write status register 1 byte */
-#define SPINOR_OP_NORM_READ	0x03	/* Read data bytes (low frequency) */
-#define SPINOR_OP_FAST_READ	0x0b	/* Read data bytes (high frequency) */
-#define SPINOR_OP_DUAL_READ	0x3b	/* Read data bytes (Dual SPI) */
-#define SPINOR_OP_QUAD_READ	0x6b	/* Read data bytes (Quad SPI) */
+#define SPINOR_OP_READ		0x03	/* Read data bytes (low frequency) */
+#define SPINOR_OP_READ_FAST	0x0b	/* Read data bytes (high frequency) */
+#define SPINOR_OP_READ_1_1_2	0x3b	/* Read data bytes (Dual SPI) */
+#define SPINOR_OP_READ_1_1_4	0x6b	/* Read data bytes (Quad SPI) */
 #define SPINOR_OP_PP		0x02	/* Page program (up to 256 bytes) */
 #define SPINOR_OP_BE_4K		0x20	/* Erase 4KiB block */
 #define SPINOR_OP_BE_4K_PMC	0xd7	/* Erase 4KiB block on PMC chips */
@@ -28,10 +36,10 @@
 #define SPINOR_OP_RDCR		0x35	/* Read configuration register */
 
 /* 4-byte address opcodes - used on Spansion and some Macronix flashes. */
-#define SPINOR_OP_NORM_READ_4B	0x13	/* Read data bytes (low frequency) */
-#define SPINOR_OP_FAST_READ_4B	0x0c	/* Read data bytes (high frequency) */
-#define SPINOR_OP_DUAL_READ_4B	0x3c	/* Read data bytes (Dual SPI) */
-#define SPINOR_OP_QUAD_READ_4B	0x6c	/* Read data bytes (Quad SPI) */
+#define SPINOR_OP_READ4		0x13	/* Read data bytes (low frequency) */
+#define SPINOR_OP_READ4_FAST	0x0c	/* Read data bytes (high frequency) */
+#define SPINOR_OP_READ4_1_1_2	0x3c	/* Read data bytes (Dual SPI) */
+#define SPINOR_OP_READ4_1_1_4	0x6c	/* Read data bytes (Quad SPI) */
 #define SPINOR_OP_PP_4B		0x12	/* Page program (up to 256 bytes) */
 #define SPINOR_OP_SE_4B		0xdc	/* Sector erase (usually 64KiB) */
 
