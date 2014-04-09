@@ -184,7 +184,6 @@ static int i40e_add_del_fdir_udpv4(struct i40e_vsi *vsi,
 	struct iphdr *ip;
 	bool err = false;
 	int ret;
-	int i;
 	static char packet[] = {0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0x08, 0,
 		0x45, 0, 0, 0x1c, 0, 0, 0x40, 0, 0x40, 0x11, 0, 0, 0, 0, 0, 0,
 		0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0};
@@ -200,21 +199,17 @@ static int i40e_add_del_fdir_udpv4(struct i40e_vsi *vsi,
 	ip->saddr = fd_data->src_ip[0];
 	udp->source = fd_data->src_port;
 
-	for (i = I40E_FILTER_PCTYPE_NONF_UNICAST_IPV4_UDP;
-	     i <= I40E_FILTER_PCTYPE_NONF_IPV4_UDP; i++) {
-		fd_data->pctype = i;
-		ret = i40e_program_fdir_filter(fd_data, raw_packet, pf, add);
-
-		if (ret) {
-			dev_info(&pf->pdev->dev,
-				 "Filter command send failed for PCTYPE %d (ret = %d)\n",
-				 fd_data->pctype, ret);
-			err = true;
-		} else {
-			dev_info(&pf->pdev->dev,
-				 "Filter OK for PCTYPE %d (ret = %d)\n",
-				 fd_data->pctype, ret);
-		}
+	fd_data->pctype = I40E_FILTER_PCTYPE_NONF_IPV4_UDP;
+	ret = i40e_program_fdir_filter(fd_data, raw_packet, pf, add);
+	if (ret) {
+		dev_info(&pf->pdev->dev,
+			 "Filter command send failed for PCTYPE %d (ret = %d)\n",
+			 fd_data->pctype, ret);
+		err = true;
+	} else {
+		dev_info(&pf->pdev->dev,
+			 "Filter OK for PCTYPE %d (ret = %d)\n",
+			 fd_data->pctype, ret);
 	}
 
 	return err ? -EOPNOTSUPP : 0;
@@ -263,7 +258,7 @@ static int i40e_add_del_fdir_tcpv4(struct i40e_vsi *vsi,
 		}
 	}
 
-	fd_data->pctype = I40E_FILTER_PCTYPE_NONF_IPV4_TCP_SYN;
+	fd_data->pctype = I40E_FILTER_PCTYPE_NONF_IPV4_TCP;
 	ret = i40e_program_fdir_filter(fd_data, raw_packet, pf, add);
 
 	if (ret) {
