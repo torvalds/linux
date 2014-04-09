@@ -534,6 +534,15 @@ static inline bool i40e_rx_is_programming_status(u64 qw)
 		(qw >> I40E_RX_PROG_STATUS_DESC_LENGTH_SHIFT);
 }
 
+/**
+ * i40e_get_fd_cnt_all - get the total FD filter space available
+ * @pf: pointer to the pf struct
+ **/
+static inline int i40e_get_fd_cnt_all(struct i40e_pf *pf)
+{
+	return pf->hw.fdir_shared_filter_count + pf->fdir_pf_filter_count;
+}
+
 /* needed by i40e_ethtool.c */
 int i40e_up(struct i40e_vsi *vsi);
 void i40e_down(struct i40e_vsi *vsi);

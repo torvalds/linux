@@ -1131,8 +1131,7 @@ static int i40e_get_ethtool_fdir_all(struct i40e_pf *pf,
 	int cnt = 0;
 
 	/* report total rule count */
-	cmd->data = pf->hw.fdir_shared_filter_count +
-		    pf->fdir_pf_filter_count;
+	cmd->data = i40e_get_fd_cnt_all(pf);
 
 	hlist_for_each_entry_safe(rule, node2,
 				  &pf->fdir_filter_list, fdir_node) {
@@ -1165,10 +1164,6 @@ static int i40e_get_ethtool_fdir_entry(struct i40e_pf *pf,
 			(struct ethtool_rx_flow_spec *)&cmd->fs;
 	struct i40e_fdir_filter *rule = NULL;
 	struct hlist_node *node2;
-
-	/* report total rule count */
-	cmd->data = pf->hw.fdir_shared_filter_count +
-		    pf->fdir_pf_filter_count;
 
 	hlist_for_each_entry_safe(rule, node2,
 				  &pf->fdir_filter_list, fdir_node) {
@@ -1220,6 +1215,8 @@ static int i40e_get_rxnfc(struct net_device *netdev, struct ethtool_rxnfc *cmd,
 		break;
 	case ETHTOOL_GRXCLSRLCNT:
 		cmd->rule_cnt = pf->fdir_pf_active_filters;
+		/* report total rule count */
+		cmd->data = i40e_get_fd_cnt_all(pf);
 		ret = 0;
 		break;
 	case ETHTOOL_GRXCLSRULE:
