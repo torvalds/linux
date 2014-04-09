@@ -356,6 +356,7 @@ static struct rtnl_link_stats64 *i40e_get_netdev_stats_struct(
 					     struct rtnl_link_stats64 *stats)
 {
 	struct i40e_netdev_priv *np = netdev_priv(netdev);
+	struct i40e_ring *tx_ring, *rx_ring;
 	struct i40e_vsi *vsi = np->vsi;
 	struct rtnl_link_stats64 *vsi_stats = i40e_get_vsi_stats_struct(vsi);
 	int i;
@@ -368,7 +369,6 @@ static struct rtnl_link_stats64 *i40e_get_netdev_stats_struct(
 
 	rcu_read_lock();
 	for (i = 0; i < vsi->num_queue_pairs; i++) {
-		struct i40e_ring *tx_ring, *rx_ring;
 		u64 bytes, packets;
 		unsigned int start;
 
@@ -2415,6 +2415,7 @@ static int i40e_vsi_configure_rx(struct i40e_vsi *vsi)
  **/
 static void i40e_vsi_config_dcb_rings(struct i40e_vsi *vsi)
 {
+	struct i40e_ring *tx_ring, *rx_ring;
 	u16 qoffset, qcount;
 	int i, n;
 
@@ -2428,8 +2429,8 @@ static void i40e_vsi_config_dcb_rings(struct i40e_vsi *vsi)
 		qoffset = vsi->tc_config.tc_info[n].qoffset;
 		qcount = vsi->tc_config.tc_info[n].qcount;
 		for (i = qoffset; i < (qoffset + qcount); i++) {
-			struct i40e_ring *rx_ring = vsi->rx_rings[i];
-			struct i40e_ring *tx_ring = vsi->tx_rings[i];
+			rx_ring = vsi->rx_rings[i];
+			tx_ring = vsi->tx_rings[i];
 			rx_ring->dcb_tc = n;
 			tx_ring->dcb_tc = n;
 		}
@@ -5948,14 +5949,12 @@ static void i40e_vsi_clear_rings(struct i40e_vsi *vsi)
  **/
 static int i40e_alloc_rings(struct i40e_vsi *vsi)
 {
+	struct i40e_ring *tx_ring, *rx_ring;
 	struct i40e_pf *pf = vsi->back;
 	int i;
 
 	/* Set basic values in the rings to be used later during open() */
 	for (i = 0; i < vsi->alloc_queue_pairs; i++) {
-		struct i40e_ring *tx_ring;
-		struct i40e_ring *rx_ring;
-
 		/* allocate space for both Tx and Rx in one shot */
 		tx_ring = kzalloc(sizeof(struct i40e_ring) * 2, GFP_KERNEL);
 		if (!tx_ring)

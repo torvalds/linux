@@ -633,6 +633,7 @@ static void i40e_get_ethtool_stats(struct net_device *netdev,
 				   struct ethtool_stats *stats, u64 *data)
 {
 	struct i40e_netdev_priv *np = netdev_priv(netdev);
+	struct i40e_ring *tx_ring, *rx_ring;
 	struct i40e_vsi *vsi = np->vsi;
 	struct i40e_pf *pf = vsi->back;
 	int i = 0;
@@ -650,8 +651,7 @@ static void i40e_get_ethtool_stats(struct net_device *netdev,
 	}
 	rcu_read_lock();
 	for (j = 0; j < vsi->num_queue_pairs; j++) {
-		struct i40e_ring *tx_ring = ACCESS_ONCE(vsi->tx_rings[j]);
-		struct i40e_ring *rx_ring;
+		tx_ring = ACCESS_ONCE(vsi->tx_rings[j]);
 
 		if (!tx_ring)
 			continue;
