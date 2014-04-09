@@ -1363,6 +1363,11 @@ void gpiochip_set_chained_irqchip(struct gpio_chip *gpiochip,
 				  int parent_irq,
 				  irq_flow_handler_t parent_handler)
 {
+	if (gpiochip->can_sleep) {
+		chip_err(gpiochip, "you cannot have chained interrupts on a chip that may sleep\n");
+		return;
+	}
+
 	irq_set_chained_handler(parent_irq, parent_handler);
 	/*
 	 * The parent irqchip is already using the chip_data for this
@@ -1389,6 +1394,9 @@ static int gpiochip_irq_map(struct irq_domain *d, unsigned int irq,
 
 	irq_set_chip_data(irq, chip);
 	irq_set_chip_and_handler(irq, chip->irqchip, chip->irq_handler);
+	/* Chips that can sleep need nested thread handlers */
+	if (chip->can_sleep)
+		irq_set_nested_thread(irq, 1);
 #ifdef CONFIG_ARM
 	set_irq_flags(irq, IRQF_VALID);
 #else
@@ -1401,9 +1409,13 @@ static int gpiochip_irq_map(struct irq_domain *d, unsigned int irq,
 
 static void gpiochip_irq_unmap(struct irq_domain *d, unsigned int irq)
 {
+	struct gpio_chip *chip = d->host_data;
+
 #ifdef CONFIG_ARM
 	set_irq_flags(irq, 0);
 #endif
+	if (chip->can_sleep)
+		irq_set_nested_thread(irq, 0);
 	irq_set_chip_and_handler(irq, NULL, NULL);
 	irq_set_chip_data(irq, NULL);
 }
