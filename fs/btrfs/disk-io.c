@@ -1366,6 +1366,7 @@ struct btrfs_root *btrfs_create_tree(struct btrfs_trans_handle *trans,
 fail:
 	if (leaf) {
 		btrfs_tree_unlock(leaf);
+		free_extent_buffer(root->commit_root);
 		free_extent_buffer(leaf);
 	}
 	kfree(root);
