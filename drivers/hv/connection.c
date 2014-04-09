@@ -277,7 +277,6 @@ struct vmbus_channel *relid2channel(u32 relid)
 static void process_chn_event(u32 relid)
 {
 	struct vmbus_channel *channel;
-	unsigned long flags;
 	void *arg;
 	bool read_state;
 	u32 bytes_to_read;
@@ -296,13 +295,12 @@ static void process_chn_event(u32 relid)
 	/*
 	 * A channel once created is persistent even when there
 	 * is no driver handling the device. An unloading driver
-	 * sets the onchannel_callback to NULL under the
-	 * protection of the channel inbound_lock. Thus, checking
-	 * and invoking the driver specific callback takes care of
-	 * orderly unloading of the driver.
+	 * sets the onchannel_callback to NULL on the same CPU
+	 * as where this interrupt is handled (in an interrupt context).
+	 * Thus, checking and invoking the driver specific callback takes
+	 * care of orderly unloading of the driver.
 	 */
 
-	spin_lock_irqsave(&channel->inbound_lock, flags);
 	if (channel->onchannel_callback != NULL) {
 		arg = channel->channel_callback_context;
 		read_state = channel->batched_reading;
@@ -327,7 +325,6 @@ static void process_chn_event(u32 relid)
 		pr_err("no channel callback for relid - %u\n", relid);
 	}
 
-	spin_unlock_irqrestore(&channel->inbound_lock, flags);
 }
 
 /*

@@ -365,7 +365,7 @@ static u32  next_vp;
  * performance critical channels (IDE, SCSI and Network) will be uniformly
  * distributed across all available CPUs.
  */
-static u32 get_vp_index(uuid_le *type_guid)
+static void init_vp_index(struct vmbus_channel *channel, uuid_le *type_guid)
 {
 	u32 cur_cpu;
 	int i;
@@ -387,10 +387,13 @@ static u32 get_vp_index(uuid_le *type_guid)
 		 * Also if the channel is not a performance critical
 		 * channel, bind it to cpu 0.
 		 */
-		return 0;
+		channel->target_cpu = 0;
+		channel->target_vp = 0;
+		return;
 	}
 	cur_cpu = (++next_vp % max_cpus);
-	return hv_context.vp_index[cur_cpu];
+	channel->target_cpu = cur_cpu;
+	channel->target_vp = hv_context.vp_index[cur_cpu];
 }
 
 /*
@@ -438,7 +441,7 @@ static void vmbus_onoffer(struct vmbus_channel_message_header *hdr)
 				offer->connection_id;
 	}
 
-	newchannel->target_vp = get_vp_index(&offer->offer.if_type);
+	init_vp_index(newchannel, &offer->offer.if_type);
 
 	memcpy(&newchannel->offermsg, offer,
 	       sizeof(struct vmbus_channel_offer_channel));
