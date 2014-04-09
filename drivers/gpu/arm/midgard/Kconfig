@@ -1,0 +1,174 @@
+#
+# (C) COPYRIGHT 2012-2013 ARM Limited. All rights reserved.
+#
+# This program is free software and is provided to you under the terms of the
+# GNU General Public License version 2 as published by the Free Software
+# Foundation, and any use by you of this program is subject to the terms
+# of such GNU licence.
+#
+# A copy of the licence is included with the program, and can also be obtained
+# from Free Software Foundation, Inc., 51 Franklin Street, Fifth Floor,
+# Boston, MA  02110-1301, USA.
+#
+#
+
+
+
+menuconfig MALI_MIDGARD
+	tristate "Mali Midgard series support"
+	default n
+	help
+	  Enable this option to build support for a ARM Mali Midgard GPU.
+
+	  To compile this driver as a module, choose M here:
+	  this will generate a single module, called mali_kbase.
+
+config MALI_GATOR_SUPPORT
+	bool "Streamline Debug support"
+	depends on MALI_MIDGARD
+	default n
+	help
+	  Adds diagnostic support for use with the ARM Streamline Performance Analyzer.
+	  You will need the Gator device driver already loaded before loading this driver when enabling
+	  Streamline debug support.
+
+config MALI_MIDGARD_DVFS
+	bool "Enable DVFS"
+	depends on MALI_MIDGARD
+	default n
+	help
+	  Choose this option to enable DVFS in the Mali Midgard DDK.
+
+config MALI_MIDGARD_RT_PM
+	bool "Enable Runtime power management"
+	depends on MALI_MIDGARD
+	depends on PM_RUNTIME
+	default n
+	help
+	  Choose this option to enable runtime power management in the Mali Midgard DDK.
+
+config MALI_MIDGARD_ENABLE_TRACE
+	bool "Enable kbase tracing"
+	depends on MALI_MIDGARD
+	default n
+	help
+	  Enables tracing in kbase.  Trace log available through
+	  the "mali_trace" debugfs file, when the CONFIG_DEBUG_FS is enabled
+
+config MALI_MIDGARD_DEBUG_SYS
+	bool "Enable sysfs for the Mali Midgard DDK "
+	depends on MALI_MIDGARD && SYSFS
+	default n
+	help
+	  Enables sysfs for the Mali Midgard DDK. Set/Monitor the Mali Midgard DDK
+
+# MALI_EXPERT configuration options
+
+menuconfig MALI_EXPERT
+	depends on MALI_MIDGARD
+	bool "Enable Expert Settings"
+	default n
+	help
+	  Enabling this option and modifying the default settings may produce a driver with performance or
+	  other limitations.
+
+config MALI_DEBUG_SHADER_SPLIT_FS
+	bool "Allow mapping of shader cores via sysfs"
+	depends on MALI_MIDGARD && MALI_MIDGARD_DEBUG_SYS && MALI_EXPERT
+	default n
+	help
+	  Select this option to provide a sysfs entry for runtime configuration of shader
+	  core affinity masks.
+
+config MALI_PLATFORM_FAKE
+	bool "Enable fake platform device support"
+	depends on MALI_MIDGARD && MALI_EXPERT
+	default n
+	help
+	  When you start to work with the Mali Midgard series device driver the platform-specific code of
+	  the Linux kernel for your platform may not be complete. In this situation the kernel device driver
+	  supports creating the platform device outside of the Linux platform-specific code.
+	  Enable this option if would like to use a platform device configuration from within the device driver.
+
+choice
+	prompt "Platform configuration"
+	depends on MALI_MIDGARD && MALI_EXPERT
+	default MALI_PLATFORM_VEXPRESS
+	help
+	  Select the SOC platform that contains a Mali Midgard GPU
+
+config MALI_PLATFORM_VEXPRESS
+	depends on ARCH_VEXPRESS && (ARCH_VEXPRESS_CA9X4 || ARCH_VEXPRESS_CA15X4)
+	bool "Versatile Express"
+config MALI_PLATFORM_VEXPRESS_VIRTEX7_40MHZ
+	depends on ARCH_VEXPRESS && (ARCH_VEXPRESS_CA9X4 || ARCH_VEXPRESS_CA15X4)
+	bool "Versatile Express w/Virtex7 @ 40Mhz"
+config MALI_PLATFORM_GOLDFISH
+	depends on ARCH_GOLDFISH
+	bool "Android Goldfish virtual CPU"
+config MALI_PLATFORM_PBX
+	depends on ARCH_REALVIEW && REALVIEW_EB_A9MP && MACH_REALVIEW_PBX
+	bool "Realview PBX-A9"
+config MALI_PLATFORM_THIRDPARTY
+	bool "Third Party Platform"
+endchoice
+
+config MALI_PLATFORM_THIRDPARTY_NAME
+	depends on MALI_MIDGARD && MALI_PLATFORM_THIRDPARTY && MALI_EXPERT
+	string "Third party platform name"
+	help
+	  Enter the name of a third party platform that is supported. The third part configuration
+	  file must be in midgard/config/tpip/mali_kbase_config_xxx.c where xxx is the name
+	  specified here.
+
+config MALI_DEBUG
+	bool "Debug build"
+	depends on MALI_MIDGARD && MALI_EXPERT
+	default n
+	help
+	  Select this option for increased checking and reporting of errors.
+
+config MALI_NO_MALI
+	bool "No Mali"
+	depends on MALI_MIDGARD && MALI_EXPERT
+	default n
+	help
+	  This can be used to test the driver in a simulated environment
+	  whereby the hardware is not physically present. If the hardware is physically
+	  present it will not be used. This can be used to test the majority of the
+	  driver without needing actual hardware or for software benchmarking.
+	  All calls to the simulated hardware will complete immediately as if the hardware
+	  completed the task.
+
+config MALI_ERROR_INJECT
+	bool "Error injection"
+	depends on MALI_MIDGARD && MALI_EXPERT && MALI_NO_MALI
+	default n
+	help
+	  Enables insertion of errors to test module failure and recovery mechanisms.
+
+config MALI_TRACE_TIMELINE
+	bool "Timeline tracing"
+	depends on MALI_MIDGARD && MALI_EXPERT
+	default n
+	help
+	  Enables timeline tracing through the kernel tracepoint system.
+
+config MALI_SYSTEM_TRACE
+	bool "Enable system event tracing support"
+	depends on MALI_MIDGARD && MALI_EXPERT
+	default n
+	help
+	  Choose this option to enable system trace events for each
+	  kbase event.	This is typically used for debugging but has
+	  minimal overhead when not in use. Enable only if you know what
+	  you are doing.
+
+config MALI_GPU_TRACEPOINTS
+	bool "Enable GPU tracepoints"
+	depends on MALI_MIDGARD && ANDROID
+	select GPU_TRACEPOINTS
+	help
+	  Enables GPU tracepoints using Android trace event definitions.
+
+source "drivers/gpu/arm/midgard/platform/Kconfig"

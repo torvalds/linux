@@ -1,0 +1,126 @@
+#
+# (C) COPYRIGHT 2011-2013 ARM Limited. All rights reserved.
+#
+# This program is free software and is provided to you under the terms of the
+# GNU General Public License version 2 as published by the Free Software
+# Foundation, and any use by you of this program is subject to the terms
+# of such GNU licence.
+#
+# A copy of the licence is included with the program, and can also be obtained
+# from Free Software Foundation, Inc., 51 Franklin Street, Fifth Floor,
+# Boston, MA  02110-1301, USA.
+#
+#
+
+
+
+##############################################################################
+
+# This file contains per-module Doxygen configuration. Please do not add
+# extra settings to this file without consulting all stakeholders, as they
+# may cause override project-wide settings.
+#
+# Additionally, when defining aliases, macros, sections etc, use the module
+# name as a prefix e.g. gles_my_alias.
+
+##############################################################################
+
+@INCLUDE = ../../bldsys/Doxyfile_common
+
+# The INPUT tag can be used to specify the files and/or directories that contain
+# documented source files. You may enter file names like "myfile.cpp" or
+# directories like "/usr/src/myproject". Separate the files or directories
+# with spaces.
+
+INPUT                  += ../../kernel/drivers/gpu/arm/midgard/ 
+
+##############################################################################
+# Everything below here is optional, and in most cases not required
+##############################################################################
+
+# This tag can be used to specify a number of aliases that acts
+# as commands in the documentation. An alias has the form "name=value".
+# For example adding "sideeffect=\par Side Effects:\n" will allow you to
+# put the command \sideeffect (or @sideeffect) in the documentation, which
+# will result in a user-defined paragraph with heading "Side Effects:".
+# You can put \n's in the value part of an alias to insert newlines.
+
+ALIASES                +=
+
+# The ENABLED_SECTIONS tag can be used to enable conditional
+# documentation sections, marked by \if sectionname ... \endif.
+
+ENABLED_SECTIONS       +=
+
+# If the value of the INPUT tag contains directories, you can use the
+# FILE_PATTERNS tag to specify one or more wildcard pattern (like *.cpp
+# and *.h) to filter out the source-files in the directories. If left
+# blank the following patterns are tested:
+# *.c *.cc *.cxx *.cpp *.c++ *.java *.ii *.ixx *.ipp *.i++ *.inl *.h *.hh *.hxx
+# *.hpp *.h++ *.idl *.odl *.cs *.php *.php3 *.inc *.m *.mm *.py *.f90
+
+FILE_PATTERNS          +=
+
+# The EXCLUDE tag can be used to specify files and/or directories that should
+# excluded from the INPUT source files. This way you can easily exclude a
+# subdirectory from a directory tree whose root is specified with the INPUT tag.
+EXCLUDE                += ../../kernel/drivers/gpu/arm/midgard/malisw/ ../../kernel/drivers/gpu/arm/midgard/platform ../../kernel/drivers/gpu/arm/midgard/platform_dummy ../../kernel/drivers/gpu/arm/midgard/scripts ../../kernel/drivers/gpu/arm/midgard/tests ../../kernel/drivers/gpu/arm/midgard/Makefile ../../kernel/drivers/gpu/arm/midgard/Makefile.kbase ../../kernel/drivers/gpu/arm/midgard/Kbuild ../../kernel/drivers/gpu/arm/midgard/Kconfig ../../kernel/drivers/gpu/arm/midgard/sconscript ../../kernel/drivers/gpu/arm/midgard/docs ../../kernel/drivers/gpu/arm/midgard/pm_test_script.sh ../../kernel/drivers/gpu/arm/midgard/mali_uk.h ../../kernel/drivers/gpu/arm/midgard/Makefile
+
+
+# If the value of the INPUT tag contains directories, you can use the
+# EXCLUDE_PATTERNS tag to specify one or more wildcard patterns to exclude
+# certain files from those directories. Note that the wildcards are matched
+# against the file with absolute path, so to exclude all test directories
+# for example use the pattern */test/*
+
+EXCLUDE_PATTERNS       +=
+
+# The EXCLUDE_SYMBOLS tag can be used to specify one or more symbol names
+# (namespaces, classes, functions, etc.) that should be excluded from the
+# output. The symbol name can be a fully qualified name, a word, or if the
+# wildcard * is used, a substring. Examples: ANamespace, AClass,
+# AClass::ANamespace, ANamespace::*Test
+
+EXCLUDE_SYMBOLS        +=
+
+# The EXAMPLE_PATH tag can be used to specify one or more files or
+# directories that contain example code fragments that are included (see
+# the \include command).
+
+EXAMPLE_PATH           +=
+
+# The IMAGE_PATH tag can be used to specify one or more files or
+# directories that contain image that are included in the documentation (see
+# the \image command).
+
+IMAGE_PATH             +=
+
+# The INCLUDE_PATH tag can be used to specify one or more directories that
+# contain include files that are not input files but should be processed by
+# the preprocessor.
+
+INCLUDE_PATH           +=
+
+# The PREDEFINED tag can be used to specify one or more macro names that
+# are defined before the preprocessor is started (similar to the -D option of
+# gcc). The argument of the tag is a list of macros of the form: name
+# or name=definition (no spaces). If the definition and the = are
+# omitted =1 is assumed. To prevent a macro definition from being
+# undefined via #undef or recursively expanded use the := operator
+# instead of the = operator.
+
+PREDEFINED             +=
+
+# If the MACRO_EXPANSION and EXPAND_ONLY_PREDEF tags are set to YES then
+# this tag can be used to specify a list of macro names that should be expanded.
+# The macro definition that is found in the sources will be used.
+# Use the PREDEFINED tag if you want to use a different macro definition.
+
+EXPAND_AS_DEFINED      +=
+
+# The DOTFILE_DIRS tag can be used to specify one or more directories that
+# contain dot files that are included in the documentation (see the
+# \dotfile command).
+
+DOTFILE_DIRS           += ../../kernel/drivers/gpu/arm/midgard/docs
+

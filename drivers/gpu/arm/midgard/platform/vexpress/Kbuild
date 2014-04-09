@@ -1,5 +1,5 @@
 #
-# (C) COPYRIGHT 2012 ARM Limited. All rights reserved.
+# (C) COPYRIGHT 2012-2013 ARM Limited. All rights reserved.
 #
 # This program is free software and is provided to you under the terms of the
 # GNU General Public License version 2 as published by the Free Software
@@ -14,4 +14,5 @@
 
 
 
-obj-$(CONFIG_MALI_MIDGARD) += midgard/
+obj-y += mali_kbase_config_vexpress.o
+obj-y += mali_kbase_cpu_vexpress.o

@@ -15,4 +15,4 @@
 
 
 
-SConscript('t6xx/sconscript')
+SConscript('midgard/sconscript')
