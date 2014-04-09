@@ -1395,17 +1395,42 @@ static void intel_reset_dpio(struct drm_device *dev)
 		   DPLL_REFA_CLK_ENABLE_VLV |
 		   DPLL_INTEGRATED_CRI_CLK_VLV);
 
-	/*
-	 * From VLV2A0_DP_eDP_DPIO_driver_vbios_notes_10.docx -
-	 *  6.	De-assert cmn_reset/side_reset. Same as VLV X0.
-	 *   a.	GUnit 0x2110 bit[0] set to 1 (def 0)
-	 *   b.	The other bits such as sfr settings / modesel may all be set
-	 *      to 0.
-	 *
-	 * This should only be done on init and resume from S3 with both
-	 * PLLs disabled, or we risk losing DPIO and PLL synchronization.
-	 */
-	I915_WRITE(DPIO_CTL, I915_READ(DPIO_CTL) | DPIO_CMNRST);
+	if (IS_CHERRYVIEW(dev)) {
+		enum dpio_phy phy;
+		u32 val;
+
+		for (phy = DPIO_PHY0; phy < I915_NUM_PHYS_VLV; phy++) {
+			/* Poll for phypwrgood signal */
+			if (wait_for(I915_READ(DISPLAY_PHY_STATUS) &
+						PHY_POWERGOOD(phy), 1))
+				DRM_ERROR("Display PHY %d is not power up\n", phy);
+
+			/*
+			 * Deassert common lane reset for PHY.
+			 *
+			 * This should only be done on init and resume from S3
+			 * with both PLLs disabled, or we risk losing DPIO and
+			 * PLL synchronization.
+			 */
+			val = I915_READ(DISPLAY_PHY_CONTROL);
+			I915_WRITE(DISPLAY_PHY_CONTROL,
+				PHY_COM_LANE_RESET_DEASSERT(phy, val));
+		}
+
+	} else {
+		/*
+		 * From VLV2A0_DP_eDP_DPIO_driver_vbios_notes_10.docx -
+		 *  6.	De-assert cmn_reset/side_reset. Same as VLV X0.
+		 *   a.	GUnit 0x2110 bit[0] set to 1 (def 0)
+		 *   b.	The other bits such as sfr settings / modesel may all
+		 *	be set to 0.
+		 *
+		 * This should only be done on init and resume from S3 with
+		 * both PLLs disabled, or we risk losing DPIO and PLL
+		 * synchronization.
+		 */
+		I915_WRITE(DPIO_CTL, I915_READ(DPIO_CTL) | DPIO_CMNRST);
+	}
 }
 
 static void vlv_enable_pll(struct intel_crtc *crtc)
@@ -1529,6 +1554,19 @@ static void vlv_disable_pll(struct drm_i915_private *dev_priv, enum pipe pipe)
 		val = DPLL_INTEGRATED_CRI_CLK_VLV | DPLL_REFA_CLK_ENABLE_VLV;
 	I915_WRITE(DPLL(pipe), val);
 	POSTING_READ(DPLL(pipe));
+
+}
+
+static void chv_disable_pll(struct drm_i915_private *dev_priv, enum pipe pipe)
+{
+	int dpll = DPLL(pipe);
+	u32 val;
+
+	/* Set PLL en = 0 */
+	val = I915_READ(dpll);
+	val &= ~DPLL_VCO_ENABLE;
+	I915_WRITE(dpll, val);
+
 }
 
 void vlv_wait_port_ready(struct drm_i915_private *dev_priv,
@@ -4446,10 +4484,14 @@ static void i9xx_crtc_disable(struct drm_crtc *crtc)
 		if (encoder->post_disable)
 			encoder->post_disable(encoder);
 
-	if (IS_VALLEYVIEW(dev) && !intel_pipe_has_type(crtc, INTEL_OUTPUT_DSI))
-		vlv_disable_pll(dev_priv, pipe);
-	else if (!IS_VALLEYVIEW(dev))
-		i9xx_disable_pll(dev_priv, pipe);
+	if (!intel_pipe_has_type(crtc, INTEL_OUTPUT_DSI)) {
+		if (IS_CHERRYVIEW(dev))
+			chv_disable_pll(dev_priv, pipe);
+		else if (IS_VALLEYVIEW(dev))
+			vlv_disable_pll(dev_priv, pipe);
+		else
+			i9xx_disable_pll(dev_priv, pipe);
+	}
 
 	intel_crtc->active = false;
 	intel_update_watermarks(crtc);
