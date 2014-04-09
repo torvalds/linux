@@ -771,6 +771,8 @@ enum punit_power_well {
 
 #define _VLV_PCS_DW8_CH0		0x8220
 #define _VLV_PCS_DW8_CH1		0x8420
+#define   CHV_PCS_USEDCLKCHANNEL_OVRRIDE	(1 << 20)
+#define   CHV_PCS_USEDCLKCHANNEL		(1 << 21)
 #define VLV_PCS_DW8(ch) _PORT(ch, _VLV_PCS_DW8_CH0, _VLV_PCS_DW8_CH1)
 
 #define _VLV_PCS01_DW8_CH0		0x0220
@@ -894,6 +896,11 @@ enum punit_power_well {
 #define   DPIO_AFC_RECAL		(1 << 14)
 #define   DPIO_DCLKP_EN			(1 << 13)
 #define CHV_CMN_DW14(ch) _PIPE(ch, _CHV_CMN_DW14_CH0, _CHV_CMN_DW1_CH1)
+
+#define _CHV_CMN_DW19_CH0		0x814c
+#define _CHV_CMN_DW6_CH1		0x8098
+#define   CHV_CMN_USEDCLKCHANNEL	(1 << 13)
+#define CHV_CMN_DW19(ch) _PIPE(ch, _CHV_CMN_DW19_CH0, _CHV_CMN_DW6_CH1)
 
 #define CHV_CMN_DW30			0x8178
 #define   DPIO_LRC_BYPASS		(1 << 3)

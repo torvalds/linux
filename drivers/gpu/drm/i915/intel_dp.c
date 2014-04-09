@@ -2119,6 +2119,51 @@ static void chv_pre_enable_dp(struct intel_encoder *encoder)
 	vlv_wait_port_ready(dev_priv, dport);
 }
 
+static void chv_dp_pre_pll_enable(struct intel_encoder *encoder)
+{
+	struct intel_digital_port *dport = enc_to_dig_port(&encoder->base);
+	struct drm_device *dev = encoder->base.dev;
+	struct drm_i915_private *dev_priv = dev->dev_private;
+	struct intel_crtc *intel_crtc =
+		to_intel_crtc(encoder->base.crtc);
+	enum dpio_channel ch = vlv_dport_to_channel(dport);
+	enum pipe pipe = intel_crtc->pipe;
+	u32 val;
+
+	mutex_lock(&dev_priv->dpio_lock);
+
+	/* program clock channel usage */
+	val = vlv_dpio_read(dev_priv, pipe, VLV_PCS01_DW8(ch));
+	val |= CHV_PCS_USEDCLKCHANNEL_OVRRIDE;
+	if (pipe != PIPE_B)
+		val &= ~CHV_PCS_USEDCLKCHANNEL;
+	else
+		val |= CHV_PCS_USEDCLKCHANNEL;
+	vlv_dpio_write(dev_priv, pipe, VLV_PCS01_DW8(ch), val);
+
+	val = vlv_dpio_read(dev_priv, pipe, VLV_PCS23_DW8(ch));
+	val |= CHV_PCS_USEDCLKCHANNEL_OVRRIDE;
+	if (pipe != PIPE_B)
+		val &= ~CHV_PCS_USEDCLKCHANNEL;
+	else
+		val |= CHV_PCS_USEDCLKCHANNEL;
+	vlv_dpio_write(dev_priv, pipe, VLV_PCS23_DW8(ch), val);
+
+	/*
+	 * This a a bit weird since generally CL
+	 * matches the pipe, but here we need to
+	 * pick the CL based on the port.
+	 */
+	val = vlv_dpio_read(dev_priv, pipe, CHV_CMN_DW19(ch));
+	if (pipe != PIPE_B)
+		val &= ~CHV_CMN_USEDCLKCHANNEL;
+	else
+		val |= CHV_CMN_USEDCLKCHANNEL;
+	vlv_dpio_write(dev_priv, pipe, CHV_CMN_DW19(ch), val);
+
+	mutex_unlock(&dev_priv->dpio_lock);
+}
+
 /*
  * Native read with retry for link status and receiver capability reads for
  * cases where the sink may still be asleep.
@@ -4335,6 +4380,7 @@ intel_dp_init(struct drm_device *dev, int output_reg, enum port port)
 	intel_encoder->get_hw_state = intel_dp_get_hw_state;
 	intel_encoder->get_config = intel_dp_get_config;
 	if (IS_CHERRYVIEW(dev)) {
+		intel_encoder->pre_pll_enable = chv_dp_pre_pll_enable;
 		intel_encoder->pre_enable = chv_pre_enable_dp;
 		intel_encoder->enable = vlv_enable_dp;
 		intel_encoder->post_disable = chv_post_disable_dp;
