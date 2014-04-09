@@ -197,7 +197,6 @@ static void omap_crtc_destroy(struct drm_crtc *crtc)
 	WARN_ON(omap_crtc->apply_irq.registered);
 	omap_irq_unregister(crtc->dev, &omap_crtc->error_irq);
 
-	omap_crtc->plane->funcs->destroy(omap_crtc->plane);
 	drm_crtc_cleanup(crtc);
 
 	kfree(omap_crtc);
