@@ -3175,9 +3175,6 @@ void SetHwReg8723A(struct rtw_adapter *padapter, u8 variable, u8 *val)
 		break;
 #endif /* CONFIG_8723AU_P2P */
 
-	case HW_VAR_INITIAL_GAIN:
-		rtl8723a_set_initial_gain(padapter, *val32);
-		break;
 	case HW_VAR_EFUSE_BYTES:
 		pHalData->EfuseUsedBytes = *((u16 *) val);
 		break;

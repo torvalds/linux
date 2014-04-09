@@ -7619,7 +7619,6 @@ void site_survey23a(struct rtw_adapter *padapter)
 	enum rt_scan_type ScanType = SCAN_PASSIVE;
 	struct mlme_ext_priv	*pmlmeext = &padapter->mlmeextpriv;
 	struct mlme_ext_info *pmlmeinfo = &pmlmeext->mlmext_info;
-	u32 initialgain = 0;
 #ifdef CONFIG_8723AU_P2P
 	struct wifidirect_info *pwdinfo = &padapter->wdinfo;
 
@@ -7719,8 +7718,8 @@ void site_survey23a(struct rtw_adapter *padapter)
 			rtw_p2p_set_state(pwdinfo, P2P_STATE_FIND_PHASE_LISTEN);
 			pmlmeext->sitesurvey_res.state = SCAN_DISABLE;
 
-			initialgain = 0xff; /* restore RX GAIN */
-			rtw_hal_set_hwreg23a(padapter, HW_VAR_INITIAL_GAIN, (u8 *)(&initialgain));
+			/* restore RX GAIN */
+			rtl8723a_set_initial_gain(padapter, 0xff);
 			/* turn on dynamic functions */
 			Restore_DM_Func_Flag23a(padapter);
 			/* Switch_DM_Func23a(padapter, DYNAMIC_FUNC_DIG|DYNAMIC_FUNC_HP|DYNAMIC_FUNC_SS, true); */
@@ -7749,8 +7748,8 @@ void site_survey23a(struct rtw_adapter *padapter)
 			/* config MSR */
 			Set_MSR23a(padapter, (pmlmeinfo->state & 0x3));
 
-			initialgain = 0xff; /* restore RX GAIN */
-			rtw_hal_set_hwreg23a(padapter, HW_VAR_INITIAL_GAIN, (u8 *)(&initialgain));
+			/* restore RX GAIN */
+			rtl8723a_set_initial_gain(padapter, 0xff);
 			/* turn on dynamic functions */
 			Restore_DM_Func_Flag23a(padapter);
 			/* Switch_DM_Func23a(padapter, DYNAMIC_ALL_FUNC_ENABLE, true); */
@@ -9231,10 +9230,6 @@ u8 createbss_hdl23a(struct rtw_adapter *padapter, u8 *pbuf)
 		Save_DM_Func_Flag23a(padapter);
 		Switch_DM_Func23a(padapter, DYNAMIC_FUNC_DISABLE, false);
 
-		/* config the initial gain under linking, need to write the BB registers */
-		/* initialgain = 0x1E; */
-		/* rtw_hal_set_hwreg23a(padapter, HW_VAR_INITIAL_GAIN, (u8 *)(&initialgain)); */
-
 		/* cancel link timer */
 		del_timer_sync(&pmlmeext->link_timer);
 
@@ -9365,12 +9360,6 @@ u8 join_cmd_hdl23a(struct rtw_adapter *padapter, u8 *pbuf)
 	}
 	/* disable dynamic functions, such as high power, DIG */
 	/* Switch_DM_Func23a(padapter, DYNAMIC_FUNC_DISABLE, false); */
-
-	/* config the initial gain under linking, need to write the BB
-	   registers */
-	/* initialgain = 0x1E; */
-	/* rtw_hal_set_hwreg23a(padapter, HW_VAR_INITIAL_GAIN,
-	   (u8 *)(&initialgain)); */
 
 	hw_var_set_bssid(padapter, pmlmeinfo->network.MacAddress);
 	hw_var_set_mlme_join(padapter, 0);
@@ -9562,13 +9551,12 @@ u8 sitesurvey_cmd_hdl23a(struct rtw_adapter *padapter, u8 *pbuf)
 
 		/* config the initial gain under scaning, need to
 		   write the BB registers */
-		if ((wdev_to_priv(padapter->rtw_wdev))->p2p_enabled == true) {
+		if (wdev_to_priv(padapter->rtw_wdev)->p2p_enabled == true)
 			initialgain = 0x30;
-		} else
+		else
 			initialgain = 0x1E;
 
-		rtw_hal_set_hwreg23a(padapter, HW_VAR_INITIAL_GAIN,
-				  (u8 *)(&initialgain));
+		rtl8723a_set_initial_gain(padapter, initialgain);
 
 		/* set MSR to no link state */
 		Set_MSR23a(padapter, _HW_STATE_NOLINK_);
