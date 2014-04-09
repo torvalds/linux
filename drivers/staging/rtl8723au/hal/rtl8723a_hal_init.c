@@ -3157,22 +3157,6 @@ void SetHwReg8723A(struct rtw_adapter *padapter, u8 variable, u8 *val)
 		rtl8723a_odm_support_ability_clr(padapter, *val32);
 		break;
 
-	case HW_VAR_AC_PARAM_VO:
-		rtl8723a_set_ac_param_vo(padapter, *val32);
-		break;
-
-	case HW_VAR_AC_PARAM_VI:
-		rtl8723a_set_ac_param_vi(padapter, *val32);
-		break;
-
-	case HW_VAR_AC_PARAM_BE:
-		rtl8723a_set_ac_param_be(padapter, *val32);
-		break;
-
-	case HW_VAR_AC_PARAM_BK:
-		rtl8723a_set_ac_param_bk(padapter, *val32);
-		break;
-
 	case HW_VAR_ACM_CTRL:
 		rtl8723a_set_acm_ctrl(padapter, *val);
 		break;

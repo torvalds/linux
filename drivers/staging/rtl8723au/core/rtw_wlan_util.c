@@ -602,22 +602,22 @@ void WMMOnAssocRsp23a(struct rtw_adapter *padapter)
 
 		switch (ACI) {
 		case 0x0:
-			rtw_hal_set_hwreg23a(padapter, HW_VAR_AC_PARAM_BE, (u8 *)(&acParm));
+			rtl8723a_set_ac_param_be(padapter, acParm);
 			acm_mask |= (ACM? BIT(1):0);
 			edca[XMIT_BE_QUEUE] = acParm;
 			break;
 		case 0x1:
-			rtw_hal_set_hwreg23a(padapter, HW_VAR_AC_PARAM_BK, (u8 *)(&acParm));
+			rtl8723a_set_ac_param_bk(padapter, acParm);
 			/* acm_mask |= (ACM? BIT(0):0); */
 			edca[XMIT_BK_QUEUE] = acParm;
 			break;
 		case 0x2:
-			rtw_hal_set_hwreg23a(padapter, HW_VAR_AC_PARAM_VI, (u8 *)(&acParm));
+			rtl8723a_set_ac_param_vi(padapter, acParm);
 			acm_mask |= (ACM? BIT(2):0);
 			edca[XMIT_VI_QUEUE] = acParm;
 			break;
 		case 0x3:
-			rtw_hal_set_hwreg23a(padapter, HW_VAR_AC_PARAM_VO, (u8 *)(&acParm));
+			rtl8723a_set_ac_param_vo(padapter, acParm);
 			acm_mask |= (ACM? BIT(3):0);
 			edca[XMIT_VO_QUEUE] = acParm;
 			break;

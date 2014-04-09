@@ -699,13 +699,13 @@ static void start_bss_network(struct rtw_adapter *padapter, u8 *pbuf)
 
 	/* Set EDCA param reg */
 	acparm = 0x002F3217; /*  VO */
-	rtw_hal_set_hwreg23a(padapter, HW_VAR_AC_PARAM_VO, (u8 *)(&acparm));
+	rtl8723a_set_ac_param_vo(padapter, acparm);
 	acparm = 0x005E4317; /*  VI */
-	rtw_hal_set_hwreg23a(padapter, HW_VAR_AC_PARAM_VI, (u8 *)(&acparm));
+	rtl8723a_set_ac_param_vi(padapter, acparm);
 	acparm = 0x005ea42b;
-	rtw_hal_set_hwreg23a(padapter, HW_VAR_AC_PARAM_BE, (u8 *)(&acparm));
+	rtl8723a_set_ac_param_be(padapter, acparm);
 	acparm = 0x0000A444; /*  BK */
-	rtw_hal_set_hwreg23a(padapter, HW_VAR_AC_PARAM_BK, (u8 *)(&acparm));
+	rtl8723a_set_ac_param_bk(padapter, acparm);
 
 	/* Set Security */
 	val8 = (psecuritypriv->dot11AuthAlgrthm == dot11AuthAlgrthm_8021X) ?
