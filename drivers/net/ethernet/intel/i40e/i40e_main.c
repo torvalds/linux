@@ -4712,8 +4712,7 @@ void i40e_fdir_check_and_reenable(struct i40e_pf *pf)
 	    (pf->flags & I40E_FLAG_FD_SB_ENABLED))
 		return;
 	fcnt_prog = i40e_get_current_fd_count(pf);
-	fcnt_avail = pf->hw.fdir_shared_filter_count +
-					       pf->fdir_pf_filter_count;
+	fcnt_avail = i40e_get_fd_cnt_all(pf);
 	if (fcnt_prog < (fcnt_avail - I40E_FDIR_BUFFER_HEAD_ROOM)) {
 		if ((pf->flags & I40E_FLAG_FD_SB_ENABLED) &&
 		    (pf->auto_disable_flags & I40E_FLAG_FD_SB_ENABLED)) {

@@ -451,9 +451,7 @@ static void i40e_fd_handle_status(struct i40e_ring *rx_ring,
 
 		/* filter programming failed most likely due to table full */
 		fcnt_prog = i40e_get_current_fd_count(pf);
-		fcnt_avail = pf->hw.fdir_shared_filter_count +
-						       pf->fdir_pf_filter_count;
-
+		fcnt_avail = i40e_get_fd_cnt_all(pf);
 		/* If ATR is running fcnt_prog can quickly change,
 		 * if we are very close to full, it makes sense to disable
 		 * FD ATR/SB and then re-enable it when there is room.
