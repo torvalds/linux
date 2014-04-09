@@ -179,8 +179,12 @@ u32 c4iw_get_qpid(struct c4iw_rdev *rdev, struct c4iw_dev_ucontext *uctx)
 		kfree(entry);
 	} else {
 		qid = c4iw_get_resource(&rdev->resource.qid_table);
-		if (!qid)
+		if (!qid) {
+			mutex_lock(&rdev->stats.lock);
+			rdev->stats.qid.fail++;
+			mutex_unlock(&rdev->stats.lock);
 			goto out;
+		}
 		mutex_lock(&rdev->stats.lock);
 		rdev->stats.qid.cur += rdev->qpmask + 1;
 		mutex_unlock(&rdev->stats.lock);
