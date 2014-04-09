@@ -195,9 +195,7 @@ bool rtw_cbuf_push23a(struct rtw_cbuf *cbuf, void *buf);
 void *rtw_cbuf_pop23a(struct rtw_cbuf *cbuf);
 struct rtw_cbuf *rtw_cbuf_alloc23a(u32 size);
 void rtw_cbuf_free(struct rtw_cbuf *cbuf);
-int rtw_change_ifname(struct rtw_adapter *padapter, const char *ifname);
 s32 c2h_evt_hdl(struct rtw_adapter *adapter, struct c2h_evt_hdr *c2h_evt, c2h_id_filter filter);
-void indicate_wx_scan_complete_event(struct rtw_adapter *padapter);
 u8 rtw_do_join23a(struct rtw_adapter *padapter);
 
 #endif
