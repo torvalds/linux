@@ -11219,7 +11219,9 @@ void HALBT_SetKey(struct rtw_adapter *padapter, u8 EntryNum)
 	pBtAssocEntry->HwCAMIndex = BT_HWCAM_STAR + EntryNum;
 
 	usConfig = CAM_VALID | (CAM_AES << 2);
-	write_cam23a(padapter, pBtAssocEntry->HwCAMIndex, usConfig, pBtAssocEntry->BTRemoteMACAddr, pBtAssocEntry->PTK + TKIP_ENC_KEY_POS);
+	rtl8723a_cam_write(padapter, pBtAssocEntry->HwCAMIndex, usConfig,
+			   pBtAssocEntry->BTRemoteMACAddr,
+			   pBtAssocEntry->PTK + TKIP_ENC_KEY_POS);
 }
 
 void HALBT_RemoveKey(struct rtw_adapter *padapter, u8 EntryNum)

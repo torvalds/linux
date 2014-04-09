@@ -483,50 +483,13 @@ void invalidate_cam_all23a(struct rtw_adapter *padapter)
 	rtl8723a_cam_invalid_all(padapter);
 }
 
-void write_cam23a(struct rtw_adapter *padapter, u8 entry, u16 ctrl, u8 *mac, u8 *key)
-{
-	unsigned int	i, val, addr;
-	int j;
-	u32	cam_val[2];
-
-	addr = entry << 3;
-
-	for (j = 5; j >= 0; j--) {
-		switch (j) {
-		case 0:
-			val = (ctrl | (mac[0] << 16) | (mac[1] << 24));
-			break;
-		case 1:
-			val = (mac[2] | (mac[3] << 8) | (mac[4] << 16) | (mac[5] << 24));
-			break;
-		default:
-			i = (j - 2) << 2;
-			val = (key[i] | (key[i+1] << 8) | (key[i+2] << 16) | (key[i+3] << 24));
-			break;
-		}
-
-		cam_val[0] = val;
-		cam_val[1] = addr + (unsigned int)j;
-
-		rtw_hal_set_hwreg23a(padapter, HW_VAR_CAM_WRITE, (u8 *)cam_val);
-
-		/* rtw_write32(padapter, WCAMI, val); */
-
-		/* cmd = CAM_POLLINIG | CAM_WRITE | (addr + j); */
-		/* rtw_write32(padapter, RWCAM, cmd); */
-
-		/* DBG_8723A("%s => cam write: %x, %x\n", __func__, cmd, val); */
-
-	}
-}
-
 void clear_cam_entry23a(struct rtw_adapter *padapter, u8 entry)
 {
 	unsigned char null_sta[] = {0x00, 0x00, 0x00, 0x00, 0x00, 0x00};
 
 	unsigned char null_key[] = {0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00};
 
-	write_cam23a(padapter, entry, 0, null_sta, null_key);
+	rtl8723a_cam_write(padapter, entry, 0, null_sta, null_key);
 }
 
 int allocate_fw_sta_entry23a(struct rtw_adapter *padapter)

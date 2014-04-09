@@ -9614,7 +9614,7 @@ u8 setkey_hdl23a(struct rtw_adapter *padapter, u8 *pbuf)
 
 	DBG_8723A_LEVEL(_drv_always_, "set group key to hw: alg:%d(WEP40-1 WEP104-5 TKIP-2 AES-4) "
 			"keyid:%d\n", pparm->algorithm, pparm->keyid);
-	write_cam23a(padapter, pparm->keyid, ctrl, null_sta, pparm->key);
+	rtl8723a_cam_write(padapter, pparm->keyid, ctrl, null_sta, pparm->key);
 
 	/* allow multicast packets to driver */
 	rtl8723a_on_rcr_am(padapter);
@@ -9678,7 +9678,8 @@ u8 set_stakey_hdl23a(struct rtw_adapter *padapter, u8 *pbuf)
 						pparm->addr[1], pparm->addr[2], pparm->addr[3], pparm->addr[4],
 						pparm->addr[5], cam_id);
 
-			write_cam23a(padapter, cam_id, ctrl, pparm->addr, pparm->key);
+			rtl8723a_cam_write(padapter, cam_id, ctrl,
+					   pparm->addr, pparm->key);
 
 			return H2C_SUCCESS_RSP;
 
@@ -9701,7 +9702,7 @@ u8 set_stakey_hdl23a(struct rtw_adapter *padapter, u8 *pbuf)
 
 	ctrl = BIT(15) | ((pparm->algorithm) << 2);
 
-	write_cam23a(padapter, cam_id, ctrl, pparm->addr, pparm->key);
+	rtl8723a_cam_write(padapter, cam_id, ctrl, pparm->addr, pparm->key);
 
 	pmlmeinfo->enc_algo = pparm->algorithm;
 

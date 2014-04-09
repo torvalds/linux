@@ -495,8 +495,6 @@ void SetBWMode23a(struct rtw_adapter *padapter, unsigned short bwmode,
 
 unsigned int decide_wait_for_beacon_timeout23a(unsigned int bcn_interval);
 
-void write_cam23a(struct rtw_adapter *padapter, u8 entry, u16 ctrl,
-	       u8 *mac, u8 *key);
 void clear_cam_entry23a(struct rtw_adapter *padapter, u8 entry);
 
 void invalidate_cam_all23a(struct rtw_adapter *padapter);

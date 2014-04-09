@@ -685,14 +685,37 @@ void rtl8723a_cam_invalid_all(struct rtw_adapter *padapter)
 	rtw_write32(padapter, RWCAM, BIT(31) | BIT(30));
 }
 
-void rtl8723a_cam_write(struct rtw_adapter *padapter, u32 val1, u32 val2)
+void rtl8723a_cam_write(struct rtw_adapter *padapter,
+			u8 entry, u16 ctrl, u8 *mac, u8 *key)
 {
 	u32 cmd;
+	unsigned int i, val, addr;
+	int j;
 
-	rtw_write32(padapter, WCAMI, val1);
+	addr = entry << 3;
 
-	cmd = CAM_POLLINIG | CAM_WRITE | val2;
-	rtw_write32(padapter, RWCAM, cmd);
+	for (j = 5; j >= 0; j--) {
+		switch (j) {
+		case 0:
+			val = ctrl | (mac[0] << 16) | (mac[1] << 24);
+			break;
+		case 1:
+			val = mac[2] | (mac[3] << 8) |
+				(mac[4] << 16) | (mac[5] << 24);
+			break;
+		default:
+			i = (j - 2) << 2;
+			val = key[i] | (key[i+1] << 8) |
+				(key[i+2] << 16) | (key[i+3] << 24);
+			break;
+		}
+
+		rtw_write32(padapter, WCAMI, val);
+		cmd = CAM_POLLINIG | CAM_WRITE | (addr + j);
+		rtw_write32(padapter, RWCAM, cmd);
+
+		/* DBG_8723A("%s => cam write: %x, %x\n", __func__, cmd, val);*/
+	}
 }
 
 void rtl8723a_fifo_cleanup(struct rtw_adapter *padapter)

@@ -183,7 +183,8 @@ void rtl8723a_ack_preamble(struct rtw_adapter *padapter, u8 bShortPreamble);
 void rtl8723a_set_sec_cfg(struct rtw_adapter *padapter, u8 sec);
 void rtl8723a_cam_empty_entry(struct rtw_adapter *padapter, u8 ucIndex);
 void rtl8723a_cam_invalid_all(struct rtw_adapter *padapter);
-void rtl8723a_cam_write(struct rtw_adapter *padapter, u32 val1, u32 val2);
+void rtl8723a_cam_write(struct rtw_adapter *padapter,
+			u8 entry, u16 ctrl, u8 *mac, u8 *key);
 void rtl8723a_fifo_cleanup(struct rtw_adapter *padapter);
 void rtl8723a_set_apfm_on_mac(struct rtw_adapter *padapter, u8 val);
 void rtl8723a_bcn_valid(struct rtw_adapter *padapter);
