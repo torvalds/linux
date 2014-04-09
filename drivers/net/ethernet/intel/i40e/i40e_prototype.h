@@ -74,6 +74,8 @@ i40e_status i40e_aq_set_phy_reset(struct i40e_hw *hw,
 				struct i40e_asq_cmd_details *cmd_details);
 i40e_status i40e_aq_set_default_vsi(struct i40e_hw *hw, u16 vsi_id,
 				struct i40e_asq_cmd_details *cmd_details);
+i40e_status i40e_aq_clear_pxe_mode(struct i40e_hw *hw,
+				struct i40e_asq_cmd_details *cmd_details);
 i40e_status i40e_aq_set_link_restart_an(struct i40e_hw *hw,
 				struct i40e_asq_cmd_details *cmd_details);
 i40e_status i40e_aq_get_link_info(struct i40e_hw *hw,
