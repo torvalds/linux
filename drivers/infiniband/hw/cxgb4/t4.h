@@ -292,7 +292,7 @@ struct t4_sq {
 	unsigned long phys_addr;
 	struct t4_swsqe *sw_sq;
 	struct t4_swsqe *oldest_read;
-	u64 udb;
+	u64 __iomem *udb;
 	size_t memsize;
 	u32 qid;
 	u16 in_use;
@@ -314,7 +314,7 @@ struct t4_rq {
 	dma_addr_t dma_addr;
 	DEFINE_DMA_UNMAP_ADDR(mapping);
 	struct t4_swrqe *sw_rq;
-	u64 udb;
+	u64 __iomem *udb;
 	size_t memsize;
 	u32 qid;
 	u32 msn;
@@ -435,15 +435,67 @@ static inline u16 t4_sq_wq_size(struct t4_wq *wq)
 		return wq->sq.size * T4_SQ_NUM_SLOTS;
 }
 
-static inline void t4_ring_sq_db(struct t4_wq *wq, u16 inc)
+/* This function copies 64 byte coalesced work request to memory
+ * mapped BAR2 space. For coalesced WRs, the SGE fetches data
+ * from the FIFO instead of from Host.
+ */
+static inline void pio_copy(u64 __iomem *dst, u64 *src)
 {
+	int count = 8;
+
+	while (count) {
+		writeq(*src, dst);
+		src++;
+		dst++;
+		count--;
+	}
+}
+
+static inline void t4_ring_sq_db(struct t4_wq *wq, u16 inc, u8 t5,
+				 union t4_wr *wqe)
+{
+
+	/* Flush host queue memory writes. */
 	wmb();
+	if (t5) {
+		if (inc == 1 && wqe) {
+			PDBG("%s: WC wq->sq.pidx = %d\n",
+			     __func__, wq->sq.pidx);
+			pio_copy(wq->sq.udb + 7, (void *)wqe);
+		} else {
+			PDBG("%s: DB wq->sq.pidx = %d\n",
+			     __func__, wq->sq.pidx);
+			writel(PIDX_T5(inc), wq->sq.udb);
+		}
+
+		/* Flush user doorbell area writes. */
+		wmb();
+		return;
+	}
 	writel(QID(wq->sq.qid) | PIDX(inc), wq->db);
 }
 
-static inline void t4_ring_rq_db(struct t4_wq *wq, u16 inc)
+static inline void t4_ring_rq_db(struct t4_wq *wq, u16 inc, u8 t5,
+				 union t4_recv_wr *wqe)
 {
+
+	/* Flush host queue memory writes. */
 	wmb();
+	if (t5) {
+		if (inc == 1 && wqe) {
+			PDBG("%s: WC wq->rq.pidx = %d\n",
+			     __func__, wq->rq.pidx);
+			pio_copy(wq->rq.udb + 7, (void *)wqe);
+		} else {
+			PDBG("%s: DB wq->rq.pidx = %d\n",
+			     __func__, wq->rq.pidx);
+			writel(PIDX_T5(inc), wq->rq.udb);
+		}
+
+		/* Flush user doorbell area writes. */
+		wmb();
+		return;
+	}
 	writel(QID(wq->rq.qid) | PIDX(inc), wq->db);
 }
 
