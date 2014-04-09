@@ -182,6 +182,9 @@ static int bdev_integrity_enabled(struct block_device *bdev, int rw)
  */
 int bio_integrity_enabled(struct bio *bio)
 {
+	if (!bio_is_rw(bio))
+		return 0;
+
 	/* Already protected? */
 	if (bio_integrity(bio))
 		return 0;
