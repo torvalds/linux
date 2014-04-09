@@ -1367,6 +1367,7 @@ int c4iw_modify_qp(struct c4iw_dev *rhp, struct c4iw_qp *qhp,
 		switch (attrs->next_state) {
 		case C4IW_QP_STATE_CLOSING:
 			BUG_ON(atomic_read(&qhp->ep->com.kref.refcount) < 2);
+			t4_set_wq_in_error(&qhp->wq);
 			set_state(qhp, C4IW_QP_STATE_CLOSING);
 			ep = qhp->ep;
 			if (!internal) {
@@ -1374,16 +1375,15 @@ int c4iw_modify_qp(struct c4iw_dev *rhp, struct c4iw_qp *qhp,
 				disconnect = 1;
 				c4iw_get_ep(&qhp->ep->com);
 			}
-			t4_set_wq_in_error(&qhp->wq);
 			ret = rdma_fini(rhp, qhp, ep);
 			if (ret)
 				goto err;
 			break;
 		case C4IW_QP_STATE_TERMINATE:
+			t4_set_wq_in_error(&qhp->wq);
 			set_state(qhp, C4IW_QP_STATE_TERMINATE);
 			qhp->attr.layer_etype = attrs->layer_etype;
 			qhp->attr.ecode = attrs->ecode;
-			t4_set_wq_in_error(&qhp->wq);
 			ep = qhp->ep;
 			disconnect = 1;
 			if (!internal)
@@ -1396,8 +1396,8 @@ int c4iw_modify_qp(struct c4iw_dev *rhp, struct c4iw_qp *qhp,
 			c4iw_get_ep(&qhp->ep->com);
 			break;
 		case C4IW_QP_STATE_ERROR:
-			set_state(qhp, C4IW_QP_STATE_ERROR);
 			t4_set_wq_in_error(&qhp->wq);
+			set_state(qhp, C4IW_QP_STATE_ERROR);
 			if (!internal) {
 				abort = 1;
 				disconnect = 1;
