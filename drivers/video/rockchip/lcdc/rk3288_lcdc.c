@@ -609,6 +609,9 @@ static int rk3288_win_0_1_reg_update(struct rk_lcdc_driver *dev_drv,int win_id)
 	struct rk_lcdc_win *win = dev_drv->win[win_id];
 	unsigned int mask, val, off;
 	off = win_id * 0x40;
+	if(win->win_lb_mode == 5)
+		win->win_lb_mode = 4;
+
 	if(win->state == 1){
 		mask =  m_WIN0_EN | m_WIN0_DATA_FMT | m_WIN0_FMT_10 |
 			m_WIN0_LB_MODE | m_WIN0_RB_SWAP;
