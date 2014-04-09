@@ -229,6 +229,23 @@ static void intel_dsi_disable(struct intel_encoder *encoder)
 		msleep(2);
 	}
 
+	/* Panel commands can be sent when clock is in LP11 */
+	I915_WRITE(MIPI_DEVICE_READY(pipe), 0x0);
+
+	temp = I915_READ(MIPI_CTRL(pipe));
+	temp &= ~ESCAPE_CLOCK_DIVIDER_MASK;
+	I915_WRITE(MIPI_CTRL(pipe), temp |
+			intel_dsi->escape_clk_div <<
+			ESCAPE_CLOCK_DIVIDER_SHIFT);
+
+	I915_WRITE(MIPI_EOT_DISABLE(pipe), CLOCKSTOP);
+
+	temp = I915_READ(MIPI_DSI_FUNC_PRG(pipe));
+	temp &= ~VID_MODE_FORMAT_MASK;
+	I915_WRITE(MIPI_DSI_FUNC_PRG(pipe), temp);
+
+	I915_WRITE(MIPI_DEVICE_READY(pipe), 0x1);
+
 	/* if disable packets are sent before sending shutdown packet then in
 	 * some next enable sequence send turn on packet error is observed */
 	if (intel_dsi->dev.dev_ops->disable)
