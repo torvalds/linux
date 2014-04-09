@@ -21,12 +21,6 @@
 
 #define NR_XMITFRAME	256
 
-struct xmit_priv;
-struct pkt_attrib;
-struct sta_xmit_priv;
-struct xmit_frame;
-struct xmit_buf;
-
 int rtw_xmit23a_entry23a(struct sk_buff *pkt, struct net_device *pnetdev);
 
 void rtw_os_xmit_schedule23a(struct rtw_adapter *padapter);
