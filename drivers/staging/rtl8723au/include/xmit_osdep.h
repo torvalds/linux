@@ -44,7 +44,6 @@ int rtw_os_xmit_resource_alloc23a(struct rtw_adapter *padapter,
 			       struct xmit_buf *pxmitbuf, u32 alloc_sz);
 void rtw_os_xmit_resource_free23a(struct rtw_adapter *padapter,
 			       struct xmit_buf *pxmitbuf);
-uint rtw_remainder_len23a(struct pkt_file *pfile);
 void _rtw_open_pktfile23a(struct sk_buff *pkt, struct pkt_file *pfile);
 uint _rtw_pktfile_read23a(struct pkt_file *pfile, u8 *rmem, uint rlen);
 int rtw_endofpktfile23a(struct pkt_file *pfile);

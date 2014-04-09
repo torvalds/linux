@@ -24,12 +24,6 @@
 #include <xmit_osdep.h>
 #include <osdep_intf.h>
 
-uint rtw_remainder_len23a(struct pkt_file *pfile)
-{
-	return pfile->buf_len - ((unsigned long)(pfile->cur_addr) -
-	       (unsigned long)(pfile->buf_start));
-}
-
 void _rtw_open_pktfile23a(struct sk_buff *pktptr, struct pkt_file *pfile)
 {
 	pfile->pkt = pktptr;
@@ -45,7 +39,8 @@ uint _rtw_pktfile_read23a(struct pkt_file *pfile, u8 *rmem, uint rlen)
 {
 	uint	len = 0;
 
-	len =  rtw_remainder_len23a(pfile);
+	len =  pfile->buf_len - ((unsigned long)(pfile->cur_addr) -
+				 (unsigned long)(pfile->buf_start));
 	len = (rlen > len) ? len : rlen;
 
 	if (rmem)
