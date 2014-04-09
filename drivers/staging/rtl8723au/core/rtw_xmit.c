@@ -453,11 +453,11 @@ static void set_qos(struct pkt_file *ppktfile, struct pkt_attrib *pattrib)
 	_rtw_pktfile_read23a(ppktfile, (unsigned char*)&etherhdr, ETH_HLEN);
 
 	/*  get UserPriority from IP hdr */
-	if (pattrib->ether_type == 0x0800) {
+	if (pattrib->ether_type == ETH_P_IP) {
 		_rtw_pktfile_read23a(ppktfile, (u8*)&ip_hdr, sizeof(ip_hdr));
 /*		UserPriority = (ntohs(ip_hdr.tos) >> 5) & 0x3; */
 		UserPriority = ip_hdr.tos >> 5;
-	} else if (pattrib->ether_type == 0x888e) {
+	} else if (pattrib->ether_type == ETH_P_PAE) {
 		/*  "When priority processing of data frames is supported, */
 		/*  a STA's SME should send EAPOL-Key frames at the highest
 		    priority." */
@@ -518,7 +518,7 @@ static s32 update_attrib(struct rtw_adapter *padapter,
 		_rtw_pktfile_read23a(&pktfile, &tmp[0], 24);
 		pattrib->dhcp_pkt = 0;
 		if (pktfile.pkt_len > 282) {/* MINIMUM_DHCP_PACKET_SIZE) { */
-			if (ETH_P_IP == pattrib->ether_type) {/*  IP header */
+			if (pattrib->ether_type == ETH_P_IP) {/*  IP header */
 				if (((tmp[21] == 68) && (tmp[23] == 67)) ||
 				    ((tmp[21] == 67) && (tmp[23] == 68))) {
 					/*  68 : UDP BOOTP client */
@@ -532,17 +532,17 @@ static s32 update_attrib(struct rtw_adapter *padapter,
 				}
 			}
 		}
-	} else if (0x888e == pattrib->ether_type) {
+	} else if (pattrib->ether_type == ETH_P_PAE) {
 		DBG_8723A_LEVEL(_drv_always_, "send eapol packet\n");
 	}
 
-	if ((pattrib->ether_type == 0x888e) || (pattrib->dhcp_pkt == 1)) {
+	if ((pattrib->ether_type == ETH_P_PAE) || (pattrib->dhcp_pkt == 1)) {
 		rtw_set_scan_deny(padapter, 3000);
 	}
 
 	/*  If EAPOL , ARP , OR DHCP packet, driver must be in active mode. */
-	if ((pattrib->ether_type == 0x0806) ||
-	    (pattrib->ether_type == 0x888e) || (pattrib->dhcp_pkt == 1)) {
+	if ((pattrib->ether_type == ETH_P_ARP) ||
+	    (pattrib->ether_type == ETH_P_PAE) || (pattrib->dhcp_pkt == 1)) {
 		rtw_lps_ctrl_wk_cmd23a(padapter, LPS_CTRL_SPECIAL_PACKET, 1);
 	}
 
@@ -610,7 +610,7 @@ static s32 update_attrib(struct rtw_adapter *padapter,
 
 		pattrib->encrypt = 0;
 
-		if ((pattrib->ether_type != 0x888e) &&
+		if ((pattrib->ether_type != ETH_P_PAE) &&
 		    (check_fwstate(pmlmepriv, WIFI_MP_STATE) == false)) {
 			RT_TRACE(_module_rtl871x_xmit_c_, _drv_err_,
 				 ("\npsta->ieee8021x_blocked == true,  "
