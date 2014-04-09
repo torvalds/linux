@@ -208,7 +208,7 @@
 #define S25FL_CMD_DYBWR                0xe1
 #define S25FL_CMD_DYBRD                0xe0
 #define S25FL_CMD_WRITE4       0x12    /* Note, opcode clashes with
-					* 'FLASH_CMD_WRITE_1_4_4'
+					* 'SPINOR_OP_WRITE_1_4_4'
 					* as found on N25Qxxx devices! */
 
 /* Status register */
@@ -296,7 +296,7 @@ struct flash_info {
 	u32             jedec_id;
 	u16             ext_id;
 	/*
-	 * The size listed here is what works with FLASH_CMD_SE, which isn't
+	 * The size listed here is what works with SPINOR_OP_SE, which isn't
 	 * necessarily called a "sector" by the vendor.
 	 */
 	unsigned        sector_size;
@@ -451,22 +451,22 @@ static struct flash_info flash_types[] = {
 
 /* Default READ configurations, in order of preference */
 static struct seq_rw_config default_read_configs[] = {
-	{FLASH_FLAG_READ_1_4_4, FLASH_CMD_READ_1_4_4,	0, 4, 4, 0x00, 2, 4},
-	{FLASH_FLAG_READ_1_1_4, FLASH_CMD_READ_1_1_4,	0, 1, 4, 0x00, 4, 0},
-	{FLASH_FLAG_READ_1_2_2, FLASH_CMD_READ_1_2_2,	0, 2, 2, 0x00, 4, 0},
-	{FLASH_FLAG_READ_1_1_2, FLASH_CMD_READ_1_1_2,	0, 1, 2, 0x00, 0, 8},
-	{FLASH_FLAG_READ_FAST,	FLASH_CMD_READ_FAST,	0, 1, 1, 0x00, 0, 8},
-	{FLASH_FLAG_READ_WRITE, FLASH_CMD_READ,		0, 1, 1, 0x00, 0, 0},
+	{FLASH_FLAG_READ_1_4_4, SPINOR_OP_READ_1_4_4,	0, 4, 4, 0x00, 2, 4},
+	{FLASH_FLAG_READ_1_1_4, SPINOR_OP_READ_1_1_4,	0, 1, 4, 0x00, 4, 0},
+	{FLASH_FLAG_READ_1_2_2, SPINOR_OP_READ_1_2_2,	0, 2, 2, 0x00, 4, 0},
+	{FLASH_FLAG_READ_1_1_2, SPINOR_OP_READ_1_1_2,	0, 1, 2, 0x00, 0, 8},
+	{FLASH_FLAG_READ_FAST,	SPINOR_OP_READ_FAST,	0, 1, 1, 0x00, 0, 8},
+	{FLASH_FLAG_READ_WRITE, SPINOR_OP_READ,		0, 1, 1, 0x00, 0, 0},
 	{0x00,			0,			0, 0, 0, 0x00, 0, 0},
 };
 
 /* Default WRITE configurations */
 static struct seq_rw_config default_write_configs[] = {
-	{FLASH_FLAG_WRITE_1_4_4, FLASH_CMD_WRITE_1_4_4, 1, 4, 4, 0x00, 0, 0},
-	{FLASH_FLAG_WRITE_1_1_4, FLASH_CMD_WRITE_1_1_4, 1, 1, 4, 0x00, 0, 0},
-	{FLASH_FLAG_WRITE_1_2_2, FLASH_CMD_WRITE_1_2_2, 1, 2, 2, 0x00, 0, 0},
-	{FLASH_FLAG_WRITE_1_1_2, FLASH_CMD_WRITE_1_1_2, 1, 1, 2, 0x00, 0, 0},
-	{FLASH_FLAG_READ_WRITE,  FLASH_CMD_WRITE,       1, 1, 1, 0x00, 0, 0},
+	{FLASH_FLAG_WRITE_1_4_4, SPINOR_OP_WRITE_1_4_4, 1, 4, 4, 0x00, 0, 0},
+	{FLASH_FLAG_WRITE_1_1_4, SPINOR_OP_WRITE_1_1_4, 1, 1, 4, 0x00, 0, 0},
+	{FLASH_FLAG_WRITE_1_2_2, SPINOR_OP_WRITE_1_2_2, 1, 2, 2, 0x00, 0, 0},
+	{FLASH_FLAG_WRITE_1_1_2, SPINOR_OP_WRITE_1_1_2, 1, 1, 2, 0x00, 0, 0},
+	{FLASH_FLAG_READ_WRITE,  SPINOR_OP_WRITE,       1, 1, 1, 0x00, 0, 0},
 	{0x00,			 0,			0, 0, 0, 0x00, 0, 0},
 };
 
@@ -489,12 +489,12 @@ static struct seq_rw_config default_write_configs[] = {
  * cycles.
  */
 static struct seq_rw_config n25q_read3_configs[] = {
-	{FLASH_FLAG_READ_1_4_4, FLASH_CMD_READ_1_4_4,	0, 4, 4, 0x00, 0, 8},
-	{FLASH_FLAG_READ_1_1_4, FLASH_CMD_READ_1_1_4,	0, 1, 4, 0x00, 0, 8},
-	{FLASH_FLAG_READ_1_2_2, FLASH_CMD_READ_1_2_2,	0, 2, 2, 0x00, 0, 8},
-	{FLASH_FLAG_READ_1_1_2, FLASH_CMD_READ_1_1_2,	0, 1, 2, 0x00, 0, 8},
-	{FLASH_FLAG_READ_FAST,	FLASH_CMD_READ_FAST,	0, 1, 1, 0x00, 0, 8},
-	{FLASH_FLAG_READ_WRITE, FLASH_CMD_READ,	        0, 1, 1, 0x00, 0, 0},
+	{FLASH_FLAG_READ_1_4_4, SPINOR_OP_READ_1_4_4,	0, 4, 4, 0x00, 0, 8},
+	{FLASH_FLAG_READ_1_1_4, SPINOR_OP_READ_1_1_4,	0, 1, 4, 0x00, 0, 8},
+	{FLASH_FLAG_READ_1_2_2, SPINOR_OP_READ_1_2_2,	0, 2, 2, 0x00, 0, 8},
+	{FLASH_FLAG_READ_1_1_2, SPINOR_OP_READ_1_1_2,	0, 1, 2, 0x00, 0, 8},
+	{FLASH_FLAG_READ_FAST,	SPINOR_OP_READ_FAST,	0, 1, 1, 0x00, 0, 8},
+	{FLASH_FLAG_READ_WRITE, SPINOR_OP_READ,	        0, 1, 1, 0x00, 0, 0},
 	{0x00,			0,			0, 0, 0, 0x00, 0, 0},
 };
 
@@ -504,12 +504,12 @@ static struct seq_rw_config n25q_read3_configs[] = {
  *	- 'FAST' variants configured for 8 dummy cycles (see note above.)
  */
 static struct seq_rw_config n25q_read4_configs[] = {
-	{FLASH_FLAG_READ_1_4_4, FLASH_CMD_READ4_1_4_4,	0, 4, 4, 0x00, 0, 8},
-	{FLASH_FLAG_READ_1_1_4, FLASH_CMD_READ4_1_1_4,	0, 1, 4, 0x00, 0, 8},
-	{FLASH_FLAG_READ_1_2_2, FLASH_CMD_READ4_1_2_2,	0, 2, 2, 0x00, 0, 8},
-	{FLASH_FLAG_READ_1_1_2, FLASH_CMD_READ4_1_1_2,	0, 1, 2, 0x00, 0, 8},
-	{FLASH_FLAG_READ_FAST,	FLASH_CMD_READ4_FAST,	0, 1, 1, 0x00, 0, 8},
-	{FLASH_FLAG_READ_WRITE, FLASH_CMD_READ4,	0, 1, 1, 0x00, 0, 0},
+	{FLASH_FLAG_READ_1_4_4, SPINOR_OP_READ4_1_4_4,	0, 4, 4, 0x00, 0, 8},
+	{FLASH_FLAG_READ_1_1_4, SPINOR_OP_READ4_1_1_4,	0, 1, 4, 0x00, 0, 8},
+	{FLASH_FLAG_READ_1_2_2, SPINOR_OP_READ4_1_2_2,	0, 2, 2, 0x00, 0, 8},
+	{FLASH_FLAG_READ_1_1_2, SPINOR_OP_READ4_1_1_2,	0, 1, 2, 0x00, 0, 8},
+	{FLASH_FLAG_READ_FAST,	SPINOR_OP_READ4_FAST,	0, 1, 1, 0x00, 0, 8},
+	{FLASH_FLAG_READ_WRITE, SPINOR_OP_READ4,	0, 1, 1, 0x00, 0, 0},
 	{0x00,			0,			0, 0, 0, 0x00, 0, 0},
 };
 
@@ -522,7 +522,7 @@ static int stfsm_mx25_en_32bit_addr_seq(struct stfsm_seq *seq)
 {
 	seq->seq_opc[0] = (SEQ_OPC_PADS_1 |
 			   SEQ_OPC_CYCLES(8) |
-			   SEQ_OPC_OPCODE(FLASH_CMD_EN4B_ADDR) |
+			   SEQ_OPC_OPCODE(SPINOR_OP_EN4B_ADDR) |
 			   SEQ_OPC_CSDEASSERT);
 
 	seq->seq[0] = STFSM_INST_CMD1;
@@ -550,12 +550,12 @@ static int stfsm_mx25_en_32bit_addr_seq(struct stfsm_seq *seq)
  * entering a state that is incompatible with the SPIBoot Controller.
  */
 static struct seq_rw_config stfsm_s25fl_read4_configs[] = {
-	{FLASH_FLAG_READ_1_4_4,  FLASH_CMD_READ4_1_4_4,  0, 4, 4, 0x00, 2, 4},
-	{FLASH_FLAG_READ_1_1_4,  FLASH_CMD_READ4_1_1_4,  0, 1, 4, 0x00, 0, 8},
-	{FLASH_FLAG_READ_1_2_2,  FLASH_CMD_READ4_1_2_2,  0, 2, 2, 0x00, 4, 0},
-	{FLASH_FLAG_READ_1_1_2,  FLASH_CMD_READ4_1_1_2,  0, 1, 2, 0x00, 0, 8},
-	{FLASH_FLAG_READ_FAST,   FLASH_CMD_READ4_FAST,   0, 1, 1, 0x00, 0, 8},
-	{FLASH_FLAG_READ_WRITE,  FLASH_CMD_READ4,        0, 1, 1, 0x00, 0, 0},
+	{FLASH_FLAG_READ_1_4_4,  SPINOR_OP_READ4_1_4_4,  0, 4, 4, 0x00, 2, 4},
+	{FLASH_FLAG_READ_1_1_4,  SPINOR_OP_READ4_1_1_4,  0, 1, 4, 0x00, 0, 8},
+	{FLASH_FLAG_READ_1_2_2,  SPINOR_OP_READ4_1_2_2,  0, 2, 2, 0x00, 4, 0},
+	{FLASH_FLAG_READ_1_1_2,  SPINOR_OP_READ4_1_1_2,  0, 1, 2, 0x00, 0, 8},
+	{FLASH_FLAG_READ_FAST,   SPINOR_OP_READ4_FAST,   0, 1, 1, 0x00, 0, 8},
+	{FLASH_FLAG_READ_WRITE,  SPINOR_OP_READ4,        0, 1, 1, 0x00, 0, 0},
 	{0x00,                   0,                      0, 0, 0, 0x00, 0, 0},
 };
 
@@ -574,7 +574,7 @@ static struct stfsm_seq stfsm_seq_read_jedec = {
 	.data_size = TRANSFER_SIZE(8),
 	.seq_opc[0] = (SEQ_OPC_PADS_1 |
 		       SEQ_OPC_CYCLES(8) |
-		       SEQ_OPC_OPCODE(FLASH_CMD_RDID)),
+		       SEQ_OPC_OPCODE(SPINOR_OP_RDID)),
 	.seq = {
 		STFSM_INST_CMD1,
 		STFSM_INST_DATA_READ,
@@ -590,7 +590,7 @@ static struct stfsm_seq stfsm_seq_read_status_fifo = {
 	.data_size = TRANSFER_SIZE(4),
 	.seq_opc[0] = (SEQ_OPC_PADS_1 |
 		       SEQ_OPC_CYCLES(8) |
-		       SEQ_OPC_OPCODE(FLASH_CMD_RDSR)),
+		       SEQ_OPC_OPCODE(SPINOR_OP_RDSR)),
 	.seq = {
 		STFSM_INST_CMD1,
 		STFSM_INST_DATA_READ,
@@ -606,10 +606,10 @@ static struct stfsm_seq stfsm_seq_erase_sector = {
 	/* 'addr_cfg' configured during initialisation */
 	.seq_opc = {
 		(SEQ_OPC_PADS_1 | SEQ_OPC_CYCLES(8) |
-		 SEQ_OPC_OPCODE(FLASH_CMD_WREN) | SEQ_OPC_CSDEASSERT),
+		 SEQ_OPC_OPCODE(SPINOR_OP_WREN) | SEQ_OPC_CSDEASSERT),
 
 		(SEQ_OPC_PADS_1 | SEQ_OPC_CYCLES(8) |
-		 SEQ_OPC_OPCODE(FLASH_CMD_SE)),
+		 SEQ_OPC_OPCODE(SPINOR_OP_SE)),
 	},
 	.seq = {
 		STFSM_INST_CMD1,
@@ -627,10 +627,10 @@ static struct stfsm_seq stfsm_seq_erase_sector = {
 static struct stfsm_seq stfsm_seq_erase_chip = {
 	.seq_opc = {
 		(SEQ_OPC_PADS_1 | SEQ_OPC_CYCLES(8) |
-		 SEQ_OPC_OPCODE(FLASH_CMD_WREN) | SEQ_OPC_CSDEASSERT),
+		 SEQ_OPC_OPCODE(SPINOR_OP_WREN) | SEQ_OPC_CSDEASSERT),
 
 		(SEQ_OPC_PADS_1 | SEQ_OPC_CYCLES(8) |
-		 SEQ_OPC_OPCODE(FLASH_CMD_CHIPERASE) | SEQ_OPC_CSDEASSERT),
+		 SEQ_OPC_OPCODE(SPINOR_OP_CHIPERASE) | SEQ_OPC_CSDEASSERT),
 	},
 	.seq = {
 		STFSM_INST_CMD1,
@@ -647,9 +647,9 @@ static struct stfsm_seq stfsm_seq_erase_chip = {
 
 static struct stfsm_seq stfsm_seq_write_status = {
 	.seq_opc[0] = (SEQ_OPC_PADS_1 | SEQ_OPC_CYCLES(8) |
-		       SEQ_OPC_OPCODE(FLASH_CMD_WREN) | SEQ_OPC_CSDEASSERT),
+		       SEQ_OPC_OPCODE(SPINOR_OP_WREN) | SEQ_OPC_CSDEASSERT),
 	.seq_opc[1] = (SEQ_OPC_PADS_1 | SEQ_OPC_CYCLES(8) |
-		       SEQ_OPC_OPCODE(FLASH_CMD_WRSR)),
+		       SEQ_OPC_OPCODE(SPINOR_OP_WRSR)),
 	.seq = {
 		STFSM_INST_CMD1,
 		STFSM_INST_CMD2,
@@ -665,9 +665,9 @@ static struct stfsm_seq stfsm_seq_write_status = {
 static int stfsm_n25q_en_32bit_addr_seq(struct stfsm_seq *seq)
 {
 	seq->seq_opc[0] = (SEQ_OPC_PADS_1 | SEQ_OPC_CYCLES(8) |
-			   SEQ_OPC_OPCODE(FLASH_CMD_EN4B_ADDR));
+			   SEQ_OPC_OPCODE(SPINOR_OP_EN4B_ADDR));
 	seq->seq_opc[1] = (SEQ_OPC_PADS_1 | SEQ_OPC_CYCLES(8) |
-			   SEQ_OPC_OPCODE(FLASH_CMD_WREN) |
+			   SEQ_OPC_OPCODE(SPINOR_OP_WREN) |
 			   SEQ_OPC_CSDEASSERT);
 
 	seq->seq[0] = STFSM_INST_CMD2;
@@ -788,7 +788,7 @@ static int stfsm_write_fifo(struct stfsm *fsm, const uint32_t *buf,
 static int stfsm_enter_32bit_addr(struct stfsm *fsm, int enter)
 {
 	struct stfsm_seq *seq = &fsm->stfsm_seq_en_32bit_addr;
-	uint32_t cmd = enter ? FLASH_CMD_EN4B_ADDR : FLASH_CMD_EX4B_ADDR;
+	uint32_t cmd = enter ? SPINOR_OP_EN4B_ADDR : SPINOR_OP_EX4B_ADDR;
 
 	seq->seq_opc[0] = (SEQ_OPC_PADS_1 |
 			   SEQ_OPC_CYCLES(8) |
@@ -812,7 +812,7 @@ static uint8_t stfsm_wait_busy(struct stfsm *fsm)
 	/* Use RDRS1 */
 	seq->seq_opc[0] = (SEQ_OPC_PADS_1 |
 			   SEQ_OPC_CYCLES(8) |
-			   SEQ_OPC_OPCODE(FLASH_CMD_RDSR));
+			   SEQ_OPC_OPCODE(SPINOR_OP_RDSR));
 
 	/* Load read_status sequence */
 	stfsm_load_seq(fsm, seq);
@@ -985,7 +985,7 @@ static void stfsm_prepare_rw_seq(struct stfsm *fsm,
 	if (cfg->write)
 		seq->seq_opc[i++] = (SEQ_OPC_PADS_1 |
 				     SEQ_OPC_CYCLES(8) |
-				     SEQ_OPC_OPCODE(FLASH_CMD_WREN) |
+				     SEQ_OPC_OPCODE(SPINOR_OP_WREN) |
 				     SEQ_OPC_CSDEASSERT);
 
 	/* Address configuration (24 or 32-bit addresses) */
@@ -1121,21 +1121,21 @@ static int stfsm_mx25_config(struct stfsm *fsm)
 	}
 
 	/* Check status of 'QE' bit, update if required. */
-	stfsm_read_status(fsm, FLASH_CMD_RDSR, &sta, 1);
+	stfsm_read_status(fsm, SPINOR_OP_RDSR, &sta, 1);
 	data_pads = ((fsm->stfsm_seq_read.seq_cfg >> 16) & 0x3) + 1;
 	if (data_pads == 4) {
 		if (!(sta & MX25_STATUS_QE)) {
 			/* Set 'QE' */
 			sta |= MX25_STATUS_QE;
 
-			stfsm_write_status(fsm, FLASH_CMD_WRSR, sta, 1, 1);
+			stfsm_write_status(fsm, SPINOR_OP_WRSR, sta, 1, 1);
 		}
 	} else {
 		if (sta & MX25_STATUS_QE) {
 			/* Clear 'QE' */
 			sta &= ~MX25_STATUS_QE;
 
-			stfsm_write_status(fsm, FLASH_CMD_WRSR, sta, 1, 1);
+			stfsm_write_status(fsm, SPINOR_OP_WRSR, sta, 1, 1);
 		}
 	}
 
@@ -1260,7 +1260,7 @@ static void stfsm_s25fl_write_dyb(struct stfsm *fsm, uint32_t offs, uint8_t dby)
 {
 	struct stfsm_seq seq = {
 		.seq_opc[0] = (SEQ_OPC_PADS_1 | SEQ_OPC_CYCLES(8) |
-			       SEQ_OPC_OPCODE(FLASH_CMD_WREN) |
+			       SEQ_OPC_OPCODE(SPINOR_OP_WREN) |
 			       SEQ_OPC_CSDEASSERT),
 		.seq_opc[1] = (SEQ_OPC_PADS_1 | SEQ_OPC_CYCLES(8) |
 			       SEQ_OPC_OPCODE(S25FL_CMD_DYBWR)),
@@ -1300,7 +1300,7 @@ static int stfsm_s25fl_clear_status_reg(struct stfsm *fsm)
 			       SEQ_OPC_CSDEASSERT),
 		.seq_opc[1] = (SEQ_OPC_PADS_1 |
 			       SEQ_OPC_CYCLES(8) |
-			       SEQ_OPC_OPCODE(FLASH_CMD_WRDI) |
+			       SEQ_OPC_OPCODE(SPINOR_OP_WRDI) |
 			       SEQ_OPC_CSDEASSERT),
 		.seq = {
 			STFSM_INST_CMD1,
@@ -1379,7 +1379,7 @@ static int stfsm_s25fl_config(struct stfsm *fsm)
 	}
 
 	/* Check status of 'QE' bit, update if required. */
-	stfsm_read_status(fsm, FLASH_CMD_RDSR2, &cr1, 1);
+	stfsm_read_status(fsm, SPINOR_OP_RDSR2, &cr1, 1);
 	data_pads = ((fsm->stfsm_seq_read.seq_cfg >> 16) & 0x3) + 1;
 	if (data_pads == 4) {
 		if (!(cr1 & STFSM_S25FL_CONFIG_QE)) {
@@ -1397,9 +1397,9 @@ static int stfsm_s25fl_config(struct stfsm *fsm)
 		}
 	}
 	if (update_sr) {
-		stfsm_read_status(fsm, FLASH_CMD_RDSR, &sr1, 1);
+		stfsm_read_status(fsm, SPINOR_OP_RDSR, &sr1, 1);
 		sta_wr = ((uint16_t)cr1  << 8) | sr1;
-		stfsm_write_status(fsm, FLASH_CMD_WRSR, sta_wr, 2, 1);
+		stfsm_write_status(fsm, SPINOR_OP_WRSR, sta_wr, 2, 1);
 	}
 
 	/*
@@ -1424,7 +1424,7 @@ static int stfsm_w25q_config(struct stfsm *fsm)
 		return ret;
 
 	/* Check status of 'QE' bit, update if required. */
-	stfsm_read_status(fsm, FLASH_CMD_RDSR2, &sr2, 1);
+	stfsm_read_status(fsm, SPINOR_OP_RDSR2, &sr2, 1);
 	data_pads = ((fsm->stfsm_seq_read.seq_cfg >> 16) & 0x3) + 1;
 	if (data_pads == 4) {
 		if (!(sr2 & W25Q_STATUS_QE)) {
@@ -1441,9 +1441,9 @@ static int stfsm_w25q_config(struct stfsm *fsm)
 	}
 	if (update_sr) {
 		/* Write status register */
-		stfsm_read_status(fsm, FLASH_CMD_RDSR, &sr1, 1);
+		stfsm_read_status(fsm, SPINOR_OP_RDSR, &sr1, 1);
 		sr_wr = ((uint16_t)sr2 << 8) | sr1;
-		stfsm_write_status(fsm, FLASH_CMD_WRSR, sr_wr, 2, 1);
+		stfsm_write_status(fsm, SPINOR_OP_WRSR, sr_wr, 2, 1);
 	}
 
 	return 0;
