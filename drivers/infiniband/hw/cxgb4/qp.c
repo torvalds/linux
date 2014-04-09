@@ -436,6 +436,8 @@ static int build_rdma_send(struct t4_sq *sq, union t4_wr *wqe,
 	default:
 		return -EINVAL;
 	}
+	wqe->send.r3 = 0;
+	wqe->send.r4 = 0;
 
 	plen = 0;
 	if (wr->num_sge) {
