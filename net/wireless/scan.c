@@ -540,6 +540,8 @@ struct cfg80211_bss *cfg80211_get_bss(struct wiphy *wiphy,
 			continue;
 		if (channel && bss->pub.channel != channel)
 			continue;
+		if (!is_valid_ether_addr(bss->pub.bssid))
+			continue;
 		/* Don't get expired BSS structs */
 		if (time_after(now, bss->ts + IEEE80211_SCAN_RESULT_EXPIRE) &&
 		    !atomic_read(&bss->hold))
