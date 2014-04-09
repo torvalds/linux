@@ -1360,8 +1360,9 @@ static int try_to_unmap_cluster(unsigned long cursor, unsigned int *mapcount,
 }
 
 static int try_to_unmap_nonlinear(struct page *page,
-		struct address_space *mapping, struct vm_area_struct *vma)
+		struct address_space *mapping, void *arg)
 {
+	struct vm_area_struct *vma;
 	int ret = SWAP_AGAIN;
 	unsigned long cursor;
 	unsigned long max_nl_cursor = 0;
@@ -1663,7 +1664,7 @@ static int rmap_walk_file(struct page *page, struct rmap_walk_control *rwc)
 	if (list_empty(&mapping->i_mmap_nonlinear))
 		goto done;
 
-	ret = rwc->file_nonlinear(page, mapping, vma);
+	ret = rwc->file_nonlinear(page, mapping, rwc->arg);
 
 done:
 	mutex_unlock(&mapping->i_mmap_mutex);

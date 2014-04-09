@@ -585,7 +585,6 @@ static ssize_t ffs_epfile_io(struct file *file,
 			     char __user *buf, size_t len, int read)
 {
 	struct ffs_epfile *epfile = file->private_data;
-	struct usb_gadget *gadget = epfile->ffs->gadget;
 	struct ffs_ep *ep;
 	char *data = NULL;
 	ssize_t ret, data_len;
@@ -621,6 +620,12 @@ static ssize_t ffs_epfile_io(struct file *file,
 
 	/* Allocate & copy */
 	if (!halt) {
+		/*
+		 * if we _do_ wait above, the epfile->ffs->gadget might be NULL
+		 * before the waiting completes, so do not assign to 'gadget' earlier
+		 */
+		struct usb_gadget *gadget = epfile->ffs->gadget;
+
 		/*
 		 * Controller may require buffer size to be aligned to
 		 * maxpacketsize of an out endpoint.

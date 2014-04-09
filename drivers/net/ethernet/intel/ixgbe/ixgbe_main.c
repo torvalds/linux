@@ -6881,7 +6881,7 @@ static inline int ixgbe_maybe_stop_tx(struct ixgbe_ring *tx_ring, u16 size)
 }
 
 static u16 ixgbe_select_queue(struct net_device *dev, struct sk_buff *skb,
-			      void *accel_priv)
+			      void *accel_priv, select_queue_fallback_t fallback)
 {
 	struct ixgbe_fwd_adapter *fwd_adapter = accel_priv;
 #ifdef IXGBE_FCOE
@@ -6907,7 +6907,7 @@ static u16 ixgbe_select_queue(struct net_device *dev, struct sk_buff *skb,
 		if (adapter->flags & IXGBE_FLAG_FCOE_ENABLED)
 			break;
 	default:
-		return __netdev_pick_tx(dev, skb);
+		return fallback(dev, skb);
 	}
 
 	f = &adapter->ring_feature[RING_F_FCOE];
@@ -6920,7 +6920,7 @@ static u16 ixgbe_select_queue(struct net_device *dev, struct sk_buff *skb,
 
 	return txq + f->offset;
 #else
-	return __netdev_pick_tx(dev, skb);
+	return fallback(dev, skb);
 #endif
 }
 

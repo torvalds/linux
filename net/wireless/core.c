@@ -788,8 +788,6 @@ void cfg80211_leave(struct cfg80211_registered_device *rdev,
 	default:
 		break;
 	}
-
-	wdev->beacon_interval = 0;
 }
 
 static int cfg80211_netdev_notifier_call(struct notifier_block *nb,

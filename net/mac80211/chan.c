@@ -100,6 +100,12 @@ ieee80211_get_chanctx_max_required_bw(struct ieee80211_local *local,
 		}
 		max_bw = max(max_bw, width);
 	}
+
+	/* use the configured bandwidth in case of monitor interface */
+	sdata = rcu_dereference(local->monitor_sdata);
+	if (sdata && rcu_access_pointer(sdata->vif.chanctx_conf) == conf)
+		max_bw = max(max_bw, conf->def.width);
+
 	rcu_read_unlock();
 
 	return max_bw;

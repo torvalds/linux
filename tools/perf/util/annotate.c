@@ -8,6 +8,8 @@
  */
 
 #include "util.h"
+#include "ui/ui.h"
+#include "sort.h"
 #include "build-id.h"
 #include "color.h"
 #include "cache.h"
@@ -489,7 +491,7 @@ static int symbol__inc_addr_samples(struct symbol *sym, struct map *map,
 {
 	struct annotation *notes;
 
-	if (sym == NULL || use_browser != 1 || !sort__has_sym)
+	if (sym == NULL)
 		return 0;
 
 	notes = symbol__annotation(sym);
@@ -1398,4 +1400,9 @@ int symbol__tty_annotate(struct symbol *sym, struct map *map,
 int hist_entry__annotate(struct hist_entry *he, size_t privsize)
 {
 	return symbol__annotate(he->ms.sym, he->ms.map, privsize);
+}
+
+bool ui__has_annotation(void)
+{
+	return use_browser == 1 && sort__has_sym;
 }

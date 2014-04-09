@@ -525,7 +525,7 @@ static int bnx2i_setup_mp_bdt(struct bnx2i_hba *hba)
 	struct iscsi_bd *mp_bdt;
 	u64 addr;
 
-	hba->mp_bd_tbl = dma_alloc_coherent(&hba->pcidev->dev, PAGE_SIZE,
+	hba->mp_bd_tbl = dma_alloc_coherent(&hba->pcidev->dev, CNIC_PAGE_SIZE,
 					    &hba->mp_bd_dma, GFP_KERNEL);
 	if (!hba->mp_bd_tbl) {
 		printk(KERN_ERR "unable to allocate Middle Path BDT\n");
@@ -533,11 +533,12 @@ static int bnx2i_setup_mp_bdt(struct bnx2i_hba *hba)
 		goto out;
 	}
 
-	hba->dummy_buffer = dma_alloc_coherent(&hba->pcidev->dev, PAGE_SIZE,
+	hba->dummy_buffer = dma_alloc_coherent(&hba->pcidev->dev,
+					       CNIC_PAGE_SIZE,
 					       &hba->dummy_buf_dma, GFP_KERNEL);
 	if (!hba->dummy_buffer) {
 		printk(KERN_ERR "unable to alloc Middle Path Dummy Buffer\n");
-		dma_free_coherent(&hba->pcidev->dev, PAGE_SIZE,
+		dma_free_coherent(&hba->pcidev->dev, CNIC_PAGE_SIZE,
 				  hba->mp_bd_tbl, hba->mp_bd_dma);
 		hba->mp_bd_tbl = NULL;
 		rc = -1;
@@ -548,7 +549,7 @@ static int bnx2i_setup_mp_bdt(struct bnx2i_hba *hba)
 	addr = (unsigned long) hba->dummy_buf_dma;
 	mp_bdt->buffer_addr_lo = addr & 0xffffffff;
 	mp_bdt->buffer_addr_hi = addr >> 32;
-	mp_bdt->buffer_length = PAGE_SIZE;
+	mp_bdt->buffer_length = CNIC_PAGE_SIZE;
 	mp_bdt->flags = ISCSI_BD_LAST_IN_BD_CHAIN |
 			ISCSI_BD_FIRST_IN_BD_CHAIN;
 out:
@@ -565,12 +566,12 @@ out:
 static void bnx2i_free_mp_bdt(struct bnx2i_hba *hba)
 {
 	if (hba->mp_bd_tbl) {
-		dma_free_coherent(&hba->pcidev->dev, PAGE_SIZE,
+		dma_free_coherent(&hba->pcidev->dev, CNIC_PAGE_SIZE,
 				  hba->mp_bd_tbl, hba->mp_bd_dma);
 		hba->mp_bd_tbl = NULL;
 	}
 	if (hba->dummy_buffer) {
-		dma_free_coherent(&hba->pcidev->dev, PAGE_SIZE,
+		dma_free_coherent(&hba->pcidev->dev, CNIC_PAGE_SIZE,
 				  hba->dummy_buffer, hba->dummy_buf_dma);
 		hba->dummy_buffer = NULL;
 	}
@@ -934,14 +935,14 @@ static void bnx2i_conn_free_login_resources(struct bnx2i_hba *hba,
 					    struct bnx2i_conn *bnx2i_conn)
 {
 	if (bnx2i_conn->gen_pdu.resp_bd_tbl) {
-		dma_free_coherent(&hba->pcidev->dev, PAGE_SIZE,
+		dma_free_coherent(&hba->pcidev->dev, CNIC_PAGE_SIZE,
 				  bnx2i_conn->gen_pdu.resp_bd_tbl,
 				  bnx2i_conn->gen_pdu.resp_bd_dma);
 		bnx2i_conn->gen_pdu.resp_bd_tbl = NULL;
 	}
 
 	if (bnx2i_conn->gen_pdu.req_bd_tbl) {
-		dma_free_coherent(&hba->pcidev->dev, PAGE_SIZE,
+		dma_free_coherent(&hba->pcidev->dev, CNIC_PAGE_SIZE,
 				  bnx2i_conn->gen_pdu.req_bd_tbl,
 				  bnx2i_conn->gen_pdu.req_bd_dma);
 		bnx2i_conn->gen_pdu.req_bd_tbl = NULL;
@@ -998,13 +999,13 @@ static int bnx2i_conn_alloc_login_resources(struct bnx2i_hba *hba,
 	bnx2i_conn->gen_pdu.resp_wr_ptr = bnx2i_conn->gen_pdu.resp_buf;
 
 	bnx2i_conn->gen_pdu.req_bd_tbl =
-		dma_alloc_coherent(&hba->pcidev->dev, PAGE_SIZE,
+		dma_alloc_coherent(&hba->pcidev->dev, CNIC_PAGE_SIZE,
 				   &bnx2i_conn->gen_pdu.req_bd_dma, GFP_KERNEL);
 	if (bnx2i_conn->gen_pdu.req_bd_tbl == NULL)
 		goto login_req_bd_tbl_failure;
 
 	bnx2i_conn->gen_pdu.resp_bd_tbl =
-		dma_alloc_coherent(&hba->pcidev->dev, PAGE_SIZE,
+		dma_alloc_coherent(&hba->pcidev->dev, CNIC_PAGE_SIZE,
 				   &bnx2i_conn->gen_pdu.resp_bd_dma,
 				   GFP_KERNEL);
 	if (bnx2i_conn->gen_pdu.resp_bd_tbl == NULL)
@@ -1013,7 +1014,7 @@ static int bnx2i_conn_alloc_login_resources(struct bnx2i_hba *hba,
 	return 0;
 
 login_resp_bd_tbl_failure:
-	dma_free_coherent(&hba->pcidev->dev, PAGE_SIZE,
+	dma_free_coherent(&hba->pcidev->dev, CNIC_PAGE_SIZE,
 			  bnx2i_conn->gen_pdu.req_bd_tbl,
 			  bnx2i_conn->gen_pdu.req_bd_dma);
 	bnx2i_conn->gen_pdu.req_bd_tbl = NULL;

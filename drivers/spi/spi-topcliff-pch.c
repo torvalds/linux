@@ -915,7 +915,7 @@ static void pch_spi_request_dma(struct pch_spi_data *data, int bpw)
 	/* Set Tx DMA */
 	param = &dma->param_tx;
 	param->dma_dev = &dma_dev->dev;
-	param->chan_id = data->master->bus_num * 2; /* Tx = 0, 2 */
+	param->chan_id = data->ch * 2; /* Tx = 0, 2 */;
 	param->tx_reg = data->io_base_addr + PCH_SPDWR;
 	param->width = width;
 	chan = dma_request_channel(mask, pch_spi_filter, param);
@@ -930,7 +930,7 @@ static void pch_spi_request_dma(struct pch_spi_data *data, int bpw)
 	/* Set Rx DMA */
 	param = &dma->param_rx;
 	param->dma_dev = &dma_dev->dev;
-	param->chan_id = data->master->bus_num * 2 + 1; /* Rx = Tx + 1 */
+	param->chan_id = data->ch * 2 + 1; /* Rx = Tx + 1 */;
 	param->rx_reg = data->io_base_addr + PCH_SPDRR;
 	param->width = width;
 	chan = dma_request_channel(mask, pch_spi_filter, param);
@@ -1452,6 +1452,11 @@ static int pch_spi_pd_probe(struct platform_device *plat_dev)
 
 	pch_spi_set_master_mode(master);
 
+	if (use_dma) {
+		dev_info(&plat_dev->dev, "Use DMA for data transfers\n");
+		pch_alloc_dma_buf(board_dat, data);
+	}
+
 	ret = spi_register_master(master);
 	if (ret != 0) {
 		dev_err(&plat_dev->dev,
@@ -1459,14 +1464,10 @@ static int pch_spi_pd_probe(struct platform_device *plat_dev)
 		goto err_spi_register_master;
 	}
 
-	if (use_dma) {
-		dev_info(&plat_dev->dev, "Use DMA for data transfers\n");
-		pch_alloc_dma_buf(board_dat, data);
-	}
-
 	return 0;
 
 err_spi_register_master:
+	pch_free_dma_buf(board_dat, data);
 	free_irq(board_dat->pdev->irq, data);
 err_request_irq:
 	pch_spi_free_resources(board_dat, data);

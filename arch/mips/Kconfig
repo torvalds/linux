@@ -1776,12 +1776,12 @@ endchoice
 
 config FORCE_MAX_ZONEORDER
 	int "Maximum zone order"
-	range 14 64 if HUGETLB_PAGE && PAGE_SIZE_64KB
-	default "14" if HUGETLB_PAGE && PAGE_SIZE_64KB
-	range 13 64 if HUGETLB_PAGE && PAGE_SIZE_32KB
-	default "13" if HUGETLB_PAGE && PAGE_SIZE_32KB
-	range 12 64 if HUGETLB_PAGE && PAGE_SIZE_16KB
-	default "12" if HUGETLB_PAGE && PAGE_SIZE_16KB
+	range 14 64 if MIPS_HUGE_TLB_SUPPORT && PAGE_SIZE_64KB
+	default "14" if MIPS_HUGE_TLB_SUPPORT && PAGE_SIZE_64KB
+	range 13 64 if MIPS_HUGE_TLB_SUPPORT && PAGE_SIZE_32KB
+	default "13" if MIPS_HUGE_TLB_SUPPORT && PAGE_SIZE_32KB
+	range 12 64 if MIPS_HUGE_TLB_SUPPORT && PAGE_SIZE_16KB
+	default "12" if MIPS_HUGE_TLB_SUPPORT && PAGE_SIZE_16KB
 	range 11 64
 	default "11"
 	help
@@ -2353,9 +2353,8 @@ config SECCOMP
 	  If unsure, say Y. Only embedded should say N here.
 
 config MIPS_O32_FP64_SUPPORT
-	bool "Support for O32 binaries using 64-bit FP"
+	bool "Support for O32 binaries using 64-bit FP (EXPERIMENTAL)"
 	depends on 32BIT || MIPS32_O32
-	default y
 	help
 	  When this is enabled, the kernel will support use of 64-bit floating
 	  point registers with binaries using the O32 ABI along with the
@@ -2367,7 +2366,14 @@ config MIPS_O32_FP64_SUPPORT
 	  of your kernel & potentially improve FP emulation performance by
 	  saying N here.
 
-	  If unsure, say Y.
+	  Although binutils currently supports use of this flag the details
+	  concerning its effect upon the O32 ABI in userland are still being
+	  worked on. In order to avoid userland becoming dependant upon current
+	  behaviour before the details have been finalised, this option should
+	  be considered experimental and only enabled by those working upon
+	  said details.
+
+	  If unsure, say N.
 
 config USE_OF
 	bool

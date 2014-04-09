@@ -907,6 +907,7 @@ static int handle_incoming_queue(struct net_device *dev,
 
 		/* Ethernet work: Delayed to here as it peeks the header. */
 		skb->protocol = eth_type_trans(skb, dev);
+		skb_reset_network_header(skb);
 
 		if (checksum_setup(dev, skb)) {
 			kfree_skb(skb);

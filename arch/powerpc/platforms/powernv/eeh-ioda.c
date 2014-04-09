@@ -44,7 +44,8 @@ static int ioda_eeh_event(struct notifier_block *nb,
 
 	/* We simply send special EEH event */
 	if ((changed_evts & OPAL_EVENT_PCI_ERROR) &&
-	    (events & OPAL_EVENT_PCI_ERROR))
+	    (events & OPAL_EVENT_PCI_ERROR) &&
+	    eeh_enabled())
 		eeh_send_failure_event(NULL);
 
 	return 0;
@@ -112,6 +113,7 @@ DEFINE_SIMPLE_ATTRIBUTE(ioda_eeh_inbA_dbgfs_ops, ioda_eeh_inbA_dbgfs_get,
 DEFINE_SIMPLE_ATTRIBUTE(ioda_eeh_inbB_dbgfs_ops, ioda_eeh_inbB_dbgfs_get,
 			ioda_eeh_inbB_dbgfs_set, "0x%llx\n");
 #endif /* CONFIG_DEBUG_FS */
+
 
 /**
  * ioda_eeh_post_init - Chip dependent post initialization
@@ -220,6 +222,22 @@ static int ioda_eeh_set_option(struct eeh_pe *pe, int option)
 	return ret;
 }
 
+static void ioda_eeh_phb_diag(struct pci_controller *hose)
+{
+	struct pnv_phb *phb = hose->private_data;
+	long rc;
+
+	rc = opal_pci_get_phb_diag_data2(phb->opal_id, phb->diag.blob,
+					 PNV_PCI_DIAG_BUF_SIZE);
+	if (rc != OPAL_SUCCESS) {
+		pr_warning("%s: Failed to get diag-data for PHB#%x (%ld)\n",
+			    __func__, hose->global_number, rc);
+		return;
+	}
+
+	pnv_pci_dump_phb_diag_data(hose, phb->diag.blob);
+}
+
 /**
  * ioda_eeh_get_state - Retrieve the state of PE
  * @pe: EEH PE
@@ -271,6 +289,9 @@ static int ioda_eeh_get_state(struct eeh_pe *pe)
 			result |= EEH_STATE_DMA_ACTIVE;
 			result |= EEH_STATE_MMIO_ENABLED;
 			result |= EEH_STATE_DMA_ENABLED;
+		} else if (!(pe->state & EEH_PE_ISOLATED)) {
+			eeh_pe_state_mark(pe, EEH_PE_ISOLATED);
+			ioda_eeh_phb_diag(hose);
 		}
 
 		return result;
@@ -312,6 +333,15 @@ static int ioda_eeh_get_state(struct eeh_pe *pe)
 		pr_warning("%s: Unexpected EEH status 0x%x "
 			   "on PHB#%x-PE#%x\n",
 			   __func__, fstate, hose->global_number, pe_no);
+	}
+
+	/* Dump PHB diag-data for frozen PE */
+	if (result != EEH_STATE_NOT_SUPPORT &&
+	    (result & (EEH_STATE_MMIO_ACTIVE | EEH_STATE_DMA_ACTIVE)) !=
+	    (EEH_STATE_MMIO_ACTIVE | EEH_STATE_DMA_ACTIVE) &&
+	    !(pe->state & EEH_PE_ISOLATED)) {
+		eeh_pe_state_mark(pe, EEH_PE_ISOLATED);
+		ioda_eeh_phb_diag(hose);
 	}
 
 	return result;
@@ -489,8 +519,7 @@ static int ioda_eeh_bridge_reset(struct pci_controller *hose,
 static int ioda_eeh_reset(struct eeh_pe *pe, int option)
 {
 	struct pci_controller *hose = pe->phb;
-	struct eeh_dev *edev;
-	struct pci_dev *dev;
+	struct pci_bus *bus;
 	int ret;
 
 	/*
@@ -519,70 +548,14 @@ static int ioda_eeh_reset(struct eeh_pe *pe, int option)
 	if (pe->type & EEH_PE_PHB) {
 		ret = ioda_eeh_phb_reset(hose, option);
 	} else {
-		if (pe->type & EEH_PE_DEVICE) {
-			/*
-			 * If it's device PE, we didn't refer to the parent
-			 * PCI bus yet. So we have to figure it out indirectly.
-			 */
-			edev = list_first_entry(&pe->edevs,
-					struct eeh_dev, list);
-			dev = eeh_dev_to_pci_dev(edev);
-			dev = dev->bus->self;
-		} else {
-			/*
-			 * If it's bus PE, the parent PCI bus is already there
-			 * and just pick it up.
-			 */
-			dev = pe->bus->self;
-		}
-
-		/*
-		 * Do reset based on the fact that the direct upstream bridge
-		 * is root bridge (port) or not.
-		 */
-		if (dev->bus->number == 0)
+		bus = eeh_pe_bus_get(pe);
+		if (pci_is_root_bus(bus))
 			ret = ioda_eeh_root_reset(hose, option);
 		else
-			ret = ioda_eeh_bridge_reset(hose, dev, option);
+			ret = ioda_eeh_bridge_reset(hose, bus->self, option);
 	}
 
 	return ret;
-}
-
-/**
- * ioda_eeh_get_log - Retrieve error log
- * @pe: EEH PE
- * @severity: Severity level of the log
- * @drv_log: buffer to store the log
- * @len: space of the log buffer
- *
- * The function is used to retrieve error log from P7IOC.
- */
-static int ioda_eeh_get_log(struct eeh_pe *pe, int severity,
-			    char *drv_log, unsigned long len)
-{
-	s64 ret;
-	unsigned long flags;
-	struct pci_controller *hose = pe->phb;
-	struct pnv_phb *phb = hose->private_data;
-
-	spin_lock_irqsave(&phb->lock, flags);
-
-	ret = opal_pci_get_phb_diag_data2(phb->opal_id,
-			phb->diag.blob, PNV_PCI_DIAG_BUF_SIZE);
-	if (ret) {
-		spin_unlock_irqrestore(&phb->lock, flags);
-		pr_warning("%s: Can't get log for PHB#%x-PE#%x (%lld)\n",
-			   __func__, hose->global_number, pe->addr, ret);
-		return -EIO;
-	}
-
-	/* The PHB diag-data is always indicative */
-	pnv_pci_dump_phb_diag_data(hose, phb->diag.blob);
-
-	spin_unlock_irqrestore(&phb->lock, flags);
-
-	return 0;
 }
 
 /**
@@ -664,22 +637,6 @@ static void ioda_eeh_hub_diag(struct pci_controller *hose)
 		pr_warning("%s: Invalid type of HUB#%llx diag-data (%d)\n",
 			   __func__, phb->hub_id, data->type);
 	}
-}
-
-static void ioda_eeh_phb_diag(struct pci_controller *hose)
-{
-	struct pnv_phb *phb = hose->private_data;
-	long rc;
-
-	rc = opal_pci_get_phb_diag_data2(phb->opal_id, phb->diag.blob,
-					 PNV_PCI_DIAG_BUF_SIZE);
-	if (rc != OPAL_SUCCESS) {
-		pr_warning("%s: Failed to get diag-data for PHB#%x (%ld)\n",
-			    __func__, hose->global_number, rc);
-		return;
-	}
-
-	pnv_pci_dump_phb_diag_data(hose, phb->diag.blob);
 }
 
 static int ioda_eeh_get_phb_pe(struct pci_controller *hose,
@@ -855,6 +812,20 @@ static int ioda_eeh_next_error(struct eeh_pe **pe)
 		}
 
 		/*
+		 * EEH core will try recover from fenced PHB or
+		 * frozen PE. In the time for frozen PE, EEH core
+		 * enable IO path for that before collecting logs,
+		 * but it ruins the site. So we have to dump the
+		 * log in advance here.
+		 */
+		if ((ret == EEH_NEXT_ERR_FROZEN_PE  ||
+		    ret == EEH_NEXT_ERR_FENCED_PHB) &&
+		    !((*pe)->state & EEH_PE_ISOLATED)) {
+			eeh_pe_state_mark(*pe, EEH_PE_ISOLATED);
+			ioda_eeh_phb_diag(hose);
+		}
+
+		/*
 		 * If we have no errors on the specific PHB or only
 		 * informative error there, we continue poking it.
 		 * Otherwise, we need actions to be taken by upper
@@ -872,7 +843,6 @@ struct pnv_eeh_ops ioda_eeh_ops = {
 	.set_option		= ioda_eeh_set_option,
 	.get_state		= ioda_eeh_get_state,
 	.reset			= ioda_eeh_reset,
-	.get_log		= ioda_eeh_get_log,
 	.configure_bridge	= ioda_eeh_configure_bridge,
 	.next_error		= ioda_eeh_next_error
 };

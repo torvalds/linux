@@ -683,10 +683,9 @@ EXPORT_SYMBOL(phy_detach);
 int phy_suspend(struct phy_device *phydev)
 {
 	struct phy_driver *phydrv = to_phy_driver(phydev->dev.driver);
-	struct ethtool_wolinfo wol;
+	struct ethtool_wolinfo wol = { .cmd = ETHTOOL_GWOL };
 
 	/* If the device has WOL enabled, we cannot suspend the PHY */
-	wol.cmd = ETHTOOL_GWOL;
 	phy_ethtool_get_wol(phydev, &wol);
 	if (wol.wolopts)
 		return -EBUSY;
@@ -916,6 +915,8 @@ int genphy_read_status(struct phy_device *phydev)
 	int err;
 	int lpa;
 	int lpagb = 0;
+	int common_adv;
+	int common_adv_gb = 0;
 
 	/* Update the link, but return if there was an error */
 	err = genphy_update_link(phydev);
@@ -937,7 +938,7 @@ int genphy_read_status(struct phy_device *phydev)
 
 			phydev->lp_advertising =
 				mii_stat1000_to_ethtool_lpa_t(lpagb);
-			lpagb &= adv << 2;
+			common_adv_gb = lpagb & adv << 2;
 		}
 
 		lpa = phy_read(phydev, MII_LPA);
@@ -950,25 +951,25 @@ int genphy_read_status(struct phy_device *phydev)
 		if (adv < 0)
 			return adv;
 
-		lpa &= adv;
+		common_adv = lpa & adv;
 
 		phydev->speed = SPEED_10;
 		phydev->duplex = DUPLEX_HALF;
 		phydev->pause = 0;
 		phydev->asym_pause = 0;
 
-		if (lpagb & (LPA_1000FULL | LPA_1000HALF)) {
+		if (common_adv_gb & (LPA_1000FULL | LPA_1000HALF)) {
 			phydev->speed = SPEED_1000;
 
-			if (lpagb & LPA_1000FULL)
+			if (common_adv_gb & LPA_1000FULL)
 				phydev->duplex = DUPLEX_FULL;
-		} else if (lpa & (LPA_100FULL | LPA_100HALF)) {
+		} else if (common_adv & (LPA_100FULL | LPA_100HALF)) {
 			phydev->speed = SPEED_100;
 
-			if (lpa & LPA_100FULL)
+			if (common_adv & LPA_100FULL)
 				phydev->duplex = DUPLEX_FULL;
 		} else
-			if (lpa & LPA_10FULL)
+			if (common_adv & LPA_10FULL)
 				phydev->duplex = DUPLEX_FULL;
 
 		if (phydev->duplex == DUPLEX_FULL) {

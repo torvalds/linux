@@ -445,20 +445,10 @@ static inline int pte_same(pte_t a, pte_t b)
 	return a.pte == b.pte;
 }
 
-static inline int pteval_present(pteval_t pteval)
-{
-	/*
-	 * Yes Linus, _PAGE_PROTNONE == _PAGE_NUMA. Expressing it this
-	 * way clearly states that the intent is that protnone and numa
-	 * hinting ptes are considered present for the purposes of
-	 * pagetable operations like zapping, protection changes, gup etc.
-	 */
-	return pteval & (_PAGE_PRESENT | _PAGE_PROTNONE | _PAGE_NUMA);
-}
-
 static inline int pte_present(pte_t a)
 {
-	return pteval_present(pte_flags(a));
+	return pte_flags(a) & (_PAGE_PRESENT | _PAGE_PROTNONE |
+			       _PAGE_NUMA);
 }
 
 #define pte_accessible pte_accessible

@@ -845,7 +845,7 @@ static int hdmi_portclock_limit(struct intel_hdmi *hdmi)
 {
 	struct drm_device *dev = intel_hdmi_to_dev(hdmi);
 
-	if (IS_G4X(dev))
+	if (!hdmi->has_hdmi_sink || IS_G4X(dev))
 		return 165000;
 	else if (IS_HASWELL(dev) || INTEL_INFO(dev)->gen >= 8)
 		return 300000;
@@ -899,8 +899,8 @@ bool intel_hdmi_compute_config(struct intel_encoder *encoder,
 	 * outputs. We also need to check that the higher clock still fits
 	 * within limits.
 	 */
-	if (pipe_config->pipe_bpp > 8*3 && clock_12bpc <= portclock_limit
-	    && HAS_PCH_SPLIT(dev)) {
+	if (pipe_config->pipe_bpp > 8*3 && intel_hdmi->has_hdmi_sink &&
+	    clock_12bpc <= portclock_limit && HAS_PCH_SPLIT(dev)) {
 		DRM_DEBUG_KMS("picking bpc to 12 for HDMI output\n");
 		desired_bpp = 12*3;
 

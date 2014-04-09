@@ -178,6 +178,37 @@ out:
 }
 
 /*
+ * Congratulations to trinity for discovering this bug.
+ * mm/fremap.c's remap_file_pages() accepts any range within a single vma to
+ * convert that vma to VM_NONLINEAR; and generic_file_remap_pages() will then
+ * replace the specified range by file ptes throughout (maybe populated after).
+ * If page migration finds a page within that range, while it's still located
+ * by vma_interval_tree rather than lost to i_mmap_nonlinear list, no problem:
+ * zap_pte() clears the temporary migration entry before mmap_sem is dropped.
+ * But if the migrating page is in a part of the vma outside the range to be
+ * remapped, then it will not be cleared, and remove_migration_ptes() needs to
+ * deal with it.  Fortunately, this part of the vma is of course still linear,
+ * so we just need to use linear location on the nonlinear list.
+ */
+static int remove_linear_migration_ptes_from_nonlinear(struct page *page,
+		struct address_space *mapping, void *arg)
+{
+	struct vm_area_struct *vma;
+	/* hugetlbfs does not support remap_pages, so no huge pgoff worries */
+	pgoff_t pgoff = page->index << (PAGE_CACHE_SHIFT - PAGE_SHIFT);
+	unsigned long addr;
+
+	list_for_each_entry(vma,
+		&mapping->i_mmap_nonlinear, shared.nonlinear) {
+
+		addr = vma->vm_start + ((pgoff - vma->vm_pgoff) << PAGE_SHIFT);
+		if (addr >= vma->vm_start && addr < vma->vm_end)
+			remove_migration_pte(page, vma, addr, arg);
+	}
+	return SWAP_AGAIN;
+}
+
+/*
  * Get rid of all migration entries and replace them by
  * references to the indicated page.
  */
@@ -186,6 +217,7 @@ static void remove_migration_ptes(struct page *old, struct page *new)
 	struct rmap_walk_control rwc = {
 		.rmap_one = remove_migration_pte,
 		.arg = old,
+		.file_nonlinear = remove_linear_migration_ptes_from_nonlinear,
 	};
 
 	rmap_walk(new, &rwc);
@@ -1158,7 +1190,7 @@ static struct page *new_page_node(struct page *p, unsigned long private,
 					pm->node);
 	else
 		return alloc_pages_exact_node(pm->node,
-				GFP_HIGHUSER_MOVABLE | GFP_THISNODE, 0);
+				GFP_HIGHUSER_MOVABLE | __GFP_THISNODE, 0);
 }
 
 /*
@@ -1544,9 +1576,9 @@ static struct page *alloc_misplaced_dst_page(struct page *page,
 	struct page *newpage;
 
 	newpage = alloc_pages_exact_node(nid,
-					 (GFP_HIGHUSER_MOVABLE | GFP_THISNODE |
-					  __GFP_NOMEMALLOC | __GFP_NORETRY |
-					  __GFP_NOWARN) &
+					 (GFP_HIGHUSER_MOVABLE |
+					  __GFP_THISNODE | __GFP_NOMEMALLOC |
+					  __GFP_NORETRY | __GFP_NOWARN) &
 					 ~GFP_IOFS, 0);
 
 	return newpage;
@@ -1747,7 +1779,8 @@ int migrate_misplaced_transhuge_page(struct mm_struct *mm,
 		goto out_dropref;
 
 	new_page = alloc_pages_node(node,
-		(GFP_TRANSHUGE | GFP_THISNODE) & ~__GFP_WAIT, HPAGE_PMD_ORDER);
+		(GFP_TRANSHUGE | __GFP_THISNODE) & ~__GFP_WAIT,
+		HPAGE_PMD_ORDER);
 	if (!new_page)
 		goto out_fail;
 

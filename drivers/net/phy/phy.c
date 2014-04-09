@@ -164,9 +164,9 @@ static const struct phy_setting settings[] = {
  *   of that setting.  Returns the index of the last setting if
  *   none of the others match.
  */
-static inline int phy_find_setting(int speed, int duplex)
+static inline unsigned int phy_find_setting(int speed, int duplex)
 {
-	int idx = 0;
+	unsigned int idx = 0;
 
 	while (idx < ARRAY_SIZE(settings) &&
 	       (settings[idx].speed != speed || settings[idx].duplex != duplex))
@@ -185,7 +185,7 @@ static inline int phy_find_setting(int speed, int duplex)
  *   the mask in features.  Returns the index of the last setting
  *   if nothing else matches.
  */
-static inline int phy_find_valid(int idx, u32 features)
+static inline unsigned int phy_find_valid(unsigned int idx, u32 features)
 {
 	while (idx < MAX_NUM_SETTINGS && !(settings[idx].setting & features))
 		idx++;
@@ -204,7 +204,7 @@ static inline int phy_find_valid(int idx, u32 features)
 static void phy_sanitize_settings(struct phy_device *phydev)
 {
 	u32 features = phydev->supported;
-	int idx;
+	unsigned int idx;
 
 	/* Sanitize settings based on PHY capabilities */
 	if ((features & SUPPORTED_Autoneg) == 0)
@@ -954,7 +954,8 @@ int phy_init_eee(struct phy_device *phydev, bool clk_stop_enable)
 	    (phydev->interface == PHY_INTERFACE_MODE_RGMII))) {
 		int eee_lp, eee_cap, eee_adv;
 		u32 lp, cap, adv;
-		int idx, status;
+		int status;
+		unsigned int idx;
 
 		/* Read phy status to properly get the right settings */
 		status = phy_read_status(phydev);

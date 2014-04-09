@@ -629,7 +629,7 @@ static void build_inline_wqe(struct mlx4_en_tx_desc *tx_desc, struct sk_buff *sk
 }
 
 u16 mlx4_en_select_queue(struct net_device *dev, struct sk_buff *skb,
-			 void *accel_priv)
+			 void *accel_priv, select_queue_fallback_t fallback)
 {
 	struct mlx4_en_priv *priv = netdev_priv(dev);
 	u16 rings_p_up = priv->num_tx_rings_p_up;
@@ -641,7 +641,7 @@ u16 mlx4_en_select_queue(struct net_device *dev, struct sk_buff *skb,
 	if (vlan_tx_tag_present(skb))
 		up = vlan_tx_tag_get(skb) >> VLAN_PRIO_SHIFT;
 
-	return __netdev_pick_tx(dev, skb) % rings_p_up + up * rings_p_up;
+	return fallback(dev, skb) % rings_p_up + up * rings_p_up;
 }
 
 static void mlx4_bf_copy(void __iomem *dst, unsigned long *src, unsigned bytecnt)
