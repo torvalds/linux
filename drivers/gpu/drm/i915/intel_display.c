@@ -1574,7 +1574,6 @@ static void chv_enable_pll(struct intel_crtc *crtc)
 	struct drm_i915_private *dev_priv = dev->dev_private;
 	int pipe = crtc->pipe;
 	enum dpio_channel port = vlv_pipe_to_channel(pipe);
-	int dpll = DPLL(crtc->pipe);
 	u32 tmp;
 
 	assert_pipe_disabled(dev_priv, crtc->pipe);
@@ -1594,19 +1593,20 @@ static void chv_enable_pll(struct intel_crtc *crtc)
 	udelay(1);
 
 	/* Enable PLL */
-	tmp = I915_READ(dpll);
-	tmp |= DPLL_VCO_ENABLE;
-	I915_WRITE(dpll, tmp);
+	I915_WRITE(DPLL(pipe), crtc->config.dpll_hw_state.dpll);
 
 	/* Check PLL is locked */
-	if (wait_for(((I915_READ(dpll) & DPLL_LOCK_VLV) == DPLL_LOCK_VLV), 1))
+	if (wait_for(((I915_READ(DPLL(pipe)) & DPLL_LOCK_VLV) == DPLL_LOCK_VLV), 1))
 		DRM_ERROR("PLL %d failed to lock\n", pipe);
+
+	/* not sure when this should be written */
+	I915_WRITE(DPLL_MD(pipe), crtc->config.dpll_hw_state.dpll_md);
+	POSTING_READ(DPLL_MD(pipe));
 
 	/* Deassert soft data lane reset*/
 	tmp = vlv_dpio_read(dev_priv, pipe, VLV_PCS_DW0(port));
 	tmp |= (DPIO_PCS_TX_LANE2_RESET | DPIO_PCS_TX_LANE1_RESET);
 	vlv_dpio_write(dev_priv, pipe, VLV_PCS_DW0(port), tmp);
-
 
 	mutex_unlock(&dev_priv->dpio_lock);
 }
@@ -1699,14 +1699,17 @@ static void vlv_disable_pll(struct drm_i915_private *dev_priv, enum pipe pipe)
 
 static void chv_disable_pll(struct drm_i915_private *dev_priv, enum pipe pipe)
 {
-	int dpll = DPLL(pipe);
 	u32 val;
 
-	/* Set PLL en = 0 */
-	val = I915_READ(dpll);
-	val &= ~DPLL_VCO_ENABLE;
-	I915_WRITE(dpll, val);
+	/* Make sure the pipe isn't still relying on us */
+	assert_pipe_disabled(dev_priv, pipe);
 
+	/* Set PLL en = 0 */
+	val = DPLL_SSC_REF_CLOCK_CHV;
+	if (pipe != PIPE_A)
+		val |= DPLL_INTEGRATED_CRI_CLK_VLV;
+	I915_WRITE(DPLL(pipe), val);
+	POSTING_READ(DPLL(pipe));
 }
 
 void vlv_wait_port_ready(struct drm_i915_private *dev_priv,
@@ -5511,7 +5514,14 @@ static void chv_update_pll(struct intel_crtc *crtc)
 	u32 bestn, bestm1, bestm2, bestp1, bestp2, bestm2_frac;
 	int refclk;
 
-	mutex_lock(&dev_priv->dpio_lock);
+	crtc->config.dpll_hw_state.dpll = DPLL_SSC_REF_CLOCK_CHV |
+		DPLL_REFA_CLK_ENABLE_VLV | DPLL_VGA_MODE_DIS |
+		DPLL_VCO_ENABLE;
+	if (pipe != PIPE_A)
+		crtc->config.dpll_hw_state.dpll |= DPLL_INTEGRATED_CRI_CLK_VLV;
+
+	crtc->config.dpll_hw_state.dpll_md =
+		(crtc->config.pixel_multiplier - 1) << DPLL_MD_UDI_MULTIPLIER_SHIFT;
 
 	bestn = crtc->config.dpll.n;
 	bestm2_frac = crtc->config.dpll.m2 & 0x3fffff;
@@ -5523,9 +5533,10 @@ static void chv_update_pll(struct intel_crtc *crtc)
 	/*
 	 * Enable Refclk and SSC
 	 */
-	val = I915_READ(dpll_reg);
-	val |= (DPLL_SSC_REF_CLOCK_CHV | DPLL_REFA_CLK_ENABLE_VLV);
-	I915_WRITE(dpll_reg, val);
+	I915_WRITE(dpll_reg,
+		   crtc->config.dpll_hw_state.dpll & ~DPLL_VCO_ENABLE);
+
+	mutex_lock(&dev_priv->dpio_lock);
 
 	/* Propagate soft reset to data lane reset */
 	val = vlv_dpio_read(dev_priv, pipe, VLV_PCS_DW0(port));
