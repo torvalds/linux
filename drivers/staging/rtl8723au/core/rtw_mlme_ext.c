@@ -8722,7 +8722,7 @@ void mlmeext_joinbss_event_callback23a(struct rtw_adapter *padapter, int join_re
 	HalSetBrateCfg23a(padapter, cur_network->SupportedRates);
 
 	/* BCN interval */
-	rtw_hal_set_hwreg23a(padapter, HW_VAR_BEACON_INTERVAL, (u8 *)(&pmlmeinfo->bcn_interval));
+	rtl8723a_set_beacon_interval(padapter, pmlmeinfo->bcn_interval);
 
 	/* udpate capability */
 	update_capinfo23a(padapter, pmlmeinfo->capability);

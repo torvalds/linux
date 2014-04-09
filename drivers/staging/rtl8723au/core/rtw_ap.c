@@ -712,7 +712,7 @@ static void start_bss_network(struct rtw_adapter *padapter, u8 *pbuf)
 	rtw_hal_set_hwreg23a(padapter, HW_VAR_SEC_CFG, (u8 *)(&val8));
 
 	/* Beacon Control related register */
-	rtw_hal_set_hwreg23a(padapter, HW_VAR_BEACON_INTERVAL, (u8 *)(&bcn_interval));
+	rtl8723a_set_beacon_interval(padapter, bcn_interval);
 
 	UpdateBrateTbl23a(padapter, pnetwork->SupportedRates);
 	HalSetBrateCfg23a(padapter, pnetwork->SupportedRates);
