@@ -2311,10 +2311,11 @@ static uint32_t intel_chv_signal_levels(struct intel_dp *intel_dp)
 	struct drm_i915_private *dev_priv = dev->dev_private;
 	struct intel_digital_port *dport = dp_to_dig_port(intel_dp);
 	struct intel_crtc *intel_crtc = to_intel_crtc(dport->base.base.crtc);
-	u32 deemph_reg_value, margin_reg_value, val, tx_dw2;
+	u32 deemph_reg_value, margin_reg_value, val;
 	uint8_t train_set = intel_dp->train_set[0];
 	enum dpio_channel ch = vlv_dport_to_channel(dport);
-	int pipe = intel_crtc->pipe;
+	enum pipe pipe = intel_crtc->pipe;
+	int i;
 
 	switch (train_set & DP_TRAIN_PRE_EMPHASIS_MASK) {
 	case DP_TRAIN_PRE_EMPHASIS_0:
@@ -2392,21 +2393,27 @@ static uint32_t intel_chv_signal_levels(struct intel_dp *intel_dp)
 	vlv_dpio_write(dev_priv, pipe, CHV_PCS_DW10(ch), 0);
 
 	/* Program swing deemph */
-	val = vlv_dpio_read(dev_priv, pipe, VLV_TX_DW4(ch));
-	val &= ~DPIO_SWING_DEEMPH9P5_MASK;
-	val |= deemph_reg_value << DPIO_SWING_DEEMPH9P5_SHIFT;
-	vlv_dpio_write(dev_priv, pipe, VLV_TX_DW4(ch), val);
+	for (i = 0; i < 4; i++) {
+		val = vlv_dpio_read(dev_priv, pipe, CHV_TX_DW4(ch, i));
+		val &= ~DPIO_SWING_DEEMPH9P5_MASK;
+		val |= deemph_reg_value << DPIO_SWING_DEEMPH9P5_SHIFT;
+		vlv_dpio_write(dev_priv, pipe, CHV_TX_DW4(ch, i), val);
+	}
 
 	/* Program swing margin */
-	tx_dw2 = vlv_dpio_read(dev_priv, pipe, VLV_TX_DW2(ch));
-	tx_dw2 &= ~DPIO_SWING_MARGIN_MASK;
-	tx_dw2 |= margin_reg_value << DPIO_SWING_MARGIN_SHIFT;
-	vlv_dpio_write(dev_priv, pipe, VLV_TX_DW2(ch), tx_dw2);
+	for (i = 0; i < 4; i++) {
+		val = vlv_dpio_read(dev_priv, pipe, CHV_TX_DW2(ch, i));
+		val &= ~DPIO_SWING_MARGIN_MASK;
+		val |= margin_reg_value << DPIO_SWING_MARGIN_SHIFT;
+		vlv_dpio_write(dev_priv, pipe, CHV_TX_DW2(ch, i), val);
+	}
 
 	/* Disable unique transition scale */
-	val = vlv_dpio_read(dev_priv, pipe, VLV_TX_DW3(ch));
-	val &= ~DPIO_TX_UNIQ_TRANS_SCALE_EN;
-	vlv_dpio_write(dev_priv, pipe, VLV_TX_DW3(ch), val);
+	for (i = 0; i < 4; i++) {
+		val = vlv_dpio_read(dev_priv, pipe, CHV_TX_DW3(ch, i));
+		val &= ~DPIO_TX_UNIQ_TRANS_SCALE_EN;
+		vlv_dpio_write(dev_priv, pipe, CHV_TX_DW3(ch, i), val);
+	}
 
 	if (((train_set & DP_TRAIN_PRE_EMPHASIS_MASK)
 			== DP_TRAIN_PRE_EMPHASIS_0) &&
@@ -2419,12 +2426,18 @@ static uint32_t intel_chv_signal_levels(struct intel_dp *intel_dp)
 		 * For now, for this unique transition scale selection, set bit
 		 * 27 for ch0 and ch1.
 		 */
-		val = vlv_dpio_read(dev_priv, pipe, VLV_TX_DW3(ch));
-		val |= DPIO_TX_UNIQ_TRANS_SCALE_EN;
-		vlv_dpio_write(dev_priv, pipe, VLV_TX_DW3(ch), val);
+		for (i = 0; i < 4; i++) {
+			val = vlv_dpio_read(dev_priv, pipe, CHV_TX_DW3(ch, i));
+			val |= DPIO_TX_UNIQ_TRANS_SCALE_EN;
+			vlv_dpio_write(dev_priv, pipe, CHV_TX_DW3(ch, i), val);
+		}
 
-		tx_dw2 |= (0x9a << DPIO_UNIQ_TRANS_SCALE_SHIFT);
-		vlv_dpio_write(dev_priv, pipe, VLV_TX_DW2(ch), tx_dw2);
+		for (i = 0; i < 4; i++) {
+			val = vlv_dpio_read(dev_priv, pipe, CHV_TX_DW2(ch, i));
+			val &= ~(0xff << DPIO_UNIQ_TRANS_SCALE_SHIFT);
+			val |= (0x9a << DPIO_UNIQ_TRANS_SCALE_SHIFT);
+			vlv_dpio_write(dev_priv, pipe, CHV_TX_DW2(ch, i), val);
+		}
 	}
 
 	/* Start swing calculation */

@@ -1330,20 +1330,26 @@ static void chv_hdmi_pre_enable(struct intel_encoder *encoder)
 
 	/* FIXME: Program the support xxx V-dB */
 	/* Use 800mV-0dB */
-	val = vlv_dpio_read(dev_priv, pipe, VLV_TX_DW4(ch));
-	val &= ~DPIO_SWING_DEEMPH9P5_MASK;
-	val |= 128 << DPIO_SWING_DEEMPH9P5_SHIFT;
-	vlv_dpio_write(dev_priv, pipe, VLV_TX_DW4(ch), val);
+	for (i = 0; i < 4; i++) {
+		val = vlv_dpio_read(dev_priv, pipe, CHV_TX_DW4(ch, i));
+		val &= ~DPIO_SWING_DEEMPH9P5_MASK;
+		val |= 128 << DPIO_SWING_DEEMPH9P5_SHIFT;
+		vlv_dpio_write(dev_priv, pipe, CHV_TX_DW4(ch, i), val);
+	}
 
-	val = vlv_dpio_read(dev_priv, pipe, VLV_TX_DW2(ch));
-	val &= ~DPIO_SWING_MARGIN_MASK;
-	val |= 102 << DPIO_SWING_MARGIN_SHIFT;
-	vlv_dpio_write(dev_priv, pipe, VLV_TX_DW2(ch), val);
+	for (i = 0; i < 4; i++) {
+		val = vlv_dpio_read(dev_priv, pipe, CHV_TX_DW2(ch, i));
+		val &= ~DPIO_SWING_MARGIN_MASK;
+		val |= 102 << DPIO_SWING_MARGIN_SHIFT;
+		vlv_dpio_write(dev_priv, pipe, CHV_TX_DW2(ch, i), val);
+	}
 
 	/* Disable unique transition scale */
-	val = vlv_dpio_read(dev_priv, pipe, VLV_TX_DW3(ch));
-	val &= ~DPIO_TX_UNIQ_TRANS_SCALE_EN;
-	vlv_dpio_write(dev_priv, pipe, VLV_TX_DW3(ch), val);
+	for (i = 0; i < 4; i++) {
+		val = vlv_dpio_read(dev_priv, pipe, CHV_TX_DW3(ch, i));
+		val &= ~DPIO_TX_UNIQ_TRANS_SCALE_EN;
+		vlv_dpio_write(dev_priv, pipe, CHV_TX_DW3(ch, i), val);
+	}
 
 	/* Additional steps for 1200mV-0dB */
 #if 0

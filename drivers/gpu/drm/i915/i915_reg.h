@@ -807,6 +807,17 @@ enum punit_power_well {
 #define _TXLANE(ch, lane, offset) ((ch ? 0x2400 : 0) + \
 					(lane) * 0x200 + (offset))
 
+#define CHV_TX_DW0(ch, lane) _TXLANE(ch, lane, 0x80)
+#define CHV_TX_DW1(ch, lane) _TXLANE(ch, lane, 0x84)
+#define CHV_TX_DW2(ch, lane) _TXLANE(ch, lane, 0x88)
+#define CHV_TX_DW3(ch, lane) _TXLANE(ch, lane, 0x8c)
+#define CHV_TX_DW4(ch, lane) _TXLANE(ch, lane, 0x90)
+#define CHV_TX_DW5(ch, lane) _TXLANE(ch, lane, 0x94)
+#define CHV_TX_DW6(ch, lane) _TXLANE(ch, lane, 0x98)
+#define CHV_TX_DW7(ch, lane) _TXLANE(ch, lane, 0x9c)
+#define CHV_TX_DW8(ch, lane) _TXLANE(ch, lane, 0xa0)
+#define CHV_TX_DW9(ch, lane) _TXLANE(ch, lane, 0xa4)
+#define CHV_TX_DW10(ch, lane) _TXLANE(ch, lane, 0xa8)
 #define CHV_TX_DW11(ch, lane) _TXLANE(ch, lane, 0xac)
 #define   DPIO_FRC_LATENCY_SHFIT	8
 #define CHV_TX_DW14(ch, lane) _TXLANE(ch, lane, 0xb8)
