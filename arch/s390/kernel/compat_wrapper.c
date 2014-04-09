@@ -1,5 +1,5 @@
 /*
- *  Compat sytem call wrappers.
+ *  Compat system call wrappers.
  *
  *    Copyright IBM Corp. 2014
  */
