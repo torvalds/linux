@@ -1224,6 +1224,85 @@ static void vlv_hdmi_post_disable(struct intel_encoder *encoder)
 	mutex_unlock(&dev_priv->dpio_lock);
 }
 
+static void chv_hdmi_pre_enable(struct intel_encoder *encoder)
+{
+	struct intel_digital_port *dport = enc_to_dig_port(&encoder->base);
+	struct drm_device *dev = encoder->base.dev;
+	struct drm_i915_private *dev_priv = dev->dev_private;
+	struct intel_crtc *intel_crtc =
+		to_intel_crtc(encoder->base.crtc);
+	enum dpio_channel ch = vlv_dport_to_channel(dport);
+	int pipe = intel_crtc->pipe;
+	int data, i;
+	u32 val;
+
+	/* Program Tx latency optimal setting */
+	mutex_lock(&dev_priv->dpio_lock);
+	for (i = 0; i < 4; i++) {
+		/* Set the latency optimal bit */
+		data = (i == 1) ? 0x0 : 0x6;
+		vlv_dpio_write(dev_priv, pipe, CHV_TX_DW11(ch, i),
+				data << DPIO_FRC_LATENCY_SHFIT);
+
+		/* Set the upar bit */
+		data = (i == 1) ? 0x0 : 0x1;
+		vlv_dpio_write(dev_priv, pipe, CHV_TX_DW14(ch, i),
+				data << DPIO_UPAR_SHIFT);
+	}
+
+	/* Data lane stagger programming */
+	/* FIXME: Fix up value only after power analysis */
+
+	/* Clear calc init */
+	vlv_dpio_write(dev_priv, pipe, CHV_PCS_DW10(ch), 0);
+
+	/* FIXME: Program the support xxx V-dB */
+	/* Use 800mV-0dB */
+	val = vlv_dpio_read(dev_priv, pipe, VLV_TX_DW4(ch));
+	val &= ~DPIO_SWING_DEEMPH9P5_MASK;
+	val |= 128 << DPIO_SWING_DEEMPH9P5_SHIFT;
+	vlv_dpio_write(dev_priv, pipe, VLV_TX_DW4(ch), val);
+
+	val = vlv_dpio_read(dev_priv, pipe, VLV_TX_DW2(ch));
+	val &= ~DPIO_SWING_MARGIN_MASK;
+	val |= 102 << DPIO_SWING_MARGIN_SHIFT;
+	vlv_dpio_write(dev_priv, pipe, VLV_TX_DW2(ch), val);
+
+	/* Disable unique transition scale */
+	val = vlv_dpio_read(dev_priv, pipe, VLV_TX_DW3(ch));
+	val &= ~DPIO_TX_UNIQ_TRANS_SCALE_EN;
+	vlv_dpio_write(dev_priv, pipe, VLV_TX_DW3(ch), val);
+
+	/* Additional steps for 1200mV-0dB */
+#if 0
+	val = vlv_dpio_read(dev_priv, pipe, VLV_TX_DW3(ch));
+	if (ch)
+		val |= DPIO_TX_UNIQ_TRANS_SCALE_CH1;
+	else
+		val |= DPIO_TX_UNIQ_TRANS_SCALE_CH0;
+	vlv_dpio_write(dev_priv, pipe, VLV_TX_DW3(ch), val);
+
+	vlv_dpio_write(dev_priv, pipe, VLV_TX_DW2(ch),
+			vlv_dpio_read(dev_priv, pipe, VLV_TX_DW2(ch)) |
+				(0x9a << DPIO_UNIQ_TRANS_SCALE_SHIFT));
+#endif
+	/* Start swing calculation */
+	vlv_dpio_write(dev_priv, pipe, CHV_PCS_DW10(ch),
+			DPIO_PCS_SWING_CALC_TX0_TX2 |
+			DPIO_PCS_SWING_CALC_TX1_TX3);
+
+	/* LRC Bypass */
+	val = vlv_dpio_read(dev_priv, pipe, CHV_CMN_DW30);
+	val |= DPIO_LRC_BYPASS;
+	vlv_dpio_write(dev_priv, pipe, CHV_CMN_DW30, val);
+
+	mutex_unlock(&dev_priv->dpio_lock);
+
+	intel_enable_hdmi(encoder);
+
+	vlv_wait_port_ready(dev_priv, dport);
+}
+
 static void intel_hdmi_destroy(struct drm_connector *connector)
 {
 	drm_connector_cleanup(connector);
@@ -1358,7 +1437,10 @@ void intel_hdmi_init(struct drm_device *dev, int hdmi_reg, enum port port)
 	intel_encoder->disable = intel_disable_hdmi;
 	intel_encoder->get_hw_state = intel_hdmi_get_hw_state;
 	intel_encoder->get_config = intel_hdmi_get_config;
-	if (IS_VALLEYVIEW(dev)) {
+	if (IS_CHERRYVIEW(dev)) {
+		intel_encoder->pre_enable = chv_hdmi_pre_enable;
+		intel_encoder->enable = vlv_enable_hdmi;
+	} else if (IS_VALLEYVIEW(dev)) {
 		intel_encoder->pre_pll_enable = vlv_hdmi_pre_pll_enable;
 		intel_encoder->pre_enable = vlv_hdmi_pre_enable;
 		intel_encoder->enable = vlv_enable_hdmi;
