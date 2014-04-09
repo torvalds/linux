@@ -38,7 +38,7 @@ static int read_sr(struct spi_nor *nor)
 	int ret;
 	u8 val;
 
-	ret = nor->read_reg(nor, OPCODE_RDSR, &val, 1);
+	ret = nor->read_reg(nor, SPINOR_OP_RDSR, &val, 1);
 	if (ret < 0) {
 		pr_err("error %d reading SR\n", (int) ret);
 		return ret;
@@ -57,7 +57,7 @@ static int read_cr(struct spi_nor *nor)
 	int ret;
 	u8 val;
 
-	ret = nor->read_reg(nor, OPCODE_RDCR, &val, 1);
+	ret = nor->read_reg(nor, SPINOR_OP_RDCR, &val, 1);
 	if (ret < 0) {
 		dev_err(nor->dev, "error %d reading CR\n", ret);
 		return ret;
@@ -91,7 +91,7 @@ static inline int spi_nor_read_dummy_cycles(struct spi_nor *nor)
 static inline int write_sr(struct spi_nor *nor, u8 val)
 {
 	nor->cmd_buf[0] = val;
-	return nor->write_reg(nor, OPCODE_WRSR, nor->cmd_buf, 1, 0);
+	return nor->write_reg(nor, SPINOR_OP_WRSR, nor->cmd_buf, 1, 0);
 }
 
 /*
@@ -100,7 +100,7 @@ static inline int write_sr(struct spi_nor *nor, u8 val)
  */
 static inline int write_enable(struct spi_nor *nor)
 {
-	return nor->write_reg(nor, OPCODE_WREN, NULL, 0, 0);
+	return nor->write_reg(nor, SPINOR_OP_WREN, NULL, 0, 0);
 }
 
 /*
@@ -108,7 +108,7 @@ static inline int write_enable(struct spi_nor *nor)
  */
 static inline int write_disable(struct spi_nor *nor)
 {
-	return nor->write_reg(nor, OPCODE_WRDI, NULL, 0, 0);
+	return nor->write_reg(nor, SPINOR_OP_WRDI, NULL, 0, 0);
 }
 
 static inline struct spi_nor *mtd_to_spi_nor(struct mtd_info *mtd)
@@ -132,7 +132,7 @@ static inline int set_4byte(struct spi_nor *nor, u32 jedec_id, int enable)
 		if (need_wren)
 			write_enable(nor);
 
-		cmd = enable ? OPCODE_EN4B : OPCODE_EX4B;
+		cmd = enable ? SPINOR_OP_EN4B : SPINOR_OP_EX4B;
 		status = nor->write_reg(nor, cmd, NULL, 0, 0);
 		if (need_wren)
 			write_disable(nor);
@@ -141,7 +141,7 @@ static inline int set_4byte(struct spi_nor *nor, u32 jedec_id, int enable)
 	default:
 		/* Spansion style */
 		nor->cmd_buf[0] = enable << 7;
-		return nor->write_reg(nor, OPCODE_BRWR, nor->cmd_buf, 1, 0);
+		return nor->write_reg(nor, SPINOR_OP_BRWR, nor->cmd_buf, 1, 0);
 	}
 }
 
@@ -193,7 +193,7 @@ static int erase_chip(struct spi_nor *nor)
 	/* Send write enable, then erase commands. */
 	write_enable(nor);
 
-	return nor->write_reg(nor, OPCODE_CHIP_ERASE, NULL, 0, 0);
+	return nor->write_reg(nor, SPINOR_OP_CHIP_ERASE, NULL, 0, 0);
 }
 
 static int spi_nor_lock_and_prep(struct spi_nor *nor, enum spi_nor_ops ops)
@@ -253,7 +253,7 @@ static int spi_nor_erase(struct mtd_info *mtd, struct erase_info *instr)
 		}
 
 	/* REVISIT in some cases we could speed up erasing large regions
-	 * by using OPCODE_SE instead of OPCODE_BE_4K.  We may have set up
+	 * by using SPINOR_OP_SE instead of SPINOR_OP_BE_4K.  We may have set up
 	 * to use "small sector erase", but that's not always optimal.
 	 */
 
@@ -385,7 +385,7 @@ struct flash_info {
 	u32		jedec_id;
 	u16             ext_id;
 
-	/* The size listed here is what works with OPCODE_SE, which isn't
+	/* The size listed here is what works with SPINOR_OP_SE, which isn't
 	 * necessarily called a "sector" by the vendor.
 	 */
 	unsigned	sector_size;
@@ -395,11 +395,11 @@ struct flash_info {
 	u16		addr_width;
 
 	u16		flags;
-#define	SECT_4K			0x01	/* OPCODE_BE_4K works uniformly */
+#define	SECT_4K			0x01	/* SPINOR_OP_BE_4K works uniformly */
 #define	SPI_NOR_NO_ERASE	0x02	/* No erase command needed */
 #define	SST_WRITE		0x04	/* use SST byte programming */
 #define	SPI_NOR_NO_FR		0x08	/* Can't do fastread */
-#define	SECT_4K_PMC		0x10	/* OPCODE_BE_4K_PMC works uniformly */
+#define	SECT_4K_PMC		0x10	/* SPINOR_OP_BE_4K_PMC works uniformly */
 #define	SPI_NOR_DUAL_READ	0x20    /* Flash supports Dual Read */
 #define	SPI_NOR_QUAD_READ	0x40    /* Flash supports Quad Read */
 };
@@ -598,7 +598,7 @@ static const struct spi_device_id *spi_nor_read_id(struct spi_nor *nor)
 	u16                     ext_jedec;
 	struct flash_info	*info;
 
-	tmp = nor->read_reg(nor, OPCODE_RDID, id, 5);
+	tmp = nor->read_reg(nor, SPINOR_OP_RDID, id, 5);
 	if (tmp < 0) {
 		dev_dbg(nor->dev, " error %d reading JEDEC ID\n", tmp);
 		return ERR_PTR(tmp);
@@ -670,7 +670,7 @@ static int sst_write(struct mtd_info *mtd, loff_t to, size_t len,
 	actual = to % 2;
 	/* Start write from odd address. */
 	if (actual) {
-		nor->program_opcode = OPCODE_BP;
+		nor->program_opcode = SPINOR_OP_BP;
 
 		/* write one byte. */
 		nor->write(nor, to, 1, retlen, buf);
@@ -682,7 +682,7 @@ static int sst_write(struct mtd_info *mtd, loff_t to, size_t len,
 
 	/* Write out most of the data here. */
 	for (; actual < len - 1; actual += 2) {
-		nor->program_opcode = OPCODE_AAI_WP;
+		nor->program_opcode = SPINOR_OP_AAI_WP;
 
 		/* write two bytes. */
 		nor->write(nor, to, 2, retlen, buf + actual);
@@ -703,7 +703,7 @@ static int sst_write(struct mtd_info *mtd, loff_t to, size_t len,
 	if (actual != len) {
 		write_enable(nor);
 
-		nor->program_opcode = OPCODE_BP;
+		nor->program_opcode = SPINOR_OP_BP;
 		nor->write(nor, to, 1, retlen, buf + actual);
 
 		ret = wait_till_ready(nor);
@@ -777,7 +777,7 @@ static int macronix_quad_enable(struct spi_nor *nor)
 	write_enable(nor);
 
 	nor->cmd_buf[0] = val | SR_QUAD_EN_MX;
-	nor->write_reg(nor, OPCODE_WRSR, nor->cmd_buf, 1, 0);
+	nor->write_reg(nor, SPINOR_OP_WRSR, nor->cmd_buf, 1, 0);
 
 	if (wait_till_ready(nor))
 		return 1;
@@ -802,7 +802,7 @@ static int write_sr_cr(struct spi_nor *nor, u16 val)
 	nor->cmd_buf[0] = val & 0xff;
 	nor->cmd_buf[1] = (val >> 8);
 
-	return nor->write_reg(nor, OPCODE_WRSR, nor->cmd_buf, 2, 0);
+	return nor->write_reg(nor, SPINOR_OP_WRSR, nor->cmd_buf, 2, 0);
 }
 
 static int spansion_quad_enable(struct spi_nor *nor)
@@ -967,13 +967,13 @@ int spi_nor_scan(struct spi_nor *nor, const struct spi_device_id *id,
 
 	/* prefer "small sector" erase if possible */
 	if (info->flags & SECT_4K) {
-		nor->erase_opcode = OPCODE_BE_4K;
+		nor->erase_opcode = SPINOR_OP_BE_4K;
 		mtd->erasesize = 4096;
 	} else if (info->flags & SECT_4K_PMC) {
-		nor->erase_opcode = OPCODE_BE_4K_PMC;
+		nor->erase_opcode = SPINOR_OP_BE_4K_PMC;
 		mtd->erasesize = 4096;
 	} else {
-		nor->erase_opcode = OPCODE_SE;
+		nor->erase_opcode = SPINOR_OP_SE;
 		mtd->erasesize = info->sector_size;
 	}
 
@@ -1014,23 +1014,23 @@ int spi_nor_scan(struct spi_nor *nor, const struct spi_device_id *id,
 	/* Default commands */
 	switch (nor->flash_read) {
 	case SPI_NOR_QUAD:
-		nor->read_opcode = OPCODE_QUAD_READ;
+		nor->read_opcode = SPINOR_OP_QUAD_READ;
 		break;
 	case SPI_NOR_DUAL:
-		nor->read_opcode = OPCODE_DUAL_READ;
+		nor->read_opcode = SPINOR_OP_DUAL_READ;
 		break;
 	case SPI_NOR_FAST:
-		nor->read_opcode = OPCODE_FAST_READ;
+		nor->read_opcode = SPINOR_OP_FAST_READ;
 		break;
 	case SPI_NOR_NORMAL:
-		nor->read_opcode = OPCODE_NORM_READ;
+		nor->read_opcode = SPINOR_OP_NORM_READ;
 		break;
 	default:
 		dev_err(dev, "No Read opcode defined\n");
 		return -EINVAL;
 	}
 
-	nor->program_opcode = OPCODE_PP;
+	nor->program_opcode = SPINOR_OP_PP;
 
 	if (info->addr_width)
 		nor->addr_width = info->addr_width;
@@ -1041,21 +1041,21 @@ int spi_nor_scan(struct spi_nor *nor, const struct spi_device_id *id,
 			/* Dedicated 4-byte command set */
 			switch (nor->flash_read) {
 			case SPI_NOR_QUAD:
-				nor->read_opcode = OPCODE_QUAD_READ_4B;
+				nor->read_opcode = SPINOR_OP_QUAD_READ_4B;
 				break;
 			case SPI_NOR_DUAL:
-				nor->read_opcode = OPCODE_DUAL_READ_4B;
+				nor->read_opcode = SPINOR_OP_DUAL_READ_4B;
 				break;
 			case SPI_NOR_FAST:
-				nor->read_opcode = OPCODE_FAST_READ_4B;
+				nor->read_opcode = SPINOR_OP_FAST_READ_4B;
 				break;
 			case SPI_NOR_NORMAL:
-				nor->read_opcode = OPCODE_NORM_READ_4B;
+				nor->read_opcode = SPINOR_OP_NORM_READ_4B;
 				break;
 			}
-			nor->program_opcode = OPCODE_PP_4B;
+			nor->program_opcode = SPINOR_OP_PP_4B;
 			/* No small sector erase for 4-byte command set */
-			nor->erase_opcode = OPCODE_SE_4B;
+			nor->erase_opcode = SPINOR_OP_SE_4B;
 			mtd->erasesize = info->sector_size;
 		} else
 			set_4byte(nor, info->jedec_id, 1);

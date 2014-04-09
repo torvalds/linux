@@ -294,12 +294,12 @@ static void fsl_qspi_init_lut(struct fsl_qspi *q)
 	lut_base = SEQID_QUAD_READ * 4;
 
 	if (q->nor_size <= SZ_16M) {
-		cmd = OPCODE_QUAD_READ;
+		cmd = SPINOR_OP_QUAD_READ;
 		addrlen = ADDR24BIT;
 		dummy = 8;
 	} else {
 		/* use the 4-byte address */
-		cmd = OPCODE_QUAD_READ;
+		cmd = SPINOR_OP_QUAD_READ;
 		addrlen = ADDR32BIT;
 		dummy = 8;
 	}
@@ -311,17 +311,17 @@ static void fsl_qspi_init_lut(struct fsl_qspi *q)
 
 	/* Write enable */
 	lut_base = SEQID_WREN * 4;
-	writel(LUT0(CMD, PAD1, OPCODE_WREN), base + QUADSPI_LUT(lut_base));
+	writel(LUT0(CMD, PAD1, SPINOR_OP_WREN), base + QUADSPI_LUT(lut_base));
 
 	/* Page Program */
 	lut_base = SEQID_PP * 4;
 
 	if (q->nor_size <= SZ_16M) {
-		cmd = OPCODE_PP;
+		cmd = SPINOR_OP_PP;
 		addrlen = ADDR24BIT;
 	} else {
 		/* use the 4-byte address */
-		cmd = OPCODE_PP;
+		cmd = SPINOR_OP_PP;
 		addrlen = ADDR32BIT;
 	}
 
@@ -331,18 +331,18 @@ static void fsl_qspi_init_lut(struct fsl_qspi *q)
 
 	/* Read Status */
 	lut_base = SEQID_RDSR * 4;
-	writel(LUT0(CMD, PAD1, OPCODE_RDSR) | LUT1(READ, PAD1, 0x1),
+	writel(LUT0(CMD, PAD1, SPINOR_OP_RDSR) | LUT1(READ, PAD1, 0x1),
 			base + QUADSPI_LUT(lut_base));
 
 	/* Erase a sector */
 	lut_base = SEQID_SE * 4;
 
 	if (q->nor_size <= SZ_16M) {
-		cmd = OPCODE_SE;
+		cmd = SPINOR_OP_SE;
 		addrlen = ADDR24BIT;
 	} else {
 		/* use the 4-byte address */
-		cmd = OPCODE_SE;
+		cmd = SPINOR_OP_SE;
 		addrlen = ADDR32BIT;
 	}
 
@@ -351,35 +351,35 @@ static void fsl_qspi_init_lut(struct fsl_qspi *q)
 
 	/* Erase the whole chip */
 	lut_base = SEQID_CHIP_ERASE * 4;
-	writel(LUT0(CMD, PAD1, OPCODE_CHIP_ERASE),
+	writel(LUT0(CMD, PAD1, SPINOR_OP_CHIP_ERASE),
 			base + QUADSPI_LUT(lut_base));
 
 	/* READ ID */
 	lut_base = SEQID_RDID * 4;
-	writel(LUT0(CMD, PAD1, OPCODE_RDID) | LUT1(READ, PAD1, 0x8),
+	writel(LUT0(CMD, PAD1, SPINOR_OP_RDID) | LUT1(READ, PAD1, 0x8),
 			base + QUADSPI_LUT(lut_base));
 
 	/* Write Register */
 	lut_base = SEQID_WRSR * 4;
-	writel(LUT0(CMD, PAD1, OPCODE_WRSR) | LUT1(WRITE, PAD1, 0x2),
+	writel(LUT0(CMD, PAD1, SPINOR_OP_WRSR) | LUT1(WRITE, PAD1, 0x2),
 			base + QUADSPI_LUT(lut_base));
 
 	/* Read Configuration Register */
 	lut_base = SEQID_RDCR * 4;
-	writel(LUT0(CMD, PAD1, OPCODE_RDCR) | LUT1(READ, PAD1, 0x1),
+	writel(LUT0(CMD, PAD1, SPINOR_OP_RDCR) | LUT1(READ, PAD1, 0x1),
 			base + QUADSPI_LUT(lut_base));
 
 	/* Write disable */
 	lut_base = SEQID_WRDI * 4;
-	writel(LUT0(CMD, PAD1, OPCODE_WRDI), base + QUADSPI_LUT(lut_base));
+	writel(LUT0(CMD, PAD1, SPINOR_OP_WRDI), base + QUADSPI_LUT(lut_base));
 
 	/* Enter 4 Byte Mode (Micron) */
 	lut_base = SEQID_EN4B * 4;
-	writel(LUT0(CMD, PAD1, OPCODE_EN4B), base + QUADSPI_LUT(lut_base));
+	writel(LUT0(CMD, PAD1, SPINOR_OP_EN4B), base + QUADSPI_LUT(lut_base));
 
 	/* Enter 4 Byte Mode (Spansion) */
 	lut_base = SEQID_BRWR * 4;
-	writel(LUT0(CMD, PAD1, OPCODE_BRWR), base + QUADSPI_LUT(lut_base));
+	writel(LUT0(CMD, PAD1, SPINOR_OP_BRWR), base + QUADSPI_LUT(lut_base));
 
 	fsl_qspi_lock_lut(q);
 }
@@ -388,29 +388,29 @@ static void fsl_qspi_init_lut(struct fsl_qspi *q)
 static int fsl_qspi_get_seqid(struct fsl_qspi *q, u8 cmd)
 {
 	switch (cmd) {
-	case OPCODE_QUAD_READ:
+	case SPINOR_OP_QUAD_READ:
 		return SEQID_QUAD_READ;
-	case OPCODE_WREN:
+	case SPINOR_OP_WREN:
 		return SEQID_WREN;
-	case OPCODE_WRDI:
+	case SPINOR_OP_WRDI:
 		return SEQID_WRDI;
-	case OPCODE_RDSR:
+	case SPINOR_OP_RDSR:
 		return SEQID_RDSR;
-	case OPCODE_SE:
+	case SPINOR_OP_SE:
 		return SEQID_SE;
-	case OPCODE_CHIP_ERASE:
+	case SPINOR_OP_CHIP_ERASE:
 		return SEQID_CHIP_ERASE;
-	case OPCODE_PP:
+	case SPINOR_OP_PP:
 		return SEQID_PP;
-	case OPCODE_RDID:
+	case SPINOR_OP_RDID:
 		return SEQID_RDID;
-	case OPCODE_WRSR:
+	case SPINOR_OP_WRSR:
 		return SEQID_WRSR;
-	case OPCODE_RDCR:
+	case SPINOR_OP_RDCR:
 		return SEQID_RDCR;
-	case OPCODE_EN4B:
+	case SPINOR_OP_EN4B:
 		return SEQID_EN4B;
-	case OPCODE_BRWR:
+	case SPINOR_OP_BRWR:
 		return SEQID_BRWR;
 	default:
 		dev_err(q->dev, "Unsupported cmd 0x%.2x\n", cmd);
@@ -688,7 +688,7 @@ static int fsl_qspi_write_reg(struct spi_nor *nor, u8 opcode, u8 *buf, int len,
 		if (ret)
 			return ret;
 
-		if (opcode == OPCODE_CHIP_ERASE)
+		if (opcode == SPINOR_OP_CHIP_ERASE)
 			fsl_qspi_invalid(q);
 
 	} else if (len > 0) {
@@ -750,7 +750,7 @@ static int fsl_qspi_erase(struct spi_nor *nor, loff_t offs)
 		return ret;
 
 	/* Send write enable, then erase commands. */
-	ret = nor->write_reg(nor, OPCODE_WREN, NULL, 0, 0);
+	ret = nor->write_reg(nor, SPINOR_OP_WREN, NULL, 0, 0);
 	if (ret)
 		return ret;
 
