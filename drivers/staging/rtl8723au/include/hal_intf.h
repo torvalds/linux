@@ -35,26 +35,6 @@ enum _CHIP_TYPE {
 	MAX_CHIP_TYPE
 };
 
-enum HW_VARIABLES {
-	HW_VAR_INIT_RTS_RATE,
-	HW_VAR_CAM_READ,
-	HW_VAR_TDLS_WRCR,
-	HW_VAR_TDLS_INIT_CH_SEN,
-	HW_VAR_TDLS_RS_RCR,
-	HW_VAR_TDLS_DONE_CH_SEN,
-	HW_VAR_BT_SET_COEXIST,
-	HW_VAR_BT_ISSUE_DELBA,
-	HW_VAR_CURRENT_ANTENNA,
-	HW_VAR_ANTENNA_DIVERSITY_LINK,
-	HW_VAR_ANTENNA_DIVERSITY_SELECT,
-	HW_VAR_SWITCH_EPHY_WoWLAN,
-	/*  The valid upper nav range for the HW updating, if the true value is larger than the upper range, the HW won't update it. */
-	/*  Unit in microsecond. 0 means disable this function. */
-	HW_VAR_RPT_TIMER_SETTING,
-	HW_VAR_TX_RPT_MAX_MACID,
-	HW_VAR_READ_LLT_TAB,
-};
-
 enum hal_def_variable {
 	HAL_DEF_UNDERCORATEDSMOOTHEDPWDB,
 	HAL_DEF_IS_SUPPORT_ANT_DIV,
