@@ -55,6 +55,25 @@ static inline struct dvb_frontend *rtl2832_sdr_attach(struct dvb_frontend *fe,
 }
 #endif
 
+#ifdef CONFIG_MEDIA_ATTACH
+#define dvb_attach_sdr(FUNCTION, ARGS...) ({ \
+	void *__r = NULL; \
+	typeof(&FUNCTION) __a = symbol_request(FUNCTION); \
+	if (__a) { \
+		__r = (void *) __a(ARGS); \
+		if (__r == NULL) \
+			symbol_put(FUNCTION); \
+	} \
+	__r; \
+})
+
+#else
+#define dvb_attach_sdr(FUNCTION, ARGS...) ({ \
+	FUNCTION(ARGS); \
+})
+
+#endif
+
 static int rtl28xxu_disable_rc;
 module_param_named(disable_rc, rtl28xxu_disable_rc, int, 0644);
 MODULE_PARM_DESC(disable_rc, "disable RTL2832U remote controller");
@@ -927,7 +946,7 @@ static int rtl2832u_tuner_attach(struct dvb_usb_adapter *adap)
 				adap->fe[0]->ops.tuner_ops.get_rf_strength;
 
 		/* attach SDR */
-		dvb_attach(rtl2832_sdr_attach, adap->fe[0], &d->i2c_adap,
+		dvb_attach_sdr(rtl2832_sdr_attach, adap->fe[0], &d->i2c_adap,
 				&rtl28xxu_rtl2832_fc0012_config, NULL);
 		break;
 	case TUNER_RTL2832_FC0013:
@@ -939,7 +958,7 @@ static int rtl2832u_tuner_attach(struct dvb_usb_adapter *adap)
 				adap->fe[0]->ops.tuner_ops.get_rf_strength;
 
 		/* attach SDR */
-		dvb_attach(rtl2832_sdr_attach, adap->fe[0], &d->i2c_adap,
+		dvb_attach_sdr(rtl2832_sdr_attach, adap->fe[0], &d->i2c_adap,
 				&rtl28xxu_rtl2832_fc0013_config, NULL);
 		break;
 	case TUNER_RTL2832_E4000: {
@@ -970,7 +989,7 @@ static int rtl2832u_tuner_attach(struct dvb_usb_adapter *adap)
 			i2c_set_adapdata(i2c_adap_internal, d);
 
 			/* attach SDR */
-			dvb_attach(rtl2832_sdr_attach, adap->fe[0],
+			dvb_attach_sdr(rtl2832_sdr_attach, adap->fe[0],
 					i2c_adap_internal,
 					&rtl28xxu_rtl2832_e4000_config, sd);
 		}
@@ -1001,7 +1020,7 @@ static int rtl2832u_tuner_attach(struct dvb_usb_adapter *adap)
 				adap->fe[0]->ops.tuner_ops.get_rf_strength;
 
 		/* attach SDR */
-		dvb_attach(rtl2832_sdr_attach, adap->fe[0], &d->i2c_adap,
+		dvb_attach_sdr(rtl2832_sdr_attach, adap->fe[0], &d->i2c_adap,
 				&rtl28xxu_rtl2832_r820t_config, NULL);
 		break;
 	case TUNER_RTL2832_R828D:
