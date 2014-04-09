@@ -618,10 +618,16 @@ static u32 vlv_get_pipestat_enable_mask(struct drm_device *dev, u32 status_mask)
 	u32 enable_mask = status_mask << 16;
 
 	/*
-	 * On pipe A we don't support the PSR interrupt yet, on pipe B the
-	 * same bit MBZ.
+	 * On pipe A we don't support the PSR interrupt yet,
+	 * on pipe B and C the same bit MBZ.
 	 */
 	if (WARN_ON_ONCE(status_mask & PIPE_A_PSR_STATUS_VLV))
+		return 0;
+	/*
+	 * On pipe B and C we don't support the PSR interrupt yet, on pipe
+	 * A the same bit is for perf counters which we don't use either.
+	 */
+	if (WARN_ON_ONCE(status_mask & PIPE_B_PSR_STATUS_VLV))
 		return 0;
 
 	enable_mask &= ~(PIPE_FIFO_UNDERRUN_STATUS |
