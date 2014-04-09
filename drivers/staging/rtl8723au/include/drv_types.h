@@ -327,21 +327,6 @@ struct rtw_adapter {
 	/* IFACE_ID1 is equals to SECONDARY_ADAPTER */
 	u8 iface_id;
 
-#ifdef CONFIG_BR_EXT
-	_lock					br_ext_lock;
-	/* unsigned int			macclone_completed; */
-	struct nat25_network_db_entry	*nethash[NAT25_HASH_SIZE];
-	int				pppoe_connection_in_progress;
-	unsigned char			pppoe_addr[MACADDRLEN];
-	unsigned char			scdb_mac[MACADDRLEN];
-	unsigned char			scdb_ip[4];
-	struct nat25_network_db_entry	*scdb_entry;
-	unsigned char			br_mac[MACADDRLEN];
-	unsigned char			br_ip[4];
-
-	struct br_ext_info		ethBrExtInfo;
-#endif	/*  CONFIG_BR_EXT */
-
 	u8    fix_rate;
 
 	unsigned char     in_cta_test;
