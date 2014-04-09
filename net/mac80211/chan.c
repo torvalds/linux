@@ -9,6 +9,25 @@
 #include "ieee80211_i.h"
 #include "driver-ops.h"
 
+static int ieee80211_num_chanctx(struct ieee80211_local *local)
+{
+	struct ieee80211_chanctx *ctx;
+	int num = 0;
+
+	lockdep_assert_held(&local->chanctx_mtx);
+
+	list_for_each_entry(ctx, &local->chanctx_list, list)
+		num++;
+
+	return num;
+}
+
+static bool ieee80211_can_create_new_chanctx(struct ieee80211_local *local)
+{
+	lockdep_assert_held(&local->chanctx_mtx);
+	return ieee80211_num_chanctx(local) < ieee80211_max_num_channels(local);
+}
+
 static enum nl80211_chan_width ieee80211_get_sta_bw(struct ieee80211_sta *sta)
 {
 	switch (sta->bandwidth) {
@@ -751,13 +770,16 @@ int ieee80211_vif_reserve_chanctx(struct ieee80211_sub_if_data *sdata,
 			 * context, reserve our current context
 			 */
 			new_ctx = curr_ctx;
-		} else {
+		} else if (ieee80211_can_create_new_chanctx(local)) {
 			/* create a new context and reserve it */
 			new_ctx = ieee80211_new_chanctx(local, chandef, mode);
 			if (IS_ERR(new_ctx)) {
 				ret = PTR_ERR(new_ctx);
 				goto out;
 			}
+		} else {
+			ret = -EBUSY;
+			goto out;
 		}
 	}
 
