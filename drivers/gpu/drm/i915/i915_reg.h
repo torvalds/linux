@@ -1081,6 +1081,7 @@ enum punit_power_well {
 #define IMR		0x020a8
 #define ISR		0x020ac
 #define VLV_GUNIT_CLOCK_GATE	(VLV_DISPLAY_BASE + 0x2060)
+#define   GINT_DIS		(1<<22)
 #define   GCFG_DIS		(1<<8)
 #define VLV_GUNIT_CLOCK_GATE2	(VLV_DISPLAY_BASE + 0x2064)
 #define VLV_IIR_RW	(VLV_DISPLAY_BASE + 0x2084)
@@ -1211,6 +1212,7 @@ enum punit_power_well {
 
 #define GEN6_RC_SLEEP_PSMI_CONTROL	0x2050
 #define   GEN8_RC_SEMA_IDLE_MSG_DISABLE	(1 << 12)
+#define   GEN8_FF_DOP_CLOCK_GATE_DISABLE	(1<<10)
 
 #define GEN6_BSD_SLEEP_PSMI_CONTROL	0x12050
 #define   GEN6_BSD_SLEEP_MSG_DISABLE	(1 << 0)
@@ -5269,6 +5271,7 @@ enum punit_power_well {
 #define  HSW_EDRAM_PRESENT			0x120010
 
 #define GEN6_UCGCTL1				0x9400
+# define GEN6_EU_TCUNIT_CLOCK_GATE_DISABLE		(1 << 16)
 # define GEN6_BLBUNIT_CLOCK_GATE_DISABLE		(1 << 5)
 # define GEN6_CSUNIT_CLOCK_GATE_DISABLE			(1 << 7)
 
