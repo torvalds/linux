@@ -277,6 +277,7 @@ ieee80211_new_chanctx(struct ieee80211_local *local,
 		return ERR_PTR(-ENOMEM);
 
 	INIT_LIST_HEAD(&ctx->assigned_vifs);
+	INIT_LIST_HEAD(&ctx->reserved_vifs);
 	ctx->conf.def = *chandef;
 	ctx->conf.rx_chains_static = 1;
 	ctx->conf.rx_chains_dynamic = 1;
@@ -731,15 +732,18 @@ void ieee80211_vif_copy_chanctx_to_vlans(struct ieee80211_sub_if_data *sdata,
 
 int ieee80211_vif_unreserve_chanctx(struct ieee80211_sub_if_data *sdata)
 {
+	struct ieee80211_chanctx *ctx = sdata->reserved_chanctx;
+
 	lockdep_assert_held(&sdata->local->chanctx_mtx);
 
-	if (WARN_ON(!sdata->reserved_chanctx))
+	if (WARN_ON(!ctx))
 		return -EINVAL;
 
-	if (--sdata->reserved_chanctx->refcount == 0)
-		ieee80211_free_chanctx(sdata->local, sdata->reserved_chanctx);
-
+	list_del(&sdata->reserved_chanctx_list);
 	sdata->reserved_chanctx = NULL;
+
+	if (--ctx->refcount == 0)
+		ieee80211_free_chanctx(sdata->local, ctx);
 
 	return 0;
 }
@@ -788,6 +792,7 @@ int ieee80211_vif_reserve_chanctx(struct ieee80211_sub_if_data *sdata,
 		}
 	}
 
+	list_add(&sdata->reserved_chanctx_list, &new_ctx->reserved_vifs);
 	new_ctx->refcount++;
 	sdata->reserved_chanctx = new_ctx;
 	sdata->reserved_chandef = *chandef;
@@ -837,6 +842,7 @@ int ieee80211_vif_use_reserved_context(struct ieee80211_sub_if_data *sdata,
 	ctx->refcount--;
 	sdata->reserved_chanctx = NULL;
 	sdata->radar_required = sdata->reserved_radar_required;
+	list_del(&sdata->reserved_chanctx_list);
 
 	if (old_ctx == ctx) {
 		/* This is our own context, just change it */

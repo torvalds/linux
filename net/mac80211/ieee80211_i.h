@@ -692,6 +692,7 @@ struct ieee80211_chanctx {
 	struct rcu_head rcu_head;
 
 	struct list_head assigned_vifs;
+	struct list_head reserved_vifs;
 
 	enum ieee80211_chanctx_mode mode;
 	int refcount;
@@ -759,6 +760,7 @@ struct ieee80211_sub_if_data {
 	struct cfg80211_chan_def csa_chandef;
 
 	struct list_head assigned_chanctx_list; /* protected by chanctx_mtx */
+	struct list_head reserved_chanctx_list; /* protected by chanctx_mtx */
 
 	/* context reservation -- protected with chanctx_mtx */
 	struct ieee80211_chanctx *reserved_chanctx;
