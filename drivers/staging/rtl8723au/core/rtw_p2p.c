@@ -3564,52 +3564,50 @@ void p2p_ps_wk_hdl23a(struct rtw_adapter *padapter, u8 p2p_ps_state)
 	/*  Pre action for p2p state */
 	switch (p2p_ps_state)
 	{
-		case P2P_PS_DISABLE:
+	case P2P_PS_DISABLE:
+		pwdinfo->p2p_ps_state = p2p_ps_state;
+
+		rtl8723a_set_p2p_ps_offload_cmd(padapter, p2p_ps_state);
+
+		pwdinfo->noa_index = 0;
+		pwdinfo->ctwindow = 0;
+		pwdinfo->opp_ps = 0;
+		pwdinfo->noa_num = 0;
+		pwdinfo->p2p_ps_mode = P2P_PS_NONE;
+		if (padapter->pwrctrlpriv.bFwCurrentInPSMode == true) {
+			if (pwrpriv->smart_ps == 0) {
+				pwrpriv->smart_ps = 2;
+				rtl8723a_set_FwPwrMode_cmd(padapter, padapter->pwrctrlpriv.pwr_mode);
+			}
+		}
+		break;
+	case P2P_PS_ENABLE:
+		if (pwdinfo->p2p_ps_mode > P2P_PS_NONE) {
 			pwdinfo->p2p_ps_state = p2p_ps_state;
 
-			rtl8723a_set_p2p_ps_offload_cmd(padapter, p2p_ps_state);
-
-			pwdinfo->noa_index = 0;
-			pwdinfo->ctwindow = 0;
-			pwdinfo->opp_ps = 0;
-			pwdinfo->noa_num = 0;
-			pwdinfo->p2p_ps_mode = P2P_PS_NONE;
-			if (padapter->pwrctrlpriv.bFwCurrentInPSMode == true) {
-				if (pwrpriv->smart_ps == 0) {
-					pwrpriv->smart_ps = 2;
+			if (pwdinfo->ctwindow > 0) {
+				if (pwrpriv->smart_ps != 0) {
+					pwrpriv->smart_ps = 0;
+					DBG_8723A("%s(): Enter CTW, change "
+						  "SmartPS\n", __func__);
 					rtl8723a_set_FwPwrMode_cmd(padapter, padapter->pwrctrlpriv.pwr_mode);
 				}
 			}
-			break;
-		case P2P_PS_ENABLE:
-			if (pwdinfo->p2p_ps_mode > P2P_PS_NONE) {
-				pwdinfo->p2p_ps_state = p2p_ps_state;
-
-				if (pwdinfo->ctwindow > 0) {
-					if (pwrpriv->smart_ps != 0) {
-						pwrpriv->smart_ps = 0;
-						DBG_8723A("%s(): Enter CTW, change SmartPS\n", __func__);
-						rtl8723a_set_FwPwrMode_cmd(padapter, padapter->pwrctrlpriv.pwr_mode);
-					}
-				}
-				rtl8723a_set_p2p_ps_offload_cmd(padapter,
-								p2p_ps_state);
-			}
-			break;
-		case P2P_PS_SCAN:
-		case P2P_PS_SCAN_DONE:
-		case P2P_PS_ALLSTASLEEP:
-			if (pwdinfo->p2p_ps_mode > P2P_PS_NONE) {
-				pwdinfo->p2p_ps_state = p2p_ps_state;
-				rtl8723a_set_p2p_ps_offload_cmd(padapter,
-								p2p_ps_state);
-			}
-			break;
-		default:
-			break;
+			rtl8723a_set_p2p_ps_offload_cmd(padapter,
+							p2p_ps_state);
+		}
+		break;
+	case P2P_PS_SCAN:
+	case P2P_PS_SCAN_DONE:
+	case P2P_PS_ALLSTASLEEP:
+		if (pwdinfo->p2p_ps_mode > P2P_PS_NONE) {
+			pwdinfo->p2p_ps_state = p2p_ps_state;
+			rtl8723a_set_p2p_ps_offload_cmd(padapter, p2p_ps_state);
+		}
+		break;
+	default:
+		break;
 	}
-
-
 }
 
 u8 p2p_ps_wk_cmd23a(struct rtw_adapter*padapter, u8 p2p_ps_state, u8 enqueue)

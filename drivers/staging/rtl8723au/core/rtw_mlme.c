@@ -2324,17 +2324,18 @@ void rtw_update_ht_cap23a(struct rtw_adapter *padapter, u8 *pie, uint ie_len)
 		pmlmeext->cur_bwmode = HT_CHANNEL_WIDTH_40;
 		switch ((pmlmeinfo->HT_info.infos[0] & 0x3))
 		{
-			case HT_EXTCHNL_OFFSET_UPPER:
-				pmlmeext->cur_ch_offset = HAL_PRIME_CHNL_OFFSET_LOWER;
-				break;
+		case HT_EXTCHNL_OFFSET_UPPER:
+			pmlmeext->cur_ch_offset = HAL_PRIME_CHNL_OFFSET_LOWER;
+			break;
 
-			case HT_EXTCHNL_OFFSET_LOWER:
-				pmlmeext->cur_ch_offset = HAL_PRIME_CHNL_OFFSET_UPPER;
-				break;
+		case HT_EXTCHNL_OFFSET_LOWER:
+			pmlmeext->cur_ch_offset = HAL_PRIME_CHNL_OFFSET_UPPER;
+			break;
 
-			default:
-				pmlmeext->cur_ch_offset = HAL_PRIME_CHNL_OFFSET_DONT_CARE;
-				break;
+		default:
+			pmlmeext->cur_ch_offset =
+				HAL_PRIME_CHNL_OFFSET_DONT_CARE;
+			break;
 		}
 	}
 

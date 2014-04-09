@@ -1349,50 +1349,37 @@ void update_beacon23a(struct rtw_adapter *padapter, u8 ie_id, u8 *oui, u8 tx)
 
 	switch (ie_id)
 	{
-		case 0xFF:
+	case 0xFF:
+		/* 8: TimeStamp, 2: Beacon Interval 2:Capability */
+		update_bcn_fixed_ie(padapter);
+		break;
 
-			update_bcn_fixed_ie(padapter);/* 8: TimeStamp, 2: Beacon Interval 2:Capability */
+	case _TIM_IE_:
+		update_BCNTIM(padapter);
+		break;
 
-			break;
+	case _ERPINFO_IE_:
+		update_bcn_erpinfo_ie(padapter);
+		break;
 
-		case _TIM_IE_:
+	case _HT_CAPABILITY_IE_:
+		update_bcn_htcap_ie(padapter);
+		break;
 
-			update_BCNTIM(padapter);
+	case _RSN_IE_2_:
+		update_bcn_rsn_ie(padapter);
+		break;
 
-			break;
+	case _HT_ADD_INFO_IE_:
+		update_bcn_htinfo_ie(padapter);
+		break;
 
-		case _ERPINFO_IE_:
+	case _VENDOR_SPECIFIC_IE_:
+		update_bcn_vendor_spec_ie(padapter, oui);
+		break;
 
-			update_bcn_erpinfo_ie(padapter);
-
-			break;
-
-		case _HT_CAPABILITY_IE_:
-
-			update_bcn_htcap_ie(padapter);
-
-			break;
-
-		case _RSN_IE_2_:
-
-			update_bcn_rsn_ie(padapter);
-
-			break;
-
-		case _HT_ADD_INFO_IE_:
-
-			update_bcn_htinfo_ie(padapter);
-
-			break;
-
-		case _VENDOR_SPECIFIC_IE_:
-
-			update_bcn_vendor_spec_ie(padapter, oui);
-
-			break;
-
-		default:
-			break;
+	default:
+		break;
 	}
 
 	pmlmepriv->update_bcn = true;
