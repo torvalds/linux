@@ -1605,7 +1605,7 @@ static void azx_exit_link_reset(struct azx *chip)
 }
 
 /* reset codec link */
-static int azx_reset(struct azx *chip, int full_reset)
+static int azx_reset(struct azx *chip, bool full_reset)
 {
 	if (!full_reset)
 		goto __skip;
@@ -1702,7 +1702,7 @@ static void azx_int_clear(struct azx *chip)
 /*
  * reset and start the controller registers
  */
-void azx_init_chip(struct azx *chip, int full_reset)
+void azx_init_chip(struct azx *chip, bool full_reset)
 {
 	if (chip->initialized)
 		return;
@@ -1842,7 +1842,7 @@ static void azx_bus_reset(struct hda_bus *bus)
 
 	bus->in_reset = 1;
 	azx_stop_chip(chip);
-	azx_init_chip(chip, 1);
+	azx_init_chip(chip, true);
 #ifdef CONFIG_PM
 	if (chip->initialized) {
 		struct azx_pcm *p;
@@ -1949,7 +1949,7 @@ int azx_codec_create(struct azx *chip, const char *model,
 				 * get back to the sanity state.
 				 */
 				azx_stop_chip(chip);
-				azx_init_chip(chip, 1);
+				azx_init_chip(chip, true);
 			}
 		}
 	}
