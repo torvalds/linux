@@ -1112,9 +1112,9 @@ s32 rtw_xmitframe_coalesce23a(struct rtw_adapter *padapter, struct sk_buff *pkt,
 			      struct xmit_frame *pxmitframe)
 {
 	struct pkt_file pktfile;
-	struct sta_info		*psta;
-	struct xmit_priv	*pxmitpriv = &padapter->xmitpriv;
-	struct pkt_attrib	*pattrib = &pxmitframe->attrib;
+	struct sta_info *psta;
+	struct xmit_priv *pxmitpriv = &padapter->xmitpriv;
+	struct pkt_attrib *pattrib = &pxmitframe->attrib;
 	s32 frg_inx, frg_len, mpdu_len, llc_sz, mem_sz;
 	u8 *pframe, *mem_start;
 	u8 hw_hdr_offset;
@@ -1123,24 +1123,25 @@ s32 rtw_xmitframe_coalesce23a(struct rtw_adapter *padapter, struct sk_buff *pkt,
 	s32 bmcst = is_multicast_ether_addr(pattrib->ra);
 	s32 res = _SUCCESS;
 
-	if (pattrib->psta) {
+	if (pattrib->psta)
 		psta = pattrib->psta;
-	} else {
+	else {
 		DBG_8723A("%s, call rtw_get_stainfo23a()\n", __func__);
 		psta = rtw_get_stainfo23a(&padapter->stapriv, pattrib->ra);
 	}
 
-	if (psta == NULL) {
+	if (!psta) {
 		DBG_8723A("%s, psta == NUL\n", __func__);
 		return _FAIL;
 	}
 
 	if (!(psta->state &_FW_LINKED)) {
-		DBG_8723A("%s, psta->state(0x%x) != _FW_LINKED\n", __func__, psta->state);
+		DBG_8723A("%s, psta->state(0x%x) != _FW_LINKED\n",
+			  __func__, psta->state);
 		return _FAIL;
 	}
 
-	if (pxmitframe->buf_addr == NULL) {
+	if (!pxmitframe->buf_addr) {
 		DBG_8723A("==> %s buf_addr == NULL\n", __func__);
 		return _FAIL;
 	}
@@ -1149,7 +1150,7 @@ s32 rtw_xmitframe_coalesce23a(struct rtw_adapter *padapter, struct sk_buff *pkt,
 
 	hw_hdr_offset = TXDESC_OFFSET;
 
-	mem_start = pbuf_start +	hw_hdr_offset;
+	mem_start = pbuf_start + hw_hdr_offset;
 
 	if (rtw_make_wlanhdr23a(padapter, mem_start, pattrib) == _FAIL) {
 		RT_TRACE(_module_rtl871x_xmit_c_, _drv_err_,
@@ -1179,23 +1180,30 @@ s32 rtw_xmitframe_coalesce23a(struct rtw_adapter *padapter, struct sk_buff *pkt,
 
 		/* adding icv, if necessary... */
 		if (pattrib->iv_len) {
-			if (psta != NULL) {
+			if (psta) {
 				switch (pattrib->encrypt) {
 				case _WEP40_:
 				case _WEP104_:
-					WEP_IV(pattrib->iv, psta->dot11txpn, pattrib->key_idx);
+					WEP_IV(pattrib->iv, psta->dot11txpn,
+					       pattrib->key_idx);
 					break;
 				case _TKIP_:
 					if (bmcst)
-						TKIP_IV(pattrib->iv, psta->dot11txpn, pattrib->key_idx);
+						TKIP_IV(pattrib->iv,
+							psta->dot11txpn,
+							pattrib->key_idx);
 					else
-						TKIP_IV(pattrib->iv, psta->dot11txpn, 0);
+						TKIP_IV(pattrib->iv,
+							psta->dot11txpn, 0);
 					break;
 				case _AES_:
 					if (bmcst)
-						AES_IV(pattrib->iv, psta->dot11txpn, pattrib->key_idx);
+						AES_IV(pattrib->iv,
+						       psta->dot11txpn,
+						       pattrib->key_idx);
 					else
-						AES_IV(pattrib->iv, psta->dot11txpn, 0);
+						AES_IV(pattrib->iv,
+						       psta->dot11txpn, 0);
 					break;
 				}
 			}
@@ -1217,14 +1225,16 @@ s32 rtw_xmitframe_coalesce23a(struct rtw_adapter *padapter, struct sk_buff *pkt,
 			mpdu_len -= llc_sz;
 		}
 
-		if ((pattrib->icv_len >0) && (pattrib->bswenc))
+		if (pattrib->icv_len > 0 && pattrib->bswenc)
 			mpdu_len -= pattrib->icv_len;
 
 		if (bmcst) {
 			/*  don't do fragment to broadcat/multicast packets */
-			mem_sz = _rtw_pktfile_read23a(&pktfile, pframe, pattrib->pktlen);
+			mem_sz = _rtw_pktfile_read23a(&pktfile, pframe,
+						      pattrib->pktlen);
 		} else {
-			mem_sz = _rtw_pktfile_read23a(&pktfile, pframe, mpdu_len);
+			mem_sz = _rtw_pktfile_read23a(&pktfile, pframe,
+						      mpdu_len);
 		}
 		pframe += mem_sz;
 
@@ -1235,7 +1245,7 @@ s32 rtw_xmitframe_coalesce23a(struct rtw_adapter *padapter, struct sk_buff *pkt,
 
 		frg_inx++;
 
-		if (bmcst || (rtw_endofpktfile23a(&pktfile))) {
+		if (bmcst || rtw_endofpktfile23a(&pktfile)) {
 			pattrib->nr_frags = frg_inx;
 
 			pattrib->last_txcmdsz = pattrib->hdrlen +
@@ -1249,16 +1259,18 @@ s32 rtw_xmitframe_coalesce23a(struct rtw_adapter *padapter, struct sk_buff *pkt,
 
 			break;
 		} else {
-			RT_TRACE(_module_rtl871x_xmit_c_, _drv_err_, ("%s: There're still something in packet!\n", __func__));
+			RT_TRACE(_module_rtl871x_xmit_c_, _drv_err_,
+				 ("%s: There're still something in packet!\n",
+				  __func__));
 		}
 
 		mem_start = PTR_ALIGN(pframe, 4) + hw_hdr_offset;
 		memcpy(mem_start, pbuf_start + hw_hdr_offset, pattrib->hdrlen);
-
 	}
 
 	if (xmitframe_addmic(padapter, pxmitframe) == _FAIL) {
-		RT_TRACE(_module_rtl871x_xmit_c_, _drv_err_, ("xmitframe_addmic(padapter, pxmitframe) == _FAIL\n"));
+		RT_TRACE(_module_rtl871x_xmit_c_, _drv_err_,
+			 ("xmitframe_addmic(padapter, pxmitframe) == _FAIL\n"));
 		DBG_8723A("xmitframe_addmic(padapter, pxmitframe) == _FAIL\n");
 		res = _FAIL;
 		goto exit;
