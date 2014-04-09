@@ -3053,10 +3053,48 @@ void ieee80211_csa_finish(struct ieee80211_vif *vif)
 }
 EXPORT_SYMBOL(ieee80211_csa_finish);
 
+static int ieee80211_set_after_csa_beacon(struct ieee80211_sub_if_data *sdata,
+					  u32 *changed)
+{
+	int err;
+
+	switch (sdata->vif.type) {
+	case NL80211_IFTYPE_AP:
+		err = ieee80211_assign_beacon(sdata, sdata->u.ap.next_beacon);
+		kfree(sdata->u.ap.next_beacon);
+		sdata->u.ap.next_beacon = NULL;
+
+		if (err < 0)
+			return err;
+		*changed |= err;
+		break;
+	case NL80211_IFTYPE_ADHOC:
+		err = ieee80211_ibss_finish_csa(sdata);
+		if (err < 0)
+			return err;
+		*changed |= err;
+		break;
+#ifdef CONFIG_MAC80211_MESH
+	case NL80211_IFTYPE_MESH_POINT:
+		err = ieee80211_mesh_finish_csa(sdata);
+		if (err < 0)
+			return err;
+		*changed |= err;
+		break;
+#endif
+	default:
+		WARN_ON(1);
+		return -EINVAL;
+	}
+
+	return 0;
+}
+
 static void ieee80211_csa_finalize(struct ieee80211_sub_if_data *sdata)
 {
 	struct ieee80211_local *local = sdata->local;
-	int err, changed = 0;
+	u32 changed = 0;
+	int err;
 
 	sdata_assert_lock(sdata);
 	lockdep_assert_held(&local->mtx);
@@ -3072,37 +3110,12 @@ static void ieee80211_csa_finalize(struct ieee80211_sub_if_data *sdata)
 	}
 
 	sdata->vif.csa_active = false;
-	switch (sdata->vif.type) {
-	case NL80211_IFTYPE_AP:
-		err = ieee80211_assign_beacon(sdata, sdata->u.ap.next_beacon);
-		kfree(sdata->u.ap.next_beacon);
-		sdata->u.ap.next_beacon = NULL;
 
-		if (err < 0)
-			return;
-		changed |= err;
-		break;
-	case NL80211_IFTYPE_ADHOC:
-		err = ieee80211_ibss_finish_csa(sdata);
-		if (err < 0)
-			return;
-		changed |= err;
-		break;
-#ifdef CONFIG_MAC80211_MESH
-	case NL80211_IFTYPE_MESH_POINT:
-		err = ieee80211_mesh_finish_csa(sdata);
-		if (err < 0)
-			return;
-		changed |= err;
-		break;
-#endif
-	default:
-		WARN_ON(1);
+	err = ieee80211_set_after_csa_beacon(sdata, &changed);
+	if (err)
 		return;
-	}
 
 	ieee80211_bss_info_change_notify(sdata, changed);
-
 	cfg80211_ch_switch_notify(sdata->dev, &sdata->csa_chandef);
 
 	if (!ieee80211_csa_needs_block_tx(local))
