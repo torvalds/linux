@@ -552,9 +552,14 @@ static void intel_dsi_mode_set(struct intel_encoder *intel_encoder)
 		   intel_dsi->clk_hs_to_lp_count << HS_LP_PWR_SW_CNT_SHIFT);
 
 	if (is_vid_mode(intel_dsi))
+		/* Some panels might have resolution which is not a multiple of
+		 * 64 like 1366 x 768. Enable RANDOM resolution support for such
+		 * panels by default */
 		I915_WRITE(MIPI_VIDEO_MODE_FORMAT(pipe),
 				intel_dsi->video_frmt_cfg_bits |
-				intel_dsi->video_mode_format);
+				intel_dsi->video_mode_format |
+				IP_TG_CONFIG |
+				RANDOM_DPI_DISPLAY_RESOLUTION);
 }
 
 static enum drm_connector_status
