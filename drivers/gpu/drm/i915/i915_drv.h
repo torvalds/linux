@@ -1848,9 +1848,10 @@ struct drm_i915_cmd_table {
 #define I915_NEED_GFX_HWS(dev)	(INTEL_INFO(dev)->need_gfx_hws)
 
 #define HAS_HW_CONTEXTS(dev)	(INTEL_INFO(dev)->gen >= 6)
-#define HAS_ALIASING_PPGTT(dev)	(INTEL_INFO(dev)->gen >= 6 && !IS_VALLEYVIEW(dev))
-#define HAS_PPGTT(dev)		(INTEL_INFO(dev)->gen >= 7 && !IS_VALLEYVIEW(dev) \
-				 && !IS_BROADWELL(dev))
+#define HAS_ALIASING_PPGTT(dev)	(INTEL_INFO(dev)->gen >= 6 && \
+				 (!IS_VALLEYVIEW(dev) || IS_CHERRYVIEW(dev)))
+#define HAS_PPGTT(dev)		(INTEL_INFO(dev)->gen >= 7 \
+				 && !IS_GEN8(dev))
 #define USES_PPGTT(dev)		intel_enable_ppgtt(dev, false)
 #define USES_FULL_PPGTT(dev)	intel_enable_ppgtt(dev, true)
 
