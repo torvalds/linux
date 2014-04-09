@@ -1096,6 +1096,13 @@ static void handle_channel(struct wiphy *wiphy,
 			(int) MBI_TO_DBI(power_rule->max_antenna_gain);
 		chan->max_reg_power = chan->max_power = chan->orig_mpwr =
 			(int) MBM_TO_DBM(power_rule->max_eirp);
+
+		if (chan->flags & IEEE80211_CHAN_RADAR) {
+			chan->dfs_cac_ms = IEEE80211_DFS_MIN_CAC_TIME_MS;
+			if (reg_rule->dfs_cac_ms)
+				chan->dfs_cac_ms = reg_rule->dfs_cac_ms;
+		}
+
 		return;
 	}
 
