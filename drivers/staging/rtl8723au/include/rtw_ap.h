@@ -22,8 +22,6 @@
 #ifdef CONFIG_8723AU_AP_MODE
 
 /* external function */
-void rtw_indicate_sta_assoc_event23a(struct rtw_adapter *padapter, struct sta_info *psta);
-void rtw_indicate_sta_disassoc_event23a(struct rtw_adapter *padapter, struct sta_info *psta);
 
 void init_mlme_ap_info23a(struct rtw_adapter *padapter);
 void free_mlme_ap_info23a(struct rtw_adapter *padapter);
