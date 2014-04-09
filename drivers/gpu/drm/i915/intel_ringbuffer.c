@@ -33,6 +33,13 @@
 #include "i915_trace.h"
 #include "intel_drv.h"
 
+/* Early gen2 devices have a cacheline of just 32 bytes, using 64 is overkill,
+ * but keeps the logic simple. Indeed, the whole purpose of this macro is just
+ * to give some inclination as to some of the magic values used in the various
+ * workarounds!
+ */
+#define CACHELINE_BYTES 64
+
 static inline int ring_space(struct intel_ring_buffer *ring)
 {
 	int space = (ring->head & HEAD_ADDR) - (ring->tail + I915_RING_FREE_SPACE);
@@ -179,7 +186,7 @@ gen4_render_ring_flush(struct intel_ring_buffer *ring,
 static int
 intel_emit_post_sync_nonzero_flush(struct intel_ring_buffer *ring)
 {
-	u32 scratch_addr = ring->scratch.gtt_offset + 128;
+	u32 scratch_addr = ring->scratch.gtt_offset + 2 * CACHELINE_BYTES;
 	int ret;
 
 
@@ -216,7 +223,7 @@ gen6_render_ring_flush(struct intel_ring_buffer *ring,
                          u32 invalidate_domains, u32 flush_domains)
 {
 	u32 flags = 0;
-	u32 scratch_addr = ring->scratch.gtt_offset + 128;
+	u32 scratch_addr = ring->scratch.gtt_offset + 2 * CACHELINE_BYTES;
 	int ret;
 
 	/* Force SNB workarounds for PIPE_CONTROL flushes */
@@ -310,7 +317,7 @@ gen7_render_ring_flush(struct intel_ring_buffer *ring,
 		       u32 invalidate_domains, u32 flush_domains)
 {
 	u32 flags = 0;
-	u32 scratch_addr = ring->scratch.gtt_offset + 128;
+	u32 scratch_addr = ring->scratch.gtt_offset + 2 * CACHELINE_BYTES;
 	int ret;
 
 	/*
@@ -371,7 +378,7 @@ gen8_render_ring_flush(struct intel_ring_buffer *ring,
 		       u32 invalidate_domains, u32 flush_domains)
 {
 	u32 flags = 0;
-	u32 scratch_addr = ring->scratch.gtt_offset + 128;
+	u32 scratch_addr = ring->scratch.gtt_offset + 2 * CACHELINE_BYTES;
 	int ret;
 
 	flags |= PIPE_CONTROL_CS_STALL;
@@ -783,7 +790,7 @@ do {									\
 static int
 pc_render_add_request(struct intel_ring_buffer *ring)
 {
-	u32 scratch_addr = ring->scratch.gtt_offset + 128;
+	u32 scratch_addr = ring->scratch.gtt_offset + 2 * CACHELINE_BYTES;
 	int ret;
 
 	/* For Ironlake, MI_USER_INTERRUPT was deprecated and apparently
@@ -805,15 +812,15 @@ pc_render_add_request(struct intel_ring_buffer *ring)
 	intel_ring_emit(ring, ring->outstanding_lazy_seqno);
 	intel_ring_emit(ring, 0);
 	PIPE_CONTROL_FLUSH(ring, scratch_addr);
-	scratch_addr += 128; /* write to separate cachelines */
+	scratch_addr += 2 * CACHELINE_BYTES; /* write to separate cachelines */
 	PIPE_CONTROL_FLUSH(ring, scratch_addr);
-	scratch_addr += 128;
+	scratch_addr += 2 * CACHELINE_BYTES;
 	PIPE_CONTROL_FLUSH(ring, scratch_addr);
-	scratch_addr += 128;
+	scratch_addr += 2 * CACHELINE_BYTES;
 	PIPE_CONTROL_FLUSH(ring, scratch_addr);
-	scratch_addr += 128;
+	scratch_addr += 2 * CACHELINE_BYTES;
 	PIPE_CONTROL_FLUSH(ring, scratch_addr);
-	scratch_addr += 128;
+	scratch_addr += 2 * CACHELINE_BYTES;
 	PIPE_CONTROL_FLUSH(ring, scratch_addr);
 
 	intel_ring_emit(ring, GFX_OP_PIPE_CONTROL(4) | PIPE_CONTROL_QW_WRITE |
@@ -1422,7 +1429,7 @@ static int intel_init_ring_buffer(struct drm_device *dev,
 	 */
 	ring->effective_size = ring->size;
 	if (IS_I830(ring->dev) || IS_845G(ring->dev))
-		ring->effective_size -= 128;
+		ring->effective_size -= 2 * CACHELINE_BYTES;
 
 	i915_cmd_parser_init_ring(ring);
 
@@ -1683,12 +1690,13 @@ int intel_ring_begin(struct intel_ring_buffer *ring,
 /* Align the ring tail to a cacheline boundary */
 int intel_ring_cacheline_align(struct intel_ring_buffer *ring)
 {
-	int num_dwords = (64 - (ring->tail & 63)) / sizeof(uint32_t);
+	int num_dwords = (ring->tail & (CACHELINE_BYTES - 1)) / sizeof(uint32_t);
 	int ret;
 
 	if (num_dwords == 0)
 		return 0;
 
+	num_dwords = CACHELINE_BYTES / sizeof(uint32_t) - num_dwords;
 	ret = intel_ring_begin(ring, num_dwords);
 	if (ret)
 		return ret;
@@ -2045,7 +2053,7 @@ int intel_render_ring_init_dri(struct drm_device *dev, u64 start, u32 size)
 	ring->size = size;
 	ring->effective_size = ring->size;
 	if (IS_I830(ring->dev) || IS_845G(ring->dev))
-		ring->effective_size -= 128;
+		ring->effective_size -= 2 * CACHELINE_BYTES;
 
 	ring->virtual_start = ioremap_wc(start, size);
 	if (ring->virtual_start == NULL) {
