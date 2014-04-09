@@ -3887,6 +3887,7 @@ do { \
 	dwc_otg_pcd_ep_t *ep;
 	dwc_ep_t *dwc_ep;
 	gintmsk_data_t intr_mask = {.d32 = 0 };
+	dctl_data_t dctl = {.d32=0};
 
 	DWC_DEBUGPL(DBG_PCDV, "%s(%p)\n", __func__, pcd);
 
@@ -3987,7 +3988,20 @@ do { \
 			if (diepint.b.ahberr) {
 				DWC_ERROR("EP%d IN AHB Error\n", epnum);
 				/* Clear the bit in DIEPINTn for this interrupt */
+				DWC_ERROR("EP%d DEPDMA=0x%08x \n",
+						epnum, core_if->dev_if->in_ep_regs[epnum]->diepdma);
 				CLEAR_IN_EP_INTR(core_if, epnum, ahberr);
+				dctl.d32= DWC_READ_REG32( &core_if->dev_if->dev_global_regs->dctl );
+				dctl.b.sftdiscon = 1;
+				DWC_WRITE_REG32( &core_if->dev_if->dev_global_regs->dctl, dctl.d32 );
+				dwc_otg_disable_global_interrupts(core_if);
+				ep->pcd->vbus_status = 0;
+				if(ep->pcd->conn_status){
+						ep->pcd->conn_status = 0;
+				}
+				DWC_SPINUNLOCK(pcd->lock);
+				cil_pcd_stop(core_if);
+				DWC_SPINLOCK(pcd->lock);
 			}
 			/* TimeOUT Handshake (non-ISOC IN EPs) */
 			if (diepint.b.timeout) {
