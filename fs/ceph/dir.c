@@ -141,7 +141,7 @@ static int __dcache_readdir(struct file *file,  struct dir_context *ctx,
 
 	/* start at beginning? */
 	if (ctx->pos == 2 || last == NULL ||
-	    ctx->pos < ceph_dentry(last)->offset) {
+	    fpos_cmp(ctx->pos, ceph_dentry(last)->offset) < 0) {
 		if (list_empty(&parent->d_subdirs))
 			goto out_unlock;
 		p = parent->d_subdirs.prev;
