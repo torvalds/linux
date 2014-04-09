@@ -1603,11 +1603,6 @@ static void chv_enable_pll(struct intel_crtc *crtc)
 	I915_WRITE(DPLL_MD(pipe), crtc->config.dpll_hw_state.dpll_md);
 	POSTING_READ(DPLL_MD(pipe));
 
-	/* Deassert soft data lane reset*/
-	tmp = vlv_dpio_read(dev_priv, pipe, VLV_PCS_DW0(port));
-	tmp |= (DPIO_PCS_TX_LANE2_RESET | DPIO_PCS_TX_LANE1_RESET);
-	vlv_dpio_write(dev_priv, pipe, VLV_PCS_DW0(port), tmp);
-
 	mutex_unlock(&dev_priv->dpio_lock);
 }
 

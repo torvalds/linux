@@ -1994,9 +1994,16 @@ static void chv_pre_enable_dp(struct intel_encoder *encoder)
 	enum dpio_channel ch = vlv_dport_to_channel(dport);
 	int pipe = intel_crtc->pipe;
 	int data, i;
+	u32 val;
+
+	mutex_lock(&dev_priv->dpio_lock);
+
+	/* Deassert soft data lane reset*/
+	val = vlv_dpio_read(dev_priv, pipe, VLV_PCS_DW0(ch));
+	val |= (DPIO_PCS_TX_LANE2_RESET | DPIO_PCS_TX_LANE1_RESET);
+	vlv_dpio_write(dev_priv, pipe, VLV_PCS_DW0(ch), val);
 
 	/* Program Tx lane latency optimal setting*/
-	mutex_lock(&dev_priv->dpio_lock);
 	for (i = 0; i < 4; i++) {
 		/* Set the latency optimal bit */
 		data = (i == 1) ? 0x0 : 0x6;
