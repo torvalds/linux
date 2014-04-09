@@ -234,6 +234,28 @@ cleanup:
 	return ret;
 }
 
+/*
+ * Map the given relid to the corresponding channel based on the
+ * per-cpu list of channels that have been affinitized to this CPU.
+ * This will be used in the channel callback path as we can do this
+ * mapping in a lock-free fashion.
+ */
+static struct vmbus_channel *pcpu_relid2channel(u32 relid)
+{
+	struct vmbus_channel *channel;
+	struct vmbus_channel *found_channel  = NULL;
+	int cpu = smp_processor_id();
+	struct list_head *pcpu_head = &hv_context.percpu_list[cpu];
+
+	list_for_each_entry(channel, pcpu_head, percpu_list) {
+		if (channel->offermsg.child_relid == relid) {
+			found_channel = channel;
+			break;
+		}
+	}
+
+	return found_channel;
+}
 
 /*
  * relid2channel - Get the channel object given its
@@ -285,7 +307,7 @@ static void process_chn_event(u32 relid)
 	 * Find the channel based on this relid and invokes the
 	 * channel callback to process the event
 	 */
-	channel = relid2channel(relid);
+	channel = pcpu_relid2channel(relid);
 
 	if (!channel) {
 		pr_err("channel not found for relid - %u\n", relid);
