@@ -584,6 +584,7 @@ const struct spi_device_id spi_nor_ids[] = {
 	{ "cat25128", CAT25_INFO(2048, 8, 64, 2, SPI_NOR_NO_ERASE | SPI_NOR_NO_FR) },
 	{ },
 };
+EXPORT_SYMBOL_GPL(spi_nor_ids);
 
 static const struct spi_device_id *spi_nor_read_id(struct spi_nor *nor)
 {
@@ -1081,6 +1082,7 @@ int spi_nor_scan(struct spi_nor *nor, const struct spi_device_id *id,
 				mtd->eraseregions[i].numblocks);
 	return 0;
 }
+EXPORT_SYMBOL_GPL(spi_nor_scan);
 
 const struct spi_device_id *spi_nor_match_id(char *name)
 {
@@ -1093,6 +1095,7 @@ const struct spi_device_id *spi_nor_match_id(char *name)
 	}
 	return NULL;
 }
+EXPORT_SYMBOL_GPL(spi_nor_match_id);
 
 MODULE_LICENSE("GPL");
 MODULE_AUTHOR("Huang Shijie <shijie8@gmail.com>");
