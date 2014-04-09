@@ -1586,7 +1586,7 @@ static int ixgbe_intr_test(struct ixgbe_adapter *adapter, u64 *data)
 		IXGBE_WRITE_FLUSH(&adapter->hw);
 		usleep_range(10000, 20000);
 
-		if (!(adapter->test_icr &mask)) {
+		if (!(adapter->test_icr & mask)) {
 			*data = 4;
 			break;
 		}
