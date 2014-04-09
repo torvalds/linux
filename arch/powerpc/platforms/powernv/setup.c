@@ -98,11 +98,32 @@ static void pnv_show_cpuinfo(struct seq_file *m)
 	of_node_put(root);
 }
 
+static void pnv_prepare_going_down(void)
+{
+	/*
+	 * Disable all notifiers from OPAL, we can't
+	 * service interrupts anymore anyway
+	 */
+	opal_notifier_disable();
+
+	/* Soft disable interrupts */
+	local_irq_disable();
+
+	/*
+	 * Return secondary CPUs to firwmare if a flash update
+	 * is pending otherwise we will get all sort of error
+	 * messages about CPU being stuck etc.. This will also
+	 * have the side effect of hard disabling interrupts so
+	 * past this point, the kernel is effectively dead.
+	 */
+	opal_flash_term_callback();
+}
+
 static void  __noreturn pnv_restart(char *cmd)
 {
 	long rc = OPAL_BUSY;
 
-	opal_notifier_disable();
+	pnv_prepare_going_down();
 
 	while (rc == OPAL_BUSY || rc == OPAL_BUSY_EVENT) {
 		rc = opal_cec_reboot();
@@ -119,7 +140,7 @@ static void __noreturn pnv_power_off(void)
 {
 	long rc = OPAL_BUSY;
 
-	opal_notifier_disable();
+	pnv_prepare_going_down();
 
 	while (rc == OPAL_BUSY || rc == OPAL_BUSY_EVENT) {
 		rc = opal_cec_power_down(0);
