@@ -664,6 +664,8 @@ static void intel_hdmi_mode_set(struct intel_encoder *encoder)
 
 	if (HAS_PCH_CPT(dev))
 		hdmi_val |= SDVO_PIPE_SEL_CPT(crtc->pipe);
+	else if (IS_CHERRYVIEW(dev))
+		hdmi_val |= SDVO_PIPE_SEL_CHV(crtc->pipe);
 	else
 		hdmi_val |= SDVO_PIPE_SEL(crtc->pipe);
 

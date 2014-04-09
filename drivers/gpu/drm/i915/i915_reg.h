@@ -2510,6 +2510,10 @@ enum punit_power_well {
 #define   SDVO_PIPE_SEL_CPT(pipe)		((pipe) << 29)
 #define   SDVO_PIPE_SEL_MASK_CPT		(3 << 29)
 
+/* CHV SDVO/HDMI bits: */
+#define   SDVO_PIPE_SEL_CHV(pipe)		((pipe) << 24)
+#define   SDVO_PIPE_SEL_MASK_CHV		(3 << 24)
+
 
 /* DVO port control */
 #define DVOA			0x61120
@@ -3267,6 +3271,8 @@ enum punit_power_well {
 #define   DP_PORT_EN			(1 << 31)
 #define   DP_PIPEB_SELECT		(1 << 30)
 #define   DP_PIPE_MASK			(1 << 30)
+#define   DP_PIPE_SELECT_CHV(pipe)	((pipe) << 16)
+#define   DP_PIPE_MASK_CHV		(3 << 16)
 
 /* Link training mode - select a suitable mode for each stage */
 #define   DP_LINK_TRAIN_PAT_1		(0 << 28)
