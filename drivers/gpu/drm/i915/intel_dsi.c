@@ -147,7 +147,7 @@ static void intel_dsi_enable(struct intel_encoder *encoder)
 		I915_WRITE(MIPI_MAX_RETURN_PKT_SIZE(pipe), 8 * 4);
 	else {
 		msleep(20); /* XXX */
-		dpi_send_cmd(intel_dsi, TURN_ON);
+		dpi_send_cmd(intel_dsi, TURN_ON, DPI_LP_MODE_EN);
 		msleep(100);
 
 		if (intel_dsi->dev.dev_ops->enable)
@@ -218,7 +218,8 @@ static void intel_dsi_disable(struct intel_encoder *encoder)
 	DRM_DEBUG_KMS("\n");
 
 	if (is_vid_mode(intel_dsi)) {
-		dpi_send_cmd(intel_dsi, SHUTDOWN);
+		/* Send Shutdown command to the panel in LP mode */
+		dpi_send_cmd(intel_dsi, SHUTDOWN, DPI_LP_MODE_EN);
 		msleep(10);
 
 		/* de-assert ip_tg_enable signal */
