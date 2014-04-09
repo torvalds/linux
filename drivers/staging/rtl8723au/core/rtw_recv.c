@@ -576,7 +576,7 @@ static struct recv_frame *portctrl(struct rtw_adapter *adapter,
 	struct sta_priv *pstapriv ;
 	struct recv_frame *prtnframe;
 	u16 ether_type = 0;
-	u16 eapol_type = 0x888e;/* for Funia BD's WPA issue */
+	u16 eapol_type = ETH_P_PAE;/* for Funia BD's WPA issue */
 	struct rx_pkt_attrib *pattrib;
 
 	pstapriv = &adapter->stapriv;
@@ -2102,7 +2102,7 @@ int recv_indicatepkt_reorder(struct rtw_adapter *padapter,
 		/* s1. */
 		wlanhdr_to_ethhdr(prframe);
 
-		if ((pattrib->qos!= 1) || (pattrib->eth_type == 0x0806) ||
+		if ((pattrib->qos!= 1) || (pattrib->eth_type == ETH_P_ARP) ||
 		    (pattrib->ack_policy != 0)) {
 			if ((padapter->bDriverStopped == false) &&
 			    (padapter->bSurpriseRemoved == false)) {
