@@ -523,8 +523,6 @@ static void update_bmc_sta(struct rtw_adapter *padapter)
 		psta->raid = raid;
 		psta->init_rate = init_rate;
 
-		rtw_stassoc_hw_rpt23a(padapter, psta);
-
 		spin_lock_bh(&psta->lock);
 		psta->state = _FW_LINKED;
 		spin_unlock_bh(&psta->lock);

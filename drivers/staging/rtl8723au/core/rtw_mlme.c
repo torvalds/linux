@@ -1296,13 +1296,6 @@ void rtw23a_joinbss_event_cb(struct rtw_adapter *adapter, u8 *pbuf)
 
 }
 
-/* FOR AP , AD-HOC mode */
-void rtw_stassoc_hw_rpt23a(struct rtw_adapter *adapter, struct sta_info *psta)
-{
-	if (psta == NULL)
-		return;
-}
-
 void rtw_stassoc_event_callback23a(struct rtw_adapter *adapter, u8 *pbuf)
 {
 	struct sta_info *psta;
@@ -1322,8 +1315,6 @@ void rtw_stassoc_event_callback23a(struct rtw_adapter *adapter, u8 *pbuf)
 			/* bss_cap_update_on_sta_join23a(adapter, psta); */
 			/* sta_info_update23a(adapter, psta); */
 			ap_sta_info_defer_update23a(adapter, psta);
-
-			rtw_stassoc_hw_rpt23a(adapter,psta);
 		}
 		return;
 	}
@@ -1349,8 +1340,6 @@ void rtw_stassoc_event_callback23a(struct rtw_adapter *adapter, u8 *pbuf)
 	DBG_8723A("%s\n",__func__);
 	/* for ad-hoc mode */
 	rtw_hal_set_odm_var23a(adapter,HAL_ODM_STA_INFO,psta,true);
-
-	rtw_stassoc_hw_rpt23a(adapter,psta);
 
 	if(adapter->securitypriv.dot11AuthAlgrthm==dot11AuthAlgrthm_8021X)
 		psta->dot118021XPrivacy = adapter->securitypriv.dot11PrivacyAlgrthm;
