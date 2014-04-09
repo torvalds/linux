@@ -311,7 +311,7 @@
 &weim {
 	status = "okay";
 
-	nor: nor@c0000000 {
+	nor: nor@0,0 {
 		compatible = "cfi-flash";
 		reg = <0 0x00000000 0x02000000>;
 		bank-width = <2>;
@@ -321,7 +321,7 @@
 		#size-cells = <1>;
 	};
 
-	sram: sram@c8000000 {
+	sram: sram@1,0 {
 		compatible = "mtd-ram";
 		reg = <1 0x00000000 0x00800000>;
 		bank-width = <2>;

@@ -280,7 +280,7 @@
 	pinctrl-names = "default";
 	pinctrl-0 = <&pinctrl_weim>;
 
-	can@d4000000 {
+	can@4,0 {
 		compatible = "nxp,sja1000";
 		reg = <4 0x00000000 0x00000100>;
 		interrupt-parent = <&gpio5>;
