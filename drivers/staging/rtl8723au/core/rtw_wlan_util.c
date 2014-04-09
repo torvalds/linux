@@ -1600,7 +1600,7 @@ void update_capinfo23a(struct rtw_adapter *Adapter, u16 updateCap)
 			pmlmeinfo->slotTime = NON_SHORT_SLOT_TIME;
 		}
 	}
-	rtw_hal_set_hwreg23a(Adapter, HW_VAR_SLOT_TIME, &pmlmeinfo->slotTime);
+	rtl8723a_set_slot_time(Adapter, pmlmeinfo->slotTime);
 }
 
 void update_wireless_mode23a(struct rtw_adapter *padapter)

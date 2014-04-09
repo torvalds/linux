@@ -3143,10 +3143,6 @@ void SetHwReg8723A(struct rtw_adapter *padapter, u8 variable, u8 *val)
 		rtl8723a_set_bcn_func(padapter, *val);
 		break;
 
-	case HW_VAR_SLOT_TIME:
-		rtl8723a_set_slot_time(padapter, *val);
-		break;
-
 	case HW_VAR_RESP_SIFS:
 		rtl8723a_set_resp_sifs(padapter, val[0], val[1],
 				       val[2], val[3]);
