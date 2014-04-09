@@ -117,12 +117,6 @@ uint rtw_hal_deinit23a(struct rtw_adapter *padapter)
 	return status;
 }
 
-void rtw_hal_set_hwreg23a(struct rtw_adapter *padapter, u8 variable, u8 *val)
-{
-	if (padapter->HalFunc.SetHwRegHandler)
-		padapter->HalFunc.SetHwRegHandler(padapter, variable, val);
-}
-
 void rtw23a_hal_get_hwreg(struct rtw_adapter *padapter, u8 variable, u8 *val)
 {
 	if (padapter->HalFunc.GetHwRegHandler)

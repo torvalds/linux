@@ -3132,15 +3132,6 @@ void hw_var_set_mlme_join(struct rtw_adapter *padapter, u8 type)
 #endif
 }
 
-void SetHwReg8723A(struct rtw_adapter *padapter, u8 variable, u8 *val)
-{
-	switch (variable) {
-	default:
-		break;
-	}
-
-}
-
 void GetHwReg8723A(struct rtw_adapter *padapter, u8 variable, u8 *val)
 {
 	struct hal_data_8723a *pHalData = GET_HAL_DATA(padapter);

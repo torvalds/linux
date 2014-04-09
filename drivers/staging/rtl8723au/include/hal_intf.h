@@ -126,8 +126,6 @@ struct hal_ops {
 
 	void (*hal_dm_watchdog)(struct rtw_adapter *padapter);
 
-	void (*SetHwRegHandler)(struct rtw_adapter *padapter,
-				u8 variable, u8 *val);
 	void (*GetHwRegHandler)(struct rtw_adapter *padapter,
 				u8 variable, u8 *val);
 
@@ -263,7 +261,6 @@ u32 rtw_hal_power_on23a(struct rtw_adapter *padapter);
 uint rtw_hal_init23a(struct rtw_adapter *padapter);
 uint rtw_hal_deinit23a(struct rtw_adapter *padapter);
 void rtw_hal_stop(struct rtw_adapter *padapter);
-void rtw_hal_set_hwreg23a(struct rtw_adapter *padapter, u8 variable, u8 *val);
 void rtw23a_hal_get_hwreg(struct rtw_adapter *padapter, u8 variable, u8 *val);
 
 void rtw_hal_chip_configure23a(struct rtw_adapter *padapter);
