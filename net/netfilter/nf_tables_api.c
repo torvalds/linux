@@ -3298,6 +3298,30 @@ static void nft_chain_commit_update(struct nft_trans *trans)
 	}
 }
 
+/* Schedule objects for release via rcu to make sure no packets are accesing
+ * removed rules.
+ */
+static void nf_tables_commit_release_rcu(struct rcu_head *rt)
+{
+	struct nft_trans *trans = container_of(rt, struct nft_trans, rcu_head);
+
+	switch (trans->msg_type) {
+	case NFT_MSG_DELTABLE:
+		nf_tables_table_destroy(&trans->ctx);
+		break;
+	case NFT_MSG_DELCHAIN:
+		nf_tables_chain_destroy(trans->ctx.chain);
+		break;
+	case NFT_MSG_DELRULE:
+		nf_tables_rule_destroy(&trans->ctx, nft_trans_rule(trans));
+		break;
+	case NFT_MSG_DELSET:
+		nft_set_destroy(nft_trans_set(trans));
+		break;
+	}
+	kfree(trans);
+}
+
 static int nf_tables_commit(struct sk_buff *skb)
 {
 	struct net *net = sock_net(skb->sk);
@@ -3397,30 +3421,37 @@ static int nf_tables_commit(struct sk_buff *skb)
 		}
 	}
 
-	/* Make sure we don't see any packet traversing old rules */
-	synchronize_rcu();
-
-	/* Now we can safely release unused old rules */
 	list_for_each_entry_safe(trans, next, &net->nft.commit_list, list) {
-		switch (trans->msg_type) {
-		case NFT_MSG_DELTABLE:
-			nf_tables_table_destroy(&trans->ctx);
-			break;
-		case NFT_MSG_DELCHAIN:
-			nf_tables_chain_destroy(trans->ctx.chain);
-			break;
-		case NFT_MSG_DELRULE:
-			nf_tables_rule_destroy(&trans->ctx,
-					       nft_trans_rule(trans));
-			break;
-		case NFT_MSG_DELSET:
-			nft_set_destroy(nft_trans_set(trans));
-			break;
-		}
-		nft_trans_destroy(trans);
+		list_del(&trans->list);
+		trans->ctx.nla = NULL;
+		call_rcu(&trans->rcu_head, nf_tables_commit_release_rcu);
 	}
 
 	return 0;
+}
+
+/* Schedule objects for release via rcu to make sure no packets are accesing
+ * aborted rules.
+ */
+static void nf_tables_abort_release_rcu(struct rcu_head *rt)
+{
+	struct nft_trans *trans = container_of(rt, struct nft_trans, rcu_head);
+
+	switch (trans->msg_type) {
+	case NFT_MSG_NEWTABLE:
+		nf_tables_table_destroy(&trans->ctx);
+		break;
+	case NFT_MSG_NEWCHAIN:
+		nf_tables_chain_destroy(trans->ctx.chain);
+		break;
+	case NFT_MSG_NEWRULE:
+		nf_tables_rule_destroy(&trans->ctx, nft_trans_rule(trans));
+		break;
+	case NFT_MSG_NEWSET:
+		nft_set_destroy(nft_trans_set(trans));
+		break;
+	}
+	kfree(trans);
 }
 
 static int nf_tables_abort(struct sk_buff *skb)
@@ -3495,26 +3526,10 @@ static int nf_tables_abort(struct sk_buff *skb)
 		}
 	}
 
-	/* Make sure we don't see any packet accessing aborted rules */
-	synchronize_rcu();
-
 	list_for_each_entry_safe(trans, next, &net->nft.commit_list, list) {
-		switch (trans->msg_type) {
-		case NFT_MSG_NEWTABLE:
-			nf_tables_table_destroy(&trans->ctx);
-			break;
-		case NFT_MSG_NEWCHAIN:
-			nf_tables_chain_destroy(trans->ctx.chain);
-			break;
-		case NFT_MSG_NEWRULE:
-			nf_tables_rule_destroy(&trans->ctx,
-					       nft_trans_rule(trans));
-			break;
-		case NFT_MSG_NEWSET:
-			nft_set_destroy(nft_trans_set(trans));
-			break;
-		}
-		nft_trans_destroy(trans);
+		list_del(&trans->list);
+		trans->ctx.nla = NULL;
+		call_rcu(&trans->rcu_head, nf_tables_abort_release_rcu);
 	}
 
 	return 0;
