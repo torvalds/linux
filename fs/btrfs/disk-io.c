@@ -3738,6 +3738,12 @@ void btrfs_mark_buffer_dirty(struct extent_buffer *buf)
 		__percpu_counter_add(&root->fs_info->dirty_metadata_bytes,
 				     buf->len,
 				     root->fs_info->dirty_metadata_batch);
+#ifdef CONFIG_BTRFS_FS_CHECK_INTEGRITY
+	if (btrfs_header_level(buf) == 0 && check_leaf(root, buf)) {
+		btrfs_print_leaf(root, buf);
+		ASSERT(0);
+	}
+#endif
 }
 
 static void __btrfs_btree_balance_dirty(struct btrfs_root *root,
