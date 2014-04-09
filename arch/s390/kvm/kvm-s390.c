@@ -258,11 +258,43 @@ static int kvm_vm_ioctl_enable_cap(struct kvm *kvm, struct kvm_enable_cap *cap)
 	return r;
 }
 
+static int kvm_s390_mem_control(struct kvm *kvm, struct kvm_device_attr *attr)
+{
+	int ret;
+	unsigned int idx;
+	switch (attr->attr) {
+	case KVM_S390_VM_MEM_ENABLE_CMMA:
+		ret = -EBUSY;
+		mutex_lock(&kvm->lock);
+		if (atomic_read(&kvm->online_vcpus) == 0) {
+			kvm->arch.use_cmma = 1;
+			ret = 0;
+		}
+		mutex_unlock(&kvm->lock);
+		break;
+	case KVM_S390_VM_MEM_CLR_CMMA:
+		mutex_lock(&kvm->lock);
+		idx = srcu_read_lock(&kvm->srcu);
+		page_table_reset_pgste(kvm->arch.gmap->mm, 0, TASK_SIZE, false);
+		srcu_read_unlock(&kvm->srcu, idx);
+		mutex_unlock(&kvm->lock);
+		ret = 0;
+		break;
+	default:
+		ret = -ENXIO;
+		break;
+	}
+	return ret;
+}
+
 static int kvm_s390_vm_set_attr(struct kvm *kvm, struct kvm_device_attr *attr)
 {
 	int ret;
 
 	switch (attr->group) {
+	case KVM_S390_VM_MEM_CTRL:
+		ret = kvm_s390_mem_control(kvm, attr);
+		break;
 	default:
 		ret = -ENXIO;
 		break;
@@ -281,6 +313,17 @@ static int kvm_s390_vm_has_attr(struct kvm *kvm, struct kvm_device_attr *attr)
 	int ret;
 
 	switch (attr->group) {
+	case KVM_S390_VM_MEM_CTRL:
+		switch (attr->attr) {
+		case KVM_S390_VM_MEM_ENABLE_CMMA:
+		case KVM_S390_VM_MEM_CLR_CMMA:
+			ret = 0;
+			break;
+		default:
+			ret = -ENXIO;
+			break;
+		}
+		break;
 	default:
 		ret = -ENXIO;
 		break;

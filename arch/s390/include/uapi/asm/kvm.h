@@ -54,6 +54,13 @@ struct kvm_s390_io_adapter_req {
 	__u64 addr;
 };
 
+/* kvm attr_group  on vm fd */
+#define KVM_S390_VM_MEM_CTRL		0
+
+/* kvm attributes for mem_ctrl */
+#define KVM_S390_VM_MEM_ENABLE_CMMA	0
+#define KVM_S390_VM_MEM_CLR_CMMA	1
+
 /* for KVM_GET_REGS and KVM_SET_REGS */
 struct kvm_regs {
 	/* general purpose regs for s390 */
