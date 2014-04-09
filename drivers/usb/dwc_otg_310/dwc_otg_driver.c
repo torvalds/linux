@@ -1381,8 +1381,13 @@ static int otg20_driver_probe(struct platform_device *_dev)
 	if(pldata->dwc_otg_uart_mode)
 		pldata->dwc_otg_uart_mode(pldata, PHY_USB_MODE);
 
+	/* do reset later, because reset need about
+	 * 100ms to ensure otg id state change.
+	 */
+	/*
 	if(pldata->soft_reset)
 		pldata->soft_reset();
+	*/
 	/*end todo*/
 
 	res_base=platform_get_resource(_dev, IORESOURCE_MEM, 0);

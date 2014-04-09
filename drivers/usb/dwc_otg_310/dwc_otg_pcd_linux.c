@@ -1470,13 +1470,16 @@ static void dwc_phy_reconnect(struct work_struct *work)
 	dwc_otg_core_if_t *core_if;
 	gotgctl_data_t    gctrl;
 	dctl_data_t dctl = {.d32=0};
+	struct dwc_otg_platform_data *pldata;
 
 	pcd = container_of(work, dwc_otg_pcd_t, reconnect.work);
+	pldata = pcd->otg_dev->pldata;
 	core_if = GET_CORE_IF(pcd);
 	gctrl.d32 = DWC_READ_REG32( &core_if->core_global_regs->gotgctl );
 
 	if(gctrl.b.bsesvld){
 		pcd->conn_status++;
+		pldata->soft_reset();
 		dwc_pcd_reset(pcd);
 		/*
 		 * Enable the global interrupt after all the interrupt

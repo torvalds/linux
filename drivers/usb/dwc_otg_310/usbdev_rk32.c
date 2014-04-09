@@ -43,6 +43,15 @@ static void usb20otg_phy_suspend(void* pdata, int suspend)
 
 static void usb20otg_soft_reset(void)
 {
+	rk3288_cru_set_soft_reset(RK3288_SOFT_RST_USBOTG_H, true);
+	rk3288_cru_set_soft_reset(RK3288_SOFT_RST_USBOTGPHY, true);
+	rk3288_cru_set_soft_reset(RK3288_SOFT_RST_USBOTGC, true);
+	udelay(5);
+
+	rk3288_cru_set_soft_reset(RK3288_SOFT_RST_USBOTG_H, false);
+	rk3288_cru_set_soft_reset(RK3288_SOFT_RST_USBOTGPHY, false);
+	rk3288_cru_set_soft_reset(RK3288_SOFT_RST_USBOTGC, false);
+	mdelay(2);
 }
 
 static void usb20otg_clock_init(void* pdata)
@@ -188,6 +197,15 @@ static void usb20host_phy_suspend(void* pdata, int suspend)
 
 static void usb20host_soft_reset(void)
 {
+	rk3288_cru_set_soft_reset(RK3288_SOFT_RST_USBHOST1_H, true);
+	rk3288_cru_set_soft_reset(RK3288_SOFT_RST_USBHOST1PHY, true);
+	rk3288_cru_set_soft_reset(RK3288_SOFT_RST_USBHOST1C, true);
+	udelay(5);
+
+	rk3288_cru_set_soft_reset(RK3288_SOFT_RST_USBHOST1_H, false);
+	rk3288_cru_set_soft_reset(RK3288_SOFT_RST_USBHOST1PHY, false);
+	rk3288_cru_set_soft_reset(RK3288_SOFT_RST_USBHOST1C, false);
+	mdelay(2);
 }
 
 static void usb20host_clock_init(void* pdata)
@@ -370,6 +388,21 @@ static void rk_hsic_clock_enable(void* pdata, int enable)
 
 static void rk_hsic_soft_reset(void)
 {
+	rk3288_cru_set_soft_reset(RK3288_SOFT_RST_HSIC, true);
+	rk3288_cru_set_soft_reset(RK3288_SOFT_RST_HSIC_AUX, true);
+	rk3288_cru_set_soft_reset(RK3288_SOFT_RST_HSICPHY, true);
+	udelay(5);
+
+	rk3288_cru_set_soft_reset(RK3288_SOFT_RST_HSIC, false);
+	rk3288_cru_set_soft_reset(RK3288_SOFT_RST_HSIC_AUX, false);
+	rk3288_cru_set_soft_reset(RK3288_SOFT_RST_HSICPHY, false);
+	mdelay(2);
+
+	/* HSIC per-port reset */
+	control_usb->grf_uoc3_base->CON0 = ((1<<10)<<16)|(1<<10);
+	udelay(2);
+	control_usb->grf_uoc3_base->CON0 = ((1<<10)<<16)|(0<<10);
+	udelay(2);
 }
 
 struct rkehci_platform_data rkhsic_pdata_rk3288 = {
@@ -435,7 +468,17 @@ static void rk_ehci_clock_enable(void* pdata, int enable)
 
 static void rk_ehci_soft_reset(void)
 {
+	rk3288_cru_set_soft_reset(RK3288_SOFT_RST_USBHOST0_H, true);
+	rk3288_cru_set_soft_reset(RK3288_SOFT_RST_USBHOST0PHY, true);
+	rk3288_cru_set_soft_reset(RK3288_SOFT_RST_USBHOST0C, true);
+	rk3288_cru_set_soft_reset(RK3288_SOFT_RST_USB_HOST0, true);
+	udelay(5);
 
+	rk3288_cru_set_soft_reset(RK3288_SOFT_RST_USBHOST0_H, false);
+	rk3288_cru_set_soft_reset(RK3288_SOFT_RST_USBHOST0PHY, false);
+	rk3288_cru_set_soft_reset(RK3288_SOFT_RST_USBHOST0C, false);
+	rk3288_cru_set_soft_reset(RK3288_SOFT_RST_USB_HOST0, false);
+	mdelay(2);
 }
 
 struct rkehci_platform_data rkehci_pdata_rk3288 = {
