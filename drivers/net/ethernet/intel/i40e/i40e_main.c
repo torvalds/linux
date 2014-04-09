@@ -5367,8 +5367,10 @@ static void i40e_reset_and_rebuild(struct i40e_pf *pf, bool reinit)
 	 * because the reset will make them disappear.
 	 */
 	ret = i40e_pf_reset(hw);
-	if (ret)
+	if (ret) {
 		dev_info(&pf->pdev->dev, "PF reset failed, %d\n", ret);
+		goto end_core_reset;
+	}
 	pf->pfr_count++;
 
 	if (test_bit(__I40E_DOWN, &pf->state))
