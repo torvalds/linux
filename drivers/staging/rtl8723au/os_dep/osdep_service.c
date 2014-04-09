@@ -71,17 +71,6 @@ u32 _rtw_queue_empty23a(struct rtw_queue *pqueue)
 		return false;
 }
 
-u64 rtw_modular6423a(u64 x, u64 y)
-{
-	return do_div(x, y);
-}
-
-u64 rtw_division6423a(u64 x, u64 y)
-{
-	do_div(x, y);
-	return x;
-}
-
 /* rtw_cbuf_full23a - test if cbuf is full
  * @cbuf: pointer of struct rtw_cbuf
  *
