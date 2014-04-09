@@ -679,14 +679,9 @@ get_active_stripe(struct r5conf *conf, sector_t sector,
 				init_stripe(sh, sector, previous);
 				atomic_inc(&sh->count);
 			}
-		} else {
+		} else if (!atomic_inc_not_zero(&sh->count)) {
 			spin_lock(&conf->device_lock);
-			if (atomic_read(&sh->count)) {
-				BUG_ON(!list_empty(&sh->lru)
-				    && !test_bit(STRIPE_EXPANDING, &sh->state)
-				    && !test_bit(STRIPE_ON_UNPLUG_LIST, &sh->state)
-					);
-			} else {
+			if (!atomic_read(&sh->count)) {
 				if (!test_bit(STRIPE_HANDLE, &sh->state))
 					atomic_inc(&conf->active_stripes);
 				BUG_ON(list_empty(&sh->lru) &&
