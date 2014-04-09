@@ -2198,6 +2198,8 @@ error_pvid:
 	return ret;
 }
 
+#define I40E_BW_CREDIT_DIVISOR 50     /* 50Mbps per BW credit */
+#define I40E_MAX_BW_INACTIVE_ACCUM 4  /* device can accumulate 4 credits max */
 /**
  * i40e_ndo_set_vf_bw
  * @netdev: network interface device structure
@@ -2264,8 +2266,9 @@ int i40e_ndo_set_vf_bw(struct net_device *netdev, int vf_id, int min_tx_rate,
 	}
 
 	/* Tx rate credits are in values of 50Mbps, 0 is disabled*/
-	ret = i40e_aq_config_vsi_bw_limit(&pf->hw, vsi->seid, max_tx_rate / 50,
-					  0, NULL);
+	ret = i40e_aq_config_vsi_bw_limit(&pf->hw, vsi->seid,
+					  max_tx_rate / I40E_BW_CREDIT_DIVISOR,
+					  I40E_MAX_BW_INACTIVE_ACCUM, NULL);
 	if (ret) {
 		dev_err(&pf->pdev->dev, "Unable to set max tx rate, error code %d.\n",
 			ret);
