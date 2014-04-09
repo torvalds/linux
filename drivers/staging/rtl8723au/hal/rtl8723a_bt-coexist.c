@@ -4677,7 +4677,7 @@ bthci_StateConnected(struct rtw_adapter *padapter,
 		if (padapter->HalFunc.UpdateRAMaskHandler)
 			padapter->HalFunc.UpdateRAMaskHandler(padapter, MAX_FW_SUPPORT_MACID_NUM-1-EntryNum, 0);
 
-		rtw_hal_set_hwreg23a(padapter, HW_VAR_BASIC_RATE, padapter->mlmepriv.cur_network.network.SupportedRates);
+		HalSetBrateCfg23a(padapter, padapter->mlmepriv.cur_network.network.SupportedRates);
 		BTDM_SetFwChnlInfo(padapter, RT_MEDIA_CONNECT);
 		break;
 	default:

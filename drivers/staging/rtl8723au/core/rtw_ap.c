@@ -715,7 +715,7 @@ static void start_bss_network(struct rtw_adapter *padapter, u8 *pbuf)
 	rtw_hal_set_hwreg23a(padapter, HW_VAR_BEACON_INTERVAL, (u8 *)(&bcn_interval));
 
 	UpdateBrateTbl23a(padapter, pnetwork->SupportedRates);
-	rtw_hal_set_hwreg23a(padapter, HW_VAR_BASIC_RATE, pnetwork->SupportedRates);
+	HalSetBrateCfg23a(padapter, pnetwork->SupportedRates);
 
 	if (!pmlmepriv->cur_network.join_res) {
 		/* setting only at  first time */

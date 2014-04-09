@@ -1452,7 +1452,7 @@ void update_tx_basic_rate23a(struct rtw_adapter *padapter, u8 wirelessmode)
 	else
 		update_mgnt_tx_rate23a(padapter, IEEE80211_OFDM_RATE_6MB);
 
-	rtw_hal_set_hwreg23a(padapter, HW_VAR_BASIC_RATE, supported_rates);
+	HalSetBrateCfg23a(padapter, supported_rates);
 }
 
 unsigned char check_assoc_AP23a(u8 *pframe, uint len)

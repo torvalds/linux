@@ -3143,10 +3143,6 @@ void SetHwReg8723A(struct rtw_adapter *padapter, u8 variable, u8 *val)
 		hw_var_set_bssid(padapter, val);
 		break;
 
-	case HW_VAR_BASIC_RATE:
-		HalSetBrateCfg23a(padapter, val);
-		break;
-
 	case HW_VAR_TXPAUSE:
 		rtl8723a_set_tx_pause(padapter, *val);
 		break;
@@ -3285,10 +3281,6 @@ void GetHwReg8723A(struct rtw_adapter *padapter, u8 variable, u8 *val)
 	struct hal_data_8723a *pHalData = GET_HAL_DATA(padapter);
 
 	switch (variable) {
-	case HW_VAR_BASIC_RATE:
-		*((u16 *) val) = pHalData->BasicRateSet;
-		break;
-
 	case HW_VAR_TXPAUSE:
 		*val = rtw_read8(padapter, REG_TXPAUSE);
 		break;

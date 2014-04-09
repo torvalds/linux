@@ -8724,7 +8724,7 @@ void mlmeext_joinbss_event_callback23a(struct rtw_adapter *padapter, int join_re
 	/*  update IOT-releated issue */
 	update_IOT_info23a(padapter);
 
-	rtw_hal_set_hwreg23a(padapter, HW_VAR_BASIC_RATE, cur_network->SupportedRates);
+	HalSetBrateCfg23a(padapter, cur_network->SupportedRates);
 
 	/* BCN interval */
 	rtw_hal_set_hwreg23a(padapter, HW_VAR_BEACON_INTERVAL, (u8 *)(&pmlmeinfo->bcn_interval));
