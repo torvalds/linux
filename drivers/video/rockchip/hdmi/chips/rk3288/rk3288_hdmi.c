@@ -230,7 +230,9 @@ static void rk3288_hdmi_early_resume(void)
 	hdmi_drv->suspend = 0;
 	rk3288_hdmi_initial(hdmi_drv);
 	if(hdmi_dev->irq == 0){
-		queue_delayed_work(hdmi_drv->workqueue, &hdmi_dev->delay_work, msecs_to_jiffies(HDMI_POLL_MDELAY / 2));
+#ifdef HDMI_INT_USE_POLL
+		queue_delayed_work(hdmi_drv->workqueue, &hdmi_dev->delay_work, msecs_to_jiffies(5));
+#endif
 	}
 	else if(hdmi_drv->enable){
 		enable_irq(hdmi_drv->irq);
