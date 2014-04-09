@@ -1787,6 +1787,7 @@ struct drm_i915_cmd_table {
 				 (dev)->pdev->device == 0x0106 || \
 				 (dev)->pdev->device == 0x010A)
 #define IS_VALLEYVIEW(dev)	(INTEL_INFO(dev)->is_valleyview)
+#define IS_CHERRYVIEW(dev)	(INTEL_INFO(dev)->is_valleyview && IS_GEN8(dev))
 #define IS_HASWELL(dev)	(INTEL_INFO(dev)->is_haswell)
 #define IS_BROADWELL(dev)	(!INTEL_INFO(dev)->is_valleyview && IS_GEN8(dev))
 #define IS_MOBILE(dev)		(INTEL_INFO(dev)->is_mobile)
