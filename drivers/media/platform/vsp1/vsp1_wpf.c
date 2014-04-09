@@ -280,7 +280,7 @@ struct vsp1_rwpf *vsp1_wpf_create(struct vsp1_device *vsp1, unsigned int index)
 	 * except for the WPF0 source link if a LIF is present.
 	 */
 	flags = MEDIA_LNK_FL_ENABLED;
-	if (!(vsp1->pdata->features & VSP1_HAS_LIF) || index != 0)
+	if (!(vsp1->pdata.features & VSP1_HAS_LIF) || index != 0)
 		flags |= MEDIA_LNK_FL_IMMUTABLE;
 
 	ret = media_entity_create_link(&wpf->entity.subdev.entity,
