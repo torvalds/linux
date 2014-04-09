@@ -2390,7 +2390,13 @@ static uint32_t intel_chv_signal_levels(struct intel_dp *intel_dp)
 	mutex_lock(&dev_priv->dpio_lock);
 
 	/* Clear calc init */
-	vlv_dpio_write(dev_priv, pipe, CHV_PCS_DW10(ch), 0);
+	val = vlv_dpio_read(dev_priv, pipe, VLV_PCS01_DW10(ch));
+	val &= ~(DPIO_PCS_SWING_CALC_TX0_TX2 | DPIO_PCS_SWING_CALC_TX1_TX3);
+	vlv_dpio_write(dev_priv, pipe, VLV_PCS01_DW10(ch), val);
+
+	val = vlv_dpio_read(dev_priv, pipe, VLV_PCS23_DW10(ch));
+	val &= ~(DPIO_PCS_SWING_CALC_TX0_TX2 | DPIO_PCS_SWING_CALC_TX1_TX3);
+	vlv_dpio_write(dev_priv, pipe, VLV_PCS23_DW10(ch), val);
 
 	/* Program swing deemph */
 	for (i = 0; i < 4; i++) {
@@ -2441,8 +2447,13 @@ static uint32_t intel_chv_signal_levels(struct intel_dp *intel_dp)
 	}
 
 	/* Start swing calculation */
-	vlv_dpio_write(dev_priv, pipe, CHV_PCS_DW10(ch),
-		(DPIO_PCS_SWING_CALC_TX0_TX2 | DPIO_PCS_SWING_CALC_TX1_TX3));
+	val = vlv_dpio_read(dev_priv, pipe, VLV_PCS01_DW10(ch));
+	val |= DPIO_PCS_SWING_CALC_TX0_TX2 | DPIO_PCS_SWING_CALC_TX1_TX3;
+	vlv_dpio_write(dev_priv, pipe, VLV_PCS01_DW10(ch), val);
+
+	val = vlv_dpio_read(dev_priv, pipe, VLV_PCS23_DW10(ch));
+	val |= DPIO_PCS_SWING_CALC_TX0_TX2 | DPIO_PCS_SWING_CALC_TX1_TX3;
+	vlv_dpio_write(dev_priv, pipe, VLV_PCS23_DW10(ch), val);
 
 	/* LRC Bypass */
 	val = vlv_dpio_read(dev_priv, pipe, CHV_CMN_DW30);

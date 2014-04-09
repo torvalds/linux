@@ -1326,7 +1326,13 @@ static void chv_hdmi_pre_enable(struct intel_encoder *encoder)
 	/* FIXME: Fix up value only after power analysis */
 
 	/* Clear calc init */
-	vlv_dpio_write(dev_priv, pipe, CHV_PCS_DW10(ch), 0);
+	val = vlv_dpio_read(dev_priv, pipe, VLV_PCS01_DW10(ch));
+	val &= ~(DPIO_PCS_SWING_CALC_TX0_TX2 | DPIO_PCS_SWING_CALC_TX1_TX3);
+	vlv_dpio_write(dev_priv, pipe, VLV_PCS01_DW10(ch), val);
+
+	val = vlv_dpio_read(dev_priv, pipe, VLV_PCS23_DW10(ch));
+	val &= ~(DPIO_PCS_SWING_CALC_TX0_TX2 | DPIO_PCS_SWING_CALC_TX1_TX3);
+	vlv_dpio_write(dev_priv, pipe, VLV_PCS23_DW10(ch), val);
 
 	/* FIXME: Program the support xxx V-dB */
 	/* Use 800mV-0dB */
@@ -1365,9 +1371,13 @@ static void chv_hdmi_pre_enable(struct intel_encoder *encoder)
 				(0x9a << DPIO_UNIQ_TRANS_SCALE_SHIFT));
 #endif
 	/* Start swing calculation */
-	vlv_dpio_write(dev_priv, pipe, CHV_PCS_DW10(ch),
-			DPIO_PCS_SWING_CALC_TX0_TX2 |
-			DPIO_PCS_SWING_CALC_TX1_TX3);
+	val = vlv_dpio_read(dev_priv, pipe, VLV_PCS01_DW10(ch));
+	val |= DPIO_PCS_SWING_CALC_TX0_TX2 | DPIO_PCS_SWING_CALC_TX1_TX3;
+	vlv_dpio_write(dev_priv, pipe, VLV_PCS01_DW10(ch), val);
+
+	val = vlv_dpio_read(dev_priv, pipe, VLV_PCS23_DW10(ch));
+	val |= DPIO_PCS_SWING_CALC_TX0_TX2 | DPIO_PCS_SWING_CALC_TX1_TX3;
+	vlv_dpio_write(dev_priv, pipe, VLV_PCS23_DW10(ch), val);
 
 	/* LRC Bypass */
 	val = vlv_dpio_read(dev_priv, pipe, CHV_CMN_DW30);
