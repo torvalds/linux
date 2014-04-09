@@ -62,6 +62,8 @@ static enum hrtimer_restart dvfs_callback(struct hrtimer *timer)
 
 mali_error kbasep_pm_metrics_init(kbase_device *kbdev)
 {
+	static bool timer_inited = false;
+
 	KBASE_DEBUG_ASSERT(kbdev != NULL);
 
 	kbdev->pm.metrics.kbdev = kbdev;
@@ -76,7 +78,10 @@ mali_error kbasep_pm_metrics_init(kbase_device *kbdev)
 
 	spin_lock_init(&kbdev->pm.metrics.lock);
 
-	hrtimer_init(&kbdev->pm.metrics.timer, CLOCK_MONOTONIC, HRTIMER_MODE_REL);
+	if (!timer_inited) {
+		hrtimer_init(&kbdev->pm.metrics.timer, CLOCK_MONOTONIC, HRTIMER_MODE_REL);
+		timer_inited = true;
+	}
 	kbdev->pm.metrics.timer.function = dvfs_callback;
 
 	hrtimer_start(&kbdev->pm.metrics.timer, HR_TIMER_DELAY_MSEC(kbdev->pm.platform_dvfs_frequency), HRTIMER_MODE_REL);
