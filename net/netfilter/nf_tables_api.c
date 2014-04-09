@@ -805,8 +805,7 @@ static const struct nla_policy nft_counter_policy[NFTA_COUNTER_MAX + 1] = {
 	[NFTA_COUNTER_BYTES]	= { .type = NLA_U64 },
 };
 
-static int
-nf_tables_counters(struct nft_base_chain *chain, const struct nlattr *attr)
+static struct nft_stats __percpu *nft_stats_alloc(const struct nlattr *attr)
 {
 	struct nlattr *tb[NFTA_COUNTER_MAX+1];
 	struct nft_stats __percpu *newstats;
@@ -815,14 +814,14 @@ nf_tables_counters(struct nft_base_chain *chain, const struct nlattr *attr)
 
 	err = nla_parse_nested(tb, NFTA_COUNTER_MAX, attr, nft_counter_policy);
 	if (err < 0)
-		return err;
+		return ERR_PTR(err);
 
 	if (!tb[NFTA_COUNTER_BYTES] || !tb[NFTA_COUNTER_PACKETS])
-		return -EINVAL;
+		return ERR_PTR(-EINVAL);
 
 	newstats = alloc_percpu(struct nft_stats);
 	if (newstats == NULL)
-		return -ENOMEM;
+		return ERR_PTR(-ENOMEM);
 
 	/* Restore old counters on this cpu, no problem. Per-cpu statistics
 	 * are not exposed to userspace.
@@ -831,6 +830,12 @@ nf_tables_counters(struct nft_base_chain *chain, const struct nlattr *attr)
 	stats->bytes = be64_to_cpu(nla_get_be64(tb[NFTA_COUNTER_BYTES]));
 	stats->pkts = be64_to_cpu(nla_get_be64(tb[NFTA_COUNTER_PACKETS]));
 
+	return newstats;
+}
+
+static void nft_chain_stats_replace(struct nft_base_chain *chain,
+				    struct nft_stats __percpu *newstats)
+{
 	if (chain->stats) {
 		struct nft_stats __percpu *oldstats =
 				nft_dereference(chain->stats);
@@ -840,8 +845,6 @@ nf_tables_counters(struct nft_base_chain *chain, const struct nlattr *attr)
 		free_percpu(oldstats);
 	} else
 		rcu_assign_pointer(chain->stats, newstats);
-
-	return 0;
 }
 
 static int nf_tables_newchain(struct sock *nlsk, struct sk_buff *skb,
@@ -860,6 +863,7 @@ static int nf_tables_newchain(struct sock *nlsk, struct sk_buff *skb,
 	u8 policy = NF_ACCEPT;
 	u64 handle = 0;
 	unsigned int i;
+	struct nft_stats __percpu *stats;
 	int err;
 	bool create;
 
@@ -920,10 +924,11 @@ static int nf_tables_newchain(struct sock *nlsk, struct sk_buff *skb,
 			if (!(chain->flags & NFT_BASE_CHAIN))
 				return -EOPNOTSUPP;
 
-			err = nf_tables_counters(nft_base_chain(chain),
-						 nla[NFTA_CHAIN_COUNTERS]);
-			if (err < 0)
-				return err;
+			stats = nft_stats_alloc(nla[NFTA_CHAIN_COUNTERS]);
+			if (IS_ERR(stats))
+				return PTR_ERR(stats);
+
+			nft_chain_stats_replace(nft_base_chain(chain), stats);
 		}
 
 		if (nla[NFTA_CHAIN_POLICY])
@@ -977,23 +982,21 @@ static int nf_tables_newchain(struct sock *nlsk, struct sk_buff *skb,
 			return -ENOMEM;
 
 		if (nla[NFTA_CHAIN_COUNTERS]) {
-			err = nf_tables_counters(basechain,
-						 nla[NFTA_CHAIN_COUNTERS]);
-			if (err < 0) {
+			stats = nft_stats_alloc(nla[NFTA_CHAIN_COUNTERS]);
+			if (IS_ERR(stats)) {
 				module_put(type->owner);
 				kfree(basechain);
-				return err;
+				return PTR_ERR(stats);
 			}
+			basechain->stats = stats;
 		} else {
-			struct nft_stats __percpu *newstats;
-
-			newstats = alloc_percpu(struct nft_stats);
-			if (newstats == NULL) {
+			stats = alloc_percpu(struct nft_stats);
+			if (IS_ERR(stats)) {
 				module_put(type->owner);
 				kfree(basechain);
-				return -ENOMEM;
+				return PTR_ERR(stats);
 			}
-			rcu_assign_pointer(basechain->stats, newstats);
+			rcu_assign_pointer(basechain->stats, stats);
 		}
 
 		basechain->type = type;
