@@ -1424,7 +1424,7 @@ int radeon_suspend_kms(struct drm_device *dev, bool suspend, bool fbcon)
 
 	/* unpin the front buffers */
 	list_for_each_entry(crtc, &dev->mode_config.crtc_list, head) {
-		struct radeon_framebuffer *rfb = to_radeon_framebuffer(crtc->fb);
+		struct radeon_framebuffer *rfb = to_radeon_framebuffer(crtc->primary->fb);
 		struct radeon_bo *robj;
 
 		if (rfb == NULL || rfb->obj == NULL) {
@@ -1551,10 +1551,12 @@ int radeon_resume_kms(struct drm_device *dev, bool resume, bool fbcon)
 	/* reset hpd state */
 	radeon_hpd_init(rdev);
 	/* blat the mode back in */
-	drm_helper_resume_force_mode(dev);
-	/* turn on display hw */
-	list_for_each_entry(connector, &dev->mode_config.connector_list, head) {
-		drm_helper_connector_dpms(connector, DRM_MODE_DPMS_ON);
+	if (fbcon) {
+		drm_helper_resume_force_mode(dev);
+		/* turn on display hw */
+		list_for_each_entry(connector, &dev->mode_config.connector_list, head) {
+			drm_helper_connector_dpms(connector, DRM_MODE_DPMS_ON);
+		}
 	}
 
 	drm_kms_helper_poll_enable(dev);

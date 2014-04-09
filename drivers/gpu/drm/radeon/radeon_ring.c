@@ -262,6 +262,7 @@ int radeon_ib_ring_tests(struct radeon_device *rdev)
 		r = radeon_ib_test(rdev, i, ring);
 		if (r) {
 			ring->ready = false;
+			rdev->needs_reset = false;
 
 			if (i == RADEON_RING_TYPE_GFX_INDEX) {
 				/* oh, oh, that's really bad */

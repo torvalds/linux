@@ -232,7 +232,7 @@ static struct drm_framebuffer *drm_mode_config_fb(struct drm_crtc *crtc)
 
 	list_for_each_entry(c, &dev->mode_config.crtc_list, head) {
 		if (crtc->base.id == c->base.id)
-			return c->fb;
+			return c->primary->fb;
 	}
 
 	return NULL;
@@ -291,7 +291,8 @@ bool drm_fb_helper_restore_fbdev_mode(struct drm_fb_helper *fb_helper)
 	drm_warn_on_modeset_not_all_locked(dev);
 
 	list_for_each_entry(plane, &dev->mode_config.plane_list, head)
-		drm_plane_force_disable(plane);
+		if (plane->type != DRM_PLANE_TYPE_PRIMARY)
+			drm_plane_force_disable(plane);
 
 	for (i = 0; i < fb_helper->crtc_count; i++) {
 		struct drm_mode_set *mode_set = &fb_helper->crtc_info[i].mode_set;
@@ -365,9 +366,9 @@ static bool drm_fb_helper_is_bound(struct drm_fb_helper *fb_helper)
 		return false;
 
 	list_for_each_entry(crtc, &dev->mode_config.crtc_list, head) {
-		if (crtc->fb)
+		if (crtc->primary->fb)
 			crtcs_bound++;
-		if (crtc->fb == fb_helper->fb)
+		if (crtc->primary->fb == fb_helper->fb)
 			bound++;
 	}
 
@@ -1158,6 +1159,7 @@ struct drm_display_mode *drm_pick_cmdline_mode(struct drm_fb_helper_connector *f
 {
 	struct drm_cmdline_mode *cmdline_mode;
 	struct drm_display_mode *mode = NULL;
+	bool prefer_non_interlace;
 
 	cmdline_mode = &fb_helper_conn->cmdline_mode;
 	if (cmdline_mode->specified == false)
@@ -1169,6 +1171,8 @@ struct drm_display_mode *drm_pick_cmdline_mode(struct drm_fb_helper_connector *f
 	if (cmdline_mode->rb || cmdline_mode->margins)
 		goto create_mode;
 
+	prefer_non_interlace = !cmdline_mode->interlace;
+ again:
 	list_for_each_entry(mode, &fb_helper_conn->connector->modes, head) {
 		/* check width/height */
 		if (mode->hdisplay != cmdline_mode->xres ||
@@ -1183,8 +1187,16 @@ struct drm_display_mode *drm_pick_cmdline_mode(struct drm_fb_helper_connector *f
 		if (cmdline_mode->interlace) {
 			if (!(mode->flags & DRM_MODE_FLAG_INTERLACE))
 				continue;
+		} else if (prefer_non_interlace) {
+			if (mode->flags & DRM_MODE_FLAG_INTERLACE)
+				continue;
 		}
 		return mode;
+	}
+
+	if (prefer_non_interlace) {
+		prefer_non_interlace = false;
+		goto again;
 	}
 
 create_mode:
@@ -1536,9 +1548,11 @@ bool drm_fb_helper_initial_config(struct drm_fb_helper *fb_helper, int bpp_sel)
 
 	drm_fb_helper_parse_command_line(fb_helper);
 
+	mutex_lock(&dev->mode_config.mutex);
 	count = drm_fb_helper_probe_connector_modes(fb_helper,
 						    dev->mode_config.max_width,
 						    dev->mode_config.max_height);
+	mutex_unlock(&dev->mode_config.mutex);
 	/*
 	 * we shouldn't end up with no modes here.
 	 */

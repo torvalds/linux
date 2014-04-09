@@ -606,14 +606,14 @@ static void update_colorkey(struct intel_overlay *overlay,
 {
 	u32 key = overlay->color_key;
 
-	switch (overlay->crtc->base.fb->bits_per_pixel) {
+	switch (overlay->crtc->base.primary->fb->bits_per_pixel) {
 	case 8:
 		iowrite32(0, &regs->DCLRKV);
 		iowrite32(CLK_RGB8I_MASK | DST_KEY_ENABLE, &regs->DCLRKM);
 		break;
 
 	case 16:
-		if (overlay->crtc->base.fb->depth == 15) {
+		if (overlay->crtc->base.primary->fb->depth == 15) {
 			iowrite32(RGB15_TO_COLORKEY(key), &regs->DCLRKV);
 			iowrite32(CLK_RGB15_MASK | DST_KEY_ENABLE,
 				  &regs->DCLRKM);

@@ -102,6 +102,7 @@ u32 host1x_syncpt_incr_max(struct host1x_syncpt *sp, u32 incrs)
 {
 	return (u32)atomic_add_return(incrs, &sp->max_val);
 }
+EXPORT_SYMBOL(host1x_syncpt_incr_max);
 
  /*
  * Write cached syncpoint and waitbase values to hardware.

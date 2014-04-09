@@ -88,46 +88,41 @@ struct videomode;
 #include <drm/drm_hashtab.h>
 #include <drm/drm_mm.h>
 
+/*
+ * 4 debug categories are defined:
+ *
+ * CORE: Used in the generic drm code: drm_ioctl.c, drm_mm.c, drm_memory.c, ...
+ *	 This is the category used by the DRM_DEBUG() macro.
+ *
+ * DRIVER: Used in the vendor specific part of the driver: i915, radeon, ...
+ *	   This is the category used by the DRM_DEBUG_DRIVER() macro.
+ *
+ * KMS: used in the modesetting code.
+ *	This is the category used by the DRM_DEBUG_KMS() macro.
+ *
+ * PRIME: used in the prime code.
+ *	  This is the category used by the DRM_DEBUG_PRIME() macro.
+ *
+ * Enabling verbose debug messages is done through the drm.debug parameter,
+ * each category being enabled by a bit.
+ *
+ * drm.debug=0x1 will enable CORE messages
+ * drm.debug=0x2 will enable DRIVER messages
+ * drm.debug=0x3 will enable CORE and DRIVER messages
+ * ...
+ * drm.debug=0xf will enable all messages
+ *
+ * An interesting feature is that it's possible to enable verbose logging at
+ * run-time by echoing the debug value in its sysfs node:
+ *   # echo 0xf > /sys/module/drm/parameters/debug
+ */
 #define DRM_UT_CORE 		0x01
 #define DRM_UT_DRIVER		0x02
 #define DRM_UT_KMS		0x04
 #define DRM_UT_PRIME		0x08
-/*
- * Three debug levels are defined.
- * drm_core, drm_driver, drm_kms
- * drm_core level can be used in the generic drm code. For example:
- * 	drm_ioctl, drm_mm, drm_memory
- * The macro definition of DRM_DEBUG is used.
- * 	DRM_DEBUG(fmt, args...)
- * 	The debug info by using the DRM_DEBUG can be obtained by adding
- * 	the boot option of "drm.debug=1".
- *
- * drm_driver level can be used in the specific drm driver. It is used
- * to add the debug info related with the drm driver. For example:
- * i915_drv, i915_dma, i915_gem, radeon_drv,
- * 	The macro definition of DRM_DEBUG_DRIVER can be used.
- * 	DRM_DEBUG_DRIVER(fmt, args...)
- * 	The debug info by using the DRM_DEBUG_DRIVER can be obtained by
- * 	adding the boot option of "drm.debug=0x02"
- *
- * drm_kms level can be used in the KMS code related with specific drm driver.
- * It is used to add the debug info related with KMS mode. For example:
- * the connector/crtc ,
- * 	The macro definition of DRM_DEBUG_KMS can be used.
- * 	DRM_DEBUG_KMS(fmt, args...)
- * 	The debug info by using the DRM_DEBUG_KMS can be obtained by
- * 	adding the boot option of "drm.debug=0x04"
- *
- * If we add the boot option of "drm.debug=0x06", we can get the debug info by
- * using the DRM_DEBUG_KMS and DRM_DEBUG_DRIVER.
- * If we add the boot option of "drm.debug=0x05", we can get the debug info by
- * using the DRM_DEBUG_KMS and DRM_DEBUG.
- */
 
-extern __printf(4, 5)
-void drm_ut_debug_printk(unsigned int request_level,
-			 const char *prefix,
-			 const char *function_name,
+extern __printf(2, 3)
+void drm_ut_debug_printk(const char *function_name,
 			 const char *format, ...);
 extern __printf(2, 3)
 int drm_err(const char *func, const char *format, ...);
@@ -212,55 +207,30 @@ int drm_err(const char *func, const char *format, ...);
 #if DRM_DEBUG_CODE
 #define DRM_DEBUG(fmt, args...)						\
 	do {								\
-		drm_ut_debug_printk(DRM_UT_CORE, DRM_NAME, 		\
-					__func__, fmt, ##args);		\
+		if (unlikely(drm_debug & DRM_UT_CORE))			\
+			drm_ut_debug_printk(__func__, fmt, ##args);	\
 	} while (0)
 
 #define DRM_DEBUG_DRIVER(fmt, args...)					\
 	do {								\
-		drm_ut_debug_printk(DRM_UT_DRIVER, DRM_NAME,		\
-					__func__, fmt, ##args);		\
+		if (unlikely(drm_debug & DRM_UT_DRIVER))		\
+			drm_ut_debug_printk(__func__, fmt, ##args);	\
 	} while (0)
-#define DRM_DEBUG_KMS(fmt, args...)				\
+#define DRM_DEBUG_KMS(fmt, args...)					\
 	do {								\
-		drm_ut_debug_printk(DRM_UT_KMS, DRM_NAME, 		\
-					 __func__, fmt, ##args);	\
+		if (unlikely(drm_debug & DRM_UT_KMS))			\
+			drm_ut_debug_printk(__func__, fmt, ##args);	\
 	} while (0)
 #define DRM_DEBUG_PRIME(fmt, args...)					\
 	do {								\
-		drm_ut_debug_printk(DRM_UT_PRIME, DRM_NAME,		\
-					__func__, fmt, ##args);		\
-	} while (0)
-#define DRM_LOG(fmt, args...)						\
-	do {								\
-		drm_ut_debug_printk(DRM_UT_CORE, NULL,			\
-					NULL, fmt, ##args);		\
-	} while (0)
-#define DRM_LOG_KMS(fmt, args...)					\
-	do {								\
-		drm_ut_debug_printk(DRM_UT_KMS, NULL,			\
-					NULL, fmt, ##args);		\
-	} while (0)
-#define DRM_LOG_MODE(fmt, args...)					\
-	do {								\
-		drm_ut_debug_printk(DRM_UT_MODE, NULL,			\
-					NULL, fmt, ##args);		\
-	} while (0)
-#define DRM_LOG_DRIVER(fmt, args...)					\
-	do {								\
-		drm_ut_debug_printk(DRM_UT_DRIVER, NULL,		\
-					NULL, fmt, ##args);		\
+		if (unlikely(drm_debug & DRM_UT_PRIME))			\
+			drm_ut_debug_printk(__func__, fmt, ##args);	\
 	} while (0)
 #else
 #define DRM_DEBUG_DRIVER(fmt, args...) do { } while (0)
 #define DRM_DEBUG_KMS(fmt, args...)	do { } while (0)
 #define DRM_DEBUG_PRIME(fmt, args...)	do { } while (0)
 #define DRM_DEBUG(fmt, arg...)		 do { } while (0)
-#define DRM_LOG(fmt, arg...)		do { } while (0)
-#define DRM_LOG_KMS(fmt, args...) do { } while (0)
-#define DRM_LOG_MODE(fmt, arg...) do { } while (0)
-#define DRM_LOG_DRIVER(fmt, arg...) do { } while (0)
-
 #endif
 
 /*@}*/
@@ -435,9 +405,15 @@ struct drm_prime_file_private {
 struct drm_file {
 	unsigned always_authenticated :1;
 	unsigned authenticated :1;
-	unsigned is_master :1; /* this file private is a master for a minor */
+	/* Whether we're master for a minor. Protected by master_mutex */
+	unsigned is_master :1;
 	/* true when the client has asked us to expose stereo 3D mode flags */
 	unsigned stereo_allowed :1;
+	/*
+	 * true if client understands CRTC primary planes and cursor planes
+	 * in the plane list
+	 */
+	unsigned universal_planes:1;
 
 	struct pid *pid;
 	kuid_t uid;
@@ -714,29 +690,29 @@ struct drm_gem_object {
 
 #include <drm/drm_crtc.h>
 
-/* per-master structure */
+/**
+ * struct drm_master - drm master structure
+ *
+ * @refcount: Refcount for this master object.
+ * @minor: Link back to minor char device we are master for. Immutable.
+ * @unique: Unique identifier: e.g. busid. Protected by drm_global_mutex.
+ * @unique_len: Length of unique field. Protected by drm_global_mutex.
+ * @unique_size: Amount allocated. Protected by drm_global_mutex.
+ * @magiclist: Hash of used authentication tokens. Protected by struct_mutex.
+ * @magicfree: List of used authentication tokens. Protected by struct_mutex.
+ * @lock: DRI lock information.
+ * @driver_priv: Pointer to driver-private information.
+ */
 struct drm_master {
-
-	struct kref refcount; /* refcount for this master */
-
-	struct list_head head; /**< each minor contains a list of masters */
-	struct drm_minor *minor; /**< link back to minor we are a master for */
-
-	char *unique;			/**< Unique identifier: e.g., busid */
-	int unique_len;			/**< Length of unique field */
-	int unique_size;		/**< amount allocated */
-
-	int blocked;			/**< Blocked due to VC switch? */
-
-	/** \name Authentication */
-	/*@{ */
+	struct kref refcount;
+	struct drm_minor *minor;
+	char *unique;
+	int unique_len;
+	int unique_size;
 	struct drm_open_hash magiclist;
 	struct list_head magicfree;
-	/*@} */
-
-	struct drm_lock_data lock;	/**< Information on hardware lock */
-
-	void *driver_priv; /**< Private structure for driver to use */
+	struct drm_lock_data lock;
+	void *driver_priv;
 };
 
 /* Size of ringbuffer for vblank timestamps. Just double-buffer
@@ -1051,8 +1027,8 @@ struct drm_minor {
 	struct list_head debugfs_list;
 	struct mutex debugfs_lock; /* Protects debugfs_list. */
 
-	struct drm_master *master; /* currently active master for this node */
-	struct list_head master_list;
+	/* currently active master for this node. Protected by master_mutex */
+	struct drm_master *master;
 	struct drm_mode_group mode_group;
 };
 
@@ -1102,6 +1078,7 @@ struct drm_device {
 	/*@{ */
 	spinlock_t count_lock;		/**< For inuse, drm_device::open_count, drm_device::buf_use */
 	struct mutex struct_mutex;	/**< For others */
+	struct mutex master_mutex;      /**< For drm_minor::master and drm_file::is_master */
 	/*@} */
 
 	/** \name Usage Counters */
@@ -1232,9 +1209,19 @@ static inline bool drm_modeset_is_locked(struct drm_device *dev)
 	return mutex_is_locked(&dev->mode_config.mutex);
 }
 
-static inline bool drm_is_render_client(struct drm_file *file_priv)
+static inline bool drm_is_render_client(const struct drm_file *file_priv)
 {
 	return file_priv->minor->type == DRM_MINOR_RENDER;
+}
+
+static inline bool drm_is_control_client(const struct drm_file *file_priv)
+{
+	return file_priv->minor->type == DRM_MINOR_CONTROL;
+}
+
+static inline bool drm_is_primary_client(const struct drm_file *file_priv)
+{
+	return file_priv->minor->type == DRM_MINOR_LEGACY;
 }
 
 /******************************************************************/
@@ -1247,6 +1234,7 @@ extern long drm_ioctl(struct file *filp,
 extern long drm_compat_ioctl(struct file *filp,
 			     unsigned int cmd, unsigned long arg);
 extern int drm_lastclose(struct drm_device *dev);
+extern bool drm_ioctl_flags(unsigned int nr, unsigned int *flags);
 
 				/* Device support (drm_fops.h) */
 extern struct mutex drm_global_mutex;
@@ -1426,6 +1414,7 @@ extern void drm_put_dev(struct drm_device *dev);
 extern void drm_unplug_dev(struct drm_device *dev);
 extern unsigned int drm_debug;
 extern unsigned int drm_rnodes;
+extern unsigned int drm_universal_planes;
 
 extern unsigned int drm_vblank_offdelay;
 extern unsigned int drm_timestamp_precision;

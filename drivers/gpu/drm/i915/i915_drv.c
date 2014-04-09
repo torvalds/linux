@@ -537,14 +537,21 @@ static void intel_resume_hotplug(struct drm_device *dev)
 	drm_helper_hpd_irq_event(dev);
 }
 
+static int i915_drm_thaw_early(struct drm_device *dev)
+{
+	struct drm_i915_private *dev_priv = dev->dev_private;
+
+	intel_uncore_early_sanitize(dev);
+	intel_uncore_sanitize(dev);
+	intel_power_domains_init_hw(dev_priv);
+
+	return 0;
+}
+
 static int __i915_drm_thaw(struct drm_device *dev, bool restore_gtt_mappings)
 {
 	struct drm_i915_private *dev_priv = dev->dev_private;
 	int error = 0;
-
-	intel_uncore_early_sanitize(dev);
-
-	intel_uncore_sanitize(dev);
 
 	if (drm_core_check_feature(dev, DRIVER_MODESET) &&
 	    restore_gtt_mappings) {
@@ -552,8 +559,6 @@ static int __i915_drm_thaw(struct drm_device *dev, bool restore_gtt_mappings)
 		i915_gem_restore_gtt_mappings(dev);
 		mutex_unlock(&dev->struct_mutex);
 	}
-
-	intel_power_domains_init_hw(dev_priv);
 
 	i915_restore_state(dev);
 	intel_opregion_setup(dev);
@@ -619,18 +624,32 @@ static int i915_drm_thaw(struct drm_device *dev)
 	return __i915_drm_thaw(dev, true);
 }
 
-int i915_resume(struct drm_device *dev)
+static int i915_resume_early(struct drm_device *dev)
 {
-	struct drm_i915_private *dev_priv = dev->dev_private;
-	int ret;
-
 	if (dev->switch_power_state == DRM_SWITCH_POWER_OFF)
 		return 0;
 
+	/*
+	 * We have a resume ordering issue with the snd-hda driver also
+	 * requiring our device to be power up. Due to the lack of a
+	 * parent/child relationship we currently solve this with an early
+	 * resume hook.
+	 *
+	 * FIXME: This should be solved with a special hdmi sink device or
+	 * similar so that power domains can be employed.
+	 */
 	if (pci_enable_device(dev->pdev))
 		return -EIO;
 
 	pci_set_master(dev->pdev);
+
+	return i915_drm_thaw_early(dev);
+}
+
+int i915_resume(struct drm_device *dev)
+{
+	struct drm_i915_private *dev_priv = dev->dev_private;
+	int ret;
 
 	/*
 	 * Platforms with opregion should have sane BIOS, older ones (gen3 and
@@ -642,6 +661,14 @@ int i915_resume(struct drm_device *dev)
 		return ret;
 
 	drm_kms_helper_poll_enable(dev);
+	return 0;
+}
+
+static int i915_resume_legacy(struct drm_device *dev)
+{
+	i915_resume_early(dev);
+	i915_resume(dev);
+
 	return 0;
 }
 
@@ -776,7 +803,6 @@ static int i915_pm_suspend(struct device *dev)
 {
 	struct pci_dev *pdev = to_pci_dev(dev);
 	struct drm_device *drm_dev = pci_get_drvdata(pdev);
-	int error;
 
 	if (!drm_dev || !drm_dev->dev_private) {
 		dev_err(dev, "DRM not initialized, aborting suspend.\n");
@@ -786,14 +812,38 @@ static int i915_pm_suspend(struct device *dev)
 	if (drm_dev->switch_power_state == DRM_SWITCH_POWER_OFF)
 		return 0;
 
-	error = i915_drm_freeze(drm_dev);
-	if (error)
-		return error;
+	return i915_drm_freeze(drm_dev);
+}
+
+static int i915_pm_suspend_late(struct device *dev)
+{
+	struct pci_dev *pdev = to_pci_dev(dev);
+	struct drm_device *drm_dev = pci_get_drvdata(pdev);
+
+	/*
+	 * We have a suspedn ordering issue with the snd-hda driver also
+	 * requiring our device to be power up. Due to the lack of a
+	 * parent/child relationship we currently solve this with an late
+	 * suspend hook.
+	 *
+	 * FIXME: This should be solved with a special hdmi sink device or
+	 * similar so that power domains can be employed.
+	 */
+	if (drm_dev->switch_power_state == DRM_SWITCH_POWER_OFF)
+		return 0;
 
 	pci_disable_device(pdev);
 	pci_set_power_state(pdev, PCI_D3hot);
 
 	return 0;
+}
+
+static int i915_pm_resume_early(struct device *dev)
+{
+	struct pci_dev *pdev = to_pci_dev(dev);
+	struct drm_device *drm_dev = pci_get_drvdata(pdev);
+
+	return i915_resume_early(drm_dev);
 }
 
 static int i915_pm_resume(struct device *dev)
@@ -815,6 +865,14 @@ static int i915_pm_freeze(struct device *dev)
 	}
 
 	return i915_drm_freeze(drm_dev);
+}
+
+static int i915_pm_thaw_early(struct device *dev)
+{
+	struct pci_dev *pdev = to_pci_dev(dev);
+	struct drm_device *drm_dev = pci_get_drvdata(pdev);
+
+	return i915_drm_thaw_early(drm_dev);
 }
 
 static int i915_pm_thaw(struct device *dev)
@@ -924,10 +982,14 @@ static int intel_runtime_resume(struct device *device)
 
 static const struct dev_pm_ops i915_pm_ops = {
 	.suspend = i915_pm_suspend,
+	.suspend_late = i915_pm_suspend_late,
+	.resume_early = i915_pm_resume_early,
 	.resume = i915_pm_resume,
 	.freeze = i915_pm_freeze,
+	.thaw_early = i915_pm_thaw_early,
 	.thaw = i915_pm_thaw,
 	.poweroff = i915_pm_poweroff,
+	.restore_early = i915_pm_resume_early,
 	.restore = i915_pm_resume,
 	.runtime_suspend = intel_runtime_suspend,
 	.runtime_resume = intel_runtime_resume,
@@ -970,7 +1032,7 @@ static struct drm_driver driver = {
 
 	/* Used in place of i915_pm_ops for non-DRIVER_MODESET */
 	.suspend = i915_suspend,
-	.resume = i915_resume,
+	.resume = i915_resume_legacy,
 
 	.device_is_agp = i915_driver_device_is_agp,
 	.master_create = i915_master_create,

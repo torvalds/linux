@@ -1649,7 +1649,7 @@ static bool intel_edp_psr_match_conditions(struct intel_dp *intel_dp)
 	struct drm_i915_private *dev_priv = dev->dev_private;
 	struct drm_crtc *crtc = dig_port->base.base.crtc;
 	struct intel_crtc *intel_crtc = to_intel_crtc(crtc);
-	struct drm_i915_gem_object *obj = to_intel_framebuffer(crtc->fb)->obj;
+	struct drm_i915_gem_object *obj = to_intel_framebuffer(crtc->primary->fb)->obj;
 	struct intel_encoder *intel_encoder = &dp_to_dig_port(intel_dp)->base;
 
 	dev_priv->psr.source_ok = false;
@@ -1682,7 +1682,7 @@ static bool intel_edp_psr_match_conditions(struct intel_dp *intel_dp)
 		return false;
 	}
 
-	obj = to_intel_framebuffer(crtc->fb)->obj;
+	obj = to_intel_framebuffer(crtc->primary->fb)->obj;
 	if (obj->tiling_mode != I915_TILING_X ||
 	    obj->fence_reg == I915_FENCE_REG_NONE) {
 		DRM_DEBUG_KMS("PSR condition failed: fb not tiled or fenced\n");

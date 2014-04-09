@@ -2866,6 +2866,16 @@ F:	drivers/gpu/drm/radeon/
 F:	include/drm/radeon*
 F:	include/uapi/drm/radeon*
 
+DRM PANEL DRIVERS
+M:	Thierry Reding <thierry.reding@gmail.com>
+L:	dri-devel@lists.freedesktop.org
+T:	git git://anongit.freedesktop.org/tegra/linux.git
+S:	Maintained
+F:	drivers/gpu/drm/drm_panel.c
+F:	drivers/gpu/drm/panel/
+F:	include/drm/drm_panel.h
+F:	Documentation/devicetree/bindings/panel/
+
 INTEL DRM DRIVERS (excluding Poulsbo, Moorestown and derivative chipsets)
 M:	Daniel Vetter <daniel.vetter@ffwll.ch>
 M:	Jani Nikula <jani.nikula@linux.intel.com>
@@ -3392,12 +3402,6 @@ T:	git git://git.kernel.org/pub/scm/linux/kernel/git/chanwoo/extcon.git
 S:	Maintained
 F:	drivers/extcon/
 F:	Documentation/extcon/
-
-EXYNOS DP DRIVER
-M:	Jingoo Han <jg1.han@samsung.com>
-L:	linux-fbdev@vger.kernel.org
-S:	Maintained
-F:	drivers/video/exynos/exynos_dp*
 
 EXYNOS MIPI DISPLAY DRIVERS
 M:	Inki Dae <inki.dae@samsung.com>

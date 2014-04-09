@@ -1016,7 +1016,8 @@ alloc:
 						  &ppgtt->node, GEN6_PD_SIZE,
 						  GEN6_PD_ALIGN, 0,
 						  0, dev_priv->gtt.base.total,
-						  DRM_MM_SEARCH_DEFAULT);
+						  DRM_MM_SEARCH_DEFAULT,
+						  DRM_MM_CREATE_DEFAULT);
 	if (ret == -ENOSPC && !retried) {
 		ret = i915_gem_evict_something(dev, &dev_priv->gtt.base,
 					       GEN6_PD_SIZE, GEN6_PD_ALIGN,

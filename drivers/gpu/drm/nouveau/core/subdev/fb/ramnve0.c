@@ -950,10 +950,11 @@ nve0_ram_calc_data(struct nouveau_fb *pfb, u32 freq,
 	}
 
 	/* locate specific data set for the attached memory */
+	strap = nvbios_ramcfg_index(nv_subdev(pfb));
 	ram->base.ramcfg.data = nvbios_rammapSp(bios, ram->base.rammap.data,
 						ram->base.rammap.version,
-						ram->base.rammap.size, cnt, len,
-						nvbios_ramcfg_index(bios),
+						ram->base.rammap.size,
+						cnt, len, strap,
 						&ram->base.ramcfg.version,
 						&ram->base.ramcfg.size,
 						&data->bios);
@@ -1123,7 +1124,7 @@ nve0_ram_tidy(struct nouveau_fb *pfb)
 	ram_exec(fuc, false);
 }
 
-static int
+int
 nve0_ram_init(struct nouveau_object *object)
 {
 	struct nouveau_fb *pfb = (void *)object->parent;
@@ -1226,7 +1227,7 @@ nve0_ram_ctor(struct nouveau_object *parent, struct nouveau_object *engine,
 	int ret, i;
 	u32 tmp;
 
-	ret = nvc0_ram_create(parent, engine, oclass, &ram);
+	ret = nvc0_ram_create(parent, engine, oclass, 0x022554, &ram);
 	*pobject = nv_object(ram);
 	if (ret)
 		return ret;

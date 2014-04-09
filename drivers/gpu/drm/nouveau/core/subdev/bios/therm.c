@@ -164,6 +164,7 @@ nvbios_therm_fan_parse(struct nouveau_bios *bios,
 
 	i = 0;
 	fan->nr_fan_trip = 0;
+	fan->fan_mode = NVBIOS_THERM_FAN_OTHER;
 	while ((entry = nvbios_therm_entry(bios, i++, &ver, &len))) {
 		s16 value = nv_ro16(bios, entry + 1);
 
@@ -174,6 +175,8 @@ nvbios_therm_fan_parse(struct nouveau_bios *bios,
 			break;
 		case 0x24:
 			fan->nr_fan_trip++;
+			if (fan->fan_mode > NVBIOS_THERM_FAN_TRIP)
+				fan->fan_mode = NVBIOS_THERM_FAN_TRIP;
 			cur_trip = &fan->trip[fan->nr_fan_trip - 1];
 			cur_trip->hysteresis = value & 0xf;
 			cur_trip->temp = (value & 0xff0) >> 4;
@@ -194,10 +197,18 @@ nvbios_therm_fan_parse(struct nouveau_bios *bios,
 			fan->slow_down_period = value;
 			break;
 		case 0x46:
+			if (fan->fan_mode > NVBIOS_THERM_FAN_LINEAR)
+				fan->fan_mode = NVBIOS_THERM_FAN_LINEAR;
 			fan->linear_min_temp = nv_ro08(bios, entry + 1);
 			fan->linear_max_temp = nv_ro08(bios, entry + 2);
 			break;
 		}
+	}
+
+	/* starting from fermi, fan management is always linear */
+	if (nv_device(bios)->card_type >= NV_C0 &&
+		fan->fan_mode == NVBIOS_THERM_FAN_OTHER) {
+		fan->fan_mode = NVBIOS_THERM_FAN_LINEAR;
 	}
 
 	return 0;

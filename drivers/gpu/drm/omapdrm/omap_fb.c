@@ -306,13 +306,14 @@ struct drm_connector *omap_framebuffer_get_next_connector(
 	struct drm_connector *connector = from;
 
 	if (!from)
-		return list_first_entry(connector_list, typeof(*from), head);
+		return list_first_entry_or_null(connector_list, typeof(*from),
+						head);
 
 	list_for_each_entry_from(connector, connector_list, head) {
 		if (connector != from) {
 			struct drm_encoder *encoder = connector->encoder;
 			struct drm_crtc *crtc = encoder ? encoder->crtc : NULL;
-			if (crtc && crtc->fb == fb)
+			if (crtc && crtc->primary->fb == fb)
 				return connector;
 
 		}

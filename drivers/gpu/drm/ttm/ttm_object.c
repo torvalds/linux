@@ -270,6 +270,52 @@ ttm_base_object_lookup_for_ref(struct ttm_object_device *tdev, uint32_t key)
 }
 EXPORT_SYMBOL(ttm_base_object_lookup_for_ref);
 
+/**
+ * ttm_ref_object_exists - Check whether a caller has a valid ref object
+ * (has opened) a base object.
+ *
+ * @tfile: Pointer to a struct ttm_object_file identifying the caller.
+ * @base: Pointer to a struct base object.
+ *
+ * Checks wether the caller identified by @tfile has put a valid USAGE
+ * reference object on the base object identified by @base.
+ */
+bool ttm_ref_object_exists(struct ttm_object_file *tfile,
+			   struct ttm_base_object *base)
+{
+	struct drm_open_hash *ht = &tfile->ref_hash[TTM_REF_USAGE];
+	struct drm_hash_item *hash;
+	struct ttm_ref_object *ref;
+
+	rcu_read_lock();
+	if (unlikely(drm_ht_find_item_rcu(ht, base->hash.key, &hash) != 0))
+		goto out_false;
+
+	/*
+	 * Verify that the ref object is really pointing to our base object.
+	 * Our base object could actually be dead, and the ref object pointing
+	 * to another base object with the same handle.
+	 */
+	ref = drm_hash_entry(hash, struct ttm_ref_object, hash);
+	if (unlikely(base != ref->obj))
+		goto out_false;
+
+	/*
+	 * Verify that the ref->obj pointer was actually valid!
+	 */
+	rmb();
+	if (unlikely(atomic_read(&ref->kref.refcount) == 0))
+		goto out_false;
+
+	rcu_read_unlock();
+	return true;
+
+ out_false:
+	rcu_read_unlock();
+	return false;
+}
+EXPORT_SYMBOL(ttm_ref_object_exists);
+
 int ttm_ref_object_add(struct ttm_object_file *tfile,
 		       struct ttm_base_object *base,
 		       enum ttm_ref_type ref_type, bool *existed)

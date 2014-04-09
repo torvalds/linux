@@ -231,12 +231,11 @@ static int drm_open_helper(struct inode *inode, struct file *filp,
 
 	/* if there is no current master make this fd it, but do not create
 	 * any master object for render clients */
-	mutex_lock(&dev->struct_mutex);
-	if (!priv->minor->master && !drm_is_render_client(priv)) {
+	mutex_lock(&dev->master_mutex);
+	if (drm_is_primary_client(priv) && !priv->minor->master) {
 		/* create a new master */
 		priv->minor->master = drm_master_create(priv->minor);
 		if (!priv->minor->master) {
-			mutex_unlock(&dev->struct_mutex);
 			ret = -ENOMEM;
 			goto out_close;
 		}
@@ -244,37 +243,31 @@ static int drm_open_helper(struct inode *inode, struct file *filp,
 		priv->is_master = 1;
 		/* take another reference for the copy in the local file priv */
 		priv->master = drm_master_get(priv->minor->master);
-
 		priv->authenticated = 1;
 
-		mutex_unlock(&dev->struct_mutex);
 		if (dev->driver->master_create) {
 			ret = dev->driver->master_create(dev, priv->master);
 			if (ret) {
-				mutex_lock(&dev->struct_mutex);
 				/* drop both references if this fails */
 				drm_master_put(&priv->minor->master);
 				drm_master_put(&priv->master);
-				mutex_unlock(&dev->struct_mutex);
 				goto out_close;
 			}
 		}
-		mutex_lock(&dev->struct_mutex);
 		if (dev->driver->master_set) {
 			ret = dev->driver->master_set(dev, priv, true);
 			if (ret) {
 				/* drop both references if this fails */
 				drm_master_put(&priv->minor->master);
 				drm_master_put(&priv->master);
-				mutex_unlock(&dev->struct_mutex);
 				goto out_close;
 			}
 		}
-	} else if (!drm_is_render_client(priv)) {
+	} else if (drm_is_primary_client(priv)) {
 		/* get a reference to the master */
 		priv->master = drm_master_get(priv->minor->master);
 	}
-	mutex_unlock(&dev->struct_mutex);
+	mutex_unlock(&dev->master_mutex);
 
 	mutex_lock(&dev->struct_mutex);
 	list_add(&priv->lhead, &dev->filelist);
@@ -302,6 +295,7 @@ static int drm_open_helper(struct inode *inode, struct file *filp,
 	return 0;
 
 out_close:
+	mutex_unlock(&dev->master_mutex);
 	if (dev->driver->postclose)
 		dev->driver->postclose(dev, priv);
 out_prime_destroy:
@@ -489,11 +483,13 @@ int drm_release(struct inode *inode, struct file *filp)
 	}
 	mutex_unlock(&dev->ctxlist_mutex);
 
-	mutex_lock(&dev->struct_mutex);
+	mutex_lock(&dev->master_mutex);
 
 	if (file_priv->is_master) {
 		struct drm_master *master = file_priv->master;
 		struct drm_file *temp;
+
+		mutex_lock(&dev->struct_mutex);
 		list_for_each_entry(temp, &dev->filelist, lhead) {
 			if ((temp->master == file_priv->master) &&
 			    (temp != file_priv))
@@ -512,6 +508,7 @@ int drm_release(struct inode *inode, struct file *filp)
 			master->lock.file_priv = NULL;
 			wake_up_interruptible_all(&master->lock.lock_queue);
 		}
+		mutex_unlock(&dev->struct_mutex);
 
 		if (file_priv->minor->master == file_priv->master) {
 			/* drop the reference held my the minor */
@@ -521,10 +518,13 @@ int drm_release(struct inode *inode, struct file *filp)
 		}
 	}
 
-	/* drop the reference held my the file priv */
+	/* drop the master reference held by the file priv */
 	if (file_priv->master)
 		drm_master_put(&file_priv->master);
 	file_priv->is_master = 0;
+	mutex_unlock(&dev->master_mutex);
+
+	mutex_lock(&dev->struct_mutex);
 	list_del(&file_priv->lhead);
 	mutex_unlock(&dev->struct_mutex);
 

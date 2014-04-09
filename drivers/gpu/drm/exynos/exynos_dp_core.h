@@ -13,6 +13,9 @@
 #ifndef _EXYNOS_DP_CORE_H
 #define _EXYNOS_DP_CORE_H
 
+#include <drm/drm_crtc.h>
+#include <drm/exynos_drm.h>
+
 #define DP_TIMEOUT_LOOP_COUNT 100
 #define MAX_CR_LOOP 5
 #define MAX_EQ_LOOP 5
@@ -142,6 +145,9 @@ struct link_train {
 
 struct exynos_dp_device {
 	struct device		*dev;
+	struct drm_device	*drm_dev;
+	struct drm_connector	connector;
+	struct drm_encoder	*encoder;
 	struct clk		*clock;
 	unsigned int		irq;
 	void __iomem		*reg_base;
@@ -152,6 +158,9 @@ struct exynos_dp_device {
 	struct link_train	link_train;
 	struct work_struct	hotplug_work;
 	struct phy		*phy;
+	int			dpms_mode;
+
+	struct exynos_drm_panel_info panel;
 };
 
 /* exynos_dp_reg.c */

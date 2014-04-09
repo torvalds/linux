@@ -3264,7 +3264,8 @@ search_free:
 	ret = drm_mm_insert_node_in_range_generic(&vm->mm, &vma->node,
 						  size, alignment,
 						  obj->cache_level, 0, gtt_max,
-						  DRM_MM_SEARCH_DEFAULT);
+						  DRM_MM_SEARCH_DEFAULT,
+						  DRM_MM_CREATE_DEFAULT);
 	if (ret) {
 		ret = i915_gem_evict_something(dev, vm, size, alignment,
 					       obj->cache_level, flags);

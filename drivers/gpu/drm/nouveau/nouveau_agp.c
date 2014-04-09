@@ -75,7 +75,7 @@ nouveau_agp_enabled(struct nouveau_drm *drm)
 {
 	struct drm_device *dev = drm->dev;
 
-	if (!drm_pci_device_is_agp(dev) || !dev->agp)
+	if (!dev->pdev || !drm_pci_device_is_agp(dev) || !dev->agp)
 		return false;
 
 	if (drm->agp.stat == UNKNOWN) {

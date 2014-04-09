@@ -278,17 +278,7 @@ drm_encoder_disable(struct drm_encoder *encoder)
 		encoder->bridge->funcs->post_disable(encoder->bridge);
 }
 
-/**
- * drm_helper_disable_unused_functions - disable unused objects
- * @dev: DRM device
- *
- * This function walks through the entire mode setting configuration of @dev. It
- * will remove any crtc links of unused encoders and encoder links of
- * disconnected connectors. Then it will disable all unused encoders and crtcs
- * either by calling their disable callback if available or by calling their
- * dpms callback with DRM_MODE_DPMS_OFF.
- */
-void drm_helper_disable_unused_functions(struct drm_device *dev)
+static void __drm_helper_disable_unused_functions(struct drm_device *dev)
 {
 	struct drm_encoder *encoder;
 	struct drm_connector *connector;
@@ -299,8 +289,6 @@ void drm_helper_disable_unused_functions(struct drm_device *dev)
 	list_for_each_entry(connector, &dev->mode_config.connector_list, head) {
 		if (!connector->encoder)
 			continue;
-		if (connector->status == connector_status_disconnected)
-			connector->encoder = NULL;
 	}
 
 	list_for_each_entry(encoder, &dev->mode_config.encoder_list, head) {
@@ -319,9 +307,26 @@ void drm_helper_disable_unused_functions(struct drm_device *dev)
 				(*crtc_funcs->disable)(crtc);
 			else
 				(*crtc_funcs->dpms)(crtc, DRM_MODE_DPMS_OFF);
-			crtc->fb = NULL;
+			crtc->primary->fb = NULL;
 		}
 	}
+}
+
+/**
+ * drm_helper_disable_unused_functions - disable unused objects
+ * @dev: DRM device
+ *
+ * This function walks through the entire mode setting configuration of @dev. It
+ * will remove any crtc links of unused encoders and encoder links of
+ * disconnected connectors. Then it will disable all unused encoders and crtcs
+ * either by calling their disable callback if available or by calling their
+ * dpms callback with DRM_MODE_DPMS_OFF.
+ */
+void drm_helper_disable_unused_functions(struct drm_device *dev)
+{
+	drm_modeset_lock_all(dev);
+	__drm_helper_disable_unused_functions(dev);
+	drm_modeset_unlock_all(dev);
 }
 EXPORT_SYMBOL(drm_helper_disable_unused_functions);
 
@@ -552,7 +557,7 @@ drm_crtc_helper_disable(struct drm_crtc *crtc)
 		}
 	}
 
-	drm_helper_disable_unused_functions(dev);
+	__drm_helper_disable_unused_functions(dev);
 	return 0;
 }
 
@@ -646,19 +651,19 @@ int drm_crtc_helper_set_config(struct drm_mode_set *set)
 	save_set.mode = &set->crtc->mode;
 	save_set.x = set->crtc->x;
 	save_set.y = set->crtc->y;
-	save_set.fb = set->crtc->fb;
+	save_set.fb = set->crtc->primary->fb;
 
 	/* We should be able to check here if the fb has the same properties
 	 * and then just flip_or_move it */
-	if (set->crtc->fb != set->fb) {
+	if (set->crtc->primary->fb != set->fb) {
 		/* If we have no fb then treat it as a full mode set */
-		if (set->crtc->fb == NULL) {
+		if (set->crtc->primary->fb == NULL) {
 			DRM_DEBUG_KMS("crtc has no fb, full mode set\n");
 			mode_changed = true;
 		} else if (set->fb == NULL) {
 			mode_changed = true;
 		} else if (set->fb->pixel_format !=
-			   set->crtc->fb->pixel_format) {
+			   set->crtc->primary->fb->pixel_format) {
 			mode_changed = true;
 		} else
 			fb_changed = true;
@@ -688,12 +693,13 @@ int drm_crtc_helper_set_config(struct drm_mode_set *set)
 				if (new_encoder == NULL)
 					/* don't break so fail path works correct */
 					fail = 1;
-				break;
 
 				if (connector->dpms != DRM_MODE_DPMS_ON) {
 					DRM_DEBUG_KMS("connector dpms not on, full mode switch\n");
 					mode_changed = true;
 				}
+
+				break;
 			}
 		}
 
@@ -759,13 +765,13 @@ int drm_crtc_helper_set_config(struct drm_mode_set *set)
 			DRM_DEBUG_KMS("attempting to set mode from"
 					" userspace\n");
 			drm_mode_debug_printmodeline(set->mode);
-			set->crtc->fb = set->fb;
+			set->crtc->primary->fb = set->fb;
 			if (!drm_crtc_helper_set_mode(set->crtc, set->mode,
 						      set->x, set->y,
 						      save_set.fb)) {
 				DRM_ERROR("failed to set mode on [CRTC:%d]\n",
 					  set->crtc->base.id);
-				set->crtc->fb = save_set.fb;
+				set->crtc->primary->fb = save_set.fb;
 				ret = -EINVAL;
 				goto fail;
 			}
@@ -776,17 +782,17 @@ int drm_crtc_helper_set_config(struct drm_mode_set *set)
 				set->connectors[i]->funcs->dpms(set->connectors[i], DRM_MODE_DPMS_ON);
 			}
 		}
-		drm_helper_disable_unused_functions(dev);
+		__drm_helper_disable_unused_functions(dev);
 	} else if (fb_changed) {
 		set->crtc->x = set->x;
 		set->crtc->y = set->y;
-		set->crtc->fb = set->fb;
+		set->crtc->primary->fb = set->fb;
 		ret = crtc_funcs->mode_set_base(set->crtc,
 						set->x, set->y, save_set.fb);
 		if (ret != 0) {
 			set->crtc->x = save_set.x;
 			set->crtc->y = save_set.y;
-			set->crtc->fb = save_set.fb;
+			set->crtc->primary->fb = save_set.fb;
 			goto fail;
 		}
 	}
@@ -976,13 +982,14 @@ void drm_helper_resume_force_mode(struct drm_device *dev)
 	int encoder_dpms;
 	bool ret;
 
+	drm_modeset_lock_all(dev);
 	list_for_each_entry(crtc, &dev->mode_config.crtc_list, head) {
 
 		if (!crtc->enabled)
 			continue;
 
 		ret = drm_crtc_helper_set_mode(crtc, &crtc->mode,
-					       crtc->x, crtc->y, crtc->fb);
+					       crtc->x, crtc->y, crtc->primary->fb);
 
 		/* Restoring the old config should never fail! */
 		if (ret == false)
@@ -1009,7 +1016,8 @@ void drm_helper_resume_force_mode(struct drm_device *dev)
 	}
 
 	/* disable the unused connectors while restoring the modesetting */
-	drm_helper_disable_unused_functions(dev);
+	__drm_helper_disable_unused_functions(dev);
+	drm_modeset_unlock_all(dev);
 }
 EXPORT_SYMBOL(drm_helper_resume_force_mode);
 

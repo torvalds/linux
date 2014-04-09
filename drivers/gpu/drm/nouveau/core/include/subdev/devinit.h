@@ -9,6 +9,7 @@ struct nouveau_devinit {
 	bool post;
 	void (*meminit)(struct nouveau_devinit *);
 	int  (*pll_set)(struct nouveau_devinit *, u32 type, u32 freq);
+	u32  (*mmio)(struct nouveau_devinit *, u32 addr);
 };
 
 static inline struct nouveau_devinit *
@@ -28,5 +29,6 @@ extern struct nouveau_oclass *nv98_devinit_oclass;
 extern struct nouveau_oclass *nva3_devinit_oclass;
 extern struct nouveau_oclass *nvaf_devinit_oclass;
 extern struct nouveau_oclass *nvc0_devinit_oclass;
+extern struct nouveau_oclass *gm107_devinit_oclass;
 
 #endif

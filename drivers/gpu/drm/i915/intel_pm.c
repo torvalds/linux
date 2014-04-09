@@ -92,7 +92,7 @@ static void i8xx_enable_fbc(struct drm_crtc *crtc)
 {
 	struct drm_device *dev = crtc->dev;
 	struct drm_i915_private *dev_priv = dev->dev_private;
-	struct drm_framebuffer *fb = crtc->fb;
+	struct drm_framebuffer *fb = crtc->primary->fb;
 	struct intel_framebuffer *intel_fb = to_intel_framebuffer(fb);
 	struct drm_i915_gem_object *obj = intel_fb->obj;
 	struct intel_crtc *intel_crtc = to_intel_crtc(crtc);
@@ -149,7 +149,7 @@ static void g4x_enable_fbc(struct drm_crtc *crtc)
 {
 	struct drm_device *dev = crtc->dev;
 	struct drm_i915_private *dev_priv = dev->dev_private;
-	struct drm_framebuffer *fb = crtc->fb;
+	struct drm_framebuffer *fb = crtc->primary->fb;
 	struct intel_framebuffer *intel_fb = to_intel_framebuffer(fb);
 	struct drm_i915_gem_object *obj = intel_fb->obj;
 	struct intel_crtc *intel_crtc = to_intel_crtc(crtc);
@@ -221,7 +221,7 @@ static void ironlake_enable_fbc(struct drm_crtc *crtc)
 {
 	struct drm_device *dev = crtc->dev;
 	struct drm_i915_private *dev_priv = dev->dev_private;
-	struct drm_framebuffer *fb = crtc->fb;
+	struct drm_framebuffer *fb = crtc->primary->fb;
 	struct intel_framebuffer *intel_fb = to_intel_framebuffer(fb);
 	struct drm_i915_gem_object *obj = intel_fb->obj;
 	struct intel_crtc *intel_crtc = to_intel_crtc(crtc);
@@ -277,7 +277,7 @@ static void gen7_enable_fbc(struct drm_crtc *crtc)
 {
 	struct drm_device *dev = crtc->dev;
 	struct drm_i915_private *dev_priv = dev->dev_private;
-	struct drm_framebuffer *fb = crtc->fb;
+	struct drm_framebuffer *fb = crtc->primary->fb;
 	struct intel_framebuffer *intel_fb = to_intel_framebuffer(fb);
 	struct drm_i915_gem_object *obj = intel_fb->obj;
 	struct intel_crtc *intel_crtc = to_intel_crtc(crtc);
@@ -336,11 +336,11 @@ static void intel_fbc_work_fn(struct work_struct *__work)
 		/* Double check that we haven't switched fb without cancelling
 		 * the prior work.
 		 */
-		if (work->crtc->fb == work->fb) {
+		if (work->crtc->primary->fb == work->fb) {
 			dev_priv->display.enable_fbc(work->crtc);
 
 			dev_priv->fbc.plane = to_intel_crtc(work->crtc)->plane;
-			dev_priv->fbc.fb_id = work->crtc->fb->base.id;
+			dev_priv->fbc.fb_id = work->crtc->primary->fb->base.id;
 			dev_priv->fbc.y = work->crtc->y;
 		}
 
@@ -393,7 +393,7 @@ static void intel_enable_fbc(struct drm_crtc *crtc)
 	}
 
 	work->crtc = crtc;
-	work->fb = crtc->fb;
+	work->fb = crtc->primary->fb;
 	INIT_DELAYED_WORK(&work->work, intel_fbc_work_fn);
 
 	dev_priv->fbc.fbc_work = work;
@@ -499,14 +499,14 @@ void intel_update_fbc(struct drm_device *dev)
 		}
 	}
 
-	if (!crtc || crtc->fb == NULL) {
+	if (!crtc || crtc->primary->fb == NULL) {
 		if (set_no_fbc_reason(dev_priv, FBC_NO_OUTPUT))
 			DRM_DEBUG_KMS("no output, disabling\n");
 		goto out_disable;
 	}
 
 	intel_crtc = to_intel_crtc(crtc);
-	fb = crtc->fb;
+	fb = crtc->primary->fb;
 	intel_fb = to_intel_framebuffer(fb);
 	obj = intel_fb->obj;
 	adjusted_mode = &intel_crtc->config.adjusted_mode;
@@ -1041,7 +1041,7 @@ static void pineview_update_wm(struct drm_crtc *unused_crtc)
 	crtc = single_enabled_crtc(dev);
 	if (crtc) {
 		const struct drm_display_mode *adjusted_mode;
-		int pixel_size = crtc->fb->bits_per_pixel / 8;
+		int pixel_size = crtc->primary->fb->bits_per_pixel / 8;
 		int clock;
 
 		adjusted_mode = &to_intel_crtc(crtc)->config.adjusted_mode;
@@ -1121,7 +1121,7 @@ static bool g4x_compute_wm0(struct drm_device *dev,
 	clock = adjusted_mode->crtc_clock;
 	htotal = adjusted_mode->crtc_htotal;
 	hdisplay = to_intel_crtc(crtc)->config.pipe_src_w;
-	pixel_size = crtc->fb->bits_per_pixel / 8;
+	pixel_size = crtc->primary->fb->bits_per_pixel / 8;
 
 	/* Use the small buffer method to calculate plane watermark */
 	entries = ((clock * pixel_size / 1000) * display_latency_ns) / 1000;
@@ -1208,7 +1208,7 @@ static bool g4x_compute_srwm(struct drm_device *dev,
 	clock = adjusted_mode->crtc_clock;
 	htotal = adjusted_mode->crtc_htotal;
 	hdisplay = to_intel_crtc(crtc)->config.pipe_src_w;
-	pixel_size = crtc->fb->bits_per_pixel / 8;
+	pixel_size = crtc->primary->fb->bits_per_pixel / 8;
 
 	line_time_us = max(htotal * 1000 / clock, 1);
 	line_count = (latency_ns / line_time_us + 1000) / 1000;
@@ -1247,7 +1247,7 @@ static bool vlv_compute_drain_latency(struct drm_device *dev,
 		return false;
 
 	clock = to_intel_crtc(crtc)->config.adjusted_mode.crtc_clock;
-	pixel_size = crtc->fb->bits_per_pixel / 8;	/* BPP */
+	pixel_size = crtc->primary->fb->bits_per_pixel / 8;	/* BPP */
 
 	entries = (clock / 1000) * pixel_size;
 	*plane_prec_mult = (entries > 256) ?
@@ -1439,7 +1439,7 @@ static void i965_update_wm(struct drm_crtc *unused_crtc)
 		int clock = adjusted_mode->crtc_clock;
 		int htotal = adjusted_mode->crtc_htotal;
 		int hdisplay = to_intel_crtc(crtc)->config.pipe_src_w;
-		int pixel_size = crtc->fb->bits_per_pixel / 8;
+		int pixel_size = crtc->primary->fb->bits_per_pixel / 8;
 		unsigned long line_time_us;
 		int entries;
 
@@ -1512,7 +1512,7 @@ static void i9xx_update_wm(struct drm_crtc *unused_crtc)
 	crtc = intel_get_crtc_for_plane(dev, 0);
 	if (intel_crtc_active(crtc)) {
 		const struct drm_display_mode *adjusted_mode;
-		int cpp = crtc->fb->bits_per_pixel / 8;
+		int cpp = crtc->primary->fb->bits_per_pixel / 8;
 		if (IS_GEN2(dev))
 			cpp = 4;
 
@@ -1528,7 +1528,7 @@ static void i9xx_update_wm(struct drm_crtc *unused_crtc)
 	crtc = intel_get_crtc_for_plane(dev, 1);
 	if (intel_crtc_active(crtc)) {
 		const struct drm_display_mode *adjusted_mode;
-		int cpp = crtc->fb->bits_per_pixel / 8;
+		int cpp = crtc->primary->fb->bits_per_pixel / 8;
 		if (IS_GEN2(dev))
 			cpp = 4;
 
@@ -1565,7 +1565,7 @@ static void i9xx_update_wm(struct drm_crtc *unused_crtc)
 		int clock = adjusted_mode->crtc_clock;
 		int htotal = adjusted_mode->crtc_htotal;
 		int hdisplay = to_intel_crtc(enabled)->config.pipe_src_w;
-		int pixel_size = enabled->fb->bits_per_pixel / 8;
+		int pixel_size = enabled->primary->fb->bits_per_pixel / 8;
 		unsigned long line_time_us;
 		int entries;
 
@@ -2117,7 +2117,7 @@ static void ilk_compute_wm_parameters(struct drm_crtc *crtc,
 	if (p->active) {
 		p->pipe_htotal = intel_crtc->config.adjusted_mode.crtc_htotal;
 		p->pixel_rate = ilk_pipe_pixel_rate(dev, crtc);
-		p->pri.bytes_per_pixel = crtc->fb->bits_per_pixel / 8;
+		p->pri.bytes_per_pixel = crtc->primary->fb->bits_per_pixel / 8;
 		p->cur.bytes_per_pixel = 4;
 		p->pri.horiz_pixels = intel_crtc->config.pipe_src_w;
 		p->cur.horiz_pixels = intel_crtc->cursor_width;
@@ -2129,7 +2129,7 @@ static void ilk_compute_wm_parameters(struct drm_crtc *crtc,
 	list_for_each_entry(crtc, &dev->mode_config.crtc_list, head)
 		config->num_pipes_active += intel_crtc_active(crtc);
 
-	list_for_each_entry(plane, &dev->mode_config.plane_list, head) {
+	drm_for_each_legacy_plane(plane, &dev->mode_config.plane_list) {
 		struct intel_plane *intel_plane = to_intel_plane(plane);
 
 		if (intel_plane->pipe == pipe)
@@ -3159,7 +3159,7 @@ void valleyview_set_rps(struct drm_device *dev, u8 val)
 	if (val != dev_priv->rps.cur_freq)
 		vlv_punit_write(dev_priv, PUNIT_REG_GPU_FREQ_REQ, val);
 
-	I915_WRITE(GEN6_PMINTRMSK, val);
+	I915_WRITE(GEN6_PMINTRMSK, gen6_rps_pm_mask(dev_priv, val));
 
 	dev_priv->rps.cur_freq = val;
 	trace_intel_gpu_freq_change(vlv_gpu_freq(dev_priv, val));
@@ -5073,13 +5073,11 @@ static void valleyview_init_clock_gating(struct drm_device *dev)
 	mutex_unlock(&dev_priv->rps.hw_lock);
 	switch ((val >> 6) & 3) {
 	case 0:
+	case 1:
 		dev_priv->mem_freq = 800;
 		break;
-	case 1:
-		dev_priv->mem_freq = 1066;
-		break;
 	case 2:
-		dev_priv->mem_freq = 1333;
+		dev_priv->mem_freq = 1066;
 		break;
 	case 3:
 		dev_priv->mem_freq = 1333;

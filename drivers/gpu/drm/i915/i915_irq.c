@@ -2391,8 +2391,8 @@ static void __always_unused i915_pageflip_stall_check(struct drm_device *dev, in
 	} else {
 		int dspaddr = DSPADDR(intel_crtc->plane);
 		stall_detected = I915_READ(dspaddr) == (i915_gem_obj_ggtt_offset(obj) +
-							crtc->y * crtc->fb->pitches[0] +
-							crtc->x * crtc->fb->bits_per_pixel/8);
+							crtc->y * crtc->primary->fb->pitches[0] +
+							crtc->x * crtc->primary->fb->bits_per_pixel/8);
 	}
 
 	spin_unlock_irqrestore(&dev->event_lock, flags);

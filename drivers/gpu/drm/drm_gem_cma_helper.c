@@ -234,8 +234,17 @@ static int drm_gem_cma_mmap_obj(struct drm_gem_cma_object *cma_obj,
 {
 	int ret;
 
-	ret = remap_pfn_range(vma, vma->vm_start, cma_obj->paddr >> PAGE_SHIFT,
-			vma->vm_end - vma->vm_start, vma->vm_page_prot);
+	/*
+	 * Clear the VM_PFNMAP flag that was set by drm_gem_mmap(), and set the
+	 * vm_pgoff (used as a fake buffer offset by DRM) to 0 as we want to map
+	 * the whole buffer.
+	 */
+	vma->vm_flags &= ~VM_PFNMAP;
+	vma->vm_pgoff = 0;
+
+	ret = dma_mmap_writecombine(cma_obj->base.dev->dev, vma,
+				    cma_obj->vaddr, cma_obj->paddr,
+				    vma->vm_end - vma->vm_start);
 	if (ret)
 		drm_gem_vm_close(vma);
 
@@ -273,9 +282,9 @@ void drm_gem_cma_describe(struct drm_gem_cma_object *cma_obj, struct seq_file *m
 
 	off = drm_vma_node_start(&obj->vma_node);
 
-	seq_printf(m, "%2d (%2d) %08llx %08Zx %p %d",
+	seq_printf(m, "%2d (%2d) %08llx %pad %p %d",
 			obj->name, obj->refcount.refcount.counter,
-			off, cma_obj->paddr, cma_obj->vaddr, obj->size);
+			off, &cma_obj->paddr, cma_obj->vaddr, obj->size);
 
 	seq_printf(m, "\n");
 }
@@ -323,7 +332,7 @@ drm_gem_cma_prime_import_sg_table(struct drm_device *dev, size_t size,
 	cma_obj->paddr = sg_dma_address(sgt->sgl);
 	cma_obj->sgt = sgt;
 
-	DRM_DEBUG_PRIME("dma_addr = 0x%x, size = %zu\n", cma_obj->paddr, size);
+	DRM_DEBUG_PRIME("dma_addr = %pad, size = %zu\n", &cma_obj->paddr, size);
 
 	return &cma_obj->base;
 }

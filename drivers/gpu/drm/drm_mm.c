@@ -82,6 +82,10 @@
  * this to implement guard pages between incompatible caching domains in the
  * graphics TT.
  *
+ * Two behaviors are supported for searching and allocating: bottom-up and top-down.
+ * The default is bottom-up. Top-down allocation can be used if the memory area
+ * has different restrictions, or just to reduce fragmentation.
+ *
  * Finally iteration helpers to walk all nodes and all holes are provided as are
  * some basic allocator dumpers for debugging.
  */
@@ -102,7 +106,8 @@ static struct drm_mm_node *drm_mm_search_free_in_range_generic(const struct drm_
 static void drm_mm_insert_helper(struct drm_mm_node *hole_node,
 				 struct drm_mm_node *node,
 				 unsigned long size, unsigned alignment,
-				 unsigned long color)
+				 unsigned long color,
+				 enum drm_mm_allocator_flags flags)
 {
 	struct drm_mm *mm = hole_node->mm;
 	unsigned long hole_start = drm_mm_hole_node_start(hole_node);
@@ -115,11 +120,21 @@ static void drm_mm_insert_helper(struct drm_mm_node *hole_node,
 	if (mm->color_adjust)
 		mm->color_adjust(hole_node, color, &adj_start, &adj_end);
 
+	if (flags & DRM_MM_CREATE_TOP)
+		adj_start = adj_end - size;
+
 	if (alignment) {
 		unsigned tmp = adj_start % alignment;
-		if (tmp)
-			adj_start += alignment - tmp;
+		if (tmp) {
+			if (flags & DRM_MM_CREATE_TOP)
+				adj_start -= tmp;
+			else
+				adj_start += alignment - tmp;
+		}
 	}
+
+	BUG_ON(adj_start < hole_start);
+	BUG_ON(adj_end > hole_end);
 
 	if (adj_start == hole_start) {
 		hole_node->hole_follows = 0;
@@ -205,7 +220,8 @@ EXPORT_SYMBOL(drm_mm_reserve_node);
  * @size: size of the allocation
  * @alignment: alignment of the allocation
  * @color: opaque tag value to use for this node
- * @flags: flags to fine-tune the allocation
+ * @sflags: flags to fine-tune the allocation search
+ * @aflags: flags to fine-tune the allocation behavior
  *
  * The preallocated node must be cleared to 0.
  *
@@ -215,16 +231,17 @@ EXPORT_SYMBOL(drm_mm_reserve_node);
 int drm_mm_insert_node_generic(struct drm_mm *mm, struct drm_mm_node *node,
 			       unsigned long size, unsigned alignment,
 			       unsigned long color,
-			       enum drm_mm_search_flags flags)
+			       enum drm_mm_search_flags sflags,
+			       enum drm_mm_allocator_flags aflags)
 {
 	struct drm_mm_node *hole_node;
 
 	hole_node = drm_mm_search_free_generic(mm, size, alignment,
-					       color, flags);
+					       color, sflags);
 	if (!hole_node)
 		return -ENOSPC;
 
-	drm_mm_insert_helper(hole_node, node, size, alignment, color);
+	drm_mm_insert_helper(hole_node, node, size, alignment, color, aflags);
 	return 0;
 }
 EXPORT_SYMBOL(drm_mm_insert_node_generic);
@@ -233,7 +250,8 @@ static void drm_mm_insert_helper_range(struct drm_mm_node *hole_node,
 				       struct drm_mm_node *node,
 				       unsigned long size, unsigned alignment,
 				       unsigned long color,
-				       unsigned long start, unsigned long end)
+				       unsigned long start, unsigned long end,
+				       enum drm_mm_allocator_flags flags)
 {
 	struct drm_mm *mm = hole_node->mm;
 	unsigned long hole_start = drm_mm_hole_node_start(hole_node);
@@ -248,13 +266,20 @@ static void drm_mm_insert_helper_range(struct drm_mm_node *hole_node,
 	if (adj_end > end)
 		adj_end = end;
 
+	if (flags & DRM_MM_CREATE_TOP)
+		adj_start = adj_end - size;
+
 	if (mm->color_adjust)
 		mm->color_adjust(hole_node, color, &adj_start, &adj_end);
 
 	if (alignment) {
 		unsigned tmp = adj_start % alignment;
-		if (tmp)
-			adj_start += alignment - tmp;
+		if (tmp) {
+			if (flags & DRM_MM_CREATE_TOP)
+				adj_start -= tmp;
+			else
+				adj_start += alignment - tmp;
+		}
 	}
 
 	if (adj_start == hole_start) {
@@ -271,6 +296,8 @@ static void drm_mm_insert_helper_range(struct drm_mm_node *hole_node,
 	INIT_LIST_HEAD(&node->hole_stack);
 	list_add(&node->node_list, &hole_node->node_list);
 
+	BUG_ON(node->start < start);
+	BUG_ON(node->start < adj_start);
 	BUG_ON(node->start + node->size > adj_end);
 	BUG_ON(node->start + node->size > end);
 
@@ -290,7 +317,8 @@ static void drm_mm_insert_helper_range(struct drm_mm_node *hole_node,
  * @color: opaque tag value to use for this node
  * @start: start of the allowed range for this node
  * @end: end of the allowed range for this node
- * @flags: flags to fine-tune the allocation
+ * @sflags: flags to fine-tune the allocation search
+ * @aflags: flags to fine-tune the allocation behavior
  *
  * The preallocated node must be cleared to 0.
  *
@@ -298,21 +326,23 @@ static void drm_mm_insert_helper_range(struct drm_mm_node *hole_node,
  * 0 on success, -ENOSPC if there's no suitable hole.
  */
 int drm_mm_insert_node_in_range_generic(struct drm_mm *mm, struct drm_mm_node *node,
-					unsigned long size, unsigned alignment, unsigned long color,
+					unsigned long size, unsigned alignment,
+					unsigned long color,
 					unsigned long start, unsigned long end,
-					enum drm_mm_search_flags flags)
+					enum drm_mm_search_flags sflags,
+					enum drm_mm_allocator_flags aflags)
 {
 	struct drm_mm_node *hole_node;
 
 	hole_node = drm_mm_search_free_in_range_generic(mm,
 							size, alignment, color,
-							start, end, flags);
+							start, end, sflags);
 	if (!hole_node)
 		return -ENOSPC;
 
 	drm_mm_insert_helper_range(hole_node, node,
 				   size, alignment, color,
-				   start, end);
+				   start, end, aflags);
 	return 0;
 }
 EXPORT_SYMBOL(drm_mm_insert_node_in_range_generic);
@@ -391,7 +421,10 @@ static struct drm_mm_node *drm_mm_search_free_generic(const struct drm_mm *mm,
 	best = NULL;
 	best_size = ~0UL;
 
-	drm_mm_for_each_hole(entry, mm, adj_start, adj_end) {
+	__drm_mm_for_each_hole(entry, mm, adj_start, adj_end,
+			       flags & DRM_MM_SEARCH_BELOW) {
+		unsigned long hole_size = adj_end - adj_start;
+
 		if (mm->color_adjust) {
 			mm->color_adjust(entry, color, &adj_start, &adj_end);
 			if (adj_end <= adj_start)
@@ -404,9 +437,9 @@ static struct drm_mm_node *drm_mm_search_free_generic(const struct drm_mm *mm,
 		if (!(flags & DRM_MM_SEARCH_BEST))
 			return entry;
 
-		if (entry->size < best_size) {
+		if (hole_size < best_size) {
 			best = entry;
-			best_size = entry->size;
+			best_size = hole_size;
 		}
 	}
 
@@ -432,7 +465,10 @@ static struct drm_mm_node *drm_mm_search_free_in_range_generic(const struct drm_
 	best = NULL;
 	best_size = ~0UL;
 
-	drm_mm_for_each_hole(entry, mm, adj_start, adj_end) {
+	__drm_mm_for_each_hole(entry, mm, adj_start, adj_end,
+			       flags & DRM_MM_SEARCH_BELOW) {
+		unsigned long hole_size = adj_end - adj_start;
+
 		if (adj_start < start)
 			adj_start = start;
 		if (adj_end > end)
@@ -450,9 +486,9 @@ static struct drm_mm_node *drm_mm_search_free_in_range_generic(const struct drm_
 		if (!(flags & DRM_MM_SEARCH_BEST))
 			return entry;
 
-		if (entry->size < best_size) {
+		if (hole_size < best_size) {
 			best = entry;
-			best_size = entry->size;
+			best_size = hole_size;
 		}
 	}
 

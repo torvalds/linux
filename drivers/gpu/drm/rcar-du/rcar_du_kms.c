@@ -248,7 +248,10 @@ int rcar_du_modeset_init(struct rcar_du_device *rcdu)
 			continue;
 		}
 
-		rcar_du_encoder_init(rcdu, pdata->type, pdata->output, pdata);
+		ret = rcar_du_encoder_init(rcdu, pdata->type, pdata->output,
+					   pdata);
+		if (ret < 0)
+			return ret;
 	}
 
 	/* Set the possible CRTCs and possible clones. There's always at least

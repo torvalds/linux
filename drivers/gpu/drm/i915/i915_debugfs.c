@@ -2216,8 +2216,8 @@ static void intel_crtc_info(struct seq_file *m, struct intel_crtc *intel_crtc)
 	struct intel_encoder *intel_encoder;
 
 	seq_printf(m, "\tfb: %d, pos: %dx%d, size: %dx%d\n",
-		   crtc->fb->base.id, crtc->x, crtc->y,
-		   crtc->fb->width, crtc->fb->height);
+		   crtc->primary->fb->base.id, crtc->x, crtc->y,
+		   crtc->primary->fb->width, crtc->primary->fb->height);
 	for_each_encoder_on_crtc(dev, crtc, intel_encoder)
 		intel_encoder_info(m, intel_crtc, intel_encoder);
 }
