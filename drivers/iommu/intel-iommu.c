@@ -1009,11 +1009,13 @@ static struct page *dma_pte_list_pagetables(struct dmar_domain *domain,
 	if (level == 1)
 		return freelist;
 
-	for (pte = page_address(pg); !first_pte_in_page(pte); pte++) {
+	pte = page_address(pg);
+	do {
 		if (dma_pte_present(pte) && !dma_pte_superpage(pte))
 			freelist = dma_pte_list_pagetables(domain, level - 1,
 							   pte, freelist);
-	}
+		pte++;
+	} while (!first_pte_in_page(pte));
 
 	return freelist;
 }
