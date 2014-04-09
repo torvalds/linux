@@ -52,7 +52,14 @@
 #define ESTATUS_EH	(1 << 2)	/* Exception mode */
 
 /* tlbmisc register bits */
+#define TLBMISC_PID_SHIFT	4
+#define TLBMISC_PID_MASK	((1UL << cpuinfo.tlb_pid_num_bits) - 1)
+#define TLBMISC_WAY_MASK	0xf
+#define TLBMISC_WAY_SHIFT	20
+
+#define TLBMISC_PID	(TLBMISC_PID_MASK << TLBMISC_PID_SHIFT)	/* TLB PID */
 #define TLBMISC_WE	(1 << 18)	/* TLB write enable */
 #define TLBMISC_RD	(1 << 19)	/* TLB read */
+#define TLBMISC_WAY	(TLBMISC_WAY_MASK << TLBMISC_WAY_SHIFT) /* TLB way */
 
 #endif /* _ASM_NIOS2_REGISTERS_H */
