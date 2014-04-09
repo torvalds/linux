@@ -18,15 +18,6 @@
 #include <osdep_service.h>
 #include <drv_types.h>
 
-struct pkt_file {
-	struct sk_buff *pkt;
-	__kernel_size_t pkt_len; /* the remainder length of the open_file */
-	unsigned char *cur_buffer;
-	u8 *buf_start;
-	u8 *cur_addr;
-	__kernel_size_t buf_len;
-};
-
 
 #define NR_XMITFRAME	256
 
@@ -44,9 +35,6 @@ int rtw_os_xmit_resource_alloc23a(struct rtw_adapter *padapter,
 			       struct xmit_buf *pxmitbuf, u32 alloc_sz);
 void rtw_os_xmit_resource_free23a(struct rtw_adapter *padapter,
 			       struct xmit_buf *pxmitbuf);
-void _rtw_open_pktfile23a(struct sk_buff *pkt, struct pkt_file *pfile);
-uint _rtw_pktfile_read23a(struct pkt_file *pfile, u8 *rmem, uint rlen);
-int rtw_endofpktfile23a(struct pkt_file *pfile);
 
 void rtw_os_pkt_complete23a(struct rtw_adapter *padapter, struct sk_buff *pkt);
 void rtw_os_xmit_complete23a(struct rtw_adapter *padapter,
