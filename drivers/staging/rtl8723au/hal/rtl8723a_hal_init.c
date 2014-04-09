@@ -3139,10 +3139,6 @@ void SetHwReg8723A(struct rtw_adapter *padapter, u8 variable, u8 *val)
 		rtl8723a_set_tx_pause(padapter, *val);
 		break;
 
-	case HW_VAR_BCN_FUNC:
-		rtl8723a_set_bcn_func(padapter, *val);
-		break;
-
 	case HW_VAR_DM_FLAG:
 		rtl8723a_odm_support_ability_write(padapter, *val32);
 		break;

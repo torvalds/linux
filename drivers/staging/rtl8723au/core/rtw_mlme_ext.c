@@ -9378,7 +9378,6 @@ u8 disconnect_hdl23a(struct rtw_adapter *padapter, unsigned char *pbuf)
 	struct mlme_ext_priv	*pmlmeext = &padapter->mlmeextpriv;
 	struct mlme_ext_info *pmlmeinfo = &pmlmeext->mlmext_info;
 	struct wlan_bssid_ex *pnetwork = &pmlmeinfo->network;
-	u8	val8;
 
 	if (is_client_associated_to_ap23a(padapter))
 	{
@@ -9395,12 +9394,9 @@ u8 disconnect_hdl23a(struct rtw_adapter *padapter, unsigned char *pbuf)
 	/* restore to initial setting. */
 	update_tx_basic_rate23a(padapter, padapter->registrypriv.wireless_mode);
 
-	if (((pmlmeinfo->state&0x03) == WIFI_FW_ADHOC_STATE) || ((pmlmeinfo->state&0x03) == WIFI_FW_AP_STATE))
-	{
-		/* Stop BCN */
-		val8 = 0;
-		rtw_hal_set_hwreg23a(padapter, HW_VAR_BCN_FUNC, (u8 *)(&val8));
-	}
+	if (((pmlmeinfo->state & 0x03) == WIFI_FW_ADHOC_STATE) ||
+	    ((pmlmeinfo->state & 0x03) == WIFI_FW_AP_STATE))
+		rtl8723a_set_bcn_func(padapter, 0);	/* Stop BCN */
 
 	/* set MSR to no link state -> infra. mode */
 	Set_MSR23a(padapter, _HW_STATE_STATION_);
