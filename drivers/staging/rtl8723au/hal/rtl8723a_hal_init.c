@@ -2935,7 +2935,7 @@ void rtl8723a_fill_fake_txdesc(struct rtw_adapter *padapter, u8 *pDesc,
 	rtl8723a_cal_txdesc_chksum(ptxdesc);
 }
 
-static void hw_var_set_opmode(struct rtw_adapter *padapter, u8 mode)
+void hw_var_set_opmode(struct rtw_adapter *padapter, u8 mode)
 {
 	u8 val8;
 
@@ -3135,10 +3135,6 @@ void SetHwReg8723A(struct rtw_adapter *padapter, u8 variable, u8 *val)
 	u32 *val32 = (u32 *)val;
 
 	switch (variable) {
-	case HW_VAR_SET_OPMODE:
-		hw_var_set_opmode(padapter, *val);
-		break;
-
 	case HW_VAR_MAC_ADDR:
 		hw_var_set_macaddr(padapter, val);
 		break;

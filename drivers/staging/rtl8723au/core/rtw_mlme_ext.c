@@ -9189,27 +9189,19 @@ u8 setopmode_hdl23a(struct rtw_adapter *padapter, u8 *pbuf)
 	struct mlme_ext_info *pmlmeinfo = &pmlmeext->mlmext_info;
 	struct setopmode_parm *psetop = (struct setopmode_parm *)pbuf;
 
-	if (psetop->mode == Ndis802_11APMode)
-	{
+	if (psetop->mode == Ndis802_11APMode) {
 		pmlmeinfo->state = WIFI_FW_AP_STATE;
 		type = _HW_STATE_AP_;
-	}
-	else if (psetop->mode == Ndis802_11Infrastructure)
-	{
+	} else if (psetop->mode == Ndis802_11Infrastructure) {
 		pmlmeinfo->state &= ~(BIT(0)|BIT(1));/*  clear state */
 		pmlmeinfo->state |= WIFI_FW_STATION_STATE;/* set to	STATION_STATE */
 		type = _HW_STATE_STATION_;
-	}
-	else if (psetop->mode == Ndis802_11IBSS)
-	{
+	} else if (psetop->mode == Ndis802_11IBSS)
 		type = _HW_STATE_ADHOC_;
-	}
 	else
-	{
 		type = _HW_STATE_NOLINK_;
-	}
 
-	rtw_hal_set_hwreg23a(padapter, HW_VAR_SET_OPMODE, (u8 *)(&type));
+	hw_var_set_opmode(padapter, type);
 	/* Set_NETYPE0_MSR(padapter, type); */
 
 	return H2C_SUCCESS;
