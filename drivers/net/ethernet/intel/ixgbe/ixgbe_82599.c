@@ -1453,7 +1453,7 @@ do { \
 		bucket_hash ^= hi_hash_dword >> n; \
 	else if (IXGBE_ATR_SIGNATURE_HASH_KEY & (0x01 << (n + 16))) \
 		sig_hash ^= hi_hash_dword << (16 - n); \
-} while (0);
+} while (0)
 
 /**
  *  ixgbe_atr_compute_sig_hash_82599 - Compute the signature hash
@@ -1579,7 +1579,7 @@ do { \
 		bucket_hash ^= lo_hash_dword >> n; \
 	if (IXGBE_ATR_BUCKET_HASH_KEY & (0x01 << (n + 16))) \
 		bucket_hash ^= hi_hash_dword >> n; \
-} while (0);
+} while (0)
 
 /**
  *  ixgbe_atr_compute_perfect_hash_82599 - Compute the perfect filter hash
