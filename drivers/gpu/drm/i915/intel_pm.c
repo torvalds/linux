@@ -5379,6 +5379,10 @@ static void cherryview_init_clock_gating(struct drm_device *dev)
 	/* WaDisablePartialInstShootdown:chv */
 	I915_WRITE(GEN8_ROW_CHICKEN,
 		   _MASKED_BIT_ENABLE(PARTIAL_INSTRUCTION_SHOOTDOWN_DISABLE));
+
+	/* WaDisableThreadStallDopClockGating:chv */
+	I915_WRITE(GEN8_ROW_CHICKEN,
+		   _MASKED_BIT_ENABLE(STALL_DOP_GATING_DISABLE));
 }
 
 static void g4x_init_clock_gating(struct drm_device *dev)
