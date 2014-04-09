@@ -1016,8 +1016,8 @@ struct i40e_hw_port_stats {
 	u64 mac_short_packet_dropped;	/* mspdc */
 	u64 checksum_error;		/* xec */
 	/* EEE LPI */
-	bool tx_lpi_status;
-	bool rx_lpi_status;
+	u32 tx_lpi_status;
+	u32 rx_lpi_status;
 	u64 tx_lpi_count;		/* etlpic */
 	u64 rx_lpi_count;		/* erlpic */
 };
