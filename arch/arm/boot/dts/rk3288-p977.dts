@@ -312,7 +312,6 @@
 		irq_enable = <1>;
 		poll_delay_ms = <30>;
 		layout = <8>;
-		status = "disabled";
 	};
 
 	sensor@0d {
@@ -323,7 +322,6 @@
 		irq_enable = <1>;
 		poll_delay_ms = <30>;
 		layout = <1>;
-		status = "disabled";
 	};
 
 	sensor@10 {
