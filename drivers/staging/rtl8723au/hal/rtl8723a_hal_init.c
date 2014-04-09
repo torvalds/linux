@@ -3018,7 +3018,7 @@ static void hw_var_set_bssid(struct rtw_adapter *padapter, u8 *val)
 		rtw_write8(padapter, (reg_bssid + idx), val[idx]);
 }
 
-static void hw_var_set_correct_tsf(struct rtw_adapter *padapter)
+void hw_var_set_correct_tsf(struct rtw_adapter *padapter)
 {
 	u64 tsf;
 	u32 reg_tsftr;
@@ -3055,7 +3055,7 @@ static void hw_var_set_correct_tsf(struct rtw_adapter *padapter)
 		ResumeTxBeacon(padapter);
 }
 
-static void hw_var_set_mlme_disconnect(struct rtw_adapter *padapter)
+void hw_var_set_mlme_disconnect(struct rtw_adapter *padapter)
 {
 	/*  reject all data frames */
 	rtw_write16(padapter, REG_RXFLTMAP2, 0);
@@ -3167,16 +3167,8 @@ void SetHwReg8723A(struct rtw_adapter *padapter, u8 variable, u8 *val)
 		rtl8723a_set_bcn_func(padapter, *val);
 		break;
 
-	case HW_VAR_CORRECT_TSF:
-		hw_var_set_correct_tsf(padapter);
-		break;
-
 	case HW_VAR_CHECK_BSSID:
 		rtl8723a_check_bssid(padapter, *val);
-		break;
-
-	case HW_VAR_MLME_DISCONNECT:
-		hw_var_set_mlme_disconnect(padapter);
 		break;
 
 	case HW_VAR_MLME_SITESURVEY:
@@ -3185,14 +3177,6 @@ void SetHwReg8723A(struct rtw_adapter *padapter, u8 variable, u8 *val)
 
 	case HW_VAR_MLME_JOIN:
 		hw_var_set_mlme_join(padapter, *val);
-		break;
-
-	case HW_VAR_ON_RCR_AM:
-		rtl8723a_on_rcr_am(padapter);
-		break;
-
-	case HW_VAR_OFF_RCR_AM:
-		rtl8723a_off_rcr_am(padapter);
 		break;
 
 	case HW_VAR_BEACON_INTERVAL:
@@ -3232,10 +3216,6 @@ void SetHwReg8723A(struct rtw_adapter *padapter, u8 variable, u8 *val)
 
 	case HW_VAR_CAM_EMPTY_ENTRY:
 		rtl8723a_cam_empty_entry(padapter, *val);
-		break;
-
-	case HW_VAR_CAM_INVALID_ALL:
-		rtl8723a_cam_invalid_all(padapter);
 		break;
 
 	case HW_VAR_CAM_WRITE:
@@ -3297,9 +3277,6 @@ void SetHwReg8723A(struct rtw_adapter *padapter, u8 variable, u8 *val)
 	case HW_VAR_EFUSE_BT_BYTES:
 		pHalData->BTEfuseUsedBytes = *((u16 *) val);
 		break;
-	case HW_VAR_FIFO_CLEARN_UP:
-		rtl8723a_fifo_cleanup(padapter);
-		break;
 	case HW_VAR_CHECK_TXBUF:
 		break;
 	case HW_VAR_APFM_ON_MAC:
@@ -3308,9 +3285,6 @@ void SetHwReg8723A(struct rtw_adapter *padapter, u8 variable, u8 *val)
 
 	case HW_VAR_NAV_UPPER:
 		rtl8723a_set_nav_upper(padapter, *val32);
-		break;
-	case HW_VAR_BCN_VALID:
-		rtl8723a_bcn_valid(padapter);
 		break;
 	default:
 		break;

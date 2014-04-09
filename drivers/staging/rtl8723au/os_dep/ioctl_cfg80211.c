@@ -1883,7 +1883,6 @@ static int rtw_cfg80211_set_wpa_ie(struct rtw_adapter *padapter, const u8 *pie,
 	int wpa_ielen = 0;
 	int wpa2_ielen = 0;
 	u8 *pwpa, *pwpa2;
-	u8 null_addr[] = { 0, 0, 0, 0, 0, 0 };
 	int i;
 
 	if (!pie || !ielen) {
@@ -2097,7 +2096,7 @@ static int rtw_cfg80211_set_wpa_ie(struct rtw_adapter *padapter, const u8 *pie,
 	    padapter->securitypriv.dot11PrivacyAlgrthm == _AES_)
 		/* WPS open need to enable multicast */
 		/* check_fwstate(&padapter->mlmepriv, WIFI_UNDER_WPS) == true)*/
-		rtw_hal_set_hwreg23a(padapter, HW_VAR_OFF_RCR_AM, null_addr);
+		rtl8723a_off_rcr_am(padapter);
 
 	RT_TRACE(_module_rtl871x_ioctl_os_c, _drv_info_,
 		 ("rtw_set_wpa_ie: pairwise_cipher = 0x%08x padapter->"

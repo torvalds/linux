@@ -490,7 +490,7 @@ void CAM_empty_entry23a(struct rtw_adapter *Adapter, u8 ucIndex)
 
 void invalidate_cam_all23a(struct rtw_adapter *padapter)
 {
-	rtw_hal_set_hwreg23a(padapter, HW_VAR_CAM_INVALID_ALL, NULL);
+	rtl8723a_cam_invalid_all(padapter);
 }
 
 void write_cam23a(struct rtw_adapter *padapter, u8 entry, u16 ctrl, u8 *mac, u8 *key)
@@ -561,7 +561,7 @@ void flush_all_cam_entry23a(struct rtw_adapter *padapter)
 	struct mlme_ext_priv	*pmlmeext = &padapter->mlmeextpriv;
 	struct mlme_ext_info *pmlmeinfo = &pmlmeext->mlmext_info;
 
-	rtw_hal_set_hwreg23a(padapter, HW_VAR_CAM_INVALID_ALL, NULL);
+	rtl8723a_cam_invalid_all(padapter);
 
 	memset((u8 *)(pmlmeinfo->FW_sta_info), 0, sizeof(pmlmeinfo->FW_sta_info));
 }
@@ -1726,9 +1726,10 @@ void update_TSF23a(struct mlme_ext_priv *pmlmeext, u8 *pframe, uint len)
 	pmlmeext->TSFValue |= le32_to_cpu(*pbuf);
 }
 
-void correct_TSF23a(struct rtw_adapter *padapter, struct mlme_ext_priv *pmlmeext)
+void correct_TSF23a(struct rtw_adapter *padapter,
+		    struct mlme_ext_priv *pmlmeext)
 {
-	rtw_hal_set_hwreg23a(padapter, HW_VAR_CORRECT_TSF, NULL);
+	hw_var_set_correct_tsf(padapter);
 }
 
 void beacon_timing_control23a(struct rtw_adapter *padapter)

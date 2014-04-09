@@ -7561,7 +7561,7 @@ unsigned int send_beacon23a(struct rtw_adapter *padapter)
 	unsigned long start = jiffies;
 	unsigned int passing_time;
 
-	rtw_hal_set_hwreg23a(padapter, HW_VAR_BCN_VALID, NULL);
+	rtl8723a_bcn_valid(padapter);
 	do {
 		issue_beacon23a(padapter, 100);
 		issue++;
@@ -8832,7 +8832,7 @@ void mlmeext_sta_del_event_callback23a(struct rtw_adapter *padapter)
 	{
 		/* set_opmode_cmd(padapter, infra_client_with_mlme); */
 
-		rtw_hal_set_hwreg23a(padapter, HW_VAR_MLME_DISCONNECT, NULL);
+		hw_var_set_mlme_disconnect(padapter);
 		rtw_hal_set_hwreg23a(padapter, HW_VAR_BSSID, null_addr);
 
 		/* restore to initial setting. */
@@ -9305,7 +9305,7 @@ u8 join_cmd_hdl23a(struct rtw_adapter *padapter, u8 *pbuf)
 		/* Set_MSR23a(padapter, _HW_STATE_NOLINK_); */
 		Set_MSR23a(padapter, _HW_STATE_STATION_);
 
-		rtw_hal_set_hwreg23a(padapter, HW_VAR_MLME_DISCONNECT, NULL);
+		hw_var_set_mlme_disconnect(padapter);
 	}
 
 	rtw_joinbss_reset23a(padapter);
@@ -9424,7 +9424,7 @@ u8 disconnect_hdl23a(struct rtw_adapter *padapter, unsigned char *pbuf)
 
 	/* pmlmeinfo->state = WIFI_FW_NULL_STATE; */
 
-	rtw_hal_set_hwreg23a(padapter, HW_VAR_MLME_DISCONNECT, NULL);
+	hw_var_set_mlme_disconnect(padapter);
 	rtw_hal_set_hwreg23a(padapter, HW_VAR_BSSID, null_addr);
 
 	/* restore to initial setting. */
@@ -9644,7 +9644,7 @@ u8 setkey_hdl23a(struct rtw_adapter *padapter, u8 *pbuf)
 	write_cam23a(padapter, pparm->keyid, ctrl, null_sta, pparm->key);
 
 	/* allow multicast packets to driver */
-        padapter->HalFunc.SetHwRegHandler(padapter, HW_VAR_ON_RCR_AM, null_addr);
+	rtl8723a_on_rcr_am(padapter);
 
 	return H2C_SUCCESS;
 }

@@ -45,13 +45,9 @@ enum HW_VARIABLES {
 	HW_VAR_BASIC_RATE,
 	HW_VAR_TXPAUSE,
 	HW_VAR_BCN_FUNC,
-	HW_VAR_CORRECT_TSF,
 	HW_VAR_CHECK_BSSID,
-	HW_VAR_MLME_DISCONNECT,
 	HW_VAR_MLME_SITESURVEY,
 	HW_VAR_MLME_JOIN,
-	HW_VAR_ON_RCR_AM,
-	HW_VAR_OFF_RCR_AM,
 	HW_VAR_BEACON_INTERVAL,
 	HW_VAR_SLOT_TIME,
 	HW_VAR_RESP_SIFS,
@@ -64,7 +60,6 @@ enum HW_VARIABLES {
 	HW_VAR_DM_FUNC_SET,
 	HW_VAR_DM_FUNC_CLR,
 	HW_VAR_CAM_EMPTY_ENTRY,
-	HW_VAR_CAM_INVALID_ALL,
 	HW_VAR_CAM_WRITE,
 	HW_VAR_CAM_READ,
 	HW_VAR_AC_PARAM_VO,
@@ -94,7 +89,6 @@ enum HW_VARIABLES {
 	HW_VAR_SWITCH_EPHY_WoWLAN,
 	HW_VAR_EFUSE_BYTES,
 	HW_VAR_EFUSE_BT_BYTES,
-	HW_VAR_FIFO_CLEARN_UP,
 	HW_VAR_CHECK_TXBUF,
 	HW_VAR_APFM_ON_MAC, /* Auto FSM to Turn On, include clock, isolation, power control for MAC only */
 	/*  The valid upper nav range for the HW updating, if the true value is larger than the upper range, the HW won't update it. */
@@ -388,5 +382,7 @@ void rtw_hal_reset_security_engine23a(struct rtw_adapter *adapter);
 
 s32 rtw_hal_c2h_handler23a(struct rtw_adapter *adapter, struct c2h_evt_hdr *c2h_evt);
 c2h_id_filter rtw_hal_c2h_id_filter_ccx23a(struct rtw_adapter *adapter);
+void hw_var_set_correct_tsf(struct rtw_adapter *padapter);
+void hw_var_set_mlme_disconnect(struct rtw_adapter *padapter);
 
 #endif /* __HAL_INTF_H__ */
