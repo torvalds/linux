@@ -627,7 +627,7 @@ void WMMOnAssocRsp23a(struct rtw_adapter *padapter)
 	}
 
 	if (padapter->registrypriv.acm_method == 1)
-		rtw_hal_set_hwreg23a(padapter, HW_VAR_ACM_CTRL, (u8 *)(&acm_mask));
+		rtl8723a_set_acm_ctrl(padapter, acm_mask);
 	else
 		padapter->mlmepriv.acm_mask = acm_mask;
 
