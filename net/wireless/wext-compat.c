@@ -253,12 +253,12 @@ EXPORT_SYMBOL_GPL(cfg80211_wext_giwrange);
 
 /**
  * cfg80211_wext_freq - get wext frequency for non-"auto"
- * @wiphy: the wiphy
+ * @dev: the net device
  * @freq: the wext freq encoding
  *
  * Returns a frequency, or a negative error code, or 0 for auto.
  */
-int cfg80211_wext_freq(struct wiphy *wiphy, struct iw_freq *freq)
+int cfg80211_wext_freq(struct iw_freq *freq)
 {
 	/*
 	 * Parse frequency - return 0 for auto and
@@ -787,7 +787,7 @@ static int cfg80211_wext_siwfreq(struct net_device *dev,
 	case NL80211_IFTYPE_ADHOC:
 		return cfg80211_ibss_wext_siwfreq(dev, info, wextfreq, extra);
 	case NL80211_IFTYPE_MONITOR:
-		freq = cfg80211_wext_freq(wdev->wiphy, wextfreq);
+		freq = cfg80211_wext_freq(wextfreq);
 		if (freq < 0)
 			return freq;
 		if (freq == 0)
@@ -798,7 +798,7 @@ static int cfg80211_wext_siwfreq(struct net_device *dev,
 			return -EINVAL;
 		return cfg80211_set_monitor_channel(rdev, &chandef);
 	case NL80211_IFTYPE_MESH_POINT:
-		freq = cfg80211_wext_freq(wdev->wiphy, wextfreq);
+		freq = cfg80211_wext_freq(wextfreq);
 		if (freq < 0)
 			return freq;
 		if (freq == 0)
