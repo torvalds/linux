@@ -1201,8 +1201,7 @@ static int cpsw_ndo_open(struct net_device *ndev)
 	for_each_slave(priv, cpsw_slave_open, priv);
 
 	/* Add default VLAN */
-	if (!priv->data.dual_emac)
-		cpsw_add_default_vlan(priv);
+	cpsw_add_default_vlan(priv);
 
 	if (!cpsw_common_res_usage_state(priv)) {
 		/* setup tx dma to fixed prio and zero offset */
