@@ -443,20 +443,16 @@ u8 qos_acm23a(u8 acm_mask, u8 priority)
 	return change_priority;
 }
 
-static void set_qos(struct pkt_file *ppktfile, struct pkt_attrib *pattrib)
+static void set_qos(struct sk_buff *skb, struct pkt_attrib *pattrib)
 {
-	struct ethhdr etherhdr;
-	struct iphdr ip_hdr;
+	u8 *pframe = skb->data;
+	struct iphdr *ip_hdr;
 	s32 UserPriority = 0;
-
-	_rtw_open_pktfile23a(ppktfile->pkt, ppktfile);
-	_rtw_pktfile_read23a(ppktfile, (unsigned char*)&etherhdr, ETH_HLEN);
 
 	/*  get UserPriority from IP hdr */
 	if (pattrib->ether_type == ETH_P_IP) {
-		_rtw_pktfile_read23a(ppktfile, (u8*)&ip_hdr, sizeof(ip_hdr));
-/*		UserPriority = (ntohs(ip_hdr.tos) >> 5) & 0x3; */
-		UserPriority = ip_hdr.tos >> 5;
+		ip_hdr = (struct iphdr *)(pframe + ETH_HLEN);
+		UserPriority = ip_hdr->tos >> 5;
 	} else if (pattrib->ether_type == ETH_P_PAE) {
 		/*  "When priority processing of data frames is supported, */
 		/*  a STA's SME should send EAPOL-Key frames at the highest
@@ -470,57 +466,53 @@ static void set_qos(struct pkt_file *ppktfile, struct pkt_attrib *pattrib)
 }
 
 static s32 update_attrib(struct rtw_adapter *padapter,
-			 struct sk_buff *pkt, struct pkt_attrib *pattrib)
+			 struct sk_buff *skb, struct pkt_attrib *pattrib)
 {
-	uint i;
-	struct pkt_file pktfile;
 	struct sta_info *psta = NULL;
-	struct ethhdr etherhdr;
-
 	int bmcast;
 	struct sta_priv	*pstapriv = &padapter->stapriv;
 	struct security_priv *psecuritypriv = &padapter->securitypriv;
 	struct mlme_priv *pmlmepriv = &padapter->mlmepriv;
 	struct qos_priv	*pqospriv = &pmlmepriv->qospriv;
 	int res = _SUCCESS;
+	struct ethhdr *ehdr = (struct ethhdr *) skb->data;
 
-	_rtw_open_pktfile23a(pkt, &pktfile);
-	i = _rtw_pktfile_read23a(&pktfile, (u8*)&etherhdr, ETH_HLEN);
+	pattrib->ether_type = ntohs(ehdr->h_proto);
 
-	pattrib->ether_type = ntohs(etherhdr.h_proto);
-
-	memcpy(pattrib->dst, &etherhdr.h_dest, ETH_ALEN);
-	memcpy(pattrib->src, &etherhdr.h_source, ETH_ALEN);
+	ether_addr_copy(pattrib->dst, ehdr->h_dest);
+	ether_addr_copy(pattrib->src, ehdr->h_source);
 
 	pattrib->pctrl = 0;
 
 	if ((check_fwstate(pmlmepriv, WIFI_ADHOC_STATE) == true) ||
 		(check_fwstate(pmlmepriv, WIFI_ADHOC_MASTER_STATE) == true)) {
-		memcpy(pattrib->ra, pattrib->dst, ETH_ALEN);
-		memcpy(pattrib->ta, pattrib->src, ETH_ALEN);
+		ether_addr_copy(pattrib->ra, pattrib->dst);
+		ether_addr_copy(pattrib->ta, pattrib->src);
 	}
 	else if (check_fwstate(pmlmepriv, WIFI_STATION_STATE)) {
-		memcpy(pattrib->ra, get_bssid(pmlmepriv), ETH_ALEN);
-		memcpy(pattrib->ta, pattrib->src, ETH_ALEN);
+		ether_addr_copy(pattrib->ra, get_bssid(pmlmepriv));
+		ether_addr_copy(pattrib->ta, pattrib->src);
 	}
 	else if (check_fwstate(pmlmepriv, WIFI_AP_STATE)) {
-		memcpy(pattrib->ra, pattrib->dst, ETH_ALEN);
-		memcpy(pattrib->ta, get_bssid(pmlmepriv), ETH_ALEN);
+		ether_addr_copy(pattrib->ra, pattrib->dst);
+		ether_addr_copy(pattrib->ta, get_bssid(pmlmepriv));
 	}
 
-	pattrib->pktlen = pktfile.pkt_len;
+	pattrib->pktlen = skb->len - ETH_HLEN;
 
 	if (pattrib->ether_type == ETH_P_IP) {
 		/*  The following is for DHCP and ARP packet, we use cck1M
 		    to tx these packets and let LPS awake some time */
 		/*  to prevent DHCP protocol fail */
-		u8 tmp[24];
-		_rtw_pktfile_read23a(&pktfile, &tmp[0], 24);
 		pattrib->dhcp_pkt = 0;
-		if (pktfile.pkt_len > 282) {/* MINIMUM_DHCP_PACKET_SIZE) { */
+		/* MINIMUM_DHCP_PACKET_SIZE) { */
+		if (pattrib->pktlen > 282 + 24) {
 			if (pattrib->ether_type == ETH_P_IP) {/*  IP header */
-				if (((tmp[21] == 68) && (tmp[23] == 67)) ||
-				    ((tmp[21] == 67) && (tmp[23] == 68))) {
+				u8 *pframe = skb->data;
+				pframe += ETH_HLEN;
+
+				if ((pframe[21] == 68 && pframe[23] == 67) ||
+				    (pframe[21] == 67 && pframe[23] == 68)) {
 					/*  68 : UDP BOOTP client */
 					/*  67 : UDP BOOTP server */
 					RT_TRACE(_module_rtl871x_xmit_c_,
@@ -592,10 +584,10 @@ static s32 update_attrib(struct rtw_adapter *padapter,
 	if (check_fwstate(pmlmepriv, WIFI_AP_STATE | WIFI_ADHOC_STATE |
 			  WIFI_ADHOC_MASTER_STATE)) {
 		if (psta->qos_option)
-			set_qos(&pktfile, pattrib);
+			set_qos(skb, pattrib);
 	} else {
 		if (pqospriv->qos_option) {
-			set_qos(&pktfile, pattrib);
+			set_qos(skb, pattrib);
 
 			if (pmlmepriv->acm_mask != 0) {
 				pattrib->priority = qos_acm23a(pmlmepriv->acm_mask,
