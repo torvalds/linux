@@ -386,12 +386,11 @@ s32 LPS_RF_ON_check23a(struct rtw_adapter *padapter, u32 delay_ms)
 
 	while (1)
 	{
-		rtw23a_hal_get_hwreg(padapter, HW_VAR_FWLPS_RF_ON, &bAwake);
-		if (true == bAwake)
+		bAwake = rtl8723a_get_fwlps_rf_on(padapter);
+		if (bAwake == true)
 			break;
 
-		if (true == padapter->bSurpriseRemoved)
-		{
+		if (padapter->bSurpriseRemoved == true) {
 			err = -2;
 			DBG_8723A("%s: device surprise removed!!\n", __func__);
 			break;

@@ -896,3 +896,26 @@ u8 rtl8723a_get_rf_type(struct rtw_adapter *padapter)
 
 	return pHalData->rf_type;
 }
+
+bool rtl8723a_get_fwlps_rf_on(struct rtw_adapter *padapter)
+{
+	bool retval;
+	u32 valRCR;
+
+	/*  When we halt NIC, we should check if FW LPS is leave. */
+
+	if ((padapter->bSurpriseRemoved == true) ||
+	    (padapter->pwrctrlpriv.rf_pwrstate == rf_off)) {
+		/*  If it is in HW/SW Radio OFF or IPS state, we do
+		    not check Fw LPS Leave, because Fw is unload. */
+		retval = true;
+	} else {
+		valRCR = rtw_read32(padapter, REG_RCR);
+		if (valRCR & 0x00070000)
+			retval = false;
+		else
+			retval = true;
+	}
+
+	return retval;
+}

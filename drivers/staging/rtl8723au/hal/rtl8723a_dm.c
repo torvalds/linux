@@ -217,7 +217,7 @@ rtl8723a_HalDmWatchDog(
 		goto skip_dm;
 
 	bFwCurrentInPSMode = Adapter->pwrctrlpriv.bFwCurrentInPSMode;
-	rtw23a_hal_get_hwreg(Adapter, HW_VAR_FWLPS_RF_ON, (u8 *)(&bFwPSAwake));
+	bFwPSAwake = rtl8723a_get_fwlps_rf_on(Adapter);
 
 #ifdef CONFIG_8723AU_P2P
 	/*  Fw is under p2p powersaving mode, driver should stop dynamic mechanism. */

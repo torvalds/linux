@@ -3135,27 +3135,6 @@ void hw_var_set_mlme_join(struct rtw_adapter *padapter, u8 type)
 void GetHwReg8723A(struct rtw_adapter *padapter, u8 variable, u8 *val)
 {
 	switch (variable) {
-	case HW_VAR_FWLPS_RF_ON:
-	{
-		/*  When we halt NIC, we should check if FW LPS is leave. */
-		u32 valRCR;
-
-		if ((padapter->bSurpriseRemoved == true) ||
-		    (padapter->pwrctrlpriv.rf_pwrstate == rf_off)) {
-			/*  If it is in HW/SW Radio OFF or IPS state, we do
-			    not check Fw LPS Leave, because Fw is unload. */
-			*val = true;
-		} else {
-			valRCR = rtw_read32(padapter, REG_RCR);
-			valRCR &= 0x00070000;
-			if (valRCR)
-				*val = false;
-			else
-				*val = true;
-		}
-	}
-		break;
-
 	case HW_VAR_CHK_HI_QUEUE_EMPTY:
 		*val =
 		    ((rtw_read32(padapter, REG_HGQ_INFORMATION) & 0x0000ff00) ==
