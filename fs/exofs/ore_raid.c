@@ -402,9 +402,8 @@ static int _add_to_r4w_last_page(struct ore_io_state *ios, u64 *offset)
 
 	ore_calc_stripe_info(ios->layout, *offset, 0, &si);
 
-	p = si.unit_off / PAGE_SIZE;
-	c = _dev_order(ios->layout->group_width * ios->layout->mirrors_p1,
-		       ios->layout->mirrors_p1, si.par_dev, si.dev);
+	p = si.cur_pg;
+	c = si.cur_comp;
 	page = ios->sp2d->_1p_stripes[p].pages[c];
 
 	pg_len = PAGE_SIZE - (si.unit_off % PAGE_SIZE);
@@ -532,9 +531,8 @@ static int _read_4_write_last_stripe(struct ore_io_state *ios)
 		goto read_it;
 
 	ore_calc_stripe_info(ios->layout, offset, 0, &read_si);
-	p = read_si.unit_off / PAGE_SIZE;
-	c = _dev_order(ios->layout->group_width * ios->layout->mirrors_p1,
-		       ios->layout->mirrors_p1, read_si.par_dev, read_si.dev);
+	p = read_si.cur_pg;
+	c = read_si.cur_comp;
 
 	if (min_p == sp2d->pages_in_unit) {
 		/* Didn't do it yet */
@@ -637,9 +635,6 @@ int _ore_add_parity_unit(struct ore_io_state *ios,
 
 		si->cur_pg = _sp2d_min_pg(sp2d);
 		num_pages  = _sp2d_max_pg(sp2d) + 1 - si->cur_pg;
-
-		if (!cur_len) /* If last stripe operate on parity comp */
-			si->cur_comp = sp2d->data_devs;
 
 		if (!per_dev->length) {
 			per_dev->offset += si->cur_pg * PAGE_SIZE;

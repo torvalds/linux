@@ -31,24 +31,6 @@
 #define ORE_DBGMSG2(M...) do {} while (0)
 /* #define ORE_DBGMSG2 ORE_DBGMSG */
 
-/* Calculate the component order in a stripe. eg the logical data unit
- * address within the stripe of @dev given the @par_dev of this stripe.
- */
-static inline unsigned _dev_order(unsigned devs_in_group, unsigned mirrors_p1,
-				  unsigned par_dev, unsigned dev)
-{
-	unsigned first_dev = dev - dev % devs_in_group;
-
-	dev -= first_dev;
-	par_dev -= first_dev;
-
-	if (devs_in_group == par_dev) /* The raid 0 case */
-		return dev / mirrors_p1;
-	/* raid4/5/6 case */
-	return ((devs_in_group + dev - par_dev - mirrors_p1) % devs_in_group) /
-	       mirrors_p1;
-}
-
 /* ios_raid.c stuff needed by ios.c */
 int _ore_post_alloc_raid_stuff(struct ore_io_state *ios);
 void _ore_free_raid_stuff(struct ore_io_state *ios);

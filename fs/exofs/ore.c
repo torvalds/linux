@@ -545,17 +545,19 @@ void ore_calc_stripe_info(struct ore_layout *layout, u64 file_offset,
 
 	/* "H - (N * U)" is just "H % U" so it's bound to u32 */
 	u32	C = (u32)(H - (N * U)) / stripe_unit + G * group_width;
+	u32 first_dev = C - C % group_width;
 
 	div_u64_rem(file_offset, stripe_unit, &si->unit_off);
 
 	si->obj_offset = si->unit_off + (N * stripe_unit) +
 				  (M * group_depth * stripe_unit);
+	si->cur_comp = C - first_dev;
+	si->cur_pg = si->unit_off / PAGE_SIZE;
 
 	if (parity) {
 		u32 LCMdP = lcm(group_width, parity) / parity;
 		/* R     = N % LCMdP; */
 		u32 RxP   = (N % LCMdP) * parity;
-		u32 first_dev = C - C % group_width;
 
 		si->par_dev = (group_width + group_width - parity - RxP) %
 			      group_width + first_dev;
@@ -670,9 +672,7 @@ static int _prepare_for_striping(struct ore_io_state *ios)
 
 	BUG_ON(length > si->length);
 
-	dev_order = _dev_order(devs_in_group, mirrors_p1, si->par_dev, dev);
-	si->cur_comp = dev_order;
-	si->cur_pg = si->unit_off / PAGE_SIZE;
+	dev_order = si->cur_comp;
 
 	while (length) {
 		struct ore_per_dev_state *per_dev =
@@ -718,6 +718,8 @@ static int _prepare_for_striping(struct ore_io_state *ios)
 				 * stripe. then operate on parity dev.
 				 */
 				dev = si->par_dev;
+				/* If last stripe operate on parity comp */
+				si->cur_comp = group_width - ios->layout->parity;
 			}
 			per_dev = &ios->per_dev[dev - first_dev];
 			if (!per_dev->length) {
