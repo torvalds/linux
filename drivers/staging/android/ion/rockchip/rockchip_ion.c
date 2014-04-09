@@ -22,6 +22,7 @@
 #include "../ion_priv.h"
 #include <linux/dma-buf.h>
 #include <asm-generic/dma-contiguous.h>
+#include <linux/memblock.h>
 
 #ifdef CONFIG_OF
 #include <linux/of.h>
@@ -50,9 +51,9 @@ extern int ion_do_cache_op(struct ion_client *client, struct ion_handle *handle,
 
 static struct ion_heap_desc ion_heap_meta[] = {
 	{
-		.id		= ION_SYSTEM_HEAP_ID,
+		.id		= ION_VMALLOC_HEAP_ID,
 		.type	= ION_HEAP_TYPE_SYSTEM,
-		.name	= ION_SYSTEM_HEAP_NAME,
+		.name	= ION_VMALLOC_HEAP_NAME,
 	},
 	{
 		.id		= ION_CMA_HEAP_ID,
@@ -68,6 +69,11 @@ static struct ion_heap_desc ion_heap_meta[] = {
 		.id 	= ION_DRM_HEAP_ID,
 		.type	= ION_HEAP_TYPE_DMA,
 		.name	= ION_DRM_HEAP_NAME,
+	},
+	{
+		.id 	= ION_CARVEOUT_HEAP_ID,
+		.type	= ION_HEAP_TYPE_CARVEOUT,
+		.name	= ION_CARVEOUT_HEAP_NAME,
 	},
 };
 
@@ -96,20 +102,22 @@ static int rockchip_ion_populate_heap(struct ion_platform_heap *heap)
 	return ret;
 }
 
-static int rockchip_ion_get_heap_size(struct device_node *node,
+static int rockchip_ion_get_heap_base_size(struct device_node *node,
 				 struct ion_platform_heap *heap)
 {
-	unsigned int val;
+	unsigned int val[2];
 	int ret = 0;
 
-	ret = of_property_read_u32(node, "rockchip,memory-reservation-size", &val);
+	ret = of_property_read_u32_array(node,
+			"memory-reservation", val, 2);
 	if (!ret) {
-		heap->size = val;
-	} else {
-		ret = 0;
+		heap->base = val[0];
+		heap->size = val[1];
 	}
 
-	return ret;
+	printk("heap: %x@%x\n", heap->size, heap->base);
+
+	return 0;
 }
 
 static struct ion_platform_data *rockchip_ion_parse_dt(
@@ -151,7 +159,7 @@ static struct ion_platform_data *rockchip_ion_parse_dt(
 			goto free_heaps;
 
 //		rockchip_ion_get_heap_align(node, &pdata->heaps[idx]);
-		ret = rockchip_ion_get_heap_size(node, &pdata->heaps[idx]);
+		ret = rockchip_ion_get_heap_base_size(node, &pdata->heaps[idx]);
 		if (ret)
 			goto free_heaps;
 
@@ -450,6 +458,7 @@ int __init rockchip_ion_find_reserve_mem(unsigned long node, const char *uname,
 	unsigned long len;
 	phys_addr_t size;
 	phys_addr_t base;
+	u32 heap_type;
 
 	if (!of_flat_dt_is_compatible(node, "rockchip,ion-reserve"))
 		return 0;
@@ -461,12 +470,24 @@ int __init rockchip_ion_find_reserve_mem(unsigned long node, const char *uname,
 	base = be32_to_cpu(prop[0]);
 	size = be32_to_cpu(prop[1]);
 
-	pr_info("%s: reserve cma memory: %x %x\n", __func__, base, size);
+	prop = of_get_flat_dt_prop(node, "reg", &len);
+	if (!prop || (len != sizeof(unsigned long)))
+		return 0;
 
-	dma_declare_contiguous(&rockchip_ion_cma_dev, size, base, 0);
+	heap_type = be32_to_cpu(prop[0]);
+
+	pr_info("%s: heap type is %x\n", __func__, heap_type);
+
+	if (heap_type==ION_CARVEOUT_HEAP_ID) {
+		pr_info("%s: reserve carveout memory: %x@%x\n", __func__, size, base);
+		memblock_remove(base, size);
+	} else {
+		pr_info("%s: reserve cma memory: %x@%x\n", __func__, size, base);
+		dma_declare_contiguous(&rockchip_ion_cma_dev, size, base, 0);
+	}
 #endif
 
-	return 1;
+	return 0;
 }
 
 static const struct of_device_id rockchip_ion_dt_ids[] = {

@@ -26,8 +26,9 @@ enum ion_heap_ids {
 	INVALID_HEAP_ID = -1,
 	ION_CMA_HEAP_ID = 1,
 	ION_IOMMU_HEAP_ID,
-	ION_SYSTEM_HEAP_ID,
+	ION_VMALLOC_HEAP_ID,
 	ION_DRM_HEAP_ID,
+	ION_CARVEOUT_HEAP_ID,
 
 	ION_HEAP_ID_RESERVED = 31
 };
@@ -36,8 +37,9 @@ enum ion_heap_ids {
 
 #define ION_CMA_HEAP_NAME		"cma"
 #define ION_IOMMU_HEAP_NAME		"iommu"
-#define ION_SYSTEM_HEAP_NAME	"vmalloc"
+#define ION_VMALLOC_HEAP_NAME	"vmalloc"
 #define ION_DRM_HEAP_NAME		"drm"
+#define ION_CARVEOUT_HEAP_NAME	"carveout"
 
 #define ION_SET_CACHED(__cache)		(__cache | ION_FLAG_CACHED)
 #define ION_SET_UNCACHED(__cache)	(__cache & ~ION_FLAG_CACHED)

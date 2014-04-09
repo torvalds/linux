@@ -158,6 +158,8 @@ struct ion_heap *ion_carveout_heap_create(struct ion_platform_heap *heap_data)
 	page = pfn_to_page(PFN_DOWN(heap_data->base));
 	size = heap_data->size;
 
+	printk("base:%x  size:%x  page:%p\n", heap_data->base, size, page);
+
 	ion_pages_sync_for_device(NULL, page, size, DMA_BIDIRECTIONAL);
 
 	ret = ion_heap_pages_zero(page, size, pgprot_writecombine(PAGE_KERNEL));
