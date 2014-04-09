@@ -276,6 +276,8 @@ static void gen8_ppgtt_clear_range(struct i915_address_space *vm,
 			num_entries--;
 		}
 
+		if (!HAS_LLC(ppgtt->base.dev))
+			drm_clflush_virt_range(pt_vaddr, PAGE_SIZE);
 		kunmap_atomic(pt_vaddr);
 
 		pte = 0;
@@ -312,6 +314,8 @@ static void gen8_ppgtt_insert_entries(struct i915_address_space *vm,
 			gen8_pte_encode(sg_page_iter_dma_address(&sg_iter),
 					cache_level, true);
 		if (++pte == GEN8_PTES_PER_PAGE) {
+			if (!HAS_LLC(ppgtt->base.dev))
+				drm_clflush_virt_range(pt_vaddr, PAGE_SIZE);
 			kunmap_atomic(pt_vaddr);
 			pt_vaddr = NULL;
 			if (++pde == GEN8_PDES_PER_PAGE) {
@@ -321,8 +325,11 @@ static void gen8_ppgtt_insert_entries(struct i915_address_space *vm,
 			pte = 0;
 		}
 	}
-	if (pt_vaddr)
+	if (pt_vaddr) {
+		if (!HAS_LLC(ppgtt->base.dev))
+			drm_clflush_virt_range(pt_vaddr, PAGE_SIZE);
 		kunmap_atomic(pt_vaddr);
+	}
 }
 
 static void gen8_free_page_tables(struct page **pt_pages)
@@ -585,6 +592,8 @@ static int gen8_ppgtt_init(struct i915_hw_ppgtt *ppgtt, uint64_t size)
 			pd_vaddr[j] = gen8_pde_encode(ppgtt->base.dev, addr,
 						      I915_CACHE_LLC);
 		}
+		if (!HAS_LLC(ppgtt->base.dev))
+			drm_clflush_virt_range(pd_vaddr, PAGE_SIZE);
 		kunmap_atomic(pd_vaddr);
 	}
 
