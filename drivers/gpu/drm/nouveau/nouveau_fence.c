@@ -342,41 +342,56 @@ nouveau_fence_wait(struct nouveau_fence *fence, bool lazy, bool intr)
 }
 
 int
-nouveau_fence_sync(struct nouveau_bo *nvbo, struct nouveau_channel *chan)
+nouveau_fence_sync(struct nouveau_bo *nvbo, struct nouveau_channel *chan, bool exclusive)
 {
 	struct nouveau_fence_chan *fctx = chan->fence;
-	struct fence *fence = NULL;
+	struct fence *fence;
 	struct reservation_object *resv = nvbo->bo.resv;
 	struct reservation_object_list *fobj;
+	struct nouveau_fence *f;
 	int ret = 0, i;
 
-	fence = reservation_object_get_excl(resv);
+	if (!exclusive) {
+		ret = reservation_object_reserve_shared(resv);
 
-	if (fence && !fence_is_signaled(fence)) {
-		struct nouveau_fence *f = from_fence(fence);
-		struct nouveau_channel *prev = f->channel;
-
-		if (prev != chan) {
-			ret = fctx->sync(f, prev, chan);
-			if (unlikely(ret))
-				ret = nouveau_fence_wait(f, true, true);
-		}
+		if (ret)
+			return ret;
 	}
 
-	if (ret)
-		return ret;
-
 	fobj = reservation_object_get_list(resv);
-	if (!fobj)
+	fence = reservation_object_get_excl(resv);
+
+	if (fence && (!exclusive || !fobj || !fobj->shared_count)) {
+		struct nouveau_channel *prev = NULL;
+
+		f = nouveau_local_fence(fence, chan->drm);
+		if (f)
+			prev = f->channel;
+
+		if (!prev || (prev != chan && (ret = fctx->sync(f, prev, chan))))
+			ret = fence_wait(fence, true);
+
+		return ret;
+	}
+
+	if (!exclusive || !fobj)
 		return ret;
 
 	for (i = 0; i < fobj->shared_count && !ret; ++i) {
+		struct nouveau_channel *prev = NULL;
+
 		fence = rcu_dereference_protected(fobj->shared[i],
 						reservation_object_held(resv));
 
-		/* should always be true, for now */
-		if (!nouveau_local_fence(fence, chan->drm))
+		f = nouveau_local_fence(fence, chan->drm);
+		if (f)
+			prev = f->channel;
+
+		if (!prev || (ret = fctx->sync(f, prev, chan)))
 			ret = fence_wait(fence, true);
+
+		if (ret)
+			break;
 	}
 
 	return ret;
@@ -388,14 +403,6 @@ nouveau_fence_unref(struct nouveau_fence **pfence)
 	if (*pfence)
 		fence_put(&(*pfence)->base);
 	*pfence = NULL;
-}
-
-struct nouveau_fence *
-nouveau_fence_ref(struct nouveau_fence *fence)
-{
-	if (fence)
-		fence_get(&fence->base);
-	return fence;
 }
 
 int

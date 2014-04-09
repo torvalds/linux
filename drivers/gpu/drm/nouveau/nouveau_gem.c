@@ -98,14 +98,23 @@ static void
 nouveau_gem_object_unmap(struct nouveau_bo *nvbo, struct nouveau_vma *vma)
 {
 	const bool mapped = nvbo->bo.mem.mem_type != TTM_PL_SYSTEM;
+	struct reservation_object *resv = nvbo->bo.resv;
+	struct reservation_object_list *fobj;
 	struct fence *fence = NULL;
+
+	fobj = reservation_object_get_list(resv);
 
 	list_del(&vma->head);
 
-	if (mapped)
+	if (fobj && fobj->shared_count > 1)
+		ttm_bo_wait(&nvbo->bo, true, false, false);
+	else if (fobj && fobj->shared_count == 1)
+		fence = rcu_dereference_protected(fobj->shared[0],
+						reservation_object_held(resv));
+	else
 		fence = reservation_object_get_excl(nvbo->bo.resv);
 
-	if (fence) {
+	if (fence && mapped) {
 		nouveau_fence_work(fence, nouveau_gem_object_delete, vma);
 	} else {
 		if (mapped)
@@ -289,15 +298,18 @@ struct validate_op {
 };
 
 static void
-validate_fini_no_ticket(struct validate_op *op, struct nouveau_fence *fence)
+validate_fini_no_ticket(struct validate_op *op, struct nouveau_fence *fence,
+			struct drm_nouveau_gem_pushbuf_bo *pbbo)
 {
 	struct nouveau_bo *nvbo;
+	struct drm_nouveau_gem_pushbuf_bo *b;
 
 	while (!list_empty(&op->list)) {
 		nvbo = list_entry(op->list.next, struct nouveau_bo, entry);
+		b = &pbbo[nvbo->pbbo_index];
 
 		if (likely(fence))
-			nouveau_bo_fence(nvbo, fence);
+			nouveau_bo_fence(nvbo, fence, !!b->write_domains);
 
 		if (unlikely(nvbo->validate_mapped)) {
 			ttm_bo_kunmap(&nvbo->kmap);
@@ -312,9 +324,10 @@ validate_fini_no_ticket(struct validate_op *op, struct nouveau_fence *fence)
 }
 
 static void
-validate_fini(struct validate_op *op, struct nouveau_fence *fence)
+validate_fini(struct validate_op *op, struct nouveau_fence *fence,
+	      struct drm_nouveau_gem_pushbuf_bo *pbbo)
 {
-	validate_fini_no_ticket(op, fence);
+	validate_fini_no_ticket(op, fence, pbbo);
 	ww_acquire_fini(&op->ticket);
 }
 
@@ -370,7 +383,7 @@ retry:
 			list_splice_tail_init(&vram_list, &op->list);
 			list_splice_tail_init(&gart_list, &op->list);
 			list_splice_tail_init(&both_list, &op->list);
-			validate_fini_no_ticket(op, NULL);
+			validate_fini_no_ticket(op, NULL, NULL);
 			if (unlikely(ret == -EDEADLK)) {
 				ret = ttm_bo_reserve_slowpath(&nvbo->bo, true,
 							      &op->ticket);
@@ -412,7 +425,7 @@ retry:
 	list_splice_tail(&gart_list, &op->list);
 	list_splice_tail(&both_list, &op->list);
 	if (ret)
-		validate_fini(op, NULL);
+		validate_fini(op, NULL, NULL);
 	return ret;
 
 }
@@ -446,7 +459,7 @@ validate_list(struct nouveau_channel *chan, struct nouveau_cli *cli,
 			return ret;
 		}
 
-		ret = nouveau_fence_sync(nvbo, chan);
+		ret = nouveau_fence_sync(nvbo, chan, !!b->write_domains);
 		if (unlikely(ret)) {
 			if (ret != -ERESTARTSYS)
 				NV_PRINTK(error, cli, "fail post-validate sync\n");
@@ -504,7 +517,7 @@ nouveau_gem_pushbuf_validate(struct nouveau_channel *chan,
 	if (unlikely(ret < 0)) {
 		if (ret != -ERESTARTSYS)
 			NV_PRINTK(error, cli, "validating bo list\n");
-		validate_fini(op, NULL);
+		validate_fini(op, NULL, NULL);
 		return ret;
 	}
 	*apply_relocs = ret;
@@ -610,7 +623,7 @@ nouveau_gem_pushbuf_reloc_apply(struct nouveau_cli *cli,
 				data |= r->vor;
 		}
 
-		ret = ttm_bo_wait(&nvbo->bo, false, false, false);
+		ret = ttm_bo_wait(&nvbo->bo, true, false, false);
 		if (ret) {
 			NV_PRINTK(error, cli, "reloc wait_idle failed: %d\n", ret);
 			break;
@@ -788,7 +801,7 @@ nouveau_gem_ioctl_pushbuf(struct drm_device *dev, void *data,
 	}
 
 out:
-	validate_fini(&op, fence);
+	validate_fini(&op, fence, bo);
 	nouveau_fence_unref(&fence);
 
 out_prevalid:
