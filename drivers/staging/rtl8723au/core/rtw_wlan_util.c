@@ -1606,7 +1606,6 @@ void update_capinfo23a(struct rtw_adapter *Adapter, u16 updateCap)
 void update_wireless_mode23a(struct rtw_adapter *padapter)
 {
 	int ratelen, network_type = 0;
-	u32 SIFS_Timer;
 	struct mlme_ext_priv	*pmlmeext = &padapter->mlmeextpriv;
 	struct mlme_ext_info *pmlmeinfo = &pmlmeext->mlmext_info;
 	struct wlan_bssid_ex *cur_network = &pmlmeinfo->network;
@@ -1635,10 +1634,9 @@ void update_wireless_mode23a(struct rtw_adapter *padapter)
 
 	pmlmeext->cur_wireless_mode = network_type & padapter->registrypriv.wireless_mode;
 
-	SIFS_Timer = 0x0a0a0808; /* 0x0808 -> for CCK, 0x0a0a -> for OFDM */
-                             /* change this value if having IOT issues. */
-
-	padapter->HalFunc.SetHwRegHandler(padapter, HW_VAR_RESP_SIFS,  (u8 *)&SIFS_Timer);
+	/* 0x0808 -> for CCK, 0x0a0a -> for OFDM */
+	/* change this value if having IOT issues. */
+	rtl8723a_set_resp_sifs(padapter, 0x08, 0x08, 0x0a, 0x0a);
 
 	if (pmlmeext->cur_wireless_mode & WIRELESS_11B)
 		update_mgnt_tx_rate23a(padapter, IEEE80211_CCK_RATE_1MB);
