@@ -29,6 +29,10 @@ void msgdma_uninitialize(struct altera_tse_private *priv)
 {
 }
 
+void msgdma_start_rxdma(struct altera_tse_private *priv)
+{
+}
+
 void msgdma_reset(struct altera_tse_private *priv)
 {
 	int counter;
@@ -154,7 +158,7 @@ u32 msgdma_tx_completions(struct altera_tse_private *priv)
 
 /* Put buffer to the mSGDMA RX FIFO
  */
-int msgdma_add_rx_desc(struct altera_tse_private *priv,
+void msgdma_add_rx_desc(struct altera_tse_private *priv,
 			struct tse_buffer *rxbuffer)
 {
 	struct msgdma_extended_desc *desc = priv->rx_dma_desc;
@@ -175,7 +179,6 @@ int msgdma_add_rx_desc(struct altera_tse_private *priv,
 	iowrite32(0, &desc->burst_seq_num);
 	iowrite32(0x00010001, &desc->stride);
 	iowrite32(control, &desc->control);
-	return 1;
 }
 
 /* status is returned on upper 16 bits,

@@ -224,6 +224,7 @@ static int tse_init_rx_buffer(struct altera_tse_private *priv,
 		dev_kfree_skb_any(rxbuffer->skb);
 		return -EINVAL;
 	}
+	rxbuffer->dma_addr &= (dma_addr_t)~3;
 	rxbuffer->len = len;
 	return 0;
 }
@@ -425,9 +426,10 @@ static int tse_rx(struct altera_tse_private *priv, int limit)
 		priv->dev->stats.rx_bytes += pktlength;
 
 		entry = next_entry;
+
+		tse_rx_refill(priv);
 	}
 
-	tse_rx_refill(priv);
 	return count;
 }
 
@@ -519,7 +521,6 @@ static irqreturn_t altera_isr(int irq, void *dev_id)
 	struct net_device *dev = dev_id;
 	struct altera_tse_private *priv;
 	unsigned long int flags;
-
 
 	if (unlikely(!dev)) {
 		pr_err("%s: invalid dev pointer\n", __func__);
@@ -868,13 +869,12 @@ static int init_mac(struct altera_tse_private *priv)
 	/* Disable RX/TX shift 16 for alignment of all received frames on 16-bit
 	 * start address
 	 */
-	tse_clear_bit(&mac->rx_cmd_stat, ALTERA_TSE_RX_CMD_STAT_RX_SHIFT16);
+	tse_set_bit(&mac->rx_cmd_stat, ALTERA_TSE_RX_CMD_STAT_RX_SHIFT16);
 	tse_clear_bit(&mac->tx_cmd_stat, ALTERA_TSE_TX_CMD_STAT_TX_SHIFT16 |
 					 ALTERA_TSE_TX_CMD_STAT_OMIT_CRC);
 
 	/* Set the MAC options */
 	cmd = ioread32(&mac->command_config);
-	cmd |= MAC_CMDCFG_PAD_EN;	/* Padding Removal on Receive */
 	cmd &= ~MAC_CMDCFG_CRC_FWD;	/* CRC Removal */
 	cmd |= MAC_CMDCFG_RX_ERR_DISC;	/* Automatically discard frames
 					 * with CRC errors
@@ -882,7 +882,15 @@ static int init_mac(struct altera_tse_private *priv)
 	cmd |= MAC_CMDCFG_CNTL_FRM_ENA;
 	cmd &= ~MAC_CMDCFG_TX_ENA;
 	cmd &= ~MAC_CMDCFG_RX_ENA;
+
+	/* Default speed and duplex setting, full/100 */
+	cmd &= ~MAC_CMDCFG_HD_ENA;
+	cmd &= ~MAC_CMDCFG_ETH_SPEED;
+	cmd &= ~MAC_CMDCFG_ENA_10;
+
 	iowrite32(cmd, &mac->command_config);
+
+	iowrite32(ALTERA_TSE_PAUSE_QUANTA, &mac->pause_quanta);
 
 	if (netif_msg_hw(priv))
 		dev_dbg(priv->device,
@@ -1085,16 +1093,19 @@ static int tse_open(struct net_device *dev)
 
 	spin_unlock_irqrestore(&priv->rxdma_irq_lock, flags);
 
-	/* Start MAC Rx/Tx */
-	spin_lock(&priv->mac_cfg_lock);
-	tse_set_mac(priv, true);
-	spin_unlock(&priv->mac_cfg_lock);
 
 	if (priv->phydev)
 		phy_start(priv->phydev);
 
 	napi_enable(&priv->napi);
 	netif_start_queue(dev);
+
+	priv->dmaops->start_rxdma(priv);
+
+	/* Start MAC Rx/Tx */
+	spin_lock(&priv->mac_cfg_lock);
+	tse_set_mac(priv, true);
+	spin_unlock(&priv->mac_cfg_lock);
 
 	return 0;
 
@@ -1167,7 +1178,6 @@ static struct net_device_ops altera_tse_netdev_ops = {
 	.ndo_validate_addr	= eth_validate_addr,
 };
 
-
 static int request_and_map(struct platform_device *pdev, const char *name,
 			   struct resource **res, void __iomem **ptr)
 {
@@ -1235,7 +1245,7 @@ static int altera_tse_probe(struct platform_device *pdev)
 		/* Get the mapped address to the SGDMA descriptor memory */
 		ret = request_and_map(pdev, "s1", &dma_res, &descmap);
 		if (ret)
-			goto out_free;
+			goto err_free_netdev;
 
 		/* Start of that memory is for transmit descriptors */
 		priv->tx_dma_desc = descmap;
@@ -1254,24 +1264,24 @@ static int altera_tse_probe(struct platform_device *pdev)
 		if (upper_32_bits(priv->rxdescmem_busaddr)) {
 			dev_dbg(priv->device,
 				"SGDMA bus addresses greater than 32-bits\n");
-			goto out_free;
+			goto err_free_netdev;
 		}
 		if (upper_32_bits(priv->txdescmem_busaddr)) {
 			dev_dbg(priv->device,
 				"SGDMA bus addresses greater than 32-bits\n");
-			goto out_free;
+			goto err_free_netdev;
 		}
 	} else if (priv->dmaops &&
 		   priv->dmaops->altera_dtype == ALTERA_DTYPE_MSGDMA) {
 		ret = request_and_map(pdev, "rx_resp", &dma_res,
 				      &priv->rx_dma_resp);
 		if (ret)
-			goto out_free;
+			goto err_free_netdev;
 
 		ret = request_and_map(pdev, "tx_desc", &dma_res,
 				      &priv->tx_dma_desc);
 		if (ret)
-			goto out_free;
+			goto err_free_netdev;
 
 		priv->txdescmem = resource_size(dma_res);
 		priv->txdescmem_busaddr = dma_res->start;
@@ -1279,13 +1289,13 @@ static int altera_tse_probe(struct platform_device *pdev)
 		ret = request_and_map(pdev, "rx_desc", &dma_res,
 				      &priv->rx_dma_desc);
 		if (ret)
-			goto out_free;
+			goto err_free_netdev;
 
 		priv->rxdescmem = resource_size(dma_res);
 		priv->rxdescmem_busaddr = dma_res->start;
 
 	} else {
-		goto out_free;
+		goto err_free_netdev;
 	}
 
 	if (!dma_set_mask(priv->device, DMA_BIT_MASK(priv->dmaops->dmamask)))
@@ -1294,26 +1304,26 @@ static int altera_tse_probe(struct platform_device *pdev)
 	else if (!dma_set_mask(priv->device, DMA_BIT_MASK(32)))
 		dma_set_coherent_mask(priv->device, DMA_BIT_MASK(32));
 	else
-		goto out_free;
+		goto err_free_netdev;
 
 	/* MAC address space */
 	ret = request_and_map(pdev, "control_port", &control_port,
 			      (void __iomem **)&priv->mac_dev);
 	if (ret)
-		goto out_free;
+		goto err_free_netdev;
 
 	/* xSGDMA Rx Dispatcher address space */
 	ret = request_and_map(pdev, "rx_csr", &dma_res,
 			      &priv->rx_dma_csr);
 	if (ret)
-		goto out_free;
+		goto err_free_netdev;
 
 
 	/* xSGDMA Tx Dispatcher address space */
 	ret = request_and_map(pdev, "tx_csr", &dma_res,
 			      &priv->tx_dma_csr);
 	if (ret)
-		goto out_free;
+		goto err_free_netdev;
 
 
 	/* Rx IRQ */
@@ -1321,7 +1331,7 @@ static int altera_tse_probe(struct platform_device *pdev)
 	if (priv->rx_irq == -ENXIO) {
 		dev_err(&pdev->dev, "cannot obtain Rx IRQ\n");
 		ret = -ENXIO;
-		goto out_free;
+		goto err_free_netdev;
 	}
 
 	/* Tx IRQ */
@@ -1329,7 +1339,7 @@ static int altera_tse_probe(struct platform_device *pdev)
 	if (priv->tx_irq == -ENXIO) {
 		dev_err(&pdev->dev, "cannot obtain Tx IRQ\n");
 		ret = -ENXIO;
-		goto out_free;
+		goto err_free_netdev;
 	}
 
 	/* get FIFO depths from device tree */
@@ -1337,14 +1347,14 @@ static int altera_tse_probe(struct platform_device *pdev)
 				 &priv->rx_fifo_depth)) {
 		dev_err(&pdev->dev, "cannot obtain rx-fifo-depth\n");
 		ret = -ENXIO;
-		goto out_free;
+		goto err_free_netdev;
 	}
 
 	if (of_property_read_u32(pdev->dev.of_node, "tx-fifo-depth",
 				 &priv->rx_fifo_depth)) {
 		dev_err(&pdev->dev, "cannot obtain tx-fifo-depth\n");
 		ret = -ENXIO;
-		goto out_free;
+		goto err_free_netdev;
 	}
 
 	/* get hash filter settings for this instance */
@@ -1393,7 +1403,7 @@ static int altera_tse_probe(struct platform_device *pdev)
 	      ((priv->phy_addr >= 0) && (priv->phy_addr < PHY_MAX_ADDR)))) {
 		dev_err(&pdev->dev, "invalid phy-addr specified %d\n",
 			priv->phy_addr);
-		goto out_free;
+		goto err_free_netdev;
 	}
 
 	/* Create/attach to MDIO bus */
@@ -1401,7 +1411,7 @@ static int altera_tse_probe(struct platform_device *pdev)
 				     atomic_add_return(1, &instance_count));
 
 	if (ret)
-		goto out_free;
+		goto err_free_netdev;
 
 	/* initialize netdev */
 	ether_setup(ndev);
@@ -1438,7 +1448,7 @@ static int altera_tse_probe(struct platform_device *pdev)
 	ret = register_netdev(ndev);
 	if (ret) {
 		dev_err(&pdev->dev, "failed to register TSE net device\n");
-		goto out_free_mdio;
+		goto err_register_netdev;
 	}
 
 	platform_set_drvdata(pdev, ndev);
@@ -1455,13 +1465,16 @@ static int altera_tse_probe(struct platform_device *pdev)
 	ret = init_phy(ndev);
 	if (ret != 0) {
 		netdev_err(ndev, "Cannot attach to PHY (error: %d)\n", ret);
-		goto out_free_mdio;
+		goto err_init_phy;
 	}
 	return 0;
 
-out_free_mdio:
+err_init_phy:
+	unregister_netdev(ndev);
+err_register_netdev:
+	netif_napi_del(&priv->napi);
 	altera_tse_mdio_destroy(ndev);
-out_free:
+err_free_netdev:
 	free_netdev(ndev);
 	return ret;
 }
@@ -1496,6 +1509,7 @@ struct altera_dmaops altera_dtype_sgdma = {
 	.get_rx_status = sgdma_rx_status,
 	.init_dma = sgdma_initialize,
 	.uninit_dma = sgdma_uninitialize,
+	.start_rxdma = sgdma_start_rxdma,
 };
 
 struct altera_dmaops altera_dtype_msgdma = {
@@ -1514,6 +1528,7 @@ struct altera_dmaops altera_dtype_msgdma = {
 	.get_rx_status = msgdma_rx_status,
 	.init_dma = msgdma_initialize,
 	.uninit_dma = msgdma_uninitialize,
+	.start_rxdma = msgdma_start_rxdma,
 };
 
 static struct of_device_id altera_tse_ids[] = {
