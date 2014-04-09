@@ -1190,10 +1190,8 @@ static void assert_cursor(struct drm_i915_private *dev_priv,
 
 	if (IS_845G(dev) || IS_I865G(dev))
 		cur_state = I915_READ(_CURACNTR) & CURSOR_ENABLE;
-	else if (INTEL_INFO(dev)->gen <= 6 || IS_VALLEYVIEW(dev))
-		cur_state = I915_READ(CURCNTR(pipe)) & CURSOR_MODE;
 	else
-		cur_state = I915_READ(CURCNTR_IVB(pipe)) & CURSOR_MODE;
+		cur_state = I915_READ(CURCNTR(pipe)) & CURSOR_MODE;
 
 	WARN(cur_state != state,
 	     "cursor on pipe %c assertion failure (expected %s, current %s)\n",
@@ -7910,7 +7908,7 @@ static void ivb_update_cursor(struct drm_crtc *crtc, u32 base)
 
 	if (intel_crtc->cursor_visible != visible) {
 		int16_t width = intel_crtc->cursor_width;
-		uint32_t cntl = I915_READ(CURCNTR_IVB(pipe));
+		uint32_t cntl = I915_READ(CURCNTR(pipe));
 		if (base) {
 			cntl &= ~CURSOR_MODE;
 			cntl |= MCURSOR_GAMMA_ENABLE;
@@ -7936,14 +7934,14 @@ static void ivb_update_cursor(struct drm_crtc *crtc, u32 base)
 			cntl |= CURSOR_PIPE_CSC_ENABLE;
 			cntl &= ~CURSOR_TRICKLE_FEED_DISABLE;
 		}
-		I915_WRITE(CURCNTR_IVB(pipe), cntl);
+		I915_WRITE(CURCNTR(pipe), cntl);
 
 		intel_crtc->cursor_visible = visible;
 	}
 	/* and commit changes on next vblank */
-	POSTING_READ(CURCNTR_IVB(pipe));
-	I915_WRITE(CURBASE_IVB(pipe), base);
-	POSTING_READ(CURBASE_IVB(pipe));
+	POSTING_READ(CURCNTR(pipe));
+	I915_WRITE(CURBASE(pipe), base);
+	POSTING_READ(CURBASE(pipe));
 }
 
 /* If no-part of the cursor is visible on the framebuffer, then the GPU may hang... */
@@ -7990,16 +7988,14 @@ static void intel_crtc_update_cursor(struct drm_crtc *crtc,
 	if (!visible && !intel_crtc->cursor_visible)
 		return;
 
-	if (IS_IVYBRIDGE(dev) || IS_HASWELL(dev) || IS_BROADWELL(dev)) {
-		I915_WRITE(CURPOS_IVB(pipe), pos);
+	I915_WRITE(CURPOS(pipe), pos);
+
+	if (IS_IVYBRIDGE(dev) || IS_HASWELL(dev) || IS_BROADWELL(dev))
 		ivb_update_cursor(crtc, base);
-	} else {
-		I915_WRITE(CURPOS(pipe), pos);
-		if (IS_845G(dev) || IS_I865G(dev))
-			i845_update_cursor(crtc, base);
-		else
-			i9xx_update_cursor(crtc, base);
-	}
+	else if (IS_845G(dev) || IS_I865G(dev))
+		i845_update_cursor(crtc, base);
+	else
+		i9xx_update_cursor(crtc, base);
 }
 
 static int intel_crtc_cursor_set(struct drm_crtc *crtc,
@@ -12290,15 +12286,9 @@ intel_display_capture_error_state(struct drm_device *dev)
 		if (!error->pipe[i].power_domain_on)
 			continue;
 
-		if (INTEL_INFO(dev)->gen <= 6 || IS_VALLEYVIEW(dev)) {
-			error->cursor[i].control = I915_READ(CURCNTR(i));
-			error->cursor[i].position = I915_READ(CURPOS(i));
-			error->cursor[i].base = I915_READ(CURBASE(i));
-		} else {
-			error->cursor[i].control = I915_READ(CURCNTR_IVB(i));
-			error->cursor[i].position = I915_READ(CURPOS_IVB(i));
-			error->cursor[i].base = I915_READ(CURBASE_IVB(i));
-		}
+		error->cursor[i].control = I915_READ(CURCNTR(i));
+		error->cursor[i].position = I915_READ(CURPOS(i));
+		error->cursor[i].base = I915_READ(CURBASE(i));
 
 		error->plane[i].control = I915_READ(DSPCNTR(i));
 		error->plane[i].stride = I915_READ(DSPSTRIDE(i));

@@ -3833,7 +3833,7 @@ enum punit_power_well {
 #define PIPE_FRMCOUNT_GM45(pipe) _PIPE2(pipe, _PIPEA_FRMCOUNT_GM45)
 
 /* Cursor A & B regs */
-#define _CURACNTR		(dev_priv->info.display_mmio_offset + 0x70080)
+#define _CURACNTR		0x70080
 /* Old style CUR*CNTR flags (desktop 8xx) */
 #define   CURSOR_ENABLE		0x80000000
 #define   CURSOR_GAMMA_ENABLE	0x40000000
@@ -3860,28 +3860,34 @@ enum punit_power_well {
 #define   MCURSOR_PIPE_B	(1 << 28)
 #define   MCURSOR_GAMMA_ENABLE  (1 << 26)
 #define   CURSOR_TRICKLE_FEED_DISABLE	(1 << 14)
-#define _CURABASE		(dev_priv->info.display_mmio_offset + 0x70084)
-#define _CURAPOS		(dev_priv->info.display_mmio_offset + 0x70088)
+#define _CURABASE		0x70084
+#define _CURAPOS		0x70088
 #define   CURSOR_POS_MASK       0x007FF
 #define   CURSOR_POS_SIGN       0x8000
 #define   CURSOR_X_SHIFT        0
 #define   CURSOR_Y_SHIFT        16
 #define CURSIZE			0x700a0
-#define _CURBCNTR		(dev_priv->info.display_mmio_offset + 0x700c0)
-#define _CURBBASE		(dev_priv->info.display_mmio_offset + 0x700c4)
-#define _CURBPOS		(dev_priv->info.display_mmio_offset + 0x700c8)
+#define _CURBCNTR		0x700c0
+#define _CURBBASE		0x700c4
+#define _CURBPOS		0x700c8
 
 #define _CURBCNTR_IVB		0x71080
 #define _CURBBASE_IVB		0x71084
 #define _CURBPOS_IVB		0x71088
 
-#define CURCNTR(pipe) _PIPE(pipe, _CURACNTR, _CURBCNTR)
-#define CURBASE(pipe) _PIPE(pipe, _CURABASE, _CURBBASE)
-#define CURPOS(pipe) _PIPE(pipe, _CURAPOS, _CURBPOS)
+#define _CURSOR2(pipe, reg) (dev_priv->info.cursor_offsets[(pipe)] - \
+	dev_priv->info.cursor_offsets[PIPE_A] + (reg) + \
+	dev_priv->info.display_mmio_offset)
 
-#define CURCNTR_IVB(pipe) _PIPE(pipe, _CURACNTR, _CURBCNTR_IVB)
-#define CURBASE_IVB(pipe) _PIPE(pipe, _CURABASE, _CURBBASE_IVB)
-#define CURPOS_IVB(pipe) _PIPE(pipe, _CURAPOS, _CURBPOS_IVB)
+#define CURCNTR(pipe) _CURSOR2(pipe, _CURACNTR)
+#define CURBASE(pipe) _CURSOR2(pipe, _CURABASE)
+#define CURPOS(pipe) _CURSOR2(pipe, _CURAPOS)
+
+#define CURSOR_A_OFFSET 0x70080
+#define CURSOR_B_OFFSET 0x700c0
+#define CHV_CURSOR_C_OFFSET 0x700e0
+#define IVB_CURSOR_B_OFFSET 0x71080
+#define IVB_CURSOR_C_OFFSET 0x72080
 
 /* Display A control */
 #define _DSPACNTR				0x70180

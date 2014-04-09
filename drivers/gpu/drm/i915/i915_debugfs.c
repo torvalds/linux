@@ -2304,10 +2304,8 @@ static bool cursor_active(struct drm_device *dev, int pipe)
 
 	if (IS_845G(dev) || IS_I865G(dev))
 		state = I915_READ(_CURACNTR) & CURSOR_ENABLE;
-	else if (INTEL_INFO(dev)->gen <= 6 || IS_VALLEYVIEW(dev))
-		state = I915_READ(CURCNTR(pipe)) & CURSOR_MODE;
 	else
-		state = I915_READ(CURCNTR_IVB(pipe)) & CURSOR_MODE;
+		state = I915_READ(CURCNTR(pipe)) & CURSOR_MODE;
 
 	return state;
 }
@@ -2317,10 +2315,7 @@ static bool cursor_position(struct drm_device *dev, int pipe, int *x, int *y)
 	struct drm_i915_private *dev_priv = dev->dev_private;
 	u32 pos;
 
-	if (IS_IVYBRIDGE(dev) || IS_HASWELL(dev) || IS_BROADWELL(dev))
-		pos = I915_READ(CURPOS_IVB(pipe));
-	else
-		pos = I915_READ(CURPOS(pipe));
+	pos = I915_READ(CURPOS(pipe));
 
 	*x = (pos >> CURSOR_X_SHIFT) & CURSOR_POS_MASK;
 	if (pos & (CURSOR_POS_SIGN << CURSOR_X_SHIFT))
