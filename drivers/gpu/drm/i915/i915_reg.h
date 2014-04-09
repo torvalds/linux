@@ -1411,6 +1411,7 @@ enum punit_power_well {
 #define   GMBUS_PORT_SSC	1
 #define   GMBUS_PORT_VGADDC	2
 #define   GMBUS_PORT_PANEL	3
+#define   GMBUS_PORT_DPD_CHV	3 /* HDMID_CHV */
 #define   GMBUS_PORT_DPC	4 /* HDMIC */
 #define   GMBUS_PORT_DPB	5 /* SDVO, HDMIB */
 #define   GMBUS_PORT_DPD	6 /* HDMID */

@@ -1382,7 +1382,10 @@ void intel_hdmi_init_connector(struct intel_digital_port *intel_dig_port,
 		intel_encoder->hpd_pin = HPD_PORT_C;
 		break;
 	case PORT_D:
-		intel_hdmi->ddc_bus = GMBUS_PORT_DPD;
+		if (IS_CHERRYVIEW(dev))
+			intel_hdmi->ddc_bus = GMBUS_PORT_DPD_CHV;
+		else
+			intel_hdmi->ddc_bus = GMBUS_PORT_DPD;
 		intel_encoder->hpd_pin = HPD_PORT_D;
 		break;
 	case PORT_A:
