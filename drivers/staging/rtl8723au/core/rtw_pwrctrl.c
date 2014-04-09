@@ -263,7 +263,7 @@ void rtw_set_rpwm23a(struct rtw_adapter *padapter, u8 pslv)
 
 	pwrpriv->rpwm = pslv;
 
-	rtw_hal_set_hwreg23a(padapter, HW_VAR_SET_RPWM, (u8 *)(&rpwm));
+	rtl8723a_set_rpwm(padapter, rpwm);
 
 	pwrpriv->tog += 0x80;
 	pwrpriv->cpwm = pslv;
