@@ -95,6 +95,7 @@ typedef gen8_gtt_pte_t gen8_ppgtt_pde_t;
 #define PPAT_CACHED_INDEX		_PAGE_PAT /* WB LLCeLLC */
 #define PPAT_DISPLAY_ELLC_INDEX		_PAGE_PCD /* WT eLLC */
 
+#define CHV_PPAT_SNOOP			(1<<6)
 #define GEN8_PPAT_AGE(x)		(x<<4)
 #define GEN8_PPAT_LLCeLLC		(3<<2)
 #define GEN8_PPAT_LLCELLC		(2<<2)
