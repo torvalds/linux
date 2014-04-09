@@ -20,10 +20,6 @@
 #define AB8500_PWM_OUT_CTRL2_REG	0x61
 #define AB8500_PWM_OUT_CTRL7_REG	0x66
 
-/* backlight driver constants */
-#define ENABLE_PWM			1
-#define DISABLE_PWM			0
-
 struct ab8500_pwm_chip {
 	struct pwm_chip chip;
 };
@@ -64,7 +60,7 @@ static int ab8500_pwm_enable(struct pwm_chip *chip, struct pwm_device *pwm)
 
 	ret = abx500_mask_and_set_register_interruptible(chip->dev,
 				AB8500_MISC, AB8500_PWM_OUT_CTRL7_REG,
-				1 << (chip->base - 1), ENABLE_PWM);
+				1 << (chip->base - 1), 1 << (chip->base - 1));
 	if (ret < 0)
 		dev_err(chip->dev, "%s: Failed to enable PWM, Error %d\n",
 							pwm->label, ret);
@@ -77,11 +73,10 @@ static void ab8500_pwm_disable(struct pwm_chip *chip, struct pwm_device *pwm)
 
 	ret = abx500_mask_and_set_register_interruptible(chip->dev,
 				AB8500_MISC, AB8500_PWM_OUT_CTRL7_REG,
-				1 << (chip->base - 1), DISABLE_PWM);
+				1 << (chip->base - 1), 0);
 	if (ret < 0)
 		dev_err(chip->dev, "%s: Failed to disable PWM, Error %d\n",
 							pwm->label, ret);
-	return;
 }
 
 static const struct pwm_ops ab8500_pwm_ops = {
