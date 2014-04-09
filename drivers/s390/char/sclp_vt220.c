@@ -97,13 +97,16 @@ static void sclp_vt220_pm_event_fn(struct sclp_register *reg,
 static int __sclp_vt220_emit(struct sclp_vt220_request *request);
 static void sclp_vt220_emit_current(void);
 
-/* Registration structure for our interest in SCLP event buffers */
+/* Registration structure for SCLP output event buffers */
 static struct sclp_register sclp_vt220_register = {
 	.send_mask		= EVTYP_VT220MSG_MASK,
-	.receive_mask		= EVTYP_VT220MSG_MASK,
-	.state_change_fn	= NULL,
-	.receiver_fn		= sclp_vt220_receiver_fn,
 	.pm_event_fn		= sclp_vt220_pm_event_fn,
+};
+
+/* Registration structure for SCLP input event buffers */
+static struct sclp_register sclp_vt220_register_input = {
+	.receive_mask		= EVTYP_VT220MSG_MASK,
+	.receiver_fn		= sclp_vt220_receiver_fn,
 };
 
 
@@ -715,9 +718,14 @@ static int __init sclp_vt220_tty_init(void)
 	rc = tty_register_driver(driver);
 	if (rc)
 		goto out_init;
+	rc = sclp_register(&sclp_vt220_register_input);
+	if (rc)
+		goto out_reg;
 	sclp_vt220_driver = driver;
 	return 0;
 
+out_reg:
+	tty_unregister_driver(driver);
 out_init:
 	__sclp_vt220_cleanup();
 out_driver:
