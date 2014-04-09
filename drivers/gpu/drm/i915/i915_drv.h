@@ -1308,6 +1308,7 @@ struct intel_vbt_data {
 
 	struct {
 		u16 pwm_freq_hz;
+		bool present;
 		bool active_low_pwm;
 	} backlight;
 
