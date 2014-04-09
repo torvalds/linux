@@ -267,7 +267,7 @@ void ixgbe_dcb_unpack_map(struct ixgbe_dcb_config *cfg, int direction, u8 *map)
  * Configure dcb settings and enable dcb mode.
  */
 s32 ixgbe_dcb_hw_config(struct ixgbe_hw *hw,
-                        struct ixgbe_dcb_config *dcb_config)
+			struct ixgbe_dcb_config *dcb_config)
 {
 	s32 ret = 0;
 	u8 pfc_en;
