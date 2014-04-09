@@ -27,7 +27,7 @@
 #ifndef _I40E_TXRX_H_
 #define _I40E_TXRX_H_
 
-/* Interrupt Throttling and Rate Limiting (storm control) Goodies */
+/* Interrupt Throttling and Rate Limiting Goodies */
 
 #define I40E_MAX_ITR               0x0FF0  /* reg uses 2 usec resolution */
 #define I40E_MIN_ITR               0x0004  /* reg uses 2 usec resolution */
