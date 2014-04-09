@@ -569,7 +569,7 @@ struct recv_frame *decryptor(struct rtw_adapter *padapter,
 static struct recv_frame *portctrl(struct rtw_adapter *adapter,
 				   struct recv_frame *precv_frame)
 {
-	u8 *psta_addr = NULL, *ptr;
+	u8 *psta_addr, *ptr;
 	uint auth_alg;
 	struct recv_frame *pfhdr;
 	struct sta_info *psta;
@@ -580,7 +580,6 @@ static struct recv_frame *portctrl(struct rtw_adapter *adapter,
 	struct rx_pkt_attrib *pattrib;
 
 	pstapriv = &adapter->stapriv;
-	psta = rtw_get_stainfo23a(pstapriv, psta_addr);
 
 	auth_alg = adapter->securitypriv.dot11AuthAlgrthm;
 
@@ -588,6 +587,7 @@ static struct recv_frame *portctrl(struct rtw_adapter *adapter,
 	pfhdr = precv_frame;
 	pattrib = &pfhdr->attrib;
 	psta_addr = pattrib->ta;
+	psta = rtw_get_stainfo23a(pstapriv, psta_addr);
 
 	RT_TRACE(_module_rtl871x_recv_c_, _drv_info_,
 		 ("########portctrl:adapter->securitypriv.dot11AuthAlgrthm ="
