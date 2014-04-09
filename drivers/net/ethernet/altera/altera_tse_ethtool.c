@@ -1,5 +1,7 @@
-/* Ethtool support for Altera Triple-Speed Ethernet MAC driver
- * Copyright (C) 2008-2014 Altera Corporation. All rights reserved
+/*
+ * Ethtool support for Altera Triple-Speed Ethernet MAC driver
+ *
+ * Copyright (C) 2008-2013 Altera Corporation
  *
  * Contributors:
  *   Dalon Westergreen
@@ -7,29 +9,18 @@
  *   Ian Abbott
  *   Yuriy Kozlov
  *   Tobias Klauser
- *   Andriy Smolskyy
- *   Roman Bulgakov
- *   Dmytro Mytarchuk
  *
  * Original driver contributed by SLS.
- * Major updates contributed by GlobalLogic
  *
- * This program is free software; you can redistribute it and/or modify it
- * under the terms and conditions of the GNU General Public License,
- * version 2, as published by the Free Software Foundation.
- *
- * This program is distributed in the hope it will be useful, but WITHOUT
- * ANY WARRANTY; without even the implied warranty of MERCHANTABILITY or
- * FITNESS FOR A PARTICULAR PURPOSE.  See the GNU General Public License for
- * more details.
- *
- * You should have received a copy of the GNU General Public License along with
- * this program.  If not, see <http://www.gnu.org/licenses/>.
+ * This program is free software; you can redistribute it and/or modify
+ * it under the terms of the GNU General Public License as published by
+ * the Free Software Foundation; either version 2 of the License, or
+ * (at your option) any later version.
  */
 
-#include <linux/ethtool.h>
 #include <linux/kernel.h>
 #include <linux/netdevice.h>
+#include <linux/ethtool.h>
 #include <linux/phy.h>
 
 #include "altera_tse.h"
@@ -71,16 +62,16 @@ static char stat_gstrings[][ETH_GSTRING_LEN] = {
 };
 
 static void tse_get_drvinfo(struct net_device *dev,
-			    struct ethtool_drvinfo *info)
+				struct ethtool_drvinfo *info)
 {
-	struct altera_tse_private *priv = netdev_priv(dev);
-	u32 rev = ioread32(&priv->mac_dev->megacore_revision);
+	struct alt_tse_private *priv = netdev_priv(dev);
+	u32 rev = ioread32(&priv->regs->mac.megacore_revision);
 
 	strcpy(info->driver, "Altera TSE MAC IP Driver");
 	strcpy(info->version, "v8.0");
 	snprintf(info->fw_version, ETHTOOL_FWVERS_LEN, "v%d.%d",
-		 rev & 0xFFFF, (rev & 0xFFFF0000) >> 16);
-	sprintf(info->bus_info, "platform");
+			rev & 0xFFFF, (rev & 0xFFFF0000) >> 16);
+	sprintf(info->bus_info, "AVALON");
 }
 
 /* Fill in a buffer with the strings which correspond to the
@@ -92,57 +83,57 @@ static void tse_gstrings(struct net_device *dev, u32 stringset, u8 *buf)
 }
 
 static void tse_fill_stats(struct net_device *dev, struct ethtool_stats *dummy,
-			   u64 *buf)
+				u64 *buf)
 {
-	struct altera_tse_private *priv = netdev_priv(dev);
-	struct altera_tse_mac *mac = priv->mac_dev;
+	struct alt_tse_private *priv = netdev_priv(dev);
+	struct alt_tse_mac *mac = &priv->regs->mac;
 	u64 ext;
 
-	buf[0] = (u64) ioread32(&mac->frames_transmitted_ok);
-	buf[1] = (u64) ioread32(&mac->frames_received_ok);
-	buf[2] = (u64) ioread32(&mac->frames_check_sequence_errors);
-	buf[3] = (u64) ioread32(&mac->alignment_errors);
+	buf[0] = (u64) ioread32(&mac->aFramesTransmittedOK);
+	buf[1] = (u64) ioread32(&mac->aFramesReceivedOK);
+	buf[2] = (u64) ioread32(&mac->aFramesCheckSequenceErrors);
+	buf[3] = (u64) ioread32(&mac->aAlignmentErrors);
 
 	/* Extended aOctetsTransmittedOK counter */
-	ext = (u64) ioread32(&mac->msb_octets_transmitted_ok) << 32;
-	ext |= (u64) ioread32(&mac->octets_transmitted_ok);
+	ext = (u64) ioread32(&mac->msb_aOctetsTransmittedOK) << 32;
+	ext |= (u64) ioread32(&mac->aOctetsTransmittedOK);
 	buf[4] = ext;
 
 	/* Extended aOctetsReceivedOK counter */
-	ext = (u64) ioread32(&mac->msb_octets_received_ok) << 32;
-	ext |= (u64) ioread32(&mac->octets_received_ok);
+	ext = (u64) ioread32(&mac->msb_aOctetsReceivedOK) << 32;
+	ext |= (u64) ioread32(&mac->aOctetsReceivedOK);
 	buf[5] = ext;
 
-	buf[6] = (u64) ioread32(&mac->tx_pause_mac_ctrl_frames);
-	buf[7] = (u64) ioread32(&mac->rx_pause_mac_ctrl_frames);
-	buf[8] = (u64) ioread32(&mac->if_in_errors);
-	buf[9] = (u64) ioread32(&mac->if_out_errors);
-	buf[10] = (u64) ioread32(&mac->if_in_ucast_pkts);
-	buf[11] = (u64) ioread32(&mac->if_in_multicast_pkts);
-	buf[12] = (u64) ioread32(&mac->if_in_broadcast_pkts);
-	buf[13] = (u64) ioread32(&mac->if_out_discards);
-	buf[14] = (u64) ioread32(&mac->if_out_ucast_pkts);
-	buf[15] = (u64) ioread32(&mac->if_out_multicast_pkts);
-	buf[16] = (u64) ioread32(&mac->if_out_broadcast_pkts);
-	buf[17] = (u64) ioread32(&mac->ether_stats_drop_events);
+	buf[6] = (u64) ioread32(&mac->aTxPAUSEMACCtrlFrames);
+	buf[7] = (u64) ioread32(&mac->aRxPAUSEMACCtrlFrames);
+	buf[8] = (u64) ioread32(&mac->ifInErrors);
+	buf[9] = (u64) ioread32(&mac->ifOutErrors);
+	buf[10] = (u64) ioread32(&mac->ifInUcastPkts);
+	buf[11] = (u64) ioread32(&mac->ifInMulticastPkts);
+	buf[12] = (u64) ioread32(&mac->ifInBroadcastPkts);
+	buf[13] = (u64) ioread32(&mac->ifOutDiscards);
+	buf[14] = (u64) ioread32(&mac->ifOutUcastPkts);
+	buf[15] = (u64) ioread32(&mac->ifOutMulticastPkts);
+	buf[16] = (u64) ioread32(&mac->ifOutBroadcastPkts);
+	buf[17] = (u64) ioread32(&mac->etherStatsDropEvents);
 
 	/* Extended etherStatsOctets counter */
-	ext = (u64) ioread32(&mac->msb_ether_stats_octets) << 32;
-	ext |= (u64) ioread32(&mac->ether_stats_octets);
+	ext = (u64) ioread32(&mac->msb_etherStatsOctets) << 32;
+	ext |= (u64) ioread32(&mac->etherStatsOctets);
 	buf[18] = ext;
 
-	buf[19] = (u64) ioread32(&mac->ether_stats_pkts);
-	buf[20] = (u64) ioread32(&mac->ether_stats_undersize_pkts);
-	buf[21] = (u64) ioread32(&mac->ether_stats_oversize_pkts);
-	buf[22] = (u64) ioread32(&mac->ether_stats_pkts_64_octets);
-	buf[23] = (u64) ioread32(&mac->ether_stats_pkts_65to127_octets);
-	buf[24] = (u64) ioread32(&mac->ether_stats_pkts_128to255_octets);
-	buf[25] = (u64) ioread32(&mac->ether_stats_pkts_256to511_octets);
-	buf[26] = (u64) ioread32(&mac->ether_stats_pkts_512to1023_octets);
-	buf[27] = (u64) ioread32(&mac->ether_stats_pkts_1024to1518_octets);
-	buf[28] = (u64) ioread32(&mac->ether_stats_pkts_1519tox_octets);
-	buf[29] = (u64) ioread32(&mac->ether_stats_jabbers);
-	buf[30] = (u64) ioread32(&mac->ether_stats_fragments);
+	buf[19] = (u64) ioread32(&mac->etherStatsPkts);
+	buf[20] = (u64) ioread32(&mac->etherStatsUndersizePkts);
+	buf[21] = (u64) ioread32(&mac->etherStatsOversizePkts);
+	buf[22] = (u64) ioread32(&mac->etherStatsPkts64Octets);
+	buf[23] = (u64) ioread32(&mac->etherStatsPkts65to127Octets);
+	buf[24] = (u64) ioread32(&mac->etherStatsPkts128to255Octets);
+	buf[25] = (u64) ioread32(&mac->etherStatsPkts256to511Octets);
+	buf[26] = (u64) ioread32(&mac->etherStatsPkts512to1023Octets);
+	buf[27] = (u64) ioread32(&mac->etherStatsPkts1024to1518Octets);
+	buf[28] = (u64) ioread32(&mac->etherStatsPkts1519toXOctets);
+	buf[29] = (u64) ioread32(&mac->etherStatsJabbers);
+	buf[30] = (u64) ioread32(&mac->etherStatsFragments);
 }
 
 static int tse_sset_count(struct net_device *dev, int sset)
@@ -157,36 +148,36 @@ static int tse_sset_count(struct net_device *dev, int sset)
 
 static u32 tse_get_msglevel(struct net_device *dev)
 {
-	struct altera_tse_private *priv = netdev_priv(dev);
+	struct alt_tse_private *priv = netdev_priv(dev);
 	return priv->msg_enable;
 }
 
 static void tse_set_msglevel(struct net_device *dev, uint32_t data)
 {
-	struct altera_tse_private *priv = netdev_priv(dev);
+	struct alt_tse_private *priv = netdev_priv(dev);
 	priv->msg_enable = data;
 }
 
 static int tse_reglen(struct net_device *dev)
 {
-	return sizeof(struct altera_tse_mac);
+	return sizeof(struct alt_tse_private);
 }
 
 static void tse_get_regs(struct net_device *dev, struct ethtool_regs *regs,
-			 void *regbuf)
+				void *regbuf)
 {
 	int i;
-	struct altera_tse_private *priv = netdev_priv(dev);
-	u32 *tse_mac_regs = (u32 *)priv->mac_dev;
-	u32 *buf = (u32 *)regbuf;
+	struct alt_tse_private *priv = netdev_priv(dev);
+	u32 *tse_mac_regs = (u32 *) priv;
+	u32 *buf = (u32 *) regbuf;
 
-	for (i = 0; i < sizeof(struct altera_tse_mac) / sizeof(u32); i++)
-		buf[i] = ioread32(&tse_mac_regs[i]);
+	for (i = 0; i < sizeof(struct alt_tse_private) / sizeof(u32); i++)
+		buf[i] = tse_mac_regs[i];
 }
 
 static int tse_get_settings(struct net_device *dev, struct ethtool_cmd *cmd)
 {
-	struct altera_tse_private *priv = netdev_priv(dev);
+	struct alt_tse_private *priv = netdev_priv(dev);
 	struct phy_device *phydev = priv->phydev;
 
 	if (phydev == NULL)
@@ -197,7 +188,7 @@ static int tse_get_settings(struct net_device *dev, struct ethtool_cmd *cmd)
 
 static int tse_set_settings(struct net_device *dev, struct ethtool_cmd *cmd)
 {
-	struct altera_tse_private *priv = netdev_priv(dev);
+	struct alt_tse_private *priv = netdev_priv(dev);
 	struct phy_device *phydev = priv->phydev;
 
 	if (phydev == NULL)
@@ -220,7 +211,7 @@ static const struct ethtool_ops tse_ethtool_ops = {
 	.set_msglevel = tse_set_msglevel,
 };
 
-void altera_tse_set_ethtool_ops(struct net_device *netdev)
+void tse_set_ethtool_ops(struct net_device *netdev)
 {
 	SET_ETHTOOL_OPS(netdev, &tse_ethtool_ops);
 }
