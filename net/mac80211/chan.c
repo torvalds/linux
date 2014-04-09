@@ -431,13 +431,10 @@ ieee80211_new_chanctx(struct ieee80211_local *local,
 	return ctx;
 }
 
-static void ieee80211_free_chanctx(struct ieee80211_local *local,
-				   struct ieee80211_chanctx *ctx)
+static void ieee80211_del_chanctx(struct ieee80211_local *local,
+				  struct ieee80211_chanctx *ctx)
 {
-	bool check_single_channel = false;
 	lockdep_assert_held(&local->chanctx_mtx);
-
-	WARN_ON_ONCE(ctx->refcount != 0);
 
 	if (!local->use_chanctx) {
 		struct cfg80211_chan_def *chandef = &local->_oper_chandef;
@@ -448,8 +445,9 @@ static void ieee80211_free_chanctx(struct ieee80211_local *local,
 		/* NOTE: Disabling radar is only valid here for
 		 * single channel context. To be sure, check it ...
 		 */
-		if (local->hw.conf.radar_enabled)
-			check_single_channel = true;
+		WARN_ON(local->hw.conf.radar_enabled &&
+			!list_empty(&local->chanctx_list));
+
 		local->hw.conf.radar_enabled = false;
 
 		ieee80211_hw_config(local, 0);
@@ -457,13 +455,19 @@ static void ieee80211_free_chanctx(struct ieee80211_local *local,
 		drv_remove_chanctx(local, ctx);
 	}
 
-	list_del_rcu(&ctx->list);
-	kfree_rcu(ctx, rcu_head);
-
-	/* throw a warning if this wasn't the only channel context. */
-	WARN_ON(check_single_channel && !list_empty(&local->chanctx_list));
-
 	ieee80211_recalc_idle(local);
+}
+
+static void ieee80211_free_chanctx(struct ieee80211_local *local,
+				   struct ieee80211_chanctx *ctx)
+{
+	lockdep_assert_held(&local->chanctx_mtx);
+
+	WARN_ON_ONCE(ctx->refcount != 0);
+
+	list_del_rcu(&ctx->list);
+	ieee80211_del_chanctx(local, ctx);
+	kfree_rcu(ctx, rcu_head);
 }
 
 static void ieee80211_recalc_chanctx_chantype(struct ieee80211_local *local,
