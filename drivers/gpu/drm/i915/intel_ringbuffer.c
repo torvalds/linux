@@ -523,12 +523,11 @@ static int init_ring_common(struct intel_ring_buffer *ring)
 		     I915_READ_START(ring) == i915_gem_obj_ggtt_offset(obj) &&
 		     (I915_READ_HEAD(ring) & HEAD_ADDR) == 0, 50)) {
 		DRM_ERROR("%s initialization failed "
-				"ctl %08x head %08x tail %08x start %08x\n",
-				ring->name,
-				I915_READ_CTL(ring),
-				I915_READ_HEAD(ring),
-				I915_READ_TAIL(ring),
-				I915_READ_START(ring));
+			  "ctl %08x (valid? %d) head %08x tail %08x start %08x [expected %08lx]\n",
+			  ring->name,
+			  I915_READ_CTL(ring), I915_READ_CTL(ring) & RING_VALID,
+			  I915_READ_HEAD(ring), I915_READ_TAIL(ring),
+			  I915_READ_START(ring), (unsigned long)i915_gem_obj_ggtt_offset(obj));
 		ret = -EIO;
 		goto out;
 	}
