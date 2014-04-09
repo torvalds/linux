@@ -180,7 +180,7 @@ static inline int ieee80211_put_snap(u8 *data, u16 h_proto)
 int ieee80211_encrypt_fragment(struct ieee80211_device *ieee,
 			       struct sk_buff *frag, int hdr_len)
 {
-	struct ieee80211_crypt_data* crypt = ieee->crypt[ieee->tx_keyidx];
+	struct ieee80211_crypt_data *crypt = ieee->crypt[ieee->tx_keyidx];
 	int res;
 
 	/*
@@ -285,7 +285,7 @@ static int ieee80211_classify(struct sk_buff *skb,
 
 	if (!network->QoS_Enable) {
 		skb->priority = 0;
-		return(wme_UP);
+		return wme_UP;
 	}
 
 	if (eh->ether_type == __constant_htons(ETHERTYPE_IP)) {
@@ -304,7 +304,7 @@ static int ieee80211_classify(struct sk_buff *skb,
 	}
 
 	skb->priority = wme_UP;
-	return(wme_UP);
+	return wme_UP;
 }
 
 /* SKBs are added to the ieee->tx_queue. */
