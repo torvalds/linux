@@ -908,7 +908,12 @@ void rtw_indicate_connect23a(struct rtw_adapter *padapter)
 
 		rtw_led_control(padapter, LED_CTL_LINK);
 
-		rtw_os_indicate_connect23a(padapter);
+		rtw_cfg80211_indicate_connect(padapter);
+
+		netif_carrier_on(padapter->pnetdev);
+
+		if (padapter->pid[2] != 0)
+			kill_pid(find_vpid(padapter->pid[2]), SIGALRM, 1);
 	}
 
 	rtw_set_roaming(padapter, 0);
