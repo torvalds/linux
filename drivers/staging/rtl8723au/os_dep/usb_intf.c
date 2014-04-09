@@ -509,7 +509,8 @@ static int rtw_suspend(struct usb_interface *pusb_intf, pm_message_t message)
 	up(&pwrpriv->lock);
 
 	if (check_fwstate(pmlmepriv, _FW_UNDER_SURVEY))
-		rtw_indicate_scan_done23a(padapter, 1);
+		rtw_cfg80211_indicate_scan_done(
+			wdev_to_priv(padapter->rtw_wdev), true);
 
 	if (check_fwstate(pmlmepriv, _FW_UNDER_LINKING))
 		rtw_indicate_disconnect23a(padapter);

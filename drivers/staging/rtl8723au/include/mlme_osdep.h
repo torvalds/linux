@@ -20,7 +20,6 @@
 
 void rtw_os_indicate_disconnect23a(struct rtw_adapter *adapter);
 void rtw_os_indicate_connect23a(struct rtw_adapter *adapter);
-void rtw_os_indicate_scan_done23a(struct rtw_adapter *padapter, bool aborted);
 void rtw_report_sec_ie23a(struct rtw_adapter *adapter, u8 authmode, u8 *sec_ie);
 
 void rtw_reset_securitypriv23a(struct rtw_adapter *adapter);

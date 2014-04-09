@@ -553,7 +553,6 @@ void rtw_free_assoc_resources23a(struct rtw_adapter *adapter,
 			      int lock_scanned_queue);
 void rtw_indicate_disconnect23a(struct rtw_adapter *adapter);
 void rtw_indicate_connect23a(struct rtw_adapter *adapter);
-void rtw_indicate_scan_done23a(struct rtw_adapter *padapter, bool aborted);
 void rtw_scan_abort23a(struct rtw_adapter *adapter);
 
 int rtw_restruct_sec_ie23a(struct rtw_adapter *adapter, u8 *in_ie, u8 *out_ie,

@@ -30,12 +30,6 @@ void rtw_os_indicate_connect23a(struct rtw_adapter *adapter)
 		rtw_signal_process(adapter->pid[2], SIGALRM);
 }
 
-void rtw_os_indicate_scan_done23a(struct rtw_adapter *padapter, bool aborted)
-{
-	rtw_cfg80211_indicate_scan_done(wdev_to_priv(padapter->rtw_wdev),
-					aborted);
-}
-
 static struct rt_pmkid_list backupPMKIDList[NUM_PMKID_CACHE];
 
 void rtw_reset_securitypriv23a(struct rtw_adapter *adapter)

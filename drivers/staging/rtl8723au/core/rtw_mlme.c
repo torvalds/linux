@@ -959,11 +959,6 @@ void rtw_indicate_disconnect23a(struct rtw_adapter *padapter)
 
 }
 
-inline void rtw_indicate_scan_done23a(struct rtw_adapter *padapter, bool aborted)
-{
-	rtw_os_indicate_scan_done23a(padapter, aborted);
-}
-
 void rtw_scan_abort23a(struct rtw_adapter *adapter)
 {
 	unsigned long start;
@@ -985,7 +980,8 @@ void rtw_scan_abort23a(struct rtw_adapter *adapter)
 	if (check_fwstate(pmlmepriv, _FW_UNDER_SURVEY)) {
 		if (!adapter->bDriverStopped && !adapter->bSurpriseRemoved)
 			DBG_8723A(FUNC_NDEV_FMT"waiting for scan_abort time out!\n", FUNC_NDEV_ARG(adapter->pnetdev));
-		rtw_indicate_scan_done23a(adapter, true);
+		rtw_cfg80211_indicate_scan_done(wdev_to_priv(adapter->rtw_wdev),
+						true);
 	}
 	pmlmeext->scan_abort = false;
 }
@@ -1546,7 +1542,7 @@ void rtw_scan_timeout_handler23a(unsigned long data)
 
 	spin_unlock_bh(&pmlmepriv->lock);
 
-	rtw_indicate_scan_done23a(adapter, true);
+	rtw_cfg80211_indicate_scan_done(wdev_to_priv(adapter->rtw_wdev), true);
 }
 
 static void rtw_auto_scan_handler(struct rtw_adapter *padapter)
