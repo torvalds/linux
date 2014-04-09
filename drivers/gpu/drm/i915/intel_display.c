@@ -1694,6 +1694,7 @@ static void vlv_disable_pll(struct drm_i915_private *dev_priv, enum pipe pipe)
 
 static void chv_disable_pll(struct drm_i915_private *dev_priv, enum pipe pipe)
 {
+	enum dpio_channel port = vlv_pipe_to_channel(pipe);
 	u32 val;
 
 	/* Make sure the pipe isn't still relying on us */
@@ -1705,6 +1706,15 @@ static void chv_disable_pll(struct drm_i915_private *dev_priv, enum pipe pipe)
 		val |= DPLL_INTEGRATED_CRI_CLK_VLV;
 	I915_WRITE(DPLL(pipe), val);
 	POSTING_READ(DPLL(pipe));
+
+	mutex_lock(&dev_priv->dpio_lock);
+
+	/* Disable 10bit clock to display controller */
+	val = vlv_dpio_read(dev_priv, pipe, CHV_CMN_DW14(port));
+	val &= ~DPIO_DCLKP_EN;
+	vlv_dpio_write(dev_priv, pipe, CHV_CMN_DW14(port), val);
+
+	mutex_unlock(&dev_priv->dpio_lock);
 }
 
 void vlv_wait_port_ready(struct drm_i915_private *dev_priv,
@@ -5537,11 +5547,6 @@ static void chv_update_pll(struct intel_crtc *crtc)
 	val = vlv_dpio_read(dev_priv, pipe, VLV_PCS_DW0(port));
 	val &= ~(DPIO_PCS_TX_LANE2_RESET | DPIO_PCS_TX_LANE1_RESET);
 	vlv_dpio_write(dev_priv, pipe, VLV_PCS_DW0(port), val);
-
-	/* Disable 10bit clock to display controller */
-	val = vlv_dpio_read(dev_priv, pipe, CHV_CMN_DW14(port));
-	val &= ~DPIO_DCLKP_EN;
-	vlv_dpio_write(dev_priv, pipe, CHV_CMN_DW14(port), val);
 
 	/* p1 and p2 divider */
 	vlv_dpio_write(dev_priv, pipe, CHV_CMN_DW13(port),
