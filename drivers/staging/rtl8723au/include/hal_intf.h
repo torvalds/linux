@@ -214,7 +214,6 @@ enum hardware_type {
 };
 
 #define GET_EEPROM_EFUSE_PRIV(adapter) (&adapter->eeprompriv)
-#define is_boot_from_eeprom(adapter) (adapter->eeprompriv.EepromOrEfuse)
 
 extern int rtw_ht_enable23A;
 extern int rtw_cbw40_enable23A;
