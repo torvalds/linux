@@ -32,9 +32,6 @@ struct tc3589x_gpio {
 	struct device *dev;
 	struct mutex irq_lock;
 	struct irq_domain *domain;
-
-	int irq_base;
-
 	/* Caches of interrupt control registers for bus_lock */
 	u8 regs[CACHE_NR_REGS][CACHE_NR_BANKS];
 	u8 oldregs[CACHE_NR_REGS][CACHE_NR_BANKS];
@@ -290,8 +287,6 @@ static struct irq_domain_ops tc3589x_irq_ops = {
 static int tc3589x_gpio_irq_init(struct tc3589x_gpio *tc3589x_gpio,
 				struct device_node *np)
 {
-	int base = tc3589x_gpio->irq_base;
-
 	/*
 	 * If this results in a linear domain, irq_create_mapping() will
 	 * take care of allocating IRQ descriptors at runtime. When a base
@@ -299,7 +294,7 @@ static int tc3589x_gpio_irq_init(struct tc3589x_gpio *tc3589x_gpio,
 	 * domain is instantiated.
 	 */
 	tc3589x_gpio->domain = irq_domain_add_simple(np,
-			tc3589x_gpio->chip.ngpio, base, &tc3589x_irq_ops,
+			tc3589x_gpio->chip.ngpio, 0, &tc3589x_irq_ops,
 			tc3589x_gpio);
 	if (!tc3589x_gpio->domain) {
 		dev_err(tc3589x_gpio->dev, "Failed to create irqdomain\n");
@@ -347,9 +342,6 @@ static int tc3589x_gpio_probe(struct platform_device *pdev)
 #ifdef CONFIG_OF_GPIO
 	tc3589x_gpio->chip.of_node = np;
 #endif
-
-	tc3589x_gpio->irq_base = tc3589x->irq_base ?
-		tc3589x->irq_base + TC3589x_INT_GPIO(0) : 0;
 
 	/* Bring the GPIO module out of reset */
 	ret = tc3589x_set_bits(tc3589x, TC3589x_RSTCTRL,
