@@ -96,7 +96,7 @@ Configuration options:
 				 * correct channel number on every 12 bit sample
 				 */
 
-#define IORANGE_9118 	64	/* I hope */
+#define IORANGE_9118	64	/* I hope */
 #define PCI9118_CHANLEN	255	/*
 				 * len of chanlist, some source say 256,
 				 * but reality looks like 255 :-(
@@ -383,7 +383,7 @@ struct pci9118_private {
 						 * users(0-AI, 1-AO, 2-DI, 3-DO)
 						 */
 	unsigned int cnt0_divisor;		/* actual CNT0 divisor */
-	void (*int_ai_func) (struct comedi_device *, struct comedi_subdevice *,
+	void (*int_ai_func)(struct comedi_device *, struct comedi_subdevice *,
 		unsigned short,
 		unsigned int,
 		unsigned short);	/*
@@ -1045,7 +1045,7 @@ static void interrupt_pci9118_ai_dma(struct comedi_device *dev,
 		move_block_from_dma(dev, s,
 				    devpriv->dmabuf_virt[devpriv->dma_actbuf],
 				    samplesinbuf);
-		m = m - sampls;		/* m= how many samples was transferred */
+		m = m - sampls;		/* m=how many samples was transferred */
 	}
 
 	if (!devpriv->ai_neverending) {
