@@ -561,6 +561,7 @@ vlv_dport_to_channel(struct intel_digital_port *dport)
 {
 	switch (dport->port) {
 	case PORT_B:
+	case PORT_D:
 		return DPIO_CH0;
 	case PORT_C:
 		return DPIO_CH1;

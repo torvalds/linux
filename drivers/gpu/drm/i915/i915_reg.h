@@ -29,6 +29,8 @@
 #define _TRANSCODER(tran, a, b) ((a) + (tran)*((b)-(a)))
 
 #define _PORT(port, a, b) ((a) + (port)*((b)-(a)))
+#define _PIPE3(pipe, a, b, c) (pipe < 2 ? _PIPE(pipe, a, b) : c)
+#define _PORT3(port, a, b, c) (port < 2 ? _PORT(port, a, b) : c)
 
 #define _MASKED_BIT_ENABLE(a) (((a) << 16) | (a))
 #define _MASKED_BIT_DISABLE(a) ((a) << 16)
@@ -1417,6 +1419,10 @@ enum punit_power_well {
 #define   DPLL_PORTB_READY_MASK		(0xf)
 
 #define   DPLL_FPA01_P1_POST_DIV_MASK_I830	0x001f0000
+
+/* Additional CHV pll/phy registers */
+#define DPIO_PHY_STATUS			(VLV_DISPLAY_BASE + 0x6240)
+#define   DPLL_PORTD_READY_MASK		(0xf)
 /*
  * The i830 generation, in LVDS mode, defines P1 as the bit number set within
  * this field (only one bit may be set).

@@ -1535,21 +1535,28 @@ void vlv_wait_port_ready(struct drm_i915_private *dev_priv,
 		struct intel_digital_port *dport)
 {
 	u32 port_mask;
+	int dpll_reg;
 
 	switch (dport->port) {
 	case PORT_B:
 		port_mask = DPLL_PORTB_READY_MASK;
+		dpll_reg = DPLL(0);
 		break;
 	case PORT_C:
 		port_mask = DPLL_PORTC_READY_MASK;
+		dpll_reg = DPLL(0);
+		break;
+	case PORT_D:
+		port_mask = DPLL_PORTD_READY_MASK;
+		dpll_reg = DPIO_PHY_STATUS;
 		break;
 	default:
 		BUG();
 	}
 
-	if (wait_for((I915_READ(DPLL(0)) & port_mask) == 0, 1000))
+	if (wait_for((I915_READ(dpll_reg) & port_mask) == 0, 1000))
 		WARN(1, "timed out waiting for port %c ready: 0x%08x\n",
-		     port_name(dport->port), I915_READ(DPLL(0)));
+		     port_name(dport->port), I915_READ(dpll_reg));
 }
 
 /**
