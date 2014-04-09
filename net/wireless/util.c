@@ -839,6 +839,9 @@ void cfg80211_process_wdev_events(struct wireless_dev *wdev)
 			__cfg80211_ibss_joined(wdev->netdev, ev->ij.bssid,
 					       ev->ij.channel);
 			break;
+		case EVENT_STOPPED:
+			__cfg80211_leave(wiphy_to_rdev(wdev->wiphy), wdev);
+			break;
 		}
 		wdev_unlock(wdev);
 
