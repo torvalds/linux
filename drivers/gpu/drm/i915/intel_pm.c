@@ -5383,6 +5383,12 @@ static void cherryview_init_clock_gating(struct drm_device *dev)
 	/* WaDisableThreadStallDopClockGating:chv */
 	I915_WRITE(GEN8_ROW_CHICKEN,
 		   _MASKED_BIT_ENABLE(STALL_DOP_GATING_DISABLE));
+
+	/* WaVSRefCountFullforceMissDisable:chv */
+	/* WaDSRefCountFullforceMissDisable:chv */
+	I915_WRITE(GEN7_FF_THREAD_MODE,
+		   I915_READ(GEN7_FF_THREAD_MODE) &
+		   ~(GEN8_FF_DS_REF_CNT_FFME | GEN7_FF_VS_REF_CNT_FFME));
 }
 
 static void g4x_init_clock_gating(struct drm_device *dev)
