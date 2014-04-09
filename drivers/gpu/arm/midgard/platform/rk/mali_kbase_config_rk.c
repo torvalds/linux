@@ -109,7 +109,7 @@ static int mali_pm_notifier(struct notifier_block *nb,unsigned long event,void* 
 		case PM_SUSPEND_PREPARE:
 #ifdef CONFIG_MALI_MIDGARD_DVFS
 			//if (kbase_platform_dvfs_enable(false, MALI_DVFS_BL_CONFIG_FREQ)!= MALI_TRUE)
-			if (kbase_platform_dvfs_enable(false, p_mali_dvfs_infotbl[MALI_DVFS_STEP-1].clock)!= MALI_TRUE)
+			if (kbase_platform_dvfs_enable(false, p_mali_dvfs_infotbl[0].clock)!= MALI_TRUE)
 				err = NOTIFY_BAD;
 #endif
 			break;
@@ -219,7 +219,7 @@ static int pm_callback_runtime_on(kbase_device *kbdev)
 #ifdef CONFIG_MALI_MIDGARD_DVFS
 	if (platform->dvfs_enabled) {
 		//if (kbase_platform_dvfs_enable(true, MALI_DVFS_START_FREQ)!= MALI_TRUE)
-		if (kbase_platform_dvfs_enable(true, p_mali_dvfs_infotbl[0].clock)!= MALI_TRUE)
+		if (kbase_platform_dvfs_enable(true, p_mali_dvfs_infotbl[MALI_DVFS_STEP-1].clock)!= MALI_TRUE)
 			return -EPERM;
 	} else {
 		if (kbase_platform_dvfs_enable(false, MALI_DVFS_CURRENT_FREQ)!= MALI_TRUE)
