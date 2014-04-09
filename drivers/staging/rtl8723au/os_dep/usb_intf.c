@@ -353,6 +353,7 @@ int rtw_hw_suspend23a(struct rtw_adapter *padapter)
 {
 	struct pwrctrl_priv *pwrpriv = &padapter->pwrctrlpriv;
 	struct net_device *pnetdev = padapter->pnetdev;
+	struct mlme_priv *pmlmepriv = &padapter->mlmepriv;
 
 	if ((!padapter->bup) || (padapter->bDriverStopped) ||
 	    (padapter->bSurpriseRemoved)) {
@@ -380,20 +381,16 @@ int rtw_hw_suspend23a(struct rtw_adapter *padapter)
 
 		/* s2-2.  indicate disconnect to os */
 		/* rtw_indicate_disconnect23a(padapter); */
-		{
-			struct	mlme_priv *pmlmepriv = &padapter->mlmepriv;
+		if (check_fwstate(pmlmepriv, _FW_LINKED)) {
+			_clr_fwstate_(pmlmepriv, _FW_LINKED);
 
-			if (check_fwstate(pmlmepriv, _FW_LINKED)) {
-				_clr_fwstate_(pmlmepriv, _FW_LINKED);
+			rtw_led_control(padapter, LED_CTL_NO_LINK);
 
-				rtw_led_control(padapter, LED_CTL_NO_LINK);
+			rtw_os_indicate_disconnect23a(padapter);
 
-				rtw_os_indicate_disconnect23a(padapter);
-
-				/* donnot enqueue cmd */
-				rtw_lps_ctrl_wk_cmd23a(padapter,
-						    LPS_CTRL_DISCONNECT, 0);
-			}
+			/* donnot enqueue cmd */
+			rtw_lps_ctrl_wk_cmd23a(padapter,
+					       LPS_CTRL_DISCONNECT, 0);
 		}
 		/* s2-3. */
 		rtw_free_assoc_resources23a(padapter, 1);
