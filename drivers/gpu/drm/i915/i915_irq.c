@@ -1787,30 +1787,29 @@ static irqreturn_t cherryview_irq_handler(int irq, void *arg)
 	u32 master_ctl, iir;
 	irqreturn_t ret = IRQ_NONE;
 
-	master_ctl = I915_READ(GEN8_MASTER_IRQ) & ~DE_MASTER_IRQ_CONTROL;
-	iir = I915_READ(VLV_IIR);
+	for (;;) {
+		master_ctl = I915_READ(GEN8_MASTER_IRQ) & ~GEN8_MASTER_IRQ_CONTROL;
+		iir = I915_READ(VLV_IIR);
 
-	if (master_ctl == 0 && iir == 0)
-		return IRQ_NONE;
+		if (master_ctl == 0 && iir == 0)
+			break;
 
-	I915_WRITE(GEN8_MASTER_IRQ, 0);
+		I915_WRITE(GEN8_MASTER_IRQ, 0);
 
-	gen8_gt_irq_handler(dev, dev_priv, master_ctl);
+		gen8_gt_irq_handler(dev, dev_priv, master_ctl);
 
-	valleyview_pipestat_irq_handler(dev, iir);
+		valleyview_pipestat_irq_handler(dev, iir);
 
-	/* Consume port.  Then clear IIR or we'll miss events */
-	if (iir & I915_DISPLAY_PORT_INTERRUPT) {
+		/* Consume port.  Then clear IIR or we'll miss events */
 		i9xx_hpd_irq_handler(dev);
+
+		I915_WRITE(VLV_IIR, iir);
+
+		I915_WRITE(GEN8_MASTER_IRQ, DE_MASTER_IRQ_CONTROL);
+		POSTING_READ(GEN8_MASTER_IRQ);
+
 		ret = IRQ_HANDLED;
 	}
-
-	I915_WRITE(VLV_IIR, iir);
-
-	I915_WRITE(GEN8_MASTER_IRQ, DE_MASTER_IRQ_CONTROL);
-	POSTING_READ(GEN8_MASTER_IRQ);
-
-	ret = IRQ_HANDLED;
 
 	return ret;
 }
