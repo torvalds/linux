@@ -566,7 +566,7 @@ int rtw_resume_process23a(struct rtw_adapter *padapter)
 
 	if (padapter->pid[1] != 0) {
 		DBG_8723A("pid[1]:%d\n", padapter->pid[1]);
-		rtw_signal_process(padapter->pid[1], SIGUSR2);
+		kill_pid(find_vpid(padapter->pid[1]), SIGUSR2, 1);
 	}
 
 	rtw23a_roaming(padapter, NULL);

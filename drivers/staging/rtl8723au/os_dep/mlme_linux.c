@@ -27,7 +27,7 @@ void rtw_os_indicate_connect23a(struct rtw_adapter *adapter)
 	netif_carrier_on(adapter->pnetdev);
 
 	if (adapter->pid[2] != 0)
-		rtw_signal_process(adapter->pid[2], SIGALRM);
+		kill_pid(find_vpid(adapter->pid[2]), SIGALRM, 1);
 }
 
 static struct rt_pmkid_list backupPMKIDList[NUM_PMKID_CACHE];

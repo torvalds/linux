@@ -76,7 +76,7 @@ static void dm_CheckPbcGPIO(struct rtw_adapter *padapter)
 			return;
 		}
 
-		rtw_signal_process(padapter->pid[0], SIGUSR1);
+		kill_pid(find_vpid(padapter->pid[0]), SIGUSR1, 1);
 	}
 }
 

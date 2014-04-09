@@ -174,8 +174,6 @@ void rtw_unlock_suspend(void);
 #define FUNC_ADPT_FMT "%s(%s)"
 #define FUNC_ADPT_ARG(adapter) __func__, adapter->pnetdev->name
 
-#define rtw_signal_process(pid, sig) kill_pid(find_vpid((pid)),(sig), 1)
-
 u64 rtw_modular6423a(u64 x, u64 y);
 u64 rtw_division6423a(u64 x, u64 y);
 
