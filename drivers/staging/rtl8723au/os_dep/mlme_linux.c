@@ -36,9 +36,6 @@ void rtw_reset_securitypriv23a(struct rtw_adapter *adapter)
 		 *  When the countermeasure is trigger, the driver have to
 		 *  disconnect with AP for 60 seconds.
 		 */
-		memset(&backupPMKIDList[0], 0x00, sizeof(struct rt_pmkid_list) *
-		       NUM_PMKID_CACHE);
-
 		memcpy(&backupPMKIDList[0], &adapter->securitypriv.PMKIDList[0],
 		       sizeof(struct rt_pmkid_list) * NUM_PMKID_CACHE);
 		backupPMKIDIndex = adapter->securitypriv.PMKIDIndex;
