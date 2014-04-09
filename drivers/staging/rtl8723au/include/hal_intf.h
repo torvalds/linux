@@ -39,8 +39,6 @@ enum HW_VARIABLES {
 	HW_VAR_INIT_RTS_RATE,
 	HW_VAR_TXPAUSE,
 	HW_VAR_BCN_FUNC,
-	HW_VAR_CHECK_BSSID,
-	HW_VAR_MLME_JOIN,
 	HW_VAR_BEACON_INTERVAL,
 	HW_VAR_SLOT_TIME,
 	HW_VAR_RESP_SIFS,
@@ -379,5 +377,6 @@ void hw_var_set_mlme_disconnect(struct rtw_adapter *padapter);
 void hw_var_set_opmode(struct rtw_adapter *padapter, u8 mode);
 void hw_var_set_macaddr(struct rtw_adapter *padapter, u8 *val);
 void hw_var_set_bssid(struct rtw_adapter *padapter, u8 *val);
+void hw_var_set_mlme_join(struct rtw_adapter *padapter, u8 type);
 
 #endif /* __HAL_INTF_H__ */

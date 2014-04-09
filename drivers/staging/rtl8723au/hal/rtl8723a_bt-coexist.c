@@ -3944,7 +3944,6 @@ bthci_CmdAMPTestEnd(struct rtw_adapter *padapter,
 	enum hci_status status = HCI_STATUS_SUCCESS;
 	struct bt_30info *pBTInfo = GET_BT_INFO(padapter);
 	struct bt_hci_info *pBtHciInfo = &pBTInfo->BtHciInfo;
-	u8 bFilterOutNonAssociatedBSSID = true;
 
 	if (!pBtHciInfo->bInTestMode) {
 		RTPRINT(FIOCTL, (IOCTL_BT_EVENT|IOCTL_BT_LOGO), ("Not in Test mode, return status = HCI_STATUS_CMD_DISALLOW\n"));
@@ -3956,7 +3955,7 @@ bthci_CmdAMPTestEnd(struct rtw_adapter *padapter,
 
 	del_timer_sync(&pBTInfo->BTTestSendPacketTimer);
 
-	rtw_hal_set_hwreg23a(padapter, HW_VAR_CHECK_BSSID, (u8 *)(&bFilterOutNonAssociatedBSSID));
+	rtl8723a_check_bssid(padapter, true);
 
 	/* send command complete event here when all data are received. */
 	{
@@ -4057,8 +4056,7 @@ bthci_CmdAMPTestCommand(struct rtw_adapter *padapter,
 			  jiffies + msecs_to_jiffies(50));
 		RTPRINT(FIOCTL, (IOCTL_BT_EVENT|IOCTL_BT_LOGO), ("TX Single Test \n"));
 	} else if (pBtHciInfo->TestScenario == 0x02) {
-		u8 bFilterOutNonAssociatedBSSID = false;
-		rtw_hal_set_hwreg23a(padapter, HW_VAR_CHECK_BSSID, (u8 *)(&bFilterOutNonAssociatedBSSID));
+		rtl8723a_check_bssid(padapter, false);
 		RTPRINT(FIOCTL, (IOCTL_BT_EVENT|IOCTL_BT_LOGO), ("Receive Frame Test \n"));
 	}
 

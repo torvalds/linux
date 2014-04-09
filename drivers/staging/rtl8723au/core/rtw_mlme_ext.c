@@ -7969,7 +7969,6 @@ void start_create_ibss23a(struct rtw_adapter* padapter)
 {
 	unsigned short	caps;
 	u8	val8;
-	u8	join_type;
 	struct mlme_ext_priv	*pmlmeext = &padapter->mlmeextpriv;
 	struct mlme_ext_info *pmlmeinfo = &pmlmeext->mlmext_info;
 	struct wlan_bssid_ex *pnetwork = &pmlmeinfo->network;
@@ -8008,8 +8007,7 @@ void start_create_ibss23a(struct rtw_adapter* padapter)
 		else
 		{
 			hw_var_set_bssid(padapter, padapter->registrypriv.dev_network.MacAddress);
-			join_type = 0;
-			rtw_hal_set_hwreg23a(padapter, HW_VAR_MLME_JOIN, (u8 *)(&join_type));
+			hw_var_set_mlme_join(padapter, 0);
 
 			report_join_res23a(padapter, 1);
 			pmlmeinfo->state |= WIFI_FW_ASSOC_SUCCESS;
@@ -8690,17 +8688,15 @@ void mlmeext_joinbss_event_callback23a(struct rtw_adapter *padapter, int join_re
 	struct mlme_ext_info *pmlmeinfo = &pmlmeext->mlmext_info;
 	struct wlan_bssid_ex *cur_network = &pmlmeinfo->network;
 	struct sta_priv		*pstapriv = &padapter->stapriv;
-	u8	join_type;
 	u16 media_status;
 
-	if (join_res < 0)
-	{
-		join_type = 1;
-		rtw_hal_set_hwreg23a(padapter, HW_VAR_MLME_JOIN, (u8 *)(&join_type));
+	if (join_res < 0) {
+		hw_var_set_mlme_join(padapter, 1);
 		hw_var_set_bssid(padapter, null_addr);
 
 		/* restore to initial setting. */
-		update_tx_basic_rate23a(padapter, padapter->registrypriv.wireless_mode);
+		update_tx_basic_rate23a(padapter,
+					padapter->registrypriv.wireless_mode);
 
 		goto exit_mlmeext_joinbss_event_callback23a;
 	}
@@ -8756,11 +8752,9 @@ void mlmeext_joinbss_event_callback23a(struct rtw_adapter *padapter, int join_re
 		rtw_hal_set_hwreg23a(padapter, HW_VAR_H2C_MEDIA_STATUS_RPT, (u8 *)&media_status);
 	}
 
-	join_type = 2;
-	rtw_hal_set_hwreg23a(padapter, HW_VAR_MLME_JOIN, (u8 *)(&join_type));
+	hw_var_set_mlme_join(padapter, 2);
 
-	if ((pmlmeinfo->state&0x03) == WIFI_FW_STATION_STATE)
-	{
+	if ((pmlmeinfo->state&0x03) == WIFI_FW_STATION_STATE) {
 		/*  correcting TSF */
 		correct_TSF23a(padapter, pmlmeext);
 
@@ -8777,7 +8771,6 @@ void mlmeext_sta_add_event_callback23a(struct rtw_adapter *padapter, struct sta_
 {
 	struct mlme_ext_priv *pmlmeext = &padapter->mlmeextpriv;
 	struct mlme_ext_info *pmlmeinfo = &pmlmeext->mlmext_info;
-	u8	join_type;
 
 	DBG_8723A("%s\n", __func__);
 
@@ -8809,8 +8802,7 @@ void mlmeext_sta_add_event_callback23a(struct rtw_adapter *padapter, struct sta_
 
 		}
 
-		join_type = 2;
-		rtw_hal_set_hwreg23a(padapter, HW_VAR_MLME_JOIN, (u8 *)(&join_type));
+		hw_var_set_mlme_join(padapter, 2);
 	}
 
 	pmlmeinfo->FW_sta_info[psta->mac_id].psta = psta;
@@ -9266,7 +9258,6 @@ u8 createbss_hdl23a(struct rtw_adapter *padapter, u8 *pbuf)
 
 u8 join_cmd_hdl23a(struct rtw_adapter *padapter, u8 *pbuf)
 {
-	u8	join_type;
 	struct ndis_802_11_var_ies *	pIE;
 	struct registry_priv	*pregpriv = &padapter->registrypriv;
 	struct mlme_ext_priv	*pmlmeext = &padapter->mlmeextpriv;
@@ -9386,8 +9377,7 @@ u8 join_cmd_hdl23a(struct rtw_adapter *padapter, u8 *pbuf)
 	   (u8 *)(&initialgain)); */
 
 	hw_var_set_bssid(padapter, pmlmeinfo->network.MacAddress);
-	join_type = 0;
-	rtw_hal_set_hwreg23a(padapter, HW_VAR_MLME_JOIN, (u8 *)(&join_type));
+	hw_var_set_mlme_join(padapter, 0);
 
 	/* cancel link timer */
 	del_timer_sync(&pmlmeext->link_timer);

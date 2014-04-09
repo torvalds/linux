@@ -3067,7 +3067,7 @@ void hw_var_set_mlme_disconnect(struct rtw_adapter *padapter)
 	SetBcnCtrlReg23a(padapter, DIS_TSF_UDT, 0);
 }
 
-static void hw_var_set_mlme_join(struct rtw_adapter *padapter, u8 type)
+void hw_var_set_mlme_join(struct rtw_adapter *padapter, u8 type)
 {
 	u8 RetryLimit = 0x30;
 
@@ -3141,14 +3141,6 @@ void SetHwReg8723A(struct rtw_adapter *padapter, u8 variable, u8 *val)
 
 	case HW_VAR_BCN_FUNC:
 		rtl8723a_set_bcn_func(padapter, *val);
-		break;
-
-	case HW_VAR_CHECK_BSSID:
-		rtl8723a_check_bssid(padapter, *val);
-		break;
-
-	case HW_VAR_MLME_JOIN:
-		hw_var_set_mlme_join(padapter, *val);
 		break;
 
 	case HW_VAR_BEACON_INTERVAL:

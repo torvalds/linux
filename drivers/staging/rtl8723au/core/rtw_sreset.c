@@ -143,11 +143,7 @@ static void sreset_restore_network_station(struct rtw_adapter *padapter)
 	/* Switch_DM_Func23a(padapter, DYNAMIC_FUNC_DISABLE, false); */
 
 	hw_var_set_bssid(padapter, pmlmeinfo->network.MacAddress);
-
-	{
-		u8	join_type = 0;
-		rtw_hal_set_hwreg23a(padapter, HW_VAR_MLME_JOIN, (u8 *)(&join_type));
-	}
+	hw_var_set_mlme_join(padapter, 0);
 
 	Set_MSR23a(padapter, (pmlmeinfo->state & 0x3));
 
