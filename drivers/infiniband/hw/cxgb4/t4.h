@@ -620,6 +620,9 @@ static inline int t4_next_hw_cqe(struct t4_cq *cq, struct t4_cqe **cqe)
 		printk(KERN_ERR MOD "cq overflow cqid %u\n", cq->cqid);
 		BUG_ON(1);
 	} else if (t4_valid_cqe(cq, &cq->queue[cq->cidx])) {
+
+		/* Ensure CQE is flushed to memory */
+		rmb();
 		*cqe = &cq->queue[cq->cidx];
 		ret = 0;
 	} else
