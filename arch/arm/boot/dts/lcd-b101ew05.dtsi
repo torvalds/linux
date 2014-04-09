@@ -27,6 +27,7 @@
 				swap-rb = <0>;
 				swap-rg = <0>;
 				swap-gb = <0>;
+				uboot,logo-on = <1>;
                      	};
                };
 };

@@ -2,7 +2,7 @@
 
 #include "rk3288.dtsi"
 #include "lcd-b101ew05.dtsi"
-
+#include "linux_logo.dtsi"
 / {
 	fiq-debugger {
 		status = "okay";

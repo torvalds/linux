@@ -4,3 +4,5 @@ xipImage
 bootpImage
 uImage
 *.dtb
+
+linux_logo.dtsi
