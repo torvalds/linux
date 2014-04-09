@@ -116,7 +116,7 @@ struct ion_handle {
 	int id;
 };
 
-void ion_iommu_force_unmap(struct ion_buffer *buffer);
+static void ion_iommu_force_unmap(struct ion_buffer *buffer);
 
 bool ion_buffer_fault_user_mappings(struct ion_buffer *buffer)
 {
