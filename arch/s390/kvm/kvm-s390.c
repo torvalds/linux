@@ -162,6 +162,7 @@ int kvm_dev_ioctl_check_extension(long ext)
 	case KVM_CAP_IOEVENTFD:
 	case KVM_CAP_DEVICE_CTRL:
 	case KVM_CAP_ENABLE_CAP_VM:
+	case KVM_CAP_VM_ATTRIBUTES:
 		r = 1;
 		break;
 	case KVM_CAP_NR_VCPUS:
@@ -257,11 +258,43 @@ static int kvm_vm_ioctl_enable_cap(struct kvm *kvm, struct kvm_enable_cap *cap)
 	return r;
 }
 
+static int kvm_s390_vm_set_attr(struct kvm *kvm, struct kvm_device_attr *attr)
+{
+	int ret;
+
+	switch (attr->group) {
+	default:
+		ret = -ENXIO;
+		break;
+	}
+
+	return ret;
+}
+
+static int kvm_s390_vm_get_attr(struct kvm *kvm, struct kvm_device_attr *attr)
+{
+	return -ENXIO;
+}
+
+static int kvm_s390_vm_has_attr(struct kvm *kvm, struct kvm_device_attr *attr)
+{
+	int ret;
+
+	switch (attr->group) {
+	default:
+		ret = -ENXIO;
+		break;
+	}
+
+	return ret;
+}
+
 long kvm_arch_vm_ioctl(struct file *filp,
 		       unsigned int ioctl, unsigned long arg)
 {
 	struct kvm *kvm = filp->private_data;
 	void __user *argp = (void __user *)arg;
+	struct kvm_device_attr attr;
 	int r;
 
 	switch (ioctl) {
@@ -292,6 +325,27 @@ long kvm_arch_vm_ioctl(struct file *filp,
 			kvm_set_irq_routing(kvm, &routing, 0, 0);
 			r = 0;
 		}
+		break;
+	}
+	case KVM_SET_DEVICE_ATTR: {
+		r = -EFAULT;
+		if (copy_from_user(&attr, (void __user *)arg, sizeof(attr)))
+			break;
+		r = kvm_s390_vm_set_attr(kvm, &attr);
+		break;
+	}
+	case KVM_GET_DEVICE_ATTR: {
+		r = -EFAULT;
+		if (copy_from_user(&attr, (void __user *)arg, sizeof(attr)))
+			break;
+		r = kvm_s390_vm_get_attr(kvm, &attr);
+		break;
+	}
+	case KVM_HAS_DEVICE_ATTR: {
+		r = -EFAULT;
+		if (copy_from_user(&attr, (void __user *)arg, sizeof(attr)))
+			break;
+		r = kvm_s390_vm_has_attr(kvm, &attr);
 		break;
 	}
 	default:
