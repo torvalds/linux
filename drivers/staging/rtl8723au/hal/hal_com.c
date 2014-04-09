@@ -752,6 +752,15 @@ void rtl8723a_bcn_valid(struct rtw_adapter *padapter)
 		   rtw_read8(padapter, REG_TDECTRL + 2) | BIT0);
 }
 
+bool rtl8723a_get_bcn_valid(struct rtw_adapter *padapter)
+{
+	bool retval;
+
+	retval = (rtw_read8(padapter, REG_TDECTRL + 2) & BIT0) ? true : false;
+
+	return retval;
+}
+
 void rtl8723a_set_tx_pause(struct rtw_adapter *padapter, u8 pause)
 {
 	rtw_write8(padapter, REG_TXPAUSE, pause);

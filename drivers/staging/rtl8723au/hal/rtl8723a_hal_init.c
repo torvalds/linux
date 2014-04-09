@@ -3305,12 +3305,6 @@ void GetHwReg8723A(struct rtw_adapter *padapter, u8 variable, u8 *val)
 		*val = rtw_read8(padapter, REG_TXPAUSE);
 		break;
 
-	case HW_VAR_BCN_VALID:
-		/* BCN_VALID, BIT16 of REG_TDECTRL = BIT0 of REG_TDECTRL+2 */
-		val[0] = (BIT0 & rtw_read8(padapter, REG_TDECTRL + 2)) ? true :
-			false;
-		break;
-
 	case HW_VAR_RF_TYPE:
 		*val = pHalData->rf_type;
 		break;

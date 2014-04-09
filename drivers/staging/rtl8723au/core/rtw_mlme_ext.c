@@ -7555,7 +7555,7 @@ unsigned int send_delba23a(struct rtw_adapter *padapter, u8 initiator, u8 *addr)
 
 unsigned int send_beacon23a(struct rtw_adapter *padapter)
 {
-	u8	bxmitok = false;
+	bool	bxmitok;
 	int	issue = 0;
 	int poll = 0;
 	unsigned long start = jiffies;
@@ -7567,9 +7567,9 @@ unsigned int send_beacon23a(struct rtw_adapter *padapter)
 		issue++;
 		do {
 			yield();
-			rtw23a_hal_get_hwreg(padapter, HW_VAR_BCN_VALID, (u8 *)(&bxmitok));
+			bxmitok = rtl8723a_get_bcn_valid(padapter);
 			poll++;
-		} while ((poll%10)!= 0 && false == bxmitok &&
+		} while ((poll % 10) != 0 && bxmitok == false &&
 			 !padapter->bSurpriseRemoved &&
 			 !padapter->bDriverStopped);
 
