@@ -7719,7 +7719,6 @@ void site_survey23a(struct rtw_adapter *padapter)
 			rtl8723a_set_initial_gain(padapter, 0xff);
 			/* turn on dynamic functions */
 			rtl8723a_odm_support_ability_restore(padapter);
-			/* Switch_DM_Func23a(padapter, DYNAMIC_FUNC_DIG|DYNAMIC_FUNC_HP|DYNAMIC_FUNC_SS, true); */
 
 			mod_timer(&pwdinfo->find_phase_timer, jiffies +
 				  msecs_to_jiffies(pwdinfo->listen_dwell * 100));
@@ -7748,7 +7747,6 @@ void site_survey23a(struct rtw_adapter *padapter)
 			rtl8723a_set_initial_gain(padapter, 0xff);
 			/* turn on dynamic functions */
 			rtl8723a_odm_support_ability_restore(padapter);
-			/* Switch_DM_Func23a(padapter, DYNAMIC_ALL_FUNC_ENABLE, true); */
 
 			if (is_client_associated_to_ap23a(padapter) == true)
 			{
@@ -8705,7 +8703,7 @@ void mlmeext_joinbss_event_callback23a(struct rtw_adapter *padapter, int join_re
 	}
 
 	/* turn on dynamic functions */
-	Switch_DM_Func23a(padapter, DYNAMIC_ALL_FUNC_ENABLE, true);
+	rtl8723a_odm_support_ability_set(padapter, DYNAMIC_ALL_FUNC_ENABLE);
 
 	/*  update IOT-releated issue */
 	update_IOT_info23a(padapter);
@@ -9225,7 +9223,8 @@ u8 createbss_hdl23a(struct rtw_adapter *padapter, u8 *pbuf)
 		/* disable dynamic functions, such as high power, DIG */
 		rtl8723a_odm_support_ability_backup(padapter);
 
-		Switch_DM_Func23a(padapter, DYNAMIC_FUNC_DISABLE, false);
+		rtl8723a_odm_support_ability_clr(padapter,
+						 DYNAMIC_FUNC_DISABLE);
 
 		/* cancel link timer */
 		del_timer_sync(&pmlmeext->link_timer);
@@ -9355,8 +9354,6 @@ u8 join_cmd_hdl23a(struct rtw_adapter *padapter, u8 *pbuf)
 
 		i += (pIE->Length + 2);
 	}
-	/* disable dynamic functions, such as high power, DIG */
-	/* Switch_DM_Func23a(padapter, DYNAMIC_FUNC_DISABLE, false); */
 
 	hw_var_set_bssid(padapter, pmlmeinfo->network.MacAddress);
 	hw_var_set_mlme_join(padapter, 0);
@@ -9537,7 +9534,8 @@ u8 sitesurvey_cmd_hdl23a(struct rtw_adapter *padapter, u8 *pbuf)
 	    (pmlmeext->sitesurvey_res.state == SCAN_TXNULL)) {
 		/* disable dynamic functions, such as high power, DIG */
 		rtl8723a_odm_support_ability_backup(padapter);
-		Switch_DM_Func23a(padapter, DYNAMIC_FUNC_DISABLE, false);
+		rtl8723a_odm_support_ability_clr(padapter,
+						 DYNAMIC_FUNC_DISABLE);
 
 		/* config the initial gain under scaning, need to
 		   write the BB registers */

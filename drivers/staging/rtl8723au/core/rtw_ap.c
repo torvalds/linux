@@ -723,7 +723,8 @@ static void start_bss_network(struct rtw_adapter *padapter, u8 *pbuf)
 		/* disable dynamic functions, such as high power, DIG */
 
 		/* turn on all dynamic functions */
-		Switch_DM_Func23a(padapter, DYNAMIC_ALL_FUNC_ENABLE, true);
+		rtl8723a_odm_support_ability_set(padapter,
+						 DYNAMIC_ALL_FUNC_ENABLE);
 	}
 	/* set channel, bwmode */
 	p = rtw_get_ie23a((pnetwork->IEs + sizeof(struct ndis_802_11_fixed_ies)),

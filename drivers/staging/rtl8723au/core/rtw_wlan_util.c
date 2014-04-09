@@ -283,14 +283,6 @@ void Update23aTblForSoftAP(u8 *bssrateset, u32 bssratelen)
 	}
 }
 
-void Switch_DM_Func23a(struct rtw_adapter *padapter, unsigned long mode, u8 enable)
-{
-	if (enable == true)
-		rtw_hal_set_hwreg23a(padapter, HW_VAR_DM_FUNC_SET, (u8 *)(&mode));
-	else
-		rtw_hal_set_hwreg23a(padapter, HW_VAR_DM_FUNC_CLR, (u8 *)(&mode));
-}
-
 void Set_MSR23a(struct rtw_adapter *padapter, u8 type)
 {
 	rtl8723a_set_media_status(padapter, type);
@@ -1485,15 +1477,15 @@ void update_IOT_info23a(struct rtw_adapter *padapter)
 		pmlmeinfo->turboMode_cts2self = 0;
 		pmlmeinfo->turboMode_rtsen = 1;
 		/* disable high power */
-		Switch_DM_Func23a(padapter, ~DYNAMIC_BB_DYNAMIC_TXPWR,
-			       false);
+		rtl8723a_odm_support_ability_clr(padapter, (u32)
+						 ~DYNAMIC_BB_DYNAMIC_TXPWR);
 		break;
 	case HT_IOT_PEER_REALTEK:
 		/* rtw_write16(padapter, 0x4cc, 0xffff); */
 		/* rtw_write16(padapter, 0x546, 0x01c0); */
 		/* disable high power */
-		Switch_DM_Func23a(padapter, ~DYNAMIC_BB_DYNAMIC_TXPWR,
-			       false);
+		rtl8723a_odm_support_ability_clr(padapter, (u32)
+						 ~DYNAMIC_BB_DYNAMIC_TXPWR);
 		break;
 	default:
 		pmlmeinfo->turboMode_cts2self = 0;

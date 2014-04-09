@@ -140,9 +140,6 @@ static void sreset_restore_network_station(struct rtw_adapter *padapter)
 	set_channel_bwmode23a(padapter, pmlmeext->cur_channel,
 			      pmlmeext->cur_ch_offset, pmlmeext->cur_bwmode);
 
-	/* disable dynamic functions, such as high power, DIG */
-	/* Switch_DM_Func23a(padapter, DYNAMIC_FUNC_DISABLE, false); */
-
 	hw_var_set_bssid(padapter, pmlmeinfo->network.MacAddress);
 	hw_var_set_mlme_join(padapter, 0);
 
