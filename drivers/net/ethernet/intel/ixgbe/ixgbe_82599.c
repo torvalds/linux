@@ -1271,6 +1271,7 @@ s32 ixgbe_reinit_fdir_tables_82599(struct ixgbe_hw *hw)
 {
 	int i;
 	u32 fdirctrl = IXGBE_READ_REG(hw, IXGBE_FDIRCTRL);
+
 	fdirctrl &= ~IXGBE_FDIRCTRL_INIT_DONE;
 
 	/*
@@ -1651,6 +1652,7 @@ void ixgbe_atr_compute_perfect_hash_82599(union ixgbe_atr_input *input,
 static u32 ixgbe_get_fdirtcpm_82599(union ixgbe_atr_input *input_mask)
 {
 	u32 mask = ntohs(input_mask->formatted.dst_port);
+
 	mask <<= IXGBE_FDIRTCPM_DPORTM_SHIFT;
 	mask |= ntohs(input_mask->formatted.src_port);
 	mask = ((mask & 0x55555555) << 1) | ((mask & 0xAAAAAAAA) >> 1);
