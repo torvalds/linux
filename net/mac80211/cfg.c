@@ -3251,7 +3251,7 @@ int ieee80211_channel_switch(struct wiphy *wiphy, struct net_device *dev,
 
 	/* don't handle for multi-VIF cases */
 	chanctx = container_of(conf, struct ieee80211_chanctx, conf);
-	if (chanctx->refcount > 1) {
+	if (ieee80211_chanctx_refcount(local, chanctx) > 1) {
 		mutex_unlock(&local->chanctx_mtx);
 		return -EBUSY;
 	}
