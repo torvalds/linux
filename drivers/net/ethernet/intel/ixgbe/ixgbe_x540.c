@@ -712,8 +712,7 @@ static s32 ixgbe_get_swfw_sync_semaphore(struct ixgbe_hw *hw)
 			udelay(50);
 		}
 	} else {
-		hw_dbg(hw, "Software semaphore SMBI between device drivers "
-			   "not granted.\n");
+		hw_dbg(hw, "Software semaphore SMBI between device drivers not granted.\n");
 	}
 
 	return status;

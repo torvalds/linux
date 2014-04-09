@@ -1285,8 +1285,7 @@ s32 ixgbe_reinit_fdir_tables_82599(struct ixgbe_hw *hw)
 		udelay(10);
 	}
 	if (i >= IXGBE_FDIRCMD_CMD_POLL) {
-		hw_dbg(hw, "Flow Director previous command isn't complete, "
-		       "aborting table re-initialization.\n");
+		hw_dbg(hw, "Flow Director previous command isn't complete, aborting table re-initialization.\n");
 		return IXGBE_ERR_FDIR_REINIT_FAILED;
 	}
 

@@ -818,9 +818,8 @@ s32 ixgbe_init_eeprom_params_generic(struct ixgbe_hw *hw)
 			eeprom->address_bits = 16;
 		else
 			eeprom->address_bits = 8;
-		hw_dbg(hw, "Eeprom params: type = %d, size = %d, address bits: "
-			  "%d\n", eeprom->type, eeprom->word_size,
-			  eeprom->address_bits);
+		hw_dbg(hw, "Eeprom params: type = %d, size = %d, address bits: %d\n",
+		       eeprom->type, eeprom->word_size, eeprom->address_bits);
 	}
 
 	return 0;
@@ -1392,8 +1391,7 @@ static s32 ixgbe_get_eeprom_semaphore(struct ixgbe_hw *hw)
 	}
 
 	if (i == timeout) {
-		hw_dbg(hw, "Driver can't access the Eeprom - SMBI Semaphore "
-		       "not granted.\n");
+		hw_dbg(hw, "Driver can't access the Eeprom - SMBI Semaphore not granted.\n");
 		/*
 		 * this release is particularly important because our attempts
 		 * above to get the semaphore may have succeeded, and if there
@@ -1438,14 +1436,12 @@ static s32 ixgbe_get_eeprom_semaphore(struct ixgbe_hw *hw)
 		 * was not granted because we don't have access to the EEPROM
 		 */
 		if (i >= timeout) {
-			hw_dbg(hw, "SWESMBI Software EEPROM semaphore "
-			       "not granted.\n");
+			hw_dbg(hw, "SWESMBI Software EEPROM semaphore not granted.\n");
 			ixgbe_release_eeprom_semaphore(hw);
 			status = IXGBE_ERR_EEPROM;
 		}
 	} else {
-		hw_dbg(hw, "Software semaphore SMBI between device drivers "
-		       "not granted.\n");
+		hw_dbg(hw, "Software semaphore SMBI between device drivers not granted.\n");
 	}
 
 	return status;
@@ -2663,8 +2659,7 @@ s32 ixgbe_disable_rx_buff_generic(struct ixgbe_hw *hw)
 
 	/* For informational purposes only */
 	if (i >= IXGBE_MAX_SECRX_POLL)
-		hw_dbg(hw, "Rx unit being enabled before security "
-		       "path fully disabled.  Continuing with init.\n");
+		hw_dbg(hw, "Rx unit being enabled before security path fully disabled. Continuing with init.\n");
 
 	return 0;
 
