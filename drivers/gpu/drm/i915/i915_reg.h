@@ -29,8 +29,8 @@
 #define _TRANSCODER(tran, a, b) ((a) + (tran)*((b)-(a)))
 
 #define _PORT(port, a, b) ((a) + (port)*((b)-(a)))
-#define _PIPE3(pipe, a, b, c) (pipe < 2 ? _PIPE(pipe, a, b) : c)
-#define _PORT3(port, a, b, c) (port < 2 ? _PORT(port, a, b) : c)
+#define _PIPE3(pipe, a, b, c) ((pipe) == PIPE_A ? (a) : \
+			       (pipe) == PIPE_B ? (b) : (c))
 
 #define _MASKED_BIT_ENABLE(a) (((a) << 16) | (a))
 #define _MASKED_BIT_DISABLE(a) ((a) << 16)
@@ -1605,11 +1605,10 @@ enum punit_power_well {
 /*
  * Clock control & power management
  */
-#define DPLL_A_OFFSET 0x6014
-#define DPLL_B_OFFSET 0x6018
-#define CHV_DPLL_C_OFFSET 0x6030
-#define DPLL(pipe) (dev_priv->info.dpll_offsets[pipe] + \
-		    dev_priv->info.display_mmio_offset)
+#define _DPLL_A (dev_priv->info.display_mmio_offset + 0x6014)
+#define _DPLL_B (dev_priv->info.display_mmio_offset + 0x6018)
+#define _CHV_DPLL_C (dev_priv->info.display_mmio_offset + 0x6030)
+#define DPLL(pipe) _PIPE3((pipe), _DPLL_A, _DPLL_B, _CHV_DPLL_C)
 
 #define VGA0	0x6000
 #define VGA1	0x6004
@@ -1697,11 +1696,10 @@ enum punit_power_well {
 #define   SDVO_MULTIPLIER_SHIFT_HIRES		4
 #define   SDVO_MULTIPLIER_SHIFT_VGA		0
 
-#define DPLL_A_MD_OFFSET 0x601c /* 965+ only */
-#define DPLL_B_MD_OFFSET 0x6020 /* 965+ only */
-#define CHV_DPLL_C_MD_OFFSET 0x603c
-#define DPLL_MD(pipe) (dev_priv->info.dpll_md_offsets[pipe] + \
-		       dev_priv->info.display_mmio_offset)
+#define _DPLL_A_MD (dev_priv->info.display_mmio_offset + 0x601c)
+#define _DPLL_B_MD (dev_priv->info.display_mmio_offset + 0x6020)
+#define _CHV_DPLL_C_MD (dev_priv->info.display_mmio_offset + 0x603c)
+#define DPLL_MD(pipe) _PIPE3((pipe), _DPLL_A_MD, _DPLL_B_MD, _CHV_DPLL_C_MD)
 
 /*
  * UDI pixel divider, controlling how many pixels are stuffed into a packet.
@@ -6449,9 +6447,5 @@ enum punit_power_well {
 /* For UMS only (deprecated): */
 #define _PALETTE_A (dev_priv->info.display_mmio_offset + 0xa000)
 #define _PALETTE_B (dev_priv->info.display_mmio_offset + 0xa800)
-#define _DPLL_A (dev_priv->info.display_mmio_offset + 0x6014)
-#define _DPLL_B (dev_priv->info.display_mmio_offset + 0x6018)
-#define _DPLL_A_MD (dev_priv->info.display_mmio_offset + 0x601c)
-#define _DPLL_B_MD (dev_priv->info.display_mmio_offset + 0x6020)
 
 #endif /* _I915_REG_H_ */

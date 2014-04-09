@@ -46,8 +46,6 @@ static struct drm_driver driver;
 			  PIPE_C_OFFSET, PIPE_EDP_OFFSET }, \
 	.trans_offsets = { TRANSCODER_A_OFFSET, TRANSCODER_B_OFFSET, \
 			   TRANSCODER_C_OFFSET, TRANSCODER_EDP_OFFSET }, \
-	.dpll_offsets = { DPLL_A_OFFSET, DPLL_B_OFFSET }, \
-	.dpll_md_offsets = { DPLL_A_MD_OFFSET, DPLL_B_MD_OFFSET }, \
 	.palette_offsets = { PALETTE_A_OFFSET, PALETTE_B_OFFSET }
 
 #define GEN_CHV_PIPEOFFSETS \
@@ -55,10 +53,6 @@ static struct drm_driver driver;
 			  CHV_PIPE_C_OFFSET }, \
 	.trans_offsets = { TRANSCODER_A_OFFSET, TRANSCODER_B_OFFSET, \
 			   CHV_TRANSCODER_C_OFFSET, }, \
-	.dpll_offsets = { DPLL_A_OFFSET, DPLL_B_OFFSET, \
-			  CHV_DPLL_C_OFFSET }, \
-	.dpll_md_offsets = { DPLL_A_MD_OFFSET, DPLL_B_MD_OFFSET, \
-			     CHV_DPLL_C_MD_OFFSET }, \
 	.palette_offsets = { PALETTE_A_OFFSET, PALETTE_B_OFFSET, \
 			     CHV_PALETTE_C_OFFSET }
 
