@@ -246,16 +246,12 @@ static ssize_t blk_mq_hw_sysfs_tags_show(struct blk_mq_hw_ctx *hctx, char *page)
 
 static ssize_t blk_mq_hw_sysfs_cpus_show(struct blk_mq_hw_ctx *hctx, char *page)
 {
-	unsigned int i, queue_num, first = 1;
+	unsigned int i, first = 1;
 	ssize_t ret = 0;
 
 	blk_mq_disable_hotplug();
 
-	for_each_online_cpu(i) {
-		queue_num = hctx->queue->mq_map[i];
-		if (queue_num != hctx->queue_num)
-			continue;
-
+	for_each_cpu(i, hctx->cpumask) {
 		if (first)
 			ret += sprintf(ret + page, "%u", i);
 		else
