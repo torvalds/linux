@@ -19,7 +19,6 @@
 #include <mlme_osdep.h>
 #include <linux/ip.h>
 #include <linux/if_ether.h>
-#include <ethernet.h>
 #include <usb_ops.h>
 #include <linux/ieee80211.h>
 #include <wifi.h>
@@ -583,7 +582,6 @@ static struct recv_frame *portctrl(struct rtw_adapter *adapter,
 
 	auth_alg = adapter->securitypriv.dot11AuthAlgrthm;
 
-	ptr = precv_frame->pkt->data;
 	pfhdr = precv_frame;
 	pattrib = &pfhdr->attrib;
 	psta_addr = pattrib->ta;
@@ -595,9 +593,9 @@ static struct recv_frame *portctrl(struct rtw_adapter *adapter,
 
 	if (auth_alg == dot11AuthAlgrthm_8021X) {
 		/* get ether_type */
-		ptr = ptr + pfhdr->attrib.hdrlen + LLC_HEADER_SIZE;
-		memcpy(&ether_type, ptr, 2);
-		ether_type = ntohs((unsigned short)ether_type);
+		ptr = pfhdr->pkt->data + pfhdr->attrib.hdrlen;
+
+		ether_type = (ptr[6] << 8) | ptr[7];
 
 		if ((psta != NULL) && (psta->ieee8021x_blocked)) {
 			/* blocked */

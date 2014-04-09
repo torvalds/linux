@@ -21,7 +21,6 @@
 #include <wlan_bssdef.h>
 #include <mlme_osdep.h>
 #include <recv_osdep.h>
-#include <ethernet.h>
 #include <linux/ieee80211.h>
 
 #ifdef CONFIG_8723AU_BT_COEXIST

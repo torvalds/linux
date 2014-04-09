@@ -20,7 +20,6 @@
 #include <recv_osdep.h>
 #include <hal_intf.h>
 #include <rtw_version.h>
-#include <ethernet.h>
 
 #include <usb_osintf.h>
 #include <linux/version.h>

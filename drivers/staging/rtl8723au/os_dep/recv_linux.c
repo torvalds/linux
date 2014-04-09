@@ -21,7 +21,6 @@
 #include <recv_osdep.h>
 
 #include <osdep_intf.h>
-#include <ethernet.h>
 
 #include <usb_ops.h>
 
