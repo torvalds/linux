@@ -9492,9 +9492,6 @@ u8 sitesurvey_cmd_hdl23a(struct rtw_adapter *padapter, u8 *pbuf)
 	u32 i;
 
 	if (pmlmeext->sitesurvey_res.state == SCAN_DISABLE) {
-		/* for first time sitesurvey_cmd */
-		rtw_hal_set_hwreg23a(padapter, HW_VAR_CHECK_TXBUF, NULL);
-
 		pmlmeext->sitesurvey_res.state = SCAN_START;
 		pmlmeext->sitesurvey_res.bss_cnt = 0;
 		pmlmeext->sitesurvey_res.channel_idx = 0;

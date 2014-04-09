@@ -3177,8 +3177,6 @@ void SetHwReg8723A(struct rtw_adapter *padapter, u8 variable, u8 *val)
 	case HW_VAR_EFUSE_BT_BYTES:
 		pHalData->BTEfuseUsedBytes = *((u16 *) val);
 		break;
-	case HW_VAR_CHECK_TXBUF:
-		break;
 	case HW_VAR_APFM_ON_MAC:
 		rtl8723a_set_apfm_on_mac(padapter, *val);
 		break;
