@@ -470,8 +470,10 @@ static inline notrace int ftrace_get_offsets_##call(			\
  * };
  *
  * static struct ftrace_event_call event_<call> = {
- *	.tp			= &__tracepoint_<call>,
  *	.class			= event_class_<template>,
+ *	{
+ *		.tp			= &__tracepoint_<call>,
+ *	},
  *	.event			= &ftrace_event_type_<call>,
  *	.print_fmt		= print_fmt_<call>,
  *	.flags			= TRACE_EVENT_FL_TRACEPOINT,
@@ -606,8 +608,10 @@ static struct ftrace_event_class __used __refdata event_class_##call = { \
 #define DEFINE_EVENT(template, call, proto, args)			\
 									\
 static struct ftrace_event_call __used event_##call = {			\
-	.tp			= &__tracepoint_##call,			\
 	.class			= &event_class_##template,		\
+	{								\
+		.tp			= &__tracepoint_##call,		\
+	},								\
 	.event.funcs		= &ftrace_event_type_funcs_##template,	\
 	.print_fmt		= print_fmt_##template,			\
 	.flags			= TRACE_EVENT_FL_TRACEPOINT,		\
@@ -621,8 +625,10 @@ __attribute__((section("_ftrace_events"))) *__event_##call = &event_##call
 static const char print_fmt_##call[] = print;				\
 									\
 static struct ftrace_event_call __used event_##call = {			\
-	.tp			= &__tracepoint_##call,			\
 	.class			= &event_class_##template,		\
+	{								\
+		.tp			= &__tracepoint_##call,		\
+	},								\
 	.event.funcs		= &ftrace_event_type_funcs_##call,	\
 	.print_fmt		= print_fmt_##call,			\
 	.flags			= TRACE_EVENT_FL_TRACEPOINT,		\
