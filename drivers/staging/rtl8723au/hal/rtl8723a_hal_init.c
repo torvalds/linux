@@ -3153,14 +3153,6 @@ void SetHwReg8723A(struct rtw_adapter *padapter, u8 variable, u8 *val)
 		rtl8723a_odm_support_ability_clr(padapter, *val32);
 		break;
 
-	case HW_VAR_H2C_FW_PWRMODE:
-		rtl8723a_set_FwPwrMode_cmd(padapter, *val);
-		break;
-
-	case HW_VAR_H2C_FW_JOINBSSRPT:
-		rtl8723a_set_FwJoinBssReport_cmd(padapter, *val);
-		break;
-
 #ifdef CONFIG_8723AU_P2P
 	case HW_VAR_H2C_FW_P2P_PS_OFFLOAD:
 		rtl8723a_set_p2p_ps_offload_cmd(padapter, *val);

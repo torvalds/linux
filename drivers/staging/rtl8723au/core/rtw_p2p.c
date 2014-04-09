@@ -16,6 +16,7 @@
 
 #include <drv_types.h>
 #include <rtw_p2p.h>
+#include <rtl8723a_cmd.h>
 #include <wifi.h>
 
 #ifdef CONFIG_8723AU_P2P
@@ -3573,12 +3574,10 @@ void p2p_ps_wk_hdl23a(struct rtw_adapter *padapter, u8 p2p_ps_state)
 			pwdinfo->opp_ps = 0;
 			pwdinfo->noa_num = 0;
 			pwdinfo->p2p_ps_mode = P2P_PS_NONE;
-			if (padapter->pwrctrlpriv.bFwCurrentInPSMode == true)
-			{
-				if (pwrpriv->smart_ps == 0)
-				{
+			if (padapter->pwrctrlpriv.bFwCurrentInPSMode == true) {
+				if (pwrpriv->smart_ps == 0) {
 					pwrpriv->smart_ps = 2;
-					rtw_hal_set_hwreg23a(padapter, HW_VAR_H2C_FW_PWRMODE, (u8 *)&padapter->pwrctrlpriv.pwr_mode);
+					rtl8723a_set_FwPwrMode_cmd(padapter, padapter->pwrctrlpriv.pwr_mode);
 				}
 			}
 			break;
@@ -3586,13 +3585,11 @@ void p2p_ps_wk_hdl23a(struct rtw_adapter *padapter, u8 p2p_ps_state)
 			if (pwdinfo->p2p_ps_mode > P2P_PS_NONE) {
 				pwdinfo->p2p_ps_state = p2p_ps_state;
 
-				if (pwdinfo->ctwindow > 0)
-				{
-					if (pwrpriv->smart_ps != 0)
-					{
+				if (pwdinfo->ctwindow > 0) {
+					if (pwrpriv->smart_ps != 0) {
 						pwrpriv->smart_ps = 0;
 						DBG_8723A("%s(): Enter CTW, change SmartPS\n", __func__);
-						rtw_hal_set_hwreg23a(padapter, HW_VAR_H2C_FW_PWRMODE, (u8 *)&padapter->pwrctrlpriv.pwr_mode);
+						rtl8723a_set_FwPwrMode_cmd(padapter, padapter->pwrctrlpriv.pwr_mode);
 					}
 				}
 				rtw_hal_set_hwreg23a(padapter, HW_VAR_H2C_FW_P2P_PS_OFFLOAD, (u8 *)(&p2p_ps_state));

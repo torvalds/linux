@@ -341,25 +341,22 @@ void rtw_set_ps_mode23a(struct rtw_adapter *padapter, u8 ps_mode, u8 smart_ps, u
 
 			pwrpriv->pwr_mode = ps_mode;
 			rtw_set_rpwm23a(padapter, PS_STATE_S4);
-			rtw_hal_set_hwreg23a(padapter, HW_VAR_H2C_FW_PWRMODE, (u8 *)(&ps_mode));
+			rtl8723a_set_FwPwrMode_cmd(padapter, ps_mode);
 			pwrpriv->bFwCurrentInPSMode = false;
 		}
-	}
-	else
-	{
+	} else {
 		if (PS_RDY_CHECK(padapter)
 #ifdef CONFIG_8723AU_BT_COEXIST
 			|| (BT_1Ant(padapter) == true)
 #endif
-			)
-		{
+			) {
 			DBG_8723A("%s: Enter 802.11 power save\n", __func__);
 
 			pwrpriv->bFwCurrentInPSMode = true;
 			pwrpriv->pwr_mode = ps_mode;
 			pwrpriv->smart_ps = smart_ps;
 			pwrpriv->bcn_ant_mode = bcn_ant_mode;
-			rtw_hal_set_hwreg23a(padapter, HW_VAR_H2C_FW_PWRMODE, (u8 *)(&ps_mode));
+			rtl8723a_set_FwPwrMode_cmd(padapter, ps_mode);
 
 #ifdef CONFIG_8723AU_P2P
 			/*  Set CTWindow after LPS */
@@ -370,8 +367,6 @@ void rtw_set_ps_mode23a(struct rtw_adapter *padapter, u8 ps_mode, u8 smart_ps, u
 			rtw_set_rpwm23a(padapter, PS_STATE_S2);
 		}
 	}
-
-
 }
 
 /*

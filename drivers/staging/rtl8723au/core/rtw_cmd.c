@@ -1269,8 +1269,7 @@ void lps_ctrl_wk_hdl(struct rtw_adapter *padapter, u8 lps_ctrl_type)
 			mstatus = 1;/* connect */
 			/*  Reset LPS Setting */
 			padapter->pwrctrlpriv.LpsIdleCount = 0;
-			rtw_hal_set_hwreg23a(padapter, HW_VAR_H2C_FW_JOINBSSRPT,
-					     (u8 *)&mstatus);
+			rtl8723a_set_FwJoinBssReport_cmd(padapter, 1);
 #ifdef CONFIG_8723AU_BT_COEXIST
 			BT_WifiMediaStatusNotify(padapter, mstatus);
 #endif
@@ -1284,8 +1283,7 @@ void lps_ctrl_wk_hdl(struct rtw_adapter *padapter, u8 lps_ctrl_type)
 			{
 				LPS_Leave23a(padapter);
 			}
-			rtw_hal_set_hwreg23a(padapter, HW_VAR_H2C_FW_JOINBSSRPT,
-					     (u8 *)&mstatus);
+			rtl8723a_set_FwJoinBssReport_cmd(padapter, 0);
 			break;
 		case LPS_CTRL_SPECIAL_PACKET:
 			pwrpriv->DelayLPSLastTimeStamp = jiffies;
