@@ -1026,18 +1026,31 @@ static int smack_inode_removexattr(struct dentry *dentry, const char *name)
 	} else
 		rc = cap_inode_removexattr(dentry, name);
 
+	if (rc != 0)
+		return rc;
+
 	smk_ad_init(&ad, __func__, LSM_AUDIT_DATA_DENTRY);
 	smk_ad_setfield_u_fs_path_dentry(&ad, dentry);
-	if (rc == 0)
-		rc = smk_curacc(smk_of_inode(dentry->d_inode), MAY_WRITE, &ad);
 
-	if (rc == 0) {
-		isp = dentry->d_inode->i_security;
+	rc = smk_curacc(smk_of_inode(dentry->d_inode), MAY_WRITE, &ad);
+	if (rc != 0)
+		return rc;
+
+	isp = dentry->d_inode->i_security;
+	/*
+	 * Don't do anything special for these.
+	 *	XATTR_NAME_SMACKIPIN
+	 *	XATTR_NAME_SMACKIPOUT
+	 *	XATTR_NAME_SMACKEXEC
+	 */
+	if (strcmp(name, XATTR_NAME_SMACK) == 0)
 		isp->smk_task = NULL;
+	else if (strcmp(name, XATTR_NAME_SMACKMMAP) == 0)
 		isp->smk_mmap = NULL;
-	}
+	else if (strcmp(name, XATTR_NAME_SMACKTRANSMUTE) == 0)
+		isp->smk_flags &= ~SMK_INODE_TRANSMUTE;
 
-	return rc;
+	return 0;
 }
 
 /**
