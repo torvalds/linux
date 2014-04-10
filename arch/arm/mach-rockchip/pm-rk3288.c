@@ -853,7 +853,7 @@ static void  rkpm_slp_mode_set(u32 val)
     mode_set=pmu_pwr_mode_con0;
     
 
-    pmu_writel(0x1<<3,RK3188_PMU_WAKEUP_CFG1);  
+    pmu_writel(0x1<<0,RK3188_PMU_WAKEUP_CFG1);  
 
     // enable boot ram    
     reg_writel((0x1<<8)|(0x1<<(8+16)),RK_SGRF_VIRT+RK3288_SGRF_SOC_CON0);
