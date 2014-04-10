@@ -1566,7 +1566,7 @@ static struct v4l2_m2m_ops s5p_jpeg_m2m_ops = {
 	.job_abort	= s5p_jpeg_job_abort,
 }
 ;
-static struct v4l2_m2m_ops exynos_jpeg_m2m_ops = {
+static struct v4l2_m2m_ops exynos4_jpeg_m2m_ops = {
 	.device_run	= exynos4_jpeg_device_run,
 	.job_ready	= s5p_jpeg_job_ready,
 	.job_abort	= s5p_jpeg_job_abort,
@@ -1850,7 +1850,6 @@ static int s5p_jpeg_probe(struct platform_device *pdev)
 {
 	struct s5p_jpeg *jpeg;
 	struct resource *res;
-	struct v4l2_m2m_ops *samsung_jpeg_m2m_ops;
 	int ret;
 
 	if (!pdev->dev.of_node)
@@ -1904,13 +1903,8 @@ static int s5p_jpeg_probe(struct platform_device *pdev)
 		goto clk_get_rollback;
 	}
 
-	if (jpeg->variant->version == SJPEG_S5P)
-		samsung_jpeg_m2m_ops = &s5p_jpeg_m2m_ops;
-	else
-		samsung_jpeg_m2m_ops = &exynos_jpeg_m2m_ops;
-
 	/* mem2mem device */
-	jpeg->m2m_dev = v4l2_m2m_init(samsung_jpeg_m2m_ops);
+	jpeg->m2m_dev = v4l2_m2m_init(jpeg->variant->m2m_ops);
 	if (IS_ERR(jpeg->m2m_dev)) {
 		v4l2_err(&jpeg->v4l2_dev, "Failed to init mem2mem device\n");
 		ret = PTR_ERR(jpeg->m2m_dev);
@@ -2099,12 +2093,14 @@ static const struct dev_pm_ops s5p_jpeg_pm_ops = {
 static struct s5p_jpeg_variant s5p_jpeg_drvdata = {
 	.version	= SJPEG_S5P,
 	.jpeg_irq	= s5p_jpeg_irq,
+	.m2m_ops	= &s5p_jpeg_m2m_ops,
 	.fmt_ver_flag	= SJPEG_FMT_FLAG_S5P,
 };
 
 static struct s5p_jpeg_variant exynos4_jpeg_drvdata = {
 	.version	= SJPEG_EXYNOS4,
 	.jpeg_irq	= exynos4_jpeg_irq,
+	.m2m_ops	= &exynos4_jpeg_m2m_ops,
 	.fmt_ver_flag	= SJPEG_FMT_FLAG_EXYNOS4,
 };
 
