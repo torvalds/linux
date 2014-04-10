@@ -1678,11 +1678,11 @@ static int sd_done(struct scsi_cmnd *SCpnt)
 						   sshdr.ascq));
 	}
 #endif
+	sdkp->medium_access_timed_out = 0;
+
 	if (driver_byte(result) != DRIVER_SENSE &&
 	    (!sense_valid || sense_deferred))
 		goto out;
-
-	sdkp->medium_access_timed_out = 0;
 
 	switch (sshdr.sense_key) {
 	case HARDWARE_ERROR:
