@@ -959,7 +959,7 @@ static int s5p_jpeg_g_fmt(struct file *file, void *priv, struct v4l2_format *f)
 static struct s5p_jpeg_fmt *s5p_jpeg_find_format(struct s5p_jpeg_ctx *ctx,
 				u32 pixelformat, unsigned int fmt_type)
 {
-	unsigned int k, fmt_flag, ver_flag;
+	unsigned int k, fmt_flag;
 
 	if (ctx->mode == S5P_JPEG_ENCODE)
 		fmt_flag = (fmt_type == FMT_TYPE_OUTPUT) ?
@@ -970,16 +970,11 @@ static struct s5p_jpeg_fmt *s5p_jpeg_find_format(struct s5p_jpeg_ctx *ctx,
 				SJPEG_FMT_FLAG_DEC_OUTPUT :
 				SJPEG_FMT_FLAG_DEC_CAPTURE;
 
-	if (ctx->jpeg->variant->version == SJPEG_S5P)
-		ver_flag = SJPEG_FMT_FLAG_S5P;
-	else
-		ver_flag = SJPEG_FMT_FLAG_EXYNOS4;
-
 	for (k = 0; k < ARRAY_SIZE(sjpeg_formats); k++) {
 		struct s5p_jpeg_fmt *fmt = &sjpeg_formats[k];
 		if (fmt->fourcc == pixelformat &&
 		    fmt->flags & fmt_flag &&
-		    fmt->flags & ver_flag) {
+		    fmt->flags & ctx->jpeg->variant->fmt_ver_flag) {
 			return fmt;
 		}
 	}
@@ -2104,11 +2099,13 @@ static const struct dev_pm_ops s5p_jpeg_pm_ops = {
 static struct s5p_jpeg_variant s5p_jpeg_drvdata = {
 	.version	= SJPEG_S5P,
 	.jpeg_irq	= s5p_jpeg_irq,
+	.fmt_ver_flag	= SJPEG_FMT_FLAG_S5P,
 };
 
 static struct s5p_jpeg_variant exynos4_jpeg_drvdata = {
 	.version	= SJPEG_EXYNOS4,
 	.jpeg_irq	= exynos4_jpeg_irq,
+	.fmt_ver_flag	= SJPEG_FMT_FLAG_EXYNOS4,
 };
 
 static const struct of_device_id samsung_jpeg_match[] = {

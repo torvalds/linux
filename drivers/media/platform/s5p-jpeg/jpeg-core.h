@@ -118,6 +118,7 @@ struct s5p_jpeg {
 
 struct s5p_jpeg_variant {
 	unsigned int	version;
+	unsigned int	fmt_ver_flag;
 	irqreturn_t	(*jpeg_irq)(int irq, void *priv);
 };
 
