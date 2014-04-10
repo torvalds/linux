@@ -184,7 +184,7 @@ void scsi_queue_insert(struct scsi_cmnd *cmd, int reason)
  */
 int scsi_execute(struct scsi_device *sdev, const unsigned char *cmd,
 		 int data_direction, void *buffer, unsigned bufflen,
-		 unsigned char *sense, int timeout, int retries, int flags,
+		 unsigned char *sense, int timeout, int retries, u64 flags,
 		 int *resid)
 {
 	struct request *req;
@@ -235,7 +235,7 @@ EXPORT_SYMBOL(scsi_execute);
 int scsi_execute_req_flags(struct scsi_device *sdev, const unsigned char *cmd,
 		     int data_direction, void *buffer, unsigned bufflen,
 		     struct scsi_sense_hdr *sshdr, int timeout, int retries,
-		     int *resid, int flags)
+		     int *resid, u64 flags)
 {
 	char *sense = NULL;
 	int result;
