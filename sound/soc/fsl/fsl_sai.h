@@ -119,6 +119,8 @@
 #define FSL_SAI_CLK_MAST2	2
 #define FSL_SAI_CLK_MAST3	3
 
+#define FSL_SAI_MCLK_MAX	3
+
 /* SAI data transfer numbers per DMA request */
 #define FSL_SAI_MAXBURST_TX 6
 #define FSL_SAI_MAXBURST_RX 6
@@ -126,6 +128,8 @@
 struct fsl_sai {
 	struct platform_device *pdev;
 	struct regmap *regmap;
+	struct clk *bus_clk;
+	struct clk *mclk_clk[FSL_SAI_MCLK_MAX];
 
 	bool big_endian_regs;
 	bool big_endian_data;

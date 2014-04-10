@@ -427,7 +427,15 @@ static int fsl_sai_startup(struct snd_pcm_substream *substream,
 		struct snd_soc_dai *cpu_dai)
 {
 	struct fsl_sai *sai = snd_soc_dai_get_drvdata(cpu_dai);
+	struct device *dev = &sai->pdev->dev;
 	u32 reg;
+	int ret;
+
+	ret = clk_prepare_enable(sai->bus_clk);
+	if (ret) {
+		dev_err(dev, "failed to enable bus clock: %d\n", ret);
+		return ret;
+	}
 
 	if (substream->stream == SNDRV_PCM_STREAM_PLAYBACK)
 		reg = FSL_SAI_TCR3;
@@ -453,6 +461,8 @@ static void fsl_sai_shutdown(struct snd_pcm_substream *substream,
 
 	regmap_update_bits(sai->regmap, reg, FSL_SAI_CR3_TRCE,
 			   ~FSL_SAI_CR3_TRCE);
+
+	clk_disable_unprepare(sai->bus_clk);
 }
 
 static const struct snd_soc_dai_ops fsl_sai_pcm_dai_ops = {
@@ -585,7 +595,8 @@ static int fsl_sai_probe(struct platform_device *pdev)
 	struct fsl_sai *sai;
 	struct resource *res;
 	void __iomem *base;
-	int irq, ret;
+	char tmp[8];
+	int irq, ret, i;
 
 	sai = devm_kzalloc(&pdev->dev, sizeof(*sai), GFP_KERNEL);
 	if (!sai)
@@ -608,10 +619,33 @@ static int fsl_sai_probe(struct platform_device *pdev)
 		return PTR_ERR(base);
 
 	sai->regmap = devm_regmap_init_mmio_clk(&pdev->dev,
-			"sai", base, &fsl_sai_regmap_config);
+			"bus", base, &fsl_sai_regmap_config);
+
+	/* Compatible with old DTB cases */
+	if (IS_ERR(sai->regmap))
+		sai->regmap = devm_regmap_init_mmio_clk(&pdev->dev,
+				"sai", base, &fsl_sai_regmap_config);
 	if (IS_ERR(sai->regmap)) {
 		dev_err(&pdev->dev, "regmap init failed\n");
 		return PTR_ERR(sai->regmap);
+	}
+
+	/* No error out for old DTB cases but only mark the clock NULL */
+	sai->bus_clk = devm_clk_get(&pdev->dev, "bus");
+	if (IS_ERR(sai->bus_clk)) {
+		dev_err(&pdev->dev, "failed to get bus clock: %ld\n",
+				PTR_ERR(sai->bus_clk));
+		sai->bus_clk = NULL;
+	}
+
+	for (i = 0; i < FSL_SAI_MCLK_MAX; i++) {
+		sprintf(tmp, "mclk%d", i + 1);
+		sai->mclk_clk[i] = devm_clk_get(&pdev->dev, tmp);
+		if (IS_ERR(sai->mclk_clk[i])) {
+			dev_err(&pdev->dev, "failed to get mclk%d clock: %ld\n",
+					i + 1, PTR_ERR(sai->mclk_clk[i]));
+			sai->mclk_clk[i] = NULL;
+		}
 	}
 
 	irq = platform_get_irq(pdev, 0);
