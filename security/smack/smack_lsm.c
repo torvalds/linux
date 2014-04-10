@@ -1095,7 +1095,7 @@ static int smack_inode_getsecurity(const struct inode *inode,
 	ssp = sock->sk->sk_security;
 
 	if (strcmp(name, XATTR_SMACK_IPIN) == 0)
-		isp = ssp->smk_in;
+		isp = ssp->smk_in->smk_known;
 	else if (strcmp(name, XATTR_SMACK_IPOUT) == 0)
 		isp = ssp->smk_out->smk_known;
 	else
@@ -1859,7 +1859,7 @@ static int smack_sk_alloc_security(struct sock *sk, int family, gfp_t gfp_flags)
 	if (ssp == NULL)
 		return -ENOMEM;
 
-	ssp->smk_in = skp->smk_known;
+	ssp->smk_in = skp;
 	ssp->smk_out = skp;
 	ssp->smk_packet = NULL;
 
@@ -2099,7 +2099,7 @@ static int smk_ipv6_port_check(struct sock *sk, struct sockaddr_in6 *address,
 
 	if (act == SMK_RECEIVING) {
 		skp = smack_net_ambient;
-		object = ssp->smk_in;
+		object = ssp->smk_in->smk_known;
 	} else {
 		skp = ssp->smk_out;
 		object = smack_net_ambient->smk_known;
@@ -2129,9 +2129,9 @@ static int smk_ipv6_port_check(struct sock *sk, struct sockaddr_in6 *address,
 	list_for_each_entry(spp, &smk_ipv6_port_list, list) {
 		if (spp->smk_port != port)
 			continue;
-		object = spp->smk_in;
+		object = spp->smk_in->smk_known;
 		if (act == SMK_CONNECTING)
-			ssp->smk_packet = spp->smk_out->smk_known;
+			ssp->smk_packet = spp->smk_out;
 		break;
 	}
 
@@ -2195,7 +2195,7 @@ static int smack_inode_setsecurity(struct inode *inode, const char *name,
 	ssp = sock->sk->sk_security;
 
 	if (strcmp(name, XATTR_SMACK_IPIN) == 0)
-		ssp->smk_in = skp->smk_known;
+		ssp->smk_in = skp;
 	else if (strcmp(name, XATTR_SMACK_IPOUT) == 0) {
 		ssp->smk_out = skp;
 		if (sock->sk->sk_family == PF_INET) {
@@ -3054,30 +3054,34 @@ static int smack_unix_stream_connect(struct sock *sock,
 				     struct sock *other, struct sock *newsk)
 {
 	struct smack_known *skp;
+	struct smack_known *okp;
 	struct socket_smack *ssp = sock->sk_security;
 	struct socket_smack *osp = other->sk_security;
 	struct socket_smack *nsp = newsk->sk_security;
 	struct smk_audit_info ad;
 	int rc = 0;
-
 #ifdef CONFIG_AUDIT
 	struct lsm_network_audit net;
-
-	smk_ad_init_net(&ad, __func__, LSM_AUDIT_DATA_NET, &net);
-	smk_ad_setfield_u_net_sk(&ad, other);
 #endif
 
 	if (!smack_privileged(CAP_MAC_OVERRIDE)) {
 		skp = ssp->smk_out;
-		rc = smk_access(skp, osp->smk_in, MAY_WRITE, &ad);
+		okp = osp->smk_out;
+#ifdef CONFIG_AUDIT
+		smk_ad_init_net(&ad, __func__, LSM_AUDIT_DATA_NET, &net);
+		smk_ad_setfield_u_net_sk(&ad, other);
+#endif
+		rc = smk_access(skp, okp->smk_known, MAY_WRITE, &ad);
+		if (rc == 0)
+			rc = smk_access(okp, okp->smk_known, MAY_WRITE, NULL);
 	}
 
 	/*
 	 * Cross reference the peer labels for SO_PEERSEC.
 	 */
 	if (rc == 0) {
-		nsp->smk_packet = ssp->smk_out->smk_known;
-		ssp->smk_packet = osp->smk_out->smk_known;
+		nsp->smk_packet = ssp->smk_out;
+		ssp->smk_packet = osp->smk_out;
 	}
 
 	return rc;
@@ -3109,7 +3113,7 @@ static int smack_unix_may_send(struct socket *sock, struct socket *other)
 		return 0;
 
 	skp = ssp->smk_out;
-	return smk_access(skp, osp->smk_in, MAY_WRITE, &ad);
+	return smk_access(skp, osp->smk_in->smk_known, MAY_WRITE, &ad);
 }
 
 /**
@@ -3204,7 +3208,7 @@ static struct smack_known *smack_from_secattr(struct netlbl_lsm_secattr *sap,
 		if (found)
 			return skp;
 
-		if (ssp != NULL && ssp->smk_in == smack_known_star.smk_known)
+		if (ssp != NULL && ssp->smk_in == &smack_known_star)
 			return &smack_known_web;
 		return &smack_known_star;
 	}
@@ -3323,7 +3327,7 @@ static int smack_socket_sock_rcv_skb(struct sock *sk, struct sk_buff *skb)
 		 * This is the simplist possible security model
 		 * for networking.
 		 */
-		rc = smk_access(skp, ssp->smk_in, MAY_WRITE, &ad);
+		rc = smk_access(skp, ssp->smk_in->smk_known, MAY_WRITE, &ad);
 		if (rc != 0)
 			netlbl_skbuff_err(skb, rc, 0);
 		break;
@@ -3358,7 +3362,7 @@ static int smack_socket_getpeersec_stream(struct socket *sock,
 
 	ssp = sock->sk->sk_security;
 	if (ssp->smk_packet != NULL) {
-		rcp = ssp->smk_packet;
+		rcp = ssp->smk_packet->smk_known;
 		slen = strlen(rcp) + 1;
 	}
 
@@ -3443,7 +3447,7 @@ static void smack_sock_graft(struct sock *sk, struct socket *parent)
 		return;
 
 	ssp = sk->sk_security;
-	ssp->smk_in = skp->smk_known;
+	ssp->smk_in = skp;
 	ssp->smk_out = skp;
 	/* cssp->smk_packet is already set in smack_inet_csk_clone() */
 }
@@ -3503,7 +3507,7 @@ static int smack_inet_conn_request(struct sock *sk, struct sk_buff *skb,
 	 * Receiving a packet requires that the other end be able to write
 	 * here. Read access is not required.
 	 */
-	rc = smk_access(skp, ssp->smk_in, MAY_WRITE, &ad);
+	rc = smk_access(skp, ssp->smk_in->smk_known, MAY_WRITE, &ad);
 	if (rc != 0)
 		return rc;
 
@@ -3547,7 +3551,7 @@ static void smack_inet_csk_clone(struct sock *sk,
 
 	if (req->peer_secid != 0) {
 		skp = smack_from_secid(req->peer_secid);
-		ssp->smk_packet = skp->smk_known;
+		ssp->smk_packet = skp;
 	} else
 		ssp->smk_packet = NULL;
 }

@@ -80,8 +80,8 @@ struct superblock_smack {
 
 struct socket_smack {
 	struct smack_known	*smk_out;	/* outbound label */
-	char			*smk_in;	/* inbound label */
-	char			*smk_packet;	/* TCP peer label */
+	struct smack_known	*smk_in;	/* inbound label */
+	struct smack_known	*smk_packet;	/* TCP peer label */
 };
 
 /*
@@ -133,7 +133,7 @@ struct smk_port_label {
 	struct list_head	list;
 	struct sock		*smk_sock;	/* socket initialized on */
 	unsigned short		smk_port;	/* the port number */
-	char			*smk_in;	/* incoming label */
+	struct smack_known	*smk_in;	/* inbound label */
 	struct smack_known	*smk_out;	/* outgoing label */
 };
 
