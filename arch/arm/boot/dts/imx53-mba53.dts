@@ -244,7 +244,7 @@
 &tve {
 	pinctrl-names = "default";
 	pinctrl-0 = <&pinctrl_vga_sync_1>;
-	i2c-ddc-bus = <&i2c3>;
+	ddc-i2c-bus = <&i2c3>;
 	fsl,tve-mode = "vga";
 	fsl,hsync-pin = <4>;
 	fsl,vsync-pin = <6>;
