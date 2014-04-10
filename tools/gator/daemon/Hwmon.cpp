@@ -1,5 +1,5 @@
 /**
- * Copyright (C) ARM Limited 2013. All rights reserved.
+ * Copyright (C) ARM Limited 2013-2014. All rights reserved.
  *
  * This program is free software; you can redistribute it and/or modify
  * it under the terms of the GNU General Public License version 2 as
@@ -17,7 +17,7 @@
 
 class HwmonCounter {
 public:
-	HwmonCounter(HwmonCounter *next, int key, const sensors_chip_name *chip, const sensors_feature *feature);
+	HwmonCounter(HwmonCounter *next, const sensors_chip_name *chip, const sensors_feature *feature);
 	~HwmonCounter();
 
 	HwmonCounter *getNext() const { return next; }
@@ -69,7 +69,7 @@ private:
 	HwmonCounter &operator=(const HwmonCounter &);
 };
 
-HwmonCounter::HwmonCounter(HwmonCounter *next, int key, const sensors_chip_name *chip, const sensors_feature *feature) : next(next), key(key), polled(false), readable(false), enabled(false), duplicate(false), chip(chip), feature(feature) {
+HwmonCounter::HwmonCounter(HwmonCounter *next, const sensors_chip_name *chip, const sensors_feature *feature) : next(next), key(getEventKey()), polled(false), readable(false), enabled(false), duplicate(false), chip(chip), feature(feature) {
 
 	int len = sensors_snprintf_chip_name(NULL, 0, chip) + 1;
 	char *chip_name = new char[len];
@@ -205,6 +205,23 @@ bool HwmonCounter::canRead() {
 }
 
 Hwmon::Hwmon() : counters(NULL) {
+}
+
+Hwmon::~Hwmon() {
+	while (counters != NULL) {
+		HwmonCounter * counter = counters;
+		counters = counter->getNext();
+		delete counter;
+	}
+	sensors_cleanup();
+}
+
+void Hwmon::setup() {
+	// hwmon does not currently work with perf
+	if (gSessionData->perf.isSetup()) {
+		return;
+	}
+
 	int err = sensors_init(NULL);
 	if (err) {
 		logg->logMessage("Failed to initialize libsensors! (%d)", err);
@@ -218,18 +235,9 @@ Hwmon::Hwmon() : counters(NULL) {
 		int feature_nr = 0;
 		const sensors_feature *feature;
 		while ((feature = sensors_get_features(chip, &feature_nr))) {
-			counters = new HwmonCounter(counters, getEventKey(), chip, feature);
+			counters = new HwmonCounter(counters, chip, feature);
 		}
 	}
-}
-
-Hwmon::~Hwmon() {
-	while (counters != NULL) {
-		HwmonCounter * counter = counters;
-		counters = counter->getNext();
-		delete counter;
-	}
-	sensors_cleanup();
 }
 
 HwmonCounter *Hwmon::findCounter(const Counter &counter) const {
@@ -271,14 +279,18 @@ void Hwmon::setupCounter(Counter &counter) {
 	counter.setKey(hwmonCounter->getKey());
 }
 
-void Hwmon::writeCounters(mxml_node_t *root) const {
+int Hwmon::writeCounters(mxml_node_t *root) const {
+	int count = 0;
 	for (HwmonCounter * counter = counters; counter != NULL; counter = counter->getNext()) {
 		if (!counter->canRead()) {
 			continue;
 		}
 		mxml_node_t *node = mxmlNewElement(root, "counter");
 		mxmlElementSetAttr(node, "name", counter->getName());
+		++count;
 	}
+
+	return count;
 }
 
 void Hwmon::writeEvents(mxml_node_t *root) const {

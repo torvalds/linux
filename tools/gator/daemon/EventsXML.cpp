@@ -1,5 +1,5 @@
 /**
- * Copyright (C) ARM Limited 2013. All rights reserved.
+ * Copyright (C) ARM Limited 2013-2014. All rights reserved.
  *
  * This program is free software; you can redistribute it and/or modify
  * it under the terms of the GNU General Public License version 2 as
@@ -35,7 +35,7 @@ char* EventsXML::getXML() {
 		fclose(fl);
 	} else {
 		logg->logMessage("Unable to locate events.xml, using default");
-		xml = mxmlLoadString(NULL, (char *)events_xml, MXML_NO_CALLBACK);
+		xml = mxmlLoadString(NULL, (const char *)events_xml, MXML_NO_CALLBACK);
 	}
 
 	// Add dynamic events from the drivers

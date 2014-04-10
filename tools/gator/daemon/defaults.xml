@@ -6,29 +6,34 @@
   <configuration counter="ARM_ARM11MPCore_ccnt" event="0xff"/>
   <configuration counter="ARM_ARM11MPCore_cnt0" event="0x08"/>
   <configuration counter="ARM_ARM11MPCore_cnt1" event="0x0b"/>
-  <configuration counter="ARM_Cortex-A5_ccnt" event="0xff"/>
-  <configuration counter="ARM_Cortex-A5_cnt0" event="0x8"/>
-  <configuration counter="ARM_Cortex-A5_cnt1" event="0x1"/>
-  <configuration counter="ARM_Cortex-A7_ccnt" event="0xff"/>
-  <configuration counter="ARM_Cortex-A7_cnt0" event="0x08"/>
-  <configuration counter="ARM_Cortex-A7_cnt1" event="0x10"/>
-  <configuration counter="ARM_Cortex-A7_cnt2" event="0x16"/>
-  <configuration counter="ARM_Cortex-A8_ccnt" event="0xff"/>
-  <configuration counter="ARM_Cortex-A8_cnt0" event="0x8"/>
-  <configuration counter="ARM_Cortex-A8_cnt1" event="0x44"/>
-  <configuration counter="ARM_Cortex-A8_cnt2" event="0x43"/>
-  <configuration counter="ARM_Cortex-A8_cnt3" event="0x10"/>
-  <configuration counter="ARM_Cortex-A9_ccnt" event="0xff"/>
-  <configuration counter="ARM_Cortex-A9_cnt0" event="0x68"/>
-  <configuration counter="ARM_Cortex-A9_cnt1" event="0x06"/>
-  <configuration counter="ARM_Cortex-A9_cnt2" event="0x07"/>
-  <configuration counter="ARM_Cortex-A9_cnt3" event="0x03"/>
-  <configuration counter="ARM_Cortex-A9_cnt4" event="0x04"/>
-  <configuration counter="ARM_Cortex-A15_ccnt" event="0xff"/>
-  <configuration counter="ARM_Cortex-A15_cnt0" event="0x8"/>
-  <configuration counter="ARM_Cortex-A15_cnt1" event="0x16"/>
-  <configuration counter="ARM_Cortex-A15_cnt2" event="0x10"/>
-  <configuration counter="ARM_Cortex-A15_cnt3" event="0x19"/>
+  <configuration counter="ARMv7_Cortex_A5_ccnt" event="0xff"/>
+  <configuration counter="ARMv7_Cortex_A5_cnt0" event="0x8"/>
+  <configuration counter="ARMv7_Cortex_A5_cnt1" event="0x1"/>
+  <configuration counter="ARMv7_Cortex_A7_ccnt" event="0xff"/>
+  <configuration counter="ARMv7_Cortex_A7_cnt0" event="0x08"/>
+  <configuration counter="ARMv7_Cortex_A7_cnt1" event="0x10"/>
+  <configuration counter="ARMv7_Cortex_A7_cnt2" event="0x16"/>
+  <configuration counter="ARMv7_Cortex_A8_ccnt" event="0xff"/>
+  <configuration counter="ARMv7_Cortex_A8_cnt0" event="0x8"/>
+  <configuration counter="ARMv7_Cortex_A8_cnt1" event="0x44"/>
+  <configuration counter="ARMv7_Cortex_A8_cnt2" event="0x43"/>
+  <configuration counter="ARMv7_Cortex_A8_cnt3" event="0x10"/>
+  <configuration counter="ARMv7_Cortex_A9_ccnt" event="0xff"/>
+  <configuration counter="ARMv7_Cortex_A9_cnt0" event="0x68"/>
+  <configuration counter="ARMv7_Cortex_A9_cnt1" event="0x06"/>
+  <configuration counter="ARMv7_Cortex_A9_cnt2" event="0x07"/>
+  <configuration counter="ARMv7_Cortex_A9_cnt3" event="0x03"/>
+  <configuration counter="ARMv7_Cortex_A9_cnt4" event="0x04"/>
+  <configuration counter="ARMv7_Cortex_A12_ccnt" event="0xff"/>
+  <configuration counter="ARMv7_Cortex_A12_cnt0" event="0x08"/>
+  <configuration counter="ARMv7_Cortex_A12_cnt1" event="0x16"/>
+  <configuration counter="ARMv7_Cortex_A12_cnt2" event="0x10"/>
+  <configuration counter="ARMv7_Cortex_A12_cnt3" event="0x19"/>
+  <configuration counter="ARMv7_Cortex_A15_ccnt" event="0xff"/>
+  <configuration counter="ARMv7_Cortex_A15_cnt0" event="0x8"/>
+  <configuration counter="ARMv7_Cortex_A15_cnt1" event="0x16"/>
+  <configuration counter="ARMv7_Cortex_A15_cnt2" event="0x10"/>
+  <configuration counter="ARMv7_Cortex_A15_cnt3" event="0x19"/>
   <configuration counter="ARM_Cortex-A53_ccnt" event="0x11"/>
   <configuration counter="ARM_Cortex-A53_cnt0" event="0x8"/>
   <configuration counter="ARM_Cortex-A53_cnt1" event="0x16"/>

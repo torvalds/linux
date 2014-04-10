@@ -1,5 +1,5 @@
 /**
- * Copyright (C) ARM Limited 2012-2013. All rights reserved.
+ * Copyright (C) ARM Limited 2012-2014. All rights reserved.
  *
  * This program is free software; you can redistribute it and/or modify
  * it under the terms of the GNU General Public License version 2 as
@@ -29,12 +29,14 @@ static void kannotate_write(const char *ptr, unsigned int size)
 	}
 }
 
-static void marshal_u16(char *buf, u16 val) {
+static void marshal_u16(char *buf, u16 val)
+{
 	buf[0] = val & 0xff;
 	buf[1] = (val >> 8) & 0xff;
 }
 
-static void marshal_u32(char *buf, u32 val) {
+static void marshal_u32(char *buf, u32 val)
+{
 	buf[0] = val & 0xff;
 	buf[1] = (val >> 8) & 0xff;
 	buf[2] = (val >> 16) & 0xff;

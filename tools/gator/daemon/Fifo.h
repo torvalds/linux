@@ -1,5 +1,5 @@
 /**
- * Copyright (C) ARM Limited 2010-2013. All rights reserved.
+ * Copyright (C) ARM Limited 2010-2014. All rights reserved.
  *
  * This program is free software; you can redistribute it and/or modify
  * it under the terms of the GNU General Public License version 2 as
@@ -12,7 +12,7 @@
 #ifdef WIN32
 #include <windows.h>
 #define sem_t HANDLE
-#define sem_init(sem, pshared, value) ((*(sem) = CreateSemaphore(NULL, value, INFINITE, NULL)) == NULL)
+#define sem_init(sem, pshared, value) ((*(sem) = CreateSemaphore(NULL, value, LONG_MAX, NULL)) == NULL)
 #define sem_wait(sem) WaitForSingleObject(*(sem), INFINITE)
 #define sem_post(sem) ReleaseSemaphore(*(sem), 1, NULL)
 #define sem_destroy(sem) CloseHandle(*(sem))

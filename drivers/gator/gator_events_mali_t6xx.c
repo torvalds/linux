@@ -1,5 +1,5 @@
 /**
- * Copyright (C) ARM Limited 2011-2013. All rights reserved.
+ * Copyright (C) ARM Limited 2011-2014. All rights reserved.
  *
  * This program is free software; you can redistribute it and/or modify
  * it under the terms of the GNU General Public License version 2 as
@@ -15,7 +15,13 @@
 #include <linux/slab.h>
 #include <asm/io.h>
 
+#ifdef MALI_DIR_MIDGARD
+/* New DDK Directory structure with kernel/drivers/gpu/arm/midgard*/
+#include "mali_linux_trace.h"
+#else
+/* Old DDK Directory structure with kernel/drivers/gpu/arm/t6xx*/
 #include "linux/mali_linux_trace.h"
+#endif
 
 #include "gator_events_mali_common.h"
 
