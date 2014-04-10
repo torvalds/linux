@@ -117,13 +117,24 @@
                                 reg-names = "control_port", "rx_csr", "tx_csr", "s1";
 				interrupt-parent = < &cpu >;
 				interrupts = < 2 3 >;
-				ALTR,rx-fifo-depth = < 2048 >;
-				ALTR,tx-fifo-depth = < 2048 >;
+				interrupt-names = "rx_irq", "tx_irq";
+				rx-fifo-depth = < 8192 >;
+				tx-fifo-depth = < 8192 >;
 				address-bits = < 48 >;
 				max-frame-size = < 1518 >;
 				local-mac-address = [ 02 00 00 00 00 00 ];
 				phy-mode = "rgmii-id";
 				ALTR,mii-id = < 0 >;
+				phy-handle = < &phy0 >;
+				tse_mac_mdio: mdio {
+					compatible = "altr,tse-mdio";
+					#address-cells = < 1 >;
+					#size-cells = < 0 >;
+					phy0: ethernet-phy@18 {
+						reg = < 18 >;
+						device_type = "ethernet-phy";
+					};
+				};
 			}; //end ethernet@0x4000 (tse_mac)
 
 			uart: serial@0x4c80 {
