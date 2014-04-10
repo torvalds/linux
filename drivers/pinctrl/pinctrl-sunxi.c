@@ -538,19 +538,6 @@ static int sunxi_pinctrl_gpio_to_irq(struct gpio_chip *chip, unsigned offset)
 	return irq_find_mapping(pctl->domain, desc->irqnum);
 }
 
-static struct gpio_chip sunxi_pinctrl_gpio_chip = {
-	.owner			= THIS_MODULE,
-	.request		= sunxi_pinctrl_gpio_request,
-	.free			= sunxi_pinctrl_gpio_free,
-	.direction_input	= sunxi_pinctrl_gpio_direction_input,
-	.direction_output	= sunxi_pinctrl_gpio_direction_output,
-	.get			= sunxi_pinctrl_gpio_get,
-	.set			= sunxi_pinctrl_gpio_set,
-	.of_xlate		= sunxi_pinctrl_gpio_of_xlate,
-	.to_irq			= sunxi_pinctrl_gpio_to_irq,
-	.of_gpio_n_cells	= 3,
-	.can_sleep		= false,
-};
 
 static int sunxi_pinctrl_irq_set_type(struct irq_data *d,
 				      unsigned int type)
@@ -858,11 +845,22 @@ static int sunxi_pinctrl_probe(struct platform_device *pdev)
 	}
 
 	last_pin = pctl->desc->pins[pctl->desc->npins - 1].pin.number;
-	pctl->chip = &sunxi_pinctrl_gpio_chip;
-	pctl->chip->ngpio = round_up(last_pin, PINS_PER_BANK);
+	pctl->chip->owner = THIS_MODULE;
+	pctl->chip->request = sunxi_pinctrl_gpio_request,
+	pctl->chip->free = sunxi_pinctrl_gpio_free,
+	pctl->chip->direction_input = sunxi_pinctrl_gpio_direction_input,
+	pctl->chip->direction_output = sunxi_pinctrl_gpio_direction_output,
+	pctl->chip->get = sunxi_pinctrl_gpio_get,
+	pctl->chip->set = sunxi_pinctrl_gpio_set,
+	pctl->chip->of_xlate = sunxi_pinctrl_gpio_of_xlate,
+	pctl->chip->to_irq = sunxi_pinctrl_gpio_to_irq,
+	pctl->chip->of_gpio_n_cells = 3,
+	pctl->chip->can_sleep = false,
+	pctl->chip->ngpio = round_up(last_pin, PINS_PER_BANK) -
+			    pctl->desc->pin_base;
 	pctl->chip->label = dev_name(&pdev->dev);
 	pctl->chip->dev = &pdev->dev;
-	pctl->chip->base = 0;
+	pctl->chip->base = pctl->desc->pin_base;
 
 	ret = gpiochip_add(pctl->chip);
 	if (ret)

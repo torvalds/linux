@@ -450,6 +450,7 @@ struct sunxi_pinctrl_desc {
 	int				npins;
 	struct pinctrl_gpio_range	*ranges;
 	int				nranges;
+	unsigned			pin_base;
 };
 
 struct sunxi_pinctrl_function {
