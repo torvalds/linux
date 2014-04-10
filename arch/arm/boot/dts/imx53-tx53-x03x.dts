@@ -25,11 +25,16 @@
 	soc {
 		display: display@di0 {
 			compatible = "fsl,imx-parallel-display";
-			crtcs = <&ipu 0>;
 			interface-pix-fmt = "rgb24";
 			pinctrl-names = "default";
 			pinctrl-0 = <&pinctrl_rgb24_vga1>;
 			status = "okay";
+
+			port {
+				display0_in: endpoint {
+					remote-endpoint = <&ipu_di0_disp0>;
+				};
+			};
 
 			display-timings {
 				VGA {
@@ -291,6 +296,10 @@
 			>;
 		};
 	};
+};
+
+&ipu_di0_disp0 {
+	remote-endpoint = <&display0_in>;
 };
 
 &kpp {
