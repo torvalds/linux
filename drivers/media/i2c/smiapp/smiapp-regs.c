@@ -165,7 +165,7 @@ static int __smiapp_read(struct smiapp_sensor *sensor, u32 reg, u32 *val,
 			 bool only8)
 {
 	struct i2c_client *client = v4l2_get_subdevdata(&sensor->src->sd);
-	unsigned int len = (u8)(reg >> 16);
+	u8 len = SMIAPP_REG_WIDTH(reg);
 	int rval;
 
 	if (len != SMIAPP_REG_8BIT && len != SMIAPP_REG_16BIT
@@ -173,9 +173,10 @@ static int __smiapp_read(struct smiapp_sensor *sensor, u32 reg, u32 *val,
 		return -EINVAL;
 
 	if (len == SMIAPP_REG_8BIT || !only8)
-		rval = ____smiapp_read(sensor, (u16)reg, len, val);
+		rval = ____smiapp_read(sensor, SMIAPP_REG_ADDR(reg), len, val);
 	else
-		rval = ____smiapp_read_8only(sensor, (u16)reg, len, val);
+		rval = ____smiapp_read_8only(sensor, SMIAPP_REG_ADDR(reg), len,
+					     val);
 	if (rval < 0)
 		return rval;
 
@@ -227,9 +228,9 @@ int smiapp_write_no_quirk(struct smiapp_sensor *sensor, u32 reg, u32 val)
 	struct i2c_msg msg;
 	unsigned char data[6];
 	unsigned int retries;
-	unsigned int flags = reg >> 24;
-	unsigned int len = (u8)(reg >> 16);
-	u16 offset = reg;
+	u8 flags = SMIAPP_REG_FLAGS(reg);
+	u8 len = SMIAPP_REG_WIDTH(reg);
+	u16 offset = SMIAPP_REG_ADDR(reg);
 	int r;
 
 	if ((len != SMIAPP_REG_8BIT && len != SMIAPP_REG_16BIT &&

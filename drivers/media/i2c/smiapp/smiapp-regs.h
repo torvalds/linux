@@ -28,6 +28,10 @@
 #include <linux/i2c.h>
 #include <linux/types.h>
 
+#define SMIAPP_REG_ADDR(reg)		((u16)reg)
+#define SMIAPP_REG_WIDTH(reg)		((u8)(reg >> 16))
+#define SMIAPP_REG_FLAGS(reg)		((u8)(reg >> 24))
+
 /* Use upper 8 bits of the type field for flags */
 #define SMIAPP_REG_FLAG_FLOAT		(1 << 24)
 
