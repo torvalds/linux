@@ -9,7 +9,6 @@
  *
 */
 
-#include <linux/init.h>
 #include <linux/spinlock.h>
 #include <linux/workqueue.h>
 #include <linux/interrupt.h>
@@ -123,24 +122,14 @@ static int s3c24xx_spi_update_state(struct spi_device *spi,
 {
 	struct s3c24xx_spi *hw = to_hw(spi);
 	struct s3c24xx_spi_devstate *cs = spi->controller_state;
-	unsigned int bpw;
 	unsigned int hz;
 	unsigned int div;
 	unsigned long clk;
 
-	bpw = t ? t->bits_per_word : spi->bits_per_word;
 	hz  = t ? t->speed_hz : spi->max_speed_hz;
-
-	if (!bpw)
-		bpw = 8;
 
 	if (!hz)
 		hz = spi->max_speed_hz;
-
-	if (bpw != 8) {
-		dev_err(&spi->dev, "invalid bits-per-word (%d)\n", bpw);
-		return -EINVAL;
-	}
 
 	if (spi->mode != cs->mode) {
 		u8 spcon = SPCON_DEFAULT | S3C2410_SPCON_ENSCK;
@@ -544,6 +533,7 @@ static int s3c24xx_spi_probe(struct platform_device *pdev)
 
 	master->num_chipselect = hw->pdata->num_cs;
 	master->bus_num = pdata->bus_num;
+	master->bits_per_word_mask = SPI_BPW_MASK(8);
 
 	/* setup the state for the bitbang driver */
 
@@ -643,6 +633,11 @@ static int s3c24xx_spi_remove(struct platform_device *dev)
 static int s3c24xx_spi_suspend(struct device *dev)
 {
 	struct s3c24xx_spi *hw = dev_get_drvdata(dev);
+	int ret;
+
+	ret = spi_master_suspend(hw->master);
+	if (ret)
+		return ret;
 
 	if (hw->pdata && hw->pdata->gpio_setup)
 		hw->pdata->gpio_setup(hw->pdata, 0);
@@ -656,7 +651,7 @@ static int s3c24xx_spi_resume(struct device *dev)
 	struct s3c24xx_spi *hw = dev_get_drvdata(dev);
 
 	s3c24xx_spi_initialsetup(hw);
-	return 0;
+	return spi_master_resume(hw->master);
 }
 
 static const struct dev_pm_ops s3c24xx_spi_pmops = {
