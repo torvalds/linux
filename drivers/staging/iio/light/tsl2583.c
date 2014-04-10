@@ -451,7 +451,7 @@ static int taos_chip_on(struct iio_dev *indio_dev)
 		}
 	}
 
-	msleep(3);
+	usleep_range(3000, 3500);
 	/* NOW enable the ADC
 	 * initialize the desired mode of operation */
 	utmp = TSL258X_CNTL_PWR_ON | TSL258X_CNTL_ADC_ENBL;
