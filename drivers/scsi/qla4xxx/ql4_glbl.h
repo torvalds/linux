@@ -281,6 +281,7 @@ int qla4_83xx_get_port_config(struct scsi_qla_host *ha, uint32_t *config);
 int qla4_83xx_set_port_config(struct scsi_qla_host *ha, uint32_t *config);
 int qla4_8xxx_check_init_adapter_retry(struct scsi_qla_host *ha);
 int qla4_83xx_is_detached(struct scsi_qla_host *ha);
+int qla4xxx_sysfs_ddb_export(struct scsi_qla_host *ha);
 
 extern int ql4xextended_error_logging;
 extern int ql4xdontresethba;
