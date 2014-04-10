@@ -8,7 +8,13 @@ Required properties:
 - interrupts: pair specifying rx and tx irq
 - clocks: phandle to the spi clock
 - cs-gpios: see spi-bus.txt
-- efm32,location: Value to write to the ROUTE register's LOCATION bitfield to configure the pinmux for the device, see datasheet for values.
+
+Recommended properties :
+- efm32,location: Value to write to the ROUTE register's LOCATION bitfield to
+                  configure the pinmux for the device, see datasheet for values.
+                  If "efm32,location" property is not provided, keeping what is
+                  already configured in the hardware, so its either the reset
+                  default 0 or whatever the bootloader did.
 
 Example:
 
