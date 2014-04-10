@@ -1742,6 +1742,9 @@ static int qla4xxx_get_ep_param(struct iscsi_endpoint *ep,
 	struct sockaddr *dst_addr;
 	struct scsi_qla_host *ha;
 
+	if (!qla_ep)
+		return -ENOTCONN;
+
 	ha = to_qla_host(qla_ep->host);
 	DEBUG2(ql4_printk(KERN_INFO, ha, "%s: host: %ld\n", __func__,
 			  ha->host_no));
@@ -1749,9 +1752,6 @@ static int qla4xxx_get_ep_param(struct iscsi_endpoint *ep,
 	switch (param) {
 	case ISCSI_PARAM_CONN_PORT:
 	case ISCSI_PARAM_CONN_ADDRESS:
-		if (!qla_ep)
-			return -ENOTCONN;
-
 		dst_addr = (struct sockaddr *)&qla_ep->dst_addr;
 		if (!dst_addr)
 			return -ENOTCONN;
