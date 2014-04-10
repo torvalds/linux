@@ -354,6 +354,7 @@ struct fsl_asrc {
 	struct clk *asrck_clk[ASRC_CLK_MAX_NUM];
 	spinlock_t lock;
 
+	struct snd_pcm_substream *substream[2];
 	struct fsl_asrc_pair *pair[ASRC_PAIR_MAX_NUM];
 	unsigned int channel_bits;
 	unsigned int channel_avail;

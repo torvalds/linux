@@ -535,7 +535,26 @@ static int fsl_asrc_dai_trigger(struct snd_pcm_substream *substream, int cmd,
 	return 0;
 }
 
+static int fsl_asrc_dai_startup(struct snd_pcm_substream *substream,
+			    struct snd_soc_dai *cpu_dai)
+{
+	struct fsl_asrc *asrc_priv   = snd_soc_dai_get_drvdata(cpu_dai);
+
+	asrc_priv->substream[substream->stream] = substream;
+	return 0;
+}
+
+static void fsl_asrc_dai_shutdown(struct snd_pcm_substream *substream,
+			    struct snd_soc_dai *cpu_dai)
+{
+	struct fsl_asrc *asrc_priv   = snd_soc_dai_get_drvdata(cpu_dai);
+
+	asrc_priv->substream[substream->stream] = NULL;
+}
+
 static struct snd_soc_dai_ops fsl_asrc_dai_ops = {
+	.startup      = fsl_asrc_dai_startup,
+	.shutdown     = fsl_asrc_dai_shutdown,
 	.hw_params    = fsl_asrc_dai_hw_params,
 	.hw_free      = fsl_asrc_dai_hw_free,
 	.trigger      = fsl_asrc_dai_trigger,
@@ -724,6 +743,85 @@ static const struct regmap_config fsl_asrc_regmap_config = {
 
 #include "fsl_asrc_m2m.c"
 
+static bool fsl_asrc_check_xrun(struct snd_pcm_substream *substream)
+{
+	struct snd_soc_pcm_runtime *rtd = substream->private_data;
+	struct snd_dmaengine_dai_dma_data *dma_params_be = NULL;
+	struct snd_pcm_substream *be_substream;
+	struct snd_soc_dpcm *dpcm;
+	int ret = 0;
+
+	/* find the be for this fe stream */
+	list_for_each_entry(dpcm, &rtd->dpcm[substream->stream].be_clients, list_be) {
+		struct snd_soc_pcm_runtime *be = dpcm->be;
+		struct snd_soc_dai *dai = be->cpu_dai;
+
+		if (dpcm->fe != rtd)
+			continue;
+
+		be_substream = snd_soc_dpcm_get_substream(be, substream->stream);
+		dma_params_be = snd_soc_dai_get_dma_data(dai, be_substream);
+		if (dma_params_be->check_xrun && dma_params_be->check_xrun(be_substream))
+			ret = 1;
+	}
+
+	return ret;
+}
+
+static int stop_lock_stream(struct snd_pcm_substream *substream)
+{
+	if (substream) {
+		snd_pcm_stream_lock_irq(substream);
+		if (substream->runtime->status->state == SNDRV_PCM_STATE_RUNNING)
+			substream->ops->trigger(substream, SNDRV_PCM_TRIGGER_STOP);
+	}
+	return 0;
+}
+
+static int start_unlock_stream(struct snd_pcm_substream *substream)
+{
+	if (substream) {
+		if (substream->runtime->status->state == SNDRV_PCM_STATE_RUNNING)
+			substream->ops->trigger(substream, SNDRV_PCM_TRIGGER_START);
+		snd_pcm_stream_unlock_irq(substream);
+	}
+	return 0;
+}
+
+static void fsl_asrc_reset(struct snd_pcm_substream *substream, bool stop)
+{
+	struct snd_soc_pcm_runtime *rtd = substream->private_data;
+	struct snd_soc_dai *cpu_dai = rtd->cpu_dai;
+	struct fsl_asrc *asrc_priv = snd_soc_dai_get_drvdata(cpu_dai);
+	struct snd_dmaengine_dai_dma_data *dma_params_be = NULL;
+	struct snd_soc_dpcm *dpcm;
+	struct snd_pcm_substream *be_substream;
+
+	if (stop) {
+		stop_lock_stream(asrc_priv->substream[0]);
+		stop_lock_stream(asrc_priv->substream[1]);
+	}
+
+	/* find the be for this fe stream */
+	list_for_each_entry(dpcm, &rtd->dpcm[substream->stream].be_clients, list_be) {
+		struct snd_soc_pcm_runtime *be = dpcm->be;
+		struct snd_soc_dai *dai = be->cpu_dai;
+
+		if (dpcm->fe != rtd)
+			continue;
+
+		be_substream = snd_soc_dpcm_get_substream(be, substream->stream);
+		dma_params_be = snd_soc_dai_get_dma_data(dai, be_substream);
+		dma_params_be->device_reset(be_substream, 0);
+		break;
+	}
+
+	if (stop) {
+		start_unlock_stream(asrc_priv->substream[1]);
+		start_unlock_stream(asrc_priv->substream[0]);
+	}
+}
+
 /**
  * Initialize ASRC registers with a default configurations
  */
@@ -907,6 +1005,11 @@ static int fsl_asrc_probe(struct platform_device *pdev)
 		dev_err(&pdev->dev, "failed to get output width\n");
 		return -EINVAL;
 	}
+
+	asrc_priv->dma_params_tx.check_xrun = fsl_asrc_check_xrun;
+	asrc_priv->dma_params_rx.check_xrun = fsl_asrc_check_xrun;
+	asrc_priv->dma_params_tx.device_reset = fsl_asrc_reset;
+	asrc_priv->dma_params_rx.device_reset = fsl_asrc_reset;
 
 	if (asrc_priv->asrc_width != 16 && asrc_priv->asrc_width != 24) {
 		dev_warn(&pdev->dev, "unsupported width, switching to 24bit\n");

@@ -1,7 +1,7 @@
 /*
  * Freescale ASRC ALSA SoC Platform (DMA) driver
  *
- * Copyright (C) 2014 Freescale Semiconductor, Inc.
+ * Copyright (C) 2014-2015 Freescale Semiconductor, Inc.
  *
  * Author: Nicolin Chen <nicoleotsuka@gmail.com>
  *
@@ -50,12 +50,19 @@ static void fsl_asrc_dma_complete(void *arg)
 	struct snd_pcm_substream *substream = arg;
 	struct snd_pcm_runtime *runtime = substream->runtime;
 	struct fsl_asrc_pair *pair = runtime->private_data;
+	struct snd_soc_pcm_runtime *rtd = substream->private_data;
+	struct snd_dmaengine_dai_dma_data *dma_data;
 
 	pair->pos += snd_pcm_lib_period_bytes(substream);
 	if (pair->pos >= snd_pcm_lib_buffer_bytes(substream))
 		pair->pos = 0;
 
 	snd_pcm_period_elapsed(substream);
+
+	dma_data = snd_soc_dai_get_dma_data(rtd->cpu_dai, substream);
+	if (dma_data->check_xrun && dma_data->check_xrun(substream))
+		dma_data->device_reset(substream, 1);
+
 }
 
 static int fsl_asrc_dma_prepare_and_submit(struct snd_pcm_substream *substream)
