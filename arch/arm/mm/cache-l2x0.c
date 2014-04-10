@@ -441,11 +441,23 @@ static void l2c220_sync(void)
 	raw_spin_unlock_irqrestore(&l2x0_lock, flags);
 }
 
+static void l2c220_enable(void __iomem *base, u32 aux, unsigned num_lock)
+{
+	/*
+	 * Always enable non-secure access to the lockdown registers -
+	 * we write to them as part of the L2C enable sequence so they
+	 * need to be accessible.
+	 */
+	aux |= L220_AUX_CTRL_NS_LOCKDOWN;
+
+	l2c_enable(base, aux, num_lock);
+}
+
 static const struct l2c_init_data l2c220_data = {
 	.type = "L2C-220",
 	.way_size_0 = SZ_8K,
 	.num_lock = 1,
-	.enable = l2c_enable,
+	.enable = l2c220_enable,
 	.save = l2c_save,
 	.outer_cache = {
 		.inv_range = l2c220_inv_range,
@@ -665,6 +677,13 @@ static void __init l2c310_enable(void __iomem *base, u32 aux, unsigned num_lock)
 			power_ctrl & L310_DYNAMIC_CLK_GATING_EN ? "en" : "dis",
 			power_ctrl & L310_STNDBY_MODE_EN ? "en" : "dis");
 	}
+
+	/*
+	 * Always enable non-secure access to the lockdown registers -
+	 * we write to them as part of the L2C enable sequence so they
+	 * need to be accessible.
+	 */
+	aux |= L310_AUX_CTRL_NS_LOCKDOWN;
 
 	l2c_enable(base, aux, num_lock);
 }
@@ -919,7 +938,7 @@ static const struct l2c_init_data of_l2c220_data __initconst = {
 	.way_size_0 = SZ_8K,
 	.num_lock = 1,
 	.of_parse = l2x0_of_parse,
-	.enable = l2c_enable,
+	.enable = l2c220_enable,
 	.save = l2c_save,
 	.outer_cache = {
 		.inv_range   = l2c220_inv_range,
