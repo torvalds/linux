@@ -214,17 +214,15 @@ static int __init omap_l2_cache_init(void)
 
 	/* 16-way associativity, parity disabled, way size - 64KB (es2.0 +) */
 	aux_ctrl = L310_AUX_CTRL_CACHE_REPLACE_RR |
-		   L310_AUX_CTRL_NS_LOCKDOWN |
-		   L310_AUX_CTRL_NS_INT_CTRL |
 		   L2C_AUX_CTRL_SHARED_OVERRIDE |
 		   L310_AUX_CTRL_DATA_PREFETCH |
 		   L310_AUX_CTRL_INSTR_PREFETCH;
 
 	outer_cache.write_sec = omap4_l2c310_write_sec;
 	if (of_have_populated_dt())
-		l2x0_of_init(aux_ctrl, 0xc19fffff);
+		l2x0_of_init(aux_ctrl, 0xcd9fffff);
 	else
-		l2x0_init(l2cache_base, aux_ctrl, 0xc19fffff);
+		l2x0_init(l2cache_base, aux_ctrl, 0xcd9fffff);
 
 	return 0;
 }
