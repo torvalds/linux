@@ -687,7 +687,7 @@ static void cpsw_rx_handler(void *token, int len, int status)
 
 	cpsw_dual_emac_src_port_detect(status, priv, ndev, skb);
 
-	if (unlikely(status < 0)) {
+	if (unlikely(status < 0) || unlikely(!netif_running(ndev))) {
 		/* the interface is going down, skbs are purged */
 		dev_kfree_skb_any(skb);
 		return;
