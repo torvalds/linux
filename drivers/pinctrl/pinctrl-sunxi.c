@@ -884,7 +884,9 @@ static int sunxi_pinctrl_probe(struct platform_device *pdev)
 		goto gpiochip_error;
 	}
 
-	clk_prepare_enable(clk);
+	ret = clk_prepare_enable(clk);
+	if (ret)
+		goto gpiochip_error;
 
 	pctl->irq = irq_of_parse_and_map(node, 0);
 	if (!pctl->irq) {
