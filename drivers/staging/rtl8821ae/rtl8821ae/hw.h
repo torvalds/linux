@@ -56,12 +56,12 @@ void rtl8821ae_set_key(struct ieee80211_hw *hw, u32 key_index,
 
 void rtl8821ae_read_bt_coexist_info_from_hwpg(struct ieee80211_hw *hw,
 					      bool autoload_fail,
-					      u8* hwinfo);
+					      u8 *hwinfo);
 void rtl8812ae_read_bt_coexist_info_from_hwpg(struct ieee80211_hw *hw,
 					      bool autoload_fail,
-					      u8* hwinfo);
-void rtl8821ae_bt_reg_init(struct ieee80211_hw* hw);
-void rtl8821ae_bt_hw_init(struct ieee80211_hw* hw);
+					      u8 *hwinfo);
+void rtl8821ae_bt_reg_init(struct ieee80211_hw *hw);
+void rtl8821ae_bt_hw_init(struct ieee80211_hw *hw);
 void rtl8821ae_suspend(struct ieee80211_hw *hw);
 void rtl8821ae_resume(struct ieee80211_hw *hw);
 void rtl8821ae_allow_all_destaddr(struct ieee80211_hw *hw,
