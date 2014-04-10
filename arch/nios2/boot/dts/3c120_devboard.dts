@@ -164,6 +164,7 @@
 				resetvalue = < 0 >;
 				edge_type = < 2 >;
 				level_trigger = < 0 >;
+				altr,interrupt_type = < 3 >;
 				#gpio-cells = < 2 >;
 				gpio-controller;
 			}; //end gpio@0x4ce0 (user_dipsw_pio_8in)
@@ -177,6 +178,7 @@
 				resetvalue = < 0 >;
 				edge_type = < 2 >;
 				level_trigger = < 0 >;
+				altr,interrupt_type = < 3 >;
 				#gpio-cells = < 2 >;
 				gpio-controller;
 			}; //end gpio@0x4d00 (user_pb_pio_4in)
