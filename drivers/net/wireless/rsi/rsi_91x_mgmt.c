@@ -966,6 +966,7 @@ static int rsi_send_auto_rate_request(struct rsi_common *common)
 	if (!selected_rates) {
 		rsi_dbg(ERR_ZONE, "%s: Failed in allocation of mem\n",
 			__func__);
+		dev_kfree_skb(skb);
 		return -ENOMEM;
 	}
 
