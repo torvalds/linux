@@ -430,7 +430,7 @@
 
 					port {
 						lvds1_in: endpoint {
-							remote-endpoint = <&ipu_di0_lvds0>;
+							remote-endpoint = <&ipu_di1_lvds1>;
 						};
 					};
 				};
