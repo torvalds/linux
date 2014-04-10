@@ -278,7 +278,7 @@ static irqreturn_t fsl_qspi_irq_handler(int irq, void *dev_id)
 
 static void fsl_qspi_init_lut(struct fsl_qspi *q)
 {
-	void *__iomem base = q->iobase;
+	void __iomem *base = q->iobase;
 	int rxfifo = q->devtype_data->rxfifo;
 	u32 lut_base;
 	u8 cmd, addrlen, dummy;
@@ -422,7 +422,7 @@ static int fsl_qspi_get_seqid(struct fsl_qspi *q, u8 cmd)
 static int
 fsl_qspi_runcmd(struct fsl_qspi *q, u8 cmd, unsigned int addr, int len)
 {
-	void *__iomem base = q->iobase;
+	void __iomem *base = q->iobase;
 	int seqid;
 	u32 reg, reg2;
 	int err;
