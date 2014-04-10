@@ -891,7 +891,7 @@ static int sunxi_pinctrl_probe(struct platform_device *pdev)
 	pctl->irq = irq_of_parse_and_map(node, 0);
 	if (!pctl->irq) {
 		ret = -EINVAL;
-		goto gpiochip_error;
+		goto clk_error;
 	}
 
 	pctl->domain = irq_domain_add_linear(node, SUNXI_IRQ_NUMBER,
@@ -899,7 +899,7 @@ static int sunxi_pinctrl_probe(struct platform_device *pdev)
 	if (!pctl->domain) {
 		dev_err(&pdev->dev, "Couldn't register IRQ domain\n");
 		ret = -ENOMEM;
-		goto gpiochip_error;
+		goto clk_error;
 	}
 
 	for (i = 0; i < SUNXI_IRQ_NUMBER; i++) {
@@ -917,6 +917,8 @@ static int sunxi_pinctrl_probe(struct platform_device *pdev)
 
 	return 0;
 
+clk_error:
+	clk_disable_unprepare(clk);
 gpiochip_error:
 	if (gpiochip_remove(pctl->chip))
 		dev_err(&pdev->dev, "failed to remove gpio chip\n");
