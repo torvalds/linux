@@ -192,8 +192,7 @@ static struct s5p_jpeg_fmt sjpeg_formats[] = {
 		.colplanes	= 2,
 		.h_align	= 4,
 		.v_align	= 4,
-		.flags		= SJPEG_FMT_FLAG_ENC_OUTPUT |
-				  SJPEG_FMT_FLAG_DEC_CAPTURE |
+		.flags		= SJPEG_FMT_FLAG_DEC_CAPTURE |
 				  SJPEG_FMT_FLAG_S5P |
 				  SJPEG_FMT_NON_RGB,
 		.subsampling	= V4L2_JPEG_CHROMA_SUBSAMPLING_420,
