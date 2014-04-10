@@ -1364,6 +1364,7 @@ static int rk3288_lcdc_cal_scl_fac(struct rk_lcdc_win *win)
 	u32 cbcr_yscl_factor;
 	u8  cbcr_vsd_bil_gt2=0;
 	u8  cbcr_vsd_bil_gt4=0;
+	u8  yuv_fmt=0;
 
 
 	srcW = win->area[0].xact;
@@ -1376,6 +1377,12 @@ static int rk3288_lcdc_cal_scl_fac(struct rk_lcdc_win *win)
 	yrgb_srcH = srcH;
 	yrgb_dstW = dstW;
 	yrgb_dstH = dstH;
+	if ((yrgb_dstW >= yrgb_srcW*8) || (yrgb_dstH >= yrgb_srcH*8) ||
+		(yrgb_dstW*8 <= yrgb_srcW) || (yrgb_dstH*8 <= yrgb_srcH)) {
+		pr_err("ERROR: yrgb scale exceed 8,"
+		       "srcW=%d,srcH=%d,dstW=%d,dstH=%d\n",
+		       yrgb_srcW,yrgb_srcH,yrgb_dstW,yrgb_dstH);
+	}
 	if(yrgb_srcW < yrgb_dstW){
 		win->yrgb_hor_scl_mode = SCALE_UP;
     	}else if(yrgb_srcW > yrgb_dstW){
@@ -1400,6 +1407,7 @@ static int rk3288_lcdc_cal_scl_fac(struct rk_lcdc_win *win)
 		cbcr_dstW = dstW;
 		cbcr_srcH = srcH;
 		cbcr_dstH = dstH;
+		yuv_fmt = 1;
 		break;
 	case YUV420:
 	case YUV420_A:	
@@ -1407,6 +1415,7 @@ static int rk3288_lcdc_cal_scl_fac(struct rk_lcdc_win *win)
 		cbcr_dstW = dstW;
 		cbcr_srcH = srcH/2;
 		cbcr_dstH = dstH;
+		yuv_fmt = 1;
 		break;
 	case YUV444:
 	case YUV444_A:	
@@ -1414,14 +1423,25 @@ static int rk3288_lcdc_cal_scl_fac(struct rk_lcdc_win *win)
 		cbcr_dstW = dstW;
 		cbcr_srcH = srcH;
 		cbcr_dstH = dstH;
+		yuv_fmt = 1;
 		break;
 	default:
 		cbcr_srcW = 0;
 	        cbcr_dstW = 0;
 	        cbcr_srcH = 0;
 	        cbcr_dstH = 0;
+		yuv_fmt = 0;
 		break;
 	}		
+	if (yuv_fmt) {
+		if ((cbcr_dstW >= cbcr_srcW*8) || (cbcr_dstH >= cbcr_srcH*8) ||
+			(cbcr_dstW*8 <= cbcr_srcW)||(cbcr_dstH*8 <= cbcr_srcH)) {
+			pr_err("ERROR: cbcr scale exceed 8,"
+		       "srcW=%d,srcH=%d,dstW=%d,dstH=%d\n",
+		       cbcr_srcW,cbcr_srcH,cbcr_dstW,cbcr_dstH);
+		}
+	}
+	
 	if(cbcr_srcW < cbcr_dstW){
 		win->cbr_hor_scl_mode = SCALE_UP;
 	}else if(cbcr_srcW > cbcr_dstW){
@@ -1448,8 +1468,8 @@ static int rk3288_lcdc_cal_scl_fac(struct rk_lcdc_win *win)
     /*line buffer mode*/
     	if((win->format == YUV422) || (win->format == YUV420) || (win->format == YUV422_A) || (win->format == YUV420_A)){
         	if(win->cbr_hor_scl_mode == SCALE_DOWN){
-            		if(cbcr_dstW > 3840){
-                		pr_err("ERROR cbcr_dst_width exceeds 3840\n");                
+            		if ((cbcr_dstW > 3840) || (cbcr_dstW == 0)) {
+                		pr_err("ERROR cbcr_dstW = %d\n",cbcr_dstW);                
             		}else if(cbcr_dstW > 2560){
                 		win->win_lb_mode = LB_RGB_3840X2;
             		}else if(cbcr_dstW > 1920){
@@ -1470,8 +1490,8 @@ static int rk3288_lcdc_cal_scl_fac(struct rk_lcdc_win *win)
                 		win->win_lb_mode = LB_YUV_2560X8;
             		}            
         	} else { /*SCALE_UP or SCALE_NONE*/
-            		if(cbcr_srcW > 3840){
-                		pr_err("ERROR cbcr_act_width exceeds 3840\n");
+            		if ((cbcr_srcW > 3840) || (cbcr_srcW == 0)) {
+                		pr_err("ERROR cbcr_srcW = %d\n",cbcr_srcW);
             		}else if(cbcr_srcW > 2560){                
                 		win->win_lb_mode = LB_RGB_3840X2;
             		}else if(cbcr_srcW > 1920){
@@ -1494,8 +1514,8 @@ static int rk3288_lcdc_cal_scl_fac(struct rk_lcdc_win *win)
         	}
     	}else {
         	if(win->yrgb_hor_scl_mode == SCALE_DOWN){
-            		if(yrgb_dstW > 3840){
-                		pr_err("ERROR yrgb_dsp_width exceeds 3840\n");
+            		if ((yrgb_dstW > 3840) || (yrgb_dstW == 0)) {
+                		pr_err("ERROR yrgb_dstW = %d\n",yrgb_dstW);
             		}else if(yrgb_dstW > 2560){
                 		win->win_lb_mode = LB_RGB_3840X2;
             		}else if(yrgb_dstW > 1920){
@@ -1506,8 +1526,8 @@ static int rk3288_lcdc_cal_scl_fac(struct rk_lcdc_win *win)
                 		win->win_lb_mode = LB_RGB_1280X8;
             		}            
         	}else{ /*SCALE_UP or SCALE_NONE*/
-            		if(yrgb_srcW > 3840){
-                		pr_err("ERROR yrgb_act_width exceeds 3840\n");
+            		if ((yrgb_srcW > 3840) || (yrgb_srcW == 0)) {
+                		pr_err("ERROR yrgb_srcW = %d\n",yrgb_srcW);
             		}else if(yrgb_srcW > 2560){
                 		win->win_lb_mode = LB_RGB_3840X2;
             		}else if(yrgb_srcW > 1920){

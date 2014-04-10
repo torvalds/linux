@@ -1288,7 +1288,9 @@ static void rk_fb_update_regs_handler(struct kthread_work *work)
 }
 static int rk_fb_check_config_var(struct rk_fb_area_par *area_par,struct rk_screen *screen)
 {
-	if(area_par->x_offset+area_par->xact > area_par->xvir){
+	if ((area_par->x_offset+area_par->xact > area_par->xvir) ||
+		(area_par->xact <= 0) || (area_par->yact <= 0) ||
+		(area_par->xvir <= 0) || (area_par->yvir <= 0)) {
 		pr_err("check config var fail 0:\n"
 			"x_offset=%d,xact=%d,xvir=%d\n",
 			area_par->x_offset,
@@ -1297,8 +1299,9 @@ static int rk_fb_check_config_var(struct rk_fb_area_par *area_par,struct rk_scre
 		return -EINVAL;
 	}
 
-	if((area_par->xpos+area_par->xsize > screen->mode.xres) ||
-		(area_par->ypos+area_par->ysize > screen->mode.yres)){
+	if ((area_par->xpos+area_par->xsize > screen->mode.xres) ||
+		(area_par->ypos+area_par->ysize > screen->mode.yres) ||
+		(area_par->xsize <= 0) || (area_par->ysize <= 0)) {
 		pr_err("check config var fail 1:\n"
 			"xpos=%d,xsize=%d,xres=%d\n"
 			"ypos=%d,ysize=%d,yres=%d\n",
