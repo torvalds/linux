@@ -194,7 +194,8 @@ int bch_journal_read(struct cache_set *c, struct list_head *list)
 			continue;
 bsearch:
 		/* Binary search */
-		m = r = find_next_bit(bitmap, ca->sb.njournal_buckets, l + 1);
+		m = l;
+		r = find_next_bit(bitmap, ca->sb.njournal_buckets, l + 1);
 		pr_debug("starting binary search, l %u r %u", l, r);
 
 		while (l + 1 < r) {
