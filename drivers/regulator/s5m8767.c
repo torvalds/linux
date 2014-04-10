@@ -964,6 +964,7 @@ static int s5m8767_pmic_probe(struct platform_device *pdev)
 		config.driver_data = s5m8767;
 		config.regmap = iodev->regmap_pmic;
 		config.of_node = pdata->regulators[i].reg_node;
+		config.ena_gpio = config.ena_gpio_flags = 0;
 		if (pdata->regulators[i].ext_control_gpio)
 			s5m8767_regulator_config_ext_control(s5m8767,
 					&pdata->regulators[i], &config);
