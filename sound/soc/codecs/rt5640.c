@@ -1,5 +1,5 @@
 /*
- * rt5640.c  --  RT5640 ALSA SoC audio codec driver
+ * rt5640.c  --  RT5640/RT5639 ALSA SoC audio codec driver
  *
  * Copyright 2011 Realtek Semiconductor Corp.
  * Author: Johnny Hsu <johnnyhsu@realtek.com>
@@ -2148,6 +2148,7 @@ static const struct regmap_config rt5640_regmap = {
 
 static const struct i2c_device_id rt5640_i2c_id[] = {
 	{ "rt5640", 0 },
+	{ "rt5639", 0 },
 	{ }
 };
 MODULE_DEVICE_TABLE(i2c, rt5640_i2c_id);
@@ -2316,6 +2317,6 @@ static struct i2c_driver rt5640_i2c_driver = {
 };
 module_i2c_driver(rt5640_i2c_driver);
 
-MODULE_DESCRIPTION("ASoC RT5640 driver");
+MODULE_DESCRIPTION("ASoC RT5640/RT5639 driver");
 MODULE_AUTHOR("Johnny Hsu <johnnyhsu@realtek.com>");
 MODULE_LICENSE("GPL v2");
