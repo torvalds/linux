@@ -200,12 +200,11 @@ static int rk3288_lcdc_reg_dump(struct rk_lcdc_driver *dev_drv)
 /********do basic init*********/
 static int rk3288_lcdc_pre_init(struct rk_lcdc_driver *dev_drv)
 {
-	int v,i,j;
+	int v,i;
 	struct lcdc_device *lcdc_dev = container_of(dev_drv,
 							   struct
 							   lcdc_device,
 						   driver);
-	int *cbase = (int *)lcdc_dev->regs;
 	if (lcdc_dev->pre_init)
 		return 0;
 
@@ -226,10 +225,10 @@ static int rk3288_lcdc_pre_init(struct rk_lcdc_driver *dev_drv)
 	} else {
 		lcdc_dev->clk_on = 1;
 	}
-	/*rk3288_lcdc_read_reg_defalut_cfg(lcdc_dev);*/
-	for (i = 0; i <= (0x200 >> 4); i++) {
-		for (j = 0; j < 4; j++)
-			readl_relaxed(cbase + i * 4 + j);
+	/*backup reg config at uboot*/
+	for (i = 0; i < 0x1a0;) {
+		lcdc_readl(lcdc_dev,i);
+		i += 4;
 	}
 #ifndef CONFIG_RK_FPGA
 	if (lcdc_dev->pwr18 == true) {
@@ -2931,7 +2930,7 @@ static int rk3288_lcdc_dpi_status(struct rk_lcdc_driver *dev_drv)
 	spin_unlock(&lcdc_dev->reg_lock);
 	return ovl;
 }
-static rk3288_lcdc_set_irq_to_cpu(struct rk_lcdc_driver * dev_drv,int enable)
+static int rk3288_lcdc_set_irq_to_cpu(struct rk_lcdc_driver * dev_drv,int enable)
 {
        struct lcdc_device *lcdc_dev =
                                 container_of(dev_drv,struct lcdc_device,driver);
