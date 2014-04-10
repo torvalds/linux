@@ -145,6 +145,8 @@ int drm_primary_helper_update(struct drm_plane *plane, struct drm_crtc *crtc,
 	}
 
 	/* Disallow scaling */
+	src_w >>= 16;
+	src_h >>= 16;
 	if (crtc_w != src_w || crtc_h != src_h) {
 		DRM_DEBUG_KMS("Can't scale primary plane\n");
 		return -EINVAL;
