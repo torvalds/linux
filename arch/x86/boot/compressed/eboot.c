@@ -112,7 +112,7 @@ __file_size64(void *__fh, efi_char16_t *filename_16,
 	efi_file_info_t *info;
 	efi_status_t status;
 	efi_guid_t info_guid = EFI_FILE_INFO_ID;
-	u32 info_sz;
+	u64 info_sz;
 
 	status = efi_early->call((unsigned long)fh->open, fh, &h, filename_16,
 				 EFI_FILE_MODE_READ, (u64)0);
