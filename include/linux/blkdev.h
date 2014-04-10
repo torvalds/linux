@@ -178,7 +178,6 @@ struct request {
 	unsigned short ioprio;
 
 	void *special;		/* opaque pointer available for LLD use */
-	char *buffer;		/* kaddr of the current segment if available */
 
 	int tag;
 	int errors;

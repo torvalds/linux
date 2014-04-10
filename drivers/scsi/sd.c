@@ -739,14 +739,11 @@ static int sd_setup_discard_cmnd(struct scsi_device *sdp, struct request *rq)
 
 	blk_add_request_payload(rq, page, len);
 	ret = scsi_setup_blk_pc_cmnd(sdp, rq);
-	rq->buffer = page_address(page);
 	rq->__data_len = nr_bytes;
 
 out:
-	if (ret != BLKPREP_OK) {
+	if (ret != BLKPREP_OK)
 		__free_page(page);
-		rq->buffer = NULL;
-	}
 	return ret;
 }
 
@@ -843,8 +840,9 @@ static void sd_unprep_fn(struct request_queue *q, struct request *rq)
 	struct scsi_cmnd *SCpnt = rq->special;
 
 	if (rq->cmd_flags & REQ_DISCARD) {
-		free_page((unsigned long)rq->buffer);
-		rq->buffer = NULL;
+		struct bio *bio = rq->bio;
+
+		__free_page(bio->bi_io_vec->bv_page);
 	}
 	if (SCpnt->cmnd != rq->cmd) {
 		mempool_free(SCpnt->cmnd, sd_cdb_pool);

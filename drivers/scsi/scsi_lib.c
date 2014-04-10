@@ -1018,8 +1018,6 @@ static int scsi_init_sgtable(struct request *req, struct scsi_data_buffer *sdb,
 		return BLKPREP_DEFER;
 	}
 
-	req->buffer = NULL;
-
 	/* 
 	 * Next, walk the list, and fill in the addresses and sizes of
 	 * each segment.
@@ -1156,7 +1154,6 @@ int scsi_setup_blk_pc_cmnd(struct scsi_device *sdev, struct request *req)
 		BUG_ON(blk_rq_bytes(req));
 
 		memset(&cmd->sdb, 0, sizeof(cmd->sdb));
-		req->buffer = NULL;
 	}
 
 	cmd->cmd_len = req->cmd_len;

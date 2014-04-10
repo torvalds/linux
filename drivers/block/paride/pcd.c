@@ -747,7 +747,7 @@ static void do_pcd_request(struct request_queue * q)
 			pcd_current = cd;
 			pcd_sector = blk_rq_pos(pcd_req);
 			pcd_count = blk_rq_cur_sectors(pcd_req);
-			pcd_buf = pcd_req->buffer;
+			pcd_buf = bio_data(pcd_req->bio);
 			pcd_busy = 1;
 			ps_set_intr(do_pcd_read, NULL, 0, nice);
 			return;

@@ -146,8 +146,8 @@ void blk_dump_rq_flags(struct request *rq, char *msg)
 	printk(KERN_INFO "  sector %llu, nr/cnr %u/%u\n",
 	       (unsigned long long)blk_rq_pos(rq),
 	       blk_rq_sectors(rq), blk_rq_cur_sectors(rq));
-	printk(KERN_INFO "  bio %p, biotail %p, buffer %p, len %u\n",
-	       rq->bio, rq->biotail, rq->buffer, blk_rq_bytes(rq));
+	printk(KERN_INFO "  bio %p, biotail %p, len %u\n",
+	       rq->bio, rq->biotail, blk_rq_bytes(rq));
 
 	if (rq->cmd_type == REQ_TYPE_BLOCK_PC) {
 		printk(KERN_INFO "  cdb: ");
@@ -1360,7 +1360,6 @@ void blk_add_request_payload(struct request *rq, struct page *page,
 
 	rq->__data_len = rq->resid_len = len;
 	rq->nr_phys_segments = 1;
-	rq->buffer = bio_data(bio);
 }
 EXPORT_SYMBOL_GPL(blk_add_request_payload);
 
@@ -1402,12 +1401,6 @@ bool bio_attempt_front_merge(struct request_queue *q, struct request *req,
 	bio->bi_next = req->bio;
 	req->bio = bio;
 
-	/*
-	 * may not be valid. if the low level driver said
-	 * it didn't need a bounce buffer then it better
-	 * not touch req->buffer either...
-	 */
-	req->buffer = bio_data(bio);
 	req->__sector = bio->bi_iter.bi_sector;
 	req->__data_len += bio->bi_iter.bi_size;
 	req->ioprio = ioprio_best(req->ioprio, bio_prio(bio));
@@ -2434,7 +2427,6 @@ bool blk_update_request(struct request *req, int error, unsigned int nr_bytes)
 	}
 
 	req->__data_len -= total_bytes;
-	req->buffer = bio_data(req->bio);
 
 	/* update sector only for requests with clear definition of sector */
 	if (req->cmd_type == REQ_TYPE_FS)
@@ -2752,10 +2744,9 @@ void blk_rq_bio_prep(struct request_queue *q, struct request *rq,
 	/* Bit 0 (R/W) is identical in rq->cmd_flags and bio->bi_rw */
 	rq->cmd_flags |= bio->bi_rw & REQ_WRITE;
 
-	if (bio_has_data(bio)) {
+	if (bio_has_data(bio))
 		rq->nr_phys_segments = bio_phys_segments(q, bio);
-		rq->buffer = bio_data(bio);
-	}
+
 	rq->__data_len = bio->bi_iter.bi_size;
 	rq->bio = rq->biotail = bio;
 
@@ -2831,7 +2822,7 @@ EXPORT_SYMBOL_GPL(blk_rq_unprep_clone);
 
 /*
  * Copy attributes of the original request to the clone request.
- * The actual data parts (e.g. ->cmd, ->buffer, ->sense) are not copied.
+ * The actual data parts (e.g. ->cmd, ->sense) are not copied.
  */
 static void __blk_rq_prep_clone(struct request *dst, struct request *src)
 {
@@ -2857,7 +2848,7 @@ static void __blk_rq_prep_clone(struct request *dst, struct request *src)
  *
  * Description:
  *     Clones bios in @rq_src to @rq, and copies attributes of @rq_src to @rq.
- *     The actual data parts of @rq_src (e.g. ->cmd, ->buffer, ->sense)
+ *     The actual data parts of @rq_src (e.g. ->cmd, ->sense)
  *     are not copied, and copying such parts is the caller's responsibility.
  *     Also, pages which the original bios are pointing to are not copied
  *     and the cloned bios just point same pages.

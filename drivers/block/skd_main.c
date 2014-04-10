@@ -563,7 +563,6 @@ skd_prep_discard_cdb(struct skd_scsi_request *scsi_req,
 
 	req = skreq->req;
 	blk_add_request_payload(req, page, len);
-	req->buffer = buf;
 }
 
 static void skd_request_fn_not_online(struct request_queue *q);
@@ -856,10 +855,10 @@ static void skd_end_request(struct skd_device *skdev,
 
 	if ((io_flags & REQ_DISCARD) &&
 		(skreq->discard_page == 1)) {
+		struct bio *bio = req->bio;
 		pr_debug("%s:%s:%d, free the page!",
 			 skdev->name, __func__, __LINE__);
-		free_page((unsigned long)req->buffer);
-		req->buffer = NULL;
+		__free_page(bio->bi_io_vec->bv_page);
 	}
 
 	if (unlikely(error)) {

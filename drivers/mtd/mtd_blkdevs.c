@@ -82,8 +82,7 @@ static int do_blktrans_request(struct mtd_blktrans_ops *tr,
 
 	block = blk_rq_pos(req) << 9 >> tr->blkshift;
 	nsect = blk_rq_cur_bytes(req) >> tr->blkshift;
-
-	buf = req->buffer;
+	buf = bio_data(req->bio);
 
 	if (req->cmd_type != REQ_TYPE_FS)
 		return -EIO;

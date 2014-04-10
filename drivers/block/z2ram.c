@@ -87,13 +87,15 @@ static void do_z2_request(struct request_queue *q)
 		while (len) {
 			unsigned long addr = start & Z2RAM_CHUNKMASK;
 			unsigned long size = Z2RAM_CHUNKSIZE - addr;
+			void *buffer = bio_data(req->bio);
+
 			if (len < size)
 				size = len;
 			addr += z2ram_map[ start >> Z2RAM_CHUNKSHIFT ];
 			if (rq_data_dir(req) == READ)
-				memcpy(req->buffer, (char *)addr, size);
+				memcpy(buffer, (char *)addr, size);
 			else
-				memcpy((char *)addr, req->buffer, size);
+				memcpy((char *)addr, buffer, size);
 			start += size;
 			len -= size;
 		}
