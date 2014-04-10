@@ -1,5 +1,5 @@
 /**
- * Copyright (C) ARM Limited 2010-2013. All rights reserved.
+ * Copyright (C) ARM Limited 2010-2014. All rights reserved.
  *
  * This program is free software; you can redistribute it and/or modify
  * it under the terms of the GNU General Public License version 2 as
@@ -11,12 +11,12 @@
 
 #include <stdint.h>
 
+#include "Config.h"
 #include "Counter.h"
 #include "Hwmon.h"
+#include "PerfDriver.h"
 
-#define MAX_PERFORMANCE_COUNTERS	50
-
-#define PROTOCOL_VERSION	17
+#define PROTOCOL_VERSION	18
 #define PROTOCOL_DEV		1000	// Differentiates development versions (timestamp) from release versions
 
 struct ImageLinkList {
@@ -34,6 +34,7 @@ public:
 	void parseSessionXML(char* xmlString);
 
 	Hwmon hwmon;
+	PerfDriver perf;
 
 	char mCoreName[MAX_STRING_LEN];
 	struct ImageLinkList *mImages;
@@ -47,6 +48,7 @@ public:
 	bool mSessionIsActive;
 	bool mLocalCapture;
 	bool mOneShot;		// halt processing of the driver data until profiling is complete or the buffer is filled
+	bool mIsEBS;
 	
 	int mBacktraceDepth;
 	int mTotalBufferSize;	// number of MB to use for the entire collection buffer
@@ -54,7 +56,9 @@ public:
 	int64_t mLiveRate;
 	int mDuration;
 	int mCores;
-	int mCpuId;
+	int mPageSize;
+	int mCpuIds[NR_CPUS];
+	int mMaxCpuId;
 
 	// PMU Counters
 	int mCounterOverflow;

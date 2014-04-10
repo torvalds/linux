@@ -1,32 +1,30 @@
 /**
- * Copyright (C) ARM Limited 2010-2013. All rights reserved.
+ * Copyright (C) ARM Limited 2010-2014. All rights reserved.
  *
  * This program is free software; you can redistribute it and/or modify
  * it under the terms of the GNU General Public License version 2 as
  * published by the Free Software Foundation.
  */
 
-#include <stdlib.h>
-#include <signal.h>
+#include <arpa/inet.h>
+#include <fcntl.h>
+#include <pthread.h>
+#include <sys/mman.h>
+#include <sys/mount.h>
+#include <sys/prctl.h>
+#include <sys/resource.h>
+#include <sys/socket.h>
+#include <sys/stat.h>
+#include <sys/syscall.h>
 #include <sys/wait.h>
 #include <unistd.h>
-#include <sys/syscall.h>
-#include <sys/prctl.h>
-#include <sys/types.h>
-#include <sys/stat.h>
-#include <sys/mount.h>
-#include <fcntl.h>
-#include <sys/mman.h>
-#include <sys/time.h>
-#include <sys/resource.h>
-#include <arpa/inet.h>
-#include <sys/socket.h>
+
 #include "Child.h"
-#include "SessionData.h"
-#include "OlySocket.h"
-#include "Logging.h"
-#include "OlyUtility.h"
 #include "KMod.h"
+#include "Logging.h"
+#include "OlySocket.h"
+#include "OlyUtility.h"
+#include "SessionData.h"
 
 #define DEBUG false
 
@@ -34,7 +32,7 @@ extern Child* child;
 static int shutdownFilesystem();
 static pthread_mutex_t numSessions_mutex;
 static int numSessions = 0;
-static OlySocket* sock = NULL;
+static OlyServerSocket* sock = NULL;
 static bool driverRunningAtStart = false;
 static bool driverMountedAtStart = false;
 
@@ -157,6 +155,7 @@ typedef struct {
 static const char DST_REQ[] = { 'D', 'S', 'T', '_', 'R', 'E', 'Q', ' ', 0, 0, 0, 0x64 };
 
 static void* answerThread(void* pVoid) {
+	prctl(PR_SET_NAME, (unsigned long)&"gatord-discover", 0, 0, 0);
 	const struct cmdline_t * const cmdline = (struct cmdline_t *)pVoid;
 	RVIConfigureInfo dstAns;
 	int req = udpPort(UDP_REQ_PORT);
@@ -231,16 +230,7 @@ static bool init_module (const char * const location) {
 	return ret;
 }
 
-static int setupFilesystem(char* module) {
-	int retval;
-
-	// Verify root permissions
-	uid_t euid = geteuid();
-	if (euid) {
-		logg->logError(__FILE__, __LINE__, "gatord must be launched with root privileges");
-		handleException();
-	}
-
+static bool setupFilesystem(char* module) {
 	if (module) {
 		// unmount and rmmod if the module was specified on the commandline, i.e. ensure that the specified module is indeed running
 		shutdownFilesystem();
@@ -252,7 +242,7 @@ static int setupFilesystem(char* module) {
 		}
 	}
 
-	retval = mountGatorFS();
+	const int retval = mountGatorFS();
 	if (retval == 1) {
 		logg->logMessage("Driver already running at startup");
 		driverRunningAtStart = true;
@@ -274,8 +264,8 @@ static int setupFilesystem(char* module) {
 		}
 
 		if (access(location, F_OK) == -1) {
-			logg->logError(__FILE__, __LINE__, "Unable to locate gator.ko driver:\n  >>> gator.ko should be co-located with gatord in the same directory\n  >>> OR insmod gator.ko prior to launching gatord\n  >>> OR specify the location of gator.ko on the command line");
-			handleException();
+			// The gator kernel is not already loaded and unable to locate gator.ko
+			return false;
 		}
 
 		// Load driver
@@ -296,7 +286,7 @@ static int setupFilesystem(char* module) {
 		}
 	}
 
-	return 0;
+	return true;
 }
 
 static int shutdownFilesystem() {
@@ -418,8 +408,28 @@ int main(int argc, char** argv) {
 	// Parse the command line parameters
 	struct cmdline_t cmdline = parseCommandLine(argc, argv);
 
+	// Verify root permissions
+	uid_t euid = geteuid();
+	if (euid) {
+		logg->logError(__FILE__, __LINE__, "gatord must be launched with root privileges");
+		handleException();
+	}
+
 	// Call before setting up the SIGCHLD handler, as system() spawns child processes
-	setupFilesystem(cmdline.module);
+	if (!setupFilesystem(cmdline.module)) {
+		logg->logMessage("Unable to setup gatorfs, trying perf");
+		if (!gSessionData->perf.setup()) {
+			logg->logError(__FILE__, __LINE__,
+										 "Unable to locate gator.ko driver:\n"
+										 "  >>> gator.ko should be co-located with gatord in the same directory\n"
+										 "  >>> OR insmod gator.ko prior to launching gatord\n"
+										 "  >>> OR specify the location of gator.ko on the command line\n"
+										 "  >>> OR run Linux 3.12 or later with perf support to collect data via userspace only");
+			handleException();
+		}
+	}
+
+	gSessionData->hwmon.setup();
 
 	// Handle child exit codes
 	signal(SIGCHLD, child_exit);
@@ -439,11 +449,11 @@ int main(int argc, char** argv) {
 			logg->logError(__FILE__, __LINE__, "Failed to create answer thread");
 			handleException();
 		}
-		sock = new OlySocket(cmdline.port, true);
+		sock = new OlyServerSocket(cmdline.port);
 		// Forever loop, can be exited via a signal or exception
 		while (1) {
 			logg->logMessage("Waiting on connection...");
-			sock->acceptConnection();
+			OlySocket client(sock->acceptConnection());
 
 			int pid = fork();
 			if (pid < 0) {
@@ -452,13 +462,13 @@ int main(int argc, char** argv) {
 			} else if (pid == 0) {
 				// Child
 				sock->closeServerSocket();
-				child = new Child(sock, numSessions + 1);
+				child = new Child(&client, numSessions + 1);
 				child->run();
 				delete child;
 				exit(0);
 			} else {
 				// Parent
-				sock->closeSocket();
+				client.closeSocket();
 
 				pthread_mutex_lock(&numSessions_mutex);
 				numSessions++;

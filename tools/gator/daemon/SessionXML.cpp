@@ -1,15 +1,17 @@
 /**
- * Copyright (C) ARM Limited 2010-2013. All rights reserved.
+ * Copyright (C) ARM Limited 2010-2014. All rights reserved.
  *
  * This program is free software; you can redistribute it and/or modify
  * it under the terms of the GNU General Public License version 2 as
  * published by the Free Software Foundation.
  */
 
+#include "SessionXML.h"
+
 #include <string.h>
 #include <stdlib.h>
 #include <limits.h>
-#include "SessionXML.h"
+
 #include "Logging.h"
 #include "OlyUtility.h"
 #include "SessionData.h"
@@ -25,7 +27,7 @@ static const char*	ATTR_DURATION           = "duration";
 static const char*	ATTR_PATH               = "path";
 static const char*	ATTR_LIVE_RATE      = "live_rate";
 
-SessionXML::SessionXML(const char* str) {
+SessionXML::SessionXML(const char *str) {
 	parameters.buffer_mode[0] = 0;
 	parameters.sample_rate[0] = 0;
 	parameters.duration = 0;
@@ -33,13 +35,13 @@ SessionXML::SessionXML(const char* str) {
 	parameters.live_rate = 0;
 	parameters.images = NULL;
 	mPath = 0;
-	mSessionXML = (char*)str;
+	mSessionXML = (const char *)str;
 	logg->logMessage(mSessionXML);
 }
 
 SessionXML::~SessionXML() {
 	if (mPath != 0) {
-		free(mSessionXML);
+		free((char *)mSessionXML);
 	}
 }
 

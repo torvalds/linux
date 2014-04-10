@@ -1,5 +1,5 @@
 /**
- * Copyright (C) ARM Limited 2010-2013. All rights reserved.
+ * Copyright (C) ARM Limited 2010-2014. All rights reserved.
  *
  * This program is free software; you can redistribute it and/or modify
  * it under the terms of the GNU General Public License version 2 as
@@ -29,6 +29,18 @@ struct stack_frame_eabi {
 		};
 	};
 };
+
+static void gator_add_trace(int cpu, unsigned long address)
+{
+	off_t offset = 0;
+	unsigned long cookie = get_address_cookie(cpu, current, address & ~1, &offset);
+
+	if (cookie == NO_COOKIE || cookie == UNRESOLVED_COOKIE) {
+		offset = address;
+	}
+
+	marshal_backtrace(offset & ~1, cookie, 0);
+}
 
 static void arm_backtrace_eabi(int cpu, struct pt_regs *const regs, unsigned int depth)
 {
@@ -122,7 +134,7 @@ static int report_trace(struct stackframe *frame, void *d)
 			addr = addr - (unsigned long)mod->module_core;
 		}
 #endif
-		marshal_backtrace(addr & ~1, cookie);
+		marshal_backtrace(addr & ~1, cookie, 1);
 		(*depth)--;
 	}
 
@@ -136,7 +148,7 @@ static int report_trace(struct stackframe *frame, void *d)
 #if (defined(__arm__) || defined(__aarch64__)) && !defined(GATOR_KERNEL_STACK_UNWINDING)
 // Disabled by default
 MODULE_PARM_DESC(kernel_stack_unwinding, "Allow kernel stack unwinding.");
-bool kernel_stack_unwinding = 0;
+static bool kernel_stack_unwinding = 0;
 module_param(kernel_stack_unwinding, bool, 0644);
 #endif
 
@@ -163,6 +175,34 @@ static void kernel_backtrace(int cpu, struct pt_regs *const regs)
 #endif
 	walk_stackframe(&frame, report_trace, &depth);
 #else
-	marshal_backtrace(PC_REG & ~1, NO_COOKIE);
+	marshal_backtrace(PC_REG & ~1, NO_COOKIE, 1);
 #endif
+}
+ 
+static void gator_add_sample(int cpu, struct pt_regs *const regs, u64 time)
+{
+	bool in_kernel;
+	unsigned long exec_cookie;
+
+	if (!regs)
+		return;
+
+	in_kernel = !user_mode(regs);
+	exec_cookie = get_exec_cookie(cpu, current);
+
+	if (!marshal_backtrace_header(exec_cookie, current->tgid, current->pid, time))
+		return;
+
+	if (in_kernel) {
+		kernel_backtrace(cpu, regs);
+	} else {
+		// Cookie+PC
+		gator_add_trace(cpu, PC_REG);
+
+		// Backtrace
+		if (gator_backtrace_depth)
+			arm_backtrace_eabi(cpu, regs, gator_backtrace_depth);
+	}
+
+	marshal_backtrace_footer(time);
 }

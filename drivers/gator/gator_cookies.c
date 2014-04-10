@@ -1,5 +1,5 @@
 /**
- * Copyright (C) ARM Limited 2010-2013. All rights reserved.
+ * Copyright (C) ARM Limited 2010-2014. All rights reserved.
  *
  * This program is free software; you can redistribute it and/or modify
  * it under the terms of the GNU General Public License version 2 as
@@ -30,7 +30,7 @@ static DEFINE_PER_CPU(struct cookie_args *, translate_buffer);
 
 static uint32_t get_cookie(int cpu, struct task_struct *task, const char *text, bool from_wq);
 static void wq_cookie_handler(struct work_struct *unused);
-DECLARE_WORK(cookie_work, wq_cookie_handler);
+static DECLARE_WORK(cookie_work, wq_cookie_handler);
 static struct timer_list app_process_wake_up_timer;
 static void app_process_wake_up_handler(unsigned long unused_data);
 
@@ -131,7 +131,9 @@ static void translate_buffer_write_args(int cpu, struct task_struct *task, const
 		args = &per_cpu(translate_buffer, cpu)[write];
 		args->task = task;
 		args->text = text;
+#if LINUX_VERSION_CODE >= KERNEL_VERSION(2, 6, 39)
 		get_task_struct(task);
+#endif
 		per_cpu(translate_buffer_write, cpu) = next_write;
 	}
 
@@ -165,7 +167,9 @@ static void wq_cookie_handler(struct work_struct *unused)
 			translate_buffer_read_args(cpu, &args);
 			cookie = get_cookie(cpu, args.task, args.text, true);
 			marshal_link(cookie, args.task->tgid, args.task->pid);
+#if LINUX_VERSION_CODE >= KERNEL_VERSION(2, 6, 39)
 			put_task_struct(args.task);
+#endif
 		}
 	}
 
