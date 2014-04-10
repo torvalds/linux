@@ -29,7 +29,9 @@
 
 
 u64 uevent_seqnum;
+#ifdef CONFIG_UEVENT_HELPER
 char uevent_helper[UEVENT_HELPER_PATH_LEN] = CONFIG_UEVENT_HELPER_PATH;
+#endif
 #ifdef CONFIG_NET
 struct uevent_sock {
 	struct list_head list;
@@ -109,6 +111,7 @@ static int kobj_bcast_filter(struct sock *dsk, struct sk_buff *skb, void *data)
 }
 #endif
 
+#ifdef CONFIG_UEVENT_HELPER
 static int kobj_usermode_filter(struct kobject *kobj)
 {
 	const struct kobj_ns_type_operations *ops;
@@ -147,6 +150,7 @@ static void cleanup_uevent_env(struct subprocess_info *info)
 {
 	kfree(info->data);
 }
+#endif
 
 /**
  * kobject_uevent_env - send an uevent with environmental data
@@ -323,6 +327,7 @@ int kobject_uevent_env(struct kobject *kobj, enum kobject_action action,
 #endif
 	mutex_unlock(&uevent_sock_mutex);
 
+#ifdef CONFIG_UEVENT_HELPER
 	/* call uevent_helper, usually only enabled during early boot */
 	if (uevent_helper[0] && !kobj_usermode_filter(kobj)) {
 		struct subprocess_info *info;
@@ -347,6 +352,7 @@ int kobject_uevent_env(struct kobject *kobj, enum kobject_action action,
 			env = NULL;	/* freed by cleanup_uevent_env */
 		}
 	}
+#endif
 
 exit:
 	kfree(devpath);
