@@ -1896,7 +1896,7 @@ static irqreturn_t exynos4_jpeg_irq(int irq, void *priv)
 	return IRQ_HANDLED;
 }
 
-static void *jpeg_get_drv_data(struct platform_device *pdev);
+static void *jpeg_get_drv_data(struct device *dev);
 
 /*
  * ============================================================================
@@ -1910,15 +1910,12 @@ static int s5p_jpeg_probe(struct platform_device *pdev)
 	struct resource *res;
 	int ret;
 
-	if (!pdev->dev.of_node)
-		return -ENODEV;
-
 	/* JPEG IP abstraction struct */
 	jpeg = devm_kzalloc(&pdev->dev, sizeof(struct s5p_jpeg), GFP_KERNEL);
 	if (!jpeg)
 		return -ENOMEM;
 
-	jpeg->variant = jpeg_get_drv_data(pdev);
+	jpeg->variant = jpeg_get_drv_data(&pdev->dev);
 
 	mutex_init(&jpeg->lock);
 	spin_lock_init(&jpeg->slock);
@@ -2147,7 +2144,6 @@ static const struct dev_pm_ops s5p_jpeg_pm_ops = {
 	SET_RUNTIME_PM_OPS(s5p_jpeg_runtime_suspend, s5p_jpeg_runtime_resume, NULL)
 };
 
-#ifdef CONFIG_OF
 static struct s5p_jpeg_variant s5p_jpeg_drvdata = {
 	.version	= SJPEG_S5P,
 	.jpeg_irq	= s5p_jpeg_irq,
@@ -2178,19 +2174,21 @@ static const struct of_device_id samsung_jpeg_match[] = {
 
 MODULE_DEVICE_TABLE(of, samsung_jpeg_match);
 
-static void *jpeg_get_drv_data(struct platform_device *pdev)
+static void *jpeg_get_drv_data(struct device *dev)
 {
 	struct s5p_jpeg_variant *driver_data = NULL;
 	const struct of_device_id *match;
 
-	match = of_match_node(of_match_ptr(samsung_jpeg_match),
-					 pdev->dev.of_node);
+	if (!IS_ENABLED(CONFIG_OF) || !dev->of_node)
+		return &s5p_jpeg_drvdata;
+
+	match = of_match_node(samsung_jpeg_match, dev->of_node);
+
 	if (match)
 		driver_data = (struct s5p_jpeg_variant *)match->data;
 
 	return driver_data;
 }
-#endif
 
 static struct platform_driver s5p_jpeg_driver = {
 	.probe = s5p_jpeg_probe,
