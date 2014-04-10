@@ -39,9 +39,11 @@ static void led_set_software_blink(struct led_classdev *led_cdev,
 	led_cdev->blink_delay_on = delay_on;
 	led_cdev->blink_delay_off = delay_off;
 
-	/* never on - don't blink */
-	if (!delay_on)
+	/* never on - just set to off */
+	if (!delay_on) {
+		__led_set_brightness(led_cdev, LED_OFF);
 		return;
+	}
 
 	/* never off - just set to brightness */
 	if (!delay_off) {
