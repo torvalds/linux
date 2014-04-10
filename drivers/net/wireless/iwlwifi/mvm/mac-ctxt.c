@@ -969,7 +969,7 @@ int iwl_mvm_mac_ctxt_beacon_changed(struct iwl_mvm *mvm,
 	WARN_ON(vif->type != NL80211_IFTYPE_AP &&
 		vif->type != NL80211_IFTYPE_ADHOC);
 
-	beacon = ieee80211_beacon_get(mvm->hw, vif);
+	beacon = ieee80211_beacon_get_template(mvm->hw, vif, NULL);
 	if (!beacon)
 		return -ENOMEM;
 
@@ -1233,6 +1233,7 @@ int iwl_mvm_rx_beacon_notif(struct iwl_mvm *mvm,
 
 	if (unlikely(mvm->csa_vif && mvm->csa_vif->csa_active)) {
 		if (!ieee80211_csa_is_complete(mvm->csa_vif)) {
+			ieee80211_csa_update_counter(mvm->csa_vif);
 			iwl_mvm_mac_ctxt_beacon_changed(mvm, mvm->csa_vif);
 		} else {
 			ieee80211_csa_finish(mvm->csa_vif);
