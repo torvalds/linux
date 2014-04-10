@@ -263,6 +263,9 @@ config SCSI_SCAN_ASYNC
 	  You can override this choice by specifying "scsi_mod.scan=sync"
 	  or async on the kernel's command line.
 
+	  Note that this setting also affects whether resuming from
+	  system suspend will be performed asynchronously.
+
 menu "SCSI Transports"
 	depends on SCSI
 
