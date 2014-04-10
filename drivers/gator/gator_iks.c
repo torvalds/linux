@@ -1,5 +1,5 @@
 /**
- * Copyright (C) ARM Limited 2013. All rights reserved.
+ * Copyright (C) ARM Limited 2013-2014. All rights reserved.
  *
  * This program is free software; you can redistribute it and/or modify
  * it under the terms of the GNU General Public License version 2 as
@@ -147,11 +147,13 @@ static void gator_send_iks_core_names(void)
 {
 	int cpu;
 	// Send the cpu names
+	preempt_disable();
 	for (cpu = 0; cpu < nr_cpu_ids; ++cpu) {
 		if (mpidr_cpus[cpu] != NULL) {
 			gator_send_core_name(cpu, mpidr_cpus[cpu]->cpuid, mpidr_cpus[cpu]);
 		}
 	}
+	preempt_enable();
 }
 
 static int gator_migrate_start(void)

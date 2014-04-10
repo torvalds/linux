@@ -1,0 +1,39 @@
+config GATOR
+	tristate "Gator module for ARM's Streamline Performance Analyzer"
+	default m if (ARM || ARM64)
+	depends on PROFILING
+	depends on HIGH_RES_TIMERS
+	depends on LOCAL_TIMERS || !(ARM && SMP)
+	depends on PERF_EVENTS
+	depends on HW_PERF_EVENTS || !(ARM || ARM64)
+	select TRACING
+	help
+	  Gator module for ARM's Streamline Performance Analyzer
+
+config GATOR_WITH_MALI_SUPPORT
+	bool
+
+choice
+	prompt "Enable Mali GPU support in Gator"
+	depends on GATOR
+	optional
+	help
+	  Enable Mali GPU support in Gator
+
+config GATOR_MALI_4XXMP
+	bool "Mali-400MP or Mali-450MP"
+	select GATOR_WITH_MALI_SUPPORT
+
+config GATOR_MALI_T6XX
+	bool "Mali-T604 or Mali-T658"
+	select GATOR_WITH_MALI_SUPPORT
+
+endchoice
+
+config GATOR_MALI_PATH
+	string "Path to Mali driver"
+	depends on GATOR_WITH_MALI_SUPPORT
+	default "drivers/gpu/arm/mali400mp"
+	help
+	  The gator code adds this to its include path so it can get the Mali
+	  trace headers with: #include "linux/mali_linux_trace.h"

@@ -1,5 +1,5 @@
 /**
- * Copyright (C) ARM Limited 2010-2013. All rights reserved.
+ * Copyright (C) ARM Limited 2010-2014. All rights reserved.
  *
  * This program is free software; you can redistribute it and/or modify
  * it under the terms of the GNU General Public License version 2 as
@@ -274,6 +274,28 @@ static int gator_events_meminfo_read(long long **buffer)
 	return meminfo_length;
 }
 
+#if LINUX_VERSION_CODE >= KERNEL_VERSION(2, 6, 34) && LINUX_VERSION_CODE < KERNEL_VERSION(3, 4, 0)
+
+static inline unsigned long gator_get_mm_counter(struct mm_struct *mm, int member)
+{
+#ifdef SPLIT_RSS_COUNTING
+	long val = atomic_long_read(&mm->rss_stat.count[member]);
+	if (val < 0)
+		val = 0;
+	return (unsigned long)val;
+#else
+#if LINUX_VERSION_CODE < KERNEL_VERSION(3, 0, 0)
+	return mm->rss_stat.count[member];
+#else
+	return atomic_long_read(&mm->rss_stat.count[member]);
+#endif
+#endif
+}
+
+#define get_mm_counter(mm, member) gator_get_mm_counter(mm, member)
+
+#endif
+
 static int gator_events_meminfo_read_proc(long long **buffer, struct task_struct *task)
 {
 	struct mm_struct *mm;
@@ -302,7 +324,7 @@ static int gator_events_meminfo_read_proc(long long **buffer, struct task_struct
 	// Derived from task_statm in fs/proc/task_mmu.c
 	if (meminfo_enabled[MEMINFO_MEMUSED] || proc_enabled[PROC_SHARE]) {
 		share = get_mm_counter(mm,
-#if LINUX_VERSION_CODE == KERNEL_VERSION(2, 6, 32)
+#if LINUX_VERSION_CODE >= KERNEL_VERSION(2, 6, 32) && LINUX_VERSION_CODE < KERNEL_VERSION(2, 6, 34)
 							   file_rss
 #else
 							   MM_FILEPAGES
@@ -338,7 +360,7 @@ static int gator_events_meminfo_read_proc(long long **buffer, struct task_struct
 
 	if (meminfo_enabled[MEMINFO_MEMUSED]) {
 		value = share + get_mm_counter(mm,
-#if LINUX_VERSION_CODE == KERNEL_VERSION(2, 6, 32)
+#if LINUX_VERSION_CODE >= KERNEL_VERSION(2, 6, 32) && LINUX_VERSION_CODE < KERNEL_VERSION(2, 6, 34)
 									   anon_rss
 #else
 									   MM_ANONPAGES
