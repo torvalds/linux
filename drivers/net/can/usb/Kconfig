@@ -19,7 +19,7 @@ config CAN_KVASER_USB
 	  This driver adds support for Kvaser CAN/USB devices like Kvaser
 	  Leaf Light.
 
-	  The driver gives support for the following devices:
+	  The driver provides support for the following devices:
 	    - Kvaser Leaf Light
 	    - Kvaser Leaf Professional HS
 	    - Kvaser Leaf SemiPro HS
@@ -36,6 +36,8 @@ config CAN_KVASER_USB
 	    - Kvaser Leaf Light "China"
 	    - Kvaser BlackBird SemiPro
 	    - Kvaser USBcan R
+	    - Kvaser Leaf Light v2
+	    - Kvaser Mini PCI Express HS
 
 	  If unsure, say N.
 
