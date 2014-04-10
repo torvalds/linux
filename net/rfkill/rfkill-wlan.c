@@ -24,6 +24,7 @@
 #include <linux/regulator/consumer.h>
 #include <linux/delay.h>
 #include <linux/rfkill-wlan.h>
+#include <linux/rfkill-bt.h>
 #include <linux/wakelock.h>
 #include <linux/interrupt.h>
 #include <asm/irq.h>
@@ -180,6 +181,26 @@ EXPORT_SYMBOL(rockchip_mem_prealloc);
 
 /**************************************************************************
  *
+ * get wifi power state Func
+ *
+ *************************************************************************/
+static int wifi_power_state = 0;
+int rfkill_get_wifi_power_state(int *power)
+{
+    struct rfkill_wlan_data *mrfkill = g_rfkill;
+
+    if (mrfkill == NULL) {
+        LOG("%s: rfkill-wlan driver has not Successful initialized\n", __func__);
+        return -1;
+    }
+
+    *power = wifi_power_state;
+
+    return 0;
+}
+
+/**************************************************************************
+ *
  * Wifi Power Control Func
  * 0 -> power off
  * 1 -> power on
@@ -190,12 +211,21 @@ int rockchip_wifi_power(int on)
 	struct rfkill_wlan_data *mrfkill = g_rfkill;
     struct rksdmmc_gpio *poweron, *reset;
     struct regulator *ldo = NULL;
+    int power = 0;
+    bool toggle = false;
 
     LOG("%s: %d\n", __func__, on);
 
     if (mrfkill == NULL) {
         LOG("%s: rfkill-wlan driver has not Successful initialized\n", __func__);
         return -1;
+    }
+
+    if(!rfkill_get_bt_power_state(&power, &toggle)) {
+        if (toggle == true && power == 1) {
+            LOG("%s: wifi shouldn't control the power, it was enabled by BT!\n", __func__);
+            return 0;
+        }
     }
 
     if (mrfkill->pdata->mregulator.power_ctrl_by_pmu) {
@@ -218,15 +248,19 @@ int rockchip_wifi_power(int on)
 				ret = regulator_enable(ldo);
 				if(ret != 0){
 				    LOG("%s: faild to enable %s\n", __func__, ldostr);
-				}
-			    LOG("wifi turn on power.\n");
+				} else {
+                    wifi_power_state = 1;
+			        LOG("wifi turn on power.\n");
+                }
             } else {
-			    LOG("wifi shut off power.\n");
 				LOG("%s: %s disabled\n", __func__, ldostr);
 				ret = regulator_disable(ldo);
 				if(ret != 0){
 					LOG("%s: faild to disable %s\n", __func__, ldostr);
-				}
+				} else {
+                    wifi_power_state = 0;
+			        LOG("wifi shut off power.\n");
+                }
 			}
 			regulator_put(ldo);
 			msleep(100);
@@ -246,6 +280,7 @@ int rockchip_wifi_power(int on)
 				msleep(100);
 			}
 
+            wifi_power_state = 1;
 			LOG("wifi turn on power. %d\n", poweron->io);
 		}else{
 			if (gpio_is_valid(poweron->io)) {
@@ -257,6 +292,7 @@ int rockchip_wifi_power(int on)
 				gpio_set_value(reset->io, !(reset->enable));
 			}
 
+            wifi_power_state = 0;
 			LOG("wifi shut off power.\n");
 		}
     }

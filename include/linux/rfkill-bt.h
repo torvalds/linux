@@ -56,6 +56,7 @@ struct rfkill_rk_irq {
 struct rfkill_rk_platform_data {
     char                    *name;
     enum rfkill_type        type;
+    bool                    power_toggle;
     struct pinctrl          *pinctrl;
     struct rfkill_rk_gpio   poweron_gpio;
     struct rfkill_rk_gpio   reset_gpio;
@@ -63,6 +64,8 @@ struct rfkill_rk_platform_data {
     struct rfkill_rk_irq    wake_host_irq;  // BT wakeup host
     struct rfkill_rk_gpio   rts_gpio;
 };
+
+int rfkill_get_bt_power_state(int *power, bool *toggle);
 
 #endif /* __RFKILL_GPIO_H */
 

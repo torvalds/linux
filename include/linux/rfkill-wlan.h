@@ -38,6 +38,7 @@ struct rksdmmc_gpio_wifi_moudle {
     struct rksdmmc_gpio   GPS_LAN;  //pin33--GPS_LAN
 };
 
+int rfkill_get_wifi_power_state(int *power);
 void *rockchip_mem_prealloc(int section, unsigned long size);
 int rockchip_wifi_power(int on);
 int rockchip_wifi_set_carddetect(int val);

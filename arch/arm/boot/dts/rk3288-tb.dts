@@ -28,6 +28,8 @@
     wireless-bluetooth {
         compatible = "bluetooth-platdata";
 
+        //wifi-bt-power-toggle;
+
         uart_rts_gpios = <&gpio4 GPIO_C3 GPIO_ACTIVE_LOW>;
         pinctrl-names = "default","rts_gpio";
         pinctrl-0 = <&uart0_rts>;
