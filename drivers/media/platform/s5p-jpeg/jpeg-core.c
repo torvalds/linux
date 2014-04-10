@@ -1070,7 +1070,7 @@ static int s5p_jpeg_try_fmt_vid_cap(struct file *file, void *priv,
 	 * If this requirement is not met then downgrade the requested
 	 * capture format to the one with subsampling equal to the input jpeg.
 	 */
-	if ((ctx->jpeg->variant->version != SJPEG_S5P) &&
+	if ((ctx->jpeg->variant->version == SJPEG_EXYNOS4) &&
 	    (ctx->mode == S5P_JPEG_DECODE) &&
 	    (fmt->flags & SJPEG_FMT_NON_RGB) &&
 	    (fmt->subsampling < ctx->subsampling)) {
