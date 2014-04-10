@@ -1,5 +1,5 @@
-config MTD_SPI_NOR
-	bool "SPI-NOR device support"
+menuconfig MTD_SPI_NOR
+	tristate "SPI-NOR device support"
 	depends on MTD
 	help
 	  This is the framework for the SPI NOR which can be used by the SPI
