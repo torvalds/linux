@@ -73,7 +73,8 @@ static int handle_stop(struct kvm_vcpu *vcpu)
 			return rc;
 	}
 
-	kvm_s390_vcpu_stop(vcpu);
+	if (!kvm_s390_user_cpu_state_ctrl(vcpu->kvm))
+		kvm_s390_vcpu_stop(vcpu);
 	return -EOPNOTSUPP;
 }
 

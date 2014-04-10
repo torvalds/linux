@@ -129,6 +129,12 @@ static inline void kvm_s390_set_psw_cc(struct kvm_vcpu *vcpu, unsigned long cc)
 	vcpu->arch.sie_block->gpsw.mask |= cc << 44;
 }
 
+/* are cpu states controlled by user space */
+static inline int kvm_s390_user_cpu_state_ctrl(struct kvm *kvm)
+{
+	return kvm->arch.user_cpu_state_ctrl != 0;
+}
+
 int kvm_s390_handle_wait(struct kvm_vcpu *vcpu);
 enum hrtimer_restart kvm_s390_idle_wakeup(struct hrtimer *timer);
 void kvm_s390_tasklet(unsigned long parm);

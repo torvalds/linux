@@ -167,6 +167,7 @@ int kvm_dev_ioctl_check_extension(long ext)
 	case KVM_CAP_DEVICE_CTRL:
 	case KVM_CAP_ENABLE_CAP_VM:
 	case KVM_CAP_VM_ATTRIBUTES:
+	case KVM_CAP_MP_STATE:
 		r = 1;
 		break;
 	case KVM_CAP_NR_VCPUS:
@@ -595,7 +596,8 @@ static void kvm_s390_vcpu_initial_reset(struct kvm_vcpu *vcpu)
 	vcpu->arch.sie_block->pp = 0;
 	vcpu->arch.pfault_token = KVM_S390_PFAULT_TOKEN_INVALID;
 	kvm_clear_async_pf_completion_queue(vcpu);
-	kvm_s390_vcpu_stop(vcpu);
+	if (!kvm_s390_user_cpu_state_ctrl(vcpu->kvm))
+		kvm_s390_vcpu_stop(vcpu);
 	kvm_s390_clear_local_irqs(vcpu);
 }
 
@@ -980,13 +982,34 @@ int kvm_arch_vcpu_ioctl_set_guest_debug(struct kvm_vcpu *vcpu,
 int kvm_arch_vcpu_ioctl_get_mpstate(struct kvm_vcpu *vcpu,
 				    struct kvm_mp_state *mp_state)
 {
-	return -EINVAL; /* not implemented yet */
+	/* CHECK_STOP and LOAD are not supported yet */
+	return is_vcpu_stopped(vcpu) ? KVM_MP_STATE_STOPPED :
+				       KVM_MP_STATE_OPERATING;
 }
 
 int kvm_arch_vcpu_ioctl_set_mpstate(struct kvm_vcpu *vcpu,
 				    struct kvm_mp_state *mp_state)
 {
-	return -EINVAL; /* not implemented yet */
+	int rc = 0;
+
+	/* user space knows about this interface - let it control the state */
+	vcpu->kvm->arch.user_cpu_state_ctrl = 1;
+
+	switch (mp_state->mp_state) {
+	case KVM_MP_STATE_STOPPED:
+		kvm_s390_vcpu_stop(vcpu);
+		break;
+	case KVM_MP_STATE_OPERATING:
+		kvm_s390_vcpu_start(vcpu);
+		break;
+	case KVM_MP_STATE_LOAD:
+	case KVM_MP_STATE_CHECK_STOP:
+		/* fall through - CHECK_STOP and LOAD are not supported yet */
+	default:
+		rc = -ENXIO;
+	}
+
+	return rc;
 }
 
 bool kvm_s390_cmma_enabled(struct kvm *kvm)
@@ -1284,7 +1307,13 @@ int kvm_arch_vcpu_ioctl_run(struct kvm_vcpu *vcpu, struct kvm_run *kvm_run)
 	if (vcpu->sigset_active)
 		sigprocmask(SIG_SETMASK, &vcpu->sigset, &sigsaved);
 
-	kvm_s390_vcpu_start(vcpu);
+	if (!kvm_s390_user_cpu_state_ctrl(vcpu->kvm)) {
+		kvm_s390_vcpu_start(vcpu);
+	} else if (is_vcpu_stopped(vcpu)) {
+		pr_err_ratelimited("kvm-s390: can't run stopped vcpu %d\n",
+				   vcpu->vcpu_id);
+		return -EINVAL;
+	}
 
 	switch (kvm_run->exit_reason) {
 	case KVM_EXIT_S390_SIEIC:
