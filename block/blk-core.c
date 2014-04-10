@@ -1307,7 +1307,7 @@ void __blk_put_request(struct request_queue *q, struct request *req)
 		struct request_list *rl = blk_rq_rl(req);
 
 		BUG_ON(!list_empty(&req->queuelist));
-		BUG_ON(!hlist_unhashed(&req->hash));
+		BUG_ON(ELV_ON_HASH(req));
 
 		blk_free_request(rl, req);
 		freed_request(rl, flags);
