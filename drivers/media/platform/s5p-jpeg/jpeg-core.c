@@ -1064,15 +1064,17 @@ static int s5p_jpeg_try_fmt_vid_cap(struct file *file, void *priv,
 		return -EINVAL;
 	}
 
+	if ((ctx->jpeg->variant->version != SJPEG_EXYNOS4) ||
+	    (ctx->mode != S5P_JPEG_DECODE))
+		goto exit;
+
 	/*
 	 * The exynos4x12 device requires resulting YUV image
 	 * subsampling not to be lower than the input jpeg subsampling.
 	 * If this requirement is not met then downgrade the requested
 	 * capture format to the one with subsampling equal to the input jpeg.
 	 */
-	if ((ctx->jpeg->variant->version == SJPEG_EXYNOS4) &&
-	    (ctx->mode == S5P_JPEG_DECODE) &&
-	    (fmt->flags & SJPEG_FMT_NON_RGB) &&
+	if ((fmt->flags & SJPEG_FMT_NON_RGB) &&
 	    (fmt->subsampling < ctx->subsampling)) {
 		ret = s5p_jpeg_adjust_fourcc_to_subsampling(ctx->subsampling,
 							    fmt->fourcc,
@@ -1085,6 +1087,23 @@ static int s5p_jpeg_try_fmt_vid_cap(struct file *file, void *priv,
 							FMT_TYPE_CAPTURE);
 	}
 
+	/*
+	 * Decompression of a JPEG file with 4:2:0 subsampling and odd
+	 * width to the YUV 4:2:0 compliant formats produces a raw image
+	 * with broken luma component. Adjust capture format to RGB565
+	 * in such a case.
+	 */
+	if (ctx->subsampling == V4L2_JPEG_CHROMA_SUBSAMPLING_420 &&
+	    (ctx->out_q.w & 1) &&
+	    (pix->pixelformat == V4L2_PIX_FMT_NV12 ||
+	     pix->pixelformat == V4L2_PIX_FMT_NV21 ||
+	     pix->pixelformat == V4L2_PIX_FMT_YUV420)) {
+		pix->pixelformat = V4L2_PIX_FMT_RGB565;
+		fmt = s5p_jpeg_find_format(ctx, pix->pixelformat,
+							FMT_TYPE_CAPTURE);
+	}
+
+exit:
 	return vidioc_try_fmt(f, fmt, ctx, FMT_TYPE_CAPTURE);
 }
 
