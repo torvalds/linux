@@ -187,13 +187,14 @@ azx_assign_device(struct azx *chip, struct snd_pcm_substream *substream)
 		struct azx_dev *azx_dev = &chip->azx_dev[dev];
 		dsp_lock(azx_dev);
 		if (!azx_dev->opened && !dsp_is_locked(azx_dev)) {
-			res = azx_dev;
-			if (res->assigned_key == key) {
-				res->opened = 1;
-				res->assigned_key = key;
+			if (azx_dev->assigned_key == key) {
+				azx_dev->opened = 1;
+				azx_dev->assigned_key = key;
 				dsp_unlock(azx_dev);
 				return azx_dev;
 			}
+			if (!res)
+				res = azx_dev;
 		}
 		dsp_unlock(azx_dev);
 	}
@@ -1604,7 +1605,7 @@ static void azx_exit_link_reset(struct azx *chip)
 }
 
 /* reset codec link */
-static int azx_reset(struct azx *chip, int full_reset)
+static int azx_reset(struct azx *chip, bool full_reset)
 {
 	if (!full_reset)
 		goto __skip;
@@ -1701,7 +1702,7 @@ static void azx_int_clear(struct azx *chip)
 /*
  * reset and start the controller registers
  */
-void azx_init_chip(struct azx *chip, int full_reset)
+void azx_init_chip(struct azx *chip, bool full_reset)
 {
 	if (chip->initialized)
 		return;
@@ -1758,7 +1759,7 @@ irqreturn_t azx_interrupt(int irq, void *dev_id)
 
 #ifdef CONFIG_PM_RUNTIME
 	if (chip->driver_caps & AZX_DCAPS_PM_RUNTIME)
-		if (chip->card->dev->power.runtime_status != RPM_ACTIVE)
+		if (!pm_runtime_active(chip->card->dev))
 			return IRQ_NONE;
 #endif
 
@@ -1841,7 +1842,7 @@ static void azx_bus_reset(struct hda_bus *bus)
 
 	bus->in_reset = 1;
 	azx_stop_chip(chip);
-	azx_init_chip(chip, 1);
+	azx_init_chip(chip, true);
 #ifdef CONFIG_PM
 	if (chip->initialized) {
 		struct azx_pcm *p;
@@ -1948,7 +1949,7 @@ int azx_codec_create(struct azx *chip, const char *model,
 				 * get back to the sanity state.
 				 */
 				azx_stop_chip(chip);
-				azx_init_chip(chip, 1);
+				azx_init_chip(chip, true);
 			}
 		}
 	}

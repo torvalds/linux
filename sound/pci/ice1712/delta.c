@@ -579,12 +579,37 @@ static struct snd_ak4xxx_private akm_vx442_priv = {
 #ifdef CONFIG_PM_SLEEP
 static int snd_ice1712_delta_resume(struct snd_ice1712 *ice)
 {
-	unsigned char akm_backup[AK4XXX_IMAGE_SIZE];
+	unsigned char akm_img_bak[AK4XXX_IMAGE_SIZE];
+	unsigned char akm_vol_bak[AK4XXX_IMAGE_SIZE];
+
+	/* init spdif */
+	switch (ice->eeprom.subvendor) {
+	case ICE1712_SUBDEVICE_AUDIOPHILE:
+	case ICE1712_SUBDEVICE_DELTA410:
+	case ICE1712_SUBDEVICE_DELTA1010E:
+	case ICE1712_SUBDEVICE_DELTA1010LT:
+	case ICE1712_SUBDEVICE_VX442:
+	case ICE1712_SUBDEVICE_DELTA66E:
+		snd_cs8427_init(ice->i2c, ice->cs8427);
+		break;
+	case ICE1712_SUBDEVICE_DELTA1010:
+	case ICE1712_SUBDEVICE_MEDIASTATION:
+		/* nothing */
+		break;
+	case ICE1712_SUBDEVICE_DELTADIO2496:
+	case ICE1712_SUBDEVICE_DELTA66:
+		/* Set spdif defaults */
+		snd_ice1712_delta_cs8403_spdif_write(ice, ice->spdif.cs8403_bits);
+		break;
+	}
+
 	/* init codec and restore registers */
 	if (ice->akm_codecs) {
-		memcpy(akm_backup, ice->akm->images, sizeof(akm_backup));
+		memcpy(akm_img_bak, ice->akm->images, sizeof(akm_img_bak));
+		memcpy(akm_vol_bak, ice->akm->volumes, sizeof(akm_vol_bak));
 		snd_akm4xxx_init(ice->akm);
-		memcpy(ice->akm->images, akm_backup, sizeof(akm_backup));
+		memcpy(ice->akm->images, akm_img_bak, sizeof(akm_img_bak));
+		memcpy(ice->akm->volumes, akm_vol_bak, sizeof(akm_vol_bak));
 		snd_akm4xxx_reset(ice->akm, 0);
 	}
 
