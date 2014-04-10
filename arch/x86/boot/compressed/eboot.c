@@ -167,31 +167,31 @@ efi_file_size(efi_system_table_t *sys_table, void *__fh,
 }
 
 static inline efi_status_t
-efi_file_read(void *__fh, void *handle, unsigned long *size, void *addr)
+efi_file_read(void *handle, unsigned long *size, void *addr)
 {
 	unsigned long func;
 
 	if (efi_early->is64) {
-		efi_file_handle_64_t *fh = __fh;
+		efi_file_handle_64_t *fh = handle;
 
 		func = (unsigned long)fh->read;
 		return efi_early->call(func, handle, size, addr);
 	} else {
-		efi_file_handle_32_t *fh = __fh;
+		efi_file_handle_32_t *fh = handle;
 
 		func = (unsigned long)fh->read;
 		return efi_early->call(func, handle, size, addr);
 	}
 }
 
-static inline efi_status_t efi_file_close(void *__fh, void *handle)
+static inline efi_status_t efi_file_close(void *handle)
 {
 	if (efi_early->is64) {
-		efi_file_handle_64_t *fh = __fh;
+		efi_file_handle_64_t *fh = handle;
 
 		return efi_early->call((unsigned long)fh->close, handle);
 	} else {
-		efi_file_handle_32_t *fh = __fh;
+		efi_file_handle_32_t *fh = handle;
 
 		return efi_early->call((unsigned long)fh->close, handle);
 	}
