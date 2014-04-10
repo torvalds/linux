@@ -30,6 +30,11 @@
 #define L3_TARG_STDERRLOG_SLVOFSLSB	0x5c
 #define L3_TARG_STDERRLOG_MSTADDR	0x68
 #define L3_FLAGMUX_REGERR0		0xc
+#define L3_FLAGMUX_MASK0		0x8
+
+#define L3_TARGET_NOT_SUPPORTED		NULL
+
+#define MAX_CLKDM_TARGETS		31
 
 #define NUM_OF_L3_MASTERS	(sizeof(l3_masters)/sizeof(l3_masters[0]))
 
@@ -61,7 +66,7 @@ static u32 l3_flagmux[L3_MODULES] = {
 	0X0200
 };
 
-static struct l3_target_data l3_target_inst_data_clk1[] = {
+static struct l3_target_data l3_target_inst_data_clk1[MAX_CLKDM_TARGETS] = {
 	{0x100,	"DMM1",},
 	{0x200,	"DMM2",},
 	{0x300,	"ABE",},
@@ -71,7 +76,7 @@ static struct l3_target_data l3_target_inst_data_clk1[] = {
 	{0x900,	"L4WAKEUP",},
 };
 
-static struct l3_target_data l3_target_inst_data_clk2[] = {
+static struct l3_target_data l3_target_inst_data_clk2[MAX_CLKDM_TARGETS] = {
 	{0x500,	"CORTEXM3",},
 	{0x300,	"DSS",},
 	{0x100,	"GPMC",},
@@ -95,7 +100,7 @@ static struct l3_target_data l3_target_inst_data_clk2[] = {
 	{0x1700, "LLI",},
 };
 
-static struct l3_target_data l3_target_inst_data_clk3[] = {
+static struct l3_target_data l3_target_inst_data_clk3[MAX_CLKDM_TARGETS] = {
 	{0x0100, "EMUSS",},
 	{0x0300, "DEBUG SOURCE",},
 	{0x0,	"HOST CLK3",},

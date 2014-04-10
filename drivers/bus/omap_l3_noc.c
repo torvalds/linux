@@ -75,9 +75,40 @@ static irqreturn_t l3_interrupt_handler(int irq, void *_l3)
 		if (err_reg) {
 			/* Identify the source from control status register */
 			err_src = __ffs(err_reg);
+
+			/* We DONOT expect err_src to go out of bounds */
+			BUG_ON(err_src > MAX_CLKDM_TARGETS);
+
 			l3_targ_inst = &l3_targ[i][err_src];
 			target_name = l3_targ_inst->name;
 			l3_targ_base = base + l3_targ_inst->offset;
+
+			/*
+			 * If we do not know of a register offset to decode
+			 * and clear, then mask.
+			 */
+			if (target_name == L3_TARGET_NOT_SUPPORTED) {
+				u32 mask_val;
+				void __iomem *mask_reg;
+
+				/*
+				 * Certain plaforms may have "undocumented"
+				 * status pending on boot.. So dont generate
+				 * a severe warning here.
+				 */
+				dev_err(l3->dev,
+					"L3 %s error: target %d mod:%d %s\n",
+					inttype ? "debug" : "application",
+					err_src, i, "(unclearable)");
+
+				mask_reg = base + l3_flagmux[i] +
+					   L3_FLAGMUX_MASK0 + (inttype << 3);
+				mask_val = readl_relaxed(mask_reg);
+				mask_val &= ~(1 << err_src);
+				writel_relaxed(mask_val, mask_reg);
+
+				break;
+			}
 
 			/* Read the stderrlog_main_source from clk domain */
 			l3_targ_stderr = l3_targ_base + L3_TARG_STDERRLOG_MAIN;
