@@ -7,3 +7,4 @@ endif
 shdma-objs := $(shdma-y)
 obj-$(CONFIG_SUDMAC) += sudmac.o
 obj-$(CONFIG_RCAR_HPB_DMAE) += rcar-hpbdma.o
+obj-$(CONFIG_RCAR_AUDMAC_PP) += rcar-audmapp.o

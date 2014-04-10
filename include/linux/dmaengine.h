@@ -341,15 +341,11 @@ enum dma_slave_buswidth {
  * and this struct will then be passed in as an argument to the
  * DMA engine device_control() function.
  *
- * The rationale for adding configuration information to this struct
- * is as follows: if it is likely that most DMA slave controllers in
- * the world will support the configuration option, then make it
- * generic. If not: if it is fixed so that it be sent in static from
- * the platform data, then prefer to do that. Else, if it is neither
- * fixed at runtime, nor generic enough (such as bus mastership on
- * some CPU family and whatnot) then create a custom slave config
- * struct and pass that, then make this config a member of that
- * struct, if applicable.
+ * The rationale for adding configuration information to this struct is as
+ * follows: if it is likely that more than one DMA slave controllers in
+ * the world will support the configuration option, then make it generic.
+ * If not: if it is fixed so that it be sent in static from the platform
+ * data, then prefer to do that.
  */
 struct dma_slave_config {
 	enum dma_transfer_direction direction;

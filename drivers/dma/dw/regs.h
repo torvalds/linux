@@ -252,13 +252,13 @@ struct dw_dma {
 	struct tasklet_struct	tasklet;
 	struct clk		*clk;
 
+	/* channels */
+	struct dw_dma_chan	*chan;
 	u8			all_chan_mask;
 
 	/* hardware configuration */
 	unsigned char		nr_masters;
 	unsigned char		data_width[4];
-
-	struct dw_dma_chan	chan[0];
 };
 
 static inline struct dw_dma_regs __iomem *__dw_regs(struct dw_dma *dw)
