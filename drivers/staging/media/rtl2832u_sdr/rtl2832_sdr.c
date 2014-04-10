@@ -935,7 +935,8 @@ static int rtl2832_sdr_set_tuner_freq(struct rtl2832_sdr_state *s)
 	/*
 	 * bandwidth (Hz)
 	 */
-	bandwidth_auto = v4l2_ctrl_find(&s->hdl, V4L2_CID_RF_TUNER_BANDWIDTH_AUTO);
+	bandwidth_auto = v4l2_ctrl_find(&s->hdl,
+					V4L2_CID_RF_TUNER_BANDWIDTH_AUTO);
 	bandwidth = v4l2_ctrl_find(&s->hdl, V4L2_CID_RF_TUNER_BANDWIDTH);
 	if (v4l2_ctrl_g_ctrl(bandwidth_auto)) {
 		c->bandwidth_hz = s->f_adc;
@@ -1329,9 +1330,11 @@ static int rtl2832_sdr_s_ctrl(struct v4l2_ctrl *ctrl)
 			/* Round towards the closest legal value */
 			s32 val = s->f_adc + s->bandwidth->step / 2;
 			u32 offset;
-			val = clamp(val, s->bandwidth->minimum, s->bandwidth->maximum);
+			val = clamp(val, s->bandwidth->minimum,
+				    s->bandwidth->maximum);
 			offset = val - s->bandwidth->minimum;
-			offset = s->bandwidth->step * (offset / s->bandwidth->step);
+			offset = s->bandwidth->step *
+				(offset / s->bandwidth->step);
 			s->bandwidth->val = s->bandwidth->minimum + offset;
 		}
 
@@ -1420,15 +1423,24 @@ struct dvb_frontend *rtl2832_sdr_attach(struct dvb_frontend *fe,
 		break;
 	case RTL2832_TUNER_R820T:
 		v4l2_ctrl_handler_init(&s->hdl, 2);
-		s->bandwidth_auto = v4l2_ctrl_new_std(&s->hdl, ops, V4L2_CID_RF_TUNER_BANDWIDTH_AUTO, 0, 1, 1, 1);
-		s->bandwidth = v4l2_ctrl_new_std(&s->hdl, ops, V4L2_CID_RF_TUNER_BANDWIDTH, 0, 8000000, 100000, 0);
+		s->bandwidth_auto = v4l2_ctrl_new_std(&s->hdl, ops,
+						      V4L2_CID_RF_TUNER_BANDWIDTH_AUTO,
+						      0, 1, 1, 1);
+		s->bandwidth = v4l2_ctrl_new_std(&s->hdl, ops,
+						 V4L2_CID_RF_TUNER_BANDWIDTH,
+						 0, 8000000, 100000, 0);
 		v4l2_ctrl_auto_cluster(2, &s->bandwidth_auto, 0, false);
 		break;
 	case RTL2832_TUNER_FC0012:
 	case RTL2832_TUNER_FC0013:
 		v4l2_ctrl_handler_init(&s->hdl, 2);
-		s->bandwidth_auto = v4l2_ctrl_new_std(&s->hdl, ops, V4L2_CID_RF_TUNER_BANDWIDTH_AUTO, 0, 1, 1, 1);
-		s->bandwidth = v4l2_ctrl_new_std(&s->hdl, ops, V4L2_CID_RF_TUNER_BANDWIDTH, 6000000, 8000000, 1000000, 6000000);
+		s->bandwidth_auto = v4l2_ctrl_new_std(&s->hdl, ops,
+						      V4L2_CID_RF_TUNER_BANDWIDTH_AUTO,
+						      0, 1, 1, 1);
+		s->bandwidth = v4l2_ctrl_new_std(&s->hdl, ops,
+						 V4L2_CID_RF_TUNER_BANDWIDTH,
+						 6000000, 8000000, 1000000,
+						 6000000);
 		v4l2_ctrl_auto_cluster(2, &s->bandwidth_auto, 0, false);
 		break;
 	default:
