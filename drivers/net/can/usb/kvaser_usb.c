@@ -379,38 +379,43 @@ static int kvaser_usb_wait_msg(const struct kvaser_usb *dev, u8 id,
 	void *buf;
 	int actual_len;
 	int err;
-	int pos = 0;
+	int pos;
+	unsigned long to = jiffies + msecs_to_jiffies(USB_RECV_TIMEOUT);
 
 	buf = kzalloc(RX_BUFFER_SIZE, GFP_KERNEL);
 	if (!buf)
 		return -ENOMEM;
 
-	err = usb_bulk_msg(dev->udev,
-			   usb_rcvbulkpipe(dev->udev,
-					   dev->bulk_in->bEndpointAddress),
-			   buf, RX_BUFFER_SIZE, &actual_len,
-			   USB_RECV_TIMEOUT);
-	if (err < 0)
-		goto end;
-
-	while (pos <= actual_len - MSG_HEADER_LEN) {
-		tmp = buf + pos;
-
-		if (!tmp->len)
-			break;
-
-		if (pos + tmp->len > actual_len) {
-			dev_err(dev->udev->dev.parent, "Format error\n");
-			break;
-		}
-
-		if (tmp->id == id) {
-			memcpy(msg, tmp, tmp->len);
+	do {
+		err = usb_bulk_msg(dev->udev,
+				   usb_rcvbulkpipe(dev->udev,
+					dev->bulk_in->bEndpointAddress),
+				   buf, RX_BUFFER_SIZE, &actual_len,
+				   USB_RECV_TIMEOUT);
+		if (err < 0)
 			goto end;
-		}
 
-		pos += tmp->len;
-	}
+		pos = 0;
+		while (pos <= actual_len - MSG_HEADER_LEN) {
+			tmp = buf + pos;
+
+			if (!tmp->len)
+				break;
+
+			if (pos + tmp->len > actual_len) {
+				dev_err(dev->udev->dev.parent,
+					"Format error\n");
+				break;
+			}
+
+			if (tmp->id == id) {
+				memcpy(msg, tmp, tmp->len);
+				goto end;
+			}
+
+			pos += tmp->len;
+		}
+	} while (time_before(jiffies, to));
 
 	err = -EINVAL;
 
