@@ -4,10 +4,14 @@ Required Properties:
 - compatible: Should be one of:
   - "ti,abb-v1" for older SoCs like OMAP3
   - "ti,abb-v2" for newer SoCs like OMAP4, OMAP5
+  - "ti,abb-v3" for a generic definition where setup and control registers are
+     provided (example: DRA7)
 - reg: Address and length of the register set for the device. It contains
   the information of registers in the same order as described by reg-names
 - reg-names: Should contain the reg names
-  - "base-address"	- contains base address of ABB module
+  - "base-address"	- contains base address of ABB module (ti,abb-v1,ti,abb-v2)
+  - "control-address"	- contains control register address of ABB module (ti,abb-v3)
+  - "setup-address"	- contains setup register address of ABB module (ti,abb-v3)
   - "int-address"	- contains address of interrupt register for ABB module
   (also see Optional properties)
 - #address-cell: should be 0
