@@ -429,10 +429,10 @@ static int c_can_read_msg_object(struct net_device *dev, int iface, int ctrl)
 		}
 	}
 
-	netif_receive_skb(skb);
-
 	stats->rx_packets++;
 	stats->rx_bytes += frame->can_dlc;
+
+	netif_receive_skb(skb);
 	return 0;
 }
 
@@ -960,9 +960,9 @@ static int c_can_handle_state_change(struct net_device *dev,
 		break;
 	}
 
-	netif_receive_skb(skb);
 	stats->rx_packets++;
 	stats->rx_bytes += cf->can_dlc;
+	netif_receive_skb(skb);
 
 	return 1;
 }
@@ -1033,10 +1033,9 @@ static int c_can_handle_bus_err(struct net_device *dev,
 	/* set a `lec` value so that we can check for updates later */
 	priv->write_reg(priv, C_CAN_STS_REG, LEC_UNUSED);
 
-	netif_receive_skb(skb);
 	stats->rx_packets++;
 	stats->rx_bytes += cf->can_dlc;
-
+	netif_receive_skb(skb);
 	return 1;
 }
 
