@@ -3407,7 +3407,7 @@ qla2x00_configure_fabric(scsi_qla_host_t *vha)
 					    fcport->d_id.b.domain,
 					    fcport->d_id.b.area,
 					    fcport->d_id.b.al_pa);
-					fcport->loop_id = FC_NO_LOOP_ID;
+					qla2x00_clear_loop_id(fcport);
 				}
 			}
 		}
