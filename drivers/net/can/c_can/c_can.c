@@ -593,7 +593,7 @@ static void c_can_configure_msg_objects(struct net_device *dev)
 	/* setup receive message objects */
 	for (i = C_CAN_MSG_OBJ_RX_FIRST; i < C_CAN_MSG_OBJ_RX_LAST; i++)
 		c_can_setup_receive_object(dev, IF_RX, i, 0, 0,
-			(IF_MCONT_RXIE | IF_MCONT_UMASK) & ~IF_MCONT_EOB);
+					   IF_MCONT_RXIE | IF_MCONT_UMASK);
 
 	c_can_setup_receive_object(dev, IF_RX, C_CAN_MSG_OBJ_RX_LAST, 0, 0,
 			IF_MCONT_EOB | IF_MCONT_RXIE | IF_MCONT_UMASK);
@@ -649,8 +649,9 @@ static int c_can_start(struct net_device *dev)
 
 	priv->can.state = CAN_STATE_ERROR_ACTIVE;
 
-	/* reset tx helper pointers */
+	/* reset tx helper pointers and the rx mask */
 	priv->tx_next = priv->tx_echo = 0;
+	priv->rxmasked = 0;
 
 	return 0;
 }
@@ -823,9 +824,13 @@ static int c_can_read_objects(struct net_device *dev, struct c_can_priv *priv,
 		/* read the data from the message object */
 		c_can_read_msg_object(dev, IF_RX, ctrl);
 
-		if (obj == C_CAN_MSG_RX_LOW_LAST)
+		if (obj < C_CAN_MSG_RX_LOW_LAST)
+			priv->rxmasked |= BIT(obj - 1);
+		else if (obj == C_CAN_MSG_RX_LOW_LAST) {
+			priv->rxmasked = 0;
 			/* activate all lower message objects */
 			c_can_activate_all_lower_rx_msg_obj(dev, IF_RX);
+		}
 
 		pkts++;
 		quota--;
@@ -870,7 +875,8 @@ static int c_can_do_rx_poll(struct net_device *dev, int quota)
 
 	while (quota > 0) {
 		if (!pend) {
-			pend = priv->read_reg(priv, C_CAN_INTPND1_REG);
+			pend = priv->read_reg(priv, C_CAN_NEWDAT1_REG);
+			pend &= ~priv->rxmasked;
 			if (!pend)
 				break;
 			/*
@@ -1040,10 +1046,6 @@ static int c_can_handle_bus_err(struct net_device *dev,
 		break;
 	}
 
-	/* set a `lec` value so that we can check for updates later */
-	if (priv->type != BOSCH_D_CAN)
-		priv->write_reg(priv, C_CAN_STS_REG, LEC_UNUSED);
-
 	stats->rx_packets++;
 	stats->rx_bytes += cf->can_dlc;
 	netif_receive_skb(skb);
@@ -1052,78 +1054,49 @@ static int c_can_handle_bus_err(struct net_device *dev,
 
 static int c_can_poll(struct napi_struct *napi, int quota)
 {
-	u16 irqstatus;
-	int work_done = 0;
 	struct net_device *dev = napi->dev;
 	struct c_can_priv *priv = netdev_priv(dev);
+	u16 curr, last = priv->last_status;
+	int work_done = 0;
 
-	irqstatus = priv->irqstatus;
-	if (!irqstatus)
-		goto end;
+	priv->last_status = curr = priv->read_reg(priv, C_CAN_STS_REG);
+	/* Ack status on C_CAN. D_CAN is self clearing */
+	if (priv->type != BOSCH_D_CAN)
+		priv->write_reg(priv, C_CAN_STS_REG, LEC_UNUSED);
 
-	/* status events have the highest priority */
-	if (irqstatus == STATUS_INTERRUPT) {
-		priv->current_status = priv->read_reg(priv,
-					C_CAN_STS_REG);
-
-		/* handle Tx/Rx events */
-		if (priv->current_status & STATUS_TXOK &&
-		    priv->type != BOSCH_D_CAN)
-			priv->write_reg(priv, C_CAN_STS_REG,
-					priv->current_status & ~STATUS_TXOK);
-
-		if (priv->current_status & STATUS_RXOK &&
-		    priv->type != BOSCH_D_CAN)
-			priv->write_reg(priv, C_CAN_STS_REG,
-					priv->current_status & ~STATUS_RXOK);
-
-		/* handle state changes */
-		if ((priv->current_status & STATUS_EWARN) &&
-				(!(priv->last_status & STATUS_EWARN))) {
-			netdev_dbg(dev, "entered error warning state\n");
-			work_done += c_can_handle_state_change(dev,
-						C_CAN_ERROR_WARNING);
-		}
-		if ((priv->current_status & STATUS_EPASS) &&
-				(!(priv->last_status & STATUS_EPASS))) {
-			netdev_dbg(dev, "entered error passive state\n");
-			work_done += c_can_handle_state_change(dev,
-						C_CAN_ERROR_PASSIVE);
-		}
-		if ((priv->current_status & STATUS_BOFF) &&
-				(!(priv->last_status & STATUS_BOFF))) {
-			netdev_dbg(dev, "entered bus off state\n");
-			work_done += c_can_handle_state_change(dev,
-						C_CAN_BUS_OFF);
-			goto end;
-		}
-
-		/* handle bus recovery events */
-		if ((!(priv->current_status & STATUS_BOFF)) &&
-				(priv->last_status & STATUS_BOFF)) {
-			netdev_dbg(dev, "left bus off state\n");
-			priv->can.state = CAN_STATE_ERROR_ACTIVE;
-		}
-		if ((!(priv->current_status & STATUS_EPASS)) &&
-				(priv->last_status & STATUS_EPASS)) {
-			netdev_dbg(dev, "left error passive state\n");
-			priv->can.state = CAN_STATE_ERROR_ACTIVE;
-		}
-
-		priv->last_status = priv->current_status;
-
-		/* handle lec errors on the bus */
-		work_done += c_can_handle_bus_err(dev,
-					priv->current_status & LEC_MASK);
-	} else if ((irqstatus >= C_CAN_MSG_OBJ_RX_FIRST) &&
-			(irqstatus <= C_CAN_MSG_OBJ_RX_LAST)) {
-		/* handle events corresponding to receive message objects */
-		work_done += c_can_do_rx_poll(dev, (quota - work_done));
-	} else if ((irqstatus >= C_CAN_MSG_OBJ_TX_FIRST) &&
-			(irqstatus <= C_CAN_MSG_OBJ_TX_LAST)) {
-		/* handle events corresponding to transmit message objects */
-		c_can_do_tx(dev);
+	/* handle state changes */
+	if ((curr & STATUS_EWARN) && (!(last & STATUS_EWARN))) {
+		netdev_dbg(dev, "entered error warning state\n");
+		work_done += c_can_handle_state_change(dev, C_CAN_ERROR_WARNING);
 	}
+
+	if ((curr & STATUS_EPASS) && (!(last & STATUS_EPASS))) {
+		netdev_dbg(dev, "entered error passive state\n");
+		work_done += c_can_handle_state_change(dev, C_CAN_ERROR_PASSIVE);
+	}
+
+	if ((curr & STATUS_BOFF) && (!(last & STATUS_BOFF))) {
+		netdev_dbg(dev, "entered bus off state\n");
+		work_done += c_can_handle_state_change(dev, C_CAN_BUS_OFF);
+		goto end;
+	}
+
+	/* handle bus recovery events */
+	if ((!(curr & STATUS_BOFF)) && (last & STATUS_BOFF)) {
+		netdev_dbg(dev, "left bus off state\n");
+		priv->can.state = CAN_STATE_ERROR_ACTIVE;
+	}
+	if ((!(curr & STATUS_EPASS)) && (last & STATUS_EPASS)) {
+		netdev_dbg(dev, "left error passive state\n");
+		priv->can.state = CAN_STATE_ERROR_ACTIVE;
+	}
+
+	/* handle lec errors on the bus */
+	work_done += c_can_handle_bus_err(dev, curr & LEC_MASK);
+
+	/* Handle Tx/Rx events. We do this unconditionally */
+	work_done += c_can_do_rx_poll(dev, (quota - work_done));
+	c_can_do_tx(dev);
 
 end:
 	if (work_done < quota) {
@@ -1141,8 +1114,7 @@ static irqreturn_t c_can_isr(int irq, void *dev_id)
 	struct net_device *dev = (struct net_device *)dev_id;
 	struct c_can_priv *priv = netdev_priv(dev);
 
-	priv->irqstatus = priv->read_reg(priv, C_CAN_INT_REG);
-	if (!priv->irqstatus)
+	if (!priv->read_reg(priv, C_CAN_INT_REG))
 		return IRQ_NONE;
 
 	/* disable all interrupts and schedule the NAPI */
