@@ -737,13 +737,12 @@ static ssize_t ceph_sync_write(struct kiocb *iocb, const struct iovec *iov,
 		left = len;
 		for (n = 0; n < num_pages; n++) {
 			size_t plen = min_t(size_t, left, PAGE_SIZE);
-			ret = iov_iter_copy_from_user(pages[n], &i, 0, plen);
+			ret = copy_page_from_iter(pages[n], 0, plen, &i);
 			if (ret != plen) {
 				ret = -EFAULT;
 				break;
 			}
 			left -= ret;
-			iov_iter_advance(&i, ret);
 		}
 
 		if (ret < 0) {

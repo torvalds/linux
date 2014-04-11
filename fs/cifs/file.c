@@ -2444,11 +2444,10 @@ cifs_iovec_write(struct file *file, const struct iovec *iov,
 
 		save_len = cur_len;
 		for (i = 0; i < nr_pages; i++) {
-			bytes = min_t(const size_t, cur_len, PAGE_SIZE);
-			copied = iov_iter_copy_from_user(wdata->pages[i], &it,
-							 0, bytes);
+			bytes = min_t(size_t, cur_len, PAGE_SIZE);
+			copied = copy_page_from_iter(wdata->pages[i], 0, bytes,
+						     &it);
 			cur_len -= copied;
-			iov_iter_advance(&it, copied);
 			/*
 			 * If we didn't copy as much as we expected, then that
 			 * may mean we trod into an unmapped area. Stop copying
