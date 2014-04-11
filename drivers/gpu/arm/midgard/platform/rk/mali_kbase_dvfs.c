@@ -120,8 +120,8 @@ static void mali_dvfs_event_proc(struct work_struct *w)
 		BUG_ON(dvfs_status->step >= MALI_DVFS_STEP);
 
 	} 
-	else if((dvfs_status->step > 0) && (dvfs_status->utilisation < mali_dvfs_infotbl[dvfs_status->step].min_threshold)) 
-	//else if((dvfs_status->step > 0) && (platform->time_tick == MALI_DVFS_TIME_INTERVAL) && (platform->utilisation < mali_dvfs_infotbl[dvfs_status->step].min_threshold)) 
+	//else if((dvfs_status->step > 0) && (dvfs_status->utilisation < mali_dvfs_infotbl[dvfs_status->step].min_threshold)) 
+	else if((dvfs_status->step > 0) && (platform->time_tick == MALI_DVFS_TIME_INTERVAL) && (platform->utilisation < mali_dvfs_infotbl[dvfs_status->step].min_threshold)) 
 	{
 		BUG_ON(dvfs_status->step <= 0);
 		dvfs_status->step--;
