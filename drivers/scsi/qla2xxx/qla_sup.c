@@ -1727,11 +1727,8 @@ qla83xx_beacon_blink(struct scsi_qla_host *vha)
 	if (IS_QLA2031(ha)) {
 		led_select_value = qla83xx_select_led_port(ha);
 
-		qla83xx_wr_reg(vha, led_select_value, 0x40002000);
-		qla83xx_wr_reg(vha, led_select_value + 4, 0x40002000);
-		msleep(1000);
-		qla83xx_wr_reg(vha, led_select_value, 0x40004000);
-		qla83xx_wr_reg(vha, led_select_value + 4, 0x40004000);
+		qla83xx_wr_reg(vha, led_select_value, 0x40000230);
+		qla83xx_wr_reg(vha, led_select_value + 4, 0x40000230);
 	} else if (IS_QLA8031(ha)) {
 		led_select_value = qla83xx_select_led_port(ha);
 

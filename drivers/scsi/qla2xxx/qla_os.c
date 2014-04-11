@@ -5127,8 +5127,10 @@ intr_on_check:
 			ha->isp_ops->enable_intrs(ha);
 
 		if (test_and_clear_bit(BEACON_BLINK_NEEDED,
-					&base_vha->dpc_flags))
-			ha->isp_ops->beacon_blink(base_vha);
+					&base_vha->dpc_flags)) {
+			if (ha->beacon_blink_led == 1)
+				ha->isp_ops->beacon_blink(base_vha);
+		}
 
 		if (!IS_QLAFX00(ha))
 			qla2x00_do_dpc_all_vps(base_vha);
