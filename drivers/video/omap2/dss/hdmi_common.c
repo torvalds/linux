@@ -347,17 +347,17 @@ int hdmi_compute_acr(u32 pclk, u32 sample_freq, u32 *n, u32 *cts)
 	case 96000:
 	case 192000:
 		if (deep_color == 125)
-			if (pclk == 27027 || pclk == 74250)
+			if (pclk == 27027000 || pclk == 74250000)
 				deep_color_correct = true;
 		if (deep_color == 150)
-			if (pclk == 27027)
+			if (pclk == 27027000)
 				deep_color_correct = true;
 		break;
 	case 44100:
 	case 88200:
 	case 176400:
 		if (deep_color == 125)
-			if (pclk == 27027)
+			if (pclk == 27027000)
 				deep_color_correct = true;
 		break;
 	default:
@@ -418,7 +418,7 @@ int hdmi_compute_acr(u32 pclk, u32 sample_freq, u32 *n, u32 *cts)
 		}
 	}
 	/* Calculate CTS. See HDMI 1.3a or 1.4a specifications */
-	*cts = pclk * (*n / 128) * deep_color / (sample_freq / 10);
+	*cts = (pclk/1000) * (*n / 128) * deep_color / (sample_freq / 10);
 
 	return 0;
 }
