@@ -1137,13 +1137,6 @@ struct device_reg_24xx {
 #define MIN_MULTI_ID_FABRIC	64	/* Must be power-of-2. */
 #define MAX_MULTI_ID_FABRIC	256	/* ... */
 
-#define for_each_mapped_vp_idx(_ha, _idx)		\
-	for (_idx = find_next_bit((_ha)->vp_idx_map,	\
-		(_ha)->max_npiv_vports + 1, 1);		\
-	    _idx <= (_ha)->max_npiv_vports;		\
-	    _idx = find_next_bit((_ha)->vp_idx_map,	\
-		(_ha)->max_npiv_vports + 1, _idx + 1))	\
-
 struct mid_conf_entry_24xx {
 	uint16_t reserved_1;
 
