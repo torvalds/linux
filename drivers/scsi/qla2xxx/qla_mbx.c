@@ -2644,7 +2644,10 @@ qla24xx_abort_command(srb_t *sp)
 		ql_dbg(ql_dbg_mbx, vha, 0x1090,
 		    "Failed to complete IOCB -- completion status (%x).\n",
 		    le16_to_cpu(abt->nport_handle));
-		rval = QLA_FUNCTION_FAILED;
+		if (abt->nport_handle == CS_IOCB_ERROR)
+			rval = QLA_FUNCTION_PARAMETER_ERROR;
+		else
+			rval = QLA_FUNCTION_FAILED;
 	} else {
 		ql_dbg(ql_dbg_mbx + ql_dbg_verbose, vha, 0x1091,
 		    "Done %s.\n", __func__);

@@ -945,7 +945,7 @@ qla2xxx_eh_abort(struct scsi_cmnd *cmd)
 	int ret;
 	unsigned int id, lun;
 	unsigned long flags;
-	int wait = 0;
+	int rval, wait = 0;
 	struct qla_hw_data *ha = vha->hw;
 
 	if (!CMD_SP(cmd))
@@ -974,10 +974,20 @@ qla2xxx_eh_abort(struct scsi_cmnd *cmd)
 	sp_get(sp);
 
 	spin_unlock_irqrestore(&ha->hardware_lock, flags);
-	if (ha->isp_ops->abort_command(sp)) {
-		ret = FAILED;
+	rval = ha->isp_ops->abort_command(sp);
+	if (rval) {
+		if (rval == QLA_FUNCTION_PARAMETER_ERROR) {
+			/*
+			 * Decrement the ref_count since we can't find the
+			 * command
+			 */
+			atomic_dec(&sp->ref_count);
+			ret = SUCCESS;
+		} else
+			ret = FAILED;
+
 		ql_dbg(ql_dbg_taskm, vha, 0x8003,
-		    "Abort command mbx failed cmd=%p.\n", cmd);
+		    "Abort command mbx failed cmd=%p, rval=%x.\n", cmd, rval);
 	} else {
 		ql_dbg(ql_dbg_taskm, vha, 0x8004,
 		    "Abort command mbx success cmd=%p.\n", cmd);
@@ -985,6 +995,12 @@ qla2xxx_eh_abort(struct scsi_cmnd *cmd)
 	}
 
 	spin_lock_irqsave(&ha->hardware_lock, flags);
+	/*
+	 * Clear the slot in the oustanding_cmds array if we can't find the
+	 * command to reclaim the resources.
+	 */
+	if (rval == QLA_FUNCTION_PARAMETER_ERROR)
+		vha->req->outstanding_cmds[sp->handle] = NULL;
 	sp->done(ha, sp, 0);
 	spin_unlock_irqrestore(&ha->hardware_lock, flags);
 

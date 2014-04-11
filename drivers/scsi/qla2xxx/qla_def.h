@@ -1755,6 +1755,8 @@ typedef struct {
 #define CS_PORT_CONFIG_CHG	0x2A	/* Port Configuration Changed */
 #define CS_PORT_BUSY		0x2B	/* Port Busy */
 #define CS_COMPLETE_CHKCOND	0x30	/* Error? */
+#define CS_IOCB_ERROR		0x31	/* Generic error for IOCB request
+					   failure */
 #define CS_BAD_PAYLOAD		0x80	/* Driver defined */
 #define CS_UNKNOWN		0x81	/* Driver defined */
 #define CS_RETRY		0x82	/* Driver defined */
