@@ -965,6 +965,13 @@ struct mbx_cmd_32 {
  */
 #define MBC_WRITE_MPI_REGISTER		0x01    /* Write MPI Register. */
 
+/*
+ * ISP8044 mailbox commands
+ */
+#define MBC_SET_GET_ETH_SERDES_REG	0x150
+#define HCS_WRITE_SERDES		0x3
+#define HCS_READ_SERDES			0x4
+
 /* Firmware return data sizes */
 #define FCAL_MAP_SIZE	128
 
