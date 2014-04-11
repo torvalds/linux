@@ -654,6 +654,7 @@ static const char *channel_names[] = {
 		[OMAP_DSS_CHANNEL_LCD] = "lcd",
 		[OMAP_DSS_CHANNEL_DIGIT] = "tv",
 		[OMAP_DSS_CHANNEL_LCD2] = "lcd2",
+		[OMAP_DSS_CHANNEL_LCD3] = "lcd3",
 };
 
 void omap_crtc_pre_init(void)
