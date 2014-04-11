@@ -118,11 +118,11 @@ static void ttc_set_interval(struct ttc_timer *timer,
 	u32 ctrl_reg;
 
 	/* Disable the counter, set the counter value  and re-enable counter */
-	ctrl_reg = __raw_readl(timer->base_addr + TTC_CNT_CNTRL_OFFSET);
+	ctrl_reg = readl_relaxed(timer->base_addr + TTC_CNT_CNTRL_OFFSET);
 	ctrl_reg |= TTC_CNT_CNTRL_DISABLE_MASK;
-	__raw_writel(ctrl_reg, timer->base_addr + TTC_CNT_CNTRL_OFFSET);
+	writel_relaxed(ctrl_reg, timer->base_addr + TTC_CNT_CNTRL_OFFSET);
 
-	__raw_writel(cycles, timer->base_addr + TTC_INTR_VAL_OFFSET);
+	writel_relaxed(cycles, timer->base_addr + TTC_INTR_VAL_OFFSET);
 
 	/*
 	 * Reset the counter (0x10) so that it starts from 0, one-shot
@@ -130,7 +130,7 @@ static void ttc_set_interval(struct ttc_timer *timer,
 	 */
 	ctrl_reg |= CNT_CNTRL_RESET;
 	ctrl_reg &= ~TTC_CNT_CNTRL_DISABLE_MASK;
-	__raw_writel(ctrl_reg, timer->base_addr + TTC_CNT_CNTRL_OFFSET);
+	writel_relaxed(ctrl_reg, timer->base_addr + TTC_CNT_CNTRL_OFFSET);
 }
 
 /**
@@ -147,7 +147,7 @@ static irqreturn_t ttc_clock_event_interrupt(int irq, void *dev_id)
 	struct ttc_timer *timer = &ttce->ttc;
 
 	/* Acknowledge the interrupt and call event handler */
-	__raw_readl(timer->base_addr + TTC_ISR_OFFSET);
+	readl_relaxed(timer->base_addr + TTC_ISR_OFFSET);
 
 	ttce->ce.event_handler(&ttce->ce);
 
@@ -163,13 +163,13 @@ static cycle_t __ttc_clocksource_read(struct clocksource *cs)
 {
 	struct ttc_timer *timer = &to_ttc_timer_clksrc(cs)->ttc;
 
-	return (cycle_t)__raw_readl(timer->base_addr +
+	return (cycle_t)readl_relaxed(timer->base_addr +
 				TTC_COUNT_VAL_OFFSET);
 }
 
 static u64 notrace ttc_sched_clock_read(void)
 {
-	return __raw_readl(ttc_sched_clock_val_reg);
+	return readl_relaxed(ttc_sched_clock_val_reg);
 }
 
 /**
@@ -211,17 +211,17 @@ static void ttc_set_mode(enum clock_event_mode mode,
 	case CLOCK_EVT_MODE_ONESHOT:
 	case CLOCK_EVT_MODE_UNUSED:
 	case CLOCK_EVT_MODE_SHUTDOWN:
-		ctrl_reg = __raw_readl(timer->base_addr +
+		ctrl_reg = readl_relaxed(timer->base_addr +
 					TTC_CNT_CNTRL_OFFSET);
 		ctrl_reg |= TTC_CNT_CNTRL_DISABLE_MASK;
-		__raw_writel(ctrl_reg,
+		writel_relaxed(ctrl_reg,
 				timer->base_addr + TTC_CNT_CNTRL_OFFSET);
 		break;
 	case CLOCK_EVT_MODE_RESUME:
-		ctrl_reg = __raw_readl(timer->base_addr +
+		ctrl_reg = readl_relaxed(timer->base_addr +
 					TTC_CNT_CNTRL_OFFSET);
 		ctrl_reg &= ~TTC_CNT_CNTRL_DISABLE_MASK;
-		__raw_writel(ctrl_reg,
+		writel_relaxed(ctrl_reg,
 				timer->base_addr + TTC_CNT_CNTRL_OFFSET);
 		break;
 	}
@@ -266,8 +266,8 @@ static int ttc_rate_change_clocksource_cb(struct notifier_block *nb,
 		 * of an abort.
 		 */
 		ttccs->scale_clk_ctrl_reg_old =
-			__raw_readl(ttccs->ttc.base_addr +
-					TTC_CLK_CNTRL_OFFSET);
+			readl_relaxed(ttccs->ttc.base_addr +
+			TTC_CLK_CNTRL_OFFSET);
 
 		psv = (ttccs->scale_clk_ctrl_reg_old &
 				TTC_CLK_CNTRL_PSV_MASK) >>
@@ -291,8 +291,8 @@ static int ttc_rate_change_clocksource_cb(struct notifier_block *nb,
 			return NOTIFY_DONE;
 
 		/* scale up: adjust divider now - before frequency change */
-		__raw_writel(ttccs->scale_clk_ctrl_reg_new,
-				ttccs->ttc.base_addr + TTC_CLK_CNTRL_OFFSET);
+		writel_relaxed(ttccs->scale_clk_ctrl_reg_new,
+			       ttccs->ttc.base_addr + TTC_CLK_CNTRL_OFFSET);
 		break;
 	}
 	case POST_RATE_CHANGE:
@@ -301,8 +301,8 @@ static int ttc_rate_change_clocksource_cb(struct notifier_block *nb,
 			return NOTIFY_OK;
 
 		/* scale down: adjust divider now - after frequency change */
-		__raw_writel(ttccs->scale_clk_ctrl_reg_new,
-				ttccs->ttc.base_addr + TTC_CLK_CNTRL_OFFSET);
+		writel_relaxed(ttccs->scale_clk_ctrl_reg_new,
+			       ttccs->ttc.base_addr + TTC_CLK_CNTRL_OFFSET);
 		break;
 
 	case ABORT_RATE_CHANGE:
@@ -311,8 +311,8 @@ static int ttc_rate_change_clocksource_cb(struct notifier_block *nb,
 			return NOTIFY_OK;
 
 		/* restore original register value */
-		__raw_writel(ttccs->scale_clk_ctrl_reg_old,
-				ttccs->ttc.base_addr + TTC_CLK_CNTRL_OFFSET);
+		writel_relaxed(ttccs->scale_clk_ctrl_reg_old,
+			       ttccs->ttc.base_addr + TTC_CLK_CNTRL_OFFSET);
 		/* fall through */
 	default:
 		return NOTIFY_DONE;
@@ -359,10 +359,10 @@ static void __init ttc_setup_clocksource(struct clk *clk, void __iomem *base)
 	 * with no interrupt and it rolls over at 0xFFFF. Pre-scale
 	 * it by 32 also. Let it start running now.
 	 */
-	__raw_writel(0x0,  ttccs->ttc.base_addr + TTC_IER_OFFSET);
-	__raw_writel(CLK_CNTRL_PRESCALE | CLK_CNTRL_PRESCALE_EN,
+	writel_relaxed(0x0,  ttccs->ttc.base_addr + TTC_IER_OFFSET);
+	writel_relaxed(CLK_CNTRL_PRESCALE | CLK_CNTRL_PRESCALE_EN,
 		     ttccs->ttc.base_addr + TTC_CLK_CNTRL_OFFSET);
-	__raw_writel(CNT_CNTRL_RESET,
+	writel_relaxed(CNT_CNTRL_RESET,
 		     ttccs->ttc.base_addr + TTC_CNT_CNTRL_OFFSET);
 
 	err = clocksource_register_hz(&ttccs->cs, ttccs->ttc.freq / PRESCALE);
@@ -438,10 +438,10 @@ static void __init ttc_setup_clockevent(struct clk *clk,
 	 * is prescaled by 32 using the interval interrupt. Leave it
 	 * disabled for now.
 	 */
-	__raw_writel(0x23, ttcce->ttc.base_addr + TTC_CNT_CNTRL_OFFSET);
-	__raw_writel(CLK_CNTRL_PRESCALE | CLK_CNTRL_PRESCALE_EN,
+	writel_relaxed(0x23, ttcce->ttc.base_addr + TTC_CNT_CNTRL_OFFSET);
+	writel_relaxed(CLK_CNTRL_PRESCALE | CLK_CNTRL_PRESCALE_EN,
 		     ttcce->ttc.base_addr + TTC_CLK_CNTRL_OFFSET);
-	__raw_writel(0x1,  ttcce->ttc.base_addr + TTC_IER_OFFSET);
+	writel_relaxed(0x1,  ttcce->ttc.base_addr + TTC_IER_OFFSET);
 
 	err = request_irq(irq, ttc_clock_event_interrupt,
 			  IRQF_TIMER, ttcce->ce.name, ttcce);
@@ -490,7 +490,7 @@ static void __init ttc_timer_init(struct device_node *timer)
 		BUG();
 	}
 
-	clksel = __raw_readl(timer_baseaddr + TTC_CLK_CNTRL_OFFSET);
+	clksel = readl_relaxed(timer_baseaddr + TTC_CLK_CNTRL_OFFSET);
 	clksel = !!(clksel & TTC_CLK_CNTRL_CSRC_MASK);
 	clk_cs = of_clk_get(timer, clksel);
 	if (IS_ERR(clk_cs)) {
@@ -498,7 +498,7 @@ static void __init ttc_timer_init(struct device_node *timer)
 		BUG();
 	}
 
-	clksel = __raw_readl(timer_baseaddr + 4 + TTC_CLK_CNTRL_OFFSET);
+	clksel = readl_relaxed(timer_baseaddr + 4 + TTC_CLK_CNTRL_OFFSET);
 	clksel = !!(clksel & TTC_CLK_CNTRL_CSRC_MASK);
 	clk_ce = of_clk_get(timer, clksel);
 	if (IS_ERR(clk_ce)) {
