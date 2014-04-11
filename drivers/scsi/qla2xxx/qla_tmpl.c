@@ -249,7 +249,7 @@ qla27xx_read_window(__iomem struct device_reg_24xx *reg,
 		qla27xx_insert32(base, buf, len);
 		readn(window, buf, len);
 		window += width;
-		base += width;
+		base++;
 	}
 }
 
