@@ -32,6 +32,7 @@
 
 #include "device.h"
 #include "80211hdr.h"
+#include "aes_ccmp.h"
 
 /*
  * SBOX Table
