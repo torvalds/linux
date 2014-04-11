@@ -53,14 +53,13 @@ static void rk3288_hdmi_set_pwr_mode(struct hdmi *hdmi_drv, int mode)
 	switch(mode)
 	{
 		case NORMAL:
-			//hdmi_writel(hdmi_dev, MC_SWRSTZREQ, 0x00);
-			//hdmi_writel(hdmi_dev, MC_SWRSTZREQ_2, 0x00);
 			hdmi_writel(hdmi_dev, MC_CLKDIS, 0x00);
 			break;
 		case LOWER_PWR:
 			//hdmi_msk_reg(hdmi_dev, MC_CLKDIS, m_AUDCLK_DISABLE | m_PREPCLK_DISABLE | m_TMDSCLK_DISABLE | m_PIXELCLK_DISABLE,
 				//v_AUDCLK_DISABLE(1) | v_PREPCLK_DISABLE(1) | v_TMDSCLK_DISABLE(1) | v_PIXELCLK_DISABLE(1));
-			//hdmi_msk_reg(hdmi_dev, PHY_CONF0, m_TXPWRON_SIG, v_TXPWRON_SIG(0));
+			hdmi_msk_reg(hdmi_dev, PHY_CONF0, m_TMDS_EN | m_TXPWRON_SIG | m_ENHPD_RXSENSE_SIG,
+				v_TMDS_EN(0) | v_TXPWRON_SIG(0) | v_ENHPD_RXSENSE_SIG(1));
 			break;
 		default:
 			hdmi_dbg(hdmi_drv->dev, "unkown hdmi pwr mode %d\n",mode);
@@ -89,11 +88,9 @@ void rk3288_hdmi_reset(struct hdmi *hdmi_drv)
 	rk3288_hdmi_i2cm_reset(hdmi_dev);
 #if 1
 	//reset PHY
-	hdmi_writel(hdmi_dev, PHY_CONF0, 0x3a);
 	hdmi_writel(hdmi_dev, MC_PHYRSTZ, v_PHY_RSTZ(1));
 	udelay(100);
 	hdmi_writel(hdmi_dev, MC_PHYRSTZ, v_PHY_RSTZ(0));
-	hdmi_writel(hdmi_dev, PHY_CONF0, 0x6e);
 #endif
 
 	rk3288_hdmi_set_pwr_mode(hdmi_drv, LOWER_PWR);
