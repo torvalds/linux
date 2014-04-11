@@ -6499,7 +6499,7 @@ static void igb_reuse_rx_page(struct igb_ring *rx_ring,
 	rx_ring->next_to_alloc = (nta < rx_ring->count) ? nta : 0;
 
 	/* transfer page from old buffer to new buffer */
-	memcpy(new_buff, old_buff, sizeof(struct igb_rx_buffer));
+	*new_buff = *old_buff;
 
 	/* sync the buffer for use by the device */
 	dma_sync_single_range_for_device(rx_ring->dev, old_buff->dma,
