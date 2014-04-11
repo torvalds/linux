@@ -1,5 +1,5 @@
 /*
- * OMAP4XXX L3 Interconnect error handling driver
+ * OMAP L3 Interconnect error handling driver
  *
  * Copyright (C) 2011-2014 Texas Instruments Incorporated - http://www.ti.com/
  *	Santosh Shilimkar <santosh.shilimkar@ti.com>
@@ -50,7 +50,7 @@
 static irqreturn_t l3_interrupt_handler(int irq, void *_l3)
 {
 
-	struct omap4_l3 *l3 = _l3;
+	struct omap_l3 *l3 = _l3;
 	int inttype, i, k;
 	int err_src = 0;
 	u32 std_err_main, err_reg, clear, masterid;
@@ -122,9 +122,9 @@ static irqreturn_t l3_interrupt_handler(int irq, void *_l3)
 	return IRQ_HANDLED;
 }
 
-static int omap4_l3_probe(struct platform_device *pdev)
+static int omap_l3_probe(struct platform_device *pdev)
 {
-	static struct omap4_l3 *l3;
+	static struct omap_l3 *l3;
 	int ret, i;
 
 	l3 = devm_kzalloc(&pdev->dev, sizeof(*l3), GFP_KERNEL);
@@ -176,8 +176,8 @@ MODULE_DEVICE_TABLE(of, l3_noc_match);
 #define l3_noc_match NULL
 #endif
 
-static struct platform_driver omap4_l3_driver = {
-	.probe		= omap4_l3_probe,
+static struct platform_driver omap_l3_driver = {
+	.probe		= omap_l3_probe,
 	.driver		= {
 		.name		= "omap_l3_noc",
 		.owner		= THIS_MODULE,
@@ -185,14 +185,14 @@ static struct platform_driver omap4_l3_driver = {
 	},
 };
 
-static int __init omap4_l3_init(void)
+static int __init omap_l3_init(void)
 {
-	return platform_driver_register(&omap4_l3_driver);
+	return platform_driver_register(&omap_l3_driver);
 }
-postcore_initcall_sync(omap4_l3_init);
+postcore_initcall_sync(omap_l3_init);
 
-static void __exit omap4_l3_exit(void)
+static void __exit omap_l3_exit(void)
 {
-	platform_driver_unregister(&omap4_l3_driver);
+	platform_driver_unregister(&omap_l3_driver);
 }
-module_exit(omap4_l3_exit);
+module_exit(omap_l3_exit);

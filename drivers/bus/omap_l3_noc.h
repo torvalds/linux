@@ -1,5 +1,5 @@
 /*
- * OMAP4XXX L3 Interconnect  error handling driver header
+ * OMAP L3 Interconnect  error handling driver header
  *
  * Copyright (C) 2011-2014 Texas Instruments Incorporated - http://www.ti.com/
  *	Santosh Shilimkar <santosh.shilimkar@ti.com>
@@ -14,8 +14,8 @@
  * of MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the
  * GNU General Public License for more details.
  */
-#ifndef __ARCH_ARM_MACH_OMAP2_L3_INTERCONNECT_3XXX_H
-#define __ARCH_ARM_MACH_OMAP2_L3_INTERCONNECT_3XXX_H
+#ifndef __OMAP_L3_NOC_H
+#define __OMAP_L3_NOC_H
 
 #define L3_MODULES			3
 #define CLEAR_STDERR_LOG		(1 << 31)
@@ -157,7 +157,7 @@ static u32 *l3_targ[L3_MODULES] = {
 	l3_targ_inst_clk3,
 };
 
-struct omap4_l3 {
+struct omap_l3 {
 	struct device *dev;
 	struct clk *ick;
 
@@ -167,4 +167,5 @@ struct omap4_l3 {
 	int debug_irq;
 	int app_irq;
 };
-#endif
+
+#endif	/* __OMAP_L3_NOC_H */
