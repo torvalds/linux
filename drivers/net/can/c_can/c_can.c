@@ -129,6 +129,9 @@
 /* Receive setup of message objects */
 #define IF_COMM_RCV_SETUP	(IF_COMM_MASK | IF_COMM_ARB | IF_COMM_CONTROL)
 
+/* Invalidation of message objects */
+#define IF_COMM_INVAL		(IF_COMM_ARB | IF_COMM_CONTROL)
+
 /* IFx arbitration */
 #define IF_ARB_MSGVAL		BIT(15)
 #define IF_ARB_MSGXTD		BIT(14)
@@ -447,7 +450,7 @@ static void c_can_setup_receive_object(struct net_device *dev, int iface,
 	c_can_object_put(dev, iface, obj, IF_COMM_RCV_SETUP);
 }
 
-static void c_can_inval_msg_object(struct net_device *dev, int iface, int objno)
+static void c_can_inval_msg_object(struct net_device *dev, int iface, int obj)
 {
 	struct c_can_priv *priv = netdev_priv(dev);
 
@@ -455,10 +458,7 @@ static void c_can_inval_msg_object(struct net_device *dev, int iface, int objno)
 	priv->write_reg(priv, C_CAN_IFACE(ARB2_REG, iface), 0);
 	priv->write_reg(priv, C_CAN_IFACE(MSGCTRL_REG, iface), 0);
 
-	c_can_object_put(dev, iface, objno, IF_COMM_ARB | IF_COMM_CONTROL);
-
-	netdev_dbg(dev, "obj no:%d, msgval:0x%08x\n", objno,
-			c_can_read_reg32(priv, C_CAN_MSGVAL1_REG));
+	c_can_object_put(dev, iface, obj, IF_COMM_INVAL);
 }
 
 static inline int c_can_is_next_tx_obj_busy(struct c_can_priv *priv, int objno)
