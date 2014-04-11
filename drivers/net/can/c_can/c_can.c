@@ -647,6 +647,10 @@ static int c_can_start(struct net_device *dev)
 	if (err)
 		return err;
 
+	/* Setup the command for new messages */
+	priv->comm_rcv_high = priv->type != BOSCH_D_CAN ?
+		IF_COMM_RCV_LOW : IF_COMM_RCV_HIGH;
+
 	priv->can.state = CAN_STATE_ERROR_ACTIVE;
 
 	/* reset tx helper pointers and the rx mask */
@@ -791,14 +795,15 @@ static u32 c_can_adjust_pending(u32 pend)
 	return pend & ~((1 << lasts) - 1);
 }
 
-static inline void c_can_rx_object_get(struct net_device *dev, u32 obj)
+static inline void c_can_rx_object_get(struct net_device *dev,
+				       struct c_can_priv *priv, u32 obj)
 {
 #ifdef CONFIG_CAN_C_CAN_STRICT_FRAME_ORDERING
 	if (obj < C_CAN_MSG_RX_LOW_LAST)
 		c_can_object_get(dev, IF_RX, obj, IF_COMM_RCV_LOW);
 	else
 #endif
-		c_can_object_get(dev, IF_RX, obj, IF_COMM_RCV_HIGH);
+		c_can_object_get(dev, IF_RX, obj, priv->comm_rcv_high);
 }
 
 static inline void c_can_rx_finalize(struct net_device *dev,
@@ -813,6 +818,8 @@ static inline void c_can_rx_finalize(struct net_device *dev,
 		c_can_activate_all_lower_rx_msg_obj(dev, IF_RX);
 	}
 #endif
+	if (priv->type != BOSCH_D_CAN)
+		c_can_object_get(dev, IF_RX, obj, IF_COMM_CLR_NEWDAT);
 }
 
 static int c_can_read_objects(struct net_device *dev, struct c_can_priv *priv,
@@ -823,7 +830,7 @@ static int c_can_read_objects(struct net_device *dev, struct c_can_priv *priv,
 	while ((obj = ffs(pend)) && quota > 0) {
 		pend &= ~BIT(obj - 1);
 
-		c_can_rx_object_get(dev, obj);
+		c_can_rx_object_get(dev, priv, obj);
 		ctrl = priv->read_reg(priv, C_CAN_IFACE(MSGCTRL_REG, IF_RX));
 
 		if (ctrl & IF_MCONT_MSGLST) {
