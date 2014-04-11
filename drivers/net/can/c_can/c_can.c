@@ -1041,7 +1041,8 @@ static int c_can_handle_bus_err(struct net_device *dev,
 	}
 
 	/* set a `lec` value so that we can check for updates later */
-	priv->write_reg(priv, C_CAN_STS_REG, LEC_UNUSED);
+	if (priv->type != BOSCH_D_CAN)
+		priv->write_reg(priv, C_CAN_STS_REG, LEC_UNUSED);
 
 	stats->rx_packets++;
 	stats->rx_bytes += cf->can_dlc;
@@ -1066,11 +1067,13 @@ static int c_can_poll(struct napi_struct *napi, int quota)
 					C_CAN_STS_REG);
 
 		/* handle Tx/Rx events */
-		if (priv->current_status & STATUS_TXOK)
+		if (priv->current_status & STATUS_TXOK &&
+		    priv->type != BOSCH_D_CAN)
 			priv->write_reg(priv, C_CAN_STS_REG,
 					priv->current_status & ~STATUS_TXOK);
 
-		if (priv->current_status & STATUS_RXOK)
+		if (priv->current_status & STATUS_RXOK &&
+		    priv->type != BOSCH_D_CAN)
 			priv->write_reg(priv, C_CAN_STS_REG,
 					priv->current_status & ~STATUS_RXOK);
 
