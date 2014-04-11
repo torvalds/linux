@@ -28,7 +28,7 @@
 
 static int smiapp_write_8(struct smiapp_sensor *sensor, u16 reg, u8 val)
 {
-	return smiapp_write(sensor, (SMIA_REG_8BIT << 16) | reg, val);
+	return smiapp_write(sensor, SMIAPP_REG_MK_U8(reg), val);
 }
 
 static int smiapp_write_8s(struct smiapp_sensor *sensor,

@@ -29,11 +29,11 @@
 #include <linux/types.h>
 
 /* Use upper 8 bits of the type field for flags */
-#define SMIA_REG_FLAG_FLOAT		(1 << 24)
+#define SMIAPP_REG_FLAG_FLOAT		(1 << 24)
 
-#define SMIA_REG_8BIT			1
-#define SMIA_REG_16BIT			2
-#define SMIA_REG_32BIT			4
+#define SMIAPP_REG_8BIT			1
+#define SMIAPP_REG_16BIT		2
+#define SMIAPP_REG_32BIT		4
 
 struct smiapp_sensor;
 

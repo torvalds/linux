@@ -114,14 +114,14 @@ static int ____smiapp_read(struct smiapp_sensor *sensor, u16 reg,
 	*val = 0;
 	/* high byte comes first */
 	switch (len) {
-	case SMIA_REG_32BIT:
+	case SMIAPP_REG_32BIT:
 		*val = (data[0] << 24) + (data[1] << 16) + (data[2] << 8) +
 			data[3];
 		break;
-	case SMIA_REG_16BIT:
+	case SMIAPP_REG_16BIT:
 		*val = (data[0] << 8) + data[1];
 		break;
-	case SMIA_REG_8BIT:
+	case SMIAPP_REG_8BIT:
 		*val = data[0];
 		break;
 	default:
@@ -168,18 +168,18 @@ static int __smiapp_read(struct smiapp_sensor *sensor, u32 reg, u32 *val,
 	unsigned int len = (u8)(reg >> 16);
 	int rval;
 
-	if (len != SMIA_REG_8BIT && len != SMIA_REG_16BIT
-	    && len != SMIA_REG_32BIT)
+	if (len != SMIAPP_REG_8BIT && len != SMIAPP_REG_16BIT
+	    && len != SMIAPP_REG_32BIT)
 		return -EINVAL;
 
-	if (len == SMIA_REG_8BIT && !only8)
+	if (len == SMIAPP_REG_8BIT && !only8)
 		rval = ____smiapp_read(sensor, (u16)reg, len, val);
 	else
 		rval = ____smiapp_read_8only(sensor, (u16)reg, len, val);
 	if (rval < 0)
 		return rval;
 
-	if (reg & SMIA_REG_FLAG_FLOAT)
+	if (reg & SMIAPP_REG_FLAG_FLOAT)
 		*val = float_to_u32_mul_1000000(client, *val);
 
 	return 0;
@@ -213,8 +213,8 @@ int smiapp_write(struct smiapp_sensor *sensor, u32 reg, u32 val)
 	u16 offset = reg;
 	int r;
 
-	if ((len != SMIA_REG_8BIT && len != SMIA_REG_16BIT &&
-	     len != SMIA_REG_32BIT) || flags)
+	if ((len != SMIAPP_REG_8BIT && len != SMIAPP_REG_16BIT &&
+	     len != SMIAPP_REG_32BIT) || flags)
 		return -EINVAL;
 
 	msg.addr = client->addr;
@@ -227,14 +227,14 @@ int smiapp_write(struct smiapp_sensor *sensor, u32 reg, u32 val)
 	data[1] = (u8) (reg & 0xff);
 
 	switch (len) {
-	case SMIA_REG_8BIT:
+	case SMIAPP_REG_8BIT:
 		data[2] = val;
 		break;
-	case SMIA_REG_16BIT:
+	case SMIAPP_REG_16BIT:
 		data[2] = val >> 8;
 		data[3] = val;
 		break;
-	case SMIA_REG_32BIT:
+	case SMIAPP_REG_32BIT:
 		data[2] = val >> 24;
 		data[3] = val >> 16;
 		data[4] = val >> 8;
