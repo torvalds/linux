@@ -1196,8 +1196,8 @@ static bool reg_pattern_test(struct igb_adapter *adapter, u64 *data,
 {
 	struct e1000_hw *hw = &adapter->hw;
 	u32 pat, val;
-	static const u32 _test[] =
-		{0x5A5A5A5A, 0xA5A5A5A5, 0x00000000, 0xFFFFFFFF};
+	static const u32 _test[] = {
+		0x5A5A5A5A, 0xA5A5A5A5, 0x00000000, 0xFFFFFFFF};
 	for (pat = 0; pat < ARRAY_SIZE(_test); pat++) {
 		wr32(reg, (_test[pat] & write));
 		val = rd32(reg) & mask;

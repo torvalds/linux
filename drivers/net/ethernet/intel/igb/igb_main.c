@@ -4235,9 +4235,8 @@ static void igb_watchdog_task(struct work_struct *work)
 
 			/* check for thermal sensor event */
 			if (igb_thermal_sensor_event(hw,
-			    E1000_THSTAT_LINK_THROTTLE)) {
+			    E1000_THSTAT_LINK_THROTTLE))
 				netdev_info(netdev, "The network adapter link speed was downshifted because it overheated\n");
-			}
 
 			/* adjust timeout factor according to speed/duplex */
 			adapter->tx_timeout_factor = 1;
@@ -4473,13 +4472,12 @@ static void igb_update_itr(struct igb_q_vector *q_vector,
 	case low_latency:  /* 50 usec aka 20000 ints/s */
 		if (bytes > 10000) {
 			/* this if handles the TSO accounting */
-			if (bytes/packets > 8000) {
+			if (bytes/packets > 8000)
 				itrval = bulk_latency;
-			} else if ((packets < 10) || ((bytes/packets) > 1200)) {
+			else if ((packets < 10) || ((bytes/packets) > 1200))
 				itrval = bulk_latency;
-			} else if ((packets > 35)) {
+			else if ((packets > 35))
 				itrval = lowest_latency;
-			}
 		} else if (bytes/packets > 2000) {
 			itrval = bulk_latency;
 		} else if (packets <= 2 && bytes < 512) {

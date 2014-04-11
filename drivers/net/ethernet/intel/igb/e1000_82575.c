@@ -73,9 +73,8 @@ static s32  igb_validate_nvm_checksum_82580(struct e1000_hw *hw);
 static s32  igb_update_nvm_checksum_82580(struct e1000_hw *hw);
 static s32 igb_validate_nvm_checksum_i350(struct e1000_hw *hw);
 static s32 igb_update_nvm_checksum_i350(struct e1000_hw *hw);
-static const u16 e1000_82580_rxpbs_table[] =
-	{ 36, 72, 144, 1, 2, 4, 8, 16,
-	  35, 70, 140 };
+static const u16 e1000_82580_rxpbs_table[] = {
+	36, 72, 144, 1, 2, 4, 8, 16, 35, 70, 140 };
 
 /**
  *  igb_sgmii_uses_mdio_82575 - Determine if I2C pins are for external MDIO
@@ -1436,9 +1435,8 @@ static s32 igb_reset_hw_82575(struct e1000_hw *hw)
 
 	/* set the completion timeout for interface */
 	ret_val = igb_set_pcie_completion_timeout(hw);
-	if (ret_val) {
+	if (ret_val)
 		hw_dbg("PCI-E Set completion timeout has failed.\n");
-	}
 
 	hw_dbg("Masking off all interrupts\n");
 	wr32(E1000_IMC, 0xffffffff);
