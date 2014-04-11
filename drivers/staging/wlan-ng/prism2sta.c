@@ -120,10 +120,6 @@ MODULE_PARM_DESC(prism2_reset_settletime, "reset settle time in ms");
 
 MODULE_LICENSE("Dual MPL/GPL");
 
-void prism2_connect_result(wlandevice_t *wlandev, u8 failed);
-void prism2_disconnected(wlandevice_t *wlandev);
-void prism2_roamed(wlandevice_t *wlandev);
-
 static int prism2sta_open(wlandevice_t *wlandev);
 static int prism2sta_close(wlandevice_t *wlandev);
 static void prism2sta_reset(wlandevice_t *wlandev);
