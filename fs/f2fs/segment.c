@@ -197,7 +197,7 @@ void f2fs_balance_fs_bg(struct f2fs_sb_info *sbi)
 		f2fs_sync_fs(sbi->sb, true);
 }
 
-static int issue_flush_thread(void *data)
+int issue_flush_thread(void *data)
 {
 	struct f2fs_sb_info *sbi = data;
 	struct f2fs_sm_info *sm_i = SM_I(sbi);
