@@ -2681,7 +2681,18 @@ static void qlt_send_term_exchange(struct scsi_qla_host *vha,
 	rc = __qlt_send_term_exchange(vha, cmd, atio);
 	spin_unlock_irqrestore(&vha->hw->hardware_lock, flags);
 done:
-	if (rc == 1) {
+	/*
+	 * Terminate exchange will tell fw to release any active CTIO
+	 * that's in FW posession and cleanup the exchange.
+	 *
+	 * "cmd->state == QLA_TGT_STATE_ABORTED" means CTIO is still
+	 * down at FW.  Free the cmd later when CTIO comes back later
+	 * w/aborted(0x2) status.
+	 *
+	 * "cmd->state != QLA_TGT_STATE_ABORTED" means CTIO is already
+	 * back w/some err.  Free the cmd now.
+	 */
+	if ((rc == 1) && (cmd->state != QLA_TGT_STATE_ABORTED)) {
 		if (!ha_locked && !in_interrupt())
 			msleep(250); /* just in case */
 
@@ -2689,6 +2700,7 @@ done:
 			qlt_unmap_sg(vha, cmd);
 		vha->hw->tgt.tgt_ops->free_cmd(cmd);
 	}
+	return;
 }
 
 void qlt_free_cmd(struct qla_tgt_cmd *cmd)
@@ -2906,6 +2918,7 @@ static void qlt_do_ctio_completion(struct scsi_qla_host *vha, uint32_t handle,
 		case CTIO_LIP_RESET:
 		case CTIO_TARGET_RESET:
 		case CTIO_ABORTED:
+			/* driver request abort via Terminate exchange */
 		case CTIO_TIMEOUT:
 		case CTIO_INVALID_RX_ID:
 			/* They are OK */
@@ -2974,9 +2987,18 @@ static void qlt_do_ctio_completion(struct scsi_qla_host *vha, uint32_t handle,
 			break;
 		}
 
-		if (cmd->state != QLA_TGT_STATE_NEED_DATA)
+
+		/* "cmd->state == QLA_TGT_STATE_ABORTED" means
+		 * cmd is already aborted/terminated, we don't
+		 * need to terminate again.  The exchange is already
+		 * cleaned up/freed at FW level.  Just cleanup at driver
+		 * level.
+		 */
+		if ((cmd->state != QLA_TGT_STATE_NEED_DATA) &&
+			(cmd->state != QLA_TGT_STATE_ABORTED)) {
 			if (qlt_term_ctio_exchange(vha, ctio, cmd, status))
 				return;
+		}
 	}
 skip_term:
 
@@ -3007,7 +3029,8 @@ skip_term:
 		    "not return a CTIO complete\n", vha->vp_idx, cmd->state);
 	}
 
-	if (unlikely(status != CTIO_SUCCESS)) {
+	if (unlikely(status != CTIO_SUCCESS) &&
+		(cmd->state != QLA_TGT_STATE_ABORTED)) {
 		ql_dbg(ql_dbg_tgt_mgt, vha, 0xf01f, "Finishing failed CTIO\n");
 		dump_stack();
 	}
