@@ -1268,7 +1268,7 @@ static s32 igb_check_for_link_82575(struct e1000_hw *hw)
 
 	if (hw->phy.media_type != e1000_media_type_copper) {
 		ret_val = igb_get_pcs_speed_and_duplex_82575(hw, &speed,
-		                                             &duplex);
+							     &duplex);
 		/* Use this flag to determine if link needs to be checked or
 		 * not.  If  we have link clear the flag so that we do not
 		 * continue to check for link.
@@ -1687,7 +1687,7 @@ static s32 igb_setup_serdes_link_82575(struct e1000_hw *hw)
 		 * link either autoneg or be forced to 1000/Full
 		 */
 		ctrl_reg |= E1000_CTRL_SPD_1000 | E1000_CTRL_FRCSPD |
-		            E1000_CTRL_FD | E1000_CTRL_FRCDPX;
+				E1000_CTRL_FD | E1000_CTRL_FRCDPX;
 
 		/* set speed of 1000/Full if speed/duplex is forced */
 		reg |= E1000_PCS_LCTL_FSV_1000 | E1000_PCS_LCTL_FDV_FULL;
@@ -2003,14 +2003,14 @@ static s32 igb_set_pcie_completion_timeout(struct e1000_hw *hw)
 	 * 16ms to 55ms
 	 */
 	ret_val = igb_read_pcie_cap_reg(hw, PCIE_DEVICE_CONTROL2,
-	                                &pcie_devctl2);
+					&pcie_devctl2);
 	if (ret_val)
 		goto out;
 
 	pcie_devctl2 |= PCIE_DEVICE_CONTROL2_16ms;
 
 	ret_val = igb_write_pcie_cap_reg(hw, PCIE_DEVICE_CONTROL2,
-	                                 &pcie_devctl2);
+					 &pcie_devctl2);
 out:
 	/* disable completion timeout resend */
 	gcr &= ~E1000_GCR_CMPL_TMOUT_RESEND;

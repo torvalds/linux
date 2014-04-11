@@ -101,11 +101,11 @@
 
 /* Same mask, but for extended and packet split descriptors */
 #define E1000_RXDEXT_ERR_FRAME_ERR_MASK ( \
-    E1000_RXDEXT_STATERR_CE  |            \
-    E1000_RXDEXT_STATERR_SE  |            \
-    E1000_RXDEXT_STATERR_SEQ |            \
-    E1000_RXDEXT_STATERR_CXE |            \
-    E1000_RXDEXT_STATERR_RXE)
+	E1000_RXDEXT_STATERR_CE  |            \
+	E1000_RXDEXT_STATERR_SE  |            \
+	E1000_RXDEXT_STATERR_SEQ |            \
+	E1000_RXDEXT_STATERR_CXE |            \
+	E1000_RXDEXT_STATERR_RXE)
 
 #define E1000_MRQC_RSS_FIELD_IPV4_TCP          0x00010000
 #define E1000_MRQC_RSS_FIELD_IPV4              0x00020000
@@ -406,12 +406,12 @@
  *   o LSC    = Link Status Change
  */
 #define IMS_ENABLE_MASK ( \
-    E1000_IMS_RXT0   |    \
-    E1000_IMS_TXDW   |    \
-    E1000_IMS_RXDMT0 |    \
-    E1000_IMS_RXSEQ  |    \
-    E1000_IMS_LSC    |    \
-    E1000_IMS_DOUTSYNC)
+	E1000_IMS_RXT0   |    \
+	E1000_IMS_TXDW   |    \
+	E1000_IMS_RXDMT0 |    \
+	E1000_IMS_RXSEQ  |    \
+	E1000_IMS_LSC    |    \
+	E1000_IMS_DOUTSYNC)
 
 /* Interrupt Mask Set */
 #define E1000_IMS_TXDW      E1000_ICR_TXDW      /* Transmit desc written back */
@@ -1011,8 +1011,7 @@
 #define E1000_VFTA_ENTRY_BIT_SHIFT_MASK      0x1F
 
 /* DMA Coalescing register fields */
-#define E1000_PCIEMISC_LX_DECISION      0x00000080 /* Lx power decision based
-                                                      on DMA coal */
+#define E1000_PCIEMISC_LX_DECISION      0x00000080 /* Lx power on DMA coal */
 
 /* Tx Rate-Scheduler Config fields */
 #define E1000_RTTBCNRC_RS_ENA		0x80000000
