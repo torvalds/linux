@@ -351,6 +351,7 @@ struct config_info_data {
 #define SOC_FABRIC_RST_CONTROL_REG       0x0020840
 #define SOC_FABRIC_CONTROL_REG           0x0020200
 #define SOC_FABRIC_CONFIG_REG            0x0020204
+#define SOC_PWR_MANAGEMENT_PWR_DOWN_REG  0x001820C
 
 #define SOC_INTERRUPT_SOURCE_I_CONTROL_REG     0x0020B00
 #define SOC_CORE_TIMER_REG                     0x0021850
