@@ -456,20 +456,22 @@ static void dvfs_temp_limit_work_func(struct work_struct *work)
 	struct pd_node *pd;
 	struct dvfs_node *clk_dvfs_node;
 
+	queue_delayed_work_on(0, dvfs_wq, to_delayed_work(work), delay);
+
 	mutex_lock(&rk_dvfs_mutex);
 	list_for_each_entry(vd, &rk_dvfs_tree, node) {
 		mutex_lock(&vd->mutex);
 		list_for_each_entry(pd, &vd->pd_list, node) {
 			list_for_each_entry(clk_dvfs_node, &pd->clk_list, node) {
-				if (clk_dvfs_node->temp_limit_table)
+				if (clk_dvfs_node->temp_limit_table) {
+					clk_dvfs_node->temp = rockchip_tsadc_get_temp(clk_dvfs_node->temp_channel);
 					clk_dvfs_node->vd->vd_dvfs_target(clk_dvfs_node, clk_dvfs_node->last_set_rate);
+				}
 			}
 		}
 		mutex_unlock(&vd->mutex);
 	}
 	mutex_unlock(&rk_dvfs_mutex);
-
-	queue_delayed_work_on(0, dvfs_wq, to_delayed_work(work), delay);
 }
 static DECLARE_DELAYED_WORK(dvfs_temp_limit_work, dvfs_temp_limit_work_func);
 
@@ -736,7 +738,7 @@ static unsigned long dvfs_get_limit_rate(struct dvfs_node *clk_dvfs_node, unsign
 
 		//temp limt
 		if (clk_dvfs_node->temp_limit_table) {
-			temp = rockchip_tsadc_get_temp(clk_dvfs_node->temp_channel);
+			temp = clk_dvfs_node->temp;
 			for (i=0; clk_dvfs_node->temp_limit_table[i].frequency != CPUFREQ_TABLE_END; i++) {
 				if (temp > clk_dvfs_node->temp_limit_table[i].index) {
 					temp_limit_rate = clk_dvfs_node->temp_limit_table[i].frequency;
