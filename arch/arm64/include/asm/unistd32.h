@@ -404,7 +404,7 @@ __SYSCALL(379, sys_finit_module)
 __SYSCALL(380, sys_sched_setattr)
 __SYSCALL(381, sys_sched_getattr)
 
-#define __NR_compat_syscalls		379
+#define __NR_compat_syscalls		382
 
 /*
  * Compat syscall numbers used by the AArch64 kernel.
