@@ -1226,6 +1226,8 @@ int omap_gem_op_async(struct drm_gem_object *obj, enum omap_gem_op op,
 		}
 
 		spin_unlock(&sync_lock);
+
+		kfree(waiter);
 	}
 
 	/* no waiting.. */
