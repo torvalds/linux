@@ -62,6 +62,8 @@ static irqreturn_t l3_interrupt_handler(int irq, void *_l3)
 	struct l3_target_data *l3_targ_inst;
 	struct l3_flagmux_data *flag_mux;
 	struct l3_masters_data *master;
+	char *err_description;
+	char err_string[30] = { 0 };
 
 	/* Get the Type of interrupt */
 	inttype = irq == l3->app_irq ? L3_APPLICATION_ERROR : L3_DEBUG_ERROR;
@@ -78,6 +80,8 @@ static irqreturn_t l3_interrupt_handler(int irq, void *_l3)
 
 		/* Get the corresponding error and analyse */
 		if (err_reg) {
+			bool std_err = true;
+
 			/* Identify the source from control status register */
 			err_src = __ffs(err_reg);
 
@@ -123,47 +127,61 @@ static irqreturn_t l3_interrupt_handler(int irq, void *_l3)
 			l3_targ_stderr = l3_targ_base + L3_TARG_STDERRLOG_MAIN;
 			l3_targ_slvofslsb = l3_targ_base +
 					    L3_TARG_STDERRLOG_SLVOFSLSB;
-			l3_targ_mstaddr = l3_targ_base +
-					  L3_TARG_STDERRLOG_MSTADDR;
 
 			std_err_main = readl_relaxed(l3_targ_stderr);
+
+			switch (std_err_main & CUSTOM_ERROR) {
+			case STANDARD_ERROR:
+				err_description = "Standard";
+				snprintf(err_string, sizeof(err_string),
+					 ": At Address: 0x%08X ",
+					 readl_relaxed(l3_targ_slvofslsb));
+
+				l3_targ_mstaddr = l3_targ_base +
+						L3_TARG_STDERRLOG_MSTADDR;
+				break;
+
+			case CUSTOM_ERROR:
+				err_description = "Custom";
+
+				l3_targ_mstaddr = l3_targ_base +
+						L3_TARG_STDERRLOG_CINFO_MSTADDR;
+				break;
+
+			default:
+				std_err = false;
+				/* Nothing to be handled here as of now */
+				break;
+			}
+
+			if (!std_err)
+				break;
 
 			/* STDERRLOG_MSTADDR Stores the NTTP master address. */
 			masterid = (readl_relaxed(l3_targ_mstaddr) &
 				    l3->mst_addr_mask) >>
 					__ffs(l3->mst_addr_mask);
 
-			switch (std_err_main & CUSTOM_ERROR) {
-			case STANDARD_ERROR:
-				WARN(true, "L3 standard error: TARGET:%s at address 0x%x\n",
-					target_name,
-					readl_relaxed(l3_targ_slvofslsb));
-				/* clear the std error log*/
-				clear = std_err_main | CLEAR_STDERR_LOG;
-				writel_relaxed(clear, l3_targ_stderr);
-				break;
-
-			case CUSTOM_ERROR:
-				for (k = 0, master = l3->l3_masters;
-				     k < l3->num_masters; k++, master++) {
-					if (masterid == master->id) {
-						master_name = master->name;
-						break;
-					}
+			for (k = 0, master = l3->l3_masters;
+			     k < l3->num_masters; k++, master++) {
+				if (masterid == master->id) {
+					master_name = master->name;
+					break;
 				}
-				WARN(true, "L3 custom error: MASTER:%s TARGET:%s\n",
-					master_name, target_name);
-				/* clear the std error log*/
-				clear = std_err_main | CLEAR_STDERR_LOG;
-				writel_relaxed(clear, l3_targ_stderr);
-				break;
-
-			default:
-				/* Nothing to be handled here as of now */
-				break;
 			}
-		/* Error found so break the for loop */
-		break;
+
+			WARN(true,
+			     "%s:L3 %s Error: MASTER %s TARGET %s%s\n",
+			     dev_name(l3->dev),
+			     err_description,
+			     master_name, target_name,
+			     err_string);
+			/* clear the std error log*/
+			clear = std_err_main | CLEAR_STDERR_LOG;
+			writel_relaxed(clear, l3_targ_stderr);
+
+			/* Error found so break the for loop */
+			break;
 		}
 	}
 	return IRQ_HANDLED;
