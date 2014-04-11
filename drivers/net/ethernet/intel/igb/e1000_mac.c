@@ -866,8 +866,7 @@ s32 igb_config_fc_after_link_up(struct e1000_hw *hw)
 			goto out;
 
 		if (!(mii_status_reg & MII_SR_AUTONEG_COMPLETE)) {
-			hw_dbg("Copper PHY and Auto Neg "
-				 "has not completed.\n");
+			hw_dbg("Copper PHY and Auto Neg has not completed.\n");
 			goto out;
 		}
 
@@ -932,8 +931,7 @@ s32 igb_config_fc_after_link_up(struct e1000_hw *hw)
 				hw_dbg("Flow Control = FULL.\r\n");
 			} else {
 				hw->fc.current_mode = e1000_fc_rx_pause;
-				hw_dbg("Flow Control = "
-				       "RX PAUSE frames only.\r\n");
+				hw_dbg("Flow Control = RX PAUSE frames only.\r\n");
 			}
 		}
 		/* For receiving PAUSE frames ONLY.

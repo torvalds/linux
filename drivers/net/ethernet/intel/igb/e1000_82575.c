@@ -1676,7 +1676,7 @@ static s32 igb_setup_serdes_link_82575(struct e1000_hw *hw)
 		    hw->mac.type == e1000_82576) {
 			ret_val = hw->nvm.ops.read(hw, NVM_COMPAT, 1, &data);
 			if (ret_val) {
-				printk(KERN_DEBUG "NVM Read Error\n\n");
+				hw_dbg(KERN_DEBUG "NVM Read Error\n\n");
 				return ret_val;
 			}
 
@@ -2436,8 +2436,7 @@ static s32 igb_update_nvm_checksum_82580(struct e1000_hw *hw)
 
 	ret_val = hw->nvm.ops.read(hw, NVM_COMPATIBILITY_REG_3, 1, &nvm_data);
 	if (ret_val) {
-		hw_dbg("NVM Read Error while updating checksum"
-			" compatibility bit.\n");
+		hw_dbg("NVM Read Error while updating checksum compatibility bit.\n");
 		goto out;
 	}
 
@@ -2447,8 +2446,7 @@ static s32 igb_update_nvm_checksum_82580(struct e1000_hw *hw)
 		ret_val = hw->nvm.ops.write(hw, NVM_COMPATIBILITY_REG_3, 1,
 					&nvm_data);
 		if (ret_val) {
-			hw_dbg("NVM Write Error while updating checksum"
-				" compatibility bit.\n");
+			hw_dbg("NVM Write Error while updating checksum compatibility bit.\n");
 			goto out;
 		}
 	}

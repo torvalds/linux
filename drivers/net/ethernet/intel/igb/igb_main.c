@@ -217,8 +217,7 @@ static void igb_netpoll(struct net_device *);
 #ifdef CONFIG_PCI_IOV
 static unsigned int max_vfs = 0;
 module_param(max_vfs, uint, 0);
-MODULE_PARM_DESC(max_vfs, "Maximum number of virtual functions to allocate "
-                 "per physical function");
+MODULE_PARM_DESC(max_vfs, "Maximum number of virtual functions to allocate per physical function");
 #endif /* CONFIG_PCI_IOV */
 
 static pci_ers_result_t igb_io_error_detected(struct pci_dev *,
@@ -384,8 +383,7 @@ static void igb_dump(struct igb_adapter *adapter)
 	/* Print netdevice Info */
 	if (netdev) {
 		dev_info(&adapter->pdev->dev, "Net device Info\n");
-		pr_info("Device Name     state            trans_start      "
-			"last_rx\n");
+		pr_info("Device Name     state            trans_start      last_rx\n");
 		pr_info("%-15s %016lX %016lX %016lX\n", netdev->name,
 			netdev->state, netdev->trans_start, netdev->last_rx);
 	}
@@ -438,9 +436,7 @@ static void igb_dump(struct igb_adapter *adapter)
 		pr_info("------------------------------------\n");
 		pr_info("TX QUEUE INDEX = %d\n", tx_ring->queue_index);
 		pr_info("------------------------------------\n");
-		pr_info("T [desc]     [address 63:0  ] [PlPOCIStDDM Ln] "
-			"[bi->dma       ] leng  ntw timestamp        "
-			"bi->skb\n");
+		pr_info("T [desc]     [address 63:0  ] [PlPOCIStDDM Ln] [bi->dma       ] leng  ntw timestamp        bi->skb\n");
 
 		for (i = 0; tx_ring->desc && (i < tx_ring->count); i++) {
 			const char *next_desc;
@@ -458,9 +454,8 @@ static void igb_dump(struct igb_adapter *adapter)
 			else
 				next_desc = "";
 
-			pr_info("T [0x%03X]    %016llX %016llX %016llX"
-				" %04X  %p %016llX %p%s\n", i,
-				le64_to_cpu(u0->a),
+			pr_info("T [0x%03X]    %016llX %016llX %016llX %04X  %p %016llX %p%s\n",
+				i, le64_to_cpu(u0->a),
 				le64_to_cpu(u0->b),
 				(u64)dma_unmap_addr(buffer_info, dma),
 				dma_unmap_len(buffer_info, len),
@@ -519,10 +514,8 @@ rx_ring_summary:
 		pr_info("------------------------------------\n");
 		pr_info("RX QUEUE INDEX = %d\n", rx_ring->queue_index);
 		pr_info("------------------------------------\n");
-		pr_info("R  [desc]      [ PktBuf     A0] [  HeadBuf   DD] "
-			"[bi->dma       ] [bi->skb] <-- Adv Rx Read format\n");
-		pr_info("RWB[desc]      [PcsmIpSHl PtRs] [vl er S cks ln] -----"
-			"----------- [bi->skb] <-- Adv Rx Write-Back format\n");
+		pr_info("R  [desc]      [ PktBuf     A0] [  HeadBuf   DD] [bi->dma       ] [bi->skb] <-- Adv Rx Read format\n");
+		pr_info("RWB[desc]      [PcsmIpSHl PtRs] [vl er S cks ln] ---------------- [bi->skb] <-- Adv Rx Write-Back format\n");
 
 		for (i = 0; i < rx_ring->count; i++) {
 			const char *next_desc;
@@ -4215,8 +4208,8 @@ static void igb_watchdog_task(struct work_struct *work)
 
 			ctrl = rd32(E1000_CTRL);
 			/* Links status message must follow this format */
-			printk(KERN_INFO "igb: %s NIC Link is Up %d Mbps %s "
-			       "Duplex, Flow Control: %s\n",
+			netdev_info(netdev,
+			       "igb: %s NIC Link is Up %d Mbps %s Duplex, Flow Control: %s\n",
 			       netdev->name,
 			       adapter->link_speed,
 			       adapter->link_duplex == FULL_DUPLEX ?
@@ -4243,9 +4236,7 @@ static void igb_watchdog_task(struct work_struct *work)
 			/* check for thermal sensor event */
 			if (igb_thermal_sensor_event(hw,
 			    E1000_THSTAT_LINK_THROTTLE)) {
-				netdev_info(netdev, "The network adapter link "
-					    "speed was downshifted because it "
-					    "overheated\n");
+				netdev_info(netdev, "The network adapter link speed was downshifted because it overheated\n");
 			}
 
 			/* adjust timeout factor according to speed/duplex */
@@ -4277,12 +4268,11 @@ static void igb_watchdog_task(struct work_struct *work)
 			/* check for thermal sensor event */
 			if (igb_thermal_sensor_event(hw,
 			    E1000_THSTAT_PWR_DOWN)) {
-				netdev_err(netdev, "The network adapter was "
-					   "stopped because it overheated\n");
+				netdev_err(netdev, "The network adapter was stopped because it overheated\n");
 			}
 
 			/* Links status message must follow this format */
-			printk(KERN_INFO "igb: %s NIC Link is Down\n",
+			netdev_info(netdev, "igb: %s NIC Link is Down\n",
 			       netdev->name);
 			netif_carrier_off(netdev);
 
