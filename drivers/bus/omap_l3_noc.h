@@ -41,6 +41,8 @@
 
 #define L3_TARGET_NOT_SUPPORTED		NULL
 
+#define L3_BASE_IS_SUBMODULE		((void __iomem *)(1 << 0))
+
 static const char * const l3_transaction_type[] = {
 	/* 0 0 0 */ "Idle",
 	/* 0 0 1 */ "Write",
@@ -96,7 +98,9 @@ struct l3_flagmux_data {
 /**
  * struct omap_l3 - Description of data relevant for L3 bus.
  * @dev:	device representing the bus (populated runtime)
- * @l3_base:	base addresses of modules (populated runtime)
+ * @l3_base:	base addresses of modules (populated runtime if 0)
+ *		if set to L3_BASE_IS_SUBMODULE, then uses previous
+ *		module index as the base address
  * @l3_flag_mux: array containing flag mux data per module
  *		 offset from corresponding module base indexed per
  *		 module.

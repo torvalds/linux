@@ -238,7 +238,7 @@ static int omap_l3_probe(struct platform_device *pdev)
 {
 	const struct of_device_id *of_id;
 	static struct omap_l3 *l3;
-	int ret, i;
+	int ret, i, res_idx;
 
 	of_id = of_match_device(l3_noc_match, &pdev->dev);
 	if (!of_id) {
@@ -255,15 +255,22 @@ static int omap_l3_probe(struct platform_device *pdev)
 	platform_set_drvdata(pdev, l3);
 
 	/* Get mem resources */
-	for (i = 0; i < l3->num_modules; i++) {
-		struct resource	*res = platform_get_resource(pdev,
-							     IORESOURCE_MEM, i);
+	for (i = 0, res_idx = 0; i < l3->num_modules; i++) {
+		struct resource	*res;
 
+		if (l3->l3_base[i] == L3_BASE_IS_SUBMODULE) {
+			/* First entry cannot be submodule */
+			BUG_ON(i == 0);
+			l3->l3_base[i] = l3->l3_base[i - 1];
+			continue;
+		}
+		res = platform_get_resource(pdev, IORESOURCE_MEM, res_idx);
 		l3->l3_base[i] = devm_ioremap_resource(&pdev->dev, res);
 		if (IS_ERR(l3->l3_base[i])) {
 			dev_err(l3->dev, "ioremap %d failed\n", i);
 			return PTR_ERR(l3->l3_base[i]);
 		}
+		res_idx++;
 	}
 
 	/*
