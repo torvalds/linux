@@ -123,6 +123,7 @@ struct bcm590xx_info {
 #define BCM590XX_REG_RANGES(_name, _ranges) \
 	{ \
 		.name = #_name, \
+		.n_voltages = 64, \
 		.n_linear_ranges = ARRAY_SIZE(_ranges), \
 		.linear_ranges = _ranges, \
 	}
