@@ -3611,6 +3611,8 @@ static const char readme_msg[] =
 #ifdef CONFIG_TRACER_SNAPSHOT
 	"\t\t      snapshot\n"
 #endif
+	"\t\t      dump\n"
+	"\t\t      cpudump\n"
 	"\t     example: echo do_fault:traceoff > set_ftrace_filter\n"
 	"\t              echo do_trap:traceoff:3 > set_ftrace_filter\n"
 	"\t     The first one will disable tracing every time do_fault is hit\n"
