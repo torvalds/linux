@@ -145,12 +145,18 @@ enum mgr_reg_fields {
 	DISPC_MGR_FLD_NUM,
 };
 
+struct dispc_reg_field {
+	u16 reg;
+	u8 high;
+	u8 low;
+};
+
 static const struct {
 	const char *name;
 	u32 vsync_irq;
 	u32 framedone_irq;
 	u32 sync_lost_irq;
-	struct reg_field reg_desc[DISPC_MGR_FLD_NUM];
+	struct dispc_reg_field reg_desc[DISPC_MGR_FLD_NUM];
 } mgr_desc[] = {
 	[OMAP_DSS_CHANNEL_LCD] = {
 		.name		= "LCD",
@@ -242,13 +248,13 @@ static inline u32 dispc_read_reg(const u16 idx)
 
 static u32 mgr_fld_read(enum omap_channel channel, enum mgr_reg_fields regfld)
 {
-	const struct reg_field rfld = mgr_desc[channel].reg_desc[regfld];
+	const struct dispc_reg_field rfld = mgr_desc[channel].reg_desc[regfld];
 	return REG_GET(rfld.reg, rfld.high, rfld.low);
 }
 
 static void mgr_fld_write(enum omap_channel channel,
 					enum mgr_reg_fields regfld, int val) {
-	const struct reg_field rfld = mgr_desc[channel].reg_desc[regfld];
+	const struct dispc_reg_field rfld = mgr_desc[channel].reg_desc[regfld];
 	REG_FLD_MOD(rfld.reg, val, rfld.high, rfld.low);
 }
 
