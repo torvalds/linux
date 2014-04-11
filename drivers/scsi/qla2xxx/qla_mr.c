@@ -3427,7 +3427,7 @@ qlafx00_fxdisc_iocb(srb_t *sp, struct fxdisc_entry_fx00 *pfxiocb)
 	    sp->fcport->vha, 0x3047,
 	    (uint8_t *)&fx_iocb, sizeof(struct fxdisc_entry_fx00));
 
-	memcpy((void *)pfxiocb, &fx_iocb,
+	memcpy_toio((void __iomem *)pfxiocb, &fx_iocb,
 	    sizeof(struct fxdisc_entry_fx00));
 	wmb();
 }
