@@ -665,19 +665,19 @@ static int bfin_crypto_crc_probe(struct platform_device *pdev)
 	if (timeout == 0)
 		dev_info(&pdev->dev, "init crc poly timeout\n");
 
+	platform_set_drvdata(pdev, crc);
+
 	spin_lock(&crc_list.lock);
 	list_add(&crc->list, &crc_list.dev_list);
 	spin_unlock(&crc_list.lock);
 
-	platform_set_drvdata(pdev, crc);
-
-	ret = crypto_register_ahash(&algs);
-	if (ret) {
-		spin_lock(&crc_list.lock);
-		list_del(&crc->list);
-		spin_unlock(&crc_list.lock);
-		dev_err(&pdev->dev, "Cann't register crypto ahash device\n");
-		goto out_error_dma;
+	if (list_is_singular(&crc_list.dev_list)) {
+		ret = crypto_register_ahash(&algs);
+		if (ret) {
+			dev_err(&pdev->dev,
+				"Can't register crypto ahash device\n");
+			goto out_error_dma;
+		}
 	}
 
 	dev_info(&pdev->dev, "initialized\n");
