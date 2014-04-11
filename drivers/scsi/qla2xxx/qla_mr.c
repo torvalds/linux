@@ -2676,7 +2676,7 @@ qlafx00_process_response_queue(struct scsi_qla_host *vha,
 	uint16_t lreq_q_out = 0;
 
 	lreq_q_in = RD_REG_DWORD(rsp->rsp_q_in);
-	lreq_q_out = RD_REG_DWORD(rsp->rsp_q_out);
+	lreq_q_out = rsp->ring_index;
 
 	while (lreq_q_in != lreq_q_out) {
 		lptr = rsp->ring_ptr;
