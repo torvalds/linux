@@ -72,8 +72,6 @@
 			intc: interrupt-controller@40002000 {
 				compatible = "arm,cortex-a9-gic";
 				#interrupt-cells = <3>;
-				#address-cells = <1>;
-				#size-cells = <1>;
 				interrupt-controller;
 				reg = <0x40003000 0x1000>,
 				      <0x40002100 0x100>;
