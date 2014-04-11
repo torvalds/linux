@@ -67,7 +67,7 @@ static int rtsx_usb_bulk_transfer_sglist(struct rtsx_ucr *ucr,
 	ucr->sg_timer.expires = jiffies + msecs_to_jiffies(timeout);
 	add_timer(&ucr->sg_timer);
 	usb_sg_wait(&ucr->current_sg);
-	del_timer(&ucr->sg_timer);
+	del_timer_sync(&ucr->sg_timer);
 
 	if (act_len)
 		*act_len = ucr->current_sg.bytes;
@@ -644,14 +644,14 @@ static int rtsx_usb_probe(struct usb_interface *intf,
 	if (ret)
 		goto out_init_fail;
 
+	/* initialize USB SG transfer timer */
+	setup_timer(&ucr->sg_timer, rtsx_usb_sg_timed_out, (unsigned long) ucr);
+
 	ret = mfd_add_devices(&intf->dev, usb_dev->devnum, rtsx_usb_cells,
 			ARRAY_SIZE(rtsx_usb_cells), NULL, 0, NULL);
 	if (ret)
 		goto out_init_fail;
 
-	/* initialize USB SG transfer timer */
-	init_timer(&ucr->sg_timer);
-	setup_timer(&ucr->sg_timer, rtsx_usb_sg_timed_out, (unsigned long) ucr);
 #ifdef CONFIG_PM
 	intf->needs_remote_wakeup = 1;
 	usb_enable_autosuspend(usb_dev);
