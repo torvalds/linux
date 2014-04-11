@@ -192,19 +192,6 @@ static inline void (*qla27xx_read_vector(uint width))(void *, void *, ulong *)
 }
 
 static inline void
-qla27xx_read_off(__iomem struct device_reg_24xx *reg,
-	uint offset, void *buf, ulong *len)
-{
-	void *window = (void *)reg + offset;
-
-	if (buf) {
-		ql_dbg(ql_dbg_misc, NULL, 0xd300,
-		    "%s: @%x\n", __func__, offset);
-	}
-	qla27xx_read32(window, buf, len);
-}
-
-static inline void
 qla27xx_read_reg(__iomem struct device_reg_24xx *reg,
 	uint offset, void *buf, ulong *len)
 {
@@ -214,7 +201,6 @@ qla27xx_read_reg(__iomem struct device_reg_24xx *reg,
 		ql_dbg(ql_dbg_misc, NULL, 0xd014,
 		    "%s: @%x\n", __func__, offset);
 	}
-	qla27xx_insert32(offset, buf, len);
 	qla27xx_read32(window, buf, len);
 }
 
@@ -233,7 +219,7 @@ qla27xx_write_reg(__iomem struct device_reg_24xx *reg,
 
 static inline void
 qla27xx_read_window(__iomem struct device_reg_24xx *reg,
-	uint32_t base, uint offset, uint count, uint width, void *buf,
+	uint32_t addr, uint offset, uint count, uint width, void *buf,
 	ulong *len)
 {
 	void *window = (void *)reg + offset;
@@ -242,14 +228,14 @@ qla27xx_read_window(__iomem struct device_reg_24xx *reg,
 	if (buf) {
 		ql_dbg(ql_dbg_misc, NULL, 0xd016,
 		    "%s: base=%x offset=%x count=%x width=%x\n",
-		    __func__, base, offset, count, width);
+		    __func__, addr, offset, count, width);
 	}
-	qla27xx_write_reg(reg, IOBASE_ADDR, base, buf);
+	qla27xx_write_reg(reg, IOBASE_ADDR, addr, buf);
 	while (count--) {
-		qla27xx_insert32(base, buf, len);
+		qla27xx_insert32(addr, buf, len);
 		readn(window, buf, len);
 		window += width;
-		base++;
+		addr++;
 	}
 }
 
@@ -349,7 +335,8 @@ qla27xx_fwdt_entry_t260(struct scsi_qla_host *vha,
 
 	ql_dbg(ql_dbg_misc, vha, 0xd204,
 	    "%s: rdpci [%lx]\n", __func__, *len);
-	qla27xx_read_reg(reg, ent->t260.pci_addr, buf, len);
+	qla27xx_insert32(ent->t260.pci_offset, buf, len);
+	qla27xx_read_reg(reg, ent->t260.pci_offset, buf, len);
 
 	return false;
 }
@@ -362,7 +349,7 @@ qla27xx_fwdt_entry_t261(struct scsi_qla_host *vha,
 
 	ql_dbg(ql_dbg_misc, vha, 0xd205,
 	    "%s: wrpci [%lx]\n", __func__, *len);
-	qla27xx_write_reg(reg, ent->t261.pci_addr, ent->t261.write_data, buf);
+	qla27xx_write_reg(reg, ent->t261.pci_offset, ent->t261.write_data, buf);
 
 	return false;
 }
@@ -405,9 +392,9 @@ qla27xx_fwdt_entry_t262(struct scsi_qla_host *vha,
 		goto done;
 	}
 
-	if (end < start) {
+	if (end < start || end == 0) {
 		ql_dbg(ql_dbg_misc, vha, 0xd023,
-		    "%s: bad range (start=%x end=%x)\n", __func__,
+		    "%s: unusable range (start=%x end=%x)\n", __func__,
 		    ent->t262.end_addr, ent->t262.start_addr);
 		qla27xx_skip_entry(ent, buf);
 		goto done;
@@ -465,17 +452,15 @@ qla27xx_fwdt_entry_t263(struct scsi_qla_host *vha,
 		ql_dbg(ql_dbg_misc, vha, 0xd025,
 		    "%s: unsupported atio queue\n", __func__);
 		qla27xx_skip_entry(ent, buf);
-		goto done;
 	} else {
 		ql_dbg(ql_dbg_misc, vha, 0xd026,
 		    "%s: unknown queue %u\n", __func__, ent->t263.queue_type);
 		qla27xx_skip_entry(ent, buf);
-		goto done;
 	}
 
 	if (buf)
 		ent->t263.num_queues = count;
-done:
+
 	return false;
 }
 
@@ -612,7 +597,7 @@ qla27xx_fwdt_entry_t270(struct scsi_qla_host *vha,
 	while (dwords--) {
 		qla27xx_write_reg(reg, 0xc0, addr|0x80000000, buf);
 		qla27xx_insert32(addr, buf, len);
-		qla27xx_read_off(reg, 0xc4, buf, len);
+		qla27xx_read_reg(reg, 0xc4, buf, len);
 		addr += sizeof(uint32_t);
 	}
 
@@ -673,8 +658,56 @@ qla27xx_fwdt_entry_t273(struct scsi_qla_host *vha,
 			    "%s: failed pcicfg read at %lx\n", __func__, addr);
 		qla27xx_insert32(addr, buf, len);
 		qla27xx_insert32(value, buf, len);
-		addr += 4;
+		addr += sizeof(uint32_t);
 	}
+
+	return false;
+}
+
+static int
+qla27xx_fwdt_entry_t274(struct scsi_qla_host *vha,
+	struct qla27xx_fwdt_entry *ent, void *buf, ulong *len)
+{
+	uint count = 0;
+	uint i;
+
+	ql_dbg(ql_dbg_misc, vha, 0xd212,
+	    "%s: getqsh(%x) [%lx]\n", __func__, ent->t274.queue_type, *len);
+	if (ent->t274.queue_type == T274_QUEUE_TYPE_REQ_SHAD) {
+		for (i = 0; i < vha->hw->max_req_queues; i++) {
+			struct req_que *req = vha->hw->req_q_map[i];
+			if (req || !buf) {
+				qla27xx_insert16(i, buf, len);
+				qla27xx_insert16(1, buf, len);
+				qla27xx_insert32(0, buf, len);
+				count++;
+			}
+		}
+	} else if (ent->t274.queue_type == T274_QUEUE_TYPE_RSP_SHAD) {
+		for (i = 0; i < vha->hw->max_rsp_queues; i++) {
+			struct rsp_que *rsp = vha->hw->rsp_q_map[i];
+			if (rsp || !buf) {
+				qla27xx_insert16(i, buf, len);
+				qla27xx_insert16(1, buf, len);
+				qla27xx_insert32(0, buf, len);
+				count++;
+			}
+		}
+	} else if (ent->t274.queue_type == T274_QUEUE_TYPE_ATIO_SHAD) {
+		ql_dbg(ql_dbg_misc, vha, 0xd02e,
+		    "%s: unsupported atio queue\n", __func__);
+		qla27xx_skip_entry(ent, buf);
+	} else {
+		ql_dbg(ql_dbg_misc, vha, 0xd02f,
+		    "%s: unknown queue %u\n", __func__, ent->t274.queue_type);
+		qla27xx_skip_entry(ent, buf);
+	}
+
+	if (buf)
+		ent->t274.num_queues = count;
+
+	if (!count)
+		qla27xx_skip_entry(ent, buf);
 
 	return false;
 }
@@ -720,6 +753,7 @@ static struct qla27xx_fwdt_entry_call ql27xx_fwdt_entry_call_list[] = {
 	{ ENTRY_TYPE_WRREMREG		, qla27xx_fwdt_entry_t271  } ,
 	{ ENTRY_TYPE_RDREMRAM		, qla27xx_fwdt_entry_t272  } ,
 	{ ENTRY_TYPE_PCICFG		, qla27xx_fwdt_entry_t273  } ,
+	{ ENTRY_TYPE_GET_SHADOW		, qla27xx_fwdt_entry_t274  } ,
 	{ -1				, qla27xx_fwdt_entry_other }
 };
 

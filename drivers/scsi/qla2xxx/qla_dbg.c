@@ -61,11 +61,11 @@
  * |                              |                    | 0xb13c-0xb140  |
  * |                              |                    | 0xb149		|
  * | MultiQ                       |       0xc00c       |		|
- * | Misc                         |       0xd300       | 0xd017-0xd019	|
+ * | Misc                         |       0xd212       | 0xd017-0xd019	|
  * |                              |                    | 0xd020		|
- * |                              |                    | 0xd02e-0xd0ff	|
+ * |                              |                    | 0xd030-0xd0ff	|
  * |                              |                    | 0xd101-0xd1fe	|
- * |                              |                    | 0xd212-0xd2fe	|
+ * |                              |                    | 0xd213-0xd2fe	|
  * | Target Mode		  |	  0xe070       | 0xe021		|
  * | Target Mode Management	  |	  0xf072       | 0xf002-0xf003	|
  * |                              |                    | 0xf046-0xf049  |
