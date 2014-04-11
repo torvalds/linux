@@ -30,6 +30,7 @@
 #include "rts51x_chip.h"
 #include "ms.h"
 
+int rts51x_mg_set_tpc_para_sub(struct rts51x_chip *chip, int type, u8 mg_entry_num);
 int rts51x_mg_set_leaf_id(struct scsi_cmnd *srb, struct rts51x_chip *chip);
 int rts51x_mg_get_local_EKB(struct scsi_cmnd *srb, struct rts51x_chip *chip);
 int rts51x_mg_chg(struct scsi_cmnd *srb, struct rts51x_chip *chip);

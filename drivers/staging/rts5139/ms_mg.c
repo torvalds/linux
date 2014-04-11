@@ -79,7 +79,7 @@ static int mg_send_ex_cmd(struct rts51x_chip *chip, u8 cmd, u8 entry_num)
 	return STATUS_SUCCESS;
 }
 
-int mg_set_tpc_para_sub(struct rts51x_chip *chip, int type, u8 mg_entry_num)
+int rts51x_mg_set_tpc_para_sub(struct rts51x_chip *chip, int type, u8 mg_entry_num)
 {
 	int retval;
 	u8 buf[6];

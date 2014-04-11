@@ -36,6 +36,7 @@
 #include "rts51x_scsi.h"
 #include "rts51x_card.h"
 #include "ms.h"
+#include "ms_mg.h"
 
 static inline void ms_set_err_code(struct rts51x_chip *chip, u8 err_code)
 {
@@ -1183,10 +1184,6 @@ static int ms_read_attribute_info(struct rts51x_chip *chip)
 	return STATUS_SUCCESS;
 }
 
-#ifdef SUPPORT_MAGIC_GATE
-int mg_set_tpc_para_sub(struct rts51x_chip *chip, int type, u8 mg_entry_num);
-#endif
-
 static int reset_ms_pro(struct rts51x_chip *chip)
 {
 	struct ms_info *ms_card = &(chip->ms_card);
@@ -1232,7 +1229,7 @@ Retry:
 #endif
 
 #ifdef SUPPORT_MAGIC_GATE
-	retval = mg_set_tpc_para_sub(chip, 0, 0);
+	retval = rts51x_mg_set_tpc_para_sub(chip, 0, 0);
 	if (retval != STATUS_SUCCESS)
 		TRACE_RET(chip, retval);
 #endif
