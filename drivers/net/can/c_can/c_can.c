@@ -954,11 +954,6 @@ static int c_can_handle_state_change(struct net_device *dev,
 		/* bus-off state */
 		priv->can.state = CAN_STATE_BUS_OFF;
 		cf->can_id |= CAN_ERR_BUSOFF;
-		/*
-		 * disable all interrupts in bus-off mode to ensure that
-		 * the CPU is not hogged down
-		 */
-		c_can_enable_all_interrupts(priv, DISABLE_ALL_INTERRUPTS);
 		can_bus_off(dev);
 		break;
 	default:
@@ -1089,6 +1084,7 @@ static int c_can_poll(struct napi_struct *napi, int quota)
 			netdev_dbg(dev, "entered bus off state\n");
 			work_done += c_can_handle_state_change(dev,
 						C_CAN_BUS_OFF);
+			goto end;
 		}
 
 		/* handle bus recovery events */
@@ -1122,8 +1118,9 @@ static int c_can_poll(struct napi_struct *napi, int quota)
 end:
 	if (work_done < quota) {
 		napi_complete(napi);
-		/* enable all IRQs */
-		c_can_enable_all_interrupts(priv, ENABLE_ALL_INTERRUPTS);
+		/* enable all IRQs if we are not in bus off state */
+		if (priv->can.state != CAN_STATE_BUS_OFF)
+			c_can_enable_all_interrupts(priv, ENABLE_ALL_INTERRUPTS);
 	}
 
 	return work_done;
