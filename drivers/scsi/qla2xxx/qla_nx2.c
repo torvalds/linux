@@ -448,8 +448,8 @@ qla8044_flash_lock(scsi_qla_host_t *vha)
 			lock_owner = qla8044_rd_reg(ha,
 			    QLA8044_FLASH_LOCK_ID);
 			ql_log(ql_log_warn, vha, 0xb113,
-			    "%s: flash lock by %d failed, held by %d\n",
-				__func__, ha->portnum, lock_owner);
+			    "%s: Simultaneous flash access by following ports, active port = %d: accessing port = %d",
+			    __func__, ha->portnum, lock_owner);
 			ret_val = QLA_FUNCTION_FAILED;
 			break;
 		}
