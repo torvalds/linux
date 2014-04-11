@@ -202,24 +202,29 @@ static void ci_initialize_powertune_defaults(struct radeon_device *rdev)
 	struct ci_power_info *pi = ci_get_pi(rdev);
 
 	switch (rdev->pdev->device) {
+	case 0x6649:
 	case 0x6650:
+	case 0x6651:
 	case 0x6658:
 	case 0x665C:
+	case 0x665D:
 	default:
 		pi->powertune_defaults = &defaults_bonaire_xt;
 		break;
-	case 0x6651:
-	case 0x665D:
-		pi->powertune_defaults = &defaults_bonaire_pro;
-		break;
 	case 0x6640:
-		pi->powertune_defaults = &defaults_saturn_xt;
-		break;
 	case 0x6641:
-		pi->powertune_defaults = &defaults_saturn_pro;
+	case 0x6646:
+	case 0x6647:
+		pi->powertune_defaults = &defaults_saturn_xt;
 		break;
 	case 0x67B8:
 	case 0x67B0:
+		pi->powertune_defaults = &defaults_hawaii_xt;
+		break;
+	case 0x67BA:
+	case 0x67B1:
+		pi->powertune_defaults = &defaults_hawaii_pro;
+		break;
 	case 0x67A0:
 	case 0x67A1:
 	case 0x67A2:
@@ -228,11 +233,7 @@ static void ci_initialize_powertune_defaults(struct radeon_device *rdev)
 	case 0x67AA:
 	case 0x67B9:
 	case 0x67BE:
-		pi->powertune_defaults = &defaults_hawaii_xt;
-		break;
-	case 0x67BA:
-	case 0x67B1:
-		pi->powertune_defaults = &defaults_hawaii_pro;
+		pi->powertune_defaults = &defaults_bonaire_xt;
 		break;
 	}
 
