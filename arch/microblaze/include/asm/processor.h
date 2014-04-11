@@ -122,7 +122,7 @@ struct thread_struct {
 }
 
 /* Free all resources held by a thread. */
-extern inline void release_thread(struct task_struct *dead_task)
+static inline void release_thread(struct task_struct *dead_task)
 {
 }
 
