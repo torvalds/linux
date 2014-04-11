@@ -84,7 +84,7 @@ static inline void write_msa_##name(unsigned int val)		\
 	__asm__ __volatile__(					\
 	"	.set	push\n"					\
 	"	.set	msa\n"					\
-	"	cfcmsa	$" #cs ", %0\n"				\
+	"	ctcmsa	$" #cs ", %0\n"				\
 	"	.set	pop\n"					\
 	: : "r"(val));						\
 }
