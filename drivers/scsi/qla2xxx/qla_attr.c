@@ -664,7 +664,7 @@ do_read:
 		}
 
 		rval = qla2x00_read_sfp(vha, ha->sfp_data_dma, ha->sfp_data,
-		    addr, offset, SFP_BLOCK_SIZE, 0);
+		    addr, offset, SFP_BLOCK_SIZE, BIT_1);
 		if (rval != QLA_SUCCESS) {
 			ql_log(ql_log_warn, vha, 0x706d,
 			    "Unable to read SFP data (%x/%x/%x).\n", rval,
