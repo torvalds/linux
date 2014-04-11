@@ -133,6 +133,7 @@
 #define QLA8044_LINK_SPEED(f)		(0x36E0+(((f) >> 2) * 4))
 #define QLA8044_MAX_LINK_SPEED(f)       (0x36F0+(((f) / 4) * 4))
 #define QLA8044_LINK_SPEED_FACTOR	10
+#define QLA8044_FUN7_ACTIVE_INDEX	0x80
 
 /* FLASH API Defines */
 #define QLA8044_FLASH_MAX_WAIT_USEC	100

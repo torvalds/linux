@@ -51,6 +51,7 @@
  * | Virtual Port                 |       0xa007       |		|
  * | ISP82XX Specific             |       0xb157       | 0xb002,0xb024  |
  * |                              |                    | 0xb09e,0xb0ae  |
+ * |				  |		       | 0xb0c3,0xb0c6  |
  * |                              |                    | 0xb0e0-0xb0ef  |
  * |                              |                    | 0xb085,0xb0dc  |
  * |                              |                    | 0xb107,0xb108  |

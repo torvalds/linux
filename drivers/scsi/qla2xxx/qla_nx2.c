@@ -1633,7 +1633,7 @@ static void
 qla8044_need_reset_handler(struct scsi_qla_host *vha)
 {
 	uint32_t dev_state = 0, drv_state, drv_active;
-	unsigned long reset_timeout, dev_init_timeout;
+	unsigned long reset_timeout;
 	struct qla_hw_data *ha = vha->hw;
 
 	ql_log(ql_log_fatal, vha, 0xb0c2,
@@ -1647,84 +1647,78 @@ qla8044_need_reset_handler(struct scsi_qla_host *vha)
 		qla8044_idc_lock(ha);
 	}
 
+	dev_state = qla8044_rd_direct(vha,
+	    QLA8044_CRB_DEV_STATE_INDEX);
 	drv_state = qla8044_rd_direct(vha,
 	    QLA8044_CRB_DRV_STATE_INDEX);
 	drv_active = qla8044_rd_direct(vha,
 	    QLA8044_CRB_DRV_ACTIVE_INDEX);
 
 	ql_log(ql_log_info, vha, 0xb0c5,
-	    "%s(%ld): drv_state = 0x%x, drv_active = 0x%x\n",
-	    __func__, vha->host_no, drv_state, drv_active);
+	    "%s(%ld): drv_state = 0x%x, drv_active = 0x%x dev_state = 0x%x\n",
+	    __func__, vha->host_no, drv_state, drv_active, dev_state);
 
-	if (!ha->flags.nic_core_reset_owner) {
-		ql_dbg(ql_dbg_p3p, vha, 0xb0c3,
-		    "%s(%ld): reset acknowledged\n",
-		    __func__, vha->host_no);
-		qla8044_set_rst_ready(vha);
+	qla8044_set_rst_ready(vha);
 
-		/* Non-reset owners ACK Reset and wait for device INIT state
-		 * as part of Reset Recovery by Reset Owner
-		 */
-		dev_init_timeout = jiffies + (ha->fcoe_reset_timeout * HZ);
+	/* wait for 10 seconds for reset ack from all functions */
+	reset_timeout = jiffies + (ha->fcoe_reset_timeout * HZ);
 
-		do {
-			if (time_after_eq(jiffies, dev_init_timeout)) {
-				ql_log(ql_log_info, vha, 0xb0c4,
-				    "%s: Non Reset owner: Reset Ack Timeout!\n",
-				    __func__);
-				break;
-			}
+	do {
+		if (time_after_eq(jiffies, reset_timeout)) {
+			ql_log(ql_log_info, vha, 0xb0c4,
+			    "%s: Function %d: Reset Ack Timeout!, drv_state: 0x%08x, drv_active: 0x%08x\n",
+			    __func__, ha->portnum, drv_state, drv_active);
+			break;
+		}
 
-			qla8044_idc_unlock(ha);
-			msleep(1000);
-			qla8044_idc_lock(ha);
+		qla8044_idc_unlock(ha);
+		msleep(1000);
+		qla8044_idc_lock(ha);
 
-			dev_state = qla8044_rd_direct(vha,
-					QLA8044_CRB_DEV_STATE_INDEX);
-		} while (((drv_state & drv_active) != drv_active) &&
-		    (dev_state == QLA8XXX_DEV_NEED_RESET));
+		dev_state = qla8044_rd_direct(vha,
+		    QLA8044_CRB_DEV_STATE_INDEX);
+		drv_state = qla8044_rd_direct(vha,
+		    QLA8044_CRB_DRV_STATE_INDEX);
+		drv_active = qla8044_rd_direct(vha,
+		    QLA8044_CRB_DRV_ACTIVE_INDEX);
+	} while (((drv_state & drv_active) != drv_active) &&
+	    (dev_state == QLA8XXX_DEV_NEED_RESET));
+
+	/* Remove IDC participation of functions not acknowledging */
+	if (drv_state != drv_active) {
+		ql_log(ql_log_info, vha, 0xb0c7,
+		    "%s(%ld): Function %d turning off drv_active of non-acking function 0x%x\n",
+		    __func__, vha->host_no, ha->portnum,
+		    (drv_active ^ drv_state));
+		drv_active = drv_active & drv_state;
+		qla8044_wr_direct(vha, QLA8044_CRB_DRV_ACTIVE_INDEX,
+		    drv_active);
 	} else {
-		qla8044_set_rst_ready(vha);
-
-		/* wait for 10 seconds for reset ack from all functions */
-		reset_timeout = jiffies + (ha->fcoe_reset_timeout * HZ);
-
-		while ((drv_state & drv_active) != drv_active) {
-			if (time_after_eq(jiffies, reset_timeout)) {
-				ql_log(ql_log_info, vha, 0xb0c6,
-				    "%s: RESET TIMEOUT!"
-				    "drv_state: 0x%08x, drv_active: 0x%08x\n",
-				    QLA2XXX_DRIVER_NAME, drv_state, drv_active);
-				break;
-			}
-
-			qla8044_idc_unlock(ha);
-			msleep(1000);
-			qla8044_idc_lock(ha);
-
-			drv_state = qla8044_rd_direct(vha,
-			    QLA8044_CRB_DRV_STATE_INDEX);
-			drv_active = qla8044_rd_direct(vha,
-			    QLA8044_CRB_DRV_ACTIVE_INDEX);
-		}
-
-		if (drv_state != drv_active) {
-			ql_log(ql_log_info, vha, 0xb0c7,
-			    "%s(%ld): Reset_owner turning off drv_active "
-			    "of non-acking function 0x%x\n", __func__,
-			    vha->host_no, (drv_active ^ drv_state));
-			drv_active = drv_active & drv_state;
-			qla8044_wr_direct(vha, QLA8044_CRB_DRV_ACTIVE_INDEX,
-			    drv_active);
-		}
-
 		/*
-		* Clear RESET OWNER, will be set at next reset
-		* by next RST_OWNER
-		*/
-		ha->flags.nic_core_reset_owner = 0;
+		 * Reset owner should execute reset recovery,
+		 * if all functions acknowledged
+		 */
+		if ((ha->flags.nic_core_reset_owner) &&
+		    (dev_state == QLA8XXX_DEV_NEED_RESET)) {
+			ha->flags.nic_core_reset_owner = 0;
+			qla8044_device_bootstrap(vha);
+			return;
+		}
+	}
 
-		/* Start Reset Recovery */
+	/* Exit if non active function */
+	if (!(drv_active & (1 << ha->portnum))) {
+		ha->flags.nic_core_reset_owner = 0;
+		return;
+	}
+
+	/*
+	 * Execute Reset Recovery if Reset Owner or Function 7
+	 * is the only active function
+	 */
+	if (ha->flags.nic_core_reset_owner ||
+	    ((drv_state & drv_active) == QLA8044_FUN7_ACTIVE_INDEX)) {
+		ha->flags.nic_core_reset_owner = 0;
 		qla8044_device_bootstrap(vha);
 	}
 }
