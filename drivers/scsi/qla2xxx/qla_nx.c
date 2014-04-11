@@ -860,13 +860,14 @@ qla82xx_rom_lock(struct qla_hw_data *ha)
 		}
 		timeout++;
 	}
-	qla82xx_wr_32(ha, QLA82XX_ROM_LOCK_ID, ROM_LOCK_DRIVER);
+	qla82xx_wr_32(ha, QLA82XX_ROM_LOCK_ID, ha->portnum);
 	return 0;
 }
 
 static void
 qla82xx_rom_unlock(struct qla_hw_data *ha)
 {
+	qla82xx_wr_32(ha, QLA82XX_ROM_LOCK_ID, 0xffffffff);
 	qla82xx_rd_32(ha, QLA82XX_PCIE_REG(PCIE_SEM2_UNLOCK));
 }
 
@@ -950,6 +951,7 @@ static int
 qla82xx_rom_fast_read(struct qla_hw_data *ha, int addr, int *valp)
 {
 	int ret, loops = 0;
+	uint32_t lock_owner = 0;
 	scsi_qla_host_t *vha = pci_get_drvdata(ha->pdev);
 
 	while ((qla82xx_rom_lock(ha) != 0) && (loops < 50000)) {
@@ -958,8 +960,10 @@ qla82xx_rom_fast_read(struct qla_hw_data *ha, int addr, int *valp)
 		loops++;
 	}
 	if (loops >= 50000) {
+		lock_owner = qla82xx_rd_32(ha, QLA82XX_ROM_LOCK_ID);
 		ql_log(ql_log_fatal, vha, 0x00b9,
-		    "Failed to acquire SEM2 lock.\n");
+		    "Failed to acquire SEM2 lock, Lock Owner %u.\n",
+		    lock_owner);
 		return -1;
 	}
 	ret = qla82xx_do_rom_fast_read(ha, addr, valp);
@@ -1057,6 +1061,7 @@ static int
 ql82xx_rom_lock_d(struct qla_hw_data *ha)
 {
 	int loops = 0;
+	uint32_t lock_owner = 0;
 	scsi_qla_host_t *vha = pci_get_drvdata(ha->pdev);
 
 	while ((qla82xx_rom_lock(ha) != 0) && (loops < 50000)) {
@@ -1065,8 +1070,9 @@ ql82xx_rom_lock_d(struct qla_hw_data *ha)
 		loops++;
 	}
 	if (loops >= 50000) {
+		lock_owner = qla82xx_rd_32(ha, QLA82XX_ROM_LOCK_ID);
 		ql_log(ql_log_warn, vha, 0xb010,
-		    "ROM lock failed.\n");
+		    "ROM lock failed, Lock Owner %u.\n", lock_owner);
 		return -1;
 	}
 	return 0;
@@ -2811,12 +2817,14 @@ static void
 qla82xx_rom_lock_recovery(struct qla_hw_data *ha)
 {
 	scsi_qla_host_t *vha = pci_get_drvdata(ha->pdev);
+	uint32_t lock_owner = 0;
 
-	if (qla82xx_rom_lock(ha))
+	if (qla82xx_rom_lock(ha)) {
+		lock_owner = qla82xx_rd_32(ha, QLA82XX_ROM_LOCK_ID);
 		/* Someone else is holding the lock. */
 		ql_log(ql_log_info, vha, 0xb022,
-		    "Resetting rom_lock.\n");
-
+		    "Resetting rom_lock, Lock Owner %u.\n", lock_owner);
+	}
 	/*
 	 * Either we got the lock, or someone
 	 * else died while holding it.
