@@ -24,6 +24,7 @@
 #include <linux/ioport.h>
 #include <linux/irq.h>
 #include <linux/module.h>
+#include <linux/of.h>
 #include <linux/platform_device.h>
 #include <linux/pm_domain.h>
 #include <linux/pm_runtime.h>
@@ -509,22 +510,47 @@ static int sh_tmu_map_memory(struct sh_tmu_device *tmu)
 	return 0;
 }
 
+static int sh_tmu_parse_dt(struct sh_tmu_device *tmu)
+{
+	struct device_node *np = tmu->pdev->dev.of_node;
+
+	tmu->model = SH_TMU;
+	tmu->num_channels = 3;
+
+	of_property_read_u32(np, "#renesas,channels", &tmu->num_channels);
+
+	if (tmu->num_channels != 2 && tmu->num_channels != 3) {
+		dev_err(&tmu->pdev->dev, "invalid number of channels %u\n",
+			tmu->num_channels);
+		return -EINVAL;
+	}
+
+	return 0;
+}
+
 static int sh_tmu_setup(struct sh_tmu_device *tmu, struct platform_device *pdev)
 {
-	struct sh_timer_config *cfg = pdev->dev.platform_data;
-	const struct platform_device_id *id = pdev->id_entry;
 	unsigned int i;
 	int ret;
 
-	if (!cfg) {
+	tmu->pdev = pdev;
+
+	raw_spin_lock_init(&tmu->lock);
+
+	if (IS_ENABLED(CONFIG_OF) && pdev->dev.of_node) {
+		ret = sh_tmu_parse_dt(tmu);
+		if (ret < 0)
+			return ret;
+	} else if (pdev->dev.platform_data) {
+		const struct platform_device_id *id = pdev->id_entry;
+		struct sh_timer_config *cfg = pdev->dev.platform_data;
+
+		tmu->model = id->driver_data;
+		tmu->num_channels = hweight8(cfg->channels_mask);
+	} else {
 		dev_err(&tmu->pdev->dev, "missing platform data\n");
 		return -ENXIO;
 	}
-
-	tmu->pdev = pdev;
-	tmu->model = id->driver_data;
-
-	raw_spin_lock_init(&tmu->lock);
 
 	/* Get hold of clock. */
 	tmu->clk = clk_get(&tmu->pdev->dev, "fck");
@@ -545,8 +571,6 @@ static int sh_tmu_setup(struct sh_tmu_device *tmu, struct platform_device *pdev)
 	}
 
 	/* Allocate and setup the channels. */
-	tmu->num_channels = hweight8(cfg->channels_mask);
-
 	tmu->channels = kzalloc(sizeof(*tmu->channels) * tmu->num_channels,
 				GFP_KERNEL);
 	if (tmu->channels == NULL) {
@@ -628,11 +652,18 @@ static const struct platform_device_id sh_tmu_id_table[] = {
 };
 MODULE_DEVICE_TABLE(platform, sh_tmu_id_table);
 
+static const struct of_device_id sh_tmu_of_table[] __maybe_unused = {
+	{ .compatible = "renesas,tmu" },
+	{ }
+};
+MODULE_DEVICE_TABLE(of, sh_tmu_of_table);
+
 static struct platform_driver sh_tmu_device_driver = {
 	.probe		= sh_tmu_probe,
 	.remove		= sh_tmu_remove,
 	.driver		= {
 		.name	= "sh_tmu",
+		.of_match_table = of_match_ptr(sh_tmu_of_table),
 	},
 	.id_table	= sh_tmu_id_table,
 };
