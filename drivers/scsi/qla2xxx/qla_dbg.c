@@ -45,8 +45,10 @@
  * |                              |                    | 0x70ad-0x70ae  |
  * |                              |                    | 0x70d7-0x70db  |
  * |                              |                    | 0x70de-0x70df  |
- * | Task Management              |       0x803d       | 0x8025-0x8026  |
- * |                              |                    | 0x800b,0x8039  |
+ * | Task Management              |       0x803d       | 0x8000,0x800b  |
+ * |                              |                    | 0x8025,0x8026  |
+ * |                              |                    | 0x8031,0x8032  |
+ * |                              |                    | 0x8039,0x803c  |
  * | AER/EEH                      |       0x9011       |		|
  * | Virtual Port                 |       0xa007       |		|
  * | ISP82XX Specific             |       0xb157       | 0xb002,0xb024  |
