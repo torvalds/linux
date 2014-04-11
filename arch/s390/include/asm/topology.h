@@ -64,8 +64,6 @@ static inline void s390_init_cpu_topology(void)
 };
 #endif
 
-#define SD_BOOK_INIT	SD_CPU_INIT
-
 #include <asm-generic/topology.h>
 
 #endif /* _ASM_S390_TOPOLOGY_H */
