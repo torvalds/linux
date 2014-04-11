@@ -1784,7 +1784,7 @@ void igb_down(struct igb_adapter *adapter)
 	wr32(E1000_TCTL, tctl);
 	/* flush both disables and wait for them to finish */
 	wrfl();
-	msleep(10);
+	usleep_range(10000, 11000);
 
 	igb_irq_disable(adapter);
 
@@ -1824,7 +1824,7 @@ void igb_reinit_locked(struct igb_adapter *adapter)
 {
 	WARN_ON(in_interrupt());
 	while (test_and_set_bit(__IGB_RESETTING, &adapter->state))
-		msleep(1);
+		usleep_range(1000, 2000);
 	igb_down(adapter);
 	igb_up(adapter);
 	clear_bit(__IGB_RESETTING, &adapter->state);
@@ -5142,7 +5142,7 @@ static int igb_change_mtu(struct net_device *netdev, int new_mtu)
 		max_frame = ETH_FRAME_LEN + ETH_FCS_LEN;
 
 	while (test_and_set_bit(__IGB_RESETTING, &adapter->state))
-		msleep(1);
+		usleep_range(1000, 2000);
 
 	/* igb_down has a dependency on max_frame_size */
 	adapter->max_frame_size = max_frame;

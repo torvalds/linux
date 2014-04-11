@@ -283,7 +283,7 @@ static int igb_set_settings(struct net_device *netdev, struct ethtool_cmd *ecmd)
 	}
 
 	while (test_and_set_bit(__IGB_RESETTING, &adapter->state))
-		msleep(1);
+		usleep_range(1000, 2000);
 
 	if (ecmd->autoneg == AUTONEG_ENABLE) {
 		hw->mac.autoneg = 1;
@@ -396,7 +396,7 @@ static int igb_set_pauseparam(struct net_device *netdev,
 	adapter->fc_autoneg = pause->autoneg;
 
 	while (test_and_set_bit(__IGB_RESETTING, &adapter->state))
-		msleep(1);
+		usleep_range(1000, 2000);
 
 	if (adapter->fc_autoneg == AUTONEG_ENABLE) {
 		hw->fc.requested_mode = e1000_fc_default;
@@ -883,7 +883,7 @@ static int igb_set_ringparam(struct net_device *netdev,
 	}
 
 	while (test_and_set_bit(__IGB_RESETTING, &adapter->state))
-		msleep(1);
+		usleep_range(1000, 2000);
 
 	if (!netif_running(adapter->netdev)) {
 		for (i = 0; i < adapter->num_tx_queues; i++)
@@ -1413,7 +1413,7 @@ static int igb_intr_test(struct igb_adapter *adapter, u64 *data)
 	/* Disable all the interrupts */
 	wr32(E1000_IMC, ~0);
 	wrfl();
-	msleep(10);
+	usleep_range(10000, 11000);
 
 	/* Define all writable bits for ICS */
 	switch (hw->mac.type) {
@@ -1460,7 +1460,7 @@ static int igb_intr_test(struct igb_adapter *adapter, u64 *data)
 			wr32(E1000_IMC, mask);
 			wr32(E1000_ICS, mask);
 			wrfl();
-			msleep(10);
+			usleep_range(10000, 11000);
 
 			if (adapter->test_icr & mask) {
 				*data = 3;
@@ -1482,7 +1482,7 @@ static int igb_intr_test(struct igb_adapter *adapter, u64 *data)
 		wr32(E1000_IMS, mask);
 		wr32(E1000_ICS, mask);
 		wrfl();
-		msleep(10);
+		usleep_range(10000, 11000);
 
 		if (!(adapter->test_icr & mask)) {
 			*data = 4;
@@ -1504,7 +1504,7 @@ static int igb_intr_test(struct igb_adapter *adapter, u64 *data)
 			wr32(E1000_IMC, ~mask);
 			wr32(E1000_ICS, ~mask);
 			wrfl();
-			msleep(10);
+			usleep_range(10000, 11000);
 
 			if (adapter->test_icr & mask) {
 				*data = 5;
@@ -1516,7 +1516,7 @@ static int igb_intr_test(struct igb_adapter *adapter, u64 *data)
 	/* Disable all the interrupts */
 	wr32(E1000_IMC, ~0);
 	wrfl();
-	msleep(10);
+	usleep_range(10000, 11000);
 
 	/* Unhook test interrupt handler */
 	if (adapter->flags & IGB_FLAG_HAS_MSIX)

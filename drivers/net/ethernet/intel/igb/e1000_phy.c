@@ -2240,7 +2240,7 @@ void igb_power_down_phy_copper(struct e1000_hw *hw)
 		hw->phy.ops.write_reg(hw, GS40G_COPPER_SPEC, power_reg);
 	}
 	hw->phy.ops.write_reg(hw, PHY_CONTROL, mii_reg);
-	msleep(1);
+	usleep_range(1000, 2000);
 }
 
 /**

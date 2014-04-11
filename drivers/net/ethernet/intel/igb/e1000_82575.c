@@ -1212,7 +1212,7 @@ static s32 igb_get_cfg_done_82575(struct e1000_hw *hw)
 	while (timeout) {
 		if (rd32(E1000_EEMNGCTL) & mask)
 			break;
-		msleep(1);
+		usleep_range(1000, 2000);
 		timeout--;
 	}
 	if (!timeout)
@@ -1312,7 +1312,7 @@ void igb_power_up_serdes_link_82575(struct e1000_hw *hw)
 
 	/* flush the write to verify completion */
 	wrfl();
-	msleep(1);
+	usleep_range(1000, 2000);
 }
 
 /**
@@ -1407,7 +1407,7 @@ void igb_shutdown_serdes_link_82575(struct e1000_hw *hw)
 
 		/* flush the write to verify completion */
 		wrfl();
-		msleep(1);
+		usleep_range(1000, 2000);
 	}
 }
 
@@ -1442,7 +1442,7 @@ static s32 igb_reset_hw_82575(struct e1000_hw *hw)
 	wr32(E1000_TCTL, E1000_TCTL_PSP);
 	wrfl();
 
-	msleep(10);
+	usleep_range(10000, 20000);
 
 	ctrl = rd32(E1000_CTRL);
 
@@ -1920,7 +1920,7 @@ void igb_rx_fifo_flush_82575(struct e1000_hw *hw)
 	}
 	/* Poll all queues to verify they have shut down */
 	for (ms_wait = 0; ms_wait < 10; ms_wait++) {
-		msleep(1);
+		usleep_range(1000, 2000);
 		rx_enabled = 0;
 		for (i = 0; i < 4; i++)
 			rx_enabled |= rd32(E1000_RXDCTL(i));
@@ -1948,7 +1948,7 @@ void igb_rx_fifo_flush_82575(struct e1000_hw *hw)
 	wr32(E1000_RCTL, temp_rctl);
 	wr32(E1000_RCTL, temp_rctl | E1000_RCTL_EN);
 	wrfl();
-	msleep(2);
+	usleep_range(2000, 3000);
 
 	/* Enable RX queues that were previously enabled and restore our
 	 * previous state
@@ -2236,7 +2236,7 @@ static s32 igb_reset_hw_82580(struct e1000_hw *hw)
 	wr32(E1000_TCTL, E1000_TCTL_PSP);
 	wrfl();
 
-	msleep(10);
+	usleep_range(10000, 11000);
 
 	/* Determine whether or not a global dev reset is requested */
 	if (global_device_reset &&
@@ -2254,7 +2254,7 @@ static s32 igb_reset_hw_82580(struct e1000_hw *hw)
 
 	/* Add delay to insure DEV_RST has time to complete */
 	if (global_device_reset)
-		msleep(5);
+		usleep_range(5000, 6000);
 
 	ret_val = igb_get_auto_rd_done(hw);
 	if (ret_val) {
