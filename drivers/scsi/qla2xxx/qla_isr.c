@@ -2009,11 +2009,13 @@ qla2x00_status_entry(scsi_qla_host_t *vha, struct rsp_que *rsp, void *pkt)
 		ql_dbg(ql_dbg_io, vha, 0x3017,
 		    "Invalid status handle (0x%x).\n", sts->handle);
 
-		if (IS_P3P_TYPE(ha))
-			set_bit(FCOE_CTX_RESET_NEEDED, &vha->dpc_flags);
-		else
-			set_bit(ISP_ABORT_NEEDED, &vha->dpc_flags);
-		qla2xxx_wake_dpc(vha);
+		if (!test_bit(ABORT_ISP_ACTIVE, &vha->dpc_flags)) {
+			if (IS_P3P_TYPE(ha))
+				set_bit(FCOE_CTX_RESET_NEEDED, &vha->dpc_flags);
+			else
+				set_bit(ISP_ABORT_NEEDED, &vha->dpc_flags);
+			qla2xxx_wake_dpc(vha);
+		}
 		return;
 	}
 
