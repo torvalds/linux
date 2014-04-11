@@ -1655,6 +1655,19 @@ qla8044_set_drv_active(struct scsi_qla_host *vha)
 	qla8044_wr_direct(vha, QLA8044_CRB_DRV_ACTIVE_INDEX, drv_active);
 }
 
+static int
+qla8044_check_drv_active(struct scsi_qla_host *vha)
+{
+	uint32_t drv_active;
+	struct qla_hw_data *ha = vha->hw;
+
+	drv_active = qla8044_rd_direct(vha, QLA8044_CRB_DRV_ACTIVE_INDEX);
+	if (drv_active & (1 << ha->portnum))
+		return QLA_SUCCESS;
+	else
+		return QLA_TEST_FAILED;
+}
+
 static void
 qla8044_clear_idc_dontreset(struct scsi_qla_host *vha)
 {
@@ -1837,14 +1850,16 @@ qla8044_device_state_handler(struct scsi_qla_host *vha)
 
 	while (1) {
 		if (time_after_eq(jiffies, dev_init_timeout)) {
-			ql_log(ql_log_warn, vha, 0xb0cf,
-			    "%s: Device Init Failed 0x%x = %s\n",
-			    QLA2XXX_DRIVER_NAME, dev_state,
-			    dev_state < MAX_STATES ?
-			    qdev_state(dev_state) : "Unknown");
-
-			qla8044_wr_direct(vha, QLA8044_CRB_DEV_STATE_INDEX,
-			    QLA8XXX_DEV_FAILED);
+			if (qla8044_check_drv_active(vha) == QLA_SUCCESS) {
+				ql_log(ql_log_warn, vha, 0xb0cf,
+				    "%s: Device Init Failed 0x%x = %s\n",
+				    QLA2XXX_DRIVER_NAME, dev_state,
+				    dev_state < MAX_STATES ?
+				    qdev_state(dev_state) : "Unknown");
+				qla8044_wr_direct(vha,
+				    QLA8044_CRB_DEV_STATE_INDEX,
+				    QLA8XXX_DEV_FAILED);
+			}
 		}
 
 		dev_state = qla8044_rd_direct(vha, QLA8044_CRB_DEV_STATE_INDEX);
