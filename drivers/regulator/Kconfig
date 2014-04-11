@@ -139,6 +139,13 @@ config REGULATOR_AS3722
 	  AS3722 PMIC. This will enable support for all the software
 	  controllable DCDC/LDO regulators.
 
+config REGULATOR_AXP20X
+	tristate "X-POWERS AXP20X PMIC Regulators"
+	depends on MFD_AXP20X
+	help
+	  This driver provides support for the voltage regulators on the
+	  AXP20X PMIC.
+
 config REGULATOR_BCM590XX
 	tristate "Broadcom BCM590xx PMU Regulators"
 	depends on MFD_BCM590XX
