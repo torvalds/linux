@@ -1859,10 +1859,9 @@ int build_segment_manager(struct f2fs_sb_info *sbi)
 	sm_info->nr_discards = 0;
 	sm_info->max_discards = 0;
 
-	if (test_opt(sbi, FLUSH_MERGE)) {
+	if (test_opt(sbi, FLUSH_MERGE) && !f2fs_readonly(sbi->sb)) {
 		spin_lock_init(&sm_info->issue_lock);
 		init_waitqueue_head(&sm_info->flush_wait_queue);
-
 		sm_info->f2fs_issue_flush = kthread_run(issue_flush_thread, sbi,
 				"f2fs_flush-%u:%u", MAJOR(dev), MINOR(dev));
 		if (IS_ERR(sm_info->f2fs_issue_flush))
