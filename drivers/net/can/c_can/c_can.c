@@ -791,18 +791,39 @@ static u32 c_can_adjust_pending(u32 pend)
 	return pend & ~((1 << lasts) - 1);
 }
 
+static inline void c_can_rx_object_get(struct net_device *dev, u32 obj)
+{
+#ifdef CONFIG_CAN_C_CAN_STRICT_FRAME_ORDERING
+	if (obj < C_CAN_MSG_RX_LOW_LAST)
+		c_can_object_get(dev, IF_RX, obj, IF_COMM_RCV_LOW);
+	else
+#endif
+		c_can_object_get(dev, IF_RX, obj, IF_COMM_RCV_HIGH);
+}
+
+static inline void c_can_rx_finalize(struct net_device *dev,
+				     struct c_can_priv *priv, u32 obj)
+{
+#ifdef CONFIG_CAN_C_CAN_STRICT_FRAME_ORDERING
+	if (obj < C_CAN_MSG_RX_LOW_LAST)
+		priv->rxmasked |= BIT(obj - 1);
+	else if (obj == C_CAN_MSG_RX_LOW_LAST) {
+		priv->rxmasked = 0;
+		/* activate all lower message objects */
+		c_can_activate_all_lower_rx_msg_obj(dev, IF_RX);
+	}
+#endif
+}
+
 static int c_can_read_objects(struct net_device *dev, struct c_can_priv *priv,
 			      u32 pend, int quota)
 {
-	u32 pkts = 0, ctrl, obj, mcmd;
+	u32 pkts = 0, ctrl, obj;
 
 	while ((obj = ffs(pend)) && quota > 0) {
 		pend &= ~BIT(obj - 1);
 
-		mcmd = obj < C_CAN_MSG_RX_LOW_LAST ?
-			IF_COMM_RCV_LOW : IF_COMM_RCV_HIGH;
-
-		c_can_object_get(dev, IF_RX, obj, mcmd);
+		c_can_rx_object_get(dev, obj);
 		ctrl = priv->read_reg(priv, C_CAN_IFACE(MSGCTRL_REG, IF_RX));
 
 		if (ctrl & IF_MCONT_MSGLST) {
@@ -824,19 +845,23 @@ static int c_can_read_objects(struct net_device *dev, struct c_can_priv *priv,
 		/* read the data from the message object */
 		c_can_read_msg_object(dev, IF_RX, ctrl);
 
-		if (obj < C_CAN_MSG_RX_LOW_LAST)
-			priv->rxmasked |= BIT(obj - 1);
-		else if (obj == C_CAN_MSG_RX_LOW_LAST) {
-			priv->rxmasked = 0;
-			/* activate all lower message objects */
-			c_can_activate_all_lower_rx_msg_obj(dev, IF_RX);
-		}
+		c_can_rx_finalize(dev, priv, obj);
 
 		pkts++;
 		quota--;
 	}
 
 	return pkts;
+}
+
+static inline u32 c_can_get_pending(struct c_can_priv *priv)
+{
+	u32 pend = priv->read_reg(priv, C_CAN_NEWDAT1_REG);
+
+#ifdef CONFIG_CAN_C_CAN_STRICT_FRAME_ORDERING
+	pend &= ~priv->rxmasked;
+#endif
+	return pend;
 }
 
 /*
@@ -847,6 +872,8 @@ static int c_can_read_objects(struct net_device *dev, struct c_can_priv *priv,
  * INTPND are set for this message object indicating that a new message
  * has arrived. To work-around this issue, we keep two groups of message
  * objects whose partitioning is defined by C_CAN_MSG_OBJ_RX_SPLIT.
+ *
+ * If CONFIG_CAN_C_CAN_STRICT_FRAME_ORDERING = y
  *
  * To ensure in-order frame reception we use the following
  * approach while re-activating a message object to receive further
@@ -860,6 +887,14 @@ static int c_can_read_objects(struct net_device *dev, struct c_can_priv *priv,
  * - if the current message object number is greater than
  *   C_CAN_MSG_RX_LOW_LAST then clear the NEWDAT bit of
  *   only this message object.
+ *
+ * This can cause packet loss!
+ *
+ * If CONFIG_CAN_C_CAN_STRICT_FRAME_ORDERING = n
+ *
+ * We clear the newdat bit right away.
+ *
+ * This can result in packet reordering when the readout is slow.
  */
 static int c_can_do_rx_poll(struct net_device *dev, int quota)
 {
@@ -875,8 +910,7 @@ static int c_can_do_rx_poll(struct net_device *dev, int quota)
 
 	while (quota > 0) {
 		if (!pend) {
-			pend = priv->read_reg(priv, C_CAN_NEWDAT1_REG);
-			pend &= ~priv->rxmasked;
+			pend = c_can_get_pending(priv);
 			if (!pend)
 				break;
 			/*
