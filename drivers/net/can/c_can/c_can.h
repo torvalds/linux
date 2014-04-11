@@ -37,8 +37,6 @@
 
 #define C_CAN_MSG_OBJ_RX_SPLIT	9
 #define C_CAN_MSG_RX_LOW_LAST	(C_CAN_MSG_OBJ_RX_SPLIT - 1)
-
-#define C_CAN_NEXT_MSG_OBJ_MASK	(C_CAN_MSG_OBJ_TX_NUM - 1)
 #define RECEIVE_OBJECT_BITS	0x0000ffff
 
 enum reg {
@@ -175,16 +173,12 @@ struct c_can_priv {
 	struct napi_struct napi;
 	struct net_device *dev;
 	struct device *device;
-	spinlock_t xmit_lock;
-	int tx_object;
+	atomic_t tx_active;
 	int last_status;
 	u16 (*read_reg) (struct c_can_priv *priv, enum reg index);
 	void (*write_reg) (struct c_can_priv *priv, enum reg index, u16 val);
 	void __iomem *base;
 	const u16 *regs;
-	unsigned long irq_flags; /* for request_irq() */
-	unsigned int tx_next;
-	unsigned int tx_echo;
 	void *priv;		/* for board-specific data */
 	enum c_can_dev_id type;
 	u32 __iomem *raminit_ctrlreg;
