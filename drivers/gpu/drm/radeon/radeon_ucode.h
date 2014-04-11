@@ -61,8 +61,10 @@
 #define PITCAIRN_MC_UCODE_SIZE       7775
 #define VERDE_MC_UCODE_SIZE          7875
 #define OLAND_MC_UCODE_SIZE          7863
-#define CIK_MC_UCODE_SIZE            7866
+#define BONAIRE_MC_UCODE_SIZE        7866
+#define BONAIRE_MC2_UCODE_SIZE       7948
 #define HAWAII_MC_UCODE_SIZE         7933
+#define HAWAII_MC2_UCODE_SIZE        8091
 
 /* SDMA */
 #define CIK_SDMA_UCODE_SIZE          1050
