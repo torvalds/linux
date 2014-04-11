@@ -195,7 +195,7 @@ static int fc2580_set_params(struct dvb_frontend *fe)
 
 	f_ref = 2UL * priv->cfg->clock / r_val;
 	n_val = div_u64_rem(f_vco, f_ref, &k_val);
-	k_val_reg = 1UL * k_val * (1 << 20) / f_ref;
+	k_val_reg = div_u64(1ULL * k_val * (1 << 20), f_ref);
 
 	ret = fc2580_wr_reg(priv, 0x18, r18_val | ((k_val_reg >> 16) & 0xff));
 	if (ret < 0)
@@ -348,8 +348,8 @@ static int fc2580_set_params(struct dvb_frontend *fe)
 	if (ret < 0)
 		goto err;
 
-	ret = fc2580_wr_reg(priv, 0x37, 1UL * priv->cfg->clock * \
-			fc2580_if_filter_lut[i].mul / 1000000000);
+	ret = fc2580_wr_reg(priv, 0x37, div_u64(1ULL * priv->cfg->clock *
+			fc2580_if_filter_lut[i].mul, 1000000000));
 	if (ret < 0)
 		goto err;
 
