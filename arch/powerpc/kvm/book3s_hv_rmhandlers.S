@@ -242,6 +242,12 @@ kvm_novcpu_exit:
  */
 	.globl	kvm_start_guest
 kvm_start_guest:
+
+	/* Set runlatch bit the minute you wake up from nap */
+	mfspr	r1, SPRN_CTRLF
+	ori 	r1, r1, 1
+	mtspr	SPRN_CTRLT, r1
+
 	ld	r2,PACATOC(r13)
 
 	li	r0,KVM_HWTHREAD_IN_KVM
