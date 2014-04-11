@@ -1495,7 +1495,7 @@ qla2x00_fw_dump_size_show(struct device *dev, struct device_attribute *attr,
 
 	if (!ha->fw_dumped)
 		size = 0;
-	else if (IS_QLA82XX(ha))
+	else if (IS_P3P_TYPE(ha))
 		size = ha->md_template_size + ha->md_dump_size;
 	else
 		size = ha->fw_dump_len;
