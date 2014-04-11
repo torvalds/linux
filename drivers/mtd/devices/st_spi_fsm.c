@@ -755,7 +755,7 @@ static void stfsm_read_fifo(struct stfsm *fsm, uint32_t *buf, uint32_t size)
 
 	dev_dbg(fsm->dev, "Reading %d bytes from FIFO\n", size);
 
-	BUG_ON((((uint32_t)buf) & 0x3) || (size & 0x3));
+	BUG_ON((((uintptr_t)buf) & 0x3) || (size & 0x3));
 
 	while (remaining) {
 		for (;;) {
@@ -779,7 +779,7 @@ static int stfsm_write_fifo(struct stfsm *fsm, const uint32_t *buf,
 
 	dev_dbg(fsm->dev, "writing %d bytes to FIFO\n", size);
 
-	BUG_ON((((uint32_t)buf) & 0x3) || (size & 0x3));
+	BUG_ON((((uintptr_t)buf) & 0x3) || (size & 0x3));
 
 	writesl(fsm->base + SPI_FAST_SEQ_DATA_REG, buf, words);
 
@@ -1474,7 +1474,7 @@ static int stfsm_read(struct stfsm *fsm, uint8_t *buf, uint32_t size,
 	read_mask = (data_pads << 2) - 1;
 
 	/* Handle non-aligned buf */
-	p = ((uint32_t)buf & 0x3) ? (uint8_t *)page_buf : buf;
+	p = ((uintptr_t)buf & 0x3) ? (uint8_t *)page_buf : buf;
 
 	/* Handle non-aligned size */
 	size_ub = (size + read_mask) & ~read_mask;
@@ -1496,7 +1496,7 @@ static int stfsm_read(struct stfsm *fsm, uint8_t *buf, uint32_t size,
 	}
 
 	/* Handle non-aligned buf */
-	if ((uint32_t)buf & 0x3)
+	if ((uintptr_t)buf & 0x3)
 		memcpy(buf, page_buf, size);
 
 	/* Wait for sequence to finish */
@@ -1538,7 +1538,7 @@ static int stfsm_write(struct stfsm *fsm, const uint8_t *buf,
 	write_mask = (data_pads << 2) - 1;
 
 	/* Handle non-aligned buf */
-	if ((uint32_t)buf & 0x3) {
+	if ((uintptr_t)buf & 0x3) {
 		memcpy(page_buf, buf, size);
 		p = (uint8_t *)page_buf;
 	} else {
@@ -1701,7 +1701,7 @@ static int stfsm_mtd_write(struct mtd_info *mtd, loff_t to, size_t len,
 
 	while (len) {
 		/* Write up to page boundary */
-		bytes = min(FLASH_PAGESIZE - page_offs, len);
+		bytes = min_t(size_t, FLASH_PAGESIZE - page_offs, len);
 
 		ret = stfsm_write(fsm, b, bytes, to);
 		if (ret)
