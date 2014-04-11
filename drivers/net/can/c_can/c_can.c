@@ -276,11 +276,34 @@ static inline void c_can_object_put(struct net_device *dev, int iface,
 	c_can_obj_update(dev, iface, cmd | IF_COMM_WR, obj);
 }
 
+/*
+ * Note: According to documentation clearing TXIE while MSGVAL is set
+ * is not allowed, but works nicely on C/DCAN. And that lowers the I/O
+ * load significantly.
+ */
+static void c_can_inval_tx_object(struct net_device *dev, int iface, int obj)
+{
+	struct c_can_priv *priv = netdev_priv(dev);
+
+	priv->write_reg(priv, C_CAN_IFACE(MSGCTRL_REG, iface), 0);
+	c_can_object_put(dev, iface, obj, IF_COMM_INVAL);
+}
+
+static void c_can_inval_msg_object(struct net_device *dev, int iface, int obj)
+{
+	struct c_can_priv *priv = netdev_priv(dev);
+
+	priv->write_reg(priv, C_CAN_IFACE(ARB1_REG, iface), 0);
+	priv->write_reg(priv, C_CAN_IFACE(ARB2_REG, iface), 0);
+	c_can_inval_tx_object(dev, iface, obj);
+}
+
 static void c_can_setup_tx_object(struct net_device *dev, int iface,
-				  struct can_frame *frame, int obj)
+				  struct can_frame *frame, int idx)
 {
 	struct c_can_priv *priv = netdev_priv(dev);
 	u16 ctrl = IF_MCONT_TX | frame->can_dlc;
+	bool rtr = frame->can_id & CAN_RTR_FLAG;
 	u32 arb = IF_ARB_MSGVAL;
 	int i;
 
@@ -291,8 +314,19 @@ static void c_can_setup_tx_object(struct net_device *dev, int iface,
 		arb |= (frame->can_id & CAN_SFF_MASK) << 18;
 	}
 
-	if (!(frame->can_id & CAN_RTR_FLAG))
+	if (!rtr)
 		arb |= IF_ARB_TRANSMIT;
+
+	/*
+	 * If we change the DIR bit, we need to invalidate the buffer
+	 * first, i.e. clear the MSGVAL flag in the arbiter.
+	 */
+	if (rtr != (bool)test_bit(idx, &priv->tx_dir)) {
+		u32 obj = idx + C_CAN_MSG_OBJ_TX_FIRST;
+
+		c_can_inval_msg_object(dev, iface, obj);
+		change_bit(idx, &priv->tx_dir);
+	}
 
 	priv->write_reg(priv, C_CAN_IFACE(ARB1_REG, iface), arb);
 	priv->write_reg(priv, C_CAN_IFACE(ARB2_REG, iface), arb >> 16);
@@ -401,17 +435,6 @@ static void c_can_setup_receive_object(struct net_device *dev, int iface,
 	c_can_object_put(dev, iface, obj, IF_COMM_RCV_SETUP);
 }
 
-static void c_can_inval_msg_object(struct net_device *dev, int iface, int obj)
-{
-	struct c_can_priv *priv = netdev_priv(dev);
-
-	priv->write_reg(priv, C_CAN_IFACE(ARB1_REG, iface), 0);
-	priv->write_reg(priv, C_CAN_IFACE(ARB2_REG, iface), 0);
-	priv->write_reg(priv, C_CAN_IFACE(MSGCTRL_REG, iface), 0);
-
-	c_can_object_put(dev, iface, obj, IF_COMM_INVAL);
-}
-
 static netdev_tx_t c_can_start_xmit(struct sk_buff *skb,
 				    struct net_device *dev)
 {
@@ -436,7 +459,7 @@ static netdev_tx_t c_can_start_xmit(struct sk_buff *skb,
 	 * can_put_echo_skb(). We must do this before we enable
 	 * transmit as we might race against do_tx().
 	 */
-	c_can_setup_tx_object(dev, IF_TX, frame, obj);
+	c_can_setup_tx_object(dev, IF_TX, frame, idx);
 	priv->dlc[idx] = frame->can_dlc;
 	can_put_echo_skb(skb, dev, idx);
 
@@ -563,6 +586,7 @@ static int c_can_chip_config(struct net_device *dev)
 	/* Clear all internal status */
 	atomic_set(&priv->tx_active, 0);
 	priv->rxmasked = 0;
+	priv->tx_dir = 0;
 
 	/* set bittiming params */
 	return c_can_set_bittiming(dev);
@@ -654,7 +678,7 @@ static void c_can_do_tx(struct net_device *dev)
 		idx--;
 		pend &= ~(1 << idx);
 		obj = idx + C_CAN_MSG_OBJ_TX_FIRST;
-		c_can_inval_msg_object(dev, IF_RX, obj);
+		c_can_inval_tx_object(dev, IF_RX, obj);
 		can_get_echo_skb(dev, idx);
 		bytes += priv->dlc[idx];
 		pkts++;
