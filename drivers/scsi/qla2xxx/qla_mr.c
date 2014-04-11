@@ -572,12 +572,13 @@ qlafx00_soc_cpu_reset(scsi_qla_host_t *vha)
 	/* Kick in Core0 to start boot process */
 	QLAFX00_SET_HBA_SOC_REG(ha, SOC_SW_RST_CONTROL_REG_CORE0, (0xF00));
 
+	spin_unlock_irqrestore(&ha->hardware_lock, flags);
+
 	/* Wait 10secs for soft-reset to complete. */
 	for (cnt = 10; cnt; cnt--) {
 		msleep(1000);
 		barrier();
 	}
-	spin_unlock_irqrestore(&ha->hardware_lock, flags);
 }
 
 /**
