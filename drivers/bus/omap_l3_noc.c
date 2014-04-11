@@ -57,6 +57,7 @@ static irqreturn_t l3_interrupt_handler(int irq, void *_l3)
 	void __iomem *base, *l3_targ_base;
 	void __iomem *l3_targ_stderr, *l3_targ_slvofslsb, *l3_targ_mstaddr;
 	char *target_name, *master_name = "UN IDENTIFIED";
+	struct l3_target_data *l3_targ_inst;
 
 	/* Get the Type of interrupt */
 	inttype = irq == l3->app_irq ? L3_APPLICATION_ERROR : L3_DEBUG_ERROR;
@@ -74,9 +75,11 @@ static irqreturn_t l3_interrupt_handler(int irq, void *_l3)
 		if (err_reg) {
 			/* Identify the source from control status register */
 			err_src = __ffs(err_reg);
+			l3_targ_inst = &l3_targ[i][err_src];
+			target_name = l3_targ_inst->name;
+			l3_targ_base = base + l3_targ_inst->offset;
 
 			/* Read the stderrlog_main_source from clk domain */
-			l3_targ_base = base + l3_targ[i][err_src];
 			l3_targ_stderr = l3_targ_base + L3_TARG_STDERRLOG_MAIN;
 			l3_targ_slvofslsb = l3_targ_base +
 					    L3_TARG_STDERRLOG_SLVOFSLSB;
@@ -88,8 +91,6 @@ static irqreturn_t l3_interrupt_handler(int irq, void *_l3)
 
 			switch (std_err_main & CUSTOM_ERROR) {
 			case STANDARD_ERROR:
-				target_name =
-					l3_targ_inst_name[i][err_src];
 				WARN(true, "L3 standard error: TARGET:%s at address 0x%x\n",
 					target_name,
 					readl_relaxed(l3_targ_slvofslsb));
@@ -99,8 +100,6 @@ static irqreturn_t l3_interrupt_handler(int irq, void *_l3)
 				break;
 
 			case CUSTOM_ERROR:
-				target_name =
-					l3_targ_inst_name[i][err_src];
 				for (k = 0; k < NUM_OF_L3_MASTERS; k++) {
 					if (masterid == l3_masters[k].id)
 						master_name =
