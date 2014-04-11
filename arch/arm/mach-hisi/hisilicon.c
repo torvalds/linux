@@ -88,3 +88,15 @@ DT_MACHINE_START(HI3620, "Hisilicon Hi3620 (Flattened Device Tree)")
 	.smp		= smp_ops(hi3xxx_smp_ops),
 	.restart	= hi3xxx_restart,
 MACHINE_END
+
+static const char *hix5hd2_compat[] __initconst = {
+	"hisilicon,hix5hd2",
+	NULL,
+};
+
+DT_MACHINE_START(HIX5HD2_DT, "Hisilicon HIX5HD2 (Flattened Device Tree)")
+	.dt_compat	= hix5hd2_compat,
+	.init_late	= hi3xxx_init_late,
+	.smp		= smp_ops(hix5hd2_smp_ops),
+	.restart	= hi3xxx_restart,
+MACHINE_END

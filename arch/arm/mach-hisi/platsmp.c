@@ -17,6 +17,8 @@
 
 #include "core.h"
 
+#define HIX5HD2_BOOT_ADDRESS		0xffff0000
+
 static void __iomem *ctrl_base;
 
 void hi3xxx_set_cpu_jump(int cpu, void *jump_addr)
@@ -35,11 +37,9 @@ int hi3xxx_get_cpu_jump(int cpu)
 	return readl_relaxed(ctrl_base + ((cpu - 1) << 2));
 }
 
-static void __init hi3xxx_smp_prepare_cpus(unsigned int max_cpus)
+static void __init hisi_enable_scu_a9(void)
 {
-	struct device_node *np = NULL;
 	unsigned long base = 0;
-	u32 offset = 0;
 	void __iomem *scu_base = NULL;
 
 	if (scu_a9_has_base()) {
@@ -52,6 +52,14 @@ static void __init hi3xxx_smp_prepare_cpus(unsigned int max_cpus)
 		scu_enable(scu_base);
 		iounmap(scu_base);
 	}
+}
+
+static void __init hi3xxx_smp_prepare_cpus(unsigned int max_cpus)
+{
+	struct device_node *np = NULL;
+	u32 offset = 0;
+
+	hisi_enable_scu_a9();
 	if (!ctrl_base) {
 		np = of_find_compatible_node(NULL, NULL, "hisilicon,sysctrl");
 		if (!np) {
@@ -85,5 +93,41 @@ struct smp_operations hi3xxx_smp_ops __initdata = {
 #ifdef CONFIG_HOTPLUG_CPU
 	.cpu_die		= hi3xxx_cpu_die,
 	.cpu_kill		= hi3xxx_cpu_kill,
+#endif
+};
+
+static void __init hix5hd2_smp_prepare_cpus(unsigned int max_cpus)
+{
+	hisi_enable_scu_a9();
+}
+
+void hix5hd2_set_scu_boot_addr(phys_addr_t start_addr, phys_addr_t jump_addr)
+{
+	void __iomem *virt;
+
+	virt = ioremap(start_addr, PAGE_SIZE);
+
+	writel_relaxed(0xe51ff004, virt);	/* ldr pc, [rc, #-4] */
+	writel_relaxed(jump_addr, virt + 4);	/* pc jump phy address */
+	iounmap(virt);
+}
+
+static int hix5hd2_boot_secondary(unsigned int cpu, struct task_struct *idle)
+{
+	phys_addr_t jumpaddr;
+
+	jumpaddr = virt_to_phys(hix5hd2_secondary_startup);
+	hix5hd2_set_scu_boot_addr(HIX5HD2_BOOT_ADDRESS, jumpaddr);
+	hix5hd2_set_cpu(cpu, true);
+	arch_send_wakeup_ipi_mask(cpumask_of(cpu));
+	return 0;
+}
+
+
+struct smp_operations hix5hd2_smp_ops __initdata = {
+	.smp_prepare_cpus	= hix5hd2_smp_prepare_cpus,
+	.smp_boot_secondary	= hix5hd2_boot_secondary,
+#ifdef CONFIG_HOTPLUG_CPU
+	.cpu_die		= hix5hd2_cpu_die,
 #endif
 };
