@@ -171,6 +171,7 @@ enum c_can_lec_type {
 	LEC_BIT0_ERROR,
 	LEC_CRC_ERROR,
 	LEC_UNUSED,
+	LEC_MASK = LEC_UNUSED,
 };
 
 /*
@@ -897,12 +898,6 @@ static int c_can_do_rx_poll(struct net_device *dev, int quota)
 	return pkts;
 }
 
-static inline int c_can_has_and_handle_berr(struct c_can_priv *priv)
-{
-	return (priv->can.ctrlmode & CAN_CTRLMODE_BERR_REPORTING) &&
-		(priv->current_status & LEC_UNUSED);
-}
-
 static int c_can_handle_state_change(struct net_device *dev,
 				enum c_can_bus_error_types error_type)
 {
@@ -998,6 +993,9 @@ static int c_can_handle_bus_err(struct net_device *dev,
 	if (lec_type == LEC_UNUSED || lec_type == LEC_NO_ERROR)
 		return 0;
 
+	if (!(priv->can.ctrlmode & CAN_CTRLMODE_BERR_REPORTING))
+		return 0;
+
 	/* propagate the error condition to the CAN stack */
 	skb = alloc_can_err_skb(dev, &cf);
 	if (unlikely(!skb))
@@ -1057,7 +1055,6 @@ static int c_can_handle_bus_err(struct net_device *dev,
 static int c_can_poll(struct napi_struct *napi, int quota)
 {
 	u16 irqstatus;
-	int lec_type = 0;
 	int work_done = 0;
 	struct net_device *dev = napi->dev;
 	struct c_can_priv *priv = netdev_priv(dev);
@@ -1116,9 +1113,8 @@ static int c_can_poll(struct napi_struct *napi, int quota)
 		priv->last_status = priv->current_status;
 
 		/* handle lec errors on the bus */
-		lec_type = c_can_has_and_handle_berr(priv);
-		if (lec_type)
-			work_done += c_can_handle_bus_err(dev, lec_type);
+		work_done += c_can_handle_bus_err(dev,
+					priv->current_status & LEC_MASK);
 	} else if ((irqstatus >= C_CAN_MSG_OBJ_RX_FIRST) &&
 			(irqstatus <= C_CAN_MSG_OBJ_RX_LAST)) {
 		/* handle events corresponding to receive message objects */
