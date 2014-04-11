@@ -206,5 +206,17 @@
 			pinctrl-0	= <&pinctrl_ir>;
 			resets		= <&softreset STIH415_IRB_SOFTRESET>;
 		};
+
+		keyscan: keyscan@fe4b0000 {
+			compatible = "st,sti-keyscan";
+			status = "disabled";
+			reg = <0xfe4b0000 0x2000>;
+			interrupts = <GIC_SPI 212 IRQ_TYPE_NONE>;
+			clocks = <&CLK_SYSIN>;
+			pinctrl-names = "default";
+			pinctrl-0 = <&pinctrl_keyscan>;
+			resets	= <&powerdown STIH415_KEYSCAN_POWERDOWN>,
+				  <&softreset STIH415_KEYSCAN_SOFTRESET>;
+		};
 	};
 };
