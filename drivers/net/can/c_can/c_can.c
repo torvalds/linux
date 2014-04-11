@@ -113,9 +113,11 @@
 #define IF_COMM_CLR_NEWDAT	IF_COMM_TXRQST
 #define IF_COMM_DATAA		BIT(1)
 #define IF_COMM_DATAB		BIT(0)
-#define IF_COMM_ALL		(IF_COMM_MASK | IF_COMM_ARB | \
-				IF_COMM_CONTROL | IF_COMM_TXRQST | \
-				IF_COMM_DATAA | IF_COMM_DATAB)
+
+/* TX buffer setup */
+#define IF_COMM_TX		(IF_COMM_ARB | IF_COMM_CONTROL | \
+				 IF_COMM_TXRQST |		 \
+				 IF_COMM_DATAA | IF_COMM_DATAB)
 
 /* For the low buffers we clear the interrupt bit, but keep newdat */
 #define IF_COMM_RCV_LOW		(IF_COMM_MASK | IF_COMM_ARB | \
@@ -151,6 +153,8 @@
 
 #define IF_MCONT_RCV		(IF_MCONT_RXIE | IF_MCONT_UMASK)
 #define IF_MCONT_RCV_EOB	(IF_MCONT_RCV | IF_MCONT_EOB)
+
+#define IF_MCONT_TX		(IF_MCONT_TXIE | IF_MCONT_EOB)
 
 /*
  * Use IF1 for RX and IF2 for TX
@@ -290,40 +294,35 @@ static inline void c_can_object_put(struct net_device *dev, int iface,
 	c_can_obj_update(dev, iface, cmd | IF_COMM_WR, obj);
 }
 
-static void c_can_write_msg_object(struct net_device *dev,
-			int iface, struct can_frame *frame, int objno)
+static void c_can_write_msg_object(struct net_device *dev, int iface,
+				   struct can_frame *frame, int obj)
 {
-	int i;
-	u16 flags = 0;
-	unsigned int id;
 	struct c_can_priv *priv = netdev_priv(dev);
-
-	if (!(frame->can_id & CAN_RTR_FLAG))
-		flags |= IF_ARB_TRANSMIT;
+	u16 ctrl = IF_MCONT_TX | frame->can_dlc;
+	u32 arb = IF_ARB_MSGVAL << 16;
+	int i;
 
 	if (frame->can_id & CAN_EFF_FLAG) {
-		id = frame->can_id & CAN_EFF_MASK;
-		flags |= IF_ARB_MSGXTD;
-	} else
-		id = ((frame->can_id & CAN_SFF_MASK) << 18);
+		arb |= frame->can_id & CAN_EFF_MASK;
+		arb |= IF_ARB_MSGXTD << 16;
+	} else {
+		arb |= (frame->can_id & CAN_SFF_MASK) << 18;
+	}
 
-	flags |= IF_ARB_MSGVAL;
+	if (!(frame->can_id & CAN_RTR_FLAG))
+		arb |= IF_ARB_TRANSMIT << 16;
 
-	priv->write_reg(priv, C_CAN_IFACE(ARB1_REG, iface),
-				IFX_WRITE_LOW_16BIT(id));
-	priv->write_reg(priv, C_CAN_IFACE(ARB2_REG, iface), flags |
-				IFX_WRITE_HIGH_16BIT(id));
+	priv->write_reg(priv, C_CAN_IFACE(ARB1_REG, iface), arb);
+	priv->write_reg(priv, C_CAN_IFACE(ARB2_REG, iface), arb >> 16);
+
+	priv->write_reg(priv, C_CAN_IFACE(MSGCTRL_REG, iface), ctrl);
 
 	for (i = 0; i < frame->can_dlc; i += 2) {
 		priv->write_reg(priv, C_CAN_IFACE(DATA1_REG, iface) + i / 2,
 				frame->data[i] | (frame->data[i + 1] << 8));
 	}
 
-	/* enable interrupt for this message object */
-	priv->write_reg(priv, C_CAN_IFACE(MSGCTRL_REG, iface),
-			IF_MCONT_TXIE | IF_MCONT_TXRQST | IF_MCONT_EOB |
-			frame->can_dlc);
-	c_can_object_put(dev, iface, objno, IF_COMM_ALL);
+	c_can_object_put(dev, iface, obj, IF_COMM_TX);
 }
 
 static inline void c_can_activate_all_lower_rx_msg_obj(struct net_device *dev,
