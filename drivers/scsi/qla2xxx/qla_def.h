@@ -1629,10 +1629,20 @@ typedef struct {
 #define PO_MODE_DIF_PASS	2
 #define PO_MODE_DIF_REPLACE	3
 #define PO_MODE_DIF_TCP_CKSUM	6
-#define PO_ENABLE_DIF_BUNDLING	BIT_8
 #define PO_ENABLE_INCR_GUARD_SEED	BIT_3
-#define PO_DISABLE_INCR_REF_TAG	BIT_5
 #define PO_DISABLE_GUARD_CHECK	BIT_4
+#define PO_DISABLE_INCR_REF_TAG	BIT_5
+#define PO_DIS_HEADER_MODE	BIT_7
+#define PO_ENABLE_DIF_BUNDLING	BIT_8
+#define PO_DIS_FRAME_MODE	BIT_9
+#define PO_DIS_VALD_APP_ESC	BIT_10 /* Dis validation for escape tag/ffffh */
+#define PO_DIS_VALD_APP_REF_ESC BIT_11
+
+#define PO_DIS_APP_TAG_REPL	BIT_12 /* disable REG Tag replacement */
+#define PO_DIS_REF_TAG_REPL	BIT_13
+#define PO_DIS_APP_TAG_VALD	BIT_14 /* disable REF Tag validation */
+#define PO_DIS_REF_TAG_VALD	BIT_15
+
 /*
  * ISP queue - 64-Bit addressing, continuation crc entry structure definition.
  */
