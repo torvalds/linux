@@ -1179,8 +1179,8 @@ static void igb_release_swfw_sync_82575(struct e1000_hw *hw, u16 mask)
 {
 	u32 swfw_sync;
 
-	while (igb_get_hw_semaphore(hw) != 0);
-	/* Empty */
+	while (igb_get_hw_semaphore(hw) != 0)
+		; /* Empty */
 
 	swfw_sync = rd32(E1000_SW_FW_SYNC);
 	swfw_sync &= ~mask;
