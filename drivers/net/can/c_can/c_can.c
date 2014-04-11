@@ -261,61 +261,33 @@ static void c_can_irq_control(struct c_can_priv *priv, bool enable)
 	priv->write_reg(priv, C_CAN_CTRL_REG, ctrl);
 }
 
-static inline int c_can_msg_obj_is_busy(struct c_can_priv *priv, int iface)
+static void c_can_obj_update(struct net_device *dev, int iface, u32 cmd, u32 obj)
 {
-	int count = MIN_TIMEOUT_VALUE;
+	struct c_can_priv *priv = netdev_priv(dev);
+	int cnt, reg = C_CAN_IFACE(COMREQ_REG, iface);
 
-	while (count && priv->read_reg(priv,
-				C_CAN_IFACE(COMREQ_REG, iface)) &
-				IF_COMR_BUSY) {
-		count--;
+	priv->write_reg(priv, reg + 1, cmd);
+	priv->write_reg(priv, reg, obj);
+
+	for (cnt = MIN_TIMEOUT_VALUE; cnt; cnt--) {
+		if (!(priv->read_reg(priv, reg) & IF_COMR_BUSY))
+			return;
 		udelay(1);
 	}
+	netdev_err(dev, "Updating object timed out\n");
 
-	if (!count)
-		return 1;
-
-	return 0;
 }
 
-static inline void c_can_object_get(struct net_device *dev,
-					int iface, int objno, int mask)
+static inline void c_can_object_get(struct net_device *dev, int iface,
+				    u32 obj, u32 cmd)
 {
-	struct c_can_priv *priv = netdev_priv(dev);
-
-	/*
-	 * As per specs, after writting the message object number in the
-	 * IF command request register the transfer b/w interface
-	 * register and message RAM must be complete in 6 CAN-CLK
-	 * period.
-	 */
-	priv->write_reg(priv, C_CAN_IFACE(COMMSK_REG, iface),
-			IFX_WRITE_LOW_16BIT(mask));
-	priv->write_reg(priv, C_CAN_IFACE(COMREQ_REG, iface),
-			IFX_WRITE_LOW_16BIT(objno));
-
-	if (c_can_msg_obj_is_busy(priv, iface))
-		netdev_err(dev, "timed out in object get\n");
+	c_can_obj_update(dev, iface, cmd, obj);
 }
 
-static inline void c_can_object_put(struct net_device *dev,
-					int iface, int objno, int mask)
+static inline void c_can_object_put(struct net_device *dev, int iface,
+				    u32 obj, u32 cmd)
 {
-	struct c_can_priv *priv = netdev_priv(dev);
-
-	/*
-	 * As per specs, after writting the message object number in the
-	 * IF command request register the transfer b/w interface
-	 * register and message RAM must be complete in 6 CAN-CLK
-	 * period.
-	 */
-	priv->write_reg(priv, C_CAN_IFACE(COMMSK_REG, iface),
-			(IF_COMM_WR | IFX_WRITE_LOW_16BIT(mask)));
-	priv->write_reg(priv, C_CAN_IFACE(COMREQ_REG, iface),
-			IFX_WRITE_LOW_16BIT(objno));
-
-	if (c_can_msg_obj_is_busy(priv, iface))
-		netdev_err(dev, "timed out in object put\n");
+	c_can_obj_update(dev, iface, cmd | IF_COMM_WR, obj);
 }
 
 static void c_can_write_msg_object(struct net_device *dev,
