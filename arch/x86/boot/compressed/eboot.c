@@ -112,7 +112,7 @@ __file_size64(void *__fh, efi_char16_t *filename_16,
 	efi_file_info_t *info;
 	efi_status_t status;
 	efi_guid_t info_guid = EFI_FILE_INFO_ID;
-	u32 info_sz;
+	u64 info_sz;
 
 	status = efi_early->call((unsigned long)fh->open, fh, &h, filename_16,
 				 EFI_FILE_MODE_READ, (u64)0);
@@ -167,31 +167,31 @@ efi_file_size(efi_system_table_t *sys_table, void *__fh,
 }
 
 static inline efi_status_t
-efi_file_read(void *__fh, void *handle, unsigned long *size, void *addr)
+efi_file_read(void *handle, unsigned long *size, void *addr)
 {
 	unsigned long func;
 
 	if (efi_early->is64) {
-		efi_file_handle_64_t *fh = __fh;
+		efi_file_handle_64_t *fh = handle;
 
 		func = (unsigned long)fh->read;
 		return efi_early->call(func, handle, size, addr);
 	} else {
-		efi_file_handle_32_t *fh = __fh;
+		efi_file_handle_32_t *fh = handle;
 
 		func = (unsigned long)fh->read;
 		return efi_early->call(func, handle, size, addr);
 	}
 }
 
-static inline efi_status_t efi_file_close(void *__fh, void *handle)
+static inline efi_status_t efi_file_close(void *handle)
 {
 	if (efi_early->is64) {
-		efi_file_handle_64_t *fh = __fh;
+		efi_file_handle_64_t *fh = handle;
 
 		return efi_early->call((unsigned long)fh->close, handle);
 	} else {
-		efi_file_handle_32_t *fh = __fh;
+		efi_file_handle_32_t *fh = handle;
 
 		return efi_early->call((unsigned long)fh->close, handle);
 	}
@@ -1016,6 +1016,9 @@ void setup_graphics(struct boot_params *boot_params)
  * Because the x86 boot code expects to be passed a boot_params we
  * need to create one ourselves (usually the bootloader would create
  * one for us).
+ *
+ * The caller is responsible for filling out ->code32_start in the
+ * returned boot_params.
  */
 struct boot_params *make_boot_params(struct efi_config *c)
 {
@@ -1080,8 +1083,6 @@ struct boot_params *make_boot_params(struct efi_config *c)
 	hdr->root_flags = 1;
 	hdr->vid_mode = 0xffff;
 	hdr->boot_flag = 0xAA55;
-
-	hdr->code32_start = (__u64)(unsigned long)image->image_base;
 
 	hdr->type_of_loader = 0x21;
 
