@@ -844,6 +844,28 @@ qla2x00_wait_for_hba_online(scsi_qla_host_t *vha)
 }
 
 /*
+ * qla2x00_wait_for_hba_ready
+ * Wait till the HBA is ready before doing driver unload
+ *
+ * Input:
+ *     ha - pointer to host adapter structure
+ *
+ * Note:
+ *    Does context switching-Release SPIN_LOCK
+ *    (if any) before calling this routine.
+ *
+ */
+static void
+qla2x00_wait_for_hba_ready(scsi_qla_host_t *vha)
+{
+	struct qla_hw_data *ha = vha->hw;
+
+	while ((!(vha->flags.online) || ha->dpc_active ||
+	    ha->flags.mbox_busy))
+		msleep(1000);
+}
+
+/*
  * qla2x00_wait_for_reset_ready
  *    Wait till the HBA is online after going through
  *    <= MAX_RETRIES_OF_ISP_ABORT  or
@@ -3160,6 +3182,8 @@ qla2x00_remove_one(struct pci_dev *pdev)
 
 	base_vha = pci_get_drvdata(pdev);
 	ha = base_vha->hw;
+
+	qla2x00_wait_for_hba_ready(base_vha);
 
 	set_bit(UNLOADING, &base_vha->dpc_flags);
 
