@@ -1206,11 +1206,11 @@ static bool reg_pattern_test(struct igb_adapter *adapter, u64 *data,
 				"pattern test reg %04X failed: got 0x%08X expected 0x%08X\n",
 				reg, val, (_test[pat] & write & mask));
 			*data = reg;
-			return 1;
+			return true;
 		}
 	}
 
-	return 0;
+	return false;
 }
 
 static bool reg_set_and_check(struct igb_adapter *adapter, u64 *data,
@@ -1226,10 +1226,10 @@ static bool reg_set_and_check(struct igb_adapter *adapter, u64 *data,
 			"set/check reg %04X test failed: got 0x%08X expected 0x%08X\n",
 			reg, (val & mask), (write & mask));
 		*data = reg;
-		return 1;
+		return true;
 	}
 
-	return 0;
+	return false;
 }
 
 #define REG_PATTERN_TEST(reg, mask, write) \
