@@ -574,7 +574,7 @@ static int igb_get_i2c_data(void *data)
 	struct e1000_hw *hw = &adapter->hw;
 	s32 i2cctl = rd32(E1000_I2CPARAMS);
 
-	return ((i2cctl & E1000_I2C_DATA_IN) != 0);
+	return !!(i2cctl & E1000_I2C_DATA_IN);
 }
 
 /**
@@ -638,7 +638,7 @@ static int igb_get_i2c_clk(void *data)
 	struct e1000_hw *hw = &adapter->hw;
 	s32 i2cctl = rd32(E1000_I2CPARAMS);
 
-	return ((i2cctl & E1000_I2C_CLK_IN) != 0);
+	return !!(i2cctl & E1000_I2C_CLK_IN);
 }
 
 static const struct i2c_algo_bit_data igb_i2c_algo = {
@@ -7056,7 +7056,7 @@ static bool igb_clean_rx_irq(struct igb_q_vector *q_vector, const int budget)
 	if (cleaned_count)
 		igb_alloc_rx_buffers(rx_ring, cleaned_count);
 
-	return (total_packets < budget);
+	return total_packets < budget;
 }
 
 static bool igb_alloc_mapped_page(struct igb_ring *rx_ring,
