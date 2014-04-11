@@ -3763,7 +3763,7 @@ mptsas_send_link_status_event(struct fw_event_work *fw_event)
 						printk(MYIOC_s_DEBUG_FMT
 						"SDEV OUTSTANDING CMDS"
 						"%d\n", ioc->name,
-						sdev->device_busy));
+						atomic_read(&sdev->device_busy)));
 				}
 
 			}

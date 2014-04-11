@@ -81,9 +81,7 @@ struct scsi_device {
 	struct list_head    siblings;   /* list of all devices on this host */
 	struct list_head    same_target_siblings; /* just the devices sharing same target id */
 
-	/* this is now protected by the request_queue->queue_lock */
-	unsigned int device_busy;	/* commands actually active on
-					 * low-level. protected by queue_lock. */
+	atomic_t device_busy;		/* commands actually active on LLDD */
 	spinlock_t list_lock;
 	struct list_head cmd_list;	/* queue of in use SCSI Command structures */
 	struct list_head starved_entry;

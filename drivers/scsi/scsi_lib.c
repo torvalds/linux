@@ -302,9 +302,7 @@ void scsi_device_unbusy(struct scsi_device *sdev)
 		spin_unlock_irqrestore(shost->host_lock, flags);
 	}
 
-	spin_lock_irqsave(sdev->request_queue->queue_lock, flags);
-	sdev->device_busy--;
-	spin_unlock_irqrestore(sdev->request_queue->queue_lock, flags);
+	atomic_dec(&sdev->device_busy);
 }
 
 /*
@@ -355,9 +353,9 @@ static void scsi_single_lun_run(struct scsi_device *current_sdev)
 
 static inline int scsi_device_is_busy(struct scsi_device *sdev)
 {
-	if (sdev->device_busy >= sdev->queue_depth || sdev->device_blocked)
+	if (atomic_read(&sdev->device_busy) >= sdev->queue_depth ||
+	    sdev->device_blocked)
 		return 1;
-
 	return 0;
 }
 
@@ -1204,7 +1202,7 @@ scsi_prep_return(struct request_queue *q, struct request *req, int ret)
 		 * queue must be restarted, so we schedule a callback to happen
 		 * shortly.
 		 */
-		if (sdev->device_busy == 0)
+		if (atomic_read(&sdev->device_busy) == 0)
 			blk_delay_queue(q, SCSI_QUEUE_DELAY);
 		break;
 	default:
@@ -1255,25 +1253,32 @@ static void scsi_unprep_fn(struct request_queue *q, struct request *req)
 static inline int scsi_dev_queue_ready(struct request_queue *q,
 				  struct scsi_device *sdev)
 {
-	if (sdev->device_busy == 0 && sdev->device_blocked) {
+	unsigned int busy;
+
+	busy = atomic_inc_return(&sdev->device_busy) - 1;
+	if (sdev->device_blocked) {
+		if (busy)
+			goto out_dec;
+
 		/*
 		 * unblock after device_blocked iterates to zero
 		 */
-		if (--sdev->device_blocked == 0) {
-			SCSI_LOG_MLQUEUE(3,
-				   sdev_printk(KERN_INFO, sdev,
-				   "unblocking device at zero depth\n"));
-		} else {
+		if (--sdev->device_blocked != 0) {
 			blk_delay_queue(q, SCSI_QUEUE_DELAY);
-			return 0;
+			goto out_dec;
 		}
+		SCSI_LOG_MLQUEUE(3, sdev_printk(KERN_INFO, sdev,
+				   "unblocking device at zero depth\n"));
 	}
-	if (scsi_device_is_busy(sdev))
-		return 0;
+
+	if (busy >= sdev->queue_depth)
+		goto out_dec;
 
 	return 1;
+out_dec:
+	atomic_dec(&sdev->device_busy);
+	return 0;
 }
-
 
 /*
  * scsi_target_queue_ready: checks if there we can send commands to target
@@ -1448,7 +1453,7 @@ static void scsi_kill_request(struct request *req, struct request_queue *q)
 	 * bump busy counts.  To bump the counters, we need to dance
 	 * with the locks as normal issue path does.
 	 */
-	sdev->device_busy++;
+	atomic_inc(&sdev->device_busy);
 	atomic_inc(&shost->host_busy);
 	atomic_inc(&starget->target_busy);
 
@@ -1544,7 +1549,7 @@ static void scsi_request_fn(struct request_queue *q)
 		 * accept it.
 		 */
 		req = blk_peek_request(q);
-		if (!req || !scsi_dev_queue_ready(q, sdev))
+		if (!req)
 			break;
 
 		if (unlikely(!scsi_device_online(sdev))) {
@@ -1554,13 +1559,14 @@ static void scsi_request_fn(struct request_queue *q)
 			continue;
 		}
 
+		if (!scsi_dev_queue_ready(q, sdev))
+			break;
 
 		/*
 		 * Remove the request from the request list.
 		 */
 		if (!(blk_queue_tagged(q) && !blk_queue_start_tag(q, req)))
 			blk_start_request(req);
-		sdev->device_busy++;
 
 		spin_unlock_irq(q->queue_lock);
 		cmd = req->special;
@@ -1630,9 +1636,9 @@ static void scsi_request_fn(struct request_queue *q)
 	 */
 	spin_lock_irq(q->queue_lock);
 	blk_requeue_request(q, req);
-	sdev->device_busy--;
+	atomic_dec(&sdev->device_busy);
 out_delay:
-	if (sdev->device_busy == 0 && !scsi_device_blocked(sdev))
+	if (atomic_read(&sdev->device_busy) && !scsi_device_blocked(sdev))
 		blk_delay_queue(q, SCSI_QUEUE_DELAY);
 }
 
@@ -2371,7 +2377,7 @@ scsi_device_quiesce(struct scsi_device *sdev)
 		return err;
 
 	scsi_run_queue(sdev->request_queue);
-	while (sdev->device_busy) {
+	while (atomic_read(&sdev->device_busy)) {
 		msleep_interruptible(200);
 		scsi_run_queue(sdev->request_queue);
 	}
