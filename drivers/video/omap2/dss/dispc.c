@@ -101,6 +101,8 @@ static struct {
 	void __iomem    *base;
 
 	int irq;
+	irq_handler_t user_handler;
+	void *user_data;
 
 	unsigned long core_clk_rate;
 	unsigned long tv_pclk_rate;
@@ -113,6 +115,8 @@ static struct {
 	u32		ctx[DISPC_SZ_REGS / sizeof(u32)];
 
 	const struct dispc_features *feat;
+
+	bool is_enabled;
 } dispc;
 
 enum omap_color_component {
@@ -3669,16 +3673,44 @@ static int __init dispc_init_features(struct platform_device *pdev)
 	return 0;
 }
 
+static irqreturn_t dispc_irq_handler(int irq, void *arg)
+{
+	if (!dispc.is_enabled)
+		return IRQ_NONE;
+
+	return dispc.user_handler(irq, dispc.user_data);
+}
+
 int dispc_request_irq(irq_handler_t handler, void *dev_id)
 {
-	return devm_request_irq(&dispc.pdev->dev, dispc.irq, handler,
-			     IRQF_SHARED, "OMAP DISPC", dev_id);
+	int r;
+
+	if (dispc.user_handler != NULL)
+		return -EBUSY;
+
+	dispc.user_handler = handler;
+	dispc.user_data = dev_id;
+
+	/* ensure the dispc_irq_handler sees the values above */
+	smp_wmb();
+
+	r = devm_request_irq(&dispc.pdev->dev, dispc.irq, dispc_irq_handler,
+			     IRQF_SHARED, "OMAP DISPC", &dispc);
+	if (r) {
+		dispc.user_handler = NULL;
+		dispc.user_data = NULL;
+	}
+
+	return r;
 }
 EXPORT_SYMBOL(dispc_request_irq);
 
 void dispc_free_irq(void *dev_id)
 {
-	devm_free_irq(&dispc.pdev->dev, dispc.irq, dev_id);
+	devm_free_irq(&dispc.pdev->dev, dispc.irq, &dispc);
+
+	dispc.user_handler = NULL;
+	dispc.user_data = NULL;
 }
 EXPORT_SYMBOL(dispc_free_irq);
 
@@ -3750,6 +3782,12 @@ static int __exit omap_dispchw_remove(struct platform_device *pdev)
 
 static int dispc_runtime_suspend(struct device *dev)
 {
+	dispc.is_enabled = false;
+	/* ensure the dispc_irq_handler sees the is_enabled value */
+	smp_wmb();
+	/* wait for current handler to finish before turning the DISPC off */
+	synchronize_irq(dispc.irq);
+
 	dispc_save_context();
 
 	return 0;
@@ -3763,12 +3801,15 @@ static int dispc_runtime_resume(struct device *dev)
 	 * _omap_dispc_initial_config(). We can thus use it to detect if
 	 * we have lost register context.
 	 */
-	if (REG_GET(DISPC_CONFIG, 2, 1) == OMAP_DSS_LOAD_FRAME_ONLY)
-		return 0;
+	if (REG_GET(DISPC_CONFIG, 2, 1) != OMAP_DSS_LOAD_FRAME_ONLY) {
+		_omap_dispc_initial_config();
 
-	_omap_dispc_initial_config();
+		dispc_restore_context();
+	}
 
-	dispc_restore_context();
+	dispc.is_enabled = true;
+	/* ensure the dispc_irq_handler sees the is_enabled value */
+	smp_wmb();
 
 	return 0;
 }
