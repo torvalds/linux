@@ -525,7 +525,7 @@ out:
 static s32 igb_get_invariants_82575(struct e1000_hw *hw)
 {
 	struct e1000_mac_info *mac = &hw->mac;
-	struct e1000_dev_spec_82575 * dev_spec = &hw->dev_spec._82575;
+	struct e1000_dev_spec_82575 *dev_spec = &hw->dev_spec._82575;
 	s32 ret_val;
 	u32 ctrl_ext = 0;
 	u32 link_mode = 0;
