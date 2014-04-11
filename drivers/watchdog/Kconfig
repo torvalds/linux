@@ -379,6 +379,7 @@ config IMX2_WDT
 	tristate "IMX2+ Watchdog"
 	depends on ARCH_MXC
 	select REGMAP_MMIO
+	select WATCHDOG_CORE
 	help
 	  This is the driver for the hardware watchdog
 	  on the Freescale IMX2 and later processors.
