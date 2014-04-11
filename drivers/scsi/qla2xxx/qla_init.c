@@ -1476,6 +1476,7 @@ qla2x00_alloc_fw_dump(scsi_qla_host_t *vha)
 	}
 
 	ha->fw_dumped = 0;
+	ha->fw_dump_cap_flags = 0;
 	dump_size = fixed_size = mem_size = eft_size = fce_size = mq_size = 0;
 	req_q_size = rsp_q_size = 0;
 

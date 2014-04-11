@@ -516,7 +516,7 @@ qla27xx_fwdt_entry_t265(struct scsi_qla_host *vha,
 	ql_dbg(ql_dbg_misc, vha, 0xd209,
 	    "%s: pause risc [%lx]\n", __func__, *len);
 	if (buf)
-		qla24xx_pause_risc(reg);
+		qla24xx_pause_risc(reg, vha->hw);
 
 	return false;
 }

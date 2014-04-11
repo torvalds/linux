@@ -3147,6 +3147,13 @@ struct qla_hw_data {
 	struct qla2xxx_fw_dump *fw_dump;
 	uint32_t	fw_dump_len;
 	int		fw_dumped;
+	unsigned long	fw_dump_cap_flags;
+#define RISC_PAUSE_CMPL		0
+#define DMA_SHUTDOWN_CMPL	1
+#define ISP_RESET_CMPL		2
+#define RISC_RDY_AFT_RESET	3
+#define RISC_SRAM_DUMP_CMPL	4
+#define RISC_EXT_MEM_DUMP_CMPL	5
 	int		fw_dump_reading;
 	int		prev_minidump_failed;
 	dma_addr_t	eft_dma;
