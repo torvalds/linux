@@ -1,0 +1,188 @@
+/*
+ * RockChip. lq070m1sx01
+ *
+ */
+
+/ {
+		/* about mipi */
+		disp_mipi_init: mipi_dsi_init{
+					rockchip,screen_init	= <1>;
+					rockchip,dsi_lane		= <4>;
+					rockchip,dsi_hs_clk		= <950>;
+					rockchip,mipi_dsi_num	= <2>;
+		};
+		disp_mipi_power_ctr: mipi_power_ctr {
+					mipi_lcd_rst:mipi_lcd_rst{
+							rockchip,gpios = <&gpio7 GPIO_B2 GPIO_ACTIVE_LOW>;
+							rockchip,delay = <100>;
+					};
+					/*mipi_lcd_en:mipi_lcd_en {
+							rockchip,gpios = <&gpio6 GPIO_A7 GPIO_ACTIVE_HIGH>;
+							rockchip,delay = <10>;
+					};*/
+		};
+		disp_mipi_init_cmds: screen-on-cmds {
+					rockchip,cmd_debug = <0>;
+					rockchip,on-cmds1 {
+							rockchip,cmd_type = <LPDT>;
+							rockchip,data_type = <DATA_TYPE_DCS>;
+							rockchip,dsi_id = <2>;
+							rockchip,cmd = <0x01>; //set soft reset
+							rockchip,cmd_delay = <10>;
+					};
+					
+					rockchip,on-cmds2 {
+							rockchip,cmd_type = <LPDT>;
+							rockchip,data_type = <DATA_TYPE_DCS>;
+							rockchip,dsi_id = <2>;
+							rockchip,cmd = <0x3a 0x77>;
+							rockchip,cmd_delay = <0>;
+					};
+					/*rockchip,on-cmds3 {
+							rockchip,cmd_type = <LPDT>;
+							rockchip,data_type = <DATA_TYPE_DCS>;
+							rockchip,dsi_id = <2>;
+							rockchip,cmd = <0x2a 0x00 0x00 0x04 0xff>;
+							rockchip,cmd_delay = <0>;
+					};
+					rockchip,on-cmds4 {
+							rockchip,cmd_type = <LPDT>;
+							rockchip,data_type = <DATA_TYPE_DCS>;
+							rockchip,dsi_id = <2>;
+							rockchip,cmd = <0x2b 0x00 0x00 0x06 0x3f>;
+							rockchip,cmd_delay = <0>;
+					};
+					rockchip,on-cmds5 {
+							rockchip,cmd_type = <LPDT>;
+							rockchip,data_type = <DATA_TYPE_DCS>;
+							rockchip,dsi_id = <1>;
+							rockchip,cmd = <0x35 0x00>;
+							rockchip,cmd_delay = <0>;
+					};
+					rockchip,on-cmds6 {
+							rockchip,cmd_type = <LPDT>;
+							rockchip,data_type = <DATA_TYPE_DCS>;
+							rockchip,dsi_id = <1>;
+							rockchip,cmd = <0x44 0x00 0x00>;
+							rockchip,cmd_delay = <0>;
+					};*/
+					rockchip,on-cmds7 {
+							rockchip,cmd_type = <LPDT>;
+							rockchip,data_type = <DATA_TYPE_DCS>;
+							rockchip,dsi_id = <2>;
+							rockchip,cmd = <0x51 0xff>; //0xff
+							rockchip,cmd_delay = <0>;
+					};
+					rockchip,on-cmds8 {
+							rockchip,cmd_type = <LPDT>;
+							rockchip,data_type = <DATA_TYPE_DCS>;
+							rockchip,dsi_id = <2>;
+							rockchip,cmd = <0x53 0x24>;
+							rockchip,cmd_delay = <0>;
+					};
+					rockchip,on-cmds9 {
+							rockchip,cmd_type = <LPDT>;
+							rockchip,data_type = <DATA_TYPE_DCS>;
+							rockchip,dsi_id = <2>;
+							rockchip,cmd = <0x51 0xff>; //0xff
+							rockchip,cmd_delay = <0>;
+					};
+					rockchip,on-cmds10 {
+							rockchip,cmd_type = <LPDT>;
+							rockchip,data_type = <DATA_TYPE_DCS>;
+							rockchip,dsi_id = <2>;
+							rockchip,cmd = <0x53 0x24>;
+							rockchip,cmd_delay = <0>;
+					};
+
+					rockchip,on-cmds11 {
+							rockchip,cmd_type = <LPDT>;
+							rockchip,data_type = <DATA_TYPE_DCS>;
+							rockchip,dsi_id = <2>;
+							rockchip,cmd = <0x55 0x03>;
+							rockchip,cmd_delay = <0>;
+					};			
+					rockchip,on-cmds12 {
+							rockchip,cmd_type = <LPDT>;
+							rockchip,data_type = <DATA_TYPE_DCS>;
+							rockchip,dsi_id = <2>;
+							rockchip,cmd = <dcs_exit_sleep_mode>;
+							rockchip,cmd_delay = <100>;
+					};
+
+					rockchip,on-cmds13 {
+							rockchip,cmd_type = <LPDT>;
+							rockchip,data_type = <DATA_TYPE_GEN>;
+							rockchip,dsi_id = <2>;
+							rockchip,cmd = <0xb0 0x00>;
+							rockchip,cmd_delay = <0>;
+					};
+				
+					rockchip,on-cmds14 { //video
+							rockchip,cmd_type = <LPDT>;
+							rockchip,data_type = <DATA_TYPE_GEN>;
+							rockchip,dsi_id = <2>;
+							rockchip,cmd = <0xb3 0x1c>;
+							rockchip,cmd_delay = <0>;
+					};
+								
+					rockchip,on-cmds15 {
+							rockchip,cmd_type = <LPDT>;
+							rockchip,data_type = <DATA_TYPE_GEN>;
+							rockchip,dsi_id = <2>;
+							rockchip,cmd = <0xce 0x7d 0x40 0x48 0x56 0x67 0x78 0x88 0x98 0xa7 0xb5 0xc3 0xd1 0xde 0xe9 0xf2 0xfa 0xff 0x04 0x00>;
+							rockchip,cmd_delay = <0>;
+					};
+					rockchip,on-cmds16 {
+							rockchip,cmd_type = <LPDT>;
+							rockchip,data_type = <DATA_TYPE_GEN>;
+							rockchip,dsi_id = <2>;
+							rockchip,cmd = <0xb0 0x03>;
+							rockchip,cmd_delay = <0>;
+					};
+					rockchip,on-cmds17 {
+							rockchip,cmd_type = <LPDT>;
+							rockchip,data_type = <DATA_TYPE_DCS>;
+							rockchip,dsi_id = <2>;
+							rockchip,cmd = <0x2c >;
+							rockchip,cmd_delay = <0>;
+					};
+
+					rockchip,on-cmds18 {
+							rockchip,cmd_type = <LPDT>;
+							rockchip,data_type = <DATA_TYPE_DCS>;
+							rockchip,dsi_id = <2>;
+							rockchip,cmd = <dcs_set_display_on>;
+							rockchip,cmd_delay = <10>;
+					};
+
+		};
+
+		disp_timings: display-timings {
+                        native-mode = <&timing0>;
+                        timing0: timing0 {
+				screen-type = <SCREEN_DUAL_MIPI>;
+				lvds-format = <LVDS_8BIT_2>;
+				out-face    = <OUT_P888>;
+				clock-frequency = <280000000>;
+				hactive = <2560>;
+				vactive = <1600>;
+				
+				hsync-len = <38>;//19
+				hback-porch = <80>;//40
+				hfront-porch = <246>;//123
+				
+				vsync-len = <4>;
+				vback-porch = <4>;
+				vfront-porch = <12>;
+				
+				hsync-active = <0>;
+				vsync-active = <0>;
+				de-active = <0>;
+				pixelclk-active = <0>;
+				swap-rb = <0>;
+				swap-rg = <0>;
+				swap-gb = <0>;
+                     	};
+               };
+};
