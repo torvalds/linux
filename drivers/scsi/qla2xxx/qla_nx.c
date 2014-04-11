@@ -3682,8 +3682,10 @@ qla82xx_chip_reset_cleanup(scsi_qla_host_t *vha)
 			for (cnt = 1; cnt < req->num_outstanding_cmds; cnt++) {
 				sp = req->outstanding_cmds[cnt];
 				if (sp) {
-					if (!sp->u.scmd.ctx ||
-					    (sp->flags & SRB_FCP_CMND_DMA_VALID)) {
+					if ((!sp->u.scmd.ctx ||
+					    (sp->flags &
+						SRB_FCP_CMND_DMA_VALID)) &&
+						!ha->flags.isp82xx_fw_hung) {
 						spin_unlock_irqrestore(
 						    &ha->hardware_lock, flags);
 						if (ha->isp_ops->abort_command(sp)) {
