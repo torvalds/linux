@@ -2124,6 +2124,13 @@ qla8044_watchdog(struct scsi_qla_host *vha)
 	    test_bit(FCOE_CTX_RESET_NEEDED, &vha->dpc_flags))) {
 		dev_state = qla8044_rd_direct(vha, QLA8044_CRB_DEV_STATE_INDEX);
 
+		if (qla8044_check_fw_alive(vha)) {
+			ha->flags.isp82xx_fw_hung = 1;
+			ql_log(ql_log_warn, vha, 0xb10a,
+			    "Firmware hung.\n");
+			qla82xx_clear_pending_mbx(vha);
+		}
+
 		if (qla8044_check_temp(vha)) {
 			set_bit(ISP_UNRECOVERABLE, &vha->dpc_flags);
 			ha->flags.isp82xx_fw_hung = 1;
@@ -2144,7 +2151,7 @@ qla8044_watchdog(struct scsi_qla_host *vha)
 			qla2xxx_wake_dpc(vha);
 		} else  {
 			/* Check firmware health */
-			if (qla8044_check_fw_alive(vha)) {
+			if (ha->flags.isp82xx_fw_hung) {
 				halt_status = qla8044_rd_direct(vha,
 					QLA8044_PEG_HALT_STATUS1_INDEX);
 				if (halt_status &
@@ -2180,12 +2187,8 @@ qla8044_watchdog(struct scsi_qla_host *vha)
 						    __func__);
 						set_bit(ISP_ABORT_NEEDED,
 						    &vha->dpc_flags);
-						qla82xx_clear_pending_mbx(vha);
 					}
 				}
-				ha->flags.isp82xx_fw_hung = 1;
-				ql_log(ql_log_warn, vha, 0xb10a,
-				    "Firmware hung.\n");
 				qla2xxx_wake_dpc(vha);
 			}
 		}
