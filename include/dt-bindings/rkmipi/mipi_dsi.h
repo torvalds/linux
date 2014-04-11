@@ -21,6 +21,10 @@ drivers/video/rockchip/transmitter/mipi_dsi.h
 #define HSDT			0x00
 #define LPDT			0x01
 
+//DSI DATA TYPE FLAG
+#define DATA_TYPE_DCS			0x00
+#define DATA_TYPE_GEN			0x01
+
 //Video Mode
 #define VM_NBMWSP		0x00  //Non burst mode with sync pulses
 #define VM_NBMWSE		0x01  //Non burst mode with sync events
