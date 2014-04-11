@@ -234,7 +234,6 @@ EXPORT_SYMBOL(drm_primary_helper_disable);
  */
 void drm_primary_helper_destroy(struct drm_plane *plane)
 {
-	plane->funcs->disable_plane(plane);
 	drm_plane_cleanup(plane);
 	kfree(plane);
 }
