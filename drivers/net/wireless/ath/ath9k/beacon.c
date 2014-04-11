@@ -312,10 +312,9 @@ static void ath9k_csa_update_vif(void *data, u8 *mac, struct ieee80211_vif *vif)
 
 void ath9k_csa_update(struct ath_softc *sc)
 {
-	ieee80211_iterate_active_interfaces(sc->hw,
-					    IEEE80211_IFACE_ITER_NORMAL,
-					    ath9k_csa_update_vif,
-					    sc);
+	ieee80211_iterate_active_interfaces_atomic(sc->hw,
+						   IEEE80211_IFACE_ITER_NORMAL,
+						   ath9k_csa_update_vif, sc);
 }
 
 void ath9k_beacon_tasklet(unsigned long data)
