@@ -2885,6 +2885,7 @@ skip_dpc:
 
 	base_vha->flags.init_done = 1;
 	base_vha->flags.online = 1;
+	ha->prev_minidump_failed = 0;
 
 	ql_dbg(ql_dbg_init, base_vha, 0x00f2,
 	    "Init done and hba is online.\n");

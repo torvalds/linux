@@ -3141,6 +3141,7 @@ struct qla_hw_data {
 	uint32_t	fw_dump_len;
 	int		fw_dumped;
 	int		fw_dump_reading;
+	int		prev_minidump_failed;
 	dma_addr_t	eft_dma;
 	void		*eft;
 /* Current size of mctp dump is 0x086064 bytes */

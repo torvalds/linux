@@ -3142,18 +3142,18 @@ qla82xx_check_md_needed(scsi_qla_host_t *vha)
 
 	if (ql2xmdenable) {
 		if (!ha->fw_dumped) {
-			if (fw_major_version != ha->fw_major_version ||
+			if ((fw_major_version != ha->fw_major_version ||
 			    fw_minor_version != ha->fw_minor_version ||
-			    fw_subminor_version != ha->fw_subminor_version) {
+			    fw_subminor_version != ha->fw_subminor_version) ||
+			    (ha->prev_minidump_failed)) {
 				ql_dbg(ql_dbg_p3p, vha, 0xb02d,
-				    "Firmware version differs "
-				    "Previous version: %d:%d:%d - "
-				    "New version: %d:%d:%d\n",
+				    "Firmware version differs Previous version: %d:%d:%d - New version: %d:%d:%d, prev_minidump_failed: %d.\n",
 				    fw_major_version, fw_minor_version,
 				    fw_subminor_version,
 				    ha->fw_major_version,
 				    ha->fw_minor_version,
-				    ha->fw_subminor_version);
+				    ha->fw_subminor_version,
+				    ha->prev_minidump_failed);
 				/* Release MiniDump resources */
 				qla82xx_md_free(vha);
 				/* ALlocate MiniDump resources */

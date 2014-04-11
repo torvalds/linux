@@ -3125,6 +3125,7 @@ skip_nxt_entry:
 		    "Dump data mismatch: Data collected: "
 		    "[0x%x], total_data_size:[0x%x]\n",
 		    data_collected, ha->md_dump_size);
+		rval = QLA_FUNCTION_FAILED;
 		goto md_failed;
 	}
 
@@ -3149,10 +3150,12 @@ qla8044_get_minidump(struct scsi_qla_host *vha)
 
 	if (!qla8044_collect_md_data(vha)) {
 		ha->fw_dumped = 1;
+		ha->prev_minidump_failed = 0;
 	} else {
 		ql_log(ql_log_fatal, vha, 0xb0db,
 		    "%s: Unable to collect minidump\n",
 		    __func__);
+		ha->prev_minidump_failed = 1;
 	}
 }
 
