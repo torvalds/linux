@@ -2397,8 +2397,6 @@ qla8044_minidump_process_rdmem(struct scsi_qla_host *vha,
 		}
 
 		if (j >= MAX_CTL_CHECK) {
-			printk_ratelimited(KERN_ERR
-			    "%s: failed to read through agent\n", __func__);
 			write_unlock_irqrestore(&ha->hw_lock, flags);
 			return QLA_SUCCESS;
 		}
