@@ -613,7 +613,7 @@ qla27xx_fwdt_entry_t270(struct scsi_qla_host *vha,
 		qla27xx_write_reg(reg, 0xc0, addr|0x80000000, buf);
 		qla27xx_insert32(addr, buf, len);
 		qla27xx_read_off(reg, 0xc4, buf, len);
-		addr++;
+		addr += sizeof(uint32_t);
 	}
 
 	return false;
