@@ -300,7 +300,8 @@ static int mpc512x_psc_spi_msg_xfer(struct spi_master *master,
 	}
 
 	m->status = status;
-	m->complete(m->context);
+	if (m->complete)
+		m->complete(m->context);
 
 	if (status || !cs_change)
 		mpc512x_psc_spi_deactivate_cs(spi);

@@ -441,7 +441,8 @@ static void fsl_espi_do_one_msg(struct spi_message *m)
 
 	m->actual_length = espi_trans.actual_length;
 	m->status = espi_trans.status;
-	m->complete(m->context);
+	if (m->complete)
+		m->complete(m->context);
 }
 
 static int fsl_espi_setup(struct spi_device *spi)
