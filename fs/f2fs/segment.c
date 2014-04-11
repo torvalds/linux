@@ -243,9 +243,7 @@ int f2fs_issue_flush(struct f2fs_sb_info *sbi)
 	if (!test_opt(sbi, FLUSH_MERGE))
 		return blkdev_issue_flush(sbi->sb->s_bdev, GFP_KERNEL, NULL);
 
-	cmd = f2fs_kmem_cache_alloc(flush_cmd_slab, GFP_ATOMIC);
-	cmd->next = NULL;
-	cmd->ret = 0;
+	cmd = f2fs_kmem_cache_alloc(flush_cmd_slab, GFP_ATOMIC | __GFP_ZERO);
 	init_completion(&cmd->wait);
 
 	spin_lock(&sm_i->issue_lock);
