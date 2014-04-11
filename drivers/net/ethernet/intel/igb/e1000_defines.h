@@ -1,28 +1,25 @@
-/*******************************************************************************
-
-  Intel(R) Gigabit Ethernet Linux driver
-  Copyright(c) 2007-2014 Intel Corporation.
-
-  This program is free software; you can redistribute it and/or modify it
-  under the terms and conditions of the GNU General Public License,
-  version 2, as published by the Free Software Foundation.
-
-  This program is distributed in the hope it will be useful, but WITHOUT
-  ANY WARRANTY; without even the implied warranty of MERCHANTABILITY or
-  FITNESS FOR A PARTICULAR PURPOSE.  See the GNU General Public License for
-  more details.
-
-  You should have received a copy of the GNU General Public License along with
-  this program; if not, see <http://www.gnu.org/licenses/>.
-
-  The full GNU General Public License is included in this distribution in
-  the file called "COPYING".
-
-  Contact Information:
-  e1000-devel Mailing List <e1000-devel@lists.sourceforge.net>
-  Intel Corporation, 5200 N.E. Elam Young Parkway, Hillsboro, OR 97124-6497
-
-*******************************************************************************/
+/* Intel(R) Gigabit Ethernet Linux driver
+ * Copyright(c) 2007-2014 Intel Corporation.
+ *
+ * This program is free software; you can redistribute it and/or modify it
+ * under the terms and conditions of the GNU General Public License,
+ * version 2, as published by the Free Software Foundation.
+ *
+ * This program is distributed in the hope it will be useful, but WITHOUT
+ * ANY WARRANTY; without even the implied warranty of MERCHANTABILITY or
+ * FITNESS FOR A PARTICULAR PURPOSE.  See the GNU General Public License for
+ * more details.
+ *
+ * You should have received a copy of the GNU General Public License along with
+ * this program; if not, see <http://www.gnu.org/licenses/>.
+ *
+ * The full GNU General Public License is included in this distribution in
+ * the file called "COPYING".
+ *
+ * Contact Information:
+ * e1000-devel Mailing List <e1000-devel@lists.sourceforge.net>
+ * Intel Corporation, 5200 N.E. Elam Young Parkway, Hillsboro, OR 97124-6497
+ */
 
 #ifndef _E1000_DEFINES_H_
 #define _E1000_DEFINES_H_
@@ -307,33 +304,25 @@
 #define E1000_TCTL_RTLC   0x01000000    /* Re-transmit on late collision */
 
 /* DMA Coalescing register fields */
-#define E1000_DMACR_DMACWT_MASK         0x00003FFF /* DMA Coalescing
-							* Watchdog Timer */
-#define E1000_DMACR_DMACTHR_MASK        0x00FF0000 /* DMA Coalescing Receive
-							* Threshold */
+#define E1000_DMACR_DMACWT_MASK         0x00003FFF /* DMA Coal Watchdog Timer */
+#define E1000_DMACR_DMACTHR_MASK        0x00FF0000 /* DMA Coal Rx Threshold */
 #define E1000_DMACR_DMACTHR_SHIFT       16
-#define E1000_DMACR_DMAC_LX_MASK        0x30000000 /* Lx when no PCIe
-							* transactions */
+#define E1000_DMACR_DMAC_LX_MASK        0x30000000 /* Lx when no PCIe trans */
 #define E1000_DMACR_DMAC_LX_SHIFT       28
 #define E1000_DMACR_DMAC_EN             0x80000000 /* Enable DMA Coalescing */
 /* DMA Coalescing BMC-to-OS Watchdog Enable */
 #define E1000_DMACR_DC_BMC2OSW_EN	0x00008000
 
-#define E1000_DMCTXTH_DMCTTHR_MASK      0x00000FFF /* DMA Coalescing Transmit
-							* Threshold */
+#define E1000_DMCTXTH_DMCTTHR_MASK      0x00000FFF /* DMA Coal Tx Threshold */
 
 #define E1000_DMCTLX_TTLX_MASK          0x00000FFF /* Time to LX request */
 
-#define E1000_DMCRTRH_UTRESH_MASK       0x0007FFFF /* Receive Traffic Rate
-							* Threshold */
-#define E1000_DMCRTRH_LRPRCW            0x80000000 /* Rcv packet rate in
-							* current window */
+#define E1000_DMCRTRH_UTRESH_MASK       0x0007FFFF /* Rx Traffic Rate Thresh */
+#define E1000_DMCRTRH_LRPRCW            0x80000000 /* Rx pkt rate curr window */
 
-#define E1000_DMCCNT_CCOUNT_MASK        0x01FFFFFF /* DMA Coal Rcv Traffic
-							* Current Cnt */
+#define E1000_DMCCNT_CCOUNT_MASK        0x01FFFFFF /* DMA Coal Rx Current Cnt */
 
-#define E1000_FCRTC_RTH_COAL_MASK       0x0003FFF0 /* Flow ctrl Rcv Threshold
-							* High val */
+#define E1000_FCRTC_RTH_COAL_MASK       0x0003FFF0 /* FC Rx Thresh High val */
 #define E1000_FCRTC_RTH_COAL_SHIFT      4
 #define E1000_PCIEMISC_LX_DECISION      0x00000080 /* Lx power decision */
 
