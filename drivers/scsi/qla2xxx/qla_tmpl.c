@@ -192,6 +192,19 @@ static inline void (*qla27xx_read_vector(uint width))(void *, void *, ulong *)
 }
 
 static inline void
+qla27xx_read_off(__iomem struct device_reg_24xx *reg,
+	uint offset, void *buf, ulong *len)
+{
+	void *window = (void *)reg + offset;
+
+	if (buf) {
+		ql_dbg(ql_dbg_misc, NULL, 0xd300,
+		    "%s: @%x\n", __func__, offset);
+	}
+	qla27xx_read32(window, buf, len);
+}
+
+static inline void
 qla27xx_read_reg(__iomem struct device_reg_24xx *reg,
 	uint offset, void *buf, ulong *len)
 {
@@ -590,7 +603,6 @@ qla27xx_fwdt_entry_t270(struct scsi_qla_host *vha,
 	struct qla27xx_fwdt_entry *ent, void *buf, ulong *len)
 {
 	struct device_reg_24xx __iomem *reg = qla27xx_isp_reg(vha);
-	void *window = (void *)reg + 0xc4;
 	ulong dwords = ent->t270.count;
 	ulong addr = ent->t270.addr;
 
@@ -599,9 +611,8 @@ qla27xx_fwdt_entry_t270(struct scsi_qla_host *vha,
 	qla27xx_write_reg(reg, IOBASE_ADDR, 0x40, buf);
 	while (dwords--) {
 		qla27xx_write_reg(reg, 0xc0, addr|0x80000000, buf);
-		qla27xx_read_reg(reg, 0xc4, buf, len);
 		qla27xx_insert32(addr, buf, len);
-		qla27xx_read32(window, buf, len);
+		qla27xx_read_off(reg, 0xc4, buf, len);
 		addr++;
 	}
 
@@ -614,12 +625,12 @@ qla27xx_fwdt_entry_t271(struct scsi_qla_host *vha,
 {
 	struct device_reg_24xx __iomem *reg = qla27xx_isp_reg(vha);
 	ulong addr = ent->t271.addr;
+	ulong data = ent->t271.data;
 
 	ql_dbg(ql_dbg_misc, vha, 0xd20f,
 	    "%s: wrremreg [%lx]\n", __func__, *len);
 	qla27xx_write_reg(reg, IOBASE_ADDR, 0x40, buf);
-	qla27xx_read_reg(reg, 0xc4, buf, len);
-	qla27xx_insert32(addr, buf, len);
+	qla27xx_write_reg(reg, 0xc4, data, buf);
 	qla27xx_write_reg(reg, 0xc0, addr, buf);
 
 	return false;
