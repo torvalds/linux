@@ -5146,6 +5146,10 @@ int ci_dpm_init(struct radeon_device *rdev)
 	pi->mclk_dpm_key_disabled = 0;
 	pi->pcie_dpm_key_disabled = 0;
 
+	/* mclk dpm is unstable on some R7 260X cards */
+	if (rdev->pdev->device == 0x6658)
+		pi->mclk_dpm_key_disabled = 1;
+
 	pi->caps_sclk_ds = true;
 
 	pi->mclk_strobe_mode_threshold = 40000;
