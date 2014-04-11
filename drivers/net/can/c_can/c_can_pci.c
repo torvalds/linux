@@ -132,6 +132,8 @@ static int c_can_pci_probe(struct pci_dev *pdev,
 		goto out_free_c_can;
 	}
 
+	priv->type = c_can_pci_data->type;
+
 	/* Configure access to registers */
 	switch (c_can_pci_data->reg_align) {
 	case C_CAN_REG_ALIGN_32:
