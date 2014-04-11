@@ -518,7 +518,7 @@ void rxrpc_UDP_error_handler(struct work_struct *);
  */
 extern const char *rxrpc_pkts[];
 
-void rxrpc_data_ready(struct sock *, int);
+void rxrpc_data_ready(struct sock *);
 int rxrpc_queue_rcv_skb(struct rxrpc_call *, struct sk_buff *, bool, bool);
 void rxrpc_fast_process_packet(struct rxrpc_call *, struct sk_buff *);
 

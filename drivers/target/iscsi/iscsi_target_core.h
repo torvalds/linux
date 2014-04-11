@@ -556,7 +556,7 @@ struct iscsi_conn {
 	struct completion	rx_half_close_comp;
 	/* socket used by this connection */
 	struct socket		*sock;
-	void			(*orig_data_ready)(struct sock *, int);
+	void			(*orig_data_ready)(struct sock *);
 	void			(*orig_state_change)(struct sock *);
 #define LOGIN_FLAGS_READ_ACTIVE		1
 #define LOGIN_FLAGS_CLOSED		2

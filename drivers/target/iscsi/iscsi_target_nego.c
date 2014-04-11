@@ -375,7 +375,7 @@ static int iscsi_target_do_tx_login_io(struct iscsi_conn *conn, struct iscsi_log
 	return 0;
 }
 
-static void iscsi_target_sk_data_ready(struct sock *sk, int count)
+static void iscsi_target_sk_data_ready(struct sock *sk)
 {
 	struct iscsi_conn *conn = sk->sk_user_data;
 	bool rc;

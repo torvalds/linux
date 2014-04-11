@@ -655,7 +655,7 @@ extern void ksocknal_write_callback (ksock_conn_t *conn);
  * socket call back in Linux
  */
 static void
-ksocknal_data_ready (struct sock *sk, int n)
+ksocknal_data_ready (struct sock *sk)
 {
 	ksock_conn_t  *conn;
 
@@ -666,7 +666,7 @@ ksocknal_data_ready (struct sock *sk, int n)
 	conn = sk->sk_user_data;
 	if (conn == NULL) {	     /* raced with ksocknal_terminate_conn */
 		LASSERT (sk->sk_data_ready != &ksocknal_data_ready);
-		sk->sk_data_ready (sk, n);
+		sk->sk_data_ready (sk);
 	} else
 		ksocknal_read_callback(conn);
 

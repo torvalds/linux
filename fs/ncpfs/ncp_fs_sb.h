@@ -111,7 +111,7 @@ struct ncp_server {
 
 	spinlock_t requests_lock;	/* Lock accesses to tx.requests, tx.creq and rcv.creq when STREAM mode */
 
-	void (*data_ready)(struct sock* sk, int len);
+	void (*data_ready)(struct sock* sk);
 	void (*error_report)(struct sock* sk);
 	void (*write_space)(struct sock* sk);	/* STREAM mode only */
 	struct {
@@ -153,7 +153,7 @@ extern void ncp_tcp_tx_proc(struct work_struct *work);
 extern void ncpdgram_rcv_proc(struct work_struct *work);
 extern void ncpdgram_timeout_proc(struct work_struct *work);
 extern void ncpdgram_timeout_call(unsigned long server);
-extern void ncp_tcp_data_ready(struct sock* sk, int len);
+extern void ncp_tcp_data_ready(struct sock* sk);
 extern void ncp_tcp_write_space(struct sock* sk);
 extern void ncp_tcp_error_report(struct sock* sk);
 
