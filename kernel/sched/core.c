@@ -6024,9 +6024,6 @@ static struct sched_domain_topology_level default_topology[] = {
 #ifdef CONFIG_SCHED_MC
 	{ cpu_coregroup_mask, cpu_core_flags, SD_INIT_NAME(MC) },
 #endif
-#ifdef CONFIG_SCHED_BOOK
-	{ cpu_book_mask, SD_INIT_NAME(BOOK) },
-#endif
 	{ cpu_cpu_mask, SD_INIT_NAME(DIE) },
 	{ NULL, },
 };

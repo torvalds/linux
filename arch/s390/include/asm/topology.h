@@ -26,21 +26,12 @@ extern struct cpu_topology_s390 cpu_topology[NR_CPUS];
 
 #define mc_capable() 1
 
-static inline const struct cpumask *cpu_coregroup_mask(int cpu)
-{
-	return &cpu_topology[cpu].core_mask;
-}
-
-static inline const struct cpumask *cpu_book_mask(int cpu)
-{
-	return &cpu_topology[cpu].book_mask;
-}
-
 int topology_cpu_init(struct cpu *);
 int topology_set_cpu_management(int fc);
 void topology_schedule_update(void);
 void store_topology(struct sysinfo_15_1_x *info);
 void topology_expect_change(void);
+const struct cpumask *cpu_coregroup_mask(int cpu);
 
 #else /* CONFIG_SCHED_BOOK */
 
