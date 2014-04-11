@@ -2266,7 +2266,7 @@ static int get_raid56_logic_offset(u64 physical, int num,
 		rot = do_div(stripe_nr, map->num_stripes);
 		/* calculate which stripe this data locates */
 		rot += i;
-		stripe_index = do_div(rot, map->num_stripes);
+		stripe_index = rot % map->num_stripes;
 		if (stripe_index == num)
 			return 0;
 		if (stripe_index < num)
