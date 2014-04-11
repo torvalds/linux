@@ -378,6 +378,9 @@ static int c_can_handle_lost_msg_obj(struct net_device *dev,
 	priv->write_reg(priv, C_CAN_IFACE(MSGCTRL_REG, iface), ctrl);
 	c_can_object_put(dev, iface, objno, IF_COMM_CONTROL);
 
+	stats->rx_errors++;
+	stats->rx_over_errors++;
+
 	/* create an error msg */
 	skb = alloc_can_err_skb(dev, &frame);
 	if (unlikely(!skb))
@@ -385,8 +388,6 @@ static int c_can_handle_lost_msg_obj(struct net_device *dev,
 
 	frame->can_id |= CAN_ERR_CRTL;
 	frame->data[1] = CAN_ERR_CRTL_RX_OVERFLOW;
-	stats->rx_errors++;
-	stats->rx_over_errors++;
 
 	netif_receive_skb(skb);
 	return 1;
@@ -996,6 +997,10 @@ static int c_can_handle_bus_err(struct net_device *dev,
 	if (!(priv->can.ctrlmode & CAN_CTRLMODE_BERR_REPORTING))
 		return 0;
 
+	/* common for all type of bus errors */
+	priv->can.can_stats.bus_error++;
+	stats->rx_errors++;
+
 	/* propagate the error condition to the CAN stack */
 	skb = alloc_can_err_skb(dev, &cf);
 	if (unlikely(!skb))
@@ -1005,10 +1010,6 @@ static int c_can_handle_bus_err(struct net_device *dev,
 	 * check for 'last error code' which tells us the
 	 * type of the last error to occur on the CAN bus
 	 */
-
-	/* common for all type of bus errors */
-	priv->can.can_stats.bus_error++;
-	stats->rx_errors++;
 	cf->can_id |= CAN_ERR_PROT | CAN_ERR_BUSERROR;
 	cf->data[2] |= CAN_ERR_PROT_UNSPEC;
 
