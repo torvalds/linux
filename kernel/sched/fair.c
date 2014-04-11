@@ -1301,7 +1301,16 @@ static int task_numa_migrate(struct task_struct *p)
 	if (env.best_cpu == -1)
 		return -EAGAIN;
 
-	sched_setnuma(p, env.dst_nid);
+	/*
+	 * If the task is part of a workload that spans multiple NUMA nodes,
+	 * and is migrating into one of the workload's active nodes, remember
+	 * this node as the task's preferred numa node, so the workload can
+	 * settle down.
+	 * A task that migrated to a second choice node will be better off
+	 * trying for a better one later. Do not set the preferred node here.
+	 */
+	if (p->numa_group && node_isset(env.dst_nid, p->numa_group->active_nodes))
+		sched_setnuma(p, env.dst_nid);
 
 	/*
 	 * Reset the scan period if the task is being rescheduled on an
