@@ -3697,7 +3697,7 @@ qla25xx_init_req_que(struct scsi_qla_host *vha, struct req_que *req)
 	spin_lock_irqsave(&ha->hardware_lock, flags);
 	if (!(req->options & BIT_0)) {
 		WRT_REG_DWORD(req->req_q_in, 0);
-		if (!IS_QLA83XX(ha) || !IS_QLA27XX(ha))
+		if (!IS_QLA83XX(ha) && !IS_QLA27XX(ha))
 			WRT_REG_DWORD(req->req_q_out, 0);
 	}
 	spin_unlock_irqrestore(&ha->hardware_lock, flags);
