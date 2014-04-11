@@ -39,12 +39,7 @@ static const struct super_operations s_ops = {
 	.drop_inode = generic_delete_inode,
 };
 
-ssize_t gatorfs_str_to_user(char const *str, char __user *buf, size_t count, loff_t *offset)
-{
-	return simple_read_from_buffer(buf, count, offset, str, strlen(str));
-}
-
-ssize_t gatorfs_ulong_to_user(unsigned long val, char __user *buf, size_t count, loff_t *offset)
+static ssize_t gatorfs_ulong_to_user(unsigned long val, char __user *buf, size_t count, loff_t *offset)
 {
 	char tmpbuf[TMPBUFSIZE];
 	size_t maxlen = snprintf(tmpbuf, TMPBUFSIZE, "%lu\n", val);
@@ -53,7 +48,7 @@ ssize_t gatorfs_ulong_to_user(unsigned long val, char __user *buf, size_t count,
 	return simple_read_from_buffer(buf, count, offset, tmpbuf, maxlen);
 }
 
-ssize_t gatorfs_u64_to_user(u64 val, char __user *buf, size_t count, loff_t *offset)
+static ssize_t gatorfs_u64_to_user(u64 val, char __user *buf, size_t count, loff_t *offset)
 {
 	char tmpbuf[TMPBUFSIZE];
 	size_t maxlen = snprintf(tmpbuf, TMPBUFSIZE, "%llu\n", val);
@@ -62,7 +57,7 @@ ssize_t gatorfs_u64_to_user(u64 val, char __user *buf, size_t count, loff_t *off
 	return simple_read_from_buffer(buf, count, offset, tmpbuf, maxlen);
 }
 
-int gatorfs_ulong_from_user(unsigned long *val, char const __user *buf, size_t count)
+static int gatorfs_ulong_from_user(unsigned long *val, char const __user *buf, size_t count)
 {
 	char tmpbuf[TMPBUFSIZE];
 	unsigned long flags;
@@ -84,7 +79,7 @@ int gatorfs_ulong_from_user(unsigned long *val, char const __user *buf, size_t c
 	return 0;
 }
 
-int gatorfs_u64_from_user(u64 *val, char const __user *buf, size_t count)
+static int gatorfs_u64_from_user(u64 *val, char const __user *buf, size_t count)
 {
 	char tmpbuf[TMPBUFSIZE];
 	unsigned long flags;
@@ -211,8 +206,8 @@ int gatorfs_create_ulong(struct super_block *sb, struct dentry *root,
 	return 0;
 }
 
-int gatorfs_create_u64(struct super_block *sb, struct dentry *root,
-			 char const *name, u64 *val)
+static int gatorfs_create_u64(struct super_block *sb, struct dentry *root,
+			      char const *name, u64 *val)
 {
 	struct dentry *d = __gatorfs_create_file(sb, root, name,
 						 &u64_fops, 0644);
@@ -235,8 +230,8 @@ int gatorfs_create_ro_ulong(struct super_block *sb, struct dentry *root,
 	return 0;
 }
 
-int gatorfs_create_ro_u64(struct super_block *sb, struct dentry *root,
-			  char const *name, u64 * val)
+static int gatorfs_create_ro_u64(struct super_block *sb, struct dentry *root,
+				 char const *name, u64 * val)
 {
 	struct dentry *d =
 	    __gatorfs_create_file(sb, root, name, &u64_ro_fops, 0444);
@@ -258,29 +253,17 @@ static const struct file_operations atomic_ro_fops = {
 	.open = default_open,
 };
 
-int gatorfs_create_ro_atomic(struct super_block *sb, struct dentry *root,
-			     char const *name, atomic_t *val)
-{
-	struct dentry *d = __gatorfs_create_file(sb, root, name,
-						 &atomic_ro_fops, 0444);
-	if (!d)
-		return -EFAULT;
-
-	d->d_inode->i_private = val;
-	return 0;
-}
-
-int gatorfs_create_file(struct super_block *sb, struct dentry *root,
-			char const *name, const struct file_operations *fops)
+static int gatorfs_create_file(struct super_block *sb, struct dentry *root,
+			       char const *name, const struct file_operations *fops)
 {
 	if (!__gatorfs_create_file(sb, root, name, fops, 0644))
 		return -EFAULT;
 	return 0;
 }
 
-int gatorfs_create_file_perm(struct super_block *sb, struct dentry *root,
-			     char const *name,
-			     const struct file_operations *fops, int perm)
+static int gatorfs_create_file_perm(struct super_block *sb, struct dentry *root,
+				    char const *name,
+				    const struct file_operations *fops, int perm)
 {
 	if (!__gatorfs_create_file(sb, root, name, fops, perm))
 		return -EFAULT;
@@ -371,12 +354,12 @@ static struct file_system_type gatorfs_type = {
 	.kill_sb = kill_litter_super,
 };
 
-int __init gatorfs_register(void)
+static int __init gatorfs_register(void)
 {
 	return register_filesystem(&gatorfs_type);
 }
 
-void gatorfs_unregister(void)
+static void gatorfs_unregister(void)
 {
 	unregister_filesystem(&gatorfs_type);
 }

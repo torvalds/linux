@@ -207,7 +207,7 @@
     <event event="0x0400" option_set="fs" title="ARM Mali-4xx" name="Filmstrip" description="Scaled framebuffer"/>
   </category>
   <category name="ARM_Mali-4xx_Voltage" per_cpu="no">
-    <event counter="ARM_Mali-4xx_Voltage" title="Mali GPU Voltage" name="Voltage" display="average" average_selection="yes" units="mV" description="GPU core voltage."/>
+    <event counter="ARM_Mali-4xx_Voltage" title="Mali GPU Voltage" name="Voltage" class="absolute" display="average" average_selection="yes" units="mV" description="GPU core voltage."/>
   </category>
   <category name="ARM_Mali-4xx_Frequency" per_cpu="no">
     <event counter="ARM_Mali-4xx_Frequency" title="Mali GPU Frequency" name="Frequency" display="average" average_selection="yes" units="MHz" description="GPU core frequency."/>
