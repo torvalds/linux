@@ -5405,11 +5405,6 @@ int ext4_collapse_range(struct inode *inode, loff_t offset, loff_t len)
 		goto out_mutex;
 	}
 
-	if (IS_SWAPFILE(inode)) {
-		ret = -ETXTBSY;
-		goto out_mutex;
-	}
-
 	/* Currently just for extent based files */
 	if (!ext4_test_inode_flag(inode, EXT4_INODE_EXTENTS)) {
 		ret = -EOPNOTSUPP;

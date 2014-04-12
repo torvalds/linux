@@ -3542,11 +3542,6 @@ int ext4_punch_hole(struct inode *inode, loff_t offset, loff_t length)
 
 	mutex_lock(&inode->i_mutex);
 
-	if (IS_SWAPFILE(inode)) {
-		ret = -ETXTBSY;
-		goto out_mutex;
-	}
-
 	/* No need to punch hole beyond i_size */
 	if (offset >= inode->i_size)
 		goto out_mutex;
