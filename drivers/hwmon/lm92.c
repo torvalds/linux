@@ -93,9 +93,6 @@ static inline u8 ALARMS_FROM_REG(s16 reg)
 	return reg & 0x0007;
 }
 
-/* Driver data (common to all clients) */
-static struct i2c_driver lm92_driver;
-
 /* Client data (each client gets its own) */
 struct lm92_data {
 	struct device *hwmon_dev;
