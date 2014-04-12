@@ -12,12 +12,21 @@
 #include <linux/string.h>
 #include <asm/setup.h>
 
+extern void mvme16x_cons_write(struct console *co,
+			       const char *str, unsigned count);
+
 asmlinkage void __init debug_cons_nputs(const char *s, unsigned n);
 
-static void debug_cons_write(struct console *c,
-			     const char *s, unsigned n)
+static void __ref debug_cons_write(struct console *c,
+				   const char *s, unsigned n)
 {
-	debug_cons_nputs(s, n);
+#if !(defined(CONFIG_SUN3)   || defined(CONFIG_M68360) || \
+      defined(CONFIG_M68000) || defined(CONFIG_COLDFIRE))
+	if (MACH_IS_MVME16x)
+		mvme16x_cons_write(c, s, n);
+	else
+		debug_cons_nputs(s, n);
+#endif
 }
 
 static struct console early_console_instance = {
@@ -29,10 +38,6 @@ static struct console early_console_instance = {
 
 static int __init setup_early_printk(char *buf)
 {
-	/* MVME16x registers an early console after interrupt setup. */
-	if (MACH_IS_MVME16x)
-		return 0;
-
 	if (early_console || buf)
 		return 0;
 
@@ -52,7 +57,7 @@ early_param("earlyprintk", setup_early_printk);
 
 static int __init unregister_early_console(void)
 {
-	if (!early_console)
+	if (!early_console || MACH_IS_MVME16x)
 		return 0;
 
 	return unregister_console(early_console);

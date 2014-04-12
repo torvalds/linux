@@ -2936,6 +2936,15 @@ L(serial_init_not_mac):
 2:
 #endif
 
+#ifdef CONFIG_MVME16x
+	is_not_mvme16x(L(serial_init_not_mvme16x))
+	moveb	#0x10,M167_PCSCCMICR
+	moveb	#0x10,M167_PCSCCTICR
+	moveb	#0x10,M167_PCSCCRICR
+	jra	L(serial_init_done)
+L(serial_init_not_mvme16x):
+#endif
+
 #ifdef CONFIG_APOLLO
 /* We count on the PROM initializing SIO1 */
 #endif
@@ -3768,7 +3777,9 @@ M167_CYIER = 0xfff45011
 M167_CYLICR = 0xfff45026
 M167_CYTEOIR = 0xfff45085
 M167_CYTDR = 0xfff450f8
+M167_PCSCCMICR = 0xfff4201d
 M167_PCSCCTICR = 0xfff4201e
+M167_PCSCCRICR = 0xfff4201f
 M167_PCTPIACKR = 0xfff42025
 #endif
 
