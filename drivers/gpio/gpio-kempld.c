@@ -216,4 +216,4 @@ module_platform_driver(kempld_gpio_driver);
 MODULE_DESCRIPTION("KEM PLD GPIO Driver");
 MODULE_AUTHOR("Michael Brunner <michael.brunner@kontron.com>");
 MODULE_LICENSE("GPL");
-MODULE_ALIAS("platform:gpio-kempld");
+MODULE_ALIAS("platform:kempld-gpio");
