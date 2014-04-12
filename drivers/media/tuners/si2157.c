@@ -155,7 +155,7 @@ err:
 static const struct dvb_tuner_ops si2157_tuner_ops = {
 	.info = {
 		.name           = "Silicon Labs Si2157",
-		.frequency_min  = 174000000,
+		.frequency_min  = 110000000,
 		.frequency_max  = 862000000,
 	},
 
