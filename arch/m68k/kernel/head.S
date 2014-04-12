@@ -221,7 +221,7 @@
  * MMU_PRINT:	There is a routine built into head.S that can display the
  * MMU data structures.  It outputs its result through the serial_putc
  * interface.  So where ever that winds up driving data, that's where the
- * mmu struct will appear.  On the Macintosh that's typically the console.
+ * mmu struct will appear.
  *
  * SERIAL_DEBUG:	There are a series of putc() macro statements
  * scattered through out the code to give progress of status to the
@@ -249,8 +249,8 @@
  * USE_MFP:	Use the ST-MFP port (Modem1) for serial debug.
  *
  * Macintosh constants:
- * MAC_USE_SCC_A: Use SCC port A (modem) for serial debug and early console.
- * MAC_USE_SCC_B: Use SCC port B (printer) for serial debug and early console.
+ * MAC_USE_SCC_A: Use SCC port A (modem) for serial debug.
+ * MAC_USE_SCC_B: Use SCC port B (printer) for serial debug.
  */
 
 #include <linux/linkage.h>
@@ -267,26 +267,16 @@
 #include <asm/pgtable.h>
 #include <asm/page.h>
 #include <asm/asm-offsets.h>
-
 #ifdef CONFIG_MAC
-
-#include <asm/machw.h>
-
-#ifdef CONFIG_FRAMEBUFFER_CONSOLE
-#define CONSOLE_DEBUG
+#  include <asm/machw.h>
 #endif
 
 #ifdef CONFIG_EARLY_PRINTK
-#define SERIAL_DEBUG
-#else
-#undef SERIAL_DEBUG
+#  define SERIAL_DEBUG
+#  if defined(CONFIG_MAC) && defined(CONFIG_FONT_SUPPORT)
+#    define CONSOLE_DEBUG
+#  endif
 #endif
-
-#else /* !CONFIG_MAC */
-
-#define SERIAL_DEBUG
-
-#endif /* !CONFIG_MAC */
 
 #undef MMU_PRINT
 #undef MMU_NOCACHE_KERNEL
@@ -3213,21 +3203,19 @@ func_start	putn,%d0-%d2
 
 func_return	putn
 
-#ifdef CONFIG_MAC
+#ifdef CONFIG_EARLY_PRINTK
 /*
- *	mac_early_print
- *
  *	This routine takes its parameters on the stack.  It then
  *	turns around and calls the internal routines.  This routine
  *	is used by the boot console.
  *
  *	The calling parameters are:
- *		void mac_early_print(const char *str, unsigned length);
+ *		void debug_cons_nputs(const char *str, unsigned length)
  *
  *	This routine does NOT understand variable arguments only
  *	simple strings!
  */
-ENTRY(mac_early_print)
+ENTRY(debug_cons_nputs)
 	moveml	%d0/%d1/%a0,%sp@-
 	movew	%sr,%sp@-
 	ori	#0x0700,%sr
@@ -3249,7 +3237,7 @@ ENTRY(mac_early_print)
 	movew	%sp@+,%sr
 	moveml	%sp@+,%d0/%d1/%a0
 	rts
-#endif /* CONFIG_MAC */
+#endif /* CONFIG_EARLY_PRINTK */
 
 #if defined(CONFIG_HP300) || defined(CONFIG_APOLLO)
 func_start	set_leds,%d0/%a0
