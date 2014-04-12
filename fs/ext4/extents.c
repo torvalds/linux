@@ -5229,11 +5229,11 @@ ext4_ext_shift_path_extents(struct ext4_ext_path *path, ext4_lblk_t shift,
 			if (ex_start == EXT_FIRST_EXTENT(path[depth].p_hdr))
 				update = 1;
 
-			*start = ex_last->ee_block +
+			*start = le32_to_cpu(ex_last->ee_block) +
 				ext4_ext_get_actual_len(ex_last);
 
 			while (ex_start <= ex_last) {
-				ex_start->ee_block -= shift;
+				le32_add_cpu(&ex_start->ee_block, -shift);
 				if (ex_start >
 					EXT_FIRST_EXTENT(path[depth].p_hdr)) {
 					if (ext4_ext_try_to_merge_right(inode,
@@ -5255,7 +5255,7 @@ ext4_ext_shift_path_extents(struct ext4_ext_path *path, ext4_lblk_t shift,
 		if (err)
 			goto out;
 
-		path[depth].p_idx->ei_block -= shift;
+		le32_add_cpu(&path[depth].p_idx->ei_block, -shift);
 		err = ext4_ext_dirty(handle, inode, path + depth);
 		if (err)
 			goto out;
@@ -5300,7 +5300,8 @@ ext4_ext_shift_extents(struct inode *inode, handle_t *handle,
 		return ret;
 	}
 
-	stop_block = extent->ee_block + ext4_ext_get_actual_len(extent);
+	stop_block = le32_to_cpu(extent->ee_block) +
+			ext4_ext_get_actual_len(extent);
 	ext4_ext_drop_refs(path);
 	kfree(path);
 
@@ -5315,8 +5316,9 @@ ext4_ext_shift_extents(struct inode *inode, handle_t *handle,
 	path = ext4_ext_find_extent(inode, start - 1, NULL, 0);
 	depth = path->p_depth;
 	extent =  path[depth].p_ext;
-	ex_start = extent->ee_block;
-	ex_end = extent->ee_block + ext4_ext_get_actual_len(extent);
+	ex_start = le32_to_cpu(extent->ee_block);
+	ex_end = le32_to_cpu(extent->ee_block) +
+			ext4_ext_get_actual_len(extent);
 	ext4_ext_drop_refs(path);
 	kfree(path);
 
@@ -5331,7 +5333,7 @@ ext4_ext_shift_extents(struct inode *inode, handle_t *handle,
 			return PTR_ERR(path);
 		depth = path->p_depth;
 		extent = path[depth].p_ext;
-		current_block = extent->ee_block;
+		current_block = le32_to_cpu(extent->ee_block);
 		if (start > current_block) {
 			/* Hole, move to the next extent */
 			ret = mext_next_extent(inode, path, &extent);
