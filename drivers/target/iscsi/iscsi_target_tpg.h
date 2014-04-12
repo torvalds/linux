@@ -39,5 +39,6 @@ extern int iscsit_ta_demo_mode_write_protect(struct iscsi_portal_group *, u32);
 extern int iscsit_ta_prod_mode_write_protect(struct iscsi_portal_group *, u32);
 extern int iscsit_ta_demo_mode_discovery(struct iscsi_portal_group *, u32);
 extern int iscsit_ta_default_erl(struct iscsi_portal_group *, u32);
+extern int iscsit_ta_t10_pi(struct iscsi_portal_group *, u32);
 
 #endif /* ISCSI_TARGET_TPG_H */

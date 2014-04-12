@@ -94,20 +94,19 @@ struct ft_lun {
  */
 struct ft_tpg {
 	u32 index;
-	struct ft_lport_acl *lport_acl;
+	struct ft_lport_wwn *lport_wwn;
 	struct ft_tport *tport;		/* active tport or NULL */
-	struct list_head list;		/* linkage in ft_lport_acl tpg_list */
 	struct list_head lun_list;	/* head of LUNs */
 	struct se_portal_group se_tpg;
 	struct workqueue_struct *workqueue;
 };
 
-struct ft_lport_acl {
+struct ft_lport_wwn {
 	u64 wwpn;
 	char name[FT_NAMELEN];
-	struct list_head list;
-	struct list_head tpg_list;
-	struct se_wwn fc_lport_wwn;
+	struct list_head ft_wwn_node;
+	struct ft_tpg *tpg;
+	struct se_wwn se_wwn;
 };
 
 /*
@@ -128,7 +127,6 @@ struct ft_cmd {
 	u32 sg_cnt;			/* No. of item in scatterlist */
 };
 
-extern struct list_head ft_lport_list;
 extern struct mutex ft_lport_lock;
 extern struct fc4_prov ft_prov;
 extern struct target_fabric_configfs *ft_configfs;
@@ -163,6 +161,7 @@ int ft_write_pending_status(struct se_cmd *);
 u32 ft_get_task_tag(struct se_cmd *);
 int ft_get_cmd_state(struct se_cmd *);
 void ft_queue_tm_resp(struct se_cmd *);
+void ft_aborted_task(struct se_cmd *);
 
 /*
  * other internal functions.

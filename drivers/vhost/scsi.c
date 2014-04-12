@@ -539,6 +539,11 @@ static void tcm_vhost_queue_tm_rsp(struct se_cmd *se_cmd)
 	return;
 }
 
+static void tcm_vhost_aborted_task(struct se_cmd *se_cmd)
+{
+	return;
+}
+
 static void tcm_vhost_free_evt(struct vhost_scsi *vs, struct tcm_vhost_evt *evt)
 {
 	vs->vs_events_nr--;
@@ -1740,7 +1745,8 @@ static int tcm_vhost_make_nexus(struct tcm_vhost_tpg *tpg,
 	 */
 	tv_nexus->tvn_se_sess = transport_init_session_tags(
 					TCM_VHOST_DEFAULT_TAGS,
-					sizeof(struct tcm_vhost_cmd));
+					sizeof(struct tcm_vhost_cmd),
+					TARGET_PROT_NORMAL);
 	if (IS_ERR(tv_nexus->tvn_se_sess)) {
 		mutex_unlock(&tpg->tv_tpg_mutex);
 		kfree(tv_nexus);
@@ -2131,6 +2137,7 @@ static struct target_core_fabric_ops tcm_vhost_ops = {
 	.queue_data_in			= tcm_vhost_queue_data_in,
 	.queue_status			= tcm_vhost_queue_status,
 	.queue_tm_rsp			= tcm_vhost_queue_tm_rsp,
+	.aborted_task			= tcm_vhost_aborted_task,
 	/*
 	 * Setup callers for generic logic in target_core_fabric_configfs.c
 	 */
