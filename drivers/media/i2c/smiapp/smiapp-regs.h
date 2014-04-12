@@ -34,11 +34,6 @@
 #define SMIA_REG_8BIT			1
 #define SMIA_REG_16BIT			2
 #define SMIA_REG_32BIT			4
-struct smia_reg {
-	u16 type;
-	u16 reg;			/* 16-bit offset */
-	u32 val;			/* 8/16/32-bit value */
-};
 
 struct smiapp_sensor;
 
