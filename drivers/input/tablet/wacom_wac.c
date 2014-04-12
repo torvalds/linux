@@ -1838,7 +1838,7 @@ int wacom_setup_input_capabilities(struct input_dev *input_dev,
 	case DTU:
 		if (features->type == DTUS) {
 			input_set_capability(input_dev, EV_MSC, MSC_SERIAL);
-			for (i = 0; i < 3; i++)
+			for (i = 0; i < 4; i++)
 				__set_bit(BTN_0 + i, input_dev->keybit);
 		}
 		__set_bit(BTN_TOOL_PEN, input_dev->keybit);
