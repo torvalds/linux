@@ -1186,7 +1186,6 @@ static struct dentry *mount_subvol(const char *subvol_name, int flags,
 		return ERR_PTR(-ENOMEM);
 	mnt = vfs_kern_mount(&btrfs_fs_type, flags, device_name,
 			     newargs);
-	kfree(newargs);
 
 	if (PTR_RET(mnt) == -EBUSY) {
 		if (flags & MS_RDONLY) {
@@ -1196,16 +1195,21 @@ static struct dentry *mount_subvol(const char *subvol_name, int flags,
 			int r;
 			mnt = vfs_kern_mount(&btrfs_fs_type, flags | MS_RDONLY, device_name,
 					     newargs);
-			if (IS_ERR(mnt))
+			if (IS_ERR(mnt)) {
+				kfree(newargs);
 				return ERR_CAST(mnt);
+			}
 
 			r = btrfs_remount(mnt->mnt_sb, &flags, NULL);
 			if (r < 0) {
 				/* FIXME: release vfsmount mnt ??*/
+				kfree(newargs);
 				return ERR_PTR(r);
 			}
 		}
 	}
+
+	kfree(newargs);
 
 	if (IS_ERR(mnt))
 		return ERR_CAST(mnt);
