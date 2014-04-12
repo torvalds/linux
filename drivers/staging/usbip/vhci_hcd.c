@@ -788,7 +788,7 @@ static void vhci_shutdown_connection(struct usbip_device *ud)
 
 	/* active connection is closed */
 	if (vdev->ud.tcp_socket) {
-		fput(vdev->ud.tcp_socket->file);
+		sockfd_put(vdev->ud.tcp_socket);
 		vdev->ud.tcp_socket = NULL;
 	}
 	pr_info("release socket\n");
@@ -835,7 +835,7 @@ static void vhci_device_reset(struct usbip_device *ud)
 	vdev->udev = NULL;
 
 	if (ud->tcp_socket) {
-		fput(ud->tcp_socket->file);
+		sockfd_put(ud->tcp_socket);
 		ud->tcp_socket = NULL;
 	}
 	ud->status = VDEV_ST_NULL;

@@ -601,7 +601,7 @@ ceph_sync_direct_write(struct kiocb *iocb, const struct iovec *iov,
 					    false);
 		if (IS_ERR(req)) {
 			ret = PTR_ERR(req);
-			goto out;
+			break;
 		}
 
 		num_pages = calc_pages_for(page_align, len);
@@ -719,7 +719,7 @@ static ssize_t ceph_sync_write(struct kiocb *iocb, const struct iovec *iov,
 					    false);
 		if (IS_ERR(req)) {
 			ret = PTR_ERR(req);
-			goto out;
+			break;
 		}
 
 		/*
@@ -972,6 +972,7 @@ retry_snap:
 		}
 	} else {
 		loff_t old_size = inode->i_size;
+		struct iov_iter from;
 		/*
 		 * No need to acquire the i_truncate_mutex. Because
 		 * the MDS revokes Fwb caps before sending truncate
@@ -979,9 +980,10 @@ retry_snap:
 		 * are pending vmtruncate. So write and vmtruncate
 		 * can not run at the same time
 		 */
-		written = generic_file_buffered_write(iocb, iov, nr_segs,
-						      pos, &iocb->ki_pos,
-						      count, 0);
+		iov_iter_init(&from, iov, nr_segs, count, 0);
+		written = generic_perform_write(file, &from, pos);
+		if (likely(written >= 0))
+			iocb->ki_pos = pos + written;
 		if (inode->i_size > old_size)
 			ceph_fscache_update_objectsize(inode);
 		mutex_unlock(&inode->i_mutex);

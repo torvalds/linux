@@ -2367,15 +2367,18 @@ relock:
 
 	if (direct_io) {
 		written = generic_file_direct_write(iocb, iov, &nr_segs, *ppos,
-						    ppos, count, ocount);
+						    count, ocount);
 		if (written < 0) {
 			ret = written;
 			goto out_dio;
 		}
 	} else {
+		struct iov_iter from;
+		iov_iter_init(&from, iov, nr_segs, count, 0);
 		current->backing_dev_info = file->f_mapping->backing_dev_info;
-		written = generic_file_buffered_write(iocb, iov, nr_segs, *ppos,
-						      ppos, count, 0);
+		written = generic_perform_write(file, &from, *ppos);
+		if (likely(written >= 0))
+			iocb->ki_pos = *ppos + written;
 		current->backing_dev_info = NULL;
 	}
 

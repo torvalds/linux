@@ -699,7 +699,7 @@ xfs_file_dio_aio_write(
 
 	trace_xfs_file_direct_write(ip, count, iocb->ki_pos, 0);
 	ret = generic_file_direct_write(iocb, iovp,
-			&nr_segs, pos, &iocb->ki_pos, count, ocount);
+			&nr_segs, pos, count, ocount);
 
 out:
 	xfs_rw_iunlock(ip, iolock);
@@ -715,7 +715,7 @@ xfs_file_buffered_aio_write(
 	const struct iovec	*iovp,
 	unsigned long		nr_segs,
 	loff_t			pos,
-	size_t			ocount)
+	size_t			count)
 {
 	struct file		*file = iocb->ki_filp;
 	struct address_space	*mapping = file->f_mapping;
@@ -724,7 +724,7 @@ xfs_file_buffered_aio_write(
 	ssize_t			ret;
 	int			enospc = 0;
 	int			iolock = XFS_IOLOCK_EXCL;
-	size_t			count = ocount;
+	struct iov_iter		from;
 
 	xfs_rw_ilock(ip, iolock);
 
@@ -732,14 +732,15 @@ xfs_file_buffered_aio_write(
 	if (ret)
 		goto out;
 
+	iov_iter_init(&from, iovp, nr_segs, count, 0);
 	/* We can write back this queue in page reclaim */
 	current->backing_dev_info = mapping->backing_dev_info;
 
 write_retry:
 	trace_xfs_file_buffered_write(ip, count, iocb->ki_pos, 0);
-	ret = generic_file_buffered_write(iocb, iovp, nr_segs,
-			pos, &iocb->ki_pos, count, 0);
-
+	ret = generic_perform_write(file, &from, pos);
+	if (likely(ret >= 0))
+		iocb->ki_pos = pos + ret;
 	/*
 	 * If we just got an ENOSPC, try to write back all dirty inodes to
 	 * convert delalloc space to free up some of the excess reserved

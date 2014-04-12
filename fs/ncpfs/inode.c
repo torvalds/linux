@@ -470,9 +470,7 @@ static int ncp_fill_super(struct super_block *sb, void *raw_data, int silent)
 {
 	struct ncp_mount_data_kernel data;
 	struct ncp_server *server;
-	struct file *ncp_filp;
 	struct inode *root_inode;
-	struct inode *sock_inode;
 	struct socket *sock;
 	int error;
 	int default_bufsize;
@@ -541,18 +539,10 @@ static int ncp_fill_super(struct super_block *sb, void *raw_data, int silent)
 	if (!uid_valid(data.mounted_uid) || !uid_valid(data.uid) ||
 	    !gid_valid(data.gid))
 		goto out;
-	error = -EBADF;
-	ncp_filp = fget(data.ncp_fd);
-	if (!ncp_filp)
-		goto out;
-	error = -ENOTSOCK;
-	sock_inode = file_inode(ncp_filp);
-	if (!S_ISSOCK(sock_inode->i_mode))
-		goto out_fput;
-	sock = SOCKET_I(sock_inode);
+	sock = sockfd_lookup(data.ncp_fd, &error);
 	if (!sock)
-		goto out_fput;
-		
+		goto out;
+
 	if (sock->type == SOCK_STREAM)
 		default_bufsize = 0xF000;
 	else
@@ -574,27 +564,16 @@ static int ncp_fill_super(struct super_block *sb, void *raw_data, int silent)
 	if (error)
 		goto out_fput;
 
-	server->ncp_filp = ncp_filp;
 	server->ncp_sock = sock;
 	
 	if (data.info_fd != -1) {
-		struct socket *info_sock;
-
-		error = -EBADF;
-		server->info_filp = fget(data.info_fd);
-		if (!server->info_filp)
-			goto out_bdi;
-		error = -ENOTSOCK;
-		sock_inode = file_inode(server->info_filp);
-		if (!S_ISSOCK(sock_inode->i_mode))
-			goto out_fput2;
-		info_sock = SOCKET_I(sock_inode);
+		struct socket *info_sock = sockfd_lookup(data.info_fd, &error);
 		if (!info_sock)
-			goto out_fput2;
+			goto out_bdi;
+		server->info_sock = info_sock;
 		error = -EBADFD;
 		if (info_sock->type != SOCK_STREAM)
 			goto out_fput2;
-		server->info_sock = info_sock;
 	}
 
 /*	server->lock = 0;	*/
@@ -766,17 +745,12 @@ out_nls:
 	mutex_destroy(&server->root_setup_lock);
 	mutex_destroy(&server->mutex);
 out_fput2:
-	if (server->info_filp)
-		fput(server->info_filp);
+	if (server->info_sock)
+		sockfd_put(server->info_sock);
 out_bdi:
 	bdi_destroy(&server->bdi);
 out_fput:
-	/* 23/12/1998 Marcin Dalecki <dalecki@cs.net.pl>:
-	 * 
-	 * The previously used put_filp(ncp_filp); was bogus, since
-	 * it doesn't perform proper unlocking.
-	 */
-	fput(ncp_filp);
+	sockfd_put(sock);
 out:
 	put_pid(data.wdog_pid);
 	sb->s_fs_info = NULL;
@@ -809,9 +783,9 @@ static void ncp_put_super(struct super_block *sb)
 	mutex_destroy(&server->root_setup_lock);
 	mutex_destroy(&server->mutex);
 
-	if (server->info_filp)
-		fput(server->info_filp);
-	fput(server->ncp_filp);
+	if (server->info_sock)
+		sockfd_put(server->info_sock);
+	sockfd_put(server->ncp_sock);
 	kill_pid(server->m.wdog_pid, SIGTERM, 1);
 	put_pid(server->m.wdog_pid);
 
