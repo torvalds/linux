@@ -308,7 +308,11 @@ struct vfs_cap_data {
 
 #define CAP_LEASE            28
 
+/* Allow writing the audit log via unicast netlink socket */
+
 #define CAP_AUDIT_WRITE      29
+
+/* Allow configuration of audit via unicast netlink socket */
 
 #define CAP_AUDIT_CONTROL    30
 
