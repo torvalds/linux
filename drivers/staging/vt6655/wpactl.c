@@ -594,7 +594,7 @@ static int wpa_get_scan(PSDevice pDevice,
 
 	unsigned char *ptempBSS;
 
-	ptempBSS = kmalloc(sizeof(KnownBSS), (int)GFP_ATOMIC);
+	ptempBSS = kmalloc(sizeof(KnownBSS), GFP_ATOMIC);
 
 	if (ptempBSS == NULL) {
 		printk(KERN_ERR "bubble sort kmalloc memory fail@@@\n");
@@ -636,7 +636,7 @@ static int wpa_get_scan(PSDevice pDevice,
 		count++;
 	}
 
-	pBuf = kcalloc(count, sizeof(struct viawget_scan_result), (int)GFP_ATOMIC);
+	pBuf = kcalloc(count, sizeof(struct viawget_scan_result), GFP_ATOMIC);
 
 	if (pBuf == NULL) {
 		ret = -ENOMEM;
@@ -858,7 +858,7 @@ int wpa_ioctl(PSDevice pDevice, struct iw_point *p)
 	    p->length > VIAWGET_WPA_MAX_BUF_SIZE || !p->pointer)
 		return -EINVAL;
 
-	param = kmalloc((int)p->length, (int)GFP_KERNEL);
+	param = kmalloc((int)p->length, GFP_KERNEL);
 	if (param == NULL)
 		return -ENOMEM;
 
