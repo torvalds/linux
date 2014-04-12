@@ -284,14 +284,6 @@ int do_fallocate(struct file *file, int mode, loff_t offset, loff_t len)
 	if (((offset + len) > inode->i_sb->s_maxbytes) || ((offset + len) < 0))
 		return -EFBIG;
 
-	/*
-	 * There is no need to overlap collapse range with EOF, in which case
-	 * it is effectively a truncate operation
-	 */
-	if ((mode & FALLOC_FL_COLLAPSE_RANGE) &&
-	    (offset + len >= i_size_read(inode)))
-		return -EINVAL;
-
 	if (!file->f_op->fallocate)
 		return -EOPNOTSUPP;
 
