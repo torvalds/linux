@@ -140,6 +140,7 @@ struct clk *icst_clk_register(struct device *dev,
 
 	pclone = kmemdup(desc->params, sizeof(*pclone), GFP_KERNEL);
 	if (!pclone) {
+		kfree(icst);
 		pr_err("could not clone ICST params\n");
 		return ERR_PTR(-ENOMEM);
 	}
