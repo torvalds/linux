@@ -530,7 +530,7 @@ static void fwtty_emit_breaks(struct work_struct *work)
 	while (n) {
 		t = min(n, 16);
 		c = tty_insert_flip_string_fixed_flag(&port->port, buf,
-				TTY_BREAK, t);
+						      TTY_BREAK, t);
 		n -= c;
 		brk += c;
 		if (c < t)
@@ -741,7 +741,7 @@ static int fwtty_tx(struct fwtty_port *port, bool drain)
 	/* try to write as many dma transactions out as possible */
 	n = -EAGAIN;
 	while (!tty->stopped && !tty->hw_stopped &&
-			!test_bit(STOP_TX, &port->flags)) {
+	       !test_bit(STOP_TX, &port->flags)) {
 		txn = kmem_cache_alloc(fwtty_txn_cache, GFP_ATOMIC);
 		if (!txn) {
 			n = -ENOMEM;
@@ -884,7 +884,7 @@ static void fwserial_destroy(struct kref *kref)
 	for (j = 0; j < num_ports; ++i, ++j) {
 		port_table_corrupt |= port_table[i] != ports[j];
 		WARN_ONCE(port_table_corrupt, "port_table[%d]: %p != ports[%d]: %p",
-		     i, port_table[i], j, ports[j]);
+			  i, port_table[i], j, ports[j]);
 
 		port_table[i] = NULL;
 	}
@@ -1257,7 +1257,7 @@ static int set_serial_info(struct fwtty_port *port,
 		return -EFAULT;
 
 	if (tmp.irq != 0 || tmp.port != 0 || tmp.custom_divisor != 0 ||
-			tmp.baud_base != 400000000)
+	    tmp.baud_base != 400000000)
 		return -EPERM;
 
 	if (!capable(CAP_SYS_ADMIN)) {

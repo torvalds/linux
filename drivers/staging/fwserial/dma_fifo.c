@@ -169,9 +169,9 @@ int dma_fifo_in(struct dma_fifo *fifo, const void *src, int n)
 	memcpy(fifo->data, src + l, n - l);
 
 	if (FAIL(fifo, addr_check(fifo->done, fifo->in, fifo->in + n) ||
-			fifo->avail < n,
-			"fifo corrupt: in:%u out:%u done:%u n:%d avail:%d",
-			fifo->in, fifo->out, fifo->done, n, fifo->avail))
+		 fifo->avail < n,
+		 "fifo corrupt: in:%u out:%u done:%u n:%d avail:%d",
+		 fifo->in, fifo->out, fifo->done, n, fifo->avail))
 		return -ENXIO;
 
 	fifo->in += n;
@@ -236,12 +236,12 @@ int dma_fifo_out_pend(struct dma_fifo *fifo, struct dma_pending *pended)
 	++fifo->open;
 
 	if (FAIL(fifo, fifo->open > fifo->open_limit,
-			"past open limit:%d (limit:%d)",
-			fifo->open, fifo->open_limit))
+		 "past open limit:%d (limit:%d)",
+		 fifo->open, fifo->open_limit))
 		return -ENXIO;
 	if (FAIL(fifo, fifo->out & (fifo->align - 1),
-			"fifo out unaligned:%u (align:%u)",
-			fifo->out, fifo->align))
+		 "fifo out unaligned:%u (align:%u)",
+		 fifo->out, fifo->align))
 		return -ENXIO;
 
 	return len - n;
@@ -264,8 +264,8 @@ int dma_fifo_out_complete(struct dma_fifo *fifo, struct dma_pending *complete)
 		return -EINVAL;
 
 	if (FAIL(fifo, list_empty(&fifo->pending) != (fifo->open == 0),
-			"pending list disagrees with open count:%d",
-			fifo->open))
+		 "pending list disagrees with open count:%d",
+		 fifo->open))
 		return -ENXIO;
 
 	tmp = complete->data;
@@ -282,10 +282,10 @@ int dma_fifo_out_complete(struct dma_fifo *fifo, struct dma_pending *complete)
 		}
 
 		if (FAIL(fifo, pending->out != fifo->done ||
-				addr_check(fifo->in, fifo->done, pending->next),
-				"in:%u out:%u done:%u saved:%u next:%u",
-				fifo->in, fifo->out, fifo->done, pending->out,
-				pending->next))
+			 addr_check(fifo->in, fifo->done, pending->next),
+			 "in:%u out:%u done:%u saved:%u next:%u",
+			 fifo->in, fifo->out, fifo->done, pending->out,
+			 pending->next))
 			return -ENXIO;
 
 		list_del_init(&pending->link);
@@ -300,7 +300,7 @@ int dma_fifo_out_complete(struct dma_fifo *fifo, struct dma_pending *complete)
 	if (FAIL(fifo, fifo->open < 0, "open dma:%d < 0", fifo->open))
 		return -ENXIO;
 	if (FAIL(fifo, fifo->avail > fifo->size, "fifo avail:%d > size:%d",
-			fifo->avail, fifo->size))
+		 fifo->avail, fifo->size))
 		return -ENXIO;
 
 	return 0;
