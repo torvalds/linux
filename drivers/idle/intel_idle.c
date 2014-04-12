@@ -750,9 +750,10 @@ void intel_idle_state_table_update(void)
 			if (package_num + 1 > num_sockets) {
 				num_sockets = package_num + 1;
 
-				if (num_sockets > 4)
+				if (num_sockets > 4) {
 					cpuidle_state_table = ivt_cstates_8s;
 					return;
+				}
 			}
 		}
 
