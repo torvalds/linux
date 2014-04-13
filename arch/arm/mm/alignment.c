@@ -950,6 +950,13 @@ do_alignment(unsigned long addr, unsigned int fsr, struct pt_regs *regs)
 	return 0;
 }
 
+static int __init noalign_setup(char *__unused)
+{
+	set_cr(__clear_cr(CR_A));
+	return 1;
+}
+__setup("noalign", noalign_setup);
+
 /*
  * This needs to be done after sysctl_init, otherwise sys/ will be
  * overwritten.  Actually, this shouldn't be in sys/ at all since

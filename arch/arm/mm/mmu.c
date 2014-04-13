@@ -186,13 +186,6 @@ static int __init early_ecc(char *p)
 early_param("ecc", early_ecc);
 #endif
 
-static int __init noalign_setup(char *__unused)
-{
-	set_cr(__clear_cr(CR_A));
-	return 1;
-}
-__setup("noalign", noalign_setup);
-
 #ifndef CONFIG_SMP
 void adjust_cr(unsigned long mask, unsigned long set)
 {
