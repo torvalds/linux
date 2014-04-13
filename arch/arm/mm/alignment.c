@@ -82,6 +82,7 @@ static unsigned long ai_word;
 static unsigned long ai_dword;
 static unsigned long ai_multi;
 static int ai_usermode;
+static unsigned long cr_no_alignment;
 
 core_param(alignment, ai_usermode, int, 0600);
 
@@ -978,6 +979,8 @@ static int __init alignment_init(void)
 		set_cr(__clear_cr(CR_A));
 		ai_usermode = safe_usermode(ai_usermode, false);
 	}
+
+	cr_no_alignment = get_cr() & ~CR_A;
 
 	hook_fault_code(FAULT_CODE_ALIGNMENT, do_alignment, SIGBUS, BUS_ADRALN,
 			"alignment exception");

@@ -40,7 +40,6 @@
 #ifdef CONFIG_CPU_CP15_MMU
 unsigned long __init __clear_cr(unsigned long mask)
 {
-	cr_no_alignment = cr_no_alignment & ~mask;
 	cr_alignment = cr_alignment & ~mask;
 	return cr_alignment;
 }
