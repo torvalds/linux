@@ -91,7 +91,7 @@ core_param(alignment, ai_usermode, int, 0600);
 /* Return true if and only if the ARMv6 unaligned access model is in use. */
 static bool cpu_is_v6_unaligned(void)
 {
-	return cpu_architecture() >= CPU_ARCH_ARMv6 && (cr_alignment & CR_U);
+	return cpu_architecture() >= CPU_ARCH_ARMv6 && get_cr() & CR_U;
 }
 
 static int safe_usermode(int new_usermode, bool warn)

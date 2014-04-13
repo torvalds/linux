@@ -42,7 +42,7 @@
 #ifndef __ASSEMBLY__
 
 #if __LINUX_ARM_ARCH__ >= 4
-#define vectors_high()	(cr_alignment & CR_V)
+#define vectors_high()	(get_cr() & CR_V)
 #else
 #define vectors_high()	(0)
 #endif
@@ -112,6 +112,11 @@ static inline void set_copro_access(unsigned int val)
  */
 #define cr_no_alignment	UL(0)
 #define cr_alignment	UL(0)
+
+static inline unsigned long get_cr(void)
+{
+	return 0;
+}
 
 #endif /* ifdef CONFIG_CPU_CP15 / else */
 
