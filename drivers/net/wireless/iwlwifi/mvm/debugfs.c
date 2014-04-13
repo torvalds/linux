@@ -1106,9 +1106,9 @@ MVM_DEBUGFS_READ_WRITE_FILE_OPS(scan_ant_rxchain, 8);
 MVM_DEBUGFS_READ_WRITE_FILE_OPS(d0i3_refs, 8);
 
 static const struct file_operations iwl_dbgfs_fw_error_dump_ops = {
-        .open = iwl_dbgfs_fw_error_dump_open,
-        .read = iwl_dbgfs_fw_error_dump_read,
-        .release = iwl_dbgfs_fw_error_dump_release,
+	.open = iwl_dbgfs_fw_error_dump_open,
+	.read = iwl_dbgfs_fw_error_dump_read,
+	.release = iwl_dbgfs_fw_error_dump_release,
 };
 
 #ifdef CONFIG_IWLWIFI_BCAST_FILTERING
