@@ -86,18 +86,7 @@ static inline unsigned char FAN_TO_REG(unsigned rpm, unsigned div)
 #define FAN_FROM_REG(val, div)	((val) == 0 ? -1 : \
 				(val) == 255 ? 0 : 1350000/((div) * (val)))
 
-static inline long TEMP_FROM_REG(u16 temp)
-{
-	long res;
-
-	temp >>= 4;
-	if (temp < 0x0800)
-		res = 625 * (long) temp;
-	else
-		res = ((long) temp - 0x01000) * 625;
-
-	return res / 10;
-}
+#define TEMP_FROM_REG(temp) ((temp) * 125 / 32)
 
 #define TEMP_LIMIT_FROM_REG(val)	(((val) > 0x80 ? \
 	(val) - 0x100 : (val)) * 1000)
@@ -124,7 +113,7 @@ struct lm80_data {
 	u8 fan[2];		/* Register value */
 	u8 fan_min[2];		/* Register value */
 	u8 fan_div[2];		/* Register encoding, shifted right */
-	u16 temp;		/* Register values, shifted right */
+	s16 temp;		/* Register values */
 	u8 temp_hot_max;	/* Register value */
 	u8 temp_hot_hyst;	/* Register value */
 	u8 temp_os_max;		/* Register value */
@@ -309,7 +298,7 @@ static ssize_t show_temp_input1(struct device *dev,
 	struct lm80_data *data = lm80_update_device(dev);
 	if (IS_ERR(data))
 		return PTR_ERR(data);
-	return sprintf(buf, "%ld\n", TEMP_FROM_REG(data->temp));
+	return sprintf(buf, "%d\n", TEMP_FROM_REG(data->temp));
 }
 
 #define show_temp(suffix, value) \
