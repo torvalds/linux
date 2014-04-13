@@ -2,6 +2,7 @@
 #define _LINUX_RESET_H_
 
 struct device;
+struct device_node;
 struct reset_control;
 
 #ifdef CONFIG_RESET_CONTROLLER
@@ -32,6 +33,9 @@ static inline struct reset_control *devm_reset_control_get_optional(
 {
 	return devm_reset_control_get(dev, id);
 }
+
+struct reset_control *of_reset_control_get(struct device_node *node,
+					   const char *id);
 
 #else
 
@@ -71,6 +75,12 @@ static inline struct reset_control *reset_control_get_optional(
 
 static inline struct reset_control *devm_reset_control_get_optional(
 					struct device *dev, const char *id)
+{
+	return ERR_PTR(-ENOSYS);
+}
+
+static inline struct reset_control *of_reset_control_get(
+				struct device_node *node, const char *id)
 {
 	return ERR_PTR(-ENOSYS);
 }
