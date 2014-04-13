@@ -991,7 +991,8 @@ int sst_hsw_stream_get_volume(struct sst_hsw *hsw, struct sst_hsw_stream *stream
 		return -EINVAL;
 
 	sst_dsp_read(hsw->dsp, volume,
-		stream->reply.volume_register_address[channel], sizeof(volume));
+		stream->reply.volume_register_address[channel],
+		sizeof(*volume));
 
 	return 0;
 }
