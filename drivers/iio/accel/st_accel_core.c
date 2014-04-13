@@ -459,6 +459,8 @@ int st_accel_common_probe(struct iio_dev *indio_dev,
 	indio_dev->modes = INDIO_DIRECT_MODE;
 	indio_dev->info = &accel_info;
 
+	st_sensors_power_enable(indio_dev);
+
 	err = st_sensors_check_device_support(indio_dev,
 				ARRAY_SIZE(st_accel_sensors), st_accel_sensors);
 	if (err < 0)
@@ -514,6 +516,8 @@ EXPORT_SYMBOL(st_accel_common_probe);
 void st_accel_common_remove(struct iio_dev *indio_dev)
 {
 	struct st_sensor_data *adata = iio_priv(indio_dev);
+
+	st_sensors_power_disable(indio_dev);
 
 	iio_device_unregister(indio_dev);
 	if (adata->get_irq_data_ready(indio_dev) > 0)
