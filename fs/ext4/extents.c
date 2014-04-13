@@ -5314,11 +5314,18 @@ ext4_ext_shift_extents(struct inode *inode, handle_t *handle,
 	 * enough to accomodate the shift.
 	 */
 	path = ext4_ext_find_extent(inode, start - 1, NULL, 0);
+	if (IS_ERR(path))
+		return PTR_ERR(path);
 	depth = path->p_depth;
 	extent =  path[depth].p_ext;
-	ex_start = le32_to_cpu(extent->ee_block);
-	ex_end = le32_to_cpu(extent->ee_block) +
+	if (extent) {
+		ex_start = le32_to_cpu(extent->ee_block);
+		ex_end = le32_to_cpu(extent->ee_block) +
 			ext4_ext_get_actual_len(extent);
+	} else {
+		ex_start = 0;
+		ex_end = 0;
+	}
 	ext4_ext_drop_refs(path);
 	kfree(path);
 
