@@ -974,12 +974,10 @@ static int __init alignment_init(void)
 		return -ENOMEM;
 #endif
 
-#ifdef CONFIG_CPU_CP15
 	if (cpu_is_v6_unaligned()) {
 		set_cr(__clear_cr(CR_A));
 		ai_usermode = safe_usermode(ai_usermode, false);
 	}
-#endif
 
 	hook_fault_code(FAULT_CODE_ALIGNMENT, do_alignment, SIGBUS, BUS_ADRALN,
 			"alignment exception");
