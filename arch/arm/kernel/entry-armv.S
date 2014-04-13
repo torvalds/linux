@@ -344,7 +344,7 @@ ENDPROC(__pabt_svc)
 	@
 	@ Enable the alignment trap while in kernel mode
 	@
-	alignment_trap r0
+	alignment_trap r0, .LCcralign
 
 	@
 	@ Clear FP to mark the first stack frame
