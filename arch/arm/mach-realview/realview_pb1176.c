@@ -32,6 +32,7 @@
 #include <linux/irqchip/arm-gic.h>
 #include <linux/platform_data/clk-realview.h>
 #include <linux/reboot.h>
+#include <linux/memblock.h>
 
 #include <mach/hardware.h>
 #include <asm/irq.h>
@@ -339,15 +340,12 @@ static void realview_pb1176_restart(enum reboot_mode mode, const char *cmd)
 	dsb();
 }
 
-static void realview_pb1176_fixup(struct tag *tags, char **from,
-				  struct meminfo *meminfo)
+static void realview_pb1176_fixup(struct tag *tags, char **from)
 {
 	/*
 	 * RealView PB1176 only has 128MB of RAM mapped at 0.
 	 */
-	meminfo->bank[0].start = 0;
-	meminfo->bank[0].size = SZ_128M;
-	meminfo->nr_banks = 1;
+	memblock_add(0, SZ_128M);
 }
 
 static void __init realview_pb1176_init(void)

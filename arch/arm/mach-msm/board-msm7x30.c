@@ -40,8 +40,7 @@
 #include "proc_comm.h"
 #include "common.h"
 
-static void __init msm7x30_fixup(struct tag *tag, char **cmdline,
-		struct meminfo *mi)
+static void __init msm7x30_fixup(struct tag *tag, char **cmdline)
 {
 	for (; tag->hdr.size; tag = tag_next(tag))
 		if (tag->hdr.tag == ATAG_MEM && tag->u.mem.start == 0x200000) {

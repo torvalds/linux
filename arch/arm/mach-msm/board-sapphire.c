@@ -35,6 +35,7 @@
 
 #include <linux/mtd/nand.h>
 #include <linux/mtd/partitions.h>
+#include <linux/memblock.h>
 
 #include "gpio_chip.h"
 #include "board-sapphire.h"
@@ -74,22 +75,18 @@ static struct map_desc sapphire_io_desc[] __initdata = {
 	}
 };
 
-static void __init sapphire_fixup(struct tag *tags, char **cmdline,
-				  struct meminfo *mi)
+static void __init sapphire_fixup(struct tag *tags, char **cmdline)
 {
 	int smi_sz = parse_tag_smi((const struct tag *)tags);
 
-	mi->nr_banks = 1;
-	mi->bank[0].start = PHYS_OFFSET;
-	mi->bank[0].node = PHYS_TO_NID(PHYS_OFFSET);
 	if (smi_sz == 32) {
-		mi->bank[0].size = (84*1024*1024);
+		memblock_add(PHYS_OFFSET, 84*SZ_1M);
 	} else if (smi_sz == 64) {
-		mi->bank[0].size = (101*1024*1024);
+		memblock_add(PHYS_OFFSET, 101*SZ_1M);
 	} else {
+		memblock_add(PHYS_OFFSET, 101*SZ_1M);
 		/* Give a default value when not get smi size */
 		smi_sz = 64;
-		mi->bank[0].size = (101*1024*1024);
 	}
 }
 

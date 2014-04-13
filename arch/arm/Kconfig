@@ -1101,11 +1101,6 @@ source "arch/arm/firmware/Kconfig"
 
 source arch/arm/mm/Kconfig
 
-config ARM_NR_BANKS
-	int
-	default 16 if ARCH_EP93XX
-	default 8
-
 config IWMMXT
 	bool "Enable iWMMXt support" if !CPU_PJ4
 	depends on CPU_XSCALE || CPU_XSC3 || CPU_MOHAWK || CPU_PJ4

@@ -71,9 +71,8 @@ void edmini_v2_init(void);
 static inline void edmini_v2_init(void) {};
 #endif
 
-struct meminfo;
 struct tag;
-extern void __init tag_fixup_mem32(struct tag *, char **, struct meminfo *);
+extern void __init tag_fixup_mem32(struct tag *, char **);
 
 /*****************************************************************************
  * Helpers to access Orion registers
