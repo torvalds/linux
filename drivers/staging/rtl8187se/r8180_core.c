@@ -47,6 +47,7 @@
 #include "r8180_dm.h"
 
 #include "ieee80211/dot11d.h"
+#include "ieee80211/ieee80211_crypt.h"
 
 static struct pci_device_id rtl8180_pci_id_tbl[] = {
 	{
