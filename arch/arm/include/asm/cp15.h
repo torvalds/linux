@@ -52,14 +52,14 @@
 extern unsigned long cr_no_alignment;	/* defined in entry-armv.S */
 extern unsigned long cr_alignment;	/* defined in entry-armv.S */
 
-static inline unsigned int get_cr(void)
+static inline unsigned long get_cr(void)
 {
-	unsigned int val;
+	unsigned long val;
 	asm("mrc p15, 0, %0, c1, c0, 0	@ get CR" : "=r" (val) : : "cc");
 	return val;
 }
 
-static inline void set_cr(unsigned int val)
+static inline void set_cr(unsigned long val)
 {
 	asm volatile("mcr p15, 0, %0, c1, c0, 0	@ set CR"
 	  : : "r" (val) : "cc");
