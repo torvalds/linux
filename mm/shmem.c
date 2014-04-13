@@ -1411,7 +1411,7 @@ static ssize_t shmem_file_aio_read(struct kiocb *iocb,
 	pgoff_t index;
 	unsigned long offset;
 	enum sgp_type sgp = SGP_READ;
-	int error;
+	int error = 0;
 	ssize_t retval;
 	size_t count;
 	loff_t *ppos = &iocb->ki_pos;
