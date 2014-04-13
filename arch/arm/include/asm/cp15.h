@@ -80,10 +80,6 @@ static inline void set_auxcr(unsigned int val)
 	isb();
 }
 
-#ifndef CONFIG_SMP
-extern void adjust_cr(unsigned long mask, unsigned long set);
-#endif
-
 #define CPACC_FULL(n)		(3 << (n * 2))
 #define CPACC_SVC(n)		(1 << (n * 2))
 #define CPACC_DISABLE(n)	(0 << (n * 2))
