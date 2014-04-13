@@ -474,6 +474,9 @@ int st_press_common_probe(struct iio_dev *indio_dev,
 	if (err)
 		goto st_press_device_register_error;
 
+	dev_info(&indio_dev->dev, "registered pressure sensor %s\n",
+		 indio_dev->name);
+
 	return err;
 
 st_press_device_register_error:
