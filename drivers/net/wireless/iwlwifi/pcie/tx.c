@@ -696,7 +696,8 @@ void iwl_pcie_tx_start(struct iwl_trans *trans, u32 scd_base_addr)
 	/* The chain extension of the SCD doesn't work well. This feature is
 	 * enabled by default by the HW, so we need to disable it manually.
 	 */
-	iwl_write_prph(trans, SCD_CHAINEXT_EN, 0);
+	if (trans->cfg->base_params->scd_chain_ext_wa)
+		iwl_write_prph(trans, SCD_CHAINEXT_EN, 0);
 
 	iwl_trans_ac_txq_enable(trans, trans_pcie->cmd_queue,
 				trans_pcie->cmd_fifo);
