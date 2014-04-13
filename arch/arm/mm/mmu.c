@@ -125,6 +125,7 @@ static struct cachepolicy cache_policies[] __initdata = {
  */
 static int __init early_cachepolicy(char *p)
 {
+	unsigned long cr = get_cr();
 	int i;
 
 	for (i = 0; i < ARRAY_SIZE(cache_policies); i++) {
@@ -132,8 +133,7 @@ static int __init early_cachepolicy(char *p)
 
 		if (memcmp(p, cache_policies[i].policy, len) == 0) {
 			cachepolicy = i;
-			cr_alignment &= ~cache_policies[i].cr_mask;
-			cr_no_alignment &= ~cache_policies[i].cr_mask;
+			cr = __clear_cr(cache_policies[i].cr_mask);
 			break;
 		}
 	}
@@ -151,7 +151,7 @@ static int __init early_cachepolicy(char *p)
 		cachepolicy = CPOLICY_WRITEBACK;
 	}
 	flush_cache_all();
-	set_cr(cr_alignment);
+	set_cr(cr);
 	return 0;
 }
 early_param("cachepolicy", early_cachepolicy);
@@ -188,9 +188,7 @@ early_param("ecc", early_ecc);
 
 static int __init noalign_setup(char *__unused)
 {
-	cr_alignment &= ~CR_A;
-	cr_no_alignment &= ~CR_A;
-	set_cr(cr_alignment);
+	set_cr(__clear_cr(CR_A));
 	return 1;
 }
 __setup("noalign", noalign_setup);
