@@ -505,9 +505,7 @@ struct sst_module *sst_mem_block_alloc_scratch(struct sst_dsp *dsp)
 
 	/* calculate required scratch size */
 	list_for_each_entry(sst_module, &dsp->module_list, list) {
-		if (scratch->s.size > sst_module->s.size)
-			scratch->s.size = scratch->s.size;
-		else
+		if (scratch->s.size < sst_module->s.size)
 			scratch->s.size = sst_module->s.size;
 	}
 
