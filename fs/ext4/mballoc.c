@@ -5016,6 +5016,8 @@ error_return:
  */
 static int ext4_trim_extent(struct super_block *sb, int start, int count,
 			     ext4_group_t group, struct ext4_buddy *e4b)
+__releases(bitlock)
+__acquires(bitlock)
 {
 	struct ext4_free_extent ex;
 	int ret = 0;
