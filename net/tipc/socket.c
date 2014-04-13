@@ -45,7 +45,7 @@
 #define CONN_TIMEOUT_DEFAULT	8000	/* default connect timeout = 8s */
 
 static int backlog_rcv(struct sock *sk, struct sk_buff *skb);
-static void tipc_data_ready(struct sock *sk, int len);
+static void tipc_data_ready(struct sock *sk);
 static void tipc_write_space(struct sock *sk);
 static int tipc_release(struct socket *sock);
 static int tipc_accept(struct socket *sock, struct socket *new_sock, int flags);
@@ -1248,7 +1248,7 @@ static void tipc_write_space(struct sock *sk)
  * @sk: socket
  * @len: the length of messages
  */
-static void tipc_data_ready(struct sock *sk, int len)
+static void tipc_data_ready(struct sock *sk)
 {
 	struct socket_wq *wq;
 
@@ -1410,7 +1410,7 @@ static u32 filter_rcv(struct sock *sk, struct sk_buff *buf)
 	__skb_queue_tail(&sk->sk_receive_queue, buf);
 	skb_set_owner_r(buf, sk);
 
-	sk->sk_data_ready(sk, 0);
+	sk->sk_data_ready(sk);
 	return TIPC_OK;
 }
 

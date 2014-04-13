@@ -798,7 +798,7 @@ static void tcp_v6_send_response(struct sk_buff *skb, u32 seq, u32 ack, u32 win,
 	__tcp_v6_send_check(buff, &fl6.saddr, &fl6.daddr);
 
 	fl6.flowi6_proto = IPPROTO_TCP;
-	if (rt6_need_strict(&fl6.daddr) || !oif)
+	if (rt6_need_strict(&fl6.daddr) && !oif)
 		fl6.flowi6_oif = inet6_iif(skb);
 	else
 		fl6.flowi6_oif = oif;

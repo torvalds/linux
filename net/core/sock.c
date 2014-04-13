@@ -428,7 +428,7 @@ int sock_queue_rcv_skb(struct sock *sk, struct sk_buff *skb)
 	spin_unlock_irqrestore(&list->lock, flags);
 
 	if (!sock_flag(sk, SOCK_DEAD))
-		sk->sk_data_ready(sk, skb_len);
+		sk->sk_data_ready(sk);
 	return 0;
 }
 EXPORT_SYMBOL(sock_queue_rcv_skb);
@@ -2196,7 +2196,7 @@ static void sock_def_error_report(struct sock *sk)
 	rcu_read_unlock();
 }
 
-static void sock_def_readable(struct sock *sk, int len)
+static void sock_def_readable(struct sock *sk)
 {
 	struct socket_wq *wq;
 

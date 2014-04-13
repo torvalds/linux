@@ -687,7 +687,7 @@ static void cpsw_rx_handler(void *token, int len, int status)
 
 	cpsw_dual_emac_src_port_detect(status, priv, ndev, skb);
 
-	if (unlikely(status < 0)) {
+	if (unlikely(status < 0) || unlikely(!netif_running(ndev))) {
 		/* the interface is going down, skbs are purged */
 		dev_kfree_skb_any(skb);
 		return;
@@ -1201,8 +1201,7 @@ static int cpsw_ndo_open(struct net_device *ndev)
 	for_each_slave(priv, cpsw_slave_open, priv);
 
 	/* Add default VLAN */
-	if (!priv->data.dual_emac)
-		cpsw_add_default_vlan(priv);
+	cpsw_add_default_vlan(priv);
 
 	if (!cpsw_common_res_usage_state(priv)) {
 		/* setup tx dma to fixed prio and zero offset */
@@ -1253,6 +1252,12 @@ static int cpsw_ndo_open(struct net_device *ndev)
 		cpsw_set_coalesce(ndev, &coal);
 	}
 
+	napi_enable(&priv->napi);
+	cpdma_ctlr_start(priv->dma);
+	cpsw_intr_enable(priv);
+	cpdma_ctlr_eoi(priv->dma, CPDMA_EOI_RX);
+	cpdma_ctlr_eoi(priv->dma, CPDMA_EOI_TX);
+
 	prim_cpsw = cpsw_get_slave_priv(priv, 0);
 	if (prim_cpsw->irq_enabled == false) {
 		if ((priv == prim_cpsw) || !netif_running(prim_cpsw->ndev)) {
@@ -1260,12 +1265,6 @@ static int cpsw_ndo_open(struct net_device *ndev)
 			cpsw_enable_irq(prim_cpsw);
 		}
 	}
-
-	napi_enable(&priv->napi);
-	cpdma_ctlr_start(priv->dma);
-	cpsw_intr_enable(priv);
-	cpdma_ctlr_eoi(priv->dma, CPDMA_EOI_RX);
-	cpdma_ctlr_eoi(priv->dma, CPDMA_EOI_TX);
 
 	if (priv->data.dual_emac)
 		priv->slaves[priv->emac_port].open_stat = true;
