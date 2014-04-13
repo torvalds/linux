@@ -1353,6 +1353,30 @@ static const struct rpc_call_ops nfs_write_common_ops = {
 	.rpc_release = nfs_writeback_release_common,
 };
 
+/*
+ * Special version of should_remove_suid() that ignores capabilities.
+ */
+static int nfs_should_remove_suid(const struct inode *inode)
+{
+	umode_t mode = inode->i_mode;
+	int kill = 0;
+
+	/* suid always must be killed */
+	if (unlikely(mode & S_ISUID))
+		kill = ATTR_KILL_SUID;
+
+	/*
+	 * sgid without any exec bits is just a mandatory locking mark; leave
+	 * it alone.  If some exec bits are set, it's a real sgid; kill it.
+	 */
+	if (unlikely((mode & S_ISGID) && (mode & S_IXGRP)))
+		kill |= ATTR_KILL_SGID;
+
+	if (unlikely(kill && S_ISREG(mode)))
+		return kill;
+
+	return 0;
+}
 
 /*
  * This function is called when the WRITE call is complete.
@@ -1401,9 +1425,16 @@ void nfs_writeback_done(struct rpc_task *task, struct nfs_write_data *data)
 		}
 	}
 #endif
-	if (task->tk_status < 0)
+	if (task->tk_status < 0) {
 		nfs_set_pgio_error(data->header, task->tk_status, argp->offset);
-	else if (resp->count < argp->count) {
+		return;
+	}
+
+	/* Deal with the suid/sgid bit corner case */
+	if (nfs_should_remove_suid(inode))
+		nfs_mark_for_revalidate(inode);
+
+	if (resp->count < argp->count) {
 		static unsigned long    complain;
 
 		/* This a short write! */
