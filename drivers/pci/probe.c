@@ -174,7 +174,7 @@ int __pci_read_base(struct pci_dev *dev, enum pci_bar_type type,
 	u64 l64, sz64, mask64;
 	u16 orig_cmd;
 	struct pci_bus_region region, inverted_region;
-	bool bar_too_big = false, bar_too_high = false;
+	bool bar_too_big = false, bar_too_high = false, bar_invalid = false;
 
 	mask = type ? PCI_ROM_ADDRESS_MASK : ~0;
 
@@ -289,11 +289,10 @@ int __pci_read_base(struct pci_dev *dev, enum pci_bar_type type,
 	 * be claimed by the device.
 	 */
 	if (inverted_region.start != region.start) {
-		dev_info(&dev->dev, "reg 0x%x: initial BAR value %pa invalid; forcing reassignment\n",
-			 pos, &region.start);
 		res->flags |= IORESOURCE_UNSET;
-		res->end -= res->start;
 		res->start = 0;
+		res->end = region.end - region.start;
+		bar_invalid = true;
 	}
 
 	goto out;
@@ -312,6 +311,9 @@ out:
 	if (bar_too_high)
 		dev_info(&dev->dev, "reg 0x%x: can't handle BAR above 4G (bus address %#010llx)\n",
 			 pos, (unsigned long long) l64);
+	if (bar_invalid)
+		dev_info(&dev->dev, "reg 0x%x: initial BAR value %#010llx invalid\n",
+			 pos, (unsigned long long) region.start);
 	if (res->flags)
 		dev_printk(KERN_DEBUG, &dev->dev, "reg 0x%x: %pR\n", pos, res);
 
