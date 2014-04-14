@@ -2355,7 +2355,9 @@ int qlcnic_83xx_init(struct qlcnic_adapter *adapter, int pci_using_dac)
 		goto disable_mbx_intr;
 
 	qlcnic_83xx_clear_function_resources(adapter);
+	qlcnic_dcb_enable(adapter->dcb);
 	qlcnic_83xx_initialize_nic(adapter, 1);
+	qlcnic_dcb_get_info(adapter->dcb);
 
 	/* Configure default, SR-IOV or Virtual NIC mode of operation */
 	err = qlcnic_83xx_configure_opmode(adapter);
