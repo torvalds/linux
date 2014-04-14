@@ -4516,7 +4516,7 @@ void intel_disable_gt_powersave(struct drm_device *dev)
 	if (IS_IRONLAKE_M(dev)) {
 		ironlake_disable_drps(dev);
 		ironlake_disable_rc6(dev);
-	} else if (INTEL_INFO(dev)->gen >= 6) {
+	} else if (IS_GEN6(dev) || IS_GEN7(dev)) {
 		cancel_delayed_work_sync(&dev_priv->rps.delayed_resume_work);
 		cancel_work_sync(&dev_priv->rps.work);
 		mutex_lock(&dev_priv->rps.hw_lock);
