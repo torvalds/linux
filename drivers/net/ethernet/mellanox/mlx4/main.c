@@ -2369,10 +2369,10 @@ static int __mlx4_init_one(struct pci_dev *pdev, int pci_dev_data)
 			} else {
 				atomic_inc(&pf_loading);
 				err = pci_enable_sriov(pdev, total_vfs);
-				atomic_dec(&pf_loading);
 				if (err) {
 					mlx4_err(dev, "Failed to enable SR-IOV, continuing without SR-IOV (err = %d).\n",
 						 err);
+					atomic_dec(&pf_loading);
 					err = 0;
 				} else {
 					mlx4_warn(dev, "Running in master mode\n");
@@ -2532,6 +2532,9 @@ slave_start:
 
 	priv->removed = 0;
 
+	if (mlx4_is_master(dev) && dev->num_vfs)
+		atomic_dec(&pf_loading);
+
 	return 0;
 
 err_port:
@@ -2581,6 +2584,9 @@ err_sriov:
 err_rel_own:
 	if (!mlx4_is_slave(dev))
 		mlx4_free_ownership(dev);
+
+	if (mlx4_is_master(dev) && dev->num_vfs)
+		atomic_dec(&pf_loading);
 
 	kfree(priv->dev.dev_vfs);
 
@@ -2675,6 +2681,7 @@ static void __mlx4_remove_one(struct pci_dev *pdev)
 	if (dev->flags & MLX4_FLAG_SRIOV) {
 		mlx4_warn(dev, "Disabling SR-IOV\n");
 		pci_disable_sriov(pdev);
+		dev->num_vfs = 0;
 	}
 
 	if (!mlx4_is_slave(dev))
