@@ -26,14 +26,12 @@
  * @hdev:		HID device.
  * @led_cdev:		LED class instance.
  * @rgb:		8-bit per channel RGB notation.
- * @fade:		fade time in hundredths of a second.
  * @brightness:		brightness coefficient.
  */
 struct blink1_data {
 	struct hid_device *hdev;
 	struct led_classdev led_cdev;
 	u32 rgb;
-	u16 fade;
 	u8 brightness;
 };
 
@@ -62,12 +60,6 @@ static int blink1_update_color(struct blink1_data *data)
 		buf[2] = DIV_ROUND_CLOSEST(blink1_rgb_to_r(data->rgb), coef);
 		buf[3] = DIV_ROUND_CLOSEST(blink1_rgb_to_g(data->rgb), coef);
 		buf[4] = DIV_ROUND_CLOSEST(blink1_rgb_to_b(data->rgb), coef);
-	}
-
-	if (data->fade) {
-		buf[1] = 'c';
-		buf[5] = (data->fade & 0xFF00) >> 8;
-		buf[6] = (data->fade & 0x00FF);
 	}
 
 	return blink1_send_command(data, buf);
@@ -121,42 +113,9 @@ static ssize_t blink1_store_rgb(struct device *dev,
 
 static DEVICE_ATTR(rgb, S_IRUGO | S_IWUSR, blink1_show_rgb, blink1_store_rgb);
 
-static ssize_t blink1_show_fade(struct device *dev,
-		struct device_attribute *attr, char *buf)
-{
-	struct blink1_data *data = dev_get_drvdata(dev->parent);
-
-	return sprintf(buf, "%d\n", data->fade * 10);
-}
-
-static ssize_t blink1_store_fade(struct device *dev,
-		struct device_attribute *attr, const char *buf, size_t count)
-{
-	struct blink1_data *data = dev_get_drvdata(dev->parent);
-	long unsigned int fade;
-	int ret;
-
-	ret = kstrtoul(buf, 10, &fade);
-	if (ret)
-		return ret;
-
-	/* blink(1) accepts 16-bit fade time, number of 10ms ticks */
-	fade = DIV_ROUND_CLOSEST(fade, 10);
-	if (fade > 65535)
-		return -EINVAL;
-
-	data->fade = fade;
-
-	return count;
-}
-
-static DEVICE_ATTR(fade, S_IRUGO | S_IWUSR,
-		blink1_show_fade, blink1_store_fade);
-
 static const struct attribute_group blink1_sysfs_group = {
 	.attrs = (struct attribute *[]) {
 		&dev_attr_rgb.attr,
-		&dev_attr_fade.attr,
 		NULL
 	},
 };
