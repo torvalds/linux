@@ -120,6 +120,7 @@ free_mem:
 	dma_free_coherent(dev, len, info->cpu_addr, info->handle);
 err:
 	kfree(info);
+	ion_snapshot_save(heap->dev);
 	return ION_CMA_ALLOCATE_FAILED;
 }
 

@@ -193,6 +193,7 @@ err:
 		free_buffer_page(sys_heap, buffer, info->page, info->order);
 		kfree(info);
 	}
+	ion_snapshot_save(heap->dev);
 	return -ENOMEM;
 }
 

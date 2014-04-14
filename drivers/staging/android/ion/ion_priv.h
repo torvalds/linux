@@ -436,4 +436,6 @@ int ion_page_pool_shrink(struct ion_page_pool *pool, gfp_t gfp_mask,
 void ion_pages_sync_for_device(struct device *dev, struct page *page,
 		size_t size, enum dma_data_direction dir);
 
+int ion_snapshot_save(struct ion_device *idev);
+
 #endif /* _ION_PRIV_H */

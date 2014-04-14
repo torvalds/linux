@@ -2022,3 +2022,59 @@ void __init ion_reserve(struct ion_platform_data *data)
 			data->heaps[i].size);
 	}
 }
+
+#define ION_SNAPSHOT_BUFFER_LEN		1<<18
+int ion_snapshot_save(struct ion_device *idev)
+{
+	static struct seq_file seqf;
+	struct ion_heap *heap;
+	struct rb_node *n;
+
+	if (!seqf.buf) {
+		seqf.size = ION_SNAPSHOT_BUFFER_LEN;
+		seqf.buf = kmalloc(seqf.size, GFP_KERNEL);
+		if (!seqf.buf)
+			return -ENOMEM;
+		printk("%s: create snapshot 0x%x@0x%lx\n", __func__, seqf.size,
+			__pa(seqf.buf));
+	} else {
+		printk("%s: save snapshot 0x%x@0x%lx\n", __func__, seqf.size,
+			__pa(seqf.buf));
+		memset(seqf.buf, 0, seqf.size);
+		seqf.count = 0;
+	}
+
+	down_read(&idev->lock);
+
+	plist_for_each_entry(heap, &idev->heaps, node) {
+		seqf.private = (void*)heap;
+		seq_printf(&seqf, "++++++++++++++++ HEAP: %s ++++++++++++++++\n",
+			heap->name);
+		ion_debug_heap_show(&seqf, NULL);
+		seq_printf(&seqf, "\n");
+		if (ION_HEAP_TYPE_DMA==heap->type)
+			ion_cma_heap_debug_show(&seqf, NULL);
+	}
+
+	for (n = rb_first(&idev->clients); n; n = rb_next(n)) {
+		struct ion_client *client = rb_entry(n, struct ion_client, node);
+		seqf.private = (void*)client;
+		if (client->task) {
+			char task_comm[TASK_COMM_LEN];
+
+			get_task_comm(task_comm, client->task);
+			seq_printf(&seqf, "++++++++++++++++ CLIENT: %s(PID-%d) ++++++++++++++++\n",
+				task_comm, client->pid);
+		} else {
+			seq_printf(&seqf, "++++++++++++++++ CLIENT: %s(PID-%d) ++++++++++++++++\n",
+				client->display_name, client->pid);
+		}
+
+		ion_debug_client_show(&seqf, NULL);
+		seq_printf(&seqf, "\n");
+	}
+
+	up_read(&idev->lock);
+
+	return 0;
+}
