@@ -171,6 +171,7 @@ int __pci_read_base(struct pci_dev *dev, enum pci_bar_type type,
 			struct resource *res, unsigned int pos)
 {
 	u32 l, sz, mask;
+	u64 l64, sz64, mask64;
 	u16 orig_cmd;
 	struct pci_bus_region region, inverted_region;
 	bool bar_too_big = false, bar_disabled = false;
@@ -226,9 +227,9 @@ int __pci_read_base(struct pci_dev *dev, enum pci_bar_type type,
 	}
 
 	if (res->flags & IORESOURCE_MEM_64) {
-		u64 l64 = l;
-		u64 sz64 = sz;
-		u64 mask64 = mask | (u64)~0 << 32;
+		l64 = l;
+		sz64 = sz;
+		mask64 = mask | (u64)~0 << 32;
 
 		pci_read_config_dword(dev, pos + 4, &l);
 		pci_write_config_dword(dev, pos + 4, ~0);
@@ -243,9 +244,13 @@ int __pci_read_base(struct pci_dev *dev, enum pci_bar_type type,
 		if (!sz64)
 			goto fail;
 
-		if ((sizeof(resource_size_t) < 8) && (sz64 > 0x100000000ULL)) {
+		if ((sizeof(dma_addr_t) < 8 || sizeof(resource_size_t) < 8) &&
+		    sz64 > 0x100000000ULL) {
+			res->flags |= IORESOURCE_UNSET | IORESOURCE_DISABLED;
+			res->start = 0;
+			res->end = 0;
 			bar_too_big = true;
-			goto fail;
+			goto out;
 		}
 
 		if ((sizeof(resource_size_t) < 8) && l) {
@@ -303,7 +308,8 @@ out:
 		pci_write_config_word(dev, PCI_COMMAND, orig_cmd);
 
 	if (bar_too_big)
-		dev_err(&dev->dev, "reg 0x%x: can't handle 64-bit BAR\n", pos);
+		dev_err(&dev->dev, "reg 0x%x: can't handle BAR larger than 4GB (size %#010llx)\n",
+			pos, (unsigned long long) sz64);
 	if (res->flags && !bar_disabled)
 		dev_printk(KERN_DEBUG, &dev->dev, "reg 0x%x: %pR\n", pos, res);
 
