@@ -40,42 +40,63 @@ int mvebu_cpu_reset_deassert(int cpu)
 	return 0;
 }
 
-static int __init mvebu_cpu_reset_init(void)
+static int mvebu_cpu_reset_map(struct device_node *np, int res_idx)
 {
-	struct device_node *np;
 	struct resource res;
-	int ret = 0;
 
-	np = of_find_compatible_node(NULL, NULL,
-				     "marvell,armada-370-cpu-reset");
-	if (!np)
-		return 0;
-
-	if (of_address_to_resource(np, 0, &res)) {
+	if (of_address_to_resource(np, res_idx, &res)) {
 		pr_err("unable to get resource\n");
-		ret = -ENOENT;
-		goto out;
+		return -ENOENT;
 	}
 
 	if (!request_mem_region(res.start, resource_size(&res),
 				np->full_name)) {
 		pr_err("unable to request region\n");
-		ret = -EBUSY;
-		goto out;
+		return -EBUSY;
 	}
 
 	cpu_reset_base = ioremap(res.start, resource_size(&res));
 	if (!cpu_reset_base) {
 		pr_err("unable to map registers\n");
 		release_mem_region(res.start, resource_size(&res));
-		ret = -ENOMEM;
-		goto out;
+		return -ENOMEM;
 	}
 
 	cpu_reset_size = resource_size(&res);
 
-out:
+	return 0;
+}
+
+int __init mvebu_cpu_reset_init(void)
+{
+	struct device_node *np;
+	int res_idx;
+	int ret;
+
+	np = of_find_compatible_node(NULL, NULL,
+				     "marvell,armada-370-cpu-reset");
+	if (np) {
+		res_idx = 0;
+	} else {
+		/*
+		 * This code is kept for backward compatibility with
+		 * old Device Trees.
+		 */
+		np = of_find_compatible_node(NULL, NULL,
+					     "marvell,armada-370-xp-pmsu");
+		if (np) {
+			pr_warn(FW_WARN "deprecated pmsu binding\n");
+			res_idx = 1;
+		}
+	}
+
+	/* No reset node found */
+	if (!np)
+		return -ENODEV;
+
+	ret = mvebu_cpu_reset_map(np, res_idx);
 	of_node_put(np);
+
 	return ret;
 }
 

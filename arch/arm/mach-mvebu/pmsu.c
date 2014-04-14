@@ -21,14 +21,14 @@
 #include <linux/of_address.h>
 #include <linux/io.h>
 #include <linux/smp.h>
+#include <linux/resource.h>
 #include <asm/smp_plat.h>
+#include "common.h"
 #include "pmsu.h"
 
 static void __iomem *pmsu_mp_base;
-static void __iomem *pmsu_reset_base;
 
 #define PMSU_BOOT_ADDR_REDIRECT_OFFSET(cpu)	((cpu * 0x100) + 0x24)
-#define PMSU_RESET_CTL_OFFSET(cpu)		(cpu * 0x8)
 
 static struct of_device_id of_pmsu_table[] = {
 	{.compatible = "marvell,armada-370-xp-pmsu"},
@@ -38,11 +38,11 @@ static struct of_device_id of_pmsu_table[] = {
 #ifdef CONFIG_SMP
 int armada_xp_boot_cpu(unsigned int cpu_id, void *boot_addr)
 {
-	int reg, hw_cpu;
+	int hw_cpu, ret;
 
-	if (!pmsu_mp_base || !pmsu_reset_base) {
+	if (!pmsu_mp_base) {
 		pr_warn("Can't boot CPU. PMSU is uninitialized\n");
-		return 1;
+		return -ENODEV;
 	}
 
 	hw_cpu = cpu_logical_map(cpu_id);
@@ -50,10 +50,11 @@ int armada_xp_boot_cpu(unsigned int cpu_id, void *boot_addr)
 	writel(virt_to_phys(boot_addr), pmsu_mp_base +
 			PMSU_BOOT_ADDR_REDIRECT_OFFSET(hw_cpu));
 
-	/* Release CPU from reset by clearing reset bit*/
-	reg = readl(pmsu_reset_base + PMSU_RESET_CTL_OFFSET(hw_cpu));
-	reg &= (~0x1);
-	writel(reg, pmsu_reset_base + PMSU_RESET_CTL_OFFSET(hw_cpu));
+	ret = mvebu_cpu_reset_deassert(hw_cpu);
+	if (ret) {
+		pr_warn("unable to boot CPU: %d\n", ret);
+		return ret;
+	}
 
 	return 0;
 }
@@ -67,7 +68,6 @@ static int __init armada_370_xp_pmsu_init(void)
 	if (np) {
 		pr_info("Initializing Power Management Service Unit\n");
 		pmsu_mp_base = of_iomap(np, 0);
-		pmsu_reset_base = of_iomap(np, 1);
 		of_node_put(np);
 	}
 
