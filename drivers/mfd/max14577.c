@@ -66,20 +66,20 @@ static const struct regmap_config max14577_muic_regmap_config = {
 
 static const struct regmap_irq max14577_irqs[] = {
 	/* INT1 interrupts */
-	{ .reg_offset = 0, .mask = INT1_ADC_MASK, },
-	{ .reg_offset = 0, .mask = INT1_ADCLOW_MASK, },
-	{ .reg_offset = 0, .mask = INT1_ADCERR_MASK, },
+	{ .reg_offset = 0, .mask = MAX14577_INT1_ADC_MASK, },
+	{ .reg_offset = 0, .mask = MAX14577_INT1_ADCLOW_MASK, },
+	{ .reg_offset = 0, .mask = MAX14577_INT1_ADCERR_MASK, },
 	/* INT2 interrupts */
-	{ .reg_offset = 1, .mask = INT2_CHGTYP_MASK, },
-	{ .reg_offset = 1, .mask = INT2_CHGDETRUN_MASK, },
-	{ .reg_offset = 1, .mask = INT2_DCDTMR_MASK, },
-	{ .reg_offset = 1, .mask = INT2_DBCHG_MASK, },
-	{ .reg_offset = 1, .mask = INT2_VBVOLT_MASK, },
+	{ .reg_offset = 1, .mask = MAX14577_INT2_CHGTYP_MASK, },
+	{ .reg_offset = 1, .mask = MAX14577_INT2_CHGDETRUN_MASK, },
+	{ .reg_offset = 1, .mask = MAX14577_INT2_DCDTMR_MASK, },
+	{ .reg_offset = 1, .mask = MAX14577_INT2_DBCHG_MASK, },
+	{ .reg_offset = 1, .mask = MAX14577_INT2_VBVOLT_MASK, },
 	/* INT3 interrupts */
-	{ .reg_offset = 2, .mask = INT3_EOC_MASK, },
-	{ .reg_offset = 2, .mask = INT3_CGMBC_MASK, },
-	{ .reg_offset = 2, .mask = INT3_OVP_MASK, },
-	{ .reg_offset = 2, .mask = INT3_MBCCHGERR_MASK, },
+	{ .reg_offset = 2, .mask = MAX14577_INT3_EOC_MASK, },
+	{ .reg_offset = 2, .mask = MAX14577_INT3_CGMBC_MASK, },
+	{ .reg_offset = 2, .mask = MAX14577_INT3_OVP_MASK, },
+	{ .reg_offset = 2, .mask = MAX14577_INT3_MBCCHGERR_MASK, },
 };
 
 static const struct regmap_irq_chip max14577_irq_chip = {
