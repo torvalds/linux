@@ -1578,6 +1578,20 @@ static int sony_check_add(struct sony_sc *sc)
 	return sony_check_add_dev_list(sc);
 }
 
+static inline void sony_init_work(struct sony_sc *sc,
+					void (*worker)(struct work_struct *))
+{
+	if (!sc->worker_initialized)
+		INIT_WORK(&sc->state_worker, worker);
+
+	sc->worker_initialized = 1;
+}
+
+static inline void sony_cancel_work_sync(struct sony_sc *sc)
+{
+	if (sc->worker_initialized)
+		cancel_work_sync(&sc->state_worker);
+}
 
 static int sony_probe(struct hid_device *hdev, const struct hid_device_id *id)
 {
@@ -1629,8 +1643,7 @@ static int sony_probe(struct hid_device *hdev, const struct hid_device_id *id)
 		hdev->quirks |= HID_QUIRK_NO_OUTPUT_REPORTS_ON_INTR_EP;
 		hdev->quirks |= HID_QUIRK_SKIP_OUTPUT_REPORT_ID;
 		ret = sixaxis_set_operational_usb(hdev);
-		sc->worker_initialized = 1;
-		INIT_WORK(&sc->state_worker, sixaxis_state_worker);
+		sony_init_work(sc, sixaxis_state_worker);
 	} else if (sc->quirks & SIXAXIS_CONTROLLER_BT) {
 		/*
 		 * The Sixaxis wants output reports sent on the ctrl endpoint
@@ -1638,8 +1651,7 @@ static int sony_probe(struct hid_device *hdev, const struct hid_device_id *id)
 		 */
 		hdev->quirks |= HID_QUIRK_NO_OUTPUT_REPORTS_ON_INTR_EP;
 		ret = sixaxis_set_operational_bt(hdev);
-		sc->worker_initialized = 1;
-		INIT_WORK(&sc->state_worker, sixaxis_state_worker);
+		sony_init_work(sc, sixaxis_state_worker);
 	} else if (sc->quirks & DUALSHOCK4_CONTROLLER) {
 		if (sc->quirks & DUALSHOCK4_CONTROLLER_BT) {
 			/*
@@ -1661,8 +1673,7 @@ static int sony_probe(struct hid_device *hdev, const struct hid_device_id *id)
 		if (ret < 0)
 			goto err_stop;
 
-		sc->worker_initialized = 1;
-		INIT_WORK(&sc->state_worker, dualshock4_state_worker);
+		sony_init_work(sc, dualshock4_state_worker);
 	} else {
 		ret = 0;
 	}
@@ -1707,8 +1718,7 @@ err_stop:
 		sony_leds_remove(hdev);
 	if (sc->quirks & SONY_BATTERY_SUPPORT)
 		sony_battery_remove(sc);
-	if (sc->worker_initialized)
-		cancel_work_sync(&sc->state_worker);
+	sony_cancel_work_sync(sc);
 	sony_remove_dev_list(sc);
 	hid_hw_stop(hdev);
 	return ret;
@@ -1726,8 +1736,7 @@ static void sony_remove(struct hid_device *hdev)
 		sony_battery_remove(sc);
 	}
 
-	if (sc->worker_initialized)
-		cancel_work_sync(&sc->state_worker);
+	sony_cancel_work_sync(sc);
 
 	sony_remove_dev_list(sc);
 
