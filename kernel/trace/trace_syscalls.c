@@ -321,7 +321,7 @@ static void ftrace_syscall_enter(void *data, struct pt_regs *regs, long id)
 	if (!ftrace_file)
 		return;
 
-	if (test_bit(FTRACE_EVENT_FL_SOFT_DISABLED_BIT, &ftrace_file->flags))
+	if (ftrace_trigger_soft_disabled(ftrace_file))
 		return;
 
 	sys_data = syscall_nr_to_meta(syscall_nr);
@@ -343,9 +343,8 @@ static void ftrace_syscall_enter(void *data, struct pt_regs *regs, long id)
 	entry->nr = syscall_nr;
 	syscall_get_arguments(current, regs, 0, sys_data->nb_args, entry->args);
 
-	if (!filter_check_discard(ftrace_file, entry, buffer, event))
-		trace_current_buffer_unlock_commit(buffer, event,
-						   irq_flags, pc);
+	event_trigger_unlock_commit(ftrace_file, buffer, event, entry,
+				    irq_flags, pc);
 }
 
 static void ftrace_syscall_exit(void *data, struct pt_regs *regs, long ret)
@@ -369,7 +368,7 @@ static void ftrace_syscall_exit(void *data, struct pt_regs *regs, long ret)
 	if (!ftrace_file)
 		return;
 
-	if (test_bit(FTRACE_EVENT_FL_SOFT_DISABLED_BIT, &ftrace_file->flags))
+	if (ftrace_trigger_soft_disabled(ftrace_file))
 		return;
 
 	sys_data = syscall_nr_to_meta(syscall_nr);
@@ -390,9 +389,8 @@ static void ftrace_syscall_exit(void *data, struct pt_regs *regs, long ret)
 	entry->nr = syscall_nr;
 	entry->ret = syscall_get_return_value(current, regs);
 
-	if (!filter_check_discard(ftrace_file, entry, buffer, event))
-		trace_current_buffer_unlock_commit(buffer, event,
-						   irq_flags, pc);
+	event_trigger_unlock_commit(ftrace_file, buffer, event, entry,
+				    irq_flags, pc);
 }
 
 static int reg_event_syscall_enter(struct ftrace_event_file *file,

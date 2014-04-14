@@ -1,0 +1,24 @@
+Marvell Berlin SoC Family Device Tree Bindings
+---------------------------------------------------------------
+
+Boards with a SoC of the Marvell Berlin family, e.g. Armada 1500
+shall have the following properties:
+
+* Required root node properties:
+compatible: must contain "marvell,berlin"
+
+In addition, the above compatible shall be extended with the specific
+SoC and board used. Currently known SoC compatibles are:
+    "marvell,berlin2"      for Marvell Armada 1500 (BG2, 88DE3100),
+    "marvell,berlin2cd"    for Marvell Armada 1500-mini (BG2CD, 88DE3005)
+    "marvell,berlin2ct"    for Marvell Armada ? (BG2CT, 88DE????)
+    "marvell,berlin3"      for Marvell Armada ? (BG3, 88DE????)
+
+* Example:
+
+/ {
+	model = "Sony NSZ-GS7";
+	compatible = "sony,nsz-gs7", "marvell,berlin2", "marvell,berlin";
+
+	...
+}

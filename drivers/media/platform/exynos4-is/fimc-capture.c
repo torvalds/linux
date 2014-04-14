@@ -549,7 +549,7 @@ static int fimc_capture_release(struct file *file)
 		vc->streaming = false;
 	}
 
-	ret = vb2_fop_release(file);
+	ret = _vb2_fop_release(file, NULL);
 
 	if (close) {
 		clear_bit(ST_CAPT_BUSY, &fimc->state);

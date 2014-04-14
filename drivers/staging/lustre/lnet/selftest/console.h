@@ -100,7 +100,7 @@ typedef struct {
 	struct list_head	     *bat_cli_hash;   /* hash table of client nodes */
 	struct list_head	      bat_srv_list;   /* list head of server nodes */
 	struct list_head	     *bat_srv_hash;   /* hash table of server nodes */
-} lstcon_batch_t;			     /*** (tests ) batch descritptor */
+} lstcon_batch_t;			     /*** (tests ) batch descriptor */
 
 typedef struct lstcon_test {
 	lstcon_tsb_hdr_t      tes_hdr;	/* test batch header */
@@ -224,9 +224,9 @@ extern int lstcon_group_stat(char *grp_name, int timeout,
 			     struct list_head *result_up);
 extern int lstcon_nodes_stat(int count, lnet_process_id_t *ids_up,
 			     int timeout, struct list_head *result_up);
-extern int lstcon_test_add(char *name, int type, int loop, int concur,
-			   int dist, int span, char *src_name, char * dst_name,
+extern int lstcon_test_add(char *batch_name, int type, int loop,
+			   int concur, int dist, int span,
+			   char *src_name, char *dst_name,
 			   void *param, int paramlen, int *retp,
 			   struct list_head *result_up);
-
 #endif

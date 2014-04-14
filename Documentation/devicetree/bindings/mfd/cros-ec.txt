@@ -17,6 +17,15 @@ Required properties (SPI):
 - compatible: "google,cros-ec-spi"
 - reg: SPI chip select
 
+Optional properties (SPI):
+- google,cros-ec-spi-msg-delay: Some implementations of the EC require some
+  additional processing time in order to accept new transactions. If the delay
+  between transactions is not long enough the EC may not be able to respond
+  properly to subsequent transactions and cause them to hang. This property
+  specifies the delay, in usecs, introduced between transactions to account
+  for the time required by the EC to get back into a state in which new data
+  can be accepted.
+
 Required properties (LPC):
 - compatible: "google,cros-ec-lpc"
 - reg: List of (IO address, size) pairs defining the interface uses

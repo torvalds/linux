@@ -24,8 +24,13 @@
 #include <linux/init.h>
 #include <linux/slab.h>
 #include <sound/core.h>
+#include <linux/module.h>
 #include "hda_codec.h"
 #include "hda_local.h"
+
+static int dump_coef = -1;
+module_param(dump_coef, int, 0644);
+MODULE_PARM_DESC(dump_coef, "Dump processing coefficients in codec proc file (-1=auto, 0=disable, 1=enable)");
 
 static char *bits_names(unsigned int bits, char *names[], int size)
 {
@@ -488,14 +493,39 @@ static void print_unsol_cap(struct snd_info_buffer *buffer,
 		    (unsol & AC_UNSOL_ENABLED) ? 1 : 0);
 }
 
+static inline bool can_dump_coef(struct hda_codec *codec)
+{
+	switch (dump_coef) {
+	case 0: return false;
+	case 1: return true;
+	default: return codec->dump_coef;
+	}
+}
+
 static void print_proc_caps(struct snd_info_buffer *buffer,
 			    struct hda_codec *codec, hda_nid_t nid)
 {
+	unsigned int i, ncoeff, oldindex;
 	unsigned int proc_caps = snd_hda_param_read(codec, nid,
 						    AC_PAR_PROC_CAP);
+	ncoeff = (proc_caps & AC_PCAP_NUM_COEF) >> AC_PCAP_NUM_COEF_SHIFT;
 	snd_iprintf(buffer, "  Processing caps: benign=%d, ncoeff=%d\n",
-		    proc_caps & AC_PCAP_BENIGN,
-		    (proc_caps & AC_PCAP_NUM_COEF) >> AC_PCAP_NUM_COEF_SHIFT);
+		    proc_caps & AC_PCAP_BENIGN, ncoeff);
+
+	if (!can_dump_coef(codec))
+		return;
+
+	/* Note: This is racy - another process could run in parallel and change
+	   the coef index too. */
+	oldindex = snd_hda_codec_read(codec, nid, 0, AC_VERB_GET_COEF_INDEX, 0);
+	for (i = 0; i < ncoeff; i++) {
+		unsigned int val;
+		snd_hda_codec_write(codec, nid, 0, AC_VERB_SET_COEF_INDEX, i);
+		val = snd_hda_codec_read(codec, nid, 0, AC_VERB_GET_PROC_COEF,
+					 0);
+		snd_iprintf(buffer, "    Coeff 0x%02x: 0x%04x\n", i, val);
+	}
+	snd_hda_codec_write(codec, nid, 0, AC_VERB_SET_COEF_INDEX, oldindex);
 }
 
 static void print_conn_list(struct snd_info_buffer *buffer,

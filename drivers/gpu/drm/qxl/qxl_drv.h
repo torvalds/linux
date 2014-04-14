@@ -534,7 +534,7 @@ void qxl_debugfs_takedown(struct drm_minor *minor);
 
 /* qxl_irq.c */
 int qxl_irq_init(struct qxl_device *qdev);
-irqreturn_t qxl_irq_handler(DRM_IRQ_ARGS);
+irqreturn_t qxl_irq_handler(int irq, void *arg);
 
 /* qxl_fb.c */
 int qxl_fb_init(struct qxl_device *qdev);

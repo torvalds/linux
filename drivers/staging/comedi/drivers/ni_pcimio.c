@@ -116,8 +116,6 @@ Bugs:
 #include "ni_stc.h"
 #include "mite.h"
 
-/* #define PCI_DEBUG */
-
 #define PCIDMA
 
 #define PCIMIO 1
@@ -134,24 +132,26 @@ Bugs:
  63 different possibilities.  An AO channel
  can not act as it's own OFFSET or REFERENCE.
 */
-static const struct comedi_lrange range_ni_M_628x_ao = { 8, {
-							     RANGE(-10, 10),
-							     RANGE(-5, 5),
-							     RANGE(-2, 2),
-							     RANGE(-1, 1),
-							     RANGE(-5, 15),
-							     RANGE(0, 10),
-							     RANGE(3, 7),
-							     RANGE(4, 6),
-							     RANGE_ext(-1, 1)
-							     }
+static const struct comedi_lrange range_ni_M_628x_ao = {
+	8, {
+		BIP_RANGE(10),
+		BIP_RANGE(5),
+		BIP_RANGE(2),
+		BIP_RANGE(1),
+		RANGE(-5, 15),
+		UNI_RANGE(10),
+		RANGE(3, 7),
+		RANGE(4, 6),
+		RANGE_ext(-1, 1)
+	}
 };
 
-static const struct comedi_lrange range_ni_M_625x_ao = { 3, {
-							     RANGE(-10, 10),
-							     RANGE(-5, 5),
-							     RANGE_ext(-1, 1)
-							     }
+static const struct comedi_lrange range_ni_M_625x_ao = {
+	3, {
+		BIP_RANGE(10),
+		BIP_RANGE(5),
+		RANGE_ext(-1, 1)
+	}
 };
 
 enum ni_pcimio_boardid {
@@ -1178,9 +1178,9 @@ static void m_series_stc_writew(struct comedi_device *dev, uint16_t data,
 		offset = M_Offset_AO_FIFO_Clear;
 		break;
 	case DIO_Control_Register:
-		printk
-		    ("%s: FIXME: register 0x%x does not map cleanly on to m-series boards.\n",
-		     __func__, reg);
+		dev_dbg(dev->class_dev,
+			"%s: FIXME: register 0x%x does not map cleanly on to m-series boards.\n",
+			__func__, reg);
 		return;
 		break;
 	case G_Autoincrement_Register(0):
@@ -1471,6 +1471,7 @@ static int pcimio_auto_attach(struct comedi_device *dev,
 	struct pci_dev *pcidev = comedi_to_pci_dev(dev);
 	const struct ni_board_struct *board = NULL;
 	struct ni_private *devpriv;
+	unsigned int irq;
 	int ret;
 
 	if (context < ARRAY_SIZE(ni_boards))
@@ -1532,18 +1533,12 @@ static int pcimio_auto_attach(struct comedi_device *dev,
 	if (board->reg_type == ni_reg_6143)
 		init_6143(dev);
 
-	dev->irq = mite_irq(devpriv->mite);
-
-	if (dev->irq == 0) {
-		pr_warn("unknown irq (bad)\n");
-	} else {
-		pr_debug("( irq = %u )\n", dev->irq);
-		ret = request_irq(dev->irq, ni_E_interrupt, NI_E_IRQ_FLAGS,
-				  DRV_NAME, dev);
-		if (ret < 0) {
-			pr_warn("irq not available\n");
-			dev->irq = 0;
-		}
+	irq = mite_irq(devpriv->mite);
+	if (irq) {
+		ret = request_irq(irq, ni_E_interrupt, NI_E_IRQ_FLAGS,
+				  dev->board_name, dev);
+		if (ret == 0)
+			dev->irq = irq;
 	}
 
 	ret = ni_E_init(dev);
@@ -1639,7 +1634,7 @@ static int ni_pcimio_pci_probe(struct pci_dev *dev,
 	return comedi_pci_auto_config(dev, &ni_pcimio_driver, id->driver_data);
 }
 
-static DEFINE_PCI_DEVICE_TABLE(ni_pcimio_pci_table) = {
+static const struct pci_device_id ni_pcimio_pci_table[] = {
 	{ PCI_VDEVICE(NI, 0x0162), BOARD_PCIMIO_16XE_50 },	/* 0x1620? */
 	{ PCI_VDEVICE(NI, 0x1170), BOARD_PCIMIO_16XE_10 },
 	{ PCI_VDEVICE(NI, 0x1180), BOARD_PCIMIO_16E_1 },

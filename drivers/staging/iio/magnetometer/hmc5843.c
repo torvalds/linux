@@ -629,10 +629,17 @@ static const struct i2c_device_id hmc5843_id[] = {
 };
 MODULE_DEVICE_TABLE(i2c, hmc5843_id);
 
+static const struct of_device_id hmc5843_of_match[] = {
+	{ .compatible = "honeywell,hmc5843" },
+	{}
+};
+MODULE_DEVICE_TABLE(of, hmc5843_of_match);
+
 static struct i2c_driver hmc5843_driver = {
 	.driver = {
 		.name	= "hmc5843",
 		.pm	= HMC5843_PM_OPS,
+		.of_match_table = hmc5843_of_match,
 	},
 	.id_table	= hmc5843_id,
 	.probe		= hmc5843_probe,

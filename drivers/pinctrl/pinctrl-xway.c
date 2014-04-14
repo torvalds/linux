@@ -332,10 +332,10 @@ static const struct ltq_pin_group xway_grps[] = {
 	GRP_MUX("mdio", MDIO, pins_mdio),
 	GRP_MUX("gphy0 led0", GPHY, pins_gphy0_led0),
 	GRP_MUX("gphy0 led1", GPHY, pins_gphy0_led1),
-	GRP_MUX("gphy0 lde2", GPHY, pins_gphy0_led2),
+	GRP_MUX("gphy0 led2", GPHY, pins_gphy0_led2),
 	GRP_MUX("gphy1 led0", GPHY, pins_gphy1_led0),
 	GRP_MUX("gphy1 led1", GPHY, pins_gphy1_led1),
-	GRP_MUX("gphy1 lde2", GPHY, pins_gphy1_led2),
+	GRP_MUX("gphy1 led2", GPHY, pins_gphy1_led2),
 };
 
 static const struct ltq_pin_group ase_grps[] = {

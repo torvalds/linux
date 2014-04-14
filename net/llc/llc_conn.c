@@ -753,7 +753,7 @@ void llc_sap_remove_socket(struct llc_sap *sap, struct sock *sk)
  *
  *	Sends received pdus to the connection state machine.
  */
-static int llc_conn_rcv(struct sock* sk, struct sk_buff *skb)
+static int llc_conn_rcv(struct sock *sk, struct sk_buff *skb)
 {
 	struct llc_conn_state_ev *ev = llc_conn_ev(skb);
 
@@ -891,7 +891,7 @@ out_kfree_skb:
  *
  *     Initializes a socket with default llc values.
  */
-static void llc_sk_init(struct sock* sk)
+static void llc_sk_init(struct sock *sk)
 {
 	struct llc_sock *llc = llc_sk(sk);
 

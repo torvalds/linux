@@ -71,7 +71,7 @@ config CAN_AT91
 	  and AT91SAM9X5 processors.
 
 config CAN_TI_HECC
-	depends on ARCH_OMAP3
+	depends on ARM
 	tristate "TI High End CAN Controller"
 	---help---
 	  Driver for TI HECC (High End CAN Controller) module found on many

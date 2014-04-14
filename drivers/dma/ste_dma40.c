@@ -1641,6 +1641,7 @@ static void dma_tasklet(unsigned long data)
 	struct d40_chan *d40c = (struct d40_chan *) data;
 	struct d40_desc *d40d;
 	unsigned long flags;
+	bool callback_active;
 	dma_async_tx_callback callback;
 	void *callback_param;
 
@@ -1668,6 +1669,7 @@ static void dma_tasklet(unsigned long data)
 	}
 
 	/* Callback to client */
+	callback_active = !!(d40d->txd.flags & DMA_PREP_INTERRUPT);
 	callback = d40d->txd.callback;
 	callback_param = d40d->txd.callback_param;
 
@@ -1690,7 +1692,7 @@ static void dma_tasklet(unsigned long data)
 
 	spin_unlock_irqrestore(&d40c->lock, flags);
 
-	if (callback && (d40d->txd.flags & DMA_PREP_INTERRUPT))
+	if (callback_active && callback)
 		callback(callback_param);
 
 	return;
@@ -2409,6 +2411,7 @@ static void d40_set_prio_realtime(struct d40_chan *d40c)
 #define D40_DT_FLAGS_DIR(flags)        ((flags >> 1) & 0x1)
 #define D40_DT_FLAGS_BIG_ENDIAN(flags) ((flags >> 2) & 0x1)
 #define D40_DT_FLAGS_FIXED_CHAN(flags) ((flags >> 3) & 0x1)
+#define D40_DT_FLAGS_HIGH_PRIO(flags)  ((flags >> 4) & 0x1)
 
 static struct dma_chan *d40_xlate(struct of_phandle_args *dma_spec,
 				  struct of_dma *ofdma)
@@ -2445,6 +2448,9 @@ static struct dma_chan *d40_xlate(struct of_phandle_args *dma_spec,
 		cfg.phy_channel = dma_spec->args[1];
 		cfg.use_fixed_channel = true;
 	}
+
+	if (D40_DT_FLAGS_HIGH_PRIO(flags))
+		cfg.high_priority = true;
 
 	return dma_request_channel(cap, stedma40_filter, &cfg);
 }

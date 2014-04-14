@@ -206,13 +206,15 @@ int wusbhc_start(struct wusbhc *wusbhc)
 
 	result = wusbhc_devconnect_start(wusbhc);
 	if (result < 0) {
-		dev_err(dev, "error enabling device connections: %d\n", result);
+		dev_err(dev, "error enabling device connections: %d\n",
+			result);
 		goto error_devconnect_start;
 	}
 
 	result = wusbhc_sec_start(wusbhc);
 	if (result < 0) {
-		dev_err(dev, "error starting security in the HC: %d\n", result);
+		dev_err(dev, "error starting security in the HC: %d\n",
+			result);
 		goto error_sec_start;
 	}
 
@@ -284,7 +286,8 @@ int wusbhc_chid_set(struct wusbhc *wusbhc, const struct wusb_ckhdid *chid)
 		wusbhc->uwb_rc = uwb_rc_get_by_grandpa(wusbhc->dev->parent);
 		if (wusbhc->uwb_rc == NULL) {
 			result = -ENODEV;
-			dev_err(wusbhc->dev, "Cannot get associated UWB Host Controller\n");
+			dev_err(wusbhc->dev,
+				"Cannot get associated UWB Host Controller\n");
 			goto error_rc_get;
 		}
 

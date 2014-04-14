@@ -164,7 +164,7 @@ struct wusb_port {
  * functions/operations that only deal with general Wireless USB HC
  * issues use this data type to refer to the host.
  *
- * @usb_hcd 	   Instantiation of a USB host controller
+ * @usb_hcd	   Instantiation of a USB host controller
  *                 (initialized by upper layer [HWA=HC or WHCI].
  *
  * @dev		   Device that implements this; initialized by the
@@ -196,7 +196,7 @@ struct wusb_port {
  * @ports_max	   Number of simultaneous device connections (fake
  *                 ports) this HC will take. Read-only.
  *
- * @port      	   Array of port status for each fake root port. Guaranteed to
+ * @port	   Array of port status for each fake root port. Guaranteed to
  *                 always be the same length during device existence
  *                 [this allows for some unlocked but referenced reading].
  *
@@ -329,7 +329,8 @@ void wusbhc_pal_unregister(struct wusbhc *wusbhc);
  * This is a safe assumption as @usb_dev->bus is referenced all the
  * time during the @usb_dev life cycle.
  */
-static inline struct usb_hcd *usb_hcd_get_by_usb_dev(struct usb_device *usb_dev)
+static inline
+struct usb_hcd *usb_hcd_get_by_usb_dev(struct usb_device *usb_dev)
 {
 	struct usb_hcd *usb_hcd;
 	usb_hcd = container_of(usb_dev->bus, struct usb_hcd, self);

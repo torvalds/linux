@@ -18,7 +18,6 @@
 #include <linux/pci_ids.h>
 #include <linux/pci.h>
 #include <linux/bitops.h>
-#include <linux/ioport.h>
 #include <linux/suspend.h>
 #include <asm/e820.h>
 #include <asm/io.h>
@@ -54,18 +53,6 @@ int fallback_aper_force __initdata;
 
 int fix_aperture __initdata = 1;
 
-static struct resource gart_resource = {
-	.name	= "GART",
-	.flags	= IORESOURCE_MEM,
-};
-
-static void __init insert_aperture_resource(u32 aper_base, u32 aper_size)
-{
-	gart_resource.start = aper_base;
-	gart_resource.end = aper_base + aper_size - 1;
-	insert_resource(&iomem_resource, &gart_resource);
-}
-
 /* This code runs before the PCI subsystem is initialized, so just
    access the northbridge directly. */
 
@@ -96,7 +83,6 @@ static u32 __init allocate_aperture(void)
 	memblock_reserve(addr, aper_size);
 	printk(KERN_INFO "Mapping aperture over %d KB of RAM @ %lx\n",
 			aper_size >> 10, addr);
-	insert_aperture_resource((u32)addr, aper_size);
 	register_nosave_region(addr >> PAGE_SHIFT,
 			       (addr+aper_size) >> PAGE_SHIFT);
 
@@ -444,12 +430,8 @@ int __init gart_iommu_hole_init(void)
 
 out:
 	if (!fix && !fallback_aper_force) {
-		if (last_aper_base) {
-			unsigned long n = (32 * 1024 * 1024) << last_aper_order;
-
-			insert_aperture_resource((u32)last_aper_base, n);
+		if (last_aper_base)
 			return 1;
-		}
 		return 0;
 	}
 

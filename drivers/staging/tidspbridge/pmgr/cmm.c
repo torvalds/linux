@@ -359,7 +359,7 @@ int cmm_free_buf(struct cmm_object *hcmm_mgr, void *buf_pa, u32 ul_seg_id)
  *      Return the communication memory manager object for this device.
  *      This is typically called from the client process.
  */
-int cmm_get_handle(void *hprocessor, struct cmm_object ** ph_cmm_mgr)
+int cmm_get_handle(void *hprocessor, struct cmm_object **ph_cmm_mgr)
 {
 	int status = 0;
 	struct dev_object *hdev_obj;
@@ -449,8 +449,7 @@ int cmm_register_gppsm_seg(struct cmm_object *hcmm_mgr,
 	struct cmm_mnode *new_node;
 	s32 slot_seg;
 
-	dev_dbg(bridge, "%s: dw_gpp_base_pa %x ul_size %x dsp_addr_offset %x "
-			"dw_dsp_base %x ul_dsp_size %x gpp_base_va %x\n",
+	dev_dbg(bridge, "%s: dw_gpp_base_pa %x ul_size %x dsp_addr_offset %x dw_dsp_base %x ul_dsp_size %x gpp_base_va %x\n",
 			__func__, dw_gpp_base_pa, ul_size, dsp_addr_offset,
 			dw_dsp_base, ul_dsp_size, gpp_base_va);
 
@@ -828,7 +827,7 @@ int cmm_xlator_free_buf(struct cmm_xlatorobject *xlator, void *buf_va)
  *  Purpose:
  *      Set/Get translator info.
  */
-int cmm_xlator_info(struct cmm_xlatorobject *xlator, u8 ** paddr,
+int cmm_xlator_info(struct cmm_xlatorobject *xlator, u8 **paddr,
 			   u32 ul_size, u32 segm_id, bool set_info)
 {
 	struct cmm_xlator *xlator_obj = (struct cmm_xlator *)xlator;

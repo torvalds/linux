@@ -817,17 +817,14 @@ exit:
  */
 int __tipc_disconnect(struct tipc_port *tp_ptr)
 {
-	int res;
-
 	if (tp_ptr->connected) {
 		tp_ptr->connected = 0;
 		/* let timer expire on it's own to avoid deadlock! */
 		tipc_nodesub_unsubscribe(&tp_ptr->subscription);
-		res = 0;
-	} else {
-		res = -ENOTCONN;
+		return 0;
 	}
-	return res;
+
+	return -ENOTCONN;
 }
 
 /*

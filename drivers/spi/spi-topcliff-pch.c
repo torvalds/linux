@@ -217,7 +217,7 @@ struct pch_pd_dev_save {
 	struct pch_spi_board_data *board_dat;
 };
 
-static DEFINE_PCI_DEVICE_TABLE(pch_spi_pcidev_id) = {
+static const struct pci_device_id pch_spi_pcidev_id[] = {
 	{ PCI_VDEVICE(INTEL, PCI_DEVICE_ID_GE_SPI),    1, },
 	{ PCI_VDEVICE(ROHM, PCI_DEVICE_ID_ML7213_SPI), 2, },
 	{ PCI_VDEVICE(ROHM, PCI_DEVICE_ID_ML7223_SPI), 1, },
@@ -466,12 +466,6 @@ static void pch_spi_reset(struct spi_master *master)
 
 static int pch_spi_setup(struct spi_device *pspi)
 {
-	/* check bits per word */
-	if (pspi->bits_per_word == 0) {
-		pspi->bits_per_word = 8;
-		dev_dbg(&pspi->dev, "%s 8 bits per word\n", __func__);
-	}
-
 	/* Check baud rate setting */
 	/* if baud rate of chip is greater than
 	   max we can support,return error */
@@ -921,7 +915,7 @@ static void pch_spi_request_dma(struct pch_spi_data *data, int bpw)
 	/* Set Tx DMA */
 	param = &dma->param_tx;
 	param->dma_dev = &dma_dev->dev;
-	param->chan_id = data->master->bus_num * 2; /* Tx = 0, 2 */
+	param->chan_id = data->ch * 2; /* Tx = 0, 2 */;
 	param->tx_reg = data->io_base_addr + PCH_SPDWR;
 	param->width = width;
 	chan = dma_request_channel(mask, pch_spi_filter, param);
@@ -936,7 +930,7 @@ static void pch_spi_request_dma(struct pch_spi_data *data, int bpw)
 	/* Set Rx DMA */
 	param = &dma->param_rx;
 	param->dma_dev = &dma_dev->dev;
-	param->chan_id = data->master->bus_num * 2 + 1; /* Rx = Tx + 1 */
+	param->chan_id = data->ch * 2 + 1; /* Rx = Tx + 1 */;
 	param->rx_reg = data->io_base_addr + PCH_SPDRR;
 	param->width = width;
 	chan = dma_request_channel(mask, pch_spi_filter, param);
@@ -1458,6 +1452,11 @@ static int pch_spi_pd_probe(struct platform_device *plat_dev)
 
 	pch_spi_set_master_mode(master);
 
+	if (use_dma) {
+		dev_info(&plat_dev->dev, "Use DMA for data transfers\n");
+		pch_alloc_dma_buf(board_dat, data);
+	}
+
 	ret = spi_register_master(master);
 	if (ret != 0) {
 		dev_err(&plat_dev->dev,
@@ -1465,14 +1464,10 @@ static int pch_spi_pd_probe(struct platform_device *plat_dev)
 		goto err_spi_register_master;
 	}
 
-	if (use_dma) {
-		dev_info(&plat_dev->dev, "Use DMA for data transfers\n");
-		pch_alloc_dma_buf(board_dat, data);
-	}
-
 	return 0;
 
 err_spi_register_master:
+	pch_free_dma_buf(board_dat, data);
 	free_irq(board_dat->pdev->irq, data);
 err_request_irq:
 	pch_spi_free_resources(board_dat, data);

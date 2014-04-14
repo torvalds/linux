@@ -261,7 +261,7 @@ int btrfs_check_dir_item_collision(struct btrfs_root *root, u64 dir,
 	 * see if there is room in the item to insert this
 	 * name
 	 */
-	data_size = sizeof(*di) + name_len + sizeof(struct btrfs_item);
+	data_size = sizeof(*di) + name_len;
 	leaf = path->nodes[0];
 	slot = path->slots[0];
 	if (data_size + btrfs_item_size_nr(leaf, slot) +
@@ -459,7 +459,7 @@ int verify_dir_item(struct btrfs_root *root,
 	u8 type = btrfs_dir_type(leaf, dir_item);
 
 	if (type >= BTRFS_FT_MAX) {
-		printk(KERN_CRIT "btrfs: invalid dir item type: %d\n",
+		btrfs_crit(root->fs_info, "invalid dir item type: %d",
 		       (int)type);
 		return 1;
 	}
@@ -468,7 +468,7 @@ int verify_dir_item(struct btrfs_root *root,
 		namelen = XATTR_NAME_MAX;
 
 	if (btrfs_dir_name_len(leaf, dir_item) > namelen) {
-		printk(KERN_CRIT "btrfs: invalid dir item name len: %u\n",
+		btrfs_crit(root->fs_info, "invalid dir item name len: %u",
 		       (unsigned)btrfs_dir_data_len(leaf, dir_item));
 		return 1;
 	}
@@ -476,7 +476,7 @@ int verify_dir_item(struct btrfs_root *root,
 	/* BTRFS_MAX_XATTR_SIZE is the same for all dir items */
 	if ((btrfs_dir_data_len(leaf, dir_item) +
 	     btrfs_dir_name_len(leaf, dir_item)) > BTRFS_MAX_XATTR_SIZE(root)) {
-		printk(KERN_CRIT "btrfs: invalid dir item name + data len: %u + %u\n",
+		btrfs_crit(root->fs_info, "invalid dir item name + data len: %u + %u",
 		       (unsigned)btrfs_dir_name_len(leaf, dir_item),
 		       (unsigned)btrfs_dir_data_len(leaf, dir_item));
 		return 1;

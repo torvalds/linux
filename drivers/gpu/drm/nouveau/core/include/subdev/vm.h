@@ -131,9 +131,5 @@ void nouveau_vm_map(struct nouveau_vma *, struct nouveau_mem *);
 void nouveau_vm_map_at(struct nouveau_vma *, u64 offset, struct nouveau_mem *);
 void nouveau_vm_unmap(struct nouveau_vma *);
 void nouveau_vm_unmap_at(struct nouveau_vma *, u64 offset, u64 length);
-void nouveau_vm_map_sg(struct nouveau_vma *, u64 offset, u64 length,
-		       struct nouveau_mem *);
-void nouveau_vm_map_sg_table(struct nouveau_vma *vma, u64 delta, u64 length,
-		     struct nouveau_mem *mem);
 
 #endif

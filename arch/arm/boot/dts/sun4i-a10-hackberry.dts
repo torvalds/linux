@@ -18,10 +18,6 @@
 	model = "Miniand Hackberry";
 	compatible = "miniand,hackberry", "allwinner,sun4i-a10";
 
-	chosen {
-		bootargs = "earlyprintk console=ttyS0,115200";
-	};
-
 	soc@01c00000 {
 		emac: ethernet@01c0b000 {
 			pinctrl-names = "default";

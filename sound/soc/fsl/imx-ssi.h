@@ -213,7 +213,6 @@ struct imx_ssi {
 
 	int fiq_init;
 	int dma_init;
-	int enabled;
 };
 
 #endif /* _IMX_SSI_H */

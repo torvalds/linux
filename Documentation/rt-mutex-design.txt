@@ -30,7 +30,7 @@ is something called unbounded priority inversion.  That is when the high
 priority process is prevented from running by a lower priority process for
 an undetermined amount of time.
 
-The classic example of unbounded priority inversion is were you have three
+The classic example of unbounded priority inversion is where you have three
 processes, let's call them processes A, B, and C, where A is the highest
 priority process, C is the lowest, and B is in between. A tries to grab a lock
 that C owns and must wait and lets C run to release the lock. But in the

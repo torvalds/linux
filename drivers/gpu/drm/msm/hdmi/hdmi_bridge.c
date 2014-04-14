@@ -21,6 +21,7 @@ struct hdmi_bridge {
 	struct drm_bridge base;
 
 	struct hdmi *hdmi;
+	bool power_on;
 
 	unsigned long int pixclock;
 };
@@ -34,6 +35,65 @@ static void hdmi_bridge_destroy(struct drm_bridge *bridge)
 	kfree(hdmi_bridge);
 }
 
+static void power_on(struct drm_bridge *bridge)
+{
+	struct drm_device *dev = bridge->dev;
+	struct hdmi_bridge *hdmi_bridge = to_hdmi_bridge(bridge);
+	struct hdmi *hdmi = hdmi_bridge->hdmi;
+	const struct hdmi_platform_config *config = hdmi->config;
+	int i, ret;
+
+	for (i = 0; i < config->pwr_reg_cnt; i++) {
+		ret = regulator_enable(hdmi->pwr_regs[i]);
+		if (ret) {
+			dev_err(dev->dev, "failed to enable pwr regulator: %s (%d)\n",
+					config->pwr_reg_names[i], ret);
+		}
+	}
+
+	if (config->pwr_clk_cnt > 0) {
+		DBG("pixclock: %lu", hdmi_bridge->pixclock);
+		ret = clk_set_rate(hdmi->pwr_clks[0], hdmi_bridge->pixclock);
+		if (ret) {
+			dev_err(dev->dev, "failed to set pixel clk: %s (%d)\n",
+					config->pwr_clk_names[0], ret);
+		}
+	}
+
+	for (i = 0; i < config->pwr_clk_cnt; i++) {
+		ret = clk_prepare_enable(hdmi->pwr_clks[i]);
+		if (ret) {
+			dev_err(dev->dev, "failed to enable pwr clk: %s (%d)\n",
+					config->pwr_clk_names[i], ret);
+		}
+	}
+}
+
+static void power_off(struct drm_bridge *bridge)
+{
+	struct drm_device *dev = bridge->dev;
+	struct hdmi_bridge *hdmi_bridge = to_hdmi_bridge(bridge);
+	struct hdmi *hdmi = hdmi_bridge->hdmi;
+	const struct hdmi_platform_config *config = hdmi->config;
+	int i, ret;
+
+	/* TODO do we need to wait for final vblank somewhere before
+	 * cutting the clocks?
+	 */
+	mdelay(16 + 4);
+
+	for (i = 0; i < config->pwr_clk_cnt; i++)
+		clk_disable_unprepare(hdmi->pwr_clks[i]);
+
+	for (i = 0; i < config->pwr_reg_cnt; i++) {
+		ret = regulator_disable(hdmi->pwr_regs[i]);
+		if (ret) {
+			dev_err(dev->dev, "failed to disable pwr regulator: %s (%d)\n",
+					config->pwr_reg_names[i], ret);
+		}
+	}
+}
+
 static void hdmi_bridge_pre_enable(struct drm_bridge *bridge)
 {
 	struct hdmi_bridge *hdmi_bridge = to_hdmi_bridge(bridge);
@@ -41,6 +101,12 @@ static void hdmi_bridge_pre_enable(struct drm_bridge *bridge)
 	struct hdmi_phy *phy = hdmi->phy;
 
 	DBG("power up");
+
+	if (!hdmi_bridge->power_on) {
+		power_on(bridge);
+		hdmi_bridge->power_on = true;
+	}
+
 	phy->funcs->powerup(phy, hdmi_bridge->pixclock);
 	hdmi_set_mode(hdmi, true);
 }
@@ -62,6 +128,11 @@ static void hdmi_bridge_post_disable(struct drm_bridge *bridge)
 	DBG("power down");
 	hdmi_set_mode(hdmi, false);
 	phy->funcs->powerdown(phy);
+
+	if (hdmi_bridge->power_on) {
+		power_off(bridge);
+		hdmi_bridge->power_on = false;
+	}
 }
 
 static void hdmi_bridge_mode_set(struct drm_bridge *bridge,

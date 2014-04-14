@@ -114,7 +114,7 @@ static struct clk *clk[clk_max];
 static struct clk_onecell_data clk_data;
 
 static enum mx6q_clks const clks_init_on[] __initconst = {
-	mmdc_ch0_axi, rom, pll1_sys,
+	mmdc_ch0_axi, rom, arm,
 };
 
 static struct clk_div_table clk_enet_ref_table[] = {
@@ -475,9 +475,15 @@ static void __init imx6q_clocks_init(struct device_node *ccm_node)
 	if (ret)
 		pr_warn("failed to set up CLKO: %d\n", ret);
 
+	/* Audio-related clocks configuration */
+	clk_set_parent(clk[spdif_sel], clk[pll3_pfd3_454m]);
+
 	/* All existing boards with PCIe use LVDS1 */
 	if (IS_ENABLED(CONFIG_PCI_IMX6))
 		clk_set_parent(clk[lvds1_sel], clk[sata_ref]);
+
+	/* Set initial power mode */
+	imx6q_set_lpm(WAIT_CLOCKED);
 
 	np = of_find_compatible_node(NULL, NULL, "fsl,imx6q-gpt");
 	base = of_iomap(np, 0);

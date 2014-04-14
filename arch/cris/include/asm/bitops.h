@@ -144,7 +144,7 @@ static inline int test_and_change_bit(int nr, volatile unsigned long *addr)
  * definition, which doesn't have the same semantics.  We don't want to
  * use -fno-builtin, so just hide the name ffs.
  */
-#define ffs kernel_ffs
+#define ffs(x) kernel_ffs(x)
 
 #include <asm-generic/bitops/fls.h>
 #include <asm-generic/bitops/__fls.h>

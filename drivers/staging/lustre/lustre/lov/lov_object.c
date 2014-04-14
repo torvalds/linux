@@ -393,13 +393,13 @@ static int lov_print_empty(const struct lu_env *env, void *cookie,
 static int lov_print_raid0(const struct lu_env *env, void *cookie,
 			   lu_printer_t p, const struct lu_object *o)
 {
-	struct lov_object       *lov = lu2lov(o);
-	struct lov_layout_raid0 *r0  = lov_r0(lov);
-	struct lov_stripe_md    *lsm = lov->lo_lsm;
-	int i;
+	struct lov_object	*lov = lu2lov(o);
+	struct lov_layout_raid0	*r0  = lov_r0(lov);
+	struct lov_stripe_md	*lsm = lov->lo_lsm;
+	int			 i;
 
-	(*p)(env, cookie, "stripes: %d, %svalid, lsm{%p 0x%08X %d %u %u}: \n",
-		r0->lo_nr, lov->lo_layout_invalid ? "in" : "", lsm,
+	(*p)(env, cookie, "stripes: %d, %s, lsm{%p 0x%08X %d %u %u}:\n",
+		r0->lo_nr, lov->lo_layout_invalid ? "invalid" : "valid", lsm,
 		lsm->lsm_magic, atomic_read(&lsm->lsm_refc),
 		lsm->lsm_stripe_count, lsm->lsm_layout_gen);
 	for (i = 0; i < r0->lo_nr; ++i) {
@@ -408,8 +408,9 @@ static int lov_print_raid0(const struct lu_env *env, void *cookie,
 		if (r0->lo_sub[i] != NULL) {
 			sub = lovsub2lu(r0->lo_sub[i]);
 			lu_object_print(env, cookie, p, sub);
-		} else
+		} else {
 			(*p)(env, cookie, "sub %d absent\n", i);
+		}
 	}
 	return 0;
 }
@@ -417,7 +418,14 @@ static int lov_print_raid0(const struct lu_env *env, void *cookie,
 static int lov_print_released(const struct lu_env *env, void *cookie,
 				lu_printer_t p, const struct lu_object *o)
 {
-	(*p)(env, cookie, "released\n");
+	struct lov_object	*lov = lu2lov(o);
+	struct lov_stripe_md	*lsm = lov->lo_lsm;
+
+	(*p)(env, cookie,
+		"released: %s, lsm{%p 0x%08X %d %u %u}:\n",
+		lov->lo_layout_invalid ? "invalid" : "valid", lsm,
+		lsm->lsm_magic, atomic_read(&lsm->lsm_refc),
+		lsm->lsm_stripe_count, lsm->lsm_layout_gen);
 	return 0;
 }
 
@@ -662,6 +670,10 @@ static int lov_layout_change(const struct lu_env *unused,
 		return PTR_ERR(env);
 	}
 
+	CDEBUG(D_INODE, DFID" from %s to %s\n",
+	       PFID(lu_object_fid(lov2lu(lov))),
+	       llt2str(lov->lo_type), llt2str(llt));
+
 	old_ops = &lov_dispatch[lov->lo_type];
 	new_ops = &lov_dispatch[llt];
 
@@ -750,8 +762,9 @@ static int lov_conf_set(const struct lu_env *env, struct cl_object *obj,
 	if (conf->u.coc_md != NULL)
 		lsm = conf->u.coc_md->lsm;
 	if ((lsm == NULL && lov->lo_lsm == NULL) ||
-	    (lsm != NULL && lov->lo_lsm != NULL &&
-	     lov->lo_lsm->lsm_layout_gen == lsm->lsm_layout_gen)) {
+	    ((lsm != NULL && lov->lo_lsm != NULL) &&
+	     (lov->lo_lsm->lsm_layout_gen == lsm->lsm_layout_gen) &&
+	     (lov->lo_lsm->lsm_pattern == lsm->lsm_pattern))) {
 		/* same version of layout */
 		lov->lo_layout_invalid = false;
 		GOTO(out, result = 0);
@@ -767,6 +780,8 @@ static int lov_conf_set(const struct lu_env *env, struct cl_object *obj,
 
 out:
 	lov_conf_unlock(lov);
+	CDEBUG(D_INODE, DFID" lo_layout_invalid=%d\n",
+	       PFID(lu_object_fid(lov2lu(lov))), lov->lo_layout_invalid);
 	return result;
 }
 

@@ -571,7 +571,7 @@ static void tsc2005_setup_spi_xfer(struct tsc2005 *ts)
 
 static int tsc2005_probe(struct spi_device *spi)
 {
-	const struct tsc2005_platform_data *pdata = spi->dev.platform_data;
+	const struct tsc2005_platform_data *pdata = dev_get_platdata(&spi->dev);
 	struct tsc2005 *ts;
 	struct input_dev *input_dev;
 	unsigned int max_x, max_y, max_p;

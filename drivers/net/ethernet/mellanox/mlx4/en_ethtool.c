@@ -1193,6 +1193,9 @@ static int mlx4_en_get_ts_info(struct net_device *dev,
 		info->rx_filters =
 			(1 << HWTSTAMP_FILTER_NONE) |
 			(1 << HWTSTAMP_FILTER_ALL);
+
+		if (mdev->ptp_clock)
+			info->phc_index = ptp_clock_index(mdev->ptp_clock);
 	}
 
 	return ret;

@@ -51,8 +51,6 @@
 
 /*-------------------------------------------------------------------------*/
 
-#undef OHCI_VERBOSE_DEBUG	/* not always helpful */
-
 /* For initializing controller (mask in an HCFS mode too) */
 #define	OHCI_CONTROL_INIT	OHCI_CTRL_CBSR
 #define	OHCI_INTR_INIT \
@@ -126,10 +124,6 @@ static int ohci_urb_enqueue (
 	int		i, size = 0;
 	unsigned long	flags;
 	int		retval = 0;
-
-#ifdef OHCI_VERBOSE_DEBUG
-	urb_print(urb, "SUB", usb_pipein(pipe), -EINPROGRESS);
-#endif
 
 	/* every endpoint has a ed, locate and maybe (re)initialize it */
 	if (! (ed = ed_get (ohci, urb->ep, urb->dev, pipe, urb->interval)))
@@ -283,10 +277,6 @@ static int ohci_urb_dequeue(struct usb_hcd *hcd, struct urb *urb, int status)
 	struct ohci_hcd		*ohci = hcd_to_ohci (hcd);
 	unsigned long		flags;
 	int			rc;
-
-#ifdef OHCI_VERBOSE_DEBUG
-	urb_print(urb, "UNLINK", 1, status);
-#endif
 
 	spin_lock_irqsave (&ohci->lock, flags);
 	rc = usb_hcd_check_unlink_urb(hcd, urb, status);
@@ -840,7 +830,7 @@ static irqreturn_t ohci_irq (struct usb_hcd *hcd)
 	}
 
 	if (ints & OHCI_INTR_RHSC) {
-		ohci_vdbg(ohci, "rhsc\n");
+		ohci_dbg(ohci, "rhsc\n");
 		ohci->next_statechange = jiffies + STATECHANGE_DELAY;
 		ohci_writel(ohci, OHCI_INTR_RD | OHCI_INTR_RHSC,
 				&regs->intrstatus);
@@ -862,7 +852,7 @@ static irqreturn_t ohci_irq (struct usb_hcd *hcd)
 	 * this might not happen.
 	 */
 	else if (ints & OHCI_INTR_RD) {
-		ohci_vdbg(ohci, "resume detect\n");
+		ohci_dbg(ohci, "resume detect\n");
 		ohci_writel(ohci, OHCI_INTR_RD, &regs->intrstatus);
 		set_bit(HCD_FLAG_POLL_RH, &hcd->flags);
 		if (ohci->autostop) {
@@ -1036,6 +1026,7 @@ int ohci_suspend(struct usb_hcd *hcd, bool do_wakeup)
 {
 	struct ohci_hcd	*ohci = hcd_to_ohci (hcd);
 	unsigned long	flags;
+	int		rc = 0;
 
 	/* Disable irq emission and mark HW unaccessible. Use
 	 * the spinlock to properly synchronize with possible pending
@@ -1048,7 +1039,13 @@ int ohci_suspend(struct usb_hcd *hcd, bool do_wakeup)
 	clear_bit(HCD_FLAG_HW_ACCESSIBLE, &hcd->flags);
 	spin_unlock_irqrestore (&ohci->lock, flags);
 
-	return 0;
+	synchronize_irq(hcd->irq);
+
+	if (do_wakeup && HCD_WAKEUP_PENDING(hcd)) {
+		ohci_resume(hcd, false);
+		rc = -EBUSY;
+	}
+	return rc;
 }
 EXPORT_SYMBOL_GPL(ohci_suspend);
 
@@ -1233,13 +1230,11 @@ static int __init ohci_hcd_mod_init(void)
 		sizeof (struct ed), sizeof (struct td));
 	set_bit(USB_OHCI_LOADED, &usb_hcds_loaded);
 
-#ifdef DEBUG
 	ohci_debug_root = debugfs_create_dir("ohci", usb_debug_root);
 	if (!ohci_debug_root) {
 		retval = -ENOENT;
 		goto error_debug;
 	}
-#endif
 
 #ifdef PS3_SYSTEM_BUS_DRIVER
 	retval = ps3_ohci_driver_register(&PS3_SYSTEM_BUS_DRIVER);
@@ -1314,11 +1309,9 @@ static int __init ohci_hcd_mod_init(void)
 	ps3_ohci_driver_unregister(&PS3_SYSTEM_BUS_DRIVER);
  error_ps3:
 #endif
-#ifdef DEBUG
 	debugfs_remove(ohci_debug_root);
 	ohci_debug_root = NULL;
  error_debug:
-#endif
 
 	clear_bit(USB_OHCI_LOADED, &usb_hcds_loaded);
 	return retval;
@@ -1348,9 +1341,7 @@ static void __exit ohci_hcd_mod_exit(void)
 #ifdef PS3_SYSTEM_BUS_DRIVER
 	ps3_ohci_driver_unregister(&PS3_SYSTEM_BUS_DRIVER);
 #endif
-#ifdef DEBUG
 	debugfs_remove(ohci_debug_root);
-#endif
 	clear_bit(USB_OHCI_LOADED, &usb_hcds_loaded);
 }
 module_exit(ohci_hcd_mod_exit);

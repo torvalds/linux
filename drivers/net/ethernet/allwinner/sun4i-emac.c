@@ -16,7 +16,6 @@
 #include <linux/etherdevice.h>
 #include <linux/ethtool.h>
 #include <linux/gpio.h>
-#include <linux/init.h>
 #include <linux/interrupt.h>
 #include <linux/irq.h>
 #include <linux/mii.h>
@@ -930,6 +929,9 @@ static int emac_resume(struct platform_device *dev)
 }
 
 static const struct of_device_id emac_of_match[] = {
+	{.compatible = "allwinner,sun4i-a10-emac",},
+
+	/* Deprecated */
 	{.compatible = "allwinner,sun4i-emac",},
 	{},
 };

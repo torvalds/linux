@@ -147,12 +147,28 @@
 #define SYS_SYS_PLL_MEM_REQ			0x2a3
 #define SYS_PLL_MEM_STAT			0x2a4
 
+/* Registers changed on 9XX */
+#define SYS_9XX_POWER_ON_RESET_CFG		0x00
+#define SYS_9XX_CHIP_RESET			0x01
+#define SYS_9XX_CPU_RESET			0x02
+#define SYS_9XX_CPU_NONCOHERENT_MODE		0x03
+
+/* XLP 9XX fuse block registers */
+#define FUSE_9XX_DEVCFG6			0xc6
+
 #ifndef __ASSEMBLY__
 
 #define nlm_read_sys_reg(b, r)		nlm_read_reg(b, r)
 #define nlm_write_sys_reg(b, r, v)	nlm_write_reg(b, r, v)
-#define nlm_get_sys_pcibase(node) nlm_pcicfg_base(XLP_IO_SYS_OFFSET(node))
+#define nlm_get_sys_pcibase(node)	nlm_pcicfg_base(cpu_is_xlp9xx() ? \
+		XLP9XX_IO_SYS_OFFSET(node) : XLP_IO_SYS_OFFSET(node))
 #define nlm_get_sys_regbase(node) (nlm_get_sys_pcibase(node) + XLP_IO_PCI_HDRSZ)
+
+/* XLP9XX fuse block */
+#define nlm_get_fuse_pcibase(node)	\
+			nlm_pcicfg_base(XLP9XX_IO_FUSE_OFFSET(node))
+#define nlm_get_fuse_regbase(node)	\
+			(nlm_get_fuse_pcibase(node) + XLP_IO_PCI_HDRSZ)
 
 unsigned int nlm_get_pic_frequency(int node);
 #endif

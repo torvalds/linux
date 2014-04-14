@@ -74,11 +74,10 @@ static const int nano_per_micro = 1000;
 
 /* fake analog input ranges */
 static const struct comedi_lrange waveform_ai_ranges = {
-	2,
-	{
-	 BIP_RANGE(10),
-	 BIP_RANGE(5),
-	 }
+	2, {
+		BIP_RANGE(10),
+		BIP_RANGE(5)
+	}
 };
 
 static unsigned short fake_sawtooth(struct comedi_device *dev,

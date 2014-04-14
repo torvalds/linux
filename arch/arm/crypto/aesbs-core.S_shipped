@@ -58,7 +58,7 @@
 # define VFP_ABI_FRAME	0
 # define BSAES_ASM_EXTENDED_KEY
 # define XTS_CHAIN_TWEAK
-# define __ARM_ARCH__ __LINUX_ARM_ARCH__
+# define __ARM_ARCH__	7
 #endif
 
 #ifdef __thumb__

@@ -167,7 +167,7 @@ static int kempld_gpio_probe(struct platform_device *pdev)
 	chip->label = "gpio-kempld";
 	chip->owner = THIS_MODULE;
 	chip->dev = dev;
-	chip->can_sleep = 1;
+	chip->can_sleep = true;
 	if (pdata && pdata->gpio_base)
 		chip->base = pdata->gpio_base;
 	else

@@ -393,4 +393,14 @@ Slot Detection
 
 This function returns the slot ID of the provided bridge.
 
-	int vme_slot_get(struct vme_dev *dev);
+	int vme_slot_num(struct vme_dev *dev);
+
+
+Bus Detection
+=============
+
+This function returns the bus ID of the provided bridge.
+
+	int vme_bus_num(struct vme_dev *dev);
+
+

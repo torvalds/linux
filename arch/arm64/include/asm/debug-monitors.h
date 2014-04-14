@@ -62,6 +62,27 @@ struct task_struct;
 
 #define DBG_ARCH_ID_RESERVED	0	/* In case of ptrace ABI updates. */
 
+#define DBG_HOOK_HANDLED	0
+#define DBG_HOOK_ERROR		1
+
+struct step_hook {
+	struct list_head node;
+	int (*fn)(struct pt_regs *regs, unsigned int esr);
+};
+
+void register_step_hook(struct step_hook *hook);
+void unregister_step_hook(struct step_hook *hook);
+
+struct break_hook {
+	struct list_head node;
+	u32 esr_val;
+	u32 esr_mask;
+	int (*fn)(struct pt_regs *regs, unsigned int esr);
+};
+
+void register_break_hook(struct break_hook *hook);
+void unregister_break_hook(struct break_hook *hook);
+
 u8 debug_monitors_arch(void);
 
 void enable_debug_monitors(enum debug_el el);

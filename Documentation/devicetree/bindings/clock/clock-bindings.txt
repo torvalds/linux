@@ -5,7 +5,7 @@ Sources of clock signal can be represented by any node in the device
 tree.  Those nodes are designated as clock providers.  Clock consumer
 nodes use a phandle and clock specifier pair to connect clock provider
 outputs to clock inputs.  Similar to the gpio specifiers, a clock
-specifier is an array of one more more cells identifying the clock
+specifier is an array of zero, one or more cells identifying the clock
 output on a device.  The length of a clock specifier is defined by the
 value of a #clock-cells property in the clock provider node.
 

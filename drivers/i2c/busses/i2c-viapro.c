@@ -2,7 +2,7 @@
     Copyright (c) 1998 - 2002  Frodo Looijaard <frodol@dds.nl>,
     Philip Edelbrock <phil@netroedge.com>, Kyösti Mälkki <kmalkki@cc.hut.fi>,
     Mark D. Studebaker <mdsxyz123@yahoo.com>
-    Copyright (C) 2005 - 2008  Jean Delvare <khali@linux-fr.org>
+    Copyright (C) 2005 - 2008  Jean Delvare <jdelvare@suse.de>
 
     This program is free software; you can redistribute it and/or modify
     it under the terms of the GNU General Public License as published by
@@ -503,7 +503,7 @@ static void __exit i2c_vt596_exit(void)
 
 MODULE_AUTHOR("Kyosti Malkki <kmalkki@cc.hut.fi>, "
 	      "Mark D. Studebaker <mdsxyz123@yahoo.com> and "
-	      "Jean Delvare <khali@linux-fr.org>");
+	      "Jean Delvare <jdelvare@suse.de>");
 MODULE_DESCRIPTION("vt82c596 SMBus driver");
 MODULE_LICENSE("GPL");
 

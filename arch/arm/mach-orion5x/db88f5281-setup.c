@@ -202,7 +202,7 @@ __initcall(db88f5281_7seg_init);
  * PCI
  ****************************************************************************/
 
-void __init db88f5281_pci_preinit(void)
+static void __init db88f5281_pci_preinit(void)
 {
 	int pin;
 

@@ -957,13 +957,13 @@ bool MACbSafeStop(unsigned long dwIoBase)
 {
 	MACvRegBitsOff(dwIoBase, MAC_REG_TCR, TCR_AUTOBCNTX);
 
-	if (MACbSafeRxOff(dwIoBase) == false) {
+	if (!MACbSafeRxOff(dwIoBase)) {
 		DBG_PORT80(0xA1);
 		DBG_PRT(MSG_LEVEL_DEBUG, KERN_INFO " MACbSafeRxOff == false)\n");
 		MACbSafeSoftwareReset(dwIoBase);
 		return false;
 	}
-	if (MACbSafeTxOff(dwIoBase) == false) {
+	if (!MACbSafeTxOff(dwIoBase)) {
 		DBG_PORT80(0xA2);
 		DBG_PRT(MSG_LEVEL_DEBUG, KERN_INFO " MACbSafeTxOff == false)\n");
 		MACbSafeSoftwareReset(dwIoBase);

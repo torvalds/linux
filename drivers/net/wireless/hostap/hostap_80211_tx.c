@@ -1,5 +1,6 @@
 #include <linux/slab.h>
 #include <linux/export.h>
+#include <linux/etherdevice.h>
 
 #include "hostap_80211.h"
 #include "hostap_common.h"
@@ -103,8 +104,7 @@ netdev_tx_t hostap_data_start_xmit(struct sk_buff *skb,
 			return NETDEV_TX_OK;
 		} else if (local->iw_mode == IW_MODE_INFRA &&
 			   (local->wds_type & HOSTAP_WDS_AP_CLIENT) &&
-			   memcmp(skb->data + ETH_ALEN, dev->dev_addr,
-				  ETH_ALEN) != 0) {
+			   !ether_addr_equal(skb->data + ETH_ALEN, dev->dev_addr)) {
 			/* AP client mode: send frames with foreign src addr
 			 * using 4-addr WDS frames */
 			use_wds = WDS_COMPLIANT_FRAME;

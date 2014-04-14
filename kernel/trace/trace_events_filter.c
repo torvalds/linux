@@ -799,6 +799,11 @@ static void __free_filter(struct event_filter *filter)
 	kfree(filter);
 }
 
+void free_event_filter(struct event_filter *filter)
+{
+	__free_filter(filter);
+}
+
 void destroy_call_preds(struct ftrace_event_call *call)
 {
 	__free_filter(call->filter);
@@ -1936,6 +1941,13 @@ static int create_filter(struct ftrace_event_call *call,
 
 	*filterp = filter;
 	return err;
+}
+
+int create_event_filter(struct ftrace_event_call *call,
+			char *filter_str, bool set_str,
+			struct event_filter **filterp)
+{
+	return create_filter(call, filter_str, set_str, filterp);
 }
 
 /**

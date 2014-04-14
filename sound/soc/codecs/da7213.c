@@ -1067,17 +1067,17 @@ static int da7213_hw_params(struct snd_pcm_substream *substream,
 	u8 fs;
 
 	/* Set DAI format */
-	switch (params_format(params)) {
-	case SNDRV_PCM_FORMAT_S16_LE:
+	switch (params_width(params)) {
+	case 16:
 		dai_ctrl |= DA7213_DAI_WORD_LENGTH_S16_LE;
 		break;
-	case SNDRV_PCM_FORMAT_S20_3LE:
+	case 20:
 		dai_ctrl |= DA7213_DAI_WORD_LENGTH_S20_LE;
 		break;
-	case SNDRV_PCM_FORMAT_S24_LE:
+	case 24:
 		dai_ctrl |= DA7213_DAI_WORD_LENGTH_S24_LE;
 		break;
-	case SNDRV_PCM_FORMAT_S32_LE:
+	case 32:
 		dai_ctrl |= DA7213_DAI_WORD_LENGTH_S32_LE;
 		break;
 	default:

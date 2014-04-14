@@ -17,6 +17,7 @@
 #include <xen/xenbus.h>
 #include <xen/page.h>
 #include "tpm.h"
+#include <xen/platform_pci.h>
 
 struct tpm_private {
 	struct tpm_chip *chip;
@@ -376,6 +377,9 @@ static DEFINE_XENBUS_DRIVER(tpmfront, ,
 static int __init xen_tpmfront_init(void)
 {
 	if (!xen_domain())
+		return -ENODEV;
+
+	if (!xen_has_pv_devices())
 		return -ENODEV;
 
 	return xenbus_register_frontend(&tpmfront_driver);

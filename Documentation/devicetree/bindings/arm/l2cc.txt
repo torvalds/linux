@@ -7,20 +7,21 @@ The ARM L2 cache representation in the device tree should be done as follows:
 Required properties:
 
 - compatible : should be one of:
-	"arm,pl310-cache"
-	"arm,l220-cache"
-	"arm,l210-cache"
-	"marvell,aurora-system-cache": Marvell Controller designed to be
+  "arm,pl310-cache"
+  "arm,l220-cache"
+  "arm,l210-cache"
+  "bcm,bcm11351-a2-pl310-cache": DEPRECATED by "brcm,bcm11351-a2-pl310-cache"
+  "brcm,bcm11351-a2-pl310-cache": For Broadcom bcm11351 chipset where an
+     offset needs to be added to the address before passing down to the L2
+     cache controller
+  "marvell,aurora-system-cache": Marvell Controller designed to be
      compatible with the ARM one, with system cache mode (meaning
      maintenance operations on L1 are broadcasted to the L2 and L2
      performs the same operation).
-	"marvell,"aurora-outer-cache: Marvell Controller designed to be
-	 compatible with the ARM one with outer cache mode.
-	"brcm,bcm11351-a2-pl310-cache": For Broadcom bcm11351 chipset where an
-	offset needs to be added to the address before passing down to the L2
-	cache controller
-	"bcm,bcm11351-a2-pl310-cache": DEPRECATED by
-	                               "brcm,bcm11351-a2-pl310-cache"
+  "marvell,aurora-outer-cache": Marvell Controller designed to be
+     compatible with the ARM one with outer cache mode.
+  "marvell,tauros3-cache": Marvell Tauros3 cache controller, compatible
+     with arm,pl310-cache controller.
 - cache-unified : Specifies the cache is a unified cache.
 - cache-level : Should be set to 2 for a level 2 cache.
 - reg : Physical base address and size of cache controller's memory mapped

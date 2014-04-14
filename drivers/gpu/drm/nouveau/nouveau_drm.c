@@ -376,6 +376,8 @@ nouveau_drm_load(struct drm_device *dev, unsigned long flags)
 	if (ret)
 		goto fail_device;
 
+	dev->irq_enabled = true;
+
 	/* workaround an odd issue on nvc1 by disabling the device's
 	 * nosnoop capability.  hopefully won't cause issues until a
 	 * better fix is found - assuming there is one...
@@ -475,6 +477,7 @@ nouveau_drm_remove(struct pci_dev *pdev)
 	struct nouveau_drm *drm = nouveau_drm(dev);
 	struct nouveau_object *device;
 
+	dev->irq_enabled = false;
 	device = drm->client.base.device;
 	drm_put_dev(dev);
 
@@ -503,19 +506,21 @@ nouveau_do_suspend(struct drm_device *dev)
 	if (drm->cechan) {
 		ret = nouveau_channel_idle(drm->cechan);
 		if (ret)
-			return ret;
+			goto fail_display;
 	}
 
 	if (drm->channel) {
 		ret = nouveau_channel_idle(drm->channel);
 		if (ret)
-			return ret;
+			goto fail_display;
 	}
 
 	NV_INFO(drm, "suspending client object trees...\n");
 	if (drm->fence && nouveau_fence(drm)->suspend) {
-		if (!nouveau_fence(drm)->suspend(drm))
-			return -ENOMEM;
+		if (!nouveau_fence(drm)->suspend(drm)) {
+			ret = -ENOMEM;
+			goto fail_display;
+		}
 	}
 
 	list_for_each_entry(cli, &drm->clients, head) {
@@ -537,6 +542,10 @@ fail_client:
 		nouveau_client_init(&cli->base);
 	}
 
+	if (drm->fence && nouveau_fence(drm)->resume)
+		nouveau_fence(drm)->resume(drm);
+
+fail_display:
 	if (dev->mode_config.num_crtc) {
 		NV_INFO(drm, "resuming display...\n");
 		nouveau_display_resume(dev);
@@ -798,6 +807,8 @@ driver = {
 	.get_vblank_counter = drm_vblank_count,
 	.enable_vblank = nouveau_display_vblank_enable,
 	.disable_vblank = nouveau_display_vblank_disable,
+	.get_scanout_position = nouveau_display_scanoutpos,
+	.get_vblank_timestamp = nouveau_display_vblstamp,
 
 	.ioctls = nouveau_ioctls,
 	.num_ioctls = ARRAY_SIZE(nouveau_ioctls),
@@ -855,13 +866,16 @@ static int nouveau_pmops_runtime_suspend(struct device *dev)
 	struct drm_device *drm_dev = pci_get_drvdata(pdev);
 	int ret;
 
-	if (nouveau_runtime_pm == 0)
-		return -EINVAL;
+	if (nouveau_runtime_pm == 0) {
+		pm_runtime_forbid(dev);
+		return -EBUSY;
+	}
 
 	/* are we optimus enabled? */
 	if (nouveau_runtime_pm == -1 && !nouveau_is_optimus() && !nouveau_is_v1_dsm()) {
 		DRM_DEBUG_DRIVER("failing to power off - not optimus\n");
-		return -EINVAL;
+		pm_runtime_forbid(dev);
+		return -EBUSY;
 	}
 
 	nv_debug_level(SILENT);
@@ -912,12 +926,15 @@ static int nouveau_pmops_runtime_idle(struct device *dev)
 	struct nouveau_drm *drm = nouveau_drm(drm_dev);
 	struct drm_crtc *crtc;
 
-	if (nouveau_runtime_pm == 0)
+	if (nouveau_runtime_pm == 0) {
+		pm_runtime_forbid(dev);
 		return -EBUSY;
+	}
 
 	/* are we optimus enabled? */
 	if (nouveau_runtime_pm == -1 && !nouveau_is_optimus() && !nouveau_is_v1_dsm()) {
 		DRM_DEBUG_DRIVER("failing to power off - not optimus\n");
+		pm_runtime_forbid(dev);
 		return -EBUSY;
 	}
 

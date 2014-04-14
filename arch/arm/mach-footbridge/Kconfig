@@ -85,6 +85,7 @@ config FOOTBRIDGE
 # Footbridge in host mode
 config FOOTBRIDGE_HOST
 	bool
+	select ARCH_MIGHT_HAVE_PC_SERIO
 
 # Footbridge in addin mode
 config FOOTBRIDGE_ADDIN

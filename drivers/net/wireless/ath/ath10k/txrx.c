@@ -75,6 +75,7 @@ void ath10k_txrx_tx_unref(struct ath10k_htt *htt,
 	ath10k_report_offchan_tx(htt->ar, msdu);
 
 	info = IEEE80211_SKB_CB(msdu);
+	memset(&info->status, 0, sizeof(info->status));
 
 	if (tx_done->discard) {
 		ieee80211_free_txskb(htt->ar->hw, msdu);
@@ -183,7 +184,7 @@ static void process_rx_rates(struct ath10k *ar, struct htt_rx_info *info,
 		/* VHT-SIG-A1 in info 1, VHT-SIG-A2 in info2
 		   TODO check this */
 		mcs = (info2 >> 4) & 0x0F;
-		nss = (info1 >> 10) & 0x07;
+		nss = ((info1 >> 10) & 0x07) + 1;
 		bw = info1 & 3;
 		sgi = info2 & 1;
 
@@ -230,11 +231,14 @@ void ath10k_process_rx(struct ath10k *ar, struct htt_rx_info *info)
 				~IEEE80211_FCTL_PROTECTED);
 	}
 
-	if (info->status == HTT_RX_IND_MPDU_STATUS_TKIP_MIC_ERR)
+	if (info->mic_err)
 		status->flag |= RX_FLAG_MMIC_ERROR;
 
 	if (info->fcs_err)
 		status->flag |= RX_FLAG_FAILED_FCS_CRC;
+
+	if (info->amsdu_more)
+		status->flag |= RX_FLAG_AMSDU_MORE;
 
 	status->signal = info->signal;
 

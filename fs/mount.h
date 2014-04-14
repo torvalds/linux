@@ -19,13 +19,13 @@ struct mnt_pcp {
 };
 
 struct mountpoint {
-	struct list_head m_hash;
+	struct hlist_node m_hash;
 	struct dentry *m_dentry;
 	int m_count;
 };
 
 struct mount {
-	struct list_head mnt_hash;
+	struct hlist_node mnt_hash;
 	struct mount *mnt_parent;
 	struct dentry *mnt_mountpoint;
 	struct vfsmount mnt;
@@ -74,7 +74,7 @@ static inline int mnt_has_parent(struct mount *mnt)
 static inline int is_mounted(struct vfsmount *mnt)
 {
 	/* neither detached nor internal? */
-	return !IS_ERR_OR_NULL(real_mount(mnt));
+	return !IS_ERR_OR_NULL(real_mount(mnt)->mnt_ns);
 }
 
 extern struct mount *__lookup_mnt(struct vfsmount *, struct dentry *);

@@ -292,15 +292,23 @@ config MMP_TDMA
 	bool "MMP Two-Channel DMA support"
 	depends on ARCH_MMP
 	select DMA_ENGINE
+	select MMP_SRAM
 	help
 	  Support the MMP Two-Channel DMA engine.
 	  This engine used for MMP Audio DMA and pxa910 SQU.
+	  It needs sram driver under mach-mmp.
 
 	  Say Y here if you enabled MMP ADMA, otherwise say N.
 
 config DMA_OMAP
 	tristate "OMAP DMA support"
 	depends on ARCH_OMAP
+	select DMA_ENGINE
+	select DMA_VIRTUAL_CHANNELS
+
+config DMA_BCM2835
+	tristate "BCM2835 DMA engine support"
+	depends on (ARCH_BCM2835 || MACH_BCM2708)
 	select DMA_ENGINE
 	select DMA_VIRTUAL_CHANNELS
 
@@ -333,6 +341,15 @@ config K3_DMA
 	help
 	  Support the DMA engine for Hisilicon K3 platform
 	  devices.
+
+config MOXART_DMA
+	tristate "MOXART DMA support"
+	depends on ARCH_MOXART
+	select DMA_ENGINE
+	select DMA_OF
+	select DMA_VIRTUAL_CHANNELS
+	help
+	  Enable support for the MOXA ART SoC DMA controller.
 
 config DMA_ENGINE
 	bool

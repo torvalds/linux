@@ -267,17 +267,16 @@ Caveats:
 
 /* The software selectable internal ranges for PCI224 (option[2] == 0). */
 static const struct comedi_lrange range_pci224_internal = {
-	8,
-	{
-	 BIP_RANGE(10),
-	 BIP_RANGE(5),
-	 BIP_RANGE(2.5),
-	 BIP_RANGE(1.25),
-	 UNI_RANGE(10),
-	 UNI_RANGE(5),
-	 UNI_RANGE(2.5),
-	 UNI_RANGE(1.25),
-	 }
+	8, {
+		BIP_RANGE(10),
+		BIP_RANGE(5),
+		BIP_RANGE(2.5),
+		BIP_RANGE(1.25),
+		UNI_RANGE(10),
+		UNI_RANGE(5),
+		UNI_RANGE(2.5),
+		UNI_RANGE(1.25)
+	}
 };
 
 static const unsigned short hwrange_pci224_internal[8] = {
@@ -293,11 +292,10 @@ static const unsigned short hwrange_pci224_internal[8] = {
 
 /* The software selectable external ranges for PCI224 (option[2] == 1). */
 static const struct comedi_lrange range_pci224_external = {
-	2,
-	{
-	 RANGE_ext(-1, 1),	/* bipolar [-Vref,+Vref] */
-	 RANGE_ext(0, 1),	/* unipolar [0,+Vref] */
-	 }
+	2, {
+		RANGE_ext(-1, 1),	/* bipolar [-Vref,+Vref] */
+		RANGE_ext(0, 1)		/* unipolar [0,+Vref] */
+	}
 };
 
 static const unsigned short hwrange_pci224_external[2] = {
@@ -308,19 +306,17 @@ static const unsigned short hwrange_pci224_external[2] = {
 /* The hardware selectable Vref*2 external range for PCI234
  * (option[2] == 1, option[3+n] == 0). */
 static const struct comedi_lrange range_pci234_ext2 = {
-	1,
-	{
-	 RANGE_ext(-2, 2),
-	 }
+	1, {
+		RANGE_ext(-2, 2)
+	}
 };
 
 /* The hardware selectable Vref external range for PCI234
  * (option[2] == 1, option[3+n] == 1). */
 static const struct comedi_lrange range_pci234_ext = {
-	1,
-	{
-	 RANGE_ext(-1, 1),
-	 }
+	1, {
+		RANGE_ext(-1, 1)
+	}
 };
 
 /* This serves for all the PCI234 ranges. */
@@ -909,16 +905,14 @@ pci224_ao_cmdtest(struct comedi_device *dev, struct comedi_subdevice *s,
 		}
 		if (errors) {
 			if (errors & dupchan_err) {
-				DPRINTK("comedi%d: " DRIVER_NAME
-					": ao_cmdtest: "
-					"entries in chanlist must contain no "
-					"duplicate channels\n", dev->minor);
+				dev_dbg(dev->class_dev,
+					"%s: entries in chanlist must contain no duplicate channels\n",
+					__func__);
 			}
 			if (errors & range_err) {
-				DPRINTK("comedi%d: " DRIVER_NAME
-					": ao_cmdtest: "
-					"entries in chanlist must all have "
-					"the same range index\n", dev->minor);
+				dev_dbg(dev->class_dev,
+					"%s: entries in chanlist must all have the same range index\n",
+					__func__);
 			}
 			err++;
 		}
@@ -1142,7 +1136,7 @@ static irqreturn_t pci224_interrupt(int irq, void *d)
 {
 	struct comedi_device *dev = d;
 	struct pci224_private *devpriv = dev->private;
-	struct comedi_subdevice *s = &dev->subdevices[0];
+	struct comedi_subdevice *s = dev->write_subdev;
 	struct comedi_cmd *cmd;
 	unsigned char intstat, valid_intstat;
 	unsigned char curenab;
@@ -1498,7 +1492,7 @@ static int amplc_pci224_pci_probe(struct pci_dev *dev,
 				      id->driver_data);
 }
 
-static DEFINE_PCI_DEVICE_TABLE(amplc_pci224_pci_table) = {
+static const struct pci_device_id amplc_pci224_pci_table[] = {
 	{ PCI_DEVICE(PCI_VENDOR_ID_AMPLICON, PCI_DEVICE_ID_AMPLICON_PCI224) },
 	{ PCI_DEVICE(PCI_VENDOR_ID_AMPLICON, PCI_DEVICE_ID_AMPLICON_PCI234) },
 	{ 0 }

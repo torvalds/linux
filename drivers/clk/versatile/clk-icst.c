@@ -119,6 +119,7 @@ static const struct clk_ops icst_ops = {
 
 struct clk *icst_clk_register(struct device *dev,
 			const struct clk_icst_desc *desc,
+			const char *name,
 			void __iomem *base)
 {
 	struct clk *clk;
@@ -130,7 +131,7 @@ struct clk *icst_clk_register(struct device *dev,
 		pr_err("could not allocate ICST clock!\n");
 		return ERR_PTR(-ENOMEM);
 	}
-	init.name = "icst";
+	init.name = name;
 	init.ops = &icst_ops;
 	init.flags = CLK_IS_ROOT;
 	init.parent_names = NULL;

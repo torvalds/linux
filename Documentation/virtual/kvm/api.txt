@@ -1838,6 +1838,7 @@ registers, find a list below:
   PPC   | KVM_REG_PPC_LPCR	| 64
   PPC   | KVM_REG_PPC_PPR	| 64
   PPC   | KVM_REG_PPC_ARCH_COMPAT 32
+  PPC   | KVM_REG_PPC_DABRX     | 32
   PPC   | KVM_REG_PPC_TM_GPR0	| 64
           ...
   PPC   | KVM_REG_PPC_TM_GPR31	| 64
@@ -2104,7 +2105,7 @@ Returns: 0 on success, -1 on error
 Allows setting an eventfd to directly trigger a guest interrupt.
 kvm_irqfd.fd specifies the file descriptor to use as the eventfd and
 kvm_irqfd.gsi specifies the irqchip pin toggled by this event.  When
-an event is tiggered on the eventfd, an interrupt is injected into
+an event is triggered on the eventfd, an interrupt is injected into
 the guest using the specified gsi pin.  The irqfd is removed using
 the KVM_IRQFD_FLAG_DEASSIGN flag, specifying both kvm_irqfd.fd
 and kvm_irqfd.gsi.
@@ -2115,7 +2116,7 @@ interrupts.  When KVM_IRQFD_FLAG_RESAMPLE is set the user must pass an
 additional eventfd in the kvm_irqfd.resamplefd field.  When operating
 in resample mode, posting of an interrupt through kvm_irq.fd asserts
 the specified gsi in the irqchip.  When the irqchip is resampled, such
-as from an EOI, the gsi is de-asserted and the user is notifed via
+as from an EOI, the gsi is de-asserted and the user is notified via
 kvm_irqfd.resamplefd.  It is the user's responsibility to re-queue
 the interrupt if the device making use of it still requires service.
 Note that closing the resamplefd is not sufficient to disable the
@@ -2327,7 +2328,7 @@ current state.  "addr" is ignored.
 Capability: basic
 Architectures: arm, arm64
 Type: vcpu ioctl
-Parameters: struct struct kvm_vcpu_init (in)
+Parameters: struct kvm_vcpu_init (in)
 Returns: 0 on success; -1 on error
 Errors:
   EINVAL:    the target is unknown, or the combination of features is invalid.
@@ -2391,7 +2392,8 @@ struct kvm_reg_list {
 This ioctl returns the guest registers that are supported for the
 KVM_GET_ONE_REG/KVM_SET_ONE_REG calls.
 
-4.85 KVM_ARM_SET_DEVICE_ADDR
+
+4.85 KVM_ARM_SET_DEVICE_ADDR (deprecated)
 
 Capability: KVM_CAP_ARM_SET_DEVICE_ADDR
 Architectures: arm, arm64
@@ -2428,6 +2430,10 @@ mapping of the VGIC virtual CPU and distributor interface, the ioctl
 must be called after calling KVM_CREATE_IRQCHIP, but before calling
 KVM_RUN on any of the VCPUs.  Calling this ioctl twice for any of the
 base addresses will return -EEXIST.
+
+Note, this IOCTL is deprecated and the more flexible SET/GET_DEVICE_ATTR API
+should be used instead.
+
 
 4.86 KVM_PPC_RTAS_DEFINE_TOKEN
 

@@ -141,6 +141,7 @@ STATIC inline int INIT unlz4(u8 *input, int in_len,
 			goto exit_2;
 		}
 
+		ret = -1;
 		if (flush && flush(outp, dest_len) != dest_len)
 			goto exit_2;
 		if (output)

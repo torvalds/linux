@@ -183,7 +183,6 @@ extern unsigned long sclp_console_full;
 extern u8 sclp_fac84;
 extern unsigned long long sclp_rzm;
 extern unsigned long long sclp_rnmax;
-extern __initdata int sclp_early_read_info_sccb_valid;
 
 /* useful inlines */
 

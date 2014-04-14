@@ -18,6 +18,8 @@ union perf_event;
 #define	HOST_KERNEL_ID			(-1)
 #define	DEFAULT_GUEST_KERNEL_ID		(0)
 
+extern const char *ref_reloc_sym_names[];
+
 struct machine {
 	struct rb_node	  rb_node;
 	pid_t		  pid;

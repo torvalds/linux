@@ -36,7 +36,6 @@
 #include <asm/uaccess.h>
 #include <asm/unaligned.h>
 #include <linux/filter.h>
-#include <linux/reciprocal_div.h>
 #include <linux/ratelimit.h>
 #include <linux/seccomp.h>
 #include <linux/if_vlan.h>
@@ -166,7 +165,7 @@ unsigned int sk_run_filter(const struct sk_buff *skb,
 			A /= X;
 			continue;
 		case BPF_S_ALU_DIV_K:
-			A = reciprocal_divide(A, K);
+			A /= K;
 			continue;
 		case BPF_S_ALU_MOD_X:
 			if (X == 0)
@@ -553,11 +552,6 @@ int sk_chk_filter(struct sock_filter *filter, unsigned int flen)
 		/* Some instructions need special checks */
 		switch (code) {
 		case BPF_S_ALU_DIV_K:
-			/* check for division by zero */
-			if (ftest->k == 0)
-				return -EINVAL;
-			ftest->k = reciprocal_value(ftest->k);
-			break;
 		case BPF_S_ALU_MOD_K:
 			/* check for division by zero */
 			if (ftest->k == 0)
@@ -853,27 +847,7 @@ void sk_decode_filter(struct sock_filter *filt, struct sock_filter *to)
 	to->code = decodes[code];
 	to->jt = filt->jt;
 	to->jf = filt->jf;
-
-	if (code == BPF_S_ALU_DIV_K) {
-		/*
-		 * When loaded this rule user gave us X, which was
-		 * translated into R = r(X). Now we calculate the
-		 * RR = r(R) and report it back. If next time this
-		 * value is loaded and RRR = r(RR) is calculated
-		 * then the R == RRR will be true.
-		 *
-		 * One exception. X == 1 translates into R == 0 and
-		 * we can't calculate RR out of it with r().
-		 */
-
-		if (filt->k == 0)
-			to->k = 1;
-		else
-			to->k = reciprocal_value(filt->k);
-
-		BUG_ON(reciprocal_value(to->k) != filt->k);
-	} else
-		to->k = filt->k;
+	to->k = filt->k;
 }
 
 int sk_get_filter(struct sock *sk, struct sock_filter __user *ubuf, unsigned int len)

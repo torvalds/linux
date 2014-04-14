@@ -669,7 +669,7 @@ static void solo_pci_remove(struct pci_dev *pdev)
 	free_solo_dev(solo_dev);
 }
 
-static DEFINE_PCI_DEVICE_TABLE(solo_id_table) = {
+static const struct pci_device_id solo_id_table[] = {
 	/* 6010 based cards */
 	{ PCI_DEVICE(PCI_VENDOR_ID_SOFTLOGIC, PCI_DEVICE_ID_SOLO6010),
 	  .driver_data = SOLO_DEV_6010 },

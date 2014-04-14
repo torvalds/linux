@@ -6,45 +6,16 @@
 #include "smcommon.h"
 #include "smil.h"
 
-void   _Set_D_SsfdcRdCmd(BYTE);
-void   _Set_D_SsfdcRdAddr(BYTE);
-void   _Set_D_SsfdcRdChip(void);
-void   _Set_D_SsfdcRdStandby(void);
-void   _Start_D_SsfdcRdHwECC(void);
-void   _Stop_D_SsfdcRdHwECC(void);
-void   _Load_D_SsfdcRdHwECC(BYTE);
-void   _Set_D_SsfdcWrCmd(BYTE);
-void   _Set_D_SsfdcWrAddr(BYTE);
-void   _Set_D_SsfdcWrBlock(void);
-void   _Set_D_SsfdcWrStandby(void);
-void   _Start_D_SsfdcWrHwECC(void);
-void   _Load_D_SsfdcWrHwECC(BYTE);
-int    _Check_D_SsfdcBusy(WORD);
-int    _Check_D_SsfdcStatus(void);
-void   _Reset_D_SsfdcErr(void);
-void   _Read_D_SsfdcBuf(BYTE *);
-void   _Write_D_SsfdcBuf(BYTE *);
-void   _Read_D_SsfdcByte(BYTE *);
-void   _ReadRedt_D_SsfdcBuf(BYTE *);
-void   _WriteRedt_D_SsfdcBuf(BYTE *);
-BYTE   _Check_D_DevCode(BYTE);
-
-void   _Set_D_ECCdata(BYTE, BYTE *);
-void   _Calc_D_ECCdata(BYTE *);
-
+static BYTE   _Check_D_DevCode(BYTE);
+static DWORD	ErrXDCode;
+static BYTE	IsSSFDCCompliance;
+static BYTE	IsXDCompliance;
 
 struct keucr_media_info         Ssfdc;
 struct keucr_media_address      Media;
 struct keucr_media_area         CisArea;
 
 static BYTE                            EccBuf[6];
-extern PBYTE                    SMHostAddr;
-extern DWORD                    ErrXDCode;
-
-extern WORD  ReadBlock;
-extern WORD  WriteBlock;
-
-
 
 #define EVEN                    0             /* Even Page for 256byte/page */
 #define ODD                     1             /* Odd Page for 256byte/page */

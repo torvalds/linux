@@ -14,5 +14,5 @@ intc: interrupt-controller {
 	compatible = "allwinner,sun4i-ic";
 	reg = <0x01c20400 0x400>;
 	interrupt-controller;
-	#interrupt-cells = <2>;
+	#interrupt-cells = <1>;
 };

@@ -96,7 +96,7 @@ static struct comedi_driver amplc_pci263_driver = {
 	.detach		= comedi_pci_disable,
 };
 
-static DEFINE_PCI_DEVICE_TABLE(pci263_pci_table) = {
+static const struct pci_device_id pci263_pci_table[] = {
 	{ PCI_DEVICE(PCI_VENDOR_ID_AMPLICON, PCI_DEVICE_ID_AMPLICON_PCI263) },
 	{0}
 };

@@ -42,6 +42,12 @@ struct iio_event_interface {
 	struct attribute_group	group;
 };
 
+/**
+ * iio_push_event() - try to add event to the list for userspace reading
+ * @indio_dev:		IIO device structure
+ * @ev_code:		What event
+ * @timestamp:		When the event occurred
+ **/
 int iio_push_event(struct iio_dev *indio_dev, u64 ev_code, s64 timestamp)
 {
 	struct iio_event_interface *ev_int = indio_dev->event_interface;
@@ -236,13 +242,9 @@ static ssize_t iio_ev_state_store(struct device *dev,
 	if (ret < 0)
 		return ret;
 
-	if (indio_dev->info->write_event_config)
-		ret = indio_dev->info->write_event_config(indio_dev,
-			this_attr->address, val);
-	else
-		ret = indio_dev->info->write_event_config_new(indio_dev,
-			this_attr->c, iio_ev_attr_type(this_attr),
-			iio_ev_attr_dir(this_attr), val);
+	ret = indio_dev->info->write_event_config(indio_dev,
+		this_attr->c, iio_ev_attr_type(this_attr),
+		iio_ev_attr_dir(this_attr), val);
 
 	return (ret < 0) ? ret : len;
 }
@@ -255,13 +257,9 @@ static ssize_t iio_ev_state_show(struct device *dev,
 	struct iio_dev_attr *this_attr = to_iio_dev_attr(attr);
 	int val;
 
-	if (indio_dev->info->read_event_config)
-		val = indio_dev->info->read_event_config(indio_dev,
-			this_attr->address);
-	else
-		val = indio_dev->info->read_event_config_new(indio_dev,
-			this_attr->c, iio_ev_attr_type(this_attr),
-			iio_ev_attr_dir(this_attr));
+	val = indio_dev->info->read_event_config(indio_dev,
+		this_attr->c, iio_ev_attr_type(this_attr),
+		iio_ev_attr_dir(this_attr));
 	if (val < 0)
 		return val;
 	else
@@ -277,21 +275,13 @@ static ssize_t iio_ev_value_show(struct device *dev,
 	int val, val2;
 	int ret;
 
-	if (indio_dev->info->read_event_value) {
-		ret = indio_dev->info->read_event_value(indio_dev,
-			this_attr->address, &val);
-		if (ret < 0)
-			return ret;
-		return sprintf(buf, "%d\n", val);
-	} else {
-		ret = indio_dev->info->read_event_value_new(indio_dev,
-			this_attr->c, iio_ev_attr_type(this_attr),
-			iio_ev_attr_dir(this_attr), iio_ev_attr_info(this_attr),
-			&val, &val2);
-		if (ret < 0)
-			return ret;
-		return iio_format_value(buf, ret, val, val2);
-	}
+	ret = indio_dev->info->read_event_value(indio_dev,
+		this_attr->c, iio_ev_attr_type(this_attr),
+		iio_ev_attr_dir(this_attr), iio_ev_attr_info(this_attr),
+		&val, &val2);
+	if (ret < 0)
+		return ret;
+	return iio_format_value(buf, ret, val, val2);
 }
 
 static ssize_t iio_ev_value_store(struct device *dev,
@@ -304,25 +294,16 @@ static ssize_t iio_ev_value_store(struct device *dev,
 	int val, val2;
 	int ret;
 
-	if (!indio_dev->info->write_event_value &&
-		!indio_dev->info->write_event_value_new)
+	if (!indio_dev->info->write_event_value)
 		return -EINVAL;
 
-	if (indio_dev->info->write_event_value) {
-		ret = kstrtoint(buf, 10, &val);
-		if (ret)
-			return ret;
-		ret = indio_dev->info->write_event_value(indio_dev,
-			this_attr->address, val);
-	} else {
-		ret = iio_str_to_fixpoint(buf, 100000, &val, &val2);
-		if (ret)
-			return ret;
-		ret = indio_dev->info->write_event_value_new(indio_dev,
-			this_attr->c, iio_ev_attr_type(this_attr),
-			iio_ev_attr_dir(this_attr), iio_ev_attr_info(this_attr),
-			val, val2);
-	}
+	ret = iio_str_to_fixpoint(buf, 100000, &val, &val2);
+	if (ret)
+		return ret;
+	ret = indio_dev->info->write_event_value(indio_dev,
+		this_attr->c, iio_ev_attr_type(this_attr),
+		iio_ev_attr_dir(this_attr), iio_ev_attr_info(this_attr),
+		val, val2);
 	if (ret < 0)
 		return ret;
 
@@ -371,7 +352,7 @@ static int iio_device_add_event(struct iio_dev *indio_dev,
 	return attrcount;
 }
 
-static int iio_device_add_event_sysfs_new(struct iio_dev *indio_dev,
+static int iio_device_add_event_sysfs(struct iio_dev *indio_dev,
 	struct iio_chan_spec const *chan)
 {
 	int ret = 0, i, attrcount = 0;
@@ -414,89 +395,6 @@ error_ret:
 	return ret;
 }
 
-static int iio_device_add_event_sysfs_old(struct iio_dev *indio_dev,
-				      struct iio_chan_spec const *chan)
-{
-	int ret = 0, i, attrcount = 0;
-	u64 mask = 0;
-	char *postfix;
-	if (!chan->event_mask)
-		return 0;
-
-	for_each_set_bit(i, &chan->event_mask, sizeof(chan->event_mask)*8) {
-		postfix = kasprintf(GFP_KERNEL, "%s_%s_en",
-				    iio_ev_type_text[i/IIO_EV_DIR_MAX],
-				    iio_ev_dir_text[i%IIO_EV_DIR_MAX]);
-		if (postfix == NULL) {
-			ret = -ENOMEM;
-			goto error_ret;
-		}
-		if (chan->modified)
-			mask = IIO_MOD_EVENT_CODE(chan->type, 0, chan->channel2,
-						  i/IIO_EV_DIR_MAX,
-						  i%IIO_EV_DIR_MAX);
-		else if (chan->differential)
-			mask = IIO_EVENT_CODE(chan->type,
-					      0, 0,
-					      i%IIO_EV_DIR_MAX,
-					      i/IIO_EV_DIR_MAX,
-					      0,
-					      chan->channel,
-					      chan->channel2);
-		else
-			mask = IIO_UNMOD_EVENT_CODE(chan->type,
-						    chan->channel,
-						    i/IIO_EV_DIR_MAX,
-						    i%IIO_EV_DIR_MAX);
-
-		ret = __iio_add_chan_devattr(postfix,
-					     chan,
-					     &iio_ev_state_show,
-					     iio_ev_state_store,
-					     mask,
-					     0,
-					     &indio_dev->dev,
-					     &indio_dev->event_interface->
-					     dev_attr_list);
-		kfree(postfix);
-		if (ret)
-			goto error_ret;
-		attrcount++;
-		postfix = kasprintf(GFP_KERNEL, "%s_%s_value",
-				    iio_ev_type_text[i/IIO_EV_DIR_MAX],
-				    iio_ev_dir_text[i%IIO_EV_DIR_MAX]);
-		if (postfix == NULL) {
-			ret = -ENOMEM;
-			goto error_ret;
-		}
-		ret = __iio_add_chan_devattr(postfix, chan,
-					     iio_ev_value_show,
-					     iio_ev_value_store,
-					     mask,
-					     0,
-					     &indio_dev->dev,
-					     &indio_dev->event_interface->
-					     dev_attr_list);
-		kfree(postfix);
-		if (ret)
-			goto error_ret;
-		attrcount++;
-	}
-	ret = attrcount;
-error_ret:
-	return ret;
-}
-
-
-static int iio_device_add_event_sysfs(struct iio_dev *indio_dev,
-				      struct iio_chan_spec const *chan)
-{
-	if (chan->event_mask)
-		return iio_device_add_event_sysfs_old(indio_dev, chan);
-	else
-		return iio_device_add_event_sysfs_new(indio_dev, chan);
-}
-
 static inline int __iio_add_event_config_attrs(struct iio_dev *indio_dev)
 {
 	int j, ret, attrcount = 0;
@@ -517,8 +415,6 @@ static bool iio_check_for_dynamic_events(struct iio_dev *indio_dev)
 	int j;
 
 	for (j = 0; j < indio_dev->num_channels; j++) {
-		if (indio_dev->channels[j].event_mask != 0)
-			return true;
 		if (indio_dev->channels[j].num_event_specs != 0)
 			return true;
 	}

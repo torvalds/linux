@@ -375,7 +375,7 @@ static int samsung_pll45xx_set_rate(struct clk_hw *hw, unsigned long drate,
 		break;
 	default:
 		break;
-	};
+	}
 
 	/* Set new configuration. */
 	__raw_writel(con1, pll->con_reg + 0x4);

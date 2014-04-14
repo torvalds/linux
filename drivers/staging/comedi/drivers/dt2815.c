@@ -107,8 +107,9 @@ static int dt2815_ao_insn(struct comedi_device *dev, struct comedi_subdevice *s,
 
 		status = dt2815_wait_for_status(dev, 0x00);
 		if (status != 0) {
-			printk(KERN_WARNING "dt2815: failed to write low byte "
-			       "on %d reason %x\n", chan, status);
+			dev_dbg(dev->class_dev,
+				"failed to write low byte on %d reason %x\n",
+				chan, status);
 			return -EBUSY;
 		}
 
@@ -116,8 +117,9 @@ static int dt2815_ao_insn(struct comedi_device *dev, struct comedi_subdevice *s,
 
 		status = dt2815_wait_for_status(dev, 0x10);
 		if (status != 0x10) {
-			printk(KERN_WARNING "dt2815: failed to write high byte "
-			       "on %d reason %x\n", chan, status);
+			dev_dbg(dev->class_dev,
+				"failed to write high byte on %d reason %x\n",
+				chan, status);
 			return -EBUSY;
 		}
 		devpriv->ao_readback[chan] = data[i];
@@ -200,12 +202,13 @@ static int dt2815_attach(struct comedi_device *dev, struct comedi_devconfig *it)
 			unsigned int program;
 			program = (it->options[4] & 0x3) << 3 | 0x7;
 			outb(program, dev->iobase + DT2815_DATA);
-			printk(KERN_INFO ", program: 0x%x (@t=%d)\n",
-			       program, i);
+			dev_dbg(dev->class_dev, "program: 0x%x (@t=%d)\n",
+				program, i);
 			break;
 		} else if (status != 0x00) {
-			printk(KERN_WARNING "dt2815: unexpected status 0x%x "
-			       "(@t=%d)\n", status, i);
+			dev_dbg(dev->class_dev,
+				"unexpected status 0x%x (@t=%d)\n",
+				status, i);
 			if (status & 0x60)
 				outb(0x00, dev->iobase + DT2815_STATUS);
 		}

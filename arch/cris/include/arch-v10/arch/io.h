@@ -1,8 +1,6 @@
 #ifndef _ASM_ARCH_CRIS_IO_H
 #define _ASM_ARCH_CRIS_IO_H
 
-#include <arch/svinto.h>
-
 /* Etrax shadow registers - which live in arch/cris/kernel/shadows.c */
 
 extern unsigned long gen_config_ii_shadow;
@@ -34,7 +32,7 @@ extern volatile unsigned long *port_csp4_addr;
 
 /* The LED's on various Etrax-based products are set differently. */
 
-#if defined(CONFIG_ETRAX_NO_LEDS) || defined(CONFIG_SVINTO_SIM)
+#if defined(CONFIG_ETRAX_NO_LEDS)
 #undef CONFIG_ETRAX_PA_LEDS
 #undef CONFIG_ETRAX_PB_LEDS
 #undef CONFIG_ETRAX_CSP0_LEDS
@@ -170,30 +168,5 @@ extern volatile unsigned long *port_csp4_addr;
 #else
 #define SOFT_SHUTDOWN()
 #endif
-
-/* Console I/O for simulated etrax100.  Use #ifdef so erroneous
-   use will be evident. */
-#ifdef CONFIG_SVINTO_SIM
-  /* Let's use the ucsim interface since it lets us do write(2, ...) */
-#define SIMCOUT(s,len)							\
-  asm ("moveq 4,$r9	\n\t"						\
-       "moveq 2,$r10	\n\t"						\
-       "move.d %0,$r11	\n\t"						\
-       "move.d %1,$r12	\n\t"						\
-       "push $irp	\n\t"						\
-       "move 0f,$irp	\n\t"						\
-       "jump -6809	\n"						\
-       "0:		\n\t"						\
-       "pop $irp"							\
-       : : "rm" (s), "rm" (len) : "r9","r10","r11","r12","memory")
-#define TRACE_ON() __extension__ \
- ({ int _Foofoo; __asm__ volatile ("bmod [%0],%0" : "=r" (_Foofoo) : "0" \
-			       (255)); _Foofoo; })
-
-#define TRACE_OFF() do { __asm__ volatile ("bmod [%0],%0" :: "r" (254)); } while (0)
-#define SIM_END() do { __asm__ volatile ("bmod [%0],%0" :: "r" (28)); } while (0)
-#define CRIS_CYCLES() __extension__ \
- ({ unsigned long c; asm ("bmod [%1],%0" : "=r" (c) : "r" (27)); c;})
-#endif /* ! defined CONFIG_SVINTO_SIM */
 
 #endif

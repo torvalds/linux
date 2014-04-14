@@ -74,7 +74,7 @@ static inline struct pcie_port *sys_to_pcie(struct pci_sys_data *sys)
 	return sys->private_data;
 }
 
-int cfg_read(void __iomem *addr, int where, int size, u32 *val)
+int dw_pcie_cfg_read(void __iomem *addr, int where, int size, u32 *val)
 {
 	*val = readl(addr);
 
@@ -88,7 +88,7 @@ int cfg_read(void __iomem *addr, int where, int size, u32 *val)
 	return PCIBIOS_SUCCESSFUL;
 }
 
-int cfg_write(void __iomem *addr, int where, int size, u32 val)
+int dw_pcie_cfg_write(void __iomem *addr, int where, int size, u32 val)
 {
 	if (size == 4)
 		writel(val, addr);
@@ -126,7 +126,8 @@ static int dw_pcie_rd_own_conf(struct pcie_port *pp, int where, int size,
 	if (pp->ops->rd_own_conf)
 		ret = pp->ops->rd_own_conf(pp, where, size, val);
 	else
-		ret = cfg_read(pp->dbi_base + (where & ~0x3), where, size, val);
+		ret = dw_pcie_cfg_read(pp->dbi_base + (where & ~0x3), where,
+				size, val);
 
 	return ret;
 }
@@ -139,8 +140,8 @@ static int dw_pcie_wr_own_conf(struct pcie_port *pp, int where, int size,
 	if (pp->ops->wr_own_conf)
 		ret = pp->ops->wr_own_conf(pp, where, size, val);
 	else
-		ret = cfg_write(pp->dbi_base + (where & ~0x3), where, size,
-				val);
+		ret = dw_pcie_cfg_write(pp->dbi_base + (where & ~0x3), where,
+				size, val);
 
 	return ret;
 }
@@ -167,11 +168,13 @@ void dw_handle_msi_irq(struct pcie_port *pp)
 			while ((pos = find_next_bit(&val, 32, pos)) != 32) {
 				irq = irq_find_mapping(pp->irq_domain,
 						i * 32 + pos);
+				dw_pcie_wr_own_conf(pp,
+						PCIE_MSI_INTR0_STATUS + i * 12,
+						4, 1 << pos);
 				generic_handle_irq(irq);
 				pos++;
 			}
 		}
-		dw_pcie_wr_own_conf(pp, PCIE_MSI_INTR0_STATUS + i * 12, 4, val);
 	}
 }
 
@@ -209,6 +212,23 @@ static int find_valid_pos0(struct pcie_port *pp, int msgvec, int pos, int *pos0)
 	return 0;
 }
 
+static void clear_irq_range(struct pcie_port *pp, unsigned int irq_base,
+			    unsigned int nvec, unsigned int pos)
+{
+	unsigned int i, res, bit, val;
+
+	for (i = 0; i < nvec; i++) {
+		irq_set_msi_desc_off(irq_base, i, NULL);
+		clear_bit(pos + i, pp->msi_irq_in_use);
+		/* Disable corresponding interrupt on MSI controller */
+		res = ((pos + i) / 32) * 12;
+		bit = (pos + i) % 32;
+		dw_pcie_rd_own_conf(pp, PCIE_MSI_INTR0_ENABLE + res, 4, &val);
+		val &= ~(1 << bit);
+		dw_pcie_wr_own_conf(pp, PCIE_MSI_INTR0_ENABLE + res, 4, val);
+	}
+}
+
 static int assign_irq(int no_irqs, struct msi_desc *desc, int *pos)
 {
 	int res, bit, irq, pos0, pos1, i;
@@ -242,18 +262,25 @@ static int assign_irq(int no_irqs, struct msi_desc *desc, int *pos)
 	if (!irq)
 		goto no_valid_irq;
 
-	i = 0;
-	while (i < no_irqs) {
+	/*
+	 * irq_create_mapping (called from dw_pcie_host_init) pre-allocates
+	 * descs so there is no need to allocate descs here. We can therefore
+	 * assume that if irq_find_mapping above returns non-zero, then the
+	 * descs are also successfully allocated.
+	 */
+
+	for (i = 0; i < no_irqs; i++) {
+		if (irq_set_msi_desc_off(irq, i, desc) != 0) {
+			clear_irq_range(pp, irq, i, pos0);
+			goto no_valid_irq;
+		}
 		set_bit(pos0 + i, pp->msi_irq_in_use);
-		irq_alloc_descs((irq + i), (irq + i), 1, 0);
-		irq_set_msi_desc(irq + i, desc);
 		/*Enable corresponding interrupt in MSI interrupt controller */
 		res = ((pos0 + i) / 32) * 12;
 		bit = (pos0 + i) % 32;
 		dw_pcie_rd_own_conf(pp, PCIE_MSI_INTR0_ENABLE + res, 4, &val);
 		val |= 1 << bit;
 		dw_pcie_wr_own_conf(pp, PCIE_MSI_INTR0_ENABLE + res, 4, val);
-		i++;
 	}
 
 	*pos = pos0;
@@ -266,7 +293,7 @@ no_valid_irq:
 
 static void clear_irq(unsigned int irq)
 {
-	int res, bit, val, pos;
+	unsigned int pos, nvec;
 	struct irq_desc *desc;
 	struct msi_desc *msi;
 	struct pcie_port *pp;
@@ -281,18 +308,15 @@ static void clear_irq(unsigned int irq)
 		return;
 	}
 
+	/* undo what was done in assign_irq */
 	pos = data->hwirq;
+	nvec = 1 << msi->msi_attrib.multiple;
 
-	irq_free_desc(irq);
+	clear_irq_range(pp, irq, nvec, pos);
 
-	clear_bit(pos, pp->msi_irq_in_use);
-
-	/* Disable corresponding interrupt on MSI interrupt controller */
-	res = (pos / 32) * 12;
-	bit = pos % 32;
-	dw_pcie_rd_own_conf(pp, PCIE_MSI_INTR0_ENABLE + res, 4, &val);
-	val &= ~(1 << bit);
-	dw_pcie_wr_own_conf(pp, PCIE_MSI_INTR0_ENABLE + res, 4, val);
+	/* all irqs cleared; reset attributes */
+	msi->irq = 0;
+	msi->msi_attrib.multiple = 0;
 }
 
 static int dw_msi_setup_irq(struct msi_chip *chip, struct pci_dev *pdev,
@@ -320,10 +344,10 @@ static int dw_msi_setup_irq(struct msi_chip *chip, struct pci_dev *pdev,
 	if (irq < 0)
 		return irq;
 
-	msg_ctr &= ~PCI_MSI_FLAGS_QSIZE;
-	msg_ctr |= msgvec << 4;
-	pci_write_config_word(pdev, desc->msi_attrib.pos + PCI_MSI_FLAGS,
-				msg_ctr);
+	/*
+	 * write_msi_msg() will update PCI_MSI_FLAGS so there is
+	 * no need to explicitly call pci_write_config_word().
+	 */
 	desc->msi_attrib.multiple = msgvec;
 
 	msg.address_lo = virt_to_phys((void *)pp->msi_data);
@@ -394,6 +418,7 @@ int __init dw_pcie_host_init(struct pcie_port *pp)
 					   + global_io_offset);
 			pp->config.io_size = resource_size(&pp->io);
 			pp->config.io_bus_addr = range.pci_addr;
+			pp->io_base = range.cpu_addr;
 		}
 		if (restype == IORESOURCE_MEM) {
 			of_pci_range_to_resource(&range, np, &pp->mem);
@@ -419,7 +444,6 @@ int __init dw_pcie_host_init(struct pcie_port *pp)
 
 	pp->cfg0_base = pp->cfg.start;
 	pp->cfg1_base = pp->cfg.start + pp->config.cfg0_size;
-	pp->io_base = pp->io.start;
 	pp->mem_base = pp->mem.start;
 
 	pp->va_cfg0_base = devm_ioremap(pp->dev, pp->cfg0_base,
@@ -551,11 +575,13 @@ static int dw_pcie_rd_other_conf(struct pcie_port *pp, struct pci_bus *bus,
 
 	if (bus->parent->number == pp->root_bus_nr) {
 		dw_pcie_prog_viewport_cfg0(pp, busdev);
-		ret = cfg_read(pp->va_cfg0_base + address, where, size, val);
+		ret = dw_pcie_cfg_read(pp->va_cfg0_base + address, where, size,
+				val);
 		dw_pcie_prog_viewport_mem_outbound(pp);
 	} else {
 		dw_pcie_prog_viewport_cfg1(pp, busdev);
-		ret = cfg_read(pp->va_cfg1_base + address, where, size, val);
+		ret = dw_pcie_cfg_read(pp->va_cfg1_base + address, where, size,
+				val);
 		dw_pcie_prog_viewport_io_outbound(pp);
 	}
 
@@ -574,17 +600,18 @@ static int dw_pcie_wr_other_conf(struct pcie_port *pp, struct pci_bus *bus,
 
 	if (bus->parent->number == pp->root_bus_nr) {
 		dw_pcie_prog_viewport_cfg0(pp, busdev);
-		ret = cfg_write(pp->va_cfg0_base + address, where, size, val);
+		ret = dw_pcie_cfg_write(pp->va_cfg0_base + address, where, size,
+				val);
 		dw_pcie_prog_viewport_mem_outbound(pp);
 	} else {
 		dw_pcie_prog_viewport_cfg1(pp, busdev);
-		ret = cfg_write(pp->va_cfg1_base + address, where, size, val);
+		ret = dw_pcie_cfg_write(pp->va_cfg1_base + address, where, size,
+				val);
 		dw_pcie_prog_viewport_io_outbound(pp);
 	}
 
 	return ret;
 }
-
 
 static int dw_pcie_valid_config(struct pcie_port *pp,
 				struct pci_bus *bus, int dev)
@@ -679,7 +706,7 @@ static int dw_pcie_setup(int nr, struct pci_sys_data *sys)
 
 	if (global_io_offset < SZ_1M && pp->config.io_size > 0) {
 		sys->io_offset = global_io_offset - pp->config.io_bus_addr;
-		pci_ioremap_io(sys->io_offset, pp->io.start);
+		pci_ioremap_io(global_io_offset, pp->io_base);
 		global_io_offset += SZ_64K;
 		pci_add_resource_offset(&sys->resources, &pp->io,
 					sys->io_offset);

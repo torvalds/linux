@@ -85,6 +85,12 @@ static void dm_unhook_bio(struct dm_hook_info *h, struct bio *bio)
 {
 	bio->bi_end_io = h->bi_end_io;
 	bio->bi_private = h->bi_private;
+
+	/*
+	 * Must bump bi_remaining to allow bio to complete with
+	 * restored bi_end_io.
+	 */
+	atomic_inc(&bio->bi_remaining);
 }
 
 /*----------------------------------------------------------------*/
@@ -283,6 +289,7 @@ struct per_bio_data {
 	bool tick:1;
 	unsigned req_nr:2;
 	struct dm_deferred_entry *all_io_entry;
+	struct dm_hook_info hook_info;
 
 	/*
 	 * writethrough fields.  These MUST remain at the end of this
@@ -291,7 +298,6 @@ struct per_bio_data {
 	 */
 	struct cache *cache;
 	dm_cblock_t cblock;
-	struct dm_hook_info hook_info;
 	struct dm_bio_details bio_details;
 };
 
@@ -664,15 +670,18 @@ static void remap_to_origin(struct cache *cache, struct bio *bio)
 static void remap_to_cache(struct cache *cache, struct bio *bio,
 			   dm_cblock_t cblock)
 {
-	sector_t bi_sector = bio->bi_sector;
+	sector_t bi_sector = bio->bi_iter.bi_sector;
+	sector_t block = from_cblock(cblock);
 
 	bio->bi_bdev = cache->cache_dev->bdev;
 	if (!block_size_is_power_of_two(cache))
-		bio->bi_sector = (from_cblock(cblock) * cache->sectors_per_block) +
-				sector_div(bi_sector, cache->sectors_per_block);
+		bio->bi_iter.bi_sector =
+			(block * cache->sectors_per_block) +
+			sector_div(bi_sector, cache->sectors_per_block);
 	else
-		bio->bi_sector = (from_cblock(cblock) << cache->sectors_per_block_shift) |
-				(bi_sector & (cache->sectors_per_block - 1));
+		bio->bi_iter.bi_sector =
+			(block << cache->sectors_per_block_shift) |
+			(bi_sector & (cache->sectors_per_block - 1));
 }
 
 static void check_if_tick_bio_needed(struct cache *cache, struct bio *bio)
@@ -712,7 +721,7 @@ static void remap_to_cache_dirty(struct cache *cache, struct bio *bio,
 
 static dm_oblock_t get_bio_block(struct cache *cache, struct bio *bio)
 {
-	sector_t block_nr = bio->bi_sector;
+	sector_t block_nr = bio->bi_iter.bi_sector;
 
 	if (!block_size_is_power_of_two(cache))
 		(void) sector_div(block_nr, cache->sectors_per_block);
@@ -970,12 +979,13 @@ static void issue_copy_real(struct dm_cache_migration *mg)
 	int r;
 	struct dm_io_region o_region, c_region;
 	struct cache *cache = mg->cache;
+	sector_t cblock = from_cblock(mg->cblock);
 
 	o_region.bdev = cache->origin_dev->bdev;
 	o_region.count = cache->sectors_per_block;
 
 	c_region.bdev = cache->cache_dev->bdev;
-	c_region.sector = from_cblock(mg->cblock) * cache->sectors_per_block;
+	c_region.sector = cblock * cache->sectors_per_block;
 	c_region.count = cache->sectors_per_block;
 
 	if (mg->writeback || mg->demote) {
@@ -1002,13 +1012,15 @@ static void overwrite_endio(struct bio *bio, int err)
 	struct per_bio_data *pb = get_per_bio_data(bio, pb_data_size);
 	unsigned long flags;
 
+	dm_unhook_bio(&pb->hook_info, bio);
+
 	if (err)
 		mg->err = true;
 
+	mg->requeue_holder = false;
+
 	spin_lock_irqsave(&cache->lock, flags);
 	list_add_tail(&mg->list, &cache->completed_migrations);
-	dm_unhook_bio(&pb->hook_info, bio);
-	mg->requeue_holder = false;
 	spin_unlock_irqrestore(&cache->lock, flags);
 
 	wake_worker(cache);
@@ -1027,7 +1039,7 @@ static void issue_overwrite(struct dm_cache_migration *mg, struct bio *bio)
 static bool bio_writes_complete_block(struct cache *cache, struct bio *bio)
 {
 	return (bio_data_dir(bio) == WRITE) &&
-		(bio->bi_size == (cache->sectors_per_block << SECTOR_SHIFT));
+		(bio->bi_iter.bi_size == (cache->sectors_per_block << SECTOR_SHIFT));
 }
 
 static void avoid_copy(struct dm_cache_migration *mg)
@@ -1252,7 +1264,7 @@ static void process_flush_bio(struct cache *cache, struct bio *bio)
 	size_t pb_data_size = get_per_bio_data_size(cache);
 	struct per_bio_data *pb = get_per_bio_data(bio, pb_data_size);
 
-	BUG_ON(bio->bi_size);
+	BUG_ON(bio->bi_iter.bi_size);
 	if (!pb->req_nr)
 		remap_to_origin(cache, bio);
 	else
@@ -1275,9 +1287,9 @@ static void process_flush_bio(struct cache *cache, struct bio *bio)
  */
 static void process_discard_bio(struct cache *cache, struct bio *bio)
 {
-	dm_block_t start_block = dm_sector_div_up(bio->bi_sector,
+	dm_block_t start_block = dm_sector_div_up(bio->bi_iter.bi_sector,
 						  cache->discard_block_size);
-	dm_block_t end_block = bio->bi_sector + bio_sectors(bio);
+	dm_block_t end_block = bio_end_sector(bio);
 	dm_block_t b;
 
 	end_block = block_div(end_block, cache->discard_block_size);
@@ -2453,19 +2465,17 @@ static int cache_map(struct dm_target *ti, struct bio *bio)
 	bool discarded_block;
 	struct dm_bio_prison_cell *cell;
 	struct policy_result lookup_result;
-	struct per_bio_data *pb;
+	struct per_bio_data *pb = init_per_bio_data(bio, pb_data_size);
 
-	if (from_oblock(block) > from_oblock(cache->origin_blocks)) {
+	if (unlikely(from_oblock(block) >= from_oblock(cache->origin_blocks))) {
 		/*
 		 * This can only occur if the io goes to a partial block at
 		 * the end of the origin device.  We don't cache these.
 		 * Just remap to the origin and carry on.
 		 */
-		remap_to_origin_clear_discard(cache, bio, block);
+		remap_to_origin(cache, bio);
 		return DM_MAPIO_REMAPPED;
 	}
-
-	pb = init_per_bio_data(bio, pb_data_size);
 
 	if (bio->bi_rw & (REQ_FLUSH | REQ_FUA | REQ_DISCARD)) {
 		defer_bio(cache, bio);
@@ -2826,12 +2836,13 @@ static void cache_resume(struct dm_target *ti)
 /*
  * Status format:
  *
- * <#used metadata blocks>/<#total metadata blocks>
+ * <metadata block size> <#used metadata blocks>/<#total metadata blocks>
+ * <cache block size> <#used cache blocks>/<#total cache blocks>
  * <#read hits> <#read misses> <#write hits> <#write misses>
- * <#demotions> <#promotions> <#blocks in cache> <#dirty>
+ * <#demotions> <#promotions> <#dirty>
  * <#features> <features>*
  * <#core args> <core args>
- * <#policy args> <policy args>*
+ * <policy name> <#policy args> <policy args>*
  */
 static void cache_status(struct dm_target *ti, status_type_t type,
 			 unsigned status_flags, char *result, unsigned maxlen)
@@ -2869,17 +2880,20 @@ static void cache_status(struct dm_target *ti, status_type_t type,
 
 		residency = policy_residency(cache->policy);
 
-		DMEMIT("%llu/%llu %u %u %u %u %u %u %llu %u ",
+		DMEMIT("%u %llu/%llu %u %llu/%llu %u %u %u %u %u %u %llu ",
+		       (unsigned)(DM_CACHE_METADATA_BLOCK_SIZE >> SECTOR_SHIFT),
 		       (unsigned long long)(nr_blocks_metadata - nr_free_blocks_metadata),
 		       (unsigned long long)nr_blocks_metadata,
+		       cache->sectors_per_block,
+		       (unsigned long long) from_cblock(residency),
+		       (unsigned long long) from_cblock(cache->cache_size),
 		       (unsigned) atomic_read(&cache->stats.read_hit),
 		       (unsigned) atomic_read(&cache->stats.read_miss),
 		       (unsigned) atomic_read(&cache->stats.write_hit),
 		       (unsigned) atomic_read(&cache->stats.write_miss),
 		       (unsigned) atomic_read(&cache->stats.demotion),
 		       (unsigned) atomic_read(&cache->stats.promotion),
-		       (unsigned long long) from_cblock(residency),
-		       cache->nr_dirty);
+		       (unsigned long long) from_cblock(cache->nr_dirty));
 
 		if (writethrough_mode(&cache->features))
 			DMEMIT("1 writethrough ");
@@ -2896,6 +2910,8 @@ static void cache_status(struct dm_target *ti, status_type_t type,
 		}
 
 		DMEMIT("2 migration_threshold %llu ", (unsigned long long) cache->migration_threshold);
+
+		DMEMIT("%s ", dm_cache_policy_get_name(cache->policy));
 		if (sz < maxlen) {
 			r = policy_emit_config_values(cache->policy, result + sz, maxlen - sz);
 			if (r)
@@ -3129,7 +3145,7 @@ static void cache_io_hints(struct dm_target *ti, struct queue_limits *limits)
 
 static struct target_type cache_target = {
 	.name = "cache",
-	.version = {1, 2, 0},
+	.version = {1, 3, 0},
 	.module = THIS_MODULE,
 	.ctr = cache_ctr,
 	.dtr = cache_dtr,

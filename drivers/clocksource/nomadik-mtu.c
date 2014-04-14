@@ -20,7 +20,6 @@
 #include <linux/jiffies.h>
 #include <linux/delay.h>
 #include <linux/err.h>
-#include <linux/platform_data/clocksource-nomadik-mtu.h>
 #include <linux/sched_clock.h>
 #include <asm/mach/time.h>
 
@@ -103,7 +102,7 @@ static int nmdk_clkevt_next(unsigned long evt, struct clock_event_device *ev)
 	return 0;
 }
 
-void nmdk_clkevt_reset(void)
+static void nmdk_clkevt_reset(void)
 {
 	if (clkevt_periodic) {
 		/* Timer: configure load and background-load, and fire it up */
@@ -144,7 +143,7 @@ static void nmdk_clkevt_mode(enum clock_event_mode mode,
 	}
 }
 
-void nmdk_clksrc_reset(void)
+static void nmdk_clksrc_reset(void)
 {
 	/* Disable */
 	writel(0, mtu_base + MTU_CR(0));
@@ -187,13 +186,13 @@ static irqreturn_t nmdk_timer_interrupt(int irq, void *dev_id)
 
 static struct irqaction nmdk_timer_irq = {
 	.name		= "Nomadik Timer Tick",
-	.flags		= IRQF_DISABLED | IRQF_TIMER,
+	.flags		= IRQF_TIMER,
 	.handler	= nmdk_timer_interrupt,
 	.dev_id		= &nmdk_clkevt,
 };
 
-static void __init __nmdk_timer_init(void __iomem *base, int irq,
-				     struct clk *pclk, struct clk *clk)
+static void __init nmdk_timer_init(void __iomem *base, int irq,
+				   struct clk *pclk, struct clk *clk)
 {
 	unsigned long rate;
 
@@ -245,18 +244,6 @@ static void __init __nmdk_timer_init(void __iomem *base, int irq,
 	register_current_timer_delay(&mtu_delay_timer);
 }
 
-void __init nmdk_timer_init(void __iomem *base, int irq)
-{
-	struct clk *clk0, *pclk0;
-
-	pclk0 = clk_get_sys("mtu0", "apb_pclk");
-	BUG_ON(IS_ERR(pclk0));
-	clk0 = clk_get_sys("mtu0", NULL);
-	BUG_ON(IS_ERR(clk0));
-
-	__nmdk_timer_init(base, irq, pclk0, clk0);
-}
-
 static void __init nmdk_timer_of_init(struct device_node *node)
 {
 	struct clk *pclk;
@@ -280,7 +267,7 @@ static void __init nmdk_timer_of_init(struct device_node *node)
 	if (irq <= 0)
 		panic("Can't parse IRQ");
 
-	__nmdk_timer_init(base, irq, pclk, clk);
+	nmdk_timer_init(base, irq, pclk, clk);
 }
 CLOCKSOURCE_OF_DECLARE(nomadik_mtu, "st,nomadik-mtu",
 		       nmdk_timer_of_init);

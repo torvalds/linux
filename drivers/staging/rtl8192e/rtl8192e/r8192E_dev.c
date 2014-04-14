@@ -30,7 +30,7 @@
 #include "rtl_dm.h"
 #include "rtl_wx.h"
 
-extern int WDCAPARA_ADD[];
+static int WDCAPARA_ADD[] = {EDCAPARA_BE, EDCAPARA_BK, EDCAPARA_VI, EDCAPARA_VO};
 
 void rtl8192e_start_beacon(struct net_device *dev)
 {
@@ -193,11 +193,12 @@ void rtl8192e_SetHwReg(struct net_device *dev, u8 variable, u8 *val)
 
 		dm_init_edca_turbo(dev);
 
-		u4bAcParam = ((((u32)(qos_parameters->tx_op_limit[pAcParam])) <<
+		u4bAcParam = (((le16_to_cpu(
+					qos_parameters->tx_op_limit[pAcParam])) <<
 			     AC_PARAM_TXOP_LIMIT_OFFSET) |
-			     (((u32)(qos_parameters->cw_max[pAcParam])) <<
+			     ((le16_to_cpu(qos_parameters->cw_max[pAcParam])) <<
 			     AC_PARAM_ECW_MAX_OFFSET) |
-			     (((u32)(qos_parameters->cw_min[pAcParam])) <<
+			     ((le16_to_cpu(qos_parameters->cw_min[pAcParam])) <<
 			     AC_PARAM_ECW_MIN_OFFSET) |
 			     (((u32)u1bAIFS) << AC_PARAM_AIFS_OFFSET));
 
@@ -1271,7 +1272,7 @@ void  rtl8192_tx_fill_desc(struct net_device *dev, struct tx_desc *pdesc,
 	pdesc->LastSeg = 1;
 	pdesc->TxBufferSize = skb->len;
 
-	pdesc->TxBuffAddr = cpu_to_le32(mapping);
+	pdesc->TxBuffAddr = mapping;
 }
 
 void  rtl8192_tx_fill_cmd_desc(struct net_device *dev,
@@ -1301,7 +1302,7 @@ void  rtl8192_tx_fill_cmd_desc(struct net_device *dev,
 		entry_tmp->RATid = (u8)DESC_PACKET_TYPE_INIT;
 	}
 	entry->TxBufferSize = skb->len;
-	entry->TxBuffAddr = cpu_to_le32(mapping);
+	entry->TxBuffAddr = mapping;
 	entry->OWN = 1;
 }
 

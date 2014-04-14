@@ -11,6 +11,8 @@
 
 #ifdef __ASSEMBLY__
 
+#define ASM_NL		 `	/* use '`' to mark new line in macro */
+
 /* Can't use the ENTRY macro in linux/linkage.h
  * gas considers ';' as comment vs. newline
  */

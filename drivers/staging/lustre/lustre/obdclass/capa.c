@@ -46,7 +46,6 @@
 #include <asm/unistd.h>
 #include <linux/slab.h>
 #include <linux/module.h>
-#include <linux/init.h>
 #include <linux/crypto.h>
 
 #include <obd_class.h>
@@ -273,10 +272,10 @@ int capa_hmac(__u8 *hmac, struct lustre_capa *capa, __u8 *key)
 	alg = &capa_hmac_algs[capa_alg(capa)];
 
 	tfm = crypto_alloc_hash(alg->ha_name, 0, 0);
-	if (!tfm) {
+	if (IS_ERR(tfm)) {
 		CERROR("crypto_alloc_tfm failed, check whether your kernel"
 		       "has crypto support!\n");
-		return -ENOMEM;
+		return PTR_ERR(tfm);
 	}
 	keylen = alg->ha_keylen;
 

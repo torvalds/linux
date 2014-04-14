@@ -70,8 +70,6 @@ static int s2mps11_regulator_set_voltage_time_sel(struct regulator_dev *rdev,
 		ramp_delay = s2mps11->ramp_delay2;
 		break;
 	case S2MPS11_BUCK3:
-		ramp_delay = s2mps11->ramp_delay34;
-		break;
 	case S2MPS11_BUCK4:
 		ramp_delay = s2mps11->ramp_delay34;
 		break;
@@ -443,6 +441,7 @@ common_reg:
 	for (i = 0; i < S2MPS11_REGULATOR_MAX; i++) {
 		if (!reg_np) {
 			config.init_data = pdata->regulators[i].initdata;
+			config.of_node = pdata->regulators[i].reg_node;
 		} else {
 			config.init_data = rdata[i].init_data;
 			config.of_node = rdata[i].of_node;

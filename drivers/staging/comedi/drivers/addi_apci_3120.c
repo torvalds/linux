@@ -230,7 +230,7 @@ static int apci3120_pci_probe(struct pci_dev *dev,
 	return comedi_pci_auto_config(dev, &apci3120_driver, id->driver_data);
 }
 
-static DEFINE_PCI_DEVICE_TABLE(apci3120_pci_table) = {
+static const struct pci_device_id apci3120_pci_table[] = {
 	{ PCI_VDEVICE(AMCC, 0x818d), BOARD_APCI3120 },
 	{ PCI_VDEVICE(AMCC, 0x828d), BOARD_APCI3001 },
 	{ 0 }

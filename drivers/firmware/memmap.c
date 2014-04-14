@@ -324,7 +324,7 @@ int __init firmware_map_add_early(u64 start, u64 end, const char *type)
 {
 	struct firmware_map_entry *entry;
 
-	entry = alloc_bootmem(sizeof(struct firmware_map_entry));
+	entry = memblock_virt_alloc(sizeof(struct firmware_map_entry), 0);
 	if (WARN_ON(!entry))
 		return -ENOMEM;
 

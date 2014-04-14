@@ -6758,7 +6758,7 @@ bfa_dport_scn(struct bfa_dport_s *dport, struct bfi_diag_dport_scn_s *msg)
 		dport->rp_pwwn = msg->info.teststart.pwwn;
 		dport->rp_nwwn = msg->info.teststart.nwwn;
 		dport->lpcnt = cpu_to_be32(msg->info.teststart.numfrm);
-		bfa_dport_result_start(dport, BFA_DPORT_OPMODE_AUTO);
+		bfa_dport_result_start(dport, msg->info.teststart.mode);
 		break;
 
 	case BFI_DPORT_SCN_SUBTESTSTART:

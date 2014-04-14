@@ -97,7 +97,7 @@ void gdm_qos_init(void *nic_ptr)
 	struct qos_cb_s *qcb = &nic->qos;
 	int i;
 
-	for (i = 0 ; i < QOS_MAX; i++) {
+	for (i = 0; i < QOS_MAX; i++) {
 		INIT_LIST_HEAD(&qcb->qos_list[i]);
 		qcb->csr[i].qos_buf_count = 0;
 		qcb->csr[i].enabled = 0;

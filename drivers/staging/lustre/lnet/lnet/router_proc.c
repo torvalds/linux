@@ -174,8 +174,8 @@ int LL_PROC_PROTO(proc_lnet_routes)
 			      the_lnet.ln_routing ? "enabled" : "disabled");
 		LASSERT(tmpstr + tmpsiz - s > 0);
 
-		s += snprintf(s, tmpstr + tmpsiz - s, "%-8s %4s %7s %s\n",
-			      "net", "hops", "state", "router");
+		s += snprintf(s, tmpstr + tmpsiz - s, "%-8s %4s %8s %7s %s\n",
+			      "net", "hops", "priority", "state", "router");
 		LASSERT(tmpstr + tmpsiz - s > 0);
 
 		lnet_net_lock(0);
@@ -229,14 +229,16 @@ int LL_PROC_PROTO(proc_lnet_routes)
 		}
 
 		if (route != NULL) {
-			__u32	net   = rnet->lrn_net;
-			unsigned int hops  = route->lr_hops;
-			lnet_nid_t   nid   = route->lr_gateway->lp_nid;
-			int	  alive = route->lr_gateway->lp_alive;
+			__u32        net	= rnet->lrn_net;
+			unsigned int hops	= route->lr_hops;
+			unsigned int priority	= route->lr_priority;
+			lnet_nid_t   nid	= route->lr_gateway->lp_nid;
+			int          alive	= route->lr_gateway->lp_alive;
 
 			s += snprintf(s, tmpstr + tmpsiz - s,
-				      "%-8s %4u %7s %s\n",
+				      "%-8s %4u %8u %7s %s\n",
 				      libcfs_net2str(net), hops,
+				      priority,
 				      alive ? "up" : "down",
 				      libcfs_nid2str(nid));
 			LASSERT(tmpstr + tmpsiz - s > 0);
@@ -855,55 +857,46 @@ static ctl_table_t lnet_table[] = {
 	 * to go via /proc for portability.
 	 */
 	{
-		INIT_CTL_NAME(PSDEV_LNET_STATS)
 		.procname = "stats",
 		.mode     = 0644,
 		.proc_handler = &proc_lnet_stats,
 	},
 	{
-		INIT_CTL_NAME(PSDEV_LNET_ROUTES)
 		.procname = "routes",
 		.mode     = 0444,
 		.proc_handler = &proc_lnet_routes,
 	},
 	{
-		INIT_CTL_NAME(PSDEV_LNET_ROUTERS)
 		.procname = "routers",
 		.mode     = 0444,
 		.proc_handler = &proc_lnet_routers,
 	},
 	{
-		INIT_CTL_NAME(PSDEV_LNET_PEERS)
 		.procname = "peers",
 		.mode     = 0444,
 		.proc_handler = &proc_lnet_peers,
 	},
 	{
-		INIT_CTL_NAME(PSDEV_LNET_PEERS)
 		.procname = "buffers",
 		.mode     = 0444,
 		.proc_handler = &proc_lnet_buffers,
 	},
 	{
-		INIT_CTL_NAME(PSDEV_LNET_NIS)
 		.procname = "nis",
 		.mode     = 0444,
 		.proc_handler = &proc_lnet_nis,
 	},
 	{
-		INIT_CTL_NAME(PSDEV_LNET_PTL_ROTOR)
 		.procname = "portal_rotor",
 		.mode     = 0644,
 		.proc_handler = &proc_lnet_portal_rotor,
 	},
 	{
-		INIT_CTL_NAME(0)
 	}
 };
 
 static ctl_table_t top_table[] = {
 	{
-		INIT_CTL_NAME(CTL_LNET)
 		.procname = "lnet",
 		.mode     = 0555,
 		.data     = NULL,
@@ -911,28 +904,23 @@ static ctl_table_t top_table[] = {
 		.child    = lnet_table,
 	},
 	{
-		INIT_CTL_NAME(0)
 	}
 };
 
 void
 lnet_proc_init(void)
 {
-#ifdef CONFIG_SYSCTL
 	if (lnet_table_header == NULL)
 		lnet_table_header = register_sysctl_table(top_table);
-#endif
 }
 
 void
 lnet_proc_fini(void)
 {
-#ifdef CONFIG_SYSCTL
 	if (lnet_table_header != NULL)
 		unregister_sysctl_table(lnet_table_header);
 
 	lnet_table_header = NULL;
-#endif
 }
 
 #else

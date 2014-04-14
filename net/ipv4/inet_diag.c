@@ -930,12 +930,15 @@ skip_listen_ht:
 		spin_lock_bh(lock);
 		sk_nulls_for_each(sk, node, &head->chain) {
 			int res;
+			int state;
 
 			if (!net_eq(sock_net(sk), net))
 				continue;
 			if (num < s_num)
 				goto next_normal;
-			if (!(r->idiag_states & (1 << sk->sk_state)))
+			state = (sk->sk_state == TCP_TIME_WAIT) ?
+				inet_twsk(sk)->tw_substate : sk->sk_state;
+			if (!(r->idiag_states & (1 << state)))
 				goto next_normal;
 			if (r->sdiag_family != AF_UNSPEC &&
 			    sk->sk_family != r->sdiag_family)

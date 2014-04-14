@@ -18,7 +18,7 @@
 
 /* this file is part of ehci-hcd.c */
 
-#if defined(DEBUG) || defined(CONFIG_DYNAMIC_DEBUG)
+#ifdef CONFIG_DYNAMIC_DEBUG
 
 /* check the values in the HCSPARAMS register
  * (host controller _Structural_ parameters)
@@ -62,7 +62,7 @@ static inline void dbg_hcs_params (struct ehci_hcd *ehci, char *label) {}
 
 #endif
 
-#if defined(DEBUG) || defined(CONFIG_DYNAMIC_DEBUG)
+#ifdef CONFIG_DYNAMIC_DEBUG
 
 /* check the values in the HCCPARAMS register
  * (host controller _Capability_ parameters)
@@ -101,7 +101,7 @@ static inline void dbg_hcc_params (struct ehci_hcd *ehci, char *label) {}
 
 #endif
 
-#if defined(DEBUG) || defined(CONFIG_DYNAMIC_DEBUG)
+#ifdef CONFIG_DYNAMIC_DEBUG
 
 static void __maybe_unused
 dbg_qtd (const char *label, struct ehci_hcd *ehci, struct ehci_qtd *qtd)
@@ -301,7 +301,7 @@ static inline int __maybe_unused
 dbg_port_buf (char *buf, unsigned len, const char *label, int port, u32 status)
 { return 0; }
 
-#endif	/* DEBUG || CONFIG_DYNAMIC_DEBUG */
+#endif	/* CONFIG_DYNAMIC_DEBUG */
 
 /* functions have the "wrong" filename when they're output... */
 #define dbg_status(ehci, label, status) { \
@@ -818,7 +818,7 @@ static ssize_t fill_registers_buffer(struct debug_buffer *buf)
 
 #ifdef	CONFIG_PCI
 	/* EHCI 0.96 and later may have "extended capabilities" */
-	if (hcd->self.controller->bus == &pci_bus_type) {
+	if (dev_is_pci(hcd->self.controller)) {
 		struct pci_dev	*pdev;
 		u32		offset, cap, cap2;
 		unsigned	count = 256/4;

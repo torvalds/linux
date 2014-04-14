@@ -63,9 +63,13 @@ static int mxs_phy_hw_init(struct mxs_phy *mxs_phy)
 
 static int mxs_phy_init(struct usb_phy *phy)
 {
+	int ret;
 	struct mxs_phy *mxs_phy = to_mxs_phy(phy);
 
-	clk_prepare_enable(mxs_phy->clk);
+	ret = clk_prepare_enable(mxs_phy->clk);
+	if (ret)
+		return ret;
+
 	return mxs_phy_hw_init(mxs_phy);
 }
 
@@ -81,6 +85,7 @@ static void mxs_phy_shutdown(struct usb_phy *phy)
 
 static int mxs_phy_suspend(struct usb_phy *x, int suspend)
 {
+	int ret;
 	struct mxs_phy *mxs_phy = to_mxs_phy(x);
 
 	if (suspend) {
@@ -89,7 +94,9 @@ static int mxs_phy_suspend(struct usb_phy *x, int suspend)
 		       x->io_priv + HW_USBPHY_CTRL_SET);
 		clk_disable_unprepare(mxs_phy->clk);
 	} else {
-		clk_prepare_enable(mxs_phy->clk);
+		ret = clk_prepare_enable(mxs_phy->clk);
+		if (ret)
+			return ret;
 		writel(BM_USBPHY_CTRL_CLKGATE,
 		       x->io_priv + HW_USBPHY_CTRL_CLR);
 		writel(0, x->io_priv + HW_USBPHY_PWD);
@@ -159,8 +166,6 @@ static int mxs_phy_probe(struct platform_device *pdev)
 	mxs_phy->phy.notify_connect	= mxs_phy_on_connect;
 	mxs_phy->phy.notify_disconnect	= mxs_phy_on_disconnect;
 	mxs_phy->phy.type		= USB_PHY_TYPE_USB2;
-
-	ATOMIC_INIT_NOTIFIER_HEAD(&mxs_phy->phy.notifier);
 
 	mxs_phy->clk = clk;
 

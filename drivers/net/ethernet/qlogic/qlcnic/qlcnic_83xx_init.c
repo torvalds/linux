@@ -39,6 +39,9 @@
 static int qlcnic_83xx_init_default_driver(struct qlcnic_adapter *adapter);
 static int qlcnic_83xx_check_heartbeat(struct qlcnic_adapter *p_dev);
 static int qlcnic_83xx_restart_hw(struct qlcnic_adapter *adapter);
+static int qlcnic_83xx_check_hw_status(struct qlcnic_adapter *p_dev);
+static int qlcnic_83xx_get_reset_instruction_template(struct qlcnic_adapter *);
+static void qlcnic_83xx_stop_hw(struct qlcnic_adapter *);
 
 /* Template header */
 struct qlc_83xx_reset_hdr {
@@ -380,7 +383,7 @@ static int qlcnic_83xx_idc_tx_soft_reset(struct qlcnic_adapter *adapter)
 	qlcnic_up(adapter, netdev);
 	netif_device_attach(netdev);
 	clear_bit(__QLCNIC_RESETTING, &adapter->state);
-	dev_err(&adapter->pdev->dev, "%s:\n", __func__);
+	netdev_info(adapter->netdev, "%s: soft reset complete.\n", __func__);
 
 	return 0;
 }
@@ -614,8 +617,7 @@ int qlcnic_83xx_idc_reattach_driver(struct qlcnic_adapter *adapter)
 	qlcnic_83xx_reinit_mbx_work(adapter->ahw->mailbox);
 	qlcnic_83xx_enable_mbx_interrupt(adapter);
 
-	/* register for NIC IDC AEN Events */
-	qlcnic_83xx_register_nic_idc_func(adapter, 1);
+	qlcnic_83xx_initialize_nic(adapter, 1);
 
 	err = qlcnic_sriov_pf_reinit(adapter);
 	if (err)
@@ -1529,7 +1531,7 @@ static int qlcnic_83xx_check_cmd_peg_status(struct qlcnic_adapter *p_dev)
 	return -EIO;
 }
 
-int qlcnic_83xx_check_hw_status(struct qlcnic_adapter *p_dev)
+static int qlcnic_83xx_check_hw_status(struct qlcnic_adapter *p_dev)
 {
 	int err;
 
@@ -1602,7 +1604,7 @@ static int qlcnic_83xx_reset_template_checksum(struct qlcnic_adapter *p_dev)
 	}
 }
 
-int qlcnic_83xx_get_reset_instruction_template(struct qlcnic_adapter *p_dev)
+static int qlcnic_83xx_get_reset_instruction_template(struct qlcnic_adapter *p_dev)
 {
 	struct qlcnic_hardware_context *ahw = p_dev->ahw;
 	u32 addr, count, prev_ver, curr_ver;
@@ -1946,7 +1948,7 @@ static void qlcnic_83xx_exec_template_cmd(struct qlcnic_adapter *p_dev,
 	p_dev->ahw->reset.seq_index = index;
 }
 
-void qlcnic_83xx_stop_hw(struct qlcnic_adapter *p_dev)
+static void qlcnic_83xx_stop_hw(struct qlcnic_adapter *p_dev)
 {
 	p_dev->ahw->reset.seq_index = 0;
 
@@ -2029,7 +2031,7 @@ static int qlcnic_83xx_restart_hw(struct qlcnic_adapter *adapter)
 	return 0;
 }
 
-int qlcnic_83xx_get_nic_configuration(struct qlcnic_adapter *adapter)
+static int qlcnic_83xx_get_nic_configuration(struct qlcnic_adapter *adapter)
 {
 	int err;
 	struct qlcnic_info nic_info;
@@ -2213,9 +2215,9 @@ static void qlcnic_83xx_init_rings(struct qlcnic_adapter *adapter)
 int qlcnic_83xx_init(struct qlcnic_adapter *adapter, int pci_using_dac)
 {
 	struct qlcnic_hardware_context *ahw = adapter->ahw;
-	struct qlcnic_dcb *dcb;
 	int err = 0;
 
+	adapter->rx_mac_learn = false;
 	ahw->msix_supported = !!qlcnic_use_msi_x;
 
 	qlcnic_83xx_init_rings(adapter);
@@ -2265,8 +2267,7 @@ int qlcnic_83xx_init(struct qlcnic_adapter *adapter, int pci_using_dac)
 
 	INIT_DELAYED_WORK(&adapter->idc_aen_work, qlcnic_83xx_idc_aen_work);
 
-	/* register for NIC IDC AEN Events */
-	qlcnic_83xx_register_nic_idc_func(adapter, 1);
+	qlcnic_83xx_initialize_nic(adapter, 1);
 
 	/* Configure default, SR-IOV or Virtual NIC mode of operation */
 	err = qlcnic_83xx_configure_opmode(adapter);
@@ -2278,11 +2279,6 @@ int qlcnic_83xx_init(struct qlcnic_adapter *adapter, int pci_using_dac)
 	err = adapter->nic_ops->init_driver(adapter);
 	if (err)
 		goto disable_mbx_intr;
-
-	dcb = adapter->dcb;
-
-	if (dcb && qlcnic_dcb_attach(dcb))
-		qlcnic_clear_dcb_ops(dcb);
 
 	/* Periodically monitor device status */
 	qlcnic_83xx_idc_poll_dev_state(&adapter->fw_work.work);
@@ -2314,7 +2310,7 @@ void qlcnic_83xx_aer_stop_poll_work(struct qlcnic_adapter *adapter)
 		qlcnic_83xx_disable_vnic_mode(adapter, 1);
 
 	qlcnic_83xx_idc_detach_driver(adapter);
-	qlcnic_83xx_register_nic_idc_func(adapter, 0);
+	qlcnic_83xx_initialize_nic(adapter, 0);
 
 	cancel_delayed_work_sync(&adapter->idc_aen_work);
 }

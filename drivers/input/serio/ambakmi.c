@@ -10,7 +10,6 @@
  * (at your option) any later version.
  */
 #include <linux/module.h>
-#include <linux/init.h>
 #include <linux/serio.h>
 #include <linux/errno.h>
 #include <linux/interrupt.h>
@@ -166,8 +165,6 @@ static int amba_kmi_probe(struct amba_device *dev,
 static int amba_kmi_remove(struct amba_device *dev)
 {
 	struct amba_kmi_port *kmi = amba_get_drvdata(dev);
-
-	amba_set_drvdata(dev, NULL);
 
 	serio_unregister_port(kmi->io);
 	clk_put(kmi->clk);

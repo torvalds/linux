@@ -10,5 +10,6 @@
 *.out
 *.png
 *.gif
+*.svg
 media-indices.tmpl
 media-entities.tmpl

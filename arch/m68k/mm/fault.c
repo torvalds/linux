@@ -25,9 +25,8 @@ int send_fault_sig(struct pt_regs *regs)
 	siginfo.si_signo = current->thread.signo;
 	siginfo.si_code = current->thread.code;
 	siginfo.si_addr = (void *)current->thread.faddr;
-#ifdef DEBUG
-	printk("send_fault_sig: %p,%d,%d\n", siginfo.si_addr, siginfo.si_signo, siginfo.si_code);
-#endif
+	pr_debug("send_fault_sig: %p,%d,%d\n", siginfo.si_addr,
+		 siginfo.si_signo, siginfo.si_code);
 
 	if (user_mode(regs)) {
 		force_sig_info(siginfo.si_signo,
@@ -45,10 +44,10 @@ int send_fault_sig(struct pt_regs *regs)
 		 * terminate things with extreme prejudice.
 		 */
 		if ((unsigned long)siginfo.si_addr < PAGE_SIZE)
-			printk(KERN_ALERT "Unable to handle kernel NULL pointer dereference");
+			pr_alert("Unable to handle kernel NULL pointer dereference");
 		else
-			printk(KERN_ALERT "Unable to handle kernel access");
-		printk(" at virtual address %p\n", siginfo.si_addr);
+			pr_alert("Unable to handle kernel access");
+		pr_cont(" at virtual address %p\n", siginfo.si_addr);
 		die_if_kernel("Oops", regs, 0 /*error_code*/);
 		do_exit(SIGKILL);
 	}
@@ -75,11 +74,8 @@ int do_page_fault(struct pt_regs *regs, unsigned long address,
 	int fault;
 	unsigned int flags = FAULT_FLAG_ALLOW_RETRY | FAULT_FLAG_KILLABLE;
 
-#ifdef DEBUG
-	printk ("do page fault:\nregs->sr=%#x, regs->pc=%#lx, address=%#lx, %ld, %p\n",
-		regs->sr, regs->pc, address, error_code,
-		current->mm->pgd);
-#endif
+	pr_debug("do page fault:\nregs->sr=%#x, regs->pc=%#lx, address=%#lx, %ld, %p\n",
+		regs->sr, regs->pc, address, error_code, mm ? mm->pgd : NULL);
 
 	/*
 	 * If we're in an interrupt or have no user
@@ -118,9 +114,7 @@ retry:
  * we can handle it..
  */
 good_area:
-#ifdef DEBUG
-	printk("do_page_fault: good_area\n");
-#endif
+	pr_debug("do_page_fault: good_area\n");
 	switch (error_code & 3) {
 		default:	/* 3: write, present */
 			/* fall through */
@@ -143,9 +137,7 @@ good_area:
 	 */
 
 	fault = handle_mm_fault(mm, vma, address, flags);
-#ifdef DEBUG
-	printk("handle_mm_fault returns %d\n",fault);
-#endif
+	pr_debug("handle_mm_fault returns %d\n", fault);
 
 	if ((fault & VM_FAULT_RETRY) && fatal_signal_pending(current))
 		return 0;

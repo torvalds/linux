@@ -26,9 +26,10 @@
 #include <linux/adb.h>
 #include <linux/cuda.h>
 
-#define BOOTINFO_COMPAT_1_0
 #include <asm/setup.h>
 #include <asm/bootinfo.h>
+#include <asm/bootinfo-mac.h>
+#include <asm/byteorder.h>
 
 #include <asm/io.h>
 #include <asm/irq.h>
@@ -107,45 +108,46 @@ static void __init mac_sched_init(irq_handler_t vector)
 int __init mac_parse_bootinfo(const struct bi_record *record)
 {
 	int unknown = 0;
-	const u_long *data = record->data;
+	const void *data = record->data;
 
-	switch (record->tag) {
+	switch (be16_to_cpu(record->tag)) {
 	case BI_MAC_MODEL:
-		mac_bi_data.id = *data;
+		mac_bi_data.id = be32_to_cpup(data);
 		break;
 	case BI_MAC_VADDR:
-		mac_bi_data.videoaddr = *data;
+		mac_bi_data.videoaddr = be32_to_cpup(data);
 		break;
 	case BI_MAC_VDEPTH:
-		mac_bi_data.videodepth = *data;
+		mac_bi_data.videodepth = be32_to_cpup(data);
 		break;
 	case BI_MAC_VROW:
-		mac_bi_data.videorow = *data;
+		mac_bi_data.videorow = be32_to_cpup(data);
 		break;
 	case BI_MAC_VDIM:
-		mac_bi_data.dimensions = *data;
+		mac_bi_data.dimensions = be32_to_cpup(data);
 		break;
 	case BI_MAC_VLOGICAL:
-		mac_bi_data.videological = VIDEOMEMBASE + (*data & ~VIDEOMEMMASK);
-		mac_orig_videoaddr = *data;
+		mac_orig_videoaddr = be32_to_cpup(data);
+		mac_bi_data.videological =
+			VIDEOMEMBASE + (mac_orig_videoaddr & ~VIDEOMEMMASK);
 		break;
 	case BI_MAC_SCCBASE:
-		mac_bi_data.sccbase = *data;
+		mac_bi_data.sccbase = be32_to_cpup(data);
 		break;
 	case BI_MAC_BTIME:
-		mac_bi_data.boottime = *data;
+		mac_bi_data.boottime = be32_to_cpup(data);
 		break;
 	case BI_MAC_GMTBIAS:
-		mac_bi_data.gmtbias = *data;
+		mac_bi_data.gmtbias = be32_to_cpup(data);
 		break;
 	case BI_MAC_MEMSIZE:
-		mac_bi_data.memsize = *data;
+		mac_bi_data.memsize = be32_to_cpup(data);
 		break;
 	case BI_MAC_CPUID:
-		mac_bi_data.cpuid = *data;
+		mac_bi_data.cpuid = be32_to_cpup(data);
 		break;
 	case BI_MAC_ROMBASE:
-		mac_bi_data.rombase = *data;
+		mac_bi_data.rombase = be32_to_cpup(data);
 		break;
 	default:
 		unknown = 1;

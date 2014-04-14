@@ -68,14 +68,16 @@ int kvm_arch_vcpu_should_kick(struct kvm_vcpu *vcpu)
  */
 int kvmppc_prepare_to_enter(struct kvm_vcpu *vcpu)
 {
-	int r = 1;
+	int r;
 
-	WARN_ON_ONCE(!irqs_disabled());
+	WARN_ON(irqs_disabled());
+	hard_irq_disable();
+
 	while (true) {
 		if (need_resched()) {
 			local_irq_enable();
 			cond_resched();
-			local_irq_disable();
+			hard_irq_disable();
 			continue;
 		}
 
@@ -101,7 +103,7 @@ int kvmppc_prepare_to_enter(struct kvm_vcpu *vcpu)
 			local_irq_enable();
 			trace_kvm_check_requests(vcpu);
 			r = kvmppc_core_check_requests(vcpu);
-			local_irq_disable();
+			hard_irq_disable();
 			if (r > 0)
 				continue;
 			break;
@@ -113,22 +115,12 @@ int kvmppc_prepare_to_enter(struct kvm_vcpu *vcpu)
 			continue;
 		}
 
-#ifdef CONFIG_PPC64
-		/* lazy EE magic */
-		hard_irq_disable();
-		if (lazy_irq_pending()) {
-			/* Got an interrupt in between, try again */
-			local_irq_enable();
-			local_irq_disable();
-			kvm_guest_exit();
-			continue;
-		}
-#endif
-
 		kvm_guest_enter();
-		break;
+		return 1;
 	}
 
+	/* return to host */
+	local_irq_enable();
 	return r;
 }
 EXPORT_SYMBOL_GPL(kvmppc_prepare_to_enter);
@@ -656,14 +648,14 @@ static void kvmppc_complete_mmio_load(struct kvm_vcpu *vcpu,
 		kvmppc_set_gpr(vcpu, vcpu->arch.io_gpr, gpr);
 		break;
 	case KVM_MMIO_REG_FPR:
-		vcpu->arch.fpr[vcpu->arch.io_gpr & KVM_MMIO_REG_MASK] = gpr;
+		VCPU_FPR(vcpu, vcpu->arch.io_gpr & KVM_MMIO_REG_MASK) = gpr;
 		break;
 #ifdef CONFIG_PPC_BOOK3S
 	case KVM_MMIO_REG_QPR:
 		vcpu->arch.qpr[vcpu->arch.io_gpr & KVM_MMIO_REG_MASK] = gpr;
 		break;
 	case KVM_MMIO_REG_FQPR:
-		vcpu->arch.fpr[vcpu->arch.io_gpr & KVM_MMIO_REG_MASK] = gpr;
+		VCPU_FPR(vcpu, vcpu->arch.io_gpr & KVM_MMIO_REG_MASK) = gpr;
 		vcpu->arch.qpr[vcpu->arch.io_gpr & KVM_MMIO_REG_MASK] = gpr;
 		break;
 #endif
@@ -673,9 +665,19 @@ static void kvmppc_complete_mmio_load(struct kvm_vcpu *vcpu,
 }
 
 int kvmppc_handle_load(struct kvm_run *run, struct kvm_vcpu *vcpu,
-                       unsigned int rt, unsigned int bytes, int is_bigendian)
+		       unsigned int rt, unsigned int bytes,
+		       int is_default_endian)
 {
 	int idx, ret;
+	int is_bigendian;
+
+	if (kvmppc_need_byteswap(vcpu)) {
+		/* Default endianness is "little endian". */
+		is_bigendian = !is_default_endian;
+	} else {
+		/* Default endianness is "big endian". */
+		is_bigendian = is_default_endian;
+	}
 
 	if (bytes > sizeof(run->mmio.data)) {
 		printk(KERN_ERR "%s: bad MMIO length: %d\n", __func__,
@@ -711,21 +713,31 @@ EXPORT_SYMBOL_GPL(kvmppc_handle_load);
 
 /* Same as above, but sign extends */
 int kvmppc_handle_loads(struct kvm_run *run, struct kvm_vcpu *vcpu,
-                        unsigned int rt, unsigned int bytes, int is_bigendian)
+			unsigned int rt, unsigned int bytes,
+			int is_default_endian)
 {
 	int r;
 
 	vcpu->arch.mmio_sign_extend = 1;
-	r = kvmppc_handle_load(run, vcpu, rt, bytes, is_bigendian);
+	r = kvmppc_handle_load(run, vcpu, rt, bytes, is_default_endian);
 
 	return r;
 }
 
 int kvmppc_handle_store(struct kvm_run *run, struct kvm_vcpu *vcpu,
-                        u64 val, unsigned int bytes, int is_bigendian)
+			u64 val, unsigned int bytes, int is_default_endian)
 {
 	void *data = run->mmio.data;
 	int idx, ret;
+	int is_bigendian;
+
+	if (kvmppc_need_byteswap(vcpu)) {
+		/* Default endianness is "little endian". */
+		is_bigendian = !is_default_endian;
+	} else {
+		/* Default endianness is "big endian". */
+		is_bigendian = is_default_endian;
+	}
 
 	if (bytes > sizeof(run->mmio.data)) {
 		printk(KERN_ERR "%s: bad MMIO length: %d\n", __func__,

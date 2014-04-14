@@ -1986,19 +1986,23 @@ static void __init prom_init_stdout(void)
 	/* Get the full OF pathname of the stdout device */
 	memset(path, 0, 256);
 	call_prom("instance-to-path", 3, 1, prom.stdout, path, 255);
-	stdout_node = call_prom("instance-to-package", 1, 1, prom.stdout);
-	val = cpu_to_be32(stdout_node);
-	prom_setprop(prom.chosen, "/chosen", "linux,stdout-package",
-		     &val, sizeof(val));
 	prom_printf("OF stdout device is: %s\n", of_stdout_device);
 	prom_setprop(prom.chosen, "/chosen", "linux,stdout-path",
 		     path, strlen(path) + 1);
 
-	/* If it's a display, note it */
-	memset(type, 0, sizeof(type));
-	prom_getprop(stdout_node, "device_type", type, sizeof(type));
-	if (strcmp(type, "display") == 0)
-		prom_setprop(stdout_node, path, "linux,boot-display", NULL, 0);
+	/* instance-to-package fails on PA-Semi */
+	stdout_node = call_prom("instance-to-package", 1, 1, prom.stdout);
+	if (stdout_node != PROM_ERROR) {
+		val = cpu_to_be32(stdout_node);
+		prom_setprop(prom.chosen, "/chosen", "linux,stdout-package",
+			     &val, sizeof(val));
+
+		/* If it's a display, note it */
+		memset(type, 0, sizeof(type));
+		prom_getprop(stdout_node, "device_type", type, sizeof(type));
+		if (strcmp(type, "display") == 0)
+			prom_setprop(stdout_node, path, "linux,boot-display", NULL, 0);
+	}
 }
 
 static int __init prom_find_machine_type(void)

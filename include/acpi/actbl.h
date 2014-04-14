@@ -182,6 +182,9 @@ struct acpi_table_xsdt {
 	u64 table_offset_entry[1];	/* Array of pointers to ACPI tables */
 };
 
+#define ACPI_RSDT_ENTRY_SIZE        (sizeof (u32))
+#define ACPI_XSDT_ENTRY_SIZE        (sizeof (u64))
+
 /*******************************************************************************
  *
  * FACS - Firmware ACPI Control Structure (FACS)

@@ -11,7 +11,6 @@
  * Copyright (C) 2008, 2009 Cavium Networks, Inc.
  */
 
-#include <linux/init.h>
 #include <linux/fs.h>
 #include <linux/mm.h>
 #include <linux/hugetlb.h>

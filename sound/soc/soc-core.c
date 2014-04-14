@@ -1728,6 +1728,7 @@ static int snd_soc_instantiate_card(struct snd_soc_card *card)
 	}
 
 	snd_soc_dapm_link_dai_widgets(card);
+	snd_soc_dapm_connect_dai_link_widgets(card);
 
 	if (card->controls)
 		snd_soc_add_card_controls(card, card->controls, card->num_controls);
@@ -3484,7 +3485,7 @@ int snd_soc_dai_set_sysclk(struct snd_soc_dai *dai, int clk_id,
 		return dai->codec->driver->set_sysclk(dai->codec, clk_id, 0,
 						      freq, dir);
 	else
-		return -EINVAL;
+		return -ENOTSUPP;
 }
 EXPORT_SYMBOL_GPL(snd_soc_dai_set_sysclk);
 
@@ -3505,7 +3506,7 @@ int snd_soc_codec_set_sysclk(struct snd_soc_codec *codec, int clk_id,
 		return codec->driver->set_sysclk(codec, clk_id, source,
 						 freq, dir);
 	else
-		return -EINVAL;
+		return -ENOTSUPP;
 }
 EXPORT_SYMBOL_GPL(snd_soc_codec_set_sysclk);
 
@@ -4617,10 +4618,14 @@ int snd_soc_of_get_dai_name(struct device_node *of_node,
 
 			if (id < 0 || id >= pos->num_dai) {
 				ret = -EINVAL;
-			} else {
-				*dai_name = pos->dai_drv[id].name;
-				ret = 0;
+				break;
 			}
+
+			ret = 0;
+
+			*dai_name = pos->dai_drv[id].name;
+			if (!*dai_name)
+				*dai_name = pos->name;
 		}
 
 		break;

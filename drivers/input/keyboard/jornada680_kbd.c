@@ -16,7 +16,6 @@
  * published by the Free Software Foundation.
  */
 
-#include <linux/init.h>
 #include <linux/input.h>
 #include <linux/input-polldev.h>
 #include <linux/interrupt.h>

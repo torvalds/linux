@@ -260,7 +260,7 @@ static int tce_build_wsp(struct iommu_table *tbl, long index, long npages,
 		*tcep = proto_tce | (rpn & TCE_RPN_MASK) << TCE_RPN_SHIFT;
 
 		dma_debug("[DMA] TCE %p set to 0x%016llx (dma addr: 0x%lx)\n",
-			  tcep, *tcep, (tbl->it_offset + index) << IOMMU_PAGE_SHIFT);
+			  tcep, *tcep, (tbl->it_offset + index) << IOMMU_PAGE_SHIFT_4K);
 
 		uaddr += TCE_PAGE_SIZE;
 		index++;
@@ -381,8 +381,9 @@ static struct wsp_dma_table *wsp_pci_create_dma32_table(struct wsp_phb *phb,
 
 	/* Init bits and pieces */
 	tbl->table.it_blocksize = 16;
-	tbl->table.it_offset = addr >> IOMMU_PAGE_SHIFT;
-	tbl->table.it_size = size >> IOMMU_PAGE_SHIFT;
+	tbl->table.it_page_shift = IOMMU_PAGE_SHIFT_4K;
+	tbl->table.it_offset = addr >> tbl->table.it_page_shift;
+	tbl->table.it_size = size >> tbl->table.it_page_shift;
 
 	/*
 	 * It's already blank but we clear it anyway.
@@ -449,8 +450,8 @@ static void wsp_pci_dma_dev_setup(struct pci_dev *pdev)
 	if (table) {
 		pr_info("%s: Setup iommu: 32-bit DMA region 0x%08lx..0x%08lx\n",
 			pci_name(pdev),
-			table->table.it_offset << IOMMU_PAGE_SHIFT,
-			(table->table.it_offset << IOMMU_PAGE_SHIFT)
+			table->table.it_offset << IOMMU_PAGE_SHIFT_4K,
+			(table->table.it_offset << IOMMU_PAGE_SHIFT_4K)
 			+ phb->dma32_region_size - 1);
 		archdata->dma_data.iommu_table_base = &table->table;
 		return;

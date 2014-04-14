@@ -1,0 +1,24 @@
+TODO:
+
+From the initial code review:
+
+The main thing you need to do is to implement all the controls using the
+control framework (see Documentation/video4linux/v4l2-controls.txt).
+Most drivers are by now converted to the control framework, so you will
+find many examples of how to do this in drivers/media/radio.
+
+The sysfs stuff should be replaced by controls as well. A lot of the RDS
+support is now available as controls (although there may well be some
+missing features, but that is easy enough to add). Since the RDS data is
+actually read() from the device I am not sure whether the RDS
+properties/controls should be there at all.
+
+Correct Coding Style, as this driver also violates several Style
+rules, and do evil tricks, like returning from a function inside a
+macro.
+
+Finally this driver should probably be split up into two parts: one
+v4l2_subdev-based core driver and one platform driver. See e.g.
+radio-si4713/si4713-i2c.c as a good example. But I would wait with that
+until the rest of the driver is cleaned up. Then I have a better idea of
+whether this is necessary or not.

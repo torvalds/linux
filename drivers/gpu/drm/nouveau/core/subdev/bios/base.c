@@ -130,6 +130,10 @@ nouveau_bios_shadow_prom(struct nouveau_bios *bios)
 	u16 pcir;
 	int i;
 
+	/* there is no prom on nv4x IGP's */
+	if (device->card_type == NV_40 && device->chipset >= 0x4c)
+		return;
+
 	/* enable access to rom */
 	if (device->card_type >= NV_50)
 		pcireg = 0x088050;

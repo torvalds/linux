@@ -344,10 +344,10 @@ static const struct iio_info apds9300_info_no_irq = {
 static const struct iio_info apds9300_info = {
 	.driver_module		= THIS_MODULE,
 	.read_raw		= apds9300_read_raw,
-	.read_event_value_new	= apds9300_read_thresh,
-	.write_event_value_new	= apds9300_write_thresh,
-	.read_event_config_new	= apds9300_read_interrupt_config,
-	.write_event_config_new	= apds9300_write_interrupt_config,
+	.read_event_value	= apds9300_read_thresh,
+	.write_event_value	= apds9300_write_thresh,
+	.read_event_config	= apds9300_read_interrupt_config,
+	.write_event_config	= apds9300_write_interrupt_config,
 };
 
 static const struct iio_event_spec apds9300_event_spec[] = {

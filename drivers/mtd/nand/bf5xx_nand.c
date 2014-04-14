@@ -745,7 +745,6 @@ static int bf5xx_nand_probe(struct platform_device *pdev)
 
 	info = kzalloc(sizeof(*info), GFP_KERNEL);
 	if (info == NULL) {
-		dev_err(&pdev->dev, "no memory for flash info\n");
 		err = -ENOMEM;
 		goto out_err_kzalloc;
 	}

@@ -6,6 +6,8 @@ tag network packets with a class identifier (classid).
 
 The Traffic Controller (tc) can be used to assign
 different priorities to packets from different cgroups.
+Also, Netfilter (iptables) can use this tag to perform
+actions on such packets.
 
 Creating a net_cls cgroups instance creates a net_cls.classid file.
 This net_cls.classid value is initialized to 0.
@@ -32,3 +34,6 @@ tc class add dev eth0 parent 10: classid 10:1 htb rate 40mbit
  - creating traffic class 10:1
 
 tc filter add dev eth0 parent 10: protocol ip prio 10 handle 1: cgroup
+
+configuring iptables, basic example:
+iptables -A OUTPUT -m cgroup ! --cgroup 0x100001 -j DROP

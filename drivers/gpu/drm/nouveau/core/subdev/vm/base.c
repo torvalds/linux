@@ -72,13 +72,7 @@ nouveau_vm_map_at(struct nouveau_vma *vma, u64 delta, struct nouveau_mem *node)
 	vmm->flush(vm);
 }
 
-void
-nouveau_vm_map(struct nouveau_vma *vma, struct nouveau_mem *node)
-{
-	nouveau_vm_map_at(vma, 0, node);
-}
-
-void
+static void
 nouveau_vm_map_sg_table(struct nouveau_vma *vma, u64 delta, u64 length,
 			struct nouveau_mem *mem)
 {
@@ -136,7 +130,7 @@ finish:
 	vmm->flush(vm);
 }
 
-void
+static void
 nouveau_vm_map_sg(struct nouveau_vma *vma, u64 delta, u64 length,
 		  struct nouveau_mem *mem)
 {
@@ -172,6 +166,18 @@ nouveau_vm_map_sg(struct nouveau_vma *vma, u64 delta, u64 length,
 	}
 
 	vmm->flush(vm);
+}
+
+void
+nouveau_vm_map(struct nouveau_vma *vma, struct nouveau_mem *node)
+{
+	if (node->sg)
+		nouveau_vm_map_sg_table(vma, 0, node->size << 12, node);
+	else
+	if (node->pages)
+		nouveau_vm_map_sg(vma, 0, node->size << 12, node);
+	else
+		nouveau_vm_map_at(vma, 0, node);
 }
 
 void

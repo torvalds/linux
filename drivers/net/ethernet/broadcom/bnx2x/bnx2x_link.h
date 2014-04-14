@@ -533,19 +533,11 @@ int bnx2x_ets_strict(const struct link_params *params, const u8 strict_cos);
 int bnx2x_ets_e3b0_config(const struct link_params *params,
 			 const struct link_vars *vars,
 			 struct bnx2x_ets_params *ets_params);
-/* Read pfc statistic*/
-void bnx2x_pfc_statistic(struct link_params *params, struct link_vars *vars,
-						 u32 pfc_frames_sent[2],
-						 u32 pfc_frames_received[2]);
+
 void bnx2x_init_mod_abs_int(struct bnx2x *bp, struct link_vars *vars,
 			    u32 chip_id, u32 shmem_base, u32 shmem2_base,
 			    u8 port);
 
-int bnx2x_sfp_module_detection(struct bnx2x_phy *phy,
-			       struct link_params *params);
-
 void bnx2x_period_func(struct link_params *params, struct link_vars *vars);
 
-int bnx2x_check_half_open_conn(struct link_params *params,
-			       struct link_vars *vars, u8 notify);
 #endif /* BNX2X_LINK_H */

@@ -72,7 +72,7 @@ static int clk_gate2_is_enabled(struct clk_hw *hw)
 
 	reg = readl(gate->reg);
 
-	if (((reg >> gate->bit_idx) & 3) == 3)
+	if (((reg >> gate->bit_idx) & 1) == 1)
 		return 1;
 
 	return 0;

@@ -26,7 +26,6 @@
 #include <linux/types.h>
 #include <linux/smp.h>
 #include <linux/string.h>
-#include <linux/init.h>
 #include <linux/cache.h>
 
 #include <asm/cacheflush.h>
@@ -510,6 +509,7 @@ static void build_tlb_write_entry(u32 **p, struct uasm_label **l,
 		switch (current_cpu_type()) {
 		case CPU_M14KC:
 		case CPU_74K:
+		case CPU_PROAPTIV:
 			break;
 
 		default:

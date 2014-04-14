@@ -481,7 +481,7 @@ err_hclk:
 }
 
 static struct cpufreq_driver s3c2416_cpufreq_driver = {
-	.flags          = 0,
+	.flags		= CPUFREQ_NEED_INITIAL_FREQ_CHECK,
 	.verify		= cpufreq_generic_frequency_table_verify,
 	.target_index	= s3c2416_cpufreq_set_target,
 	.get		= s3c2416_cpufreq_get_speed,

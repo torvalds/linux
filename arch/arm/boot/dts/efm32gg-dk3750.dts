@@ -1,0 +1,86 @@
+/*
+ * Device tree for EFM32GG-DK3750 development board.
+ *
+ * Documentation available from
+ * http://www.silabs.com/Support%20Documents/TechnicalDocs/efm32gg-dk3750-ug.pdf
+ */
+
+/dts-v1/;
+#include "efm32gg.dtsi"
+
+/ {
+	model = "Energy Micro Giant Gecko Development Kit";
+	compatible = "efm32,dk3750";
+
+	chosen {
+		bootargs = "console=ttyefm4,115200 init=/linuxrc ignore_loglevel ihash_entries=64 dhash_entries=64 earlyprintk uclinux.physaddr=0x8c400000 root=/dev/mtdblock0";
+	};
+
+	memory {
+		reg = <0x88000000 0x400000>;
+	};
+
+	soc {
+		adc@40002000 {
+			status = "ok";
+		};
+
+		i2c@4000a000 {
+			location = <3>;
+			status = "ok";
+
+			temp@48 {
+				compatible = "st,stds75";
+				reg = <0x48>;
+			};
+
+			eeprom@50 {
+				compatible = "microchip,24c02";
+				reg = <0x50>;
+				pagesize = <16>;
+			};
+		};
+
+		spi0: spi@4000c000 { /* USART0 */
+			cs-gpios = <&gpio 68 1>; // E4
+			location = <1>;
+			status = "ok";
+
+			microsd@0 {
+				compatible = "mmc-spi-slot";
+				spi-max-frequency = <100000>;
+				voltage-ranges = <3200 3400>;
+				broken-cd;
+				reg = <0>;
+			};
+		};
+
+		spi1: spi@4000c400 { /* USART1 */
+			cs-gpios = <&gpio 51 1>; // D3
+			location = <1>;
+			status = "ok";
+
+			ks8851@0 {
+				compatible = "ks8851";
+				spi-max-frequency = <6000000>;
+				reg = <0>;
+				interrupt-parent = <&boardfpga>;
+				interrupts = <4>;
+			};
+		};
+
+		uart4: uart@4000e400 { /* UART1 */
+			location = <2>;
+			status = "ok";
+		};
+
+		boardfpga: boardfpga {
+			compatible = "efm32board";
+			reg = <0x80000000 0x400>;
+			irq-gpios = <&gpio 64 1>;
+			interrupt-controller;
+			#interrupt-cells = <1>;
+			status = "ok";
+		};
+	};
+};

@@ -211,7 +211,7 @@ enum HAL_STATUS ODM_ReadAndConfig_RadioA_1T_8188E(struct odm_dm_struct *pDM_Odm)
 				else if (v1 == 0xf9)
 					rtw_IOL_append_DELAY_US_cmd(pxmit_frame, 1);
 				else
-					rtw_IOL_append_WRF_cmd(pxmit_frame, ODM_RF_PATH_A, (u16)v1, v2, bRFRegOffsetMask);
+					rtw_IOL_append_WRF_cmd(pxmit_frame, RF_PATH_A, (u16)v1, v2, bRFRegOffsetMask);
 			} else {
 				odm_ConfigRF_RadioA_8188E(pDM_Odm, v1, v2);
 			}
@@ -247,7 +247,7 @@ enum HAL_STATUS ODM_ReadAndConfig_RadioA_1T_8188E(struct odm_dm_struct *pDM_Odm)
 						else if (v1 == 0xf9)
 							rtw_IOL_append_DELAY_US_cmd(pxmit_frame, 1);
 						else
-							rtw_IOL_append_WRF_cmd(pxmit_frame, ODM_RF_PATH_A, (u16)v1, v2, bRFRegOffsetMask);
+							rtw_IOL_append_WRF_cmd(pxmit_frame, RF_PATH_A, (u16)v1, v2, bRFRegOffsetMask);
 					} else {
 						odm_ConfigRF_RadioA_8188E(pDM_Odm, v1, v2);
 					}

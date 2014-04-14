@@ -762,8 +762,7 @@ static int wm831x_boostp_probe(struct platform_device *pdev)
 	res = platform_get_resource(pdev, IORESOURCE_REG, 0);
 	if (res == NULL) {
 		dev_err(&pdev->dev, "No REG resource\n");
-		ret = -EINVAL;
-		goto err;
+		return -EINVAL;
 	}
 	dcdc->base = res->start;
 
@@ -788,7 +787,7 @@ static int wm831x_boostp_probe(struct platform_device *pdev)
 		ret = PTR_ERR(dcdc->regulator);
 		dev_err(wm831x->dev, "Failed to register DCDC%d: %d\n",
 			id + 1, ret);
-		goto err;
+		return ret;
 	}
 
 	irq = wm831x_irq(wm831x, platform_get_irq_byname(pdev, "UV"));
@@ -799,15 +798,12 @@ static int wm831x_boostp_probe(struct platform_device *pdev)
 	if (ret != 0) {
 		dev_err(&pdev->dev, "Failed to request UV IRQ %d: %d\n",
 			irq, ret);
-		goto err;
+		return ret;
 	}
 
 	platform_set_drvdata(pdev, dcdc);
 
 	return 0;
-
-err:
-	return ret;
 }
 
 static struct platform_driver wm831x_boostp_driver = {

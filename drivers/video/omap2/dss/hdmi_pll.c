@@ -8,6 +8,8 @@
  * the Free Software Foundation.
  */
 
+#define DSS_SUBSYS_NAME "HDMIPLL"
+
 #include <linux/kernel.h>
 #include <linux/module.h>
 #include <linux/err.h>
@@ -127,24 +129,24 @@ static int hdmi_pll_config(struct hdmi_pll_data *pll)
 	/* wait for bit change */
 	if (hdmi_wait_for_bit_change(pll->base, PLLCTRL_PLL_GO,
 			0, 0, 1) != 1) {
-		pr_err("PLL GO bit not set\n");
+		DSSERR("PLL GO bit not set\n");
 		return -ETIMEDOUT;
 	}
 
 	/* Wait till the lock bit is set in PLL status */
 	if (hdmi_wait_for_bit_change(pll->base,
 			PLLCTRL_PLL_STATUS, 1, 1, 1) != 1) {
-		pr_err("cannot lock PLL\n");
-		pr_err("CFG1 0x%x\n",
+		DSSERR("cannot lock PLL\n");
+		DSSERR("CFG1 0x%x\n",
 			hdmi_read_reg(pll->base, PLLCTRL_CFG1));
-		pr_err("CFG2 0x%x\n",
+		DSSERR("CFG2 0x%x\n",
 			hdmi_read_reg(pll->base, PLLCTRL_CFG2));
-		pr_err("CFG4 0x%x\n",
+		DSSERR("CFG4 0x%x\n",
 			hdmi_read_reg(pll->base, PLLCTRL_CFG4));
 		return -ETIMEDOUT;
 	}
 
-	pr_debug("PLL locked!\n");
+	DSSDBG("PLL locked!\n");
 
 	return 0;
 }
@@ -157,7 +159,7 @@ static int hdmi_pll_reset(struct hdmi_pll_data *pll)
 	/* READ 0x0 reset is in progress */
 	if (hdmi_wait_for_bit_change(pll->base, PLLCTRL_PLL_STATUS, 0, 0, 1)
 			!= 1) {
-		pr_err("Failed to sysreset PLL\n");
+		DSSERR("Failed to sysreset PLL\n");
 		return -ETIMEDOUT;
 	}
 
@@ -200,7 +202,7 @@ int hdmi_pll_init(struct platform_device *pdev, struct hdmi_pll_data *pll)
 	struct resource *res;
 	struct resource temp_res;
 
-	res = platform_get_resource_byname(pdev, IORESOURCE_MEM, "hdmi_pllctrl");
+	res = platform_get_resource_byname(pdev, IORESOURCE_MEM, "pll");
 	if (!res) {
 		DSSDBG("can't get PLL mem resource by name\n");
 		/*

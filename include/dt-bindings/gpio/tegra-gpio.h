@@ -43,6 +43,7 @@
 #define TEGRA_GPIO_BANK_ID_CC 28
 #define TEGRA_GPIO_BANK_ID_DD 29
 #define TEGRA_GPIO_BANK_ID_EE 30
+#define TEGRA_GPIO_BANK_ID_FF 31
 
 #define TEGRA_GPIO(bank, offset) \
 	((TEGRA_GPIO_BANK_ID_##bank * 8) + offset)

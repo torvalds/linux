@@ -167,9 +167,8 @@ static void imx_ldb_set_clock(struct imx_ldb *ldb, int mux, int chno,
 
 	/* set display clock mux to LDB input clock */
 	ret = clk_set_parent(ldb->clk_sel[mux], ldb->clk[chno]);
-	if (ret) {
+	if (ret)
 		dev_err(ldb->dev, "unable to set di%d parent clock to ldb_di%d\n", mux, chno);
-	}
 }
 
 static void imx_ldb_encoder_prepare(struct drm_encoder *encoder)
@@ -414,7 +413,7 @@ enum {
 	LVDS_BIT_MAP_JEIDA
 };
 
-static const char *imx_ldb_bit_mappings[] = {
+static const char * const imx_ldb_bit_mappings[] = {
 	[LVDS_BIT_MAP_SPWG]  = "spwg",
 	[LVDS_BIT_MAP_JEIDA] = "jeida",
 };

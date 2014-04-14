@@ -184,33 +184,23 @@ static int ehci_orion_drv_probe(struct platform_device *pdev)
 	if (err)
 		goto err1;
 
-	if (!request_mem_region(res->start, resource_size(res),
-				ehci_orion_hc_driver.description)) {
-		dev_dbg(&pdev->dev, "controller already in use\n");
-		err = -EBUSY;
+	regs = devm_ioremap_resource(&pdev->dev, res);
+	if (IS_ERR(regs)) {
+		err = PTR_ERR(regs);
 		goto err1;
-	}
-
-	regs = ioremap(res->start, resource_size(res));
-	if (regs == NULL) {
-		dev_dbg(&pdev->dev, "error mapping memory\n");
-		err = -EFAULT;
-		goto err2;
 	}
 
 	/* Not all platforms can gate the clock, so it is not
 	   an error if the clock does not exists. */
-	clk = clk_get(&pdev->dev, NULL);
-	if (!IS_ERR(clk)) {
+	clk = devm_clk_get(&pdev->dev, NULL);
+	if (!IS_ERR(clk))
 		clk_prepare_enable(clk);
-		clk_put(clk);
-	}
 
 	hcd = usb_create_hcd(&ehci_orion_hc_driver,
 			&pdev->dev, dev_name(&pdev->dev));
 	if (!hcd) {
 		err = -ENOMEM;
-		goto err3;
+		goto err2;
 	}
 
 	hcd->rsrc_start = res->start;
@@ -245,25 +235,21 @@ static int ehci_orion_drv_probe(struct platform_device *pdev)
 	case EHCI_PHY_DD:
 	case EHCI_PHY_KW:
 	default:
-		printk(KERN_WARNING "Orion ehci -USB phy version isn't supported.\n");
+		dev_warn(&pdev->dev, "USB phy version isn't supported.\n");
 	}
 
 	err = usb_add_hcd(hcd, irq, IRQF_SHARED);
 	if (err)
-		goto err4;
+		goto err3;
 
+	device_wakeup_enable(hcd->self.controller);
 	return 0;
 
-err4:
-	usb_put_hcd(hcd);
 err3:
-	if (!IS_ERR(clk)) {
-		clk_disable_unprepare(clk);
-		clk_put(clk);
-	}
-	iounmap(regs);
+	usb_put_hcd(hcd);
 err2:
-	release_mem_region(res->start, resource_size(res));
+	if (!IS_ERR(clk))
+		clk_disable_unprepare(clk);
 err1:
 	dev_err(&pdev->dev, "init %s fail, %d\n",
 		dev_name(&pdev->dev), err);
@@ -277,15 +263,11 @@ static int ehci_orion_drv_remove(struct platform_device *pdev)
 	struct clk *clk;
 
 	usb_remove_hcd(hcd);
-	iounmap(hcd->regs);
-	release_mem_region(hcd->rsrc_start, hcd->rsrc_len);
 	usb_put_hcd(hcd);
 
-	clk = clk_get(&pdev->dev, NULL);
-	if (!IS_ERR(clk)) {
+	clk = devm_clk_get(&pdev->dev, NULL);
+	if (!IS_ERR(clk))
 		clk_disable_unprepare(clk);
-		clk_put(clk);
-	}
 	return 0;
 }
 

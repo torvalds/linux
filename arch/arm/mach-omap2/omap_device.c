@@ -36,6 +36,7 @@
 #include <linux/of.h>
 #include <linux/notifier.h>
 
+#include "common.h"
 #include "soc.h"
 #include "omap_device.h"
 #include "omap_hwmod.h"
@@ -204,6 +205,7 @@ static int _omap_device_notifier_call(struct notifier_block *nb,
 	case BUS_NOTIFY_ADD_DEVICE:
 		if (pdev->dev.of_node)
 			omap_device_build_from_dt(pdev);
+		omap_auxdata_legacy_init(dev);
 		/* fall through */
 	default:
 		od = to_omap_device(pdev);

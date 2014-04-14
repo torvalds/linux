@@ -288,65 +288,65 @@ static int linear_stop (struct mddev *mddev)
 
 static void linear_make_request(struct mddev *mddev, struct bio *bio)
 {
+	char b[BDEVNAME_SIZE];
 	struct dev_info *tmp_dev;
-	sector_t start_sector;
+	struct bio *split;
+	sector_t start_sector, end_sector, data_offset;
 
 	if (unlikely(bio->bi_rw & REQ_FLUSH)) {
 		md_flush_request(mddev, bio);
 		return;
 	}
 
-	rcu_read_lock();
-	tmp_dev = which_dev(mddev, bio->bi_sector);
-	start_sector = tmp_dev->end_sector - tmp_dev->rdev->sectors;
+	do {
+		rcu_read_lock();
 
-
-	if (unlikely(bio->bi_sector >= (tmp_dev->end_sector)
-		     || (bio->bi_sector < start_sector))) {
-		char b[BDEVNAME_SIZE];
-
-		printk(KERN_ERR
-		       "md/linear:%s: make_request: Sector %llu out of bounds on "
-		       "dev %s: %llu sectors, offset %llu\n",
-		       mdname(mddev),
-		       (unsigned long long)bio->bi_sector,
-		       bdevname(tmp_dev->rdev->bdev, b),
-		       (unsigned long long)tmp_dev->rdev->sectors,
-		       (unsigned long long)start_sector);
-		rcu_read_unlock();
-		bio_io_error(bio);
-		return;
-	}
-	if (unlikely(bio_end_sector(bio) > tmp_dev->end_sector)) {
-		/* This bio crosses a device boundary, so we have to
-		 * split it.
-		 */
-		struct bio_pair *bp;
-		sector_t end_sector = tmp_dev->end_sector;
+		tmp_dev = which_dev(mddev, bio->bi_iter.bi_sector);
+		start_sector = tmp_dev->end_sector - tmp_dev->rdev->sectors;
+		end_sector = tmp_dev->end_sector;
+		data_offset = tmp_dev->rdev->data_offset;
+		bio->bi_bdev = tmp_dev->rdev->bdev;
 
 		rcu_read_unlock();
 
-		bp = bio_split(bio, end_sector - bio->bi_sector);
+		if (unlikely(bio->bi_iter.bi_sector >= end_sector ||
+			     bio->bi_iter.bi_sector < start_sector))
+			goto out_of_bounds;
 
-		linear_make_request(mddev, &bp->bio1);
-		linear_make_request(mddev, &bp->bio2);
-		bio_pair_release(bp);
-		return;
-	}
-		    
-	bio->bi_bdev = tmp_dev->rdev->bdev;
-	bio->bi_sector = bio->bi_sector - start_sector
-		+ tmp_dev->rdev->data_offset;
-	rcu_read_unlock();
+		if (unlikely(bio_end_sector(bio) > end_sector)) {
+			/* This bio crosses a device boundary, so we have to
+			 * split it.
+			 */
+			split = bio_split(bio, end_sector -
+					  bio->bi_iter.bi_sector,
+					  GFP_NOIO, fs_bio_set);
+			bio_chain(split, bio);
+		} else {
+			split = bio;
+		}
 
-	if (unlikely((bio->bi_rw & REQ_DISCARD) &&
-		     !blk_queue_discard(bdev_get_queue(bio->bi_bdev)))) {
-		/* Just ignore it */
-		bio_endio(bio, 0);
-		return;
-	}
+		split->bi_iter.bi_sector = split->bi_iter.bi_sector -
+			start_sector + data_offset;
 
-	generic_make_request(bio);
+		if (unlikely((split->bi_rw & REQ_DISCARD) &&
+			 !blk_queue_discard(bdev_get_queue(split->bi_bdev)))) {
+			/* Just ignore it */
+			bio_endio(split, 0);
+		} else
+			generic_make_request(split);
+	} while (split != bio);
+	return;
+
+out_of_bounds:
+	printk(KERN_ERR
+	       "md/linear:%s: make_request: Sector %llu out of bounds on "
+	       "dev %s: %llu sectors, offset %llu\n",
+	       mdname(mddev),
+	       (unsigned long long)bio->bi_iter.bi_sector,
+	       bdevname(tmp_dev->rdev->bdev, b),
+	       (unsigned long long)tmp_dev->rdev->sectors,
+	       (unsigned long long)start_sector);
+	bio_io_error(bio);
 }
 
 static void linear_status (struct seq_file *seq, struct mddev *mddev)

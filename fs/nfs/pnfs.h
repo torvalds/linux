@@ -359,6 +359,15 @@ pnfs_ld_layoutret_on_setattr(struct inode *inode)
 		PNFS_LAYOUTRET_ON_SETATTR;
 }
 
+static inline bool
+pnfs_layoutcommit_outstanding(struct inode *inode)
+{
+	struct nfs_inode *nfsi = NFS_I(inode);
+
+	return test_bit(NFS_INO_LAYOUTCOMMIT, &nfsi->flags) != 0 ||
+		test_bit(NFS_INO_LAYOUTCOMMITTING, &nfsi->flags) != 0;
+}
+
 static inline int pnfs_return_layout(struct inode *ino)
 {
 	struct nfs_inode *nfsi = NFS_I(ino);
@@ -514,6 +523,13 @@ pnfs_use_threshold(struct nfs4_threshold **dst, struct nfs4_threshold *src,
 {
 	return false;
 }
+
+static inline bool
+pnfs_layoutcommit_outstanding(struct inode *inode)
+{
+	return false;
+}
+
 
 static inline struct nfs4_threshold *pnfs_mdsthreshold_alloc(void)
 {

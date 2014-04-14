@@ -44,19 +44,19 @@
 
 /* The following are visible and mutable through /sys/module/ptlrpc */
 int test_req_buffer_pressure = 0;
-CFS_MODULE_PARM(test_req_buffer_pressure, "i", int, 0444,
-		"set non-zero to put pressure on request buffer pools");
-CFS_MODULE_PARM(at_min, "i", int, 0644,
-		"Adaptive timeout minimum (sec)");
-CFS_MODULE_PARM(at_max, "i", int, 0644,
-		"Adaptive timeout maximum (sec)");
-CFS_MODULE_PARM(at_history, "i", int, 0644,
-		"Adaptive timeouts remember the slowest event that took place "
-		"within this period (sec)");
-CFS_MODULE_PARM(at_early_margin, "i", int, 0644,
-		"How soon before an RPC deadline to send an early reply");
-CFS_MODULE_PARM(at_extra, "i", int, 0644,
-		"How much extra time to give with each early reply");
+module_param(test_req_buffer_pressure, int, 0444);
+MODULE_PARM_DESC(test_req_buffer_pressure, "set non-zero to put pressure on request buffer pools");
+module_param(at_min, int, 0644);
+MODULE_PARM_DESC(at_min, "Adaptive timeout minimum (sec)");
+module_param(at_max, int, 0644);
+MODULE_PARM_DESC(at_max, "Adaptive timeout maximum (sec)");
+module_param(at_history, int, 0644);
+MODULE_PARM_DESC(at_history,
+		 "Adaptive timeouts remember the slowest event that took place within this period (sec)");
+module_param(at_early_margin, int, 0644);
+MODULE_PARM_DESC(at_early_margin, "How soon before an RPC deadline to send an early reply");
+module_param(at_extra, int, 0644);
+MODULE_PARM_DESC(at_extra, "How much extra time to give with each early reply");
 
 
 /* forward ref */
@@ -386,7 +386,7 @@ ptlrpc_schedule_difficult_reply(struct ptlrpc_reply_state *rs)
 {
 	LASSERT(spin_is_locked(&rs->rs_svcpt->scp_rep_lock));
 	LASSERT(spin_is_locked(&rs->rs_lock));
-	LASSERT (rs->rs_difficult);
+	LASSERT(rs->rs_difficult);
 	rs->rs_scheduled_ever = 1;  /* flag any notification attempt */
 
 	if (rs->rs_scheduled) {     /* being set up or already notified */
@@ -412,7 +412,7 @@ void ptlrpc_commit_replies(struct obd_export *exp)
 	spin_lock(&exp->exp_uncommitted_replies_lock);
 	list_for_each_entry_safe(rs, nxt, &exp->exp_uncommitted_replies,
 				     rs_obd_list) {
-		LASSERT (rs->rs_difficult);
+		LASSERT(rs->rs_difficult);
 		/* VBR: per-export last_committed */
 		LASSERT(rs->rs_export);
 		if (rs->rs_transno <= exp->exp_last_committed) {
@@ -796,7 +796,7 @@ ptlrpc_register_service(struct ptlrpc_service_conf *conf,
 	LASSERT(rc == 0);
 
 	mutex_lock(&ptlrpc_all_services_mutex);
-	list_add (&service->srv_list, &ptlrpc_all_services);
+	list_add(&service->srv_list, &ptlrpc_all_services);
 	mutex_unlock(&ptlrpc_all_services_mutex);
 
 	if (proc_entry != NULL)
@@ -1115,8 +1115,10 @@ static int ptlrpc_check_req(struct ptlrpc_request *req)
 	}
 	if (unlikely(req->rq_export->exp_obd &&
 		     req->rq_export->exp_obd->obd_fail)) {
-	     /* Failing over, don't handle any more reqs, send
-		error response instead. */
+		/*
+		 * Failing over, don't handle any more reqs, send
+		 * error response instead.
+		 */
 		CDEBUG(D_RPCTRACE, "Dropping req %p for failed obd %s\n",
 		       req, req->rq_export->exp_obd->obd_name);
 		rc = -ENODEV;
@@ -1268,7 +1270,7 @@ static int ptlrpc_at_send_early_reply(struct ptlrpc_request *req)
 		return -ETIMEDOUT;
 	}
 
-	if ((lustre_msghdr_get_flags(req->rq_reqmsg) & MSGHDR_AT_SUPPORT) == 0){
+	if (!(lustre_msghdr_get_flags(req->rq_reqmsg) & MSGHDR_AT_SUPPORT)) {
 		DEBUG_REQ(D_INFO, req, "Wanted to ask client for more time, "
 			  "but no AT support");
 		return -ENOSYS;
@@ -1777,9 +1779,9 @@ ptlrpc_server_handle_req_in(struct ptlrpc_service_part *svcpt,
 
 	rc = lustre_unpack_req_ptlrpc_body(req, MSG_PTLRPC_BODY_OFF);
 	if (rc) {
-		CERROR ("error unpacking ptlrpc body: ptl %d from %s x"
-			LPU64"\n", svc->srv_req_portal,
-			libcfs_id2str(req->rq_peer), req->rq_xid);
+		CERROR("error unpacking ptlrpc body: ptl %d from %s x"
+		       LPU64"\n", svc->srv_req_portal,
+		       libcfs_id2str(req->rq_peer), req->rq_xid);
 		goto err_req;
 	}
 
@@ -1798,7 +1800,7 @@ ptlrpc_server_handle_req_in(struct ptlrpc_service_part *svcpt,
 		goto err_req;
 	}
 
-	switch(lustre_msg_get_opc(req->rq_reqmsg)) {
+	switch (lustre_msg_get_opc(req->rq_reqmsg)) {
 	case MDS_WRITEPAGE:
 	case OST_WRITE:
 		req->rq_bulk_write = 1;
@@ -1895,7 +1897,7 @@ ptlrpc_server_handle_request(struct ptlrpc_service_part *svcpt,
 
 	ptlrpc_rqphase_move(request, RQ_PHASE_INTERPRET);
 
-	if(OBD_FAIL_CHECK(OBD_FAIL_PTLRPC_DUMP_LOG))
+	if (OBD_FAIL_CHECK(OBD_FAIL_PTLRPC_DUMP_LOG))
 		libcfs_debug_dumplog();
 
 	do_gettimeofday(&work_start);
@@ -1967,13 +1969,14 @@ put_conn:
 	lu_context_fini(&request->rq_session);
 
 	if (unlikely(cfs_time_current_sec() > request->rq_deadline)) {
-		     DEBUG_REQ(D_WARNING, request, "Request took longer "
-			       "than estimated ("CFS_DURATION_T":"CFS_DURATION_T"s);"
-			       " client may timeout.",
-			       cfs_time_sub(request->rq_deadline,
-					    request->rq_arrival_time.tv_sec),
-			       cfs_time_sub(cfs_time_current_sec(),
-					    request->rq_deadline));
+		DEBUG_REQ(D_WARNING, request,
+			  "Request took longer than estimated ("
+				CFS_DURATION_T":"CFS_DURATION_T
+				"s); client may timeout.",
+			  cfs_time_sub(request->rq_deadline,
+				       request->rq_arrival_time.tv_sec),
+			  cfs_time_sub(cfs_time_current_sec(),
+				       request->rq_deadline));
 	}
 
 	do_gettimeofday(&work_end);
@@ -2037,13 +2040,13 @@ ptlrpc_handle_rs(struct ptlrpc_reply_state *rs)
 
 	exp = rs->rs_export;
 
-	LASSERT (rs->rs_difficult);
-	LASSERT (rs->rs_scheduled);
-	LASSERT (list_empty(&rs->rs_list));
+	LASSERT(rs->rs_difficult);
+	LASSERT(rs->rs_scheduled);
+	LASSERT(list_empty(&rs->rs_list));
 
 	spin_lock(&exp->exp_lock);
 	/* Noop if removed already */
-	list_del_init (&rs->rs_exp_list);
+	list_del_init(&rs->rs_exp_list);
 	spin_unlock(&exp->exp_lock);
 
 	/* The disk commit callback holds exp_uncommitted_replies_lock while it
@@ -2113,9 +2116,9 @@ ptlrpc_handle_rs(struct ptlrpc_reply_state *rs)
 		/* Off the net */
 		spin_unlock(&rs->rs_lock);
 
-		class_export_put (exp);
+		class_export_put(exp);
 		rs->rs_export = NULL;
-		ptlrpc_rs_decref (rs);
+		ptlrpc_rs_decref(rs);
 		if (atomic_dec_and_test(&svcpt->scp_nreps_difficult) &&
 		    svc->srv_is_stopping)
 			wake_up_all(&svcpt->scp_waitq);

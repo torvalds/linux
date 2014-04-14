@@ -30,6 +30,7 @@
 #include <linux/sched.h>
 #include <linux/slab.h>
 #include <linux/videodev2.h>
+#include <linux/log2.h>
 
 #include <media/v4l2-common.h>
 #include <media/v4l2-ctrls.h>
@@ -42,6 +43,8 @@
 
 #include "vpdma.h"
 #include "vpe_regs.h"
+#include "sc.h"
+#include "csc.h"
 
 #define VPE_MODULE_NAME "vpe"
 
@@ -54,10 +57,6 @@
 /* required alignments */
 #define S_ALIGN		0	/* multiple of 1 */
 #define H_ALIGN		1	/* multiple of 2 */
-#define W_ALIGN		1	/* multiple of 2 */
-
-/* multiple of 128 bits, line stride, 16 bytes */
-#define L_ALIGN		4
 
 /* flags that indicate a format can be used for capture/output */
 #define VPE_FMT_TYPE_CAPTURE	(1 << 0)
@@ -268,6 +267,38 @@ static struct vpe_fmt vpe_formats[] = {
 		.vpdma_fmt	= { &vpdma_yuv_fmts[VPDMA_DATA_FMT_CY422],
 				  },
 	},
+	{
+		.name		= "RGB888 packed",
+		.fourcc		= V4L2_PIX_FMT_RGB24,
+		.types		= VPE_FMT_TYPE_CAPTURE,
+		.coplanar	= 0,
+		.vpdma_fmt	= { &vpdma_rgb_fmts[VPDMA_DATA_FMT_RGB24],
+				  },
+	},
+	{
+		.name		= "ARGB32",
+		.fourcc		= V4L2_PIX_FMT_RGB32,
+		.types		= VPE_FMT_TYPE_CAPTURE,
+		.coplanar	= 0,
+		.vpdma_fmt	= { &vpdma_rgb_fmts[VPDMA_DATA_FMT_ARGB32],
+				  },
+	},
+	{
+		.name		= "BGR888 packed",
+		.fourcc		= V4L2_PIX_FMT_BGR24,
+		.types		= VPE_FMT_TYPE_CAPTURE,
+		.coplanar	= 0,
+		.vpdma_fmt	= { &vpdma_rgb_fmts[VPDMA_DATA_FMT_BGR24],
+				  },
+	},
+	{
+		.name		= "ABGR32",
+		.fourcc		= V4L2_PIX_FMT_BGR32,
+		.types		= VPE_FMT_TYPE_CAPTURE,
+		.coplanar	= 0,
+		.vpdma_fmt	= { &vpdma_rgb_fmts[VPDMA_DATA_FMT_ABGR32],
+				  },
+	},
 };
 
 /*
@@ -327,9 +358,12 @@ struct vpe_dev {
 
 	int			irq;
 	void __iomem		*base;
+	struct resource		*res;
 
 	struct vb2_alloc_ctx	*alloc_ctx;
 	struct vpdma_data	*vpdma;		/* vpdma data handle */
+	struct sc_data		*sc;		/* scaler data handle */
+	struct csc_data		*csc;		/* csc data handle */
 };
 
 /*
@@ -356,6 +390,8 @@ struct vpe_ctx {
 	void			*mv_buf[2];		/* virtual addrs of motion vector bufs */
 	size_t			mv_buf_size;		/* current motion vector buffer size */
 	struct vpdma_buf	mmr_adb;		/* shadow reg addr/data block */
+	struct vpdma_buf	sc_coeff_h;		/* h coeff buffer */
+	struct vpdma_buf	sc_coeff_v;		/* v coeff buffer */
 	struct vpdma_desc_list	desc_list;		/* DMA descriptor list */
 
 	bool			deinterlacing;		/* using de-interlacer */
@@ -438,13 +474,22 @@ struct vpe_mmr_adb {
 	u32			us3_regs[8];
 	struct vpdma_adb_hdr	dei_hdr;
 	u32			dei_regs[8];
-	struct vpdma_adb_hdr	sc_hdr;
-	u32			sc_regs[1];
-	u32			sc_pad[3];
+	struct vpdma_adb_hdr	sc_hdr0;
+	u32			sc_regs0[7];
+	u32			sc_pad0[1];
+	struct vpdma_adb_hdr	sc_hdr8;
+	u32			sc_regs8[6];
+	u32			sc_pad8[2];
+	struct vpdma_adb_hdr	sc_hdr17;
+	u32			sc_regs17[9];
+	u32			sc_pad17[3];
 	struct vpdma_adb_hdr	csc_hdr;
 	u32			csc_regs[6];
 	u32			csc_pad[2];
 };
+
+#define GET_OFFSET_TOP(ctx, obj, reg)	\
+	((obj)->res->start - ctx->dev->res->start + reg)
 
 #define VPE_SET_MMR_ADB_HDR(ctx, hdr, regs, offset_a)	\
 	VPDMA_SET_MMR_ADB_HDR(ctx->mmr_adb, vpe_mmr_adb, hdr, regs, offset_a)
@@ -458,8 +503,14 @@ static void init_adb_hdrs(struct vpe_ctx *ctx)
 	VPE_SET_MMR_ADB_HDR(ctx, us2_hdr, us2_regs, VPE_US2_R0);
 	VPE_SET_MMR_ADB_HDR(ctx, us3_hdr, us3_regs, VPE_US3_R0);
 	VPE_SET_MMR_ADB_HDR(ctx, dei_hdr, dei_regs, VPE_DEI_FRAME_SIZE);
-	VPE_SET_MMR_ADB_HDR(ctx, sc_hdr, sc_regs, VPE_SC_MP_SC0);
-	VPE_SET_MMR_ADB_HDR(ctx, csc_hdr, csc_regs, VPE_CSC_CSC00);
+	VPE_SET_MMR_ADB_HDR(ctx, sc_hdr0, sc_regs0,
+		GET_OFFSET_TOP(ctx, ctx->dev->sc, CFG_SC0));
+	VPE_SET_MMR_ADB_HDR(ctx, sc_hdr8, sc_regs8,
+		GET_OFFSET_TOP(ctx, ctx->dev->sc, CFG_SC8));
+	VPE_SET_MMR_ADB_HDR(ctx, sc_hdr17, sc_regs17,
+		GET_OFFSET_TOP(ctx, ctx->dev->sc, CFG_SC17));
+	VPE_SET_MMR_ADB_HDR(ctx, csc_hdr, csc_regs,
+		GET_OFFSET_TOP(ctx, ctx->dev->csc, CSC_CSC00));
 };
 
 /*
@@ -670,17 +721,20 @@ static void set_src_registers(struct vpe_ctx *ctx)
 static void set_dst_registers(struct vpe_ctx *ctx)
 {
 	struct vpe_mmr_adb *mmr_adb = ctx->mmr_adb.addr;
+	enum v4l2_colorspace clrspc = ctx->q_data[Q_DATA_DST].colorspace;
 	struct vpe_fmt *fmt = ctx->q_data[Q_DATA_DST].fmt;
 	u32 val = 0;
 
-	/* select RGB path when color space conversion is supported in future */
-	if (fmt->fourcc == V4L2_PIX_FMT_RGB24)
-		val |= VPE_RGB_OUT_SELECT | VPE_CSC_SRC_DEI_SCALER;
+	if (clrspc == V4L2_COLORSPACE_SRGB)
+		val |= VPE_RGB_OUT_SELECT;
 	else if (fmt->fourcc == V4L2_PIX_FMT_NV16)
 		val |= VPE_COLOR_SEPARATE_422;
 
-	/* The source of CHR_DS is always the scaler, whether it's used or not */
-	val |= VPE_DS_SRC_DEI_SCALER;
+	/*
+	 * the source of CHR_DS and CSC is always the scaler, irrespective of
+	 * whether it's used or not
+	 */
+	val |= VPE_DS_SRC_DEI_SCALER | VPE_CSC_SRC_DEI_SCALER;
 
 	if (fmt->fourcc != V4L2_PIX_FMT_NV12)
 		val |= VPE_DS_BYPASS;
@@ -742,28 +796,6 @@ static void set_dei_shadow_registers(struct vpe_ctx *ctx)
 	ctx->load_mmrs = true;
 }
 
-static void set_csc_coeff_bypass(struct vpe_ctx *ctx)
-{
-	struct vpe_mmr_adb *mmr_adb = ctx->mmr_adb.addr;
-	u32 *shadow_csc_reg5 = &mmr_adb->csc_regs[5];
-
-	*shadow_csc_reg5 |= VPE_CSC_BYPASS;
-
-	ctx->load_mmrs = true;
-}
-
-static void set_sc_regs_bypass(struct vpe_ctx *ctx)
-{
-	struct vpe_mmr_adb *mmr_adb = ctx->mmr_adb.addr;
-	u32 *sc_reg0 = &mmr_adb->sc_regs[0];
-	u32 val = 0;
-
-	val |= VPE_SC_BYPASS;
-	*sc_reg0 = val;
-
-	ctx->load_mmrs = true;
-}
-
 /*
  * Set the shadow registers whose values are modified when either the
  * source or destination format is changed.
@@ -772,6 +804,11 @@ static int set_srcdst_params(struct vpe_ctx *ctx)
 {
 	struct vpe_q_data *s_q_data =  &ctx->q_data[Q_DATA_SRC];
 	struct vpe_q_data *d_q_data =  &ctx->q_data[Q_DATA_DST];
+	struct vpe_mmr_adb *mmr_adb = ctx->mmr_adb.addr;
+	unsigned int src_w = s_q_data->c_rect.width;
+	unsigned int src_h = s_q_data->c_rect.height;
+	unsigned int dst_w = d_q_data->c_rect.width;
+	unsigned int dst_h = d_q_data->c_rect.height;
 	size_t mv_buf_size;
 	int ret;
 
@@ -780,12 +817,23 @@ static int set_srcdst_params(struct vpe_ctx *ctx)
 
 	if ((s_q_data->flags & Q_DATA_INTERLACED) &&
 			!(d_q_data->flags & Q_DATA_INTERLACED)) {
+		int bytes_per_line;
 		const struct vpdma_data_format *mv =
 			&vpdma_misc_fmts[VPDMA_DATA_FMT_MV];
 
+		/*
+		 * we make sure that the source image has a 16 byte aligned
+		 * stride, we need to do the same for the motion vector buffer
+		 * by aligning it's stride to the next 16 byte boundry. this
+		 * extra space will not be used by the de-interlacer, but will
+		 * ensure that vpdma operates correctly
+		 */
+		bytes_per_line = ALIGN((s_q_data->width * mv->depth) >> 3,
+					VPDMA_STRIDE_ALIGN);
+		mv_buf_size = bytes_per_line * s_q_data->height;
+
 		ctx->deinterlacing = 1;
-		mv_buf_size =
-			(s_q_data->width * s_q_data->height * mv->depth) >> 3;
+		src_h <<= 1;
 	} else {
 		ctx->deinterlacing = 0;
 		mv_buf_size = 0;
@@ -799,8 +847,16 @@ static int set_srcdst_params(struct vpe_ctx *ctx)
 
 	set_cfg_and_line_modes(ctx);
 	set_dei_regs(ctx);
-	set_csc_coeff_bypass(ctx);
-	set_sc_regs_bypass(ctx);
+
+	csc_set_coeff(ctx->dev->csc, &mmr_adb->csc_regs[0],
+		s_q_data->colorspace, d_q_data->colorspace);
+
+	sc_set_hs_coeffs(ctx->dev->sc, ctx->sc_coeff_h.addr, src_w, dst_w);
+	sc_set_vs_coeffs(ctx->dev->sc, ctx->sc_coeff_v.addr, src_h, dst_h);
+
+	sc_config_scaler(ctx->dev->sc, &mmr_adb->sc_regs0[0],
+		&mmr_adb->sc_regs8[0], &mmr_adb->sc_regs17[0],
+		src_w, src_h, dst_w, dst_h);
 
 	return 0;
 }
@@ -916,35 +972,10 @@ static void vpe_dump_regs(struct vpe_dev *dev)
 	DUMPREG(DEI_FMD_STATUS_R0);
 	DUMPREG(DEI_FMD_STATUS_R1);
 	DUMPREG(DEI_FMD_STATUS_R2);
-	DUMPREG(SC_MP_SC0);
-	DUMPREG(SC_MP_SC1);
-	DUMPREG(SC_MP_SC2);
-	DUMPREG(SC_MP_SC3);
-	DUMPREG(SC_MP_SC4);
-	DUMPREG(SC_MP_SC5);
-	DUMPREG(SC_MP_SC6);
-	DUMPREG(SC_MP_SC8);
-	DUMPREG(SC_MP_SC9);
-	DUMPREG(SC_MP_SC10);
-	DUMPREG(SC_MP_SC11);
-	DUMPREG(SC_MP_SC12);
-	DUMPREG(SC_MP_SC13);
-	DUMPREG(SC_MP_SC17);
-	DUMPREG(SC_MP_SC18);
-	DUMPREG(SC_MP_SC19);
-	DUMPREG(SC_MP_SC20);
-	DUMPREG(SC_MP_SC21);
-	DUMPREG(SC_MP_SC22);
-	DUMPREG(SC_MP_SC23);
-	DUMPREG(SC_MP_SC24);
-	DUMPREG(SC_MP_SC25);
-	DUMPREG(CSC_CSC00);
-	DUMPREG(CSC_CSC01);
-	DUMPREG(CSC_CSC02);
-	DUMPREG(CSC_CSC03);
-	DUMPREG(CSC_CSC04);
-	DUMPREG(CSC_CSC05);
 #undef DUMPREG
+
+	sc_dump_regs(dev->sc);
+	csc_dump_regs(dev->csc);
 }
 
 static void add_out_dtd(struct vpe_ctx *ctx, int port)
@@ -1053,6 +1084,7 @@ static void disable_irqs(struct vpe_ctx *ctx)
 static void device_run(void *priv)
 {
 	struct vpe_ctx *ctx = priv;
+	struct sc_data *sc = ctx->dev->sc;
 	struct vpe_q_data *d_q_data = &ctx->q_data[Q_DATA_DST];
 
 	if (ctx->deinterlacing && ctx->src_vbs[2] == NULL) {
@@ -1075,13 +1107,37 @@ static void device_run(void *priv)
 		ctx->load_mmrs = false;
 	}
 
+	if (sc->loaded_coeff_h != ctx->sc_coeff_h.dma_addr ||
+			sc->load_coeff_h) {
+		vpdma_map_desc_buf(ctx->dev->vpdma, &ctx->sc_coeff_h);
+		vpdma_add_cfd_block(&ctx->desc_list, CFD_SC_CLIENT,
+			&ctx->sc_coeff_h, 0);
+
+		sc->loaded_coeff_h = ctx->sc_coeff_h.dma_addr;
+		sc->load_coeff_h = false;
+	}
+
+	if (sc->loaded_coeff_v != ctx->sc_coeff_v.dma_addr ||
+			sc->load_coeff_v) {
+		vpdma_map_desc_buf(ctx->dev->vpdma, &ctx->sc_coeff_v);
+		vpdma_add_cfd_block(&ctx->desc_list, CFD_SC_CLIENT,
+			&ctx->sc_coeff_v, SC_COEF_SRAM_SIZE >> 4);
+
+		sc->loaded_coeff_v = ctx->sc_coeff_v.dma_addr;
+		sc->load_coeff_v = false;
+	}
+
 	/* output data descriptors */
 	if (ctx->deinterlacing)
 		add_out_dtd(ctx, VPE_PORT_MV_OUT);
 
-	add_out_dtd(ctx, VPE_PORT_LUMA_OUT);
-	if (d_q_data->fmt->coplanar)
-		add_out_dtd(ctx, VPE_PORT_CHROMA_OUT);
+	if (d_q_data->colorspace == V4L2_COLORSPACE_SRGB) {
+		add_out_dtd(ctx, VPE_PORT_RGB_OUT);
+	} else {
+		add_out_dtd(ctx, VPE_PORT_LUMA_OUT);
+		if (d_q_data->fmt->coplanar)
+			add_out_dtd(ctx, VPE_PORT_CHROMA_OUT);
+	}
 
 	/* input data descriptors */
 	if (ctx->deinterlacing) {
@@ -1117,9 +1173,16 @@ static void device_run(void *priv)
 	}
 
 	/* sync on channel control descriptors for output ports */
-	vpdma_add_sync_on_channel_ctd(&ctx->desc_list, VPE_CHAN_LUMA_OUT);
-	if (d_q_data->fmt->coplanar)
-		vpdma_add_sync_on_channel_ctd(&ctx->desc_list, VPE_CHAN_CHROMA_OUT);
+	if (d_q_data->colorspace == V4L2_COLORSPACE_SRGB) {
+		vpdma_add_sync_on_channel_ctd(&ctx->desc_list,
+			VPE_CHAN_RGB_OUT);
+	} else {
+		vpdma_add_sync_on_channel_ctd(&ctx->desc_list,
+			VPE_CHAN_LUMA_OUT);
+		if (d_q_data->fmt->coplanar)
+			vpdma_add_sync_on_channel_ctd(&ctx->desc_list,
+				VPE_CHAN_CHROMA_OUT);
+	}
 
 	if (ctx->deinterlacing)
 		vpdma_add_sync_on_channel_ctd(&ctx->desc_list, VPE_CHAN_MV_OUT);
@@ -1198,6 +1261,8 @@ static irqreturn_t vpe_irq(int irq_vpe, void *data)
 
 	vpdma_unmap_desc_buf(dev->vpdma, &ctx->desc_list.buf);
 	vpdma_unmap_desc_buf(dev->vpdma, &ctx->mmr_adb);
+	vpdma_unmap_desc_buf(dev->vpdma, &ctx->sc_coeff_h);
+	vpdma_unmap_desc_buf(dev->vpdma, &ctx->sc_coeff_v);
 
 	vpdma_reset_desc_list(&ctx->desc_list);
 
@@ -1352,7 +1417,8 @@ static int __vpe_try_fmt(struct vpe_ctx *ctx, struct v4l2_format *f,
 {
 	struct v4l2_pix_format_mplane *pix = &f->fmt.pix_mp;
 	struct v4l2_plane_pix_format *plane_fmt;
-	int i;
+	unsigned int w_align;
+	int i, depth, depth_bytes;
 
 	if (!fmt || !(fmt->types & type)) {
 		vpe_err(ctx->dev, "Fourcc format (0x%08x) invalid.\n",
@@ -1363,35 +1429,57 @@ static int __vpe_try_fmt(struct vpe_ctx *ctx, struct v4l2_format *f,
 	if (pix->field != V4L2_FIELD_NONE && pix->field != V4L2_FIELD_ALTERNATE)
 		pix->field = V4L2_FIELD_NONE;
 
-	v4l_bound_align_image(&pix->width, MIN_W, MAX_W, W_ALIGN,
+	depth = fmt->vpdma_fmt[VPE_LUMA]->depth;
+
+	/*
+	 * the line stride should 16 byte aligned for VPDMA to work, based on
+	 * the bytes per pixel, figure out how much the width should be aligned
+	 * to make sure line stride is 16 byte aligned
+	 */
+	depth_bytes = depth >> 3;
+
+	if (depth_bytes == 3)
+		/*
+		 * if bpp is 3(as in some RGB formats), the pixel width doesn't
+		 * really help in ensuring line stride is 16 byte aligned
+		 */
+		w_align = 4;
+	else
+		/*
+		 * for the remainder bpp(4, 2 and 1), the pixel width alignment
+		 * can ensure a line stride alignment of 16 bytes. For example,
+		 * if bpp is 2, then the line stride can be 16 byte aligned if
+		 * the width is 8 byte aligned
+		 */
+		w_align = order_base_2(VPDMA_DESC_ALIGN / depth_bytes);
+
+	v4l_bound_align_image(&pix->width, MIN_W, MAX_W, w_align,
 			      &pix->height, MIN_H, MAX_H, H_ALIGN,
 			      S_ALIGN);
 
 	pix->num_planes = fmt->coplanar ? 2 : 1;
 	pix->pixelformat = fmt->fourcc;
 
-	if (type == VPE_FMT_TYPE_CAPTURE) {
-		struct vpe_q_data *s_q_data;
-
-		/* get colorspace from the source queue */
-		s_q_data = get_q_data(ctx, V4L2_BUF_TYPE_VIDEO_OUTPUT_MPLANE);
-
-		pix->colorspace = s_q_data->colorspace;
-	} else {
-		if (!pix->colorspace)
-			pix->colorspace = V4L2_COLORSPACE_SMPTE240M;
+	if (!pix->colorspace) {
+		if (fmt->fourcc == V4L2_PIX_FMT_RGB24 ||
+				fmt->fourcc == V4L2_PIX_FMT_BGR24 ||
+				fmt->fourcc == V4L2_PIX_FMT_RGB32 ||
+				fmt->fourcc == V4L2_PIX_FMT_BGR32) {
+			pix->colorspace = V4L2_COLORSPACE_SRGB;
+		} else {
+			if (pix->height > 1280)	/* HD */
+				pix->colorspace = V4L2_COLORSPACE_REC709;
+			else			/* SD */
+				pix->colorspace = V4L2_COLORSPACE_SMPTE170M;
+		}
 	}
 
 	for (i = 0; i < pix->num_planes; i++) {
-		int depth;
-
 		plane_fmt = &pix->plane_fmt[i];
 		depth = fmt->vpdma_fmt[i]->depth;
 
 		if (i == VPE_LUMA)
-			plane_fmt->bytesperline =
-					round_up((pix->width * depth) >> 3,
-						1 << L_ALIGN);
+			plane_fmt->bytesperline = (pix->width * depth) >> 3;
 		else
 			plane_fmt->bytesperline = pix->width;
 
@@ -1749,6 +1837,14 @@ static int vpe_open(struct file *file)
 	if (ret != 0)
 		goto free_desc_list;
 
+	ret = vpdma_alloc_desc_buf(&ctx->sc_coeff_h, SC_COEF_SRAM_SIZE);
+	if (ret != 0)
+		goto free_mmr_adb;
+
+	ret = vpdma_alloc_desc_buf(&ctx->sc_coeff_v, SC_COEF_SRAM_SIZE);
+	if (ret != 0)
+		goto free_sc_h;
+
 	init_adb_hdrs(ctx);
 
 	v4l2_fh_init(&ctx->fh, video_devdata(file));
@@ -1770,7 +1866,7 @@ static int vpe_open(struct file *file)
 	s_q_data->height = 1080;
 	s_q_data->sizeimage[VPE_LUMA] = (s_q_data->width * s_q_data->height *
 			s_q_data->fmt->vpdma_fmt[VPE_LUMA]->depth) >> 3;
-	s_q_data->colorspace = V4L2_COLORSPACE_SMPTE240M;
+	s_q_data->colorspace = V4L2_COLORSPACE_SMPTE170M;
 	s_q_data->field = V4L2_FIELD_NONE;
 	s_q_data->c_rect.left = 0;
 	s_q_data->c_rect.top = 0;
@@ -1817,6 +1913,10 @@ static int vpe_open(struct file *file)
 exit_fh:
 	v4l2_ctrl_handler_free(hdl);
 	v4l2_fh_exit(&ctx->fh);
+	vpdma_free_desc_buf(&ctx->sc_coeff_v);
+free_sc_h:
+	vpdma_free_desc_buf(&ctx->sc_coeff_h);
+free_mmr_adb:
 	vpdma_free_desc_buf(&ctx->mmr_adb);
 free_desc_list:
 	vpdma_free_desc_list(&ctx->desc_list);
@@ -1938,12 +2038,11 @@ static int vpe_probe(struct platform_device *pdev)
 {
 	struct vpe_dev *dev;
 	struct video_device *vfd;
-	struct resource *res;
 	int ret, irq, func;
 
 	dev = devm_kzalloc(&pdev->dev, sizeof(*dev), GFP_KERNEL);
-	if (IS_ERR(dev))
-		return PTR_ERR(dev);
+	if (!dev)
+		return -ENOMEM;
 
 	spin_lock_init(&dev->lock);
 
@@ -1954,16 +2053,17 @@ static int vpe_probe(struct platform_device *pdev)
 	atomic_set(&dev->num_instances, 0);
 	mutex_init(&dev->dev_mutex);
 
-	res = platform_get_resource_byname(pdev, IORESOURCE_MEM, "vpe_top");
+	dev->res = platform_get_resource_byname(pdev, IORESOURCE_MEM,
+			"vpe_top");
 	/*
 	 * HACK: we get resource info from device tree in the form of a list of
 	 * VPE sub blocks, the driver currently uses only the base of vpe_top
 	 * for register access, the driver should be changed later to access
 	 * registers based on the sub block base addresses
 	 */
-	dev->base = devm_ioremap(&pdev->dev, res->start, SZ_32K);
-	if (IS_ERR(dev->base)) {
-		ret = PTR_ERR(dev->base);
+	dev->base = devm_ioremap(&pdev->dev, dev->res->start, SZ_32K);
+	if (!dev->base) {
+		ret = -ENOMEM;
 		goto v4l2_dev_unreg;
 	}
 
@@ -2006,9 +2106,23 @@ static int vpe_probe(struct platform_device *pdev)
 
 	vpe_top_vpdma_reset(dev);
 
-	dev->vpdma = vpdma_create(pdev);
-	if (IS_ERR(dev->vpdma))
+	dev->sc = sc_create(pdev);
+	if (IS_ERR(dev->sc)) {
+		ret = PTR_ERR(dev->sc);
 		goto runtime_put;
+	}
+
+	dev->csc = csc_create(pdev);
+	if (IS_ERR(dev->csc)) {
+		ret = PTR_ERR(dev->csc);
+		goto runtime_put;
+	}
+
+	dev->vpdma = vpdma_create(pdev);
+	if (IS_ERR(dev->vpdma)) {
+		ret = PTR_ERR(dev->vpdma);
+		goto runtime_put;
+	}
 
 	vfd = &dev->vfd;
 	*vfd = vpe_videodev;
@@ -2081,18 +2195,7 @@ static struct platform_driver vpe_pdrv = {
 	},
 };
 
-static void __exit vpe_exit(void)
-{
-	platform_driver_unregister(&vpe_pdrv);
-}
-
-static int __init vpe_init(void)
-{
-	return platform_driver_register(&vpe_pdrv);
-}
-
-module_init(vpe_init);
-module_exit(vpe_exit);
+module_platform_driver(vpe_pdrv);
 
 MODULE_DESCRIPTION("TI VPE driver");
 MODULE_AUTHOR("Dale Farnsworth, <dale@farnsworth.org>");

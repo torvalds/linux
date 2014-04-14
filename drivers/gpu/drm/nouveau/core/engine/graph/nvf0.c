@@ -41,7 +41,7 @@ nvf0_graph_sclass[] = {
  * PGRAPH engine/subdev functions
  ******************************************************************************/
 
-static struct nvc0_graph_init
+struct nvc0_graph_init
 nvf0_graph_init_unk40xx[] = {
 	{ 0x40415c,   1, 0x04, 0x00000000 },
 	{ 0x404170,   1, 0x04, 0x00000000 },
@@ -60,7 +60,7 @@ nvf0_graph_init_unk58xx[] = {
 	{}
 };
 
-static struct nvc0_graph_init
+struct nvc0_graph_init
 nvf0_graph_init_unk70xx[] = {
 	{ 0x407010,   1, 0x04, 0x00000000 },
 	{ 0x407040,   1, 0x04, 0x80440424 },
@@ -68,7 +68,7 @@ nvf0_graph_init_unk70xx[] = {
 	{}
 };
 
-static struct nvc0_graph_init
+struct nvc0_graph_init
 nvf0_graph_init_unk5bxx[] = {
 	{ 0x405b44,   1, 0x04, 0x00000000 },
 	{ 0x405b50,   1, 0x04, 0x00000000 },
@@ -114,7 +114,7 @@ nvf0_graph_init_gpc[] = {
 	{}
 };
 
-static struct nvc0_graph_init
+struct nvc0_graph_init
 nvf0_graph_init_tpc[] = {
 	{ 0x419d0c,   1, 0x04, 0x00000000 },
 	{ 0x419d10,   1, 0x04, 0x00000014 },
@@ -243,6 +243,6 @@ nvf0_graph_oclass = &(struct nvc0_graph_oclass) {
 	.cclass = &nvf0_grctx_oclass,
 	.sclass =  nvf0_graph_sclass,
 	.mmio = nvf0_graph_init_mmio,
-	.fecs.ucode = 0 ? &nvf0_graph_fecs_ucode : NULL,
+	.fecs.ucode = &nvf0_graph_fecs_ucode,
 	.gpccs.ucode = &nvf0_graph_gpccs_ucode,
 }.base;

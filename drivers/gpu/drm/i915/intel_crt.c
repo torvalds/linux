@@ -222,8 +222,9 @@ static void intel_crt_dpms(struct drm_connector *connector, int mode)
 	intel_modeset_check_state(connector->dev);
 }
 
-static int intel_crt_mode_valid(struct drm_connector *connector,
-				struct drm_display_mode *mode)
+static enum drm_mode_status
+intel_crt_mode_valid(struct drm_connector *connector,
+		     struct drm_display_mode *mode)
 {
 	struct drm_device *dev = connector->dev;
 

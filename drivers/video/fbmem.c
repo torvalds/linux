@@ -1577,10 +1577,10 @@ static bool fb_do_apertures_overlap(struct apertures_struct *gena,
 static int do_unregister_framebuffer(struct fb_info *fb_info);
 
 #define VGA_FB_PHYS 0xA0000
-static void do_remove_conflicting_framebuffers(struct apertures_struct *a,
-				     const char *name, bool primary)
+static int do_remove_conflicting_framebuffers(struct apertures_struct *a,
+					      const char *name, bool primary)
 {
-	int i;
+	int i, ret;
 
 	/* check all firmware fbs and kick off if the base addr overlaps */
 	for (i = 0 ; i < FB_MAX; i++) {
@@ -1599,22 +1599,29 @@ static void do_remove_conflicting_framebuffers(struct apertures_struct *a,
 			printk(KERN_INFO "fb: conflicting fb hw usage "
 			       "%s vs %s - removing generic driver\n",
 			       name, registered_fb[i]->fix.id);
-			do_unregister_framebuffer(registered_fb[i]);
+			ret = do_unregister_framebuffer(registered_fb[i]);
+			if (ret)
+				return ret;
 		}
 	}
+
+	return 0;
 }
 
 static int do_register_framebuffer(struct fb_info *fb_info)
 {
-	int i;
+	int i, ret;
 	struct fb_event event;
 	struct fb_videomode mode;
 
 	if (fb_check_foreignness(fb_info))
 		return -ENOSYS;
 
-	do_remove_conflicting_framebuffers(fb_info->apertures, fb_info->fix.id,
-					 fb_is_primary_device(fb_info));
+	ret = do_remove_conflicting_framebuffers(fb_info->apertures,
+						 fb_info->fix.id,
+						 fb_is_primary_device(fb_info));
+	if (ret)
+		return ret;
 
 	if (num_registered_fb == FB_MAX)
 		return -ENXIO;
@@ -1739,12 +1746,16 @@ int unlink_framebuffer(struct fb_info *fb_info)
 }
 EXPORT_SYMBOL(unlink_framebuffer);
 
-void remove_conflicting_framebuffers(struct apertures_struct *a,
-				     const char *name, bool primary)
+int remove_conflicting_framebuffers(struct apertures_struct *a,
+				    const char *name, bool primary)
 {
+	int ret;
+
 	mutex_lock(&registration_lock);
-	do_remove_conflicting_framebuffers(a, name, primary);
+	ret = do_remove_conflicting_framebuffers(a, name, primary);
 	mutex_unlock(&registration_lock);
+
+	return ret;
 }
 EXPORT_SYMBOL(remove_conflicting_framebuffers);
 
@@ -1930,6 +1941,9 @@ int fb_get_options(const char *name, char **option)
 				options = opt + name_len + 1;
 		}
 	}
+	/* No match, pass global option */
+	if (!options && option && fb_mode_option)
+		options = kstrdup(fb_mode_option, GFP_KERNEL);
 	if (options && !strncmp(options, "off", 3))
 		retval = 1;
 

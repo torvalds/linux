@@ -145,6 +145,14 @@ static const struct req_msg_field *mdt_close_client[] = {
 	&RMF_CAPA1
 };
 
+static const struct req_msg_field *mdt_release_close_client[] = {
+	&RMF_PTLRPC_BODY,
+	&RMF_MDT_EPOCH,
+	&RMF_REC_REINT,
+	&RMF_CAPA1,
+	&RMF_CLOSE_DATA
+};
+
 static const struct req_msg_field *obd_statfs_server[] = {
 	&RMF_PTLRPC_BODY,
 	&RMF_OBD_STATFS
@@ -454,6 +462,25 @@ static const struct req_msg_field *ldlm_intent_unlink_client[] = {
 	&RMF_NAME
 };
 
+static const struct req_msg_field *ldlm_intent_getxattr_client[] = {
+	&RMF_PTLRPC_BODY,
+	&RMF_DLM_REQ,
+	&RMF_LDLM_INTENT,
+	&RMF_MDT_BODY,
+	&RMF_CAPA1,
+};
+
+static const struct req_msg_field *ldlm_intent_getxattr_server[] = {
+	&RMF_PTLRPC_BODY,
+	&RMF_DLM_REP,
+	&RMF_MDT_BODY,
+	&RMF_MDT_MD,
+	&RMF_ACL, /* for req_capsule_extend/mdt_intent_policy */
+	&RMF_EADATA,
+	&RMF_EAVALS,
+	&RMF_EAVALS_LENS
+};
+
 static const struct req_msg_field *mds_getxattr_client[] = {
 	&RMF_PTLRPC_BODY,
 	&RMF_MDT_BODY,
@@ -666,6 +693,7 @@ static struct req_format *req_formats[] = {
 	&RQF_MDS_GETXATTR,
 	&RQF_MDS_SYNC,
 	&RQF_MDS_CLOSE,
+	&RQF_MDS_RELEASE_CLOSE,
 	&RQF_MDS_PIN,
 	&RQF_MDS_UNPIN,
 	&RQF_MDS_READPAGE,
@@ -730,6 +758,7 @@ static struct req_format *req_formats[] = {
 	&RQF_LDLM_INTENT_OPEN,
 	&RQF_LDLM_INTENT_CREATE,
 	&RQF_LDLM_INTENT_UNLINK,
+	&RQF_LDLM_INTENT_GETXATTR,
 	&RQF_LDLM_INTENT_QUOTA,
 	&RQF_QUOTA_DQACQ,
 	&RQF_LOG_CANCEL,
@@ -738,7 +767,8 @@ static struct req_format *req_formats[] = {
 	&RQF_LLOG_ORIGIN_HANDLE_NEXT_BLOCK,
 	&RQF_LLOG_ORIGIN_HANDLE_PREV_BLOCK,
 	&RQF_LLOG_ORIGIN_HANDLE_READ_HEADER,
-	&RQF_LLOG_ORIGIN_CONNECT
+	&RQF_LLOG_ORIGIN_CONNECT,
+	&RQF_CONNECT,
 };
 
 struct req_msg_field {
@@ -884,6 +914,11 @@ struct req_msg_field RMF_PTLRPC_BODY =
 		    sizeof(struct ptlrpc_body), lustre_swab_ptlrpc_body, NULL);
 EXPORT_SYMBOL(RMF_PTLRPC_BODY);
 
+struct req_msg_field RMF_CLOSE_DATA =
+	DEFINE_MSGF("data_version", 0,
+		    sizeof(struct close_data), lustre_swab_close_data, NULL);
+EXPORT_SYMBOL(RMF_CLOSE_DATA);
+
 struct req_msg_field RMF_OBD_STATFS =
 	DEFINE_MSGF("obd_statfs", 0,
 		    sizeof(struct obd_statfs), lustre_swab_obd_statfs, NULL);
@@ -998,6 +1033,9 @@ struct req_msg_field RMF_EADATA = DEFINE_MSGF("eadata", 0, -1,
 						    NULL, NULL);
 EXPORT_SYMBOL(RMF_EADATA);
 
+struct req_msg_field RMF_EAVALS = DEFINE_MSGF("eavals", 0, -1, NULL, NULL);
+EXPORT_SYMBOL(RMF_EAVALS);
+
 struct req_msg_field RMF_ACL =
 	DEFINE_MSGF("acl", RMF_F_NO_SIZE_CHECK,
 		    LUSTRE_POSIX_ACL_MAX_SIZE, NULL, NULL);
@@ -1048,6 +1086,11 @@ struct req_msg_field RMF_RCS =
 	DEFINE_MSGF("niobuf_remote", RMF_F_STRUCT_ARRAY, sizeof(__u32),
 		    lustre_swab_generic_32s, dump_rcs);
 EXPORT_SYMBOL(RMF_RCS);
+
+struct req_msg_field RMF_EAVALS_LENS =
+	DEFINE_MSGF("eavals_lens", RMF_F_STRUCT_ARRAY, sizeof(__u32),
+		lustre_swab_generic_32s, NULL);
+EXPORT_SYMBOL(RMF_EAVALS_LENS);
 
 struct req_msg_field RMF_OBD_ID =
 	DEFINE_MSGF("obd_id", 0,
@@ -1406,10 +1449,21 @@ struct req_format RQF_LDLM_INTENT_UNLINK =
 			ldlm_intent_unlink_client, ldlm_intent_server);
 EXPORT_SYMBOL(RQF_LDLM_INTENT_UNLINK);
 
+struct req_format RQF_LDLM_INTENT_GETXATTR =
+	DEFINE_REQ_FMT0("LDLM_INTENT_GETXATTR",
+			ldlm_intent_getxattr_client,
+			ldlm_intent_getxattr_server);
+EXPORT_SYMBOL(RQF_LDLM_INTENT_GETXATTR);
+
 struct req_format RQF_MDS_CLOSE =
 	DEFINE_REQ_FMT0("MDS_CLOSE",
 			mdt_close_client, mds_last_unlink_server);
 EXPORT_SYMBOL(RQF_MDS_CLOSE);
+
+struct req_format RQF_MDS_RELEASE_CLOSE =
+	DEFINE_REQ_FMT0("MDS_CLOSE",
+			mdt_release_close_client, mds_last_unlink_server);
+EXPORT_SYMBOL(RQF_MDS_RELEASE_CLOSE);
 
 struct req_format RQF_MDS_PIN =
 	DEFINE_REQ_FMT0("MDS_PIN",
@@ -1503,6 +1557,10 @@ EXPORT_SYMBOL(RQF_LLOG_ORIGIN_HANDLE_READ_HEADER);
 struct req_format RQF_LLOG_ORIGIN_CONNECT =
 	DEFINE_REQ_FMT0("LLOG_ORIGIN_CONNECT", llogd_conn_body_only, empty);
 EXPORT_SYMBOL(RQF_LLOG_ORIGIN_CONNECT);
+
+struct req_format RQF_CONNECT =
+	DEFINE_REQ_FMT0("CONNECT", obd_connect_client, obd_connect_server);
+EXPORT_SYMBOL(RQF_CONNECT);
 
 struct req_format RQF_OST_CONNECT =
 	DEFINE_REQ_FMT0("OST_CONNECT",
@@ -1808,7 +1866,7 @@ swabber_dumper_helper(struct req_capsule *pill,
 		      const struct req_msg_field *field,
 		      enum req_location loc,
 		      int offset,
-		      void *value, int len, int dump, void (*swabber)( void *))
+		      void *value, int len, int dump, void (*swabber)(void *))
 {
 	void    *p;
 	int     i;
@@ -1824,8 +1882,11 @@ swabber_dumper_helper(struct req_capsule *pill,
 	else
 		do_swab = 0;
 
+	if (!field->rmf_dumper)
+		dump = 0;
+
 	if (!(field->rmf_flags & RMF_F_STRUCT_ARRAY)) {
-		if (dump && field->rmf_dumper) {
+		if (dump) {
 			CDEBUG(D_RPCTRACE, "Dump of %sfield %s follows\n",
 			       do_swab ? "unswabbed " : "", field->rmf_name);
 			field->rmf_dumper(value);
@@ -1851,7 +1912,7 @@ swabber_dumper_helper(struct req_capsule *pill,
 	for (p = value, i = 0, n = len / field->rmf_size;
 	     i < n;
 	     i++, p += field->rmf_size) {
-		if (dump && field->rmf_dumper) {
+		if (dump) {
 			CDEBUG(D_RPCTRACE, "Dump of %sarray field %s, "
 			       "element %d follows\n",
 			       do_swab ? "unswabbed " : "", field->rmf_name, i);
@@ -1860,7 +1921,7 @@ swabber_dumper_helper(struct req_capsule *pill,
 		if (!do_swab)
 			continue;
 		swabber(p);
-		if (dump && field->rmf_dumper) {
+		if (dump) {
 			CDEBUG(D_RPCTRACE, "Dump of swabbed array field %s, "
 			       "element %d follows\n", field->rmf_name, i);
 			field->rmf_dumper(value);
@@ -1883,7 +1944,7 @@ swabber_dumper_helper(struct req_capsule *pill,
 static void *__req_capsule_get(struct req_capsule *pill,
 			       const struct req_msg_field *field,
 			       enum req_location loc,
-			       void (*swabber)( void *),
+			       void (*swabber)(void *),
 			       int dump)
 {
 	const struct req_format *fmt;

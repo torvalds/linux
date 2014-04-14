@@ -50,10 +50,10 @@ static void _omap3_dpll_write_clken(struct clk_hw_omap *clk, u8 clken_bits)
 
 	dd = clk->dpll_data;
 
-	v = __raw_readl(dd->control_reg);
+	v = omap2_clk_readl(clk, dd->control_reg);
 	v &= ~dd->enable_mask;
 	v |= clken_bits << __ffs(dd->enable_mask);
-	__raw_writel(v, dd->control_reg);
+	omap2_clk_writel(v, clk, dd->control_reg);
 }
 
 /* _omap3_wait_dpll_status: wait for a DPLL to enter a specific state */
@@ -69,8 +69,8 @@ static int _omap3_wait_dpll_status(struct clk_hw_omap *clk, u8 state)
 
 	state <<= __ffs(dd->idlest_mask);
 
-	while (((__raw_readl(dd->idlest_reg) & dd->idlest_mask) != state) &&
-	       i < MAX_DPLL_WAIT_TRIES) {
+	while (((omap2_clk_readl(clk, dd->idlest_reg) & dd->idlest_mask)
+		!= state) && i < MAX_DPLL_WAIT_TRIES) {
 		i++;
 		udelay(1);
 	}
@@ -147,7 +147,7 @@ static int _omap3_noncore_dpll_lock(struct clk_hw_omap *clk)
 	state <<= __ffs(dd->idlest_mask);
 
 	/* Check if already locked */
-	if ((__raw_readl(dd->idlest_reg) & dd->idlest_mask) == state)
+	if ((omap2_clk_readl(clk, dd->idlest_reg) & dd->idlest_mask) == state)
 		goto done;
 
 	ai = omap3_dpll_autoidle_read(clk);
@@ -311,14 +311,14 @@ static int omap3_noncore_dpll_program(struct clk_hw_omap *clk, u16 freqsel)
 	 * only since freqsel field is no longer present on other devices.
 	 */
 	if (cpu_is_omap343x()) {
-		v = __raw_readl(dd->control_reg);
+		v = omap2_clk_readl(clk, dd->control_reg);
 		v &= ~dd->freqsel_mask;
 		v |= freqsel << __ffs(dd->freqsel_mask);
-		__raw_writel(v, dd->control_reg);
+		omap2_clk_writel(v, clk, dd->control_reg);
 	}
 
 	/* Set DPLL multiplier, divider */
-	v = __raw_readl(dd->mult_div1_reg);
+	v = omap2_clk_readl(clk, dd->mult_div1_reg);
 	v &= ~(dd->mult_mask | dd->div1_mask);
 	v |= dd->last_rounded_m << __ffs(dd->mult_mask);
 	v |= (dd->last_rounded_n - 1) << __ffs(dd->div1_mask);
@@ -336,11 +336,11 @@ static int omap3_noncore_dpll_program(struct clk_hw_omap *clk, u16 freqsel)
 		v |= sd_div << __ffs(dd->sddiv_mask);
 	}
 
-	__raw_writel(v, dd->mult_div1_reg);
+	omap2_clk_writel(v, clk, dd->mult_div1_reg);
 
 	/* Set 4X multiplier and low-power mode */
 	if (dd->m4xen_mask || dd->lpmode_mask) {
-		v = __raw_readl(dd->control_reg);
+		v = omap2_clk_readl(clk, dd->control_reg);
 
 		if (dd->m4xen_mask) {
 			if (dd->last_rounded_m4xen)
@@ -356,7 +356,7 @@ static int omap3_noncore_dpll_program(struct clk_hw_omap *clk, u16 freqsel)
 				v &= ~dd->lpmode_mask;
 		}
 
-		__raw_writel(v, dd->control_reg);
+		omap2_clk_writel(v, clk, dd->control_reg);
 	}
 
 	/* We let the clock framework set the other output dividers later */
@@ -554,7 +554,7 @@ u32 omap3_dpll_autoidle_read(struct clk_hw_omap *clk)
 	if (!dd->autoidle_reg)
 		return -EINVAL;
 
-	v = __raw_readl(dd->autoidle_reg);
+	v = omap2_clk_readl(clk, dd->autoidle_reg);
 	v &= dd->autoidle_mask;
 	v >>= __ffs(dd->autoidle_mask);
 
@@ -588,10 +588,10 @@ void omap3_dpll_allow_idle(struct clk_hw_omap *clk)
 	 * by writing 0x5 instead of 0x1.  Add some mechanism to
 	 * optionally enter this mode.
 	 */
-	v = __raw_readl(dd->autoidle_reg);
+	v = omap2_clk_readl(clk, dd->autoidle_reg);
 	v &= ~dd->autoidle_mask;
 	v |= DPLL_AUTOIDLE_LOW_POWER_STOP << __ffs(dd->autoidle_mask);
-	__raw_writel(v, dd->autoidle_reg);
+	omap2_clk_writel(v, clk, dd->autoidle_reg);
 
 }
 
@@ -614,28 +614,18 @@ void omap3_dpll_deny_idle(struct clk_hw_omap *clk)
 	if (!dd->autoidle_reg)
 		return;
 
-	v = __raw_readl(dd->autoidle_reg);
+	v = omap2_clk_readl(clk, dd->autoidle_reg);
 	v &= ~dd->autoidle_mask;
 	v |= DPLL_AUTOIDLE_DISABLE << __ffs(dd->autoidle_mask);
-	__raw_writel(v, dd->autoidle_reg);
+	omap2_clk_writel(v, clk, dd->autoidle_reg);
 
 }
 
 /* Clock control for DPLL outputs */
 
-/**
- * omap3_clkoutx2_recalc - recalculate DPLL X2 output virtual clock rate
- * @clk: DPLL output struct clk
- *
- * Using parent clock DPLL data, look up DPLL state.  If locked, set our
- * rate to the dpll_clk * 2; otherwise, just use dpll_clk.
- */
-unsigned long omap3_clkoutx2_recalc(struct clk_hw *hw,
-				    unsigned long parent_rate)
+/* Find the parent DPLL for the given clkoutx2 clock */
+static struct clk_hw_omap *omap3_find_clkoutx2_dpll(struct clk_hw *hw)
 {
-	const struct dpll_data *dd;
-	unsigned long rate;
-	u32 v;
 	struct clk_hw_omap *pclk = NULL;
 	struct clk *parent;
 
@@ -653,20 +643,95 @@ unsigned long omap3_clkoutx2_recalc(struct clk_hw *hw,
 	/* clk does not have a DPLL as a parent?  error in the clock data */
 	if (!pclk) {
 		WARN_ON(1);
-		return 0;
+		return NULL;
 	}
+
+	return pclk;
+}
+
+/**
+ * omap3_clkoutx2_recalc - recalculate DPLL X2 output virtual clock rate
+ * @clk: DPLL output struct clk
+ *
+ * Using parent clock DPLL data, look up DPLL state.  If locked, set our
+ * rate to the dpll_clk * 2; otherwise, just use dpll_clk.
+ */
+unsigned long omap3_clkoutx2_recalc(struct clk_hw *hw,
+				    unsigned long parent_rate)
+{
+	const struct dpll_data *dd;
+	unsigned long rate;
+	u32 v;
+	struct clk_hw_omap *pclk = NULL;
+
+	if (!parent_rate)
+		return 0;
+
+	pclk = omap3_find_clkoutx2_dpll(hw);
+
+	if (!pclk)
+		return 0;
 
 	dd = pclk->dpll_data;
 
 	WARN_ON(!dd->enable_mask);
 
-	v = __raw_readl(dd->control_reg) & dd->enable_mask;
+	v = omap2_clk_readl(pclk, dd->control_reg) & dd->enable_mask;
 	v >>= __ffs(dd->enable_mask);
 	if ((v != OMAP3XXX_EN_DPLL_LOCKED) || (dd->flags & DPLL_J_TYPE))
 		rate = parent_rate;
 	else
 		rate = parent_rate * 2;
 	return rate;
+}
+
+int omap3_clkoutx2_set_rate(struct clk_hw *hw, unsigned long rate,
+					unsigned long parent_rate)
+{
+	return 0;
+}
+
+long omap3_clkoutx2_round_rate(struct clk_hw *hw, unsigned long rate,
+		unsigned long *prate)
+{
+	const struct dpll_data *dd;
+	u32 v;
+	struct clk_hw_omap *pclk = NULL;
+
+	if (!*prate)
+		return 0;
+
+	pclk = omap3_find_clkoutx2_dpll(hw);
+
+	if (!pclk)
+		return 0;
+
+	dd = pclk->dpll_data;
+
+	/* TYPE J does not have a clkoutx2 */
+	if (dd->flags & DPLL_J_TYPE) {
+		*prate = __clk_round_rate(__clk_get_parent(pclk->hw.clk), rate);
+		return *prate;
+	}
+
+	WARN_ON(!dd->enable_mask);
+
+	v = omap2_clk_readl(pclk, dd->control_reg) & dd->enable_mask;
+	v >>= __ffs(dd->enable_mask);
+
+	/* If in bypass, the rate is fixed to the bypass rate*/
+	if (v != OMAP3XXX_EN_DPLL_LOCKED)
+		return *prate;
+
+	if (__clk_get_flags(hw->clk) & CLK_SET_RATE_PARENT) {
+		unsigned long best_parent;
+
+		best_parent = (rate / 2);
+		*prate = __clk_round_rate(__clk_get_parent(hw->clk),
+				best_parent);
+	}
+
+	return *prate * 2;
 }
 
 /* OMAP3/4 non-CORE DPLL clkops */

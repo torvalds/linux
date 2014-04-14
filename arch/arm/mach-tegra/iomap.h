@@ -19,6 +19,7 @@
 #ifndef __MACH_TEGRA_IOMAP_H
 #define __MACH_TEGRA_IOMAP_H
 
+#include <asm/pgtable.h>
 #include <asm/sizes.h>
 
 #define TEGRA_IRAM_BASE			0x40000000
@@ -115,27 +116,26 @@
  * two 256MB io windows (that actually only use about 64KB
  * at the start of each).
  *
- * We will just map the first 1MB of each window (to minimize
+ * We will just map the first MMU section of each window (to minimize
  * pt entries needed) and provide a macro to transform physical
  * io addresses to an appropriate void __iomem *.
- *
  */
 
 #define IO_IRAM_PHYS	0x40000000
 #define IO_IRAM_VIRT	IOMEM(0xFE400000)
 #define IO_IRAM_SIZE	SZ_256K
 
-#define IO_CPU_PHYS     0x50040000
-#define IO_CPU_VIRT     IOMEM(0xFE000000)
+#define IO_CPU_PHYS	0x50040000
+#define IO_CPU_VIRT	IOMEM(0xFE440000)
 #define IO_CPU_SIZE	SZ_16K
 
 #define IO_PPSB_PHYS	0x60000000
 #define IO_PPSB_VIRT	IOMEM(0xFE200000)
-#define IO_PPSB_SIZE	SZ_1M
+#define IO_PPSB_SIZE	SECTION_SIZE
 
 #define IO_APB_PHYS	0x70000000
-#define IO_APB_VIRT	IOMEM(0xFE300000)
-#define IO_APB_SIZE	SZ_1M
+#define IO_APB_VIRT	IOMEM(0xFE000000)
+#define IO_APB_SIZE	SECTION_SIZE
 
 #define IO_TO_VIRT_BETWEEN(p, st, sz)	((p) >= (st) && (p) < ((st) + (sz)))
 #define IO_TO_VIRT_XLATE(p, pst, vst)	(((p) - (pst) + (vst)))

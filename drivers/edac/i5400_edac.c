@@ -1416,7 +1416,7 @@ static void i5400_remove_one(struct pci_dev *pdev)
  *
  *	The "E500P" device is the first device supported.
  */
-static DEFINE_PCI_DEVICE_TABLE(i5400_pci_tbl) = {
+static const struct pci_device_id i5400_pci_tbl[] = {
 	{PCI_DEVICE(PCI_VENDOR_ID_INTEL, PCI_DEVICE_ID_INTEL_5400_ERR)},
 	{0,}			/* 0 terminated list. */
 };

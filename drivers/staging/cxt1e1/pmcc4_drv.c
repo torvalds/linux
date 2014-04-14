@@ -194,7 +194,7 @@ checkPorts (ci_t *ci)
      * alarms conflicts with NCOMM's interrupt servicing implementation.
      */
 
-    comet_t    *comet;
+    struct s_comet_reg    *comet;
     volatile u_int32_t value;
     u_int32_t   copyVal, LEDval;
 
@@ -507,7 +507,7 @@ c4_cleanup (void)
 int
 c4_get_portcfg (ci_t *ci)
 {
-    comet_t    *comet;
+    struct s_comet_reg    *comet;
     int         portnum, mask;
     u_int32_t   wdata, rdata;
 
@@ -561,7 +561,7 @@ c4_init (ci_t *ci, u_char *func0, u_char *func1)
         for (portnum = 0; portnum < MUSYCC_NPORTS; portnum++)
         {
             pi = &ci->port[portnum];
-            pi->cometbase = (comet_t *) ((u_int32_t *) (func1 + COMET_OFFSET (portnum)));
+            pi->cometbase = (struct s_comet_reg *) ((u_int32_t *) (func1 + COMET_OFFSET (portnum)));
             pi->reg = (struct musycc_globalr *) ((u_char *) ci->reg + (portnum * 0x800));
             pi->portnum = portnum;
             pi->p.portnum = portnum;
@@ -693,7 +693,7 @@ c4_init2 (ci_t *ci)
 int
 c4_loop_port (ci_t *ci, int portnum, u_int8_t cmd)
 {
-    comet_t    *comet;
+    struct s_comet_reg    *comet;
     volatile u_int32_t loopValue;
 
     comet = ci->port[portnum].cometbase;
@@ -752,7 +752,7 @@ c4_loop_port (ci_t *ci, int portnum, u_int8_t cmd)
 status_t
 c4_frame_rw (ci_t *ci, struct sbecom_port_param *pp)
 {
-    comet_t    *comet;
+    struct s_comet_reg    *comet;
     volatile u_int32_t data;
 
     if (pp->portnum >= ci->max_port)/* sanity check */
