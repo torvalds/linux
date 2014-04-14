@@ -47,13 +47,13 @@ BSS_STACK(4096);
  * The buffer is put in it's own section so that tools may locate it easier.
  */
 
-static char cmdline[COMMAND_LINE_SIZE]
+static char cmdline[BOOT_COMMAND_LINE_SIZE]
 	__attribute__((__section__("__builtin_cmdline")));
 
 static void prep_cmdline(void *chosen)
 {
 	if (cmdline[0] == '\0')
-		getprop(chosen, "bootargs", cmdline, COMMAND_LINE_SIZE-1);
+		getprop(chosen, "bootargs", cmdline, BOOT_COMMAND_LINE_SIZE-1);
 	else
 		setprop_str(chosen, "bootargs", cmdline);
 
