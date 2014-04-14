@@ -525,6 +525,9 @@ static void intel_dsi_mode_set(struct intel_encoder *intel_encoder)
 	/* recovery disables */
 	I915_WRITE(MIPI_EOT_DISABLE(pipe), val);
 
+	/* in terms of low power clock */
+	I915_WRITE(MIPI_INIT_COUNT(pipe), intel_dsi->init_count);
+
 	/* in terms of txbyteclkhs. actual high to low switch +
 	 * MIPI_STOP_STATE_STALL * MIPI_LP_BYTECLK.
 	 *

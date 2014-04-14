@@ -114,6 +114,8 @@ struct intel_dsi {
 	u16 hs_to_lp_count;
 	u16 clk_lp_to_hs_count;
 	u16 clk_hs_to_lp_count;
+
+	u16 init_count;
 };
 
 static inline struct intel_dsi *enc_to_intel_dsi(struct drm_encoder *encoder)
