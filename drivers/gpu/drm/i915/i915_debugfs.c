@@ -1261,6 +1261,11 @@ static int vlv_drpc_info(struct seq_file *m)
 			(I915_READ(VLV_GTLC_PW_STATUS) &
 				VLV_GTLC_PW_MEDIA_STATUS_MASK) ? "Up" : "Down");
 
+	seq_printf(m, "Render RC6 residency since boot: %u\n",
+		   I915_READ(VLV_GT_RENDER_RC6));
+	seq_printf(m, "Media RC6 residency since boot: %u\n",
+		   I915_READ(VLV_GT_MEDIA_RC6));
+
 	spin_lock_irq(&dev_priv->uncore.lock);
 	fw_rendercount = dev_priv->uncore.fw_rendercount;
 	fw_mediacount = dev_priv->uncore.fw_mediacount;
