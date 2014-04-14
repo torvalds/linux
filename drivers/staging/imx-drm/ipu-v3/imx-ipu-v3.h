@@ -115,8 +115,10 @@ struct ipu_dc *ipu_dc_get(struct ipu_soc *ipu, int channel);
 void ipu_dc_put(struct ipu_dc *dc);
 int ipu_dc_init_sync(struct ipu_dc *dc, struct ipu_di *di, bool interlaced,
 		u32 pixel_fmt, u32 width);
+void ipu_dc_enable(struct ipu_soc *ipu);
 void ipu_dc_enable_channel(struct ipu_dc *dc);
 void ipu_dc_disable_channel(struct ipu_dc *dc);
+void ipu_dc_disable(struct ipu_soc *ipu);
 
 /*
  * IPU Display Interface (di) functions

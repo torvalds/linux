@@ -224,11 +224,15 @@ int ipu_dc_init_sync(struct ipu_dc *dc, struct ipu_di *di, bool interlaced,
 	writel(0x0, dc->base + DC_WR_CH_ADDR);
 	writel(width, priv->dc_reg + DC_DISP_CONF2(dc->di));
 
-	ipu_module_enable(priv->ipu, IPU_CONF_DC_EN);
-
 	return 0;
 }
 EXPORT_SYMBOL_GPL(ipu_dc_init_sync);
+
+void ipu_dc_enable(struct ipu_soc *ipu)
+{
+	ipu_module_enable(ipu, IPU_CONF_DC_EN);
+}
+EXPORT_SYMBOL_GPL(ipu_dc_enable);
 
 void ipu_dc_enable_channel(struct ipu_dc *dc)
 {
@@ -285,6 +289,12 @@ void ipu_dc_disable_channel(struct ipu_dc *dc)
 	}
 }
 EXPORT_SYMBOL_GPL(ipu_dc_disable_channel);
+
+void ipu_dc_disable(struct ipu_soc *ipu)
+{
+	ipu_module_disable(ipu, IPU_CONF_DC_EN);
+}
+EXPORT_SYMBOL_GPL(ipu_dc_disable);
 
 static void ipu_dc_map_config(struct ipu_dc_priv *priv, enum ipu_dc_map map,
 		int byte_num, int offset, int mask)
