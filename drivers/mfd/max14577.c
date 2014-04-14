@@ -147,6 +147,7 @@ static const struct regmap_irq max77836_muic_irqs[] = {
 	{ .reg_offset = 0, .mask = MAX14577_INT1_ADC_MASK, },
 	{ .reg_offset = 0, .mask = MAX14577_INT1_ADCLOW_MASK, },
 	{ .reg_offset = 0, .mask = MAX14577_INT1_ADCERR_MASK, },
+	{ .reg_offset = 0, .mask = MAX77836_INT1_ADC1K_MASK, },
 	/* INT2 interrupts */
 	{ .reg_offset = 1, .mask = MAX14577_INT2_CHGTYP_MASK, },
 	{ .reg_offset = 1, .mask = MAX14577_INT2_CHGDETRUN_MASK, },
