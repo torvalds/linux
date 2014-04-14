@@ -56,6 +56,20 @@ for a particular group of BUCKs. So provide same regulator-ramp-delay<value>.
 Grouping of BUCKs sharing ramp rate setting is as follow : BUCK[1, 6],
 BUCK[3, 4], and BUCK[7, 8, 10]
 
+On S2MPS14 the LDO10, LDO11 and LDO12 can be configured to external control
+over GPIO. To turn this feature on this property must be added to the regulator
+sub-node:
+	- samsung,ext-control-gpios: GPIO specifier for one GPIO
+		controlling this regulator (enable/disable);
+Example:
+	LDO12 {
+		regulator-name = "V_EMMC_2.8V";
+		regulator-min-microvolt = <2800000>;
+		regulator-max-microvolt = <2800000>;
+		samsung,ext-control-gpios = <&gpk0 2 0>;
+	};
+
+
 The regulator constraints inside the regulator nodes use the standard regulator
 bindings which are documented elsewhere.
 
