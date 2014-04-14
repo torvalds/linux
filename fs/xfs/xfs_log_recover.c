@@ -3145,7 +3145,7 @@ xlog_recover_efd_pass2(
 		}
 		lip = xfs_trans_ail_cursor_next(ailp, &cur);
 	}
-	xfs_trans_ail_cursor_done(ailp, &cur);
+	xfs_trans_ail_cursor_done(&cur);
 	spin_unlock(&ailp->xa_lock);
 
 	return 0;
@@ -3757,7 +3757,7 @@ xlog_recover_process_efis(
 		lip = xfs_trans_ail_cursor_next(ailp, &cur);
 	}
 out:
-	xfs_trans_ail_cursor_done(ailp, &cur);
+	xfs_trans_ail_cursor_done(&cur);
 	spin_unlock(&ailp->xa_lock);
 	return error;
 }

@@ -827,7 +827,7 @@ xfs_trans_committed_bulk(
 		xfs_log_item_batch_insert(ailp, &cur, log_items, i, commit_lsn);
 
 	spin_lock(&ailp->xa_lock);
-	xfs_trans_ail_cursor_done(ailp, &cur);
+	xfs_trans_ail_cursor_done(&cur);
 	spin_unlock(&ailp->xa_lock);
 }
 
