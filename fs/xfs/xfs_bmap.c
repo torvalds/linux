@@ -3566,33 +3566,31 @@ xfs_bmap_btalloc_nullfb(
 		} else
 			notinit = 1;
 
-		if (xfs_inode_is_filestream(ap->ip)) {
+		if (xfs_inode_is_filestream(ap->ip) && ap->userdata) {
 			if (*blen >= args->maxlen)
 				break;
 
-			if (ap->userdata) {
-				/*
-				 * If startag is an invalid AG, we've
-				 * come here once before and
-				 * xfs_filestream_new_ag picked the
-				 * best currently available.
-				 *
-				 * Don't continue looping, since we
-				 * could loop forever.
-				 */
-				if (startag == NULLAGNUMBER)
-					break;
+			/*
+			 * If startag is an invalid AG, we've
+			 * come here once before and
+			 * xfs_filestream_new_ag picked the
+			 * best currently available.
+			 *
+			 * Don't continue looping, since we
+			 * could loop forever.
+			 */
+			if (startag == NULLAGNUMBER)
+				break;
 
-				error = xfs_filestream_new_ag(ap, &ag);
-				xfs_perag_put(pag);
-				if (error)
-					return error;
+			error = xfs_filestream_new_ag(ap, &ag);
+			xfs_perag_put(pag);
+			if (error)
+				return error;
 
-				/* loop again to set 'blen'*/
-				startag = NULLAGNUMBER;
-				pag = xfs_perag_get(mp, ag);
-				continue;
-			}
+			/* loop again to set 'blen'*/
+			startag = NULLAGNUMBER;
+			pag = xfs_perag_get(mp, ag);
+			continue;
 		}
 		if (++ag == mp->m_sb.sb_agcount)
 			ag = 0;
