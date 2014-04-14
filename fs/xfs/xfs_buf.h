@@ -390,7 +390,7 @@ extern xfs_buftarg_t *xfs_alloc_buftarg(struct xfs_mount *,
 			struct block_device *, int, const char *);
 extern void xfs_free_buftarg(struct xfs_mount *, struct xfs_buftarg *);
 extern void xfs_wait_buftarg(xfs_buftarg_t *);
-extern int xfs_setsize_buftarg(xfs_buftarg_t *, unsigned int, unsigned int);
+extern int xfs_setsize_buftarg(xfs_buftarg_t *, unsigned int);
 
 #define xfs_getsize_buftarg(buftarg)	block_size((buftarg)->bt_bdev)
 #define xfs_readonly_buftarg(buftarg)	bdev_read_only((buftarg)->bt_bdev)
