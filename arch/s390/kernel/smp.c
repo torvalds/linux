@@ -521,7 +521,7 @@ void smp_ctl_clear_bit(int cr, int bit)
 }
 EXPORT_SYMBOL(smp_ctl_clear_bit);
 
-#if defined(CONFIG_ZFCPDUMP) || defined(CONFIG_CRASH_DUMP)
+#ifdef CONFIG_CRASH_DUMP
 
 static void __init smp_get_save_area(int cpu, u16 address)
 {
@@ -536,14 +536,12 @@ static void __init smp_get_save_area(int cpu, u16 address)
 	save_area = dump_save_area_create(cpu);
 	if (!save_area)
 		panic("could not allocate memory for save area\n");
-#ifdef CONFIG_CRASH_DUMP
 	if (address == boot_cpu_address) {
 		/* Copy the registers of the boot cpu. */
 		copy_oldmem_page(1, (void *) save_area, sizeof(*save_area),
 				 SAVE_AREA_BASE - PAGE_SIZE, 0);
 		return;
 	}
-#endif
 	/* Get the registers of a non-boot cpu. */
 	__pcpu_sigp_relax(address, SIGP_STOP_AND_STORE_STATUS, 0, NULL);
 	memcpy_real(save_area, lc + SAVE_AREA_BASE, sizeof(*save_area));
@@ -560,11 +558,11 @@ int smp_store_status(int cpu)
 	return 0;
 }
 
-#else /* CONFIG_ZFCPDUMP || CONFIG_CRASH_DUMP */
+#else /* CONFIG_CRASH_DUMP */
 
 static inline void smp_get_save_area(int cpu, u16 address) { }
 
-#endif /* CONFIG_ZFCPDUMP || CONFIG_CRASH_DUMP */
+#endif /* CONFIG_CRASH_DUMP */
 
 void smp_cpu_set_polarization(int cpu, int val)
 {

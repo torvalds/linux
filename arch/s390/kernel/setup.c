@@ -211,7 +211,7 @@ static void __init conmode_default(void)
 	}
 }
 
-#ifdef CONFIG_ZFCPDUMP
+#ifdef CONFIG_CRASH_DUMP
 static void __init setup_zfcpdump(void)
 {
 	if (ipl_info.type != IPL_TYPE_FCP_DUMP)
@@ -223,7 +223,7 @@ static void __init setup_zfcpdump(void)
 }
 #else
 static inline void setup_zfcpdump(void) {}
-#endif /* CONFIG_ZFCPDUMP */
+#endif /* CONFIG_CRASH_DUMP */
 
  /*
  * Reboot, halt and power_off stubs. They just call _machine_restart,
@@ -521,7 +521,7 @@ static struct notifier_block kdump_mem_nb = {
  */
 static void reserve_memory_end(void)
 {
-#ifdef CONFIG_ZFCPDUMP
+#ifdef CONFIG_CRASH_DUMP
 	if (ipl_info.type == IPL_TYPE_FCP_DUMP &&
 	    !OLDMEM_BASE && sclp_get_hsa_size()) {
 		memory_end = sclp_get_hsa_size();

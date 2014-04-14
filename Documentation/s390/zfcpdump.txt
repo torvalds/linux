@@ -21,7 +21,7 @@ standalone dump format. It can be used in the same way as e.g. /dev/mem. The
 dump format defines a 4K header followed by plain uncompressed memory. The
 register sets are stored in the prefix pages of the respective cpus. To build a
 dump enabled kernel with the zcore driver, the kernel config option
-CONFIG_ZFCPDUMP has to be set. When reading from "zcore/mem", the part of
+CONFIG_CRASH_DUMP has to be set. When reading from "zcore/mem", the part of
 memory, which has been saved by hardware is read by the driver via the SCLP
 hardware interface. The second part is just copied from the non overwritten real
 memory.
@@ -32,7 +32,7 @@ SCSI disk.
 
 To build a zfcpdump kernel use the following settings in your kernel
 configuration:
- * CONFIG_ZFCPDUMP=y
+ * CONFIG_CRASH_DUMP=y
  * Enable ZFCP driver
  * Enable SCSI driver
  * Enable ext2 and ext3 filesystems
