@@ -1,8 +1,0 @@
-What:		/sys/class/leds/blink1::<serial>/rgb
-Date:		January 2013
-Contact:	Vivien Didelot <vivien.didelot@savoirfairelinux.com>
-Description:	The ThingM blink1 is an USB RGB LED. The color notation is
-		3-byte hexadecimal. Read this attribute to get the last set
-		color. Write the 24-bit hexadecimal color to change the current
-		LED color. The default color is full white (0xFFFFFF).
-		For instance, set the color to green with: echo 00FF00 > rgb
