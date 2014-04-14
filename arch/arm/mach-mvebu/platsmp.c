@@ -138,3 +138,6 @@ struct smp_operations armada_xp_smp_ops __initdata = {
 	.cpu_die		= armada_xp_cpu_die,
 #endif
 };
+
+CPU_METHOD_OF_DECLARE(armada_xp_smp, "marvell,armada-xp-smp",
+		      &armada_xp_smp_ops);
