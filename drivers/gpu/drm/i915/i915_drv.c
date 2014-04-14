@@ -916,13 +916,6 @@ static int i915_pm_poweroff(struct device *dev)
 	return i915_drm_freeze(drm_dev);
 }
 
-static void snb_runtime_suspend(struct drm_i915_private *dev_priv)
-{
-	struct drm_device *dev = dev_priv->dev;
-
-	intel_runtime_pm_disable_interrupts(dev);
-}
-
 static void hsw_runtime_suspend(struct drm_i915_private *dev_priv)
 {
 	hsw_enable_pc8(dev_priv);
@@ -932,7 +925,6 @@ static void snb_runtime_resume(struct drm_i915_private *dev_priv)
 {
 	struct drm_device *dev = dev_priv->dev;
 
-	intel_runtime_pm_restore_interrupts(dev);
 	intel_init_pch_refclk(dev);
 	i915_gem_init_swizzling(dev);
 	mutex_lock(&dev_priv->rps.hw_lock);
@@ -959,8 +951,10 @@ static int intel_runtime_suspend(struct device *device)
 
 	DRM_DEBUG_KMS("Suspending device\n");
 
+	intel_runtime_pm_disable_interrupts(dev);
+
 	if (IS_GEN6(dev))
-		snb_runtime_suspend(dev_priv);
+		;
 	else if (IS_HASWELL(dev) || IS_BROADWELL(dev))
 		hsw_runtime_suspend(dev_priv);
 	else
@@ -1003,6 +997,8 @@ static int intel_runtime_resume(struct device *device)
 		hsw_runtime_resume(dev_priv);
 	else
 		WARN_ON(1);
+
+	intel_runtime_pm_restore_interrupts(dev);
 
 	DRM_DEBUG_KMS("Device resumed\n");
 	return 0;
