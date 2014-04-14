@@ -271,11 +271,16 @@ static void pcibios_allocate_dev_resources(struct pci_dev *dev, int pass)
 					"BAR %d: reserving %pr (d=%d, p=%d)\n",
 					idx, r, disabled, pass);
 				if (pci_claim_resource(dev, idx) < 0) {
-					/* We'll assign a new address later */
-					pcibios_save_fw_addr(dev,
-							idx, r->start);
-					r->end -= r->start;
-					r->start = 0;
+					if (r->flags & IORESOURCE_PCI_FIXED) {
+						dev_info(&dev->dev, "BAR %d %pR is immovable\n",
+							 idx, r);
+					} else {
+						/* We'll assign a new address later */
+						pcibios_save_fw_addr(dev,
+								idx, r->start);
+						r->end -= r->start;
+						r->start = 0;
+					}
 				}
 			}
 		}
