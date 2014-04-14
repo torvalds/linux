@@ -190,7 +190,7 @@ static const __le32 iwl_combined_lookup[BT_COEX_MAX_LUT][BT_COEX_LUT_SIZE] = {
 		cpu_to_le32(0xcc00aaaa),
 		cpu_to_le32(0x0000aaaa),
 		cpu_to_le32(0xc0004000),
-		cpu_to_le32(0x00000000),
+		cpu_to_le32(0x00004000),
 		cpu_to_le32(0xf0005000),
 		cpu_to_le32(0xf0005000),
 	},
@@ -213,16 +213,16 @@ static const __le32 iwl_combined_lookup[BT_COEX_MAX_LUT][BT_COEX_LUT_SIZE] = {
 		/* Tx Tx disabled */
 		cpu_to_le32(0xaaaaaaaa),
 		cpu_to_le32(0xaaaaaaaa),
-		cpu_to_le32(0xaaaaaaaa),
+		cpu_to_le32(0xeeaaaaaa),
 		cpu_to_le32(0xaaaaaaaa),
 		cpu_to_le32(0xcc00ff28),
 		cpu_to_le32(0x0000aaaa),
 		cpu_to_le32(0xcc00aaaa),
 		cpu_to_le32(0x0000aaaa),
-		cpu_to_le32(0xC0004000),
-		cpu_to_le32(0xC0004000),
-		cpu_to_le32(0xF0005000),
-		cpu_to_le32(0xF0005000),
+		cpu_to_le32(0xc0004000),
+		cpu_to_le32(0xc0004000),
+		cpu_to_le32(0xf0005000),
+		cpu_to_le32(0xf0005000),
 	},
 };
 
@@ -1262,6 +1262,7 @@ int iwl_mvm_rx_ant_coupling_notif(struct iwl_mvm *mvm,
 	struct iwl_rx_packet *pkt = rxb_addr(rxb);
 	u32 ant_isolation = le32_to_cpup((void *)pkt->data);
 	u8 __maybe_unused lower_bound, upper_bound;
+	int ret;
 	u8 lut;
 
 	struct iwl_bt_coex_cmd *bt_cmd;
@@ -1318,5 +1319,8 @@ int iwl_mvm_rx_ant_coupling_notif(struct iwl_mvm *mvm,
 	memcpy(bt_cmd->bt4_corun_lut40, antenna_coupling_ranges[lut].lut20,
 	       sizeof(bt_cmd->bt4_corun_lut40));
 
-	return 0;
+	ret = iwl_mvm_send_cmd(mvm, &cmd);
+
+	kfree(bt_cmd);
+	return ret;
 }
