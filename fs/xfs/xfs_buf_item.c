@@ -812,7 +812,6 @@ xfs_buf_item_init(
  */
 static void
 xfs_buf_item_log_segment(
-	struct xfs_buf_log_item	*bip,
 	uint			first,
 	uint			last,
 	uint			*map)
@@ -920,7 +919,7 @@ xfs_buf_item_log(
 		if (end > last)
 			end = last;
 
-		xfs_buf_item_log_segment(bip, first, end,
+		xfs_buf_item_log_segment(first, end,
 					 &bip->bli_formats[i].blf_data_map[0]);
 
 		start += bp->b_maps[i].bm_len;
