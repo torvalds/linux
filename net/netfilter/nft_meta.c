@@ -18,18 +18,11 @@
 #include <net/sock.h>
 #include <net/tcp_states.h> /* for TCP_TIME_WAIT */
 #include <net/netfilter/nf_tables.h>
+#include <net/netfilter/nft_meta.h>
 
-struct nft_meta {
-	enum nft_meta_keys	key:8;
-	union {
-		enum nft_registers	dreg:8;
-		enum nft_registers	sreg:8;
-	};
-};
-
-static void nft_meta_get_eval(const struct nft_expr *expr,
-			      struct nft_data data[NFT_REG_MAX + 1],
-			      const struct nft_pktinfo *pkt)
+void nft_meta_get_eval(const struct nft_expr *expr,
+		       struct nft_data data[NFT_REG_MAX + 1],
+		       const struct nft_pktinfo *pkt)
 {
 	const struct nft_meta *priv = nft_expr_priv(expr);
 	const struct sk_buff *skb = pkt->skb;
@@ -140,10 +133,11 @@ static void nft_meta_get_eval(const struct nft_expr *expr,
 err:
 	data[NFT_REG_VERDICT].verdict = NFT_BREAK;
 }
+EXPORT_SYMBOL_GPL(nft_meta_get_eval);
 
-static void nft_meta_set_eval(const struct nft_expr *expr,
-			      struct nft_data data[NFT_REG_MAX + 1],
-			      const struct nft_pktinfo *pkt)
+void nft_meta_set_eval(const struct nft_expr *expr,
+		       struct nft_data data[NFT_REG_MAX + 1],
+		       const struct nft_pktinfo *pkt)
 {
 	const struct nft_meta *meta = nft_expr_priv(expr);
 	struct sk_buff *skb = pkt->skb;
@@ -163,16 +157,18 @@ static void nft_meta_set_eval(const struct nft_expr *expr,
 		WARN_ON(1);
 	}
 }
+EXPORT_SYMBOL_GPL(nft_meta_set_eval);
 
-static const struct nla_policy nft_meta_policy[NFTA_META_MAX + 1] = {
+const struct nla_policy nft_meta_policy[NFTA_META_MAX + 1] = {
 	[NFTA_META_DREG]	= { .type = NLA_U32 },
 	[NFTA_META_KEY]		= { .type = NLA_U32 },
 	[NFTA_META_SREG]	= { .type = NLA_U32 },
 };
+EXPORT_SYMBOL_GPL(nft_meta_policy);
 
-static int nft_meta_get_init(const struct nft_ctx *ctx,
-			     const struct nft_expr *expr,
-			     const struct nlattr * const tb[])
+int nft_meta_get_init(const struct nft_ctx *ctx,
+		      const struct nft_expr *expr,
+		      const struct nlattr * const tb[])
 {
 	struct nft_meta *priv = nft_expr_priv(expr);
 	int err;
@@ -215,10 +211,11 @@ static int nft_meta_get_init(const struct nft_ctx *ctx,
 
 	return 0;
 }
+EXPORT_SYMBOL_GPL(nft_meta_get_init);
 
-static int nft_meta_set_init(const struct nft_ctx *ctx,
-			     const struct nft_expr *expr,
-			     const struct nlattr * const tb[])
+int nft_meta_set_init(const struct nft_ctx *ctx,
+		      const struct nft_expr *expr,
+		      const struct nlattr * const tb[])
 {
 	struct nft_meta *priv = nft_expr_priv(expr);
 	int err;
@@ -240,9 +237,10 @@ static int nft_meta_set_init(const struct nft_ctx *ctx,
 
 	return 0;
 }
+EXPORT_SYMBOL_GPL(nft_meta_set_init);
 
-static int nft_meta_get_dump(struct sk_buff *skb,
-			     const struct nft_expr *expr)
+int nft_meta_get_dump(struct sk_buff *skb,
+		      const struct nft_expr *expr)
 {
 	const struct nft_meta *priv = nft_expr_priv(expr);
 
@@ -255,9 +253,10 @@ static int nft_meta_get_dump(struct sk_buff *skb,
 nla_put_failure:
 	return -1;
 }
+EXPORT_SYMBOL_GPL(nft_meta_get_dump);
 
-static int nft_meta_set_dump(struct sk_buff *skb,
-			     const struct nft_expr *expr)
+int nft_meta_set_dump(struct sk_buff *skb,
+		      const struct nft_expr *expr)
 {
 	const struct nft_meta *priv = nft_expr_priv(expr);
 
@@ -271,6 +270,7 @@ static int nft_meta_set_dump(struct sk_buff *skb,
 nla_put_failure:
 	return -1;
 }
+EXPORT_SYMBOL_GPL(nft_meta_set_dump);
 
 static struct nft_expr_type nft_meta_type;
 static const struct nft_expr_ops nft_meta_get_ops = {
