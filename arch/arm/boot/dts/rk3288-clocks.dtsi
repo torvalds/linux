@@ -2376,7 +2376,9 @@
 
 						"g_aclk_dmac1",		"g_aclk_strc_sys",
 						"reserved",		"reserved";	/*"g_p_ddrupctl0",	"g_pclk_publ0";*/
-                                                rockchip,suspend-clkgating-setting=<0xe2f0 0xe2f0>;                                                
+                    
+                                                //rockchip,suspend-clkgating-setting=<0xe2f1 0xe2f1>;          // use sram  mem no gating                                                                                         
+                                                rockchip,suspend-clkgating-setting=<0xf2f1 0xf2f1>;       // pwm logic vol        
 
 					#clock-cells = <1>;
 				};
@@ -2508,7 +2510,9 @@
 
 						"g_p_alive_niu",		"reserved",
 						"reserved",		"reserved";
-                                                rockchip,suspend-clkgating-setting=<0xffff 0xffff>;
+                                                //rockchip,suspend-clkgating-setting=<0xffff 0xffff>;
+                                                
+                                                rockchip,suspend-clkgating-setting=<0x1801 0x1801>;
 
 					#clock-cells = <1>;
 				};

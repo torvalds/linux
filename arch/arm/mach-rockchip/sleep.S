@@ -22,15 +22,14 @@ ENDPROC(rkpm_slp_cpu_while_tst)
 //65 A   48 0  97 a
 ENTRY(rkpm_slp_cpu_resume)
 9:	mov r1,r1 
-        //b 9b
+       // b 9b
+        mov r1,r1 
     #if 0    
 	ldr r4, = 0xFF690000
 	mov r5, #65
 	str r5,[r4]
     #endif
-       
-       
-	setmode	PSR_I_BIT | PSR_F_BIT | SVC_MODE, r1  @ set SVC, irqs off
+       	setmode	PSR_I_BIT | PSR_F_BIT | SVC_MODE, r1  @ set SVC, irqs off
 
 	MRC p15,0,R1,c0,c0,5
 	AND     R1,R1,#0xf
@@ -86,26 +85,37 @@ v7_invalidate_l1:
 	mov sp, r1	//setting sp
       #endif
       1:  mov r1,r1 
-        //b 1b
+         //b 1b
+
       
 	adr r1,9b     // boot ram base
-        ldr r2,2f     // resume data  offset ,from ram base
-        add r2,r2,r1 // resume data addr
+        ldr r5,8f     // resume data  offset ,from ram base
+        add r5,r5,r1 // resume data addr
         
         //l2
-        ldr r3 ,[r2,#(SLPDATA_L2_CON*4)]
+        ldr r3 ,[r5,#(RKPM_BOOTDATA_L2LTY*4)]
         mcr p15, 1, r3, c9, c0, 2
 
         //sp
-        ldr sp,[r2,#(SLPDATA_SP_ADDR*4)]   //sp      
+        ldr sp,[r5,#(RKPM_BOOTDATA_CPUSP*4)]   //sp      
         
-	ldr r3,[r2,#(SLPDATA_DDR_NEED_RES*4)]   //get SLP_DDR_NEED_RES ,if it is 1 ,ddr need to reusme	
+	ldr r3,[r5,#(RKPM_BOOTDATA_DDR_F*4)]   //get SLP_DDR_NEED_RES ,if it is 1 ,ddr need to reusme	
 	cmp r3,#1
 	bne res
-	ldr r1,[r2,#(SLPDATA_DDR_CODE_PHY*4)]  // ddr resume code
-	ldr r0,[r2,#(SLPDATA_DDR_DATA_PHY*4)]  //ddr resume data
+	ldr r1,[r5,#(RKPM_BOOTDATA_DDRCODE*4)]  // ddr resume code
+	ldr r0,[r5,#(RKPM_BOOTDATA_DDRDATA*4)]  //ddr resume data
 	blx r1
 res:	
-	ldr     pc, [r2,#(SLPDATA_SP_CPU_RESUME*4)]
-2:      .long (PM_BOOT_CODE_OFFSET+PM_BOOT_CODE_SIZE)
+        1:  mov r1,r1
+        //  b 1b
+       #if 0    
+        ldr r4, = (0xFF730000+0x18)
+        ldr r7,[r4]
+        ldr r6,=(0x3<<21)
+        orr r7, r7,r6
+        str r7,[r4]
+       #endif
+       
+	ldr     pc, [r5,#(RKPM_BOOTDATA_CPUCODE*4)]
+8:      .long (RKPM_BOOT_CODE_OFFSET+RKPM_BOOT_CODE_SIZE)
 ENDPROC(rkpm_slp_cpu_resume)

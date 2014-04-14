@@ -537,6 +537,10 @@
 
 				/*pclk_bus*/
 				<&clk_gates10 1>,/*pclk_timer*/
+                                <&clk_gates10 9>,/*rom*/
+                                <&clk_gates10 13>,/*aclk strc*/
+                             
+                                <&clk_gates12 8>,/*aclk strc*/
 
 				/*aclk_peri*/
 				<&clk_gates6 2>,/*aclk_peri_axi_matrix*/
@@ -1159,8 +1163,8 @@
                                             |RKPM_CTR_PLLS
                                             //|RKPM_CTR_SYSCLK_DIV
                                             //|RKPM_CTR_IDLEAUTO_MD
-                                            //|RKPM_CTR_ARMDP_LPMD
-                                            |RKPM_CTR_ARMOFF_LPMD
+                                           // |RKPM_CTR_ARMOFF_LPMD
+                                            |RKPM_CTR_ARMOFF_LOGDP_LPMD
                                             )
                                         >;              
                   rockchip,pmic-gpios=<

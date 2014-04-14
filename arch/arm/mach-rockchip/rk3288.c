@@ -291,6 +291,10 @@ static int rk3288_pmu_set_power_domain(enum pmu_power_domain pd, bool on)
 			writel_relaxed(0x20002 << (pd - PD_CPU_1), RK_CRU_VIRT + RK3288_CRU_SOFTRSTS_CON(0));
 			dsb();
 		}
+                 else if (pd == PD_PERI) {
+			rk3288_pmu_set_idle_request(IDLE_REQ_PERI, true);
+		}
+        
 	}
 
 	rk3288_do_pmu_set_power_domain(pd, on);
@@ -326,6 +330,9 @@ static int rk3288_pmu_set_power_domain(enum pmu_power_domain pd, bool on)
 			writel_relaxed(virt_to_phys(secondary_startup), RK3288_IMEM_VIRT + 8);
 			writel_relaxed(0xDEADBEAF, RK3288_IMEM_VIRT + 4);
 			dsb_sev();
+		}
+                else if (pd == PD_PERI) {
+			rk3288_pmu_set_idle_request(IDLE_REQ_PERI, false);
 		}
 	}
 
@@ -545,24 +552,38 @@ static inline void rk_pm_soc_pd_resume(void)
     rkpm_ddr_printascii("\n");
 #endif    
 }
+void inline rkpm_periph_pd_dn(bool on)
+{
+    rk3288_sys_set_power_domain(PD_PERI, on);
+}
 
-extern bool console_suspend_enabled;
-
-static void rk3288_init_suspend(void)
+static void __init rk3288_init_suspend(void)
 {
     printk("%s\n",__FUNCTION__);
     rockchip_suspend_init();       
     //rkpm_pie_init();
     rk3288_suspend_init();
    rkpm_set_ops_pwr_dmns(rk_pm_soc_pd_suspend,rk_pm_soc_pd_resume);  
-    #if 0    
-    console_suspend_enabled=0;
-    do{
-        pm_suspend(PM_SUSPEND_MEM);
-    }
-    while(1);
-    #endif
 }
+
+
+extern bool console_suspend_enabled;
+
+static int  __init rk3288_pm_dbg(void)
+{
+#if 1    
+        console_suspend_enabled=0;
+        do{
+            pm_suspend(PM_SUSPEND_MEM);
+        }
+        while(1);
+        
+#endif
+
+}
+
+//late_initcall_sync(rk3288_pm_dbg);
+
 
 #endif
 #define sram_printascii(s) do {} while (0) /* FIXME */
