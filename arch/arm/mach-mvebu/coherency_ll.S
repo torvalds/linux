@@ -21,13 +21,27 @@
 #define ARMADA_XP_CFB_CFG_REG_OFFSET 0x4
 
 #include <asm/assembler.h>
+#include <asm/cp15.h>
 
 	.text
 /*
- * r0: Coherency fabric base register address
- * r1: HW CPU id
+ * r0: HW CPU id
  */
 ENTRY(ll_set_cpu_coherent)
+	mrc	p15, 0, r1, c1, c0, 0
+	tst	r1, #CR_M @ Check MMU bit enabled
+	bne	1f
+
+	/* use physical address of the coherency register*/
+	adr	r0, 3f
+	ldr	r3, [r0]
+	ldr	r0, [r0, r3]
+	b	2f
+1:
+	/* use virtual address of the coherency register*/
+	ldr	r0, =coherency_base
+	ldr	r0, [r0]
+2:
 	/* Create bit by cpu index */
 	mov	r3, #(1 << 24)
 	lsl	r1, r3, r1
@@ -56,3 +70,7 @@ ARM_BE8(rev	r1, r1)
 	mov	r0, #0
 	mov	pc, lr
 ENDPROC(ll_set_cpu_coherent)
+
+	.align 2
+3:
+	.long	coherency_phys_base - .
