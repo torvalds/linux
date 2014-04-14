@@ -90,8 +90,6 @@ static void __init armada_xp_smp_init_cpus(void)
 
 	if (ncores == 0 || ncores > ARMADA_XP_MAX_CPUS)
 		panic("Invalid number of CPUs in DT\n");
-
-	set_smp_cross_call(armada_mpic_send_doorbell);
 }
 
 static void __init armada_xp_smp_prepare_cpus(unsigned int max_cpus)

@@ -315,7 +315,8 @@ static int armada_370_xp_mpic_irq_map(struct irq_domain *h,
 }
 
 #ifdef CONFIG_SMP
-void armada_mpic_send_doorbell(const struct cpumask *mask, unsigned int irq)
+static void armada_mpic_send_doorbell(const struct cpumask *mask,
+				      unsigned int irq)
 {
 	int cpu;
 	unsigned long map = 0;
@@ -511,6 +512,9 @@ static int __init armada_370_xp_mpic_of_init(struct device_node *node,
 	if (parent_irq <= 0) {
 		irq_set_default_host(armada_370_xp_mpic_domain);
 		set_handle_irq(armada_370_xp_handle_irq);
+#ifdef CONFIG_SMP
+		set_smp_cross_call(armada_mpic_send_doorbell);
+#endif
 	} else {
 		irq_set_chained_handler(parent_irq,
 					armada_370_xp_mpic_handle_cascade_irq);
