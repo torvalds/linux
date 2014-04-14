@@ -1,5 +1,6 @@
 #include <linux/io.h>
 #include <linux/fb.h>
+#include <linux/console.h>
 
 #include <drm/drmP.h>
 #include <drm/drm_crtc.h>
