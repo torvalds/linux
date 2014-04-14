@@ -33,6 +33,9 @@ extern struct vpe_boot_config *mips_cps_boot_vpes(void);
 
 extern bool mips_cps_smp_in_use(void);
 
+extern void mips_cps_pm_save(void);
+extern void mips_cps_pm_restore(void);
+
 #else /* __ASSEMBLY__ */
 
 .extern mips_cps_bootcfg;

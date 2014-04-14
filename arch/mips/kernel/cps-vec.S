@@ -15,6 +15,7 @@
 #include <asm/cacheops.h>
 #include <asm/mipsregs.h>
 #include <asm/mipsmtregs.h>
+#include <asm/pm.h>
 
 #define GCR_CL_COHERENCE_OFS	0x2008
 #define GCR_CL_ID_OFS		0x2028
@@ -447,3 +448,37 @@ LEAF(mips_cps_boot_vpes)
 	jr	ra
 	 nop
 	END(mips_cps_boot_vpes)
+
+#if defined(CONFIG_MIPS_CPS_PM) && defined(CONFIG_CPU_PM)
+
+	/* Calculate a pointer to this CPUs struct mips_static_suspend_state */
+	.macro	psstate	dest
+	.set	push
+	.set	noat
+	lw	$1, TI_CPU(gp)
+	sll	$1, $1, LONGLOG
+	la	\dest, __per_cpu_offset
+	addu	$1, $1, \dest
+	lw	$1, 0($1)
+	la	\dest, cps_cpu_state
+	addu	\dest, \dest, $1
+	.set	pop
+	.endm
+
+LEAF(mips_cps_pm_save)
+	/* Save CPU state */
+	SUSPEND_SAVE_REGS
+	psstate	t1
+	SUSPEND_SAVE_STATIC
+	jr	v0
+	 nop
+	END(mips_cps_pm_save)
+
+LEAF(mips_cps_pm_restore)
+	/* Restore CPU state */
+	psstate	t1
+	RESUME_RESTORE_STATIC
+	RESUME_RESTORE_REGS_RETURN
+	END(mips_cps_pm_restore)
+
+#endif /* CONFIG_MIPS_CPS_PM && CONFIG_CPU_PM */
