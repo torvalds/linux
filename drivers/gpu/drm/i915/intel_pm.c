@@ -3250,6 +3250,12 @@ static void valleyview_disable_rps(struct drm_device *dev)
 
 static void intel_print_rc6_info(struct drm_device *dev, u32 mode)
 {
+	if (IS_VALLEYVIEW(dev)) {
+		if (mode & (GEN7_RC_CTL_TO_MODE | GEN6_RC_CTL_EI_MODE(1)))
+			mode = GEN6_RC_CTL_RC6_ENABLE;
+		else
+			mode = 0;
+	}
 	DRM_INFO("Enabling RC6 states: RC6 %s, RC6p %s, RC6pp %s\n",
 		 (mode & GEN6_RC_CTL_RC6_ENABLE) ? "on" : "off",
 		 (mode & GEN6_RC_CTL_RC6p_ENABLE) ? "on" : "off",
@@ -3876,7 +3882,7 @@ static void ironlake_enable_rc6(struct drm_device *dev)
 	I915_WRITE(PWRCTXA, i915_gem_obj_ggtt_offset(dev_priv->ips.pwrctx) | PWRCTX_EN);
 	I915_WRITE(RSTDBYCTL, I915_READ(RSTDBYCTL) & ~RCX_SW_EXIT);
 
-	intel_print_rc6_info(dev, INTEL_RC6_ENABLE);
+	intel_print_rc6_info(dev, GEN6_RC_CTL_RC6_ENABLE);
 }
 
 static unsigned long intel_pxfreq(u32 vidfreq)
