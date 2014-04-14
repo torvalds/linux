@@ -250,3 +250,14 @@ void arch_cpu_idle(void)
 	else
 		local_irq_enable();
 }
+
+#ifdef CONFIG_CPU_IDLE
+
+int mips_cpuidle_wait_enter(struct cpuidle_device *dev,
+			    struct cpuidle_driver *drv, int index)
+{
+	arch_cpu_idle();
+	return index;
+}
+
+#endif
