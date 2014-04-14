@@ -546,7 +546,6 @@ static int add_pcie_port(struct pcie_port *pp, struct platform_device *pdev)
 	pp->root_bus_nr = -1;
 	pp->ops = &exynos_pcie_host_ops;
 
-	spin_lock_init(&pp->conf_lock);
 	ret = dw_pcie_host_init(pp);
 	if (ret) {
 		dev_err(&pdev->dev, "failed to initialize host\n");

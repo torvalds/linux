@@ -41,7 +41,6 @@ struct pcie_port {
 	void __iomem		*va_cfg1_base;
 	u64			io_base;
 	u64			mem_base;
-	spinlock_t		conf_lock;
 	struct resource		cfg;
 	struct resource		io;
 	struct resource		mem;
