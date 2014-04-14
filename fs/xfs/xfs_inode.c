@@ -3371,9 +3371,9 @@ xfs_iflush_int(
 		}
 	}
 
-	xfs_iflush_fork(ip, dip, iip, XFS_DATA_FORK, bp);
+	xfs_iflush_fork(ip, dip, iip, XFS_DATA_FORK);
 	if (XFS_IFORK_Q(ip))
-		xfs_iflush_fork(ip, dip, iip, XFS_ATTR_FORK, bp);
+		xfs_iflush_fork(ip, dip, iip, XFS_ATTR_FORK);
 	xfs_inobp_check(mp, bp);
 
 	/*
