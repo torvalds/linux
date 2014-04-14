@@ -68,6 +68,7 @@
 #define CLK_PD_SCU 		11
 #define CLK_PD_VIDEO 		12
 #define CLK_PD_VIO		13
+#define CLK_PD_VIRT		255
 
 
 #endif /* _DT_BINDINGS_CLOCK_ROCKCHIP_H */

@@ -44,6 +44,11 @@ const struct clk_ops clk_pd_ops = {
 	.is_enabled = clk_pd_is_enabled,
 };
 
+const struct clk_ops clk_pd_virt_ops = {
+
+};
+
+
 struct clk *rk_clk_register_pd(struct device *dev, const char *name,
 		const char *parent_name, unsigned long flags, 
 		u32 pd_id, spinlock_t *lock)
@@ -64,7 +69,11 @@ struct clk *rk_clk_register_pd(struct device *dev, const char *name,
 	init.flags = flags | CLK_IS_BASIC;
 	init.parent_names = (parent_name ? &parent_name: NULL);
 	init.num_parents = (parent_name ? 1 : 0);
-	init.ops = &clk_pd_ops;
+
+	if(pd_id == CLK_PD_VIRT)
+		init.ops = &clk_pd_virt_ops;
+	else
+		init.ops = &clk_pd_ops;
 
 	/* struct clk_pd assignments */
 	pd->id= pd_id;

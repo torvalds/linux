@@ -1112,7 +1112,7 @@ static int __init rkclk_init_pd(struct device_node *np)
 			rkclk->clk_name = pd_info->clk_name;
 			rkclk->pd_info = pd_info;
 			rkclk->clk_type = RKCLK_PD_TYPE;
-			rkclk->flags = CLK_IS_ROOT;
+			rkclk->flags = 0;
 			clk_debug("%s: creat %s\n", __func__, rkclk->clk_name);
 			list_add_tail(&rkclk->node, &rk_clks);
 		}
