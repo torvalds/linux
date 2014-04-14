@@ -1239,7 +1239,7 @@ static bool          si_tryplatform = 1;
 #ifdef CONFIG_PCI
 static bool          si_trypci = 1;
 #endif
-static bool          si_trydefaults = 1;
+static bool          si_trydefaults = IS_ENABLED(CONFIG_IPMI_SI_PROBE_DEFAULTS);
 static char          *si_type[SI_MAX_PARMS];
 #define MAX_SI_TYPE_STR 30
 static char          si_type_str[MAX_SI_TYPE_STR];
