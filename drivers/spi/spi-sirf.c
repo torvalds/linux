@@ -287,8 +287,8 @@ static irqreturn_t spi_sirfsoc_irq(int irq, void *dev_id)
 				sspi->left_rx_word)
 			sspi->rx_word(sspi);
 
-	if (spi_stat & (SIRFSOC_SPI_FIFO_EMPTY
-			| SIRFSOC_SPI_TXFIFO_THD_REACH))
+	if (spi_stat & (SIRFSOC_SPI_TXFIFO_EMPTY |
+			SIRFSOC_SPI_TXFIFO_THD_REACH))
 		while (!((readl(sspi->base + SIRFSOC_SPI_TXFIFO_STATUS)
 				& SIRFSOC_SPI_FIFO_FULL)) &&
 				sspi->left_tx_word)
