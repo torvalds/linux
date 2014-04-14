@@ -59,12 +59,12 @@ static struct intel_dsi *intel_attached_dsi(struct drm_connector *connector)
 
 static inline bool is_vid_mode(struct intel_dsi *intel_dsi)
 {
-	return intel_dsi->dev.type == INTEL_DSI_VIDEO_MODE;
+	return intel_dsi->operation_mode == INTEL_DSI_VIDEO_MODE;
 }
 
 static inline bool is_cmd_mode(struct intel_dsi *intel_dsi)
 {
-	return intel_dsi->dev.type == INTEL_DSI_COMMAND_MODE;
+	return intel_dsi->operation_mode == INTEL_DSI_COMMAND_MODE;
 }
 
 static void intel_dsi_hot_plug(struct intel_encoder *encoder)

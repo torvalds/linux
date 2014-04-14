@@ -31,7 +31,6 @@
 struct intel_dsi_device {
 	unsigned int panel_id;
 	const char *name;
-	int type;
 	const struct intel_dsi_dev_ops *dev_ops;
 	void *dev_priv;
 };
@@ -84,6 +83,9 @@ struct intel_dsi {
 
 	/* virtual channel */
 	int channel;
+
+	/* Video mode or command mode */
+	u16 operation_mode;
 
 	/* number of DSI lanes */
 	unsigned int lane_count;

@@ -106,8 +106,8 @@
 #define INTEL_DVO_CHIP_TMDS 2
 #define INTEL_DVO_CHIP_TVOUT 4
 
-#define INTEL_DSI_COMMAND_MODE	0
-#define INTEL_DSI_VIDEO_MODE	1
+#define INTEL_DSI_VIDEO_MODE	0
+#define INTEL_DSI_COMMAND_MODE	1
 
 struct intel_framebuffer {
 	struct drm_framebuffer base;
