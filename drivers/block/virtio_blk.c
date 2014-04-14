@@ -112,7 +112,7 @@ static int __virtblk_add_req(struct virtqueue *vq,
 
 static inline void virtblk_request_done(struct request *req)
 {
-	struct virtblk_req *vbr = req->special;
+	struct virtblk_req *vbr = blk_mq_rq_to_pdu(req);
 	int error = virtblk_result(vbr);
 
 	if (req->cmd_type == REQ_TYPE_BLOCK_PC) {
@@ -154,7 +154,7 @@ static void virtblk_done(struct virtqueue *vq)
 static int virtio_queue_rq(struct blk_mq_hw_ctx *hctx, struct request *req)
 {
 	struct virtio_blk *vblk = hctx->queue->queuedata;
-	struct virtblk_req *vbr = req->special;
+	struct virtblk_req *vbr = blk_mq_rq_to_pdu(req);
 	unsigned long flags;
 	unsigned int num;
 	const bool last = (req->cmd_flags & REQ_END) != 0;
@@ -501,7 +501,7 @@ static int virtblk_init_vbr(void *data, struct blk_mq_hw_ctx *hctx,
 			     struct request *rq, unsigned int nr)
 {
 	struct virtio_blk *vblk = data;
-	struct virtblk_req *vbr = rq->special;
+	struct virtblk_req *vbr = blk_mq_rq_to_pdu(rq);
 
 	sg_init_table(vbr->sg, vblk->sg_elems);
 	return 0;

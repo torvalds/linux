@@ -251,24 +251,13 @@ struct request *blk_mq_alloc_reserved_request(struct request_queue *q, int rw,
 }
 EXPORT_SYMBOL(blk_mq_alloc_reserved_request);
 
-/*
- * Re-init and set pdu, if we have it
- */
-void blk_mq_rq_init(struct blk_mq_hw_ctx *hctx, struct request *rq)
-{
-	blk_rq_init(hctx->queue, rq);
-
-	if (hctx->cmd_size)
-		rq->special = blk_mq_rq_to_pdu(rq);
-}
-
 static void __blk_mq_free_request(struct blk_mq_hw_ctx *hctx,
 				  struct blk_mq_ctx *ctx, struct request *rq)
 {
 	const int tag = rq->tag;
 	struct request_queue *q = rq->q;
 
-	blk_mq_rq_init(hctx, rq);
+	blk_rq_init(hctx->queue, rq);
 	blk_mq_put_tag(hctx->tags, tag);
 
 	blk_mq_queue_exit(q);
@@ -1165,7 +1154,7 @@ static int blk_mq_init_rq_map(struct blk_mq_hw_ctx *hctx,
 		left -= to_do * rq_size;
 		for (j = 0; j < to_do; j++) {
 			hctx->rqs[i] = p;
-			blk_mq_rq_init(hctx, hctx->rqs[i]);
+			blk_rq_init(hctx->queue, hctx->rqs[i]);
 			p += rq_size;
 			i++;
 		}
