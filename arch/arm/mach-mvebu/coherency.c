@@ -148,14 +148,11 @@ static void __init armada_370_coherency_init(struct device_node *np)
 static int coherency_type(void)
 {
 	struct device_node *np;
+	const struct of_device_id *match;
 
-	np = of_find_matching_node(NULL, of_coherency_table);
+	np = of_find_matching_node_and_match(NULL, of_coherency_table, &match);
 	if (np) {
-		const struct of_device_id *match =
-			of_match_node(of_coherency_table, np);
-		int type;
-
-		type = (int) match->data;
+		int type = (int) match->data;
 
 		/* Armada 370/XP coherency works in both UP and SMP */
 		if (type == COHERENCY_FABRIC_TYPE_ARMADA_370_XP)
