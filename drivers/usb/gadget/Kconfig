@@ -300,12 +300,6 @@ config USB_PXA27X
 	   dynamically linked module called "pxa27x_udc" and force all
 	   gadget drivers to also be dynamically linked.
 
-config USB_S3C_HSOTG
-	tristate "Designware/S3C HS/OtG USB Device controller"
-	help
-	  The Designware USB2.0 high-speed gadget controller
-	  integrated into many SoCs.
-
 config USB_S3C2410
 	tristate "S3C2410 USB Device Controller"
 	depends on ARCH_S3C24XX
