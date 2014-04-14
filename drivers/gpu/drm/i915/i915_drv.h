@@ -1169,6 +1169,12 @@ struct intel_vbt_data {
 	/* MIPI DSI */
 	struct {
 		u16 panel_id;
+		struct mipi_config *config;
+		struct mipi_pps_data *pps;
+		u8 seq_version;
+		u32 size;
+		u8 *data;
+		u8 *sequence[MIPI_SEQ_MAX];
 	} dsi;
 
 	int crt_ddc_pin;
