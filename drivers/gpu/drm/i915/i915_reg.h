@@ -4997,9 +4997,15 @@ enum punit_power_well {
 #define  FORCEWAKE_ACK_HSW			0x130044
 #define  FORCEWAKE_ACK				0x130090
 #define  VLV_GTLC_WAKE_CTRL			0x130090
+#define   VLV_GTLC_RENDER_CTX_EXISTS		(1 << 25)
+#define   VLV_GTLC_MEDIA_CTX_EXISTS		(1 << 24)
+#define   VLV_GTLC_ALLOWWAKEREQ			(1 << 0)
+
 #define  VLV_GTLC_PW_STATUS			0x130094
-#define VLV_GTLC_PW_RENDER_STATUS_MASK		0x80
-#define VLV_GTLC_PW_MEDIA_STATUS_MASK		0x20
+#define   VLV_GTLC_ALLOWWAKEACK			(1 << 0)
+#define   VLV_GTLC_ALLOWWAKEERR			(1 << 1)
+#define   VLV_GTLC_PW_MEDIA_STATUS_MASK		(1 << 5)
+#define   VLV_GTLC_PW_RENDER_STATUS_MASK	(1 << 7)
 #define  FORCEWAKE_MT				0xa188 /* multi-threaded */
 #define   FORCEWAKE_KERNEL			0x1
 #define   FORCEWAKE_USER			0x2
