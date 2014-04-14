@@ -185,6 +185,8 @@ static void intel_dsi_pre_enable(struct intel_encoder *encoder)
 	/* put device in ready state */
 	intel_dsi_device_ready(encoder);
 
+	msleep(intel_dsi->panel_on_delay);
+
 	if (intel_dsi->dev.dev_ops->panel_reset)
 		intel_dsi->dev.dev_ops->panel_reset(&intel_dsi->dev);
 
@@ -301,6 +303,9 @@ static void intel_dsi_post_disable(struct intel_encoder *encoder)
 
 	if (intel_dsi->dev.dev_ops->disable_panel_power)
 		intel_dsi->dev.dev_ops->disable_panel_power(&intel_dsi->dev);
+
+	msleep(intel_dsi->panel_off_delay);
+	msleep(intel_dsi->panel_pwr_cycle_delay);
 }
 
 static bool intel_dsi_get_hw_state(struct intel_encoder *encoder,
