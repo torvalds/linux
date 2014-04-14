@@ -687,7 +687,7 @@ xfs_readdir(
 	lock_mode = xfs_ilock_data_map_shared(dp);
 	if (dp->i_d.di_format == XFS_DINODE_FMT_LOCAL)
 		rval = xfs_dir2_sf_getdents(dp, ctx);
-	else if ((rval = xfs_dir2_isblock(NULL, dp, &v)))
+	else if ((rval = xfs_dir2_isblock(dp, &v)))
 		;
 	else if (v)
 		rval = xfs_dir2_block_getdents(dp, ctx);

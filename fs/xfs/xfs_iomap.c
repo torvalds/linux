@@ -730,7 +730,7 @@ xfs_iomap_write_allocate(
 			 */
 			nimaps = 1;
 			end_fsb = XFS_B_TO_FSB(mp, XFS_ISIZE(ip));
-			error = xfs_bmap_last_offset(NULL, ip, &last_block,
+			error = xfs_bmap_last_offset(ip, &last_block,
 							XFS_DATA_FORK);
 			if (error)
 				goto trans_cancel;

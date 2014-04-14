@@ -156,8 +156,8 @@ int	xfs_bmap_first_unused(struct xfs_trans *tp, struct xfs_inode *ip,
 		xfs_extlen_t len, xfs_fileoff_t *unused, int whichfork);
 int	xfs_bmap_last_before(struct xfs_trans *tp, struct xfs_inode *ip,
 		xfs_fileoff_t *last_block, int whichfork);
-int	xfs_bmap_last_offset(struct xfs_trans *tp, struct xfs_inode *ip,
-		xfs_fileoff_t *unused, int whichfork);
+int	xfs_bmap_last_offset(struct xfs_inode *ip, xfs_fileoff_t *unused,
+		int whichfork);
 int	xfs_bmap_one_block(struct xfs_inode *ip, int whichfork);
 int	xfs_bmap_read_extents(struct xfs_trans *tp, struct xfs_inode *ip,
 		int whichfork);

@@ -244,7 +244,7 @@ xfs_dir_createname(
 		goto out_free;
 	}
 
-	rval = xfs_dir2_isblock(tp, dp, &v);
+	rval = xfs_dir2_isblock(dp, &v);
 	if (rval)
 		goto out_free;
 	if (v) {
@@ -252,7 +252,7 @@ xfs_dir_createname(
 		goto out_free;
 	}
 
-	rval = xfs_dir2_isleaf(tp, dp, &v);
+	rval = xfs_dir2_isleaf(dp, &v);
 	if (rval)
 		goto out_free;
 	if (v)
@@ -336,7 +336,7 @@ xfs_dir_lookup(
 		goto out_check_rval;
 	}
 
-	rval = xfs_dir2_isblock(tp, dp, &v);
+	rval = xfs_dir2_isblock(dp, &v);
 	if (rval)
 		goto out_free;
 	if (v) {
@@ -344,7 +344,7 @@ xfs_dir_lookup(
 		goto out_check_rval;
 	}
 
-	rval = xfs_dir2_isleaf(tp, dp, &v);
+	rval = xfs_dir2_isleaf(dp, &v);
 	if (rval)
 		goto out_free;
 	if (v)
@@ -408,7 +408,7 @@ xfs_dir_removename(
 		goto out_free;
 	}
 
-	rval = xfs_dir2_isblock(tp, dp, &v);
+	rval = xfs_dir2_isblock(dp, &v);
 	if (rval)
 		goto out_free;
 	if (v) {
@@ -416,7 +416,7 @@ xfs_dir_removename(
 		goto out_free;
 	}
 
-	rval = xfs_dir2_isleaf(tp, dp, &v);
+	rval = xfs_dir2_isleaf(dp, &v);
 	if (rval)
 		goto out_free;
 	if (v)
@@ -472,7 +472,7 @@ xfs_dir_replace(
 		goto out_free;
 	}
 
-	rval = xfs_dir2_isblock(tp, dp, &v);
+	rval = xfs_dir2_isblock(dp, &v);
 	if (rval)
 		goto out_free;
 	if (v) {
@@ -480,7 +480,7 @@ xfs_dir_replace(
 		goto out_free;
 	}
 
-	rval = xfs_dir2_isleaf(tp, dp, &v);
+	rval = xfs_dir2_isleaf(dp, &v);
 	if (rval)
 		goto out_free;
 	if (v)
@@ -531,7 +531,7 @@ xfs_dir_canenter(
 		goto out_free;
 	}
 
-	rval = xfs_dir2_isblock(tp, dp, &v);
+	rval = xfs_dir2_isblock(dp, &v);
 	if (rval)
 		goto out_free;
 	if (v) {
@@ -539,7 +539,7 @@ xfs_dir_canenter(
 		goto out_free;
 	}
 
-	rval = xfs_dir2_isleaf(tp, dp, &v);
+	rval = xfs_dir2_isleaf(dp, &v);
 	if (rval)
 		goto out_free;
 	if (v)
@@ -607,7 +607,6 @@ xfs_dir2_grow_inode(
  */
 int
 xfs_dir2_isblock(
-	xfs_trans_t	*tp,
 	xfs_inode_t	*dp,
 	int		*vp)		/* out: 1 is block, 0 is not block */
 {
@@ -616,7 +615,7 @@ xfs_dir2_isblock(
 	int		rval;
 
 	mp = dp->i_mount;
-	if ((rval = xfs_bmap_last_offset(tp, dp, &last, XFS_DATA_FORK)))
+	if ((rval = xfs_bmap_last_offset(dp, &last, XFS_DATA_FORK)))
 		return rval;
 	rval = XFS_FSB_TO_B(mp, last) == mp->m_dirblksize;
 	ASSERT(rval == 0 || dp->i_d.di_size == mp->m_dirblksize);
@@ -629,7 +628,6 @@ xfs_dir2_isblock(
  */
 int
 xfs_dir2_isleaf(
-	xfs_trans_t	*tp,
 	xfs_inode_t	*dp,
 	int		*vp)		/* out: 1 is leaf, 0 is not leaf */
 {
@@ -638,7 +636,7 @@ xfs_dir2_isleaf(
 	int		rval;
 
 	mp = dp->i_mount;
-	if ((rval = xfs_bmap_last_offset(tp, dp, &last, XFS_DATA_FORK)))
+	if ((rval = xfs_bmap_last_offset(dp, &last, XFS_DATA_FORK)))
 		return rval;
 	*vp = last == mp->m_dirleafblk + (1 << mp->m_sb.sb_dirblklog);
 	return 0;

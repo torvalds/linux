@@ -1708,7 +1708,7 @@ xfs_dir2_node_to_leaf(
 	/*
 	 * Get the last offset in the file.
 	 */
-	if ((error = xfs_bmap_last_offset(tp, dp, &fo, XFS_DATA_FORK))) {
+	if ((error = xfs_bmap_last_offset(dp, &fo, XFS_DATA_FORK))) {
 		return error;
 	}
 	fo -= mp->m_dirblkfsbs;

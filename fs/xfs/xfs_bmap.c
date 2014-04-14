@@ -1675,7 +1675,6 @@ xfs_bmap_isaeof(
  */
 int
 xfs_bmap_last_offset(
-	struct xfs_trans	*tp,
 	struct xfs_inode	*ip,
 	xfs_fileoff_t		*last_block,
 	int			whichfork)
