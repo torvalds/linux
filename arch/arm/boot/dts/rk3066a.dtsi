@@ -15,6 +15,7 @@
 
 #include <dt-bindings/gpio/gpio.h>
 #include <dt-bindings/pinctrl/rockchip.h>
+#include <dt-bindings/clock/rk3066a-cru.h>
 #include "rk3xxx.dtsi"
 #include "rk3066a-clocks.dtsi"
 
@@ -45,7 +46,7 @@
 			compatible = "snps,dw-apb-timer-osc";
 			reg = <0x20038000 0x100>;
 			interrupts = <GIC_SPI 44 IRQ_TYPE_LEVEL_HIGH>;
-			clocks = <&clk_gates1 0>, <&clk_gates7 7>;
+			clocks = <&cru SCLK_TIMER0>, <&cru PCLK_TIMER0>;
 			clock-names = "timer", "pclk";
 		};
 
@@ -53,7 +54,7 @@
 			compatible = "snps,dw-apb-timer-osc";
 			reg = <0x2003a000 0x100>;
 			interrupts = <GIC_SPI 45 IRQ_TYPE_LEVEL_HIGH>;
-			clocks = <&clk_gates1 1>, <&clk_gates7 8>;
+			clocks = <&cru SCLK_TIMER1>, <&cru PCLK_TIMER1>;
 			clock-names = "timer", "pclk";
 		};
 
@@ -61,7 +62,7 @@
 			compatible = "snps,dw-apb-timer-osc";
 			reg = <0x2000e000 0x100>;
 			interrupts = <GIC_SPI 46 IRQ_TYPE_LEVEL_HIGH>;
-			clocks = <&clk_gates1 2>, <&clk_gates7 9>;
+			clocks = <&cru SCLK_TIMER2>, <&cru PCLK_TIMER2>;
 			clock-names = "timer", "pclk";
 		};
 
@@ -78,6 +79,15 @@
 			};
 		};
 
+		cru: clock-controller@20000000 {
+			compatible = "rockchip,rk3066a-cru";
+			reg = <0x20000000 0x1000>;
+			rockchip,grf = <&grf>;
+
+			#clock-cells = <1>;
+			#reset-cells = <1>;
+		};
+
 		pinctrl@20008000 {
 			compatible = "rockchip,rk3066a-pinctrl";
 			rockchip,grf = <&grf>;
@@ -89,7 +99,7 @@
 				compatible = "rockchip,gpio-bank";
 				reg = <0x20034000 0x100>;
 				interrupts = <GIC_SPI 54 IRQ_TYPE_LEVEL_HIGH>;
-				clocks = <&clk_gates8 9>;
+				clocks = <&cru PCLK_GPIO0>;
 
 				gpio-controller;
 				#gpio-cells = <2>;
@@ -102,7 +112,7 @@
 				compatible = "rockchip,gpio-bank";
 				reg = <0x2003c000 0x100>;
 				interrupts = <GIC_SPI 55 IRQ_TYPE_LEVEL_HIGH>;
-				clocks = <&clk_gates8 10>;
+				clocks = <&cru PCLK_GPIO1>;
 
 				gpio-controller;
 				#gpio-cells = <2>;
@@ -115,7 +125,7 @@
 				compatible = "rockchip,gpio-bank";
 				reg = <0x2003e000 0x100>;
 				interrupts = <GIC_SPI 56 IRQ_TYPE_LEVEL_HIGH>;
-				clocks = <&clk_gates8 11>;
+				clocks = <&cru PCLK_GPIO2>;
 
 				gpio-controller;
 				#gpio-cells = <2>;
@@ -128,7 +138,7 @@
 				compatible = "rockchip,gpio-bank";
 				reg = <0x20080000 0x100>;
 				interrupts = <GIC_SPI 57 IRQ_TYPE_LEVEL_HIGH>;
-				clocks = <&clk_gates8 12>;
+				clocks = <&cru PCLK_GPIO3>;
 
 				gpio-controller;
 				#gpio-cells = <2>;
@@ -141,7 +151,7 @@
 				compatible = "rockchip,gpio-bank";
 				reg = <0x20084000 0x100>;
 				interrupts = <GIC_SPI 58 IRQ_TYPE_LEVEL_HIGH>;
-				clocks = <&clk_gates8 13>;
+				clocks = <&cru PCLK_GPIO4>;
 
 				gpio-controller;
 				#gpio-cells = <2>;
@@ -154,7 +164,7 @@
 				compatible = "rockchip,gpio-bank";
 				reg = <0x2000a000 0x100>;
 				interrupts = <GIC_SPI 60 IRQ_TYPE_LEVEL_HIGH>;
-				clocks = <&clk_gates8 15>;
+				clocks = <&cru PCLK_GPIO6>;
 
 				gpio-controller;
 				#gpio-cells = <2>;

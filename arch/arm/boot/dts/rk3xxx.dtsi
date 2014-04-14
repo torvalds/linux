@@ -60,14 +60,14 @@
 			compatible = "arm,cortex-a9-global-timer";
 			reg = <0x1013c200 0x20>;
 			interrupts = <GIC_PPI 11 0x304>;
-			clocks = <&dummy150m>;
+			clocks = <&cru CORE_PERI>;
 		};
 
 		local-timer@1013c600 {
 			compatible = "arm,cortex-a9-twd-timer";
 			reg = <0x1013c600 0x20>;
 			interrupts = <GIC_PPI 13 0x304>;
-			clocks = <&dummy150m>;
+			clocks = <&cru CORE_PERI>;
 		};
 
 		uart0: serial@10124000 {
@@ -76,7 +76,7 @@
 			interrupts = <GIC_SPI 34 IRQ_TYPE_LEVEL_HIGH>;
 			reg-shift = <2>;
 			reg-io-width = <1>;
-			clocks = <&clk_gates1 8>;
+			clocks = <&cru SCLK_UART0>;
 			status = "disabled";
 		};
 
@@ -86,7 +86,7 @@
 			interrupts = <GIC_SPI 35 IRQ_TYPE_LEVEL_HIGH>;
 			reg-shift = <2>;
 			reg-io-width = <1>;
-			clocks = <&clk_gates1 10>;
+			clocks = <&cru SCLK_UART1>;
 			status = "disabled";
 		};
 
@@ -96,7 +96,7 @@
 			interrupts = <GIC_SPI 36 IRQ_TYPE_LEVEL_HIGH>;
 			reg-shift = <2>;
 			reg-io-width = <1>;
-			clocks = <&clk_gates1 12>;
+			clocks = <&cru SCLK_UART2>;
 			status = "disabled";
 		};
 
@@ -106,7 +106,7 @@
 			interrupts = <GIC_SPI 37 IRQ_TYPE_LEVEL_HIGH>;
 			reg-shift = <2>;
 			reg-io-width = <1>;
-			clocks = <&clk_gates1 14>;
+			clocks = <&cru SCLK_UART3>;
 			status = "disabled";
 		};
 
@@ -117,7 +117,7 @@
 			#address-cells = <1>;
 			#size-cells = <0>;
 
-			clocks = <&clk_gates5 10>, <&clk_gates2 11>;
+			clocks = <&cru HCLK_SDMMC>, <&cru SCLK_SDMMC>;
 			clock-names = "biu", "ciu";
 
 			status = "disabled";
@@ -130,7 +130,7 @@
 			#address-cells = <1>;
 			#size-cells = <0>;
 
-			clocks = <&clk_gates5 11>, <&clk_gates2 13>;
+			clocks = <&cru HCLK_SDIO>, <&cru SCLK_SDIO>;
 			clock-names = "biu", "ciu";
 
 			status = "disabled";
