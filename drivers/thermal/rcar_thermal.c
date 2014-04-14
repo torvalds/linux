@@ -470,7 +470,7 @@ error_unregister:
 			rcar_thermal_irq_disable(priv);
 	}
 
-	pm_runtime_put_sync(dev);
+	pm_runtime_put(dev);
 	pm_runtime_disable(dev);
 
 	return ret;
@@ -488,7 +488,7 @@ static int rcar_thermal_remove(struct platform_device *pdev)
 			rcar_thermal_irq_disable(priv);
 	}
 
-	pm_runtime_put_sync(dev);
+	pm_runtime_put(dev);
 	pm_runtime_disable(dev);
 
 	return 0;
