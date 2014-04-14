@@ -2528,8 +2528,6 @@ qlcnic_probe(struct pci_dev *pdev, const struct pci_device_id *ent)
 		goto err_out_free_hw;
 	}
 
-	qlcnic_dcb_enable(adapter->dcb);
-
 	if (qlcnic_read_mac_addr(adapter))
 		dev_warn(&pdev->dev, "failed to read mac addr\n");
 
@@ -2549,7 +2547,10 @@ qlcnic_probe(struct pci_dev *pdev, const struct pci_device_id *ent)
 			 "Device does not support MSI interrupts\n");
 
 	if (qlcnic_82xx_check(adapter)) {
+		qlcnic_dcb_enable(adapter->dcb);
+		qlcnic_dcb_get_info(adapter->dcb);
 		err = qlcnic_setup_intr(adapter);
+
 		if (err) {
 			dev_err(&pdev->dev, "Failed to setup interrupt\n");
 			goto err_out_disable_msi;
