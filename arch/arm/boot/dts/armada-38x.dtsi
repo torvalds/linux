@@ -382,6 +382,15 @@
 				clocks = <&coredivclk 0>;
 				status = "disabled";
 			};
+
+			sdhci@d8000 {
+				compatible = "marvell,armada-380-sdhci";
+				reg = <0xd8000 0x1000>, <0xdc000 0x100>;
+				interrupts = <0 25 0x4>;
+				clocks = <&gateclk 17>;
+				mrvl,clk-delay-cycles = <0x1F>;
+				status = "disabled";
+			};
 		};
 	};
 
