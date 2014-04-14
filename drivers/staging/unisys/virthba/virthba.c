@@ -1400,7 +1400,7 @@ info_proc_read(struct file *file, char __user *buf, size_t len, loff_t *offset)
 		virthbainfo = VirtHbasOpen[i].virthbainfo;
 		length += sprintf(vbuf + length, "CHANSOCK is not defined.\n");
 
-		length += sprintf(vbuf + length, "MaxBuffLen:%d\n", MaxBuffLen);
+		length += sprintf(vbuf + length, "MaxBuffLen:%u\n", MaxBuffLen);
 
 		length += sprintf(vbuf + length, "\nvirthba result queue poll wait:%d usecs.\n",
 				  rsltq_wait_usecs);
