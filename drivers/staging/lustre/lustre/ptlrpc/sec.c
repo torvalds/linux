@@ -354,7 +354,7 @@ static int import_sec_check_expire(struct obd_import *imp)
 		return 0;
 
 	CDEBUG(D_SEC, "found delayed sec adapt expired, do it now\n");
-	return sptlrpc_import_sec_adapt(imp, NULL, 0);
+	return sptlrpc_import_sec_adapt(imp, NULL, NULL);
 }
 
 static int import_sec_validate_get(struct obd_import *imp,
