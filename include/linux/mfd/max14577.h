@@ -35,7 +35,17 @@ enum max14577_regulators {
 	MAX14577_SAFEOUT = 0,
 	MAX14577_CHARGER,
 
-	MAX14577_REG_MAX,
+	MAX14577_REGULATOR_NUM,
+};
+
+/* MAX77836 regulator IDs */
+enum max77836_regulators {
+	MAX77836_SAFEOUT = 0,
+	MAX77836_CHARGER,
+	MAX77836_LDO1,
+	MAX77836_LDO2,
+
+	MAX77836_REGULATOR_NUM,
 };
 
 struct max14577_regulator_platform_data {
