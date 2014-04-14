@@ -279,9 +279,19 @@
 				clock-names = "nbclk", "fixed";
 			};
 
+			cpurst@20800 {
+				compatible = "marvell,armada-370-cpu-reset";
+				reg = <0x20800 0x10>;
+			};
+
 			coherency-fabric@21010 {
 				compatible = "marvell,armada-380-coherency-fabric";
 				reg = <0x21010 0x1c>;
+			};
+
+			pmsu@22000 {
+				compatible = "marvell,armada-380-pmsu";
+				reg = <0x22000 0x1000>;
 			};
 
 			eth1: ethernet@30000 {
