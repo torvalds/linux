@@ -27,6 +27,7 @@
 #include <linux/regulator/driver.h>
 #include <linux/regulator/machine.h>
 #include <linux/regulator/of_regulator.h>
+#include <linux/of_gpio.h>
 #include <linux/mfd/samsung/core.h>
 #include <linux/mfd/samsung/s2mps11.h>
 #include <linux/mfd/samsung/s2mps14.h>
@@ -44,6 +45,8 @@ struct s2mps11_info {
 	 * was enabled.
 	 */
 	unsigned int s2mps14_suspend_state:30;
+	/* Array of size rdev_num with GPIO-s for external sleep control */
+	int *ext_control_gpio;
 };
 
 static int get_ramp_delay(int ramp_delay)
@@ -409,6 +412,8 @@ static int s2mps14_regulator_enable(struct regulator_dev *rdev)
 
 	if (s2mps11->s2mps14_suspend_state & (1 << rdev_get_id(rdev)))
 		val = S2MPS14_ENABLE_SUSPEND;
+	else if (s2mps11->ext_control_gpio[rdev_get_id(rdev)])
+		val = S2MPS14_ENABLE_EXT_CONTROL;
 	else
 		val = rdev->desc->enable_mask;
 
@@ -565,8 +570,40 @@ static const struct regulator_desc s2mps14_regulators[] = {
 	regulator_desc_s2mps14_buck1235(5),
 };
 
-static int s2mps11_pmic_dt_parse(struct platform_device *pdev,
+static int s2mps14_pmic_enable_ext_control(struct s2mps11_info *s2mps11,
+		struct regulator_dev *rdev)
+{
+	return regmap_update_bits(rdev->regmap, rdev->desc->enable_reg,
+			rdev->desc->enable_mask, S2MPS14_ENABLE_EXT_CONTROL);
+}
+
+static void s2mps14_pmic_dt_parse_ext_control_gpio(struct platform_device *pdev,
 		struct of_regulator_match *rdata, struct s2mps11_info *s2mps11)
+{
+	int *gpio = s2mps11->ext_control_gpio;
+	unsigned int i;
+	unsigned int valid_regulators[3] = { S2MPS14_LDO10, S2MPS14_LDO11,
+		S2MPS14_LDO12 };
+
+	for (i = 0; i < ARRAY_SIZE(valid_regulators); i++) {
+		unsigned int reg = valid_regulators[i];
+
+		if (!rdata[reg].init_data || !rdata[reg].of_node)
+			continue;
+
+		gpio[reg] = of_get_named_gpio(rdata[reg].of_node,
+				"samsung,ext-control-gpios", 0);
+		if (!gpio_is_valid(gpio[reg]))
+			gpio[reg] = 0;
+		else
+			dev_dbg(&pdev->dev, "Using GPIO %d for ext-control over %d/%s\n",
+					gpio[reg], reg, rdata[reg].name);
+	}
+}
+
+static int s2mps11_pmic_dt_parse(struct platform_device *pdev,
+		struct of_regulator_match *rdata, struct s2mps11_info *s2mps11,
+		enum sec_device_type dev_type)
 {
 	struct device_node *reg_np;
 
@@ -577,6 +614,9 @@ static int s2mps11_pmic_dt_parse(struct platform_device *pdev,
 	}
 
 	of_regulator_match(&pdev->dev, reg_np, rdata, s2mps11->rdev_num);
+	if (dev_type == S2MPS14X)
+		s2mps14_pmic_dt_parse_ext_control_gpio(pdev, rdata, s2mps11);
+
 	of_node_put(reg_np);
 
 	return 0;
@@ -613,6 +653,12 @@ static int s2mps11_pmic_probe(struct platform_device *pdev)
 		return -EINVAL;
 	};
 
+	s2mps11->ext_control_gpio = devm_kzalloc(&pdev->dev,
+			sizeof(*s2mps11->ext_control_gpio) * s2mps11->rdev_num,
+			GFP_KERNEL);
+	if (!s2mps11->ext_control_gpio)
+		return -ENOMEM;
+
 	if (!iodev->dev->of_node) {
 		if (iodev->pdata) {
 			pdata = iodev->pdata;
@@ -631,7 +677,7 @@ static int s2mps11_pmic_probe(struct platform_device *pdev)
 	for (i = 0; i < s2mps11->rdev_num; i++)
 		rdata[i].name = regulators[i].name;
 
-	ret = s2mps11_pmic_dt_parse(pdev, rdata, s2mps11);
+	ret = s2mps11_pmic_dt_parse(pdev, rdata, s2mps11, dev_type);
 	if (ret)
 		goto out;
 
@@ -652,6 +698,12 @@ common_reg:
 			config.of_node = rdata[i].of_node;
 		}
 
+		if (s2mps11->ext_control_gpio[i]) {
+			config.ena_gpio = s2mps11->ext_control_gpio[i];
+			config.ena_gpio_flags = GPIOF_OUT_INIT_HIGH;
+		} else
+			config.ena_gpio = config.ena_gpio_flags = 0;
+
 		regulator = devm_regulator_register(&pdev->dev,
 						&regulators[i], &config);
 		if (IS_ERR(regulator)) {
@@ -659,6 +711,17 @@ common_reg:
 			dev_err(&pdev->dev, "regulator init failed for %d\n",
 				i);
 			goto out;
+		}
+
+		if (s2mps11->ext_control_gpio[i]) {
+			ret = s2mps14_pmic_enable_ext_control(s2mps11,
+					regulator);
+			if (ret < 0) {
+				dev_err(&pdev->dev,
+						"failed to enable GPIO control over %s: %d\n",
+						regulator->desc->name, ret);
+				goto out;
+			}
 		}
 	}
 
