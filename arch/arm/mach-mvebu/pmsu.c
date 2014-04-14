@@ -41,6 +41,12 @@ static struct of_device_id of_pmsu_table[] = {
 	{ /* end of list */ },
 };
 
+static void mvebu_pmsu_set_cpu_boot_addr(int hw_cpu, void *boot_addr)
+{
+	writel(virt_to_phys(boot_addr), pmsu_mp_base +
+		PMSU_BOOT_ADDR_REDIRECT_OFFSET(hw_cpu));
+}
+
 #ifdef CONFIG_SMP
 int armada_xp_boot_cpu(unsigned int cpu_id, void *boot_addr)
 {
@@ -53,8 +59,7 @@ int armada_xp_boot_cpu(unsigned int cpu_id, void *boot_addr)
 
 	hw_cpu = cpu_logical_map(cpu_id);
 
-	writel(virt_to_phys(boot_addr), pmsu_mp_base +
-			PMSU_BOOT_ADDR_REDIRECT_OFFSET(hw_cpu));
+	mvebu_pmsu_set_cpu_boot_addr(hw_cpu, boot_addr);
 
 	ret = mvebu_cpu_reset_deassert(hw_cpu);
 	if (ret) {
