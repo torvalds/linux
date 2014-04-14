@@ -313,8 +313,12 @@ static bool edp_have_panel_vdd(struct intel_dp *intel_dp)
 {
 	struct drm_device *dev = intel_dp_to_dev(intel_dp);
 	struct drm_i915_private *dev_priv = dev->dev_private;
+	struct intel_digital_port *intel_dig_port = dp_to_dig_port(intel_dp);
+	struct intel_encoder *intel_encoder = &intel_dig_port->base;
+	enum intel_display_power_domain power_domain;
 
-	return !dev_priv->pm.suspended &&
+	power_domain = intel_display_port_power_domain(intel_encoder);
+	return intel_display_power_enabled(dev_priv, power_domain) &&
 	       (I915_READ(_pp_ctrl_reg(intel_dp)) & EDP_FORCE_VDD) != 0;
 }
 
