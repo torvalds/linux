@@ -285,14 +285,12 @@ int						/* error */
 xfs_dir2_sf_addname(
 	xfs_da_args_t		*args)		/* operation arguments */
 {
-	int			add_entsize;	/* size of the new entry */
 	xfs_inode_t		*dp;		/* incore directory inode */
 	int			error;		/* error return value */
 	int			incr_isize;	/* total change in size */
 	int			new_isize;	/* di_size after adding name */
 	int			objchange;	/* changing to 8-byte inodes */
 	xfs_dir2_data_aoff_t	offset = 0;	/* offset for new entry */
-	int			old_isize;	/* di_size before adding name */
 	int			pick;		/* which algorithm to use */
 	xfs_dir2_sf_hdr_t	*sfp;		/* shortform structure */
 	xfs_dir2_sf_entry_t	*sfep = NULL;	/* shortform entry */
@@ -316,8 +314,7 @@ xfs_dir2_sf_addname(
 	/*
 	 * Compute entry (and change in) size.
 	 */
-	add_entsize = dp->d_ops->sf_entsize(sfp, args->namelen);
-	incr_isize = add_entsize;
+	incr_isize = dp->d_ops->sf_entsize(sfp, args->namelen);
 	objchange = 0;
 #if XFS_BIG_INUMS
 	/*
@@ -325,11 +322,8 @@ xfs_dir2_sf_addname(
 	 */
 	if (args->inumber > XFS_DIR2_MAX_SHORT_INUM && sfp->i8count == 0) {
 		/*
-		 * Yes, adjust the entry size and the total size.
+		 * Yes, adjust the inode size.  old count + (parent + new)
 		 */
-		add_entsize +=
-			(uint)sizeof(xfs_dir2_ino8_t) -
-			(uint)sizeof(xfs_dir2_ino4_t);
 		incr_isize +=
 			(sfp->count + 2) *
 			((uint)sizeof(xfs_dir2_ino8_t) -
@@ -337,8 +331,7 @@ xfs_dir2_sf_addname(
 		objchange = 1;
 	}
 #endif
-	old_isize = (int)dp->i_d.di_size;
-	new_isize = old_isize + incr_isize;
+	new_isize = (int)dp->i_d.di_size + incr_isize;
 	/*
 	 * Won't fit as shortform any more (due to size),
 	 * or the pick routine says it won't (due to offset values).
@@ -1110,9 +1103,9 @@ xfs_dir2_sf_toino4(
 }
 
 /*
- * Convert from 4-byte inode numbers to 8-byte inode numbers.
- * The new 8-byte inode number is not there yet, we leave with the
- * count 1 but no corresponding entry.
+ * Convert existing entries from 4-byte inode numbers to 8-byte inode numbers.
+ * The new entry w/ an 8-byte inode number is not there yet; we leave with
+ * i8count set to 1, but no corresponding 8-byte entry.
  */
 static void
 xfs_dir2_sf_toino8(
@@ -1145,7 +1138,7 @@ xfs_dir2_sf_toino8(
 	ASSERT(oldsfp->i8count == 0);
 	memcpy(buf, oldsfp, oldsize);
 	/*
-	 * Compute the new inode size.
+	 * Compute the new inode size (nb: entry count + 1 for parent)
 	 */
 	newsize =
 		oldsize +
