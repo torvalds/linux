@@ -10,14 +10,10 @@
  */
 
 /dts-v1/;
-#include "imx6q-phytec-pfla02.dtsi"
+#include "imx6dl-phytec-pfla02.dtsi"
 #include "imx6qdl-phytec-pbab01.dtsi"
 
 / {
-	model = "Phytec phyFLEX-i.MX6 Quad Carrier-Board";
-	compatible = "phytec,imx6q-pbab01", "phytec,imx6q-pfla02", "fsl,imx6q";
-};
-
-&sata {
-        status = "okay";
+	model = "Phytec phyFLEX-i.MX6 DualLite/Solo Carrier-Board";
+	compatible = "phytec,imx6dl-pbab01", "phytec,imx6dl-pfla02", "fsl,imx6dl";
 };
