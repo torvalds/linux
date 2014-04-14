@@ -133,6 +133,7 @@ Ip_u2s3u1(_lw);
 Ip_u3u1u2(_lwx);
 Ip_u1u2u3(_mfc0);
 Ip_u1(_mfhi);
+Ip_u1(_mflo);
 Ip_u1u2u3(_mtc0);
 Ip_u3u1u2(_mul);
 Ip_u3u1u2(_or);

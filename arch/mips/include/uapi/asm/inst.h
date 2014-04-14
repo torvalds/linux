@@ -316,6 +316,7 @@ enum mm_32axf_minor_op {
 	mm_mfhi32_op = 0x035,
 	mm_jalr_op = 0x03c,
 	mm_tlbr_op = 0x04d,
+	mm_mflo32_op = 0x075,
 	mm_jalrhb_op = 0x07c,
 	mm_tlbwi_op = 0x08d,
 	mm_tlbwr_op = 0x0cd,
