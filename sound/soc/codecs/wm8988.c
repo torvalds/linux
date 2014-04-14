@@ -268,7 +268,7 @@ static const struct soc_enum wm8988_lline_enum =
 			      wm8988_line_texts,
 			      wm8988_line_values);
 static const struct snd_kcontrol_new wm8988_left_line_controls =
-	SOC_DAPM_VALUE_ENUM("Route", wm8988_lline_enum);
+	SOC_DAPM_ENUM("Route", wm8988_lline_enum);
 
 static const struct soc_enum wm8988_rline_enum =
 	SOC_VALUE_ENUM_SINGLE(WM8988_ROUTM1, 0, 7,
@@ -276,7 +276,7 @@ static const struct soc_enum wm8988_rline_enum =
 			      wm8988_line_texts,
 			      wm8988_line_values);
 static const struct snd_kcontrol_new wm8988_right_line_controls =
-	SOC_DAPM_VALUE_ENUM("Route", wm8988_lline_enum);
+	SOC_DAPM_ENUM("Route", wm8988_lline_enum);
 
 /* Left Mixer */
 static const struct snd_kcontrol_new wm8988_left_mixer_controls[] = {
@@ -304,7 +304,7 @@ static const struct soc_enum wm8988_lpga_enum =
 			      wm8988_pga_sel,
 			      wm8988_pga_val);
 static const struct snd_kcontrol_new wm8988_left_pga_controls =
-	SOC_DAPM_VALUE_ENUM("Route", wm8988_lpga_enum);
+	SOC_DAPM_ENUM("Route", wm8988_lpga_enum);
 
 /* Right PGA Mux */
 static const struct soc_enum wm8988_rpga_enum =
@@ -313,7 +313,7 @@ static const struct soc_enum wm8988_rpga_enum =
 			      wm8988_pga_sel,
 			      wm8988_pga_val);
 static const struct snd_kcontrol_new wm8988_right_pga_controls =
-	SOC_DAPM_VALUE_ENUM("Route", wm8988_rpga_enum);
+	SOC_DAPM_ENUM("Route", wm8988_rpga_enum);
 
 /* Differential Mux */
 static const char *wm8988_diff_sel[] = {"Line 1", "Line 2"};
