@@ -63,9 +63,11 @@ static void ipu_fb_enable(struct ipu_crtc *ipu_crtc)
 	if (ipu_crtc->enabled)
 		return;
 
-	ipu_di_enable(ipu_crtc->di);
-	ipu_dc_enable_channel(ipu_crtc->dc);
+	/* TODO: Enable DC module here, right now it is never disabled */
 	ipu_plane_enable(ipu_crtc->plane[0]);
+	/* Start DC channel and DI after IDMAC */
+	ipu_dc_enable_channel(ipu_crtc->dc);
+	ipu_di_enable(ipu_crtc->di);
 
 	ipu_crtc->enabled = 1;
 }
@@ -75,9 +77,11 @@ static void ipu_fb_disable(struct ipu_crtc *ipu_crtc)
 	if (!ipu_crtc->enabled)
 		return;
 
-	ipu_plane_disable(ipu_crtc->plane[0]);
+	/* Stop DC channel and DI before IDMAC */
 	ipu_dc_disable_channel(ipu_crtc->dc);
 	ipu_di_disable(ipu_crtc->di);
+	ipu_plane_disable(ipu_crtc->plane[0]);
+	/* TODO: Disable DC module here */
 
 	ipu_crtc->enabled = 0;
 }
