@@ -250,7 +250,7 @@ int cpci_led_off(struct slot* slot)
  * Device configuration functions
  */
 
-int __ref cpci_configure_slot(struct slot *slot)
+int cpci_configure_slot(struct slot *slot)
 {
 	struct pci_dev *dev;
 	struct pci_bus *parent;

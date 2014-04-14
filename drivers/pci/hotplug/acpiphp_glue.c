@@ -500,7 +500,7 @@ static int acpiphp_rescan_slot(struct acpiphp_slot *slot)
  * This function should be called per *physical slot*,
  * not per each slot object in ACPI namespace.
  */
-static void __ref enable_slot(struct acpiphp_slot *slot)
+static void enable_slot(struct acpiphp_slot *slot)
 {
 	struct pci_dev *dev;
 	struct pci_bus *bus = slot->bus;
