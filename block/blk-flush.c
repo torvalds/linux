@@ -307,16 +307,8 @@ static bool blk_kick_flush(struct request_queue *q)
 	q->flush_pending_idx ^= 1;
 
 	blk_rq_init(q, q->flush_rq);
-	if (q->mq_ops) {
-		/*
-		 * Reuse the tag value from the fist waiting request,
-		 * with blk-mq the tag is generated during request
-		 * allocation and drivers can rely on it being inside
-		 * the range they asked for.
-		 */
-		q->flush_rq->mq_ctx = first_rq->mq_ctx;
-		q->flush_rq->tag = first_rq->tag;
-	}
+	if (q->mq_ops)
+		blk_mq_clone_flush_request(q->flush_rq, first_rq);
 
 	q->flush_rq->cmd_type = REQ_TYPE_FS;
 	q->flush_rq->cmd_flags = WRITE_FLUSH | REQ_FLUSH_SEQ;

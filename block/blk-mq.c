@@ -275,6 +275,26 @@ void blk_mq_free_request(struct request *rq)
 	__blk_mq_free_request(hctx, ctx, rq);
 }
 
+/*
+ * Clone all relevant state from a request that has been put on hold in
+ * the flush state machine into the preallocated flush request that hangs
+ * off the request queue.
+ *
+ * For a driver the flush request should be invisible, that's why we are
+ * impersonating the original request here.
+ */
+void blk_mq_clone_flush_request(struct request *flush_rq,
+		struct request *orig_rq)
+{
+	struct blk_mq_hw_ctx *hctx =
+		orig_rq->q->mq_ops->map_queue(orig_rq->q, orig_rq->mq_ctx->cpu);
+
+	flush_rq->mq_ctx = orig_rq->mq_ctx;
+	flush_rq->tag = orig_rq->tag;
+	memcpy(blk_mq_rq_to_pdu(flush_rq), blk_mq_rq_to_pdu(orig_rq),
+		hctx->cmd_size);
+}
+
 bool blk_mq_end_io_partial(struct request *rq, int error, unsigned int nr_bytes)
 {
 	if (blk_update_request(rq, error, blk_rq_bytes(rq)))
