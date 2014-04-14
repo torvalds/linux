@@ -287,6 +287,10 @@ static int edma_config_pset(struct dma_chan *chan, struct edmacc_param *pset,
 	int absync;
 
 	acnt = dev_width;
+
+	/* src/dst_maxburst == 0 is the same case as src/dst_maxburst == 1 */
+	if (!burst)
+		burst = 1;
 	/*
 	 * If the maxburst is equal to the fifo width, use
 	 * A-synced transfers. This allows for large contiguous
