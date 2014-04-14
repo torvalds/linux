@@ -1046,7 +1046,7 @@ static int
 virthba_slave_alloc(struct scsi_device *scsidev)
 {
 	/* this called by the midlayer before scan for new devices -
-	 * LLD can alloc any struc & do init if needed.
+	 * LLD can alloc any struct & do init if needed.
 	 */
 	struct virtdisk_info *vdisk;
 	struct virtdisk_info *tmpvdisk;
@@ -1534,7 +1534,7 @@ virthba_serverup(struct virtpci_dev *virtpcidev)
 	       virtpcidev->deviceNo);
 
 	if (!virthbainfo->serverdown) {
-		DBGINF("Server up message recieved while server is already up.\n");
+		DBGINF("Server up message received while server is already up.\n");
 		return 1;
 	}
 	if (virthbainfo->serverchangingstate) {

@@ -17,7 +17,7 @@
 #define _COMMONTYPES_H_
 
 /* define the following to prevent include nesting in kernel header files of
- * similar abreviated content */
+ * similar abbreviated content */
 #define _SUPERVISOR_COMMONTYPES_H_
 
 #ifdef __KERNEL__

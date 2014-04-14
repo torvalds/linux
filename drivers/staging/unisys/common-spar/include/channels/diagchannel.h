@@ -356,7 +356,7 @@ typedef enum  {
  *IsChannelInitialized: 1 iff SignalInit was called for this channel; otherwise
  *			0, and assume the channel is not ready for use yet.
  *
- * Reserved: Padding to allign the fields in this structure.
+ * Reserved: Padding to align the fields in this structure.
  *
  *SubsystemSeverityFilter: Level of severity on a subsystem basis that controls
  *			whether events are logged.  Any event's severity for a

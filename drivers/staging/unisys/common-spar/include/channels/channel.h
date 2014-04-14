@@ -24,7 +24,7 @@
 */
 
 /* define the following to prevent include nesting in kernel header
- * files of similar abreviated content
+ * files of similar abbreviated content
  */
 #define __SUPERVISOR_CHANNEL_H__
 
