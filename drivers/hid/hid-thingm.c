@@ -23,6 +23,7 @@
 
 /* Firmware major number of supported devices */
 #define THINGM_MAJOR_MK1	'1'
+#define THINGM_MAJOR_MK2	'2'
 
 struct thingm_fwinfo {
 	char major;
@@ -35,6 +36,10 @@ const struct thingm_fwinfo thingm_fwinfo[] = {
 		.major = THINGM_MAJOR_MK1,
 		.numrgb = 1,
 		.first = 0,
+	}, {
+		.major = THINGM_MAJOR_MK2,
+		.numrgb = 2,
+		.first = 1,
 	}
 };
 
@@ -117,7 +122,7 @@ static int thingm_version(struct thingm_device *tdev)
 
 static int thingm_write_color(struct thingm_rgb *rgb)
 {
-	u8 buf[REPORT_SIZE] = { REPORT_ID, 'n', 0, 0, 0, 0, 0, 0, 0 };
+	u8 buf[REPORT_SIZE] = { REPORT_ID, 'c', 0, 0, 0, 0, 0, rgb->num, 0 };
 
 	buf[2] = rgb->red.ldev.brightness;
 	buf[3] = rgb->green.ldev.brightness;
