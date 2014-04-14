@@ -319,7 +319,6 @@ xfs_dir2_block_compact(
 		(xfs_dir2_data_aoff_t)((char *)blp - (char *)hdr),
 		(xfs_dir2_data_aoff_t)((be32_to_cpu(btp->stale) - 1) * sizeof(*blp)),
 		needlog, &needscan);
-	blp += be32_to_cpu(btp->stale) - 1;
 	btp->stale = cpu_to_be32(1);
 	/*
 	 * If we now need to rebuild the bestfree map, do so.
