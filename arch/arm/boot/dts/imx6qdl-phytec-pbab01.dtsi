@@ -9,6 +9,12 @@
  * http://www.gnu.org/copyleft/gpl.html
  */
 
+/ {
+	chosen {
+		linux,stdout-path = &uart4;
+	};
+};
+
 &fec {
 	status = "okay";
 };
