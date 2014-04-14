@@ -109,6 +109,13 @@ struct ipmi_smi_handlers {
 	   events from the BMC we are attached to. */
 	void (*request_events)(void *send_info);
 
+	/* Called by the upper layer when some user requires that the
+	   interface watch for events, received messages, watchdog
+	   pretimeouts, or not.  Used by the SMI to know if it should
+	   watch for these.  This may be NULL if the SMI does not
+	   implement it. */
+	void (*set_need_watch)(void *send_info, int enable);
+
 	/* Called when the interface should go into "run to
 	   completion" mode.  If this call sets the value to true, the
 	   interface should make sure that all messages are flushed
