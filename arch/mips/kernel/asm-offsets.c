@@ -487,10 +487,14 @@ void output_kvm_defines(void)
 void output_cps_defines(void)
 {
 	COMMENT(" MIPS CPS offsets. ");
-	OFFSET(BOOTCFG_CORE, boot_config, core);
-	OFFSET(BOOTCFG_VPE, boot_config, vpe);
-	OFFSET(BOOTCFG_PC, boot_config, pc);
-	OFFSET(BOOTCFG_SP, boot_config, sp);
-	OFFSET(BOOTCFG_GP, boot_config, gp);
+
+	OFFSET(COREBOOTCFG_VPEMASK, core_boot_config, vpe_mask);
+	OFFSET(COREBOOTCFG_VPECONFIG, core_boot_config, vpe_config);
+	DEFINE(COREBOOTCFG_SIZE, sizeof(struct core_boot_config));
+
+	OFFSET(VPEBOOTCFG_PC, vpe_boot_config, pc);
+	OFFSET(VPEBOOTCFG_SP, vpe_boot_config, sp);
+	OFFSET(VPEBOOTCFG_GP, vpe_boot_config, gp);
+	DEFINE(VPEBOOTCFG_SIZE, sizeof(struct vpe_boot_config));
 }
 #endif

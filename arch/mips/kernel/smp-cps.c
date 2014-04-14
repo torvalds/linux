@@ -26,97 +26,36 @@
 
 static DECLARE_BITMAP(core_power, NR_CPUS);
 
-struct boot_config mips_cps_bootcfg;
+struct core_boot_config *mips_cps_core_bootcfg;
 
-static void init_core(void)
+static unsigned core_vpe_count(unsigned core)
 {
-	unsigned int nvpes, t;
-	u32 mvpconf0, vpeconf0, vpecontrol, tcstatus, tcbind, status;
+	unsigned cfg;
 
-	if (!cpu_has_mipsmt)
-		return;
+	if (!config_enabled(CONFIG_MIPS_MT_SMP) || !cpu_has_mipsmt)
+		return 1;
 
-	/* Enter VPE configuration state */
-	dvpe();
-	set_c0_mvpcontrol(MVPCONTROL_VPC);
-
-	/* Retrieve the count of VPEs in this core */
-	mvpconf0 = read_c0_mvpconf0();
-	nvpes = ((mvpconf0 & MVPCONF0_PVPE) >> MVPCONF0_PVPE_SHIFT) + 1;
-	smp_num_siblings = nvpes;
-
-	for (t = 1; t < nvpes; t++) {
-		/* Use a 1:1 mapping of TC index to VPE index */
-		settc(t);
-
-		/* Bind 1 TC to this VPE */
-		tcbind = read_tc_c0_tcbind();
-		tcbind &= ~TCBIND_CURVPE;
-		tcbind |= t << TCBIND_CURVPE_SHIFT;
-		write_tc_c0_tcbind(tcbind);
-
-		/* Set exclusive TC, non-active, master */
-		vpeconf0 = read_vpe_c0_vpeconf0();
-		vpeconf0 &= ~(VPECONF0_XTC | VPECONF0_VPA);
-		vpeconf0 |= t << VPECONF0_XTC_SHIFT;
-		vpeconf0 |= VPECONF0_MVP;
-		write_vpe_c0_vpeconf0(vpeconf0);
-
-		/* Declare TC non-active, non-allocatable & interrupt exempt */
-		tcstatus = read_tc_c0_tcstatus();
-		tcstatus &= ~(TCSTATUS_A | TCSTATUS_DA);
-		tcstatus |= TCSTATUS_IXMT;
-		write_tc_c0_tcstatus(tcstatus);
-
-		/* Halt the TC */
-		write_tc_c0_tchalt(TCHALT_H);
-
-		/* Allow only 1 TC to execute */
-		vpecontrol = read_vpe_c0_vpecontrol();
-		vpecontrol &= ~VPECONTROL_TE;
-		write_vpe_c0_vpecontrol(vpecontrol);
-
-		/* Copy (most of) Status from VPE 0 */
-		status = read_c0_status();
-		status &= ~(ST0_IM | ST0_IE | ST0_KSU);
-		status |= ST0_CU0;
-		write_vpe_c0_status(status);
-
-		/* Copy Config from VPE 0 */
-		write_vpe_c0_config(read_c0_config());
-		write_vpe_c0_config7(read_c0_config7());
-
-		/* Ensure no software interrupts are pending */
-		write_vpe_c0_cause(0);
-
-		/* Sync Count */
-		write_vpe_c0_count(read_c0_count());
-	}
-
-	/* Leave VPE configuration state */
-	clear_c0_mvpcontrol(MVPCONTROL_VPC);
+	write_gcr_cl_other(core << CM_GCR_Cx_OTHER_CORENUM_SHF);
+	cfg = read_gcr_co_config() & CM_GCR_Cx_CONFIG_PVPE_MSK;
+	return (cfg >> CM_GCR_Cx_CONFIG_PVPE_SHF) + 1;
 }
 
 static void __init cps_smp_setup(void)
 {
 	unsigned int ncores, nvpes, core_vpes;
 	int c, v;
-	u32 core_cfg, *entry_code;
+	u32 *entry_code;
 
 	/* Detect & record VPE topology */
 	ncores = mips_cm_numcores();
 	pr_info("VPE topology ");
 	for (c = nvpes = 0; c < ncores; c++) {
-		if (cpu_has_mipsmt && config_enabled(CONFIG_MIPS_MT_SMP)) {
-			write_gcr_cl_other(c << CM_GCR_Cx_OTHER_CORENUM_SHF);
-			core_cfg = read_gcr_co_config();
-			core_vpes = ((core_cfg & CM_GCR_Cx_CONFIG_PVPE_MSK) >>
-				     CM_GCR_Cx_CONFIG_PVPE_SHF) + 1;
-		} else {
-			core_vpes = 1;
-		}
-
+		core_vpes = core_vpe_count(c);
 		pr_cont("%c%u", c ? ',' : '{', core_vpes);
+
+		/* Use the number of VPEs in core 0 for smp_num_siblings */
+		if (!c)
+			smp_num_siblings = core_vpes;
 
 		for (v = 0; v < min_t(int, core_vpes, NR_CPUS - nvpes); v++) {
 			cpu_data[nvpes + v].core = c;
@@ -140,12 +79,8 @@ static void __init cps_smp_setup(void)
 	/* Core 0 is powered up (we're running on it) */
 	bitmap_set(core_power, 0, 1);
 
-	/* Disable MT - we only want to run 1 TC per VPE */
-	if (cpu_has_mipsmt)
-		dmt();
-
 	/* Initialise core 0 */
-	init_core();
+	mips_cps_core_init();
 
 	/* Patch the start of mips_cps_core_entry to provide the CM base */
 	entry_code = (u32 *)&mips_cps_core_entry;
@@ -157,15 +92,60 @@ static void __init cps_smp_setup(void)
 
 static void __init cps_prepare_cpus(unsigned int max_cpus)
 {
+	unsigned ncores, core_vpes, c;
+
 	mips_mt_set_cpuoptions();
+
+	/* Allocate core boot configuration structs */
+	ncores = mips_cm_numcores();
+	mips_cps_core_bootcfg = kcalloc(ncores, sizeof(*mips_cps_core_bootcfg),
+					GFP_KERNEL);
+	if (!mips_cps_core_bootcfg) {
+		pr_err("Failed to allocate boot config for %u cores\n", ncores);
+		goto err_out;
+	}
+
+	/* Allocate VPE boot configuration structs */
+	for (c = 0; c < ncores; c++) {
+		core_vpes = core_vpe_count(c);
+		mips_cps_core_bootcfg[c].vpe_config = kcalloc(core_vpes,
+				sizeof(*mips_cps_core_bootcfg[c].vpe_config),
+				GFP_KERNEL);
+		if (!mips_cps_core_bootcfg[c].vpe_config) {
+			pr_err("Failed to allocate %u VPE boot configs\n",
+			       core_vpes);
+			goto err_out;
+		}
+	}
+
+	/* Mark this CPU as booted */
+	atomic_set(&mips_cps_core_bootcfg[current_cpu_data.core].vpe_mask,
+		   1 << cpu_vpe_id(&current_cpu_data));
+
+	return;
+err_out:
+	/* Clean up allocations */
+	if (mips_cps_core_bootcfg) {
+		for (c = 0; c < ncores; c++)
+			kfree(mips_cps_core_bootcfg[c].vpe_config);
+		kfree(mips_cps_core_bootcfg);
+		mips_cps_core_bootcfg = NULL;
+	}
+
+	/* Effectively disable SMP by declaring CPUs not present */
+	for_each_possible_cpu(c) {
+		if (c == 0)
+			continue;
+		set_cpu_present(c, false);
+	}
 }
 
-static void boot_core(struct boot_config *cfg)
+static void boot_core(unsigned core)
 {
 	u32 access;
 
 	/* Select the appropriate core */
-	write_gcr_cl_other(cfg->core << CM_GCR_Cx_OTHER_CORENUM_SHF);
+	write_gcr_cl_other(core << CM_GCR_Cx_OTHER_CORENUM_SHF);
 
 	/* Set its reset vector */
 	write_gcr_co_reset_base(CKSEG1ADDR((unsigned long)mips_cps_core_entry));
@@ -175,15 +155,12 @@ static void boot_core(struct boot_config *cfg)
 
 	/* Ensure the core can access the GCRs */
 	access = read_gcr_access();
-	access |= 1 << (CM_GCR_ACCESS_ACCESSEN_SHF + cfg->core);
+	access |= 1 << (CM_GCR_ACCESS_ACCESSEN_SHF + core);
 	write_gcr_access(access);
-
-	/* Copy cfg */
-	mips_cps_bootcfg = *cfg;
 
 	if (mips_cpc_present()) {
 		/* Select the appropriate core */
-		write_cpc_cl_other(cfg->core << CPC_Cx_OTHER_CORENUM_SHF);
+		write_cpc_cl_other(core << CPC_Cx_OTHER_CORENUM_SHF);
 
 		/* Reset the core */
 		write_cpc_co_cmd(CPC_Cx_CMD_RESET);
@@ -193,77 +170,47 @@ static void boot_core(struct boot_config *cfg)
 	}
 
 	/* The core is now powered up */
-	bitmap_set(core_power, cfg->core, 1);
+	bitmap_set(core_power, core, 1);
 }
 
-static void boot_vpe(void *info)
+static void remote_vpe_boot(void *dummy)
 {
-	struct boot_config *cfg = info;
-	u32 tcstatus, vpeconf0;
-
-	/* Enter VPE configuration state */
-	dvpe();
-	set_c0_mvpcontrol(MVPCONTROL_VPC);
-
-	settc(cfg->vpe);
-
-	/* Set the TC restart PC */
-	write_tc_c0_tcrestart((unsigned long)&smp_bootstrap);
-
-	/* Activate the TC, allow interrupts */
-	tcstatus = read_tc_c0_tcstatus();
-	tcstatus &= ~TCSTATUS_IXMT;
-	tcstatus |= TCSTATUS_A;
-	write_tc_c0_tcstatus(tcstatus);
-
-	/* Clear the TC halt bit */
-	write_tc_c0_tchalt(0);
-
-	/* Activate the VPE */
-	vpeconf0 = read_vpe_c0_vpeconf0();
-	vpeconf0 |= VPECONF0_VPA;
-	write_vpe_c0_vpeconf0(vpeconf0);
-
-	/* Set the stack & global pointer registers */
-	write_tc_gpr_sp(cfg->sp);
-	write_tc_gpr_gp(cfg->gp);
-
-	/* Leave VPE configuration state */
-	clear_c0_mvpcontrol(MVPCONTROL_VPC);
-
-	/* Enable other VPEs to execute */
-	evpe(EVPE_ENABLE);
+	mips_cps_boot_vpes();
 }
 
 static void cps_boot_secondary(int cpu, struct task_struct *idle)
 {
-	struct boot_config cfg;
+	unsigned core = cpu_data[cpu].core;
+	unsigned vpe_id = cpu_vpe_id(&cpu_data[cpu]);
+	struct core_boot_config *core_cfg = &mips_cps_core_bootcfg[core];
+	struct vpe_boot_config *vpe_cfg = &core_cfg->vpe_config[vpe_id];
 	unsigned int remote;
 	int err;
 
-	cfg.core = cpu_data[cpu].core;
-	cfg.vpe = cpu_vpe_id(&cpu_data[cpu]);
-	cfg.pc = (unsigned long)&smp_bootstrap;
-	cfg.sp = __KSTK_TOS(idle);
-	cfg.gp = (unsigned long)task_thread_info(idle);
+	vpe_cfg->pc = (unsigned long)&smp_bootstrap;
+	vpe_cfg->sp = __KSTK_TOS(idle);
+	vpe_cfg->gp = (unsigned long)task_thread_info(idle);
 
-	if (!test_bit(cfg.core, core_power)) {
+	atomic_or(1 << cpu_vpe_id(&cpu_data[cpu]), &core_cfg->vpe_mask);
+
+	if (!test_bit(core, core_power)) {
 		/* Boot a VPE on a powered down core */
-		boot_core(&cfg);
+		boot_core(core);
 		return;
 	}
 
-	if (cfg.core != current_cpu_data.core) {
+	if (core != current_cpu_data.core) {
 		/* Boot a VPE on another powered up core */
 		for (remote = 0; remote < NR_CPUS; remote++) {
-			if (cpu_data[remote].core != cfg.core)
+			if (cpu_data[remote].core != core)
 				continue;
 			if (cpu_online(remote))
 				break;
 		}
 		BUG_ON(remote >= NR_CPUS);
 
-		err = smp_call_function_single(remote, boot_vpe, &cfg, 1);
+		err = smp_call_function_single(remote, remote_vpe_boot,
+					       NULL, 1);
 		if (err)
 			panic("Failed to call remote CPU\n");
 		return;
@@ -272,7 +219,7 @@ static void cps_boot_secondary(int cpu, struct task_struct *idle)
 	BUG_ON(!cpu_has_mipsmt);
 
 	/* Boot a VPE on this core */
-	boot_vpe(&cfg);
+	mips_cps_boot_vpes();
 }
 
 static void cps_init_secondary(void)
@@ -280,10 +227,6 @@ static void cps_init_secondary(void)
 	/* Disable MT - we only want to run 1 TC per VPE */
 	if (cpu_has_mipsmt)
 		dmt();
-
-	/* TODO: revisit this assumption once hotplug is implemented */
-	if (cpu_vpe_id(&current_cpu_data) == 0)
-		init_core();
 
 	change_c0_status(ST0_IM, STATUSF_IP3 | STATUSF_IP4 |
 				 STATUSF_IP6 | STATUSF_IP7);

@@ -9,6 +9,8 @@
  */
 
 #include <linux/errno.h>
+#include <linux/percpu.h>
+#include <linux/spinlock.h>
 
 #include <asm/mips-cm.h>
 #include <asm/mips-cpc.h>
