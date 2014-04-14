@@ -587,19 +587,3 @@ void driver_detach(struct device_driver *drv)
 		put_device(dev);
 	}
 }
-
-/*
- * These exports can't be _GPL due to .h files using this within them, and it
- * might break something that was previously working...
- */
-void *dev_get_drvdata(const struct device *dev)
-{
-	return dev->driver_data;
-}
-EXPORT_SYMBOL(dev_get_drvdata);
-
-void dev_set_drvdata(struct device *dev, void *data)
-{
-	dev->driver_data = data;
-}
-EXPORT_SYMBOL(dev_set_drvdata);
