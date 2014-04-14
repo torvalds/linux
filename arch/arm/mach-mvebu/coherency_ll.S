@@ -24,9 +24,7 @@
 #include <asm/cp15.h>
 
 	.text
-/*
- * r0: HW CPU id
- */
+
 ENTRY(ll_set_cpu_coherent)
 	mrc	p15, 0, r1, c1, c0, 0
 	tst	r1, #CR_M @ Check MMU bit enabled
@@ -43,8 +41,10 @@ ENTRY(ll_set_cpu_coherent)
 	ldr	r0, [r0]
 2:
 	/* Create bit by cpu index */
-	mov	r3, #(1 << 24)
-	lsl	r1, r3, r1
+	mrc	15, 0, r1, cr0, cr0, 5
+	and	r1, r1, #15
+	mov	r2, #(1 << 24)
+	lsl	r1, r2, r1
 ARM_BE8(rev	r1, r1)
 
 	/* Add CPU to SMP group - Atomic */

@@ -31,10 +31,6 @@
 ENTRY(armada_xp_secondary_startup)
  ARM_BE8(setend	be )			@ go BE8 if entered LE
 
-	/* Read CPU id */
-	mrc     p15, 0, r1, c0, c0, 5
-	and     r1, r1, #0xF
-
 	/* Add CPU to coherency fabric */
 	bl	ll_set_cpu_coherent
 	b	secondary_startup
