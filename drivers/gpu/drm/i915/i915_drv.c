@@ -951,7 +951,7 @@ static int intel_runtime_suspend(struct device *device)
 	struct drm_device *dev = pci_get_drvdata(pdev);
 	struct drm_i915_private *dev_priv = dev->dev_private;
 
-	if (WARN_ON_ONCE(!dev_priv->rps.enabled))
+	if (WARN_ON_ONCE(!(dev_priv->rps.enabled && intel_enable_rc6(dev))))
 		return -ENODEV;
 
 	WARN_ON(!HAS_RUNTIME_PM(dev));
