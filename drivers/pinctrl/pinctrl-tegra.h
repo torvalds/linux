@@ -127,7 +127,6 @@ struct tegra_pingroup {
 	const unsigned *pins;
 	unsigned npins;
 	unsigned funcs[4];
-	unsigned func_safe;
 	s16 mux_reg;
 	s16 pupd_reg;
 	s16 tri_reg;

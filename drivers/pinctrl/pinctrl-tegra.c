@@ -295,17 +295,11 @@ static void tegra_pinctrl_disable(struct pinctrl_dev *pctldev,
 {
 	struct tegra_pmx *pmx = pinctrl_dev_get_drvdata(pctldev);
 	const struct tegra_pingroup *g;
-	u32 val;
 
 	g = &pmx->soc->groups[group];
 
 	if (WARN_ON(g->mux_reg < 0))
 		return;
-
-	val = pmx_readl(pmx, g->mux_bank, g->mux_reg);
-	val &= ~(0x3 << g->mux_bit);
-	val |= g->func_safe << g->mux_bit;
-	pmx_writel(pmx, val, g->mux_bank, g->mux_reg);
 }
 
 static const struct pinmux_ops tegra_pinmux_ops = {
