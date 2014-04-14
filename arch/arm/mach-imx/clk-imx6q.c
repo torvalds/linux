@@ -445,6 +445,15 @@ static void __init imx6q_clocks_init(struct device_node *ccm_node)
 		clk_set_parent(clk[ldb_di1_sel], clk[pll5_video_div]);
 	}
 
+	clk_set_parent(clk[ipu1_di0_pre_sel], clk[pll5_video_div]);
+	clk_set_parent(clk[ipu1_di1_pre_sel], clk[pll5_video_div]);
+	clk_set_parent(clk[ipu2_di0_pre_sel], clk[pll5_video_div]);
+	clk_set_parent(clk[ipu2_di1_pre_sel], clk[pll5_video_div]);
+	clk_set_parent(clk[ipu1_di0_sel], clk[ipu1_di0_pre]);
+	clk_set_parent(clk[ipu1_di1_sel], clk[ipu1_di1_pre]);
+	clk_set_parent(clk[ipu2_di0_sel], clk[ipu2_di0_pre]);
+	clk_set_parent(clk[ipu2_di1_sel], clk[ipu2_di1_pre]);
+
 	/*
 	 * The gpmi needs 100MHz frequency in the EDO/Sync mode,
 	 * We can not get the 100MHz from the pll2_pfd0_352m.
