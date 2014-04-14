@@ -4,7 +4,10 @@ Available on Marvell SOCs: Armada 370 and Armada XP
 
 Required properties:
 
-- compatible: "marvell,coherency-fabric"
+- compatible: the possible values are:
+
+ * "marvell,coherency-fabric", to be used for the coherency fabric of
+   the Armada 370 and Armada XP.
 
 - reg: Should contain coherency fabric registers location and
   length. First pair for the coherency fabric registers, second pair

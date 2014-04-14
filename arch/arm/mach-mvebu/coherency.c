@@ -38,8 +38,13 @@ static void __iomem *coherency_cpu_base;
 
 #define IO_SYNC_BARRIER_CTL_OFFSET		   0x0
 
+enum {
+	COHERENCY_FABRIC_TYPE_ARMADA_370_XP,
+};
+
 static struct of_device_id of_coherency_table[] = {
-	{.compatible = "marvell,coherency-fabric"},
+	{.compatible = "marvell,coherency-fabric",
+	 .data = (void *) COHERENCY_FABRIC_TYPE_ARMADA_370_XP },
 	{ /* end of list */ },
 };
 
@@ -121,26 +126,40 @@ static struct notifier_block mvebu_hwcc_platform_nb = {
 	.notifier_call = mvebu_hwcc_platform_notifier,
 };
 
+static void __init armada_370_coherency_init(struct device_node *np)
+{
+	struct resource res;
+
+	of_address_to_resource(np, 0, &res);
+	coherency_phys_base = res.start;
+	/*
+	 * Ensure secondary CPUs will see the updated value,
+	 * which they read before they join the coherency
+	 * fabric, and therefore before they are coherent with
+	 * the boot CPU cache.
+	 */
+	sync_cache_w(&coherency_phys_base);
+	coherency_base = of_iomap(np, 0);
+	coherency_cpu_base = of_iomap(np, 1);
+	set_cpu_coherent(cpu_logical_map(smp_processor_id()), 0);
+}
+
 int __init coherency_init(void)
 {
 	struct device_node *np;
 
 	np = of_find_matching_node(NULL, of_coherency_table);
 	if (np) {
-		struct resource res;
+		const struct of_device_id *match =
+			of_match_node(of_coherency_table, np);
+		int type;
+
+		type = (int) match->data;
 		pr_info("Initializing Coherency fabric\n");
-		of_address_to_resource(np, 0, &res);
-		coherency_phys_base = res.start;
-		/*
-		 * Ensure secondary CPUs will see the updated value,
-		 * which they read before they join the coherency
-		 * fabric, and therefore before they are coherent with
-		 * the boot CPU cache.
-		 */
-		sync_cache_w(&coherency_phys_base);
-		coherency_base = of_iomap(np, 0);
-		coherency_cpu_base = of_iomap(np, 1);
-		set_cpu_coherent(cpu_logical_map(smp_processor_id()), 0);
+
+		if (type == COHERENCY_FABRIC_TYPE_ARMADA_370_XP)
+			armada_370_coherency_init(np);
+
 		of_node_put(np);
 	}
 
