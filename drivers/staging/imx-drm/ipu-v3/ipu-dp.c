@@ -277,6 +277,9 @@ void ipu_dp_disable_channel(struct ipu_dp *dp)
 	writel(0, flow->base + DP_FG_POS);
 	ipu_srm_dp_sync_update(priv->ipu);
 
+	if (ipu_idmac_channel_busy(priv->ipu, IPUV3_CHANNEL_MEM_BG_SYNC))
+		ipu_wait_interrupt(priv->ipu, IPU_IRQ_DP_SF_END, 50);
+
 	mutex_unlock(&priv->mutex);
 }
 EXPORT_SYMBOL_GPL(ipu_dp_disable_channel);
