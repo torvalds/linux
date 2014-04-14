@@ -1202,14 +1202,18 @@ struct ieee80211_vif *wdev_to_ieee80211_vif(struct wireless_dev *wdev);
  *	fall back to software crypto. Note that this flag deals only with
  *	RX, if your crypto engine can't deal with TX you can also set the
  *	%IEEE80211_KEY_FLAG_SW_MGMT_TX flag to encrypt such frames in SW.
+ * @IEEE80211_KEY_FLAG_GENERATE_IV_MGMT: This flag should be set by the
+ *	driver for a CCMP key to indicate that is requires IV generation
+ *	only for managment frames (MFP).
  */
 enum ieee80211_key_flags {
-	IEEE80211_KEY_FLAG_GENERATE_IV	= 1<<1,
-	IEEE80211_KEY_FLAG_GENERATE_MMIC= 1<<2,
-	IEEE80211_KEY_FLAG_PAIRWISE	= 1<<3,
-	IEEE80211_KEY_FLAG_SW_MGMT_TX	= 1<<4,
-	IEEE80211_KEY_FLAG_PUT_IV_SPACE = 1<<5,
-	IEEE80211_KEY_FLAG_RX_MGMT	= 1<<6,
+	IEEE80211_KEY_FLAG_GENERATE_IV_MGMT	= BIT(0),
+	IEEE80211_KEY_FLAG_GENERATE_IV		= BIT(1),
+	IEEE80211_KEY_FLAG_GENERATE_MMIC	= BIT(2),
+	IEEE80211_KEY_FLAG_PAIRWISE		= BIT(3),
+	IEEE80211_KEY_FLAG_SW_MGMT_TX		= BIT(4),
+	IEEE80211_KEY_FLAG_PUT_IV_SPACE		= BIT(5),
+	IEEE80211_KEY_FLAG_RX_MGMT		= BIT(6),
 };
 
 /**
