@@ -519,7 +519,6 @@ xfs_bmbt_alloc_block(
 	struct xfs_btree_cur	*cur,
 	union xfs_btree_ptr	*start,
 	union xfs_btree_ptr	*new,
-	int			length,
 	int			*stat)
 {
 	xfs_alloc_arg_t		args;		/* block allocation args */
