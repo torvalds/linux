@@ -47,6 +47,7 @@ enum {
 	COHERENCY_FABRIC_TYPE_NONE,
 	COHERENCY_FABRIC_TYPE_ARMADA_370_XP,
 	COHERENCY_FABRIC_TYPE_ARMADA_375,
+	COHERENCY_FABRIC_TYPE_ARMADA_380,
 };
 
 static struct of_device_id of_coherency_table[] = {
@@ -54,6 +55,8 @@ static struct of_device_id of_coherency_table[] = {
 	 .data = (void *) COHERENCY_FABRIC_TYPE_ARMADA_370_XP },
 	{.compatible = "marvell,armada-375-coherency-fabric",
 	 .data = (void *) COHERENCY_FABRIC_TYPE_ARMADA_375 },
+	{.compatible = "marvell,armada-380-coherency-fabric",
+	 .data = (void *) COHERENCY_FABRIC_TYPE_ARMADA_380 },
 	{ /* end of list */ },
 };
 
@@ -302,7 +305,7 @@ static void __init armada_370_coherency_init(struct device_node *np)
 	set_cpu_coherent(cpu_logical_map(smp_processor_id()), 0);
 }
 
-static void __init armada_375_coherency_init(struct device_node *np)
+static void __init armada_375_380_coherency_init(struct device_node *np)
 {
 	coherency_cpu_base = of_iomap(np, 0);
 }
@@ -322,6 +325,10 @@ static int coherency_type(void)
 
 		/* Armada 375 coherency works only on SMP */
 		else if (type == COHERENCY_FABRIC_TYPE_ARMADA_375 && is_smp())
+			return type;
+
+		/* Armada 380 coherency works only on SMP */
+		else if (type == COHERENCY_FABRIC_TYPE_ARMADA_380 && is_smp())
 			return type;
 
 		of_node_put(np);
@@ -344,8 +351,9 @@ int __init coherency_init(void)
 
 	if (type == COHERENCY_FABRIC_TYPE_ARMADA_370_XP)
 		armada_370_coherency_init(np);
-	else if (type == COHERENCY_FABRIC_TYPE_ARMADA_375)
-		armada_375_coherency_init(np);
+	else if (type == COHERENCY_FABRIC_TYPE_ARMADA_375 ||
+		 type == COHERENCY_FABRIC_TYPE_ARMADA_380)
+		armada_375_380_coherency_init(np);
 
 	return 0;
 }
