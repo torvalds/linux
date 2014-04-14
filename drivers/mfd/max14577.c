@@ -37,7 +37,7 @@ static struct mfd_cell max14577_devs[] = {
 	{ .name = "max14577-charger", },
 };
 
-static bool max14577_volatile_reg(struct device *dev, unsigned int reg)
+static bool max14577_muic_volatile_reg(struct device *dev, unsigned int reg)
 {
 	switch (reg) {
 	case MAX14577_REG_INT1 ... MAX14577_REG_STATUS3:
@@ -48,10 +48,10 @@ static bool max14577_volatile_reg(struct device *dev, unsigned int reg)
 	return false;
 }
 
-static const struct regmap_config max14577_regmap_config = {
+static const struct regmap_config max14577_muic_regmap_config = {
 	.reg_bits	= 8,
 	.val_bits	= 8,
-	.volatile_reg	= max14577_volatile_reg,
+	.volatile_reg	= max14577_muic_volatile_reg,
 	.max_register	= MAX14577_REG_END,
 };
 
@@ -113,7 +113,8 @@ static int max14577_i2c_probe(struct i2c_client *i2c,
 	max14577->i2c = i2c;
 	max14577->irq = i2c->irq;
 
-	max14577->regmap = devm_regmap_init_i2c(i2c, &max14577_regmap_config);
+	max14577->regmap = devm_regmap_init_i2c(i2c,
+			&max14577_muic_regmap_config);
 	if (IS_ERR(max14577->regmap)) {
 		ret = PTR_ERR(max14577->regmap);
 		dev_err(max14577->dev, "Failed to allocate register map: %d\n",

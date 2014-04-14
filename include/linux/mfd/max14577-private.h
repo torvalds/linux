@@ -22,9 +22,7 @@
 #include <linux/i2c.h>
 #include <linux/regmap.h>
 
-#define MAX14577_REG_INVALID		(0xff)
-
-/* Slave addr = 0x4A: Interrupt */
+/* Slave addr = 0x4A: MUIC and Charger */
 enum max14577_reg {
 	MAX14577_REG_DEVICEID		= 0x00,
 	MAX14577_REG_INT1		= 0x01,
