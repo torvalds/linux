@@ -76,6 +76,9 @@ static void __init cps_smp_setup(void)
 		__cpu_logical_map[v] = v;
 	}
 
+	/* Set a coherent default CCA (CWB) */
+	change_c0_config(CONF_CM_CMASK, 0x5);
+
 	/* Core 0 is powered up (we're running on it) */
 	bitmap_set(core_power, 0, 1);
 
