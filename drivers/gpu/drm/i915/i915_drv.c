@@ -782,7 +782,7 @@ int i915_reset(struct drm_device *dev)
 		 * previous concerns that it doesn't respond well to some forms
 		 * of re-init after reset. */
 		if (INTEL_INFO(dev)->gen > 5)
-			intel_enable_gt_powersave(dev);
+			intel_reset_gt_powersave(dev);
 
 		intel_hpd_init(dev);
 	} else {
@@ -950,6 +950,9 @@ static int intel_runtime_suspend(struct device *device)
 	struct pci_dev *pdev = to_pci_dev(device);
 	struct drm_device *dev = pci_get_drvdata(pdev);
 	struct drm_i915_private *dev_priv = dev->dev_private;
+
+	if (WARN_ON_ONCE(!dev_priv->rps.enabled))
+		return -ENODEV;
 
 	WARN_ON(!HAS_RUNTIME_PM(dev));
 	assert_force_wake_inactive(dev_priv);

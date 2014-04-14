@@ -4549,6 +4549,8 @@ static void intel_gen6_powersave_work(struct work_struct *work)
 	}
 	dev_priv->rps.enabled = true;
 	mutex_unlock(&dev_priv->rps.hw_lock);
+
+	intel_runtime_pm_put(dev_priv);
 }
 
 void intel_enable_gt_powersave(struct drm_device *dev)
@@ -4566,10 +4568,26 @@ void intel_enable_gt_powersave(struct drm_device *dev)
 		 * PCU communication is slow and this doesn't need to be
 		 * done at any specific time, so do this out of our fast path
 		 * to make resume and init faster.
+		 *
+		 * We depend on the HW RC6 power context save/restore
+		 * mechanism when entering D3 through runtime PM suspend. So
+		 * disable RPM until RPS/RC6 is properly setup. We can only
+		 * get here via the driver load/system resume/runtime resume
+		 * paths, so the _noresume version is enough (and in case of
+		 * runtime resume it's necessary).
 		 */
-		schedule_delayed_work(&dev_priv->rps.delayed_resume_work,
-				      round_jiffies_up_relative(HZ));
+		if (schedule_delayed_work(&dev_priv->rps.delayed_resume_work,
+					   round_jiffies_up_relative(HZ)))
+			intel_runtime_pm_get_noresume(dev_priv);
 	}
+}
+
+void intel_reset_gt_powersave(struct drm_device *dev)
+{
+	struct drm_i915_private *dev_priv = dev->dev_private;
+
+	dev_priv->rps.enabled = false;
+	intel_enable_gt_powersave(dev);
 }
 
 static void ibx_init_clock_gating(struct drm_device *dev)
@@ -6023,6 +6041,18 @@ void intel_runtime_pm_get(struct drm_i915_private *dev_priv)
 
 	pm_runtime_get_sync(device);
 	WARN(dev_priv->pm.suspended, "Device still suspended.\n");
+}
+
+void intel_runtime_pm_get_noresume(struct drm_i915_private *dev_priv)
+{
+	struct drm_device *dev = dev_priv->dev;
+	struct device *device = &dev->pdev->dev;
+
+	if (!HAS_RUNTIME_PM(dev))
+		return;
+
+	WARN(dev_priv->pm.suspended, "Getting nosync-ref while suspended.\n");
+	pm_runtime_get_noresume(device);
 }
 
 void intel_runtime_pm_put(struct drm_i915_private *dev_priv)
