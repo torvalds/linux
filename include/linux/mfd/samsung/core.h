@@ -28,7 +28,6 @@ enum sec_device_type {
  * @dev: master device of the chip (can be used to access platform data)
  * @pdata: pointer to private data used to pass platform data to child
  * @i2c: i2c client private data for regulator
- * @rtc: i2c client private data for rtc
  * @iolock: mutex for serializing io access
  * @irqlock: mutex for buslock
  * @irq_base: base IRQ number for sec-pmic, required for IRQs
@@ -42,9 +41,7 @@ struct sec_pmic_dev {
 	struct device *dev;
 	struct sec_platform_data *pdata;
 	struct regmap *regmap_pmic;
-	struct regmap *regmap_rtc;
 	struct i2c_client *i2c;
-	struct i2c_client *rtc;
 
 	int device_type;
 	int irq_base;

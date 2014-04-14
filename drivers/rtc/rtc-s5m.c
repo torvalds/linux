@@ -40,6 +40,7 @@
 
 struct s5m_rtc_info {
 	struct device *dev;
+	struct i2c_client *i2c;
 	struct sec_pmic_dev *s5m87xx;
 	struct regmap *regmap;
 	struct rtc_device *rtc_dev;
@@ -47,6 +48,20 @@ struct s5m_rtc_info {
 	int device_type;
 	int rtc_24hr_mode;
 	bool wtsr_smpl;
+};
+
+static const struct regmap_config s5m_rtc_regmap_config = {
+	.reg_bits = 8,
+	.val_bits = 8,
+
+	.max_register = SEC_RTC_REG_MAX,
+};
+
+static const struct regmap_config s2mps14_rtc_regmap_config = {
+	.reg_bits = 8,
+	.val_bits = 8,
+
+	.max_register = S2MPS_RTC_REG_MAX,
 };
 
 static void s5m8767_data_to_tm(u8 *data, struct rtc_time *tm,
@@ -554,6 +569,7 @@ static int s5m_rtc_probe(struct platform_device *pdev)
 	struct sec_pmic_dev *s5m87xx = dev_get_drvdata(pdev->dev.parent);
 	struct sec_platform_data *pdata = s5m87xx->pdata;
 	struct s5m_rtc_info *info;
+	const struct regmap_config *regmap_cfg;
 	int ret;
 
 	if (!pdata) {
@@ -565,9 +581,37 @@ static int s5m_rtc_probe(struct platform_device *pdev)
 	if (!info)
 		return -ENOMEM;
 
+	switch (pdata->device_type) {
+	case S2MPS14X:
+		regmap_cfg = &s2mps14_rtc_regmap_config;
+		break;
+	case S5M8763X:
+		regmap_cfg = &s5m_rtc_regmap_config;
+		break;
+	case S5M8767X:
+		regmap_cfg = &s5m_rtc_regmap_config;
+		break;
+	default:
+		dev_err(&pdev->dev, "Device type is not supported by RTC driver\n");
+		return -ENODEV;
+	}
+
+	info->i2c = i2c_new_dummy(s5m87xx->i2c->adapter, RTC_I2C_ADDR);
+	if (!info->i2c) {
+		dev_err(&pdev->dev, "Failed to allocate I2C for RTC\n");
+		return -ENODEV;
+	}
+
+	info->regmap = devm_regmap_init_i2c(info->i2c, regmap_cfg);
+	if (IS_ERR(info->regmap)) {
+		ret = PTR_ERR(info->regmap);
+		dev_err(&pdev->dev, "Failed to allocate RTC register map: %d\n",
+				ret);
+		goto err;
+	}
+
 	info->dev = &pdev->dev;
 	info->s5m87xx = s5m87xx;
-	info->regmap = s5m87xx->regmap_rtc;
 	info->device_type = s5m87xx->device_type;
 	info->wtsr_smpl = s5m87xx->wtsr_smpl;
 
@@ -585,7 +629,7 @@ static int s5m_rtc_probe(struct platform_device *pdev)
 	default:
 		ret = -EINVAL;
 		dev_err(&pdev->dev, "Unsupported device type: %d\n", ret);
-		return ret;
+		goto err;
 	}
 
 	platform_set_drvdata(pdev, info);
@@ -602,15 +646,24 @@ static int s5m_rtc_probe(struct platform_device *pdev)
 	info->rtc_dev = devm_rtc_device_register(&pdev->dev, "s5m-rtc",
 						 &s5m_rtc_ops, THIS_MODULE);
 
-	if (IS_ERR(info->rtc_dev))
-		return PTR_ERR(info->rtc_dev);
+	if (IS_ERR(info->rtc_dev)) {
+		ret = PTR_ERR(info->rtc_dev);
+		goto err;
+	}
 
 	ret = devm_request_threaded_irq(&pdev->dev, info->irq, NULL,
 					s5m_rtc_alarm_irq, 0, "rtc-alarm0",
 					info);
-	if (ret < 0)
+	if (ret < 0) {
 		dev_err(&pdev->dev, "Failed to request alarm IRQ: %d: %d\n",
 			info->irq, ret);
+		goto err;
+	}
+
+	return 0;
+
+err:
+	i2c_unregister_device(info->i2c);
 
 	return ret;
 }
@@ -637,6 +690,17 @@ static void s5m_rtc_shutdown(struct platform_device *pdev)
 	}
 	/* Disable SMPL when power off */
 	s5m_rtc_enable_smpl(info, false);
+}
+
+static int s5m_rtc_remove(struct platform_device *pdev)
+{
+	struct s5m_rtc_info *info = platform_get_drvdata(pdev);
+
+	/* Perform also all shutdown steps when removing */
+	s5m_rtc_shutdown(pdev);
+	i2c_unregister_device(info->i2c);
+
+	return 0;
 }
 
 #ifdef CONFIG_PM_SLEEP
@@ -676,6 +740,7 @@ static struct platform_driver s5m_rtc_driver = {
 		.pm	= &s5m_rtc_pm_ops,
 	},
 	.probe		= s5m_rtc_probe,
+	.remove		= s5m_rtc_remove,
 	.shutdown	= s5m_rtc_shutdown,
 	.id_table	= s5m_rtc_id,
 };
