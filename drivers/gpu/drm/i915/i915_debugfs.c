@@ -1239,8 +1239,12 @@ static int vlv_drpc_info(struct seq_file *m)
 	u32 rpmodectl1, rcctl1;
 	unsigned fw_rendercount = 0, fw_mediacount = 0;
 
+	intel_runtime_pm_get(dev_priv);
+
 	rpmodectl1 = I915_READ(GEN6_RP_CONTROL);
 	rcctl1 = I915_READ(GEN6_RC_CONTROL);
+
+	intel_runtime_pm_put(dev_priv);
 
 	seq_printf(m, "Video Turbo Mode: %s\n",
 		   yesno(rpmodectl1 & GEN6_RP_MEDIA_TURBO));
@@ -3257,9 +3261,15 @@ static int
 i915_wedged_set(void *data, u64 val)
 {
 	struct drm_device *dev = data;
+	struct drm_i915_private *dev_priv = dev->dev_private;
+
+	intel_runtime_pm_get(dev_priv);
 
 	i915_handle_error(dev, val,
 			  "Manually setting wedged to %llu", val);
+
+	intel_runtime_pm_put(dev_priv);
+
 	return 0;
 }
 
