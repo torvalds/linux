@@ -1566,6 +1566,16 @@ xfs_vm_write_failed(
 
 		xfs_vm_kill_delalloc_range(inode, block_offset,
 					   block_offset + bh->b_size);
+
+		/*
+		 * This buffer does not contain data anymore. make sure anyone
+		 * who finds it knows that for certain.
+		 */
+		clear_buffer_delay(bh);
+		clear_buffer_uptodate(bh);
+		clear_buffer_mapped(bh);
+		clear_buffer_new(bh);
+		clear_buffer_dirty(bh);
 	}
 
 }
