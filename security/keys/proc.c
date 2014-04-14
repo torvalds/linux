@@ -218,7 +218,7 @@ static int proc_keys_show(struct seq_file *m, void *v)
 	 * - the caller holds a spinlock, and thus the RCU read lock, making our
 	 *   access to __current_cred() safe
 	 */
-	rc = key_task_permission(key_ref, ctx.cred, KEY_VIEW);
+	rc = key_task_permission(key_ref, ctx.cred, KEY_NEED_VIEW);
 	if (rc < 0)
 		return 0;
 

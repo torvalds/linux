@@ -879,7 +879,7 @@ static void cap_key_free(struct key *key)
 }
 
 static int cap_key_permission(key_ref_t key_ref, const struct cred *cred,
-			      key_perm_t perm)
+			      unsigned perm)
 {
 	return 0;
 }

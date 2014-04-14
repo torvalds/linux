@@ -176,19 +176,10 @@ extern int key_task_permission(const key_ref_t key_ref,
 /*
  * Check to see whether permission is granted to use a key in the desired way.
  */
-static inline int key_permission(const key_ref_t key_ref, key_perm_t perm)
+static inline int key_permission(const key_ref_t key_ref, unsigned perm)
 {
 	return key_task_permission(key_ref, current_cred(), perm);
 }
-
-/* required permissions */
-#define	KEY_VIEW	0x01	/* require permission to view attributes */
-#define	KEY_READ	0x02	/* require permission to read content */
-#define	KEY_WRITE	0x04	/* require permission to update / modify */
-#define	KEY_SEARCH	0x08	/* require permission to search (keyring) or find (key) */
-#define	KEY_LINK	0x10	/* require permission to link */
-#define	KEY_SETATTR	0x20	/* require permission to change attributes */
-#define	KEY_ALL		0x3f	/* all the above permissions */
 
 /*
  * Authorisation record for request_key().
