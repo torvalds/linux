@@ -329,12 +329,11 @@ xfs_dir3_data_read(
 
 int
 xfs_dir3_data_readahead(
-	struct xfs_trans	*tp,
 	struct xfs_inode	*dp,
 	xfs_dablk_t		bno,
 	xfs_daddr_t		mapped_bno)
 {
-	return xfs_da_reada_buf(tp, dp, bno, mapped_bno,
+	return xfs_da_reada_buf(dp, bno, mapped_bno,
 				XFS_DATA_FORK, &xfs_dir3_data_reada_buf_ops);
 }
 
