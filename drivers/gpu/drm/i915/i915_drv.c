@@ -944,7 +944,7 @@ int vlv_force_gfx_clock(struct drm_i915_private *dev_priv, bool force_on)
 #define COND (I915_READ(VLV_GTLC_SURVIVABILITY_REG) & VLV_GFX_CLK_STATUS_BIT)
 	/* Wait for a previous force-off to settle */
 	if (force_on) {
-		err = wait_for(!COND, 5);
+		err = wait_for(!COND, 20);
 		if (err) {
 			DRM_ERROR("timeout waiting for GFX clock force-off (%08x)\n",
 				  I915_READ(VLV_GTLC_SURVIVABILITY_REG));
@@ -961,7 +961,7 @@ int vlv_force_gfx_clock(struct drm_i915_private *dev_priv, bool force_on)
 	if (!force_on)
 		return 0;
 
-	err = wait_for(COND, 5);
+	err = wait_for(COND, 20);
 	if (err)
 		DRM_ERROR("timeout waiting for GFX clock force-on (%08x)\n",
 			  I915_READ(VLV_GTLC_SURVIVABILITY_REG));
