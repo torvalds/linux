@@ -781,11 +781,8 @@ int i915_reset(struct drm_device *dev)
 		 * reset and the re-install of drm irq. Skip for ironlake per
 		 * previous concerns that it doesn't respond well to some forms
 		 * of re-init after reset. */
-		if (INTEL_INFO(dev)->gen > 5) {
-			mutex_lock(&dev->struct_mutex);
+		if (INTEL_INFO(dev)->gen > 5)
 			intel_enable_gt_powersave(dev);
-			mutex_unlock(&dev->struct_mutex);
-		}
 
 		intel_hpd_init(dev);
 	} else {

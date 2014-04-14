@@ -4556,9 +4556,11 @@ void intel_enable_gt_powersave(struct drm_device *dev)
 	struct drm_i915_private *dev_priv = dev->dev_private;
 
 	if (IS_IRONLAKE_M(dev)) {
+		mutex_lock(&dev->struct_mutex);
 		ironlake_enable_drps(dev);
 		ironlake_enable_rc6(dev);
 		intel_init_emon(dev);
+		mutex_unlock(&dev->struct_mutex);
 	} else if (IS_GEN6(dev) || IS_GEN7(dev)) {
 		/*
 		 * PCU communication is slow and this doesn't need to be
