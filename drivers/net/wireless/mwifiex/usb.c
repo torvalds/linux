@@ -543,11 +543,6 @@ static void mwifiex_usb_disconnect(struct usb_interface *intf)
 	if (!adapter->priv_num)
 		return;
 
-	/* In case driver is removed when asynchronous FW downloading is
-	 * in progress
-	 */
-	wait_for_completion(&adapter->fw_load);
-
 	if (user_rmmod) {
 #ifdef CONFIG_PM
 		if (adapter->is_suspended)
