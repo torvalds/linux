@@ -2678,11 +2678,15 @@ endmenu
 config MIPS_EXTERNAL_TIMER
 	bool
 
-if CPU_SUPPORTS_CPUFREQ && MIPS_EXTERNAL_TIMER
 menu "CPU Power Management"
+
+if CPU_SUPPORTS_CPUFREQ && MIPS_EXTERNAL_TIMER
 source "drivers/cpufreq/Kconfig"
-endmenu
 endif
+
+source "drivers/cpuidle/Kconfig"
+
+endmenu
 
 source "net/Kconfig"
 
