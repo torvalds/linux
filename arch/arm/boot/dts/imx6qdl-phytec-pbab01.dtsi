@@ -28,6 +28,26 @@
 	pinctrl-0 = <&pinctrl_i2c2>;
 	clock-frequency = <100000>;
 	status = "okay";
+
+	tlv320@18 {
+		compatible = "ti,tlv320aic3x";
+		reg = <0x18>;
+	};
+
+	stmpe@41 {
+		compatible = "st,stmpe811";
+		reg = <0x41>;
+	};
+
+	rtc@51 {
+		compatible = "nxp,rtc8564";
+		reg = <0x51>;
+	};
+
+	adc@64 {
+		compatible = "maxim,max1037";
+		reg = <0x64>;
+	};
 };
 
 &i2c3 {
