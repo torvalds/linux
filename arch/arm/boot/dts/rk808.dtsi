@@ -93,7 +93,7 @@
 			regulator-compatible = "rk_ldo4";
 			regulator-initial-state = <3>;
 			regulator-state-mem {
-				regulator-state-enabled;
+				regulator-state-disabled;
 				regulator-state-uv = <1800000>;
 			};	
 		};
@@ -113,7 +113,7 @@
 			regulator-compatible = "rk_ldo6";
 			regulator-initial-state = <3>;
 			regulator-state-mem {
-				regulator-state-enabled;
+				regulator-state-disabled;
 				regulator-state-uv = <1000000>;
 			};	
 		};
@@ -134,7 +134,7 @@
 			regulator-initial-state = <3>;
 			regulator-state-mem {
 				regulator-state-enabled;
-				regulator-state-uv = <1800000>;
+				regulator-state-uv = <3300000>;
 			};	
 		};
 		
@@ -152,7 +152,7 @@
 			regulator-compatible = "rk_ldo10";
 			regulator-initial-state = <3>;
 			regulator-state-mem {
-				regulator-state-enabled;
+				regulator-state-disabled;
 			};	
 		};
 
