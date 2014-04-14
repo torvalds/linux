@@ -371,7 +371,7 @@ static int mlx4_dev_cap(struct mlx4_dev *dev, struct mlx4_dev_cap *dev_cap)
 
 	dev->caps.sqp_demux = (mlx4_is_master(dev)) ? MLX4_MAX_NUM_SLAVES : 0;
 
-	if (!enable_64b_cqe_eqe) {
+	if (!enable_64b_cqe_eqe && !mlx4_is_slave(dev)) {
 		if (dev_cap->flags &
 		    (MLX4_DEV_CAP_FLAG_64B_CQE | MLX4_DEV_CAP_FLAG_64B_EQE)) {
 			mlx4_warn(dev, "64B EQEs/CQEs supported by the device but not enabled\n");

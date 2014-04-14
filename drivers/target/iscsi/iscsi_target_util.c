@@ -178,7 +178,6 @@ struct iscsi_cmd *iscsit_allocate_cmd(struct iscsi_conn *conn, gfp_t gfp_mask)
 	INIT_LIST_HEAD(&cmd->i_conn_node);
 	INIT_LIST_HEAD(&cmd->datain_list);
 	INIT_LIST_HEAD(&cmd->cmd_r2t_list);
-	init_completion(&cmd->reject_comp);
 	spin_lock_init(&cmd->datain_lock);
 	spin_lock_init(&cmd->dataout_timeout_lock);
 	spin_lock_init(&cmd->istate_lock);
@@ -284,13 +283,12 @@ static inline int iscsit_check_received_cmdsn(struct iscsi_session *sess, u32 cm
  * Commands may be received out of order if MC/S is in use.
  * Ensure they are executed in CmdSN order.
  */
-int iscsit_sequence_cmd(
-	struct iscsi_conn *conn,
-	struct iscsi_cmd *cmd,
-	__be32 cmdsn)
+int iscsit_sequence_cmd(struct iscsi_conn *conn, struct iscsi_cmd *cmd,
+			unsigned char *buf, __be32 cmdsn)
 {
-	int ret;
-	int cmdsn_ret;
+	int ret, cmdsn_ret;
+	bool reject = false;
+	u8 reason = ISCSI_REASON_BOOKMARK_NO_RESOURCES;
 
 	mutex_lock(&conn->sess->cmdsn_mutex);
 
@@ -300,9 +298,19 @@ int iscsit_sequence_cmd(
 		ret = iscsit_execute_cmd(cmd, 0);
 		if ((ret >= 0) && !list_empty(&conn->sess->sess_ooo_cmdsn_list))
 			iscsit_execute_ooo_cmdsns(conn->sess);
+		else if (ret < 0) {
+			reject = true;
+			ret = CMDSN_ERROR_CANNOT_RECOVER;
+		}
 		break;
 	case CMDSN_HIGHER_THAN_EXP:
 		ret = iscsit_handle_ooo_cmdsn(conn->sess, cmd, be32_to_cpu(cmdsn));
+		if (ret < 0) {
+			reject = true;
+			ret = CMDSN_ERROR_CANNOT_RECOVER;
+			break;
+		}
+		ret = CMDSN_HIGHER_THAN_EXP;
 		break;
 	case CMDSN_LOWER_THAN_EXP:
 		cmd->i_state = ISTATE_REMOVE;
@@ -310,10 +318,15 @@ int iscsit_sequence_cmd(
 		ret = cmdsn_ret;
 		break;
 	default:
+		reason = ISCSI_REASON_PROTOCOL_ERROR;
+		reject = true;
 		ret = cmdsn_ret;
 		break;
 	}
 	mutex_unlock(&conn->sess->cmdsn_mutex);
+
+	if (reject)
+		iscsit_reject_cmd(cmd, reason, buf);
 
 	return ret;
 }
@@ -721,7 +734,7 @@ void iscsit_free_cmd(struct iscsi_cmd *cmd, bool shutdown)
 		 * Fallthrough
 		 */
 	case ISCSI_OP_SCSI_TMFUNC:
-		rc = transport_generic_free_cmd(&cmd->se_cmd, 1);
+		rc = transport_generic_free_cmd(&cmd->se_cmd, shutdown);
 		if (!rc && shutdown && se_cmd && se_cmd->se_sess) {
 			__iscsit_free_cmd(cmd, true, shutdown);
 			target_put_sess_cmd(se_cmd->se_sess, se_cmd);
@@ -737,7 +750,7 @@ void iscsit_free_cmd(struct iscsi_cmd *cmd, bool shutdown)
 			se_cmd = &cmd->se_cmd;
 			__iscsit_free_cmd(cmd, true, shutdown);
 
-			rc = transport_generic_free_cmd(&cmd->se_cmd, 1);
+			rc = transport_generic_free_cmd(&cmd->se_cmd, shutdown);
 			if (!rc && shutdown && se_cmd->se_sess) {
 				__iscsit_free_cmd(cmd, true, shutdown);
 				target_put_sess_cmd(se_cmd->se_sess, se_cmd);

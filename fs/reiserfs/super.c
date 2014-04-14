@@ -499,6 +499,7 @@ int remove_save_link(struct inode *inode, int truncate)
 static void reiserfs_kill_sb(struct super_block *s)
 {
 	if (REISERFS_SB(s)) {
+		reiserfs_proc_info_done(s);
 		/*
 		 * Force any pending inode evictions to occur now. Any
 		 * inodes to be removed that have extended attributes
@@ -553,8 +554,6 @@ static void reiserfs_put_super(struct super_block *s)
 		reiserfs_warning(s, "green-2005", "reserved blocks left %d",
 				 REISERFS_SB(s)->reserved_blocks);
 	}
-
-	reiserfs_proc_info_done(s);
 
 	reiserfs_write_unlock(s);
 	mutex_destroy(&REISERFS_SB(s)->lock);

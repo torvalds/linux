@@ -42,7 +42,8 @@ struct imx_pcm_runtime_data {
 	struct hrtimer hrt;
 	int poll_time_ns;
 	struct snd_pcm_substream *substream;
-	atomic_t running;
+	atomic_t playing;
+	atomic_t capturing;
 };
 
 static enum hrtimer_restart snd_hrtimer_callback(struct hrtimer *hrt)
@@ -54,7 +55,7 @@ static enum hrtimer_restart snd_hrtimer_callback(struct hrtimer *hrt)
 	struct pt_regs regs;
 	unsigned long delta;
 
-	if (!atomic_read(&iprtd->running))
+	if (!atomic_read(&iprtd->playing) && !atomic_read(&iprtd->capturing))
 		return HRTIMER_NORESTART;
 
 	get_fiq_regs(&regs);
@@ -122,7 +123,6 @@ static int snd_imx_pcm_prepare(struct snd_pcm_substream *substream)
 	return 0;
 }
 
-static int fiq_enable;
 static int imx_pcm_fiq;
 
 static int snd_imx_pcm_trigger(struct snd_pcm_substream *substream, int cmd)
@@ -134,23 +134,27 @@ static int snd_imx_pcm_trigger(struct snd_pcm_substream *substream, int cmd)
 	case SNDRV_PCM_TRIGGER_START:
 	case SNDRV_PCM_TRIGGER_RESUME:
 	case SNDRV_PCM_TRIGGER_PAUSE_RELEASE:
-		atomic_set(&iprtd->running, 1);
+		if (substream->stream == SNDRV_PCM_STREAM_PLAYBACK)
+			atomic_set(&iprtd->playing, 1);
+		else
+			atomic_set(&iprtd->capturing, 1);
 		hrtimer_start(&iprtd->hrt, ns_to_ktime(iprtd->poll_time_ns),
 		      HRTIMER_MODE_REL);
-		if (++fiq_enable == 1)
-			enable_fiq(imx_pcm_fiq);
-
+		enable_fiq(imx_pcm_fiq);
 		break;
 
 	case SNDRV_PCM_TRIGGER_STOP:
 	case SNDRV_PCM_TRIGGER_SUSPEND:
 	case SNDRV_PCM_TRIGGER_PAUSE_PUSH:
-		atomic_set(&iprtd->running, 0);
-
-		if (--fiq_enable == 0)
+		if (substream->stream == SNDRV_PCM_STREAM_PLAYBACK)
+			atomic_set(&iprtd->playing, 0);
+		else
+			atomic_set(&iprtd->capturing, 0);
+		if (!atomic_read(&iprtd->playing) &&
+				!atomic_read(&iprtd->capturing))
 			disable_fiq(imx_pcm_fiq);
-
 		break;
+
 	default:
 		return -EINVAL;
 	}
@@ -198,7 +202,8 @@ static int snd_imx_open(struct snd_pcm_substream *substream)
 
 	iprtd->substream = substream;
 
-	atomic_set(&iprtd->running, 0);
+	atomic_set(&iprtd->playing, 0);
+	atomic_set(&iprtd->capturing, 0);
 	hrtimer_init(&iprtd->hrt, CLOCK_MONOTONIC, HRTIMER_MODE_REL);
 	iprtd->hrt.function = snd_hrtimer_callback;
 

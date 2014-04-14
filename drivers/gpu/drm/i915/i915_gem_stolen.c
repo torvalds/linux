@@ -222,7 +222,7 @@ i915_pages_create_for_stolen(struct drm_device *dev,
 	}
 
 	sg = st->sgl;
-	sg->offset = offset;
+	sg->offset = 0;
 	sg->length = size;
 
 	sg_dma_address(sg) = (dma_addr_t)dev_priv->mm.stolen_base + offset;

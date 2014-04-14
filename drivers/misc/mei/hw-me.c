@@ -176,16 +176,14 @@ static void mei_me_hw_reset(struct mei_device *dev, bool intr_enable)
 	struct mei_me_hw *hw = to_me_hw(dev);
 	u32 hcsr = mei_hcsr_read(hw);
 
-	dev_dbg(&dev->pdev->dev, "before reset HCSR = 0x%08x.\n", hcsr);
-
-	hcsr |= (H_RST | H_IG);
+	hcsr |= H_RST | H_IG | H_IS;
 
 	if (intr_enable)
 		hcsr |= H_IE;
 	else
-		hcsr |= ~H_IE;
+		hcsr &= ~H_IE;
 
-	mei_hcsr_set(hw, hcsr);
+	mei_me_reg_write(hw, H_CSR, hcsr);
 
 	if (dev->dev_state == MEI_DEV_POWER_DOWN)
 		mei_me_hw_reset_release(dev);
@@ -238,14 +236,18 @@ static int mei_me_hw_ready_wait(struct mei_device *dev)
 	if (mei_me_hw_is_ready(dev))
 		return 0;
 
+	dev->recvd_hw_ready = false;
 	mutex_unlock(&dev->device_lock);
 	err = wait_event_interruptible_timeout(dev->wait_hw_ready,
-			dev->recvd_hw_ready, MEI_INTEROP_TIMEOUT);
+			dev->recvd_hw_ready,
+			mei_secs_to_jiffies(MEI_INTEROP_TIMEOUT));
 	mutex_lock(&dev->device_lock);
 	if (!err && !dev->recvd_hw_ready) {
+		if (!err)
+			err = -ETIMEDOUT;
 		dev_err(&dev->pdev->dev,
-			"wait hw ready failed. status = 0x%x\n", err);
-		return -ETIMEDOUT;
+			"wait hw ready failed. status = %d\n", err);
+		return err;
 	}
 
 	dev->recvd_hw_ready = false;
@@ -482,7 +484,9 @@ irqreturn_t mei_me_irq_thread_handler(int irq, void *dev_id)
 	/* check if ME wants a reset */
 	if (!mei_hw_is_ready(dev) &&
 	    dev->dev_state != MEI_DEV_RESETTING &&
-	    dev->dev_state != MEI_DEV_INITIALIZING) {
+	    dev->dev_state != MEI_DEV_INITIALIZING &&
+	    dev->dev_state != MEI_DEV_POWER_DOWN &&
+	    dev->dev_state != MEI_DEV_POWER_UP) {
 		dev_dbg(&dev->pdev->dev, "FW not ready.\n");
 		mei_reset(dev, 1);
 		mutex_unlock(&dev->device_lock);

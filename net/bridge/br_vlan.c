@@ -108,7 +108,7 @@ static int __vlan_del(struct net_port_vlans *v, u16 vid)
 
 	clear_bit(vid, v->vlan_bitmap);
 	v->num_vlans--;
-	if (bitmap_empty(v->vlan_bitmap, BR_VLAN_BITMAP_LEN)) {
+	if (bitmap_empty(v->vlan_bitmap, VLAN_N_VID)) {
 		if (v->port_idx)
 			rcu_assign_pointer(v->parent.port->vlan_info, NULL);
 		else
@@ -122,7 +122,7 @@ static void __vlan_flush(struct net_port_vlans *v)
 {
 	smp_wmb();
 	v->pvid = 0;
-	bitmap_zero(v->vlan_bitmap, BR_VLAN_BITMAP_LEN);
+	bitmap_zero(v->vlan_bitmap, VLAN_N_VID);
 	if (v->port_idx)
 		rcu_assign_pointer(v->parent.port->vlan_info, NULL);
 	else

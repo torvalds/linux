@@ -1160,20 +1160,13 @@ _nfs4_opendata_reclaim_to_nfs4_state(struct nfs4_opendata *data)
 	int ret;
 
 	if (!data->rpc_done) {
-		ret = data->rpc_status;
-		goto err;
+		if (data->rpc_status) {
+			ret = data->rpc_status;
+			goto err;
+		}
+		/* cached opens have already been processed */
+		goto update;
 	}
-
-	ret = -ESTALE;
-	if (!(data->f_attr.valid & NFS_ATTR_FATTR_TYPE) ||
-	    !(data->f_attr.valid & NFS_ATTR_FATTR_FILEID) ||
-	    !(data->f_attr.valid & NFS_ATTR_FATTR_CHANGE))
-		goto err;
-
-	ret = -ENOMEM;
-	state = nfs4_get_open_state(inode, data->owner);
-	if (state == NULL)
-		goto err;
 
 	ret = nfs_refresh_inode(inode, &data->f_attr);
 	if (ret)
@@ -1181,8 +1174,10 @@ _nfs4_opendata_reclaim_to_nfs4_state(struct nfs4_opendata *data)
 
 	if (data->o_res.delegation_type != 0)
 		nfs4_opendata_check_deleg(data, state);
+update:
 	update_open_stateid(state, &data->o_res.stateid, NULL,
 			    data->o_arg.fmode);
+	atomic_inc(&state->count);
 
 	return state;
 err:
@@ -4227,8 +4222,7 @@ nfs4_async_handle_error(struct rpc_task *task, const struct nfs_server *server, 
 			dprintk("%s ERROR %d, Reset session\n", __func__,
 				task->tk_status);
 			nfs4_schedule_session_recovery(clp->cl_session, task->tk_status);
-			task->tk_status = 0;
-			return -EAGAIN;
+			goto wait_on_recovery;
 #endif /* CONFIG_NFS_V4_1 */
 		case -NFS4ERR_DELAY:
 			nfs_inc_server_stats(server, NFSIOS_DELAY);
@@ -4406,10 +4400,16 @@ static void nfs4_delegreturn_done(struct rpc_task *task, void *calldata)
 		return;
 
 	switch (task->tk_status) {
-	case -NFS4ERR_STALE_STATEID:
-	case -NFS4ERR_EXPIRED:
 	case 0:
 		renew_lease(data->res.server, data->timestamp);
+		break;
+	case -NFS4ERR_ADMIN_REVOKED:
+	case -NFS4ERR_DELEG_REVOKED:
+	case -NFS4ERR_BAD_STATEID:
+	case -NFS4ERR_OLD_STATEID:
+	case -NFS4ERR_STALE_STATEID:
+	case -NFS4ERR_EXPIRED:
+		task->tk_status = 0;
 		break;
 	default:
 		if (nfs4_async_handle_error(task, data->res.server, NULL) ==
@@ -4572,6 +4572,7 @@ static int _nfs4_proc_getlk(struct nfs4_state *state, int cmd, struct file_lock 
 			status = 0;
 	}
 	request->fl_ops->fl_release_private(request);
+	request->fl_ops = NULL;
 out:
 	return status;
 }
@@ -6231,9 +6232,9 @@ static void nfs4_layoutget_done(struct rpc_task *task, void *calldata)
 	struct nfs_server *server = NFS_SERVER(inode);
 	struct pnfs_layout_hdr *lo;
 	struct nfs4_state *state = NULL;
-	unsigned long timeo, giveup;
+	unsigned long timeo, now, giveup;
 
-	dprintk("--> %s\n", __func__);
+	dprintk("--> %s tk_status => %d\n", __func__, -task->tk_status);
 
 	if (!nfs41_sequence_done(task, &lgp->res.seq_res))
 		goto out;
@@ -6241,12 +6242,38 @@ static void nfs4_layoutget_done(struct rpc_task *task, void *calldata)
 	switch (task->tk_status) {
 	case 0:
 		goto out;
+	/*
+	 * NFS4ERR_LAYOUTTRYLATER is a conflict with another client
+	 * (or clients) writing to the same RAID stripe
+	 */
 	case -NFS4ERR_LAYOUTTRYLATER:
+	/*
+	 * NFS4ERR_RECALLCONFLICT is when conflict with self (must recall
+	 * existing layout before getting a new one).
+	 */
 	case -NFS4ERR_RECALLCONFLICT:
 		timeo = rpc_get_timeout(task->tk_client);
 		giveup = lgp->args.timestamp + timeo;
-		if (time_after(giveup, jiffies))
-			task->tk_status = -NFS4ERR_DELAY;
+		now = jiffies;
+		if (time_after(giveup, now)) {
+			unsigned long delay;
+
+			/* Delay for:
+			 * - Not less then NFS4_POLL_RETRY_MIN.
+			 * - One last time a jiffie before we give up
+			 * - exponential backoff (time_now minus start_attempt)
+			 */
+			delay = max_t(unsigned long, NFS4_POLL_RETRY_MIN,
+				    min((giveup - now - 1),
+					now - lgp->args.timestamp));
+
+			dprintk("%s: NFS4ERR_RECALLCONFLICT waiting %lu\n",
+				__func__, delay);
+			rpc_delay(task, delay);
+			task->tk_status = 0;
+			rpc_restart_call_prepare(task);
+			goto out; /* Do not call nfs4_async_handle_error() */
+		}
 		break;
 	case -NFS4ERR_EXPIRED:
 	case -NFS4ERR_BAD_STATEID:
@@ -6682,7 +6709,7 @@ nfs41_proc_secinfo_no_name(struct nfs_server *server, struct nfs_fh *fhandle,
 		switch (err) {
 		case 0:
 		case -NFS4ERR_WRONGSEC:
-		case -NFS4ERR_NOTSUPP:
+		case -ENOTSUPP:
 			goto out;
 		default:
 			err = nfs4_handle_exception(server, err, &exception);
@@ -6714,7 +6741,7 @@ nfs41_find_root_sec(struct nfs_server *server, struct nfs_fh *fhandle,
 	 * Fall back on "guess and check" method if
 	 * the server doesn't support SECINFO_NO_NAME
 	 */
-	if (err == -NFS4ERR_WRONGSEC || err == -NFS4ERR_NOTSUPP) {
+	if (err == -NFS4ERR_WRONGSEC || err == -ENOTSUPP) {
 		err = nfs4_find_root_sec(server, fhandle, info);
 		goto out_freepage;
 	}

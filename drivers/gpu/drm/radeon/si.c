@@ -1467,7 +1467,8 @@ static u32 dce6_line_buffer_adjust(struct radeon_device *rdev,
 				   struct drm_display_mode *mode,
 				   struct drm_display_mode *other_mode)
 {
-	u32 tmp;
+	u32 tmp, buffer_alloc, i;
+	u32 pipe_offset = radeon_crtc->crtc_id * 0x20;
 	/*
 	 * Line Buffer Setup
 	 * There are 3 line buffers, each one shared by 2 display controllers.
@@ -1482,15 +1483,29 @@ static u32 dce6_line_buffer_adjust(struct radeon_device *rdev,
 	 * non-linked crtcs for maximum line buffer allocation.
 	 */
 	if (radeon_crtc->base.enabled && mode) {
-		if (other_mode)
+		if (other_mode) {
 			tmp = 0; /* 1/2 */
-		else
+			buffer_alloc = 1;
+		} else {
 			tmp = 2; /* whole */
-	} else
+			buffer_alloc = 2;
+		}
+	} else {
 		tmp = 0;
+		buffer_alloc = 0;
+	}
 
 	WREG32(DC_LB_MEMORY_SPLIT + radeon_crtc->crtc_offset,
 	       DC_LB_MEMORY_CONFIG(tmp));
+
+	WREG32(PIPE0_DMIF_BUFFER_CONTROL + pipe_offset,
+	       DMIF_BUFFERS_ALLOCATED(buffer_alloc));
+	for (i = 0; i < rdev->usec_timeout; i++) {
+		if (RREG32(PIPE0_DMIF_BUFFER_CONTROL + pipe_offset) &
+		    DMIF_BUFFERS_ALLOCATED_COMPLETED)
+			break;
+		udelay(1);
+	}
 
 	if (radeon_crtc->base.enabled && mode) {
 		switch (tmp) {
@@ -3600,8 +3615,15 @@ static int si_mc_init(struct radeon_device *rdev)
 	rdev->mc.aper_base = pci_resource_start(rdev->pdev, 0);
 	rdev->mc.aper_size = pci_resource_len(rdev->pdev, 0);
 	/* size in MB on si */
-	rdev->mc.mc_vram_size = RREG32(CONFIG_MEMSIZE) * 1024ULL * 1024ULL;
-	rdev->mc.real_vram_size = RREG32(CONFIG_MEMSIZE) * 1024ULL * 1024ULL;
+	tmp = RREG32(CONFIG_MEMSIZE);
+	/* some boards may have garbage in the upper 16 bits */
+	if (tmp & 0xffff0000) {
+		DRM_INFO("Probable bad vram size: 0x%08x\n", tmp);
+		if (tmp & 0xffff)
+			tmp &= 0xffff;
+	}
+	rdev->mc.mc_vram_size = tmp * 1024ULL * 1024ULL;
+	rdev->mc.real_vram_size = rdev->mc.mc_vram_size;
 	rdev->mc.visible_vram_size = rdev->mc.aper_size;
 	si_vram_gtt_location(rdev, &rdev->mc);
 	radeon_update_bandwidth_info(rdev);
@@ -3796,13 +3818,64 @@ static int si_vm_packet3_ce_check(struct radeon_device *rdev,
 	return 0;
 }
 
+static int si_vm_packet3_cp_dma_check(u32 *ib, u32 idx)
+{
+	u32 start_reg, reg, i;
+	u32 command = ib[idx + 4];
+	u32 info = ib[idx + 1];
+	u32 idx_value = ib[idx];
+	if (command & PACKET3_CP_DMA_CMD_SAS) {
+		/* src address space is register */
+		if (((info & 0x60000000) >> 29) == 0) {
+			start_reg = idx_value << 2;
+			if (command & PACKET3_CP_DMA_CMD_SAIC) {
+				reg = start_reg;
+				if (!si_vm_reg_valid(reg)) {
+					DRM_ERROR("CP DMA Bad SRC register\n");
+					return -EINVAL;
+				}
+			} else {
+				for (i = 0; i < (command & 0x1fffff); i++) {
+					reg = start_reg + (4 * i);
+					if (!si_vm_reg_valid(reg)) {
+						DRM_ERROR("CP DMA Bad SRC register\n");
+						return -EINVAL;
+					}
+				}
+			}
+		}
+	}
+	if (command & PACKET3_CP_DMA_CMD_DAS) {
+		/* dst address space is register */
+		if (((info & 0x00300000) >> 20) == 0) {
+			start_reg = ib[idx + 2];
+			if (command & PACKET3_CP_DMA_CMD_DAIC) {
+				reg = start_reg;
+				if (!si_vm_reg_valid(reg)) {
+					DRM_ERROR("CP DMA Bad DST register\n");
+					return -EINVAL;
+				}
+			} else {
+				for (i = 0; i < (command & 0x1fffff); i++) {
+					reg = start_reg + (4 * i);
+				if (!si_vm_reg_valid(reg)) {
+						DRM_ERROR("CP DMA Bad DST register\n");
+						return -EINVAL;
+					}
+				}
+			}
+		}
+	}
+	return 0;
+}
+
 static int si_vm_packet3_gfx_check(struct radeon_device *rdev,
 				   u32 *ib, struct radeon_cs_packet *pkt)
 {
+	int r;
 	u32 idx = pkt->idx + 1;
 	u32 idx_value = ib[idx];
 	u32 start_reg, end_reg, reg, i;
-	u32 command, info;
 
 	switch (pkt->opcode) {
 	case PACKET3_NOP:
@@ -3903,50 +3976,9 @@ static int si_vm_packet3_gfx_check(struct radeon_device *rdev,
 		}
 		break;
 	case PACKET3_CP_DMA:
-		command = ib[idx + 4];
-		info = ib[idx + 1];
-		if (command & PACKET3_CP_DMA_CMD_SAS) {
-			/* src address space is register */
-			if (((info & 0x60000000) >> 29) == 0) {
-				start_reg = idx_value << 2;
-				if (command & PACKET3_CP_DMA_CMD_SAIC) {
-					reg = start_reg;
-					if (!si_vm_reg_valid(reg)) {
-						DRM_ERROR("CP DMA Bad SRC register\n");
-						return -EINVAL;
-					}
-				} else {
-					for (i = 0; i < (command & 0x1fffff); i++) {
-						reg = start_reg + (4 * i);
-						if (!si_vm_reg_valid(reg)) {
-							DRM_ERROR("CP DMA Bad SRC register\n");
-							return -EINVAL;
-						}
-					}
-				}
-			}
-		}
-		if (command & PACKET3_CP_DMA_CMD_DAS) {
-			/* dst address space is register */
-			if (((info & 0x00300000) >> 20) == 0) {
-				start_reg = ib[idx + 2];
-				if (command & PACKET3_CP_DMA_CMD_DAIC) {
-					reg = start_reg;
-					if (!si_vm_reg_valid(reg)) {
-						DRM_ERROR("CP DMA Bad DST register\n");
-						return -EINVAL;
-					}
-				} else {
-					for (i = 0; i < (command & 0x1fffff); i++) {
-						reg = start_reg + (4 * i);
-						if (!si_vm_reg_valid(reg)) {
-							DRM_ERROR("CP DMA Bad DST register\n");
-							return -EINVAL;
-						}
-					}
-				}
-			}
-		}
+		r = si_vm_packet3_cp_dma_check(ib, idx);
+		if (r)
+			return r;
 		break;
 	default:
 		DRM_ERROR("Invalid GFX packet3: 0x%x\n", pkt->opcode);
@@ -3958,6 +3990,7 @@ static int si_vm_packet3_gfx_check(struct radeon_device *rdev,
 static int si_vm_packet3_compute_check(struct radeon_device *rdev,
 				       u32 *ib, struct radeon_cs_packet *pkt)
 {
+	int r;
 	u32 idx = pkt->idx + 1;
 	u32 idx_value = ib[idx];
 	u32 start_reg, reg, i;
@@ -4029,6 +4062,11 @@ static int si_vm_packet3_compute_check(struct radeon_device *rdev,
 			if (!si_vm_reg_valid(reg))
 				return -EINVAL;
 		}
+		break;
+	case PACKET3_CP_DMA:
+		r = si_vm_packet3_cp_dma_check(ib, idx);
+		if (r)
+			return r;
 		break;
 	default:
 		DRM_ERROR("Invalid Compute packet3: 0x%x\n", pkt->opcode);
@@ -4481,7 +4519,7 @@ static void si_disable_interrupt_state(struct radeon_device *rdev)
 	}
 
 	if (!ASIC_IS_NODCE(rdev)) {
-		WREG32(DACA_AUTODETECT_INT_CONTROL, 0);
+		WREG32(DAC_AUTODETECT_INT_CONTROL, 0);
 
 		tmp = RREG32(DC_HPD1_INT_CONTROL) & DC_HPDx_INT_POLARITY;
 		WREG32(DC_HPD1_INT_CONTROL, tmp);
@@ -5121,6 +5159,10 @@ restart_ih:
 				break;
 			}
 			break;
+		case 124: /* UVD */
+			DRM_DEBUG("IH: UVD int: 0x%08x\n", src_data);
+			radeon_fence_process(rdev, R600_RING_TYPE_UVD_INDEX);
+			break;
 		case 146:
 		case 147:
 			dev_err(rdev->dev, "GPU fault detected: %d 0x%08x\n", src_id, src_data);
@@ -5270,6 +5312,8 @@ static int si_startup(struct radeon_device *rdev)
 	struct radeon_ring *ring;
 	int r;
 
+	si_mc_program(rdev);
+
 	if (!rdev->me_fw || !rdev->pfp_fw || !rdev->ce_fw ||
 	    !rdev->rlc_fw || !rdev->mc_fw) {
 		r = si_init_microcode(rdev);
@@ -5289,7 +5333,6 @@ static int si_startup(struct radeon_device *rdev)
 	if (r)
 		return r;
 
-	si_mc_program(rdev);
 	r = si_pcie_gart_enable(rdev);
 	if (r)
 		return r;
@@ -5473,7 +5516,7 @@ int si_suspend(struct radeon_device *rdev)
 	si_cp_enable(rdev, false);
 	cayman_dma_stop(rdev);
 	if (rdev->has_uvd) {
-		r600_uvd_rbc_stop(rdev);
+		r600_uvd_stop(rdev);
 		radeon_uvd_suspend(rdev);
 	}
 	si_irq_suspend(rdev);
@@ -5613,8 +5656,10 @@ void si_fini(struct radeon_device *rdev)
 	radeon_vm_manager_fini(rdev);
 	radeon_ib_pool_fini(rdev);
 	radeon_irq_kms_fini(rdev);
-	if (rdev->has_uvd)
+	if (rdev->has_uvd) {
+		r600_uvd_stop(rdev);
 		radeon_uvd_fini(rdev);
+	}
 	si_pcie_gart_fini(rdev);
 	r600_vram_scratch_fini(rdev);
 	radeon_gem_fini(rdev);

@@ -810,6 +810,10 @@
 #       define LATENCY_LOW_WATERMARK(x)                   ((x) << 0)
 #       define LATENCY_HIGH_WATERMARK(x)                  ((x) << 16)
 
+#define	PIPE0_DMIF_BUFFER_CONTROL			  0x0ca0
+#       define DMIF_BUFFERS_ALLOCATED(x)                  ((x) << 0)
+#       define DMIF_BUFFERS_ALLOCATED_COMPLETED           (1 << 4)
+
 #define IH_RB_CNTL                                        0x3e00
 #       define IH_RB_ENABLE                               (1 << 0)
 #       define IH_IB_SIZE(x)                              ((x) << 1) /* log2 */
@@ -1100,7 +1104,7 @@
  * 6. COMMAND [29:22] | BYTE_COUNT [20:0]
  */
 #              define PACKET3_CP_DMA_DST_SEL(x)    ((x) << 20)
-                /* 0 - SRC_ADDR
+                /* 0 - DST_ADDR
 		 * 1 - GDS
 		 */
 #              define PACKET3_CP_DMA_ENGINE(x)     ((x) << 27)
@@ -1115,7 +1119,7 @@
 #              define PACKET3_CP_DMA_CP_SYNC       (1 << 31)
 /* COMMAND */
 #              define PACKET3_CP_DMA_DIS_WC        (1 << 21)
-#              define PACKET3_CP_DMA_CMD_SRC_SWAP(x) ((x) << 23)
+#              define PACKET3_CP_DMA_CMD_SRC_SWAP(x) ((x) << 22)
                 /* 0 - none
 		 * 1 - 8 in 16
 		 * 2 - 8 in 32

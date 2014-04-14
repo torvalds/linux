@@ -44,6 +44,7 @@
 #define MAX_TREE_SIZE (2 + MAX_SERVER_SIZE + 1 + MAX_SHARE_SIZE + 1)
 #define MAX_SERVER_SIZE 15
 #define MAX_SHARE_SIZE 80
+#define CIFS_MAX_DOMAINNAME_LEN 256 /* max domain name length */
 #define MAX_USERNAME_SIZE 256	/* reasonable maximum for current servers */
 #define MAX_PASSWORD_SIZE 512	/* max for windows seems to be 256 wide chars */
 
@@ -369,6 +370,16 @@ struct smb_version_operations {
 	void (*new_lease_key)(struct cifs_fid *fid);
 	int (*calc_signature)(struct smb_rqst *rqst,
 				   struct TCP_Server_Info *server);
+	ssize_t (*query_all_EAs)(const unsigned int, struct cifs_tcon *,
+			const unsigned char *, const unsigned char *, char *,
+			size_t, const struct nls_table *, int);
+	int (*set_EA)(const unsigned int, struct cifs_tcon *, const char *,
+			const char *, const void *, const __u16,
+			const struct nls_table *, int);
+	struct cifs_ntsd * (*get_acl)(struct cifs_sb_info *, struct inode *,
+			const char *, u32 *);
+	int (*set_acl)(struct cifs_ntsd *, __u32, struct inode *, const char *,
+			int);
 };
 
 struct smb_version_values {

@@ -850,7 +850,8 @@ void disassociate_ctty(int on_exit)
 			struct pid *tty_pgrp = tty_get_pgrp(tty);
 			if (tty_pgrp) {
 				kill_pgrp(tty_pgrp, SIGHUP, on_exit);
-				kill_pgrp(tty_pgrp, SIGCONT, on_exit);
+				if (!on_exit)
+					kill_pgrp(tty_pgrp, SIGCONT, on_exit);
 				put_pid(tty_pgrp);
 			}
 		}
@@ -1618,6 +1619,8 @@ static void release_tty(struct tty_struct *tty, int idx)
 	tty_free_termios(tty);
 	tty_driver_remove_tty(tty->driver, tty);
 	tty->port->itty = NULL;
+	if (tty->link)
+		tty->link->port->itty = NULL;
 	cancel_work_sync(&tty->port->buf.work);
 
 	if (tty->link)

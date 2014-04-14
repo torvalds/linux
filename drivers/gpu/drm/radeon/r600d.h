@@ -1259,7 +1259,7 @@
  */
 #              define PACKET3_CP_DMA_CP_SYNC       (1 << 31)
 /* COMMAND */
-#              define PACKET3_CP_DMA_CMD_SRC_SWAP(x) ((x) << 23)
+#              define PACKET3_CP_DMA_CMD_SRC_SWAP(x) ((x) << 22)
                 /* 0 - none
 		 * 1 - 8 in 16
 		 * 2 - 8 in 32
@@ -1283,6 +1283,7 @@
 #              define PACKET3_CP_DMA_CMD_DAIC      (1 << 29)
 #define	PACKET3_SURFACE_SYNC				0x43
 #              define PACKET3_CB0_DEST_BASE_ENA    (1 << 6)
+#              define PACKET3_FULL_CACHE_ENA       (1 << 20) /* r7xx+ only */
 #              define PACKET3_TC_ACTION_ENA        (1 << 23)
 #              define PACKET3_VC_ACTION_ENA        (1 << 24)
 #              define PACKET3_CB_ACTION_ENA        (1 << 25)

@@ -207,6 +207,12 @@ config ARCH_HIBERNATION_POSSIBLE
 config ARCH_SUSPEND_POSSIBLE
 	def_bool y
 
+config ARCH_WANT_HUGE_PMD_SHARE
+	def_bool y
+
+config ARCH_WANT_GENERAL_HUGETLB
+	def_bool y
+
 config ZONE_DMA32
 	bool
 	default X86_64

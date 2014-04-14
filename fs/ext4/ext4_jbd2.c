@@ -219,10 +219,19 @@ int __ext4_handle_dirty_metadata(const char *where, unsigned int line,
 	set_buffer_prio(bh);
 	if (ext4_handle_valid(handle)) {
 		err = jbd2_journal_dirty_metadata(handle, bh);
-		if (err) {
-			/* Errors can only happen if there is a bug */
-			handle->h_err = err;
-			__ext4_journal_stop(where, line, handle);
+		/* Errors can only happen if there is a bug */
+		if (WARN_ON_ONCE(err)) {
+			ext4_journal_abort_handle(where, line, __func__, bh,
+						  handle, err);
+			ext4_error_inode(inode, where, line,
+					 bh->b_blocknr,
+					 "journal_dirty_metadata failed: "
+					 "handle type %u started at line %u, "
+					 "credits %u/%u, errcode %d",
+					 handle->h_type,
+					 handle->h_line_no,
+					 handle->h_requested_credits,
+					 handle->h_buffer_credits, err);
 		}
 	} else {
 		if (inode)

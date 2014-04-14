@@ -107,6 +107,7 @@ struct netfront_info {
 	} tx_skbs[NET_TX_RING_SIZE];
 	grant_ref_t gref_tx_head;
 	grant_ref_t grant_tx_ref[NET_TX_RING_SIZE];
+	struct page *grant_tx_page[NET_TX_RING_SIZE];
 	unsigned tx_skb_freelist;
 
 	spinlock_t   rx_lock ____cacheline_aligned_in_smp;
@@ -276,8 +277,7 @@ no_skb:
 			break;
 		}
 
-		__skb_fill_page_desc(skb, 0, page, 0, 0);
-		skb_shinfo(skb)->nr_frags = 1;
+		skb_add_rx_frag(skb, 0, page, 0, 0, PAGE_SIZE);
 		__skb_queue_tail(&np->rx_batch, skb);
 	}
 
@@ -387,6 +387,7 @@ static void xennet_tx_buf_gc(struct net_device *dev)
 			gnttab_release_grant_reference(
 				&np->gref_tx_head, np->grant_tx_ref[id]);
 			np->grant_tx_ref[id] = GRANT_INVALID_REF;
+			np->grant_tx_page[id] = NULL;
 			add_id_to_freelist(&np->tx_skb_freelist, np->tx_skbs, id);
 			dev_kfree_skb_irq(skb);
 		}
@@ -443,6 +444,7 @@ static void xennet_make_frags(struct sk_buff *skb, struct net_device *dev,
 		gnttab_grant_foreign_access_ref(ref, np->xbdev->otherend_id,
 						mfn, GNTMAP_readonly);
 
+		np->grant_tx_page[id] = virt_to_page(data);
 		tx->gref = np->grant_tx_ref[id] = ref;
 		tx->offset = offset;
 		tx->size = len;
@@ -488,6 +490,7 @@ static void xennet_make_frags(struct sk_buff *skb, struct net_device *dev,
 							np->xbdev->otherend_id,
 							mfn, GNTMAP_readonly);
 
+			np->grant_tx_page[id] = page;
 			tx->gref = np->grant_tx_ref[id] = ref;
 			tx->offset = offset;
 			tx->size = bytes;
@@ -587,6 +590,7 @@ static int xennet_start_xmit(struct sk_buff *skb, struct net_device *dev)
 	mfn = virt_to_mfn(data);
 	gnttab_grant_foreign_access_ref(
 		ref, np->xbdev->otherend_id, mfn, GNTMAP_readonly);
+	np->grant_tx_page[id] = virt_to_page(data);
 	tx->gref = np->grant_tx_ref[id] = ref;
 	tx->offset = offset;
 	tx->size = len;
@@ -822,7 +826,6 @@ static RING_IDX xennet_fill_frags(struct netfront_info *np,
 				  struct sk_buff_head *list)
 {
 	struct skb_shared_info *shinfo = skb_shinfo(skb);
-	int nr_frags = shinfo->nr_frags;
 	RING_IDX cons = np->rx.rsp_cons;
 	struct sk_buff *nskb;
 
@@ -831,19 +834,21 @@ static RING_IDX xennet_fill_frags(struct netfront_info *np,
 			RING_GET_RESPONSE(&np->rx, ++cons);
 		skb_frag_t *nfrag = &skb_shinfo(nskb)->frags[0];
 
-		__skb_fill_page_desc(skb, nr_frags,
-				     skb_frag_page(nfrag),
-				     rx->offset, rx->status);
+		if (shinfo->nr_frags == MAX_SKB_FRAGS) {
+			unsigned int pull_to = NETFRONT_SKB_CB(skb)->pull_to;
 
-		skb->data_len += rx->status;
+			BUG_ON(pull_to <= skb_headlen(skb));
+			__pskb_pull_tail(skb, pull_to - skb_headlen(skb));
+		}
+		BUG_ON(shinfo->nr_frags >= MAX_SKB_FRAGS);
+
+		skb_add_rx_frag(skb, shinfo->nr_frags, skb_frag_page(nfrag),
+				rx->offset, rx->status, PAGE_SIZE);
 
 		skb_shinfo(nskb)->nr_frags = 0;
 		kfree_skb(nskb);
-
-		nr_frags++;
 	}
 
-	shinfo->nr_frags = nr_frags;
 	return cons;
 }
 
@@ -929,7 +934,8 @@ static int handle_incoming_queue(struct net_device *dev,
 	while ((skb = __skb_dequeue(rxq)) != NULL) {
 		int pull_to = NETFRONT_SKB_CB(skb)->pull_to;
 
-		__pskb_pull_tail(skb, pull_to - skb_headlen(skb));
+		if (pull_to > skb_headlen(skb))
+			__pskb_pull_tail(skb, pull_to - skb_headlen(skb));
 
 		/* Ethernet work: Delayed to here as it peeks the header. */
 		skb->protocol = eth_type_trans(skb, dev);
@@ -1015,15 +1021,9 @@ err:
 		skb_shinfo(skb)->frags[0].page_offset = rx->offset;
 		skb_frag_size_set(&skb_shinfo(skb)->frags[0], rx->status);
 		skb->data_len = rx->status;
+		skb->len += rx->status;
 
 		i = xennet_fill_frags(np, skb, &tmpq);
-
-		/*
-                 * Truesize is the actual allocation size, even if the
-                 * allocation is only partially used.
-                 */
-		skb->truesize += PAGE_SIZE * skb_shinfo(skb)->nr_frags;
-		skb->len += skb->data_len;
 
 		if (rx->flags & XEN_NETRXF_csum_blank)
 			skb->ip_summed = CHECKSUM_PARTIAL;
@@ -1120,10 +1120,11 @@ static void xennet_release_tx_bufs(struct netfront_info *np)
 			continue;
 
 		skb = np->tx_skbs[i].skb;
-		gnttab_end_foreign_access_ref(np->grant_tx_ref[i],
-					      GNTMAP_readonly);
-		gnttab_release_grant_reference(&np->gref_tx_head,
-					       np->grant_tx_ref[i]);
+		get_page(np->grant_tx_page[i]);
+		gnttab_end_foreign_access(np->grant_tx_ref[i],
+					  GNTMAP_readonly,
+					  (unsigned long)page_address(np->grant_tx_page[i]));
+		np->grant_tx_page[i] = NULL;
 		np->grant_tx_ref[i] = GRANT_INVALID_REF;
 		add_id_to_freelist(&np->tx_skb_freelist, np->tx_skbs, i);
 		dev_kfree_skb_irq(skb);
@@ -1132,77 +1133,34 @@ static void xennet_release_tx_bufs(struct netfront_info *np)
 
 static void xennet_release_rx_bufs(struct netfront_info *np)
 {
-	struct mmu_update      *mmu = np->rx_mmu;
-	struct multicall_entry *mcl = np->rx_mcl;
-	struct sk_buff_head free_list;
-	struct sk_buff *skb;
-	unsigned long mfn;
-	int xfer = 0, noxfer = 0, unused = 0;
 	int id, ref;
-
-	dev_warn(&np->netdev->dev, "%s: fix me for copying receiver.\n",
-			 __func__);
-	return;
-
-	skb_queue_head_init(&free_list);
 
 	spin_lock_bh(&np->rx_lock);
 
 	for (id = 0; id < NET_RX_RING_SIZE; id++) {
-		ref = np->grant_rx_ref[id];
-		if (ref == GRANT_INVALID_REF) {
-			unused++;
-			continue;
-		}
+		struct sk_buff *skb;
+		struct page *page;
 
 		skb = np->rx_skbs[id];
-		mfn = gnttab_end_foreign_transfer_ref(ref);
-		gnttab_release_grant_reference(&np->gref_rx_head, ref);
+		if (!skb)
+			continue;
+
+		ref = np->grant_rx_ref[id];
+		if (ref == GRANT_INVALID_REF)
+			continue;
+
+		page = skb_frag_page(&skb_shinfo(skb)->frags[0]);
+
+		/* gnttab_end_foreign_access() needs a page ref until
+		 * foreign access is ended (which may be deferred).
+		 */
+		get_page(page);
+		gnttab_end_foreign_access(ref, 0,
+					  (unsigned long)page_address(page));
 		np->grant_rx_ref[id] = GRANT_INVALID_REF;
 
-		if (0 == mfn) {
-			skb_shinfo(skb)->nr_frags = 0;
-			dev_kfree_skb(skb);
-			noxfer++;
-			continue;
-		}
-
-		if (!xen_feature(XENFEAT_auto_translated_physmap)) {
-			/* Remap the page. */
-			const struct page *page =
-				skb_frag_page(&skb_shinfo(skb)->frags[0]);
-			unsigned long pfn = page_to_pfn(page);
-			void *vaddr = page_address(page);
-
-			MULTI_update_va_mapping(mcl, (unsigned long)vaddr,
-						mfn_pte(mfn, PAGE_KERNEL),
-						0);
-			mcl++;
-			mmu->ptr = ((u64)mfn << PAGE_SHIFT)
-				| MMU_MACHPHYS_UPDATE;
-			mmu->val = pfn;
-			mmu++;
-
-			set_phys_to_machine(pfn, mfn);
-		}
-		__skb_queue_tail(&free_list, skb);
-		xfer++;
+		kfree_skb(skb);
 	}
-
-	dev_info(&np->netdev->dev, "%s: %d xfer, %d noxfer, %d unused\n",
-		 __func__, xfer, noxfer, unused);
-
-	if (xfer) {
-		if (!xen_feature(XENFEAT_auto_translated_physmap)) {
-			/* Do all the remapping work and M2P updates. */
-			MULTI_mmu_update(mcl, np->rx_mmu, mmu - np->rx_mmu,
-					 NULL, DOMID_SELF);
-			mcl++;
-			HYPERVISOR_multicall(np->rx_mcl, mcl - np->rx_mcl);
-		}
-	}
-
-	__skb_queue_purge(&free_list);
 
 	spin_unlock_bh(&np->rx_lock);
 }
@@ -1338,6 +1296,7 @@ static struct net_device *xennet_create_dev(struct xenbus_device *dev)
 	for (i = 0; i < NET_RX_RING_SIZE; i++) {
 		np->rx_skbs[i] = NULL;
 		np->grant_rx_ref[i] = GRANT_INVALID_REF;
+		np->grant_tx_page[i] = NULL;
 	}
 
 	/* A grant for every tx ring slot */

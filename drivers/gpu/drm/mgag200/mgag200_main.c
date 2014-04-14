@@ -176,7 +176,7 @@ static int mgag200_device_init(struct drm_device *dev,
 
 	/* stash G200 SE model number for later use */
 	if (IS_G200_SE(mdev))
-		mdev->reg_1e24 = RREG32(0x1e24);
+		mdev->unique_rev_id = RREG32(0x1e24);
 
 	ret = mga_vram_init(mdev);
 	if (ret)

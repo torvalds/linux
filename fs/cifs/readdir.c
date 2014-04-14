@@ -111,6 +111,14 @@ cifs_prime_dcache(struct dentry *parent, struct qstr *name,
 			return;
 	}
 
+	/*
+	 * If we know that the inode will need to be revalidated immediately,
+	 * then don't create a new dentry for it. We'll end up doing an on
+	 * the wire call either way and this spares us an invalidation.
+	 */
+	if (fattr->cf_flags & CIFS_FATTR_NEED_REVAL)
+		return;
+
 	dentry = d_alloc(parent, name);
 	if (!dentry)
 		return;

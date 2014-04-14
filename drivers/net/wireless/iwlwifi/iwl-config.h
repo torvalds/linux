@@ -241,6 +241,8 @@ struct iwl_eeprom_params {
  * @rx_with_siso_diversity: 1x1 device with rx antenna diversity
  * @internal_wimax_coex: internal wifi/wimax combo device
  * @temp_offset_v2: support v2 of temperature offset calibration
+ * @host_interrupt_operation_mode: device needs host interrupt operation
+ *	mode set
  *
  * We enable the driver to be backward compatible wrt. hardware features.
  * API differences in uCode shouldn't be handled here but through TLVs
@@ -273,6 +275,7 @@ struct iwl_cfg {
 	const bool rx_with_siso_diversity;
 	const bool internal_wimax_coex;
 	const bool temp_offset_v2;
+	const bool host_interrupt_operation_mode;
 };
 
 /*
@@ -316,10 +319,15 @@ extern const struct iwl_cfg iwl2000_2bgn_cfg;
 extern const struct iwl_cfg iwl2000_2bgn_d_cfg;
 extern const struct iwl_cfg iwl2030_2bgn_cfg;
 extern const struct iwl_cfg iwl6035_2agn_cfg;
+extern const struct iwl_cfg iwl6035_2agn_sff_cfg;
 extern const struct iwl_cfg iwl105_bgn_cfg;
 extern const struct iwl_cfg iwl105_bgn_d_cfg;
 extern const struct iwl_cfg iwl135_bgn_cfg;
 extern const struct iwl_cfg iwl7260_2ac_cfg;
-extern const struct iwl_cfg iwl3160_ac_cfg;
+extern const struct iwl_cfg iwl7260_2n_cfg;
+extern const struct iwl_cfg iwl7260_n_cfg;
+extern const struct iwl_cfg iwl3160_2ac_cfg;
+extern const struct iwl_cfg iwl3160_2n_cfg;
+extern const struct iwl_cfg iwl3160_n_cfg;
 
 #endif /* __IWL_CONFIG_H__ */

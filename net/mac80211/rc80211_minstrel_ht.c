@@ -804,10 +804,18 @@ minstrel_ht_get_rate(void *priv, struct ieee80211_sta *sta, void *priv_sta,
 
 	sample_group = &minstrel_mcs_groups[sample_idx / MCS_GROUP_RATES];
 	info->flags |= IEEE80211_TX_CTL_RATE_CTRL_PROBE;
+	rate->count = 1;
+
+	if (sample_idx / MCS_GROUP_RATES == MINSTREL_CCK_GROUP) {
+		int idx = sample_idx % ARRAY_SIZE(mp->cck_rates);
+		rate->idx = mp->cck_rates[idx];
+		rate->flags = 0;
+		return;
+	}
+
 	rate->idx = sample_idx % MCS_GROUP_RATES +
 		    (sample_group->streams - 1) * MCS_GROUP_RATES;
 	rate->flags = IEEE80211_TX_RC_MCS | sample_group->flags;
-	rate->count = 1;
 }
 
 static void
@@ -818,6 +826,9 @@ minstrel_ht_update_cck(struct minstrel_priv *mp, struct minstrel_ht_sta *mi,
 	int i;
 
 	if (sband->band != IEEE80211_BAND_2GHZ)
+		return;
+
+	if (!(mp->hw->flags & IEEE80211_HW_SUPPORTS_HT_CCK_RATES))
 		return;
 
 	mi->cck_supported = 0;

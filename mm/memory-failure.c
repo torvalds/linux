@@ -854,14 +854,14 @@ static int page_action(struct page_state *ps, struct page *p,
  * the pages and send SIGBUS to the processes if the data was dirty.
  */
 static int hwpoison_user_mappings(struct page *p, unsigned long pfn,
-				  int trapno, int flags)
+				  int trapno, int flags, struct page **hpagep)
 {
 	enum ttu_flags ttu = TTU_UNMAP | TTU_IGNORE_MLOCK | TTU_IGNORE_ACCESS;
 	struct address_space *mapping;
 	LIST_HEAD(tokill);
 	int ret;
 	int kill = 1, forcekill;
-	struct page *hpage = compound_head(p);
+	struct page *hpage = *hpagep;
 	struct page *ppage;
 
 	if (PageReserved(p) || PageSlab(p))
@@ -936,6 +936,21 @@ static int hwpoison_user_mappings(struct page *p, unsigned long pfn,
 				BUG_ON(!PageHWPoison(p));
 				return SWAP_FAIL;
 			}
+			/*
+			 * We pinned the head page for hwpoison handling,
+			 * now we split the thp and we are interested in
+			 * the hwpoisoned raw page, so move the refcount
+			 * to it. Similarly, page lock is shifted.
+			 */
+			if (hpage != p) {
+				if (!(flags & MF_COUNT_INCREASED)) {
+					put_page(hpage);
+					get_page(p);
+				}
+				lock_page(p);
+				unlock_page(hpage);
+				*hpagep = p;
+			}
 			/* THP is split, so ppage should be the real poisoned page. */
 			ppage = p;
 		}
@@ -952,16 +967,10 @@ static int hwpoison_user_mappings(struct page *p, unsigned long pfn,
 	if (kill)
 		collect_procs(ppage, &tokill);
 
-	if (hpage != ppage)
-		lock_page(ppage);
-
 	ret = try_to_unmap(ppage, ttu);
 	if (ret != SWAP_SUCCESS)
 		printk(KERN_ERR "MCE %#lx: failed to unmap page (mapcount=%d)\n",
 				pfn, page_mapcount(ppage));
-
-	if (hpage != ppage)
-		unlock_page(ppage);
 
 	/*
 	 * Now that the dirty bit has been propagated to the
@@ -1179,8 +1188,12 @@ int memory_failure(unsigned long pfn, int trapno, int flags)
 	/*
 	 * Now take care of user space mappings.
 	 * Abort on fail: __delete_from_page_cache() assumes unmapped page.
+	 *
+	 * When the raw error page is thp tail page, hpage points to the raw
+	 * page after thp split.
 	 */
-	if (hwpoison_user_mappings(p, pfn, trapno, flags) != SWAP_SUCCESS) {
+	if (hwpoison_user_mappings(p, pfn, trapno, flags, &hpage)
+	    != SWAP_SUCCESS) {
 		printk(KERN_ERR "MCE %#lx: cannot unmap page, give up\n", pfn);
 		res = -EBUSY;
 		goto out;
@@ -1410,7 +1423,8 @@ static int __get_any_page(struct page *p, unsigned long pfn, int flags)
 
 	/*
 	 * Isolate the page, so that it doesn't get reallocated if it
-	 * was free.
+	 * was free. This flag should be kept set until the source page
+	 * is freed and PG_hwpoison on it is set.
 	 */
 	set_migratetype_isolate(p, true);
 	/*
@@ -1433,7 +1447,6 @@ static int __get_any_page(struct page *p, unsigned long pfn, int flags)
 		/* Not a free page */
 		ret = 1;
 	}
-	unset_migratetype_isolate(p, MIGRATE_MOVABLE);
 	unlock_memory_hotplug();
 	return ret;
 }
@@ -1489,12 +1502,17 @@ static int soft_offline_huge_page(struct page *page, int flags)
 		pr_info("soft offline: %#lx: migration failed %d, type %lx\n",
 			pfn, ret, page->flags);
 	} else {
-		set_page_hwpoison_huge_page(hpage);
-		dequeue_hwpoisoned_huge_page(hpage);
-		atomic_long_add(1 << compound_trans_order(hpage),
-				&num_poisoned_pages);
+		/* overcommit hugetlb page will be freed to buddy */
+		if (PageHuge(page)) {
+			set_page_hwpoison_huge_page(hpage);
+			dequeue_hwpoisoned_huge_page(hpage);
+			atomic_long_add(1 << compound_order(hpage),
+					&num_poisoned_pages);
+		} else {
+			SetPageHWPoison(page);
+			atomic_long_inc(&num_poisoned_pages);
+		}
 	}
-	/* keep elevated page count for bad page */
 	return ret;
 }
 
@@ -1559,7 +1577,7 @@ int soft_offline_page(struct page *page, int flags)
 			atomic_long_inc(&num_poisoned_pages);
 		}
 	}
-	/* keep elevated page count for bad page */
+	unset_migratetype_isolate(page, MIGRATE_MOVABLE);
 	return ret;
 }
 
@@ -1625,7 +1643,22 @@ static int __soft_offline_page(struct page *page, int flags)
 			if (ret > 0)
 				ret = -EIO;
 		} else {
+			/*
+			 * After page migration succeeds, the source page can
+			 * be trapped in pagevec and actual freeing is delayed.
+			 * Freeing code works differently based on PG_hwpoison,
+			 * so there's a race. We need to make sure that the
+			 * source page should be freed back to buddy before
+			 * setting PG_hwpoison.
+			 */
+			if (!is_free_buddy_page(page))
+				lru_add_drain_all();
+			if (!is_free_buddy_page(page))
+				drain_all_pages();
 			SetPageHWPoison(page);
+			if (!is_free_buddy_page(page))
+				pr_info("soft offline: %#lx: page leaked\n",
+					pfn);
 			atomic_long_inc(&num_poisoned_pages);
 		}
 	} else {

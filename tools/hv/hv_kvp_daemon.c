@@ -1016,9 +1016,10 @@ kvp_get_ip_info(int family, char *if_name, int op,
 
 				if (sn_offset == 0)
 					strcpy(sn_str, cidr_mask);
-				else
+				else {
+					strcat((char *)ip_buffer->sub_net, ";");
 					strcat(sn_str, cidr_mask);
-				strcat((char *)ip_buffer->sub_net, ";");
+				}
 				sn_offset += strlen(sn_str) + 1;
 			}
 

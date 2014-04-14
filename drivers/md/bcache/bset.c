@@ -918,29 +918,59 @@ struct bkey *bch_next_recurse_key(struct btree *b, struct bkey *search)
 
 /* Mergesort */
 
-static void btree_sort_fixup(struct btree_iter *iter)
+static void sort_key_next(struct btree_iter *iter,
+			  struct btree_iter_set *i)
+{
+	i->k = bkey_next(i->k);
+
+	if (i->k == i->end)
+		*i = iter->data[--iter->used];
+}
+
+static struct bkey *btree_sort_fixup(struct btree_iter *iter, struct bkey *tmp)
 {
 	while (iter->used > 1) {
 		struct btree_iter_set *top = iter->data, *i = top + 1;
-		struct bkey *k;
 
 		if (iter->used > 2 &&
 		    btree_iter_cmp(i[0], i[1]))
 			i++;
 
-		for (k = i->k;
-		     k != i->end && bkey_cmp(top->k, &START_KEY(k)) > 0;
-		     k = bkey_next(k))
-			if (top->k > i->k)
-				__bch_cut_front(top->k, k);
-			else if (KEY_SIZE(k))
-				bch_cut_back(&START_KEY(k), top->k);
-
-		if (top->k < i->k || k == i->k)
+		if (bkey_cmp(top->k, &START_KEY(i->k)) <= 0)
 			break;
 
-		heap_sift(iter, i - top, btree_iter_cmp);
+		if (!KEY_SIZE(i->k)) {
+			sort_key_next(iter, i);
+			heap_sift(iter, i - top, btree_iter_cmp);
+			continue;
+		}
+
+		if (top->k > i->k) {
+			if (bkey_cmp(top->k, i->k) >= 0)
+				sort_key_next(iter, i);
+			else
+				bch_cut_front(top->k, i->k);
+
+			heap_sift(iter, i - top, btree_iter_cmp);
+		} else {
+			/* can't happen because of comparison func */
+			BUG_ON(!bkey_cmp(&START_KEY(top->k), &START_KEY(i->k)));
+
+			if (bkey_cmp(i->k, top->k) < 0) {
+				bkey_copy(tmp, top->k);
+
+				bch_cut_back(&START_KEY(i->k), tmp);
+				bch_cut_front(i->k, top->k);
+				heap_sift(iter, 0, btree_iter_cmp);
+
+				return tmp;
+			} else {
+				bch_cut_back(&START_KEY(i->k), top->k);
+			}
+		}
 	}
+
+	return NULL;
 }
 
 static void btree_mergesort(struct btree *b, struct bset *out,
@@ -948,15 +978,20 @@ static void btree_mergesort(struct btree *b, struct bset *out,
 			    bool fixup, bool remove_stale)
 {
 	struct bkey *k, *last = NULL;
+	BKEY_PADDED(k) tmp;
 	bool (*bad)(struct btree *, const struct bkey *) = remove_stale
 		? bch_ptr_bad
 		: bch_ptr_invalid;
 
 	while (!btree_iter_end(iter)) {
 		if (fixup && !b->level)
-			btree_sort_fixup(iter);
+			k = btree_sort_fixup(iter, &tmp.k);
+		else
+			k = NULL;
 
-		k = bch_btree_iter_next(iter);
+		if (!k)
+			k = bch_btree_iter_next(iter);
+
 		if (bad(b, k))
 			continue;
 

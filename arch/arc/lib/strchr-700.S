@@ -39,9 +39,18 @@ ARC_ENTRY strchr
 	ld.a	r2,[r0,4]
 	sub	r12,r6,r7
 	bic	r12,r12,r6
+#ifdef __LITTLE_ENDIAN__
 	and	r7,r12,r4
 	breq	r7,0,.Loop ; For speed, we want this branch to be unaligned.
 	b	.Lfound_char ; Likewise this one.
+#else
+	and	r12,r12,r4
+	breq	r12,0,.Loop ; For speed, we want this branch to be unaligned.
+	lsr_s	r12,r12,7
+	bic 	r2,r7,r6
+	b.d	.Lfound_char_b
+	and_s	r2,r2,r12
+#endif
 ; /* We require this code address to be unaligned for speed...  */
 .Laligned:
 	ld_s	r2,[r0]
@@ -95,6 +104,7 @@ ARC_ENTRY strchr
 	lsr	r7,r7,7
 
 	bic	r2,r7,r6
+.Lfound_char_b:
 	norm	r2,r2
 	sub_s	r0,r0,4
 	asr_s	r2,r2,3

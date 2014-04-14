@@ -434,6 +434,7 @@ struct fw_iso_context {
 	int type;
 	int channel;
 	int speed;
+	bool drop_overflow_headers;
 	size_t header_size;
 	union {
 		fw_iso_callback_t sc;

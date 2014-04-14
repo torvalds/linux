@@ -181,6 +181,7 @@ static void rt2x00lib_autowakeup(struct work_struct *work)
 static void rt2x00lib_bc_buffer_iter(void *data, u8 *mac,
 				     struct ieee80211_vif *vif)
 {
+	struct ieee80211_tx_control control = {};
 	struct rt2x00_dev *rt2x00dev = data;
 	struct sk_buff *skb;
 
@@ -195,7 +196,7 @@ static void rt2x00lib_bc_buffer_iter(void *data, u8 *mac,
 	 */
 	skb = ieee80211_get_buffered_bc(rt2x00dev->hw, vif);
 	while (skb) {
-		rt2x00mac_tx(rt2x00dev->hw, NULL, skb);
+		rt2x00mac_tx(rt2x00dev->hw, &control, skb);
 		skb = ieee80211_get_buffered_bc(rt2x00dev->hw, vif);
 	}
 }

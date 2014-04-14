@@ -200,19 +200,20 @@ asmlinkage void __cpuinit secondary_start_kernel(void)
 	raw_spin_unlock(&boot_lock);
 
 	/*
-	 * Enable local interrupts.
-	 */
-	notify_cpu_starting(cpu);
-	local_irq_enable();
-	local_fiq_enable();
-
-	/*
 	 * OK, now it's safe to let the boot CPU continue.  Wait for
 	 * the CPU migration code to notice that the CPU is online
 	 * before we continue.
 	 */
 	set_cpu_online(cpu, true);
 	complete(&cpu_running);
+
+	/*
+	 * Enable GIC and timers.
+	 */
+	notify_cpu_starting(cpu);
+
+	local_irq_enable();
+	local_fiq_enable();
 
 	/*
 	 * OK, it's off to the idle thread for us

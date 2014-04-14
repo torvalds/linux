@@ -1131,12 +1131,6 @@ ip_vs_out(unsigned int hooknum, struct sk_buff *skb, int af)
 	ip_vs_fill_iph_skb(af, skb, &iph);
 #ifdef CONFIG_IP_VS_IPV6
 	if (af == AF_INET6) {
-		if (!iph.fragoffs && skb_nfct_reasm(skb)) {
-			struct sk_buff *reasm = skb_nfct_reasm(skb);
-			/* Save fw mark for coming frags */
-			reasm->ipvs_property = 1;
-			reasm->mark = skb->mark;
-		}
 		if (unlikely(iph.protocol == IPPROTO_ICMPV6)) {
 			int related;
 			int verdict = ip_vs_out_icmp_v6(skb, &related,
@@ -1606,12 +1600,6 @@ ip_vs_in(unsigned int hooknum, struct sk_buff *skb, int af)
 
 #ifdef CONFIG_IP_VS_IPV6
 	if (af == AF_INET6) {
-		if (!iph.fragoffs && skb_nfct_reasm(skb)) {
-			struct sk_buff *reasm = skb_nfct_reasm(skb);
-			/* Save fw mark for coming frags. */
-			reasm->ipvs_property = 1;
-			reasm->mark = skb->mark;
-		}
 		if (unlikely(iph.protocol == IPPROTO_ICMPV6)) {
 			int related;
 			int verdict = ip_vs_in_icmp_v6(skb, &related, hooknum,
@@ -1663,9 +1651,8 @@ ip_vs_in(unsigned int hooknum, struct sk_buff *skb, int af)
 		/* sorry, all this trouble for a no-hit :) */
 		IP_VS_DBG_PKT(12, af, pp, skb, 0,
 			      "ip_vs_in: packet continues traversal as normal");
-		if (iph.fragoffs && !skb_nfct_reasm(skb)) {
+		if (iph.fragoffs) {
 			/* Fragment that couldn't be mapped to a conn entry
-			 * and don't have any pointer to a reasm skb
 			 * is missing module nf_defrag_ipv6
 			 */
 			IP_VS_DBG_RL("Unhandled frag, load nf_defrag_ipv6\n");
@@ -1746,38 +1733,6 @@ ip_vs_local_request4(unsigned int hooknum, struct sk_buff *skb,
 }
 
 #ifdef CONFIG_IP_VS_IPV6
-
-/*
- * AF_INET6 fragment handling
- * Copy info from first fragment, to the rest of them.
- */
-static unsigned int
-ip_vs_preroute_frag6(unsigned int hooknum, struct sk_buff *skb,
-		     const struct net_device *in,
-		     const struct net_device *out,
-		     int (*okfn)(struct sk_buff *))
-{
-	struct sk_buff *reasm = skb_nfct_reasm(skb);
-	struct net *net;
-
-	/* Skip if not a "replay" from nf_ct_frag6_output or first fragment.
-	 * ipvs_property is set when checking first fragment
-	 * in ip_vs_in() and ip_vs_out().
-	 */
-	if (reasm)
-		IP_VS_DBG(2, "Fragment recv prop:%d\n", reasm->ipvs_property);
-	if (!reasm || !reasm->ipvs_property)
-		return NF_ACCEPT;
-
-	net = skb_net(skb);
-	if (!net_ipvs(net)->enable)
-		return NF_ACCEPT;
-
-	/* Copy stored fw mark, saved in ip_vs_{in,out} */
-	skb->mark = reasm->mark;
-
-	return NF_ACCEPT;
-}
 
 /*
  *	AF_INET6 handler in NF_INET_LOCAL_IN chain
@@ -1916,14 +1871,6 @@ static struct nf_hook_ops ip_vs_ops[] __read_mostly = {
 		.priority	= 100,
 	},
 #ifdef CONFIG_IP_VS_IPV6
-	/* After mangle & nat fetch 2:nd fragment and following */
-	{
-		.hook		= ip_vs_preroute_frag6,
-		.owner		= THIS_MODULE,
-		.pf		= NFPROTO_IPV6,
-		.hooknum	= NF_INET_PRE_ROUTING,
-		.priority	= NF_IP6_PRI_NAT_DST + 1,
-	},
 	/* After packet filtering, change source only for VS/NAT */
 	{
 		.hook		= ip_vs_reply6,

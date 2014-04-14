@@ -242,7 +242,7 @@ int walk_page_range(unsigned long addr, unsigned long end,
 		if (err)
 			break;
 		pgd++;
-	} while (addr = next, addr != end);
+	} while (addr = next, addr < end);
 
 	return err;
 }

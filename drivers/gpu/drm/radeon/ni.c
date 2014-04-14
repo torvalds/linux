@@ -753,6 +753,10 @@ static void cayman_gpu_init(struct radeon_device *rdev)
 		    (rdev->pdev->device == 0x999C)) {
 			rdev->config.cayman.max_simds_per_se = 6;
 			rdev->config.cayman.max_backends_per_se = 2;
+			rdev->config.cayman.max_hw_contexts = 8;
+			rdev->config.cayman.sx_max_export_size = 256;
+			rdev->config.cayman.sx_max_export_pos_size = 64;
+			rdev->config.cayman.sx_max_export_smx_size = 192;
 		} else if ((rdev->pdev->device == 0x9903) ||
 			   (rdev->pdev->device == 0x9904) ||
 			   (rdev->pdev->device == 0x990A) ||
@@ -763,6 +767,10 @@ static void cayman_gpu_init(struct radeon_device *rdev)
 			   (rdev->pdev->device == 0x999D)) {
 			rdev->config.cayman.max_simds_per_se = 4;
 			rdev->config.cayman.max_backends_per_se = 2;
+			rdev->config.cayman.max_hw_contexts = 8;
+			rdev->config.cayman.sx_max_export_size = 256;
+			rdev->config.cayman.sx_max_export_pos_size = 64;
+			rdev->config.cayman.sx_max_export_smx_size = 192;
 		} else if ((rdev->pdev->device == 0x9919) ||
 			   (rdev->pdev->device == 0x9990) ||
 			   (rdev->pdev->device == 0x9991) ||
@@ -773,9 +781,17 @@ static void cayman_gpu_init(struct radeon_device *rdev)
 			   (rdev->pdev->device == 0x99A0)) {
 			rdev->config.cayman.max_simds_per_se = 3;
 			rdev->config.cayman.max_backends_per_se = 1;
+			rdev->config.cayman.max_hw_contexts = 4;
+			rdev->config.cayman.sx_max_export_size = 128;
+			rdev->config.cayman.sx_max_export_pos_size = 32;
+			rdev->config.cayman.sx_max_export_smx_size = 96;
 		} else {
 			rdev->config.cayman.max_simds_per_se = 2;
 			rdev->config.cayman.max_backends_per_se = 1;
+			rdev->config.cayman.max_hw_contexts = 4;
+			rdev->config.cayman.sx_max_export_size = 128;
+			rdev->config.cayman.sx_max_export_pos_size = 32;
+			rdev->config.cayman.sx_max_export_smx_size = 96;
 		}
 		rdev->config.cayman.max_texture_channel_caches = 2;
 		rdev->config.cayman.max_gprs = 256;
@@ -783,10 +799,6 @@ static void cayman_gpu_init(struct radeon_device *rdev)
 		rdev->config.cayman.max_gs_threads = 32;
 		rdev->config.cayman.max_stack_entries = 512;
 		rdev->config.cayman.sx_num_of_sets = 8;
-		rdev->config.cayman.sx_max_export_size = 256;
-		rdev->config.cayman.sx_max_export_pos_size = 64;
-		rdev->config.cayman.sx_max_export_smx_size = 192;
-		rdev->config.cayman.max_hw_contexts = 8;
 		rdev->config.cayman.sq_num_cf_insts = 2;
 
 		rdev->config.cayman.sc_prim_fifo_size = 0x40;
@@ -1166,13 +1178,12 @@ void cayman_fence_ring_emit(struct radeon_device *rdev,
 {
 	struct radeon_ring *ring = &rdev->ring[fence->ring];
 	u64 addr = rdev->fence_drv[fence->ring].gpu_addr;
+	u32 cp_coher_cntl = PACKET3_FULL_CACHE_ENA | PACKET3_TC_ACTION_ENA |
+		PACKET3_SH_ACTION_ENA;
 
 	/* flush read cache over gart for this vmid */
-	radeon_ring_write(ring, PACKET3(PACKET3_SET_CONFIG_REG, 1));
-	radeon_ring_write(ring, (CP_COHER_CNTL2 - PACKET3_SET_CONFIG_REG_START) >> 2);
-	radeon_ring_write(ring, 0);
 	radeon_ring_write(ring, PACKET3(PACKET3_SURFACE_SYNC, 3));
-	radeon_ring_write(ring, PACKET3_TC_ACTION_ENA | PACKET3_SH_ACTION_ENA);
+	radeon_ring_write(ring, PACKET3_ENGINE_ME | cp_coher_cntl);
 	radeon_ring_write(ring, 0xFFFFFFFF);
 	radeon_ring_write(ring, 0);
 	radeon_ring_write(ring, 10); /* poll interval */
@@ -1188,6 +1199,8 @@ void cayman_fence_ring_emit(struct radeon_device *rdev,
 void cayman_ring_ib_execute(struct radeon_device *rdev, struct radeon_ib *ib)
 {
 	struct radeon_ring *ring = &rdev->ring[ib->ring];
+	u32 cp_coher_cntl = PACKET3_FULL_CACHE_ENA | PACKET3_TC_ACTION_ENA |
+		PACKET3_SH_ACTION_ENA;
 
 	/* set to DX10/11 mode */
 	radeon_ring_write(ring, PACKET3(PACKET3_MODE_CONTROL, 0));
@@ -1212,14 +1225,11 @@ void cayman_ring_ib_execute(struct radeon_device *rdev, struct radeon_ib *ib)
 			  (ib->vm ? (ib->vm->id << 24) : 0));
 
 	/* flush read cache over gart for this vmid */
-	radeon_ring_write(ring, PACKET3(PACKET3_SET_CONFIG_REG, 1));
-	radeon_ring_write(ring, (CP_COHER_CNTL2 - PACKET3_SET_CONFIG_REG_START) >> 2);
-	radeon_ring_write(ring, ib->vm ? ib->vm->id : 0);
 	radeon_ring_write(ring, PACKET3(PACKET3_SURFACE_SYNC, 3));
-	radeon_ring_write(ring, PACKET3_TC_ACTION_ENA | PACKET3_SH_ACTION_ENA);
+	radeon_ring_write(ring, PACKET3_ENGINE_ME | cp_coher_cntl);
 	radeon_ring_write(ring, 0xFFFFFFFF);
 	radeon_ring_write(ring, 0);
-	radeon_ring_write(ring, 10); /* poll interval */
+	radeon_ring_write(ring, ((ib->vm ? ib->vm->id : 0) << 24) | 10); /* poll interval */
 }
 
 void cayman_uvd_semaphore_emit(struct radeon_device *rdev,
@@ -1929,6 +1939,8 @@ static int cayman_startup(struct radeon_device *rdev)
 	/* enable pcie gen2 link */
 	evergreen_pcie_gen2_enable(rdev);
 
+	evergreen_mc_program(rdev);
+
 	if (rdev->flags & RADEON_IS_IGP) {
 		if (!rdev->me_fw || !rdev->pfp_fw || !rdev->rlc_fw) {
 			r = ni_init_microcode(rdev);
@@ -1957,7 +1969,6 @@ static int cayman_startup(struct radeon_device *rdev)
 	if (r)
 		return r;
 
-	evergreen_mc_program(rdev);
 	r = cayman_pcie_gart_enable(rdev);
 	if (r)
 		return r;
@@ -2133,7 +2144,7 @@ int cayman_suspend(struct radeon_device *rdev)
 	radeon_vm_manager_fini(rdev);
 	cayman_cp_enable(rdev, false);
 	cayman_dma_stop(rdev);
-	r600_uvd_rbc_stop(rdev);
+	r600_uvd_stop(rdev);
 	radeon_uvd_suspend(rdev);
 	evergreen_irq_suspend(rdev);
 	radeon_wb_disable(rdev);
@@ -2265,6 +2276,7 @@ void cayman_fini(struct radeon_device *rdev)
 	radeon_vm_manager_fini(rdev);
 	radeon_ib_pool_fini(rdev);
 	radeon_irq_kms_fini(rdev);
+	r600_uvd_stop(rdev);
 	radeon_uvd_fini(rdev);
 	cayman_pcie_gart_fini(rdev);
 	r600_vram_scratch_fini(rdev);

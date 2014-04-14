@@ -1075,14 +1075,11 @@ static int __cpufreq_remove_dev(struct device *dev, struct subsys_interface *sif
 				__func__, cpu_dev->id, cpu);
 	}
 
-	if ((cpus == 1) && (cpufreq_driver->target))
-		__cpufreq_governor(data, CPUFREQ_GOV_POLICY_EXIT);
-
-	pr_debug("%s: removing link, cpu: %d\n", __func__, cpu);
-	cpufreq_cpu_put(data);
-
 	/* If cpu is last user of policy, free policy */
 	if (cpus == 1) {
+		if (cpufreq_driver->target)
+			__cpufreq_governor(data, CPUFREQ_GOV_POLICY_EXIT);
+
 		lock_policy_rwsem_read(cpu);
 		kobj = &data->kobj;
 		cmp = &data->kobj_unregister;
@@ -1103,9 +1100,13 @@ static int __cpufreq_remove_dev(struct device *dev, struct subsys_interface *sif
 		free_cpumask_var(data->related_cpus);
 		free_cpumask_var(data->cpus);
 		kfree(data);
-	} else if (cpufreq_driver->target) {
-		__cpufreq_governor(data, CPUFREQ_GOV_START);
-		__cpufreq_governor(data, CPUFREQ_GOV_LIMITS);
+	} else {
+		pr_debug("%s: removing link, cpu: %d\n", __func__, cpu);
+		cpufreq_cpu_put(data);
+		if (cpufreq_driver->target) {
+			__cpufreq_governor(data, CPUFREQ_GOV_START);
+			__cpufreq_governor(data, CPUFREQ_GOV_LIMITS);
+		}
 	}
 
 	per_cpu(cpufreq_policy_cpu, cpu) = -1;
@@ -1837,13 +1838,15 @@ static int __cpuinit cpufreq_cpu_callback(struct notifier_block *nfb,
 	if (dev) {
 		switch (action) {
 		case CPU_ONLINE:
+		case CPU_ONLINE_FROZEN:
 			cpufreq_add_dev(dev, NULL);
 			break;
 		case CPU_DOWN_PREPARE:
-		case CPU_UP_CANCELED_FROZEN:
+		case CPU_DOWN_PREPARE_FROZEN:
 			__cpufreq_remove_dev(dev, NULL);
 			break;
 		case CPU_DOWN_FAILED:
+		case CPU_DOWN_FAILED_FROZEN:
 			cpufreq_add_dev(dev, NULL);
 			break;
 		}

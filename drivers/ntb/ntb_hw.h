@@ -127,6 +127,8 @@ struct ntb_device {
 	unsigned char link_status;
 	struct delayed_work hb_timer;
 	unsigned long last_ts;
+
+	struct dentry *debugfs_dir;
 };
 
 /**
@@ -153,6 +155,20 @@ static inline bool ntb_hw_link_status(struct ntb_device *ndev)
 static inline struct pci_dev *ntb_query_pdev(struct ntb_device *ndev)
 {
 	return ndev->pdev;
+}
+
+/**
+ * ntb_query_debugfs() - return the debugfs pointer
+ * @ndev: pointer to ntb_device instance
+ *
+ * Given the ntb pointer, return the debugfs directory pointer for the NTB
+ * hardware device
+ *
+ * RETURNS: a pointer to the debugfs directory
+ */
+static inline struct dentry *ntb_query_debugfs(struct ntb_device *ndev)
+{
+	return ndev->debugfs_dir;
 }
 
 struct ntb_device *ntb_register_transport(struct pci_dev *pdev,

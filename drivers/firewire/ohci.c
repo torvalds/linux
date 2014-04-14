@@ -2749,8 +2749,11 @@ static void copy_iso_headers(struct iso_context *ctx, const u32 *dma_hdr)
 {
 	u32 *ctx_hdr;
 
-	if (ctx->header_length + ctx->base.header_size > PAGE_SIZE)
+	if (ctx->header_length + ctx->base.header_size > PAGE_SIZE) {
+		if (ctx->base.drop_overflow_headers)
+			return;
 		flush_iso_completions(ctx);
+	}
 
 	ctx_hdr = ctx->header + ctx->header_length;
 	ctx->last_timestamp = (u16)le32_to_cpu((__force __le32)dma_hdr[0]);
@@ -2910,8 +2913,11 @@ static int handle_it_packet(struct context *context,
 
 	sync_it_packet_for_cpu(context, d);
 
-	if (ctx->header_length + 4 > PAGE_SIZE)
+	if (ctx->header_length + 4 > PAGE_SIZE) {
+		if (ctx->base.drop_overflow_headers)
+			return 1;
 		flush_iso_completions(ctx);
+	}
 
 	ctx_hdr = ctx->header + ctx->header_length;
 	ctx->last_timestamp = le16_to_cpu(last->res_count);

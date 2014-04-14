@@ -186,6 +186,13 @@ void radeon_atom_backlight_init(struct radeon_encoder *radeon_encoder,
 	u8 backlight_level;
 	char bl_name[16];
 
+	/* Mac laptops with multiple GPUs use the gmux driver for backlight
+	 * so don't register a backlight device
+	 */
+	if ((rdev->pdev->subsystem_vendor == PCI_VENDOR_ID_APPLE) &&
+	    (rdev->pdev->device == 0x6741))
+		return;
+
 	if (!radeon_encoder->enc_priv)
 		return;
 
@@ -1629,8 +1636,12 @@ radeon_atom_encoder_dpms_dig(struct drm_encoder *encoder, int mode)
 			atombios_dig_encoder_setup(encoder, ATOM_ENABLE, 0);
 			atombios_dig_transmitter_setup(encoder, ATOM_TRANSMITTER_ACTION_SETUP, 0, 0);
 			atombios_dig_transmitter_setup(encoder, ATOM_TRANSMITTER_ACTION_ENABLE, 0, 0);
-			/* some early dce3.2 boards have a bug in their transmitter control table */
-			if ((rdev->family != CHIP_RV710) && (rdev->family != CHIP_RV730))
+			/* some dce3.x boards have a bug in their transmitter control table.
+			 * ACTION_ENABLE_OUTPUT can probably be dropped since ACTION_ENABLE
+			 * does the same thing and more.
+			 */
+			if ((rdev->family != CHIP_RV710) && (rdev->family != CHIP_RV730) &&
+			    (rdev->family != CHIP_RS780) && (rdev->family != CHIP_RS880))
 				atombios_dig_transmitter_setup(encoder, ATOM_TRANSMITTER_ACTION_ENABLE_OUTPUT, 0, 0);
 		}
 		if (ENCODER_MODE_IS_DP(atombios_get_encoder_mode(encoder)) && connector) {

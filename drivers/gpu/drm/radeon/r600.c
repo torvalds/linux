@@ -2675,12 +2675,29 @@ int r600_uvd_rbc_start(struct radeon_device *rdev)
 	return 0;
 }
 
-void r600_uvd_rbc_stop(struct radeon_device *rdev)
+void r600_uvd_stop(struct radeon_device *rdev)
 {
 	struct radeon_ring *ring = &rdev->ring[R600_RING_TYPE_UVD_INDEX];
 
 	/* force RBC into idle state */
 	WREG32(UVD_RBC_RB_CNTL, 0x11010101);
+
+	/* Stall UMC and register bus before resetting VCPU */
+	WREG32_P(UVD_LMI_CTRL2, 1 << 8, ~(1 << 8));
+	WREG32_P(UVD_RB_ARB_CTRL, 1 << 3, ~(1 << 3));
+	mdelay(1);
+
+	/* put VCPU into reset */
+	WREG32(UVD_SOFT_RESET, VCPU_SOFT_RESET);
+	mdelay(5);
+
+	/* disable VCPU clock */
+	WREG32(UVD_VCPU_CNTL, 0x0);
+
+	/* Unstall UMC and register bus */
+	WREG32_P(UVD_LMI_CTRL2, 0, ~(1 << 8));
+	WREG32_P(UVD_RB_ARB_CTRL, 0, ~(1 << 3));
+
 	ring->ready = false;
 }
 
@@ -2699,6 +2716,11 @@ int r600_uvd_init(struct radeon_device *rdev)
 
 	/* disable interupt */
 	WREG32_P(UVD_MASTINT_EN, 0, ~(1 << 1));
+
+	/* Stall UMC and register bus before resetting VCPU */
+	WREG32_P(UVD_LMI_CTRL2, 1 << 8, ~(1 << 8));
+	WREG32_P(UVD_RB_ARB_CTRL, 1 << 3, ~(1 << 3));
+	mdelay(1);
 
 	/* put LMI, VCPU, RBC etc... into reset */
 	WREG32(UVD_SOFT_RESET, LMI_SOFT_RESET | VCPU_SOFT_RESET |
@@ -2728,10 +2750,6 @@ int r600_uvd_init(struct radeon_device *rdev)
 	WREG32(UVD_MPC_SET_MUXB1, 0x0);
 	WREG32(UVD_MPC_SET_ALU, 0);
 	WREG32(UVD_MPC_SET_MUX, 0x88);
-
-	/* Stall UMC */
-	WREG32_P(UVD_LMI_CTRL2, 1 << 8, ~(1 << 8));
-	WREG32_P(UVD_RB_ARB_CTRL, 1 << 3, ~(1 << 3));
 
 	/* take all subblocks out of reset, except VCPU */
 	WREG32(UVD_SOFT_RESET, VCPU_SOFT_RESET);
@@ -2939,14 +2957,17 @@ void r600_fence_ring_emit(struct radeon_device *rdev,
 			  struct radeon_fence *fence)
 {
 	struct radeon_ring *ring = &rdev->ring[fence->ring];
+	u32 cp_coher_cntl = PACKET3_TC_ACTION_ENA | PACKET3_VC_ACTION_ENA |
+		PACKET3_SH_ACTION_ENA;
+
+	if (rdev->family >= CHIP_RV770)
+		cp_coher_cntl |= PACKET3_FULL_CACHE_ENA;
 
 	if (rdev->wb.use_event) {
 		u64 addr = rdev->fence_drv[fence->ring].gpu_addr;
 		/* flush read cache over gart */
 		radeon_ring_write(ring, PACKET3(PACKET3_SURFACE_SYNC, 3));
-		radeon_ring_write(ring, PACKET3_TC_ACTION_ENA |
-					PACKET3_VC_ACTION_ENA |
-					PACKET3_SH_ACTION_ENA);
+		radeon_ring_write(ring, cp_coher_cntl);
 		radeon_ring_write(ring, 0xFFFFFFFF);
 		radeon_ring_write(ring, 0);
 		radeon_ring_write(ring, 10); /* poll interval */
@@ -2960,9 +2981,7 @@ void r600_fence_ring_emit(struct radeon_device *rdev,
 	} else {
 		/* flush read cache over gart */
 		radeon_ring_write(ring, PACKET3(PACKET3_SURFACE_SYNC, 3));
-		radeon_ring_write(ring, PACKET3_TC_ACTION_ENA |
-					PACKET3_VC_ACTION_ENA |
-					PACKET3_SH_ACTION_ENA);
+		radeon_ring_write(ring, cp_coher_cntl);
 		radeon_ring_write(ring, 0xFFFFFFFF);
 		radeon_ring_write(ring, 0);
 		radeon_ring_write(ring, 10); /* poll interval */
@@ -2986,7 +3005,7 @@ void r600_uvd_fence_emit(struct radeon_device *rdev,
 			 struct radeon_fence *fence)
 {
 	struct radeon_ring *ring = &rdev->ring[fence->ring];
-	uint32_t addr = rdev->fence_drv[fence->ring].gpu_addr;
+	uint64_t addr = rdev->fence_drv[fence->ring].gpu_addr;
 
 	radeon_ring_write(ring, PACKET0(UVD_CONTEXT_ID, 0));
 	radeon_ring_write(ring, fence->seq);
@@ -3206,6 +3225,8 @@ static int r600_startup(struct radeon_device *rdev)
 	/* enable pcie gen2 link */
 	r600_pcie_gen2_enable(rdev);
 
+	r600_mc_program(rdev);
+
 	if (!rdev->me_fw || !rdev->pfp_fw || !rdev->rlc_fw) {
 		r = r600_init_microcode(rdev);
 		if (r) {
@@ -3218,7 +3239,6 @@ static int r600_startup(struct radeon_device *rdev)
 	if (r)
 		return r;
 
-	r600_mc_program(rdev);
 	if (rdev->flags & RADEON_IS_AGP) {
 		r600_agp_enable(rdev);
 	} else {
@@ -4488,6 +4508,10 @@ restart_ih:
 				DRM_ERROR("Unhandled interrupt: %d %d\n", src_id, src_data);
 				break;
 			}
+			break;
+		case 124: /* UVD */
+			DRM_DEBUG("IH: UVD int: 0x%08x\n", src_data);
+			radeon_fence_process(rdev, R600_RING_TYPE_UVD_INDEX);
 			break;
 		case 176: /* CP_INT in ring buffer */
 		case 177: /* CP_INT in IB1 */

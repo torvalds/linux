@@ -584,6 +584,13 @@ static void atmci_timeout_timer(unsigned long data)
 	if (host->mrq->cmd->data) {
 		host->mrq->cmd->data->error = -ETIMEDOUT;
 		host->data = NULL;
+		/*
+		 * With some SDIO modules, sometimes DMA transfer hangs. If
+		 * stop_transfer() is not called then the DMA request is not
+		 * removed, following ones are queued and never computed.
+		 */
+		if (host->state == STATE_DATA_XFER)
+			host->stop_transfer(host);
 	} else {
 		host->mrq->cmd->error = -ETIMEDOUT;
 		host->cmd = NULL;
@@ -1181,10 +1188,21 @@ static void atmci_start_request(struct atmel_mci *host,
 	iflags |= ATMCI_CMDRDY;
 	cmd = mrq->cmd;
 	cmdflags = atmci_prepare_command(slot->mmc, cmd);
-	atmci_send_command(host, cmd, cmdflags);
+
+	/*
+	 * DMA transfer should be started before sending the command to avoid
+	 * unexpected errors especially for read operations in SDIO mode.
+	 * Unfortunately, in PDC mode, command has to be sent before starting
+	 * the transfer.
+	 */
+	if (host->submit_data != &atmci_submit_data_dma)
+		atmci_send_command(host, cmd, cmdflags);
 
 	if (data)
 		host->submit_data(host, data);
+
+	if (host->submit_data == &atmci_submit_data_dma)
+		atmci_send_command(host, cmd, cmdflags);
 
 	if (mrq->stop) {
 		host->stop_cmdr = atmci_prepare_command(slot->mmc, mrq->stop);
@@ -1787,12 +1805,14 @@ static void atmci_tasklet_func(unsigned long priv)
 			if (unlikely(status)) {
 				host->stop_transfer(host);
 				host->data = NULL;
-				if (status & ATMCI_DTOE) {
-					data->error = -ETIMEDOUT;
-				} else if (status & ATMCI_DCRCE) {
-					data->error = -EILSEQ;
-				} else {
-					data->error = -EIO;
+				if (data) {
+					if (status & ATMCI_DTOE) {
+						data->error = -ETIMEDOUT;
+					} else if (status & ATMCI_DCRCE) {
+						data->error = -EILSEQ;
+					} else {
+						data->error = -EIO;
+					}
 				}
 			}
 

@@ -211,6 +211,7 @@ pat_query_module(ulong pcell_loc, ulong mod_index)
 	/* REVISIT: who is the consumer of this? not sure yet... */
 	dev->mod_info = pa_pdc_cell->mod_info;	/* pass to PAT_GET_ENTITY() */
 	dev->pmod_loc = pa_pdc_cell->mod_location;
+	dev->mod0 = pa_pdc_cell->mod[0];
 
 	register_parisc_device(dev);	/* advertise device */
 

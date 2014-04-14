@@ -67,15 +67,15 @@ static int tegra20_spdif_hw_params(struct snd_pcm_substream *substream,
 {
 	struct device *dev = dai->dev;
 	struct tegra20_spdif *spdif = snd_soc_dai_get_drvdata(dai);
-	unsigned int mask, val;
+	unsigned int mask = 0, val = 0;
 	int ret, spdifclock;
 
-	mask = TEGRA20_SPDIF_CTRL_PACK |
-	       TEGRA20_SPDIF_CTRL_BIT_MODE_MASK;
+	mask |= TEGRA20_SPDIF_CTRL_PACK |
+		TEGRA20_SPDIF_CTRL_BIT_MODE_MASK;
 	switch (params_format(params)) {
 	case SNDRV_PCM_FORMAT_S16_LE:
-		val = TEGRA20_SPDIF_CTRL_PACK |
-		      TEGRA20_SPDIF_CTRL_BIT_MODE_16BIT;
+		val |= TEGRA20_SPDIF_CTRL_PACK |
+		       TEGRA20_SPDIF_CTRL_BIT_MODE_16BIT;
 		break;
 	default:
 		return -EINVAL;
@@ -323,8 +323,8 @@ static int tegra20_spdif_platform_probe(struct platform_device *pdev)
 	}
 
 	spdif->playback_dma_data.addr = mem->start + TEGRA20_SPDIF_DATA_OUT;
-	spdif->capture_dma_data.addr_width = DMA_SLAVE_BUSWIDTH_4_BYTES;
-	spdif->capture_dma_data.maxburst = 4;
+	spdif->playback_dma_data.addr_width = DMA_SLAVE_BUSWIDTH_4_BYTES;
+	spdif->playback_dma_data.maxburst = 4;
 	spdif->playback_dma_data.slave_id = dmareq->start;
 
 	pm_runtime_enable(&pdev->dev);

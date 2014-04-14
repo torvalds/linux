@@ -450,6 +450,14 @@ static struct dmi_system_id video_dmi_table[] __initdata = {
 	},
 	{
 	 .callback = video_ignore_initial_backlight,
+	 .ident = "Fujitsu E753",
+	 .matches = {
+		DMI_MATCH(DMI_BOARD_VENDOR, "FUJITSU"),
+		DMI_MATCH(DMI_PRODUCT_NAME, "LIFEBOOK E753"),
+		},
+	},
+	{
+	 .callback = video_ignore_initial_backlight,
 	 .ident = "HP Pavilion dm4",
 	 .matches = {
 		DMI_MATCH(DMI_BOARD_VENDOR, "Hewlett-Packard"),
@@ -838,7 +846,7 @@ acpi_video_init_brightness(struct acpi_video_device *device)
 		for (i = 2; i < br->count; i++)
 			if (level_old == br->levels[i])
 				break;
-		if (i == br->count)
+		if (i == br->count || !level)
 			level = max_level;
 	}
 

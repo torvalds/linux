@@ -490,9 +490,6 @@ cleanup_pipe_control(struct intel_ring_buffer *ring)
 	struct pipe_control *pc = ring->private;
 	struct drm_i915_gem_object *obj;
 
-	if (!ring->private)
-		return;
-
 	obj = pc->obj;
 
 	kunmap(sg_page(obj->pages->sgl));
@@ -500,7 +497,6 @@ cleanup_pipe_control(struct intel_ring_buffer *ring)
 	drm_gem_object_unreference(&obj->base);
 
 	kfree(pc);
-	ring->private = NULL;
 }
 
 static int init_render_ring(struct intel_ring_buffer *ring)
@@ -571,7 +567,10 @@ static void render_ring_cleanup(struct intel_ring_buffer *ring)
 	if (HAS_BROKEN_CS_TLB(dev))
 		drm_gem_object_unreference(to_gem_object(ring->private));
 
-	cleanup_pipe_control(ring);
+	if (INTEL_INFO(dev)->gen >= 5)
+		cleanup_pipe_control(ring);
+
+	ring->private = NULL;
 }
 
 static void
@@ -908,6 +907,18 @@ void intel_ring_setup_status_page(struct intel_ring_buffer *ring)
 
 	I915_WRITE(mmio, (u32)ring->status_page.gfx_addr);
 	POSTING_READ(mmio);
+
+	/* Flush the TLB for this page */
+	if (INTEL_INFO(dev)->gen >= 6) {
+		u32 reg = RING_INSTPM(ring->mmio_base);
+		I915_WRITE(reg,
+			   _MASKED_BIT_ENABLE(INSTPM_TLB_INVALIDATE |
+					      INSTPM_SYNC_FLUSH));
+		if (wait_for((I915_READ(reg) & INSTPM_SYNC_FLUSH) == 0,
+			     1000))
+			DRM_ERROR("%s: wait for SyncFlush to complete for TLB invalidation timed out\n",
+				  ring->name);
+	}
 }
 
 static int
@@ -1448,8 +1459,8 @@ intel_ring_alloc_seqno(struct intel_ring_buffer *ring)
 	return i915_gem_get_seqno(ring->dev, &ring->outstanding_lazy_request);
 }
 
-static int __intel_ring_begin(struct intel_ring_buffer *ring,
-			      int bytes)
+static int __intel_ring_prepare(struct intel_ring_buffer *ring,
+				int bytes)
 {
 	int ret;
 
@@ -1465,7 +1476,6 @@ static int __intel_ring_begin(struct intel_ring_buffer *ring,
 			return ret;
 	}
 
-	ring->space -= bytes;
 	return 0;
 }
 
@@ -1480,12 +1490,17 @@ int intel_ring_begin(struct intel_ring_buffer *ring,
 	if (ret)
 		return ret;
 
+	ret = __intel_ring_prepare(ring, num_dwords * sizeof(uint32_t));
+	if (ret)
+		return ret;
+
 	/* Preallocate the olr before touching the ring */
 	ret = intel_ring_alloc_seqno(ring);
 	if (ret)
 		return ret;
 
-	return __intel_ring_begin(ring, num_dwords * sizeof(uint32_t));
+	ring->space -= num_dwords * sizeof(uint32_t);
+	return 0;
 }
 
 void intel_ring_init_seqno(struct intel_ring_buffer *ring, u32 seqno)

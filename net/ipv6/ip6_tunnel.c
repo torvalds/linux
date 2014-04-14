@@ -1617,6 +1617,15 @@ static int ip6_tnl_changelink(struct net_device *dev, struct nlattr *tb[],
 	return ip6_tnl_update(t, &p);
 }
 
+static void ip6_tnl_dellink(struct net_device *dev, struct list_head *head)
+{
+	struct net *net = dev_net(dev);
+	struct ip6_tnl_net *ip6n = net_generic(net, ip6_tnl_net_id);
+
+	if (dev != ip6n->fb_tnl_dev)
+		unregister_netdevice_queue(dev, head);
+}
+
 static size_t ip6_tnl_get_size(const struct net_device *dev)
 {
 	return
@@ -1646,9 +1655,9 @@ static int ip6_tnl_fill_info(struct sk_buff *skb, const struct net_device *dev)
 
 	if (nla_put_u32(skb, IFLA_IPTUN_LINK, parm->link) ||
 	    nla_put(skb, IFLA_IPTUN_LOCAL, sizeof(struct in6_addr),
-		    &parm->raddr) ||
-	    nla_put(skb, IFLA_IPTUN_REMOTE, sizeof(struct in6_addr),
 		    &parm->laddr) ||
+	    nla_put(skb, IFLA_IPTUN_REMOTE, sizeof(struct in6_addr),
+		    &parm->raddr) ||
 	    nla_put_u8(skb, IFLA_IPTUN_TTL, parm->hop_limit) ||
 	    nla_put_u8(skb, IFLA_IPTUN_ENCAP_LIMIT, parm->encap_limit) ||
 	    nla_put_be32(skb, IFLA_IPTUN_FLOWINFO, parm->flowinfo) ||
@@ -1681,6 +1690,7 @@ static struct rtnl_link_ops ip6_link_ops __read_mostly = {
 	.validate	= ip6_tnl_validate,
 	.newlink	= ip6_tnl_newlink,
 	.changelink	= ip6_tnl_changelink,
+	.dellink	= ip6_tnl_dellink,
 	.get_size	= ip6_tnl_get_size,
 	.fill_info	= ip6_tnl_fill_info,
 };
@@ -1732,6 +1742,7 @@ static int __net_init ip6_tnl_init_net(struct net *net)
 	if (!ip6n->fb_tnl_dev)
 		goto err_alloc_dev;
 	dev_net_set(ip6n->fb_tnl_dev, net);
+	ip6n->fb_tnl_dev->rtnl_link_ops = &ip6_link_ops;
 
 	err = ip6_fb_tnl_dev_init(ip6n->fb_tnl_dev);
 	if (err < 0)

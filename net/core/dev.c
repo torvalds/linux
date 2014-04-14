@@ -3513,8 +3513,15 @@ ncls:
 		}
 	}
 
-	if (vlan_tx_nonzero_tag_present(skb))
-		skb->pkt_type = PACKET_OTHERHOST;
+	if (unlikely(vlan_tx_tag_present(skb))) {
+		if (vlan_tx_tag_get_id(skb))
+			skb->pkt_type = PACKET_OTHERHOST;
+		/* Note: we might in the future use prio bits
+		 * and set skb->priority like in vlan_do_receive()
+		 * For the time being, just ignore Priority Code Point
+		 */
+		skb->vlan_tci = 0;
+	}
 
 	/* deliver only exact match when indicated */
 	null_or_dev = deliver_exact ? skb->dev : NULL;
@@ -4471,7 +4478,7 @@ static void dev_change_rx_flags(struct net_device *dev, int flags)
 {
 	const struct net_device_ops *ops = dev->netdev_ops;
 
-	if ((dev->flags & IFF_UP) && ops->ndo_change_rx_flags)
+	if (ops->ndo_change_rx_flags)
 		ops->ndo_change_rx_flags(dev, flags);
 }
 

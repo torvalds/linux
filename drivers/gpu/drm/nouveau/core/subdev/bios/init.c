@@ -366,13 +366,13 @@ static u16
 init_script(struct nouveau_bios *bios, int index)
 {
 	struct nvbios_init init = { .bios = bios };
-	u16 data;
+	u16 bmp_ver = bmp_version(bios), data;
 
-	if (bmp_version(bios) && bmp_version(bios) < 0x0510) {
-		if (index > 1)
+	if (bmp_ver && bmp_ver < 0x0510) {
+		if (index > 1 || bmp_ver < 0x0100)
 			return 0x0000;
 
-		data = bios->bmp_offset + (bios->version.major < 2 ? 14 : 18);
+		data = bios->bmp_offset + (bmp_ver < 0x0200 ? 14 : 18);
 		return nv_ro16(bios, data + (index * 2));
 	}
 
@@ -580,8 +580,22 @@ static void
 init_reserved(struct nvbios_init *init)
 {
 	u8 opcode = nv_ro08(init->bios, init->offset);
-	trace("RESERVED\t0x%02x\n", opcode);
-	init->offset += 1;
+	u8 length, i;
+
+	switch (opcode) {
+	case 0xaa:
+		length = 4;
+		break;
+	default:
+		length = 1;
+		break;
+	}
+
+	trace("RESERVED 0x%02x\t", opcode);
+	for (i = 1; i < length; i++)
+		cont(" 0x%02x", nv_ro08(init->bios, init->offset + i));
+	cont("\n");
+	init->offset += length;
 }
 
 /**
@@ -1281,7 +1295,11 @@ init_jump(struct nvbios_init *init)
 	u16 offset = nv_ro16(bios, init->offset + 1);
 
 	trace("JUMP\t0x%04x\n", offset);
-	init->offset = offset;
+
+	if (init_exec(init))
+		init->offset = offset;
+	else
+		init->offset += 3;
 }
 
 /**
@@ -2136,6 +2154,7 @@ static struct nvbios_init_opcode {
 	[0x99] = { init_zm_auxch },
 	[0x9a] = { init_i2c_long_if },
 	[0xa9] = { init_gpio_ne },
+	[0xaa] = { init_reserved },
 };
 
 #define init_opcode_nr (sizeof(init_opcode) / sizeof(init_opcode[0]))

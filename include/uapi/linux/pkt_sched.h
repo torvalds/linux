@@ -73,9 +73,17 @@ struct tc_estimator {
 #define TC_H_ROOT	(0xFFFFFFFFU)
 #define TC_H_INGRESS    (0xFFFFFFF1U)
 
+/* Need to corrospond to iproute2 tc/tc_core.h "enum link_layer" */
+enum tc_link_layer {
+	TC_LINKLAYER_UNAWARE, /* Indicate unaware old iproute2 util */
+	TC_LINKLAYER_ETHERNET,
+	TC_LINKLAYER_ATM,
+};
+#define TC_LINKLAYER_MASK 0x0F /* limit use to lower 4 bits */
+
 struct tc_ratespec {
 	unsigned char	cell_log;
-	unsigned char	__reserved;
+	__u8		linklayer; /* lower 4 bits */
 	unsigned short	overhead;
 	short		cell_align;
 	unsigned short	mpu;

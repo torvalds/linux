@@ -205,6 +205,10 @@ int ulist_add_merge(struct ulist *ulist, u64 val, u64 aux,
 		u64 new_alloced = ulist->nodes_alloced + 128;
 		struct ulist_node *new_nodes;
 		void *old = NULL;
+		int i;
+
+		for (i = 0; i < ulist->nnodes; i++)
+			rb_erase(&ulist->nodes[i].rb_node, &ulist->root);
 
 		/*
 		 * if nodes_alloced == ULIST_SIZE no memory has been allocated
@@ -224,6 +228,17 @@ int ulist_add_merge(struct ulist *ulist, u64 val, u64 aux,
 
 		ulist->nodes = new_nodes;
 		ulist->nodes_alloced = new_alloced;
+
+		/*
+		 * krealloc actually uses memcpy, which does not copy rb_node
+		 * pointers, so we have to do it ourselves.  Otherwise we may
+		 * be bitten by crashes.
+		 */
+		for (i = 0; i < ulist->nnodes; i++) {
+			ret = ulist_rbtree_insert(ulist, &ulist->nodes[i]);
+			if (ret < 0)
+				return ret;
+		}
 	}
 	ulist->nodes[ulist->nnodes].val = val;
 	ulist->nodes[ulist->nnodes].aux = aux;

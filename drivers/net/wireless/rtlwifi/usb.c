@@ -477,6 +477,8 @@ static void _rtl_usb_rx_process_agg(struct ieee80211_hw *hw,
 			if (unicast)
 				rtlpriv->link_info.num_rx_inperiod++;
 		}
+		/* static bcn for roaming */
+		rtl_beacon_statistic(hw, skb);
 	}
 }
 
@@ -548,7 +550,7 @@ static void _rtl_rx_pre_process(struct ieee80211_hw *hw, struct sk_buff *skb)
 	}
 }
 
-#define __RX_SKB_MAX_QUEUED	32
+#define __RX_SKB_MAX_QUEUED	64
 
 static void _rtl_rx_work(unsigned long param)
 {
@@ -1070,6 +1072,8 @@ int rtl_usb_probe(struct usb_interface *intf,
 	spin_lock_init(&rtlpriv->locks.usb_lock);
 	INIT_WORK(&rtlpriv->works.fill_h2c_cmd,
 		  rtl_fill_h2c_cmd_work_callback);
+	INIT_WORK(&rtlpriv->works.lps_change_work,
+		  rtl_lps_change_work_callback);
 
 	rtlpriv->usb_data_index = 0;
 	init_completion(&rtlpriv->firmware_loading_complete);

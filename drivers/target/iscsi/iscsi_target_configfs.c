@@ -474,7 +474,7 @@ static ssize_t __iscsi_##prefix##_store_##name(				\
 	if (!capable(CAP_SYS_ADMIN))					\
 		return -EPERM;						\
 									\
-	snprintf(auth->name, PAGE_SIZE, "%s", page);			\
+	snprintf(auth->name, sizeof(auth->name), "%s", page);		\
 	if (!strncmp("NULL", auth->name, 4))				\
 		auth->naf_flags &= ~flags;				\
 	else								\
@@ -1650,6 +1650,11 @@ static int lio_queue_status(struct se_cmd *se_cmd)
 	struct iscsi_cmd *cmd = container_of(se_cmd, struct iscsi_cmd, se_cmd);
 
 	cmd->i_state = ISTATE_SEND_STATUS;
+
+	if (cmd->se_cmd.scsi_status || cmd->sense_reason) {
+		iscsit_add_cmd_to_response_queue(cmd, cmd->conn, cmd->i_state);
+		return 0;
+	}
 	cmd->conn->conn_transport->iscsit_queue_status(cmd->conn, cmd);
 
 	return 0;

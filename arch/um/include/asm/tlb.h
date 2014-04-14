@@ -45,10 +45,12 @@ static inline void init_tlb_gather(struct mmu_gather *tlb)
 }
 
 static inline void
-tlb_gather_mmu(struct mmu_gather *tlb, struct mm_struct *mm, unsigned int full_mm_flush)
+tlb_gather_mmu(struct mmu_gather *tlb, struct mm_struct *mm, unsigned long start, unsigned long end)
 {
 	tlb->mm = mm;
-	tlb->fullmm = full_mm_flush;
+	tlb->start = start;
+	tlb->end = end;
+	tlb->fullmm = !(start | (end+1));
 
 	init_tlb_gather(tlb);
 }

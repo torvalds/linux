@@ -1487,7 +1487,13 @@ try_to_wake_up(struct task_struct *p, unsigned int state, int wake_flags)
 	unsigned long flags;
 	int cpu, success = 0;
 
-	smp_wmb();
+	/*
+	 * If we are going to wake up a thread waiting for CONDITION we
+	 * need to ensure that CONDITION=1 done by the caller can not be
+	 * reordered with p->state check below. This pairs with mb() in
+	 * set_current_state() the waiting thread does.
+	 */
+	smp_mb__before_spinlock();
 	raw_spin_lock_irqsave(&p->pi_lock, flags);
 	if (!(p->state & state))
 		goto out;
@@ -2966,6 +2972,12 @@ need_resched:
 	if (sched_feat(HRTICK))
 		hrtick_clear(rq);
 
+	/*
+	 * Make sure that signal_pending_state()->signal_pending() below
+	 * can't be reordered with __set_current_state(TASK_INTERRUPTIBLE)
+	 * done by the caller to avoid the race with signal_wake_up().
+	 */
+	smp_mb__before_spinlock();
 	raw_spin_lock_irq(&rq->lock);
 
 	switch_count = &prev->nivcsw;
@@ -7800,7 +7812,12 @@ static int tg_set_cfs_bandwidth(struct task_group *tg, u64 period, u64 quota)
 
 	runtime_enabled = quota != RUNTIME_INF;
 	runtime_was_enabled = cfs_b->quota != RUNTIME_INF;
-	account_cfs_bandwidth_used(runtime_enabled, runtime_was_enabled);
+	/*
+	 * If we need to toggle cfs_bandwidth_used, off->on must occur
+	 * before making related changes, and on->off must occur afterwards
+	 */
+	if (runtime_enabled && !runtime_was_enabled)
+		cfs_bandwidth_usage_inc();
 	raw_spin_lock_irq(&cfs_b->lock);
 	cfs_b->period = ns_to_ktime(period);
 	cfs_b->quota = quota;
@@ -7826,6 +7843,8 @@ static int tg_set_cfs_bandwidth(struct task_group *tg, u64 period, u64 quota)
 			unthrottle_cfs_rq(cfs_rq);
 		raw_spin_unlock_irq(&rq->lock);
 	}
+	if (runtime_was_enabled && !runtime_enabled)
+		cfs_bandwidth_usage_dec();
 out_unlock:
 	mutex_unlock(&cfs_constraints_mutex);
 

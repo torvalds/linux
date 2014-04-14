@@ -203,10 +203,18 @@ static void __init alloc_init_pmd(pud_t *pud, unsigned long addr,
 	do {
 		next = pmd_addr_end(addr, end);
 		/* try section mapping first */
-		if (((addr | next | phys) & ~SECTION_MASK) == 0)
+		if (((addr | next | phys) & ~SECTION_MASK) == 0) {
+			pmd_t old_pmd =*pmd;
 			set_pmd(pmd, __pmd(phys | prot_sect_kernel));
-		else
+			/*
+			 * Check for previous table entries created during
+			 * boot (__create_page_tables) and flush them.
+			 */
+			if (!pmd_none(old_pmd))
+				flush_tlb_all();
+		} else {
 			alloc_init_pte(pmd, addr, next, __phys_to_pfn(phys));
+		}
 		phys += next - addr;
 	} while (pmd++, addr = next, addr != end);
 }
@@ -297,6 +305,16 @@ static void __init map_mem(void)
 {
 	struct memblock_region *reg;
 
+	/*
+	 * Temporarily limit the memblock range. We need to do this as
+	 * create_mapping requires puds, pmds and ptes to be allocated from
+	 * memory addressable from the initial direct kernel mapping.
+	 *
+	 * The initial direct kernel mapping, located at swapper_pg_dir,
+	 * gives us PGDIR_SIZE memory starting from PHYS_OFFSET (aligned).
+	 */
+	memblock_set_current_limit((PHYS_OFFSET & PGDIR_MASK) + PGDIR_SIZE);
+
 	/* map all the memory banks */
 	for_each_memblock(memory, reg) {
 		phys_addr_t start = reg->base;
@@ -307,6 +325,9 @@ static void __init map_mem(void)
 
 		create_mapping(start, __phys_to_virt(start), end - start);
 	}
+
+	/* Limit no longer required. */
+	memblock_set_current_limit(MEMBLOCK_ALLOC_ANYWHERE);
 }
 
 /*
@@ -316,12 +337,6 @@ static void __init map_mem(void)
 void __init paging_init(void)
 {
 	void *zero_page;
-
-	/*
-	 * Maximum PGDIR_SIZE addressable via the initial direct kernel
-	 * mapping in swapper_pg_dir.
-	 */
-	memblock_set_current_limit((PHYS_OFFSET & PGDIR_MASK) + PGDIR_SIZE);
 
 	init_mem_pgprot();
 	map_mem();
@@ -339,7 +354,6 @@ void __init paging_init(void)
 	bootmem_init();
 
 	empty_zero_page = virt_to_page(zero_page);
-	__flush_dcache_page(empty_zero_page);
 
 	/*
 	 * TTBR0 is only used for the identity mapping at this stage. Make it

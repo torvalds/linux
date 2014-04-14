@@ -399,7 +399,7 @@ uint64_t r600_get_gpu_clock_counter(struct radeon_device *rdev);
 /* uvd */
 int r600_uvd_init(struct radeon_device *rdev);
 int r600_uvd_rbc_start(struct radeon_device *rdev);
-void r600_uvd_rbc_stop(struct radeon_device *rdev);
+void r600_uvd_stop(struct radeon_device *rdev);
 int r600_uvd_ib_test(struct radeon_device *rdev, struct radeon_ring *ring);
 void r600_uvd_fence_emit(struct radeon_device *rdev,
 			 struct radeon_fence *fence);

@@ -1321,7 +1321,7 @@ read_again:
 			/* Could not read all from this device, so we will
 			 * need another r10_bio.
 			 */
-			sectors_handled = (r10_bio->sectors + max_sectors
+			sectors_handled = (r10_bio->sector + max_sectors
 					   - bio->bi_sector);
 			r10_bio->sectors = max_sectors;
 			spin_lock_irq(&conf->device_lock);
@@ -1329,7 +1329,7 @@ read_again:
 				bio->bi_phys_segments = 2;
 			else
 				bio->bi_phys_segments++;
-			spin_unlock(&conf->device_lock);
+			spin_unlock_irq(&conf->device_lock);
 			/* Cannot call generic_make_request directly
 			 * as that will be queued in __generic_make_request
 			 * and subsequent mempool_alloc might block
@@ -1762,6 +1762,7 @@ static int raid10_spare_active(struct mddev *mddev)
 			}
 			sysfs_notify_dirent_safe(tmp->replacement->sysfs_state);
 		} else if (tmp->rdev
+			   && tmp->rdev->recovery_offset == MaxSector
 			   && !test_bit(Faulty, &tmp->rdev->flags)
 			   && !test_and_set_bit(In_sync, &tmp->rdev->flags)) {
 			count++;
@@ -2075,11 +2076,17 @@ static void sync_request_write(struct mddev *mddev, struct r10bio *r10_bio)
 			 * both 'first' and 'i', so we just compare them.
 			 * All vec entries are PAGE_SIZE;
 			 */
-			for (j = 0; j < vcnt; j++)
+			int sectors = r10_bio->sectors;
+			for (j = 0; j < vcnt; j++) {
+				int len = PAGE_SIZE;
+				if (sectors < (len / 512))
+					len = sectors * 512;
 				if (memcmp(page_address(fbio->bi_io_vec[j].bv_page),
 					   page_address(tbio->bi_io_vec[j].bv_page),
-					   fbio->bi_io_vec[j].bv_len))
+					   len))
 					break;
+				sectors -= len/512;
+			}
 			if (j == vcnt)
 				continue;
 			atomic64_add(r10_bio->sectors, &mddev->resync_mismatches);
@@ -2262,12 +2269,18 @@ static void recovery_request_write(struct mddev *mddev, struct r10bio *r10_bio)
 	d = r10_bio->devs[1].devnum;
 	wbio = r10_bio->devs[1].bio;
 	wbio2 = r10_bio->devs[1].repl_bio;
+	/* Need to test wbio2->bi_end_io before we call
+	 * generic_make_request as if the former is NULL,
+	 * the latter is free to free wbio2.
+	 */
+	if (wbio2 && !wbio2->bi_end_io)
+		wbio2 = NULL;
 	if (wbio->bi_end_io) {
 		atomic_inc(&conf->mirrors[d].rdev->nr_pending);
 		md_sync_acct(conf->mirrors[d].rdev->bdev, bio_sectors(wbio));
 		generic_make_request(wbio);
 	}
-	if (wbio2 && wbio2->bi_end_io) {
+	if (wbio2) {
 		atomic_inc(&conf->mirrors[d].replacement->nr_pending);
 		md_sync_acct(conf->mirrors[d].replacement->bdev,
 			     bio_sectors(wbio2));
@@ -2909,14 +2922,13 @@ static sector_t sync_request(struct mddev *mddev, sector_t sector_nr,
 	 */
 	if (mddev->bitmap == NULL &&
 	    mddev->recovery_cp == MaxSector &&
+	    mddev->reshape_position == MaxSector &&
+	    !test_bit(MD_RECOVERY_SYNC, &mddev->recovery) &&
 	    !test_bit(MD_RECOVERY_REQUESTED, &mddev->recovery) &&
+	    !test_bit(MD_RECOVERY_RESHAPE, &mddev->recovery) &&
 	    conf->fullsync == 0) {
 		*skipped = 1;
-		max_sector = mddev->dev_sectors;
-		if (test_bit(MD_RECOVERY_SYNC, &mddev->recovery) ||
-		    test_bit(MD_RECOVERY_RESHAPE, &mddev->recovery))
-			max_sector = mddev->resync_max_sectors;
-		return max_sector - sector_nr;
+		return mddev->dev_sectors - sector_nr;
 	}
 
  skipped:
@@ -3186,10 +3198,6 @@ static sector_t sync_request(struct mddev *mddev, sector_t sector_nr,
 			if (j == conf->copies) {
 				/* Cannot recover, so abort the recovery or
 				 * record a bad block */
-				put_buf(r10_bio);
-				if (rb2)
-					atomic_dec(&rb2->remaining);
-				r10_bio = rb2;
 				if (any_working) {
 					/* problem is that there are bad blocks
 					 * on other device(s)
@@ -3221,6 +3229,10 @@ static sector_t sync_request(struct mddev *mddev, sector_t sector_nr,
 					mirror->recovery_disabled
 						= mddev->recovery_disabled;
 				}
+				put_buf(r10_bio);
+				if (rb2)
+					atomic_dec(&rb2->remaining);
+				r10_bio = rb2;
 				break;
 			}
 		}
@@ -3386,6 +3398,7 @@ static sector_t sync_request(struct mddev *mddev, sector_t sector_nr,
 
 		if (bio->bi_end_io == end_sync_read) {
 			md_sync_acct(bio->bi_bdev, nr_sectors);
+			set_bit(BIO_UPTODATE, &bio->bi_flags);
 			generic_make_request(bio);
 		}
 	}
@@ -3532,7 +3545,7 @@ static struct r10conf *setup_conf(struct mddev *mddev)
 
 	/* FIXME calc properly */
 	conf->mirrors = kzalloc(sizeof(struct raid10_info)*(mddev->raid_disks +
-							    max(0,mddev->delta_disks)),
+							    max(0,-mddev->delta_disks)),
 				GFP_KERNEL);
 	if (!conf->mirrors)
 		goto out;
@@ -3691,7 +3704,7 @@ static int run(struct mddev *mddev)
 		    conf->geo.far_offset == 0)
 			goto out_free_conf;
 		if (conf->prev.far_copies != 1 &&
-		    conf->geo.far_offset == 0)
+		    conf->prev.far_offset == 0)
 			goto out_free_conf;
 	}
 

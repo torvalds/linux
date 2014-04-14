@@ -165,7 +165,7 @@ struct cs_cpu_dbs_info_s {
 
 /* Per policy Governers sysfs tunables */
 struct od_dbs_tuners {
-	unsigned int ignore_nice;
+	unsigned int ignore_nice_load;
 	unsigned int sampling_rate;
 	unsigned int sampling_down_factor;
 	unsigned int up_threshold;
@@ -175,7 +175,7 @@ struct od_dbs_tuners {
 };
 
 struct cs_dbs_tuners {
-	unsigned int ignore_nice;
+	unsigned int ignore_nice_load;
 	unsigned int sampling_rate;
 	unsigned int sampling_down_factor;
 	unsigned int up_threshold;

@@ -942,7 +942,7 @@ static int tty3270_install(struct tty_driver *driver, struct tty_struct *tty)
 		return rc;
 	}
 
-	tp->screen = tty3270_alloc_screen(tp->view.cols, tp->view.rows);
+	tp->screen = tty3270_alloc_screen(tp->view.rows, tp->view.cols);
 	if (IS_ERR(tp->screen)) {
 		rc = PTR_ERR(tp->screen);
 		raw3270_put_view(&tp->view);

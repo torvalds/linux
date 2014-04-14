@@ -2524,7 +2524,8 @@ static int did_create_dir(struct send_ctx *sctx, u64 dir)
 		di = btrfs_item_ptr(eb, slot, struct btrfs_dir_item);
 		btrfs_dir_item_key_to_cpu(eb, di, &di_key);
 
-		if (di_key.objectid < sctx->send_progress) {
+		if (di_key.type != BTRFS_ROOT_ITEM_KEY &&
+		    di_key.objectid < sctx->send_progress) {
 			ret = 1;
 			goto out;
 		}
@@ -4579,6 +4580,41 @@ long btrfs_ioctl_send(struct file *mnt_file, void __user *arg_)
 	send_root = BTRFS_I(file_inode(mnt_file))->root;
 	fs_info = send_root->fs_info;
 
+	/*
+	 * This is done when we lookup the root, it should already be complete
+	 * by the time we get here.
+	 */
+	WARN_ON(send_root->orphan_cleanup_state != ORPHAN_CLEANUP_DONE);
+
+	/*
+	 * If we just created this root we need to make sure that the orphan
+	 * cleanup has been done and committed since we search the commit root,
+	 * so check its commit root transid with our otransid and if they match
+	 * commit the transaction to make sure everything is updated.
+	 */
+	down_read(&send_root->fs_info->extent_commit_sem);
+	if (btrfs_header_generation(send_root->commit_root) ==
+	    btrfs_root_otransid(&send_root->root_item)) {
+		struct btrfs_trans_handle *trans;
+
+		up_read(&send_root->fs_info->extent_commit_sem);
+
+		trans = btrfs_attach_transaction_barrier(send_root);
+		if (IS_ERR(trans)) {
+			if (PTR_ERR(trans) != -ENOENT) {
+				ret = PTR_ERR(trans);
+				goto out;
+			}
+			/* ENOENT means theres no transaction */
+		} else {
+			ret = btrfs_commit_transaction(trans, send_root);
+			if (ret)
+				goto out;
+		}
+	} else {
+		up_read(&send_root->fs_info->extent_commit_sem);
+	}
+
 	arg = memdup_user(arg_, sizeof(*arg));
 	if (IS_ERR(arg)) {
 		ret = PTR_ERR(arg);
@@ -4587,8 +4623,8 @@ long btrfs_ioctl_send(struct file *mnt_file, void __user *arg_)
 	}
 
 	if (!access_ok(VERIFY_READ, arg->clone_sources,
-			sizeof(*arg->clone_sources *
-			arg->clone_sources_count))) {
+			sizeof(*arg->clone_sources) *
+			arg->clone_sources_count)) {
 		ret = -EFAULT;
 		goto out;
 	}

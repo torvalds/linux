@@ -52,16 +52,20 @@ int edac_mc_get_poll_msec(void)
 
 static int edac_set_poll_msec(const char *val, struct kernel_param *kp)
 {
-	long l;
+	unsigned long l;
 	int ret;
 
 	if (!val)
 		return -EINVAL;
 
-	ret = strict_strtol(val, 0, &l);
-	if (ret == -EINVAL || ((int)l != l))
+	ret = kstrtoul(val, 0, &l);
+	if (ret)
+		return ret;
+
+	if (l < 1000)
 		return -EINVAL;
-	*((int *)kp->arg) = l;
+
+	*((unsigned long *)kp->arg) = l;
 
 	/* notify edac_mc engine to reset the poll period */
 	edac_mc_reset_delay_period(l);
@@ -370,7 +374,7 @@ static int edac_create_csrow_object(struct mem_ctl_info *mci,
 		return -ENODEV;
 
 	csrow->dev.type = &csrow_attr_type;
-	csrow->dev.bus = &mci->bus;
+	csrow->dev.bus = mci->bus;
 	device_initialize(&csrow->dev);
 	csrow->dev.parent = &mci->dev;
 	csrow->mci = mci;
@@ -605,7 +609,7 @@ static int edac_create_dimm_object(struct mem_ctl_info *mci,
 	dimm->mci = mci;
 
 	dimm->dev.type = &dimm_attr_type;
-	dimm->dev.bus = &mci->bus;
+	dimm->dev.bus = mci->bus;
 	device_initialize(&dimm->dev);
 
 	dimm->dev.parent = &mci->dev;
@@ -975,11 +979,13 @@ int edac_create_sysfs_mci_device(struct mem_ctl_info *mci)
 	 * The memory controller needs its own bus, in order to avoid
 	 * namespace conflicts at /sys/bus/edac.
 	 */
-	mci->bus.name = kasprintf(GFP_KERNEL, "mc%d", mci->mc_idx);
-	if (!mci->bus.name)
+	mci->bus->name = kasprintf(GFP_KERNEL, "mc%d", mci->mc_idx);
+	if (!mci->bus->name)
 		return -ENOMEM;
-	edac_dbg(0, "creating bus %s\n", mci->bus.name);
-	err = bus_register(&mci->bus);
+
+	edac_dbg(0, "creating bus %s\n", mci->bus->name);
+
+	err = bus_register(mci->bus);
 	if (err < 0)
 		return err;
 
@@ -988,7 +994,7 @@ int edac_create_sysfs_mci_device(struct mem_ctl_info *mci)
 	device_initialize(&mci->dev);
 
 	mci->dev.parent = mci_pdev;
-	mci->dev.bus = &mci->bus;
+	mci->dev.bus = mci->bus;
 	dev_set_name(&mci->dev, "mc%d", mci->mc_idx);
 	dev_set_drvdata(&mci->dev, mci);
 	pm_runtime_forbid(&mci->dev);
@@ -997,8 +1003,8 @@ int edac_create_sysfs_mci_device(struct mem_ctl_info *mci)
 	err = device_add(&mci->dev);
 	if (err < 0) {
 		edac_dbg(1, "failure: create device %s\n", dev_name(&mci->dev));
-		bus_unregister(&mci->bus);
-		kfree(mci->bus.name);
+		bus_unregister(mci->bus);
+		kfree(mci->bus->name);
 		return err;
 	}
 
@@ -1064,8 +1070,8 @@ fail:
 	}
 fail2:
 	device_unregister(&mci->dev);
-	bus_unregister(&mci->bus);
-	kfree(mci->bus.name);
+	bus_unregister(mci->bus);
+	kfree(mci->bus->name);
 	return err;
 }
 
@@ -1098,8 +1104,8 @@ void edac_unregister_sysfs(struct mem_ctl_info *mci)
 {
 	edac_dbg(1, "Unregistering device %s\n", dev_name(&mci->dev));
 	device_unregister(&mci->dev);
-	bus_unregister(&mci->bus);
-	kfree(mci->bus.name);
+	bus_unregister(mci->bus);
+	kfree(mci->bus->name);
 }
 
 static void mc_attr_release(struct device *dev)

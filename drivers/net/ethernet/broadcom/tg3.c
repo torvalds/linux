@@ -3003,6 +3003,19 @@ static bool tg3_phy_power_bug(struct tg3 *tp)
 	return false;
 }
 
+static bool tg3_phy_led_bug(struct tg3 *tp)
+{
+	switch (tg3_asic_rev(tp)) {
+	case ASIC_REV_5719:
+		if ((tp->phy_flags & TG3_PHYFLG_MII_SERDES) &&
+		    !tp->pci_fn)
+			return true;
+		return false;
+	}
+
+	return false;
+}
+
 static void tg3_power_down_phy(struct tg3 *tp, bool do_low_power)
 {
 	u32 val;
@@ -3050,8 +3063,9 @@ static void tg3_power_down_phy(struct tg3 *tp, bool do_low_power)
 		}
 		return;
 	} else if (do_low_power) {
-		tg3_writephy(tp, MII_TG3_EXT_CTRL,
-			     MII_TG3_EXT_CTRL_FORCE_LED_OFF);
+		if (!tg3_phy_led_bug(tp))
+			tg3_writephy(tp, MII_TG3_EXT_CTRL,
+				     MII_TG3_EXT_CTRL_FORCE_LED_OFF);
 
 		val = MII_TG3_AUXCTL_PCTL_100TX_LPWR |
 		      MII_TG3_AUXCTL_PCTL_SPR_ISOLATE |
@@ -6708,12 +6722,6 @@ static int tg3_rx(struct tg3_napi *tnapi, int budget)
 			pci_unmap_single(tp->pdev, dma_addr, skb_size,
 					 PCI_DMA_FROMDEVICE);
 
-			skb = build_skb(data, frag_size);
-			if (!skb) {
-				tg3_frag_free(frag_size != 0, data);
-				goto drop_it_no_recycle;
-			}
-			skb_reserve(skb, TG3_RX_OFFSET(tp));
 			/* Ensure that the update to the data happens
 			 * after the usage of the old DMA mapping.
 			 */
@@ -6721,6 +6729,12 @@ static int tg3_rx(struct tg3_napi *tnapi, int budget)
 
 			ri->data = NULL;
 
+			skb = build_skb(data, frag_size);
+			if (!skb) {
+				tg3_frag_free(frag_size != 0, data);
+				goto drop_it_no_recycle;
+			}
+			skb_reserve(skb, TG3_RX_OFFSET(tp));
 		} else {
 			tg3_recycle_rx(tnapi, tpr, opaque_key,
 				       desc_idx, *post_ptr);
@@ -7468,7 +7482,7 @@ static inline int tg3_4g_overflow_test(dma_addr_t mapping, int len)
 {
 	u32 base = (u32) mapping & 0xffffffff;
 
-	return (base > 0xffffdcc0) && (base + len + 8 < base);
+	return base + len + 8 < base;
 }
 
 /* Test for TSO DMA buffers that cross into regions which are within MSS bytes
@@ -16282,6 +16296,9 @@ static int tg3_get_invariants(struct tg3 *tp, const struct pci_device_id *ent)
 
 	/* Clear this out for sanity. */
 	tw32(TG3PCI_MEM_WIN_BASE_ADDR, 0);
+
+	/* Clear TG3PCI_REG_BASE_ADDR to prevent hangs. */
+	tw32(TG3PCI_REG_BASE_ADDR, 0);
 
 	pci_read_config_dword(tp->pdev, TG3PCI_PCISTATE,
 			      &pci_state_reg);

@@ -172,63 +172,13 @@ out:
 	return nf_conntrack_confirm(skb);
 }
 
-static unsigned int __ipv6_conntrack_in(struct net *net,
-					unsigned int hooknum,
-					struct sk_buff *skb,
-					const struct net_device *in,
-					const struct net_device *out,
-					int (*okfn)(struct sk_buff *))
-{
-	struct sk_buff *reasm = skb->nfct_reasm;
-	const struct nf_conn_help *help;
-	struct nf_conn *ct;
-	enum ip_conntrack_info ctinfo;
-
-	/* This packet is fragmented and has reassembled packet. */
-	if (reasm) {
-		/* Reassembled packet isn't parsed yet ? */
-		if (!reasm->nfct) {
-			unsigned int ret;
-
-			ret = nf_conntrack_in(net, PF_INET6, hooknum, reasm);
-			if (ret != NF_ACCEPT)
-				return ret;
-		}
-
-		/* Conntrack helpers need the entire reassembled packet in the
-		 * POST_ROUTING hook. In case of unconfirmed connections NAT
-		 * might reassign a helper, so the entire packet is also
-		 * required.
-		 */
-		ct = nf_ct_get(reasm, &ctinfo);
-		if (ct != NULL && !nf_ct_is_untracked(ct)) {
-			help = nfct_help(ct);
-			if ((help && help->helper) || !nf_ct_is_confirmed(ct)) {
-				nf_conntrack_get_reasm(reasm);
-				NF_HOOK_THRESH(NFPROTO_IPV6, hooknum, reasm,
-					       (struct net_device *)in,
-					       (struct net_device *)out,
-					       okfn, NF_IP6_PRI_CONNTRACK + 1);
-				return NF_DROP_ERR(-ECANCELED);
-			}
-		}
-
-		nf_conntrack_get(reasm->nfct);
-		skb->nfct = reasm->nfct;
-		skb->nfctinfo = reasm->nfctinfo;
-		return NF_ACCEPT;
-	}
-
-	return nf_conntrack_in(net, PF_INET6, hooknum, skb);
-}
-
 static unsigned int ipv6_conntrack_in(unsigned int hooknum,
 				      struct sk_buff *skb,
 				      const struct net_device *in,
 				      const struct net_device *out,
 				      int (*okfn)(struct sk_buff *))
 {
-	return __ipv6_conntrack_in(dev_net(in), hooknum, skb, in, out, okfn);
+	return nf_conntrack_in(dev_net(in), PF_INET6, hooknum, skb);
 }
 
 static unsigned int ipv6_conntrack_local(unsigned int hooknum,
@@ -242,7 +192,7 @@ static unsigned int ipv6_conntrack_local(unsigned int hooknum,
 		net_notice_ratelimited("ipv6_conntrack_local: packet too short\n");
 		return NF_ACCEPT;
 	}
-	return __ipv6_conntrack_in(dev_net(out), hooknum, skb, in, out, okfn);
+	return nf_conntrack_in(dev_net(out), PF_INET6, hooknum, skb);
 }
 
 static struct nf_hook_ops ipv6_conntrack_ops[] __read_mostly = {

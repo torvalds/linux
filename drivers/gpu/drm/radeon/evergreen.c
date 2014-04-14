@@ -1718,7 +1718,8 @@ static u32 evergreen_line_buffer_adjust(struct radeon_device *rdev,
 					struct drm_display_mode *mode,
 					struct drm_display_mode *other_mode)
 {
-	u32 tmp;
+	u32 tmp, buffer_alloc, i;
+	u32 pipe_offset = radeon_crtc->crtc_id * 0x20;
 	/*
 	 * Line Buffer Setup
 	 * There are 3 line buffers, each one shared by 2 display controllers.
@@ -1741,17 +1742,33 @@ static u32 evergreen_line_buffer_adjust(struct radeon_device *rdev,
 	 * non-linked crtcs for maximum line buffer allocation.
 	 */
 	if (radeon_crtc->base.enabled && mode) {
-		if (other_mode)
+		if (other_mode) {
 			tmp = 0; /* 1/2 */
-		else
+			buffer_alloc = 1;
+		} else {
 			tmp = 2; /* whole */
-	} else
+			buffer_alloc = 2;
+		}
+	} else {
 		tmp = 0;
+		buffer_alloc = 0;
+	}
 
 	/* second controller of the pair uses second half of the lb */
 	if (radeon_crtc->crtc_id % 2)
 		tmp += 4;
 	WREG32(DC_LB_MEMORY_SPLIT + radeon_crtc->crtc_offset, tmp);
+
+	if (ASIC_IS_DCE41(rdev) || ASIC_IS_DCE5(rdev)) {
+		WREG32(PIPE0_DMIF_BUFFER_CONTROL + pipe_offset,
+		       DMIF_BUFFERS_ALLOCATED(buffer_alloc));
+		for (i = 0; i < rdev->usec_timeout; i++) {
+			if (RREG32(PIPE0_DMIF_BUFFER_CONTROL + pipe_offset) &
+			    DMIF_BUFFERS_ALLOCATED_COMPLETED)
+				break;
+			udelay(1);
+		}
+	}
 
 	if (radeon_crtc->base.enabled && mode) {
 		switch (tmp) {
@@ -2973,7 +2990,7 @@ static void evergreen_gpu_init(struct radeon_device *rdev)
 		rdev->config.evergreen.sx_max_export_size = 256;
 		rdev->config.evergreen.sx_max_export_pos_size = 64;
 		rdev->config.evergreen.sx_max_export_smx_size = 192;
-		rdev->config.evergreen.max_hw_contexts = 8;
+		rdev->config.evergreen.max_hw_contexts = 4;
 		rdev->config.evergreen.sq_num_cf_insts = 2;
 
 		rdev->config.evergreen.sc_prim_fifo_size = 0x40;
@@ -3775,8 +3792,8 @@ void evergreen_disable_interrupt_state(struct radeon_device *rdev)
 		WREG32(GRPH_INT_CONTROL + EVERGREEN_CRTC5_REGISTER_OFFSET, 0);
 	}
 
-	/* only one DAC on DCE6 */
-	if (!ASIC_IS_DCE6(rdev))
+	/* only one DAC on DCE5 */
+	if (!ASIC_IS_DCE5(rdev))
 		WREG32(DACA_AUTODETECT_INT_CONTROL, 0);
 	WREG32(DACB_AUTODETECT_INT_CONTROL, 0);
 
@@ -4681,6 +4698,8 @@ static int evergreen_startup(struct radeon_device *rdev)
 	/* enable pcie gen2 link */
 	evergreen_pcie_gen2_enable(rdev);
 
+	evergreen_mc_program(rdev);
+
 	if (ASIC_IS_DCE5(rdev)) {
 		if (!rdev->me_fw || !rdev->pfp_fw || !rdev->rlc_fw || !rdev->mc_fw) {
 			r = ni_init_microcode(rdev);
@@ -4708,7 +4727,6 @@ static int evergreen_startup(struct radeon_device *rdev)
 	if (r)
 		return r;
 
-	evergreen_mc_program(rdev);
 	if (rdev->flags & RADEON_IS_AGP) {
 		evergreen_agp_enable(rdev);
 	} else {
@@ -4854,10 +4872,10 @@ int evergreen_resume(struct radeon_device *rdev)
 int evergreen_suspend(struct radeon_device *rdev)
 {
 	r600_audio_fini(rdev);
+	r600_uvd_stop(rdev);
 	radeon_uvd_suspend(rdev);
 	r700_cp_stop(rdev);
 	r600_dma_stop(rdev);
-	r600_uvd_rbc_stop(rdev);
 	evergreen_irq_suspend(rdev);
 	radeon_wb_disable(rdev);
 	evergreen_pcie_gart_disable(rdev);
@@ -4988,6 +5006,7 @@ void evergreen_fini(struct radeon_device *rdev)
 	radeon_ib_pool_fini(rdev);
 	radeon_irq_kms_fini(rdev);
 	evergreen_pcie_gart_fini(rdev);
+	r600_uvd_stop(rdev);
 	radeon_uvd_fini(rdev);
 	r600_vram_scratch_fini(rdev);
 	radeon_gem_fini(rdev);

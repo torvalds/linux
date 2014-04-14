@@ -2287,6 +2287,11 @@ static int qib_7322_bringup_serdes(struct qib_pportdata *ppd)
 	qib_write_kreg_port(ppd, krp_ibcctrl_a, ppd->cpspec->ibcctrl_a);
 	qib_write_kreg(dd, kr_scratch, 0ULL);
 
+	/* ensure previous Tx parameters are not still forced */
+	qib_write_kreg_port(ppd, krp_tx_deemph_override,
+		SYM_MASK(IBSD_TX_DEEMPHASIS_OVERRIDE_0,
+		reset_tx_deemphasis_override));
+
 	if (qib_compat_ddr_negotiate) {
 		ppd->cpspec->ibdeltainprog = 1;
 		ppd->cpspec->ibsymsnap = read_7322_creg32_port(ppd,
@@ -5853,21 +5858,20 @@ static int setup_txselect(const char *str, struct kernel_param *kp)
 {
 	struct qib_devdata *dd;
 	unsigned long val;
-	int ret;
-
+	char *n;
 	if (strlen(str) >= MAX_ATTEN_LEN) {
 		pr_info("txselect_values string too long\n");
 		return -ENOSPC;
 	}
-	ret = kstrtoul(str, 0, &val);
-	if (ret || val >= (TXDDS_TABLE_SZ + TXDDS_EXTRA_SZ +
+	val = simple_strtoul(str, &n, 0);
+	if (n == str || val >= (TXDDS_TABLE_SZ + TXDDS_EXTRA_SZ +
 				TXDDS_MFG_SZ)) {
 		pr_info("txselect_values must start with a number < %d\n",
 			TXDDS_TABLE_SZ + TXDDS_EXTRA_SZ + TXDDS_MFG_SZ);
-		return ret ? ret : -EINVAL;
+		return -EINVAL;
 	}
-
 	strcpy(txselect_list, str);
+
 	list_for_each_entry(dd, &qib_dev_list, list)
 		if (dd->deviceid == PCI_DEVICE_ID_QLOGIC_IB_7322)
 			set_no_qsfp_atten(dd, 1);

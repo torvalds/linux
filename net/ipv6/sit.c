@@ -566,6 +566,70 @@ static inline bool is_spoofed_6rd(struct ip_tunnel *tunnel, const __be32 v4addr,
 	return false;
 }
 
+/* Checks if an address matches an address on the tunnel interface.
+ * Used to detect the NAT of proto 41 packets and let them pass spoofing test.
+ * Long story:
+ * This function is called after we considered the packet as spoofed
+ * in is_spoofed_6rd.
+ * We may have a router that is doing NAT for proto 41 packets
+ * for an internal station. Destination a.a.a.a/PREFIX:bbbb:bbbb
+ * will be translated to n.n.n.n/PREFIX:bbbb:bbbb. And is_spoofed_6rd
+ * function will return true, dropping the packet.
+ * But, we can still check if is spoofed against the IP
+ * addresses associated with the interface.
+ */
+static bool only_dnatted(const struct ip_tunnel *tunnel,
+	const struct in6_addr *v6dst)
+{
+	int prefix_len;
+
+#ifdef CONFIG_IPV6_SIT_6RD
+	prefix_len = tunnel->ip6rd.prefixlen + 32
+		- tunnel->ip6rd.relay_prefixlen;
+#else
+	prefix_len = 48;
+#endif
+	return ipv6_chk_custom_prefix(v6dst, prefix_len, tunnel->dev);
+}
+
+/* Returns true if a packet is spoofed */
+static bool packet_is_spoofed(struct sk_buff *skb,
+			      const struct iphdr *iph,
+			      struct ip_tunnel *tunnel)
+{
+	const struct ipv6hdr *ipv6h;
+
+	if (tunnel->dev->priv_flags & IFF_ISATAP) {
+		if (!isatap_chksrc(skb, iph, tunnel))
+			return true;
+
+		return false;
+	}
+
+	if (tunnel->dev->flags & IFF_POINTOPOINT)
+		return false;
+
+	ipv6h = ipv6_hdr(skb);
+
+	if (unlikely(is_spoofed_6rd(tunnel, iph->saddr, &ipv6h->saddr))) {
+		net_warn_ratelimited("Src spoofed %pI4/%pI6c -> %pI4/%pI6c\n",
+				     &iph->saddr, &ipv6h->saddr,
+				     &iph->daddr, &ipv6h->daddr);
+		return true;
+	}
+
+	if (likely(!is_spoofed_6rd(tunnel, iph->daddr, &ipv6h->daddr)))
+		return false;
+
+	if (only_dnatted(tunnel, &ipv6h->daddr))
+		return false;
+
+	net_warn_ratelimited("Dst spoofed %pI4/%pI6c -> %pI4/%pI6c\n",
+			     &iph->saddr, &ipv6h->saddr,
+			     &iph->daddr, &ipv6h->daddr);
+	return true;
+}
+
 static int ipip6_rcv(struct sk_buff *skb)
 {
 	const struct iphdr *iph = ip_hdr(skb);
@@ -584,19 +648,9 @@ static int ipip6_rcv(struct sk_buff *skb)
 		skb->protocol = htons(ETH_P_IPV6);
 		skb->pkt_type = PACKET_HOST;
 
-		if (tunnel->dev->priv_flags & IFF_ISATAP) {
-			if (!isatap_chksrc(skb, iph, tunnel)) {
-				tunnel->dev->stats.rx_errors++;
-				goto out;
-			}
-		} else {
-			if (is_spoofed_6rd(tunnel, iph->saddr,
-					   &ipv6_hdr(skb)->saddr) ||
-			    is_spoofed_6rd(tunnel, iph->daddr,
-					   &ipv6_hdr(skb)->daddr)) {
-				tunnel->dev->stats.rx_errors++;
-				goto out;
-			}
+		if (packet_is_spoofed(skb, iph, tunnel)) {
+			tunnel->dev->stats.rx_errors++;
+			goto out;
 		}
 
 		__skb_tunnel_rx(skb, tunnel->dev);
@@ -713,7 +767,7 @@ static netdev_tx_t ipip6_tunnel_xmit(struct sk_buff *skb,
 			neigh = dst_neigh_lookup(skb_dst(skb), &iph6->daddr);
 
 		if (neigh == NULL) {
-			net_dbg_ratelimited("sit: nexthop == NULL\n");
+			net_dbg_ratelimited("nexthop == NULL\n");
 			goto tx_error;
 		}
 
@@ -742,7 +796,7 @@ static netdev_tx_t ipip6_tunnel_xmit(struct sk_buff *skb,
 			neigh = dst_neigh_lookup(skb_dst(skb), &iph6->daddr);
 
 		if (neigh == NULL) {
-			net_dbg_ratelimited("sit: nexthop == NULL\n");
+			net_dbg_ratelimited("nexthop == NULL\n");
 			goto tx_error;
 		}
 
@@ -865,7 +919,7 @@ static netdev_tx_t ipip6_tunnel_xmit(struct sk_buff *skb,
 		iph->ttl	=	iph6->hop_limit;
 
 	skb->ip_summed = CHECKSUM_NONE;
-	ip_select_ident(iph, skb_dst(skb), NULL);
+	ip_select_ident(skb, skb_dst(skb), NULL);
 	iptunnel_xmit(skb, dev);
 	return NETDEV_TX_OK;
 
@@ -1453,6 +1507,15 @@ static const struct nla_policy ipip6_policy[IFLA_IPTUN_MAX + 1] = {
 #endif
 };
 
+static void ipip6_dellink(struct net_device *dev, struct list_head *head)
+{
+	struct net *net = dev_net(dev);
+	struct sit_net *sitn = net_generic(net, sit_net_id);
+
+	if (dev != sitn->fb_tunnel_dev)
+		unregister_netdevice_queue(dev, head);
+}
+
 static struct rtnl_link_ops sit_link_ops __read_mostly = {
 	.kind		= "sit",
 	.maxtype	= IFLA_IPTUN_MAX,
@@ -1463,6 +1526,7 @@ static struct rtnl_link_ops sit_link_ops __read_mostly = {
 	.changelink	= ipip6_changelink,
 	.get_size	= ipip6_get_size,
 	.fill_info	= ipip6_fill_info,
+	.dellink	= ipip6_dellink,
 };
 
 static struct xfrm_tunnel sit_handler __read_mostly = {
@@ -1507,6 +1571,7 @@ static int __net_init sit_init_net(struct net *net)
 		goto err_alloc_dev;
 	}
 	dev_net_set(sitn->fb_tunnel_dev, net);
+	sitn->fb_tunnel_dev->rtnl_link_ops = &sit_link_ops;
 
 	err = ipip6_fb_tunnel_init(sitn->fb_tunnel_dev);
 	if (err)

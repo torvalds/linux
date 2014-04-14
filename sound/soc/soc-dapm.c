@@ -682,12 +682,13 @@ static int dapm_new_mux(struct snd_soc_dapm_widget *w)
 		return -EINVAL;
 	}
 
-	path = list_first_entry(&w->sources, struct snd_soc_dapm_path,
-				list_sink);
-	if (!path) {
+	if (list_empty(&w->sources)) {
 		dev_err(dapm->dev, "ASoC: mux %s has no paths\n", w->name);
 		return -EINVAL;
 	}
+
+	path = list_first_entry(&w->sources, struct snd_soc_dapm_path,
+				list_sink);
 
 	ret = dapm_create_or_share_mixmux_kcontrol(w, 0, path);
 	if (ret < 0)
@@ -1796,7 +1797,7 @@ static ssize_t dapm_widget_power_read_file(struct file *file,
 				w->active ? "active" : "inactive");
 
 	list_for_each_entry(p, &w->sources, list_sink) {
-		if (p->connected && !p->connected(w, p->sink))
+		if (p->connected && !p->connected(w, p->source))
 			continue;
 
 		if (p->connect)
