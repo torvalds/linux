@@ -39,6 +39,8 @@
 	cpus {
 		#address-cells = <1>;
 		#size-cells = <0>;
+		enable-method = "marvell,armada-375-smp";
+
 		cpu@0 {
 			device_type = "cpu";
 			compatible = "arm,cortex-a9";
@@ -329,6 +331,11 @@
 				compatible = "marvell,armada-375-wdt";
 				reg = <0x20300 0x34>, <0x20704 0x4>, <0x18254 0x4>;
 				clocks = <&coreclk 0>;
+			};
+
+			cpurst@20800 {
+				compatible = "marvell,armada-370-cpu-reset";
+				reg = <0x20800 0x10>;
 			};
 
 			coherency-fabric@21010 {
