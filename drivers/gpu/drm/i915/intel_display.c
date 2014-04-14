@@ -7056,8 +7056,6 @@ void hsw_disable_pc8(struct drm_i915_private *dev_priv)
 	}
 
 	intel_prepare_ddi(dev);
-	i915_gem_init_swizzling(dev);
-	gen6_update_ring_freq(dev);
 }
 
 static void snb_modeset_global_resources(struct drm_device *dev)

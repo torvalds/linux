@@ -926,8 +926,6 @@ static void snb_runtime_resume(struct drm_i915_private *dev_priv)
 	struct drm_device *dev = dev_priv->dev;
 
 	intel_init_pch_refclk(dev);
-	i915_gem_init_swizzling(dev);
-	gen6_update_ring_freq(dev);
 }
 
 static void hsw_runtime_resume(struct drm_i915_private *dev_priv)
@@ -995,6 +993,9 @@ static int intel_runtime_resume(struct device *device)
 		hsw_runtime_resume(dev_priv);
 	else
 		WARN_ON(1);
+
+	i915_gem_init_swizzling(dev);
+	gen6_update_ring_freq(dev);
 
 	intel_runtime_pm_restore_interrupts(dev);
 
