@@ -28,8 +28,6 @@
 	gic: interrupt-controller {
 		compatible = "arm,cortex-a15-gic";
 		#interrupt-cells = <3>;
-		#size-cells = <0>;
-		#address-cells = <1>;
 		interrupt-controller;
 		reg = <0x0 0x02561000 0x0 0x1000>,
 		      <0x0 0x02562000 0x0 0x2000>,
