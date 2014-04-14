@@ -355,8 +355,17 @@ static int vpbe_start_streaming(struct vb2_queue *vq, unsigned int count)
 
 	/* Set parameters in OSD and VENC */
 	ret = vpbe_set_osd_display_params(fh->disp_dev, layer);
-	if (ret < 0)
+	if (ret < 0) {
+		struct vpbe_disp_buffer *buf, *tmp;
+
+		vb2_buffer_done(&layer->cur_frm->vb, VB2_BUF_STATE_QUEUED);
+		list_for_each_entry_safe(buf, tmp, &layer->dma_queue, list) {
+			list_del(&buf->list);
+			vb2_buffer_done(&buf->vb, VB2_BUF_STATE_QUEUED);
+		}
+
 		return ret;
+	}
 
 	/*
 	 * if request format is yuv420 semiplanar, need to
