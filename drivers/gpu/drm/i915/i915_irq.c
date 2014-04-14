@@ -3318,6 +3318,8 @@ static void valleyview_irq_uninstall(struct drm_device *dev)
 	if (!dev_priv)
 		return;
 
+	I915_WRITE(VLV_MASTER_IER, 0);
+
 	intel_hpd_irq_uninstall(dev_priv);
 
 	for_each_pipe(pipe)
