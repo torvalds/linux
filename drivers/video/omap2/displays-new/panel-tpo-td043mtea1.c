@@ -76,7 +76,7 @@ static const struct omap_video_timings tpo_td043_timings = {
 	.x_res		= 800,
 	.y_res		= 480,
 
-	.pixel_clock	= 36000,
+	.pixelclock	= 36000000,
 
 	.hsw		= 1,
 	.hfp		= 68,

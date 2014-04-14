@@ -428,7 +428,7 @@ static int sci_probe_regmap(struct plat_sci_port *cfg)
 		cfg->regtype = SCIx_HSCIF_REGTYPE;
 		break;
 	default:
-		printk(KERN_ERR "Can't probe register map for given port\n");
+		pr_err("Can't probe register map for given port\n");
 		return -EINVAL;
 	}
 
@@ -788,7 +788,7 @@ static int sci_handle_errors(struct uart_port *port)
 		if (tty_insert_flip_char(tport, 0, TTY_OVERRUN))
 			copied++;
 
-		dev_notice(port->dev, "overrun error");
+		dev_notice(port->dev, "overrun error\n");
 	}
 
 	if (status & SCxSR_FER(port)) {
@@ -830,7 +830,7 @@ static int sci_handle_errors(struct uart_port *port)
 		if (tty_insert_flip_char(tport, 0, TTY_PARITY))
 			copied++;
 
-		dev_notice(port->dev, "parity error");
+		dev_notice(port->dev, "parity error\n");
 	}
 
 	if (copied)
@@ -911,7 +911,7 @@ static irqreturn_t sci_rx_interrupt(int irq, void *ptr)
 		/* Disable future Rx interrupts */
 		if (port->type == PORT_SCIFA || port->type == PORT_SCIFB) {
 			disable_irq_nosync(irq);
-			scr |= 0x4000;
+			scr |= SCSCR_RDRQE;
 		} else {
 			scr &= ~SCSCR_RIE;
 		}
@@ -1041,8 +1041,7 @@ static int sci_notifier(struct notifier_block *self,
 
 	sci_port = container_of(self, struct sci_port, freq_transition);
 
-	if ((phase == CPUFREQ_POSTCHANGE) ||
-	    (phase == CPUFREQ_RESUMECHANGE)) {
+	if (phase == CPUFREQ_POSTCHANGE) {
 		struct uart_port *port = &sci_port->port;
 
 		spin_lock_irqsave(&port->lock, flags);
@@ -1200,7 +1199,9 @@ static void sci_set_mctrl(struct uart_port *port, unsigned int mctrl)
 		 */
 		reg = sci_getreg(port, SCFCR);
 		if (reg->size)
-			serial_port_out(port, SCFCR, serial_port_in(port, SCFCR) | 1);
+			serial_port_out(port, SCFCR,
+					serial_port_in(port, SCFCR) |
+					SCFCR_LOOP);
 	}
 }
 
@@ -1290,7 +1291,8 @@ static void sci_dma_rx_complete(void *arg)
 	unsigned long flags;
 	int count;
 
-	dev_dbg(port->dev, "%s(%d) active #%d\n", __func__, port->line, s->active_rx);
+	dev_dbg(port->dev, "%s(%d) active #%d\n",
+		__func__, port->line, s->active_rx);
 
 	spin_lock_irqsave(&port->lock, flags);
 
@@ -1366,8 +1368,8 @@ static void sci_submit_rx(struct sci_port *s)
 			sci_rx_dma_release(s, true);
 			return;
 		}
-		dev_dbg(s->port.dev, "%s(): cookie %d to #%d\n", __func__,
-			s->cookie_rx[i], i);
+		dev_dbg(s->port.dev, "%s(): cookie %d to #%d\n",
+			__func__, s->cookie_rx[i], i);
 	}
 
 	s->active_rx = s->cookie_rx[0];
@@ -1426,8 +1428,8 @@ static void work_fn_rx(struct work_struct *work)
 
 	s->active_rx = s->cookie_rx[!new];
 
-	dev_dbg(port->dev, "%s: cookie %d #%d, new active #%d\n", __func__,
-		s->cookie_rx[new], new, s->active_rx);
+	dev_dbg(port->dev, "%s: cookie %d #%d, new active #%d\n",
+		__func__, s->cookie_rx[new], new, s->active_rx);
 }
 
 static void work_fn_tx(struct work_struct *work)
@@ -1480,8 +1482,8 @@ static void work_fn_tx(struct work_struct *work)
 		return;
 	}
 
-	dev_dbg(port->dev, "%s: %p: %d...%d, cookie %d\n", __func__,
-		xmit->buf, xmit->tail, xmit->head, s->cookie_tx);
+	dev_dbg(port->dev, "%s: %p: %d...%d, cookie %d\n",
+		__func__, xmit->buf, xmit->tail, xmit->head, s->cookie_tx);
 
 	dma_async_issue_pending(chan);
 }
@@ -1496,9 +1498,9 @@ static void sci_start_tx(struct uart_port *port)
 	if (port->type == PORT_SCIFA || port->type == PORT_SCIFB) {
 		u16 new, scr = serial_port_in(port, SCSCR);
 		if (s->chan_tx)
-			new = scr | 0x8000;
+			new = scr | SCSCR_TDRQE;
 		else
-			new = scr & ~0x8000;
+			new = scr & ~SCSCR_TDRQE;
 		if (new != scr)
 			serial_port_out(port, SCSCR, new);
 	}
@@ -1525,7 +1527,7 @@ static void sci_stop_tx(struct uart_port *port)
 	ctrl = serial_port_in(port, SCSCR);
 
 	if (port->type == PORT_SCIFA || port->type == PORT_SCIFB)
-		ctrl &= ~0x8000;
+		ctrl &= ~SCSCR_TDRQE;
 
 	ctrl &= ~SCSCR_TIE;
 
@@ -1539,7 +1541,7 @@ static void sci_start_rx(struct uart_port *port)
 	ctrl = serial_port_in(port, SCSCR) | port_rx_irq_mask(port);
 
 	if (port->type == PORT_SCIFA || port->type == PORT_SCIFB)
-		ctrl &= ~0x4000;
+		ctrl &= ~SCSCR_RDRQE;
 
 	serial_port_out(port, SCSCR, ctrl);
 }
@@ -1551,7 +1553,7 @@ static void sci_stop_rx(struct uart_port *port)
 	ctrl = serial_port_in(port, SCSCR);
 
 	if (port->type == PORT_SCIFA || port->type == PORT_SCIFB)
-		ctrl &= ~0x4000;
+		ctrl &= ~SCSCR_RDRQE;
 
 	ctrl &= ~port_rx_irq_mask(port);
 
@@ -1600,8 +1602,8 @@ static bool filter(struct dma_chan *chan, void *slave)
 {
 	struct sh_dmae_slave *param = slave;
 
-	dev_dbg(chan->device->dev, "%s: slave ID %d\n", __func__,
-		param->shdma_slave.slave_id);
+	dev_dbg(chan->device->dev, "%s: slave ID %d\n",
+		__func__, param->shdma_slave.slave_id);
 
 	chan->private = &param->shdma_slave;
 	return true;
@@ -1614,7 +1616,7 @@ static void rx_timer_fn(unsigned long arg)
 	u16 scr = serial_port_in(port, SCSCR);
 
 	if (port->type == PORT_SCIFA || port->type == PORT_SCIFB) {
-		scr &= ~0x4000;
+		scr &= ~SCSCR_RDRQE;
 		enable_irq(s->irqs[SCIx_RXI_IRQ]);
 	}
 	serial_port_out(port, SCSCR, scr | SCSCR_RIE);
@@ -1630,8 +1632,7 @@ static void sci_request_dma(struct uart_port *port)
 	dma_cap_mask_t mask;
 	int nent;
 
-	dev_dbg(port->dev, "%s: port %d\n", __func__,
-		port->line);
+	dev_dbg(port->dev, "%s: port %d\n", __func__, port->line);
 
 	if (s->cfg->dma_slave_tx <= 0 || s->cfg->dma_slave_rx <= 0)
 		return;
@@ -1659,7 +1660,8 @@ static void sci_request_dma(struct uart_port *port)
 		if (!nent)
 			sci_tx_dma_release(s, false);
 		else
-			dev_dbg(port->dev, "%s: mapped %d@%p to %pad\n", __func__,
+			dev_dbg(port->dev, "%s: mapped %d@%p to %pad\n",
+				__func__,
 				sg_dma_len(&s->sg_tx), port->state->xmit.buf,
 				&sg_dma_address(&s->sg_tx));
 
@@ -1871,13 +1873,13 @@ static void sci_set_termios(struct uart_port *port, struct ktermios *termios,
 	smr_val = serial_port_in(port, SCSMR) & 3;
 
 	if ((termios->c_cflag & CSIZE) == CS7)
-		smr_val |= 0x40;
+		smr_val |= SCSMR_CHR;
 	if (termios->c_cflag & PARENB)
-		smr_val |= 0x20;
+		smr_val |= SCSMR_PE;
 	if (termios->c_cflag & PARODD)
-		smr_val |= 0x30;
+		smr_val |= SCSMR_PE | SCSMR_ODD;
 	if (termios->c_cflag & CSTOPB)
-		smr_val |= 0x08;
+		smr_val |= SCSMR_STOP;
 
 	uart_update_timeout(port, termios->c_cflag, baud);
 
@@ -1885,7 +1887,7 @@ static void sci_set_termios(struct uart_port *port, struct ktermios *termios,
 		__func__, smr_val, cks, t, s->cfg->scscr);
 
 	if (t >= 0) {
-		serial_port_out(port, SCSMR, (smr_val & ~3) | cks);
+		serial_port_out(port, SCSMR, (smr_val & ~SCSMR_CKS) | cks);
 		serial_port_out(port, SCBRR, t);
 		reg = sci_getreg(port, HSSRR);
 		if (reg->size)
@@ -1933,8 +1935,7 @@ static void sci_set_termios(struct uart_port *port, struct ktermios *termios,
 	if (s->chan_rx) {
 		s->rx_timeout = (port->timeout - HZ / 50) * s->buf_len_rx * 3 /
 			port->fifosize / 2;
-		dev_dbg(port->dev,
-			"DMA Rx t-out %ums, tty t-out %u jiffies\n",
+		dev_dbg(port->dev, "DMA Rx t-out %ums, tty t-out %u jiffies\n",
 			s->rx_timeout * 1000 / HZ, port->timeout);
 		if (s->rx_timeout < msecs_to_jiffies(20))
 			s->rx_timeout = msecs_to_jiffies(20);
@@ -1953,7 +1954,7 @@ static void sci_pm(struct uart_port *port, unsigned int state,
 	struct sci_port *sci_port = to_sci_port(port);
 
 	switch (state) {
-	case 3:
+	case UART_PM_STATE_OFF:
 		sci_port_disable(sci_port);
 		break;
 	default:
@@ -2018,7 +2019,7 @@ static int sci_remap_port(struct uart_port *port)
 		 * need to do any remapping, just cast the cookie
 		 * directly.
 		 */
-		port->membase = (void __iomem *)port->mapbase;
+		port->membase = (void __iomem *)(uintptr_t)port->mapbase;
 	}
 
 	return 0;
@@ -2389,8 +2390,7 @@ static inline int sci_probe_earlyprintk(struct platform_device *pdev)
 
 #endif /* CONFIG_SERIAL_SH_SCI_CONSOLE */
 
-static char banner[] __initdata =
-	KERN_INFO "SuperH (H)SCI(F) driver initialized\n";
+static const char banner[] __initconst = "SuperH (H)SCI(F) driver initialized";
 
 static struct uart_driver sci_uart_driver = {
 	.owner		= THIS_MODULE,
@@ -2424,25 +2424,25 @@ struct sci_port_info {
 static const struct of_device_id of_sci_match[] = {
 	{
 		.compatible = "renesas,scif",
-		.data = (void *)&(const struct sci_port_info) {
+		.data = &(const struct sci_port_info) {
 			.type = PORT_SCIF,
 			.regtype = SCIx_SH4_SCIF_REGTYPE,
 		},
 	}, {
 		.compatible = "renesas,scifa",
-		.data = (void *)&(const struct sci_port_info) {
+		.data = &(const struct sci_port_info) {
 			.type = PORT_SCIFA,
 			.regtype = SCIx_SCIFA_REGTYPE,
 		},
 	}, {
 		.compatible = "renesas,scifb",
-		.data = (void *)&(const struct sci_port_info) {
+		.data = &(const struct sci_port_info) {
 			.type = PORT_SCIFB,
 			.regtype = SCIx_SCIFB_REGTYPE,
 		},
 	}, {
 		.compatible = "renesas,hscif",
-		.data = (void *)&(const struct sci_port_info) {
+		.data = &(const struct sci_port_info) {
 			.type = PORT_HSCIF,
 			.regtype = SCIx_HSCIF_REGTYPE,
 		},
@@ -2502,11 +2502,9 @@ static int sci_probe_single(struct platform_device *dev,
 
 	/* Sanity check */
 	if (unlikely(index >= SCI_NPORTS)) {
-		dev_notice(&dev->dev, "Attempting to register port "
-			   "%d when only %d are available.\n",
+		dev_notice(&dev->dev, "Attempting to register port %d when only %d are available\n",
 			   index+1, SCI_NPORTS);
-		dev_notice(&dev->dev, "Consider bumping "
-			   "CONFIG_SERIAL_SH_SCI_NR_UARTS!\n");
+		dev_notice(&dev->dev, "Consider bumping CONFIG_SERIAL_SH_SCI_NR_UARTS!\n");
 		return -EINVAL;
 	}
 
@@ -2564,6 +2562,7 @@ static int sci_probe(struct platform_device *dev)
 	ret = cpufreq_register_notifier(&sp->freq_transition,
 					CPUFREQ_TRANSITION_NOTIFIER);
 	if (unlikely(ret < 0)) {
+		uart_remove_one_port(&sci_uart_driver, &sp->port);
 		sci_cleanup_single(sp);
 		return ret;
 	}
@@ -2615,7 +2614,7 @@ static int __init sci_init(void)
 {
 	int ret;
 
-	printk(banner);
+	pr_info("%s\n", banner);
 
 	ret = uart_register_driver(&sci_uart_driver);
 	if (likely(ret == 0)) {

@@ -379,6 +379,7 @@ static int s5p64x0_gpio_setcfg_rbank(struct samsung_gpio_chip *chip,
 	case 6:
 		shift = ((off + 1) & 7) * 4;
 		reg -= 4;
+		break;
 	default:
 		shift = ((off + 1) & 7) * 4;
 		break;

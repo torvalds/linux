@@ -21,6 +21,9 @@
 #include <linux/aer.h>
 #include <linux/log2.h>
 #include <linux/pci.h>
+#ifdef CONFIG_QLCNIC_VXLAN
+#include <net/vxlan.h>
+#endif
 
 MODULE_DESCRIPTION("QLogic 1/10 GbE Converged/Intelligent Ethernet Driver");
 MODULE_LICENSE("GPL");
@@ -90,7 +93,6 @@ static void qlcnic_82xx_io_resume(struct pci_dev *);
 static void qlcnic_82xx_set_mac_filter_count(struct qlcnic_adapter *);
 static pci_ers_result_t qlcnic_82xx_io_error_detected(struct pci_dev *,
 						      pci_channel_state_t);
-
 static u32 qlcnic_vlan_tx_check(struct qlcnic_adapter *adapter)
 {
 	struct qlcnic_hardware_context *ahw = adapter->ahw;
@@ -462,6 +464,37 @@ static int qlcnic_get_phys_port_id(struct net_device *netdev,
 	return 0;
 }
 
+#ifdef CONFIG_QLCNIC_VXLAN
+static void qlcnic_add_vxlan_port(struct net_device *netdev,
+				  sa_family_t sa_family, __be16 port)
+{
+	struct qlcnic_adapter *adapter = netdev_priv(netdev);
+	struct qlcnic_hardware_context *ahw = adapter->ahw;
+
+	/* Adapter supports only one VXLAN port. Use very first port
+	 * for enabling offload
+	 */
+	if (!qlcnic_encap_rx_offload(adapter) || ahw->vxlan_port)
+		return;
+
+	ahw->vxlan_port = ntohs(port);
+	adapter->flags |= QLCNIC_ADD_VXLAN_PORT;
+}
+
+static void qlcnic_del_vxlan_port(struct net_device *netdev,
+				  sa_family_t sa_family, __be16 port)
+{
+	struct qlcnic_adapter *adapter = netdev_priv(netdev);
+	struct qlcnic_hardware_context *ahw = adapter->ahw;
+
+	if (!qlcnic_encap_rx_offload(adapter) || !ahw->vxlan_port ||
+	    (ahw->vxlan_port != ntohs(port)))
+		return;
+
+	adapter->flags |= QLCNIC_DEL_VXLAN_PORT;
+}
+#endif
+
 static const struct net_device_ops qlcnic_netdev_ops = {
 	.ndo_open	   = qlcnic_open,
 	.ndo_stop	   = qlcnic_close,
@@ -480,6 +513,10 @@ static const struct net_device_ops qlcnic_netdev_ops = {
 	.ndo_fdb_del		= qlcnic_fdb_del,
 	.ndo_fdb_dump		= qlcnic_fdb_dump,
 	.ndo_get_phys_port_id	= qlcnic_get_phys_port_id,
+#ifdef CONFIG_QLCNIC_VXLAN
+	.ndo_add_vxlan_port	= qlcnic_add_vxlan_port,
+	.ndo_del_vxlan_port	= qlcnic_del_vxlan_port,
+#endif
 #ifdef CONFIG_NET_POLL_CONTROLLER
 	.ndo_poll_controller = qlcnic_poll_controller,
 #endif
@@ -561,6 +598,12 @@ static struct qlcnic_hardware_ops qlcnic_hw_ops = {
 	.disable_sds_intr		= qlcnic_82xx_disable_sds_intr,
 	.enable_tx_intr			= qlcnic_82xx_enable_tx_intr,
 	.disable_tx_intr		= qlcnic_82xx_disable_tx_intr,
+	.get_saved_state		= qlcnic_82xx_get_saved_state,
+	.set_saved_state		= qlcnic_82xx_set_saved_state,
+	.cache_tmpl_hdr_values		= qlcnic_82xx_cache_tmpl_hdr_values,
+	.get_cap_size			= qlcnic_82xx_get_cap_size,
+	.set_sys_info			= qlcnic_82xx_set_sys_info,
+	.store_cap_mask			= qlcnic_82xx_store_cap_mask,
 };
 
 static int qlcnic_check_multi_tx_capability(struct qlcnic_adapter *adapter)
@@ -684,7 +727,7 @@ restore:
 int qlcnic_enable_msix(struct qlcnic_adapter *adapter, u32 num_msix)
 {
 	struct pci_dev *pdev = adapter->pdev;
-	int err = -1, vector;
+	int err, vector;
 
 	if (!adapter->msix_entries) {
 		adapter->msix_entries = kcalloc(num_msix,
@@ -701,13 +744,17 @@ enable_msix:
 		for (vector = 0; vector < num_msix; vector++)
 			adapter->msix_entries[vector].entry = vector;
 
-		err = pci_enable_msix(pdev, adapter->msix_entries, num_msix);
-		if (err == 0) {
+		err = pci_enable_msix_range(pdev,
+					    adapter->msix_entries, 1, num_msix);
+
+		if (err == num_msix) {
 			adapter->flags |= QLCNIC_MSIX_ENABLED;
 			adapter->ahw->num_msix = num_msix;
 			dev_info(&pdev->dev, "using msi-x interrupts\n");
-			return err;
+			return 0;
 		} else if (err > 0) {
+			pci_disable_msix(pdev);
+
 			dev_info(&pdev->dev,
 				 "Unable to allocate %d MSI-X vectors, Available vectors %d\n",
 				 num_msix, err);
@@ -715,12 +762,12 @@ enable_msix:
 			if (qlcnic_82xx_check(adapter)) {
 				num_msix = rounddown_pow_of_two(err);
 				if (err < QLCNIC_82XX_MINIMUM_VECTOR)
-					return -EIO;
+					return -ENOSPC;
 			} else {
 				num_msix = rounddown_pow_of_two(err - 1);
 				num_msix += 1;
 				if (err < QLCNIC_83XX_MINIMUM_VECTOR)
-					return -EIO;
+					return -ENOSPC;
 			}
 
 			if (qlcnic_82xx_check(adapter) &&
@@ -747,7 +794,7 @@ enable_msix:
 		}
 	}
 
-	return err;
+	return -EIO;
 }
 
 static int qlcnic_82xx_calculate_msix_vector(struct qlcnic_adapter *adapter)
@@ -816,9 +863,10 @@ static int qlcnic_82xx_setup_intr(struct qlcnic_adapter *adapter)
 
 		if (!(adapter->flags & QLCNIC_MSIX_ENABLED)) {
 			qlcnic_disable_multi_tx(adapter);
+			adapter->drv_sds_rings = QLCNIC_SINGLE_RING;
 
 			err = qlcnic_enable_msi_legacy(adapter);
-			if (!err)
+			if (err)
 				return err;
 		}
 	}
@@ -1933,6 +1981,11 @@ qlcnic_attach(struct qlcnic_adapter *adapter)
 
 	qlcnic_create_sysfs_entries(adapter);
 
+#ifdef CONFIG_QLCNIC_VXLAN
+	if (qlcnic_encap_rx_offload(adapter))
+		vxlan_get_rx_port(netdev);
+#endif
+
 	adapter->is_up = QLCNIC_ADAPTER_UP_MAGIC;
 	return 0;
 
@@ -2195,6 +2248,19 @@ qlcnic_setup_netdev(struct qlcnic_adapter *adapter, struct net_device *netdev,
 	if (adapter->ahw->capabilities & QLCNIC_FW_CAPABILITY_HW_LRO)
 		netdev->features |= NETIF_F_LRO;
 
+	if (qlcnic_encap_tx_offload(adapter)) {
+		netdev->features |= NETIF_F_GSO_UDP_TUNNEL;
+
+		/* encapsulation Tx offload supported by Adapter */
+		netdev->hw_enc_features = NETIF_F_IP_CSUM        |
+					  NETIF_F_GSO_UDP_TUNNEL |
+					  NETIF_F_TSO            |
+					  NETIF_F_TSO6;
+	}
+
+	if (qlcnic_encap_rx_offload(adapter))
+		netdev->hw_enc_features |= NETIF_F_RXCSUM;
+
 	netdev->hw_features = netdev->features;
 	netdev->priv_flags |= IFF_UNICAST_FLT;
 	netdev->irq = adapter->msix_entries[0].vector;
@@ -2441,8 +2507,8 @@ qlcnic_probe(struct pci_dev *pdev, const struct pci_device_id *ent)
 		if (err) {
 			switch (err) {
 			case -ENOTRECOVERABLE:
-				dev_err(&pdev->dev, "Adapter initialization failed due to a faulty hardware. Please reboot\n");
-				dev_err(&pdev->dev, "If reboot doesn't help, please replace the adapter with new one and return the faulty adapter for repair\n");
+				dev_err(&pdev->dev, "Adapter initialization failed due to a faulty hardware\n");
+				dev_err(&pdev->dev, "Please replace the adapter with new one and return the faulty adapter for repair\n");
 				goto err_out_free_hw;
 			case -ENOMEM:
 				dev_err(&pdev->dev, "Adapter initialization failed. Please reboot\n");
@@ -3863,7 +3929,7 @@ int qlcnic_validate_rings(struct qlcnic_adapter *adapter, __u32 ring_cnt,
 		strcpy(buf, "Tx");
 	}
 
-	if (!qlcnic_use_msi_x && !qlcnic_use_msi) {
+	if (!QLCNIC_IS_MSI_FAMILY(adapter)) {
 		netdev_err(netdev, "No RSS/TSS support in INT-x mode\n");
 		return -EINVAL;
 	}

@@ -259,7 +259,7 @@ affs_evict_inode(struct inode *inode)
 {
 	unsigned long cache_page;
 	pr_debug("AFFS: evict_inode(ino=%lu, nlink=%u)\n", inode->i_ino, inode->i_nlink);
-	truncate_inode_pages(&inode->i_data, 0);
+	truncate_inode_pages_final(&inode->i_data);
 
 	if (!inode->i_nlink) {
 		inode->i_size = 0;

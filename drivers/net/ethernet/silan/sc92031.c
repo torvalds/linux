@@ -987,7 +987,7 @@ out_unlock:
 	spin_unlock(&priv->lock);
 
 out:
-	dev_kfree_skb(skb);
+	dev_consume_skb_any(skb);
 
 	return NETDEV_TX_OK;
 }

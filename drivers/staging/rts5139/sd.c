@@ -1529,7 +1529,7 @@ static int sd_tuning_rx(struct rts51x_chip *chip)
 	int i, j;
 	u32 raw_phase_map[3], phase_map;
 	u8 final_phase;
-	int (*tuning_cmd) (struct rts51x_chip *chip, u8 sample_point);
+	int (*tuning_cmd)(struct rts51x_chip *chip, u8 sample_point);
 
 	if (CHK_SD(sd_card)) {
 		if (CHK_SD_DDR50(sd_card))
@@ -1627,7 +1627,7 @@ static int sd_tuning_tx(struct rts51x_chip *chip)
 	int i, j;
 	u32 raw_phase_map[3], phase_map;
 	u8 final_phase;
-	int (*tuning_cmd) (struct rts51x_chip *chip, u8 sample_point);
+	int (*tuning_cmd)(struct rts51x_chip *chip, u8 sample_point);
 
 	if (CHK_SD(sd_card)) {
 		if (CHK_SD_DDR50(sd_card))

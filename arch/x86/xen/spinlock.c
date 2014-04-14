@@ -183,7 +183,7 @@ __visible void xen_lock_spinning(struct arch_spinlock *lock, __ticket_t want)
 
 	local_irq_save(flags);
 
-	kstat_incr_irqs_this_cpu(irq, irq_to_desc(irq));
+	kstat_incr_irq_this_cpu(irq);
 out:
 	cpumask_clear_cpu(cpu, &waiting_cpus);
 	w->lock = NULL;

@@ -22,8 +22,6 @@
 #include <linux/of_platform.h>
 #include <linux/sched.h>
 
-#include <plat/devs.h>
-
 #include "regs-pmu.h"
 
 /*

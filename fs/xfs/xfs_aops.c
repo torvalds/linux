@@ -632,38 +632,46 @@ xfs_map_at_offset(
 }
 
 /*
- * Test if a given page is suitable for writing as part of an unwritten
- * or delayed allocate extent.
+ * Test if a given page contains at least one buffer of a given @type.
+ * If @check_all_buffers is true, then we walk all the buffers in the page to
+ * try to find one of the type passed in. If it is not set, then the caller only
+ * needs to check the first buffer on the page for a match.
  */
-STATIC int
+STATIC bool
 xfs_check_page_type(
 	struct page		*page,
-	unsigned int		type)
+	unsigned int		type,
+	bool			check_all_buffers)
 {
+	struct buffer_head	*bh;
+	struct buffer_head	*head;
+
 	if (PageWriteback(page))
-		return 0;
+		return false;
+	if (!page->mapping)
+		return false;
+	if (!page_has_buffers(page))
+		return false;
 
-	if (page->mapping && page_has_buffers(page)) {
-		struct buffer_head	*bh, *head;
-		int			acceptable = 0;
+	bh = head = page_buffers(page);
+	do {
+		if (buffer_unwritten(bh)) {
+			if (type == XFS_IO_UNWRITTEN)
+				return true;
+		} else if (buffer_delay(bh)) {
+			if (type == XFS_IO_DELALLOC)
+				return true;
+		} else if (buffer_dirty(bh) && buffer_mapped(bh)) {
+			if (type == XFS_IO_OVERWRITE)
+				return true;
+		}
 
-		bh = head = page_buffers(page);
-		do {
-			if (buffer_unwritten(bh))
-				acceptable += (type == XFS_IO_UNWRITTEN);
-			else if (buffer_delay(bh))
-				acceptable += (type == XFS_IO_DELALLOC);
-			else if (buffer_dirty(bh) && buffer_mapped(bh))
-				acceptable += (type == XFS_IO_OVERWRITE);
-			else
-				break;
-		} while ((bh = bh->b_this_page) != head);
+		/* If we are only checking the first buffer, we are done now. */
+		if (!check_all_buffers)
+			break;
+	} while ((bh = bh->b_this_page) != head);
 
-		if (acceptable)
-			return 1;
-	}
-
-	return 0;
+	return false;
 }
 
 /*
@@ -697,7 +705,7 @@ xfs_convert_page(
 		goto fail_unlock_page;
 	if (page->mapping != inode->i_mapping)
 		goto fail_unlock_page;
-	if (!xfs_check_page_type(page, (*ioendp)->io_type))
+	if (!xfs_check_page_type(page, (*ioendp)->io_type, false))
 		goto fail_unlock_page;
 
 	/*
@@ -742,6 +750,15 @@ xfs_convert_page(
 	p_offset = p_offset ? roundup(p_offset, len) : PAGE_CACHE_SIZE;
 	page_dirty = p_offset / len;
 
+	/*
+	 * The moment we find a buffer that doesn't match our current type
+	 * specification or can't be written, abort the loop and start
+	 * writeback. As per the above xfs_imap_valid() check, only
+	 * xfs_vm_writepage() can handle partial page writeback fully - we are
+	 * limited here to the buffers that are contiguous with the current
+	 * ioend, and hence a buffer we can't write breaks that contiguity and
+	 * we have to defer the rest of the IO to xfs_vm_writepage().
+	 */
 	bh = head = page_buffers(page);
 	do {
 		if (offset >= end_offset)
@@ -750,7 +767,7 @@ xfs_convert_page(
 			uptodate = 0;
 		if (!(PageUptodate(page) || buffer_uptodate(bh))) {
 			done = 1;
-			continue;
+			break;
 		}
 
 		if (buffer_unwritten(bh) || buffer_delay(bh) ||
@@ -762,10 +779,11 @@ xfs_convert_page(
 			else
 				type = XFS_IO_OVERWRITE;
 
-			if (!xfs_imap_valid(inode, imap, offset)) {
-				done = 1;
-				continue;
-			}
+			/*
+			 * imap should always be valid because of the above
+			 * partial page end_offset check on the imap.
+			 */
+			ASSERT(xfs_imap_valid(inode, imap, offset));
 
 			lock_buffer(bh);
 			if (type != XFS_IO_OVERWRITE)
@@ -777,6 +795,7 @@ xfs_convert_page(
 			count++;
 		} else {
 			done = 1;
+			break;
 		}
 	} while (offset += len, (bh = bh->b_this_page) != head);
 
@@ -868,7 +887,7 @@ xfs_aops_discard_page(
 	struct buffer_head	*bh, *head;
 	loff_t			offset = page_offset(page);
 
-	if (!xfs_check_page_type(page, XFS_IO_DELALLOC))
+	if (!xfs_check_page_type(page, XFS_IO_DELALLOC, true))
 		goto out_invalidate;
 
 	if (XFS_FORCED_SHUTDOWN(ip->i_mount))
@@ -1441,7 +1460,8 @@ xfs_vm_direct_IO(
 		ret = __blockdev_direct_IO(rw, iocb, inode, bdev, iov,
 					    offset, nr_segs,
 					    xfs_get_blocks_direct,
-					    xfs_end_io_direct_write, NULL, 0);
+					    xfs_end_io_direct_write, NULL,
+					    DIO_ASYNC_EXTEND);
 		if (ret != -EIOCBQUEUED && iocb->private)
 			goto out_destroy_ioend;
 	} else {

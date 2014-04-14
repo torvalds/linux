@@ -540,7 +540,7 @@ int __iio_device_attr_init(struct device_attribute *dev_attr,
 			   enum iio_shared_by shared_by)
 {
 	int ret = 0;
-	char *name_format = NULL;
+	char *name = NULL;
 	char *full_postfix;
 	sysfs_attr_init(&dev_attr->attr);
 
@@ -558,7 +558,7 @@ int __iio_device_attr_init(struct device_attribute *dev_attr,
 								    ->channel2],
 						 postfix);
 	} else {
-		if (chan->extend_name == NULL)
+		if (chan->extend_name == NULL || shared_by != IIO_SEPARATE)
 			full_postfix = kstrdup(postfix, GFP_KERNEL);
 		else
 			full_postfix = kasprintf(GFP_KERNEL,
@@ -572,16 +572,15 @@ int __iio_device_attr_init(struct device_attribute *dev_attr,
 	if (chan->differential) { /* Differential can not have modifier */
 		switch (shared_by) {
 		case IIO_SHARED_BY_ALL:
-			name_format = kasprintf(GFP_KERNEL, "%s", full_postfix);
+			name = kasprintf(GFP_KERNEL, "%s", full_postfix);
 			break;
 		case IIO_SHARED_BY_DIR:
-			name_format = kasprintf(GFP_KERNEL, "%s_%s",
+			name = kasprintf(GFP_KERNEL, "%s_%s",
 						iio_direction[chan->output],
 						full_postfix);
 			break;
 		case IIO_SHARED_BY_TYPE:
-			name_format
-				= kasprintf(GFP_KERNEL, "%s_%s-%s_%s",
+			name = kasprintf(GFP_KERNEL, "%s_%s-%s_%s",
 					    iio_direction[chan->output],
 					    iio_chan_type_name_spec[chan->type],
 					    iio_chan_type_name_spec[chan->type],
@@ -593,8 +592,7 @@ int __iio_device_attr_init(struct device_attribute *dev_attr,
 				ret = -EINVAL;
 				goto error_free_full_postfix;
 			}
-			name_format
-				= kasprintf(GFP_KERNEL,
+			name = kasprintf(GFP_KERNEL,
 					    "%s_%s%d-%s%d_%s",
 					    iio_direction[chan->output],
 					    iio_chan_type_name_spec[chan->type],
@@ -607,16 +605,15 @@ int __iio_device_attr_init(struct device_attribute *dev_attr,
 	} else { /* Single ended */
 		switch (shared_by) {
 		case IIO_SHARED_BY_ALL:
-			name_format = kasprintf(GFP_KERNEL, "%s", full_postfix);
+			name = kasprintf(GFP_KERNEL, "%s", full_postfix);
 			break;
 		case IIO_SHARED_BY_DIR:
-			name_format = kasprintf(GFP_KERNEL, "%s_%s",
+			name = kasprintf(GFP_KERNEL, "%s_%s",
 						iio_direction[chan->output],
 						full_postfix);
 			break;
 		case IIO_SHARED_BY_TYPE:
-			name_format
-				= kasprintf(GFP_KERNEL, "%s_%s_%s",
+			name = kasprintf(GFP_KERNEL, "%s_%s_%s",
 					    iio_direction[chan->output],
 					    iio_chan_type_name_spec[chan->type],
 					    full_postfix);
@@ -624,33 +621,24 @@ int __iio_device_attr_init(struct device_attribute *dev_attr,
 
 		case IIO_SEPARATE:
 			if (chan->indexed)
-				name_format
-					= kasprintf(GFP_KERNEL, "%s_%s%d_%s",
+				name = kasprintf(GFP_KERNEL, "%s_%s%d_%s",
 						    iio_direction[chan->output],
 						    iio_chan_type_name_spec[chan->type],
 						    chan->channel,
 						    full_postfix);
 			else
-				name_format
-					= kasprintf(GFP_KERNEL, "%s_%s_%s",
+				name = kasprintf(GFP_KERNEL, "%s_%s_%s",
 						    iio_direction[chan->output],
 						    iio_chan_type_name_spec[chan->type],
 						    full_postfix);
 			break;
 		}
 	}
-	if (name_format == NULL) {
+	if (name == NULL) {
 		ret = -ENOMEM;
 		goto error_free_full_postfix;
 	}
-	dev_attr->attr.name = kasprintf(GFP_KERNEL,
-					name_format,
-					chan->channel,
-					chan->channel2);
-	if (dev_attr->attr.name == NULL) {
-		ret = -ENOMEM;
-		goto error_free_name_format;
-	}
+	dev_attr->attr.name = name;
 
 	if (readfunc) {
 		dev_attr->attr.mode |= S_IRUGO;
@@ -661,8 +649,7 @@ int __iio_device_attr_init(struct device_attribute *dev_attr,
 		dev_attr->attr.mode |= S_IWUSR;
 		dev_attr->store = writefunc;
 	}
-error_free_name_format:
-	kfree(name_format);
+
 error_free_full_postfix:
 	kfree(full_postfix);
 
@@ -692,10 +679,8 @@ int __iio_add_chan_devattr(const char *postfix,
 	struct iio_dev_attr *iio_attr, *t;
 
 	iio_attr = kzalloc(sizeof(*iio_attr), GFP_KERNEL);
-	if (iio_attr == NULL) {
-		ret = -ENOMEM;
-		goto error_ret;
-	}
+	if (iio_attr == NULL)
+		return -ENOMEM;
 	ret = __iio_device_attr_init(&iio_attr->dev_attr,
 				     postfix, chan,
 				     readfunc, writefunc, shared_by);
@@ -720,7 +705,6 @@ error_device_attr_deinit:
 	__iio_device_attr_deinit(&iio_attr->dev_attr);
 error_iio_dev_attr_free:
 	kfree(iio_attr);
-error_ret:
 	return ret;
 }
 
@@ -1134,7 +1118,7 @@ int iio_device_register(struct iio_dev *indio_dev)
 	if (ret) {
 		dev_err(indio_dev->dev.parent,
 			"Failed to register debugfs interfaces\n");
-		goto error_ret;
+		return ret;
 	}
 	ret = iio_device_register_sysfs(indio_dev);
 	if (ret) {
@@ -1175,7 +1159,6 @@ error_free_sysfs:
 	iio_device_unregister_sysfs(indio_dev);
 error_unreg_debugfs:
 	iio_device_unregister_debugfs(indio_dev);
-error_ret:
 	return ret;
 }
 EXPORT_SYMBOL(iio_device_register);

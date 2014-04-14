@@ -44,8 +44,8 @@
 		#size-cells = <1>;
 		controller = <&mbusc>;
 		interrupt-parent = <&mpic>;
-		pcie-mem-aperture = <0xe0000000 0x8000000>;
-		pcie-io-aperture  = <0xe8000000 0x100000>;
+		pcie-mem-aperture = <0xf8000000 0x7e00000>;
+		pcie-io-aperture  = <0xffe00000 0x100000>;
 
 		devbus-bootcs {
 			compatible = "marvell,mvebu-devbus";
@@ -197,6 +197,10 @@
 			timer@20300 {
 				reg = <0x20300 0x30>, <0x21040 0x30>;
 				interrupts = <37>, <38>, <39>, <40>, <5>, <6>;
+			};
+
+			watchdog@20300 {
+				reg = <0x20300 0x34>, <0x20704 0x4>;
 			};
 
 			usb@50000 {

@@ -79,7 +79,8 @@
 #define c13_TID_URW	(TPIDR_EL0 * 2)	/* Thread ID, User R/W */
 #define c13_TID_URO	(TPIDRRO_EL0 * 2)/* Thread ID, User R/O */
 #define c13_TID_PRIV	(TPIDR_EL1 * 2)	/* Thread ID, Privileged */
-#define c10_AMAIR	(AMAIR_EL1 * 2)	/* Aux Memory Attr Indirection Reg */
+#define c10_AMAIR0	(AMAIR_EL1 * 2)	/* Aux Memory Attr Indirection Reg */
+#define c10_AMAIR1	(c10_AMAIR0 + 1)/* Aux Memory Attr Indirection Reg */
 #define c14_CNTKCTL	(CNTKCTL_EL1 * 2) /* Timer Control Register (PL1) */
 #define NR_CP15_REGS	(NR_SYS_REGS * 2)
 

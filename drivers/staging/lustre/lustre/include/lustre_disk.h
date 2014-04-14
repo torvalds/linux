@@ -99,6 +99,8 @@
 #define LDD_F_IR_CAPABLE    0x2000
 /** the MGS refused to register the target. */
 #define LDD_F_ERROR	 0x4000
+/** process at lctl conf_param */
+#define LDD_F_PARAM2		0x8000
 
 /* opc for target register */
 #define LDD_F_OPC_REG   0x10000000

@@ -151,7 +151,7 @@
 #ifdef __BIG_ENDIAN
 
 /* GET & SET Frame Control bit */
-#define WLAN_GET_FC_PRVER(n)    ((((u16)(n) >> 8) & (BIT0 | BIT1))
+#define WLAN_GET_FC_PRVER(n)    (((u16)(n) >> 8) & (BIT0 | BIT1))
 #define WLAN_GET_FC_FTYPE(n)    ((((u16)(n) >> 8) & (BIT2 | BIT3)) >> 2)
 #define WLAN_GET_FC_FSTYPE(n)   ((((u16)(n) >> 8) \
 				  & (BIT4|BIT5|BIT6|BIT7)) >> 4)

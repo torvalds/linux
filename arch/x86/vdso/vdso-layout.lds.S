@@ -6,7 +6,25 @@
 
 SECTIONS
 {
-	. = VDSO_PRELINK + SIZEOF_HEADERS;
+#ifdef BUILD_VDSO32
+#include <asm/vdso32.h>
+
+	.hpet_sect : {
+		hpet_page = . - VDSO_OFFSET(VDSO_HPET_PAGE);
+	} :text :hpet_sect
+
+	.vvar_sect : {
+		vvar = . - VDSO_OFFSET(VDSO_VVAR_PAGE);
+
+	/* Place all vvars at the offsets in asm/vvar.h. */
+#define EMIT_VVAR(name, offset) vvar_ ## name = vvar + offset;
+#define __VVAR_KERNEL_LDS
+#include <asm/vvar.h>
+#undef __VVAR_KERNEL_LDS
+#undef EMIT_VVAR
+	} :text :vvar_sect
+#endif
+	. = SIZEOF_HEADERS;
 
 	.hash		: { *(.hash) }			:text
 	.gnu.hash	: { *(.gnu.hash) }
@@ -44,6 +62,11 @@ SECTIONS
 	. = ALIGN(0x100);
 
 	.text		: { *(.text*) }			:text	=0x90909090
+
+	/DISCARD/ : {
+		*(.discard)
+		*(.discard.*)
+	}
 }
 
 /*
@@ -61,4 +84,8 @@ PHDRS
 	dynamic		PT_DYNAMIC	FLAGS(4);		/* PF_R */
 	note		PT_NOTE		FLAGS(4);		/* PF_R */
 	eh_frame_hdr	PT_GNU_EH_FRAME;
+#ifdef BUILD_VDSO32
+	vvar_sect	PT_NULL		FLAGS(4);		/* PF_R */
+	hpet_sect	PT_NULL		FLAGS(4);		/* PF_R */
+#endif
 }

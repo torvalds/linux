@@ -189,6 +189,7 @@ config MACH_TORBRECK
 	select S5PV210_SETUP_I2C1
 	select S5PV210_SETUP_I2C2
 	select S5PV210_SETUP_SDHCI
+	select SAMSUNG_DEV_IDE
 	help
 	  Machine support for aESOP Torbreck
 

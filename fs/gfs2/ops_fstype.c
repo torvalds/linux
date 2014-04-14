@@ -7,6 +7,8 @@
  * of the GNU General Public License version 2.
  */
 
+#define pr_fmt(fmt) KBUILD_MODNAME ": " fmt
+
 #include <linux/sched.h>
 #include <linux/slab.h>
 #include <linux/spinlock.h>
@@ -104,7 +106,7 @@ static struct gfs2_sbd *init_sbd(struct super_block *sb)
 	mapping = &sdp->sd_aspace;
 
 	address_space_init_once(mapping);
-	mapping->a_ops = &gfs2_meta_aops;
+	mapping->a_ops = &gfs2_rgrp_aops;
 	mapping->host = sb->s_bdev->bd_inode;
 	mapping->flags = 0;
 	mapping_set_gfp_mask(mapping, GFP_NOFS);
@@ -114,9 +116,7 @@ static struct gfs2_sbd *init_sbd(struct super_block *sb)
 
 	spin_lock_init(&sdp->sd_log_lock);
 	atomic_set(&sdp->sd_log_pinned, 0);
-	INIT_LIST_HEAD(&sdp->sd_log_le_buf);
 	INIT_LIST_HEAD(&sdp->sd_log_le_revoke);
-	INIT_LIST_HEAD(&sdp->sd_log_le_databuf);
 	INIT_LIST_HEAD(&sdp->sd_log_le_ordered);
 	spin_lock_init(&sdp->sd_ordered_lock);
 
@@ -129,8 +129,6 @@ static struct gfs2_sbd *init_sbd(struct super_block *sb)
 	init_rwsem(&sdp->sd_log_flush_lock);
 	atomic_set(&sdp->sd_log_in_flight, 0);
 	init_waitqueue_head(&sdp->sd_log_flush_wait);
-
-	INIT_LIST_HEAD(&sdp->sd_revoke_list);
 
 	return sdp;
 }
@@ -154,7 +152,7 @@ static int gfs2_check_sb(struct gfs2_sbd *sdp, int silent)
 	if (sb->sb_magic != GFS2_MAGIC ||
 	    sb->sb_type != GFS2_METATYPE_SB) {
 		if (!silent)
-			printk(KERN_WARNING "GFS2: not a GFS2 filesystem\n");
+			pr_warn("not a GFS2 filesystem\n");
 		return -EINVAL;
 	}
 
@@ -176,7 +174,7 @@ static void end_bio_io_page(struct bio *bio, int error)
 	if (!error)
 		SetPageUptodate(page);
 	else
-		printk(KERN_WARNING "gfs2: error %d reading superblock\n", error);
+		pr_warn("error %d reading superblock\n", error);
 	unlock_page(page);
 }
 
@@ -519,67 +517,6 @@ out:
 	return ret;
 }
 
-/**
- * map_journal_extents - create a reusable "extent" mapping from all logical
- * blocks to all physical blocks for the given journal.  This will save
- * us time when writing journal blocks.  Most journals will have only one
- * extent that maps all their logical blocks.  That's because gfs2.mkfs
- * arranges the journal blocks sequentially to maximize performance.
- * So the extent would map the first block for the entire file length.
- * However, gfs2_jadd can happen while file activity is happening, so
- * those journals may not be sequential.  Less likely is the case where
- * the users created their own journals by mounting the metafs and
- * laying it out.  But it's still possible.  These journals might have
- * several extents.
- *
- * TODO: This should be done in bigger chunks rather than one block at a time,
- *       but since it's only done at mount time, I'm not worried about the
- *       time it takes.
- */
-static int map_journal_extents(struct gfs2_sbd *sdp)
-{
-	struct gfs2_jdesc *jd = sdp->sd_jdesc;
-	unsigned int lb;
-	u64 db, prev_db; /* logical block, disk block, prev disk block */
-	struct gfs2_inode *ip = GFS2_I(jd->jd_inode);
-	struct gfs2_journal_extent *jext = NULL;
-	struct buffer_head bh;
-	int rc = 0;
-
-	prev_db = 0;
-
-	for (lb = 0; lb < i_size_read(jd->jd_inode) >> sdp->sd_sb.sb_bsize_shift; lb++) {
-		bh.b_state = 0;
-		bh.b_blocknr = 0;
-		bh.b_size = 1 << ip->i_inode.i_blkbits;
-		rc = gfs2_block_map(jd->jd_inode, lb, &bh, 0);
-		db = bh.b_blocknr;
-		if (rc || !db) {
-			printk(KERN_INFO "GFS2 journal mapping error %d: lb="
-			       "%u db=%llu\n", rc, lb, (unsigned long long)db);
-			break;
-		}
-		if (!prev_db || db != prev_db + 1) {
-			jext = kzalloc(sizeof(struct gfs2_journal_extent),
-				       GFP_KERNEL);
-			if (!jext) {
-				printk(KERN_INFO "GFS2 error: out of memory "
-				       "mapping journal extents.\n");
-				rc = -ENOMEM;
-				break;
-			}
-			jext->dblock = db;
-			jext->lblock = lb;
-			jext->blocks = 1;
-			list_add_tail(&jext->extent_list, &jd->extent_list);
-		} else {
-			jext->blocks++;
-		}
-		prev_db = db;
-	}
-	return rc;
-}
-
 static void gfs2_others_may_mount(struct gfs2_sbd *sdp)
 {
 	char *message = "FIRSTMOUNT=Done";
@@ -638,6 +575,8 @@ static int gfs2_jindex_hold(struct gfs2_sbd *sdp, struct gfs2_holder *ji_gh)
 			break;
 
 		INIT_LIST_HEAD(&jd->extent_list);
+		INIT_LIST_HEAD(&jd->jd_revoke_list);
+
 		INIT_WORK(&jd->jd_work, gfs2_recover_func);
 		jd->jd_inode = gfs2_lookupi(sdp->sd_jindex, &name, 1);
 		if (!jd->jd_inode || IS_ERR(jd->jd_inode)) {
@@ -781,7 +720,7 @@ static int init_journal(struct gfs2_sbd *sdp, int undo)
 		atomic_set(&sdp->sd_log_thresh2, 4*sdp->sd_jdesc->jd_blocks/5);
 
 		/* Map the extents for this journal's blocks */
-		map_journal_extents(sdp);
+		gfs2_map_journal_extents(sdp, sdp->sd_jdesc);
 	}
 	trace_gfs2_log_blocks(sdp, atomic_read(&sdp->sd_log_blks_free));
 
@@ -1008,7 +947,7 @@ static int gfs2_lm_mount(struct gfs2_sbd *sdp, int silent)
 		lm = &gfs2_dlm_ops;
 #endif
 	} else {
-		printk(KERN_INFO "GFS2: can't find protocol %s\n", proto);
+		pr_info("can't find protocol %s\n", proto);
 		return -ENOENT;
 	}
 
@@ -1115,7 +1054,7 @@ static int fill_super(struct super_block *sb, struct gfs2_args *args, int silent
 
 	sdp = init_sbd(sb);
 	if (!sdp) {
-		printk(KERN_WARNING "GFS2: can't alloc struct gfs2_sbd\n");
+		pr_warn("can't alloc struct gfs2_sbd\n");
 		return -ENOMEM;
 	}
 	sdp->sd_args = *args;
@@ -1363,7 +1302,7 @@ static struct dentry *gfs2_mount(struct file_system_type *fs_type, int flags,
 
 	error = gfs2_mount_args(&args, data);
 	if (error) {
-		printk(KERN_WARNING "GFS2: can't parse mount arguments\n");
+		pr_warn("can't parse mount arguments\n");
 		goto error_super;
 	}
 
@@ -1413,15 +1352,15 @@ static struct dentry *gfs2_mount_meta(struct file_system_type *fs_type,
 
 	error = kern_path(dev_name, LOOKUP_FOLLOW, &path);
 	if (error) {
-		printk(KERN_WARNING "GFS2: path_lookup on %s returned error %d\n",
-		       dev_name, error);
+		pr_warn("path_lookup on %s returned error %d\n",
+			dev_name, error);
 		return ERR_PTR(error);
 	}
 	s = sget(&gfs2_fs_type, test_gfs2_super, set_meta_super, flags,
 		 path.dentry->d_inode->i_sb->s_bdev);
 	path_put(&path);
 	if (IS_ERR(s)) {
-		printk(KERN_WARNING "GFS2: gfs2 mount does not exist\n");
+		pr_warn("gfs2 mount does not exist\n");
 		return ERR_CAST(s);
 	}
 	if ((flags ^ s->s_flags) & MS_RDONLY) {

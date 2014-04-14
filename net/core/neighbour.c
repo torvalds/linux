@@ -766,9 +766,6 @@ static void neigh_periodic_work(struct work_struct *work)
 	nht = rcu_dereference_protected(tbl->nht,
 					lockdep_is_held(&tbl->lock));
 
-	if (atomic_read(&tbl->entries) < tbl->gc_thresh1)
-		goto out;
-
 	/*
 	 *	periodically recompute ReachableTime from random function
 	 */
@@ -780,6 +777,9 @@ static void neigh_periodic_work(struct work_struct *work)
 			p->reachable_time =
 				neigh_rand_reach_time(NEIGH_VAR(p, BASE_REACHABLE_TIME));
 	}
+
+	if (atomic_read(&tbl->entries) < tbl->gc_thresh1)
+		goto out;
 
 	for (i = 0 ; i < (1 << nht->hash_shift); i++) {
 		np = &nht->hash_buckets[i];
@@ -836,10 +836,10 @@ out:
 static __inline__ int neigh_max_probes(struct neighbour *n)
 {
 	struct neigh_parms *p = n->parms;
-	return (n->nud_state & NUD_PROBE) ?
-		NEIGH_VAR(p, UCAST_PROBES) :
-		NEIGH_VAR(p, UCAST_PROBES) + NEIGH_VAR(p, APP_PROBES) +
-		NEIGH_VAR(p, MCAST_PROBES);
+	int max_probes = NEIGH_VAR(p, UCAST_PROBES) + NEIGH_VAR(p, APP_PROBES);
+	if (!(n->nud_state & NUD_PROBE))
+		max_probes += NEIGH_VAR(p, MCAST_PROBES);
+	return max_probes;
 }
 
 static void neigh_invalidate(struct neighbour *neigh)
@@ -945,6 +945,7 @@ static void neigh_timer_handler(unsigned long arg)
 		neigh->nud_state = NUD_FAILED;
 		notify = 1;
 		neigh_invalidate(neigh);
+		goto out;
 	}
 
 	if (neigh->nud_state & NUD_IN_TIMER) {
@@ -3046,7 +3047,7 @@ int neigh_sysctl_register(struct net_device *dev, struct neigh_parms *p,
 	if (!t)
 		goto err;
 
-	for (i = 0; i < ARRAY_SIZE(t->neigh_vars); i++) {
+	for (i = 0; i < NEIGH_VAR_GC_INTERVAL; i++) {
 		t->neigh_vars[i].data += (long) p;
 		t->neigh_vars[i].extra1 = dev;
 		t->neigh_vars[i].extra2 = p;

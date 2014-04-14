@@ -5,7 +5,7 @@
  ******************************************************************************/
 
 /*
- * Copyright (C) 2000 - 2013, Intel Corp.
+ * Copyright (C) 2000 - 2014, Intel Corp.
  * All rights reserved.
  *
  * Redistribution and use in source and binary forms, with or without
@@ -273,7 +273,7 @@ acpi_rs_create_pci_routing_table(union acpi_operand_object *package_object,
 		 */
 		user_prt->length = (sizeof(struct acpi_pci_routing_table) - 4);
 
-		/* Each sub-package must be of length 4 */
+		/* Each subpackage must be of length 4 */
 
 		if ((*top_object_list)->package.count != 4) {
 			ACPI_ERROR((AE_INFO,
@@ -283,7 +283,7 @@ acpi_rs_create_pci_routing_table(union acpi_operand_object *package_object,
 		}
 
 		/*
-		 * Dereference the sub-package.
+		 * Dereference the subpackage.
 		 * The sub_object_list will now point to an array of the four IRQ
 		 * elements: [Address, Pin, Source, source_index]
 		 */
@@ -292,7 +292,7 @@ acpi_rs_create_pci_routing_table(union acpi_operand_object *package_object,
 		/* 1) First subobject: Dereference the PRT.Address */
 
 		obj_desc = sub_object_list[0];
-		if (obj_desc->common.type != ACPI_TYPE_INTEGER) {
+		if (!obj_desc || obj_desc->common.type != ACPI_TYPE_INTEGER) {
 			ACPI_ERROR((AE_INFO,
 				    "(PRT[%u].Address) Need Integer, found %s",
 				    index,
@@ -305,7 +305,7 @@ acpi_rs_create_pci_routing_table(union acpi_operand_object *package_object,
 		/* 2) Second subobject: Dereference the PRT.Pin */
 
 		obj_desc = sub_object_list[1];
-		if (obj_desc->common.type != ACPI_TYPE_INTEGER) {
+		if (!obj_desc || obj_desc->common.type != ACPI_TYPE_INTEGER) {
 			ACPI_ERROR((AE_INFO,
 				    "(PRT[%u].Pin) Need Integer, found %s",
 				    index,
@@ -394,7 +394,7 @@ acpi_rs_create_pci_routing_table(union acpi_operand_object *package_object,
 		/* 4) Fourth subobject: Dereference the PRT.source_index */
 
 		obj_desc = sub_object_list[3];
-		if (obj_desc->common.type != ACPI_TYPE_INTEGER) {
+		if (!obj_desc || obj_desc->common.type != ACPI_TYPE_INTEGER) {
 			ACPI_ERROR((AE_INFO,
 				    "(PRT[%u].SourceIndex) Need Integer, found %s",
 				    index,

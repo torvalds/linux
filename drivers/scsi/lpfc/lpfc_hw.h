@@ -45,6 +45,7 @@
 #define LPFC_EXTRA_RING          1	/* ring 1 for other protocols */
 #define LPFC_ELS_RING            2	/* ring 2 for ELS commands */
 #define LPFC_FCP_NEXT_RING       3
+#define LPFC_FCP_OAS_RING        3
 
 #define SLI2_IOCB_CMD_R0_ENTRIES    172	/* SLI-2 FCP command ring entries */
 #define SLI2_IOCB_RSP_R0_ENTRIES    134	/* SLI-2 FCP response ring entries */

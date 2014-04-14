@@ -60,7 +60,7 @@ static bool comp_mt(const struct sk_buff *skb, struct xt_action_param *par)
 	}
 
 	return spi_match(compinfo->spis[0], compinfo->spis[1],
-			 ntohl(chdr->cpi << 16),
+			 ntohs(chdr->cpi),
 			 !!(compinfo->invflags & XT_IPCOMP_INV_SPI));
 }
 

@@ -2086,7 +2086,7 @@ vortex_start_xmit(struct sk_buff *skb, struct net_device *dev)
 		/* ... and the packet rounded to a doubleword. */
 		skb_tx_timestamp(skb);
 		iowrite32_rep(ioaddr + TX_FIFO, skb->data, (skb->len + 3) >> 2);
-		dev_kfree_skb (skb);
+		dev_consume_skb_any (skb);
 		if (ioread16(ioaddr + TxFree) > 1536) {
 			netif_start_queue (dev);	/* AKPM: redundant? */
 		} else {

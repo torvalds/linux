@@ -120,10 +120,6 @@ static void pch_gbe_mdio_write(struct net_device *netdev, int addr, int reg,
 			       int data);
 static void pch_gbe_set_multi(struct net_device *netdev);
 
-static struct sock_filter ptp_filter[] = {
-	PTP_FILTER
-};
-
 static int pch_ptp_match(struct sk_buff *skb, u16 uid_hi, u32 uid_lo, u16 seqid)
 {
 	u8 *data = skb->data;
@@ -131,7 +127,7 @@ static int pch_ptp_match(struct sk_buff *skb, u16 uid_hi, u32 uid_lo, u16 seqid)
 	u16 *hi, *id;
 	u32 lo;
 
-	if (sk_run_filter(skb, ptp_filter) == PTP_CLASS_NONE)
+	if (ptp_classify_raw(skb) == PTP_CLASS_NONE)
 		return 0;
 
 	offset = ETH_HLEN + IPV4_HLEN(data) + UDP_HLEN;
@@ -2635,11 +2631,6 @@ static int pch_gbe_probe(struct pci_dev *pdev,
 
 	adapter->ptp_pdev = pci_get_bus_and_slot(adapter->pdev->bus->number,
 					       PCI_DEVFN(12, 4));
-	if (ptp_filter_init(ptp_filter, ARRAY_SIZE(ptp_filter))) {
-		dev_err(&pdev->dev, "Bad ptp filter\n");
-		ret = -EINVAL;
-		goto err_free_netdev;
-	}
 
 	netdev->netdev_ops = &pch_gbe_netdev_ops;
 	netdev->watchdog_timeo = PCH_GBE_WATCHDOG_PERIOD;

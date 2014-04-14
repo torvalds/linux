@@ -37,6 +37,7 @@
 #include <linux/platform_device.h>
 #include <linux/proc_fs.h>
 #include <linux/serial_core.h>
+#include <linux/serial_s3c.h>
 #include <linux/io.h>
 
 #include <asm/mach/arch.h>
@@ -49,7 +50,6 @@
 #include <asm/mach-types.h>
 #include <mach/fb.h>
 
-#include <plat/regs-serial.h>
 #include <mach/regs-lcd.h>
 #include <mach/regs-gpio.h>
 #include <mach/gpio-samsung.h>

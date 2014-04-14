@@ -543,8 +543,8 @@ int sptlrpc_req_replace_dead_ctx(struct ptlrpc_request *req)
 		       "ctx (%p, fl %lx) doesn't switch, relax a little bit\n",
 		       newctx, newctx->cc_flags);
 
-		schedule_timeout_and_set_state(TASK_INTERRUPTIBLE,
-						   HZ);
+		set_current_state(TASK_INTERRUPTIBLE);
+		schedule_timeout(HZ);
 	} else {
 		/*
 		 * it's possible newctx == oldctx if we're switching
@@ -779,7 +779,7 @@ again:
 	 *   e.g. ptlrpc_abort_inflight();
 	 */
 	if (!cli_ctx_is_refreshed(ctx)) {
-		/* timed out or interruptted */
+		/* timed out or interrupted */
 		req_off_ctx_list(req, ctx);
 
 		LASSERT(rc != 0);
@@ -805,7 +805,7 @@ void sptlrpc_req_set_flavor(struct ptlrpc_request *req, int opcode)
 	LASSERT(req->rq_cli_ctx->cc_sec);
 	LASSERT(req->rq_bulk_read == 0 || req->rq_bulk_write == 0);
 
-	/* special security flags accoding to opcode */
+	/* special security flags according to opcode */
 	switch (opcode) {
 	case OST_READ:
 	case MDS_READPAGE:
@@ -1218,7 +1218,7 @@ static void sec_cop_destroy_sec(struct ptlrpc_sec *sec)
 	LASSERT_ATOMIC_ZERO(&sec->ps_nctx);
 	LASSERT(policy->sp_cops->destroy_sec);
 
-	CDEBUG(D_SEC, "%s@%p: being destroied\n", sec->ps_policy->sp_name, sec);
+	CDEBUG(D_SEC, "%s@%p: being destroyed\n", sec->ps_policy->sp_name, sec);
 
 	policy->sp_cops->destroy_sec(sec);
 	sptlrpc_policy_put(policy);
@@ -1264,7 +1264,7 @@ void sptlrpc_sec_put(struct ptlrpc_sec *sec)
 EXPORT_SYMBOL(sptlrpc_sec_put);
 
 /*
- * policy module is responsible for taking refrence of import
+ * policy module is responsible for taking reference of import
  */
 static
 struct ptlrpc_sec * sptlrpc_sec_create(struct obd_import *imp,
@@ -1419,7 +1419,7 @@ int sptlrpc_import_sec_adapt(struct obd_import *imp,
 
 		sp = imp->imp_obd->u.cli.cl_sp_me;
 	} else {
-		/* reverse import, determine flavor from incoming reqeust */
+		/* reverse import, determine flavor from incoming request */
 		sf = *flvr;
 
 		if (sf.sf_rpc != SPTLRPC_FLVR_NULL)
@@ -2057,7 +2057,7 @@ int sptlrpc_svc_unwrap_request(struct ptlrpc_request *req)
 
 	/*
 	 * if it's not null flavor (which means embedded packing msg),
-	 * reset the swab mask for the comming inner msg unpacking.
+	 * reset the swab mask for the coming inner msg unpacking.
 	 */
 	if (SPTLRPC_FLVR_POLICY(req->rq_flvr.sf_rpc) != SPTLRPC_POLICY_NULL)
 		req->rq_req_swab_mask = 0;
@@ -2108,7 +2108,7 @@ int sptlrpc_svc_alloc_rs(struct ptlrpc_request *req, int msglen)
 /**
  * Used by ptlrpc server, to perform transformation upon reply message.
  *
- * \post req->rq_reply_off is set to approriate server-controlled reply offset.
+ * \post req->rq_reply_off is set to appropriate server-controlled reply offset.
  * \post req->rq_repmsg and req->rq_reply_state->rs_msg becomes inaccessible.
  */
 int sptlrpc_svc_wrap_reply(struct ptlrpc_request *req)

@@ -419,20 +419,13 @@ struct mii_regs {
 	unsigned int data;	/* MII Data */
 };
 
-struct stmmac_ring_mode_ops {
-	unsigned int (*is_jumbo_frm) (int len, int ehn_desc);
-	unsigned int (*jumbo_frm) (void *priv, struct sk_buff *skb, int csum);
-	void (*refill_desc3) (void *priv, struct dma_desc *p);
-	void (*init_desc3) (struct dma_desc *p);
-	void (*clean_desc3) (void *priv, struct dma_desc *p);
-	int (*set_16kib_bfsize) (int mtu);
-};
-
-struct stmmac_chain_mode_ops {
+struct stmmac_mode_ops {
 	void (*init) (void *des, dma_addr_t phy_addr, unsigned int size,
 		      unsigned int extend_desc);
 	unsigned int (*is_jumbo_frm) (int len, int ehn_desc);
 	unsigned int (*jumbo_frm) (void *priv, struct sk_buff *skb, int csum);
+	int (*set_16kib_bfsize)(int mtu);
+	void (*init_desc3)(struct dma_desc *p);
 	void (*refill_desc3) (void *priv, struct dma_desc *p);
 	void (*clean_desc3) (void *priv, struct dma_desc *p);
 };
@@ -441,8 +434,7 @@ struct mac_device_info {
 	const struct stmmac_ops *mac;
 	const struct stmmac_desc_ops *desc;
 	const struct stmmac_dma_ops *dma;
-	const struct stmmac_ring_mode_ops *ring;
-	const struct stmmac_chain_mode_ops *chain;
+	const struct stmmac_mode_ops *mode;
 	const struct stmmac_hwtimestamp *ptp;
 	struct mii_regs mii;	/* MII register Addresses */
 	struct mac_link link;
@@ -460,7 +452,7 @@ void stmmac_get_mac_addr(void __iomem *ioaddr, unsigned char *addr,
 void stmmac_set_mac(void __iomem *ioaddr, bool enable);
 
 void dwmac_dma_flush_tx_fifo(void __iomem *ioaddr);
-extern const struct stmmac_ring_mode_ops ring_mode_ops;
-extern const struct stmmac_chain_mode_ops chain_mode_ops;
+extern const struct stmmac_mode_ops ring_mode_ops;
+extern const struct stmmac_mode_ops chain_mode_ops;
 
 #endif /* __COMMON_H__ */

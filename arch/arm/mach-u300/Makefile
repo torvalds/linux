@@ -2,7 +2,7 @@
 # Makefile for the linux kernel, U300 machine.
 #
 
-obj-y		:= core.o timer.o
+obj-y		:= core.o
 obj-m		:=
 obj-n		:=
 obj-		:=

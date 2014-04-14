@@ -975,8 +975,8 @@ static VOID DumpCmControlPacket(PVOID pvBuffer)
 				psfCSType->cCPacketClassificationRule.u8EthernetDestMacAddressLength);
 
 		BCM_DEBUG_PRINT(Adapter, DBG_TYPE_OTHERS, DUMP_CONTROL,
-				DBG_LVL_ALL, "u8EthernetSourceMACAddress[6]: "
-				"%pM", psfCSType->cCPacketClassificationRule.
+				DBG_LVL_ALL, "u8EthernetSourceMACAddress[6]: %pM",
+				psfCSType->cCPacketClassificationRule.
 						u8EthernetSourceMACAddress);
 
 		BCM_DEBUG_PRINT(Adapter, DBG_TYPE_OTHERS, DUMP_CONTROL, DBG_LVL_ALL, "u8EthertypeLength: 0x%02X ",
@@ -1092,18 +1092,16 @@ static VOID DumpCmControlPacket(PVOID pvBuffer)
 				psfCSType->cCPacketClassificationRule.u8ProtocolSourcePortRangeLength);
 
 		BCM_DEBUG_PRINT(Adapter, DBG_TYPE_OTHERS, DUMP_CONTROL,
-				DBG_LVL_ALL, "u8ProtocolSourcePortRange[4]: "
-				"0x%*ph ", 4, psfCSType->
-						cCPacketClassificationRule.
+				DBG_LVL_ALL, "u8ProtocolSourcePortRange[4]: 0x%*ph ",
+				4, psfCSType->cCPacketClassificationRule.
 						u8ProtocolSourcePortRange);
 
 		BCM_DEBUG_PRINT(Adapter, DBG_TYPE_OTHERS, DUMP_CONTROL, DBG_LVL_ALL, "u8ProtocolDestPortRangeLength: 0x%02X ",
 				psfCSType->cCPacketClassificationRule.u8ProtocolDestPortRangeLength);
 
 		BCM_DEBUG_PRINT(Adapter, DBG_TYPE_OTHERS, DUMP_CONTROL,
-				DBG_LVL_ALL, "u8ProtocolDestPortRange[4]: "
-				"0x%*ph ", 4, psfCSType->
-						cCPacketClassificationRule.
+				DBG_LVL_ALL, "u8ProtocolDestPortRange[4]: 0x%*ph ",
+				4, psfCSType->cCPacketClassificationRule.
 						u8ProtocolDestPortRange);
 
 		BCM_DEBUG_PRINT(Adapter, DBG_TYPE_OTHERS, DUMP_CONTROL, DBG_LVL_ALL, "u8EthernetDestMacAddressLength: 0x%02X ",
@@ -1118,8 +1116,8 @@ static VOID DumpCmControlPacket(PVOID pvBuffer)
 				psfCSType->cCPacketClassificationRule.u8EthernetDestMacAddressLength);
 
 		BCM_DEBUG_PRINT(Adapter, DBG_TYPE_OTHERS, DUMP_CONTROL,
-				DBG_LVL_ALL, "u8EthernetSourceMACAddress[6]: "
-				"%pM", psfCSType->cCPacketClassificationRule.
+				DBG_LVL_ALL, "u8EthernetSourceMACAddress[6]: %pM",
+				psfCSType->cCPacketClassificationRule.
 						u8EthernetSourceMACAddress);
 
 		BCM_DEBUG_PRINT(Adapter, DBG_TYPE_OTHERS, DUMP_CONTROL, DBG_LVL_ALL, "u8EthertypeLength: 0x%02X ", psfCSType->cCPacketClassificationRule.u8EthertypeLength);
@@ -1637,6 +1635,8 @@ bool CmControlResponseMessage(struct bcm_mini_adapter *Adapter,  /* <Pointer to 
 	struct bcm_add_indication_alt *pstAddIndication = NULL;
 	struct bcm_change_indication *pstChangeIndication = NULL;
 	struct bcm_leader *pLeader = NULL;
+	INT uiSearchRuleIndex = 0;
+	ULONG ulSFID;
 
 	/*
 	 * Otherwise the message contains a target address from where we need to
@@ -1660,7 +1660,6 @@ bool CmControlResponseMessage(struct bcm_mini_adapter *Adapter,  /* <Pointer to 
 	BCM_DEBUG_PRINT(Adapter, DBG_TYPE_PRINTK, 0, 0, "### TID RECEIVED %d\n", pstAddIndication->u16TID);
 	switch (pstAddIndication->u8Type) {
 	case DSA_REQ:
-	{
 		pLeader->PLength = sizeof(struct bcm_add_indication_alt);
 		BCM_DEBUG_PRINT(Adapter, DBG_TYPE_OTHERS, CONN_MSG, DBG_LVL_ALL, "Sending DSA Response....\n");
 		BCM_DEBUG_PRINT(Adapter, DBG_TYPE_OTHERS, CONN_MSG, DBG_LVL_ALL, "SENDING DSA RESPONSE TO MAC %d", pLeader->PLength);
@@ -1671,22 +1670,16 @@ bool CmControlResponseMessage(struct bcm_mini_adapter *Adapter,  /* <Pointer to 
 		BCM_DEBUG_PRINT(Adapter, DBG_TYPE_OTHERS, CONN_MSG, DBG_LVL_ALL, " VCID = %x", ntohs(pstAddIndication->u16VCID));
 		CopyBufferToControlPacket(Adapter, (PVOID)Adapter->caDsxReqResp);
 		kfree(pstAddIndication);
-	}
-	break;
+		break;
 	case DSA_RSP:
-	{
 		pLeader->PLength = sizeof(struct bcm_add_indication_alt);
 		BCM_DEBUG_PRINT(Adapter, DBG_TYPE_OTHERS, CONN_MSG, DBG_LVL_ALL, "SENDING DSA ACK TO MAC %d",
 				pLeader->PLength);
 		*((struct bcm_add_indication_alt *)&(Adapter->caDsxReqResp[LEADER_SIZE]))
 			= *pstAddIndication;
 		((struct bcm_add_indication_alt *)&(Adapter->caDsxReqResp[LEADER_SIZE]))->u8Type = DSA_ACK;
-
-	} /* no break here..we should go down. */
+		/* FALLTHROUGH */
 	case DSA_ACK:
-	{
-		UINT uiSearchRuleIndex = 0;
-
 		BCM_DEBUG_PRINT(Adapter, DBG_TYPE_OTHERS, CONN_MSG, DBG_LVL_ALL, "VCID:0x%X",
 				ntohs(pstAddIndication->u16VCID));
 		uiSearchRuleIndex = SearchFreeSfid(Adapter);
@@ -1694,7 +1687,7 @@ bool CmControlResponseMessage(struct bcm_mini_adapter *Adapter,  /* <Pointer to 
 				uiSearchRuleIndex);
 		BCM_DEBUG_PRINT(Adapter, DBG_TYPE_OTHERS, CONN_MSG, DBG_LVL_ALL, "Direction:0x%X ",
 				pstAddIndication->u8Direction);
-		if ((uiSearchRuleIndex < NO_OF_QUEUES)) {
+		if (uiSearchRuleIndex < NO_OF_QUEUES) {
 			Adapter->PackInfo[uiSearchRuleIndex].ucDirection =
 				pstAddIndication->u8Direction;
 			BCM_DEBUG_PRINT(Adapter, DBG_TYPE_OTHERS, CONN_MSG, DBG_LVL_ALL, "bValid:0x%X ",
@@ -1769,10 +1762,8 @@ bool CmControlResponseMessage(struct bcm_mini_adapter *Adapter,  /* <Pointer to 
 			kfree(pstAddIndication);
 			return false;
 		}
-	}
-	break;
+		break;
 	case DSC_REQ:
-	{
 		pLeader->PLength = sizeof(struct bcm_change_indication);
 		pstChangeIndication = (struct bcm_change_indication *)pstAddIndication;
 		BCM_DEBUG_PRINT(Adapter, DBG_TYPE_OTHERS, CONN_MSG, DBG_LVL_ALL, "SENDING DSC RESPONSE TO MAC %d", pLeader->PLength);
@@ -1782,26 +1773,21 @@ bool CmControlResponseMessage(struct bcm_mini_adapter *Adapter,  /* <Pointer to 
 
 		CopyBufferToControlPacket(Adapter, (PVOID)Adapter->caDsxReqResp);
 		kfree(pstAddIndication);
-	}
-	break;
+		break;
 	case DSC_RSP:
-	{
 		pLeader->PLength = sizeof(struct bcm_change_indication);
 		pstChangeIndication = (struct bcm_change_indication *)pstAddIndication;
 		BCM_DEBUG_PRINT(Adapter, DBG_TYPE_OTHERS, CONN_MSG, DBG_LVL_ALL, "SENDING DSC ACK TO MAC %d", pLeader->PLength);
 		*((struct bcm_change_indication *)&(Adapter->caDsxReqResp[LEADER_SIZE])) = *pstChangeIndication;
 		((struct bcm_change_indication *)&(Adapter->caDsxReqResp[LEADER_SIZE]))->u8Type = DSC_ACK;
-	}
+		/* FALLTHROUGH */
 	case DSC_ACK:
-	{
-		UINT uiSearchRuleIndex = 0;
-
 		pstChangeIndication = (struct bcm_change_indication *)pstAddIndication;
 		uiSearchRuleIndex = SearchSfid(Adapter, ntohl(pstChangeIndication->sfActiveSet.u32SFID));
 		if (uiSearchRuleIndex > NO_OF_QUEUES-1)
 			BCM_DEBUG_PRINT(Adapter, DBG_TYPE_PRINTK, 0, 0, "SF doesn't exist for which DSC_ACK is received");
 
-		if ((uiSearchRuleIndex < NO_OF_QUEUES)) {
+		if (uiSearchRuleIndex < NO_OF_QUEUES) {
 			Adapter->PackInfo[uiSearchRuleIndex].ucDirection = pstChangeIndication->u8Direction;
 			if (pstChangeIndication->sfActiveSet.bValid == TRUE)
 				Adapter->PackInfo[uiSearchRuleIndex].bActiveSet = TRUE;
@@ -1849,13 +1835,8 @@ bool CmControlResponseMessage(struct bcm_mini_adapter *Adapter,  /* <Pointer to 
 			kfree(pstAddIndication);
 			return false;
 		}
-	}
-	break;
+		break;
 	case DSD_REQ:
-	{
-		UINT uiSearchRuleIndex;
-		ULONG ulSFID;
-
 		pLeader->PLength = sizeof(struct bcm_del_indication);
 		*((struct bcm_del_indication *)&(Adapter->caDsxReqResp[LEADER_SIZE])) = *((struct bcm_del_indication *)pstAddIndication);
 
@@ -1872,12 +1853,10 @@ bool CmControlResponseMessage(struct bcm_mini_adapter *Adapter,  /* <Pointer to 
 		BCM_DEBUG_PRINT(Adapter, DBG_TYPE_OTHERS, CONN_MSG, DBG_LVL_ALL, "SENDING DSD RESPONSE TO MAC");
 		((struct bcm_del_indication *)&(Adapter->caDsxReqResp[LEADER_SIZE]))->u8Type = DSD_RSP;
 		CopyBufferToControlPacket(Adapter, (PVOID)Adapter->caDsxReqResp);
-	}
+		/* FALLTHROUGH */
 	case DSD_RSP:
-	{
 		/* Do nothing as SF has already got Deleted */
-	}
-	break;
+		break;
 	case DSD_ACK:
 		BCM_DEBUG_PRINT(Adapter, DBG_TYPE_OTHERS, CONN_MSG, DBG_LVL_ALL, "DSD ACK Rcd, let App handle it\n");
 		break;

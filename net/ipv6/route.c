@@ -149,7 +149,8 @@ static u32 *ipv6_cow_metrics(struct dst_entry *dst, unsigned long old)
 		unsigned long prev, new;
 
 		p = peer->metrics;
-		if (inet_metrics_new(peer))
+		if (inet_metrics_new(peer) ||
+		    (old & DST_METRICS_FORCE_OVERWRITE))
 			memcpy(p, old_p, sizeof(u32) * RTAX_MAX);
 
 		new = (unsigned long) p;
@@ -371,12 +372,6 @@ static bool rt6_check_expired(const struct rt6_info *rt)
 		return rt6_check_expired((struct rt6_info *) rt->dst.from);
 	}
 	return false;
-}
-
-static bool rt6_need_strict(const struct in6_addr *daddr)
-{
-	return ipv6_addr_type(daddr) &
-		(IPV6_ADDR_MULTICAST | IPV6_ADDR_LINKLOCAL | IPV6_ADDR_LOOPBACK);
 }
 
 /* Multipath route selection:
@@ -857,14 +852,15 @@ EXPORT_SYMBOL(rt6_lookup);
    be destroyed.
  */
 
-static int __ip6_ins_rt(struct rt6_info *rt, struct nl_info *info)
+static int __ip6_ins_rt(struct rt6_info *rt, struct nl_info *info,
+			struct nlattr *mx, int mx_len)
 {
 	int err;
 	struct fib6_table *table;
 
 	table = rt->rt6i_table;
 	write_lock_bh(&table->tb6_lock);
-	err = fib6_add(&table->tb6_root, rt, info);
+	err = fib6_add(&table->tb6_root, rt, info, mx, mx_len);
 	write_unlock_bh(&table->tb6_lock);
 
 	return err;
@@ -875,7 +871,7 @@ int ip6_ins_rt(struct rt6_info *rt)
 	struct nl_info info = {
 		.nl_net = dev_net(rt->dst.dev),
 	};
-	return __ip6_ins_rt(rt, &info);
+	return __ip6_ins_rt(rt, &info, NULL, 0);
 }
 
 static struct rt6_info *rt6_alloc_cow(struct rt6_info *ort,
@@ -1513,7 +1509,7 @@ int ip6_route_add(struct fib6_config *cfg)
 	if (!table)
 		goto out;
 
-	rt = ip6_dst_alloc(net, NULL, DST_NOCOUNT, table);
+	rt = ip6_dst_alloc(net, NULL, (cfg->fc_flags & RTF_ADDRCONF) ? 0 : DST_NOCOUNT, table);
 
 	if (!rt) {
 		err = -ENOMEM;
@@ -1543,17 +1539,11 @@ int ip6_route_add(struct fib6_config *cfg)
 
 	ipv6_addr_prefix(&rt->rt6i_dst.addr, &cfg->fc_dst, cfg->fc_dst_len);
 	rt->rt6i_dst.plen = cfg->fc_dst_len;
-	if (rt->rt6i_dst.plen == 128)
-	       rt->dst.flags |= DST_HOST;
-
-	if (!(rt->dst.flags & DST_HOST) && cfg->fc_mx) {
-		u32 *metrics = kzalloc(sizeof(u32) * RTAX_MAX, GFP_KERNEL);
-		if (!metrics) {
-			err = -ENOMEM;
-			goto out;
-		}
-		dst_init_metrics(&rt->dst, metrics, 0);
+	if (rt->rt6i_dst.plen == 128) {
+		rt->dst.flags |= DST_HOST;
+		dst_metrics_set_force_overwrite(&rt->dst);
 	}
+
 #ifdef CONFIG_IPV6_SUBTREES
 	ipv6_addr_prefix(&rt->rt6i_src.addr, &cfg->fc_src, cfg->fc_src_len);
 	rt->rt6i_src.plen = cfg->fc_src_len;
@@ -1672,31 +1662,13 @@ int ip6_route_add(struct fib6_config *cfg)
 	rt->rt6i_flags = cfg->fc_flags;
 
 install_route:
-	if (cfg->fc_mx) {
-		struct nlattr *nla;
-		int remaining;
-
-		nla_for_each_attr(nla, cfg->fc_mx, cfg->fc_mx_len, remaining) {
-			int type = nla_type(nla);
-
-			if (type) {
-				if (type > RTAX_MAX) {
-					err = -EINVAL;
-					goto out;
-				}
-
-				dst_metric_set(&rt->dst, type, nla_get_u32(nla));
-			}
-		}
-	}
-
 	rt->dst.dev = dev;
 	rt->rt6i_idev = idev;
 	rt->rt6i_table = table;
 
 	cfg->fc_nlinfo.nl_net = dev_net(dev);
 
-	return __ip6_ins_rt(rt, &cfg->fc_nlinfo);
+	return __ip6_ins_rt(rt, &cfg->fc_nlinfo, cfg->fc_mx, cfg->fc_mx_len);
 
 out:
 	if (dev)

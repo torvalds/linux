@@ -23,6 +23,7 @@
 #include <linux/crc32.h>
 #include <linux/mii.h>
 #include <linux/eeprom_93cx6.h>
+#include <linux/regulator/consumer.h>
 
 #include <linux/spi/spi.h>
 
@@ -83,6 +84,7 @@ union ks8851_tx_hdr {
  * @rc_rxqcr: Cached copy of KS_RXQCR.
  * @eeprom_size: Companion eeprom size in Bytes, 0 if no eeprom
  * @eeprom: 93CX6 EEPROM state for accessing on-board EEPROM.
+ * @vdd_reg:	Optional regulator supplying the chip
  *
  * The @lock ensures that the chip is protected when certain operations are
  * in progress. When the read or write packet transfer is in progress, most
@@ -130,6 +132,7 @@ struct ks8851_net {
 	struct spi_transfer	spi_xfer2[2];
 
 	struct eeprom_93cx6	eeprom;
+	struct regulator	*vdd_reg;
 };
 
 static int msg_enable;
@@ -1414,6 +1417,21 @@ static int ks8851_probe(struct spi_device *spi)
 	ks->spidev = spi;
 	ks->tx_space = 6144;
 
+	ks->vdd_reg = regulator_get_optional(&spi->dev, "vdd");
+	if (IS_ERR(ks->vdd_reg)) {
+		ret = PTR_ERR(ks->vdd_reg);
+		if (ret == -EPROBE_DEFER)
+			goto err_reg;
+	} else {
+		ret = regulator_enable(ks->vdd_reg);
+		if (ret) {
+			dev_err(&spi->dev, "regulator enable fail: %d\n",
+				ret);
+			goto err_reg_en;
+		}
+	}
+
+
 	mutex_init(&ks->lock);
 	spin_lock_init(&ks->statelock);
 
@@ -1508,8 +1526,14 @@ static int ks8851_probe(struct spi_device *spi)
 err_netdev:
 	free_irq(ndev->irq, ks);
 
-err_id:
 err_irq:
+err_id:
+	if (!IS_ERR(ks->vdd_reg))
+		regulator_disable(ks->vdd_reg);
+err_reg_en:
+	if (!IS_ERR(ks->vdd_reg))
+		regulator_put(ks->vdd_reg);
+err_reg:
 	free_netdev(ndev);
 	return ret;
 }
@@ -1523,6 +1547,10 @@ static int ks8851_remove(struct spi_device *spi)
 
 	unregister_netdev(priv->netdev);
 	free_irq(spi->irq, priv);
+	if (!IS_ERR(priv->vdd_reg)) {
+		regulator_disable(priv->vdd_reg);
+		regulator_put(priv->vdd_reg);
+	}
 	free_netdev(priv->netdev);
 
 	return 0;

@@ -276,9 +276,8 @@ typedef struct tagSRxDesc {
 	volatile SRDES1 m_rd1RD1;
 	volatile u32    buff_addr;
 	volatile u32    next_desc;
-	struct tagSRxDesc   *next;//4 bytes
-	volatile PDEVICE_RD_INFO    pRDInfo;//4 bytes
-	volatile u32    Reserved[2];//8 bytes
+	struct tagSRxDesc *next __aligned(8);
+	volatile PDEVICE_RD_INFO pRDInfo __aligned(8);
 } __attribute__ ((__packed__))
 SRxDesc, *PSRxDesc;
 typedef const SRxDesc *PCSRxDesc;
@@ -361,9 +360,8 @@ typedef struct tagSTxDesc {
 	volatile    STDES1  m_td1TD1;
 	volatile    u32    buff_addr;
 	volatile    u32    next_desc;
-	struct tagSTxDesc *next; //4 bytes
-	volatile    PDEVICE_TD_INFO pTDInfo;//4 bytes
-	volatile    u32    Reserved[2];//8 bytes
+	struct tagSTxDesc *next __aligned(8);
+	volatile    PDEVICE_TD_INFO pTDInfo __aligned(8);
 } __attribute__ ((__packed__))
 STxDesc, *PSTxDesc;
 typedef const STxDesc *PCSTxDesc;
@@ -375,9 +373,8 @@ typedef struct tagSTxSyncDesc {
 	volatile    u32 next_desc; // pointer to next logical descriptor
 	volatile    unsigned short m_wFIFOCtl;
 	volatile    unsigned short m_wTimeStamp;
-	struct tagSTxSyncDesc *next; //4 bytes
-	volatile    PDEVICE_TD_INFO pTDInfo;//4 bytes
-	volatile    u32 m_dwReserved2;
+	struct tagSTxSyncDesc *next __aligned(8);
+	volatile    PDEVICE_TD_INFO pTDInfo __aligned(8);
 } __attribute__ ((__packed__))
 STxSyncDesc, *PSTxSyncDesc;
 typedef const STxSyncDesc *PCSTxSyncDesc;

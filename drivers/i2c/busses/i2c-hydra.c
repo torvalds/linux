@@ -104,7 +104,7 @@ static struct i2c_adapter hydra_adap = {
 	.algo_data	= &hydra_bit_data,
 };
 
-static DEFINE_PCI_DEVICE_TABLE(hydra_ids) = {
+static const struct pci_device_id hydra_ids[] = {
 	{ PCI_DEVICE(PCI_VENDOR_ID_APPLE, PCI_DEVICE_ID_APPLE_HYDRA) },
 	{ 0, }
 };

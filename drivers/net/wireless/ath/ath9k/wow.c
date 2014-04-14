@@ -198,7 +198,7 @@ int ath9k_suspend(struct ieee80211_hw *hw,
 	ath_cancel_work(sc);
 	ath_stop_ani(sc);
 
-	if (test_bit(SC_OP_INVALID, &sc->sc_flags)) {
+	if (test_bit(ATH_OP_INVALID, &common->op_flags)) {
 		ath_dbg(common, ANY, "Device not present\n");
 		ret = -EINVAL;
 		goto fail_wow;
@@ -224,7 +224,7 @@ int ath9k_suspend(struct ieee80211_hw *hw,
 	 * STA.
 	 */
 
-	if (!test_bit(SC_OP_PRIM_STA_VIF, &sc->sc_flags)) {
+	if (!test_bit(ATH_OP_PRIM_STA_VIF, &common->op_flags)) {
 		ath_dbg(common, WOW, "None of the STA vifs are associated\n");
 		ret = 1;
 		goto fail_wow;

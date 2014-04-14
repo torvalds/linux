@@ -60,8 +60,8 @@ static int __wlcore_cmd_send(struct wl1271 *wl, u16 id, void *buf,
 	u16 status;
 	u16 poll_count = 0;
 
-	if (WARN_ON(wl->state == WLCORE_STATE_RESTARTING &&
-		    id != CMD_STOP_FWLOGGER))
+	if (unlikely(wl->state == WLCORE_STATE_RESTARTING &&
+		     id != CMD_STOP_FWLOGGER))
 		return -EIO;
 
 	cmd = buf;
@@ -312,8 +312,8 @@ static int wlcore_get_new_session_id(struct wl1271 *wl, u8 hlid)
 int wl12xx_allocate_link(struct wl1271 *wl, struct wl12xx_vif *wlvif, u8 *hlid)
 {
 	unsigned long flags;
-	u8 link = find_first_zero_bit(wl->links_map, WL12XX_MAX_LINKS);
-	if (link >= WL12XX_MAX_LINKS)
+	u8 link = find_first_zero_bit(wl->links_map, wl->num_links);
+	if (link >= wl->num_links)
 		return -EBUSY;
 
 	wl->session_ids[link] = wlcore_get_new_session_id(wl, link);
@@ -324,9 +324,14 @@ int wl12xx_allocate_link(struct wl1271 *wl, struct wl12xx_vif *wlvif, u8 *hlid)
 	__set_bit(link, wlvif->links_map);
 	spin_unlock_irqrestore(&wl->wl_lock, flags);
 
-	/* take the last "freed packets" value from the current FW status */
-	wl->links[link].prev_freed_pkts =
-			wl->fw_status_2->counters.tx_lnk_free_pkts[link];
+	/*
+	 * take the last "freed packets" value from the current FW status.
+	 * on recovery, we might not have fw_status yet, and
+	 * tx_lnk_free_pkts will be NULL. check for it.
+	 */
+	if (wl->fw_status->counters.tx_lnk_free_pkts)
+		wl->links[link].prev_freed_pkts =
+			wl->fw_status->counters.tx_lnk_free_pkts[link];
 	wl->links[link].wlvif = wlvif;
 
 	/*
@@ -1527,6 +1532,7 @@ int wl12xx_cmd_add_peer(struct wl1271 *wl, struct wl12xx_vif *wlvif,
 	cmd->sp_len = sta->max_sp;
 	cmd->wmm = sta->wme ? 1 : 0;
 	cmd->session_id = wl->session_ids[hlid];
+	cmd->role_id = wlvif->role_id;
 
 	for (i = 0; i < NUM_ACCESS_CATEGORIES_COPY; i++)
 		if (sta->wme && (sta->uapsd_queues & BIT(i)))
@@ -1563,7 +1569,8 @@ out:
 	return ret;
 }
 
-int wl12xx_cmd_remove_peer(struct wl1271 *wl, u8 hlid)
+int wl12xx_cmd_remove_peer(struct wl1271 *wl, struct wl12xx_vif *wlvif,
+			   u8 hlid)
 {
 	struct wl12xx_cmd_remove_peer *cmd;
 	int ret;
@@ -1581,6 +1588,7 @@ int wl12xx_cmd_remove_peer(struct wl1271 *wl, u8 hlid)
 	/* We never send a deauth, mac80211 is in charge of this */
 	cmd->reason_opcode = 0;
 	cmd->send_deauth_flag = 0;
+	cmd->role_id = wlvif->role_id;
 
 	ret = wl1271_cmd_send(wl, CMD_REMOVE_PEER, cmd, sizeof(*cmd), 0);
 	if (ret < 0) {

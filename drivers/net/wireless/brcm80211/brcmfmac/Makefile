@@ -24,6 +24,7 @@ ccflags-y += -D__CHECK_ENDIAN__
 obj-$(CONFIG_BRCMFMAC) += brcmfmac.o
 brcmfmac-objs += \
 		wl_cfg80211.o \
+		chip.o \
 		fwil.o \
 		fweh.o \
 		fwsignal.o \
@@ -36,8 +37,7 @@ brcmfmac-objs += \
 		btcoex.o
 brcmfmac-$(CONFIG_BRCMFMAC_SDIO) += \
 		dhd_sdio.o \
-		bcmsdh.o \
-		sdio_chip.o
+		bcmsdh.o
 brcmfmac-$(CONFIG_BRCMFMAC_USB) += \
 		usb.o
 brcmfmac-$(CONFIG_BRCMDBG) += \

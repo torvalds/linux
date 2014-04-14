@@ -659,14 +659,6 @@ static int fill_inode(struct inode *inode,
 			    le32_to_cpu(info->time_warp_seq),
 			    &ctime, &mtime, &atime);
 
-	/* only update max_size on auth cap */
-	if ((info->cap.flags & CEPH_CAP_FLAG_AUTH) &&
-	    ci->i_max_size != le64_to_cpu(info->max_size)) {
-		dout("max_size %lld -> %llu\n", ci->i_max_size,
-		     le64_to_cpu(info->max_size));
-		ci->i_max_size = le64_to_cpu(info->max_size);
-	}
-
 	ci->i_layout = info->layout;
 	inode->i_blkbits = fls(le32_to_cpu(info->layout.fl_stripe_unit)) - 1;
 
@@ -755,6 +747,14 @@ static int fill_inode(struct inode *inode,
 		ci->i_max_offset = 2;
 	}
 no_change:
+	/* only update max_size on auth cap */
+	if ((info->cap.flags & CEPH_CAP_FLAG_AUTH) &&
+	    ci->i_max_size != le64_to_cpu(info->max_size)) {
+		dout("max_size %lld -> %llu\n", ci->i_max_size,
+		     le64_to_cpu(info->max_size));
+		ci->i_max_size = le64_to_cpu(info->max_size);
+	}
+
 	spin_unlock(&ci->i_ceph_lock);
 
 	/* queue truncate if we saw i_size decrease */
@@ -1044,9 +1044,58 @@ int ceph_fill_trace(struct super_block *sb, struct ceph_mds_request *req,
 					 session, req->r_request_started, -1,
 					 &req->r_caps_reservation);
 			if (err < 0)
-				return err;
+				goto done;
 		} else {
 			WARN_ON_ONCE(1);
+		}
+
+		if (dir && req->r_op == CEPH_MDS_OP_LOOKUPNAME) {
+			struct qstr dname;
+			struct dentry *dn, *parent;
+
+			BUG_ON(!rinfo->head->is_target);
+			BUG_ON(req->r_dentry);
+
+			parent = d_find_any_alias(dir);
+			BUG_ON(!parent);
+
+			dname.name = rinfo->dname;
+			dname.len = rinfo->dname_len;
+			dname.hash = full_name_hash(dname.name, dname.len);
+			vino.ino = le64_to_cpu(rinfo->targeti.in->ino);
+			vino.snap = le64_to_cpu(rinfo->targeti.in->snapid);
+retry_lookup:
+			dn = d_lookup(parent, &dname);
+			dout("d_lookup on parent=%p name=%.*s got %p\n",
+			     parent, dname.len, dname.name, dn);
+
+			if (!dn) {
+				dn = d_alloc(parent, &dname);
+				dout("d_alloc %p '%.*s' = %p\n", parent,
+				     dname.len, dname.name, dn);
+				if (dn == NULL) {
+					dput(parent);
+					err = -ENOMEM;
+					goto done;
+				}
+				err = ceph_init_dentry(dn);
+				if (err < 0) {
+					dput(dn);
+					dput(parent);
+					goto done;
+				}
+			} else if (dn->d_inode &&
+				   (ceph_ino(dn->d_inode) != vino.ino ||
+				    ceph_snap(dn->d_inode) != vino.snap)) {
+				dout(" dn %p points to wrong inode %p\n",
+				     dn, dn->d_inode);
+				d_delete(dn);
+				dput(dn);
+				goto retry_lookup;
+			}
+
+			req->r_dentry = dn;
+			dput(parent);
 		}
 	}
 
@@ -1063,7 +1112,7 @@ int ceph_fill_trace(struct super_block *sb, struct ceph_mds_request *req,
 
 		err = fill_inode(in, &rinfo->targeti, NULL,
 				session, req->r_request_started,
-				(le32_to_cpu(rinfo->head->result) == 0) ?
+				(!req->r_aborted && rinfo->head->result == 0) ?
 				req->r_fmode : -1,
 				&req->r_caps_reservation);
 		if (err < 0) {
@@ -1616,8 +1665,6 @@ static const struct inode_operations ceph_symlink_iops = {
 	.getxattr = ceph_getxattr,
 	.listxattr = ceph_listxattr,
 	.removexattr = ceph_removexattr,
-	.get_acl = ceph_get_acl,
-	.set_acl = ceph_set_acl,
 };
 
 /*
@@ -1627,7 +1674,6 @@ int ceph_setattr(struct dentry *dentry, struct iattr *attr)
 {
 	struct inode *inode = dentry->d_inode;
 	struct ceph_inode_info *ci = ceph_inode(inode);
-	struct inode *parent_inode;
 	const unsigned int ia_valid = attr->ia_valid;
 	struct ceph_mds_request *req;
 	struct ceph_mds_client *mdsc = ceph_sb_to_client(dentry->d_sb)->mdsc;
@@ -1819,9 +1865,7 @@ int ceph_setattr(struct dentry *dentry, struct iattr *attr)
 		req->r_inode_drop = release;
 		req->r_args.setattr.mask = cpu_to_le32(mask);
 		req->r_num_caps = 1;
-		parent_inode = ceph_get_dentry_parent_inode(dentry);
-		err = ceph_mdsc_do_request(mdsc, parent_inode, req);
-		iput(parent_inode);
+		err = ceph_mdsc_do_request(mdsc, NULL, req);
 	}
 	dout("setattr %p result=%d (%s locally, %d remote)\n", inode, err,
 	     ceph_cap_string(dirtied), mask);

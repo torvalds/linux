@@ -128,10 +128,8 @@ static int bcm_kona_usb2_probe(struct platform_device *pdev)
 
 	phy_provider = devm_of_phy_provider_register(dev,
 			of_phy_simple_xlate);
-	if (IS_ERR(phy_provider))
-		return PTR_ERR(phy_provider);
 
-	return 0;
+	return PTR_ERR_OR_ZERO(phy_provider);
 }
 
 static const struct of_device_id bcm_kona_usb2_dt_ids[] = {

@@ -39,8 +39,6 @@
 #define XFRM_QUEUE_TMO_MAX ((unsigned)(60*HZ))
 #define XFRM_MAX_QUEUE_LEN	100
 
-static struct dst_entry *xfrm_policy_sk_bundles;
-
 static DEFINE_SPINLOCK(xfrm_policy_afinfo_lock);
 static struct xfrm_policy_afinfo __rcu *xfrm_policy_afinfo[NPROTO]
 						__read_mostly;
@@ -661,7 +659,7 @@ int xfrm_policy_insert(int dir, struct xfrm_policy *policy, int excl)
 		hlist_add_head(&policy->bydst, chain);
 	xfrm_pol_hold(policy);
 	net->xfrm.policy_count[dir]++;
-	atomic_inc(&flow_cache_genid);
+	atomic_inc(&net->xfrm.flow_cache_genid);
 
 	/* After previous checking, family can either be AF_INET or AF_INET6 */
 	if (policy->family == AF_INET)
@@ -1158,7 +1156,7 @@ static struct xfrm_policy *__xfrm_policy_unlink(struct xfrm_policy *pol,
 	if (hlist_unhashed(&pol->bydst))
 		return NULL;
 
-	hlist_del(&pol->bydst);
+	hlist_del_init(&pol->bydst);
 	hlist_del(&pol->byidx);
 	list_del(&pol->walk.all);
 	net->xfrm.policy_count[dir]--;
@@ -2109,13 +2107,6 @@ struct dst_entry *xfrm_lookup(struct net *net, struct dst_entry *dst_orig,
 				goto no_transform;
 			}
 
-			dst_hold(&xdst->u.dst);
-
-			spin_lock_bh(&net->xfrm.xfrm_policy_sk_bundle_lock);
-			xdst->u.dst.next = xfrm_policy_sk_bundles;
-			xfrm_policy_sk_bundles = &xdst->u.dst;
-			spin_unlock_bh(&net->xfrm.xfrm_policy_sk_bundle_lock);
-
 			route = xdst->route;
 		}
 	}
@@ -2549,33 +2540,15 @@ static struct dst_entry *xfrm_negative_advice(struct dst_entry *dst)
 	return dst;
 }
 
-static void __xfrm_garbage_collect(struct net *net)
-{
-	struct dst_entry *head, *next;
-
-	spin_lock_bh(&net->xfrm.xfrm_policy_sk_bundle_lock);
-	head = xfrm_policy_sk_bundles;
-	xfrm_policy_sk_bundles = NULL;
-	spin_unlock_bh(&net->xfrm.xfrm_policy_sk_bundle_lock);
-
-	while (head) {
-		next = head->next;
-		dst_free(head);
-		head = next;
-	}
-}
-
 void xfrm_garbage_collect(struct net *net)
 {
-	flow_cache_flush();
-	__xfrm_garbage_collect(net);
+	flow_cache_flush(net);
 }
 EXPORT_SYMBOL(xfrm_garbage_collect);
 
 static void xfrm_garbage_collect_deferred(struct net *net)
 {
-	flow_cache_flush_deferred();
-	__xfrm_garbage_collect(net);
+	flow_cache_flush_deferred(net);
 }
 
 static void xfrm_init_pmtu(struct dst_entry *dst)
@@ -2940,15 +2913,19 @@ static int __net_init xfrm_net_init(struct net *net)
 	rv = xfrm_sysctl_init(net);
 	if (rv < 0)
 		goto out_sysctl;
+	rv = flow_cache_init(net);
+	if (rv < 0)
+		goto out;
 
 	/* Initialize the per-net locks here */
 	spin_lock_init(&net->xfrm.xfrm_state_lock);
 	rwlock_init(&net->xfrm.xfrm_policy_lock);
-	spin_lock_init(&net->xfrm.xfrm_policy_sk_bundle_lock);
 	mutex_init(&net->xfrm.xfrm_cfg_mutex);
 
 	return 0;
 
+out:
+	xfrm_sysctl_fini(net);
 out_sysctl:
 	xfrm_policy_fini(net);
 out_policy:
@@ -2961,6 +2938,7 @@ out_statistics:
 
 static void __net_exit xfrm_net_exit(struct net *net)
 {
+	flow_cache_fini(net);
 	xfrm_sysctl_fini(net);
 	xfrm_policy_fini(net);
 	xfrm_state_fini(net);

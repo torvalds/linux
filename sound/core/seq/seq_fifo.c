@@ -34,7 +34,7 @@ struct snd_seq_fifo *snd_seq_fifo_new(int poolsize)
 
 	f = kzalloc(sizeof(*f), GFP_KERNEL);
 	if (f == NULL) {
-		snd_printd("malloc failed for snd_seq_fifo_new() \n");
+		pr_debug("ALSA: seq: malloc failed for snd_seq_fifo_new() \n");
 		return NULL;
 	}
 

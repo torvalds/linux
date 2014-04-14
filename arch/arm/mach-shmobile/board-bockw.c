@@ -1,9 +1,9 @@
 /*
  * Bock-W board support
  *
- * Copyright (C) 2013  Renesas Solutions Corp.
+ * Copyright (C) 2013-2014  Renesas Solutions Corp.
  * Copyright (C) 2013  Kuninori Morimoto <kuninori.morimoto.gx@renesas.com>
- * Copyright (C) 2013  Cogent Embedded, Inc.
+ * Copyright (C) 2013-2014  Cogent Embedded, Inc.
  *
  * This program is free software; you can redistribute it and/or modify
  * it under the terms of the GNU General Public License as published by
@@ -168,6 +168,8 @@ static struct renesas_usbhs_platform_info usbhs_info __initdata = {
 	},
 	.driver_param = {
 		.buswait_bwait	= 4,
+		.d0_tx_id	= HPBDMA_SLAVE_USBFUNC_TX,
+		.d1_rx_id	= HPBDMA_SLAVE_USBFUNC_RX,
 	},
 };
 
@@ -231,6 +233,17 @@ static struct sh_eth_plat_data ether_platform_data __initdata = {
 	 * and getting the link state from the PHY indirectly.
 	 */
 	.no_ether_link	= 1,
+};
+
+static struct platform_device_info ether_info __initdata = {
+	.parent		= &platform_bus,
+	.name		= "r8a777x-ether",
+	.id		= -1,
+	.res		= ether_resources,
+	.num_res	= ARRAY_SIZE(ether_resources),
+	.data		= &ether_platform_data,
+	.size_data	= sizeof(ether_platform_data),
+	.dma_mask	= DMA_BIT_MASK(32),
 };
 
 /* I2C */
@@ -332,16 +345,24 @@ static struct rsnd_ssi_platform_info rsnd_ssi[] = {
 	RSND_SSI_UNUSED, /* SSI 0 */
 	RSND_SSI_UNUSED, /* SSI 1 */
 	RSND_SSI_UNUSED, /* SSI 2 */
-	RSND_SSI_SET(1, 0, gic_iid(0x85), RSND_SSI_PLAY),
-	RSND_SSI_SET(2, 0, gic_iid(0x85), RSND_SSI_CLK_PIN_SHARE),
-	RSND_SSI_SET(0, 0, gic_iid(0x86), RSND_SSI_PLAY),
-	RSND_SSI_SET(0, 0, gic_iid(0x86), 0),
-	RSND_SSI_SET(3, 0, gic_iid(0x86), RSND_SSI_PLAY),
-	RSND_SSI_SET(4, 0, gic_iid(0x86), RSND_SSI_CLK_PIN_SHARE),
+	RSND_SSI_SET(1, HPBDMA_SLAVE_HPBIF3_TX, gic_iid(0x85), RSND_SSI_PLAY),
+	RSND_SSI_SET(2, HPBDMA_SLAVE_HPBIF4_RX, gic_iid(0x85), RSND_SSI_CLK_PIN_SHARE),
+	RSND_SSI_SET(0, HPBDMA_SLAVE_HPBIF5_TX, gic_iid(0x86), RSND_SSI_PLAY),
+	RSND_SSI_SET(0, HPBDMA_SLAVE_HPBIF6_RX, gic_iid(0x86), 0),
+	RSND_SSI_SET(3, HPBDMA_SLAVE_HPBIF7_TX, gic_iid(0x86), RSND_SSI_PLAY),
+	RSND_SSI_SET(4, HPBDMA_SLAVE_HPBIF8_RX, gic_iid(0x86), RSND_SSI_CLK_PIN_SHARE),
 };
 
 static struct rsnd_scu_platform_info rsnd_scu[9] = {
-	/* no member at this point */
+	{ .flags = 0, }, /* SRU 0 */
+	{ .flags = 0, }, /* SRU 1 */
+	{ .flags = 0, }, /* SRU 2 */
+	{ .flags = RSND_SCU_USE_HPBIF, },
+	{ .flags = RSND_SCU_USE_HPBIF, },
+	{ .flags = RSND_SCU_USE_HPBIF, },
+	{ .flags = RSND_SCU_USE_HPBIF, },
+	{ .flags = RSND_SCU_USE_HPBIF, },
+	{ .flags = RSND_SCU_USE_HPBIF, },
 };
 
 enum {
@@ -429,14 +450,12 @@ static struct asoc_simple_card_info rsnd_card_info[] = {
 		.card		= "SSI56-AK4643",
 		.codec		= "ak4642-codec.0-0012",
 		.platform	= "rcar_sound",
-		.daifmt		= SND_SOC_DAIFMT_LEFT_J,
+		.daifmt		= SND_SOC_DAIFMT_LEFT_J | SND_SOC_DAIFMT_CBM_CFM,
 		.cpu_dai = {
 			.name	= "rsnd-dai.0",
-			.fmt	= SND_SOC_DAIFMT_CBS_CFS,
 		},
 		.codec_dai = {
 			.name	= "ak4642-hifi",
-			.fmt	= SND_SOC_DAIFMT_CBM_CFM,
 			.sysclk	= 11289600,
 		},
 	},
@@ -446,10 +465,9 @@ static struct asoc_simple_card_info rsnd_card_info[] = {
 		.card		= "SSI3-AK4554(playback)",
 		.codec		= "ak4554-adc-dac.0",
 		.platform	= "rcar_sound",
+		.daifmt		= SND_SOC_DAIFMT_CBS_CFS | SND_SOC_DAIFMT_RIGHT_J,
 		.cpu_dai = {
 			.name	= "rsnd-dai.1",
-			.fmt	= SND_SOC_DAIFMT_CBM_CFM |
-				  SND_SOC_DAIFMT_RIGHT_J,
 		},
 		.codec_dai = {
 			.name	= "ak4554-hifi",
@@ -461,10 +479,9 @@ static struct asoc_simple_card_info rsnd_card_info[] = {
 		.card		= "SSI4-AK4554(capture)",
 		.codec		= "ak4554-adc-dac.0",
 		.platform	= "rcar_sound",
+		.daifmt		= SND_SOC_DAIFMT_CBS_CFS | SND_SOC_DAIFMT_LEFT_J,
 		.cpu_dai = {
 			.name	= "rsnd-dai.2",
-			.fmt	= SND_SOC_DAIFMT_CBM_CFM |
-				  SND_SOC_DAIFMT_LEFT_J,
 		},
 		.codec_dai = {
 			.name	= "ak4554-hifi",
@@ -476,10 +493,9 @@ static struct asoc_simple_card_info rsnd_card_info[] = {
 		.card		= "SSI7-AK4554(playback)",
 		.codec		= "ak4554-adc-dac.1",
 		.platform	= "rcar_sound",
+		.daifmt		= SND_SOC_DAIFMT_CBS_CFS | SND_SOC_DAIFMT_RIGHT_J,
 		.cpu_dai = {
 			.name	= "rsnd-dai.3",
-			.fmt	= SND_SOC_DAIFMT_CBM_CFM |
-				  SND_SOC_DAIFMT_RIGHT_J,
 		},
 		.codec_dai = {
 			.name	= "ak4554-hifi",
@@ -491,10 +507,9 @@ static struct asoc_simple_card_info rsnd_card_info[] = {
 		.card		= "SSI8-AK4554(capture)",
 		.codec		= "ak4554-adc-dac.1",
 		.platform	= "rcar_sound",
+		.daifmt		= SND_SOC_DAIFMT_CBS_CFS | SND_SOC_DAIFMT_LEFT_J,
 		.cpu_dai = {
 			.name	= "rsnd-dai.4",
-			.fmt	= SND_SOC_DAIFMT_CBM_CFM |
-				  SND_SOC_DAIFMT_LEFT_J,
 		},
 		.codec_dai = {
 			.name	= "ak4554-hifi",
@@ -582,11 +597,7 @@ static void __init bockw_init(void)
 	r8a7778_init_irq_extpin(1);
 	r8a7778_add_standard_devices();
 
-	platform_device_register_resndata(&platform_bus, "r8a777x-ether", -1,
-					  ether_resources,
-					  ARRAY_SIZE(ether_resources),
-					  &ether_platform_data,
-					  sizeof(ether_platform_data));
+	platform_device_register_full(&ether_info);
 
 	platform_device_register_full(&vin0_info);
 	/* VIN1 has a pin conflict with Ether */

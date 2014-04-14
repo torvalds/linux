@@ -1853,8 +1853,10 @@ int snd_emu10k1_mixer(struct snd_emu10k1 *emu,
 		if ((err = snd_ac97_mixer(pbus, &ac97, &emu->ac97)) < 0) {
 			if (emu->card_capabilities->ac97_chip == 1)
 				return err;
-			snd_printd(KERN_INFO "emu10k1: AC97 is optional on this board\n");
-			snd_printd(KERN_INFO"          Proceeding without ac97 mixers...\n");
+			dev_info(emu->card->dev,
+				 "AC97 is optional on this board\n");
+			dev_info(emu->card->dev,
+				 "Proceeding without ac97 mixers...\n");
 			snd_device_free(emu->card, pbus);
 			goto no_ac97; /* FIXME: get rid of ugly gotos.. */
 		}

@@ -332,9 +332,9 @@ void usb_serial_generic_process_read_urb(struct urb *urb)
 	 * stuff like 3G modems, so shortcircuit it in the 99.9999999% of
 	 * cases where the USB serial is not a console anyway.
 	 */
-	if (!port->port.console || !port->sysrq)
+	if (!port->port.console || !port->sysrq) {
 		tty_insert_flip_string(&port->port, ch, urb->actual_length);
-	else {
+	} else {
 		for (i = 0; i < urb->actual_length; i++, ch++) {
 			if (!usb_serial_handle_sysrq_char(port, *ch))
 				tty_insert_flip_char(&port->port, *ch, TTY_NORMAL);
@@ -359,24 +359,38 @@ void usb_serial_generic_read_bulk_callback(struct urb *urb)
 
 	dev_dbg(&port->dev, "%s - urb %d, len %d\n", __func__, i,
 							urb->actual_length);
-
-	if (urb->status) {
-		dev_dbg(&port->dev, "%s - non-zero urb status: %d\n",
-			__func__, urb->status);
+	switch (urb->status) {
+	case 0:
+		break;
+	case -ENOENT:
+	case -ECONNRESET:
+	case -ESHUTDOWN:
+		dev_dbg(&port->dev, "%s - urb stopped: %d\n",
+							__func__, urb->status);
 		return;
+	case -EPIPE:
+		dev_err(&port->dev, "%s - urb stopped: %d\n",
+							__func__, urb->status);
+		return;
+	default:
+		dev_err(&port->dev, "%s - nonzero urb status: %d\n",
+							__func__, urb->status);
+		goto resubmit;
 	}
 
 	usb_serial_debug_data(&port->dev, __func__, urb->actual_length, data);
 	port->serial->type->process_read_urb(urb);
 
+resubmit:
 	/* Throttle the device if requested by tty */
 	spin_lock_irqsave(&port->lock, flags);
 	port->throttled = port->throttle_req;
 	if (!port->throttled) {
 		spin_unlock_irqrestore(&port->lock, flags);
 		usb_serial_generic_submit_read_urb(port, i, GFP_ATOMIC);
-	} else
+	} else {
 		spin_unlock_irqrestore(&port->lock, flags);
+	}
 }
 EXPORT_SYMBOL_GPL(usb_serial_generic_read_bulk_callback);
 
@@ -384,29 +398,38 @@ void usb_serial_generic_write_bulk_callback(struct urb *urb)
 {
 	unsigned long flags;
 	struct usb_serial_port *port = urb->context;
-	int status = urb->status;
 	int i;
 
-	for (i = 0; i < ARRAY_SIZE(port->write_urbs); ++i)
+	for (i = 0; i < ARRAY_SIZE(port->write_urbs); ++i) {
 		if (port->write_urbs[i] == urb)
 			break;
-
+	}
 	spin_lock_irqsave(&port->lock, flags);
 	port->tx_bytes -= urb->transfer_buffer_length;
 	set_bit(i, &port->write_urbs_free);
 	spin_unlock_irqrestore(&port->lock, flags);
 
-	if (status) {
-		dev_dbg(&port->dev, "%s - non-zero urb status: %d\n",
-			__func__, status);
-
-		spin_lock_irqsave(&port->lock, flags);
-		kfifo_reset_out(&port->write_fifo);
-		spin_unlock_irqrestore(&port->lock, flags);
-	} else {
-		usb_serial_generic_write_start(port, GFP_ATOMIC);
+	switch (urb->status) {
+	case 0:
+		break;
+	case -ENOENT:
+	case -ECONNRESET:
+	case -ESHUTDOWN:
+		dev_dbg(&port->dev, "%s - urb stopped: %d\n",
+							__func__, urb->status);
+		return;
+	case -EPIPE:
+		dev_err_console(port, "%s - urb stopped: %d\n",
+							__func__, urb->status);
+		return;
+	default:
+		dev_err_console(port, "%s - nonzero urb status: %d\n",
+							__func__, urb->status);
+		goto resubmit;
 	}
 
+resubmit:
+	usb_serial_generic_write_start(port, GFP_ATOMIC);
 	usb_serial_port_softint(port);
 }
 EXPORT_SYMBOL_GPL(usb_serial_generic_write_bulk_callback);

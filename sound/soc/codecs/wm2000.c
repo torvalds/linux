@@ -786,8 +786,6 @@ static int wm2000_probe(struct snd_soc_codec *codec)
 {
 	struct wm2000_priv *wm2000 = dev_get_drvdata(codec->dev);
 
-	snd_soc_codec_set_cache_io(codec, 16, 8, SND_SOC_REGMAP);
-
 	/* This will trigger a transition to standby mode by default */
 	wm2000_anc_set_mode(wm2000);
 

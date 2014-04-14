@@ -9,7 +9,7 @@ config PLAT_SAMSUNG
 	depends on PLAT_S3C24XX || ARCH_S3C64XX || PLAT_S5P || ARCH_EXYNOS
 	default y
 	select GENERIC_IRQ_CHIP
-	select NO_IOPORT
+	select NO_IOPORT_MAP
 	help
 	  Base platform code for all Samsung SoC based systems
 
@@ -19,7 +19,7 @@ config PLAT_S5P
 	default y
 	select ARCH_REQUIRE_GPIOLIB
 	select ARM_VIC
-	select NO_IOPORT
+	select NO_IOPORT_MAP
 	select PLAT_SAMSUNG
 	select S3C_GPIO_TRACK
 	select S5P_GPIO_DRVSTR
@@ -427,8 +427,7 @@ comment "Power management"
 
 config SAMSUNG_PM_DEBUG
 	bool "S3C2410 PM Suspend debug"
-	depends on PM
-	select DEBUG_LL
+	depends on PM && DEBUG_KERNEL && DEBUG_S3C_UART
 	help
 	  Say Y here if you want verbose debugging from the PM Suspend and
 	  Resume code. See <file:Documentation/arm/Samsung-S3C24XX/Suspend.txt>
@@ -445,7 +444,8 @@ config S3C_PM_DEBUG_LED_SMDK
 
 config SAMSUNG_PM_CHECK
 	bool "S3C2410 PM Suspend Memory CRC"
-	depends on PM && CRC32
+	depends on PM
+	select CRC32
 	help
 	  Enable the PM code's memory area checksum over sleep. This option
 	  will generate CRCs of all blocks of memory, and store them before

@@ -51,8 +51,8 @@
 
 #define DRV_NAME	"mlx4_core"
 #define PFX		DRV_NAME ": "
-#define DRV_VERSION	"1.1"
-#define DRV_RELDATE	"Dec, 2011"
+#define DRV_VERSION	"2.2-1"
+#define DRV_RELDATE	"Feb, 2014"
 
 #define MLX4_FS_UDP_UC_EN		(1 << 1)
 #define MLX4_FS_TCP_UC_EN		(1 << 2)
@@ -788,6 +788,10 @@ enum {
 	MLX4_USE_RR	= 1,
 };
 
+struct mlx4_roce_gid_entry {
+	u8 raw[16];
+};
+
 struct mlx4_priv {
 	struct mlx4_dev		dev;
 
@@ -834,6 +838,7 @@ struct mlx4_priv {
 	int			fs_hash_mode;
 	u8 virt2phys_pkey[MLX4_MFUNC_MAX][MLX4_MAX_PORTS][MLX4_MAX_PORT_PKEYS];
 	__be64			slave_node_guids[MLX4_MFUNC_MAX];
+	struct mlx4_roce_gid_entry roce_gids[MLX4_MAX_PORTS][MLX4_ROCE_MAX_GIDS];
 
 	atomic_t		opreq_count;
 	struct work_struct	opreq_task;
@@ -1242,11 +1247,6 @@ int mlx4_QP_FLOW_STEERING_DETACH_wrapper(struct mlx4_dev *dev, int slave,
 					 struct mlx4_cmd_mailbox *inbox,
 					 struct mlx4_cmd_mailbox *outbox,
 					 struct mlx4_cmd_info *cmd);
-int mlx4_FLOW_STEERING_IB_UC_QP_RANGE_wrapper(struct mlx4_dev *dev, int slave,
-					      struct mlx4_vhcr *vhcr,
-					      struct mlx4_cmd_mailbox *inbox,
-					      struct mlx4_cmd_mailbox *outbox,
-					      struct mlx4_cmd_info *cmd);
 
 int mlx4_get_mgm_entry_size(struct mlx4_dev *dev);
 int mlx4_get_qp_per_mgm(struct mlx4_dev *dev);
@@ -1281,5 +1281,9 @@ static inline spinlock_t *mlx4_tlock(struct mlx4_dev *dev)
 void mlx4_vf_immed_vlan_work_handler(struct work_struct *_work);
 
 void mlx4_init_quotas(struct mlx4_dev *dev);
+
+int mlx4_get_slave_num_gids(struct mlx4_dev *dev, int slave, int port);
+/* Returns the VF index of slave */
+int mlx4_get_vf_indx(struct mlx4_dev *dev, int slave);
 
 #endif /* MLX4_H */

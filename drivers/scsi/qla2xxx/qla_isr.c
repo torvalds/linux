@@ -356,15 +356,16 @@ qla81xx_idc_event(scsi_qla_host_t *vha, uint16_t aen, uint16_t descr)
 const char *
 qla2x00_get_link_speed_str(struct qla_hw_data *ha, uint16_t speed)
 {
-	static const char * const link_speeds[] = {
-		"1", "2", "?", "4", "8", "16", "10"
+	static const char *const link_speeds[] = {
+		"1", "2", "?", "4", "8", "16", "32", "10"
 	};
+#define	QLA_LAST_SPEED	7
 
 	if (IS_QLA2100(ha) || IS_QLA2200(ha))
 		return link_speeds[0];
 	else if (speed == 0x13)
-		return link_speeds[6];
-	else if (speed < 6)
+		return link_speeds[QLA_LAST_SPEED];
+	else if (speed < QLA_LAST_SPEED)
 		return link_speeds[speed];
 	else
 		return link_speeds[LS_UNKNOWN];
@@ -649,7 +650,7 @@ skip_rio:
 		break;
 
 	case MBA_SYSTEM_ERR:		/* System Error */
-		mbx = (IS_QLA81XX(ha) || IS_QLA83XX(ha)) ?
+		mbx = (IS_QLA81XX(ha) || IS_QLA83XX(ha) || IS_QLA27XX(ha)) ?
 			RD_REG_WORD(&reg24->mailbox7) : 0;
 		ql_log(ql_log_warn, vha, 0x5003,
 		    "ISP System Error - mbx1=%xh mbx2=%xh mbx3=%xh "
@@ -666,7 +667,7 @@ skip_rio:
 				vha->device_flags |= DFLG_DEV_FAILED;
 			} else {
 				/* Check to see if MPI timeout occurred */
-				if ((mbx & MBX_3) && (ha->flags.port0))
+				if ((mbx & MBX_3) && (ha->port_no == 0))
 					set_bit(MPI_RESET_NEEDED,
 					    &vha->dpc_flags);
 
@@ -1497,8 +1498,7 @@ logio_done:
 }
 
 static void
-qla24xx_tm_iocb_entry(scsi_qla_host_t *vha, struct req_que *req,
-    struct tsk_mgmt_entry *tsk)
+qla24xx_tm_iocb_entry(scsi_qla_host_t *vha, struct req_que *req, void *tsk)
 {
 	const char func[] = "TMF-IOCB";
 	const char *type;
@@ -1506,7 +1506,6 @@ qla24xx_tm_iocb_entry(scsi_qla_host_t *vha, struct req_que *req,
 	srb_t *sp;
 	struct srb_iocb *iocb;
 	struct sts_entry_24xx *sts = (struct sts_entry_24xx *)tsk;
-	int error = 1;
 
 	sp = qla2x00_get_sp_from_handle(vha, func, req, tsk);
 	if (!sp)
@@ -1515,37 +1514,35 @@ qla24xx_tm_iocb_entry(scsi_qla_host_t *vha, struct req_que *req,
 	iocb = &sp->u.iocb_cmd;
 	type = sp->name;
 	fcport = sp->fcport;
+	iocb->u.tmf.data = QLA_SUCCESS;
 
 	if (sts->entry_status) {
 		ql_log(ql_log_warn, fcport->vha, 0x5038,
 		    "Async-%s error - hdl=%x entry-status(%x).\n",
 		    type, sp->handle, sts->entry_status);
+		iocb->u.tmf.data = QLA_FUNCTION_FAILED;
 	} else if (sts->comp_status != __constant_cpu_to_le16(CS_COMPLETE)) {
 		ql_log(ql_log_warn, fcport->vha, 0x5039,
 		    "Async-%s error - hdl=%x completion status(%x).\n",
 		    type, sp->handle, sts->comp_status);
-	} else if (!(le16_to_cpu(sts->scsi_status) &
+		iocb->u.tmf.data = QLA_FUNCTION_FAILED;
+	} else if ((le16_to_cpu(sts->scsi_status) &
 	    SS_RESPONSE_INFO_LEN_VALID)) {
-		ql_log(ql_log_warn, fcport->vha, 0x503a,
-		    "Async-%s error - hdl=%x no response info(%x).\n",
-		    type, sp->handle, sts->scsi_status);
-	} else if (le32_to_cpu(sts->rsp_data_len) < 4) {
-		ql_log(ql_log_warn, fcport->vha, 0x503b,
-		    "Async-%s error - hdl=%x not enough response(%d).\n",
-		    type, sp->handle, sts->rsp_data_len);
-	} else if (sts->data[3]) {
-		ql_log(ql_log_warn, fcport->vha, 0x503c,
-		    "Async-%s error - hdl=%x response(%x).\n",
-		    type, sp->handle, sts->data[3]);
-	} else {
-		error = 0;
+		if (le32_to_cpu(sts->rsp_data_len) < 4) {
+			ql_log(ql_log_warn, fcport->vha, 0x503b,
+			    "Async-%s error - hdl=%x not enough response(%d).\n",
+			    type, sp->handle, sts->rsp_data_len);
+		} else if (sts->data[3]) {
+			ql_log(ql_log_warn, fcport->vha, 0x503c,
+			    "Async-%s error - hdl=%x response(%x).\n",
+			    type, sp->handle, sts->data[3]);
+		iocb->u.tmf.data = QLA_FUNCTION_FAILED;
+		}
 	}
 
-	if (error) {
-		iocb->u.tmf.data = error;
+	if (iocb->u.tmf.data != QLA_SUCCESS)
 		ql_dump_buffer(ql_dbg_async + ql_dbg_buffer, vha, 0x5055,
 		    (uint8_t *)sts, sizeof(*sts));
-	}
 
 	sp->done(vha, sp, 0);
 }
@@ -2025,6 +2022,12 @@ qla2x00_status_entry(scsi_qla_host_t *vha, struct rsp_que *rsp, void *pkt)
 		return;
 	}
 
+	/* Task Management completion. */
+	if (sp->type == SRB_TM_CMD) {
+		qla24xx_tm_iocb_entry(vha, req, pkt);
+		return;
+	}
+
 	/* Fast path completion. */
 	if (comp_status == CS_COMPLETE && scsi_status == 0) {
 		qla2x00_process_completed_request(vha, req, handle);
@@ -2425,6 +2428,23 @@ qla24xx_mbx_completion(scsi_qla_host_t *vha, uint16_t mb0)
 	}
 }
 
+static void
+qla24xx_abort_iocb_entry(scsi_qla_host_t *vha, struct req_que *req,
+	struct abort_entry_24xx *pkt)
+{
+	const char func[] = "ABT_IOCB";
+	srb_t *sp;
+	struct srb_iocb *abt;
+
+	sp = qla2x00_get_sp_from_handle(vha, func, req, pkt);
+	if (!sp)
+		return;
+
+	abt = &sp->u.iocb_cmd;
+	abt->u.abt.comp_status = le32_to_cpu(pkt->nport_handle);
+	sp->done(vha, sp, 0);
+}
+
 /**
  * qla24xx_process_response_queue() - Process response queue entries.
  * @ha: SCSI driver HA context
@@ -2474,10 +2494,6 @@ void qla24xx_process_response_queue(struct scsi_qla_host *vha,
 			qla24xx_logio_entry(vha, rsp->req,
 			    (struct logio_entry_24xx *)pkt);
 			break;
-		case TSK_MGMT_IOCB_TYPE:
-			qla24xx_tm_iocb_entry(vha, rsp->req,
-			    (struct tsk_mgmt_entry *)pkt);
-			break;
                 case CT_IOCB_TYPE:
 			qla24xx_els_ct_entry(vha, rsp->req, pkt, CT_IOCB_TYPE);
 			break;
@@ -2496,6 +2512,10 @@ void qla24xx_process_response_queue(struct scsi_qla_host *vha,
 			/* Do nothing in this case, this check is to prevent it
 			 * from falling into default case
 			 */
+			break;
+		case ABORT_IOCB_TYPE:
+			qla24xx_abort_iocb_entry(vha, rsp->req,
+			    (struct abort_entry_24xx *)pkt);
 			break;
 		default:
 			/* Type Not Supported. */
@@ -2525,7 +2545,8 @@ qla2xxx_check_risc_status(scsi_qla_host_t *vha)
 	struct qla_hw_data *ha = vha->hw;
 	struct device_reg_24xx __iomem *reg = &ha->iobase->isp24;
 
-	if (!IS_QLA25XX(ha) && !IS_QLA81XX(ha) && !IS_QLA83XX(ha))
+	if (!IS_QLA25XX(ha) && !IS_QLA81XX(ha) && !IS_QLA83XX(ha) &&
+	    !IS_QLA27XX(ha))
 		return;
 
 	rval = QLA_SUCCESS;
@@ -2880,6 +2901,7 @@ static int
 qla24xx_enable_msix(struct qla_hw_data *ha, struct rsp_que *rsp)
 {
 #define MIN_MSIX_COUNT	2
+#define ATIO_VECTOR	2
 	int i, ret;
 	struct msix_entry *entries;
 	struct qla_msix_entry *qentry;
@@ -2936,36 +2958,49 @@ msix_failed:
 	}
 
 	/* Enable MSI-X vectors for the base queue */
-	for (i = 0; i < ha->msix_count; i++) {
+	for (i = 0; i < 2; i++) {
 		qentry = &ha->msix_entries[i];
-		if (QLA_TGT_MODE_ENABLED() && IS_ATIO_MSIX_CAPABLE(ha)) {
-			ret = request_irq(qentry->vector,
-				qla83xx_msix_entries[i].handler,
-				0, qla83xx_msix_entries[i].name, rsp);
-		} else if (IS_P3P_TYPE(ha)) {
+		if (IS_P3P_TYPE(ha))
 			ret = request_irq(qentry->vector,
 				qla82xx_msix_entries[i].handler,
 				0, qla82xx_msix_entries[i].name, rsp);
-		} else {
+		else
 			ret = request_irq(qentry->vector,
 				msix_entries[i].handler,
 				0, msix_entries[i].name, rsp);
-		}
-		if (ret) {
-			ql_log(ql_log_fatal, vha, 0x00cb,
-			    "MSI-X: unable to register handler -- %x/%d.\n",
-			    qentry->vector, ret);
-			qla24xx_disable_msix(ha);
-			ha->mqenable = 0;
-			goto msix_out;
-		}
+		if (ret)
+			goto msix_register_fail;
 		qentry->have_irq = 1;
 		qentry->rsp = rsp;
 		rsp->msix = qentry;
 	}
 
+	/*
+	 * If target mode is enable, also request the vector for the ATIO
+	 * queue.
+	 */
+	if (QLA_TGT_MODE_ENABLED() && IS_ATIO_MSIX_CAPABLE(ha)) {
+		qentry = &ha->msix_entries[ATIO_VECTOR];
+		ret = request_irq(qentry->vector,
+			qla83xx_msix_entries[ATIO_VECTOR].handler,
+			0, qla83xx_msix_entries[ATIO_VECTOR].name, rsp);
+		qentry->have_irq = 1;
+		qentry->rsp = rsp;
+		rsp->msix = qentry;
+	}
+
+msix_register_fail:
+	if (ret) {
+		ql_log(ql_log_fatal, vha, 0x00cb,
+		    "MSI-X: unable to register handler -- %x/%d.\n",
+		    qentry->vector, ret);
+		qla24xx_disable_msix(ha);
+		ha->mqenable = 0;
+		goto msix_out;
+	}
+
 	/* Enable MSI-X vector for response queue update for queue 0 */
-	if (IS_QLA83XX(ha)) {
+	if (IS_QLA83XX(ha) || IS_QLA27XX(ha)) {
 		if (ha->msixbase && ha->mqiobase &&
 		    (ha->max_rsp_queues > 1 || ha->max_req_queues > 1))
 			ha->mqenable = 1;
@@ -2989,12 +3024,13 @@ int
 qla2x00_request_irqs(struct qla_hw_data *ha, struct rsp_que *rsp)
 {
 	int ret = QLA_FUNCTION_FAILED;
-	device_reg_t __iomem *reg = ha->iobase;
+	device_reg_t *reg = ha->iobase;
 	scsi_qla_host_t *vha = pci_get_drvdata(ha->pdev);
 
 	/* If possible, enable MSI-X. */
 	if (!IS_QLA2432(ha) && !IS_QLA2532(ha) && !IS_QLA8432(ha) &&
-		!IS_CNA_CAPABLE(ha) && !IS_QLA2031(ha) && !IS_QLAFX00(ha))
+	    !IS_CNA_CAPABLE(ha) && !IS_QLA2031(ha) && !IS_QLAFX00(ha) &&
+	    !IS_QLA27XX(ha))
 		goto skip_msi;
 
 	if (ha->pdev->subsystem_vendor == PCI_VENDOR_ID_HP &&
@@ -3029,7 +3065,8 @@ skip_msix:
 	    "Falling back-to MSI mode -%d.\n", ret);
 
 	if (!IS_QLA24XX(ha) && !IS_QLA2532(ha) && !IS_QLA8432(ha) &&
-	    !IS_QLA8001(ha) && !IS_P3P_TYPE(ha) && !IS_QLAFX00(ha))
+	    !IS_QLA8001(ha) && !IS_P3P_TYPE(ha) && !IS_QLAFX00(ha) &&
+	    !IS_QLA27XX(ha))
 		goto skip_msi;
 
 	ret = pci_enable_msi(ha->pdev);

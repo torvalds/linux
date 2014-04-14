@@ -182,7 +182,7 @@ struct audit_buffer {
 
 struct audit_reply {
 	__u32 portid;
-	pid_t pid;
+	struct net *net;
 	struct sk_buff *skb;
 };
 
@@ -396,7 +396,7 @@ static void audit_printk_skb(struct sk_buff *skb)
 		if (printk_ratelimit())
 			pr_notice("type=%d %s\n", nlh->nlmsg_type, data);
 		else
-			audit_log_lost("printk limit exceeded\n");
+			audit_log_lost("printk limit exceeded");
 	}
 
 	audit_hold_skb(skb);
@@ -412,7 +412,7 @@ static void kauditd_send_skb(struct sk_buff *skb)
 		BUG_ON(err != -ECONNREFUSED); /* Shouldn't happen */
 		if (audit_pid) {
 			pr_err("*NO* daemon at audit_pid=%d\n", audit_pid);
-			audit_log_lost("auditd disappeared\n");
+			audit_log_lost("auditd disappeared");
 			audit_pid = 0;
 			audit_sock = NULL;
 		}
@@ -500,7 +500,7 @@ int audit_send_list(void *_dest)
 {
 	struct audit_netlink_list *dest = _dest;
 	struct sk_buff *skb;
-	struct net *net = get_net_ns_by_pid(dest->pid);
+	struct net *net = dest->net;
 	struct audit_net *aunet = net_generic(net, audit_net_id);
 
 	/* wait for parent to finish and send an ACK */
@@ -510,6 +510,7 @@ int audit_send_list(void *_dest)
 	while ((skb = __skb_dequeue(&dest->q)) != NULL)
 		netlink_unicast(aunet->nlsk, skb, dest->portid, 0);
 
+	put_net(net);
 	kfree(dest);
 
 	return 0;
@@ -543,7 +544,7 @@ out_kfree_skb:
 static int audit_send_reply_thread(void *arg)
 {
 	struct audit_reply *reply = (struct audit_reply *)arg;
-	struct net *net = get_net_ns_by_pid(reply->pid);
+	struct net *net = reply->net;
 	struct audit_net *aunet = net_generic(net, audit_net_id);
 
 	mutex_lock(&audit_cmd_mutex);
@@ -552,12 +553,13 @@ static int audit_send_reply_thread(void *arg)
 	/* Ignore failure. It'll only happen if the sender goes away,
 	   because our timeout is set to infinite. */
 	netlink_unicast(aunet->nlsk , reply->skb, reply->portid, 0);
+	put_net(net);
 	kfree(reply);
 	return 0;
 }
 /**
  * audit_send_reply - send an audit reply message via netlink
- * @portid: netlink port to which to send reply
+ * @request_skb: skb of request we are replying to (used to target the reply)
  * @seq: sequence number
  * @type: audit message type
  * @done: done (last) flag
@@ -568,9 +570,11 @@ static int audit_send_reply_thread(void *arg)
  * Allocates an skb, builds the netlink message, and sends it to the port id.
  * No failure notifications.
  */
-static void audit_send_reply(__u32 portid, int seq, int type, int done,
+static void audit_send_reply(struct sk_buff *request_skb, int seq, int type, int done,
 			     int multi, const void *payload, int size)
 {
+	u32 portid = NETLINK_CB(request_skb).portid;
+	struct net *net = sock_net(NETLINK_CB(request_skb).sk);
 	struct sk_buff *skb;
 	struct task_struct *tsk;
 	struct audit_reply *reply = kmalloc(sizeof(struct audit_reply),
@@ -583,8 +587,8 @@ static void audit_send_reply(__u32 portid, int seq, int type, int done,
 	if (!skb)
 		goto out;
 
+	reply->net = get_net(net);
 	reply->portid = portid;
-	reply->pid = task_pid_vnr(current);
 	reply->skb = skb;
 
 	tsk = kthread_run(audit_send_reply_thread, reply, "audit_send_reply");
@@ -603,10 +607,19 @@ static int audit_netlink_ok(struct sk_buff *skb, u16 msg_type)
 {
 	int err = 0;
 
-	/* Only support the initial namespaces for now. */
-	if ((current_user_ns() != &init_user_ns) ||
-	    (task_active_pid_ns(current) != &init_pid_ns))
-		return -EPERM;
+	/* Only support initial user namespace for now. */
+	/*
+	 * We return ECONNREFUSED because it tricks userspace into thinking
+	 * that audit was not configured into the kernel.  Lots of users
+	 * configure their PAM stack (because that's what the distro does)
+	 * to reject login if unable to send messages to audit.  If we return
+	 * ECONNREFUSED the PAM stack thinks the kernel does not have audit
+	 * configured in and will let login proceed.  If we return EPERM
+	 * userspace will reject all logins.  This should be removed when we
+	 * support non init namespaces!!
+	 */
+	if (current_user_ns() != &init_user_ns)
+		return -ECONNREFUSED;
 
 	switch (msg_type) {
 	case AUDIT_LIST:
@@ -625,6 +638,11 @@ static int audit_netlink_ok(struct sk_buff *skb, u16 msg_type)
 	case AUDIT_TTY_SET:
 	case AUDIT_TRIM:
 	case AUDIT_MAKE_EQUIV:
+		/* Only support auditd and auditctl in initial pid namespace
+		 * for now. */
+		if ((task_active_pid_ns(current) != &init_pid_ns))
+			return -EPERM;
+
 		if (!capable(CAP_AUDIT_CONTROL))
 			err = -EPERM;
 		break;
@@ -645,6 +663,7 @@ static int audit_log_common_recv_msg(struct audit_buffer **ab, u16 msg_type)
 {
 	int rc = 0;
 	uid_t uid = from_kuid(&init_user_ns, current_uid());
+	pid_t pid = task_tgid_nr(current);
 
 	if (!audit_enabled && msg_type != AUDIT_USER_AVC) {
 		*ab = NULL;
@@ -654,7 +673,7 @@ static int audit_log_common_recv_msg(struct audit_buffer **ab, u16 msg_type)
 	*ab = audit_log_start(NULL, GFP_KERNEL, msg_type);
 	if (unlikely(!*ab))
 		return rc;
-	audit_log_format(*ab, "pid=%d uid=%u", task_tgid_vnr(current), uid);
+	audit_log_format(*ab, "pid=%d uid=%u", pid, uid);
 	audit_log_session_info(*ab);
 	audit_log_task_context(*ab);
 
@@ -673,8 +692,7 @@ static int audit_get_feature(struct sk_buff *skb)
 
 	seq = nlmsg_hdr(skb)->nlmsg_seq;
 
-	audit_send_reply(NETLINK_CB(skb).portid, seq, AUDIT_GET, 0, 0,
-			 &af, sizeof(af));
+	audit_send_reply(skb, seq, AUDIT_GET, 0, 0, &af, sizeof(af));
 
 	return 0;
 }
@@ -794,8 +812,7 @@ static int audit_receive_msg(struct sk_buff *skb, struct nlmsghdr *nlh)
 		s.backlog		= skb_queue_len(&audit_skb_queue);
 		s.version		= AUDIT_VERSION_LATEST;
 		s.backlog_wait_time	= audit_backlog_wait_time;
-		audit_send_reply(NETLINK_CB(skb).portid, seq, AUDIT_GET, 0, 0,
-				 &s, sizeof(s));
+		audit_send_reply(skb, seq, AUDIT_GET, 0, 0, &s, sizeof(s));
 		break;
 	}
 	case AUDIT_SET: {
@@ -905,7 +922,7 @@ static int audit_receive_msg(struct sk_buff *skb, struct nlmsghdr *nlh)
 					   seq, data, nlmsg_len(nlh));
 		break;
 	case AUDIT_LIST_RULES:
-		err = audit_list_rules_send(NETLINK_CB(skb).portid, seq);
+		err = audit_list_rules_send(skb, seq);
 		break;
 	case AUDIT_TRIM:
 		audit_trim_trees();
@@ -970,8 +987,8 @@ static int audit_receive_msg(struct sk_buff *skb, struct nlmsghdr *nlh)
 			memcpy(sig_data->ctx, ctx, len);
 			security_release_secctx(ctx, len);
 		}
-		audit_send_reply(NETLINK_CB(skb).portid, seq, AUDIT_SIGNAL_INFO,
-				0, 0, sig_data, sizeof(*sig_data) + len);
+		audit_send_reply(skb, seq, AUDIT_SIGNAL_INFO, 0, 0,
+				 sig_data, sizeof(*sig_data) + len);
 		kfree(sig_data);
 		break;
 	case AUDIT_TTY_GET: {
@@ -983,8 +1000,7 @@ static int audit_receive_msg(struct sk_buff *skb, struct nlmsghdr *nlh)
 		s.log_passwd = tsk->signal->audit_tty_log_passwd;
 		spin_unlock(&tsk->sighand->siglock);
 
-		audit_send_reply(NETLINK_CB(skb).portid, seq,
-				 AUDIT_TTY_GET, 0, 0, &s, sizeof(s));
+		audit_send_reply(skb, seq, AUDIT_TTY_GET, 0, 0, &s, sizeof(s));
 		break;
 	}
 	case AUDIT_TTY_SET: {
@@ -1086,7 +1102,7 @@ static void __net_exit audit_net_exit(struct net *net)
 		audit_sock = NULL;
 	}
 
-	rcu_assign_pointer(aunet->nlsk, NULL);
+	RCU_INIT_POINTER(aunet->nlsk, NULL);
 	synchronize_net();
 	netlink_kernel_release(sock);
 }
@@ -1818,11 +1834,11 @@ void audit_log_task_info(struct audit_buffer *ab, struct task_struct *tsk)
 	spin_unlock_irq(&tsk->sighand->siglock);
 
 	audit_log_format(ab,
-			 " ppid=%ld pid=%d auid=%u uid=%u gid=%u"
+			 " ppid=%d pid=%d auid=%u uid=%u gid=%u"
 			 " euid=%u suid=%u fsuid=%u"
 			 " egid=%u sgid=%u fsgid=%u tty=%s ses=%u",
-			 sys_getppid(),
-			 tsk->pid,
+			 task_ppid_nr(tsk),
+			 task_pid_nr(tsk),
 			 from_kuid(&init_user_ns, audit_get_loginuid(tsk)),
 			 from_kuid(&init_user_ns, cred->uid),
 			 from_kgid(&init_user_ns, cred->gid),

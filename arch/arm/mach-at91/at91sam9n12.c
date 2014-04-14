@@ -182,6 +182,7 @@ static struct clk_lookup periph_clocks_lookups[] = {
 	/* additional fake clock for macb_hclk */
 	CLKDEV_CON_DEV_ID("hclk", "500000.ohci", &uhp_clk),
 	CLKDEV_CON_DEV_ID("ohci_clk", "500000.ohci", &uhp_clk),
+	CLKDEV_CON_DEV_ID(NULL, "f8034000.pwm", &pwm_clk),
 };
 
 /*

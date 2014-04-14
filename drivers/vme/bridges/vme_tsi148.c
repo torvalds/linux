@@ -1276,8 +1276,8 @@ static ssize_t tsi148_master_read(struct vme_master_resource *image, void *buf,
 	spin_lock(&image->lock);
 
 	/* The following code handles VME address alignment. We cannot use
-	 * memcpy_xxx directly here because it may cut small data transfers in
-	 * to 8-bit cycles, thus making D16 cycle impossible.
+	 * memcpy_xxx here because it may cut data transfers in to 8-bit
+	 * cycles when D16 or D32 cycles are required on the VME bus.
 	 * On the other hand, the bridge itself assures that the maximum data
 	 * cycle configured for the transfer is used and splits it
 	 * automatically for non-aligned addresses, so we don't want the
@@ -1301,9 +1301,9 @@ static ssize_t tsi148_master_read(struct vme_master_resource *image, void *buf,
 	}
 
 	count32 = (count - done) & ~0x3;
-	if (count32 > 0) {
-		memcpy_fromio(buf + done, addr + done, count32);
-		done += count32;
+	while (done < count32) {
+		*(u32 *)(buf + done) = ioread32(addr + done);
+		done += 4;
 	}
 
 	if ((count - done) & 0x2) {
@@ -1363,7 +1363,7 @@ static ssize_t tsi148_master_write(struct vme_master_resource *image, void *buf,
 	spin_lock(&image->lock);
 
 	/* Here we apply for the same strategy we do in master_read
-	 * function in order to assure D16 cycle when required.
+	 * function in order to assure the correct cycles.
 	 */
 	if ((uintptr_t)addr & 0x1) {
 		iowrite8(*(u8 *)buf, addr);
@@ -1383,9 +1383,9 @@ static ssize_t tsi148_master_write(struct vme_master_resource *image, void *buf,
 	}
 
 	count32 = (count - done) & ~0x3;
-	if (count32 > 0) {
-		memcpy_toio(addr + done, buf + done, count32);
-		done += count32;
+	while (done < count32) {
+		iowrite32(*(u32 *)(buf + done), addr + done);
+		done += 4;
 	}
 
 	if ((count - done) & 0x2) {

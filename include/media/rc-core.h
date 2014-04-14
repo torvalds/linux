@@ -60,6 +60,7 @@ enum rc_filter_type {
 /**
  * struct rc_dev - represents a remote control device
  * @dev: driver model's view of this device
+ * @sysfs_groups: sysfs attribute groups
  * @input_name: name of the input child device
  * @input_phys: physical path to the input child device
  * @input_id: id of the input child device (struct input_id)
@@ -112,10 +113,12 @@ enum rc_filter_type {
  *	device doesn't interrupt host until it sees IR pulses
  * @s_learning_mode: enable wide band receiver used for learning
  * @s_carrier_report: enable carrier reports
- * @s_filter: set the scancode filter of a given type
+ * @s_filter: set the scancode filter 
+ * @s_wakeup_filter: set the wakeup scancode filter
  */
 struct rc_dev {
 	struct device			dev;
+	const struct attribute_group	*sysfs_groups[5];
 	const char			*input_name;
 	const char			*input_phys;
 	struct input_id			input_id;
@@ -159,8 +162,9 @@ struct rc_dev {
 	int				(*s_learning_mode)(struct rc_dev *dev, int enable);
 	int				(*s_carrier_report) (struct rc_dev *dev, int enable);
 	int				(*s_filter)(struct rc_dev *dev,
-						    enum rc_filter_type type,
 						    struct rc_scancode_filter *filter);
+	int				(*s_wakeup_filter)(struct rc_dev *dev,
+							   struct rc_scancode_filter *filter);
 };
 
 #define to_rc_dev(d) container_of(d, struct rc_dev, dev)

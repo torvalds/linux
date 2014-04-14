@@ -199,11 +199,6 @@ static int macb_mdio_write(struct mii_bus *bus, int mii_id, int regnum,
 	return 0;
 }
 
-static int macb_mdio_reset(struct mii_bus *bus)
-{
-	return 0;
-}
-
 /**
  * macb_set_tx_clk() - Set a clock to a new frequency
  * @clk		Pointer to the clock to change
@@ -375,7 +370,6 @@ int macb_mii_init(struct macb *bp)
 	bp->mii_bus->name = "MACB_mii_bus";
 	bp->mii_bus->read = &macb_mdio_read;
 	bp->mii_bus->write = &macb_mdio_write;
-	bp->mii_bus->reset = &macb_mdio_reset;
 	snprintf(bp->mii_bus->id, MII_BUS_ID_SIZE, "%s-%x",
 		bp->pdev->name, bp->pdev->id);
 	bp->mii_bus->priv = bp;
@@ -632,11 +626,16 @@ static void gem_rx_refill(struct macb *bp)
 					   "Unable to allocate sk_buff\n");
 				break;
 			}
-			bp->rx_skbuff[entry] = skb;
 
 			/* now fill corresponding descriptor entry */
 			paddr = dma_map_single(&bp->pdev->dev, skb->data,
 					       bp->rx_buffer_size, DMA_FROM_DEVICE);
+			if (dma_mapping_error(&bp->pdev->dev, paddr)) {
+				dev_kfree_skb(skb);
+				break;
+			}
+
+			bp->rx_skbuff[entry] = skb;
 
 			if (entry == RX_RING_SIZE - 1)
 				paddr |= MACB_BIT(RX_WRAP);
@@ -725,7 +724,7 @@ static int gem_rx(struct macb *bp, int budget)
 		skb_put(skb, len);
 		addr = MACB_BF(RX_WADDR, MACB_BFEXT(RX_WADDR, addr));
 		dma_unmap_single(&bp->pdev->dev, addr,
-				 len, DMA_FROM_DEVICE);
+				 bp->rx_buffer_size, DMA_FROM_DEVICE);
 
 		skb->protocol = eth_type_trans(skb, bp->dev);
 		skb_checksum_none_assert(skb);
@@ -1036,11 +1035,15 @@ static int macb_start_xmit(struct sk_buff *skb, struct net_device *dev)
 	}
 
 	entry = macb_tx_ring_wrap(bp->tx_head);
-	bp->tx_head++;
 	netdev_vdbg(bp->dev, "Allocated ring entry %u\n", entry);
 	mapping = dma_map_single(&bp->pdev->dev, skb->data,
 				 len, DMA_TO_DEVICE);
+	if (dma_mapping_error(&bp->pdev->dev, mapping)) {
+		dev_kfree_skb_any(skb);
+		goto unlock;
+	}
 
+	bp->tx_head++;
 	tx_skb = &bp->tx_skb[entry];
 	tx_skb->skb = skb;
 	tx_skb->mapping = mapping;
@@ -1066,6 +1069,7 @@ static int macb_start_xmit(struct sk_buff *skb, struct net_device *dev)
 	if (CIRC_SPACE(bp->tx_head, bp->tx_tail, TX_RING_SIZE) < 1)
 		netif_stop_queue(dev);
 
+unlock:
 	spin_unlock_irqrestore(&bp->lock, flags);
 
 	return NETDEV_TX_OK;

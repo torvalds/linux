@@ -121,7 +121,7 @@ unsigned long perf_misc_flags(struct pt_regs *regs)
 			       : PERF_RECORD_MISC_KERNEL;
 }
 
-void print_debug_cf(void)
+static void print_debug_cf(void)
 {
 	struct cpumf_ctr_info cf_info;
 	int cpu = smp_processor_id();

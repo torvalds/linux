@@ -1,7 +1,7 @@
 /*
  * max14577.c - Regulator driver for the Maxim 14577
  *
- * Copyright (C) 2013 Samsung Electronics
+ * Copyright (C) 2013,2014 Samsung Electronics
  * Krzysztof Kozlowski <k.kozlowski@samsung.com>
  *
  * This program is free software; you can redistribute it and/or modify
@@ -21,12 +21,6 @@
 #include <linux/mfd/max14577.h>
 #include <linux/mfd/max14577-private.h>
 #include <linux/regulator/of_regulator.h>
-
-struct max14577_regulator {
-	struct device *dev;
-	struct max14577 *max14577;
-	struct regulator_dev **regulators;
-};
 
 static int max14577_reg_is_enabled(struct regulator_dev *rdev)
 {

@@ -41,7 +41,8 @@ struct map *machine__kernel_map(struct machine *machine, enum map_type type)
 	return machine->vmlinux_maps[type];
 }
 
-struct thread *machine__find_thread(struct machine *machine, pid_t tid);
+struct thread *machine__find_thread(struct machine *machine, pid_t pid,
+				    pid_t tid);
 
 int machine__process_comm_event(struct machine *machine, union perf_event *event,
 				struct perf_sample *sample);
@@ -91,12 +92,10 @@ void machine__delete_dead_threads(struct machine *machine);
 void machine__delete_threads(struct machine *machine);
 void machine__delete(struct machine *machine);
 
-struct branch_info *machine__resolve_bstack(struct machine *machine,
-					    struct thread *thread,
-					    struct branch_stack *bs);
-struct mem_info *machine__resolve_mem(struct machine *machine,
-				      struct thread *thread,
-				      struct perf_sample *sample, u8 cpumode);
+struct branch_info *sample__resolve_bstack(struct perf_sample *sample,
+					   struct addr_location *al);
+struct mem_info *sample__resolve_mem(struct perf_sample *sample,
+				     struct addr_location *al);
 int machine__resolve_callchain(struct machine *machine,
 			       struct perf_evsel *evsel,
 			       struct thread *thread,

@@ -115,9 +115,9 @@ int slab_is_available(void);
 struct kmem_cache *kmem_cache_create(const char *, size_t, size_t,
 			unsigned long,
 			void (*)(void *));
-struct kmem_cache *
-kmem_cache_create_memcg(struct mem_cgroup *, const char *, size_t, size_t,
-			unsigned long, void (*)(void *), struct kmem_cache *);
+#ifdef CONFIG_MEMCG_KMEM
+void kmem_cache_create_memcg(struct mem_cgroup *, struct kmem_cache *);
+#endif
 void kmem_cache_destroy(struct kmem_cache *);
 int kmem_cache_shrink(struct kmem_cache *);
 void kmem_cache_free(struct kmem_cache *, void *);
@@ -241,6 +241,17 @@ struct kmem_cache {
 #ifndef KMALLOC_MIN_SIZE
 #define KMALLOC_MIN_SIZE (1 << KMALLOC_SHIFT_LOW)
 #endif
+
+/*
+ * This restriction comes from byte sized index implementation.
+ * Page size is normally 2^12 bytes and, in this case, if we want to use
+ * byte sized index which can represent 2^8 entries, the size of the object
+ * should be equal or greater to 2^12 / 2^8 = 2^4 = 16.
+ * If minimum size of kmalloc is less than 16, we use it as minimum object
+ * size and give up to use byte sized index.
+ */
+#define SLAB_OBJ_MIN_SIZE      (KMALLOC_MIN_SIZE < 16 ? \
+                               (KMALLOC_MIN_SIZE) : 16)
 
 #ifndef CONFIG_SLOB
 extern struct kmem_cache *kmalloc_caches[KMALLOC_SHIFT_HIGH + 1];
@@ -410,7 +421,7 @@ static __always_inline void *kmalloc_large(size_t size, gfp_t flags)
  *
  * %GFP_NOWAIT - Allocation will not sleep.
  *
- * %GFP_THISNODE - Allocate node-local memory only.
+ * %__GFP_THISNODE - Allocate node-local memory only.
  *
  * %GFP_DMA - Allocation suitable for DMA.
  *   Should only be used for kmalloc() caches. Otherwise, use a

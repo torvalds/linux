@@ -13,6 +13,7 @@
 #include <linux/module.h>
 #include <linux/platform_device.h>
 #include <linux/slab.h>
+#include <linux/of_gpio.h>
 
 #include <video/omapdss.h>
 #include <video/omap-panel-data.h>
@@ -82,7 +83,8 @@ static int tfp410_enable(struct omap_dss_device *dssdev)
 		return 0;
 
 	in->ops.dpi->set_timings(in, &ddata->timings);
-	in->ops.dpi->set_data_lines(in, ddata->data_lines);
+	if (ddata->data_lines)
+		in->ops.dpi->set_data_lines(in, ddata->data_lines);
 
 	r = in->ops.dpi->enable(in);
 	if (r)
@@ -179,6 +181,33 @@ static int tfp410_probe_pdata(struct platform_device *pdev)
 	return 0;
 }
 
+static int tfp410_probe_of(struct platform_device *pdev)
+{
+	struct panel_drv_data *ddata = platform_get_drvdata(pdev);
+	struct device_node *node = pdev->dev.of_node;
+	struct omap_dss_device *in;
+	int gpio;
+
+	gpio = of_get_named_gpio(node, "powerdown-gpios", 0);
+
+	if (gpio_is_valid(gpio) || gpio == -ENOENT) {
+		ddata->pd_gpio = gpio;
+	} else {
+		dev_err(&pdev->dev, "failed to parse PD gpio\n");
+		return gpio;
+	}
+
+	in = omapdss_of_find_source_for_first_ep(node);
+	if (IS_ERR(in)) {
+		dev_err(&pdev->dev, "failed to find video source\n");
+		return PTR_ERR(in);
+	}
+
+	ddata->in = in;
+
+	return 0;
+}
+
 static int tfp410_probe(struct platform_device *pdev)
 {
 	struct panel_drv_data *ddata;
@@ -193,6 +222,10 @@ static int tfp410_probe(struct platform_device *pdev)
 
 	if (dev_get_platdata(&pdev->dev)) {
 		r = tfp410_probe_pdata(pdev);
+		if (r)
+			return r;
+	} else if (pdev->dev.of_node) {
+		r = tfp410_probe_of(pdev);
 		if (r)
 			return r;
 	} else {
@@ -251,12 +284,20 @@ static int __exit tfp410_remove(struct platform_device *pdev)
 	return 0;
 }
 
+static const struct of_device_id tfp410_of_match[] = {
+	{ .compatible = "omapdss,ti,tfp410", },
+	{},
+};
+
+MODULE_DEVICE_TABLE(of, tfp410_of_match);
+
 static struct platform_driver tfp410_driver = {
 	.probe	= tfp410_probe,
 	.remove	= __exit_p(tfp410_remove),
 	.driver	= {
 		.name	= "tfp410",
 		.owner	= THIS_MODULE,
+		.of_match_table = tfp410_of_match,
 	},
 };
 

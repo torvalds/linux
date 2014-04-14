@@ -504,6 +504,18 @@ unlock:
 	return ret;
 }
 
+static int img_ir_set_normal_filter(struct rc_dev *dev,
+				    struct rc_scancode_filter *sc_filter)
+{
+	return img_ir_set_filter(dev, RC_FILTER_NORMAL, sc_filter); 
+}
+
+static int img_ir_set_wakeup_filter(struct rc_dev *dev,
+				    struct rc_scancode_filter *sc_filter)
+{
+	return img_ir_set_filter(dev, RC_FILTER_WAKEUP, sc_filter);
+}
+
 /**
  * img_ir_set_decoder() - Set the current decoder.
  * @priv:	IR private data.
@@ -986,7 +998,8 @@ int img_ir_probe_hw(struct img_ir_priv *priv)
 	rdev->map_name = RC_MAP_EMPTY;
 	rc_set_allowed_protocols(rdev, img_ir_allowed_protos(priv));
 	rdev->input_name = "IMG Infrared Decoder";
-	rdev->s_filter = img_ir_set_filter;
+	rdev->s_filter = img_ir_set_normal_filter;
+	rdev->s_wakeup_filter = img_ir_set_wakeup_filter;
 
 	/* Register hardware decoder */
 	error = rc_register_device(rdev);

@@ -893,10 +893,15 @@ int ieee80211_register_hw(struct ieee80211_hw *hw)
 	/* mac80211 supports control port protocol changing */
 	local->hw.wiphy->flags |= WIPHY_FLAG_CONTROL_PORT_PROTOCOL;
 
-	if (local->hw.flags & IEEE80211_HW_SIGNAL_DBM)
+	if (local->hw.flags & IEEE80211_HW_SIGNAL_DBM) {
 		local->hw.wiphy->signal_type = CFG80211_SIGNAL_TYPE_MBM;
-	else if (local->hw.flags & IEEE80211_HW_SIGNAL_UNSPEC)
+	} else if (local->hw.flags & IEEE80211_HW_SIGNAL_UNSPEC) {
 		local->hw.wiphy->signal_type = CFG80211_SIGNAL_TYPE_UNSPEC;
+		if (hw->max_signal <= 0) {
+			result = -EINVAL;
+			goto fail_wiphy_register;
+		}
+	}
 
 	WARN((local->hw.flags & IEEE80211_HW_SUPPORTS_UAPSD)
 	     && (local->hw.flags & IEEE80211_HW_PS_NULLFUNC_STACK),
@@ -1070,6 +1075,18 @@ int ieee80211_register_hw(struct ieee80211_hw *hw)
 	return result;
 }
 EXPORT_SYMBOL(ieee80211_register_hw);
+
+void ieee80211_napi_add(struct ieee80211_hw *hw, struct napi_struct *napi,
+			struct net_device *napi_dev,
+			int (*poll)(struct napi_struct *, int),
+			int weight)
+{
+	struct ieee80211_local *local = hw_to_local(hw);
+
+	netif_napi_add(napi_dev, napi, poll, weight);
+	local->napi = napi;
+}
+EXPORT_SYMBOL_GPL(ieee80211_napi_add);
 
 void ieee80211_unregister_hw(struct ieee80211_hw *hw)
 {

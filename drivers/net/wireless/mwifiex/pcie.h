@@ -97,6 +97,8 @@
 #define MWIFIEX_PCIE_BLOCK_SIZE_FW_DNLD		256
 /* FW awake cookie after FW ready */
 #define FW_AWAKE_COOKIE						(0xAA55AA55)
+#define MWIFIEX_DEF_SLEEP_COOKIE			0xBEEFBEEF
+#define MWIFIEX_MAX_DELAY_COUNT				5
 
 struct mwifiex_pcie_card_reg {
 	u16 cmd_addr_lo;
@@ -195,18 +197,21 @@ struct mwifiex_pcie_device {
 	const char *firmware;
 	const struct mwifiex_pcie_card_reg *reg;
 	u16 blksz_fw_dl;
+	u16 tx_buf_size;
 };
 
 static const struct mwifiex_pcie_device mwifiex_pcie8766 = {
 	.firmware       = PCIE8766_DEFAULT_FW_NAME,
 	.reg            = &mwifiex_reg_8766,
 	.blksz_fw_dl = MWIFIEX_PCIE_BLOCK_SIZE_FW_DNLD,
+	.tx_buf_size = MWIFIEX_TX_DATA_BUF_SIZE_2K,
 };
 
 static const struct mwifiex_pcie_device mwifiex_pcie8897 = {
 	.firmware       = PCIE8897_DEFAULT_FW_NAME,
 	.reg            = &mwifiex_reg_8897,
 	.blksz_fw_dl = MWIFIEX_PCIE_BLOCK_SIZE_FW_DNLD,
+	.tx_buf_size = MWIFIEX_TX_DATA_BUF_SIZE_4K,
 };
 
 struct mwifiex_evt_buf_desc {

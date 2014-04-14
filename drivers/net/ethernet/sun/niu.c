@@ -9041,7 +9041,7 @@ static void niu_try_msix(struct niu *np, u8 *ldg_num_map)
 	struct msix_entry msi_vec[NIU_NUM_LDG];
 	struct niu_parent *parent = np->parent;
 	struct pci_dev *pdev = np->pdev;
-	int i, num_irqs, err;
+	int i, num_irqs;
 	u8 first_ldg;
 
 	first_ldg = (NIU_NUM_LDG / parent->num_ports) * np->port;
@@ -9053,20 +9053,15 @@ static void niu_try_msix(struct niu *np, u8 *ldg_num_map)
 		    (np->port == 0 ? 3 : 1));
 	BUG_ON(num_irqs > (NIU_NUM_LDG / parent->num_ports));
 
-retry:
 	for (i = 0; i < num_irqs; i++) {
 		msi_vec[i].vector = 0;
 		msi_vec[i].entry = i;
 	}
 
-	err = pci_enable_msix(pdev, msi_vec, num_irqs);
-	if (err < 0) {
+	num_irqs = pci_enable_msix_range(pdev, msi_vec, 1, num_irqs);
+	if (num_irqs < 0) {
 		np->flags &= ~NIU_FLAGS_MSIX;
 		return;
-	}
-	if (err > 0) {
-		num_irqs = err;
-		goto retry;
 	}
 
 	np->flags |= NIU_FLAGS_MSIX;

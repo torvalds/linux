@@ -54,14 +54,6 @@ END_FTR_SECTION_IFSET(CPU_FTR_REAL_LE)				\
 	xori	r12,r12,MSR_LE ;				\
 	mtspr	SPRN_SRR1,r12 ;					\
 	rfid ;		/* return to userspace */		\
-	b	. ;						\
-2:	mfspr	r12,SPRN_SRR1 ;					\
-	andi.	r12,r12,MSR_PR ;				\
-	bne	0b ;						\
-	mtspr	SPRN_SRR0,r3 ;					\
-	mtspr	SPRN_SRR1,r4 ;					\
-	mtspr	SPRN_SDR1,r5 ;					\
-	rfid ;							\
 	b	. ;	/* prevent speculative execution */
 
 #if defined(CONFIG_RELOCATABLE)
@@ -121,9 +113,10 @@ BEGIN_FTR_SECTION
 	cmpwi	cr1,r13,2
 	/* Total loss of HV state is fatal, we could try to use the
 	 * PIR to locate a PACA, then use an emergency stack etc...
-	 * but for now, let's just stay stuck here
+	 * OPAL v3 based powernv platforms have new idle states
+	 * which fall in this catagory.
 	 */
-	bgt	cr1,.
+	bgt	cr1,8f
 	GET_PACA(r13)
 
 #ifdef CONFIG_KVM_BOOK3S_HV_POSSIBLE
@@ -141,6 +134,11 @@ BEGIN_FTR_SECTION
 	beq	cr1,2f
 	b	.power7_wakeup_noloss
 2:	b	.power7_wakeup_loss
+
+	/* Fast Sleep wakeup on PowerNV */
+8:	GET_PACA(r13)
+	b 	.power7_wakeup_tb_loss
+
 9:
 END_FTR_SECTION_IFSET(CPU_FTR_HVMODE | CPU_FTR_ARCH_206)
 #endif /* CONFIG_PPC_P7_NAP */
@@ -164,13 +162,18 @@ BEGIN_FTR_SECTION
 	 */
 	mfspr	r13,SPRN_SRR1
 	rlwinm.	r13,r13,47-31,30,31
+	OPT_GET_SPR(r13, SPRN_CFAR, CPU_FTR_CFAR)
 	beq	9f
 
+	mfspr	r13,SPRN_SRR1
+	rlwinm.	r13,r13,47-31,30,31
 	/* waking up from powersave (nap) state */
 	cmpwi	cr1,r13,2
 	/* Total loss of HV state is fatal. let's just stay stuck here */
+	OPT_GET_SPR(r13, SPRN_CFAR, CPU_FTR_CFAR)
 	bgt	cr1,.
 9:
+	OPT_SET_SPR(r13, SPRN_CFAR, CPU_FTR_CFAR)
 END_FTR_SECTION_IFSET(CPU_FTR_HVMODE | CPU_FTR_ARCH_206)
 #endif /* CONFIG_PPC_P7_NAP */
 	EXCEPTION_PROLOG_0(PACA_EXMC)

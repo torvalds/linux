@@ -13,4 +13,9 @@ static inline int rcu_is_cpu_idle(void)
 	return 1;
 }
 
+static inline bool rcu_is_watching(void)
+{
+	return false;
+}
+
 #endif

@@ -204,10 +204,8 @@ static int arizona_micsupp_probe(struct platform_device *pdev)
 	int ret;
 
 	micsupp = devm_kzalloc(&pdev->dev, sizeof(*micsupp), GFP_KERNEL);
-	if (micsupp == NULL) {
-		dev_err(&pdev->dev, "Unable to allocate private data\n");
+	if (!micsupp)
 		return -ENOMEM;
-	}
 
 	micsupp->arizona = arizona;
 	INIT_WORK(&micsupp->check_cp_work, arizona_micsupp_check_cp);

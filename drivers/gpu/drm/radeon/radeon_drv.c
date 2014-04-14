@@ -79,9 +79,11 @@
  *   2.35.0 - Add CIK macrotile mode array query
  *   2.36.0 - Fix CIK DCE tiling setup
  *   2.37.0 - allow GS ring setup on r6xx/r7xx
+ *   2.38.0 - RADEON_GEM_OP (GET_INITIAL_DOMAIN, SET_INITIAL_DOMAIN),
+ *            CIK: 1D and linear tiling modes contain valid PIPE_CONFIG
  */
 #define KMS_DRIVER_MAJOR	2
-#define KMS_DRIVER_MINOR	37
+#define KMS_DRIVER_MINOR	38
 #define KMS_DRIVER_PATCHLEVEL	0
 int radeon_driver_load_kms(struct drm_device *dev, unsigned long flags);
 int radeon_driver_unload_kms(struct drm_device *dev);
@@ -403,11 +405,15 @@ static int radeon_pmops_runtime_suspend(struct device *dev)
 	struct drm_device *drm_dev = pci_get_drvdata(pdev);
 	int ret;
 
-	if (radeon_runtime_pm == 0)
-		return -EINVAL;
+	if (radeon_runtime_pm == 0) {
+		pm_runtime_forbid(dev);
+		return -EBUSY;
+	}
 
-	if (radeon_runtime_pm == -1 && !radeon_is_px())
-		return -EINVAL;
+	if (radeon_runtime_pm == -1 && !radeon_is_px()) {
+		pm_runtime_forbid(dev);
+		return -EBUSY;
+	}
 
 	drm_dev->switch_power_state = DRM_SWITCH_POWER_CHANGING;
 	drm_kms_helper_poll_disable(drm_dev);
@@ -456,12 +462,15 @@ static int radeon_pmops_runtime_idle(struct device *dev)
 	struct drm_device *drm_dev = pci_get_drvdata(pdev);
 	struct drm_crtc *crtc;
 
-	if (radeon_runtime_pm == 0)
+	if (radeon_runtime_pm == 0) {
+		pm_runtime_forbid(dev);
 		return -EBUSY;
+	}
 
 	/* are we PX enabled? */
 	if (radeon_runtime_pm == -1 && !radeon_is_px()) {
 		DRM_DEBUG_DRIVER("failing to power off - not px\n");
+		pm_runtime_forbid(dev);
 		return -EBUSY;
 	}
 

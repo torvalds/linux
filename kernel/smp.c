@@ -117,13 +117,43 @@ static void csd_unlock(struct call_single_data *csd)
 	csd->flags &= ~CSD_FLAG_LOCK;
 }
 
+static DEFINE_PER_CPU_SHARED_ALIGNED(struct call_single_data, csd_data);
+
 /*
  * Insert a previously allocated call_single_data element
  * for execution on the given CPU. data must already have
  * ->func, ->info, and ->flags set.
  */
-static void generic_exec_single(int cpu, struct call_single_data *csd, int wait)
+static int generic_exec_single(int cpu, struct call_single_data *csd,
+			       smp_call_func_t func, void *info, int wait)
 {
+	struct call_single_data csd_stack = { .flags = 0 };
+	unsigned long flags;
+
+
+	if (cpu == smp_processor_id()) {
+		local_irq_save(flags);
+		func(info);
+		local_irq_restore(flags);
+		return 0;
+	}
+
+
+	if ((unsigned)cpu >= nr_cpu_ids || !cpu_online(cpu))
+		return -ENXIO;
+
+
+	if (!csd) {
+		csd = &csd_stack;
+		if (!wait)
+			csd = &__get_cpu_var(csd_data);
+	}
+
+	csd_lock(csd);
+
+	csd->func = func;
+	csd->info = info;
+
 	if (wait)
 		csd->flags |= CSD_FLAG_WAIT;
 
@@ -143,6 +173,8 @@ static void generic_exec_single(int cpu, struct call_single_data *csd, int wait)
 
 	if (wait)
 		csd_lock_wait(csd);
+
+	return 0;
 }
 
 /*
@@ -151,7 +183,8 @@ static void generic_exec_single(int cpu, struct call_single_data *csd, int wait)
  */
 void generic_smp_call_function_single_interrupt(void)
 {
-	struct llist_node *entry, *next;
+	struct llist_node *entry;
+	struct call_single_data *csd, *csd_next;
 
 	/*
 	 * Shouldn't receive this interrupt on a cpu that is not yet online.
@@ -161,20 +194,11 @@ void generic_smp_call_function_single_interrupt(void)
 	entry = llist_del_all(&__get_cpu_var(call_single_queue));
 	entry = llist_reverse_order(entry);
 
-	while (entry) {
-		struct call_single_data *csd;
-
-		next = entry->next;
-
-		csd = llist_entry(entry, struct call_single_data, llist);
+	llist_for_each_entry_safe(csd, csd_next, entry, llist) {
 		csd->func(csd->info);
 		csd_unlock(csd);
-
-		entry = next;
 	}
 }
-
-static DEFINE_PER_CPU_SHARED_ALIGNED(struct call_single_data, csd_data);
 
 /*
  * smp_call_function_single - Run a function on a specific CPU
@@ -187,12 +211,8 @@ static DEFINE_PER_CPU_SHARED_ALIGNED(struct call_single_data, csd_data);
 int smp_call_function_single(int cpu, smp_call_func_t func, void *info,
 			     int wait)
 {
-	struct call_single_data d = {
-		.flags = 0,
-	};
-	unsigned long flags;
 	int this_cpu;
-	int err = 0;
+	int err;
 
 	/*
 	 * prevent preemption and reschedule on another processor,
@@ -209,32 +229,41 @@ int smp_call_function_single(int cpu, smp_call_func_t func, void *info,
 	WARN_ON_ONCE(cpu_online(this_cpu) && irqs_disabled()
 		     && !oops_in_progress);
 
-	if (cpu == this_cpu) {
-		local_irq_save(flags);
-		func(info);
-		local_irq_restore(flags);
-	} else {
-		if ((unsigned)cpu < nr_cpu_ids && cpu_online(cpu)) {
-			struct call_single_data *csd = &d;
-
-			if (!wait)
-				csd = &__get_cpu_var(csd_data);
-
-			csd_lock(csd);
-
-			csd->func = func;
-			csd->info = info;
-			generic_exec_single(cpu, csd, wait);
-		} else {
-			err = -ENXIO;	/* CPU not online */
-		}
-	}
+	err = generic_exec_single(cpu, NULL, func, info, wait);
 
 	put_cpu();
 
 	return err;
 }
 EXPORT_SYMBOL(smp_call_function_single);
+
+/**
+ * smp_call_function_single_async(): Run an asynchronous function on a
+ * 			         specific CPU.
+ * @cpu: The CPU to run on.
+ * @csd: Pre-allocated and setup data structure
+ *
+ * Like smp_call_function_single(), but the call is asynchonous and
+ * can thus be done from contexts with disabled interrupts.
+ *
+ * The caller passes his own pre-allocated data structure
+ * (ie: embedded in an object) and is responsible for synchronizing it
+ * such that the IPIs performed on the @csd are strictly serialized.
+ *
+ * NOTE: Be careful, there is unfortunately no current debugging facility to
+ * validate the correctness of this serialization.
+ */
+int smp_call_function_single_async(int cpu, struct call_single_data *csd)
+{
+	int err = 0;
+
+	preempt_disable();
+	err = generic_exec_single(cpu, csd, csd->func, csd->info, 0);
+	preempt_enable();
+
+	return err;
+}
+EXPORT_SYMBOL_GPL(smp_call_function_single_async);
 
 /*
  * smp_call_function_any - Run a function on any of the given cpus
@@ -278,44 +307,6 @@ call:
 	return ret;
 }
 EXPORT_SYMBOL_GPL(smp_call_function_any);
-
-/**
- * __smp_call_function_single(): Run a function on a specific CPU
- * @cpu: The CPU to run on.
- * @data: Pre-allocated and setup data structure
- * @wait: If true, wait until function has completed on specified CPU.
- *
- * Like smp_call_function_single(), but allow caller to pass in a
- * pre-allocated data structure. Useful for embedding @data inside
- * other structures, for instance.
- */
-void __smp_call_function_single(int cpu, struct call_single_data *csd,
-				int wait)
-{
-	unsigned int this_cpu;
-	unsigned long flags;
-
-	this_cpu = get_cpu();
-	/*
-	 * Can deadlock when called with interrupts disabled.
-	 * We allow cpu's that are not yet online though, as no one else can
-	 * send smp call function interrupt to this cpu and as such deadlocks
-	 * can't happen.
-	 */
-	WARN_ON_ONCE(cpu_online(smp_processor_id()) && wait && irqs_disabled()
-		     && !oops_in_progress);
-
-	if (cpu == this_cpu) {
-		local_irq_save(flags);
-		csd->func(csd->info);
-		local_irq_restore(flags);
-	} else {
-		csd_lock(csd);
-		generic_exec_single(cpu, csd, wait);
-	}
-	put_cpu();
-}
-EXPORT_SYMBOL_GPL(__smp_call_function_single);
 
 /**
  * smp_call_function_many(): Run a function on a set of other CPUs.

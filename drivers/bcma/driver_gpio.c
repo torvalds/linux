@@ -218,7 +218,14 @@ int bcma_gpio_init(struct bcma_drv_cc *cc)
 #if IS_BUILTIN(CONFIG_BCMA_HOST_SOC)
 	chip->to_irq		= bcma_gpio_to_irq;
 #endif
-	chip->ngpio		= 16;
+	switch (cc->core->bus->chipinfo.id) {
+	case BCMA_CHIP_ID_BCM5357:
+		chip->ngpio	= 32;
+		break;
+	default:
+		chip->ngpio	= 16;
+	}
+
 	/* There is just one SoC in one device and its GPIO addresses should be
 	 * deterministic to address them more easily. The other buses could get
 	 * a random base number. */

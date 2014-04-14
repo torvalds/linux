@@ -39,7 +39,7 @@ struct modes_unit {
 	char *mode_string;
 	int mode_size;
 };
-struct modes_unit ieee80211_modes[] = {
+static struct modes_unit ieee80211_modes[] = {
 	{"a",1},
 	{"b",1},
 	{"g",1},

@@ -293,8 +293,6 @@ static int sh_wdt_probe(struct platform_device *pdev)
 
 static int sh_wdt_remove(struct platform_device *pdev)
 {
-	struct sh_wdt *wdt = platform_get_drvdata(pdev);
-
 	watchdog_unregister_device(&sh_wdt_dev);
 
 	pm_runtime_disable(&pdev->dev);

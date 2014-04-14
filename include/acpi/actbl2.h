@@ -5,7 +5,7 @@
  *****************************************************************************/
 
 /*
- * Copyright (C) 2000 - 2013, Intel Corp.
+ * Copyright (C) 2000 - 2014, Intel Corp.
  * All rights reserved.
  *
  * Redistribution and use in source and binary forms, with or without
@@ -424,7 +424,8 @@ enum acpi_dmar_type {
 	ACPI_DMAR_TYPE_RESERVED_MEMORY = 1,
 	ACPI_DMAR_TYPE_ATSR = 2,
 	ACPI_DMAR_HARDWARE_AFFINITY = 3,
-	ACPI_DMAR_TYPE_RESERVED = 4	/* 4 and greater are reserved */
+	ACPI_DMAR_TYPE_ANDD = 4,
+	ACPI_DMAR_TYPE_RESERVED = 5	/* 5 and greater are reserved */
 };
 
 /* DMAR Device Scope structure */
@@ -445,7 +446,8 @@ enum acpi_dmar_scope_type {
 	ACPI_DMAR_SCOPE_TYPE_BRIDGE = 2,
 	ACPI_DMAR_SCOPE_TYPE_IOAPIC = 3,
 	ACPI_DMAR_SCOPE_TYPE_HPET = 4,
-	ACPI_DMAR_SCOPE_TYPE_RESERVED = 5	/* 5 and greater are reserved */
+	ACPI_DMAR_SCOPE_TYPE_ACPI = 5,
+	ACPI_DMAR_SCOPE_TYPE_RESERVED = 6	/* 6 and greater are reserved */
 };
 
 struct acpi_dmar_pci_path {
@@ -505,6 +507,15 @@ struct acpi_dmar_rhsa {
 	u32 reserved;
 	u64 base_address;
 	u32 proximity_domain;
+};
+
+/* 4: ACPI Namespace Device Declaration Structure */
+
+struct acpi_dmar_andd {
+	struct acpi_dmar_header header;
+	u8 reserved[3];
+	u8 device_number;
+	u8 object_name[];
 };
 
 /*******************************************************************************

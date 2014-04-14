@@ -32,7 +32,7 @@ struct diag2fc_data {
 	__u32 pcpus;
 	__u32 lcpus;
 	__u32 vcpus;
-	__u32 cpu_min;
+	__u32 ocpus;
 	__u32 cpu_max;
 	__u32 cpu_shares;
 	__u32 cpu_use_samp;
@@ -142,7 +142,12 @@ static int hpyfs_vm_create_guest(struct dentry *systems_dir,
 	ATTRIBUTE(cpus_dir, "capped", capped_value);
 	ATTRIBUTE(cpus_dir, "dedicated", dedicated_flag);
 	ATTRIBUTE(cpus_dir, "count", data->vcpus);
-	ATTRIBUTE(cpus_dir, "weight_min", data->cpu_min);
+	/*
+	 * Note: The "weight_min" attribute got the wrong name.
+	 * The value represents the number of non-stopped (operating)
+	 * CPUS.
+	 */
+	ATTRIBUTE(cpus_dir, "weight_min", data->ocpus);
 	ATTRIBUTE(cpus_dir, "weight_max", data->cpu_max);
 	ATTRIBUTE(cpus_dir, "weight_cur", data->cpu_shares);
 

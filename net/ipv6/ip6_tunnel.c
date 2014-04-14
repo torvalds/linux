@@ -108,12 +108,12 @@ static struct net_device_stats *ip6_get_stats(struct net_device *dev)
 						   per_cpu_ptr(dev->tstats, i);
 
 		do {
-			start = u64_stats_fetch_begin_bh(&tstats->syncp);
+			start = u64_stats_fetch_begin_irq(&tstats->syncp);
 			tmp.rx_packets = tstats->rx_packets;
 			tmp.rx_bytes = tstats->rx_bytes;
 			tmp.tx_packets = tstats->tx_packets;
 			tmp.tx_bytes =  tstats->tx_bytes;
-		} while (u64_stats_fetch_retry_bh(&tstats->syncp, start));
+		} while (u64_stats_fetch_retry_irq(&tstats->syncp, start));
 
 		sum.rx_packets += tmp.rx_packets;
 		sum.rx_bytes   += tmp.rx_bytes;
@@ -1502,19 +1502,12 @@ static inline int
 ip6_tnl_dev_init_gen(struct net_device *dev)
 {
 	struct ip6_tnl *t = netdev_priv(dev);
-	int i;
 
 	t->dev = dev;
 	t->net = dev_net(dev);
-	dev->tstats = alloc_percpu(struct pcpu_sw_netstats);
+	dev->tstats = netdev_alloc_pcpu_stats(struct pcpu_sw_netstats);
 	if (!dev->tstats)
 		return -ENOMEM;
-
-	for_each_possible_cpu(i) {
-		struct pcpu_sw_netstats *ip6_tnl_stats;
-		ip6_tnl_stats = per_cpu_ptr(dev->tstats, i);
-		u64_stats_init(&ip6_tnl_stats->syncp);
-	}
 	return 0;
 }
 

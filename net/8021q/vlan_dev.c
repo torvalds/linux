@@ -538,6 +538,9 @@ static int vlan_passthru_hard_header(struct sk_buff *skb, struct net_device *dev
 	struct vlan_dev_priv *vlan = vlan_dev_priv(dev);
 	struct net_device *real_dev = vlan->real_dev;
 
+	if (saddr == NULL)
+		saddr = dev->dev_addr;
+
 	return dev_hard_header(skb, real_dev, type, daddr, saddr, len);
 }
 
@@ -556,7 +559,7 @@ static const struct net_device_ops vlan_netdev_ops;
 static int vlan_dev_init(struct net_device *dev)
 {
 	struct net_device *real_dev = vlan_dev_priv(dev)->real_dev;
-	int subclass = 0, i;
+	int subclass = 0;
 
 	netif_carrier_off(dev);
 
@@ -575,6 +578,9 @@ static int vlan_dev_init(struct net_device *dev)
 
 	dev->features |= real_dev->vlan_features | NETIF_F_LLTX;
 	dev->gso_max_size = real_dev->gso_max_size;
+	if (dev->features & NETIF_F_VLAN_FEATURES)
+		netdev_warn(real_dev, "VLAN features are set incorrectly.  Q-in-Q configurations may not work correctly.\n");
+
 
 	/* ipv6 shared card related stuff */
 	dev->dev_id = real_dev->dev_id;
@@ -589,7 +595,8 @@ static int vlan_dev_init(struct net_device *dev)
 #endif
 
 	dev->needed_headroom = real_dev->needed_headroom;
-	if (real_dev->features & NETIF_F_HW_VLAN_CTAG_TX) {
+	if (vlan_hw_offload_capable(real_dev->features,
+				    vlan_dev_priv(dev)->vlan_proto)) {
 		dev->header_ops      = &vlan_passthru_header_ops;
 		dev->hard_header_len = real_dev->hard_header_len;
 	} else {
@@ -606,16 +613,9 @@ static int vlan_dev_init(struct net_device *dev)
 
 	vlan_dev_set_lockdep_class(dev, subclass);
 
-	vlan_dev_priv(dev)->vlan_pcpu_stats = alloc_percpu(struct vlan_pcpu_stats);
+	vlan_dev_priv(dev)->vlan_pcpu_stats = netdev_alloc_pcpu_stats(struct vlan_pcpu_stats);
 	if (!vlan_dev_priv(dev)->vlan_pcpu_stats)
 		return -ENOMEM;
-
-	for_each_possible_cpu(i) {
-		struct vlan_pcpu_stats *vlan_stat;
-		vlan_stat = per_cpu_ptr(vlan_dev_priv(dev)->vlan_pcpu_stats, i);
-		u64_stats_init(&vlan_stat->syncp);
-	}
-
 
 	return 0;
 }
@@ -682,13 +682,13 @@ static struct rtnl_link_stats64 *vlan_dev_get_stats64(struct net_device *dev, st
 
 			p = per_cpu_ptr(vlan_dev_priv(dev)->vlan_pcpu_stats, i);
 			do {
-				start = u64_stats_fetch_begin_bh(&p->syncp);
+				start = u64_stats_fetch_begin_irq(&p->syncp);
 				rxpackets	= p->rx_packets;
 				rxbytes		= p->rx_bytes;
 				rxmulticast	= p->rx_multicast;
 				txpackets	= p->tx_packets;
 				txbytes		= p->tx_bytes;
-			} while (u64_stats_fetch_retry_bh(&p->syncp, start));
+			} while (u64_stats_fetch_retry_irq(&p->syncp, start));
 
 			stats->rx_packets	+= rxpackets;
 			stats->rx_bytes		+= rxbytes;
@@ -711,20 +711,19 @@ static void vlan_dev_poll_controller(struct net_device *dev)
 	return;
 }
 
-static int vlan_dev_netpoll_setup(struct net_device *dev, struct netpoll_info *npinfo,
-				  gfp_t gfp)
+static int vlan_dev_netpoll_setup(struct net_device *dev, struct netpoll_info *npinfo)
 {
 	struct vlan_dev_priv *vlan = vlan_dev_priv(dev);
 	struct net_device *real_dev = vlan->real_dev;
 	struct netpoll *netpoll;
 	int err = 0;
 
-	netpoll = kzalloc(sizeof(*netpoll), gfp);
+	netpoll = kzalloc(sizeof(*netpoll), GFP_KERNEL);
 	err = -ENOMEM;
 	if (!netpoll)
 		goto out;
 
-	err = __netpoll_setup(netpoll, real_dev, gfp);
+	err = __netpoll_setup(netpoll, real_dev);
 	if (err) {
 		kfree(netpoll);
 		goto out;

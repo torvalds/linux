@@ -90,11 +90,11 @@ int mlx4_ib_umem_write_mtt(struct mlx4_ib_dev *dev, struct mlx4_mtt *mtt,
 			   struct ib_umem *umem)
 {
 	u64 *pages;
-	struct ib_umem_chunk *chunk;
-	int i, j, k;
+	int i, k, entry;
 	int n;
 	int len;
 	int err = 0;
+	struct scatterlist *sg;
 
 	pages = (u64 *) __get_free_page(GFP_KERNEL);
 	if (!pages)
@@ -102,26 +102,25 @@ int mlx4_ib_umem_write_mtt(struct mlx4_ib_dev *dev, struct mlx4_mtt *mtt,
 
 	i = n = 0;
 
-	list_for_each_entry(chunk, &umem->chunk_list, list)
-		for (j = 0; j < chunk->nmap; ++j) {
-			len = sg_dma_len(&chunk->page_list[j]) >> mtt->page_shift;
-			for (k = 0; k < len; ++k) {
-				pages[i++] = sg_dma_address(&chunk->page_list[j]) +
-					umem->page_size * k;
-				/*
-				 * Be friendly to mlx4_write_mtt() and
-				 * pass it chunks of appropriate size.
-				 */
-				if (i == PAGE_SIZE / sizeof (u64)) {
-					err = mlx4_write_mtt(dev->dev, mtt, n,
-							     i, pages);
-					if (err)
-						goto out;
-					n += i;
-					i = 0;
-				}
+	for_each_sg(umem->sg_head.sgl, sg, umem->nmap, entry) {
+		len = sg_dma_len(sg) >> mtt->page_shift;
+		for (k = 0; k < len; ++k) {
+			pages[i++] = sg_dma_address(sg) +
+				umem->page_size * k;
+			/*
+			 * Be friendly to mlx4_write_mtt() and
+			 * pass it chunks of appropriate size.
+			 */
+			if (i == PAGE_SIZE / sizeof (u64)) {
+				err = mlx4_write_mtt(dev->dev, mtt, n,
+						     i, pages);
+				if (err)
+					goto out;
+				n += i;
+				i = 0;
 			}
 		}
+	}
 
 	if (i)
 		err = mlx4_write_mtt(dev->dev, mtt, n, i, pages);

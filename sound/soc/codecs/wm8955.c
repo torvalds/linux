@@ -416,22 +416,21 @@ static const char *bass_mode_text[] = {
 	"Linear", "Adaptive",
 };
 
-static const struct soc_enum bass_mode =
-	SOC_ENUM_SINGLE(WM8955_BASS_CONTROL, 7, 2, bass_mode_text);
+static SOC_ENUM_SINGLE_DECL(bass_mode, WM8955_BASS_CONTROL, 7, bass_mode_text);
 
 static const char *bass_cutoff_text[] = {
 	"Low", "High"
 };
 
-static const struct soc_enum bass_cutoff =
-	SOC_ENUM_SINGLE(WM8955_BASS_CONTROL, 6, 2, bass_cutoff_text);
+static SOC_ENUM_SINGLE_DECL(bass_cutoff, WM8955_BASS_CONTROL, 6,
+			    bass_cutoff_text);
 
 static const char *treble_cutoff_text[] = {
 	"High", "Low"
 };
 
-static const struct soc_enum treble_cutoff =
-	SOC_ENUM_SINGLE(WM8955_TREBLE_CONTROL, 6, 2, treble_cutoff_text);
+static SOC_ENUM_SINGLE_DECL(treble_cutoff, WM8955_TREBLE_CONTROL, 2,
+			    treble_cutoff_text);
 
 static const DECLARE_TLV_DB_SCALE(digital_tlv, -12750, 50, 1);
 static const DECLARE_TLV_DB_SCALE(atten_tlv, -600, 600, 0);
@@ -895,14 +894,6 @@ static int wm8955_probe(struct snd_soc_codec *codec)
 	struct wm8955_priv *wm8955 = snd_soc_codec_get_drvdata(codec);
 	struct wm8955_pdata *pdata = dev_get_platdata(codec->dev);
 	int ret, i;
-
-	codec->control_data = wm8955->regmap;
-
-	ret = snd_soc_codec_set_cache_io(codec, 7, 9, SND_SOC_REGMAP);
-	if (ret != 0) {
-		dev_err(codec->dev, "Failed to set cache I/O: %d\n", ret);
-		return ret;
-	}
 
 	for (i = 0; i < ARRAY_SIZE(wm8955->supplies); i++)
 		wm8955->supplies[i].supply = wm8955_supply_names[i];

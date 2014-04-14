@@ -638,6 +638,46 @@ void c4iw_qp_rem_ref(struct ib_qp *qp)
 		wake_up(&(to_c4iw_qp(qp)->wait));
 }
 
+static void add_to_fc_list(struct list_head *head, struct list_head *entry)
+{
+	if (list_empty(entry))
+		list_add_tail(entry, head);
+}
+
+static int ring_kernel_sq_db(struct c4iw_qp *qhp, u16 inc)
+{
+	unsigned long flags;
+
+	spin_lock_irqsave(&qhp->rhp->lock, flags);
+	spin_lock(&qhp->lock);
+	if (qhp->rhp->db_state == NORMAL) {
+		t4_ring_sq_db(&qhp->wq, inc);
+	} else {
+		add_to_fc_list(&qhp->rhp->db_fc_list, &qhp->db_fc_entry);
+		qhp->wq.sq.wq_pidx_inc += inc;
+	}
+	spin_unlock(&qhp->lock);
+	spin_unlock_irqrestore(&qhp->rhp->lock, flags);
+	return 0;
+}
+
+static int ring_kernel_rq_db(struct c4iw_qp *qhp, u16 inc)
+{
+	unsigned long flags;
+
+	spin_lock_irqsave(&qhp->rhp->lock, flags);
+	spin_lock(&qhp->lock);
+	if (qhp->rhp->db_state == NORMAL) {
+		t4_ring_rq_db(&qhp->wq, inc);
+	} else {
+		add_to_fc_list(&qhp->rhp->db_fc_list, &qhp->db_fc_entry);
+		qhp->wq.rq.wq_pidx_inc += inc;
+	}
+	spin_unlock(&qhp->lock);
+	spin_unlock_irqrestore(&qhp->rhp->lock, flags);
+	return 0;
+}
+
 int c4iw_post_send(struct ib_qp *ibqp, struct ib_send_wr *wr,
 		   struct ib_send_wr **bad_wr)
 {
@@ -675,7 +715,7 @@ int c4iw_post_send(struct ib_qp *ibqp, struct ib_send_wr *wr,
 		fw_flags = 0;
 		if (wr->send_flags & IB_SEND_SOLICITED)
 			fw_flags |= FW_RI_SOLICITED_EVENT_FLAG;
-		if (wr->send_flags & IB_SEND_SIGNALED)
+		if (wr->send_flags & IB_SEND_SIGNALED || qhp->sq_sig_all)
 			fw_flags |= FW_RI_COMPLETION_FLAG;
 		swsqe = &qhp->wq.sq.sw_sq[qhp->wq.sq.pidx];
 		switch (wr->opcode) {
@@ -736,7 +776,8 @@ int c4iw_post_send(struct ib_qp *ibqp, struct ib_send_wr *wr,
 		}
 		swsqe->idx = qhp->wq.sq.pidx;
 		swsqe->complete = 0;
-		swsqe->signaled = (wr->send_flags & IB_SEND_SIGNALED);
+		swsqe->signaled = (wr->send_flags & IB_SEND_SIGNALED) ||
+				  qhp->sq_sig_all;
 		swsqe->flushed = 0;
 		swsqe->wr_id = wr->wr_id;
 
@@ -750,9 +791,13 @@ int c4iw_post_send(struct ib_qp *ibqp, struct ib_send_wr *wr,
 		t4_sq_produce(&qhp->wq, len16);
 		idx += DIV_ROUND_UP(len16*16, T4_EQ_ENTRY_SIZE);
 	}
-	if (t4_wq_db_enabled(&qhp->wq))
+	if (!qhp->rhp->rdev.status_page->db_off) {
 		t4_ring_sq_db(&qhp->wq, idx);
-	spin_unlock_irqrestore(&qhp->lock, flag);
+		spin_unlock_irqrestore(&qhp->lock, flag);
+	} else {
+		spin_unlock_irqrestore(&qhp->lock, flag);
+		ring_kernel_sq_db(qhp, idx);
+	}
 	return err;
 }
 
@@ -812,9 +857,13 @@ int c4iw_post_receive(struct ib_qp *ibqp, struct ib_recv_wr *wr,
 		wr = wr->next;
 		num_wrs--;
 	}
-	if (t4_wq_db_enabled(&qhp->wq))
+	if (!qhp->rhp->rdev.status_page->db_off) {
 		t4_ring_rq_db(&qhp->wq, idx);
-	spin_unlock_irqrestore(&qhp->lock, flag);
+		spin_unlock_irqrestore(&qhp->lock, flag);
+	} else {
+		spin_unlock_irqrestore(&qhp->lock, flag);
+		ring_kernel_rq_db(qhp, idx);
+	}
 	return err;
 }
 
@@ -1200,35 +1249,6 @@ out:
 	return ret;
 }
 
-/*
- * Called by the library when the qp has user dbs disabled due to
- * a DB_FULL condition.  This function will single-thread all user
- * DB rings to avoid overflowing the hw db-fifo.
- */
-static int ring_kernel_db(struct c4iw_qp *qhp, u32 qid, u16 inc)
-{
-	int delay = db_delay_usecs;
-
-	mutex_lock(&qhp->rhp->db_mutex);
-	do {
-
-		/*
-		 * The interrupt threshold is dbfifo_int_thresh << 6. So
-		 * make sure we don't cross that and generate an interrupt.
-		 */
-		if (cxgb4_dbfifo_count(qhp->rhp->rdev.lldi.ports[0], 1) <
-		    (qhp->rhp->rdev.lldi.dbfifo_int_thresh << 5)) {
-			writel(QID(qid) | PIDX(inc), qhp->wq.db);
-			break;
-		}
-		set_current_state(TASK_UNINTERRUPTIBLE);
-		schedule_timeout(usecs_to_jiffies(delay));
-		delay = min(delay << 1, 2000);
-	} while (1);
-	mutex_unlock(&qhp->rhp->db_mutex);
-	return 0;
-}
-
 int c4iw_modify_qp(struct c4iw_dev *rhp, struct c4iw_qp *qhp,
 		   enum c4iw_qp_attr_mask mask,
 		   struct c4iw_qp_attributes *attrs,
@@ -1278,11 +1298,11 @@ int c4iw_modify_qp(struct c4iw_dev *rhp, struct c4iw_qp *qhp,
 	}
 
 	if (mask & C4IW_QP_ATTR_SQ_DB) {
-		ret = ring_kernel_db(qhp, qhp->wq.sq.qid, attrs->sq_db_inc);
+		ret = ring_kernel_sq_db(qhp, attrs->sq_db_inc);
 		goto out;
 	}
 	if (mask & C4IW_QP_ATTR_RQ_DB) {
-		ret = ring_kernel_db(qhp, qhp->wq.rq.qid, attrs->rq_db_inc);
+		ret = ring_kernel_rq_db(qhp, attrs->rq_db_inc);
 		goto out;
 	}
 
@@ -1465,14 +1485,6 @@ out:
 	return ret;
 }
 
-static int enable_qp_db(int id, void *p, void *data)
-{
-	struct c4iw_qp *qp = p;
-
-	t4_enable_wq_db(&qp->wq);
-	return 0;
-}
-
 int c4iw_destroy_qp(struct ib_qp *ib_qp)
 {
 	struct c4iw_dev *rhp;
@@ -1490,21 +1502,14 @@ int c4iw_destroy_qp(struct ib_qp *ib_qp)
 		c4iw_modify_qp(rhp, qhp, C4IW_QP_ATTR_NEXT_STATE, &attrs, 0);
 	wait_event(qhp->wait, !qhp->ep);
 
-	spin_lock_irq(&rhp->lock);
-	remove_handle_nolock(rhp, &rhp->qpidr, qhp->wq.sq.qid);
-	rhp->qpcnt--;
-	BUG_ON(rhp->qpcnt < 0);
-	if (rhp->qpcnt <= db_fc_threshold && rhp->db_state == FLOW_CONTROL) {
-		rhp->rdev.stats.db_state_transitions++;
-		rhp->db_state = NORMAL;
-		idr_for_each(&rhp->qpidr, enable_qp_db, NULL);
-	}
-	if (db_coalescing_threshold >= 0)
-		if (rhp->qpcnt <= db_coalescing_threshold)
-			cxgb4_enable_db_coalescing(rhp->rdev.lldi.ports[0]);
-	spin_unlock_irq(&rhp->lock);
+	remove_handle(rhp, &rhp->qpidr, qhp->wq.sq.qid);
 	atomic_dec(&qhp->refcnt);
 	wait_event(qhp->wait, !atomic_read(&qhp->refcnt));
+
+	spin_lock_irq(&rhp->lock);
+	if (!list_empty(&qhp->db_fc_entry))
+		list_del_init(&qhp->db_fc_entry);
+	spin_unlock_irq(&rhp->lock);
 
 	ucontext = ib_qp->uobject ?
 		   to_c4iw_ucontext(ib_qp->uobject->context) : NULL;
@@ -1513,14 +1518,6 @@ int c4iw_destroy_qp(struct ib_qp *ib_qp)
 
 	PDBG("%s ib_qp %p qpid 0x%0x\n", __func__, ib_qp, qhp->wq.sq.qid);
 	kfree(qhp);
-	return 0;
-}
-
-static int disable_qp_db(int id, void *p, void *data)
-{
-	struct c4iw_qp *qp = p;
-
-	t4_disable_wq_db(&qp->wq);
 	return 0;
 }
 
@@ -1533,7 +1530,7 @@ struct ib_qp *c4iw_create_qp(struct ib_pd *pd, struct ib_qp_init_attr *attrs,
 	struct c4iw_cq *schp;
 	struct c4iw_cq *rchp;
 	struct c4iw_create_qp_resp uresp;
-	int sqsize, rqsize;
+	unsigned int sqsize, rqsize;
 	struct c4iw_ucontext *ucontext;
 	int ret;
 	struct c4iw_mm_entry *mm1, *mm2, *mm3, *mm4, *mm5 = NULL;
@@ -1605,25 +1602,13 @@ struct ib_qp *c4iw_create_qp(struct ib_pd *pd, struct ib_qp_init_attr *attrs,
 	qhp->attr.enable_bind = 1;
 	qhp->attr.max_ord = 1;
 	qhp->attr.max_ird = 1;
+	qhp->sq_sig_all = attrs->sq_sig_type == IB_SIGNAL_ALL_WR;
 	spin_lock_init(&qhp->lock);
 	mutex_init(&qhp->mutex);
 	init_waitqueue_head(&qhp->wait);
 	atomic_set(&qhp->refcnt, 1);
 
-	spin_lock_irq(&rhp->lock);
-	if (rhp->db_state != NORMAL)
-		t4_disable_wq_db(&qhp->wq);
-	rhp->qpcnt++;
-	if (rhp->qpcnt > db_fc_threshold && rhp->db_state == NORMAL) {
-		rhp->rdev.stats.db_state_transitions++;
-		rhp->db_state = FLOW_CONTROL;
-		idr_for_each(&rhp->qpidr, disable_qp_db, NULL);
-	}
-	if (db_coalescing_threshold >= 0)
-		if (rhp->qpcnt > db_coalescing_threshold)
-			cxgb4_disable_db_coalescing(rhp->rdev.lldi.ports[0]);
-	ret = insert_handle_nolock(rhp, &rhp->qpidr, qhp, qhp->wq.sq.qid);
-	spin_unlock_irq(&rhp->lock);
+	ret = insert_handle(rhp, &rhp->qpidr, qhp, qhp->wq.sq.qid);
 	if (ret)
 		goto err2;
 
@@ -1709,6 +1694,7 @@ struct ib_qp *c4iw_create_qp(struct ib_pd *pd, struct ib_qp_init_attr *attrs,
 	}
 	qhp->ibqp.qp_num = qhp->wq.sq.qid;
 	init_timer(&(qhp->timer));
+	INIT_LIST_HEAD(&qhp->db_fc_entry);
 	PDBG("%s qhp %p sq_num_entries %d, rq_num_entries %d qpid 0x%0x\n",
 	     __func__, qhp, qhp->attr.sq_num_entries, qhp->attr.rq_num_entries,
 	     qhp->wq.sq.qid);

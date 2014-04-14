@@ -323,24 +323,17 @@ static ssize_t pm8001_ctl_ib_queue_log_show(struct device *cdev,
 	int offset;
 	char *str = buf;
 	int start = 0;
-#define IB_MEMMAP(c)		\
-		(*(u32 *)((u8 *)pm8001_ha->		\
-		memoryMap.region[IB].virt_ptr +		\
+#define IB_MEMMAP(c)	\
+		(*(u32 *)((u8 *)pm8001_ha->	\
+		memoryMap.region[IB].virt_ptr +	\
 		pm8001_ha->evtlog_ib_offset + (c)))
 
 	for (offset = 0; offset < IB_OB_READ_TIMES; offset++) {
-		if (pm8001_ha->chip_id != chip_8001)
-			str += sprintf(str, "0x%08x\n", IB_MEMMAP(start));
-		else
-			str += sprintf(str, "0x%08x\n", IB_MEMMAP(start));
+		str += sprintf(str, "0x%08x\n", IB_MEMMAP(start));
 		start = start + 4;
 	}
 	pm8001_ha->evtlog_ib_offset += SYSFS_OFFSET;
-	if ((((pm8001_ha->evtlog_ib_offset) % (PM80XX_IB_OB_QUEUE_SIZE)) == 0)
-		&& (pm8001_ha->chip_id != chip_8001))
-		pm8001_ha->evtlog_ib_offset = 0;
-	if ((((pm8001_ha->evtlog_ib_offset) % (PM8001_IB_OB_QUEUE_SIZE)) == 0)
-		&& (pm8001_ha->chip_id == chip_8001))
+	if (((pm8001_ha->evtlog_ib_offset) % (PM80XX_IB_OB_QUEUE_SIZE)) == 0)
 		pm8001_ha->evtlog_ib_offset = 0;
 
 	return str - buf;
@@ -363,24 +356,17 @@ static ssize_t pm8001_ctl_ob_queue_log_show(struct device *cdev,
 	int offset;
 	char *str = buf;
 	int start = 0;
-#define OB_MEMMAP(c)		\
-		(*(u32 *)((u8 *)pm8001_ha->		\
-		memoryMap.region[OB].virt_ptr +		\
+#define OB_MEMMAP(c)	\
+		(*(u32 *)((u8 *)pm8001_ha->	\
+		memoryMap.region[OB].virt_ptr +	\
 		pm8001_ha->evtlog_ob_offset + (c)))
 
 	for (offset = 0; offset < IB_OB_READ_TIMES; offset++) {
-		if (pm8001_ha->chip_id != chip_8001)
-			str += sprintf(str, "0x%08x\n", OB_MEMMAP(start));
-		else
-			str += sprintf(str, "0x%08x\n", OB_MEMMAP(start));
+		str += sprintf(str, "0x%08x\n", OB_MEMMAP(start));
 		start = start + 4;
 	}
 	pm8001_ha->evtlog_ob_offset += SYSFS_OFFSET;
-	if ((((pm8001_ha->evtlog_ob_offset) % (PM80XX_IB_OB_QUEUE_SIZE)) == 0)
-			&& (pm8001_ha->chip_id != chip_8001))
-		pm8001_ha->evtlog_ob_offset = 0;
-	if ((((pm8001_ha->evtlog_ob_offset) % (PM8001_IB_OB_QUEUE_SIZE)) == 0)
-			&& (pm8001_ha->chip_id == chip_8001))
+	if (((pm8001_ha->evtlog_ob_offset) % (PM80XX_IB_OB_QUEUE_SIZE)) == 0)
 		pm8001_ha->evtlog_ob_offset = 0;
 
 	return str - buf;
@@ -466,7 +452,7 @@ static DEVICE_ATTR(iop_log, S_IRUGO, pm8001_ctl_iop_log_show, NULL);
 static ssize_t pm8001_ctl_fatal_log_show(struct device *cdev,
 	struct device_attribute *attr, char *buf)
 {
-	u32 count;
+	ssize_t count;
 
 	count = pm80xx_get_fatal_dump(cdev, attr, buf);
 	return count;
@@ -484,7 +470,7 @@ static DEVICE_ATTR(fatal_log, S_IRUGO, pm8001_ctl_fatal_log_show, NULL);
 static ssize_t pm8001_ctl_gsm_log_show(struct device *cdev,
 	struct device_attribute *attr, char *buf)
 {
-	u32 count;
+	ssize_t count;
 
 	count = pm8001_get_gsm_dump(cdev, SYSFS_OFFSET, buf);
 	return count;

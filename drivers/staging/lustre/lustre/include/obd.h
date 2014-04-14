@@ -158,7 +158,7 @@ struct obd_info {
 	/* statfs data specific for every OSC, if needed at all. */
 	struct obd_statfs      *oi_osfs;
 	/* An update callback which is called to update some data on upper
-	 * level. E.g. it is used for update lsm->lsm_oinfo at every recieved
+	 * level. E.g. it is used for update lsm->lsm_oinfo at every received
 	 * request in osc level for enqueue requests. It is also possible to
 	 * update some caller data from LOV layer if needed. */
 	obd_enqueue_update_f    oi_cb_up;
@@ -1042,8 +1042,8 @@ static inline int it_to_lock_mode(struct lookup_intent *it)
 }
 
 struct md_op_data {
-	struct lu_fid	   op_fid1; /* operation fid1 (usualy parent) */
-	struct lu_fid	   op_fid2; /* operation fid2 (usualy child) */
+	struct lu_fid	   op_fid1; /* operation fid1 (usually parent) */
+	struct lu_fid	   op_fid2; /* operation fid2 (usually child) */
 	struct lu_fid	   op_fid3; /* 2 extra fids to find conflicting */
 	struct lu_fid	   op_fid4; /* to the operation locks. */
 	mdsno_t		 op_mds;  /* what mds server open will go to */
@@ -1323,7 +1323,8 @@ struct md_open_data {
 	struct obd_client_handle *mod_och;
 	struct ptlrpc_request    *mod_open_req;
 	struct ptlrpc_request    *mod_close_req;
-	atomic_t	      mod_refcount;
+	atomic_t		  mod_refcount;
+	bool			  mod_is_create;
 };
 
 struct lookup_intent;
@@ -1392,7 +1393,7 @@ struct md_ops {
 
 	int (*m_set_open_replay_data)(struct obd_export *,
 				      struct obd_client_handle *,
-				      struct ptlrpc_request *);
+				      struct lookup_intent *);
 	int (*m_clear_open_replay_data)(struct obd_export *,
 					struct obd_client_handle *);
 	int (*m_set_lock_data)(struct obd_export *, __u64 *, void *, __u64 *);

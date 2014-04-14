@@ -139,6 +139,7 @@ header-y += hid.h
 header-y += hiddev.h
 header-y += hidraw.h
 header-y += hpet.h
+header-y += hyperv.h
 header-y += hysdn_if.h
 header-y += i2c-dev.h
 header-y += i2c.h

@@ -29,6 +29,7 @@
 
 #include <linux/workqueue.h>
 #include <linux/io.h>
+#include <linux/irqreturn.h>
 
 /**
  * struct mic_intr_info - Contains h/w specific interrupt sources info

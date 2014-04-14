@@ -62,6 +62,7 @@ struct target_core_fabric_ops {
 	int (*queue_data_in)(struct se_cmd *);
 	int (*queue_status)(struct se_cmd *);
 	void (*queue_tm_rsp)(struct se_cmd *);
+	void (*aborted_task)(struct se_cmd *);
 	/*
 	 * fabric module calls for target_core_fabric_configfs.c
 	 */
@@ -83,10 +84,11 @@ struct target_core_fabric_ops {
 	void (*fabric_drop_nodeacl)(struct se_node_acl *);
 };
 
-struct se_session *transport_init_session(void);
+struct se_session *transport_init_session(enum target_prot_op);
 int transport_alloc_session_tags(struct se_session *, unsigned int,
 		unsigned int);
-struct se_session *transport_init_session_tags(unsigned int, unsigned int);
+struct se_session *transport_init_session_tags(unsigned int, unsigned int,
+		enum target_prot_op);
 void	__transport_register_session(struct se_portal_group *,
 		struct se_node_acl *, struct se_session *, void *);
 void	transport_register_session(struct se_portal_group *,

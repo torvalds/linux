@@ -48,7 +48,6 @@
  * struct tipc_link_req - information about an ongoing link setup request
  * @bearer: bearer issuing requests
  * @dest: destination address for request messages
- * @domain: network domain to which links can be established
  * @num_nodes: number of nodes currently discovered (i.e. with an active link)
  * @lock: spinlock for controlling access to requests
  * @buf: request message to be (repeatedly) sent
@@ -58,7 +57,6 @@
 struct tipc_link_req {
 	struct tipc_bearer *bearer;
 	struct tipc_media_addr dest;
-	u32 domain;
 	int num_nodes;
 	spinlock_t lock;
 	struct sk_buff *buf;
@@ -69,14 +67,13 @@ struct tipc_link_req {
 /**
  * tipc_disc_init_msg - initialize a link setup message
  * @type: message type (request or response)
- * @dest_domain: network domain of node(s) which should respond to message
  * @b_ptr: ptr to bearer issuing message
  */
-static struct sk_buff *tipc_disc_init_msg(u32 type, u32 dest_domain,
-					  struct tipc_bearer *b_ptr)
+static struct sk_buff *tipc_disc_init_msg(u32 type, struct tipc_bearer *b_ptr)
 {
 	struct sk_buff *buf = tipc_buf_acquire(INT_H_SIZE);
 	struct tipc_msg *msg;
+	u32 dest_domain = b_ptr->domain;
 
 	if (buf) {
 		msg = buf_msg(buf);
@@ -110,11 +107,11 @@ static void disc_dupl_alert(struct tipc_bearer *b_ptr, u32 node_addr,
 }
 
 /**
- * tipc_disc_recv_msg - handle incoming link setup message (request or response)
+ * tipc_disc_rcv - handle incoming link setup message (request or response)
  * @buf: buffer containing message
  * @b_ptr: bearer that message arrived on
  */
-void tipc_disc_recv_msg(struct sk_buff *buf, struct tipc_bearer *b_ptr)
+void tipc_disc_rcv(struct sk_buff *buf, struct tipc_bearer *b_ptr)
 {
 	struct tipc_node *n_ptr;
 	struct tipc_link *link;
@@ -149,7 +146,7 @@ void tipc_disc_recv_msg(struct sk_buff *buf, struct tipc_bearer *b_ptr)
 	}
 	if (!tipc_in_scope(dest, tipc_own_addr))
 		return;
-	if (!tipc_in_scope(b_ptr->link_req->domain, orig))
+	if (!tipc_in_scope(b_ptr->domain, orig))
 		return;
 
 	/* Locate structure corresponding to requesting node */
@@ -242,7 +239,7 @@ void tipc_disc_recv_msg(struct sk_buff *buf, struct tipc_bearer *b_ptr)
 	link_fully_up = link_working_working(link);
 
 	if ((type == DSC_REQ_MSG) && !link_fully_up) {
-		rbuf = tipc_disc_init_msg(DSC_RESP_MSG, orig, b_ptr);
+		rbuf = tipc_disc_init_msg(DSC_RESP_MSG, b_ptr);
 		if (rbuf) {
 			tipc_bearer_send(b_ptr, rbuf, &media_addr);
 			kfree_skb(rbuf);
@@ -306,7 +303,7 @@ static void disc_timeout(struct tipc_link_req *req)
 	spin_lock_bh(&req->lock);
 
 	/* Stop searching if only desired node has been found */
-	if (tipc_node(req->domain) && req->num_nodes) {
+	if (tipc_node(req->bearer->domain) && req->num_nodes) {
 		req->timer_intv = TIPC_LINK_REQ_INACTIVE;
 		goto exit;
 	}
@@ -342,8 +339,7 @@ exit:
  *
  * Returns 0 if successful, otherwise -errno.
  */
-int tipc_disc_create(struct tipc_bearer *b_ptr, struct tipc_media_addr *dest,
-		     u32 dest_domain)
+int tipc_disc_create(struct tipc_bearer *b_ptr, struct tipc_media_addr *dest)
 {
 	struct tipc_link_req *req;
 
@@ -351,7 +347,7 @@ int tipc_disc_create(struct tipc_bearer *b_ptr, struct tipc_media_addr *dest,
 	if (!req)
 		return -ENOMEM;
 
-	req->buf = tipc_disc_init_msg(DSC_REQ_MSG, dest_domain, b_ptr);
+	req->buf = tipc_disc_init_msg(DSC_REQ_MSG, b_ptr);
 	if (!req->buf) {
 		kfree(req);
 		return -ENOMSG;
@@ -359,7 +355,6 @@ int tipc_disc_create(struct tipc_bearer *b_ptr, struct tipc_media_addr *dest,
 
 	memcpy(&req->dest, dest, sizeof(*dest));
 	req->bearer = b_ptr;
-	req->domain = dest_domain;
 	req->num_nodes = 0;
 	req->timer_intv = TIPC_LINK_REQ_INIT;
 	spin_lock_init(&req->lock);

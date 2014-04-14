@@ -273,11 +273,12 @@ static struct Qdisc *qdisc_match_from_root(struct Qdisc *root, u32 handle)
 
 void qdisc_list_add(struct Qdisc *q)
 {
-	struct Qdisc *root = qdisc_dev(q)->qdisc;
+	if ((q->parent != TC_H_ROOT) && !(q->flags & TCQ_F_INGRESS)) {
+		struct Qdisc *root = qdisc_dev(q)->qdisc;
 
-	WARN_ON_ONCE(root == &noop_qdisc);
-	if ((q->parent != TC_H_ROOT) && !(q->flags & TCQ_F_INGRESS))
+		WARN_ON_ONCE(root == &noop_qdisc);
 		list_add_tail(&q->list, &root->list);
+	}
 }
 EXPORT_SYMBOL(qdisc_list_add);
 
@@ -1303,6 +1304,7 @@ static int tc_fill_qdisc(struct sk_buff *skb, struct Qdisc *q, u32 clid,
 	struct gnet_dump d;
 	struct qdisc_size_table *stab;
 
+	cond_resched();
 	nlh = nlmsg_put(skb, portid, seq, event, sizeof(*tcm), flags);
 	if (!nlh)
 		goto out_nlmsg_trim;
@@ -1434,9 +1436,9 @@ static int tc_dump_qdisc(struct sk_buff *skb, struct netlink_callback *cb)
 	s_idx = cb->args[0];
 	s_q_idx = q_idx = cb->args[1];
 
-	rcu_read_lock();
 	idx = 0;
-	for_each_netdev_rcu(net, dev) {
+	ASSERT_RTNL();
+	for_each_netdev(net, dev) {
 		struct netdev_queue *dev_queue;
 
 		if (idx < s_idx)
@@ -1459,8 +1461,6 @@ cont:
 	}
 
 done:
-	rcu_read_unlock();
-
 	cb->args[0] = idx;
 	cb->args[1] = q_idx;
 
@@ -1617,6 +1617,7 @@ static int tc_fill_tclass(struct sk_buff *skb, struct Qdisc *q,
 	struct gnet_dump d;
 	const struct Qdisc_class_ops *cl_ops = q->ops->cl_ops;
 
+	cond_resched();
 	nlh = nlmsg_put(skb, portid, seq, event, sizeof(*tcm), flags);
 	if (!nlh)
 		goto out_nlmsg_trim;

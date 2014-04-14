@@ -168,17 +168,13 @@ static struct tps65090_platform_data *tps65090_parse_dt_reg_data(
 
 	tps65090_pdata = devm_kzalloc(&pdev->dev, sizeof(*tps65090_pdata),
 				GFP_KERNEL);
-	if (!tps65090_pdata) {
-		dev_err(&pdev->dev, "Memory alloc for tps65090_pdata failed\n");
+	if (!tps65090_pdata)
 		return ERR_PTR(-ENOMEM);
-	}
 
 	reg_pdata = devm_kzalloc(&pdev->dev, TPS65090_REGULATOR_MAX *
 				sizeof(*reg_pdata), GFP_KERNEL);
-	if (!reg_pdata) {
-		dev_err(&pdev->dev, "Memory alloc for reg_pdata failed\n");
+	if (!reg_pdata)
 		return ERR_PTR(-ENOMEM);
-	}
 
 	regulators = of_get_child_by_name(np, "regulators");
 	if (!regulators) {
@@ -188,6 +184,7 @@ static struct tps65090_platform_data *tps65090_parse_dt_reg_data(
 
 	ret = of_regulator_match(&pdev->dev, regulators, tps65090_matches,
 			ARRAY_SIZE(tps65090_matches));
+	of_node_put(regulators);
 	if (ret < 0) {
 		dev_err(&pdev->dev,
 			"Error parsing regulator init data: %d\n", ret);
@@ -252,10 +249,8 @@ static int tps65090_regulator_probe(struct platform_device *pdev)
 
 	pmic = devm_kzalloc(&pdev->dev, TPS65090_REGULATOR_MAX * sizeof(*pmic),
 			GFP_KERNEL);
-	if (!pmic) {
-		dev_err(&pdev->dev, "mem alloc for pmic failed\n");
+	if (!pmic)
 		return -ENOMEM;
-	}
 
 	for (num = 0; num < TPS65090_REGULATOR_MAX; num++) {
 		tps_pdata = tps65090_pdata->reg_pdata[num];

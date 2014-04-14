@@ -702,12 +702,6 @@ static int wm8750_probe(struct snd_soc_codec *codec)
 {
 	int ret;
 
-	ret = snd_soc_codec_set_cache_io(codec, 7, 9, SND_SOC_REGMAP);
-	if (ret < 0) {
-		printk(KERN_ERR "wm8750: failed to set cache I/O: %d\n", ret);
-		return ret;
-	}
-
 	ret = wm8750_reset(codec);
 	if (ret < 0) {
 		printk(KERN_ERR "wm8750: failed to reset: %d\n", ret);

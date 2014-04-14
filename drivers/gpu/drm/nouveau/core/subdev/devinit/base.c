@@ -96,5 +96,6 @@ nouveau_devinit_create_(struct nouveau_object *parent,
 	devinit->post = nouveau_boolopt(device->cfgopt, "NvForcePost", false);
 	devinit->meminit = impl->meminit;
 	devinit->pll_set = impl->pll_set;
+	devinit->mmio    = impl->mmio;
 	return 0;
 }

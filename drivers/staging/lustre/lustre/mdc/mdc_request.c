@@ -355,10 +355,32 @@ static int mdc_xattr_common(struct obd_export *exp,const struct req_format *fmt,
 				     input_size);
 	}
 
-	rc = ptlrpc_request_pack(req, LUSTRE_MDS_VERSION, opcode);
-	if (rc) {
-		ptlrpc_request_free(req);
-		return rc;
+	/* Flush local XATTR locks to get rid of a possible cancel RPC */
+	if (opcode == MDS_REINT && fid_is_sane(fid) &&
+	    exp->exp_connect_data.ocd_ibits_known & MDS_INODELOCK_XATTR) {
+		LIST_HEAD(cancels);
+		int count;
+
+		/* Without that packing would fail */
+		if (input_size == 0)
+			req_capsule_set_size(&req->rq_pill, &RMF_EADATA,
+					     RCL_CLIENT, 0);
+
+		count = mdc_resource_get_unused(exp, fid,
+						&cancels, LCK_EX,
+						MDS_INODELOCK_XATTR);
+
+		rc = mdc_prep_elc_req(exp, req, MDS_REINT, &cancels, count);
+		if (rc) {
+			ptlrpc_request_free(req);
+			return rc;
+		}
+	} else {
+		rc = ptlrpc_request_pack(req, LUSTRE_MDS_VERSION, opcode);
+		if (rc) {
+			ptlrpc_request_free(req);
+			return rc;
+		}
 	}
 
 	if (opcode == MDS_REINT) {
@@ -700,11 +722,12 @@ void mdc_commit_open(struct ptlrpc_request *req)
 
 int mdc_set_open_replay_data(struct obd_export *exp,
 			     struct obd_client_handle *och,
-			     struct ptlrpc_request *open_req)
+			     struct lookup_intent *it)
 {
 	struct md_open_data   *mod;
 	struct mdt_rec_create *rec;
 	struct mdt_body       *body;
+	struct ptlrpc_request *open_req = it->d.lustre.it_data;
 	struct obd_import     *imp = open_req->rq_import;
 
 	if (!open_req->rq_replay)
@@ -738,6 +761,8 @@ int mdc_set_open_replay_data(struct obd_export *exp,
 		spin_lock(&open_req->rq_lock);
 		och->och_mod = mod;
 		mod->mod_och = och;
+		mod->mod_is_create = it_disposition(it, DISP_OPEN_CREATE) ||
+				     it_disposition(it, DISP_OPEN_STRIPE);
 		mod->mod_open_req = open_req;
 		open_req->rq_cb_data = mod;
 		open_req->rq_commit_cb = mdc_commit_open;
@@ -758,6 +783,23 @@ int mdc_set_open_replay_data(struct obd_export *exp,
 	return 0;
 }
 
+static void mdc_free_open(struct md_open_data *mod)
+{
+	int committed = 0;
+
+	if (mod->mod_is_create == 0 &&
+	    imp_connect_disp_stripe(mod->mod_open_req->rq_import))
+		committed = 1;
+
+	LASSERT(mod->mod_open_req->rq_replay == 0);
+
+	DEBUG_REQ(D_RPCTRACE, mod->mod_open_req, "free open request\n");
+
+	ptlrpc_request_committed(mod->mod_open_req, committed);
+	if (mod->mod_close_req)
+		ptlrpc_request_committed(mod->mod_close_req, committed);
+}
+
 int mdc_clear_open_replay_data(struct obd_export *exp,
 			       struct obd_client_handle *och)
 {
@@ -771,6 +813,8 @@ int mdc_clear_open_replay_data(struct obd_export *exp,
 		return 0;
 
 	LASSERT(mod != LP_POISON);
+	LASSERT(mod->mod_open_req != NULL);
+	mdc_free_open(mod);
 
 	mod->mod_och = NULL;
 	och->och_mod = NULL;
@@ -969,6 +1013,9 @@ int mdc_done_writing(struct obd_export *exp, struct md_op_data *op_data,
 	if (mod) {
 		if (rc != 0)
 			mod->mod_close_req = NULL;
+		LASSERT(mod->mod_open_req != NULL);
+		mdc_free_open(mod);
+
 		/* Since now, mod is accessed through setattr req only,
 		 * thus DW req does not keep a reference on mod anymore. */
 		obd_mod_put(mod);
@@ -1527,8 +1574,8 @@ static int mdc_changelog_send_thread(void *csdata)
 	rc = llog_cat_process(NULL, llh, changelog_kkuc_cb, cs, 0, 0);
 
 	/* Send EOF no matter what our result */
-	if ((kuch = changelog_kuc_hdr(cs->cs_buf, sizeof(*kuch),
-				      cs->cs_flags))) {
+	kuch = changelog_kuc_hdr(cs->cs_buf, sizeof(*kuch), cs->cs_flags);
+	if (kuch) {
 		kuch->kuc_msgtype = CL_EOF;
 		libcfs_kkuc_msg_put(cs->cs_fp, kuch);
 	}
@@ -1650,11 +1697,16 @@ static int mdc_quotactl(struct obd_device *unused, struct obd_export *exp,
 	if (rc)
 		CERROR("ptlrpc_queue_wait failed, rc: %d\n", rc);
 
-	if (req->rq_repmsg &&
-	    (oqc = req_capsule_server_get(&req->rq_pill, &RMF_OBD_QUOTACTL))) {
-		*oqctl = *oqc;
+	if (req->rq_repmsg) {
+		oqc = req_capsule_server_get(&req->rq_pill, &RMF_OBD_QUOTACTL);
+		if (oqc) {
+			*oqctl = *oqc;
+		} else if (!rc) {
+			CERROR ("Can't unpack obd_quotactl\n");
+			rc = -EPROTO;
+		}
 	} else if (!rc) {
-		CERROR ("Can't unpack obd_quotactl\n");
+		CERROR("Can't unpack obd_quotactl\n");
 		rc = -EPROTO;
 	}
 	ptlrpc_req_finished(req);

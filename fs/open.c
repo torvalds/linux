@@ -231,7 +231,13 @@ int do_fallocate(struct file *file, int mode, loff_t offset, loff_t len)
 		return -EINVAL;
 
 	/* Return error if mode is not supported */
-	if (mode & ~(FALLOC_FL_KEEP_SIZE | FALLOC_FL_PUNCH_HOLE))
+	if (mode & ~(FALLOC_FL_KEEP_SIZE | FALLOC_FL_PUNCH_HOLE |
+		     FALLOC_FL_COLLAPSE_RANGE | FALLOC_FL_ZERO_RANGE))
+		return -EOPNOTSUPP;
+
+	/* Punch hole and zero range are mutually exclusive */
+	if ((mode & (FALLOC_FL_PUNCH_HOLE | FALLOC_FL_ZERO_RANGE)) ==
+	    (FALLOC_FL_PUNCH_HOLE | FALLOC_FL_ZERO_RANGE))
 		return -EOPNOTSUPP;
 
 	/* Punch hole must have keep size set */
@@ -239,11 +245,20 @@ int do_fallocate(struct file *file, int mode, loff_t offset, loff_t len)
 	    !(mode & FALLOC_FL_KEEP_SIZE))
 		return -EOPNOTSUPP;
 
+	/* Collapse range should only be used exclusively. */
+	if ((mode & FALLOC_FL_COLLAPSE_RANGE) &&
+	    (mode & ~FALLOC_FL_COLLAPSE_RANGE))
+		return -EINVAL;
+
 	if (!(file->f_mode & FMODE_WRITE))
 		return -EBADF;
 
-	/* It's not possible punch hole on append only file */
-	if (mode & FALLOC_FL_PUNCH_HOLE && IS_APPEND(inode))
+	/*
+	 * It's not possible to punch hole or perform collapse range
+	 * on append only file
+	 */
+	if (mode & (FALLOC_FL_PUNCH_HOLE | FALLOC_FL_COLLAPSE_RANGE)
+	    && IS_APPEND(inode))
 		return -EPERM;
 
 	if (IS_IMMUTABLE(inode))
@@ -270,6 +285,14 @@ int do_fallocate(struct file *file, int mode, loff_t offset, loff_t len)
 	/* Check for wrap through zero too */
 	if (((offset + len) > inode->i_sb->s_maxbytes) || ((offset + len) < 0))
 		return -EFBIG;
+
+	/*
+	 * There is no need to overlap collapse range with EOF, in which case
+	 * it is effectively a truncate operation
+	 */
+	if ((mode & FALLOC_FL_COLLAPSE_RANGE) &&
+	    (offset + len >= i_size_read(inode)))
+		return -EINVAL;
 
 	if (!file->f_op->fallocate)
 		return -EOPNOTSUPP;
@@ -632,35 +655,6 @@ out:
 	return error;
 }
 
-/*
- * You have to be very careful that these write
- * counts get cleaned up in error cases and
- * upon __fput().  This should probably never
- * be called outside of __dentry_open().
- */
-static inline int __get_file_write_access(struct inode *inode,
-					  struct vfsmount *mnt)
-{
-	int error;
-	error = get_write_access(inode);
-	if (error)
-		return error;
-	/*
-	 * Do not take mount writer counts on
-	 * special files since no writes to
-	 * the mount itself will occur.
-	 */
-	if (!special_file(inode->i_mode)) {
-		/*
-		 * Balanced in __fput()
-		 */
-		error = __mnt_want_write(mnt);
-		if (error)
-			put_write_access(inode);
-	}
-	return error;
-}
-
 int open_check_o_direct(struct file *f)
 {
 	/* NB: we're sure to have correct a_ops only after f_op->open */
@@ -685,25 +679,31 @@ static int do_dentry_open(struct file *f,
 	f->f_mode = OPEN_FMODE(f->f_flags) | FMODE_LSEEK |
 				FMODE_PREAD | FMODE_PWRITE;
 
-	if (unlikely(f->f_flags & O_PATH))
-		f->f_mode = FMODE_PATH;
-
 	path_get(&f->f_path);
 	inode = f->f_inode = f->f_path.dentry->d_inode;
-	if (f->f_mode & FMODE_WRITE) {
-		error = __get_file_write_access(inode, f->f_path.mnt);
-		if (error)
-			goto cleanup_file;
-		if (!special_file(inode->i_mode))
-			file_take_write(f);
-	}
-
 	f->f_mapping = inode->i_mapping;
 
-	if (unlikely(f->f_mode & FMODE_PATH)) {
+	if (unlikely(f->f_flags & O_PATH)) {
+		f->f_mode = FMODE_PATH;
 		f->f_op = &empty_fops;
 		return 0;
 	}
+
+	if (f->f_mode & FMODE_WRITE && !special_file(inode->i_mode)) {
+		error = get_write_access(inode);
+		if (unlikely(error))
+			goto cleanup_file;
+		error = __mnt_want_write(f->f_path.mnt);
+		if (unlikely(error)) {
+			put_write_access(inode);
+			goto cleanup_file;
+		}
+		f->f_mode |= FMODE_WRITER;
+	}
+
+	/* POSIX.1-2008/SUSv4 Section XSI 2.9.7 */
+	if (S_ISREG(inode->i_mode))
+		f->f_mode |= FMODE_ATOMIC_POS;
 
 	f->f_op = fops_get(inode->i_fop);
 	if (unlikely(WARN_ON(!f->f_op))) {
@@ -737,18 +737,9 @@ static int do_dentry_open(struct file *f,
 
 cleanup_all:
 	fops_put(f->f_op);
-	if (f->f_mode & FMODE_WRITE) {
+	if (f->f_mode & FMODE_WRITER) {
 		put_write_access(inode);
-		if (!special_file(inode->i_mode)) {
-			/*
-			 * We don't consider this a real
-			 * mnt_want/drop_write() pair
-			 * because it all happenend right
-			 * here, so just reset the state.
-			 */
-			file_reset_write(f);
-			__mnt_drop_write(f->f_path.mnt);
-		}
+		__mnt_drop_write(f->f_path.mnt);
 	}
 cleanup_file:
 	path_put(&f->f_path);

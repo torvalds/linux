@@ -1190,12 +1190,12 @@ static int __init atmel_lcdfb_probe(struct platform_device *pdev)
 	if (!sinfo->config)
 		goto free_info;
 
-	strcpy(info->fix.id, sinfo->pdev->name);
 	info->flags = ATMEL_LCDFB_FBINFO_DEFAULT;
 	info->pseudo_palette = sinfo->pseudo_palette;
 	info->fbops = &atmel_lcdfb_ops;
 
 	info->fix = atmel_lcdfb_fix;
+	strcpy(info->fix.id, sinfo->pdev->name);
 
 	/* Enable LCDC Clocks */
 	sinfo->bus_clk = clk_get(dev, "hclk");
@@ -1295,6 +1295,12 @@ static int __init atmel_lcdfb_probe(struct platform_device *pdev)
 	ret = atmel_lcdfb_init_fbinfo(sinfo);
 	if (ret < 0) {
 		dev_err(dev, "init fbinfo failed: %d\n", ret);
+		goto unregister_irqs;
+	}
+
+	ret = atmel_lcdfb_set_par(info);
+	if (ret < 0) {
+		dev_err(dev, "set par failed: %d\n", ret);
 		goto unregister_irqs;
 	}
 

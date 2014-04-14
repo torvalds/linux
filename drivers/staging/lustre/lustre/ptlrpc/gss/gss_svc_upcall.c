@@ -102,7 +102,7 @@ static inline unsigned long hash_mem(char *buf, int length, int bits)
 		len++;
 
 		if ((len & (BITS_PER_LONG/8-1)) == 0)
-			hash = cfs_hash_long(hash^l, BITS_PER_LONG);
+			hash = hash_long(hash^l, BITS_PER_LONG);
 	} while (len);
 
 	return hash >> (BITS_PER_LONG - bits);
@@ -586,7 +586,7 @@ static int rsc_parse(struct cache_detail *cd, char *mesg, int mlen)
 			goto out;
 
 		/* currently the expiry time passed down from user-space
-		 * is invalid, here we retrive it from mech. */
+		 * is invalid, here we retrieve it from mech. */
 		if (lgss_inquire_context(rsci.ctx.gsc_mechctx, &ctx_expiry)) {
 			CERROR("unable to get expire time, drop it\n");
 			goto out;
@@ -880,7 +880,7 @@ int gss_svc_upcall_handle_init(struct ptlrpc_request *req,
 
 	cache_get(&rsip->h); /* take an extra ref */
 	init_waitqueue_head(&rsip->waitq);
-	init_waitqueue_entry_current(&wait);
+	init_waitqueue_entry(&wait, current);
 	add_wait_queue(&rsip->waitq, &wait);
 
 cache_check:
@@ -1067,7 +1067,7 @@ int __init gss_init_svc_upcall(void)
 	 * the init upcall channel, otherwise there's big chance that the first
 	 * upcall issued before the channel be opened thus nfsv4 cache code will
 	 * drop the request direclty, thus lead to unnecessary recovery time.
-	 * here we wait at miximum 1.5 seconds. */
+	 * here we wait at maximum 1.5 seconds. */
 	for (i = 0; i < 6; i++) {
 		if (atomic_read(&rsi_cache.readers) > 0)
 			break;

@@ -9,7 +9,7 @@
 #include <linux/sched.h>
 #include <linux/vtime.h>
 #include <asm/irq.h>
-#include <asm/cputime.h>
+#include <linux/cputime.h>
 
 /*
  * 'kernel_stat.h' contains the definitions needed for doing
@@ -51,14 +51,8 @@ DECLARE_PER_CPU(struct kernel_cpustat, kernel_cpustat);
 
 extern unsigned long long nr_context_switches(void);
 
-#include <linux/irq.h>
 extern unsigned int kstat_irqs_cpu(unsigned int irq, int cpu);
-
-#define kstat_incr_irqs_this_cpu(irqno, DESC)		\
-do {							\
-	__this_cpu_inc(*(DESC)->kstat_irqs);		\
-	__this_cpu_inc(kstat.irqs_sum);			\
-} while (0)
+extern void kstat_incr_irq_this_cpu(unsigned int irq);
 
 static inline void kstat_incr_softirqs_this_cpu(unsigned int irq)
 {

@@ -91,7 +91,7 @@ static int snd_ad1848_probe(struct device *dev, unsigned int n)
 	struct snd_pcm *pcm;
 	int error;
 
-	error = snd_card_create(index[n], id[n], THIS_MODULE, 0, &card);
+	error = snd_card_new(dev, index[n], id[n], THIS_MODULE, 0, &card);
 	if (error < 0)
 		return error;
 
@@ -118,8 +118,6 @@ static int snd_ad1848_probe(struct device *dev, unsigned int n)
 		pcm->name, chip->port, irq[n], dma1[n]);
 	if (thinkpad[n])
 		strcat(card->longname, " [Thinkpad]");
-
-	snd_card_set_dev(card, dev);
 
 	error = snd_card_register(card);
 	if (error < 0)

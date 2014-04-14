@@ -216,6 +216,7 @@ config PAGEFLAGS_EXTENDED
 #
 config SPLIT_PTLOCK_CPUS
 	int
+	default "999999" if !MMU
 	default "999999" if ARM && !CPU_CACHE_VIPT
 	default "999999" if PARISC && !PA20
 	default "4"
@@ -575,5 +576,8 @@ config PGTABLE_MAPPING
 	  then you should select this. This causes zsmalloc to use page table
 	  mapping rather than copying for object mapping.
 
-	  You can check speed with zsmalloc benchmark[1].
-	  [1] https://github.com/spartacus06/zsmalloc
+	  You can check speed with zsmalloc benchmark:
+	  https://github.com/spartacus06/zsmapbench
+
+config GENERIC_EARLY_IOREMAP
+	bool

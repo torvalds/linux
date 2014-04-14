@@ -213,6 +213,7 @@
 #define SPRN_ACOP	0x1F	/* Available Coprocessor Register */
 #define SPRN_TFIAR	0x81	/* Transaction Failure Inst Addr   */
 #define SPRN_TEXASR	0x82	/* Transaction EXception & Summary */
+#define   TEXASR_FS	__MASK(63-36)	/* Transaction Failure Summary */
 #define SPRN_TEXASRU	0x83	/* ''	   ''	   ''	 Upper 32  */
 #define SPRN_TFHAR	0x80	/* Transaction Failure Handler Addr */
 #define SPRN_CTRLF	0x088
@@ -271,6 +272,10 @@
 #define SPRN_HSRR1	0x13B	/* Hypervisor Save/Restore 1 */
 #define SPRN_IC		0x350	/* Virtual Instruction Count */
 #define SPRN_VTB	0x351	/* Virtual Time Base */
+#define SPRN_PMICR	0x354   /* Power Management Idle Control Reg */
+#define SPRN_PMSR	0x355   /* Power Management Status Reg */
+#define SPRN_PMCR	0x374	/* Power Management Control Register */
+
 /* HFSCR and FSCR bit numbers are the same */
 #define FSCR_TAR_LG	8	/* Enable Target Address Register */
 #define FSCR_EBB_LG	7	/* Enable Event Based Branching */
@@ -577,9 +582,13 @@
 #define SPRN_SPRG3	0x113	/* Special Purpose Register General 3 */
 #define SPRN_USPRG3	0x103	/* SPRG3 userspace read */
 #define SPRN_SPRG4	0x114	/* Special Purpose Register General 4 */
+#define SPRN_USPRG4	0x104	/* SPRG4 userspace read */
 #define SPRN_SPRG5	0x115	/* Special Purpose Register General 5 */
+#define SPRN_USPRG5	0x105	/* SPRG5 userspace read */
 #define SPRN_SPRG6	0x116	/* Special Purpose Register General 6 */
+#define SPRN_USPRG6	0x106	/* SPRG6 userspace read */
 #define SPRN_SPRG7	0x117	/* Special Purpose Register General 7 */
+#define SPRN_USPRG7	0x107	/* SPRG7 userspace read */
 #define SPRN_SRR0	0x01A	/* Save/Restore Register 0 */
 #define SPRN_SRR1	0x01B	/* Save/Restore Register 1 */
 #define   SRR1_ISI_NOPT		0x40000000 /* ISI: Not found in hash */
@@ -664,12 +673,14 @@
 #define   MMCR0_PMXE	0x04000000UL /* performance monitor exception enable */
 #define   MMCR0_FCECE	0x02000000UL /* freeze ctrs on enabled cond or event */
 #define   MMCR0_TBEE	0x00400000UL /* time base exception enable */
+#define   MMCR0_BHRBA	0x00200000UL /* BHRB Access allowed in userspace */
 #define   MMCR0_EBE	0x00100000UL /* Event based branch enable */
 #define   MMCR0_PMCC	0x000c0000UL /* PMC control */
 #define   MMCR0_PMCC_U6	0x00080000UL /* PMC1-6 are R/W by user (PR) */
 #define   MMCR0_PMC1CE	0x00008000UL /* PMC1 count enable*/
 #define   MMCR0_PMCjCE	0x00004000UL /* PMCj count enable*/
 #define   MMCR0_TRIGGER	0x00002000UL /* TRIGGER enable */
+#define   MMCR0_PMAO_SYNC 0x00000800UL /* PMU interrupt is synchronous */
 #define   MMCR0_PMAO	0x00000080UL /* performance monitor alert has occurred, set to 0 after handling exception */
 #define   MMCR0_SHRFC	0x00000040UL /* SHRre freeze conditions between threads */
 #define   MMCR0_FC56	0x00000010UL /* freeze counters 5 and 6 */
@@ -703,6 +714,7 @@
 #define SPRN_EBBHR	804	/* Event based branch handler register */
 #define SPRN_EBBRR	805	/* Event based branch return register */
 #define SPRN_BESCR	806	/* Branch event status and control register */
+#define   BESCR_GE	0x8000000000000000ULL /* Global Enable */
 #define SPRN_WORT	895	/* Workload optimization register - thread */
 
 #define SPRN_PMC1	787
@@ -879,11 +891,10 @@
  * 64-bit embedded
  *	- SPRG0 generic exception scratch
  *	- SPRG2 TLB exception stack
- *	- SPRG3 critical exception scratch and
- *        CPU and NUMA node for VDSO getcpu (user visible)
+ *	- SPRG3 critical exception scratch (user visible, sorry!)
  *	- SPRG4 unused (user visible)
  *	- SPRG6 TLB miss scratch (user visible, sorry !)
- *	- SPRG7 critical exception scratch
+ *	- SPRG7 CPU and NUMA node for VDSO getcpu (user visible)
  *	- SPRG8 machine check exception scratch
  *	- SPRG9 debug exception scratch
  *
@@ -940,6 +951,8 @@
 #define SPRN_SPRG_SCRATCH0	SPRN_SPRG2
 #define SPRN_SPRG_HPACA		SPRN_HSPRG0
 #define SPRN_SPRG_HSCRATCH0	SPRN_HSPRG1
+#define SPRN_SPRG_VDSO_READ	SPRN_USPRG3
+#define SPRN_SPRG_VDSO_WRITE	SPRN_SPRG3
 
 #define GET_PACA(rX)					\
 	BEGIN_FTR_SECTION_NESTED(66);			\
@@ -983,6 +996,8 @@
 #define SPRN_SPRG_TLB_SCRATCH	SPRN_SPRG6
 #define SPRN_SPRG_GEN_SCRATCH	SPRN_SPRG0
 #define SPRN_SPRG_GDBELL_SCRATCH SPRN_SPRG_GEN_SCRATCH
+#define SPRN_SPRG_VDSO_READ	SPRN_USPRG7
+#define SPRN_SPRG_VDSO_WRITE	SPRN_SPRG7
 
 #define SET_PACA(rX)	mtspr	SPRN_SPRG_PACA,rX
 #define GET_PACA(rX)	mfspr	rX,SPRN_SPRG_PACA
@@ -1102,6 +1117,8 @@
 #define PVR_8560	0x80200000
 #define PVR_VER_E500V1	0x8020
 #define PVR_VER_E500V2	0x8021
+#define PVR_VER_E500MC	0x8023
+#define PVR_VER_E5500	0x8024
 #define PVR_VER_E6500	0x8040
 
 /*

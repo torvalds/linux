@@ -431,7 +431,8 @@ static int tm6000_audio_init(struct tm6000_core *dev)
 	if (!enable[devnr])
 		return -ENOENT;
 
-	rc = snd_card_create(index[devnr], "tm6000", THIS_MODULE, 0, &card);
+	rc = snd_card_new(&dev->udev->dev, index[devnr], "tm6000",
+			  THIS_MODULE, 0, &card);
 	if (rc < 0) {
 		snd_printk(KERN_ERR "cannot create card instance %d\n", devnr);
 		return rc;
@@ -445,7 +446,6 @@ static int tm6000_audio_init(struct tm6000_core *dev)
 		le16_to_cpu(dev->udev->descriptor.idVendor),
 		le16_to_cpu(dev->udev->descriptor.idProduct));
 	snd_component_add(card, component);
-	snd_card_set_dev(card, &dev->udev->dev);
 
 	chip = kzalloc(sizeof(struct snd_tm6000_card), GFP_KERNEL);
 	if (!chip) {

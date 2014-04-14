@@ -89,7 +89,7 @@ struct tc_action_ops {
 	struct module		*owner;
 	int     (*act)(struct sk_buff *, const struct tc_action *, struct tcf_result *);
 	int     (*dump)(struct sk_buff *, struct tc_action *, int, int);
-	int     (*cleanup)(struct tc_action *, int bind);
+	void	(*cleanup)(struct tc_action *, int bind);
 	int     (*lookup)(struct tc_action *, u32);
 	int     (*init)(struct net *net, struct nlattr *nla,
 			struct nlattr *est, struct tc_action *act, int ovr,
@@ -98,20 +98,18 @@ struct tc_action_ops {
 };
 
 int tcf_hash_search(struct tc_action *a, u32 index);
-void tcf_hash_destroy(struct tcf_common *p, struct tcf_hashinfo *hinfo);
-int tcf_hash_release(struct tcf_common *p, int bind,
-		     struct tcf_hashinfo *hinfo);
+void tcf_hash_destroy(struct tc_action *a);
+int tcf_hash_release(struct tc_action *a, int bind);
 u32 tcf_hash_new_index(struct tcf_hashinfo *hinfo);
-struct tcf_common *tcf_hash_check(u32 index, struct tc_action *a,
-				  int bind);
-struct tcf_common *tcf_hash_create(u32 index, struct nlattr *est,
-				   struct tc_action *a, int size,
-				   int bind);
-void tcf_hash_insert(struct tcf_common *p, struct tcf_hashinfo *hinfo);
+int tcf_hash_check(u32 index, struct tc_action *a, int bind);
+int tcf_hash_create(u32 index, struct nlattr *est, struct tc_action *a,
+		    int size, int bind);
+void tcf_hash_cleanup(struct tc_action *a, struct nlattr *est);
+void tcf_hash_insert(struct tc_action *a);
 
-int tcf_register_action(struct tc_action_ops *a);
+int tcf_register_action(struct tc_action_ops *a, unsigned int mask);
 int tcf_unregister_action(struct tc_action_ops *a);
-void tcf_action_destroy(struct list_head *actions, int bind);
+int tcf_action_destroy(struct list_head *actions, int bind);
 int tcf_action_exec(struct sk_buff *skb, const struct list_head *actions,
 		    struct tcf_result *res);
 int tcf_action_init(struct net *net, struct nlattr *nla,

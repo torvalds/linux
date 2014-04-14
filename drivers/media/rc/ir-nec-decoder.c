@@ -172,10 +172,7 @@ static int ir_nec_decode(struct rc_dev *dev, struct ir_raw_event ev)
 		if (send_32bits) {
 			/* NEC transport, but modified protocol, used by at
 			 * least Apple and TiVo remotes */
-			scancode = not_address << 24 |
-				   address     << 16 |
-				   not_command <<  8 |
-				   command;
+			scancode = data->bits;
 			IR_dprintk(1, "NEC (modified) scancode 0x%08x\n", scancode);
 		} else if ((address ^ not_address) != 0xff) {
 			/* Extended NEC */

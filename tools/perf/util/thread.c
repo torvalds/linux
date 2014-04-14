@@ -142,3 +142,24 @@ int thread__fork(struct thread *thread, struct thread *parent, u64 timestamp)
 
 	return 0;
 }
+
+void thread__find_cpumode_addr_location(struct thread *thread,
+					struct machine *machine,
+					enum map_type type, u64 addr,
+					struct addr_location *al)
+{
+	size_t i;
+	const u8 const cpumodes[] = {
+		PERF_RECORD_MISC_USER,
+		PERF_RECORD_MISC_KERNEL,
+		PERF_RECORD_MISC_GUEST_USER,
+		PERF_RECORD_MISC_GUEST_KERNEL
+	};
+
+	for (i = 0; i < ARRAY_SIZE(cpumodes); i++) {
+		thread__find_addr_location(thread, machine, cpumodes[i], type,
+					   addr, al);
+		if (al->map)
+			break;
+	}
+}

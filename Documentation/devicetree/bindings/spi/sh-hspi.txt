@@ -1,7 +1,29 @@
 Renesas HSPI.
 
 Required properties:
-- compatible : 	"renesas,hspi"
-- reg : Offset and length of the register set for the device
-- interrupts : interrupt line used by HSPI
+- compatible       : "renesas,hspi-<soctype>", "renesas,hspi" as fallback.
+		     Examples with soctypes are:
+		       - "renesas,hspi-r8a7778" (R-Car M1)
+		       - "renesas,hspi-r8a7779" (R-Car H1)
+- reg              : Offset and length of the register set for the device
+- interrupt-parent : The phandle for the interrupt controller that
+		     services interrupts for this device
+- interrupts       : Interrupt specifier
+- #address-cells   : Must be <1>
+- #size-cells      : Must be <0>
+
+Pinctrl properties might be needed, too.  See
+Documentation/devicetree/bindings/pinctrl/renesas,*.
+
+Example:
+
+	hspi0: spi@fffc7000 {
+		compatible = "renesas,hspi-r8a7778", "renesas,hspi";
+		reg = <0xfffc7000 0x18>;
+		interrupt-parent = <&gic>;
+		interrupts = <0 63 IRQ_TYPE_LEVEL_HIGH>;
+		#address-cells = <1>;
+		#size-cells = <0>;
+		status = "disabled";
+	};
 

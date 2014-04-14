@@ -138,8 +138,8 @@ static const char * const task_state_array[] = {
 	"D (disk sleep)",	/*   2 */
 	"T (stopped)",		/*   4 */
 	"t (tracing stop)",	/*   8 */
-	"Z (zombie)",		/*  16 */
-	"X (dead)",		/*  32 */
+	"X (dead)",		/*  16 */
+	"Z (zombie)",		/*  32 */
 };
 
 static inline const char *get_task_state(struct task_struct *tsk)

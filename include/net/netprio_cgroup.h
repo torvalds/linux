@@ -27,32 +27,17 @@ struct netprio_map {
 
 void sock_update_netprioidx(struct sock *sk);
 
-#if IS_BUILTIN(CONFIG_CGROUP_NET_PRIO)
 static inline u32 task_netprioidx(struct task_struct *p)
 {
 	struct cgroup_subsys_state *css;
 	u32 idx;
 
 	rcu_read_lock();
-	css = task_css(p, net_prio_subsys_id);
+	css = task_css(p, net_prio_cgrp_id);
 	idx = css->cgroup->id;
 	rcu_read_unlock();
 	return idx;
 }
-#elif IS_MODULE(CONFIG_CGROUP_NET_PRIO)
-static inline u32 task_netprioidx(struct task_struct *p)
-{
-	struct cgroup_subsys_state *css;
-	u32 idx = 0;
-
-	rcu_read_lock();
-	css = task_css(p, net_prio_subsys_id);
-	if (css)
-		idx = css->cgroup->id;
-	rcu_read_unlock();
-	return idx;
-}
-#endif
 #else /* !CONFIG_CGROUP_NET_PRIO */
 static inline u32 task_netprioidx(struct task_struct *p)
 {

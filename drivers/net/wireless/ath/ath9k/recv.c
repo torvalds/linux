@@ -732,11 +732,18 @@ static struct ath_rxbuf *ath_get_next_rx_buf(struct ath_softc *sc,
 			return NULL;
 
 		/*
-		 * mark descriptor as zero-length and set the 'more'
-		 * flag to ensure that both buffers get discarded
+		 * Re-check previous descriptor, in case it has been filled
+		 * in the mean time.
 		 */
-		rs->rs_datalen = 0;
-		rs->rs_more = true;
+		ret = ath9k_hw_rxprocdesc(ah, ds, rs);
+		if (ret == -EINPROGRESS) {
+			/*
+			 * mark descriptor as zero-length and set the 'more'
+			 * flag to ensure that both buffers get discarded
+			 */
+			rs->rs_datalen = 0;
+			rs->rs_more = true;
+		}
 	}
 
 	list_del(&bf->list);
@@ -753,204 +760,6 @@ static struct ath_rxbuf *ath_get_next_rx_buf(struct ath_softc *sc,
 			DMA_FROM_DEVICE);
 
 	return bf;
-}
-
-/* Assumes you've already done the endian to CPU conversion */
-static bool ath9k_rx_accept(struct ath_common *common,
-			    struct ieee80211_hdr *hdr,
-			    struct ieee80211_rx_status *rxs,
-			    struct ath_rx_status *rx_stats,
-			    bool *decrypt_error)
-{
-	struct ath_softc *sc = (struct ath_softc *) common->priv;
-	bool is_mc, is_valid_tkip, strip_mic, mic_error;
-	struct ath_hw *ah = common->ah;
-	__le16 fc;
-
-	fc = hdr->frame_control;
-
-	is_mc = !!is_multicast_ether_addr(hdr->addr1);
-	is_valid_tkip = rx_stats->rs_keyix != ATH9K_RXKEYIX_INVALID &&
-		test_bit(rx_stats->rs_keyix, common->tkip_keymap);
-	strip_mic = is_valid_tkip && ieee80211_is_data(fc) &&
-		ieee80211_has_protected(fc) &&
-		!(rx_stats->rs_status &
-		(ATH9K_RXERR_DECRYPT | ATH9K_RXERR_CRC | ATH9K_RXERR_MIC |
-		 ATH9K_RXERR_KEYMISS));
-
-	/*
-	 * Key miss events are only relevant for pairwise keys where the
-	 * descriptor does contain a valid key index. This has been observed
-	 * mostly with CCMP encryption.
-	 */
-	if (rx_stats->rs_keyix == ATH9K_RXKEYIX_INVALID ||
-	    !test_bit(rx_stats->rs_keyix, common->ccmp_keymap))
-		rx_stats->rs_status &= ~ATH9K_RXERR_KEYMISS;
-
-	mic_error = is_valid_tkip && !ieee80211_is_ctl(fc) &&
-		!ieee80211_has_morefrags(fc) &&
-		!(le16_to_cpu(hdr->seq_ctrl) & IEEE80211_SCTL_FRAG) &&
-		(rx_stats->rs_status & ATH9K_RXERR_MIC);
-
-	/*
-	 * The rx_stats->rs_status will not be set until the end of the
-	 * chained descriptors so it can be ignored if rs_more is set. The
-	 * rs_more will be false at the last element of the chained
-	 * descriptors.
-	 */
-	if (rx_stats->rs_status != 0) {
-		u8 status_mask;
-
-		if (rx_stats->rs_status & ATH9K_RXERR_CRC) {
-			rxs->flag |= RX_FLAG_FAILED_FCS_CRC;
-			mic_error = false;
-		}
-
-		if ((rx_stats->rs_status & ATH9K_RXERR_DECRYPT) ||
-		    (!is_mc && (rx_stats->rs_status & ATH9K_RXERR_KEYMISS))) {
-			*decrypt_error = true;
-			mic_error = false;
-		}
-
-		/*
-		 * Reject error frames with the exception of
-		 * decryption and MIC failures. For monitor mode,
-		 * we also ignore the CRC error.
-		 */
-		status_mask = ATH9K_RXERR_DECRYPT | ATH9K_RXERR_MIC |
-			      ATH9K_RXERR_KEYMISS;
-
-		if (ah->is_monitoring && (sc->rx.rxfilter & FIF_FCSFAIL))
-			status_mask |= ATH9K_RXERR_CRC;
-
-		if (rx_stats->rs_status & ~status_mask)
-			return false;
-	}
-
-	/*
-	 * For unicast frames the MIC error bit can have false positives,
-	 * so all MIC error reports need to be validated in software.
-	 * False negatives are not common, so skip software verification
-	 * if the hardware considers the MIC valid.
-	 */
-	if (strip_mic)
-		rxs->flag |= RX_FLAG_MMIC_STRIPPED;
-	else if (is_mc && mic_error)
-		rxs->flag |= RX_FLAG_MMIC_ERROR;
-
-	return true;
-}
-
-static int ath9k_process_rate(struct ath_common *common,
-			      struct ieee80211_hw *hw,
-			      struct ath_rx_status *rx_stats,
-			      struct ieee80211_rx_status *rxs)
-{
-	struct ieee80211_supported_band *sband;
-	enum ieee80211_band band;
-	unsigned int i = 0;
-	struct ath_softc __maybe_unused *sc = common->priv;
-	struct ath_hw *ah = sc->sc_ah;
-
-	band = ah->curchan->chan->band;
-	sband = hw->wiphy->bands[band];
-
-	if (IS_CHAN_QUARTER_RATE(ah->curchan))
-		rxs->flag |= RX_FLAG_5MHZ;
-	else if (IS_CHAN_HALF_RATE(ah->curchan))
-		rxs->flag |= RX_FLAG_10MHZ;
-
-	if (rx_stats->rs_rate & 0x80) {
-		/* HT rate */
-		rxs->flag |= RX_FLAG_HT;
-		rxs->flag |= rx_stats->flag;
-		rxs->rate_idx = rx_stats->rs_rate & 0x7f;
-		return 0;
-	}
-
-	for (i = 0; i < sband->n_bitrates; i++) {
-		if (sband->bitrates[i].hw_value == rx_stats->rs_rate) {
-			rxs->rate_idx = i;
-			return 0;
-		}
-		if (sband->bitrates[i].hw_value_short == rx_stats->rs_rate) {
-			rxs->flag |= RX_FLAG_SHORTPRE;
-			rxs->rate_idx = i;
-			return 0;
-		}
-	}
-
-	/*
-	 * No valid hardware bitrate found -- we should not get here
-	 * because hardware has already validated this frame as OK.
-	 */
-	ath_dbg(common, ANY,
-		"unsupported hw bitrate detected 0x%02x using 1 Mbit\n",
-		rx_stats->rs_rate);
-	RX_STAT_INC(rx_rate_err);
-	return -EINVAL;
-}
-
-static void ath9k_process_rssi(struct ath_common *common,
-			       struct ieee80211_hw *hw,
-			       struct ath_rx_status *rx_stats,
-			       struct ieee80211_rx_status *rxs)
-{
-	struct ath_softc *sc = hw->priv;
-	struct ath_hw *ah = common->ah;
-	int last_rssi;
-	int rssi = rx_stats->rs_rssi;
-	int i, j;
-
-	/*
-	 * RSSI is not available for subframes in an A-MPDU.
-	 */
-	if (rx_stats->rs_moreaggr) {
-		rxs->flag |= RX_FLAG_NO_SIGNAL_VAL;
-		return;
-	}
-
-	/*
-	 * Check if the RSSI for the last subframe in an A-MPDU
-	 * or an unaggregated frame is valid.
-	 */
-	if (rx_stats->rs_rssi == ATH9K_RSSI_BAD) {
-		rxs->flag |= RX_FLAG_NO_SIGNAL_VAL;
-		return;
-	}
-
-	for (i = 0, j = 0; i < ARRAY_SIZE(rx_stats->rs_rssi_ctl); i++) {
-		s8 rssi;
-
-		if (!(ah->rxchainmask & BIT(i)))
-			continue;
-
-		rssi = rx_stats->rs_rssi_ctl[i];
-		if (rssi != ATH9K_RSSI_BAD) {
-		    rxs->chains |= BIT(j);
-		    rxs->chain_signal[j] = ah->noise + rssi;
-		}
-		j++;
-	}
-
-	/*
-	 * Update Beacon RSSI, this is used by ANI.
-	 */
-	if (rx_stats->is_mybeacon &&
-	    ((ah->opmode == NL80211_IFTYPE_STATION) ||
-	     (ah->opmode == NL80211_IFTYPE_ADHOC))) {
-		ATH_RSSI_LPF(sc->last_rssi, rx_stats->rs_rssi);
-		last_rssi = sc->last_rssi;
-
-		if (likely(last_rssi != ATH_RSSI_DUMMY_MARKER))
-			rssi = ATH_EP_RND(last_rssi, ATH_RSSI_EP_MULTIPLIER);
-		if (rssi < 0)
-			rssi = 0;
-
-		ah->stats.avgbrssi = rssi;
-	}
-
-	rxs->signal = ah->noise + rx_stats->rs_rssi;
 }
 
 static void ath9k_process_tsf(struct ath_rx_status *rs,
@@ -985,32 +794,32 @@ static int ath9k_rx_skb_preprocess(struct ath_softc *sc,
 	struct ath_common *common = ath9k_hw_common(ah);
 	struct ieee80211_hdr *hdr;
 	bool discard_current = sc->rx.discard_next;
-	int ret = 0;
 
 	/*
 	 * Discard corrupt descriptors which are marked in
 	 * ath_get_next_rx_buf().
 	 */
-	sc->rx.discard_next = rx_stats->rs_more;
 	if (discard_current)
-		return -EINVAL;
+		goto corrupt;
+
+	sc->rx.discard_next = false;
 
 	/*
 	 * Discard zero-length packets.
 	 */
 	if (!rx_stats->rs_datalen) {
 		RX_STAT_INC(rx_len_err);
-		return -EINVAL;
+		goto corrupt;
 	}
 
-        /*
-         * rs_status follows rs_datalen so if rs_datalen is too large
-         * we can take a hint that hardware corrupted it, so ignore
-         * those frames.
-         */
+	/*
+	 * rs_status follows rs_datalen so if rs_datalen is too large
+	 * we can take a hint that hardware corrupted it, so ignore
+	 * those frames.
+	 */
 	if (rx_stats->rs_datalen > (common->rx_bufsize - ah->caps.rx_status_len)) {
 		RX_STAT_INC(rx_len_err);
-		return -EINVAL;
+		goto corrupt;
 	}
 
 	/* Only use status info from the last fragment */
@@ -1024,10 +833,8 @@ static int ath9k_rx_skb_preprocess(struct ath_softc *sc,
 	 * This is different from the other corrupt descriptor
 	 * condition handled above.
 	 */
-	if (rx_stats->rs_status & ATH9K_RXERR_CORRUPT_DESC) {
-		ret = -EINVAL;
-		goto exit;
-	}
+	if (rx_stats->rs_status & ATH9K_RXERR_CORRUPT_DESC)
+		goto corrupt;
 
 	hdr = (struct ieee80211_hdr *) (skb->data + ah->caps.rx_status_len);
 
@@ -1043,18 +850,15 @@ static int ath9k_rx_skb_preprocess(struct ath_softc *sc,
 		if (ath_process_fft(sc, hdr, rx_stats, rx_status->mactime))
 			RX_STAT_INC(rx_spectral);
 
-		ret = -EINVAL;
-		goto exit;
+		return -EINVAL;
 	}
 
 	/*
 	 * everything but the rate is checked here, the rate check is done
 	 * separately to avoid doing two lookups for a rate for each frame.
 	 */
-	if (!ath9k_rx_accept(common, hdr, rx_status, rx_stats, decrypt_error)) {
-		ret = -EINVAL;
-		goto exit;
-	}
+	if (!ath9k_cmn_rx_accept(common, hdr, rx_status, rx_stats, decrypt_error, sc->rx.rxfilter))
+		return -EINVAL;
 
 	if (ath_is_mybeacon(common, hdr)) {
 		RX_STAT_INC(rx_beacons);
@@ -1064,17 +868,21 @@ static int ath9k_rx_skb_preprocess(struct ath_softc *sc,
 	/*
 	 * This shouldn't happen, but have a safety check anyway.
 	 */
-	if (WARN_ON(!ah->curchan)) {
-		ret = -EINVAL;
-		goto exit;
+	if (WARN_ON(!ah->curchan))
+		return -EINVAL;
+
+	if (ath9k_cmn_process_rate(common, hw, rx_stats, rx_status)) {
+		/*
+		 * No valid hardware bitrate found -- we should not get here
+		 * because hardware has already validated this frame as OK.
+		 */
+		ath_dbg(common, ANY, "unsupported hw bitrate detected 0x%02x using 1 Mbit\n",
+			rx_stats->rs_rate);
+		RX_STAT_INC(rx_rate_err);
+		return -EINVAL;
 	}
 
-	if (ath9k_process_rate(common, hw, rx_stats, rx_status)) {
-		ret =-EINVAL;
-		goto exit;
-	}
-
-	ath9k_process_rssi(common, hw, rx_stats, rx_status);
+	ath9k_cmn_process_rssi(common, hw, rx_stats, rx_status);
 
 	rx_status->band = ah->curchan->chan->band;
 	rx_status->freq = ah->curchan->chan->center_freq;
@@ -1087,60 +895,11 @@ static int ath9k_rx_skb_preprocess(struct ath_softc *sc,
 		sc->rx.num_pkts++;
 #endif
 
-exit:
-	sc->rx.discard_next = false;
-	return ret;
-}
+	return 0;
 
-static void ath9k_rx_skb_postprocess(struct ath_common *common,
-				     struct sk_buff *skb,
-				     struct ath_rx_status *rx_stats,
-				     struct ieee80211_rx_status *rxs,
-				     bool decrypt_error)
-{
-	struct ath_hw *ah = common->ah;
-	struct ieee80211_hdr *hdr;
-	int hdrlen, padpos, padsize;
-	u8 keyix;
-	__le16 fc;
-
-	/* see if any padding is done by the hw and remove it */
-	hdr = (struct ieee80211_hdr *) skb->data;
-	hdrlen = ieee80211_get_hdrlen_from_skb(skb);
-	fc = hdr->frame_control;
-	padpos = ieee80211_hdrlen(fc);
-
-	/* The MAC header is padded to have 32-bit boundary if the
-	 * packet payload is non-zero. The general calculation for
-	 * padsize would take into account odd header lengths:
-	 * padsize = (4 - padpos % 4) % 4; However, since only
-	 * even-length headers are used, padding can only be 0 or 2
-	 * bytes and we can optimize this a bit. In addition, we must
-	 * not try to remove padding from short control frames that do
-	 * not have payload. */
-	padsize = padpos & 3;
-	if (padsize && skb->len>=padpos+padsize+FCS_LEN) {
-		memmove(skb->data + padsize, skb->data, padpos);
-		skb_pull(skb, padsize);
-	}
-
-	keyix = rx_stats->rs_keyix;
-
-	if (!(keyix == ATH9K_RXKEYIX_INVALID) && !decrypt_error &&
-	    ieee80211_has_protected(fc)) {
-		rxs->flag |= RX_FLAG_DECRYPTED;
-	} else if (ieee80211_has_protected(fc)
-		   && !decrypt_error && skb->len >= hdrlen + 4) {
-		keyix = skb->data[hdrlen + 3] >> 6;
-
-		if (test_bit(keyix, common->keymap))
-			rxs->flag |= RX_FLAG_DECRYPTED;
-	}
-	if (ah->sw_mgmt_crypto &&
-	    (rxs->flag & RX_FLAG_DECRYPTED) &&
-	    ieee80211_is_mgmt(fc))
-		/* Use software decrypt for management frames. */
-		rxs->flag &= ~RX_FLAG_DECRYPTED;
+corrupt:
+	sc->rx.discard_next = rx_stats->rs_more;
+	return -EINVAL;
 }
 
 /*
@@ -1292,8 +1051,8 @@ int ath_rx_tasklet(struct ath_softc *sc, int flush, bool hp)
 			skb_pull(skb, ah->caps.rx_status_len);
 
 		if (!rs.rs_more)
-			ath9k_rx_skb_postprocess(common, hdr_skb, &rs,
-						 rxs, decrypt_error);
+			ath9k_cmn_rx_skb_postprocess(common, hdr_skb, &rs,
+						     rxs, decrypt_error);
 
 		if (rs.rs_more) {
 			RX_STAT_INC(rx_frags);

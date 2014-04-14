@@ -1263,7 +1263,7 @@ static int sbridge_get_onedevice(struct pci_dev **prev,
 	struct pci_dev *pdev = NULL;
 	u8 bus = 0;
 
-	sbridge_printk(KERN_INFO,
+	sbridge_printk(KERN_DEBUG,
 		"Seeking for: dev %02x.%d PCI ID %04x:%04x\n",
 		dev_descr->dev, dev_descr->func,
 		PCI_VENDOR_ID_INTEL, dev_descr->dev_id);
@@ -1828,6 +1828,7 @@ static int sbridge_mce_check_error(struct notifier_block *nb, unsigned long val,
 	struct mce *mce = (struct mce *)data;
 	struct mem_ctl_info *mci;
 	struct sbridge_pvt *pvt;
+	char *type;
 
 	if (get_edac_report_status() == EDAC_REPORTING_DISABLED)
 		return NOTIFY_DONE;
@@ -1846,17 +1847,23 @@ static int sbridge_mce_check_error(struct notifier_block *nb, unsigned long val,
 	if ((mce->status & 0xefff) >> 7 != 1)
 		return NOTIFY_DONE;
 
-	printk("sbridge: HANDLING MCE MEMORY ERROR\n");
+	if (mce->mcgstatus & MCG_STATUS_MCIP)
+		type = "Exception";
+	else
+		type = "Event";
 
-	printk("CPU %d: Machine Check Exception: %Lx Bank %d: %016Lx\n",
-	       mce->extcpu, mce->mcgstatus, mce->bank, mce->status);
-	printk("TSC %llx ", mce->tsc);
-	printk("ADDR %llx ", mce->addr);
-	printk("MISC %llx ", mce->misc);
+	sbridge_mc_printk(mci, KERN_DEBUG, "HANDLING MCE MEMORY ERROR\n");
 
-	printk("PROCESSOR %u:%x TIME %llu SOCKET %u APIC %x\n",
-		mce->cpuvendor, mce->cpuid, mce->time,
-		mce->socketid, mce->apicid);
+	sbridge_mc_printk(mci, KERN_DEBUG, "CPU %d: Machine Check %s: %Lx "
+			  "Bank %d: %016Lx\n", mce->extcpu, type,
+			  mce->mcgstatus, mce->bank, mce->status);
+	sbridge_mc_printk(mci, KERN_DEBUG, "TSC %llx ", mce->tsc);
+	sbridge_mc_printk(mci, KERN_DEBUG, "ADDR %llx ", mce->addr);
+	sbridge_mc_printk(mci, KERN_DEBUG, "MISC %llx ", mce->misc);
+
+	sbridge_mc_printk(mci, KERN_DEBUG, "PROCESSOR %u:%x TIME %llu SOCKET "
+			  "%u APIC %x\n", mce->cpuvendor, mce->cpuid,
+			  mce->time, mce->socketid, mce->apicid);
 
 	/* Only handle if it is the right mc controller */
 	if (cpu_data(mce->cpu).phys_proc_id != pvt->sbridge_dev->mc)

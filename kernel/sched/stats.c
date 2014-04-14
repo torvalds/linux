@@ -142,4 +142,4 @@ static int __init proc_schedstat_init(void)
 	proc_create("schedstat", 0, NULL, &proc_schedstat_operations);
 	return 0;
 }
-module_init(proc_schedstat_init);
+subsys_initcall(proc_schedstat_init);

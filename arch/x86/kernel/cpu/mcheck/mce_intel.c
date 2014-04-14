@@ -9,6 +9,7 @@
 #include <linux/interrupt.h>
 #include <linux/percpu.h>
 #include <linux/sched.h>
+#include <linux/cpumask.h>
 #include <asm/apic.h>
 #include <asm/processor.h>
 #include <asm/msr.h>
@@ -137,6 +138,22 @@ unsigned long mce_intel_adjust_timer(unsigned long interval)
 	}
 }
 
+static void cmci_storm_disable_banks(void)
+{
+	unsigned long flags, *owned;
+	int bank;
+	u64 val;
+
+	raw_spin_lock_irqsave(&cmci_discover_lock, flags);
+	owned = __get_cpu_var(mce_banks_owned);
+	for_each_set_bit(bank, owned, MAX_NR_BANKS) {
+		rdmsrl(MSR_IA32_MCx_CTL2(bank), val);
+		val &= ~MCI_CTL2_CMCI_EN;
+		wrmsrl(MSR_IA32_MCx_CTL2(bank), val);
+	}
+	raw_spin_unlock_irqrestore(&cmci_discover_lock, flags);
+}
+
 static bool cmci_storm_detect(void)
 {
 	unsigned int cnt = __this_cpu_read(cmci_storm_cnt);
@@ -158,7 +175,7 @@ static bool cmci_storm_detect(void)
 	if (cnt <= CMCI_STORM_THRESHOLD)
 		return false;
 
-	cmci_clear();
+	cmci_storm_disable_banks();
 	__this_cpu_write(cmci_storm_state, CMCI_STORM_ACTIVE);
 	r = atomic_add_return(1, &cmci_storm_on_cpus);
 	mce_timer_kick(CMCI_POLL_INTERVAL);

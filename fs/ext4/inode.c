@@ -38,6 +38,7 @@
 #include <linux/slab.h>
 #include <linux/ratelimit.h>
 #include <linux/aio.h>
+#include <linux/bitops.h>
 
 #include "ext4_jbd2.h"
 #include "xattr.h"
@@ -214,7 +215,7 @@ void ext4_evict_inode(struct inode *inode)
 			jbd2_complete_transaction(journal, commit_tid);
 			filemap_write_and_wait(&inode->i_data);
 		}
-		truncate_inode_pages(&inode->i_data, 0);
+		truncate_inode_pages_final(&inode->i_data);
 
 		WARN_ON(atomic_read(&EXT4_I(inode)->i_ioend_count));
 		goto no_delete;
@@ -225,7 +226,7 @@ void ext4_evict_inode(struct inode *inode)
 
 	if (ext4_should_order_data(inode))
 		ext4_begin_ordered_truncate(inode, 0);
-	truncate_inode_pages(&inode->i_data, 0);
+	truncate_inode_pages_final(&inode->i_data);
 
 	WARN_ON(atomic_read(&EXT4_I(inode)->i_ioend_count));
 	if (is_bad_inode(inode))
@@ -503,6 +504,7 @@ int ext4_map_blocks(handle_t *handle, struct inode *inode,
 {
 	struct extent_status es;
 	int retval;
+	int ret = 0;
 #ifdef ES_AGGRESSIVE_TEST
 	struct ext4_map_blocks orig_map;
 
@@ -513,6 +515,12 @@ int ext4_map_blocks(handle_t *handle, struct inode *inode,
 	ext_debug("ext4_map_blocks(): inode %lu, flag %d, max_blocks %u,"
 		  "logical block %lu\n", inode->i_ino, flags, map->m_len,
 		  (unsigned long) map->m_lblk);
+
+	/*
+	 * ext4_map_blocks returns an int, and m_len is an unsigned int
+	 */
+	if (unlikely(map->m_len > INT_MAX))
+		map->m_len = INT_MAX;
 
 	/* Lookup extent status tree firstly */
 	if (ext4_es_lookup_extent(inode, map->m_lblk, &es)) {
@@ -552,7 +560,6 @@ int ext4_map_blocks(handle_t *handle, struct inode *inode,
 					     EXT4_GET_BLOCKS_KEEP_SIZE);
 	}
 	if (retval > 0) {
-		int ret;
 		unsigned int status;
 
 		if (unlikely(retval != map->m_len)) {
@@ -579,7 +586,7 @@ int ext4_map_blocks(handle_t *handle, struct inode *inode,
 
 found:
 	if (retval > 0 && map->m_flags & EXT4_MAP_MAPPED) {
-		int ret = check_block_validity(inode, map);
+		ret = check_block_validity(inode, map);
 		if (ret != 0)
 			return ret;
 	}
@@ -596,7 +603,13 @@ found:
 	 * with buffer head unmapped.
 	 */
 	if (retval > 0 && map->m_flags & EXT4_MAP_MAPPED)
-		return retval;
+		/*
+		 * If we need to convert extent to unwritten
+		 * we continue and do the actual work in
+		 * ext4_ext_map_blocks()
+		 */
+		if (!(flags & EXT4_GET_BLOCKS_CONVERT_UNWRITTEN))
+			return retval;
 
 	/*
 	 * Here we clear m_flags because after allocating an new extent,
@@ -652,7 +665,6 @@ found:
 		ext4_clear_inode_state(inode, EXT4_STATE_DELALLOC_RESERVED);
 
 	if (retval > 0) {
-		int ret;
 		unsigned int status;
 
 		if (unlikely(retval != map->m_len)) {
@@ -687,7 +699,7 @@ found:
 has_zeroout:
 	up_write((&EXT4_I(inode)->i_data_sem));
 	if (retval > 0 && map->m_flags & EXT4_MAP_MAPPED) {
-		int ret = check_block_validity(inode, map);
+		ret = check_block_validity(inode, map);
 		if (ret != 0)
 			return ret;
 	}
@@ -3312,33 +3324,13 @@ void ext4_set_aops(struct inode *inode)
 }
 
 /*
- * ext4_block_truncate_page() zeroes out a mapping from file offset `from'
- * up to the end of the block which corresponds to `from'.
- * This required during truncate. We need to physically zero the tail end
- * of that block so it doesn't yield old data if the file is later grown.
- */
-int ext4_block_truncate_page(handle_t *handle,
-		struct address_space *mapping, loff_t from)
-{
-	unsigned offset = from & (PAGE_CACHE_SIZE-1);
-	unsigned length;
-	unsigned blocksize;
-	struct inode *inode = mapping->host;
-
-	blocksize = inode->i_sb->s_blocksize;
-	length = blocksize - (offset & (blocksize - 1));
-
-	return ext4_block_zero_page_range(handle, mapping, from, length);
-}
-
-/*
  * ext4_block_zero_page_range() zeros out a mapping of length 'length'
  * starting from file offset 'from'.  The range to be zero'd must
  * be contained with in one block.  If the specified range exceeds
  * the end of the block it will be shortened to end of the block
  * that cooresponds to 'from'
  */
-int ext4_block_zero_page_range(handle_t *handle,
+static int ext4_block_zero_page_range(handle_t *handle,
 		struct address_space *mapping, loff_t from, loff_t length)
 {
 	ext4_fsblk_t index = from >> PAGE_CACHE_SHIFT;
@@ -3428,6 +3420,26 @@ unlock:
 	return err;
 }
 
+/*
+ * ext4_block_truncate_page() zeroes out a mapping from file offset `from'
+ * up to the end of the block which corresponds to `from'.
+ * This required during truncate. We need to physically zero the tail end
+ * of that block so it doesn't yield old data if the file is later grown.
+ */
+int ext4_block_truncate_page(handle_t *handle,
+		struct address_space *mapping, loff_t from)
+{
+	unsigned offset = from & (PAGE_CACHE_SIZE-1);
+	unsigned length;
+	unsigned blocksize;
+	struct inode *inode = mapping->host;
+
+	blocksize = inode->i_sb->s_blocksize;
+	length = blocksize - (offset & (blocksize - 1));
+
+	return ext4_block_zero_page_range(handle, mapping, from, length);
+}
+
 int ext4_zero_partial_blocks(handle_t *handle, struct inode *inode,
 			     loff_t lstart, loff_t length)
 {
@@ -3501,7 +3513,7 @@ int ext4_punch_hole(struct inode *inode, loff_t offset, loff_t length)
 	if (!S_ISREG(inode->i_mode))
 		return -EOPNOTSUPP;
 
-	trace_ext4_punch_hole(inode, offset, length);
+	trace_ext4_punch_hole(inode, offset, length, 0);
 
 	/*
 	 * Write out all dirty pages to avoid race conditions
@@ -3608,6 +3620,12 @@ int ext4_punch_hole(struct inode *inode, loff_t offset, loff_t length)
 	up_write(&EXT4_I(inode)->i_data_sem);
 	if (IS_SYNC(inode))
 		ext4_handle_sync(handle);
+
+	/* Now release the pages again to reduce race window */
+	if (last_block_offset > first_block_offset)
+		truncate_pagecache_range(inode, first_block_offset,
+					 last_block_offset);
+
 	inode->i_mtime = inode->i_ctime = ext4_current_time(inode);
 	ext4_mark_inode_dirty(handle, inode);
 out_stop:
@@ -3681,7 +3699,7 @@ void ext4_truncate(struct inode *inode)
 
 	/*
 	 * There is a possibility that we're either freeing the inode
-	 * or it completely new indode. In those cases we might not
+	 * or it's a completely new inode. In those cases we might not
 	 * have i_mutex locked because it's not necessary.
 	 */
 	if (!(inode->i_state & (I_NEW|I_FREEING)))
@@ -3921,18 +3939,20 @@ int ext4_get_inode_loc(struct inode *inode, struct ext4_iloc *iloc)
 void ext4_set_inode_flags(struct inode *inode)
 {
 	unsigned int flags = EXT4_I(inode)->i_flags;
+	unsigned int new_fl = 0;
 
-	inode->i_flags &= ~(S_SYNC|S_APPEND|S_IMMUTABLE|S_NOATIME|S_DIRSYNC);
 	if (flags & EXT4_SYNC_FL)
-		inode->i_flags |= S_SYNC;
+		new_fl |= S_SYNC;
 	if (flags & EXT4_APPEND_FL)
-		inode->i_flags |= S_APPEND;
+		new_fl |= S_APPEND;
 	if (flags & EXT4_IMMUTABLE_FL)
-		inode->i_flags |= S_IMMUTABLE;
+		new_fl |= S_IMMUTABLE;
 	if (flags & EXT4_NOATIME_FL)
-		inode->i_flags |= S_NOATIME;
+		new_fl |= S_NOATIME;
 	if (flags & EXT4_DIRSYNC_FL)
-		inode->i_flags |= S_DIRSYNC;
+		new_fl |= S_DIRSYNC;
+	inode_set_flags(inode, new_fl,
+			S_SYNC|S_APPEND|S_IMMUTABLE|S_NOATIME|S_DIRSYNC);
 }
 
 /* Propagate flags from i_flags to EXT4_I(inode)->i_flags */
@@ -4151,11 +4171,13 @@ struct inode *ext4_iget(struct super_block *sb, unsigned long ino)
 	EXT4_INODE_GET_XTIME(i_atime, inode, raw_inode);
 	EXT4_EINODE_GET_XTIME(i_crtime, ei, raw_inode);
 
-	inode->i_version = le32_to_cpu(raw_inode->i_disk_version);
-	if (EXT4_INODE_SIZE(inode->i_sb) > EXT4_GOOD_OLD_INODE_SIZE) {
-		if (EXT4_FITS_IN_INODE(raw_inode, ei, i_version_hi))
-			inode->i_version |=
-			(__u64)(le32_to_cpu(raw_inode->i_version_hi)) << 32;
+	if (likely(!test_opt2(inode->i_sb, HURD_COMPAT))) {
+		inode->i_version = le32_to_cpu(raw_inode->i_disk_version);
+		if (EXT4_INODE_SIZE(inode->i_sb) > EXT4_GOOD_OLD_INODE_SIZE) {
+			if (EXT4_FITS_IN_INODE(raw_inode, ei, i_version_hi))
+				inode->i_version |=
+		    (__u64)(le32_to_cpu(raw_inode->i_version_hi)) << 32;
+		}
 	}
 
 	ret = 0;
@@ -4325,8 +4347,7 @@ static int ext4_do_update_inode(handle_t *handle,
 		goto out_brelse;
 	raw_inode->i_dtime = cpu_to_le32(ei->i_dtime);
 	raw_inode->i_flags = cpu_to_le32(ei->i_flags & 0xFFFFFFFF);
-	if (EXT4_SB(inode->i_sb)->s_es->s_creator_os !=
-	    cpu_to_le32(EXT4_OS_HURD))
+	if (likely(!test_opt2(inode->i_sb, HURD_COMPAT)))
 		raw_inode->i_file_acl_high =
 			cpu_to_le16(ei->i_file_acl >> 32);
 	raw_inode->i_file_acl_lo = cpu_to_le32(ei->i_file_acl);
@@ -4371,12 +4392,15 @@ static int ext4_do_update_inode(handle_t *handle,
 			raw_inode->i_block[block] = ei->i_data[block];
 	}
 
-	raw_inode->i_disk_version = cpu_to_le32(inode->i_version);
-	if (ei->i_extra_isize) {
-		if (EXT4_FITS_IN_INODE(raw_inode, ei, i_version_hi))
-			raw_inode->i_version_hi =
-			cpu_to_le32(inode->i_version >> 32);
-		raw_inode->i_extra_isize = cpu_to_le16(ei->i_extra_isize);
+	if (likely(!test_opt2(inode->i_sb, HURD_COMPAT))) {
+		raw_inode->i_disk_version = cpu_to_le32(inode->i_version);
+		if (ei->i_extra_isize) {
+			if (EXT4_FITS_IN_INODE(raw_inode, ei, i_version_hi))
+				raw_inode->i_version_hi =
+					cpu_to_le32(inode->i_version >> 32);
+			raw_inode->i_extra_isize =
+				cpu_to_le16(ei->i_extra_isize);
+		}
 	}
 
 	ext4_inode_csum_set(inode, raw_inode, ei);
@@ -4443,7 +4467,12 @@ int ext4_write_inode(struct inode *inode, struct writeback_control *wbc)
 			return -EIO;
 		}
 
-		if (wbc->sync_mode != WB_SYNC_ALL)
+		/*
+		 * No need to force transaction in WB_SYNC_NONE mode. Also
+		 * ext4_sync_fs() will force the commit after everything is
+		 * written.
+		 */
+		if (wbc->sync_mode != WB_SYNC_ALL || wbc->for_sync)
 			return 0;
 
 		err = ext4_force_commit(inode->i_sb);
@@ -4453,7 +4482,11 @@ int ext4_write_inode(struct inode *inode, struct writeback_control *wbc)
 		err = __ext4_get_inode_loc(inode, &iloc, 0);
 		if (err)
 			return err;
-		if (wbc->sync_mode == WB_SYNC_ALL)
+		/*
+		 * sync(2) will flush the whole buffer cache. No need to do
+		 * it here separately for each inode.
+		 */
+		if (wbc->sync_mode == WB_SYNC_ALL && !wbc->for_sync)
 			sync_dirty_buffer(iloc.bh);
 		if (buffer_req(iloc.bh) && !buffer_uptodate(iloc.bh)) {
 			EXT4_ERROR_INODE_BLOCK(inode, iloc.bh->b_blocknr,

@@ -15,9 +15,9 @@ static struct notifier_block cris_sdram_freq_notifier_block = {
 };
 
 static struct cpufreq_frequency_table cris_freq_table[] = {
-	{0x01, 6000},
-	{0x02, 200000},
-	{0, CPUFREQ_TABLE_END},
+	{0, 0x01, 6000},
+	{0, 0x02, 200000},
+	{0, 0, CPUFREQ_TABLE_END},
 };
 
 static unsigned int cris_freq_get_cpu_frequency(unsigned int cpu)
@@ -57,7 +57,6 @@ static struct cpufreq_driver cris_freq_driver = {
 	.verify = cpufreq_generic_frequency_table_verify,
 	.target_index = cris_freq_target,
 	.init = cris_freq_cpu_init,
-	.exit = cpufreq_generic_exit,
 	.name = "cris_freq",
 	.attr = cpufreq_generic_attr,
 };

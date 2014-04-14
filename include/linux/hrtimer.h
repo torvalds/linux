@@ -96,11 +96,11 @@ enum hrtimer_restart {
  * @function:	timer expiry callback function
  * @base:	pointer to the timer base (per cpu and per clock)
  * @state:	state information (See bit values above)
+ * @start_pid: timer statistics field to store the pid of the task which
+ *		started the timer
  * @start_site:	timer statistics field to store the site where the timer
  *		was started
  * @start_comm: timer statistics field to store the name of the process which
- *		started the timer
- * @start_pid: timer statistics field to store the pid of the task which
  *		started the timer
  *
  * The hrtimer structure must be initialized by hrtimer_init()

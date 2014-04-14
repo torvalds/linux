@@ -19,7 +19,6 @@
 #include <linux/err.h>
 #include <linux/i2c.h>
 #include <linux/irq.h>
-#include <linux/init.h>
 #include <linux/slab.h>
 #include <linux/mutex.h>
 #include <linux/module.h>

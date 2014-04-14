@@ -133,9 +133,9 @@ void b43_phy_exit(struct b43_wldev *dev)
 bool b43_has_hardware_pctl(struct b43_wldev *dev)
 {
 	if (!dev->phy.hardware_power_control)
-		return 0;
+		return false;
 	if (!dev->phy.ops->supports_hwpctl)
-		return 0;
+		return false;
 	return dev->phy.ops->supports_hwpctl(dev);
 }
 

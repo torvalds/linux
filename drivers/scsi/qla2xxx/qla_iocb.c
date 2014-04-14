@@ -488,7 +488,7 @@ qla2x00_start_iocbs(struct scsi_qla_host *vha, struct req_que *req)
 			req->ring_ptr++;
 
 		/* Set chip new ring index. */
-		if (ha->mqenable || IS_QLA83XX(ha)) {
+		if (ha->mqenable || IS_QLA83XX(ha) || IS_QLA27XX(ha)) {
 			WRT_REG_DWORD(req->req_q_in, req->ring_index);
 			RD_REG_DWORD_RELAXED(&ha->iobase->isp24.hccr);
 		} else if (IS_QLAFX00(ha)) {
@@ -524,7 +524,6 @@ __qla2x00_marker(struct scsi_qla_host *vha, struct req_que *req,
 {
 	mrk_entry_t *mrk;
 	struct mrk_entry_24xx *mrk24 = NULL;
-	struct mrk_entry_fx00 *mrkfx = NULL;
 
 	struct qla_hw_data *ha = vha->hw;
 	scsi_qla_host_t *base_vha = pci_get_drvdata(ha->pdev);
@@ -541,15 +540,7 @@ __qla2x00_marker(struct scsi_qla_host *vha, struct req_que *req,
 	mrk->entry_type = MARKER_TYPE;
 	mrk->modifier = type;
 	if (type != MK_SYNC_ALL) {
-		if (IS_QLAFX00(ha)) {
-			mrkfx = (struct mrk_entry_fx00 *) mrk;
-			mrkfx->handle = MAKE_HANDLE(req->id, mrkfx->handle);
-			mrkfx->handle_hi = 0;
-			mrkfx->tgt_id = cpu_to_le16(loop_id);
-			mrkfx->lun[1] = LSB(lun);
-			mrkfx->lun[2] = MSB(lun);
-			host_to_fcp_swap(mrkfx->lun, sizeof(mrkfx->lun));
-		} else if (IS_FWI2_CAPABLE(ha)) {
+		if (IS_FWI2_CAPABLE(ha)) {
 			mrk24 = (struct mrk_entry_24xx *) mrk;
 			mrk24->nport_handle = cpu_to_le16(loop_id);
 			mrk24->lun[1] = LSB(lun);
@@ -1823,7 +1814,7 @@ qla2x00_alloc_iocbs(scsi_qla_host_t *vha, srb_t *sp)
 
 	/* Check for room in outstanding command list. */
 	handle = req->current_outstanding_cmd;
-	for (index = 1; req->num_outstanding_cmds; index++) {
+	for (index = 1; index < req->num_outstanding_cmds; index++) {
 		handle++;
 		if (handle == req->num_outstanding_cmds)
 			handle = 1;
@@ -1848,7 +1839,7 @@ qla2x00_alloc_iocbs(scsi_qla_host_t *vha, srb_t *sp)
 skip_cmd_array:
 	/* Check for room on request queue. */
 	if (req->cnt < req_cnt) {
-		if (ha->mqenable || IS_QLA83XX(ha))
+		if (ha->mqenable || IS_QLA83XX(ha) || IS_QLA27XX(ha))
 			cnt = RD_REG_DWORD(&reg->isp25mq.req_q_out);
 		else if (IS_P3P_TYPE(ha))
 			cnt = RD_REG_DWORD(&reg->isp82.req_q_out);
@@ -2594,6 +2585,29 @@ queuing_error:
 	return QLA_FUNCTION_FAILED;
 }
 
+void
+qla24xx_abort_iocb(srb_t *sp, struct abort_entry_24xx *abt_iocb)
+{
+	struct srb_iocb *aio = &sp->u.iocb_cmd;
+	scsi_qla_host_t *vha = sp->fcport->vha;
+	struct req_que *req = vha->req;
+
+	memset(abt_iocb, 0, sizeof(struct abort_entry_24xx));
+	abt_iocb->entry_type = ABORT_IOCB_TYPE;
+	abt_iocb->entry_count = 1;
+	abt_iocb->handle = cpu_to_le32(MAKE_HANDLE(req->id, sp->handle));
+	abt_iocb->nport_handle = cpu_to_le16(sp->fcport->loop_id);
+	abt_iocb->handle_to_abort =
+	    cpu_to_le32(MAKE_HANDLE(req->id, aio->u.abt.cmd_hndl));
+	abt_iocb->port_id[0] = sp->fcport->d_id.b.al_pa;
+	abt_iocb->port_id[1] = sp->fcport->d_id.b.area;
+	abt_iocb->port_id[2] = sp->fcport->d_id.b.domain;
+	abt_iocb->vp_index = vha->vp_idx;
+	abt_iocb->req_que_no = cpu_to_le16(req->id);
+	/* Send the command to the firmware */
+	wmb();
+}
+
 int
 qla2x00_start_sp(srb_t *sp)
 {
@@ -2647,7 +2661,9 @@ qla2x00_start_sp(srb_t *sp)
 		qlafx00_fxdisc_iocb(sp, pkt);
 		break;
 	case SRB_ABT_CMD:
-		qlafx00_abort_iocb(sp, pkt);
+		IS_QLAFX00(ha) ?
+			qlafx00_abort_iocb(sp, pkt) :
+			qla24xx_abort_iocb(sp, pkt);
 		break;
 	default:
 		break;

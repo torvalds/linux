@@ -2957,6 +2957,7 @@ static int ocfs2_expand_inline_dir(struct inode *dir, struct buffer_head *di_bh,
 		ocfs2_init_dir_trailer(dir, dirdata_bh, i);
 	}
 
+	ocfs2_update_inode_fsync_trans(handle, dir, 1);
 	ocfs2_journal_dirty(handle, dirdata_bh);
 
 	if (ocfs2_supports_indexed_dirs(osb) && !dx_inline) {
@@ -3005,6 +3006,7 @@ static int ocfs2_expand_inline_dir(struct inode *dir, struct buffer_head *di_bh,
 	di->i_size = cpu_to_le64(sb->s_blocksize);
 	di->i_ctime = di->i_mtime = cpu_to_le64(dir->i_ctime.tv_sec);
 	di->i_ctime_nsec = di->i_mtime_nsec = cpu_to_le32(dir->i_ctime.tv_nsec);
+	ocfs2_update_inode_fsync_trans(handle, dir, 1);
 
 	/*
 	 * This should never fail as our extent list is empty and all
@@ -3338,6 +3340,7 @@ do_extend:
 	} else {
 		de->rec_len = cpu_to_le16(sb->s_blocksize);
 	}
+	ocfs2_update_inode_fsync_trans(handle, dir, 1);
 	ocfs2_journal_dirty(handle, new_bh);
 
 	dir_i_size += dir->i_sb->s_blocksize;
@@ -3896,6 +3899,7 @@ out_commit:
 		dquot_free_space_nodirty(dir,
 				ocfs2_clusters_to_bytes(dir->i_sb, 1));
 
+	ocfs2_update_inode_fsync_trans(handle, dir, 1);
 	ocfs2_commit_trans(osb, handle);
 
 out:
@@ -4134,6 +4138,7 @@ static int ocfs2_expand_inline_dx_root(struct inode *dir,
 		mlog_errno(ret);
 	did_quota = 0;
 
+	ocfs2_update_inode_fsync_trans(handle, dir, 1);
 	ocfs2_journal_dirty(handle, dx_root_bh);
 
 out_commit:
@@ -4401,6 +4406,7 @@ static int ocfs2_dx_dir_remove_index(struct inode *dir,
 	di->i_dyn_features = cpu_to_le16(OCFS2_I(dir)->ip_dyn_features);
 	spin_unlock(&OCFS2_I(dir)->ip_lock);
 	di->i_dx_root = cpu_to_le64(0ULL);
+	ocfs2_update_inode_fsync_trans(handle, dir, 1);
 
 	ocfs2_journal_dirty(handle, di_bh);
 

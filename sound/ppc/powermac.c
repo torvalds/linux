@@ -58,7 +58,7 @@ static int snd_pmac_probe(struct platform_device *devptr)
 	char *name_ext;
 	int err;
 
-	err = snd_card_create(index, id, THIS_MODULE, 0, &card);
+	err = snd_card_new(&devptr->dev, index, id, THIS_MODULE, 0, &card);
 	if (err < 0)
 		return err;
 
@@ -121,8 +121,6 @@ static int snd_pmac_probe(struct platform_device *devptr)
 	chip->initialized = 1;
 	if (enable_beep)
 		snd_pmac_attach_beep(chip);
-
-	snd_card_set_dev(card, &devptr->dev);
 
 	if ((err = snd_card_register(card)) < 0)
 		goto __error;

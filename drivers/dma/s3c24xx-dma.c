@@ -192,7 +192,7 @@ struct s3c24xx_dma_phy {
 	unsigned int			id;
 	bool				valid;
 	void __iomem			*base;
-	unsigned int			irq;
+	int				irq;
 	struct clk			*clk;
 	spinlock_t			lock;
 	struct s3c24xx_dma_chan		*serving;

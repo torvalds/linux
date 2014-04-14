@@ -62,19 +62,10 @@ struct	__queue	{
 	spinlock_t lock;
 };
 
-static inline struct list_head *get_next(struct list_head *list)
-{
-	return list->next;
-}
-
 static inline struct list_head *get_list_head(struct __queue *queue)
 {
 	return &(queue->queue);
 }
-
-
-#define LIST_CONTAINOR(ptr, type, member) \
-	((type *)((char *)(ptr)-(size_t)(&((type *)0)->member)))
 
 static inline int _enter_critical_mutex(struct mutex *pmutex,
 					unsigned long *pirqL)
@@ -83,13 +74,6 @@ static inline int _enter_critical_mutex(struct mutex *pmutex,
 
 	ret = mutex_lock_interruptible(pmutex);
 	return ret;
-}
-
-
-static inline void _exit_critical_mutex(struct mutex *pmutex,
-					unsigned long *pirqL)
-{
-		mutex_unlock(pmutex);
 }
 
 static inline void rtw_list_delete(struct list_head *plist)
@@ -121,17 +105,6 @@ static inline void _cancel_timer(struct timer_list *ptimer, u8 *bcancelled)
 #define RTW_TIMER_HDL_NAME(name) rtw_##name##_timer_hdl
 #define RTW_DECLARE_TIMER_HDL(name) \
 	void RTW_TIMER_HDL_NAME(name)(RTW_TIMER_HDL_ARGS)
-
-static inline void _init_workitem(struct work_struct *pwork, void *pfunc,
-				  void *cntx)
-{
-	INIT_WORK(pwork, pfunc);
-}
-
-static inline void _set_workitem(struct work_struct *pwork)
-{
-	schedule_work(pwork);
-}
 
 static inline void _cancel_workitem_sync(struct work_struct *pwork)
 {
@@ -230,15 +203,9 @@ extern unsigned char WPA_TKIP_CIPHER[4];
 extern unsigned char RSN_TKIP_CIPHER[4];
 
 #define rtw_update_mem_stat(flag, sz) do {} while (0)
-u8 *_rtw_vmalloc(u32 sz);
-u8 *_rtw_zvmalloc(u32 sz);
-void _rtw_vmfree(u8 *pbuf, u32 sz);
 u8 *_rtw_zmalloc(u32 sz);
 u8 *_rtw_malloc(u32 sz);
 void _rtw_mfree(u8 *pbuf, u32 sz);
-#define rtw_vmalloc(sz)			_rtw_vmalloc((sz))
-#define rtw_zvmalloc(sz)			_rtw_zvmalloc((sz))
-#define rtw_vmfree(pbuf, sz)		_rtw_vmfree((pbuf), (sz))
 #define rtw_malloc(sz)			_rtw_malloc((sz))
 #define rtw_zmalloc(sz)			_rtw_zmalloc((sz))
 #define rtw_mfree(pbuf, sz)		_rtw_mfree((pbuf), (sz))
@@ -247,7 +214,6 @@ void *rtw_malloc2d(int h, int w, int size);
 void rtw_mfree2d(void *pbuf, int h, int w, int size);
 
 void _rtw_memcpy(void *dec, void *sour, u32 sz);
-int  _rtw_memcmp(void *dst, void *src, u32 sz);
 void _rtw_memset(void *pbuf, int c, u32 sz);
 
 void _rtw_init_listhead(struct list_head *list);

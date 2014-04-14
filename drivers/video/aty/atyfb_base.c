@@ -862,8 +862,8 @@ static int aty_var_to_crtc(const struct fb_info *info,
 	h_sync_pol = sync & FB_SYNC_HOR_HIGH_ACT ? 0 : 1;
 	v_sync_pol = sync & FB_SYNC_VERT_HIGH_ACT ? 0 : 1;
 
-	if ((xres > 1600) || (yres > 1200)) {
-		FAIL("MACH64 chips are designed for max 1600x1200\n"
+	if ((xres > 1920) || (yres > 1200)) {
+		FAIL("MACH64 chips are designed for max 1920x1200\n"
 		     "select another resolution.");
 	}
 	h_sync_strt = h_disp + var->right_margin;
@@ -2653,7 +2653,8 @@ static int aty_init(struct fb_info *info)
 		      FBINFO_HWACCEL_IMAGEBLIT |
 		      FBINFO_HWACCEL_FILLRECT  |
 		      FBINFO_HWACCEL_COPYAREA  |
-		      FBINFO_HWACCEL_YPAN;
+		      FBINFO_HWACCEL_YPAN      |
+		      FBINFO_READS_FAST;
 
 #ifdef CONFIG_PMAC_BACKLIGHT
 	if (M64_HAS(G3_PB_1_1) && of_machine_is_compatible("PowerBook1,1")) {

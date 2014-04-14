@@ -61,7 +61,13 @@ target_index		-	See below on the differences.
 
 And optionally
 
-cpufreq_driver.exit -		A pointer to a per-CPU cleanup function.
+cpufreq_driver.exit -		A pointer to a per-CPU cleanup
+				function called during CPU_POST_DEAD
+				phase of cpu hotplug process.
+
+cpufreq_driver.stop_cpu -	A pointer to a per-CPU stop function
+				called during CPU_DOWN_PREPARE phase of
+				cpu hotplug process.
 
 cpufreq_driver.resume -		A pointer to a per-CPU resume function
 				which is called with interrupts disabled

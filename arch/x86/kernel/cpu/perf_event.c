@@ -892,7 +892,6 @@ static void x86_pmu_enable(struct pmu *pmu)
 		 * hw_perf_group_sched_in() or x86_pmu_enable()
 		 *
 		 * step1: save events moving to new counters
-		 * step2: reprogram moved events into new counters
 		 */
 		for (i = 0; i < n_running; i++) {
 			event = cpuc->event_list[i];
@@ -918,6 +917,9 @@ static void x86_pmu_enable(struct pmu *pmu)
 			x86_pmu_stop(event, PERF_EF_UPDATE);
 		}
 
+		/*
+		 * step2: reprogram moved events into new counters
+		 */
 		for (i = 0; i < cpuc->n_events; i++) {
 			event = cpuc->event_list[i];
 			hwc = &event->hw;
@@ -1043,7 +1045,7 @@ static int x86_pmu_add(struct perf_event *event, int flags)
 	/*
 	 * If group events scheduling transaction was started,
 	 * skip the schedulability test here, it will be performed
-	 * at commit time (->commit_txn) as a whole
+	 * at commit time (->commit_txn) as a whole.
 	 */
 	if (cpuc->group_flag & PERF_EVENT_TXN)
 		goto done_collect;
@@ -1058,6 +1060,10 @@ static int x86_pmu_add(struct perf_event *event, int flags)
 	memcpy(cpuc->assign, assign, n*sizeof(int));
 
 done_collect:
+	/*
+	 * Commit the collect_events() state. See x86_pmu_del() and
+	 * x86_pmu_*_txn().
+	 */
 	cpuc->n_events = n;
 	cpuc->n_added += n - n0;
 	cpuc->n_txn += n - n0;
@@ -1183,28 +1189,38 @@ static void x86_pmu_del(struct perf_event *event, int flags)
 	 * If we're called during a txn, we don't need to do anything.
 	 * The events never got scheduled and ->cancel_txn will truncate
 	 * the event_list.
+	 *
+	 * XXX assumes any ->del() called during a TXN will only be on
+	 * an event added during that same TXN.
 	 */
 	if (cpuc->group_flag & PERF_EVENT_TXN)
 		return;
 
+	/*
+	 * Not a TXN, therefore cleanup properly.
+	 */
 	x86_pmu_stop(event, PERF_EF_UPDATE);
 
 	for (i = 0; i < cpuc->n_events; i++) {
-		if (event == cpuc->event_list[i]) {
-
-			if (i >= cpuc->n_events - cpuc->n_added)
-				--cpuc->n_added;
-
-			if (x86_pmu.put_event_constraints)
-				x86_pmu.put_event_constraints(cpuc, event);
-
-			while (++i < cpuc->n_events)
-				cpuc->event_list[i-1] = cpuc->event_list[i];
-
-			--cpuc->n_events;
+		if (event == cpuc->event_list[i])
 			break;
-		}
 	}
+
+	if (WARN_ON_ONCE(i == cpuc->n_events)) /* called ->del() without ->add() ? */
+		return;
+
+	/* If we have a newly added event; make sure to decrease n_added. */
+	if (i >= cpuc->n_events - cpuc->n_added)
+		--cpuc->n_added;
+
+	if (x86_pmu.put_event_constraints)
+		x86_pmu.put_event_constraints(cpuc, event);
+
+	/* Delete the array entry. */
+	while (++i < cpuc->n_events)
+		cpuc->event_list[i-1] = cpuc->event_list[i];
+	--cpuc->n_events;
+
 	perf_event_update_userpage(event);
 }
 
@@ -1598,7 +1614,8 @@ static void x86_pmu_cancel_txn(struct pmu *pmu)
 {
 	__this_cpu_and(cpu_hw_events.group_flag, ~PERF_EVENT_TXN);
 	/*
-	 * Truncate the collected events.
+	 * Truncate collected array by the number of events added in this
+	 * transaction. See x86_pmu_add() and x86_pmu_*_txn().
 	 */
 	__this_cpu_sub(cpu_hw_events.n_added, __this_cpu_read(cpu_hw_events.n_txn));
 	__this_cpu_sub(cpu_hw_events.n_events, __this_cpu_read(cpu_hw_events.n_txn));
@@ -1609,6 +1626,8 @@ static void x86_pmu_cancel_txn(struct pmu *pmu)
  * Commit group events scheduling transaction
  * Perform the group schedulability test as a whole
  * Return 0 if success
+ *
+ * Does not cancel the transaction on failure; expects the caller to do this.
  */
 static int x86_pmu_commit_txn(struct pmu *pmu)
 {

@@ -37,5 +37,19 @@
 			clock-frequency = <100000000>;
 			clock-output-names = "CLK_S_ICN_REG_0";
 		};
+
+		CLK_S_GMAC0_PHY: clockgenA1@7 {
+			#clock-cells = <0>;
+			compatible = "fixed-clock";
+			clock-frequency = <25000000>;
+			clock-output-names = "CLK_S_GMAC0_PHY";
+		};
+
+		CLK_S_ETH1_PHY: clockgenA0@7 {
+			#clock-cells = <0>;
+			compatible = "fixed-clock";
+			clock-frequency = <25000000>;
+			clock-output-names = "CLK_S_ETH1_PHY";
+		};
 	};
 };

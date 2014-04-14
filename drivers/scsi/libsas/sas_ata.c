@@ -700,46 +700,26 @@ void sas_probe_sata(struct asd_sas_port *port)
 
 }
 
-static bool sas_ata_flush_pm_eh(struct asd_sas_port *port, const char *func)
+static void sas_ata_flush_pm_eh(struct asd_sas_port *port, const char *func)
 {
 	struct domain_device *dev, *n;
-	bool retry = false;
 
 	list_for_each_entry_safe(dev, n, &port->dev_list, dev_list_node) {
-		int rc;
-
 		if (!dev_is_sata(dev))
 			continue;
 
 		sas_ata_wait_eh(dev);
-		rc = dev->sata_dev.pm_result;
-		if (rc == -EAGAIN)
-			retry = true;
-		else if (rc) {
-			/* since we don't have a
-			 * ->port_{suspend|resume} routine in our
-			 *  ata_port ops, and no entanglements with
-			 *  acpi, suspend should just be mechanical trip
-			 *  through eh, catch cases where these
-			 *  assumptions are invalidated
-			 */
-			WARN_ONCE(1, "failed %s %s error: %d\n", func,
-				 dev_name(&dev->rphy->dev), rc);
-		}
 
 		/* if libata failed to power manage the device, tear it down */
 		if (ata_dev_disabled(sas_to_ata_dev(dev)))
 			sas_fail_probe(dev, func, -ENODEV);
 	}
-
-	return retry;
 }
 
 void sas_suspend_sata(struct asd_sas_port *port)
 {
 	struct domain_device *dev;
 
- retry:
 	mutex_lock(&port->ha->disco_mutex);
 	list_for_each_entry(dev, &port->dev_list, dev_list_node) {
 		struct sata_device *sata;
@@ -751,20 +731,17 @@ void sas_suspend_sata(struct asd_sas_port *port)
 		if (sata->ap->pm_mesg.event == PM_EVENT_SUSPEND)
 			continue;
 
-		sata->pm_result = -EIO;
-		ata_sas_port_async_suspend(sata->ap, &sata->pm_result);
+		ata_sas_port_suspend(sata->ap);
 	}
 	mutex_unlock(&port->ha->disco_mutex);
 
-	if (sas_ata_flush_pm_eh(port, __func__))
-		goto retry;
+	sas_ata_flush_pm_eh(port, __func__);
 }
 
 void sas_resume_sata(struct asd_sas_port *port)
 {
 	struct domain_device *dev;
 
- retry:
 	mutex_lock(&port->ha->disco_mutex);
 	list_for_each_entry(dev, &port->dev_list, dev_list_node) {
 		struct sata_device *sata;
@@ -776,13 +753,11 @@ void sas_resume_sata(struct asd_sas_port *port)
 		if (sata->ap->pm_mesg.event == PM_EVENT_ON)
 			continue;
 
-		sata->pm_result = -EIO;
-		ata_sas_port_async_resume(sata->ap, &sata->pm_result);
+		ata_sas_port_resume(sata->ap);
 	}
 	mutex_unlock(&port->ha->disco_mutex);
 
-	if (sas_ata_flush_pm_eh(port, __func__))
-		goto retry;
+	sas_ata_flush_pm_eh(port, __func__);
 }
 
 /**

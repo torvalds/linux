@@ -22,6 +22,7 @@
 #include <linux/interrupt.h>
 #include <net/ip.h>
 #include <net/ipv6.h>
+#include <linux/io.h>
 #include <linux/of.h>
 #include <linux/of_irq.h>
 #include <linux/of_mdio.h>
@@ -88,8 +89,9 @@
 #define      MVNETA_TX_IN_PRGRS                  BIT(1)
 #define      MVNETA_TX_FIFO_EMPTY                BIT(8)
 #define MVNETA_RX_MIN_FRAME_SIZE                 0x247c
-#define MVNETA_SGMII_SERDES_CFG			 0x24A0
+#define MVNETA_SERDES_CFG			 0x24A0
 #define      MVNETA_SGMII_SERDES_PROTO		 0x0cc7
+#define      MVNETA_RGMII_SERDES_PROTO		 0x0667
 #define MVNETA_TYPE_PRIO                         0x24bc
 #define      MVNETA_FORCE_UNI                    BIT(21)
 #define MVNETA_TXQ_CMD_1                         0x24e4
@@ -161,7 +163,7 @@
 #define      MVNETA_GMAC_MAX_RX_SIZE_MASK        0x7ffc
 #define      MVNETA_GMAC0_PORT_ENABLE            BIT(0)
 #define MVNETA_GMAC_CTRL_2                       0x2c08
-#define      MVNETA_GMAC2_PSC_ENABLE             BIT(3)
+#define      MVNETA_GMAC2_PCS_ENABLE             BIT(3)
 #define      MVNETA_GMAC2_PORT_RGMII             BIT(4)
 #define      MVNETA_GMAC2_PORT_RESET             BIT(6)
 #define MVNETA_GMAC_STATUS                       0x2c10
@@ -508,12 +510,12 @@ struct rtnl_link_stats64 *mvneta_get_stats64(struct net_device *dev,
 
 		cpu_stats = per_cpu_ptr(pp->stats, cpu);
 		do {
-			start = u64_stats_fetch_begin_bh(&cpu_stats->syncp);
+			start = u64_stats_fetch_begin_irq(&cpu_stats->syncp);
 			rx_packets = cpu_stats->rx_packets;
 			rx_bytes   = cpu_stats->rx_bytes;
 			tx_packets = cpu_stats->tx_packets;
 			tx_bytes   = cpu_stats->tx_bytes;
-		} while (u64_stats_fetch_retry_bh(&cpu_stats->syncp, start));
+		} while (u64_stats_fetch_retry_irq(&cpu_stats->syncp, start));
 
 		stats->rx_packets += rx_packets;
 		stats->rx_bytes   += rx_bytes;
@@ -708,35 +710,6 @@ static void mvneta_rxq_bm_disable(struct mvneta_port *pp,
 	val = mvreg_read(pp, MVNETA_RXQ_CONFIG_REG(rxq->id));
 	val &= ~MVNETA_RXQ_HW_BUF_ALLOC;
 	mvreg_write(pp, MVNETA_RXQ_CONFIG_REG(rxq->id), val);
-}
-
-
-
-/* Sets the RGMII Enable bit (RGMIIEn) in port MAC control register */
-static void mvneta_gmac_rgmii_set(struct mvneta_port *pp, int enable)
-{
-	u32  val;
-
-	val = mvreg_read(pp, MVNETA_GMAC_CTRL_2);
-
-	if (enable)
-		val |= MVNETA_GMAC2_PORT_RGMII;
-	else
-		val &= ~MVNETA_GMAC2_PORT_RGMII;
-
-	mvreg_write(pp, MVNETA_GMAC_CTRL_2, val);
-}
-
-/* Config SGMII port */
-static void mvneta_port_sgmii_config(struct mvneta_port *pp)
-{
-	u32 val;
-
-	val = mvreg_read(pp, MVNETA_GMAC_CTRL_2);
-	val |= MVNETA_GMAC2_PSC_ENABLE;
-	mvreg_write(pp, MVNETA_GMAC_CTRL_2, val);
-
-	mvreg_write(pp, MVNETA_SGMII_SERDES_CFG, MVNETA_SGMII_SERDES_PROTO);
 }
 
 /* Start the Ethernet port RX and TX activity */
@@ -2756,12 +2729,15 @@ static void mvneta_port_power_up(struct mvneta_port *pp, int phy_mode)
 	mvreg_write(pp, MVNETA_UNIT_INTR_CAUSE, 0);
 
 	if (phy_mode == PHY_INTERFACE_MODE_SGMII)
-		mvneta_port_sgmii_config(pp);
+		mvreg_write(pp, MVNETA_SERDES_CFG, MVNETA_SGMII_SERDES_PROTO);
+	else
+		mvreg_write(pp, MVNETA_SERDES_CFG, MVNETA_RGMII_SERDES_PROTO);
 
-	mvneta_gmac_rgmii_set(pp, 1);
+	val = mvreg_read(pp, MVNETA_GMAC_CTRL_2);
+
+	val |= MVNETA_GMAC2_PCS_ENABLE | MVNETA_GMAC2_PORT_RGMII;
 
 	/* Cancel Port Reset */
-	val = mvreg_read(pp, MVNETA_GMAC_CTRL_2);
 	val &= ~MVNETA_GMAC2_PORT_RESET;
 	mvreg_write(pp, MVNETA_GMAC_CTRL_2, val);
 
@@ -2774,6 +2750,7 @@ static void mvneta_port_power_up(struct mvneta_port *pp, int phy_mode)
 static int mvneta_probe(struct platform_device *pdev)
 {
 	const struct mbus_dram_target_info *dram_target_info;
+	struct resource *res;
 	struct device_node *dn = pdev->dev.of_node;
 	struct device_node *phy_node;
 	u32 phy_addr;
@@ -2784,7 +2761,6 @@ static int mvneta_probe(struct platform_device *pdev)
 	const char *mac_from;
 	int phy_mode;
 	int err;
-	int cpu;
 
 	/* Our multiqueue support is not complete, so for now, only
 	 * allow the usage of the first RX queue
@@ -2838,23 +2814,18 @@ static int mvneta_probe(struct platform_device *pdev)
 
 	clk_prepare_enable(pp->clk);
 
-	pp->base = of_iomap(dn, 0);
-	if (pp->base == NULL) {
-		err = -ENOMEM;
+	res = platform_get_resource(pdev, IORESOURCE_MEM, 0);
+	pp->base = devm_ioremap_resource(&pdev->dev, res);
+	if (IS_ERR(pp->base)) {
+		err = PTR_ERR(pp->base);
 		goto err_clk;
 	}
 
 	/* Alloc per-cpu stats */
-	pp->stats = alloc_percpu(struct mvneta_pcpu_stats);
+	pp->stats = netdev_alloc_pcpu_stats(struct mvneta_pcpu_stats);
 	if (!pp->stats) {
 		err = -ENOMEM;
-		goto err_unmap;
-	}
-
-	for_each_possible_cpu(cpu) {
-		struct mvneta_pcpu_stats *stats;
-		stats = per_cpu_ptr(pp->stats, cpu);
-		u64_stats_init(&stats->syncp);
+		goto err_clk;
 	}
 
 	dt_mac_addr = of_get_mac_address(dn);
@@ -2913,8 +2884,6 @@ err_deinit:
 	mvneta_deinit(pp);
 err_free_stats:
 	free_percpu(pp->stats);
-err_unmap:
-	iounmap(pp->base);
 err_clk:
 	clk_disable_unprepare(pp->clk);
 err_free_irq:
@@ -2934,7 +2903,6 @@ static int mvneta_remove(struct platform_device *pdev)
 	mvneta_deinit(pp);
 	clk_disable_unprepare(pp->clk);
 	free_percpu(pp->stats);
-	iounmap(pp->base);
 	irq_dispose_mapping(dev->irq);
 	free_netdev(dev);
 

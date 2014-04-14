@@ -142,26 +142,31 @@ static int hv7131r_get_ctrl(struct sn9c102_device* cam,
 {
 	switch (ctrl->id) {
 	case V4L2_CID_GAIN:
-		if ((ctrl->value = sn9c102_i2c_read(cam, 0x30)) < 0)
+		ctrl->value = sn9c102_i2c_read(cam, 0x30);
+		if (ctrl->value < 0)
 			return -EIO;
 		return 0;
 	case V4L2_CID_RED_BALANCE:
-		if ((ctrl->value = sn9c102_i2c_read(cam, 0x31)) < 0)
+		ctrl->value = sn9c102_i2c_read(cam, 0x31);
+		if (ctrl->value < 0)
 			return -EIO;
 		ctrl->value = ctrl->value & 0x3f;
 		return 0;
 	case V4L2_CID_BLUE_BALANCE:
-		if ((ctrl->value = sn9c102_i2c_read(cam, 0x33)) < 0)
+		ctrl->value = sn9c102_i2c_read(cam, 0x33);
+		if (ctrl->value < 0)
 			return -EIO;
 		ctrl->value = ctrl->value & 0x3f;
 		return 0;
 	case SN9C102_V4L2_CID_GREEN_BALANCE:
-		if ((ctrl->value = sn9c102_i2c_read(cam, 0x32)) < 0)
+		ctrl->value = sn9c102_i2c_read(cam, 0x32);
+		if (ctrl->value < 0)
 			return -EIO;
 		ctrl->value = ctrl->value & 0x3f;
 		return 0;
 	case V4L2_CID_BLACK_LEVEL:
-		if ((ctrl->value = sn9c102_i2c_read(cam, 0x01)) < 0)
+		ctrl->value = sn9c102_i2c_read(cam, 0x01);
+		if (ctrl->value < 0)
 			return -EIO;
 		ctrl->value = (ctrl->value & 0x08) ? 1 : 0;
 		return 0;

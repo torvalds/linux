@@ -145,4 +145,11 @@
 		compatible = "ti,twl4030-pwrbutton";
 		interrupts = <8>;
 	};
+
+	twl_keypad: keypad {
+		compatible = "ti,twl4030-keypad";
+		interrupts = <1>;
+		keypad,num-rows = <8>;
+		keypad,num-columns = <8>;
+	};
 };

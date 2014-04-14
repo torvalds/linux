@@ -45,8 +45,6 @@
 
 #include "internal.h"
 
-#define PREFIX "ACPI: "
-
 #define ACPI_VIDEO_BUS_NAME		"Video Bus"
 #define ACPI_VIDEO_DEVICE_NAME		"Video Device"
 #define ACPI_VIDEO_NOTIFY_SWITCH	0x80
@@ -487,6 +485,14 @@ static struct dmi_system_id video_dmi_table[] __initdata = {
 	 .matches = {
 		DMI_MATCH(DMI_SYS_VENDOR, "LENOVO"),
 		DMI_MATCH(DMI_PRODUCT_VERSION, "Lenovo IdeaPad Yoga 13"),
+		},
+	},
+	{
+	.callback = video_set_use_native_backlight,
+	.ident = "Thinkpad Helix",
+	.matches = {
+		DMI_MATCH(DMI_SYS_VENDOR, "LENOVO"),
+		DMI_MATCH(DMI_PRODUCT_VERSION, "ThinkPad Helix"),
 		},
 	},
 	{

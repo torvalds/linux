@@ -30,7 +30,7 @@
 static inline struct drm_device *
 drm_device(struct device *d)
 {
-	return pci_get_drvdata(to_pci_dev(d));
+	return dev_get_drvdata(d);
 }
 
 #define snappendf(p,r,f,a...) do {                                             \
@@ -132,9 +132,10 @@ nouveau_sysfs_fini(struct drm_device *dev)
 {
 	struct nouveau_sysfs *sysfs = nouveau_sysfs(dev);
 	struct nouveau_drm *drm = nouveau_drm(dev);
+	struct nouveau_device *device = nv_device(drm->device);
 
 	if (sysfs->ctrl) {
-		device_remove_file(&dev->pdev->dev, &dev_attr_pstate);
+		device_remove_file(nv_device_base(device), &dev_attr_pstate);
 		nouveau_object_del(nv_object(drm), NVDRM_DEVICE, NVDRM_CONTROL);
 	}
 
@@ -146,6 +147,7 @@ int
 nouveau_sysfs_init(struct drm_device *dev)
 {
 	struct nouveau_drm *drm = nouveau_drm(dev);
+	struct nouveau_device *device = nv_device(drm->device);
 	struct nouveau_sysfs *sysfs;
 	int ret;
 
@@ -156,7 +158,7 @@ nouveau_sysfs_init(struct drm_device *dev)
 	ret = nouveau_object_new(nv_object(drm), NVDRM_DEVICE, NVDRM_CONTROL,
 				 NV_CONTROL_CLASS, NULL, 0, &sysfs->ctrl);
 	if (ret == 0)
-		device_create_file(&dev->pdev->dev, &dev_attr_pstate);
+		device_create_file(nv_device_base(device), &dev_attr_pstate);
 
 	return 0;
 }

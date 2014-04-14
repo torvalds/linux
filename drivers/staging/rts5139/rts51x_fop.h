@@ -35,12 +35,12 @@
 
 struct sd_direct_cmnd {
 	u8 cmnd[12];
-	void *buf;
+	void __user *buf;
 	int buf_len;
 };
 
 struct sd_rsp {
-	void *rsp;
+	void __user *rsp;
 	int rsp_len;
 };
 

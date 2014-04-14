@@ -495,11 +495,12 @@ static void sctp_do_8_2_transport_strike(sctp_cmd_seq_t *commands,
 	}
 
 	/* If the transport error count is greater than the pf_retrans
-	 * threshold, and less than pathmaxrtx, then mark this transport
-	 * as Partially Failed, ee SCTP Quick Failover Draft, secon 5.1,
-	 * point 1
+	 * threshold, and less than pathmaxrtx, and if the current state
+	 * is not SCTP_UNCONFIRMED, then mark this transport as Partially
+	 * Failed, see SCTP Quick Failover Draft, section 5.1
 	 */
 	if ((transport->state != SCTP_PF) &&
+	   (transport->state != SCTP_UNCONFIRMED) &&
 	   (asoc->pf_retrans < transport->pathmaxrxt) &&
 	   (transport->error_count > asoc->pf_retrans)) {
 

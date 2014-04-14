@@ -4,7 +4,7 @@
  * On s390x the bits are numbered:
  *   |0..............63|64............127|128...........191|192...........255|
  * and on s390:
- *   |0.....31|31....63|64....95|96...127|128..159|160..191|192..223|224..255|
+ *   |0.....31|32....63|64....95|96...127|128..159|160..191|192..223|224..255|
  *
  * The reason for this bit numbering is the fact that the hardware sets bits
  * in a bitmap starting at bit 0 (MSB) and we don't want to scan the bitmap

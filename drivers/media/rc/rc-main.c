@@ -633,18 +633,12 @@ EXPORT_SYMBOL_GPL(rc_repeat);
 static void ir_do_keydown(struct rc_dev *dev, int scancode,
 			  u32 keycode, u8 toggle)
 {
-	struct rc_scancode_filter *filter;
-	bool new_event = !dev->keypressed ||
-			 dev->last_scancode != scancode ||
-			 dev->last_toggle != toggle;
+	bool new_event = (!dev->keypressed		 ||
+			  dev->last_scancode != scancode ||
+			  dev->last_toggle != toggle);
 
 	if (new_event && dev->keypressed)
 		ir_do_keyup(dev, false);
-
-	/* Generic scancode filtering */
-	filter = &dev->scancode_filters[RC_FILTER_NORMAL];
-	if (filter->mask && ((scancode ^ filter->data) & filter->mask))
-		return;
 
 	input_event(dev->input_dev, EV_MSC, MSC_SCAN, scancode);
 
@@ -923,6 +917,7 @@ static ssize_t store_protocols(struct device *device,
 	int rc, i, count = 0;
 	ssize_t ret;
 	int (*change_protocol)(struct rc_dev *dev, u64 *rc_type);
+	int (*set_filter)(struct rc_dev *dev, struct rc_scancode_filter *filter);
 	struct rc_scancode_filter local_filter, *filter;
 
 	/* Device is being removed */
@@ -1007,24 +1002,23 @@ static ssize_t store_protocols(struct device *device,
 	 * Fall back to clearing the filter.
 	 */
 	filter = &dev->scancode_filters[fattr->type];
-	if (old_type != type && filter->mask) {
+	set_filter = (fattr->type == RC_FILTER_NORMAL)
+		? dev->s_filter : dev->s_wakeup_filter;
+
+	if (set_filter && old_type != type && filter->mask) {
 		local_filter = *filter;
 		if (!type) {
 			/* no protocol => clear filter */
 			ret = -1;
-		} else if (!dev->s_filter) {
-			/* generic filtering => accept any filter */
-			ret = 0;
 		} else {
 			/* hardware filtering => try setting, otherwise clear */
-			ret = dev->s_filter(dev, fattr->type, &local_filter);
+			ret = set_filter(dev, &local_filter);
 		}
 		if (ret < 0) {
 			/* clear the filter */
 			local_filter.data = 0;
 			local_filter.mask = 0;
-			if (dev->s_filter)
-				dev->s_filter(dev, fattr->type, &local_filter);
+			set_filter(dev, &local_filter);
 		}
 
 		/* commit the new filter */
@@ -1068,7 +1062,10 @@ static ssize_t show_filter(struct device *device,
 		return -EINVAL;
 
 	mutex_lock(&dev->lock);
-	if (fattr->mask)
+	if ((fattr->type == RC_FILTER_NORMAL && !dev->s_filter) ||
+	    (fattr->type == RC_FILTER_WAKEUP && !dev->s_wakeup_filter))
+		val = 0;
+	else if (fattr->mask)
 		val = dev->scancode_filters[fattr->type].mask;
 	else
 		val = dev->scancode_filters[fattr->type].data;
@@ -1106,6 +1103,7 @@ static ssize_t store_filter(struct device *device,
 	struct rc_scancode_filter local_filter, *filter;
 	int ret;
 	unsigned long val;
+	int (*set_filter)(struct rc_dev *dev, struct rc_scancode_filter *filter);
 
 	/* Device is being removed */
 	if (!dev)
@@ -1115,9 +1113,11 @@ static ssize_t store_filter(struct device *device,
 	if (ret < 0)
 		return ret;
 
-	/* Scancode filter not supported (but still accept 0) */
-	if (!dev->s_filter && fattr->type != RC_FILTER_NORMAL)
-		return val ? -EINVAL : count;
+	/* Can the scancode filter be set? */
+	set_filter = (fattr->type == RC_FILTER_NORMAL) ? dev->s_filter :
+							 dev->s_wakeup_filter;
+	if (!set_filter)
+		return -EINVAL;
 
 	mutex_lock(&dev->lock);
 
@@ -1128,16 +1128,16 @@ static ssize_t store_filter(struct device *device,
 		local_filter.mask = val;
 	else
 		local_filter.data = val;
+
 	if (!dev->enabled_protocols[fattr->type] && local_filter.mask) {
 		/* refuse to set a filter unless a protocol is enabled */
 		ret = -EINVAL;
 		goto unlock;
 	}
-	if (dev->s_filter) {
-		ret = dev->s_filter(dev, fattr->type, &local_filter);
-		if (ret < 0)
-			goto unlock;
-	}
+
+	ret = set_filter(dev, &local_filter);
+	if (ret < 0)
+		goto unlock;
 
 	/* Success, commit the new filter */
 	*filter = local_filter;
@@ -1189,27 +1189,45 @@ static RC_FILTER_ATTR(wakeup_filter, S_IRUGO|S_IWUSR,
 static RC_FILTER_ATTR(wakeup_filter_mask, S_IRUGO|S_IWUSR,
 		      show_filter, store_filter, RC_FILTER_WAKEUP, true);
 
-static struct attribute *rc_dev_attrs[] = {
+static struct attribute *rc_dev_protocol_attrs[] = {
 	&dev_attr_protocols.attr.attr,
+	NULL,
+};
+
+static struct attribute_group rc_dev_protocol_attr_grp = {
+	.attrs	= rc_dev_protocol_attrs,
+};
+
+static struct attribute *rc_dev_wakeup_protocol_attrs[] = {
 	&dev_attr_wakeup_protocols.attr.attr,
+	NULL,
+};
+
+static struct attribute_group rc_dev_wakeup_protocol_attr_grp = {
+	.attrs	= rc_dev_wakeup_protocol_attrs,
+};
+
+static struct attribute *rc_dev_filter_attrs[] = {
 	&dev_attr_filter.attr.attr,
 	&dev_attr_filter_mask.attr.attr,
+	NULL,
+};
+
+static struct attribute_group rc_dev_filter_attr_grp = {
+	.attrs	= rc_dev_filter_attrs,
+};
+
+static struct attribute *rc_dev_wakeup_filter_attrs[] = {
 	&dev_attr_wakeup_filter.attr.attr,
 	&dev_attr_wakeup_filter_mask.attr.attr,
 	NULL,
 };
 
-static struct attribute_group rc_dev_attr_grp = {
-	.attrs	= rc_dev_attrs,
-};
-
-static const struct attribute_group *rc_dev_attr_groups[] = {
-	&rc_dev_attr_grp,
-	NULL
+static struct attribute_group rc_dev_wakeup_filter_attr_grp = {
+	.attrs	= rc_dev_wakeup_filter_attrs,
 };
 
 static struct device_type rc_dev_type = {
-	.groups		= rc_dev_attr_groups,
 	.release	= rc_dev_release,
 	.uevent		= rc_dev_uevent,
 };
@@ -1266,7 +1284,7 @@ int rc_register_device(struct rc_dev *dev)
 	static bool raw_init = false; /* raw decoders loaded? */
 	struct rc_map *rc_map;
 	const char *path;
-	int rc, devno;
+	int rc, devno, attr = 0;
 
 	if (!dev || !dev->map_name)
 		return -EINVAL;
@@ -1293,6 +1311,16 @@ int rc_register_device(struct rc_dev *dev)
 		if (devno >= IRRCV_NUM_DEVICES)
 			return -ENOMEM;
 	} while (test_and_set_bit(devno, ir_core_dev_number));
+
+	dev->dev.groups = dev->sysfs_groups;
+	dev->sysfs_groups[attr++] = &rc_dev_protocol_attr_grp;
+	if (dev->s_filter)
+		dev->sysfs_groups[attr++] = &rc_dev_filter_attr_grp;	
+	if (dev->s_wakeup_filter)
+		dev->sysfs_groups[attr++] = &rc_dev_wakeup_filter_attr_grp;
+	if (dev->change_wakeup_protocol)
+		dev->sysfs_groups[attr++] = &rc_dev_wakeup_protocol_attr_grp;
+	dev->sysfs_groups[attr++] = NULL;
 
 	/*
 	 * Take the lock here, as the device sysfs node will appear

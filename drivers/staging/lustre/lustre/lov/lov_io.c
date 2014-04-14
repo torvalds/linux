@@ -194,6 +194,7 @@ static int lov_io_sub_init(const struct lu_env *env, struct lov_io *lio,
 		sub_io->ci_lockreq = io->ci_lockreq;
 		sub_io->ci_type    = io->ci_type;
 		sub_io->ci_no_srvlock = io->ci_no_srvlock;
+		sub_io->ci_noatime = io->ci_noatime;
 
 		lov_sub_enter(sub);
 		result = cl_io_sub_init(sub->sub_env, sub_io,

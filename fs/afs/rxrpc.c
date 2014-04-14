@@ -644,7 +644,7 @@ static void afs_process_async_call(struct work_struct *work)
 
 		/* we can't just delete the call because the work item may be
 		 * queued */
-		PREPARE_WORK(&call->async_work, afs_delete_async_call);
+		call->async_workfn = afs_delete_async_call;
 		queue_work(afs_async_calls, &call->async_work);
 	}
 
@@ -661,6 +661,13 @@ void afs_transfer_reply(struct afs_call *call, struct sk_buff *skb)
 	if (skb_copy_bits(skb, 0, call->buffer + call->reply_size, len) < 0)
 		BUG();
 	call->reply_size += len;
+}
+
+static void afs_async_workfn(struct work_struct *work)
+{
+	struct afs_call *call = container_of(work, struct afs_call, async_work);
+
+	call->async_workfn(work);
 }
 
 /*
@@ -685,7 +692,8 @@ static void afs_collect_incoming_call(struct work_struct *work)
 				return;
 			}
 
-			INIT_WORK(&call->async_work, afs_process_async_call);
+			call->async_workfn = afs_process_async_call;
+			INIT_WORK(&call->async_work, afs_async_workfn);
 			call->wait_mode = &afs_async_incoming_call;
 			call->type = &afs_RXCMxxxx;
 			init_waitqueue_head(&call->waitq);

@@ -1,7 +1,7 @@
 /*******************************************************************************
 
   Intel(R) Gigabit Ethernet Linux driver
-  Copyright(c) 2007-2013 Intel Corporation.
+  Copyright(c) 2007-2014 Intel Corporation.
 
   This program is free software; you can redistribute it and/or modify it
   under the terms and conditions of the GNU General Public License,
@@ -13,8 +13,7 @@
   more details.
 
   You should have received a copy of the GNU General Public License along with
-  this program; if not, write to the Free Software Foundation, Inc.,
-  51 Franklin St - Fifth Floor, Boston, MA 02110-1301 USA.
+  this program; if not, see <http://www.gnu.org/licenses/>.
 
   The full GNU General Public License is included in this distribution in
   the file called "COPYING".
@@ -231,6 +230,10 @@ struct e1000_adv_tx_context_desc {
 #define E1000_VMOLR_STRVLAN    0x40000000 /* Vlan stripping enable */
 #define E1000_VMOLR_STRCRC     0x80000000 /* CRC stripping enable */
 
+#define E1000_DVMOLR_HIDEVLAN  0x20000000 /* Hide vlan enable */
+#define E1000_DVMOLR_STRVLAN   0x40000000 /* Vlan stripping enable */
+#define E1000_DVMOLR_STRCRC    0x80000000 /* CRC stripping enable */
+
 #define E1000_VLVF_ARRAY_SIZE     32
 #define E1000_VLVF_VLANID_MASK    0x00000FFF
 #define E1000_VLVF_POOLSEL_SHIFT  12
@@ -266,8 +269,7 @@ u16 igb_rxpbs_adjust_82580(u32 data);
 s32 igb_read_emi_reg(struct e1000_hw *, u16 addr, u16 *data);
 s32 igb_set_eee_i350(struct e1000_hw *);
 s32 igb_set_eee_i354(struct e1000_hw *);
-s32 igb_init_thermal_sensor_thresh_generic(struct e1000_hw *);
-s32 igb_get_thermal_sensor_data_generic(struct e1000_hw *hw);
+s32 igb_get_eee_status_i354(struct e1000_hw *hw, bool *status);
 
 #define E1000_I2C_THERMAL_SENSOR_ADDR	0xF8
 #define E1000_EMC_INTERNAL_DATA		0x00

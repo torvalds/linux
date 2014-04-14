@@ -54,14 +54,14 @@ pci_find_upstream_pcie_bridge(struct pci_dev *pdev)
 
 static struct pci_bus *pci_do_find_bus(struct pci_bus *bus, unsigned char busnr)
 {
-	struct pci_bus* child;
-	struct list_head *tmp;
+	struct pci_bus *child;
+	struct pci_bus *tmp;
 
 	if(bus->number == busnr)
 		return bus;
 
-	list_for_each(tmp, &bus->children) {
-		child = pci_do_find_bus(pci_bus_b(tmp), busnr);
+	list_for_each_entry(tmp, &bus->children, node) {
+		child = pci_do_find_bus(tmp, busnr);
 		if(child)
 			return child;
 	}
@@ -111,7 +111,7 @@ pci_find_next_bus(const struct pci_bus *from)
 	down_read(&pci_bus_sem);
 	n = from ? from->node.next : pci_root_buses.next;
 	if (n != &pci_root_buses)
-		b = pci_bus_b(n);
+		b = list_entry(n, struct pci_bus, node);
 	up_read(&pci_bus_sem);
 	return b;
 }

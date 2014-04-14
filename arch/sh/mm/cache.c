@@ -285,8 +285,8 @@ void __init cpu_cache_init(void)
 {
 	unsigned int cache_disabled = 0;
 
-#ifdef CCR
-	cache_disabled = !(__raw_readl(CCR) & CCR_CACHE_ENABLE);
+#ifdef SH_CCR
+	cache_disabled = !(__raw_readl(SH_CCR) & CCR_CACHE_ENABLE);
 #endif
 
 	compute_alias(&boot_cpu_data.icache);

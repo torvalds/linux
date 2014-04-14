@@ -1484,6 +1484,10 @@ static int b44_open(struct net_device *dev)
 	add_timer(&bp->timer);
 
 	b44_enable_ints(bp);
+
+	if (bp->flags & B44_FLAG_EXTERNAL_PHY)
+		phy_start(bp->phydev);
+
 	netif_start_queue(dev);
 out:
 	return err;
@@ -1646,6 +1650,9 @@ static int b44_close(struct net_device *dev)
 
 	netif_stop_queue(dev);
 
+	if (bp->flags & B44_FLAG_EXTERNAL_PHY)
+		phy_stop(bp->phydev);
+
 	napi_disable(&bp->napi);
 
 	del_timer_sync(&bp->timer);
@@ -1678,7 +1685,7 @@ static struct rtnl_link_stats64 *b44_get_stats64(struct net_device *dev,
 	unsigned int start;
 
 	do {
-		start = u64_stats_fetch_begin_bh(&hwstat->syncp);
+		start = u64_stats_fetch_begin_irq(&hwstat->syncp);
 
 		/* Convert HW stats into rtnl_link_stats64 stats. */
 		nstat->rx_packets = hwstat->rx_pkts;
@@ -1712,7 +1719,7 @@ static struct rtnl_link_stats64 *b44_get_stats64(struct net_device *dev,
 		/* Carrier lost counter seems to be broken for some devices */
 		nstat->tx_carrier_errors = hwstat->tx_carrier_lost;
 #endif
-	} while (u64_stats_fetch_retry_bh(&hwstat->syncp, start));
+	} while (u64_stats_fetch_retry_irq(&hwstat->syncp, start));
 
 	return nstat;
 }
@@ -2066,12 +2073,12 @@ static void b44_get_ethtool_stats(struct net_device *dev,
 	do {
 		data_src = &hwstat->tx_good_octets;
 		data_dst = data;
-		start = u64_stats_fetch_begin_bh(&hwstat->syncp);
+		start = u64_stats_fetch_begin_irq(&hwstat->syncp);
 
 		for (i = 0; i < ARRAY_SIZE(b44_gstrings); i++)
 			*data_dst++ = *data_src++;
 
-	} while (u64_stats_fetch_retry_bh(&hwstat->syncp, start));
+	} while (u64_stats_fetch_retry_irq(&hwstat->syncp, start));
 }
 
 static void b44_get_wol(struct net_device *dev, struct ethtool_wolinfo *wol)
@@ -2222,7 +2229,12 @@ static void b44_adjust_link(struct net_device *dev)
 	}
 
 	if (status_changed) {
-		b44_check_phy(bp);
+		u32 val = br32(bp, B44_TX_CTRL);
+		if (bp->flags & B44_FLAG_FULL_DUPLEX)
+			val |= TX_CTRL_DUPLEX;
+		else
+			val &= ~TX_CTRL_DUPLEX;
+		bw32(bp, B44_TX_CTRL, val);
 		phy_print_status(phydev);
 	}
 }

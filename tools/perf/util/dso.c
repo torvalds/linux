@@ -45,8 +45,8 @@ int dso__read_binary_type_filename(const struct dso *dso,
 			debuglink--;
 		if (*debuglink == '/')
 			debuglink++;
-		filename__read_debuglink(dso->long_name, debuglink,
-					 size - (debuglink - filename));
+		ret = filename__read_debuglink(dso->long_name, debuglink,
+					       size - (debuglink - filename));
 		}
 		break;
 	case DSO_BINARY_TYPE__BUILD_ID_CACHE:

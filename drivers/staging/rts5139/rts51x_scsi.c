@@ -441,7 +441,7 @@ static int test_unit_ready(struct scsi_cmnd *srb, struct rts51x_chip *chip)
 	return TRANSPORT_GOOD;
 }
 
-unsigned char formatter_inquiry_str[20] = {
+static unsigned char formatter_inquiry_str[20] = {
 	'M', 'E', 'M', 'O', 'R', 'Y', 'S', 'T', 'I', 'C', 'K',
 	'-', 'M', 'G',		/* Byte[47:49] */
 	0x0B,			/* Byte[50]: MG, MS, MSPro, MSXC */
@@ -1990,7 +1990,7 @@ static int show_info(struct seq_file *m, struct Scsi_Host *host)
 
 /* queue a command */
 /* This is always called with scsi_lock(host) held */
-int queuecommand_lck(struct scsi_cmnd *srb, void (*done) (struct scsi_cmnd *))
+static int queuecommand_lck(struct scsi_cmnd *srb, void (*done) (struct scsi_cmnd *))
 {
 	struct rts51x_chip *chip = host_to_rts51x(srb->device->host);
 

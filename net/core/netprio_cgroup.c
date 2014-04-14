@@ -186,7 +186,7 @@ static int read_priomap(struct seq_file *sf, void *v)
 }
 
 static int write_priomap(struct cgroup_subsys_state *css, struct cftype *cft,
-			 const char *buffer)
+			 char *buffer)
 {
 	char devname[IFNAMSIZ + 1];
 	struct net_device *dev;
@@ -224,7 +224,7 @@ static void net_prio_attach(struct cgroup_subsys_state *css,
 	struct task_struct *p;
 	void *v = (void *)(unsigned long)css->cgroup->id;
 
-	cgroup_taskset_for_each(p, css, tset) {
+	cgroup_taskset_for_each(p, tset) {
 		task_lock(p);
 		iterate_fd(p->files, 0, update_netprio, v);
 		task_unlock(p);
@@ -244,15 +244,12 @@ static struct cftype ss_files[] = {
 	{ }	/* terminate */
 };
 
-struct cgroup_subsys net_prio_subsys = {
-	.name		= "net_prio",
+struct cgroup_subsys net_prio_cgrp_subsys = {
 	.css_alloc	= cgrp_css_alloc,
 	.css_online	= cgrp_css_online,
 	.css_free	= cgrp_css_free,
 	.attach		= net_prio_attach,
-	.subsys_id	= net_prio_subsys_id,
 	.base_cftypes	= ss_files,
-	.module		= THIS_MODULE,
 };
 
 static int netprio_device_event(struct notifier_block *unused,
@@ -283,37 +280,9 @@ static struct notifier_block netprio_device_notifier = {
 
 static int __init init_cgroup_netprio(void)
 {
-	int ret;
-
-	ret = cgroup_load_subsys(&net_prio_subsys);
-	if (ret)
-		goto out;
-
 	register_netdevice_notifier(&netprio_device_notifier);
-
-out:
-	return ret;
+	return 0;
 }
 
-static void __exit exit_cgroup_netprio(void)
-{
-	struct netprio_map *old;
-	struct net_device *dev;
-
-	unregister_netdevice_notifier(&netprio_device_notifier);
-
-	cgroup_unload_subsys(&net_prio_subsys);
-
-	rtnl_lock();
-	for_each_netdev(&init_net, dev) {
-		old = rtnl_dereference(dev->priomap);
-		RCU_INIT_POINTER(dev->priomap, NULL);
-		if (old)
-			kfree_rcu(old, rcu);
-	}
-	rtnl_unlock();
-}
-
-module_init(init_cgroup_netprio);
-module_exit(exit_cgroup_netprio);
+subsys_initcall(init_cgroup_netprio);
 MODULE_LICENSE("GPL v2");

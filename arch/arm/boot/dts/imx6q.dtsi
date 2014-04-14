@@ -8,10 +8,15 @@
  *
  */
 
+#include <dt-bindings/interrupt-controller/irq.h>
 #include "imx6q-pinfunc.h"
 #include "imx6qdl.dtsi"
 
 / {
+	aliases {
+		spi4 = &ecspi5;
+	};
+
 	cpus {
 		#address-cells = <1>;
 		#size-cells = <0>;
@@ -25,8 +30,17 @@
 				/* kHz    uV */
 				1200000 1275000
 				996000  1250000
+				852000  1250000
 				792000  1150000
-				396000  950000
+				396000  975000
+			>;
+			fsl,soc-operating-points = <
+				/* ARM kHz  SOC-PU uV */
+				1200000 1275000
+				996000	1250000
+				852000	1250000
+				792000	1175000
+				396000	1175000
 			>;
 			clock-latency = <61036>; /* two CLK32 periods */
 			clocks = <&clks 104>, <&clks 6>, <&clks 16>,
@@ -74,7 +88,7 @@
 					#size-cells = <0>;
 					compatible = "fsl,imx6q-ecspi", "fsl,imx51-ecspi";
 					reg = <0x02018000 0x4000>;
-					interrupts = <0 35 0x04>;
+					interrupts = <0 35 IRQ_TYPE_LEVEL_HIGH>;
 					clocks = <&clks 116>, <&clks 116>;
 					clock-names = "ipg", "per";
 					status = "disabled";
@@ -125,20 +139,92 @@
 		sata: sata@02200000 {
 			compatible = "fsl,imx6q-ahci";
 			reg = <0x02200000 0x4000>;
-			interrupts = <0 39 0x04>;
+			interrupts = <0 39 IRQ_TYPE_LEVEL_HIGH>;
 			clocks =  <&clks 154>, <&clks 187>, <&clks 105>;
 			clock-names = "sata", "sata_ref", "ahb";
 			status = "disabled";
 		};
 
 		ipu2: ipu@02800000 {
-			#crtc-cells = <1>;
+			#address-cells = <1>;
+			#size-cells = <0>;
 			compatible = "fsl,imx6q-ipu";
 			reg = <0x02800000 0x400000>;
-			interrupts = <0 8 0x4 0 7 0x4>;
+			interrupts = <0 8 IRQ_TYPE_LEVEL_HIGH>,
+				     <0 7 IRQ_TYPE_LEVEL_HIGH>;
 			clocks = <&clks 133>, <&clks 134>, <&clks 137>;
 			clock-names = "bus", "di0", "di1";
 			resets = <&src 4>;
+
+			ipu2_di0: port@2 {
+				#address-cells = <1>;
+				#size-cells = <0>;
+				reg = <2>;
+
+				ipu2_di0_disp0: endpoint@0 {
+				};
+
+				ipu2_di0_hdmi: endpoint@1 {
+					remote-endpoint = <&hdmi_mux_2>;
+				};
+
+				ipu2_di0_mipi: endpoint@2 {
+				};
+
+				ipu2_di0_lvds0: endpoint@3 {
+					remote-endpoint = <&lvds0_mux_2>;
+				};
+
+				ipu2_di0_lvds1: endpoint@4 {
+					remote-endpoint = <&lvds1_mux_2>;
+				};
+			};
+
+			ipu2_di1: port@3 {
+				#address-cells = <1>;
+				#size-cells = <0>;
+				reg = <3>;
+
+				ipu2_di1_hdmi: endpoint@1 {
+					remote-endpoint = <&hdmi_mux_3>;
+				};
+
+				ipu2_di1_mipi: endpoint@2 {
+				};
+
+				ipu2_di1_lvds0: endpoint@3 {
+					remote-endpoint = <&lvds0_mux_3>;
+				};
+
+				ipu2_di1_lvds1: endpoint@4 {
+					remote-endpoint = <&lvds1_mux_3>;
+				};
+			};
+		};
+	};
+
+	display-subsystem {
+		compatible = "fsl,imx-display-subsystem";
+		ports = <&ipu1_di0>, <&ipu1_di1>, <&ipu2_di0>, <&ipu2_di1>;
+	};
+};
+
+&hdmi {
+	compatible = "fsl,imx6q-hdmi";
+
+	port@2 {
+		reg = <2>;
+
+		hdmi_mux_2: endpoint {
+			remote-endpoint = <&ipu2_di0_hdmi>;
+		};
+	};
+
+	port@3 {
+		reg = <3>;
+
+		hdmi_mux_3: endpoint {
+			remote-endpoint = <&ipu2_di1_hdmi>;
 		};
 	};
 };
@@ -152,10 +238,56 @@
 		      "di0", "di1";
 
 	lvds-channel@0 {
-		crtcs = <&ipu1 0>, <&ipu1 1>, <&ipu2 0>, <&ipu2 1>;
+		port@2 {
+			reg = <2>;
+
+			lvds0_mux_2: endpoint {
+				remote-endpoint = <&ipu2_di0_lvds0>;
+			};
+		};
+
+		port@3 {
+			reg = <3>;
+
+			lvds0_mux_3: endpoint {
+				remote-endpoint = <&ipu2_di1_lvds0>;
+			};
+		};
 	};
 
 	lvds-channel@1 {
-		crtcs = <&ipu1 0>, <&ipu1 1>, <&ipu2 0>, <&ipu2 1>;
+		port@2 {
+			reg = <2>;
+
+			lvds1_mux_2: endpoint {
+				remote-endpoint = <&ipu2_di0_lvds1>;
+			};
+		};
+
+		port@3 {
+			reg = <3>;
+
+			lvds1_mux_3: endpoint {
+				remote-endpoint = <&ipu2_di1_lvds1>;
+			};
+		};
+	};
+};
+
+&mipi_dsi {
+	port@2 {
+		reg = <2>;
+
+		mipi_mux_2: endpoint {
+			remote-endpoint = <&ipu2_di0_mipi>;
+		};
+	};
+
+	port@3 {
+		reg = <3>;
+
+		mipi_mux_3: endpoint {
+			remote-endpoint = <&ipu2_di1_mipi>;
+		};
 	};
 };

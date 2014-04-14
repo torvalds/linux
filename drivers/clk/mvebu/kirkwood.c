@@ -193,13 +193,6 @@ static const struct coreclk_soc_desc kirkwood_coreclks = {
 	.num_ratios = ARRAY_SIZE(kirkwood_coreclk_ratios),
 };
 
-static void __init kirkwood_coreclk_init(struct device_node *np)
-{
-	mvebu_coreclk_setup(np, &kirkwood_coreclks);
-}
-CLK_OF_DECLARE(kirkwood_core_clk, "marvell,kirkwood-core-clock",
-	       kirkwood_coreclk_init);
-
 static const struct coreclk_soc_desc mv88f6180_coreclks = {
 	.get_tclk_freq = kirkwood_get_tclk_freq,
 	.get_cpu_freq = mv88f6180_get_cpu_freq,
@@ -207,13 +200,6 @@ static const struct coreclk_soc_desc mv88f6180_coreclks = {
 	.ratios = kirkwood_coreclk_ratios,
 	.num_ratios = ARRAY_SIZE(kirkwood_coreclk_ratios),
 };
-
-static void __init mv88f6180_coreclk_init(struct device_node *np)
-{
-	mvebu_coreclk_setup(np, &mv88f6180_coreclks);
-}
-CLK_OF_DECLARE(mv88f6180_core_clk, "marvell,mv88f6180-core-clock",
-	       mv88f6180_coreclk_init);
 
 /*
  * Clock Gating Control
@@ -239,9 +225,21 @@ static const struct clk_gating_soc_desc kirkwood_gating_desc[] __initconst = {
 	{ }
 };
 
-static void __init kirkwood_clk_gating_init(struct device_node *np)
+static void __init kirkwood_clk_init(struct device_node *np)
 {
-	mvebu_clk_gating_setup(np, kirkwood_gating_desc);
+	struct device_node *cgnp =
+		of_find_compatible_node(NULL, NULL, "marvell,kirkwood-gating-clock");
+
+
+	if (of_device_is_compatible(np, "marvell,mv88f6180-core-clock"))
+		mvebu_coreclk_setup(np, &mv88f6180_coreclks);
+	else
+		mvebu_coreclk_setup(np, &kirkwood_coreclks);
+
+	if (cgnp)
+		mvebu_clk_gating_setup(cgnp, kirkwood_gating_desc);
 }
-CLK_OF_DECLARE(kirkwood_clk_gating, "marvell,kirkwood-gating-clock",
-	       kirkwood_clk_gating_init);
+CLK_OF_DECLARE(kirkwood_clk, "marvell,kirkwood-core-clock",
+	       kirkwood_clk_init);
+CLK_OF_DECLARE(mv88f6180_clk, "marvell,mv88f6180-core-clock",
+	       kirkwood_clk_init);

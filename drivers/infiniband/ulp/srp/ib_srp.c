@@ -411,6 +411,8 @@ static void srp_path_rec_completion(int status,
 
 static int srp_lookup_path(struct srp_target_port *target)
 {
+	int ret;
+
 	target->path.numb_path = 1;
 
 	init_completion(&target->done);
@@ -431,7 +433,9 @@ static int srp_lookup_path(struct srp_target_port *target)
 	if (target->path_query_id < 0)
 		return target->path_query_id;
 
-	wait_for_completion(&target->done);
+	ret = wait_for_completion_interruptible(&target->done);
+	if (ret < 0)
+		return ret;
 
 	if (target->status < 0)
 		shost_printk(KERN_WARNING, target->scsi_host,
@@ -710,7 +714,9 @@ static int srp_connect_target(struct srp_target_port *target)
 		ret = srp_send_req(target);
 		if (ret)
 			return ret;
-		wait_for_completion(&target->done);
+		ret = wait_for_completion_interruptible(&target->done);
+		if (ret < 0)
+			return ret;
 
 		/*
 		 * The CM event handling code will set status to
@@ -777,6 +783,7 @@ static void srp_unmap_data(struct scsi_cmnd *scmnd,
  * srp_claim_req - Take ownership of the scmnd associated with a request.
  * @target: SRP target port.
  * @req: SRP request.
+ * @sdev: If not NULL, only take ownership for this SCSI device.
  * @scmnd: If NULL, take ownership of @req->scmnd. If not NULL, only take
  *         ownership of @req->scmnd if it equals @scmnd.
  *
@@ -785,15 +792,16 @@ static void srp_unmap_data(struct scsi_cmnd *scmnd,
  */
 static struct scsi_cmnd *srp_claim_req(struct srp_target_port *target,
 				       struct srp_request *req,
+				       struct scsi_device *sdev,
 				       struct scsi_cmnd *scmnd)
 {
 	unsigned long flags;
 
 	spin_lock_irqsave(&target->lock, flags);
-	if (!scmnd) {
+	if (req->scmnd &&
+	    (!sdev || req->scmnd->device == sdev) &&
+	    (!scmnd || req->scmnd == scmnd)) {
 		scmnd = req->scmnd;
-		req->scmnd = NULL;
-	} else if (req->scmnd == scmnd) {
 		req->scmnd = NULL;
 	} else {
 		scmnd = NULL;
@@ -821,9 +829,10 @@ static void srp_free_req(struct srp_target_port *target,
 }
 
 static void srp_finish_req(struct srp_target_port *target,
-			   struct srp_request *req, int result)
+			   struct srp_request *req, struct scsi_device *sdev,
+			   int result)
 {
-	struct scsi_cmnd *scmnd = srp_claim_req(target, req, NULL);
+	struct scsi_cmnd *scmnd = srp_claim_req(target, req, sdev, NULL);
 
 	if (scmnd) {
 		srp_free_req(target, req, scmnd, 0);
@@ -835,11 +844,20 @@ static void srp_finish_req(struct srp_target_port *target,
 static void srp_terminate_io(struct srp_rport *rport)
 {
 	struct srp_target_port *target = rport->lld_data;
+	struct Scsi_Host *shost = target->scsi_host;
+	struct scsi_device *sdev;
 	int i;
+
+	/*
+	 * Invoking srp_terminate_io() while srp_queuecommand() is running
+	 * is not safe. Hence the warning statement below.
+	 */
+	shost_for_each_device(sdev, shost)
+		WARN_ON_ONCE(sdev->request_queue->request_fn_active);
 
 	for (i = 0; i < target->req_ring_size; ++i) {
 		struct srp_request *req = &target->req_ring[i];
-		srp_finish_req(target, req, DID_TRANSPORT_FAILFAST << 16);
+		srp_finish_req(target, req, NULL, DID_TRANSPORT_FAILFAST << 16);
 	}
 }
 
@@ -876,7 +894,7 @@ static int srp_rport_reconnect(struct srp_rport *rport)
 
 	for (i = 0; i < target->req_ring_size; ++i) {
 		struct srp_request *req = &target->req_ring[i];
-		srp_finish_req(target, req, DID_RESET << 16);
+		srp_finish_req(target, req, NULL, DID_RESET << 16);
 	}
 
 	INIT_LIST_HEAD(&target->free_tx);
@@ -1284,7 +1302,7 @@ static void srp_process_rsp(struct srp_target_port *target, struct srp_rsp *rsp)
 		complete(&target->tsk_mgmt_done);
 	} else {
 		req = &target->req_ring[rsp->tag];
-		scmnd = srp_claim_req(target, req, NULL);
+		scmnd = srp_claim_req(target, req, NULL, NULL);
 		if (!scmnd) {
 			shost_printk(KERN_ERR, target->scsi_host,
 				     "Null scmnd for RSP w/tag %016llx\n",
@@ -1804,8 +1822,10 @@ static void srp_cm_rej_handler(struct ib_cm_id *cm_id,
 				shost_printk(KERN_WARNING, shost,
 					     PFX "SRP_LOGIN_REJ: requested max_it_iu_len too large\n");
 			else
-				shost_printk(KERN_WARNING, shost,
-					    PFX "SRP LOGIN REJECTED, reason 0x%08x\n", reason);
+				shost_printk(KERN_WARNING, shost, PFX
+					     "SRP LOGIN from %pI6 to %pI6 REJECTED, reason 0x%08x\n",
+					     target->path.sgid.raw,
+					     target->orig_dgid, reason);
 		} else
 			shost_printk(KERN_WARNING, shost,
 				     "  REJ reason: IB_CM_REJ_CONSUMER_DEFINED,"
@@ -1863,6 +1883,7 @@ static int srp_cm_handler(struct ib_cm_id *cm_id, struct ib_cm_event *event)
 	case IB_CM_TIMEWAIT_EXIT:
 		shost_printk(KERN_ERR, target->scsi_host,
 			     PFX "connection closed\n");
+		comp = 1;
 
 		target->status = 0;
 		break;
@@ -1999,7 +2020,7 @@ static int srp_abort(struct scsi_cmnd *scmnd)
 
 	shost_printk(KERN_ERR, target->scsi_host, "SRP abort called\n");
 
-	if (!req || !srp_claim_req(target, req, scmnd))
+	if (!req || !srp_claim_req(target, req, NULL, scmnd))
 		return SUCCESS;
 	if (srp_send_tsk_mgmt(target, req->index, scmnd->device->lun,
 			      SRP_TSK_ABORT_TASK) == 0)
@@ -2030,8 +2051,7 @@ static int srp_reset_device(struct scsi_cmnd *scmnd)
 
 	for (i = 0; i < target->req_ring_size; ++i) {
 		struct srp_request *req = &target->req_ring[i];
-		if (req->scmnd && req->scmnd->device == scmnd->device)
-			srp_finish_req(target, req, DID_RESET << 16);
+		srp_finish_req(target, req, scmnd->device, DID_RESET << 16);
 	}
 
 	return SUCCESS;
@@ -2612,6 +2632,8 @@ static ssize_t srp_create_target(struct device *dev,
 	target->tl_retry_count	= 7;
 	target->queue_size	= SRP_DEFAULT_QUEUE_SIZE;
 
+	mutex_lock(&host->add_target_mutex);
+
 	ret = srp_parse_options(buf, target);
 	if (ret)
 		goto err;
@@ -2649,16 +2671,9 @@ static ssize_t srp_create_target(struct device *dev,
 	if (ret)
 		goto err_free_mem;
 
-	ib_query_gid(ibdev, host->port, 0, &target->path.sgid);
-
-	shost_printk(KERN_DEBUG, target->scsi_host, PFX
-		     "new target: id_ext %016llx ioc_guid %016llx pkey %04x "
-		     "service_id %016llx dgid %pI6\n",
-	       (unsigned long long) be64_to_cpu(target->id_ext),
-	       (unsigned long long) be64_to_cpu(target->ioc_guid),
-	       be16_to_cpu(target->path.pkey),
-	       (unsigned long long) be64_to_cpu(target->service_id),
-	       target->path.dgid.raw);
+	ret = ib_query_gid(ibdev, host->port, 0, &target->path.sgid);
+	if (ret)
+		goto err_free_mem;
 
 	ret = srp_create_target_ib(target);
 	if (ret)
@@ -2679,7 +2694,19 @@ static ssize_t srp_create_target(struct device *dev,
 	if (ret)
 		goto err_disconnect;
 
-	return count;
+	shost_printk(KERN_DEBUG, target->scsi_host, PFX
+		     "new target: id_ext %016llx ioc_guid %016llx pkey %04x service_id %016llx sgid %pI6 dgid %pI6\n",
+		     be64_to_cpu(target->id_ext),
+		     be64_to_cpu(target->ioc_guid),
+		     be16_to_cpu(target->path.pkey),
+		     be64_to_cpu(target->service_id),
+		     target->path.sgid.raw, target->path.dgid.raw);
+
+	ret = count;
+
+out:
+	mutex_unlock(&host->add_target_mutex);
+	return ret;
 
 err_disconnect:
 	srp_disconnect_target(target);
@@ -2695,8 +2722,7 @@ err_free_mem:
 
 err:
 	scsi_host_put(target_host);
-
-	return ret;
+	goto out;
 }
 
 static DEVICE_ATTR(add_target, S_IWUSR, NULL, srp_create_target);
@@ -2732,6 +2758,7 @@ static struct srp_host *srp_add_port(struct srp_device *device, u8 port)
 	INIT_LIST_HEAD(&host->target_list);
 	spin_lock_init(&host->target_lock);
 	init_completion(&host->released);
+	mutex_init(&host->add_target_mutex);
 	host->srp_dev = device;
 	host->port = port;
 

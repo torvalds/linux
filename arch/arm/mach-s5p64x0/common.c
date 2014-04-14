@@ -19,6 +19,7 @@
 #include <linux/io.h>
 #include <linux/device.h>
 #include <linux/serial_core.h>
+#include <linux/serial_s3c.h>
 #include <clocksource/samsung_pwm.h>
 #include <linux/platform_device.h>
 #include <linux/sched.h>
@@ -50,7 +51,6 @@
 #include <plat/gpio-cfg.h>
 #include <plat/pwm-core.h>
 #include <plat/regs-irqtype.h>
-#include <plat/regs-serial.h>
 #include <plat/watchdog-reset.h>
 
 #include "common.h"
@@ -205,6 +205,7 @@ void __init s5p64x0_init_io(struct map_desc *mach_desc, int size)
 	samsung_pwm_set_platdata(&s5p64x0_pwm_variant);
 }
 
+#ifdef CONFIG_CPU_S5P6440
 void __init s5p6440_map_io(void)
 {
 	/* initialize any device information early */
@@ -218,7 +219,9 @@ void __init s5p6440_map_io(void)
 
 	iotable_init(s5p6440_iodesc, ARRAY_SIZE(s5p6440_iodesc));
 }
+#endif
 
+#ifdef CONFIG_CPU_S5P6450
 void __init s5p6450_map_io(void)
 {
 	/* initialize any device information early */
@@ -232,13 +235,14 @@ void __init s5p6450_map_io(void)
 
 	iotable_init(s5p6450_iodesc, ARRAY_SIZE(s5p6450_iodesc));
 }
+#endif
 
 /*
  * s5p64x0_init_clocks
  *
  * register and setup the CPU clocks
  */
-
+#ifdef CONFIG_CPU_S5P6440
 void __init s5p6440_init_clocks(int xtal)
 {
 	printk(KERN_DEBUG "%s: initializing clocks\n", __func__);
@@ -248,7 +252,9 @@ void __init s5p6440_init_clocks(int xtal)
 	s5p6440_register_clocks();
 	s5p6440_setup_clocks();
 }
+#endif
 
+#ifdef CONFIG_CPU_S5P6450
 void __init s5p6450_init_clocks(int xtal)
 {
 	printk(KERN_DEBUG "%s: initializing clocks\n", __func__);
@@ -258,13 +264,14 @@ void __init s5p6450_init_clocks(int xtal)
 	s5p6450_register_clocks();
 	s5p6450_setup_clocks();
 }
+#endif
 
 /*
  * s5p64x0_init_irq
  *
  * register the CPU interrupts
  */
-
+#ifdef CONFIG_CPU_S5P6440
 void __init s5p6440_init_irq(void)
 {
 	/* S5P6440 supports 2 VIC */
@@ -279,7 +286,9 @@ void __init s5p6440_init_irq(void)
 
 	s5p_init_irq(vic, ARRAY_SIZE(vic));
 }
+#endif
 
+#ifdef CONFIG_CPU_S5P6450
 void __init s5p6450_init_irq(void)
 {
 	/* S5P6450 supports only 2 VIC */
@@ -294,6 +303,7 @@ void __init s5p6450_init_irq(void)
 
 	s5p_init_irq(vic, ARRAY_SIZE(vic));
 }
+#endif
 
 struct bus_type s5p64x0_subsys = {
 	.name		= "s5p64x0-core",
@@ -321,6 +331,7 @@ int __init s5p64x0_init(void)
 }
 
 /* uart registration process */
+#ifdef CONFIG_CPU_S5P6440
 void __init s5p6440_init_uarts(struct s3c2410_uartcfg *cfg, int no)
 {
 	int uart;
@@ -332,11 +343,14 @@ void __init s5p6440_init_uarts(struct s3c2410_uartcfg *cfg, int no)
 
 	s3c24xx_init_uartdevs("s3c6400-uart", s5p_uart_resources, cfg, no);
 }
+#endif
 
+#ifdef CONFIG_CPU_S5P6450
 void __init s5p6450_init_uarts(struct s3c2410_uartcfg *cfg, int no)
 {
 	s3c24xx_init_uartdevs("s3c6400-uart", s5p_uart_resources, cfg, no);
 }
+#endif
 
 #define eint_offset(irq)	((irq) - IRQ_EINT(0))
 

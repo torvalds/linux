@@ -10,7 +10,6 @@
 
 
 #define USB_MAXALTSETTING		128	/* Hard limit */
-#define USB_MAXENDPOINTS		30	/* Hard limit */
 
 #define USB_MAXCONFIG			8	/* Arbitrary limit */
 
@@ -717,6 +716,10 @@ int usb_get_configuration(struct usb_device *dev)
 			result = -ENOMEM;
 			goto err;
 		}
+
+		if (dev->quirks & USB_QUIRK_DELAY_INIT)
+			msleep(100);
+
 		result = usb_get_descriptor(dev, USB_DT_CONFIG, cfgno,
 		    bigbuffer, length);
 		if (result < 0) {

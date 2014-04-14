@@ -273,6 +273,16 @@ config FHANDLE
 	  get renamed. Enables open_by_handle_at(2) and name_to_handle_at(2)
 	  syscalls.
 
+config USELIB
+	bool "uselib syscall"
+	default y
+	help
+	  This option enables the uselib syscall, a system call used in the
+	  dynamic linker from libc5 and earlier.  glibc does not use this
+	  system call.  If you intend to run programs built on libc5 or
+	  earlier, you may need to enable this syscall.  Current systems
+	  running glibc can safely disable this.
+
 config AUDIT
 	bool "Auditing support"
 	depends on NET
@@ -282,9 +292,12 @@ config AUDIT
 	  logging of avc messages output).  Does not do system-call
 	  auditing without CONFIG_AUDITSYSCALL.
 
+config HAVE_ARCH_AUDITSYSCALL
+	bool
+
 config AUDITSYSCALL
 	bool "Enable system-call auditing support"
-	depends on AUDIT && (X86 || PARISC || PPC || S390 || IA64 || UML || SPARC64 || SUPERH || (ARM && AEABI && !OABI_COMPAT) || ALPHA)
+	depends on AUDIT && HAVE_ARCH_AUDITSYSCALL
 	default y if SECURITY_SELINUX
 	help
 	  Enable low-overhead system-call auditing infrastructure that
@@ -854,6 +867,7 @@ config NUMA_BALANCING
 
 menuconfig CGROUPS
 	boolean "Control Group support"
+	select KERNFS
 	help
 	  This option adds support for grouping sets of processes together, for
 	  use with process control subsystems such as Cpusets, CFS, memory
@@ -1290,6 +1304,16 @@ config UID16
 	help
 	  This enables the legacy 16-bit UID syscall wrappers.
 
+config SYSFS_SYSCALL
+	bool "Sysfs syscall support" if EXPERT
+	default y
+	---help---
+	  sys_sysfs is an obsolete system call no longer supported in libc.
+	  Note that disabling this option is more secure but might break
+	  compatibility with some systems.
+
+	  If unsure say Y here.
+
 config SYSCTL_SYSCALL
 	bool "Sysctl syscall support" if EXPERT
 	depends on PROC_SYSCTL
@@ -1387,6 +1411,13 @@ config FUTEX
 	  support for "fast userspace mutexes".  The resulting kernel may not
 	  run glibc-based applications correctly.
 
+config HAVE_FUTEX_CMPXCHG
+	bool
+	help
+	  Architectures should select this if futex_atomic_cmpxchg_inatomic()
+	  is implemented and always working. This removes a couple of runtime
+	  checks.
+
 config EPOLL
 	bool "Enable eventpoll support" if EXPERT
 	default y
@@ -1455,6 +1486,7 @@ config PCI_QUIRKS
 
 config EMBEDDED
 	bool "Embedded system"
+	option allnoconfig_y
 	select EXPERT
 	help
 	  This option should be enabled if compiling the kernel for

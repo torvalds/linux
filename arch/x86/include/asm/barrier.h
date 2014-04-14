@@ -85,11 +85,7 @@
 #else
 # define smp_rmb()	barrier()
 #endif
-#ifdef CONFIG_X86_OOSTORE
-# define smp_wmb() 	wmb()
-#else
-# define smp_wmb()	barrier()
-#endif
+#define smp_wmb()	barrier()
 #define smp_read_barrier_depends()	read_barrier_depends()
 #define set_mb(var, value) do { (void)xchg(&var, value); } while (0)
 #else /* !SMP */
@@ -100,7 +96,7 @@
 #define set_mb(var, value) do { var = value; barrier(); } while (0)
 #endif /* SMP */
 
-#if defined(CONFIG_X86_OOSTORE) || defined(CONFIG_X86_PPRO_FENCE)
+#if defined(CONFIG_X86_PPRO_FENCE)
 
 /*
  * For either of these options x86 doesn't have a strong TSO memory

@@ -418,7 +418,7 @@ struct sock {
 	u32			sk_classid;
 	struct cg_proto		*sk_cgrp;
 	void			(*sk_state_change)(struct sock *sk);
-	void			(*sk_data_ready)(struct sock *sk, int bytes);
+	void			(*sk_data_ready)(struct sock *sk);
 	void			(*sk_write_space)(struct sock *sk);
 	void			(*sk_error_report)(struct sock *sk);
 	int			(*sk_backlog_rcv)(struct sock *sk,
@@ -862,9 +862,9 @@ static inline void sock_rps_save_rxhash(struct sock *sk,
 					const struct sk_buff *skb)
 {
 #ifdef CONFIG_RPS
-	if (unlikely(sk->sk_rxhash != skb->rxhash)) {
+	if (unlikely(sk->sk_rxhash != skb->hash)) {
 		sock_rps_reset_flow(sk);
-		sk->sk_rxhash = skb->rxhash;
+		sk->sk_rxhash = skb->hash;
 	}
 #endif
 }
@@ -1488,6 +1488,11 @@ static inline void sk_wmem_free_skb(struct sock *sk, struct sk_buff *skb)
  */
 #define sock_owned_by_user(sk)	((sk)->sk_lock.owned)
 
+static inline void sock_release_ownership(struct sock *sk)
+{
+	sk->sk_lock.owned = 0;
+}
+
 /*
  * Macro so as to not evaluate some arguments when
  * lockdep is not enabled.
@@ -1615,33 +1620,6 @@ void sk_common_release(struct sock *sk);
 
 /* Initialise core socket variables */
 void sock_init_data(struct socket *sock, struct sock *sk);
-
-void sk_filter_release_rcu(struct rcu_head *rcu);
-
-/**
- *	sk_filter_release - release a socket filter
- *	@fp: filter to remove
- *
- *	Remove a filter from a socket and release its resources.
- */
-
-static inline void sk_filter_release(struct sk_filter *fp)
-{
-	if (atomic_dec_and_test(&fp->refcnt))
-		call_rcu(&fp->rcu, sk_filter_release_rcu);
-}
-
-static inline void sk_filter_uncharge(struct sock *sk, struct sk_filter *fp)
-{
-	atomic_sub(sk_filter_size(fp->len), &sk->sk_omem_alloc);
-	sk_filter_release(fp);
-}
-
-static inline void sk_filter_charge(struct sock *sk, struct sk_filter *fp)
-{
-	atomic_inc(&fp->refcnt);
-	atomic_add(sk_filter_size(fp->len), &sk->sk_omem_alloc);
-}
 
 /*
  * Socket reference counting postulates.
@@ -2186,7 +2164,6 @@ static inline void sock_recv_ts_and_drops(struct msghdr *msg, struct sock *sk,
 {
 #define FLAGS_TS_OR_DROPS ((1UL << SOCK_RXQ_OVFL)			| \
 			   (1UL << SOCK_RCVTSTAMP)			| \
-			   (1UL << SOCK_TIMESTAMPING_RX_SOFTWARE)	| \
 			   (1UL << SOCK_TIMESTAMPING_SOFTWARE)		| \
 			   (1UL << SOCK_TIMESTAMPING_RAW_HARDWARE)	| \
 			   (1UL << SOCK_TIMESTAMPING_SYS_HARDWARE))
@@ -2252,8 +2229,12 @@ void sock_net_set(struct sock *sk, struct net *net)
  */
 static inline void sk_change_net(struct sock *sk, struct net *net)
 {
-	put_net(sock_net(sk));
-	sock_net_set(sk, hold_net(net));
+	struct net *current_net = sock_net(sk);
+
+	if (!net_eq(current_net, net)) {
+		put_net(current_net);
+		sock_net_set(sk, hold_net(net));
+	}
 }
 
 static inline struct sock *skb_steal_sock(struct sk_buff *skb)

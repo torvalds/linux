@@ -27,6 +27,7 @@
 #include <asm/processor-flags.h>
 #include <asm/required-features.h>
 #include <asm/msr-index.h>
+#include "string.h"
 
 static u32 err_flags[NCAPINTS];
 
@@ -65,6 +66,13 @@ static int is_transmeta(void)
 	return cpu_vendor[0] == A32('G', 'e', 'n', 'u') &&
 	       cpu_vendor[1] == A32('i', 'n', 'e', 'T') &&
 	       cpu_vendor[2] == A32('M', 'x', '8', '6');
+}
+
+static int is_intel(void)
+{
+	return cpu_vendor[0] == A32('G', 'e', 'n', 'u') &&
+	       cpu_vendor[1] == A32('i', 'n', 'e', 'I') &&
+	       cpu_vendor[2] == A32('n', 't', 'e', 'l');
 }
 
 /* Returns a bitmask of which words we have error bits in */
@@ -153,6 +161,19 @@ int check_cpu(int *cpu_level_ptr, int *req_level_ptr, u32 **err_flags_ptr)
 		asm("wrmsr" : : "a" (eax), "d" (edx), "c" (ecx));
 
 		err = check_cpuflags();
+	} else if (err == 0x01 &&
+		   !(err_flags[0] & ~(1 << X86_FEATURE_PAE)) &&
+		   is_intel() && cpu.level == 6 &&
+		   (cpu.model == 9 || cpu.model == 13)) {
+		/* PAE is disabled on this Pentium M but can be forced */
+		if (cmdline_find_option_bool("forcepae")) {
+			puts("WARNING: Forcing PAE in CPU flags\n");
+			set_bit(X86_FEATURE_PAE, cpu.flags);
+			err = check_cpuflags();
+		}
+		else {
+			puts("WARNING: PAE disabled. Use parameter 'forcepae' to enable at your own risk!\n");
+		}
 	}
 
 	if (err_flags_ptr)

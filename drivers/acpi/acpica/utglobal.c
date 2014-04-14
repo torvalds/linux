@@ -5,7 +5,7 @@
  *****************************************************************************/
 
 /*
- * Copyright (C) 2000 - 2013, Intel Corp.
+ * Copyright (C) 2000 - 2014, Intel Corp.
  * All rights reserved.
  *
  * Redistribution and use in source and binary forms, with or without
@@ -55,31 +55,27 @@ ACPI_MODULE_NAME("utglobal")
  * Static global variable initialization.
  *
  ******************************************************************************/
-/*
- * We want the debug switches statically initialized so they
- * are already set when the debugger is entered.
- */
-/* Debug switch - level and trace mask */
+/* Debug output control masks */
 u32 acpi_dbg_level = ACPI_DEBUG_DEFAULT;
 
-/* Debug switch - layer (component) mask */
-
 u32 acpi_dbg_layer = 0;
-u32 acpi_gbl_nesting_level = 0;
 
-/* Debugger globals */
+/* acpi_gbl_FADT is a local copy of the FADT, converted to a common format. */
 
-u8 acpi_gbl_db_terminate_threads = FALSE;
-u8 acpi_gbl_abort_method = FALSE;
-u8 acpi_gbl_method_executing = FALSE;
+struct acpi_table_fadt acpi_gbl_FADT;
+u32 acpi_gbl_trace_flags;
+acpi_name acpi_gbl_trace_method_name;
+u8 acpi_gbl_system_awake_and_running;
+u32 acpi_current_gpe_count;
 
-/* System flags */
+/*
+ * ACPI 5.0 introduces the concept of a "reduced hardware platform", meaning
+ * that the ACPI hardware is no longer required. A flag in the FADT indicates
+ * a reduced HW machine, and that flag is duplicated here for convenience.
+ */
+u8 acpi_gbl_reduced_hardware;
 
-u32 acpi_gbl_startup_flags = 0;
-
-/* System starts uninitialized */
-
-u8 acpi_gbl_shutdown = TRUE;
+/* Various state name strings */
 
 const char *acpi_gbl_sleep_state_names[ACPI_S_STATE_COUNT] = {
 	"\\_S0_",
@@ -335,7 +331,6 @@ acpi_status acpi_ut_init_globals(void)
 
 	acpi_gbl_DSDT = NULL;
 	acpi_gbl_cm_single_step = FALSE;
-	acpi_gbl_db_terminate_threads = FALSE;
 	acpi_gbl_shutdown = FALSE;
 	acpi_gbl_ns_lookup_count = 0;
 	acpi_gbl_ps_find_count = 0;
@@ -380,6 +375,10 @@ acpi_status acpi_ut_init_globals(void)
 #ifdef ACPI_DBG_TRACK_ALLOCATIONS
 	acpi_gbl_display_final_mem_stats = FALSE;
 	acpi_gbl_disable_mem_tracking = FALSE;
+#endif
+
+#ifdef ACPI_DEBUGGER
+	acpi_gbl_db_terminate_threads = FALSE;
 #endif
 
 	return_ACPI_STATUS(AE_OK);

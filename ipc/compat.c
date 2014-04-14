@@ -113,9 +113,6 @@ struct compat_shm_info {
 	compat_ulong_t swap_attempts, swap_successes;
 };
 
-extern int sem_ctls[];
-#define sc_semopm	(sem_ctls[2])
-
 static inline int compat_ipc_parse_version(int *cmd)
 {
 #ifdef	CONFIG_ARCH_WANT_COMPAT_IPC_PARSE_VERSION
@@ -430,9 +427,9 @@ COMPAT_SYSCALL_DEFINE4(msgsnd, int, msqid, compat_uptr_t, msgp,
 }
 
 COMPAT_SYSCALL_DEFINE5(msgrcv, int, msqid, compat_uptr_t, msgp,
-		       compat_ssize_t, msgsz, long, msgtyp, int, msgflg)
+		       compat_ssize_t, msgsz, compat_long_t, msgtyp, int, msgflg)
 {
-	return do_msgrcv(msqid, compat_ptr(msgp), (ssize_t)msgsz, msgtyp,
+	return do_msgrcv(msqid, compat_ptr(msgp), (ssize_t)msgsz, (long)msgtyp,
 			 msgflg, compat_do_msg_fill);
 }
 
@@ -498,7 +495,7 @@ static inline int put_compat_msqid_ds(struct msqid64_ds *m,
 	return err;
 }
 
-long compat_sys_msgctl(int first, int second, void __user *uptr)
+COMPAT_SYSCALL_DEFINE3(msgctl, int, first, int, second, void __user *, uptr)
 {
 	int err, err2;
 	struct msqid64_ds m64;
@@ -668,7 +665,7 @@ static inline int put_compat_shm_info(struct shm_info __user *ip,
 	return err;
 }
 
-long compat_sys_shmctl(int first, int second, void __user *uptr)
+COMPAT_SYSCALL_DEFINE3(shmctl, int, first, int, second, void __user *, uptr)
 {
 	void __user *p;
 	struct shmid64_ds s64;
@@ -749,17 +746,12 @@ long compat_sys_shmctl(int first, int second, void __user *uptr)
 	return err;
 }
 
-long compat_sys_semtimedop(int semid, struct sembuf __user *tsems,
-		unsigned nsops, const struct compat_timespec __user *timeout)
+COMPAT_SYSCALL_DEFINE4(semtimedop, int, semid, struct sembuf __user *, tsems,
+		       unsigned, nsops,
+		       const struct compat_timespec __user *, timeout)
 {
-	struct timespec __user *ts64 = NULL;
-	if (timeout) {
-		struct timespec ts;
-		ts64 = compat_alloc_user_space(sizeof(*ts64));
-		if (get_compat_timespec(&ts, timeout))
-			return -EFAULT;
-		if (copy_to_user(ts64, &ts, sizeof(ts)))
-			return -EFAULT;
-	}
+	struct timespec __user *ts64;
+	if (compat_convert_timespec(&ts64, timeout))
+		return -EFAULT;
 	return sys_semtimedop(semid, tsems, nsops, ts64);
 }

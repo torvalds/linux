@@ -208,7 +208,7 @@ struct tty_port {
 	wait_queue_head_t	delta_msr_wait;	/* Modem status change */
 	unsigned long		flags;		/* TTY flags ASY_*/
 	unsigned char		console:1,	/* port is a console */
-				low_latency:1;	/* direct buffer flush */
+				low_latency:1;	/* optional: tune for latency */
 	struct mutex		mutex;		/* Locking */
 	struct mutex		buf_mutex;	/* Buffer alloc lock */
 	unsigned char		*xmit_buf;	/* Optional buffer */
@@ -518,9 +518,9 @@ extern void tty_port_put(struct tty_port *port);
 
 static inline struct tty_port *tty_port_get(struct tty_port *port)
 {
-	if (port)
-		kref_get(&port->kref);
-	return port;
+	if (port && kref_get_unless_zero(&port->kref))
+		return port;
+	return NULL;
 }
 
 /* If the cts flow control is enabled, return true. */

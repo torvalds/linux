@@ -330,6 +330,7 @@ qla24xx_get_isp_stats(scsi_qla_host_t *, struct link_statistics *,
     dma_addr_t);
 
 extern int qla24xx_abort_command(srb_t *);
+extern int qla24xx_async_abort_command(srb_t *);
 extern int
 qla24xx_abort_target(struct fc_port *, unsigned int, int);
 extern int
@@ -511,6 +512,16 @@ extern void qla2300_fw_dump(scsi_qla_host_t *, int);
 extern void qla24xx_fw_dump(scsi_qla_host_t *, int);
 extern void qla25xx_fw_dump(scsi_qla_host_t *, int);
 extern void qla81xx_fw_dump(scsi_qla_host_t *, int);
+extern void qla82xx_fw_dump(scsi_qla_host_t *, int);
+extern void qla8044_fw_dump(scsi_qla_host_t *, int);
+
+extern void qla27xx_fwdump(scsi_qla_host_t *, int);
+extern ulong qla27xx_fwdt_calculate_dump_size(struct scsi_qla_host *);
+extern int qla27xx_fwdt_template_valid(void *);
+extern ulong qla27xx_fwdt_template_size(void *);
+extern const void *qla27xx_fwdt_template_default(void);
+extern ulong qla27xx_fwdt_template_default_size(void);
+
 extern void qla2x00_dump_regs(scsi_qla_host_t *);
 extern void qla2x00_dump_buffer(uint8_t *, uint32_t);
 extern void qla2x00_dump_buffer_zipped(uint8_t *, uint32_t);
@@ -594,7 +605,6 @@ extern char *qlafx00_fw_version_str(struct scsi_qla_host *, char *);
 extern irqreturn_t qlafx00_intr_handler(int, void *);
 extern void qlafx00_enable_intrs(struct qla_hw_data *);
 extern void qlafx00_disable_intrs(struct qla_hw_data *);
-extern int qlafx00_abort_command(srb_t *);
 extern int qlafx00_abort_target(fc_port_t *, unsigned int, int);
 extern int qlafx00_lun_reset(fc_port_t *, unsigned int, int);
 extern int qlafx00_start_scsi(srb_t *);

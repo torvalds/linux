@@ -279,6 +279,9 @@ static bool da9052_reg_volatile(struct device *dev, unsigned int reg)
 	case DA9052_EVENT_B_REG:
 	case DA9052_EVENT_C_REG:
 	case DA9052_EVENT_D_REG:
+	case DA9052_CONTROL_B_REG:
+	case DA9052_CONTROL_D_REG:
+	case DA9052_SUPPLY_REG:
 	case DA9052_FAULTLOG_REG:
 	case DA9052_CHG_TIME_REG:
 	case DA9052_ADC_RES_L_REG:

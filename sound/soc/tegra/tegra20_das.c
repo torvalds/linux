@@ -128,7 +128,7 @@ static const struct regmap_config tegra20_das_regmap_config = {
 	.max_register = LAST_REG(DAC_INPUT_DATA_CLK_SEL),
 	.writeable_reg = tegra20_das_wr_rd_reg,
 	.readable_reg = tegra20_das_wr_rd_reg,
-	.cache_type = REGCACHE_RBTREE,
+	.cache_type = REGCACHE_FLAT,
 };
 
 static int tegra20_das_probe(struct platform_device *pdev)

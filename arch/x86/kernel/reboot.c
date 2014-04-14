@@ -464,9 +464,12 @@ void __attribute__((weak)) mach_reboot_fixups(void)
  * 2) If still alive, write to the keyboard controller
  * 3) If still alive, write to the ACPI reboot register again
  * 4) If still alive, write to the keyboard controller again
+ * 5) If still alive, call the EFI runtime service to reboot
+ * 6) If still alive, write to the PCI IO port 0xCF9 to reboot
+ * 7) If still alive, inform BIOS to do a proper reboot
  *
  * If the machine is still alive at this stage, it gives up. We default to
- * following the same pattern, except that if we're still alive after (4) we'll
+ * following the same pattern, except that if we're still alive after (7) we'll
  * try to force a triple fault and then cycle between hitting the keyboard
  * controller and doing that
  */
@@ -502,7 +505,7 @@ static void native_machine_emergency_restart(void)
 				attempt = 1;
 				reboot_type = BOOT_ACPI;
 			} else {
-				reboot_type = BOOT_TRIPLE;
+				reboot_type = BOOT_EFI;
 			}
 			break;
 
@@ -510,13 +513,15 @@ static void native_machine_emergency_restart(void)
 			load_idt(&no_idt);
 			__asm__ __volatile__("int3");
 
+			/* We're probably dead after this, but... */
 			reboot_type = BOOT_KBD;
 			break;
 
 		case BOOT_BIOS:
 			machine_real_restart(MRR_BIOS);
 
-			reboot_type = BOOT_KBD;
+			/* We're probably dead after this, but... */
+			reboot_type = BOOT_TRIPLE;
 			break;
 
 		case BOOT_ACPI:
@@ -530,7 +535,7 @@ static void native_machine_emergency_restart(void)
 						 EFI_RESET_WARM :
 						 EFI_RESET_COLD,
 						 EFI_SUCCESS, 0, NULL);
-			reboot_type = BOOT_KBD;
+			reboot_type = BOOT_CF9_COND;
 			break;
 
 		case BOOT_CF9:
@@ -548,7 +553,7 @@ static void native_machine_emergency_restart(void)
 				outb(cf9|reboot_code, 0xcf9);
 				udelay(50);
 			}
-			reboot_type = BOOT_KBD;
+			reboot_type = BOOT_BIOS;
 			break;
 		}
 	}

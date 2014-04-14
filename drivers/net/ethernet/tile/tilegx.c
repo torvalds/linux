@@ -659,6 +659,9 @@ static int tile_net_poll(struct napi_struct *napi, int budget)
 	struct info_mpipe *info_mpipe =
 		container_of(napi, struct info_mpipe, napi);
 
+	if (budget <= 0)
+		goto done;
+
 	instance = info_mpipe->instance;
 	while ((n = gxio_mpipe_iqueue_try_peek(
 			&info_mpipe->iqueue,
@@ -870,6 +873,7 @@ static struct ptp_clock_info ptp_mpipe_caps = {
 	.name		= "mPIPE clock",
 	.max_adj	= 999999999,
 	.n_ext_ts	= 0,
+	.n_pins		= 0,
 	.pps		= 0,
 	.adjfreq	= ptp_mpipe_adjfreq,
 	.adjtime	= ptp_mpipe_adjtime,

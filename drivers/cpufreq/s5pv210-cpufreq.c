@@ -18,7 +18,6 @@
 #include <linux/cpufreq.h>
 #include <linux/reboot.h>
 #include <linux/regulator/consumer.h>
-#include <linux/suspend.h>
 
 #include <mach/map.h>
 #include <mach/regs-clock.h>
@@ -65,12 +64,12 @@ enum s5pv210_dmc_port {
 };
 
 static struct cpufreq_frequency_table s5pv210_freq_table[] = {
-	{L0, 1000*1000},
-	{L1, 800*1000},
-	{L2, 400*1000},
-	{L3, 200*1000},
-	{L4, 100*1000},
-	{0, CPUFREQ_TABLE_END},
+	{0, L0, 1000*1000},
+	{0, L1, 800*1000},
+	{0, L2, 400*1000},
+	{0, L3, 200*1000},
+	{0, L4, 100*1000},
+	{0, 0, CPUFREQ_TABLE_END},
 };
 
 static struct regulator *arm_regulator;
@@ -435,18 +434,6 @@ exit:
 	return ret;
 }
 
-#ifdef CONFIG_PM
-static int s5pv210_cpufreq_suspend(struct cpufreq_policy *policy)
-{
-	return 0;
-}
-
-static int s5pv210_cpufreq_resume(struct cpufreq_policy *policy)
-{
-	return 0;
-}
-#endif
-
 static int check_mem_type(void __iomem *dmc_reg)
 {
 	unsigned long val;
@@ -502,6 +489,7 @@ static int __init s5pv210_cpu_init(struct cpufreq_policy *policy)
 	s5pv210_dram_conf[1].refresh = (__raw_readl(S5P_VA_DMC1 + 0x30) * 1000);
 	s5pv210_dram_conf[1].freq = clk_get_rate(dmc1_clk);
 
+	policy->suspend_freq = SLEEP_FREQ;
 	return cpufreq_generic_init(policy, s5pv210_freq_table, 40000);
 
 out_dmc1:
@@ -509,32 +497,6 @@ out_dmc1:
 out_dmc0:
 	clk_put(policy->clk);
 	return ret;
-}
-
-static int s5pv210_cpufreq_notifier_event(struct notifier_block *this,
-					  unsigned long event, void *ptr)
-{
-	int ret;
-
-	switch (event) {
-	case PM_SUSPEND_PREPARE:
-		ret = cpufreq_driver_target(cpufreq_cpu_get(0), SLEEP_FREQ, 0);
-		if (ret < 0)
-			return NOTIFY_BAD;
-
-		/* Disable updation of cpu frequency */
-		no_cpufreq_access = true;
-		return NOTIFY_OK;
-	case PM_POST_RESTORE:
-	case PM_POST_SUSPEND:
-		/* Enable updation of cpu frequency */
-		no_cpufreq_access = false;
-		cpufreq_driver_target(cpufreq_cpu_get(0), SLEEP_FREQ, 0);
-
-		return NOTIFY_OK;
-	}
-
-	return NOTIFY_DONE;
 }
 
 static int s5pv210_cpufreq_reboot_notifier_event(struct notifier_block *this,
@@ -558,13 +520,9 @@ static struct cpufreq_driver s5pv210_driver = {
 	.init		= s5pv210_cpu_init,
 	.name		= "s5pv210",
 #ifdef CONFIG_PM
-	.suspend	= s5pv210_cpufreq_suspend,
-	.resume		= s5pv210_cpufreq_resume,
+	.suspend	= cpufreq_generic_suspend,
+	.resume		= cpufreq_generic_suspend, /* We need to set SLEEP FREQ again */
 #endif
-};
-
-static struct notifier_block s5pv210_cpufreq_notifier = {
-	.notifier_call = s5pv210_cpufreq_notifier_event,
 };
 
 static struct notifier_block s5pv210_cpufreq_reboot_notifier = {
@@ -586,7 +544,6 @@ static int __init s5pv210_cpufreq_init(void)
 		return PTR_ERR(int_regulator);
 	}
 
-	register_pm_notifier(&s5pv210_cpufreq_notifier);
 	register_reboot_notifier(&s5pv210_cpufreq_reboot_notifier);
 
 	return cpufreq_register_driver(&s5pv210_driver);

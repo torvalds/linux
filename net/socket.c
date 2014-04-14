@@ -72,6 +72,7 @@
 #include <linux/if_bridge.h>
 #include <linux/if_frad.h>
 #include <linux/if_vlan.h>
+#include <linux/ptp_classify.h>
 #include <linux/init.h>
 #include <linux/poll.h>
 #include <linux/cache.h>
@@ -450,16 +451,17 @@ EXPORT_SYMBOL(sockfd_lookup);
 
 static struct socket *sockfd_lookup_light(int fd, int *err, int *fput_needed)
 {
-	struct file *file;
+	struct fd f = fdget(fd);
 	struct socket *sock;
 
 	*err = -EBADF;
-	file = fget_light(fd, fput_needed);
-	if (file) {
-		sock = sock_from_file(file, err);
-		if (sock)
+	if (f.file) {
+		sock = sock_from_file(f.file, err);
+		if (likely(sock)) {
+			*fput_needed = f.flags;
 			return sock;
-		fput_light(file, *fput_needed);
+		}
+		fdput(f);
 	}
 	return NULL;
 }
@@ -593,7 +595,7 @@ void sock_release(struct socket *sock)
 	}
 
 	if (rcu_dereference_protected(sock->wq, 1)->fasync_list)
-		printk(KERN_ERR "sock_release: fasync list not empty!\n");
+		pr_err("%s: fasync list not empty!\n", __func__);
 
 	if (test_bit(SOCK_EXTERNALLY_ALLOCATED, &sock->flags))
 		return;
@@ -1265,8 +1267,8 @@ int __sock_create(struct net *net, int family, int type, int protocol,
 		static int warned;
 		if (!warned) {
 			warned = 1;
-			printk(KERN_INFO "%s uses obsolete (PF_INET,SOCK_PACKET)\n",
-			       current->comm);
+			pr_info("%s uses obsolete (PF_INET,SOCK_PACKET)\n",
+				current->comm);
 		}
 		family = PF_PACKET;
 	}
@@ -1985,6 +1987,10 @@ static int copy_msghdr_from_user(struct msghdr *kmsg,
 {
 	if (copy_from_user(kmsg, umsg, sizeof(struct msghdr)))
 		return -EFAULT;
+
+	if (kmsg->msg_namelen < 0)
+		return -EINVAL;
+
 	if (kmsg->msg_namelen > sizeof(struct sockaddr_storage))
 		kmsg->msg_namelen = sizeof(struct sockaddr_storage);
 	return 0;
@@ -2595,8 +2601,7 @@ int sock_register(const struct net_proto_family *ops)
 	int err;
 
 	if (ops->family >= NPROTO) {
-		printk(KERN_CRIT "protocol %d >= NPROTO(%d)\n", ops->family,
-		       NPROTO);
+		pr_crit("protocol %d >= NPROTO(%d)\n", ops->family, NPROTO);
 		return -ENOBUFS;
 	}
 
@@ -2610,7 +2615,7 @@ int sock_register(const struct net_proto_family *ops)
 	}
 	spin_unlock(&net_family_lock);
 
-	printk(KERN_INFO "NET: Registered protocol family %d\n", ops->family);
+	pr_info("NET: Registered protocol family %d\n", ops->family);
 	return err;
 }
 EXPORT_SYMBOL(sock_register);
@@ -2638,7 +2643,7 @@ void sock_unregister(int family)
 
 	synchronize_rcu();
 
-	printk(KERN_INFO "NET: Unregistered protocol family %d\n", family);
+	pr_info("NET: Unregistered protocol family %d\n", family);
 }
 EXPORT_SYMBOL(sock_unregister);
 
@@ -2681,9 +2686,7 @@ static int __init sock_init(void)
 		goto out;
 #endif
 
-#ifdef CONFIG_NETWORK_PHY_TIMESTAMPING
-	skb_timestamping_init();
-#endif
+	ptp_classifier_init();
 
 out:
 	return err;

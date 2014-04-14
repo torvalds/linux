@@ -39,17 +39,10 @@
 				lock_acquire(&(l)->dep_map, s, t, r, c, n, i)
 # define __rel(l, n, i)				\
 				lock_release(&(l)->dep_map, n, i)
-# ifdef CONFIG_PROVE_LOCKING
-#  define lockdep_acquire(l, s, t, i)		__acq(l, s, t, 0, 2, NULL, i)
-#  define lockdep_acquire_nest(l, s, t, n, i)	__acq(l, s, t, 0, 2, n, i)
-#  define lockdep_acquire_read(l, s, t, i)	__acq(l, s, t, 1, 2, NULL, i)
-#  define lockdep_release(l, n, i)		__rel(l, n, i)
-# else
-#  define lockdep_acquire(l, s, t, i)		__acq(l, s, t, 0, 1, NULL, i)
-#  define lockdep_acquire_nest(l, s, t, n, i)	__acq(l, s, t, 0, 1, n, i)
-#  define lockdep_acquire_read(l, s, t, i)	__acq(l, s, t, 1, 1, NULL, i)
-#  define lockdep_release(l, n, i)		__rel(l, n, i)
-# endif
+#define lockdep_acquire(l, s, t, i)		__acq(l, s, t, 0, 1, NULL, i)
+#define lockdep_acquire_nest(l, s, t, n, i)	__acq(l, s, t, 0, 1, n, i)
+#define lockdep_acquire_read(l, s, t, i)	__acq(l, s, t, 1, 1, NULL, i)
+#define lockdep_release(l, n, i)		__rel(l, n, i)
 #else
 # define lockdep_acquire(l, s, t, i)		do { } while (0)
 # define lockdep_acquire_nest(l, s, t, n, i)	do { } while (0)

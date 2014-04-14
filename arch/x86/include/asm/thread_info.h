@@ -9,6 +9,7 @@
 
 #include <linux/compiler.h>
 #include <asm/page.h>
+#include <asm/percpu.h>
 #include <asm/types.h>
 
 /*
@@ -32,12 +33,6 @@ struct thread_info {
 	mm_segment_t		addr_limit;
 	struct restart_block    restart_block;
 	void __user		*sysenter_return;
-#ifdef CONFIG_X86_32
-	unsigned long           previous_esp;   /* ESP of the previous stack in
-						   case of nested (IRQ) stacks
-						*/
-	__u8			supervisor_stack[0];
-#endif
 	unsigned int		sig_on_uaccess_error:1;
 	unsigned int		uaccess_err:1;	/* uaccess failed */
 };
@@ -153,9 +148,9 @@ struct thread_info {
 #define _TIF_WORK_CTXSW_PREV (_TIF_WORK_CTXSW|_TIF_USER_RETURN_NOTIFY)
 #define _TIF_WORK_CTXSW_NEXT (_TIF_WORK_CTXSW)
 
-#ifdef CONFIG_X86_32
+#define STACK_WARN		(THREAD_SIZE/8)
+#define KERNEL_STACK_OFFSET	(5*(BITS_PER_LONG/8))
 
-#define STACK_WARN	(THREAD_SIZE/8)
 /*
  * macros/functions for gaining access to the thread information structure
  *
@@ -163,42 +158,6 @@ struct thread_info {
  */
 #ifndef __ASSEMBLY__
 
-#define current_stack_pointer ({		\
-	unsigned long sp;			\
-	asm("mov %%esp,%0" : "=g" (sp));	\
-	sp;					\
-})
-
-/* how to get the thread information struct from C */
-static inline struct thread_info *current_thread_info(void)
-{
-	return (struct thread_info *)
-		(current_stack_pointer & ~(THREAD_SIZE - 1));
-}
-
-#else /* !__ASSEMBLY__ */
-
-/* how to get the thread information struct from ASM */
-#define GET_THREAD_INFO(reg)	 \
-	movl $-THREAD_SIZE, reg; \
-	andl %esp, reg
-
-/* use this one if reg already contains %esp */
-#define GET_THREAD_INFO_WITH_ESP(reg) \
-	andl $-THREAD_SIZE, reg
-
-#endif
-
-#else /* X86_32 */
-
-#include <asm/percpu.h>
-#define KERNEL_STACK_OFFSET (5*8)
-
-/*
- * macros/functions for gaining access to the thread information structure
- * preempt_count needs to be 1 initially, until the scheduler is functional.
- */
-#ifndef __ASSEMBLY__
 DECLARE_PER_CPU(unsigned long, kernel_stack);
 
 static inline struct thread_info *current_thread_info(void)
@@ -213,8 +172,8 @@ static inline struct thread_info *current_thread_info(void)
 
 /* how to get the thread information struct from ASM */
 #define GET_THREAD_INFO(reg) \
-	movq PER_CPU_VAR(kernel_stack),reg ; \
-	subq $(THREAD_SIZE-KERNEL_STACK_OFFSET),reg
+	_ASM_MOV PER_CPU_VAR(kernel_stack),reg ; \
+	_ASM_SUB $(THREAD_SIZE-KERNEL_STACK_OFFSET),reg ;
 
 /*
  * Same if PER_CPU_VAR(kernel_stack) is, perhaps with some offset, already in
@@ -223,8 +182,6 @@ static inline struct thread_info *current_thread_info(void)
 #define THREAD_INFO(reg, off) KERNEL_STACK_OFFSET+(off)-THREAD_SIZE(reg)
 
 #endif
-
-#endif /* !X86_32 */
 
 /*
  * Thread-synchronous status.

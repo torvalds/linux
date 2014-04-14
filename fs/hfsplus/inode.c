@@ -375,6 +375,7 @@ struct inode *hfsplus_new_inode(struct super_block *sb, umode_t mode)
 	hip->extent_state = 0;
 	hip->flags = 0;
 	hip->userflags = 0;
+	hip->subfolders = 0;
 	memset(hip->first_extents, 0, sizeof(hfsplus_extent_rec));
 	memset(hip->cached_extents, 0, sizeof(hfsplus_extent_rec));
 	hip->alloc_blocks = 0;
@@ -494,6 +495,10 @@ int hfsplus_cat_read_inode(struct inode *inode, struct hfs_find_data *fd)
 		inode->i_ctime = hfsp_mt2ut(folder->attribute_mod_date);
 		HFSPLUS_I(inode)->create_date = folder->create_date;
 		HFSPLUS_I(inode)->fs_blocks = 0;
+		if (folder->flags & cpu_to_be16(HFSPLUS_HAS_FOLDER_COUNT)) {
+			HFSPLUS_I(inode)->subfolders =
+				be32_to_cpu(folder->subfolders);
+		}
 		inode->i_op = &hfsplus_dir_inode_operations;
 		inode->i_fop = &hfsplus_dir_operations;
 	} else if (type == HFSPLUS_FILE) {
@@ -566,6 +571,10 @@ int hfsplus_cat_write_inode(struct inode *inode)
 		folder->content_mod_date = hfsp_ut2mt(inode->i_mtime);
 		folder->attribute_mod_date = hfsp_ut2mt(inode->i_ctime);
 		folder->valence = cpu_to_be32(inode->i_size - 2);
+		if (folder->flags & cpu_to_be16(HFSPLUS_HAS_FOLDER_COUNT)) {
+			folder->subfolders =
+				cpu_to_be32(HFSPLUS_I(inode)->subfolders);
+		}
 		hfs_bnode_write(fd.bnode, &entry, fd.entryoffset,
 					 sizeof(struct hfsplus_cat_folder));
 	} else if (HFSPLUS_IS_RSRC(inode)) {

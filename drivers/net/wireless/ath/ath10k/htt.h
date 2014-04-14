@@ -20,6 +20,7 @@
 
 #include <linux/bug.h>
 #include <linux/interrupt.h>
+#include <linux/dmapool.h>
 
 #include "htc.h"
 #include "rx_desc.h"
@@ -1181,10 +1182,19 @@ struct htt_rx_info {
 		u32 info1;
 		u32 info2;
 	} rate;
+
+	u32 tsf;
 	bool fcs_err;
 	bool amsdu_more;
 	bool mic_err;
 };
+
+struct ath10k_htt_txbuf {
+	struct htt_data_tx_desc_frag frags[2];
+	struct ath10k_htc_hdr htc_hdr;
+	struct htt_cmd_hdr cmd_hdr;
+	struct htt_data_tx_desc cmd_tx;
+} __packed;
 
 struct ath10k_htt {
 	struct ath10k *ar;
@@ -1267,11 +1277,18 @@ struct ath10k_htt {
 	struct sk_buff **pending_tx;
 	unsigned long *used_msdu_ids; /* bitmap */
 	wait_queue_head_t empty_tx_wq;
+	struct dma_pool *tx_pool;
 
 	/* set if host-fw communication goes haywire
 	 * used to avoid further failures */
 	bool rx_confused;
 	struct tasklet_struct rx_replenish_task;
+
+	/* This is used to group tx/rx completions separately and process them
+	 * in batches to reduce cache stalls */
+	struct tasklet_struct txrx_compl_task;
+	struct sk_buff_head tx_compl_q;
+	struct sk_buff_head rx_compl_q;
 };
 
 #define RX_HTT_HDR_STATUS_LEN 64
@@ -1343,4 +1360,5 @@ int ath10k_htt_tx_alloc_msdu_id(struct ath10k_htt *htt);
 void ath10k_htt_tx_free_msdu_id(struct ath10k_htt *htt, u16 msdu_id);
 int ath10k_htt_mgmt_tx(struct ath10k_htt *htt, struct sk_buff *);
 int ath10k_htt_tx(struct ath10k_htt *htt, struct sk_buff *);
+
 #endif

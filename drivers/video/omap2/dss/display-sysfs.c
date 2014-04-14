@@ -132,7 +132,7 @@ static ssize_t display_timings_show(struct device *dev,
 	dssdev->driver->get_timings(dssdev, &t);
 
 	return snprintf(buf, PAGE_SIZE, "%u,%u/%u/%u/%u,%u/%u/%u/%u\n",
-			t.pixel_clock,
+			t.pixelclock,
 			t.x_res, t.hfp, t.hbp, t.hsw,
 			t.y_res, t.vfp, t.vbp, t.vsw);
 }
@@ -158,7 +158,7 @@ static ssize_t display_timings_store(struct device *dev,
 	}
 #endif
 	if (!found && sscanf(buf, "%u,%hu/%hu/%hu/%hu,%hu/%hu/%hu/%hu",
-				&t.pixel_clock,
+				&t.pixelclock,
 				&t.x_res, &t.hfp, &t.hbp, &t.hsw,
 				&t.y_res, &t.vfp, &t.vbp, &t.vsw) != 9)
 		return -EINVAL;

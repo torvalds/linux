@@ -103,7 +103,7 @@ struct be_mcc_compl {
 
 /********** MCC door bell ************/
 #define DB_MCCQ_OFFSET 0x140
-#define DB_MCCQ_RING_ID_MASK 0x7FF		/* bits 0 - 10 */
+#define DB_MCCQ_RING_ID_MASK 0xFFFF		/* bits 0 - 15 */
 /* Number of entries posted */
 #define DB_MCCQ_NUM_POSTED_SHIFT 16		/* bits 16 - 29 */
 
@@ -709,7 +709,8 @@ unsigned int be_cmd_get_port_speed(struct beiscsi_hba *phba);
 void free_mcc_tag(struct be_ctrl_info *ctrl, unsigned int tag);
 
 int beiscsi_mccq_compl(struct beiscsi_hba *phba,
-			uint32_t tag, struct be_mcc_wrb **wrb, void *cmd_va);
+			uint32_t tag, struct be_mcc_wrb **wrb,
+			struct be_dma_mem *mbx_cmd_mem);
 /*ISCSI Functuions */
 int be_cmd_fw_initialize(struct be_ctrl_info *ctrl);
 int be_cmd_fw_uninit(struct be_ctrl_info *ctrl);
@@ -1017,8 +1018,8 @@ struct be_mcc_wrb_context {
 	int *users_final_status;
 } __packed;
 
-#define DB_DEF_PDU_RING_ID_MASK		0x3FF	/* bits 0 - 9 */
-#define DB_DEF_PDU_CQPROC_MASK		0x3FFF	/* bits 0 - 9 */
+#define DB_DEF_PDU_RING_ID_MASK	0x3FFF	/* bits 0 - 13 */
+#define DB_DEF_PDU_CQPROC_MASK		0x3FFF	/* bits 16 - 29 */
 #define DB_DEF_PDU_REARM_SHIFT		14
 #define DB_DEF_PDU_EVENT_SHIFT		15
 #define DB_DEF_PDU_CQPROC_SHIFT		16
@@ -1317,4 +1318,5 @@ void be_wrb_hdr_prepare(struct be_mcc_wrb *wrb, int payload_len,
 void be_cmd_hdr_prepare(struct be_cmd_req_hdr *req_hdr,
 			u8 subsystem, u8 opcode, int cmd_len);
 
+void be2iscsi_fail_session(struct iscsi_cls_session *cls_session);
 #endif /* !BEISCSI_CMDS_H */

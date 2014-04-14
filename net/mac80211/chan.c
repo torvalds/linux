@@ -100,6 +100,12 @@ ieee80211_get_chanctx_max_required_bw(struct ieee80211_local *local,
 		}
 		max_bw = max(max_bw, width);
 	}
+
+	/* use the configured bandwidth in case of monitor interface */
+	sdata = rcu_dereference(local->monitor_sdata);
+	if (sdata && rcu_access_pointer(sdata->vif.chanctx_conf) == conf)
+		max_bw = max(max_bw, conf->def.width);
+
 	rcu_read_unlock();
 
 	return max_bw;
@@ -195,6 +201,8 @@ ieee80211_find_chanctx(struct ieee80211_local *local,
 static bool ieee80211_is_radar_required(struct ieee80211_local *local)
 {
 	struct ieee80211_sub_if_data *sdata;
+
+	lockdep_assert_held(&local->mtx);
 
 	rcu_read_lock();
 	list_for_each_entry_rcu(sdata, &local->interfaces, list) {

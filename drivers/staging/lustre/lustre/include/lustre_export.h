@@ -192,9 +192,9 @@ struct obd_export {
 	struct obd_import	*exp_imp_reverse;
 	struct nid_stat	  *exp_nid_stats;
 	struct lprocfs_stats     *exp_md_stats;
-	/** Active connetion */
+	/** Active connection */
 	struct ptlrpc_connection *exp_connection;
-	/** Connection count value from last succesful reconnect rpc */
+	/** Connection count value from last successful reconnect rpc */
 	__u32		     exp_conn_cnt;
 	/** Hash list of all ldlm locks granted on this export */
 	struct cfs_hash	       *exp_lock_hash;
@@ -378,6 +378,23 @@ static inline bool imp_connect_lvb_type(struct obd_import *imp)
 		return true;
 	else
 		return false;
+}
+
+static inline __u64 exp_connect_ibits(struct obd_export *exp)
+{
+	struct obd_connect_data *ocd;
+
+	ocd = &exp->exp_connect_data;
+	return ocd->ocd_ibits_known;
+}
+
+static inline bool imp_connect_disp_stripe(struct obd_import *imp)
+{
+	struct obd_connect_data *ocd;
+
+	LASSERT(imp != NULL);
+	ocd = &imp->imp_connect_data;
+	return ocd->ocd_connect_flags & OBD_CONNECT_DISP_STRIPE;
 }
 
 extern struct obd_export *class_conn2export(struct lustre_handle *conn);

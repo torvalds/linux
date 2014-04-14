@@ -414,6 +414,7 @@ static struct ptp_clock_info ptp_gianfar_caps = {
 	.n_alarm	= 0,
 	.n_ext_ts	= N_EXT_TS,
 	.n_per_out	= 0,
+	.n_pins		= 0,
 	.pps		= 1,
 	.adjfreq	= ptp_gianfar_adjfreq,
 	.adjtime	= ptp_gianfar_adjtime,

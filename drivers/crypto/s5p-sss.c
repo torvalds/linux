@@ -568,17 +568,14 @@ static int s5p_aes_probe(struct platform_device *pdev)
 	if (s5p_dev)
 		return -EEXIST;
 
-	res = platform_get_resource(pdev, IORESOURCE_MEM, 0);
-	if (!res)
-		return -ENODEV;
-
 	pdata = devm_kzalloc(dev, sizeof(*pdata), GFP_KERNEL);
 	if (!pdata)
 		return -ENOMEM;
 
-	if (!devm_request_mem_region(dev, res->start,
-				     resource_size(res), pdev->name))
-		return -EBUSY;
+	res = platform_get_resource(pdev, IORESOURCE_MEM, 0);
+	pdata->ioaddr = devm_ioremap_resource(&pdev->dev, res);
+	if (IS_ERR(pdata->ioaddr))
+		return PTR_ERR(pdata->ioaddr);
 
 	pdata->clk = devm_clk_get(dev, "secss");
 	if (IS_ERR(pdata->clk)) {
@@ -589,8 +586,6 @@ static int s5p_aes_probe(struct platform_device *pdev)
 	clk_enable(pdata->clk);
 
 	spin_lock_init(&pdata->lock);
-	pdata->ioaddr = devm_ioremap(dev, res->start,
-				     resource_size(res));
 
 	pdata->irq_hash = platform_get_irq_byname(pdev, "hash");
 	if (pdata->irq_hash < 0) {

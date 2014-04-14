@@ -60,13 +60,14 @@
 #include <linux/sched.h>
 #include <linux/static_key.h>
 #include <linux/workqueue.h>
+#include <linux/compiler.h>
 
 /*
  * Scheduler clock - returns current time in nanosec units.
  * This is default implementation.
  * Architectures and sub-architectures can override this.
  */
-unsigned long long __attribute__((weak)) sched_clock(void)
+unsigned long long __weak sched_clock(void)
 {
 	return (unsigned long long)(jiffies - INITIAL_JIFFIES)
 					* (NSEC_PER_SEC / HZ);
@@ -301,14 +302,14 @@ u64 sched_clock_cpu(int cpu)
 	if (unlikely(!sched_clock_running))
 		return 0ull;
 
-	preempt_disable();
+	preempt_disable_notrace();
 	scd = cpu_sdc(cpu);
 
 	if (cpu != smp_processor_id())
 		clock = sched_clock_remote(scd);
 	else
 		clock = sched_clock_local(scd);
-	preempt_enable();
+	preempt_enable_notrace();
 
 	return clock;
 }

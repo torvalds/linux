@@ -50,7 +50,7 @@ int pciehp_configure_device(struct slot *p_slot)
 			 "at %04x:%02x:00, cannot hot-add\n", pci_name(dev),
 			 pci_domain_nr(parent), parent->number);
 		pci_dev_put(dev);
-		ret = -EINVAL;
+		ret = -EEXIST;
 		goto out;
 	}
 

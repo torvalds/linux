@@ -23,8 +23,8 @@
 #define COMP_HDR_LEN 4
 #define COMP_CKSUM_LEN 2
 
-#define LE16(x) __constant_cpu_to_le16(x)
-#define LE32(x) __constant_cpu_to_le32(x)
+#define LE16(x) cpu_to_le16(x)
+#define LE32(x) cpu_to_le32(x)
 
 /* Local defines to distinguish between extension and control CTL's */
 #define EXT_ADDITIVE (0x8000)
@@ -4792,43 +4792,54 @@ static void ar9003_hw_power_control_override(struct ath_hw *ah,
 
 tempslope:
 	if (AR_SREV_9550(ah) || AR_SREV_9531(ah)) {
+		u8 txmask = (eep->baseEepHeader.txrxMask & 0xf0) >> 4;
+
 		/*
 		 * AR955x has tempSlope register for each chain.
 		 * Check whether temp_compensation feature is enabled or not.
 		 */
 		if (eep->baseEepHeader.featureEnable & 0x1) {
 			if (frequency < 4000) {
-				REG_RMW_FIELD(ah, AR_PHY_TPC_19,
-					      AR_PHY_TPC_19_ALPHA_THERM,
-					      eep->base_ext2.tempSlopeLow);
-				REG_RMW_FIELD(ah, AR_PHY_TPC_19_B1,
-					      AR_PHY_TPC_19_ALPHA_THERM,
-					      temp_slope);
-				REG_RMW_FIELD(ah, AR_PHY_TPC_19_B2,
-					      AR_PHY_TPC_19_ALPHA_THERM,
-					      eep->base_ext2.tempSlopeHigh);
+				if (txmask & BIT(0))
+					REG_RMW_FIELD(ah, AR_PHY_TPC_19,
+						      AR_PHY_TPC_19_ALPHA_THERM,
+						      eep->base_ext2.tempSlopeLow);
+				if (txmask & BIT(1))
+					REG_RMW_FIELD(ah, AR_PHY_TPC_19_B1,
+						      AR_PHY_TPC_19_ALPHA_THERM,
+						      temp_slope);
+				if (txmask & BIT(2))
+					REG_RMW_FIELD(ah, AR_PHY_TPC_19_B2,
+						      AR_PHY_TPC_19_ALPHA_THERM,
+						      eep->base_ext2.tempSlopeHigh);
 			} else {
-				REG_RMW_FIELD(ah, AR_PHY_TPC_19,
-					      AR_PHY_TPC_19_ALPHA_THERM,
-					      temp_slope);
-				REG_RMW_FIELD(ah, AR_PHY_TPC_19_B1,
-					      AR_PHY_TPC_19_ALPHA_THERM,
-					      temp_slope1);
-				REG_RMW_FIELD(ah, AR_PHY_TPC_19_B2,
-					      AR_PHY_TPC_19_ALPHA_THERM,
-					      temp_slope2);
+				if (txmask & BIT(0))
+					REG_RMW_FIELD(ah, AR_PHY_TPC_19,
+						      AR_PHY_TPC_19_ALPHA_THERM,
+						      temp_slope);
+				if (txmask & BIT(1))
+					REG_RMW_FIELD(ah, AR_PHY_TPC_19_B1,
+						      AR_PHY_TPC_19_ALPHA_THERM,
+						      temp_slope1);
+				if (txmask & BIT(2))
+					REG_RMW_FIELD(ah, AR_PHY_TPC_19_B2,
+						      AR_PHY_TPC_19_ALPHA_THERM,
+						      temp_slope2);
 			}
 		} else {
 			/*
 			 * If temp compensation is not enabled,
 			 * set all registers to 0.
 			 */
-			REG_RMW_FIELD(ah, AR_PHY_TPC_19,
-				      AR_PHY_TPC_19_ALPHA_THERM, 0);
-			REG_RMW_FIELD(ah, AR_PHY_TPC_19_B1,
-				      AR_PHY_TPC_19_ALPHA_THERM, 0);
-			REG_RMW_FIELD(ah, AR_PHY_TPC_19_B2,
-				      AR_PHY_TPC_19_ALPHA_THERM, 0);
+			if (txmask & BIT(0))
+				REG_RMW_FIELD(ah, AR_PHY_TPC_19,
+					      AR_PHY_TPC_19_ALPHA_THERM, 0);
+			if (txmask & BIT(1))
+				REG_RMW_FIELD(ah, AR_PHY_TPC_19_B1,
+					      AR_PHY_TPC_19_ALPHA_THERM, 0);
+			if (txmask & BIT(2))
+				REG_RMW_FIELD(ah, AR_PHY_TPC_19_B2,
+					      AR_PHY_TPC_19_ALPHA_THERM, 0);
 		}
 	} else {
 		REG_RMW_FIELD(ah, AR_PHY_TPC_19,

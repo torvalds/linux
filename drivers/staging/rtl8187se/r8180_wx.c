@@ -29,7 +29,7 @@ static u32 rtl8180_rates[] = {1000000, 2000000, 5500000, 11000000,
 
 #define RATE_COUNT ARRAY_SIZE(rtl8180_rates)
 
-static CHANNEL_LIST DefaultChannelPlan[] = {
+static struct rtl8187se_channel_list default_channel_plan[] = {
 	{{1, 2, 3, 4, 5, 6, 7, 8, 9, 10, 11, 36, 40, 44, 48, 52, 56, 60, 64}, 19},		/* FCC */
 	{{1, 2, 3, 4, 5, 6, 7, 8, 9, 10, 11}, 11},						/* IC */
 	{{1, 2, 3, 4, 5, 6, 7, 8, 9, 10, 11, 12, 13, 36, 40, 44, 48, 52, 56, 60, 64}, 21},	/* ETSI	*/
@@ -337,7 +337,7 @@ static int r8180_wx_set_scan(struct net_device *dev, struct iw_request_info *a,
 		}	else	{
 			/* prevent scan in BusyTraffic */
 			/* FIXME: Need to consider last scan time */
-			if ((priv->link_detect.bBusyTraffic) && (true))	{
+			if ((priv->link_detect.b_busy_traffic) && (true)) {
 				ret = 0;
 				printk("Now traffic is busy, please try later!\n");
 			}	else
@@ -1030,15 +1030,15 @@ static int r8180_wx_set_channelplan(struct net_device *dev,
 
 	/* unsigned long flags; */
 	down(&priv->wx_sem);
-	if (DefaultChannelPlan[*val].Len != 0)	{
+	if (default_channel_plan[*val].len != 0) {
 		priv->channel_plan = *val;
 		/* Clear old channel map 8 */
 		for (i = 1; i <= MAX_CHANNEL_NUMBER; i++)
 			GET_DOT11D_INFO(priv->ieee80211)->channel_map[i] = 0;
 
 		/* Set new channel map */
-		for (i = 1; i <= DefaultChannelPlan[*val].Len; i++)
-			GET_DOT11D_INFO(priv->ieee80211)->channel_map[DefaultChannelPlan[*val].Channel[i-1]] = 1;
+		for (i = 1; i <= default_channel_plan[*val].len; i++)
+			GET_DOT11D_INFO(priv->ieee80211)->channel_map[default_channel_plan[*val].channel[i-1]] = 1;
 
 	}
 	up(&priv->wx_sem);

@@ -310,10 +310,8 @@ static int pm800_regulator_probe(struct platform_device *pdev)
 
 	pm800_data = devm_kzalloc(&pdev->dev, sizeof(*pm800_data),
 					GFP_KERNEL);
-	if (!pm800_data) {
-		dev_err(&pdev->dev, "Failed to allocate pm800_regualtors");
+	if (!pm800_data)
 		return -ENOMEM;
-	}
 
 	pm800_data->map = chip->subchip->regmap_power;
 	pm800_data->chip = chip;

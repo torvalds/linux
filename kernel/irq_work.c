@@ -61,11 +61,11 @@ void __weak arch_irq_work_raise(void)
  *
  * Can be re-enqueued while the callback is still in progress.
  */
-void irq_work_queue(struct irq_work *work)
+bool irq_work_queue(struct irq_work *work)
 {
 	/* Only queue if not already pending */
 	if (!irq_work_claim(work))
-		return;
+		return false;
 
 	/* Queue the entry and raise the IPI if needed. */
 	preempt_disable();
@@ -83,6 +83,8 @@ void irq_work_queue(struct irq_work *work)
 	}
 
 	preempt_enable();
+
+	return true;
 }
 EXPORT_SYMBOL_GPL(irq_work_queue);
 

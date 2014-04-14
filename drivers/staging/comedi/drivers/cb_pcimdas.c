@@ -85,21 +85,31 @@ struct cb_pcimdas_private {
 	unsigned int ao_readback[2];
 };
 
-/*
- * "instructions" read/write data in "one-shot" or "software-triggered"
- * mode.
- */
+static int cb_pcimdas_ai_eoc(struct comedi_device *dev,
+			     struct comedi_subdevice *s,
+			     struct comedi_insn *insn,
+			     unsigned long context)
+{
+	struct cb_pcimdas_private *devpriv = dev->private;
+	unsigned int status;
+
+	status = inb(devpriv->BADR3 + 2);
+	if ((status & 0x80) == 0)
+		return 0;
+	return -EBUSY;
+}
+
 static int cb_pcimdas_ai_rinsn(struct comedi_device *dev,
 			       struct comedi_subdevice *s,
 			       struct comedi_insn *insn, unsigned int *data)
 {
 	struct cb_pcimdas_private *devpriv = dev->private;
-	int n, i;
+	int n;
 	unsigned int d;
-	unsigned int busy;
 	int chan = CR_CHAN(insn->chanspec);
 	unsigned short chanlims;
 	int maxchans;
+	int ret;
 
 	/*  only support sw initiated reads from a single channel */
 
@@ -133,17 +143,10 @@ static int cb_pcimdas_ai_rinsn(struct comedi_device *dev,
 		/* trigger conversion */
 		outw(0, dev->iobase + 0);
 
-#define TIMEOUT 1000		/* typically takes 5 loops on a lightly loaded Pentium 100MHz, */
-		/* this is likely to be 100 loops on a 2GHz machine, so set 1000 as the limit. */
-
 		/* wait for conversion to end */
-		for (i = 0; i < TIMEOUT; i++) {
-			busy = inb(devpriv->BADR3 + 2) & 0x80;
-			if (!busy)
-				break;
-		}
-		if (i == TIMEOUT)
-			return -ETIMEDOUT;
+		ret = comedi_timeout(dev, s, insn, cb_pcimdas_ai_eoc, 0);
+		if (ret)
+			return ret;
 
 		/* read data */
 		data[n] = inw(dev->iobase + 0);
@@ -247,9 +250,9 @@ static int cb_pcimdas_auto_attach(struct comedi_device *dev,
 
 	s = &dev->subdevices[2];
 	/* digital i/o subdevice */
-	subdev_8255_init(dev, s, NULL, iobase_8255);
-
-	dev_info(dev->class_dev, "%s attached\n", dev->board_name);
+	ret = subdev_8255_init(dev, s, NULL, iobase_8255);
+	if (ret)
+		return ret;
 
 	return 0;
 }

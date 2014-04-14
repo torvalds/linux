@@ -155,6 +155,7 @@ struct ieee80211_reg_rule {
 	struct ieee80211_freq_range freq_range;
 	struct ieee80211_power_rule power_rule;
 	u32 flags;
+	u32 dfs_cac_ms;
 };
 
 struct ieee80211_regdomain {
@@ -172,14 +173,18 @@ struct ieee80211_regdomain {
 #define DBM_TO_MBM(gain) ((gain) * 100)
 #define MBM_TO_DBM(gain) ((gain) / 100)
 
-#define REG_RULE(start, end, bw, gain, eirp, reg_flags) \
-{							\
-	.freq_range.start_freq_khz = MHZ_TO_KHZ(start),	\
-	.freq_range.end_freq_khz = MHZ_TO_KHZ(end),	\
-	.freq_range.max_bandwidth_khz = MHZ_TO_KHZ(bw),	\
-	.power_rule.max_antenna_gain = DBI_TO_MBI(gain),\
-	.power_rule.max_eirp = DBM_TO_MBM(eirp),	\
-	.flags = reg_flags,				\
+#define REG_RULE_EXT(start, end, bw, gain, eirp, dfs_cac, reg_flags)	\
+{									\
+	.freq_range.start_freq_khz = MHZ_TO_KHZ(start),			\
+	.freq_range.end_freq_khz = MHZ_TO_KHZ(end),			\
+	.freq_range.max_bandwidth_khz = MHZ_TO_KHZ(bw),			\
+	.power_rule.max_antenna_gain = DBI_TO_MBI(gain),		\
+	.power_rule.max_eirp = DBM_TO_MBM(eirp),			\
+	.flags = reg_flags,						\
+	.dfs_cac_ms = dfs_cac,						\
 }
+
+#define REG_RULE(start, end, bw, gain, eirp, reg_flags) \
+	REG_RULE_EXT(start, end, bw, gain, eirp, 0, reg_flags)
 
 #endif

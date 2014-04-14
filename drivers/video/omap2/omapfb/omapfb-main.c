@@ -723,8 +723,8 @@ int check_fb_var(struct fb_info *fbi, struct fb_var_screeninfo *var)
 		display->driver->get_timings(display, &timings);
 
 		/* pixclock in ps, the rest in pixclock */
-		var->pixclock = timings.pixel_clock != 0 ?
-			KHZ2PICOS(timings.pixel_clock) :
+		var->pixclock = timings.pixelclock != 0 ?
+			KHZ2PICOS(timings.pixelclock / 1000) :
 			0;
 		var->left_margin = timings.hbp;
 		var->right_margin = timings.hfp;
@@ -2077,7 +2077,7 @@ static int omapfb_mode_to_timings(const char *mode_str,
 		timings->sync_pclk_edge = OMAPDSS_DRIVE_SIG_OPPOSITE_EDGES;
 	}
 
-	timings->pixel_clock = PICOS2KHZ(var->pixclock);
+	timings->pixelclock = PICOS2KHZ(var->pixclock) * 1000;
 	timings->hbp = var->left_margin;
 	timings->hfp = var->right_margin;
 	timings->vbp = var->upper_margin;
@@ -2229,7 +2229,7 @@ static void fb_videomode_to_omap_timings(struct fb_videomode *m,
 
 	t->x_res = m->xres;
 	t->y_res = m->yres;
-	t->pixel_clock = PICOS2KHZ(m->pixclock);
+	t->pixelclock = PICOS2KHZ(m->pixclock) * 1000;
 	t->hsw = m->hsync_len;
 	t->hfp = m->right_margin;
 	t->hbp = m->left_margin;
@@ -2417,6 +2417,55 @@ static int omapfb_init_connections(struct omapfb2_device *fbdev,
 	return 0;
 }
 
+static struct omap_dss_device *
+omapfb_find_default_display(struct omapfb2_device *fbdev)
+{
+	const char *def_name;
+	int i;
+
+	/*
+	 * Search with the display name from the user or the board file,
+	 * comparing to display names and aliases
+	 */
+
+	def_name = omapdss_get_default_display_name();
+
+	if (def_name) {
+		for (i = 0; i < fbdev->num_displays; ++i) {
+			struct omap_dss_device *dssdev;
+
+			dssdev = fbdev->displays[i].dssdev;
+
+			if (dssdev->name && strcmp(def_name, dssdev->name) == 0)
+				return dssdev;
+
+			if (strcmp(def_name, dssdev->alias) == 0)
+				return dssdev;
+		}
+
+		/* def_name given but not found */
+		return NULL;
+	}
+
+	/* then look for DT alias display0 */
+	for (i = 0; i < fbdev->num_displays; ++i) {
+		struct omap_dss_device *dssdev;
+		int id;
+
+		dssdev = fbdev->displays[i].dssdev;
+
+		if (dssdev->dev->of_node == NULL)
+			continue;
+
+		id = of_alias_get_id(dssdev->dev->of_node, "display");
+		if (id == 0)
+			return dssdev;
+	}
+
+	/* return the first display we have in the list */
+	return fbdev->displays[0].dssdev;
+}
+
 static int omapfb_probe(struct platform_device *pdev)
 {
 	struct omapfb2_device *fbdev = NULL;
@@ -2494,23 +2543,7 @@ static int omapfb_probe(struct platform_device *pdev)
 	for (i = 0; i < fbdev->num_managers; i++)
 		fbdev->managers[i] = omap_dss_get_overlay_manager(i);
 
-	def_display = NULL;
-
-	for (i = 0; i < fbdev->num_displays; ++i) {
-		struct omap_dss_device *dssdev;
-		const char *def_name;
-
-		def_name = omapdss_get_default_display_name();
-
-		dssdev = fbdev->displays[i].dssdev;
-
-		if (def_name == NULL ||
-			(dssdev->name && strcmp(def_name, dssdev->name) == 0)) {
-			def_display = dssdev;
-			break;
-		}
-	}
-
+	def_display = omapfb_find_default_display(fbdev);
 	if (def_display == NULL) {
 		dev_err(fbdev->dev, "failed to find default display\n");
 		r = -EPROBE_DEFER;

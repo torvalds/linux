@@ -63,6 +63,7 @@ enum {
 	NETIF_F_HW_VLAN_STAG_RX_BIT,	/* Receive VLAN STAG HW acceleration */
 	NETIF_F_HW_VLAN_STAG_FILTER_BIT,/* Receive filtering on VLAN STAGs */
 	NETIF_F_HW_L2FW_DOFFLOAD_BIT,	/* Allow L2 Forwarding in Hardware */
+	NETIF_F_BUSY_POLL_BIT,		/* Busy poll */
 
 	/*
 	 * Add your fresh new feature above and remember to update
@@ -118,6 +119,7 @@ enum {
 #define NETIF_F_HW_VLAN_STAG_RX	__NETIF_F(HW_VLAN_STAG_RX)
 #define NETIF_F_HW_VLAN_STAG_TX	__NETIF_F(HW_VLAN_STAG_TX)
 #define NETIF_F_HW_L2FW_DOFFLOAD	__NETIF_F(HW_L2FW_DOFFLOAD)
+#define NETIF_F_BUSY_POLL	__NETIF_F(BUSY_POLL)
 
 /* Features valid for ethtool to change */
 /* = all defined minus driver/device-class-related */
@@ -162,5 +164,12 @@ enum {
 
 /* changeable features with no special hardware requirements */
 #define NETIF_F_SOFT_FEATURES	(NETIF_F_GSO | NETIF_F_GRO)
+
+#define NETIF_F_VLAN_FEATURES	(NETIF_F_HW_VLAN_CTAG_FILTER | \
+				 NETIF_F_HW_VLAN_CTAG_RX | \
+				 NETIF_F_HW_VLAN_CTAG_TX | \
+				 NETIF_F_HW_VLAN_STAG_FILTER | \
+				 NETIF_F_HW_VLAN_STAG_RX | \
+				 NETIF_F_HW_VLAN_STAG_TX)
 
 #endif	/* _LINUX_NETDEV_FEATURES_H */

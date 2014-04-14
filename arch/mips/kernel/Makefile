@@ -53,6 +53,8 @@ obj-$(CONFIG_MIPS_MT_FPAFF)	+= mips-mt-fpaff.o
 obj-$(CONFIG_MIPS_MT_SMTC)	+= smtc.o smtc-asm.o smtc-proc.o
 obj-$(CONFIG_MIPS_MT_SMP)	+= smp-mt.o
 obj-$(CONFIG_MIPS_CMP)		+= smp-cmp.o
+obj-$(CONFIG_MIPS_CPS)		+= smp-cps.o cps-vec.o
+obj-$(CONFIG_MIPS_GIC_IPI)	+= smp-gic.o
 obj-$(CONFIG_CPU_MIPSR2)	+= spram.o
 
 obj-$(CONFIG_MIPS_VPE_LOADER)	+= vpe.o
@@ -101,6 +103,9 @@ obj-$(CONFIG_PERF_EVENTS)	+= perf_event.o
 obj-$(CONFIG_HW_PERF_EVENTS)	+= perf_event_mipsxx.o
 
 obj-$(CONFIG_JUMP_LABEL)	+= jump_label.o
+
+obj-$(CONFIG_MIPS_CM)		+= mips-cm.o
+obj-$(CONFIG_MIPS_CPC)		+= mips-cpc.o
 
 #
 # DSP ASE supported for MIPS32 or MIPS64 Release 2 cores only. It is not

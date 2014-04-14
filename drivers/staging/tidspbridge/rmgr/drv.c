@@ -738,7 +738,7 @@ void mem_ext_phys_pool_release(void)
  *     Allocate physically contiguous, uncached memory from external memory pool
  */
 
-static void *mem_ext_phys_mem_alloc(u32 bytes, u32 align, u32 * phys_addr)
+static void *mem_ext_phys_mem_alloc(u32 bytes, u32 align, u32 *phys_addr)
 {
 	u32 new_alloc_ptr;
 	u32 offset;

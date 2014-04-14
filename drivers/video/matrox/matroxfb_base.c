@@ -1773,7 +1773,8 @@ static int initMatrox2(struct matrox_fb_info *minfo, struct board *b)
 				      FBINFO_HWACCEL_FILLRECT |  /* And fillrect */
 				      FBINFO_HWACCEL_IMAGEBLIT | /* And imageblit */
 				      FBINFO_HWACCEL_XPAN |      /* And we support both horizontal */
-				      FBINFO_HWACCEL_YPAN;       /* And vertical panning */
+				      FBINFO_HWACCEL_YPAN |      /* And vertical panning */
+				      FBINFO_READS_FAST;
 	minfo->video.len_usable &= PAGE_MASK;
 	fb_alloc_cmap(&minfo->fbcon.cmap, 256, 1);
 

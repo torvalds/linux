@@ -88,15 +88,11 @@ static int hdmi_init_regulator(void)
 	if (hdmi.vdda_hdmi_dac_reg != NULL)
 		return 0;
 
-	reg = devm_regulator_get(&hdmi.pdev->dev, "vdda_hdmi_dac");
-
-	/* DT HACK: try VDAC to make omapdss work for o4 sdp/panda */
-	if (IS_ERR(reg))
-		reg = devm_regulator_get(&hdmi.pdev->dev, "VDAC");
+	reg = devm_regulator_get(&hdmi.pdev->dev, "vdda");
 
 	if (IS_ERR(reg)) {
 		if (PTR_ERR(reg) != -EPROBE_DEFER)
-			DSSERR("can't get VDDA_HDMI_DAC regulator\n");
+			DSSERR("can't get VDDA regulator\n");
 		return PTR_ERR(reg);
 	}
 
@@ -153,7 +149,8 @@ static int hdmi_power_on_full(struct omap_dss_device *dssdev)
 
 	DSSDBG("hdmi_power_on x_res= %d y_res = %d\n", p->x_res, p->y_res);
 
-	phy = p->pixel_clock;
+	/* the functions below use kHz pixel clock. TODO: change to Hz */
+	phy = p->pixelclock / 1000;
 
 	hdmi_pll_compute(&hdmi.pll, clk_get_rate(hdmi.sys_clk), phy);
 
@@ -238,13 +235,13 @@ static void hdmi_display_set_timing(struct omap_dss_device *dssdev,
 	if (t != NULL) {
 		hdmi.cfg = *t;
 
-		dispc_set_tv_pclk(t->timings.pixel_clock * 1000);
+		dispc_set_tv_pclk(t->timings.pixelclock);
 	} else {
 		hdmi.cfg.timings = *timings;
 		hdmi.cfg.cm.code = 0;
 		hdmi.cfg.cm.mode = HDMI_DVI;
 
-		dispc_set_tv_pclk(timings->pixel_clock * 1000);
+		dispc_set_tv_pclk(timings->pixelclock);
 	}
 
 	DSSDBG("using mode: %s, code %d\n", hdmi.cfg.cm.mode == HDMI_DVI ?
@@ -509,7 +506,7 @@ static int hdmi_audio_config(struct omap_dss_device *dssdev,
 		struct omap_dss_audio *audio)
 {
 	int r;
-	u32 pclk = hdmi.cfg.timings.pixel_clock;
+	u32 pclk = hdmi.cfg.timings.pixelclock;
 
 	mutex_lock(&hdmi.lock);
 
@@ -679,6 +676,11 @@ static const struct dev_pm_ops hdmi_pm_ops = {
 	.runtime_resume = hdmi_runtime_resume,
 };
 
+static const struct of_device_id hdmi_of_match[] = {
+	{ .compatible = "ti,omap4-hdmi", },
+	{},
+};
+
 static struct platform_driver omapdss_hdmihw_driver = {
 	.probe		= omapdss_hdmihw_probe,
 	.remove         = __exit_p(omapdss_hdmihw_remove),
@@ -686,6 +688,7 @@ static struct platform_driver omapdss_hdmihw_driver = {
 		.name   = "omapdss_hdmi",
 		.owner  = THIS_MODULE,
 		.pm	= &hdmi_pm_ops,
+		.of_match_table = hdmi_of_match,
 	},
 };
 

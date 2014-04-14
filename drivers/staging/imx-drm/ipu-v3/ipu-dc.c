@@ -262,7 +262,7 @@ void ipu_dc_disable_channel(struct ipu_dc *dc)
 
 	/* Wait for DC triple buffer to empty */
 	while ((readl(priv->dc_reg + DC_STAT) & val) != val) {
-		msleep(2);
+		usleep_range(2000, 20000);
 		timeout -= 2;
 		if (timeout <= 0)
 			break;

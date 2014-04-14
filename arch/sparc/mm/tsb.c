@@ -273,7 +273,7 @@ void __init pgtable_cache_init(void)
 		prom_halt();
 	}
 
-	for (i = 0; i < 8; i++) {
+	for (i = 0; i < ARRAY_SIZE(tsb_cache_names); i++) {
 		unsigned long size = 8192 << i;
 		const char *name = tsb_cache_names[i];
 

@@ -1645,6 +1645,9 @@ static int tc35815_poll(struct napi_struct *napi, int budget)
 	int received = 0, handled;
 	u32 status;
 
+	if (budget <= 0)
+		return received;
+
 	spin_lock(&lp->rx_lock);
 	status = tc_readl(&tr->Int_Src);
 	do {

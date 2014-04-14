@@ -16,7 +16,6 @@
 #include <asm/gic.h>
 #include <asm/setup.h>
 #include <asm/traps.h>
-#include <asm/gcmpregs.h>
 #include <linux/hardirq.h>
 #include <asm-generic/bitops/find.h>
 

@@ -233,7 +233,7 @@ int proc_get_rf_info(char *page, char **start,
 	struct mlme_ext_priv	*pmlmeext = &padapter->mlmeextpriv;
 	int len = 0;
 
-	len += snprintf(page + len, count - len, "cur_ch=%d, cur_bw=%d, cur_ch_offet=%d\n",
+	len += snprintf(page + len, count - len, "cur_ch=%d, cur_bw=%d, cur_ch_offset=%d\n",
 					pmlmeext->cur_channel, pmlmeext->cur_bwmode, pmlmeext->cur_ch_offset);
 	*eof = 1;
 	return len;
@@ -783,7 +783,7 @@ int proc_set_rx_stbc(struct file *file, const char __user *buffer,
 	if (buffer && !copy_from_user(tmp, buffer, sizeof(tmp))) {
 		if (pregpriv) {
 			pregpriv->rx_stbc = mode;
-			printk("rx_stbc=%d\n", mode);
+			netdev_info(dev, "rx_stbc=%d\n", mode);
 		}
 	}
 	return count;
@@ -820,7 +820,7 @@ int proc_set_rssi_disp(struct file *file, const char __user *buffer,
 
 		if (enable) {
 			DBG_88E("Turn On Rx RSSI Display Function\n");
-			padapter->bRxRSSIDisplay = enable ;
+			padapter->bRxRSSIDisplay = enable;
 		} else {
 			DBG_88E("Turn Off Rx RSSI Display Function\n");
 			padapter->bRxRSSIDisplay = 0;
@@ -851,12 +851,12 @@ int proc_get_all_sta_info(char *page, char **start,
 
 	for (i = 0; i < NUM_STA; i++) {
 		phead = &(pstapriv->sta_hash[i]);
-		plist = get_next(phead);
+		plist = phead->next;
 
 		while ((rtw_end_of_queue_search(phead, plist)) == false) {
-			psta = LIST_CONTAINOR(plist, struct sta_info, hash_list);
+			psta = container_of(plist, struct sta_info, hash_list);
 
-			plist = get_next(plist);
+			plist = plist->next;
 
 			len += snprintf(page + len, count - len, "sta's macaddr: %pM\n", psta->hwaddr);
 			len += snprintf(page + len, count - len, "rtsen=%d, cts2slef=%d\n", psta->rtsen, psta->cts2self);
