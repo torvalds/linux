@@ -39,9 +39,6 @@
 # define FALSE 0
 #endif
 
-/* Required for our shared headers! */
-typedef unsigned char		uchar;
-
 #if !defined(TTY_FLIPBUF_SIZE)
 # define TTY_FLIPBUF_SIZE 512
 #endif
@@ -541,11 +538,11 @@ struct board_t {
 	u16		device;		/* PCI device ID */
 	u16		subvendor;	/* PCI subsystem vendor ID */
 	u16		subdevice;	/* PCI subsystem device ID */
-	uchar		rev;		/* PCI revision ID */
+	u8		rev;		/* PCI revision ID */
 	uint		pci_bus;	/* PCI bus value */
 	uint		pci_slot;	/* PCI slot value */
 	u16		maxports;	/* MAX ports this board can handle */
-	uchar		vpd[VPDSIZE];	/* VPD of board, if found */
+	u8		vpd[VPDSIZE];	/* VPD of board, if found */
 	u32		bd_flags;	/* Board flags */
 
 	spinlock_t	bd_lock;	/* Used to protect board */
@@ -574,11 +571,11 @@ struct board_t {
 	ulong		membase;	/* Start of base memory of the card */
 	ulong		membase_end;	/* End of base memory of the card */
 
-	uchar		*re_map_port;	/* Remapped io port of the card */
-	uchar		*re_map_membase;/* Remapped memory of the card */
+	u8		*re_map_port;	/* Remapped io port of the card */
+	u8		*re_map_membase;/* Remapped memory of the card */
 
-	uchar		runwait;	/* # Processes waiting for FEP  */
-	uchar		inhibit_poller; /* Tells the poller to leave us alone */
+	u8		runwait;	/* # Processes waiting for FEP  */
+	u8		inhibit_poller; /* Tells the poller to leave us alone */
 
 	struct channel_t *channels[MAXPORTS]; /* array of pointers to our */
 					      /* channels.                */
@@ -985,7 +982,7 @@ struct channel_t {
 	wait_queue_head_t ch_flags_wait;
 
 	u32	pscan_state;
-	uchar	pscan_savechar;
+	u8	pscan_savechar;
 
 	u32 ch_portnum;			/* Port number, 0 offset.	*/
 	u32 ch_open_count;		/* open count			*/
@@ -1015,27 +1012,27 @@ struct channel_t {
 
 	u16  ch_cook;			/* Output character mask        */
 
-	uchar   ch_card;		/* Card channel is on           */
-	uchar   ch_stopc;		/* Stop character               */
-	uchar   ch_startc;		/* Start character              */
+	u8   ch_card;			/* Card channel is on           */
+	u8   ch_stopc;			/* Stop character               */
+	u8   ch_startc;			/* Start character              */
 
-	uchar   ch_mostat;		/* FEP output modem status      */
-	uchar   ch_mistat;		/* FEP input modem status       */
-	uchar   ch_mforce;		/* Modem values to be forced    */
-	uchar   ch_mval;		/* Force values                 */
-	uchar   ch_fepstopc;		/* FEP stop character           */
-	uchar   ch_fepstartc;		/* FEP start character          */
+	u8   ch_mostat;			/* FEP output modem status      */
+	u8   ch_mistat;			/* FEP input modem status       */
+	u8   ch_mforce;			/* Modem values to be forced    */
+	u8   ch_mval;			/* Force values                 */
+	u8   ch_fepstopc;		/* FEP stop character           */
+	u8   ch_fepstartc;		/* FEP start character          */
 
-	uchar   ch_astopc;		/* Auxiliary Stop character     */
-	uchar   ch_astartc;		/* Auxiliary Start character    */
-	uchar   ch_fepastopc;		/* Auxiliary FEP stop char      */
-	uchar   ch_fepastartc;		/* Auxiliary FEP start char     */
+	u8   ch_astopc;			/* Auxiliary Stop character     */
+	u8   ch_astartc;		/* Auxiliary Start character    */
+	u8   ch_fepastopc;		/* Auxiliary FEP stop char      */
+	u8   ch_fepastartc;		/* Auxiliary FEP start char     */
 
-	uchar   ch_hflow;		/* FEP hardware handshake       */
-	uchar   ch_dsr;			/* stores real dsr value        */
-	uchar   ch_cd;			/* stores real cd value         */
-	uchar   ch_tx_win;		/* channel tx buffer window     */
-	uchar   ch_rx_win;		/* channel rx buffer window     */
+	u8   ch_hflow;			/* FEP hardware handshake       */
+	u8   ch_dsr;			/* stores real dsr value        */
+	u8   ch_cd;			/* stores real cd value         */
+	u8   ch_tx_win;			/* channel tx buffer window     */
+	u8   ch_rx_win;			/* channel rx buffer window     */
 	uint	ch_custom_speed;	/* Custom baud, if set		*/
 	uint	ch_baud_info;		/* Current baud info for /proc output */
 	ulong	ch_rxcount;		/* total of data received so far      */
@@ -1076,14 +1073,14 @@ struct ev_t {
  * Download buffer structure.
  ************************************************************************/
 struct downld_t {
-	uchar	dl_type;		/* Header                       */
-	uchar	dl_seq;			/* Download sequence            */
+	u8	dl_type;		/* Header                       */
+	u8	dl_seq;			/* Download sequence            */
 	ushort	dl_srev;		/* Software revision number     */
 	ushort	dl_lrev;		/* Low revision number          */
 	ushort	dl_hrev;		/* High revision number         */
 	ushort	dl_seg;			/* Start segment address        */
 	ushort	dl_size;		/* Number of bytes to download  */
-	uchar	dl_data[1024];		/* Download data                */
+	u8	dl_data[1024];		/* Download data                */
 };
 
 /************************************************************************
