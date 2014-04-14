@@ -82,6 +82,7 @@ static struct request *__blk_mq_alloc_request(struct blk_mq_hw_ctx *hctx,
 	tag = blk_mq_get_tag(hctx->tags, gfp, reserved);
 	if (tag != BLK_MQ_TAG_FAIL) {
 		rq = hctx->rqs[tag];
+		blk_rq_init(hctx->queue, rq);
 		rq->tag = tag;
 
 		return rq;
@@ -257,9 +258,7 @@ static void __blk_mq_free_request(struct blk_mq_hw_ctx *hctx,
 	const int tag = rq->tag;
 	struct request_queue *q = rq->q;
 
-	blk_rq_init(hctx->queue, rq);
 	blk_mq_put_tag(hctx->tags, tag);
-
 	blk_mq_queue_exit(q);
 }
 
@@ -1122,7 +1121,6 @@ static int blk_mq_init_rq_map(struct blk_mq_hw_ctx *hctx,
 		left -= to_do * rq_size;
 		for (j = 0; j < to_do; j++) {
 			hctx->rqs[i] = p;
-			blk_rq_init(hctx->queue, hctx->rqs[i]);
 			if (reg->ops->init_request) {
 				error = reg->ops->init_request(driver_data,
 						hctx, hctx->rqs[i], i);
