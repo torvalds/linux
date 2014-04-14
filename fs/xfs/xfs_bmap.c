@@ -233,7 +233,6 @@ xfs_default_attroffset(
  */
 STATIC void
 xfs_bmap_forkoff_reset(
-	xfs_mount_t	*mp,
 	xfs_inode_t	*ip,
 	int		whichfork)
 {
@@ -905,7 +904,7 @@ xfs_bmap_local_to_extents_empty(
 	ASSERT(ifp->if_bytes == 0);
 	ASSERT(XFS_IFORK_NEXTENTS(ip, whichfork) == 0);
 
-	xfs_bmap_forkoff_reset(ip->i_mount, ip, whichfork);
+	xfs_bmap_forkoff_reset(ip, whichfork);
 	ifp->if_flags &= ~XFS_IFINLINE;
 	ifp->if_flags |= XFS_IFEXTENTS;
 	XFS_IFORK_FMT_SET(ip, whichfork, XFS_DINODE_FMT_EXTENTS);
