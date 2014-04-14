@@ -351,6 +351,7 @@ static int __must_check __deliver_machine_check(struct kvm_vcpu *vcpu)
 {
 	struct kvm_s390_local_interrupt *li = &vcpu->arch.local_int;
 	struct kvm_s390_mchk_info mchk;
+	unsigned long adtl_status_addr;
 	int rc;
 
 	spin_lock(&li->lock);
@@ -371,6 +372,9 @@ static int __must_check __deliver_machine_check(struct kvm_vcpu *vcpu)
 					 mchk.cr14, mchk.mcic);
 
 	rc  = kvm_s390_vcpu_store_status(vcpu, KVM_S390_STORE_STATUS_PREFIXED);
+	rc |= read_guest_lc(vcpu, __LC_VX_SAVE_AREA_ADDR,
+			    &adtl_status_addr, sizeof(unsigned long));
+	rc |= kvm_s390_vcpu_store_adtl_status(vcpu, adtl_status_addr);
 	rc |= put_guest_lc(vcpu, mchk.mcic,
 			   (u64 __user *) __LC_MCCK_CODE);
 	rc |= put_guest_lc(vcpu, mchk.failing_storage_address,
