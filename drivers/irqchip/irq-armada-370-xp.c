@@ -19,6 +19,7 @@
 #include <linux/irq.h>
 #include <linux/interrupt.h>
 #include <linux/irqchip/chained_irq.h>
+#include <linux/cpu.h>
 #include <linux/io.h>
 #include <linux/of_address.h>
 #include <linux/of_irq.h>
@@ -336,7 +337,7 @@ static void armada_mpic_send_doorbell(const struct cpumask *mask,
 		ARMADA_370_XP_SW_TRIG_INT_OFFS);
 }
 
-void armada_xp_mpic_smp_cpu_init(void)
+static void armada_xp_mpic_smp_cpu_init(void)
 {
 	/* Clear pending IPIs */
 	writel(0, per_cpu_int_base + ARMADA_370_XP_IN_DRBEL_CAUSE_OFFS);
@@ -348,6 +349,20 @@ void armada_xp_mpic_smp_cpu_init(void)
 	/* Unmask IPI interrupt */
 	writel(0, per_cpu_int_base + ARMADA_370_XP_INT_CLEAR_MASK_OFFS);
 }
+
+static int armada_xp_mpic_secondary_init(struct notifier_block *nfb,
+					 unsigned long action, void *hcpu)
+{
+	if (action == CPU_STARTING || action == CPU_STARTING_FROZEN)
+		armada_xp_mpic_smp_cpu_init();
+	return NOTIFY_OK;
+}
+
+static struct notifier_block armada_370_xp_mpic_cpu_notifier = {
+	.notifier_call = armada_xp_mpic_secondary_init,
+	.priority = 100,
+};
+
 #endif /* CONFIG_SMP */
 
 static struct irq_domain_ops armada_370_xp_mpic_irq_ops = {
@@ -514,6 +529,7 @@ static int __init armada_370_xp_mpic_of_init(struct device_node *node,
 		set_handle_irq(armada_370_xp_handle_irq);
 #ifdef CONFIG_SMP
 		set_smp_cross_call(armada_mpic_send_doorbell);
+		register_cpu_notifier(&armada_370_xp_mpic_cpu_notifier);
 #endif
 	} else {
 		irq_set_chained_handler(parent_irq,
