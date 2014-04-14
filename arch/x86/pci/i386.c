@@ -361,6 +361,12 @@ static int __init pcibios_assign_resources(void)
 	return 0;
 }
 
+/**
+ * called in fs_initcall (one below subsys_initcall),
+ * give a chance for motherboard reserve resources
+ */
+fs_initcall(pcibios_assign_resources);
+
 void pcibios_resource_survey_bus(struct pci_bus *bus)
 {
 	dev_printk(KERN_DEBUG, &bus->dev, "Allocating resources\n");
@@ -396,12 +402,6 @@ void __init pcibios_resource_survey(void)
 	 */
 	ioapic_insert_resources();
 }
-
-/**
- * called in fs_initcall (one below subsys_initcall),
- * give a chance for motherboard reserve resources
- */
-fs_initcall(pcibios_assign_resources);
 
 static const struct vm_operations_struct pci_mmap_ops = {
 	.access = generic_access_phys,
