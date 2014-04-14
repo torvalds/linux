@@ -76,6 +76,7 @@ enum ipu_channel_irq {
 	IPU_IRQ_EOS = 192,
 };
 
+int ipu_map_irq(struct ipu_soc *ipu, int irq);
 int ipu_idmac_channel_irq(struct ipu_soc *ipu, struct ipuv3_channel *channel,
 		enum ipu_channel_irq irq);
 

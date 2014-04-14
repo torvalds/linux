@@ -933,15 +933,22 @@ static void ipu_err_irq_handler(unsigned int irq, struct irq_desc *desc)
 	chained_irq_exit(chip, desc);
 }
 
+int ipu_map_irq(struct ipu_soc *ipu, int irq)
+{
+	int virq;
+
+	virq = irq_linear_revmap(ipu->domain, irq);
+	if (!virq)
+		virq = irq_create_mapping(ipu->domain, irq);
+
+	return virq;
+}
+EXPORT_SYMBOL_GPL(ipu_map_irq);
+
 int ipu_idmac_channel_irq(struct ipu_soc *ipu, struct ipuv3_channel *channel,
 		enum ipu_channel_irq irq_type)
 {
-	int irq = irq_linear_revmap(ipu->domain, irq_type + channel->num);
-
-	if (!irq)
-		irq = irq_create_mapping(ipu->domain, irq_type + channel->num);
-
-	return irq;
+	return ipu_map_irq(ipu, irq_type + channel->num);
 }
 EXPORT_SYMBOL_GPL(ipu_idmac_channel_irq);
 
