@@ -6,6 +6,9 @@
  * Author: Pawel Osciak <pawel@osciak.com>
  *	   Marek Szyprowski <m.szyprowski@samsung.com>
  *
+ * The vb2_thread implementation was based on code from videobuf-dvb.c:
+ *	(c) 2004 Gerd Knorr <kraxel@bytesex.org> [SUSE Labs]
+ *
  * This program is free software; you can redistribute it and/or modify
  * it under the terms of the GNU General Public License as published by
  * the Free Software Foundation.
@@ -18,6 +21,8 @@
 #include <linux/poll.h>
 #include <linux/slab.h>
 #include <linux/sched.h>
+#include <linux/freezer.h>
+#include <linux/kthread.h>
 
 #include <media/v4l2-dev.h>
 #include <media/v4l2-fh.h>
@@ -3005,6 +3010,147 @@ size_t vb2_write(struct vb2_queue *q, const char __user *data, size_t count,
 }
 EXPORT_SYMBOL_GPL(vb2_write);
 
+struct vb2_threadio_data {
+	struct task_struct *thread;
+	vb2_thread_fnc fnc;
+	void *priv;
+	bool stop;
+};
+
+static int vb2_thread(void *data)
+{
+	struct vb2_queue *q = data;
+	struct vb2_threadio_data *threadio = q->threadio;
+	struct vb2_fileio_data *fileio = q->fileio;
+	bool set_timestamp = false;
+	int prequeue = 0;
+	int index = 0;
+	int ret = 0;
+
+	if (V4L2_TYPE_IS_OUTPUT(q->type)) {
+		prequeue = q->num_buffers;
+		set_timestamp =
+			(q->timestamp_flags & V4L2_BUF_FLAG_TIMESTAMP_MASK) ==
+			V4L2_BUF_FLAG_TIMESTAMP_COPY;
+	}
+
+	set_freezable();
+
+	for (;;) {
+		struct vb2_buffer *vb;
+
+		/*
+		 * Call vb2_dqbuf to get buffer back.
+		 */
+		memset(&fileio->b, 0, sizeof(fileio->b));
+		fileio->b.type = q->type;
+		fileio->b.memory = q->memory;
+		if (prequeue) {
+			fileio->b.index = index++;
+			prequeue--;
+		} else {
+			call_void_qop(q, wait_finish, q);
+			ret = vb2_internal_dqbuf(q, &fileio->b, 0);
+			call_void_qop(q, wait_prepare, q);
+			dprintk(5, "file io: vb2_dqbuf result: %d\n", ret);
+		}
+		if (threadio->stop)
+			break;
+		if (ret)
+			break;
+		try_to_freeze();
+
+		vb = q->bufs[fileio->b.index];
+		if (!(fileio->b.flags & V4L2_BUF_FLAG_ERROR))
+			ret = threadio->fnc(vb, threadio->priv);
+		if (ret)
+			break;
+		call_void_qop(q, wait_finish, q);
+		if (set_timestamp)
+			v4l2_get_timestamp(&fileio->b.timestamp);
+		ret = vb2_internal_qbuf(q, &fileio->b);
+		call_void_qop(q, wait_prepare, q);
+		if (ret)
+			break;
+	}
+
+	/* Hmm, linux becomes *very* unhappy without this ... */
+	while (!kthread_should_stop()) {
+		set_current_state(TASK_INTERRUPTIBLE);
+		schedule();
+	}
+	return 0;
+}
+
+/*
+ * This function should not be used for anything else but the videobuf2-dvb
+ * support. If you think you have another good use-case for this, then please
+ * contact the linux-media mailinglist first.
+ */
+int vb2_thread_start(struct vb2_queue *q, vb2_thread_fnc fnc, void *priv,
+		     const char *thread_name)
+{
+	struct vb2_threadio_data *threadio;
+	int ret = 0;
+
+	if (q->threadio)
+		return -EBUSY;
+	if (vb2_is_busy(q))
+		return -EBUSY;
+	if (WARN_ON(q->fileio))
+		return -EBUSY;
+
+	threadio = kzalloc(sizeof(*threadio), GFP_KERNEL);
+	if (threadio == NULL)
+		return -ENOMEM;
+	threadio->fnc = fnc;
+	threadio->priv = priv;
+
+	ret = __vb2_init_fileio(q, !V4L2_TYPE_IS_OUTPUT(q->type));
+	dprintk(3, "file io: vb2_init_fileio result: %d\n", ret);
+	if (ret)
+		goto nomem;
+	q->threadio = threadio;
+	threadio->thread = kthread_run(vb2_thread, q, "vb2-%s", thread_name);
+	if (IS_ERR(threadio->thread)) {
+		ret = PTR_ERR(threadio->thread);
+		threadio->thread = NULL;
+		goto nothread;
+	}
+	return 0;
+
+nothread:
+	__vb2_cleanup_fileio(q);
+nomem:
+	kfree(threadio);
+	return ret;
+}
+EXPORT_SYMBOL_GPL(vb2_thread_start);
+
+int vb2_thread_stop(struct vb2_queue *q)
+{
+	struct vb2_threadio_data *threadio = q->threadio;
+	struct vb2_fileio_data *fileio = q->fileio;
+	int err;
+
+	if (threadio == NULL)
+		return 0;
+	call_void_qop(q, wait_finish, q);
+	threadio->stop = true;
+	vb2_internal_streamoff(q, q->type);
+	call_void_qop(q, wait_prepare, q);
+	q->fileio = NULL;
+	fileio->req.count = 0;
+	vb2_reqbufs(q, &fileio->req);
+	kfree(fileio);
+	err = kthread_stop(threadio->thread);
+	threadio->thread = NULL;
+	kfree(threadio);
+	q->fileio = NULL;
+	q->threadio = NULL;
+	return err;
+}
+EXPORT_SYMBOL_GPL(vb2_thread_stop);
 
 /*
  * The following functions are not part of the vb2 core API, but are helper
