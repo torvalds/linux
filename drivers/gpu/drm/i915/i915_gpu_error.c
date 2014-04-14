@@ -1054,9 +1054,6 @@ static void i915_capture_reg_state(struct drm_i915_private *dev_priv,
 		error->gfx_mode = I915_READ(GFX_MODE);
 	}
 
-	if (IS_GEN2(dev))
-		error->ier = I915_READ16(IER);
-
 	/* 2: Registers which belong to multiple generations */
 	if (INTEL_INFO(dev)->gen >= 7)
 		error->forcewake = I915_READ(FORCEWAKE_MT);
@@ -1080,7 +1077,10 @@ static void i915_capture_reg_state(struct drm_i915_private *dev_priv,
 	if (HAS_PCH_SPLIT(dev))
 		error->ier = I915_READ(DEIER) | I915_READ(GTIER);
 	else {
-		error->ier = I915_READ(IER);
+		if (IS_GEN2(dev))
+			error->ier = I915_READ16(IER);
+		else
+			error->ier = I915_READ(IER);
 		for_each_pipe(pipe)
 			error->pipestat[pipe] = I915_READ(PIPESTAT(pipe));
 	}
