@@ -76,7 +76,7 @@ static inline unsigned long copy_from_user_mvcp(void *x, const void __user *ptr,
 {
 	unsigned long tmp1, tmp2;
 
-	update_primary_asce(current);
+	load_kernel_asce();
 	tmp1 = -256UL;
 	asm volatile(
 		"   sacf  0\n"
@@ -159,7 +159,7 @@ static inline unsigned long copy_to_user_mvcs(void __user *ptr, const void *x,
 {
 	unsigned long tmp1, tmp2;
 
-	update_primary_asce(current);
+	load_kernel_asce();
 	tmp1 = -256UL;
 	asm volatile(
 		"   sacf  0\n"
@@ -225,7 +225,7 @@ static inline unsigned long copy_in_user_mvc(void __user *to, const void __user 
 {
 	unsigned long tmp1;
 
-	update_primary_asce(current);
+	load_kernel_asce();
 	asm volatile(
 		"   sacf  256\n"
 		"  "AHI"  %0,-1\n"
@@ -292,7 +292,7 @@ static inline unsigned long clear_user_xc(void __user *to, unsigned long size)
 {
 	unsigned long tmp1, tmp2;
 
-	update_primary_asce(current);
+	load_kernel_asce();
 	asm volatile(
 		"   sacf  256\n"
 		"  "AHI"  %0,-1\n"
@@ -358,7 +358,7 @@ unsigned long __strnlen_user(const char __user *src, unsigned long size)
 {
 	if (unlikely(!size))
 		return 0;
-	update_primary_asce(current);
+	load_kernel_asce();
 	return strnlen_user_srst(src, size);
 }
 EXPORT_SYMBOL(__strnlen_user);
