@@ -27,10 +27,28 @@
 #include <asm/mach/arch.h>
 #include <asm/mach/map.h>
 #include <asm/mach/time.h>
+#include <asm/smp_scu.h>
 #include "armada-370-xp.h"
 #include "common.h"
 #include "coherency.h"
 #include "mvebu-soc-id.h"
+
+/*
+ * Enables the SCU when available. Obviously, this is only useful on
+ * Cortex-A based SOCs, not on PJ4B based ones.
+ */
+static void __init mvebu_scu_enable(void)
+{
+	void __iomem *scu_base;
+
+	struct device_node *np =
+		of_find_compatible_node(NULL, NULL, "arm,cortex-a9-scu");
+	if (np) {
+		scu_base = of_iomap(np, 0);
+		scu_enable(scu_base);
+		of_node_put(np);
+	}
+}
 
 /*
  * Early versions of Armada 375 SoC have a bug where the BootROM
@@ -57,6 +75,7 @@ static void __init mvebu_timer_and_clk_init(void)
 {
 	of_clk_init(NULL);
 	clocksource_of_init();
+	mvebu_scu_enable();
 	coherency_init();
 	BUG_ON(mvebu_mbus_dt_init(coherency_available()));
 #ifdef CONFIG_CACHE_L2X0
