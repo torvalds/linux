@@ -349,7 +349,6 @@ struct vfio_device *vfio_group_create_device(struct vfio_group *group,
 					     void *device_data)
 {
 	struct vfio_device *device;
-	int ret;
 
 	device = kzalloc(sizeof(*device), GFP_KERNEL);
 	if (!device)
@@ -360,12 +359,7 @@ struct vfio_device *vfio_group_create_device(struct vfio_group *group,
 	device->group = group;
 	device->ops = ops;
 	device->device_data = device_data;
-
-	ret = dev_set_drvdata(dev, device);
-	if (ret) {
-		kfree(device);
-		return ERR_PTR(ret);
-	}
+	dev_set_drvdata(dev, device);
 
 	/* No need to get group_lock, caller has group reference */
 	vfio_group_get(group);

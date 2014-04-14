@@ -542,12 +542,7 @@ static int exynos_sysmmu_probe(struct platform_device *pdev)
 		goto err_alloc;
 	}
 
-	ret = dev_set_drvdata(dev, data);
-	if (ret) {
-		dev_dbg(dev, "Unabled to initialize driver data\n");
-		goto err_init;
-	}
-
+	dev_set_drvdata(dev, data);
 	data->nsfrs = pdev->num_resources / 2;
 	data->sfrbases = kmalloc(sizeof(*data->sfrbases) * data->nsfrs,
 								GFP_KERNEL);
