@@ -19,6 +19,150 @@
 
 #include <trace/events/asoc.h>
 
+unsigned int snd_soc_read(struct snd_soc_codec *codec, unsigned int reg)
+{
+	unsigned int ret;
+
+	ret = codec->read(codec, reg);
+	dev_dbg(codec->dev, "read %x => %x\n", reg, ret);
+	trace_snd_soc_reg_read(codec, reg, ret);
+
+	return ret;
+}
+EXPORT_SYMBOL_GPL(snd_soc_read);
+
+unsigned int snd_soc_write(struct snd_soc_codec *codec,
+			   unsigned int reg, unsigned int val)
+{
+	dev_dbg(codec->dev, "write %x = %x\n", reg, val);
+	trace_snd_soc_reg_write(codec, reg, val);
+	return codec->write(codec, reg, val);
+}
+EXPORT_SYMBOL_GPL(snd_soc_write);
+
+/**
+ * snd_soc_update_bits - update codec register bits
+ * @codec: audio codec
+ * @reg: codec register
+ * @mask: register mask
+ * @value: new value
+ *
+ * Writes new register value.
+ *
+ * Returns 1 for change, 0 for no change, or negative error code.
+ */
+int snd_soc_update_bits(struct snd_soc_codec *codec, unsigned int reg,
+				unsigned int mask, unsigned int value)
+{
+	bool change;
+	unsigned int old, new;
+	int ret;
+
+	if (codec->using_regmap) {
+		ret = regmap_update_bits_check(codec->control_data, reg,
+					       mask, value, &change);
+	} else {
+		ret = snd_soc_read(codec, reg);
+		if (ret < 0)
+			return ret;
+
+		old = ret;
+		new = (old & ~mask) | (value & mask);
+		change = old != new;
+		if (change)
+			ret = snd_soc_write(codec, reg, new);
+	}
+
+	if (ret < 0)
+		return ret;
+
+	return change;
+}
+EXPORT_SYMBOL_GPL(snd_soc_update_bits);
+
+/**
+ * snd_soc_update_bits_locked - update codec register bits
+ * @codec: audio codec
+ * @reg: codec register
+ * @mask: register mask
+ * @value: new value
+ *
+ * Writes new register value, and takes the codec mutex.
+ *
+ * Returns 1 for change else 0.
+ */
+int snd_soc_update_bits_locked(struct snd_soc_codec *codec,
+			       unsigned int reg, unsigned int mask,
+			       unsigned int value)
+{
+	int change;
+
+	mutex_lock(&codec->mutex);
+	change = snd_soc_update_bits(codec, reg, mask, value);
+	mutex_unlock(&codec->mutex);
+
+	return change;
+}
+EXPORT_SYMBOL_GPL(snd_soc_update_bits_locked);
+
+/**
+ * snd_soc_test_bits - test register for change
+ * @codec: audio codec
+ * @reg: codec register
+ * @mask: register mask
+ * @value: new value
+ *
+ * Tests a register with a new value and checks if the new value is
+ * different from the old value.
+ *
+ * Returns 1 for change else 0.
+ */
+int snd_soc_test_bits(struct snd_soc_codec *codec, unsigned int reg,
+				unsigned int mask, unsigned int value)
+{
+	int change;
+	unsigned int old, new;
+
+	old = snd_soc_read(codec, reg);
+	new = (old & ~mask) | value;
+	change = old != new;
+
+	return change;
+}
+EXPORT_SYMBOL_GPL(snd_soc_test_bits);
+
+int snd_soc_platform_read(struct snd_soc_platform *platform,
+					unsigned int reg)
+{
+	unsigned int ret;
+
+	if (!platform->driver->read) {
+		dev_err(platform->dev, "ASoC: platform has no read back\n");
+		return -1;
+	}
+
+	ret = platform->driver->read(platform, reg);
+	dev_dbg(platform->dev, "read %x => %x\n", reg, ret);
+	trace_snd_soc_preg_read(platform, reg, ret);
+
+	return ret;
+}
+EXPORT_SYMBOL_GPL(snd_soc_platform_read);
+
+int snd_soc_platform_write(struct snd_soc_platform *platform,
+					 unsigned int reg, unsigned int val)
+{
+	if (!platform->driver->write) {
+		dev_err(platform->dev, "ASoC: platform has no write back\n");
+		return -1;
+	}
+
+	dev_dbg(platform->dev, "write %x = %x\n", reg, val);
+	trace_snd_soc_preg_write(platform, reg, val);
+	return platform->driver->write(platform, reg, val);
+}
+EXPORT_SYMBOL_GPL(snd_soc_platform_write);
+
 #ifdef CONFIG_REGMAP
 static int hw_write(struct snd_soc_codec *codec, unsigned int reg,
 		    unsigned int value)
