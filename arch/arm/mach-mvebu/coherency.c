@@ -63,7 +63,7 @@ static struct of_device_id of_coherency_table[] = {
 /* Function defined in coherency_ll.S */
 int ll_set_cpu_coherent(void);
 
-int set_cpu_coherent(int smp_group_id)
+int set_cpu_coherent(void)
 {
 	if (!coherency_base) {
 		pr_warn("Can't make current CPU cache coherent.\n");
@@ -302,7 +302,7 @@ static void __init armada_370_coherency_init(struct device_node *np)
 	sync_cache_w(&coherency_phys_base);
 	coherency_base = of_iomap(np, 0);
 	coherency_cpu_base = of_iomap(np, 1);
-	set_cpu_coherent(0);
+	set_cpu_coherent();
 }
 
 static void __init armada_375_380_coherency_init(struct device_node *np)
