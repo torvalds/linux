@@ -1,7 +1,7 @@
 /*
- * max14577.h - Driver for the Maxim 14577
+ * max14577.h - Driver for the Maxim 14577/77836
  *
- * Copyright (C) 2013 Samsung Electrnoics
+ * Copyright (C) 2014 Samsung Electrnoics
  * Chanwoo Choi <cw00.choi@samsung.com>
  * Krzysztof Kozlowski <k.kozlowski@samsung.com>
  *
@@ -20,6 +20,9 @@
  * MAX14577 has MUIC, Charger devices.
  * The devices share the same I2C bus and interrupt line
  * included in this mfd driver.
+ *
+ * MAX77836 has additional PMIC and Fuel-Gauge on different I2C slave
+ * addresses.
  */
 
 #ifndef __MAX14577_H__
