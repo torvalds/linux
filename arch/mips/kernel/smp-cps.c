@@ -44,7 +44,6 @@ static void __init cps_smp_setup(void)
 {
 	unsigned int ncores, nvpes, core_vpes;
 	int c, v;
-	u32 *entry_code;
 
 	/* Detect & record VPE topology */
 	ncores = mips_cm_numcores();
@@ -82,10 +81,6 @@ static void __init cps_smp_setup(void)
 	/* Initialise core 0 */
 	mips_cps_core_init();
 
-	/* Patch the start of mips_cps_core_entry to provide the CM base */
-	entry_code = (u32 *)&mips_cps_core_entry;
-	UASM_i_LA(&entry_code, 3, (long)mips_cm_base);
-
 	/* Make core 0 coherent with everything */
 	write_gcr_cl_coherence(0xff);
 }
@@ -93,8 +88,15 @@ static void __init cps_smp_setup(void)
 static void __init cps_prepare_cpus(unsigned int max_cpus)
 {
 	unsigned ncores, core_vpes, c;
+	u32 *entry_code;
 
 	mips_mt_set_cpuoptions();
+
+	/* Patch the start of mips_cps_core_entry to provide the CM base */
+	entry_code = (u32 *)&mips_cps_core_entry;
+	UASM_i_LA(&entry_code, 3, (long)mips_cm_base);
+	dma_cache_wback_inv((unsigned long)&mips_cps_core_entry,
+			    (void *)entry_code - (void *)&mips_cps_core_entry);
 
 	/* Allocate core boot configuration structs */
 	ncores = mips_cm_numcores();
