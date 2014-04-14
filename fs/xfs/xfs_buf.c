@@ -216,8 +216,7 @@ _xfs_buf_alloc(
 STATIC int
 _xfs_buf_get_pages(
 	xfs_buf_t		*bp,
-	int			page_count,
-	xfs_buf_flags_t		flags)
+	int			page_count)
 {
 	/* Make sure that we have a page list */
 	if (bp->b_pages == NULL) {
@@ -330,7 +329,7 @@ use_alloc_page:
 	end = (BBTOB(bp->b_maps[0].bm_bn + bp->b_length) + PAGE_SIZE - 1)
 								>> PAGE_SHIFT;
 	page_count = end - start;
-	error = _xfs_buf_get_pages(bp, page_count, flags);
+	error = _xfs_buf_get_pages(bp, page_count);
 	if (unlikely(error))
 		return error;
 
@@ -778,7 +777,7 @@ xfs_buf_associate_memory(
 	bp->b_pages = NULL;
 	bp->b_addr = mem;
 
-	rval = _xfs_buf_get_pages(bp, page_count, 0);
+	rval = _xfs_buf_get_pages(bp, page_count);
 	if (rval)
 		return rval;
 
@@ -811,7 +810,7 @@ xfs_buf_get_uncached(
 		goto fail;
 
 	page_count = PAGE_ALIGN(numblks << BBSHIFT) >> PAGE_SHIFT;
-	error = _xfs_buf_get_pages(bp, page_count, 0);
+	error = _xfs_buf_get_pages(bp, page_count);
 	if (error)
 		goto fail_free_buf;
 
