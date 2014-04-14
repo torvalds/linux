@@ -1420,6 +1420,10 @@ static void sixaxis_state_worker(struct work_struct *work)
 	report.data.leds_bitmap |= sc->led_state[2] << 3;
 	report.data.leds_bitmap |= sc->led_state[3] << 4;
 
+	/* Set flag for all leds off, required for 3rd party INTEC controller */
+	if ((report.data.leds_bitmap & 0x1E) == 0)
+		report.data.leds_bitmap |= 0x20;
+
 	/*
 	 * The LEDs in the report are indexed in reverse order to their
 	 * corresponding light on the controller.
