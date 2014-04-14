@@ -16,6 +16,8 @@
  * other SOC units
  */
 
+#define pr_fmt(fmt) "mvebu-pmsu: " fmt
+
 #include <linux/kernel.h>
 #include <linux/init.h>
 #include <linux/of_address.h>
@@ -63,15 +65,39 @@ int armada_xp_boot_cpu(unsigned int cpu_id, void *boot_addr)
 static int __init armada_370_xp_pmsu_init(void)
 {
 	struct device_node *np;
+	struct resource res;
+	int ret = 0;
 
 	np = of_find_matching_node(NULL, of_pmsu_table);
-	if (np) {
-		pr_info("Initializing Power Management Service Unit\n");
-		pmsu_mp_base = of_iomap(np, 0);
-		of_node_put(np);
+	if (!np)
+		return 0;
+
+	pr_info("Initializing Power Management Service Unit\n");
+
+	if (of_address_to_resource(np, 0, &res)) {
+		pr_err("unable to get resource\n");
+		ret = -ENOENT;
+		goto out;
 	}
 
-	return 0;
+	if (!request_mem_region(res.start, resource_size(&res),
+				np->full_name)) {
+		pr_err("unable to request region\n");
+		ret = -EBUSY;
+		goto out;
+	}
+
+	pmsu_mp_base = ioremap(res.start, resource_size(&res));
+	if (!pmsu_mp_base) {
+		pr_err("unable to map registers\n");
+		release_mem_region(res.start, resource_size(&res));
+		ret = -ENOMEM;
+		goto out;
+	}
+
+ out:
+	of_node_put(np);
+	return ret;
 }
 
 early_initcall(armada_370_xp_pmsu_init);
