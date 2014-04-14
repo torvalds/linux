@@ -29,9 +29,6 @@
 #define MWIFIEX_MAX_CHANNELS_PER_SPECIFIC_SCAN   14
 
 #define MWIFIEX_DEF_CHANNELS_PER_SCAN_CMD	4
-#define MWIFIEX_LIMIT_1_CHANNEL_PER_SCAN_CMD	15
-#define MWIFIEX_LIMIT_2_CHANNELS_PER_SCAN_CMD	27
-#define MWIFIEX_LIMIT_3_CHANNELS_PER_SCAN_CMD	35
 
 /* Memory needed to store a max sized Channel List TLV for a firmware scan */
 #define CHAN_TLV_MAX_SIZE  (sizeof(struct mwifiex_ie_types_header)         \
@@ -1055,20 +1052,10 @@ mwifiex_config_scan(struct mwifiex_private *priv,
 
 	/*
 	 * In associated state we will reduce the number of channels scanned per
-	 * scan command to avoid any traffic delay/loss. This number is decided
-	 * based on total number of channels to be scanned due to constraints
-	 * of command buffers.
+	 * scan command to 1 to avoid any traffic delay/loss.
 	 */
-	if (priv->media_connected) {
-		if (chan_num < MWIFIEX_LIMIT_1_CHANNEL_PER_SCAN_CMD)
+	if (priv->media_connected)
 			*max_chan_per_scan = 1;
-		else if (chan_num < MWIFIEX_LIMIT_2_CHANNELS_PER_SCAN_CMD)
-			*max_chan_per_scan = 2;
-		else if (chan_num < MWIFIEX_LIMIT_3_CHANNELS_PER_SCAN_CMD)
-			*max_chan_per_scan = 3;
-		else
-			*max_chan_per_scan = 4;
-	}
 }
 
 /*
