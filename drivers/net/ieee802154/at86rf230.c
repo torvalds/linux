@@ -365,7 +365,7 @@ __at86rf230_read_subreg(struct at86rf230_local *lp,
 	dev_vdbg(&lp->spi->dev, "buf[1] = %02x\n", buf[1]);
 
 	if (status == 0)
-		*data = buf[1];
+		*data = (buf[1] & mask) >> shift;
 
 	return status;
 }
