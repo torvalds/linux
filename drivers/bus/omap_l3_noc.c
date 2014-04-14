@@ -60,6 +60,7 @@ static irqreturn_t l3_interrupt_handler(int irq, void *_l3)
 	void __iomem *l3_targ_stderr, *l3_targ_slvofslsb, *l3_targ_mstaddr;
 	char *target_name, *master_name = "UN IDENTIFIED";
 	struct l3_target_data *l3_targ_inst;
+	struct l3_flagmux_data *flag_mux;
 	struct l3_masters_data *master;
 
 	/* Get the Type of interrupt */
@@ -71,7 +72,8 @@ static irqreturn_t l3_interrupt_handler(int irq, void *_l3)
 		 * to determine the source
 		 */
 		base = l3->l3_base[i];
-		err_reg = readl_relaxed(base + l3->l3_flagmux[i] +
+		flag_mux = l3->l3_flagmux[i];
+		err_reg = readl_relaxed(base + flag_mux->offset +
 					L3_FLAGMUX_REGERR0 + (inttype << 3));
 
 		/* Get the corresponding error and analyse */
@@ -82,9 +84,13 @@ static irqreturn_t l3_interrupt_handler(int irq, void *_l3)
 			/* We DONOT expect err_src to go out of bounds */
 			BUG_ON(err_src > MAX_CLKDM_TARGETS);
 
-			l3_targ_inst = &l3->l3_targ[i][err_src];
-			target_name = l3_targ_inst->name;
-			l3_targ_base = base + l3_targ_inst->offset;
+			if (err_src < flag_mux->num_targ_data) {
+				l3_targ_inst = &flag_mux->l3_targ[err_src];
+				target_name = l3_targ_inst->name;
+				l3_targ_base = base + l3_targ_inst->offset;
+			} else {
+				target_name = L3_TARGET_NOT_SUPPORTED;
+			}
 
 			/*
 			 * If we do not know of a register offset to decode
@@ -104,7 +110,7 @@ static irqreturn_t l3_interrupt_handler(int irq, void *_l3)
 					inttype ? "debug" : "application",
 					err_src, i, "(unclearable)");
 
-				mask_reg = base + l3->l3_flagmux[i] +
+				mask_reg = base + flag_mux->offset +
 					   L3_FLAGMUX_MASK0 + (inttype << 3);
 				mask_val = readl_relaxed(mask_reg);
 				mask_val &= ~(1 << err_src);
