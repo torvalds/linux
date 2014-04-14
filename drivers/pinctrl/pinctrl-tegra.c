@@ -413,10 +413,21 @@ static int tegra_pinconf_reg(struct tegra_pmx *pmx,
 	}
 
 	if (*reg < 0 || *bit > 31) {
-		if (report_err)
+		if (report_err) {
+			const char *prop = "unknown";
+			int i;
+
+			for (i = 0; i < ARRAY_SIZE(cfg_params); i++) {
+				if (cfg_params[i].param == param) {
+					prop = cfg_params[i].property;
+					break;
+				}
+			}
+
 			dev_err(pmx->dev,
-				"Config param %04x not supported on group %s\n",
-				param, g->name);
+				"Config param %04x (%s) not supported on group %s\n",
+				param, prop, g->name);
+		}
 		return -ENOTSUPP;
 	}
 
