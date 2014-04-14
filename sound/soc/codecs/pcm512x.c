@@ -269,7 +269,7 @@ SOC_DOUBLE("Playback Digital Switch", PCM512x_MUTE, PCM512x_RQML_SHIFT,
 	   PCM512x_RQMR_SHIFT, 1, 1),
 
 SOC_SINGLE("Deemphasis Switch", PCM512x_DSP, PCM512x_DEMP_SHIFT, 1, 1),
-SOC_VALUE_ENUM("DSP Program", pcm512x_dsp_program),
+SOC_ENUM("DSP Program", pcm512x_dsp_program),
 
 SOC_ENUM("Clock Missing Period", pcm512x_clk_missing),
 SOC_ENUM("Auto Mute Time Left", pcm512x_autom_l),
