@@ -1413,8 +1413,6 @@ static int sony_battery_get_property(struct power_supply *psy,
 
 static int sony_battery_probe(struct sony_sc *sc)
 {
-	static atomic_t power_id_seq = ATOMIC_INIT(0);
-	unsigned long power_id;
 	struct hid_device *hdev = sc->hdev;
 	int ret;
 
@@ -1424,15 +1422,13 @@ static int sony_battery_probe(struct sony_sc *sc)
 	 */
 	sc->battery_capacity = 100;
 
-	power_id = (unsigned long)atomic_inc_return(&power_id_seq);
-
 	sc->battery.properties = sony_battery_props;
 	sc->battery.num_properties = ARRAY_SIZE(sony_battery_props);
 	sc->battery.get_property = sony_battery_get_property;
 	sc->battery.type = POWER_SUPPLY_TYPE_BATTERY;
 	sc->battery.use_for_apm = 0;
-	sc->battery.name = kasprintf(GFP_KERNEL, "sony_controller_battery_%lu",
-				     power_id);
+	sc->battery.name = kasprintf(GFP_KERNEL, "sony_controller_battery_%pMR",
+				     sc->mac_address);
 	if (!sc->battery.name)
 		return -ENOMEM;
 
