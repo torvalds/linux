@@ -117,9 +117,9 @@
 				clock-names = "nbclk", "fixed";
 			};
 
-			armada-370-xp-pmsu@22000 {
-				compatible = "marvell,armada-370-xp-pmsu";
-				reg = <0x22100 0x400>, <0x20800 0x20>;
+			cpurst@20800 {
+				compatible = "marvell,armada-370-cpu-reset";
+				reg = <0x20800 0x20>;
 			};
 
 			eth2: ethernet@30000 {
