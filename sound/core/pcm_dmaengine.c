@@ -5,6 +5,7 @@
  *  Based on:
  *	imx-pcm-dma-mx2.c, Copyright 2009 Sascha Hauer <s.hauer@pengutronix.de>
  *	mxs-pcm.c, Copyright (C) 2011 Freescale Semiconductor, Inc.
+ *	imx-pcm-dma.c, Copyright (C) 2014-2015 Freescale Semiconductor, Inc.
  *	ep93xx-pcm.c, Copyright (C) 2006 Lennert Buytenhek <buytenh@wantstofly.org>
  *		      Copyright (C) 2006 Applied Data Systems
  *
@@ -27,13 +28,6 @@
 #include <sound/soc.h>
 
 #include <sound/dmaengine_pcm.h>
-
-struct dmaengine_pcm_runtime_data {
-	struct dma_chan *dma_chan;
-	dma_cookie_t cookie;
-
-	unsigned int pos;
-};
 
 static inline struct dmaengine_pcm_runtime_data *substream_to_prtd(
 	const struct snd_pcm_substream *substream)
@@ -164,7 +158,10 @@ static int dmaengine_pcm_prepare_and_submit(struct snd_pcm_substream *substream)
 	if (!desc)
 		return -ENOMEM;
 
-	desc->callback = dmaengine_pcm_dma_complete;
+	if (prtd->callback)
+		desc->callback = prtd->callback;
+	else
+		desc->callback = dmaengine_pcm_dma_complete;
 	desc->callback_param = substream;
 	prtd->cookie = dmaengine_submit(desc);
 
