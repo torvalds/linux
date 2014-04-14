@@ -1093,7 +1093,10 @@ static void nft_ctx_init(struct nft_ctx *ctx,
 int nft_register_expr(struct nft_expr_type *type)
 {
 	nfnl_lock(NFNL_SUBSYS_NFTABLES);
-	list_add_tail(&type->list, &nf_tables_expressions);
+	if (type->family == NFPROTO_UNSPEC)
+		list_add_tail(&type->list, &nf_tables_expressions);
+	else
+		list_add(&type->list, &nf_tables_expressions);
 	nfnl_unlock(NFNL_SUBSYS_NFTABLES);
 	return 0;
 }
