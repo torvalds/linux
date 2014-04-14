@@ -113,7 +113,6 @@ struct mvebu_pcie {
 struct mvebu_pcie_port {
 	char *name;
 	void __iomem *base;
-	spinlock_t conf_lock;
 	u32 port;
 	u32 lane;
 	int devfn;
@@ -638,7 +637,6 @@ static int mvebu_pcie_wr_conf(struct pci_bus *bus, u32 devfn,
 {
 	struct mvebu_pcie *pcie = sys_to_pcie(bus->sysdata);
 	struct mvebu_pcie_port *port;
-	unsigned long flags;
 	int ret;
 
 	port = mvebu_pcie_find_port(pcie, bus, devfn);
@@ -664,10 +662,8 @@ static int mvebu_pcie_wr_conf(struct pci_bus *bus, u32 devfn,
 		return PCIBIOS_DEVICE_NOT_FOUND;
 
 	/* Access the real PCIe interface */
-	spin_lock_irqsave(&port->conf_lock, flags);
 	ret = mvebu_pcie_hw_wr_conf(port, bus, devfn,
 				    where, size, val);
-	spin_unlock_irqrestore(&port->conf_lock, flags);
 
 	return ret;
 }
@@ -678,7 +674,6 @@ static int mvebu_pcie_rd_conf(struct pci_bus *bus, u32 devfn, int where,
 {
 	struct mvebu_pcie *pcie = sys_to_pcie(bus->sysdata);
 	struct mvebu_pcie_port *port;
-	unsigned long flags;
 	int ret;
 
 	port = mvebu_pcie_find_port(pcie, bus, devfn);
@@ -710,10 +705,8 @@ static int mvebu_pcie_rd_conf(struct pci_bus *bus, u32 devfn, int where,
 	}
 
 	/* Access the real PCIe interface */
-	spin_lock_irqsave(&port->conf_lock, flags);
 	ret = mvebu_pcie_hw_rd_conf(port, bus, devfn,
 				    where, size, val);
-	spin_unlock_irqrestore(&port->conf_lock, flags);
 
 	return ret;
 }
@@ -1060,7 +1053,6 @@ static int mvebu_pcie_probe(struct platform_device *pdev)
 		mvebu_pcie_set_local_dev_nr(port, 1);
 
 		port->dn = child;
-		spin_lock_init(&port->conf_lock);
 		mvebu_sw_pci_bridge_init(port);
 		i++;
 	}
