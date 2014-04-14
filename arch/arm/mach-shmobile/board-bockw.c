@@ -591,6 +591,7 @@ static void __init bockw_init(void)
 {
 	void __iomem *base;
 	struct clk *clk;
+	struct platform_device *pdev;
 	int i;
 
 	r8a7778_clock_init();
@@ -673,9 +674,6 @@ static void __init bockw_init(void)
 	}
 
 	/* for Audio */
-	clk = clk_get(NULL, "audio_clk_b");
-	clk_set_rate(clk, 24576000);
-	clk_put(clk);
 	rsnd_codec_power(5, 1); /* enable ak4642 */
 
 	platform_device_register_simple(
@@ -684,10 +682,14 @@ static void __init bockw_init(void)
 	platform_device_register_simple(
 		"ak4554-adc-dac", 1, NULL, 0);
 
-	platform_device_register_resndata(
+	pdev = platform_device_register_resndata(
 		&platform_bus, "rcar_sound", -1,
 		rsnd_resources, ARRAY_SIZE(rsnd_resources),
 		&rsnd_info, sizeof(rsnd_info));
+
+	clk = clk_get(&pdev->dev, "clk_b");
+	clk_set_rate(clk, 24576000);
+	clk_put(clk);
 
 	for (i = 0; i < ARRAY_SIZE(rsnd_card_info); i++) {
 		struct platform_device_info cardinfo = {
