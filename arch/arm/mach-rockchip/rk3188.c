@@ -27,11 +27,11 @@
 #include <linux/rockchip/cru.h>
 #include <linux/rockchip/grf.h>
 #include <linux/rockchip/iomap.h>
+#include <linux/rockchip/pmu.h>
 #include <asm/mach/arch.h>
 #include <asm/mach/map.h>
 #include "cpu_axi.h"
 #include "loader.h"
-#include "pmu.h"
 #include "sram.h"
 
 #define RK3188_DEVICE(name) \

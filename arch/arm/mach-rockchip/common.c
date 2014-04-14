@@ -23,9 +23,9 @@
 #include <asm/cputype.h>
 #include <asm/hardware/cache-l2x0.h>
 #include <linux/rockchip/common.h>
+#include <linux/rockchip/pmu.h>
 #include "cpu_axi.h"
 #include "loader.h"
-#include "pmu.h"
 #include "sram.h"
 
 static int __init rockchip_cpu_axi_init(void)

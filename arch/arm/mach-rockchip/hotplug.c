@@ -13,13 +13,13 @@
 #include <linux/smp.h>
 #include <linux/delay.h>
 #include <linux/rockchip/common.h>
+#include <linux/rockchip/pmu.h>
 
 #include <asm/cacheflush.h>
 #include <asm/cp15.h>
 #include <asm/smp_plat.h>
 #include <asm/system.h>
 
-#include "pmu.h"
 
 static cpumask_t dead_cpus;
 

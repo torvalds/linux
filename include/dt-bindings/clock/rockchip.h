@@ -53,4 +53,21 @@
 #define CLKOPS_RATE_RK3288_I2S		14
 #define CLKOPS_TABLE_END		(~0)
 
+/* pd id */
+#define CLK_PD_BCPU		0
+#define CLK_PD_BDSP		1
+#define CLK_PD_BUS		2
+#define CLK_PD_CPU_0 		3
+#define CLK_PD_CPU_1 		4
+#define CLK_PD_CPU_2 		5
+#define CLK_PD_CPU_3 		6
+#define CLK_PD_CS 		7
+#define CLK_PD_GPU 		8
+#define CLK_PD_HEVC 		9
+#define CLK_PD_PERI 		10
+#define CLK_PD_SCU 		11
+#define CLK_PD_VIDEO 		12
+#define CLK_PD_VIO		13
+
+
 #endif /* _DT_BINDINGS_CLOCK_ROCKCHIP_H */

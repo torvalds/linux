@@ -23,6 +23,7 @@
 
 #include "clk-ops.h"
 #include "clk-pll.h"
+#include "clk-pd.h"
 
 
 struct rkclk_muxinfo {
@@ -82,6 +83,14 @@ struct rkclk_fixed_factor_info {
 	const char		*parent_name;
 };
 
+struct rkclk_pd_info {
+	const char		*clk_name;
+	struct device_node	*np;
+	struct clk_pd   	*pd;
+	const char		*parent_name;
+};
+
+
 struct rkclk {
 	const char		*clk_name;
 	//struct device_node 	*np;
@@ -94,6 +103,7 @@ struct rkclk {
 	struct rkclk_gateinfo	*gate_info;
 	struct rkclk_fixed_rate_info *fixed_rate_info;
 	struct rkclk_fixed_factor_info *fixed_factor_info;
+	struct rkclk_pd_info	*pd_info;
 	struct list_head	node;
 };
 
@@ -107,6 +117,7 @@ LIST_HEAD(rk_clks);
 #define RKCLK_GATE_TYPE		(1 << 4)
 #define RKCLK_FIXED_RATE_TYPE	(1 << 5)
 #define RKCLK_FIXED_FACTOR_TYPE	(1 << 6)
+#define RKCLK_PD_TYPE		(1 << 7)
 
 
 static int rkclk_init_muxinfo(struct device_node *np, void __iomem *addr)
@@ -1043,6 +1054,85 @@ out:
 	return ret;
 }
 
+static int __init rkclk_init_pd(struct device_node *np)
+{
+	struct device_node *node = NULL;
+	struct rkclk_pd_info *pd_info = NULL;
+	struct clk_pd *pd = NULL;
+	int ret = 0;
+	u8 found = 0;
+	struct rkclk *rkclk = NULL;
+
+
+	for_each_available_child_of_node(np, node) {
+		pd_info = kzalloc(sizeof(struct rkclk_pd_info), GFP_KERNEL);
+		if (!pd_info) {
+			ret = -ENOMEM;
+			goto out;
+		}
+
+		pd_info->pd = kzalloc(sizeof(struct clk_pd), GFP_KERNEL);
+		if (!pd_info->pd) {
+			ret = -ENOMEM;
+			goto out;
+		}
+		pd = pd_info->pd;
+
+		pd_info->np = node;
+
+		ret = of_property_read_string_index(node, "clock-output-names",
+				0, &pd_info->clk_name);
+		if (ret)
+			goto out;
+
+		pd_info->parent_name = of_clk_get_parent_name(node, 0);
+
+		ret = of_property_read_u32(node, "rockchip,pd-id", &pd->id);
+		if (ret != 0) {
+			clk_err("%s: can not get pd-id\n", __func__);
+			goto out;
+		}
+
+		found = 0;
+		list_for_each_entry(rkclk, &rk_clks, node) {
+			if (strcmp(pd_info->clk_name, rkclk->clk_name) == 0) {
+				clk_err("%s %d:\n", __func__, __LINE__);
+				clk_err("This clk (%s) has been used, error!\n",
+					rkclk->clk_name);
+				goto out;
+			}
+		}
+
+		if (!found) {
+			rkclk = kzalloc(sizeof(struct rkclk), GFP_KERNEL);
+			if (!rkclk) {
+				ret = -ENOMEM;
+				goto out;
+			}
+			rkclk->clk_name = pd_info->clk_name;
+			rkclk->pd_info = pd_info;
+			rkclk->clk_type = RKCLK_PD_TYPE;
+			rkclk->flags = CLK_IS_ROOT;
+			clk_debug("%s: creat %s\n", __func__, rkclk->clk_name);
+			list_add_tail(&rkclk->node, &rk_clks);
+		}
+	}
+
+out:
+	if (ret) {
+		clk_err("%s error, ret = %d\n", __func__, ret);
+		if (pd_info) {
+			if (pd_info->pd)
+				kfree(pd_info->pd);
+			kfree(pd_info);
+		}
+		if (rkclk)
+			kfree(rkclk);
+	}
+
+	return ret;
+}
+
 static int rkclk_register(struct rkclk *rkclk)
 {
 	struct clk		*clk = NULL;
@@ -1053,6 +1143,7 @@ static int rkclk_register(struct rkclk *rkclk)
 	struct clk_divider	*frac = NULL;
 	struct clk_fixed_rate	*fixed_rate = NULL;
 	struct clk_fixed_factor	*fixed_factor = NULL;
+	struct clk_pd		*pd = NULL;
 
 	struct clk_hw		*mux_hw = NULL;
 	const struct clk_ops	*mux_ops = NULL;
@@ -1089,6 +1180,9 @@ static int rkclk_register(struct rkclk *rkclk)
 		fixed_rate = rkclk->fixed_rate_info->fixed_rate;
 	if (rkclk->fixed_factor_info && rkclk->fixed_factor_info->fixed_factor)
 		fixed_factor = rkclk->fixed_factor_info->fixed_factor;
+	if (rkclk->pd_info && rkclk->pd_info->pd)
+		pd = rkclk->pd_info->pd;
+
 
 	switch (rkclk->clk_type) {
 		case RKCLK_MUX_TYPE:
@@ -1149,6 +1243,12 @@ static int rkclk_register(struct rkclk *rkclk)
 					rkclk->fixed_factor_info->parent_name,
 					rkclk->flags, fixed_factor->mult,
 					fixed_factor->div);
+			goto add_lookup;
+		case RKCLK_PD_TYPE:
+			clk_debug("use rk_clk_register_pd\n");
+			clk = rk_clk_register_pd(NULL, rkclk->clk_name,
+					rkclk->pd_info->parent_name, rkclk->flags,
+					pd->id, &clk_lock);
 			goto add_lookup;
 		default:
 			goto rgs_comp;
@@ -1377,6 +1477,10 @@ static void rkclk_add_provider(struct device_node *np)
 					clk_err("%s: unknown\n", __func__);
 				}
 			}
+		} else if (strcmp(compatible, "rockchip,rk-pd-cons") == 0) {
+			for_each_available_child_of_node(node, node_prd) {
+				 _rkclk_add_provider(node_prd);
+			}
 		} else {
 			clk_err("%s: unknown\n", __func__);
 		}
@@ -1446,6 +1550,7 @@ void rkclk_dump_info(struct rkclk *rkclk)
 	struct clk_divider	*frac = NULL;
 	struct clk_fixed_rate	*fixed_rate = NULL;
 	struct clk_fixed_factor	*fixed_factor = NULL;
+	struct clk_pd		*pd = NULL;
 	int i;
 
 
@@ -1467,6 +1572,9 @@ void rkclk_dump_info(struct rkclk *rkclk)
 		fixed_rate = rkclk->fixed_rate_info->fixed_rate;
 	if (rkclk->fixed_factor_info && rkclk->fixed_factor_info->fixed_factor)
 		fixed_factor = rkclk->fixed_factor_info->fixed_factor;
+	if (rkclk->pd_info && rkclk->pd_info->pd)
+		pd = rkclk->pd_info->pd;
+
 
 	if (rkclk->mux_info) {
 		clk_debug("\t\tmux_info: name=%s, clkops_idx=%u\n",
@@ -1554,6 +1662,15 @@ void rkclk_dump_info(struct rkclk *rkclk)
 				fixed_factor->mult, fixed_factor->div);
 		}
 	}
+
+	if (rkclk->pd_info) {
+		clk_debug("\t\tpd_info: name=%s, parent=%s\n",
+				rkclk->pd_info->clk_name,
+				rkclk->pd_info->parent_name);
+		if (pd) {
+			clk_debug("\t\tpd: id=%u\n", pd->id);
+		}
+	}
 }
 #else
 void rkclk_dump_info(struct rkclk *rkclk) {}
@@ -1561,6 +1678,44 @@ void rkclk_dump_info(struct rkclk *rkclk) {}
 
 
 #ifdef RKCLK_TEST
+char* pd_table[] = {
+	"pd_gpu",
+	"pd_video",
+	"pd_vio",
+	"pd_hevc",
+};
+
+void rk_clk_pd_test(void)
+{
+	struct clk *clk;
+	bool state;
+	int j, ret;
+
+
+	for (j = 0; j < ARRAY_SIZE(pd_table); j++) {
+
+		clk = clk_get(NULL, pd_table[j]);
+
+		ret = clk_prepare_enable(clk);
+		printk("%s: clk_prepare_enable %s, ret=%d\n", __func__,
+			__clk_get_name(clk), ret);
+
+		state = __clk_is_enabled(clk);
+		printk("%s: clk_pd %s is %s\n", __func__, __clk_get_name(clk),
+			state ? "enable" : "disable");
+
+		clk_disable_unprepare(clk);
+		printk("%s: clk_disable_unprepare %s\n", __func__,
+			__clk_get_name(clk));
+
+		state = __clk_is_enabled(clk);
+		printk("%s: clk_pd %s is %s\n", __func__, __clk_get_name(clk),
+			state ? "enable" : "disable");
+
+		printk("\n");
+	}
+}
+
 struct test_table {
 	const char *name;
 	u32 rate;
@@ -1597,6 +1752,7 @@ struct test_table t_table[] = {
 	{.name = "clk_core",	.rate = 24000000},
 	{.name = "clk_core",	.rate = 500000000},
 };
+
 
 void rk_clk_test(void)
 {
@@ -1652,6 +1808,7 @@ void rk_clk_test(void)
 		rk_dump_cru();
 	}
 
+	rk_clk_pd_test();
 }
 #else
 void rk_clk_test(void) {}
@@ -1697,6 +1854,11 @@ static void __init rk_clk_tree_init(struct device_node *np)
 				clk_err("%s: init reg cons err\n", __func__);
 				return ;
 			}
+		} else if (strcmp(compatible, "rockchip,rk-pd-cons") == 0) {
+			if (rkclk_init_pd(node) != 0) {
+				clk_err("%s: init pd err\n", __func__);
+				return ;
+			}
 		} else {
 			clk_err("%s: unknown\n", __func__);
 		}
@@ -1720,6 +1882,7 @@ static void __init rk_clk_tree_init(struct device_node *np)
 	rkclk_init_clks(node_init);
 
 	rk_clk_test();
+
 }
 CLK_OF_DECLARE(rk_clocks, "rockchip,rk-clocks", rk_clk_tree_init);
 

@@ -207,6 +207,40 @@
 			};
 		};
 
+		pd_cons {
+			compatible = "rockchip,rk-pd-cons";
+
+			pd_gpu: pd_gpu {
+				compatible = "rockchip,rk-pd-clock";
+				clock-output-names = "pd_gpu";
+				rockchip,pd-id = <CLK_PD_GPU>;
+				#clock-cells = <0>;
+			};
+
+			pd_video: pd_video {
+				compatible = "rockchip,rk-pd-clock";
+				clock-output-names = "pd_video";
+				rockchip,pd-id = <CLK_PD_VIDEO>;
+				#clock-cells = <0>;
+			};
+
+			pd_vio: pd_vio {
+				compatible = "rockchip,rk-pd-clock";
+				clock-output-names = "pd_vio";
+				rockchip,pd-id = <CLK_PD_VIO>;
+				#clock-cells = <0>;
+			};
+
+			pd_hevc: pd_hevc {
+				compatible = "rockchip,rk-pd-clock";
+				clock-output-names = "pd_hevc";
+				rockchip,pd-id = <CLK_PD_HEVC>;
+				#clock-cells = <0>;
+			};
+
+		};
+
+
 		clock_regs {
 			compatible = "rockchip,rk-clock-regs";
 			#address-cells = <1>;

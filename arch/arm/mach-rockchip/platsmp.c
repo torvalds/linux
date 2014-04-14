@@ -21,13 +21,13 @@
 #include <linux/of.h>
 #include <linux/of_address.h>
 #include <linux/rockchip/common.h>
+#include <linux/rockchip/pmu.h>
 
 #include <asm/cacheflush.h>
 #include <asm/smp_scu.h>
 #include <asm/smp_plat.h>
 #include <asm/mach/map.h>
 
-#include "pmu.h"
 
 #define SCU_CTRL		0x00
 #define   SCU_STANDBY_EN	(1 << 5)

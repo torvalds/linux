@@ -583,7 +583,13 @@
 				<&clk_gates5 12>,/*hdmi_hdcp_clk*/
 
 				/*UART*/
-				<&clk_gates11 9>;/*pclk_uart2*/
+				<&clk_gates11 9>,/*pclk_uart2*/
+
+				/*PD*/
+				<&pd_gpu>,
+				<&pd_video>,
+				<&pd_vio>,
+				<&pd_hevc>;
 	};
 
 	i2c0: i2c@ff650000 {

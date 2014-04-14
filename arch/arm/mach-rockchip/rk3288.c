@@ -29,13 +29,13 @@
 #include <linux/rockchip/dvfs.h>
 #include <linux/rockchip/grf.h>
 #include <linux/rockchip/iomap.h>
+#include <linux/rockchip/pmu.h>
 #include <asm/cpuidle.h>
 #include <asm/cputype.h>
 #include <asm/mach/arch.h>
 #include <asm/mach/map.h>
 #include "cpu_axi.h"
 #include "loader.h"
-#include "pmu.h"
 #include "sram.h"
 
 #define RK3288_DEVICE(name) \
@@ -341,9 +341,11 @@ out:
 	return 0;
 }
 
+int rk3288_sys_set_power_domain(enum pmu_power_domain pd, bool on);
+
 static void __init rk3288_dt_init_timer(void)
 {
-	rockchip_pmu_ops.set_power_domain = rk3288_pmu_set_power_domain;
+	rockchip_pmu_ops.set_power_domain = rk3288_sys_set_power_domain;
 	rockchip_pmu_ops.power_domain_is_on = rk3288_pmu_power_domain_is_on;
 	rockchip_pmu_ops.set_idle_request = rk3288_pmu_set_idle_request;
 	of_clk_init(NULL);
