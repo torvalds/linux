@@ -30,10 +30,14 @@
 
 static void __iomem *pmsu_mp_base;
 
-#define PMSU_BOOT_ADDR_REDIRECT_OFFSET(cpu)	((cpu * 0x100) + 0x24)
+#define PMSU_BASE_OFFSET    0x100
+#define PMSU_REG_SIZE	    0x1000
+
+#define PMSU_BOOT_ADDR_REDIRECT_OFFSET(cpu)	((cpu * 0x100) + 0x124)
 
 static struct of_device_id of_pmsu_table[] = {
-	{.compatible = "marvell,armada-370-xp-pmsu"},
+	{ .compatible = "marvell,armada-370-pmsu", },
+	{ .compatible = "marvell,armada-370-xp-pmsu", },
 	{ /* end of list */ },
 };
 
@@ -78,6 +82,12 @@ static int __init armada_370_xp_pmsu_init(void)
 		pr_err("unable to get resource\n");
 		ret = -ENOENT;
 		goto out;
+	}
+
+	if (of_device_is_compatible(np, "marvell,armada-370-xp-pmsu")) {
+		pr_warn(FW_WARN "deprecated pmsu binding\n");
+		res.start = res.start - PMSU_BASE_OFFSET;
+		res.end = res.start + PMSU_REG_SIZE - 1;
 	}
 
 	if (!request_mem_region(res.start, resource_size(&res),
