@@ -600,9 +600,8 @@ void *dev_get_drvdata(const struct device *dev)
 }
 EXPORT_SYMBOL(dev_get_drvdata);
 
-int dev_set_drvdata(struct device *dev, void *data)
+void dev_set_drvdata(struct device *dev, void *data)
 {
 	dev->driver_data = data;
-	return 0;
 }
 EXPORT_SYMBOL(dev_set_drvdata);
