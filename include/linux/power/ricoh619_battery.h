@@ -1,5 +1,5 @@
 /*
- * include/linux/power/ricoh619-battery.c
+ * include/linux/power/ricoh619_battery.h
  *
  * RICOH RC5T619 Charger Driver
  * 
@@ -31,12 +31,11 @@
 #define RICOH_FG_DBG(fmt, args...) {while(0);}
 #endif
 
-/* Defined buttery information */
+/* Defined battery information */
 #define	ADC_VDD_MV	2800
 #define	MIN_VOLTAGE	3100
 #define	MAX_VOLTAGE	4200
 #define	B_VALUE		3435
-
 
 /* 619 Register information */
 /* bank 0 */
@@ -48,13 +47,12 @@
 #define	ADCCNT3_REG		0x66
 #define	VBATDATAH_REG		0x6A
 #define	VBATDATAL_REG		0x6B
-
-#define VSYSDATAH_REG	0x70
-#define VSYSDATAL_REG	0x71
+#define	VSYSDATAH_REG		0x70
+#define	VSYSDATAL_REG		0x71
 
 #define CHGCTL1_REG		0xB3
-#define	REGISET1_REG	0xB6
-#define	REGISET2_REG	0xB7
+#define	REGISET1_REG		0xB6
+#define	REGISET2_REG		0xB7
 #define	CHGISET_REG		0xB8
 #define	TIMSET_REG		0xB9
 #define	BATSET1_REG		0xBA
@@ -88,8 +86,8 @@
 /* bank 1 */
 /* Top address for battery initial setting */
 #define	BAT_INIT_TOP_REG	0xBC
-#define	TEMP_GAIN_H_REG	0xD6
-#define	TEMP_OFF_H_REG	0xB8
+#define	TEMP_GAIN_H_REG		0xD6
+#define	TEMP_OFF_H_REG		0xD8
 #define	BAT_REL_SEL_REG		0xDA
 #define	BAT_TA_SEL_REG		0xDB
 /**************************/
@@ -119,20 +117,17 @@ enum SupplyState {
 	SUPPLY_STATE_USB,
 } ;
 
-struct ricoh619_battery_platform_data {
-	int	irq;
-	int	alarm_vol_mv;
-	int	multiple;
-	unsigned long	monitor_time;
+struct ricoh619_battery_type_data {
 	int	ch_vfchg;
 	int	ch_vrchg;
 	int	ch_vbatovset;
 	int	ch_ichg;
+	int	ch_icchg;
 	int	ch_ilim_adp;
 	int	ch_ilim_usb;
-	int	ch_icchg;
 	int	fg_target_vsys;
 	int	fg_target_ibat;
+	int	fg_poff_vbat;
 	int	jt_en;
 	int	jt_hw_sw;
 	int	jt_temp_h;
@@ -141,6 +136,15 @@ struct ricoh619_battery_platform_data {
 	int	jt_vfchg_l;
 	int	jt_ichg_h;
 	int	jt_ichg_l;
+};
+
+#define BATTERY_TYPE_NUM 1
+struct ricoh619_battery_platform_data {
+	int	irq;
+	int	alarm_vol_mv;
+	int	multiple;
+	unsigned long	monitor_time;
+	struct ricoh619_battery_type_data type[BATTERY_TYPE_NUM];
 };
 
 extern struct ricoh619 *g_ricoh619;

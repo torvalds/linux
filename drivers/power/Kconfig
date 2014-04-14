@@ -64,6 +64,13 @@ config WM8350_POWER
           Say Y here to enable support for the power management unit
 	  provided by the Wolfson Microelectronics WM8350 PMIC.
 
+config BATTERY_RICOH619
+	tristate "Ricoh RC5T619 PMIC battery driver"
+	depends on MFD_RICOH619 && I2C && GENERIC_HARDIRQS
+	help
+	  Say Y to enable support for the battery control of the Ricoh RC5T619
+	  Power Management device.
+
 config TEST_POWER
 	tristate "Test power driver"
 	help

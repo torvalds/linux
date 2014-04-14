@@ -1,0 +1,169 @@
+/*
+ * Copyright (C) 2014 Ricoh Electronic Devices Co., Ltd. - http://www.rioch.com/LSI
+ *
+ * This program is free software; you can redistribute it and/or modify
+ * it under the terms of the GNU General Public License version 2 as
+ * published by the Free Software Foundation.
+ */
+
+/*
+ * Integrated Power Management Chip
+ * http://www.ricoh.com/LSI/product_pmic/multiple-pmu/rc5t619/
+ */
+
+&ricoh619
+{
+	compatible = "ricoh,ricoh619";
+	interrupt-controller;
+	#interrupt-cells = <0>;
+	
+	pwrkey: pwrkey@0 {
+		compatible = "ricoh,ricoh619-pwrkey";
+		ricoh,pwrkey-delay-ms = <20>;		
+	};
+
+	rtc {
+		compatible = "ricoh,ricoh619-rtc";
+		ricoh,rtc-tm-year = <2014>;
+		ricoh,rtc-tm-month = <1>;
+		ricoh,rtc-tm-mday = <1>;
+		ricoh,rtc-tm-hour = <8>;
+		ricoh,rtc-tm-min = <0>;
+		ricoh,rtc-tm-sec = <0>;
+	};
+
+	battery {
+		compatible = "ricoh,ricoh619-battery";
+		ricoh,alarm-vol-mv = <3300>;
+		ricoh,multiple = <100>;
+		ricoh,monitor-time = <1>;
+
+		ricoh,ch-vfchg = <0xff>;/* VFCHG	= 0 - 4 (4.05v, 4.10v, 4.15v, 4.20v, 4.35v) */
+		ricoh,ch-vrchg = <0xff>;/* VRCHG	= 0 - 4 (3.85v, 3.90v, 3.95v, 4.00v, 4.10v) */
+		ricoh,ch-vbatovset = <0xff>;/* VBATOVSET	= 0 or 1 (0 : 4.38v(up)/3.95v(down) 1: 4.53v(up)/4.10v(down)) */
+		ricoh,ch-ichg = <0xff>;/* ICHG		= 0 - 0x1D (100mA - 3000mA) */
+		ricoh,ch-ilim-adp = <0xff>;/* ILIM_ADP	= 0 - 0x1D (100mA - 3000mA) */
+		ricoh,ch-ilim-usb = <0xff>;/* ILIM_USB	= 0 - 0x1D (100mA - 3000mA) */
+		ricoh,ch-icchg = <0x03>;/* ICCHG	= 0 - 3 (50mA 100mA 150mA 200mA) */
+		ricoh,fg-target-vsys = <3000>;/* This value is the target one to DSOC=0% */
+		ricoh,fg-target-ibat = <1000>;/* This value is the target one to DSOC=0% */
+		ricoh,fg-poff-vbat = <0>;/* setting value of 0 per Vbat */
+		ricoh,jt-en = <0>;/* JEITA Enable	  = 0 or 1 (1:enable, 0:disable) */
+		ricoh,jt-hw-sw = <1>;/* JEITA HW or SW = 0 or 1 (1:HardWare, 0:SoftWare) */
+		ricoh,jt-temp-h = <50>;/* degree C */
+		ricoh,jt-temp-l = <12>;/* degree C */
+		ricoh,jt-vfchg-h = <0x03>;/* VFCHG High  	= 0 - 4 (4.05v, 4.10v, 4.15v, 4.20v, 4.35v) */
+		ricoh,jt-vfchg-l = <0>;/* VFCHG High  	= 0 - 4 (4.05v, 4.10v, 4.15v, 4.20v, 4.35v) */
+		ricoh,jt-ichg-h = <0x0D>;/* VFCHG Low  	= 0 - 4 (4.05v, 4.10v, 4.15v, 4.20v, 4.35v) */
+		ricoh,jt-ichg-l = <0x09>;/* ICHG Low   	= 0 - 0x1D (100mA - 3000mA) */
+	};
+
+	regulators {
+		#address-cells = <1>;
+		#size-cells = <0>;	
+		
+		ricoh619_dcdc1_reg: regulator@0 {
+			reg = <0>;
+			regulator-compatible = "ricoh619_dc1";
+			regulator-always-on;
+			regulator-boot-on;
+		};
+		ricoh619_dcdc2_reg: regulator@1 {
+			reg = <1>;
+			regulator-compatible = "ricoh619_dc2";
+			regulator-always-on;
+			regulator-boot-on;
+		};
+		ricoh619_dcdc3_reg: regulator@2 {
+			reg = <2>;
+			regulator-compatible = "ricoh619_dc3";
+			regulator-always-on;
+			regulator-boot-on;
+		};
+		ricoh619_dcdc4_reg: regulator@3 {
+			reg = <3>;
+			regulator-compatible = "ricoh619_dc4";
+			regulator-always-on;
+			regulator-boot-on;
+		};
+		ricoh619_dcdc5_reg: regulator@4 {
+			reg = <4>;
+			regulator-compatible = "ricoh619_dc5";
+			regulator-always-on;
+			regulator-boot-on;
+		};
+		ricoh619_ldo1_reg: regulator@5  {
+			reg = <5>;
+			regulator-compatible = "ricoh619_ldo1";
+			regulator-always-on;
+			regulator-boot-on;
+		};
+		ricoh619_ldo2_reg: regulator@6  {
+			reg = <6>;
+			regulator-compatible = "ricoh619_ldo2";
+			regulator-always-on;
+			regulator-boot-on;
+		};
+		ricoh619_ldo3_reg: regulator@7  {
+			reg = <7>;
+			regulator-compatible = "ricoh619_ldo3";
+			regulator-always-on;
+			regulator-boot-on;
+		};
+		ricoh619_ldo4_reg: regulator@8  {
+			reg = <8>;
+			regulator-compatible = "ricoh619_ldo4";
+			regulator-always-on;
+			regulator-boot-on;
+		};
+		ricoh619_ldo5_reg: regulator@9  {
+			reg = <9>;
+			regulator-compatible = "ricoh619_ldo5";
+			regulator-always-on;
+			regulator-boot-on;
+		};
+		ricoh619_ldo6_reg: regulator@10  {
+			reg = <10>;
+			regulator-compatible = "ricoh619_ldo6";
+			regulator-always-on;
+			regulator-boot-on;
+		};
+		ricoh619_ldo7_reg: regulator@11  {
+			reg = <11>;
+			regulator-compatible = "ricoh619_ldo7";
+			regulator-always-on;
+			regulator-boot-on;
+		};
+		ricoh619_ldo8_reg: regulator@12  {
+			reg = <12>;
+			regulator-compatible = "ricoh619_ldo8";
+			regulator-always-on;
+			regulator-boot-on;
+		};
+		ricoh619_ldo9_reg: regulator@13  {
+			reg = <13>;
+			regulator-compatible = "ricoh619_ldo9";
+			regulator-always-on;
+			regulator-boot-on;
+		};
+		ricoh619_ldo10_reg: regulator@14  {
+			reg = <14>;
+			regulator-compatible = "ricoh619_ldo10";
+			regulator-always-on;
+			regulator-boot-on;
+		};
+		ricoh619_ldortc1_reg: regulator@15  {
+			reg = <15>;
+			regulator-compatible = "ricoh619_ldortc1";
+			regulator-always-on;
+			regulator-boot-on;
+		};
+		ricoh619_ldortc2_reg: regulator@16  {
+			reg = <16>;
+			regulator-compatible = "ricoh619_ldortc2";
+			regulator-always-on;
+			regulator-boot-on;
+		};
+	};
+};
+

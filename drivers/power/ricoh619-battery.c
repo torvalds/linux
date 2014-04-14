@@ -19,6 +19,9 @@
  * along with this program.  If not, see <http://www.gnu.org/licenses/>.
  *
  */
+#define RICOH619_BATTERY_VERSION "RICOH619_BATTERY_VERSION: 2014.03.28"
+
+
 #include <linux/kernel.h>
 #include <linux/module.h>
 #include <linux/platform_device.h>
@@ -31,12 +34,12 @@
 #include <linux/power/ricoh61x_battery_init.h>
 #include <linux/delay.h>
 #include <linux/workqueue.h>
-#include <linux/delay.h>
-#include <mach/board.h>
+#include <linux/of.h>
 
 
 #include <linux/interrupt.h>
 #include <linux/irq.h>
+#include <linux/irqdomain.h>
 
 
 /* define for function */
@@ -45,7 +48,7 @@
 #define ENABLE_FACTORY_MODE
 #define DISABLE_CHARGER_TIMER
 /* #define ENABLE_FG_KEEP_ON_MODE */
-#define ENABLE_OCV_TABLE_CALIB
+/* #define ENABLE_OCV_TABLE_CALIB */
 
 
 
@@ -78,12 +81,17 @@ enum int_type {
 #define RICOH619_GET_CHARGE_NUM		10
 #define RICOH619_UPDATE_COUNT_DISP		4
 #define RICOH619_UPDATE_COUNT_FULL		4
+#define RICOH619_UPDATE_COUNT_FULL_RESET 	7
 #define RICOH619_CHARGE_UPDATE_TIME		3
-#define RICOH619_FULL_WAIT_TIME			2
+#define RICOH619_FULL_WAIT_TIME			4
 #define RE_CAP_GO_DOWN				10	/* 40 */
 #define RICOH619_ENTER_LOW_VOL			70
-#define RICOH619_TAH_SEL2				5
-#define RICOH619_TAL_SEL2				6
+#define RICOH619_TAH_SEL2			5
+#define RICOH619_TAL_SEL2			6
+
+#define RICOH619_OCV_OFFSET_BOUND	3
+#define RICOH619_OCV_OFFSET_RATIO	2
+
 /* define for FG status */
 enum {
 	RICOH619_SOCA_START,
@@ -106,6 +114,7 @@ struct ricoh619_soca_info {
 	int n_cap;
 	int ocv_table_def[11];
 	int ocv_table[11];
+	int ocv_table_low[11];
 	int soc;		/* Latest FG SOC value */
 	int displayed_soc;
 	int suspend_soc;
@@ -114,26 +123,29 @@ struct ricoh619_soca_info {
 	int chg_status;		/* chg_status */
 	int soc_delta;		/* soc delta for status3(DISP) */
 	int cc_delta;
+	int cc_cap_offset;
 	int last_soc;
+	int last_displayed_soc;
 	int ready_fg;
 	int reset_count;
 	int reset_soc[3];
-	int reset_flg_90;
-	int reset_flg_95;
-	int f_chg_margin;
 	int chg_cmp_times;
 	int dischg_state;
 	int Vbat[RICOH619_GET_CHARGE_NUM];
 	int Vsys[RICOH619_GET_CHARGE_NUM];
 	int Ibat[RICOH619_GET_CHARGE_NUM];
 	int Vbat_ave;
+	int Vbat_old;
 	int Vsys_ave;
 	int Ibat_ave;
 	int chg_count;
-	int update_count;
+	int full_reset_count;
+	int soc_full;
+	int fc_cap;
 	/* for LOW VOL state */
 	int target_use_cap;
 	int hurry_up_flg;
+	int zero_flg;
 	int re_cap_old;
 	int cutoff_ocv;
 	int Rsys;
@@ -142,6 +154,10 @@ struct ricoh619_soca_info {
 	int jt_limit;
 	int OCV100_min;
 	int OCV100_max;
+	int R_low;
+	int rsoc_ready_flag;
+	int init_pswr;
+	int last_cc_sum;
 };
 
 struct ricoh619_battery_info {
@@ -199,6 +215,7 @@ struct ricoh619_battery_info {
 	int		ch_icchg;
 	int		fg_target_vsys;
 	int		fg_target_ibat;
+	int		fg_poff_vbat;
 	int		jt_en;
 	int		jt_hw_sw;
 	int		jt_temp_h;
@@ -211,16 +228,19 @@ struct ricoh619_battery_info {
 	int 		num;
 	};
 
+struct power_supply powerac;
+struct power_supply powerusb;
+
+int g_full_flag;
 int charger_irq;
 /* this value is for mfd fucntion */
 int g_soc;
 int g_fg_on_mode;
-extern int dwc_vbus_status(void);
+int type_n;
+extern int dwc_otg_check_dpdm(bool wait);
 /*This is for full state*/
-int g_full_flag;
 static int BatteryTableFlagDef=0;
 static int BatteryTypeDef=0;
-static void ricoh619_scaling_OCV_table(struct ricoh619_battery_info *info, int cutoff_vol, int full_vol, int *start_per, int *end_per);
 static int Battery_Type(void)
 {
 	return BatteryTypeDef;
@@ -253,14 +273,17 @@ static int get_check_fuel_gauge_reg(struct ricoh619_battery_info *info,
 					 int Reg_h, int Reg_l, int enable_bit);
 static int calc_capacity_in_period(struct ricoh619_battery_info *info,
 				 int *cc_cap, bool *is_charging, bool cc_rst);
-static int get_charge_priority(struct ricoh619_battery_info *info, bool *data);
-static int set_charge_priority(struct ricoh619_battery_info *info, bool *data);
+//static int get_charge_priority(struct ricoh619_battery_info *info, bool *data);
+//static int set_charge_priority(struct ricoh619_battery_info *info, bool *data);
 static int get_power_supply_status(struct ricoh619_battery_info *info);
+static int get_power_supply_Android_status(struct ricoh619_battery_info *info);
 static int measure_vsys_ADC(struct ricoh619_battery_info *info, int *data);
 static int Calc_Linear_Interpolation(int x0, int y0, int x1, int y1, int y);
 static int get_battery_temp(struct ricoh619_battery_info *info);
 static int get_battery_temp_2(struct ricoh619_battery_info *info);
 static int check_jeita_status(struct ricoh619_battery_info *info, bool *is_jeita_updated);
+static void ricoh619_scaling_OCV_table(struct ricoh619_battery_info *info, int cutoff_vol, int full_vol, int *start_per, int *end_per);
+static int ricoh619_Check_OCV_Offset(struct ricoh619_battery_info *info);
 
 static int calc_ocv(struct ricoh619_battery_info *info)
 {
@@ -277,18 +300,213 @@ static int calc_ocv(struct ricoh619_battery_info *info)
 	return ocv;
 }
 
+
+static int set_Rlow(struct ricoh619_battery_info *info)
+{
+	int err;
+	int Rbat_low_max;
+	uint8_t val;
+	int Vocv;
+	int temp;
+
+	if (info->soca->Rbat == 0)
+			info->soca->Rbat = get_OCV_init_Data(info, 12) * 1000 / 512
+							 * 5000 / 4095;
+	
+	Vocv = calc_ocv(info);
+	Rbat_low_max = info->soca->Rbat * 1.5;
+
+	if (Vocv < get_OCV_voltage(info,3))
+	{
+		info->soca->R_low = Calc_Linear_Interpolation(info->soca->Rbat,get_OCV_voltage(info,3),
+			Rbat_low_max, get_OCV_voltage(info,0), Vocv);
+		RICOH_FG_DBG("PMU: Modify RBAT from %d to %d ", info->soca->Rbat, info->soca->R_low);
+		temp = info->soca->R_low *4095/5000*512/1000;
+		
+		val = info->soca->R_low>>8;
+		err = ricoh619_write_bank1(info->dev->parent, 0xD4, val);
+		if (err < 0) {
+			dev_err(info->dev, "batterry initialize error\n");
+			return err;
+		}
+
+		val = info->soca->R_low & 0xff;
+		err = ricoh619_write_bank1(info->dev->parent, 0xD5, val);
+		if (err < 0) {
+			dev_err(info->dev, "batterry initialize error\n");
+			return err;
+		}
+	}
+	else  info->soca->R_low = 0;
+		
+
+	return err;
+}
+
+static int Set_back_ocv_table(struct ricoh619_battery_info *info)
+{
+	int err;
+	uint8_t val;
+	int temp;
+	int i;
+	uint8_t debug_disp[22];
+
+	/* Modify back ocv table */
+
+	if (0 != info->soca->ocv_table_low[0])
+	{
+		for (i = 0 ; i < 11; i++){
+			battery_init_para[info->num][i*2 + 1] = info->soca->ocv_table_low[i];
+			battery_init_para[info->num][i*2] = info->soca->ocv_table_low[i] >> 8;
+		}
+		err = ricoh619_clr_bits(info->dev->parent, FG_CTRL_REG, 0x01);
+
+		err = ricoh619_bulk_writes_bank1(info->dev->parent,
+			BAT_INIT_TOP_REG, 22, battery_init_para[info->num]);
+
+		err = ricoh619_set_bits(info->dev->parent, FG_CTRL_REG, 0x01);
+
+		/* debug comment start*/
+		err = ricoh619_bulk_reads_bank1(info->dev->parent,
+			BAT_INIT_TOP_REG, 22, debug_disp);
+		for (i = 0; i < 11; i++){
+			RICOH_FG_DBG("PMU : %s : after OCV table %d 0x%x\n",__func__, i * 10, (debug_disp[i*2] << 8 | debug_disp[i*2+1]));
+		}
+		/* end */
+		/* clear table*/
+		for(i = 0; i < 11; i++)
+		{
+			info->soca->ocv_table_low[i] = 0;
+		}
+	}
+	
+	/* Modify back Rbat */
+	if (0!=info->soca->R_low)
+	{		
+		RICOH_FG_DBG("PMU: Modify back RBAT from %d to %d ",  info->soca->R_low,info->soca->Rbat);
+		temp = info->soca->Rbat*4095/5000*512/1000;
+		
+		val = info->soca->R_low>>8;
+		err = ricoh619_write_bank1(info->dev->parent, 0xD4, val);
+		if (err < 0) {
+			dev_err(info->dev, "batterry initialize error\n");
+			return err;
+		}
+
+		val = info->soca->R_low & 0xff;
+		err = ricoh619_write_bank1(info->dev->parent, 0xD5, val);
+		if (err < 0) {
+			dev_err(info->dev, "batterry initialize error\n");
+			return err;
+		}
+
+		info->soca->R_low = 0;
+	}
+	return 0;
+}
+
+/**
+**/
+static int ricoh619_Check_OCV_Offset(struct ricoh619_battery_info *info)
+{
+	int ocv_table[11]; // HEX value
+	int i;
+	int temp;
+	int ret;
+	uint8_t debug_disp[22];
+	uint8_t val = 0;
+
+	RICOH_FG_DBG("PMU : %s : calc ocv %d get OCV %d\n",__func__,calc_ocv(info),get_OCV_voltage(info, RICOH619_OCV_OFFSET_BOUND));
+
+	/* check adp/usb status */
+	ret = ricoh619_read(info->dev->parent, CHGSTATE_REG, &val);
+	if (ret < 0) {
+		dev_err(info->dev, "Error in reading the control register\n");
+		return ret;
+	}
+
+	val = (val & 0xC0) >> 6;
+
+	if (val != 0){ /* connect adp or usb */
+		if (calc_ocv(info) < get_OCV_voltage(info, RICOH619_OCV_OFFSET_BOUND) )
+		{
+			if(0 == info->soca->ocv_table_low[0]){
+				for (i = 0 ; i < 11; i++){
+				ocv_table[i] = (battery_init_para[info->num][i*2]<<8) | (battery_init_para[info->num][i*2+1]);
+				RICOH_FG_DBG("PMU : %s : OCV table %d 0x%x\n",__func__,i * 10, ocv_table[i]);
+				info->soca->ocv_table_low[i] = ocv_table[i];
+				}
+
+				for (i = 0 ; i < 11; i++){
+					temp = ocv_table[i] * (100 + RICOH619_OCV_OFFSET_RATIO) / 100;
+
+					battery_init_para[info->num][i*2 + 1] = temp;
+					battery_init_para[info->num][i*2] = temp >> 8;
+				}
+				ret = ricoh619_clr_bits(info->dev->parent, FG_CTRL_REG, 0x01);
+
+				ret = ricoh619_bulk_writes_bank1(info->dev->parent,
+					BAT_INIT_TOP_REG, 22, battery_init_para[info->num]);
+
+				ret = ricoh619_set_bits(info->dev->parent, FG_CTRL_REG, 0x01);
+
+				/* debug comment start*/
+				ret = ricoh619_bulk_reads_bank1(info->dev->parent,
+					BAT_INIT_TOP_REG, 22, debug_disp);
+				for (i = 0; i < 11; i++){
+					RICOH_FG_DBG("PMU : %s : after OCV table %d 0x%x\n",__func__, i * 10, (debug_disp[i*2] << 8 | debug_disp[i*2+1]));
+				}
+				/* end */
+			}
+		}
+	}
+	
+	return 0;
+}
+
+static int reset_FG_process(struct ricoh619_battery_info *info)
+{
+	int err;
+
+	//err = set_Rlow(info);
+	//err = ricoh619_Check_OCV_Offset(info);
+	err = ricoh619_write(info->dev->parent,
+					 FG_CTRL_REG, 0x51);
+	info->soca->ready_fg = 0;
+	return err;
+}
+
+
 static int check_charge_status_2(struct ricoh619_battery_info *info, int displayed_soc_temp)
 {
 	if (displayed_soc_temp < 0)
 			displayed_soc_temp = 0;
 	
 	get_power_supply_status(info);
-	/* for issue 5 */
+	info->soca->soc = calc_capacity(info) * 100;
+
 	if (POWER_SUPPLY_STATUS_FULL == info->soca->chg_status) {
-		g_full_flag = 1;
-		info->soca->displayed_soc = 100*100;
+		if ((info->first_pwon == 1)
+			&& (RICOH619_SOCA_START == info->soca->status)) {
+				g_full_flag = 1;
+				info->soca->soc_full = info->soca->soc;
+				info->soca->displayed_soc = 100*100;
+				info->soca->full_reset_count = 0;
+		} else {
+			if ( (displayed_soc_temp > 97*100)
+				&& (calc_ocv(info) > (get_OCV_voltage(info, 9) + (get_OCV_voltage(info, 10) - get_OCV_voltage(info, 9))*7/10)  )){
+				g_full_flag = 1;
+				info->soca->soc_full = info->soca->soc;
+				info->soca->displayed_soc = 100*100;
+				info->soca->full_reset_count = 0;
+			} else {
+				g_full_flag = 0;
+				info->soca->displayed_soc = displayed_soc_temp;
+			}
+
+		}
 	}
-	if (info->soca->Ibat_ave >= 0) {	/* for issue 3 */
+	if (info->soca->Ibat_ave >= 0) {
 		if (g_full_flag == 1) {
 			info->soca->displayed_soc = 100*100;
 		} else {
@@ -301,10 +519,10 @@ static int check_charge_status_2(struct ricoh619_battery_info *info, int display
 	}
 	if (info->soca->Ibat_ave < 0) {
 		if (g_full_flag == 1) {
-			if ((calc_ocv(info) < (get_OCV_voltage(info, 9) + (get_OCV_voltage(info, 10) - get_OCV_voltage(info, 9))*3/10) )
-			&& (info->soca->soc/100 <= 98) ) {
+			if (calc_ocv(info) < (get_OCV_voltage(info, 9) + (get_OCV_voltage(info, 10) - get_OCV_voltage(info, 9))*7/10)  ) {
 				g_full_flag = 0;
-				info->soca->displayed_soc = 100*100;
+				//info->soca->displayed_soc = 100*100;
+				info->soca->displayed_soc = displayed_soc_temp;
 			} else {
 				info->soca->displayed_soc = 100*100;
 			}
@@ -333,15 +551,18 @@ static int calc_capacity_in_period(struct ricoh619_battery_info *info,
 				 int *cc_cap, bool *is_charging, bool cc_rst)
 {
 	int err;
-	uint8_t cc_sum_reg[4];
-	uint8_t cc_clr[4] = {0, 0, 0, 0};
-	uint8_t fa_cap_reg[2];
-	uint16_t fa_cap;
-	uint32_t cc_sum;
-	int	cc_stop_flag;
-	uint8_t status;
-	uint8_t charge_state;
-	int Ocv;
+	uint8_t 	cc_sum_reg[4];
+	uint8_t 	cc_clr[4] = {0, 0, 0, 0};
+	uint8_t 	fa_cap_reg[2];
+	uint16_t 	fa_cap;
+	uint32_t 	cc_sum;
+	int		cc_stop_flag;
+	uint8_t 	status;
+	uint8_t 	charge_state;
+	int 		Ocv;
+	uint32_t 	cc_cap_temp;
+	uint32_t 	cc_cap_min;
+	int		cc_cap_res;
 
 	*is_charging = true;	/* currrent state initialize -> charging */
 
@@ -448,9 +669,34 @@ static int calc_capacity_in_period(struct ricoh619_battery_info *info,
 		cc_sum = (cc_sum^0xffffffff)+0x01;
 		*is_charging = false;		/* discharge */
 	}
+	/* (CC_SUM x 10000)/3600/FA_CAP */
+	*cc_cap = cc_sum*25/9/fa_cap;		/* unit is 0.01% */
 
-	*cc_cap = cc_sum*25/9/fa_cap;	/* CC_SUM/3600/FA_CAP */
-
+	//////////////////////////////////////////////////////////////////	
+	cc_cap_min = fa_cap*3600/100/100/100;	/* Unit is 0.0001% */
+	cc_cap_temp = cc_sum / cc_cap_min;
+		
+	cc_cap_res = cc_cap_temp % 100;
+	
+	RICOH_FG_DBG("PMU: cc_sum = %d: cc_cap_res= %d: \n", cc_sum, cc_cap_res);
+	
+	
+	if(*is_charging) {
+		info->soca->cc_cap_offset += cc_cap_res;
+		if (info->soca->cc_cap_offset >= 100) {
+			*cc_cap += 1;
+			info->soca->cc_cap_offset %= 100;
+		}
+	} else {
+		info->soca->cc_cap_offset -= cc_cap_res;
+		if (info->soca->cc_cap_offset <= -100) {
+			*cc_cap += 1;
+			info->soca->cc_cap_offset %= 100;
+		}
+	}
+	RICOH_FG_DBG("PMU: cc_cap_offset= %d: \n", info->soca->cc_cap_offset);
+	
+	//////////////////////////////////////////////////////////////////
 	return 0;
 out:
 	dev_err(info->dev, "Error !!-----\n");
@@ -461,10 +707,10 @@ out:
 **/
 static int get_target_use_cap(struct ricoh619_battery_info *info)
 {
-	int i;
+	int i,j;
 	int ocv_table[11];
 	int temp;
-	int Target_Cutoff_Vol;
+	int Target_Cutoff_Vol = 0;
 	int Ocv_ZeroPer_now;
 	int Ibat_now;
 	int fa_cap,use_cap;
@@ -473,6 +719,12 @@ static int get_target_use_cap(struct ricoh619_battery_info *info)
 	int RE_CAP_now;
 	int CC_OnePer_step;
 	int Ibat_min;
+
+	int Ocv_now;
+	int Ocv_now_table;
+	int soc_per;
+	int use_cap_now;
+	int Rsys_now;
 
 	/* get const value */
 	Ibat_min = -1 * info->soca->target_ibat;
@@ -485,22 +737,37 @@ static int get_target_use_cap(struct ricoh619_battery_info *info)
 	fa_cap = get_check_fuel_gauge_reg(info, FA_CAP_H_REG, FA_CAP_L_REG,
 								0x7fff);
 	use_cap = fa_cap - info->soca->re_cap_old;
-	
-	Ocv_ZeroPer_now = info->soca->target_vsys * 1000 - Ibat_now * info->soca->Rsys;
 
-	RICOH_FG_DBG("PMU: -------  Rsys= %d: cutoff_ocv= %d: Ocv_ZeroPer_now= %d =======\n",
-	       info->soca->Rsys, info->soca->cutoff_ocv, Ocv_ZeroPer_now);
-
-	/* get FA_CAP_now */
-	/* Check Start % */
+	/* get OCV table % */
 	for (i = 0; i <= 10; i = i+1) {
 		temp = (battery_init_para[info->num][i*2]<<8)
 			 | (battery_init_para[info->num][i*2+1]);
 		/* conversion unit 1 Unit is 1.22mv (5000/4095 mv) */
 		temp = ((temp * 50000 * 10 / 4095) + 5) / 10;
 		ocv_table[i] = temp;
+		RICOH_FG_DBG("PMU : %s : ocv_table %d is %d v\n",__func__, i, ocv_table[i]);
 	}
+
+	/* Find out Current OCV */
+	i = info->soca->soc/1000;
+	j = info->soca->soc - info->soca->soc/1000*1000;
+	Ocv_now_table = ocv_table[i]*100+(ocv_table[i+1]-ocv_table[i])*j/10;
+
+		Rsys_now = (info->soca->Vsys_ave - Ocv_now_table) / info->soca->Ibat_ave;	
+
+	Ocv_ZeroPer_now = info->soca->target_vsys * 1000 - Ibat_now * Rsys_now;
+
+	RICOH_FG_DBG("PMU: -------  Ocv_now_table= %d: Rsys_now= %d =======\n",
+	       Ocv_now_table, Rsys_now);
+
+	RICOH_FG_DBG("PMU: -------  Rsys= %d: cutoff_ocv= %d: Ocv_ZeroPer_now= %d =======\n",
+	       info->soca->Rsys, info->soca->cutoff_ocv, Ocv_ZeroPer_now);
+
+	/* get FA_CAP_now */
+
+	
 	for (i = 1; i < 11; i++) {
+		RICOH_FG_DBG("PMU : %s : ocv_table %d is %d v Ocv_ZerPernow is %d\n",__func__, i, ocv_table[i],(Ocv_ZeroPer_now / 100));
 		if (ocv_table[i] >= Ocv_ZeroPer_now / 100) {
 			/* unit is 0.001% */
 			start_per = Calc_Linear_Interpolation(
@@ -510,6 +777,8 @@ static int get_target_use_cap(struct ricoh619_battery_info *info)
 		}
 	}
 
+	start_per = max(0, start_per);
+
 	FA_CAP_now = fa_cap * ((10000 - start_per) / 100 ) / 100;
 
 	RICOH_FG_DBG("PMU: -------  Target_Cutoff_Vol= %d: Ocv_ZeroPer_now= %d: start_per= %d =======\n",
@@ -518,22 +787,31 @@ static int get_target_use_cap(struct ricoh619_battery_info *info)
 	/* get RE_CAP_now */
 	RE_CAP_now = FA_CAP_now - use_cap;
 	
-	if (RE_CAP_now < RE_CAP_GO_DOWN || info->soca->Vsys_ave < info->soca->target_vsys*1000) {
+	if (RE_CAP_now < RE_CAP_GO_DOWN) {
 		info->soca->hurry_up_flg = 1;
+	} else if (info->soca->Vsys_ave < info->soca->target_vsys*1000) {
+		info->soca->hurry_up_flg = 1;
+	} else if (info->fg_poff_vbat != 0) {
+		if (info->soca->Vbat_ave < info->fg_poff_vbat*1000) {
+			info->soca->hurry_up_flg = 1;
+		} else {
+			info->soca->hurry_up_flg = 0;
+		}
 	} else {
 		info->soca->hurry_up_flg = 0;
-		/* get CC_OnePer_step */
-		if (info->soca->displayed_soc > 0) { /* avoid divide-by-0 */
-			CC_OnePer_step = RE_CAP_now / (info->soca->displayed_soc / 100);
-		} else {
-			CC_OnePer_step = 0;
-		}
-		/* get info->soca->target_use_cap */
-		info->soca->target_use_cap = use_cap + CC_OnePer_step;
 	}
+
+	/* get CC_OnePer_step */
+	if (info->soca->displayed_soc > 0) { /* avoid divide-by-0 */
+		CC_OnePer_step = RE_CAP_now / (info->soca->displayed_soc / 100 + 1);
+	} else {
+		CC_OnePer_step = 0;
+	}
+	/* get info->soca->target_use_cap */
+	info->soca->target_use_cap = use_cap + CC_OnePer_step;
 	
-	RICOH_FG_DBG("PMU: -------  FA_CAP_now= %d: RE_CAP_now= %d: target_use_cap= %d: hurry_up_flg= %d -------\n",
-	       FA_CAP_now, RE_CAP_now, info->soca->target_use_cap, info->soca->hurry_up_flg);
+	RICOH_FG_DBG("PMU: ------- FA_CAP_now= %d: RE_CAP_now= %d: CC_OnePer_step= %d: target_use_cap= %d: hurry_up_flg= %d -------\n",
+	       FA_CAP_now, RE_CAP_now, CC_OnePer_step, info->soca->target_use_cap, info->soca->hurry_up_flg);
 	
 	return 0;
 }
@@ -550,7 +828,8 @@ static int calib_ocvTable(struct ricoh619_battery_info *info, int vbat_ocv)
 	int cutoff_ocv;
 	int i;
 	int ocv100_new;
-	int start_per,end_per;
+	int start_per = 0;
+	int end_per = 0;
 	
 	RICOH_FG_DBG("PMU: %s\n", __func__);
 	
@@ -577,7 +856,6 @@ static int calib_ocvTable(struct ricoh619_battery_info *info, int vbat_ocv)
 		goto err;
 	}
 
-	info->soca->ready_fg = 0;
 
 	//cutoff_ocv = (battery_init_para[info->num][0]<<8) | (battery_init_para[info->num][1]);
 	cutoff_ocv = get_OCV_voltage(info, 0);
@@ -600,14 +878,14 @@ static int calib_ocvTable(struct ricoh619_battery_info *info, int vbat_ocv)
 	}
 	
 	/* FG_En on & Reset*/
-	ret = ricoh619_write(info->dev->parent, FG_CTRL_REG, 0x51);
+	ret = reset_FG_process(info);
 	if (ret < 0) {
 		dev_err("PMU: %s Error in FG_En On & Reset\n", __func__);
 		goto err;
 	}
 
 	RICOH_FG_DBG("PMU: %s Exit \n", __func__);
-	return 0;			
+	return 0;
 err:
 	return ret;
 
@@ -626,16 +904,15 @@ static void ricoh619_displayed_work(struct work_struct *work)
 	int disp_dec;
 	int cc_cap = 0;
 	bool is_charging = true;
-	int i;
 	int re_cap,fa_cap,use_cap;
 	bool is_jeita_updated;
 	uint8_t reg_val;
 	int delay_flag = 0;
 	int Vbat = 0;
 	int Ibat = 0;
-	int ret;
-	int ocv;
+	int Vsys = 0;
 	int temp_ocv;
+	int fc_delta = 0;
 
 	struct ricoh619_battery_info *info = container_of(work,
 	struct ricoh619_battery_info, displayed_work.work);
@@ -656,7 +933,7 @@ static void ricoh619_displayed_work(struct work_struct *work)
 		 || (RICOH619_SOCA_FULL == info->soca->status))
 		info->soca->ready_fg = 1;
 
-	/* judege Full state or Moni Vsys state */
+	/* judge Full state or Moni Vsys state */
 	if ((RICOH619_SOCA_DISP == info->soca->status)
 		 || (RICOH619_SOCA_STABLE == info->soca->status))
 	{
@@ -664,31 +941,26 @@ static void ricoh619_displayed_work(struct work_struct *work)
 		temp_ocv = get_OCV_voltage(info, 10) -
 					(get_OCV_voltage(info, 10) - get_OCV_voltage(info, 9))/2;
 		
-		if ((POWER_SUPPLY_STATUS_FULL == info->soca->chg_status)
+		if(g_full_flag == 1){	/* for issue 1 solution start*/
+			info->soca->status = RICOH619_SOCA_FULL;
+		}else if ((POWER_SUPPLY_STATUS_FULL == info->soca->chg_status)
 			&& (calc_ocv(info) > temp_ocv)) {
 			info->soca->status = RICOH619_SOCA_FULL;
-			info->soca->update_count = 0;
-		}
-		/* for issue 1 solution start*/
-		if(g_full_flag == 1){
-			info->soca->status = RICOH619_SOCA_FULL;
-			info->soca->update_count = 0;
-		}
-		/* for issue1 solution end */
-		/* check Full state or not*/
-		if (info->soca->Ibat_ave >= -20) {
+			g_full_flag = 0;
+		} else if (info->soca->Ibat_ave >= -20) {
+			/* for issue1 solution end */
+			/* check Full state or not*/
 			if ((calc_ocv(info) > (get_OCV_voltage(info, 9) + (get_OCV_voltage(info, 10) - get_OCV_voltage(info, 9))*7/10))
-				|| (info->soca->displayed_soc/100 >= 99))
+				|| (POWER_SUPPLY_STATUS_FULL == info->soca->chg_status)
+				|| (info->soca->displayed_soc > 9850))
 			{
-				g_full_flag = 0;
 				info->soca->status = RICOH619_SOCA_FULL;
-				info->soca->update_count = 0;
+				g_full_flag = 0;
 			} else if ((calc_ocv(info) > (get_OCV_voltage(info, 9)))
 				&& (info->soca->Ibat_ave < 300))
 			{
-				g_full_flag = 0;
 				info->soca->status = RICOH619_SOCA_FULL;
-				info->soca->update_count = 0;
+				g_full_flag = 0;
 			}
 		} else { /* dis-charging */
 			if (info->soca->displayed_soc/100 < RICOH619_ENTER_LOW_VOL) {
@@ -700,67 +972,7 @@ static void ricoh619_displayed_work(struct work_struct *work)
 
 	if (RICOH619_SOCA_STABLE == info->soca->status) {
 		info->soca->soc = calc_capacity_2(info);
-		soc_round = info->soca->soc / 100;
-		last_soc_round = info->soca->last_soc / 100;
-
 		info->soca->soc_delta = info->soca->soc - info->soca->last_soc;
-
-		//get charge status
-		if (info->soca->chg_status == POWER_SUPPLY_STATUS_CHARGING) {
-			if (soc_round >= 90) {
-				if(soc_round < 95) {
-					if (info->soca->reset_flg_90 == 0) {
-						err = ricoh619_write(info->dev->parent,
-						 FG_CTRL_REG, 0x51);
-						if (err< 0)
-							dev_err(info->dev, "Error in writing the control register\n");
-
-						info->soca->ready_fg = 0;
-
-						for (i = 0; i < 3; i = i+1) {
-							info->soca->reset_soc[i] = 0;
-						}
-						info->soca->stable_count = 0;
-
-						info->soca->status = RICOH619_SOCA_FG_RESET;
-						/* Delay for addition Reset Time (6s) */
-						info->soca->stable_count = 1;
-						queue_delayed_work(info->monitor_wqueue,
-								&info->charge_stable_work,
-								RICOH619_FG_RESET_TIME*HZ);
-
-						info->soca->reset_flg_90 = 1;
-						goto end_flow;
-					}
-				} else if (soc_round < 100) {
-					if (info->soca->reset_flg_95 == 0) {
-						err = ricoh619_write(info->dev->parent,
-						 FG_CTRL_REG, 0x51);
-						if (err < 0)
-							dev_err(info->dev, "Error in writing the control register\n");
-
-						info->soca->ready_fg = 0;
-
-						for (i = 0; i < 3; i = i+1) {
-							info->soca->reset_soc[i] = 0;
-						}
-
-						info->soca->stable_count = 0;
-						info->soca->status = RICOH619_SOCA_FG_RESET;
-						info->soca->stable_count = 1;
-						queue_delayed_work(info->monitor_wqueue,
-								&info->charge_stable_work,
-								RICOH619_FG_RESET_TIME*HZ);
-
-						info->soca->reset_flg_95 = 1;
-						goto end_flow;
-					}
-				}
-			} else {
-				info->soca->reset_flg_90 = 0;
-				info->soca->reset_flg_95 = 0;
-			}
-		}
 
 		if (info->soca->soc_delta >= -100 && info->soca->soc_delta <= 100) {
 			info->soca->displayed_soc = info->soca->soc;
@@ -781,34 +993,55 @@ static void ricoh619_displayed_work(struct work_struct *work)
 		if (info->soca->Ibat_ave >= -20) { /* charging */
 			if (0 == info->soca->jt_limit) {
 				if (g_full_flag == 1) {
-					/* caluc 95% ocv */
-					//temp_ocv = get_OCV_voltage(info, 10) -
-					//			(get_OCV_voltage(info, 10) - get_OCV_voltage(info, 9))/2;
-					temp_ocv = get_OCV_voltage(info, 9);
-					info->soca->update_count++;
-					info->soca->chg_cmp_times = 0;
-					if (info->soca->update_count >= RICOH619_UPDATE_COUNT_FULL) {
-						if (calc_ocv(info) < temp_ocv) {
-							if(info->soca->displayed_soc > info->soca->soc) {
-								info->soca->displayed_soc = info->soca->displayed_soc - 1;
-							} else {
-								info->soca->displayed_soc = info->soca->soc;
-							}
-						} else {
-							info->soca->displayed_soc = 100*100;
+					
+					if (POWER_SUPPLY_STATUS_FULL == info->soca->chg_status) {
+						if(info->soca->full_reset_count < RICOH619_UPDATE_COUNT_FULL_RESET) {
+							info->soca->full_reset_count++;
+						} else if (info->soca->full_reset_count < (RICOH619_UPDATE_COUNT_FULL_RESET + 1)) {
+							err = reset_FG_process(info);
+							if (err < 0)
+								dev_err(info->dev, "Error in writing the control register\n");
+							info->soca->full_reset_count++;
+							goto end_flow;
+						} else if(info->soca->full_reset_count < (RICOH619_UPDATE_COUNT_FULL_RESET + 2)) {
+							info->soca->full_reset_count++;
+							info->soca->fc_cap = 0;
+							info->soca->soc_full = info->soca->soc;
 						}
-						info->soca->update_count = 0;
+					} else {
+						if(info->soca->fc_cap < -1 * 200) {
+							g_full_flag = 0;
+							info->soca->displayed_soc = 99 * 100;
+						}
+						info->soca->full_reset_count = 0;
+					}
+					
+
+					info->soca->chg_cmp_times = 0;
+					err = calc_capacity_in_period(info, &cc_cap, &is_charging, true);
+					if (err < 0)
+					dev_err(info->dev, "Read cc_sum Error !!-----\n");
+
+					fc_delta = (is_charging == true) ? cc_cap : -cc_cap;
+
+					info->soca->fc_cap = info->soca->fc_cap + fc_delta;
+
+					if (g_full_flag == 1){
+						info->soca->displayed_soc = 100*100;
 					}
 				} else {
 					if (calc_ocv(info) < (get_OCV_voltage(info, 8))) { /* fail safe*/
 						g_full_flag = 0;
 						info->soca->status = RICOH619_SOCA_DISP;
 						info->soca->soc_delta = 0;
-					} else if (POWER_SUPPLY_STATUS_FULL == info->soca->chg_status) {
-						if(info->soca->chg_cmp_times >= RICOH619_FULL_WAIT_TIME) {
+					} else if ((POWER_SUPPLY_STATUS_FULL == info->soca->chg_status) 
+						&& (info->soca->displayed_soc >= 9890)){
+						if(info->soca->chg_cmp_times > RICOH619_FULL_WAIT_TIME) {
 							info->soca->displayed_soc = 100*100;
-							info->soca->update_count = 0;
 							g_full_flag = 1;
+							info->soca->full_reset_count = 0;
+							info->soca->soc_full = info->soca->soc;
+							info->soca->fc_cap = 0;
 #ifdef ENABLE_OCV_TABLE_CALIB
 							err = calib_ocvTable(info,calc_ocv(info));
 							if (err < 0)
@@ -818,31 +1051,56 @@ static void ricoh619_displayed_work(struct work_struct *work)
 							info->soca->chg_cmp_times++;
 						}
 					} else {
-						info->soca->chg_cmp_times = 0;
-						if (info->soca->displayed_soc/100 < 99) {
-							info->soca->update_count++;
-							if (info->soca->update_count
-							>= RICOH619_UPDATE_COUNT_FULL) {
-								info->soca->displayed_soc = info->soca->displayed_soc + 100;
-								info->soca->update_count = 0;
+						fa_cap = get_check_fuel_gauge_reg(info, FA_CAP_H_REG, FA_CAP_L_REG,
+							0x7fff);
+						
+						if (info->soca->displayed_soc >= 9950) {
+							if((info->soca->soc_full - info->soca->soc) < 200) {
+								goto end_flow;
 							}
-						} else {
+						}
+						info->soca->chg_cmp_times = 0;
+
+						err = calc_capacity_in_period(info, &cc_cap, &is_charging, true);
+						if (err < 0)
+						dev_err(info->dev, "Read cc_sum Error !!-----\n");
+						info->soca->cc_delta
+							 = (is_charging == true) ? cc_cap : -cc_cap;
+
+						if((POWER_SUPPLY_STATUS_FULL == info->soca->chg_status)
+						//	|| (info->soca->Ibat_ave > 200))
+						|| (info->soca->Ibat_ave < info->ch_icchg*50 + 100) || (info->soca->displayed_soc<9700))
+						{
+							info->soca->displayed_soc += 13 * 3000 / fa_cap;
+						}
+						else {
+							info->soca->displayed_soc
+						       = info->soca->displayed_soc + info->soca->cc_delta*8/10;
+						}
+						
+						info->soca->displayed_soc
+							 = min(10000, info->soca->displayed_soc);
+						info->soca->displayed_soc = max(0, info->soca->displayed_soc);
+
+						if (info->soca->displayed_soc >= 9890) {
 							info->soca->displayed_soc = 99 * 100;
-							info->soca->update_count = 0;
 						}
 					}
 				}
 			} else {
-				info->soca->update_count = 0;
+				info->soca->full_reset_count = 0;
 			}
 		} else { /* discharging */
-			if (g_full_flag == 1) {
+			if (info->soca->displayed_soc >= 9950) {
 				if (info->soca->Ibat_ave <= -1 * RICOH619_REL1_SEL_VALUE) {
 					if ((calc_ocv(info) < (get_OCV_voltage(info, 9) + (get_OCV_voltage(info, 10) - get_OCV_voltage(info, 9))*3/10))
-						&& (info->soca->soc/100 <= 98)) {
+						|| ((info->soca->soc_full - info->soca->soc) > 200)) {
+
 						g_full_flag = 0;
+						info->soca->full_reset_count = 0;
 						info->soca->displayed_soc = 100 * 100;
 						info->soca->status = RICOH619_SOCA_DISP;
+						info->soca->last_soc = info->soca->soc;
 						info->soca->soc_delta = 0;
 					} else {
 						info->soca->displayed_soc = 100 * 100;
@@ -853,8 +1111,10 @@ static void ricoh619_displayed_work(struct work_struct *work)
 						info->soca->displayed_soc = 100 * 100;
 					} else {
 						g_full_flag = 0;
+						info->soca->full_reset_count = 0;
 						info->soca->displayed_soc = 100 * 100;
 						info->soca->status = RICOH619_SOCA_DISP;
+						info->soca->last_soc = info->soca->soc;
 						info->soca->soc_delta = 0;
 					}
 				}
@@ -862,6 +1122,8 @@ static void ricoh619_displayed_work(struct work_struct *work)
 				g_full_flag = 0;
 				info->soca->status = RICOH619_SOCA_DISP;
 				info->soca->soc_delta = 0;
+				info->soca->full_reset_count = 0;
+				info->soca->last_soc = info->soca->soc;
 			}
 		}
 	} else if (RICOH619_SOCA_LOW_VOL == info->soca->status) {
@@ -899,8 +1161,8 @@ static void ricoh619_displayed_work(struct work_struct *work)
 
 		info->soca->soc = calc_capacity_2(info);
 
-		soc_round = info->soca->soc / 100;
-		last_soc_round = info->soca->last_soc / 100;
+		soc_round = (info->soca->soc + 50) / 100;
+		last_soc_round = (info->soca->last_soc + 50) / 100;
 		last_disp_round = (info->soca->displayed_soc + 50) / 100;
 
 		info->soca->soc_delta =
@@ -931,7 +1193,7 @@ static void ricoh619_displayed_work(struct work_struct *work)
 						if ((50 <= disp_dec) && (disp_dec <= 74))
 							info->soca->soc_delta = 0;
 					}
-					if (info->soca->displayed_soc/100
+					if ((info->soca->displayed_soc + 50)/100
 								 >= soc_round) {
 						info->soca->displayed_soc
 							= info->soca->soc ;
@@ -945,7 +1207,7 @@ static void ricoh619_displayed_work(struct work_struct *work)
 						info->soca->displayed_soc += 100;
 						info->soca->soc_delta -= 300;
 					}
-					if (info->soca->displayed_soc/100
+					if ((info->soca->displayed_soc + 50)/100
 								 <= soc_round) {
 						info->soca->displayed_soc
 							= info->soca->soc ;
@@ -973,7 +1235,7 @@ static void ricoh619_displayed_work(struct work_struct *work)
 					if ((25 <= disp_dec) && (disp_dec <= 49))
 						info->soca->soc_delta = 0;
 				}
-				if (info->soca->displayed_soc/100
+				if ((info->soca->displayed_soc + 50)/100
 							 <= soc_round) {
 					info->soca->displayed_soc
 						= info->soca->soc ;
@@ -987,7 +1249,7 @@ static void ricoh619_displayed_work(struct work_struct *work)
 					info->soca->displayed_soc -= 100;
 					info->soca->soc_delta += 300;
 				}
-				if (info->soca->displayed_soc/100
+				if ((info->soca->displayed_soc + 50)/100
 							 >= soc_round) {
 					info->soca->displayed_soc
 						= info->soca->soc ;
@@ -998,6 +1260,50 @@ static void ricoh619_displayed_work(struct work_struct *work)
 			}
 		}
 	} else if (RICOH619_SOCA_UNSTABLE == info->soca->status) {
+		/* caluc 95% ocv */
+		temp_ocv = get_OCV_voltage(info, 10) -
+					(get_OCV_voltage(info, 10) - get_OCV_voltage(info, 9))/2;
+		
+		if(g_full_flag == 1){	/* for issue 1 solution start*/
+			info->soca->status = RICOH619_SOCA_FULL;
+			err = reset_FG_process(info);
+			if (err < 0)
+				dev_err(info->dev, "Error in writing the control register\n");
+			
+			goto end_flow;
+		}else if ((POWER_SUPPLY_STATUS_FULL == info->soca->chg_status)
+			&& (calc_ocv(info) > temp_ocv)) {
+			info->soca->status = RICOH619_SOCA_FULL;
+			g_full_flag = 0;
+			err = reset_FG_process(info);
+			if (err < 0)
+				dev_err(info->dev, "Error in writing the control register\n");
+			goto end_flow;
+		} else if (info->soca->Ibat_ave >= -20) {
+			/* for issue1 solution end */
+			/* check Full state or not*/
+			if ((calc_ocv(info) > (get_OCV_voltage(info, 9) + (get_OCV_voltage(info, 10) - get_OCV_voltage(info, 9))*7/10))
+				|| (POWER_SUPPLY_STATUS_FULL == info->soca->chg_status)
+				|| (info->soca->displayed_soc > 9850))
+			{
+				info->soca->status = RICOH619_SOCA_FULL;
+				g_full_flag = 0;
+				err = reset_FG_process(info);
+				if (err < 0)
+					dev_err(info->dev, "Error in writing the control register\n");
+				goto end_flow;
+			} else if ((calc_ocv(info) > (get_OCV_voltage(info, 9)))
+				&& (info->soca->Ibat_ave < 300))
+			{
+				info->soca->status = RICOH619_SOCA_FULL;
+				g_full_flag = 0;
+				err = reset_FG_process(info);
+				if (err < 0)
+					dev_err(info->dev, "Error in writing the control register\n");				
+				goto end_flow;
+			}
+		}
+
 		err = ricoh619_read(info->dev->parent, PSWR_REG, &val);
 		val &= 0x7f;
 		info->soca->soc = val * 100;
@@ -1021,17 +1327,23 @@ static void ricoh619_displayed_work(struct work_struct *work)
 		if (displayed_soc_temp < 0)
 			displayed_soc_temp = 0;
 		displayed_soc_temp
-			 = min(10000, displayed_soc_temp);
+			 = min(9850, displayed_soc_temp);
 		displayed_soc_temp = max(0, displayed_soc_temp);
 
-		if (0 == info->soca->jt_limit) {
-			check_charge_status_2(info, displayed_soc_temp);
-		} else {
-			info->soca->displayed_soc = displayed_soc_temp;
-		}
+		info->soca->displayed_soc = displayed_soc_temp;
+
 	} else if (RICOH619_SOCA_FG_RESET == info->soca->status) {
 		/* No update */
 	} else if (RICOH619_SOCA_START == info->soca->status) {
+
+		err = measure_Ibatt_FG(info, &Ibat);
+		err = measure_vbatt_FG(info, &Vbat);
+		err = measure_vsys_ADC(info, &Vsys);
+
+		info->soca->Ibat_ave = Ibat;
+		info->soca->Vbat_ave = Vbat;
+		info->soca->Vsys_ave = Vsys;
+
 		err = check_jeita_status(info, &is_jeita_updated);
 		is_jeita_updated = false;
 		if (err < 0) {
@@ -1039,15 +1351,6 @@ static void ricoh619_displayed_work(struct work_struct *work)
 		}
 		err = ricoh619_read(info->dev->parent, PSWR_REG, &val);
 		val &= 0x7f;
-		////debug for Zero state///
-		ret = measure_vbatt_FG(info, &Vbat);
-		ret = measure_Ibatt_FG(info, &Ibat);
-		ocv = Vbat - Ibat * info->soca->Rbat;
-		RICOH_FG_DBG("Check ZERO state : Vbat %d, Ibat %d, ocv %d Rbat %d %d\n",Vbat,Ibat,ocv,info->soca->Rbat);
-		info->soca->soc = calc_capacity(info) * 100;
-		RICOH_FG_DBG("Check ZERO state : first_pwon %d, RSOC is %d OCV is %d\n",info->first_pwon,info->soca->soc/100,calc_ocv(info));
-		RICOH_FG_DBG("Check ZERO state : g_fg_on_mode %d, get ocv voltage %d\n",g_fg_on_mode,get_OCV_voltage(info, 0));
-		///////////////////////////
 		if (info->first_pwon) {
 			info->soca->soc = calc_capacity(info) * 100;
 			val = (info->soca->soc + 50)/100;
@@ -1067,7 +1370,22 @@ static void ricoh619_displayed_work(struct work_struct *work)
 				} else {
 					info->soca->displayed_soc = info->soca->soc;
 				}
-				info->soca->status = RICOH619_SOCA_UNSTABLE;
+				if (Ibat < 0) {
+					if (info->soca->displayed_soc < 300) {
+						info->soca->target_use_cap = 0;
+						info->soca->status = RICOH619_SOCA_LOW_VOL;
+					} else {
+						if ((info->fg_poff_vbat != 0)
+						      && (Vbat < info->fg_poff_vbat * 1000) ){
+							  info->soca->target_use_cap = 0;
+							  info->soca->status = RICOH619_SOCA_LOW_VOL;
+						  } else { 
+							  info->soca->status = RICOH619_SOCA_UNSTABLE;
+						  }
+					}
+				} else {
+					info->soca->status = RICOH619_SOCA_UNSTABLE;
+				}
 			}
 		} else if (g_fg_on_mode && (val == 0x7f)) {
 			info->soca->soc = calc_capacity(info) * 100;
@@ -1117,30 +1435,67 @@ static void ricoh619_displayed_work(struct work_struct *work)
 					info->soca->displayed_soc = displayed_soc_temp;
 				}
 				info->soca->last_soc = calc_capacity(info) * 100;
-				info->soca->status = RICOH619_SOCA_UNSTABLE;
+				if (Ibat < 0) {
+					if (info->soca->displayed_soc < 300) {
+						info->soca->target_use_cap = 0;
+						info->soca->status = RICOH619_SOCA_LOW_VOL;
+					} else {
+						if ((info->fg_poff_vbat != 0)
+						      && (Vbat < info->fg_poff_vbat * 1000)){
+							  info->soca->target_use_cap = 0;
+							  info->soca->status = RICOH619_SOCA_LOW_VOL;
+						  } else { 
+							  info->soca->status = RICOH619_SOCA_UNSTABLE;
+						  }
+					}
+				} else {
+					info->soca->status = RICOH619_SOCA_UNSTABLE;
+				}
 			}
 		}
 	} else if (RICOH619_SOCA_ZERO == info->soca->status) {
 		if (calc_ocv(info) > get_OCV_voltage(info, 0)) {
-			err = ricoh619_write(info->dev->parent,
-							 FG_CTRL_REG, 0x51);
+			err = reset_FG_process(info);
 			if (err < 0)
 				dev_err(info->dev, "Error in writing the control register\n");
 			info->soca->last_soc = calc_capacity_2(info);
 			info->soca->status = RICOH619_SOCA_STABLE;
-			info->soca->ready_fg = 0;
 		}
 		info->soca->displayed_soc = 0;
 	}
 end_flow:
+	/* keep DSOC = 1 when Vbat is over 3.4V*/
+	if( info->fg_poff_vbat != 0) {
+		if (info->soca->zero_flg == 1) {
+			if(info->soca->Ibat_ave >= 0) {
+				info->soca->zero_flg = 0;
+			}
+			info->soca->displayed_soc = 0;
+		} else if (info->soca->displayed_soc < 50) {
+			if (info->soca->Vbat_ave < 2000*1000) { /* error value */
+				info->soca->displayed_soc = 100;
+			} else if (info->soca->Vbat_ave < info->fg_poff_vbat*1000) {
+				info->soca->displayed_soc = 0;
+				info->soca->zero_flg = 1;
+			} else {
+				info->soca->displayed_soc = 100;
+			}
+		}
+	}
+
 	if (g_fg_on_mode
 		 && (info->soca->status == RICOH619_SOCA_STABLE)) {
 		err = ricoh619_write(info->dev->parent, PSWR_REG, 0x7f);
 		if (err < 0)
 			dev_err(info->dev, "Error in writing PSWR_REG\n");
 		g_soc = 0x7F;
+		err = calc_capacity_in_period(info, &cc_cap,
+							&is_charging, true);
+		if (err < 0)
+			dev_err(info->dev, "Read cc_sum Error !!-----\n");
+
 	} else if (RICOH619_SOCA_UNSTABLE != info->soca->status) {
-		if (info->soca->displayed_soc <= 0) {
+		if ((info->soca->displayed_soc + 50) / 100 <= 1) {
 			val = 1;
 		} else {
 			val = (info->soca->displayed_soc + 50)/100;
@@ -1206,9 +1561,12 @@ end_flow:
 					 RICOH619_DISPLAY_UPDATE_TIME * HZ);
 
 	mutex_unlock(&info->lock);
-	
-	if(true == is_jeita_updated)
+
+	if((true == is_jeita_updated)
+	|| (info->soca->last_displayed_soc/100 != (info->soca->displayed_soc+50)/100))
 		power_supply_changed(&info->battery);
+
+	info->soca->last_displayed_soc = info->soca->displayed_soc+50;
 
 	return;
 }
@@ -1232,11 +1590,9 @@ static void ricoh619_stable_charge_countdown_work(struct work_struct *work)
 	if (2 <= info->soca->stable_count) {
 		if (3 == info->soca->stable_count
 			&& RICOH619_SOCA_FG_RESET == info->soca->status) {
-			ret = ricoh619_write(info->dev->parent,
-							 FG_CTRL_REG, 0x51);
+			ret = reset_FG_process(info);
 			if (ret < 0)
 				dev_err(info->dev, "Error in writing the control register\n");
-			info->soca->ready_fg = 0;
 		}
 		info->soca->stable_count = info->soca->stable_count - 1;
 		queue_delayed_work(info->monitor_wqueue,
@@ -1256,12 +1612,10 @@ static void ricoh619_stable_charge_countdown_work(struct work_struct *work)
 				return;
 			}
 			/* Do reset setting */
-			ret = ricoh619_write(info->dev->parent,
-						 FG_CTRL_REG, 0x51);
+			ret = reset_FG_process(info);
 			if (ret < 0)
 				dev_err(info->dev, "Error in writing the control register\n");
 
-			info->soca->ready_fg = 0;
 			info->soca->status = RICOH619_SOCA_FG_RESET;
 
 			/* Delay for addition Reset Time (6s) */
@@ -1296,12 +1650,9 @@ static void ricoh619_stable_charge_countdown_work(struct work_struct *work)
 				goto adjust;
 			} else {
 				/* Do reset setting */
-				ret = ricoh619_write(info->dev->parent,
-							 FG_CTRL_REG, 0x51);
+				ret = reset_FG_process(info);
 				if (ret < 0)
 					dev_err(info->dev, "Error in writing the control register\n");
-
-				info->soca->ready_fg = 0;
 
 				/* Delay for addition Reset Time (6s) */
 				queue_delayed_work(info->monitor_wqueue,
@@ -1463,6 +1814,8 @@ static int ricoh619_init_fgsoca(struct ricoh619_battery_info *info)
 	int i;
 	int err;
 	uint8_t val;
+	int cc_cap = 0;
+	bool is_charging = true;
 
 	for (i = 0; i <= 10; i = i+1) {
 		info->soca->ocv_table[i] = get_OCV_voltage(info, i);
@@ -1494,6 +1847,8 @@ static int ricoh619_init_fgsoca(struct ricoh619_battery_info *info)
 				dev_err(info->dev, "Error in writing the control register\n");
 		}
 
+		err = calc_capacity_in_period(info, &cc_cap, &is_charging, true);
+
 		msleep(6000);
 
 		err = ricoh619_write(info->dev->parent, CHGISET_REG, val);
@@ -1507,20 +1862,22 @@ static int ricoh619_init_fgsoca(struct ricoh619_battery_info *info)
 							 * 5000 / 4095;
 	info->soca->n_cap = get_OCV_init_Data(info, 11);
 
-	info->soca->f_chg_margin = (get_OCV_voltage(info, 10) -
-								get_OCV_voltage(info, 9)) / 10;
 
 	info->soca->displayed_soc = 0;
+	info->soca->last_displayed_soc = 0;
 	info->soca->suspend_soc = 0;
 	info->soca->ready_fg = 0;
 	info->soca->soc_delta = 0;
-	info->soca->update_count = 0;
+	info->soca->full_reset_count = 0;
+	info->soca->soc_full = 0;
+	info->soca->fc_cap = 0;
 	info->soca->status = RICOH619_SOCA_START;
 	/* stable count down 11->2, 1: reset; 0: Finished; */
 	info->soca->stable_count = 11;
 	info->soca->chg_cmp_times = 0;
 	info->soca->dischg_state = 0;
 	info->soca->Vbat_ave = 0;
+	info->soca->Vbat_old = 0;
 	info->soca->Vsys_ave = 0;
 	info->soca->Ibat_ave = 0;
 	info->soca->chg_count = 0;
@@ -1528,13 +1885,19 @@ static int ricoh619_init_fgsoca(struct ricoh619_battery_info *info)
 	info->soca->hurry_up_flg = 0;
 	info->soca->re_cap_old = 0;
 	info->soca->jt_limit = 0;
+	info->soca->zero_flg = 0;
+	info->soca->cc_cap_offset = 0;
+
+	for (i = 0; i < 11; i++) {
+		info->soca->ocv_table_low[i] = 0;
+	}
 
 	for (i = 0; i < RICOH619_GET_CHARGE_NUM; i++) {
 		info->soca->Vbat[i] = 0;
 		info->soca->Vsys[i] = 0;
 		info->soca->Ibat[i] = 0;
 	}
-	
+
 	g_full_flag = 0;
 	
 #ifdef ENABLE_FG_KEEP_ON_MODE
@@ -1617,7 +1980,6 @@ static int check_jeita_status(struct ricoh619_battery_info *info, bool *is_jeita
 {
 	int temp;
 	int err = 0;
-	uint8_t val;
 	int vfchg;
 	uint8_t chgiset_org;
 	uint8_t batset2_org;
@@ -1727,6 +2089,7 @@ static int check_jeita_status(struct ricoh619_battery_info *info, bool *is_jeita
 				goto out;
 			}
 			info->soca->jt_limit = 0;
+			*is_jeita_updated = true;
 		} else
 			RICOH_FG_DBG(KERN_INFO "PMU: %s *** 12<Temp<50, already set vfchg==%d, so no need to update ******\n", 
 					__func__, info->jt_vfchg_h);
@@ -1914,7 +2277,6 @@ static int Calc_Linear_Interpolation(int x0, int y0, int x1, int y1, int y)
 
 static void ricoh619_scaling_OCV_table(struct ricoh619_battery_info *info, int cutoff_vol, int full_vol, int *start_per, int *end_per)
 {
-	int		ret = 0;
 	int		i, j;
 	int		temp;
 	int		percent_step;
@@ -1930,13 +2292,18 @@ static void ricoh619_scaling_OCV_table(struct ricoh619_battery_info *info, int c
 	//			 __func__, cutoff_vol,full_vol);
 
 	/* Check Start % */
-	for (i = 1; i < 11; i++) {
-		if (info->soca->ocv_table_def[i] >= cutoff_vol * 1000) {
-			/* unit is 0.001% */
-			*start_per = Calc_Linear_Interpolation(
-				(i-1)*1000, info->soca->ocv_table_def[i-1], i*1000,
-				 info->soca->ocv_table_def[i], (cutoff_vol * 1000));
-			i = 11;
+	if (info->soca->ocv_table_def[0] > cutoff_vol * 1000) {
+		*start_per = 0;
+		RICOH_FG_DBG("PMU : %s : setting value of cuttoff_vol(%d) is out of range(%d) \n",__func__, cutoff_vol, info->soca->ocv_table_def[0]);
+	} else {
+		for (i = 1; i < 11; i++) {
+			if (info->soca->ocv_table_def[i] >= cutoff_vol * 1000) {
+				/* unit is 0.001% */
+				*start_per = Calc_Linear_Interpolation(
+					(i-1)*1000, info->soca->ocv_table_def[i-1], i*1000,
+					info->soca->ocv_table_def[i], (cutoff_vol * 1000));
+				break;
+			}
 		}
 	}
 
@@ -1947,7 +2314,7 @@ static void ricoh619_scaling_OCV_table(struct ricoh619_battery_info *info, int c
 			*end_per = Calc_Linear_Interpolation(
 				(i-1)*1000, info->soca->ocv_table_def[i-1], i*1000,
 				 info->soca->ocv_table_def[i], (full_vol * 1000));
-			i = 11;
+			break;
 		}
 	}
 
@@ -1974,7 +2341,7 @@ static void ricoh619_scaling_OCV_table(struct ricoh619_battery_info *info, int c
 				battery_init_para[info->num][i*2 + 1] = temp;
 				battery_init_para[info->num][i*2] = temp >> 8;
 
-				j = 11;
+				break;
 			}
 		}
 	}
@@ -1992,20 +2359,14 @@ static void ricoh619_scaling_OCV_table(struct ricoh619_battery_info *info, int c
 static int ricoh619_set_OCV_table(struct ricoh619_battery_info *info)
 {
 	int		ret = 0;
-	int		OCV_set_table[11];
-	int		i, j;
+	int		i;
 	int		full_ocv;
 	int		available_cap;
 	int		available_cap_ori;
-	int		OCV_100_def;
-	int		OCV_0_def;
-	int		OCV_100_diff;
-	int		OCV_0_diff;
 	int		temp;
-	int		start_per;
-	int		end_per;
-	int		percent_step;
-	int		OCV_percent_new[11];
+	int		temp1;
+	int		start_per = 0;
+	int		end_per = 0;
 	int		Rbat;
 	int		Ibat_min;
 	uint8_t val;
@@ -2020,19 +2381,42 @@ static int ricoh619_set_OCV_table(struct ricoh619_battery_info *info)
 			 __func__, i, info->soca->ocv_table_def[i]);
 	}
 
-	info->soca->target_vsys = info->fg_target_vsys;
-	info->soca->target_ibat = info->fg_target_ibat;
+	temp =  (battery_init_para[info->num][24]<<8) | (battery_init_para[info->num][25]);
+	Rbat = temp * 1000 / 512 * 5000 / 4095;
+	info->soca->Rsys = Rbat + 55;
+
+	if ((info->fg_target_ibat == 0) || (info->fg_target_vsys == 0)) {	/* normal version */
+
+		temp =  (battery_init_para[info->num][22]<<8) | (battery_init_para[info->num][23]);
+		//fa_cap = get_check_fuel_gauge_reg(info, FA_CAP_H_REG, FA_CAP_L_REG,
+		//				0x7fff);
+
+		info->soca->target_ibat = temp*2/10; /* calc 0.2C*/
+		temp1 =  (battery_init_para[info->num][0]<<8) | (battery_init_para[info->num][1]);
+
+		info->soca->target_vsys = temp1 + ( info->soca->target_ibat * info->soca->Rsys ) / 1000;
+		
+
+	} else {
+		info->soca->target_ibat = info->fg_target_ibat;
+		/* calc min vsys value */
+		temp1 =  (battery_init_para[info->num][0]<<8) | (battery_init_para[info->num][1]);
+		temp = temp1 + ( info->soca->target_ibat * info->soca->Rsys ) / 1000;
+		if( temp < info->fg_target_vsys) {
+			info->soca->target_vsys = info->fg_target_vsys;
+		} else {
+			info->soca->target_vsys = temp;
+			RICOH_FG_DBG("PMU : %s : setting value of target vsys(%d) is out of range(%d)\n",__func__, info->fg_target_vsys, temp);
+		}
+	}
 
 	//for debug
 	RICOH_FG_DBG("PMU : %s : target_vsys is %d target_ibat is %d\n",__func__,info->soca->target_vsys,info->soca->target_ibat);
 	
 	if ((info->soca->target_ibat == 0) || (info->soca->target_vsys == 0)) {	/* normal version */
 	} else {	/*Slice cutoff voltage version. */
-		temp =  (battery_init_para[info->num][24]<<8) | (battery_init_para[info->num][25]);
-		Rbat = temp * 1000 / 512 * 5000 / 4095;
 
 		Ibat_min = -1 * info->soca->target_ibat;
-		info->soca->Rsys = Rbat + 55;
 		info->soca->cutoff_ocv = info->soca->target_vsys - Ibat_min * info->soca->Rsys / 1000;
 		
 		full_ocv = (battery_init_para[info->num][20]<<8) | (battery_init_para[info->num][21]);
@@ -2059,58 +2443,6 @@ static int ricoh619_set_OCV_table(struct ricoh619_battery_info *info)
 		dev_err(info->dev, "error in FG_En off\n");
 		goto err;
 	}
-	////////////////////////////////
-	////////////////////////////////
-	//check OCV calibration or not
-	/* get ocv table from setting */
-	for (i = 0; i < 11; i++){
-		ret = ricoh619_read_bank1(info->dev->parent, (0xBC + i*2), &val);
-		if (ret < 0) {
-		dev_err(info->dev, "batterry initialize error\n");
-		return ret;
-		}
-		ret = ricoh619_read_bank1(info->dev->parent, (0xBD + i*2), &val2);
-		if (ret < 0) {
-			dev_err(info->dev, "batterry initialize error\n");
-			return ret;
-		}
-		val &= 0x0F;
-		OCV_set_table[i] = val2 + (val << 8);
-		RICOH_FG_DBG("PMU : %s : no %d OCV_set_table %x\n", __func__, i, OCV_set_table[i]);
-
-	}
-
-	OCV_100_def = (battery_init_para[info->num][20]<<8)
-				 | (battery_init_para[info->num][21]);
-
-	OCV_0_def = (battery_init_para[info->num][0]<<8)
-				 | (battery_init_para[info->num][1]);
-	
-	if(OCV_100_def < OCV_set_table[10]) {
-		OCV_100_diff = OCV_set_table[10] - OCV_100_def;
-	} else {
-		OCV_100_diff = OCV_100_def - OCV_set_table[10];
-	}
-
-	if(OCV_0_def < OCV_set_table[0]) {
-		OCV_0_diff = OCV_set_table[0] - OCV_0_def;
-	} else {
-		OCV_0_diff = OCV_0_def - OCV_set_table[0];
-	}
-	RICOH_FG_DBG("PMU : %s : def OCV 100 %x OCV 0 %x \n", __func__, OCV_100_def, OCV_0_def);
-	RICOH_FG_DBG("PMU : %s : OCV 100 %x OCV 0 %x \n", __func__, OCV_set_table[10], OCV_set_table[0]);
-	RICOH_FG_DBG("PMU : %s : diff OCV 100 %x OCV 0 %x \n", __func__, OCV_100_diff, OCV_0_diff);
-
-	if ( (OCV_100_diff > 5)
-		&&(OCV_0_diff < 5))
-	{/* keep setting OCV table */
-		for (i = 0; i < 11; i++) {
-			RICOH_FG_DBG("PMU : 1\n");
-			battery_init_para[info->num][i*2+1] = OCV_set_table[i];
-			battery_init_para[info->num][i*2] = OCV_set_table[i] >> 8;
-		}
-	}
-
 	/////////////////////////////////
 	ret = ricoh619_read_bank1(info->dev->parent, 0xDC, &val);
 	if (ret < 0) {
@@ -2175,7 +2507,7 @@ static int ricoh619_set_OCV_table(struct ricoh619_battery_info *info)
 			}
 			
 			for (i = 0; i < 6; i++) {
-				ret = ricoh619_write_bank1(info->dev->parent, 0xD4+i, battery_init_para[info->num][23+i]);
+				ret = ricoh619_write_bank1(info->dev->parent, 0xD4+i, battery_init_para[info->num][24+i]);
 				if (ret < 0) {
 					dev_err(info->dev, "batterry initialize error\n");
 					return ret;
@@ -2208,13 +2540,13 @@ static int ricoh619_init_battery(struct ricoh619_battery_info *info)
 	/* -------------------------- */
 #ifdef ENABLE_FUEL_GAUGE_FUNCTION
 
-	/* set kanwa state */
+	/* set relaxation state */
 	if (RICOH619_REL1_SEL_VALUE > 240)
 		val = 0x0F;
 	else
 		val = RICOH619_REL1_SEL_VALUE / 16 ;
 
-	/* set kanwa state */
+	/* set relaxation state */
 	if (RICOH619_REL2_SEL_VALUE > 120)
 		val2 = 0x0F;
 	else
@@ -2286,7 +2618,6 @@ static int ricoh619_init_battery(struct ricoh619_battery_info *info)
 static int ricoh619_init_charger(struct ricoh619_battery_info *info)
 {
 	int err;
-	int i;
 	uint8_t val;
 	uint8_t val2;
 	uint8_t val3;
@@ -2394,7 +2725,7 @@ static int ricoh619_init_charger(struct ricoh619_battery_info *info)
 	if ((info->ch_icchg != 0xFF) || (info->ch_icchg <= 0x03)) {
 		val3 = info->ch_icchg << 6;
 	} else { /* Keep OTP value */
-		val3 = (val & 0xC);
+		val3 = (val & 0xC0);
 	}
 
 	val = val2 + val3;
@@ -2700,6 +3031,47 @@ static int get_power_supply_status(struct ricoh619_battery_info *info)
 	return info->soca->chg_status;
 }
 
+static int get_power_supply_Android_status(struct ricoh619_battery_info *info)
+{
+
+	get_power_supply_status(info);
+
+	/* get  power supply status */
+	if (info->entry_factory_mode)
+			return POWER_SUPPLY_STATUS_NOT_CHARGING;
+
+	switch (info->soca->chg_status) {
+		case	POWER_SUPPLY_STATUS_UNKNOWN:
+				return POWER_SUPPLY_STATUS_UNKNOWN;
+				break;
+
+		case	POWER_SUPPLY_STATUS_NOT_CHARGING:
+				return POWER_SUPPLY_STATUS_NOT_CHARGING;
+				break;
+
+		case	POWER_SUPPLY_STATUS_DISCHARGING:
+				return POWER_SUPPLY_STATUS_DISCHARGING;
+				break;
+
+		case	POWER_SUPPLY_STATUS_CHARGING:
+				return POWER_SUPPLY_STATUS_CHARGING;
+				break;
+
+		case	POWER_SUPPLY_STATUS_FULL:
+				if(info->soca->displayed_soc == 100 * 100) {
+					return POWER_SUPPLY_STATUS_FULL;
+				} else {
+					return POWER_SUPPLY_STATUS_CHARGING;
+				}
+				break;
+		default:
+				return POWER_SUPPLY_STATUS_UNKNOWN;
+				break;
+	}
+
+	return POWER_SUPPLY_STATUS_UNKNOWN;
+}
+
 static void charger_irq_work(struct work_struct *work)
 {
 	struct ricoh619_battery_info *info
@@ -2709,8 +3081,10 @@ static void charger_irq_work(struct work_struct *work)
 	RICOH_FG_DBG("PMU:%s In\n", __func__);
 
 	power_supply_changed(&info->battery);
+	power_supply_changed(&powerac);
+	power_supply_changed(&powerusb);
 
-	mutex_lock(&info->lock);
+//	mutex_lock(&info->lock);
 	
 	if (info->chg_stat1 & 0x01) {
 		ricoh619_read(info->dev->parent, CHGSTATE_REG, &reg_val);
@@ -2741,7 +3115,7 @@ static void charger_irq_work(struct work_struct *work)
 			 "%s(): Error in enable charger mask INT %d\n",
 			 __func__, ret);
 
-	mutex_unlock(&info->lock);
+//	mutex_unlock(&info->lock);
 	RICOH_FG_DBG("PMU:%s Out\n", __func__);
 }
 
@@ -2771,14 +3145,16 @@ static void ricoh619_usb_charge_det(void)
 {
 	struct ricoh619 *ricoh619 = g_ricoh619;
 	ricoh619_set_bits(ricoh619->dev,REGISET2_REG,(1 << 7));  //set usb limit current  when SDP or other mode
-	if(2 == dwc_vbus_status()){
+	if(2 == dwc_otg_check_dpdm(0)){
 	ricoh619_write(ricoh619->dev,REGISET2_REG,0x13);  //set usb limit current  2A
 	ricoh619_write(ricoh619->dev,CHGISET_REG,0xD3);  //set charge current  2A
 	}
-	else if(1 == dwc_vbus_status()){
+	else {
 	ricoh619_write(ricoh619->dev,REGISET2_REG,0x04);  //set usb limit current  500ma
 	ricoh619_write(ricoh619->dev,CHGISET_REG,0xC4);  //set charge current	500ma
 	}
+	power_supply_changed(&powerac);
+	power_supply_changed(&powerusb);
 }
 
 static void usb_det_irq_work(struct work_struct *work)
@@ -2787,11 +3163,12 @@ static void usb_det_irq_work(struct work_struct *work)
 		 struct ricoh619_battery_info, usb_irq_work);
 	int ret = 0;
 	uint8_t sts;
-	int time =0;
 
 	RICOH_FG_DBG("PMU:%s In\n", __func__);
 
 	power_supply_changed(&info->battery);
+	power_supply_changed(&powerac);
+	power_supply_changed(&powerusb);
 
 	mutex_lock(&info->lock);
 
@@ -2810,13 +3187,7 @@ static void usb_det_irq_work(struct work_struct *work)
 
 	sts &= 0x02;
 	if (sts) {
-		//time = 60;
-		//do {
-		//ricoh619_usb_charge_det();
-		//time --;
-		//mdelay(1000);
-		//}while(time >0);
-	
+		ricoh619_usb_charge_det();
 	} else {
 		/*********************/
 		/* No process ??     */
@@ -2826,18 +3197,16 @@ static void usb_det_irq_work(struct work_struct *work)
 	RICOH_FG_DBG("PMU:%s Out\n", __func__);
 }
 
-extern void rk28_send_wakeup_key(void);
+extern void rk_send_wakeup_key(void);
 static irqreturn_t charger_in_isr(int irq, void *battery_info)
 {
 	struct ricoh619_battery_info *info = battery_info;
-	struct ricoh619 *ricoh619 = g_ricoh619;
-
 	RICOH_FG_DBG("PMU:%s\n", __func__); 
 
 	info->chg_stat1 |= 0x01;
 
 	queue_work(info->workqueue, &info->irq_work);
-//	rk28_send_wakeup_key();
+//	rk_send_wakeup_key();
 
 	return IRQ_HANDLED;
 }
@@ -2849,7 +3218,7 @@ static irqreturn_t charger_complete_isr(int irq, void *battery_info)
 
 	info->chg_stat1 |= 0x02;
 	queue_work(info->workqueue, &info->irq_work);
-	rk28_send_wakeup_key();
+//	rk_send_wakeup_key();
 	
 	return IRQ_HANDLED;
 }
@@ -2867,7 +3236,7 @@ static irqreturn_t charger_usb_isr(int irq, void *battery_info)
 	info->soca->chg_count = 0;
 
 //	queue_work(info->usb_workqueue, &info->usb_irq_work);
-//	rk28_send_wakeup_key(); 
+	rk_send_wakeup_key(); 
 	 
 	if (RICOH619_SOCA_UNSTABLE == info->soca->status
 		|| RICOH619_SOCA_FG_RESET == info->soca->status)
@@ -2879,12 +3248,11 @@ static irqreturn_t charger_usb_isr(int irq, void *battery_info)
 static irqreturn_t charger_adp_isr(int irq, void *battery_info)
 {
 	struct ricoh619_battery_info *info = battery_info;
-	struct ricoh619 *ricoh619 = g_ricoh619;
 	RICOH_FG_DBG("PMU:%s\n", __func__);
 
 	info->chg_ctr |= 0x01;
 	queue_work(info->workqueue, &info->irq_work);
-	rk28_send_wakeup_key(); 
+	rk_send_wakeup_key(); 
 
 	info->soca->dischg_state = 0;
 	info->soca->chg_count = 0;
@@ -2916,7 +3284,7 @@ static irqreturn_t adc_vsysl_isr(int irq, void *battery_info)
 
 	RICOH_FG_DBG("PMU:%s\n", __func__);
 //	ricoh619_write(info->dev->parent, RICOH619_INT_EN_ADC1, 0x10);
-//	rk28_send_wakeup_key(); 
+	rk_send_wakeup_key(); 
 
 	return IRQ_HANDLED;
 }
@@ -2929,6 +3297,7 @@ static irqreturn_t adc_vsysl_isr(int irq, void *battery_info)
  *         true : VUSB
  *         false: VADP
  */
+ /*
 static int get_charge_priority(struct ricoh619_battery_info *info, bool *data)
 {
 	int ret = 0;
@@ -2940,6 +3309,7 @@ static int get_charge_priority(struct ricoh619_battery_info *info, bool *data)
 
 	return ret;
 }
+*/
 
 /*
  * Set Charger Priority
@@ -2948,18 +3318,20 @@ static int get_charge_priority(struct ricoh619_battery_info *info, bool *data)
  *         true : VUSB
  *         false: VADP
  */
+ /*
 static int set_charge_priority(struct ricoh619_battery_info *info, bool *data)
 {
 	int ret = 0;
-	uint8_t val = 0;
+	uint8_t val = 0x80;
 
-	val = *data << 7;
-	val &= 0x80;
+	if (*data == 1)
+		ret = ricoh619_set_bits(info->dev->parent, CHGCTL1_REG, val);
+	else
+		ret = ricoh619_clr_bits(info->dev->parent, CHGCTL1_REG, val);
 
-	ret = ricoh619_set_bits(info->dev->parent, CHGCTL1_REG, val);
 	return ret;
 }
-
+*/
 #ifdef	ENABLE_FUEL_GAUGE_FUNCTION
 static int get_check_fuel_gauge_reg(struct ricoh619_battery_info *info,
 					 int Reg_h, int Reg_l, int enable_bit)
@@ -3023,6 +3395,9 @@ static int calc_capacity(struct ricoh619_battery_info *info)
 
 	temp = capacity * 100 * 100 / (10000 - nt);
 
+	temp = min(100, temp);
+	temp = max(0, temp);
+	
 	return temp;		/* Unit is 1% */
 }
 
@@ -3052,9 +3427,9 @@ static int calc_capacity_2(struct ricoh619_battery_info *info)
 						0x7fff);
 
 	if (fa_cap != 0) {
-		capacity = ((long)re_cap * 100 * 100 / fa_cap) + 50;
-		capacity = min(10000, capacity);
-		capacity = max(0, capacity);
+		capacity = ((long)re_cap * 100 * 100 / fa_cap);
+		capacity = (long)(min(10000, (int)capacity));
+		capacity = (long)(max(0, (int)capacity));
 	} else {
 		ret = ricoh619_read(info->dev->parent, SOC_REG, &val);
 		if (ret < 0) {
@@ -3066,6 +3441,9 @@ static int calc_capacity_2(struct ricoh619_battery_info *info)
 	
 
 	temp = (int)(capacity * 100 * 100 / (10000 - nt));
+
+	temp = min(10000, temp);
+	temp = max(0, temp);
 
 	return temp;		/* Unit is 0.01% */
 }
@@ -3274,18 +3652,23 @@ static int measure_vbatt_FG(struct ricoh619_battery_info *info, int *data)
 {
 	int ret = 0;
 
-	ret = get_check_fuel_gauge_reg(info, VOLTAGE_1_REG, VOLTAGE_2_REG,
-								0x0fff);
-	if (ret < 0) {
-		dev_err(info->dev, "Error in reading the fuel gauge control register\n");
-		return ret;
-	}
+	if(info->soca->ready_fg == 1) {
+		ret = get_check_fuel_gauge_reg(info, VOLTAGE_1_REG, VOLTAGE_2_REG,
+									0x0fff);
+		if (ret < 0) {
+			dev_err(info->dev, "Error in reading the fuel gauge control register\n");
+			return ret;
+		}
 
-	*data = ret;
-	/* conversion unit 1 Unit is 1.22mv (5000/4095 mv) */
-	*data = *data * 50000 / 4095;
-	/* return unit should be 1uV */
-	*data = *data * 100;
+		*data = ret;
+		/* conversion unit 1 Unit is 1.22mv (5000/4095 mv) */
+		*data = *data * 50000 / 4095;
+		/* return unit should be 1uV */
+		*data = *data * 100;
+		info->soca->Vbat_old = *data;
+	} else {
+		*data = info->soca->Vbat_old;
+	}
 
 	return ret;
 }
@@ -3441,7 +3824,7 @@ static int ricoh619_batt_get_prop(struct power_supply *psy,
 	mutex_lock(&info->lock);
 
 	switch (psp) {
-#if 0
+
 	case POWER_SUPPLY_PROP_ONLINE:
 		ret = ricoh619_read(info->dev->parent, CHGSTATE_REG, &status);
 		if (ret < 0) {
@@ -3454,10 +3837,9 @@ static int ricoh619_batt_get_prop(struct power_supply *psy,
 		else if (psy->type == POWER_SUPPLY_TYPE_USB)
 			val->intval = (status & 0x80 ? 1 : 0);
 		break;
-#endif
 	/* this setting is same as battery driver of 584 */
 	case POWER_SUPPLY_PROP_STATUS:
-		ret = get_power_supply_status(info);
+		ret = get_power_supply_Android_status(info);
 		val->intval = ret;
 		info->status = ret;
 		/* RICOH_FG_DBG("Power Supply Status is %d\n",
@@ -3478,7 +3860,7 @@ static int ricoh619_batt_get_prop(struct power_supply *psy,
 		else {
 			//val->intval = -EINVAL;
 			data = info->cur_voltage * 1000;
-			/* RICOH_FG_DBG( "battery voltage is not ready\n"); */
+			 RICOH_FG_DBG( "battery voltage is not ready\n"); 
 		}
 #else
 		ret = measure_vbatt_ADC(info, &data);
@@ -3498,14 +3880,14 @@ static int ricoh619_batt_get_prop(struct power_supply *psy,
 			val->intval = 100;
 			info->capacity = 100;
 		} else if (info->soca->displayed_soc <= 0) {
-			val->intval = 0;
-			info->capacity = 0;
+			val->intval = 10;
+			info->capacity = 10;
 		} else {
 			val->intval = (info->soca->displayed_soc + 50)/100;
 			info->capacity = (info->soca->displayed_soc + 50)/100;
 		}
-		/* RICOH_FG_DBG("battery capacity is %d%%\n",
-							info->capacity); */
+		 RICOH_FG_DBG("battery capacity is %d%%\n",
+							info->capacity); 
 		break;
 
 	/* current temperature of battery */
@@ -3608,58 +3990,152 @@ struct power_supply	powerusb = {
 		.get_property = ricoh619_batt_get_prop,
 };
 
-static __devinit int ricoh619_battery_probe(struct platform_device *pdev)
+#ifdef CONFIG_OF
+static struct ricoh619_battery_platform_data *
+ricoh619_battery_dt_init(struct platform_device *pdev)
+{
+	struct device_node *nproot = pdev->dev.parent->of_node;
+	struct device_node *np;
+	struct ricoh619_battery_platform_data *pdata;
+	int temp;
+
+	if (!nproot)
+		return pdev->dev.platform_data;
+
+	np = of_find_node_by_name(nproot, "battery");
+	if (!np) {
+		dev_err(&pdev->dev, "failed to find battery node\n");
+		return NULL;
+	}
+
+	pdata = devm_kzalloc(&pdev->dev,
+			sizeof(struct ricoh619_battery_platform_data),
+			GFP_KERNEL);
+
+	of_property_read_u32(np, "ricoh,monitor-time", &pdata->monitor_time);
+	of_property_read_u32(np, "ricoh,alarm-vol-mv", &pdata->alarm_vol_mv);
+
+	/* check rage of b,.attery type */
+	type_n = Battery_Type();
+	RICOH_FG_DBG("%s type_n=%d,temp is %d\n", __func__, type_n,temp);
+
+	switch (type_n) {
+	case (0):
+		of_property_read_u32(np, "ricoh,ch-vfchg", &pdata->type[0].ch_vfchg);
+		of_property_read_u32(np, "ricoh,ch-vrchg", &pdata->type[0].ch_vrchg);
+		of_property_read_u32(np, "ricoh,ch-vbatovset", &pdata->type[0].ch_vbatovset);
+		of_property_read_u32(np, "ricoh,ch-ichg", &pdata->type[0].ch_ichg);
+		of_property_read_u32(np, "ricoh,ch-ilim-adp", &pdata->type[0].ch_ilim_adp);
+		of_property_read_u32(np, "ricoh,ch-ilim-usb", &pdata->type[0].ch_ilim_usb);
+		of_property_read_u32(np, "ricoh,ch-icchg", &pdata->type[0].ch_icchg);
+		of_property_read_u32(np, "ricoh,fg-target-vsys", &pdata->type[0].fg_target_vsys);
+		of_property_read_u32(np, "ricoh,fg-target-ibat", &pdata->type[0].fg_target_ibat);
+		of_property_read_u32(np, "ricoh,fg-poff-vbat", &pdata->type[0].fg_poff_vbat);
+		of_property_read_u32(np, "ricoh,jt-en", &pdata->type[0].jt_en);
+		of_property_read_u32(np, "ricoh,jt-hw-sw", &pdata->type[0].jt_hw_sw);
+		of_property_read_u32(np, "ricoh,jt-temp-h", &pdata->type[0].jt_temp_h);
+		of_property_read_u32(np, "ricoh,jt-temp-l", &pdata->type[0].jt_temp_l);
+		of_property_read_u32(np, "ricoh,jt-vfchg-h", &pdata->type[0].jt_vfchg_h);
+		of_property_read_u32(np, "ricoh,jt-vfchg-l", &pdata->type[0].jt_vfchg_l);
+		of_property_read_u32(np, "ricoh,jt-ichg-h", &pdata->type[0].jt_ichg_h);
+		of_property_read_u32(np, "ricoh,jt-ichg-l", &pdata->type[0].jt_ichg_l);
+		break;
+#if 0
+	case (1):
+		of_property_read_u32(np, "ricoh,ch-vfchg-1", &pdata->type[1].ch_vfchg);
+		of_property_read_u32(np, "ricoh,ch-vrchg-1", &pdata->type[1].ch_vrchg);
+		of_property_read_u32(np, "ricoh,ch-vbatovset-1", &pdata->type[1].ch_vbatovset);
+		of_property_read_u32(np, "ricoh,ch-ichg-1", &pdata->type[1].ch_ichg);
+		of_property_read_u32(np, "ricoh,ch-ilim-adp-1", &pdata->type[1].ch_ilim_adp);
+		of_property_read_u32(np, "ricoh,ch-ilim-usb-1", &pdata->type[1].ch_ilim_usb);
+		of_property_read_u32(np, "ricoh,ch-icchg-1", &pdata->type[1].ch_icchg);
+		of_property_read_u32(np, "ricoh,fg-target-vsys-1", &pdata->type[1].fg_target_vsys);
+		of_property_read_u32(np, "ricoh,fg-target-ibat-1", &pdata->type[1].fg_target_ibat);
+		of_property_read_u32(np, "ricoh,fg-poff-vbat-1", &pdata->type[1].fg_poff_vbat);
+		of_property_read_u32(np, "ricoh,jt-en-1", &pdata->type[1].jt_en);
+		of_property_read_u32(np, "ricoh,jt-hw-sw-1", &pdata->type[1].jt_hw_sw);
+		of_property_read_u32(np, "ricoh,jt-temp-h-1", &pdata->type[1].jt_temp_h);
+		of_property_read_u32(np, "ricoh,jt-temp-l-1", &pdata->type[1].jt_temp_l);
+		of_property_read_u32(np, "ricoh,jt-vfchg-h-1", &pdata->type[1].jt_vfchg_h);
+		of_property_read_u32(np, "ricoh,jt-vfchg-l-1", &pdata->type[1].jt_vfchg_l);
+		of_property_read_u32(np, "ricoh,jt-ichg-h-1", &pdata->type[1].jt_ichg_h);
+		of_property_read_u32(np, "ricoh,jt-ichg-l-1", &pdata->type[1].jt_ichg_l);
+		break;
+#endif
+	default:
+		of_node_put(np);
+		return 0;
+	}
+
+	of_node_put(np);
+
+	return pdata;
+}
+#else
+static struct ricoh619_battery_platform_data *
+ricoh619_battery_dt_init(struct platform_device *pdev)
+{
+	return pdev->dev.platform_data;
+}
+#endif
+
+static int ricoh619_battery_probe(struct platform_device *pdev)
 {
 	struct ricoh619_battery_info *info;
 	struct ricoh619_battery_platform_data *pdata;
-	int type_n;
+	struct ricoh619 *ricoh619 = dev_get_drvdata(pdev->dev.parent);
 	int ret, temp;
 
-	RICOH_FG_DBG("PMU:2013.8.3 %s\n", __func__);
-	
-	info = kzalloc(sizeof(struct ricoh619_battery_info), GFP_KERNEL);
+	RICOH_FG_DBG(KERN_INFO "PMU: %s : version is %s\n", __func__,RICOH619_BATTERY_VERSION);
+
+	pdata = ricoh619_battery_dt_init(pdev);
+	if (!pdata) {
+		dev_err(&pdev->dev, "platform data isn't assigned to "
+			"power supply\n");
+		return -EINVAL;
+	}
+	info = devm_kzalloc(ricoh619->dev,sizeof(struct ricoh619_battery_info), GFP_KERNEL);
 	if (!info)
 		return -ENOMEM;
-	info->soca = kzalloc(sizeof(struct ricoh619_soca_info), GFP_KERNEL);
+	info->soca = devm_kzalloc(ricoh619->dev,sizeof(struct ricoh619_soca_info), GFP_KERNEL);
 		if (!info->soca)
 			return -ENOMEM;
 
 	info->dev = &pdev->dev;
 	info->status = POWER_SUPPLY_STATUS_CHARGING;
-	pdata = pdev->dev.platform_data;
 	info->monitor_time = pdata->monitor_time * HZ;
 	info->alarm_vol_mv = pdata->alarm_vol_mv;
 
-	type_n = Battery_Type();
+	/* check rage of battery num */
 	info->num = Battery_Table();
 	temp = sizeof(battery_init_para)/(sizeof(uint8_t)*32);
-	RICOH_FG_DBG("%s temp=%d\n", __func__, temp);
 	if(info->num >= (sizeof(battery_init_para)/(sizeof(uint8_t)*32)))
-		info->num = 0;
-	RICOH_FG_DBG("%s type_n=%d\n", __func__, type_n);
-	RICOH_FG_DBG("%s info->num=%d\n", __func__, info->num);
-	/* these valuse are set in platform */
-	if (type_n == 0)
 	{
-		info->ch_vfchg = pdata->ch_vfchg;
-		info->ch_vrchg = pdata->ch_vrchg;
-		info->ch_vbatovset = pdata->ch_vbatovset;
-		info->ch_ichg = pdata->ch_ichg;
-		info->ch_ilim_adp = pdata->ch_ilim_adp;
-		info->ch_ilim_usb = pdata->ch_ilim_usb;
-		info->ch_icchg = pdata->ch_icchg;
-		info->fg_target_vsys = pdata->fg_target_vsys;
-		info->fg_target_ibat = pdata->fg_target_ibat;
-		info->jt_en = pdata->jt_en;
-		info->jt_hw_sw = pdata->jt_hw_sw;
-		info->jt_temp_h = pdata->jt_temp_h;
-		info->jt_temp_l = pdata->jt_temp_l;
-		info->jt_vfchg_h = pdata->jt_vfchg_h;
-		info->jt_vfchg_l = pdata->jt_vfchg_l;
-		info->jt_ichg_h = pdata->jt_ichg_h;
-		info->jt_ichg_l = pdata->jt_ichg_l;
-	} else {
+		RICOH_FG_DBG("%s : Battery num is out of range\n", __func__);
+		info->num = 0;
 	}
+	RICOH_FG_DBG("%s info->num=%d,temp is %d\n", __func__, info->num,temp);
+
+	/* these valuse are set in platform */
+	info->ch_vfchg = pdata->type[type_n].ch_vfchg;
+	info->ch_vrchg = pdata->type[type_n].ch_vrchg;
+	info->ch_vbatovset = pdata->type[type_n].ch_vbatovset;
+	info->ch_ichg = pdata->type[type_n].ch_ichg;
+	info->ch_ilim_adp = pdata->type[type_n].ch_ilim_adp;
+	info->ch_ilim_usb = pdata->type[type_n].ch_ilim_usb;
+	info->ch_icchg = pdata->type[type_n].ch_icchg;
+	info->fg_target_vsys = pdata->type[type_n].fg_target_vsys;
+	info->fg_target_ibat = pdata->type[type_n].fg_target_ibat;
+	info->fg_poff_vbat = pdata->type[type_n].fg_poff_vbat;
+	info->jt_en = pdata->type[type_n].jt_en;
+	info->jt_hw_sw = pdata->type[type_n].jt_hw_sw;
+	info->jt_temp_h = pdata->type[type_n].jt_temp_h;
+	info->jt_temp_l = pdata->type[type_n].jt_temp_l;
+	info->jt_vfchg_h = pdata->type[type_n].jt_vfchg_h;
+	info->jt_vfchg_l = pdata->type[type_n].jt_vfchg_l;
+	info->jt_ichg_h = pdata->type[type_n].jt_ichg_h;
+	info->jt_ichg_l = pdata->type[type_n].jt_ichg_l;
+
 	info->adc_vdd_mv = ADC_VDD_MV;		/* 2800; */
 	info->min_voltage = MIN_VOLTAGE;	/* 3100; */
 	info->max_voltage = MAX_VOLTAGE;	/* 4200; */
@@ -3681,28 +4157,28 @@ static __devinit int ricoh619_battery_probe(struct platform_device *pdev)
 	/* Disable Charger/ADC interrupt */
 	ret = ricoh619_clr_bits(info->dev->parent, RICOH619_INTC_INTEN,
 							 CHG_INT | ADC_INT);
-	if (ret)
+	if (ret<0)
 		goto out;
 
 	ret = ricoh619_init_battery(info);
-	if (ret)
+	if (ret<0)
 		goto out;
-
+/*
 #ifdef ENABLE_FACTORY_MODE
 	info->factory_mode_wqueue
 		= create_singlethread_workqueue("ricoh619_factory_mode");
-	INIT_DELAYED_WORK_DEFERRABLE(&info->factory_mode_work,
+	INIT_DEFERRABLE_WORK(&info->factory_mode_work,
 					 check_charging_state_work);
 
 	ret = ricoh619_factory_mode(info);
-	if (ret)
+	if (ret<0)
 		goto out;
 
 #endif
-
+*/
 	ret = power_supply_register(&pdev->dev, &info->battery);
 
-	if (ret)
+	if (ret<0)
 		info->battery.dev->parent = &pdev->dev;
 
 	ret = power_supply_register(&pdev->dev, &powerac);
@@ -3718,52 +4194,43 @@ static __devinit int ricoh619_battery_probe(struct platform_device *pdev)
 		= create_singlethread_workqueue("rc5t619_usb_det");
 	INIT_WORK(&info->usb_irq_work, usb_det_irq_work);
 
-	INIT_DELAYED_WORK_DEFERRABLE(&info->monitor_work,
+	INIT_DEFERRABLE_WORK(&info->monitor_work,
 					 ricoh619_battery_work);
-	INIT_DELAYED_WORK_DEFERRABLE(&info->displayed_work,
+	INIT_DEFERRABLE_WORK(&info->displayed_work,
 					 ricoh619_displayed_work);
-	INIT_DELAYED_WORK_DEFERRABLE(&info->charge_stable_work,
+	INIT_DEFERRABLE_WORK(&info->charge_stable_work,
 					 ricoh619_stable_charge_countdown_work);
-	INIT_DELAYED_WORK_DEFERRABLE(&info->charge_monitor_work,
+	INIT_DEFERRABLE_WORK(&info->charge_monitor_work,
 					 ricoh619_charge_monitor_work);
-	INIT_DELAYED_WORK_DEFERRABLE(&info->get_charge_work,
+	INIT_DEFERRABLE_WORK(&info->get_charge_work,
 					 ricoh619_get_charge_work);
-	INIT_DELAYED_WORK_DEFERRABLE(&info->jeita_work, ricoh619_jeita_work);
+	INIT_DEFERRABLE_WORK(&info->jeita_work, ricoh619_jeita_work);
 	INIT_DELAYED_WORK(&info->changed_work, ricoh619_changed_work);
 
 	/* Charger IRQ workqueue settings */
-	charger_irq = pdata->irq;
 
-	ret = request_threaded_irq(charger_irq + RICOH619_IRQ_FONCHGINT,
-					NULL, charger_in_isr, IRQF_ONESHOT,
+	ret = request_threaded_irq( irq_create_mapping(ricoh619->irq_domain, RICOH619_IRQ_FONCHGINT),NULL, charger_in_isr, IRQF_ONESHOT,
 						"rc5t619_charger_in", info);
 	if (ret < 0) {
-		dev_err(&pdev->dev, "Can't get CHG_INT IRQ for chrager: %d\n",
-									ret);
+		dev_err(&pdev->dev, "Can't get CHG_INT IRQ for chrager: %d\n",ret);
 		goto out;
 	}
 
-	ret = request_threaded_irq(charger_irq + RICOH619_IRQ_FCHGCMPINT,
-						NULL, charger_complete_isr,
-					IRQF_ONESHOT, "rc5t619_charger_comp",
-								info);
+	ret = request_threaded_irq(irq_create_mapping(ricoh619->irq_domain, RICOH619_IRQ_FCHGCMPINT),NULL, charger_complete_isr,
+					IRQF_ONESHOT, "rc5t619_charger_comp",info);
 	if (ret < 0) {
-		dev_err(&pdev->dev, "Can't get CHG_COMP IRQ for chrager: %d\n",
-									 ret);
+		dev_err(&pdev->dev, "Can't get CHG_COMP IRQ for chrager: %d\n",ret);
 		goto out;
 	}
 
-	ret = request_threaded_irq(charger_irq + RICOH619_IRQ_FVUSBDETSINT,
-					NULL, charger_usb_isr, IRQF_ONESHOT,
+	ret = request_threaded_irq(irq_create_mapping(ricoh619->irq_domain, RICOH619_IRQ_FVUSBDETSINT) ,NULL, charger_usb_isr, IRQF_ONESHOT,
 						"rc5t619_usb_det", info);
 	if (ret < 0) {
-		dev_err(&pdev->dev, "Can't get USB_DET IRQ for chrager: %d\n",
-									 ret);
+		dev_err(&pdev->dev, "Can't get USB_DET IRQ for chrager: %d\n",ret);
 		goto out;
 	}
 
-	ret = request_threaded_irq(charger_irq + RICOH619_IRQ_FVADPDETSINT,
-					NULL, charger_adp_isr, IRQF_ONESHOT,
+	ret = request_threaded_irq(irq_create_mapping(ricoh619->irq_domain, RICOH619_IRQ_FVADPDETSINT),NULL, charger_adp_isr, IRQF_ONESHOT,
 						"rc5t619_adp_det", info);
 	if (ret < 0) {
 		dev_err(&pdev->dev,
@@ -3772,21 +4239,20 @@ static __devinit int ricoh619_battery_probe(struct platform_device *pdev)
 	}
 
 #ifdef ENABLE_LOW_BATTERY_DETECTION
-	ret = request_threaded_irq(charger_irq + RICOH619_IRQ_VSYSLIR,
-					NULL, adc_vsysl_isr, IRQF_ONESHOT,
+	ret = request_threaded_irq(irq_create_mapping(ricoh619->irq_domain, RICOH619_IRQ_VSYSLIR) ,NULL, adc_vsysl_isr, IRQF_ONESHOT,
 						"rc5t619_adc_vsysl", info);
 	if (ret < 0) {
 		dev_err(&pdev->dev,
 			"Can't get ADC_VSYSL IRQ for chrager: %d\n", ret);
 		goto out;
 	}
-	INIT_DELAYED_WORK_DEFERRABLE(&info->low_battery_work,
+	INIT_DEFERRABLE_WORK(&info->low_battery_work,
 					 low_battery_irq_work);
 #endif
 
 	/* Charger init and IRQ setting */
 	ret = ricoh619_init_charger(info);
-	if (ret)
+	if (ret<0)
 		goto out;
 
 #ifdef	ENABLE_FUEL_GAUGE_FUNCTION
@@ -3795,8 +4261,8 @@ static __devinit int ricoh619_battery_probe(struct platform_device *pdev)
 	queue_delayed_work(info->monitor_wqueue, &info->monitor_work,
 					RICOH619_MONITOR_START_TIME*HZ);
 
-	/* Enable Charger interrupt */
-	ricoh619_set_bits(info->dev->parent, RICOH619_INTC_INTEN, CHG_INT);
+	/* Enable Charger/ADC interrupt */
+	ricoh619_set_bits(info->dev->parent, RICOH619_INTC_INTEN, CHG_INT | ADC_INT);
 
 	return 0;
 
@@ -3805,9 +4271,10 @@ out:
 	return ret;
 }
 
-static int __devexit ricoh619_battery_remove(struct platform_device *pdev)
+static int ricoh619_battery_remove(struct platform_device *pdev)
 {
 	struct ricoh619_battery_info *info = platform_get_drvdata(pdev);
+	struct ricoh619 *ricoh619 = dev_get_drvdata(pdev->dev.parent);
 	uint8_t val;
 	int ret;
 	int err;
@@ -3853,12 +4320,12 @@ static int __devexit ricoh619_battery_remove(struct platform_device *pdev)
 		dev_err(info->dev, "Error in writing the control register\n");
 	}
 	
-	free_irq(charger_irq + RICOH619_IRQ_FONCHGINT, &info);
-	free_irq(charger_irq + RICOH619_IRQ_FCHGCMPINT, &info);
-	free_irq(charger_irq + RICOH619_IRQ_FVUSBDETSINT, &info);
-	free_irq(charger_irq + RICOH619_IRQ_FVADPDETSINT, &info);
+	free_irq(irq_create_mapping(ricoh619->irq_domain, RICOH619_IRQ_FONCHGINT), &info);
+	free_irq(irq_create_mapping(ricoh619->irq_domain, RICOH619_IRQ_FCHGCMPINT), &info);
+	free_irq(irq_create_mapping(ricoh619->irq_domain, RICOH619_IRQ_FVUSBDETSINT), &info);
+	free_irq(irq_create_mapping(ricoh619->irq_domain, RICOH619_IRQ_FVADPDETSINT) , &info);
 #ifdef ENABLE_LOW_BATTERY_DETECTION
-	free_irq(charger_irq + RICOH619_IRQ_VSYSLIR, &info);
+	free_irq(irq_create_mapping(ricoh619->irq_domain, RICOH619_IRQ_VSYSLIR), &info);
 #endif
 
 	cancel_delayed_work(&info->monitor_work);
@@ -3902,6 +4369,7 @@ static int ricoh619_battery_suspend(struct device *dev)
 	int err;
 	int cc_cap = 0;
 	bool is_charging = true;
+	int displayed_soc_temp;
 
 	if (g_fg_on_mode
 		 && (info->soca->status == RICOH619_SOCA_STABLE)) {
@@ -3910,6 +4378,11 @@ static int ricoh619_battery_suspend(struct device *dev)
 			dev_err(info->dev, "Error in writing PSWR_REG\n");
 		 g_soc = 0x7F;
 		info->soca->suspend_soc = info->soca->displayed_soc;
+		ret = calc_capacity_in_period(info, &cc_cap,
+							 &is_charging, true);
+		if (ret < 0)
+			dev_err(info->dev, "Read cc_sum Error !!-----\n");
+
 	} else if (info->soca->status != RICOH619_SOCA_START
 		&& info->soca->status != RICOH619_SOCA_UNSTABLE) {
 		if (info->soca->displayed_soc <= 0) {
@@ -3924,12 +4397,23 @@ static int ricoh619_battery_suspend(struct device *dev)
 
 		g_soc = val;
 
-		info->soca->suspend_soc = info->soca->displayed_soc;
-
 		ret = calc_capacity_in_period(info, &cc_cap,
 							 &is_charging, true);
 		if (ret < 0)
 			dev_err(info->dev, "Read cc_sum Error !!-----\n");
+			
+		if (info->soca->status != RICOH619_SOCA_STABLE) {
+			info->soca->cc_delta
+				 = (is_charging == true) ? cc_cap : -cc_cap;
+
+			displayed_soc_temp
+			       = info->soca->displayed_soc + info->soca->cc_delta;
+			displayed_soc_temp = min(10000, displayed_soc_temp);
+			displayed_soc_temp = max(0, displayed_soc_temp);
+			info->soca->displayed_soc = displayed_soc_temp;
+		}
+		info->soca->suspend_soc = info->soca->displayed_soc;
+					
 	} else if (info->soca->status == RICOH619_SOCA_START
 		|| info->soca->status == RICOH619_SOCA_UNSTABLE) {
 
@@ -3968,7 +4452,7 @@ static int ricoh619_battery_suspend(struct device *dev)
 #ifdef ENABLE_LOW_BATTERY_DETECTION
 //	disable_irq(charger_irq + RICOH619_IRQ_VSYSLIR);
 #endif
-
+#if 0
 	flush_delayed_work(&info->monitor_work);
 	flush_delayed_work(&info->displayed_work);
 	flush_delayed_work(&info->charge_stable_work);
@@ -3983,7 +4467,22 @@ static int ricoh619_battery_suspend(struct device *dev)
 	
 //	flush_work(&info->irq_work);
 //	flush_work(&info->usb_irq_work);
+#else
+	cancel_delayed_work(&info->monitor_work);
+	cancel_delayed_work(&info->displayed_work);
+	cancel_delayed_work(&info->charge_stable_work);
+	cancel_delayed_work(&info->charge_monitor_work);
+	cancel_delayed_work(&info->get_charge_work);
+	cancel_delayed_work(&info->changed_work);
+#ifdef ENABLE_LOW_BATTERY_DETECTION
+	cancel_delayed_work(&info->low_battery_work);
+#endif
+	cancel_delayed_work(&info->factory_mode_work);
+	cancel_delayed_work(&info->jeita_work);
 	
+//	flush_work(&info->irq_work);
+//	flush_work(&info->usb_irq_work);
+#endif
 
 	return 0;
 }
@@ -4036,11 +4535,10 @@ static int ricoh619_battery_resume(struct device *dev)
 			displayed_soc_temp = max(0, displayed_soc_temp);
 			info->soca->displayed_soc = displayed_soc_temp;
 
-			ret = ricoh619_write(info->dev->parent,
-							 FG_CTRL_REG, 0x51);
+			ret = reset_FG_process(info);
+
 			if (ret < 0)
 				dev_err(info->dev, "Error in writing the control register\n");
-			info->soca->ready_fg = 0;
 			info->soca->status = RICOH619_SOCA_FG_RESET;
 
 		} else
@@ -4063,8 +4561,26 @@ static int ricoh619_battery_resume(struct device *dev)
 		info->soca->cc_delta = (is_charging == true) ? cc_cap : -cc_cap;
 
 		displayed_soc_temp = info->soca->soc + info->soca->cc_delta;
-		if (displayed_soc_temp < 0)
+		if (info->soca->zero_flg == 1) {
+			if((info->soca->Ibat_ave >= 0) 
+			|| (displayed_soc_temp >= 100)){
+				info->soca->zero_flg = 0;
+			} else {
 				displayed_soc_temp = 0;
+			}
+		} else if (displayed_soc_temp < 100) {
+			/* keep DSOC = 1 when Vbat is over 3.4V*/
+			if( info->fg_poff_vbat != 0) {
+				if (info->soca->Vbat_ave < 2000*1000) { /* error value */
+					displayed_soc_temp = 100;
+				} else if (info->soca->Vbat_ave < info->fg_poff_vbat*1000) {
+					displayed_soc_temp = 0;
+					info->soca->zero_flg = 1;
+				} else {
+					displayed_soc_temp = 100;
+				}
+			}
+		}
 		displayed_soc_temp = min(10000, displayed_soc_temp);
 		displayed_soc_temp = max(0, displayed_soc_temp);
 
@@ -4078,7 +4594,6 @@ static int ricoh619_battery_resume(struct device *dev)
 			info->soca->last_soc = calc_capacity_2(info);
 		}
 	}
-	info->soca->update_count = 0;
 
 	ret = measure_vbatt_FG(info, &info->soca->Vbat_ave);
 	ret = measure_vsys_ADC(info, &info->soca->Vsys_ave);
@@ -4131,6 +4646,15 @@ static int ricoh619_battery_resume(struct device *dev)
 	return 0;
 }
 
+#ifdef CONFIG_OF
+static const struct of_device_id ricoh619_battery_dt_match[] = {
+	{ .compatible = "ricoh,ricoh619-battery", },
+	{},
+};
+MODULE_DEVICE_TABLE(of, ricoh619_battery_dt_match);
+#endif
+
+
 static const struct dev_pm_ops ricoh619_battery_pm_ops = {
 	.suspend	= ricoh619_battery_suspend,
 	.resume		= ricoh619_battery_resume,
@@ -4141,12 +4665,13 @@ static struct platform_driver ricoh619_battery_driver = {
 	.driver	= {
 				.name	= "ricoh619-battery",
 				.owner	= THIS_MODULE,
+				.of_match_table = of_match_ptr(ricoh619_battery_dt_match),
 #ifdef CONFIG_PM
 				.pm	= &ricoh619_battery_pm_ops,
 #endif
 	},
 	.probe	= ricoh619_battery_probe,
-	.remove	= __devexit_p(ricoh619_battery_remove),
+	.remove	= ricoh619_battery_remove,
 };
 
 static int __init ricoh619_battery_init(void)
@@ -4154,7 +4679,7 @@ static int __init ricoh619_battery_init(void)
 	RICOH_FG_DBG("PMU: %s\n", __func__);
 	return platform_driver_register(&ricoh619_battery_driver);
 }
-subsys_initcall_sync(ricoh619_battery_init);
+fs_initcall_sync(ricoh619_battery_init);
 
 static void __exit ricoh619_battery_exit(void)
 {

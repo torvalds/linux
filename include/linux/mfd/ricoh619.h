@@ -145,7 +145,7 @@
 #define RICOH_LDO9_SLOT 0x23
 #define RICOH_LDO10_SLOT 0x24
 
-
+#define 	RICOH619_NUM_REGULATOR 17
 
 /* RICOH619 IRQ definitions */
 enum {
@@ -318,6 +318,7 @@ struct ricoh619 {
 	u8			gpedge_reg[MAX_GPEDGE_REG];
 
 	int			bank_num;
+	struct irq_domain *irq_domain;
 };
 
 struct ricoh619_platform_data {
@@ -329,8 +330,11 @@ struct ricoh619_platform_data {
 	struct ricoh619_gpio_init_data *gpio_init_data;
 	int num_gpioinit_data;
 	bool enable_shutdown_pin;
-	int (*pre_init)(struct ricoh619 *ricoh619);
-	int (*post_init)(struct ricoh619 *ricoh619);
+	bool pm_off;
+	struct regulator_init_data *reg_init_data[RICOH619_NUM_REGULATOR];
+	int irq_gpio;
+	int pmic_sleep_gpio; /* */
+	bool pmic_sleep;
 };
 
 /* ==================================== */
@@ -366,9 +370,7 @@ extern int ricoh619_update(struct device *dev, u8 reg, uint8_t val,
 								uint8_t mask);
 extern int ricoh619_update_bank1(struct device *dev, u8 reg, uint8_t val,
 								uint8_t mask);
-extern int ricoh619_power_off(void);
-extern int ricoh619_irq_init(struct ricoh619 *ricoh619, int irq, int irq_base);
+extern int ricoh619_irq_init(struct ricoh619 *ricoh619, int irq, struct ricoh619_platform_data *pdata);
 extern int ricoh619_irq_exit(struct ricoh619 *ricoh619);
-extern int ricoh619_power_off(void);
 
 #endif

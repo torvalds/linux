@@ -30,11 +30,14 @@
 #include <linux/err.h>
 #include <linux/init.h>
 #include <linux/kernel.h>
+#include <linux/module.h>
 #include <linux/mfd/ricoh619.h>
 #include <linux/rtc/rtc-ricoh619.h>
 #include <linux/platform_device.h>
 #include <linux/rtc.h>
 #include <linux/slab.h>
+#include <linux/irqdomain.h>
+
 
 struct ricoh619_rtc {
 	int			irq;
@@ -76,7 +79,7 @@ static int ricoh619_rtc_valid_tm(struct device *dev, struct rtc_time *tm)
 		|| tm->tm_mon > 11 || tm->tm_mon < 0
 		|| tm->tm_mday < 1
 		|| tm->tm_mday > rtc_month_days(tm->tm_mon, tm->tm_year + os_ref_year)
-		|| tm->tm_hour >= 24 || tm->tm_hour <0
+		|| tm->tm_hour >= 24 || tm->tm_hour < 0
 		|| tm->tm_min < 0 || tm->tm_min >= 60
 		|| tm->tm_sec < 0 || tm->tm_sec >= 60	
 		) 
@@ -144,14 +147,14 @@ static int ricoh619_rtc_periodic_disable(struct device *dev)
 	err = ricoh619_read_regs(dev, rtc_ctrl2, 1, &reg_data);
 	if(err < 0)
 	{
-		dev_err(dev->parent, "read rtc_ctrl1 error=0x%x\n", err);
+		dev_err(dev->parent, "read rtc_ctrl2 error=0x%x\n", err);
 		return err;
 	}
 	reg_data &= ~0x85;// 1000-0101
 	err = ricoh619_write_regs(dev, rtc_ctrl2, 1, &reg_data);
 	if(err < 0)
 	{
-		dev_err(dev->parent, "read rtc_ctrl1 error=0x%x\n", err);
+		dev_err(dev->parent, "read rtc_ctrl2 error=0x%x\n", err);
 		return err;
 	}
 
@@ -168,7 +171,7 @@ static int ricoh619_rtc_Pon_get_clr(struct device *dev, uint8_t *Pon_f)
 	int err;
 	uint8_t reg_data;
 	
-	err = ricoh619_read_regs(dev, rtc_ctrl2, 1, &reg_data);
+	err = ricoh619_read_regs(dev, rtc_ctrl2,1,&reg_data);
 	if(err < 0)
 	{
 		dev_err(dev->parent, "rtc_ctrl1 read err=0x%x\n", err);
@@ -182,7 +185,7 @@ static int ricoh619_rtc_Pon_get_clr(struct device *dev, uint8_t *Pon_f)
 		//clear VDET PON
 		reg_data &= ~0x5b;// 0101-1011
 		reg_data |= 0x20; // 0010-0000
-		err = ricoh619_write_regs(dev, rtc_ctrl2, 1, &reg_data);
+		err = ricoh619_write_regs(dev, rtc_ctrl2, 1,&reg_data);
 		if(err < 0)
 		{
 			dev_err(dev->parent, "rtc_ctrl1 write err=0x%x\n", err);
@@ -245,9 +248,7 @@ static int ricoh619_rtc_read_time(struct device *dev, struct rtc_time *tm)
 	u8 buff[7];
 	int err;
 	int cent_flag;
-	int i;
 
-//	printk(KERN_INFO "PMU: %s\n", __func__);
 	err = ricoh619_read_regs(dev, rtc_seconds_reg, sizeof(buff), buff);
 		
 	if (err < 0) {
@@ -272,7 +273,10 @@ static int ricoh619_rtc_read_time(struct device *dev, struct rtc_time *tm)
 	tm->tm_year = buff[6] + 100 * cent_flag;
 	print_time(dev, tm);	//for print
 	tm->tm_mon  = buff[5] - 1;  //back to system 0-11 
-		
+
+//	printk(KERN_INFO "PMU: %s year=%d mon=%d day=% hour=%d min =%d sec=%d\n", __func__,
+//	tm->tm_year,tm->tm_mon	,tm->tm_mday,tm->tm_hour,tm->tm_min,tm->tm_sec );
+
 	return 0;
 }
 
@@ -282,7 +286,8 @@ static int ricoh619_rtc_set_time(struct device *dev, struct rtc_time *tm)
 	int err;
 	int cent_flag;
 
-//	printk(KERN_INFO "PMU: %s\n", __func__);	
+//	printk(KERN_INFO "PMU: %s year=%d mon=%d day=% hour=%d min =%d sec=%d\n", __func__,
+//	tm->tm_year,tm->tm_mon	,tm->tm_mday,tm->tm_hour,tm->tm_min,tm->tm_sec );
 
 	if(ricoh619_rtc_valid_tm(dev, tm) != 0)
 	{
@@ -325,10 +330,10 @@ static int ricoh619_rtc_alarm_is_enabled(struct device *dev,  uint8_t *enabled)
 	uint8_t reg_data;
 
 	err = 0;
-	err = ricoh619_read_regs(dev, rtc_ctrl1, 1,&reg_data);
-	if(err)
+	err = ricoh619_read_regs(dev, rtc_ctrl1,1,&reg_data);
+	if(err<0)
 	{
-		dev_err(dev->parent, "read rtc_ctrl1 error 0x%lx\n", err);
+		dev_err(dev->parent, "read rtc_ctrl1 error 0x%x\n", err);
 		*enabled = 0;
 	}
 	else
@@ -415,14 +420,14 @@ static int ricoh619_rtc_read_alarm(struct device *dev, struct rtc_wkalrm *alrm)
 		cent_flag = 0;
 
 	err = ricoh619_read_regs(dev, rtc_alarm_y_sec, sizeof(buff), buff);
-	if(err)
+	if(err <0)
 	{
 		dev_err(dev->parent, "RTC: %s *** read rtc_alarm timer error 0x%lx\n", __func__, err);
 		return err;
 	}
 	
 	err = ricoh619_read_regs(dev, rtc_ctrl1, 1,&enabled_flag);
-	if(err)
+	if(err<0)
 	{
 		dev_err(dev->parent, "RTC: %s *** read rtc_enable flag error 0x%lx\n", __func__, err);
 		return err;
@@ -487,7 +492,7 @@ static int ricoh619_rtc_set_alarm(struct device *dev, struct rtc_wkalrm *alrm)
 	convert_decimal_to_bcd(buff, sizeof(buff));
 	buff[3] |= 0x80;	/* set DAL_EXT */
 	err = ricoh619_write_regs(dev, rtc_alarm_y_sec, sizeof(buff), buff);
-	if (err) {
+	if (err<0) {
 		dev_err(dev->parent, "\n unable to set alarm\n");
 		err = -EBUSY;
 		goto ERR;
@@ -514,13 +519,13 @@ static int ricoh619_rtc_alarm_flag_clr(struct device *dev)
 
 	/* clear alarm-D status bits.*/
 	err = ricoh619_read_regs(dev, rtc_ctrl2, 1, &reg_data);
-	if (err)
+	if (err<0)
 		dev_err(dev->parent, "unable to read rtc_ctrl2 reg\n");
 
 	/* to clear alarm-D flag, and set adjustment parameter */
 	reg_data &= ~0x81;
 	err = ricoh619_write_regs(dev, rtc_ctrl2, 1, &reg_data);
-	if (err)
+	if (err<0)
 		dev_err(dev->parent, "unable to program rtc_status reg\n");
 	return err;
 }
@@ -537,31 +542,70 @@ static irqreturn_t ricoh619_rtc_irq(int irq, void *data)
 	return IRQ_HANDLED;
 }
 
-static int __devinit ricoh619_rtc_probe(struct platform_device *pdev)
+#ifdef CONFIG_OF
+static struct ricoh619_rtc_platform_data *ricoh619_rtc_dt_init(struct platform_device *pdev)
 {
-	struct ricoh619_rtc_platform_data *pdata = pdev->dev.platform_data;
+	struct device_node *nproot = pdev->dev.parent->of_node;
+	struct device_node *np;
+	struct ricoh619_rtc_platform_data *pdata;
+
+	if (!nproot)
+		return pdev->dev.platform_data;
+
+	np = of_find_node_by_name(nproot, "rtc");
+	if (!np) {
+		dev_err(&pdev->dev, "failed to find rtc node\n");
+		return NULL;
+	}
+
+	pdata = devm_kzalloc(&pdev->dev,
+			sizeof(struct ricoh619_rtc_platform_data),
+			GFP_KERNEL);
+
+	of_property_read_u32(np, "ricoh,rtc-tm-year", &pdata->time.tm_year);
+	of_property_read_u32(np, "ricoh,rtc-tm-month", &pdata->time.tm_mon);
+	of_property_read_u32(np, "ricoh,rtc-tm-mday", &pdata->time.tm_mday);
+	of_property_read_u32(np, "ricoh,rtc-tm-hour", &pdata->time.tm_hour);
+	of_property_read_u32(np, "ricoh,rtc-tm-min", &pdata->time.tm_min);
+	of_property_read_u32(np, "ricoh,rtc-tm-sec", &pdata->time.tm_sec);
+	of_node_put(np);
+
+	return pdata;
+}
+#else
+static struct ricoh619_rtc_platform_data *
+ricoh619_rtc_dt_init(struct platform_device *pdev)
+{
+	return pdev->dev.platform_data;
+}
+#endif
+
+static int ricoh619_rtc_probe(struct platform_device *pdev)
+{
+	struct ricoh619_rtc_platform_data *pdata;
+	struct ricoh619 *ricoh619 = dev_get_drvdata(pdev->dev.parent);
 	struct ricoh619_rtc *rtc;
 	struct rtc_time tm;
 	uint8_t Pon_flag,Alarm_flag;
 	int err;
 	uint8_t buff[6];
 
-//	printk(KERN_INFO "******PMU RTC: Version 2013-08-01 REDS!******\n");
-//	printk(KERN_INFO "PMU RTC: %s, ricoh619 driver run at 24H-mode\n", __func__);
-//	printk(KERN_INFO "PMU RTC: we never using periodic function and interrupt\n");
+//	printk(KERN_INFO "******PMU RTC: Version 2014-01-01 REDS!******\n");
 
-	if(!pdata) 
-	{
-		dev_err(&pdev->dev, "no platform_data specified\n");
+	pdata = ricoh619_rtc_dt_init(pdev);
+	if (!pdata) {
+		dev_err(&pdev->dev, "platform data isn't assigned to "
+			"rtc\n");
 		return -EINVAL;
 	}
+	 printk("%s,line=%d\n", __func__,__LINE__);
 
-	rtc = kzalloc(sizeof(*rtc), GFP_KERNEL);
+	rtc = devm_kzalloc(ricoh619->dev,sizeof(*rtc), GFP_KERNEL);
 	if(IS_ERR(rtc))
 	{
 		err = PTR_ERR(rtc);
 		dev_err(&pdev->dev, "no enough memory for ricoh619_rtc using\n");
-		return err;
+		return -ENOMEM;
 	}
 	
 	dev_set_drvdata(&pdev->dev, rtc);
@@ -570,22 +614,19 @@ static int __devinit ricoh619_rtc_probe(struct platform_device *pdev)
 		err = PTR_ERR(rtc->rtc);
 		goto fail;
 	}
-
-	if(pdata->irq < 0)
+	
+	rtc->irq  = irq_create_mapping(ricoh619->irq_domain, RICOH619_IRQ_DALE);
+	if(rtc->irq  < 0)
 	{
 		dev_err(&pdev->dev, "\n no irq specified, wakeup is disabled\n");
 		rtc->irq = -1;
 		rtc->irq_en = 0;
 	}
 	else
-	{
-		rtc->irq = pdata->irq;
 		rtc->irq_en = 1;
-	}
-
 	//get interrupt flag
 	err = ricoh619_rtc_alarm_is_enabled(&pdev->dev, &Alarm_flag);
-	if(err)
+	if (err<0)
 	{
 		dev_err(&pdev->dev, "5T619 RTC: Disable alarm interrupt error\n");
 		goto fail;
@@ -594,7 +635,7 @@ static int __devinit ricoh619_rtc_probe(struct platform_device *pdev)
 
 	// get PON flag
 	err = ricoh619_rtc_Pon_get_clr(&pdev->dev, &Pon_flag);
-	if(err)
+	if (err<0)
 	{
 		dev_err(&pdev->dev, "5T619 RTC: get PON flag error\n");
 		goto fail;
@@ -602,7 +643,7 @@ static int __devinit ricoh619_rtc_probe(struct platform_device *pdev)
 
 	// disable rtc periodic function
 	err = ricoh619_rtc_periodic_disable(&pdev->dev);
-	if(err)
+	if (err<0)
 	{
 		dev_err(&pdev->dev, "5T619 RTC: disable rtc periodic int error\n");
 		goto fail;
@@ -610,7 +651,7 @@ static int __devinit ricoh619_rtc_probe(struct platform_device *pdev)
 
 	// clearing RTC Adjust register
 	err = ricoh619_rtc_clk_adjust(&pdev->dev, 0);
-	if(err) 
+	if (err<0)
 	{
 		dev_err(&pdev->dev, "unable to program rtc_adjust reg\n");
 		err = -EBUSY;
@@ -619,7 +660,7 @@ static int __devinit ricoh619_rtc_probe(struct platform_device *pdev)
 
 	//disable interrupt
 	err = ricoh619_rtc_alarm_enable(&pdev->dev, 0);
-	if(err)
+	if (err<0)
 	{
 		dev_err(&pdev->dev, "5T619 RTC: Disable alarm interrupt error\n");
 		goto fail;
@@ -631,7 +672,7 @@ static int __devinit ricoh619_rtc_probe(struct platform_device *pdev)
 		Alarm_flag = 0;
 		// clear int flag
 		err = ricoh619_rtc_alarm_flag_clr(&pdev->dev);
-		if(err)
+		if (err<0)
 		{
 			dev_err(&pdev->dev, "5T619 RTC: Pon=1 clear alarm flag error\n");
 			goto fail;
@@ -639,7 +680,7 @@ static int __devinit ricoh619_rtc_probe(struct platform_device *pdev)
 
 		// using 24h-mode
 		err = ricoh619_rtc_hour_mode_set(&pdev->dev,1);
-		if(err)
+		if (err<0)
 		{
 			dev_err(&pdev->dev, "5T619 RTC: Pon=1 set 24h-mode error\n");
 			goto fail;
@@ -691,7 +732,7 @@ static int __devinit ricoh619_rtc_probe(struct platform_device *pdev)
 		buff[4] = tm.tm_mon +1;
 		
 		err = ricoh619_rtc_set_time(&pdev->dev, &tm);
-		if(err) 
+		if (err<0)
 		{
 			dev_err(&pdev->dev, "5t619 RTC:\n failed to set time\n");
 			goto fail;
@@ -701,7 +742,7 @@ static int __devinit ricoh619_rtc_probe(struct platform_device *pdev)
 		buff[3] |= 0x80;	/* set DAL_EXT */
 
 		err = ricoh619_write_regs(&pdev->dev, rtc_alarm_y_sec, sizeof(buff), buff);
-		if (err) 
+		if (err<0)
 			printk( "\n unable to set alarm\n");
 
 	}
@@ -713,29 +754,26 @@ static int __devinit ricoh619_rtc_probe(struct platform_device *pdev)
 				       &ricoh619_rtc_ops, THIS_MODULE);
 
 	// set interrupt and enable it
-	if(rtc->irq != -1) 
-	{
-		rtc->irq = rtc->irq + RICOH619_IRQ_DALE;
-		err = request_threaded_irq(rtc->irq, NULL, ricoh619_rtc_irq,
+	if(rtc->irq != -1) {
+		err = devm_request_threaded_irq(&pdev->dev,rtc->irq, NULL, ricoh619_rtc_irq,
 					IRQF_ONESHOT, "rtc_ricoh619", &pdev->dev);
-		if(err) 
+		if (err<0)
 		{
 			dev_err(&pdev->dev, "request IRQ:%d fail\n", rtc->irq);
 			rtc->irq = -1;
 			err = ricoh619_rtc_alarm_enable(&pdev->dev, 0);
-			if(err)
+			if (err<0)
 			{
 				dev_err(&pdev->dev, "5T619 RTC: enable rtc alarm error\n");
 				goto fail;
 			}
 		}
-		else
-		{
+		else{
 			// enable wake  
 			enable_irq_wake(rtc->irq);
 			// enable alarm_d
 			err = ricoh619_rtc_alarm_enable(&pdev->dev, Alarm_flag);
-			if(err) 
+			if (err<0)
 			{
 				dev_err(&pdev->dev, "failed rtc setup\n");
 				err = -EBUSY;
@@ -747,14 +785,13 @@ static int __devinit ricoh619_rtc_probe(struct platform_device *pdev)
 	{
 		// system don't want to using alarm interrupt, so close it
 		err = ricoh619_rtc_alarm_enable(&pdev->dev, 0);
-		if(err)
+		if (err<0)
 		{
 			dev_err(&pdev->dev, "5T619 RTC: Disable rtc alarm error\n");
 			goto fail;
 		}
 		dev_err(&pdev->dev, "ricoh619 interrupt is disabled\n");
 	}
-
 	printk(KERN_INFO "RICOH619 RTC Register Success\n");
 	
 	ricoh619_read_regs(&pdev->dev, rtc_ctrl1, 1,&buff[0]);
@@ -769,24 +806,31 @@ fail:
 	return err;
 }
 
-static int __devexit ricoh619_rtc_remove(struct platform_device *pdev)
+static int ricoh619_rtc_remove(struct platform_device *pdev)
 {
 	struct ricoh619_rtc *rtc = dev_get_drvdata(&pdev->dev);
 
-	if (rtc->irq != -1)
-		free_irq(rtc->irq, rtc);
 	rtc_device_unregister(rtc->rtc);
 	kfree(rtc);
 	return 0;
 }
 
+#ifdef CONFIG_OF
+static const struct of_device_id ricoh619_rtc_dt_match[] = {
+	{ .compatible = "ricoh,ricoh619-rtc", },
+	{},
+};
+MODULE_DEVICE_TABLE(of, ricoh619_rtc_dt_match);
+#endif
+
 static struct platform_driver ricoh619_rtc_driver = {
 	.driver	= {
-		.name	= "rtc_ricoh619",
+		.name	= "ricoh619-rtc",
 		.owner	= THIS_MODULE,
+		.of_match_table = of_match_ptr(ricoh619_rtc_dt_match),
 	},
 	.probe	= ricoh619_rtc_probe,
-	.remove	= __devexit_p(ricoh619_rtc_remove),
+	.remove	= ricoh619_rtc_remove,
 };
 
 static int __init ricoh619_rtc_init(void)

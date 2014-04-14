@@ -29,6 +29,7 @@
 #include <linux/init.h>
 #include <linux/i2c.h>
 #include <linux/mfd/ricoh619.h>
+#include <linux/irqdomain.h>
 
 
 enum int_type {
@@ -209,7 +210,11 @@ static const struct ricoh619_irq_data ricoh619_irqs[RICOH619_NR_IRQS] = {
 	[RICOH619_IRQ_FWARN_ADP]	= RICOH619_IRQ(CHG_INT, 6, 32, 3, 12),
 
 };
-
+static const inline struct ricoh619_irq_data * irq_to_ricoh619_irq(struct ricoh619 *ricoh619, int irq)
+{
+	struct irq_data *data = irq_get_irq_data(irq);
+	return &ricoh619_irqs[data->hwirq];
+}
 static void ricoh619_irq_lock(struct irq_data *irq_data)
 {
 	struct ricoh619 *ricoh619 = irq_data_get_irq_chip_data(irq_data);
@@ -220,8 +225,7 @@ static void ricoh619_irq_lock(struct irq_data *irq_data)
 static void ricoh619_irq_unmask(struct irq_data *irq_data)
 {
 	struct ricoh619 *ricoh619 = irq_data_get_irq_chip_data(irq_data);
-	unsigned int __irq = irq_data->irq - ricoh619->irq_base;
-	const struct ricoh619_irq_data *data = &ricoh619_irqs[__irq];
+	const struct ricoh619_irq_data *data= irq_to_ricoh619_irq(ricoh619,irq_data->irq);
 
 	ricoh619->group_irq_en[data->master_bit] |= (1 << data->grp_index);
 	if (ricoh619->group_irq_en[data->master_bit])
@@ -238,8 +242,7 @@ static void ricoh619_irq_unmask(struct irq_data *irq_data)
 static void ricoh619_irq_mask(struct irq_data *irq_data)
 {
 	struct ricoh619 *ricoh619 = irq_data_get_irq_chip_data(irq_data);
-	unsigned int __irq = irq_data->irq - ricoh619->irq_base;
-	const struct ricoh619_irq_data *data = &ricoh619_irqs[__irq];
+	const struct ricoh619_irq_data *data= irq_to_ricoh619_irq(ricoh619,irq_data->irq);
 
 	ricoh619->group_irq_en[data->master_bit] &= ~(1 << data->grp_index);
 	if (!ricoh619->group_irq_en[data->master_bit])
@@ -260,27 +263,20 @@ static void ricoh619_irq_sync_unlock(struct irq_data *irq_data)
 
 	for (i = 0; i < ARRAY_SIZE(ricoh619->gpedge_reg); i++) {
 		if (ricoh619->gpedge_reg[i] != ricoh619->gpedge_cache[i]) {
-			if (!WARN_ON(ricoh619_write(ricoh619->dev,
-						    gpedge_add[i],
-						    ricoh619->gpedge_reg[i])))
-				ricoh619->gpedge_cache[i] =
-						ricoh619->gpedge_reg[i];
+			if (!WARN_ON(ricoh619_write(ricoh619->dev, gpedge_add[i],ricoh619->gpedge_reg[i])))
+				ricoh619->gpedge_cache[i] =ricoh619->gpedge_reg[i];
 		}
 	}
 
 	for (i = 0; i < ARRAY_SIZE(ricoh619->irq_en_reg); i++) {
 		if (ricoh619->irq_en_reg[i] != ricoh619->irq_en_cache[i]) {
-			if (!WARN_ON(ricoh619_write(ricoh619->dev,
-					    	    irq_en_add[i],
-						    ricoh619->irq_en_reg[i])))
-				ricoh619->irq_en_cache[i] =
-						ricoh619->irq_en_reg[i];
+			if (!WARN_ON(ricoh619_write(ricoh619->dev, irq_en_add[i],ricoh619->irq_en_reg[i])))
+				ricoh619->irq_en_cache[i] =ricoh619->irq_en_reg[i];
 		}
 	}
 
 	if (ricoh619->intc_inten_reg != ricoh619->intc_inten_cache) {
-		if (!WARN_ON(ricoh619_write(ricoh619->dev,
-				RICOH619_INTC_INTEN, ricoh619->intc_inten_reg)))
+		if (!WARN_ON(ricoh619_write(ricoh619->dev,RICOH619_INTC_INTEN, ricoh619->intc_inten_reg)))
 			ricoh619->intc_inten_cache = ricoh619->intc_inten_reg;
 	}
 
@@ -290,8 +286,7 @@ static void ricoh619_irq_sync_unlock(struct irq_data *irq_data)
 static int ricoh619_irq_set_type(struct irq_data *irq_data, unsigned int type)
 {
 	struct ricoh619 *ricoh619 = irq_data_get_irq_chip_data(irq_data);
-	unsigned int __irq = irq_data->irq - ricoh619->irq_base;
-	const struct ricoh619_irq_data *data = &ricoh619_irqs[__irq];
+	const struct ricoh619_irq_data *data= irq_to_ricoh619_irq(ricoh619,irq_data->irq);
 	int val = 0;
 	int gpedge_index;
 	int gpedge_bit_pos;
@@ -331,7 +326,8 @@ static irqreturn_t ricoh619_irq(int irq, void *data)
 	int i;
 	int ret;
 	unsigned int rtc_int_sts = 0;
-
+	int cur_irq;
+	
 	/* Clear the status */
 	for (i = 0; i < MAX_INTERRUPT_MASKS; i++)
 		int_sts[i] = 0;
@@ -349,8 +345,8 @@ static irqreturn_t ricoh619_irq(int irq, void *data)
 		/* Even if INTC_INTMON register = 1, INT signal might not output
 	  	 because INTC_INTMON register indicates only interrupt facter level.
 	  	 So remove the following procedure */
-//		if (!(master_int & main_int_type[i]))
-//			continue;
+		if (!(master_int & main_int_type[i]))
+			continue;
 			
 		ret = ricoh619_read(ricoh619->dev,
 				irq_mon_add[i], &int_sts[i]);
@@ -361,7 +357,9 @@ static irqreturn_t ricoh619_irq(int irq, void *data)
 			int_sts[i] = 0;
 			continue;
 		}
-		
+		if (!int_sts[i])
+			continue;
+
 		if (main_int_type[i] & RTC_INT) {
 			// Changes status bit position from RTCCNT2 to RTCCNT1 
 			rtc_int_sts = 0;
@@ -370,21 +368,28 @@ static irqreturn_t ricoh619_irq(int irq, void *data)
 			if (int_sts[i] & 0x4)
 				rtc_int_sts |= BIT(0);
 		}
-		if (i != 2) {
+
+		if(irq_clr_add[i] == RICOH619_INT_IR_RTC)
+		{
+			int_sts[i] &= ~0x85;
 			ret = ricoh619_write(ricoh619->dev,
-				irq_clr_add[i], ~int_sts[i]);
-			if (ret < 0) {
+				irq_clr_add[i], int_sts[i]);
+			if (ret < 0)
 				dev_err(ricoh619->dev, "Error in writing reg 0x%02x "
 					"error: %d\n", irq_clr_add[i], ret);
-			}
 		}
-		
-		if (main_int_type[i] & RTC_INT)
-			int_sts[i] = rtc_int_sts;
+		else
+		{
+			ret = ricoh619_write(ricoh619->dev,
+				irq_clr_add[i], ~int_sts[i]);
+			if (ret < 0)
+				dev_err(ricoh619->dev, "Error in reading reg 0x%02x "
+				"error: %d\n", irq_clr_add[i], ret);
+		}
 		
 		/* Mask Charger Interrupt */
 		if (main_int_type[i] & CHG_INT) {
-			if (int_sts[i])
+			if (int_sts[i]) {
 				ret = ricoh619_write(ricoh619->dev,
 							irq_en_add[i], 0xff);
 				if (ret < 0) {
@@ -392,10 +397,11 @@ static irqreturn_t ricoh619_irq(int irq, void *data)
 						"Error in write reg 0x%02x error: %d\n",
 							irq_en_add[i], ret);
 				}
+			}
 		}
 		/* Mask ADC Interrupt */
 		if (main_int_type[i] & ADC_INT) {
-			if (int_sts[i])
+			if (int_sts[i]) {
 				ret = ricoh619_write(ricoh619->dev,
 							irq_en_add[i], 0);
 				if (ret < 0) {
@@ -403,8 +409,11 @@ static irqreturn_t ricoh619_irq(int irq, void *data)
 						"Error in write reg 0x%02x error: %d\n",
 							irq_en_add[i], ret);
 				}
+			}
 		}
-		
+
+		if (main_int_type[i] & RTC_INT)
+			int_sts[i] = rtc_int_sts;
 
 	}
 
@@ -412,12 +421,13 @@ static irqreturn_t ricoh619_irq(int irq, void *data)
 	int_sts[6] |= int_sts[7];
 
 	/* Call interrupt handler if enabled */
-	for (i = 0; i < RICOH619_NR_IRQS; ++i) {
+
+	for (i = 0; i <RICOH619_NR_IRQS; ++i) {
 		const struct ricoh619_irq_data *data = &ricoh619_irqs[i];
-		if ((int_sts[data->mask_reg_index] & (1 << data->int_en_bit)) &&
-			(ricoh619->group_irq_en[data->master_bit] & 
-							(1 << data->grp_index)))
-			handle_nested_irq(ricoh619->irq_base + i);
+		if ((int_sts[data->mask_reg_index] & (1 << data->int_en_bit)) &&(ricoh619->group_irq_en[data->master_bit] & (1 << data->grp_index)))
+			cur_irq = irq_find_mapping(ricoh619->irq_domain, i);
+		if (cur_irq)
+			handle_nested_irq(cur_irq);
 	}
 
 //	printk(KERN_INFO "PMU: %s: out\n", __func__);
@@ -434,17 +444,39 @@ static struct irq_chip ricoh619_irq_chip = {
 	.irq_set_wake = ricoh619_irq_set_wake,
 };
 
-int ricoh619_irq_init(struct ricoh619 *ricoh619, int irq,
-				int irq_base)
+static int ricoh619_irq_domain_map(struct irq_domain *d, unsigned int irq,
+					irq_hw_number_t hw)
 {
-	int i, ret;
+	struct ricoh619 *ricoh619 = d->host_data;
+
+	irq_set_chip_data(irq, ricoh619);
+	irq_set_chip_and_handler(irq, &ricoh619_irq_chip, handle_edge_irq);
+	irq_set_nested_thread(irq, 1);
+#ifdef CONFIG_ARM
+	set_irq_flags(irq, IRQF_VALID);
+#else
+	irq_set_noprobe(irq);
+#endif
+	return 0;
+}
+
+static struct irq_domain_ops ricoh619_irq_domain_ops = {
+	.map = ricoh619_irq_domain_map,
+};
+
+int ricoh619_irq_init(struct ricoh619 *ricoh619, int irq,
+				struct ricoh619_platform_data *pdata)
+{
+	int i, ret,val;
 	u8 reg_data = 0;
-
-	if (!irq_base) {
-		dev_warn(ricoh619->dev, "No interrupt support on IRQ base\n");
-		return -EINVAL;
+	struct irq_domain *domain;
+	
+	//	printk("%s,line=%d\n", __func__,__LINE__);	
+	if (!irq) {
+		dev_warn(ricoh619->dev, "No interrupt support, no core IRQ\n");
+		return 0;
 	}
-
+	
 	mutex_init(&ricoh619->irq_lock);
 
 	/* Initialize all locals to 0 */
@@ -527,40 +559,41 @@ int ricoh619_irq_init(struct ricoh619 *ricoh619, int irq,
 		}
 	}
 
-	ricoh619->irq_base = irq_base;
-	ricoh619->chip_irq = irq;
+	if (pdata->irq_gpio && !ricoh619->chip_irq) {
+		ricoh619->chip_irq = gpio_to_irq(pdata->irq_gpio);
 
-	for (i = 0; i < RICOH619_NR_IRQS; i++) {
-		int __irq = i + ricoh619->irq_base;
-		irq_set_chip_data(__irq, ricoh619);
-		irq_set_chip_and_handler(__irq, &ricoh619_irq_chip,
-					 handle_simple_irq);
-		irq_set_nested_thread(__irq, 1);
-#ifdef CONFIG_ARM
-		set_irq_flags(__irq, IRQF_VALID);
-#endif
+		if (pdata->irq_gpio) {
+			ret = gpio_request(pdata->irq_gpio, "ricoh619_pmic_irq");
+			if (ret < 0) {
+				dev_err(ricoh619->dev,
+					"Failed to request gpio %d with ret:"
+					"%d\n",	pdata->irq_gpio, ret);
+				return IRQ_NONE;
+			}
+			gpio_direction_input(pdata->irq_gpio);
+			val = gpio_get_value(pdata->irq_gpio);
+			gpio_free(pdata->irq_gpio);
+			pr_info("%s: ricoh619_pmic_irq=%x\n", __func__, val);
+		}
 	}
-
-	ret = request_threaded_irq(irq, NULL, ricoh619_irq,
-			IRQ_TYPE_LEVEL_LOW|IRQF_DISABLED|IRQF_ONESHOT,
-						   "ricoh619", ricoh619);
-	if (ret < 0)
-		dev_err(ricoh619->dev, "Error in registering interrupt "
-				"error: %d\n", ret);
-/*
-	if (!ret) {
-		device_init_wakeup(ricoh619->dev, 1);
-		enable_irq_wake(irq);
+	
+	domain = irq_domain_add_linear(NULL, RICOH619_NR_IRQS,
+					&ricoh619_irq_domain_ops, ricoh619);
+	if (!domain) {
+		dev_err(ricoh619->dev, "could not create irq domain\n");
+		return -ENODEV;
 	}
-*/
+	ricoh619->irq_domain = domain;
+	ret = devm_request_threaded_irq(ricoh619->dev,ricoh619->chip_irq, NULL, ricoh619_irq, IRQF_TRIGGER_FALLING |IRQF_ONESHOT, "ricoh619", ricoh619);
+//	ret = devm_request_threaded_irq(ricoh619->dev,ricoh619->chip_irq, NULL, ricoh619_irq, IRQF_TRIGGER_FALLING | IRQF_ONESHOT , "ricoh619", ricoh619);
 
+	irq_set_irq_type(ricoh619->chip_irq, IRQ_TYPE_LEVEL_LOW);
+	enable_irq_wake(ricoh619->chip_irq);
 	return ret;
 }
 
 int ricoh619_irq_exit(struct ricoh619 *ricoh619)
 {
-	if (ricoh619->chip_irq)
-		free_irq(ricoh619->chip_irq, ricoh619);
 	return 0;
 }
 

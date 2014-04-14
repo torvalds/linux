@@ -35,6 +35,8 @@
 #include <linux/regulator/machine.h>
 #include <linux/mfd/ricoh619.h>
 #include <linux/regulator/ricoh619-regulator.h>
+#include <linux/of.h>
+#include <linux/regulator/of_regulator.h>
 
 struct ricoh619_regulator {
 	int		id;
@@ -203,10 +205,12 @@ static int ricoh619_set_suspend_voltage(struct regulator_dev *rdev,
 static int ricoh619_get_voltage(struct regulator_dev *rdev)
 {
 	struct ricoh619_regulator *ri = rdev_get_drvdata(rdev);
+	struct device *parent = to_ricoh619_dev(rdev);
 	uint8_t vsel;
+	int ret;
 
-	vsel = ri->vout_reg_cache & ri->vout_mask;
-	return ri->min_uV + vsel * ri->step_uV;
+	ret = ricoh619_read(parent, ri->vout_reg, &vsel);
+	return ricoh619_list_voltage(rdev,vsel);
 }
 
  int ricoh619_regulator_enable_eco_mode(struct regulator_dev *rdev)
@@ -331,7 +335,55 @@ static int ricoh619_dcdc_set_voltage_time_sel(struct regulator_dev *rdev,   unsi
 
 	return DIV_ROUND_UP(abs(old_volt - new_volt)*2, 14000);
 }
+static int ricoh619_dcdc_set_suspend_mode(struct regulator_dev *rdev, unsigned int mode)
+{
+	struct ricoh619_regulator *ri = rdev_get_drvdata(rdev);
+	struct device *parent = to_ricoh619_dev(rdev);
+	int ret;
+	uint8_t control;
+	
+	ret = ricoh619_read(parent, ri->reg_en_reg,&control);
+	switch(mode)
+	{
+	case REGULATOR_MODE_FAST:
+		return ricoh619_write(parent, ri->reg_en_reg, ((control & 0x3f) | 0x40));
+	case REGULATOR_MODE_NORMAL:
+		return ricoh619_write(parent, ri->reg_en_reg, (control & 0x3f));
+	case REGULATOR_MODE_STANDBY:
+		return ricoh619_write(parent, ri->reg_en_reg, ((control & 0x3f) | 0x80));	
+	default:
+		printk("error:pmu_619 only powersave pwm psm mode\n");
+		return -EINVAL;
+	}
+	
 
+}
+static int ricoh619_reg_suspend_enable(struct regulator_dev *rdev)
+{
+	struct ricoh619_regulator *ri = rdev_get_drvdata(rdev);
+	struct device *parent = to_ricoh619_dev(rdev);
+	int ret;
+	u8 vout_val;
+	ret = ricoh619_set_bits(parent, (0x16 + ri->id), (0xf << 0));
+	if (ret < 0) {
+		dev_err(&rdev->dev, "Error in updating the STATE register\n");
+		return ret;
+	}
+	udelay(ri->delay);
+	return ret;
+}
+
+static int ricoh619_reg_suspend_disable(struct regulator_dev *rdev)
+{
+	struct ricoh619_regulator *ri = rdev_get_drvdata(rdev);
+	struct device *parent = to_ricoh619_dev(rdev);
+	int ret;
+	ret = ricoh619_clr_bits(parent, (0x16 + ri->id), (0xf <<0));
+	if (ret < 0)
+		dev_err(&rdev->dev, "Error in updating the STATE register\n");
+
+	return ret;
+}
 
 static struct regulator_ops ricoh619_ops = {
 	.list_voltage			= ricoh619_list_voltage,
@@ -343,6 +395,9 @@ static struct regulator_ops ricoh619_ops = {
 	.set_mode = ricoh619_dcdc_set_mode,
 	.enable				= ricoh619_reg_enable,
 	.disable				= ricoh619_reg_disable,
+	.set_suspend_mode = ricoh619_dcdc_set_suspend_mode,
+	.set_suspend_enable				= ricoh619_reg_suspend_enable,
+	.set_suspend_disable				= ricoh619_reg_suspend_disable,
 	.is_enabled			= ricoh619_reg_is_enabled,
 };
 
@@ -378,7 +433,7 @@ static struct regulator_ops ricoh619_ops = {
 	},							\
 }
 
-static struct ricoh619_regulator ricoh619_regulator[] = {
+static struct ricoh619_regulator ricoh619_regulator_data[] = {
   	RICOH619_REG(DC1, 0x2C, 0, 0x2C, 1, 0x36, 0xFF, 0x3B,
 			600000, 3500000, 12500, 0xE8, ricoh619_ops, 500,
 			0x00, 0, 0x00, 0),
@@ -447,13 +502,14 @@ static struct ricoh619_regulator ricoh619_regulator[] = {
 			900000, 3500000, 25000, 0x68, ricoh619_ops, 500,
 			0x00, 0, 0x00, 0),
 };
+
 static inline struct ricoh619_regulator *find_regulator_info(int id)
 {
 	struct ricoh619_regulator *ri;
 	int i;
 
-	for (i = 0; i < ARRAY_SIZE(ricoh619_regulator); i++) {
-		ri = &ricoh619_regulator[i];
+	for (i = 0; i < ARRAY_SIZE(ricoh619_regulator_data); i++) {
+		ri = &ricoh619_regulator_data[i];
 		if (ri->desc.id == id)
 			return ri;
 	}
@@ -502,47 +558,105 @@ static inline int ricoh619_cache_regulator_register(struct device *parent,
 	return ricoh619_read(parent, ri->vout_reg, &ri->vout_reg_cache);
 }
 
-static int __devinit ricoh619_regulator_probe(struct platform_device *pdev)
+#ifdef CONFIG_OF
+static struct of_regulator_match ricoh619_regulator_matches[] = {
+	{ .name	= "ricoh619_dc1",},
+	{ .name = "ricoh619_dc2",},
+	{ .name = "ricoh619_dc3",},
+	{ .name = "ricoh619_dc4",},
+	{ .name = "ricoh619_dc5",},
+	{ .name = "ricoh619_ldo1",},
+	{ .name = "ricoh619_ldo2",},
+	{ .name = "ricoh619_ldo3",},
+	{ .name = "ricoh619_ldo4",},
+	{ .name = "ricoh619_ldo5",},
+	{ .name = "ricoh619_ldo6",},
+	{ .name = "ricoh619_ldo7",},
+	{ .name = "ricoh619_ldo8",},
+	{ .name = "ricoh619_ldo9",},
+	{ .name = "ricoh619_ldo10",},
+	{ .name = "ricoh619_ldortc1",},
+	{ .name = "ricoh619_ldortc2",},
+};
+#endif
+
+#ifdef CONFIG_OF
+static int ricoh619_regulator_dt_init(struct platform_device *pdev,
+				    struct regulator_config *config,
+				    int regidx)
+{
+	struct device_node *nproot, *np;
+	int rcount;
+	nproot = of_node_get(pdev->dev.parent->of_node);
+	if (!nproot)
+		return -ENODEV;
+	np = of_find_node_by_name(nproot, "regulators");
+	if (!np) {
+		dev_err(&pdev->dev, "failed to find regulators node\n");
+		return -ENODEV;
+	}
+
+	rcount = of_regulator_match(&pdev->dev, np,
+				&ricoh619_regulator_matches[regidx], 1);
+	of_node_put(np);
+	if (rcount < 0)
+		return -ENODEV;
+	config->init_data = ricoh619_regulator_matches[regidx].init_data;
+	config->of_node = ricoh619_regulator_matches[regidx].of_node;
+
+	return 0;
+}
+#else
+#define ricoh619_regulator_dt_init(x, y, z)	(-1)
+#endif
+
+static int ricoh619_regulator_probe(struct platform_device *pdev)
 {
 	struct ricoh619_regulator *ri = NULL;
 	struct regulator_dev *rdev;
-	struct ricoh619_regulator_platform_data *tps_pdata;
-	int id = pdev->id;
-	int err;
+	struct regulator_config config = { };
+	struct regulator_init_data *pdata_regulator = dev_get_platdata(&pdev->dev);
+	int err,id=0;
+	
+	rdev = devm_kzalloc(&pdev->dev, RICOH619_NUM_REGULATOR *
+				sizeof(*rdev), GFP_KERNEL);
+	if (!rdev) {
+		dev_err(&pdev->dev, "Mmemory alloc failed\n");
+		return -ENOMEM;
+	}
+
+	for (id = 0; id < RICOH619_NUM_REGULATOR; ++id) {
 
 	ri = find_regulator_info(id);
-	if (ri == NULL) {
+	if (!ri) {
 		dev_err(&pdev->dev, "invalid regulator ID specified\n");
-		return -EINVAL;
-	}
-	tps_pdata = pdev->dev.platform_data;
-	ri->dev = &pdev->dev;
-/*
-	err = ricoh619_cache_regulator_register(pdev->dev.parent, ri);
-	if (err) {
-		dev_err(&pdev->dev, "Fail in caching register\n");
-		return err;
+		err = -EINVAL;
 	}
 
-	err = ricoh619_regulator_preinit(pdev->dev.parent, ri, tps_pdata);
-	if (err) {
-		dev_err(&pdev->dev, "Fail in pre-initialisation\n");
-		return err;
-	}
-	*/
-	rdev = regulator_register(&ri->desc, &pdev->dev,
-				&tps_pdata->regulator, ri);
+	ri->dev = &pdev->dev;
+	config.dev = &pdev->dev;
+	config.driver_data = ri;
+
+	if (ricoh619_regulator_matches)
+		config.of_node = ricoh619_regulator_matches[id].of_node;
+
+	if (ricoh619_regulator_dt_init(pdev, &config, id))
+		if (pdata_regulator)
+			config.init_data = &pdata_regulator;
+
+	rdev = regulator_register(&ri->desc, &config);
 	if (IS_ERR_OR_NULL(rdev)) {
 		dev_err(&pdev->dev, "failed to register regulator %s\n",
 				ri->desc.name);
 		return PTR_ERR(rdev);
+	}
 	}
 
 	platform_set_drvdata(pdev, rdev);
 	return 0;
 }
 
-static int __devexit ricoh619_regulator_remove(struct platform_device *pdev)
+static int ricoh619_regulator_remove(struct platform_device *pdev)
 {
 	struct regulator_dev *rdev = platform_get_drvdata(pdev);
 
@@ -556,7 +670,7 @@ static struct platform_driver ricoh619_regulator_driver = {
 		.owner	= THIS_MODULE,
 	},
 	.probe		= ricoh619_regulator_probe,
-	.remove		= __devexit_p(ricoh619_regulator_remove),
+	.remove		= ricoh619_regulator_remove,
 };
 
 static int __init ricoh619_regulator_init(void)

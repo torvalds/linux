@@ -35,8 +35,11 @@
 #include <linux/pm_runtime.h>
 #include <linux/workqueue.h>
 #include <linux/gpio.h>
+#include <linux/of.h>
 
 #include <linux/mfd/ricoh619.h>
+#include <linux/irq.h>
+#include <linux/irqdomain.h>
 
 #define RICOH619_ONKEY_TRIGGER_LEVEL	0
 #define RICOH619_ONKEY_OFF_IRQ		0
@@ -114,11 +117,11 @@ static void ricoh619_irq_work(struct work_struct *work)
 
 	/* spin_unlock_irqrestore(&g_pwrkey->lock, flags); */
 }
-
+extern void rk_send_wakeup_key(void);
 static irqreturn_t pwrkey_irq(int irq, void *_pwrkey)
 {
 //	printk(KERN_INFO "PMU: %s:\n", __func__);
-
+//	rk_send_wakeup_key();
 	#if (RICOH619_ONKEY_TRIGGER_LEVEL)
 	g_pwrkey->timer.expires = jiffies + g_pwrkey->delay;
 	add_timer(&g_pwrkey->timer);
@@ -136,22 +139,59 @@ static irqreturn_t pwrkey_irq_off(int irq, void *_pwrkey)
 }
 #endif
 
-static int __devinit ricoh619_pwrkey_probe(struct platform_device *pdev)
+#ifdef CONFIG_OF
+static struct ricoh619_pwrkey_platform_data *
+ricoh619_pwrkey_dt_init(struct platform_device *pdev)
+{
+	struct device_node *nproot = pdev->dev.parent->of_node;
+	struct device_node *np;
+	struct ricoh619_pwrkey_platform_data *pdata;
+
+	if (!nproot)
+		return pdev->dev.platform_data;
+
+	np = of_find_node_by_name(nproot, "pwrkey");
+	if (!np) {
+		dev_err(&pdev->dev, "failed to find pwrkey node\n");
+		return NULL;
+	}
+
+	pdata = devm_kzalloc(&pdev->dev,
+			sizeof(struct ricoh619_pwrkey_platform_data),
+			GFP_KERNEL);
+
+	of_property_read_u32(np, "ricoh,pwrkey-delay-ms", &pdata->delay_ms);
+	of_node_put(np);
+
+	return pdata;
+}
+#else
+static struct ricoh619_pwrkey_platform_data *
+ricoh619_pwrkey_dt_init(struct platform_device *pdev)
+{
+	return pdev->dev.platform_data;
+}
+#endif
+
+static int ricoh619_pwrkey_probe(struct platform_device *pdev)
 {
 	struct input_dev *pwr;
 	int key_irq;
 	int err;
 	struct ricoh619_pwrkey *pwrkey;
-	struct ricoh619_pwrkey_platform_data *pdata = pdev->dev.platform_data;
+	struct ricoh619_pwrkey_platform_data *pdata;
+	struct ricoh619 *ricoh619 = dev_get_drvdata(pdev->dev.parent);
 	uint8_t val;
 
 //	printk("PMU: %s: \n",__func__);
 
+	pdata = ricoh619_pwrkey_dt_init(pdev);
 	if (!pdata) {
-		dev_err(&pdev->dev, "power key platform data not supplied\n");
+		dev_err(&pdev->dev, "platform data isn't assigned to "
+			"power key\n");
 		return -EINVAL;
 	}
-	key_irq = (pdata->irq + RICOH619_IRQ_POWER_ON);
+	key_irq  = irq_create_mapping(ricoh619->irq_domain, RICOH619_IRQ_POWER_ON);
 	printk(KERN_INFO "PMU1: %s: key_irq=%d\n", __func__, key_irq);
 	pwrkey = kzalloc(sizeof(*pwrkey), GFP_KERNEL);
 	if (!pwrkey)
@@ -207,27 +247,24 @@ static int __devinit ricoh619_pwrkey_probe(struct platform_device *pdev)
 		/* trigger both edge */
 		ricoh619_set_bits(pwrkey->dev->parent, RICOH619_PWR_IRSEL, 0x1);
 	#endif
-
-	err = request_threaded_irq(key_irq, NULL, pwrkey_irq,
-		IRQF_ONESHOT, "ricoh619_pwrkey", pwrkey);
+	err = request_threaded_irq(key_irq, NULL, pwrkey_irq,IRQF_ONESHOT, "ricoh619_pwrkey", pwrkey);
 	if (err < 0) {
 		dev_err(&pdev->dev, "Can't get %d IRQ for pwrkey: %d\n",
 								key_irq, err);
 		goto unreg_input_dev;
 	}
-
+	/*
 	#if RICOH619_ONKEY_OFF_IRQ
-	err = request_threaded_irq(key_irq + RICOH619_IRQ_ONKEY_OFF, NULL,
-						pwrkey_irq_off, IRQF_ONESHOT,
+	err = request_threaded_irq( key_irq +RICOH619_ONKEY_OFF_IRQ, NULL,pwrkey_irq_off, IRQF_ONESHOT,
 						"ricoh619_pwrkey_off", pwrkey);
 	if (err < 0) {
-		dev_err(&pdev->dev, "Can't get %d IRQ for pwrkey: %d\n",
-			key_irq + RICOH619_IRQ_ONKEY_OFF, err);
+		dev_err(&pdev->dev, "Can't get %d IRQ for ricoh619_pwrkey_off: %d\n",
+			key_irq + RICOH619_ONKEY_OFF_IRQ, err);
 		free_irq(key_irq, pwrkey);
 		goto unreg_input_dev;
 	}
 	#endif
-
+*/
 	pwrkey->workqueue = create_singlethread_workqueue("ricoh619_pwrkey");
 	INIT_WORK(&pwrkey->work, ricoh619_irq_work);
 
@@ -253,7 +290,7 @@ free_input_dev:
 	return err;
 }
 
-static int __devexit ricoh619_pwrkey_remove(struct platform_device *pdev)
+static int ricoh619_pwrkey_remove(struct platform_device *pdev)
 {
 	struct ricoh619_pwrkey *pwrkey = platform_get_drvdata(pdev);
 
@@ -273,8 +310,8 @@ static int ricoh619_pwrkey_suspend(struct device *dev)
 
 //	printk(KERN_INFO "PMU: %s\n", __func__);
 
-	if (info->key_irq)
-		disable_irq(info->key_irq);
+//	if (info->key_irq)
+//		disable_irq(info->key_irq);
 	cancel_work_sync(&info->work);
 	flush_workqueue(info->workqueue);
 
@@ -287,11 +324,19 @@ static int ricoh619_pwrkey_resume(struct device *dev)
 
 //	printk(KERN_INFO "PMU: %s\n", __func__);
 	queue_work(info->workqueue, &info->work);
-	if (info->key_irq)
-		enable_irq(info->key_irq);
+//	if (info->key_irq)
+//		enable_irq(info->key_irq);
 
 	return 0;
 }
+
+#ifdef CONFIG_OF
+static const struct of_device_id ricoh619_pwrkey_dt_match[] = {
+	{ .compatible = "ricoh,ricoh619-pwrkey", },
+	{},
+};
+MODULE_DEVICE_TABLE(of, ricoh619_pwrkey_dt_match);
+#endif
 
 static const struct dev_pm_ops ricoh619_pwrkey_pm_ops = {
 	.suspend	= ricoh619_pwrkey_suspend,
@@ -301,10 +346,11 @@ static const struct dev_pm_ops ricoh619_pwrkey_pm_ops = {
 
 static struct platform_driver ricoh619_pwrkey_driver = {
 	.probe = ricoh619_pwrkey_probe,
-	.remove = __devexit_p(ricoh619_pwrkey_remove),
+	.remove = ricoh619_pwrkey_remove,
 	.driver = {
 		.name = "ricoh619-pwrkey",
 		.owner = THIS_MODULE,
+		.of_match_table = of_match_ptr(ricoh619_pwrkey_dt_match),
 #ifdef CONFIG_PM
 		.pm	= &ricoh619_pwrkey_pm_ops,
 #endif
