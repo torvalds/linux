@@ -31,8 +31,10 @@
 ENTRY(armada_xp_secondary_startup)
  ARM_BE8(setend	be )			@ go BE8 if entered LE
 
-	/* Add CPU to coherency fabric */
-	bl	ll_set_cpu_coherent
+	bl	ll_add_cpu_to_smp_group
+
+	bl	ll_enable_coherency
+
 	b	secondary_startup
 
 ENDPROC(armada_xp_secondary_startup)
