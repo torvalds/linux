@@ -14,10 +14,3 @@ Description:	This attribute allows to set a fade time in milliseconds for
 		the next color change. Read the attribute to know the current
 		fade time. The default value is set to 0 (no fade time). For
 		instance, set a fade time of 2 seconds with: echo 2000 > fade
-
-What:		/sys/class/leds/blink1::<serial>/play
-Date:		January 2013
-Contact:	Vivien Didelot <vivien.didelot@savoirfairelinux.com>
-Description:	This attribute is used to play/pause the light patterns. Write 1
-		to start playing, 0 to stop. Reading this attribute returns the
-		current playing status.

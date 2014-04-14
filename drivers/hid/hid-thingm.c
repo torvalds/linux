@@ -28,7 +28,6 @@
  * @rgb:		8-bit per channel RGB notation.
  * @fade:		fade time in hundredths of a second.
  * @brightness:		brightness coefficient.
- * @play:		play/pause in-memory patterns.
  */
 struct blink1_data {
 	struct hid_device *hdev;
@@ -36,7 +35,6 @@ struct blink1_data {
 	u32 rgb;
 	u16 fade;
 	u8 brightness;
-	bool play;
 };
 
 static int blink1_send_command(struct blink1_data *data,
@@ -155,41 +153,10 @@ static ssize_t blink1_store_fade(struct device *dev,
 static DEVICE_ATTR(fade, S_IRUGO | S_IWUSR,
 		blink1_show_fade, blink1_store_fade);
 
-static ssize_t blink1_show_play(struct device *dev,
-		struct device_attribute *attr, char *buf)
-{
-	struct blink1_data *data = dev_get_drvdata(dev->parent);
-
-	return sprintf(buf, "%d\n", data->play);
-}
-
-static ssize_t blink1_store_play(struct device *dev,
-		struct device_attribute *attr, const char *buf, size_t count)
-{
-	struct blink1_data *data = dev_get_drvdata(dev->parent);
-	u8 cmd[BLINK1_CMD_SIZE] = { 1, 'p', 0, 0, 0, 0, 0, 0, 0 };
-	long unsigned int play;
-	int ret;
-
-	ret = kstrtoul(buf, 10, &play);
-	if (ret)
-		return ret;
-
-	data->play = !!play;
-	cmd[2] = data->play;
-	ret = blink1_send_command(data, cmd);
-
-	return ret ? ret : count;
-}
-
-static DEVICE_ATTR(play, S_IRUGO | S_IWUSR,
-		blink1_show_play, blink1_store_play);
-
 static const struct attribute_group blink1_sysfs_group = {
 	.attrs = (struct attribute *[]) {
 		&dev_attr_rgb.attr,
 		&dev_attr_fade.attr,
-		&dev_attr_play.attr,
 		NULL
 	},
 };
