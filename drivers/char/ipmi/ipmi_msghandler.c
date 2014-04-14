@@ -94,8 +94,8 @@ static struct proc_dir_entry *proc_ipmi_root;
 struct ipmi_user {
 	struct list_head link;
 
-	/* Set to "0" when the user is destroyed. */
-	int valid;
+	/* Set to false when the user is destroyed. */
+	bool valid;
 
 	struct kref refcount;
 
@@ -413,7 +413,7 @@ struct ipmi_smi {
 
 	/* For handling of maintenance mode. */
 	int maintenance_mode;
-	int maintenance_mode_enable;
+	bool maintenance_mode_enable;
 	int auto_maintenance_timeout;
 	spinlock_t maintenance_mode_lock; /* Used in a timer... */
 
@@ -980,7 +980,7 @@ int ipmi_create_user(unsigned int          if_num,
 	 */
 	mutex_unlock(&ipmi_interfaces_mutex);
 
-	new_user->valid = 1;
+	new_user->valid = true;
 	spin_lock_irqsave(&intf->seq_lock, flags);
 	list_add_rcu(&new_user->link, &intf->users);
 	spin_unlock_irqrestore(&intf->seq_lock, flags);
@@ -1042,7 +1042,7 @@ int ipmi_destroy_user(ipmi_user_t user)
 	struct cmd_rcvr  *rcvr;
 	struct cmd_rcvr  *rcvrs = NULL;
 
-	user->valid = 0;
+	user->valid = false;
 
 	if (user->handler->ipmi_watchdog_pretimeout)
 		atomic_dec(&intf->event_waiters);
@@ -1184,25 +1184,23 @@ int ipmi_set_maintenance_mode(ipmi_user_t user, int mode)
 	if (intf->maintenance_mode != mode) {
 		switch (mode) {
 		case IPMI_MAINTENANCE_MODE_AUTO:
-			intf->maintenance_mode = mode;
 			intf->maintenance_mode_enable
 				= (intf->auto_maintenance_timeout > 0);
 			break;
 
 		case IPMI_MAINTENANCE_MODE_OFF:
-			intf->maintenance_mode = mode;
-			intf->maintenance_mode_enable = 0;
+			intf->maintenance_mode_enable = false;
 			break;
 
 		case IPMI_MAINTENANCE_MODE_ON:
-			intf->maintenance_mode = mode;
-			intf->maintenance_mode_enable = 1;
+			intf->maintenance_mode_enable = true;
 			break;
 
 		default:
 			rv = -EINVAL;
 			goto out_unlock;
 		}
+		intf->maintenance_mode = mode;
 
 		maintenance_mode_update(intf);
 	}
@@ -1578,7 +1576,7 @@ static int i_ipmi_request(ipmi_user_t          user,
 				= IPMI_MAINTENANCE_MODE_TIMEOUT;
 			if (!intf->maintenance_mode
 			    && !intf->maintenance_mode_enable) {
-				intf->maintenance_mode_enable = 1;
+				intf->maintenance_mode_enable = true;
 				maintenance_mode_update(intf);
 			}
 			spin_unlock_irqrestore(&intf->maintenance_mode_lock,
@@ -4129,7 +4127,7 @@ static unsigned int ipmi_timeout_handler(ipmi_smi_t intf, long timeout_period)
 				-= timeout_period;
 			if (!intf->maintenance_mode
 			    && (intf->auto_maintenance_timeout <= 0)) {
-				intf->maintenance_mode_enable = 0;
+				intf->maintenance_mode_enable = false;
 				maintenance_mode_update(intf);
 			}
 		}
