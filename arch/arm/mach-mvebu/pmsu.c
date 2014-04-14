@@ -23,6 +23,7 @@
 #include <linux/init.h>
 #include <linux/of_address.h>
 #include <linux/io.h>
+#include <linux/platform_device.h>
 #include <linux/smp.h>
 #include <linux/resource.h>
 #include <asm/cacheflush.h>
@@ -64,6 +65,10 @@ static void __iomem *pmsu_mp_base;
 
 extern void ll_disable_coherency(void);
 extern void ll_enable_coherency(void);
+
+static struct platform_device armada_xp_cpuidle_device = {
+	.name = "cpuidle-armada-370-xp",
+};
 
 static struct of_device_id of_pmsu_table[] = {
 	{ .compatible = "marvell,armada-370-pmsu", },
@@ -258,4 +263,36 @@ static struct notifier_block armada_370_xp_cpu_pm_notifier = {
 	.notifier_call = armada_370_xp_cpu_pm_notify,
 };
 
+int __init armada_370_xp_cpu_pm_init(void)
+{
+	struct device_node *np;
+
+	/*
+	 * Check that all the requirements are available to enable
+	 * cpuidle. So far, it is only supported on Armada XP, cpuidle
+	 * needs the coherency fabric and the PMSU enabled
+	 */
+
+	if (!of_machine_is_compatible("marvell,armadaxp"))
+		return 0;
+
+	np = of_find_compatible_node(NULL, NULL, "marvell,coherency-fabric");
+	if (!np)
+		return 0;
+	of_node_put(np);
+
+	np = of_find_matching_node(NULL, of_pmsu_table);
+	if (!np)
+		return 0;
+	of_node_put(np);
+
+	armada_370_xp_pmsu_enable_l2_powerdown_onidle();
+	armada_xp_cpuidle_device.dev.platform_data = armada_370_xp_cpu_suspend;
+	platform_device_register(&armada_xp_cpuidle_device);
+	cpu_pm_register_notifier(&armada_370_xp_cpu_pm_notifier);
+
+	return 0;
+}
+
+arch_initcall(armada_370_xp_cpu_pm_init);
 early_initcall(armada_370_xp_pmsu_init);
