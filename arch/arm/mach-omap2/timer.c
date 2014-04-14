@@ -361,7 +361,7 @@ static void __init omap2_gp_clockevent_init(int gptimer_id,
 
 /* Clocksource code */
 static struct omap_dm_timer clksrc;
-static bool use_gptimer_clksrc;
+static bool use_gptimer_clksrc __initdata;
 
 /*
  * clocksource
