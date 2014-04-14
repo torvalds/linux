@@ -2049,7 +2049,7 @@ int usb_alloc_streams(struct usb_interface *interface,
 {
 	struct usb_hcd *hcd;
 	struct usb_device *dev;
-	int i;
+	int i, ret;
 
 	dev = interface_to_usbdev(interface);
 	hcd = bus_to_hcd(dev->bus);
@@ -2058,13 +2058,24 @@ int usb_alloc_streams(struct usb_interface *interface,
 	if (dev->speed != USB_SPEED_SUPER)
 		return -EINVAL;
 
-	/* Streams only apply to bulk endpoints. */
-	for (i = 0; i < num_eps; i++)
+	for (i = 0; i < num_eps; i++) {
+		/* Streams only apply to bulk endpoints. */
 		if (!usb_endpoint_xfer_bulk(&eps[i]->desc))
 			return -EINVAL;
+		/* Re-alloc is not allowed */
+		if (eps[i]->streams)
+			return -EINVAL;
+	}
 
-	return hcd->driver->alloc_streams(hcd, dev, eps, num_eps,
+	ret = hcd->driver->alloc_streams(hcd, dev, eps, num_eps,
 			num_streams, mem_flags);
+	if (ret < 0)
+		return ret;
+
+	for (i = 0; i < num_eps; i++)
+		eps[i]->streams = ret;
+
+	return ret;
 }
 EXPORT_SYMBOL_GPL(usb_alloc_streams);
 
@@ -2078,8 +2089,7 @@ EXPORT_SYMBOL_GPL(usb_alloc_streams);
  * Reverts a group of bulk endpoints back to not using stream IDs.
  * Can fail if we are given bad arguments, or HCD is broken.
  *
- * Return: On success, the number of allocated streams. On failure, a negative
- * error code.
+ * Return: 0 on success. On failure, a negative error code.
  */
 int usb_free_streams(struct usb_interface *interface,
 		struct usb_host_endpoint **eps, unsigned int num_eps,
@@ -2087,19 +2097,26 @@ int usb_free_streams(struct usb_interface *interface,
 {
 	struct usb_hcd *hcd;
 	struct usb_device *dev;
-	int i;
+	int i, ret;
 
 	dev = interface_to_usbdev(interface);
 	hcd = bus_to_hcd(dev->bus);
 	if (dev->speed != USB_SPEED_SUPER)
 		return -EINVAL;
 
-	/* Streams only apply to bulk endpoints. */
+	/* Double-free is not allowed */
 	for (i = 0; i < num_eps; i++)
-		if (!eps[i] || !usb_endpoint_xfer_bulk(&eps[i]->desc))
+		if (!eps[i] || !eps[i]->streams)
 			return -EINVAL;
 
-	return hcd->driver->free_streams(hcd, dev, eps, num_eps, mem_flags);
+	ret = hcd->driver->free_streams(hcd, dev, eps, num_eps, mem_flags);
+	if (ret < 0)
+		return ret;
+
+	for (i = 0; i < num_eps; i++)
+		eps[i]->streams = 0;
+
+	return ret;
 }
 EXPORT_SYMBOL_GPL(usb_free_streams);
 

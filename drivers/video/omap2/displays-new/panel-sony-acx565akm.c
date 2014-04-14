@@ -30,6 +30,8 @@
 #include <linux/backlight.h>
 #include <linux/fb.h>
 #include <linux/gpio.h>
+#include <linux/of.h>
+#include <linux/of_gpio.h>
 
 #include <video/omapdss.h>
 #include <video/omap-panel-data.h>
@@ -93,7 +95,7 @@ struct panel_drv_data {
 static const struct omap_video_timings acx565akm_panel_timings = {
 	.x_res		= 800,
 	.y_res		= 480,
-	.pixel_clock	= 24000,
+	.pixelclock	= 24000000,
 	.hfp		= 28,
 	.hsw		= 4,
 	.hbp		= 24,
@@ -547,7 +549,9 @@ static int acx565akm_panel_power_on(struct omap_dss_device *dssdev)
 	dev_dbg(&ddata->spi->dev, "%s\n", __func__);
 
 	in->ops.sdi->set_timings(in, &ddata->videomode);
-	in->ops.sdi->set_datapairs(in, ddata->datapairs);
+
+	if (ddata->datapairs > 0)
+		in->ops.sdi->set_datapairs(in, ddata->datapairs);
 
 	r = in->ops.sdi->enable(in);
 	if (r) {
@@ -726,6 +730,22 @@ static int acx565akm_probe_pdata(struct spi_device *spi)
 	return 0;
 }
 
+static int acx565akm_probe_of(struct spi_device *spi)
+{
+	struct panel_drv_data *ddata = dev_get_drvdata(&spi->dev);
+	struct device_node *np = spi->dev.of_node;
+
+	ddata->reset_gpio = of_get_named_gpio(np, "reset-gpios", 0);
+
+	ddata->in = omapdss_of_find_source_for_first_ep(np);
+	if (IS_ERR(ddata->in)) {
+		dev_err(&spi->dev, "failed to find video source\n");
+		return PTR_ERR(ddata->in);
+	}
+
+	return 0;
+}
+
 static int acx565akm_probe(struct spi_device *spi)
 {
 	struct panel_drv_data *ddata;
@@ -753,7 +773,12 @@ static int acx565akm_probe(struct spi_device *spi)
 		r = acx565akm_probe_pdata(spi);
 		if (r)
 			return r;
+	} else if (spi->dev.of_node) {
+		r = acx565akm_probe_of(spi);
+		if (r)
+			return r;
 	} else {
+		dev_err(&spi->dev, "platform data missing!\n");
 		return -ENODEV;
 	}
 
@@ -864,10 +889,16 @@ static int acx565akm_remove(struct spi_device *spi)
 	return 0;
 }
 
+static const struct of_device_id acx565akm_of_match[] = {
+	{ .compatible = "omapdss,sony,acx565akm", },
+	{},
+};
+
 static struct spi_driver acx565akm_driver = {
 	.driver = {
 		.name	= "acx565akm",
 		.owner	= THIS_MODULE,
+		.of_match_table = acx565akm_of_match,
 	},
 	.probe	= acx565akm_probe,
 	.remove	= acx565akm_remove,

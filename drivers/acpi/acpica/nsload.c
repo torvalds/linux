@@ -5,7 +5,7 @@
  *****************************************************************************/
 
 /*
- * Copyright (C) 2000 - 2013, Intel Corp.
+ * Copyright (C) 2000 - 2014, Intel Corp.
  * All rights reserved.
  *
  * Redistribution and use in source and binary forms, with or without
@@ -128,12 +128,12 @@ unlock:
 	 * parse trees.
 	 */
 	ACPI_DEBUG_PRINT((ACPI_DB_INFO,
-			  "**** Begin Table Method Parsing and Object Initialization\n"));
+			  "**** Begin Table Object Initialization\n"));
 
 	status = acpi_ds_initialize_objects(table_index, node);
 
 	ACPI_DEBUG_PRINT((ACPI_DB_INFO,
-			  "**** Completed Table Method Parsing and Object Initialization\n"));
+			  "**** Completed Table Object Initialization\n"));
 
 	return_ACPI_STATUS(status);
 }

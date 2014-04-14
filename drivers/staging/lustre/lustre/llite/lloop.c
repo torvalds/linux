@@ -255,7 +255,7 @@ static int do_bio_lustrebacked(struct lloop_device *lo, struct bio *head)
 	 *    to store parity;
 	 * 2. Reserve the # of (page_count * depth) cl_pages from the reserved
 	 *    pool. Afterwards, the clio would allocate the pages from reserved
-	 *    pool, this guarantees we neeedn't allocate the cl_pages from
+	 *    pool, this guarantees we needn't allocate the cl_pages from
 	 *    generic cl_page slab cache.
 	 *    Of course, if there is NOT enough pages in the pool, we might
 	 *    be asked to write less pages once, this purely depends on
@@ -325,7 +325,7 @@ static unsigned int loop_get_bio(struct lloop_device *lo, struct bio **req)
 		bio = &(*bio)->bi_next;
 	}
 	if (*bio) {
-		/* Some of bios can't be mergable. */
+		/* Some of bios can't be mergeable. */
 		lo->lo_bio = *bio;
 		*bio = NULL;
 	} else {
@@ -658,7 +658,7 @@ static struct block_device_operations lo_fops = {
  * ll_iocontrol_call.
  *
  * This is a llite regular file ioctl function. It takes the responsibility
- * of attaching or detaching a file by a lloop's device numner.
+ * of attaching or detaching a file by a lloop's device number.
  */
 static enum llioc_iter lloop_ioctl(struct inode *unused, struct file *file,
 				   unsigned int cmd, unsigned long arg,

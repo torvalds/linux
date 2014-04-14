@@ -63,7 +63,7 @@ int drm_host1x_init(struct drm_driver *driver, struct host1x_device *device)
 	return 0;
 
 err_free:
-	drm_dev_free(drm);
+	drm_dev_unref(drm);
 	return ret;
 }
 

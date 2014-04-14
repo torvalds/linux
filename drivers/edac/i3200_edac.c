@@ -464,6 +464,8 @@ static void i3200_remove_one(struct pci_dev *pdev)
 	iounmap(priv->window);
 
 	edac_mc_free(mci);
+
+	pci_disable_device(pdev);
 }
 
 static const struct pci_device_id i3200_pci_tbl[] = {

@@ -254,12 +254,16 @@ static inline bool iio_channel_has_info(const struct iio_chan_spec *chan,
 		(chan->info_mask_shared_by_all & BIT(type));
 }
 
-#define IIO_ST(si, rb, sb, sh)						\
-	{ .sign = si, .realbits = rb, .storagebits = sb, .shift = sh }
-
-#define IIO_CHAN_SOFT_TIMESTAMP(_si)					\
-	{ .type = IIO_TIMESTAMP, .channel = -1,				\
-			.scan_index = _si, .scan_type = IIO_ST('s', 64, 64, 0) }
+#define IIO_CHAN_SOFT_TIMESTAMP(_si) {					\
+	.type = IIO_TIMESTAMP,						\
+	.channel = -1,							\
+	.scan_index = _si,						\
+	.scan_type = {							\
+		.sign = 's',						\
+		.realbits = 64,					\
+		.storagebits = 64,					\
+		},							\
+}
 
 /**
  * iio_get_time_ns() - utility function to get a time stamp for events etc

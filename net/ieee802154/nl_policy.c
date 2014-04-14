@@ -52,5 +52,15 @@ const struct nla_policy ieee802154_policy[IEEE802154_ATTR_MAX + 1] = {
 	[IEEE802154_ATTR_DURATION] = { .type = NLA_U8, },
 	[IEEE802154_ATTR_ED_LIST] = { .len = 27 },
 	[IEEE802154_ATTR_CHANNEL_PAGE_LIST] = { .len = 32 * 4, },
+
+	[IEEE802154_ATTR_TXPOWER] = { .type = NLA_S8, },
+	[IEEE802154_ATTR_LBT_ENABLED] = { .type = NLA_U8, },
+	[IEEE802154_ATTR_CCA_MODE] = { .type = NLA_U8, },
+	[IEEE802154_ATTR_CCA_ED_LEVEL] = { .type = NLA_S32, },
+	[IEEE802154_ATTR_CSMA_RETRIES] = { .type = NLA_U8, },
+	[IEEE802154_ATTR_CSMA_MIN_BE] = { .type = NLA_U8, },
+	[IEEE802154_ATTR_CSMA_MAX_BE] = { .type = NLA_U8, },
+
+	[IEEE802154_ATTR_FRAME_RETRIES] = { .type = NLA_S8, },
 };
 

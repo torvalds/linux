@@ -219,12 +219,7 @@ static int fsl_espi_bufs(struct spi_device *spi, struct spi_transfer *t)
 	struct mpc8xxx_spi *mpc8xxx_spi = spi_master_get_devdata(spi->master);
 	struct fsl_espi_reg *reg_base = mpc8xxx_spi->reg_base;
 	unsigned int len = t->len;
-	u8 bits_per_word;
 	int ret;
-
-	bits_per_word = spi->bits_per_word;
-	if (t->bits_per_word)
-		bits_per_word = t->bits_per_word;
 
 	mpc8xxx_spi->len = t->len;
 	len = roundup(len, 4) / 4;
@@ -446,7 +441,8 @@ static void fsl_espi_do_one_msg(struct spi_message *m)
 
 	m->actual_length = espi_trans.actual_length;
 	m->status = espi_trans.status;
-	m->complete(m->context);
+	if (m->complete)
+		m->complete(m->context);
 }
 
 static int fsl_espi_setup(struct spi_device *spi)

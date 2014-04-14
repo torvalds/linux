@@ -16,7 +16,8 @@
 #include "core.h"
 #include "wb35rx_f.h"
 
-static void packet_came(struct ieee80211_hw *hw, char *pRxBufferAddress, int PacketSize)
+static void packet_came(struct ieee80211_hw *hw, char *pRxBufferAddress,
+	int PacketSize)
 {
 	struct wbsoft_priv *priv = hw->priv;
 	struct sk_buff *skb;
@@ -64,7 +65,8 @@ static void Wb35Rx_adjust(struct wb35_descriptor *pRxDes)
 	} else if (DecryptionMethod) { /* For TKIP and CCMP */
 		for (i = 7; i > 1; i--)
 			pRxBufferAddress[i] = pRxBufferAddress[i - 2];
-		pRxDes->buffer_address[0] = pRxBufferAddress + 2; /* Update the descriptor, shift 8 byte */
+		/* Update the descriptor, shift 8 byte */
+		pRxDes->buffer_address[0] = pRxBufferAddress + 2;
 		BufferSize -= 8; /* 8 byte for IV + ICV */
 	}
 	pRxDes->buffer_size[0] = BufferSize;
@@ -95,7 +97,9 @@ static u16 Wb35Rx_indicate(struct ieee80211_hw *hw)
 
 		/* Parse the bulkin buffer */
 		while (BufferSize >= 4) {
-			if ((cpu_to_le32(*(u32 *)pRxBufferAddress) & 0x0fffffff) == RX_END_TAG) /* Is ending? */
+			/* Is ending? */
+			if ((cpu_to_le32(*(u32 *)pRxBufferAddress) & 0x0fffffff) ==
+				RX_END_TAG)
 				break;
 
 			/* Get the R00 R01 first */
@@ -108,7 +112,8 @@ static u16 Wb35Rx_indicate(struct ieee80211_hw *hw)
 
 			/* Basic check for Rx length. Is length valid? */
 			if (PacketSize > MAX_PACKET_SIZE) {
-				pr_debug("Serious ERROR : Rx data size too long, size =%d\n", PacketSize);
+				pr_debug("Serious ERROR : Rx data size too long, size =%d\n",
+					PacketSize);
 				pWb35Rx->EP3vm_state = VM_STOP;
 				pWb35Rx->Ep3ErrorCount2++;
 				break;
@@ -118,7 +123,8 @@ static u16 Wb35Rx_indicate(struct ieee80211_hw *hw)
 			 * Wb35Rx_indicate() is called synchronously so it isn't
 			 * necessary to set "RxDes.Desctriptor_ID = RxBufferID;"
 			 */
-			BufferSize -= 8; /* subtract 8 byte for 35's USB header length */
+			/* subtract 8 byte for 35's USB header length */
+			BufferSize -= 8;
 			pRxBufferAddress += 8;
 
 			RxDes.buffer_address[0] = pRxBufferAddress;
@@ -255,7 +261,7 @@ static void Wb35Rx(struct ieee80211_hw *hw)
 
 	pWb35Rx->pDRx = kzalloc(MAX_USB_RX_BUFFER, GFP_ATOMIC);
 	if (!pWb35Rx->pDRx) {
-		printk("w35und: Rx memory alloc failed\n");
+		dev_info(&hw->wiphy->dev, "w35und: Rx memory alloc failed\n");
 		goto error;
 	}
 	pRxBufferAddress = pWb35Rx->pDRx;
@@ -270,7 +276,7 @@ static void Wb35Rx(struct ieee80211_hw *hw)
 	retv = usb_submit_urb(urb, GFP_ATOMIC);
 
 	if (retv != 0) {
-		printk("Rx URB sending error\n");
+		dev_info(&hw->wiphy->dev, "Rx URB sending error\n");
 		goto error;
 	}
 	return;
@@ -306,7 +312,9 @@ static void Wb35Rx_reset_descriptor(struct hw_data *pHwData)
 	pWb35Rx->EP3vm_state = VM_STOP;
 	pWb35Rx->rx_halt = 0;
 
-	/* Initial the Queue. The last buffer is reserved for used if the Rx resource is unavailable. */
+	/* Initial the Queue. The last buffer is reserved for used
+	 * if the Rx resource is unavailable.
+	 */
 	for (i = 0; i < MAX_USB_RX_BUFFER_NUMBER; i++)
 		pWb35Rx->RxOwner[i] = 1;
 }
@@ -328,7 +336,8 @@ void Wb35Rx_stop(struct hw_data *pHwData)
 
 	/* Canceling the Irp if already sends it out. */
 	if (pWb35Rx->EP3vm_state == VM_RUNNING) {
-		usb_unlink_urb(pWb35Rx->RxUrb); /* Only use unlink, let Wb35Rx_destroy to free them */
+		/* Only use unlink, let Wb35Rx_destroy to free them */
+		usb_unlink_urb(pWb35Rx->RxUrb);
 		pr_debug("EP3 Rx stop\n");
 	}
 }

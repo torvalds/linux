@@ -110,6 +110,7 @@ config I2C_I801
 	    Wellsburg (PCH)
 	    Coleto Creek (PCH)
 	    Wildcat Point-LP (PCH)
+	    BayTrail (SOC)
 
 	  This driver can also be built as a module.  If so, the module
 	  will be called i2c-i801.
@@ -375,6 +376,13 @@ config I2C_BLACKFIN_TWI_CLK_KHZ
 	help
 	  The unit of the TWI clock is kHz.
 
+config I2C_CADENCE
+	tristate "Cadence I2C Controller"
+	depends on ARCH_ZYNQ
+	help
+	  Say yes here to select Cadence I2C Host Controller. This controller is
+	  e.g. used by Xilinx Zynq.
+
 config I2C_CBUS_GPIO
 	tristate "CBUS I2C driver"
 	depends on GPIOLIB
@@ -431,6 +439,13 @@ config I2C_DESIGNWARE_PCI
 
 	  This driver can also be built as a module.  If so, the module
 	  will be called i2c-designware-pci.
+
+config I2C_EFM32
+	tristate "EFM32 I2C controller"
+	depends on ARCH_EFM32 || COMPILE_TEST
+	help
+	  This driver supports the i2c block found in Energy Micro's EFM32
+	  SoCs.
 
 config I2C_EG20T
 	tristate "Intel EG20T PCH/LAPIS Semicon IOH(ML7213/ML7223/ML7831) I2C"
@@ -527,7 +542,7 @@ config I2C_MPC
 
 config I2C_MV64XXX
 	tristate "Marvell mv64xxx I2C Controller"
-	depends on (MV64X60 || PLAT_ORION || ARCH_SUNXI)
+	depends on MV64X60 || PLAT_ORION || ARCH_SUNXI
 	help
 	  If you say yes to this option, support will be included for the
 	  built-in I2C interface on the Marvell 64xxx line of host bridges.
@@ -647,6 +662,16 @@ config I2C_PXA_SLAVE
 	  Support I2C slave mode communications on the PXA I2C bus.  This
 	  is necessary for systems where the PXA may be a target on the
 	  I2C bus.
+
+config I2C_QUP
+	tristate "Qualcomm QUP based I2C controller"
+	depends on ARCH_QCOM
+	help
+	  If you say yes to this option, support will be included for the
+	  built-in I2C interface on the Qualcomm SoCs.
+
+	  This driver can also be built as a module.  If so, the module
+	  will be called i2c-qup.
 
 config I2C_RIIC
 	tristate "Renesas RIIC adapter"
@@ -936,7 +961,7 @@ config I2C_ACORN
 
 config I2C_ELEKTOR
 	tristate "Elektor ISA card"
-	depends on ISA && HAS_IOPORT && BROKEN_ON_SMP
+	depends on ISA && HAS_IOPORT_MAP && BROKEN_ON_SMP
 	select I2C_ALGOPCF
 	help
 	  This supports the PCF8584 ISA bus I2C adapter.  Say Y if you own

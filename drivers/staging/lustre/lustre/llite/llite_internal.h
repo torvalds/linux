@@ -296,13 +296,6 @@ int ll_xattr_cache_get(struct inode *inode,
 			size_t size,
 			__u64 valid);
 
-int ll_xattr_cache_update(struct inode *inode,
-			const char *name,
-			const char *newval,
-			size_t size,
-			__u64 valid,
-			int flags);
-
 /*
  * Locking to guarantee consistency of non-atomic updates to long long i_size,
  * consistency between file size and KMS.
@@ -532,7 +525,7 @@ struct ll_sb_info {
 	atomic_t		  ll_agl_total;  /* AGL thread started count */
 
 	dev_t		     ll_sdev_orig; /* save s_dev before assign for
-						 * clustred nfs */
+						 * clustered nfs */
 	struct rmtacl_ctl_table   ll_rct;
 	struct eacl_table	 ll_et;
 	__kernel_fsid_t		  ll_fsid;
@@ -782,7 +775,7 @@ int ll_local_open(struct file *file,
 int ll_release_openhandle(struct dentry *, struct lookup_intent *);
 int ll_md_close(struct obd_export *md_exp, struct inode *inode,
 		struct file *file);
-int ll_md_real_close(struct inode *inode, int flags);
+int ll_md_real_close(struct inode *inode, fmode_t fmode);
 void ll_ioepoch_close(struct inode *inode, struct md_op_data *op_data,
 		      struct obd_client_handle **och, unsigned long flags);
 void ll_done_writing_attr(struct inode *inode, struct md_op_data *op_data);
@@ -828,7 +821,7 @@ int ll_lease_close(struct obd_client_handle *och, struct inode *inode,
 
 /* llite/dcache.c */
 
-int ll_dops_init(struct dentry *de, int block, int init_sa);
+int ll_d_init(struct dentry *de);
 extern struct dentry_operations ll_d_ops;
 void ll_intent_drop_lock(struct lookup_intent *);
 void ll_intent_release(struct lookup_intent *);
@@ -915,12 +908,10 @@ struct ccc_object *cl_inode2ccc(struct inode *inode);
 void vvp_write_pending (struct ccc_object *club, struct ccc_page *page);
 void vvp_write_complete(struct ccc_object *club, struct ccc_page *page);
 
-/* specific achitecture can implement only part of this list */
+/* specific architecture can implement only part of this list */
 enum vvp_io_subtype {
 	/** normal IO */
 	IO_NORMAL,
-	/** io called from .sendfile */
-	IO_SENDFILE,
 	/** io started from splice_{read|write} */
 	IO_SPLICE
 };
@@ -931,10 +922,6 @@ struct vvp_io {
 	enum vvp_io_subtype    cui_io_subtype;
 
 	union {
-		struct {
-			read_actor_t      cui_actor;
-			void	     *cui_target;
-		} sendfile;
 		struct {
 			struct pipe_inode_info *cui_pipe;
 			unsigned int	    cui_flags;
@@ -981,7 +968,7 @@ struct vvp_io {
  * IO arguments for various VFS I/O interfaces.
  */
 struct vvp_io_args {
-	/** normal/sendfile/splice */
+	/** normal/splice */
 	enum vvp_io_subtype via_io_subtype;
 
 	union {
@@ -990,10 +977,6 @@ struct vvp_io_args {
 			struct iovec      *via_iov;
 			unsigned long      via_nrsegs;
 		} normal;
-		struct {
-			read_actor_t       via_actor;
-			void	      *via_target;
-		} sendfile;
 		struct {
 			struct pipe_inode_info  *via_pipe;
 			unsigned int       via_flags;
@@ -1320,12 +1303,13 @@ ll_statahead_mark(struct inode *dir, struct dentry *dentry)
 	if (lli->lli_opendir_pid != current_pid())
 		return;
 
-	if (sai != NULL && ldd != NULL)
+	LASSERT(ldd != NULL);
+	if (sai != NULL)
 		ldd->lld_sa_generation = sai->sai_generation;
 }
 
 static inline int
-ll_need_statahead(struct inode *dir, struct dentry *dentryp)
+d_need_statahead(struct inode *dir, struct dentry *dentryp)
 {
 	struct ll_inode_info  *lli;
 	struct ll_dentry_data *ldd;
@@ -1370,14 +1354,14 @@ ll_statahead_enter(struct inode *dir, struct dentry **dentryp, int only_unplug)
 {
 	int ret;
 
-	ret = ll_need_statahead(dir, *dentryp);
+	ret = d_need_statahead(dir, *dentryp);
 	if (ret <= 0)
 		return ret;
 
 	return do_statahead_enter(dir, dentryp, only_unplug);
 }
 
-/* llite ioctl register support rountine */
+/* llite ioctl register support routine */
 enum llioc_iter {
 	LLIOC_CONT = 0,
 	LLIOC_STOP
@@ -1389,7 +1373,7 @@ enum llioc_iter {
  * Rules to write a callback function:
  *
  * Parameters:
- *  @magic: Dynamic ioctl call routine will feed this vaule with the pointer
+ *  @magic: Dynamic ioctl call routine will feed this value with the pointer
  *      returned to ll_iocontrol_register.  Callback functions should use this
  *      data to check the potential collasion of ioctl cmd. If collasion is
  *      found, callback function should return LLIOC_CONT.
@@ -1414,7 +1398,7 @@ enum llioc_iter ll_iocontrol_call(struct inode *inode, struct file *file,
  * @cb: callback function, it will be called if an ioctl command is found to
  *      belong to the command list @cmd.
  *
- * Return vaule:
+ * Return value:
  *      A magic pointer will be returned if success;
  *      otherwise, NULL will be returned.
  * */
@@ -1524,7 +1508,7 @@ static inline void ll_set_lock_data(struct obd_export *exp, struct inode *inode,
 		 * separate locks in different namespaces, Master MDT,
 		 * where the name entry is, will grant LOOKUP lock,
 		 * remote MDT, where the object is, will grant
-		 * UPDATE|PERM lock. The inode will be attched to both
+		 * UPDATE|PERM lock. The inode will be attached to both
 		 * LOOKUP and PERM locks, so revoking either locks will
 		 * case the dcache being cleared */
 		if (it->d.lustre.it_remote_lock_mode) {

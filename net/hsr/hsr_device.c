@@ -209,7 +209,7 @@ static int slave_xmit(struct sk_buff *skb, struct hsr_priv *hsr_priv,
 	/* Address substitution (IEC62439-3 pp 26, 50): replace mac
 	 * address of outgoing frame with that of the outgoing slave's.
 	 */
-	memcpy(hsr_ethhdr->ethhdr.h_source, skb->dev->dev_addr, ETH_ALEN);
+	ether_addr_copy(hsr_ethhdr->ethhdr.h_source, skb->dev->dev_addr);
 
 	return dev_queue_xmit(skb);
 }
@@ -346,7 +346,7 @@ static void send_hsr_supervision_frame(struct net_device *hsr_dev, u8 type)
 
 	/* Payload: MacAddressA */
 	hsr_sp = (typeof(hsr_sp)) skb_put(skb, sizeof(*hsr_sp));
-	memcpy(hsr_sp->MacAddressA, hsr_dev->dev_addr, ETH_ALEN);
+	ether_addr_copy(hsr_sp->MacAddressA, hsr_dev->dev_addr);
 
 	dev_queue_xmit(skb);
 	return;
@@ -493,7 +493,7 @@ static int check_slave_ok(struct net_device *dev)
 
 
 /* Default multicast address for HSR Supervision frames */
-static const unsigned char def_multicast_addr[ETH_ALEN] = {
+static const unsigned char def_multicast_addr[ETH_ALEN] __aligned(2) = {
 	0x01, 0x15, 0x4e, 0x00, 0x01, 0x00
 };
 
@@ -519,7 +519,7 @@ int hsr_dev_finalize(struct net_device *hsr_dev, struct net_device *slave[2],
 	hsr_priv->announce_timer.function = hsr_announce;
 	hsr_priv->announce_timer.data = (unsigned long) hsr_priv;
 
-	memcpy(hsr_priv->sup_multicast_addr, def_multicast_addr, ETH_ALEN);
+	ether_addr_copy(hsr_priv->sup_multicast_addr, def_multicast_addr);
 	hsr_priv->sup_multicast_addr[ETH_ALEN - 1] = multicast_spec;
 
 /* FIXME: should I modify the value of these?
@@ -547,7 +547,7 @@ int hsr_dev_finalize(struct net_device *hsr_dev, struct net_device *slave[2],
 	hsr_dev->features |= NETIF_F_VLAN_CHALLENGED;
 
 	/* Set hsr_dev's MAC address to that of mac_slave1 */
-	memcpy(hsr_dev->dev_addr, hsr_priv->slave[0]->dev_addr, ETH_ALEN);
+	ether_addr_copy(hsr_dev->dev_addr, hsr_priv->slave[0]->dev_addr);
 
 	/* Set required header length */
 	for (i = 0; i < HSR_MAX_SLAVE; i++) {

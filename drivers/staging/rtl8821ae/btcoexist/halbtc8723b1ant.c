@@ -1950,7 +1950,7 @@ void halbtc8723b1ant_tdma_duration_adjust_for_acl(struct btc_coexist *btcoexist,
 		result = 0;
 		wait_count = 0;
 	} else {
-		/*accquire the BT TRx retry count from BT_Info byte2 */
+		/*acquire the BT TRx retry count from BT_Info byte2 */
 		retry_count = coex_sta->bt_retry_cnt;
 		bt_info_ext = coex_sta->bt_info_ext;
 		result = 0;

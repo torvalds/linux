@@ -61,12 +61,10 @@ void rtw_init_mlme_timer(struct adapter *padapter)
 
 void rtw_os_indicate_connect(struct adapter *adapter)
 {
-_func_enter_;
 	rtw_indicate_wx_assoc_event(adapter);
 	netif_carrier_on(adapter->pnetdev);
 	if (adapter->pid[2] != 0)
 		rtw_signal_process(adapter->pid[2], SIGALRM);
-_func_exit_;
 }
 
 void rtw_os_indicate_scan_done(struct adapter *padapter, bool aborted)
@@ -119,11 +117,9 @@ void rtw_reset_securitypriv(struct adapter *adapter)
 
 void rtw_os_indicate_disconnect(struct adapter *adapter)
 {
-_func_enter_;
 	netif_carrier_off(adapter->pnetdev); /*  Do it first for tx broadcast pkt after disconnection issue! */
 	rtw_indicate_wx_disassoc_event(adapter);
 	 rtw_reset_securitypriv(adapter);
-_func_exit_;
 }
 
 void rtw_report_sec_ie(struct adapter *adapter, u8 authmode, u8 *sec_ie)
@@ -132,7 +128,6 @@ void rtw_report_sec_ie(struct adapter *adapter, u8 authmode, u8 *sec_ie)
 	u8	*buff, *p, i;
 	union iwreq_data wrqu;
 
-_func_enter_;
 	RT_TRACE(_module_mlme_osdep_c_, _drv_info_,
 		 ("+rtw_report_sec_ie, authmode=%d\n", authmode));
 	buff = NULL;
@@ -141,7 +136,7 @@ _func_enter_;
 			 ("rtw_report_sec_ie, authmode=%d\n", authmode));
 		buff = rtw_malloc(IW_CUSTOM_MAX);
 		if (!buff)
-			goto exit;
+			return;
 		_rtw_memset(buff, 0, IW_CUSTOM_MAX);
 		p = buff;
 		p += sprintf(p, "ASSOCINFO(ReqIEs =");
@@ -157,8 +152,6 @@ _func_enter_;
 		wireless_send_event(adapter->pnetdev, IWEVCUSTOM, &wrqu, buff);
 		kfree(buff);
 	}
-exit:
-_func_exit_;
 }
 
 static void _survey_timer_hdl(void *FunctionContext)

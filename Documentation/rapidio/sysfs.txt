@@ -2,8 +2,8 @@
 
 ~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
 
-1. Device Subdirectories
-------------------------
+1. RapidIO Device Subdirectories
+--------------------------------
 
 For each RapidIO device, the RapidIO subsystem creates files in an individual
 subdirectory with the following name, /sys/bus/rapidio/devices/<device_name>.
@@ -25,8 +25,8 @@ seen by the enumerating host (destID = 1):
 NOTE: An enumerating or discovering endpoint does not create a sysfs entry for
 itself, this is why an endpoint with destID=1 is not shown in the list.
 
-2. Attributes Common for All Devices
-------------------------------------
+2. Attributes Common for All RapidIO Devices
+--------------------------------------------
 
 Each device subdirectory contains the following informational read-only files:
 
@@ -52,16 +52,16 @@ This attribute is similar in behavior to the "config" attribute of PCI devices
 and provides an access to the RapidIO device registers using standard file read
 and write operations.
 
-3. Endpoint Device Attributes
------------------------------
+3. RapidIO Endpoint Device Attributes
+-------------------------------------
 
 Currently Linux RapidIO subsystem does not create any endpoint specific sysfs
 attributes. It is possible that RapidIO master port drivers and endpoint device
 drivers will add their device-specific sysfs attributes but such attributes are
 outside the scope of this document.
 
-4. Switch Device Attributes
----------------------------
+4. RapidIO Switch Device Attributes
+-----------------------------------
 
 RapidIO switches have additional attributes in sysfs. RapidIO subsystem supports
 common and device-specific sysfs attributes for switches. Because switches are
@@ -106,3 +106,53 @@ attribute:
 	 for that controller always will be 0.
 	 To initiate RapidIO enumeration/discovery on all available mports
 	 a user must write '-1' (or RIO_MPORT_ANY) into this attribute file.
+
+
+6. RapidIO Bus Controllers/Ports
+--------------------------------
+
+On-chip RapidIO controllers and PCIe-to-RapidIO bridges (referenced as
+"Master Port" or "mport") are presented in sysfs as the special class of
+devices: "rapidio_port".
+
+The /sys/class/rapidio_port subdirectory contains individual subdirectories
+named as "rapidioN" where N = mport ID registered with RapidIO subsystem.
+
+NOTE: An mport ID is not a RapidIO destination ID assigned to a given local
+mport device.
+
+Each mport device subdirectory in addition to standard entries contains the
+following device-specific attributes:
+
+   port_destid - reports RapidIO destination ID assigned to the given RapidIO
+                 mport device. If value 0xFFFFFFFF is returned this means that
+                 no valid destination ID have been assigned to the mport (yet).
+                 Normally, before enumeration/discovery have been executed only
+                 fabric enumerating mports have a valid destination ID assigned
+                 to them using "hdid=..." rapidio module parameter.
+      sys_size - reports RapidIO common transport system size:
+                   0 = small (8-bit destination ID, max. 256 devices),
+                   1 = large (16-bit destination ID, max. 65536 devices).
+
+After enumeration or discovery was performed for a given mport device,
+the corresponding subdirectory will also contain subdirectories for each
+child RapidIO device connected to the mport. Naming conventions for RapidIO
+devices are described in Section 1 above.
+
+The example below shows mport device subdirectory with several child RapidIO
+devices attached to it.
+
+[rio@rapidio ~]$ ls /sys/class/rapidio_port/rapidio0/ -l
+total 0
+drwxr-xr-x 3 root root    0 Feb 11 15:10 00:e:0001
+drwxr-xr-x 3 root root    0 Feb 11 15:10 00:e:0004
+drwxr-xr-x 3 root root    0 Feb 11 15:10 00:e:0007
+drwxr-xr-x 3 root root    0 Feb 11 15:10 00:s:0002
+drwxr-xr-x 3 root root    0 Feb 11 15:10 00:s:0003
+drwxr-xr-x 3 root root    0 Feb 11 15:10 00:s:0005
+lrwxrwxrwx 1 root root    0 Feb 11 15:11 device -> ../../../0000:01:00.0
+-r--r--r-- 1 root root 4096 Feb 11 15:11 port_destid
+drwxr-xr-x 2 root root    0 Feb 11 15:11 power
+lrwxrwxrwx 1 root root    0 Feb 11 15:04 subsystem -> ../../../../../../class/rapidio_port
+-r--r--r-- 1 root root 4096 Feb 11 15:11 sys_size
+-rw-r--r-- 1 root root 4096 Feb 11 15:04 uevent

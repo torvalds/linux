@@ -323,7 +323,6 @@ enum omapdss_version {
 
 /* Board specific data */
 struct omap_dss_board_info {
-	int (*get_context_loss_count)(struct device *dev);
 	int num_devices;
 	struct omap_dss_device **devices;
 	struct omap_dss_device *default_device;
@@ -344,8 +343,8 @@ struct omap_video_timings {
 	u16 x_res;
 	/* Unit: pixels */
 	u16 y_res;
-	/* Unit: KHz */
-	u32 pixel_clock;
+	/* Unit: Hz */
+	u32 pixelclock;
 	/* Unit: pixel clocks */
 	u16 hsw;	/* Horizontal synchronization pulse width */
 	/* Unit: pixel clocks */
@@ -1018,5 +1017,19 @@ static inline bool omapdss_device_is_enabled(struct omap_dss_device *dssdev)
 {
 	return dssdev->state == OMAP_DSS_DISPLAY_ACTIVE;
 }
+
+struct device_node *
+omapdss_of_get_next_port(const struct device_node *parent,
+			 struct device_node *prev);
+
+struct device_node *
+omapdss_of_get_next_endpoint(const struct device_node *parent,
+			     struct device_node *prev);
+
+struct device_node *
+omapdss_of_get_first_endpoint(const struct device_node *parent);
+
+struct omap_dss_device *
+omapdss_of_find_source_for_first_ep(struct device_node *node);
 
 #endif

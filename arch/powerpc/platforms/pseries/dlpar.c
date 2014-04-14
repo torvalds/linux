@@ -11,7 +11,6 @@
  */
 
 #include <linux/kernel.h>
-#include <linux/kref.h>
 #include <linux/notifier.h>
 #include <linux/spinlock.h>
 #include <linux/cpu.h>
@@ -87,7 +86,6 @@ static struct device_node *dlpar_parse_cc_node(struct cc_workarea *ccwa,
 	}
 
 	of_node_set_flag(dn, OF_DYNAMIC);
-	kref_init(&dn->kref);
 
 	return dn;
 }

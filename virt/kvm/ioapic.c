@@ -50,7 +50,7 @@
 #else
 #define ioapic_debug(fmt, arg...)
 #endif
-static int ioapic_deliver(struct kvm_ioapic *vioapic, int irq,
+static int ioapic_service(struct kvm_ioapic *vioapic, int irq,
 		bool line_status);
 
 static unsigned long ioapic_read_indirect(struct kvm_ioapic *ioapic,
@@ -163,22 +163,66 @@ static bool rtc_irq_check_coalesced(struct kvm_ioapic *ioapic)
 	return false;
 }
 
-static int ioapic_service(struct kvm_ioapic *ioapic, unsigned int idx,
-		bool line_status)
+static int ioapic_set_irq(struct kvm_ioapic *ioapic, unsigned int irq,
+		int irq_level, bool line_status)
 {
-	union kvm_ioapic_redirect_entry *pent;
-	int injected = -1;
+	union kvm_ioapic_redirect_entry entry;
+	u32 mask = 1 << irq;
+	u32 old_irr;
+	int edge, ret;
 
-	pent = &ioapic->redirtbl[idx];
+	entry = ioapic->redirtbl[irq];
+	edge = (entry.fields.trig_mode == IOAPIC_EDGE_TRIG);
 
-	if (!pent->fields.mask) {
-		injected = ioapic_deliver(ioapic, idx, line_status);
-		if (injected && pent->fields.trig_mode == IOAPIC_LEVEL_TRIG)
-			pent->fields.remote_irr = 1;
+	if (!irq_level) {
+		ioapic->irr &= ~mask;
+		ret = 1;
+		goto out;
 	}
 
-	return injected;
+	/*
+	 * Return 0 for coalesced interrupts; for edge-triggered interrupts,
+	 * this only happens if a previous edge has not been delivered due
+	 * do masking.  For level interrupts, the remote_irr field tells
+	 * us if the interrupt is waiting for an EOI.
+	 *
+	 * RTC is special: it is edge-triggered, but userspace likes to know
+	 * if it has been already ack-ed via EOI because coalesced RTC
+	 * interrupts lead to time drift in Windows guests.  So we track
+	 * EOI manually for the RTC interrupt.
+	 */
+	if (irq == RTC_GSI && line_status &&
+		rtc_irq_check_coalesced(ioapic)) {
+		ret = 0;
+		goto out;
+	}
+
+	old_irr = ioapic->irr;
+	ioapic->irr |= mask;
+	if ((edge && old_irr == ioapic->irr) ||
+	    (!edge && entry.fields.remote_irr)) {
+		ret = 0;
+		goto out;
+	}
+
+	ret = ioapic_service(ioapic, irq, line_status);
+
+out:
+	trace_kvm_ioapic_set_irq(entry.bits, irq, ret == 0);
+	return ret;
 }
+
+static void kvm_ioapic_inject_all(struct kvm_ioapic *ioapic, unsigned long irr)
+{
+	u32 idx;
+
+	rtc_irq_eoi_tracking_reset(ioapic);
+	for_each_set_bit(idx, &irr, IOAPIC_NUM_PINS)
+		ioapic_set_irq(ioapic, idx, 1, true);
+
+	kvm_rtc_eoi_tracking_restore_all(ioapic);
+}
+
 
 static void update_handled_vectors(struct kvm_ioapic *ioapic)
 {
@@ -282,11 +326,14 @@ static void ioapic_write_indirect(struct kvm_ioapic *ioapic, u32 val)
 	}
 }
 
-static int ioapic_deliver(struct kvm_ioapic *ioapic, int irq, bool line_status)
+static int ioapic_service(struct kvm_ioapic *ioapic, int irq, bool line_status)
 {
 	union kvm_ioapic_redirect_entry *entry = &ioapic->redirtbl[irq];
 	struct kvm_lapic_irq irqe;
 	int ret;
+
+	if (entry->fields.mask)
+		return -1;
 
 	ioapic_debug("dest=%x dest_mode=%x delivery_mode=%x "
 		     "vector=%x trig_mode=%x\n",
@@ -302,6 +349,9 @@ static int ioapic_deliver(struct kvm_ioapic *ioapic, int irq, bool line_status)
 	irqe.level = 1;
 	irqe.shorthand = 0;
 
+	if (irqe.trig_mode == IOAPIC_EDGE_TRIG)
+		ioapic->irr &= ~(1 << irq);
+
 	if (irq == RTC_GSI && line_status) {
 		BUG_ON(ioapic->rtc_status.pending_eoi != 0);
 		ret = kvm_irq_delivery_to_apic(ioapic->kvm, NULL, &irqe,
@@ -310,45 +360,24 @@ static int ioapic_deliver(struct kvm_ioapic *ioapic, int irq, bool line_status)
 	} else
 		ret = kvm_irq_delivery_to_apic(ioapic->kvm, NULL, &irqe, NULL);
 
+	if (ret && irqe.trig_mode == IOAPIC_LEVEL_TRIG)
+		entry->fields.remote_irr = 1;
+
 	return ret;
 }
 
 int kvm_ioapic_set_irq(struct kvm_ioapic *ioapic, int irq, int irq_source_id,
 		       int level, bool line_status)
 {
-	u32 old_irr;
-	u32 mask = 1 << irq;
-	union kvm_ioapic_redirect_entry entry;
 	int ret, irq_level;
 
 	BUG_ON(irq < 0 || irq >= IOAPIC_NUM_PINS);
 
 	spin_lock(&ioapic->lock);
-	old_irr = ioapic->irr;
 	irq_level = __kvm_irq_line_state(&ioapic->irq_states[irq],
 					 irq_source_id, level);
-	entry = ioapic->redirtbl[irq];
-	irq_level ^= entry.fields.polarity;
-	if (!irq_level) {
-		ioapic->irr &= ~mask;
-		ret = 1;
-	} else {
-		int edge = (entry.fields.trig_mode == IOAPIC_EDGE_TRIG);
+	ret = ioapic_set_irq(ioapic, irq, irq_level, line_status);
 
-		if (irq == RTC_GSI && line_status &&
-			rtc_irq_check_coalesced(ioapic)) {
-			ret = 0; /* coalesced */
-			goto out;
-		}
-		ioapic->irr |= mask;
-		if ((edge && old_irr != ioapic->irr) ||
-		    (!edge && !entry.fields.remote_irr))
-			ret = ioapic_service(ioapic, irq, line_status);
-		else
-			ret = 0; /* report coalesced interrupt */
-	}
-out:
-	trace_kvm_ioapic_set_irq(entry.bits, irq, ret == 0);
 	spin_unlock(&ioapic->lock);
 
 	return ret;
@@ -394,7 +423,7 @@ static void __kvm_ioapic_update_eoi(struct kvm_vcpu *vcpu,
 
 		ASSERT(ent->fields.trig_mode == IOAPIC_LEVEL_TRIG);
 		ent->fields.remote_irr = 0;
-		if (!ent->fields.mask && (ioapic->irr & (1 << i)))
+		if (ioapic->irr & (1 << i))
 			ioapic_service(ioapic, i, false);
 	}
 }
@@ -595,9 +624,10 @@ int kvm_set_ioapic(struct kvm *kvm, struct kvm_ioapic_state *state)
 
 	spin_lock(&ioapic->lock);
 	memcpy(ioapic, state, sizeof(struct kvm_ioapic_state));
+	ioapic->irr = 0;
 	update_handled_vectors(ioapic);
 	kvm_vcpu_request_scan_ioapic(kvm);
-	kvm_rtc_eoi_tracking_restore_all(ioapic);
+	kvm_ioapic_inject_all(ioapic, state->irr);
 	spin_unlock(&ioapic->lock);
 	return 0;
 }

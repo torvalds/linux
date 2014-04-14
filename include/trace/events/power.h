@@ -407,8 +407,8 @@ DECLARE_EVENT_CLASS(dev_pm_qos_request,
 	TP_printk("device=%s type=%s new_value=%d",
 		  __get_str(name),
 		  __print_symbolic(__entry->type,
-			{ DEV_PM_QOS_LATENCY,	"DEV_PM_QOS_LATENCY" },
-			{ DEV_PM_QOS_FLAGS,	"DEV_PM_QOS_FLAGS" }),
+			{ DEV_PM_QOS_RESUME_LATENCY, "DEV_PM_QOS_RESUME_LATENCY" },
+			{ DEV_PM_QOS_FLAGS, "DEV_PM_QOS_FLAGS" }),
 		  __entry->new_value)
 );
 

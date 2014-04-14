@@ -40,7 +40,7 @@ struct panel_drv_data {
  * NEC PIX Clock Ratings
  * MIN:21.8MHz TYP:23.8MHz MAX:25.7MHz
  */
-#define LCD_PIXEL_CLOCK		23800
+#define LCD_PIXEL_CLOCK		23800000
 
 static const struct {
 	unsigned char addr;
@@ -69,7 +69,7 @@ static const struct {
 static const struct omap_video_timings nec_8048_panel_timings = {
 	.x_res		= LCD_XRES,
 	.y_res		= LCD_YRES,
-	.pixel_clock	= LCD_PIXEL_CLOCK,
+	.pixelclock	= LCD_PIXEL_CLOCK,
 	.hfp		= 6,
 	.hsw		= 1,
 	.hbp		= 4,

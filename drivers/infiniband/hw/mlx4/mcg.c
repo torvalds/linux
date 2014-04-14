@@ -215,8 +215,9 @@ static int send_mad_to_wire(struct mlx4_ib_demux_ctx *ctx, struct ib_mad *mad)
 	}
 	mlx4_ib_query_ah(dev->sm_ah[ctx->port - 1], &ah_attr);
 	spin_unlock(&dev->sm_lock);
-	return mlx4_ib_send_to_wire(dev, mlx4_master_func_num(dev->dev), ctx->port,
-				    IB_QPT_GSI, 0, 1, IB_QP1_QKEY, &ah_attr, mad);
+	return mlx4_ib_send_to_wire(dev, mlx4_master_func_num(dev->dev),
+				    ctx->port, IB_QPT_GSI, 0, 1, IB_QP1_QKEY,
+				    &ah_attr, NULL, mad);
 }
 
 static int send_mad_to_slave(int slave, struct mlx4_ib_demux_ctx *ctx,

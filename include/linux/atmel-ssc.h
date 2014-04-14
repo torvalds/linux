@@ -18,6 +18,7 @@ struct ssc_device {
 	struct clk		*clk;
 	int			user;
 	int			irq;
+	bool			clk_from_rk_pin;
 };
 
 struct ssc_device * __must_check ssc_request(unsigned int ssc_num);

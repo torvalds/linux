@@ -109,35 +109,13 @@ void pci_acpi_crs_quirks(void);
 /*--------------------------------------------------------------------------
                                   Dock Station
   -------------------------------------------------------------------------- */
-struct acpi_dock_ops {
-	acpi_notify_handler fixup;
-	acpi_notify_handler handler;
-	acpi_notify_handler uevent;
-};
 
 #ifdef CONFIG_ACPI_DOCK
-extern int is_dock_device(acpi_handle handle);
-extern int register_hotplug_dock_device(acpi_handle handle,
-					const struct acpi_dock_ops *ops,
-					void *context,
-					void (*init)(void *),
-					void (*release)(void *));
-extern void unregister_hotplug_dock_device(acpi_handle handle);
+extern int is_dock_device(struct acpi_device *adev);
 #else
-static inline int is_dock_device(acpi_handle handle)
+static inline int is_dock_device(struct acpi_device *adev)
 {
 	return 0;
-}
-static inline int register_hotplug_dock_device(acpi_handle handle,
-					       const struct acpi_dock_ops *ops,
-					       void *context,
-					       void (*init)(void *),
-					       void (*release)(void *))
-{
-	return -ENODEV;
-}
-static inline void unregister_hotplug_dock_device(acpi_handle handle)
-{
 }
 #endif /* CONFIG_ACPI_DOCK */
 

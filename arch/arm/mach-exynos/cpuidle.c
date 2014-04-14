@@ -14,6 +14,7 @@
 #include <linux/cpu_pm.h>
 #include <linux/io.h>
 #include <linux/export.h>
+#include <linux/module.h>
 #include <linux/time.h>
 #include <linux/platform_device.h>
 
@@ -26,7 +27,6 @@
 #include <plat/cpu.h>
 #include <plat/pm.h>
 
-#include <mach/pm-core.h>
 #include <mach/map.h>
 
 #include "common.h"
@@ -127,7 +127,7 @@ static int exynos4_enter_core0_aftr(struct cpuidle_device *dev,
 	/* Set value of power down register for aftr mode */
 	exynos_sys_powerdown_conf(SYS_AFTR);
 
-	__raw_writel(virt_to_phys(s3c_cpu_resume), REG_DIRECTGO_ADDR);
+	__raw_writel(virt_to_phys(exynos_cpu_resume), REG_DIRECTGO_ADDR);
 	__raw_writel(S5P_CHECK_AFTR, REG_DIRECTGO_FLAG);
 
 	save_cpu_arch_register();

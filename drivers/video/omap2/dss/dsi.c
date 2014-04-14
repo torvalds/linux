@@ -38,6 +38,8 @@
 #include <linux/slab.h>
 #include <linux/debugfs.h>
 #include <linux/pm_runtime.h>
+#include <linux/of.h>
+#include <linux/of_platform.h>
 
 #include <video/omapdss.h>
 #include <video/mipi_display.h>
@@ -385,6 +387,13 @@ struct dsi_packet_sent_handler_data {
 	struct platform_device *dsidev;
 	struct completion *completion;
 };
+
+struct dsi_module_id_data {
+	u32 address;
+	int id;
+};
+
+static const struct of_device_id dsi_of_match[];
 
 #ifdef DSI_PERF_MEASURE
 static bool dsi_perf;
@@ -1151,15 +1160,11 @@ static int dsi_regulator_init(struct platform_device *dsidev)
 	if (dsi->vdds_dsi_reg != NULL)
 		return 0;
 
-	vdds_dsi = devm_regulator_get(&dsi->pdev->dev, "vdds_dsi");
-
-	/* DT HACK: try VCXIO to make omapdss work for o4 sdp/panda */
-	if (IS_ERR(vdds_dsi))
-		vdds_dsi = devm_regulator_get(&dsi->pdev->dev, "VCXIO");
+	vdds_dsi = devm_regulator_get(&dsi->pdev->dev, "vdd");
 
 	if (IS_ERR(vdds_dsi)) {
 		if (PTR_ERR(vdds_dsi) != -EPROBE_DEFER)
-			DSSERR("can't get VDDS_DSI regulator\n");
+			DSSERR("can't get DSI VDD regulator\n");
 		return PTR_ERR(vdds_dsi);
 	}
 
@@ -4616,7 +4621,7 @@ static void print_dsi_vm(const char *str,
 
 static void print_dispc_vm(const char *str, const struct omap_video_timings *t)
 {
-	unsigned long pck = t->pixel_clock * 1000;
+	unsigned long pck = t->pixelclock;
 	int hact, bl, tot;
 
 	hact = t->x_res;
@@ -4656,7 +4661,7 @@ static void print_dsi_dispc_vm(const char *str,
 	dsi_hact = DIV_ROUND_UP(DIV_ROUND_UP(t->hact * t->bitspp, 8) + 6, t->ndl);
 	dsi_htot = t->hss + t->hsa + t->hse + t->hbp + dsi_hact + t->hfp;
 
-	vm.pixel_clock = pck / 1000;
+	vm.pixelclock = pck;
 	vm.hsw = div64_u64((u64)(t->hsa + t->hse) * pck, byteclk);
 	vm.hbp = div64_u64((u64)t->hbp * pck, byteclk);
 	vm.hfp = div64_u64((u64)t->hfp * pck, byteclk);
@@ -4678,7 +4683,7 @@ static bool dsi_cm_calc_dispc_cb(int lckd, int pckd, unsigned long lck,
 	ctx->dispc_cinfo.pck = pck;
 
 	*t = *ctx->config->timings;
-	t->pixel_clock = pck / 1000;
+	t->pixelclock = pck;
 	t->x_res = ctx->config->timings->x_res;
 	t->y_res = ctx->config->timings->y_res;
 	t->hsw = t->hfp = t->hbp = t->vsw = 1;
@@ -4732,7 +4737,7 @@ static bool dsi_cm_calc(struct dsi_data *dsi,
 	 * especially as we go to LP between each pixel packet due to HW
 	 * "feature". So let's just estimate very roughly and multiply by 1.5.
 	 */
-	pck = cfg->timings->pixel_clock * 1000;
+	pck = cfg->timings->pixelclock;
 	pck = pck * 3 / 2;
 	txbyteclk = pck * bitspp / 8 / ndl;
 
@@ -4909,7 +4914,7 @@ static bool dsi_vm_calc_blanking(struct dsi_clk_calc_ctx *ctx)
 
 	dispc_vm = &ctx->dispc_vm;
 	*dispc_vm = *req_vm;
-	dispc_vm->pixel_clock = dispc_pck / 1000;
+	dispc_vm->pixelclock = dispc_pck;
 
 	if (cfg->trans_mode == OMAP_DSS_DSI_PULSE_MODE) {
 		hsa = div64_u64((u64)req_vm->hsw * dispc_pck,
@@ -5031,9 +5036,9 @@ static bool dsi_vm_calc(struct dsi_data *dsi,
 	ctx->dsi_cinfo.clkin = clkin;
 
 	/* these limits should come from the panel driver */
-	ctx->req_pck_min = t->pixel_clock * 1000 - 1000;
-	ctx->req_pck_nom = t->pixel_clock * 1000;
-	ctx->req_pck_max = t->pixel_clock * 1000 + 1000;
+	ctx->req_pck_min = t->pixelclock - 1000;
+	ctx->req_pck_nom = t->pixelclock;
+	ctx->req_pck_max = t->pixelclock + 1000;
 
 	byteclk_min = div64_u64((u64)ctx->req_pck_min * bitspp, ndl * 8);
 	pll_min = max(cfg->hs_clk_min * 4, byteclk_min * 4 * 4);
@@ -5370,12 +5375,69 @@ static void dsi_uninit_output(struct platform_device *dsidev)
 	omapdss_unregister_output(out);
 }
 
+static int dsi_probe_of(struct platform_device *pdev)
+{
+	struct device_node *node = pdev->dev.of_node;
+	struct dsi_data *dsi = dsi_get_dsidrv_data(pdev);
+	struct property *prop;
+	u32 lane_arr[10];
+	int len, num_pins;
+	int r, i;
+	struct device_node *ep;
+	struct omap_dsi_pin_config pin_cfg;
+
+	ep = omapdss_of_get_first_endpoint(node);
+	if (!ep)
+		return 0;
+
+	prop = of_find_property(ep, "lanes", &len);
+	if (prop == NULL) {
+		dev_err(&pdev->dev, "failed to find lane data\n");
+		r = -EINVAL;
+		goto err;
+	}
+
+	num_pins = len / sizeof(u32);
+
+	if (num_pins < 4 || num_pins % 2 != 0 ||
+		num_pins > dsi->num_lanes_supported * 2) {
+		dev_err(&pdev->dev, "bad number of lanes\n");
+		r = -EINVAL;
+		goto err;
+	}
+
+	r = of_property_read_u32_array(ep, "lanes", lane_arr, num_pins);
+	if (r) {
+		dev_err(&pdev->dev, "failed to read lane data\n");
+		goto err;
+	}
+
+	pin_cfg.num_pins = num_pins;
+	for (i = 0; i < num_pins; ++i)
+		pin_cfg.pins[i] = (int)lane_arr[i];
+
+	r = dsi_configure_pins(&dsi->output, &pin_cfg);
+	if (r) {
+		dev_err(&pdev->dev, "failed to configure pins");
+		goto err;
+	}
+
+	of_node_put(ep);
+
+	return 0;
+
+err:
+	of_node_put(ep);
+	return r;
+}
+
 /* DSI1 HW IP initialisation */
 static int omap_dsihw_probe(struct platform_device *dsidev)
 {
 	u32 rev;
 	int r, i;
 	struct dsi_data *dsi;
+	struct resource *dsi_mem;
 	struct resource *res;
 	struct resource temp_res;
 
@@ -5383,7 +5445,6 @@ static int omap_dsihw_probe(struct platform_device *dsidev)
 	if (!dsi)
 		return -ENOMEM;
 
-	dsi->module_id = dsidev->id;
 	dsi->pdev = dsidev;
 	dev_set_drvdata(&dsidev->dev, dsi);
 
@@ -5420,6 +5481,8 @@ static int omap_dsihw_probe(struct platform_device *dsidev)
 		temp_res.end = temp_res.start + DSI_PROTO_SZ - 1;
 		res = &temp_res;
 	}
+
+	dsi_mem = res;
 
 	dsi->proto_base = devm_ioremap(&dsidev->dev, res->start,
 		resource_size(res));
@@ -5481,6 +5544,31 @@ static int omap_dsihw_probe(struct platform_device *dsidev)
 		return r;
 	}
 
+	if (dsidev->dev.of_node) {
+		const struct of_device_id *match;
+		const struct dsi_module_id_data *d;
+
+		match = of_match_node(dsi_of_match, dsidev->dev.of_node);
+		if (!match) {
+			DSSERR("unsupported DSI module\n");
+			return -ENODEV;
+		}
+
+		d = match->data;
+
+		while (d->address != 0 && d->address != dsi_mem->start)
+			d++;
+
+		if (d->address == 0) {
+			DSSERR("unsupported DSI module\n");
+			return -ENODEV;
+		}
+
+		dsi->module_id = d->id;
+	} else {
+		dsi->module_id = dsidev->id;
+	}
+
 	/* DSI VCs initialization */
 	for (i = 0; i < ARRAY_SIZE(dsi->vc); i++) {
 		dsi->vc[i].source = DSI_VC_SOURCE_L4;
@@ -5516,6 +5604,19 @@ static int omap_dsihw_probe(struct platform_device *dsidev)
 
 	dsi_init_output(dsidev);
 
+	if (dsidev->dev.of_node) {
+		r = dsi_probe_of(dsidev);
+		if (r) {
+			DSSERR("Invalid DSI DT data\n");
+			goto err_probe_of;
+		}
+
+		r = of_platform_populate(dsidev->dev.of_node, NULL, NULL,
+			&dsidev->dev);
+		if (r)
+			DSSERR("Failed to populate DSI child devices: %d\n", r);
+	}
+
 	dsi_runtime_put(dsidev);
 
 	if (dsi->module_id == 0)
@@ -5529,16 +5630,30 @@ static int omap_dsihw_probe(struct platform_device *dsidev)
 	else if (dsi->module_id == 1)
 		dss_debugfs_create_file("dsi2_irqs", dsi2_dump_irqs);
 #endif
+
 	return 0;
+
+err_probe_of:
+	dsi_uninit_output(dsidev);
+	dsi_runtime_put(dsidev);
 
 err_runtime_get:
 	pm_runtime_disable(&dsidev->dev);
 	return r;
 }
 
+static int dsi_unregister_child(struct device *dev, void *data)
+{
+	struct platform_device *pdev = to_platform_device(dev);
+	platform_device_unregister(pdev);
+	return 0;
+}
+
 static int __exit omap_dsihw_remove(struct platform_device *dsidev)
 {
 	struct dsi_data *dsi = dsi_get_dsidrv_data(dsidev);
+
+	device_for_each_child(&dsidev->dev, NULL, dsi_unregister_child);
 
 	WARN_ON(dsi->scp_clk_refcount > 0);
 
@@ -5577,6 +5692,23 @@ static const struct dev_pm_ops dsi_pm_ops = {
 	.runtime_resume = dsi_runtime_resume,
 };
 
+static const struct dsi_module_id_data dsi_of_data_omap3[] = {
+	{ .address = 0x4804fc00, .id = 0, },
+	{ },
+};
+
+static const struct dsi_module_id_data dsi_of_data_omap4[] = {
+	{ .address = 0x58004000, .id = 0, },
+	{ .address = 0x58005000, .id = 1, },
+	{ },
+};
+
+static const struct of_device_id dsi_of_match[] = {
+	{ .compatible = "ti,omap3-dsi", .data = dsi_of_data_omap3, },
+	{ .compatible = "ti,omap4-dsi", .data = dsi_of_data_omap4, },
+	{},
+};
+
 static struct platform_driver omap_dsihw_driver = {
 	.probe		= omap_dsihw_probe,
 	.remove         = __exit_p(omap_dsihw_remove),
@@ -5584,6 +5716,7 @@ static struct platform_driver omap_dsihw_driver = {
 		.name   = "omapdss_dsi",
 		.owner  = THIS_MODULE,
 		.pm	= &dsi_pm_ops,
+		.of_match_table = dsi_of_match,
 	},
 };
 

@@ -84,6 +84,7 @@ enum iwl_device_family {
 	IWL_DEVICE_FAMILY_6050,
 	IWL_DEVICE_FAMILY_6150,
 	IWL_DEVICE_FAMILY_7000,
+	IWL_DEVICE_FAMILY_8000,
 };
 
 /*
@@ -192,6 +193,15 @@ struct iwl_eeprom_params {
 	bool enhanced_txpower;
 };
 
+/* Tx-backoff power threshold
+ * @pwr: The power limit in mw
+ * @backoff: The tx-backoff in uSec
+ */
+struct iwl_pwr_tx_backoff {
+	u32 pwr;
+	u32 backoff;
+};
+
 /**
  * struct iwl_cfg
  * @name: Offical name of the device
@@ -217,6 +227,9 @@ struct iwl_eeprom_params {
  * @high_temp: Is this NIC is designated to be in high temperature.
  * @host_interrupt_operation_mode: device needs host interrupt operation
  *	mode set
+ * @d0i3: device uses d0i3 instead of d3
+ * @nvm_hw_section_num: the ID of the HW NVM section
+ * @pwr_tx_backoffs: translation table between power limits and backoffs
  *
  * We enable the driver to be backward compatible wrt. hardware features.
  * API differences in uCode shouldn't be handled here but through TLVs
@@ -247,6 +260,10 @@ struct iwl_cfg {
 	const bool internal_wimax_coex;
 	const bool host_interrupt_operation_mode;
 	bool high_temp;
+	bool d0i3;
+	u8   nvm_hw_section_num;
+	bool lp_xtal_workaround;
+	const struct iwl_pwr_tx_backoff *pwr_tx_backoffs;
 };
 
 /*
@@ -307,6 +324,8 @@ extern const struct iwl_cfg iwl3160_n_cfg;
 extern const struct iwl_cfg iwl7265_2ac_cfg;
 extern const struct iwl_cfg iwl7265_2n_cfg;
 extern const struct iwl_cfg iwl7265_n_cfg;
+extern const struct iwl_cfg iwl8260_2ac_cfg;
+extern const struct iwl_cfg iwl8260_n_cfg;
 #endif /* CONFIG_IWLMVM */
 
 #endif /* __IWL_CONFIG_H__ */

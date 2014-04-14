@@ -123,7 +123,7 @@ static inline int snd_seq_write_pool_allocated(struct snd_seq_client *client)
 static struct snd_seq_client *clientptr(int clientid)
 {
 	if (clientid < 0 || clientid >= SNDRV_SEQ_MAX_CLIENTS) {
-		snd_printd("Seq: oops. Trying to get pointer to client %d\n",
+		pr_debug("ALSA: seq: oops. Trying to get pointer to client %d\n",
 			   clientid);
 		return NULL;
 	}
@@ -136,7 +136,7 @@ struct snd_seq_client *snd_seq_client_use_ptr(int clientid)
 	struct snd_seq_client *client;
 
 	if (clientid < 0 || clientid >= SNDRV_SEQ_MAX_CLIENTS) {
-		snd_printd("Seq: oops. Trying to get pointer to client %d\n",
+		pr_debug("ALSA: seq: oops. Trying to get pointer to client %d\n",
 			   clientid);
 		return NULL;
 	}
@@ -291,8 +291,8 @@ static void seq_free_client(struct snd_seq_client * client)
 	mutex_lock(&register_mutex);
 	switch (client->type) {
 	case NO_CLIENT:
-		snd_printk(KERN_WARNING "Seq: Trying to free unused client %d\n",
-			   client->number);
+		pr_warn("ALSA: seq: Trying to free unused client %d\n",
+			client->number);
 		break;
 	case USER_CLIENT:
 	case KERNEL_CLIENT:
@@ -301,7 +301,7 @@ static void seq_free_client(struct snd_seq_client * client)
 		break;
 
 	default:
-		snd_printk(KERN_ERR "Seq: Trying to free client %d with undefined type = %d\n",
+		pr_err("ALSA: seq: Trying to free client %d with undefined type = %d\n",
 			   client->number, client->type);
 	}
 	mutex_unlock(&register_mutex);
@@ -773,7 +773,7 @@ static int broadcast_event(struct snd_seq_client *client,
 static int multicast_event(struct snd_seq_client *client, struct snd_seq_event *event,
 			   int atomic, int hop)
 {
-	snd_printd("seq: multicast not supported yet.\n");
+	pr_debug("ALSA: seq: multicast not supported yet.\n");
 	return 0; /* ignored */
 }
 #endif /* SUPPORT_BROADCAST */
@@ -794,7 +794,7 @@ static int snd_seq_deliver_event(struct snd_seq_client *client, struct snd_seq_e
 
 	hop++;
 	if (hop >= SNDRV_SEQ_MAX_HOPS) {
-		snd_printd("too long delivery path (%d:%d->%d:%d)\n",
+		pr_debug("ALSA: seq: too long delivery path (%d:%d->%d:%d)\n",
 			   event->source.client, event->source.port,
 			   event->dest.client, event->dest.port);
 		return -EMLINK;
@@ -2196,7 +2196,7 @@ static int snd_seq_do_ioctl(struct snd_seq_client *client, unsigned int cmd,
 		if (p->cmd == cmd)
 			return p->func(client, arg);
 	}
-	snd_printd("seq unknown ioctl() 0x%x (type='%c', number=0x%02x)\n",
+	pr_debug("ALSA: seq unknown ioctl() 0x%x (type='%c', number=0x%02x)\n",
 		   cmd, _IOC_TYPE(cmd), _IOC_NR(cmd));
 	return -ENOTTY;
 }

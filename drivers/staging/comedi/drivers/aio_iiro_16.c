@@ -98,7 +98,7 @@ static int aio_iiro_16_attach(struct comedi_device *dev,
 	s->range_table = &range_digital;
 	s->insn_bits = aio_iiro_16_dio_insn_bits_read;
 
-	return 1;
+	return 0;
 }
 
 static struct comedi_driver aio_iiro_16_driver = {

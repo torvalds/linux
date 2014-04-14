@@ -111,8 +111,14 @@ Before jumping into the kernel, the following conditions must be met:
 - Caches, MMUs
   The MMU must be off.
   Instruction cache may be on or off.
-  Data cache must be off and invalidated.
-  External caches (if present) must be configured and disabled.
+  The address range corresponding to the loaded kernel image must be
+  cleaned to the PoC. In the presence of a system cache or other
+  coherent masters with caches enabled, this will typically require
+  cache maintenance by VA rather than set/way operations.
+  System caches which respect the architected cache maintenance by VA
+  operations must be configured and may be enabled.
+  System caches which do not respect architected cache maintenance by VA
+  operations (not recommended) must be configured and disabled.
 
 - Architected timers
   CNTFRQ must be programmed with the timer frequency and CNTVOFF must

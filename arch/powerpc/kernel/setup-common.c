@@ -76,6 +76,9 @@ EXPORT_SYMBOL(ppc_md);
 struct machdep_calls *machine_id;
 EXPORT_SYMBOL(machine_id);
 
+int boot_cpuid = -1;
+EXPORT_SYMBOL_GPL(boot_cpuid);
+
 unsigned long klimit = (unsigned long) _end;
 
 char cmd_line[COMMAND_LINE_SIZE];

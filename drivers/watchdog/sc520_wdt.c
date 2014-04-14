@@ -158,12 +158,11 @@ static void wdt_timer_ping(unsigned long data)
 
 static void wdt_config(int writeval)
 {
-	__u16 dummy;
 	unsigned long flags;
 
 	/* buy some time (ping) */
 	spin_lock_irqsave(&wdt_spinlock, flags);
-	dummy = readw(wdtmrctl);	/* ensure write synchronization */
+	readw(wdtmrctl);	/* ensure write synchronization */
 	writew(0xAAAA, wdtmrctl);
 	writew(0x5555, wdtmrctl);
 	/* unlock WDT = make WDT configuration register writable one time */

@@ -2336,7 +2336,8 @@ ksocknal_base_shutdown(void)
 			       "waiting for %d threads to terminate\n",
 				ksocknal_data.ksnd_nthreads);
 			read_unlock(&ksocknal_data.ksnd_global_lock);
-			cfs_pause(cfs_time_seconds(1));
+			set_current_state(TASK_UNINTERRUPTIBLE);
+			schedule_timeout(cfs_time_seconds(1));
 			read_lock(&ksocknal_data.ksnd_global_lock);
 		}
 		read_unlock(&ksocknal_data.ksnd_global_lock);
@@ -2584,7 +2585,8 @@ ksocknal_shutdown (lnet_ni_t *ni)
 		CDEBUG(((i & (-i)) == i) ? D_WARNING : D_NET, /* power of 2? */
 		       "waiting for %d peers to disconnect\n",
 		       net->ksnn_npeers);
-		cfs_pause(cfs_time_seconds(1));
+		set_current_state(TASK_UNINTERRUPTIBLE);
+		schedule_timeout(cfs_time_seconds(1));
 
 		ksocknal_debug_peerhash(ni);
 

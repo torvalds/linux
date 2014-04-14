@@ -1,7 +1,7 @@
 /*******************************************************************************
 
   Intel 82599 Virtual Function driver
-  Copyright(c) 1999 - 2012 Intel Corporation.
+  Copyright(c) 1999 - 2014 Intel Corporation.
 
   This program is free software; you can redistribute it and/or modify it
   under the terms and conditions of the GNU General Public License,
@@ -315,6 +315,11 @@ static inline u16 ixgbevf_desc_unused(struct ixgbevf_ring *ring)
 	return ((ntc > ntu) ? 0 : ring->count) + ntc - ntu - 1;
 }
 
+static inline void ixgbevf_write_tail(struct ixgbevf_ring *ring, u32 value)
+{
+	writel(value, ring->tail);
+}
+
 #define IXGBEVF_RX_DESC(R, i)	    \
 	(&(((union ixgbe_adv_rx_desc *)((R)->desc))[i]))
 #define IXGBEVF_TX_DESC(R, i)	    \
@@ -401,6 +406,7 @@ struct ixgbevf_adapter {
 	u64 bp_tx_missed;
 #endif
 
+	u8 __iomem *io_addr; /* Mainly for iounmap use */
 	u32 link_speed;
 	bool link_up;
 
@@ -412,7 +418,10 @@ struct ixgbevf_adapter {
 enum ixbgevf_state_t {
 	__IXGBEVF_TESTING,
 	__IXGBEVF_RESETTING,
-	__IXGBEVF_DOWN
+	__IXGBEVF_DOWN,
+	__IXGBEVF_DISABLED,
+	__IXGBEVF_REMOVING,
+	__IXGBEVF_WORK_INIT,
 };
 
 struct ixgbevf_cb {

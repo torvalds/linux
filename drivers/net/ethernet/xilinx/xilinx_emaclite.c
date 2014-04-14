@@ -795,18 +795,6 @@ static int xemaclite_mdio_write(struct mii_bus *bus, int phy_id, int reg,
 }
 
 /**
- * xemaclite_mdio_reset - Reset the mdio bus.
- * @bus:	Pointer to the MII bus
- *
- * This function is required(?) as per Documentation/networking/phy.txt.
- * There is no reset in this device; this function always returns 0.
- */
-static int xemaclite_mdio_reset(struct mii_bus *bus)
-{
-	return 0;
-}
-
-/**
  * xemaclite_mdio_setup - Register mii_bus for the Emaclite device
  * @lp:		Pointer to the Emaclite device private data
  * @ofdev:	Pointer to OF device structure
@@ -861,7 +849,6 @@ static int xemaclite_mdio_setup(struct net_local *lp, struct device *dev)
 	bus->name = "Xilinx Emaclite MDIO";
 	bus->read = xemaclite_mdio_read;
 	bus->write = xemaclite_mdio_write;
-	bus->reset = xemaclite_mdio_reset;
 	bus->parent = dev;
 	bus->irq = lp->mdio_irqs; /* preallocated IRQ table */
 
@@ -1037,7 +1024,7 @@ static int xemaclite_send(struct sk_buff *orig_skb, struct net_device *dev)
 	skb_tx_timestamp(new_skb);
 
 	dev->stats.tx_bytes += len;
-	dev_kfree_skb(new_skb);
+	dev_consume_skb_any(new_skb);
 
 	return 0;
 }

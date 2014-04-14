@@ -225,8 +225,10 @@ static int pcm3724_attach(struct comedi_device *dev,
 
 	for (i = 0; i < dev->n_subdevices; i++) {
 		s = &dev->subdevices[i];
-		subdev_8255_init(dev, s, subdev_8255_cb,
-				 (unsigned long)(dev->iobase + SIZE_8255 * i));
+		ret = subdev_8255_init(dev, s, subdev_8255_cb,
+				       dev->iobase + SIZE_8255 * i);
+		if (ret)
+			return ret;
 		s->insn_config = subdev_3724_insn_config;
 	}
 	return 0;

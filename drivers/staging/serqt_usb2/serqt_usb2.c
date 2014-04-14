@@ -724,7 +724,7 @@ static int qt_startup(struct usb_serial *serial)
 		goto startup_error;
 	}
 
-	switch (serial->dev->descriptor.idProduct) {
+	switch (le16_to_cpu(serial->dev->descriptor.idProduct)) {
 	case QUATECH_DSU100:
 	case QUATECH_QSU100:
 	case QUATECH_ESU100A:
@@ -762,7 +762,9 @@ static int qt_startup(struct usb_serial *serial)
 
 	}
 
-	status = box_set_prebuffer_level(serial);	/* sets to default value */
+	status = box_set_prebuffer_level(serial);	/* sets to
+							 * default value
+							 */
 	if (status < 0) {
 		dev_dbg(dev, "box_set_prebuffer_level failed\n");
 		goto startup_error;
@@ -887,7 +889,8 @@ static int qt_open(struct tty_struct *tty,
 	    (SERIAL_MSR_CTS | SERIAL_MSR_DSR | SERIAL_MSR_RI | SERIAL_MSR_CD);
 
 	/* Set Baud rate to default and turn off (default)flow control here */
-	result = qt_setuart(serial, port->port_number, DEFAULT_DIVISOR, DEFAULT_LCR);
+	result = qt_setuart(serial, port->port_number, DEFAULT_DIVISOR,
+			DEFAULT_LCR);
 	if (result < 0) {
 		dev_dbg(&port->dev, "qt_setuart failed\n");
 		return result;
@@ -1014,11 +1017,13 @@ static void qt_close(struct usb_serial_port *port)
 	/* Close uart channel */
 	status = qt_close_channel(serial, index);
 	if (status < 0)
-		dev_dbg(&port->dev, "%s - qt_close_channel failed.\n", __func__);
+		dev_dbg(&port->dev, "%s - qt_close_channel failed.\n",
+			__func__);
 
 	port0->open_ports--;
 
-	dev_dbg(&port->dev, "qt_num_open_ports in close%d\n", port0->open_ports);
+	dev_dbg(&port->dev, "qt_num_open_ports in close%d\n",
+		port0->open_ports);
 
 	if (port0->open_ports == 0) {
 		if (serial->port[0]->interrupt_in_urb) {
@@ -1235,7 +1240,8 @@ static void qt_set_termios(struct tty_struct *tty,
 
 	/* Now determine flow control */
 	if (cflag & CRTSCTS) {
-		dev_dbg(&port->dev, "%s - Enabling HW flow control\n", __func__);
+		dev_dbg(&port->dev, "%s - Enabling HW flow control\n",
+			__func__);
 
 		/* Enable RTS/CTS flow control */
 		status = box_set_hw_flow_ctrl(port->serial, index, 1);

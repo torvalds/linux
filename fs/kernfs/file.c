@@ -252,9 +252,17 @@ static ssize_t kernfs_fop_write(struct file *file, const char __user *user_buf,
 				size_t count, loff_t *ppos)
 {
 	struct kernfs_open_file *of = kernfs_of(file);
-	ssize_t len = min_t(size_t, count, PAGE_SIZE);
 	const struct kernfs_ops *ops;
+	size_t len;
 	char *buf;
+
+	if (of->atomic_write_len) {
+		len = count;
+		if (len > of->atomic_write_len)
+			return -E2BIG;
+	} else {
+		len = min_t(size_t, count, PAGE_SIZE);
+	}
 
 	buf = kmalloc(len + 1, GFP_KERNEL);
 	if (!buf)
@@ -653,6 +661,12 @@ static int kernfs_fop_open(struct inode *inode, struct file *file)
 	of->file = file;
 
 	/*
+	 * Write path needs to atomic_write_len outside active reference.
+	 * Cache it in open_file.  See kernfs_fop_write() for details.
+	 */
+	of->atomic_write_len = ops->atomic_write_len;
+
+	/*
 	 * Always instantiate seq_file even if read access doesn't use
 	 * seq_file or is not requested.  This unifies private data access
 	 * and readable regular files are the vast majority anyway.
@@ -820,7 +834,6 @@ struct kernfs_node *__kernfs_create_file(struct kernfs_node *parent,
 					 bool name_is_static,
 					 struct lock_class_key *key)
 {
-	struct kernfs_addrm_cxt acxt;
 	struct kernfs_node *kn;
 	unsigned flags;
 	int rc;
@@ -855,10 +868,7 @@ struct kernfs_node *__kernfs_create_file(struct kernfs_node *parent,
 	if (ops->mmap)
 		kn->flags |= KERNFS_HAS_MMAP;
 
-	kernfs_addrm_start(&acxt);
-	rc = kernfs_add_one(&acxt, kn);
-	kernfs_addrm_finish(&acxt);
-
+	rc = kernfs_add_one(kn);
 	if (rc) {
 		kernfs_put(kn);
 		return ERR_PTR(rc);

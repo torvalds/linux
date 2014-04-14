@@ -327,12 +327,6 @@ enum drbd_state_rv {
 	SS_AFTER_LAST_ERROR = -22,    /* Keep this at bottom */
 };
 
-/* from drbd_strings.c */
-extern const char *drbd_conn_str(enum drbd_conns);
-extern const char *drbd_role_str(enum drbd_role);
-extern const char *drbd_disk_str(enum drbd_disk_state);
-extern const char *drbd_set_st_err_str(enum drbd_state_rv);
-
 #define SHARED_SECRET_MAX 64
 
 #define MDF_CONSISTENT		(1 << 0)
@@ -381,5 +375,7 @@ enum drbd_timeout_flag {
 #define DRBD_MD_INDEX_INTERNAL -1
 #define DRBD_MD_INDEX_FLEX_EXT -2
 #define DRBD_MD_INDEX_FLEX_INT -3
+
+#define DRBD_CPU_MASK_SIZE 32
 
 #endif

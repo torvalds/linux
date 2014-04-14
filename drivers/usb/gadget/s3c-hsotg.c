@@ -617,7 +617,7 @@ static int s3c_hsotg_write_fifo(struct s3c_hsotg *hsotg,
 	to_write = DIV_ROUND_UP(to_write, 4);
 	data = hs_req->req.buf + buf_pos;
 
-	writesl(hsotg->regs + EPFIFO(hs_ep->index), data, to_write);
+	iowrite32_rep(hsotg->regs + EPFIFO(hs_ep->index), data, to_write);
 
 	return (to_write >= can_write) ? -ENOSPC : 0;
 }
@@ -720,8 +720,8 @@ static void s3c_hsotg_start_req(struct s3c_hsotg *hsotg,
 		ureq->length, ureq->actual);
 	if (0)
 		dev_dbg(hsotg->dev,
-			"REQ buf %p len %d dma 0x%08x noi=%d zp=%d snok=%d\n",
-			ureq->buf, length, ureq->dma,
+			"REQ buf %p len %d dma 0x%pad noi=%d zp=%d snok=%d\n",
+			ureq->buf, length, &ureq->dma,
 			ureq->no_interrupt, ureq->zero, ureq->short_not_ok);
 
 	maxreq = get_ep_limit(hs_ep);
@@ -789,8 +789,8 @@ static void s3c_hsotg_start_req(struct s3c_hsotg *hsotg,
 		dma_reg = dir_in ? DIEPDMA(index) : DOEPDMA(index);
 		writel(ureq->dma, hsotg->regs + dma_reg);
 
-		dev_dbg(hsotg->dev, "%s: 0x%08x => 0x%08x\n",
-			__func__, ureq->dma, dma_reg);
+		dev_dbg(hsotg->dev, "%s: 0x%pad => 0x%08x\n",
+			__func__, &ureq->dma, dma_reg);
 	}
 
 	ctrl |= DxEPCTL_EPEna;	/* ensure ep enabled */
@@ -1186,6 +1186,41 @@ static void s3c_hsotg_enqueue_setup(struct s3c_hsotg *hsotg);
 static void s3c_hsotg_disconnect(struct s3c_hsotg *hsotg);
 
 /**
+ * s3c_hsotg_stall_ep0 - stall ep0
+ * @hsotg: The device state
+ *
+ * Set stall for ep0 as response for setup request.
+ */
+static void s3c_hsotg_stall_ep0(struct s3c_hsotg *hsotg) {
+	struct s3c_hsotg_ep *ep0 = &hsotg->eps[0];
+	u32 reg;
+	u32 ctrl;
+
+	dev_dbg(hsotg->dev, "ep0 stall (dir=%d)\n", ep0->dir_in);
+	reg = (ep0->dir_in) ? DIEPCTL0 : DOEPCTL0;
+
+	/*
+	 * DxEPCTL_Stall will be cleared by EP once it has
+	 * taken effect, so no need to clear later.
+	 */
+
+	ctrl = readl(hsotg->regs + reg);
+	ctrl |= DxEPCTL_Stall;
+	ctrl |= DxEPCTL_CNAK;
+	writel(ctrl, hsotg->regs + reg);
+
+	dev_dbg(hsotg->dev,
+		"written DxEPCTL=0x%08x to %08x (DxEPCTL=0x%08x)\n",
+		ctrl, reg, readl(hsotg->regs + reg));
+
+	 /*
+	  * complete won't be called, so we enqueue
+	  * setup request here
+	  */
+	 s3c_hsotg_enqueue_setup(hsotg);
+}
+
+/**
  * s3c_hsotg_process_control - process a control request
  * @hsotg: The device state
  * @ctrl: The control request received
@@ -1262,38 +1297,8 @@ static void s3c_hsotg_process_control(struct s3c_hsotg *hsotg,
 	 * so respond with a STALL for the status stage to indicate failure.
 	 */
 
-	if (ret < 0) {
-		u32 reg;
-		u32 ctrl;
-
-		dev_dbg(hsotg->dev, "ep0 stall (dir=%d)\n", ep0->dir_in);
-		reg = (ep0->dir_in) ? DIEPCTL0 : DOEPCTL0;
-
-		/*
-		 * DxEPCTL_Stall will be cleared by EP once it has
-		 * taken effect, so no need to clear later.
-		 */
-
-		ctrl = readl(hsotg->regs + reg);
-		ctrl |= DxEPCTL_Stall;
-		ctrl |= DxEPCTL_CNAK;
-		writel(ctrl, hsotg->regs + reg);
-
-		dev_dbg(hsotg->dev,
-			"written DxEPCTL=0x%08x to %08x (DxEPCTL=0x%08x)\n",
-			ctrl, reg, readl(hsotg->regs + reg));
-
-		/*
-		 * don't believe we need to anything more to get the EP
-		 * to reply with a STALL packet
-		 */
-
-		 /*
-		  * complete won't be called, so we enqueue
-		  * setup request here
-		  */
-		 s3c_hsotg_enqueue_setup(hsotg);
-	}
+	if (ret < 0)
+		s3c_hsotg_stall_ep0(hsotg);
 }
 
 /**
@@ -1488,7 +1493,7 @@ static void s3c_hsotg_rx_data(struct s3c_hsotg *hsotg, int ep_idx, int size)
 	 * note, we might over-write the buffer end by 3 bytes depending on
 	 * alignment of the data.
 	 */
-	readsl(fifo, hs_req->req.buf + read_ptr, to_read);
+	ioread32_rep(fifo, hs_req->req.buf + read_ptr, to_read);
 }
 
 /**
@@ -2832,6 +2837,15 @@ static int s3c_hsotg_ep_sethalt(struct usb_ep *ep, int value)
 
 	dev_info(hs->dev, "%s(ep %p %s, %d)\n", __func__, ep, ep->name, value);
 
+	if (index == 0) {
+		if (value)
+			s3c_hsotg_stall_ep0(hs);
+		else
+			dev_warn(hs->dev,
+				 "%s: can't clear halt on ep0\n", __func__);
+		return 0;
+	}
+
 	/* write both IN and OUT control registers */
 
 	epreg = DIEPCTL(index);
@@ -3760,10 +3774,55 @@ static int s3c_hsotg_remove(struct platform_device *pdev)
 	return 0;
 }
 
-#if 1
-#define s3c_hsotg_suspend NULL
-#define s3c_hsotg_resume NULL
-#endif
+static int s3c_hsotg_suspend(struct platform_device *pdev, pm_message_t state)
+{
+	struct s3c_hsotg *hsotg = platform_get_drvdata(pdev);
+	unsigned long flags;
+	int ret = 0;
+
+	if (hsotg->driver)
+		dev_info(hsotg->dev, "suspending usb gadget %s\n",
+			 hsotg->driver->driver.name);
+
+	spin_lock_irqsave(&hsotg->lock, flags);
+	s3c_hsotg_disconnect(hsotg);
+	s3c_hsotg_phy_disable(hsotg);
+	hsotg->gadget.speed = USB_SPEED_UNKNOWN;
+	spin_unlock_irqrestore(&hsotg->lock, flags);
+
+	if (hsotg->driver) {
+		int ep;
+		for (ep = 0; ep < hsotg->num_of_eps; ep++)
+			s3c_hsotg_ep_disable(&hsotg->eps[ep].ep);
+
+		ret = regulator_bulk_disable(ARRAY_SIZE(hsotg->supplies),
+					     hsotg->supplies);
+	}
+
+	return ret;
+}
+
+static int s3c_hsotg_resume(struct platform_device *pdev)
+{
+	struct s3c_hsotg *hsotg = platform_get_drvdata(pdev);
+	unsigned long flags;
+	int ret = 0;
+
+	if (hsotg->driver) {
+		dev_info(hsotg->dev, "resuming usb gadget %s\n",
+			 hsotg->driver->driver.name);
+		ret = regulator_bulk_enable(ARRAY_SIZE(hsotg->supplies),
+				      hsotg->supplies);
+	}
+
+	spin_lock_irqsave(&hsotg->lock, flags);
+	hsotg->last_rst = jiffies;
+	s3c_hsotg_phy_enable(hsotg);
+	s3c_hsotg_core_init(hsotg);
+	spin_unlock_irqrestore(&hsotg->lock, flags);
+
+	return ret;
+}
 
 #ifdef CONFIG_OF
 static const struct of_device_id s3c_hsotg_of_ids[] = {

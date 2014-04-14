@@ -40,8 +40,6 @@
 
 #include "internal.h"
 
-#define PREFIX "ACPI: "
-
 ACPI_MODULE_NAME("video");
 #define _COMPONENT		ACPI_VIDEO_COMPONENT
 

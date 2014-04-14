@@ -270,6 +270,7 @@ static int kvaser_pci_add_chan(struct pci_dev *pdev, int channel,
 		 priv->reg_base, board->conf_addr, dev->irq);
 
 	SET_NETDEV_DEV(dev, &pdev->dev);
+	dev->dev_id = channel;
 
 	/* Register SJA1000 device */
 	err = register_sja1000dev(dev);

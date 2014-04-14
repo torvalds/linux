@@ -30,9 +30,12 @@
 #include <linux/platform_device.h>
 #include <linux/dma-mapping.h>
 #include <linux/io.h>
+#include <linux/lcd.h>
 #include <linux/math64.h>
 #include <linux/of.h>
 #include <linux/of_device.h>
+
+#include <linux/regulator/consumer.h>
 
 #include <video/of_display_timing.h>
 #include <video/of_videomode.h>
@@ -44,12 +47,6 @@
  * Complain if VAR is out of range.
  */
 #define DEBUG_VAR 1
-
-#if defined(CONFIG_BACKLIGHT_CLASS_DEVICE) || \
-	(defined(CONFIG_BACKLIGHT_CLASS_DEVICE_MODULE) && \
-		defined(CONFIG_FB_IMX_MODULE))
-#define PWMR_BACKLIGHT_AVAILABLE
-#endif
 
 #define DRIVER_NAME "imx-fb"
 
@@ -153,11 +150,8 @@ struct imxfb_info {
 	 * the framebuffer memory region to.
 	 */
 	dma_addr_t		map_dma;
-	u_char			*map_cpu;
 	u_int			map_size;
 
-	u_char			*screen_cpu;
-	dma_addr_t		screen_dma;
 	u_int			palette_size;
 
 	dma_addr_t		dbar1;
@@ -167,18 +161,13 @@ struct imxfb_info {
 	u_int			pwmr;
 	u_int			lscr1;
 	u_int			dmacr;
-	u_int			cmap_inverse:1,
-				cmap_static:1,
-				unused:30;
+	bool			cmap_inverse;
+	bool			cmap_static;
 
 	struct imx_fb_videomode *mode;
 	int			num_modes;
-#ifdef PWMR_BACKLIGHT_AVAILABLE
-	struct backlight_device *bl;
-#endif
 
-	void (*lcd_power)(int);
-	void (*backlight_power)(int);
+	struct regulator	*lcd_pwr;
 };
 
 static struct platform_device_id imxfb_devtype[] = {
@@ -484,83 +473,6 @@ static int imxfb_set_par(struct fb_info *info)
 	return 0;
 }
 
-#ifdef PWMR_BACKLIGHT_AVAILABLE
-static int imxfb_bl_get_brightness(struct backlight_device *bl)
-{
-	struct imxfb_info *fbi = bl_get_data(bl);
-
-	return readl(fbi->regs + LCDC_PWMR) & 0xFF;
-}
-
-static int imxfb_bl_update_status(struct backlight_device *bl)
-{
-	struct imxfb_info *fbi = bl_get_data(bl);
-	int brightness = bl->props.brightness;
-
-	if (!fbi->pwmr)
-		return 0;
-
-	if (bl->props.power != FB_BLANK_UNBLANK)
-		brightness = 0;
-	if (bl->props.fb_blank != FB_BLANK_UNBLANK)
-		brightness = 0;
-
-	fbi->pwmr = (fbi->pwmr & ~0xFF) | brightness;
-
-	if (bl->props.fb_blank != FB_BLANK_UNBLANK) {
-		clk_prepare_enable(fbi->clk_ipg);
-		clk_prepare_enable(fbi->clk_ahb);
-		clk_prepare_enable(fbi->clk_per);
-	}
-	writel(fbi->pwmr, fbi->regs + LCDC_PWMR);
-	if (bl->props.fb_blank != FB_BLANK_UNBLANK) {
-		clk_disable_unprepare(fbi->clk_per);
-		clk_disable_unprepare(fbi->clk_ahb);
-		clk_disable_unprepare(fbi->clk_ipg);
-	}
-
-	return 0;
-}
-
-static const struct backlight_ops imxfb_lcdc_bl_ops = {
-	.update_status = imxfb_bl_update_status,
-	.get_brightness = imxfb_bl_get_brightness,
-};
-
-static void imxfb_init_backlight(struct imxfb_info *fbi)
-{
-	struct backlight_properties props;
-	struct backlight_device	*bl;
-
-	if (fbi->bl)
-		return;
-
-	memset(&props, 0, sizeof(struct backlight_properties));
-	props.max_brightness = 0xff;
-	props.type = BACKLIGHT_RAW;
-	writel(fbi->pwmr, fbi->regs + LCDC_PWMR);
-
-	bl = backlight_device_register("imxfb-bl", &fbi->pdev->dev, fbi,
-				       &imxfb_lcdc_bl_ops, &props);
-	if (IS_ERR(bl)) {
-		dev_err(&fbi->pdev->dev, "error %ld on backlight register\n",
-				PTR_ERR(bl));
-		return;
-	}
-
-	fbi->bl = bl;
-	bl->props.power = FB_BLANK_UNBLANK;
-	bl->props.fb_blank = FB_BLANK_UNBLANK;
-	bl->props.brightness = imxfb_bl_get_brightness(bl);
-}
-
-static void imxfb_exit_backlight(struct imxfb_info *fbi)
-{
-	if (fbi->bl)
-		backlight_device_unregister(fbi->bl);
-}
-#endif
-
 static void imxfb_enable_controller(struct imxfb_info *fbi)
 {
 
@@ -569,7 +481,7 @@ static void imxfb_enable_controller(struct imxfb_info *fbi)
 
 	pr_debug("Enabling LCD controller\n");
 
-	writel(fbi->screen_dma, fbi->regs + LCDC_SSA);
+	writel(fbi->map_dma, fbi->regs + LCDC_SSA);
 
 	/* panning offset 0 (0 pixel offset)        */
 	writel(0x00000000, fbi->regs + LCDC_POS);
@@ -588,11 +500,6 @@ static void imxfb_enable_controller(struct imxfb_info *fbi)
 	clk_prepare_enable(fbi->clk_ahb);
 	clk_prepare_enable(fbi->clk_per);
 	fbi->enabled = true;
-
-	if (fbi->backlight_power)
-		fbi->backlight_power(1);
-	if (fbi->lcd_power)
-		fbi->lcd_power(1);
 }
 
 static void imxfb_disable_controller(struct imxfb_info *fbi)
@@ -601,11 +508,6 @@ static void imxfb_disable_controller(struct imxfb_info *fbi)
 		return;
 
 	pr_debug("Disabling LCD controller\n");
-
-	if (fbi->backlight_power)
-		fbi->backlight_power(0);
-	if (fbi->lcd_power)
-		fbi->lcd_power(0);
 
 	clk_disable_unprepare(fbi->clk_per);
 	clk_disable_unprepare(fbi->clk_ipg);
@@ -709,10 +611,8 @@ static int imxfb_activate_var(struct fb_var_screeninfo *var, struct fb_info *inf
 			fbi->regs + LCDC_SIZE);
 
 	writel(fbi->pcr, fbi->regs + LCDC_PCR);
-#ifndef PWMR_BACKLIGHT_AVAILABLE
 	if (fbi->pwmr)
 		writel(fbi->pwmr, fbi->regs + LCDC_PWMR);
-#endif
 	writel(fbi->lscr1, fbi->regs + LCDC_LSCR1);
 
 	/* dmacr = 0 is no valid value, as we need DMA control marks. */
@@ -721,37 +621,6 @@ static int imxfb_activate_var(struct fb_var_screeninfo *var, struct fb_info *inf
 
 	return 0;
 }
-
-#ifdef CONFIG_PM
-/*
- * Power management hooks.  Note that we won't be called from IRQ context,
- * unlike the blank functions above, so we may sleep.
- */
-static int imxfb_suspend(struct platform_device *dev, pm_message_t state)
-{
-	struct fb_info *info = platform_get_drvdata(dev);
-	struct imxfb_info *fbi = info->par;
-
-	pr_debug("%s\n", __func__);
-
-	imxfb_disable_controller(fbi);
-	return 0;
-}
-
-static int imxfb_resume(struct platform_device *dev)
-{
-	struct fb_info *info = platform_get_drvdata(dev);
-	struct imxfb_info *fbi = info->par;
-
-	pr_debug("%s\n", __func__);
-
-	imxfb_enable_controller(fbi);
-	return 0;
-}
-#else
-#define imxfb_suspend	NULL
-#define imxfb_resume	NULL
-#endif
 
 static int imxfb_init_fbinfo(struct platform_device *pdev)
 {
@@ -790,14 +659,9 @@ static int imxfb_init_fbinfo(struct platform_device *pdev)
 	info->flags			= FBINFO_FLAG_DEFAULT |
 					  FBINFO_READS_FAST;
 	if (pdata) {
-		info->var.grayscale		= pdata->cmap_greyscale;
-		fbi->cmap_inverse		= pdata->cmap_inverse;
-		fbi->cmap_static		= pdata->cmap_static;
 		fbi->lscr1			= pdata->lscr1;
 		fbi->dmacr			= pdata->dmacr;
 		fbi->pwmr			= pdata->pwmr;
-		fbi->lcd_power			= pdata->lcd_power;
-		fbi->backlight_power		= pdata->backlight_power;
 	} else {
 		np = pdev->dev.of_node;
 		info->var.grayscale = of_property_read_bool(np,
@@ -806,14 +670,12 @@ static int imxfb_init_fbinfo(struct platform_device *pdev)
 		fbi->cmap_static = of_property_read_bool(np, "cmap-static");
 
 		fbi->lscr1 = IMXFB_LSCR1_DEFAULT;
+
+		of_property_read_u32(np, "fsl,lpccr", &fbi->pwmr);
+
 		of_property_read_u32(np, "fsl,lscr1", &fbi->lscr1);
 
 		of_property_read_u32(np, "fsl,dmacr", &fbi->dmacr);
-
-		/* These two function pointers could be used by some specific
-		 * platforms. */
-		fbi->lcd_power = NULL;
-		fbi->backlight_power = NULL;
 	}
 
 	return 0;
@@ -856,9 +718,98 @@ static int imxfb_of_read_mode(struct device *dev, struct device_node *np,
 	return 0;
 }
 
+static int imxfb_lcd_check_fb(struct lcd_device *lcddev, struct fb_info *fi)
+{
+	struct imxfb_info *fbi = dev_get_drvdata(&lcddev->dev);
+
+	if (!fi || fi->par == fbi)
+		return 1;
+
+	return 0;
+}
+
+static int imxfb_lcd_get_contrast(struct lcd_device *lcddev)
+{
+	struct imxfb_info *fbi = dev_get_drvdata(&lcddev->dev);
+
+	return fbi->pwmr & 0xff;
+}
+
+static int imxfb_lcd_set_contrast(struct lcd_device *lcddev, int contrast)
+{
+	struct imxfb_info *fbi = dev_get_drvdata(&lcddev->dev);
+
+	if (fbi->pwmr && fbi->enabled) {
+		if (contrast > 255)
+			contrast = 255;
+		else if (contrast < 0)
+			contrast = 0;
+
+		fbi->pwmr &= ~0xff;
+		fbi->pwmr |= contrast;
+
+		writel(fbi->pwmr, fbi->regs + LCDC_PWMR);
+	}
+
+	return 0;
+}
+
+static int imxfb_lcd_get_power(struct lcd_device *lcddev)
+{
+	struct imxfb_info *fbi = dev_get_drvdata(&lcddev->dev);
+
+	if (!IS_ERR(fbi->lcd_pwr))
+		return regulator_is_enabled(fbi->lcd_pwr);
+
+	return 1;
+}
+
+static int imxfb_lcd_set_power(struct lcd_device *lcddev, int power)
+{
+	struct imxfb_info *fbi = dev_get_drvdata(&lcddev->dev);
+
+	if (!IS_ERR(fbi->lcd_pwr)) {
+		if (power)
+			return regulator_enable(fbi->lcd_pwr);
+		else
+			return regulator_disable(fbi->lcd_pwr);
+	}
+
+	return 0;
+}
+
+static struct lcd_ops imxfb_lcd_ops = {
+	.check_fb	= imxfb_lcd_check_fb,
+	.get_contrast	= imxfb_lcd_get_contrast,
+	.set_contrast	= imxfb_lcd_set_contrast,
+	.get_power	= imxfb_lcd_get_power,
+	.set_power	= imxfb_lcd_set_power,
+};
+
+static int imxfb_setup(void)
+{
+	char *opt, *options = NULL;
+
+	if (fb_get_options("imxfb", &options))
+		return -ENODEV;
+
+	if (!options || !*options)
+		return 0;
+
+	while ((opt = strsep(&options, ",")) != NULL) {
+		if (!*opt)
+			continue;
+		else
+			fb_mode = opt;
+	}
+
+	return 0;
+}
+
 static int imxfb_probe(struct platform_device *pdev)
 {
 	struct imxfb_info *fbi;
+	struct lcd_device *lcd;
 	struct fb_info *info;
 	struct imx_fb_platform_data *pdata;
 	struct resource *res;
@@ -868,6 +819,10 @@ static int imxfb_probe(struct platform_device *pdev)
 	int bytes_per_pixel;
 
 	dev_info(&pdev->dev, "i.MX Framebuffer driver\n");
+
+	ret = imxfb_setup();
+	if (ret < 0)
+		return ret;
 
 	of_id = of_match_device(imxfb_of_dev_id, &pdev->dev);
 	if (of_id)
@@ -966,31 +921,17 @@ static int imxfb_probe(struct platform_device *pdev)
 		goto failed_ioremap;
 	}
 
-	/* Seems not being used by anyone, so no support for oftree */
-	if (!pdata || !pdata->fixed_screen_cpu) {
-		fbi->map_size = PAGE_ALIGN(info->fix.smem_len);
-		fbi->map_cpu = dma_alloc_writecombine(&pdev->dev,
-				fbi->map_size, &fbi->map_dma, GFP_KERNEL);
+	fbi->map_size = PAGE_ALIGN(info->fix.smem_len);
+	info->screen_base = dma_alloc_writecombine(&pdev->dev, fbi->map_size,
+						   &fbi->map_dma, GFP_KERNEL);
 
-		if (!fbi->map_cpu) {
-			dev_err(&pdev->dev, "Failed to allocate video RAM: %d\n", ret);
-			ret = -ENOMEM;
-			goto failed_map;
-		}
-
-		info->screen_base = fbi->map_cpu;
-		fbi->screen_cpu = fbi->map_cpu;
-		fbi->screen_dma = fbi->map_dma;
-		info->fix.smem_start = fbi->screen_dma;
-	} else {
-		/* Fixed framebuffer mapping enables location of the screen in eSRAM */
-		fbi->map_cpu = pdata->fixed_screen_cpu;
-		fbi->map_dma = pdata->fixed_screen_dma;
-		info->screen_base = fbi->map_cpu;
-		fbi->screen_cpu = fbi->map_cpu;
-		fbi->screen_dma = fbi->map_dma;
-		info->fix.smem_start = fbi->screen_dma;
+	if (!info->screen_base) {
+		dev_err(&pdev->dev, "Failed to allocate video RAM: %d\n", ret);
+		ret = -ENOMEM;
+		goto failed_map;
 	}
+
+	info->fix.smem_start = fbi->map_dma;
 
 	if (pdata && pdata->init) {
 		ret = pdata->init(fbi->pdev);
@@ -1020,13 +961,28 @@ static int imxfb_probe(struct platform_device *pdev)
 		goto failed_register;
 	}
 
+	fbi->lcd_pwr = devm_regulator_get(&pdev->dev, "lcd");
+	if (IS_ERR(fbi->lcd_pwr) && (PTR_ERR(fbi->lcd_pwr) == -EPROBE_DEFER)) {
+		ret = -EPROBE_DEFER;
+		goto failed_lcd;
+	}
+
+	lcd = devm_lcd_device_register(&pdev->dev, "imxfb-lcd", &pdev->dev, fbi,
+				       &imxfb_lcd_ops);
+	if (IS_ERR(lcd)) {
+		ret = PTR_ERR(lcd);
+		goto failed_lcd;
+	}
+
+	lcd->props.max_contrast = 0xff;
+
 	imxfb_enable_controller(fbi);
 	fbi->pdev = pdev;
-#ifdef PWMR_BACKLIGHT_AVAILABLE
-	imxfb_init_backlight(fbi);
-#endif
 
 	return 0;
+
+failed_lcd:
+	unregister_framebuffer(info);
 
 failed_register:
 	fb_dealloc_cmap(&info->cmap);
@@ -1034,9 +990,8 @@ failed_cmap:
 	if (pdata && pdata->exit)
 		pdata->exit(fbi->pdev);
 failed_platform_init:
-	if (pdata && !pdata->fixed_screen_cpu)
-		dma_free_writecombine(&pdev->dev,fbi->map_size,fbi->map_cpu,
-			fbi->map_dma);
+	dma_free_writecombine(&pdev->dev, fbi->map_size, info->screen_base,
+			      fbi->map_dma);
 failed_map:
 	iounmap(fbi->regs);
 failed_ioremap:
@@ -1061,9 +1016,6 @@ static int imxfb_remove(struct platform_device *pdev)
 
 	imxfb_disable_controller(fbi);
 
-#ifdef PWMR_BACKLIGHT_AVAILABLE
-	imxfb_exit_backlight(fbi);
-#endif
 	unregister_framebuffer(info);
 
 	pdata = dev_get_platdata(&pdev->dev);
@@ -1074,69 +1026,49 @@ static int imxfb_remove(struct platform_device *pdev)
 	kfree(info->pseudo_palette);
 	framebuffer_release(info);
 
+	dma_free_writecombine(&pdev->dev, fbi->map_size, info->screen_base,
+			      fbi->map_dma);
+
 	iounmap(fbi->regs);
 	release_mem_region(res->start, resource_size(res));
 
 	return 0;
 }
 
-static void imxfb_shutdown(struct platform_device *dev)
+static int __maybe_unused imxfb_suspend(struct device *dev)
 {
-	struct fb_info *info = platform_get_drvdata(dev);
+	struct fb_info *info = dev_get_drvdata(dev);
 	struct imxfb_info *fbi = info->par;
+
 	imxfb_disable_controller(fbi);
-}
 
-static struct platform_driver imxfb_driver = {
-	.suspend	= imxfb_suspend,
-	.resume		= imxfb_resume,
-	.remove		= imxfb_remove,
-	.shutdown	= imxfb_shutdown,
-	.driver		= {
-		.name	= DRIVER_NAME,
-		.of_match_table = imxfb_of_dev_id,
-	},
-	.id_table	= imxfb_devtype,
-};
-
-static int imxfb_setup(void)
-{
-#ifndef MODULE
-	char *opt, *options = NULL;
-
-	if (fb_get_options("imxfb", &options))
-		return -ENODEV;
-
-	if (!options || !*options)
-		return 0;
-
-	while ((opt = strsep(&options, ",")) != NULL) {
-		if (!*opt)
-			continue;
-		else
-			fb_mode = opt;
-	}
-#endif
 	return 0;
 }
 
-static int __init imxfb_init(void)
+static int __maybe_unused imxfb_resume(struct device *dev)
 {
-	int ret = imxfb_setup();
+	struct fb_info *info = dev_get_drvdata(dev);
+	struct imxfb_info *fbi = info->par;
 
-	if (ret < 0)
-		return ret;
+	imxfb_enable_controller(fbi);
 
-	return platform_driver_probe(&imxfb_driver, imxfb_probe);
+	return 0;
 }
 
-static void __exit imxfb_cleanup(void)
-{
-	platform_driver_unregister(&imxfb_driver);
-}
+static SIMPLE_DEV_PM_OPS(imxfb_pm_ops, imxfb_suspend, imxfb_resume);
 
-module_init(imxfb_init);
-module_exit(imxfb_cleanup);
+static struct platform_driver imxfb_driver = {
+	.driver		= {
+		.name	= DRIVER_NAME,
+		.of_match_table = imxfb_of_dev_id,
+		.owner	= THIS_MODULE,
+		.pm	= &imxfb_pm_ops,
+	},
+	.probe		= imxfb_probe,
+	.remove		= imxfb_remove,
+	.id_table	= imxfb_devtype,
+};
+module_platform_driver(imxfb_driver);
 
 MODULE_DESCRIPTION("Freescale i.MX framebuffer driver");
 MODULE_AUTHOR("Sascha Hauer, Pengutronix");

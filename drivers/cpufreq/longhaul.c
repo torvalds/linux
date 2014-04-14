@@ -269,7 +269,7 @@ static void longhaul_setstate(struct cpufreq_policy *policy,
 	freqs.old = calc_speed(longhaul_get_cpu_mult());
 	freqs.new = speed;
 
-	cpufreq_notify_transition(policy, &freqs, CPUFREQ_PRECHANGE);
+	cpufreq_freq_transition_begin(policy, &freqs);
 
 	pr_debug("Setting to FSB:%dMHz Mult:%d.%dx (%s)\n",
 			fsb, mult/10, mult%10, print_speed(speed/1000));
@@ -386,7 +386,7 @@ retry_loop:
 		}
 	}
 	/* Report true CPU frequency */
-	cpufreq_notify_transition(policy, &freqs, CPUFREQ_POSTCHANGE);
+	cpufreq_freq_transition_end(policy, &freqs, 0);
 
 	if (!bm_timeout)
 		printk(KERN_INFO PFX "Warning: Timeout while waiting for "
@@ -475,7 +475,7 @@ static int longhaul_get_ranges(void)
 		return -EINVAL;
 	}
 
-	longhaul_table = kmalloc((numscales + 1) * sizeof(*longhaul_table),
+	longhaul_table = kzalloc((numscales + 1) * sizeof(*longhaul_table),
 			GFP_KERNEL);
 	if (!longhaul_table)
 		return -ENOMEM;
@@ -913,7 +913,6 @@ static struct cpufreq_driver longhaul_driver = {
 	.target_index = longhaul_target,
 	.get	= longhaul_get,
 	.init	= longhaul_cpu_init,
-	.exit	= cpufreq_generic_exit,
 	.name	= "longhaul",
 	.attr	= cpufreq_generic_attr,
 };

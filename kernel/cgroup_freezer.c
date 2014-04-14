@@ -52,7 +52,7 @@ static inline struct freezer *css_freezer(struct cgroup_subsys_state *css)
 
 static inline struct freezer *task_freezer(struct task_struct *task)
 {
-	return css_freezer(task_css(task, freezer_subsys_id));
+	return css_freezer(task_css(task, freezer_cgrp_id));
 }
 
 static struct freezer *parent_freezer(struct freezer *freezer)
@@ -83,8 +83,6 @@ static const char *freezer_state_strs(unsigned int state)
 		return "FREEZING";
 	return "THAWED";
 };
-
-struct cgroup_subsys freezer_subsys;
 
 static struct cgroup_subsys_state *
 freezer_css_alloc(struct cgroup_subsys_state *parent_css)
@@ -189,7 +187,7 @@ static void freezer_attach(struct cgroup_subsys_state *new_css,
 	 * current state before executing the following - !frozen tasks may
 	 * be visible in a FROZEN cgroup and frozen tasks in a THAWED one.
 	 */
-	cgroup_taskset_for_each(task, new_css, tset) {
+	cgroup_taskset_for_each(task, tset) {
 		if (!(freezer->state & CGROUP_FREEZING)) {
 			__thaw_task(task);
 		} else {
@@ -216,6 +214,16 @@ static void freezer_attach(struct cgroup_subsys_state *new_css,
 	}
 }
 
+/**
+ * freezer_fork - cgroup post fork callback
+ * @task: a task which has just been forked
+ *
+ * @task has just been created and should conform to the current state of
+ * the cgroup_freezer it belongs to.  This function may race against
+ * freezer_attach().  Losing to freezer_attach() means that we don't have
+ * to do anything as freezer_attach() will put @task into the appropriate
+ * state.
+ */
 static void freezer_fork(struct task_struct *task)
 {
 	struct freezer *freezer;
@@ -224,14 +232,26 @@ static void freezer_fork(struct task_struct *task)
 	freezer = task_freezer(task);
 
 	/*
-	 * The root cgroup is non-freezable, so we can skip the
-	 * following check.
+	 * The root cgroup is non-freezable, so we can skip locking the
+	 * freezer.  This is safe regardless of race with task migration.
+	 * If we didn't race or won, skipping is obviously the right thing
+	 * to do.  If we lost and root is the new cgroup, noop is still the
+	 * right thing to do.
 	 */
 	if (!parent_freezer(freezer))
 		goto out;
 
+	/*
+	 * Grab @freezer->lock and freeze @task after verifying @task still
+	 * belongs to @freezer and it's freezing.  The former is for the
+	 * case where we have raced against task migration and lost and
+	 * @task is already in a different cgroup which may not be frozen.
+	 * This isn't strictly necessary as freeze_task() is allowed to be
+	 * called spuriously but let's do it anyway for, if nothing else,
+	 * documentation.
+	 */
 	spin_lock_irq(&freezer->lock);
-	if (freezer->state & CGROUP_FREEZING)
+	if (freezer == task_freezer(task) && (freezer->state & CGROUP_FREEZING))
 		freeze_task(task);
 	spin_unlock_irq(&freezer->lock);
 out:
@@ -422,7 +442,7 @@ static void freezer_change_state(struct freezer *freezer, bool freeze)
 }
 
 static int freezer_write(struct cgroup_subsys_state *css, struct cftype *cft,
-			 const char *buffer)
+			 char *buffer)
 {
 	bool freeze;
 
@@ -473,13 +493,11 @@ static struct cftype files[] = {
 	{ }	/* terminate */
 };
 
-struct cgroup_subsys freezer_subsys = {
-	.name		= "freezer",
+struct cgroup_subsys freezer_cgrp_subsys = {
 	.css_alloc	= freezer_css_alloc,
 	.css_online	= freezer_css_online,
 	.css_offline	= freezer_css_offline,
 	.css_free	= freezer_css_free,
-	.subsys_id	= freezer_subsys_id,
 	.attach		= freezer_attach,
 	.fork		= freezer_fork,
 	.base_cftypes	= files,

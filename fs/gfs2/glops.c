@@ -82,6 +82,8 @@ static void gfs2_ail_empty_gl(struct gfs2_glock *gl)
 	struct gfs2_trans tr;
 
 	memset(&tr, 0, sizeof(tr));
+	INIT_LIST_HEAD(&tr.tr_buf);
+	INIT_LIST_HEAD(&tr.tr_databuf);
 	tr.tr_revokes = atomic_read(&gl->gl_ail_count);
 
 	if (!tr.tr_revokes)

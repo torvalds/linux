@@ -149,7 +149,6 @@ int __init mx21_clocks_init(unsigned long lref, unsigned long href)
 	clk_register_clkdev(clk[per1], "per", "imx-gpt.1");
 	clk_register_clkdev(clk[gpt3_ipg_gate], "ipg", "imx-gpt.2");
 	clk_register_clkdev(clk[per1], "per", "imx-gpt.2");
-	clk_register_clkdev(clk[pwm_ipg_gate], "pwm", "mxc_pwm.0");
 	clk_register_clkdev(clk[per2], "per", "imx21-cspi.0");
 	clk_register_clkdev(clk[cspi1_ipg_gate], "ipg", "imx21-cspi.0");
 	clk_register_clkdev(clk[per2], "per", "imx21-cspi.1");

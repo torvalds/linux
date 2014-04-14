@@ -27,7 +27,7 @@
 
 #include "6lowpan.h"
 
-#include "../ieee802154/6lowpan.h" /* for the compression support */
+#include <net/6lowpan.h> /* for the compression support */
 
 #define IFACE_NAME_TEMPLATE "bt%d"
 #define EUI64_ADDR_LEN 8

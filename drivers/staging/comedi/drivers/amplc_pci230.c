@@ -799,19 +799,29 @@ static void pci230_cancel_ct(struct comedi_device *dev, unsigned int ct)
 	/* Counter ct, 8254 mode 1, initial count not written. */
 }
 
-/*
- *  COMEDI_SUBD_AI instruction;
- */
+static int pci230_ai_eoc(struct comedi_device *dev,
+			 struct comedi_subdevice *s,
+			 struct comedi_insn *insn,
+			 unsigned long context)
+{
+	unsigned int status;
+
+	status = inw(dev->iobase + PCI230_ADCCON);
+	if ((status & PCI230_ADC_FIFO_EMPTY) == 0)
+		return 0;
+	return -EBUSY;
+}
+
 static int pci230_ai_rinsn(struct comedi_device *dev,
 			   struct comedi_subdevice *s, struct comedi_insn *insn,
 			   unsigned int *data)
 {
 	struct pci230_private *devpriv = dev->private;
-	unsigned int n, i;
+	unsigned int n;
 	unsigned int chan, range, aref;
 	unsigned int gainshift;
-	unsigned int status;
 	unsigned short adccon, adcen;
+	int ret;
 
 	/* Unpack channel and range. */
 	chan = CR_CHAN(insn->chanspec);
@@ -883,18 +893,10 @@ static int pci230_ai_rinsn(struct comedi_device *dev,
 		i8254_set_mode(devpriv->iobase1 + PCI230_Z2_CT_BASE, 0, 2,
 			       I8254_MODE1);
 
-#define TIMEOUT 100
 		/* wait for conversion to end */
-		for (i = 0; i < TIMEOUT; i++) {
-			status = inw(dev->iobase + PCI230_ADCCON);
-			if (!(status & PCI230_ADC_FIFO_EMPTY))
-				break;
-			udelay(1);
-		}
-		if (i == TIMEOUT) {
-			dev_err(dev->class_dev, "timeout\n");
-			return -ETIMEDOUT;
-		}
+		ret = comedi_timeout(dev, s, insn, pci230_ai_eoc, 0);
+		if (ret)
+			return ret;
 
 		/* read data */
 		data[n] = pci230_ai_read(dev);
@@ -2762,14 +2764,14 @@ static int pci230_attach_common(struct comedi_device *dev,
 	/* digital i/o subdevice */
 	if (thisboard->have_dio) {
 		rc = subdev_8255_init(dev, s, NULL,
-				      (devpriv->iobase1 + PCI230_PPI_X_BASE));
-		if (rc < 0)
+				      devpriv->iobase1 + PCI230_PPI_X_BASE);
+		if (rc)
 			return rc;
 	} else {
 		s->type = COMEDI_SUBD_UNUSED;
 	}
-	dev_info(dev->class_dev, "attached\n");
-	return 1;
+
+	return 0;
 }
 
 static int pci230_attach(struct comedi_device *dev, struct comedi_devconfig *it)

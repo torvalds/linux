@@ -347,7 +347,6 @@ struct ab8500 {
 	struct mutex	lock;
 	struct mutex	irq_lock;
 	atomic_t	transfer_ongoing;
-	int		irq_base;
 	int		irq;
 	struct irq_domain  *domain;
 	enum ab8500_version version;
@@ -378,7 +377,6 @@ struct ab8500_sysctrl_platform_data;
  * @regulator: machine-specific constraints for regulators
  */
 struct ab8500_platform_data {
-	int irq_base;
 	void (*init) (struct ab8500 *);
 	struct ab8500_regulator_platform_data *regulator;
 	struct ab8500_codec_platform_data *codec;

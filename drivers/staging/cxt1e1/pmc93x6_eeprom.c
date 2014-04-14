@@ -90,7 +90,7 @@ static int  ByteReverseBuilt = FALSE;
  *------------------------------------------------------------------------
  */
 
-short       mfg_template[sizeof (FLD_TYPE2)] =
+static u8 mfg_template[sizeof(FLD_TYPE2)] =
 {
     PROM_FORMAT_TYPE2,          /* type; */
     0x00, 0x1A,                 /* length[2]; */
@@ -491,13 +491,11 @@ pmc_init_seeprom (u_int32_t addr, u_int32_t serialNum)
     PROMFORMAT  buffer;         /* Memory image of structure */
     u_int32_t   crc;            /* CRC of structure */
     time_t      createTime;
-    int         i;
 
     createTime = get_seconds ();
 
     /* use template data */
-    for (i = 0; i < sizeof (FLD_TYPE2); ++i)
-        buffer.bytes[i] = mfg_template[i];
+    memcpy(&buffer.fldType2, mfg_template, sizeof(buffer.fldType2));
 
     /* Update serial number field in buffer */
     pmcSetBuffValue (&buffer.fldType2.Serial[3], serialNum, 3);

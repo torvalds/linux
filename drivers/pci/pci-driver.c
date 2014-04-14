@@ -616,15 +616,11 @@ static int pci_pm_prepare(struct device *dev)
 	int error = 0;
 
 	/*
-	 * PCI devices suspended at run time need to be resumed at this
-	 * point, because in general it is necessary to reconfigure them for
-	 * system suspend.  Namely, if the device is supposed to wake up the
-	 * system from the sleep state, we may need to reconfigure it for this
-	 * purpose.  In turn, if the device is not supposed to wake up the
-	 * system from the sleep state, we'll have to prevent it from signaling
-	 * wake-up.
+	 * Devices having power.ignore_children set may still be necessary for
+	 * suspending their children in the next phase of device suspend.
 	 */
-	pm_runtime_resume(dev);
+	if (dev->power.ignore_children)
+		pm_runtime_resume(dev);
 
 	if (drv && drv->pm && drv->pm->prepare)
 		error = drv->pm->prepare(dev);
@@ -653,6 +649,16 @@ static int pci_pm_suspend(struct device *dev)
 		pci_pm_default_suspend(pci_dev);
 		goto Fixup;
 	}
+
+	/*
+	 * PCI devices suspended at run time need to be resumed at this point,
+	 * because in general it is necessary to reconfigure them for system
+	 * suspend.  Namely, if the device is supposed to wake up the system
+	 * from the sleep state, we may need to reconfigure it for this purpose.
+	 * In turn, if the device is not supposed to wake up the system from the
+	 * sleep state, we'll have to prevent it from signaling wake-up.
+	 */
+	pm_runtime_resume(dev);
 
 	pci_dev->state_saved = false;
 	if (pm->suspend) {
@@ -808,6 +814,14 @@ static int pci_pm_freeze(struct device *dev)
 		return 0;
 	}
 
+	/*
+	 * This used to be done in pci_pm_prepare() for all devices and some
+	 * drivers may depend on it, so do it here.  Ideally, runtime-suspended
+	 * devices should not be touched during freeze/thaw transitions,
+	 * however.
+	 */
+	pm_runtime_resume(dev);
+
 	pci_dev->state_saved = false;
 	if (pm->freeze) {
 		int error;
@@ -914,6 +928,9 @@ static int pci_pm_poweroff(struct device *dev)
 		pci_pm_default_suspend(pci_dev);
 		goto Fixup;
 	}
+
+	/* The reason to do that is the same as in pci_pm_suspend(). */
+	pm_runtime_resume(dev);
 
 	pci_dev->state_saved = false;
 	if (pm->poweroff) {

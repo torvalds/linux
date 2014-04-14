@@ -23,7 +23,7 @@ static const struct omap_video_timings dvic_default_timings = {
 	.x_res		= 640,
 	.y_res		= 480,
 
-	.pixel_clock	= 23500,
+	.pixelclock	= 23500000,
 
 	.hfp		= 48,
 	.hsw		= 32,
@@ -277,6 +277,37 @@ static int dvic_probe_pdata(struct platform_device *pdev)
 	return 0;
 }
 
+static int dvic_probe_of(struct platform_device *pdev)
+{
+	struct panel_drv_data *ddata = platform_get_drvdata(pdev);
+	struct device_node *node = pdev->dev.of_node;
+	struct omap_dss_device *in;
+	struct device_node *adapter_node;
+	struct i2c_adapter *adapter;
+
+	in = omapdss_of_find_source_for_first_ep(node);
+	if (IS_ERR(in)) {
+		dev_err(&pdev->dev, "failed to find video source\n");
+		return PTR_ERR(in);
+	}
+
+	ddata->in = in;
+
+	adapter_node = of_parse_phandle(node, "ddc-i2c-bus", 0);
+	if (adapter_node) {
+		adapter = of_find_i2c_adapter_by_node(adapter_node);
+		if (adapter == NULL) {
+			dev_err(&pdev->dev, "failed to parse ddc-i2c-bus\n");
+			omap_dss_put_device(ddata->in);
+			return -EPROBE_DEFER;
+		}
+
+		ddata->i2c_adapter = adapter;
+	}
+
+	return 0;
+}
+
 static int dvic_probe(struct platform_device *pdev)
 {
 	struct panel_drv_data *ddata;
@@ -291,6 +322,10 @@ static int dvic_probe(struct platform_device *pdev)
 
 	if (dev_get_platdata(&pdev->dev)) {
 		r = dvic_probe_pdata(pdev);
+		if (r)
+			return r;
+	} else if (pdev->dev.of_node) {
+		r = dvic_probe_of(pdev);
 		if (r)
 			return r;
 	} else {
@@ -342,12 +377,20 @@ static int __exit dvic_remove(struct platform_device *pdev)
 	return 0;
 }
 
+static const struct of_device_id dvic_of_match[] = {
+	{ .compatible = "omapdss,dvi-connector", },
+	{},
+};
+
+MODULE_DEVICE_TABLE(of, dvic_of_match);
+
 static struct platform_driver dvi_connector_driver = {
 	.probe	= dvic_probe,
 	.remove	= __exit_p(dvic_remove),
 	.driver	= {
 		.name	= "connector-dvi",
 		.owner	= THIS_MODULE,
+		.of_match_table = dvic_of_match,
 	},
 };
 

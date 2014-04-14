@@ -38,25 +38,8 @@
 #define TX_HZ	2000
 #define TX_INTERVAL	(1000000/TX_HZ)
 
-/*#define DEBUG*/
-
 static int init_sdio(struct sdiowm_dev *sdev);
 static void release_sdio(struct sdiowm_dev *sdev);
-
-#ifdef DEBUG
-static void hexdump(char *title, u8 *data, int len)
-{
-	int i;
-
-	printk(KERN_DEBUG "%s: length = %d\n", title, len);
-	for (i = 0; i < len; i++) {
-		printk(KERN_DEBUG "%02x ", data[i]);
-		if ((i & 0xf) == 0xf)
-			printk(KERN_DEBUG "\n");
-	}
-	printk(KERN_DEBUG "\n");
-}
-#endif
 
 static struct sdio_tx *alloc_tx_struct(struct tx_cxt *tx)
 {
@@ -297,10 +280,9 @@ static void send_sdu(struct sdio_func *func, struct tx_cxt *tx)
 
 	spin_unlock_irqrestore(&tx->lock, flags);
 
-#ifdef DEBUG
-	hexdump("sdio_send", tx->sdu_buf + TYPE_A_HEADER_SIZE,
-		aggr_len - TYPE_A_HEADER_SIZE);
-#endif
+	print_hex_dump_debug("sdio_send: ", DUMP_PREFIX_NONE, 16, 1,
+			     tx->sdu_buf + TYPE_A_HEADER_SIZE,
+			     aggr_len - TYPE_A_HEADER_SIZE, false);
 
 	for (pos = TYPE_A_HEADER_SIZE; pos < aggr_len; pos += TX_CHUNK_SIZE) {
 		len = aggr_len - pos;
@@ -335,10 +317,9 @@ static void send_hci(struct sdio_func *func, struct tx_cxt *tx,
 {
 	unsigned long flags;
 
-#ifdef DEBUG
-	hexdump("sdio_send", t->buf + TYPE_A_HEADER_SIZE,
-		t->len - TYPE_A_HEADER_SIZE);
-#endif
+	print_hex_dump_debug("sdio_send: ", DUMP_PREFIX_NONE, 16, 1,
+			     t->buf + TYPE_A_HEADER_SIZE,
+			     t->len - TYPE_A_HEADER_SIZE, false);
 	send_sdio_pkt(func, t->buf, t->len);
 
 	spin_lock_irqsave(&tx->lock, flags);
@@ -474,14 +455,10 @@ static int control_sdu_tx_flow(struct sdiowm_dev *sdev, u8 *hci_data, int len)
 		goto out;
 
 	if (hci_data[4] == 0) {
-#ifdef DEBUG
-		printk(KERN_DEBUG "WIMAX ==> STOP SDU TX\n");
-#endif
+		dev_dbg(&sdev->func->dev, "WIMAX ==> STOP SDU TX\n");
 		tx->stop_sdu_tx = 1;
 	} else if (hci_data[4] == 1) {
-#ifdef DEBUG
-		printk(KERN_DEBUG "WIMAX ==> START SDU TX\n");
-#endif
+		dev_dbg(&sdev->func->dev, "WIMAX ==> START SDU TX\n");
 		tx->stop_sdu_tx = 0;
 		if (tx->can_send)
 			schedule_work(&sdev->ws);
@@ -532,18 +509,14 @@ static void gdm_sdio_irq(struct sdio_func *func)
 	}
 
 	if (hdr[3] == 1) {	/* Ack */
-#ifdef DEBUG
 		u32 *ack_seq = (u32 *)&hdr[4];
-#endif
 		spin_lock_irqsave(&tx->lock, flags);
 		tx->can_send = 1;
 
 		if (!list_empty(&tx->sdu_list) || !list_empty(&tx->hci_list))
 			schedule_work(&sdev->ws);
 		spin_unlock_irqrestore(&tx->lock, flags);
-#ifdef DEBUG
-		printk(KERN_DEBUG "Ack... %0x\n", ntohl(*ack_seq));
-#endif
+		dev_dbg(&func->dev, "Ack... %0x\n", ntohl(*ack_seq));
 		goto done;
 	}
 
@@ -579,9 +552,8 @@ static void gdm_sdio_irq(struct sdio_func *func)
 	}
 
 end_io:
-#ifdef DEBUG
-	hexdump("sdio_receive", rx->rx_buf, len);
-#endif
+	print_hex_dump_debug("sdio_receive: ", DUMP_PREFIX_NONE, 16, 1,
+			     rx->rx_buf, len, false);
 	len = control_sdu_tx_flow(sdev, rx->rx_buf, len);
 
 	spin_lock_irqsave(&rx->lock, flags);

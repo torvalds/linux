@@ -472,9 +472,7 @@ static int __ieee80211_start_scan(struct ieee80211_sub_if_data *sdata,
 	if (local->ops->hw_scan) {
 		u8 *ies;
 
-		local->hw_scan_ies_bufsize = 2 + IEEE80211_MAX_SSID_LEN +
-					     local->scan_ies_len +
-					     req->ie_len;
+		local->hw_scan_ies_bufsize = local->scan_ies_len + req->ie_len;
 		local->hw_scan_req = kmalloc(
 				sizeof(*local->hw_scan_req) +
 				req->n_channels * sizeof(req->channels[0]) +
@@ -979,8 +977,7 @@ int __ieee80211_request_sched_scan_start(struct ieee80211_sub_if_data *sdata,
 	struct cfg80211_chan_def chandef;
 	int ret, i, iebufsz;
 
-	iebufsz = 2 + IEEE80211_MAX_SSID_LEN +
-		  local->scan_ies_len + req->ie_len;
+	iebufsz = local->scan_ies_len + req->ie_len;
 
 	lockdep_assert_held(&local->mtx);
 
@@ -1058,9 +1055,11 @@ int ieee80211_request_sched_scan_stop(struct ieee80211_sub_if_data *sdata)
 	/* We don't want to restart sched scan anymore. */
 	local->sched_scan_req = NULL;
 
-	if (rcu_access_pointer(local->sched_scan_sdata))
-		drv_sched_scan_stop(local, sdata);
-
+	if (rcu_access_pointer(local->sched_scan_sdata)) {
+		ret = drv_sched_scan_stop(local, sdata);
+		if (!ret)
+			rcu_assign_pointer(local->sched_scan_sdata, NULL);
+	}
 out:
 	mutex_unlock(&local->mtx);
 

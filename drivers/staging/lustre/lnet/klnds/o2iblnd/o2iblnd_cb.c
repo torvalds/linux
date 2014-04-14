@@ -3127,7 +3127,7 @@ kiblnd_connd (void *arg)
 
 	cfs_block_allsigs ();
 
-	init_waitqueue_entry_current (&wait);
+	init_waitqueue_entry(&wait, current);
 	kiblnd_data.kib_connd = current;
 
 	spin_lock_irqsave(&kiblnd_data.kib_connd_lock, flags);
@@ -3208,7 +3208,7 @@ kiblnd_connd (void *arg)
 		add_wait_queue(&kiblnd_data.kib_connd_waitq, &wait);
 		spin_unlock_irqrestore(&kiblnd_data.kib_connd_lock, flags);
 
-		waitq_timedwait(&wait, TASK_INTERRUPTIBLE, timeout);
+		schedule_timeout(timeout);
 
 		set_current_state(TASK_RUNNING);
 		remove_wait_queue(&kiblnd_data.kib_connd_waitq, &wait);
@@ -3324,7 +3324,7 @@ kiblnd_scheduler(void *arg)
 
 	cfs_block_allsigs();
 
-	init_waitqueue_entry_current(&wait);
+	init_waitqueue_entry(&wait, current);
 
 	sched = kiblnd_data.kib_scheds[KIB_THREAD_CPT(id)];
 
@@ -3423,7 +3423,7 @@ kiblnd_scheduler(void *arg)
 		add_wait_queue_exclusive(&sched->ibs_waitq, &wait);
 		spin_unlock_irqrestore(&sched->ibs_lock, flags);
 
-		waitq_wait(&wait, TASK_INTERRUPTIBLE);
+		schedule();
 		busy_loops = 0;
 
 		remove_wait_queue(&sched->ibs_waitq, &wait);
@@ -3450,7 +3450,7 @@ kiblnd_failover_thread(void *arg)
 
 	cfs_block_allsigs ();
 
-	init_waitqueue_entry_current(&wait);
+	init_waitqueue_entry(&wait, current);
 	write_lock_irqsave(glock, flags);
 
 	while (!kiblnd_data.kib_shutdown) {

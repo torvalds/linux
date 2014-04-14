@@ -1408,13 +1408,13 @@ static int tg_set_conf(struct cgroup_subsys_state *css, struct cftype *cft,
 }
 
 static int tg_set_conf_u64(struct cgroup_subsys_state *css, struct cftype *cft,
-			   const char *buf)
+			   char *buf)
 {
 	return tg_set_conf(css, cft, buf, true);
 }
 
 static int tg_set_conf_uint(struct cgroup_subsys_state *css, struct cftype *cft,
-			    const char *buf)
+			    char *buf)
 {
 	return tg_set_conf(css, cft, buf, false);
 }
@@ -1425,28 +1425,24 @@ static struct cftype throtl_files[] = {
 		.private = offsetof(struct throtl_grp, bps[READ]),
 		.seq_show = tg_print_conf_u64,
 		.write_string = tg_set_conf_u64,
-		.max_write_len = 256,
 	},
 	{
 		.name = "throttle.write_bps_device",
 		.private = offsetof(struct throtl_grp, bps[WRITE]),
 		.seq_show = tg_print_conf_u64,
 		.write_string = tg_set_conf_u64,
-		.max_write_len = 256,
 	},
 	{
 		.name = "throttle.read_iops_device",
 		.private = offsetof(struct throtl_grp, iops[READ]),
 		.seq_show = tg_print_conf_uint,
 		.write_string = tg_set_conf_uint,
-		.max_write_len = 256,
 	},
 	{
 		.name = "throttle.write_iops_device",
 		.private = offsetof(struct throtl_grp, iops[WRITE]),
 		.seq_show = tg_print_conf_uint,
 		.write_string = tg_set_conf_uint,
-		.max_write_len = 256,
 	},
 	{
 		.name = "throttle.io_service_bytes",

@@ -32,15 +32,15 @@
 
 /* the CBE supports an 8 step frequency scaling */
 static struct cpufreq_frequency_table cbe_freqs[] = {
-	{1,	0},
-	{2,	0},
-	{3,	0},
-	{4,	0},
-	{5,	0},
-	{6,	0},
-	{8,	0},
-	{10,	0},
-	{0,	CPUFREQ_TABLE_END},
+	{0, 1,	0},
+	{0, 2,	0},
+	{0, 3,	0},
+	{0, 4,	0},
+	{0, 5,	0},
+	{0, 6,	0},
+	{0, 8,	0},
+	{0, 10,	0},
+	{0, 0,	CPUFREQ_TABLE_END},
 };
 
 /*
@@ -141,7 +141,6 @@ static struct cpufreq_driver cbe_cpufreq_driver = {
 	.verify		= cpufreq_generic_frequency_table_verify,
 	.target_index	= cbe_cpufreq_target,
 	.init		= cbe_cpufreq_cpu_init,
-	.exit		= cpufreq_generic_exit,
 	.name		= "cbe-cpufreq",
 	.flags		= CPUFREQ_CONST_LOOPS,
 };

@@ -1,7 +1,7 @@
 /*******************************************************************************
  *
  * Intel Ethernet Controller XL710 Family Linux Virtual Function Driver
- * Copyright(c) 2013 Intel Corporation.
+ * Copyright(c) 2013 - 2014 Intel Corporation.
  *
  * This program is free software; you can redistribute it and/or modify it
  * under the terms and conditions of the GNU General Public License,
@@ -24,6 +24,7 @@
 #include <linux/prefetch.h>
 
 #include "i40evf.h"
+#include "i40e_prototype.h"
 
 static inline __le64 build_ctob(u32 td_cmd, u32 td_offset, unsigned int size,
 				u32 td_tag)
@@ -169,6 +170,20 @@ static bool i40e_check_tx_hang(struct i40e_ring *tx_ring)
 }
 
 /**
+ * i40e_get_head - Retrieve head from head writeback
+ * @tx_ring:  tx ring to fetch head of
+ *
+ * Returns value of Tx ring head based on value stored
+ * in head write-back location
+ **/
+static inline u32 i40e_get_head(struct i40e_ring *tx_ring)
+{
+	void *head = (struct i40e_tx_desc *)tx_ring->desc + tx_ring->count;
+
+	return le32_to_cpu(*(volatile __le32 *)head);
+}
+
+/**
  * i40e_clean_tx_irq - Reclaim resources after transmit completes
  * @tx_ring:  tx ring to clean
  * @budget:   how many cleans we're allowed
@@ -179,6 +194,7 @@ static bool i40e_clean_tx_irq(struct i40e_ring *tx_ring, int budget)
 {
 	u16 i = tx_ring->next_to_clean;
 	struct i40e_tx_buffer *tx_buf;
+	struct i40e_tx_desc *tx_head;
 	struct i40e_tx_desc *tx_desc;
 	unsigned int total_packets = 0;
 	unsigned int total_bytes = 0;
@@ -186,6 +202,8 @@ static bool i40e_clean_tx_irq(struct i40e_ring *tx_ring, int budget)
 	tx_buf = &tx_ring->tx_bi[i];
 	tx_desc = I40E_TX_DESC(tx_ring, i);
 	i -= tx_ring->count;
+
+	tx_head = I40E_TX_DESC(tx_ring, i40e_get_head(tx_ring));
 
 	do {
 		struct i40e_tx_desc *eop_desc = tx_buf->next_to_watch;
@@ -197,9 +215,8 @@ static bool i40e_clean_tx_irq(struct i40e_ring *tx_ring, int budget)
 		/* prevent any other reads prior to eop_desc */
 		read_barrier_depends();
 
-		/* if the descriptor isn't done, no work yet to do */
-		if (!(eop_desc->cmd_type_offset_bsz &
-		      cpu_to_le64(I40E_TX_DESC_DTYPE_DESC_DONE)))
+		/* we have caught up to head, no work left to do */
+		if (tx_head == tx_desc)
 			break;
 
 		/* clear next_to_watch to prevent false hangs */
@@ -431,6 +448,10 @@ int i40evf_setup_tx_descriptors(struct i40e_ring *tx_ring)
 
 	/* round up to nearest 4K */
 	tx_ring->size = tx_ring->count * sizeof(struct i40e_tx_desc);
+	/* add u32 for head writeback, align after this takes care of
+	 * guaranteeing this is at least one cache line in size
+	 */
+	tx_ring->size += sizeof(u32);
 	tx_ring->size = ALIGN(tx_ring->size, 4096);
 	tx_ring->desc = dma_alloc_coherent(dev, tx_ring->size,
 					   &tx_ring->dma, GFP_KERNEL);
@@ -722,7 +743,7 @@ static inline void i40e_rx_checksum(struct i40e_vsi *vsi,
 	      rx_status & (1 << I40E_RX_DESC_STATUS_L3L4P_SHIFT)))
 		return;
 
-	/* likely incorrect csum if alternate IP extention headers found */
+	/* likely incorrect csum if alternate IP extension headers found */
 	if (rx_status & (1 << I40E_RX_DESC_STATUS_IPV6EXADD_SHIFT))
 		return;
 
@@ -786,6 +807,29 @@ static inline u32 i40e_rx_hash(struct i40e_ring *ring,
 }
 
 /**
+ * i40e_ptype_to_hash - get a hash type
+ * @ptype: the ptype value from the descriptor
+ *
+ * Returns a hash type to be used by skb_set_hash
+ **/
+static inline enum pkt_hash_types i40e_ptype_to_hash(u8 ptype)
+{
+	struct i40e_rx_ptype_decoded decoded = decode_rx_desc_ptype(ptype);
+
+	if (!decoded.known)
+		return PKT_HASH_TYPE_NONE;
+
+	if (decoded.outer_ip == I40E_RX_PTYPE_OUTER_IP &&
+	    decoded.payload_layer == I40E_RX_PTYPE_PAYLOAD_LAYER_PAY4)
+		return PKT_HASH_TYPE_L4;
+	else if (decoded.outer_ip == I40E_RX_PTYPE_OUTER_IP &&
+		 decoded.payload_layer == I40E_RX_PTYPE_PAYLOAD_LAYER_PAY3)
+		return PKT_HASH_TYPE_L3;
+	else
+		return PKT_HASH_TYPE_L2;
+}
+
+/**
  * i40e_clean_rx_irq - Reclaim resources after receive completes
  * @rx_ring:  rx ring to clean
  * @budget:   how many cleans we're allowed
@@ -802,13 +846,13 @@ static int i40e_clean_rx_irq(struct i40e_ring *rx_ring, int budget)
 	u16 i = rx_ring->next_to_clean;
 	union i40e_rx_desc *rx_desc;
 	u32 rx_error, rx_status;
+	u8 rx_ptype;
 	u64 qword;
-	u16 rx_ptype;
 
 	rx_desc = I40E_RX_DESC(rx_ring, i);
 	qword = le64_to_cpu(rx_desc->wb.qword1.status_error_len);
-	rx_status = (qword & I40E_RXD_QW1_STATUS_MASK)
-				>> I40E_RXD_QW1_STATUS_SHIFT;
+	rx_status = (qword & I40E_RXD_QW1_STATUS_MASK) >>
+		    I40E_RXD_QW1_STATUS_SHIFT;
 
 	while (rx_status & (1 << I40E_RX_DESC_STATUS_DD_SHIFT)) {
 		union i40e_rx_desc *next_rxd;
@@ -912,7 +956,8 @@ static int i40e_clean_rx_irq(struct i40e_ring *rx_ring, int budget)
 			goto next_desc;
 		}
 
-		skb->rxhash = i40e_rx_hash(rx_ring, rx_desc);
+		skb_set_hash(skb, i40e_rx_hash(rx_ring, rx_desc),
+			     i40e_ptype_to_hash(rx_ptype));
 		/* probably a little skewed due to removing CRC */
 		total_rx_bytes += skb->len;
 		total_rx_packets++;
@@ -1069,20 +1114,18 @@ static int i40e_tso(struct i40e_ring *tx_ring, struct sk_buff *skb,
 		    u64 *cd_type_cmd_tso_mss, u32 *cd_tunneling)
 {
 	u32 cd_cmd, cd_tso_len, cd_mss;
+	struct ipv6hdr *ipv6h;
 	struct tcphdr *tcph;
 	struct iphdr *iph;
 	u32 l4len;
 	int err;
-	struct ipv6hdr *ipv6h;
 
 	if (!skb_is_gso(skb))
 		return 0;
 
-	if (skb_header_cloned(skb)) {
-		err = pskb_expand_head(skb, 0, 0, GFP_ATOMIC);
-		if (err)
-			return err;
-	}
+	err = skb_cow_head(skb, 0);
+	if (err < 0)
+		return err;
 
 	if (protocol == htons(ETH_P_IP)) {
 		iph = skb->encapsulation ? inner_ip_hdr(skb) : ip_hdr(skb);
@@ -1241,7 +1284,8 @@ static void i40e_create_tx_ctx(struct i40e_ring *tx_ring,
 	struct i40e_tx_context_desc *context_desc;
 	int i = tx_ring->next_to_use;
 
-	if (!cd_type_cmd_tso_mss && !cd_tunneling && !cd_l2tag2)
+	if ((cd_type_cmd_tso_mss == I40E_TX_DESC_DTYPE_CONTEXT) &&
+	    !cd_tunneling && !cd_l2tag2)
 		return;
 
 	/* grab the next descriptor */
@@ -1352,9 +1396,23 @@ static void i40e_tx_map(struct i40e_ring *tx_ring, struct sk_buff *skb,
 		tx_bi = &tx_ring->tx_bi[i];
 	}
 
-	tx_desc->cmd_type_offset_bsz =
-		build_ctob(td_cmd, td_offset, size, td_tag) |
-		cpu_to_le64((u64)I40E_TXD_CMD << I40E_TXD_QW1_CMD_SHIFT);
+	/* Place RS bit on last descriptor of any packet that spans across the
+	 * 4th descriptor (WB_STRIDE aka 0x3) in a 64B cacheline.
+	 */
+#define WB_STRIDE 0x3
+	if (((i & WB_STRIDE) != WB_STRIDE) &&
+	    (first <= &tx_ring->tx_bi[i]) &&
+	    (first >= &tx_ring->tx_bi[i & ~WB_STRIDE])) {
+		tx_desc->cmd_type_offset_bsz =
+			build_ctob(td_cmd, td_offset, size, td_tag) |
+			cpu_to_le64((u64)I40E_TX_DESC_CMD_EOP <<
+					 I40E_TXD_QW1_CMD_SHIFT);
+	} else {
+		tx_desc->cmd_type_offset_bsz =
+			build_ctob(td_cmd, td_offset, size, td_tag) |
+			cpu_to_le64((u64)I40E_TXD_CMD <<
+					 I40E_TXD_QW1_CMD_SHIFT);
+	}
 
 	netdev_tx_sent_queue(netdev_get_tx_queue(tx_ring->netdev,
 						 tx_ring->queue_index),
@@ -1457,7 +1515,7 @@ static int i40e_xmit_descriptor_count(struct sk_buff *skb,
 
 	/* need: 1 descriptor per page * PAGE_SIZE/I40E_MAX_DATA_PER_TXD,
 	 *       + 1 desc for skb_head_len/I40E_MAX_DATA_PER_TXD,
-	 *       + 2 desc gap to keep tail from touching head,
+	 *       + 4 desc gap to avoid the cache line where head is,
 	 *       + 1 desc for context descriptor,
 	 * otherwise try next time
 	 */
@@ -1468,7 +1526,7 @@ static int i40e_xmit_descriptor_count(struct sk_buff *skb,
 	count += skb_shinfo(skb)->nr_frags;
 #endif
 	count += TXD_USE_COUNT(skb_headlen(skb));
-	if (i40e_maybe_stop_tx(tx_ring, count + 3)) {
+	if (i40e_maybe_stop_tx(tx_ring, count + 4 + 1)) {
 		tx_ring->tx_stats.tx_busy++;
 		return 0;
 	}

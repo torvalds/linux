@@ -1,14 +1,13 @@
 /*
-	This is part of the rtl8180-sa2400 driver
-	released under the GPL (See file COPYING for details).
-	Copyright (c) 2005 Andrea Merello <andrea.merello@gmail.com>
-
-	This files contains programming code for the rtl8225
-	radio frontend.
-
-	*Many* thanks to Realtek Corp. for their great support!
-
-*/
+ * This is part of the rtl8180-sa2400 driver released under the GPL (See file
+ * COPYING for details).
+ *
+ * Copyright (c) 2005 Andrea Merello <andrea.merello@gmail.com>
+ *
+ * This files contains programming code for the rtl8225 radio frontend.
+ *
+ * *Many* thanks to Realtek Corp. for their great support!
+ */
 
 #include "r8180.h"
 
@@ -29,7 +28,7 @@ u16 RF_ReadReg(struct net_device *dev, u8 offset);
 void rtl8180_set_mode(struct net_device *dev, int mode);
 void rtl8180_set_mode(struct net_device *dev, int mode);
 bool SetZebraRFPowerState8185(struct net_device *dev,
-			      RT_RF_POWER_STATE eRFPowerState);
+			      enum rt_rf_power_state eRFPowerState);
 void rtl8225z4_rf_sleep(struct net_device *dev);
 void rtl8225z4_rf_wakeup(struct net_device *dev);
 

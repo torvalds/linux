@@ -265,7 +265,6 @@ config 440EP
 	select PPC_FPU
 	select IBM440EP_ERR42
 	select IBM_EMAC_ZMII
-	select USB_ARCH_HAS_OHCI
 
 config 440EPX
 	bool

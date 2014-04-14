@@ -320,7 +320,7 @@ void __blk_mq_complete_request(struct request *rq)
 		rq->csd.func = __blk_mq_complete_request_remote;
 		rq->csd.info = rq;
 		rq->csd.flags = 0;
-		__smp_call_function_single(ctx->cpu, &rq->csd, 0);
+		smp_call_function_single_async(ctx->cpu, &rq->csd);
 	} else {
 		rq->q->softirq_done_fn(rq);
 	}
@@ -514,7 +514,7 @@ static void __blk_mq_run_hw_queue(struct blk_mq_hw_ctx *hctx)
 	LIST_HEAD(rq_list);
 	int bit, queued;
 
-	if (unlikely(test_bit(BLK_MQ_S_STOPPED, &hctx->flags)))
+	if (unlikely(test_bit(BLK_MQ_S_STOPPED, &hctx->state)))
 		return;
 
 	hctx->run++;
@@ -603,7 +603,7 @@ static void __blk_mq_run_hw_queue(struct blk_mq_hw_ctx *hctx)
 
 void blk_mq_run_hw_queue(struct blk_mq_hw_ctx *hctx, bool async)
 {
-	if (unlikely(test_bit(BLK_MQ_S_STOPPED, &hctx->flags)))
+	if (unlikely(test_bit(BLK_MQ_S_STOPPED, &hctx->state)))
 		return;
 
 	if (!async)
@@ -623,7 +623,7 @@ void blk_mq_run_queues(struct request_queue *q, bool async)
 	queue_for_each_hw_ctx(q, hctx, i) {
 		if ((!blk_mq_hctx_has_pending(hctx) &&
 		    list_empty_careful(&hctx->dispatch)) ||
-		    test_bit(BLK_MQ_S_STOPPED, &hctx->flags))
+		    test_bit(BLK_MQ_S_STOPPED, &hctx->state))
 			continue;
 
 		blk_mq_run_hw_queue(hctx, async);
@@ -956,6 +956,7 @@ static void blk_mq_hctx_notify(void *data, unsigned long action,
 			       unsigned int cpu)
 {
 	struct blk_mq_hw_ctx *hctx = data;
+	struct request_queue *q = hctx->queue;
 	struct blk_mq_ctx *ctx;
 	LIST_HEAD(tmp);
 
@@ -965,7 +966,7 @@ static void blk_mq_hctx_notify(void *data, unsigned long action,
 	/*
 	 * Move ctx entries to new CPU, if this one is going away.
 	 */
-	ctx = __blk_mq_get_ctx(hctx->queue, cpu);
+	ctx = __blk_mq_get_ctx(q, cpu);
 
 	spin_lock(&ctx->lock);
 	if (!list_empty(&ctx->rq_list)) {
@@ -977,7 +978,7 @@ static void blk_mq_hctx_notify(void *data, unsigned long action,
 	if (list_empty(&tmp))
 		return;
 
-	ctx = blk_mq_get_ctx(hctx->queue);
+	ctx = blk_mq_get_ctx(q);
 	spin_lock(&ctx->lock);
 
 	while (!list_empty(&tmp)) {
@@ -988,14 +989,55 @@ static void blk_mq_hctx_notify(void *data, unsigned long action,
 		list_move_tail(&rq->queuelist, &ctx->rq_list);
 	}
 
+	hctx = q->mq_ops->map_queue(q, ctx->cpu);
 	blk_mq_hctx_mark_pending(hctx, ctx);
 
 	spin_unlock(&ctx->lock);
 	blk_mq_put_ctx(ctx);
+
+	blk_mq_run_hw_queue(hctx, true);
 }
 
-static void blk_mq_init_hw_commands(struct blk_mq_hw_ctx *hctx,
-				    void (*init)(void *, struct blk_mq_hw_ctx *,
+static int blk_mq_init_hw_commands(struct blk_mq_hw_ctx *hctx,
+				   int (*init)(void *, struct blk_mq_hw_ctx *,
+					struct request *, unsigned int),
+				   void *data)
+{
+	unsigned int i;
+	int ret = 0;
+
+	for (i = 0; i < hctx->queue_depth; i++) {
+		struct request *rq = hctx->rqs[i];
+
+		ret = init(data, hctx, rq, i);
+		if (ret)
+			break;
+	}
+
+	return ret;
+}
+
+int blk_mq_init_commands(struct request_queue *q,
+			 int (*init)(void *, struct blk_mq_hw_ctx *,
+					struct request *, unsigned int),
+			 void *data)
+{
+	struct blk_mq_hw_ctx *hctx;
+	unsigned int i;
+	int ret = 0;
+
+	queue_for_each_hw_ctx(q, hctx, i) {
+		ret = blk_mq_init_hw_commands(hctx, init, data);
+		if (ret)
+			break;
+	}
+
+	return ret;
+}
+EXPORT_SYMBOL(blk_mq_init_commands);
+
+static void blk_mq_free_hw_commands(struct blk_mq_hw_ctx *hctx,
+				    void (*free)(void *, struct blk_mq_hw_ctx *,
 					struct request *, unsigned int),
 				    void *data)
 {
@@ -1004,12 +1046,12 @@ static void blk_mq_init_hw_commands(struct blk_mq_hw_ctx *hctx,
 	for (i = 0; i < hctx->queue_depth; i++) {
 		struct request *rq = hctx->rqs[i];
 
-		init(data, hctx, rq, i);
+		free(data, hctx, rq, i);
 	}
 }
 
-void blk_mq_init_commands(struct request_queue *q,
-			  void (*init)(void *, struct blk_mq_hw_ctx *,
+void blk_mq_free_commands(struct request_queue *q,
+			  void (*free)(void *, struct blk_mq_hw_ctx *,
 					struct request *, unsigned int),
 			  void *data)
 {
@@ -1017,9 +1059,9 @@ void blk_mq_init_commands(struct request_queue *q,
 	unsigned int i;
 
 	queue_for_each_hw_ctx(q, hctx, i)
-		blk_mq_init_hw_commands(hctx, init, data);
+		blk_mq_free_hw_commands(hctx, free, data);
 }
-EXPORT_SYMBOL(blk_mq_init_commands);
+EXPORT_SYMBOL(blk_mq_free_commands);
 
 static void blk_mq_free_rq_map(struct blk_mq_hw_ctx *hctx)
 {
@@ -1428,6 +1470,16 @@ static int blk_mq_queue_reinit_notify(struct notifier_block *nb,
 		blk_mq_queue_reinit(q);
 	mutex_unlock(&all_q_mutex);
 	return NOTIFY_OK;
+}
+
+void blk_mq_disable_hotplug(void)
+{
+	mutex_lock(&all_q_mutex);
+}
+
+void blk_mq_enable_hotplug(void)
+{
+	mutex_unlock(&all_q_mutex);
 }
 
 static int __init blk_mq_init(void)

@@ -8,9 +8,19 @@
 #include <core/event.h>
 
 #include <engine/dmaobj.h>
-#include <engine/disp.h>
 
 #include "dport.h"
+#include "priv.h"
+
+struct nv50_disp_impl {
+	struct nouveau_disp_impl base;
+	struct {
+		const struct nv50_disp_mthd_chan *core;
+		const struct nv50_disp_mthd_chan *base;
+		const struct nv50_disp_mthd_chan *ovly;
+		int prev;
+	} mthd;
+};
 
 struct nv50_disp_priv {
 	struct nouveau_disp base;
@@ -124,21 +134,60 @@ struct nv50_disp_pioc {
 	struct nv50_disp_chan base;
 };
 
+struct nv50_disp_mthd_list {
+	u32 mthd;
+	u32 addr;
+	struct {
+		u32 mthd;
+		u32 addr;
+		const char *name;
+	} data[];
+};
+
+struct nv50_disp_mthd_chan {
+	const char *name;
+	u32 addr;
+	struct {
+		const char *name;
+		int nr;
+		const struct nv50_disp_mthd_list *mthd;
+	} data[];
+};
+
 extern struct nouveau_ofuncs nv50_disp_mast_ofuncs;
+extern const struct nv50_disp_mthd_list nv50_disp_mast_mthd_base;
+extern const struct nv50_disp_mthd_list nv50_disp_mast_mthd_sor;
+extern const struct nv50_disp_mthd_list nv50_disp_mast_mthd_pior;
 extern struct nouveau_ofuncs nv50_disp_sync_ofuncs;
+extern const struct nv50_disp_mthd_list nv50_disp_sync_mthd_image;
 extern struct nouveau_ofuncs nv50_disp_ovly_ofuncs;
+extern const struct nv50_disp_mthd_list nv50_disp_ovly_mthd_base;
 extern struct nouveau_ofuncs nv50_disp_oimm_ofuncs;
 extern struct nouveau_ofuncs nv50_disp_curs_ofuncs;
 extern struct nouveau_ofuncs nv50_disp_base_ofuncs;
 extern struct nouveau_oclass nv50_disp_cclass;
+void nv50_disp_mthd_chan(struct nv50_disp_priv *, int debug, int head,
+			 const struct nv50_disp_mthd_chan *);
 void nv50_disp_intr_supervisor(struct work_struct *);
 void nv50_disp_intr(struct nouveau_subdev *);
 
+extern const struct nv50_disp_mthd_chan nv84_disp_mast_mthd_chan;
+extern const struct nv50_disp_mthd_list nv84_disp_mast_mthd_dac;
+extern const struct nv50_disp_mthd_list nv84_disp_mast_mthd_head;
+extern const struct nv50_disp_mthd_chan nv84_disp_sync_mthd_chan;
+extern const struct nv50_disp_mthd_chan nv84_disp_ovly_mthd_chan;
 extern struct nouveau_omthds nv84_disp_base_omthds[];
 
+extern const struct nv50_disp_mthd_chan nv94_disp_mast_mthd_chan;
+
 extern struct nouveau_ofuncs nvd0_disp_mast_ofuncs;
+extern const struct nv50_disp_mthd_list nvd0_disp_mast_mthd_base;
+extern const struct nv50_disp_mthd_list nvd0_disp_mast_mthd_dac;
+extern const struct nv50_disp_mthd_list nvd0_disp_mast_mthd_sor;
+extern const struct nv50_disp_mthd_list nvd0_disp_mast_mthd_pior;
 extern struct nouveau_ofuncs nvd0_disp_sync_ofuncs;
 extern struct nouveau_ofuncs nvd0_disp_ovly_ofuncs;
+extern const struct nv50_disp_mthd_chan nvd0_disp_sync_mthd_chan;
 extern struct nouveau_ofuncs nvd0_disp_oimm_ofuncs;
 extern struct nouveau_ofuncs nvd0_disp_curs_ofuncs;
 extern struct nouveau_omthds nvd0_disp_base_omthds[];
@@ -146,5 +195,8 @@ extern struct nouveau_ofuncs nvd0_disp_base_ofuncs;
 extern struct nouveau_oclass nvd0_disp_cclass;
 void nvd0_disp_intr_supervisor(struct work_struct *);
 void nvd0_disp_intr(struct nouveau_subdev *);
+
+extern const struct nv50_disp_mthd_chan nve0_disp_mast_mthd_chan;
+extern const struct nv50_disp_mthd_chan nve0_disp_ovly_mthd_chan;
 
 #endif

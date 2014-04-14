@@ -260,7 +260,8 @@ static int ov7630_get_ctrl(struct sn9c102_device* cam,
 
 	switch (ctrl->id) {
 	case V4L2_CID_EXPOSURE:
-		if ((ctrl->value = sn9c102_i2c_read(cam, 0x10)) < 0)
+		ctrl->value = sn9c102_i2c_read(cam, 0x10);
+		if (ctrl->value < 0)
 			return -EIO;
 		break;
 	case V4L2_CID_RED_BALANCE:
@@ -280,37 +281,44 @@ static int ov7630_get_ctrl(struct sn9c102_device* cam,
 		break;
 		break;
 	case V4L2_CID_GAIN:
-		if ((ctrl->value = sn9c102_i2c_read(cam, 0x00)) < 0)
+		ctrl->value = sn9c102_i2c_read(cam, 0x00);
+		if (ctrl->value < 0)
 			return -EIO;
 		ctrl->value &= 0x3f;
 		break;
 	case V4L2_CID_DO_WHITE_BALANCE:
-		if ((ctrl->value = sn9c102_i2c_read(cam, 0x0c)) < 0)
+		ctrl->value = sn9c102_i2c_read(cam, 0x0c);
+		if (ctrl->value < 0)
 			return -EIO;
 		ctrl->value &= 0x3f;
 		break;
 	case V4L2_CID_WHITENESS:
-		if ((ctrl->value = sn9c102_i2c_read(cam, 0x0d)) < 0)
+		ctrl->value = sn9c102_i2c_read(cam, 0x0d);
+		if (ctrl->value < 0)
 			return -EIO;
 		ctrl->value &= 0x3f;
 		break;
 	case V4L2_CID_AUTOGAIN:
-		if ((ctrl->value = sn9c102_i2c_read(cam, 0x13)) < 0)
+		ctrl->value = sn9c102_i2c_read(cam, 0x13);
+		if (ctrl->value < 0)
 			return -EIO;
 		ctrl->value &= 0x01;
 		break;
 	case V4L2_CID_VFLIP:
-		if ((ctrl->value = sn9c102_i2c_read(cam, 0x75)) < 0)
+		ctrl->value = sn9c102_i2c_read(cam, 0x75);
+		if (ctrl->value < 0)
 			return -EIO;
 		ctrl->value = (ctrl->value & 0x80) ? 1 : 0;
 		break;
 	case SN9C102_V4L2_CID_GAMMA:
-		if ((ctrl->value = sn9c102_i2c_read(cam, 0x14)) < 0)
+		ctrl->value = sn9c102_i2c_read(cam, 0x14);
+		if (ctrl->value < 0)
 			return -EIO;
 		ctrl->value = (ctrl->value & 0x02) ? 1 : 0;
 		break;
 	case SN9C102_V4L2_CID_BAND_FILTER:
-		if ((ctrl->value = sn9c102_i2c_read(cam, 0x2d)) < 0)
+		ctrl->value = sn9c102_i2c_read(cam, 0x2d);
+		if (ctrl->value < 0)
 			return -EIO;
 		ctrl->value = (ctrl->value & 0x02) ? 1 : 0;
 		break;

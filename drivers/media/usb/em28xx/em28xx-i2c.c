@@ -81,7 +81,7 @@ static int em2800_i2c_send_bytes(struct em28xx *dev, u8 addr, u8 *buf, u16 len)
 			return len;
 		if (ret == 0x94 + len - 1) {
 			if (i2c_debug == 1)
-				em28xx_warn("R05 returned 0x%02x: I2C timeout",
+				em28xx_warn("R05 returned 0x%02x: I2C ACK error\n",
 					    ret);
 			return -ENXIO;
 		}
@@ -128,7 +128,7 @@ static int em2800_i2c_recv_bytes(struct em28xx *dev, u8 addr, u8 *buf, u16 len)
 			break;
 		if (ret == 0x94 + len - 1) {
 			if (i2c_debug == 1)
-				em28xx_warn("R05 returned 0x%02x: I2C timeout",
+				em28xx_warn("R05 returned 0x%02x: I2C ACK error\n",
 					    ret);
 			return -ENXIO;
 		}
@@ -210,7 +210,7 @@ static int em28xx_i2c_send_bytes(struct em28xx *dev, u16 addr, u8 *buf,
 			return len;
 		if (ret == 0x10) {
 			if (i2c_debug == 1)
-				em28xx_warn("I2C transfer timeout on writing to addr 0x%02x",
+				em28xx_warn("I2C ACK error on writing to addr 0x%02x\n",
 					    addr);
 			return -ENXIO;
 		}
@@ -226,10 +226,18 @@ static int em28xx_i2c_send_bytes(struct em28xx *dev, u16 addr, u8 *buf,
 		 * (even with high payload) ...
 		 */
 	}
-	if (i2c_debug)
-		em28xx_warn("write to i2c device at 0x%x timed out (status=%i)\n",
-			    addr, ret);
-	return -ETIMEDOUT;
+
+	if (ret == 0x02 || ret == 0x04) {
+		/* NOTE: these errors seem to be related to clock stretching */
+		if (i2c_debug)
+			em28xx_warn("write to i2c device at 0x%x timed out (status=%i)\n",
+				    addr, ret);
+		return -ETIMEDOUT;
+	}
+
+	em28xx_warn("write to i2c device at 0x%x failed with unknown error (status=%i)\n",
+		    addr, ret);
+	return -EIO;
 }
 
 /*
@@ -274,13 +282,22 @@ static int em28xx_i2c_recv_bytes(struct em28xx *dev, u16 addr, u8 *buf, u16 len)
 	}
 	if (ret == 0x10) {
 		if (i2c_debug == 1)
-			em28xx_warn("I2C transfer timeout on writing to addr 0x%02x",
+			em28xx_warn("I2C ACK error on writing to addr 0x%02x\n",
 				    addr);
 		return -ENXIO;
 	}
 
-	em28xx_warn("unknown i2c error (status=%i)\n", ret);
-	return -ETIMEDOUT;
+	if (ret == 0x02 || ret == 0x04) {
+		/* NOTE: these errors seem to be related to clock stretching */
+		if (i2c_debug)
+			em28xx_warn("write to i2c device at 0x%x timed out (status=%i)\n",
+				    addr, ret);
+		return -ETIMEDOUT;
+	}
+
+	em28xx_warn("write to i2c device at 0x%x failed with unknown error (status=%i)\n",
+		    addr, ret);
+	return -EIO;
 }
 
 /*
@@ -337,7 +354,7 @@ static int em25xx_bus_B_send_bytes(struct em28xx *dev, u16 addr, u8 *buf,
 		return len;
 	else if (ret > 0) {
 		if (i2c_debug == 1)
-			em28xx_warn("Bus B R08 returned 0x%02x: I2C timeout",
+			em28xx_warn("Bus B R08 returned 0x%02x: I2C ACK error\n",
 				    ret);
 		return -ENXIO;
 	}
@@ -392,7 +409,7 @@ static int em25xx_bus_B_recv_bytes(struct em28xx *dev, u16 addr, u8 *buf,
 		return len;
 	else if (ret > 0) {
 		if (i2c_debug == 1)
-			em28xx_warn("Bus B R08 returned 0x%02x: I2C timeout",
+			em28xx_warn("Bus B R08 returned 0x%02x: I2C ACK error\n",
 				    ret);
 		return -ENXIO;
 	}

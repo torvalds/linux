@@ -46,7 +46,7 @@ static void ttm_eu_backoff_reservation_locked(struct list_head *list)
 			ttm_bo_add_to_lru(bo);
 			entry->removed = false;
 		}
-		ww_mutex_unlock(&bo->resv->lock);
+		__ttm_bo_unreserve(bo);
 	}
 }
 
@@ -140,8 +140,8 @@ retry:
 		if (entry->reserved)
 			continue;
 
-		ret = ttm_bo_reserve_nolru(bo, true, (ticket == NULL), true,
-					   ticket);
+		ret = __ttm_bo_reserve(bo, true, (ticket == NULL), true,
+				       ticket);
 
 		if (ret == -EDEADLK) {
 			/* uh oh, we lost out, drop every reservation and try
@@ -224,7 +224,7 @@ void ttm_eu_fence_buffer_objects(struct ww_acquire_ctx *ticket,
 		entry->old_sync_obj = bo->sync_obj;
 		bo->sync_obj = driver->sync_obj_ref(sync_obj);
 		ttm_bo_add_to_lru(bo);
-		ww_mutex_unlock(&bo->resv->lock);
+		__ttm_bo_unreserve(bo);
 		entry->reserved = false;
 	}
 	spin_unlock(&bdev->fence_lock);

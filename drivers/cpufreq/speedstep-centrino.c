@@ -406,8 +406,6 @@ static int centrino_cpu_exit(struct cpufreq_policy *policy)
 	if (!per_cpu(centrino_model, cpu))
 		return -ENODEV;
 
-	cpufreq_frequency_table_put_attr(cpu);
-
 	per_cpu(centrino_model, cpu) = NULL;
 
 	return 0;

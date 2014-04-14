@@ -89,7 +89,7 @@ static int venc_panel_probe(struct omap_dss_device *dssdev)
 	const struct omap_video_timings default_timings = {
 		.x_res		= 720,
 		.y_res		= 574,
-		.pixel_clock	= 13500,
+		.pixelclock	= 13500000,
 		.hsw		= 64,
 		.hfp		= 12,
 		.hbp		= 68,

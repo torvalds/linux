@@ -1551,7 +1551,7 @@ static int pcimio_auto_attach(struct comedi_device *dev,
 	dev->subdevices[NI_GPCT_SUBDEV(1)].buf_change = &pcimio_gpct1_change;
 	dev->subdevices[NI_DIO_SUBDEV].buf_change = &pcimio_dio_change;
 
-	return ret;
+	return 0;
 }
 
 static int pcimio_ai_change(struct comedi_device *dev,

@@ -50,16 +50,16 @@ static const char *speaker_ref_text[] = {
 	"VMID",
 };
 
-static const struct soc_enum speaker_ref =
-	SOC_ENUM_SINGLE(WM8993_SPEAKER_MIXER, 8, 2, speaker_ref_text);
+static SOC_ENUM_SINGLE_DECL(speaker_ref,
+			    WM8993_SPEAKER_MIXER, 8, speaker_ref_text);
 
 static const char *speaker_mode_text[] = {
 	"Class D",
 	"Class AB",
 };
 
-static const struct soc_enum speaker_mode =
-	SOC_ENUM_SINGLE(WM8993_SPKMIXR_ATTENUATION, 8, 2, speaker_mode_text);
+static SOC_ENUM_SINGLE_DECL(speaker_mode,
+			    WM8993_SPKMIXR_ATTENUATION, 8, speaker_mode_text);
 
 static void wait_for_dc_servo(struct snd_soc_codec *codec, unsigned int op)
 {
@@ -735,15 +735,15 @@ static const char *hp_mux_text[] = {
 	"DAC",
 };
 
-static const struct soc_enum hpl_enum =
-	SOC_ENUM_SINGLE(WM8993_OUTPUT_MIXER1, 8, 2, hp_mux_text);
+static SOC_ENUM_SINGLE_DECL(hpl_enum,
+			    WM8993_OUTPUT_MIXER1, 8, hp_mux_text);
 
 const struct snd_kcontrol_new wm_hubs_hpl_mux =
 	WM_HUBS_ENUM_W("Left Headphone Mux", hpl_enum);
 EXPORT_SYMBOL_GPL(wm_hubs_hpl_mux);
 
-static const struct soc_enum hpr_enum =
-	SOC_ENUM_SINGLE(WM8993_OUTPUT_MIXER2, 8, 2, hp_mux_text);
+static SOC_ENUM_SINGLE_DECL(hpr_enum,
+			    WM8993_OUTPUT_MIXER2, 8, hp_mux_text);
 
 const struct snd_kcontrol_new wm_hubs_hpr_mux =
 	WM_HUBS_ENUM_W("Right Headphone Mux", hpr_enum);

@@ -349,7 +349,6 @@ static int lm83_probe(struct i2c_client *new_client,
 		return -ENOMEM;
 
 	i2c_set_clientdata(new_client, data);
-	data->valid = 0;
 	mutex_init(&data->update_lock);
 
 	/*

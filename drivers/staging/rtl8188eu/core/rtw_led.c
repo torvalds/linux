@@ -34,7 +34,7 @@ void BlinkTimerCallback(void *data)
 	if ((padapter->bSurpriseRemoved) || (padapter->bDriverStopped))
 		return;
 
-	_set_workitem(&(pLed->BlinkWorkItem));
+	schedule_work(&(pLed->BlinkWorkItem));
 }
 
 /*  */
@@ -80,7 +80,7 @@ void InitLed871x(struct adapter *padapter, struct LED_871x *pLed, enum LED_PIN_8
 
 	_init_timer(&(pLed->BlinkTimer), padapter->pnetdev, BlinkTimerCallback, pLed);
 
-	_init_workitem(&(pLed->BlinkWorkItem), BlinkWorkItemCallback, pLed);
+	INIT_WORK(&(pLed->BlinkWorkItem), BlinkWorkItemCallback);
 }
 
 

@@ -1176,7 +1176,7 @@ int gss_kt_instantiate(struct key *key, const void *data, size_t datalen)
 
 /*
  * called with key semaphore write locked. it means we can operate
- * on the context without fear of loosing refcount.
+ * on the context without fear of losing refcount.
  */
 static
 int gss_kt_update(struct key *key, const void *data, size_t datalen)

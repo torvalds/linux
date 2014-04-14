@@ -13,8 +13,7 @@
 #include <linux/kernel.h>
 #include "2t3e3.h"
 
-const u32 cpld_reg_map[][2] =
-{
+const u32 cpld_reg_map[][2] = {
 	{ 0x0000, 0x0080 }, /* 0 - Port Control Register A (PCRA) */
 	{ 0x0004, 0x0084 }, /* 1 - Port Control Register B (PCRB) */
 	{ 0x0008, 0x0088 }, /* 2 - LCV Count Register (PLCR) */
@@ -35,8 +34,7 @@ const u32 cpld_reg_map[][2] =
 	{ 0x0070, 0x00f0 }, /* 17 - Port Bandwidth Stop (PBWL) */
 };
 
-const u32 cpld_val_map[][2] =
-{
+const u32 cpld_val_map[][2] = {
 	{ 0x01, 0x02 }, /* LIU1 / LIU2 select for Serial Chip Select */
 	{ 0x04, 0x08 }, /* DAC1 / DAC2 select for Serial Chip Select */
 	{ 0x00, 0x04 }, /* LOOP1 / LOOP2 - select of loop timing source */
@@ -94,8 +92,7 @@ const u32 t3e3_framer_reg_map[] = {
 	0x81  /* 47 - LINE_INTERFACE_SCAN */
 };
 
-const u32 t3e3_liu_reg_map[] =
-{
+const u32 t3e3_liu_reg_map[] = {
 	0x00, /* REG0 */
 	0x01, /* REG1 */
 	0x02, /* REG2 */

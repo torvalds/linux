@@ -263,6 +263,8 @@ dbx500_regulator_info[DB8500_NUM_REGULATORS] = {
 			.ops	= &db8500_regulator_ops,
 			.type	= REGULATOR_VOLTAGE,
 			.owner	= THIS_MODULE,
+			.fixed_uV = 1800000,
+			.n_voltages = 1,
 		},
 		.exclude_from_power_state = true,
 	},

@@ -37,15 +37,15 @@ MODULE_PARM_DESC(bus_frequency, "Bus frequency in kHz");
 
 /* Clock ratio multiplied by 10 - see table 27 in AMD#23446 */
 static struct cpufreq_frequency_table clock_ratio[] = {
-	{60,  /* 110 -> 6.0x */ 0},
-	{55,  /* 011 -> 5.5x */ 0},
-	{50,  /* 001 -> 5.0x */ 0},
-	{45,  /* 000 -> 4.5x */ 0},
-	{40,  /* 010 -> 4.0x */ 0},
-	{35,  /* 111 -> 3.5x */ 0},
-	{30,  /* 101 -> 3.0x */ 0},
-	{20,  /* 100 -> 2.0x */ 0},
-	{0, CPUFREQ_TABLE_END}
+	{0, 60,  /* 110 -> 6.0x */ 0},
+	{0, 55,  /* 011 -> 5.5x */ 0},
+	{0, 50,  /* 001 -> 5.0x */ 0},
+	{0, 45,  /* 000 -> 4.5x */ 0},
+	{0, 40,  /* 010 -> 4.0x */ 0},
+	{0, 35,  /* 111 -> 3.5x */ 0},
+	{0, 30,  /* 101 -> 3.0x */ 0},
+	{0, 20,  /* 100 -> 2.0x */ 0},
+	{0, 0, CPUFREQ_TABLE_END}
 };
 
 static const u8 index_to_register[8] = { 6, 3, 1, 0, 2, 7, 5, 4 };
@@ -148,11 +148,11 @@ static int powernow_k6_target(struct cpufreq_policy *policy,
 	freqs.old = busfreq * powernow_k6_get_cpu_multiplier();
 	freqs.new = busfreq * clock_ratio[best_i].driver_data;
 
-	cpufreq_notify_transition(policy, &freqs, CPUFREQ_PRECHANGE);
+	cpufreq_freq_transition_begin(policy, &freqs);
 
 	powernow_k6_set_cpu_multiplier(best_i);
 
-	cpufreq_notify_transition(policy, &freqs, CPUFREQ_POSTCHANGE);
+	cpufreq_freq_transition_end(policy, &freqs, 0);
 
 	return 0;
 }
@@ -231,7 +231,6 @@ static int powernow_k6_cpu_exit(struct cpufreq_policy *policy)
 		if (i == max_multiplier)
 			powernow_k6_target(policy, i);
 	}
-	cpufreq_frequency_table_put_attr(policy->cpu);
 	return 0;
 }
 

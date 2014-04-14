@@ -33,11 +33,10 @@ int cpufreq_frequency_table_cpuinfo(struct cpufreq_policy *policy,
 			continue;
 		}
 		if (!cpufreq_boost_enabled()
-		    && table[i].driver_data == CPUFREQ_BOOST_FREQ)
+		    && (table[i].flags & CPUFREQ_BOOST_FREQ))
 			continue;
 
-		pr_debug("table entry %u: %u kHz, %u driver_data\n",
-					i, freq, table[i].driver_data);
+		pr_debug("table entry %u: %u kHz\n", i, freq);
 		if (freq < min_freq)
 			min_freq = freq;
 		if (freq > max_freq)
@@ -91,8 +90,8 @@ int cpufreq_frequency_table_verify(struct cpufreq_policy *policy,
 EXPORT_SYMBOL_GPL(cpufreq_frequency_table_verify);
 
 /*
- * Generic routine to verify policy & frequency table, requires driver to call
- * cpufreq_frequency_table_get_attr() prior to it.
+ * Generic routine to verify policy & frequency table, requires driver to set
+ * policy->freq_table prior to it.
  */
 int cpufreq_generic_frequency_table_verify(struct cpufreq_policy *policy)
 {
@@ -175,8 +174,8 @@ int cpufreq_frequency_table_target(struct cpufreq_policy *policy,
 	} else
 		*index = optimal.driver_data;
 
-	pr_debug("target is %u (%u kHz, %u)\n", *index, table[*index].frequency,
-		table[*index].driver_data);
+	pr_debug("target index is %u, freq is:%u kHz\n", *index,
+		 table[*index].frequency);
 
 	return 0;
 }
@@ -203,8 +202,6 @@ int cpufreq_frequency_table_get_index(struct cpufreq_policy *policy,
 }
 EXPORT_SYMBOL_GPL(cpufreq_frequency_table_get_index);
 
-static DEFINE_PER_CPU(struct cpufreq_frequency_table *, cpufreq_show_table);
-
 /**
  * show_available_freqs - show available frequencies for the specified CPU
  */
@@ -212,14 +209,11 @@ static ssize_t show_available_freqs(struct cpufreq_policy *policy, char *buf,
 				    bool show_boost)
 {
 	unsigned int i = 0;
-	unsigned int cpu = policy->cpu;
 	ssize_t count = 0;
-	struct cpufreq_frequency_table *table;
+	struct cpufreq_frequency_table *table = policy->freq_table;
 
-	if (!per_cpu(cpufreq_show_table, cpu))
+	if (!table)
 		return -ENODEV;
-
-	table = per_cpu(cpufreq_show_table, cpu);
 
 	for (i = 0; (table[i].frequency != CPUFREQ_TABLE_END); i++) {
 		if (table[i].frequency == CPUFREQ_ENTRY_INVALID)
@@ -235,7 +229,7 @@ static ssize_t show_available_freqs(struct cpufreq_policy *policy, char *buf,
 		 * show_boost = false and driver_data != BOOST freq
 		 * display NON BOOST freqs
 		 */
-		if (show_boost ^ (table[i].driver_data == CPUFREQ_BOOST_FREQ))
+		if (show_boost ^ (table[i].flags & CPUFREQ_BOOST_FREQ))
 			continue;
 
 		count += sprintf(&buf[count], "%d ", table[i].frequency);
@@ -283,49 +277,24 @@ struct freq_attr *cpufreq_generic_attr[] = {
 };
 EXPORT_SYMBOL_GPL(cpufreq_generic_attr);
 
-/*
- * if you use these, you must assure that the frequency table is valid
- * all the time between get_attr and put_attr!
- */
-void cpufreq_frequency_table_get_attr(struct cpufreq_frequency_table *table,
-				      unsigned int cpu)
-{
-	pr_debug("setting show_table for cpu %u to %p\n", cpu, table);
-	per_cpu(cpufreq_show_table, cpu) = table;
-}
-EXPORT_SYMBOL_GPL(cpufreq_frequency_table_get_attr);
-
-void cpufreq_frequency_table_put_attr(unsigned int cpu)
-{
-	pr_debug("clearing show_table for cpu %u\n", cpu);
-	per_cpu(cpufreq_show_table, cpu) = NULL;
-}
-EXPORT_SYMBOL_GPL(cpufreq_frequency_table_put_attr);
-
 int cpufreq_table_validate_and_show(struct cpufreq_policy *policy,
 				      struct cpufreq_frequency_table *table)
 {
 	int ret = cpufreq_frequency_table_cpuinfo(policy, table);
 
 	if (!ret)
-		cpufreq_frequency_table_get_attr(table, policy->cpu);
+		policy->freq_table = table;
 
 	return ret;
 }
 EXPORT_SYMBOL_GPL(cpufreq_table_validate_and_show);
 
-void cpufreq_frequency_table_update_policy_cpu(struct cpufreq_policy *policy)
-{
-	pr_debug("Updating show_table for new_cpu %u from last_cpu %u\n",
-			policy->cpu, policy->last_cpu);
-	per_cpu(cpufreq_show_table, policy->cpu) = per_cpu(cpufreq_show_table,
-			policy->last_cpu);
-	per_cpu(cpufreq_show_table, policy->last_cpu) = NULL;
-}
+struct cpufreq_policy *cpufreq_cpu_get_raw(unsigned int cpu);
 
 struct cpufreq_frequency_table *cpufreq_frequency_get_table(unsigned int cpu)
 {
-	return per_cpu(cpufreq_show_table, cpu);
+	struct cpufreq_policy *policy = cpufreq_cpu_get_raw(cpu);
+	return policy ? policy->freq_table : NULL;
 }
 EXPORT_SYMBOL_GPL(cpufreq_frequency_get_table);
 

@@ -92,7 +92,7 @@
 
 /* Driver name and version strings */
 #define MTIP_DRV_NAME		"mtip32xx"
-#define MTIP_DRV_VERSION	"1.3.0"
+#define MTIP_DRV_VERSION	"1.3.1"
 
 /* Maximum number of minor device numbers per device. */
 #define MTIP_MAX_MINORS		16

@@ -108,8 +108,8 @@ int hsr_create_self_node(struct list_head *self_node_db,
 	if (!node)
 		return -ENOMEM;
 
-	memcpy(node->MacAddressA, addr_a, ETH_ALEN);
-	memcpy(node->MacAddressB, addr_b, ETH_ALEN);
+	ether_addr_copy(node->MacAddressA, addr_a);
+	ether_addr_copy(node->MacAddressB, addr_b);
 
 	rcu_read_lock();
 	oldnode = list_first_or_null_rcu(self_node_db,
@@ -199,7 +199,7 @@ struct node_entry *hsr_merge_node(struct hsr_priv *hsr_priv,
 		/* Node is known, but frame was received from an unknown
 		 * address. Node is PICS_SUBS capable; merge its AddrB.
 		 */
-		memcpy(node->MacAddressB, hsr_ethsup->ethhdr.h_source, ETH_ALEN);
+		ether_addr_copy(node->MacAddressB, hsr_ethsup->ethhdr.h_source);
 		node->AddrB_if = dev_idx;
 		return node;
 	}
@@ -208,8 +208,8 @@ struct node_entry *hsr_merge_node(struct hsr_priv *hsr_priv,
 	if (!node)
 		return NULL;
 
-	memcpy(node->MacAddressA, hsr_sp->MacAddressA, ETH_ALEN);
-	memcpy(node->MacAddressB, hsr_ethsup->ethhdr.h_source, ETH_ALEN);
+	ether_addr_copy(node->MacAddressA, hsr_sp->MacAddressA);
+	ether_addr_copy(node->MacAddressB, hsr_ethsup->ethhdr.h_source);
 	if (!ether_addr_equal(hsr_sp->MacAddressA, hsr_ethsup->ethhdr.h_source))
 		node->AddrB_if = dev_idx;
 	else
@@ -250,7 +250,7 @@ void hsr_addr_subst_source(struct hsr_priv *hsr_priv, struct sk_buff *skb)
 	rcu_read_lock();
 	node = find_node_by_AddrB(&hsr_priv->node_db, ethhdr->h_source);
 	if (node)
-		memcpy(ethhdr->h_source, node->MacAddressA, ETH_ALEN);
+		ether_addr_copy(ethhdr->h_source, node->MacAddressA);
 	rcu_read_unlock();
 }
 
@@ -272,7 +272,7 @@ void hsr_addr_subst_dest(struct hsr_priv *hsr_priv, struct ethhdr *ethhdr,
 	rcu_read_lock();
 	node = find_node_by_AddrA(&hsr_priv->node_db, ethhdr->h_dest);
 	if (node && (node->AddrB_if == dev_idx))
-		memcpy(ethhdr->h_dest, node->MacAddressB, ETH_ALEN);
+		ether_addr_copy(ethhdr->h_dest, node->MacAddressB);
 	rcu_read_unlock();
 }
 
@@ -428,13 +428,13 @@ void *hsr_get_next_node(struct hsr_priv *hsr_priv, void *_pos,
 		node = list_first_or_null_rcu(&hsr_priv->node_db,
 						struct node_entry, mac_list);
 		if (node)
-			memcpy(addr, node->MacAddressA, ETH_ALEN);
+			ether_addr_copy(addr, node->MacAddressA);
 		return node;
 	}
 
 	node = _pos;
 	list_for_each_entry_continue_rcu(node, &hsr_priv->node_db, mac_list) {
-		memcpy(addr, node->MacAddressA, ETH_ALEN);
+		ether_addr_copy(addr, node->MacAddressA);
 		return node;
 	}
 
@@ -462,7 +462,7 @@ int hsr_get_node_data(struct hsr_priv *hsr_priv,
 		return -ENOENT;	/* No such entry */
 	}
 
-	memcpy(addr_b, node->MacAddressB, ETH_ALEN);
+	ether_addr_copy(addr_b, node->MacAddressB);
 
 	tdiff = jiffies - node->time_in[HSR_DEV_SLAVE_A];
 	if (node->time_in_stale[HSR_DEV_SLAVE_A])

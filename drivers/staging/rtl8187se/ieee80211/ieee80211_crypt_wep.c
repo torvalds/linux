@@ -11,7 +11,6 @@
 
 #define pr_fmt(fmt) KBUILD_MODNAME ": " fmt
 
-//#include <linux/config.h>
 #include <linux/module.h>
 #include <linux/slab.h>
 #include <linux/random.h>
@@ -28,8 +27,6 @@ MODULE_AUTHOR("Jouni Malinen");
 MODULE_DESCRIPTION("Host AP crypt: WEP");
 MODULE_LICENSE("GPL");
 
-
-
 struct prism2_wep_data {
 	u32 iv;
 #define WEP_KEY_LEN 13
@@ -39,7 +36,6 @@ struct prism2_wep_data {
 	struct crypto_blkcipher *tx_tfm;
 	struct crypto_blkcipher *rx_tfm;
 };
-
 
 static void *prism2_wep_init(int keyidx)
 {
@@ -79,7 +75,6 @@ fail:
 	return NULL;
 }
 
-
 static void prism2_wep_deinit(void *priv)
 {
 	struct prism2_wep_data *_priv = priv;
@@ -93,7 +88,6 @@ static void prism2_wep_deinit(void *priv)
 
 	kfree(priv);
 }
-
 
 /* Perform WEP encryption on given skb that has at least 4 bytes of headroom
  * for IV and 4 bytes of tailroom for ICV. Both IV and ICV will be transmitted,
@@ -157,7 +151,6 @@ static int prism2_wep_encrypt(struct sk_buff *skb, int hdr_len, void *priv)
 	return crypto_blkcipher_encrypt(&desc, &sg, &sg, len + 4);
 }
 
-
 /* Perform WEP decryption on given buffer. Buffer includes whole WEP part of
  * the frame: IV (4 bytes), encrypted payload (including SNAP header),
  * ICV (4 bytes). len includes both IV and ICV.
@@ -219,7 +212,6 @@ static int prism2_wep_decrypt(struct sk_buff *skb, int hdr_len, void *priv)
 	return 0;
 }
 
-
 static int prism2_wep_set_key(void *key, int len, u8 *seq, void *priv)
 {
 	struct prism2_wep_data *wep = priv;
@@ -233,7 +225,6 @@ static int prism2_wep_set_key(void *key, int len, u8 *seq, void *priv)
 	return 0;
 }
 
-
 static int prism2_wep_get_key(void *key, int len, u8 *seq, void *priv)
 {
 	struct prism2_wep_data *wep = priv;
@@ -246,7 +237,6 @@ static int prism2_wep_get_key(void *key, int len, u8 *seq, void *priv)
 	return wep->key_len;
 }
 
-
 static char *prism2_wep_print_stats(char *p, void *priv)
 {
 	struct prism2_wep_data *wep = priv;
@@ -254,7 +244,6 @@ static char *prism2_wep_print_stats(char *p, void *priv)
 		     wep->key_idx, wep->key_len);
 	return p;
 }
-
 
 static struct ieee80211_crypto_ops ieee80211_crypt_wep = {
 	.name			= "WEP",
@@ -272,21 +261,17 @@ static struct ieee80211_crypto_ops ieee80211_crypt_wep = {
 	.owner			= THIS_MODULE,
 };
 
-
 int ieee80211_crypto_wep_init(void)
 {
 	return ieee80211_register_crypto_ops(&ieee80211_crypt_wep);
 }
-
 
 void ieee80211_crypto_wep_exit(void)
 {
 	ieee80211_unregister_crypto_ops(&ieee80211_crypt_wep);
 }
 
-
 void ieee80211_wep_null(void)
 {
-//	printk("============>%s()\n", __func__);
 	return;
 }

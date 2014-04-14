@@ -1401,7 +1401,7 @@ code.  Here are some examples of these sorts of optimizations:
 			process_message(msg);
 	}
 
-     There is nothing to prevent the the compiler from transforming
+     There is nothing to prevent the compiler from transforming
      process_level() to the following, in fact, this might well be a
      win for single-threaded code:
 

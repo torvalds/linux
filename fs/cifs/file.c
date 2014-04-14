@@ -2579,19 +2579,32 @@ cifs_writev(struct kiocb *iocb, const struct iovec *iov,
 	struct cifsInodeInfo *cinode = CIFS_I(inode);
 	struct TCP_Server_Info *server = tlink_tcon(cfile->tlink)->ses->server;
 	ssize_t rc = -EACCES;
-	loff_t lock_pos = pos;
+	loff_t lock_pos = iocb->ki_pos;
 
-	if (file->f_flags & O_APPEND)
-		lock_pos = i_size_read(inode);
 	/*
 	 * We need to hold the sem to be sure nobody modifies lock list
 	 * with a brlock that prevents writing.
 	 */
 	down_read(&cinode->lock_sem);
+	mutex_lock(&inode->i_mutex);
+	if (file->f_flags & O_APPEND)
+		lock_pos = i_size_read(inode);
 	if (!cifs_find_lock_conflict(cfile, lock_pos, iov_length(iov, nr_segs),
 				     server->vals->exclusive_lock_type, NULL,
-				     CIFS_WRITE_OP))
-		rc = generic_file_aio_write(iocb, iov, nr_segs, pos);
+				     CIFS_WRITE_OP)) {
+		rc = __generic_file_aio_write(iocb, iov, nr_segs);
+		mutex_unlock(&inode->i_mutex);
+
+		if (rc > 0) {
+			ssize_t err;
+
+			err = generic_write_sync(file, iocb->ki_pos - rc, rc);
+			if (rc < 0)
+				rc = err;
+		}
+	} else {
+		mutex_unlock(&inode->i_mutex);
+	}
 	up_read(&cinode->lock_sem);
 	return rc;
 }
@@ -2727,56 +2740,27 @@ cifs_retry_async_readv(struct cifs_readdata *rdata)
 /**
  * cifs_readdata_to_iov - copy data from pages in response to an iovec
  * @rdata:	the readdata response with list of pages holding data
- * @iov:	vector in which we should copy the data
- * @nr_segs:	number of segments in vector
- * @offset:	offset into file of the first iovec
- * @copied:	used to return the amount of data copied to the iov
+ * @iter:	destination for our data
  *
  * This function copies data from a list of pages in a readdata response into
  * an array of iovecs. It will first calculate where the data should go
  * based on the info in the readdata and then copy the data into that spot.
  */
-static ssize_t
-cifs_readdata_to_iov(struct cifs_readdata *rdata, const struct iovec *iov,
-			unsigned long nr_segs, loff_t offset, ssize_t *copied)
+static int
+cifs_readdata_to_iov(struct cifs_readdata *rdata, struct iov_iter *iter)
 {
-	int rc = 0;
-	struct iov_iter ii;
-	size_t pos = rdata->offset - offset;
-	ssize_t remaining = rdata->bytes;
-	unsigned char *pdata;
+	size_t remaining = rdata->bytes;
 	unsigned int i;
 
-	/* set up iov_iter and advance to the correct offset */
-	iov_iter_init(&ii, iov, nr_segs, iov_length(iov, nr_segs), 0);
-	iov_iter_advance(&ii, pos);
-
-	*copied = 0;
 	for (i = 0; i < rdata->nr_pages; i++) {
-		ssize_t copy;
 		struct page *page = rdata->pages[i];
-
-		/* copy a whole page or whatever's left */
-		copy = min_t(ssize_t, remaining, PAGE_SIZE);
-
-		/* ...but limit it to whatever space is left in the iov */
-		copy = min_t(ssize_t, copy, iov_iter_count(&ii));
-
-		/* go while there's data to be copied and no errors */
-		if (copy && !rc) {
-			pdata = kmap(page);
-			rc = memcpy_toiovecend(ii.iov, pdata, ii.iov_offset,
-						(int)copy);
-			kunmap(page);
-			if (!rc) {
-				*copied += copy;
-				remaining -= copy;
-				iov_iter_advance(&ii, copy);
-			}
-		}
+		size_t copy = min_t(size_t, remaining, PAGE_SIZE);
+		size_t written = copy_page_to_iter(page, 0, copy, iter);
+		remaining -= written;
+		if (written < copy && iov_iter_count(iter) > 0)
+			break;
 	}
-
-	return rc;
+	return remaining ? -EFAULT : 0;
 }
 
 static void
@@ -2837,20 +2821,21 @@ cifs_uncached_read_into_pages(struct TCP_Server_Info *server,
 	return total_read > 0 ? total_read : result;
 }
 
-static ssize_t
-cifs_iovec_read(struct file *file, const struct iovec *iov,
-		 unsigned long nr_segs, loff_t *poffset)
+ssize_t cifs_user_readv(struct kiocb *iocb, const struct iovec *iov,
+			       unsigned long nr_segs, loff_t pos)
 {
+	struct file *file = iocb->ki_filp;
 	ssize_t rc;
 	size_t len, cur_len;
 	ssize_t total_read = 0;
-	loff_t offset = *poffset;
+	loff_t offset = pos;
 	unsigned int npages;
 	struct cifs_sb_info *cifs_sb;
 	struct cifs_tcon *tcon;
 	struct cifsFileInfo *open_file;
 	struct cifs_readdata *rdata, *tmp;
 	struct list_head rdata_list;
+	struct iov_iter to;
 	pid_t pid;
 
 	if (!nr_segs)
@@ -2859,6 +2844,8 @@ cifs_iovec_read(struct file *file, const struct iovec *iov,
 	len = iov_length(iov, nr_segs);
 	if (!len)
 		return 0;
+
+	iov_iter_init(&to, iov, nr_segs, len, 0);
 
 	INIT_LIST_HEAD(&rdata_list);
 	cifs_sb = CIFS_SB(file->f_path.dentry->d_sb);
@@ -2917,55 +2904,44 @@ error:
 	if (!list_empty(&rdata_list))
 		rc = 0;
 
+	len = iov_iter_count(&to);
 	/* the loop below should proceed in the order of increasing offsets */
-restart_loop:
 	list_for_each_entry_safe(rdata, tmp, &rdata_list, list) {
+	again:
 		if (!rc) {
-			ssize_t copied;
-
 			/* FIXME: freezable sleep too? */
 			rc = wait_for_completion_killable(&rdata->done);
 			if (rc)
 				rc = -EINTR;
-			else if (rdata->result)
+			else if (rdata->result) {
 				rc = rdata->result;
-			else {
-				rc = cifs_readdata_to_iov(rdata, iov,
-							nr_segs, *poffset,
-							&copied);
-				total_read += copied;
+				/* resend call if it's a retryable error */
+				if (rc == -EAGAIN) {
+					rc = cifs_retry_async_readv(rdata);
+					goto again;
+				}
+			} else {
+				rc = cifs_readdata_to_iov(rdata, &to);
 			}
 
-			/* resend call if it's a retryable error */
-			if (rc == -EAGAIN) {
-				rc = cifs_retry_async_readv(rdata);
-				goto restart_loop;
-			}
 		}
 		list_del_init(&rdata->list);
 		kref_put(&rdata->refcount, cifs_uncached_readdata_release);
 	}
 
+	total_read = len - iov_iter_count(&to);
+
 	cifs_stats_bytes_read(tcon, total_read);
-	*poffset += total_read;
 
 	/* mask nodata case */
 	if (rc == -ENODATA)
 		rc = 0;
 
-	return total_read ? total_read : rc;
-}
-
-ssize_t cifs_user_readv(struct kiocb *iocb, const struct iovec *iov,
-			       unsigned long nr_segs, loff_t pos)
-{
-	ssize_t read;
-
-	read = cifs_iovec_read(iocb->ki_filp, iov, nr_segs, &pos);
-	if (read > 0)
-		iocb->ki_pos = pos;
-
-	return read;
+	if (total_read) {
+		iocb->ki_pos = pos + total_read;
+		return total_read;
+	}
+	return rc;
 }
 
 ssize_t
@@ -3113,6 +3089,7 @@ cifs_page_mkwrite(struct vm_area_struct *vma, struct vm_fault *vmf)
 
 static struct vm_operations_struct cifs_file_vm_ops = {
 	.fault = filemap_fault,
+	.map_pages = filemap_map_pages,
 	.page_mkwrite = cifs_page_mkwrite,
 	.remap_pages = generic_file_remap_pages,
 };

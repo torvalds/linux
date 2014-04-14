@@ -31,7 +31,8 @@
 #define BRCM_SHIFT(c, r, f)   c##_##r##_##f##_SHIFT
 
 #define GET_FIELD(m, c, r, f) \
-	((((m) & BRCM_MASK(c, r, f)) >> BRCM_SHIFT(c, r, f)) << BRCM_ALIGN(c, r, f))
+	((((m) & BRCM_MASK(c, r, f)) >> BRCM_SHIFT(c, r, f)) << \
+	 BRCM_ALIGN(c, r, f))
 
 #define SET_FIELD(m, c, r, f, d) \
 	((m) = (((m) & ~BRCM_MASK(c, r, f)) | ((((d) >> BRCM_ALIGN(c, r, f)) << \

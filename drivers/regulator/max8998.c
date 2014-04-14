@@ -40,7 +40,6 @@ struct max8998_data {
 	struct device		*dev;
 	struct max8998_dev	*iodev;
 	int			num_regulators;
-	struct regulator_dev	**rdev;
 	u8                      buck1_vol[4]; /* voltages for selection */
 	u8                      buck2_vol[2];
 	unsigned int		buck1_idx; /* index to last changed voltage */
@@ -674,8 +673,10 @@ static int max8998_pmic_dt_parse_pdata(struct max8998_dev *iodev,
 
 	rdata = devm_kzalloc(iodev->dev, sizeof(*rdata) *
 				pdata->num_regulators, GFP_KERNEL);
-	if (!rdata)
+	if (!rdata) {
+		of_node_put(regulators_np);
 		return -ENOMEM;
+	}
 
 	pdata->regulators = rdata;
 	for (i = 0; i < ARRAY_SIZE(regulators); ++i) {
@@ -691,6 +692,9 @@ static int max8998_pmic_dt_parse_pdata(struct max8998_dev *iodev,
 		++rdata;
 	}
 	pdata->num_regulators = rdata - pdata->regulators;
+
+	of_node_put(reg_np);
+	of_node_put(regulators_np);
 
 	ret = max8998_pmic_dt_parse_dvs_gpio(iodev, pdata, pmic_np);
 	if (ret)
@@ -741,10 +745,10 @@ static int max8998_pmic_probe(struct platform_device *pdev)
 	struct max8998_dev *iodev = dev_get_drvdata(pdev->dev.parent);
 	struct max8998_platform_data *pdata = iodev->pdata;
 	struct regulator_config config = { };
-	struct regulator_dev **rdev;
+	struct regulator_dev *rdev;
 	struct max8998_data *max8998;
 	struct i2c_client *i2c;
-	int i, ret, size;
+	int i, ret;
 	unsigned int v;
 
 	if (!pdata) {
@@ -763,12 +767,6 @@ static int max8998_pmic_probe(struct platform_device *pdev)
 	if (!max8998)
 		return -ENOMEM;
 
-	size = sizeof(struct regulator_dev *) * pdata->num_regulators;
-	max8998->rdev = devm_kzalloc(&pdev->dev, size, GFP_KERNEL);
-	if (!max8998->rdev)
-		return -ENOMEM;
-
-	rdev = max8998->rdev;
 	max8998->dev = &pdev->dev;
 	max8998->iodev = iodev;
 	max8998->num_regulators = pdata->num_regulators;
@@ -872,13 +870,12 @@ static int max8998_pmic_probe(struct platform_device *pdev)
 		config.init_data = pdata->regulators[i].initdata;
 		config.driver_data = max8998;
 
-		rdev[i] = devm_regulator_register(&pdev->dev,
-						  &regulators[index], &config);
-		if (IS_ERR(rdev[i])) {
-			ret = PTR_ERR(rdev[i]);
+		rdev = devm_regulator_register(&pdev->dev, &regulators[index],
+					       &config);
+		if (IS_ERR(rdev)) {
+			ret = PTR_ERR(rdev);
 			dev_err(max8998->dev, "regulator %s init failed (%d)\n",
 						regulators[index].name, ret);
-			rdev[i] = NULL;
 			return ret;
 		}
 	}

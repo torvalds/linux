@@ -165,7 +165,8 @@ ksocknal_queue_tx_zcack_v3(ksock_conn_t *conn,
 	LASSERT (tx_ack == NULL ||
 		 tx_ack->tx_msg.ksm_type == KSOCK_MSG_NOOP);
 
-	if ((tx = conn->ksnc_tx_carrier) == NULL) {
+	tx = conn->ksnc_tx_carrier;
+	if (tx == NULL) {
 		if (tx_ack != NULL) {
 			list_add_tail(&tx_ack->tx_list,
 					  &conn->ksnc_tx_queue);
@@ -392,7 +393,8 @@ ksocknal_handle_zcreq(ksock_conn_t *c, __u64 cookie, int remote)
 	if (tx == NULL)
 		return -ENOMEM;
 
-	if ((rc = ksocknal_launch_packet(peer->ksnp_ni, tx, peer->ksnp_id)) == 0)
+	rc = ksocknal_launch_packet(peer->ksnp_ni, tx, peer->ksnp_id);
+	if (rc == 0)
 		return 0;
 
 	ksocknal_free_tx(tx);

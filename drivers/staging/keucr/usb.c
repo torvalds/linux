@@ -50,7 +50,7 @@ static int eucr_suspend(struct usb_interface *iface, pm_message_t message)
 
 static int eucr_resume(struct usb_interface *iface)
 {
-	BYTE    tmp = 0;
+	u8    tmp = 0;
 
 	struct us_data *us = usb_get_intfdata(iface);
 	pr_info("--- eucr_resume---\n");
@@ -71,7 +71,7 @@ static int eucr_resume(struct usb_interface *iface)
 
 static int eucr_reset_resume(struct usb_interface *iface)
 {
-	BYTE    tmp = 0;
+	u8    tmp = 0;
 	struct us_data *us = usb_get_intfdata(iface);
 
 	pr_info("--- eucr_reset_resume---\n");
@@ -528,7 +528,7 @@ static int eucr_probe(struct usb_interface *intf,
 	struct Scsi_Host *host;
 	struct us_data *us;
 	int result;
-	BYTE	MiscReg03 = 0;
+	u8	MiscReg03 = 0;
 	struct task_struct *th;
 
 	pr_info("usb --- eucr_probe\n");

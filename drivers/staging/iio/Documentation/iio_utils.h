@@ -652,3 +652,25 @@ error_free:
 	free(temp);
 	return ret;
 }
+
+read_sysfs_string(const char *filename, const char *basedir, char *str)
+{
+	float ret = 0;
+	FILE  *sysfsfp;
+	char *temp = malloc(strlen(basedir) + strlen(filename) + 2);
+	if (temp == NULL) {
+		printf("Memory allocation failed");
+		return -ENOMEM;
+	}
+	sprintf(temp, "%s/%s", basedir, filename);
+	sysfsfp = fopen(temp, "r");
+	if (sysfsfp == NULL) {
+		ret = -errno;
+		goto error_free;
+	}
+	fscanf(sysfsfp, "%s\n", str);
+	fclose(sysfsfp);
+error_free:
+	free(temp);
+	return ret;
+}

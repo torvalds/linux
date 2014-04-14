@@ -1326,10 +1326,10 @@ static int dice_probe(struct fw_unit *unit, const struct ieee1394_device_id *id)
 	if (err < 0)
 		return err;
 
-	err = snd_card_create(-1, NULL, THIS_MODULE, sizeof(*dice), &card);
+	err = snd_card_new(&unit->device, -1, NULL, THIS_MODULE,
+			   sizeof(*dice), &card);
 	if (err < 0)
 		return err;
-	snd_card_set_dev(card, &unit->device);
 
 	dice = card->private_data;
 	dice->card = card;

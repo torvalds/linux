@@ -29,10 +29,13 @@
 #include <linux/sysfs.h>
 #include <linux/input/mt.h>
 #include <linux/platform_data/zforce_ts.h>
+#include <linux/of.h>
+#include <linux/of_gpio.h>
 
 #define WAIT_TIMEOUT		msecs_to_jiffies(1000)
 
 #define FRAME_START		0xee
+#define FRAME_MAXSIZE		257
 
 /* Offsets of the different parts of the payload the controller sends */
 #define PAYLOAD_HEADER		0
@@ -64,7 +67,7 @@
 #define RESPONSE_STATUS		0X1e
 
 /*
- * Notifications are send by the touch controller without
+ * Notifications are sent by the touch controller without
  * being requested by the driver and include for example
  * touch indications
  */
@@ -103,8 +106,8 @@ struct zforce_point {
  * @suspended		device suspended
  * @access_mutex	serialize i2c-access, to keep multipart reads together
  * @command_done	completion to wait for the command result
- * @command_mutex	serialize commands send to the ic
- * @command_waiting	the id of the command that that is currently waiting
+ * @command_mutex	serialize commands sent to the ic
+ * @command_waiting	the id of the command that is currently waiting
  *			for a result
  * @command_result	returned result of the command
  */
@@ -235,7 +238,8 @@ static int zforce_scan_frequency(struct zforce_ts *ts, u16 idle, u16 finger,
 			(finger & 0xff), ((finger >> 8) & 0xff),
 			(stylus & 0xff), ((stylus >> 8) & 0xff) };
 
-	dev_dbg(&client->dev, "set scan frequency to (idle: %d, finger: %d, stylus: %d)\n",
+	dev_dbg(&client->dev,
+		"set scan frequency to (idle: %d, finger: %d, stylus: %d)\n",
 		idle, finger, stylus);
 
 	return zforce_send_wait(ts, &buf[0], ARRAY_SIZE(buf));
@@ -255,7 +259,7 @@ static int zforce_setconfig(struct zforce_ts *ts, char b1)
 static int zforce_start(struct zforce_ts *ts)
 {
 	struct i2c_client *client = ts->client;
-	const struct zforce_ts_platdata *pdata = dev_get_platdata(&client->dev);
+	const struct zforce_ts_platdata *pdata = ts->pdata;
 	int ret;
 
 	dev_dbg(&client->dev, "starting device\n");
@@ -326,13 +330,14 @@ static int zforce_stop(struct zforce_ts *ts)
 static int zforce_touch_event(struct zforce_ts *ts, u8 *payload)
 {
 	struct i2c_client *client = ts->client;
-	const struct zforce_ts_platdata *pdata = dev_get_platdata(&client->dev);
+	const struct zforce_ts_platdata *pdata = ts->pdata;
 	struct zforce_point point;
 	int count, i, num = 0;
 
 	count = payload[0];
 	if (count > ZFORCE_REPORT_POINTS) {
-		dev_warn(&client->dev, "to many coordinates %d, expected max %d\n",
+		dev_warn(&client->dev,
+			 "too many coordinates %d, expected max %d\n",
 			 count, ZFORCE_REPORT_POINTS);
 		count = ZFORCE_REPORT_POINTS;
 	}
@@ -421,7 +426,7 @@ static int zforce_read_packet(struct zforce_ts *ts, u8 *buf)
 		goto unlock;
 	}
 
-	if (buf[PAYLOAD_LENGTH] <= 0 || buf[PAYLOAD_LENGTH] > 255) {
+	if (buf[PAYLOAD_LENGTH] == 0) {
 		dev_err(&client->dev, "invalid payload length: %d\n",
 			buf[PAYLOAD_LENGTH]);
 		ret = -EIO;
@@ -471,9 +476,9 @@ static irqreturn_t zforce_irq_thread(int irq, void *dev_id)
 {
 	struct zforce_ts *ts = dev_id;
 	struct i2c_client *client = ts->client;
-	const struct zforce_ts_platdata *pdata = dev_get_platdata(&client->dev);
+	const struct zforce_ts_platdata *pdata = ts->pdata;
 	int ret;
-	u8 payload_buffer[512];
+	u8 payload_buffer[FRAME_MAXSIZE];
 	u8 *payload;
 
 	/*
@@ -494,8 +499,8 @@ static irqreturn_t zforce_irq_thread(int irq, void *dev_id)
 	while (!gpio_get_value(pdata->gpio_int)) {
 		ret = zforce_read_packet(ts, payload_buffer);
 		if (ret < 0) {
-			dev_err(&client->dev, "could not read packet, ret: %d\n",
-				ret);
+			dev_err(&client->dev,
+				"could not read packet, ret: %d\n", ret);
 			break;
 		}
 
@@ -539,7 +544,8 @@ static irqreturn_t zforce_irq_thread(int irq, void *dev_id)
 						payload[RESPONSE_DATA + 4];
 			ts->version_rev   = (payload[RESPONSE_DATA + 7] << 8) |
 						payload[RESPONSE_DATA + 6];
-			dev_dbg(&ts->client->dev, "Firmware Version %04x:%04x %04x:%04x\n",
+			dev_dbg(&ts->client->dev,
+				"Firmware Version %04x:%04x %04x:%04x\n",
 				ts->version_major, ts->version_minor,
 				ts->version_build, ts->version_rev);
 
@@ -552,7 +558,8 @@ static irqreturn_t zforce_irq_thread(int irq, void *dev_id)
 			break;
 
 		default:
-			dev_err(&ts->client->dev, "unrecognized response id: 0x%x\n",
+			dev_err(&ts->client->dev,
+				"unrecognized response id: 0x%x\n",
 				payload[RESPONSE_ID]);
 			break;
 		}
@@ -618,7 +625,8 @@ static int zforce_suspend(struct device *dev)
 
 		enable_irq_wake(client->irq);
 	} else if (input->users) {
-		dev_dbg(&client->dev, "suspend without being a wakeup source\n");
+		dev_dbg(&client->dev,
+			"suspend without being a wakeup source\n");
 
 		ret = zforce_stop(ts);
 		if (ret)
@@ -684,6 +692,45 @@ static void zforce_reset(void *data)
 	gpio_set_value(ts->pdata->gpio_rst, 0);
 }
 
+static struct zforce_ts_platdata *zforce_parse_dt(struct device *dev)
+{
+	struct zforce_ts_platdata *pdata;
+	struct device_node *np = dev->of_node;
+
+	if (!np)
+		return ERR_PTR(-ENOENT);
+
+	pdata = devm_kzalloc(dev, sizeof(*pdata), GFP_KERNEL);
+	if (!pdata) {
+		dev_err(dev, "failed to allocate platform data\n");
+		return ERR_PTR(-ENOMEM);
+	}
+
+	pdata->gpio_int = of_get_gpio(np, 0);
+	if (!gpio_is_valid(pdata->gpio_int)) {
+		dev_err(dev, "failed to get interrupt gpio\n");
+		return ERR_PTR(-EINVAL);
+	}
+
+	pdata->gpio_rst = of_get_gpio(np, 1);
+	if (!gpio_is_valid(pdata->gpio_rst)) {
+		dev_err(dev, "failed to get reset gpio\n");
+		return ERR_PTR(-EINVAL);
+	}
+
+	if (of_property_read_u32(np, "x-size", &pdata->x_max)) {
+		dev_err(dev, "failed to get x-size property\n");
+		return ERR_PTR(-EINVAL);
+	}
+
+	if (of_property_read_u32(np, "y-size", &pdata->y_max)) {
+		dev_err(dev, "failed to get y-size property\n");
+		return ERR_PTR(-EINVAL);
+	}
+
+	return pdata;
+}
+
 static int zforce_probe(struct i2c_client *client,
 			const struct i2c_device_id *id)
 {
@@ -692,8 +739,11 @@ static int zforce_probe(struct i2c_client *client,
 	struct input_dev *input_dev;
 	int ret;
 
-	if (!pdata)
-		return -EINVAL;
+	if (!pdata) {
+		pdata = zforce_parse_dt(&client->dev);
+		if (IS_ERR(pdata))
+			return PTR_ERR(pdata);
+	}
 
 	ts = devm_kzalloc(&client->dev, sizeof(struct zforce_ts), GFP_KERNEL);
 	if (!ts)
@@ -798,7 +848,7 @@ static int zforce_probe(struct i2c_client *client,
 		return ret;
 	}
 
-	/* this gets the firmware version among other informations */
+	/* this gets the firmware version among other information */
 	ret = zforce_command_wait(ts, COMMAND_STATUS);
 	if (ret < 0) {
 		dev_err(&client->dev, "couldn't get status, %d\n", ret);
@@ -829,11 +879,20 @@ static struct i2c_device_id zforce_idtable[] = {
 };
 MODULE_DEVICE_TABLE(i2c, zforce_idtable);
 
+#ifdef CONFIG_OF
+static struct of_device_id zforce_dt_idtable[] = {
+	{ .compatible = "neonode,zforce" },
+	{},
+};
+MODULE_DEVICE_TABLE(of, zforce_dt_idtable);
+#endif
+
 static struct i2c_driver zforce_driver = {
 	.driver = {
 		.owner	= THIS_MODULE,
 		.name	= "zforce-ts",
 		.pm	= &zforce_pm_ops,
+		.of_match_table	= of_match_ptr(zforce_dt_idtable),
 	},
 	.probe		= zforce_probe,
 	.id_table	= zforce_idtable,

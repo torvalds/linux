@@ -180,7 +180,7 @@ static int bcm63xx_hsspi_do_txrx(struct spi_device *spi, struct spi_transfer *t)
 	while (pending > 0) {
 		int curr_step = min_t(int, step_size, pending);
 
-		init_completion(&bs->done);
+		reinit_completion(&bs->done);
 		if (tx) {
 			memcpy_toio(bs->fifo + HSSPI_OPCODE_LEN, tx, curr_step);
 			tx += curr_step;
@@ -369,6 +369,7 @@ static int bcm63xx_hsspi_probe(struct platform_device *pdev)
 	bs->fifo = (u8 __iomem *)(bs->regs + HSSPI_FIFO_REG(0));
 
 	mutex_init(&bs->bus_mutex);
+	init_completion(&bs->done);
 
 	master->bus_num = HSSPI_BUS_NUM;
 	master->num_chipselect = 8;
@@ -453,9 +454,8 @@ static int bcm63xx_hsspi_resume(struct device *dev)
 }
 #endif
 
-static const struct dev_pm_ops bcm63xx_hsspi_pm_ops = {
-	SET_SYSTEM_SLEEP_PM_OPS(bcm63xx_hsspi_suspend, bcm63xx_hsspi_resume)
-};
+static SIMPLE_DEV_PM_OPS(bcm63xx_hsspi_pm_ops, bcm63xx_hsspi_suspend,
+			 bcm63xx_hsspi_resume);
 
 static struct platform_driver bcm63xx_hsspi_driver = {
 	.driver = {

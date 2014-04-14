@@ -240,6 +240,12 @@ extern int extcon_register_notifier(struct extcon_dev *edev,
 				    struct notifier_block *nb);
 extern int extcon_unregister_notifier(struct extcon_dev *edev,
 				      struct notifier_block *nb);
+
+/*
+ * Following API get the extcon device from devicetree.
+ * This function use phandle of devicetree to get extcon device directly.
+ */
+extern struct extcon_dev *extcon_get_edev_by_phandle(struct device *dev, int index);
 #else /* CONFIG_EXTCON */
 static inline int extcon_dev_register(struct extcon_dev *edev)
 {
@@ -323,6 +329,12 @@ static inline int extcon_unregister_interest(struct extcon_specific_cable_nb
 						    *obj)
 {
 	return 0;
+}
+
+static inline struct extcon_dev *extcon_get_edev_by_phandle(struct device *dev,
+							    int index)
+{
+	return ERR_PTR(-ENODEV);
 }
 #endif /* CONFIG_EXTCON */
 #endif /* __LINUX_EXTCON_H__ */

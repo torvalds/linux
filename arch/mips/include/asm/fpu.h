@@ -180,7 +180,7 @@ static inline void restore_fp(struct task_struct *tsk)
 		_restore_fp(tsk);
 }
 
-static inline fpureg_t *get_fpu_regs(struct task_struct *tsk)
+static inline union fpureg *get_fpu_regs(struct task_struct *tsk)
 {
 	if (tsk == current) {
 		preempt_disable();

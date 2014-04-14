@@ -28,7 +28,8 @@
 #ifndef __OCRDMA_ABI_H__
 #define __OCRDMA_ABI_H__
 
-#define OCRDMA_ABI_VERSION 1
+#define OCRDMA_ABI_VERSION 2
+#define OCRDMA_BE_ROCE_ABI_VERSION 1
 /* user kernel communication data structures. */
 
 struct ocrdma_alloc_ucontext_resp {
@@ -107,9 +108,7 @@ struct ocrdma_create_qp_uresp {
 	u32 db_sq_offset;
 	u32 db_rq_offset;
 	u32 db_shift;
-	u64 rsvd1;
-	u64 rsvd2;
-	u64 rsvd3;
+	u64 rsvd[11];
 } __packed;
 
 struct ocrdma_create_srq_uresp {

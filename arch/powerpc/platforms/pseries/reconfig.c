@@ -12,7 +12,6 @@
  */
 
 #include <linux/kernel.h>
-#include <linux/kref.h>
 #include <linux/notifier.h>
 #include <linux/proc_fs.h>
 #include <linux/slab.h>
@@ -70,7 +69,6 @@ static int pSeries_reconfig_add_node(const char *path, struct property *proplist
 
 	np->properties = proplist;
 	of_node_set_flag(np, OF_DYNAMIC);
-	kref_init(&np->kref);
 
 	np->parent = derive_parent(path);
 	if (IS_ERR(np->parent)) {

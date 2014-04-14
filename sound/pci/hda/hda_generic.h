@@ -297,7 +297,6 @@ struct hda_gen_spec {
 };
 
 int snd_hda_gen_spec_init(struct hda_gen_spec *spec);
-void snd_hda_gen_spec_free(struct hda_gen_spec *spec);
 
 int snd_hda_gen_init(struct hda_codec *codec);
 void snd_hda_gen_free(struct hda_codec *codec);

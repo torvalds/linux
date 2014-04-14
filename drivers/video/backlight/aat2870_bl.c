@@ -149,8 +149,6 @@ static int aat2870_bl_probe(struct platform_device *pdev)
 				  sizeof(struct aat2870_bl_driver_data),
 				  GFP_KERNEL);
 	if (!aat2870_bl) {
-		dev_err(&pdev->dev,
-			"Failed to allocate memory for aat2870 backlight\n");
 		ret = -ENOMEM;
 		goto out;
 	}

@@ -5,6 +5,7 @@ config HAVE_AT91_DATAFLASH_CARD
 
 choice
 	prompt "Atmel AT91 Processor Devices for non DT boards"
+	depends on !ARCH_AT91X40
 
 config ARCH_AT91_NONE
 	bool "None"
@@ -38,13 +39,6 @@ config ARCH_AT91SAM9G45
 	bool "AT91SAM9G45"
 	select SOC_AT91SAM9G45
 	select AT91_USE_OLD_CLK
-
-config ARCH_AT91X40
-	bool "AT91x40"
-	depends on !MMU
-	select ARCH_USES_GETTIMEOFFSET
-	select MULTI_IRQ_HANDLER
-	select SPARSE_IRQ
 
 endchoice
 

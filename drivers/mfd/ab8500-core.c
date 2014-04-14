@@ -592,7 +592,7 @@ static int ab8500_irq_init(struct ab8500 *ab8500, struct device_node *np)
 
 	/* If ->irq_base is zero this will give a linear mapping */
 	ab8500->domain = irq_domain_add_simple(NULL,
-			num_irqs, ab8500->irq_base,
+			num_irqs, 0,
 			&ab8500_irq_ops, ab8500);
 
 	if (!ab8500->domain) {
@@ -1583,14 +1583,13 @@ static int ab8500_probe(struct platform_device *pdev)
 	if (!ab8500)
 		return -ENOMEM;
 
-	if (plat)
-		ab8500->irq_base = plat->irq_base;
-
 	ab8500->dev = &pdev->dev;
 
 	resource = platform_get_resource(pdev, IORESOURCE_IRQ, 0);
-	if (!resource)
+	if (!resource) {
+		dev_err(&pdev->dev, "no IRQ resource\n");
 		return -ENODEV;
+	}
 
 	ab8500->irq = resource->start;
 
@@ -1612,8 +1611,10 @@ static int ab8500_probe(struct platform_device *pdev)
 	else {
 		ret = get_register_interruptible(ab8500, AB8500_MISC,
 			AB8500_IC_NAME_REG, &value);
-		if (ret < 0)
+		if (ret < 0) {
+			dev_err(&pdev->dev, "could not probe HW\n");
 			return ret;
+		}
 
 		ab8500->version = value;
 	}
@@ -1759,30 +1760,30 @@ static int ab8500_probe(struct platform_device *pdev)
 	if (is_ab9540(ab8500))
 		ret = mfd_add_devices(ab8500->dev, 0, ab9540_devs,
 				ARRAY_SIZE(ab9540_devs), NULL,
-				ab8500->irq_base, ab8500->domain);
+				0, ab8500->domain);
 	else if (is_ab8540(ab8500)) {
 		ret = mfd_add_devices(ab8500->dev, 0, ab8540_devs,
 			      ARRAY_SIZE(ab8540_devs), NULL,
-			      ab8500->irq_base, NULL);
+			      0, ab8500->domain);
 		if (ret)
 			return ret;
 
 		if (is_ab8540_1p2_or_earlier(ab8500))
 			ret = mfd_add_devices(ab8500->dev, 0, ab8540_cut1_devs,
 			      ARRAY_SIZE(ab8540_cut1_devs), NULL,
-			      ab8500->irq_base, NULL);
+			      0, ab8500->domain);
 		else /* ab8540 >= cut2 */
 			ret = mfd_add_devices(ab8500->dev, 0, ab8540_cut2_devs,
 			      ARRAY_SIZE(ab8540_cut2_devs), NULL,
-			      ab8500->irq_base, NULL);
+			      0, ab8500->domain);
 	} else if (is_ab8505(ab8500))
 		ret = mfd_add_devices(ab8500->dev, 0, ab8505_devs,
 			      ARRAY_SIZE(ab8505_devs), NULL,
-			      ab8500->irq_base, ab8500->domain);
+			      0, ab8500->domain);
 	else
 		ret = mfd_add_devices(ab8500->dev, 0, ab8500_devs,
 				ARRAY_SIZE(ab8500_devs), NULL,
-				ab8500->irq_base, ab8500->domain);
+				0, ab8500->domain);
 	if (ret)
 		return ret;
 
@@ -1790,7 +1791,7 @@ static int ab8500_probe(struct platform_device *pdev)
 		/* Add battery management devices */
 		ret = mfd_add_devices(ab8500->dev, 0, ab8500_bm_devs,
 				      ARRAY_SIZE(ab8500_bm_devs), NULL,
-				      ab8500->irq_base, ab8500->domain);
+				      0, ab8500->domain);
 		if (ret)
 			dev_err(ab8500->dev, "error adding bm devices\n");
 	}

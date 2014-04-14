@@ -722,7 +722,7 @@ __kfifo_uint_must_check_helper( \
 /**
  * kfifo_dma_out_finish - finish a DMA OUT operation
  * @fifo: address of the fifo to be used
- * @len: number of bytes transferd
+ * @len: number of bytes transferrd
  *
  * This macro finish a DMA OUT operation. The out counter will be updated by
  * the len parameter. No error checking will be done.

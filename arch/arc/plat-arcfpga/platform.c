@@ -201,7 +201,7 @@ static void __init plat_fpga_populate_dev(void)
  * callback set, by matching the DT compatible name.
  */
 
-static const char *aa4_compat[] __initdata = {
+static const char *aa4_compat[] __initconst = {
 	"snps,arc-angel4",
 	NULL,
 };
@@ -216,7 +216,7 @@ MACHINE_START(ANGEL4, "angel4")
 #endif
 MACHINE_END
 
-static const char *ml509_compat[] __initdata = {
+static const char *ml509_compat[] __initconst = {
 	"snps,arc-ml509",
 	NULL,
 };
@@ -231,7 +231,7 @@ MACHINE_START(ML509, "ml509")
 #endif
 MACHINE_END
 
-static const char *nsimosci_compat[] __initdata = {
+static const char *nsimosci_compat[] __initconst = {
 	"snps,nsimosci",
 	NULL,
 };

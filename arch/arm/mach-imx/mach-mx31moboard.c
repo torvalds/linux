@@ -128,27 +128,15 @@ static struct platform_device mx31moboard_flash = {
 	.num_resources = 1,
 };
 
-static int moboard_uart0_init(struct platform_device *pdev)
+static void __init moboard_uart0_init(void)
 {
-	int ret = gpio_request(IOMUX_TO_GPIO(MX31_PIN_CTS1), "uart0-cts-hack");
-	if (ret)
-		return ret;
-
-	ret = gpio_direction_output(IOMUX_TO_GPIO(MX31_PIN_CTS1), 0);
-	if (ret)
+	if (!gpio_request(IOMUX_TO_GPIO(MX31_PIN_CTS1), "uart0-cts-hack")) {
+		gpio_direction_output(IOMUX_TO_GPIO(MX31_PIN_CTS1), 0);
 		gpio_free(IOMUX_TO_GPIO(MX31_PIN_CTS1));
-
-	return ret;
-}
-
-static void moboard_uart0_exit(struct platform_device *pdev)
-{
-	gpio_free(IOMUX_TO_GPIO(MX31_PIN_CTS1));
+	}
 }
 
 static const struct imxuart_platform_data uart0_pdata __initconst = {
-	.init = moboard_uart0_init,
-	.exit = moboard_uart0_exit,
 };
 
 static const struct imxuart_platform_data uart4_pdata __initconst = {
@@ -543,6 +531,7 @@ static void __init mx31moboard_init(void)
 
 	imx31_add_imx2_wdt();
 
+	moboard_uart0_init();
 	imx31_add_imx_uart0(&uart0_pdata);
 	imx31_add_imx_uart4(&uart4_pdata);
 

@@ -63,6 +63,13 @@ Optional properties:
 		/* input, enable bits, disable bits, mask */
 		pinctrl-single,input-schmitt-enable = <0x30 0x40 0 0x70>;
 
+- pinctrl-single,low-power-mode : array of value that are used to configure
+  low power mode of this pin. For some silicons, the low power mode will
+  control the output of the pin when the pad including the pin enter low
+  power mode.
+		/* low power mode value, mask */
+		pinctrl-single,low-power-mode = <0x288 0x388>;
+
 - pinctrl-single,gpio-range : list of value that are used to configure a GPIO
   range. They're value of subnode phandle, pin base in pinctrl device, pin
   number in this range, GPIO function value of this GPIO range.

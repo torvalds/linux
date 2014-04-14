@@ -53,14 +53,14 @@
 */
 static void s_vClear(void);                       // Clear the internal message,
 // resets the object to the state just after construction.
-static void s_vSetKey(unsigned long dwK0, unsigned long dwK1);
+static void s_vSetKey(u32  dwK0, u32  dwK1);
 static void s_vAppendByte(unsigned char b);            // Add a single byte to the internal message
 
 /*---------------------  Export Variables  --------------------------*/
-static unsigned long L, R;           // Current state
+static u32 L, R;	/* Current state */
 
-static unsigned long K0, K1;         // Key
-static unsigned long M;              // Message accumulator (single word)
+static u32 K0, K1;	/* Key */
+static u32 M;		/* Message accumulator (single word) */
 static unsigned int nBytesInM;      // # bytes in M
 
 /*---------------------  Export Functions  --------------------------*/
@@ -98,7 +98,7 @@ static void s_vClear(void)
 	M = 0;
 }
 
-static void s_vSetKey(unsigned long dwK0, unsigned long dwK1)
+static void s_vSetKey(u32 dwK0, u32 dwK1)
 {
 	// Set the key
 	K0 = dwK0;
@@ -129,7 +129,7 @@ static void s_vAppendByte(unsigned char b)
 	}
 }
 
-void MIC_vInit(unsigned long dwK0, unsigned long dwK1)
+void MIC_vInit(u32 dwK0, u32 dwK1)
 {
 	// Set the key
 	s_vSetKey(dwK0, dwK1);
@@ -155,7 +155,7 @@ void MIC_vAppend(unsigned char *src, unsigned int nBytes)
 	}
 }
 
-void MIC_vGetMIC(unsigned long *pdwL, unsigned long *pdwR)
+void MIC_vGetMIC(u32 *pdwL, u32 *pdwR)
 {
 	// Append the minimum padding
 	s_vAppendByte(0x5a);

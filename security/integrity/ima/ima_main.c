@@ -71,15 +71,14 @@ __setup("ima_hash=", hash_setup);
  * ima_rdwr_violation_check
  *
  * Only invalidate the PCR for measured files:
- * 	- Opening a file for write when already open for read,
+ *	- Opening a file for write when already open for read,
  *	  results in a time of measure, time of use (ToMToU) error.
  *	- Opening a file for read when already open for write,
- * 	  could result in a file measurement error.
+ *	  could result in a file measurement error.
  *
  */
 static void ima_rdwr_violation_check(struct file *file)
 {
-	struct dentry *dentry = file->f_path.dentry;
 	struct inode *inode = file_inode(file);
 	fmode_t mode = file->f_mode;
 	int must_measure;
@@ -111,8 +110,6 @@ out:
 		return;
 
 	pathname = ima_d_path(&file->f_path, &pathbuf);
-	if (!pathname || strlen(pathname) > IMA_EVENT_NAME_LEN_MAX)
-		pathname = dentry->d_name.name;
 
 	if (send_tomtou)
 		ima_add_violation(file, pathname, "invalid_pcr", "ToMToU");
@@ -220,9 +217,7 @@ static int process_measurement(struct file *file, const char *filename,
 	if (rc != 0)
 		goto out_digsig;
 
-	pathname = !filename ? ima_d_path(&file->f_path, &pathbuf) : filename;
-	if (!pathname)
-		pathname = (const char *)file->f_dentry->d_name.name;
+	pathname = filename ?: ima_d_path(&file->f_path, &pathbuf);
 
 	if (action & IMA_MEASURE)
 		ima_store_measurement(iint, file, pathname,

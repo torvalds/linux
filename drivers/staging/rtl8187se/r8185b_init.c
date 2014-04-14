@@ -619,10 +619,10 @@ void UpdateInitialGain(struct net_device *dev)
 	struct r8180_priv *priv = (struct r8180_priv *)ieee80211_priv(dev);
 
 	/* lzm add 080826 */
-	if (priv->eRFPowerState != eRfOn) {
+	if (priv->eRFPowerState != RF_ON) {
 		/*	Don't access BB/RF under disable PLL situation.
 		 *	RT_TRACE(COMP_DIG, DBG_LOUD, ("UpdateInitialGain -
-		 *	pHalData->eRFPowerState!=eRfOn\n"));
+		 *	pHalData->eRFPowerState!=RF_ON\n"));
 		 *	Back to the original state
 		 */
 		priv->InitialGain = priv->InitialGainBackUp;
@@ -872,8 +872,8 @@ static u8 GetSupportedWirelessMode8185(struct net_device *dev)
 
 static void
 ActUpdateChannelAccessSetting(struct net_device *dev,
-			      WIRELESS_MODE WirelessMode,
-			      PCHANNEL_ACCESS_SETTING ChnlAccessSetting)
+			      enum wireless_mode mode,
+			      struct chnl_access_setting *chnl_access_setting)
 {
 	AC_CODING	eACI;
 
@@ -890,25 +890,25 @@ ActUpdateChannelAccessSetting(struct net_device *dev,
 	 */
 
 	/* Suggested by Jong, 2005.12.08. */
-	ChnlAccessSetting->SIFS_Timer = 0x22;
-	ChnlAccessSetting->DIFS_Timer = 0x1C; /* 2006.06.02, by rcnjko. */
-	ChnlAccessSetting->SlotTimeTimer = 9; /* 2006.06.02, by rcnjko. */
+	chnl_access_setting->sifs_timer = 0x22;
+	chnl_access_setting->difs_timer = 0x1C; /* 2006.06.02, by rcnjko. */
+	chnl_access_setting->slot_time_timer = 9; /* 2006.06.02, by rcnjko. */
 	/*
 	 * Suggested by wcchu, it is the default value of EIFS register,
 	 * 2005.12.08.
 	 */
-	ChnlAccessSetting->EIFS_Timer = 0x5B;
-	ChnlAccessSetting->CWminIndex = 3; /* 2006.06.02, by rcnjko. */
-	ChnlAccessSetting->CWmaxIndex = 7; /* 2006.06.02, by rcnjko. */
+	chnl_access_setting->eifs_timer = 0x5B;
+	chnl_access_setting->cwmin_index = 3; /* 2006.06.02, by rcnjko. */
+	chnl_access_setting->cwmax_index = 7; /* 2006.06.02, by rcnjko. */
 
-	write_nic_byte(dev, SIFS, ChnlAccessSetting->SIFS_Timer);
+	write_nic_byte(dev, SIFS, chnl_access_setting->sifs_timer);
 	/*
 	 * Rewrited from directly use PlatformEFIOWrite1Byte(),
 	 * by Annie, 2006-03-29.
 	 */
-	write_nic_byte(dev, SLOT, ChnlAccessSetting->SlotTimeTimer);
+	write_nic_byte(dev, SLOT, chnl_access_setting->slot_time_timer);
 
-	write_nic_byte(dev, EIFS, ChnlAccessSetting->EIFS_Timer);
+	write_nic_byte(dev, EIFS, chnl_access_setting->eifs_timer);
 
 	/*
 	 * <RJ_EXPR_QOS> Suggested by wcchu, it is the default value of EIFS
@@ -959,7 +959,7 @@ static void ActSetWirelessMode8185(struct net_device *dev, u8 btWirelessMode)
 	 * wireless mode if we switch to specified band successfully.
 	 */
 
-	ieee->mode = (WIRELESS_MODE)btWirelessMode;
+	ieee->mode = (enum wireless_mode)btWirelessMode;
 
 	/* 3. Change related setting. */
 	if (ieee->mode == WIRELESS_MODE_A)
@@ -1085,7 +1085,7 @@ static bool MgntDisconnect(struct net_device *dev, u8 asRsn)
  *		PASSIVE LEVEL.
  */
 static bool SetRFPowerState(struct net_device *dev,
-			    RT_RF_POWER_STATE eRFPowerState)
+			    enum rt_rf_power_state eRFPowerState)
 {
 	struct	r8180_priv *priv = (struct r8180_priv *)ieee80211_priv(dev);
 	bool	bResult = false;
@@ -1098,13 +1098,13 @@ static bool SetRFPowerState(struct net_device *dev,
 	return bResult;
 }
 
-bool MgntActSet_RF_State(struct net_device *dev, RT_RF_POWER_STATE StateToSet,
+bool MgntActSet_RF_State(struct net_device *dev, enum rt_rf_power_state StateToSet,
 			 u32 ChangeSource)
 {
 	struct	r8180_priv *priv = (struct r8180_priv *)ieee80211_priv(dev);
 	bool	bActionAllowed = false;
 	bool	bConnectBySSID = false;
-	RT_RF_POWER_STATE rtState;
+	enum rt_rf_power_state rtState;
 	u16	RFWaitCounter = 0;
 	unsigned long flag;
 	/*
@@ -1140,7 +1140,7 @@ bool MgntActSet_RF_State(struct net_device *dev, RT_RF_POWER_STATE StateToSet,
 	rtState = priv->eRFPowerState;
 
 	switch (StateToSet) {
-	case eRfOn:
+	case RF_ON:
 		/*
 		 *	Turn On RF no matter the IPS setting because we need to
 		 *	update the RF state to Ndis under Vista, or the Windows
@@ -1153,13 +1153,13 @@ bool MgntActSet_RF_State(struct net_device *dev, RT_RF_POWER_STATE StateToSet,
 			priv->RfOffReason = 0;
 			bActionAllowed = true;
 
-			if (rtState == eRfOff &&
+			if (rtState == RF_OFF &&
 			    ChangeSource >= RF_CHANGE_BY_HW)
 				bConnectBySSID = true;
 		}
 		break;
 
-	case eRfOff:
+	case RF_OFF:
 		 /* 070125, rcnjko: we always keep connected in AP mode. */
 
 		if (priv->RfOffReason > RF_CHANGE_BY_IPS) {
@@ -1182,7 +1182,7 @@ bool MgntActSet_RF_State(struct net_device *dev, RT_RF_POWER_STATE StateToSet,
 		priv->RfOffReason |= ChangeSource;
 		bActionAllowed = true;
 		break;
-	case eRfSleep:
+	case RF_SLEEP:
 		priv->RfOffReason |= ChangeSource;
 		bActionAllowed = true;
 		break;
@@ -1233,7 +1233,7 @@ static void InactivePowerSave(struct net_device *dev)
 void IPSEnter(struct net_device *dev)
 {
 	struct r8180_priv *priv = (struct r8180_priv *)ieee80211_priv(dev);
-	RT_RF_POWER_STATE rtState;
+	enum rt_rf_power_state rtState;
 	if (priv->bInactivePs) {
 		rtState = priv->eRFPowerState;
 
@@ -1245,9 +1245,9 @@ void IPSEnter(struct net_device *dev)
 		 *	trigger IPS)(4) IBSS (send Beacon)
 		 *	(5) AP mode (send Beacon)
 		 */
-		if (rtState == eRfOn && !priv->bSwRfProcessing
+		if (rtState == RF_ON && !priv->bSwRfProcessing
 			&& (priv->ieee80211->state != IEEE80211_LINKED)) {
-			priv->eInactivePowerState = eRfOff;
+			priv->eInactivePowerState = RF_OFF;
 			InactivePowerSave(dev);
 		}
 	}
@@ -1255,13 +1255,13 @@ void IPSEnter(struct net_device *dev)
 void IPSLeave(struct net_device *dev)
 {
 	struct r8180_priv *priv = (struct r8180_priv *)ieee80211_priv(dev);
-	RT_RF_POWER_STATE rtState;
+	enum rt_rf_power_state rtState;
 	if (priv->bInactivePs) {
 		rtState = priv->eRFPowerState;
-		if ((rtState == eRfOff || rtState == eRfSleep) &&
+		if ((rtState == RF_OFF || rtState == RF_SLEEP) &&
 		    !priv->bSwRfProcessing
 		    && priv->RfOffReason <= RF_CHANGE_BY_IPS) {
-			priv->eInactivePowerState = eRfOn;
+			priv->eInactivePowerState = RF_ON;
 			InactivePowerSave(dev);
 		}
 	}
@@ -1385,23 +1385,23 @@ void rtl8185b_adapter_start(struct net_device *dev)
 
 		/* Initialize RegWirelessMode if it is not a valid one.	*/
 		if (bInvalidWirelessMode)
-			ieee->mode = (WIRELESS_MODE)InitWirelessMode;
+			ieee->mode = (enum wireless_mode)InitWirelessMode;
 
 	} else {
 	/* One of B, G, A. */
 		InitWirelessMode = ieee->mode;
 	}
-	priv->eRFPowerState = eRfOff;
+	priv->eRFPowerState = RF_OFF;
 	priv->RfOffReason = 0;
 	{
-		MgntActSet_RF_State(dev, eRfOn, 0);
+		MgntActSet_RF_State(dev, RF_ON, 0);
 	}
 		/*
 		 * If inactive power mode is enabled, disable rf while in
 		 * disconnected state.
 		 */
 	if (priv->bInactivePs)
-		MgntActSet_RF_State(dev , eRfOff, RF_CHANGE_BY_IPS);
+		MgntActSet_RF_State(dev , RF_OFF, RF_CHANGE_BY_IPS);
 
 	ActSetWirelessMode8185(dev, (u8)(InitWirelessMode));
 

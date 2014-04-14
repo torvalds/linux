@@ -251,8 +251,6 @@ static int arizona_apply_hardware_patch(struct arizona* arizona)
 	unsigned int fll, sysclk;
 	int ret, err;
 
-	regcache_cache_bypass(arizona->regmap, true);
-
 	/* Cache existing FLL and SYSCLK settings */
 	ret = regmap_read(arizona->regmap, ARIZONA_FLL1_CONTROL_1, &fll);
 	if (ret != 0) {
@@ -321,8 +319,6 @@ err_fll:
 			"Failed to re-apply old FLL settings: %d\n",
 			err);
 	}
-
-	regcache_cache_bypass(arizona->regmap, false);
 
 	if (ret != 0)
 		return ret;

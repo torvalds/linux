@@ -11,6 +11,9 @@
 #ifndef _ASM_GICREGS_H
 #define _ASM_GICREGS_H
 
+#include <linux/bitmap.h>
+#include <linux/threads.h>
+
 #undef	GICISBYTELITTLEENDIAN
 
 /* Constants */

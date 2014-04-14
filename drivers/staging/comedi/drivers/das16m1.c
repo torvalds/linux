@@ -331,14 +331,27 @@ static int das16m1_cancel(struct comedi_device *dev, struct comedi_subdevice *s)
 	return 0;
 }
 
+static int das16m1_ai_eoc(struct comedi_device *dev,
+			  struct comedi_subdevice *s,
+			  struct comedi_insn *insn,
+			  unsigned long context)
+{
+	unsigned int status;
+
+	status = inb(dev->iobase + DAS16M1_CS);
+	if (status & IRQDATA)
+		return 0;
+	return -EBUSY;
+}
+
 static int das16m1_ai_rinsn(struct comedi_device *dev,
 			    struct comedi_subdevice *s,
 			    struct comedi_insn *insn, unsigned int *data)
 {
 	struct das16m1_private_struct *devpriv = dev->private;
-	int i, n;
+	int ret;
+	int n;
 	int byte;
-	const int timeout = 1000;
 
 	/* disable interrupts and internal pacer */
 	devpriv->control_state &= ~INTE & ~PACER_MASK;
@@ -356,14 +369,10 @@ static int das16m1_ai_rinsn(struct comedi_device *dev,
 		/* trigger conversion */
 		outb(0, dev->iobase);
 
-		for (i = 0; i < timeout; i++) {
-			if (inb(dev->iobase + DAS16M1_CS) & IRQDATA)
-				break;
-		}
-		if (i == timeout) {
-			comedi_error(dev, "timeout");
-			return -ETIME;
-		}
+		ret = comedi_timeout(dev, s, insn, das16m1_ai_eoc, 0);
+		if (ret)
+			return ret;
+
 		data[n] = munge_sample(inw(dev->iobase));
 	}
 
@@ -407,7 +416,6 @@ static void das16m1_handler(struct comedi_device *dev, unsigned int status)
 
 	s = dev->read_subdev;
 	async = s->async;
-	async->events = 0;
 	cmd = &async->cmd;
 
 	/*  figure out how many samples are in fifo */
@@ -440,8 +448,8 @@ static void das16m1_handler(struct comedi_device *dev, unsigned int status)
 	devpriv->adc_count += num_samples;
 
 	if (cmd->stop_src == TRIG_COUNT) {
-		if (devpriv->adc_count >= cmd->stop_arg * cmd->chanlist_len) {	/* end of acquisition */
-			das16m1_cancel(dev, s);
+		if (devpriv->adc_count >= cmd->stop_arg * cmd->chanlist_len) {
+			/* end of acquisition */
 			async->events |= COMEDI_CB_EOA;
 		}
 	}
@@ -449,13 +457,11 @@ static void das16m1_handler(struct comedi_device *dev, unsigned int status)
 	/* this probably won't catch overruns since the card doesn't generate
 	 * overrun interrupts, but we might as well try */
 	if (status & OVRUN) {
-		das16m1_cancel(dev, s);
 		async->events |= COMEDI_CB_EOA | COMEDI_CB_ERROR;
 		comedi_error(dev, "fifo overflow");
 	}
 
-	comedi_event(dev, s);
-
+	cfc_handle_events(dev, s);
 }
 
 static int das16m1_poll(struct comedi_device *dev, struct comedi_subdevice *s)

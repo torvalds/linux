@@ -403,7 +403,7 @@ static void iwl_mvm_tt_tx_protection(struct iwl_mvm *mvm, bool enable)
 	}
 }
 
-static void iwl_mvm_tt_tx_backoff(struct iwl_mvm *mvm, u32 backoff)
+void iwl_mvm_tt_tx_backoff(struct iwl_mvm *mvm, u32 backoff)
 {
 	struct iwl_host_cmd cmd = {
 		.id = REPLY_THERMAL_MNG_BACKOFF,
@@ -411,6 +411,8 @@ static void iwl_mvm_tt_tx_backoff(struct iwl_mvm *mvm, u32 backoff)
 		.data = { &backoff, },
 		.flags = CMD_SYNC,
 	};
+
+	backoff = max(backoff, mvm->thermal_throttle.min_backoff);
 
 	if (iwl_mvm_send_cmd(mvm, &cmd) == 0) {
 		IWL_DEBUG_TEMP(mvm, "Set Thermal Tx backoff to: %u\n",
@@ -534,7 +536,7 @@ static const struct iwl_tt_params iwl7000_high_temp_tt_params = {
 	.support_tx_backoff = true,
 };
 
-void iwl_mvm_tt_initialize(struct iwl_mvm *mvm)
+void iwl_mvm_tt_initialize(struct iwl_mvm *mvm, u32 min_backoff)
 {
 	struct iwl_mvm_tt_mgmt *tt = &mvm->thermal_throttle;
 
@@ -546,6 +548,7 @@ void iwl_mvm_tt_initialize(struct iwl_mvm *mvm)
 		tt->params = &iwl7000_tt_params;
 
 	tt->throttle = false;
+	tt->min_backoff = min_backoff;
 	INIT_DELAYED_WORK(&tt->ct_kill_exit, check_exit_ctkill);
 }
 

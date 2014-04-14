@@ -315,7 +315,6 @@ static int bcm2835_spi_probe(struct platform_device *pdev)
 
 	master->mode_bits = BCM2835_SPI_MODE_BITS;
 	master->bits_per_word_mask = SPI_BPW_MASK(8);
-	master->bus_num = -1;
 	master->num_chipselect = 3;
 	master->transfer_one_message = bcm2835_spi_transfer_one;
 	master->dev.of_node = pdev->dev.of_node;

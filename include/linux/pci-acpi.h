@@ -59,12 +59,12 @@ static inline void acpi_pci_slot_remove(struct pci_bus *bus) { }
 void acpiphp_init(void);
 void acpiphp_enumerate_slots(struct pci_bus *bus);
 void acpiphp_remove_slots(struct pci_bus *bus);
-void acpiphp_check_host_bridge(acpi_handle handle);
+void acpiphp_check_host_bridge(struct acpi_device *adev);
 #else
 static inline void acpiphp_init(void) { }
 static inline void acpiphp_enumerate_slots(struct pci_bus *bus) { }
 static inline void acpiphp_remove_slots(struct pci_bus *bus) { }
-static inline void acpiphp_check_host_bridge(acpi_handle handle) { }
+static inline void acpiphp_check_host_bridge(struct acpi_device *adev) { }
 #endif
 
 #else	/* CONFIG_ACPI */

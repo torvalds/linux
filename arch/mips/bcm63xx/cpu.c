@@ -299,14 +299,13 @@ static unsigned int detect_memory_size(void)
 void __init bcm63xx_cpu_init(void)
 {
 	unsigned int tmp;
-	struct cpuinfo_mips *c = &current_cpu_data;
 	unsigned int cpu = smp_processor_id();
 	u32 chipid_reg;
 
 	/* soc registers location depends on cpu type */
 	chipid_reg = 0;
 
-	switch (c->cputype) {
+	switch (current_cpu_type()) {
 	case CPU_BMIPS3300:
 		if ((read_c0_prid() & PRID_IMP_MASK) != PRID_IMP_BMIPS3300_ALT)
 			__cpu_name[cpu] = "Broadcom BCM6338";

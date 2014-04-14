@@ -9,19 +9,6 @@ config SUNRPC_BACKCHANNEL
 	bool
 	depends on SUNRPC
 
-config SUNRPC_XPRT_RDMA
-	tristate
-	depends on SUNRPC && INFINIBAND && INFINIBAND_ADDR_TRANS
-	default SUNRPC && INFINIBAND
-	help
-	  This option allows the NFS client and server to support
-	  an RDMA-enabled transport.
-
-	  To compile RPC client RDMA transport support as a module,
-	  choose M here: the module will be called xprtrdma.
-
-	  If unsure, say N.
-
 config SUNRPC_SWAP
 	bool
 	depends on SUNRPC
@@ -57,3 +44,29 @@ config SUNRPC_DEBUG
 	  but makes troubleshooting NFS issues significantly harder.
 
 	  If unsure, say Y.
+
+config SUNRPC_XPRT_RDMA_CLIENT
+	tristate "RPC over RDMA Client Support"
+	depends on SUNRPC && INFINIBAND && INFINIBAND_ADDR_TRANS
+	default SUNRPC && INFINIBAND
+	help
+	  This option allows the NFS client to support an RDMA-enabled
+	  transport.
+
+	  To compile RPC client RDMA transport support as a module,
+	  choose M here: the module will be called xprtrdma.
+
+	  If unsure, say N.
+
+config SUNRPC_XPRT_RDMA_SERVER
+	tristate "RPC over RDMA Server Support"
+	depends on SUNRPC && INFINIBAND && INFINIBAND_ADDR_TRANS
+	default SUNRPC && INFINIBAND
+	help
+	  This option allows the NFS server to support an RDMA-enabled
+	  transport.
+
+	  To compile RPC server RDMA transport support as a module,
+	  choose M here: the module will be called svcrdma.
+
+	  If unsure, say N.

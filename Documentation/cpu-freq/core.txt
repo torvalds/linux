@@ -92,7 +92,3 @@ values:
 cpu	- number of the affected CPU
 old	- old frequency
 new	- new frequency
-
-If the cpufreq core detects the frequency has changed while the system
-was suspended, these notifiers are called with CPUFREQ_RESUMECHANGE as
-second argument.

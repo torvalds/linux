@@ -65,23 +65,20 @@ void libcfs_init_nidstrings(void)
 	spin_lock_init(&libcfs_nidstring_lock);
 }
 
-# define NIDSTR_LOCK(f)   spin_lock_irqsave(&libcfs_nidstring_lock, f)
-# define NIDSTR_UNLOCK(f) spin_unlock_irqrestore(&libcfs_nidstring_lock, f)
-
 static char *
 libcfs_next_nidstring(void)
 {
 	char	  *str;
 	unsigned long  flags;
 
-	NIDSTR_LOCK(flags);
+	spin_lock_irqsave(&libcfs_nidstring_lock, flags);
 
 	str = libcfs_nidstrings[libcfs_nidstring_idx++];
 	if (libcfs_nidstring_idx ==
 	    sizeof(libcfs_nidstrings)/sizeof(libcfs_nidstrings[0]))
 		libcfs_nidstring_idx = 0;
 
-	NIDSTR_UNLOCK(flags);
+	spin_unlock_irqrestore(&libcfs_nidstring_lock, flags);
 	return str;
 }
 

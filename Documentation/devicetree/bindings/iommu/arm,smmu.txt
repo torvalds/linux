@@ -48,6 +48,12 @@ conditions.
                   from the mmu-masters towards memory) node for this
                   SMMU.
 
+- calxeda,smmu-secure-config-access : Enable proper handling of buggy
+                  implementations that always use secure access to
+                  SMMU configuration registers. In this case non-secure
+                  aliases of secure registers have to be used during
+                  SMMU configuration.
+
 Example:
 
         smmu {

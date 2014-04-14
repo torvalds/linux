@@ -82,10 +82,6 @@ Documentation/SubmittingDrivers 。
 Quilt:
 http://savannah.nongnu.org/projects/quilt
 
-Andrew Morton 的补丁脚本:
-http://userweb.kernel.org/~akpm/stuff/patch-scripts.tar.gz
-作为这些脚本的替代，quilt 是值得推荐的补丁管理工具(看上面的链接)。
-
 2)描述你的改动。
 描述你的改动包含的技术细节。
 
@@ -394,7 +390,7 @@ Static inline 函数相比宏来说，是好得多的选择。Static inline 函�
 ----------------
 
 Andrew Morton, "The perfect patch" (tpp).
-  <http://userweb.kernel.org/~akpm/stuff/tpp.txt>
+  <http://www.ozlabs.org/~akpm/stuff/tpp.txt>
 
 Jeff Garzik, "Linux kernel patch submission format".
   <http://linux.yyz.us/patch-format.html>
@@ -406,7 +402,7 @@ Greg Kroah-Hartman, "How to piss off a kernel subsystem maintainer".
   <http://www.kroah.com/log/2006/01/11/>
 
 NO!!!! No more huge patch bombs to linux-kernel@vger.kernel.org people!
-  <http://marc.theaimsgroup.com/?l=linux-kernel&m=112112749912944&w=2>
+  <https://lkml.org/lkml/2005/7/11/336>
 
 Kernel Documentation/CodingStyle:
   <http://sosdg.org/~coywolf/lxr/source/Documentation/CodingStyle>

@@ -16,7 +16,6 @@
  * GNU General Public License for more details.
  */
 
-#include <linux/init.h>
 #include <linux/slab.h>
 #include <linux/errno.h>
 #include <linux/device.h>

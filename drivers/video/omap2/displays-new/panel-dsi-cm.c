@@ -22,6 +22,8 @@
 #include <linux/sched.h>
 #include <linux/slab.h>
 #include <linux/workqueue.h>
+#include <linux/of_device.h>
+#include <linux/of_gpio.h>
 
 #include <video/omapdss.h>
 #include <video/omap-panel-data.h>
@@ -595,10 +597,13 @@ static int dsicm_power_on(struct panel_drv_data *ddata)
 		.lp_clk_max = 10000000,
 	};
 
-	r = in->ops.dsi->configure_pins(in, &ddata->pin_config);
-	if (r) {
-		dev_err(&ddata->pdev->dev, "failed to configure DSI pins\n");
-		goto err0;
+	if (ddata->pin_config.num_pins > 0) {
+		r = in->ops.dsi->configure_pins(in, &ddata->pin_config);
+		if (r) {
+			dev_err(&ddata->pdev->dev,
+				"failed to configure DSI pins\n");
+			goto err0;
+		}
 	}
 
 	r = in->ops.dsi->set_config(in, &dsi_config);
@@ -1156,6 +1161,41 @@ static int dsicm_probe_pdata(struct platform_device *pdev)
 	return 0;
 }
 
+static int dsicm_probe_of(struct platform_device *pdev)
+{
+	struct device_node *node = pdev->dev.of_node;
+	struct panel_drv_data *ddata = platform_get_drvdata(pdev);
+	struct omap_dss_device *in;
+	int gpio;
+
+	gpio = of_get_named_gpio(node, "reset-gpios", 0);
+	if (!gpio_is_valid(gpio)) {
+		dev_err(&pdev->dev, "failed to parse reset gpio\n");
+		return gpio;
+	}
+	ddata->reset_gpio = gpio;
+
+	gpio = of_get_named_gpio(node, "te-gpios", 0);
+	if (gpio_is_valid(gpio) || gpio == -ENOENT) {
+		ddata->ext_te_gpio = gpio;
+	} else {
+		dev_err(&pdev->dev, "failed to parse TE gpio\n");
+		return gpio;
+	}
+
+	in = omapdss_of_find_source_for_first_ep(node);
+	if (IS_ERR(in)) {
+		dev_err(&pdev->dev, "failed to find video source\n");
+		return PTR_ERR(in);
+	}
+
+	ddata->in = in;
+
+	/* TODO: ulps, backlight */
+
+	return 0;
+}
+
 static int dsicm_probe(struct platform_device *pdev)
 {
 	struct backlight_properties props;
@@ -1178,13 +1218,17 @@ static int dsicm_probe(struct platform_device *pdev)
 		r = dsicm_probe_pdata(pdev);
 		if (r)
 			return r;
+	} else if (pdev->dev.of_node) {
+		r = dsicm_probe_of(pdev);
+		if (r)
+			return r;
 	} else {
 		return -ENODEV;
 	}
 
 	ddata->timings.x_res = 864;
 	ddata->timings.y_res = 480;
-	ddata->timings.pixel_clock = DIV_ROUND_UP(864 * 480 * 60, 1000);
+	ddata->timings.pixelclock = 864 * 480 * 60;
 
 	dssdev = &ddata->dssdev;
 	dssdev->dev = dev;
@@ -1320,12 +1364,20 @@ static int __exit dsicm_remove(struct platform_device *pdev)
 	return 0;
 }
 
+static const struct of_device_id dsicm_of_match[] = {
+	{ .compatible = "omapdss,panel-dsi-cm", },
+	{},
+};
+
+MODULE_DEVICE_TABLE(of, dsicm_of_match);
+
 static struct platform_driver dsicm_driver = {
 	.probe = dsicm_probe,
 	.remove = __exit_p(dsicm_remove),
 	.driver = {
 		.name = "panel-dsi-cm",
 		.owner = THIS_MODULE,
+		.of_match_table = dsicm_of_match,
 	},
 };
 

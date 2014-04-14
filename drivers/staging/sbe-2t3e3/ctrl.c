@@ -164,12 +164,12 @@ static void t3e3_reg_write(struct channel *sc, u32 *reg)
 	}
 }
 
-static void t3e3_port_get(struct channel *sc, t3e3_param_t *param)
+static void t3e3_port_get(struct channel *sc, struct t3e3_param *param)
 {
-	memcpy(param, &(sc->p), sizeof(t3e3_param_t));
+	memcpy(param, &(sc->p), sizeof(struct t3e3_param));
 }
 
-static void t3e3_port_set(struct channel *sc, t3e3_param_t *param)
+static void t3e3_port_set(struct channel *sc, struct t3e3_param *param)
 {
 	if (param->frame_mode != 0xff)
 		cpld_set_frame_mode(sc, param->frame_mode);
@@ -216,8 +216,7 @@ static void t3e3_port_set(struct channel *sc, t3e3_param_t *param)
 		cpld_set_scrambler(sc, param->scrambler);
 }
 
-static void t3e3_port_get_stats(struct channel *sc,
-			 t3e3_stats_t *stats)
+static void t3e3_port_get_stats(struct channel *sc, struct t3e3_stats *stats)
 {
 	u32 result;
 
@@ -279,18 +278,18 @@ static void t3e3_port_get_stats(struct channel *sc,
 	result += exar7250_read(sc, SBE_2T3E3_FRAMER_REG_PMON_HOLDING_REGISTER);
 	sc->s.CP_BIT += result;
 
-	memcpy(stats, &(sc->s), sizeof(t3e3_stats_t));
+	memcpy(stats, &(sc->s), sizeof(struct t3e3_stats));
 }
 
 static void t3e3_port_del_stats(struct channel *sc)
 {
-	memset(&(sc->s), 0, sizeof(t3e3_stats_t));
+	memset(&(sc->s), 0, sizeof(struct t3e3_stats));
 }
 
 void t3e3_if_config(struct channel *sc, u32 cmd, char *set,
-		    t3e3_resp_t *ret, int *rlen)
+		    struct t3e3_resp *ret, int *rlen)
 {
-	t3e3_param_t *param = (t3e3_param_t *)set;
+	struct t3e3_param *param = (struct t3e3_param *)set;
 	u32 *data = (u32 *)set;
 
 	/* turn off all interrupt */

@@ -479,7 +479,7 @@ static void ieee80211_tx_latency_end_msrmnt(struct ieee80211_local *local,
 	u32 msrmnt;
 	u16 tid;
 	u8 *qc;
-	int i, bin_range_count, bin_count;
+	int i, bin_range_count;
 	u32 *bin_ranges;
 	__le16 fc;
 	struct ieee80211_tx_latency_stat *tx_lat;
@@ -522,7 +522,6 @@ static void ieee80211_tx_latency_end_msrmnt(struct ieee80211_local *local,
 	/* count how many Tx frames transmitted with the appropriate latency */
 	bin_range_count = tx_latency->n_ranges;
 	bin_ranges = tx_latency->ranges;
-	bin_count = tx_lat->bin_count;
 
 	for (i = 0; i < bin_range_count; i++) {
 		if (msrmnt <= bin_ranges[i]) {

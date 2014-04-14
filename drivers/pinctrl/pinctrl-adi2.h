@@ -21,13 +21,15 @@ struct adi_pin_group {
 	const char *name;
 	const unsigned *pins;
 	const unsigned num;
+	const unsigned short *mux;
 };
 
-#define ADI_PIN_GROUP(n, p)  \
+#define ADI_PIN_GROUP(n, p, m)  \
 	{			\
 		.name = n,	\
 		.pins = p,	\
 		.num = ARRAY_SIZE(p),	\
+		.mux = m,			\
 	}
 
  /**
@@ -41,15 +43,13 @@ struct adi_pmx_func {
 	const char *name;
 	const char * const *groups;
 	const unsigned num_groups;
-	const unsigned short *mux;
 };
 
-#define ADI_PMX_FUNCTION(n, g, m)		\
+#define ADI_PMX_FUNCTION(n, g)		\
 	{					\
 		.name = n,			\
 		.groups = g,			\
 		.num_groups = ARRAY_SIZE(g),	\
-		.mux = m,			\
 	}
 
 /**

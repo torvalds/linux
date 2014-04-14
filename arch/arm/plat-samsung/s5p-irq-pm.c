@@ -22,10 +22,7 @@
 #include <mach/map.h>
 
 #include <mach/regs-gpio.h>
-
-#ifndef CONFIG_ARCH_EXYNOS
 #include <mach/regs-irq.h>
-#endif
 
 /* state for IRQs over sleep */
 
@@ -43,18 +40,8 @@ int s3c_irq_wake(struct irq_data *data, unsigned int state)
 	unsigned long irqbit;
 	unsigned int irq_rtc_tic, irq_rtc_alarm;
 
-#ifdef CONFIG_ARCH_EXYNOS
-	if (soc_is_exynos5250()) {
-		irq_rtc_tic = EXYNOS5_IRQ_RTC_TIC;
-		irq_rtc_alarm = EXYNOS5_IRQ_RTC_ALARM;
-	} else {
-		irq_rtc_tic = EXYNOS4_IRQ_RTC_TIC;
-		irq_rtc_alarm = EXYNOS4_IRQ_RTC_ALARM;
-	}
-#else
 	irq_rtc_tic = IRQ_RTC_TIC;
 	irq_rtc_alarm = IRQ_RTC_ALARM;
-#endif
 
 	if (data->irq == irq_rtc_tic || data->irq == irq_rtc_alarm) {
 		irqbit = 1 << (data->irq + 1 - irq_rtc_alarm);

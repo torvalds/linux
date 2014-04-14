@@ -837,7 +837,7 @@ static void __exit cmos_do_remove(struct device *dev)
 	cmos->dev = NULL;
 }
 
-#ifdef	CONFIG_PM
+#ifdef	CONFIG_PM_SLEEP
 
 static int cmos_suspend(struct device *dev)
 {
@@ -935,8 +935,6 @@ static int cmos_resume(struct device *dev)
 	return 0;
 }
 
-static SIMPLE_DEV_PM_OPS(cmos_pm_ops, cmos_suspend, cmos_resume);
-
 #else
 
 static inline int cmos_poweroff(struct device *dev)
@@ -945,6 +943,8 @@ static inline int cmos_poweroff(struct device *dev)
 }
 
 #endif
+
+static SIMPLE_DEV_PM_OPS(cmos_pm_ops, cmos_suspend, cmos_resume);
 
 /*----------------------------------------------------------------*/
 
@@ -1088,11 +1088,9 @@ static struct pnp_driver cmos_pnp_driver = {
 
 	/* flag ensures resume() gets called, and stops syslog spam */
 	.flags		= PNP_DRIVER_RES_DO_NOT_CHANGE,
-#ifdef CONFIG_PM_SLEEP
 	.driver		= {
 			.pm = &cmos_pm_ops,
 	},
-#endif
 };
 
 #endif	/* CONFIG_PNP */
