@@ -324,13 +324,13 @@ SOC_ENUM("LHPF2 Mode", arizona_lhpf2_mode),
 SOC_ENUM("LHPF3 Mode", arizona_lhpf3_mode),
 SOC_ENUM("LHPF4 Mode", arizona_lhpf4_mode),
 
-SOC_VALUE_ENUM("ISRC1 FSL", arizona_isrc_fsl[0]),
-SOC_VALUE_ENUM("ISRC2 FSL", arizona_isrc_fsl[1]),
-SOC_VALUE_ENUM("ISRC3 FSL", arizona_isrc_fsl[2]),
-SOC_VALUE_ENUM("ISRC1 FSH", arizona_isrc_fsh[0]),
-SOC_VALUE_ENUM("ISRC2 FSH", arizona_isrc_fsh[1]),
-SOC_VALUE_ENUM("ISRC3 FSH", arizona_isrc_fsh[2]),
-SOC_VALUE_ENUM("ASRC RATE 1", arizona_asrc_rate1),
+SOC_ENUM("ISRC1 FSL", arizona_isrc_fsl[0]),
+SOC_ENUM("ISRC2 FSL", arizona_isrc_fsl[1]),
+SOC_ENUM("ISRC3 FSL", arizona_isrc_fsl[2]),
+SOC_ENUM("ISRC1 FSH", arizona_isrc_fsh[0]),
+SOC_ENUM("ISRC2 FSH", arizona_isrc_fsh[1]),
+SOC_ENUM("ISRC3 FSH", arizona_isrc_fsh[2]),
+SOC_ENUM("ASRC RATE 1", arizona_asrc_rate1),
 
 ARIZONA_MIXER_CONTROLS("DSP1L", ARIZONA_DSP1LMIX_INPUT_1_SOURCE),
 ARIZONA_MIXER_CONTROLS("DSP1R", ARIZONA_DSP1RMIX_INPUT_1_SOURCE),
@@ -592,7 +592,7 @@ static const struct soc_enum wm5110_aec_loopback =
 			      wm5110_aec_loopback_values);
 
 static const struct snd_kcontrol_new wm5110_aec_loopback_mux =
-	SOC_DAPM_VALUE_ENUM("AEC Loopback", wm5110_aec_loopback);
+	SOC_DAPM_ENUM("AEC Loopback", wm5110_aec_loopback);
 
 static const struct snd_soc_dapm_widget wm5110_dapm_widgets[] = {
 SND_SOC_DAPM_SUPPLY("SYSCLK", ARIZONA_SYSTEM_CLOCK_1, ARIZONA_SYSCLK_ENA_SHIFT,
@@ -774,7 +774,7 @@ SND_SOC_DAPM_PGA("ISRC3DEC3", ARIZONA_ISRC_3_CTRL_3,
 SND_SOC_DAPM_PGA("ISRC3DEC4", ARIZONA_ISRC_3_CTRL_3,
 		 ARIZONA_ISRC3_DEC3_ENA_SHIFT, 0, NULL, 0),
 
-SND_SOC_DAPM_VALUE_MUX("AEC Loopback", ARIZONA_DAC_AEC_CONTROL_1,
+SND_SOC_DAPM_MUX("AEC Loopback", ARIZONA_DAC_AEC_CONTROL_1,
 		       ARIZONA_AEC_LOOPBACK_ENA_SHIFT, 0,
 		       &wm5110_aec_loopback_mux),
 
