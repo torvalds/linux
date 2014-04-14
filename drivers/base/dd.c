@@ -594,9 +594,7 @@ void driver_detach(struct device_driver *drv)
  */
 void *dev_get_drvdata(const struct device *dev)
 {
-	if (dev)
-		return dev->driver_data;
-	return NULL;
+	return dev->driver_data;
 }
 EXPORT_SYMBOL(dev_get_drvdata);
 
