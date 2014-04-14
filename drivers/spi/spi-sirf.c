@@ -383,7 +383,8 @@ static int spi_sirfsoc_transfer(struct spi_device *spi, struct spi_transfer *t)
 		struct dma_async_tx_descriptor *rx_desc, *tx_desc;
 
 		sspi->dst_start = dma_map_single(&spi->dev,
-				sspi->rx, t->len, DMA_FROM_DEVICE);
+				sspi->rx, t->len, (t->tx_buf != t->rx_buf) ?
+				DMA_FROM_DEVICE : DMA_BIDIRECTIONAL);
 		rx_desc = dmaengine_prep_slave_single(sspi->rx_chan,
 			sspi->dst_start, t->len, DMA_DEV_TO_MEM,
 			DMA_PREP_INTERRUPT | DMA_CTRL_ACK);
@@ -391,7 +392,9 @@ static int spi_sirfsoc_transfer(struct spi_device *spi, struct spi_transfer *t)
 		rx_desc->callback_param = &sspi->rx_done;
 
 		sspi->src_start = dma_map_single(&spi->dev,
-				(void *)sspi->tx, t->len, DMA_TO_DEVICE);
+				(void *)sspi->tx, t->len,
+				(t->tx_buf != t->rx_buf) ?
+				DMA_TO_DEVICE : DMA_BIDIRECTIONAL);
 		tx_desc = dmaengine_prep_slave_single(sspi->tx_chan,
 			sspi->src_start, t->len, DMA_MEM_TO_DEV,
 			DMA_PREP_INTERRUPT | DMA_CTRL_ACK);
