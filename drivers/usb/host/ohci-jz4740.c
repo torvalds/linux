@@ -85,11 +85,11 @@ static int ohci_jz4740_hub_control(struct usb_hcd *hcd, u16 typeReq, u16 wValue,
 	int ret = 0;
 
 	switch (typeReq) {
-	case SetHubFeature:
+	case SetPortFeature:
 		if (wValue == USB_PORT_FEAT_POWER)
 			ret = ohci_jz4740_set_vbus_power(jz4740_ohci, true);
 		break;
-	case ClearHubFeature:
+	case ClearPortFeature:
 		if (wValue == USB_PORT_FEAT_POWER)
 			ret = ohci_jz4740_set_vbus_power(jz4740_ohci, false);
 		break;
