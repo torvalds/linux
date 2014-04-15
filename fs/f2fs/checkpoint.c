@@ -762,6 +762,12 @@ static void do_checkpoint(struct f2fs_sb_info *sbi, bool is_umount)
 	void *kaddr;
 	int i;
 
+	/*
+	 * This avoids to conduct wrong roll-forward operations and uses
+	 * metapages, so should be called prior to sync_meta_pages below.
+	 */
+	discard_next_dnode(sbi);
+
 	/* Flush all the NAT/SIT pages */
 	while (get_pages(sbi, F2FS_DIRTY_META))
 		sync_meta_pages(sbi, META, LONG_MAX);
