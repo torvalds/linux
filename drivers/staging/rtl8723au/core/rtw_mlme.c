@@ -2280,18 +2280,14 @@ unsigned int rtw_restructure_ht_ie23a(struct rtw_adapter *padapter, u8 *in_ie,
 /* the fucntion is > passive_level (in critical_section) */
 void rtw_update_ht_cap23a(struct rtw_adapter *padapter, u8 *pie, uint ie_len)
 {
-	u8 *p, max_ampdu_sz;
-	int len;
-	/* struct sta_info *bmc_sta, *psta; */
+	u8 max_ampdu_sz;
+	const u8 *p;
 	struct ieee80211_ht_cap *pht_capie;
 	struct ieee80211_ht_addt_info *pht_addtinfo;
-	/* struct recv_reorder_ctrl *preorder_ctrl; */
-	struct mlme_priv	*pmlmepriv = &padapter->mlmepriv;
-	struct ht_priv		*phtpriv = &pmlmepriv->htpriv;
-	/* struct recv_priv *precvpriv = &padapter->recvpriv; */
+	struct mlme_priv *pmlmepriv = &padapter->mlmepriv;
+	struct ht_priv *phtpriv = &pmlmepriv->htpriv;
 	struct registry_priv *pregistrypriv = &padapter->registrypriv;
-	/* struct wlan_network *pcur_network = &pmlmepriv->cur_network;; */
-	struct mlme_ext_priv	*pmlmeext = &padapter->mlmeextpriv;
+	struct mlme_ext_priv *pmlmeext = &padapter->mlmeextpriv;
 	struct mlme_ext_info *pmlmeinfo = &pmlmeext->mlmext_info;
 
 	if (!phtpriv->ht_option)
@@ -2302,45 +2298,43 @@ void rtw_update_ht_cap23a(struct rtw_adapter *padapter, u8 *pie, uint ie_len)
 
 	DBG_8723A("+rtw_update_ht_cap23a()\n");
 
+	/* Adjust pie + ie_len for our searches */
+	pie += sizeof (struct ndis_802_11_fixed_ies);
+	ie_len -= sizeof (struct ndis_802_11_fixed_ies);
+
 	/* maybe needs check if ap supports rx ampdu. */
-	if ((phtpriv->ampdu_enable == false) && (pregistrypriv->ampdu_enable == 1)) {
+	if (phtpriv->ampdu_enable == false &&
+	    pregistrypriv->ampdu_enable == 1) {
 		if (pregistrypriv->wifi_spec == 1)
 			phtpriv->ampdu_enable = false;
 		else
 			phtpriv->ampdu_enable = true;
-	} else if (pregistrypriv->ampdu_enable == 2) {
+	} else if (pregistrypriv->ampdu_enable == 2)
 		phtpriv->ampdu_enable = true;
-	}
 
 	/* check Max Rx A-MPDU Size */
-	len = 0;
-	p = rtw_get_ie23a(pie+sizeof (struct ndis_802_11_fixed_ies),
-			  WLAN_EID_HT_CAPABILITY, &len,
-			  ie_len-sizeof (struct ndis_802_11_fixed_ies));
-	if (p && len > 0) {
-		pht_capie = (struct ieee80211_ht_cap *)(p+2);
-		max_ampdu_sz = (pht_capie->ampdu_params_info & IEEE80211_HT_AMPDU_PARM_FACTOR);
-		max_ampdu_sz = 1 << (max_ampdu_sz+3); /*  max_ampdu_sz (kbytes); */
+	p = cfg80211_find_ie(WLAN_EID_HT_CAPABILITY, pie, ie_len);
 
-		/* DBG_8723A("rtw_update_ht_cap23a(): max_ampdu_sz =%d\n", max_ampdu_sz); */
+	if (p && p[1] > 0) {
+		pht_capie = (struct ieee80211_ht_cap *)(p + 2);
+		max_ampdu_sz = pht_capie->ampdu_params_info &
+			IEEE80211_HT_AMPDU_PARM_FACTOR;
+		/*  max_ampdu_sz (kbytes); */
+		max_ampdu_sz = 1 << (max_ampdu_sz + 3);
+
 		phtpriv->rx_ampdu_maxlen = max_ampdu_sz;
-
 	}
 
-	len = 0;
-	p = rtw_get_ie23a(pie+sizeof (struct ndis_802_11_fixed_ies),
-			  WLAN_EID_HT_OPERATION, &len,
-			  ie_len-sizeof (struct ndis_802_11_fixed_ies));
-	if (p && len>0)
-	{
-		pht_addtinfo = (struct ieee80211_ht_addt_info *)(p+2);
+	p = cfg80211_find_ie(WLAN_EID_HT_OPERATION, pie, ie_len);
+	if (p && p[1] > 0) {
+		pht_addtinfo = (struct ieee80211_ht_addt_info *)(p + 2);
 		/* todo: */
 	}
 
 	/* update cur_bwmode & cur_ch_offset */
-	if ((pregistrypriv->cbw40_enable) &&
-		(pmlmeinfo->HT_caps.u.HT_cap_element.HT_caps_info & BIT(1)) &&
-		(pmlmeinfo->HT_info.infos[0] & BIT(2))) {
+	if (pregistrypriv->cbw40_enable &&
+	    (pmlmeinfo->HT_caps.u.HT_cap_element.HT_caps_info & BIT(1)) &&
+	    (pmlmeinfo->HT_info.infos[0] & BIT(2))) {
 		int i;
 		u8 rf_type;
 
@@ -2375,7 +2369,8 @@ void rtw_update_ht_cap23a(struct rtw_adapter *padapter, u8 *pie, uint ie_len)
 	/*  */
 	/*  Config SM Power Save setting */
 	/*  */
-	pmlmeinfo->SM_PS = (pmlmeinfo->HT_caps.u.HT_cap_element.HT_caps_info & 0x0C) >> 2;
+	pmlmeinfo->SM_PS = (pmlmeinfo->HT_caps.u.HT_cap_element.HT_caps_info &
+			    0x0C) >> 2;
 	if (pmlmeinfo->SM_PS == WLAN_HT_CAP_SM_PS_STATIC)
 		DBG_8723A("%s(): WLAN_HT_CAP_SM_PS_STATIC\n", __func__);
 
