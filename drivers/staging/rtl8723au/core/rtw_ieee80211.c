@@ -131,7 +131,7 @@ u8 *rtw_set_fixed_ie23a(unsigned char *pbuf, unsigned int len,
 }
 
 /*  rtw_set_ie23a will update frame length */
-u8 *rtw_set_ie23a(u8 *pbuf, int index, uint len, u8 *source, uint *frlen)
+u8 *rtw_set_ie23a(u8 *pbuf, int index, uint len, const u8 *source, uint *frlen)
 {
 
 	*pbuf = (u8)index;

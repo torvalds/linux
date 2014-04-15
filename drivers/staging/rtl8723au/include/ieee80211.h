@@ -518,7 +518,7 @@ enum parse_res rtw_ieee802_11_parse_elems23a(u8 *start, uint len,
 				int show_errors);
 
 u8 *rtw_set_fixed_ie23a(unsigned char *pbuf, unsigned int len, unsigned char *source, unsigned int *frlen);
-u8 *rtw_set_ie23a(u8 *pbuf, int index, uint len, u8 *source, uint *frlen);
+u8 *rtw_set_ie23a(u8 *pbuf, int index, uint len, const u8 *source, uint *frlen);
 
 enum secondary_ch_offset {
 	SCN = 0, /* no secondary channel */
