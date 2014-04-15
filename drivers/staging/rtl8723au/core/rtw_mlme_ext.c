@@ -4014,24 +4014,26 @@ static void issue_action_BSSCoexistPacket(struct rtw_adapter *padapter)
 {
 	struct list_head *plist, *phead, *ptmp;
 	unsigned char category, action;
-	struct xmit_frame			*pmgntframe;
-	struct pkt_attrib			*pattrib;
-	unsigned char				*pframe;
-	struct ieee80211_hdr	*pwlanhdr;
-	unsigned short			*fctrl;
-	struct	wlan_network	*pnetwork = NULL;
+	struct xmit_frame *pmgntframe;
+	struct pkt_attrib *pattrib;
+	u8 *pframe;
+	struct ieee80211_hdr *pwlanhdr;
+	unsigned short *fctrl;
+	struct wlan_network *pnetwork;
 	struct xmit_priv *pxmitpriv = &padapter->xmitpriv;
 	struct mlme_priv *pmlmepriv = &padapter->mlmepriv;
 	struct mlme_ext_priv *pmlmeext = &padapter->mlmeextpriv;
 	struct mlme_ext_info *pmlmeinfo = &pmlmeext->mlmext_info;
-	struct rtw_queue	*queue	= &pmlmepriv->scanned_queue;
+	struct rtw_queue *queue	= &pmlmepriv->scanned_queue;
 	u8 InfoContent[16] = {0};
 	u8 ICS[8][15];
+	int i;
 
-	if ((pmlmepriv->num_FortyMHzIntolerant == 0) || (pmlmepriv->num_sta_no_ht == 0))
+	if (pmlmepriv->num_FortyMHzIntolerant == 0 ||
+	    pmlmepriv->num_sta_no_ht == 0)
 		return;
 
-	if (true == pmlmeinfo->bwmode_updated)
+	if (pmlmeinfo->bwmode_updated)
 		return;
 
 	DBG_8723A("%s\n", __func__);
@@ -4039,10 +4041,9 @@ static void issue_action_BSSCoexistPacket(struct rtw_adapter *padapter)
 	category = WLAN_CATEGORY_PUBLIC;
 	action = ACT_PUBLIC_BSSCOEXIST;
 
-	if ((pmgntframe = alloc_mgtxmitframe23a(pxmitpriv)) == NULL)
-	{
+	pmgntframe = alloc_mgtxmitframe23a(pxmitpriv);
+	if (!pmgntframe)
 		return;
-	}
 
 	/* update attribute */
 	pattrib = &pmgntframe->attrib;
@@ -4050,7 +4051,7 @@ static void issue_action_BSSCoexistPacket(struct rtw_adapter *padapter)
 
 	memset(pmgntframe->buf_addr, 0, WLANHDR_OFFSET + TXDESC_OFFSET);
 
-	pframe = (u8 *)(pmgntframe->buf_addr) + TXDESC_OFFSET;
+	pframe = (u8 *)pmgntframe->buf_addr + TXDESC_OFFSET;
 	pwlanhdr = (struct ieee80211_hdr *)pframe;
 
 	fctrl = &pwlanhdr->frame_control;
@@ -4070,88 +4071,74 @@ static void issue_action_BSSCoexistPacket(struct rtw_adapter *padapter)
 	pframe = rtw_set_fixed_ie23a(pframe, 1, &category, &pattrib->pktlen);
 	pframe = rtw_set_fixed_ie23a(pframe, 1, &action, &pattrib->pktlen);
 
-	/*  */
-	if (pmlmepriv->num_FortyMHzIntolerant>0)
-	{
-		u8 iedata = 0;
+	if (pmlmepriv->num_FortyMHzIntolerant > 0) {
+		u8 iedata = BIT(2);/* 20 MHz BSS Width Request */
 
-		iedata |= BIT(2);/* 20 MHz BSS Width Request */
-
-		pframe = rtw_set_ie23a(pframe, WLAN_EID_BSS_COEX_2040,  1,
+		pframe = rtw_set_ie23a(pframe, WLAN_EID_BSS_COEX_2040, 1,
 				       &iedata, &pattrib->pktlen);
 	}
 
-	/*  */
+	if (pmlmepriv->num_sta_no_ht <= 0)
+		goto out;
+
 	memset(ICS, 0, sizeof(ICS));
-	if (pmlmepriv->num_sta_no_ht>0)
-	{
-		int i;
 
-		spin_lock_bh(&pmlmepriv->scanned_queue.lock);
+	spin_lock_bh(&pmlmepriv->scanned_queue.lock);
 
-		phead = get_list_head(queue);
-		plist = phead->next;
+	phead = get_list_head(queue);
+	plist = phead->next;
 
-		list_for_each_safe(plist, ptmp, phead) {
-			int len;
-			u8 *p;
-			struct wlan_bssid_ex *pbss_network;
+	list_for_each_safe(plist, ptmp, phead) {
+		const u8 *p;
+		struct wlan_bssid_ex *pbss_network;
 
-			pnetwork = container_of(plist, struct wlan_network,
-						list);
+		pnetwork = container_of(plist, struct wlan_network, list);
 
-			pbss_network = &pnetwork->network;
+		pbss_network = &pnetwork->network;
 
-			p = rtw_get_ie23a(pbss_network->IEs + _FIXED_IE_LENGTH_,
-					  WLAN_EID_HT_CAPABILITY, &len,
-					  pbss_network->IELength -
-					  _FIXED_IE_LENGTH_);
-			if ((p == NULL) || (len == 0))/* non-HT */
-			{
-				if ((pbss_network->Configuration.DSConfig<= 0) || (pbss_network->Configuration.DSConfig>14))
-					continue;
+		p = cfg80211_find_ie(WLAN_EID_HT_CAPABILITY,
+				     pbss_network->IEs + _FIXED_IE_LENGTH_,
+				     pbss_network->IELength -_FIXED_IE_LENGTH_);
+		if (!p || !p[1]) { /* non-HT */
+			if (pbss_network->Configuration.DSConfig <= 0 ||
+			    pbss_network->Configuration.DSConfig > 14)
+				continue;
 
-				ICS[0][pbss_network->Configuration.DSConfig]= 1;
+			ICS[0][pbss_network->Configuration.DSConfig] = 1;
 
-				if (ICS[0][0] == 0)
-					ICS[0][0] = 1;
-			}
-
-		}
-
-		spin_unlock_bh(&pmlmepriv->scanned_queue.lock);
-
-		for (i = 0;i<8;i++)
-		{
-			if (ICS[i][0] == 1)
-			{
-				int j, k = 0;
-
-				InfoContent[k] = i;
-				/* SET_BSS_INTOLERANT_ELE_REG_CLASS(InfoContent, i); */
-				k++;
-
-				for (j = 1;j<= 14;j++)
-				{
-					if (ICS[i][j]== 1)
-					{
-						if (k<16)
-						{
-							InfoContent[k] = j; /* channel number */
-							/* SET_BSS_INTOLERANT_ELE_CHANNEL(InfoContent+k, j); */
-							k++;
-						}
-					}
-				}
-
-				pframe = rtw_set_ie23a(pframe, EID_BSSIntolerantChlReport, k, InfoContent, &pattrib->pktlen);
-
-			}
-
+			if (ICS[0][0] == 0)
+				ICS[0][0] = 1;
 		}
 
 	}
 
+	spin_unlock_bh(&pmlmepriv->scanned_queue.lock);
+
+	for (i = 0; i < 8;i++) {
+		if (ICS[i][0] == 1) {
+			int j, k = 0;
+
+			InfoContent[k] = i;
+			/* SET_BSS_INTOLERANT_ELE_REG_CLASS(InfoContent, i); */
+			k++;
+
+			for (j = 1; j <= 14; j++) {
+				if (ICS[i][j] == 1) {
+					if (k < 16) {
+						/* channel number */
+						InfoContent[k] = j;
+						k++;
+					}
+				}
+			}
+
+			pframe = rtw_set_ie23a(pframe,
+					       EID_BSSIntolerantChlReport, k,
+					       InfoContent, &pattrib->pktlen);
+		}
+	}
+
+out:
 	pattrib->last_txcmdsz = pattrib->pktlen;
 
 	dump_mgntframe23a(padapter, pmgntframe);
