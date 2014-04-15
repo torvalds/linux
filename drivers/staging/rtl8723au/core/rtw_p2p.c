@@ -256,7 +256,8 @@ static void issue_p2p_devdisc_resp(struct wifidirect_info *pwdinfo, u8 *da, u8 s
 	/*  P2P_ATTR_STATUS */
 	p2pielen += rtw_set_p2p_attr_content23a(&p2pie[p2pielen], P2P_ATTR_STATUS, 1, &status);
 
-	pframe = rtw_set_ie23a(pframe, _VENDOR_SPECIFIC_IE_, p2pielen, p2pie, &pattrib->pktlen);
+	pframe = rtw_set_ie23a(pframe, WLAN_EID_VENDOR_SPECIFIC, p2pielen,
+			       p2pie, &pattrib->pktlen);
 
 	pattrib->last_txcmdsz = pattrib->pktlen;
 
@@ -340,7 +341,8 @@ static void issue_p2p_provision_resp(struct wifidirect_info *pwdinfo, u8* raddr,
 	put_unaligned_be16(config_method, wpsie + wpsielen);
 	wpsielen += 2;
 
-	pframe = rtw_set_ie23a(pframe, _VENDOR_SPECIFIC_IE_, wpsielen, (unsigned char *) wpsie, &pattrib->pktlen);
+	pframe = rtw_set_ie23a(pframe, WLAN_EID_VENDOR_SPECIFIC, wpsielen,
+			       (unsigned char *) wpsie, &pattrib->pktlen);
 
 #ifdef CONFIG_8723AU_P2P
 	wfdielen = build_provdisc_resp_wfd_ie(pwdinfo, pframe);
@@ -428,8 +430,8 @@ static void issue_p2p_presence_resp(struct wifidirect_info *pwdinfo, u8 *da, u8 
 
 	p2pielen += rtw_set_p2p_attr_content23a(&p2pie[p2pielen], P2P_ATTR_NOA, 2, noa_attr_content);
 
-	pframe = rtw_set_ie23a(pframe, _VENDOR_SPECIFIC_IE_, p2pielen, p2pie,
-			       &pattrib->pktlen);
+	pframe = rtw_set_ie23a(pframe, WLAN_EID_VENDOR_SPECIFIC, p2pielen,
+			       p2pie, &pattrib->pktlen);
 
 	pattrib->last_txcmdsz = pattrib->pktlen;
 
@@ -481,7 +483,8 @@ u32 build_beacon_p2p_ie23a(struct wifidirect_info *pwdinfo, u8 *pbuf)
 
 	/* go_add_noa_attr(pwdinfo); */
 
-	pbuf = rtw_set_ie23a(pbuf, _VENDOR_SPECIFIC_IE_, p2pielen, (unsigned char *) p2pie, &len);
+	pbuf = rtw_set_ie23a(pbuf, WLAN_EID_VENDOR_SPECIFIC, p2pielen,
+			     (unsigned char *) p2pie, &len);
 
 	return len;
 }
@@ -602,7 +605,8 @@ u32 build_beacon_wfd_ie(struct wifidirect_info *pwdinfo, u8 *pbuf)
 	wfdie[ wfdielen++ ] = 0;
 	wfdie[ wfdielen++ ] = 0;
 
-	pbuf = rtw_set_ie23a(pbuf, _VENDOR_SPECIFIC_IE_, wfdielen, (unsigned char *) wfdie, &len);
+	pbuf = rtw_set_ie23a(pbuf, WLAN_EID_VENDOR_SPECIFIC, wfdielen,
+			     (unsigned char *) wfdie, &len);
 
 	return len;
 }
@@ -713,7 +717,8 @@ u32 build_probe_req_wfd_ie(struct wifidirect_info *pwdinfo, u8 *pbuf)
 	wfdie[ wfdielen++ ] = 0;
 	wfdie[ wfdielen++ ] = 0;
 
-	pbuf = rtw_set_ie23a(pbuf, _VENDOR_SPECIFIC_IE_, wfdielen, (unsigned char *) wfdie, &len);
+	pbuf = rtw_set_ie23a(pbuf, WLAN_EID_VENDOR_SPECIFIC, wfdielen,
+			     (unsigned char *) wfdie, &len);
 
 	return len;
 }
@@ -900,7 +905,8 @@ u32 build_probe_resp_wfd_ie(struct wifidirect_info *pwdinfo, u8 *pbuf, u8 tunnel
 
 	}
 
-	pbuf = rtw_set_ie23a(pbuf, _VENDOR_SPECIFIC_IE_, wfdielen, (unsigned char *) wfdie, &len);
+	pbuf = rtw_set_ie23a(pbuf, WLAN_EID_VENDOR_SPECIFIC, wfdielen,
+			     (unsigned char *) wfdie, &len);
 
 	return len;
 }
@@ -1007,7 +1013,8 @@ u32 build_assoc_req_wfd_ie(struct wifidirect_info *pwdinfo, u8 *pbuf)
 	wfdie[ wfdielen++ ] = 0;
 	wfdie[ wfdielen++ ] = 0;
 
-	pbuf = rtw_set_ie23a(pbuf, _VENDOR_SPECIFIC_IE_, wfdielen, (unsigned char *) wfdie, &len);
+	pbuf = rtw_set_ie23a(pbuf, WLAN_EID_VENDOR_SPECIFIC, wfdielen,
+			     (unsigned char *) wfdie, &len);
 
 	return len;
 }
@@ -1105,7 +1112,8 @@ u32 build_assoc_resp_wfd_ie(struct wifidirect_info *pwdinfo, u8 *pbuf)
 	wfdie[ wfdielen++ ] = 0;
 	wfdie[ wfdielen++ ] = 0;
 
-	pbuf = rtw_set_ie23a(pbuf, _VENDOR_SPECIFIC_IE_, wfdielen, (unsigned char *) wfdie, &len);
+	pbuf = rtw_set_ie23a(pbuf, WLAN_EID_VENDOR_SPECIFIC, wfdielen,
+			     (unsigned char *) wfdie, &len);
 
 	return len;
 }
@@ -1203,7 +1211,8 @@ u32 build_nego_req_wfd_ie(struct wifidirect_info *pwdinfo, u8 *pbuf)
 	wfdie[ wfdielen++ ] = 0;
 	wfdie[ wfdielen++ ] = 0;
 
-	pbuf = rtw_set_ie23a(pbuf, _VENDOR_SPECIFIC_IE_, wfdielen, (unsigned char *) wfdie, &len);
+	pbuf = rtw_set_ie23a(pbuf, WLAN_EID_VENDOR_SPECIFIC, wfdielen,
+			     (unsigned char *) wfdie, &len);
 
 	return len;
 }
@@ -1301,7 +1310,8 @@ u32 build_nego_resp_wfd_ie(struct wifidirect_info *pwdinfo, u8 *pbuf)
 	wfdie[ wfdielen++ ] = 0;
 	wfdie[ wfdielen++ ] = 0;
 
-	pbuf = rtw_set_ie23a(pbuf, _VENDOR_SPECIFIC_IE_, wfdielen, (unsigned char *) wfdie, &len);
+	pbuf = rtw_set_ie23a(pbuf, WLAN_EID_VENDOR_SPECIFIC, wfdielen,
+			     (unsigned char *) wfdie, &len);
 
 	return len;
 }
@@ -1398,7 +1408,8 @@ u32 build_nego_confirm_wfd_ie(struct wifidirect_info *pwdinfo, u8 *pbuf)
 	wfdie[ wfdielen++ ] = 0;
 	wfdie[ wfdielen++ ] = 0;
 
-	pbuf = rtw_set_ie23a(pbuf, _VENDOR_SPECIFIC_IE_, wfdielen, (unsigned char *) wfdie, &len);
+	pbuf = rtw_set_ie23a(pbuf, WLAN_EID_VENDOR_SPECIFIC, wfdielen,
+			     (unsigned char *) wfdie, &len);
 
 	return len;
 }
@@ -1511,7 +1522,8 @@ u32 build_invitation_req_wfd_ie(struct wifidirect_info *pwdinfo, u8 *pbuf)
 
 	}
 
-	pbuf = rtw_set_ie23a(pbuf, _VENDOR_SPECIFIC_IE_, wfdielen, (unsigned char *) wfdie, &len);
+	pbuf = rtw_set_ie23a(pbuf, WLAN_EID_VENDOR_SPECIFIC, wfdielen,
+			     (unsigned char *) wfdie, &len);
 
 	return len;
 }
@@ -1624,7 +1636,8 @@ u32 build_invitation_resp_wfd_ie(struct wifidirect_info *pwdinfo, u8 *pbuf)
 
 	}
 
-	pbuf = rtw_set_ie23a(pbuf, _VENDOR_SPECIFIC_IE_, wfdielen, (unsigned char *) wfdie, &len);
+	pbuf = rtw_set_ie23a(pbuf, WLAN_EID_VENDOR_SPECIFIC, wfdielen,
+			     (unsigned char *) wfdie, &len);
 
 	return len;
 }
@@ -1722,7 +1735,8 @@ u32 build_provdisc_req_wfd_ie(struct wifidirect_info *pwdinfo, u8 *pbuf)
 	wfdie[ wfdielen++ ] = 0;
 	wfdie[ wfdielen++ ] = 0;
 
-	pbuf = rtw_set_ie23a(pbuf, _VENDOR_SPECIFIC_IE_, wfdielen, (unsigned char *) wfdie, &len);
+	pbuf = rtw_set_ie23a(pbuf, WLAN_EID_VENDOR_SPECIFIC, wfdielen,
+			     (unsigned char *) wfdie, &len);
 
 	return len;
 }
@@ -1820,7 +1834,8 @@ u32 build_provdisc_resp_wfd_ie(struct wifidirect_info *pwdinfo, u8 *pbuf)
 	wfdie[ wfdielen++ ] = 0;
 	wfdie[ wfdielen++ ] = 0;
 
-	pbuf = rtw_set_ie23a(pbuf, _VENDOR_SPECIFIC_IE_, wfdielen, (unsigned char *) wfdie, &len);
+	pbuf = rtw_set_ie23a(pbuf, WLAN_EID_VENDOR_SPECIFIC, wfdielen,
+			     (unsigned char *) wfdie, &len);
 
 	return len;
 }
@@ -1973,7 +1988,8 @@ u32 build_probe_resp_p2p_ie23a(struct wifidirect_info *pwdinfo, u8 *pbuf)
 		p2pielen += go_add_group_info_attr(pwdinfo, p2pie + p2pielen);
 	}
 
-	pbuf = rtw_set_ie23a(pbuf, _VENDOR_SPECIFIC_IE_, p2pielen, (unsigned char *) p2pie, &len);
+	pbuf = rtw_set_ie23a(pbuf, WLAN_EID_VENDOR_SPECIFIC, p2pielen,
+			     (unsigned char *) p2pie, &len);
 
 	return len;
 }
@@ -2103,7 +2119,8 @@ u32 build_prov_disc_request_p2p_ie23a(struct wifidirect_info *pwdinfo, u8 *pbuf,
 
 	}
 
-	pbuf = rtw_set_ie23a(pbuf, _VENDOR_SPECIFIC_IE_, p2pielen, (unsigned char *) p2pie, &len);
+	pbuf = rtw_set_ie23a(pbuf, WLAN_EID_VENDOR_SPECIFIC, p2pielen,
+			     (unsigned char *) p2pie, &len);
 
 	return len;
 }
@@ -2132,7 +2149,8 @@ u32 build_assoc_resp_p2p_ie23a(struct wifidirect_info *pwdinfo, u8 *pbuf, u8 sta
 	/*	Length: */
 	/*	Value: */
 
-	pbuf = rtw_set_ie23a(pbuf, _VENDOR_SPECIFIC_IE_, p2pielen, (unsigned char *) p2pie, &len);
+	pbuf = rtw_set_ie23a(pbuf, WLAN_EID_VENDOR_SPECIFIC, p2pielen,
+			     (unsigned char *) p2pie, &len);
 
 	return len;
 }

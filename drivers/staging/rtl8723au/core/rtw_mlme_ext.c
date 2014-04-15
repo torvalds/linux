@@ -1543,7 +1543,10 @@ unsigned int OnAssocReq23a(struct rtw_adapter *padapter, struct recv_frame *prec
 		p = pframe + sizeof(struct ieee80211_hdr_3addr) + ie_offset; ie_len = 0;
 		for (;;)
 		{
-			p = rtw_get_ie23a(p, _VENDOR_SPECIFIC_IE_, &ie_len, pkt_len - sizeof(struct ieee80211_hdr_3addr) - ie_offset);
+			p = rtw_get_ie23a(p, WLAN_EID_VENDOR_SPECIFIC, &ie_len,
+					  pkt_len -
+					  sizeof(struct ieee80211_hdr_3addr) -
+					  ie_offset);
 			if (p != NULL) {
 				if (!memcmp(p+2, WMM_IE, 6)) {
 
@@ -1826,7 +1829,7 @@ unsigned int OnAssocRsp23a(struct rtw_adapter *padapter, struct recv_frame *prec
 
 		switch (pIE->ElementID)
 		{
-		case _VENDOR_SPECIFIC_IE_:
+		case WLAN_EID_VENDOR_SPECIFIC:
 			if (!memcmp(pIE->data, WMM_PARA_OUI23A, 6))/* WMM */
 					WMM_param_handler23a(padapter, pIE);
 #if defined(CONFIG_8723AU_P2P)
@@ -2245,7 +2248,8 @@ void issue_p2p_GO_request23a(struct rtw_adapter *padapter, u8* raddr)
 
 	wpsielen += 2;
 
-	pframe = rtw_set_ie23a(pframe, _VENDOR_SPECIFIC_IE_, wpsielen, (unsigned char *) wpsie, &pattrib->pktlen);
+	pframe = rtw_set_ie23a(pframe, WLAN_EID_VENDOR_SPECIFIC, wpsielen,
+			       (unsigned char *) wpsie, &pattrib->pktlen);
 
 	/*	P2P IE Section. */
 
@@ -2497,7 +2501,8 @@ void issue_p2p_GO_request23a(struct rtw_adapter *padapter, u8* raddr)
 	/*	Channel Number */
 	p2pie[p2pielen++] = pwdinfo->operating_channel;	/*	operating channel number */
 
-	pframe = rtw_set_ie23a(pframe, _VENDOR_SPECIFIC_IE_, p2pielen, (unsigned char *) p2pie, &pattrib->pktlen);
+	pframe = rtw_set_ie23a(pframe, WLAN_EID_VENDOR_SPECIFIC, p2pielen,
+			       (unsigned char *) p2pie, &pattrib->pktlen);
 
 #ifdef CONFIG_8723AU_P2P
 	wfdielen = build_nego_req_wfd_ie(pwdinfo, pframe);
@@ -2641,7 +2646,7 @@ static void issue_p2p_GO_response(struct rtw_adapter *padapter, u8* raddr, u8* f
 		}
 	}
 
-	pframe = rtw_set_ie23a(pframe, _VENDOR_SPECIFIC_IE_, wpsielen,
+	pframe = rtw_set_ie23a(pframe, WLAN_EID_VENDOR_SPECIFIC, wpsielen,
 			       (unsigned char *) wpsie, &pattrib->pktlen);
 
 	/*	P2P IE Section. */
@@ -2910,7 +2915,7 @@ static void issue_p2p_GO_response(struct rtw_adapter *padapter, u8* raddr, u8* f
 
 	}
 
-	pframe = rtw_set_ie23a(pframe, _VENDOR_SPECIFIC_IE_, p2pielen,
+	pframe = rtw_set_ie23a(pframe, WLAN_EID_VENDOR_SPECIFIC, p2pielen,
 			       (unsigned char *) p2pie, &pattrib->pktlen);
 
 #ifdef CONFIG_8723AU_P2P
@@ -3115,7 +3120,7 @@ static void issue_p2p_GO_confirm(struct rtw_adapter *padapter, u8* raddr,
 		p2pielen += pwdinfo->nego_ssidlen;
 	}
 
-	pframe = rtw_set_ie23a(pframe, _VENDOR_SPECIFIC_IE_, p2pielen,
+	pframe = rtw_set_ie23a(pframe, WLAN_EID_VENDOR_SPECIFIC, p2pielen,
 			       (unsigned char *)p2pie, &pattrib->pktlen);
 
 #ifdef CONFIG_8723AU_P2P
@@ -3393,7 +3398,7 @@ void issue_p2p_invitation_request23a(struct rtw_adapter *padapter, u8* raddr)
 	       pwdinfo->device_name_len);
 	p2pielen += pwdinfo->device_name_len;
 
-	pframe = rtw_set_ie23a(pframe, _VENDOR_SPECIFIC_IE_, p2pielen,
+	pframe = rtw_set_ie23a(pframe, WLAN_EID_VENDOR_SPECIFIC, p2pielen,
 			       (unsigned char *) p2pie, &pattrib->pktlen);
 
 #ifdef CONFIG_8723AU_P2P
@@ -3612,7 +3617,7 @@ void issue_p2p_invitation_response23a(struct rtw_adapter *padapter, u8 *raddr,
 		}
 	}
 
-	pframe = rtw_set_ie23a(pframe, _VENDOR_SPECIFIC_IE_, p2pielen,
+	pframe = rtw_set_ie23a(pframe, WLAN_EID_VENDOR_SPECIFIC, p2pielen,
 			       (unsigned char *)p2pie, &pattrib->pktlen);
 
 #ifdef CONFIG_8723AU_P2P
@@ -3721,7 +3726,7 @@ void issue_p2p_provision_request23a(struct rtw_adapter *padapter, u8 *pssid,
 	*(u16*) (wpsie + wpsielen) = cpu_to_be16(pwdinfo->tx_prov_disc_info.wps_config_method_request);
 	wpsielen += 2;
 
-	pframe = rtw_set_ie23a(pframe, _VENDOR_SPECIFIC_IE_, wpsielen,
+	pframe = rtw_set_ie23a(pframe, WLAN_EID_VENDOR_SPECIFIC, wpsielen,
 			       (unsigned char *) wpsie, &pattrib->pktlen);
 
 #ifdef CONFIG_8723AU_P2P
@@ -4047,8 +4052,8 @@ void issue_probersp23a_p2p23a(struct rtw_adapter *padapter, unsigned char *da)
 			cpu_to_be16(pwdinfo->supported_wps_cm);
 		wpsielen += 2;
 
-		pframe = rtw_set_ie23a(pframe, _VENDOR_SPECIFIC_IE_, wpsielen,
-				       (unsigned char *)wpsie,
+		pframe = rtw_set_ie23a(pframe, WLAN_EID_VENDOR_SPECIFIC,
+				       wpsielen, (unsigned char *)wpsie,
 				       &pattrib->pktlen);
 
 		p2pielen = build_probe_resp_p2p_ie23a(pwdinfo, pframe);
@@ -4283,8 +4288,8 @@ static int _issue23a_probereq_p2p(struct rtw_adapter *padapter, u8 *da,
 			cpu_to_be16(WPS_DPID_REGISTRAR_SPEC);
 		wpsielen += 2;
 
-		pframe = rtw_set_ie23a(pframe, _VENDOR_SPECIFIC_IE_, wpsielen,
-				       (unsigned char *)wpsie,
+		pframe = rtw_set_ie23a(pframe, WLAN_EID_VENDOR_SPECIFIC,
+				       wpsielen, (unsigned char *)wpsie,
 				       &pattrib->pktlen);
 
 		/*	P2P OUI */
@@ -4393,8 +4398,8 @@ static int _issue23a_probereq_p2p(struct rtw_adapter *padapter, u8 *da,
 			p2pie[p2pielen++] = pwdinfo->operating_channel;
 		}
 
-		pframe = rtw_set_ie23a(pframe, _VENDOR_SPECIFIC_IE_, p2pielen,
-				       (unsigned char *)p2pie,
+		pframe = rtw_set_ie23a(pframe, WLAN_EID_VENDOR_SPECIFIC,
+				       p2pielen, (unsigned char *)p2pie,
 				       &pattrib->pktlen);
 
 		if (pmlmepriv->wps_probe_req_ie) {
@@ -6239,7 +6244,7 @@ void issue_asocrsp23a(struct rtw_adapter *padapter, unsigned short status,
 					       0x01, 0x01};
 
 		for (pbuf = ie + _BEACON_IE_OFFSET_; ; pbuf += (ie_len + 2)) {
-			pbuf = rtw_get_ie23a(pbuf, _VENDOR_SPECIFIC_IE_,
+			pbuf = rtw_get_ie23a(pbuf, WLAN_EID_VENDOR_SPECIFIC,
 					     &ie_len, (pnetwork->IELength -
 						       _BEACON_IE_OFFSET_ -
 						       (ie_len + 2)));
@@ -6257,7 +6262,7 @@ void issue_asocrsp23a(struct rtw_adapter *padapter, unsigned short status,
 	}
 
 	if (pmlmeinfo->assoc_AP_vendor == HT_IOT_PEER_REALTEK) {
-		pframe = rtw_set_ie23a(pframe, _VENDOR_SPECIFIC_IE_, 6,
+		pframe = rtw_set_ie23a(pframe, WLAN_EID_VENDOR_SPECIFIC, 6,
 				       REALTEK_96B_IE23A, &pattrib->pktlen);
 	}
 
@@ -6513,7 +6518,7 @@ void issue_assocreq23a(struct rtw_adapter *padapter)
 
 		switch (pIE->ElementID)
 		{
-		case _VENDOR_SPECIFIC_IE_:
+		case WLAN_EID_VENDOR_SPECIFIC:
 			if (!memcmp(pIE->data, RTW_WPA_OUI23A, 4) ||
 			    !memcmp(pIE->data, WMM_OUI23A, 4) ||
 			    !memcmp(pIE->data, WPS_OUI23A, 4)) {
@@ -6526,7 +6531,7 @@ void issue_assocreq23a(struct rtw_adapter *padapter)
 						pIE->Length = 14;
 				}
 				pframe = rtw_set_ie23a(pframe,
-						       _VENDOR_SPECIFIC_IE_,
+						       WLAN_EID_VENDOR_SPECIFIC,
 						       pIE->Length, pIE->data,
 						       &pattrib->pktlen);
 			}
@@ -6540,7 +6545,7 @@ void issue_assocreq23a(struct rtw_adapter *padapter)
 	}
 
 	if (pmlmeinfo->assoc_AP_vendor == HT_IOT_PEER_REALTEK)
-		pframe = rtw_set_ie23a(pframe, _VENDOR_SPECIFIC_IE_, 6,
+		pframe = rtw_set_ie23a(pframe, WLAN_EID_VENDOR_SPECIFIC, 6,
 				       REALTEK_96B_IE23A, &pattrib->pktlen);
 
 #ifdef CONFIG_8723AU_P2P
@@ -6704,7 +6709,7 @@ void issue_assocreq23a(struct rtw_adapter *padapter)
 			       ETH_ALEN);	/* P2P Interface Address List */
 			p2pielen += ETH_ALEN;
 
-			pframe = rtw_set_ie23a(pframe, _VENDOR_SPECIFIC_IE_,
+			pframe = rtw_set_ie23a(pframe, WLAN_EID_VENDOR_SPECIFIC,
 					       p2pielen, (unsigned char *)p2pie,
 					       &pattrib->pktlen);
 
@@ -9300,7 +9305,7 @@ u8 join_cmd_hdl23a(struct rtw_adapter *padapter, u8 *pbuf)
 
 		switch (pIE->ElementID)
 		{
-		case _VENDOR_SPECIFIC_IE_:/* Get WMM IE. */
+		case WLAN_EID_VENDOR_SPECIFIC:/* Get WMM IE. */
 			if (!memcmp(pIE->data, WMM_OUI23A, 4))
 				pmlmeinfo->WMM_enable = 1;
 			break;

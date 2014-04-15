@@ -2014,7 +2014,7 @@ _rtw_report_sec_ie(struct rtw_adapter *adapter, u8 authmode, u8 *sec_ie)
 		 ("+_rtw_report_sec_ie, authmode =%d\n", authmode));
 
 	buff = NULL;
-	if (authmode == _WPA_IE_ID_) {
+	if (authmode == WLAN_EID_VENDOR_SPECIFIC) {
 		RT_TRACE(_module_mlme_osdep_c_, _drv_info_,
 			 ("_rtw_report_sec_ie, authmode =%d\n", authmode));
 
@@ -2064,7 +2064,7 @@ int rtw_restruct_sec_ie23a(struct rtw_adapter *adapter, u8 *in_ie, u8 *out_ie,
 	ielength = 12;
 	if ((ndisauthmode==Ndis802_11AuthModeWPA) ||
 	    (ndisauthmode==Ndis802_11AuthModeWPAPSK))
-		authmode=_WPA_IE_ID_;
+		authmode = WLAN_EID_VENDOR_SPECIFIC;
 	if ((ndisauthmode==Ndis802_11AuthModeWPA2) ||
 	    (ndisauthmode==Ndis802_11AuthModeWPA2PSK))
 		authmode=_WPA2_IE_ID_;
@@ -2074,7 +2074,8 @@ int rtw_restruct_sec_ie23a(struct rtw_adapter *adapter, u8 *in_ie, u8 *out_ie,
 		       psecuritypriv->wps_ie_len);
 
 		ielength += psecuritypriv->wps_ie_len;
-	} else if ((authmode==_WPA_IE_ID_) || (authmode==_WPA2_IE_ID_)) {
+	} else if ((authmode == WLAN_EID_VENDOR_SPECIFIC) ||
+		   (authmode==_WPA2_IE_ID_)) {
 		/* copy RSN or SSN */
 		memcpy(&out_ie[ielength], &psecuritypriv->supplicant_ie[0],
 		       psecuritypriv->supplicant_ie[1] + 2);
@@ -2242,7 +2243,7 @@ unsigned int rtw_restructure_ht_ie23a(struct rtw_adapter *padapter, u8 *in_ie,
 		if (pqospriv->qos_option == 0) {
 			out_len = *pout_len;
 			pframe = rtw_set_ie23a(out_ie + out_len,
-					    _VENDOR_SPECIFIC_IE_,
+					    WLAN_EID_VENDOR_SPECIFIC,
 					    _WMM_IE_Length_, WMM_IE, pout_len);
 
 			pqospriv->qos_option = 1;

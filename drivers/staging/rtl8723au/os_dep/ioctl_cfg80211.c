@@ -2986,10 +2986,10 @@ static int rtw_add_beacon(struct rtw_adapter *adapter, const u8 *head,
 #endif
 
 	/* pbss_network->IEs will not include p2p_ie, wfd ie */
-	rtw_ies_remove_ie23a(pbuf, &len, _BEACON_IE_OFFSET_, _VENDOR_SPECIFIC_IE_,
-			  P2P_OUI23A, 4);
-	rtw_ies_remove_ie23a(pbuf, &len, _BEACON_IE_OFFSET_, _VENDOR_SPECIFIC_IE_,
-			  WFD_OUI23A, 4);
+	rtw_ies_remove_ie23a(pbuf, &len, _BEACON_IE_OFFSET_,
+			     WLAN_EID_VENDOR_SPECIFIC, P2P_OUI23A, 4);
+	rtw_ies_remove_ie23a(pbuf, &len, _BEACON_IE_OFFSET_,
+			     WLAN_EID_VENDOR_SPECIFIC, WFD_OUI23A, 4);
 
 	if (rtw_check_beacon_data23a(adapter, pbuf, len) == _SUCCESS) {
 #ifdef CONFIG_8723AU_P2P
@@ -3489,7 +3489,7 @@ void rtw_cfg80211_issue_p2p_provision_request23a(struct rtw_adapter *padapter,
 	memcpy(p2p_ie + p2pielen, devinfo_content, devinfo_contentlen);
 	p2pielen += devinfo_contentlen;
 
-	pframe = rtw_set_ie23a(pframe, _VENDOR_SPECIFIC_IE_, p2pielen,
+	pframe = rtw_set_ie23a(pframe, WLAN_EID_VENDOR_SPECIFIC, p2pielen,
 			    (unsigned char *)p2p_ie, &p2p_ielen);
 	pattrib->pktlen += p2p_ielen;
 
@@ -3524,7 +3524,7 @@ void rtw_cfg80211_issue_p2p_provision_request23a(struct rtw_adapter *padapter,
 	    cpu_to_be16(pwdinfo->tx_prov_disc_info.wps_config_method_request);
 	wpsielen += 2;
 
-	pframe = rtw_set_ie23a(pframe, _VENDOR_SPECIFIC_IE_, wpsielen,
+	pframe = rtw_set_ie23a(pframe, WLAN_EID_VENDOR_SPECIFIC, wpsielen,
 			    (unsigned char *)wpsie, &pattrib->pktlen);
 
 #ifdef CONFIG_8723AU_P2P
@@ -3897,8 +3897,8 @@ static int rtw_cfg80211_set_beacon_wpsp2pie(struct net_device *ndev, char *buf,
 			pmlmepriv->wps_beacon_ie_len = wps_ielen;
 
 #ifdef CONFIG_8723AU_AP_MODE
-			update_beacon23a(padapter, _VENDOR_SPECIFIC_IE_, wps_oui,
-				      true);
+			update_beacon23a(padapter, WLAN_EID_VENDOR_SPECIFIC,
+					 wps_oui, true);
 #endif
 		}
 #ifdef CONFIG_8723AU_P2P

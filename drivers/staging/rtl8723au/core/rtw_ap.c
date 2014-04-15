@@ -927,7 +927,7 @@ int rtw_check_beacon_data23a(struct rtw_adapter *padapter, u8 *pbuf,  int len)
 	psecuritypriv->wpa_group_cipher = _NO_PRIVACY_;
 	psecuritypriv->wpa_pairwise_cipher = _NO_PRIVACY_;
 	for (p = ie + _BEACON_IE_OFFSET_; ;p += (ie_len + 2)) {
-		p = rtw_get_ie23a(p, _SSN_IE_1_, &ie_len,
+		p = rtw_get_ie23a(p, WLAN_EID_VENDOR_SPECIFIC, &ie_len,
 				  (pbss_network->IELength - _BEACON_IE_OFFSET_ -
 				  (ie_len + 2)));
 		if ((p) && (!memcmp(p+2, OUI1, 4))) {
@@ -955,7 +955,7 @@ int rtw_check_beacon_data23a(struct rtw_adapter *padapter, u8 *pbuf,  int len)
 	pmlmepriv->qospriv.qos_option = 0;
 	if (pregistrypriv->wmm_enable) {
 		for (p = ie + _BEACON_IE_OFFSET_; ;p += (ie_len + 2)) {
-			p = rtw_get_ie23a(p, _VENDOR_SPECIFIC_IE_, &ie_len,
+			p = rtw_get_ie23a(p, WLAN_EID_VENDOR_SPECIFIC, &ie_len,
 					  (pbss_network->IELength -
 					  _BEACON_IE_OFFSET_ - (ie_len + 2)));
 			if ((p) && !memcmp(p+2, WMM_PARA_IE, 6)) {
@@ -1374,7 +1374,7 @@ void update_beacon23a(struct rtw_adapter *padapter, u8 ie_id, u8 *oui, u8 tx)
 		update_bcn_htinfo_ie(padapter);
 		break;
 
-	case _VENDOR_SPECIFIC_IE_:
+	case WLAN_EID_VENDOR_SPECIFIC:
 		update_bcn_vendor_spec_ie(padapter, oui);
 		break;
 

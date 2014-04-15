@@ -1130,7 +1130,7 @@ unsigned int is_ap_in_tkip23a(struct rtw_adapter *padapter)
 			pIE = (struct ndis_802_11_var_ies *)(pmlmeinfo->network.IEs + i);
 
 			switch (pIE->ElementID) {
-			case _VENDOR_SPECIFIC_IE_:
+			case WLAN_EID_VENDOR_SPECIFIC:
 				if ((!memcmp(pIE->data, RTW_WPA_OUI23A, 4)) && (!memcmp((pIE->data + 12), WPA_TKIP_CIPHER23A, 4)))
 					return true;
 				break;
@@ -1161,7 +1161,7 @@ unsigned int should_forbid_n_rate23a(struct rtw_adapter * padapter)
 			pIE = (struct ndis_802_11_var_ies *)(cur_network->IEs + i);
 
 			switch (pIE->ElementID) {
-			case _VENDOR_SPECIFIC_IE_:
+			case WLAN_EID_VENDOR_SPECIFIC:
 				if (!memcmp(pIE->data, RTW_WPA_OUI23A, 4) &&
 					((!memcmp((pIE->data + 12), WPA_CIPHER_SUITE_CCMP23A, 4)) ||
 					  (!memcmp((pIE->data + 16), WPA_CIPHER_SUITE_CCMP23A, 4))))
@@ -1196,7 +1196,7 @@ unsigned int is_ap_in_wep23a(struct rtw_adapter *padapter)
 			pIE = (struct ndis_802_11_var_ies *)(pmlmeinfo->network.IEs + i);
 
 			switch (pIE->ElementID) {
-			case _VENDOR_SPECIFIC_IE_:
+			case WLAN_EID_VENDOR_SPECIFIC:
 				if (!memcmp(pIE->data, RTW_WPA_OUI23A, 4))
 					return false;
 				break;
@@ -1404,7 +1404,7 @@ unsigned char check_assoc_AP23a(u8 *pframe, uint len)
 		pIE = (struct ndis_802_11_var_ies *)(pframe + i);
 
 		switch (pIE->ElementID) {
-		case _VENDOR_SPECIFIC_IE_:
+		case WLAN_EID_VENDOR_SPECIFIC:
 			if ((!memcmp(pIE->data, ARTHEROS_OUI1, 3)) ||
 			    (!memcmp(pIE->data, ARTHEROS_OUI2, 3))) {
 				DBG_8723A("link to Artheros AP\n");
