@@ -2236,7 +2236,8 @@ unsigned int rtw_restructure_ht_ie23a(struct rtw_adapter *padapter, u8 *in_ie,
 
 	phtpriv->ht_option = false;
 
-	p = rtw_get_ie23a(in_ie + 12, _HT_CAPABILITY_IE_, &ielen, in_len - 12);
+	p = rtw_get_ie23a(in_ie + 12, WLAN_EID_HT_CAPABILITY, &ielen,
+			  in_len - 12);
 
 	if (p && ielen > 0) {
 		u32 rx_packet_offset, max_recvbuf_sz;
@@ -2273,17 +2274,19 @@ unsigned int rtw_restructure_ht_ie23a(struct rtw_adapter *padapter, u8 *in_ie,
 			ht_capie.ampdu_params_info |=
 				(IEEE80211_HT_AMPDU_PARM_DENSITY & 0x00);
 
-		pframe = rtw_set_ie23a(out_ie + out_len, _HT_CAPABILITY_IE_,
+		pframe = rtw_set_ie23a(out_ie + out_len, WLAN_EID_HT_CAPABILITY,
 				    sizeof(struct ieee80211_ht_cap),
 				    (unsigned char*)&ht_capie, pout_len);
 
 		phtpriv->ht_option = true;
 
-		p = rtw_get_ie23a(in_ie + 12, _HT_ADD_INFO_IE_, &ielen, in_len-12);
+		p = rtw_get_ie23a(in_ie + 12, WLAN_EID_HT_OPERATION, &ielen,
+				  in_len-12);
 		if (p && (ielen == sizeof(struct ieee80211_ht_addt_info))) {
 			out_len = *pout_len;
-			pframe = rtw_set_ie23a(out_ie + out_len, _HT_ADD_INFO_IE_,
-					    ielen, p + 2 , pout_len);
+			pframe = rtw_set_ie23a(out_ie + out_len,
+					       WLAN_EID_HT_OPERATION,
+					       ielen, p + 2 , pout_len);
 		}
 	}
 
@@ -2327,7 +2330,9 @@ void rtw_update_ht_cap23a(struct rtw_adapter *padapter, u8 *pie, uint ie_len)
 
 	/* check Max Rx A-MPDU Size */
 	len = 0;
-	p = rtw_get_ie23a(pie+sizeof (struct ndis_802_11_fixed_ies), _HT_CAPABILITY_IE_, &len, ie_len-sizeof (struct ndis_802_11_fixed_ies));
+	p = rtw_get_ie23a(pie+sizeof (struct ndis_802_11_fixed_ies),
+			  WLAN_EID_HT_CAPABILITY, &len,
+			  ie_len-sizeof (struct ndis_802_11_fixed_ies));
 	if (p && len > 0) {
 		pht_capie = (struct ieee80211_ht_cap *)(p+2);
 		max_ampdu_sz = (pht_capie->ampdu_params_info & IEEE80211_HT_AMPDU_PARM_FACTOR);
@@ -2339,7 +2344,9 @@ void rtw_update_ht_cap23a(struct rtw_adapter *padapter, u8 *pie, uint ie_len)
 	}
 
 	len = 0;
-	p = rtw_get_ie23a(pie+sizeof (struct ndis_802_11_fixed_ies), _HT_ADD_INFO_IE_, &len, ie_len-sizeof (struct ndis_802_11_fixed_ies));
+	p = rtw_get_ie23a(pie+sizeof (struct ndis_802_11_fixed_ies),
+			  WLAN_EID_HT_OPERATION, &len,
+			  ie_len-sizeof (struct ndis_802_11_fixed_ies));
 	if (p && len>0)
 	{
 		pht_addtinfo = (struct ieee80211_ht_addt_info *)(p+2);
