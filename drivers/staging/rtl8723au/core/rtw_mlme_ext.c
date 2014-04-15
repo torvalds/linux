@@ -2245,16 +2245,12 @@ static int
 OnAction23a(struct rtw_adapter *padapter, struct recv_frame *precv_frame)
 {
 	int i;
-	unsigned char	category;
+	u8 category;
 	struct action_handler *ptable;
-	unsigned char	*frame_body;
 	struct sk_buff *skb = precv_frame->pkt;
-	u8 *pframe = skb->data;
+	struct ieee80211_mgmt *mgmt = (struct ieee80211_mgmt *) skb->data;
 
-	frame_body = (unsigned char *)
-		(pframe + sizeof(struct ieee80211_hdr_3addr));
-
-	category = frame_body[0];
+	category = mgmt->u.action.category;
 
 	for (i = 0;
 	     i < sizeof(OnAction23a_tbl) / sizeof(struct action_handler); i++) {
