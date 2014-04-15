@@ -9,6 +9,7 @@
  * it under the terms of the GNU General Public License version 2 as
  * published by the Free Software Foundation.
  */
+#include <linux/clk/mmp.h>
 #include <linux/module.h>
 #include <linux/kernel.h>
 #include <linux/init.h>
@@ -111,7 +112,9 @@ static int __init mmp2_init(void)
 		mfp_init_base(MFPR_VIRT_BASE);
 		mfp_init_addr(mmp2_addr_map);
 		pxa_init_dma(IRQ_MMP2_DMA_RIQ, 16);
-		mmp2_clk_init();
+		mmp2_clk_init(APB_PHYS_BASE + 0x50000,
+			      AXI_PHYS_BASE + 0x82800,
+			      APB_PHYS_BASE + 0x15000);
 	}
 
 	return 0;
