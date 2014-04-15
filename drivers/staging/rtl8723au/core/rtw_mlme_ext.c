@@ -578,28 +578,28 @@ _mgt_dispatcher23a(struct rtw_adapter *padapter, struct mlme_handler *ptable,
 void mgt_dispatcher23a(struct rtw_adapter *padapter,
 		    struct recv_frame *precv_frame)
 {
-	int index;
 	struct mlme_handler *ptable;
 #ifdef CONFIG_8723AU_AP_MODE
 	struct mlme_priv *pmlmepriv = &padapter->mlmepriv;
 #endif /* CONFIG_8723AU_AP_MODE */
 	struct sk_buff *skb = precv_frame->pkt;
-	struct ieee80211_hdr *hdr = (struct ieee80211_hdr *) skb->data;
-	u16 stype;
+	struct ieee80211_mgmt *mgmt = (struct ieee80211_mgmt *) skb->data;
 	struct sta_info *psta;
+	u16 stype;
+	int index;
 
-	if (!ieee80211_is_mgmt(hdr->frame_control))
+	if (!ieee80211_is_mgmt(mgmt->frame_control))
 		return;
 
 	/* receive the frames that ra(a1) is my address or ra(a1) is
 	   bc address. */
-	if (!ether_addr_equal(hdr->addr1, myid(&padapter->eeprompriv)) &&
-	    !is_broadcast_ether_addr(hdr->addr1))
+	if (!ether_addr_equal(mgmt->da, myid(&padapter->eeprompriv)) &&
+	    !is_broadcast_ether_addr(mgmt->da))
 		return;
 
 	ptable = mlme_sta_tbl;
 
-	stype = le16_to_cpu(hdr->frame_control) & IEEE80211_FCTL_STYPE;
+	stype = le16_to_cpu(mgmt->frame_control) & IEEE80211_FCTL_STYPE;
 	index = stype >> 4;
 
 	if (index > 13) {
@@ -610,10 +610,10 @@ void mgt_dispatcher23a(struct rtw_adapter *padapter,
 	}
 	ptable += index;
 
-	psta = rtw_get_stainfo23a(&padapter->stapriv, hdr->addr2);
+	psta = rtw_get_stainfo23a(&padapter->stapriv, mgmt->sa);
 
 	if (psta) {
-		if (ieee80211_has_retry(hdr->frame_control)) {
+		if (ieee80211_has_retry(mgmt->frame_control)) {
 			if (precv_frame->attrib.seq_num ==
 			    psta->RxMgmtFrameSeqNum) {
 				/* drop the duplicate management frame */
