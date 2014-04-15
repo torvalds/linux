@@ -304,13 +304,6 @@ config SCSI_SRP_ATTRS
 	  If you wish to export transport-specific information about
 	  each attached SRP device to sysfs, say Y.
 
-config SCSI_SRP_TGT_ATTRS
-	bool "SCSI target support for SRP Transport Attributes"
-	depends on SCSI_SRP_ATTRS
-	depends on SCSI_TGT = y || SCSI_TGT = SCSI_SRP_ATTRS
-	help
-		If you want to use SCSI target mode drivers enable this option.
-
 endmenu
 
 menuconfig SCSI_LOWLEVEL

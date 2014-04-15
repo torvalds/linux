@@ -20,7 +20,6 @@ CFLAGS_gdth.o    = # -DDEBUG_GDTH=2 -D__SERIAL__ -D__COM2__ -DGDTH_STATISTICS
 obj-$(CONFIG_PCMCIA)		+= pcmcia/
 
 obj-$(CONFIG_SCSI)		+= scsi_mod.o
-obj-$(CONFIG_SCSI_TGT)		+= scsi_tgt.o
 
 obj-$(CONFIG_RAID_ATTRS)	+= raid_class.o
 
@@ -170,8 +169,6 @@ scsi_mod-y			+= scsi_trace.o
 scsi_mod-$(CONFIG_PM)		+= scsi_pm.o
 
 hv_storvsc-y			:= storvsc_drv.o
-
-scsi_tgt-y			+= scsi_tgt_lib.o scsi_tgt_if.o
 
 sd_mod-objs	:= sd.o
 sd_mod-$(CONFIG_BLK_DEV_INTEGRITY) += sd_dif.o

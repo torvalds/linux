@@ -132,27 +132,6 @@ struct scsi_host_template {
 	int (* queuecommand)(struct Scsi_Host *, struct scsi_cmnd *);
 
 	/*
-	 * The transfer functions are used to queue a scsi command to
-	 * the LLD. When the driver is finished processing the command
-	 * the done callback is invoked.
-	 *
-	 * This is called to inform the LLD to transfer
-	 * scsi_bufflen(cmd) bytes. scsi_sg_count(cmd) speciefies the
-	 * number of scatterlist entried in the command and
-	 * scsi_sglist(cmd) returns the scatterlist.
-	 *
-	 * return values: see queuecommand
-	 *
-	 * If the LLD accepts the cmd, it should set the result to an
-	 * appropriate value when completed before calling the done function.
-	 *
-	 * STATUS: REQUIRED FOR TARGET DRIVERS
-	 */
-	/* TODO: rename */
-	int (* transfer_response)(struct scsi_cmnd *,
-				  void (*done)(struct scsi_cmnd *));
-
-	/*
 	 * This is an error handling strategy routine.  You don't need to
 	 * define one of these if you don't want to - there is a default
 	 * routine that is present that should work in most cases.  For those
