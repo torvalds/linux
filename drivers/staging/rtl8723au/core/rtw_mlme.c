@@ -1987,47 +1987,6 @@ static int rtw_append_pmkid(struct rtw_adapter *Adapter, int iEntry,
 	return ie_len;
 }
 
-static void
-_rtw_report_sec_ie(struct rtw_adapter *adapter, u8 authmode, u8 *sec_ie)
-{
-	uint	len;
-	u8	*buff, *p, i;
-	union iwreq_data wrqu;
-
-	RT_TRACE(_module_mlme_osdep_c_, _drv_info_,
-		 ("+_rtw_report_sec_ie, authmode =%d\n", authmode));
-
-	buff = NULL;
-	if (authmode == WLAN_EID_VENDOR_SPECIFIC) {
-		RT_TRACE(_module_mlme_osdep_c_, _drv_info_,
-			 ("_rtw_report_sec_ie, authmode =%d\n", authmode));
-
-		buff = kzalloc(IW_CUSTOM_MAX, GFP_KERNEL);
-		if (!buff)
-			return;
-		p = buff;
-
-		p += sprintf(p, "ASSOCINFO(ReqIEs =");
-
-		len = sec_ie[1]+2;
-		len =  (len < IW_CUSTOM_MAX) ? len : IW_CUSTOM_MAX;
-
-		for (i = 0; i < len; i++)
-			p += sprintf(p, "%02x", sec_ie[i]);
-
-		p += sprintf(p, ")");
-
-		memset(&wrqu, 0, sizeof(wrqu));
-
-		wrqu.data.length = p-buff;
-
-		wrqu.data.length = (wrqu.data.length < IW_CUSTOM_MAX) ?
-				   wrqu.data.length : IW_CUSTOM_MAX;
-
-		kfree(buff);
-	}
-}
-
 int rtw_restruct_sec_ie23a(struct rtw_adapter *adapter, u8 *in_ie, u8 *out_ie,
 			uint in_len)
 {
@@ -2064,8 +2023,6 @@ int rtw_restruct_sec_ie23a(struct rtw_adapter *adapter, u8 *in_ie, u8 *out_ie,
 		memcpy(&out_ie[ielength], &psecuritypriv->supplicant_ie[0],
 		       psecuritypriv->supplicant_ie[1] + 2);
 		ielength += psecuritypriv->supplicant_ie[1] + 2;
-		_rtw_report_sec_ie(adapter, authmode,
-				   psecuritypriv->supplicant_ie);
 	}
 
 	iEntry = SecIsInPMKIDList(adapter, pmlmepriv->assoc_bssid);
