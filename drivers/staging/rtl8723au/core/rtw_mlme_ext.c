@@ -1119,13 +1119,12 @@ unsigned int OnAssocReq23a(struct rtw_adapter *padapter, struct recv_frame *prec
 	u16 capab_info, listen_interval;
 	struct rtw_ieee802_11_elems elems;
 	struct sta_info	*pstat;
-	unsigned char		reassoc, *p, *pos, *wpa_ie;
+	unsigned char reassoc, *wpa_ie;
 	unsigned char WMM_IE[] = {0x00, 0x50, 0xf2, 0x02, 0x00, 0x01};
-	int		i, ie_len, wpa_ie_len, left;
-	unsigned char		supportRate[16];
-	int					supportRateNum;
-	unsigned short		status = WLAN_STATUS_SUCCESS;
-	unsigned short ie_offset;
+	int i, wpa_ie_len, left;
+	unsigned char supportRate[16];
+	int supportRateNum;
+	unsigned short status = WLAN_STATUS_SUCCESS;
 	struct mlme_priv *pmlmepriv = &padapter->mlmepriv;
 	struct security_priv *psecuritypriv = &padapter->securitypriv;
 	struct mlme_ext_priv *pmlmeext = &padapter->mlmeextpriv;
@@ -1133,61 +1132,56 @@ unsigned int OnAssocReq23a(struct rtw_adapter *padapter, struct recv_frame *prec
 	struct wlan_bssid_ex *cur = &pmlmeinfo->network;
 	struct sta_priv *pstapriv = &padapter->stapriv;
 	struct sk_buff *skb = precv_frame->pkt;
+	struct ieee80211_mgmt *mgmt = (struct ieee80211_mgmt *) skb->data;
+	const u8 *p;
+	u8 *pos;
 	u8 *pframe = skb->data;
 	uint pkt_len = skb->len;
-	struct ieee80211_hdr *hdr = (struct ieee80211_hdr *) skb->data;
-	u16 frame_control;
 
-	if ((pmlmeinfo->state&0x03) != WIFI_FW_AP_STATE)
+	if ((pmlmeinfo->state & 0x03) != WIFI_FW_AP_STATE)
 		return _FAIL;
 
-	frame_control = hdr->frame_control;
-	if (ieee80211_is_assoc_req(frame_control)) {
+	left = pkt_len - sizeof(struct ieee80211_hdr_3addr);
+	if (ieee80211_is_assoc_req(mgmt->frame_control)) {
 		reassoc = 0;
-		ie_offset = _ASOCREQ_IE_OFFSET_;
+		pos = mgmt->u.assoc_req.variable;
+		left -= _ASOCREQ_IE_OFFSET_;
 	} else { /*  WIFI_REASSOCREQ */
 		reassoc = 1;
-		ie_offset = _REASOCREQ_IE_OFFSET_;
+		pos = mgmt->u.reassoc_req.variable;
+		left -= _REASOCREQ_IE_OFFSET_;
 	}
 
-	if (pkt_len < sizeof(struct ieee80211_hdr_3addr) + ie_offset) {
-		DBG_8723A("handle_assoc(reassoc =%d) - too short payload (len =%lu)"
-		       "\n", reassoc, (unsigned long)pkt_len);
+	if (left < 0) {
+		DBG_8723A("handle_assoc(reassoc =%d) - too short payload "
+			  "(len =%lu)\n", reassoc, (unsigned long)pkt_len);
 		return _FAIL;
 	}
 
-	pstat = rtw_get_stainfo23a(pstapriv, hdr->addr2);
+	pstat = rtw_get_stainfo23a(pstapriv, mgmt->sa);
 	if (!pstat) {
 		status = WLAN_REASON_CLASS2_FRAME_FROM_NONAUTH_STA;
 		goto asoc_class2_error;
 	}
 
-	capab_info = get_unaligned_le16(pframe + sizeof(struct ieee80211_hdr_3addr));
-	/* capab_info = le16_to_cpu(*(unsigned short *)(pframe + sizeof(struct ieee80211_hdr_3addr))); */
-	/* listen_interval = le16_to_cpu(*(unsigned short *)(pframe + sizeof(struct ieee80211_hdr_3addr)+2)); */
-	listen_interval = get_unaligned_le16(pframe + sizeof(struct ieee80211_hdr_3addr)+2);
-
-	left = pkt_len - (sizeof(struct ieee80211_hdr_3addr) + ie_offset);
-	pos = pframe + (sizeof(struct ieee80211_hdr_3addr) + ie_offset);
+	/* These two are located at the same offsets whether it's an
+	 * assoc_req or a reassoc_req */
+	capab_info = get_unaligned_le16(&mgmt->u.assoc_req.capab_info);
+	listen_interval =
+		get_unaligned_le16(&mgmt->u.assoc_req.listen_interval);
 
 	DBG_8723A("%s\n", __func__);
 
 	/*  check if this stat has been successfully authenticated/assocated */
-	if (!((pstat->state) & WIFI_FW_AUTH_SUCCESS))
-	{
-		if (!((pstat->state) & WIFI_FW_ASSOC_SUCCESS))
-		{
+	if (!(pstat->state & WIFI_FW_AUTH_SUCCESS)) {
+		if (!(pstat->state & WIFI_FW_ASSOC_SUCCESS)) {
 			status = WLAN_REASON_CLASS2_FRAME_FROM_NONAUTH_STA;
 			goto asoc_class2_error;
-		}
-		else
-		{
+		} else {
 			pstat->state &= (~WIFI_FW_ASSOC_SUCCESS);
 			pstat->state |= WIFI_FW_ASSOC_STATE;
 		}
-	}
-	else
-	{
+	} else {
 		pstat->state &= (~WIFI_FW_AUTH_SUCCESS);
 		pstat->state |= WIFI_FW_ASSOC_STATE;
 	}
@@ -1195,42 +1189,37 @@ unsigned int OnAssocReq23a(struct rtw_adapter *padapter, struct recv_frame *prec
 	pstat->capability = capab_info;
 
 	/* now parse all ieee802_11 ie to point to elems */
-	if (rtw_ieee802_11_parse_elems23a(pos, left, &elems, 1) == ParseFailed ||
-	    !elems.ssid) {
+	if (rtw_ieee802_11_parse_elems23a(pos, left, &elems, 1) ==
+	    ParseFailed || !elems.ssid) {
 		DBG_8723A("STA " MAC_FMT " sent invalid association request\n",
-		       MAC_ARG(pstat->hwaddr));
+			  MAC_ARG(pstat->hwaddr));
 		status = WLAN_STATUS_UNSPECIFIED_FAILURE;
 		goto OnAssocReq23aFail;
 	}
 
 	/*  now we should check all the fields... */
 	/*  checking SSID */
-	p = rtw_get_ie23a(pframe + sizeof(struct ieee80211_hdr_3addr) +
-			  ie_offset, WLAN_EID_SSID, &ie_len, pkt_len -
-			  sizeof(struct ieee80211_hdr_3addr) - ie_offset);
-	if (p == NULL)
-	{
+	p = cfg80211_find_ie(WLAN_EID_SSID, pos, left);
+	if (!p || p[1] == 0) {
+	/*  broadcast ssid, however it is not allowed in assocreq */
 		status = WLAN_STATUS_UNSPECIFIED_FAILURE;
-	}
-
-	if (ie_len == 0) /*  broadcast ssid, however it is not allowed in assocreq */
-		status = WLAN_STATUS_UNSPECIFIED_FAILURE;
-	else {
+	} else {
 		/*  check if ssid match */
-		if (memcmp((void *)(p+2), cur->Ssid.ssid, cur->Ssid.ssid_len))
+		if (memcmp(p + 2, cur->Ssid.ssid, cur->Ssid.ssid_len))
 			status = WLAN_STATUS_UNSPECIFIED_FAILURE;
 
-		if (ie_len != cur->Ssid.ssid_len)
+		if (p[1] != cur->Ssid.ssid_len)
 			status = WLAN_STATUS_UNSPECIFIED_FAILURE;
 	}
 
-	if (WLAN_STATUS_SUCCESS != status)
+	if (status != WLAN_STATUS_SUCCESS)
 		goto OnAssocReq23aFail;
 
 	/*  check if the supported rate is ok */
-	p = rtw_get_ie23a(pframe + sizeof(struct ieee80211_hdr_3addr) + ie_offset, WLAN_EID_SUPP_RATES, &ie_len, pkt_len - sizeof(struct ieee80211_hdr_3addr) - ie_offset);
-	if (p == NULL) {
-		DBG_8723A("Rx a sta assoc-req which supported rate is empty!\n");
+	p = cfg80211_find_ie(WLAN_EID_SUPP_RATES, pos, left);
+	if (!p) {
+		DBG_8723A("Rx a sta assoc-req which supported rate is "
+			  "empty!\n");
 		/*  use our own rate set as statoin used */
 		/* memcpy(supportRate, AP_BSSRATE, AP_BSSRATE_LEN); */
 		/* supportRateNum = AP_BSSRATE_LEN; */
@@ -1238,17 +1227,14 @@ unsigned int OnAssocReq23a(struct rtw_adapter *padapter, struct recv_frame *prec
 		status = WLAN_STATUS_UNSPECIFIED_FAILURE;
 		goto OnAssocReq23aFail;
 	} else {
-		memcpy(supportRate, p+2, ie_len);
-		supportRateNum = ie_len;
+		memcpy(supportRate, p + 2, p[1]);
+		supportRateNum = p[1];
 
-		p = rtw_get_ie23a(pframe + sizeof(struct ieee80211_hdr_3addr) + ie_offset, WLAN_EID_EXT_SUPP_RATES, &ie_len,
-				pkt_len - sizeof(struct ieee80211_hdr_3addr) - ie_offset);
-		if (p !=  NULL) {
-
-			if (supportRateNum<= sizeof(supportRate))
-			{
-				memcpy(supportRate+supportRateNum, p+2, ie_len);
-				supportRateNum += ie_len;
+		p = cfg80211_find_ie(WLAN_EID_EXT_SUPP_RATES, pos, left);
+		if (!p) {
+			if (supportRateNum <= sizeof(supportRate)) {
+				memcpy(supportRate+supportRateNum, p + 2, p[1]);
+				supportRateNum += p[1];
 			}
 		}
 	}
@@ -1269,42 +1255,46 @@ unsigned int OnAssocReq23a(struct rtw_adapter *padapter, struct recv_frame *prec
 	pstat->wpa_pairwise_cipher = 0;
 	pstat->wpa2_pairwise_cipher = 0;
 	memset(pstat->wpa_ie, 0, sizeof(pstat->wpa_ie));
-	if ((psecuritypriv->wpa_psk & BIT(1)) && elems.rsn_ie) {
-
+	if (psecuritypriv->wpa_psk & BIT(1) && elems.rsn_ie) {
 		int group_cipher = 0, pairwise_cipher = 0;
 
 		wpa_ie = elems.rsn_ie;
 		wpa_ie_len = elems.rsn_ie_len;
 
-		if (rtw_parse_wpa2_ie23a(wpa_ie-2, wpa_ie_len+2, &group_cipher, &pairwise_cipher, NULL) == _SUCCESS) {
+		if (rtw_parse_wpa2_ie23a(wpa_ie - 2, wpa_ie_len + 2,
+					 &group_cipher, &pairwise_cipher,
+					 NULL) == _SUCCESS) {
 			pstat->dot8021xalg = 1;/* psk,  todo:802.1x */
 			pstat->wpa_psk |= BIT(1);
 
-			pstat->wpa2_group_cipher = group_cipher&psecuritypriv->wpa2_group_cipher;
-			pstat->wpa2_pairwise_cipher = pairwise_cipher&psecuritypriv->wpa2_pairwise_cipher;
+			pstat->wpa2_group_cipher =
+				group_cipher&psecuritypriv->wpa2_group_cipher;
+			pstat->wpa2_pairwise_cipher =
+				pairwise_cipher&psecuritypriv->wpa2_pairwise_cipher;
 
 			if (!pstat->wpa2_group_cipher)
 				status = WLAN_REASON_INVALID_GROUP_CIPHER;
 
 			if (!pstat->wpa2_pairwise_cipher)
 				status = WLAN_REASON_INVALID_PAIRWISE_CIPHER;
-		} else {
+		} else
 			status = WLAN_STATUS_INVALID_IE;
-		}
-
-	} else if ((psecuritypriv->wpa_psk & BIT(0)) && elems.wpa_ie) {
-
+	} else if (psecuritypriv->wpa_psk & BIT(0) && elems.wpa_ie) {
 		int group_cipher = 0, pairwise_cipher = 0;
 
 		wpa_ie = elems.wpa_ie;
 		wpa_ie_len = elems.wpa_ie_len;
 
-		if (rtw_parse_wpa_ie23a(wpa_ie-2, wpa_ie_len+2, &group_cipher, &pairwise_cipher, NULL) == _SUCCESS) {
+		if (rtw_parse_wpa_ie23a(wpa_ie - 2, wpa_ie_len + 2,
+					&group_cipher, &pairwise_cipher,
+					NULL) == _SUCCESS) {
 			pstat->dot8021xalg = 1;/* psk,  todo:802.1x */
 			pstat->wpa_psk |= BIT(0);
 
-			pstat->wpa_group_cipher = group_cipher&psecuritypriv->wpa_group_cipher;
-			pstat->wpa_pairwise_cipher = pairwise_cipher&psecuritypriv->wpa_pairwise_cipher;
+			pstat->wpa_group_cipher =
+				group_cipher&psecuritypriv->wpa_group_cipher;
+			pstat->wpa_pairwise_cipher =
+				pairwise_cipher&psecuritypriv->wpa_pairwise_cipher;
 
 			if (!pstat->wpa_group_cipher)
 				status = WLAN_STATUS_INVALID_GROUP_CIPHER;
@@ -1312,10 +1302,8 @@ unsigned int OnAssocReq23a(struct rtw_adapter *padapter, struct recv_frame *prec
 			if (!pstat->wpa_pairwise_cipher)
 				status = WLAN_STATUS_INVALID_PAIRWISE_CIPHER;
 
-		} else {
+		} else
 			status = WLAN_STATUS_INVALID_IE;
-		}
-
 	} else {
 		wpa_ie = NULL;
 		wpa_ie_len = 0;
@@ -1325,34 +1313,37 @@ unsigned int OnAssocReq23a(struct rtw_adapter *padapter, struct recv_frame *prec
 		goto OnAssocReq23aFail;
 
 	pstat->flags &= ~(WLAN_STA_WPS | WLAN_STA_MAYBE_WPS);
-	if (wpa_ie == NULL) {
+	if (!wpa_ie) {
 		if (elems.wps_ie) {
-			DBG_8723A("STA included WPS IE in "
-				   "(Re)Association Request - assume WPS is "
-				   "used\n");
+			DBG_8723A("STA included WPS IE in (Re)Association "
+				  "Request - assume WPS is used\n");
 			pstat->flags |= WLAN_STA_WPS;
 		} else {
-			DBG_8723A("STA did not include WPA/RSN IE "
-				   "in (Re)Association Request - possible WPS "
-				   "use\n");
+			DBG_8723A("STA did not include WPA/RSN IE in (Re)"
+				   "Association Request - possible WPS use\n");
 			pstat->flags |= WLAN_STA_MAYBE_WPS;
 		}
 
-		/*  AP support WPA/RSN, and sta is going to do WPS, but AP is not ready */
+		/*  AP support WPA/RSN, and sta is going to do WPS, but AP
+		    is not ready */
 		/*  that the selected registrar of AP is _FLASE */
-		if ((psecuritypriv->wpa_psk > 0) &&
-		    (pstat->flags & (WLAN_STA_WPS|WLAN_STA_MAYBE_WPS))) {
+		if (psecuritypriv->wpa_psk > 0 &&
+		    pstat->flags & (WLAN_STA_WPS|WLAN_STA_MAYBE_WPS)) {
 			if (pmlmepriv->wps_beacon_ie) {
 				u8 selected_registrar = 0;
 
-				rtw_get_wps_attr_content23a(pmlmepriv->wps_beacon_ie, pmlmepriv->wps_beacon_ie_len,
-							 WPS_ATTR_SELECTED_REGISTRAR, &selected_registrar, NULL);
+				rtw_get_wps_attr_content23a(
+					pmlmepriv->wps_beacon_ie,
+					pmlmepriv->wps_beacon_ie_len,
+					WPS_ATTR_SELECTED_REGISTRAR,
+					&selected_registrar, NULL);
 
 				if (!selected_registrar) {
-					DBG_8723A("selected_registrar is false , or AP is not ready to do WPS\n");
+					DBG_8723A("selected_registrar is false,"
+						  "or AP is not ready to do "
+						  "WPS\n");
 
 					status = WLAN_STATUS_AP_UNABLE_TO_HANDLE_NEW_STA;
-
 					goto OnAssocReq23aFail;
 				}
 			}
@@ -1362,7 +1353,8 @@ unsigned int OnAssocReq23a(struct rtw_adapter *padapter, struct recv_frame *prec
 
 		if (psecuritypriv->wpa_psk == 0) {
 			DBG_8723A("STA " MAC_FMT ": WPA/RSN IE in association "
-			"request, but AP don't support WPA/RSN\n", MAC_ARG(pstat->hwaddr));
+			"request, but AP don't support WPA/RSN\n",
+				  MAC_ARG(pstat->hwaddr));
 
 			status = WLAN_STATUS_INVALID_IE;
 
@@ -1376,11 +1368,12 @@ unsigned int OnAssocReq23a(struct rtw_adapter *padapter, struct recv_frame *prec
 			pstat->flags |= WLAN_STA_WPS;
 			copy_len = 0;
 		} else {
-			copy_len = ((wpa_ie_len+2) > sizeof(pstat->wpa_ie)) ? (sizeof(pstat->wpa_ie)):(wpa_ie_len+2);
+			copy_len = ((wpa_ie_len + 2) > sizeof(pstat->wpa_ie)) ?
+				sizeof(pstat->wpa_ie) : (wpa_ie_len + 2);
 		}
 
-		if (copy_len>0)
-			memcpy(pstat->wpa_ie, wpa_ie-2, copy_len);
+		if (copy_len > 0)
+			memcpy(pstat->wpa_ie, wpa_ie - 2, copy_len);
 
 	}
 
@@ -1393,48 +1386,45 @@ unsigned int OnAssocReq23a(struct rtw_adapter *padapter, struct recv_frame *prec
 	pstat->uapsd_vi = 0;
 	pstat->uapsd_be = 0;
 	pstat->uapsd_bk = 0;
-	if (pmlmepriv->qospriv.qos_option)
-	{
-		p = pframe + sizeof(struct ieee80211_hdr_3addr) + ie_offset; ie_len = 0;
-		for (;;)
-		{
-			p = rtw_get_ie23a(p, WLAN_EID_VENDOR_SPECIFIC, &ie_len,
-					  pkt_len -
-					  sizeof(struct ieee80211_hdr_3addr) -
-					  ie_offset);
-			if (p != NULL) {
-				if (!memcmp(p+2, WMM_IE, 6)) {
+	if (pmlmepriv->qospriv.qos_option) {
+		u8 *end = pos + left;
+		p = pos;
 
+		for (;;) {
+			left = end - p;
+			p = cfg80211_find_ie(WLAN_EID_VENDOR_SPECIFIC, p, left);
+			if (p) {
+				if (!memcmp(p + 2, WMM_IE, 6)) {
 					pstat->flags |= WLAN_STA_WME;
 
 					pstat->qos_option = 1;
-					pstat->qos_info = *(p+8);
+					pstat->qos_info = *(p + 8);
 
-					pstat->max_sp_len = (pstat->qos_info>>5)&0x3;
+					pstat->max_sp_len =
+						(pstat->qos_info >> 5) & 0x3;
 
-					if ((pstat->qos_info&0xf) != 0xf)
+					if ((pstat->qos_info & 0xf) != 0xf)
 						pstat->has_legacy_ac = true;
 					else
 						pstat->has_legacy_ac = false;
 
-					if (pstat->qos_info&0xf)
-					{
-						if (pstat->qos_info&BIT(0))
+					if (pstat->qos_info & 0xf) {
+						if (pstat->qos_info & BIT(0))
 							pstat->uapsd_vo = BIT(0)|BIT(1);
 						else
 							pstat->uapsd_vo = 0;
 
-						if (pstat->qos_info&BIT(1))
+						if (pstat->qos_info & BIT(1))
 							pstat->uapsd_vi = BIT(0)|BIT(1);
 						else
 							pstat->uapsd_vi = 0;
 
-						if (pstat->qos_info&BIT(2))
+						if (pstat->qos_info & BIT(2))
 							pstat->uapsd_bk = BIT(0)|BIT(1);
 						else
 							pstat->uapsd_bk = 0;
 
-						if (pstat->qos_info&BIT(3))
+						if (pstat->qos_info & BIT(3))
 							pstat->uapsd_be = BIT(0)|BIT(1);
 						else
 							pstat->uapsd_be = 0;
@@ -1443,45 +1433,41 @@ unsigned int OnAssocReq23a(struct rtw_adapter *padapter, struct recv_frame *prec
 
 					break;
 				}
-			}
-			else {
+			} else {
 				break;
 			}
-			p = p + ie_len + 2;
+			p = p + p[1] + 2;
 		}
 	}
 
 	/* save HT capabilities in the sta object */
 	memset(&pstat->htpriv.ht_cap, 0, sizeof(struct ieee80211_ht_cap));
-	if (elems.ht_capabilities && elems.ht_capabilities_len >= sizeof(struct ieee80211_ht_cap))
-	{
+	if (elems.ht_capabilities && elems.ht_capabilities_len >=
+	    sizeof(struct ieee80211_ht_cap)) {
 		pstat->flags |= WLAN_STA_HT;
 
 		pstat->flags |= WLAN_STA_WME;
 
-		memcpy(&pstat->htpriv.ht_cap, elems.ht_capabilities, sizeof(struct ieee80211_ht_cap));
-
+		memcpy(&pstat->htpriv.ht_cap, elems.ht_capabilities,
+		       sizeof(struct ieee80211_ht_cap));
 	} else
 		pstat->flags &= ~WLAN_STA_HT;
 
-	if ((pmlmepriv->htpriv.ht_option == false) && (pstat->flags&WLAN_STA_HT))
-	{
+	if (pmlmepriv->htpriv.ht_option == false && pstat->flags & WLAN_STA_HT){
 		status = WLAN_STATUS_UNSPECIFIED_FAILURE;
 		goto OnAssocReq23aFail;
 	}
 
-	if ((pstat->flags & WLAN_STA_HT) &&
-		    ((pstat->wpa2_pairwise_cipher&WPA_CIPHER_TKIP) ||
-		      (pstat->wpa_pairwise_cipher&WPA_CIPHER_TKIP)))
-	{
-		DBG_8723A("HT: " MAC_FMT " tried to "
-				   "use TKIP with HT association\n", MAC_ARG(pstat->hwaddr));
+	if (pstat->flags & WLAN_STA_HT &&
+	    (pstat->wpa2_pairwise_cipher & WPA_CIPHER_TKIP ||
+	     pstat->wpa_pairwise_cipher & WPA_CIPHER_TKIP)) {
+		DBG_8723A("HT: " MAC_FMT " tried to use TKIP with HT "
+			  "association\n", MAC_ARG(pstat->hwaddr));
 
 		/* status = WLAN_STATUS_CIPHER_REJECTED_PER_POLICY; */
 		/* goto OnAssocReq23aFail; */
 	}
 
-       /*  */
 	pstat->flags |= WLAN_STA_NONERP;
 	for (i = 0; i < pstat->bssratelen; i++) {
 		if ((pstat->bssrateset[i] & 0x7f) > 22) {
@@ -1523,14 +1509,13 @@ unsigned int OnAssocReq23a(struct rtw_adapter *padapter, struct recv_frame *prec
 			status = WLAN_STATUS_AP_UNABLE_TO_HANDLE_NEW_STA;
 
 			goto OnAssocReq23aFail;
-
 		} else {
 			pstapriv->sta_aid[pstat->aid - 1] = pstat;
 			DBG_8723A("allocate new AID = (%d)\n", pstat->aid);
 		}
 	}
 
-	pstat->state &= (~WIFI_FW_ASSOC_STATE);
+	pstat->state &= ~WIFI_FW_ASSOC_STATE;
 	pstat->state |= WIFI_FW_ASSOC_SUCCESS;
 
 	spin_lock_bh(&pstapriv->auth_list_lock);
@@ -1549,18 +1534,20 @@ unsigned int OnAssocReq23a(struct rtw_adapter *padapter, struct recv_frame *prec
 	spin_unlock_bh(&pstapriv->asoc_list_lock);
 
 	/*  now the station is qualified to join our BSS... */
-	if (pstat && (pstat->state & WIFI_FW_ASSOC_SUCCESS) &&
-	    (WLAN_STATUS_SUCCESS == status)) {
+	if (pstat && pstat->state & WIFI_FW_ASSOC_SUCCESS &&
+	    status == WLAN_STATUS_SUCCESS) {
 #ifdef CONFIG_8723AU_AP_MODE
 		/* 1 bss_cap_update & sta_info_update23a */
 		bss_cap_update_on_sta_join23a(padapter, pstat);
 		sta_info_update23a(padapter, pstat);
 
 		/* issue assoc rsp before notify station join event. */
-		if (ieee80211_is_assoc_req(frame_control))
-			issue_asocrsp23a(padapter, status, pstat, WIFI_ASSOCRSP);
+		if (ieee80211_is_assoc_req(mgmt->frame_control))
+			issue_asocrsp23a(padapter, status, pstat,
+					 WIFI_ASSOCRSP);
 		else
-			issue_asocrsp23a(padapter, status, pstat, WIFI_REASSOCRSP);
+			issue_asocrsp23a(padapter, status, pstat,
+					 WIFI_REASSOCRSP);
 
 		/* 2 - report to upper layer */
 		DBG_8723A("indicate_sta_join_event to upper layer - hostapd\n");
@@ -1576,16 +1563,15 @@ unsigned int OnAssocReq23a(struct rtw_adapter *padapter, struct recv_frame *prec
 asoc_class2_error:
 
 #ifdef CONFIG_8723AU_AP_MODE
-	issue_deauth23a(padapter, hdr->addr2, status);
+	issue_deauth23a(padapter, mgmt->sa, status);
 #endif
-
 	return _FAIL;
 
 OnAssocReq23aFail:
 
 #ifdef CONFIG_8723AU_AP_MODE
 	pstat->aid = 0;
-	if (ieee80211_is_assoc_req(frame_control))
+	if (ieee80211_is_assoc_req(mgmt->frame_control))
 		issue_asocrsp23a(padapter, status, pstat, WIFI_ASSOCRSP);
 	else
 		issue_asocrsp23a(padapter, status, pstat, WIFI_REASSOCRSP);
