@@ -366,20 +366,15 @@ int mesh_add_rsn_ie(struct ieee80211_sub_if_data *sdata, struct sk_buff *skb)
 		return 0;
 
 	/* find RSN IE */
-	data = ifmsh->ie;
-	while (data < ifmsh->ie + ifmsh->ie_len) {
-		if (*data == WLAN_EID_RSN) {
-			len = data[1] + 2;
-			break;
-		}
-		data++;
-	}
+	data = cfg80211_find_ie(WLAN_EID_RSN, ifmsh->ie, ifmsh->ie_len);
+	if (!data)
+		return 0;
 
-	if (len) {
-		if (skb_tailroom(skb) < len)
-			return -ENOMEM;
-		memcpy(skb_put(skb, len), data, len);
-	}
+	len = data[1] + 2;
+
+	if (skb_tailroom(skb) < len)
+		return -ENOMEM;
+	memcpy(skb_put(skb, len), data, len);
 
 	return 0;
 }
