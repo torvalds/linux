@@ -25,7 +25,7 @@ struct module;
 	{ (1UL << TAINT_OOT_MODULE),		"O" },		\
 	{ (1UL << TAINT_FORCED_MODULE),		"F" },		\
 	{ (1UL << TAINT_CRAP),			"C" },		\
-	{ (1UL << TAINT_UNSIGNED_MODULE),	"X" })
+	{ (1UL << TAINT_UNSIGNED_MODULE),	"E" })
 
 TRACE_EVENT(module_load,
 
