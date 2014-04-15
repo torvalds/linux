@@ -646,8 +646,6 @@ void mgt_dispatcher23a(struct rtw_adapter *padapter,
 		break;
 	default:
 		_mgt_dispatcher23a(padapter, ptable, precv_frame);
-		if (check_fwstate(pmlmepriv, WIFI_AP_STATE) == true)
-			rtw_hostapd_mlme_rx23a(padapter, precv_frame);
 		break;
 	}
 #else

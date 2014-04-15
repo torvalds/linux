@@ -69,11 +69,6 @@ void rtw_handle_tkip_mic_err23a(struct rtw_adapter *padapter, u8 bgroup)
 	wrqu.data.length = sizeof(ev);
 }
 
-void rtw_hostapd_mlme_rx23a(struct rtw_adapter *padapter,
-			 struct recv_frame *precv_frame)
-{
-}
-
 int rtw_recv_indicatepkt23a(struct rtw_adapter *padapter,
 			 struct recv_frame *precv_frame)
 {
