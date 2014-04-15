@@ -1520,7 +1520,7 @@ err:
 }
 #else
 #define fimc_md_register_clk_provider(fmd) (0)
-#define fimc_md_unregister_clk_provider(fmd) (0)
+#define fimc_md_unregister_clk_provider(fmd)
 #endif
 
 static int subdev_notifier_bound(struct v4l2_async_notifier *notifier,
