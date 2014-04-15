@@ -667,9 +667,8 @@ OnProbeReq23a(struct rtw_adapter *padapter, struct recv_frame *precv_frame)
 	struct mlme_ext_info *pmlmeinfo = &pmlmeext->mlmext_info;
 	struct wlan_bssid_ex *cur = &pmlmeinfo->network;
 	struct sk_buff *skb = precv_frame->pkt;
-	struct ieee80211_hdr *hdr = (struct ieee80211_hdr *) skb->data;
-	u8 *pframe = skb->data;
-	uint len = skb->len;
+	struct ieee80211_mgmt *mgmt = (struct ieee80211_mgmt *) skb->data;
+	int len = skb->len;
 	u8 is_valid_p2p_probereq = false;
 
 	if (check_fwstate(pmlmepriv, WIFI_STATION_STATE))
@@ -680,10 +679,15 @@ OnProbeReq23a(struct rtw_adapter *padapter, struct recv_frame *precv_frame)
 			   WIFI_ADHOC_MASTER_STATE | WIFI_AP_STATE))
 		return _SUCCESS;
 
-	pframe += (sizeof(struct ieee80211_hdr_3addr) + _PROBEREQ_IE_OFFSET_);
-	len -= (sizeof(struct ieee80211_hdr_3addr) + _PROBEREQ_IE_OFFSET_);
+	if (unlikely(!ieee80211_is_probe_req(mgmt->frame_control))) {
+		printk(KERN_WARNING "%s: Received non probe request frame\n",
+		       __func__);
+		return _FAIL;
+	}
 
-	ie = cfg80211_find_ie(WLAN_EID_SSID, pframe, len);
+	len -= offsetof(struct ieee80211_mgmt, u.probe_req.variable);
+
+	ie = cfg80211_find_ie(WLAN_EID_SSID, mgmt->u.probe_req.variable, len);
 
 	/* check (wildcard) SSID */
 	if (!ie)
@@ -698,10 +702,8 @@ OnProbeReq23a(struct rtw_adapter *padapter, struct recv_frame *precv_frame)
 	}
 
 	if (check_fwstate(pmlmepriv, _FW_LINKED) &&
-	    pmlmepriv->cur_network.join_res) {
-		issue_probersp23a(padapter, ieee80211_get_SA(hdr),
-				  is_valid_p2p_probereq);
-	}
+	    pmlmepriv->cur_network.join_res)
+		issue_probersp23a(padapter, mgmt->sa, is_valid_p2p_probereq);
 
 out:
 	return _SUCCESS;
