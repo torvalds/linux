@@ -1153,9 +1153,12 @@ struct sched_dl_entity {
 	 *
 	 * @dl_boosted tells if we are boosted due to DI. If so we are
 	 * outside bandwidth enforcement mechanism (but only until we
-	 * exit the critical section).
+	 * exit the critical section);
+	 *
+	 * @dl_yielded tells if task gave up the cpu before consuming
+	 * all its available runtime during the last job.
 	 */
-	int dl_throttled, dl_new, dl_boosted;
+	int dl_throttled, dl_new, dl_boosted, dl_yielded;
 
 	/*
 	 * Bandwidth enforcement timer. Each -deadline task has its
