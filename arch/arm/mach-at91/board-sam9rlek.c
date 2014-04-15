@@ -18,6 +18,7 @@
 #include <linux/clk.h>
 #include <linux/input.h>
 #include <linux/gpio_keys.h>
+#include <linux/platform_data/at91_adc.h>
 
 #include <video/atmel_lcdc.h>
 
@@ -240,6 +241,17 @@ static struct at91_tsadcc_data ek_tsadcc_data = {
 
 
 /*
+ * ADC + Touchscreen
+ */
+static struct at91_adc_data ek_adc_data = {
+	.channels_used = BIT(0) | BIT(1) | BIT(2) | BIT(3) | BIT(4) | BIT(5),
+	.use_external_triggers = true,
+	.vref = 3300,
+	.touchscreen_type = ATMEL_ADC_TOUCHSCREEN_4WIRE,
+};
+
+
+/*
  * GPIO Buttons
  */
 #if defined(CONFIG_KEYBOARD_GPIO) || defined(CONFIG_KEYBOARD_GPIO_MODULE)
@@ -313,6 +325,8 @@ static void __init ek_board_init(void)
 	at91_add_device_ac97(&ek_ac97_data);
 	/* Touch Screen Controller */
 	at91_add_device_tsadcc(&ek_tsadcc_data);
+	/* Touch Screen Controller + ADC */
+	at91_add_device_adc(&ek_adc_data);
 	/* LEDs */
 	at91_gpio_leds(ek_leds, ARRAY_SIZE(ek_leds));
 	/* Push Buttons */
