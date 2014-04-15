@@ -366,7 +366,7 @@ void rtw_cfg80211_indicate_connect(struct rtw_adapter *padapter)
 	if (check_fwstate(pmlmepriv, WIFI_AP_STATE))
 		return;
 
-	if (rtw_to_roaming(padapter) > 0) {
+	if (padapter->mlmepriv.to_roaming > 0) {
 		struct wiphy *wiphy = pwdev->wiphy;
 		struct ieee80211_channel *notify_channel;
 		u32 freq;

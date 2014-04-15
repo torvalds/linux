@@ -325,9 +325,7 @@ void rtw_free_network_nolock(struct mlme_priv *pmlmepriv,
 
 void rtw_free_network_queue23a(struct rtw_adapter* dev, u8 isfreeall)
 {
-
 	_rtw_free_network23a_queue23a(dev, isfreeall);
-
 }
 
 /*
@@ -729,7 +727,6 @@ void rtw_surveydone_event_callback23a(struct rtw_adapter *adapter, u8 *pbuf)
 
 		_clr_fwstate_(pmlmepriv, _FW_UNDER_SURVEY);
 	} else {
-
 		RT_TRACE(_module_rtl871x_mlme_c_, _drv_err_,
 			 ("nic status =%x, survey done event comes too late!\n",
 			  get_fwstate(pmlmepriv)));
@@ -797,8 +794,8 @@ void rtw_surveydone_event_callback23a(struct rtw_adapter *adapter, u8 *pbuf)
 			} else {
 				DBG_8723A("try_to_join, but select scanning "
 					  "queue fail, to_roaming:%d\n",
-					  rtw_to_roaming(adapter));
-				if (rtw_to_roaming(adapter) != 0) {
+					  adapter->mlmepriv.to_roaming);
+				if (adapter->mlmepriv.to_roaming) {
 					if (--pmlmepriv->to_roaming == 0 ||
 					    rtw_sitesurvey_cmd23a(
 						    adapter,
@@ -964,11 +961,11 @@ void rtw_indicate_disconnect23a(struct rtw_adapter *padapter)
 
         /* DBG_8723A("clear wps when %s\n", __func__); */
 
-	if (rtw_to_roaming(padapter) > 0)
+	if (padapter->mlmepriv.to_roaming > 0)
 		_clr_fwstate_(pmlmepriv, _FW_LINKED);
 
 	if (check_fwstate(&padapter->mlmepriv, _FW_LINKED) ||
-	    rtw_to_roaming(padapter) <= 0) {
+	    padapter->mlmepriv.to_roaming <= 0) {
 		rtw_os_indicate_disconnect23a(padapter);
 
 		/* set ips_deny_time to avoid enter IPS before LPS leave */
@@ -1464,11 +1461,11 @@ void rtw_stadel_event_callback23a(struct rtw_adapter *adapter, u8 *pbuf)
 	spin_lock_bh(&pmlmepriv->lock);
 
 	if (check_fwstate(pmlmepriv, WIFI_STATION_STATE)) {
-		if (rtw_to_roaming(adapter) > 0) {
+		if (adapter->mlmepriv.to_roaming > 0) {
 			/* this stadel_event is caused by roaming,
 			   decrease to_roaming */
 			pmlmepriv->to_roaming--;
-		} else if (rtw_to_roaming(adapter) == 0)
+		} else if (adapter->mlmepriv.to_roaming == 0)
 			rtw_set_roaming(adapter, adapter->registrypriv.max_roaming_times);
 		if (*((u16 *)pstadel->rsvd) != WLAN_REASON_EXPIRATION_CHK)
 			rtw_set_roaming(adapter, 0); /* don't roam */
@@ -1567,10 +1564,12 @@ void rtw23a_join_to_handler (unsigned long data)
 
 	spin_lock_bh(&pmlmepriv->lock);
 
-	if (rtw_to_roaming(adapter) > 0) { /* join timeout caused by roaming */
+	if (adapter->mlmepriv.to_roaming > 0) {
+		/* join timeout caused by roaming */
 		while (1) {
 			pmlmepriv->to_roaming--;
-			if (rtw_to_roaming(adapter) != 0) { /* try another */
+			if (adapter->mlmepriv.to_roaming != 0) {
+				/* try another */
 				DBG_8723A("%s try another roaming\n", __func__);
 				do_join_r = rtw_do_join23a(adapter);
 				if (do_join_r != _SUCCESS) {
@@ -1730,7 +1729,7 @@ static int rtw_check_join_candidate(struct mlme_priv *pmlmepriv,
 	if (rtw_is_desired_network(adapter, competitor) == false)
 		goto exit;
 
-	if (rtw_to_roaming(adapter) > 0) {
+	if (adapter->mlmepriv.to_roaming > 0) {
 		unsigned int passed;
 
 		passed = jiffies_to_msecs(jiffies - competitor->last_scanned);
@@ -1751,7 +1750,7 @@ static int rtw_check_join_candidate(struct mlme_priv *pmlmepriv,
 			  "new candidate: %s("MAC_FMT") rssi:%d\n",
 			  pmlmepriv->assoc_by_bssid,
 			  pmlmepriv->assoc_ssid.ssid,
-			  rtw_to_roaming(adapter),
+			  adapter->mlmepriv.to_roaming,
 			  (*candidate)->network.Ssid.ssid,
 			  MAC_ARG((*candidate)->network.MacAddress),
 			  (int)(*candidate)->network.Rssi);
@@ -2474,11 +2473,6 @@ inline void rtw_set_roaming(struct rtw_adapter *adapter, u8 to_roaming)
 	adapter->mlmepriv.to_roaming = to_roaming;
 }
 
-inline u8 rtw_to_roaming(struct rtw_adapter *adapter)
-{
-	return adapter->mlmepriv.to_roaming;
-}
-
 void rtw23a_roaming(struct rtw_adapter *padapter,
 		    struct wlan_network *tgt_network)
 {
@@ -2500,7 +2494,7 @@ void _rtw23a_roaming(struct rtw_adapter *padapter,
 	else
 		pnetwork = &pmlmepriv->cur_network;
 
-	if (0 < rtw_to_roaming(padapter)) {
+	if (padapter->mlmepriv.to_roaming > 0) {
 		DBG_8723A("roaming from %s("MAC_FMT"), length:%d\n",
 			  pnetwork->network.Ssid.ssid,
 			  MAC_ARG(pnetwork->network.MacAddress),
@@ -2519,7 +2513,7 @@ void _rtw23a_roaming(struct rtw_adapter *padapter,
 					  do_join_r);
 				pmlmepriv->to_roaming--;
 
-				if (0 < rtw_to_roaming(padapter))
+				if (padapter->mlmepriv.to_roaming > 0)
 					continue;
 				else {
 					DBG_8723A("%s(%d) -to roaming fail, "
@@ -2535,12 +2529,13 @@ void _rtw23a_roaming(struct rtw_adapter *padapter,
 
 int rtw_linked_check(struct rtw_adapter *padapter)
 {
-	if ((check_fwstate(&padapter->mlmepriv, WIFI_AP_STATE)) ||
-	    (check_fwstate(&padapter->mlmepriv, WIFI_ADHOC_STATE|WIFI_ADHOC_MASTER_STATE))) {
+	if (check_fwstate(&padapter->mlmepriv, WIFI_AP_STATE) ||
+	    check_fwstate(&padapter->mlmepriv,
+			  WIFI_ADHOC_STATE|WIFI_ADHOC_MASTER_STATE)) {
 		if (padapter->stapriv.asoc_sta_count > 2)
 			return true;
 	} else {	/* Station mode */
-		if (check_fwstate(&padapter->mlmepriv, _FW_LINKED) == true)
+		if (check_fwstate(&padapter->mlmepriv, _FW_LINKED))
 			return true;
 	}
 	return false;

@@ -494,6 +494,5 @@ void _rtw23a_roaming(struct rtw_adapter *adapter,
 void rtw23a_roaming(struct rtw_adapter *adapter,
 		 struct wlan_network *tgt_network);
 void rtw_set_roaming(struct rtw_adapter *adapter, u8 to_roaming);
-u8 rtw_to_roaming(struct rtw_adapter *adapter);
 
 #endif /* __RTL871X_MLME_H_ */

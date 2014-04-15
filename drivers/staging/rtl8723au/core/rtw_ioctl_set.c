@@ -54,7 +54,7 @@ u8 rtw_do_join23a(struct rtw_adapter *padapter)
 		/* we try to issue sitesurvey firstly */
 
 		if (pmlmepriv->LinkDetectInfo.bBusyTraffic == false ||
-		    rtw_to_roaming(padapter) > 0) {
+		    padapter->mlmepriv.to_roaming > 0) {
 			RT_TRACE(_module_rtl871x_ioctl_set_c_, _drv_info_,
 				 ("rtw_do_join23a(): site survey if scanned_queue "
 				  "is empty\n."));
@@ -130,7 +130,7 @@ u8 rtw_do_join23a(struct rtw_adapter *padapter)
 				   queue */
 				/* we try to issue sitesurvey firstly */
 				if (pmlmepriv->LinkDetectInfo.bBusyTraffic ==
-				    false || rtw_to_roaming(padapter) > 0) {
+				    false || padapter->mlmepriv.to_roaming > 0){
 					/* DBG_8723A("rtw_do_join23a() when   no "
 					   "desired bss in scanning queue\n");
 					*/
