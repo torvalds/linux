@@ -413,7 +413,7 @@ int rtw_generate_ie23a(struct registry_priv *pregistrypriv)
 	ie += 2;
 
 	/* SSID */
-	ie = rtw_set_ie23a(ie, _SSID_IE_, pdev_network->Ssid.ssid_len,
+	ie = rtw_set_ie23a(ie, WLAN_EID_SSID, pdev_network->Ssid.ssid_len,
 			pdev_network->Ssid.ssid, &sz);
 
 	/* supported rates */
@@ -431,25 +431,25 @@ int rtw_generate_ie23a(struct registry_priv *pregistrypriv)
 	rateLen = rtw_get_rateset_len23a(pdev_network->SupportedRates);
 
 	if (rateLen > 8) {
-		ie = rtw_set_ie23a(ie, _SUPPORTEDRATES_IE_, 8,
+		ie = rtw_set_ie23a(ie, WLAN_EID_SUPP_RATES, 8,
 				pdev_network->SupportedRates, &sz);
 		/* ie = rtw_set_ie23a(ie, _EXT_SUPPORTEDRATES_IE_, (rateLen - 8), (pdev_network->SupportedRates + 8), &sz); */
 	} else {
-		ie = rtw_set_ie23a(ie, _SUPPORTEDRATES_IE_, rateLen,
+		ie = rtw_set_ie23a(ie, WLAN_EID_SUPP_RATES, rateLen,
 				pdev_network->SupportedRates, &sz);
 	}
 
 	/* DS parameter set */
-	ie = rtw_set_ie23a(ie, _DSSET_IE_, 1,
+	ie = rtw_set_ie23a(ie, WLAN_EID_DS_PARAMS, 1,
 			   (u8 *)&pdev_network->Configuration.DSConfig, &sz);
 
 	/* IBSS Parameter Set */
 
-	ie = rtw_set_ie23a(ie, _IBSS_PARA_IE_, 2,
+	ie = rtw_set_ie23a(ie, WLAN_EID_IBSS_PARAMS, 2,
 			   (u8 *)&pdev_network->Configuration.ATIMWindow, &sz);
 
 	if (rateLen > 8) {
-		ie = rtw_set_ie23a(ie, _EXT_SUPPORTEDRATES_IE_, (rateLen - 8),
+		ie = rtw_set_ie23a(ie, WLAN_EID_EXT_SUPP_RATES, (rateLen - 8),
 				(pdev_network->SupportedRates + 8), &sz);
 	}
 
@@ -1694,8 +1694,8 @@ void rtw_get_bcn_info23a(struct wlan_network *pnetwork)
 	/* get bwmode and ch_offset */
 	/* parsing HT_CAP_IE */
 	p = rtw_get_ie23a(pnetwork->network.IEs + _FIXED_IE_LENGTH_,
-		       _HT_CAPABILITY_IE_, &len,
-		       pnetwork->network.IELength - _FIXED_IE_LENGTH_);
+			  WLAN_EID_HT_CAPABILITY, &len,
+			  pnetwork->network.IELength - _FIXED_IE_LENGTH_);
 	if (p && len > 0) {
 		pht_cap = (struct ieee80211_ht_cap *)(p + 2);
 		pnetwork->BcnInfo.ht_cap_info = pht_cap->cap_info;
@@ -1704,7 +1704,7 @@ void rtw_get_bcn_info23a(struct wlan_network *pnetwork)
 	}
 	/* parsing HT_INFO_IE */
 	p = rtw_get_ie23a(pnetwork->network.IEs + _FIXED_IE_LENGTH_,
-		       _HT_ADD_INFO_IE_, &len,
+		       WLAN_EID_HT_OPERATION, &len,
 		       pnetwork->network.IELength - _FIXED_IE_LENGTH_);
 	if (p && len > 0) {
 		pht_info = (struct HT_info_element *)(p + 2);
