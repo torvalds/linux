@@ -564,6 +564,11 @@ static struct scatterlist *scsi_sg_alloc(unsigned int nents, gfp_t gfp_mask)
 	return mempool_alloc(sgp->pool, gfp_mask);
 }
 
+static void scsi_free_sgtable(struct scsi_data_buffer *sdb)
+{
+	__sg_free_table(&sdb->table, SCSI_MAX_SG_SEGMENTS, false, scsi_sg_free);
+}
+
 static int scsi_alloc_sgtable(struct scsi_data_buffer *sdb, int nents,
 			      gfp_t gfp_mask)
 {
@@ -572,17 +577,10 @@ static int scsi_alloc_sgtable(struct scsi_data_buffer *sdb, int nents,
 	BUG_ON(!nents);
 
 	ret = __sg_alloc_table(&sdb->table, nents, SCSI_MAX_SG_SEGMENTS,
-			       gfp_mask, scsi_sg_alloc);
+			       NULL, gfp_mask, scsi_sg_alloc);
 	if (unlikely(ret))
-		__sg_free_table(&sdb->table, SCSI_MAX_SG_SEGMENTS,
-				scsi_sg_free);
-
+		scsi_free_sgtable(sdb);
 	return ret;
-}
-
-static void scsi_free_sgtable(struct scsi_data_buffer *sdb)
-{
-	__sg_free_table(&sdb->table, SCSI_MAX_SG_SEGMENTS, scsi_sg_free);
 }
 
 /*
