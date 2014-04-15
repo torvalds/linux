@@ -1216,7 +1216,7 @@ OnAssocReq23a(struct rtw_adapter *padapter, struct recv_frame *precv_frame)
 
 	/* now parse all ieee802_11 ie to point to elems */
 	if (rtw_ieee802_11_parse_elems23a(pos, left, &elems, 1) ==
-	    ParseFailed || !elems.ssid) {
+	    ParseFailed) {
 		DBG_8723A("STA " MAC_FMT " sent invalid association request\n",
 			  MAC_ARG(pstat->hwaddr));
 		status = WLAN_STATUS_UNSPECIFIED_FAILURE;
@@ -1227,8 +1227,11 @@ OnAssocReq23a(struct rtw_adapter *padapter, struct recv_frame *precv_frame)
 	/*  checking SSID */
 	p = cfg80211_find_ie(WLAN_EID_SSID, pos, left);
 	if (!p || p[1] == 0) {
-	/*  broadcast ssid, however it is not allowed in assocreq */
+		/*  broadcast ssid, however it is not allowed in assocreq */
+		DBG_8723A("STA " MAC_FMT " sent invalid association request "
+			  "lacking an SSID\n", MAC_ARG(pstat->hwaddr));
 		status = WLAN_STATUS_UNSPECIFIED_FAILURE;
+		goto OnAssocReq23aFail;
 	} else {
 		/*  check if ssid match */
 		if (memcmp(p + 2, cur->Ssid.ssid, cur->Ssid.ssid_len))
