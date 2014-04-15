@@ -859,22 +859,22 @@ void VCS_update23a(struct rtw_adapter *padapter, struct sta_info *psta)
 int rtw_check_bcn_info23a(struct rtw_adapter *Adapter,
 			  struct ieee80211_mgmt *mgmt, u32 pkt_len)
 {
-	unsigned short	val16;
 	struct wlan_network *cur_network = &Adapter->mlmepriv.cur_network;
-	u16 wpa_len = 0, rsn_len = 0;
-	u8 encryp_protocol = 0;
+	struct HT_info_element *pht_info;
+	struct ieee80211_ht_cap *pht_cap;
 	struct wlan_bssid_ex *bssid;
-	int group_cipher = 0, pairwise_cipher = 0, is_8021x = 0;
-	unsigned char *pbuf;
+	unsigned short val16;
+	u16 wpa_len = 0, rsn_len = 0;
+	u8 encryp_protocol;
+	int group_cipher = 0, pairwise_cipher = 0, is_8021x = 0, r;
 	u32 wpa_ielen = 0;
-	struct HT_info_element *pht_info = NULL;
-	struct ieee80211_ht_cap *pht_cap = NULL;
 	u32 bcn_channel;
-	unsigned short	ht_cap_info;
-	unsigned char	ht_info_infos_0;
+	unsigned short ht_cap_info;
+	unsigned char ht_info_infos_0;
 	int len, pie_len, ie_offset;
 	const u8 *p;
 	u8 *pie;
+	unsigned char *pbuf;
 
 	if (is_client_associated_to_ap23a(Adapter) == false)
 		return true;
@@ -922,16 +922,20 @@ int rtw_check_bcn_info23a(struct rtw_adapter *Adapter,
 	if (p && p[1] > 0) {
 		pht_cap = (struct ieee80211_ht_cap *)(p + 2);
 		ht_cap_info = pht_cap->cap_info;
-	} else
+	} else {
+		pht_cap = NULL;
 		ht_cap_info = 0;
+	}
 
 	/* parsing HT_INFO_IE */
 	p = cfg80211_find_ie(WLAN_EID_HT_OPERATION, pie, pie_len);
 	if (p && p[1] > 0) {
 		pht_info = (struct HT_info_element *)(p + 2);
 		ht_info_infos_0 = pht_info->infos[0];
-	} else
+	} else {
+		pht_info = NULL;
 		ht_info_infos_0 = 0;
+	}
 
 	if (ht_cap_info != cur_network->BcnInfo.ht_cap_info ||
 	    ((ht_info_infos_0 & 0x03) !=
@@ -1011,60 +1015,82 @@ int rtw_check_bcn_info23a(struct rtw_adapter *Adapter,
 		bssid->Privacy = 0;
 
 	RT_TRACE(_module_rtl871x_mlme_c_, _drv_info_,
-			("%s(): cur_network->network.Privacy is %d, bssid.Privacy is %d\n",
-			 __func__, cur_network->network.Privacy, bssid->Privacy));
+		 ("%s(): cur_network->network.Privacy is %d, bssid.Privacy "
+		  "is %d\n", __func__, cur_network->network.Privacy,
+		  bssid->Privacy));
 	if (cur_network->network.Privacy != bssid->Privacy) {
 		DBG_8723A("%s(), privacy is not match return FAIL\n", __func__);
 		goto _mismatch;
 	}
 
-	rtw_get_sec_ie23a(bssid->IEs, bssid->IELength, NULL,&rsn_len, NULL,&wpa_len);
+	rtw_get_sec_ie23a(bssid->IEs, bssid->IELength, NULL, &rsn_len, NULL,
+			  &wpa_len);
 
-	if (rsn_len > 0) {
+	if (rsn_len > 0)
 		encryp_protocol = ENCRYP_PROTOCOL_WPA2;
-	} else if (wpa_len > 0) {
+	else if (wpa_len > 0)
 		encryp_protocol = ENCRYP_PROTOCOL_WPA;
-	} else {
+	else {
 		if (bssid->Privacy)
 			encryp_protocol = ENCRYP_PROTOCOL_WEP;
+		else
+			encryp_protocol = ENCRYP_PROTOCOL_OPENSYS;
 	}
 
 	if (cur_network->BcnInfo.encryp_protocol != encryp_protocol) {
-		DBG_8723A("%s(): enctyp is not match , return FAIL\n", __func__);
+		DBG_8723A("%s(): enctyp is not match, return FAIL\n", __func__);
 		goto _mismatch;
 	}
 
-	if (encryp_protocol == ENCRYP_PROTOCOL_WPA || encryp_protocol == ENCRYP_PROTOCOL_WPA2) {
+	if (encryp_protocol == ENCRYP_PROTOCOL_WPA ||
+	    encryp_protocol == ENCRYP_PROTOCOL_WPA2) {
 		pbuf = rtw_get_wpa_ie23a(&bssid->IEs[12], &wpa_ielen, bssid->IELength-12);
 		if (pbuf && (wpa_ielen>0)) {
-			if (_SUCCESS == rtw_parse_wpa_ie23a(pbuf, wpa_ielen+2, &group_cipher, &pairwise_cipher, &is_8021x)) {
+			r = rtw_parse_wpa_ie23a(pbuf, wpa_ielen+2,
+						&group_cipher,
+						&pairwise_cipher, &is_8021x);
+			if (r == _SUCCESS)
 				RT_TRACE(_module_rtl871x_mlme_c_, _drv_info_,
-						("%s pnetwork->pairwise_cipher: %d, group_cipher is %d, is_8021x is %d\n", __func__,
-						 pairwise_cipher, group_cipher, is_8021x));
-			}
+					 ("%s pnetwork->pairwise_cipher: %d, "
+					  "group_cipher is %d, is_8021x is "
+					  "%d\n", __func__, pairwise_cipher,
+					  group_cipher, is_8021x));
 		} else {
 			pbuf = rtw_get_wpa2_ie23a(&bssid->IEs[12], &wpa_ielen, bssid->IELength-12);
 
-			if (pbuf && (wpa_ielen>0)) {
-				if (_SUCCESS == rtw_parse_wpa2_ie23a(pbuf, wpa_ielen+2, &group_cipher, &pairwise_cipher, &is_8021x)) {
-					RT_TRACE(_module_rtl871x_mlme_c_, _drv_info_,
-							("%s pnetwork->pairwise_cipher: %d, pnetwork->group_cipher is %d, is_802x is %d\n",
-							 __func__, pairwise_cipher, group_cipher, is_8021x));
-				}
+			if (pbuf && wpa_ielen > 0) {
+				r = rtw_parse_wpa2_ie23a(pbuf, wpa_ielen + 2,
+							 &group_cipher,
+							 &pairwise_cipher,
+							 &is_8021x);
+				if (r == _SUCCESS)
+					RT_TRACE(_module_rtl871x_mlme_c_,
+						 _drv_info_,
+						 ("%s pnetwork->pairwise_cipher"
+						  ": %d, pnetwork->group_cipher"
+						  " is %d, is_802x is %d\n",
+						  __func__, pairwise_cipher,
+						  group_cipher, is_8021x));
 			}
 		}
 
 		RT_TRACE(_module_rtl871x_mlme_c_, _drv_err_,
-				("%s cur_network->group_cipher is %d: %d\n", __func__, cur_network->BcnInfo.group_cipher, group_cipher));
-		if (pairwise_cipher != cur_network->BcnInfo.pairwise_cipher || group_cipher != cur_network->BcnInfo.group_cipher) {
-			DBG_8723A("%s pairwise_cipher(%x:%x) or group_cipher(%x:%x) is not match , return FAIL\n", __func__,
-					pairwise_cipher, cur_network->BcnInfo.pairwise_cipher,
-					group_cipher, cur_network->BcnInfo.group_cipher);
+			 ("%s cur_network->group_cipher is %d: %d\n", __func__,
+			  cur_network->BcnInfo.group_cipher, group_cipher));
+		if (pairwise_cipher != cur_network->BcnInfo.pairwise_cipher ||
+		    group_cipher != cur_network->BcnInfo.group_cipher) {
+			DBG_8723A("%s pairwise_cipher(%x:%x) or group_cipher "
+				  "(%x:%x) is not match, return FAIL\n",
+				  __func__, pairwise_cipher,
+				  cur_network->BcnInfo.pairwise_cipher,
+				  group_cipher,
+				  cur_network->BcnInfo.group_cipher);
 			goto _mismatch;
 		}
 
 		if (is_8021x != cur_network->BcnInfo.is_8021x) {
-			DBG_8723A("%s authentication is not match , return FAIL\n", __func__);
+			DBG_8723A("%s authentication is not match, return "
+				  "FAIL\n", __func__);
 			goto _mismatch;
 		}
 	}
