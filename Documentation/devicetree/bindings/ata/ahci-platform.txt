@@ -9,6 +9,7 @@ Required properties:
   - "fsl,imx53-ahci"
   - "fsl,imx6q-ahci"
   - "ibm,476gtr-ahci"
+  - "marvell,armada-380-ahci"
   - "snps,dwc-ahci"
   - "snps,exynos5440-ahci"
   - "snps,spear-ahci"
