@@ -660,12 +660,12 @@ int mc13xxx_common_init(struct device *dev)
 	if (ret)
 		return ret;
 
+	mutex_init(&mc13xxx->lock);
+
 	ret = request_threaded_irq(mc13xxx->irq, NULL, mc13xxx_irq_thread,
 			IRQF_ONESHOT | IRQF_TRIGGER_HIGH, "mc13xxx", mc13xxx);
 	if (ret)
 		return ret;
-
-	mutex_init(&mc13xxx->lock);
 
 	if (mc13xxx_probe_flags_dt(mc13xxx) < 0 && pdata)
 		mc13xxx->flags = pdata->flags;
