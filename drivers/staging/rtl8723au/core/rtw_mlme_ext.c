@@ -1831,23 +1831,23 @@ unsigned int OnAction23a_dls(struct rtw_adapter *padapter, struct recv_frame *pr
 	return _SUCCESS;
 }
 
-unsigned int OnAction23a_back23a(struct rtw_adapter *padapter, struct recv_frame *precv_frame)
+unsigned int OnAction23a_back23a(struct rtw_adapter *padapter,
+				 struct recv_frame *precv_frame)
 {
 	u8 *addr;
 	struct sta_info *psta = NULL;
 	struct recv_reorder_ctrl *preorder_ctrl;
-	unsigned char		*frame_body;
-	unsigned char		category, action;
-	unsigned short	tid, status, reason_code = 0;
-	struct mlme_ext_priv	*pmlmeext = &padapter->mlmeextpriv;
+	unsigned char *frame_body;
+	unsigned char category, action;
+	unsigned short tid, status, capab, params, reason_code = 0;
+	struct mlme_ext_priv *pmlmeext = &padapter->mlmeextpriv;
 	struct mlme_ext_info *pmlmeinfo = &pmlmeext->mlmext_info;
 	struct sk_buff *skb = precv_frame->pkt;
-	struct ieee80211_hdr *hdr = (struct ieee80211_hdr *) skb->data;
-	u8 *pframe = skb->data;
+	struct ieee80211_mgmt *mgmt = (struct ieee80211_mgmt *) skb->data;
 	struct sta_priv *pstapriv = &padapter->stapriv;
 
 	/* check RA matches or not */
-	if (!ether_addr_equal(myid(&padapter->eeprompriv), hdr->addr1))
+	if (!ether_addr_equal(myid(&padapter->eeprompriv), mgmt->da))
 		return _SUCCESS;
 
 	DBG_8723A("%s\n", __func__);
@@ -1856,16 +1856,15 @@ unsigned int OnAction23a_back23a(struct rtw_adapter *padapter, struct recv_frame
 		if (!(pmlmeinfo->state & WIFI_FW_ASSOC_SUCCESS))
 			return _SUCCESS;
 
-	addr = hdr->addr2;
+	addr = mgmt->sa;
 	psta = rtw_get_stainfo23a(pstapriv, addr);
 
 	if (!psta)
 		return _SUCCESS;
 
-	frame_body = (unsigned char *)
-		(pframe + sizeof(struct ieee80211_hdr_3addr));
+	frame_body = &mgmt->u.action.category;
 
-	category = frame_body[0];
+	category = mgmt->u.action.category;
 	if (category == WLAN_CATEGORY_BACK) { /*  representing Block Ack */
 		if (!pmlmeinfo->HT_enable)
 			return _SUCCESS;
@@ -1887,8 +1886,11 @@ unsigned int OnAction23a_back23a(struct rtw_adapter *padapter, struct recv_frame
 			}
 			break;
 		case WLAN_ACTION_ADDBA_RESP: /* ADDBA response */
-			status = get_unaligned_le16(&frame_body[3]);
-			tid = ((frame_body[5] >> 2) & 0x7);
+			status = get_unaligned_le16(
+				&mgmt->u.action.u.addba_resp.status);
+			capab = get_unaligned_le16(
+				&mgmt->u.action.u.addba_resp.capab);
+			tid = (capab & IEEE80211_ADDBA_PARAM_TID_MASK) >> 2;
 			if (status == 0) {	/* successful */
 				DBG_8723A("agg_enable for TID =%d\n", tid);
 				psta->htpriv.agg_enable_bitmap |= 1 << tid;
@@ -1899,22 +1901,21 @@ unsigned int OnAction23a_back23a(struct rtw_adapter *padapter, struct recv_frame
 			break;
 
 		case WLAN_ACTION_DELBA: /* DELBA */
-			if ((frame_body[3] & BIT(3)) == 0) {
-				psta->htpriv.agg_enable_bitmap &=
-					~(1 << ((frame_body[3] >> 4) & 0xf));
-				psta->htpriv.candidate_tid_bitmap &=
-					~(1 << ((frame_body[3] >> 4) & 0xf));
+			params = get_unaligned_le16(
+				&mgmt->u.action.u.delba.params);
+			tid = params >> 12;
 
-				/* reason_code = frame_body[4] | (frame_body[5] << 8); */
-				reason_code = get_unaligned_le16(&frame_body[4]);
-			} else if ((frame_body[3] & BIT(3)) == BIT(3)) {
-				tid = (frame_body[3] >> 4) & 0x0F;
-
-				preorder_ctrl =  &psta->recvreorder_ctrl[tid];
+			if (params & IEEE80211_DELBA_PARAM_INITIATOR_MASK) {
+				preorder_ctrl = &psta->recvreorder_ctrl[tid];
 				preorder_ctrl->enable = false;
 				preorder_ctrl->indicate_seq = 0xffff;
+			} else {
+				psta->htpriv.agg_enable_bitmap &= ~(1 << tid);
+				psta->htpriv.candidate_tid_bitmap &=
+					~(1 << tid);
 			}
-
+			reason_code = get_unaligned_le16(
+				&mgmt->u.action.u.delba.reason_code);
 			DBG_8723A("%s(): DELBA: %x(%x)\n", __func__,
 				  pmlmeinfo->agg_enable_bitmap, reason_code);
 			/* todo: how to notify the host while receiving
