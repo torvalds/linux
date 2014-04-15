@@ -1276,19 +1276,24 @@ int ieee80211_is_empty_essid23a(const char *essid, int essid_len)
 
 static int rtw_get_cipher_info(struct wlan_network *pnetwork)
 {
-	u32 wpa_ielen;
 	const u8 *pbuf;
 	int group_cipher = 0, pairwise_cipher = 0, is8021x = 0;
 	int ret = _FAIL;
-	int r;
+	int r, offset, plen;
+	char *pie;
 
-	pbuf = rtw_get_wpa_ie23a(&pnetwork->network.IEs[12], &wpa_ielen,
-			      pnetwork->network.IELength - 12);
+	offset = offsetof(struct ieee80211_mgmt, u.beacon.variable) -
+		offsetof(struct ieee80211_mgmt, u);
+	pie = &pnetwork->network.IEs[offset];
+	plen = pnetwork->network.IELength - offset;
 
-	if (pbuf && (wpa_ielen > 0)) {
+	pbuf = cfg80211_find_vendor_ie(WLAN_OUI_MICROSOFT,
+				       WLAN_OUI_TYPE_MICROSOFT_WPA, pie, plen);
+
+	if (pbuf && pbuf[1] > 0) {
 		RT_TRACE(_module_rtl871x_mlme_c_, _drv_info_,
-			 ("rtw_get_cipher_info: wpa_ielen: %d", wpa_ielen));
-		r = rtw_parse_wpa_ie23a(pbuf, wpa_ielen + 2, &group_cipher,
+			 ("rtw_get_cipher_info: wpa_ielen: %d", pbuf[1]));
+		r = rtw_parse_wpa_ie23a(pbuf, pbuf[1] + 2, &group_cipher,
 				     &pairwise_cipher, &is8021x);
 		if (r == _SUCCESS) {
 			pnetwork->BcnInfo.pairwise_cipher = pairwise_cipher;
@@ -1302,13 +1307,12 @@ static int rtw_get_cipher_info(struct wlan_network *pnetwork)
 			ret = _SUCCESS;
 		}
 	} else {
-		pbuf = rtw_get_wpa2_ie23a(&pnetwork->network.IEs[12], &wpa_ielen,
-				       pnetwork->network.IELength - 12);
+		pbuf = cfg80211_find_ie(WLAN_EID_RSN, pie, plen);
 
-		if (pbuf && (wpa_ielen > 0)) {
+		if (pbuf && pbuf[1] > 0) {
 			RT_TRACE(_module_rtl871x_mlme_c_, _drv_info_,
 				 ("get RSN IE\n"));
-			r = rtw_parse_wpa2_ie23a(pbuf, wpa_ielen + 2,
+			r = rtw_parse_wpa2_ie23a(pbuf, pbuf[1] + 2,
 					      &group_cipher, &pairwise_cipher,
 					      &is8021x);
 			if (r == _SUCCESS) {
