@@ -1591,8 +1591,6 @@ void rtw_clear_scan_deny(struct rtw_adapter *adapter)
 {
 	struct mlme_priv *mlmepriv = &adapter->mlmepriv;
 	atomic_set(&mlmepriv->set_scan_deny, 0);
-	if (0)
-	DBG_8723A(FUNC_ADPT_FMT"\n", FUNC_ADPT_ARG(adapter));
 }
 
 void rtw_set_scan_deny_timer_hdl(unsigned long data)
@@ -1605,12 +1603,9 @@ void rtw_set_scan_deny(struct rtw_adapter *adapter, u32 ms)
 {
 	struct mlme_priv *mlmepriv = &adapter->mlmepriv;
 
-	if (0)
-	DBG_8723A(FUNC_ADPT_FMT"\n", FUNC_ADPT_ARG(adapter));
 	atomic_set(&mlmepriv->set_scan_deny, 1);
 	mod_timer(&mlmepriv->set_scan_deny_timer,
 		  jiffies + msecs_to_jiffies(ms));
-
 }
 
 #if defined(IEEE80211_SCAN_RESULT_EXPIRE)
