@@ -726,23 +726,23 @@ OnBeacon23a(struct rtw_adapter *padapter, struct recv_frame *precv_frame)
 {
 	int cam_idx;
 	struct sta_info	*psta;
-	struct mlme_ext_priv	*pmlmeext = &padapter->mlmeextpriv;
+	struct mlme_ext_priv *pmlmeext = &padapter->mlmeextpriv;
 	struct mlme_ext_info *pmlmeinfo = &pmlmeext->mlmext_info;
 	struct mlme_priv *pmlmepriv = &padapter->mlmepriv;
 	struct sta_priv	*pstapriv = &padapter->stapriv;
 	struct sk_buff *skb = precv_frame->pkt;
 	struct ieee80211_mgmt *mgmt = (struct ieee80211_mgmt *) skb->data;
 	u8 *pframe = skb->data;
-	uint len = skb->len;
+	int pkt_len = skb->len;
 	struct wlan_bssid_ex *pbss;
 	int ret = _SUCCESS;
-	u8 *p = NULL;
+	u8 *p, *pie;
+	int pie_len;
 	u32 ielen = 0;
 
-	p = rtw_get_ie23a(pframe + sizeof(struct ieee80211_hdr_3addr) +
-			  _BEACON_IE_OFFSET_, WLAN_EID_EXT_SUPP_RATES, &ielen,
-			  len - sizeof(struct ieee80211_hdr_3addr) -
-			  _BEACON_IE_OFFSET_);
+	pie = mgmt->u.beacon.variable;
+	pie_len = pkt_len - offsetof(struct ieee80211_mgmt, u.beacon.variable);
+	p = rtw_get_ie23a(pie, WLAN_EID_EXT_SUPP_RATES, &ielen, pie_len);
 	if ((p != NULL) && (ielen > 0)) {
 		if ((*(p + 1 + ielen) == 0x2D) && (*(p + 2 + ielen) != 0x2D)) {
 			/* Invalid value 0x2D is detected in Extended Supported
@@ -780,10 +780,10 @@ OnBeacon23a(struct rtw_adapter *padapter, struct recv_frame *precv_frame)
 			}
 
 			/* check the vendor of the assoc AP */
-			pmlmeinfo->assoc_AP_vendor = check_assoc_AP23a(pframe + sizeof(struct ieee80211_hdr_3addr), len-sizeof(struct ieee80211_hdr_3addr));
+			pmlmeinfo->assoc_AP_vendor = check_assoc_AP23a(pframe + sizeof(struct ieee80211_hdr_3addr), pkt_len-sizeof(struct ieee80211_hdr_3addr));
 
 			/* update TSF Value */
-			update_TSF23a(pmlmeext, pframe, len);
+			update_TSF23a(pmlmeext, pframe, pkt_len);
 
 			/* start auth */
 			start_clnt_auth23a(padapter);
@@ -796,7 +796,7 @@ OnBeacon23a(struct rtw_adapter *padapter, struct recv_frame *precv_frame)
 			psta = rtw_get_stainfo23a(pstapriv, mgmt->sa);
 			if (psta) {
 				ret = rtw_check_bcn_info23a(padapter, pframe,
-							    len);
+							    pkt_len);
 				if (!ret) {
 					DBG_8723A_LEVEL(_drv_always_,
 							"ap has changed, "
@@ -810,7 +810,7 @@ OnBeacon23a(struct rtw_adapter *padapter, struct recv_frame *precv_frame)
 				if ((sta_rx_pkts(psta) & 0xf) == 0) {
 					/* DBG_8723A("update_bcn_info\n"); */
 					update_beacon23a_info(padapter, pframe,
-							      len, psta);
+							      pkt_len, psta);
 				}
 			}
 		} else if ((pmlmeinfo->state&0x03) == WIFI_FW_ADHOC_STATE) {
@@ -822,7 +822,7 @@ OnBeacon23a(struct rtw_adapter *padapter, struct recv_frame *precv_frame)
 				if ((sta_rx_pkts(psta) & 0xf) == 0) {
 					/* DBG_8723A("update_bcn_info\n"); */
 					update_beacon23a_info(padapter, pframe,
-							      len, psta);
+							      pkt_len, psta);
 				}
 			} else {
 				/* allocate a new CAM entry for IBSS station */
@@ -831,13 +831,15 @@ OnBeacon23a(struct rtw_adapter *padapter, struct recv_frame *precv_frame)
 					goto _END_ONBEACON_;
 
 				/* get supported rate */
-				if (update_sta_support_rate23a(padapter, (pframe + sizeof(struct ieee80211_hdr_3addr) + _BEACON_IE_OFFSET_), (len - sizeof(struct ieee80211_hdr_3addr) - _BEACON_IE_OFFSET_), cam_idx) == _FAIL) {
+				if (update_sta_support_rate23a(padapter, pie,
+							       pie_len,
+							       cam_idx) == _FAIL) {
 					pmlmeinfo->FW_sta_info[cam_idx].status = 0;
 					goto _END_ONBEACON_;
 				}
 
 				/* update TSF Value */
-				update_TSF23a(pmlmeext, pframe, len);
+				update_TSF23a(pmlmeext, pframe, pkt_len);
 
 				/* report sta add event */
 				report_add_sta_event23a(padapter, mgmt->sa,
