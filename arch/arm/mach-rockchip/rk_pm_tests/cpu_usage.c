@@ -13,13 +13,9 @@
 #include <linux/slab.h>
 #include <linux/dma-mapping.h>
 #include <linux/regulator/machine.h>
-#include <plat/dma-pl330.h>
 #include <linux/mfd/wm831x/core.h>
 #include <linux/sysfs.h>
 #include <linux/err.h>
-#include <mach/cru.h>
-#include <mach/dvfs.h>
-#include <mach/sram.h>
 #include <linux/random.h>
 
 #include <linux/fs.h>
@@ -85,7 +81,7 @@ ssize_t cpu_usage_store(struct kobject *kobj, struct kobj_attribute *attr,
 
 	sscanf(buf, "%s %d", cmd, &usage);
 
-	if((strncmp(cmd, "start", strlen("start")) == 0)) {
+	if((!strncmp(cmd, "start", strlen("start")))) {
 		PM_DBG("get cmd start\n");
 		cpu_usage_run = 1;
 		
@@ -107,7 +103,7 @@ ssize_t cpu_usage_store(struct kobject *kobj, struct kobj_attribute *attr,
 		add_timer(&arm_mode_timer);
 #endif
 	
-	} else if (strncmp(cmd, "stop", strlen("stop")) == 0) {
+	} else if (!strncmp(cmd, "stop", strlen("stop"))) {
 		PM_DBG("get cmd stop\n");
 		cpu_usage_run = 0;
 	}

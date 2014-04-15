@@ -40,14 +40,11 @@ REVISION 0.01
 #include <linux/slab.h>
 #include <linux/dma-mapping.h>
 #include <linux/regulator/machine.h>
-//#include <plat/dma-pl330.h>
 #include <linux/mfd/wm831x/core.h>
 #include <linux/sysfs.h>
 #include <linux/err.h>
-//#include <mach/ddr.h>
 
 #include "rk_pm_tests.h"
-
 #include "clk_rate.h"
 #include "clk_volt.h"
 #include "cpu_usage.h"
@@ -67,6 +64,8 @@ static struct pm_attribute pm_attrs[] = {
 	__ATTR(clk_rate, S_IRUGO | S_IWUSR | S_IWUGO, clk_rate_show, clk_rate_store),
 	__ATTR(clk_volt, S_IRUGO | S_IWUSR | S_IWUGO, clk_volt_show, clk_volt_store),
 	__ATTR(dvfs_table_scan, S_IRUGO | S_IWUSR | S_IWUGO, dvfs_table_scan_show, dvfs_table_scan_store),
+	__ATTR(cpu_usage, S_IRUGO | S_IWUSR, cpu_usage_show, cpu_usage_store),
+
 /*
 	__ATTR(maxfreq_volt, S_IRUGO | S_IWUSR, maxfreq_show, maxfreq_store),
 	__ATTR(freq_limit, S_IRUGO | S_IWUSR, freq_limit_show, freq_limit_store),
@@ -81,7 +80,6 @@ static void __exit rk_pm_tests_exit(void)
 {
 	kobject_put(rk_pm_tests_kobj);
 }
-
 
 struct kobject *get_rk_pm_tests_kobj(void)
 {
