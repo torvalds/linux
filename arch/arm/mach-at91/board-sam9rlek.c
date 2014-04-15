@@ -231,16 +231,6 @@ static struct gpio_led ek_leds[] = {
 
 
 /*
- * Touchscreen
- */
-static struct at91_tsadcc_data ek_tsadcc_data = {
-	.adc_clock		= 1000000,
-	.pendet_debounce	= 0x0f,
-	.ts_sample_hold_time	= 0x03,
-};
-
-
-/*
  * ADC + Touchscreen
  */
 static struct at91_adc_data ek_adc_data = {
@@ -323,8 +313,6 @@ static void __init ek_board_init(void)
 	at91_add_device_lcdc(&ek_lcdc_data);
 	/* AC97 */
 	at91_add_device_ac97(&ek_ac97_data);
-	/* Touch Screen Controller */
-	at91_add_device_tsadcc(&ek_tsadcc_data);
 	/* Touch Screen Controller + ADC */
 	at91_add_device_adc(&ek_adc_data);
 	/* LEDs */
