@@ -2170,8 +2170,11 @@ u32 process_probe_req_p2p_ie23a(struct wifidirect_info *pwdinfo, u8 *pframe, uin
 	u32	p2pielen = 0;
 	int ssid_len = 0, rate_cnt = 0;
 
-	p = rtw_get_ie23a(pframe + sizeof(struct ieee80211_hdr_3addr) + _PROBEREQ_IE_OFFSET_, _SUPPORTEDRATES_IE_, (int *)&rate_cnt,
-			len - sizeof(struct ieee80211_hdr_3addr) - _PROBEREQ_IE_OFFSET_);
+	p = rtw_get_ie23a(pframe + sizeof(struct ieee80211_hdr_3addr) +
+			  _PROBEREQ_IE_OFFSET_, WLAN_EID_SUPP_RATES,
+			  (int *)&rate_cnt,
+			  len - sizeof(struct ieee80211_hdr_3addr) -
+			  _PROBEREQ_IE_OFFSET_);
 
 	if (rate_cnt <= 4)
 	{
@@ -2210,8 +2213,10 @@ u32 process_probe_req_p2p_ie23a(struct wifidirect_info *pwdinfo, u8 *pframe, uin
 	/*	5. Requested Device Type in WSC IE. (Todo) */
 	/*	6. Device ID attribute in P2P IE. (Todo) */
 
-	p = rtw_get_ie23a(pframe + sizeof(struct ieee80211_hdr_3addr) + _PROBEREQ_IE_OFFSET_, _SSID_IE_, (int *)&ssid_len,
-			len - sizeof(struct ieee80211_hdr_3addr) - _PROBEREQ_IE_OFFSET_);
+	p = rtw_get_ie23a(pframe + sizeof(struct ieee80211_hdr_3addr) +
+			  _PROBEREQ_IE_OFFSET_, WLAN_EID_SSID, (int *)&ssid_len,
+			  len - sizeof(struct ieee80211_hdr_3addr) -
+			  _PROBEREQ_IE_OFFSET_);
 
 	ssid_len &= 0xff;	/*	Just last 1 byte is valid for ssid len of the probe request */
 	if (rtw_p2p_chk_role(pwdinfo, P2P_ROLE_DEVICE) || rtw_p2p_chk_role(pwdinfo, P2P_ROLE_GO))
