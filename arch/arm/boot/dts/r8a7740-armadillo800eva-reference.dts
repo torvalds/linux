@@ -180,7 +180,7 @@
 &i2c2 {
 	status = "okay";
 	rtc@30 {
-		compatible = "seiko,s35390a";
+		compatible = "sii,s35390a";
 		reg = <0x30>;
 	};
 };
