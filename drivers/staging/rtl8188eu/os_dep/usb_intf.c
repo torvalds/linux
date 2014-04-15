@@ -62,10 +62,6 @@ static struct usb_device_id rtw_usb_id_tbl[] = {
 
 MODULE_DEVICE_TABLE(usb, rtw_usb_id_tbl);
 
-static struct specific_device_id specific_device_id_tbl[] = {
-	{}		/* empty table for now */
-};
-
 struct rtw_usb_drv {
 	struct usb_driver usbdrv;
 	int drv_registered;
@@ -358,28 +354,6 @@ static void rtw_dev_unload(struct adapter *padapter)
 	DBG_88E("<=== rtw_dev_unload\n");
 
 	RT_TRACE(_module_hci_intfs_c_, _drv_err_, ("-rtw_dev_unload\n"));
-}
-
-static void process_spec_devid(const struct usb_device_id *pdid)
-{
-	u16 vid, pid;
-	u32 flags;
-	int i;
-	int num = sizeof(specific_device_id_tbl) /
-		  sizeof(struct specific_device_id);
-
-	for (i = 0; i < num; i++) {
-		vid = specific_device_id_tbl[i].idVendor;
-		pid = specific_device_id_tbl[i].idProduct;
-		flags = specific_device_id_tbl[i].flags;
-
-		if ((pdid->idVendor == vid) && (pdid->idProduct == pid) &&
-		    (flags&SPEC_DEV_ID_DISABLE_HT)) {
-			rtw_ht_enable = 0;
-			rtw_cbw40_enable = 0;
-			rtw_ampdu_enable = 0;
-		}
-	}
 }
 
 int rtw_hw_suspend(struct adapter *padapter)
@@ -780,9 +754,6 @@ static int rtw_drv_init(struct usb_interface *pusb_intf, const struct usb_device
 	struct dvobj_priv *dvobj;
 
 	RT_TRACE(_module_hci_intfs_c_, _drv_err_, ("+rtw_drv_init\n"));
-
-	/* step 0. */
-	process_spec_devid(pdid);
 
 	/* Initialize dvobj_priv */
 	dvobj = usb_dvobj_init(pusb_intf);
