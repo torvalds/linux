@@ -1346,6 +1346,20 @@ static struct at91_adc_caps at91sam9260_caps = {
 	},
 };
 
+static struct at91_adc_caps at91sam9rl_caps = {
+	.has_ts = true,
+	.calc_startup_ticks = calc_startup_ticks_9260,	/* same as 9260 */
+	.num_channels = 6,
+	.registers = {
+		.channel_base = AT91_ADC_CHR(0),
+		.drdy_mask = AT91_ADC_DRDY,
+		.status_register = AT91_ADC_SR,
+		.trigger_register = AT91_ADC_TRGR_9G45,
+		.mr_prescal_mask = AT91_ADC_PRESCAL_9260,
+		.mr_startup_mask = AT91_ADC_STARTUP_9G45,
+	},
+};
+
 static struct at91_adc_caps at91sam9g45_caps = {
 	.has_ts = true,
 	.calc_startup_ticks = calc_startup_ticks_9260,	/* same as 9260 */
@@ -1380,6 +1394,7 @@ static struct at91_adc_caps at91sam9x5_caps = {
 
 static const struct of_device_id at91_adc_dt_ids[] = {
 	{ .compatible = "atmel,at91sam9260-adc", .data = &at91sam9260_caps },
+	{ .compatible = "atmel,at91sam9rl-adc", .data = &at91sam9rl_caps },
 	{ .compatible = "atmel,at91sam9g45-adc", .data = &at91sam9g45_caps },
 	{ .compatible = "atmel,at91sam9x5-adc", .data = &at91sam9x5_caps },
 	{},
@@ -1390,6 +1405,9 @@ static const struct platform_device_id at91_adc_ids[] = {
 	{
 		.name = "at91sam9260-adc",
 		.driver_data = (unsigned long)&at91sam9260_caps,
+	}, {
+		.name = "at91sam9rl-adc",
+		.driver_data = (unsigned long)&at91sam9rl_caps,
 	}, {
 		.name = "at91sam9g45-adc",
 		.driver_data = (unsigned long)&at91sam9g45_caps,
