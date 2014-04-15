@@ -138,7 +138,7 @@ int omap2_reprogram_dpllcore(struct clk_hw *hw, unsigned long rate,
 		if (!dd)
 			return -EINVAL;
 
-		tmpset.cm_clksel1_pll = __raw_readl(dd->mult_div1_reg);
+		tmpset.cm_clksel1_pll = readl_relaxed(dd->mult_div1_reg);
 		tmpset.cm_clksel1_pll &= ~(dd->mult_mask |
 					   dd->div1_mask);
 		div = ((curr_prcm_set->xtal_speed / 1000000) - 1);

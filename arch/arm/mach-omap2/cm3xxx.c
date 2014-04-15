@@ -388,7 +388,7 @@ void omap3_cm_save_context(void)
 		omap2_cm_read_mod_reg(OMAP3430_IVA2_MOD, CM_CLKSEL1);
 	cm_context.iva2_cm_clksel2 =
 		omap2_cm_read_mod_reg(OMAP3430_IVA2_MOD, CM_CLKSEL2);
-	cm_context.cm_sysconfig = __raw_readl(OMAP3430_CM_SYSCONFIG);
+	cm_context.cm_sysconfig = readl_relaxed(OMAP3430_CM_SYSCONFIG);
 	cm_context.sgx_cm_clksel =
 		omap2_cm_read_mod_reg(OMAP3430ES2_SGX_MOD, CM_CLKSEL);
 	cm_context.dss_cm_clksel =
@@ -418,7 +418,7 @@ void omap3_cm_save_context(void)
 		omap2_cm_read_mod_reg(PLL_MOD, OMAP3430ES2_CM_CLKSEL5);
 	cm_context.pll_cm_clken2 =
 		omap2_cm_read_mod_reg(PLL_MOD, OMAP3430ES2_CM_CLKEN2);
-	cm_context.cm_polctrl = __raw_readl(OMAP3430_CM_POLCTRL);
+	cm_context.cm_polctrl = readl_relaxed(OMAP3430_CM_POLCTRL);
 	cm_context.iva2_cm_fclken =
 		omap2_cm_read_mod_reg(OMAP3430_IVA2_MOD, CM_FCLKEN);
 	cm_context.iva2_cm_clken_pll =
@@ -519,7 +519,7 @@ void omap3_cm_restore_context(void)
 			       CM_CLKSEL1);
 	omap2_cm_write_mod_reg(cm_context.iva2_cm_clksel2, OMAP3430_IVA2_MOD,
 			       CM_CLKSEL2);
-	__raw_writel(cm_context.cm_sysconfig, OMAP3430_CM_SYSCONFIG);
+	writel_relaxed(cm_context.cm_sysconfig, OMAP3430_CM_SYSCONFIG);
 	omap2_cm_write_mod_reg(cm_context.sgx_cm_clksel, OMAP3430ES2_SGX_MOD,
 			       CM_CLKSEL);
 	omap2_cm_write_mod_reg(cm_context.dss_cm_clksel, OMAP3430_DSS_MOD,
@@ -547,7 +547,7 @@ void omap3_cm_restore_context(void)
 			       OMAP3430ES2_CM_CLKSEL5);
 	omap2_cm_write_mod_reg(cm_context.pll_cm_clken2, PLL_MOD,
 			       OMAP3430ES2_CM_CLKEN2);
-	__raw_writel(cm_context.cm_polctrl, OMAP3430_CM_POLCTRL);
+	writel_relaxed(cm_context.cm_polctrl, OMAP3430_CM_POLCTRL);
 	omap2_cm_write_mod_reg(cm_context.iva2_cm_fclken, OMAP3430_IVA2_MOD,
 			       CM_FCLKEN);
 	omap2_cm_write_mod_reg(cm_context.iva2_cm_clken_pll, OMAP3430_IVA2_MOD,

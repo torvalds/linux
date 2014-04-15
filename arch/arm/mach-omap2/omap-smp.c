@@ -99,7 +99,7 @@ static int omap4_boot_secondary(unsigned int cpu, struct task_struct *idle)
 	if (omap_secure_apis_support())
 		omap_modify_auxcoreboot0(0x200, 0xfffffdff);
 	else
-		__raw_writel(0x20, base + OMAP_AUX_CORE_BOOT_0);
+		writel_relaxed(0x20, base + OMAP_AUX_CORE_BOOT_0);
 
 	if (!cpu1_clkdm && !cpu1_pwrdm) {
 		cpu1_clkdm = clkdm_lookup("mpu1_clkdm");
@@ -227,8 +227,8 @@ static void __init omap4_smp_prepare_cpus(unsigned int max_cpus)
 	if (omap_secure_apis_support())
 		omap_auxcoreboot_addr(virt_to_phys(startup_addr));
 	else
-		__raw_writel(virt_to_phys(omap5_secondary_startup),
-						base + OMAP_AUX_CORE_BOOT_1);
+		writel_relaxed(virt_to_phys(omap5_secondary_startup),
+			       base + OMAP_AUX_CORE_BOOT_1);
 
 }
 
