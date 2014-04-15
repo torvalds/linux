@@ -544,9 +544,10 @@ static void hwmp_preq_frame_process(struct ieee80211_sub_if_data *sdata,
 		if (time_after(jiffies, ifmsh->last_sn_update +
 					net_traversal_jiffies(sdata)) ||
 		    time_before(jiffies, ifmsh->last_sn_update)) {
-			target_sn = ++ifmsh->sn;
+			++ifmsh->sn;
 			ifmsh->last_sn_update = jiffies;
 		}
+		target_sn = ifmsh->sn;
 	} else if (is_broadcast_ether_addr(target_addr) &&
 		   (target_flags & IEEE80211_PREQ_TO_FLAG)) {
 		rcu_read_lock();
