@@ -1120,7 +1120,9 @@ static int rk808_device_shutdown(void)
 	struct rk808 *rk808 = g_rk808;
 	
 	printk("%s\n",__func__);
-
+	
+	ret = rk808_set_bits(rk808, RK808_INT_STS_MSK_REG1,(0x3<<5),(0x3<<5)); //close rtc int when power off
+	ret = rk808_clear_bits(rk808, RK808_RTC_INT_REG,(0x3<<2)); //close rtc int when power off
 	ret = rk808_reg_read(rk808,RK808_DEVCTRL_REG);
 	ret = rk808_set_bits(rk808, RK808_DEVCTRL_REG,(0x1<<3),(0x1<<3));
 //	ret = rk808_set_bits(rk808, RK808_DEVCTRL_REG,(0x1<<4),(0x1<<4));
@@ -1295,6 +1297,9 @@ static int rk808_pre_init(struct rk808 *rk808)
                 return ret;
         }
 	/**********************************/
+	ret = rk808_clear_bits(rk808, RK808_INT_STS_MSK_REG1,(0x3<<5)); //open rtc int when power on
+ 	ret = rk808_set_bits(rk808, RK808_RTC_INT_REG,(0x1<<3),(0x1<<3)); //open rtc int when power on
+
 	return 0;
 }
 
