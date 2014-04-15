@@ -596,8 +596,10 @@ bool rk_fb_poll_wait_frame_complete(void)
 
        
 	if (rk_fb_poll_prmry_screen_vblank() == RK_LF_STATUS_NC){
-		if(dev_drv->ops->set_irq_to_cpu)
-                        dev_drv->ops->set_irq_to_cpu(dev_drv,1);		
+		if (likely(dev_drv)) {
+			if(dev_drv->ops->set_irq_to_cpu)
+	                        dev_drv->ops->set_irq_to_cpu(dev_drv,1);
+		}
 		return false;
 	}	
 
