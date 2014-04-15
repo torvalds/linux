@@ -4471,15 +4471,14 @@ u8 collect_bss_info23a(struct rtw_adapter *padapter,
 {
 	int i, length;
 	const u8 *p;
-	u16 val16;
 	struct sk_buff *skb = precv_frame->pkt;
-	struct ieee80211_hdr *hdr = (struct ieee80211_hdr *) skb->data;
-	u8 *pframe = skb->data;
+	struct ieee80211_mgmt *mgmt = (struct ieee80211_mgmt *) skb->data;
 	int packet_len = skb->len;
 	u8 ie_offset;
 	struct registry_priv *pregistrypriv = &padapter->registrypriv;
 	struct mlme_ext_priv *pmlmeext = &padapter->mlmeextpriv;
 	struct mlme_ext_info *pmlmeinfo = &pmlmeext->mlmext_info;
+	u16 capab_info;
 
 	length = packet_len - sizeof(struct ieee80211_hdr_3addr);
 
@@ -4490,29 +4489,32 @@ u8 collect_bss_info23a(struct rtw_adapter *padapter,
 
 	memset(bssid, 0, sizeof(struct wlan_bssid_ex));
 
-	if (ieee80211_is_beacon(hdr->frame_control)) {
+	if (ieee80211_is_beacon(mgmt->frame_control)) {
 		bssid->reserved = 1;
-		ie_offset = _BEACON_IE_OFFSET_;
+		ie_offset = offsetof(struct ieee80211_mgmt, u.beacon.variable);
+		capab_info = mgmt->u.beacon.capab_info;
+	} else  if (ieee80211_is_probe_req(mgmt->frame_control)) {
+		ie_offset = offsetof(struct ieee80211_mgmt,
+				     u.probe_req.variable);
+		bssid->reserved = 2;
+		capab_info = 0;
+	} else if (ieee80211_is_probe_resp(mgmt->frame_control)) {
+		ie_offset = offsetof(struct ieee80211_mgmt,
+				     u.probe_resp.variable);
+		bssid->reserved = 3;
+		capab_info = mgmt->u.probe_resp.capab_info;
 	} else {
-		/*  FIXME : more type */
-		if (ieee80211_is_probe_req(hdr->frame_control)) {
-			ie_offset = _PROBEREQ_IE_OFFSET_;
-			bssid->reserved = 2;
-		} else if (ieee80211_is_probe_resp(hdr->frame_control)) {
-			ie_offset = _PROBERSP_IE_OFFSET_;
-			bssid->reserved = 3;
-		} else {
-			bssid->reserved = 0;
-			ie_offset = _FIXED_IE_LENGTH_;
-		}
+		bssid->reserved = 0;
+		ie_offset = offsetof(struct ieee80211_mgmt, u.beacon.variable);
+		capab_info = mgmt->u.beacon.capab_info;
 	}
+	ie_offset -= offsetof(struct ieee80211_mgmt, u);
 
 	bssid->Length = sizeof(struct wlan_bssid_ex) - MAX_IE_SZ + length;
 
 	/* below is to copy the information element */
 	bssid->IELength = length;
-	memcpy(bssid->IEs, pframe + sizeof(struct ieee80211_hdr_3addr),
-	       bssid->IELength);
+	memcpy(bssid->IEs, &mgmt->u, bssid->IELength);
 
 	/* get the signal strength */
 	/*  in dBM.raw data */
@@ -4596,10 +4598,10 @@ u8 collect_bss_info23a(struct rtw_adapter *padapter,
 		}
 	}
 
-	if (ieee80211_is_probe_req(hdr->frame_control)) {
+	if (ieee80211_is_probe_req(mgmt->frame_control)) {
 		/*  FIXME */
 		bssid->InfrastructureMode = Ndis802_11Infrastructure;
-		ether_addr_copy(bssid->MacAddress, hdr->addr2);
+		ether_addr_copy(bssid->MacAddress, mgmt->sa);
 		bssid->Privacy = 1;
 		return _SUCCESS;
 	}
@@ -4609,17 +4611,15 @@ u8 collect_bss_info23a(struct rtw_adapter *padapter,
 	bssid->Configuration.BeaconPeriod =
 		le32_to_cpu(bssid->Configuration.BeaconPeriod);
 
-	val16 = rtw_get_capability23a(bssid);
-
-	if (val16 & BIT(0)) {
+	if (capab_info & BIT(0)) {
 		bssid->InfrastructureMode = Ndis802_11Infrastructure;
-		ether_addr_copy(bssid->MacAddress, hdr->addr2);
+		ether_addr_copy(bssid->MacAddress, mgmt->sa);
 	} else {
 		bssid->InfrastructureMode = Ndis802_11IBSS;
-		ether_addr_copy(bssid->MacAddress, hdr->addr3);
+		ether_addr_copy(bssid->MacAddress, mgmt->bssid);
 	}
 
-	if (val16 & BIT(4))
+	if (capab_info & BIT(4))
 		bssid->Privacy = 1;
 	else
 		bssid->Privacy = 0;
