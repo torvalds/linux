@@ -533,7 +533,8 @@ void VCS_update23a(struct rtw_adapter *padapter, struct sta_info *psta);
 
 void update_beacon23a_info(struct rtw_adapter *padapter, u8 *pframe, uint len,
 			struct sta_info *psta);
-int rtw_check_bcn_info23a(struct rtw_adapter *Adapter, u8 *pframe, u32 packet_len);
+int rtw_check_bcn_info23a(struct rtw_adapter *Adapter,
+			  struct ieee80211_mgmt *mgmt, u32 packet_len);
 void update_IOT_info23a(struct rtw_adapter *padapter);
 void update_capinfo23a(struct rtw_adapter *Adapter, u16 updateCap);
 void update_wireless_mode23a(struct rtw_adapter * padapter);

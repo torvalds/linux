@@ -856,7 +856,8 @@ void VCS_update23a(struct rtw_adapter *padapter, struct sta_info *psta)
 	}
 }
 
-int rtw_check_bcn_info23a(struct rtw_adapter *Adapter, u8 *pframe, u32 packet_len)
+int rtw_check_bcn_info23a(struct rtw_adapter *Adapter,
+			  struct ieee80211_mgmt *mgmt, u32 packet_len)
 {
 	unsigned int		len;
 	unsigned char		*p;
@@ -874,11 +875,15 @@ int rtw_check_bcn_info23a(struct rtw_adapter *Adapter, u8 *pframe, u32 packet_le
 	u32 bcn_channel;
 	unsigned short	ht_cap_info;
 	unsigned char	ht_info_infos_0;
-	struct ieee80211_hdr *hdr = (struct ieee80211_hdr *) pframe;
-	u8 *pbssid = hdr->addr3;
 
 	if (is_client_associated_to_ap23a(Adapter) == false)
 		return true;
+
+	if (unlikely(!ieee80211_is_beacon(mgmt->frame_control))) {
+		printk(KERN_WARNING "%s: received a non beacon frame!\n",
+		       __func__);
+		return false;
+	}
 
 	len = packet_len - sizeof(struct ieee80211_hdr_3addr);
 
@@ -887,23 +892,24 @@ int rtw_check_bcn_info23a(struct rtw_adapter *Adapter, u8 *pframe, u32 packet_le
 		return _FAIL;
 	}
 
-	if (memcmp(cur_network->network.MacAddress, pbssid, 6)) {
-		DBG_8723A("Oops: rtw_check_network_encrypt linked but recv other bssid bcn\n" MAC_FMT MAC_FMT,
-				MAC_ARG(pbssid), MAC_ARG(cur_network->network.MacAddress));
+	if (memcmp(cur_network->network.MacAddress, mgmt->bssid, 6)) {
+		DBG_8723A("Oops: rtw_check_network_encrypt linked but recv "
+			  "other bssid bcn\n" MAC_FMT MAC_FMT,
+			  MAC_ARG(mgmt->bssid),
+			  MAC_ARG(cur_network->network.MacAddress));
 		return true;
 	}
 
 	bssid = (struct wlan_bssid_ex *)kzalloc(sizeof(struct wlan_bssid_ex),
 		GFP_ATOMIC);
 
-	if (ieee80211_is_beacon(hdr->frame_control))
-		bssid->reserved = 1;
+	bssid->reserved = 1;
 
 	bssid->Length = sizeof(struct wlan_bssid_ex) - MAX_IE_SZ + len;
 
 	/* below is to copy the information element */
 	bssid->IELength = len;
-	memcpy(bssid->IEs, (pframe + sizeof(struct ieee80211_hdr_3addr)), bssid->IELength);
+	memcpy(bssid->IEs, &mgmt->u, bssid->IELength);
 
 	/* check bw and channel offset */
 	/* parsing HT_CAP_IE */

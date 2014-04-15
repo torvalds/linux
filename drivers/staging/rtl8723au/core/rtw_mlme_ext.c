@@ -795,7 +795,7 @@ OnBeacon23a(struct rtw_adapter *padapter, struct recv_frame *precv_frame)
 		    (pmlmeinfo->state & WIFI_FW_ASSOC_SUCCESS)) {
 			psta = rtw_get_stainfo23a(pstapriv, mgmt->sa);
 			if (psta) {
-				ret = rtw_check_bcn_info23a(padapter, pframe,
+				ret = rtw_check_bcn_info23a(padapter, mgmt,
 							    pkt_len);
 				if (!ret) {
 					DBG_8723A_LEVEL(_drv_always_,
