@@ -1,6 +1,4 @@
 /*
- * linux/arch/arm/mach-mmp/include/mach/regs-icu.h
- *
  *   Interrupt Control Unit
  *
  * This program is free software; you can redistribute it and/or modify
@@ -11,7 +9,7 @@
 #ifndef __ASM_MACH_ICU_H
 #define __ASM_MACH_ICU_H
 
-#include <mach/addr-map.h>
+#include "addr-map.h"
 
 #define ICU_VIRT_BASE	(AXI_VIRT_BASE + 0x82000)
 #define ICU_REG(x)	(ICU_VIRT_BASE + (x))

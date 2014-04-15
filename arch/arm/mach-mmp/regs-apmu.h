@@ -1,6 +1,4 @@
 /*
- * linux/arch/arm/mach-mmp/include/mach/regs-apmu.h
- *
  *   Application Subsystem Power Management Unit
  *
  * This program is free software; you can redistribute it and/or modify
@@ -11,7 +9,7 @@
 #ifndef __ASM_MACH_REGS_APMU_H
 #define __ASM_MACH_REGS_APMU_H
 
-#include <mach/addr-map.h>
+#include "addr-map.h"
 
 #define APMU_FNCLK_EN	(1 << 4)
 #define APMU_AXICLK_EN	(1 << 3)

@@ -22,14 +22,14 @@
 
 #include <asm/mach-types.h>
 #include <asm/mach/arch.h>
-#include <mach/addr-map.h>
-#include <mach/mfp-pxa168.h>
-#include <mach/pxa168.h>
-#include <mach/irqs.h>
 #include <video/pxa168fb.h>
 #include <linux/input.h>
 #include <linux/platform_data/keypad-pxa27x.h>
 
+#include "addr-map.h"
+#include "mfp-pxa168.h"
+#include "pxa168.h"
+#include "irqs.h"
 #include "common.h"
 
 static unsigned long common_pin_config[] __initdata = {

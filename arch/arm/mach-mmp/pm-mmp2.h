@@ -11,7 +11,7 @@
 #ifndef __MMP2_PM_H__
 #define __MMP2_PM_H__
 
-#include <mach/addr-map.h>
+#include "addr-map.h"
 
 #define APMU_PJ_IDLE_CFG			APMU_REG(0x018)
 #define APMU_PJ_IDLE_CFG_PJ_IDLE		(1 << 1)

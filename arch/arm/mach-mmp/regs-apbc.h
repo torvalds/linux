@@ -1,6 +1,4 @@
 /*
- * linux/arch/arm/mach-mmp/include/mach/regs-apbc.h
- *
  *   Application Peripheral Bus Clock Unit
  *
  * This program is free software; you can redistribute it and/or modify
@@ -11,7 +9,7 @@
 #ifndef __ASM_MACH_REGS_APBC_H
 #define __ASM_MACH_REGS_APBC_H
 
-#include <mach/addr-map.h>
+#include "addr-map.h"
 
 /* Common APB clock register bit definitions */
 #define APBC_APBCLK	(1 << 0)  /* APB Bus Clock Enable */

@@ -1,6 +1,4 @@
 /*
- * linux/arch/arm/mach-mmp/include/mach/regs-timers.h
- *
  *   Timers Module
  *
  * This program is free software; you can redistribute it and/or modify
@@ -11,7 +9,7 @@
 #ifndef __ASM_MACH_REGS_TIMERS_H
 #define __ASM_MACH_REGS_TIMERS_H
 
-#include <mach/addr-map.h>
+#include "addr-map.h"
 
 #define TIMERS1_VIRT_BASE	(APB_VIRT_BASE + 0x14000)
 #define TIMERS2_VIRT_BASE	(APB_VIRT_BASE + 0x16000)

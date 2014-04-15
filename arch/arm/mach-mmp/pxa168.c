@@ -16,22 +16,22 @@
 #include <linux/clk/mmp.h>
 #include <linux/platform_device.h>
 #include <linux/platform_data/mv_usb.h>
+#include <linux/dma-mapping.h>
 
 #include <asm/mach/time.h>
 #include <asm/system_misc.h>
-#include <mach/cputype.h>
-#include <mach/addr-map.h>
-#include <mach/regs-apbc.h>
-#include <mach/regs-apmu.h>
-#include <mach/irqs.h>
-#include <mach/devices.h>
-#include <mach/mfp.h>
-#include <linux/dma-mapping.h>
-#include <mach/pxa168.h>
-#include <mach/regs-usb.h>
 
-#include "common.h"
+#include "addr-map.h"
 #include "clock.h"
+#include "common.h"
+#include "cputype.h"
+#include "devices.h"
+#include "irqs.h"
+#include "mfp.h"
+#include "pxa168.h"
+#include "regs-apbc.h"
+#include "regs-apmu.h"
+#include "regs-usb.h"
 
 #define MFPR_VIRT_BASE	(APB_VIRT_BASE + 0x1e000)
 

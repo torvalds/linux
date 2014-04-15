@@ -6,7 +6,7 @@
 #include <linux/clk.h>
 #include <linux/clk/mmp.h>
 
-#include <mach/addr-map.h>
+#include "addr-map.h"
 
 #include "common.h"
 #include "clock.h"

@@ -12,10 +12,10 @@
 #include <linux/delay.h>
 
 #include <asm/irq.h>
-#include <mach/irqs.h>
-#include <mach/devices.h>
-#include <mach/cputype.h>
-#include <mach/regs-usb.h>
+#include "irqs.h"
+#include "devices.h"
+#include "cputype.h"
+#include "regs-usb.h"
 
 int __init pxa_register_device(struct pxa_device_desc *desc,
 				void *data, size_t size)

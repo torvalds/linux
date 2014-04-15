@@ -11,13 +11,14 @@ extern void pxa168_clear_keypad_wakeup(void);
 
 #include <linux/i2c.h>
 #include <linux/i2c/pxa-i2c.h>
-#include <mach/devices.h>
 #include <linux/platform_data/mtd-nand-pxa3xx.h>
 #include <video/pxa168fb.h>
 #include <linux/platform_data/keypad-pxa27x.h>
-#include <mach/cputype.h>
 #include <linux/pxa168_eth.h>
 #include <linux/platform_data/mv_usb.h>
+
+#include "devices.h"
+#include "cputype.h"
 
 extern struct pxa_device_desc pxa168_device_uart1;
 extern struct pxa_device_desc pxa168_device_uart2;
