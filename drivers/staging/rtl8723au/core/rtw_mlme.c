@@ -271,6 +271,13 @@ void rtw_generate_random_ibss23a(u8* pibss)
 	return;
 }
 
+void rtw_set_roaming(struct rtw_adapter *adapter, u8 to_roaming)
+{
+	if (to_roaming == 0)
+		adapter->mlmepriv.to_join = false;
+	adapter->mlmepriv.to_roaming = to_roaming;
+}
+
 static void _rtw_roaming(struct rtw_adapter *padapter,
 			 struct wlan_network *tgt_network)
 {
@@ -2510,13 +2517,6 @@ void rtw_issue_addbareq_cmd23a(struct rtw_adapter *padapter,
 					    pattrib->ra);
 		}
 	}
-}
-
-inline void rtw_set_roaming(struct rtw_adapter *adapter, u8 to_roaming)
-{
-	if (to_roaming == 0)
-		adapter->mlmepriv.to_join = false;
-	adapter->mlmepriv.to_roaming = to_roaming;
 }
 
 int rtw_linked_check(struct rtw_adapter *padapter)
