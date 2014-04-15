@@ -1412,6 +1412,14 @@ restart_watchdog:
 	schedule_work(&adapter->adminq_task);
 }
 
+/**
+ * i40evf_configure_rss - increment to next available tx queue
+ * @adapter: board private structure
+ * @j: queue counter
+ *
+ * Helper function for RSS programming to increment through available
+ * queus. Returns the next queue value.
+ **/
 static int next_queue(struct i40evf_adapter *adapter, int j)
 {
 	j += 1;
@@ -1451,10 +1459,14 @@ static void i40evf_configure_rss(struct i40evf_adapter *adapter)
 	/* Populate the LUT with max no. of queues in round robin fashion */
 	j = adapter->vsi_res->num_queue_pairs;
 	for (i = 0; i <= I40E_VFQF_HLUT_MAX_INDEX; i++) {
-		lut = next_queue(adapter, j);
-		lut |= next_queue(adapter, j) << 8;
-		lut |= next_queue(adapter, j) << 16;
-		lut |= next_queue(adapter, j) << 24;
+		j = next_queue(adapter, j);
+		lut = j;
+		j = next_queue(adapter, j);
+		lut |= j << 8;
+		j = next_queue(adapter, j);
+		lut |= j << 16;
+		j = next_queue(adapter, j);
+		lut |= j << 24;
 		wr32(hw, I40E_VFQF_HLUT(i), lut);
 	}
 	i40e_flush(hw);

@@ -584,7 +584,6 @@ static int load_elf_binary(struct linux_binprm *bprm)
 	unsigned long start_code, end_code, start_data, end_data;
 	unsigned long reloc_func_desc __maybe_unused = 0;
 	int executable_stack = EXSTACK_DEFAULT;
-	unsigned long def_flags = 0;
 	struct pt_regs *regs = current_pt_regs();
 	struct {
 		struct elfhdr elf_ex;
@@ -723,9 +722,6 @@ static int load_elf_binary(struct linux_binprm *bprm)
 	retval = flush_old_exec(bprm);
 	if (retval)
 		goto out_free_dentry;
-
-	/* OK, This is the point of no return */
-	current->mm->def_flags = def_flags;
 
 	/* Do this immediately, since STACK_TOP as used in setup_arg_pages
 	   may depend on the personality.  */

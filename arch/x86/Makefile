@@ -108,7 +108,7 @@ else
 
         # this works around some issues with generating unwind tables in older gccs
         # newer gccs do it by default
-        KBUILD_CFLAGS += -maccumulate-outgoing-args
+        KBUILD_CFLAGS += $(call cc-option,-maccumulate-outgoing-args)
 endif
 
 # Make sure compiler does not have buggy stack-protector support.

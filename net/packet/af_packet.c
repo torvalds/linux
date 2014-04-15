@@ -261,7 +261,7 @@ static int packet_direct_xmit(struct sk_buff *skb)
 	local_bh_disable();
 
 	HARD_TX_LOCK(dev, txq, smp_processor_id());
-	if (!netif_xmit_frozen_or_stopped(txq)) {
+	if (!netif_xmit_frozen_or_drv_stopped(txq)) {
 		ret = ops->ndo_start_xmit(skb, dev);
 		if (ret == NETDEV_TX_OK)
 			txq_trans_update(txq);
@@ -275,6 +275,7 @@ static int packet_direct_xmit(struct sk_buff *skb)
 
 	return ret;
 drop:
+	atomic_long_inc(&dev->tx_dropped);
 	kfree_skb(skb);
 	return NET_XMIT_DROP;
 }
@@ -1847,7 +1848,7 @@ static int packet_rcv(struct sk_buff *skb, struct net_device *dev,
 	skb->dropcount = atomic_read(&sk->sk_drops);
 	__skb_queue_tail(&sk->sk_receive_queue, skb);
 	spin_unlock(&sk->sk_receive_queue.lock);
-	sk->sk_data_ready(sk, skb->len);
+	sk->sk_data_ready(sk);
 	return 0;
 
 drop_n_acct:
@@ -2053,7 +2054,7 @@ static int tpacket_rcv(struct sk_buff *skb, struct net_device *dev,
 	else
 		prb_clear_blk_fill_status(&po->rx_ring);
 
-	sk->sk_data_ready(sk, 0);
+	sk->sk_data_ready(sk);
 
 drop_n_restore:
 	if (skb_head != skb->data && skb_shared(skb)) {
@@ -2068,7 +2069,7 @@ ring_is_full:
 	po->stats.stats1.tp_drops++;
 	spin_unlock(&sk->sk_receive_queue.lock);
 
-	sk->sk_data_ready(sk, 0);
+	sk->sk_data_ready(sk);
 	kfree_skb(copy_skb);
 	goto drop_n_restore;
 }

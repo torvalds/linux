@@ -852,7 +852,7 @@ at86rf212_set_csma_params(struct ieee802154_dev *dev, u8 min_be, u8 max_be,
 	if (rc)
 		return rc;
 
-	return at86rf230_write_subreg(lp, SR_MAX_CSMA_RETRIES, max_be);
+	return at86rf230_write_subreg(lp, SR_MAX_CSMA_RETRIES, retries);
 }
 
 static int

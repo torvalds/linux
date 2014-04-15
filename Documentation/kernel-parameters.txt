@@ -884,6 +884,11 @@ bytes respectively. Such letter suffixes can also be entirely omitted.
 			Enable debug messages at boot time.  See
 			Documentation/dynamic-debug-howto.txt for details.
 
+	early_ioremap_debug [KNL]
+			Enable debug messages in early_ioremap support. This
+			is useful for tracking down temporary early mappings
+			which are not unmapped.
+
 	earlycon=	[KNL] Output early console device and options.
 		uart[8250],io,<addr>[,options]
 		uart[8250],mmio,<addr>[,options]
@@ -2557,6 +2562,13 @@ bytes respectively. Such letter suffixes can also be entirely omitted.
 			all PCIe root ports use INTx for all services).
 
 	pcmv=		[HW,PCMCIA] BadgePAD 4
+
+	pd_ignore_unused
+			[PM]
+			Keep all power-domains already enabled by bootloader on,
+			even if no driver has claimed them. This is useful
+			for debug and development, but should not be
+			needed on a platform with proper driver support.
 
 	pd.		[PARIDE]
 			See Documentation/blockdev/paride.txt.

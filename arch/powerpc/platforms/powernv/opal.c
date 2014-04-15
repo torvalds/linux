@@ -46,7 +46,7 @@ struct mcheck_recoverable_range {
 static struct mcheck_recoverable_range *mc_recoverable_range;
 static int mc_recoverable_range_len;
 
-static struct device_node *opal_node;
+struct device_node *opal_node;
 static DEFINE_SPINLOCK(opal_write_lock);
 extern u64 opal_mc_secondary_handler[];
 static unsigned int *opal_irqs;
@@ -102,18 +102,35 @@ int __init early_init_dt_scan_opal(unsigned long node,
 int __init early_init_dt_scan_recoverable_ranges(unsigned long node,
 				   const char *uname, int depth, void *data)
 {
-	unsigned long i, size;
+	unsigned long i, psize, size;
 	const __be32 *prop;
 
 	if (depth != 1 || strcmp(uname, "ibm,opal") != 0)
 		return 0;
 
-	prop = of_get_flat_dt_prop(node, "mcheck-recoverable-ranges", &size);
+	prop = of_get_flat_dt_prop(node, "mcheck-recoverable-ranges", &psize);
 
 	if (!prop)
 		return 1;
 
 	pr_debug("Found machine check recoverable ranges.\n");
+
+	/*
+	 * Calculate number of available entries.
+	 *
+	 * Each recoverable address range entry is (start address, len,
+	 * recovery address), 2 cells each for start and recovery address,
+	 * 1 cell for len, totalling 5 cells per entry.
+	 */
+	mc_recoverable_range_len = psize / (sizeof(*prop) * 5);
+
+	/* Sanity check */
+	if (!mc_recoverable_range_len)
+		return 1;
+
+	/* Size required to hold all the entries. */
+	size = mc_recoverable_range_len *
+			sizeof(struct mcheck_recoverable_range);
 
 	/*
 	 * Allocate a buffer to hold the MC recoverable ranges. We would be
@@ -124,11 +141,7 @@ int __init early_init_dt_scan_recoverable_ranges(unsigned long node,
 							ppc64_rma_size));
 	memset(mc_recoverable_range, 0, size);
 
-	/*
-	 * Each recoverable address entry is an (start address,len,
-	 * recover address) pair, * 2 cells each, totalling 4 cells per entry.
-	 */
-	for (i = 0; i < size / (sizeof(*prop) * 5); i++) {
+	for (i = 0; i < mc_recoverable_range_len; i++) {
 		mc_recoverable_range[i].start_addr =
 					of_read_number(prop + (i * 5) + 0, 2);
 		mc_recoverable_range[i].end_addr =
@@ -142,7 +155,6 @@ int __init early_init_dt_scan_recoverable_ranges(unsigned long node,
 				mc_recoverable_range[i].end_addr,
 				mc_recoverable_range[i].recover_addr);
 	}
-	mc_recoverable_range_len = i;
 	return 1;
 }
 
@@ -180,6 +192,20 @@ int opal_notifier_register(struct notifier_block *nb)
 	atomic_notifier_chain_register(&opal_notifier_head, nb);
 	return 0;
 }
+EXPORT_SYMBOL_GPL(opal_notifier_register);
+
+int opal_notifier_unregister(struct notifier_block *nb)
+{
+	if (!nb) {
+		pr_warning("%s: Invalid argument (%p)\n",
+			   __func__, nb);
+		return -EINVAL;
+	}
+
+	atomic_notifier_chain_unregister(&opal_notifier_head, nb);
+	return 0;
+}
+EXPORT_SYMBOL_GPL(opal_notifier_unregister);
 
 static void opal_do_notifier(uint64_t events)
 {
@@ -267,6 +293,7 @@ static void opal_handle_message(void)
 	 * value in /proc/device-tree.
 	 */
 	static struct opal_msg msg;
+	u32 type;
 
 	ret = opal_get_msg(__pa(&msg), sizeof(msg));
 	/* No opal message pending. */
@@ -280,13 +307,14 @@ static void opal_handle_message(void)
 		return;
 	}
 
+	type = be32_to_cpu(msg.msg_type);
+
 	/* Sanity check */
-	if (msg.msg_type > OPAL_MSG_TYPE_MAX) {
-		pr_warning("%s: Unknown message type: %u\n",
-				__func__, msg.msg_type);
+	if (type > OPAL_MSG_TYPE_MAX) {
+		pr_warning("%s: Unknown message type: %u\n", __func__, type);
 		return;
 	}
-	opal_message_do_notify(msg.msg_type, (void *)&msg);
+	opal_message_do_notify(type, (void *)&msg);
 }
 
 static int opal_message_notify(struct notifier_block *nb,
@@ -574,6 +602,8 @@ static int __init opal_init(void)
 		opal_platform_dump_init();
 		/* Setup system parameters interface */
 		opal_sys_param_init();
+		/* Setup message log interface. */
+		opal_msglog_init();
 	}
 
 	return 0;
@@ -605,3 +635,6 @@ void opal_shutdown(void)
 			mdelay(10);
 	}
 }
+
+/* Export this so that test modules can use it */
+EXPORT_SYMBOL_GPL(opal_invalid_call);

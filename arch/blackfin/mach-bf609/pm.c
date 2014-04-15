@@ -210,7 +210,7 @@ void bf609_cpu_pm_enter(suspend_state_t state)
 
 #ifdef CONFIG_PM_BFIN_WAKE_PB15
 	wakeup |= PB15WE;
-# if CONFIG_PM_BFIN_WAKE_PA15_POL
+# if CONFIG_PM_BFIN_WAKE_PB15_POL
 	wakeup_pol |= PB15WE;
 # endif
 #endif

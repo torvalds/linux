@@ -289,32 +289,29 @@ int rsi_init_dbgfs(struct rsi_hw *adapter)
 	const struct rsi_dbg_files *files;
 
 	dev_dbgfs = kzalloc(sizeof(*dev_dbgfs), GFP_KERNEL);
+	if (!dev_dbgfs)
+		return -ENOMEM;
+
 	adapter->dfsentry = dev_dbgfs;
 
 	snprintf(devdir, sizeof(devdir), "%s",
 		 wiphy_name(adapter->hw->wiphy));
+
 	dev_dbgfs->subdir = debugfs_create_dir(devdir, NULL);
 
-	if (IS_ERR(dev_dbgfs->subdir)) {
-		if (dev_dbgfs->subdir == ERR_PTR(-ENODEV))
-			rsi_dbg(ERR_ZONE,
-				"%s:Debugfs has not been mounted\n", __func__);
-		else
-			rsi_dbg(ERR_ZONE, "debugfs:%s not created\n", devdir);
-
-		adapter->dfsentry = NULL;
+	if (!dev_dbgfs->subdir) {
 		kfree(dev_dbgfs);
-		return (int)PTR_ERR(dev_dbgfs->subdir);
-	} else {
-		for (ii = 0; ii < adapter->num_debugfs_entries; ii++) {
-			files = &dev_debugfs_files[ii];
-			dev_dbgfs->rsi_files[ii] =
-			debugfs_create_file(files->name,
-					    files->perms,
-					    dev_dbgfs->subdir,
-					    common,
-					    &files->fops);
-		}
+		return -ENOMEM;
+	}
+
+	for (ii = 0; ii < adapter->num_debugfs_entries; ii++) {
+		files = &dev_debugfs_files[ii];
+		dev_dbgfs->rsi_files[ii] =
+		debugfs_create_file(files->name,
+				    files->perms,
+				    dev_dbgfs->subdir,
+				    common,
+				    &files->fops);
 	}
 	return 0;
 }

@@ -30,6 +30,7 @@
 #include <linux/platform_device.h>
 #include <linux/regulator/consumer.h>
 #include <linux/string.h>
+#include <linux/of.h>
 
 #include <video/omapdss.h>
 
@@ -49,6 +50,8 @@ static struct {
 	int data_lines;
 
 	struct omap_dss_device output;
+
+	bool port_initialized;
 } dpi;
 
 static struct platform_device *dpi_get_dsidev(enum omap_channel channel)
@@ -724,4 +727,48 @@ int __init dpi_init_platform_driver(void)
 void __exit dpi_uninit_platform_driver(void)
 {
 	platform_driver_unregister(&omap_dpi_driver);
+}
+
+int __init dpi_init_port(struct platform_device *pdev, struct device_node *port)
+{
+	struct device_node *ep;
+	u32 datalines;
+	int r;
+
+	ep = omapdss_of_get_next_endpoint(port, NULL);
+	if (!ep)
+		return 0;
+
+	r = of_property_read_u32(ep, "data-lines", &datalines);
+	if (r) {
+		DSSERR("failed to parse datalines\n");
+		goto err_datalines;
+	}
+
+	dpi.data_lines = datalines;
+
+	of_node_put(ep);
+
+	dpi.pdev = pdev;
+
+	mutex_init(&dpi.lock);
+
+	dpi_init_output(pdev);
+
+	dpi.port_initialized = true;
+
+	return 0;
+
+err_datalines:
+	of_node_put(ep);
+
+	return r;
+}
+
+void __exit dpi_uninit_port(void)
+{
+	if (!dpi.port_initialized)
+		return;
+
+	dpi_uninit_output(dpi.pdev);
 }

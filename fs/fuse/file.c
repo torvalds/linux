@@ -1086,9 +1086,7 @@ static ssize_t fuse_fill_write_pages(struct fuse_req *req,
 		if (mapping_writably_mapped(mapping))
 			flush_dcache_page(page);
 
-		pagefault_disable();
 		tmp = iov_iter_copy_from_user_atomic(page, ii, offset, bytes);
-		pagefault_enable();
 		flush_dcache_page(page);
 
 		mark_page_accessed(page);
@@ -1237,8 +1235,7 @@ static ssize_t fuse_file_aio_write(struct kiocb *iocb, const struct iovec *iov,
 		goto out;
 
 	if (file->f_flags & O_DIRECT) {
-		written = generic_file_direct_write(iocb, iov, &nr_segs,
-						    pos, &iocb->ki_pos,
+		written = generic_file_direct_write(iocb, iov, &nr_segs, pos, 
 						    count, ocount);
 		if (written < 0 || written == count)
 			goto out;
@@ -2117,6 +2114,7 @@ static int fuse_page_mkwrite(struct vm_area_struct *vma, struct vm_fault *vmf)
 static const struct vm_operations_struct fuse_file_vm_ops = {
 	.close		= fuse_vma_close,
 	.fault		= filemap_fault,
+	.map_pages	= filemap_map_pages,
 	.page_mkwrite	= fuse_page_mkwrite,
 	.remap_pages	= generic_file_remap_pages,
 };

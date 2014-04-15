@@ -651,7 +651,7 @@ nv50_crtc_set_dither(struct nouveau_crtc *nv_crtc, bool update)
 	nv_connector = nouveau_crtc_connector_get(nv_crtc);
 	connector = &nv_connector->base;
 	if (nv_connector->dithering_mode == DITHERING_MODE_AUTO) {
-		if (nv_crtc->base.fb->depth > connector->display_info.bpc * 3)
+		if (nv_crtc->base.primary->fb->depth > connector->display_info.bpc * 3)
 			mode = DITHERING_MODE_DYNAMIC2X2;
 	} else {
 		mode = nv_connector->dithering_mode;
@@ -785,7 +785,8 @@ nv50_crtc_set_scale(struct nouveau_crtc *nv_crtc, bool update)
 
 		if (update) {
 			nv50_display_flip_stop(crtc);
-			nv50_display_flip_next(crtc, crtc->fb, NULL, 1);
+			nv50_display_flip_next(crtc, crtc->primary->fb,
+					       NULL, 1);
 		}
 	}
 
@@ -1028,7 +1029,7 @@ nv50_crtc_commit(struct drm_crtc *crtc)
 	}
 
 	nv50_crtc_cursor_show_hide(nv_crtc, nv_crtc->cursor.visible, true);
-	nv50_display_flip_next(crtc, crtc->fb, NULL, 1);
+	nv50_display_flip_next(crtc, crtc->primary->fb, NULL, 1);
 }
 
 static bool
@@ -1042,7 +1043,7 @@ nv50_crtc_mode_fixup(struct drm_crtc *crtc, const struct drm_display_mode *mode,
 static int
 nv50_crtc_swap_fbs(struct drm_crtc *crtc, struct drm_framebuffer *old_fb)
 {
-	struct nouveau_framebuffer *nvfb = nouveau_framebuffer(crtc->fb);
+	struct nouveau_framebuffer *nvfb = nouveau_framebuffer(crtc->primary->fb);
 	struct nv50_head *head = nv50_head(crtc);
 	int ret;
 
@@ -1139,7 +1140,7 @@ nv50_crtc_mode_set(struct drm_crtc *crtc, struct drm_display_mode *umode,
 	nv50_crtc_set_dither(nv_crtc, false);
 	nv50_crtc_set_scale(nv_crtc, false);
 	nv50_crtc_set_color_vibrance(nv_crtc, false);
-	nv50_crtc_set_image(nv_crtc, crtc->fb, x, y, false);
+	nv50_crtc_set_image(nv_crtc, crtc->primary->fb, x, y, false);
 	return 0;
 }
 
@@ -1151,7 +1152,7 @@ nv50_crtc_mode_set_base(struct drm_crtc *crtc, int x, int y,
 	struct nouveau_crtc *nv_crtc = nouveau_crtc(crtc);
 	int ret;
 
-	if (!crtc->fb) {
+	if (!crtc->primary->fb) {
 		NV_DEBUG(drm, "No FB bound\n");
 		return 0;
 	}
@@ -1161,8 +1162,8 @@ nv50_crtc_mode_set_base(struct drm_crtc *crtc, int x, int y,
 		return ret;
 
 	nv50_display_flip_stop(crtc);
-	nv50_crtc_set_image(nv_crtc, crtc->fb, x, y, true);
-	nv50_display_flip_next(crtc, crtc->fb, NULL, 1);
+	nv50_crtc_set_image(nv_crtc, crtc->primary->fb, x, y, true);
+	nv50_display_flip_next(crtc, crtc->primary->fb, NULL, 1);
 	return 0;
 }
 

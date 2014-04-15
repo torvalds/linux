@@ -117,10 +117,10 @@ static void vmw_hw_context_destroy(struct vmw_resource *res)
 		(void) vmw_context_binding_state_kill
 			(&container_of(res, struct vmw_user_context, res)->cbs);
 		(void) vmw_gb_context_destroy(res);
+		mutex_unlock(&dev_priv->binding_mutex);
 		if (dev_priv->pinned_bo != NULL &&
 		    !dev_priv->query_cid_valid)
 			__vmw_execbuf_release_pinned_bo(dev_priv, NULL);
-		mutex_unlock(&dev_priv->binding_mutex);
 		mutex_unlock(&dev_priv->cmdbuf_mutex);
 		return;
 	}
@@ -462,7 +462,6 @@ int vmw_context_define_ioctl(struct drm_device *dev, void *data,
 	struct vmw_resource *tmp;
 	struct drm_vmw_context_arg *arg = (struct drm_vmw_context_arg *)data;
 	struct ttm_object_file *tfile = vmw_fpriv(file_priv)->tfile;
-	struct vmw_master *vmaster = vmw_master(file_priv->master);
 	int ret;
 
 
@@ -474,7 +473,7 @@ int vmw_context_define_ioctl(struct drm_device *dev, void *data,
 	if (unlikely(vmw_user_context_size == 0))
 		vmw_user_context_size = ttm_round_pot(sizeof(*ctx)) + 128;
 
-	ret = ttm_read_lock(&vmaster->lock, true);
+	ret = ttm_read_lock(&dev_priv->reservation_sem, true);
 	if (unlikely(ret != 0))
 		return ret;
 
@@ -521,7 +520,7 @@ int vmw_context_define_ioctl(struct drm_device *dev, void *data,
 out_err:
 	vmw_resource_unreference(&res);
 out_unlock:
-	ttm_read_unlock(&vmaster->lock);
+	ttm_read_unlock(&dev_priv->reservation_sem);
 	return ret;
 
 }

@@ -4,4 +4,4 @@ config ARCH_PICOXCELL
 	select ARM_VIC
 	select DW_APB_TIMER_OF
 	select HAVE_TCM
-	select NO_IOPORT
+	select NO_IOPORT_MAP

@@ -207,7 +207,7 @@ static inline int ext_hash(u16 code)
 	return (code + (code >> 9)) & (ARRAY_SIZE(ext_int_hash) - 1);
 }
 
-int register_external_interrupt(u16 code, ext_int_handler_t handler)
+int register_external_irq(u16 code, ext_int_handler_t handler)
 {
 	struct ext_int_info *p;
 	unsigned long flags;
@@ -225,9 +225,9 @@ int register_external_interrupt(u16 code, ext_int_handler_t handler)
 	spin_unlock_irqrestore(&ext_int_hash_lock, flags);
 	return 0;
 }
-EXPORT_SYMBOL(register_external_interrupt);
+EXPORT_SYMBOL(register_external_irq);
 
-int unregister_external_interrupt(u16 code, ext_int_handler_t handler)
+int unregister_external_irq(u16 code, ext_int_handler_t handler)
 {
 	struct ext_int_info *p;
 	unsigned long flags;
@@ -243,7 +243,7 @@ int unregister_external_interrupt(u16 code, ext_int_handler_t handler)
 	spin_unlock_irqrestore(&ext_int_hash_lock, flags);
 	return 0;
 }
-EXPORT_SYMBOL(unregister_external_interrupt);
+EXPORT_SYMBOL(unregister_external_irq);
 
 static irqreturn_t do_ext_interrupt(int irq, void *dummy)
 {
@@ -253,7 +253,7 @@ static irqreturn_t do_ext_interrupt(int irq, void *dummy)
 	int index;
 
 	ext_code = *(struct ext_code *) &regs->int_code;
-	if (ext_code.code != 0x1004)
+	if (ext_code.code != EXT_IRQ_CLK_COMP)
 		__get_cpu_var(s390_idle).nohz_delay = 1;
 
 	index = ext_hash(ext_code.code);

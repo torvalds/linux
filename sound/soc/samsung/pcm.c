@@ -20,7 +20,6 @@
 #include <sound/pcm_params.h>
 
 #include <linux/platform_data/asoc-s3c.h>
-#include <mach/dma.h>
 
 #include "dma.h"
 #include "pcm.h"
@@ -132,11 +131,11 @@ struct s3c_pcm_info {
 	struct s3c_dma_params	*dma_capture;
 };
 
-static struct s3c2410_dma_client s3c_pcm_dma_client_out = {
+static struct s3c_dma_client s3c_pcm_dma_client_out = {
 	.name		= "PCM Stereo out"
 };
 
-static struct s3c2410_dma_client s3c_pcm_dma_client_in = {
+static struct s3c_dma_client s3c_pcm_dma_client_in = {
 	.name		= "PCM Stereo in"
 };
 

@@ -1472,6 +1472,7 @@ static noinline int btrfs_ioctl_resize(struct file *file,
 	struct btrfs_trans_handle *trans;
 	struct btrfs_device *device = NULL;
 	char *sizestr;
+	char *retptr;
 	char *devstr = NULL;
 	int ret = 0;
 	int mod = 0;
@@ -1539,8 +1540,8 @@ static noinline int btrfs_ioctl_resize(struct file *file,
 			mod = 1;
 			sizestr++;
 		}
-		new_size = memparse(sizestr, NULL);
-		if (new_size == 0) {
+		new_size = memparse(sizestr, &retptr);
+		if (*retptr != '\0' || new_size == 0) {
 			ret = -EINVAL;
 			goto out_free;
 		}
@@ -3140,8 +3141,9 @@ process_slot:
 							 new_key.offset + datal,
 							 1);
 				if (ret) {
-					btrfs_abort_transaction(trans, root,
-								ret);
+					if (ret != -EINVAL)
+						btrfs_abort_transaction(trans,
+							root, ret);
 					btrfs_end_transaction(trans, root);
 					goto out;
 				}
@@ -3538,6 +3540,11 @@ static long btrfs_ioctl_space_info(struct btrfs_root *root, void __user *arg)
 		up_read(&info->groups_sem);
 	}
 
+	/*
+	 * Global block reserve, exported as a space_info
+	 */
+	slot_count++;
+
 	/* space_slots == 0 means they are asking for a count */
 	if (space_args.space_slots == 0) {
 		space_args.total_spaces = slot_count;
@@ -3594,6 +3601,21 @@ static long btrfs_ioctl_space_info(struct btrfs_root *root, void __user *arg)
 				break;
 		}
 		up_read(&info->groups_sem);
+	}
+
+	/*
+	 * Add global block reserve
+	 */
+	if (slot_count) {
+		struct btrfs_block_rsv *block_rsv = &root->fs_info->global_block_rsv;
+
+		spin_lock(&block_rsv->lock);
+		space.total_bytes = block_rsv->size;
+		space.used_bytes = block_rsv->size - block_rsv->reserved;
+		spin_unlock(&block_rsv->lock);
+		space.flags = BTRFS_SPACE_INFO_GLOBAL_RSV;
+		memcpy(dest, &space, sizeof(space));
+		space_args.total_spaces++;
 	}
 
 	user_dest = (struct btrfs_ioctl_space_info __user *)
@@ -4531,9 +4553,8 @@ static long btrfs_ioctl_set_received_subvol_32(struct file *file,
 	}
 
 	args64 = kmalloc(sizeof(*args64), GFP_NOFS);
-	if (IS_ERR(args64)) {
-		ret = PTR_ERR(args64);
-		args64 = NULL;
+	if (!args64) {
+		ret = -ENOMEM;
 		goto out;
 	}
 

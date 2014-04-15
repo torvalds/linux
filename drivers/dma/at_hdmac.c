@@ -1569,7 +1569,6 @@ static int at_dma_remove(struct platform_device *pdev)
 
 		/* Disable interrupts */
 		atc_disable_chan_irq(atdma, chan->chan_id);
-		tasklet_disable(&atchan->tasklet);
 
 		tasklet_kill(&atchan->tasklet);
 		list_del(&chan->device_node);

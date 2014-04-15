@@ -18,7 +18,6 @@
 #include <sound/pcm_params.h>
 
 #include <linux/platform_data/asoc-s3c.h>
-#include <mach/dma.h>
 
 #include "dma.h"
 #include "spdif.h"
@@ -94,7 +93,7 @@ struct samsung_spdif_info {
 	struct s3c_dma_params	*dma_playback;
 };
 
-static struct s3c2410_dma_client spdif_dma_client_out = {
+static struct s3c_dma_client spdif_dma_client_out = {
 	.name		= "S/PDIF Stereo out",
 };
 

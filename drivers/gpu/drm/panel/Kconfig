@@ -16,4 +16,18 @@ config DRM_PANEL_SIMPLE
 	  that it can be automatically turned off when the panel goes into a
 	  low power state.
 
+config DRM_PANEL_LD9040
+	tristate "LD9040 RGB/SPI panel"
+	depends on DRM && DRM_PANEL
+	depends on OF
+	select SPI
+	select VIDEOMODE_HELPERS
+
+config DRM_PANEL_S6E8AA0
+	tristate "S6E8AA0 DSI video mode panel"
+	depends on DRM && DRM_PANEL
+	depends on OF
+	select DRM_MIPI_DSI
+	select VIDEOMODE_HELPERS
+
 endmenu

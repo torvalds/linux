@@ -14,7 +14,6 @@
 #include <linux/slab.h>
 #include <linux/mtd/mtd.h>
 #include <linux/mtd/partitions.h>
-#include <bcm47xx_nvram.h>
 
 /* 10 parts were found on sflash on Netgear WNDR4500 */
 #define BCM47XXPART_MAX_PARTS		12
@@ -30,6 +29,7 @@
 #define BOARD_DATA_MAGIC2		0xBD0D0BBD
 #define CFE_MAGIC			0x43464531	/* 1EFC */
 #define FACTORY_MAGIC			0x59544346	/* FCTY */
+#define NVRAM_HEADER			0x48534C46	/* FLSH */
 #define POT_MAGIC1			0x54544f50	/* POTT */
 #define POT_MAGIC2			0x504f		/* OP */
 #define ML_MAGIC1			0x39685a42
@@ -91,7 +91,7 @@ static int bcm47xxpart_parse(struct mtd_info *master,
 		if (offset >= 0x2000000)
 			break;
 
-		if (curr_part > BCM47XXPART_MAX_PARTS) {
+		if (curr_part >= BCM47XXPART_MAX_PARTS) {
 			pr_warn("Reached maximum number of partitions, scanning stopped!\n");
 			break;
 		}
@@ -147,6 +147,11 @@ static int bcm47xxpart_parse(struct mtd_info *master,
 
 		/* TRX */
 		if (buf[0x000 / 4] == TRX_MAGIC) {
+			if (BCM47XXPART_MAX_PARTS - curr_part < 4) {
+				pr_warn("Not enough partitions left to register trx, scanning stopped!\n");
+				break;
+			}
+
 			trx = (struct trx_header *)buf;
 
 			trx_part = curr_part;
@@ -212,7 +217,7 @@ static int bcm47xxpart_parse(struct mtd_info *master,
 
 	/* Look for NVRAM at the end of the last block. */
 	for (i = 0; i < ARRAY_SIZE(possible_nvram_sizes); i++) {
-		if (curr_part > BCM47XXPART_MAX_PARTS) {
+		if (curr_part >= BCM47XXPART_MAX_PARTS) {
 			pr_warn("Reached maximum number of partitions, scanning stopped!\n");
 			break;
 		}

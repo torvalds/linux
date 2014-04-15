@@ -146,7 +146,7 @@ ext4_file_dio_write(struct kiocb *iocb, const struct iovec *iov,
 			overwrite = 1;
 	}
 
-	ret = __generic_file_aio_write(iocb, iov, nr_segs, &iocb->ki_pos);
+	ret = __generic_file_aio_write(iocb, iov, nr_segs);
 	mutex_unlock(&inode->i_mutex);
 
 	if (ret > 0) {
@@ -200,6 +200,7 @@ ext4_file_write(struct kiocb *iocb, const struct iovec *iov,
 
 static const struct vm_operations_struct ext4_file_vm_ops = {
 	.fault		= filemap_fault,
+	.map_pages	= filemap_map_pages,
 	.page_mkwrite   = ext4_page_mkwrite,
 	.remap_pages	= generic_file_remap_pages,
 };

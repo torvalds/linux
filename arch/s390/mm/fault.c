@@ -106,21 +106,24 @@ void bust_spinlocks(int yes)
  * Returns the address space associated with the fault.
  * Returns 0 for kernel space and 1 for user space.
  */
-static inline int user_space_fault(unsigned long trans_exc_code)
+static inline int user_space_fault(struct pt_regs *regs)
 {
+	unsigned long trans_exc_code;
+
 	/*
 	 * The lowest two bits of the translation exception
 	 * identification indicate which paging table was used.
 	 */
-	trans_exc_code &= 3;
-	if (trans_exc_code == 2)
-		/* Access via secondary space, set_fs setting decides */
+	trans_exc_code = regs->int_parm_long & 3;
+	if (trans_exc_code == 3) /* home space -> kernel */
+		return 0;
+	if (user_mode(regs))
+		return 1;
+	if (trans_exc_code == 2) /* secondary space -> set_fs */
 		return current->thread.mm_segment.ar4;
-	/*
-	 * Access via primary space or access register is from user space
-	 * and access via home space is from the kernel.
-	 */
-	return trans_exc_code != 3;
+	if (current->flags & PF_VCPU)
+		return 1;
+	return 0;
 }
 
 static inline void report_user_fault(struct pt_regs *regs, long signr)
@@ -172,7 +175,7 @@ static noinline void do_no_context(struct pt_regs *regs)
 	 * terminate things with extreme prejudice.
 	 */
 	address = regs->int_parm_long & __FAIL_ADDR_MASK;
-	if (!user_space_fault(regs->int_parm_long))
+	if (!user_space_fault(regs))
 		printk(KERN_ALERT "Unable to handle kernel pointer dereference"
 		       " at virtual kernel address %p\n", (void *)address);
 	else
@@ -296,7 +299,7 @@ static inline int do_exception(struct pt_regs *regs, int access)
 	 * user context.
 	 */
 	fault = VM_FAULT_BADCONTEXT;
-	if (unlikely(!user_space_fault(trans_exc_code) || in_atomic() || !mm))
+	if (unlikely(!user_space_fault(regs) || in_atomic() || !mm))
 		goto out;
 
 	address = trans_exc_code & __FAIL_ADDR_MASK;
@@ -439,30 +442,6 @@ void __kprobes do_dat_exception(struct pt_regs *regs)
 	fault = do_exception(regs, access);
 	if (unlikely(fault))
 		do_fault_error(regs, fault);
-}
-
-int __handle_fault(unsigned long uaddr, unsigned long pgm_int_code, int write)
-{
-	struct pt_regs regs;
-	int access, fault;
-
-	/* Emulate a uaccess fault from kernel mode. */
-	regs.psw.mask = PSW_KERNEL_BITS | PSW_MASK_DAT | PSW_MASK_MCHECK;
-	if (!irqs_disabled())
-		regs.psw.mask |= PSW_MASK_IO | PSW_MASK_EXT;
-	regs.psw.addr = (unsigned long) __builtin_return_address(0);
-	regs.psw.addr |= PSW_ADDR_AMODE;
-	regs.int_code = pgm_int_code;
-	regs.int_parm_long = (uaddr & PAGE_MASK) | 2;
-	access = write ? VM_WRITE : VM_READ;
-	fault = do_exception(&regs, access);
-	/*
-	 * Since the fault happened in kernel mode while performing a uaccess
-	 * all we need to do now is emulating a fixup in case "fault" is not
-	 * zero.
-	 * For the calling uaccess functions this results always in -EFAULT.
-	 */
-	return fault ? -EFAULT : 0;
 }
 
 #ifdef CONFIG_PFAULT 
@@ -645,7 +624,7 @@ static int __init pfault_irq_init(void)
 {
 	int rc;
 
-	rc = register_external_interrupt(0x2603, pfault_interrupt);
+	rc = register_external_irq(EXT_IRQ_CP_SERVICE, pfault_interrupt);
 	if (rc)
 		goto out_extint;
 	rc = pfault_init() == 0 ? 0 : -EOPNOTSUPP;
@@ -656,7 +635,7 @@ static int __init pfault_irq_init(void)
 	return 0;
 
 out_pfault:
-	unregister_external_interrupt(0x2603, pfault_interrupt);
+	unregister_external_irq(EXT_IRQ_CP_SERVICE, pfault_interrupt);
 out_extint:
 	pfault_disable = 1;
 	return rc;

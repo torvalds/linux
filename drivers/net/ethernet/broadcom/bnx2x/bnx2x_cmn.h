@@ -21,6 +21,7 @@
 #include <linux/pci.h>
 #include <linux/netdevice.h>
 #include <linux/etherdevice.h>
+#include <linux/irq.h>
 
 #include "bnx2x.h"
 #include "bnx2x_sriov.h"

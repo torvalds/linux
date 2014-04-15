@@ -427,10 +427,8 @@ static void igb_ptp_overflow_check(struct work_struct *work)
 void igb_ptp_rx_hang(struct igb_adapter *adapter)
 {
 	struct e1000_hw *hw = &adapter->hw;
-	struct igb_ring *rx_ring;
 	u32 tsyncrxctl = rd32(E1000_TSYNCRXCTL);
 	unsigned long rx_event;
-	int n;
 
 	if (hw->mac.type != e1000_82576)
 		return;
@@ -445,11 +443,8 @@ void igb_ptp_rx_hang(struct igb_adapter *adapter)
 
 	/* Determine the most recent watchdog or rx_timestamp event */
 	rx_event = adapter->last_rx_ptp_check;
-	for (n = 0; n < adapter->num_rx_queues; n++) {
-		rx_ring = adapter->rx_ring[n];
-		if (time_after(rx_ring->last_rx_timestamp, rx_event))
-			rx_event = rx_ring->last_rx_timestamp;
-	}
+	if (time_after(adapter->last_rx_timestamp, rx_event))
+		rx_event = adapter->last_rx_timestamp;
 
 	/* Only need to read the high RXSTMP register to clear the lock */
 	if (time_is_before_jiffies(rx_event + 5 * HZ)) {
@@ -540,6 +535,11 @@ void igb_ptp_rx_rgtstamp(struct igb_q_vector *q_vector,
 	regval |= (u64)rd32(E1000_RXSTMPH) << 32;
 
 	igb_ptp_systim_to_hwtstamp(adapter, skb_hwtstamps(skb), regval);
+
+	/* Update the last_rx_timestamp timer in order to enable watchdog check
+	 * for error case of latched timestamp on a dropped packet.
+	 */
+	adapter->last_rx_timestamp = jiffies;
 }
 
 /**

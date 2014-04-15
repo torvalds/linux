@@ -1220,17 +1220,15 @@ ixgb_tso(struct ixgb_adapter *adapter, struct sk_buff *skb)
 	unsigned int i;
 	u8 ipcss, ipcso, tucss, tucso, hdr_len;
 	u16 ipcse, tucse, mss;
-	int err;
 
 	if (likely(skb_is_gso(skb))) {
 		struct ixgb_buffer *buffer_info;
 		struct iphdr *iph;
+		int err;
 
-		if (skb_header_cloned(skb)) {
-			err = pskb_expand_head(skb, 0, 0, GFP_ATOMIC);
-			if (err)
-				return err;
-		}
+		err = skb_cow_head(skb, 0);
+		if (err < 0)
+			return err;
 
 		hdr_len = skb_transport_offset(skb) + tcp_hdrlen(skb);
 		mss = skb_shinfo(skb)->gso_size;

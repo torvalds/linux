@@ -1459,4 +1459,4 @@ out_sysctl:
 	return error;
 }
 
-__initcall(init_mqueue_fs);
+device_initcall(init_mqueue_fs);

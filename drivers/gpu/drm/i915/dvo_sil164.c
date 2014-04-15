@@ -246,15 +246,15 @@ static void sil164_dump_regs(struct intel_dvo_device *dvo)
 	uint8_t val;
 
 	sil164_readb(dvo, SIL164_FREQ_LO, &val);
-	DRM_LOG_KMS("SIL164_FREQ_LO: 0x%02x\n", val);
+	DRM_DEBUG_KMS("SIL164_FREQ_LO: 0x%02x\n", val);
 	sil164_readb(dvo, SIL164_FREQ_HI, &val);
-	DRM_LOG_KMS("SIL164_FREQ_HI: 0x%02x\n", val);
+	DRM_DEBUG_KMS("SIL164_FREQ_HI: 0x%02x\n", val);
 	sil164_readb(dvo, SIL164_REG8, &val);
-	DRM_LOG_KMS("SIL164_REG8: 0x%02x\n", val);
+	DRM_DEBUG_KMS("SIL164_REG8: 0x%02x\n", val);
 	sil164_readb(dvo, SIL164_REG9, &val);
-	DRM_LOG_KMS("SIL164_REG9: 0x%02x\n", val);
+	DRM_DEBUG_KMS("SIL164_REG9: 0x%02x\n", val);
 	sil164_readb(dvo, SIL164_REGC, &val);
-	DRM_LOG_KMS("SIL164_REGC: 0x%02x\n", val);
+	DRM_DEBUG_KMS("SIL164_REGC: 0x%02x\n", val);
 }
 
 static void sil164_destroy(struct intel_dvo_device *dvo)

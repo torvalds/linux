@@ -1862,7 +1862,7 @@ static void get_scan_count(struct lruvec *lruvec, struct scan_control *sc,
 	struct zone *zone = lruvec_zone(lruvec);
 	unsigned long anon_prio, file_prio;
 	enum scan_balance scan_balance;
-	unsigned long anon, file, free;
+	unsigned long anon, file;
 	bool force_scan = false;
 	unsigned long ap, fp;
 	enum lru_list lru;
@@ -1914,20 +1914,6 @@ static void get_scan_count(struct lruvec *lruvec, struct scan_control *sc,
 		get_lru_size(lruvec, LRU_INACTIVE_ANON);
 	file  = get_lru_size(lruvec, LRU_ACTIVE_FILE) +
 		get_lru_size(lruvec, LRU_INACTIVE_FILE);
-
-	/*
-	 * If it's foreseeable that reclaiming the file cache won't be
-	 * enough to get the zone back into a desirable shape, we have
-	 * to swap.  Better start now and leave the - probably heavily
-	 * thrashing - remaining file pages alone.
-	 */
-	if (global_reclaim(sc)) {
-		free = zone_page_state(zone, NR_FREE_PAGES);
-		if (unlikely(file + free <= high_wmark_pages(zone))) {
-			scan_balance = SCAN_ANON;
-			goto out;
-		}
-	}
 
 	/*
 	 * There is enough inactive page cache, do not reclaim
@@ -2314,15 +2300,18 @@ static bool shrink_zones(struct zonelist *zonelist, struct scan_control *sc)
 	unsigned long lru_pages = 0;
 	bool aborted_reclaim = false;
 	struct reclaim_state *reclaim_state = current->reclaim_state;
+	gfp_t orig_mask;
 	struct shrink_control shrink = {
 		.gfp_mask = sc->gfp_mask,
 	};
+	enum zone_type requested_highidx = gfp_zone(sc->gfp_mask);
 
 	/*
 	 * If the number of buffer_heads in the machine exceeds the maximum
 	 * allowed level, force direct reclaim to scan the highmem zone as
 	 * highmem pages could be pinning lowmem pages storing buffer_heads
 	 */
+	orig_mask = sc->gfp_mask;
 	if (buffer_heads_over_limit)
 		sc->gfp_mask |= __GFP_HIGHMEM;
 
@@ -2356,7 +2345,8 @@ static bool shrink_zones(struct zonelist *zonelist, struct scan_control *sc)
 				 * noticeable problem, like transparent huge
 				 * page allocations.
 				 */
-				if (compaction_ready(zone, sc)) {
+				if ((zonelist_zone_idx(z) <= requested_highidx)
+				    && compaction_ready(zone, sc)) {
 					aborted_reclaim = true;
 					continue;
 				}
@@ -2392,6 +2382,12 @@ static bool shrink_zones(struct zonelist *zonelist, struct scan_control *sc)
 			reclaim_state->reclaimed_slab = 0;
 		}
 	}
+
+	/*
+	 * Restore to original mask to avoid the impact on the caller if we
+	 * promoted it to __GFP_HIGHMEM.
+	 */
+	sc->gfp_mask = orig_mask;
 
 	return aborted_reclaim;
 }

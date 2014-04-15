@@ -41,7 +41,7 @@ config ARCH_HAS_ILOG2_U32
 config ARCH_HAS_ILOG2_U64
 	def_bool n
 
-config NO_IOPORT
+config NO_IOPORT_MAP
 	def_bool n
 
 config HZ
@@ -239,7 +239,7 @@ config XTENSA_PLATFORM_XT2000
 config XTENSA_PLATFORM_S6105
 	bool "S6105"
 	select SERIAL_CONSOLE
-	select NO_IOPORT
+	select NO_IOPORT_MAP
 
 config XTENSA_PLATFORM_XTFPGA
 	bool "XTFPGA"

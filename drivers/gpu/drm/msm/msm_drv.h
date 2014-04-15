@@ -22,6 +22,7 @@
 #include <linux/clk.h>
 #include <linux/cpufreq.h>
 #include <linux/module.h>
+#include <linux/component.h>
 #include <linux/platform_device.h>
 #include <linux/pm.h>
 #include <linux/pm_runtime.h>
@@ -68,6 +69,9 @@ struct msm_file_private {
 struct msm_drm_private {
 
 	struct msm_kms *kms;
+
+	/* subordinate devices, if present: */
+	struct platform_device *hdmi_pdev, *gpu_pdev;
 
 	/* when we have more than one 'msm_gpu' these need to be an array: */
 	struct msm_gpu *gpu;

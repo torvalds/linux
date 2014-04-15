@@ -48,6 +48,7 @@ struct cred;
 struct swap_info_struct;
 struct seq_file;
 struct workqueue_struct;
+struct iov_iter;
 
 extern void __init inode_init(void);
 extern void __init inode_init_early(void);
@@ -125,6 +126,8 @@ typedef void (dio_iodone_t)(struct kiocb *iocb, loff_t offset,
 
 /* File needs atomic accesses to f_pos */
 #define FMODE_ATOMIC_POS	((__force fmode_t)0x8000)
+/* Write access to underlying fs */
+#define FMODE_WRITER		((__force fmode_t)0x10000)
 
 /* File was opened by fanotify and shouldn't generate fanotify events */
 #define FMODE_NONOTIFY		((__force fmode_t)0x1000000)
@@ -293,38 +296,6 @@ struct page;
 struct address_space;
 struct writeback_control;
 
-struct iov_iter {
-	const struct iovec *iov;
-	unsigned long nr_segs;
-	size_t iov_offset;
-	size_t count;
-};
-
-size_t iov_iter_copy_from_user_atomic(struct page *page,
-		struct iov_iter *i, unsigned long offset, size_t bytes);
-size_t iov_iter_copy_from_user(struct page *page,
-		struct iov_iter *i, unsigned long offset, size_t bytes);
-void iov_iter_advance(struct iov_iter *i, size_t bytes);
-int iov_iter_fault_in_readable(struct iov_iter *i, size_t bytes);
-size_t iov_iter_single_seg_count(const struct iov_iter *i);
-
-static inline void iov_iter_init(struct iov_iter *i,
-			const struct iovec *iov, unsigned long nr_segs,
-			size_t count, size_t written)
-{
-	i->iov = iov;
-	i->nr_segs = nr_segs;
-	i->iov_offset = 0;
-	i->count = count + written;
-
-	iov_iter_advance(i, written);
-}
-
-static inline size_t iov_iter_count(struct iov_iter *i)
-{
-	return i->count;
-}
-
 /*
  * "descriptor" for what we're up to with a read.
  * This allows us to use the same read code yet
@@ -383,7 +354,7 @@ struct address_space_operations {
 	int (*migratepage) (struct address_space *,
 			struct page *, struct page *, enum migrate_mode);
 	int (*launder_page) (struct page *);
-	int (*is_partially_uptodate) (struct page *, read_descriptor_t *,
+	int (*is_partially_uptodate) (struct page *, unsigned long,
 					unsigned long);
 	void (*is_dirty_writeback) (struct page *, bool *, bool *);
 	int (*error_remove_page)(struct address_space *, struct page *);
@@ -770,9 +741,6 @@ static inline int ra_has_index(struct file_ra_state *ra, pgoff_t index)
 		index <  ra->start + ra->size);
 }
 
-#define FILE_MNT_WRITE_TAKEN	1
-#define FILE_MNT_WRITE_RELEASED	2
-
 struct file {
 	union {
 		struct llist_node	fu_llist;
@@ -810,9 +778,6 @@ struct file {
 	struct list_head	f_tfile_llink;
 #endif /* #ifdef CONFIG_EPOLL */
 	struct address_space	*f_mapping;
-#ifdef CONFIG_DEBUG_WRITECOUNT
-	unsigned long f_mnt_write_state;
-#endif
 } __attribute__((aligned(4)));	/* lest something weird decides that 2 is OK */
 
 struct file_handle {
@@ -829,49 +794,6 @@ static inline struct file *get_file(struct file *f)
 }
 #define fput_atomic(x)	atomic_long_add_unless(&(x)->f_count, -1, 1)
 #define file_count(x)	atomic_long_read(&(x)->f_count)
-
-#ifdef CONFIG_DEBUG_WRITECOUNT
-static inline void file_take_write(struct file *f)
-{
-	WARN_ON(f->f_mnt_write_state != 0);
-	f->f_mnt_write_state = FILE_MNT_WRITE_TAKEN;
-}
-static inline void file_release_write(struct file *f)
-{
-	f->f_mnt_write_state |= FILE_MNT_WRITE_RELEASED;
-}
-static inline void file_reset_write(struct file *f)
-{
-	f->f_mnt_write_state = 0;
-}
-static inline void file_check_state(struct file *f)
-{
-	/*
-	 * At this point, either both or neither of these bits
-	 * should be set.
-	 */
-	WARN_ON(f->f_mnt_write_state == FILE_MNT_WRITE_TAKEN);
-	WARN_ON(f->f_mnt_write_state == FILE_MNT_WRITE_RELEASED);
-}
-static inline int file_check_writeable(struct file *f)
-{
-	if (f->f_mnt_write_state == FILE_MNT_WRITE_TAKEN)
-		return 0;
-	printk(KERN_WARNING "writeable file with no "
-			    "mnt_want_write()\n");
-	WARN_ON(1);
-	return -EINVAL;
-}
-#else /* !CONFIG_DEBUG_WRITECOUNT */
-static inline void file_take_write(struct file *filp) {}
-static inline void file_release_write(struct file *filp) {}
-static inline void file_reset_write(struct file *filp) {}
-static inline void file_check_state(struct file *filp) {}
-static inline int file_check_writeable(struct file *filp)
-{
-	return 0;
-}
-#endif /* CONFIG_DEBUG_WRITECOUNT */
 
 #define	MAX_NON_LFS	((1UL<<31) - 1)
 
@@ -2481,16 +2403,13 @@ extern int generic_file_mmap(struct file *, struct vm_area_struct *);
 extern int generic_file_readonly_mmap(struct file *, struct vm_area_struct *);
 extern int generic_file_remap_pages(struct vm_area_struct *, unsigned long addr,
 		unsigned long size, pgoff_t pgoff);
-extern int file_read_actor(read_descriptor_t * desc, struct page *page, unsigned long offset, unsigned long size);
 int generic_write_checks(struct file *file, loff_t *pos, size_t *count, int isblk);
 extern ssize_t generic_file_aio_read(struct kiocb *, const struct iovec *, unsigned long, loff_t);
-extern ssize_t __generic_file_aio_write(struct kiocb *, const struct iovec *, unsigned long,
-		loff_t *);
+extern ssize_t __generic_file_aio_write(struct kiocb *, const struct iovec *, unsigned long);
 extern ssize_t generic_file_aio_write(struct kiocb *, const struct iovec *, unsigned long, loff_t);
 extern ssize_t generic_file_direct_write(struct kiocb *, const struct iovec *,
-		unsigned long *, loff_t, loff_t *, size_t, size_t);
-extern ssize_t generic_file_buffered_write(struct kiocb *, const struct iovec *,
-		unsigned long, loff_t, loff_t *, size_t, ssize_t);
+		unsigned long *, loff_t, size_t, size_t);
+extern ssize_t generic_perform_write(struct file *, struct iov_iter *, loff_t);
 extern ssize_t do_sync_read(struct file *filp, char __user *buf, size_t len, loff_t *ppos);
 extern ssize_t do_sync_write(struct file *filp, const char __user *buf, size_t len, loff_t *ppos);
 extern int generic_segment_checks(const struct iovec *iov,
@@ -2582,7 +2501,7 @@ extern const struct file_operations generic_ro_fops;
 
 #define special_file(m) (S_ISCHR(m)||S_ISBLK(m)||S_ISFIFO(m)||S_ISSOCK(m))
 
-extern int vfs_readlink(struct dentry *, char __user *, int, const char *);
+extern int readlink_copy(char __user *, int, const char *);
 extern int page_readlink(struct dentry *, char __user *, int);
 extern void *page_follow_link_light(struct dentry *, struct nameidata *);
 extern void page_put_link(struct dentry *, struct nameidata *, void *);

@@ -71,7 +71,7 @@ static void populate_seccomp_data(struct seccomp_data *sd)
 	struct pt_regs *regs = task_pt_regs(task);
 
 	sd->nr = syscall_get_nr(task, regs);
-	sd->arch = syscall_get_arch(task, regs);
+	sd->arch = syscall_get_arch();
 
 	/* Unroll syscall_get_args to help gcc on arm. */
 	syscall_get_arguments(task, regs, 0, 1, (unsigned long *) &sd->args[0]);
@@ -348,7 +348,7 @@ static void seccomp_send_sigsys(int syscall, int reason)
 	info.si_code = SYS_SECCOMP;
 	info.si_call_addr = (void __user *)KSTK_EIP(current);
 	info.si_errno = reason;
-	info.si_arch = syscall_get_arch(current, task_pt_regs(current));
+	info.si_arch = syscall_get_arch();
 	info.si_syscall = syscall;
 	force_sig_info(SIGSYS, &info, current);
 }

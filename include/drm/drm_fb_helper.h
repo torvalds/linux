@@ -121,5 +121,11 @@ bool drm_fb_helper_initial_config(struct drm_fb_helper *fb_helper, int bpp_sel);
 int drm_fb_helper_single_add_all_connectors(struct drm_fb_helper *fb_helper);
 int drm_fb_helper_debug_enter(struct fb_info *info);
 int drm_fb_helper_debug_leave(struct fb_info *info);
+struct drm_display_mode *
+drm_has_preferred_mode(struct drm_fb_helper_connector *fb_connector,
+			int width, int height);
+struct drm_display_mode *
+drm_pick_cmdline_mode(struct drm_fb_helper_connector *fb_helper_conn,
+		      int width, int height);
 
 #endif

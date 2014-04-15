@@ -1114,20 +1114,18 @@ static int i40e_tso(struct i40e_ring *tx_ring, struct sk_buff *skb,
 		    u64 *cd_type_cmd_tso_mss, u32 *cd_tunneling)
 {
 	u32 cd_cmd, cd_tso_len, cd_mss;
+	struct ipv6hdr *ipv6h;
 	struct tcphdr *tcph;
 	struct iphdr *iph;
 	u32 l4len;
 	int err;
-	struct ipv6hdr *ipv6h;
 
 	if (!skb_is_gso(skb))
 		return 0;
 
-	if (skb_header_cloned(skb)) {
-		err = pskb_expand_head(skb, 0, 0, GFP_ATOMIC);
-		if (err)
-			return err;
-	}
+	err = skb_cow_head(skb, 0);
+	if (err < 0)
+		return err;
 
 	if (protocol == htons(ETH_P_IP)) {
 		iph = skb->encapsulation ? inner_ip_hdr(skb) : ip_hdr(skb);

@@ -344,7 +344,7 @@ static int netvsc_connect_vsp(struct hv_device *device)
 	memset(init_packet, 0, sizeof(struct nvsp_message));
 
 	if (net_device->nvsp_version <= NVSP_PROTOCOL_VERSION_4)
-		ndis_version = 0x00050001;
+		ndis_version = 0x00060001;
 	else
 		ndis_version = 0x0006001e;
 

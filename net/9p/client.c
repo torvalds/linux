@@ -415,9 +415,17 @@ static void p9_free_req(struct p9_client *c, struct p9_req_t *r)
  * req: request received
  *
  */
-void p9_client_cb(struct p9_client *c, struct p9_req_t *req)
+void p9_client_cb(struct p9_client *c, struct p9_req_t *req, int status)
 {
 	p9_debug(P9_DEBUG_MUX, " tag %d\n", req->tc->tag);
+
+	/*
+	 * This barrier is needed to make sure any change made to req before
+	 * the other thread wakes up will indeed be seen by the waiting side.
+	 */
+	smp_wmb();
+	req->status = status;
+
 	wake_up(req->wq);
 	p9_debug(P9_DEBUG_MUX, "wakeup: %d\n", req->tc->tag);
 }
@@ -655,16 +663,13 @@ static int p9_client_flush(struct p9_client *c, struct p9_req_t *oldreq)
 	if (IS_ERR(req))
 		return PTR_ERR(req);
 
-
 	/*
 	 * if we haven't received a response for oldreq,
 	 * remove it from the list
 	 */
-	if (oldreq->status == REQ_STATUS_FLSH) {
-		spin_lock(&c->lock);
-		list_del(&oldreq->req_list);
-		spin_unlock(&c->lock);
-	}
+	if (oldreq->status == REQ_STATUS_SENT)
+		if (c->trans_mod->cancelled)
+			c->trans_mod->cancelled(c, oldreq);
 
 	p9_free_req(c, req);
 	return 0;
@@ -750,6 +755,12 @@ again:
 	/* Wait for the response */
 	err = wait_event_interruptible(*req->wq,
 				       req->status >= REQ_STATUS_RCVD);
+
+	/*
+	 * Make sure our req is coherent with regard to updates in other
+	 * threads - echoes to wmb() in the callback
+	 */
+	smp_rmb();
 
 	if ((err == -ERESTARTSYS) && (c->status == Connected)
 				  && (type == P9_TFLUSH)) {

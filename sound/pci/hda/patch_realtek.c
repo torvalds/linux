@@ -3026,6 +3026,11 @@ static void alc283_init(struct hda_codec *codec)
 	bool hp_pin_sense;
 	int val;
 
+	if (!spec->gen.autocfg.hp_outs) {
+		if (spec->gen.autocfg.line_out_type == AC_JACK_HP_OUT)
+			hp_pin = spec->gen.autocfg.line_out_pins[0];
+	}
+
 	alc283_restore_default_value(codec);
 
 	if (!hp_pin)
@@ -3062,6 +3067,11 @@ static void alc283_shutup(struct hda_codec *codec)
 	bool hp_pin_sense;
 	int val;
 
+	if (!spec->gen.autocfg.hp_outs) {
+		if (spec->gen.autocfg.line_out_type == AC_JACK_HP_OUT)
+			hp_pin = spec->gen.autocfg.line_out_pins[0];
+	}
+
 	if (!hp_pin) {
 		alc269_shutup(codec);
 		return;
@@ -3085,6 +3095,7 @@ static void alc283_shutup(struct hda_codec *codec)
 
 	if (hp_pin_sense)
 		msleep(100);
+	alc_auto_setup_eapd(codec, false);
 	snd_hda_shutup_pins(codec);
 	alc_write_coef_idx(codec, 0x43, 0x9614);
 }
@@ -3361,8 +3372,9 @@ static void alc269_fixup_mic_mute_hook(void *private_data, int enabled)
 
 	if (spec->mute_led_polarity)
 		enabled = !enabled;
-	pinval = AC_PINCTL_IN_EN |
-		(enabled ? AC_PINCTL_VREF_HIZ : AC_PINCTL_VREF_80);
+	pinval = snd_hda_codec_get_pin_target(codec, spec->mute_led_nid);
+	pinval &= ~AC_PINCTL_VREFEN;
+	pinval |= enabled ? AC_PINCTL_VREF_HIZ : AC_PINCTL_VREF_80;
 	if (spec->mute_led_nid)
 		snd_hda_set_pin_ctl_cache(codec, spec->mute_led_nid, pinval);
 }
@@ -3994,6 +4006,10 @@ static void alc283_fixup_chromebook(struct hda_codec *codec,
 		spec->gen.mixer_nid = 0;
 		break;
 	case HDA_FIXUP_ACT_INIT:
+		/* MIC2-VREF control */
+		/* Set to manual mode */
+		val = alc_read_coef_idx(codec, 0x06);
+		alc_write_coef_idx(codec, 0x06, val & ~0x000c);
 		/* Enable Line1 input control by verb */
 		val = alc_read_coef_idx(codec, 0x1a);
 		alc_write_coef_idx(codec, 0x1a, val | (1 << 4));
@@ -4602,6 +4618,7 @@ static const struct snd_pci_quirk alc269_fixup_tbl[] = {
 	SND_PCI_QUIRK(0x1028, 0x0658, "Dell", ALC269_FIXUP_DELL1_MIC_NO_PRESENCE),
 	SND_PCI_QUIRK(0x1028, 0x065f, "Dell", ALC255_FIXUP_DELL1_MIC_NO_PRESENCE),
 	SND_PCI_QUIRK(0x1028, 0x0662, "Dell", ALC255_FIXUP_DELL1_MIC_NO_PRESENCE),
+	SND_PCI_QUIRK(0x1028, 0x0667, "Dell", ALC269_FIXUP_DELL1_MIC_NO_PRESENCE),
 	SND_PCI_QUIRK(0x1028, 0x0668, "Dell", ALC255_FIXUP_DELL2_MIC_NO_PRESENCE),
 	SND_PCI_QUIRK(0x1028, 0x0669, "Dell", ALC255_FIXUP_DELL2_MIC_NO_PRESENCE),
 	SND_PCI_QUIRK(0x1028, 0x15cc, "Dell X5 Precision", ALC269_FIXUP_DELL2_MIC_NO_PRESENCE),
@@ -4768,7 +4785,7 @@ static const struct hda_model_fixup alc269_fixup_models[] = {
 	{.id = ALC269_FIXUP_HP_GPIO_LED, .name = "hp-gpio-led"},
 	{.id = ALC269_FIXUP_DELL1_MIC_NO_PRESENCE, .name = "dell-headset-multi"},
 	{.id = ALC269_FIXUP_DELL2_MIC_NO_PRESENCE, .name = "dell-headset-dock"},
-	{.id = ALC283_FIXUP_CHROME_BOOK, .name = "alc283-chrome"},
+	{.id = ALC283_FIXUP_CHROME_BOOK, .name = "alc283-dac-wcaps"},
 	{.id = ALC283_FIXUP_SENSE_COMBO_JACK, .name = "alc283-sense-combo"},
 	{}
 };

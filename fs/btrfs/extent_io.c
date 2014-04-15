@@ -749,6 +749,7 @@ again:
 		 * our range starts
 		 */
 		node = tree_search(tree, start);
+process_node:
 		if (!node)
 			break;
 
@@ -769,7 +770,10 @@ again:
 		if (start > end)
 			break;
 
-		cond_resched_lock(&tree->lock);
+		if (!cond_resched_lock(&tree->lock)) {
+			node = rb_next(node);
+			goto process_node;
+		}
 	}
 out:
 	spin_unlock(&tree->lock);
@@ -4306,7 +4310,7 @@ static void __free_extent_buffer(struct extent_buffer *eb)
 	kmem_cache_free(extent_buffer_cache, eb);
 }
 
-static int extent_buffer_under_io(struct extent_buffer *eb)
+int extent_buffer_under_io(struct extent_buffer *eb)
 {
 	return (atomic_read(&eb->io_pages) ||
 		test_bit(EXTENT_BUFFER_WRITEBACK, &eb->bflags) ||

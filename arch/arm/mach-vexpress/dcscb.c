@@ -137,11 +137,16 @@ static void dcscb_power_down(void)
 		v7_exit_coherency_flush(all);
 
 		/*
-		 * This is a harmless no-op.  On platforms with a real
-		 * outer cache this might either be needed or not,
-		 * depending on where the outer cache sits.
+		 * A full outer cache flush could be needed at this point
+		 * on platforms with such a cache, depending on where the
+		 * outer cache sits. In some cases the notion of a "last
+		 * cluster standing" would need to be implemented if the
+		 * outer cache is shared across clusters. In any case, when
+		 * the outer cache needs flushing, there is no concurrent
+		 * access to the cache controller to worry about and no
+		 * special locking besides what is already provided by the
+		 * MCPM state machinery is needed.
 		 */
-		outer_flush_all();
 
 		/*
 		 * Disable cluster-level coherency by masking

@@ -66,6 +66,8 @@
 static const struct super_operations btrfs_super_ops;
 static struct file_system_type btrfs_fs_type;
 
+static int btrfs_remount(struct super_block *sb, int *flags, char *data);
+
 static const char *btrfs_decode_error(int errno)
 {
 	char *errstr = "unknown";
@@ -1185,6 +1187,26 @@ static struct dentry *mount_subvol(const char *subvol_name, int flags,
 	mnt = vfs_kern_mount(&btrfs_fs_type, flags, device_name,
 			     newargs);
 	kfree(newargs);
+
+	if (PTR_RET(mnt) == -EBUSY) {
+		if (flags & MS_RDONLY) {
+			mnt = vfs_kern_mount(&btrfs_fs_type, flags & ~MS_RDONLY, device_name,
+					     newargs);
+		} else {
+			int r;
+			mnt = vfs_kern_mount(&btrfs_fs_type, flags | MS_RDONLY, device_name,
+					     newargs);
+			if (IS_ERR(mnt))
+				return ERR_CAST(mnt);
+
+			r = btrfs_remount(mnt->mnt_sb, &flags, NULL);
+			if (r < 0) {
+				/* FIXME: release vfsmount mnt ??*/
+				return ERR_PTR(r);
+			}
+		}
+	}
+
 	if (IS_ERR(mnt))
 		return ERR_CAST(mnt);
 

@@ -33,11 +33,11 @@
 #include "regs-i2s-v2.h"
 #include "s3c2412-i2s.h"
 
-static struct s3c2410_dma_client s3c2412_dma_client_out = {
+static struct s3c_dma_client s3c2412_dma_client_out = {
 	.name		= "I2S PCM Stereo out"
 };
 
-static struct s3c2410_dma_client s3c2412_dma_client_in = {
+static struct s3c_dma_client s3c2412_dma_client_in = {
 	.name		= "I2S PCM Stereo in"
 };
 

@@ -64,7 +64,7 @@ static int evm_find_protected_xattrs(struct dentry *dentry)
 	int error;
 	int count = 0;
 
-	if (!inode->i_op || !inode->i_op->getxattr)
+	if (!inode->i_op->getxattr)
 		return -EOPNOTSUPP;
 
 	for (xattr = evm_config_xattrnames; *xattr != NULL; xattr++) {

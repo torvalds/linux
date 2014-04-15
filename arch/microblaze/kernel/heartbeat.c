@@ -17,7 +17,7 @@
 
 static unsigned int base_addr;
 
-void heartbeat(void)
+void microblaze_heartbeat(void)
 {
 	static unsigned int cnt, period, dist;
 
@@ -42,7 +42,7 @@ void heartbeat(void)
 	}
 }
 
-void setup_heartbeat(void)
+void microblaze_setup_heartbeat(void)
 {
 	struct device_node *gpio = NULL;
 	int *prop;

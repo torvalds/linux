@@ -31,6 +31,12 @@ struct nouveau_therm_trip_point {
 	int hysteresis;
 };
 
+enum nvbios_therm_fan_mode {
+	NVBIOS_THERM_FAN_TRIP = 0,
+	NVBIOS_THERM_FAN_LINEAR = 1,
+	NVBIOS_THERM_FAN_OTHER = 2,
+};
+
 struct nvbios_therm_fan {
 	u16 pwm_freq;
 
@@ -40,6 +46,7 @@ struct nvbios_therm_fan {
 	u16 bump_period;
 	u16 slow_down_period;
 
+	enum nvbios_therm_fan_mode fan_mode;
 	struct nouveau_therm_trip_point trip[NOUVEAU_TEMP_FAN_TRIP_MAX];
 	u8 nr_fan_trip;
 	u8 linear_min_temp;

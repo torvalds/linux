@@ -856,8 +856,10 @@ static int mmc_select_hs200(struct mmc_card *card)
 
 	/* switch to HS200 mode if bus width set successfully */
 	if (!err)
-		err = mmc_switch(card, EXT_CSD_CMD_SET_NORMAL,
-				 EXT_CSD_HS_TIMING, 2, 0);
+		err = __mmc_switch(card, EXT_CSD_CMD_SET_NORMAL,
+				EXT_CSD_HS_TIMING, 2,
+				card->ext_csd.generic_cmd6_time,
+				true, true, true);
 err:
 	return err;
 }
@@ -1074,9 +1076,10 @@ static int mmc_init_card(struct mmc_host *host, u32 ocr,
 		    host->caps2 & MMC_CAP2_HS200)
 			err = mmc_select_hs200(card);
 		else if	(host->caps & MMC_CAP_MMC_HIGHSPEED)
-			err = mmc_switch(card, EXT_CSD_CMD_SET_NORMAL,
-					 EXT_CSD_HS_TIMING, 1,
-					 card->ext_csd.generic_cmd6_time);
+			err = __mmc_switch(card, EXT_CSD_CMD_SET_NORMAL,
+					EXT_CSD_HS_TIMING, 1,
+					card->ext_csd.generic_cmd6_time,
+					true, true, true);
 
 		if (err && err != -EBADMSG)
 			goto free_card;
@@ -1287,8 +1290,7 @@ static int mmc_init_card(struct mmc_host *host, u32 ocr,
 	 * If cache size is higher than 0, this indicates
 	 * the existence of cache and it can be turned on.
 	 */
-	if ((host->caps2 & MMC_CAP2_CACHE_CTRL) &&
-			card->ext_csd.cache_size > 0) {
+	if (card->ext_csd.cache_size > 0) {
 		err = mmc_switch(card, EXT_CSD_CMD_SET_NORMAL,
 				EXT_CSD_CACHE_CTRL, 1,
 				card->ext_csd.generic_cmd6_time);
@@ -1356,10 +1358,8 @@ static int mmc_sleep(struct mmc_host *host)
 {
 	struct mmc_command cmd = {0};
 	struct mmc_card *card = host->card;
+	unsigned int timeout_ms = DIV_ROUND_UP(card->ext_csd.sa_timeout, 10000);
 	int err;
-
-	if (host->caps2 & MMC_CAP2_NO_SLEEP_CMD)
-		return 0;
 
 	err = mmc_deselect_cards(host);
 	if (err)
@@ -1369,7 +1369,19 @@ static int mmc_sleep(struct mmc_host *host)
 	cmd.arg = card->rca << 16;
 	cmd.arg |= 1 << 15;
 
-	cmd.flags = MMC_RSP_R1B | MMC_CMD_AC;
+	/*
+	 * If the max_busy_timeout of the host is specified, validate it against
+	 * the sleep cmd timeout. A failure means we need to prevent the host
+	 * from doing hw busy detection, which is done by converting to a R1
+	 * response instead of a R1B.
+	 */
+	if (host->max_busy_timeout && (timeout_ms > host->max_busy_timeout)) {
+		cmd.flags = MMC_RSP_R1 | MMC_CMD_AC;
+	} else {
+		cmd.flags = MMC_RSP_R1B | MMC_CMD_AC;
+		cmd.busy_timeout = timeout_ms;
+	}
+
 	err = mmc_wait_for_cmd(host, &cmd, 0);
 	if (err)
 		return err;
@@ -1380,8 +1392,8 @@ static int mmc_sleep(struct mmc_host *host)
 	 * SEND_STATUS command to poll the status because that command (and most
 	 * others) is invalid while the card sleeps.
 	 */
-	if (!(host->caps & MMC_CAP_WAIT_WHILE_BUSY))
-		mmc_delay(DIV_ROUND_UP(card->ext_csd.sa_timeout, 10000));
+	if (!cmd.busy_timeout || !(host->caps & MMC_CAP_WAIT_WHILE_BUSY))
+		mmc_delay(timeout_ms);
 
 	return err;
 }
@@ -1404,7 +1416,7 @@ static int mmc_poweroff_notify(struct mmc_card *card, unsigned int notify_type)
 
 	err = __mmc_switch(card, EXT_CSD_CMD_SET_NORMAL,
 			EXT_CSD_POWER_OFF_NOTIFICATION,
-			notify_type, timeout, true, false);
+			notify_type, timeout, true, false, false);
 	if (err)
 		pr_err("%s: Power Off Notification timed out, %u\n",
 		       mmc_hostname(card->host), timeout);
@@ -1484,7 +1496,7 @@ static int _mmc_suspend(struct mmc_host *host, bool is_suspend)
 			goto out;
 	}
 
-	err = mmc_cache_ctrl(host, 0);
+	err = mmc_flush_cache(host->card);
 	if (err)
 		goto out;
 
@@ -1636,16 +1648,6 @@ static int mmc_power_restore(struct mmc_host *host)
 static const struct mmc_bus_ops mmc_ops = {
 	.remove = mmc_remove,
 	.detect = mmc_detect,
-	.suspend = NULL,
-	.resume = NULL,
-	.power_restore = mmc_power_restore,
-	.alive = mmc_alive,
-	.shutdown = mmc_shutdown,
-};
-
-static const struct mmc_bus_ops mmc_ops_unsafe = {
-	.remove = mmc_remove,
-	.detect = mmc_detect,
 	.suspend = mmc_suspend,
 	.resume = mmc_resume,
 	.runtime_suspend = mmc_runtime_suspend,
@@ -1654,17 +1656,6 @@ static const struct mmc_bus_ops mmc_ops_unsafe = {
 	.alive = mmc_alive,
 	.shutdown = mmc_shutdown,
 };
-
-static void mmc_attach_bus_ops(struct mmc_host *host)
-{
-	const struct mmc_bus_ops *bus_ops;
-
-	if (!mmc_card_is_removable(host))
-		bus_ops = &mmc_ops_unsafe;
-	else
-		bus_ops = &mmc_ops;
-	mmc_attach_bus(host, bus_ops);
-}
 
 /*
  * Starting point for MMC card init.
@@ -1685,7 +1676,7 @@ int mmc_attach_mmc(struct mmc_host *host)
 	if (err)
 		return err;
 
-	mmc_attach_bus_ops(host);
+	mmc_attach_bus(host, &mmc_ops);
 	if (host->ocr_avail_mmc)
 		host->ocr_avail = host->ocr_avail_mmc;
 
