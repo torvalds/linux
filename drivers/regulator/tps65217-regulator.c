@@ -257,9 +257,6 @@ static int tps65217_regulator_probe(struct platform_device *pdev)
 				pdev->name);
 			return PTR_ERR(rdev);
 		}
-
-		/* Save regulator for cleanup */
-		tps->rdev[i] = rdev;
 	}
 	return 0;
 }
