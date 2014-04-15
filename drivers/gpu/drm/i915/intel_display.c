@@ -1804,16 +1804,6 @@ static void intel_enable_pipe(struct intel_crtc *crtc)
 
 	I915_WRITE(reg, val | PIPECONF_ENABLE);
 	POSTING_READ(reg);
-
-	/*
-	 * There's no guarantee the pipe will really start running now. It
-	 * depends on the Gen, the output type and the relative order between
-	 * pipe and plane enabling. Avoid waiting on HSW+ since it's not
-	 * necessary.
-	 * TODO: audit the previous gens.
-	 */
-	if (INTEL_INFO(dev)->gen <= 7 && !IS_HASWELL(dev))
-		intel_wait_for_vblank(dev_priv->dev, pipe);
 }
 
 /**
@@ -4369,7 +4359,9 @@ static void valleyview_crtc_enable(struct drm_crtc *crtc)
 
 	intel_update_watermarks(crtc);
 	intel_enable_pipe(intel_crtc);
+	intel_wait_for_vblank(dev_priv->dev, pipe);
 	intel_set_cpu_fifo_underrun_reporting(dev, pipe, true);
+
 	intel_enable_primary_hw_plane(dev_priv, plane, pipe);
 	intel_enable_planes(crtc);
 	intel_crtc_update_cursor(crtc, true);
@@ -4408,7 +4400,9 @@ static void i9xx_crtc_enable(struct drm_crtc *crtc)
 
 	intel_update_watermarks(crtc);
 	intel_enable_pipe(intel_crtc);
+	intel_wait_for_vblank(dev_priv->dev, pipe);
 	intel_set_cpu_fifo_underrun_reporting(dev, pipe, true);
+
 	intel_enable_primary_hw_plane(dev_priv, plane, pipe);
 	intel_enable_planes(crtc);
 	/* The fixup needs to happen before cursor is enabled */
