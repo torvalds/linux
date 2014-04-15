@@ -1333,7 +1333,7 @@ void rtw_update_protection23a(struct rtw_adapter *padapter, u8 *ie, uint ie_len)
 		break;
 	case AUTO_VCS:
 	default:
-		perp = rtw_get_ie23a(ie, _ERPINFO_IE_, &erp_len, ie_len);
+		perp = rtw_get_ie23a(ie, WLAN_EID_ERP_INFO, &erp_len, ie_len);
 		if (perp == NULL) {
 			pxmitpriv->vcs = NONE_VCS;
 		} else {
@@ -2042,7 +2042,8 @@ int xmitframe_enqueue_for_sleeping_sta23a(struct rtw_adapter *padapter, struct x
 
 			/* DBG_8723A("enqueue, sq_len =%d, tim =%x\n", psta->sleepq_len, pstapriv->tim_bitmap); */
 
-			update_beacon23a(padapter, _TIM_IE_, NULL, false);/* tx bc/mc packets after upate bcn */
+			/* tx bc/mc packets after upate bcn */
+			update_beacon23a(padapter, WLAN_EID_TIM, NULL, false);
 
 			/* spin_unlock_bh(&psta->sleep_q.lock); */
 
@@ -2099,7 +2100,8 @@ int xmitframe_enqueue_for_sleeping_sta23a(struct rtw_adapter *padapter, struct x
 
 				if (psta->sleepq_len == 1) {
 					/* upate BCN for TIM IE */
-					update_beacon23a(padapter, _TIM_IE_, NULL, false);
+					update_beacon23a(padapter, WLAN_EID_TIM,
+							 NULL, false);
 				}
 			}
 
@@ -2313,7 +2315,7 @@ void wakeup_sta_to_xmit23a(struct rtw_adapter *padapter, struct sta_info *psta)
 	}
 
 	if (update_mask)
-		update_beacon23a(padapter, _TIM_IE_, NULL, false);
+		update_beacon23a(padapter, WLAN_EID_TIM, NULL, false);
 }
 
 void xmit_delivery_enabled_frames23a(struct rtw_adapter *padapter,
@@ -2378,7 +2380,7 @@ void xmit_delivery_enabled_frames23a(struct rtw_adapter *padapter,
 			pstapriv->tim_bitmap &= ~CHKBIT(psta->aid);
 
 			/* upate BCN for TIM IE */
-			update_beacon23a(padapter, _TIM_IE_, NULL, false);
+			update_beacon23a(padapter, WLAN_EID_TIM, NULL, false);
 		}
 	}
 	spin_unlock_bh(&pxmitpriv->lock);
