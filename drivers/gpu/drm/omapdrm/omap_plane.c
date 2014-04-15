@@ -225,6 +225,11 @@ int omap_plane_mode_set(struct drm_plane *plane,
 		omap_plane->apply_done_cb.arg = arg;
 	}
 
+	if (plane->fb)
+		drm_framebuffer_unreference(plane->fb);
+
+	drm_framebuffer_reference(fb);
+
 	plane->fb = fb;
 	plane->crtc = crtc;
 
@@ -240,11 +245,6 @@ static int omap_plane_update(struct drm_plane *plane,
 {
 	struct omap_plane *omap_plane = to_omap_plane(plane);
 	omap_plane->enabled = true;
-
-	if (plane->fb)
-		drm_framebuffer_unreference(plane->fb);
-
-	drm_framebuffer_reference(fb);
 
 	/* omap_plane_mode_set() takes adjusted src */
 	switch (omap_plane->win.rotation & 0xf) {
