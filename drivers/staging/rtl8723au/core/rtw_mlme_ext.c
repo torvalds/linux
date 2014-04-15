@@ -1304,11 +1304,11 @@ OnAssocReq23a(struct rtw_adapter *padapter, struct recv_frame *precv_frame)
 	if (ieee80211_is_assoc_req(mgmt->frame_control)) {
 		reassoc = 0;
 		pos = mgmt->u.assoc_req.variable;
-		left -= _ASOCREQ_IE_OFFSET_;
+		left -= offsetof(struct ieee80211_mgmt, u.assoc_req.variable);
 	} else { /*  WIFI_REASSOCREQ */
 		reassoc = 1;
 		pos = mgmt->u.reassoc_req.variable;
-		left -= _REASOCREQ_IE_OFFSET_;
+		left -= offsetof(struct ieee80211_mgmt, u.reassoc_req.variable);
 	}
 
 	if (left < 0) {
