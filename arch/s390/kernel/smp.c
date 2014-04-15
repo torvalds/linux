@@ -405,15 +405,6 @@ void smp_send_stop(void)
 }
 
 /*
- * Stop the current cpu.
- */
-void smp_stop_cpu(void)
-{
-	pcpu_sigp_retry(pcpu_devices + smp_processor_id(), SIGP_STOP, 0);
-	for (;;) ;
-}
-
-/*
  * This is the main routine where commands issued by other
  * cpus are handled.
  */
