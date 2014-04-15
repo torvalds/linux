@@ -46,6 +46,25 @@
 #define TOUCH_SAMPLE_PERIOD_US		2000	/* 2ms */
 #define TOUCH_PEN_DETECT_DEBOUNCE_US	200
 
+/**
+ * struct at91_adc_reg_desc - Various informations relative to registers
+ * @channel_base:	Base offset for the channel data registers
+ * @drdy_mask:		Mask of the DRDY field in the relevant registers
+			(Interruptions registers mostly)
+ * @status_register:	Offset of the Interrupt Status Register
+ * @trigger_register:	Offset of the Trigger setup register
+ * @mr_prescal_mask:	Mask of the PRESCAL field in the adc MR register
+ * @mr_startup_mask:	Mask of the STARTUP field in the adc MR register
+ */
+struct at91_adc_reg_desc {
+	u8	channel_base;
+	u32	drdy_mask;
+	u8	status_register;
+	u8	trigger_register;
+	u32	mr_prescal_mask;
+	u32	mr_startup_mask;
+};
+
 struct at91_adc_caps {
 	bool	has_ts;		/* Support touch screen */
 	bool	has_tsmr;	/* only at91sam9x5, sama5d3 have TSMR reg */
