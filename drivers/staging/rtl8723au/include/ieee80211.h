@@ -382,9 +382,6 @@ join_res:
 #define IEEE_G            (1<<2)
 #define IEEE_MODE_MASK    (IEEE_A|IEEE_B|IEEE_G)
 
-/* Baron move to ieee80211.c */
-int ieee80211_is_empty_essid23a(const char *essid, int essid_len);
-
 enum _PUBLIC_ACTION{
 	ACT_PUBLIC_BSSCOEXIST = 0, /*  20/40 BSS Coexistence */
 	ACT_PUBLIC_DSE_ENABLE = 1,
