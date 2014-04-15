@@ -2882,7 +2882,7 @@ ssize_t cifs_user_readv(struct kiocb *iocb, const struct iovec *iov,
 					    cifs_uncached_readv_complete);
 		if (!rdata) {
 			rc = -ENOMEM;
-			goto error;
+			break;
 		}
 
 		rc = cifs_read_allocate_pages(rdata, npages);
