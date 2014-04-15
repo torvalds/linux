@@ -448,7 +448,10 @@ static int rga2_mmu_info_BitBlt_mode(struct rga2_reg *reg, struct rga2_req *req)
         }
 
         /* Cal out the needed mem size */
-        AllSize = ((Src0MemSize+3)&(~3)) + ((Src1MemSize+3)&(~3)) + ((DstMemSize+3)&(~3));
+        Src0MemSize = (Src0MemSize+15)&(~15);
+        Src1MemSize = (Src1MemSize+15)&(~15);
+        DstMemSize  = (DstMemSize+15)&(~15);
+        AllSize = Src0MemSize + Src1MemSize + DstMemSize;
 
         pages = kzalloc((AllSize)* sizeof(struct page *), GFP_KERNEL);
         if(pages == NULL) {
@@ -486,8 +489,6 @@ static int rga2_mmu_info_BitBlt_mode(struct rga2_reg *reg, struct rga2_req *req)
             req->src.v_addr = (req->src.v_addr & (~PAGE_MASK)) | (v_size << PAGE_SHIFT);
         }
 
-        Src0MemSize = (Src0MemSize + 3) & (~3);
-
         if(Src1MemSize) {
             ret = rga2_MapUserMemory(&pages[0], MMU_Base + Src0MemSize, Src1Start, Src1MemSize);
             if (ret < 0) {
@@ -498,10 +499,8 @@ static int rga2_mmu_info_BitBlt_mode(struct rga2_reg *reg, struct rga2_req *req)
 
             /* change the buf address in req struct */
             req->mmu_info.src1_base_addr = ((uint32_t)(MMU_Base_phys + Src0MemSize));
-            req->src1.yrgb_addr = (req->src.yrgb_addr & (~PAGE_MASK)) | (Src1MemSize << PAGE_SHIFT);
+            req->src1.yrgb_addr = (req->src.yrgb_addr & (~PAGE_MASK));
         }
-
-        Src1MemSize = (Src1MemSize + 3) & (~3);
 
         if(DstMemSize) {
             ret = rga2_MapUserMemory(&pages[0], MMU_Base + Src0MemSize + Src1MemSize, DstStart, DstMemSize);
@@ -513,11 +512,11 @@ static int rga2_mmu_info_BitBlt_mode(struct rga2_reg *reg, struct rga2_req *req)
 
             /* change the buf address in req struct */
             req->mmu_info.dst_base_addr  = ((uint32_t)(MMU_Base_phys + Src0MemSize + Src1MemSize));
-            req->dst.yrgb_addr = (req->dst.yrgb_addr & (~PAGE_MASK)) | ((Src0MemSize + Src1MemSize) << PAGE_SHIFT);
+            req->dst.yrgb_addr = (req->dst.yrgb_addr & (~PAGE_MASK));
             uv_size = (req->dst.uv_addr - (DstStart << PAGE_SHIFT)) >> PAGE_SHIFT;
             v_size = (req->dst.v_addr - (DstStart << PAGE_SHIFT)) >> PAGE_SHIFT;
-            req->dst.uv_addr = (req->dst.uv_addr & (~PAGE_MASK)) | ((Src0MemSize + Src1MemSize + uv_size) << PAGE_SHIFT);
-            req->dst.v_addr = (req->dst.v_addr & (~PAGE_MASK)) | ((Src0MemSize + Src1MemSize + v_size) << PAGE_SHIFT);
+            req->dst.uv_addr = (req->dst.uv_addr & (~PAGE_MASK)) | ((uv_size) << PAGE_SHIFT);
+            req->dst.v_addr = (req->dst.v_addr & (~PAGE_MASK)) | ((v_size) << PAGE_SHIFT);
         }
 
         /* flush data to DDR */

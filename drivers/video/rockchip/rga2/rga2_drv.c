@@ -264,6 +264,7 @@ static void rga2_power_on(void)
 		return;
 
     clk_prepare_enable(rga2_drvdata->rga2);
+    clk_prepare_enable(rga2_drvdata->pd_rga2);
 	clk_prepare_enable(rga2_drvdata->aclk_rga2);
 	clk_prepare_enable(rga2_drvdata->hclk_rga2);
 	//clk_enable(rga2_drvdata->pd_rga2);
@@ -290,6 +291,7 @@ static void rga2_power_off(void)
 
 	//clk_disable(rga2_drvdata->pd_rga2);
     clk_disable_unprepare(rga2_drvdata->rga2);
+    clk_disable_unprepare(rga2_drvdata->pd_rga2);
 	clk_disable_unprepare(rga2_drvdata->aclk_rga2);
 	clk_disable_unprepare(rga2_drvdata->hclk_rga2);
 	wake_unlock(&rga2_drvdata->wake_lock);
@@ -1083,6 +1085,7 @@ static int rga2_drv_probe(struct platform_device *pdev)
 
 	//data->pd_rga2 = clk_get(NULL, "pd_rga");
     data->rga2 = devm_clk_get(&pdev->dev, "clk_rga");
+    data->pd_rga2 = devm_clk_get(&pdev->dev, "pd_rga");
 	data->aclk_rga2 = devm_clk_get(&pdev->dev, "aclk_rga");
     data->hclk_rga2 = devm_clk_get(&pdev->dev, "hclk_rga");
 
