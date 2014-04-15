@@ -1023,15 +1023,14 @@ auth_fail:
 unsigned int OnAuth23aClient23a(struct rtw_adapter *padapter,
 				struct recv_frame *precv_frame)
 {
-	unsigned int	seq, len, status, algthm, offset;
-	unsigned char	*p;
-	unsigned int	go2asoc = 0;
-	struct mlme_ext_priv	*pmlmeext = &padapter->mlmeextpriv;
+	unsigned int seq, status, algthm, offset;
+	unsigned int go2asoc = 0;
+	struct mlme_ext_priv *pmlmeext = &padapter->mlmeextpriv;
 	struct mlme_ext_info *pmlmeinfo = &pmlmeext->mlmext_info;
 	struct sk_buff *skb = precv_frame->pkt;
 	struct ieee80211_hdr *hdr = (struct ieee80211_hdr *) skb->data;
-	u8 *pframe = skb->data;
-	uint pkt_len = skb->len;
+	const u8 *p, *pframe = skb->data;
+	int pkt_len = skb->len;
 
 	DBG_8723A("%s\n", __func__);
 
@@ -1045,15 +1044,17 @@ unsigned int OnAuth23aClient23a(struct rtw_adapter *padapter,
 
 	offset = ieee80211_has_protected(hdr->frame_control) ? 4: 0;
 
-	algthm	= le16_to_cpu(*(unsigned short *)((unsigned long)pframe + sizeof(struct ieee80211_hdr_3addr) + offset));
-	seq	= le16_to_cpu(*(unsigned short *)((unsigned long)pframe + sizeof(struct ieee80211_hdr_3addr) + offset + 2));
-	status	= le16_to_cpu(*(unsigned short *)((unsigned long)pframe + sizeof(struct ieee80211_hdr_3addr) + offset + 4));
+	pframe += sizeof(struct ieee80211_hdr_3addr);
+	pkt_len -= sizeof(struct ieee80211_hdr_3addr);
 
-	if (status != 0)
-	{
+	algthm = le16_to_cpu(*(u16 *)(pframe + offset));
+	seq = le16_to_cpu(*(u16 *)(pframe + offset + 2));
+	status = le16_to_cpu(*(u16 *)(pframe + offset + 4));
+
+	if (status) {
 		DBG_8723A("clnt auth fail, status: %d\n", status);
-		if (status == 13)/*  pmlmeinfo->auth_algo == dot11AuthAlgrthm_Auto) */
-		{
+		/*  pmlmeinfo->auth_algo == dot11AuthAlgrthm_Auto) */
+		if (status == 13) {
 			if (pmlmeinfo->auth_algo == dot11AuthAlgrthm_Shared)
 				pmlmeinfo->auth_algo = dot11AuthAlgrthm_Open;
 			else
@@ -1065,53 +1066,41 @@ unsigned int OnAuth23aClient23a(struct rtw_adapter *padapter,
 		goto authclnt_fail;
 	}
 
-	if (seq == 2)
-	{
-		if (pmlmeinfo->auth_algo == dot11AuthAlgrthm_Shared)
-		{
-			 /*  legendary shared system */
-			p = rtw_get_ie23a(pframe + sizeof(struct ieee80211_hdr_3addr) + _AUTH_IE_OFFSET_, WLAN_EID_CHALLENGE, (int *)&len,
-				pkt_len - sizeof(struct ieee80211_hdr_3addr) - _AUTH_IE_OFFSET_);
+	if (seq == 2) {
+		if (pmlmeinfo->auth_algo == dot11AuthAlgrthm_Shared) {
+			/*  legendary shared system */
+			p = cfg80211_find_ie(WLAN_EID_CHALLENGE,
+					     pframe + _AUTH_IE_OFFSET_,
+					     pkt_len - _AUTH_IE_OFFSET_);
 
-			if (p == NULL)
-			{
+			if (!p) {
 				/* DBG_8723A("marc: no challenge text?\n"); */
 				goto authclnt_fail;
 			}
 
-			memcpy((void *)(pmlmeinfo->chg_txt), (void *)(p + 2), len);
+			memcpy((void *)(pmlmeinfo->chg_txt), p + 2, p[1]);
 			pmlmeinfo->auth_seq = 3;
 			issue_auth23a(padapter, NULL, 0);
 			set_link_timer(pmlmeext, REAUTH_TO);
 
 			return _SUCCESS;
-		}
-		else
-		{
+		} else {
 			/*  open system */
 			go2asoc = 1;
 		}
-	}
-	else if (seq == 4)
-	{
+	} else if (seq == 4) {
 		if (pmlmeinfo->auth_algo == dot11AuthAlgrthm_Shared)
-		{
 			go2asoc = 1;
-		}
 		else
-		{
 			goto authclnt_fail;
-		}
-	}
-	else
-	{
+	} else {
 		/*  this is also illegal */
-		/* DBG_8723A("marc: clnt auth failed due to illegal seq =%x\n", seq); */
+		/* DBG_8723A("marc: clnt auth failed due to illegal seq =%x\n",
+		   seq); */
 		goto authclnt_fail;
 	}
 
-	if (go2asoc)
-	{
+	if (go2asoc) {
 		DBG_8723A_LEVEL(_drv_always_, "auth success, start assoc\n");
 		start_clnt_assoc23a(padapter);
 		return _SUCCESS;
