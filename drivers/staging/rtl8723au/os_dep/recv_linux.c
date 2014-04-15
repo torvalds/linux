@@ -204,18 +204,6 @@ _recv_indicatepkt_drop:
 	 return _FAIL;
 }
 
-void rtw_os_read_port23a(struct rtw_adapter *padapter, struct recv_buf *precvbuf)
-{
-	struct recv_priv *precvpriv = &padapter->recvpriv;
-
-	/* free skb in recv_buf */
-	dev_kfree_skb_any(precvbuf->pskb);
-
-	precvbuf->pskb = NULL;
-
-	rtw_read_port(padapter, precvpriv->ff_hwaddr, 0, precvbuf);
-}
-
 void rtw_init_recv_timer23a(struct recv_reorder_ctrl *preorder_ctrl)
 {
 	setup_timer(&preorder_ctrl->reordering_ctrl_timer,
