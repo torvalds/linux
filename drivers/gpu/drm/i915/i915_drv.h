@@ -470,6 +470,7 @@ struct drm_i915_display_funcs {
 	int (*queue_flip)(struct drm_device *dev, struct drm_crtc *crtc,
 			  struct drm_framebuffer *fb,
 			  struct drm_i915_gem_object *obj,
+			  struct intel_ring_buffer *ring,
 			  uint32_t flags);
 	void (*update_primary_plane)(struct drm_crtc *crtc,
 				     struct drm_framebuffer *fb,
