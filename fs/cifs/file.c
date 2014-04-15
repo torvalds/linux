@@ -2599,7 +2599,7 @@ cifs_writev(struct kiocb *iocb, const struct iovec *iov,
 			ssize_t err;
 
 			err = generic_write_sync(file, iocb->ki_pos - rc, rc);
-			if (rc < 0)
+			if (err < 0)
 				rc = err;
 		}
 	} else {
