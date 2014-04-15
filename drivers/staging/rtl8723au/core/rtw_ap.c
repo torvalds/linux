@@ -646,11 +646,10 @@ static void update_hw_ht_param(struct rtw_adapter *padapter)
 
 static void start_bss_network(struct rtw_adapter *padapter, u8 *pbuf)
 {
-	u8 *p;
+	const u8 *p;
 	u8 val8, cur_channel, cur_bwmode, cur_ch_offset;
 	u16 bcn_interval;
 	u32 acparm;
-	int ie_len;
 	struct registry_priv *pregpriv = &padapter->registrypriv;
 	struct mlme_priv *pmlmepriv = &padapter->mlmepriv;
 	struct security_priv* psecuritypriv = &padapter->securitypriv;
@@ -727,18 +726,21 @@ static void start_bss_network(struct rtw_adapter *padapter, u8 *pbuf)
 						 DYNAMIC_ALL_FUNC_ENABLE);
 	}
 	/* set channel, bwmode */
-	p = rtw_get_ie23a((pnetwork->IEs + sizeof(struct ndis_802_11_fixed_ies)),
-			  WLAN_EID_HT_OPERATION, &ie_len, (pnetwork->IELength -
-			  sizeof(struct ndis_802_11_fixed_ies)));
-	if (p && ie_len) {
-		pht_info = (struct HT_info_element *)(p+2);
+	p = cfg80211_find_ie(WLAN_EID_HT_OPERATION,
+			     pnetwork->IEs +
+			     sizeof(struct ndis_802_11_fixed_ies),
+			     pnetwork->IELength -
+			     sizeof(struct ndis_802_11_fixed_ies));
+	if (p && p[1]) {
+		pht_info = (struct HT_info_element *)(p + 2);
 
-		if ((pregpriv->cbw40_enable) &&	(pht_info->infos[0] & BIT(2))) {
+		if (pregpriv->cbw40_enable && pht_info->infos[0] & BIT(2)) {
 			/* switch to the 40M Hz mode */
 			cur_bwmode = HT_CHANNEL_WIDTH_40;
 			switch (pht_info->infos[0] & 0x3) {
 			case 1:
-				/* pmlmeext->cur_ch_offset = HAL_PRIME_CHNL_OFFSET_LOWER; */
+				/* pmlmeext->cur_ch_offset =
+				   HAL_PRIME_CHNL_OFFSET_LOWER; */
 				cur_ch_offset = HAL_PRIME_CHNL_OFFSET_LOWER;
 				break;
 			case 3:
