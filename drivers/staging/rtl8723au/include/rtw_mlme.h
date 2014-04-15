@@ -488,8 +488,6 @@ int rtw_is_same_ibss23a(struct rtw_adapter *adapter,
 		     struct wlan_network *pnetwork);
 int is_same_network23a(struct wlan_bssid_ex *src, struct wlan_bssid_ex *dst);
 
-void _rtw23a_roaming(struct rtw_adapter *adapter,
-		  struct wlan_network *tgt_network);
 void rtw23a_roaming(struct rtw_adapter *adapter,
 		 struct wlan_network *tgt_network);
 void rtw_set_roaming(struct rtw_adapter *adapter, u8 to_roaming);

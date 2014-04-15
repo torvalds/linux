@@ -271,6 +271,61 @@ void rtw_generate_random_ibss23a(u8* pibss)
 	return;
 }
 
+static void _rtw_roaming(struct rtw_adapter *padapter,
+			 struct wlan_network *tgt_network)
+{
+	struct mlme_priv *pmlmepriv = &padapter->mlmepriv;
+	struct wlan_network *pnetwork;
+	int do_join_r;
+
+	if (tgt_network)
+		pnetwork = tgt_network;
+	else
+		pnetwork = &pmlmepriv->cur_network;
+
+	if (padapter->mlmepriv.to_roaming > 0) {
+		DBG_8723A("roaming from %s("MAC_FMT"), length:%d\n",
+			  pnetwork->network.Ssid.ssid,
+			  MAC_ARG(pnetwork->network.MacAddress),
+			  pnetwork->network.Ssid.ssid_len);
+		memcpy(&pmlmepriv->assoc_ssid, &pnetwork->network.Ssid,
+		       sizeof(struct cfg80211_ssid));
+
+		pmlmepriv->assoc_by_bssid = false;
+
+		while (1) {
+			do_join_r = rtw_do_join23a(padapter);
+			if (do_join_r == _SUCCESS)
+				break;
+			else {
+				DBG_8723A("roaming do_join return %d\n",
+					  do_join_r);
+				pmlmepriv->to_roaming--;
+
+				if (padapter->mlmepriv.to_roaming > 0)
+					continue;
+				else {
+					DBG_8723A("%s(%d) -to roaming fail, "
+						  "indicate_disconnect\n",
+						  __func__, __LINE__);
+					rtw_indicate_disconnect23a(padapter);
+					break;
+				}
+			}
+		}
+	}
+}
+
+void rtw23a_roaming(struct rtw_adapter *padapter,
+		    struct wlan_network *tgt_network)
+{
+	struct mlme_priv *pmlmepriv = &padapter->mlmepriv;
+
+	spin_lock_bh(&pmlmepriv->lock);
+	_rtw_roaming(padapter, tgt_network);
+	spin_unlock_bh(&pmlmepriv->lock);
+}
+
 u8 *rtw_get_capability23a_from_ie(u8 *ie)
 {
 	return ie + 8 + 2;
@@ -1475,7 +1530,7 @@ void rtw_stadel_event_callback23a(struct rtw_adapter *adapter, u8 *pbuf)
 		}
 		spin_unlock_bh(&pmlmepriv->scanned_queue.lock);
 
-		_rtw23a_roaming(adapter, tgt_network);
+		_rtw_roaming(adapter, tgt_network);
 	}
 
 	if (check_fwstate(pmlmepriv, WIFI_ADHOC_MASTER_STATE) ||
@@ -2462,60 +2517,6 @@ inline void rtw_set_roaming(struct rtw_adapter *adapter, u8 to_roaming)
 	if (to_roaming == 0)
 		adapter->mlmepriv.to_join = false;
 	adapter->mlmepriv.to_roaming = to_roaming;
-}
-
-void rtw23a_roaming(struct rtw_adapter *padapter,
-		    struct wlan_network *tgt_network)
-{
-	struct mlme_priv *pmlmepriv = &padapter->mlmepriv;
-
-	spin_lock_bh(&pmlmepriv->lock);
-	_rtw23a_roaming(padapter, tgt_network);
-	spin_unlock_bh(&pmlmepriv->lock);
-}
-void _rtw23a_roaming(struct rtw_adapter *padapter,
-		     struct wlan_network *tgt_network)
-{
-	struct mlme_priv *pmlmepriv = &padapter->mlmepriv;
-	struct wlan_network *pnetwork;
-	int do_join_r;
-
-	if (tgt_network)
-		pnetwork = tgt_network;
-	else
-		pnetwork = &pmlmepriv->cur_network;
-
-	if (padapter->mlmepriv.to_roaming > 0) {
-		DBG_8723A("roaming from %s("MAC_FMT"), length:%d\n",
-			  pnetwork->network.Ssid.ssid,
-			  MAC_ARG(pnetwork->network.MacAddress),
-			  pnetwork->network.Ssid.ssid_len);
-		memcpy(&pmlmepriv->assoc_ssid, &pnetwork->network.Ssid,
-		       sizeof(struct cfg80211_ssid));
-
-		pmlmepriv->assoc_by_bssid = false;
-
-		while (1) {
-			do_join_r = rtw_do_join23a(padapter);
-			if (do_join_r == _SUCCESS)
-				break;
-			else {
-				DBG_8723A("roaming do_join return %d\n",
-					  do_join_r);
-				pmlmepriv->to_roaming--;
-
-				if (padapter->mlmepriv.to_roaming > 0)
-					continue;
-				else {
-					DBG_8723A("%s(%d) -to roaming fail, "
-						  "indicate_disconnect\n",
-						  __func__, __LINE__);
-					rtw_indicate_disconnect23a(padapter);
-					break;
-				}
-			}
-		}
-	}
 }
 
 int rtw_linked_check(struct rtw_adapter *padapter)
