@@ -215,10 +215,6 @@ enum hardware_type {
 
 #define GET_EEPROM_EFUSE_PRIV(adapter) (&adapter->eeprompriv)
 
-extern int rtw_ht_enable23A;
-extern int rtw_cbw40_enable23A;
-extern int rtw_ampdu_enable23A;/* for enable tx_ampdu */
-
 void rtw_hal_def_value_init23a(struct rtw_adapter *padapter);
 int pm_netdev_open23a(struct net_device *pnetdev, u8 bnormal);
 int rtw_resume_process23a(struct rtw_adapter *padapter);

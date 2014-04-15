@@ -65,10 +65,10 @@ static int rtw_acm_method;/*  0:By SW 1:By HW. */
 static int rtw_wmm_enable = 1;/*  default is set to enable the wmm. */
 static int rtw_uapsd_enable;
 
-int rtw_ht_enable23A = 1;
+static int rtw_ht_enable23A = 1;
 /* 0 :diable, bit(0): enable 2.4g, bit(1): enable 5g */
-int rtw_cbw40_enable23A = 3;
-int rtw_ampdu_enable23A = 1;/* for enable tx_ampdu */
+static int rtw_cbw40_enable23A = 3;
+static int rtw_ampdu_enable23A = 1;/* for enable tx_ampdu */
 /*  0: disable, bit(0):enable 2.4g, bit(1):enable 5g, default is set to enable
  * 2.4GHZ for IOT issue with bufflao's AP at 5GHZ
  */
