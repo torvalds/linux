@@ -1031,74 +1031,20 @@ static void blk_mq_hctx_notify(void *data, unsigned long action,
 	blk_mq_put_ctx(ctx);
 }
 
-static int blk_mq_init_hw_commands(struct blk_mq_hw_ctx *hctx,
-				   int (*init)(void *, struct blk_mq_hw_ctx *,
-					struct request *, unsigned int),
-				   void *data)
-{
-	unsigned int i;
-	int ret = 0;
-
-	for (i = 0; i < hctx->queue_depth; i++) {
-		struct request *rq = hctx->rqs[i];
-
-		ret = init(data, hctx, rq, i);
-		if (ret)
-			break;
-	}
-
-	return ret;
-}
-
-int blk_mq_init_commands(struct request_queue *q,
-			 int (*init)(void *, struct blk_mq_hw_ctx *,
-					struct request *, unsigned int),
-			 void *data)
-{
-	struct blk_mq_hw_ctx *hctx;
-	unsigned int i;
-	int ret = 0;
-
-	queue_for_each_hw_ctx(q, hctx, i) {
-		ret = blk_mq_init_hw_commands(hctx, init, data);
-		if (ret)
-			break;
-	}
-
-	return ret;
-}
-EXPORT_SYMBOL(blk_mq_init_commands);
-
-static void blk_mq_free_hw_commands(struct blk_mq_hw_ctx *hctx,
-				    void (*free)(void *, struct blk_mq_hw_ctx *,
-					struct request *, unsigned int),
-				    void *data)
-{
-	unsigned int i;
-
-	for (i = 0; i < hctx->queue_depth; i++) {
-		struct request *rq = hctx->rqs[i];
-
-		free(data, hctx, rq, i);
-	}
-}
-
-void blk_mq_free_commands(struct request_queue *q,
-			  void (*free)(void *, struct blk_mq_hw_ctx *,
-					struct request *, unsigned int),
-			  void *data)
-{
-	struct blk_mq_hw_ctx *hctx;
-	unsigned int i;
-
-	queue_for_each_hw_ctx(q, hctx, i)
-		blk_mq_free_hw_commands(hctx, free, data);
-}
-EXPORT_SYMBOL(blk_mq_free_commands);
-
-static void blk_mq_free_rq_map(struct blk_mq_hw_ctx *hctx)
+static void blk_mq_free_rq_map(struct blk_mq_hw_ctx *hctx, void *driver_data)
 {
 	struct page *page;
+
+	if (hctx->rqs && hctx->queue->mq_ops->exit_request) {
+		int i;
+
+		for (i = 0; i < hctx->queue_depth; i++) {
+			if (!hctx->rqs[i])
+				continue;
+			hctx->queue->mq_ops->exit_request(driver_data, hctx,
+							  hctx->rqs[i], i);
+		}
+	}
 
 	while (!list_empty(&hctx->page_list)) {
 		page = list_first_entry(&hctx->page_list, struct page, lru);
@@ -1123,10 +1069,12 @@ static size_t order_to_size(unsigned int order)
 }
 
 static int blk_mq_init_rq_map(struct blk_mq_hw_ctx *hctx,
-			      unsigned int reserved_tags, int node)
+		struct blk_mq_reg *reg, void *driver_data, int node)
 {
+	unsigned int reserved_tags = reg->reserved_tags;
 	unsigned int i, j, entries_per_page, max_order = 4;
 	size_t rq_size, left;
+	int error;
 
 	INIT_LIST_HEAD(&hctx->page_list);
 
@@ -1175,14 +1123,23 @@ static int blk_mq_init_rq_map(struct blk_mq_hw_ctx *hctx,
 		for (j = 0; j < to_do; j++) {
 			hctx->rqs[i] = p;
 			blk_rq_init(hctx->queue, hctx->rqs[i]);
+			if (reg->ops->init_request) {
+				error = reg->ops->init_request(driver_data,
+						hctx, hctx->rqs[i], i);
+				if (error)
+					goto err_rq_map;
+			}
+
 			p += rq_size;
 			i++;
 		}
 	}
 
-	if (i < (reserved_tags + BLK_MQ_TAG_MIN))
+	if (i < (reserved_tags + BLK_MQ_TAG_MIN)) {
+		error = -ENOMEM;
 		goto err_rq_map;
-	else if (i != hctx->queue_depth) {
+	}
+	if (i != hctx->queue_depth) {
 		hctx->queue_depth = i;
 		pr_warn("%s: queue depth set to %u because of low memory\n",
 					__func__, i);
@@ -1190,12 +1147,14 @@ static int blk_mq_init_rq_map(struct blk_mq_hw_ctx *hctx,
 
 	hctx->tags = blk_mq_init_tags(hctx->queue_depth, reserved_tags, node);
 	if (!hctx->tags) {
-err_rq_map:
-		blk_mq_free_rq_map(hctx);
-		return -ENOMEM;
+		error = -ENOMEM;
+		goto err_rq_map;
 	}
 
 	return 0;
+err_rq_map:
+	blk_mq_free_rq_map(hctx, driver_data);
+	return error;
 }
 
 static int blk_mq_init_hw_queues(struct request_queue *q,
@@ -1228,7 +1187,7 @@ static int blk_mq_init_hw_queues(struct request_queue *q,
 						blk_mq_hctx_notify, hctx);
 		blk_mq_register_cpu_notifier(&hctx->cpu_notifier);
 
-		if (blk_mq_init_rq_map(hctx, reg->reserved_tags, node))
+		if (blk_mq_init_rq_map(hctx, reg, driver_data, node))
 			break;
 
 		/*
@@ -1268,7 +1227,7 @@ static int blk_mq_init_hw_queues(struct request_queue *q,
 			reg->ops->exit_hctx(hctx, j);
 
 		blk_mq_unregister_cpu_notifier(&hctx->cpu_notifier);
-		blk_mq_free_rq_map(hctx);
+		blk_mq_free_rq_map(hctx, driver_data);
 		kfree(hctx->ctxs);
 	}
 
@@ -1455,7 +1414,7 @@ void blk_mq_free_queue(struct request_queue *q)
 	queue_for_each_hw_ctx(q, hctx, i) {
 		kfree(hctx->ctx_map);
 		kfree(hctx->ctxs);
-		blk_mq_free_rq_map(hctx);
+		blk_mq_free_rq_map(hctx, q->queuedata);
 		blk_mq_unregister_cpu_notifier(&hctx->cpu_notifier);
 		if (q->mq_ops->exit_hctx)
 			q->mq_ops->exit_hctx(hctx, i);

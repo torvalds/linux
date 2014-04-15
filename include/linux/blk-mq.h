@@ -67,6 +67,10 @@ typedef struct blk_mq_hw_ctx *(alloc_hctx_fn)(struct blk_mq_reg *,unsigned int);
 typedef void (free_hctx_fn)(struct blk_mq_hw_ctx *, unsigned int);
 typedef int (init_hctx_fn)(struct blk_mq_hw_ctx *, void *, unsigned int);
 typedef void (exit_hctx_fn)(struct blk_mq_hw_ctx *, unsigned int);
+typedef int (init_request_fn)(void *, struct blk_mq_hw_ctx *,
+		struct request *, unsigned int);
+typedef void (exit_request_fn)(void *, struct blk_mq_hw_ctx *,
+		struct request *, unsigned int);
 
 struct blk_mq_ops {
 	/*
@@ -99,6 +103,14 @@ struct blk_mq_ops {
 	 */
 	init_hctx_fn		*init_hctx;
 	exit_hctx_fn		*exit_hctx;
+
+	/*
+	 * Called for every command allocated by the block layer to allow
+	 * the driver to set up driver specific data.
+	 * Ditto for exit/teardown.
+	 */
+	init_request_fn		*init_request;
+	exit_request_fn		*exit_request;
 };
 
 enum {
@@ -118,8 +130,6 @@ enum {
 struct request_queue *blk_mq_init_queue(struct blk_mq_reg *, void *);
 int blk_mq_register_disk(struct gendisk *);
 void blk_mq_unregister_disk(struct gendisk *);
-int blk_mq_init_commands(struct request_queue *, int (*init)(void *data, struct blk_mq_hw_ctx *, struct request *, unsigned int), void *data);
-void blk_mq_free_commands(struct request_queue *, void (*free)(void *data, struct blk_mq_hw_ctx *, struct request *, unsigned int), void *data);
 
 void blk_mq_flush_plug_list(struct blk_plug *plug, bool from_schedule);
 
