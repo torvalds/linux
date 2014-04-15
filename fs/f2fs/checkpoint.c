@@ -174,10 +174,7 @@ no_write:
 	return 0;
 
 redirty_out:
-	dec_page_count(sbi, F2FS_DIRTY_META);
-	wbc->pages_skipped++;
-	account_page_redirty(page);
-	set_page_dirty(page);
+	redirty_page_for_writepage(wbc, page);
 	return AOP_WRITEPAGE_ACTIVATE;
 }
 
