@@ -16,6 +16,7 @@
  */
 
 #include "skeleton.dtsi"
+#include <dt-bindings/reset/altr,rst-mgr.h>
 
 / {
 	#address-cells = <1>;
@@ -483,6 +484,8 @@
 			mac-address = [00 00 00 00 00 00];/* Filled in by U-Boot */
 			clocks = <&emac0_clk>;
 			clock-names = "stmmaceth";
+			resets = <&rst EMAC0_RESET>;
+			reset-names = "stmmaceth";
 			status = "disabled";
 		};
 
@@ -495,6 +498,8 @@
 			mac-address = [00 00 00 00 00 00];/* Filled in by U-Boot */
 			clocks = <&emac1_clk>;
 			clock-names = "stmmaceth";
+			resets = <&rst EMAC1_RESET>;
+			reset-names = "stmmaceth";
 			status = "disabled";
 		};
 
@@ -617,7 +622,7 @@
 			clocks = <&l4_sp_clk>;
 		};
 
-		rstmgr@ffd05000 {
+		rst: rstmgr@ffd05000 {
 			compatible = "altr,rst-mgr";
 			reg = <0xffd05000 0x1000>;
 		};
