@@ -1755,22 +1755,21 @@ unsigned int OnDeAuth23a(struct rtw_adapter *padapter,
 	return _SUCCESS;
 }
 
-unsigned int OnDisassoc23a(struct rtw_adapter *padapter, struct recv_frame *precv_frame)
+unsigned int OnDisassoc23a(struct rtw_adapter *padapter,
+			   struct recv_frame *precv_frame)
 {
 	unsigned short	reason;
 	struct mlme_priv *pmlmepriv = &padapter->mlmepriv;
-	struct mlme_ext_priv	*pmlmeext = &padapter->mlmeextpriv;
+	struct mlme_ext_priv *pmlmeext = &padapter->mlmeextpriv;
 	struct mlme_ext_info *pmlmeinfo = &pmlmeext->mlmext_info;
 	struct sk_buff *skb = precv_frame->pkt;
-	struct ieee80211_hdr *hdr = (struct ieee80211_hdr *) skb->data;
-	u8 *pframe = skb->data;
+	struct ieee80211_mgmt *mgmt = (struct ieee80211_mgmt *) skb->data;
 
-	/* check A3 */
-	if (!ether_addr_equal(hdr->addr3, get_my_bssid23a(&pmlmeinfo->network)))
+	if (!ether_addr_equal(mgmt->bssid,
+			      get_my_bssid23a(&pmlmeinfo->network)))
 		return _SUCCESS;
 
-	reason = le16_to_cpu(*(unsigned short *)
-			     (pframe + sizeof(struct ieee80211_hdr_3addr)));
+	reason = le16_to_cpu(mgmt->u.disassoc.reason_code);
 
         DBG_8723A("%s Reason code(%d)\n", __func__, reason);
 
@@ -1780,9 +1779,9 @@ unsigned int OnDisassoc23a(struct rtw_adapter *padapter, struct recv_frame *prec
 		struct sta_priv *pstapriv = &padapter->stapriv;
 
 		DBG_8723A_LEVEL(_drv_always_, "ap recv disassoc reason code(%d)"
-				" sta:%pM\n", reason, hdr->addr2);
+				" sta:%pM\n", reason, mgmt->sa);
 
-		psta = rtw_get_stainfo23a(pstapriv, hdr->addr2);
+		psta = rtw_get_stainfo23a(pstapriv, mgmt->sa);
 		if (psta) {
 			u8 updated = 0;
 
@@ -1791,7 +1790,7 @@ unsigned int OnDisassoc23a(struct rtw_adapter *padapter, struct recv_frame *prec
 				list_del_init(&psta->asoc_list);
 				pstapriv->asoc_list_cnt--;
 				updated = ap_free_sta23a(padapter, psta,
-						      false, reason);
+							 false, reason);
 			}
 			spin_unlock_bh(&pstapriv->asoc_list_lock);
 
@@ -1799,14 +1798,13 @@ unsigned int OnDisassoc23a(struct rtw_adapter *padapter, struct recv_frame *prec
 		}
 
 		return _SUCCESS;
-	}
-	else
+	} else
 #endif
 	{
 		DBG_8723A_LEVEL(_drv_always_, "ap recv disassoc reason "
-				"code(%d) sta:%pM\n", reason, hdr->addr3);
+				"code(%d) sta:%pM\n", reason, mgmt->bssid);
 
-		receive_disconnect23a(padapter, hdr->addr3, reason);
+		receive_disconnect23a(padapter, mgmt->bssid, reason);
 	}
 	pmlmepriv->LinkDetectInfo.bBusyTraffic = false;
 	return _SUCCESS;
