@@ -1144,7 +1144,7 @@ OnAssocReq23a(struct rtw_adapter *padapter, struct recv_frame *precv_frame)
 	u16 capab_info, listen_interval;
 	struct rtw_ieee802_11_elems elems;
 	struct sta_info	*pstat;
-	unsigned char reassoc, *wpa_ie;
+	unsigned char reassoc;
 	unsigned char WMM_IE[] = {0x00, 0x50, 0xf2, 0x02, 0x00, 0x01};
 	int i, wpa_ie_len, left;
 	unsigned char supportRate[16];
@@ -1158,10 +1158,11 @@ OnAssocReq23a(struct rtw_adapter *padapter, struct recv_frame *precv_frame)
 	struct sta_priv *pstapriv = &padapter->stapriv;
 	struct sk_buff *skb = precv_frame->pkt;
 	struct ieee80211_mgmt *mgmt = (struct ieee80211_mgmt *) skb->data;
-	const u8 *p;
+	const u8 *p, *wpa_ie, *wps_ie;
 	u8 *pos;
 	u8 *pframe = skb->data;
 	uint pkt_len = skb->len;
+	int r;
 
 	if ((pmlmeinfo->state & 0x03) != WIFI_FW_AP_STATE)
 		return _FAIL;
@@ -1280,66 +1281,68 @@ OnAssocReq23a(struct rtw_adapter *padapter, struct recv_frame *precv_frame)
 	pstat->wpa_pairwise_cipher = 0;
 	pstat->wpa2_pairwise_cipher = 0;
 	memset(pstat->wpa_ie, 0, sizeof(pstat->wpa_ie));
-	if (psecuritypriv->wpa_psk & BIT(1) && elems.rsn_ie) {
+
+	wpa_ie = cfg80211_find_ie(WLAN_EID_RSN, pos, left);
+	if (!wpa_ie)
+		wpa_ie = cfg80211_find_vendor_ie(WLAN_OUI_MICROSOFT,
+						 WLAN_OUI_TYPE_MICROSOFT_WPA,
+						 pos, left);
+	if (wpa_ie) {
 		int group_cipher = 0, pairwise_cipher = 0;
 
-		wpa_ie = elems.rsn_ie;
-		wpa_ie_len = elems.rsn_ie_len;
+		wpa_ie_len = wpa_ie[1];
+		if (psecuritypriv->wpa_psk & BIT(1)) {
+			r = rtw_parse_wpa2_ie23a(wpa_ie, wpa_ie_len + 2,
+						 &group_cipher,
+						 &pairwise_cipher, NULL);
+			if (r == _SUCCESS) {
+				pstat->dot8021xalg = 1;/* psk,  todo:802.1x */
+				pstat->wpa_psk |= BIT(1);
 
-		if (rtw_parse_wpa2_ie23a(wpa_ie - 2, wpa_ie_len + 2,
-					 &group_cipher, &pairwise_cipher,
-					 NULL) == _SUCCESS) {
-			pstat->dot8021xalg = 1;/* psk,  todo:802.1x */
-			pstat->wpa_psk |= BIT(1);
+				pstat->wpa2_group_cipher = group_cipher &
+					psecuritypriv->wpa2_group_cipher;
+				pstat->wpa2_pairwise_cipher = pairwise_cipher &
+					psecuritypriv->wpa2_pairwise_cipher;
+			} else
+				status = WLAN_STATUS_INVALID_IE;
+		} else if (psecuritypriv->wpa_psk & BIT(0)) {
+			r = rtw_parse_wpa_ie23a(wpa_ie, wpa_ie_len + 2,
+						&group_cipher, &pairwise_cipher,
+						NULL);
+			if (r == _SUCCESS) {
+				pstat->dot8021xalg = 1;/* psk,  todo:802.1x */
+				pstat->wpa_psk |= BIT(0);
 
-			pstat->wpa2_group_cipher =
-				group_cipher&psecuritypriv->wpa2_group_cipher;
-			pstat->wpa2_pairwise_cipher =
-				pairwise_cipher&psecuritypriv->wpa2_pairwise_cipher;
-
-			if (!pstat->wpa2_group_cipher)
-				status = WLAN_REASON_INVALID_GROUP_CIPHER;
-
-			if (!pstat->wpa2_pairwise_cipher)
-				status = WLAN_REASON_INVALID_PAIRWISE_CIPHER;
-		} else
-			status = WLAN_STATUS_INVALID_IE;
-	} else if (psecuritypriv->wpa_psk & BIT(0) && elems.wpa_ie) {
-		int group_cipher = 0, pairwise_cipher = 0;
-
-		wpa_ie = elems.wpa_ie;
-		wpa_ie_len = elems.wpa_ie_len;
-
-		if (rtw_parse_wpa_ie23a(wpa_ie - 2, wpa_ie_len + 2,
-					&group_cipher, &pairwise_cipher,
-					NULL) == _SUCCESS) {
-			pstat->dot8021xalg = 1;/* psk,  todo:802.1x */
-			pstat->wpa_psk |= BIT(0);
-
-			pstat->wpa_group_cipher =
-				group_cipher&psecuritypriv->wpa_group_cipher;
-			pstat->wpa_pairwise_cipher =
-				pairwise_cipher&psecuritypriv->wpa_pairwise_cipher;
-
+				pstat->wpa_group_cipher = group_cipher &
+					psecuritypriv->wpa_group_cipher;
+				pstat->wpa_pairwise_cipher = pairwise_cipher &
+					psecuritypriv->wpa_pairwise_cipher;
+			} else
+				status = WLAN_STATUS_INVALID_IE;
+		} else {
+			wpa_ie = NULL;
+			wpa_ie_len = 0;
+		}
+		if (wpa_ie && status == WLAN_STATUS_SUCCESS) {
 			if (!pstat->wpa_group_cipher)
 				status = WLAN_STATUS_INVALID_GROUP_CIPHER;
 
 			if (!pstat->wpa_pairwise_cipher)
 				status = WLAN_STATUS_INVALID_PAIRWISE_CIPHER;
-
-		} else
-			status = WLAN_STATUS_INVALID_IE;
-	} else {
-		wpa_ie = NULL;
-		wpa_ie_len = 0;
+		}
 	}
 
-	if (WLAN_STATUS_SUCCESS != status)
+	if (status != WLAN_STATUS_SUCCESS)
 		goto OnAssocReq23aFail;
 
 	pstat->flags &= ~(WLAN_STA_WPS | WLAN_STA_MAYBE_WPS);
+
+	wps_ie = cfg80211_find_vendor_ie(WLAN_OUI_MICROSOFT,
+					 WLAN_OUI_TYPE_MICROSOFT_WPS,
+					 pos, left);
+
 	if (!wpa_ie) {
-		if (elems.wps_ie) {
+		if (wps_ie) {
 			DBG_8723A("STA included WPS IE in (Re)Association "
 				  "Request - assume WPS is used\n");
 			pstat->flags |= WLAN_STA_WPS;
@@ -1386,10 +1389,9 @@ OnAssocReq23a(struct rtw_adapter *padapter, struct recv_frame *precv_frame)
 			goto OnAssocReq23aFail;
 		}
 
-		if (elems.wps_ie) {
-			DBG_8723A("STA included WPS IE in "
-				   "(Re)Association Request - WPS is "
-				   "used\n");
+		if (wps_ie) {
+			DBG_8723A("STA included WPS IE in (Re)Association "
+				  "Request - WPS is used\n");
 			pstat->flags |= WLAN_STA_WPS;
 			copy_len = 0;
 		} else {
@@ -1399,7 +1401,6 @@ OnAssocReq23a(struct rtw_adapter *padapter, struct recv_frame *precv_frame)
 
 		if (copy_len > 0)
 			memcpy(pstat->wpa_ie, wpa_ie - 2, copy_len);
-
 	}
 
 	/*  check if there is WMM IE & support WWM-PS */
