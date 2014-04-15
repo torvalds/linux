@@ -727,7 +727,7 @@ _continue:
 	}
 
 	p = rtw_get_ie23a(pframe + sizeof(struct ieee80211_hdr_3addr) +
-			  _PROBEREQ_IE_OFFSET_, _SSID_IE_, (int *)&ielen,
+			  _PROBEREQ_IE_OFFSET_, WLAN_EID_SSID, (int *)&ielen,
 			  len - sizeof(struct ieee80211_hdr_3addr) -
 			  _PROBEREQ_IE_OFFSET_);
 
@@ -839,7 +839,7 @@ unsigned int OnBeacon23a(struct rtw_adapter *padapter,
 	u32 ielen = 0;
 
 	p = rtw_get_ie23a(pframe + sizeof(struct ieee80211_hdr_3addr) +
-			  _BEACON_IE_OFFSET_, _EXT_SUPPORTEDRATES_IE_, &ielen,
+			  _BEACON_IE_OFFSET_, WLAN_EID_EXT_SUPP_RATES, &ielen,
 			  len - sizeof(struct ieee80211_hdr_3addr) -
 			  _BEACON_IE_OFFSET_);
 	if ((p != NULL) && (ielen > 0)) {
@@ -1089,7 +1089,8 @@ unsigned int OnAuth23a(struct rtw_adapter *padapter,
 
 			p = rtw_get_ie23a(pframe +
 					  sizeof(struct ieee80211_hdr_3addr) +
-					  4 + _AUTH_IE_OFFSET_, _CHLGETXT_IE_,
+					  4 + _AUTH_IE_OFFSET_,
+					  WLAN_EID_CHALLENGE,
 					  (int *)&ie_len, len -
 					  sizeof(struct ieee80211_hdr_3addr) -
 					  _AUTH_IE_OFFSET_ - 4);
@@ -1197,7 +1198,7 @@ unsigned int OnAuth23aClient23a(struct rtw_adapter *padapter,
 		if (pmlmeinfo->auth_algo == dot11AuthAlgrthm_Shared)
 		{
 			 /*  legendary shared system */
-			p = rtw_get_ie23a(pframe + sizeof(struct ieee80211_hdr_3addr) + _AUTH_IE_OFFSET_, _CHLGETXT_IE_, (int *)&len,
+			p = rtw_get_ie23a(pframe + sizeof(struct ieee80211_hdr_3addr) + _AUTH_IE_OFFSET_, WLAN_EID_CHALLENGE, (int *)&len,
 				pkt_len - sizeof(struct ieee80211_hdr_3addr) - _AUTH_IE_OFFSET_);
 
 			if (p == NULL)
@@ -1351,8 +1352,9 @@ unsigned int OnAssocReq23a(struct rtw_adapter *padapter, struct recv_frame *prec
 
 	/*  now we should check all the fields... */
 	/*  checking SSID */
-	p = rtw_get_ie23a(pframe + sizeof(struct ieee80211_hdr_3addr) + ie_offset, _SSID_IE_, &ie_len,
-		pkt_len - sizeof(struct ieee80211_hdr_3addr) - ie_offset);
+	p = rtw_get_ie23a(pframe + sizeof(struct ieee80211_hdr_3addr) +
+			  ie_offset, WLAN_EID_SSID, &ie_len, pkt_len -
+			  sizeof(struct ieee80211_hdr_3addr) - ie_offset);
 	if (p == NULL)
 	{
 		status = WLAN_STATUS_UNSPECIFIED_FAILURE;
@@ -1373,7 +1375,7 @@ unsigned int OnAssocReq23a(struct rtw_adapter *padapter, struct recv_frame *prec
 		goto OnAssocReq23aFail;
 
 	/*  check if the supported rate is ok */
-	p = rtw_get_ie23a(pframe + sizeof(struct ieee80211_hdr_3addr) + ie_offset, _SUPPORTEDRATES_IE_, &ie_len, pkt_len - sizeof(struct ieee80211_hdr_3addr) - ie_offset);
+	p = rtw_get_ie23a(pframe + sizeof(struct ieee80211_hdr_3addr) + ie_offset, WLAN_EID_SUPP_RATES, &ie_len, pkt_len - sizeof(struct ieee80211_hdr_3addr) - ie_offset);
 	if (p == NULL) {
 		DBG_8723A("Rx a sta assoc-req which supported rate is empty!\n");
 		/*  use our own rate set as statoin used */
@@ -1386,7 +1388,7 @@ unsigned int OnAssocReq23a(struct rtw_adapter *padapter, struct recv_frame *prec
 		memcpy(supportRate, p+2, ie_len);
 		supportRateNum = ie_len;
 
-		p = rtw_get_ie23a(pframe + sizeof(struct ieee80211_hdr_3addr) + ie_offset, _EXT_SUPPORTEDRATES_IE_, &ie_len,
+		p = rtw_get_ie23a(pframe + sizeof(struct ieee80211_hdr_3addr) + ie_offset, WLAN_EID_EXT_SUPP_RATES, &ie_len,
 				pkt_len - sizeof(struct ieee80211_hdr_3addr) - ie_offset);
 		if (p !=  NULL) {
 
@@ -1840,15 +1842,15 @@ unsigned int OnAssocRsp23a(struct rtw_adapter *padapter, struct recv_frame *prec
 #endif
 			break;
 
-		case _HT_CAPABILITY_IE_:	/* HT caps */
+		case WLAN_EID_HT_CAPABILITY:	/* HT caps */
 			HT_caps_handler23a(padapter, pIE);
 			break;
 
-		case _HT_EXTRA_INFO_IE_:	/* HT info */
+		case WLAN_EID_HT_OPERATION:	/* HT info */
 			HT_info_handler23a(padapter, pIE);
 			break;
 
-		case _ERPINFO_IE_:
+		case WLAN_EID_ERP_INFO:
 			ERP_IE_handler23a(padapter, pIE);
 
 		default:
@@ -3847,22 +3849,24 @@ void issue_probersp23a_p2p23a(struct rtw_adapter *padapter, unsigned char *da)
 	pattrib->pktlen += 2;
 
 	/*  SSID */
-	pframe = rtw_set_ie23a(pframe, _SSID_IE_, 7, pwdinfo->p2p_wildcard_ssid,
-			       &pattrib->pktlen);
+	pframe = rtw_set_ie23a(pframe, WLAN_EID_SSID, 7,
+			       pwdinfo->p2p_wildcard_ssid, &pattrib->pktlen);
 
 	/*  supported rates... */
 	/*	Use the OFDM rate in the P2P probe response frame.
 		(6(B), 9(B), 12, 18, 24, 36, 48, 54) */
-	pframe = rtw_set_ie23a(pframe, _SUPPORTEDRATES_IE_, 8,
+	pframe = rtw_set_ie23a(pframe, WLAN_EID_SUPP_RATES, 8,
 			       pwdinfo->support_rate, &pattrib->pktlen);
 
 	/*  DS parameter set */
 	if (wdev_to_priv(padapter->rtw_wdev)->p2p_enabled &&
 	    listen_channel != 0) {
-		pframe = rtw_set_ie23a(pframe, _DSSET_IE_, 1, (unsigned char *)
-				       &listen_channel, &pattrib->pktlen);
+		pframe = rtw_set_ie23a(pframe, WLAN_EID_DS_PARAMS, 1,
+				       (unsigned char *) &listen_channel,
+				       &pattrib->pktlen);
 	} else {
-		pframe = rtw_set_ie23a(pframe, _DSSET_IE_, 1, (unsigned char *)
+		pframe = rtw_set_ie23a(pframe, WLAN_EID_DS_PARAMS, 1,
+				       (unsigned char *)
 				       &pwdinfo->listen_channel,
 				       &pattrib->pktlen);
 	}
@@ -4149,19 +4153,19 @@ static int _issue23a_probereq_p2p(struct rtw_adapter *padapter, u8 *da,
 	pattrib->pktlen = sizeof (struct ieee80211_hdr_3addr);
 
 	if (rtw_p2p_chk_state(pwdinfo, P2P_STATE_TX_PROVISION_DIS_REQ)) {
-		pframe = rtw_set_ie23a(pframe, _SSID_IE_,
+		pframe = rtw_set_ie23a(pframe, WLAN_EID_SSID,
 				    pwdinfo->tx_prov_disc_info.ssid.ssid_len,
 				    pwdinfo->tx_prov_disc_info.ssid.ssid,
 				    &pattrib->pktlen);
 	} else {
-		pframe = rtw_set_ie23a(pframe, _SSID_IE_,
+		pframe = rtw_set_ie23a(pframe, WLAN_EID_SSID,
 				       P2P_WILDCARD_SSID_LEN,
 				       pwdinfo->p2p_wildcard_ssid,
 				       &pattrib->pktlen);
 	}
 	/*	Use the OFDM rate in the P2P probe request frame.
 		(6(B), 9(B), 12(B), 24(B), 36, 48, 54) */
-	pframe = rtw_set_ie23a(pframe, _SUPPORTEDRATES_IE_, 8,
+	pframe = rtw_set_ie23a(pframe, WLAN_EID_SUPP_RATES, 8,
 			       pwdinfo->support_rate, &pattrib->pktlen);
 
 	if (wdev_to_priv(padapter->rtw_wdev)->p2p_enabled) {
@@ -5507,17 +5511,18 @@ void issue_beacon23a(struct rtw_adapter *padapter, int timeout_ms)
 	pattrib->pktlen += 2;
 
 	/*  SSID */
-	pframe = rtw_set_ie23a(pframe, _SSID_IE_, cur_network->Ssid.ssid_len,
+	pframe = rtw_set_ie23a(pframe, WLAN_EID_SSID,
+			       cur_network->Ssid.ssid_len,
 			       cur_network->Ssid.ssid, &pattrib->pktlen);
 
 	/*  supported rates... */
 	rate_len = rtw_get_rateset_len23a(cur_network->SupportedRates);
-	pframe = rtw_set_ie23a(pframe, _SUPPORTEDRATES_IE_,
+	pframe = rtw_set_ie23a(pframe, WLAN_EID_SUPP_RATES,
 			       ((rate_len > 8)? 8: rate_len),
 			       cur_network->SupportedRates, &pattrib->pktlen);
 
 	/*  DS parameter set */
-	pframe = rtw_set_ie23a(pframe, _DSSET_IE_, 1, (unsigned char *)
+	pframe = rtw_set_ie23a(pframe, WLAN_EID_DS_PARAMS, 1, (unsigned char *)
 			       &cur_network->Configuration.DSConfig,
 			       &pattrib->pktlen);
 
@@ -5528,18 +5533,18 @@ void issue_beacon23a(struct rtw_adapter *padapter, int timeout_ms)
 		/*  IBSS Parameter Set... */
 		/* ATIMWindow = cur->Configuration.ATIMWindow; */
 		ATIMWindow = 0;
-		pframe = rtw_set_ie23a(pframe, _IBSS_PARA_IE_, 2,
+		pframe = rtw_set_ie23a(pframe, WLAN_EID_IBSS_PARAMS, 2,
 				       (unsigned char *)&ATIMWindow,
 				       &pattrib->pktlen);
 
 		/* ERP IE */
-		pframe = rtw_set_ie23a(pframe, _ERPINFO_IE_, 1,
+		pframe = rtw_set_ie23a(pframe, WLAN_EID_ERP_INFO, 1,
 				       &erpinfo, &pattrib->pktlen);
 	}
 
 	/*  EXTERNDED SUPPORTED RATE */
 	if (rate_len > 8)
-		pframe = rtw_set_ie23a(pframe, _EXT_SUPPORTEDRATES_IE_,
+		pframe = rtw_set_ie23a(pframe, WLAN_EID_EXT_SUPP_RATES,
 				       rate_len - 8,
 				       cur_network->SupportedRates + 8,
 				       &pattrib->pktlen);
@@ -5685,7 +5690,7 @@ void issue_probersp23a(struct rtw_adapter *padapter, unsigned char *da,
 		ies = pmgntframe->buf_addr + TXDESC_OFFSET +
 			sizeof(struct ieee80211_hdr_3addr);
 
-		ssid_ie = rtw_get_ie23a(ies+_FIXED_IE_LENGTH_, _SSID_IE_,
+		ssid_ie = rtw_get_ie23a(ies+_FIXED_IE_LENGTH_, WLAN_EID_SSID,
 					&ssid_ielen,
 					(pframe-ies)-_FIXED_IE_LENGTH_);
 
@@ -5741,19 +5746,20 @@ void issue_probersp23a(struct rtw_adapter *padapter, unsigned char *da,
 		/* below for ad-hoc mode */
 
 		/*  SSID */
-		pframe = rtw_set_ie23a(pframe, _SSID_IE_,
+		pframe = rtw_set_ie23a(pframe, WLAN_EID_SSID,
 				    cur_network->Ssid.ssid_len,
 				    cur_network->Ssid.ssid, &pattrib->pktlen);
 
 		/*  supported rates... */
 		rate_len = rtw_get_rateset_len23a(cur_network->SupportedRates);
-		pframe = rtw_set_ie23a(pframe, _SUPPORTEDRATES_IE_,
+		pframe = rtw_set_ie23a(pframe, WLAN_EID_SUPP_RATES,
 				       ((rate_len > 8)? 8: rate_len),
 				       cur_network->SupportedRates,
 				       &pattrib->pktlen);
 
 		/*  DS parameter set */
-		pframe = rtw_set_ie23a(pframe, _DSSET_IE_, 1, (unsigned char *)
+		pframe = rtw_set_ie23a(pframe, WLAN_EID_DS_PARAMS, 1,
+				       (unsigned char *)
 				       &cur_network->Configuration.DSConfig,
 				       &pattrib->pktlen);
 
@@ -5763,18 +5769,18 @@ void issue_probersp23a(struct rtw_adapter *padapter, unsigned char *da,
 			/*  IBSS Parameter Set... */
 			/* ATIMWindow = cur->Configuration.ATIMWindow; */
 			ATIMWindow = 0;
-			pframe = rtw_set_ie23a(pframe, _IBSS_PARA_IE_, 2,
+			pframe = rtw_set_ie23a(pframe, WLAN_EID_IBSS_PARAMS, 2,
 					       (unsigned char *)&ATIMWindow,
 					       &pattrib->pktlen);
 
 			/* ERP IE */
-			pframe = rtw_set_ie23a(pframe, _ERPINFO_IE_, 1,
+			pframe = rtw_set_ie23a(pframe, WLAN_EID_ERP_INFO, 1,
 					       &erpinfo, &pattrib->pktlen);
 		}
 
 		/*  EXTERNDED SUPPORTED RATE */
 		if (rate_len > 8)
-			pframe = rtw_set_ie23a(pframe, _EXT_SUPPORTEDRATES_IE_,
+			pframe = rtw_set_ie23a(pframe, WLAN_EID_EXT_SUPP_RATES,
 					       rate_len - 8,
 					       cur_network->SupportedRates + 8,
 					       &pattrib->pktlen);
@@ -5878,22 +5884,22 @@ static int _issue_probereq23a(struct rtw_adapter *padapter,
 	pattrib->pktlen = sizeof (struct ieee80211_hdr_3addr);
 
 	if (pssid)
-		pframe = rtw_set_ie23a(pframe, _SSID_IE_, pssid->ssid_len,
+		pframe = rtw_set_ie23a(pframe, WLAN_EID_SSID, pssid->ssid_len,
 				       pssid->ssid, &pattrib->pktlen);
 	else
-		pframe = rtw_set_ie23a(pframe, _SSID_IE_, 0, NULL,
+		pframe = rtw_set_ie23a(pframe, WLAN_EID_SSID, 0, NULL,
 				       &pattrib->pktlen);
 
 	get_rate_set23a(padapter, bssrate, &bssrate_len);
 
 	if (bssrate_len > 8) {
-		pframe = rtw_set_ie23a(pframe, _SUPPORTEDRATES_IE_, 8,
+		pframe = rtw_set_ie23a(pframe, WLAN_EID_SUPP_RATES, 8,
 				       bssrate, &pattrib->pktlen);
-		pframe = rtw_set_ie23a(pframe, _EXT_SUPPORTEDRATES_IE_,
+		pframe = rtw_set_ie23a(pframe, WLAN_EID_EXT_SUPP_RATES,
 				       (bssrate_len - 8), (bssrate + 8),
 				       &pattrib->pktlen);
 	} else {
-		pframe = rtw_set_ie23a(pframe, _SUPPORTEDRATES_IE_,
+		pframe = rtw_set_ie23a(pframe, WLAN_EID_SUPP_RATES,
 				       bssrate_len, bssrate, &pattrib->pktlen);
 	}
 
@@ -6049,7 +6055,7 @@ void issue_auth23a(struct rtw_adapter *padapter, struct sta_info *psta,
 		/*  added challenging text... */
 		if ((psta->auth_seq == 2) &&
 		    (psta->state & WIFI_FW_AUTH_STATE) && (use_shared_key == 1))
-			pframe = rtw_set_ie23a(pframe, _CHLGETXT_IE_, 128,
+			pframe = rtw_set_ie23a(pframe, WLAN_EID_CHALLENGE, 128,
 					       psta->chg_txt, &pattrib->pktlen);
 #endif
 	} else {
@@ -6108,7 +6114,7 @@ void issue_auth23a(struct rtw_adapter *padapter, struct sta_info *psta,
 		if ((pmlmeinfo->auth_seq == 3) &&
 		    (pmlmeinfo->state & WIFI_FW_AUTH_STATE) &&
 		    (use_shared_key == 1)) {
-			pframe = rtw_set_ie23a(pframe, _CHLGETXT_IE_, 128,
+			pframe = rtw_set_ie23a(pframe, WLAN_EID_CHALLENGE, 128,
 					       pmlmeinfo->chg_txt,
 					       &pattrib->pktlen);
 
@@ -6200,13 +6206,13 @@ void issue_asocrsp23a(struct rtw_adapter *padapter, unsigned short status,
 				     &pattrib->pktlen);
 
 	if (pstat->bssratelen <= 8) {
-		pframe = rtw_set_ie23a(pframe, _SUPPORTEDRATES_IE_,
+		pframe = rtw_set_ie23a(pframe, WLAN_EID_SUPP_RATES,
 				       pstat->bssratelen, pstat->bssrateset,
 				       &pattrib->pktlen);
 	} else {
-		pframe = rtw_set_ie23a(pframe, _SUPPORTEDRATES_IE_, 8,
+		pframe = rtw_set_ie23a(pframe, WLAN_EID_SUPP_RATES, 8,
 				       pstat->bssrateset, &pattrib->pktlen);
-		pframe = rtw_set_ie23a(pframe, _EXT_SUPPORTEDRATES_IE_,
+		pframe = rtw_set_ie23a(pframe, WLAN_EID_EXT_SUPP_RATES,
 				       pstat->bssratelen - 8,
 				       pstat->bssrateset + 8, &pattrib->pktlen);
 	}
@@ -6217,7 +6223,7 @@ void issue_asocrsp23a(struct rtw_adapter *padapter, unsigned short status,
 		/* FILL HT CAP INFO IE */
 		/* p = hostapd_eid_ht_capabilities_info(hapd, p); */
 		pbuf = rtw_get_ie23a(ie + _BEACON_IE_OFFSET_,
-				     _HT_CAPABILITY_IE_, &ie_len,
+				     WLAN_EID_HT_CAPABILITY, &ie_len,
 				     pnetwork->IELength - _BEACON_IE_OFFSET_);
 		if (pbuf && ie_len>0) {
 			memcpy(pframe, pbuf, ie_len + 2);
@@ -6227,8 +6233,8 @@ void issue_asocrsp23a(struct rtw_adapter *padapter, unsigned short status,
 
 		/* FILL HT ADD INFO IE */
 		/* p = hostapd_eid_ht_operation(hapd, p); */
-		pbuf = rtw_get_ie23a(ie + _BEACON_IE_OFFSET_, _HT_ADD_INFO_IE_,
-				     &ie_len,
+		pbuf = rtw_get_ie23a(ie + _BEACON_IE_OFFSET_,
+				     WLAN_EID_HT_OPERATION, &ie_len,
 				     pnetwork->IELength - _BEACON_IE_OFFSET_);
 		if (pbuf && ie_len > 0) {
 			memcpy(pframe, pbuf, ie_len + 2);
@@ -6356,7 +6362,7 @@ void issue_assocreq23a(struct rtw_adapter *padapter)
 	pattrib->pktlen += 2;
 
 	/* SSID */
-	pframe = rtw_set_ie23a(pframe, _SSID_IE_,
+	pframe = rtw_set_ie23a(pframe, WLAN_EID_SSID,
 			       pmlmeinfo->network.Ssid.ssid_len,
 			       pmlmeinfo->network.Ssid.ssid, &pattrib->pktlen);
 
@@ -6418,29 +6424,29 @@ void issue_assocreq23a(struct rtw_adapter *padapter)
 	}
 
 	if (bssrate_len > 8) {
-		pframe = rtw_set_ie23a(pframe, _SUPPORTEDRATES_IE_, 8,
+		pframe = rtw_set_ie23a(pframe, WLAN_EID_SUPP_RATES, 8,
 				       bssrate, &pattrib->pktlen);
-		pframe = rtw_set_ie23a(pframe, _EXT_SUPPORTEDRATES_IE_,
+		pframe = rtw_set_ie23a(pframe, WLAN_EID_EXT_SUPP_RATES,
 				       (bssrate_len - 8), (bssrate + 8),
 				       &pattrib->pktlen);
 	} else
-		pframe = rtw_set_ie23a(pframe, _SUPPORTEDRATES_IE_,
+		pframe = rtw_set_ie23a(pframe, WLAN_EID_SUPP_RATES,
 				       bssrate_len, bssrate, &pattrib->pktlen);
 
 	/* RSN */
 	p = rtw_get_ie23a((pmlmeinfo->network.IEs +
-			   sizeof(struct ndis_802_11_fixed_ies)), _RSN_IE_2_,
+			   sizeof(struct ndis_802_11_fixed_ies)), WLAN_EID_RSN,
 			  &ie_len, (pmlmeinfo->network.IELength -
 				    sizeof(struct ndis_802_11_fixed_ies)));
 	if (p)
-		pframe = rtw_set_ie23a(pframe, _RSN_IE_2_, ie_len, (p + 2),
+		pframe = rtw_set_ie23a(pframe, WLAN_EID_RSN, ie_len, (p + 2),
 				       &pattrib->pktlen);
 
 	/* HT caps */
 	if (padapter->mlmepriv.htpriv.ht_option == true) {
 		p = rtw_get_ie23a((pmlmeinfo->network.IEs +
 				   sizeof(struct ndis_802_11_fixed_ies)),
-				  _HT_CAPABILITY_IE_, &ie_len,
+				  WLAN_EID_HT_CAPABILITY, &ie_len,
 				  (pmlmeinfo->network.IELength -
 				   sizeof(struct ndis_802_11_fixed_ies)));
 		if ((p != NULL) && (!(is_ap_in_tkip23a(padapter)))) {
@@ -6503,7 +6509,7 @@ void issue_assocreq23a(struct rtw_adapter *padapter)
 			}
 #endif
 
-			pframe = rtw_set_ie23a(pframe, _HT_CAPABILITY_IE_,
+			pframe = rtw_set_ie23a(pframe, WLAN_EID_HT_CAPABILITY,
 					       ie_len,
 					       (u8 *)&pmlmeinfo->HT_caps,
 					       &pattrib->pktlen);
@@ -7439,8 +7445,8 @@ static void issue_action_BSSCoexistPacket(struct rtw_adapter *padapter)
 
 		iedata |= BIT(2);/* 20 MHz BSS Width Request */
 
-		pframe = rtw_set_ie23a(pframe, EID_BSSCoexistence,  1, &iedata, &pattrib->pktlen);
-
+		pframe = rtw_set_ie23a(pframe, WLAN_EID_BSS_COEX_2040,  1,
+				       &iedata, &pattrib->pktlen);
 	}
 
 	/*  */
@@ -7464,7 +7470,10 @@ static void issue_action_BSSCoexistPacket(struct rtw_adapter *padapter)
 
 			pbss_network = &pnetwork->network;
 
-			p = rtw_get_ie23a(pbss_network->IEs + _FIXED_IE_LENGTH_, _HT_CAPABILITY_IE_, &len, pbss_network->IELength - _FIXED_IE_LENGTH_);
+			p = rtw_get_ie23a(pbss_network->IEs + _FIXED_IE_LENGTH_,
+					  WLAN_EID_HT_CAPABILITY, &len,
+					  pbss_network->IELength -
+					  _FIXED_IE_LENGTH_);
 			if ((p == NULL) || (len == 0))/* non-HT */
 			{
 				if ((pbss_network->Configuration.DSConfig<= 0) || (pbss_network->Configuration.DSConfig>14))
@@ -7829,7 +7838,8 @@ u8 collect_bss_info23a(struct rtw_adapter *padapter, struct recv_frame *precv_fr
 	bssid->PhyInfo.SignalStrength = precv_frame->attrib.phy_info.SignalStrength;/* in percentage */
 
 	/*  checking SSID */
-	if ((p = rtw_get_ie23a(bssid->IEs + ie_offset, _SSID_IE_, &len, bssid->IELength - ie_offset)) == NULL)
+	if ((p = rtw_get_ie23a(bssid->IEs + ie_offset, WLAN_EID_SSID, &len,
+			       bssid->IELength - ie_offset)) == NULL)
 	{
 		DBG_8723A("marc: cannot find SSID for survey event\n");
 		return _FAIL;
@@ -7851,7 +7861,8 @@ u8 collect_bss_info23a(struct rtw_adapter *padapter, struct recv_frame *precv_fr
 
 	/* checking rate info... */
 	i = 0;
-	p = rtw_get_ie23a(bssid->IEs + ie_offset, _SUPPORTEDRATES_IE_, &len, bssid->IELength - ie_offset);
+	p = rtw_get_ie23a(bssid->IEs + ie_offset, WLAN_EID_SUPP_RATES, &len,
+			  bssid->IELength - ie_offset);
 	if (p != NULL)
 	{
 		if (len > NDIS_802_11_LENGTH_RATES_EX)
@@ -7863,7 +7874,8 @@ u8 collect_bss_info23a(struct rtw_adapter *padapter, struct recv_frame *precv_fr
 		i = len;
 	}
 
-	p = rtw_get_ie23a(bssid->IEs + ie_offset, _EXT_SUPPORTEDRATES_IE_, &len, bssid->IELength - ie_offset);
+	p = rtw_get_ie23a(bssid->IEs + ie_offset, WLAN_EID_EXT_SUPP_RATES,
+			  &len, bssid->IELength - ie_offset);
 	if (p != NULL)
 	{
 		if (len > (NDIS_802_11_LENGTH_RATES_EX-i))
@@ -7883,7 +7895,8 @@ u8 collect_bss_info23a(struct rtw_adapter *padapter, struct recv_frame *precv_fr
 		return _FAIL;
 
 	/*  Checking for DSConfig */
-	p = rtw_get_ie23a(bssid->IEs + ie_offset, _DSSET_IE_, &len, bssid->IELength - ie_offset);
+	p = rtw_get_ie23a(bssid->IEs + ie_offset, WLAN_EID_DS_PARAMS, &len,
+			  bssid->IELength - ie_offset);
 
 	bssid->Configuration.DSConfig = 0;
 	bssid->Configuration.Length = 0;
@@ -7895,7 +7908,9 @@ u8 collect_bss_info23a(struct rtw_adapter *padapter, struct recv_frame *precv_fr
 	else
 	{/*  In 5G, some ap do not have DSSET IE */
 		/*  checking HT info for channel */
-		p = rtw_get_ie23a(bssid->IEs + ie_offset, _HT_ADD_INFO_IE_, &len, bssid->IELength - ie_offset);
+		p = rtw_get_ie23a(bssid->IEs + ie_offset,
+				  WLAN_EID_HT_OPERATION, &len,
+				  bssid->IELength - ie_offset);
 		if (p)
 		{
 			struct HT_info_element *HT_info = (struct HT_info_element *)(p + 2);
@@ -7940,7 +7955,7 @@ u8 collect_bss_info23a(struct rtw_adapter *padapter, struct recv_frame *precv_fr
 	{
 		struct mlme_priv *pmlmepriv = &padapter->mlmepriv;
 
-		p = rtw_get_ie23a(bssid->IEs + ie_offset, _HT_CAPABILITY_IE_, &len, bssid->IELength - ie_offset);
+		p = rtw_get_ie23a(bssid->IEs + ie_offset, WLAN_EID_HT_CAPABILITY, &len, bssid->IELength - ie_offset);
 		if (p && len > 0) {
 			struct HT_caps_element	*pHT_caps;
 			pHT_caps = (struct HT_caps_element	*)(p + 2);
@@ -8171,7 +8186,9 @@ static void process_80211d(struct rtw_adapter *padapter, struct wlan_bssid_ex *b
 		u8 noc; /*  number of channel */
 		u8 j, k;
 
-		ie = rtw_get_ie23a(bssid->IEs + _FIXED_IE_LENGTH_, _COUNTRY_IE_, &len, bssid->IELength - _FIXED_IE_LENGTH_);
+		ie = rtw_get_ie23a(bssid->IEs + _FIXED_IE_LENGTH_,
+				   WLAN_EID_COUNTRY, &len,
+				   bssid->IELength - _FIXED_IE_LENGTH_);
 		if (!ie) return;
 		if (len < 6) return;
 
@@ -9310,11 +9327,11 @@ u8 join_cmd_hdl23a(struct rtw_adapter *padapter, u8 *pbuf)
 				pmlmeinfo->WMM_enable = 1;
 			break;
 
-		case _HT_CAPABILITY_IE_:	/* Get HT Cap IE. */
+		case WLAN_EID_HT_CAPABILITY:	/* Get HT Cap IE. */
 			pmlmeinfo->HT_caps_enable = 1;
 			break;
 
-		case _HT_EXTRA_INFO_IE_:	/* Get HT Info IE. */
+		case WLAN_EID_HT_OPERATION:	/* Get HT Info IE. */
 			pmlmeinfo->HT_info_enable = 1;
 
 			/* spec case only for cisco's ap because cisco's ap
