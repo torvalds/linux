@@ -289,6 +289,7 @@ config PINCTRL_SIRF
 	bool "CSR SiRFprimaII/SiRFmarco pin controller driver"
 	depends on ARCH_SIRF
 	select PINMUX
+	select GPIOLIB_IRQCHIP
 
 config PINCTRL_SUNXI
 	bool
