@@ -740,8 +740,8 @@ OnBeacon23a(struct rtw_adapter *padapter, struct recv_frame *precv_frame)
 	pie = mgmt->u.beacon.variable;
 	pie_len = pkt_len - offsetof(struct ieee80211_mgmt, u.beacon.variable);
 	p = rtw_get_ie23a(pie, WLAN_EID_EXT_SUPP_RATES, &ielen, pie_len);
-	if ((p != NULL) && (ielen > 0)) {
-		if ((*(p + 1 + ielen) == 0x2D) && (*(p + 2 + ielen) != 0x2D)) {
+	if (p && ielen > 0) {
+		if (p[1 + ielen] == 0x2D && p[2 + ielen] != 0x2D) {
 			/* Invalid value 0x2D is detected in Extended Supported
 			 * Rates (ESR) IE. Try to fix the IE length to avoid
 			 * failed Beacon parsing.
@@ -750,7 +750,7 @@ OnBeacon23a(struct rtw_adapter *padapter, struct recv_frame *precv_frame)
 				  "Beacon of BSSID: %pM. Fix the length of "
 				  "ESR IE to avoid failed Beacon parsing.\n",
 				  mgmt->bssid);
-			*(p + 1) = ielen - 1;
+			p[1] = ielen - 1;
 		}
 	}
 
@@ -759,93 +759,94 @@ OnBeacon23a(struct rtw_adapter *padapter, struct recv_frame *precv_frame)
 		return _SUCCESS;
 	}
 
-	if (ether_addr_equal(mgmt->bssid,
-			     get_my_bssid23a(&pmlmeinfo->network))){
-		if (pmlmeinfo->state & WIFI_FW_AUTH_NULL) {
-			/* we should update current network before auth,
-			   or some IE is wrong */
-			pbss = (struct wlan_bssid_ex *)
-				kmalloc(sizeof(struct wlan_bssid_ex),
-					GFP_ATOMIC);
-			if (pbss) {
-				if (collect_bss_info23a(padapter, precv_frame,
-							pbss) == _SUCCESS) {
-					update_network23a(&pmlmepriv->cur_network.network, pbss, padapter, true);
-					rtw_get_bcn_info23a(&pmlmepriv->cur_network);
-				}
-				kfree(pbss);
-			}
+	if (!ether_addr_equal(mgmt->bssid,
+			      get_my_bssid23a(&pmlmeinfo->network)))
+		goto out;
 
-			/* check the vendor of the assoc AP */
-			pmlmeinfo->assoc_AP_vendor = check_assoc_AP23a(pframe + sizeof(struct ieee80211_hdr_3addr), pkt_len-sizeof(struct ieee80211_hdr_3addr));
+	if (pmlmeinfo->state & WIFI_FW_AUTH_NULL) {
+		/* we should update current network before auth,
+		   or some IE is wrong */
+		pbss = (struct wlan_bssid_ex *)
+			kmalloc(sizeof(struct wlan_bssid_ex), GFP_ATOMIC);
+		if (pbss) {
+			if (collect_bss_info23a(padapter, precv_frame, pbss) ==
+			    _SUCCESS) {
+				update_network23a(
+					&pmlmepriv->cur_network.network, pbss,
+					padapter, true);
+				rtw_get_bcn_info23a(&pmlmepriv->cur_network);
+			}
+			kfree(pbss);
+		}
+
+		/* check the vendor of the assoc AP */
+		pmlmeinfo->assoc_AP_vendor =
+			check_assoc_AP23a((u8 *)&mgmt->u.beacon, pkt_len -
+					  offsetof(struct ieee80211_mgmt, u));
+
+		/* update TSF Value */
+		update_TSF23a(pmlmeext, pframe, pkt_len);
+
+		/* start auth */
+		start_clnt_auth23a(padapter);
+
+		return _SUCCESS;
+	}
+
+	if (((pmlmeinfo->state & 0x03) == WIFI_FW_STATION_STATE) &&
+	    (pmlmeinfo->state & WIFI_FW_ASSOC_SUCCESS)) {
+		psta = rtw_get_stainfo23a(pstapriv, mgmt->sa);
+		if (psta) {
+			ret = rtw_check_bcn_info23a(padapter, mgmt, pkt_len);
+			if (!ret) {
+				DBG_8723A_LEVEL(_drv_always_, "ap has changed, "
+						"disconnect now\n");
+				receive_disconnect23a(padapter, pmlmeinfo->network.MacAddress, 65535);
+				return _SUCCESS;
+			}
+			/* update WMM, ERP in the beacon */
+			/* todo: the timer is used instead of
+			   the number of the beacon received */
+			if ((sta_rx_pkts(psta) & 0xf) == 0) {
+				/* DBG_8723A("update_bcn_info\n"); */
+				update_beacon23a_info(padapter, pframe,
+						      pkt_len, psta);
+			}
+		}
+	} else if ((pmlmeinfo->state&0x03) == WIFI_FW_ADHOC_STATE) {
+		psta = rtw_get_stainfo23a(pstapriv, mgmt->sa);
+		if (psta) {
+			/* update WMM, ERP in the beacon */
+			/* todo: the timer is used instead of the
+			   number of the beacon received */
+			if ((sta_rx_pkts(psta) & 0xf) == 0) {
+				/* DBG_8723A("update_bcn_info\n"); */
+				update_beacon23a_info(padapter, pframe,
+						      pkt_len, psta);
+			}
+		} else {
+			/* allocate a new CAM entry for IBSS station */
+			cam_idx = allocate_fw_sta_entry23a(padapter);
+			if (cam_idx == NUM_STA)
+				goto out;
+
+			/* get supported rate */
+			if (update_sta_support_rate23a(padapter, pie, pie_len,
+						       cam_idx) == _FAIL) {
+				pmlmeinfo->FW_sta_info[cam_idx].status = 0;
+				goto out;
+			}
 
 			/* update TSF Value */
 			update_TSF23a(pmlmeext, pframe, pkt_len);
 
-			/* start auth */
-			start_clnt_auth23a(padapter);
-
-			return _SUCCESS;
-		}
-
-		if (((pmlmeinfo->state&0x03) == WIFI_FW_STATION_STATE) &&
-		    (pmlmeinfo->state & WIFI_FW_ASSOC_SUCCESS)) {
-			psta = rtw_get_stainfo23a(pstapriv, mgmt->sa);
-			if (psta) {
-				ret = rtw_check_bcn_info23a(padapter, mgmt,
-							    pkt_len);
-				if (!ret) {
-					DBG_8723A_LEVEL(_drv_always_,
-							"ap has changed, "
-							"disconnect now\n");
-					receive_disconnect23a(padapter, pmlmeinfo->network.MacAddress, 65535);
-					return _SUCCESS;
-				}
-				/* update WMM, ERP in the beacon */
-				/* todo: the timer is used instead of
-				   the number of the beacon received */
-				if ((sta_rx_pkts(psta) & 0xf) == 0) {
-					/* DBG_8723A("update_bcn_info\n"); */
-					update_beacon23a_info(padapter, pframe,
-							      pkt_len, psta);
-				}
-			}
-		} else if ((pmlmeinfo->state&0x03) == WIFI_FW_ADHOC_STATE) {
-			psta = rtw_get_stainfo23a(pstapriv, mgmt->sa);
-			if (psta) {
-				/* update WMM, ERP in the beacon */
-				/* todo: the timer is used instead of the
-				   number of the beacon received */
-				if ((sta_rx_pkts(psta) & 0xf) == 0) {
-					/* DBG_8723A("update_bcn_info\n"); */
-					update_beacon23a_info(padapter, pframe,
-							      pkt_len, psta);
-				}
-			} else {
-				/* allocate a new CAM entry for IBSS station */
-				cam_idx = allocate_fw_sta_entry23a(padapter);
-				if (cam_idx == NUM_STA)
-					goto _END_ONBEACON_;
-
-				/* get supported rate */
-				if (update_sta_support_rate23a(padapter, pie,
-							       pie_len,
-							       cam_idx) == _FAIL) {
-					pmlmeinfo->FW_sta_info[cam_idx].status = 0;
-					goto _END_ONBEACON_;
-				}
-
-				/* update TSF Value */
-				update_TSF23a(pmlmeext, pframe, pkt_len);
-
-				/* report sta add event */
-				report_add_sta_event23a(padapter, mgmt->sa,
-							cam_idx);
-			}
+			/* report sta add event */
+			report_add_sta_event23a(padapter, mgmt->sa,
+						cam_idx);
 		}
 	}
 
-_END_ONBEACON_:
+out:
 
 	return _SUCCESS;
 }
