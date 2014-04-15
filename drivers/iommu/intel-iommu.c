@@ -2237,7 +2237,9 @@ static struct dmar_domain *get_domain_for_dev(struct device *dev, int gaw)
 				bridge_devfn = dev_tmp->devfn;
 			}
 			spin_lock_irqsave(&device_domain_lock, flags);
-			info = dmar_search_domain_by_dev_info(segment, bus, devfn);
+			info = dmar_search_domain_by_dev_info(segment,
+							      bridge_bus,
+							      bridge_devfn);
 			if (info) {
 				iommu = info->iommu;
 				domain = info->domain;
