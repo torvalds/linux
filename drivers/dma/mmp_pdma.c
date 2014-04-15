@@ -858,8 +858,7 @@ static int mmp_pdma_chan_init(struct mmp_pdma_device *pdev, int idx, int irq)
 	struct mmp_pdma_chan *chan;
 	int ret;
 
-	chan = devm_kzalloc(pdev->dev, sizeof(struct mmp_pdma_chan),
-			    GFP_KERNEL);
+	chan = devm_kzalloc(pdev->dev, sizeof(*chan), GFP_KERNEL);
 	if (chan == NULL)
 		return -ENOMEM;
 
@@ -946,8 +945,7 @@ static int mmp_pdma_probe(struct platform_device *op)
 			irq_num++;
 	}
 
-	pdev->phy = devm_kcalloc(pdev->dev,
-				 dma_channels, sizeof(struct mmp_pdma_chan),
+	pdev->phy = devm_kcalloc(pdev->dev, dma_channels, sizeof(*pdev->phy),
 				 GFP_KERNEL);
 	if (pdev->phy == NULL)
 		return -ENOMEM;
