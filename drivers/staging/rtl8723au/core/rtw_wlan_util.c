@@ -867,7 +867,6 @@ int rtw_check_bcn_info23a(struct rtw_adapter *Adapter,
 	int group_cipher = 0, pairwise_cipher = 0, is_8021x = 0;
 	unsigned char *pbuf;
 	u32 wpa_ielen = 0;
-	u32 hidden_ssid = 0;
 	struct HT_info_element *pht_info = NULL;
 	struct ieee80211_ht_cap *pht_cap = NULL;
 	u32 bcn_channel;
@@ -976,17 +975,12 @@ int rtw_check_bcn_info23a(struct rtw_adapter *Adapter,
 
 	/* checking SSID */
 	p = cfg80211_find_ie(WLAN_EID_SSID, pie, pie_len);
-	if (!p) {
+	if (p && p[1]) {
+		memcpy(bssid->Ssid.ssid, p + 2, p[1]);
+		bssid->Ssid.ssid_len = p[1];
+	} else {
 		DBG_8723A("%s marc: cannot find SSID for survey event\n",
 			  __func__);
-		hidden_ssid = true;
-	} else
-		hidden_ssid = false;
-
-	if (p && (hidden_ssid == false && *(p + 1))) {
-		memcpy(bssid->Ssid.ssid, (p + 2), *(p + 1));
-		bssid->Ssid.ssid_len = *(p + 1);
-	} else {
 		bssid->Ssid.ssid_len = 0;
 		bssid->Ssid.ssid[0] = '\0';
 	}
