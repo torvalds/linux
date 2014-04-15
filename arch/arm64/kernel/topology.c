@@ -2,9 +2,9 @@
  * arch/arm64/kernel/topology.c
  *
  * Copyright (C) 2011,2013 Linaro Limited.
- * Written by: Vincent Guittot
  *
- * based on arch/sh/kernel/topology.c
+ * Based on the arm32 version written by Vincent Guittot in turn based on
+ * arch/sh/kernel/topology.c
  *
  * This file is subject to the terms and conditions of the GNU General Public
  * License.  See the file "COPYING" in the main directory of this archive
@@ -13,7 +13,6 @@
 
 #include <linux/cpu.h>
 #include <linux/cpumask.h>
-#include <linux/export.h>
 #include <linux/init.h>
 #include <linux/percpu.h>
 #include <linux/node.h>
@@ -22,9 +21,10 @@
 #include <linux/sched.h>
 #include <linux/slab.h>
 
+#include <asm/topology.h>
 #include <asm/cputype.h>
 #include <asm/smp_plat.h>
-#include <asm/topology.h>
+
 
 /*
  * cpu power scale management
@@ -115,7 +115,7 @@ static void __init parse_core(struct device_node *core, int core_id)
 		if (t) {
 			leaf = false;
 			cpu = get_cpu_for_node(t);
-			if (cpu) {
+			if (cpu >= 0) {
 				pr_info("CPU%d: socket %d core %d thread %d\n",
 					cpu, cluster_id, core_id, i);
 				cpu_topology[cpu].socket_id = cluster_id;
@@ -146,7 +146,7 @@ static void __init parse_core(struct device_node *core, int core_id)
 	}
 }
 
-static void __init parse_cluster(struct device_node *cluster)
+static void __init parse_cluster(struct device_node *cluster, int depth)
 {
 	char name[10];
 	bool leaf = true;
@@ -165,7 +165,7 @@ static void __init parse_cluster(struct device_node *cluster)
 		snprintf(name, sizeof(name), "cluster%d", i);
 		c = of_get_child_by_name(cluster, name);
 		if (c) {
-			parse_cluster(c);
+			parse_cluster(c, depth + 1);
 			leaf = false;
 		}
 		i++;
@@ -178,6 +178,10 @@ static void __init parse_cluster(struct device_node *cluster)
 		c = of_get_child_by_name(cluster, name);
 		if (c) {
 			has_cores = true;
+
+			if (depth == 0)
+				pr_err("%s: cpu-map children should be clusters\n",
+				       c->full_name);
 
 			if (leaf)
 				parse_core(c, core_id++);
@@ -228,7 +232,7 @@ static void __init parse_dt_topology(void)
 	cn = of_find_node_by_name(cn, "cpu-map");
 	if (!cn)
 		return;
-	parse_cluster(cn);
+	parse_cluster(cn, 0);
 
 	for_each_possible_cpu(cpu) {
 		const u32 *rate;
@@ -354,9 +358,9 @@ void store_cpu_topology(unsigned int cpuid)
 {
 	struct cputopo_arm *cpuid_topo = &cpu_topology[cpuid];
 
-	/* DT should have been parsed by the time we get here */
+	/* Something should have picked a topology by the time we get here */
 	if (cpuid_topo->core_id == -1)
-		pr_info("CPU%u: No topology information configured\n", cpuid);
+		pr_warn("CPU%u: No topology information configured\n", cpuid);
 	else
 		update_siblings_masks(cpuid);
 
@@ -534,4 +538,17 @@ void __init init_cpu_topology(void)
 	smp_wmb();
 
 	parse_dt_topology();
+
+	/*
+	 * Assign all remaining CPUs to a cluster so the scheduler
+	 * doesn't get confused.
+	 */
+	for_each_possible_cpu(cpu) {
+		struct cputopo_arm *cpu_topo = &cpu_topology[cpu];
+
+		if (cpu_topo->socket_id == -1) {
+			cpu_topo->socket_id = INT_MAX;
+			cpu_topo->core_id = cpu;
+		}
+	}
 }

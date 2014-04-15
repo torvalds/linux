@@ -1488,7 +1488,7 @@ static int proc_iface_stat_fmt_open(struct inode *inode, struct file *file)
 	if (!s)
 		return -ENOMEM;
 
-	s->fmt = (long)PDE_DATA(inode);
+	s->fmt = (uintptr_t)PDE_DATA(inode);
 	return 0;
 }
 
@@ -2440,10 +2440,10 @@ err:
 	return res;
 }
 
-static int qtaguid_ctrl_parse(const char *input, int count)
+static ssize_t qtaguid_ctrl_parse(const char *input, size_t count)
 {
 	char cmd;
-	int res;
+	ssize_t res;
 
 	CT_DEBUG("qtaguid: ctrl(%s): pid=%u tgid=%u uid=%u\n",
 		 input, current->pid, current->tgid, current_fsuid());
@@ -2474,7 +2474,7 @@ static int qtaguid_ctrl_parse(const char *input, int count)
 	if (!res)
 		res = count;
 err:
-	CT_DEBUG("qtaguid: ctrl(%s): res=%d\n", input, res);
+	CT_DEBUG("qtaguid: ctrl(%s): res=%zd\n", input, res);
 	return res;
 }
 
