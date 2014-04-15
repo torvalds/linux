@@ -235,7 +235,8 @@ fail:
  * Description: allocate a struct scsi_cmd from host's slab, recycling from the
  *              host's free_list if necessary.
  */
-struct scsi_cmnd *__scsi_get_command(struct Scsi_Host *shost, gfp_t gfp_mask)
+static struct scsi_cmnd *
+__scsi_get_command(struct Scsi_Host *shost, gfp_t gfp_mask)
 {
 	struct scsi_cmnd *cmd = scsi_host_alloc_command(shost, gfp_mask);
 
@@ -265,7 +266,6 @@ struct scsi_cmnd *__scsi_get_command(struct Scsi_Host *shost, gfp_t gfp_mask)
 
 	return cmd;
 }
-EXPORT_SYMBOL_GPL(__scsi_get_command);
 
 /**
  * scsi_get_command - Allocate and setup a scsi command block
@@ -291,14 +291,13 @@ struct scsi_cmnd *scsi_get_command(struct scsi_device *dev, gfp_t gfp_mask)
 	cmd->jiffies_at_alloc = jiffies;
 	return cmd;
 }
-EXPORT_SYMBOL(scsi_get_command);
 
 /**
  * __scsi_put_command - Free a struct scsi_cmnd
  * @shost: dev->host
  * @cmd: Command to free
  */
-void __scsi_put_command(struct Scsi_Host *shost, struct scsi_cmnd *cmd)
+static void __scsi_put_command(struct Scsi_Host *shost, struct scsi_cmnd *cmd)
 {
 	unsigned long flags;
 
@@ -314,7 +313,6 @@ void __scsi_put_command(struct Scsi_Host *shost, struct scsi_cmnd *cmd)
 	if (likely(cmd != NULL))
 		scsi_host_free_command(shost, cmd);
 }
-EXPORT_SYMBOL(__scsi_put_command);
 
 /**
  * scsi_put_command - Free a scsi command block
@@ -338,7 +336,6 @@ void scsi_put_command(struct scsi_cmnd *cmd)
 
 	__scsi_put_command(cmd->device->host, cmd);
 }
-EXPORT_SYMBOL(scsi_put_command);
 
 static struct scsi_host_cmd_pool *
 scsi_find_host_cmd_pool(struct Scsi_Host *shost)
@@ -801,7 +798,6 @@ void scsi_finish_command(struct scsi_cmnd *cmd)
 	}
 	scsi_io_completion(cmd, good_bytes);
 }
-EXPORT_SYMBOL(scsi_finish_command);
 
 /**
  * scsi_adjust_queue_depth - Let low level drivers change a device's queue depth

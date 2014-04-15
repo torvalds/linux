@@ -795,8 +795,6 @@ extern struct Scsi_Host *scsi_host_lookup(unsigned short);
 extern const char *scsi_host_state_name(enum scsi_host_state);
 extern void scsi_cmd_get_serial(struct Scsi_Host *, struct scsi_cmnd *);
 
-extern u64 scsi_calculate_bounce_limit(struct Scsi_Host *);
-
 static inline int __must_check scsi_add_host(struct Scsi_Host *host,
 					     struct device *dev)
 {

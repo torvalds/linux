@@ -579,7 +579,7 @@ static void scsi_free_sgtable(struct scsi_data_buffer *sdb)
  *		the __init_io() function.  Primarily this would involve
  *		the scatter-gather table.
  */
-void scsi_release_buffers(struct scsi_cmnd *cmd)
+static void scsi_release_buffers(struct scsi_cmnd *cmd)
 {
 	if (cmd->sdb.table.nents)
 		scsi_free_sgtable(&cmd->sdb);
@@ -589,7 +589,6 @@ void scsi_release_buffers(struct scsi_cmnd *cmd)
 	if (scsi_prot_sg_count(cmd))
 		scsi_free_sgtable(cmd->prot_sdb);
 }
-EXPORT_SYMBOL(scsi_release_buffers);
 
 static void scsi_release_bidi_buffers(struct scsi_cmnd *cmd)
 {
@@ -1609,7 +1608,7 @@ out_delay:
 		blk_delay_queue(q, SCSI_QUEUE_DELAY);
 }
 
-u64 scsi_calculate_bounce_limit(struct Scsi_Host *shost)
+static u64 scsi_calculate_bounce_limit(struct Scsi_Host *shost)
 {
 	struct device *host_dev;
 	u64 bounce_limit = 0xffffffff;
@@ -1629,7 +1628,6 @@ u64 scsi_calculate_bounce_limit(struct Scsi_Host *shost)
 
 	return bounce_limit;
 }
-EXPORT_SYMBOL(scsi_calculate_bounce_limit);
 
 struct request_queue *__scsi_alloc_queue(struct Scsi_Host *shost,
 					 request_fn_proc *request_fn)
