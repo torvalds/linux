@@ -59,14 +59,6 @@ config KEYSTONE_USB_PHY
 	  interface to interact with USB 2.0 and USB 3.0 PHY that is part
 	  of the Keystone SOC.
 
-config MV_U3D_PHY
-	bool "Marvell USB 3.0 PHY controller Driver"
-	depends on CPU_MMP3
-	select USB_PHY
-	help
-	  Enable this to support Marvell USB 3.0 phy controller for Marvell
-	  SoC.
-
 config NOP_USB_XCEIV
 	tristate "NOP USB Transceiver Driver"
 	select USB_PHY
