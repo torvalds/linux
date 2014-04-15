@@ -4343,25 +4343,25 @@ void site_survey23a(struct rtw_adapter *padapter)
 }
 
 /* collect bss info from Beacon and Probe request/response frames. */
-u8 collect_bss_info23a(struct rtw_adapter *padapter, struct recv_frame *precv_frame, struct wlan_bssid_ex *bssid)
+u8 collect_bss_info23a(struct rtw_adapter *padapter,
+		       struct recv_frame *precv_frame,
+		       struct wlan_bssid_ex *bssid)
 {
-	int	i;
-	u32	len;
-	u8	*p;
-	u16	val16;
+	int i, length;
+	const u8 *p;
+	u16 val16;
 	struct sk_buff *skb = precv_frame->pkt;
 	struct ieee80211_hdr *hdr = (struct ieee80211_hdr *) skb->data;
-	u8	*pframe = skb->data;
-	u32	packet_len = skb->len;
+	u8 *pframe = skb->data;
+	int packet_len = skb->len;
 	u8 ie_offset;
-	struct registry_priv	*pregistrypriv = &padapter->registrypriv;
-	struct mlme_ext_priv	*pmlmeext = &padapter->mlmeextpriv;
+	struct registry_priv *pregistrypriv = &padapter->registrypriv;
+	struct mlme_ext_priv *pmlmeext = &padapter->mlmeextpriv;
 	struct mlme_ext_info *pmlmeinfo = &pmlmeext->mlmext_info;
 
-	len = packet_len - sizeof(struct ieee80211_hdr_3addr);
+	length = packet_len - sizeof(struct ieee80211_hdr_3addr);
 
-	if (len > MAX_IE_SZ)
-	{
+	if (length > MAX_IE_SZ) {
 		/* DBG_8723A("IE too long for survey event\n"); */
 		return _FAIL;
 	}
@@ -4385,99 +4385,92 @@ u8 collect_bss_info23a(struct rtw_adapter *padapter, struct recv_frame *precv_fr
 		}
 	}
 
-	bssid->Length = sizeof(struct wlan_bssid_ex) - MAX_IE_SZ + len;
+	bssid->Length = sizeof(struct wlan_bssid_ex) - MAX_IE_SZ + length;
 
 	/* below is to copy the information element */
-	bssid->IELength = len;
-	memcpy(bssid->IEs, (pframe + sizeof(struct ieee80211_hdr_3addr)), bssid->IELength);
+	bssid->IELength = length;
+	memcpy(bssid->IEs, pframe + sizeof(struct ieee80211_hdr_3addr),
+	       bssid->IELength);
 
 	/* get the signal strength */
-	bssid->Rssi = precv_frame->attrib.phy_info.RecvSignalPower; /*  in dBM.raw data */
-	bssid->PhyInfo.SignalQuality = precv_frame->attrib.phy_info.SignalQuality;/* in percentage */
-	bssid->PhyInfo.SignalStrength = precv_frame->attrib.phy_info.SignalStrength;/* in percentage */
+	/*  in dBM.raw data */
+	bssid->Rssi = precv_frame->attrib.phy_info.RecvSignalPower;
+	bssid->PhyInfo.SignalQuality =
+		precv_frame->attrib.phy_info.SignalQuality;/* in percentage */
+	bssid->PhyInfo.SignalStrength =
+		precv_frame->attrib.phy_info.SignalStrength;/* in percentage */
 
 	/*  checking SSID */
-	if ((p = rtw_get_ie23a(bssid->IEs + ie_offset, WLAN_EID_SSID, &len,
-			       bssid->IELength - ie_offset)) == NULL)
-	{
+	p = cfg80211_find_ie(WLAN_EID_SSID, bssid->IEs + ie_offset,
+			     bssid->IELength - ie_offset);
+
+	if (!p) {
 		DBG_8723A("marc: cannot find SSID for survey event\n");
 		return _FAIL;
 	}
 
-	if (*(p + 1)) {
-		if (len > IEEE80211_MAX_SSID_LEN) {
-			DBG_8723A("%s()-%d: IE too long (%d) for survey "
-				  "event\n", __func__, __LINE__, len);
-			return _FAIL;
-		}
-		memcpy(bssid->Ssid.ssid, (p + 2), *(p + 1));
-		bssid->Ssid.ssid_len = *(p + 1);
-	} else {
-		bssid->Ssid.ssid_len = 0;
+	if (p[1] > IEEE80211_MAX_SSID_LEN) {
+		DBG_8723A("%s()-%d: IE too long (%d) for survey "
+			  "event\n", __func__, __LINE__, p[1]);
+		return _FAIL;
 	}
+	memcpy(bssid->Ssid.ssid, p + 2, p[1]);
+	bssid->Ssid.ssid_len = p[1];
 
 	memset(bssid->SupportedRates, 0, NDIS_802_11_LENGTH_RATES_EX);
 
 	/* checking rate info... */
 	i = 0;
-	p = rtw_get_ie23a(bssid->IEs + ie_offset, WLAN_EID_SUPP_RATES, &len,
-			  bssid->IELength - ie_offset);
-	if (p != NULL)
-	{
-		if (len > NDIS_802_11_LENGTH_RATES_EX)
-		{
-			DBG_8723A("%s()-%d: IE too long (%d) for survey event\n", __func__, __LINE__, len);
+	p = cfg80211_find_ie(WLAN_EID_SUPP_RATES, bssid->IEs + ie_offset,
+			     bssid->IELength - ie_offset);
+	if (p) {
+		if (p[1] > NDIS_802_11_LENGTH_RATES_EX) {
+			DBG_8723A("%s()-%d: IE too long (%d) for survey "
+				  "event\n", __func__, __LINE__, p[1]);
 			return _FAIL;
 		}
-		memcpy(bssid->SupportedRates, (p + 2), len);
-		i = len;
+		memcpy(bssid->SupportedRates, p + 2, p[1]);
+		i = p[1];
 	}
 
-	p = rtw_get_ie23a(bssid->IEs + ie_offset, WLAN_EID_EXT_SUPP_RATES,
-			  &len, bssid->IELength - ie_offset);
-	if (p != NULL)
-	{
-		if (len > (NDIS_802_11_LENGTH_RATES_EX-i))
-		{
-			DBG_8723A("%s()-%d: IE too long (%d) for survey event\n", __func__, __LINE__, len);
+	p = cfg80211_find_ie(WLAN_EID_EXT_SUPP_RATES, bssid->IEs + ie_offset,
+			     bssid->IELength - ie_offset);
+	if (p) {
+		if (p[1] > (NDIS_802_11_LENGTH_RATES_EX-i)) {
+			DBG_8723A("%s()-%d: IE too long (%d) for survey "
+				  "event\n", __func__, __LINE__, p[1]);
 			return _FAIL;
 		}
-		memcpy(bssid->SupportedRates + i, (p + 2), len);
+		memcpy(bssid->SupportedRates + i, p + 2, p[1]);
 	}
 
-	/* todo: */
-	{
-		bssid->NetworkTypeInUse = Ndis802_11OFDM24;
-	}
+	bssid->NetworkTypeInUse = Ndis802_11OFDM24;
 
 	if (bssid->IELength < 12)
 		return _FAIL;
 
 	/*  Checking for DSConfig */
-	p = rtw_get_ie23a(bssid->IEs + ie_offset, WLAN_EID_DS_PARAMS, &len,
-			  bssid->IELength - ie_offset);
+	p = cfg80211_find_ie(WLAN_EID_DS_PARAMS, bssid->IEs + ie_offset,
+			     bssid->IELength - ie_offset);
 
 	bssid->Configuration.DSConfig = 0;
 	bssid->Configuration.Length = 0;
 
-	if (p)
-	{
-		bssid->Configuration.DSConfig = *(p + 2);
-	}
-	else
-	{/*  In 5G, some ap do not have DSSET IE */
+	if (p) {
+		bssid->Configuration.DSConfig = p[2];
+	} else {/*  In 5G, some ap do not have DSSET IE */
 		/*  checking HT info for channel */
-		p = rtw_get_ie23a(bssid->IEs + ie_offset,
-				  WLAN_EID_HT_OPERATION, &len,
-				  bssid->IELength - ie_offset);
-		if (p)
-		{
-			struct HT_info_element *HT_info = (struct HT_info_element *)(p + 2);
-			bssid->Configuration.DSConfig = HT_info->primary_channel;
-		}
-		else
-		{ /*  use current channel */
-			bssid->Configuration.DSConfig = rtw_get_oper_ch23a(padapter);
+		p = cfg80211_find_ie(WLAN_EID_HT_OPERATION,
+				     bssid->IEs + ie_offset,
+				     bssid->IELength - ie_offset);
+		if (p) {
+			struct HT_info_element *HT_info =
+				(struct HT_info_element *)(p + 2);
+			bssid->Configuration.DSConfig =
+				HT_info->primary_channel;
+		} else { /*  use current channel */
+			bssid->Configuration.DSConfig =
+				rtw_get_oper_ch23a(padapter);
 		}
 	}
 
@@ -4489,8 +4482,10 @@ u8 collect_bss_info23a(struct rtw_adapter *padapter, struct recv_frame *precv_fr
 		return _SUCCESS;
 	}
 
-	memcpy(&bssid->Configuration.BeaconPeriod, rtw_get_beacon_interval23a_from_ie(bssid->IEs), 2);
-	bssid->Configuration.BeaconPeriod = le32_to_cpu(bssid->Configuration.BeaconPeriod);
+	memcpy(&bssid->Configuration.BeaconPeriod,
+	       rtw_get_beacon_interval23a_from_ie(bssid->IEs), 2);
+	bssid->Configuration.BeaconPeriod =
+		le32_to_cpu(bssid->Configuration.BeaconPeriod);
 
 	val16 = rtw_get_capability23a(bssid);
 
@@ -4510,21 +4505,21 @@ u8 collect_bss_info23a(struct rtw_adapter *padapter, struct recv_frame *precv_fr
 	bssid->Configuration.ATIMWindow = 0;
 
 	/* 20/40 BSS Coexistence check */
-	if ((pregistrypriv->wifi_spec == 1) && (false == pmlmeinfo->bwmode_updated))
-	{
+	if (pregistrypriv->wifi_spec == 1 &&
+	    pmlmeinfo->bwmode_updated == false) {
 		struct mlme_priv *pmlmepriv = &padapter->mlmepriv;
 
-		p = rtw_get_ie23a(bssid->IEs + ie_offset, WLAN_EID_HT_CAPABILITY, &len, bssid->IELength - ie_offset);
-		if (p && len > 0) {
-			struct HT_caps_element	*pHT_caps;
-			pHT_caps = (struct HT_caps_element	*)(p + 2);
+		p = cfg80211_find_ie(WLAN_EID_HT_CAPABILITY,
+				     bssid->IEs + ie_offset,
+				     bssid->IELength - ie_offset);
+		if (p && p[1] > 0) {
+			struct HT_caps_element *pHT_caps;
+			pHT_caps = (struct HT_caps_element *)(p + 2);
 
 			if (pHT_caps->u.HT_cap_element.HT_caps_info & BIT(14))
 				pmlmepriv->num_FortyMHzIntolerant++;
 		} else
-		{
 			pmlmepriv->num_sta_no_ht++;
-		}
 	}
 
 
