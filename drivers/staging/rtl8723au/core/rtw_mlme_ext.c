@@ -669,7 +669,6 @@ OnProbeReq23a(struct rtw_adapter *padapter, struct recv_frame *precv_frame)
 	struct sk_buff *skb = precv_frame->pkt;
 	struct ieee80211_mgmt *mgmt = (struct ieee80211_mgmt *) skb->data;
 	int len = skb->len;
-	u8 is_valid_p2p_probereq = false;
 
 	if (check_fwstate(pmlmepriv, WIFI_STATION_STATE))
 		return _SUCCESS;
@@ -693,17 +692,14 @@ OnProbeReq23a(struct rtw_adapter *padapter, struct recv_frame *precv_frame)
 	if (!ie)
 		goto out;
 
-	if (is_valid_p2p_probereq == false) {
-		if ((ie[1] &&
-		     memcmp(ie + 2, cur->Ssid.ssid, cur->Ssid.ssid_len)) ||
-		    (ie[1] == 0 && pmlmeinfo->hidden_ssid_mode)) {
-			return _SUCCESS;
-		}
+	if ((ie[1] && memcmp(ie + 2, cur->Ssid.ssid, cur->Ssid.ssid_len)) ||
+	    (ie[1] == 0 && pmlmeinfo->hidden_ssid_mode)) {
+		return _SUCCESS;
 	}
 
 	if (check_fwstate(pmlmepriv, _FW_LINKED) &&
 	    pmlmepriv->cur_network.join_res)
-		issue_probersp23a(padapter, mgmt->sa, is_valid_p2p_probereq);
+		issue_probersp23a(padapter, mgmt->sa, false);
 
 out:
 	return _SUCCESS;
