@@ -2207,11 +2207,12 @@ void rtw_joinbss_reset23a(struct rtw_adapter *padapter)
 
 /* the fucntion is >= passive_level */
 unsigned int rtw_restructure_ht_ie23a(struct rtw_adapter *padapter, u8 *in_ie,
-				   u8 *out_ie, uint in_len, uint *pout_len)
+				      u8 *out_ie, uint in_len, uint *pout_len)
 {
-	u32 ielen, out_len;
+	u32 out_len;
 	int max_rx_ampdu_factor;
-	unsigned char *p, *pframe;
+	unsigned char *pframe;
+	const u8 *p;
 	struct ieee80211_ht_cap ht_capie;
 	unsigned char WMM_IE[] = {0x00, 0x50, 0xf2, 0x02, 0x00, 0x01, 0x00};
 	struct mlme_priv *pmlmepriv = &padapter->mlmepriv;
@@ -2220,10 +2221,9 @@ unsigned int rtw_restructure_ht_ie23a(struct rtw_adapter *padapter, u8 *in_ie,
 
 	phtpriv->ht_option = false;
 
-	p = rtw_get_ie23a(in_ie + 12, WLAN_EID_HT_CAPABILITY, &ielen,
-			  in_len - 12);
+	p = cfg80211_find_ie(WLAN_EID_HT_CAPABILITY, in_ie + 12, in_len -12);
 
-	if (p && ielen > 0) {
+	if (p && p[1] > 0) {
 		u32 rx_packet_offset, max_recvbuf_sz;
 		if (pqospriv->qos_option == 0) {
 			out_len = *pout_len;
@@ -2264,13 +2264,13 @@ unsigned int rtw_restructure_ht_ie23a(struct rtw_adapter *padapter, u8 *in_ie,
 
 		phtpriv->ht_option = true;
 
-		p = rtw_get_ie23a(in_ie + 12, WLAN_EID_HT_OPERATION, &ielen,
-				  in_len-12);
-		if (p && (ielen == sizeof(struct ieee80211_ht_addt_info))) {
+		p = cfg80211_find_ie(WLAN_EID_HT_OPERATION, in_ie + 12,
+				     in_len -12);
+		if (p && (p[1] == sizeof(struct ieee80211_ht_addt_info))) {
 			out_len = *pout_len;
 			pframe = rtw_set_ie23a(out_ie + out_len,
 					       WLAN_EID_HT_OPERATION,
-					       ielen, p + 2 , pout_len);
+					       p[1], p + 2 , pout_len);
 		}
 	}
 
