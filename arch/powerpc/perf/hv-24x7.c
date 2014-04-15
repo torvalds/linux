@@ -155,14 +155,26 @@ static ssize_t read_offset_data(void *dest, size_t dest_len,
 	return copy_len;
 }
 
+static unsigned long h_get_24x7_catalog_page_(unsigned long phys_4096,
+					      unsigned long version,
+					      unsigned long index)
+{
+	pr_devel("h_get_24x7_catalog_page(0x%lx, %lu, %lu)",
+			phys_4096,
+			version,
+			index);
+	WARN_ON(!IS_ALIGNED(phys_4096, 4096));
+	return plpar_hcall_norets(H_GET_24X7_CATALOG_PAGE,
+			phys_4096,
+			version,
+			index);
+}
+
 static unsigned long h_get_24x7_catalog_page(char page[static 4096],
 					     u32 version, u32 index)
 {
-	WARN_ON(!IS_ALIGNED((unsigned long)page, 4096));
-	return plpar_hcall_norets(H_GET_24X7_CATALOG_PAGE,
-			virt_to_phys(page),
-			version,
-			index);
+	return h_get_24x7_catalog_page_(virt_to_phys(page),
+					version, index);
 }
 
 static ssize_t catalog_read(struct file *filp, struct kobject *kobj,
