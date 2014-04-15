@@ -121,8 +121,11 @@ void rtw23a_free_mlme_priv_ie_data(struct mlme_priv *pmlmepriv)
 #endif
 }
 
-void _rtw_free_mlme_priv23a(struct mlme_priv *pmlmepriv)
+void rtw_free_mlme_priv23a(struct mlme_priv *pmlmepriv)
 {
+	RT_TRACE(_module_rtl871x_mlme_c_, _drv_err_,
+		 ("rtw_free_mlme_priv23a\n"));
+
 	rtw23a_free_mlme_priv_ie_data(pmlmepriv);
 }
 
@@ -299,13 +302,6 @@ int rtw_init_mlme_priv23a (struct rtw_adapter *padapter)
 	res = _rtw_init_mlme_priv23a(padapter);
 
 	return res;
-}
-
-void rtw_free_mlme_priv23a (struct mlme_priv *pmlmepriv)
-{
-	RT_TRACE(_module_rtl871x_mlme_c_, _drv_err_,
-		 ("rtw_free_mlme_priv23a\n"));
-	_rtw_free_mlme_priv23a(pmlmepriv);
 }
 
 void rtw_free_network(struct mlme_priv *pmlmepriv,
