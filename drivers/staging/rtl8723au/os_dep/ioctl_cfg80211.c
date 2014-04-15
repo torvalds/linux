@@ -1686,9 +1686,7 @@ static int rtw_cfg80211_set_wpa_ie(struct rtw_adapter *padapter, const u8 *pie,
 	u8 *buf = NULL, *pos = NULL;
 	int group_cipher = 0, pairwise_cipher = 0;
 	int ret = 0;
-	int wpa_ielen = 0;
-	int wpa2_ielen = 0;
-	u8 *pwpa, *pwpa2;
+	const u8 *pwpa, *pwpa2;
 	int i;
 
 	if (!pie || !ielen) {
@@ -1723,33 +1721,35 @@ static int rtw_cfg80211_set_wpa_ie(struct rtw_adapter *padapter, const u8 *pie,
 		goto exit;
 	}
 
-	pwpa = rtw_get_wpa_ie23a(buf, &wpa_ielen, ielen);
-	if (pwpa && wpa_ielen > 0) {
-		if (rtw_parse_wpa_ie23a(pwpa, wpa_ielen + 2, &group_cipher,
-				     &pairwise_cipher, NULL) == _SUCCESS) {
+	pwpa = cfg80211_find_vendor_ie(WLAN_OUI_MICROSOFT,
+				       WLAN_OUI_TYPE_MICROSOFT_WPA,
+				       buf, ielen);
+	if (pwpa && pwpa[1] > 0) {
+		if (rtw_parse_wpa_ie23a(pwpa, pwpa[1] + 2, &group_cipher,
+					&pairwise_cipher, NULL) == _SUCCESS) {
 			padapter->securitypriv.dot11AuthAlgrthm =
 				dot11AuthAlgrthm_8021X;
 			padapter->securitypriv.ndisauthtype =
 				Ndis802_11AuthModeWPAPSK;
-			memcpy(padapter->securitypriv.supplicant_ie, &pwpa[0],
-			       wpa_ielen + 2);
+			memcpy(padapter->securitypriv.supplicant_ie, pwpa,
+			       pwpa[1] + 2);
 
-			DBG_8723A("got wpa_ie, wpa_ielen:%u\n", wpa_ielen);
+			DBG_8723A("got wpa_ie, wpa_ielen:%u\n", pwpa[1]);
 		}
 	}
 
-	pwpa2 = rtw_get_wpa2_ie23a(buf, &wpa2_ielen, ielen);
-	if (pwpa2 && wpa2_ielen > 0) {
-		if (rtw_parse_wpa2_ie23a (pwpa2, wpa2_ielen + 2, &group_cipher,
-				       &pairwise_cipher, NULL) == _SUCCESS) {
+	pwpa2 = cfg80211_find_ie(WLAN_EID_RSN, buf, ielen);
+	if (pwpa2 && pwpa2[1] > 0) {
+		if (rtw_parse_wpa2_ie23a (pwpa2, pwpa2[1] + 2, &group_cipher,
+					  &pairwise_cipher, NULL) == _SUCCESS) {
 			padapter->securitypriv.dot11AuthAlgrthm =
 				dot11AuthAlgrthm_8021X;
 			padapter->securitypriv.ndisauthtype =
 				Ndis802_11AuthModeWPA2PSK;
-			memcpy(padapter->securitypriv.supplicant_ie, &pwpa2[0],
-			       wpa2_ielen + 2);
+			memcpy(padapter->securitypriv.supplicant_ie, pwpa2,
+			       pwpa2[1] + 2);
 
-			DBG_8723A("got wpa2_ie, wpa2_ielen:%u\n", wpa2_ielen);
+			DBG_8723A("got wpa2_ie, wpa2_ielen:%u\n", pwpa2[1]);
 		}
 	}
 
