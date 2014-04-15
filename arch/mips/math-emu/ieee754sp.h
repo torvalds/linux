@@ -24,6 +24,7 @@
  * ########################################################################
  */
 
+#include <linux/compiler.h>
 
 #include "ieee754int.h"
 
@@ -68,10 +69,10 @@ static inline ieee754sp buildsp(int s, int bx, unsigned m)
 
 extern int ieee754sp_isnan(ieee754sp);
 extern int ieee754sp_issnan(ieee754sp);
-extern int ieee754si_xcpt(int, const char *, ...);
-extern s64 ieee754di_xcpt(s64, const char *, ...);
-extern ieee754sp ieee754sp_xcpt(ieee754sp, const char *, ...);
-extern ieee754sp ieee754sp_nanxcpt(ieee754sp, const char *, ...);
+extern int __cold ieee754si_xcpt(int, const char *, ...);
+extern s64 __cold ieee754di_xcpt(s64, const char *, ...);
+extern ieee754sp __cold ieee754sp_xcpt(ieee754sp, const char *, ...);
+extern ieee754sp __cold ieee754sp_nanxcpt(ieee754sp, const char *, ...);
 extern ieee754sp ieee754sp_bestnan(ieee754sp, ieee754sp);
 extern ieee754sp ieee754sp_format(int, int, unsigned);
 

@@ -28,6 +28,7 @@
  * ########################################################################
  */
 
+#include <linux/compiler.h>
 
 #include "ieee754int.h"
 #include "ieee754sp.h"
@@ -96,7 +97,7 @@ const struct ieee754sp_konst __ieee754sp_spcvals[] = {
 };
 
 
-int ieee754si_xcpt(int r, const char *op, ...)
+int __cold ieee754si_xcpt(int r, const char *op, ...)
 {
 	struct ieee754xctx ax;
 
@@ -111,7 +112,7 @@ int ieee754si_xcpt(int r, const char *op, ...)
 	return ax.rv.si;
 }
 
-s64 ieee754di_xcpt(s64 r, const char *op, ...)
+s64 __cold ieee754di_xcpt(s64 r, const char *op, ...)
 {
 	struct ieee754xctx ax;
 

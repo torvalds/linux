@@ -24,6 +24,7 @@
  * ########################################################################
  */
 
+#include <linux/compiler.h>
 
 #include "ieee754int.h"
 
@@ -62,10 +63,10 @@ static inline ieee754dp builddp(int s, int bx, u64 m)
 
 extern int ieee754dp_isnan(ieee754dp);
 extern int ieee754dp_issnan(ieee754dp);
-extern int ieee754si_xcpt(int, const char *, ...);
-extern s64 ieee754di_xcpt(s64, const char *, ...);
-extern ieee754dp ieee754dp_xcpt(ieee754dp, const char *, ...);
-extern ieee754dp ieee754dp_nanxcpt(ieee754dp, const char *, ...);
+extern int __cold ieee754si_xcpt(int, const char *, ...);
+extern s64 __cold ieee754di_xcpt(s64, const char *, ...);
+extern ieee754dp __cold ieee754dp_xcpt(ieee754dp, const char *, ...);
+extern ieee754dp __cold ieee754dp_nanxcpt(ieee754dp, const char *, ...);
 extern ieee754dp ieee754dp_bestnan(ieee754dp, ieee754dp);
 extern ieee754dp ieee754dp_format(int, int, u64);
 

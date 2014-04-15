@@ -24,6 +24,7 @@
 #ifndef __ARCH_MIPS_MATH_EMU_IEEE754_H
 #define __ARCH_MIPS_MATH_EMU_IEEE754_H
 
+#include <linux/compiler.h>
 #include <asm/byteorder.h>
 #include <linux/types.h>
 #include <linux/sched.h>
@@ -421,7 +422,7 @@ struct ieee754xctx {
 #define IEEE754_RT_SI	3
 #define IEEE754_RT_DI	4
 
-extern void ieee754_xcpt(struct ieee754xctx *xcp);
+extern void __cold ieee754_xcpt(struct ieee754xctx *xcp);
 
 /* compat */
 #define ieee754dp_fix(x)	ieee754dp_tint(x)

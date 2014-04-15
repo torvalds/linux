@@ -23,6 +23,7 @@
  * ########################################################################
  */
 
+#include <linux/compiler.h>
 
 #include "ieee754sp.h"
 
@@ -45,7 +46,7 @@ int ieee754sp_issnan(ieee754sp x)
 }
 
 
-ieee754sp ieee754sp_xcpt(ieee754sp r, const char *op, ...)
+ieee754sp __cold ieee754sp_xcpt(ieee754sp r, const char *op, ...)
 {
 	struct ieee754xctx ax;
 
@@ -61,7 +62,7 @@ ieee754sp ieee754sp_xcpt(ieee754sp r, const char *op, ...)
 	return ax.rv.sp;
 }
 
-ieee754sp ieee754sp_nanxcpt(ieee754sp r, const char *op, ...)
+ieee754sp __cold ieee754sp_nanxcpt(ieee754sp r, const char *op, ...)
 {
 	struct ieee754xctx ax;
 

@@ -23,6 +23,7 @@
  * ########################################################################
  */
 
+#include <linux/compiler.h>
 
 #include "ieee754dp.h"
 
@@ -45,7 +46,7 @@ int ieee754dp_issnan(ieee754dp x)
 }
 
 
-ieee754dp ieee754dp_xcpt(ieee754dp r, const char *op, ...)
+ieee754dp __cold ieee754dp_xcpt(ieee754dp r, const char *op, ...)
 {
 	struct ieee754xctx ax;
 	if (!TSTX())
@@ -60,7 +61,7 @@ ieee754dp ieee754dp_xcpt(ieee754dp r, const char *op, ...)
 	return ax.rv.dp;
 }
 
-ieee754dp ieee754dp_nanxcpt(ieee754dp r, const char *op, ...)
+ieee754dp __cold ieee754dp_nanxcpt(ieee754dp r, const char *op, ...)
 {
 	struct ieee754xctx ax;
 
