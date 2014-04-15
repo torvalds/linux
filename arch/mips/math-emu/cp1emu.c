@@ -933,17 +933,17 @@ static int cop1Emulate(struct pt_regs *xcp, struct mips_fpu_struct *ctx,
 	int pc_inc;
 
 	/* XXX NEC Vr54xx bug workaround */
-	if (xcp->cp0_cause & CAUSEF_BD) {
+	if (delay_slot(xcp)) {
 		if (dec_insn.micro_mips_mode) {
 			if (!mm_isBranchInstr(xcp, dec_insn, &contpc))
-				xcp->cp0_cause &= ~CAUSEF_BD;
+				clear_delay_slot(xcp);
 		} else {
 			if (!isBranchInstr(xcp, dec_insn, &contpc))
-				xcp->cp0_cause &= ~CAUSEF_BD;
+				clear_delay_slot(xcp);
 		}
 	}
 
-	if (xcp->cp0_cause & CAUSEF_BD) {
+	if (delay_slot(xcp)) {
 		/*
 		 * The instruction to be emulated is in a branch delay slot
 		 * which means that we have to	emulate the branch instruction
@@ -1178,7 +1178,7 @@ static int cop1Emulate(struct pt_regs *xcp, struct mips_fpu_struct *ctx,
 		case bc_op:{
 			int likely = 0;
 
-			if (xcp->cp0_cause & CAUSEF_BD)
+			if (delay_slot(xcp))
 				return SIGILL;
 
 #if __mips >= 4
@@ -1201,7 +1201,7 @@ static int cop1Emulate(struct pt_regs *xcp, struct mips_fpu_struct *ctx,
 				return SIGILL;
 			}
 
-			xcp->cp0_cause |= CAUSEF_BD;
+			set_delay_slot(xcp);
 			if (cond) {
 				/* branch taken: emulate dslot
 				 * instruction
@@ -1321,7 +1321,7 @@ sigill:
 
 	/* we did it !! */
 	xcp->cp0_epc = contpc;
-	xcp->cp0_cause &= ~CAUSEF_BD;
+	clear_delay_slot(xcp);
 
 	return 0;
 }

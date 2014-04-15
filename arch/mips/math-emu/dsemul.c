@@ -59,7 +59,7 @@ int mips_dsemul(struct pt_regs *regs, mips_instruction ir, unsigned long cpc)
 		(ir == 0)) {
 		/* NOP is easy */
 		regs->cp0_epc = cpc;
-		regs->cp0_cause &= ~CAUSEF_BD;
+		clear_delay_slot(regs);
 		return 0;
 	}
 #ifdef DSEMUL_TRACE
