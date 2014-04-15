@@ -916,21 +916,27 @@ static int i915_pm_poweroff(struct device *dev)
 	return i915_drm_freeze(drm_dev);
 }
 
-static void hsw_runtime_suspend(struct drm_i915_private *dev_priv)
+static int hsw_runtime_suspend(struct drm_i915_private *dev_priv)
 {
 	hsw_enable_pc8(dev_priv);
+
+	return 0;
 }
 
-static void snb_runtime_resume(struct drm_i915_private *dev_priv)
+static int snb_runtime_resume(struct drm_i915_private *dev_priv)
 {
 	struct drm_device *dev = dev_priv->dev;
 
 	intel_init_pch_refclk(dev);
+
+	return 0;
 }
 
-static void hsw_runtime_resume(struct drm_i915_private *dev_priv)
+static int hsw_runtime_resume(struct drm_i915_private *dev_priv)
 {
 	hsw_disable_pc8(dev_priv);
+
+	return 0;
 }
 
 int vlv_force_gfx_clock(struct drm_i915_private *dev_priv, bool force_on)
@@ -975,6 +981,7 @@ static int intel_runtime_suspend(struct device *device)
 	struct pci_dev *pdev = to_pci_dev(device);
 	struct drm_device *dev = pci_get_drvdata(pdev);
 	struct drm_i915_private *dev_priv = dev->dev_private;
+	int ret;
 
 	if (WARN_ON_ONCE(!(dev_priv->rps.enabled && intel_enable_rc6(dev))))
 		return -ENODEV;
@@ -992,12 +999,21 @@ static int intel_runtime_suspend(struct device *device)
 	cancel_work_sync(&dev_priv->rps.work);
 	intel_runtime_pm_disable_interrupts(dev);
 
-	if (IS_GEN6(dev))
-		;
-	else if (IS_HASWELL(dev) || IS_BROADWELL(dev))
-		hsw_runtime_suspend(dev_priv);
-	else
+	if (IS_GEN6(dev)) {
+		ret = 0;
+	} else if (IS_HASWELL(dev) || IS_BROADWELL(dev)) {
+		ret = hsw_runtime_suspend(dev_priv);
+	} else {
+		ret = -ENODEV;
 		WARN_ON(1);
+	}
+
+	if (ret) {
+		DRM_ERROR("Runtime suspend failed, disabling it (%d)\n", ret);
+		intel_runtime_pm_restore_interrupts(dev);
+
+		return ret;
+	}
 
 	i915_gem_release_all_mmaps(dev_priv);
 
@@ -1022,6 +1038,7 @@ static int intel_runtime_resume(struct device *device)
 	struct pci_dev *pdev = to_pci_dev(device);
 	struct drm_device *dev = pci_get_drvdata(pdev);
 	struct drm_i915_private *dev_priv = dev->dev_private;
+	int ret;
 
 	WARN_ON(!HAS_RUNTIME_PM(dev));
 
@@ -1030,21 +1047,31 @@ static int intel_runtime_resume(struct device *device)
 	intel_opregion_notify_adapter(dev, PCI_D0);
 	dev_priv->pm.suspended = false;
 
-	if (IS_GEN6(dev))
-		snb_runtime_resume(dev_priv);
-	else if (IS_HASWELL(dev) || IS_BROADWELL(dev))
-		hsw_runtime_resume(dev_priv);
-	else
+	if (IS_GEN6(dev)) {
+		ret = snb_runtime_resume(dev_priv);
+	} else if (IS_HASWELL(dev) || IS_BROADWELL(dev)) {
+		ret = hsw_runtime_resume(dev_priv);
+	} else {
 		WARN_ON(1);
+		ret = -ENODEV;
+	}
 
+	/*
+	 * No point of rolling back things in case of an error, as the best
+	 * we can do is to hope that things will still work (and disable RPM).
+	 */
 	i915_gem_init_swizzling(dev);
 	gen6_update_ring_freq(dev);
 
 	intel_runtime_pm_restore_interrupts(dev);
 	intel_reset_gt_powersave(dev);
 
-	DRM_DEBUG_KMS("Device resumed\n");
-	return 0;
+	if (ret)
+		DRM_ERROR("Runtime resume failed, disabling it (%d)\n", ret);
+	else
+		DRM_DEBUG_KMS("Device resumed\n");
+
+	return ret;
 }
 
 static const struct dev_pm_ops i915_pm_ops = {
