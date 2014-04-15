@@ -10,10 +10,19 @@
 # of MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the
 # GNU General Public License for more details.
 
-obj-$(CONFIG_ARCH_BCM_MOBILE)	:= board_bcm281xx.o board_bcm21664.o \
-				bcm_kona_smc.o bcm_kona_smc_asm.o kona.o
-obj-$(CONFIG_ARCH_BCM2835)	+= board_bcm2835.o
+# BCM281XX
+obj-$(CONFIG_ARCH_BCM_281XX)	+= board_bcm281xx.o
 
+# BCM21664
+obj-$(CONFIG_ARCH_BCM_21664)	+= board_bcm21664.o
+
+# BCM281XX and BCM21664 L2 cache control
+obj-$(CONFIG_ARCH_BCM_MOBILE)	+= bcm_kona_smc.o bcm_kona_smc_asm.o kona.o
 plus_sec := $(call as-instr,.arch_extension sec,+sec)
 AFLAGS_bcm_kona_smc_asm.o	:=-Wa,-march=armv7-a$(plus_sec)
+
+# BCM2835
+obj-$(CONFIG_ARCH_BCM2835)	+= board_bcm2835.o
+
+# BCM5301X
 obj-$(CONFIG_ARCH_BCM_5301X)	+= bcm_5301x.o

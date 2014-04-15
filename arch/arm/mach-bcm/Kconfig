@@ -10,7 +10,7 @@ if ARCH_BCM
 menu "Broadcom SoC Selection"
 
 config ARCH_BCM_MOBILE
-	bool "Broadcom Mobile SoC" if ARCH_MULTI_V7
+	bool "Broadcom Mobile SoC Support" if ARCH_MULTI_V7
 	depends on MMU
 	select ARCH_REQUIRE_GPIOLIB
 	select ARM_ERRATA_754322
@@ -23,9 +23,29 @@ config ARCH_BCM_MOBILE
 	select PINCTRL
 	help
 	  This enables support for systems based on Broadcom mobile SoCs.
-	  It currently supports the 'BCM281XX' family, which includes
-	  BCM11130, BCM11140, BCM11351, BCM28145 and
-	  BCM28155 variants.
+
+if ARCH_BCM_MOBILE
+
+menu "Broadcom Mobile SoC Selection"
+
+config ARCH_BCM_281XX
+	bool "Broadcom BCM281XX SoC family"
+	default y
+	help
+	  Enable support for the the BCM281XX family, which includes
+	  BCM11130, BCM11140, BCM11351, BCM28145 and BCM28155
+	  variants.
+
+config ARCH_BCM_21664
+	bool "Broadcom BCM21664 SoC family"
+	default y
+	help
+	  Enable support for the the BCM21664 family, which includes
+	  BCM21663 and BCM21664 variants.
+
+endmenu
+
+endif
 
 config ARCH_BCM2835
 	bool "Broadcom BCM2835 family" if ARCH_MULTI_V6
