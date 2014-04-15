@@ -202,7 +202,7 @@ static int btmrvl_send_sync_cmd(struct btmrvl_private *priv, u16 opcode,
 	return 0;
 }
 
-int btmrvl_send_module_cfg_cmd(struct btmrvl_private *priv, int subcmd)
+int btmrvl_send_module_cfg_cmd(struct btmrvl_private *priv, u8 subcmd)
 {
 	int ret;
 
