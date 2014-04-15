@@ -539,7 +539,7 @@ exit:
 u16 rtw_get_cur_max_rate23a(struct rtw_adapter *adapter)
 {
 	int i = 0;
-	u8 *p;
+	const u8 *p;
 	u16 rate = 0, max_rate = 0;
 	struct mlme_ext_priv *pmlmeext = &adapter->mlmeextpriv;
 	struct mlme_ext_info *pmlmeinfo = &pmlmeext->mlmext_info;
@@ -550,16 +550,16 @@ u16 rtw_get_cur_max_rate23a(struct rtw_adapter *adapter)
 	u8 rf_type = 0;
 	u8 bw_40MHz = 0, short_GI_20 = 0, short_GI_40 = 0;
 	u16 mcs_rate = 0;
-	u32 ht_ielen = 0;
 
 	if (!check_fwstate(pmlmepriv, _FW_LINKED) &&
 	    !check_fwstate(pmlmepriv, WIFI_ADHOC_MASTER_STATE))
 		return 0;
 
 	if (pmlmeext->cur_wireless_mode & (WIRELESS_11_24N|WIRELESS_11_5N)) {
-		p = rtw_get_ie23a(&pcur_bss->IEs[12], WLAN_EID_HT_CAPABILITY,
-			       &ht_ielen, pcur_bss->IELength - 12);
-		if (p && ht_ielen > 0) {
+		p = cfg80211_find_ie(WLAN_EID_HT_CAPABILITY,
+				     &pcur_bss->IEs[12],
+				     pcur_bss->IELength - 12);
+		if (p && p[1] > 0) {
 			pht_capie = (struct ieee80211_ht_cap *)(p + 2);
 
 			memcpy(&mcs_rate, &pht_capie->mcs, 2);
