@@ -936,6 +936,10 @@ int se_dev_set_pi_prot_type(struct se_device *dev, int flag)
 		return 0;
 	}
 	if (!dev->transport->init_prot || !dev->transport->free_prot) {
+		/* 0 is only allowed value for non-supporting backends */
+		if (flag == 0)
+			return 0;
+
 		pr_err("DIF protection not supported by backend: %s\n",
 		       dev->transport->name);
 		return -ENOSYS;
