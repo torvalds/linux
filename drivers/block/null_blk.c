@@ -32,6 +32,7 @@ struct nullb {
 	unsigned int index;
 	struct request_queue *q;
 	struct gendisk *disk;
+	struct blk_mq_tag_set tag_set;
 	struct hrtimer timer;
 	unsigned int queue_depth;
 	spinlock_t lock;
@@ -320,10 +321,11 @@ static int null_queue_rq(struct blk_mq_hw_ctx *hctx, struct request *rq)
 	return BLK_MQ_RQ_QUEUE_OK;
 }
 
-static struct blk_mq_hw_ctx *null_alloc_hctx(struct blk_mq_reg *reg, unsigned int hctx_index)
+static struct blk_mq_hw_ctx *null_alloc_hctx(struct blk_mq_tag_set *set,
+		unsigned int hctx_index)
 {
-	int b_size = DIV_ROUND_UP(reg->nr_hw_queues, nr_online_nodes);
-	int tip = (reg->nr_hw_queues % nr_online_nodes);
+	int b_size = DIV_ROUND_UP(set->nr_hw_queues, nr_online_nodes);
+	int tip = (set->nr_hw_queues % nr_online_nodes);
 	int node = 0, i, n;
 
 	/*
@@ -338,7 +340,7 @@ static struct blk_mq_hw_ctx *null_alloc_hctx(struct blk_mq_reg *reg, unsigned in
 
 			tip--;
 			if (!tip)
-				b_size = reg->nr_hw_queues / nr_online_nodes;
+				b_size = set->nr_hw_queues / nr_online_nodes;
 		}
 	}
 
@@ -387,13 +389,17 @@ static struct blk_mq_ops null_mq_ops = {
 	.map_queue      = blk_mq_map_queue,
 	.init_hctx	= null_init_hctx,
 	.complete	= null_softirq_done_fn,
+	.alloc_hctx	= blk_mq_alloc_single_hw_queue,
+	.free_hctx	= blk_mq_free_single_hw_queue,
 };
 
-static struct blk_mq_reg null_mq_reg = {
-	.ops		= &null_mq_ops,
-	.queue_depth	= 64,
-	.cmd_size	= sizeof(struct nullb_cmd),
-	.flags		= BLK_MQ_F_SHOULD_MERGE,
+static struct blk_mq_ops null_mq_ops_pernode = {
+	.queue_rq       = null_queue_rq,
+	.map_queue      = blk_mq_map_queue,
+	.init_hctx	= null_init_hctx,
+	.complete	= null_softirq_done_fn,
+	.alloc_hctx	= null_alloc_hctx,
+	.free_hctx	= null_free_hctx,
 };
 
 static void null_del_dev(struct nullb *nullb)
@@ -402,6 +408,8 @@ static void null_del_dev(struct nullb *nullb)
 
 	del_gendisk(nullb->disk);
 	blk_cleanup_queue(nullb->q);
+	if (queue_mode == NULL_Q_MQ)
+		blk_mq_free_tag_set(&nullb->tag_set);
 	put_disk(nullb->disk);
 	kfree(nullb);
 }
@@ -506,7 +514,7 @@ static int null_add_dev(void)
 
 	nullb = kzalloc_node(sizeof(*nullb), GFP_KERNEL, home_node);
 	if (!nullb)
-		return -ENOMEM;
+		goto out;
 
 	spin_lock_init(&nullb->lock);
 
@@ -514,49 +522,47 @@ static int null_add_dev(void)
 		submit_queues = nr_online_nodes;
 
 	if (setup_queues(nullb))
-		goto err;
+		goto out_free_nullb;
 
 	if (queue_mode == NULL_Q_MQ) {
-		null_mq_reg.numa_node = home_node;
-		null_mq_reg.queue_depth = hw_queue_depth;
-		null_mq_reg.nr_hw_queues = submit_queues;
+		if (use_per_node_hctx)
+			nullb->tag_set.ops = &null_mq_ops_pernode;
+		else
+			nullb->tag_set.ops = &null_mq_ops;
+		nullb->tag_set.nr_hw_queues = submit_queues;
+		nullb->tag_set.queue_depth = hw_queue_depth;
+		nullb->tag_set.numa_node = home_node;
+		nullb->tag_set.cmd_size	= sizeof(struct nullb_cmd);
+		nullb->tag_set.flags = BLK_MQ_F_SHOULD_MERGE;
+		nullb->tag_set.driver_data = nullb;
 
-		if (use_per_node_hctx) {
-			null_mq_reg.ops->alloc_hctx = null_alloc_hctx;
-			null_mq_reg.ops->free_hctx = null_free_hctx;
-		} else {
-			null_mq_reg.ops->alloc_hctx = blk_mq_alloc_single_hw_queue;
-			null_mq_reg.ops->free_hctx = blk_mq_free_single_hw_queue;
-		}
+		if (blk_mq_alloc_tag_set(&nullb->tag_set))
+			goto out_cleanup_queues;
 
-		nullb->q = blk_mq_init_queue(&null_mq_reg, nullb);
+		nullb->q = blk_mq_init_queue(&nullb->tag_set);
+		if (!nullb->q)
+			goto out_cleanup_tags;
 	} else if (queue_mode == NULL_Q_BIO) {
 		nullb->q = blk_alloc_queue_node(GFP_KERNEL, home_node);
+		if (!nullb->q)
+			goto out_cleanup_queues;
 		blk_queue_make_request(nullb->q, null_queue_bio);
 		init_driver_queues(nullb);
 	} else {
 		nullb->q = blk_init_queue_node(null_request_fn, &nullb->lock, home_node);
+		if (!nullb->q)
+			goto out_cleanup_queues;
 		blk_queue_prep_rq(nullb->q, null_rq_prep_fn);
-		if (nullb->q)
-			blk_queue_softirq_done(nullb->q, null_softirq_done_fn);
+		blk_queue_softirq_done(nullb->q, null_softirq_done_fn);
 		init_driver_queues(nullb);
 	}
-
-	if (!nullb->q)
-		goto queue_fail;
 
 	nullb->q->queuedata = nullb;
 	queue_flag_set_unlocked(QUEUE_FLAG_NONROT, nullb->q);
 
 	disk = nullb->disk = alloc_disk_node(1, home_node);
-	if (!disk) {
-queue_fail:
-		blk_cleanup_queue(nullb->q);
-		cleanup_queues(nullb);
-err:
-		kfree(nullb);
-		return -ENOMEM;
-	}
+	if (!disk)
+		goto out_cleanup_blk_queue;
 
 	mutex_lock(&lock);
 	list_add_tail(&nullb->list, &nullb_list);
@@ -579,6 +585,18 @@ err:
 	sprintf(disk->disk_name, "nullb%d", nullb->index);
 	add_disk(disk);
 	return 0;
+
+out_cleanup_blk_queue:
+	blk_cleanup_queue(nullb->q);
+out_cleanup_tags:
+	if (queue_mode == NULL_Q_MQ)
+		blk_mq_free_tag_set(&nullb->tag_set);
+out_cleanup_queues:
+	cleanup_queues(nullb);
+out_free_nullb:
+	kfree(nullb);
+out:
+	return -ENOMEM;
 }
 
 static int __init null_init(void)

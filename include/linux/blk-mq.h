@@ -33,8 +33,6 @@ struct blk_mq_hw_ctx {
 	unsigned int 		nr_ctx_map;
 	unsigned long		*ctx_map;
 
-	struct request		**rqs;
-	struct list_head	page_list;
 	struct blk_mq_tags	*tags;
 
 	unsigned long		queued;
@@ -42,7 +40,6 @@ struct blk_mq_hw_ctx {
 #define BLK_MQ_MAX_DISPATCH_ORDER	10
 	unsigned long		dispatched[BLK_MQ_MAX_DISPATCH_ORDER];
 
-	unsigned int		queue_depth;
 	unsigned int		numa_node;
 	unsigned int		cmd_size;	/* per-request extra data */
 
@@ -50,7 +47,7 @@ struct blk_mq_hw_ctx {
 	struct kobject		kobj;
 };
 
-struct blk_mq_reg {
+struct blk_mq_tag_set {
 	struct blk_mq_ops	*ops;
 	unsigned int		nr_hw_queues;
 	unsigned int		queue_depth;
@@ -59,18 +56,22 @@ struct blk_mq_reg {
 	int			numa_node;
 	unsigned int		timeout;
 	unsigned int		flags;		/* BLK_MQ_F_* */
+	void			*driver_data;
+
+	struct blk_mq_tags	**tags;
 };
 
 typedef int (queue_rq_fn)(struct blk_mq_hw_ctx *, struct request *);
 typedef struct blk_mq_hw_ctx *(map_queue_fn)(struct request_queue *, const int);
-typedef struct blk_mq_hw_ctx *(alloc_hctx_fn)(struct blk_mq_reg *,unsigned int);
+typedef struct blk_mq_hw_ctx *(alloc_hctx_fn)(struct blk_mq_tag_set *,
+		unsigned int);
 typedef void (free_hctx_fn)(struct blk_mq_hw_ctx *, unsigned int);
 typedef int (init_hctx_fn)(struct blk_mq_hw_ctx *, void *, unsigned int);
 typedef void (exit_hctx_fn)(struct blk_mq_hw_ctx *, unsigned int);
-typedef int (init_request_fn)(void *, struct blk_mq_hw_ctx *,
-		struct request *, unsigned int);
-typedef void (exit_request_fn)(void *, struct blk_mq_hw_ctx *,
-		struct request *, unsigned int);
+typedef int (init_request_fn)(void *, struct request *, unsigned int,
+		unsigned int, unsigned int);
+typedef void (exit_request_fn)(void *, struct request *, unsigned int,
+		unsigned int);
 
 struct blk_mq_ops {
 	/*
@@ -127,9 +128,12 @@ enum {
 	BLK_MQ_MAX_DEPTH	= 2048,
 };
 
-struct request_queue *blk_mq_init_queue(struct blk_mq_reg *, void *);
+struct request_queue *blk_mq_init_queue(struct blk_mq_tag_set *);
 int blk_mq_register_disk(struct gendisk *);
 void blk_mq_unregister_disk(struct gendisk *);
+
+int blk_mq_alloc_tag_set(struct blk_mq_tag_set *set);
+void blk_mq_free_tag_set(struct blk_mq_tag_set *set);
 
 void blk_mq_flush_plug_list(struct blk_plug *plug, bool from_schedule);
 
@@ -139,10 +143,10 @@ void blk_mq_free_request(struct request *rq);
 bool blk_mq_can_queue(struct blk_mq_hw_ctx *);
 struct request *blk_mq_alloc_request(struct request_queue *q, int rw, gfp_t gfp);
 struct request *blk_mq_alloc_reserved_request(struct request_queue *q, int rw, gfp_t gfp);
-struct request *blk_mq_rq_from_tag(struct request_queue *q, unsigned int tag);
+struct request *blk_mq_tag_to_rq(struct blk_mq_tags *tags, unsigned int tag);
 
 struct blk_mq_hw_ctx *blk_mq_map_queue(struct request_queue *, const int ctx_index);
-struct blk_mq_hw_ctx *blk_mq_alloc_single_hw_queue(struct blk_mq_reg *, unsigned int);
+struct blk_mq_hw_ctx *blk_mq_alloc_single_hw_queue(struct blk_mq_tag_set *, unsigned int);
 void blk_mq_free_single_hw_queue(struct blk_mq_hw_ctx *, unsigned int);
 
 bool blk_mq_end_io_partial(struct request *rq, int error,
@@ -171,12 +175,6 @@ static inline struct request *blk_mq_rq_from_pdu(void *pdu)
 static inline void *blk_mq_rq_to_pdu(struct request *rq)
 {
 	return (void *) rq + sizeof(*rq);
-}
-
-static inline struct request *blk_mq_tag_to_rq(struct blk_mq_hw_ctx *hctx,
-					       unsigned int tag)
-{
-	return hctx->rqs[tag];
 }
 
 #define queue_for_each_hw_ctx(q, hctx, i)				\

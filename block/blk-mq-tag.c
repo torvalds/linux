@@ -1,24 +1,10 @@
 #include <linux/kernel.h>
 #include <linux/module.h>
-#include <linux/percpu_ida.h>
 
 #include <linux/blk-mq.h>
 #include "blk.h"
 #include "blk-mq.h"
 #include "blk-mq-tag.h"
-
-/*
- * Per tagged queue (tag address space) map
- */
-struct blk_mq_tags {
-	unsigned int nr_tags;
-	unsigned int nr_reserved_tags;
-	unsigned int nr_batch_move;
-	unsigned int nr_max_cache;
-
-	struct percpu_ida free_tags;
-	struct percpu_ida reserved_tags;
-};
 
 void blk_mq_wait_for_tags(struct blk_mq_tags *tags)
 {

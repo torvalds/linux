@@ -80,17 +80,17 @@ int blk_mq_update_queue_map(unsigned int *map, unsigned int nr_queues)
 	return 0;
 }
 
-unsigned int *blk_mq_make_queue_map(struct blk_mq_reg *reg)
+unsigned int *blk_mq_make_queue_map(struct blk_mq_tag_set *set)
 {
 	unsigned int *map;
 
 	/* If cpus are offline, map them to first hctx */
 	map = kzalloc_node(sizeof(*map) * num_possible_cpus(), GFP_KERNEL,
-				reg->numa_node);
+				set->numa_node);
 	if (!map)
 		return NULL;
 
-	if (!blk_mq_update_queue_map(map, reg->nr_hw_queues))
+	if (!blk_mq_update_queue_map(map, set->nr_hw_queues))
 		return map;
 
 	kfree(map);
