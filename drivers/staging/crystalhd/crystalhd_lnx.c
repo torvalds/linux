@@ -28,7 +28,7 @@ static struct crystalhd_adp *g_adp_info;
 
 static irqreturn_t chd_dec_isr(int irq, void *arg)
 {
-	struct crystalhd_adp *adp = (struct crystalhd_adp *) arg;
+	struct crystalhd_adp *adp = arg;
 	int rc = 0;
 	if (adp)
 		rc = crystalhd_cmd_interrupt(&adp->cmds);
