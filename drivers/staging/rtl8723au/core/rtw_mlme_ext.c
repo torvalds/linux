@@ -1596,19 +1596,20 @@ OnAssocReq23aFail:
 	return _FAIL;
 }
 
-unsigned int OnAssocRsp23a(struct rtw_adapter *padapter, struct recv_frame *precv_frame)
+unsigned int OnAssocRsp23a(struct rtw_adapter *padapter,
+			   struct recv_frame *precv_frame)
 {
-	uint i;
-	int res;
-	unsigned short	status;
 	struct ndis_802_11_var_ies *pIE;
 	struct mlme_priv *pmlmepriv = &padapter->mlmepriv;
 	struct mlme_ext_priv *pmlmeext = &padapter->mlmeextpriv;
 	struct mlme_ext_info *pmlmeinfo = &pmlmeext->mlmext_info;
 	struct sk_buff *skb = precv_frame->pkt;
 	struct ieee80211_hdr *hdr = (struct ieee80211_hdr *) skb->data;
+	struct ieee80211_mgmt *pmgmt = (struct ieee80211_mgmt *) skb->data;
+	int res, i;
+	unsigned short status;
 	u8 *pframe = skb->data;
-	uint pkt_len = skb->len;
+	int pkt_len = skb->len;
 
 	DBG_8723A("%s\n", __func__);
 
@@ -1626,8 +1627,8 @@ unsigned int OnAssocRsp23a(struct rtw_adapter *padapter, struct recv_frame *prec
 	del_timer_sync(&pmlmeext->link_timer);
 
 	/* status */
-	if ((status = le16_to_cpu(*(unsigned short *)(pframe + sizeof(struct ieee80211_hdr_3addr) + 2))) > 0)
-	{
+	status = le16_to_cpu(pmgmt->u.assoc_resp.status_code);
+	if (status > 0)	{
 		DBG_8723A("assoc reject, status code: %d\n", status);
 		pmlmeinfo->state = WIFI_FW_NULL_STATE;
 		res = -4;
@@ -1635,18 +1636,19 @@ unsigned int OnAssocRsp23a(struct rtw_adapter *padapter, struct recv_frame *prec
 	}
 
 	/* get capabilities */
-	pmlmeinfo->capability = le16_to_cpu(*(unsigned short *)(pframe + sizeof(struct ieee80211_hdr_3addr)));
+	pmlmeinfo->capability = le16_to_cpu(pmgmt->u.assoc_resp.capab_info);
 
 	/* set slot time */
 	pmlmeinfo->slotTime = (pmlmeinfo->capability & BIT(10))? 9: 20;
 
 	/* AID */
-	res = pmlmeinfo->aid = (int)(le16_to_cpu(*(unsigned short *)(pframe + sizeof(struct ieee80211_hdr_3addr) + 4))&0x3fff);
+	res = pmlmeinfo->aid = le16_to_cpu(pmgmt->u.assoc_resp.aid) & 0x3fff;
 
 	/* following are moved to join event callback function */
 	/* to handle HT, WMM, rate adaptive, update MAC reg */
 	/* for not to handle the synchronous IO in the tasklet */
-	for (i = (6 + sizeof(struct ieee80211_hdr_3addr)); i < pkt_len;) {
+	for (i = offsetof(struct ieee80211_mgmt, u.assoc_resp.variable);
+	     i < pkt_len;) {
 		pIE = (struct ndis_802_11_var_ies *)(pframe + i);
 
 		switch (pIE->ElementID)
@@ -1674,7 +1676,7 @@ unsigned int OnAssocRsp23a(struct rtw_adapter *padapter, struct recv_frame *prec
 		i += (pIE->Length + 2);
 	}
 
-	pmlmeinfo->state &= (~WIFI_FW_ASSOC_STATE);
+	pmlmeinfo->state &= ~WIFI_FW_ASSOC_STATE;
 	pmlmeinfo->state |= WIFI_FW_ASSOC_SUCCESS;
 
 	/* Update Basic Rate Table for spec, 2010-12-28 , by thomas */
