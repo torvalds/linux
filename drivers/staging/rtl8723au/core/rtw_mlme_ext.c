@@ -866,11 +866,6 @@ static int
 OnAuth23a(struct rtw_adapter *padapter, struct recv_frame *precv_frame)
 {
 #ifdef CONFIG_8723AU_AP_MODE
-	unsigned int auth_mode, seq;
-	unsigned char *sa;
-	const u8 *p;
-	u16 algorithm;
-	int status;
 	static struct sta_info stat;
 	struct sta_info *pstat = NULL;
 	struct sta_priv *pstapriv = &padapter->stapriv;
@@ -878,24 +873,27 @@ OnAuth23a(struct rtw_adapter *padapter, struct recv_frame *precv_frame)
 	struct mlme_ext_priv *pmlmeext = &padapter->mlmeextpriv;
 	struct mlme_ext_info *pmlmeinfo = &pmlmeext->mlmext_info;
 	struct sk_buff *skb = precv_frame->pkt;
-	struct ieee80211_hdr *hdr = (struct ieee80211_hdr *) skb->data;
-	u8 *pframe = skb->data;
-	uint len = skb->len;
+	struct ieee80211_mgmt *mgmt = (struct ieee80211_mgmt *) skb->data;
+	u8 *pframe;
+	const u8 *p;
+	unsigned char *sa;
+	u16 auth_mode, seq, algorithm;
+	int status, len = skb->len;
 
 	if ((pmlmeinfo->state & 0x03) != WIFI_FW_AP_STATE)
 		return _FAIL;
 
 	DBG_8723A("+OnAuth23a\n");
 
-	sa = hdr->addr2;
+	sa = mgmt->sa;
 
 	auth_mode = psecuritypriv->dot11AuthAlgrthm;
 
-	pframe += sizeof(struct ieee80211_hdr_3addr);
-	len -= sizeof(struct ieee80211_hdr_3addr);
+	pframe = mgmt->u.auth.variable;
+	len = skb->len - offsetof(struct ieee80211_mgmt, u.auth.variable);
 
-	seq = cpu_to_le16(*(u16 *)(pframe  + 2));
-	algorithm = cpu_to_le16(*(u16 *)pframe);
+	seq = le16_to_cpu(mgmt->u.auth.auth_transaction);
+	algorithm = le16_to_cpu(mgmt->u.auth.auth_alg);
 
 	DBG_8723A("auth alg =%x, seq =%X\n", algorithm, seq);
 
@@ -906,8 +904,8 @@ OnAuth23a(struct rtw_adapter *padapter, struct recv_frame *precv_frame)
 
 	/*  rx a shared-key auth but shared not enabled, or */
 	/*  rx a open-system auth but shared-key is enabled */
-	if ((algorithm > 0 && auth_mode == 0) ||
-	    (algorithm == 0 && auth_mode == 1)) {
+	if ((algorithm != WLAN_AUTH_OPEN && auth_mode == 0) ||
+	    (algorithm == WLAN_AUTH_OPEN && auth_mode == 1)) {
 		DBG_8723A("auth rejected due to bad alg [alg =%d, auth_mib "
 			  "=%d] %02X%02X%02X%02X%02X%02X\n",
 			  algorithm, auth_mode,
@@ -974,7 +972,7 @@ OnAuth23a(struct rtw_adapter *padapter, struct recv_frame *precv_frame)
 		goto auth_fail;
 	}
 
-	if (algorithm == 0 && (auth_mode == 0 || auth_mode == 2)) {
+	if (algorithm == WLAN_AUTH_OPEN && (auth_mode == 0 || auth_mode == 2)) {
 		if (seq == 1) {
 			pstat->state &= ~WIFI_FW_AUTH_NULL;
 			pstat->state |= WIFI_FW_AUTH_SUCCESS;
@@ -998,9 +996,7 @@ OnAuth23a(struct rtw_adapter *padapter, struct recv_frame *precv_frame)
 			/* checking for challenging txt... */
 			DBG_8723A("checking for challenging txt...\n");
 
-			p = cfg80211_find_ie(WLAN_EID_CHALLENGE,
-					     pframe + 4 + _AUTH_IE_OFFSET_,
-					     len - _AUTH_IE_OFFSET_ - 4);
+			p = cfg80211_find_ie(WLAN_EID_CHALLENGE, pframe, len);
 			if (!p || p[1] <= 0) {
 				DBG_8723A("auth rejected because challenge "
 					  "failure!(1)\n");
