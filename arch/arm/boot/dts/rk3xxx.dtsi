@@ -20,6 +20,13 @@
 / {
 	interrupt-parent = <&gic>;
 
+	xin24m: oscillator {
+		compatible = "fixed-clock";
+		clock-frequency = <24000000>;
+		#clock-cells = <0>;
+		clock-output-names = "xin24m";
+	};
+
 	soc {
 		#address-cells = <1>;
 		#size-cells = <1>;
