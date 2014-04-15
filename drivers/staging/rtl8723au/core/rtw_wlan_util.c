@@ -933,7 +933,9 @@ int rtw_check_bcn_info23a(struct rtw_adapter *Adapter, u8 *pframe, u32 packet_le
 
 	/* check bw and channel offset */
 	/* parsing HT_CAP_IE */
-	p = rtw_get_ie23a(bssid->IEs + _FIXED_IE_LENGTH_, _HT_CAPABILITY_IE_, &len, bssid->IELength - _FIXED_IE_LENGTH_);
+	p = rtw_get_ie23a(bssid->IEs + _FIXED_IE_LENGTH_,
+			  WLAN_EID_HT_CAPABILITY,
+			  &len, bssid->IELength - _FIXED_IE_LENGTH_);
 	if (p && len>0) {
 			pht_cap = (struct ieee80211_ht_cap *)(p + 2);
 			ht_cap_info = pht_cap->cap_info;
@@ -941,7 +943,8 @@ int rtw_check_bcn_info23a(struct rtw_adapter *Adapter, u8 *pframe, u32 packet_le
 			ht_cap_info = 0;
 	}
 	/* parsing HT_INFO_IE */
-	p = rtw_get_ie23a(bssid->IEs + _FIXED_IE_LENGTH_, _HT_ADD_INFO_IE_, &len, bssid->IELength - _FIXED_IE_LENGTH_);
+	p = rtw_get_ie23a(bssid->IEs + _FIXED_IE_LENGTH_, WLAN_EID_HT_OPERATION,
+			  &len, bssid->IELength - _FIXED_IE_LENGTH_);
 	if (p && len>0) {
 			pht_info = (struct HT_info_element *)(p + 2);
 			ht_info_infos_0 = pht_info->infos[0];
@@ -962,11 +965,14 @@ int rtw_check_bcn_info23a(struct rtw_adapter *Adapter, u8 *pframe, u32 packet_le
 	}
 
 	/* Checking for channel */
-	p = rtw_get_ie23a(bssid->IEs + _FIXED_IE_LENGTH_, _DSSET_IE_, &len, bssid->IELength - _FIXED_IE_LENGTH_);
+	p = rtw_get_ie23a(bssid->IEs + _FIXED_IE_LENGTH_, WLAN_EID_DS_PARAMS,
+			  &len, bssid->IELength - _FIXED_IE_LENGTH_);
 	if (p) {
 			bcn_channel = *(p + 2);
 	} else {/* In 5G, some ap do not have DSSET IE checking HT info for channel */
-			p = rtw_get_ie23a(bssid->IEs + _FIXED_IE_LENGTH_, _HT_ADD_INFO_IE_, &len, bssid->IELength - _FIXED_IE_LENGTH_);
+			p = rtw_get_ie23a(bssid->IEs + _FIXED_IE_LENGTH_,
+					  WLAN_EID_HT_OPERATION, &len,
+					  bssid->IELength - _FIXED_IE_LENGTH_);
 			if (pht_info) {
 					bcn_channel = pht_info->primary_channel;
 			} else { /* we don't find channel IE, so don't check it */
@@ -981,7 +987,9 @@ int rtw_check_bcn_info23a(struct rtw_adapter *Adapter, u8 *pframe, u32 packet_le
 	}
 
 	/* checking SSID */
-	if ((p = rtw_get_ie23a(bssid->IEs + _FIXED_IE_LENGTH_, _SSID_IE_, &len, bssid->IELength - _FIXED_IE_LENGTH_)) == NULL) {
+	if ((p = rtw_get_ie23a(bssid->IEs + _FIXED_IE_LENGTH_, WLAN_EID_SSID,
+			       &len, bssid->IELength - _FIXED_IE_LENGTH_)) ==
+	    NULL) {
 		DBG_8723A("%s marc: cannot find SSID for survey event\n", __func__);
 		hidden_ssid = true;
 	} else {
@@ -1102,11 +1110,11 @@ void update_beacon23a_info(struct rtw_adapter *padapter, u8 *pframe, uint pkt_le
 		pIE = (struct ndis_802_11_var_ies *)(pframe + (_BEACON_IE_OFFSET_ + sizeof(struct ieee80211_hdr_3addr)) + i);
 
 		switch (pIE->ElementID) {
-		case _HT_EXTRA_INFO_IE_:	/* HT info */
+		case WLAN_EID_HT_OPERATION:	/* HT info */
 			/* HT_info_handler23a(padapter, pIE); */
 			bwmode_update_check(padapter, pIE);
 			break;
-		case _ERPINFO_IE_:
+		case WLAN_EID_ERP_INFO:
 			ERP_IE_handler23a(padapter, pIE);
 			VCS_update23a(padapter, psta);
 			break;
@@ -1134,7 +1142,7 @@ unsigned int is_ap_in_tkip23a(struct rtw_adapter *padapter)
 				if ((!memcmp(pIE->data, RTW_WPA_OUI23A, 4)) && (!memcmp((pIE->data + 12), WPA_TKIP_CIPHER23A, 4)))
 					return true;
 				break;
-			case _RSN_IE_2_:
+			case WLAN_EID_RSN:
 				if (!memcmp((pIE->data + 8), RSN_TKIP_CIPHER23A, 4))
 					return true;
 				break;
@@ -1167,7 +1175,7 @@ unsigned int should_forbid_n_rate23a(struct rtw_adapter * padapter)
 					  (!memcmp((pIE->data + 16), WPA_CIPHER_SUITE_CCMP23A, 4))))
 					return false;
 				break;
-			case _RSN_IE_2_:
+			case WLAN_EID_RSN:
 				if  ((!memcmp((pIE->data + 8), RSN_CIPHER_SUITE_CCMP23A, 4))  ||
 				       (!memcmp((pIE->data + 12), RSN_CIPHER_SUITE_CCMP23A, 4)))
 				return false;
@@ -1200,7 +1208,7 @@ unsigned int is_ap_in_wep23a(struct rtw_adapter *padapter)
 				if (!memcmp(pIE->data, RTW_WPA_OUI23A, 4))
 					return false;
 				break;
-			case _RSN_IE_2_:
+			case WLAN_EID_RSN:
 				return false;
 
 			default:
@@ -1598,14 +1606,16 @@ int update_sta_support_rate23a(struct rtw_adapter *padapter, u8 *pvar_ie, uint v
 	struct mlme_ext_priv *pmlmeext = &padapter->mlmeextpriv;
 	struct mlme_ext_info *pmlmeinfo = &pmlmeext->mlmext_info;
 
-	pIE = (struct ndis_802_11_var_ies *)rtw_get_ie23a(pvar_ie, _SUPPORTEDRATES_IE_, &ie_len, var_ie_len);
+	pIE = (struct ndis_802_11_var_ies *)rtw_get_ie23a(pvar_ie,
+							  WLAN_EID_SUPP_RATES,
+							  &ie_len, var_ie_len);
 	if (pIE == NULL)
 		return _FAIL;
 
 	memcpy(pmlmeinfo->FW_sta_info[cam_idx].SupportedRates, pIE->data, ie_len);
 	supportRateNum = ie_len;
 
-	pIE = (struct ndis_802_11_var_ies *)rtw_get_ie23a(pvar_ie, _EXT_SUPPORTEDRATES_IE_, &ie_len, var_ie_len);
+	pIE = (struct ndis_802_11_var_ies *)rtw_get_ie23a(pvar_ie, WLAN_EID_EXT_SUPP_RATES, &ie_len, var_ie_len);
 	if (pIE)
 		memcpy((pmlmeinfo->FW_sta_info[cam_idx].SupportedRates + supportRateNum), pIE->data, ie_len);
 	return _SUCCESS;
