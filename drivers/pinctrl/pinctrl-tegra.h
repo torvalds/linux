@@ -78,6 +78,10 @@ struct tegra_function {
 
 /**
  * struct tegra_pingroup - Tegra pin group
+ * @name		The name of the pin group.
+ * @pins		An array of pin IDs included in this pin group.
+ * @npins		The number of entries in @pins.
+ * @funcs		The mux functions which can be muxed onto this group.
  * @mux_reg:		Mux register offset.
  *			This register contains the mux, einput, odrain, lock,
  *			ioreset, rcv_sel parameters.
