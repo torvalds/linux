@@ -24,17 +24,6 @@
 
 #include <usb_ops.h>
 
-/* alloc os related resource in struct recv_frame */
-int rtw_os_recv_resource_alloc23a(struct rtw_adapter *padapter,
-			       struct recv_frame *precvframe)
-{
-	int res = _SUCCESS;
-
-	precvframe->pkt = NULL;
-
-	return res;
-}
-
 /* alloc os related resource in struct recv_buf */
 int rtw_os_recvbuf_resource_alloc23a(struct rtw_adapter *padapter,
 				  struct recv_buf *precvbuf)

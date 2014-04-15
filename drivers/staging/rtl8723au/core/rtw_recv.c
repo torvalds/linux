@@ -79,8 +79,6 @@ int _rtw_init_recv_priv23a(struct recv_priv *precvpriv,
 		list_add_tail(&precvframe->list,
 			      &precvpriv->free_recv_queue.queue);
 
-		res = rtw_os_recv_resource_alloc23a(padapter, precvframe);
-
 		precvframe->adapter = padapter;
 		precvframe++;
 	}
