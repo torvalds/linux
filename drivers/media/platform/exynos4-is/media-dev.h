@@ -19,7 +19,7 @@
 #include <media/media-entity.h>
 #include <media/v4l2-device.h>
 #include <media/v4l2-subdev.h>
-#include <media/s5p_fimc.h>
+#include <media/exynos-fimc.h>
 
 #include "fimc-core.h"
 #include "fimc-lite.h"
@@ -94,9 +94,7 @@ struct fimc_sensor_info {
 };
 
 struct cam_clk {
-#ifdef CONFIG_COMMON_CLK
 	struct clk_hw hw;
-#endif
 	struct fimc_md *fmd;
 };
 #define to_cam_clk(_hw) container_of(_hw, struct cam_clk, hw)
@@ -144,9 +142,7 @@ struct fimc_md {
 
 	struct cam_clk_provider {
 		struct clk *clks[FIMC_MAX_CAMCLKS];
-#ifdef CONFIG_COMMON_CLK
 		struct clk_onecell_data clk_data;
-#endif
 		struct device_node *of_node;
 		struct cam_clk camclk[FIMC_MAX_CAMCLKS];
 		int num_clocks;
