@@ -1763,7 +1763,6 @@ OnAssocRsp23a(struct rtw_adapter *padapter, struct recv_frame *precv_frame)
 	struct mlme_ext_priv *pmlmeext = &padapter->mlmeextpriv;
 	struct mlme_ext_info *pmlmeinfo = &pmlmeext->mlmext_info;
 	struct sk_buff *skb = precv_frame->pkt;
-	struct ieee80211_hdr *hdr = (struct ieee80211_hdr *) skb->data;
 	struct ieee80211_mgmt *pmgmt = (struct ieee80211_mgmt *) skb->data;
 	int res, i;
 	unsigned short status;
@@ -1773,8 +1772,7 @@ OnAssocRsp23a(struct rtw_adapter *padapter, struct recv_frame *precv_frame)
 	DBG_8723A("%s\n", __func__);
 
 	/* check A1 matches or not */
-	if (!ether_addr_equal(myid(&padapter->eeprompriv),
-			      ieee80211_get_DA(hdr)))
+	if (!ether_addr_equal(myid(&padapter->eeprompriv), pmgmt->da))
 		return _SUCCESS;
 
 	if (!(pmlmeinfo->state & (WIFI_FW_AUTH_SUCCESS | WIFI_FW_ASSOC_STATE)))
