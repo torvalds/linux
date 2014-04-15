@@ -1,6 +1,7 @@
 #
 # Makefile for code common across different PXA processor families
 #
+ccflags-$(CONFIG_ARCH_MMP) := -I$(srctree)/$(src)/include
 
 obj-$(CONFIG_ARCH_PXA)		:= dma.o
 
