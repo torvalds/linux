@@ -2358,6 +2358,10 @@ enum nl80211_band_attr {
  *	connected to an AP with DFS and radar detection on the UNII band (it is
  *	up to user-space, i.e., wpa_supplicant to perform the required
  *	verifications)
+ * @NL80211_FREQUENCY_ATTR_NO_20MHZ: 20 MHz operation is not allowed
+ *	on this channel in current regulatory domain.
+ * @NL80211_FREQUENCY_ATTR_NO_10MHZ: 10 MHz operation is not allowed
+ *	on this channel in current regulatory domain.
  * @NL80211_FREQUENCY_ATTR_MAX: highest frequency attribute number
  *	currently defined
  * @__NL80211_FREQUENCY_ATTR_AFTER_LAST: internal use
@@ -2384,6 +2388,8 @@ enum nl80211_frequency_attr {
 	NL80211_FREQUENCY_ATTR_DFS_CAC_TIME,
 	NL80211_FREQUENCY_ATTR_INDOOR_ONLY,
 	NL80211_FREQUENCY_ATTR_GO_CONCURRENT,
+	NL80211_FREQUENCY_ATTR_NO_20MHZ,
+	NL80211_FREQUENCY_ATTR_NO_10MHZ,
 
 	/* keep last */
 	__NL80211_FREQUENCY_ATTR_AFTER_LAST,

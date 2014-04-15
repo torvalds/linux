@@ -111,6 +111,10 @@ enum ieee80211_band {
  *	restrictions.
  * @IEEE80211_CHAN_INDOOR_ONLY: see %NL80211_FREQUENCY_ATTR_INDOOR_ONLY
  * @IEEE80211_CHAN_GO_CONCURRENT: see %NL80211_FREQUENCY_ATTR_GO_CONCURRENT
+ * @IEEE80211_CHAN_NO_20MHZ: 20 MHz bandwidth is not permitted
+ *	on this channel.
+ * @IEEE80211_CHAN_NO_10MHZ: 10 MHz bandwidth is not permitted
+ *	on this channel.
  *
  */
 enum ieee80211_channel_flags {
@@ -125,6 +129,8 @@ enum ieee80211_channel_flags {
 	IEEE80211_CHAN_NO_160MHZ	= 1<<8,
 	IEEE80211_CHAN_INDOOR_ONLY	= 1<<9,
 	IEEE80211_CHAN_GO_CONCURRENT	= 1<<10,
+	IEEE80211_CHAN_NO_20MHZ		= 1<<11,
+	IEEE80211_CHAN_NO_10MHZ		= 1<<12,
 };
 
 #define IEEE80211_CHAN_NO_HT40 \
