@@ -573,6 +573,7 @@ config GPIO_SX150X
 config GPIO_STMPE
 	bool "STMPE GPIOs"
 	depends on MFD_STMPE
+	select GPIOLIB_IRQCHIP
 	help
 	  This enables support for the GPIOs found on the STMPE I/O
 	  Expanders.
