@@ -857,10 +857,8 @@ void VCS_update23a(struct rtw_adapter *padapter, struct sta_info *psta)
 }
 
 int rtw_check_bcn_info23a(struct rtw_adapter *Adapter,
-			  struct ieee80211_mgmt *mgmt, u32 packet_len)
+			  struct ieee80211_mgmt *mgmt, u32 pkt_len)
 {
-	unsigned int		len;
-	unsigned char		*p;
 	unsigned short	val16;
 	struct wlan_network *cur_network = &Adapter->mlmepriv.cur_network;
 	u16 wpa_len = 0, rsn_len = 0;
@@ -875,6 +873,9 @@ int rtw_check_bcn_info23a(struct rtw_adapter *Adapter,
 	u32 bcn_channel;
 	unsigned short	ht_cap_info;
 	unsigned char	ht_info_infos_0;
+	int len, pie_len, ie_offset;
+	const u8 *p;
+	u8 *pie;
 
 	if (is_client_associated_to_ap23a(Adapter) == false)
 		return true;
@@ -885,7 +886,7 @@ int rtw_check_bcn_info23a(struct rtw_adapter *Adapter,
 		return false;
 	}
 
-	len = packet_len - sizeof(struct ieee80211_hdr_3addr);
+	len = pkt_len - sizeof(struct ieee80211_hdr_3addr);
 
 	if (len > MAX_IE_SZ) {
 		DBG_8723A("%s IE too long for survey event\n", __func__);
@@ -913,70 +914,76 @@ int rtw_check_bcn_info23a(struct rtw_adapter *Adapter,
 
 	/* check bw and channel offset */
 	/* parsing HT_CAP_IE */
-	p = rtw_get_ie23a(bssid->IEs + _FIXED_IE_LENGTH_,
-			  WLAN_EID_HT_CAPABILITY,
-			  &len, bssid->IELength - _FIXED_IE_LENGTH_);
-	if (p && len>0) {
-			pht_cap = (struct ieee80211_ht_cap *)(p + 2);
-			ht_cap_info = pht_cap->cap_info;
-	} else {
-			ht_cap_info = 0;
-	}
+	ie_offset = offsetof(struct ieee80211_mgmt, u.beacon.variable) -
+		offsetof(struct ieee80211_mgmt, u);
+	pie = bssid->IEs + ie_offset;
+	pie_len = pkt_len - ie_offset;
+
+	p = cfg80211_find_ie(WLAN_EID_HT_CAPABILITY, pie, pie_len);
+	if (p && p[1] > 0) {
+		pht_cap = (struct ieee80211_ht_cap *)(p + 2);
+		ht_cap_info = pht_cap->cap_info;
+	} else
+		ht_cap_info = 0;
+
 	/* parsing HT_INFO_IE */
-	p = rtw_get_ie23a(bssid->IEs + _FIXED_IE_LENGTH_, WLAN_EID_HT_OPERATION,
-			  &len, bssid->IELength - _FIXED_IE_LENGTH_);
-	if (p && len>0) {
-			pht_info = (struct HT_info_element *)(p + 2);
-			ht_info_infos_0 = pht_info->infos[0];
-	} else {
-			ht_info_infos_0 = 0;
-	}
+	p = cfg80211_find_ie(WLAN_EID_HT_OPERATION, pie, pie_len);
+	if (p && p[1] > 0) {
+		pht_info = (struct HT_info_element *)(p + 2);
+		ht_info_infos_0 = pht_info->infos[0];
+	} else
+		ht_info_infos_0 = 0;
+
 	if (ht_cap_info != cur_network->BcnInfo.ht_cap_info ||
-		((ht_info_infos_0&0x03) != (cur_network->BcnInfo.ht_info_infos_0&0x03))) {
-			DBG_8723A("%s bcn now: ht_cap_info:%x ht_info_infos_0:%x\n", __func__,
-							ht_cap_info, ht_info_infos_0);
-			DBG_8723A("%s bcn link: ht_cap_info:%x ht_info_infos_0:%x\n", __func__,
-							cur_network->BcnInfo.ht_cap_info, cur_network->BcnInfo.ht_info_infos_0);
-			DBG_8723A("%s bw mode change, disconnect\n", __func__);
-			/* bcn_info_update */
-			cur_network->BcnInfo.ht_cap_info = ht_cap_info;
-			cur_network->BcnInfo.ht_info_infos_0 = ht_info_infos_0;
-			/* to do : need to check that whether modify related register of BB or not */
+	    ((ht_info_infos_0 & 0x03) !=
+	     (cur_network->BcnInfo.ht_info_infos_0 & 0x03))) {
+		DBG_8723A("%s bcn now: ht_cap_info:%x ht_info_infos_0:%x\n",
+			  __func__, ht_cap_info, ht_info_infos_0);
+		DBG_8723A("%s bcn link: ht_cap_info:%x ht_info_infos_0:%x\n",
+			  __func__, cur_network->BcnInfo.ht_cap_info,
+			  cur_network->BcnInfo.ht_info_infos_0);
+		DBG_8723A("%s bw mode change, disconnect\n", __func__);
+		/* bcn_info_update */
+		cur_network->BcnInfo.ht_cap_info = ht_cap_info;
+		cur_network->BcnInfo.ht_info_infos_0 = ht_info_infos_0;
+		/* to do : need to check that whether modify related
+		   register of BB or not */
 	}
 
 	/* Checking for channel */
-	p = rtw_get_ie23a(bssid->IEs + _FIXED_IE_LENGTH_, WLAN_EID_DS_PARAMS,
-			  &len, bssid->IELength - _FIXED_IE_LENGTH_);
-	if (p) {
-			bcn_channel = *(p + 2);
-	} else {/* In 5G, some ap do not have DSSET IE checking HT info for channel */
-			p = rtw_get_ie23a(bssid->IEs + _FIXED_IE_LENGTH_,
-					  WLAN_EID_HT_OPERATION, &len,
-					  bssid->IELength - _FIXED_IE_LENGTH_);
-			if (pht_info) {
-					bcn_channel = pht_info->primary_channel;
-			} else { /* we don't find channel IE, so don't check it */
-					DBG_8723A("Oops: %s we don't find channel IE, so don't check it\n", __func__);
-					bcn_channel = Adapter->mlmeextpriv.cur_channel;
-			}
+	p = cfg80211_find_ie(WLAN_EID_DS_PARAMS, pie, pie_len);
+	if (p)
+		bcn_channel = p[2];
+	else {
+		/* In 5G, some ap do not have DSSET IE checking HT
+		   info for channel */
+		p = cfg80211_find_ie(WLAN_EID_HT_OPERATION, pie, pie_len);
+
+		if (pht_info)
+			bcn_channel = pht_info->primary_channel;
+		else { /* we don't find channel IE, so don't check it */
+			DBG_8723A("Oops: %s we don't find channel IE, so don't "
+				  "check it\n", __func__);
+			bcn_channel = Adapter->mlmeextpriv.cur_channel;
+		}
 	}
 	if (bcn_channel != Adapter->mlmeextpriv.cur_channel) {
-			DBG_8723A("%s beacon channel:%d cur channel:%d disconnect\n", __func__,
-						   bcn_channel, Adapter->mlmeextpriv.cur_channel);
-			goto _mismatch;
+		DBG_8723A("%s beacon channel:%d cur channel:%d disconnect\n",
+			  __func__, bcn_channel,
+			  Adapter->mlmeextpriv.cur_channel);
+		goto _mismatch;
 	}
 
 	/* checking SSID */
-	if ((p = rtw_get_ie23a(bssid->IEs + _FIXED_IE_LENGTH_, WLAN_EID_SSID,
-			       &len, bssid->IELength - _FIXED_IE_LENGTH_)) ==
-	    NULL) {
-		DBG_8723A("%s marc: cannot find SSID for survey event\n", __func__);
+	p = cfg80211_find_ie(WLAN_EID_SSID, pie, pie_len);
+	if (!p) {
+		DBG_8723A("%s marc: cannot find SSID for survey event\n",
+			  __func__);
 		hidden_ssid = true;
-	} else {
+	} else
 		hidden_ssid = false;
-	}
 
-	if ((NULL != p) && (false == hidden_ssid && (*(p + 1)))) {
+	if (p && (hidden_ssid == false && *(p + 1))) {
 		memcpy(bssid->Ssid.ssid, (p + 2), *(p + 1));
 		bssid->Ssid.ssid_len = *(p + 1);
 	} else {
