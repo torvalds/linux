@@ -603,7 +603,6 @@ static const struct attribute_group *hwmon_groups[] = {
 static int radeon_hwmon_init(struct radeon_device *rdev)
 {
 	int err = 0;
-	struct device *hwmon_dev;
 
 	switch (rdev->pm.int_thermal_type) {
 	case THERMAL_TYPE_RV6XX:
@@ -616,11 +615,11 @@ static int radeon_hwmon_init(struct radeon_device *rdev)
 	case THERMAL_TYPE_KV:
 		if (rdev->asic->pm.get_temperature == NULL)
 			return err;
-		hwmon_dev = hwmon_device_register_with_groups(rdev->dev,
-							      "radeon", rdev,
-							      hwmon_groups);
-		if (IS_ERR(hwmon_dev)) {
-			err = PTR_ERR(hwmon_dev);
+		rdev->pm.int_hwmon_dev = hwmon_device_register_with_groups(rdev->dev,
+									   "radeon", rdev,
+									   hwmon_groups);
+		if (IS_ERR(rdev->pm.int_hwmon_dev)) {
+			err = PTR_ERR(rdev->pm.int_hwmon_dev);
 			dev_err(rdev->dev,
 				"Unable to register hwmon device: %d\n", err);
 		}
@@ -630,6 +629,12 @@ static int radeon_hwmon_init(struct radeon_device *rdev)
 	}
 
 	return err;
+}
+
+static void radeon_hwmon_fini(struct radeon_device *rdev)
+{
+	if (rdev->pm.int_hwmon_dev)
+		hwmon_device_unregister(rdev->pm.int_hwmon_dev);
 }
 
 static void radeon_dpm_thermal_work_handler(struct work_struct *work)
@@ -1353,6 +1358,8 @@ static void radeon_pm_fini_old(struct radeon_device *rdev)
 		device_remove_file(rdev->dev, &dev_attr_power_method);
 	}
 
+	radeon_hwmon_fini(rdev);
+
 	if (rdev->pm.power_state)
 		kfree(rdev->pm.power_state);
 }
@@ -1371,6 +1378,8 @@ static void radeon_pm_fini_dpm(struct radeon_device *rdev)
 		device_remove_file(rdev->dev, &dev_attr_power_method);
 	}
 	radeon_dpm_fini(rdev);
+
+	radeon_hwmon_fini(rdev);
 
 	if (rdev->pm.power_state)
 		kfree(rdev->pm.power_state);
