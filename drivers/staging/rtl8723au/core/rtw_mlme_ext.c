@@ -2000,7 +2000,6 @@ static int OnAction23a_back23a(struct rtw_adapter *padapter,
 	u8 *addr;
 	struct sta_info *psta = NULL;
 	struct recv_reorder_ctrl *preorder_ctrl;
-	unsigned char *frame_body;
 	unsigned char category, action;
 	unsigned short tid, status, capab, params, reason_code = 0;
 	struct mlme_ext_priv *pmlmeext = &padapter->mlmeextpriv;
@@ -2025,17 +2024,18 @@ static int OnAction23a_back23a(struct rtw_adapter *padapter,
 	if (!psta)
 		return _SUCCESS;
 
-	frame_body = &mgmt->u.action.category;
-
 	category = mgmt->u.action.category;
 	if (category == WLAN_CATEGORY_BACK) { /*  representing Block Ack */
 		if (!pmlmeinfo->HT_enable)
 			return _SUCCESS;
-		action = frame_body[1];
+		/* action_code is located in the same place for all
+		   action events, so pick any */
+		action = mgmt->u.action.u.wme_action.action_code;
 		DBG_8723A("%s, action =%d\n", __func__, action);
 		switch (action) {
 		case WLAN_ACTION_ADDBA_REQ: /* ADDBA request */
-			memcpy(&pmlmeinfo->ADDBA_req, &frame_body[2],
+			memcpy(&pmlmeinfo->ADDBA_req,
+			       &mgmt->u.action.u.addba_req.dialog_token,
 			       sizeof(struct ADDBA_request));
 			process_addba_req23a(padapter,
 					     (u8 *)&pmlmeinfo->ADDBA_req, addr);
