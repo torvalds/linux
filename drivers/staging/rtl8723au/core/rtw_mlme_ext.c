@@ -731,7 +731,7 @@ OnBeacon23a(struct rtw_adapter *padapter, struct recv_frame *precv_frame)
 	struct mlme_priv *pmlmepriv = &padapter->mlmepriv;
 	struct sta_priv	*pstapriv = &padapter->stapriv;
 	struct sk_buff *skb = precv_frame->pkt;
-	struct ieee80211_hdr *hdr = (struct ieee80211_hdr *) skb->data;
+	struct ieee80211_mgmt *mgmt = (struct ieee80211_mgmt *) skb->data;
 	u8 *pframe = skb->data;
 	uint len = skb->len;
 	struct wlan_bssid_ex *pbss;
@@ -752,7 +752,7 @@ OnBeacon23a(struct rtw_adapter *padapter, struct recv_frame *precv_frame)
 			DBG_8723A("[WIFIDBG] Error in ESR IE is detected in "
 				  "Beacon of BSSID: %pM. Fix the length of "
 				  "ESR IE to avoid failed Beacon parsing.\n",
-				  hdr->addr3);
+				  mgmt->bssid);
 			*(p + 1) = ielen - 1;
 		}
 	}
@@ -762,7 +762,8 @@ OnBeacon23a(struct rtw_adapter *padapter, struct recv_frame *precv_frame)
 		return _SUCCESS;
 	}
 
-	if (ether_addr_equal(hdr->addr3, get_my_bssid23a(&pmlmeinfo->network))){
+	if (ether_addr_equal(mgmt->bssid,
+			     get_my_bssid23a(&pmlmeinfo->network))){
 		if (pmlmeinfo->state & WIFI_FW_AUTH_NULL) {
 			/* we should update current network before auth,
 			   or some IE is wrong */
@@ -792,7 +793,7 @@ OnBeacon23a(struct rtw_adapter *padapter, struct recv_frame *precv_frame)
 
 		if (((pmlmeinfo->state&0x03) == WIFI_FW_STATION_STATE) &&
 		    (pmlmeinfo->state & WIFI_FW_ASSOC_SUCCESS)) {
-			psta = rtw_get_stainfo23a(pstapriv, hdr->addr2);
+			psta = rtw_get_stainfo23a(pstapriv, mgmt->sa);
 			if (psta) {
 				ret = rtw_check_bcn_info23a(padapter, pframe,
 							    len);
@@ -813,7 +814,7 @@ OnBeacon23a(struct rtw_adapter *padapter, struct recv_frame *precv_frame)
 				}
 			}
 		} else if ((pmlmeinfo->state&0x03) == WIFI_FW_ADHOC_STATE) {
-			psta = rtw_get_stainfo23a(pstapriv, hdr->addr2);
+			psta = rtw_get_stainfo23a(pstapriv, mgmt->sa);
 			if (psta) {
 				/* update WMM, ERP in the beacon */
 				/* todo: the timer is used instead of the
@@ -839,7 +840,7 @@ OnBeacon23a(struct rtw_adapter *padapter, struct recv_frame *precv_frame)
 				update_TSF23a(pmlmeext, pframe, len);
 
 				/* report sta add event */
-				report_add_sta_event23a(padapter, hdr->addr2,
+				report_add_sta_event23a(padapter, mgmt->sa,
 							cam_idx);
 			}
 		}
