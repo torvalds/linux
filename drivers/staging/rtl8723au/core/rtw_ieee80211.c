@@ -1164,21 +1164,6 @@ void rtw_macaddr_cfg23a(u8 *mac_addr)
 		  MAC_ARG(mac_addr));
 }
 
-void dump_ies23a(u8 *buf, u32 buf_len) {
-	u8* pos = (u8*)buf;
-	u8 id, len;
-
-	while (pos-buf <= buf_len) {
-		id = *pos;
-		len = *(pos + 1);
-
-		DBG_8723A("%s ID:%u, LEN:%u\n", __func__, id, len);
-		dump_wps_ie23a(pos, len);
-
-		pos += (2 + len);
-	}
-}
-
 void dump_wps_ie23a(u8 *ie, u32 ie_len) {
 	u8* pos = (u8*)ie;
 	u16 id;

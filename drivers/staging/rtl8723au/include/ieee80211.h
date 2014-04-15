@@ -549,16 +549,6 @@ u8 *rtw_get_wps_ie23a(u8 *in_ie, uint in_len, u8 *wps_ie, uint *wps_ielen);
 u8 *rtw_get_wps_attr23a(u8 *wps_ie, uint wps_ielen, u16 target_attr_id ,u8 *buf_attr, u32 *len_attr);
 u8 *rtw_get_wps_attr_content23a(u8 *wps_ie, uint wps_ielen, u16 target_attr_id ,u8 *buf_content, uint *len_content);
 
-/**
- * for_each_ie - iterate over continuous IEs
- * @ie:
- * @buf:
- * @buf_len:
- */
-#define for_each_ie(ie, buf, buf_len) \
-	for (ie = (void*)buf; (((u8*)ie) - ((u8*)buf) + 1) < buf_len; ie = (void*)(((u8*)ie) + *(((u8*)ie)+1) + 2))
-
-void dump_ies23a(u8 *buf, u32 buf_len);
 void dump_wps_ie23a(u8 *ie, u32 ie_len);
 
 uint	rtw_get_rateset_len23a(u8	*rateset);
