@@ -24,6 +24,16 @@ static inline int delay_slot(struct pt_regs *regs)
 	return regs->cp0_cause & CAUSEF_BD;
 }
 
+static inline void clear_delay_slot(struct pt_regs *regs)
+{
+	regs->cp0_cause &= ~CAUSEF_BD;
+}
+
+static inline void set_delay_slot(struct pt_regs *regs)
+{
+	regs->cp0_cause |= CAUSEF_BD;
+}
+
 static inline unsigned long exception_epc(struct pt_regs *regs)
 {
 	if (likely(!delay_slot(regs)))
