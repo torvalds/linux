@@ -640,8 +640,7 @@ Following are the callback functions for each subtype of the management frames
 unsigned int OnProbeReq23a(struct rtw_adapter *padapter,
 			   struct recv_frame *precv_frame)
 {
-	unsigned int	ielen;
-	unsigned char	*p;
+	const u8 *ie;
 	struct mlme_priv *pmlmepriv = &padapter->mlmepriv;
 	struct mlme_ext_priv *pmlmeext = &padapter->mlmeextpriv;
 	struct mlme_ext_info *pmlmeinfo = &pmlmeext->mlmext_info;
@@ -652,44 +651,38 @@ unsigned int OnProbeReq23a(struct rtw_adapter *padapter,
 	uint len = skb->len;
 	u8 is_valid_p2p_probereq = false;
 
-	if (check_fwstate(pmlmepriv, WIFI_STATION_STATE)) {
+	if (check_fwstate(pmlmepriv, WIFI_STATION_STATE))
 		return _SUCCESS;
-	}
 
-	if (check_fwstate(pmlmepriv, _FW_LINKED) == false &&
-		check_fwstate(pmlmepriv,
-			      WIFI_ADHOC_MASTER_STATE|WIFI_AP_STATE) == false) {
+	if (!check_fwstate(pmlmepriv, _FW_LINKED) &&
+	    !check_fwstate(pmlmepriv,
+			   WIFI_ADHOC_MASTER_STATE | WIFI_AP_STATE))
 		return _SUCCESS;
-	}
 
-	p = rtw_get_ie23a(pframe + sizeof(struct ieee80211_hdr_3addr) +
-			  _PROBEREQ_IE_OFFSET_, WLAN_EID_SSID, (int *)&ielen,
-			  len - sizeof(struct ieee80211_hdr_3addr) -
-			  _PROBEREQ_IE_OFFSET_);
+	pframe += (sizeof(struct ieee80211_hdr_3addr) + _PROBEREQ_IE_OFFSET_);
+	len -= (sizeof(struct ieee80211_hdr_3addr) + _PROBEREQ_IE_OFFSET_);
+
+	ie = cfg80211_find_ie(WLAN_EID_SSID, pframe, len);
 
 	/* check (wildcard) SSID */
-	if (p) {
-		if (is_valid_p2p_probereq == true) {
-			goto _issue_probersp23a;
-		}
+	if (!ie)
+		goto out;
 
-		if ((ielen != 0 &&
-		     memcmp((void *)(p+2), cur->Ssid.ssid,
-			    cur->Ssid.ssid_len)) ||
-		    (ielen == 0 && pmlmeinfo->hidden_ssid_mode)) {
+	if (is_valid_p2p_probereq == false) {
+		if ((ie[1] &&
+		     memcmp(ie + 2, cur->Ssid.ssid, cur->Ssid.ssid_len)) ||
+		    (ie[1] == 0 && pmlmeinfo->hidden_ssid_mode)) {
 			return _SUCCESS;
-		}
-
-_issue_probersp23a:
-
-		if (check_fwstate(pmlmepriv, _FW_LINKED) == true &&
-		    pmlmepriv->cur_network.join_res == true) {
-			/* DBG_8723A("+issue_probersp23a during ap mode\n"); */
-			issue_probersp23a(padapter, ieee80211_get_SA(hdr),
-					  is_valid_p2p_probereq);
 		}
 	}
 
+	if (check_fwstate(pmlmepriv, _FW_LINKED) &&
+	    pmlmepriv->cur_network.join_res) {
+		issue_probersp23a(padapter, ieee80211_get_SA(hdr),
+				  is_valid_p2p_probereq);
+	}
+
+out:
 	return _SUCCESS;
 }
 
