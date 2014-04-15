@@ -115,6 +115,7 @@ int __init corenet_gen_publish_devices(void)
 static const char * const boards[] __initconst = {
 	"fsl,P2041RDB",
 	"fsl,P3041DS",
+	"fsl,OCA4080",
 	"fsl,P4080DS",
 	"fsl,P5020DS",
 	"fsl,P5040DS",
@@ -129,6 +130,7 @@ static const char * const boards[] __initconst = {
 static const char * const hv_boards[] __initconst = {
 	"fsl,P2041RDB-hv",
 	"fsl,P3041DS-hv",
+	"fsl,OCA4080-hv",
 	"fsl,P4080DS-hv",
 	"fsl,P5020DS-hv",
 	"fsl,P5040DS-hv",
