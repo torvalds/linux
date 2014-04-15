@@ -170,7 +170,7 @@ static unsigned long h_get_24x7_catalog_page_(unsigned long phys_4096,
 			index);
 }
 
-static unsigned long h_get_24x7_catalog_page(char page[static 4096],
+static unsigned long h_get_24x7_catalog_page(char page[],
 					     u32 version, u32 index)
 {
 	return h_get_24x7_catalog_page_(virt_to_phys(page),
