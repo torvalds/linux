@@ -1683,7 +1683,7 @@ static int rtw_cfg80211_set_key_mgt(struct security_priv *psecuritypriv,
 static int rtw_cfg80211_set_wpa_ie(struct rtw_adapter *padapter, const u8 *pie,
 				   size_t ielen)
 {
-	u8 *buf = NULL, *pos = NULL;
+	u8 *buf = NULL;
 	int group_cipher = 0, pairwise_cipher = 0;
 	int ret = 0;
 	const u8 *pwpa, *pwpa2;
@@ -1713,7 +1713,6 @@ static int rtw_cfg80211_set_wpa_ie(struct rtw_adapter *padapter, const u8 *pie,
 			  buf[i], buf[i + 1],
 			  buf[i + 2], buf[i + 3], buf[i + 4],
 			  buf[i + 5], buf[i + 6], buf[i + 7]);
-	pos = buf;
 	if (ielen < RSN_HEADER_LEN) {
 		RT_TRACE(_module_rtl871x_ioctl_os_c, _drv_err_,
 			 ("Ie len too short %d\n", (int)ielen));
