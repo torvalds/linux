@@ -3734,17 +3734,17 @@ static void intel_disable_planes(struct drm_crtc *crtc)
 
 void hsw_enable_ips(struct intel_crtc *crtc)
 {
-	struct drm_i915_private *dev_priv = crtc->base.dev->dev_private;
+	struct drm_device *dev = crtc->base.dev;
+	struct drm_i915_private *dev_priv = dev->dev_private;
 
 	if (!crtc->config.ips_enabled)
 		return;
 
-	/* We can only enable IPS after we enable a plane and wait for a vblank.
-	 * We guarantee that the plane is enabled by calling intel_enable_ips
-	 * only after intel_enable_plane. And intel_enable_plane already waits
-	 * for a vblank, so all we need to do here is to enable the IPS bit. */
+	/* We can only enable IPS after we enable a plane and wait for a vblank */
+	intel_wait_for_vblank(dev, crtc->pipe);
+
 	assert_plane_enabled(dev_priv, crtc->plane);
-	if (IS_BROADWELL(crtc->base.dev)) {
+	if (IS_BROADWELL(dev)) {
 		mutex_lock(&dev_priv->rps.hw_lock);
 		WARN_ON(sandybridge_pcode_write(dev_priv, DISPLAY_IPS_CONTROL, 0xc0000000));
 		mutex_unlock(&dev_priv->rps.hw_lock);
