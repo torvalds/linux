@@ -502,7 +502,7 @@ void flush_all_cam_entry23a(struct rtw_adapter *padapter)
 int WFD_info_handler(struct rtw_adapter *padapter, struct ndis_802_11_var_ies *	pIE)
 {
 	struct wifidirect_info	*pwdinfo;
-	u8	wfd_ie[128] = {0x00};
+	u8	wfd_ie[MAX_WFD_IE_LEN] = {0x00};
 	u32	wfd_ielen = 0;
 
 	pwdinfo = &padapter->wdinfo;
