@@ -2993,18 +2993,20 @@ void issue_asocrsp23a(struct rtw_adapter *padapter, unsigned short status,
 	struct xmit_frame *pmgntframe;
 	struct ieee80211_hdr *pwlanhdr;
 	struct pkt_attrib *pattrib;
-	unsigned char *pbuf, *pframe;
+	unsigned char *pframe;
 	unsigned short val;
 	struct xmit_priv *pxmitpriv = &padapter->xmitpriv;
 	struct mlme_priv *pmlmepriv = &padapter->mlmepriv;
 	struct mlme_ext_priv *pmlmeext = &padapter->mlmeextpriv;
 	struct mlme_ext_info *pmlmeinfo = &pmlmeext->mlmext_info;
 	struct wlan_bssid_ex *pnetwork = &pmlmeinfo->network;
+	const u8 *p;
 	u8 *ie = pnetwork->IEs;
 
 	DBG_8723A("%s\n", __func__);
 
-	if ((pmgntframe = alloc_mgtxmitframe23a(pxmitpriv)) == NULL)
+	pmgntframe = alloc_mgtxmitframe23a(pxmitpriv);
+	if (!pmgntframe)
 		return;
 
 	/* update attribute */
@@ -3024,7 +3026,7 @@ void issue_asocrsp23a(struct rtw_adapter *padapter, unsigned short status,
 
 	SetSeqNum(pwlanhdr, pmlmeext->mgnt_seq);
 	pmlmeext->mgnt_seq++;
-	if ((pkt_type == WIFI_ASSOCRSP) || (pkt_type == WIFI_REASSOCRSP))
+	if (pkt_type == WIFI_ASSOCRSP || pkt_type == WIFI_REASSOCRSP)
 		SetFrameSubType(pwlanhdr, pkt_type);
 	else
 		return;
@@ -3060,52 +3062,53 @@ void issue_asocrsp23a(struct rtw_adapter *padapter, unsigned short status,
 				       pstat->bssrateset + 8, &pattrib->pktlen);
 	}
 
-	if ((pstat->flags & WLAN_STA_HT) && (pmlmepriv->htpriv.ht_option)) {
-		uint ie_len = 0;
-
+	if (pstat->flags & WLAN_STA_HT && pmlmepriv->htpriv.ht_option) {
 		/* FILL HT CAP INFO IE */
 		/* p = hostapd_eid_ht_capabilities_info(hapd, p); */
-		pbuf = rtw_get_ie23a(ie + _BEACON_IE_OFFSET_,
-				     WLAN_EID_HT_CAPABILITY, &ie_len,
-				     pnetwork->IELength - _BEACON_IE_OFFSET_);
-		if (pbuf && ie_len>0) {
-			memcpy(pframe, pbuf, ie_len + 2);
-			pframe += (ie_len + 2);
-			pattrib->pktlen += (ie_len + 2);
+		p = cfg80211_find_ie(WLAN_EID_HT_CAPABILITY,
+				     ie + _BEACON_IE_OFFSET_,
+				     pnetwork->IELength -_BEACON_IE_OFFSET_);
+		if (p && p[1]) {
+			memcpy(pframe, p, p[1] + 2);
+			pframe += (p[1] + 2);
+			pattrib->pktlen += (p[1] + 2);
 		}
 
 		/* FILL HT ADD INFO IE */
 		/* p = hostapd_eid_ht_operation(hapd, p); */
-		pbuf = rtw_get_ie23a(ie + _BEACON_IE_OFFSET_,
-				     WLAN_EID_HT_OPERATION, &ie_len,
+		p = cfg80211_find_ie(WLAN_EID_HT_OPERATION,
+				     ie + _BEACON_IE_OFFSET_,
 				     pnetwork->IELength - _BEACON_IE_OFFSET_);
-		if (pbuf && ie_len > 0) {
-			memcpy(pframe, pbuf, ie_len + 2);
-			pframe += (ie_len + 2);
-			pattrib->pktlen += (ie_len + 2);
+		if (p && p[1] > 0) {
+			memcpy(pframe, p, p[1] + 2);
+			pframe += (p[1] + 2);
+			pattrib->pktlen += (p[1] + 2);
 		}
 	}
 
 	/* FILL WMM IE */
-	if ((pstat->flags & WLAN_STA_WME) && pmlmepriv->qospriv.qos_option) {
-		uint ie_len = 0;
+	if (pstat->flags & WLAN_STA_WME && pmlmepriv->qospriv.qos_option) {
 		unsigned char WMM_PARA_IE[] = {0x00, 0x50, 0xf2, 0x02,
 					       0x01, 0x01};
+		int ie_len = 0;
 
-		for (pbuf = ie + _BEACON_IE_OFFSET_; ; pbuf += (ie_len + 2)) {
-			pbuf = rtw_get_ie23a(pbuf, WLAN_EID_VENDOR_SPECIFIC,
-					     &ie_len, (pnetwork->IELength -
-						       _BEACON_IE_OFFSET_ -
-						       (ie_len + 2)));
-			if (pbuf && !memcmp(pbuf + 2, WMM_PARA_IE, 6)) {
-				memcpy(pframe, pbuf, ie_len + 2);
+		for (p = ie + _BEACON_IE_OFFSET_; ; p += (ie_len + 2)) {
+			p = cfg80211_find_ie(WLAN_EID_VENDOR_SPECIFIC, p,
+					     pnetwork->IELength -
+					     _BEACON_IE_OFFSET_ - (ie_len + 2));
+			if (p)
+				ie_len = p[1];
+			else
+				ie_len = 0;
+			if (p && !memcmp(p + 2, WMM_PARA_IE, 6)) {
+				memcpy(pframe, p, ie_len + 2);
 				pframe += (ie_len + 2);
 				pattrib->pktlen += (ie_len + 2);
 
 				break;
 			}
 
-			if ((!pbuf) || (ie_len == 0))
+			if (!p || ie_len == 0)
 				break;
 		}
 	}
