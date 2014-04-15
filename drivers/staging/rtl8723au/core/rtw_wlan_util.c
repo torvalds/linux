@@ -498,32 +498,6 @@ void flush_all_cam_entry23a(struct rtw_adapter *padapter)
 	memset((u8 *)(pmlmeinfo->FW_sta_info), 0, sizeof(pmlmeinfo->FW_sta_info));
 }
 
-#if defined(CONFIG_8723AU_P2P) && defined(CONFIG_8723AU_P2P)
-int WFD_info_handler(struct rtw_adapter *padapter, struct ndis_802_11_var_ies *	pIE)
-{
-	struct wifidirect_info	*pwdinfo;
-	u8	wfd_ie[MAX_WFD_IE_LEN] = {0x00};
-	u32	wfd_ielen = 0;
-
-	pwdinfo = &padapter->wdinfo;
-	if (rtw_get_wfd_ie((u8 *) pIE, pIE->Length, wfd_ie, &wfd_ielen)) {
-		u8	attr_content[ 10 ] = { 0x00 };
-		u32	attr_contentlen = 0;
-
-		DBG_8723A("[%s] Found WFD IE\n", __func__);
-		rtw_get_wfd_attr_content(wfd_ie, wfd_ielen, WFD_ATTR_DEVICE_INFO, attr_content, &attr_contentlen);
-		if (attr_contentlen) {
-			pwdinfo->wfd_info->peer_rtsp_ctrlport = get_unaligned_be16(attr_content + 2);
-			DBG_8723A("[%s] Peer PORT NUM = %d\n", __func__, pwdinfo->wfd_info->peer_rtsp_ctrlport);
-			return true;
-		}
-	} else {
-		DBG_8723A("[%s] NO WFD IE\n", __func__);
-	}
-	return _FAIL;
-}
-#endif
-
 int WMM_param_handler23a(struct rtw_adapter *padapter, struct ndis_802_11_var_ies *	pIE)
 {
 	/* struct registry_priv	*pregpriv = &padapter->registrypriv; */
@@ -1371,15 +1345,6 @@ void set_sta_rate23a(struct rtw_adapter *padapter, struct sta_info *psta)
 void update_tx_basic_rate23a(struct rtw_adapter *padapter, u8 wirelessmode)
 {
 	unsigned char supported_rates[NDIS_802_11_LENGTH_RATES_EX];
-#ifdef CONFIG_8723AU_P2P
-	struct wifidirect_info*	pwdinfo = &padapter->wdinfo;
-
-	/*	Added by Albert 2011/03/22 */
-	/*	In the P2P mode, the driver should not support the b mode. */
-	/*	So, the Tx packet shouldn't use the CCK rate */
-	if (!rtw_p2p_chk_state(pwdinfo, P2P_STATE_NONE))
-		return;
-#endif /* CONFIG_8723AU_P2P */
 
 	memset(supported_rates, 0, NDIS_802_11_LENGTH_RATES_EX);
 

@@ -109,33 +109,30 @@ static bool rtw_pwr_unassociated_idle(struct rtw_adapter *adapter)
 	struct rtw_adapter *buddy = adapter->pbuddy_adapter;
 	struct mlme_priv *pmlmepriv = &adapter->mlmepriv;
 	struct xmit_priv *pxmit_priv = &adapter->xmitpriv;
-	struct wifidirect_info *pwdinfo = &adapter->wdinfo;
 
 	bool ret = false;
 
 	if (time_after_eq(adapter->pwrctrlpriv.ips_deny_time, jiffies))
 		goto exit;
 
-	if (check_fwstate(pmlmepriv, WIFI_ASOC_STATE|WIFI_SITE_MONITOR)
-		|| check_fwstate(pmlmepriv, WIFI_UNDER_LINKING|WIFI_UNDER_WPS)
-		|| check_fwstate(pmlmepriv, WIFI_AP_STATE)
-		|| check_fwstate(pmlmepriv, WIFI_ADHOC_MASTER_STATE|WIFI_ADHOC_STATE)
-		|| !rtw_p2p_chk_state(pwdinfo, P2P_STATE_NONE)
-	) {
+	if (check_fwstate(pmlmepriv, WIFI_ASOC_STATE|WIFI_SITE_MONITOR) ||
+	    check_fwstate(pmlmepriv, WIFI_UNDER_LINKING|WIFI_UNDER_WPS) ||
+	    check_fwstate(pmlmepriv, WIFI_AP_STATE) ||
+	    check_fwstate(pmlmepriv, WIFI_ADHOC_MASTER_STATE|WIFI_ADHOC_STATE)){
 		goto exit;
 	}
 
 	/* consider buddy, if exist */
 	if (buddy) {
 		struct mlme_priv *b_pmlmepriv = &buddy->mlmepriv;
-		struct wifidirect_info *b_pwdinfo = &buddy->wdinfo;
 
-		if (check_fwstate(b_pmlmepriv, WIFI_ASOC_STATE|WIFI_SITE_MONITOR)
-			|| check_fwstate(b_pmlmepriv, WIFI_UNDER_LINKING|WIFI_UNDER_WPS)
-			|| check_fwstate(b_pmlmepriv, WIFI_AP_STATE)
-			|| check_fwstate(b_pmlmepriv, WIFI_ADHOC_MASTER_STATE|WIFI_ADHOC_STATE)
-			|| !rtw_p2p_chk_state(b_pwdinfo, P2P_STATE_NONE)
-		) {
+		if (check_fwstate(b_pmlmepriv,
+				  WIFI_ASOC_STATE|WIFI_SITE_MONITOR) ||
+		    check_fwstate(b_pmlmepriv,
+				  WIFI_UNDER_LINKING|WIFI_UNDER_WPS) ||
+		    check_fwstate(b_pmlmepriv, WIFI_AP_STATE) ||
+		    check_fwstate(b_pmlmepriv,
+				  WIFI_ADHOC_MASTER_STATE|WIFI_ADHOC_STATE)) {
 			goto exit;
 		}
 	}
@@ -307,11 +304,6 @@ u8 PS_RDY_CHECK(struct rtw_adapter * padapter)
 void rtw_set_ps_mode23a(struct rtw_adapter *padapter, u8 ps_mode, u8 smart_ps, u8 bcn_ant_mode)
 {
 	struct pwrctrl_priv *pwrpriv = &padapter->pwrctrlpriv;
-#ifdef CONFIG_8723AU_P2P
-	struct wifidirect_info *pwdinfo = &padapter->wdinfo;
-#endif /* CONFIG_8723AU_P2P */
-
-
 
 	RT_TRACE(_module_rtl871x_pwrctrl_c_, _drv_notice_,
 			 ("%s: PowerMode =%d Smart_PS =%d\n",
@@ -334,17 +326,12 @@ void rtw_set_ps_mode23a(struct rtw_adapter *padapter, u8 ps_mode, u8 smart_ps, u
 	}
 
 	if (ps_mode == PS_MODE_ACTIVE) {
-#ifdef CONFIG_8723AU_P2P
-		if (pwdinfo->opp_ps == 0)
-#endif /* CONFIG_8723AU_P2P */
-		{
-			DBG_8723A("rtw_set_ps_mode23a: Leave 802.11 power save\n");
+		DBG_8723A("rtw_set_ps_mode23a: Leave 802.11 power save\n");
 
-			pwrpriv->pwr_mode = ps_mode;
-			rtw_set_rpwm23a(padapter, PS_STATE_S4);
-			rtl8723a_set_FwPwrMode_cmd(padapter, ps_mode);
-			pwrpriv->bFwCurrentInPSMode = false;
-		}
+		pwrpriv->pwr_mode = ps_mode;
+		rtw_set_rpwm23a(padapter, PS_STATE_S4);
+		rtl8723a_set_FwPwrMode_cmd(padapter, ps_mode);
+		pwrpriv->bFwCurrentInPSMode = false;
 	} else {
 		if (PS_RDY_CHECK(padapter)
 #ifdef CONFIG_8723AU_BT_COEXIST
@@ -358,12 +345,6 @@ void rtw_set_ps_mode23a(struct rtw_adapter *padapter, u8 ps_mode, u8 smart_ps, u
 			pwrpriv->smart_ps = smart_ps;
 			pwrpriv->bcn_ant_mode = bcn_ant_mode;
 			rtl8723a_set_FwPwrMode_cmd(padapter, ps_mode);
-
-#ifdef CONFIG_8723AU_P2P
-			/*  Set CTWindow after LPS */
-			if (pwdinfo->opp_ps == 1)
-				p2p_ps_wk_cmd23a(padapter, P2P_PS_ENABLE, 0);
-#endif /* CONFIG_8723AU_P2P */
 
 			rtw_set_rpwm23a(padapter, PS_STATE_S2);
 		}
@@ -464,10 +445,6 @@ void LeaveAllPowerSaveMode23a(struct rtw_adapter *Adapter)
 	/* DBG_8723A("%s.....\n", __func__); */
 	if (check_fwstate(pmlmepriv, _FW_LINKED) == true)
 	{ /* connect */
-#ifdef CONFIG_8723AU_P2P
-		p2p_ps_wk_cmd23a(Adapter, P2P_PS_DISABLE, enqueue);
-#endif /* CONFIG_8723AU_P2P */
-
 		rtw_lps_ctrl_wk_cmd23a(Adapter, LPS_CTRL_LEAVE, enqueue);
 	}
 

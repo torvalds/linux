@@ -636,23 +636,6 @@ enum P2P_PROTO_WK_ID {
 	P2P_RO_CH_WK = 6,
 };
 
-#ifdef CONFIG_8723AU_P2P
-enum P2P_PS_STATE {
-	P2P_PS_DISABLE = 0,
-	P2P_PS_ENABLE = 1,
-	P2P_PS_SCAN = 2,
-	P2P_PS_SCAN_DONE = 3,
-	P2P_PS_ALLSTASLEEP = 4, /*  for P2P GO */
-};
-
-enum P2P_PS_MODE {
-	P2P_PS_NONE = 0,
-	P2P_PS_CTWINDOW = 1,
-	P2P_PS_NOA	 = 2,
-	P2P_PS_MIX = 3, /*  CTWindow and NoA */
-};
-#endif /*  CONFIG_8723AU_P2P */
-
 /*	=====================WFD Section===================== */
 /*	For Wi-Fi Display */
 #define	WFD_ATTR_DEVICE_INFO			0x00

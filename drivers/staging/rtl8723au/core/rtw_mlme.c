@@ -787,11 +787,6 @@ void rtw_surveydone_event_callback23a(struct rtw_adapter	*adapter, u8 *pbuf)
 
 	spin_unlock_bh(&pmlmepriv->lock);
 
-#ifdef CONFIG_8723AU_P2P
-	if (check_fwstate(pmlmepriv, _FW_LINKED) == true)
-		p2p_ps_wk_cmd23a(adapter, P2P_PS_SCAN_DONE, 0);
-#endif /*  CONFIG_8723AU_P2P */
-
 	rtw_os_xmit_schedule23a(adapter);
 
 	if(pmlmeext->sitesurvey_res.bss_cnt == 0)
@@ -955,10 +950,6 @@ void rtw_indicate_disconnect23a(struct rtw_adapter *padapter)
 		rtw_clear_scan_deny(padapter);
 
 	}
-
-#ifdef CONFIG_8723AU_P2P
-	p2p_ps_wk_cmd23a(padapter, P2P_PS_DISABLE, 1);
-#endif /*  CONFIG_8723AU_P2P */
 
 	rtw_lps_ctrl_wk_cmd23a(padapter, LPS_CTRL_DISCONNECT, 1);
 
@@ -1581,16 +1572,9 @@ void rtw_dynamic_check_timer_handler(unsigned long data)
 
 	rtw_dynamic_chk_wk_cmd23a(adapter);
 
-	if (pregistrypriv->wifi_spec == 1)
-	{
-#ifdef CONFIG_8723AU_P2P
-		struct wifidirect_info *pwdinfo = &adapter->wdinfo;
-		if (rtw_p2p_chk_state(pwdinfo, P2P_STATE_NONE))
-#endif
-		{
-			/* auto site survey */
-			rtw_auto_scan_handler(adapter);
-		}
+	if (pregistrypriv->wifi_spec == 1) {
+		/* auto site survey */
+		rtw_auto_scan_handler(adapter);
 	}
 out:
 	mod_timer(&adapter->mlmepriv.dynamic_chk_timer,

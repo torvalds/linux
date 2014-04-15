@@ -519,10 +519,6 @@ unsigned char check_assoc_AP23a(u8 *pframe, uint len);
 
 int WMM_param_handler23a(struct rtw_adapter *padapter,
 		      struct ndis_802_11_var_ies *pIE);
-#ifdef CONFIG_8723AU_P2P
-int WFD_info_handler(struct rtw_adapter *padapter,
-		     struct ndis_802_11_var_ies *pIE);
-#endif
 void WMMOnAssocRsp23a(struct rtw_adapter *padapter);
 
 void HT_caps_handler23a(struct rtw_adapter *padapter,
@@ -587,18 +583,6 @@ s32 dump_mgntframe23a_and_wait(struct rtw_adapter *padapter,
 s32 dump_mgntframe23a_and_wait_ack23a(struct rtw_adapter *padapter,
 				struct xmit_frame *pmgntframe);
 
-#ifdef CONFIG_8723AU_P2P
-void issue_probersp23a_p2p23a(struct rtw_adapter *padapter, unsigned char *da);
-void issue_p2p_provision_request23a(struct rtw_adapter *padapter, u8 *pssid,
-				 u8 ussidlen, u8* pdev_raddr);
-void issue_p2p_GO_request23a(struct rtw_adapter *padapter, u8* raddr);
-void issue23a_probereq_p2p(struct rtw_adapter *padapter, u8 *da);
-int issue23a_probereq_p2p_ex(struct rtw_adapter *adapter, u8 *da, int try_cnt,
-			  int wait_ms);
-void issue_p2p_invitation_response23a(struct rtw_adapter *padapter, u8* raddr,
-				   u8 dialogToken, u8 success);
-void issue_p2p_invitation_request23a(struct rtw_adapter *padapter, u8* raddr);
-#endif /* CONFIG_8723AU_P2P */
 void issue_beacon23a(struct rtw_adapter *padapter, int timeout_ms);
 void issue_probersp23a(struct rtw_adapter *padapter, unsigned char *da,
 		    u8 is_valid_p2p_probereq);

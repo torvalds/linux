@@ -662,10 +662,6 @@ static struct rtw_adapter *rtw_usb_if1_init(struct dvobj_priv *dvobj,
 
 	/*  set mac addr */
 	rtw_macaddr_cfg23a(padapter->eeprompriv.mac_addr);
-#ifdef CONFIG_8723AU_P2P
-	rtw_init_wifidirect_addrs23a(padapter, padapter->eeprompriv.mac_addr,
-				  padapter->eeprompriv.mac_addr);
-#endif
 
 	DBG_8723A("bDriverStopped:%d, bSurpriseRemoved:%d, bup:%d, hw_init_completed:%d\n",
 		  padapter->bDriverStopped, padapter->bSurpriseRemoved,

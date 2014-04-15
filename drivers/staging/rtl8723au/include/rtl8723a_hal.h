@@ -424,11 +424,6 @@ struct hal_data_8723a {
 
 	bool				bMACFuncEnable;
 
-#ifdef CONFIG_8723AU_P2P
-	struct P2P_PS_Offload_t	p2p_ps_offload;
-#endif
-
-
 	/*  */
 	/*  For USB Interface HAL related */
 	/*  */

@@ -527,12 +527,6 @@ u8 rtw_sitesurvey_cmd23a(struct rtw_adapter *padapter,
 	if (check_fwstate(pmlmepriv, _FW_LINKED) == true)
 		rtw_lps_ctrl_wk_cmd23a(padapter, LPS_CTRL_SCAN, 1);
 
-#ifdef CONFIG_8723AU_P2P
-	if (check_fwstate(pmlmepriv, _FW_LINKED) == true) {
-		p2p_ps_wk_cmd23a(padapter, P2P_PS_SCAN, 1);
-	}
-#endif /* CONFIG_8723AU_P2P */
-
 	ph2c = kzalloc(sizeof(struct cmd_obj), GFP_ATOMIC);
 	if (!ph2c)
 		return _FAIL;
@@ -1354,48 +1348,6 @@ static void power_saving_wk_hdl(struct rtw_adapter *padapter, u8 *pbuf, int sz)
 	 rtw_ps_processor23a(padapter);
 }
 
-#ifdef CONFIG_8723AU_P2P
-u8 p2p_protocol_wk_cmd23a(struct rtw_adapter*padapter, int intCmdType)
-{
-	struct cmd_obj *ph2c;
-	struct drvextra_cmd_parm *pdrvextra_cmd_parm;
-	struct wifidirect_info *pwdinfo = &padapter->wdinfo;
-	struct cmd_priv *pcmdpriv = &padapter->cmdpriv;
-	u8 res = _SUCCESS;
-
-	if (rtw_p2p_chk_state(pwdinfo, P2P_STATE_NONE))
-	{
-		return res;
-	}
-
-	ph2c = kzalloc(sizeof(struct cmd_obj), GFP_ATOMIC);
-	if (!ph2c) {
-		res = _FAIL;
-		goto exit;
-	}
-
-	pdrvextra_cmd_parm = kzalloc(sizeof(struct drvextra_cmd_parm),
-				     GFP_ATOMIC);
-	if (!pdrvextra_cmd_parm) {
-		kfree(ph2c);
-		res = _FAIL;
-		goto exit;
-	}
-
-	pdrvextra_cmd_parm->ec_id = P2P_PROTO_WK_CID;
-	pdrvextra_cmd_parm->type_size = intCmdType; /* As the command tppe. */
-	pdrvextra_cmd_parm->pbuf = NULL;	    /* Must be NULL here */
-
-	init_h2fwcmd_w_parm_no_rsp(ph2c, pdrvextra_cmd_parm,
-				   GEN_CMD_CODE(_Set_Drv_Extra));
-
-	res = rtw_enqueue_cmd23a(pcmdpriv, ph2c);
-exit:
-
-	return res;
-}
-#endif /* CONFIG_8723AU_P2P */
-
 u8 rtw_ps_cmd23a(struct rtw_adapter*padapter)
 {
 	struct cmd_obj *ppscmd;
@@ -1634,16 +1586,6 @@ u8 rtw_drvextra_cmd_hdl23a(struct rtw_adapter *padapter, unsigned char *pbuf)
 	case LPS_CTRL_WK_CID:
 		lps_ctrl_wk_hdl(padapter, (u8)pdrvextra_cmd->type_size);
 		break;
-#ifdef CONFIG_8723AU_P2P
-	case P2P_PS_WK_CID:
-		p2p_ps_wk_hdl23a(padapter, pdrvextra_cmd->type_size);
-		break;
-	case P2P_PROTO_WK_CID:
-		/*	Commented by Albert 2011/07/01 */
-		/*	I used the type_size as the type command */
-		p2p_protocol_wk_hdl23a(padapter, pdrvextra_cmd->type_size);
-		break;
-#endif /*  CONFIG_8723AU_P2P */
 #ifdef CONFIG_8723AU_AP_MODE
 	case CHECK_HIQ_WK_CID:
 		rtw_chk_hi_queue_hdl(padapter);

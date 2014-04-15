@@ -563,20 +563,6 @@ u8 *rtw_get_wps_attr_content23a(u8 *wps_ie, uint wps_ielen, u16 target_attr_id ,
 void dump_ies23a(u8 *buf, u32 buf_len);
 void dump_wps_ie23a(u8 *ie, u32 ie_len);
 
-#ifdef CONFIG_8723AU_P2P
-void dump_p2p_ie23a(u8 *ie, u32 ie_len);
-u8 *rtw_get_p2p_ie23a(u8 *in_ie, int in_len, u8 *p2p_ie, uint *p2p_ielen);
-u8 *rtw_get_p2p_attr23a(u8 *p2p_ie, uint p2p_ielen, u8 target_attr_id ,u8 *buf_attr, u32 *len_attr);
-u8 *rtw_get_p2p_attr23a_content(u8 *p2p_ie, uint p2p_ielen, u8 target_attr_id ,u8 *buf_content, uint *len_content);
-u32 rtw_set_p2p_attr_content23a(u8 *pbuf, u8 attr_id, u16 attr_len, u8 *pdata_attr);
-void rtw_wlan_bssid_ex_remove_p2p_attr23a(struct wlan_bssid_ex *bss_ex, u8 attr_id);
-#endif
-
-#ifdef CONFIG_8723AU_P2P
-int rtw_get_wfd_ie(u8 *in_ie, int in_len, u8 *wfd_ie, uint *wfd_ielen);
-int rtw_get_wfd_attr_content(u8 *wfd_ie, uint wfd_ielen, u8 target_attr_id ,u8 *attr_content, uint *attr_contentlen);
-#endif /*  CONFIG_8723AU_P2P */
-
 uint	rtw_get_rateset_len23a(u8	*rateset);
 
 struct registry_priv;

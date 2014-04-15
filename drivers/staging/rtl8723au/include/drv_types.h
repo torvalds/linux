@@ -55,7 +55,6 @@ enum _NIC_VERSION {
 #include <rtw_event.h>
 #include <rtw_led.h>
 #include <rtw_mlme_ext.h>
-#include <rtw_p2p.h>
 #include <rtw_ap.h>
 
 #include "ioctl_cfg80211.h"
@@ -258,13 +257,7 @@ struct rtw_adapter {
 	struct	hostapd_priv	*phostapdpriv;
 #endif
 
-	struct cfg80211_wifidirect_info	cfg80211_wdinfo;
 	u32	setband;
-	struct wifidirect_info	wdinfo;
-
-#ifdef CONFIG_8723AU_P2P
-	struct wifi_display_info wfd_info;
-#endif /* CONFIG_8723AU_P2P */
 
 	void *HalData;
 	u32 hal_data_sz;
@@ -316,10 +309,6 @@ struct rtw_adapter {
 	u8 bRxRSSIDisplay;
 	/* The driver will show the desired chan nor when this flag is 1. */
 	u8 bNotifyChannelChange;
-#ifdef CONFIG_8723AU_P2P
-	/* driver will show current P2P status when the  application reads it*/
-	u8 bShowGetP2PState;
-#endif
 	struct rtw_adapter *pbuddy_adapter;
 
 	/* extend to support multi interface */
