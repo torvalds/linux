@@ -457,66 +457,6 @@ struct rtw_ieee80211_channel {
 	/*, (channel)->orig_mag*/ \
 	/*, (channel)->orig_mpwr*/ \
 
-/* Parsed Information Elements */
-struct rtw_ieee802_11_elems {
-	u8 *ssid;
-	u8 ssid_len;
-	u8 *supp_rates;
-	u8 supp_rates_len;
-	u8 *fh_params;
-	u8 fh_params_len;
-	u8 *ds_params;
-	u8 ds_params_len;
-	u8 *cf_params;
-	u8 cf_params_len;
-	u8 *tim;
-	u8 tim_len;
-	u8 *ibss_params;
-	u8 ibss_params_len;
-	u8 *challenge;
-	u8 challenge_len;
-	u8 *erp_info;
-	u8 erp_info_len;
-	u8 *ext_supp_rates;
-	u8 ext_supp_rates_len;
-	u8 *wpa_ie;
-	u8 wpa_ie_len;
-	u8 *rsn_ie;
-	u8 rsn_ie_len;
-	u8 *wme;
-	u8 wme_len;
-	u8 *wme_tspec;
-	u8 wme_tspec_len;
-	u8 *wps_ie;
-	u8 wps_ie_len;
-	u8 *power_cap;
-	u8 power_cap_len;
-	u8 *supp_channels;
-	u8 supp_channels_len;
-	u8 *mdie;
-	u8 mdie_len;
-	u8 *ftie;
-	u8 ftie_len;
-	u8 *timeout_int;
-	u8 timeout_int_len;
-	u8 *ht_capabilities;
-	u8 ht_capabilities_len;
-	u8 *ht_operation;
-	u8 ht_operation_len;
-	u8 *vendor_ht_cap;
-	u8 vendor_ht_cap_len;
-};
-
-enum parse_res {
-	ParseOK = 0,
-	ParseUnknown = 1,
-	ParseFailed = -1
-};
-
-enum parse_res rtw_ieee802_11_parse_elems23a(u8 *start, uint len,
-				struct rtw_ieee802_11_elems *elems,
-				int show_errors);
-
 u8 *rtw_set_fixed_ie23a(unsigned char *pbuf, unsigned int len, unsigned char *source, unsigned int *frlen);
 u8 *rtw_set_ie23a(u8 *pbuf, int index, uint len, const u8 *source, uint *frlen);
 

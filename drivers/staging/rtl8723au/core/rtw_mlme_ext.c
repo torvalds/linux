@@ -1137,12 +1137,146 @@ authclnt_fail:
 	return _FAIL;
 }
 
+#ifdef CONFIG_8723AU_AP_MODE
+static int rtw_validate_vendor_specific_ies(const u8 *pos, int elen)
+{
+	unsigned int oui;
+
+	/* first 3 bytes in vendor specific information element are the IEEE
+	 * OUI of the vendor. The following byte is used a vendor specific
+	 * sub-type. */
+	if (elen < 4) {
+		DBG_8723A("short vendor specific information element "
+			  "ignored (len =%i)\n", elen);
+		return -EINVAL;
+	}
+
+	oui = RTW_GET_BE24(pos);
+	switch (oui) {
+	case WLAN_OUI_MICROSOFT:
+		/* Microsoft/Wi-Fi information elements are further typed and
+		 * subtyped */
+		switch (pos[3]) {
+		case 1:
+			/* Microsoft OUI (00:50:F2) with OUI Type 1:
+			 * real WPA information element */
+			break;
+		case WME_OUI_TYPE: /* this is a Wi-Fi WME info. element */
+			if (elen < 5) {
+				DBG_8723A("short WME information element "
+					  "ignored (len =%i)\n", elen);
+				return -EINVAL;
+			}
+			switch (pos[4]) {
+			case WME_OUI_SUBTYPE_INFORMATION_ELEMENT:
+			case WME_OUI_SUBTYPE_PARAMETER_ELEMENT:
+				break;
+			case WME_OUI_SUBTYPE_TSPEC_ELEMENT:
+				break;
+			default:
+				DBG_8723A("unknown WME information element "
+					  "ignored (subtype =%d len =%i)\n",
+					   pos[4], elen);
+				return -EINVAL;
+			}
+			break;
+		case 4:
+			/* Wi-Fi Protected Setup (WPS) IE */
+			break;
+		default:
+			DBG_8723A("Unknown Microsoft information element "
+				  "ignored (type =%d len =%i)\n",
+				  pos[3], elen);
+			return -EINVAL;
+		}
+		break;
+
+	case OUI_BROADCOM:
+		switch (pos[3]) {
+		case VENDOR_HT_CAPAB_OUI_TYPE:
+			break;
+		default:
+			DBG_8723A("Unknown Broadcom information element "
+				  "ignored (type =%d len =%i)\n", pos[3], elen);
+			return -EINVAL;
+		}
+		break;
+
+	default:
+		DBG_8723A("unknown vendor specific information element "
+			  "ignored (vendor OUI %02x:%02x:%02x len =%i)\n",
+			   pos[0], pos[1], pos[2], elen);
+		return -EINVAL;
+	}
+
+	return 0;
+}
+
+static int rtw_validate_frame_ies(const u8 *start, uint len)
+{
+	const u8 *pos = start;
+	int left = len;
+	int unknown = 0;
+
+	while (left >= 2) {
+		u8 id, elen;
+
+		id = *pos++;
+		elen = *pos++;
+		left -= 2;
+
+		if (elen > left) {
+			DBG_8723A("%s: IEEE 802.11 failed (id =%d elen =%d "
+				  "left =%i)\n", __func__, id, elen, left);
+			return -EINVAL;
+		}
+
+		switch (id) {
+		case WLAN_EID_SSID:
+		case WLAN_EID_SUPP_RATES:
+		case WLAN_EID_FH_PARAMS:
+		case WLAN_EID_DS_PARAMS:
+		case WLAN_EID_CF_PARAMS:
+		case WLAN_EID_TIM:
+		case WLAN_EID_IBSS_PARAMS:
+		case WLAN_EID_CHALLENGE:
+		case WLAN_EID_ERP_INFO:
+		case WLAN_EID_EXT_SUPP_RATES:
+		case WLAN_EID_VENDOR_SPECIFIC:
+		if (rtw_validate_vendor_specific_ies(pos, elen))
+			unknown++;
+			break;
+		case WLAN_EID_RSN:
+		case WLAN_EID_PWR_CAPABILITY:
+		case WLAN_EID_SUPPORTED_CHANNELS:
+		case WLAN_EID_MOBILITY_DOMAIN:
+		case WLAN_EID_FAST_BSS_TRANSITION:
+		case WLAN_EID_TIMEOUT_INTERVAL:
+		case WLAN_EID_HT_CAPABILITY:
+		case WLAN_EID_HT_OPERATION:
+		default:
+			unknown++;
+			DBG_8723A("%s IEEE 802.11 ignored unknown element "
+				  "(id =%d elen =%d)\n", __func__, id, elen);
+			break;
+		}
+
+		left -= elen;
+		pos += elen;
+	}
+
+	if (left)
+		return -EINVAL;
+
+	return 0;
+}
+#endif
+
 static int
 OnAssocReq23a(struct rtw_adapter *padapter, struct recv_frame *precv_frame)
 {
 #ifdef CONFIG_8723AU_AP_MODE
 	u16 capab_info, listen_interval;
-	struct rtw_ieee802_11_elems elems;
 	struct sta_info	*pstat;
 	unsigned char reassoc;
 	unsigned char WMM_IE[] = {0x00, 0x50, 0xf2, 0x02, 0x00, 0x01};
@@ -1158,8 +1292,7 @@ OnAssocReq23a(struct rtw_adapter *padapter, struct recv_frame *precv_frame)
 	struct sta_priv *pstapriv = &padapter->stapriv;
 	struct sk_buff *skb = precv_frame->pkt;
 	struct ieee80211_mgmt *mgmt = (struct ieee80211_mgmt *) skb->data;
-	const u8 *p, *wpa_ie, *wps_ie;
-	u8 *pos;
+	const u8 *pos, *p, *wpa_ie, *wps_ie;
 	u8 *pframe = skb->data;
 	uint pkt_len = skb->len;
 	int r;
@@ -1215,8 +1348,8 @@ OnAssocReq23a(struct rtw_adapter *padapter, struct recv_frame *precv_frame)
 	pstat->capability = capab_info;
 
 	/* now parse all ieee802_11 ie to point to elems */
-	if (rtw_ieee802_11_parse_elems23a(pos, left, &elems, 1) ==
-	    ParseFailed) {
+
+	if (rtw_validate_frame_ies(pos, left)) {
 		DBG_8723A("STA " MAC_FMT " sent invalid association request\n",
 			  MAC_ARG(pstat->hwaddr));
 		status = WLAN_STATUS_UNSPECIFIED_FAILURE;
@@ -1416,7 +1549,7 @@ OnAssocReq23a(struct rtw_adapter *padapter, struct recv_frame *precv_frame)
 	pstat->uapsd_be = 0;
 	pstat->uapsd_bk = 0;
 	if (pmlmepriv->qospriv.qos_option) {
-		u8 *end = pos + left;
+		const u8 *end = pos + left;
 		p = pos;
 
 		for (;;) {
