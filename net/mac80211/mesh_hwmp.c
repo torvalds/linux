@@ -37,7 +37,7 @@ static inline u32 u32_field_get(const u8 *preq_elem, int offset, bool ae)
 	return get_unaligned_le32(preq_elem + offset);
 }
 
-static inline u32 u16_field_get(const u8 *preq_elem, int offset, bool ae)
+static inline u16 u16_field_get(const u8 *preq_elem, int offset, bool ae)
 {
 	if (ae)
 		offset += 6;
