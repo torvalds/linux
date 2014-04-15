@@ -11,13 +11,16 @@
 
 / {
 	compatible = "snps,nsimosci";
-	clock-frequency = <80000000>;	/* 80 MHZ */
+	clock-frequency = <20000000>;	/* 20 MHZ */
 	#address-cells = <1>;
 	#size-cells = <1>;
 	interrupt-parent = <&intc>;
 
 	chosen {
-		bootargs = "console=tty0 consoleblank=0";
+		/* this is for console on PGU */
+		/* bootargs = "console=tty0 consoleblank=0"; */
+		/* this is for console on serial */
+		bootargs = "earlycon=uart8250,mmio32,0xc0000000,115200n8 console=ttyS0,115200n8 consoleblank=0 debug";
 	};
 
 	aliases {
@@ -44,15 +47,14 @@
 		};
 
 		uart0: serial@c0000000 {
-			compatible = "snps,dw-apb-uart";
+			compatible = "ns8250";
 			reg = <0xc0000000 0x2000>;
 			interrupts = <11>;
-			#clock-frequency = <80000000>;
 			clock-frequency = <3686400>;
 			baud = <115200>;
 			reg-shift = <2>;
 			reg-io-width = <4>;
-			status = "okay";
+			no-loopback-test = <1>;
 		};
 
 		pgu0: pgu@c9000000 {
