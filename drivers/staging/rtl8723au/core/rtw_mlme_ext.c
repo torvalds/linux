@@ -419,96 +419,88 @@ static void init_channel_list(struct rtw_adapter *padapter,
 	channel_list->reg_classes = cla;
 }
 
-static u8 init_channel_set(struct rtw_adapter* padapter, u8 ChannelPlan,
-			   struct rt_channel_info *channel_set)
+static u8 init_channel_set(struct rtw_adapter* padapter, u8 cplan,
+			   struct rt_channel_info *c_set)
 {
-	u8	index, chanset_size = 0;
-	u8	b5GBand = false, b2_4GBand = false;
-	u8	Index2G = 0, Index5G = 0;
+	u8 i, ch_size = 0;
+	u8 b5GBand = false, b2_4GBand = false;
+	u8 Index2G = 0, Index5G = 0;
 
-	memset(channel_set, 0, sizeof(struct rt_channel_info)*MAX_CHANNEL_NUM);
+	memset(c_set, 0, sizeof(struct rt_channel_info) * MAX_CHANNEL_NUM);
 
-	if (ChannelPlan >= RT_CHANNEL_DOMAIN_MAX &&
-	    ChannelPlan != RT_CHANNEL_DOMAIN_REALTEK_DEFINE) {
-		DBG_8723A("ChannelPlan ID %x error !!!!!\n", ChannelPlan);
-		return chanset_size;
+	if (cplan >= RT_CHANNEL_DOMAIN_MAX &&
+	    cplan != RT_CHANNEL_DOMAIN_REALTEK_DEFINE) {
+		DBG_8723A("ChannelPlan ID %x error !!!!!\n", cplan);
+		return ch_size;
 	}
 
 	if (padapter->registrypriv.wireless_mode & WIRELESS_11G) {
 		b2_4GBand = true;
-		if (RT_CHANNEL_DOMAIN_REALTEK_DEFINE == ChannelPlan)
+		if (RT_CHANNEL_DOMAIN_REALTEK_DEFINE == cplan)
 			Index2G = RTW_CHANNEL_PLAN_MAP_REALTEK_DEFINE.Index2G;
 		else
-			Index2G = RTW_ChannelPlanMap[ChannelPlan].Index2G;
+			Index2G = RTW_ChannelPlanMap[cplan].Index2G;
 	}
 
 	if (padapter->registrypriv.wireless_mode & WIRELESS_11A) {
 		b5GBand = true;
-		if (RT_CHANNEL_DOMAIN_REALTEK_DEFINE == ChannelPlan)
+		if (RT_CHANNEL_DOMAIN_REALTEK_DEFINE == cplan)
 			Index5G = RTW_CHANNEL_PLAN_MAP_REALTEK_DEFINE.Index5G;
 		else
-			Index5G = RTW_ChannelPlanMap[ChannelPlan].Index5G;
+			Index5G = RTW_ChannelPlanMap[cplan].Index5G;
 	}
 
 	if (b2_4GBand) {
-		for (index = 0; index<RTW_ChannelPlan2G[Index2G].Len; index++) {
-			channel_set[chanset_size].ChannelNum =
-				RTW_ChannelPlan2G[Index2G].Channel[index];
+		for (i = 0; i < RTW_ChannelPlan2G[Index2G].Len; i++) {
+			c_set[ch_size].ChannelNum =
+				RTW_ChannelPlan2G[Index2G].Channel[i];
 
-			if ((RT_CHANNEL_DOMAIN_GLOBAL_DOAMIN == ChannelPlan) ||
+			if ((RT_CHANNEL_DOMAIN_GLOBAL_DOAMIN == cplan) ||
 			    /* Channel 1~11 is active, and 12~14 is passive */
-			    (RT_CHANNEL_DOMAIN_GLOBAL_DOAMIN_2G == ChannelPlan)){
-				if (channel_set[chanset_size].ChannelNum >= 1 &&
-				    channel_set[chanset_size].ChannelNum <= 11)
-					channel_set[chanset_size].ScanType =
-						SCAN_ACTIVE;
-				else if ((channel_set[chanset_size].ChannelNum >= 12 &&
-					  channel_set[chanset_size].ChannelNum  <= 14))
-					channel_set[chanset_size].ScanType =
-						SCAN_PASSIVE;
-			} else if (RT_CHANNEL_DOMAIN_WORLD_WIDE_13 ==
-				   ChannelPlan ||
-				   RT_CHANNEL_DOMAIN_WORLD_WIDE_5G ==
-				   ChannelPlan ||
+			    RT_CHANNEL_DOMAIN_GLOBAL_DOAMIN_2G == cplan) {
+				if (c_set[ch_size].ChannelNum >= 1 &&
+				    c_set[ch_size].ChannelNum <= 11)
+					c_set[ch_size].ScanType = SCAN_ACTIVE;
+				else if (c_set[ch_size].ChannelNum >= 12 &&
+					 c_set[ch_size].ChannelNum  <= 14)
+					c_set[ch_size].ScanType = SCAN_PASSIVE;
+			} else if (RT_CHANNEL_DOMAIN_WORLD_WIDE_13 == cplan ||
+				   RT_CHANNEL_DOMAIN_WORLD_WIDE_5G == cplan ||
 				   RT_CHANNEL_DOMAIN_2G_WORLD == Index2G) {
 				/*  channel 12~13, passive scan */
-				if (channel_set[chanset_size].ChannelNum <= 11)
-					channel_set[chanset_size].ScanType =
-						SCAN_ACTIVE;
+				if (c_set[ch_size].ChannelNum <= 11)
+					c_set[ch_size].ScanType = SCAN_ACTIVE;
 				else
-					channel_set[chanset_size].ScanType =
-						SCAN_PASSIVE;
+					c_set[ch_size].ScanType = SCAN_PASSIVE;
 			} else
-				channel_set[chanset_size].ScanType =
-					SCAN_ACTIVE;
+				c_set[ch_size].ScanType = SCAN_ACTIVE;
 
-			chanset_size++;
+			ch_size++;
 		}
 	}
 
 	if (b5GBand) {
-		for (index = 0;index<RTW_ChannelPlan5G[Index5G].Len;index++) {
-			if (RTW_ChannelPlan5G[Index5G].Channel[index] <= 48 ||
-			    RTW_ChannelPlan5G[Index5G].Channel[index] >= 149) {
-				channel_set[chanset_size].ChannelNum =
-					RTW_ChannelPlan5G[Index5G].Channel[index];
-				if (RT_CHANNEL_DOMAIN_WORLD_WIDE_5G ==
-				    ChannelPlan) {
+		for (i = 0; i < RTW_ChannelPlan5G[Index5G].Len; i++) {
+			if (RTW_ChannelPlan5G[Index5G].Channel[i] <= 48 ||
+			    RTW_ChannelPlan5G[Index5G].Channel[i] >= 149) {
+				c_set[ch_size].ChannelNum =
+					RTW_ChannelPlan5G[Index5G].Channel[i];
+				if (RT_CHANNEL_DOMAIN_WORLD_WIDE_5G == cplan) {
 					/* passive scan for all 5G channels */
-					channel_set[chanset_size].ScanType =
+					c_set[ch_size].ScanType =
 						SCAN_PASSIVE;
 				} else
-					channel_set[chanset_size].ScanType =
+					c_set[ch_size].ScanType =
 						SCAN_ACTIVE;
 				DBG_8723A("%s(): channel_set[%d].ChannelNum = "
-					  "%d\n", __func__, chanset_size,
-					  channel_set[chanset_size].ChannelNum);
-				chanset_size++;
+					  "%d\n", __func__, ch_size,
+					  c_set[ch_size].ChannelNum);
+				ch_size++;
 			}
 		}
 	}
 
-	return chanset_size;
+	return ch_size;
 }
 
 int init_mlme_ext_priv23a(struct rtw_adapter* padapter)
