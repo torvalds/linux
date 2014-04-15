@@ -1995,13 +1995,12 @@ static struct tegra_function tegra20_functions[] = {
 		.tri_reg = ((tri_r) - TRISTATE_REG_A),		\
 		.tri_bank = 0,					\
 		.tri_bit = tri_b,				\
-		.einput_reg = -1,				\
-		.odrain_reg = -1,				\
-		.lock_reg = -1,					\
-		.ioreset_reg = -1,				\
-		.rcv_sel_reg = -1,				\
+		.einput_bit = -1,				\
+		.odrain_bit = -1,				\
+		.lock_bit = -1,					\
+		.ioreset_bit = -1,				\
+		.rcv_sel_bit = -1,				\
 		.drv_reg = -1,					\
-		.drvtype_reg = -1,				\
 	}
 
 /* Pin groups with only pull up and pull down control */
@@ -2014,14 +2013,7 @@ static struct tegra_function tegra20_functions[] = {
 		.pupd_reg = ((pupd_r) - PULLUPDOWN_REG_A),	\
 		.pupd_bank = 2,					\
 		.pupd_bit = pupd_b,				\
-		.tri_reg = -1,					\
-		.einput_reg = -1,				\
-		.odrain_reg = -1,				\
-		.lock_reg = -1,					\
-		.ioreset_reg = -1,				\
-		.rcv_sel_reg = -1,				\
 		.drv_reg = -1,					\
-		.drvtype_reg = -1,				\
 	}
 
 /* Pin groups for drive strength registers (configurable version) */
@@ -2035,11 +2027,6 @@ static struct tegra_function tegra20_functions[] = {
 		.mux_reg = -1,					\
 		.pupd_reg = -1,					\
 		.tri_reg = -1,					\
-		.einput_reg = -1,				\
-		.odrain_reg = -1,				\
-		.lock_reg = -1,					\
-		.ioreset_reg = -1,				\
-		.rcv_sel_reg = -1,				\
 		.drv_reg = ((r) - PINGROUP_REG_A),		\
 		.drv_bank = 3,					\
 		.hsm_bit = hsm_b,				\
@@ -2053,7 +2040,7 @@ static struct tegra_function tegra20_functions[] = {
 		.slwr_width = slwr_w,				\
 		.slwf_bit = slwf_b,				\
 		.slwf_width = slwf_w,				\
-		.drvtype_reg = -1,				\
+		.drvtype_bit = -1,				\
 	}
 
 /* Pin groups for drive strength registers (simple version) */
