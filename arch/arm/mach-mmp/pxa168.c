@@ -24,7 +24,6 @@
 #include <mach/regs-apbc.h>
 #include <mach/regs-apmu.h>
 #include <mach/irqs.h>
-#include <mach/dma.h>
 #include <mach/devices.h>
 #include <mach/mfp.h>
 #include <linux/dma-mapping.h>
@@ -56,7 +55,6 @@ static int __init pxa168_init(void)
 	if (cpu_is_pxa168()) {
 		mfp_init_base(MFPR_VIRT_BASE);
 		mfp_init_addr(pxa168_mfp_addr_map);
-		pxa_init_dma(IRQ_PXA168_DMA_INT0, 32);
 		pxa168_clk_init(APB_PHYS_BASE + 0x50000,
 				AXI_PHYS_BASE + 0x82800,
 				APB_PHYS_BASE + 0x15000);

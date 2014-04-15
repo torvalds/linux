@@ -23,7 +23,6 @@
 #include <mach/regs-apbc.h>
 #include <mach/cputype.h>
 #include <mach/irqs.h>
-#include <mach/dma.h>
 #include <mach/mfp.h>
 #include <mach/devices.h>
 #include <mach/pm-pxa910.h>
@@ -97,7 +96,6 @@ static int __init pxa910_init(void)
 #endif
 		mfp_init_base(MFPR_VIRT_BASE);
 		mfp_init_addr(pxa910_mfp_addr_map);
-		pxa_init_dma(IRQ_PXA910_DMA_INT0, 32);
 		pxa910_clk_init(APB_PHYS_BASE + 0x50000,
 				AXI_PHYS_BASE + 0x82800,
 				APB_PHYS_BASE + 0x15000,

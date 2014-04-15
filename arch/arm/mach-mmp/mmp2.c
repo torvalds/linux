@@ -25,7 +25,6 @@
 #include <mach/regs-apbc.h>
 #include <mach/cputype.h>
 #include <mach/irqs.h>
-#include <mach/dma.h>
 #include <mach/mfp.h>
 #include <mach/devices.h>
 #include <mach/mmp2.h>
@@ -111,7 +110,6 @@ static int __init mmp2_init(void)
 #endif
 		mfp_init_base(MFPR_VIRT_BASE);
 		mfp_init_addr(mmp2_addr_map);
-		pxa_init_dma(IRQ_MMP2_DMA_RIQ, 16);
 		mmp2_clk_init(APB_PHYS_BASE + 0x50000,
 			      AXI_PHYS_BASE + 0x82800,
 			      APB_PHYS_BASE + 0x15000);
