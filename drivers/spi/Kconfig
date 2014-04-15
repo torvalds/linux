@@ -150,7 +150,7 @@ config SPI_BUTTERFLY
 
 config SPI_CADENCE
 	tristate "Cadence SPI controller"
-	depends on SPI_MASTER
+	depends on ARM
 	help
 	  This selects the Cadence SPI controller master driver
 	  used by Xilinx Zynq.
