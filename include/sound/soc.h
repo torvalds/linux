@@ -1253,7 +1253,7 @@ static inline struct snd_soc_codec *snd_soc_kcontrol_codec(
  * registered with snd_soc_add_platform_controls() or via table based setup of
  * a snd_soc_platform_driver. Otherwise the behavior is undefined.
  */
-static inline struct snd_soc_codec *snd_soc_kcontrol_platform(
+static inline struct snd_soc_platform *snd_soc_kcontrol_platform(
 	struct snd_kcontrol *kcontrol)
 {
 	return snd_kcontrol_chip(kcontrol);
