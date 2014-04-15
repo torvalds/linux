@@ -263,7 +263,6 @@ static int rtw_cfg80211_inform_bss(struct rtw_adapter *padapter,
 	size_t len, bssinf_len = 0;
 	struct ieee80211_hdr *pwlanhdr;
 	unsigned short *fctrl;
-	u8 bc_addr[] = { 0xff, 0xff, 0xff, 0xff, 0xff, 0xff };
 
 	struct wireless_dev *wdev = padapter->rtw_wdev;
 	struct wiphy *wiphy = wdev->wiphy;
@@ -321,7 +320,7 @@ static int rtw_cfg80211_inform_bss(struct rtw_adapter *padapter,
 	SetSeqNum(pwlanhdr, 0);
 
 	if (pnetwork->network.reserved == 1) {	/*  WIFI_BEACON */
-		memcpy(pwlanhdr->addr1, bc_addr, ETH_ALEN);
+		eth_broadcast_addr(pwlanhdr->addr1);
 		SetFrameSubType(pbuf, WIFI_BEACON);
 	} else {
 		memcpy(pwlanhdr->addr1, myid(&padapter->eeprompriv), ETH_ALEN);
@@ -1101,7 +1100,7 @@ static int cfg80211_rtw_add_key(struct wiphy *wiphy, struct net_device *ndev,
 		return -1;
 
 	param->cmd = IEEE_CMD_SET_ENCRYPTION;
-	memset(param->sta_addr, 0xff, ETH_ALEN);
+	eth_broadcast_addr(param->sta_addr);
 
 	switch (params->cipher) {
 	case IW_AUTH_CIPHER_NONE:
@@ -2255,8 +2254,7 @@ static int cfg80211_rtw_del_pmksa(struct wiphy *wiphy,
 		if (!memcmp(psecuritypriv->PMKIDList[index].Bssid,
 			    pmksa->bssid, ETH_ALEN)) {
 			/* BSSID is matched, the same AP => Remove this PMKID information and reset it. */
-			memset(psecuritypriv->PMKIDList[index].Bssid, 0x00,
-			       ETH_ALEN);
+			eth_zero_addr(psecuritypriv->PMKIDList[index].Bssid);
 			memset(psecuritypriv->PMKIDList[index].PMKID, 0x00,
 			       WLAN_PMKID_LEN);
 			psecuritypriv->PMKIDList[index].bUsed = false;
