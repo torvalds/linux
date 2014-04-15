@@ -1783,7 +1783,7 @@ static ssize_t btrfs_file_aio_write(struct kiocb *iocb,
 	start_pos = round_down(pos, root->sectorsize);
 	if (start_pos > i_size_read(inode)) {
 		/* Expand hole size to cover write data, preventing empty gap */
-		end_pos = round_up(pos + iov->iov_len, root->sectorsize);
+		end_pos = round_up(pos + count, root->sectorsize);
 		err = btrfs_cont_expand(inode, i_size_read(inode), end_pos);
 		if (err) {
 			mutex_unlock(&inode->i_mutex);
