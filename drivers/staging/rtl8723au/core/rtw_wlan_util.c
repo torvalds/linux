@@ -1570,26 +1570,25 @@ void update_bmc_sta_support_rate23a(struct rtw_adapter *padapter, u32 mac_id)
 	}
 }
 
-int update_sta_support_rate23a(struct rtw_adapter *padapter, u8 *pvar_ie, uint var_ie_len, int cam_idx)
+int update_sta_support_rate23a(struct rtw_adapter *padapter, u8 *pvar_ie,
+			       uint var_ie_len, int cam_idx)
 {
-	unsigned int	ie_len;
-	struct ndis_802_11_var_ies *pIE;
-	int	supportRateNum = 0;
+	int supportRateNum = 0;
 	struct mlme_ext_priv *pmlmeext = &padapter->mlmeextpriv;
 	struct mlme_ext_info *pmlmeinfo = &pmlmeext->mlmext_info;
+	const u8 *p;
 
-	pIE = (struct ndis_802_11_var_ies *)rtw_get_ie23a(pvar_ie,
-							  WLAN_EID_SUPP_RATES,
-							  &ie_len, var_ie_len);
-	if (pIE == NULL)
+	p = cfg80211_find_ie(WLAN_EID_SUPP_RATES, pvar_ie, var_ie_len);
+	if (!p)
 		return _FAIL;
 
-	memcpy(pmlmeinfo->FW_sta_info[cam_idx].SupportedRates, pIE->data, ie_len);
-	supportRateNum = ie_len;
+	memcpy(pmlmeinfo->FW_sta_info[cam_idx].SupportedRates, p + 2, p[1]);
+	supportRateNum = p[1];
 
-	pIE = (struct ndis_802_11_var_ies *)rtw_get_ie23a(pvar_ie, WLAN_EID_EXT_SUPP_RATES, &ie_len, var_ie_len);
-	if (pIE)
-		memcpy((pmlmeinfo->FW_sta_info[cam_idx].SupportedRates + supportRateNum), pIE->data, ie_len);
+	p = cfg80211_find_ie(WLAN_EID_EXT_SUPP_RATES, pvar_ie, var_ie_len);
+	if (p)
+		memcpy(pmlmeinfo->FW_sta_info[cam_idx].SupportedRates +
+		       supportRateNum, p + 2, p[1]);
 	return _SUCCESS;
 }
 
