@@ -867,14 +867,12 @@ int rtw_check_bcn_info23a(struct rtw_adapter *Adapter,
 	u16 wpa_len = 0, rsn_len = 0;
 	u8 encryp_protocol;
 	int group_cipher = 0, pairwise_cipher = 0, is_8021x = 0, r;
-	u32 wpa_ielen = 0;
 	u32 bcn_channel;
 	unsigned short ht_cap_info;
 	unsigned char ht_info_infos_0;
 	int len, pie_len, ie_offset;
 	const u8 *p;
 	u8 *pie;
-	unsigned char *pbuf;
 
 	if (is_client_associated_to_ap23a(Adapter) == false)
 		return true;
@@ -1044,10 +1042,11 @@ int rtw_check_bcn_info23a(struct rtw_adapter *Adapter,
 
 	if (encryp_protocol == ENCRYP_PROTOCOL_WPA ||
 	    encryp_protocol == ENCRYP_PROTOCOL_WPA2) {
-		pbuf = rtw_get_wpa_ie23a(&bssid->IEs[12], &wpa_ielen, bssid->IELength-12);
-		if (pbuf && (wpa_ielen>0)) {
-			r = rtw_parse_wpa_ie23a(pbuf, wpa_ielen+2,
-						&group_cipher,
+		p = cfg80211_find_vendor_ie(WLAN_OUI_MICROSOFT,
+					    WLAN_OUI_TYPE_MICROSOFT_WPA,
+					    pie, pie_len);
+		if (p && p[1] > 0) {
+			r = rtw_parse_wpa_ie23a(p, p[1] + 2, &group_cipher,
 						&pairwise_cipher, &is_8021x);
 			if (r == _SUCCESS)
 				RT_TRACE(_module_rtl871x_mlme_c_, _drv_info_,
@@ -1056,10 +1055,10 @@ int rtw_check_bcn_info23a(struct rtw_adapter *Adapter,
 					  "%d\n", __func__, pairwise_cipher,
 					  group_cipher, is_8021x));
 		} else {
-			pbuf = rtw_get_wpa2_ie23a(&bssid->IEs[12], &wpa_ielen, bssid->IELength-12);
+			p = cfg80211_find_ie(WLAN_EID_RSN, pie, pie_len);
 
-			if (pbuf && wpa_ielen > 0) {
-				r = rtw_parse_wpa2_ie23a(pbuf, wpa_ielen + 2,
+			if (p && p[1] > 0) {
+				r = rtw_parse_wpa2_ie23a(p, p[1] + 2,
 							 &group_cipher,
 							 &pairwise_cipher,
 							 &is_8021x);
