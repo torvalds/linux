@@ -1057,38 +1057,36 @@ auth_fail:
 static int
 OnAuth23aClient23a(struct rtw_adapter *padapter, struct recv_frame *precv_frame)
 {
-	unsigned int seq, status, algthm, offset;
+	unsigned int seq, status, algthm;
 	unsigned int go2asoc = 0;
 	struct mlme_ext_priv *pmlmeext = &padapter->mlmeextpriv;
 	struct mlme_ext_info *pmlmeinfo = &pmlmeext->mlmext_info;
 	struct sk_buff *skb = precv_frame->pkt;
-	struct ieee80211_hdr *hdr = (struct ieee80211_hdr *) skb->data;
-	const u8 *p, *pframe = skb->data;
-	int pkt_len = skb->len;
+	struct ieee80211_mgmt *mgmt = (struct ieee80211_mgmt *) skb->data;
+	const u8 *p;
+	u8 *pie;
+	int plen = skb->len;
 
 	DBG_8723A("%s\n", __func__);
 
 	/* check A1 matches or not */
-	if (!ether_addr_equal(myid(&padapter->eeprompriv),
-			      ieee80211_get_DA(hdr)))
+	if (!ether_addr_equal(myid(&padapter->eeprompriv), mgmt->da))
 		return _SUCCESS;
 
 	if (!(pmlmeinfo->state & WIFI_FW_AUTH_STATE))
 		return _SUCCESS;
 
-	offset = ieee80211_has_protected(hdr->frame_control) ? 4: 0;
+	pie = mgmt->u.auth.variable;
+	plen -= offsetof(struct ieee80211_mgmt, u.auth.variable);
 
-	pframe += sizeof(struct ieee80211_hdr_3addr);
-	pkt_len -= sizeof(struct ieee80211_hdr_3addr);
-
-	algthm = le16_to_cpu(*(u16 *)(pframe + offset));
-	seq = le16_to_cpu(*(u16 *)(pframe + offset + 2));
-	status = le16_to_cpu(*(u16 *)(pframe + offset + 4));
+	algthm = le16_to_cpu(mgmt->u.auth.auth_alg);
+	seq = le16_to_cpu(mgmt->u.auth.auth_transaction);
+	status = le16_to_cpu(mgmt->u.auth.status_code);
 
 	if (status) {
 		DBG_8723A("clnt auth fail, status: %d\n", status);
 		/*  pmlmeinfo->auth_algo == dot11AuthAlgrthm_Auto) */
-		if (status == 13) {
+		if (status == WLAN_STATUS_NOT_SUPPORTED_AUTH_ALG) {
 			if (pmlmeinfo->auth_algo == dot11AuthAlgrthm_Shared)
 				pmlmeinfo->auth_algo = dot11AuthAlgrthm_Open;
 			else
@@ -1103,9 +1101,7 @@ OnAuth23aClient23a(struct rtw_adapter *padapter, struct recv_frame *precv_frame)
 	if (seq == 2) {
 		if (pmlmeinfo->auth_algo == dot11AuthAlgrthm_Shared) {
 			/*  legendary shared system */
-			p = cfg80211_find_ie(WLAN_EID_CHALLENGE,
-					     pframe + _AUTH_IE_OFFSET_,
-					     pkt_len - _AUTH_IE_OFFSET_);
+			p = cfg80211_find_ie(WLAN_EID_CHALLENGE, pie, plen);
 
 			if (!p) {
 				/* DBG_8723A("marc: no challenge text?\n"); */
