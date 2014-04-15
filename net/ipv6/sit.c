@@ -974,8 +974,9 @@ static netdev_tx_t ipip6_tunnel_xmit(struct sk_buff *skb,
 		goto out;
 	}
 
-	err = iptunnel_xmit(rt, skb, fl4.saddr, fl4.daddr, IPPROTO_IPV6, tos,
-			    ttl, df, !net_eq(tunnel->net, dev_net(dev)));
+	err = iptunnel_xmit(skb->sk, rt, skb, fl4.saddr, fl4.daddr,
+			    IPPROTO_IPV6, tos, ttl, df,
+			    !net_eq(tunnel->net, dev_net(dev)));
 	iptunnel_xmit_stats(err, &dev->stats, dev->tstats);
 	return NETDEV_TX_OK;
 
