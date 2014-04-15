@@ -3136,11 +3136,11 @@ void issue_assocreq23a(struct rtw_adapter *padapter)
 	int ret = _FAIL;
 	struct xmit_frame *pmgntframe;
 	struct pkt_attrib *pattrib;
-	unsigned char *pframe, *p;
+	unsigned char *pframe;
+	const u8 *p;
 	struct ieee80211_hdr *pwlanhdr;
 	unsigned short *fctrl;
-	unsigned short val16;
-	unsigned int i, j, ie_len, index = 0;
+	unsigned int i, j, index = 0;
 	unsigned char rf_type, bssrate[NumRates], sta_bssrate[NumRates];
 	struct ndis_802_11_var_ies *pIE;
 	struct registry_priv *pregpriv = &padapter->registrypriv;
@@ -3148,9 +3148,11 @@ void issue_assocreq23a(struct rtw_adapter *padapter)
 	struct mlme_priv *pmlmepriv = &padapter->mlmepriv;
 	struct mlme_ext_priv *pmlmeext = &padapter->mlmeextpriv;
 	struct mlme_ext_info *pmlmeinfo = &pmlmeext->mlmext_info;
-	int bssrate_len = 0, sta_bssrate_len = 0;
+	int bssrate_len = 0, sta_bssrate_len = 0, pie_len;
+	u8 * pie;
 
-	if ((pmgntframe = alloc_mgtxmitframe23a(pxmitpriv)) == NULL)
+	pmgntframe = alloc_mgtxmitframe23a(pxmitpriv);
+	if (!pmgntframe)
 		goto exit;
 
 	/* update attribute */
@@ -3159,7 +3161,7 @@ void issue_assocreq23a(struct rtw_adapter *padapter)
 
 	memset(pmgntframe->buf_addr, 0, WLANHDR_OFFSET + TXDESC_OFFSET);
 
-	pframe = (u8 *)(pmgntframe->buf_addr) + TXDESC_OFFSET;
+	pframe = (u8 *)pmgntframe->buf_addr + TXDESC_OFFSET;
 	pwlanhdr = (struct ieee80211_hdr *)pframe;
 
 	fctrl = &pwlanhdr->frame_control;
@@ -3176,16 +3178,15 @@ void issue_assocreq23a(struct rtw_adapter *padapter)
 	pattrib->pktlen = sizeof(struct ieee80211_hdr_3addr);
 
 	/* caps */
-	memcpy(pframe, rtw_get_capability23a_from_ie(pmlmeinfo->network.IEs),
-	       2);
+	memcpy(pframe,
+	       rtw_get_capability23a_from_ie(pmlmeinfo->network.IEs), 2);
 
 	pframe += 2;
 	pattrib->pktlen += 2;
 
 	/* listen interval */
 	/* todo: listen interval for power saving */
-	val16 = cpu_to_le16(3);
-	memcpy(pframe, (unsigned char *)&val16, 2);
+	put_unaligned_le16(3, pframe);
 	pframe += 2;
 	pattrib->pktlen += 2;
 
@@ -3225,7 +3226,7 @@ void issue_assocreq23a(struct rtw_adapter *padapter)
 			     Handlink WSG-4000 AP */
 			if ((pmlmeinfo->network.SupportedRates[i] |
 			     IEEE80211_BASIC_RATE_MASK) ==
-			    (sta_bssrate[j]|IEEE80211_BASIC_RATE_MASK)) {
+			    (sta_bssrate[j] | IEEE80211_BASIC_RATE_MASK)) {
 				/* DBG_8723A("match i = %d, j =%d\n", i, j); */
 				break;
 			}
@@ -3262,23 +3263,21 @@ void issue_assocreq23a(struct rtw_adapter *padapter)
 				       bssrate_len, bssrate, &pattrib->pktlen);
 
 	/* RSN */
-	p = rtw_get_ie23a((pmlmeinfo->network.IEs +
-			   sizeof(struct ndis_802_11_fixed_ies)), WLAN_EID_RSN,
-			  &ie_len, (pmlmeinfo->network.IELength -
-				    sizeof(struct ndis_802_11_fixed_ies)));
+	pie = pmlmeinfo->network.IEs + sizeof(struct ndis_802_11_fixed_ies);
+	pie_len = pmlmeinfo->network.IELength -
+		sizeof(struct ndis_802_11_fixed_ies);
+
+	p = cfg80211_find_ie(WLAN_EID_RSN, pie, pie_len);
 	if (p)
-		pframe = rtw_set_ie23a(pframe, WLAN_EID_RSN, ie_len, (p + 2),
+		pframe = rtw_set_ie23a(pframe, WLAN_EID_RSN, p[1], p + 2,
 				       &pattrib->pktlen);
 
 	/* HT caps */
 	if (padapter->mlmepriv.htpriv.ht_option == true) {
-		p = rtw_get_ie23a((pmlmeinfo->network.IEs +
-				   sizeof(struct ndis_802_11_fixed_ies)),
-				  WLAN_EID_HT_CAPABILITY, &ie_len,
-				  (pmlmeinfo->network.IELength -
-				   sizeof(struct ndis_802_11_fixed_ies)));
-		if ((p != NULL) && (!(is_ap_in_tkip23a(padapter)))) {
-			memcpy(&pmlmeinfo->HT_caps, (p + 2),
+		p = cfg80211_find_ie(WLAN_EID_HT_CAPABILITY, pie, pie_len);
+
+		if (p && !is_ap_in_tkip23a(padapter)) {
+			memcpy(&pmlmeinfo->HT_caps, p + 2,
 			       sizeof(struct HT_caps_element));
 
 			/* to disable 40M Hz support while gd_bw_40MHz_en = 0 */
@@ -3294,12 +3293,11 @@ void issue_assocreq23a(struct rtw_adapter *padapter)
 
 			rf_type = rtl8723a_get_rf_type(padapter);
 			/* switch (pregpriv->rf_config) */
-			switch (rf_type)
-			{
+			switch (rf_type) {
 			case RF_1T1R:
-
+				/* RX STBC One spatial stream */
 				if (pregpriv->rx_stbc)
-					pmlmeinfo->HT_caps.u.HT_cap_element.HT_caps_info |= cpu_to_le16(0x0100);/* RX STBC One spatial stream */
+					pmlmeinfo->HT_caps.u.HT_cap_element.HT_caps_info |= cpu_to_le16(0x0100);
 
 				memcpy(pmlmeinfo->HT_caps.u.HT_cap_element.MCS_rate, MCS_rate_1R23A, 16);
 				break;
@@ -3307,18 +3305,17 @@ void issue_assocreq23a(struct rtw_adapter *padapter)
 			case RF_2T2R:
 			case RF_1T2R:
 			default:
-
 				/* enable for 2.4/5 GHz */
-				if ((pregpriv->rx_stbc == 0x3) ||
-				    ((pmlmeext->cur_wireless_mode &
-				      WIRELESS_11_24N) &&
+				if (pregpriv->rx_stbc == 0x3 ||
+				    (pmlmeext->cur_wireless_mode &
+				     WIRELESS_11_24N &&
 				     /* enable for 2.4GHz */
-				     (pregpriv->rx_stbc == 0x1)) ||
-				    ((pmlmeext->cur_wireless_mode &
-				      WIRELESS_11_5N) &&
-				     (pregpriv->rx_stbc == 0x2)) ||
+				     pregpriv->rx_stbc == 0x1) ||
+				    (pmlmeext->cur_wireless_mode &
+				     WIRELESS_11_5N &&
+				     pregpriv->rx_stbc == 0x2) ||
 				    /* enable for 5GHz */
-				    (pregpriv->wifi_spec == 1)) {
+				    pregpriv->wifi_spec == 1) {
 					DBG_8723A("declare supporting RX "
 						  "STBC\n");
 					pmlmeinfo->HT_caps.u.HT_cap_element.HT_caps_info |= cpu_to_le16(0x0200);/* RX STBC two spatial stream */
@@ -3338,8 +3335,7 @@ void issue_assocreq23a(struct rtw_adapter *padapter)
 #endif
 
 			pframe = rtw_set_ie23a(pframe, WLAN_EID_HT_CAPABILITY,
-					       ie_len,
-					       (u8 *)&pmlmeinfo->HT_caps,
+					       p[1], (u8 *)&pmlmeinfo->HT_caps,
 					       &pattrib->pktlen);
 		}
 	}
@@ -3375,7 +3371,7 @@ void issue_assocreq23a(struct rtw_adapter *padapter)
 			break;
 		}
 
-		i += (pIE->Length + 2);
+		i += pIE->Length + 2;
 	}
 
 	if (pmlmeinfo->assoc_AP_vendor == HT_IOT_PEER_REALTEK)
@@ -3393,8 +3389,7 @@ exit:
 		kfree(pmlmepriv->assoc_req);
 		pmlmepriv->assoc_req = kmalloc(pattrib->pktlen, GFP_ATOMIC);
 		if (pmlmepriv->assoc_req) {
-			memcpy(pmlmepriv->assoc_req, pwlanhdr,
-			       pattrib->pktlen);
+			memcpy(pmlmepriv->assoc_req, pwlanhdr, pattrib->pktlen);
 			pmlmepriv->assoc_req_len = pattrib->pktlen;
 		}
 	} else
