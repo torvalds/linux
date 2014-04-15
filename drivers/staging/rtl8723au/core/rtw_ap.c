@@ -1303,25 +1303,15 @@ static void update_bcn_vendor_spec_ie(struct rtw_adapter *padapter, u8*oui)
 	DBG_8723A("%s\n", __func__);
 
 	if (!memcmp(RTW_WPA_OUI23A_TYPE, oui, 4))
-	{
 		update_bcn_wpa_ie(padapter);
-	}
 	else if (!memcmp(WMM_OUI23A, oui, 4))
-	{
 		update_bcn_wmm_ie(padapter);
-	}
 	else if (!memcmp(WPS_OUI23A, oui, 4))
-	{
 		update_bcn_wps_ie(padapter);
-	}
 	else if (!memcmp(P2P_OUI23A, oui, 4))
-	{
 		update_bcn_p2p_ie(padapter);
-	}
 	else
-	{
 		DBG_8723A("unknown OUI type!\n");
-	}
 }
 
 void update_beacon23a(struct rtw_adapter *padapter, u8 ie_id, u8 *oui, u8 tx)
