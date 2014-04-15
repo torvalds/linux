@@ -635,7 +635,6 @@ int cckratesonly_included23a(unsigned char *rate, int ratelen);
 
 void process_addba_req23a(struct rtw_adapter *padapter, u8 *paddba_req, u8 *addr);
 
-void update_TSF23a(struct mlme_ext_priv *pmlmeext, u8 *pframe, uint len);
 void correct_TSF23a(struct rtw_adapter *padapter, struct mlme_ext_priv *pmlmeext);
 
 struct cmd_hdl {

@@ -249,6 +249,12 @@ static struct fwevent wlanevents[] =
 };
 
 
+static void
+rtw_update_TSF(struct mlme_ext_priv *pmlmeext, struct ieee80211_mgmt *mgmt)
+{
+	pmlmeext->TSFValue = get_unaligned_le64(&mgmt->u.beacon.timestamp);
+}
+
 /*
  * Search the @param channel_num in given @param channel_set
  * @ch_set: the given channel set
@@ -785,7 +791,7 @@ OnBeacon23a(struct rtw_adapter *padapter, struct recv_frame *precv_frame)
 					  offsetof(struct ieee80211_mgmt, u));
 
 		/* update TSF Value */
-		update_TSF23a(pmlmeext, pframe, pkt_len);
+		rtw_update_TSF(pmlmeext, mgmt);
 
 		/* start auth */
 		start_clnt_auth23a(padapter);
@@ -838,7 +844,7 @@ OnBeacon23a(struct rtw_adapter *padapter, struct recv_frame *precv_frame)
 			}
 
 			/* update TSF Value */
-			update_TSF23a(pmlmeext, pframe, pkt_len);
+			rtw_update_TSF(pmlmeext, mgmt);
 
 			/* report sta add event */
 			report_add_sta_event23a(padapter, mgmt->sa,
@@ -5492,9 +5498,6 @@ void mlmeext_sta_add_event_callback23a(struct rtw_adapter *padapter, struct sta_
 		}
 		else/* adhoc client */
 		{
-			/* update TSF Value */
-			/* update_TSF23a(pmlmeext, pframe, len); */
-
 			/*  correcting TSF */
 			correct_TSF23a(padapter, pmlmeext);
 

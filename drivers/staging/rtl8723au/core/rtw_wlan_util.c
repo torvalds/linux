@@ -1643,21 +1643,6 @@ void process_addba_req23a(struct rtw_adapter *padapter, u8 *paddba_req, u8 *addr
 	}
 }
 
-void update_TSF23a(struct mlme_ext_priv *pmlmeext, u8 *pframe, uint len)
-{
-	u8 *pIE;
-	u32 *pbuf;
-
-	pIE = pframe + sizeof(struct ieee80211_hdr_3addr);
-	pbuf = (u32 *)pIE;
-
-	pmlmeext->TSFValue = le32_to_cpu(*(pbuf+1));
-
-	pmlmeext->TSFValue = pmlmeext->TSFValue << 32;
-
-	pmlmeext->TSFValue |= le32_to_cpu(*pbuf);
-}
-
 void correct_TSF23a(struct rtw_adapter *padapter,
 		    struct mlme_ext_priv *pmlmeext)
 {
