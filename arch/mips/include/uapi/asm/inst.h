@@ -13,6 +13,8 @@
 #ifndef _UAPI_ASM_INST_H
 #define _UAPI_ASM_INST_H
 
+#include <asm/bitfield.h>
+
 /*
  * Major opcodes; before MIPS IV cop1x was called cop3.
  */
@@ -479,24 +481,6 @@ enum MIPS6e_i8_func {
  * (microMIPS & MIPS16e) NOP instruction.
  */
 #define MM_NOP16	0x0c00
-
-/*
- * Damn ...  bitfields depend from byteorder :-(
- */
-#ifdef __MIPSEB__
-#define __BITFIELD_FIELD(field, more)					\
-	field;								\
-	more
-
-#elif defined(__MIPSEL__)
-
-#define __BITFIELD_FIELD(field, more)					\
-	more								\
-	field;
-
-#else /* !defined (__MIPSEB__) && !defined (__MIPSEL__) */
-#error "MIPS but neither __MIPSEL__ nor __MIPSEB__?"
-#endif
 
 struct j_format {
 	__BITFIELD_FIELD(unsigned int opcode : 6, /* Jump format */
