@@ -2484,8 +2484,8 @@ void issue_probersp23a(struct rtw_adapter *padapter, unsigned char *da,
 
 	/* DBG_8723A("%s\n", __func__); */
 
-	if ((pmgntframe = alloc_mgtxmitframe23a(pxmitpriv)) == NULL)
-	{
+	pmgntframe = alloc_mgtxmitframe23a(pxmitpriv);
+	if (!pmgntframe) {
 		DBG_8723A("%s, alloc mgnt frame fail\n", __func__);
 		return;
 	}
@@ -2496,7 +2496,7 @@ void issue_probersp23a(struct rtw_adapter *padapter, unsigned char *da,
 
 	memset(pmgntframe->buf_addr, 0, WLANHDR_OFFSET + TXDESC_OFFSET);
 
-	pframe = (u8 *)(pmgntframe->buf_addr) + TXDESC_OFFSET;
+	pframe = (u8 *)pmgntframe->buf_addr + TXDESC_OFFSET;
 	pwlanhdr = (struct ieee80211_hdr *)pframe;
 
 	mac = myid(&padapter->eeprompriv);
@@ -2528,8 +2528,7 @@ void issue_probersp23a(struct rtw_adapter *padapter, unsigned char *da,
 					    &wps_ielen);
 
 		/* inerset & update wps_probe_resp_ie */
-		if ((pmlmepriv->wps_probe_resp_ie != NULL) && pwps_ie &&
-		    (wps_ielen > 0)) {
+		if (pmlmepriv->wps_probe_resp_ie && pwps_ie && wps_ielen > 0) {
 			uint wps_offset, remainder_ielen;
 			u8 *premainder_ie;
 
@@ -2546,14 +2545,14 @@ void issue_probersp23a(struct rtw_adapter *padapter, unsigned char *da,
 
 			/* to get ie data len */
 			wps_ielen = (uint)pmlmepriv->wps_probe_resp_ie[1];
-			if ((wps_offset+wps_ielen+2)<= MAX_IE_SZ) {
+			if (wps_offset + wps_ielen + 2 <= MAX_IE_SZ) {
 				memcpy(pframe, pmlmepriv->wps_probe_resp_ie,
 				       wps_ielen+2);
 				pframe += wps_ielen+2;
 				pattrib->pktlen += wps_ielen+2;
 			}
 
-			if ((wps_offset+wps_ielen+2+remainder_ielen) <=
+			if (wps_offset + wps_ielen + 2 + remainder_ielen <=
 			    MAX_IE_SZ) {
 				memcpy(pframe, premainder_ie, remainder_ielen);
 				pframe += remainder_ielen;
@@ -2569,9 +2568,9 @@ void issue_probersp23a(struct rtw_adapter *padapter, unsigned char *da,
 		ies = pmgntframe->buf_addr + TXDESC_OFFSET +
 			sizeof(struct ieee80211_hdr_3addr);
 
-		ssid_ie = rtw_get_ie23a(ies+_FIXED_IE_LENGTH_, WLAN_EID_SSID,
+		ssid_ie = rtw_get_ie23a(ies + _FIXED_IE_LENGTH_, WLAN_EID_SSID,
 					&ssid_ielen,
-					(pframe-ies)-_FIXED_IE_LENGTH_);
+					pframe - ies - _FIXED_IE_LENGTH_);
 
 		ssid_ielen_diff = cur_network->Ssid.ssid_len - ssid_ielen;
 
@@ -2579,20 +2578,19 @@ void issue_probersp23a(struct rtw_adapter *padapter, unsigned char *da,
 			uint remainder_ielen;
 			u8 *remainder_ie;
 			remainder_ie = ssid_ie + 2;
-			remainder_ielen = (pframe-remainder_ie);
+			remainder_ielen = pframe - remainder_ie;
 
 			DBG_8723A_LEVEL(_drv_warning_, FUNC_ADPT_FMT
 					" remainder_ielen > MAX_IE_SZ\n",
 					FUNC_ADPT_ARG(padapter));
-			if (remainder_ielen > MAX_IE_SZ) {
+			if (remainder_ielen > MAX_IE_SZ)
 				remainder_ielen = MAX_IE_SZ;
-			}
 
 			memcpy(buf, remainder_ie, remainder_ielen);
-			memcpy(remainder_ie+ssid_ielen_diff, buf,
+			memcpy(remainder_ie + ssid_ielen_diff, buf,
 			       remainder_ielen);
-			*(ssid_ie+1) = cur_network->Ssid.ssid_len;
-			memcpy(ssid_ie+2, cur_network->Ssid.ssid,
+			*(ssid_ie + 1) = cur_network->Ssid.ssid_len;
+			memcpy(ssid_ie + 2, cur_network->Ssid.ssid,
 			       cur_network->Ssid.ssid_len);
 
 			pframe += ssid_ielen_diff;
@@ -2626,8 +2624,9 @@ void issue_probersp23a(struct rtw_adapter *padapter, unsigned char *da,
 
 		/*  SSID */
 		pframe = rtw_set_ie23a(pframe, WLAN_EID_SSID,
-				    cur_network->Ssid.ssid_len,
-				    cur_network->Ssid.ssid, &pattrib->pktlen);
+				       cur_network->Ssid.ssid_len,
+				       cur_network->Ssid.ssid,
+				       &pattrib->pktlen);
 
 		/*  supported rates... */
 		rate_len = rtw_get_rateset_len23a(cur_network->SupportedRates);
@@ -2642,7 +2641,7 @@ void issue_probersp23a(struct rtw_adapter *padapter, unsigned char *da,
 				       &cur_network->Configuration.DSConfig,
 				       &pattrib->pktlen);
 
-		if ((pmlmeinfo->state&0x03) == WIFI_FW_ADHOC_STATE) {
+		if ((pmlmeinfo->state & 0x03) == WIFI_FW_ADHOC_STATE) {
 			u8 erpinfo = 0;
 			u32 ATIMWindow;
 			/*  IBSS Parameter Set... */
