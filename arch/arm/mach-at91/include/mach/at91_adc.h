@@ -20,6 +20,9 @@
 #define		AT91_ADC_START		(1 << 1)	/* Start Conversion */
 
 #define AT91_ADC_MR		0x04		/* Mode Register */
+#define		AT91_ADC_TSAMOD		(3 << 0)	/* ADC mode */
+#define		AT91_ADC_TSAMOD_ADC_ONLY_MODE		(0 << 0)	/* ADC Mode */
+#define		AT91_ADC_TSAMOD_TS_ONLY_MODE		(1 << 0)	/* Touch Screen Only Mode */
 #define		AT91_ADC_TRGEN		(1 << 0)	/* Trigger Enable */
 #define		AT91_ADC_TRGSEL		(7 << 1)	/* Trigger Selection */
 #define			AT91_ADC_TRGSEL_TC0		(0 << 1)
@@ -28,6 +31,7 @@
 #define			AT91_ADC_TRGSEL_EXTERNAL	(6 << 1)
 #define		AT91_ADC_LOWRES		(1 << 4)	/* Low Resolution */
 #define		AT91_ADC_SLEEP		(1 << 5)	/* Sleep Mode */
+#define		AT91_ADC_PENDET		(1 << 6)	/* Pen contact detection enable */
 #define		AT91_ADC_PRESCAL_9260	(0x3f << 8)	/* Prescalar Rate Selection */
 #define		AT91_ADC_PRESCAL_9G45	(0xff << 8)
 #define			AT91_ADC_PRESCAL_(x)	((x) << 8)
@@ -37,6 +41,12 @@
 #define			AT91_ADC_STARTUP_(x)	((x) << 16)
 #define		AT91_ADC_SHTIM		(0xf  << 24)	/* Sample & Hold Time */
 #define			AT91_ADC_SHTIM_(x)	((x) << 24)
+#define		AT91_ADC_PENDBC		(0x0f << 28)	/* Pen Debounce time */
+#define			AT91_ADC_PENDBC_(x)	((x) << 28)
+
+#define AT91_ADC_TSR		0x0C
+#define		AT91_ADC_TSR_SHTIM	(0xf  << 24)	/* Sample & Hold Time */
+#define			AT91_ADC_TSR_SHTIM_(x)	((x) << 24)
 
 #define AT91_ADC_CHER		0x10		/* Channel Enable Register */
 #define AT91_ADC_CHDR		0x14		/* Channel Disable Register */
@@ -60,6 +70,8 @@
 #define AT91_ADC_IER		0x24		/* Interrupt Enable Register */
 #define AT91_ADC_IDR		0x28		/* Interrupt Disable Register */
 #define AT91_ADC_IMR		0x2C		/* Interrupt Mask Register */
+#define		AT91RL_ADC_IER_PEN	(1 << 20)
+#define		AT91RL_ADC_IER_NOPEN	(1 << 21)
 #define		AT91_ADC_IER_PEN	(1 << 29)
 #define		AT91_ADC_IER_NOPEN	(1 << 30)
 #define		AT91_ADC_IER_XRDY	(1 << 20)
@@ -102,6 +114,7 @@
 #define		AT91_ADC_TRGR_TRGPER	(0xffff << 16)
 #define			AT91_ADC_TRGR_TRGPER_(x)	((x) << 16)
 #define		AT91_ADC_TRGR_TRGMOD	(0x7 << 0)
+#define			AT91_ADC_TRGR_NONE		(0 << 0)
 #define			AT91_ADC_TRGR_MOD_PERIOD_TRIG	(5 << 0)
 
 #endif

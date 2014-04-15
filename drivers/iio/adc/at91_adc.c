@@ -46,6 +46,10 @@
 #define TOUCH_SAMPLE_PERIOD_US		2000	/* 2ms */
 #define TOUCH_PEN_DETECT_DEBOUNCE_US	200
 
+#define MAX_RLPOS_BITS         10
+#define TOUCH_SAMPLE_PERIOD_US_RL      10000   /* 10ms, the SoC can't keep up with 2ms */
+#define TOUCH_SHTIM                    0xa
+
 /**
  * struct at91_adc_reg_desc - Various informations relative to registers
  * @channel_base:	Base offset for the channel data registers
@@ -81,12 +85,6 @@ struct at91_adc_caps {
 
 	u8	num_channels;
 	struct at91_adc_reg_desc registers;
-};
-
-enum atmel_adc_ts_type {
-	ATMEL_ADC_TOUCHSCREEN_NONE = 0,
-	ATMEL_ADC_TOUCHSCREEN_4WIRE = 4,
-	ATMEL_ADC_TOUCHSCREEN_5WIRE = 5,
 };
 
 struct at91_adc_state {
@@ -133,6 +131,11 @@ struct at91_adc_state {
 
 	u16			ts_sample_period_val;
 	u32			ts_pressure_threshold;
+	u16			ts_pendbc;
+
+	bool			ts_bufferedmeasure;
+	u32			ts_prev_absx;
+	u32			ts_prev_absy;
 };
 
 static irqreturn_t at91_adc_trigger_handler(int irq, void *p)
@@ -239,7 +242,72 @@ static int at91_ts_sample(struct at91_adc_state *st)
 	return 0;
 }
 
-static irqreturn_t at91_adc_interrupt(int irq, void *private)
+static irqreturn_t at91_adc_rl_interrupt(int irq, void *private)
+{
+	struct iio_dev *idev = private;
+	struct at91_adc_state *st = iio_priv(idev);
+	u32 status = at91_adc_readl(st, st->registers->status_register);
+	unsigned int reg;
+
+	status &= at91_adc_readl(st, AT91_ADC_IMR);
+	if (status & st->registers->drdy_mask)
+		handle_adc_eoc_trigger(irq, idev);
+
+	if (status & AT91RL_ADC_IER_PEN) {
+		/* Disabling pen debounce is required to get a NOPEN irq */
+		reg = at91_adc_readl(st, AT91_ADC_MR);
+		reg &= ~AT91_ADC_PENDBC;
+		at91_adc_writel(st, AT91_ADC_MR, reg);
+
+		at91_adc_writel(st, AT91_ADC_IDR, AT91RL_ADC_IER_PEN);
+		at91_adc_writel(st, AT91_ADC_IER, AT91RL_ADC_IER_NOPEN
+				| AT91_ADC_EOC(3));
+		/* Set up period trigger for sampling */
+		at91_adc_writel(st, st->registers->trigger_register,
+			AT91_ADC_TRGR_MOD_PERIOD_TRIG |
+			AT91_ADC_TRGR_TRGPER_(st->ts_sample_period_val));
+	} else if (status & AT91RL_ADC_IER_NOPEN) {
+		reg = at91_adc_readl(st, AT91_ADC_MR);
+		reg |= AT91_ADC_PENDBC_(st->ts_pendbc) & AT91_ADC_PENDBC;
+		at91_adc_writel(st, AT91_ADC_MR, reg);
+		at91_adc_writel(st, st->registers->trigger_register,
+			AT91_ADC_TRGR_NONE);
+
+		at91_adc_writel(st, AT91_ADC_IDR, AT91RL_ADC_IER_NOPEN
+				| AT91_ADC_EOC(3));
+		at91_adc_writel(st, AT91_ADC_IER, AT91RL_ADC_IER_PEN);
+		st->ts_bufferedmeasure = false;
+		input_report_key(st->ts_input, BTN_TOUCH, 0);
+		input_sync(st->ts_input);
+	} else if (status & AT91_ADC_EOC(3)) {
+		/* Conversion finished */
+		if (st->ts_bufferedmeasure) {
+			/*
+			 * Last measurement is always discarded, since it can
+			 * be erroneous.
+			 * Always report previous measurement
+			 */
+			input_report_abs(st->ts_input, ABS_X, st->ts_prev_absx);
+			input_report_abs(st->ts_input, ABS_Y, st->ts_prev_absy);
+			input_report_key(st->ts_input, BTN_TOUCH, 1);
+			input_sync(st->ts_input);
+		} else
+			st->ts_bufferedmeasure = true;
+
+		/* Now make new measurement */
+		st->ts_prev_absx = at91_adc_readl(st, AT91_ADC_CHAN(st, 3))
+				   << MAX_RLPOS_BITS;
+		st->ts_prev_absx /= at91_adc_readl(st, AT91_ADC_CHAN(st, 2));
+
+		st->ts_prev_absy = at91_adc_readl(st, AT91_ADC_CHAN(st, 1))
+				   << MAX_RLPOS_BITS;
+		st->ts_prev_absy /= at91_adc_readl(st, AT91_ADC_CHAN(st, 0));
+	}
+
+	return IRQ_HANDLED;
+}
+
+static irqreturn_t at91_adc_9x5_interrupt(int irq, void *private)
 {
 	struct iio_dev *idev = private;
 	struct at91_adc_state *st = iio_priv(idev);
@@ -672,6 +740,8 @@ static int at91_adc_probe_dt_ts(struct device_node *node,
 		return -EINVAL;
 	}
 
+	if (!st->caps->has_tsmr)
+		return 0;
 	prop = 0;
 	of_property_read_u32(node, "atmel,adc-ts-pressure-threshold", &prop);
 	st->ts_pressure_threshold = prop;
@@ -795,6 +865,7 @@ static int at91_adc_probe_pdata(struct at91_adc_state *st,
 	st->trigger_number = pdata->trigger_number;
 	st->trigger_list = pdata->trigger_list;
 	st->registers = &st->caps->registers;
+	st->touchscreen_type = pdata->touchscreen_type;
 
 	return 0;
 }
@@ -809,7 +880,10 @@ static int atmel_ts_open(struct input_dev *dev)
 {
 	struct at91_adc_state *st = input_get_drvdata(dev);
 
-	at91_adc_writel(st, AT91_ADC_IER, AT91_ADC_IER_PEN);
+	if (st->caps->has_tsmr)
+		at91_adc_writel(st, AT91_ADC_IER, AT91_ADC_IER_PEN);
+	else
+		at91_adc_writel(st, AT91_ADC_IER, AT91RL_ADC_IER_PEN);
 	return 0;
 }
 
@@ -817,44 +891,60 @@ static void atmel_ts_close(struct input_dev *dev)
 {
 	struct at91_adc_state *st = input_get_drvdata(dev);
 
-	at91_adc_writel(st, AT91_ADC_IDR, AT91_ADC_IER_PEN);
+	if (st->caps->has_tsmr)
+		at91_adc_writel(st, AT91_ADC_IDR, AT91_ADC_IER_PEN);
+	else
+		at91_adc_writel(st, AT91_ADC_IDR, AT91RL_ADC_IER_PEN);
 }
 
 static int at91_ts_hw_init(struct at91_adc_state *st, u32 adc_clk_khz)
 {
-	u32 reg = 0, pendbc;
+	u32 reg = 0;
 	int i = 0;
+
+	/* a Pen Detect Debounce Time is necessary for the ADC Touch to avoid
+	 * pen detect noise.
+	 * The formula is : Pen Detect Debounce Time = (2 ^ pendbc) / ADCClock
+	 */
+	st->ts_pendbc = round_up(TOUCH_PEN_DETECT_DEBOUNCE_US * adc_clk_khz /
+				 1000, 1);
+
+	while (st->ts_pendbc >> ++i)
+		;	/* Empty! Find the shift offset */
+	if (abs(st->ts_pendbc - (1 << i)) < abs(st->ts_pendbc - (1 << (i - 1))))
+		st->ts_pendbc = i;
+	else
+		st->ts_pendbc = i - 1;
+
+	if (!st->caps->has_tsmr) {
+		reg = at91_adc_readl(st, AT91_ADC_MR);
+		reg |= AT91_ADC_TSAMOD_TS_ONLY_MODE | AT91_ADC_PENDET;
+
+		reg |= AT91_ADC_PENDBC_(st->ts_pendbc) & AT91_ADC_PENDBC;
+		at91_adc_writel(st, AT91_ADC_MR, reg);
+
+		reg = AT91_ADC_TSR_SHTIM_(TOUCH_SHTIM) & AT91_ADC_TSR_SHTIM;
+		at91_adc_writel(st, AT91_ADC_TSR, reg);
+
+		st->ts_sample_period_val = round_up((TOUCH_SAMPLE_PERIOD_US_RL *
+						    adc_clk_khz / 1000) - 1, 1);
+
+		return 0;
+	}
 
 	if (st->touchscreen_type == ATMEL_ADC_TOUCHSCREEN_4WIRE)
 		reg = AT91_ADC_TSMR_TSMODE_4WIRE_PRESS;
 	else
 		reg = AT91_ADC_TSMR_TSMODE_5WIRE;
 
-	/* a Pen Detect Debounce Time is necessary for the ADC Touch to avoid
-	 * pen detect noise.
-	 * The formula is : Pen Detect Debounce Time = (2 ^ pendbc) / ADCClock
-	 */
-	pendbc = round_up(TOUCH_PEN_DETECT_DEBOUNCE_US * adc_clk_khz / 1000, 1);
+	reg |= AT91_ADC_TSMR_TSAV_(st->caps->ts_filter_average)
+	       & AT91_ADC_TSMR_TSAV;
+	reg |= AT91_ADC_TSMR_PENDBC_(st->ts_pendbc) & AT91_ADC_TSMR_PENDBC;
+	reg |= AT91_ADC_TSMR_NOTSDMA;
+	reg |= AT91_ADC_TSMR_PENDET_ENA;
+	reg |= 0x03 << 8;	/* TSFREQ, needs to be bigger than TSAV */
 
-	while (pendbc >> ++i)
-		;	/* Empty! Find the shift offset */
-	if (abs(pendbc - (1 << i)) < abs(pendbc - (1 << (i - 1))))
-		pendbc = i;
-	else
-		pendbc = i - 1;
-
-	if (st->caps->has_tsmr) {
-		reg |= AT91_ADC_TSMR_TSAV_(st->caps->ts_filter_average)
-				& AT91_ADC_TSMR_TSAV;
-		reg |= AT91_ADC_TSMR_PENDBC_(pendbc) & AT91_ADC_TSMR_PENDBC;
-		reg |= AT91_ADC_TSMR_NOTSDMA;
-		reg |= AT91_ADC_TSMR_PENDET_ENA;
-		reg |= 0x03 << 8;	/* TSFREQ, need bigger than TSAV */
-
-		at91_adc_writel(st, AT91_ADC_TSMR, reg);
-	} else {
-		/* TODO: for 9g45 which has no TSMR */
-	}
+	at91_adc_writel(st, AT91_ADC_TSMR, reg);
 
 	/* Change adc internal resistor value for better pen detection,
 	 * default value is 100 kOhm.
@@ -864,7 +954,7 @@ static int at91_ts_hw_init(struct at91_adc_state *st, u32 adc_clk_khz)
 	at91_adc_writel(st, AT91_ADC_ACR, st->caps->ts_pen_detect_sensitivity
 			& AT91_ADC_ACR_PENDETSENS);
 
-	/* Sample Peroid Time = (TRGPER + 1) / ADCClock */
+	/* Sample Period Time = (TRGPER + 1) / ADCClock */
 	st->ts_sample_period_val = round_up((TOUCH_SAMPLE_PERIOD_US *
 			adc_clk_khz / 1000) - 1, 1);
 
@@ -893,17 +983,37 @@ static int at91_ts_register(struct at91_adc_state *st,
 	__set_bit(EV_ABS, input->evbit);
 	__set_bit(EV_KEY, input->evbit);
 	__set_bit(BTN_TOUCH, input->keybit);
-	input_set_abs_params(input, ABS_X, 0, (1 << MAX_POS_BITS) - 1, 0, 0);
-	input_set_abs_params(input, ABS_Y, 0, (1 << MAX_POS_BITS) - 1, 0, 0);
-	input_set_abs_params(input, ABS_PRESSURE, 0, 0xffffff, 0, 0);
+	if (st->caps->has_tsmr) {
+		input_set_abs_params(input, ABS_X, 0, (1 << MAX_POS_BITS) - 1,
+				     0, 0);
+		input_set_abs_params(input, ABS_Y, 0, (1 << MAX_POS_BITS) - 1,
+				     0, 0);
+		input_set_abs_params(input, ABS_PRESSURE, 0, 0xffffff, 0, 0);
+	} else {
+		if (st->touchscreen_type != ATMEL_ADC_TOUCHSCREEN_4WIRE) {
+			dev_err(&pdev->dev,
+				"This touchscreen controller only support 4 wires\n");
+			ret = -EINVAL;
+			goto err;
+		}
+
+		input_set_abs_params(input, ABS_X, 0, (1 << MAX_RLPOS_BITS) - 1,
+				     0, 0);
+		input_set_abs_params(input, ABS_Y, 0, (1 << MAX_RLPOS_BITS) - 1,
+				     0, 0);
+	}
 
 	st->ts_input = input;
 	input_set_drvdata(input, st);
 
 	ret = input_register_device(input);
 	if (ret)
-		input_free_device(st->ts_input);
+		goto err;
 
+	return ret;
+
+err:
+	input_free_device(st->ts_input);
 	return ret;
 }
 
@@ -962,11 +1072,13 @@ static int at91_adc_probe(struct platform_device *pdev)
 	 */
 	at91_adc_writel(st, AT91_ADC_CR, AT91_ADC_SWRST);
 	at91_adc_writel(st, AT91_ADC_IDR, 0xFFFFFFFF);
-	ret = request_irq(st->irq,
-			  at91_adc_interrupt,
-			  0,
-			  pdev->dev.driver->name,
-			  idev);
+
+	if (st->caps->has_tsmr)
+		ret = request_irq(st->irq, at91_adc_9x5_interrupt, 0,
+				  pdev->dev.driver->name, idev);
+	else
+		ret = request_irq(st->irq, at91_adc_rl_interrupt, 0,
+				  pdev->dev.driver->name, idev);
 	if (ret) {
 		dev_err(&pdev->dev, "Failed to allocate IRQ.\n");
 		return ret;
@@ -1070,12 +1182,6 @@ static int at91_adc_probe(struct platform_device *pdev)
 			goto error_disable_adc_clk;
 		}
 	} else {
-		if (!st->caps->has_tsmr) {
-			dev_err(&pdev->dev, "We don't support non-TSMR adc\n");
-			ret = -ENODEV;
-			goto error_disable_adc_clk;
-		}
-
 		ret = at91_ts_register(st, pdev);
 		if (ret)
 			goto error_disable_adc_clk;
