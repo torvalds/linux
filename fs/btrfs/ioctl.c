@@ -2219,6 +2219,7 @@ static noinline int btrfs_ioctl_snap_destroy(struct file *file,
 	struct btrfs_ioctl_vol_args *vol_args;
 	struct btrfs_trans_handle *trans;
 	struct btrfs_block_rsv block_rsv;
+	u64 root_flags;
 	u64 qgroup_reserved;
 	int namelen;
 	int ret;
@@ -2239,6 +2240,7 @@ static noinline int btrfs_ioctl_snap_destroy(struct file *file,
 	err = mnt_want_write_file(file);
 	if (err)
 		goto out;
+
 
 	err = mutex_lock_killable_nested(&dir->i_mutex, I_MUTEX_PARENT);
 	if (err == -EINTR)
@@ -2301,6 +2303,27 @@ static noinline int btrfs_ioctl_snap_destroy(struct file *file,
 	}
 
 	mutex_lock(&inode->i_mutex);
+
+	/*
+	 * Don't allow to delete a subvolume with send in progress. This is
+	 * inside the i_mutex so the error handling that has to drop the bit
+	 * again is not run concurrently.
+	 */
+	spin_lock(&dest->root_item_lock);
+	root_flags = btrfs_root_flags(&root->root_item);
+	if (root->send_in_progress == 0) {
+		btrfs_set_root_flags(&root->root_item,
+				root_flags | BTRFS_ROOT_SUBVOL_DEAD);
+		spin_unlock(&dest->root_item_lock);
+	} else {
+		spin_unlock(&dest->root_item_lock);
+		btrfs_warn(root->fs_info,
+			"Attempt to delete subvolume %llu during send",
+			root->root_key.objectid);
+		err = -EPERM;
+		goto out_dput;
+	}
+
 	err = d_invalidate(dentry);
 	if (err)
 		goto out_unlock;
@@ -2389,6 +2412,13 @@ out_release:
 out_up_write:
 	up_write(&root->fs_info->subvol_sem);
 out_unlock:
+	if (err) {
+		spin_lock(&dest->root_item_lock);
+		root_flags = btrfs_root_flags(&root->root_item);
+		btrfs_set_root_flags(&root->root_item,
+				root_flags & ~BTRFS_ROOT_SUBVOL_DEAD);
+		spin_unlock(&dest->root_item_lock);
+	}
 	mutex_unlock(&inode->i_mutex);
 	if (!err) {
 		shrink_dcache_sb(root->fs_info->sb);

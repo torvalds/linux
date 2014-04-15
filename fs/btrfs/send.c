@@ -5518,7 +5518,7 @@ long btrfs_ioctl_send(struct file *mnt_file, void __user *arg_)
 
 	/*
 	 * The subvolume must remain read-only during send, protect against
-	 * making it RW.
+	 * making it RW. This also protects against deletion.
 	 */
 	spin_lock(&send_root->root_item_lock);
 	send_root->send_in_progress++;
@@ -5578,6 +5578,15 @@ long btrfs_ioctl_send(struct file *mnt_file, void __user *arg_)
 	}
 
 	sctx->send_root = send_root;
+	/*
+	 * Unlikely but possible, if the subvolume is marked for deletion but
+	 * is slow to remove the directory entry, send can still be started
+	 */
+	if (btrfs_root_dead(sctx->send_root)) {
+		ret = -EPERM;
+		goto out;
+	}
+
 	sctx->clone_roots_cnt = arg->clone_sources_count;
 
 	sctx->send_max_size = BTRFS_SEND_BUF_SIZE;
@@ -5667,7 +5676,8 @@ long btrfs_ioctl_send(struct file *mnt_file, void __user *arg_)
 
 		spin_lock(&sctx->parent_root->root_item_lock);
 		sctx->parent_root->send_in_progress++;
-		if (!btrfs_root_readonly(sctx->parent_root)) {
+		if (!btrfs_root_readonly(sctx->parent_root) ||
+				btrfs_root_dead(sctx->parent_root)) {
 			spin_unlock(&sctx->parent_root->root_item_lock);
 			srcu_read_unlock(&fs_info->subvol_srcu, index);
 			ret = -EPERM;
