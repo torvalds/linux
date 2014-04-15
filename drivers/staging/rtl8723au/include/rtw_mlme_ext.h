@@ -262,13 +262,13 @@ enum SCAN_STATE {
 
 struct mlme_handler {
 	char *str;
-	unsigned int (*func)(struct rtw_adapter *padapter, struct recv_frame *precv_frame);
+	int (*func)(struct rtw_adapter *padapter, struct recv_frame *precv_frame);
 };
 
 struct action_handler {
 	unsigned int   num;
 	char* str;
-	unsigned int (*func)(struct rtw_adapter *padapter, struct recv_frame *precv_frame);
+	int (*func)(struct rtw_adapter *padapter, struct recv_frame *precv_frame);
 };
 
 struct	ss_res
@@ -614,28 +614,6 @@ void start_clnt_assoc23a(struct rtw_adapter *padapter);
 void start_clnt_auth23a(struct rtw_adapter *padapter);
 void start_clnt_join23a(struct rtw_adapter *padapter);
 void start_create_ibss23a(struct rtw_adapter *padapter);
-
-unsigned int OnAssocReq23a(struct rtw_adapter *padapter, struct recv_frame *precv_frame);
-unsigned int OnAssocRsp23a(struct rtw_adapter *padapter, struct recv_frame *precv_frame);
-unsigned int OnProbeReq23a(struct rtw_adapter *padapter, struct recv_frame *precv_frame);
-unsigned int OnProbeRsp23a(struct rtw_adapter *padapter, struct recv_frame *precv_frame);
-unsigned int DoReserved23a(struct rtw_adapter *padapter, struct recv_frame *precv_frame);
-unsigned int OnBeacon23a(struct rtw_adapter *padapter, struct recv_frame *precv_frame);
-unsigned int OnAtim23a(struct rtw_adapter *padapter, struct recv_frame *precv_frame);
-unsigned int OnDisassoc23a(struct rtw_adapter *padapter, struct recv_frame *precv_frame);
-unsigned int OnAuth23a(struct rtw_adapter *padapter, struct recv_frame *precv_frame);
-unsigned int OnAuth23aClient23a(struct rtw_adapter *padapter, struct recv_frame *precv_frame);
-unsigned int OnDeAuth23a(struct rtw_adapter *padapter, struct recv_frame *precv_frame);
-unsigned int OnAction23a(struct rtw_adapter *padapter, struct recv_frame *precv_frame);
-
-unsigned int on_action_spct23a(struct rtw_adapter *padapter, struct recv_frame *precv_frame);
-unsigned int OnAction23a_qos(struct rtw_adapter *padapter, struct recv_frame *precv_frame);
-unsigned int OnAction23a_dls(struct rtw_adapter *padapter, struct recv_frame *precv_frame);
-unsigned int OnAction23a_back23a(struct rtw_adapter *padapter, struct recv_frame *precv_frame);
-unsigned int on_action_public23a(struct rtw_adapter *padapter, struct recv_frame *precv_frame);
-unsigned int OnAction23a_ht(struct rtw_adapter *padapter, struct recv_frame *precv_frame);
-unsigned int OnAction23a_wmm(struct rtw_adapter *padapter, struct recv_frame *precv_frame);
-unsigned int OnAction23a_p2p(struct rtw_adapter *padapter, struct recv_frame *precv_frame);
 
 
 void mlmeext_joinbss_event_callback23a(struct rtw_adapter *padapter, int join_res);
