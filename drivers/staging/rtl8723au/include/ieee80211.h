@@ -489,8 +489,6 @@ u8 *rtw_get_wps_ie23a(u8 *in_ie, uint in_len, u8 *wps_ie, uint *wps_ielen);
 u8 *rtw_get_wps_attr23a(u8 *wps_ie, uint wps_ielen, u16 target_attr_id ,u8 *buf_attr, u32 *len_attr);
 u8 *rtw_get_wps_attr_content23a(u8 *wps_ie, uint wps_ielen, u16 target_attr_id ,u8 *buf_content, uint *len_content);
 
-void dump_wps_ie23a(u8 *ie, u32 ie_len);
-
 uint	rtw_get_rateset_len23a(u8	*rateset);
 
 struct registry_priv;
