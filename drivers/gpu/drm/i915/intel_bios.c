@@ -643,13 +643,15 @@ static u8 *goto_next_sequence(u8 *data, int *size)
 			 * skip by this element payload size
 			 * skip elem id, command flag and data type
 			 */
-			if ((tmp = tmp - 5) < 0)
+			tmp -= 5;
+			if (tmp < 0)
 				return NULL;
 
 			data += 3;
 			len = *((u16 *)data);
 
-			if ((tmp = tmp - len) < 0)
+			tmp -= len;
+			if (tmp < 0)
 				return NULL;
 
 			/* skip by len */
@@ -657,13 +659,15 @@ static u8 *goto_next_sequence(u8 *data, int *size)
 			break;
 		case MIPI_SEQ_ELEM_DELAY:
 			/* skip by elem id, and delay is 4 bytes */
-			if ((tmp = tmp - 5) < 0)
+			tmp -= 5;
+			if (tmp < 0)
 				return NULL;
 
 			data += 5;
 			break;
 		case MIPI_SEQ_ELEM_GPIO:
-			if ((tmp = tmp - 3) < 0)
+			tmp -= 3;
+			if (tmp < 0)
 				return NULL;
 
 			data += 3;
