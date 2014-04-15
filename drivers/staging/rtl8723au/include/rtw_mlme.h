@@ -458,8 +458,6 @@ void _rtw_free_mlme_priv23a(struct mlme_priv *pmlmepriv);
 
 struct wlan_network *rtw_alloc_network(struct mlme_priv *pmlmepriv);
 
-void _rtw_free_network23a(struct mlme_priv *pmlmepriv,
-		       struct wlan_network *pnetwork, u8 isfreeall);
 void _rtw_free_network23a_nolock23a(struct mlme_priv *pmlmepriv,
 			      struct wlan_network *pnetwork);
 

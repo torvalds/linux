@@ -146,8 +146,8 @@ struct wlan_network *rtw_alloc_network(struct mlme_priv *pmlmepriv)
 	return pnetwork;
 }
 
-void _rtw_free_network23a(struct mlme_priv *pmlmepriv,
-		       struct wlan_network *pnetwork, u8 isfreeall)
+static void _rtw_free_network23a(struct mlme_priv *pmlmepriv,
+				 struct wlan_network *pnetwork, u8 isfreeall)
 {
 	u32 lifetime = SCANQUEUE_LIFETIME;
 
