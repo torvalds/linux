@@ -1643,12 +1643,6 @@ void process_addba_req23a(struct rtw_adapter *padapter, u8 *paddba_req, u8 *addr
 	}
 }
 
-void correct_TSF23a(struct rtw_adapter *padapter,
-		    struct mlme_ext_priv *pmlmeext)
-{
-	hw_var_set_correct_tsf(padapter);
-}
-
 void beacon_timing_control23a(struct rtw_adapter *padapter)
 {
 	rtw_hal_bcn_related_reg_setting23a(padapter);

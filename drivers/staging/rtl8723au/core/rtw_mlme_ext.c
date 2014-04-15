@@ -249,6 +249,11 @@ static struct fwevent wlanevents[] =
 };
 
 
+static void rtw_correct_TSF(struct rtw_adapter *padapter)
+{
+	hw_var_set_correct_tsf(padapter);
+}
+
 static void
 rtw_update_TSF(struct mlme_ext_priv *pmlmeext, struct ieee80211_mgmt *mgmt)
 {
@@ -5472,7 +5477,7 @@ void mlmeext_joinbss_event_callback23a(struct rtw_adapter *padapter, int join_re
 
 	if ((pmlmeinfo->state&0x03) == WIFI_FW_STATION_STATE) {
 		/*  correcting TSF */
-		correct_TSF23a(padapter, pmlmeext);
+		rtw_correct_TSF(padapter);
 
 		/* set_link_timer(pmlmeext, DISCONNECT_TO); */
 	}
@@ -5499,7 +5504,7 @@ void mlmeext_sta_add_event_callback23a(struct rtw_adapter *padapter, struct sta_
 		else/* adhoc client */
 		{
 			/*  correcting TSF */
-			correct_TSF23a(padapter, pmlmeext);
+			rtw_correct_TSF(padapter);
 
 			/* start beacon */
 			if (send_beacon23a(padapter) == _FAIL)
