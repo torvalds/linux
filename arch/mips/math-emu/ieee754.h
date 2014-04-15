@@ -27,6 +27,7 @@
 #include <asm/byteorder.h>
 #include <linux/types.h>
 #include <linux/sched.h>
+#include <asm/bitfield.h>
 
 /*
  * Not very pretty, but the Linux kernel's normal va_list definition
@@ -36,60 +37,31 @@
 #include <stdarg.h>
 #endif
 
-#ifdef __LITTLE_ENDIAN
 struct ieee754dp_konst {
-	unsigned mantlo:32;
-	unsigned manthi:20;
-	unsigned bexp:11;
-	unsigned sign:1;
-};
-struct ieee754sp_konst {
-	unsigned mant:23;
-	unsigned bexp:8;
-	unsigned sign:1;
+	__BITFIELD_FIELD(unsigned sign:1,
+	__BITFIELD_FIELD(unsigned bexp:11,
+	__BITFIELD_FIELD(unsigned manthi:20,
+	__BITFIELD_FIELD(unsigned mantlo:32,
+	;))))
 };
 
 typedef union _ieee754dp {
 	struct ieee754dp_konst oparts;
 	struct {
-		u64 mant:52;
-		unsigned int bexp:11;
-		unsigned int sign:1;
-	} parts;
-	u64 bits;
-	double d;
-} ieee754dp;
-
-typedef union _ieee754sp {
-	struct ieee754sp_konst parts;
-	float f;
-	u32 bits;
-} ieee754sp;
-#endif
-
-#ifdef __BIG_ENDIAN
-struct ieee754dp_konst {
-	unsigned sign:1;
-	unsigned bexp:11;
-	unsigned manthi:20;
-	unsigned mantlo:32;
-};
-
-typedef union _ieee754dp {
-	struct ieee754dp_konst oparts;
-	struct {
-		unsigned int sign:1;
-		unsigned int bexp:11;
-		u64 mant:52;
+		__BITFIELD_FIELD(unsigned int sign:1,
+		__BITFIELD_FIELD(unsigned int bexp:11,
+		__BITFIELD_FIELD(u64 mant:52,
+		;)))
 	} parts;
 	double d;
 	u64 bits;
 } ieee754dp;
 
 struct ieee754sp_konst {
-	unsigned sign:1;
-	unsigned bexp:8;
-	unsigned mant:23;
+	__BITFIELD_FIELD(unsigned sign:1,
+	__BITFIELD_FIELD(unsigned bexp:8,
+	__BITFIELD_FIELD(unsigned mant:23,
+	;)))
 };
 
 typedef union _ieee754sp {
@@ -97,7 +69,6 @@ typedef union _ieee754sp {
 	float f;
 	u32 bits;
 } ieee754sp;
-#endif
 
 /*
  * single precision (often aka float)
@@ -307,26 +278,15 @@ char *ieee754dp_tstr(ieee754dp x, int prec, int fmt, int af);
  * The control status register
  */
 struct _ieee754_csr {
-#ifdef __BIG_ENDIAN
-	unsigned pad0:7;
-	unsigned nod:1;		/* set 1 for no denormalised numbers */
-	unsigned c:1;		/* condition */
-	unsigned pad1:5;
-	unsigned cx:6;		/* exceptions this operation */
-	unsigned mx:5;		/* exception enable  mask */
-	unsigned sx:5;		/* exceptions total */
-	unsigned rm:2;		/* current rounding mode */
-#endif
-#ifdef __LITTLE_ENDIAN
-	unsigned rm:2;		/* current rounding mode */
-	unsigned sx:5;		/* exceptions total */
-	unsigned mx:5;		/* exception enable  mask */
-	unsigned cx:6;		/* exceptions this operation */
-	unsigned pad1:5;
-	unsigned c:1;		/* condition */
-	unsigned nod:1;		/* set 1 for no denormalised numbers */
-	unsigned pad0:7;
-#endif
+	__BITFIELD_FIELD(unsigned pad0:7,
+	__BITFIELD_FIELD(unsigned nod:1,	/* set 1 for no denormalised numbers */
+	__BITFIELD_FIELD(unsigned c:1,		/* condition */
+	__BITFIELD_FIELD(unsigned pad1:5,
+	__BITFIELD_FIELD(unsigned cx:6,		/* exceptions this operation */
+	__BITFIELD_FIELD(unsigned mx:5,		/* exception enable  mask */
+	__BITFIELD_FIELD(unsigned sx:5,		/* exceptions total */
+	__BITFIELD_FIELD(unsigned rm:2,		/* current rounding mode */
+	;))))))))
 };
 #define ieee754_csr (*(struct _ieee754_csr *)(&current->thread.fpu.fcr31))
 
