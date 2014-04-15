@@ -1471,13 +1471,14 @@ OnAssocReq23a(struct rtw_adapter *padapter, struct recv_frame *precv_frame)
 
 	/* save HT capabilities in the sta object */
 	memset(&pstat->htpriv.ht_cap, 0, sizeof(struct ieee80211_ht_cap));
-	if (elems.ht_capabilities && elems.ht_capabilities_len >=
-	    sizeof(struct ieee80211_ht_cap)) {
+	p = cfg80211_find_ie(WLAN_EID_HT_CAPABILITY, pos, left);
+
+	if (p && p[1] >= sizeof(struct ieee80211_ht_cap)) {
 		pstat->flags |= WLAN_STA_HT;
 
 		pstat->flags |= WLAN_STA_WME;
 
-		memcpy(&pstat->htpriv.ht_cap, elems.ht_capabilities,
+		memcpy(&pstat->htpriv.ht_cap, p + 2,
 		       sizeof(struct ieee80211_ht_cap));
 	} else
 		pstat->flags &= ~WLAN_STA_HT;
