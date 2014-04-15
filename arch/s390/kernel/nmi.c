@@ -55,7 +55,7 @@ void s390_handle_mcck(void)
 	local_mcck_disable();
 	mcck = __get_cpu_var(cpu_mcck);
 	memset(&__get_cpu_var(cpu_mcck), 0, sizeof(struct mcck_struct));
-	clear_thread_flag(TIF_MCCK_PENDING);
+	clear_cpu_flag(CIF_MCCK_PENDING);
 	local_mcck_enable();
 	local_irq_restore(flags);
 
@@ -313,7 +313,7 @@ void notrace s390_do_machine_check(struct pt_regs *regs)
 			 */
 			mcck->kill_task = 1;
 			mcck->mcck_code = *(unsigned long long *) mci;
-			set_thread_flag(TIF_MCCK_PENDING);
+			set_cpu_flag(CIF_MCCK_PENDING);
 		} else {
 			/*
 			 * Couldn't restore all register contents while in
@@ -352,12 +352,12 @@ void notrace s390_do_machine_check(struct pt_regs *regs)
 	if (mci->cp) {
 		/* Channel report word pending */
 		mcck->channel_report = 1;
-		set_thread_flag(TIF_MCCK_PENDING);
+		set_cpu_flag(CIF_MCCK_PENDING);
 	}
 	if (mci->w) {
 		/* Warning pending */
 		mcck->warning = 1;
-		set_thread_flag(TIF_MCCK_PENDING);
+		set_cpu_flag(CIF_MCCK_PENDING);
 	}
 	nmi_exit();
 }

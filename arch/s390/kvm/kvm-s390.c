@@ -906,7 +906,7 @@ static int vcpu_pre_run(struct kvm_vcpu *vcpu)
 	if (need_resched())
 		schedule();
 
-	if (test_thread_flag(TIF_MCCK_PENDING))
+	if (test_cpu_flag(CIF_MCCK_PENDING))
 		s390_handle_mcck();
 
 	if (!kvm_is_ucontrol(vcpu->kvm))

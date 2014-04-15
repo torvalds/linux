@@ -36,7 +36,7 @@ static inline void set_user_asce(struct mm_struct *mm)
 
 	S390_lowcore.user_asce = mm->context.asce_bits | __pa(pgd);
 	set_fs(current->thread.mm_segment);
-	set_thread_flag(TIF_ASCE);
+	set_cpu_flag(CIF_ASCE);
 }
 
 static inline void clear_user_asce(void)
@@ -54,7 +54,7 @@ static inline void load_kernel_asce(void)
 	__ctl_store(asce, 1, 1);
 	if (asce != S390_lowcore.kernel_asce)
 		__ctl_load(S390_lowcore.kernel_asce, 1, 1);
-	set_thread_flag(TIF_ASCE);
+	set_cpu_flag(CIF_ASCE);
 }
 
 static inline void switch_mm(struct mm_struct *prev, struct mm_struct *next,
@@ -70,7 +70,7 @@ static inline void switch_mm(struct mm_struct *prev, struct mm_struct *next,
 	__ctl_load(S390_lowcore.kernel_asce, 1, 1);
 	__ctl_load(S390_lowcore.kernel_asce, 7, 7);
 	/* Delay loading of the new ASCE to control registers CR1 & CR7 */
-	set_thread_flag(TIF_ASCE);
+	set_cpu_flag(CIF_ASCE);
 	atomic_inc(&next->context.attach_count);
 	atomic_dec(&prev->context.attach_count);
 	if (MACHINE_HAS_TLB_LC)

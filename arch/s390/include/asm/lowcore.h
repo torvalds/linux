@@ -93,7 +93,9 @@ struct _lowcore {
 	__u32	save_area_sync[8];		/* 0x0200 */
 	__u32	save_area_async[8];		/* 0x0220 */
 	__u32	save_area_restart[1];		/* 0x0240 */
-	__u8	pad_0x0244[0x0248-0x0244];	/* 0x0244 */
+
+	/* CPU flags. */
+	__u32	cpu_flags;			/* 0x0244 */
 
 	/* Return psws. */
 	psw_t	return_psw;			/* 0x0248 */
@@ -237,7 +239,9 @@ struct _lowcore {
 	__u64	save_area_sync[8];		/* 0x0200 */
 	__u64	save_area_async[8];		/* 0x0240 */
 	__u64	save_area_restart[1];		/* 0x0280 */
-	__u8	pad_0x0288[0x0290-0x0288];	/* 0x0288 */
+
+	/* CPU flags. */
+	__u64	cpu_flags;			/* 0x0288 */
 
 	/* Return psws. */
 	psw_t	return_psw;			/* 0x0290 */
