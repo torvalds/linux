@@ -65,8 +65,8 @@ int rtl8723au_init_recv_priv(struct rtw_adapter *padapter)
 	for (i = 0; i < NR_RECVBUFF; i++) {
 		INIT_LIST_HEAD(&precvbuf->list);
 
-		res = rtw_os_recvbuf_resource_alloc23a(padapter, precvbuf);
-		if (res == _FAIL)
+		precvbuf->purb = usb_alloc_urb(0, GFP_KERNEL);
+		if (!precvbuf->purb)
 			break;
 
 		precvbuf->adapter = padapter;
@@ -109,7 +109,11 @@ void rtl8723au_free_recv_priv(struct rtw_adapter *padapter)
 	precvbuf = (struct recv_buf *)precvpriv->precv_buf;
 
 	for (i = 0; i < NR_RECVBUFF; i++) {
-		rtw_os_recvbuf_resource_free23a(padapter, precvbuf);
+		usb_free_urb(precvbuf->purb);
+
+		if (precvbuf->pskb)
+			dev_kfree_skb_any(precvbuf->pskb);
+
 		precvbuf++;
 	}
 

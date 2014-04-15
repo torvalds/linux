@@ -33,9 +33,6 @@ void rtw_free_recv_priv (struct recv_priv *precvpriv);
 
 int rtw_os_recv_resource_init(struct recv_priv *precvpriv, struct rtw_adapter *padapter);
 
-int rtw_os_recvbuf_resource_alloc23a(struct rtw_adapter *padapter, struct recv_buf *precvbuf);
-int rtw_os_recvbuf_resource_free23a(struct rtw_adapter *padapter, struct recv_buf *precvbuf);
-
 void rtw_init_recv_timer23a(struct recv_reorder_ctrl *preorder_ctrl);
 
 #endif
