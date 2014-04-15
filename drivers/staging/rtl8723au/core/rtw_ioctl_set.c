@@ -557,7 +557,7 @@ u16 rtw_get_cur_max_rate23a(struct rtw_adapter *adapter)
 		return 0;
 
 	if (pmlmeext->cur_wireless_mode & (WIRELESS_11_24N|WIRELESS_11_5N)) {
-		p = rtw_get_ie23a(&pcur_bss->IEs[12], _HT_CAPABILITY_IE_,
+		p = rtw_get_ie23a(&pcur_bss->IEs[12], WLAN_EID_HT_CAPABILITY,
 			       &ht_ielen, pcur_bss->IELength - 12);
 		if (p && ht_ielen > 0) {
 			pht_capie = (struct ieee80211_ht_cap *)(p + 2);
