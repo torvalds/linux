@@ -539,10 +539,10 @@ void rtw_set_supported_rate23a(u8* SupportedRates, uint mode) ;
 
 unsigned char *rtw_get_wpa_ie23a(unsigned char *pie, int *wpa_ie_len, int limit);
 unsigned char *rtw_get_wpa2_ie23a(unsigned char *pie, int *rsn_ie_len, int limit);
-int rtw_get_wpa_cipher_suite23a(u8 *s);
-int rtw_get_wpa2_cipher_suite23a(u8 *s);
-int rtw_parse_wpa_ie23a(u8* wpa_ie, int wpa_ie_len, int *group_cipher, int *pairwise_cipher, int *is_8021x);
-int rtw_parse_wpa2_ie23a(u8* wpa_ie, int wpa_ie_len, int *group_cipher, int *pairwise_cipher, int *is_8021x);
+int rtw_get_wpa_cipher_suite23a(const u8 *s);
+int rtw_get_wpa2_cipher_suite23a(const u8 *s);
+int rtw_parse_wpa_ie23a(const u8* wpa_ie, int wpa_ie_len, int *group_cipher, int *pairwise_cipher, int *is_8021x);
+int rtw_parse_wpa2_ie23a(const u8* wpa_ie, int wpa_ie_len, int *group_cipher, int *pairwise_cipher, int *is_8021x);
 
 int rtw_get_sec_ie23a(u8 *in_ie,uint in_len,u8 *rsn_ie,u16 *rsn_len,u8 *wpa_ie,u16 *wpa_len);
 

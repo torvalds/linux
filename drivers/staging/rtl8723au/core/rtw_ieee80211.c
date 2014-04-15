@@ -514,7 +514,7 @@ unsigned char *rtw_get_wpa2_ie23a(unsigned char *pie, int *rsn_ie_len, int limit
 	return rtw_get_ie23a(pie, _WPA2_IE_ID_, rsn_ie_len, limit);
 }
 
-int rtw_get_wpa_cipher_suite23a(u8 *s)
+int rtw_get_wpa_cipher_suite23a(const u8 *s)
 {
 	if (!memcmp(s, WPA_CIPHER_SUITE_NONE23A, WPA_SELECTOR_LEN))
 		return WPA_CIPHER_NONE;
@@ -530,7 +530,7 @@ int rtw_get_wpa_cipher_suite23a(u8 *s)
 	return 0;
 }
 
-int rtw_get_wpa2_cipher_suite23a(u8 *s)
+int rtw_get_wpa2_cipher_suite23a(const u8 *s)
 {
 	if (!memcmp(s, RSN_CIPHER_SUITE_NONE23A, RSN_SELECTOR_LEN))
 		return WPA_CIPHER_NONE;
@@ -546,11 +546,11 @@ int rtw_get_wpa2_cipher_suite23a(u8 *s)
 	return 0;
 }
 
-int rtw_parse_wpa_ie23a(u8* wpa_ie, int wpa_ie_len, int *group_cipher, int *pairwise_cipher, int *is_8021x)
+int rtw_parse_wpa_ie23a(const u8* wpa_ie, int wpa_ie_len, int *group_cipher, int *pairwise_cipher, int *is_8021x)
 {
 	int i, ret = _SUCCESS;
 	int left, count;
-	u8 *pos;
+	const u8 *pos;
 	u8 SUITE_1X[4] = {0x00, 0x50, 0xf2, 1};
 
 	if (wpa_ie_len <= 0) {
@@ -626,12 +626,12 @@ int rtw_parse_wpa_ie23a(u8* wpa_ie, int wpa_ie_len, int *group_cipher, int *pair
 	return ret;
 }
 
-int rtw_parse_wpa2_ie23a(u8* rsn_ie, int rsn_ie_len, int *group_cipher,
+int rtw_parse_wpa2_ie23a(const u8* rsn_ie, int rsn_ie_len, int *group_cipher,
 		      int *pairwise_cipher, int *is_8021x)
 {
 	int i, ret = _SUCCESS;
 	int left, count;
-	u8 *pos;
+	const u8 *pos;
 	u8 SUITE_1X[4] = {0x00, 0x0f, 0xac, 0x01};
 
 	if (rsn_ie_len <= 0) {
@@ -1277,10 +1277,11 @@ int ieee80211_is_empty_essid23a(const char *essid, int essid_len)
 static int rtw_get_cipher_info(struct wlan_network *pnetwork)
 {
 	u32 wpa_ielen;
-	unsigned char *pbuf;
+	const u8 *pbuf;
 	int group_cipher = 0, pairwise_cipher = 0, is8021x = 0;
 	int ret = _FAIL;
 	int r;
+
 	pbuf = rtw_get_wpa_ie23a(&pnetwork->network.IEs[12], &wpa_ielen,
 			      pnetwork->network.IELength - 12);
 
