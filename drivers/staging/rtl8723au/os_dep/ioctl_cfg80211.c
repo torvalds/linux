@@ -288,7 +288,6 @@ static int rtw_cfg80211_inform_bss(struct rtw_adapter *padapter,
 
 	notify_channel = ieee80211_get_channel(wiphy, freq);
 
-	/* rtw_get_timestampe_from_ie23a() */
 	notify_timestamp = jiffies_to_msecs(jiffies) * 1000;	/* uSec */
 
 	notify_interval =

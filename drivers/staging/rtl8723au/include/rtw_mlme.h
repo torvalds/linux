@@ -472,7 +472,6 @@ int rtw_if_up23a(struct rtw_adapter *padapter);
 int rtw_linked_check(struct rtw_adapter *padapter);
 
 u8 *rtw_get_capability23a_from_ie(u8 *ie);
-u8 *rtw_get_timestampe_from_ie23a(u8 *ie);
 u8 *rtw_get_beacon_interval23a_from_ie(u8 *ie);
 
 
