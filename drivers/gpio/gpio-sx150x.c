@@ -22,7 +22,6 @@
 #include <linux/module.h>
 #include <linux/mutex.h>
 #include <linux/slab.h>
-#include <linux/workqueue.h>
 #include <linux/i2c/sx150x.h>
 
 #define NO_UPDATE_PENDING	-1
