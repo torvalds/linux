@@ -21,7 +21,6 @@
 
 #ifdef CONFIG_8723AU_AP_MODE
 
-extern unsigned char RTW_WPA_OUI23A[];
 extern unsigned char WMM_OUI23A[];
 extern unsigned char WPS_OUI23A[];
 extern unsigned char P2P_OUI23A[];
@@ -1303,7 +1302,7 @@ static void update_bcn_vendor_spec_ie(struct rtw_adapter *padapter, u8*oui)
 {
 	DBG_8723A("%s\n", __func__);
 
-	if (!memcmp(RTW_WPA_OUI23A, oui, 4))
+	if (!memcmp(RTW_WPA_OUI23A_TYPE, oui, 4))
 	{
 		update_bcn_wpa_ie(padapter);
 	}

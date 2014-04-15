@@ -87,7 +87,6 @@ static u8	null_addr[ETH_ALEN]= {0, 0, 0, 0, 0, 0};
 /**************************************************
 OUI definitions for the vendor specific IE
 ***************************************************/
-unsigned char	RTW_WPA_OUI23A[] = {0x00, 0x50, 0xf2, 0x01};
 unsigned char WMM_OUI23A[] = {0x00, 0x50, 0xf2, 0x02};
 unsigned char	WPS_OUI23A[] = {0x00, 0x50, 0xf2, 0x04};
 unsigned char	P2P_OUI23A[] = {0x50, 0x6F, 0x9A, 0x09};
@@ -3366,7 +3365,7 @@ void issue_assocreq23a(struct rtw_adapter *padapter)
 		switch (pIE->ElementID)
 		{
 		case WLAN_EID_VENDOR_SPECIFIC:
-			if (!memcmp(pIE->data, RTW_WPA_OUI23A, 4) ||
+			if (!memcmp(pIE->data, RTW_WPA_OUI23A_TYPE, 4) ||
 			    !memcmp(pIE->data, WMM_OUI23A, 4) ||
 			    !memcmp(pIE->data, WPS_OUI23A, 4)) {
 				if (!padapter->registrypriv.wifi_spec) {

@@ -1145,7 +1145,7 @@ unsigned int is_ap_in_tkip23a(struct rtw_adapter *padapter)
 
 			switch (pIE->ElementID) {
 			case WLAN_EID_VENDOR_SPECIFIC:
-				if ((!memcmp(pIE->data, RTW_WPA_OUI23A, 4)) && (!memcmp((pIE->data + 12), WPA_TKIP_CIPHER23A, 4)))
+				if ((!memcmp(pIE->data, RTW_WPA_OUI23A_TYPE, 4)) && (!memcmp((pIE->data + 12), WPA_TKIP_CIPHER23A, 4)))
 					return true;
 				break;
 			case WLAN_EID_RSN:
@@ -1176,7 +1176,7 @@ unsigned int should_forbid_n_rate23a(struct rtw_adapter * padapter)
 
 			switch (pIE->ElementID) {
 			case WLAN_EID_VENDOR_SPECIFIC:
-				if (!memcmp(pIE->data, RTW_WPA_OUI23A, 4) &&
+				if (!memcmp(pIE->data, RTW_WPA_OUI23A_TYPE, 4) &&
 					((!memcmp((pIE->data + 12), WPA_CIPHER_SUITE_CCMP23A, 4)) ||
 					  (!memcmp((pIE->data + 16), WPA_CIPHER_SUITE_CCMP23A, 4))))
 					return false;
@@ -1211,7 +1211,7 @@ unsigned int is_ap_in_wep23a(struct rtw_adapter *padapter)
 
 			switch (pIE->ElementID) {
 			case WLAN_EID_VENDOR_SPECIFIC:
-				if (!memcmp(pIE->data, RTW_WPA_OUI23A, 4))
+				if (!memcmp(pIE->data, RTW_WPA_OUI23A_TYPE, 4))
 					return false;
 				break;
 			case WLAN_EID_RSN:

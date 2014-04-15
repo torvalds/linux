@@ -137,7 +137,6 @@ void	_rtw_vmfree(u8 *pbuf, u32 sz);
 
 extern unsigned char REALTEK_96B_IE23A[];
 extern unsigned char MCS_rate_2R23A[16];
-extern unsigned char RTW_WPA_OUI23A[];
 extern unsigned char WPA_TKIP_CIPHER23A[4];
 extern unsigned char RSN_TKIP_CIPHER23A[4];
 

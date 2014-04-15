@@ -497,7 +497,6 @@ int rtw_parse_wpa_ie23a(const u8* wpa_ie, int wpa_ie_len, int *group_cipher, int
 	int i, ret = _SUCCESS;
 	int left, count;
 	const u8 *pos;
-	u8 SUITE_1X[4] = {0x00, 0x50, 0xf2, 1};
 
 	if (wpa_ie_len <= 0) {
 		/* No WPA IE - fail silently */
@@ -560,7 +559,7 @@ int rtw_parse_wpa_ie23a(const u8* wpa_ie, int wpa_ie_len, int *group_cipher, int
 	if (is_8021x) {
 		if (left >= 6) {
 			pos += 2;
-			if (!memcmp(pos, SUITE_1X, 4)) {
+			if (!memcmp(pos, RTW_WPA_OUI23A_TYPE, 4)) {
 				RT_TRACE(_module_rtl871x_mlme_c_, _drv_info_,
 					 ("%s : there has 802.1x auth\n",
 					  __func__));
@@ -653,9 +652,7 @@ int rtw_get_sec_ie23a(u8 *in_ie, uint in_len, u8 *rsn_ie, u16 *rsn_len,
 		   u8 *wpa_ie, u16 *wpa_len)
 {
 	u8 authmode, sec_idx, i;
-	u8 wpa_oui[4] = {0x0, 0x50, 0xf2, 0x01};
 	uint cnt;
-
 
 
 	/* Search required WPA or WPA2 IE and copy to sec_ie[ ] */
@@ -668,7 +665,7 @@ int rtw_get_sec_ie23a(u8 *in_ie, uint in_len, u8 *rsn_ie, u16 *rsn_len,
 		authmode = in_ie[cnt];
 
 		if ((authmode == WLAN_EID_VENDOR_SPECIFIC) &&
-		    !memcmp(&in_ie[cnt+2], &wpa_oui[0], 4)) {
+		    !memcmp(&in_ie[cnt+2], RTW_WPA_OUI23A_TYPE, 4)) {
 				RT_TRACE(_module_rtl871x_mlme_c_, _drv_info_,
 					 ("\n rtw_get_wpa_ie23a: sec_idx =%d "
 					  "in_ie[cnt+1]+2 =%d\n",

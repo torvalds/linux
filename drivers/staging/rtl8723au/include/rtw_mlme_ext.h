@@ -89,7 +89,6 @@
 #define		_54M_RATE_	11
 
 
-extern unsigned char RTW_WPA_OUI23A[];
 extern unsigned char WMM_OUI23A[];
 extern unsigned char WPS_OUI23A[];
 extern unsigned char WFD_OUI23A[];
