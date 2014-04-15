@@ -670,7 +670,7 @@ int qlcnic_setup_tss_rss_intr(struct qlcnic_adapter *adapter)
 	else
 		num_msix += adapter->drv_tx_rings;
 
-	if (adapter->drv_rss_rings  > 0)
+	if (adapter->drv_rss_rings > 0)
 		num_msix += adapter->drv_rss_rings;
 	else
 		num_msix += adapter->drv_sds_rings;
@@ -686,19 +686,15 @@ int qlcnic_setup_tss_rss_intr(struct qlcnic_adapter *adapter)
 			return -ENOMEM;
 	}
 
-restore:
 	for (vector = 0; vector < num_msix; vector++)
 		adapter->msix_entries[vector].entry = vector;
 
+restore:
 	err = pci_enable_msix(pdev, adapter->msix_entries, num_msix);
-	if (err == 0) {
-		adapter->ahw->num_msix = num_msix;
-		if (adapter->drv_tss_rings > 0)
-			adapter->drv_tx_rings = adapter->drv_tss_rings;
+	if (err > 0) {
+		if (!adapter->drv_tss_rings && !adapter->drv_rss_rings)
+			return -ENOSPC;
 
-		if (adapter->drv_rss_rings > 0)
-			adapter->drv_sds_rings = adapter->drv_rss_rings;
-	} else {
 		netdev_info(adapter->netdev,
 			    "Unable to allocate %d MSI-X vectors, Available vectors %d\n",
 			    num_msix, err);
@@ -716,12 +712,20 @@ restore:
 			    "Restoring %d Tx, %d SDS rings for total %d vectors.\n",
 			    adapter->drv_tx_rings, adapter->drv_sds_rings,
 			    num_msix);
-		goto restore;
 
-		err = -EIO;
+		goto restore;
+	} else if (err < 0) {
+		return err;
 	}
 
-	return err;
+	adapter->ahw->num_msix = num_msix;
+	if (adapter->drv_tss_rings > 0)
+		adapter->drv_tx_rings = adapter->drv_tss_rings;
+
+	if (adapter->drv_rss_rings > 0)
+		adapter->drv_sds_rings = adapter->drv_rss_rings;
+
+	return 0;
 }
 
 int qlcnic_enable_msix(struct qlcnic_adapter *adapter, u32 num_msix)
