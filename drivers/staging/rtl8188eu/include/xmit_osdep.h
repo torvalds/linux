@@ -32,10 +32,6 @@ struct pkt_file {
 	size_t buf_len;
 };
 
-extern int rtw_ht_enable;
-extern int rtw_cbw40_enable;
-extern int rtw_ampdu_enable;/* for enable tx_ampdu */
-
 #define NR_XMITFRAME	256
 
 struct xmit_priv;
