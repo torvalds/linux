@@ -1319,11 +1319,10 @@ s32 rtw_put_snap23a(u8 *data, u16 h_proto)
 
 void rtw_update_protection23a(struct rtw_adapter *padapter, u8 *ie, uint ie_len)
 {
-	struct	xmit_priv *pxmitpriv = &padapter->xmitpriv;
-	struct	registry_priv *pregistrypriv = &padapter->registrypriv;
-	uint	protection;
-	u8	*perp;
-	int	 erp_len;
+	struct xmit_priv *pxmitpriv = &padapter->xmitpriv;
+	struct registry_priv *pregistrypriv = &padapter->registrypriv;
+	uint protection;
+	const u8 *p;
 
 	switch (pxmitpriv->vcs_setting) {
 	case DISABLE_VCS:
@@ -1333,11 +1332,11 @@ void rtw_update_protection23a(struct rtw_adapter *padapter, u8 *ie, uint ie_len)
 		break;
 	case AUTO_VCS:
 	default:
-		perp = rtw_get_ie23a(ie, WLAN_EID_ERP_INFO, &erp_len, ie_len);
-		if (perp == NULL) {
+		p = cfg80211_find_ie(WLAN_EID_ERP_INFO, ie, ie_len);
+		if (!p)
 			pxmitpriv->vcs = NONE_VCS;
-		} else {
-			protection = (*(perp + 2)) & BIT(1);
+		else {
+			protection = (*(p + 2)) & BIT(1);
 			if (protection) {
 				if (pregistrypriv->vcs_type == RTS_CTS)
 					pxmitpriv->vcs = RTS_CTS;
