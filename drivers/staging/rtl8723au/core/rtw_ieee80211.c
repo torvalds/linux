@@ -460,60 +460,6 @@ int rtw_generate_ie23a(struct registry_priv *pregistrypriv)
 	return sz;
 }
 
-unsigned char *rtw_get_wpa_ie23a(unsigned char *pie, int *wpa_ie_len, int limit)
-{
-	int len;
-	u16 val16;
-	unsigned char wpa_oui_type[] = {0x00, 0x50, 0xf2, 0x01};
-	u8 *pbuf = pie;
-	int limit_new = limit;
-
-	while(1) {
-		pbuf = rtw_get_ie23a(pbuf, WLAN_EID_VENDOR_SPECIFIC,
-				     &len, limit_new);
-
-		if (pbuf) {
-			/* check if oui matches... */
-			if (memcmp((pbuf + 2), wpa_oui_type,
-				   sizeof(wpa_oui_type))) {
-				goto check_next_ie;
-			}
-
-			/* check version... */
-			memcpy((u8 *)&val16, (pbuf + 6), sizeof(val16));
-
-			val16 = le16_to_cpu(val16);
-			if (val16 != 0x0001)
-				goto check_next_ie;
-
-			*wpa_ie_len = *(pbuf + 1);
-
-			return pbuf;
-		} else {
-			*wpa_ie_len = 0;
-			return NULL;
-		}
-
-check_next_ie:
-
-		limit_new = limit - (pbuf - pie) - 2 - len;
-
-		if (limit_new <= 0)
-			break;
-
-		pbuf += (2 + len);
-	}
-
-	*wpa_ie_len = 0;
-
-	return NULL;
-}
-
-unsigned char *rtw_get_wpa2_ie23a(unsigned char *pie, int *rsn_ie_len, int limit)
-{
-	return rtw_get_ie23a(pie, _WPA2_IE_ID_, rsn_ie_len, limit);
-}
-
 int rtw_get_wpa_cipher_suite23a(const u8 *s)
 {
 	if (!memcmp(s, WPA_CIPHER_SUITE_NONE23A, WPA_SELECTOR_LEN))
