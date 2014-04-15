@@ -181,7 +181,6 @@
 #define CLK_KEYIF		347
 #define CLK_AUDSS		348
 #define CLK_MIPI_HSI		349 /* Exynos4210 only */
-#define CLK_MDMA2		350 /* Exynos4210 only */
 #define CLK_PIXELASYNCM0	351
 #define CLK_PIXELASYNCM1	352
 #define CLK_FIMC_LITE0		353 /* Exynos4x12 only */
