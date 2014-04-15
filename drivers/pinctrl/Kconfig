@@ -84,6 +84,9 @@ config PINCTRL_AT91
 	depends on ARCH_AT91
 	select PINMUX
 	select PINCONF
+	select GPIOLIB
+	select OF_GPIO
+	select GPIOLIB_IRQCHIP
 	help
 	  Say Y here to enable the at91 pinctrl driver
 
