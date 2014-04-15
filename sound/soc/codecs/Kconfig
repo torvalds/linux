@@ -39,7 +39,7 @@ config SND_SOC_ALL_CODECS
 	select SND_SOC_ALC5623 if I2C
 	select SND_SOC_ALC5632 if I2C
 	select SND_SOC_CQ0093VC if MFD_DAVINCI_VOICECODEC
-	select SND_SOC_CS42L51 if I2C
+	select SND_SOC_CS42L51_I2C if I2C
 	select SND_SOC_CS42L52 if I2C
 	select SND_SOC_CS42L73 if I2C
 	select SND_SOC_CS4270 if I2C
@@ -279,6 +279,10 @@ config SND_SOC_CQ0093VC
 
 config SND_SOC_CS42L51
 	tristate
+
+config SND_SOC_CS42L51_I2C
+	tristate
+	select SND_SOC_CS42L51
 
 config SND_SOC_CS42L52
 	tristate "Cirrus Logic CS42L52 CODEC"

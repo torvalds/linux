@@ -18,6 +18,11 @@
 #ifndef _CS42L51_H
 #define _CS42L51_H
 
+struct device;
+
+extern const struct regmap_config cs42l51_regmap;
+int cs42l51_probe(struct device *dev, struct regmap *regmap);
+
 #define CS42L51_CHIP_ID			0x1B
 #define CS42L51_CHIP_REV_A		0x00
 #define CS42L51_CHIP_REV_B		0x01
