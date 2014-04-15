@@ -2423,6 +2423,12 @@ static int smiapp_registered(struct v4l2_subdev *subdev)
 		sensor->hvflip_inv_mask = SMIAPP_IMAGE_ORIENTATION_HFLIP |
 					  SMIAPP_IMAGE_ORIENTATION_VFLIP;
 
+	rval = smiapp_call_quirk(sensor, limits);
+	if (rval) {
+		dev_err(&client->dev, "limits quirks failed\n");
+		goto out_power_off;
+	}
+
 	rval = smiapp_get_mbus_formats(sensor);
 	if (rval) {
 		rval = -ENODEV;
@@ -2481,12 +2487,6 @@ static int smiapp_registered(struct v4l2_subdev *subdev)
 			rval = -EBUSY;
 			goto out_ident_release;
 		}
-	}
-
-	rval = smiapp_call_quirk(sensor, limits);
-	if (rval) {
-		dev_err(&client->dev, "limits quirks failed\n");
-		goto out_nvm_release;
 	}
 
 	/* We consider this as profile 0 sensor if any of these are zero. */
