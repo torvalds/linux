@@ -3867,6 +3867,7 @@ enum punit_power_well {
 #define _PIPEA_FRMCOUNT_GM45	0x70040
 #define _PIPEA_FLIPCOUNT_GM45	0x70044
 #define PIPE_FRMCOUNT_GM45(pipe) _PIPE2(pipe, _PIPEA_FRMCOUNT_GM45)
+#define PIPE_FLIPCOUNT_GM45(pipe) _PIPE2(pipe, _PIPEA_FLIPCOUNT_GM45)
 
 /* Cursor A & B regs */
 #define _CURACNTR		0x70080
