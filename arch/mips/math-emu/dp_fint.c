@@ -26,7 +26,7 @@
 
 #include "ieee754dp.h"
 
-ieee754dp ieee754dp_fint(int x)
+union ieee754dp ieee754dp_fint(int x)
 {
 	u64 xm;
 	int xe;
@@ -70,7 +70,7 @@ ieee754dp ieee754dp_fint(int x)
 #endif
 }
 
-ieee754dp ieee754dp_funs(unsigned int u)
+union ieee754dp ieee754dp_funs(unsigned int u)
 {
 	if ((int) u < 0)
 		return ieee754dp_add(ieee754dp_1e31(),

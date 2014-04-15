@@ -27,7 +27,7 @@
 #include <linux/kernel.h>
 #include "ieee754dp.h"
 
-int ieee754dp_tint(ieee754dp x)
+int ieee754dp_tint(union ieee754dp x)
 {
 	COMPXDP;
 
@@ -109,9 +109,9 @@ int ieee754dp_tint(ieee754dp x)
 }
 
 
-unsigned int ieee754dp_tuns(ieee754dp x)
+unsigned int ieee754dp_tuns(union ieee754dp x)
 {
-	ieee754dp hb = ieee754dp_1e31();
+	union ieee754dp hb = ieee754dp_1e31();
 
 	/* what if x < 0 ?? */
 	if (ieee754dp_lt(x, hb))

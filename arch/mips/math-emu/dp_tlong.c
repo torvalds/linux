@@ -26,7 +26,7 @@
 
 #include "ieee754dp.h"
 
-s64 ieee754dp_tlong(ieee754dp x)
+s64 ieee754dp_tlong(union ieee754dp x)
 {
 	COMPXDP;
 
@@ -112,9 +112,9 @@ s64 ieee754dp_tlong(ieee754dp x)
 }
 
 
-u64 ieee754dp_tulong(ieee754dp x)
+u64 ieee754dp_tulong(union ieee754dp x)
 {
-	ieee754dp hb = ieee754dp_1e63();
+	union ieee754dp hb = ieee754dp_1e63();
 
 	/* what if x < 0 ?? */
 	if (ieee754dp_lt(x, hb))

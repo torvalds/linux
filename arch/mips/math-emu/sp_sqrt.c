@@ -26,7 +26,7 @@
 
 #include "ieee754sp.h"
 
-ieee754sp ieee754sp_sqrt(ieee754sp x)
+union ieee754sp ieee754sp_sqrt(union ieee754sp x)
 {
 	int ix, s, q, m, t, i;
 	unsigned int r;

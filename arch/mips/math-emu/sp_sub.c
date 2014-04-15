@@ -26,7 +26,7 @@
 
 #include "ieee754sp.h"
 
-ieee754sp ieee754sp_sub(ieee754sp x, ieee754sp y)
+union ieee754sp ieee754sp_sub(union ieee754sp x, union ieee754sp y)
 {
 	COMPXSP;
 	COMPYSP;

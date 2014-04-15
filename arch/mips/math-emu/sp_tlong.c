@@ -26,7 +26,7 @@
 
 #include "ieee754sp.h"
 
-s64 ieee754sp_tlong(ieee754sp x)
+s64 ieee754sp_tlong(union ieee754sp x)
 {
 	COMPXDP;		/* <-- need 64-bit mantissa tmp */
 
@@ -108,9 +108,9 @@ s64 ieee754sp_tlong(ieee754sp x)
 }
 
 
-u64 ieee754sp_tulong(ieee754sp x)
+u64 ieee754sp_tulong(union ieee754sp x)
 {
-	ieee754sp hb = ieee754sp_1e63();
+	union ieee754sp hb = ieee754sp_1e63();
 
 	/* what if x < 0 ?? */
 	if (ieee754sp_lt(x, hb))

@@ -26,12 +26,12 @@
 
 #include "ieee754dp.h"
 
-int ieee754dp_finite(ieee754dp x)
+int ieee754dp_finite(union ieee754dp x)
 {
 	return DPBEXP(x) != DP_EMAX + 1 + DP_EBIAS;
 }
 
-ieee754dp ieee754dp_copysign(ieee754dp x, ieee754dp y)
+union ieee754dp ieee754dp_copysign(union ieee754dp x, union ieee754dp y)
 {
 	CLEARCX;
 	DPSIGN(x) = DPSIGN(y);
@@ -39,7 +39,7 @@ ieee754dp ieee754dp_copysign(ieee754dp x, ieee754dp y)
 }
 
 
-ieee754dp ieee754dp_neg(ieee754dp x)
+union ieee754dp ieee754dp_neg(union ieee754dp x)
 {
 	COMPXDP;
 
@@ -55,7 +55,7 @@ ieee754dp ieee754dp_neg(ieee754dp x)
 	DPSIGN(x) ^= 1;
 
 	if (xc == IEEE754_CLASS_SNAN) {
-		ieee754dp y = ieee754dp_indef();
+		union ieee754dp y = ieee754dp_indef();
 		SETCX(IEEE754_INVALID_OPERATION);
 		DPSIGN(y) = DPSIGN(x);
 		return ieee754dp_nanxcpt(y, "neg");
@@ -65,7 +65,7 @@ ieee754dp ieee754dp_neg(ieee754dp x)
 }
 
 
-ieee754dp ieee754dp_abs(ieee754dp x)
+union ieee754dp ieee754dp_abs(union ieee754dp x)
 {
 	COMPXDP;
 

@@ -26,7 +26,7 @@
 
 #include "ieee754dp.h"
 
-ieee754dp ieee754dp_fsp(ieee754sp x)
+union ieee754dp ieee754dp_fsp(union ieee754sp x)
 {
 	COMPXSP;
 

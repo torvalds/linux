@@ -26,7 +26,7 @@
 
 #include "ieee754dp.h"
 
-ieee754dp ieee754dp_sub(ieee754dp x, ieee754dp y)
+union ieee754dp ieee754dp_sub(union ieee754dp x, union ieee754dp y)
 {
 	COMPXDP;
 	COMPYDP;

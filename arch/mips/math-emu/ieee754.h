@@ -46,7 +46,7 @@ struct ieee754dp_const {
 	;))))
 };
 
-typedef union _ieee754dp {
+union ieee754dp {
 	struct ieee754dp_const oparts;
 	struct {
 		__BITFIELD_FIELD(unsigned int sign:1,
@@ -56,7 +56,7 @@ typedef union _ieee754dp {
 	} parts;
 	double d;
 	u64 bits;
-} ieee754dp;
+};
 
 struct ieee754sp_const {
 	__BITFIELD_FIELD(unsigned sign:1,
@@ -65,106 +65,106 @@ struct ieee754sp_const {
 	;)))
 };
 
-typedef union _ieee754sp {
+union ieee754sp {
 	struct ieee754sp_const parts;
 	float f;
 	u32 bits;
-} ieee754sp;
+};
 
 /*
  * single precision (often aka float)
 */
-int ieee754sp_finite(ieee754sp x);
-int ieee754sp_class(ieee754sp x);
+int ieee754sp_finite(union ieee754sp x);
+int ieee754sp_class(union ieee754sp x);
 
-ieee754sp ieee754sp_abs(ieee754sp x);
-ieee754sp ieee754sp_neg(ieee754sp x);
-ieee754sp ieee754sp_scalb(ieee754sp x, int);
-ieee754sp ieee754sp_logb(ieee754sp x);
+union ieee754sp ieee754sp_abs(union ieee754sp x);
+union ieee754sp ieee754sp_neg(union ieee754sp x);
+union ieee754sp ieee754sp_scalb(union ieee754sp x, int);
+union ieee754sp ieee754sp_logb(union ieee754sp x);
 
 /* x with sign of y */
-ieee754sp ieee754sp_copysign(ieee754sp x, ieee754sp y);
+union ieee754sp ieee754sp_copysign(union ieee754sp x, union ieee754sp y);
 
-ieee754sp ieee754sp_add(ieee754sp x, ieee754sp y);
-ieee754sp ieee754sp_sub(ieee754sp x, ieee754sp y);
-ieee754sp ieee754sp_mul(ieee754sp x, ieee754sp y);
-ieee754sp ieee754sp_div(ieee754sp x, ieee754sp y);
+union ieee754sp ieee754sp_add(union ieee754sp x, union ieee754sp y);
+union ieee754sp ieee754sp_sub(union ieee754sp x, union ieee754sp y);
+union ieee754sp ieee754sp_mul(union ieee754sp x, union ieee754sp y);
+union ieee754sp ieee754sp_div(union ieee754sp x, union ieee754sp y);
 
-ieee754sp ieee754sp_fint(int x);
-ieee754sp ieee754sp_funs(unsigned x);
-ieee754sp ieee754sp_flong(s64 x);
-ieee754sp ieee754sp_fulong(u64 x);
-ieee754sp ieee754sp_fdp(ieee754dp x);
+union ieee754sp ieee754sp_fint(int x);
+union ieee754sp ieee754sp_funs(unsigned x);
+union ieee754sp ieee754sp_flong(s64 x);
+union ieee754sp ieee754sp_fulong(u64 x);
+union ieee754sp ieee754sp_fdp(union ieee754dp x);
 
-int ieee754sp_tint(ieee754sp x);
-unsigned int ieee754sp_tuns(ieee754sp x);
-s64 ieee754sp_tlong(ieee754sp x);
-u64 ieee754sp_tulong(ieee754sp x);
+int ieee754sp_tint(union ieee754sp x);
+unsigned int ieee754sp_tuns(union ieee754sp x);
+s64 ieee754sp_tlong(union ieee754sp x);
+u64 ieee754sp_tulong(union ieee754sp x);
 
-int ieee754sp_cmp(ieee754sp x, ieee754sp y, int cop, int sig);
+int ieee754sp_cmp(union ieee754sp x, union ieee754sp y, int cop, int sig);
 /*
  * basic sp math
  */
-ieee754sp ieee754sp_modf(ieee754sp x, ieee754sp * ip);
-ieee754sp ieee754sp_frexp(ieee754sp x, int *exp);
-ieee754sp ieee754sp_ldexp(ieee754sp x, int exp);
+union ieee754sp ieee754sp_modf(union ieee754sp x, union ieee754sp * ip);
+union ieee754sp ieee754sp_frexp(union ieee754sp x, int *exp);
+union ieee754sp ieee754sp_ldexp(union ieee754sp x, int exp);
 
-ieee754sp ieee754sp_ceil(ieee754sp x);
-ieee754sp ieee754sp_floor(ieee754sp x);
-ieee754sp ieee754sp_trunc(ieee754sp x);
+union ieee754sp ieee754sp_ceil(union ieee754sp x);
+union ieee754sp ieee754sp_floor(union ieee754sp x);
+union ieee754sp ieee754sp_trunc(union ieee754sp x);
 
-ieee754sp ieee754sp_sqrt(ieee754sp x);
+union ieee754sp ieee754sp_sqrt(union ieee754sp x);
 
 /*
  * double precision (often aka double)
 */
-int ieee754dp_finite(ieee754dp x);
-int ieee754dp_class(ieee754dp x);
+int ieee754dp_finite(union ieee754dp x);
+int ieee754dp_class(union ieee754dp x);
 
 /* x with sign of y */
-ieee754dp ieee754dp_copysign(ieee754dp x, ieee754dp y);
+union ieee754dp ieee754dp_copysign(union ieee754dp x, union ieee754dp y);
 
-ieee754dp ieee754dp_add(ieee754dp x, ieee754dp y);
-ieee754dp ieee754dp_sub(ieee754dp x, ieee754dp y);
-ieee754dp ieee754dp_mul(ieee754dp x, ieee754dp y);
-ieee754dp ieee754dp_div(ieee754dp x, ieee754dp y);
+union ieee754dp ieee754dp_add(union ieee754dp x, union ieee754dp y);
+union ieee754dp ieee754dp_sub(union ieee754dp x, union ieee754dp y);
+union ieee754dp ieee754dp_mul(union ieee754dp x, union ieee754dp y);
+union ieee754dp ieee754dp_div(union ieee754dp x, union ieee754dp y);
 
-ieee754dp ieee754dp_abs(ieee754dp x);
-ieee754dp ieee754dp_neg(ieee754dp x);
-ieee754dp ieee754dp_scalb(ieee754dp x, int);
+union ieee754dp ieee754dp_abs(union ieee754dp x);
+union ieee754dp ieee754dp_neg(union ieee754dp x);
+union ieee754dp ieee754dp_scalb(union ieee754dp x, int);
 
 /* return exponent as integer in floating point format
  */
-ieee754dp ieee754dp_logb(ieee754dp x);
+union ieee754dp ieee754dp_logb(union ieee754dp x);
 
-ieee754dp ieee754dp_fint(int x);
-ieee754dp ieee754dp_funs(unsigned x);
-ieee754dp ieee754dp_flong(s64 x);
-ieee754dp ieee754dp_fulong(u64 x);
-ieee754dp ieee754dp_fsp(ieee754sp x);
+union ieee754dp ieee754dp_fint(int x);
+union ieee754dp ieee754dp_funs(unsigned x);
+union ieee754dp ieee754dp_flong(s64 x);
+union ieee754dp ieee754dp_fulong(u64 x);
+union ieee754dp ieee754dp_fsp(union ieee754sp x);
 
-ieee754dp ieee754dp_ceil(ieee754dp x);
-ieee754dp ieee754dp_floor(ieee754dp x);
-ieee754dp ieee754dp_trunc(ieee754dp x);
+union ieee754dp ieee754dp_ceil(union ieee754dp x);
+union ieee754dp ieee754dp_floor(union ieee754dp x);
+union ieee754dp ieee754dp_trunc(union ieee754dp x);
 
-int ieee754dp_tint(ieee754dp x);
-unsigned int ieee754dp_tuns(ieee754dp x);
-s64 ieee754dp_tlong(ieee754dp x);
-u64 ieee754dp_tulong(ieee754dp x);
+int ieee754dp_tint(union ieee754dp x);
+unsigned int ieee754dp_tuns(union ieee754dp x);
+s64 ieee754dp_tlong(union ieee754dp x);
+u64 ieee754dp_tulong(union ieee754dp x);
 
-int ieee754dp_cmp(ieee754dp x, ieee754dp y, int cop, int sig);
+int ieee754dp_cmp(union ieee754dp x, union ieee754dp y, int cop, int sig);
 /*
  * basic sp math
  */
-ieee754dp ieee754dp_modf(ieee754dp x, ieee754dp * ip);
-ieee754dp ieee754dp_frexp(ieee754dp x, int *exp);
-ieee754dp ieee754dp_ldexp(ieee754dp x, int exp);
+union ieee754dp ieee754dp_modf(union ieee754dp x, union ieee754dp * ip);
+union ieee754dp ieee754dp_frexp(union ieee754dp x, int *exp);
+union ieee754dp ieee754dp_ldexp(union ieee754dp x, int exp);
 
-ieee754dp ieee754dp_ceil(ieee754dp x);
-ieee754dp ieee754dp_floor(ieee754dp x);
-ieee754dp ieee754dp_trunc(ieee754dp x);
+union ieee754dp ieee754dp_ceil(union ieee754dp x);
+union ieee754dp ieee754dp_floor(union ieee754dp x);
+union ieee754dp ieee754dp_trunc(union ieee754dp x);
 
-ieee754dp ieee754dp_sqrt(ieee754dp x);
+union ieee754dp ieee754dp_sqrt(union ieee754dp x);
 
 
 
@@ -204,65 +204,65 @@ ieee754dp ieee754dp_sqrt(ieee754dp x);
 
 /* "normal" comparisons
 */
-static inline int ieee754sp_eq(ieee754sp x, ieee754sp y)
+static inline int ieee754sp_eq(union ieee754sp x, union ieee754sp y)
 {
 	return ieee754sp_cmp(x, y, IEEE754_CEQ, 0);
 }
 
-static inline int ieee754sp_ne(ieee754sp x, ieee754sp y)
+static inline int ieee754sp_ne(union ieee754sp x, union ieee754sp y)
 {
 	return ieee754sp_cmp(x, y,
 			     IEEE754_CLT | IEEE754_CGT | IEEE754_CUN, 0);
 }
 
-static inline int ieee754sp_lt(ieee754sp x, ieee754sp y)
+static inline int ieee754sp_lt(union ieee754sp x, union ieee754sp y)
 {
 	return ieee754sp_cmp(x, y, IEEE754_CLT, 0);
 }
 
-static inline int ieee754sp_le(ieee754sp x, ieee754sp y)
+static inline int ieee754sp_le(union ieee754sp x, union ieee754sp y)
 {
 	return ieee754sp_cmp(x, y, IEEE754_CLT | IEEE754_CEQ, 0);
 }
 
-static inline int ieee754sp_gt(ieee754sp x, ieee754sp y)
+static inline int ieee754sp_gt(union ieee754sp x, union ieee754sp y)
 {
 	return ieee754sp_cmp(x, y, IEEE754_CGT, 0);
 }
 
 
-static inline int ieee754sp_ge(ieee754sp x, ieee754sp y)
+static inline int ieee754sp_ge(union ieee754sp x, union ieee754sp y)
 {
 	return ieee754sp_cmp(x, y, IEEE754_CGT | IEEE754_CEQ, 0);
 }
 
-static inline int ieee754dp_eq(ieee754dp x, ieee754dp y)
+static inline int ieee754dp_eq(union ieee754dp x, union ieee754dp y)
 {
 	return ieee754dp_cmp(x, y, IEEE754_CEQ, 0);
 }
 
-static inline int ieee754dp_ne(ieee754dp x, ieee754dp y)
+static inline int ieee754dp_ne(union ieee754dp x, union ieee754dp y)
 {
 	return ieee754dp_cmp(x, y,
 			     IEEE754_CLT | IEEE754_CGT | IEEE754_CUN, 0);
 }
 
-static inline int ieee754dp_lt(ieee754dp x, ieee754dp y)
+static inline int ieee754dp_lt(union ieee754dp x, union ieee754dp y)
 {
 	return ieee754dp_cmp(x, y, IEEE754_CLT, 0);
 }
 
-static inline int ieee754dp_le(ieee754dp x, ieee754dp y)
+static inline int ieee754dp_le(union ieee754dp x, union ieee754dp y)
 {
 	return ieee754dp_cmp(x, y, IEEE754_CLT | IEEE754_CEQ, 0);
 }
 
-static inline int ieee754dp_gt(ieee754dp x, ieee754dp y)
+static inline int ieee754dp_gt(union ieee754dp x, union ieee754dp y)
 {
 	return ieee754dp_cmp(x, y, IEEE754_CGT, 0);
 }
 
-static inline int ieee754dp_ge(ieee754dp x, ieee754dp y)
+static inline int ieee754dp_ge(union ieee754dp x, union ieee754dp y)
 {
 	return ieee754dp_cmp(x, y, IEEE754_CGT | IEEE754_CEQ, 0);
 }
@@ -271,8 +271,8 @@ static inline int ieee754dp_ge(ieee754dp x, ieee754dp y)
 /*
  * Like strtod
  */
-ieee754dp ieee754dp_fstr(const char *s, char **endp);
-char *ieee754dp_tstr(ieee754dp x, int prec, int fmt, int af);
+union ieee754dp ieee754dp_fstr(const char *s, char **endp);
+char *ieee754dp_tstr(union ieee754dp x, int prec, int fmt, int af);
 
 
 /*
@@ -338,8 +338,8 @@ static inline int ieee754_sxtest(unsigned n)
 }
 
 /* debugging */
-ieee754sp ieee754sp_dump(char *s, ieee754sp x);
-ieee754dp ieee754dp_dump(char *s, ieee754dp x);
+union ieee754sp ieee754sp_dump(char *s, union ieee754sp x);
+union ieee754dp ieee754dp_dump(char *s, union ieee754dp x);
 
 #define IEEE754_SPCVAL_PZERO	0
 #define IEEE754_SPCVAL_NZERO	1
@@ -361,8 +361,8 @@ ieee754dp ieee754dp_dump(char *s, ieee754dp x);
 
 extern const struct ieee754dp_const __ieee754dp_spcvals[];
 extern const struct ieee754sp_const __ieee754sp_spcvals[];
-#define ieee754dp_spcvals ((const ieee754dp *)__ieee754dp_spcvals)
-#define ieee754sp_spcvals ((const ieee754sp *)__ieee754sp_spcvals)
+#define ieee754dp_spcvals ((const union ieee754dp *)__ieee754dp_spcvals)
+#define ieee754sp_spcvals ((const union ieee754sp *)__ieee754sp_spcvals)
 
 /*
  * Return infinity with given sign
@@ -404,8 +404,8 @@ struct ieee754xctx {
 	const char *op;		/* operation name */
 	int rt;			/* result type */
 	union {
-		ieee754sp sp;	/* single precision */
-		ieee754dp dp;	/* double precision */
+		union ieee754sp sp;	/* single precision */
+		union ieee754dp dp;	/* double precision */
 #ifdef IEEE854_XP
 		ieee754xp xp;	/* extended precision */
 #endif

@@ -27,7 +27,7 @@
 #include <linux/kernel.h>
 #include "ieee754sp.h"
 
-int ieee754sp_tint(ieee754sp x)
+int ieee754sp_tint(union ieee754sp x)
 {
 	COMPXSP;
 
@@ -113,9 +113,9 @@ int ieee754sp_tint(ieee754sp x)
 }
 
 
-unsigned int ieee754sp_tuns(ieee754sp x)
+unsigned int ieee754sp_tuns(union ieee754sp x)
 {
-	ieee754sp hb = ieee754sp_1e31();
+	union ieee754sp hb = ieee754sp_1e31();
 
 	/* what if x < 0 ?? */
 	if (ieee754sp_lt(x, hb))

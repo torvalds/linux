@@ -27,26 +27,26 @@
 
 #include "ieee754sp.h"
 
-int ieee754sp_class(ieee754sp x)
+int ieee754sp_class(union ieee754sp x)
 {
 	COMPXSP;
 	EXPLODEXSP;
 	return xc;
 }
 
-int ieee754sp_isnan(ieee754sp x)
+int ieee754sp_isnan(union ieee754sp x)
 {
 	return ieee754sp_class(x) >= IEEE754_CLASS_SNAN;
 }
 
-int ieee754sp_issnan(ieee754sp x)
+int ieee754sp_issnan(union ieee754sp x)
 {
 	assert(ieee754sp_isnan(x));
 	return (SPMANT(x) & SP_MBIT(SP_MBITS-1));
 }
 
 
-ieee754sp __cold ieee754sp_xcpt(ieee754sp r, const char *op, ...)
+union ieee754sp __cold ieee754sp_xcpt(union ieee754sp r, const char *op, ...)
 {
 	struct ieee754xctx ax;
 
@@ -62,7 +62,7 @@ ieee754sp __cold ieee754sp_xcpt(ieee754sp r, const char *op, ...)
 	return ax.rv.sp;
 }
 
-ieee754sp __cold ieee754sp_nanxcpt(ieee754sp r, const char *op, ...)
+union ieee754sp __cold ieee754sp_nanxcpt(union ieee754sp r, const char *op, ...)
 {
 	struct ieee754xctx ax;
 
@@ -89,7 +89,7 @@ ieee754sp __cold ieee754sp_nanxcpt(ieee754sp r, const char *op, ...)
 	return ax.rv.sp;
 }
 
-ieee754sp ieee754sp_bestnan(ieee754sp x, ieee754sp y)
+union ieee754sp ieee754sp_bestnan(union ieee754sp x, union ieee754sp y)
 {
 	assert(ieee754sp_isnan(x));
 	assert(ieee754sp_isnan(y));
@@ -132,7 +132,7 @@ static unsigned get_rounding(int sn, unsigned xm)
  * xe is an unbiased exponent
  * xm is 3bit extended precision value.
  */
-ieee754sp ieee754sp_format(int sn, int xe, unsigned xm)
+union ieee754sp ieee754sp_format(int sn, int xe, unsigned xm)
 {
 	assert(xm);		/* we don't gen exact zeros (probably should) */
 

@@ -26,7 +26,7 @@
 
 #include "ieee754sp.h"
 
-ieee754sp ieee754sp_scalb(ieee754sp x, int n)
+union ieee754sp ieee754sp_scalb(union ieee754sp x, int n)
 {
 	COMPXSP;
 
@@ -51,7 +51,7 @@ ieee754sp ieee754sp_scalb(ieee754sp x, int n)
 }
 
 
-ieee754sp ieee754sp_ldexp(ieee754sp x, int n)
+union ieee754sp ieee754sp_ldexp(union ieee754sp x, int n)
 {
 	return ieee754sp_scalb(x, n);
 }

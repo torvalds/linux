@@ -26,10 +26,10 @@
 
 #include "ieee754sp.h"
 
-ieee754sp ieee754sp_fdp(ieee754dp x)
+union ieee754sp ieee754sp_fdp(union ieee754dp x)
 {
 	COMPXDP;
-	ieee754sp nan;
+	union ieee754sp nan;
 
 	EXPLODEXDP;
 

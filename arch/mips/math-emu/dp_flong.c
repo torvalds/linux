@@ -26,7 +26,7 @@
 
 #include "ieee754dp.h"
 
-ieee754dp ieee754dp_flong(s64 x)
+union ieee754dp ieee754dp_flong(s64 x)
 {
 	u64 xm;
 	int xe;
@@ -68,7 +68,7 @@ ieee754dp ieee754dp_flong(s64 x)
 	DPNORMRET1(xs, xe, xm, "dp_flong", x);
 }
 
-ieee754dp ieee754dp_fulong(u64 u)
+union ieee754dp ieee754dp_fulong(u64 u)
 {
 	if ((s64) u < 0)
 		return ieee754dp_add(ieee754dp_1e63(),
