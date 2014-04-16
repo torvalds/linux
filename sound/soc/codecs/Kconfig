@@ -71,6 +71,7 @@ config SND_SOC_ALL_CODECS
 	select SND_SOC_PCM512x_SPI if SPI_MASTER
 	select SND_SOC_RT5631 if I2C
 	select SND_SOC_RT5640 if I2C
+	select SND_SOC_RT5651 if I2C
 	select SND_SOC_SGTL5000 if I2C
 	select SND_SOC_SI476X if MFD_SI476X_CORE
 	select SND_SOC_SIRF_AUDIO_CODEC
@@ -394,6 +395,9 @@ config SND_SOC_RT5631
 	tristate
 
 config SND_SOC_RT5640
+	tristate
+
+config SND_SOC_RT5651
 	tristate
 
 #Freescale sgtl5000 codec
