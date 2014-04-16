@@ -36,6 +36,7 @@
 
 #include "davinci-pcm.h"
 #include "davinci-mcasp.h"
+#include "../omap/omap-pcm.h"
 
 #define MCASP_MAX_AFIFO_DEPTH	64
 
@@ -1220,12 +1221,25 @@ static int davinci_mcasp_probe(struct platform_device *pdev)
 	if (ret != 0)
 		goto err_release_clk;
 
-	if (mcasp->version != MCASP_VERSION_4) {
+	switch (mcasp->version) {
+	case MCASP_VERSION_1:
+	case MCASP_VERSION_2:
+	case MCASP_VERSION_3:
 		ret = davinci_soc_platform_register(&pdev->dev);
-		if (ret) {
-			dev_err(&pdev->dev, "register PCM failed: %d\n", ret);
-			goto err_unregister_component;
-		}
+		break;
+	case MCASP_VERSION_4:
+		ret = omap_pcm_platform_register(&pdev->dev);
+		break;
+	default:
+		dev_err(&pdev->dev, "Invalid McASP version: %d\n",
+			mcasp->version);
+		ret = -EINVAL;
+		break;
+	}
+
+	if (ret) {
+		dev_err(&pdev->dev, "register PCM failed: %d\n", ret);
+		goto err_unregister_component;
 	}
 
 	return 0;
@@ -1243,8 +1257,19 @@ static int davinci_mcasp_remove(struct platform_device *pdev)
 	struct davinci_mcasp *mcasp = dev_get_drvdata(&pdev->dev);
 
 	snd_soc_unregister_component(&pdev->dev);
-	if (mcasp->version != MCASP_VERSION_4)
+
+	switch (mcasp->version) {
+	case MCASP_VERSION_1:
+	case MCASP_VERSION_2:
+	case MCASP_VERSION_3:
 		davinci_soc_platform_unregister(&pdev->dev);
+		break;
+	case MCASP_VERSION_4:
+		/* Using the resource managed omap-pcm as platform driver */
+		break;
+	default:
+		break;
+	}
 
 	pm_runtime_put_sync(&pdev->dev);
 	pm_runtime_disable(&pdev->dev);
