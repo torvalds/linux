@@ -31,6 +31,14 @@
 
 static int rkehci_status = 1;
 static struct ehci_hcd *g_ehci;
+struct rk_ehci_hcd {
+	struct ehci_hcd *ehci;
+	uint8_t host_enabled;
+	uint8_t host_setenable;
+	struct rkehci_platform_data *pldata;
+	struct timer_list 	connect_detect_timer;
+	struct delayed_work	host_enable_work;
+};
 #define EHCI_PRINT(x...)   printk( KERN_INFO "EHCI: " x )
 
 static struct rkehci_pdata_id rkehci_pdata[] = {
@@ -61,6 +69,89 @@ static void ehci_port_power (struct ehci_hcd *ehci, int is_on)
 	/* Flush those writes */
 	ehci_readl(ehci, &ehci->regs->command);
 	msleep(20);
+}
+
+static void rk_ehci_hcd_enable(struct work_struct *work)
+{
+	struct rk_ehci_hcd *rk_ehci;
+	struct usb_hcd *hcd;
+	struct rkehci_platform_data *pldata;
+	struct ehci_hcd *ehci;
+
+	rk_ehci = container_of(work, struct rk_ehci_hcd, host_enable_work.work);
+	pldata = rk_ehci->pldata;
+	ehci = rk_ehci->ehci;
+	hcd = ehci_to_hcd(ehci);
+
+	if(rk_ehci->host_enabled == rk_ehci->host_setenable){
+		printk("%s, enable flag %d\n", __func__, rk_ehci->host_setenable);
+		goto out;
+	}
+
+	if(rk_ehci->host_setenable == 2){// enable -> disable
+		if(pldata->get_status(USB_STATUS_DPDM)){// usb device connected
+			rk_ehci->host_setenable = 1;
+			goto out;
+		}
+
+		printk("%s, disable host controller\n", __func__);
+		ehci_port_power(ehci, 0);
+		usb_remove_hcd(hcd);
+
+		/* reset cru and reinitialize EHCI controller */
+		pldata->soft_reset();
+		usb_add_hcd(hcd, hcd->irq, IRQF_DISABLED | IRQF_SHARED);
+		if(pldata->phy_suspend)
+			pldata->phy_suspend(pldata, USB_PHY_SUSPEND);
+		/* do not disable EHCI clk, otherwise RK3288
+		 * host1(DWC_OTG) can't work normally.
+		 */
+		//pldata->clock_enable(pldata, 0);
+	}else if(rk_ehci->host_setenable == 1){
+		//pldata->clock_enable(pldata, 1);
+		if(pldata->phy_suspend)
+			pldata->phy_suspend(pldata, USB_PHY_ENABLED);
+		mdelay(5);
+		ehci_port_power(ehci, 1);
+		printk("%s, enable host controller\n", __func__);
+	}
+	rk_ehci->host_enabled = rk_ehci->host_setenable;
+
+out:
+	return;
+}
+
+static void rk_ehci_hcd_connect_detect(unsigned long pdata)
+{
+	struct rk_ehci_hcd *rk_ehci= (struct rk_ehci_hcd*)pdata;
+	struct ehci_hcd *ehci = rk_ehci->ehci;
+	struct rkehci_platform_data *pldata;
+	uint32_t status;
+	unsigned long flags;
+
+	local_irq_save(flags);
+
+	pldata = rk_ehci->pldata;
+
+	if(pldata->get_status(USB_STATUS_DPDM)){
+		// usb device connected
+		rk_ehci->host_setenable = 1;
+	}else{
+		// no device, suspend host
+		status = readl(&ehci->regs->port_status[0]);
+		if(!(status & PORT_CONNECT)){
+			rk_ehci->host_setenable = 2;
+		}
+	}
+
+	if((rk_ehci->host_enabled) && (rk_ehci->host_setenable != rk_ehci->host_enabled)){
+		schedule_delayed_work(&rk_ehci->host_enable_work, 1);
+	}
+
+	mod_timer(&rk_ehci->connect_detect_timer,jiffies + (HZ<<1));
+
+	local_irq_restore(flags);
+	return;
 }
 
 static struct hc_driver rk_ehci_hc_driver = {
@@ -206,6 +297,7 @@ static int ehci_rk_probe(struct platform_device *pdev)
 	static u64 usb_dmamask = 0xffffffffUL;
 	struct device_node *node = pdev->dev.of_node;
 	struct rkehci_pdata_id *p;
+	struct rk_ehci_hcd *rk_ehci;
 	const struct of_device_id *match =
 		of_match_device(of_match_ptr( rk_ehci_of_match ), &pdev->dev);
 
@@ -244,6 +336,9 @@ static int ehci_rk_probe(struct platform_device *pdev)
 		pldata->clock_init(pldata);
 		pldata->clock_enable(pldata, 1);
 	}
+
+	if(pldata->phy_suspend)
+		pldata->phy_suspend(pldata, USB_PHY_ENABLED);
 
 	if(pldata->soft_reset)
 		pldata->soft_reset();
@@ -289,10 +384,36 @@ static int ehci_rk_probe(struct platform_device *pdev)
 	}
 
 	g_ehci = ehci;
-	ehci_port_power(ehci, 1);
-//	writel_relaxed(0x1d4d ,hcd->regs +0x90);
-//	writel_relaxed(0x4 ,hcd->regs +0xa0);
-//	dsb();
+
+	rk_ehci = devm_kzalloc(&pdev->dev, sizeof(struct rk_ehci_hcd),
+						   GFP_KERNEL);
+	if(!rk_ehci){
+		ret = -ENOMEM;
+		goto put_hcd;
+	}
+
+	rk_ehci->ehci = ehci;
+	rk_ehci->pldata = pldata;
+	rk_ehci->host_enabled = 2;
+	rk_ehci->host_setenable = 2;
+	rk_ehci->connect_detect_timer.function = rk_ehci_hcd_connect_detect;
+	rk_ehci->connect_detect_timer.data = (unsigned long)(rk_ehci);
+	init_timer( &rk_ehci->connect_detect_timer );
+	mod_timer( &rk_ehci->connect_detect_timer, jiffies+(HZ<<3) );
+	INIT_DELAYED_WORK( &rk_ehci->host_enable_work, rk_ehci_hcd_enable );
+
+	ehci_port_power(ehci, 0);
+
+	if(pldata->phy_suspend){
+		if( pldata->phy_status == USB_PHY_ENABLED ){
+			pldata->phy_suspend(pldata, USB_PHY_SUSPEND);
+			/* do not disable EHCI clk, otherwise RK3288
+			 * host1(DWC_OTG) can't work normally.
+			 * udelay(3);
+			 * pldata->clock_enable(pldata, 0);
+			 */
+		}
+	}
 
 	printk("%s ok\n", __func__);
 

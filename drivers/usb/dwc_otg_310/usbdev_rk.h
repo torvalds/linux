@@ -79,8 +79,11 @@ struct rkehci_platform_data{
 	void (*hw_init)(void);
 	void (*clock_init)(void* pdata);
 	void (*clock_enable)(void *pdata, int enable);
+	void (*phy_suspend)(void* pdata, int suspend);
 	void (*soft_reset)(void);
+	int (*get_status)(int id);
 	int clk_status;
+	int phy_status;
 };
 
 struct dwc_otg_control_usb {

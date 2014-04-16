@@ -428,6 +428,23 @@ static void rk_ehci_hw_init(void)
 	}
 }
 
+static void rk_ehci_phy_suspend(void* pdata, int suspend)
+{
+	struct rkehci_platform_data *usbpdata=pdata;
+
+	if(suspend){
+		// enable soft control
+		control_usb->grf_uoc1_base->CON2 = (0x01<<2)|((0x01<<2)<<16);
+		// enter suspend
+		control_usb->grf_uoc1_base->CON3 = 0x2A|(0x3F<<16);
+		usbpdata->phy_status = 1;
+	}else{
+		// exit suspend
+		control_usb->grf_uoc1_base->CON2 = ((0x01<<2)<<16);
+		usbpdata->phy_status = 0;
+	}
+}
+
 static void rk_ehci_clock_init(void* pdata)
 {
 	struct rkehci_platform_data *usbpdata=pdata;
@@ -481,14 +498,42 @@ static void rk_ehci_soft_reset(void)
 	mdelay(2);
 }
 
+static int rk_ehci_get_status(int id)
+{
+	int ret = -1;
+
+	switch(id){
+		case USB_STATUS_DPDM:
+			// dpdm in grf
+			ret = control_usb->grf_soc_status2_rk3288->host0_linestate;
+			break;
+		case USB_CHIP_ID:
+			ret = control_usb->chip_id;
+			break;
+		case USB_REMOTE_WAKEUP:
+			ret = control_usb->remote_wakeup;
+			break;
+		case USB_IRQ_WAKEUP:
+			ret = control_usb->usb_irq_wakeup;
+			break;
+		default:
+			break;
+	}
+
+	return ret;
+}
+
 struct rkehci_platform_data rkehci_pdata_rk3288 = {
 	.phyclk = NULL,
 	.ahbclk = NULL,
 	.clk_status = -1,
+	.phy_status = 0,
 	.hw_init = rk_ehci_hw_init,
+	.phy_suspend = rk_ehci_phy_suspend,
 	.clock_init = rk_ehci_clock_init,
 	.clock_enable = rk_ehci_clock_enable,
 	.soft_reset = rk_ehci_soft_reset,
+	.get_status = rk_ehci_get_status,
 };
 #endif
 
