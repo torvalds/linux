@@ -1472,10 +1472,12 @@ int si_mc_load_microcode(struct radeon_device *rdev)
 	const __be32 *fw_data;
 	u32 running, blackout = 0;
 	u32 *io_mc_regs;
-	int i, regs_size, ucode_size = rdev->mc_fw->size / 4;
+	int i, regs_size, ucode_size;
 
 	if (!rdev->mc_fw)
 		return -EINVAL;
+
+	ucode_size = rdev->mc_fw->size / 4;
 
 	switch (rdev->family) {
 	case CHIP_TAHITI:
