@@ -12,43 +12,22 @@
 #include <linux/stat.h>
 #include <linux/pci.h>
 
-static ssize_t show_fid(struct device *dev, struct device_attribute *attr,
-			char *buf)
-{
-	struct zpci_dev *zdev = get_zdev(to_pci_dev(dev));
+#define zpci_attr(name, fmt, member)					\
+static ssize_t name##_show(struct device *dev,				\
+			   struct device_attribute *attr, char *buf)	\
+{									\
+	struct zpci_dev *zdev = get_zdev(to_pci_dev(dev));		\
+									\
+	return sprintf(buf, fmt, zdev->member);				\
+}									\
+static DEVICE_ATTR_RO(name)
 
-	return sprintf(buf, "0x%08x\n", zdev->fid);
-}
-static DEVICE_ATTR(function_id, S_IRUGO, show_fid, NULL);
+zpci_attr(function_id, "0x%08x\n", fid);
+zpci_attr(function_handle, "0x%08x\n", fh);
+zpci_attr(pchid, "0x%04x\n", pchid);
+zpci_attr(pfgid, "0x%02x\n", pfgid);
 
-static ssize_t show_fh(struct device *dev, struct device_attribute *attr,
-		       char *buf)
-{
-	struct zpci_dev *zdev = get_zdev(to_pci_dev(dev));
-
-	return sprintf(buf, "0x%08x\n", zdev->fh);
-}
-static DEVICE_ATTR(function_handle, S_IRUGO, show_fh, NULL);
-
-static ssize_t show_pchid(struct device *dev, struct device_attribute *attr,
-			  char *buf)
-{
-	struct zpci_dev *zdev = get_zdev(to_pci_dev(dev));
-
-	return sprintf(buf, "0x%04x\n", zdev->pchid);
-}
-static DEVICE_ATTR(pchid, S_IRUGO, show_pchid, NULL);
-
-static ssize_t show_pfgid(struct device *dev, struct device_attribute *attr,
-			  char *buf)
-{
-	struct zpci_dev *zdev = get_zdev(to_pci_dev(dev));
-
-	return sprintf(buf, "0x%02x\n", zdev->pfgid);
-}
-static DEVICE_ATTR(pfgid, S_IRUGO, show_pfgid, NULL);
-
-static ssize_t store_recover(struct device *dev, struct device_attribute *attr,
+static ssize_t recover_store(struct device *dev, struct device_attribute *attr,
 			     const char *buf, size_t count)
 {
 	struct pci_dev *pdev = to_pci_dev(dev);
@@ -70,7 +49,7 @@ static ssize_t store_recover(struct device *dev, struct device_attribute *attr,
 	pci_rescan_bus(zdev->bus);
 	return count;
 }
-static DEVICE_ATTR(recover, S_IWUSR, NULL, store_recover);
+static DEVICE_ATTR_WO(recover);
 
 static struct device_attribute *zpci_dev_attrs[] = {
 	&dev_attr_function_id,
