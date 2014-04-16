@@ -953,6 +953,38 @@ static int pci230_ao_rinsn(struct comedi_device *dev,
 	return i;
 }
 
+static int pci230_ao_check_chanlist(struct comedi_device *dev,
+				    struct comedi_subdevice *s,
+				    struct comedi_cmd *cmd)
+{
+	unsigned int prev_chan = CR_CHAN(cmd->chanlist[0]);
+	unsigned int range0 = CR_RANGE(cmd->chanlist[0]);
+	int i;
+
+	for (i = 1; i < cmd->chanlist_len; i++) {
+		unsigned int chan = CR_CHAN(cmd->chanlist[i]);
+		unsigned int range = CR_RANGE(cmd->chanlist[i]);
+
+		if (chan < prev_chan) {
+			dev_dbg(dev->class_dev,
+				"%s: channel numbers must increase\n",
+				__func__);
+			return -EINVAL;
+		}
+
+		if (range != range0) {
+			dev_dbg(dev->class_dev,
+				"%s: channels must have the same range\n",
+				__func__);
+			return -EINVAL;
+		}
+
+		prev_chan = chan;
+	}
+
+	return 0;
+}
+
 static int pci230_ao_cmdtest(struct comedi_device *dev,
 			     struct comedi_subdevice *s, struct comedi_cmd *cmd)
 {
@@ -1065,48 +1097,9 @@ static int pci230_ao_cmdtest(struct comedi_device *dev,
 	if (err)
 		return 4;
 
-	/* Step 5: check channel list if it exists. */
-
-	if (cmd->chanlist && cmd->chanlist_len > 0) {
-		enum {
-			seq_err = (1 << 0),
-			range_err = (1 << 1)
-		};
-		unsigned int errors;
-		unsigned int n;
-		unsigned int chan, prev_chan;
-		unsigned int range, first_range;
-
-		prev_chan = CR_CHAN(cmd->chanlist[0]);
-		first_range = CR_RANGE(cmd->chanlist[0]);
-		errors = 0;
-		for (n = 1; n < cmd->chanlist_len; n++) {
-			chan = CR_CHAN(cmd->chanlist[n]);
-			range = CR_RANGE(cmd->chanlist[n]);
-			/* Channel numbers must strictly increase. */
-			if (chan < prev_chan)
-				errors |= seq_err;
-
-			/* Ranges must be the same. */
-			if (range != first_range)
-				errors |= range_err;
-
-			prev_chan = chan;
-		}
-		if (errors != 0) {
-			err++;
-			if ((errors & seq_err) != 0) {
-				dev_dbg(dev->class_dev,
-					"%s: channel numbers must increase\n",
-					__func__);
-			}
-			if ((errors & range_err) != 0) {
-				dev_dbg(dev->class_dev,
-					"%s: channels must have the same range\n",
-					__func__);
-			}
-		}
-	}
+	/* Step 5: check channel list if it exists */
+	if (cmd->chanlist && cmd->chanlist_len > 0)
+		err |= pci230_ao_check_chanlist(dev, s, cmd);
 
 	if (err)
 		return 5;
@@ -1552,6 +1545,109 @@ static int pci230_ai_check_scan_period(struct comedi_cmd *cmd)
 	return !err;
 }
 
+static int pci230_ai_check_chanlist(struct comedi_device *dev,
+				    struct comedi_subdevice *s,
+				    struct comedi_cmd *cmd)
+{
+	struct pci230_private *devpriv = dev->private;
+	unsigned int max_diff_chan = (s->n_chan / 2) - 1;
+	unsigned int prev_chan = 0;
+	unsigned int prev_range = 0;
+	unsigned int prev_aref = 0;
+	unsigned int prev_polarity = 0;
+	unsigned int subseq_len = 0;
+	int i;
+
+	for (i = 0; i < cmd->chanlist_len; i++) {
+		unsigned int chanspec = cmd->chanlist[i];
+		unsigned int chan = CR_CHAN(chanspec);
+		unsigned int range = CR_RANGE(chanspec);
+		unsigned int aref = CR_AREF(chanspec);
+		unsigned int polarity = pci230_ai_bipolar[range];
+
+		if (aref == AREF_DIFF && chan >= max_diff_chan) {
+			dev_dbg(dev->class_dev,
+				"%s: differential channel number out of range 0 to %u\n",
+				__func__, max_diff_chan);
+			return -EINVAL;
+		}
+
+		if (i > 0) {
+			/*
+			 * Channel numbers must strictly increase or
+			 * subsequence must repeat exactly.
+			 */
+			if (chan <= prev_chan && subseq_len == 0)
+				subseq_len = i;
+
+			if (subseq_len > 0 &&
+			    cmd->chanlist[i % subseq_len] != chanspec) {
+					dev_dbg(dev->class_dev,
+						"%s: channel numbers must increase or sequence must repeat exactly\n",
+						__func__);
+					return -EINVAL;
+			}
+
+			if (aref != prev_aref) {
+				dev_dbg(dev->class_dev,
+					"%s: channel sequence analogue references must be all the same (single-ended or differential)\n",
+					__func__);
+				return -EINVAL;
+			}
+
+			if (polarity != prev_polarity) {
+				dev_dbg(dev->class_dev,
+					"%s: channel sequence ranges must be all bipolar or all unipolar\n",
+					__func__);
+				return -EINVAL;
+			}
+
+			if (aref != AREF_DIFF && range != prev_range &&
+			    ((chan ^ prev_chan) & ~1) == 0) {
+				dev_dbg(dev->class_dev,
+					"%s: single-ended channel pairs must have the same range\n",
+					__func__);
+				return -EINVAL;
+			}
+		}
+		prev_chan = chan;
+		prev_range = range;
+		prev_aref = aref;
+		prev_polarity = polarity;
+	}
+
+	if (subseq_len == 0)
+		subseq_len = cmd->chanlist_len;
+
+	if ((cmd->chanlist_len % subseq_len) != 0) {
+		dev_dbg(dev->class_dev,
+			"%s: sequence must repeat exactly\n", __func__);
+		return -EINVAL;
+	}
+
+	/*
+	 * Buggy PCI230+ or PCI260+ requires channel 0 to be (first) in the
+	 * sequence if the sequence contains more than one channel. Hardware
+	 * versions 1 and 2 have the bug. There is no hardware version 3.
+	 *
+	 * Actually, there are two firmwares that report themselves as
+	 * hardware version 1 (the boards have different ADC chips with
+	 * slightly different timing requirements, which was supposed to
+	 * be invisible to software). The first one doesn't seem to have
+	 * the bug, but the second one does, and we can't tell them apart!
+	 */
+	if (devpriv->hwver > 0 && devpriv->hwver < 4) {
+		if (subseq_len > 1 && CR_CHAN(cmd->chanlist[0]) != 0) {
+			dev_info(dev->class_dev,
+				 "amplc_pci230: ai_cmdtest: Buggy PCI230+/260+ h/w version %u requires first channel of multi-channel sequence to be 0 (corrected in h/w version 4)\n",
+				 devpriv->hwver);
+			return -EINVAL;
+		}
+	}
+
+	return 0;
+}
+
 static int pci230_ai_cmdtest(struct comedi_device *dev,
 			     struct comedi_subdevice *s, struct comedi_cmd *cmd)
 {
@@ -1740,136 +1836,9 @@ static int pci230_ai_cmdtest(struct comedi_device *dev,
 	if (err)
 		return 4;
 
-	/* Step 5: check channel list if it exists. */
-
-	if (cmd->chanlist && cmd->chanlist_len > 0) {
-		enum {
-			seq_err = 1 << 0,
-			rangepair_err = 1 << 1,
-			polarity_err = 1 << 2,
-			aref_err = 1 << 3,
-			diffchan_err = 1 << 4,
-			buggy_chan0_err = 1 << 5
-		};
-		unsigned int errors;
-		unsigned int chan, prev_chan;
-		unsigned int range, prev_range;
-		unsigned int polarity, prev_polarity;
-		unsigned int aref, prev_aref;
-		unsigned int subseq_len;
-		unsigned int n;
-
-		subseq_len = 0;
-		errors = 0;
-		prev_chan = prev_aref = prev_range = prev_polarity = 0;
-		for (n = 0; n < cmd->chanlist_len; n++) {
-			chan = CR_CHAN(cmd->chanlist[n]);
-			range = CR_RANGE(cmd->chanlist[n]);
-			aref = CR_AREF(cmd->chanlist[n]);
-			polarity = pci230_ai_bipolar[range];
-			/* Only the first half of the channels are available if
-			 * differential.  (These are remapped in software.  In
-			 * hardware, only the even channels are available.) */
-			if ((aref == AREF_DIFF)
-			    && (chan >= (s->n_chan / 2))) {
-				errors |= diffchan_err;
-			}
-			if (n > 0) {
-				/* Channel numbers must strictly increase or
-				 * subsequence must repeat exactly. */
-				if ((chan <= prev_chan)
-				    && (subseq_len == 0)) {
-					subseq_len = n;
-				}
-				if ((subseq_len > 0)
-				    && (cmd->chanlist[n] !=
-					cmd->chanlist[n % subseq_len])) {
-					errors |= seq_err;
-				}
-				/* Channels must have same AREF. */
-				if (aref != prev_aref)
-					errors |= aref_err;
-
-				/* Channel ranges must have same polarity. */
-				if (polarity != prev_polarity)
-					errors |= polarity_err;
-
-				/* Single-ended channel pairs must have same
-				 * range.  */
-				if ((aref != AREF_DIFF)
-				    && (((chan ^ prev_chan) & ~1) == 0)
-				    && (range != prev_range)) {
-					errors |= rangepair_err;
-				}
-			}
-			prev_chan = chan;
-			prev_range = range;
-			prev_aref = aref;
-			prev_polarity = polarity;
-		}
-		if (subseq_len == 0) {
-			/* Subsequence is whole sequence. */
-			subseq_len = n;
-		}
-		/* If channel list is a repeating subsequence, need a whole
-		 * number of repeats. */
-		if ((n % subseq_len) != 0)
-			errors |= seq_err;
-
-		if ((devpriv->hwver > 0) && (devpriv->hwver < 4)) {
-			/*
-			 * Buggy PCI230+ or PCI260+ requires channel 0 to be
-			 * (first) in the sequence if the sequence contains
-			 * more than one channel.  Hardware versions 1 and 2
-			 * have the bug.  There is no hardware version 3.
-			 *
-			 * Actually, there are two firmwares that report
-			 * themselves as hardware version 1 (the boards
-			 * have different ADC chips with slightly different
-			 * timing requirements, which was supposed to be
-			 * invisible to software).  The first one doesn't
-			 * seem to have the bug, but the second one
-			 * does, and we can't tell them apart!
-			 */
-			if ((subseq_len > 1)
-			    && (CR_CHAN(cmd->chanlist[0]) != 0)) {
-				errors |= buggy_chan0_err;
-			}
-		}
-		if (errors != 0) {
-			err++;
-			if ((errors & seq_err) != 0) {
-				dev_dbg(dev->class_dev,
-					"%s: channel numbers must increase or sequence must repeat exactly\n",
-					__func__);
-			}
-			if ((errors & rangepair_err) != 0) {
-				dev_dbg(dev->class_dev,
-					"%s: single-ended channel pairs must have the same range\n",
-					__func__);
-			}
-			if ((errors & polarity_err) != 0) {
-				dev_dbg(dev->class_dev,
-					"%s: channel sequence ranges must be all bipolar or all unipolar\n",
-					__func__);
-			}
-			if ((errors & aref_err) != 0) {
-				dev_dbg(dev->class_dev,
-					"%s: channel sequence analogue references must be all the same (single-ended or differential)\n",
-					__func__);
-			}
-			if ((errors & diffchan_err) != 0) {
-				dev_dbg(dev->class_dev,
-					"%s: differential channel number out of range 0 to %u\n",
-					__func__, (s->n_chan / 2) - 1);
-			}
-			if ((errors & buggy_chan0_err) != 0) {
-				dev_info(dev->class_dev,
-					 "amplc_pci230: ai_cmdtest: Buggy PCI230+/260+ h/w version %u requires first channel of multi-channel sequence to be 0 (corrected in h/w version 4)\n",
-					 devpriv->hwver);
-			}
-		}
-	}
+	/* Step 5: check channel list if it exists */
+	if (cmd->chanlist && cmd->chanlist_len > 0)
+		err |= pci230_ai_check_chanlist(dev, s, cmd);
 
 	if (err)
 		return 5;
