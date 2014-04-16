@@ -641,7 +641,7 @@ ssize_t spk_var_store(struct kobject *kobj, struct kobj_attribute *attr,
 		if (kstrtol(cp, 10, &value) == 0)
 			ret = spk_set_num_var(value, param, len);
 		else
-			pr_warn("overflow or parsing error has occured");
+			pr_warn("overflow or parsing error has occurred");
 		if (ret == -ERANGE) {
 			var_data = param->data;
 			pr_warn("value for %s out of range, expect %d to %d\n",
