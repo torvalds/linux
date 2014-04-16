@@ -51,10 +51,6 @@ struct tegra_ehci_soc_config {
 	bool has_hostpc;
 };
 
-static int (*orig_hub_control)(struct usb_hcd *hcd,
-				u16 typeReq, u16 wValue, u16 wIndex,
-				char *buf, u16 wLength);
-
 struct tegra_ehci_hcd {
 	struct tegra_usb_phy *phy;
 	struct clk *clk;
@@ -236,7 +232,7 @@ static int tegra_ehci_hub_control(
 	spin_unlock_irqrestore(&ehci->lock, flags);
 
 	/* Handle the hub control events here */
-	return orig_hub_control(hcd, typeReq, wValue, wIndex, buf, wLength);
+	return ehci_hub_control(hcd, typeReq, wValue, wIndex, buf, wLength);
 
 done:
 	spin_unlock_irqrestore(&ehci->lock, flags);
@@ -553,8 +549,6 @@ static int __init ehci_tegra_init(void)
 	 * want to encourage others to override these functions by making it
 	 * too easy.
 	 */
-
-	orig_hub_control = tegra_ehci_hc_driver.hub_control;
 
 	tegra_ehci_hc_driver.map_urb_for_dma = tegra_ehci_map_urb_for_dma;
 	tegra_ehci_hc_driver.unmap_urb_for_dma = tegra_ehci_unmap_urb_for_dma;
