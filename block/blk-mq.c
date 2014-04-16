@@ -298,10 +298,13 @@ inline void __blk_mq_end_io(struct request *rq, int error)
 {
 	blk_account_io_done(rq);
 
-	if (rq->end_io)
+	if (rq->end_io) {
 		rq->end_io(rq, error);
-	else
+	} else {
+		if (unlikely(blk_bidi_rq(rq)))
+			blk_mq_free_request(rq->next_rq);
 		blk_mq_free_request(rq);
+	}
 }
 EXPORT_SYMBOL(__blk_mq_end_io);
 
@@ -366,6 +369,8 @@ static void blk_mq_start_request(struct request *rq, bool last)
 	trace_block_rq_issue(q, rq);
 
 	rq->resid_len = blk_rq_bytes(rq);
+	if (unlikely(blk_bidi_rq(rq)))
+		rq->next_rq->resid_len = blk_rq_bytes(rq->next_rq);
 
 	/*
 	 * Just mark start time and set the started bit. Due to memory
