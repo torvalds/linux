@@ -45,10 +45,12 @@
 
 LEAF(mips_cps_core_entry)
 	/*
-	 * These first 8 bytes will be patched by cps_smp_setup to load the
-	 * base address of the CM GCRs into register v1.
+	 * These first 12 bytes will be patched by cps_smp_setup to load the
+	 * base address of the CM GCRs into register v1 and the CCA to use into
+	 * register s0.
 	 */
 	.quad	0
+	.word	0
 
 	/* Check whether we're here due to an NMI */
 	mfc0	k0, CP0_STATUS
@@ -139,10 +141,11 @@ icache_done:
 	 add	a0, a0, t0
 dcache_done:
 
-	/* Set Kseg0 cacheable, coherent, write-back, write-allocate */
+	/* Set Kseg0 CCA to that in s0 */
 	mfc0	t0, CP0_CONFIG
 	ori	t0, 0x7
-	xori	t0, 0x2
+	xori	t0, 0x7
+	or	t0, t0, s0
 	mtc0	t0, CP0_CONFIG
 	ehb
 
