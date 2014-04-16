@@ -199,8 +199,19 @@ void __blk_add_timer(struct request *req, struct list_head *timeout_list)
 	expiry = round_jiffies_up(req->deadline);
 
 	if (!timer_pending(&q->timeout) ||
-	    time_before(expiry, q->timeout.expires))
-		mod_timer(&q->timeout, expiry);
+	    time_before(expiry, q->timeout.expires)) {
+		unsigned long diff = q->timeout.expires - expiry;
+
+		/*
+		 * Due to added timer slack to group timers, the timer
+		 * will often be a little in front of what we asked for.
+		 * So apply some tolerance here too, otherwise we keep
+		 * modifying the timer because expires for value X
+		 * will be X + something.
+		 */
+		if (diff >= HZ / 2)
+			mod_timer(&q->timeout, expiry);
+	}
 
 }
 
