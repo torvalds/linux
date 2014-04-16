@@ -137,15 +137,27 @@
 		#address-cells = <1>;
 		#size-cells = <0>;
 
-		reg_usb_vbus: regulator@0 {
+		reg_usbh1_vbus: regulator@0 {
 			compatible = "regulator-fixed";
 			pinctrl-names = "default";
-			pinctrl-0 = <&pinctrl_usbreg>;
+			pinctrl-0 = <&pinctrl_usbh1reg>;
 			reg = <0>;
-			regulator-name = "usb_vbus";
+			regulator-name = "usbh1_vbus";
 			regulator-min-microvolt = <5000000>;
 			regulator-max-microvolt = <5000000>;
 			gpio = <&gpio2 5 GPIO_ACTIVE_HIGH>;
+			enable-active-high;
+		};
+
+		reg_usbotg_vbus: regulator@1 {
+			compatible = "regulator-fixed";
+			pinctrl-names = "default";
+			pinctrl-0 = <&pinctrl_usbotgreg>;
+			reg = <1>;
+			regulator-name = "usbotg_vbus";
+			regulator-min-microvolt = <5000000>;
+			regulator-max-microvolt = <5000000>;
+			gpio = <&gpio1 7 GPIO_ACTIVE_HIGH>;
 			enable-active-high;
 		};
 	};
@@ -539,9 +551,15 @@
 			>;
 		};
 
-		pinctrl_usbreg: usbreggrp {
+		pinctrl_usbh1reg: usbh1reggrp {
 			fsl,pins = <
 				MX51_PAD_EIM_D21__GPIO2_5		0x85
+			>;
+		};
+
+		pinctrl_usbotgreg: usbotgreggrp {
+			fsl,pins = <
+				MX51_PAD_GPIO1_7__GPIO1_7		0x85
 			>;
 		};
 	};
@@ -618,7 +636,7 @@
 &usbh1 {
 	pinctrl-names = "default";
 	pinctrl-0 = <&pinctrl_usbh1>;
-	vbus-supply = <&reg_usb_vbus>;
+	vbus-supply = <&reg_usbh1_vbus>;
 	fsl,usbphy = <&usbh1phy>;
 	phy_type = "ulpi";
 	status = "okay";
@@ -628,5 +646,6 @@
 	dr_mode = "otg";
 	disable-over-current;
 	phy_type = "utmi_wide";
+	vbus-supply = <&reg_usbotg_vbus>;
 	status = "okay";
 };
