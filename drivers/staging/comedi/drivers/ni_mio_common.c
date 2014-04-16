@@ -3304,11 +3304,6 @@ static int ni_ao_cmdtest(struct comedi_device *dev, struct comedi_subdevice *s,
 	if (err)
 		return 4;
 
-	/* step 5: fix up chanlist */
-
-	if (err)
-		return 5;
-
 	return 0;
 }
 
@@ -3439,12 +3434,27 @@ static int ni_m_series_dio_insn_bits(struct comedi_device *dev,
 	return insn->n;
 }
 
+static int ni_cdio_check_chanlist(struct comedi_device *dev,
+				  struct comedi_subdevice *s,
+				  struct comedi_cmd *cmd)
+{
+	int i;
+
+	for (i = 0; i < cmd->chanlist_len; ++i) {
+		unsigned int chan = CR_CHAN(cmd->chanlist[i]);
+
+		if (chan != i)
+			return -EINVAL;
+	}
+
+	return 0;
+}
+
 static int ni_cdio_cmdtest(struct comedi_device *dev,
 			   struct comedi_subdevice *s, struct comedi_cmd *cmd)
 {
 	int err = 0;
 	int tmp;
-	unsigned i;
 
 	/* Step 1 : check if triggers are trivially valid */
 
@@ -3484,12 +3494,9 @@ static int ni_cdio_cmdtest(struct comedi_device *dev,
 	if (err)
 		return 4;
 
-	/* step 5: check chanlist */
-
-	for (i = 0; i < cmd->chanlist_len; ++i) {
-		if (cmd->chanlist[i] != i)
-			err = 1;
-	}
+	/* Step 5: check channel list if it exists */
+	if (cmd->chanlist && cmd->chanlist_len > 0)
+		err |= ni_cdio_check_chanlist(dev, s, cmd);
 
 	if (err)
 		return 5;
