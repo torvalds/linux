@@ -553,6 +553,69 @@ static int dwc3_core_get_phy(struct dwc3 *dwc)
 	return 0;
 }
 
+static int dwc3_core_init_mode(struct dwc3 *dwc)
+{
+	struct device *dev = dwc->dev;
+	int ret;
+
+	switch (dwc->dr_mode) {
+	case USB_DR_MODE_PERIPHERAL:
+		dwc3_set_mode(dwc, DWC3_GCTL_PRTCAP_DEVICE);
+		ret = dwc3_gadget_init(dwc);
+		if (ret) {
+			dev_err(dev, "failed to initialize gadget\n");
+			return ret;
+		}
+		break;
+	case USB_DR_MODE_HOST:
+		dwc3_set_mode(dwc, DWC3_GCTL_PRTCAP_HOST);
+		ret = dwc3_host_init(dwc);
+		if (ret) {
+			dev_err(dev, "failed to initialize host\n");
+			return ret;
+		}
+		break;
+	case USB_DR_MODE_OTG:
+		dwc3_set_mode(dwc, DWC3_GCTL_PRTCAP_OTG);
+		ret = dwc3_host_init(dwc);
+		if (ret) {
+			dev_err(dev, "failed to initialize host\n");
+			return ret;
+		}
+
+		ret = dwc3_gadget_init(dwc);
+		if (ret) {
+			dev_err(dev, "failed to initialize gadget\n");
+			return ret;
+		}
+		break;
+	default:
+		dev_err(dev, "Unsupported mode of operation %d\n", dwc->dr_mode);
+		return -EINVAL;
+	}
+
+	return 0;
+}
+
+static void dwc3_core_exit_mode(struct dwc3 *dwc)
+{
+	switch (dwc->dr_mode) {
+	case USB_DR_MODE_PERIPHERAL:
+		dwc3_gadget_exit(dwc);
+		break;
+	case USB_DR_MODE_HOST:
+		dwc3_host_exit(dwc);
+		break;
+	case USB_DR_MODE_OTG:
+		dwc3_host_exit(dwc);
+		dwc3_gadget_exit(dwc);
+		break;
+	default:
+		/* do nothing */
+		break;
+	}
+}
+
 #define DWC3_ALIGN_MASK		(16 - 1)
 
 static int dwc3_probe(struct platform_device *pdev)
@@ -682,41 +745,9 @@ static int dwc3_probe(struct platform_device *pdev)
 		goto err_usb3phy_power;
 	}
 
-	switch (dwc->dr_mode) {
-	case USB_DR_MODE_PERIPHERAL:
-		dwc3_set_mode(dwc, DWC3_GCTL_PRTCAP_DEVICE);
-		ret = dwc3_gadget_init(dwc);
-		if (ret) {
-			dev_err(dev, "failed to initialize gadget\n");
-			goto err2;
-		}
-		break;
-	case USB_DR_MODE_HOST:
-		dwc3_set_mode(dwc, DWC3_GCTL_PRTCAP_HOST);
-		ret = dwc3_host_init(dwc);
-		if (ret) {
-			dev_err(dev, "failed to initialize host\n");
-			goto err2;
-		}
-		break;
-	case USB_DR_MODE_OTG:
-		dwc3_set_mode(dwc, DWC3_GCTL_PRTCAP_OTG);
-		ret = dwc3_host_init(dwc);
-		if (ret) {
-			dev_err(dev, "failed to initialize host\n");
-			goto err2;
-		}
-
-		ret = dwc3_gadget_init(dwc);
-		if (ret) {
-			dev_err(dev, "failed to initialize gadget\n");
-			goto err2;
-		}
-		break;
-	default:
-		dev_err(dev, "Unsupported mode of operation %d\n", dwc->dr_mode);
+	ret = dwc3_core_init_mode(dwc);
+	if (ret)
 		goto err2;
-	}
 
 	ret = dwc3_debugfs_init(dwc);
 	if (ret) {
@@ -729,21 +760,7 @@ static int dwc3_probe(struct platform_device *pdev)
 	return 0;
 
 err3:
-	switch (dwc->dr_mode) {
-	case USB_DR_MODE_PERIPHERAL:
-		dwc3_gadget_exit(dwc);
-		break;
-	case USB_DR_MODE_HOST:
-		dwc3_host_exit(dwc);
-		break;
-	case USB_DR_MODE_OTG:
-		dwc3_host_exit(dwc);
-		dwc3_gadget_exit(dwc);
-		break;
-	default:
-		/* do nothing */
-		break;
-	}
+	dwc3_core_exit_mode(dwc);
 
 err2:
 	dwc3_event_buffers_cleanup(dwc);
@@ -778,23 +795,7 @@ static int dwc3_remove(struct platform_device *pdev)
 	pm_runtime_disable(&pdev->dev);
 
 	dwc3_debugfs_exit(dwc);
-
-	switch (dwc->dr_mode) {
-	case USB_DR_MODE_PERIPHERAL:
-		dwc3_gadget_exit(dwc);
-		break;
-	case USB_DR_MODE_HOST:
-		dwc3_host_exit(dwc);
-		break;
-	case USB_DR_MODE_OTG:
-		dwc3_host_exit(dwc);
-		dwc3_gadget_exit(dwc);
-		break;
-	default:
-		/* do nothing */
-		break;
-	}
-
+	dwc3_core_exit_mode(dwc);
 	dwc3_event_buffers_cleanup(dwc);
 	dwc3_free_event_buffers(dwc);
 	dwc3_core_exit(dwc);
