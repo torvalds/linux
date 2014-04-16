@@ -546,72 +546,60 @@ static enum scan_mode labpc_ai_scan_mode(const struct comedi_cmd *cmd)
 	return 0;
 }
 
-static int labpc_ai_chanlist_invalid(const struct comedi_device *dev,
-				     const struct comedi_cmd *cmd,
-				     enum scan_mode mode)
+static int labpc_ai_check_chanlist(struct comedi_device *dev,
+				   struct comedi_subdevice *s,
+				   struct comedi_cmd *cmd)
 {
-	int channel, range, aref, i;
-
-	if (cmd->chanlist == NULL)
-		return 0;
+	enum scan_mode mode = labpc_ai_scan_mode(cmd);
+	unsigned int chan0 = CR_CHAN(cmd->chanlist[0]);
+	unsigned int range0 = CR_RANGE(cmd->chanlist[0]);
+	unsigned int aref0 = CR_AREF(cmd->chanlist[0]);
+	int i;
 
 	if (mode == MODE_SINGLE_CHAN)
 		return 0;
 
-	if (mode == MODE_SINGLE_CHAN_INTERVAL) {
-		if (cmd->chanlist_len > 0xff) {
-			comedi_error(dev,
-				     "ni_labpc: chanlist too long for single channel interval mode\n");
-			return 1;
-		}
-	}
-
-	channel = CR_CHAN(cmd->chanlist[0]);
-	range = CR_RANGE(cmd->chanlist[0]);
-	aref = CR_AREF(cmd->chanlist[0]);
-
 	for (i = 0; i < cmd->chanlist_len; i++) {
+		unsigned int chan = CR_CHAN(cmd->chanlist[i]);
+		unsigned int range = CR_RANGE(cmd->chanlist[i]);
+		unsigned int aref = CR_AREF(cmd->chanlist[i]);
 
 		switch (mode) {
+		case MODE_SINGLE_CHAN:
+			break;
 		case MODE_SINGLE_CHAN_INTERVAL:
-			if (CR_CHAN(cmd->chanlist[i]) != channel) {
-				comedi_error(dev,
-					     "channel scanning order specified in chanlist is not supported by hardware.\n");
-				return 1;
+			if (chan != chan0) {
+				dev_dbg(dev->class_dev,
+					"channel scanning order specified in chanlist is not supported by hardware\n");
+				return -EINVAL;
 			}
 			break;
 		case MODE_MULT_CHAN_UP:
-			if (CR_CHAN(cmd->chanlist[i]) != i) {
-				comedi_error(dev,
-					     "channel scanning order specified in chanlist is not supported by hardware.\n");
-				return 1;
+			if (chan != i) {
+				dev_dbg(dev->class_dev,
+					"channel scanning order specified in chanlist is not supported by hardware\n");
+				return -EINVAL;
 			}
 			break;
 		case MODE_MULT_CHAN_DOWN:
-			if (CR_CHAN(cmd->chanlist[i]) !=
-			    cmd->chanlist_len - i - 1) {
-				comedi_error(dev,
-					     "channel scanning order specified in chanlist is not supported by hardware.\n");
-				return 1;
+			if (chan != (cmd->chanlist_len - i - 1)) {
+				dev_dbg(dev->class_dev,
+					"channel scanning order specified in chanlist is not supported by hardware\n");
+				return -EINVAL;
 			}
 			break;
-		default:
-			dev_err(dev->class_dev,
-				"ni_labpc: bug! in chanlist check\n");
-			return 1;
-			break;
 		}
 
-		if (CR_RANGE(cmd->chanlist[i]) != range) {
-			comedi_error(dev,
-				     "entries in chanlist must all have the same range\n");
-			return 1;
+		if (range != range0) {
+			dev_dbg(dev->class_dev,
+				"entries in chanlist must all have the same range\n");
+			return -EINVAL;
 		}
 
-		if (CR_AREF(cmd->chanlist[i]) != aref) {
-			comedi_error(dev,
-				     "entries in chanlist must all have the same reference\n");
-			return 1;
+		if (aref != aref0) {
+			dev_dbg(dev->class_dev,
+				"entries in chanlist must all have the same reference\n");
+			return -EINVAL;
 		}
 	}
 
@@ -711,7 +699,11 @@ static int labpc_ai_cmdtest(struct comedi_device *dev,
 	if (err)
 		return 4;
 
-	if (labpc_ai_chanlist_invalid(dev, cmd, mode))
+	/* Step 5: check channel list if it exists */
+	if (cmd->chanlist && cmd->chanlist_len > 0)
+		err |= labpc_ai_check_chanlist(dev, s, cmd);
+
+	if (err)
 		return 5;
 
 	return 0;
