@@ -43,8 +43,8 @@ struct tegra_hdmi {
 	bool enabled;
 
 	struct regulator *hdmi;
-	struct regulator *vdd;
 	struct regulator *pll;
+	struct regulator *vdd;
 
 	void __iomem *regs;
 	unsigned int irq;
@@ -711,15 +711,15 @@ static int tegra_output_hdmi_enable(struct tegra_output *output)
 	h_back_porch = mode->htotal - mode->hsync_end;
 	h_front_porch = mode->hsync_start - mode->hdisplay;
 
-	err = regulator_enable(hdmi->vdd);
-	if (err < 0) {
-		dev_err(hdmi->dev, "failed to enable VDD regulator: %d\n", err);
-		return err;
-	}
-
 	err = regulator_enable(hdmi->pll);
 	if (err < 0) {
 		dev_err(hdmi->dev, "failed to enable PLL regulator: %d\n", err);
+		return err;
+	}
+
+	err = regulator_enable(hdmi->vdd);
+	if (err < 0) {
+		dev_err(hdmi->dev, "failed to enable VDD regulator: %d\n", err);
 		return err;
 	}
 
@@ -946,8 +946,8 @@ static int tegra_output_hdmi_disable(struct tegra_output *output)
 
 	reset_control_assert(hdmi->rst);
 	clk_disable(hdmi->clk);
-	regulator_disable(hdmi->pll);
 	regulator_disable(hdmi->vdd);
+	regulator_disable(hdmi->pll);
 
 	hdmi->enabled = false;
 
@@ -1403,16 +1403,16 @@ static int tegra_hdmi_probe(struct platform_device *pdev)
 		return PTR_ERR(hdmi->hdmi);
 	}
 
-	hdmi->vdd = devm_regulator_get(&pdev->dev, "vdd");
-	if (IS_ERR(hdmi->vdd)) {
-		dev_err(&pdev->dev, "failed to get VDD regulator\n");
-		return PTR_ERR(hdmi->vdd);
-	}
-
 	hdmi->pll = devm_regulator_get(&pdev->dev, "pll");
 	if (IS_ERR(hdmi->pll)) {
 		dev_err(&pdev->dev, "failed to get PLL regulator\n");
 		return PTR_ERR(hdmi->pll);
+	}
+
+	hdmi->vdd = devm_regulator_get(&pdev->dev, "vdd");
+	if (IS_ERR(hdmi->vdd)) {
+		dev_err(&pdev->dev, "failed to get VDD regulator\n");
+		return PTR_ERR(hdmi->vdd);
 	}
 
 	hdmi->output.dev = &pdev->dev;
