@@ -1341,7 +1341,8 @@ static int rk32_edp_probe(struct platform_device *pdev)
 	clk_prepare(edp->clk_edp);
 	clk_prepare(edp->clk_24m);
 	rk32_edp_clk_enable(edp);
-	rk32_edp_pre_init();
+	if (!support_uboot_display())
+		rk32_edp_pre_init();
 	edp->irq = platform_get_irq(pdev, 0);
 	if (edp->irq < 0) {
 		dev_err(&pdev->dev, "cannot find IRQ\n");
@@ -1354,7 +1355,8 @@ static int rk32_edp_probe(struct platform_device *pdev)
 		return ret;
 	}
 	disable_irq_nosync(edp->irq);
-	rk32_edp_clk_disable(edp);
+	if (!support_uboot_display())
+		rk32_edp_clk_disable(edp);
 	rk32_edp = edp;
 	rk_fb_trsm_ops_register(&trsm_edp_ops, SCREEN_EDP);
 #if defined(CONFIG_DEBUG_FS)
