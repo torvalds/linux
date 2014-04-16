@@ -205,9 +205,10 @@ static inline void iounmap(void __iomem *addr)
 
 /* Macros used for converting between virtual and physical mappings. */
 # define phys_to_virt(vaddr)	\
-	((void *)((unsigned long)vaddr + PAGE_OFFSET - PHYS_OFFSET))
+	((void *)((unsigned long)vaddr | CONFIG_KERNEL_REGION_BASE))
+/* Clear top 3 bits */
 # define virt_to_phys(vaddr)	\
-	((unsigned long)((unsigned long)vaddr - PAGE_OFFSET + PHYS_OFFSET))
+	((unsigned long)((unsigned long)vaddr & ~0xE0000000))
 
 #define virt_to_bus virt_to_phys
 #define bus_to_virt phys_to_virt
