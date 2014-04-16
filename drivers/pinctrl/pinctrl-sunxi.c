@@ -948,6 +948,6 @@ static struct platform_driver sunxi_pinctrl_driver = {
 };
 module_platform_driver(sunxi_pinctrl_driver);
 
-MODULE_AUTHOR("Maxime Ripard <maxime.ripard@free-electrons.com");
+MODULE_AUTHOR("Maxime Ripard <maxime.ripard@free-electrons.com>");
 MODULE_DESCRIPTION("Allwinner A1X pinctrl driver");
 MODULE_LICENSE("GPL");
