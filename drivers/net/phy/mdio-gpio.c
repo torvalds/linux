@@ -32,8 +32,8 @@
 
 struct mdio_gpio_info {
 	struct mdiobb_ctrl ctrl;
-	int mdc, mdio;
-	int mdc_active_low, mdio_active_low;
+	int mdc, mdio, mdo;
+	int mdc_active_low, mdio_active_low, mdo_active_low;
 };
 
 static void *mdio_gpio_of_get_data(struct platform_device *pdev)
@@ -60,6 +60,12 @@ static void *mdio_gpio_of_get_data(struct platform_device *pdev)
 	pdata->mdio = ret;
 	pdata->mdio_active_low = flags & OF_GPIO_ACTIVE_LOW;
 
+	ret = of_get_gpio_flags(np, 2, &flags);
+	if (ret > 0) {
+		pdata->mdo = ret;
+		pdata->mdo_active_low = flags & OF_GPIO_ACTIVE_LOW;
+	}
+
 	return pdata;
 }
 
@@ -67,6 +73,16 @@ static void mdio_dir(struct mdiobb_ctrl *ctrl, int dir)
 {
 	struct mdio_gpio_info *bitbang =
 		container_of(ctrl, struct mdio_gpio_info, ctrl);
+
+	if (bitbang->mdo) {
+		/* Separate output pin. Always set its value to high
+		 * when changing direction. If direction is input,
+		 * assume the pin serves as pull-up. If direction is
+		 * output, the default value is high.
+		 */
+		gpio_set_value(bitbang->mdo, 1 ^ bitbang->mdo_active_low);
+		return;
+	}
 
 	if (dir)
 		gpio_direction_output(bitbang->mdio,
@@ -88,7 +104,10 @@ static void mdio_set(struct mdiobb_ctrl *ctrl, int what)
 	struct mdio_gpio_info *bitbang =
 		container_of(ctrl, struct mdio_gpio_info, ctrl);
 
-	gpio_set_value(bitbang->mdio, what ^ bitbang->mdio_active_low);
+	if (bitbang->mdo)
+		gpio_set_value(bitbang->mdo, what ^ bitbang->mdo_active_low);
+	else
+		gpio_set_value(bitbang->mdio, what ^ bitbang->mdio_active_low);
 }
 
 static void mdc_set(struct mdiobb_ctrl *ctrl, int what)
@@ -125,6 +144,8 @@ static struct mii_bus *mdio_gpio_bus_init(struct device *dev,
 	bitbang->mdc_active_low = pdata->mdc_active_low;
 	bitbang->mdio = pdata->mdio;
 	bitbang->mdio_active_low = pdata->mdio_active_low;
+	bitbang->mdo = pdata->mdo;
+	bitbang->mdo_active_low = pdata->mdo_active_low;
 
 	new_bus = alloc_mdio_bitbang(&bitbang->ctrl);
 	if (!new_bus)
@@ -150,6 +171,13 @@ static struct mii_bus *mdio_gpio_bus_init(struct device *dev,
 
 	if (devm_gpio_request(dev, bitbang->mdio, "mdio"))
 		goto out_free_bus;
+
+	if (bitbang->mdo) {
+		if (devm_gpio_request(dev, bitbang->mdo, "mdo"))
+			goto out_free_bus;
+		gpio_direction_output(bitbang->mdo, 1);
+		gpio_direction_input(bitbang->mdio);
+	}
 
 	gpio_direction_output(bitbang->mdc, 0);
 
