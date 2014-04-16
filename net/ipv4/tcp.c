@@ -2916,6 +2916,14 @@ static int do_tcp_getsockopt(struct sock *sk, int level,
 	case TCP_USER_TIMEOUT:
 		val = jiffies_to_msecs(icsk->icsk_user_timeout);
 		break;
+
+	case TCP_FASTOPEN:
+		if (icsk->icsk_accept_queue.fastopenq != NULL)
+			val = icsk->icsk_accept_queue.fastopenq->max_qlen;
+		else
+			val = 0;
+		break;
+
 	case TCP_TIMESTAMP:
 		val = tcp_time_stamp + tp->tsoffset;
 		break;
