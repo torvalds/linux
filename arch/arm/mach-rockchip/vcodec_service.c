@@ -283,6 +283,7 @@ typedef struct vpu_service_info {
     struct clk *hclk_vcodec;
     struct clk *clk_core;
     struct clk *clk_cabac;
+    struct clk *pd_video;
 
     int irq_dec;
     int irq_enc;
@@ -331,10 +332,10 @@ static struct dentry* vcodec_debugfs_create_device_dir(char *dirname, struct den
 static int debug_vcodec_open(struct inode *inode, struct file *file);
 
 static const struct file_operations debug_vcodec_fops = {
-	.open = debug_vcodec_open,
-	.read = seq_read,
-	.llseek = seq_lseek,
-	.release = single_release,
+    .open = debug_vcodec_open,
+    .read = seq_read,
+    .llseek = seq_lseek,
+    .release = single_release,
 };
 #endif
 
@@ -343,42 +344,61 @@ static const struct file_operations debug_vcodec_fops = {
 
 #define VPU_SIMULATE_DELAY      msecs_to_jiffies(15)
 
-static void vpu_get_clk(struct vpu_service_info *pservice)
+static int vpu_get_clk(struct vpu_service_info *pservice)
 {
 #if VCODEC_CLOCK_ENABLE
-	/*pd_video	= clk_get(NULL, "pd_video");
-	if (IS_ERR(pd_video)) {
-		pr_err("failed on clk_get pd_video\n");
-	}*/
-
-	pservice->aclk_vcodec 	= devm_clk_get(pservice->dev, "aclk_vcodec");
-	if (IS_ERR(pservice->aclk_vcodec)) {
-		dev_err(pservice->dev, "failed on clk_get aclk_vcodec\n");
-	}
-
-	pservice->hclk_vcodec 	= devm_clk_get(pservice->dev, "hclk_vcodec");
-	if (IS_ERR(pservice->hclk_vcodec)) {
-		dev_err(pservice->dev, "failed on clk_get hclk_vcodec\n");
-	}
-
-	if (pservice->dev_id == VCODEC_DEVICE_ID_HEVC) {
-		pservice->clk_core = devm_clk_get(pservice->dev, "clk_core");
-		if (IS_ERR(pservice->clk_core)) {
-			dev_err(pservice->dev, "failed on clk_get clk_core\n");
-		}
-
-		pservice->clk_cabac = devm_clk_get(pservice->dev, "clk_cabac");
-		if (IS_ERR(pservice->clk_cabac)) {
-			dev_err(pservice->dev, "failed on clk_get clk_cabac\n");
-		}
-	}
+    do {
+        pservice->aclk_vcodec   = devm_clk_get(pservice->dev, "aclk_vcodec");
+        if (IS_ERR(pservice->aclk_vcodec)) {
+            dev_err(pservice->dev, "failed on clk_get aclk_vcodec\n");
+            break;
+        }
+    
+        pservice->hclk_vcodec   = devm_clk_get(pservice->dev, "hclk_vcodec");
+        if (IS_ERR(pservice->hclk_vcodec)) {
+            dev_err(pservice->dev, "failed on clk_get hclk_vcodec\n");
+            break;
+        }
+    
+        if (pservice->dev_id == VCODEC_DEVICE_ID_HEVC) {
+            pservice->clk_core = devm_clk_get(pservice->dev, "clk_core");
+            if (IS_ERR(pservice->clk_core)) {
+                dev_err(pservice->dev, "failed on clk_get clk_core\n");
+                break;
+            }
+    
+            pservice->clk_cabac = devm_clk_get(pservice->dev, "clk_cabac");
+            if (IS_ERR(pservice->clk_cabac)) {
+                dev_err(pservice->dev, "failed on clk_get clk_cabac\n");
+                break;
+            }
+            
+            pservice->pd_video = devm_clk_get(pservice->dev, "pd_hevc");
+            if (IS_ERR(pservice->pd_video)) {
+                dev_err(pservice->dev, "failed on clk_get pd_hevc\n");
+                break;
+            }
+        } else {
+            pservice->pd_video = devm_clk_get(pservice->dev, "pd_video");
+            if (IS_ERR(pservice->pd_video)) {
+                dev_err(pservice->dev, "failed on clk_get pd_video\n");
+                break;
+            }
+        }
+        
+        return 0;
+    } while (0);
+    
+    return -1;
 #endif
 }
 
 static void vpu_put_clk(struct vpu_service_info *pservice)
 {
 #if VCODEC_CLOCK_ENABLE
-    //clk_put(pd_video);
+    if (pservice->pd_video) {
+        devm_clk_put(pservice->dev, pservice->pd_video);
+    }
 
     if (pservice->aclk_vcodec) {
         devm_clk_put(pservice->dev, pservice->aclk_vcodec);
@@ -492,23 +512,19 @@ static void vpu_service_power_off(struct vpu_service_info *pservice)
 		vpu_service_dump(pservice);
 	}
 
-	printk("%s: power off...", dev_name(pservice->dev));
-#ifdef CONFIG_ARCH_RK29
-	pmu_set_power_domain(PD_VCODEC, false);
-#else
-	//clk_disable(pd_video);
-#endif
-	udelay(10);
+    printk("%s: power off...", dev_name(pservice->dev));
+    udelay(10);
 #if VCODEC_CLOCK_ENABLE
-	clk_disable_unprepare(pservice->hclk_vcodec);
-	clk_disable_unprepare(pservice->aclk_vcodec);
+    clk_disable_unprepare(pservice->pd_video);
+    clk_disable_unprepare(pservice->hclk_vcodec);
+    clk_disable_unprepare(pservice->aclk_vcodec);
     if (pservice->dev_id == VCODEC_DEVICE_ID_HEVC) {
         clk_disable_unprepare(pservice->clk_core);
         clk_disable_unprepare(pservice->clk_cabac);
     }
 #endif
-	wake_unlock(&pservice->wake_lock);
-	printk("done\n");
+    wake_unlock(&pservice->wake_lock);
+    printk("done\n");
 }
 
 static inline void vpu_queue_power_off_work(struct vpu_service_info *pservice)
@@ -532,27 +548,29 @@ static void vpu_power_off_work(struct work_struct *work_s)
 
 static void vpu_service_power_on(struct vpu_service_info *pservice)
 {
-	static ktime_t last;
-	ktime_t now = ktime_get();
-	if (ktime_to_ns(ktime_sub(now, last)) > NSEC_PER_SEC) {
-		cancel_delayed_work_sync(&pservice->power_off_work);
-		vpu_queue_power_off_work(pservice);
-		last = now;
-	}
-	if (pservice->enabled)
-		return ;
+    static ktime_t last;
+    ktime_t now = ktime_get();
+    if (ktime_to_ns(ktime_sub(now, last)) > NSEC_PER_SEC) {
+        cancel_delayed_work_sync(&pservice->power_off_work);
+        vpu_queue_power_off_work(pservice);
+        last = now;
+    }
+    if (pservice->enabled)
+        return ;
 
-	pservice->enabled = true;
-	printk("%s: power on\n", dev_name(pservice->dev));
+    pservice->enabled = true;
+    printk("%s: power on\n", dev_name(pservice->dev));
 
 #if VCODEC_CLOCK_ENABLE
     clk_prepare_enable(pservice->aclk_vcodec);
-	clk_prepare_enable(pservice->hclk_vcodec);
+    clk_prepare_enable(pservice->hclk_vcodec);
 
     if (pservice->dev_id == VCODEC_DEVICE_ID_HEVC) {
         clk_prepare_enable(pservice->clk_core);
         clk_prepare_enable(pservice->clk_cabac);
     }
+    
+    clk_prepare_enable(pservice->pd_video);
 #endif
 
 #if defined(CONFIG_ARCH_RK319X)
@@ -560,14 +578,9 @@ static void vpu_service_power_on(struct vpu_service_info *pservice)
     #define BIT_VCODEC_SEL  (1<<7)
     writel_relaxed(readl_relaxed(RK319X_GRF_BASE + GRF_SOC_CON1) | (BIT_VCODEC_SEL) | (BIT_VCODEC_SEL << 16), RK319X_GRF_BASE + GRF_SOC_CON1);
 #endif
-	udelay(10);
-#ifdef CONFIG_ARCH_RK29
-	pmu_set_power_domain(PD_VCODEC, true);
-#else
-	//clk_enable(pd_video);
-#endif
-	udelay(10);
-	wake_lock(&pservice->wake_lock);
+    
+    udelay(10);
+    wake_lock(&pservice->wake_lock);
 }
 
 static inline bool reg_check_rmvb_wmv(vpu_reg *reg)
@@ -1402,7 +1415,9 @@ static int vcodec_probe(struct platform_device *pdev)
 
     pservice->dev = dev;
 
-    vpu_get_clk(pservice);
+    if (0 > vpu_get_clk(pservice)) {
+        goto err;
+    }
 
     INIT_DELAYED_WORK(&pservice->power_off_work, vpu_power_off_work);
 
