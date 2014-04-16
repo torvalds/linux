@@ -743,10 +743,6 @@ static void tegra_crtc_prepare(struct drm_crtc *crtc)
 		WIN_A_OF_INT | WIN_B_OF_INT | WIN_C_OF_INT;
 	tegra_dc_writel(dc, value, DC_CMD_INT_POLARITY);
 
-	value = PW0_ENABLE | PW1_ENABLE | PW2_ENABLE | PW3_ENABLE |
-		PW4_ENABLE | PM0_ENABLE | PM1_ENABLE;
-	tegra_dc_writel(dc, value, DC_CMD_DISPLAY_POWER_CONTROL);
-
 	/* initialize timer */
 	value = CURSOR_THRESHOLD(0) | WINDOW_A_THRESHOLD(0x20) |
 		WINDOW_B_THRESHOLD(0x20) | WINDOW_C_THRESHOLD(0x20);
