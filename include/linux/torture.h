@@ -49,12 +49,6 @@
 #define VERBOSE_TOROUT_ERRSTRING(s) \
 	do { if (verbose) pr_alert("%s" TORTURE_FLAG "!!! %s\n", torture_type, s); } while (0)
 
-/* Definitions for a non-string torture-test module parameter. */
-#define torture_parm(type, name, init, msg) \
-	static type name = init; \
-	module_param(name, type, 0444); \
-	MODULE_PARM_DESC(name, msg);
-
 /* Definitions for online/offline exerciser. */
 int torture_onoff_init(long ooholdoff, long oointerval);
 char *torture_onoff_stats(char *page);
