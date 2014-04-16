@@ -65,6 +65,7 @@ static const unsigned short normal_i2c[] = {
 /* Manufacturer IDs */
 #define ADT_MANID		0x11d4  /* Analog Devices */
 #define ATMEL_MANID		0x001f  /* Atmel */
+#define ATMEL_MANID2		0x1114	/* Atmel */
 #define MAX_MANID		0x004d  /* Maxim */
 #define IDT_MANID		0x00b3  /* IDT */
 #define MCP_MANID		0x0054  /* Microchip */
@@ -81,6 +82,9 @@ static const unsigned short normal_i2c[] = {
 /* Atmel */
 #define AT30TS00_DEVID		0x8201
 #define AT30TS00_DEVID_MASK	0xffff
+
+#define AT30TSE004_DEVID	0x2200
+#define AT30TSE004_DEVID_MASK	0xffff
 
 /* IDT */
 #define TS3000B3_DEVID		0x2903  /* Also matches TSE2002B3 */
@@ -130,6 +134,9 @@ static const unsigned short normal_i2c[] = {
 #define STTS2002_DEVID		0x0300
 #define STTS2002_DEVID_MASK	0xffff
 
+#define STTS2004_DEVID		0x2201
+#define STTS2004_DEVID_MASK	0xffff
+
 #define STTS3000_DEVID		0x0200
 #define STTS3000_DEVID_MASK	0xffff
 
@@ -144,6 +151,7 @@ struct jc42_chips {
 static struct jc42_chips jc42_chips[] = {
 	{ ADT_MANID, ADT7408_DEVID, ADT7408_DEVID_MASK },
 	{ ATMEL_MANID, AT30TS00_DEVID, AT30TS00_DEVID_MASK },
+	{ ATMEL_MANID2, AT30TSE004_DEVID, AT30TSE004_DEVID_MASK },
 	{ IDT_MANID, TS3000B3_DEVID, TS3000B3_DEVID_MASK },
 	{ IDT_MANID, TS3000GB2_DEVID, TS3000GB2_DEVID_MASK },
 	{ MAX_MANID, MAX6604_DEVID, MAX6604_DEVID_MASK },
@@ -158,6 +166,7 @@ static struct jc42_chips jc42_chips[] = {
 	{ STM_MANID, STTS424_DEVID, STTS424_DEVID_MASK },
 	{ STM_MANID, STTS424E_DEVID, STTS424E_DEVID_MASK },
 	{ STM_MANID, STTS2002_DEVID, STTS2002_DEVID_MASK },
+	{ STM_MANID, STTS2004_DEVID, STTS2004_DEVID_MASK },
 	{ STM_MANID, STTS3000_DEVID, STTS3000_DEVID_MASK },
 };
 
