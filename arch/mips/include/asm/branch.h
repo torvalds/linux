@@ -8,6 +8,8 @@
 #ifndef _ASM_BRANCH_H
 #define _ASM_BRANCH_H
 
+#include <asm/cpu-features.h>
+#include <asm/mipsregs.h>
 #include <asm/ptrace.h>
 #include <asm/inst.h>
 
