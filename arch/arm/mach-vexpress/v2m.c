@@ -418,8 +418,6 @@ void __init v2m_dt_init_early(void)
 			pr_warning("vexpress: DT HBI (%x) is not matching "
 					"hardware (%x)!\n", dt_hbi, hbi);
 	}
-
-	versatile_sched_clock_init(vexpress_get_24mhz_clock_base(), 24000000);
 }
 
 

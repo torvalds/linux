@@ -191,3 +191,14 @@ config EM_TIMER_STI
 
 config CLKSRC_QCOM
 	bool
+
+config CLKSRC_VERSATILE
+	bool "ARM Versatile (Express) reference platforms clock source"
+	depends on GENERIC_SCHED_CLOCK
+	select CLKSRC_OF
+	default y if MFD_VEXPRESS_SYSREG
+	help
+	  This option enables clock source based on free running
+	  counter available in the "System Registers" block of
+	  ARM Versatile, RealView and Versatile Express reference
+	  platforms.
