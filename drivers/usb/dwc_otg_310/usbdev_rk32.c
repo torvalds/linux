@@ -169,7 +169,11 @@ struct dwc_otg_platform_data usb20otg_pdata_rk3288 = {
 
 static void usb20host_hw_init(void)
 {
-	/* usb phy config init */
+	/* usb phy config init
+	 * set common_on = 0, in suspend mode, host1 PLL blocks remain powered.
+	 * for RK3288, hsic and other modules use host1 (DWC_OTG) 480M phy clk.
+	 */
+	control_usb->grf_uoc2_base->CON0 = (1<<16)|0;
 
 	/* other haredware init,include:
 	 * DRV_VBUS GPIO init */
@@ -328,7 +332,6 @@ static void rk_hsic_clock_init(void* pdata)
 	 */
 	struct rkehci_platform_data *usbpdata=pdata;
 	struct clk *ahbclk, *phyclk480m_hsic, *phyclk12m_hsic;
-	struct clk *phyclk_480m, *phyclk480m_parent;
 
 	phyclk480m_hsic = devm_clk_get(usbpdata->dev, "hsicphy_480m");
 	if (IS_ERR(phyclk480m_hsic)) {
@@ -342,26 +345,12 @@ static void rk_hsic_clock_init(void* pdata)
 		return;
 	}
 
-	phyclk480m_parent = devm_clk_get(usbpdata->dev, "hsic_usbphy2");
-	if (IS_ERR(phyclk480m_parent)) {
-		dev_err(usbpdata->dev, "Failed to get hsic_usbphy2\n");
-		return;
-	}
-
-	phyclk_480m = devm_clk_get(usbpdata->dev, "usbphy_480m");
-	if (IS_ERR(phyclk_480m)) {
-		dev_err(usbpdata->dev, "Failed to get usbphy_480m\n");
-		return;
-	}
-
 	ahbclk = devm_clk_get(usbpdata->dev, "hclk_hsic");
 	if (IS_ERR(ahbclk)) {
 		dev_err(usbpdata->dev, "Failed to get hclk_hsic\n");
 		return;
 	}
 
-	clk_set_parent(phyclk_480m, phyclk480m_parent);
-	
 	usbpdata->hclk_hsic = ahbclk;
 	usbpdata->hsic_phy_480m = phyclk480m_hsic;
 	usbpdata->hsic_phy_12m = phyclk12m_hsic;
@@ -897,7 +886,7 @@ static int dwc_otg_control_usb_probe(struct platform_device *pdev)
 {
 	int gpio, err;
 	struct device_node *np = pdev->dev.of_node;
-	struct clk* hclk_usb_peri;
+	struct clk* hclk_usb_peri, *phyclk_480m, *phyclk480m_parent;
 	int ret = 0;
 
 	control_usb = devm_kzalloc(&pdev->dev, sizeof(*control_usb),GFP_KERNEL);
@@ -914,6 +903,7 @@ static int dwc_otg_control_usb_probe(struct platform_device *pdev)
 		"rockchip,usb_irq_wakeup");
 
 	INIT_DELAYED_WORK(&control_usb->usb_charger_det_work, usb_battery_charger_detect_work);
+
 	hclk_usb_peri = devm_clk_get(&pdev->dev, "hclk_usb_peri");
 	if (IS_ERR(hclk_usb_peri)) {
 		dev_err(&pdev->dev, "Failed to get hclk_usb_peri\n");
@@ -923,6 +913,21 @@ static int dwc_otg_control_usb_probe(struct platform_device *pdev)
 
 	control_usb->hclk_usb_peri = hclk_usb_peri;
 	clk_prepare_enable(hclk_usb_peri);
+
+	phyclk480m_parent = devm_clk_get(&pdev->dev, "usbphy2_480m");
+	if (IS_ERR(phyclk480m_parent)) {
+		dev_err(&pdev->dev, "Failed to get usbphy2_480m\n");
+		goto err2;
+	}
+
+	phyclk_480m = devm_clk_get(&pdev->dev, "usbphy_480m");
+	if (IS_ERR(phyclk_480m)) {
+		dev_err(&pdev->dev, "Failed to get usbphy_480m\n");
+		goto err2;
+	}
+
+	clk_set_parent(phyclk_480m, phyclk480m_parent);
+
 	ret = usb_grf_ioremap(pdev);
 	if(ret){
 		dev_err(&pdev->dev, "Failed to ioremap usb grf\n");

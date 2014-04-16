@@ -1011,8 +1011,10 @@
                           "host1_linestate";
 		gpios = <&gpio0 GPIO_B6 GPIO_ACTIVE_LOW>,/*HOST_VBUS_DRV*/
 		        <&gpio0 GPIO_B4 GPIO_ACTIVE_LOW>;/*OTG_VBUS_DRV*/
-		clocks = <&clk_gates7 9>;
-		clock-names = "hclk_usb_peri";
+		clocks = <&clk_gates7 9>, <&usbphy_480m>,
+                 <&otgphy1_480m>, <&otgphy2_480m>;
+		clock-names = "hclk_usb_peri", "usbphy_480m",
+                      "usbphy1_480m", "usbphy2_480m";
 		rockchip,remote_wakeup;
 		rockchip,usb_irq_wakeup;
 
