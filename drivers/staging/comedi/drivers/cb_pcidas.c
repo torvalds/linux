@@ -803,6 +803,33 @@ static int trimpot_read_insn(struct comedi_device *dev,
 	return 1;
 }
 
+static int cb_pcidas_ai_check_chanlist(struct comedi_device *dev,
+				       struct comedi_subdevice *s,
+				       struct comedi_cmd *cmd)
+{
+	unsigned int chan0 = CR_CHAN(cmd->chanlist[0]);
+	unsigned int range0 = CR_RANGE(cmd->chanlist[0]);
+	int i;
+
+	for (i = 1; i < cmd->chanlist_len; i++) {
+		unsigned int chan = CR_CHAN(cmd->chanlist[i]);
+		unsigned int range = CR_RANGE(cmd->chanlist[i]);
+
+		if (chan != (chan0 + i) % s->n_chan) {
+			dev_dbg(dev->class_dev,
+				"entries in chanlist must be consecutive channels, counting upwards\n");
+			return -EINVAL;
+		}
+
+		if (range != range0) {
+			dev_dbg(dev->class_dev,
+				"entries in chanlist must all have the same gain\n");
+			return -EINVAL;
+		}
+	}
+	return 0;
+}
+
 static int cb_pcidas_ai_cmdtest(struct comedi_device *dev,
 				struct comedi_subdevice *s,
 				struct comedi_cmd *cmd)
@@ -811,7 +838,6 @@ static int cb_pcidas_ai_cmdtest(struct comedi_device *dev,
 	struct cb_pcidas_private *devpriv = dev->private;
 	int err = 0;
 	int tmp;
-	int i, gain, start_chan;
 
 	/* Step 1 : check if triggers are trivially valid */
 
@@ -907,24 +933,9 @@ static int cb_pcidas_ai_cmdtest(struct comedi_device *dev,
 	if (err)
 		return 4;
 
-	/*  check channel/gain list against card's limitations */
-	if (cmd->chanlist) {
-		gain = CR_RANGE(cmd->chanlist[0]);
-		start_chan = CR_CHAN(cmd->chanlist[0]);
-		for (i = 1; i < cmd->chanlist_len; i++) {
-			if (CR_CHAN(cmd->chanlist[i]) !=
-			    (start_chan + i) % s->n_chan) {
-				comedi_error(dev,
-					     "entries in chanlist must be consecutive channels, counting upwards\n");
-				err++;
-			}
-			if (CR_RANGE(cmd->chanlist[i]) != gain) {
-				comedi_error(dev,
-					     "entries in chanlist must all have the same gain\n");
-				err++;
-			}
-		}
-	}
+	/* Step 5: check channel list if it exists */
+	if (cmd->chanlist && cmd->chanlist_len > 0)
+		err |= cb_pcidas_ai_check_chanlist(dev, s, cmd);
 
 	if (err)
 		return 5;
@@ -1035,6 +1046,25 @@ static int cb_pcidas_ai_cmd(struct comedi_device *dev,
 	return 0;
 }
 
+static int cb_pcidas_ao_check_chanlist(struct comedi_device *dev,
+				       struct comedi_subdevice *s,
+				       struct comedi_cmd *cmd)
+{
+	unsigned int chan0 = CR_CHAN(cmd->chanlist[0]);
+
+	if (cmd->chanlist_len > 1) {
+		unsigned int chan1 = CR_CHAN(cmd->chanlist[1]);
+
+		if (chan0 != 0 || chan1 != 1) {
+			dev_dbg(dev->class_dev,
+				"channels must be ordered channel 0, channel 1 in chanlist\n");
+			return -EINVAL;
+		}
+	}
+
+	return 0;
+}
+
 static int cb_pcidas_ao_cmdtest(struct comedi_device *dev,
 				struct comedi_subdevice *s,
 				struct comedi_cmd *cmd)
@@ -1097,15 +1127,9 @@ static int cb_pcidas_ao_cmdtest(struct comedi_device *dev,
 	if (err)
 		return 4;
 
-	/*  check channel/gain list against card's limitations */
-	if (cmd->chanlist && cmd->chanlist_len > 1) {
-		if (CR_CHAN(cmd->chanlist[0]) != 0 ||
-		    CR_CHAN(cmd->chanlist[1]) != 1) {
-			comedi_error(dev,
-				     "channels must be ordered channel 0, channel 1 in chanlist\n");
-			err++;
-		}
-	}
+	/* Step 5: check channel list if it exists */
+	if (cmd->chanlist && cmd->chanlist_len > 0)
+		err |= cb_pcidas_ao_check_chanlist(dev, s, cmd);
 
 	if (err)
 		return 5;
