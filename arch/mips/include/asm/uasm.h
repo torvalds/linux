@@ -123,6 +123,7 @@ Ip_u1(_j);
 Ip_u1(_jal);
 Ip_u2u1(_jalr);
 Ip_u1(_jr);
+Ip_u2s3u1(_lb);
 Ip_u2s3u1(_ld);
 Ip_u3u1u2(_ldx);
 Ip_u2s3u1(_lh);
