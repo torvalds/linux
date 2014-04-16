@@ -602,7 +602,7 @@ static void gdrom_readdisk_dma(struct work_struct *work)
 		spin_unlock(&gdrom_lock);
 		block = blk_rq_pos(req)/GD_TO_BLK + GD_SESSION_OFFSET;
 		block_cnt = blk_rq_sectors(req)/GD_TO_BLK;
-		__raw_writel(virt_to_phys(req->buffer), GDROM_DMA_STARTADDR_REG);
+		__raw_writel(virt_to_phys(bio_data(req->bio)), GDROM_DMA_STARTADDR_REG);
 		__raw_writel(block_cnt * GDROM_HARD_SECTOR, GDROM_DMA_LENGTH_REG);
 		__raw_writel(1, GDROM_DMA_DIRECTION_REG);
 		__raw_writel(1, GDROM_DMA_ENABLE_REG);
