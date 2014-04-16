@@ -757,6 +757,26 @@ static unsigned int burst_convert_arg(unsigned int convert_arg, int round_mode)
 	return micro_sec * 1000;
 }
 
+static int das1800_ai_check_chanlist(struct comedi_device *dev,
+				     struct comedi_subdevice *s,
+				     struct comedi_cmd *cmd)
+{
+	unsigned int unipolar0 = CR_RANGE(cmd->chanlist[0]) & UNIPOLAR;
+	int i;
+
+	for (i = 1; i < cmd->chanlist_len; i++) {
+		unsigned int unipolar = CR_RANGE(cmd->chanlist[i]) & UNIPOLAR;
+
+		if (unipolar != unipolar0) {
+			dev_dbg(dev->class_dev,
+				"unipolar and bipolar ranges cannot be mixed in the chanlist\n");
+			return -EINVAL;
+		}
+	}
+
+	return 0;
+}
+
 /* test analog input cmd */
 static int das1800_ai_do_cmdtest(struct comedi_device *dev,
 				 struct comedi_subdevice *s,
@@ -766,8 +786,6 @@ static int das1800_ai_do_cmdtest(struct comedi_device *dev,
 	struct das1800_private *devpriv = dev->private;
 	int err = 0;
 	unsigned int tmp_arg;
-	int i;
-	int unipolar;
 
 	/* Step 1 : check if triggers are trivially valid */
 
@@ -873,18 +891,9 @@ static int das1800_ai_do_cmdtest(struct comedi_device *dev,
 	if (err)
 		return 4;
 
-	/*  make sure user is not trying to mix unipolar and bipolar ranges */
-	if (cmd->chanlist) {
-		unipolar = CR_RANGE(cmd->chanlist[0]) & UNIPOLAR;
-		for (i = 1; i < cmd->chanlist_len; i++) {
-			if (unipolar != (CR_RANGE(cmd->chanlist[i]) & UNIPOLAR)) {
-				comedi_error(dev,
-					     "unipolar and bipolar ranges cannot be mixed in the chanlist");
-				err++;
-				break;
-			}
-		}
-	}
+	/* Step 5: check channel list if it exists */
+	if (cmd->chanlist && cmd->chanlist_len > 0)
+		err |= das1800_ai_check_chanlist(dev, s, cmd);
 
 	if (err)
 		return 5;
