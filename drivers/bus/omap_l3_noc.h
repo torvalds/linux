@@ -84,6 +84,7 @@ struct l3_flagmux_data {
  * @l3_masters:	array pointing to master data containing name and register
  *		offset for the master.
  * @num_master: number of masters
+ * @mst_addr_mask: Mask representing MSTADDR information of NTTP packet
  * @debug_irq:	irq number of the debug interrupt (populated runtime)
  * @app_irq:	irq number of the application interrupt (populated runtime)
  */
@@ -96,6 +97,7 @@ struct omap_l3 {
 
 	struct l3_masters_data *l3_masters;
 	int num_masters;
+	u32 mst_addr_mask;
 
 	int debug_irq;
 	int app_irq;
@@ -200,6 +202,8 @@ static const struct omap_l3 omap_l3_data = {
 	.num_modules = ARRAY_SIZE(omap_l3_flagmux),
 	.l3_masters = omap_l3_masters,
 	.num_masters = ARRAY_SIZE(omap_l3_masters),
+	/* The 6 MSBs of register field used to distinguish initiator */
+	.mst_addr_mask = 0xFC,
 };
 
 #endif	/* __OMAP_L3_NOC_H */
