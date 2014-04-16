@@ -381,7 +381,7 @@ static int msi001_s_ctrl(struct v4l2_ctrl *ctrl)
 
 	int ret;
 	dev_dbg(&s->spi->dev,
-			"%s: id=%d name=%s val=%d min=%d max=%d step=%d\n",
+			"%s: id=%d name=%s val=%d min=%lld max=%lld step=%lld\n",
 			__func__, ctrl->id, ctrl->name, ctrl->val,
 			ctrl->minimum, ctrl->maximum, ctrl->step);
 

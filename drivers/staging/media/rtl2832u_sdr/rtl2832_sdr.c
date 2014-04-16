@@ -1337,7 +1337,7 @@ static int rtl2832_sdr_s_ctrl(struct v4l2_ctrl *ctrl)
 	int ret;
 
 	dev_dbg(&s->udev->dev,
-			"%s: id=%d name=%s val=%d min=%d max=%d step=%d\n",
+			"%s: id=%d name=%s val=%d min=%lld max=%lld step=%lld\n",
 			__func__, ctrl->id, ctrl->name, ctrl->val,
 			ctrl->minimum, ctrl->maximum, ctrl->step);
 
@@ -1350,8 +1350,8 @@ static int rtl2832_sdr_s_ctrl(struct v4l2_ctrl *ctrl)
 			s32 val = s->f_adc + s->bandwidth->step / 2;
 			u32 offset;
 
-			val = clamp(val, s->bandwidth->minimum,
-				    s->bandwidth->maximum);
+			val = clamp_t(s32, val, s->bandwidth->minimum,
+				      s->bandwidth->maximum);
 			offset = val - s->bandwidth->minimum;
 			offset = s->bandwidth->step *
 				(offset / s->bandwidth->step);

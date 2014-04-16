@@ -877,7 +877,7 @@ const char *v4l2_ctrl_get_name(u32 id)
 EXPORT_SYMBOL(v4l2_ctrl_get_name);
 
 void v4l2_ctrl_fill(u32 id, const char **name, enum v4l2_ctrl_type *type,
-		    s32 *min, s32 *max, s32 *step, s32 *def, u32 *flags)
+		    s64 *min, s64 *max, u64 *step, s64 *def, u32 *flags)
 {
 	*name = v4l2_ctrl_get_name(id);
 	*flags = 0;
@@ -1041,14 +1041,23 @@ void v4l2_ctrl_fill(u32 id, const char **name, enum v4l2_ctrl_type *type,
 		*type = V4L2_CTRL_TYPE_INTEGER;
 		*flags |= V4L2_CTRL_FLAG_READ_ONLY;
 		break;
-	case V4L2_CID_MPEG_VIDEO_DEC_FRAME:
 	case V4L2_CID_MPEG_VIDEO_DEC_PTS:
-		*flags |= V4L2_CTRL_FLAG_VOLATILE;
-		/* Fall through */
+		*type = V4L2_CTRL_TYPE_INTEGER64;
+		*flags |= V4L2_CTRL_FLAG_VOLATILE | V4L2_CTRL_FLAG_READ_ONLY;
+		*min = *def = 0;
+		*max = 0x1ffffffffLL;
+		*step = 1;
+		break;
+	case V4L2_CID_MPEG_VIDEO_DEC_FRAME:
+		*type = V4L2_CTRL_TYPE_INTEGER64;
+		*flags |= V4L2_CTRL_FLAG_VOLATILE | V4L2_CTRL_FLAG_READ_ONLY;
+		*min = *def = 0;
+		*max = 0x7fffffffffffffffLL;
+		*step = 1;
+		break;
 	case V4L2_CID_PIXEL_RATE:
 		*type = V4L2_CTRL_TYPE_INTEGER64;
 		*flags |= V4L2_CTRL_FLAG_READ_ONLY;
-		*min = *max = *step = *def = 0;
 		break;
 	default:
 		*type = V4L2_CTRL_TYPE_INTEGER;
@@ -1352,7 +1361,7 @@ static int cluster_changed(struct v4l2_ctrl *master)
 
 /* Control range checking */
 static int check_range(enum v4l2_ctrl_type type,
-		s32 min, s32 max, u32 step, s32 def)
+		s64 min, s64 max, u64 step, s64 def)
 {
 	switch (type) {
 	case V4L2_CTRL_TYPE_BOOLEAN:
@@ -1360,7 +1369,8 @@ static int check_range(enum v4l2_ctrl_type type,
 			return -ERANGE;
 		/* fall through */
 	case V4L2_CTRL_TYPE_INTEGER:
-		if (step <= 0 || min > max || def < min || def > max)
+	case V4L2_CTRL_TYPE_INTEGER64:
+		if (step == 0 || min > max || def < min || def > max)
 			return -ERANGE;
 		return 0;
 	case V4L2_CTRL_TYPE_BITMASK:
@@ -1385,23 +1395,30 @@ static int check_range(enum v4l2_ctrl_type type,
 	}
 }
 
+/* Round towards the closest legal value */
+#define ROUND_TO_RANGE(val, offset_type, ctrl)			\
+({								\
+	offset_type offset;					\
+	val += (ctrl)->step / 2;				\
+	val = clamp_t(typeof(val), val,				\
+		      (ctrl)->minimum, (ctrl)->maximum);	\
+	offset = (val) - (ctrl)->minimum;			\
+	offset = (ctrl)->step * (offset / (ctrl)->step);	\
+	val = (ctrl)->minimum + offset;				\
+	0;							\
+})
+
 /* Validate a new control */
 static int validate_new(const struct v4l2_ctrl *ctrl,
 			struct v4l2_ext_control *c)
 {
 	size_t len;
-	u32 offset;
-	s32 val;
 
 	switch (ctrl->type) {
 	case V4L2_CTRL_TYPE_INTEGER:
-		/* Round towards the closest legal value */
-		val = c->value + ctrl->step / 2;
-		val = clamp(val, ctrl->minimum, ctrl->maximum);
-		offset = val - ctrl->minimum;
-		offset = ctrl->step * (offset / ctrl->step);
-		c->value = ctrl->minimum + offset;
-		return 0;
+		return ROUND_TO_RANGE(*(s32 *)&c->value, u32, ctrl);
+	case V4L2_CTRL_TYPE_INTEGER64:
+		return ROUND_TO_RANGE(*(s64 *)&c->value64, u64, ctrl);
 
 	case V4L2_CTRL_TYPE_BOOLEAN:
 		c->value = !!c->value;
@@ -1425,9 +1442,6 @@ static int validate_new(const struct v4l2_ctrl *ctrl,
 	case V4L2_CTRL_TYPE_BUTTON:
 	case V4L2_CTRL_TYPE_CTRL_CLASS:
 		c->value = 0;
-		return 0;
-
-	case V4L2_CTRL_TYPE_INTEGER64:
 		return 0;
 
 	case V4L2_CTRL_TYPE_STRING:
@@ -1653,7 +1667,7 @@ unlock:
 static struct v4l2_ctrl *v4l2_ctrl_new(struct v4l2_ctrl_handler *hdl,
 			const struct v4l2_ctrl_ops *ops,
 			u32 id, const char *name, enum v4l2_ctrl_type type,
-			s32 min, s32 max, u32 step, s32 def,
+			s64 min, s64 max, u64 step, s64 def,
 			u32 flags, const char * const *qmenu,
 			const s64 *qmenu_int, void *priv)
 {
@@ -1738,10 +1752,10 @@ struct v4l2_ctrl *v4l2_ctrl_new_custom(struct v4l2_ctrl_handler *hdl,
 	const s64 *qmenu_int = cfg->qmenu_int;
 	enum v4l2_ctrl_type type = cfg->type;
 	u32 flags = cfg->flags;
-	s32 min = cfg->min;
-	s32 max = cfg->max;
-	u32 step = cfg->step;
-	s32 def = cfg->def;
+	s64 min = cfg->min;
+	s64 max = cfg->max;
+	u64 step = cfg->step;
+	s64 def = cfg->def;
 
 	if (name == NULL)
 		v4l2_ctrl_fill(cfg->id, &name, &type, &min, &max, &step,
@@ -1774,7 +1788,7 @@ EXPORT_SYMBOL(v4l2_ctrl_new_custom);
 /* Helper function for standard non-menu controls */
 struct v4l2_ctrl *v4l2_ctrl_new_std(struct v4l2_ctrl_handler *hdl,
 			const struct v4l2_ctrl_ops *ops,
-			u32 id, s32 min, s32 max, u32 step, s32 def)
+			u32 id, s64 min, s64 max, u64 step, s64 def)
 {
 	const char *name;
 	enum v4l2_ctrl_type type;
@@ -1794,15 +1808,17 @@ EXPORT_SYMBOL(v4l2_ctrl_new_std);
 /* Helper function for standard menu controls */
 struct v4l2_ctrl *v4l2_ctrl_new_std_menu(struct v4l2_ctrl_handler *hdl,
 			const struct v4l2_ctrl_ops *ops,
-			u32 id, s32 max, s32 mask, s32 def)
+			u32 id, u8 _max, u64 mask, u8 _def)
 {
 	const char * const *qmenu = NULL;
 	const s64 *qmenu_int = NULL;
 	unsigned int qmenu_int_len = 0;
 	const char *name;
 	enum v4l2_ctrl_type type;
-	s32 min;
-	s32 step;
+	s64 min;
+	s64 max = _max;
+	s64 def = _def;
+	u64 step;
 	u32 flags;
 
 	v4l2_ctrl_fill(id, &name, &type, &min, &max, &step, &def, &flags);
@@ -1823,14 +1839,16 @@ EXPORT_SYMBOL(v4l2_ctrl_new_std_menu);
 
 /* Helper function for standard menu controls with driver defined menu */
 struct v4l2_ctrl *v4l2_ctrl_new_std_menu_items(struct v4l2_ctrl_handler *hdl,
-			const struct v4l2_ctrl_ops *ops, u32 id, s32 max,
-			s32 mask, s32 def, const char * const *qmenu)
+			const struct v4l2_ctrl_ops *ops, u32 id, u8 _max,
+			u64 mask, u8 _def, const char * const *qmenu)
 {
 	enum v4l2_ctrl_type type;
 	const char *name;
 	u32 flags;
-	s32 step;
-	s32 min;
+	u64 step;
+	s64 min;
+	s64 max = _max;
+	s64 def = _def;
 
 	/* v4l2_ctrl_new_std_menu_items() should only be called for
 	 * standard controls without a standard menu.
@@ -1854,12 +1872,14 @@ EXPORT_SYMBOL(v4l2_ctrl_new_std_menu_items);
 /* Helper function for standard integer menu controls */
 struct v4l2_ctrl *v4l2_ctrl_new_int_menu(struct v4l2_ctrl_handler *hdl,
 			const struct v4l2_ctrl_ops *ops,
-			u32 id, s32 max, s32 def, const s64 *qmenu_int)
+			u32 id, u8 _max, u8 _def, const s64 *qmenu_int)
 {
 	const char *name;
 	enum v4l2_ctrl_type type;
-	s32 min;
-	s32 step;
+	s64 min;
+	u64 step;
+	s64 max = _max;
+	s64 def = _def;
 	u32 flags;
 
 	v4l2_ctrl_fill(id, &name, &type, &min, &max, &step, &def, &flags);
@@ -2887,13 +2907,14 @@ void v4l2_ctrl_notify(struct v4l2_ctrl *ctrl, v4l2_ctrl_notify_fnc notify, void 
 EXPORT_SYMBOL(v4l2_ctrl_notify);
 
 int v4l2_ctrl_modify_range(struct v4l2_ctrl *ctrl,
-			s32 min, s32 max, u32 step, s32 def)
+			s64 min, s64 max, u64 step, s64 def)
 {
 	int ret = check_range(ctrl->type, min, max, step, def);
 	struct v4l2_ext_control c;
 
 	switch (ctrl->type) {
 	case V4L2_CTRL_TYPE_INTEGER:
+	case V4L2_CTRL_TYPE_INTEGER64:
 	case V4L2_CTRL_TYPE_BOOLEAN:
 	case V4L2_CTRL_TYPE_MENU:
 	case V4L2_CTRL_TYPE_INTEGER_MENU:

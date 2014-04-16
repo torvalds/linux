@@ -533,7 +533,7 @@ static int smiapp_init_controls(struct smiapp_sensor *sensor)
 
 	sensor->pixel_rate_parray = v4l2_ctrl_new_std(
 		&sensor->pixel_array->ctrl_handler, &smiapp_ctrl_ops,
-		V4L2_CID_PIXEL_RATE, 0, 0, 1, 0);
+		V4L2_CID_PIXEL_RATE, 1, INT_MAX, 1, 1);
 
 	if (sensor->pixel_array->ctrl_handler.error) {
 		dev_err(&client->dev,
@@ -562,7 +562,7 @@ static int smiapp_init_controls(struct smiapp_sensor *sensor)
 
 	sensor->pixel_rate_csi = v4l2_ctrl_new_std(
 		&sensor->src->ctrl_handler, &smiapp_ctrl_ops,
-		V4L2_CID_PIXEL_RATE, 0, 0, 1, 0);
+		V4L2_CID_PIXEL_RATE, 1, INT_MAX, 1, 1);
 
 	if (sensor->src->ctrl_handler.error) {
 		dev_err(&client->dev,

@@ -131,10 +131,10 @@ struct v4l2_ctrl {
 	u32 id;
 	const char *name;
 	enum v4l2_ctrl_type type;
-	s32 minimum, maximum, default_value;
+	s64 minimum, maximum, default_value;
 	union {
-		u32 step;
-		u32 menu_skip_mask;
+		u64 step;
+		u64 menu_skip_mask;
 	};
 	union {
 		const char * const *qmenu;
@@ -216,9 +216,9 @@ struct v4l2_ctrl_handler {
   * @menu_skip_mask: The control's skip mask for menu controls. This makes it
   *		easy to skip menu items that are not valid. If bit X is set,
   *		then menu item X is skipped. Of course, this only works for
-  *		menus with <= 32 menu items. There are no menus that come
+  *		menus with <= 64 menu items. There are no menus that come
   *		close to that number, so this is OK. Should we ever need more,
-  *		then this will have to be extended to a u64 or a bit array.
+  *		then this will have to be extended to a bit array.
   * @qmenu:	A const char * array for all menu items. Array entries that are
   *		empty strings ("") correspond to non-existing menu items (this
   *		is in addition to the menu_skip_mask above). The last entry
@@ -231,12 +231,12 @@ struct v4l2_ctrl_config {
 	u32 id;
 	const char *name;
 	enum v4l2_ctrl_type type;
-	s32 min;
-	s32 max;
-	u32 step;
-	s32 def;
+	s64 min;
+	s64 max;
+	u64 step;
+	s64 def;
 	u32 flags;
-	u32 menu_skip_mask;
+	u64 menu_skip_mask;
 	const char * const *qmenu;
 	const s64 *qmenu_int;
 	unsigned int is_private:1;
@@ -257,7 +257,7 @@ struct v4l2_ctrl_config {
   * control framework this function will no longer be exported.
   */
 void v4l2_ctrl_fill(u32 id, const char **name, enum v4l2_ctrl_type *type,
-		    s32 *min, s32 *max, s32 *step, s32 *def, u32 *flags);
+		    s64 *min, s64 *max, u64 *step, s64 *def, u32 *flags);
 
 
 /** v4l2_ctrl_handler_init_class() - Initialize the control handler.
@@ -362,7 +362,7 @@ struct v4l2_ctrl *v4l2_ctrl_new_custom(struct v4l2_ctrl_handler *hdl,
   */
 struct v4l2_ctrl *v4l2_ctrl_new_std(struct v4l2_ctrl_handler *hdl,
 			const struct v4l2_ctrl_ops *ops,
-			u32 id, s32 min, s32 max, u32 step, s32 def);
+			u32 id, s64 min, s64 max, u64 step, s64 def);
 
 /** v4l2_ctrl_new_std_menu() - Allocate and initialize a new standard V4L2 menu control.
   * @hdl:	The control handler.
@@ -372,9 +372,9 @@ struct v4l2_ctrl *v4l2_ctrl_new_std(struct v4l2_ctrl_handler *hdl,
   * @mask: 	The control's skip mask for menu controls. This makes it
   *		easy to skip menu items that are not valid. If bit X is set,
   *		then menu item X is skipped. Of course, this only works for
-  *		menus with <= 32 menu items. There are no menus that come
+  *		menus with <= 64 menu items. There are no menus that come
   *		close to that number, so this is OK. Should we ever need more,
-  *		then this will have to be extended to a u64 or a bit array.
+  *		then this will have to be extended to a bit array.
   * @def: 	The control's default value.
   *
   * Same as v4l2_ctrl_new_std(), but @min is set to 0 and the @mask value
@@ -384,7 +384,7 @@ struct v4l2_ctrl *v4l2_ctrl_new_std(struct v4l2_ctrl_handler *hdl,
   */
 struct v4l2_ctrl *v4l2_ctrl_new_std_menu(struct v4l2_ctrl_handler *hdl,
 			const struct v4l2_ctrl_ops *ops,
-			u32 id, s32 max, s32 mask, s32 def);
+			u32 id, u8 max, u64 mask, u8 def);
 
 /** v4l2_ctrl_new_std_menu_items() - Create a new standard V4L2 menu control
   * with driver specific menu.
@@ -395,9 +395,9 @@ struct v4l2_ctrl *v4l2_ctrl_new_std_menu(struct v4l2_ctrl_handler *hdl,
   * @mask:	The control's skip mask for menu controls. This makes it
   *		easy to skip menu items that are not valid. If bit X is set,
   *		then menu item X is skipped. Of course, this only works for
-  *		menus with <= 32 menu items. There are no menus that come
+  *		menus with <= 64 menu items. There are no menus that come
   *		close to that number, so this is OK. Should we ever need more,
-  *		then this will have to be extended to a u64 or a bit array.
+  *		then this will have to be extended to a bit array.
   * @def:	The control's default value.
   * @qmenu:	The new menu.
   *
@@ -406,8 +406,8 @@ struct v4l2_ctrl *v4l2_ctrl_new_std_menu(struct v4l2_ctrl_handler *hdl,
   *
   */
 struct v4l2_ctrl *v4l2_ctrl_new_std_menu_items(struct v4l2_ctrl_handler *hdl,
-			const struct v4l2_ctrl_ops *ops, u32 id, s32 max,
-			s32 mask, s32 def, const char * const *qmenu);
+			const struct v4l2_ctrl_ops *ops, u32 id, u8 max,
+			u64 mask, u8 def, const char * const *qmenu);
 
 /** v4l2_ctrl_new_int_menu() - Create a new standard V4L2 integer menu control.
   * @hdl:	The control handler.
@@ -424,7 +424,7 @@ struct v4l2_ctrl *v4l2_ctrl_new_std_menu_items(struct v4l2_ctrl_handler *hdl,
   */
 struct v4l2_ctrl *v4l2_ctrl_new_int_menu(struct v4l2_ctrl_handler *hdl,
 			const struct v4l2_ctrl_ops *ops,
-			u32 id, s32 max, s32 def, const s64 *qmenu_int);
+			u32 id, u8 max, u8 def, const s64 *qmenu_int);
 
 /** v4l2_ctrl_add_ctrl() - Add a control from another handler to this handler.
   * @hdl:	The control handler.
@@ -560,7 +560,7 @@ void v4l2_ctrl_grab(struct v4l2_ctrl *ctrl, bool grabbed);
   * take the lock itself.
   */
 int v4l2_ctrl_modify_range(struct v4l2_ctrl *ctrl,
-			s32 min, s32 max, u32 step, s32 def);
+			s64 min, s64 max, u64 step, s64 def);
 
 /** v4l2_ctrl_lock() - Helper function to lock the handler
   * associated with the control.

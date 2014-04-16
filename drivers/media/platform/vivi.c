@@ -1236,7 +1236,7 @@ static const struct v4l2_ctrl_config vivi_ctrl_int32 = {
 	.id = VIVI_CID_CUSTOM_BASE + 2,
 	.name = "Integer 32 Bits",
 	.type = V4L2_CTRL_TYPE_INTEGER,
-	.min = 0x80000000,
+	.min = -0x80000000LL,
 	.max = 0x7fffffff,
 	.step = 1,
 };
@@ -1246,6 +1246,9 @@ static const struct v4l2_ctrl_config vivi_ctrl_int64 = {
 	.id = VIVI_CID_CUSTOM_BASE + 3,
 	.name = "Integer 64 Bits",
 	.type = V4L2_CTRL_TYPE_INTEGER64,
+	.min = LLONG_MIN,
+	.max = LLONG_MAX,
+	.step = 1,
 };
 
 static const char * const vivi_ctrl_menu_strings[] = {
