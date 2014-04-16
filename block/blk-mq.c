@@ -700,7 +700,7 @@ void blk_mq_start_hw_queue(struct blk_mq_hw_ctx *hctx)
 }
 EXPORT_SYMBOL(blk_mq_start_hw_queue);
 
-void blk_mq_start_stopped_hw_queues(struct request_queue *q)
+void blk_mq_start_stopped_hw_queues(struct request_queue *q, bool async)
 {
 	struct blk_mq_hw_ctx *hctx;
 	int i;
@@ -711,7 +711,7 @@ void blk_mq_start_stopped_hw_queues(struct request_queue *q)
 
 		clear_bit(BLK_MQ_S_STOPPED, &hctx->state);
 		preempt_disable();
-		blk_mq_run_hw_queue(hctx, true);
+		blk_mq_run_hw_queue(hctx, async);
 		preempt_enable();
 	}
 }

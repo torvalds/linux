@@ -151,7 +151,7 @@ static void virtblk_done(struct virtqueue *vq)
 
 	/* In case queue is stopped waiting for more buffers. */
 	if (req_done)
-		blk_mq_start_stopped_hw_queues(vblk->disk->queue);
+		blk_mq_start_stopped_hw_queues(vblk->disk->queue, true);
 }
 
 static int virtio_queue_rq(struct blk_mq_hw_ctx *hctx, struct request *req)
@@ -762,7 +762,7 @@ static int virtblk_restore(struct virtio_device *vdev)
 	vblk->config_enable = true;
 	ret = init_vq(vdev->priv);
 	if (!ret)
-		blk_mq_start_stopped_hw_queues(vblk->disk->queue);
+		blk_mq_start_stopped_hw_queues(vblk->disk->queue, true);
 
 	return ret;
 }
