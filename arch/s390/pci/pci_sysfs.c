@@ -51,36 +51,18 @@ static ssize_t recover_store(struct device *dev, struct device_attribute *attr,
 }
 static DEVICE_ATTR_WO(recover);
 
-static struct device_attribute *zpci_dev_attrs[] = {
-	&dev_attr_function_id,
-	&dev_attr_function_handle,
-	&dev_attr_pchid,
-	&dev_attr_pfgid,
-	&dev_attr_recover,
+static struct attribute *zpci_dev_attrs[] = {
+	&dev_attr_function_id.attr,
+	&dev_attr_function_handle.attr,
+	&dev_attr_pchid.attr,
+	&dev_attr_pfgid.attr,
+	&dev_attr_recover.attr,
 	NULL,
 };
-
-int zpci_sysfs_add_device(struct device *dev)
-{
-	int i, rc = 0;
-
-	for (i = 0; zpci_dev_attrs[i]; i++) {
-		rc = device_create_file(dev, zpci_dev_attrs[i]);
-		if (rc)
-			goto error;
-	}
-	return 0;
-
-error:
-	while (--i >= 0)
-		device_remove_file(dev, zpci_dev_attrs[i]);
-	return rc;
-}
-
-void zpci_sysfs_remove_device(struct device *dev)
-{
-	int i;
-
-	for (i = 0; zpci_dev_attrs[i]; i++)
-		device_remove_file(dev, zpci_dev_attrs[i]);
-}
+static struct attribute_group zpci_attr_group = {
+	.attrs = zpci_dev_attrs,
+};
+const struct attribute_group *zpci_attr_groups[] = {
+	&zpci_attr_group,
+	NULL,
+};
