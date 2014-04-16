@@ -150,11 +150,39 @@ static void munge_sample_array(unsigned short *array, unsigned int num_elements)
 		array[i] = munge_sample(array[i]);
 }
 
+static int das16m1_ai_check_chanlist(struct comedi_device *dev,
+				     struct comedi_subdevice *s,
+				     struct comedi_cmd *cmd)
+{
+	int i;
+
+	if (cmd->chanlist_len == 1)
+		return 0;
+
+	if ((cmd->chanlist_len % 2) != 0) {
+		dev_dbg(dev->class_dev,
+			"chanlist must be of even length or length 1\n");
+		return -EINVAL;
+	}
+
+	for (i = 0; i < cmd->chanlist_len; i++) {
+		unsigned int chan = CR_CHAN(cmd->chanlist[i]);
+
+		if ((i % 2) != (chan % 2)) {
+			dev_dbg(dev->class_dev,
+				 "even/odd channels must go have even/odd chanlist indices\n");
+			return -EINVAL;
+		}
+	}
+
+	return 0;
+}
+
 static int das16m1_cmd_test(struct comedi_device *dev,
 			    struct comedi_subdevice *s, struct comedi_cmd *cmd)
 {
 	struct das16m1_private_struct *devpriv = dev->private;
-	unsigned int err = 0, tmp, i;
+	unsigned int err = 0, tmp;
 
 	/* Step 1 : check if triggers are trivially valid */
 
@@ -216,22 +244,9 @@ static int das16m1_cmd_test(struct comedi_device *dev,
 	if (err)
 		return 4;
 
-	/*  check chanlist against board's peculiarities */
-	if (cmd->chanlist && cmd->chanlist_len > 1) {
-		for (i = 0; i < cmd->chanlist_len; i++) {
-			/*  even/odd channels must go into even/odd queue addresses */
-			if ((i % 2) != (CR_CHAN(cmd->chanlist[i]) % 2)) {
-				comedi_error(dev, "bad chanlist:\n"
-					     " even/odd channels must go have even/odd chanlist indices");
-				err++;
-			}
-		}
-		if ((cmd->chanlist_len % 2) != 0) {
-			comedi_error(dev,
-				     "chanlist must be of even length or length 1");
-			err++;
-		}
-	}
+	/* Step 5: check channel list if it exists */
+	if (cmd->chanlist && cmd->chanlist_len > 0)
+		err |= das16m1_ai_check_chanlist(dev, s, cmd);
 
 	if (err)
 		return 5;
