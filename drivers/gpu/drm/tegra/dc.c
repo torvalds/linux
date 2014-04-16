@@ -589,9 +589,8 @@ static bool tegra_crtc_mode_fixup(struct drm_crtc *crtc,
 static int tegra_dc_set_timings(struct tegra_dc *dc,
 				struct drm_display_mode *mode)
 {
-	/* TODO: For HDMI compliance, h & v ref_to_sync should be set to 1 */
-	unsigned int h_ref_to_sync = 0;
-	unsigned int v_ref_to_sync = 0;
+	unsigned int h_ref_to_sync = 1;
+	unsigned int v_ref_to_sync = 1;
 	unsigned long value;
 
 	tegra_dc_writel(dc, 0x0, DC_DISP_DISP_TIMING_OPTIONS);
