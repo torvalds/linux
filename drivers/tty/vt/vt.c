@@ -104,6 +104,7 @@
 #include <linux/kdb.h>
 #include <linux/ctype.h>
 #include <linux/bsearch.h>
+#include <linux/screen_info.h>
 
 #define MAX_NR_CON_DRIVER 16
 
@@ -148,7 +149,7 @@ static const struct consw *con_driver_map[MAX_NR_CONSOLES];
 
 static int con_open(struct tty_struct *, struct file *);
 static void vc_init(struct vc_data *vc, unsigned int rows,
-		    unsigned int cols, int do_clear);
+		    unsigned int cols, int do_clear, int mode);
 static void gotoxy(struct vc_data *vc, int new_x, int new_y);
 static void save_cur(struct vc_data *vc);
 static void reset_terminal(struct vc_data *vc, int do_clear);
@@ -171,6 +172,9 @@ module_param(global_cursor_default, int, S_IRUGO | S_IWUSR);
 
 static int cur_default = CUR_DEFAULT;
 module_param(cur_default, int, S_IRUGO | S_IWUSR);
+
+int vt_handoff = 0;
+module_param_named(handoff, vt_handoff, int, S_IRUGO | S_IWUSR);
 
 /*
  * ignore_poke: don't unblank the screen when things are typed.  This is
@@ -677,6 +681,13 @@ void redraw_screen(struct vc_data *vc, int is_switch)
 		}
 		if (tty0dev)
 			sysfs_notify(&tty0dev->kobj, NULL, "active");
+		/*
+		 * If we are switching away from a transparent VT the contents
+		 * will be lost, convert it into a blank text console then
+		 * it will be repainted blank if we ever switch back.
+		 */
+		if (old_vc->vc_mode == KD_TRANSPARENT)
+			old_vc->vc_mode = KD_TEXT;
 	} else {
 		hide_cursor(vc);
 		redraw = 1;
@@ -793,7 +804,7 @@ int vc_allocate(unsigned int currcons)	/* return 0 on success */
 	if (global_cursor_default == -1)
 		global_cursor_default = 1;
 
-	vc_init(vc, vc->vc_rows, vc->vc_cols, 1);
+	vc_init(vc, vc->vc_rows, vc->vc_cols, 1, KD_TEXT);
 	vcs_make_sysfs(currcons);
 	atomic_notifier_call_chain(&vt_notifier_list, VT_ALLOCATE, &param);
 
@@ -2934,7 +2945,7 @@ module_param_named(italic, default_italic_color, int, S_IRUGO | S_IWUSR);
 module_param_named(underline, default_underline_color, int, S_IRUGO | S_IWUSR);
 
 static void vc_init(struct vc_data *vc, unsigned int rows,
-		    unsigned int cols, int do_clear)
+		    unsigned int cols, int do_clear, int mode)
 {
 	int j, k ;
 
@@ -2945,7 +2956,7 @@ static void vc_init(struct vc_data *vc, unsigned int rows,
 
 	set_origin(vc);
 	vc->vc_pos = vc->vc_origin;
-	reset_vc(vc);
+	reset_vc(vc, mode);
 	for (j=k=0; j<16; j++) {
 		vc->vc_palette[k++] = default_red[j] ;
 		vc->vc_palette[k++] = default_grn[j] ;
@@ -3002,16 +3013,32 @@ static int __init con_init(void)
 		mod_timer(&console_timer, jiffies + (blankinterval * HZ));
 	}
 
+	if (vt_handoff > 0 && vt_handoff <= MAX_NR_CONSOLES) {
+		currcons = vt_handoff - 1;
+		vc_cons[currcons].d = vc = kzalloc(sizeof(struct vc_data), GFP_NOWAIT);
+		INIT_WORK(&vc_cons[currcons].SAK_work, vc_SAK);
+		tty_port_init(&vc->port);
+		visual_init(vc, currcons, 1);
+		vc->vc_screenbuf = kzalloc(vc->vc_screenbuf_size, GFP_NOWAIT);
+		vc_init(vc, vc->vc_rows, vc->vc_cols, 0, KD_TRANSPARENT);
+	}
 	for (currcons = 0; currcons < MIN_NR_CONSOLES; currcons++) {
+		if (currcons == vt_handoff - 1)
+			continue;
 		vc_cons[currcons].d = vc = kzalloc(sizeof(struct vc_data), GFP_NOWAIT);
 		INIT_WORK(&vc_cons[currcons].SAK_work, vc_SAK);
 		tty_port_init(&vc->port);
 		visual_init(vc, currcons, 1);
 		vc->vc_screenbuf = kzalloc(vc->vc_screenbuf_size, GFP_NOWAIT);
 		vc_init(vc, vc->vc_rows, vc->vc_cols,
-			currcons || !vc->vc_sw->con_save_screen);
+			currcons || !vc->vc_sw->con_save_screen, KD_TEXT);
 	}
 	currcons = fg_console = 0;
+	if (vt_handoff > 0) {
+		printk(KERN_INFO "vt handoff: transparent VT on vt#%d\n",
+								vt_handoff);
+		currcons = fg_console = vt_handoff - 1;
+	}
 	master_display_fg = vc = vc_cons[currcons].d;
 	set_origin(vc);
 	save_screen(vc);

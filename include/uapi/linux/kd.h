@@ -46,6 +46,8 @@ struct consolefontdesc {
 #define		KD_GRAPHICS	0x01
 #define		KD_TEXT0	0x02	/* obsolete */
 #define		KD_TEXT1	0x03	/* obsolete */
+#define		KD_TRANSPARENT	0x04
+
 #define KDGETMODE	0x4B3B	/* get current mode */
 
 #define KDMAPDISP	0x4B3C	/* map display into address space */
