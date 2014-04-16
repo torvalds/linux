@@ -29,13 +29,26 @@
 
 /* L3 TARG register offsets */
 #define L3_TARG_STDERRLOG_MAIN		0x48
+#define L3_TARG_STDERRLOG_HDR		0x4c
 #define L3_TARG_STDERRLOG_MSTADDR	0x50
 #define L3_TARG_STDERRLOG_SLVOFSLSB	0x5c
 #define L3_TARG_STDERRLOG_CINFO_MSTADDR	0x68
+#define L3_TARG_STDERRLOG_CINFO_OPCODE	0x6c
 #define L3_FLAGMUX_REGERR0		0xc
 #define L3_FLAGMUX_MASK0		0x8
 
 #define L3_TARGET_NOT_SUPPORTED		NULL
+
+static const char * const l3_transaction_type[] = {
+	/* 0 0 0 */ "Idle",
+	/* 0 0 1 */ "Write",
+	/* 0 1 0 */ "Read",
+	/* 0 1 1 */ "ReadEx",
+	/* 1 0 0 */ "Read Link",
+	/* 1 0 1 */ "Write Non-Posted",
+	/* 1 1 0 */ "Write Conditional",
+	/* 1 1 1 */ "Write Broadcast",
+};
 
 /**
  * struct l3_masters_data - L3 Master information

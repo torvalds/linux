@@ -60,8 +60,10 @@ static int l3_handle_target(struct omap_l3 *l3, void __iomem *base,
 {
 	int k;
 	u32 std_err_main, clear, masterid;
+	u8 op_code;
 	void __iomem *l3_targ_base;
 	void __iomem *l3_targ_stderr, *l3_targ_slvofslsb, *l3_targ_mstaddr;
+	void __iomem *l3_targ_hdr;
 	struct l3_target_data *l3_targ_inst;
 	struct l3_masters_data *master;
 	char *target_name, *master_name = "UN IDENTIFIED";
@@ -96,6 +98,7 @@ static int l3_handle_target(struct omap_l3 *l3, void __iomem *base,
 			 readl_relaxed(l3_targ_slvofslsb));
 
 		l3_targ_mstaddr = l3_targ_base + L3_TARG_STDERRLOG_MSTADDR;
+		l3_targ_hdr = l3_targ_base + L3_TARG_STDERRLOG_HDR;
 		break;
 
 	case CUSTOM_ERROR:
@@ -103,6 +106,7 @@ static int l3_handle_target(struct omap_l3 *l3, void __iomem *base,
 
 		l3_targ_mstaddr = l3_targ_base +
 				  L3_TARG_STDERRLOG_CINFO_MSTADDR;
+		l3_targ_hdr = l3_targ_base + L3_TARG_STDERRLOG_CINFO_OPCODE;
 		break;
 
 	default:
@@ -122,11 +126,14 @@ static int l3_handle_target(struct omap_l3 *l3, void __iomem *base,
 		}
 	}
 
+	op_code = readl_relaxed(l3_targ_hdr) & 0x7;
+
 	WARN(true,
-	     "%s:L3 %s Error: MASTER %s TARGET %s%s\n",
+	     "%s:L3 %s Error: MASTER %s TARGET %s (%s)%s\n",
 	     dev_name(l3->dev),
 	     err_description,
 	     master_name, target_name,
+	     l3_transaction_type[op_code],
 	     err_string);
 
 	/* clear the std error log*/
