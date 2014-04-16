@@ -38,14 +38,17 @@ static int __init debugfs_fpuemu(void)
 	if (!dir)
 		return -ENOMEM;
 
-#define FPU_STAT_CREATE(M)						\
-	do {								\
-		d = debugfs_create_file(#M , S_IRUGO, dir,		\
-			(void *)offsetof(struct mips_fpu_emulator_stats, M), \
-			&fops_fpuemu_stat);				\
-		if (!d)							\
-			return -ENOMEM;					\
-	} while (0)
+#define FPU_EMU_STAT_OFFSET(m)						\
+	offsetof(struct mips_fpu_emulator_stats, m)
+
+#define FPU_STAT_CREATE(m)						\
+do {									\
+	d = debugfs_create_file(#m , S_IRUGO, dir,			\
+				(void *)FPU_EMU_STAT_OFFSET(m),		\
+				&fops_fpuemu_stat);			\
+	if (!d)								\
+		return -ENOMEM;						\
+} while (0)
 
 	FPU_STAT_CREATE(emulated);
 	FPU_STAT_CREATE(loads);

@@ -31,23 +31,23 @@
 #define assert(expr) ((void)0)
 
 /* 3bit extended single precision sticky right shift */
-#define SPXSRSXn(rs) \
-  (xe += rs, \
-   xm = (rs > (SP_MBITS+3))?1:((xm) >> (rs)) | ((xm) << (32-(rs)) != 0))
+#define SPXSRSXn(rs)							\
+	(xe += rs,							\
+	 xm = (rs > (SP_MBITS+3))?1:((xm) >> (rs)) | ((xm) << (32-(rs)) != 0))
 
 #define SPXSRSX1() \
-  (xe++, (xm = (xm >> 1) | (xm & 1)))
+	(xe++, (xm = (xm >> 1) | (xm & 1)))
 
-#define SPXSRSYn(rs) \
-   (ye+=rs, \
-    ym = (rs > (SP_MBITS+3))?1:((ym) >> (rs)) | ((ym) << (32-(rs)) != 0))
+#define SPXSRSYn(rs)								\
+	(ye+=rs,								\
+	 ym = (rs > (SP_MBITS+3))?1:((ym) >> (rs)) | ((ym) << (32-(rs)) != 0))
 
 #define SPXSRSY1() \
-   (ye++, (ym = (ym >> 1) | (ym & 1)))
+	(ye++, (ym = (ym >> 1) | (ym & 1)))
 
 /* convert denormal to normalized with extended exponent */
 #define SPDNORMx(m,e) \
-  while( (m >> SP_MBITS) == 0) { m <<= 1; e--; }
+	while ((m >> SP_MBITS) == 0) { m <<= 1; e--; }
 #define SPDNORMX	SPDNORMx(xm, xe)
 #define SPDNORMY	SPDNORMx(ym, ye)
 
@@ -77,13 +77,14 @@ extern union ieee754sp ieee754sp_bestnan(union ieee754sp, union ieee754sp);
 extern union ieee754sp ieee754sp_format(int, int, unsigned);
 
 
-#define SPNORMRET2(s, e, m, name, a0, a1) \
-{ \
-    union ieee754sp V = ieee754sp_format(s, e, m); \
-    if(TSTX()) \
-      return ieee754sp_xcpt(V, name, a0, a1); \
-    else \
-      return V; \
+#define SPNORMRET2(s, e, m, name, a0, a1)				\
+{									\
+	union ieee754sp V = ieee754sp_format(s, e, m);			\
+									\
+	if (TSTX())							\
+		return ieee754sp_xcpt(V, name, a0, a1);			\
+	else								\
+		return V;						\
 }
 
 #define SPNORMRET1(s, e, m, name, a0)  SPNORMRET2(s, e, m, name, a0, a0)

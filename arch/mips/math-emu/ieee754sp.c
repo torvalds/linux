@@ -152,12 +152,12 @@ union ieee754sp ieee754sp_format(int sn, int xe, unsigned xm)
 			case IEEE754_RZ:
 				return ieee754sp_zero(sn);
 			case IEEE754_RU:      /* toward +Infinity */
-				if(sn == 0)
+				if (sn == 0)
 					return ieee754sp_min(0);
 				else
 					return ieee754sp_zero(1);
 			case IEEE754_RD:      /* toward -Infinity */
-				if(sn == 0)
+				if (sn == 0)
 					return ieee754sp_zero(0);
 				else
 					return ieee754sp_min(1);
@@ -174,8 +174,7 @@ union ieee754sp ieee754sp_format(int sn, int xe, unsigned xm)
 			/* Clear grs bits */
 			xm &= ~(SP_MBIT(3) - 1);
 			xe++;
-		}
-		else {
+		} else {
 			/* sticky right shift es bits
 			 */
 			SPXSRSXn(es);

@@ -32,17 +32,17 @@
 
 /* 3bit extended double precision sticky right shift */
 #define XDPSRS(v,rs)	\
-  ((rs > (DP_MBITS+3))?1:((v) >> (rs)) | ((v) << (64-(rs)) != 0))
+	((rs > (DP_MBITS+3))?1:((v) >> (rs)) | ((v) << (64-(rs)) != 0))
 
 #define XDPSRSX1() \
-  (xe++, (xm = (xm >> 1) | (xm & 1)))
+	(xe++, (xm = (xm >> 1) | (xm & 1)))
 
 #define XDPSRS1(v)	\
-  (((v) >> 1) | ((v) & 1))
+	(((v) >> 1) | ((v) & 1))
 
 /* convert denormal to normalized with extended exponent */
 #define DPDNORMx(m,e) \
-  while( (m >> DP_MBITS) == 0) { m <<= 1; e--; }
+	while ((m >> DP_MBITS) == 0) { m <<= 1; e--; }
 #define DPDNORMX	DPDNORMx(xm, xe)
 #define DPDNORMY	DPDNORMx(ym, ye)
 
@@ -71,13 +71,13 @@ extern union ieee754dp ieee754dp_bestnan(union ieee754dp, union ieee754dp);
 extern union ieee754dp ieee754dp_format(int, int, u64);
 
 
-#define DPNORMRET2(s, e, m, name, a0, a1) \
-{ \
-    union ieee754dp V = ieee754dp_format(s, e, m); \
-    if(TSTX()) \
-      return ieee754dp_xcpt(V, name, a0, a1); \
-    else \
-      return V; \
+#define DPNORMRET2(s, e, m, name, a0, a1)				\
+{									\
+	union ieee754dp V = ieee754dp_format(s, e, m);			\
+	if (TSTX())							\
+		return ieee754dp_xcpt(V, name, a0, a1);			\
+	else								\
+		return V;						\
 }
 
 #define DPNORMRET1(s, e, m, name, a0)  DPNORMRET2(s, e, m, name, a0, a0)

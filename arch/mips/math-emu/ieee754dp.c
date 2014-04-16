@@ -151,12 +151,12 @@ union ieee754dp ieee754dp_format(int sn, int xe, u64 xm)
 			case IEEE754_RZ:
 				return ieee754dp_zero(sn);
 			case IEEE754_RU:    /* toward +Infinity */
-				if(sn == 0)
+				if (sn == 0)
 					return ieee754dp_min(0);
 				else
 					return ieee754dp_zero(1);
 			case IEEE754_RD:    /* toward -Infinity */
-				if(sn == 0)
+				if (sn == 0)
 					return ieee754dp_zero(0);
 				else
 					return ieee754dp_min(1);

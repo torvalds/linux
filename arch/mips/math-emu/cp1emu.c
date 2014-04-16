@@ -869,14 +869,16 @@ static inline int cop1_64bit(struct pt_regs *xcp)
 #endif
 }
 
-#define SIFROMREG(si, x) do {						\
+#define SIFROMREG(si, x)						\
+do {									\
 	if (cop1_64bit(xcp))						\
 		(si) = get_fpr32(&ctx->fpr[x], 0);			\
 	else								\
 		(si) = get_fpr32(&ctx->fpr[(x) & ~1], (x) & 1);		\
 } while (0)
 
-#define SITOREG(si, x) do {						\
+#define SITOREG(si, x)							\
+do {									\
 	if (cop1_64bit(xcp)) {						\
 		unsigned i;						\
 		set_fpr32(&ctx->fpr[x], 0, si);				\
@@ -889,17 +891,19 @@ static inline int cop1_64bit(struct pt_regs *xcp)
 
 #define SIFROMHREG(si, x)	((si) = get_fpr32(&ctx->fpr[x], 1))
 
-#define SITOHREG(si, x) do {						\
+#define SITOHREG(si, x)							\
+do {									\
 	unsigned i;							\
 	set_fpr32(&ctx->fpr[x], 1, si);					\
 	for (i = 2; i < ARRAY_SIZE(ctx->fpr[x].val32); i++)		\
 		set_fpr32(&ctx->fpr[x], i, 0);				\
 } while (0)
 
-#define DIFROMREG(di, x) \
+#define DIFROMREG(di, x)						\
 	((di) = get_fpr64(&ctx->fpr[(x) & ~(cop1_64bit(xcp) == 0)], 0))
 
-#define DITOREG(di, x) do {						\
+#define DITOREG(di, x)							\
+do {									\
 	unsigned fpr, i;						\
 	fpr = (x) & ~(cop1_64bit(xcp) == 0);				\
 	set_fpr64(&ctx->fpr[fpr], 0, di);				\
@@ -1341,20 +1345,20 @@ static const unsigned char cmptab[8] = {
  * Additional MIPS4 instructions
  */
 
-#define DEF3OP(name, p, f1, f2, f3) \
-static union ieee754##p fpemu_##p##_##name(union ieee754##p r, union ieee754##p s, \
-    union ieee754##p t) \
-{ \
-	struct _ieee754_csr ieee754_csr_save; \
-	s = f1(s, t); \
-	ieee754_csr_save = ieee754_csr; \
-	s = f2(s, r); \
-	ieee754_csr_save.cx |= ieee754_csr.cx; \
-	ieee754_csr_save.sx |= ieee754_csr.sx; \
-	s = f3(s); \
-	ieee754_csr.cx |= ieee754_csr_save.cx; \
-	ieee754_csr.sx |= ieee754_csr_save.sx; \
-	return s; \
+#define DEF3OP(name, p, f1, f2, f3)					\
+static union ieee754##p fpemu_##p##_##name(union ieee754##p r,		\
+	union ieee754##p s, union ieee754##p t)				\
+{									\
+	struct _ieee754_csr ieee754_csr_save;				\
+	s = f1(s, t);							\
+	ieee754_csr_save = ieee754_csr;					\
+	s = f2(s, r);							\
+	ieee754_csr_save.cx |= ieee754_csr.cx;				\
+	ieee754_csr_save.sx |= ieee754_csr.sx;				\
+	s = f3(s);							\
+	ieee754_csr.cx |= ieee754_csr_save.cx;				\
+	ieee754_csr.sx |= ieee754_csr_save.sx;				\
+	return s;							\
 }
 
 static union ieee754dp fpemu_dp_recip(union ieee754dp d)
