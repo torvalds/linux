@@ -107,7 +107,8 @@ config CUSTOM_CACHE_SETTINGS
 
 config NIOS2_DCACHE_SIZE
 	hex "D-Cache size" if CUSTOM_CACHE_SETTINGS
-	default "0x10000"
+	range 0x200 0x10000
+	default "0x800"
 	help
 	  Maximum possible data cache size.
 

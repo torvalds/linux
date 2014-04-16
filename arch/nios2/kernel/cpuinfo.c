@@ -100,6 +100,11 @@ void __init setup_cpuinfo(void)
 
 	cpuinfo.dcache_line_size = fcpu(cpu, "dcache-line-size");
 	cpuinfo.dcache_size = fcpu(cpu, "dcache-size");
+	if (CONFIG_NIOS2_DCACHE_SIZE != cpuinfo.dcache_size)
+		pr_warn("Warning: dcache size configuration mismatch "
+			"(0x%x vs 0x%x) of CONFIG_NIOS2_DCACHE_SIZE vs "
+			"device tree dcache-size\n",
+			CONFIG_NIOS2_DCACHE_SIZE, cpuinfo.dcache_size);
 
 	cpuinfo.tlb_pid_num_bits = fcpu(cpu, "ALTR,pid-num-bits");
 	cpuinfo.tlb_num_ways_log2 = ilog2(cpuinfo.tlb_num_ways);
