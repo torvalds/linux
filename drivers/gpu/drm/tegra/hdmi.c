@@ -737,6 +737,17 @@ static int tegra_output_hdmi_enable(struct tegra_output *output)
 	usleep_range(1000, 2000);
 	reset_control_deassert(hdmi->rst);
 
+	/* power up sequence */
+	value = tegra_hdmi_readl(hdmi, HDMI_NV_PDISP_SOR_PLL0);
+	value &= ~SOR_PLL_PDBG;
+	tegra_hdmi_writel(hdmi, value, HDMI_NV_PDISP_SOR_PLL0);
+
+	usleep_range(10, 20);
+
+	value = tegra_hdmi_readl(hdmi, HDMI_NV_PDISP_SOR_PLL0);
+	value &= ~SOR_PLL_PWR;
+	tegra_hdmi_writel(hdmi, value, HDMI_NV_PDISP_SOR_PLL0);
+
 	tegra_dc_writel(dc, VSYNC_H_POSITION(1),
 			DC_DISP_DISP_TIMING_OPTIONS);
 	tegra_dc_writel(dc, DITHER_CONTROL_DISABLE | BASE_COLOR_SIZE888,
