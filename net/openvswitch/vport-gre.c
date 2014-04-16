@@ -174,7 +174,7 @@ static int gre_tnl_send(struct vport *vport, struct sk_buff *skb)
 
 	skb->local_df = 1;
 
-	return iptunnel_xmit(rt, skb, fl.saddr,
+	return iptunnel_xmit(skb->sk, rt, skb, fl.saddr,
 			     OVS_CB(skb)->tun_key->ipv4_dst, IPPROTO_GRE,
 			     OVS_CB(skb)->tun_key->ipv4_tos,
 			     OVS_CB(skb)->tun_key->ipv4_ttl, df, false);

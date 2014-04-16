@@ -128,7 +128,7 @@ static int nft_cmp_fast_init(const struct nft_ctx *ctx,
 	BUG_ON(err < 0);
 	desc.len *= BITS_PER_BYTE;
 
-	mask = ~0U >> (sizeof(priv->data) * BITS_PER_BYTE - desc.len);
+	mask = nft_cmp_fast_mask(desc.len);
 	priv->data = data.data[0] & mask;
 	priv->len  = desc.len;
 	return 0;

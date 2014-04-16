@@ -132,7 +132,7 @@ static int ip6_finish_output(struct sk_buff *skb)
 		return ip6_finish_output2(skb);
 }
 
-int ip6_output(struct sk_buff *skb)
+int ip6_output(struct sock *sk, struct sk_buff *skb)
 {
 	struct net_device *dev = skb_dst(skb)->dev;
 	struct inet6_dev *idev = ip6_dst_idev(skb_dst(skb));
