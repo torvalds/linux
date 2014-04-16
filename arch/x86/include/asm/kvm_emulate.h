@@ -295,12 +295,10 @@ struct x86_emulate_ctxt {
 	struct operand dst;
 	int (*execute)(struct x86_emulate_ctxt *ctxt);
 	int (*check_perm)(struct x86_emulate_ctxt *ctxt);
-	bool has_seg_override;
 	bool rip_relative;
 	u8 rex_prefix;
 	u8 lock_prefix;
 	u8 rep_prefix;
-	u8 seg_override;
 	/* bitmaps of registers in _regs[] that can be read */
 	u32 regs_valid;
 	/* bitmaps of registers in _regs[] that have been written */
@@ -311,6 +309,7 @@ struct x86_emulate_ctxt {
 	u8 modrm_reg;
 	u8 modrm_rm;
 	u8 modrm_seg;
+	u8 seg_override;
 	u64 d;
 	unsigned long _eip;
 	struct operand memop;
