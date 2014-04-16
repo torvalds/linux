@@ -19,10 +19,12 @@
 #include <linux/cpu.h>
 #include <dt-bindings/clock/ddr.h>
 #include <linux/rockchip/cru.h>
+#include <linux/rk_fb.h>
 #include "cpu_axi.h"
 
 typedef uint32_t uint32;
 
+#define DDR_CHANGE_FREQ_IN_LCDC_VSYNC
 /***********************************
  * Global Control Macro
  ***********************************/
@@ -3733,6 +3735,7 @@ void PIE_FUNC(ddr_change_freq_sram)(void *arg)
 }
 EXPORT_PIE_SYMBOL(FUNC(ddr_change_freq_sram));
 
+static int dclk_div;
 static noinline uint32 ddr_change_freq_sram(uint32 nMHz , struct ddr_freq_t ddr_freq_t)
 {
     uint32 freq;
@@ -3752,6 +3755,8 @@ static noinline uint32 ddr_change_freq_sram(uint32 nMHz , struct ddr_freq_t ddr_
         freq_slew = (nMHz>ddr_freq)? 1 : 0;
     }
 #endif
+
+    dclk_div = (cru_readl(RK3288_CRU_CLKSELS_CON(29)) >> 8) & 0xff;
 
     param.arm_freq = ddr_get_pll_freq(APLL);
     gpllvaluel = ddr_get_pll_freq(GPLL);
@@ -3827,10 +3832,11 @@ static noinline uint32 ddr_change_freq_sram(uint32 nMHz , struct ddr_freq_t ddr_
     param.freq = freq;
     param.freq_slew = freq_slew;
     param.dqstr_value = dqstr_value;
+    cru_writel(0 |CRU_W_MSK_SETBITS(0xff,8,0xff), RK3288_CRU_CLKSELS_CON(29));
     call_with_stack(fn_to_pie(rockchip_pie_chunk, &FUNC(ddr_change_freq_sram)),
                     &param,
                     rockchip_sram_stack-(NR_CPUS-1)*PAUSE_CPU_STACK_SZIE);
-
+    cru_writel(0 |CRU_W_MSK_SETBITS(dclk_div,8,0xff), RK3288_CRU_CLKSELS_CON(29));
 #if defined (DDR_CHANGE_FREQ_IN_LCDC_VSYNC)
 end:
 #endif
@@ -3907,9 +3913,7 @@ static int _ddr_change_freq(uint32 nMHz)
                         if(test_count > 10) //test 10 times
                         {
 				ddr_freq_t.screen_ft_us = 0xfefefefe;
-				dprintk(DEBUG_DDR,"%s:test_count exceed maximum!\n",__func__);
                         }
-			dprintk(DEBUG_VERBOSE,"%s:test_count=%d\n",__func__,test_count);
 			usleep_range(ddr_freq_t.screen_ft_us-test_count*1000,ddr_freq_t.screen_ft_us-test_count*1000);
 
 			flush_cache_all();

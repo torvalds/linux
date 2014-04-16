@@ -675,6 +675,7 @@ rockchip,power_type = <GPIO>;
 		SYS_STATUS_VIDEO	300000
 		SYS_STATUS_DUALVIEW	500000
 		>;
+	auto_freq=<0>;
 	status="okay";
 };
 
