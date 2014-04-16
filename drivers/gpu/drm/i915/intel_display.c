@@ -7336,7 +7336,6 @@ static void haswell_write_eld(struct drm_connector *connector,
 {
 	struct drm_i915_private *dev_priv = connector->dev->dev_private;
 	uint8_t *eld = connector->eld;
-	struct drm_device *dev = crtc->dev;
 	struct intel_crtc *intel_crtc = to_intel_crtc(crtc);
 	uint32_t eldv;
 	uint32_t i;
@@ -7354,9 +7353,9 @@ static void haswell_write_eld(struct drm_connector *connector,
 	tmp = I915_READ(aud_cntrl_st2);
 	tmp |= (AUDIO_OUTPUT_ENABLE_A << (pipe * 4));
 	I915_WRITE(aud_cntrl_st2, tmp);
+	POSTING_READ(aud_cntrl_st2);
 
-	/* Wait for 1 vertical blank */
-	intel_wait_for_vblank(dev, pipe);
+	assert_pipe_disabled(dev_priv, to_intel_crtc(crtc)->pipe);
 
 	/* Set ELD valid state */
 	tmp = I915_READ(aud_cntrl_st2);
