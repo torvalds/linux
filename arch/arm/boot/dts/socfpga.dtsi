@@ -148,7 +148,7 @@
 							#clock-cells = <0>;
 							compatible = "altr,socfpga-perip-clk";
 							clocks = <&main_pll>;
-							fixed-divider = <2>;
+							div-reg = <0xe0 0 9>;
 							reg = <0x48>;
 						};
 
@@ -156,7 +156,7 @@
 							#clock-cells = <0>;
 							compatible = "altr,socfpga-perip-clk";
 							clocks = <&main_pll>;
-							fixed-divider = <4>;
+							div-reg = <0xe4 0 9>;
 							reg = <0x4C>;
 						};
 
@@ -164,7 +164,7 @@
 							#clock-cells = <0>;
 							compatible = "altr,socfpga-perip-clk";
 							clocks = <&main_pll>;
-							fixed-divider = <4>;
+							div-reg = <0xe8 0 9>;
 							reg = <0x50>;
 						};
 
