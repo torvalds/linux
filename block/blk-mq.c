@@ -714,9 +714,7 @@ static void blk_mq_work_fn(struct work_struct *work)
 
 	hctx = container_of(work, struct blk_mq_hw_ctx, delayed_work.work);
 
-	preempt_disable();
 	__blk_mq_run_hw_queue(hctx);
-	preempt_enable();
 }
 
 static void __blk_mq_insert_request(struct blk_mq_hw_ctx *hctx,
