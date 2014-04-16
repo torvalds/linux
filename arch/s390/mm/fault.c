@@ -126,6 +126,133 @@ static inline int user_space_fault(struct pt_regs *regs)
 	return 0;
 }
 
+static int bad_address(void *p)
+{
+	unsigned long dummy;
+
+	return probe_kernel_address((unsigned long *)p, dummy);
+}
+
+#ifdef CONFIG_64BIT
+static void dump_pagetable(unsigned long asce, unsigned long address)
+{
+	unsigned long *table = __va(asce & PAGE_MASK);
+
+	pr_alert("AS:%016lx ", asce);
+	switch (asce & _ASCE_TYPE_MASK) {
+	case _ASCE_TYPE_REGION1:
+		table = table + ((address >> 53) & 0x7ff);
+		if (bad_address(table))
+			goto bad;
+		pr_cont("R1:%016lx ", *table);
+		if (*table & _REGION_ENTRY_INVALID)
+			goto out;
+		table = (unsigned long *)(*table & _REGION_ENTRY_ORIGIN);
+		/* fallthrough */
+	case _ASCE_TYPE_REGION2:
+		table = table + ((address >> 42) & 0x7ff);
+		if (bad_address(table))
+			goto bad;
+		pr_cont("R2:%016lx ", *table);
+		if (*table & _REGION_ENTRY_INVALID)
+			goto out;
+		table = (unsigned long *)(*table & _REGION_ENTRY_ORIGIN);
+		/* fallthrough */
+	case _ASCE_TYPE_REGION3:
+		table = table + ((address >> 31) & 0x7ff);
+		if (bad_address(table))
+			goto bad;
+		pr_cont("R3:%016lx ", *table);
+		if (*table & (_REGION_ENTRY_INVALID | _REGION3_ENTRY_LARGE))
+			goto out;
+		table = (unsigned long *)(*table & _REGION_ENTRY_ORIGIN);
+		/* fallthrough */
+	case _ASCE_TYPE_SEGMENT:
+		table = table + ((address >> 20) & 0x7ff);
+		if (bad_address(table))
+			goto bad;
+		pr_cont(KERN_CONT "S:%016lx ", *table);
+		if (*table & (_SEGMENT_ENTRY_INVALID | _SEGMENT_ENTRY_LARGE))
+			goto out;
+		table = (unsigned long *)(*table & _SEGMENT_ENTRY_ORIGIN);
+	}
+	table = table + ((address >> 12) & 0xff);
+	if (bad_address(table))
+		goto bad;
+	pr_cont("P:%016lx ", *table);
+out:
+	pr_cont("\n");
+	return;
+bad:
+	pr_cont("BAD\n");
+}
+
+#else /* CONFIG_64BIT */
+
+static void dump_pagetable(unsigned long asce, unsigned long address)
+{
+	unsigned long *table = __va(asce & PAGE_MASK);
+
+	pr_alert("AS:%08lx ", asce);
+	table = table + ((address >> 20) & 0x7ff);
+	if (bad_address(table))
+		goto bad;
+	pr_cont("S:%08lx ", *table);
+	if (*table & _SEGMENT_ENTRY_INVALID)
+		goto out;
+	table = (unsigned long *)(*table & _SEGMENT_ENTRY_ORIGIN);
+	table = table + ((address >> 12) & 0xff);
+	if (bad_address(table))
+		goto bad;
+	pr_cont("P:%08lx ", *table);
+out:
+	pr_cont("\n");
+	return;
+bad:
+	pr_cont("BAD\n");
+}
+
+#endif /* CONFIG_64BIT */
+
+static void dump_fault_info(struct pt_regs *regs)
+{
+	unsigned long asce;
+
+	pr_alert("Fault in ");
+	switch (regs->int_parm_long & 3) {
+	case 3:
+		pr_cont("home space ");
+		break;
+	case 2:
+		pr_cont("secondary space ");
+		break;
+	case 1:
+		pr_cont("access register ");
+		break;
+	case 0:
+		pr_cont("primary space ");
+		break;
+	}
+	pr_cont("mode while using ");
+	if (!user_space_fault(regs)) {
+		asce = S390_lowcore.kernel_asce;
+		pr_cont("kernel ");
+	}
+#ifdef CONFIG_PGSTE
+	else if ((current->flags & PF_VCPU) && S390_lowcore.gmap) {
+		struct gmap *gmap = (struct gmap *)S390_lowcore.gmap;
+		asce = gmap->asce;
+		pr_cont("gmap ");
+	}
+#endif
+	else {
+		asce = S390_lowcore.user_asce;
+		pr_cont("user ");
+	}
+	pr_cont("ASCE.\n");
+	dump_pagetable(asce, regs->int_parm_long & __FAIL_ADDR_MASK);
+}
+
 static inline void report_user_fault(struct pt_regs *regs, long signr)
 {
 	if ((task_pid_nr(current) > 1) && !show_unhandled_signals)
@@ -138,8 +265,9 @@ static inline void report_user_fault(struct pt_regs *regs, long signr)
 	       regs->int_code);
 	print_vma_addr(KERN_CONT "in ", regs->psw.addr & PSW_ADDR_INSN);
 	printk(KERN_CONT "\n");
-	printk(KERN_ALERT "failing address: %lX\n",
-	       regs->int_parm_long & __FAIL_ADDR_MASK);
+	printk(KERN_ALERT "failing address: %016lx TEID: %016lx\n",
+	       regs->int_parm_long & __FAIL_ADDR_MASK, regs->int_parm_long);
+	dump_fault_info(regs);
 	show_regs(regs);
 }
 
@@ -177,11 +305,13 @@ static noinline void do_no_context(struct pt_regs *regs)
 	address = regs->int_parm_long & __FAIL_ADDR_MASK;
 	if (!user_space_fault(regs))
 		printk(KERN_ALERT "Unable to handle kernel pointer dereference"
-		       " at virtual kernel address %p\n", (void *)address);
+		       " in virtual kernel address space\n");
 	else
 		printk(KERN_ALERT "Unable to handle kernel paging request"
-		       " at virtual user address %p\n", (void *)address);
-
+		       " in virtual user address space\n");
+	printk(KERN_ALERT "failing address: %016lx TEID: %016lx\n",
+	       regs->int_parm_long & __FAIL_ADDR_MASK, regs->int_parm_long);
+	dump_fault_info(regs);
 	die(regs, "Oops");
 	do_exit(SIGKILL);
 }
