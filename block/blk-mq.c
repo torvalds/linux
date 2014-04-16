@@ -400,7 +400,7 @@ static void blk_mq_start_request(struct request *rq, bool last)
 		rq->cmd_flags |= REQ_END;
 }
 
-static void blk_mq_requeue_request(struct request *rq)
+static void __blk_mq_requeue_request(struct request *rq)
 {
 	struct request_queue *q = rq->q;
 
@@ -412,6 +412,20 @@ static void blk_mq_requeue_request(struct request *rq)
 	if (q->dma_drain_size && blk_rq_bytes(rq))
 		rq->nr_phys_segments--;
 }
+
+void blk_mq_requeue_request(struct request *rq)
+{
+	struct request_queue *q = rq->q;
+
+	__blk_mq_requeue_request(rq);
+	blk_clear_rq_complete(rq);
+
+	trace_block_rq_requeue(q, rq);
+
+	BUG_ON(blk_queued_rq(rq));
+	blk_mq_insert_request(rq, true, true, false);
+}
+EXPORT_SYMBOL(blk_mq_requeue_request);
 
 struct request *blk_mq_tag_to_rq(struct blk_mq_tags *tags, unsigned int tag)
 {
@@ -602,7 +616,7 @@ static void __blk_mq_run_hw_queue(struct blk_mq_hw_ctx *hctx)
 			 * time
 			 */
 			list_add(&rq->queuelist, &rq_list);
-			blk_mq_requeue_request(rq);
+			__blk_mq_requeue_request(rq);
 			break;
 		default:
 			pr_err("blk-mq: bad return on queue: %d\n", ret);
