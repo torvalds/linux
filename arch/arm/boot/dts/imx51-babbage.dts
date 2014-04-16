@@ -82,6 +82,8 @@
 
 	gpio-keys {
 		compatible = "gpio-keys";
+		pinctrl-names = "default";
+		pinctrl-0 = <&pinctrl_gpio_keys>;
 
 		power {
 			label = "Power Button";
@@ -137,11 +139,13 @@
 
 		reg_usb_vbus: regulator@0 {
 			compatible = "regulator-fixed";
+			pinctrl-names = "default";
+			pinctrl-0 = <&pinctrl_usbreg>;
 			reg = <0>;
 			regulator-name = "usb_vbus";
 			regulator-min-microvolt = <5000000>;
 			regulator-max-microvolt = <5000000>;
-			gpio = <&gpio2 5 0>;
+			gpio = <&gpio2 5 GPIO_ACTIVE_HIGH>;
 			enable-active-high;
 		};
 	};
@@ -323,23 +327,7 @@
 };
 
 &iomuxc {
-	pinctrl-names = "default";
-	pinctrl-0 = <&pinctrl_hog>;
-
 	imx51-babbage {
-		pinctrl_hog: hoggrp {
-			fsl,pins = <
-				MX51_PAD_GPIO1_0__SD1_CD     0x20d5
-				MX51_PAD_GPIO1_1__SD1_WP     0x20d5
-				MX51_PAD_GPIO1_5__GPIO1_5    0x100
-				MX51_PAD_GPIO1_6__GPIO1_6    0x100
-				MX51_PAD_EIM_A27__GPIO2_21   0x5
-				MX51_PAD_CSPI1_SS0__GPIO4_24 0x85
-				MX51_PAD_CSPI1_SS1__GPIO4_25 0x85
-				MX51_PAD_CSPI1_RDY__GPIO4_26 0x80000000
-			>;
-		};
-
 		pinctrl_audmux: audmuxgrp {
 			fsl,pins = <
 				MX51_PAD_AUD3_BB_TXD__AUD3_TXD		0x80000000
@@ -349,11 +337,19 @@
 			>;
 		};
 
+		pinctrl_clkcodec: clkcodecgrp {
+			fsl,pins = <
+				MX51_PAD_CSPI1_RDY__GPIO4_26		0x80000000
+			>;
+		};
+
 		pinctrl_ecspi1: ecspi1grp {
 			fsl,pins = <
 				MX51_PAD_CSPI1_MISO__ECSPI1_MISO	0x185
 				MX51_PAD_CSPI1_MOSI__ECSPI1_MOSI	0x185
 				MX51_PAD_CSPI1_SCLK__ECSPI1_SCLK	0x185
+				MX51_PAD_CSPI1_SS0__GPIO4_24		0x85 /* CS0 */
+				MX51_PAD_CSPI1_SS1__GPIO4_25		0x85 /* CS1 */
 			>;
 		};
 
@@ -365,6 +361,8 @@
 				MX51_PAD_SD1_DATA1__SD1_DATA1		0x20d5
 				MX51_PAD_SD1_DATA2__SD1_DATA2		0x20d5
 				MX51_PAD_SD1_DATA3__SD1_DATA3		0x20d5
+				MX51_PAD_GPIO1_0__SD1_CD		0x20d5
+				MX51_PAD_GPIO1_1__SD1_WP		0x20d5
 			>;
 		};
 
@@ -376,6 +374,8 @@
 				MX51_PAD_SD2_DATA1__SD2_DATA1		0x20d5
 				MX51_PAD_SD2_DATA2__SD2_DATA2		0x20d5
 				MX51_PAD_SD2_DATA3__SD2_DATA3		0x20d5
+				MX51_PAD_GPIO1_5__GPIO1_5		0x100 /* WP */
+				MX51_PAD_GPIO1_6__GPIO1_6		0x100 /* CD */
 			>;
 		};
 
@@ -399,6 +399,12 @@
 				MX51_PAD_NANDF_CS7__FEC_TX_EN		0x80000000
 				MX51_PAD_NANDF_RDY_INT__FEC_TX_CLK	0x80000000
 				MX51_PAD_EIM_A20__GPIO2_14 0x85 /* Reset */
+			>;
+		};
+
+		pinctrl_gpio_keys: gpiokeysgrp {
+			fsl,pins = <
+				MX51_PAD_EIM_A27__GPIO2_21		0x5
 			>;
 		};
 
@@ -522,7 +528,12 @@
 				MX51_PAD_USBH1_DATA5__USBH1_DATA5	0x80000000
 				MX51_PAD_USBH1_DATA6__USBH1_DATA6	0x80000000
 				MX51_PAD_USBH1_DATA7__USBH1_DATA7	0x80000000
-				MX51_PAD_EIM_D21__GPIO2_5		0x80000000
+			>;
+		};
+
+		pinctrl_usbreg: usbreggrp {
+			fsl,pins = <
+				MX51_PAD_EIM_D21__GPIO2_5		0x85
 			>;
 		};
 	};
@@ -548,6 +559,8 @@
 
 	sgtl5000: codec@0a {
 		compatible = "fsl,sgtl5000";
+		pinctrl-names = "default";
+		pinctrl-0 = <&pinctrl_clkcodec>;
 		reg = <0x0a>;
 		clocks = <&clk_26M>;
 		VDDA-supply = <&vdig_reg>;
