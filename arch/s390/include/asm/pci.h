@@ -78,9 +78,15 @@ struct zpci_dev {
 	enum zpci_state state;
 	u32		fid;		/* function ID, used by sclp */
 	u32		fh;		/* function handle, used by insn's */
+	u16		vfn;		/* virtual function number */
 	u16		pchid;		/* physical channel ID */
 	u8		pfgid;		/* function group ID */
+	u8		pft;		/* pci function type */
 	u16		domain;
+
+	u8 pfip[CLP_PFIP_NR_SEGMENTS];	/* pci function internal path */
+	u32 uid;			/* user defined id */
+	u8 util_str[CLP_UTIL_STR_LEN];	/* utility string */
 
 	/* IRQ stuff */
 	u64		msi_addr;	/* MSI address */
