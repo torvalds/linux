@@ -31,6 +31,7 @@
 struct tusb6010_glue {
 	struct device		*dev;
 	struct platform_device	*musb;
+	struct platform_device	*phy;
 };
 
 static void tusb_musb_set_vbus(struct musb *musb, int is_on);
@@ -1222,7 +1223,7 @@ static int tusb_remove(struct platform_device *pdev)
 	struct tusb6010_glue		*glue = platform_get_drvdata(pdev);
 
 	platform_device_unregister(glue->musb);
-	usb_phy_generic_unregister();
+	usb_phy_generic_unregister(glue->phy);
 	kfree(glue);
 
 	return 0;

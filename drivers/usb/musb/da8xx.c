@@ -85,6 +85,7 @@
 struct da8xx_glue {
 	struct device		*dev;
 	struct platform_device	*musb;
+	struct platform_device	*phy;
 	struct clk		*clk;
 };
 
@@ -510,7 +511,11 @@ static int da8xx_probe(struct platform_device *pdev)
 
 	pdata->platform_ops		= &da8xx_ops;
 
-	usb_phy_generic_register();
+	glue->phy = usb_phy_generic_register();
+	if (IS_ERR(glue->phy)) {
+		ret = PTR_ERR(glue->phy);
+		goto err5;
+	}
 	platform_set_drvdata(pdev, glue);
 
 	memset(musb_resources, 0x00, sizeof(*musb_resources) *
@@ -537,10 +542,13 @@ static int da8xx_probe(struct platform_device *pdev)
 	if (IS_ERR(musb)) {
 		ret = PTR_ERR(musb);
 		dev_err(&pdev->dev, "failed to register musb device: %d\n", ret);
-		goto err5;
+		goto err6;
 	}
 
 	return 0;
+
+err6:
+	usb_phy_generic_unregister(glue->phy);
 
 err5:
 	clk_disable(clk);
@@ -560,7 +568,7 @@ static int da8xx_remove(struct platform_device *pdev)
 	struct da8xx_glue		*glue = platform_get_drvdata(pdev);
 
 	platform_device_unregister(glue->musb);
-	usb_phy_generic_unregister();
+	usb_phy_generic_unregister(glue->phy);
 	clk_disable(glue->clk);
 	clk_put(glue->clk);
 	kfree(glue);

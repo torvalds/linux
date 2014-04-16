@@ -29,6 +29,7 @@
 struct bfin_glue {
 	struct device		*dev;
 	struct platform_device	*musb;
+	struct platform_device	*phy;
 };
 #define glue_to_musb(g)		platform_get_drvdata(g->musb)
 
@@ -475,7 +476,9 @@ static int bfin_probe(struct platform_device *pdev)
 
 	pdata->platform_ops		= &bfin_ops;
 
-	usb_phy_generic_register();
+	glue->phy = usb_phy_generic_register();
+	if (IS_ERR(glue->phy))
+		goto err2;
 	platform_set_drvdata(pdev, glue);
 
 	memset(musb_resources, 0x00, sizeof(*musb_resources) *
@@ -513,6 +516,9 @@ static int bfin_probe(struct platform_device *pdev)
 	return 0;
 
 err3:
+	usb_phy_generic_unregister(glue->phy);
+
+err2:
 	platform_device_put(musb);
 
 err1:
@@ -527,7 +533,7 @@ static int bfin_remove(struct platform_device *pdev)
 	struct bfin_glue		*glue = platform_get_drvdata(pdev);
 
 	platform_device_unregister(glue->musb);
-	usb_phy_generic_unregister();
+	usb_phy_generic_unregister(glue->phy);
 	kfree(glue);
 
 	return 0;

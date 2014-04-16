@@ -15,14 +15,15 @@ struct usb_phy_generic_platform_data {
 
 #if defined(CONFIG_NOP_USB_XCEIV) || (defined(CONFIG_NOP_USB_XCEIV_MODULE) && defined(MODULE))
 /* sometimes transceivers are accessed only through e.g. ULPI */
-extern void usb_phy_generic_register(void);
-extern void usb_phy_generic_unregister(void);
+extern struct platform_device *usb_phy_generic_register(void);
+extern void usb_phy_generic_unregister(struct platform_device *);
 #else
-static inline void usb_phy_generic_register(void)
+static inline struct platform_device *usb_phy_generic_register(void)
 {
+	return NULL;
 }
 
-static inline void usb_phy_generic_unregister(void)
+static inline void usb_phy_generic_unregister(struct platform_device *pdev)
 {
 }
 #endif

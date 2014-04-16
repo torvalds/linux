@@ -41,25 +41,16 @@
 
 #include "phy-generic.h"
 
-static struct platform_device *pd;
-
-void usb_phy_generic_register(void)
+struct platform_device *usb_phy_generic_register(void)
 {
-	if (pd)
-		return;
-	pd = platform_device_register_simple("usb_phy_generic", -1, NULL, 0);
-	if (IS_ERR(pd)) {
-		pr_err("Unable to register generic usb transceiver\n");
-		pd = NULL;
-		return;
-	}
+	return platform_device_register_simple("usb_phy_generic",
+			PLATFORM_DEVID_AUTO, NULL, 0);
 }
 EXPORT_SYMBOL_GPL(usb_phy_generic_register);
 
-void usb_phy_generic_unregister(void)
+void usb_phy_generic_unregister(struct platform_device *pdev)
 {
-	platform_device_unregister(pd);
-	pd = NULL;
+	platform_device_unregister(pdev);
 }
 EXPORT_SYMBOL_GPL(usb_phy_generic_unregister);
 
