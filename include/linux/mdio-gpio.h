@@ -18,6 +18,9 @@ struct mdio_gpio_platform_data {
 	unsigned int mdc;
 	unsigned int mdio;
 
+	bool mdc_active_low;
+	bool mdio_active_low;
+
 	unsigned int phy_mask;
 	int irqs[PHY_MAX_ADDR];
 	/* reset callback */
