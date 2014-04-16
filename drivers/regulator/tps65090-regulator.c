@@ -28,14 +28,57 @@
 #include <linux/regulator/of_regulator.h>
 #include <linux/mfd/tps65090.h>
 
+#define CTRL_WT_BIT		2 /* Regulator wait time 0 bit */
+
+#define MAX_OVERCURRENT_WAIT	3 /* Overcurrent wait must be <= this */
+
+/**
+ * struct tps65090_regulator - Per-regulator data for a tps65090 regulator
+ *
+ * @dev: Pointer to our device.
+ * @desc: The struct regulator_desc for the regulator.
+ * @rdev: The struct regulator_dev for the regulator.
+ * @overcurrent_wait_valid: True if overcurrent_wait is valid.
+ * @overcurrent_wait: For FETs, the value to put in the WTFET bitfield.
+ */
+
 struct tps65090_regulator {
 	struct device		*dev;
 	struct regulator_desc	*desc;
 	struct regulator_dev	*rdev;
+	bool			overcurrent_wait_valid;
+	int			overcurrent_wait;
 };
 
 static struct regulator_ops tps65090_ext_control_ops = {
 };
+
+/**
+ * tps65090_reg_set_overcurrent_wait - Setup overcurrent wait
+ *
+ * This will set the overcurrent wait time based on what's in the regulator
+ * info.
+ *
+ * @ri:		Overall regulator data
+ * @rdev:	Regulator device
+ *
+ * Return: 0 if no error, non-zero if there was an error writing the register.
+ */
+static int tps65090_reg_set_overcurrent_wait(struct tps65090_regulator *ri,
+					     struct regulator_dev *rdev)
+{
+	int ret;
+
+	ret = regmap_update_bits(rdev->regmap, rdev->desc->enable_reg,
+				 MAX_OVERCURRENT_WAIT << CTRL_WT_BIT,
+				 ri->overcurrent_wait << CTRL_WT_BIT);
+	if (ret) {
+		dev_err(&rdev->dev, "Error updating overcurrent wait %#x\n",
+			rdev->desc->enable_reg);
+	}
+
+	return ret;
+}
 
 static struct regulator_ops tps65090_reg_contol_ops = {
 	.enable		= regulator_enable_regmap,
@@ -209,6 +252,11 @@ static struct tps65090_platform_data *tps65090_parse_dt_reg_data(
 			rpdata->gpio = of_get_named_gpio(np,
 					"dcdc-ext-control-gpios", 0);
 
+		if (of_property_read_u32(tps65090_matches[idx].of_node,
+					 "ti,overcurrent-wait",
+					 &rpdata->overcurrent_wait) == 0)
+			rpdata->overcurrent_wait_valid = true;
+
 		tps65090_pdata->reg_pdata[idx] = rpdata;
 	}
 	return tps65090_pdata;
@@ -258,6 +306,8 @@ static int tps65090_regulator_probe(struct platform_device *pdev)
 		ri = &pmic[num];
 		ri->dev = &pdev->dev;
 		ri->desc = &tps65090_regulator_desc[num];
+		ri->overcurrent_wait_valid = tps_pdata->overcurrent_wait_valid;
+		ri->overcurrent_wait = tps_pdata->overcurrent_wait;
 
 		/*
 		 * TPS5090 DCDC support the control from external digital input.
@@ -298,6 +348,12 @@ static int tps65090_regulator_probe(struct platform_device *pdev)
 			return PTR_ERR(rdev);
 		}
 		ri->rdev = rdev;
+
+		if (ri->overcurrent_wait_valid) {
+			ret = tps65090_reg_set_overcurrent_wait(ri, rdev);
+			if (ret < 0)
+				return ret;
+		}
 
 		/* Enable external control if it is require */
 		if (tps_pdata && is_dcdc(num) && tps_pdata->reg_init_data &&
