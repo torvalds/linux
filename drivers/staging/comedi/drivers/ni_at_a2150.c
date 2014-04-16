@@ -287,14 +287,54 @@ static int a2150_cancel(struct comedi_device *dev, struct comedi_subdevice *s)
 	return 0;
 }
 
+static int a2150_ai_check_chanlist(struct comedi_device *dev,
+				   struct comedi_subdevice *s,
+				   struct comedi_cmd *cmd)
+{
+	unsigned int chan0 = CR_CHAN(cmd->chanlist[0]);
+	unsigned int aref0 = CR_AREF(cmd->chanlist[0]);
+	int i;
+
+	if (cmd->chanlist_len == 2 && (chan0 == 1 || chan0 == 3)) {
+		dev_dbg(dev->class_dev,
+			"length 2 chanlist must be channels 0,1 or channels 2,3\n");
+		return -EINVAL;
+	}
+
+	if (cmd->chanlist_len == 3) {
+		dev_dbg(dev->class_dev,
+			"chanlist must have 1,2 or 4 channels\n");
+		return -EINVAL;
+	}
+
+	for (i = 1; i < cmd->chanlist_len; i++) {
+		unsigned int chan = CR_CHAN(cmd->chanlist[i]);
+		unsigned int aref = CR_AREF(cmd->chanlist[i]);
+
+		if (chan != (chan0 + i)) {
+			dev_dbg(dev->class_dev,
+				"entries in chanlist must be consecutive channels, counting upwards\n");
+			return -EINVAL;
+		}
+
+		if (chan == 2)
+			aref0 = aref;
+		if (aref != aref0) {
+			dev_dbg(dev->class_dev,
+				"channels 0/1 and 2/3 must have the same analog reference\n");
+			return -EINVAL;
+		}
+	}
+
+	return 0;
+}
+
 static int a2150_ai_cmdtest(struct comedi_device *dev,
 			    struct comedi_subdevice *s, struct comedi_cmd *cmd)
 {
 	const struct a2150_board *thisboard = comedi_board(dev);
 	int err = 0;
 	int tmp;
-	int startChan;
-	int i;
 
 	/* Step 1 : check if triggers are trivially valid */
 
@@ -348,33 +388,9 @@ static int a2150_ai_cmdtest(struct comedi_device *dev,
 	if (err)
 		return 4;
 
-	/*  check channel/gain list against card's limitations */
-	if (cmd->chanlist) {
-		startChan = CR_CHAN(cmd->chanlist[0]);
-		for (i = 1; i < cmd->chanlist_len; i++) {
-			if (CR_CHAN(cmd->chanlist[i]) != (startChan + i)) {
-				comedi_error(dev,
-					     "entries in chanlist must be consecutive channels, counting upwards\n");
-				err++;
-			}
-		}
-		if (cmd->chanlist_len == 2 && CR_CHAN(cmd->chanlist[0]) == 1) {
-			comedi_error(dev,
-				     "length 2 chanlist must be channels 0,1 or channels 2,3");
-			err++;
-		}
-		if (cmd->chanlist_len == 3) {
-			comedi_error(dev,
-				     "chanlist must have 1,2 or 4 channels");
-			err++;
-		}
-		if (CR_AREF(cmd->chanlist[0]) != CR_AREF(cmd->chanlist[1]) ||
-		    CR_AREF(cmd->chanlist[2]) != CR_AREF(cmd->chanlist[3])) {
-			comedi_error(dev,
-				     "channels 0/1 and 2/3 must have the same analog reference");
-			err++;
-		}
-	}
+	/* Step 5: check channel list if it exists */
+	if (cmd->chanlist && cmd->chanlist_len > 0)
+		err |= a2150_ai_check_chanlist(dev, s, cmd);
 
 	if (err)
 		return 5;
