@@ -57,8 +57,8 @@ config SSD2828_RGB2MIPI
         help
         "a chip that change RGB interface parallel signal into DSI serial signal"
 
-config RK616_MIPI_DSI
-        tristate "Rockchip mipi dsi support"
+config RK32_MIPI_DSI
+        tristate "rk32 mipi dsi support"
         depends on MIPI_DSI
         help
            Rockchip mipi dsi support.		
