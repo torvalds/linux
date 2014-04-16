@@ -22,6 +22,13 @@ MODULE_AUTHOR("Robert Butora <robert.butora.fi@gmail.com>");
 MODULE_DESCRIPTION("Scopium DTCS033 astro-cam USB Camera Driver");
 MODULE_LICENSE("GPL");
 
+struct dtcs033_usb_requests {
+	u8 bRequestType;
+	u8 bRequest;
+	u16 wValue;
+	u16 wIndex;
+	u16 wLength;
+};
 
 /* send a usb request */
 static void reg_rw(struct gspca_dev *gspca_dev,
@@ -50,10 +57,10 @@ static void reg_rw(struct gspca_dev *gspca_dev,
 }
 /* send several usb in/out requests */
 static int reg_reqs(struct gspca_dev *gspca_dev,
-		    const struct usb_ctrlrequest *preqs, int n_reqs)
+		    const struct dtcs033_usb_requests *preqs, int n_reqs)
 {
 	int i = 0;
-	const struct usb_ctrlrequest *preq;
+	const struct dtcs033_usb_requests *preq;
 
 	while ((i < n_reqs) && (gspca_dev->usb_err >= 0)) {
 
@@ -290,7 +297,7 @@ module_usb_driver(sd_driver);
  0x40 =  USB_DIR_OUT | USB_TYPE_VENDOR | USB_RECIP_DEVICE,
  0xC0 =  USB_DIR_IN  | USB_TYPE_VENDOR | USB_RECIP_DEVICE,
 */
-static const struct usb_ctrlrequest dtcs033_start_reqs[] = {
+static const struct dtcs033_usb_requests dtcs033_start_reqs[] = {
 /* -- bRequest,wValue,wIndex,wLength */
 { 0x40, 0x01, 0x0001, 0x000F, 0x0000 },
 { 0x40, 0x01, 0x0000, 0x000F, 0x0000 },
@@ -414,7 +421,7 @@ static const struct usb_ctrlrequest dtcs033_start_reqs[] = {
 { 0x40, 0x01, 0x0003, 0x000F, 0x0000 }
 };
 
-static const struct usb_ctrlrequest dtcs033_stop_reqs[] = {
+static const struct dtcs033_usb_requests dtcs033_stop_reqs[] = {
 /* -- bRequest,wValue,wIndex,wLength */
 { 0x40, 0x01, 0x0001, 0x000F, 0x0000 },
 { 0x40, 0x01, 0x0000, 0x000F, 0x0000 },
