@@ -510,16 +510,9 @@ exit:
 	return status;
 }
 
-static int ocrdma_debugfs_open(struct inode *inode, struct file *file)
-{
-	if (inode->i_private)
-		file->private_data = inode->i_private;
-	return 0;
-}
-
 static const struct file_operations ocrdma_dbg_ops = {
 	.owner = THIS_MODULE,
-	.open = ocrdma_debugfs_open,
+	.open = simple_open,
 	.read = ocrdma_dbgfs_ops_read,
 };
 
