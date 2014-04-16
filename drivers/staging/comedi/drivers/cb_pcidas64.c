@@ -1995,14 +1995,52 @@ static void check_adc_timing(struct comedi_device *dev, struct comedi_cmd *cmd)
 	return;
 }
 
+static int cb_pcidas64_ai_check_chanlist(struct comedi_device *dev,
+					 struct comedi_subdevice *s,
+					 struct comedi_cmd *cmd)
+{
+	const struct pcidas64_board *board = comedi_board(dev);
+	unsigned int aref0 = CR_AREF(cmd->chanlist[0]);
+	int i;
+
+	for (i = 1; i < cmd->chanlist_len; i++) {
+		unsigned int aref = CR_AREF(cmd->chanlist[i]);
+
+		if (aref != aref0) {
+			dev_dbg(dev->class_dev,
+				"all elements in chanlist must use the same analog reference\n");
+			return -EINVAL;
+		}
+	}
+
+	if (board->layout == LAYOUT_4020) {
+		unsigned int chan0 = CR_CHAN(cmd->chanlist[0]);
+
+		for (i = 1; i < cmd->chanlist_len; i++) {
+			unsigned int chan = CR_CHAN(cmd->chanlist[i]);
+
+			if (chan != (chan0 + i)) {
+				dev_dbg(dev->class_dev,
+					"chanlist must use consecutive channels\n");
+				return -EINVAL;
+			}
+		}
+		if (cmd->chanlist_len == 3) {
+			dev_dbg(dev->class_dev,
+				"chanlist cannot be 3 channels long, use 1, 2, or 4 channels\n");
+			return -EINVAL;
+		}
+	}
+
+	return 0;
+}
+
 static int ai_cmdtest(struct comedi_device *dev, struct comedi_subdevice *s,
 		      struct comedi_cmd *cmd)
 {
 	const struct pcidas64_board *thisboard = comedi_board(dev);
 	int err = 0;
 	unsigned int tmp_arg, tmp_arg2;
-	int i;
-	int aref;
 	unsigned int triggers;
 
 	/* Step 1 : check if triggers are trivially valid */
@@ -2098,36 +2136,9 @@ static int ai_cmdtest(struct comedi_device *dev, struct comedi_subdevice *s,
 	if (err)
 		return 4;
 
-	/*  make sure user is doesn't change analog reference mid chanlist */
-	if (cmd->chanlist) {
-		aref = CR_AREF(cmd->chanlist[0]);
-		for (i = 1; i < cmd->chanlist_len; i++) {
-			if (aref != CR_AREF(cmd->chanlist[i])) {
-				comedi_error(dev,
-					     "all elements in chanlist must use the same analog reference");
-				err++;
-				break;
-			}
-		}
-		/*  check 4020 chanlist */
-		if (thisboard->layout == LAYOUT_4020) {
-			unsigned int first_channel = CR_CHAN(cmd->chanlist[0]);
-			for (i = 1; i < cmd->chanlist_len; i++) {
-				if (CR_CHAN(cmd->chanlist[i]) !=
-				    first_channel + i) {
-					comedi_error(dev,
-						     "chanlist must use consecutive channels");
-					err++;
-					break;
-				}
-			}
-			if (cmd->chanlist_len == 3) {
-				comedi_error(dev,
-					     "chanlist cannot be 3 channels long, use 1, 2, or 4 channels");
-				err++;
-			}
-		}
-	}
+	/* Step 5: check channel list if it exists */
+	if (cmd->chanlist && cmd->chanlist_len > 0)
+		err |= cb_pcidas64_ai_check_chanlist(dev, s, cmd);
 
 	if (err)
 		return 5;
@@ -3247,13 +3258,32 @@ static int ao_cmd(struct comedi_device *dev, struct comedi_subdevice *s)
 	return 0;
 }
 
+static int cb_pcidas64_ao_check_chanlist(struct comedi_device *dev,
+					 struct comedi_subdevice *s,
+					 struct comedi_cmd *cmd)
+{
+	unsigned int chan0 = CR_CHAN(cmd->chanlist[0]);
+	int i;
+
+	for (i = 1; i < cmd->chanlist_len; i++) {
+		unsigned int chan = CR_CHAN(cmd->chanlist[i]);
+
+		if (chan != (chan0 + i)) {
+			dev_dbg(dev->class_dev,
+				"chanlist must use consecutive channels\n");
+			return -EINVAL;
+		}
+	}
+
+	return 0;
+}
+
 static int ao_cmdtest(struct comedi_device *dev, struct comedi_subdevice *s,
 		      struct comedi_cmd *cmd)
 {
 	const struct pcidas64_board *thisboard = comedi_board(dev);
 	int err = 0;
 	unsigned int tmp_arg;
-	int i;
 
 	/* Step 1 : check if triggers are trivially valid */
 
@@ -3315,17 +3345,9 @@ static int ao_cmdtest(struct comedi_device *dev, struct comedi_subdevice *s,
 	if (err)
 		return 4;
 
-	if (cmd->chanlist) {
-		unsigned int first_channel = CR_CHAN(cmd->chanlist[0]);
-		for (i = 1; i < cmd->chanlist_len; i++) {
-			if (CR_CHAN(cmd->chanlist[i]) != first_channel + i) {
-				comedi_error(dev,
-					     "chanlist must use consecutive channels");
-				err++;
-				break;
-			}
-		}
-	}
+	/* Step 5: check channel list if it exists */
+	if (cmd->chanlist && cmd->chanlist_len > 0)
+		err |= cb_pcidas64_ao_check_chanlist(dev, s, cmd);
 
 	if (err)
 		return 5;
