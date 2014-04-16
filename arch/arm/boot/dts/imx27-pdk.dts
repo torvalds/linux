@@ -19,6 +19,19 @@
 	memory {
 		reg = <0xa0000000 0x08000000>;
 	};
+
+	usbphy {
+		compatible = "simple-bus";
+		#address-cells = <1>;
+		#size-cells = <0>;
+
+		usbphy0: usbphy@0 {
+			compatible = "usb-nop-xceiv";
+			reg = <0>;
+			clocks = <&clks 0>;
+			clock-names = "main_clk";
+		};
+	};
 };
 
 &cspi2 {
@@ -78,6 +91,15 @@
 	status = "okay";
 };
 
+&usbotg {
+	pinctrl-names = "default";
+	pinctrl-0 = <&pinctrl_usbotg>;
+	dr_mode = "otg";
+	fsl,usbphy = <&usbphy0>;
+	phy_type = "ulpi";
+	status = "okay";
+};
+
 &iomuxc {
 	imx27-pdk {
 		pinctrl_cspi2: cspi2grp {
@@ -119,6 +141,23 @@
 				MX27_PAD_UART1_RXD__UART1_RXD 0x0
 				MX27_PAD_UART1_CTS__UART1_CTS 0x0
 				MX27_PAD_UART1_RTS__UART1_RTS 0x0
+			>;
+		};
+
+		pinctrl_usbotg: usbotggrp {
+			fsl,pins = <
+				MX27_PAD_USBOTG_NXT__USBOTG_NXT 0x0
+				MX27_PAD_USBOTG_STP__USBOTG_STP 0x0
+				MX27_PAD_USBOTG_DIR__USBOTG_DIR 0x0
+				MX27_PAD_USBOTG_CLK__USBOTG_CLK 0x0
+				MX27_PAD_USBOTG_DATA0__USBOTG_DATA0 0x0
+				MX27_PAD_USBOTG_DATA1__USBOTG_DATA1 0x0
+				MX27_PAD_USBOTG_DATA2__USBOTG_DATA2 0x0
+				MX27_PAD_USBOTG_DATA3__USBOTG_DATA3 0x0
+				MX27_PAD_USBOTG_DATA4__USBOTG_DATA4 0x0
+				MX27_PAD_USBOTG_DATA5__USBOTG_DATA5 0x0
+				MX27_PAD_USBOTG_DATA6__USBOTG_DATA6 0x0
+				MX27_PAD_USBOTG_DATA7__USBOTG_DATA7 0x0
 			>;
 		};
 	};
