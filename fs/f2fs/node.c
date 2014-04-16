@@ -26,20 +26,26 @@
 static struct kmem_cache *nat_entry_slab;
 static struct kmem_cache *free_nid_slab;
 
-static inline bool available_free_memory(struct f2fs_nm_info *nm_i, int type)
+bool available_free_memory(struct f2fs_sb_info *sbi, int type)
 {
+	struct f2fs_nm_info *nm_i = NM_I(sbi);
 	struct sysinfo val;
 	unsigned long mem_size = 0;
+	bool res = false;
 
 	si_meminfo(&val);
-	if (type == FREE_NIDS)
-		mem_size = nm_i->fcnt * sizeof(struct free_nid);
-	else if (type == NAT_ENTRIES)
-		mem_size += nm_i->nat_cnt * sizeof(struct nat_entry);
-	mem_size >>= 12;
-
-	/* give 50:50 memory for free nids and nat caches respectively */
-	return (mem_size < ((val.totalram * nm_i->ram_thresh) >> 11));
+	/* give 25%, 25%, 50% memory for each components respectively */
+	if (type == FREE_NIDS) {
+		mem_size = (nm_i->fcnt * sizeof(struct free_nid)) >> 12;
+		res = mem_size < ((val.totalram * nm_i->ram_thresh / 100) >> 2);
+	} else if (type == NAT_ENTRIES) {
+		mem_size = (nm_i->nat_cnt * sizeof(struct nat_entry)) >> 12;
+		res = mem_size < ((val.totalram * nm_i->ram_thresh / 100) >> 2);
+	} else if (type == DIRTY_DENTS) {
+		mem_size = get_pages(sbi, F2FS_DIRTY_DENTS);
+		res = mem_size < ((val.totalram * nm_i->ram_thresh / 100) >> 1);
+	}
+	return res;
 }
 
 static void clear_node_page_dirty(struct page *page)
@@ -241,7 +247,7 @@ int try_to_free_nats(struct f2fs_sb_info *sbi, int nr_shrink)
 {
 	struct f2fs_nm_info *nm_i = NM_I(sbi);
 
-	if (available_free_memory(nm_i, NAT_ENTRIES))
+	if (available_free_memory(sbi, NAT_ENTRIES))
 		return 0;
 
 	write_lock(&nm_i->nat_tree_lock);
@@ -1310,13 +1316,14 @@ static void __del_from_free_nid_list(struct f2fs_nm_info *nm_i,
 	radix_tree_delete(&nm_i->free_nid_root, i->nid);
 }
 
-static int add_free_nid(struct f2fs_nm_info *nm_i, nid_t nid, bool build)
+static int add_free_nid(struct f2fs_sb_info *sbi, nid_t nid, bool build)
 {
+	struct f2fs_nm_info *nm_i = NM_I(sbi);
 	struct free_nid *i;
 	struct nat_entry *ne;
 	bool allocated = false;
 
-	if (!available_free_memory(nm_i, FREE_NIDS))
+	if (!available_free_memory(sbi, FREE_NIDS))
 		return -1;
 
 	/* 0 nid should not be used */
@@ -1369,9 +1376,10 @@ static void remove_free_nid(struct f2fs_nm_info *nm_i, nid_t nid)
 		kmem_cache_free(free_nid_slab, i);
 }
 
-static void scan_nat_page(struct f2fs_nm_info *nm_i,
+static void scan_nat_page(struct f2fs_sb_info *sbi,
 			struct page *nat_page, nid_t start_nid)
 {
+	struct f2fs_nm_info *nm_i = NM_I(sbi);
 	struct f2fs_nat_block *nat_blk = page_address(nat_page);
 	block_t blk_addr;
 	int i;
@@ -1386,7 +1394,7 @@ static void scan_nat_page(struct f2fs_nm_info *nm_i,
 		blk_addr = le32_to_cpu(nat_blk->entries[i].block_addr);
 		f2fs_bug_on(blk_addr == NEW_ADDR);
 		if (blk_addr == NULL_ADDR) {
-			if (add_free_nid(nm_i, start_nid, true) < 0)
+			if (add_free_nid(sbi, start_nid, true) < 0)
 				break;
 		}
 	}
@@ -1410,7 +1418,7 @@ static void build_free_nids(struct f2fs_sb_info *sbi)
 	while (1) {
 		struct page *page = get_current_nat_page(sbi, nid);
 
-		scan_nat_page(nm_i, page, nid);
+		scan_nat_page(sbi, page, nid);
 		f2fs_put_page(page, 1);
 
 		nid += (NAT_ENTRY_PER_BLOCK - (nid % NAT_ENTRY_PER_BLOCK));
@@ -1430,7 +1438,7 @@ static void build_free_nids(struct f2fs_sb_info *sbi)
 		block_t addr = le32_to_cpu(nat_in_journal(sum, i).block_addr);
 		nid = le32_to_cpu(nid_in_journal(sum, i));
 		if (addr == NULL_ADDR)
-			add_free_nid(nm_i, nid, true);
+			add_free_nid(sbi, nid, true);
 		else
 			remove_free_nid(nm_i, nid);
 	}
@@ -1507,7 +1515,7 @@ void alloc_nid_failed(struct f2fs_sb_info *sbi, nid_t nid)
 	spin_lock(&nm_i->free_nid_list_lock);
 	i = __lookup_free_nid_list(nm_i, nid);
 	f2fs_bug_on(!i || i->state != NID_ALLOC);
-	if (!available_free_memory(nm_i, FREE_NIDS)) {
+	if (!available_free_memory(sbi, FREE_NIDS)) {
 		__del_from_free_nid_list(nm_i, i);
 		need_free = true;
 	} else {
@@ -1835,7 +1843,7 @@ flush_now:
 		}
 
 		if (nat_get_blkaddr(ne) == NULL_ADDR &&
-				add_free_nid(NM_I(sbi), nid, false) <= 0) {
+				add_free_nid(sbi, nid, false) <= 0) {
 			write_lock(&nm_i->nat_tree_lock);
 			__del_from_nat_cache(nm_i, ne);
 			write_unlock(&nm_i->nat_tree_lock);

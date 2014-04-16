@@ -83,9 +83,10 @@ static inline void raw_nat_from_node_info(struct f2fs_nat_entry *raw_ne,
 	raw_ne->version = ni->version;
 }
 
-enum nid_type {
+enum mem_type {
 	FREE_NIDS,	/* indicates the free nid list */
-	NAT_ENTRIES	/* indicates the cached nat entry */
+	NAT_ENTRIES,	/* indicates the cached nat entry */
+	DIRTY_DENTS	/* indicates dirty dentry pages */
 };
 
 /*
