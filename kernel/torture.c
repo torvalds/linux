@@ -599,7 +599,7 @@ static void torture_stutter_cleanup(void)
  * The runnable parameter points to a flag that controls whether or not
  * the test is currently runnable.  If there is no such flag, pass in NULL.
  */
-bool __init torture_init_begin(char *ttype, bool v, int *runnable)
+bool torture_init_begin(char *ttype, bool v, int *runnable)
 {
 	mutex_lock(&fullstop_mutex);
 	if (torture_type != NULL) {
@@ -619,7 +619,7 @@ EXPORT_SYMBOL_GPL(torture_init_begin);
 /*
  * Tell the torture module that initialization is complete.
  */
-void __init torture_init_end(void)
+void torture_init_end(void)
 {
 	mutex_unlock(&fullstop_mutex);
 	register_reboot_notifier(&torture_shutdown_nb);
