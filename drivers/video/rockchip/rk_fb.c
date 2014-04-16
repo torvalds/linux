@@ -65,9 +65,10 @@ EXPORT_SYMBOL(video_data_to_mirroring);
 static struct rk_fb_trsm_ops *trsm_lvds_ops;
 static struct rk_fb_trsm_ops *trsm_edp_ops;
 static struct rk_fb_trsm_ops *trsm_mipi_ops;
-__weak int support_uboot_display(void)
+static int uboot_logo_on = 0;
+int support_uboot_display(void)
 {
-	return 0;
+	return uboot_logo_on;
 }
 
 int rk_fb_trsm_ops_register(struct rk_fb_trsm_ops *ops, int type)
@@ -617,7 +618,6 @@ static int rk_fb_open(struct fb_info *info, int user)
 {
 	struct rk_lcdc_driver *dev_drv = (struct rk_lcdc_driver *)info->par;
 	int win_id;
-
 	win_id = dev_drv->ops->fb_get_win_id(dev_drv, info->fix.id);
 	if (dev_drv->win[win_id]->state)
 		return 0;    /* if this win aready opened ,no need to reopen*/
@@ -1572,6 +1572,7 @@ static int rk_fb_set_win_config(struct fb_info *info,
 	regs->post_cfg.ypos = win_data->post_cfg.ypos;
 	regs->post_cfg.xsize = win_data->post_cfg.xsize;
 	regs->post_cfg.ysize = win_data->post_cfg.xsize;*/
+
 	for (i=0; i<dev_drv->lcdc_win_num; i++) {
 		if(win_data->win_par[i].win_id < dev_drv->lcdc_win_num){
 			rk_fb_set_win_buffer(info,&win_data->win_par[i],&regs->reg_win_data[j]);
@@ -2949,6 +2950,8 @@ int rk_fb_register(struct rk_lcdc_driver *dev_drv,
 if (dev_drv->prop == PRMRY) {
 	struct fb_info *main_fbi = rk_fb->fb[0];
 	main_fbi->fbops->fb_open(main_fbi, 1);
+	if(support_uboot_display())
+		return 0;
 	main_fbi->fbops->fb_set_par(main_fbi);
 #if  defined(CONFIG_LOGO_LINUX_BMP)
 	if (fb_prewine_bmp_logo(main_fbi, FB_ROTATE_UR)) {
@@ -2964,6 +2967,7 @@ if (dev_drv->prop == PRMRY) {
 	main_fbi->fbops->fb_pan_display(&main_fbi->var, main_fbi);
 }
 #endif
+
 	return 0;
 
 
@@ -3023,6 +3027,10 @@ static int rk_fb_probe(struct platform_device *pdev)
 	} else {
 		dev_err(&pdev->dev, "no disp-mode node found!");
 		return -ENODEV;
+	}
+
+	if (!of_property_read_u32(np, "rockchip,uboot-logo-on", &uboot_logo_on)) {
+		printk("uboot-logo-on:%d\n", uboot_logo_on);
 	}
 	dev_set_name(&pdev->dev, "rockchip-fb");
 #if defined(CONFIG_ION_ROCKCHIP)
