@@ -18,7 +18,7 @@
 
 #include <linux/module.h>
 #include <linux/platform_device.h>
-#include <linux/usb/usb_phy_gen_xceiv.h>
+#include <linux/usb/usb_phy_generic.h>
 #include <linux/io.h>
 #include <linux/of.h>
 

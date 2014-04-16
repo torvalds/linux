@@ -1,7 +1,7 @@
 #ifndef _PHY_GENERIC_H_
 #define _PHY_GENERIC_H_
 
-#include <linux/usb/usb_phy_gen_xceiv.h>
+#include <linux/usb/usb_phy_generic.h>
 
 struct usb_phy_generic {
 	struct usb_phy phy;
