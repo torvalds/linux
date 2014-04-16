@@ -420,6 +420,12 @@ config  RK808_RTC
 	help
 		enable rk808 rtc for system
 
+config  RK818_RTC
+	tristate "rk818 rtc for rk"
+	depends on MFD_RK818
+	help
+		enable rk818 rtc for system
+
 config RTC_DRV_TPS80031
 	tristate "TI TPS80031/TPS80032 RTC driver"
 	depends on MFD_TPS80031
