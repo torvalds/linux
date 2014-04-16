@@ -2497,7 +2497,7 @@ EXPORT_SYMBOL_GPL(blk_unprep_request);
 /*
  * queue lock must be held
  */
-static void blk_finish_request(struct request *req, int error)
+void blk_finish_request(struct request *req, int error)
 {
 	if (blk_rq_tagged(req))
 		blk_queue_end_tag(req->q, req);
@@ -2523,6 +2523,7 @@ static void blk_finish_request(struct request *req, int error)
 		__blk_put_request(req->q, req);
 	}
 }
+EXPORT_SYMBOL(blk_finish_request);
 
 /**
  * blk_end_bidi_request - Complete a bidi request
