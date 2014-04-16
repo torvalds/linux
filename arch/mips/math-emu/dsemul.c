@@ -7,13 +7,6 @@
 
 #include "ieee754.h"
 
-/* Strap kernel emulator for full MIPS IV emulation */
-
-#ifdef __mips
-#undef __mips
-#endif
-#define __mips 4
-
 /*
  * Emulate the arbritrary instruction ir at xcp->cp0_epc.  Required when
  * we have to emulate the instruction in a COP1 branch delay slot.  Do
