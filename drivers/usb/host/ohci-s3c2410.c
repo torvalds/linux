@@ -45,10 +45,6 @@ static struct clk *usb_clk;
 
 /* forward definitions */
 
-static int (*orig_ohci_hub_control)(struct usb_hcd  *hcd, u16 typeReq,
-			u16 wValue, u16 wIndex, char *buf, u16 wLength);
-static int (*orig_ohci_hub_status_data)(struct usb_hcd *hcd, char *buf);
-
 static void s3c2410_hcd_oc(struct s3c2410_hcd_info *info, int port_oc);
 
 /* conversion functions */
@@ -110,7 +106,7 @@ ohci_s3c2410_hub_status_data(struct usb_hcd *hcd, char *buf)
 	int orig;
 	int portno;
 
-	orig = orig_ohci_hub_status_data(hcd, buf);
+	orig = ohci_hub_status_data(hcd, buf);
 
 	if (info == NULL)
 		return orig;
@@ -181,7 +177,7 @@ static int ohci_s3c2410_hub_control(
 	 * process the request straight away and exit */
 
 	if (info == NULL) {
-		ret = orig_ohci_hub_control(hcd, typeReq, wValue,
+		ret = ohci_hub_control(hcd, typeReq, wValue,
 				       wIndex, buf, wLength);
 		goto out;
 	}
@@ -231,7 +227,7 @@ static int ohci_s3c2410_hub_control(
 		break;
 	}
 
-	ret = orig_ohci_hub_control(hcd, typeReq, wValue, wIndex, buf, wLength);
+	ret = ohci_hub_control(hcd, typeReq, wValue, wIndex, buf, wLength);
 	if (ret)
 		goto out;
 
@@ -488,9 +484,6 @@ static int __init ohci_s3c2410_init(void)
 	 * is an unusual case, and we don't want to encourage others to
 	 * override these functions by making it too easy.
 	 */
-
-	orig_ohci_hub_control = ohci_s3c2410_hc_driver.hub_control;
-	orig_ohci_hub_status_data = ohci_s3c2410_hc_driver.hub_status_data;
 
 	ohci_s3c2410_hc_driver.hub_status_data	= ohci_s3c2410_hub_status_data;
 	ohci_s3c2410_hc_driver.hub_control	= ohci_s3c2410_hub_control;
