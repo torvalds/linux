@@ -812,10 +812,7 @@ static struct rb_node *hists__filter_entries(struct rb_node *nd,
 		if (total)
 			percent = h->stat.period * 100.0 / total;
 
-		if (percent < min_pcnt)
-			return NULL;
-
-		if (!h->filtered)
+		if (!h->filtered && percent >= min_pcnt)
 			return nd;
 
 		nd = rb_next(nd);
