@@ -202,10 +202,9 @@ static void iep_power_on(void)
     //iep_soft_rst(iep_drvdata1->iep_base);
 
 #ifdef IEP_CLK_ENABLE
-    //clk_prepare_enable(iep_drvdata1->pd_iep);
+    clk_prepare_enable(iep_drvdata1->pd_iep);
     clk_prepare_enable(iep_drvdata1->aclk_iep);
     clk_prepare_enable(iep_drvdata1->hclk_iep);
-    //clk_prepare_enable(iep_drvdata1->aclk_vio1);
 #endif
 
     wake_lock(&iep_drvdata1->wake_lock);
@@ -233,7 +232,7 @@ static void iep_power_off(void)
 #ifdef IEP_CLK_ENABLE
     clk_disable_unprepare(iep_drvdata1->aclk_iep);
     clk_disable_unprepare(iep_drvdata1->hclk_iep);
-    //clk_disable(iep_drvdata1->pd_iep);
+    clk_disable_unprepare(iep_drvdata1->pd_iep);
 #endif
 
     wake_unlock(&iep_drvdata1->wake_lock);
@@ -788,11 +787,11 @@ static int iep_drv_probe(struct platform_device *pdev)
     iep_service.enable = false;
 
 #ifdef IEP_CLK_ENABLE
-    /*data->pd_iep = clk_get(NULL, "pd_display");
+    data->pd_iep = devm_clk_get(&pdev->dev, "pd_iep");
     if (IS_ERR(data->pd_iep)) {
         IEP_ERR("failed to find iep power down clock source.\n");
         goto err_clock;
-    }*/
+    }
 
     data->aclk_iep = devm_clk_get(&pdev->dev, "aclk_iep");
     if (IS_ERR(data->aclk_iep)) {
@@ -807,13 +806,6 @@ static int iep_drv_probe(struct platform_device *pdev)
         ret = -ENOENT;
         goto err_clock;
     }
-
-    /*data->aclk_vio1 = clk_get(NULL, "aclk_lcdc1_pre");
-    if (IS_ERR(data->aclk_vio1)) {
-        IEP_ERR("failed to find vio1 axi clock source.\n");
-        ret = -ENOENT;
-        goto err_clock;
-    }*/
 #endif
 
     iep_service.enable = false;
@@ -842,7 +834,7 @@ static int iep_drv_probe(struct platform_device *pdev)
     }
 
     /* request the IRQ */
-    ret = devm_request_threaded_irq(&pdev->dev, data->irq0, iep_irq, iep_isr, 0, dev_name(&pdev->dev), pdev);
+    ret = devm_request_threaded_irq(&pdev->dev, data->irq0, iep_irq, iep_isr, IRQF_SHARED, dev_name(&pdev->dev), pdev);
     if (ret) {
         IEP_ERR("iep request_irq failed (%d).\n", ret);
         goto err_irq;
@@ -903,11 +895,11 @@ static int iep_drv_remove(struct platform_device *pdev)
 
     /*if (data->aclk_vio1) {
         clk_put(data->aclk_vio1);
-    }
+    }*/
 
     if (data->pd_iep) {
-        clk_put(data->pd_iep);
-    }*/
+        devm_clk_put(&pdev->dev, data->pd_iep);
+    }
 #endif
 
     //devm_kfree(data);
