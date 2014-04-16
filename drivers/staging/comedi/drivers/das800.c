@@ -300,6 +300,34 @@ static int das800_cancel(struct comedi_device *dev, struct comedi_subdevice *s)
 	return 0;
 }
 
+static int das800_ai_check_chanlist(struct comedi_device *dev,
+				    struct comedi_subdevice *s,
+				    struct comedi_cmd *cmd)
+{
+	unsigned int chan0 = CR_CHAN(cmd->chanlist[0]);
+	unsigned int range0 = CR_RANGE(cmd->chanlist[0]);
+	int i;
+
+	for (i = 1; i < cmd->chanlist_len; i++) {
+		unsigned int chan = CR_CHAN(cmd->chanlist[i]);
+		unsigned int range = CR_RANGE(cmd->chanlist[i]);
+
+		if (chan != (chan0 + i) % s->n_chan) {
+			dev_dbg(dev->class_dev,
+				"chanlist must be consecutive, counting upwards\n");
+			return -EINVAL;
+		}
+
+		if (range != range0) {
+			dev_dbg(dev->class_dev,
+				"chanlist must all have the same gain\n");
+			return -EINVAL;
+		}
+	}
+
+	return 0;
+}
+
 static int das800_ai_do_cmdtest(struct comedi_device *dev,
 				struct comedi_subdevice *s,
 				struct comedi_cmd *cmd)
@@ -366,27 +394,9 @@ static int das800_ai_do_cmdtest(struct comedi_device *dev,
 	if (err)
 		return 4;
 
-	/*  check channel/gain list against card's limitations */
-	if (cmd->chanlist) {
-		unsigned int chan = CR_CHAN(cmd->chanlist[0]);
-		unsigned int range = CR_RANGE(cmd->chanlist[0]);
-		unsigned int next;
-		int i;
-
-		for (i = 1; i < cmd->chanlist_len; i++) {
-			next = cmd->chanlist[i];
-			if (CR_CHAN(next) != (chan + i) % N_CHAN_AI) {
-				dev_err(dev->class_dev,
-					"chanlist must be consecutive, counting upwards\n");
-				err++;
-			}
-			if (CR_RANGE(next) != range) {
-				dev_err(dev->class_dev,
-					"chanlist must all have the same gain\n");
-				err++;
-			}
-		}
-	}
+	/* Step 5: check channel list if it exists */
+	if (cmd->chanlist && cmd->chanlist_len > 0)
+		err |= das800_ai_check_chanlist(dev, s, cmd);
 
 	if (err)
 		return 5;
