@@ -238,31 +238,6 @@ int omap_pcm_platform_register(struct device *dev)
 }
 EXPORT_SYMBOL_GPL(omap_pcm_platform_register);
 
-static int omap_pcm_probe(struct platform_device *pdev)
-{
-	return snd_soc_register_platform(&pdev->dev,
-			&omap_soc_platform);
-}
-
-static int omap_pcm_remove(struct platform_device *pdev)
-{
-	snd_soc_unregister_platform(&pdev->dev);
-	return 0;
-}
-
-static struct platform_driver omap_pcm_driver = {
-	.driver = {
-			.name = "omap-pcm-audio",
-			.owner = THIS_MODULE,
-	},
-
-	.probe = omap_pcm_probe,
-	.remove = omap_pcm_remove,
-};
-
-module_platform_driver(omap_pcm_driver);
-
 MODULE_AUTHOR("Jarkko Nikula <jarkko.nikula@bitmer.com>");
 MODULE_DESCRIPTION("OMAP PCM DMA module");
 MODULE_LICENSE("GPL");
-MODULE_ALIAS("platform:omap-pcm-audio");
