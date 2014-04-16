@@ -35,7 +35,7 @@
 #define PHY_REF_SSP_EN			BIT(29)
 
 struct keystone_usbphy {
-	struct usb_phy_gen_xceiv	usb_phy_gen;
+	struct usb_phy_generic	usb_phy_gen;
 	void __iomem			*phy_ctrl;
 };
 

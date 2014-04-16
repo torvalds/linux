@@ -13,7 +13,7 @@
 #include "phy-generic.h"
 
 struct am335x_phy {
-	struct usb_phy_gen_xceiv usb_phy_gen;
+	struct usb_phy_generic usb_phy_gen;
 	struct phy_control *phy_ctrl;
 	int id;
 };

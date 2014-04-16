@@ -38,13 +38,13 @@ struct dwc3_exynos {
 
 static int dwc3_exynos_register_phys(struct dwc3_exynos *exynos)
 {
-	struct usb_phy_gen_xceiv_platform_data pdata;
+	struct usb_phy_generic_platform_data pdata;
 	struct platform_device	*pdev;
 	int			ret;
 
 	memset(&pdata, 0x00, sizeof(pdata));
 
-	pdev = platform_device_alloc("usb_phy_gen_xceiv", PLATFORM_DEVID_AUTO);
+	pdev = platform_device_alloc("usb_phy_generic", PLATFORM_DEVID_AUTO);
 	if (!pdev)
 		return -ENOMEM;
 
@@ -56,7 +56,7 @@ static int dwc3_exynos_register_phys(struct dwc3_exynos *exynos)
 	if (ret)
 		goto err1;
 
-	pdev = platform_device_alloc("usb_phy_gen_xceiv", PLATFORM_DEVID_AUTO);
+	pdev = platform_device_alloc("usb_phy_generic", PLATFORM_DEVID_AUTO);
 	if (!pdev) {
 		ret = -ENOMEM;
 		goto err1;
