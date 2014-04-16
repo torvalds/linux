@@ -398,7 +398,7 @@ struct nfs_pgio_completion_ops;
 extern struct nfs_read_header *nfs_readhdr_alloc(void);
 extern void nfs_readhdr_free(struct nfs_pgio_header *hdr);
 extern void nfs_pageio_init_read(struct nfs_pageio_descriptor *pgio,
-			struct inode *inode,
+			struct inode *inode, bool force_mds,
 			const struct nfs_pgio_completion_ops *compl_ops);
 extern int nfs_initiate_read(struct rpc_clnt *clnt,
 			     struct nfs_read_data *data,

@@ -24,6 +24,7 @@
 #include "internal.h"
 #include "iostat.h"
 #include "fscache.h"
+#include "pnfs.h"
 
 #define NFSDBG_FACILITY		NFSDBG_PAGECACHE
 
@@ -114,11 +115,17 @@ int nfs_return_empty_page(struct page *page)
 }
 
 void nfs_pageio_init_read(struct nfs_pageio_descriptor *pgio,
-			      struct inode *inode,
+			      struct inode *inode, bool force_mds,
 			      const struct nfs_pgio_completion_ops *compl_ops)
 {
-	nfs_pageio_init(pgio, inode, &nfs_pageio_read_ops, compl_ops,
-			NFS_SERVER(inode)->rsize, 0);
+	struct nfs_server *server = NFS_SERVER(inode);
+	const struct nfs_pageio_ops *pg_ops = &nfs_pageio_read_ops;
+
+#ifdef CONFIG_NFS_V4_1
+	if (server->pnfs_curr_ld && !force_mds)
+		pg_ops = server->pnfs_curr_ld->pg_read_ops;
+#endif
+	nfs_pageio_init(pgio, inode, pg_ops, compl_ops, server->rsize, 0);
 }
 EXPORT_SYMBOL_GPL(nfs_pageio_init_read);
 
@@ -147,7 +154,8 @@ int nfs_readpage_async(struct nfs_open_context *ctx, struct inode *inode,
 	if (len < PAGE_CACHE_SIZE)
 		zero_user_segment(page, len, PAGE_CACHE_SIZE);
 
-	NFS_PROTO(inode)->read_pageio_init(&pgio, inode, &nfs_async_read_completion_ops);
+	nfs_pageio_init_read(&pgio, inode, false,
+			     &nfs_async_read_completion_ops);
 	nfs_pageio_add_request(&pgio, new);
 	nfs_pageio_complete(&pgio);
 	NFS_I(inode)->read_io += pgio.pg_bytes_written;
@@ -654,7 +662,8 @@ int nfs_readpages(struct file *filp, struct address_space *mapping,
 	if (ret == 0)
 		goto read_complete; /* all pages were read */
 
-	NFS_PROTO(inode)->read_pageio_init(&pgio, inode, &nfs_async_read_completion_ops);
+	nfs_pageio_init_read(&pgio, inode, false,
+			     &nfs_async_read_completion_ops);
 
 	ret = read_cache_pages(mapping, pages, readpage_async_filler, &desc);
 

@@ -1434,19 +1434,6 @@ pnfs_generic_pg_init_write(struct nfs_pageio_descriptor *pgio,
 }
 EXPORT_SYMBOL_GPL(pnfs_generic_pg_init_write);
 
-void
-pnfs_pageio_init_read(struct nfs_pageio_descriptor *pgio, struct inode *inode,
-		      const struct nfs_pgio_completion_ops *compl_ops)
-{
-	struct nfs_server *server = NFS_SERVER(inode);
-	struct pnfs_layoutdriver_type *ld = server->pnfs_curr_ld;
-
-	if (ld == NULL)
-		nfs_pageio_init_read(pgio, inode, compl_ops);
-	else
-		nfs_pageio_init(pgio, inode, ld->pg_read_ops, compl_ops, server->rsize, 0);
-}
-
 bool
 pnfs_generic_pg_test(struct nfs_pageio_descriptor *pgio, struct nfs_page *prev,
 		     struct nfs_page *req)
@@ -1641,7 +1628,7 @@ int pnfs_read_done_resend_to_mds(struct inode *inode,
 	LIST_HEAD(failed);
 
 	/* Resend all requests through the MDS */
-	nfs_pageio_init_read(&pgio, inode, compl_ops);
+	nfs_pageio_init_read(&pgio, inode, true, compl_ops);
 	pgio.pg_dreq = dreq;
 	while (!list_empty(head)) {
 		struct nfs_page *req = nfs_list_entry(head->next);
