@@ -942,10 +942,18 @@ static int tegra_output_hdmi_disable(struct tegra_output *output)
 	 * sure it's only executed when the output is attached to one.
 	 */
 	if (dc) {
+		/*
+		 * XXX: We can't do this here because it causes HDMI to go
+		 * into an erroneous state with the result that HDMI won't
+		 * properly work once disabled. See also a similar symptom
+		 * for the SOR output.
+		 */
+		/*
 		value = tegra_dc_readl(dc, DC_CMD_DISPLAY_POWER_CONTROL);
 		value &= ~(PW0_ENABLE | PW1_ENABLE | PW2_ENABLE | PW3_ENABLE |
 			   PW4_ENABLE | PM0_ENABLE | PM1_ENABLE);
 		tegra_dc_writel(dc, value, DC_CMD_DISPLAY_POWER_CONTROL);
+		*/
 
 		value = tegra_dc_readl(dc, DC_CMD_DISPLAY_COMMAND);
 		value &= ~DISP_CTRL_MODE_MASK;
