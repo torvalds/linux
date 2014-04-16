@@ -1344,6 +1344,14 @@ __xfs_get_blocks(
 	/*
 	 * If this is O_DIRECT or the mpage code calling tell them how large
 	 * the mapping is, so that we can avoid repeated get_blocks calls.
+	 *
+	 * If the mapping spans EOF, then we have to break the mapping up as the
+	 * mapping for blocks beyond EOF must be marked new so that sub block
+	 * regions can be correctly zeroed. We can't do this for mappings within
+	 * EOF unless the mapping was just allocated or is unwritten, otherwise
+	 * the callers would overwrite existing data with zeros. Hence we have
+	 * to split the mapping into a range up to and including EOF, and a
+	 * second mapping for beyond EOF.
 	 */
 	if (direct || size > (1 << inode->i_blkbits)) {
 		xfs_off_t		mapping_size;
@@ -1354,6 +1362,12 @@ __xfs_get_blocks(
 		ASSERT(mapping_size > 0);
 		if (mapping_size > size)
 			mapping_size = size;
+		if (offset < i_size_read(inode) &&
+		    offset + mapping_size >= i_size_read(inode)) {
+			/* limit mapping to block that spans EOF */
+			mapping_size = roundup_64(i_size_read(inode) - offset,
+						  1 << inode->i_blkbits);
+		}
 		if (mapping_size > LONG_MAX)
 			mapping_size = LONG_MAX;
 
