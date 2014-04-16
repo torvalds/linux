@@ -837,7 +837,7 @@ static int rk32_edp_get_max_rx_bandwidth(struct rk32_edp *edp,
 					u8 *bandwidth)
 {
 	u8 data;
-	int retval;
+	int retval = 0;
 
 	/*
 	 * For DP rev.1.1, Maximum link rate of Main Link lanes
@@ -846,10 +846,11 @@ static int rk32_edp_get_max_rx_bandwidth(struct rk32_edp *edp,
 	retval = rk32_edp_read_byte_from_dpcd(edp,
 			DPCD_MAX_LINK_RATE, &data);
 	if (retval < 0)
-		return retval;
+		*bandwidth = 0;
+	else
+		*bandwidth = data;
+	return retval;
 
-	*bandwidth = data;
-	return 0;
 }
 
 static int rk32_edp_get_max_rx_lane_count(struct rk32_edp *edp,
@@ -865,10 +866,10 @@ static int rk32_edp_get_max_rx_lane_count(struct rk32_edp *edp,
 	retval = rk32_edp_read_byte_from_dpcd(edp,
 			DPCD_MAX_LANE_CNT, &data);
 	if (retval < 0)
-		return retval;
-
-	*lane_count = DPCD_MAX_LANE_COUNT(data);
-	return 0;
+		*lane_count = 0;
+	else
+		*lane_count = DPCD_MAX_LANE_COUNT(data);
+	return retval;
 }
 
 static int rk32_edp_init_training(struct rk32_edp *edp)
