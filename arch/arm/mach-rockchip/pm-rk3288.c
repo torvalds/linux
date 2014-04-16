@@ -941,7 +941,7 @@ static u32  rkpm_slp_mode_set(u32 ctrbits)
                             |BIT(pmu_sref0_enter_en)|BIT(pmu_sref1_enter_en) 
                             |BIT(pmu_ddr0_gating_en)|BIT(pmu_ddr1_gating_en)              
                             |BIT(pmu_ddr1io_ret_en)|BIT(pmu_ddr0io_ret_en)   
-                            |BIT(pmu_osc_24m_dis)|BIT(pmu_pmu_use_lf)|BIT(pmu_alive_use_lf)
+                            |BIT(pmu_osc_24m_dis)|BIT(pmu_pmu_use_lf)|BIT(pmu_alive_use_lf)|BIT(pmu_pll_pd_en)
                             ;
         mode_set1=BIT(pmu_clr_core)|BIT(pmu_clr_cpup)
                            |BIT(pmu_clr_alive)
