@@ -72,26 +72,6 @@
 		};
 	};
 
-	usbphy {
-		compatible = "simple-bus";
-		#address-cells = <1>;
-		#size-cells = <0>;
-
-		usbphy0: usbphy@0 {
-			compatible = "usb-nop-xceiv";
-			reg = <0>;
-			clocks = <&clks 75>;
-			clock-names = "main_clk";
-		};
-
-		usbphy2: usbphy@2 {
-			compatible = "usb-nop-xceiv";
-			reg = <2>;
-			clocks = <&clks 75>;
-			clock-names = "main_clk";
-		};
-	};
-
 	soc {
 		#address-cells = <1>;
 		#size-cells = <1>;
@@ -467,7 +447,6 @@
 				interrupts = <56>;
 				clocks = <&clks 75>;
 				fsl,usbmisc = <&usbmisc 0>;
-				fsl,usbphy = <&usbphy0>;
 				status = "disabled";
 			};
 
@@ -486,7 +465,6 @@
 				interrupts = <55>;
 				clocks = <&clks 75>;
 				fsl,usbmisc = <&usbmisc 2>;
-				fsl,usbphy = <&usbphy2>;
 				status = "disabled";
 			};
 
