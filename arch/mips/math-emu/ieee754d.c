@@ -25,7 +25,8 @@
  *  Copyright (C) 2000 MIPS Technologies, Inc. All rights reserved.
  */
 
-#include <linux/kernel.h>
+#include <linux/types.h>
+#include <linux/printk.h>
 #include "ieee754.h"
 
 #define DP_EBIAS	1023

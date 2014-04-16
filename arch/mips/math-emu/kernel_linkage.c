@@ -19,11 +19,8 @@
  * manipulation primitives for the Algorithmics MIPS
  * FPU Emulator
  */
-#include <linux/sched.h>
-#include <asm/processor.h>
-#include <asm/signal.h>
-#include <asm/uaccess.h>
-
+#include <linux/printk.h>
+#include <asm/current.h>
 #include <asm/fpu.h>
 #include <asm/fpu_emulator.h>
 

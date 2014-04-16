@@ -29,7 +29,7 @@
  *************************************************************************/
 
 #include <linux/compiler.h>
-#include <linux/kernel.h>
+#include <linux/printk.h>
 #include "ieee754.h"
 
 /*

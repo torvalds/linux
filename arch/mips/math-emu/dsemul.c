@@ -1,20 +1,9 @@
-#include <linux/compiler.h>
-#include <linux/mm.h>
-#include <linux/signal.h>
-#include <linux/smp.h>
-
-#include <asm/asm.h>
-#include <asm/bootinfo.h>
-#include <asm/byteorder.h>
-#include <asm/cpu.h>
-#include <asm/inst.h>
-#include <asm/processor.h>
-#include <asm/uaccess.h>
 #include <asm/branch.h>
-#include <asm/mipsregs.h>
 #include <asm/cacheflush.h>
-
 #include <asm/fpu_emulator.h>
+#include <asm/inst.h>
+#include <asm/mipsregs.h>
+#include <asm/uaccess.h>
 
 #include "ieee754.h"
 

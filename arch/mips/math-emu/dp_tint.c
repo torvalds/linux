@@ -24,7 +24,6 @@
  */
 
 
-#include <linux/kernel.h>
 #include "ieee754dp.h"
 
 int ieee754dp_tint(union ieee754dp x)

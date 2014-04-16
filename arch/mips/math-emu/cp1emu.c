@@ -34,20 +34,18 @@
  * better performance by compiling with -msoft-float!
  */
 #include <linux/sched.h>
-#include <linux/module.h>
 #include <linux/debugfs.h>
 #include <linux/perf_event.h>
 
+#include <asm/branch.h>
 #include <asm/inst.h>
-#include <asm/bootinfo.h>
-#include <asm/processor.h>
 #include <asm/ptrace.h>
 #include <asm/signal.h>
-#include <asm/mipsregs.h>
+#include <asm/uaccess.h>
+
+#include <asm/processor.h>
 #include <asm/fpu_emulator.h>
 #include <asm/fpu.h>
-#include <asm/uaccess.h>
-#include <asm/branch.h>
 
 #include "ieee754.h"
 
