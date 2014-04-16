@@ -846,9 +846,13 @@ static int tegra_output_hdmi_enable(struct tegra_output *output)
 	tegra_hdmi_writel(hdmi, value, HDMI_NV_PDISP_SOR_SEQ_INST(0));
 	tegra_hdmi_writel(hdmi, value, HDMI_NV_PDISP_SOR_SEQ_INST(8));
 
-	value = 0x1c800;
+	value = tegra_hdmi_readl(hdmi, HDMI_NV_PDISP_SOR_CSTM);
 	value &= ~SOR_CSTM_ROTCLK(~0);
 	value |= SOR_CSTM_ROTCLK(2);
+	value |= SOR_CSTM_PLLDIV;
+	value &= ~SOR_CSTM_LVDS_ENABLE;
+	value &= ~SOR_CSTM_MODE_MASK;
+	value |= SOR_CSTM_MODE_TMDS;
 	tegra_hdmi_writel(hdmi, value, HDMI_NV_PDISP_SOR_CSTM);
 
 	/* start SOR */
