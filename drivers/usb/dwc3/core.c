@@ -486,69 +486,19 @@ static void dwc3_core_exit(struct dwc3 *dwc)
 	phy_exit(dwc->usb3_generic_phy);
 }
 
-#define DWC3_ALIGN_MASK		(16 - 1)
-
-static int dwc3_probe(struct platform_device *pdev)
+static int dwc3_core_get_phy(struct dwc3 *dwc)
 {
-	struct device		*dev = &pdev->dev;
-	struct dwc3_platform_data *pdata = dev_get_platdata(dev);
+	struct device		*dev = dwc->dev;
 	struct device_node	*node = dev->of_node;
-	struct resource		*res;
-	struct dwc3		*dwc;
-
-	int			ret = -ENOMEM;
-
-	void __iomem		*regs;
-	void			*mem;
-
-	mem = devm_kzalloc(dev, sizeof(*dwc) + DWC3_ALIGN_MASK, GFP_KERNEL);
-	if (!mem) {
-		dev_err(dev, "not enough memory\n");
-		return -ENOMEM;
-	}
-	dwc = PTR_ALIGN(mem, DWC3_ALIGN_MASK + 1);
-	dwc->mem = mem;
-
-	res = platform_get_resource(pdev, IORESOURCE_IRQ, 0);
-	if (!res) {
-		dev_err(dev, "missing IRQ\n");
-		return -ENODEV;
-	}
-	dwc->xhci_resources[1].start = res->start;
-	dwc->xhci_resources[1].end = res->end;
-	dwc->xhci_resources[1].flags = res->flags;
-	dwc->xhci_resources[1].name = res->name;
-
-	res = platform_get_resource(pdev, IORESOURCE_MEM, 0);
-	if (!res) {
-		dev_err(dev, "missing memory resource\n");
-		return -ENODEV;
-	}
+	int ret;
 
 	if (node) {
-		dwc->maximum_speed = of_usb_get_maximum_speed(node);
-
 		dwc->usb2_phy = devm_usb_get_phy_by_phandle(dev, "usb-phy", 0);
 		dwc->usb3_phy = devm_usb_get_phy_by_phandle(dev, "usb-phy", 1);
-
-		dwc->needs_fifo_resize = of_property_read_bool(node, "tx-fifo-resize");
-		dwc->dr_mode = of_usb_get_dr_mode(node);
-	} else if (pdata) {
-		dwc->maximum_speed = pdata->maximum_speed;
-
-		dwc->usb2_phy = devm_usb_get_phy(dev, USB_PHY_TYPE_USB2);
-		dwc->usb3_phy = devm_usb_get_phy(dev, USB_PHY_TYPE_USB3);
-
-		dwc->needs_fifo_resize = pdata->tx_fifo_resize;
-		dwc->dr_mode = pdata->dr_mode;
 	} else {
 		dwc->usb2_phy = devm_usb_get_phy(dev, USB_PHY_TYPE_USB2);
 		dwc->usb3_phy = devm_usb_get_phy(dev, USB_PHY_TYPE_USB3);
 	}
-
-	/* default to superspeed if no maximum_speed passed */
-	if (dwc->maximum_speed == USB_SPEED_UNKNOWN)
-		dwc->maximum_speed = USB_SPEED_SUPER;
 
 	if (IS_ERR(dwc->usb2_phy)) {
 		ret = PTR_ERR(dwc->usb2_phy);
@@ -600,6 +550,69 @@ static int dwc3_probe(struct platform_device *pdev)
 		}
 	}
 
+	return 0;
+}
+
+#define DWC3_ALIGN_MASK		(16 - 1)
+
+static int dwc3_probe(struct platform_device *pdev)
+{
+	struct device		*dev = &pdev->dev;
+	struct dwc3_platform_data *pdata = dev_get_platdata(dev);
+	struct device_node	*node = dev->of_node;
+	struct resource		*res;
+	struct dwc3		*dwc;
+
+	int			ret = -ENOMEM;
+
+	void __iomem		*regs;
+	void			*mem;
+
+	mem = devm_kzalloc(dev, sizeof(*dwc) + DWC3_ALIGN_MASK, GFP_KERNEL);
+	if (!mem) {
+		dev_err(dev, "not enough memory\n");
+		return -ENOMEM;
+	}
+	dwc = PTR_ALIGN(mem, DWC3_ALIGN_MASK + 1);
+	dwc->mem = mem;
+	dwc->dev = dev;
+
+	res = platform_get_resource(pdev, IORESOURCE_IRQ, 0);
+	if (!res) {
+		dev_err(dev, "missing IRQ\n");
+		return -ENODEV;
+	}
+	dwc->xhci_resources[1].start = res->start;
+	dwc->xhci_resources[1].end = res->end;
+	dwc->xhci_resources[1].flags = res->flags;
+	dwc->xhci_resources[1].name = res->name;
+
+	res = platform_get_resource(pdev, IORESOURCE_MEM, 0);
+	if (!res) {
+		dev_err(dev, "missing memory resource\n");
+		return -ENODEV;
+	}
+
+	if (node) {
+		dwc->maximum_speed = of_usb_get_maximum_speed(node);
+
+		dwc->needs_fifo_resize = of_property_read_bool(node, "tx-fifo-resize");
+		dwc->dr_mode = of_usb_get_dr_mode(node);
+	} else if (pdata) {
+		dwc->maximum_speed = pdata->maximum_speed;
+
+		dwc->needs_fifo_resize = pdata->tx_fifo_resize;
+		dwc->dr_mode = pdata->dr_mode;
+	}
+
+	/* default to superspeed if no maximum_speed passed */
+	if (dwc->maximum_speed == USB_SPEED_UNKNOWN)
+		dwc->maximum_speed = USB_SPEED_SUPER;
+
+	ret = dwc3_core_get_phy(dwc);
+	if (ret)
+		return ret;
+
 	dwc->xhci_resources[0].start = res->start;
 	dwc->xhci_resources[0].end = dwc->xhci_resources[0].start +
 					DWC3_XHCI_REGS_END;
@@ -621,7 +634,6 @@ static int dwc3_probe(struct platform_device *pdev)
 
 	dwc->regs	= regs;
 	dwc->regs_size	= resource_size(res);
-	dwc->dev	= dev;
 
 	dev->dma_mask	= dev->parent->dma_mask;
 	dev->dma_parms	= dev->parent->dma_parms;
