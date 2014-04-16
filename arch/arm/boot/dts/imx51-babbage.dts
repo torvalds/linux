@@ -170,7 +170,7 @@
 		usbh1phy: usbh1phy@0 {
 			compatible = "usb-nop-xceiv";
 			reg = <0>;
-			clocks = <&clks 0>;
+			clocks = <&clks IMX5_CLK_DUMMY>;
 			clock-names = "main_clk";
 		};
 	};
