@@ -42,6 +42,7 @@
 #include <sound/dmaengine_pcm.h>
 
 #include "omap-dmic.h"
+#include "omap-pcm.h"
 
 struct omap_dmic {
 	struct device *dev;
@@ -491,6 +492,10 @@ static int asoc_dmic_probe(struct platform_device *pdev)
 
 	ret = snd_soc_register_component(&pdev->dev, &omap_dmic_component,
 					 &omap_dmic_dai, 1);
+	if (ret)
+		goto err_put_clk;
+
+	ret = omap_pcm_platform_register(&pdev->dev);
 	if (ret)
 		goto err_put_clk;
 
