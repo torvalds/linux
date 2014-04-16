@@ -195,8 +195,6 @@
 	nand-bus-width = <8>;
 	nand-ecc-mode = "hw";
 	nand-on-flash-bbt;
-	#address-cells = <1>;
-	#size-cells = <1>;
 	status = "okay";
 };
 
