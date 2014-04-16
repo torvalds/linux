@@ -48,6 +48,11 @@
 	};
 };
 
+&hdmi {
+	ddc-i2c-bus = <&i2c3>;
+	status = "okay";
+};
+
 /* Internal I2C */
 &i2c2 {
 	pinctrl-names = "default";
