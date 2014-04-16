@@ -182,8 +182,6 @@ void pnfs_put_lseg(struct pnfs_layout_segment *lseg);
 
 void pnfs_pageio_init_read(struct nfs_pageio_descriptor *, struct inode *,
 			   const struct nfs_pgio_completion_ops *);
-void pnfs_pageio_init_write(struct nfs_pageio_descriptor *, struct inode *,
-			    int, const struct nfs_pgio_completion_ops *);
 
 void set_pnfs_layoutdriver(struct nfs_server *, const struct nfs_fh *, u32);
 void unset_pnfs_layoutdriver(struct nfs_server *);
@@ -465,12 +463,6 @@ static inline void pnfs_pageio_init_read(struct nfs_pageio_descriptor *pgio, str
 					 const struct nfs_pgio_completion_ops *compl_ops)
 {
 	nfs_pageio_init_read(pgio, inode, compl_ops);
-}
-
-static inline void pnfs_pageio_init_write(struct nfs_pageio_descriptor *pgio, struct inode *inode, int ioflags,
-					  const struct nfs_pgio_completion_ops *compl_ops)
-{
-	nfs_pageio_init_write(pgio, inode, ioflags, compl_ops);
 }
 
 static inline int
