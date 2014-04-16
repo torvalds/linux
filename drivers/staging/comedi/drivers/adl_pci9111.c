@@ -314,6 +314,41 @@ static int pci9111_ai_cancel(struct comedi_device *dev,
 	return 0;
 }
 
+static int pci9111_ai_check_chanlist(struct comedi_device *dev,
+				     struct comedi_subdevice *s,
+				     struct comedi_cmd *cmd)
+{
+	unsigned int range0 = CR_RANGE(cmd->chanlist[0]);
+	unsigned int aref0 = CR_AREF(cmd->chanlist[0]);
+	int i;
+
+	for (i = 1; i < cmd->chanlist_len; i++) {
+		unsigned int chan = CR_CHAN(cmd->chanlist[i]);
+		unsigned int range = CR_RANGE(cmd->chanlist[i]);
+		unsigned int aref = CR_AREF(cmd->chanlist[i]);
+
+		if (chan != i) {
+			dev_dbg(dev->class_dev,
+				"entries in chanlist must be consecutive channels,counting upwards from 0\n");
+			return -EINVAL;
+		}
+
+		if (range != range0) {
+			dev_dbg(dev->class_dev,
+				"entries in chanlist must all have the same gain\n");
+			return -EINVAL;
+		}
+
+		if (aref != aref0) {
+			dev_dbg(dev->class_dev,
+				"entries in chanlist must all have the same reference\n");
+			return -EINVAL;
+		}
+	}
+
+	return 0;
+}
+
 static int pci9111_ai_do_cmd_test(struct comedi_device *dev,
 				  struct comedi_subdevice *s,
 				  struct comedi_cmd *cmd)
@@ -321,8 +356,6 @@ static int pci9111_ai_do_cmd_test(struct comedi_device *dev,
 	struct pci9111_private_data *dev_private = dev->private;
 	int tmp;
 	int error = 0;
-	int range, reference;
-	int i;
 
 	/* Step 1 : check if triggers are trivially valid */
 
@@ -426,34 +459,9 @@ static int pci9111_ai_do_cmd_test(struct comedi_device *dev,
 	if (error)
 		return 4;
 
-	/*  Step 5 : check channel list */
-
-	if (cmd->chanlist) {
-
-		range = CR_RANGE(cmd->chanlist[0]);
-		reference = CR_AREF(cmd->chanlist[0]);
-
-		if (cmd->chanlist_len > 1) {
-			for (i = 0; i < cmd->chanlist_len; i++) {
-				if (CR_CHAN(cmd->chanlist[i]) != i) {
-					comedi_error(dev,
-						     "entries in chanlist must be consecutive "
-						     "channels,counting upwards from 0\n");
-					error++;
-				}
-				if (CR_RANGE(cmd->chanlist[i]) != range) {
-					comedi_error(dev,
-						     "entries in chanlist must all have the same gain\n");
-					error++;
-				}
-				if (CR_AREF(cmd->chanlist[i]) != reference) {
-					comedi_error(dev,
-						     "entries in chanlist must all have the same reference\n");
-					error++;
-				}
-			}
-		}
-	}
+	/* Step 5: check channel list if it exists */
+	if (cmd->chanlist && cmd->chanlist_len > 0)
+		error |= pci9111_ai_check_chanlist(dev, s, cmd);
 
 	if (error)
 		return 5;
