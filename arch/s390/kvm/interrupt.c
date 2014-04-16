@@ -26,6 +26,7 @@
 #define IOINT_SSID_MASK 0x00030000
 #define IOINT_CSSID_MASK 0x03fc0000
 #define IOINT_AI_MASK 0x04000000
+#define PFAULT_INIT 0x0600
 
 static void deliver_ckc_interrupt(struct kvm_vcpu *vcpu);
 
@@ -376,8 +377,9 @@ static void __do_deliver_interrupt(struct kvm_vcpu *vcpu,
 	case KVM_S390_INT_PFAULT_INIT:
 		trace_kvm_s390_deliver_interrupt(vcpu->vcpu_id, inti->type, 0,
 						 inti->ext.ext_params2);
-		rc  = put_guest_lc(vcpu, 0x2603, (u16 *) __LC_EXT_INT_CODE);
-		rc |= put_guest_lc(vcpu, 0x0600, (u16 *) __LC_EXT_CPU_ADDR);
+		rc  = put_guest_lc(vcpu, EXT_IRQ_CP_SERVICE,
+				   (u16 *) __LC_EXT_INT_CODE);
+		rc |= put_guest_lc(vcpu, PFAULT_INIT, (u16 *) __LC_EXT_CPU_ADDR);
 		rc |= write_guest_lc(vcpu, __LC_EXT_OLD_PSW,
 				     &vcpu->arch.sie_block->gpsw, sizeof(psw_t));
 		rc |= read_guest_lc(vcpu, __LC_EXT_NEW_PSW,
