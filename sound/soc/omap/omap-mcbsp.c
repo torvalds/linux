@@ -149,9 +149,6 @@ static int omap_mcbsp_dai_startup(struct snd_pcm_substream *substream,
 					   SNDRV_PCM_HW_PARAM_PERIOD_SIZE, 2);
 	}
 
-	snd_soc_dai_set_dma_data(cpu_dai, substream,
-				 &mcbsp->dma_data[substream->stream]);
-
 	return err;
 }
 
@@ -558,6 +555,10 @@ static int omap_mcbsp_probe(struct snd_soc_dai *dai)
 	struct omap_mcbsp *mcbsp = snd_soc_dai_get_drvdata(dai);
 
 	pm_runtime_enable(mcbsp->dev);
+
+	snd_soc_dai_init_dma_data(dai,
+				  &mcbsp->dma_data[SNDRV_PCM_STREAM_PLAYBACK],
+				  &mcbsp->dma_data[SNDRV_PCM_STREAM_CAPTURE]);
 
 	return 0;
 }
