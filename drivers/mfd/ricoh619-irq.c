@@ -467,7 +467,7 @@ static struct irq_domain_ops ricoh619_irq_domain_ops = {
 int ricoh619_irq_init(struct ricoh619 *ricoh619, int irq,
 				struct ricoh619_platform_data *pdata)
 {
-	int i, ret,val;
+	int i, ret,val,irq_type,flags;
 	u8 reg_data = 0;
 	struct irq_domain *domain;
 	
@@ -572,6 +572,14 @@ int ricoh619_irq_init(struct ricoh619 *ricoh619, int irq,
 			}
 			gpio_direction_input(pdata->irq_gpio);
 			val = gpio_get_value(pdata->irq_gpio);
+			if (val){
+				irq_type = IRQ_TYPE_LEVEL_LOW;
+				flags = IRQF_TRIGGER_LOW;
+			}
+			else{
+				irq_type = IRQ_TYPE_LEVEL_HIGH;
+				flags = IRQF_TRIGGER_HIGH;
+			}
 			gpio_free(pdata->irq_gpio);
 			pr_info("%s: ricoh619_pmic_irq=%x\n", __func__, val);
 		}
@@ -584,10 +592,10 @@ int ricoh619_irq_init(struct ricoh619 *ricoh619, int irq,
 		return -ENODEV;
 	}
 	ricoh619->irq_domain = domain;
-	ret = devm_request_threaded_irq(ricoh619->dev,ricoh619->chip_irq, NULL, ricoh619_irq, IRQF_TRIGGER_FALLING |IRQF_ONESHOT, "ricoh619", ricoh619);
+	ret = devm_request_threaded_irq(ricoh619->dev,ricoh619->chip_irq, NULL, ricoh619_irq, flags |IRQF_ONESHOT, "ricoh619", ricoh619);
 //	ret = devm_request_threaded_irq(ricoh619->dev,ricoh619->chip_irq, NULL, ricoh619_irq, IRQF_TRIGGER_FALLING | IRQF_ONESHOT , "ricoh619", ricoh619);
 
-	irq_set_irq_type(ricoh619->chip_irq, IRQ_TYPE_LEVEL_LOW);
+	irq_set_irq_type(ricoh619->chip_irq, irq_type);
 	enable_irq_wake(ricoh619->chip_irq);
 	return ret;
 }

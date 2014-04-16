@@ -169,7 +169,7 @@ static struct irq_domain_ops rk808_irq_domain_ops = {
 int rk808_irq_init(struct rk808 *rk808, int irq,struct rk808_board *pdata)
 {
 	struct irq_domain *domain;
-	int ret,val;
+	int ret,val,irq_type,flags;
 	u8 reg;
 
 //	printk("%s,line=%d\n", __func__,__LINE__);	
@@ -205,6 +205,14 @@ int rk808_irq_init(struct rk808 *rk808, int irq,struct rk808_board *pdata)
 			}
 			gpio_direction_input(rk808->irq_gpio);
 			val = gpio_get_value(rk808->irq_gpio);
+			if (val){
+				irq_type = IRQ_TYPE_LEVEL_LOW;
+				flags = IRQF_TRIGGER_FALLING;
+			}
+			else{
+				irq_type = IRQ_TYPE_LEVEL_HIGH;
+				flags = IRQF_TRIGGER_RISING;
+			}
 			gpio_free(rk808->irq_gpio);
 			pr_info("%s: rk808_pmic_irq=%x\n", __func__, val);
 		}
@@ -218,9 +226,9 @@ int rk808_irq_init(struct rk808 *rk808, int irq,struct rk808_board *pdata)
 	}
 	rk808->irq_domain = domain;
 
-	ret = request_threaded_irq(rk808->chip_irq, NULL, rk808_irq, IRQF_TRIGGER_FALLING | IRQF_ONESHOT, "rk808", rk808);
+	ret = request_threaded_irq(rk808->chip_irq, NULL, rk808_irq, flags | IRQF_ONESHOT, "rk808", rk808);
 
-	irq_set_irq_type(rk808->chip_irq, IRQ_TYPE_LEVEL_LOW);
+	irq_set_irq_type(rk808->chip_irq, irq_type);
 	enable_irq_wake(rk808->chip_irq);
 
 	if (ret != 0)
