@@ -335,6 +335,12 @@
 	status = "okay";
 };
 
+&i2c1 {
+	pinctrl-names = "default";
+	pinctrl-0 = <&pinctrl_i2c1>;
+	status = "okay";
+};
+
 &i2c2 {
 	pinctrl-names = "default";
 	pinctrl-0 = <&pinctrl_i2c2>;
@@ -510,6 +516,13 @@
 		pinctrl_gpio_leds: gpioledsgrp {
 			fsl,pins = <
 				MX51_PAD_EIM_D22__GPIO2_6		0x80000000
+			>;
+		};
+
+		pinctrl_i2c1: i2c1grp {
+			fsl,pins = <
+				MX51_PAD_EIM_D19__I2C1_SCL		0x400001ed
+				MX51_PAD_EIM_D16__I2C1_SDA		0x400001ed
 			>;
 		};
 
