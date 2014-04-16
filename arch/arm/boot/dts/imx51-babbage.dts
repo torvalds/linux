@@ -199,6 +199,8 @@
 		#address-cells = <1>;
 		#size-cells = <0>;
 		compatible = "fsl,mc13892";
+		pinctrl-names = "default";
+		pinctrl-0 = <&pinctrl_pmic>;
 		spi-max-frequency = <6000000>;
 		spi-cs-high;
 		reg = <0>;
@@ -487,6 +489,12 @@
 				MX51_PAD_KEY_COL1__KEY_COL1		0xe8
 				MX51_PAD_KEY_COL2__KEY_COL2		0xe8
 				MX51_PAD_KEY_COL3__KEY_COL3		0xe8
+			>;
+		};
+
+		pinctrl_pmic: pmicgrp {
+			fsl,pins = <
+				MX51_PAD_GPIO1_8__GPIO1_8		0xe5 /* IRQ */
 			>;
 		};
 
