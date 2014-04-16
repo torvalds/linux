@@ -18,7 +18,8 @@ struct blk_mq_hw_ctx {
 	} ____cacheline_aligned_in_smp;
 
 	unsigned long		state;		/* BLK_MQ_S_* flags */
-	struct delayed_work	delayed_work;
+	struct delayed_work	run_work;
+	struct delayed_work	delay_work;
 	cpumask_var_t		cpumask;
 
 	unsigned long		flags;		/* BLK_MQ_F_* flags */
@@ -158,6 +159,7 @@ void blk_mq_stop_hw_queue(struct blk_mq_hw_ctx *hctx);
 void blk_mq_start_hw_queue(struct blk_mq_hw_ctx *hctx);
 void blk_mq_stop_hw_queues(struct request_queue *q);
 void blk_mq_start_stopped_hw_queues(struct request_queue *q, bool async);
+void blk_mq_delay_queue(struct blk_mq_hw_ctx *hctx, unsigned long msecs);
 
 /*
  * Driver command data is immediately after the request. So subtract request

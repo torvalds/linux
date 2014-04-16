@@ -640,7 +640,7 @@ void blk_mq_run_hw_queue(struct blk_mq_hw_ctx *hctx, bool async)
 	if (!async && cpumask_test_cpu(smp_processor_id(), hctx->cpumask))
 		__blk_mq_run_hw_queue(hctx);
 	else if (hctx->queue->nr_hw_queues == 1)
-		kblockd_schedule_delayed_work(&hctx->delayed_work, 0);
+		kblockd_schedule_delayed_work(&hctx->run_work, 0);
 	else {
 		unsigned int cpu;
 
@@ -651,7 +651,7 @@ void blk_mq_run_hw_queue(struct blk_mq_hw_ctx *hctx, bool async)
 		 * just queue on the first CPU.
 		 */
 		cpu = cpumask_first(hctx->cpumask);
-		kblockd_schedule_delayed_work_on(cpu, &hctx->delayed_work, 0);
+		kblockd_schedule_delayed_work_on(cpu, &hctx->run_work, 0);
 	}
 }
 
@@ -675,7 +675,8 @@ EXPORT_SYMBOL(blk_mq_run_queues);
 
 void blk_mq_stop_hw_queue(struct blk_mq_hw_ctx *hctx)
 {
-	cancel_delayed_work(&hctx->delayed_work);
+	cancel_delayed_work(&hctx->run_work);
+	cancel_delayed_work(&hctx->delay_work);
 	set_bit(BLK_MQ_S_STOPPED, &hctx->state);
 }
 EXPORT_SYMBOL(blk_mq_stop_hw_queue);
@@ -717,14 +718,45 @@ void blk_mq_start_stopped_hw_queues(struct request_queue *q, bool async)
 }
 EXPORT_SYMBOL(blk_mq_start_stopped_hw_queues);
 
-static void blk_mq_work_fn(struct work_struct *work)
+static void blk_mq_run_work_fn(struct work_struct *work)
 {
 	struct blk_mq_hw_ctx *hctx;
 
-	hctx = container_of(work, struct blk_mq_hw_ctx, delayed_work.work);
+	hctx = container_of(work, struct blk_mq_hw_ctx, run_work.work);
 
 	__blk_mq_run_hw_queue(hctx);
 }
+
+static void blk_mq_delay_work_fn(struct work_struct *work)
+{
+	struct blk_mq_hw_ctx *hctx;
+
+	hctx = container_of(work, struct blk_mq_hw_ctx, delay_work.work);
+
+	if (test_and_clear_bit(BLK_MQ_S_STOPPED, &hctx->state))
+		__blk_mq_run_hw_queue(hctx);
+}
+
+void blk_mq_delay_queue(struct blk_mq_hw_ctx *hctx, unsigned long msecs)
+{
+	unsigned long tmo = msecs_to_jiffies(msecs);
+
+	if (hctx->queue->nr_hw_queues == 1)
+		kblockd_schedule_delayed_work(&hctx->delay_work, tmo);
+	else {
+		unsigned int cpu;
+
+		/*
+		 * It'd be great if the workqueue API had a way to pass
+		 * in a mask and had some smarts for more clever placement
+		 * than the first CPU. Or we could round-robin here. For now,
+		 * just queue on the first CPU.
+		 */
+		cpu = cpumask_first(hctx->cpumask);
+		kblockd_schedule_delayed_work_on(cpu, &hctx->delay_work, tmo);
+	}
+}
+EXPORT_SYMBOL(blk_mq_delay_queue);
 
 static void __blk_mq_insert_request(struct blk_mq_hw_ctx *hctx,
 				    struct request *rq, bool at_head)
@@ -1179,7 +1211,8 @@ static int blk_mq_init_hw_queues(struct request_queue *q,
 		if (node == NUMA_NO_NODE)
 			node = hctx->numa_node = set->numa_node;
 
-		INIT_DELAYED_WORK(&hctx->delayed_work, blk_mq_work_fn);
+		INIT_DELAYED_WORK(&hctx->run_work, blk_mq_run_work_fn);
+		INIT_DELAYED_WORK(&hctx->delay_work, blk_mq_delay_work_fn);
 		spin_lock_init(&hctx->lock);
 		INIT_LIST_HEAD(&hctx->dispatch);
 		hctx->queue = q;
