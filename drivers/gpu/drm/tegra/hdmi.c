@@ -727,7 +727,7 @@ static int tegra_output_hdmi_enable(struct tegra_output *output)
 	if (err < 0)
 		return err;
 
-	err = clk_enable(hdmi->clk);
+	err = clk_prepare_enable(hdmi->clk);
 	if (err < 0) {
 		dev_err(hdmi->dev, "failed to enable clock: %d\n", err);
 		return err;
@@ -944,8 +944,8 @@ static int tegra_output_hdmi_disable(struct tegra_output *output)
 		tegra_dc_writel(dc, GENERAL_ACT_REQ, DC_CMD_STATE_CONTROL);
 	}
 
+	clk_disable_unprepare(hdmi->clk);
 	reset_control_assert(hdmi->rst);
-	clk_disable(hdmi->clk);
 	regulator_disable(hdmi->vdd);
 	regulator_disable(hdmi->pll);
 
@@ -1015,7 +1015,7 @@ static int tegra_hdmi_show_regs(struct seq_file *s, void *data)
 	struct tegra_hdmi *hdmi = node->info_ent->data;
 	int err;
 
-	err = clk_enable(hdmi->clk);
+	err = clk_prepare_enable(hdmi->clk);
 	if (err)
 		return err;
 
@@ -1184,7 +1184,7 @@ static int tegra_hdmi_show_regs(struct seq_file *s, void *data)
 
 #undef DUMP_REG
 
-	clk_disable(hdmi->clk);
+	clk_disable_unprepare(hdmi->clk);
 
 	return 0;
 }
@@ -1379,17 +1379,9 @@ static int tegra_hdmi_probe(struct platform_device *pdev)
 		return PTR_ERR(hdmi->rst);
 	}
 
-	err = clk_prepare(hdmi->clk);
-	if (err < 0)
-		return err;
-
 	hdmi->clk_parent = devm_clk_get(&pdev->dev, "parent");
 	if (IS_ERR(hdmi->clk_parent))
 		return PTR_ERR(hdmi->clk_parent);
-
-	err = clk_prepare(hdmi->clk_parent);
-	if (err < 0)
-		return err;
 
 	err = clk_set_parent(hdmi->clk, hdmi->clk_parent);
 	if (err < 0) {
@@ -1466,8 +1458,8 @@ static int tegra_hdmi_remove(struct platform_device *pdev)
 		return err;
 	}
 
-	clk_unprepare(hdmi->clk_parent);
-	clk_unprepare(hdmi->clk);
+	clk_disable_unprepare(hdmi->clk_parent);
+	clk_disable_unprepare(hdmi->clk);
 
 	return 0;
 }
