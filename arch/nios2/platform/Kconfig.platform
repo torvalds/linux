@@ -119,21 +119,9 @@ config NIOS2_DCACHE_LINE_SIZE
 
 config NIOS2_ICACHE_SIZE
 	hex "I-Cache size" if CUSTOM_CACHE_SETTINGS
-	default "0x10000"
+	range 0x200 0x10000
+	default "0x1000"
 	help
 	  Maximum possible instruction cache size.
-
-config NIOS2_ICACHE_LINE_SIZE
-	hex "I-Cache line size" if CUSTOM_CACHE_SETTINGS
-	default "0x20"
-	help
-	  Maximum possible instruction cache line size.
-
-config NIOS2_ICACHE_LINE_SHIFT
-	hex "I-Cache line shift" if CUSTOM_CACHE_SETTINGS
-	default "0x5"
-	help
-	  log2 of the instruction cache line size. This must match
-	  CONFIG_NIOS2_ICACHE_LINE_SIZE.
 
 endmenu
