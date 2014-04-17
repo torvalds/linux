@@ -2076,9 +2076,12 @@ static int s626_ai_load_polllist(uint8_t *ppl, struct comedi_cmd *cmd)
 }
 
 static int s626_ai_inttrig(struct comedi_device *dev,
-			   struct comedi_subdevice *s, unsigned int trignum)
+			   struct comedi_subdevice *s,
+			   unsigned int trig_num)
 {
-	if (trignum != 0)
+	struct comedi_cmd *cmd = &s->async->cmd;
+
+	if (trig_num != cmd->start_arg)
 		return -EINVAL;
 
 	/* Start executing the RPS program */
@@ -2314,12 +2317,18 @@ static int s626_ai_cmdtest(struct comedi_device *dev,
 	if (err)
 		return 2;
 
-	/* step 3: make sure arguments are trivially compatible */
+	/* Step 3: check if arguments are trivially valid */
 
-	if (cmd->start_src != TRIG_EXT)
+	switch (cmd->start_src) {
+	case TRIG_NOW:
+	case TRIG_INT:
 		err |= cfc_check_trigger_arg_is(&cmd->start_arg, 0);
-	if (cmd->start_src == TRIG_EXT)
+		break;
+	case TRIG_EXT:
 		err |= cfc_check_trigger_arg_max(&cmd->start_arg, 39);
+		break;
+	}
+
 	if (cmd->scan_begin_src == TRIG_EXT)
 		err |= cfc_check_trigger_arg_max(&cmd->scan_begin_arg, 39);
 	if (cmd->convert_src == TRIG_EXT)
