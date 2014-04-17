@@ -1166,7 +1166,7 @@ static inline void ahci_gtf_filter_workaround(struct ata_host *host)
 static int ahci_init_interrupts(struct pci_dev *pdev, unsigned int n_ports,
 				struct ahci_host_priv *hpriv)
 {
-	int nvec;
+	int rc, nvec;
 
 	if (hpriv->flags & AHCI_HFLAG_NO_MSI)
 		goto intx;
@@ -1183,10 +1183,10 @@ static int ahci_init_interrupts(struct pci_dev *pdev, unsigned int n_ports,
 	if (nvec < n_ports)
 		goto single_msi;
 
-	nvec = pci_enable_msi_range(pdev, nvec, nvec);
-	if (nvec == -ENOSPC)
+	rc = pci_enable_msi_exact(pdev, nvec);
+	if (rc == -ENOSPC)
 		goto single_msi;
-	else if (nvec < 0)
+	else if (rc < 0)
 		goto intx;
 
 	/* fallback to single MSI mode if the controller enforced MRSM mode */
