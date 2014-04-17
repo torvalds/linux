@@ -1159,7 +1159,31 @@ static int win3_open(struct lcdc_device *lcdc_dev, bool open)
 
 	return 0;
 }
-
+static int rk3288_lcdc_enable_irq(struct rk_lcdc_driver *dev_drv)
+{
+	struct lcdc_device *lcdc_dev = container_of(dev_drv,
+					struct lcdc_device, driver);
+	u32 mask,val;
+	struct rk_screen *screen = dev_drv->cur_screen;
+	
+	mask = m_FS_INTR_CLR | m_FS_INTR_EN | m_LINE_FLAG_INTR_CLR |
+			    m_LINE_FLAG_INTR_EN | m_BUS_ERROR_INTR_CLR | 
+			    m_BUS_ERROR_INTR_EN | m_DSP_LINE_FLAG_NUM;
+	val = v_FS_INTR_CLR(1) | v_FS_INTR_EN(1) | v_LINE_FLAG_INTR_CLR(1) |
+	    v_LINE_FLAG_INTR_EN(1) | v_BUS_ERROR_INTR_CLR(1) | v_BUS_ERROR_INTR_EN(0) |
+	    v_DSP_LINE_FLAG_NUM(screen->mode.vsync_len + screen->mode.upper_margin +
+	    screen->mode.yres -1);
+	lcdc_msk_reg(lcdc_dev, INTR_CTRL0, mask, val);	
+#if 0
+		 mask = m_WIN0_EMPTY_INTR_EN | m_WIN1_EMPTY_INTR_EN | m_WIN2_EMPTY_INTR_EN |
+			 m_WIN3_EMPTY_INTR_EN |m_HWC_EMPTY_INTR_EN | m_POST_BUF_EMPTY_INTR_EN |
+			 m_PWM_GEN_INTR_EN;
+		 val = v_WIN0_EMPTY_INTR_EN(1) | v_WIN1_EMPTY_INTR_EN(1) | v_WIN2_EMPTY_INTR_EN(1) |
+			 v_WIN3_EMPTY_INTR_EN(1)| v_HWC_EMPTY_INTR_EN(1) | v_POST_BUF_EMPTY_INTR_EN(1) |
+			 v_PWM_GEN_INTR_EN(1);
+		 lcdc_msk_reg(lcdc_dev, INTR_CTRL1, mask, val);
+#endif 	
+}
 
 static int rk3288_lcdc_open(struct rk_lcdc_driver *dev_drv, int win_id,
 			    bool open)
@@ -1175,10 +1199,12 @@ static int rk3288_lcdc_open(struct rk_lcdc_driver *dev_drv, int win_id,
 		#ifdef USE_ION_MMU
 			rk3288_lcdc_mmu_en(dev_drv);
 		#endif
-		if ((support_uboot_display()&&(lcdc_dev->prop == PRMRY)))
+		if ((support_uboot_display()&&(lcdc_dev->prop == PRMRY))) {
 			rk3288_lcdc_set_dclk(dev_drv);
-		else
+			rk3288_lcdc_enable_irq(dev_drv);
+		} else {
 			rk3288_load_screen(dev_drv, 1);
+		}
 		spin_lock(&lcdc_dev->reg_lock);
 		if (dev_drv->cur_screen->dsp_lut)
 			rk3288_lcdc_set_lut(dev_drv);
@@ -1328,23 +1354,7 @@ static int rk3288_lcdc_pan_display(struct rk_lcdc_driver *dev_drv, int win_id)
 	/*this is the first frame of the system ,enable frame start interrupt */
 	if ((dev_drv->first_frame)) {
 		dev_drv->first_frame = 0;
-		mask = m_FS_INTR_CLR | m_FS_INTR_EN | m_LINE_FLAG_INTR_CLR |
-		    m_LINE_FLAG_INTR_EN | m_BUS_ERROR_INTR_CLR | 
-		    m_BUS_ERROR_INTR_EN | m_DSP_LINE_FLAG_NUM;
-		val = v_FS_INTR_CLR(1) | v_FS_INTR_EN(1) | v_LINE_FLAG_INTR_CLR(1) |
-		    v_LINE_FLAG_INTR_EN(1) | v_BUS_ERROR_INTR_CLR(1) | v_BUS_ERROR_INTR_EN(0) |
-		    v_DSP_LINE_FLAG_NUM(screen->mode.vsync_len + screen->mode.upper_margin +
-		    screen->mode.yres -1);
-		lcdc_msk_reg(lcdc_dev, INTR_CTRL0, mask, val);
-#if 0
-		 mask = m_WIN0_EMPTY_INTR_EN | m_WIN1_EMPTY_INTR_EN | m_WIN2_EMPTY_INTR_EN |
-			 m_WIN3_EMPTY_INTR_EN |m_HWC_EMPTY_INTR_EN | m_POST_BUF_EMPTY_INTR_EN |
-			 m_PWM_GEN_INTR_EN;
-		 val = v_WIN0_EMPTY_INTR_EN(1) | v_WIN1_EMPTY_INTR_EN(1) | v_WIN2_EMPTY_INTR_EN(1) |
-			 v_WIN3_EMPTY_INTR_EN(1)| v_HWC_EMPTY_INTR_EN(1) | v_POST_BUF_EMPTY_INTR_EN(1) |
-			 v_PWM_GEN_INTR_EN(1);
-		 lcdc_msk_reg(lcdc_dev, INTR_CTRL1, mask, val);
-#endif 
+		rk3288_lcdc_enable_irq(dev_drv);
 	}
 #if defined(WAIT_FOR_SYNC)
 	spin_lock_irqsave(&dev_drv->cpl_lock, flags);
