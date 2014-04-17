@@ -290,9 +290,13 @@ static inline int camsys_sysctl_extdev(camsys_extdev_t *extdev, camsys_sysctrl_t
                 gpio_set_value(gpio->io, gpio->active);
                 camsys_trace(1,"Sysctl %d success, gpio(%d) set %d",devctl->ops, gpio->io, gpio->active);
             } else {
-                gpio_direction_output(gpio->io, !gpio->active);
-                gpio_set_value(gpio->io, !gpio->active);
-                camsys_trace(1,"Sysctl %d success, gpio(%d) set %d",devctl->ops, gpio->io, !gpio->active);
+            	if(CamSys_PwrEn != devctl->ops){
+	                gpio_direction_output(gpio->io, !gpio->active);
+	                gpio_set_value(gpio->io, !gpio->active);
+	                camsys_trace(1,"Sysctl %d success, gpio(%d) set %d",devctl->ops, gpio->io, !gpio->active);
+            		}else{
+            		camsys_trace(1,"don't poweroff CamSys_PwrEn now \n");
+        		}
             }
         } else {
             camsys_err("Sysctl %d failed, because gpio is NULL!",devctl->ops);
