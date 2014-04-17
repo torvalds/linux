@@ -158,8 +158,9 @@ static irqreturn_t rotator_irq_handler(int irq, void *arg)
 			rot->cur_buf_id[EXYNOS_DRM_OPS_DST];
 		queue_work(ippdrv->event_workq,
 			(struct work_struct *)event_work);
-	} else
+	} else {
 		DRM_ERROR("the SFR is set illegally\n");
+	}
 
 	return IRQ_HANDLED;
 }
