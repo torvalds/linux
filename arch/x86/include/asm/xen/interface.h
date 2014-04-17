@@ -54,6 +54,9 @@ typedef unsigned long xen_pfn_t;
 #define PRI_xen_pfn "lx"
 typedef unsigned long xen_ulong_t;
 #define PRI_xen_ulong "lx"
+typedef long xen_long_t;
+#define PRI_xen_long "lx"
+
 /* Guest handles for primitive C types. */
 __DEFINE_GUEST_HANDLE(uchar, unsigned char);
 __DEFINE_GUEST_HANDLE(uint,  unsigned int);
