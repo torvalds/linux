@@ -6,7 +6,7 @@
 #include <asm/hardware/cache-l2x0.h>
 #include <linux/module.h>
 #include <linux/platform_device.h>
-
+#include <linux/wakeup_reason.h>
 #include <linux/pm.h>
 #include <linux/suspend.h>
 #include <linux/of.h>
@@ -2169,29 +2169,23 @@ static void clks_gating_suspend_init(void)
 
 
 #define GIC_DIST_PENDING_SET		0x200
-#define DUMP_GPIO_INT_STATUS(ID) \
-do { \
-	if (irq_gpio & (1 << ID)) \
-		printk("wakeup gpio" #ID ": %08x\n", readl_relaxed(RK_GPIO_VIRT(ID) + GPIO_INT_STATUS)); \
-} while (0)
-static noinline void rk30_pm_dump_irq(void)
+static noinline void rk3288_pm_dump_irq(void)
 {
 	u32 irq_gpio = (readl_relaxed(RK_GIC_VIRT + GIC_DIST_PENDING_SET + 12) >> 17) & 0x1FF;
-	printk("wakeup irq: %08x %08x %08x %08x\n",
-		readl_relaxed(RK_GIC_VIRT + GIC_DIST_PENDING_SET + 4),
-		readl_relaxed(RK_GIC_VIRT + GIC_DIST_PENDING_SET + 8),
-		readl_relaxed(RK_GIC_VIRT + GIC_DIST_PENDING_SET + 12),
-		readl_relaxed(RK_GIC_VIRT + GIC_DIST_PENDING_SET + 16));
-        DUMP_GPIO_INT_STATUS(0);
-        DUMP_GPIO_INT_STATUS(1);
-        DUMP_GPIO_INT_STATUS(2);
-        DUMP_GPIO_INT_STATUS(3);
-        DUMP_GPIO_INT_STATUS(4);
-        DUMP_GPIO_INT_STATUS(5);
-        DUMP_GPIO_INT_STATUS(6);
-        DUMP_GPIO_INT_STATUS(7);
-        DUMP_GPIO_INT_STATUS(8);
-        
+	u32 irq[4];
+	int i;
+
+	for (i = 0; i < ARRAY_SIZE(irq); i++)
+		irq[i] = readl_relaxed(RK_GIC_VIRT + GIC_DIST_PENDING_SET + (1 + i) * 4);
+	for (i = 0; i < ARRAY_SIZE(irq); i++) {
+		if (irq[i])
+			log_wakeup_reason(32 * (i + 1) + fls(irq[i]) - 1);
+	}
+	printk("wakeup irq: %08x %08x %08x %08x\n", irq[0], irq[1], irq[2], irq[3]);
+	for (i = 0; i <= 8; i++) {
+		if (irq_gpio & (1 << i))
+			printk("wakeup gpio%d: %08x\n", i, readl_relaxed(RK_GPIO_VIRT(i) + GPIO_INT_STATUS));
+	}
 }
 
 #define DUMP_GPIO_INTEN(ID) \
@@ -2206,7 +2200,7 @@ do { \
 } while (0)
 
 //dump while irq is enable
-static noinline void rk30_pm_dump_inten(void)
+static noinline void rk3288_pm_dump_inten(void)
 {
 	DUMP_GPIO_INTEN(0);
 	DUMP_GPIO_INTEN(1);
@@ -2230,12 +2224,12 @@ static  void rkpm_prepare(void)
        // rkpm_ddr_printhex(temp);
         #endif             
 	// dump GPIO INTEN for debug
-	rk30_pm_dump_inten();
+	rk3288_pm_dump_inten();
 }
 
 static void rkpm_finish(void)
 {
-	rk30_pm_dump_irq();
+	rk3288_pm_dump_irq();
 }
 
 
