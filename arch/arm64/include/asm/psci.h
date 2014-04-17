@@ -14,6 +14,6 @@
 #ifndef __ASM_PSCI_H
 #define __ASM_PSCI_H
 
-void psci_init(void);
+int psci_init(void);
 
 #endif /* __ASM_PSCI_H */
