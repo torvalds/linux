@@ -2087,6 +2087,18 @@ static int ai_cmdtest(struct comedi_device *dev, struct comedi_subdevice *s,
 
 	/* Step 3: check if arguments are trivially valid */
 
+	switch (cmd->start_src) {
+	case TRIG_NOW:
+		err |= cfc_check_trigger_arg_is(&cmd->start_arg, 0);
+		break;
+	case TRIG_EXT:
+		/*
+		 * start_arg is the CR_CHAN | CR_INVERT of the
+		 * external trigger.
+		 */
+		break;
+	}
+
 	if (cmd->convert_src == TRIG_TIMER) {
 		if (thisboard->layout == LAYOUT_4020) {
 			err |= cfc_check_trigger_arg_is(&cmd->convert_arg, 0);
@@ -3215,7 +3227,7 @@ static int ao_inttrig(struct comedi_device *dev, struct comedi_subdevice *s,
 	struct comedi_cmd *cmd = &s->async->cmd;
 	int retval;
 
-	if (trig_num != 0)
+	if (trig_num != cmd->start_arg)
 		return -EINVAL;
 
 	retval = prep_ao_dma(dev, cmd);
@@ -3314,6 +3326,8 @@ static int ao_cmdtest(struct comedi_device *dev, struct comedi_subdevice *s,
 		return 2;
 
 	/* Step 3: check if arguments are trivially valid */
+
+	err |= cfc_check_trigger_arg_is(&cmd->start_arg, 0);
 
 	if (cmd->scan_begin_src == TRIG_TIMER) {
 		err |= cfc_check_trigger_arg_min(&cmd->scan_begin_arg,
