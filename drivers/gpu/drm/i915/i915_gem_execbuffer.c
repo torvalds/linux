@@ -1037,7 +1037,7 @@ i915_gem_do_execbuffer(struct drm_device *dev, void *data,
 	if (args->flags & I915_EXEC_IS_PINNED)
 		flags |= I915_DISPATCH_PINNED;
 
-	if ((args->flags & I915_EXEC_RING_MASK) > I915_NUM_RINGS) {
+	if ((args->flags & I915_EXEC_RING_MASK) > LAST_USER_RING) {
 		DRM_DEBUG("execbuf with unknown ring: %d\n",
 			  (int)(args->flags & I915_EXEC_RING_MASK));
 		return -EINVAL;

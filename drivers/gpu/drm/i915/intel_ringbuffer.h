@@ -63,6 +63,7 @@ struct  intel_ring_buffer {
 		VECS,
 	} id;
 #define I915_NUM_RINGS 4
+#define LAST_USER_RING (VECS + 1)
 	u32		mmio_base;
 	void		__iomem *virtual_start;
 	struct		drm_device *dev;
