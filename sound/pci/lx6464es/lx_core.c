@@ -1041,10 +1041,6 @@ static int lx_interrupt_handle_async_events(struct lx6464es *chip, u32 irqsrc,
 
 	u64 orun_mask;
 	u64 urun_mask;
-#if 0
-	int has_underrun   = (irqsrc & MASK_SYS_STATUS_URUN) ? 1 : 0;
-	int has_overrun    = (irqsrc & MASK_SYS_STATUS_ORUN) ? 1 : 0;
-#endif
 	int eb_pending_out = (irqsrc & MASK_SYS_STATUS_EOBO) ? 1 : 0;
 	int eb_pending_in  = (irqsrc & MASK_SYS_STATUS_EOBI) ? 1 : 0;
 
