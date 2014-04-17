@@ -1347,13 +1347,16 @@ static irqreturn_t gen8_gt_irq_handler(struct drm_device *dev,
 			DRM_ERROR("The master control interrupt lied (GT0)!\n");
 	}
 
-	if (master_ctl & GEN8_GT_VCS1_IRQ) {
+	if (master_ctl & (GEN8_GT_VCS1_IRQ | GEN8_GT_VCS2_IRQ)) {
 		tmp = I915_READ(GEN8_GT_IIR(1));
 		if (tmp) {
 			ret = IRQ_HANDLED;
 			vcs = tmp >> GEN8_VCS1_IRQ_SHIFT;
 			if (vcs & GT_RENDER_USER_INTERRUPT)
 				notify_ring(dev, &dev_priv->ring[VCS]);
+			vcs = tmp >> GEN8_VCS2_IRQ_SHIFT;
+			if (vcs & GT_RENDER_USER_INTERRUPT)
+				notify_ring(dev, &dev_priv->ring[VCS2]);
 			I915_WRITE(GEN8_GT_IIR(1), tmp);
 		} else
 			DRM_ERROR("The master control interrupt lied (GT1)!\n");
