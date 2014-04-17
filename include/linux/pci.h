@@ -1572,7 +1572,6 @@ extern unsigned long pci_hotplug_io_size;
 extern unsigned long pci_hotplug_mem_size;
 
 /* Architecture-specific versions may override these (weak) */
-int pcibios_add_platform_entries(struct pci_dev *dev);
 void pcibios_disable_device(struct pci_dev *dev);
 void pcibios_set_master(struct pci_dev *dev);
 int pcibios_set_pcie_reset_state(struct pci_dev *dev,

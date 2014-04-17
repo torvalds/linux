@@ -1273,11 +1273,6 @@ static struct bin_attribute pcie_config_attr = {
 	.write = pci_write_config,
 };
 
-int __weak pcibios_add_platform_entries(struct pci_dev *dev)
-{
-	return 0;
-}
-
 static ssize_t reset_store(struct device *dev,
 			   struct device_attribute *attr, const char *buf,
 			   size_t count)
@@ -1392,11 +1387,6 @@ int __must_check pci_create_sysfs_dev_files (struct pci_dev *pdev)
 		}
 		pdev->rom_attr = attr;
 	}
-
-	/* add platform-specific attributes */
-	retval = pcibios_add_platform_entries(pdev);
-	if (retval)
-		goto err_rom_file;
 
 	/* add sysfs entries for various capabilities */
 	retval = pci_create_capabilities_sysfs(pdev);
