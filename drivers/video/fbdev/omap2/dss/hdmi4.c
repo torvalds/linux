@@ -600,6 +600,28 @@ static void __exit hdmi_uninit_output(struct platform_device *pdev)
 	omapdss_unregister_output(out);
 }
 
+static int hdmi_probe_of(struct platform_device *pdev)
+{
+	struct device_node *node = pdev->dev.of_node;
+	struct device_node *ep;
+	int r;
+
+	ep = omapdss_of_get_first_endpoint(node);
+	if (!ep)
+		return 0;
+
+	r = hdmi_parse_lanes_of(pdev, ep, &hdmi.phy);
+	if (r)
+		goto err;
+
+	of_node_put(ep);
+	return 0;
+
+err:
+	of_node_put(ep);
+	return r;
+}
+
 /* HDMI HW IP initialisation */
 static int omapdss_hdmihw_probe(struct platform_device *pdev)
 {
@@ -608,6 +630,12 @@ static int omapdss_hdmihw_probe(struct platform_device *pdev)
 	hdmi.pdev = pdev;
 
 	mutex_init(&hdmi.lock);
+
+	if (pdev->dev.of_node) {
+		r = hdmi_probe_of(pdev);
+		if (r)
+			return r;
+	}
 
 	r = hdmi_wp_init(pdev, &hdmi.wp);
 	if (r)

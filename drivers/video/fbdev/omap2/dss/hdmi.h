@@ -352,6 +352,9 @@ struct hdmi_phy_data {
 	void __iomem *base;
 
 	int irq;
+
+	u8 lane_function[4];
+	u8 lane_polarity[4];
 };
 
 struct hdmi_core_data {
@@ -422,11 +425,14 @@ int hdmi_phy_enable(struct hdmi_phy_data *phy, struct hdmi_wp_data *wp,
 void hdmi_phy_disable(struct hdmi_phy_data *phy, struct hdmi_wp_data *wp);
 void hdmi_phy_dump(struct hdmi_phy_data *phy, struct seq_file *s);
 int hdmi_phy_init(struct platform_device *pdev, struct hdmi_phy_data *phy);
+int hdmi_phy_parse_lanes(struct hdmi_phy_data *phy, const u32 *lanes);
 
 /* HDMI common funcs */
 const struct hdmi_config *hdmi_default_timing(void);
 const struct hdmi_config *hdmi_get_timings(int mode, int code);
 struct hdmi_cm hdmi_get_code(struct omap_video_timings *timing);
+int hdmi_parse_lanes_of(struct platform_device *pdev, struct device_node *ep,
+	struct hdmi_phy_data *phy);
 
 #if defined(CONFIG_OMAP4_DSS_HDMI_AUDIO)
 int hdmi_compute_acr(u32 pclk, u32 sample_freq, u32 *n, u32 *cts);
