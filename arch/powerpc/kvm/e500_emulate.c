@@ -222,6 +222,7 @@ int kvmppc_core_emulate_mtspr_e500(struct kvm_vcpu *vcpu, int sprn, ulong spr_va
 		break;
 	case SPRN_L1CSR1:
 		vcpu_e500->l1csr1 = spr_val;
+		vcpu_e500->l1csr1 &= ~(L1CSR1_ICFI | L1CSR1_ICLFR);
 		break;
 	case SPRN_HID0:
 		vcpu_e500->hid0 = spr_val;
