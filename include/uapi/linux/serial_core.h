@@ -238,4 +238,7 @@
 /* Tilera TILE-Gx UART */
 #define PORT_TILEGX	106
 
+/* MEN 16z135 UART */
+#define PORT_MEN_Z135	107
+
 #endif /* _UAPILINUX_SERIAL_CORE_H */

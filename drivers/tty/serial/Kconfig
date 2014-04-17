@@ -1509,6 +1509,16 @@ config SERIAL_ST_ASC_CONSOLE
 	depends on SERIAL_ST_ASC=y
 	select SERIAL_CORE_CONSOLE
 
+config SERIAL_MEN_Z135
+	tristate "MEN 16z135 Support"
+	depends on MCB
+	help
+	  Say yes here to enable support for the MEN 16z135 High Speed UART IP-Core
+	  on a MCB carrier.
+
+	  This driver can also be build as a module. If so, the module will be called
+	  men_z135_uart.ko
+
 endmenu
 
 endif # TTY
