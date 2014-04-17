@@ -29,6 +29,7 @@
 #include <linux/slab.h>
 #include <linux/vgaarb.h>
 #include <linux/pm_runtime.h>
+#include <linux/of.h>
 #include "pci.h"
 
 static int sysfs_initialized;	/* = 0 */
@@ -416,6 +417,20 @@ static ssize_t d3cold_allowed_show(struct device *dev,
 static DEVICE_ATTR_RW(d3cold_allowed);
 #endif
 
+#ifdef CONFIG_OF
+static ssize_t devspec_show(struct device *dev,
+			    struct device_attribute *attr, char *buf)
+{
+	struct pci_dev *pdev = to_pci_dev(dev);
+	struct device_node *np = pci_device_to_OF_node(pdev);
+
+	if (np == NULL || np->full_name == NULL)
+		return 0;
+	return sprintf(buf, "%s", np->full_name);
+}
+static DEVICE_ATTR_RO(devspec);
+#endif
+
 #ifdef CONFIG_PCI_IOV
 static ssize_t sriov_totalvfs_show(struct device *dev,
 				   struct device_attribute *attr,
@@ -520,6 +535,9 @@ static struct attribute *pci_dev_attrs[] = {
 	&dev_attr_msi_bus.attr,
 #if defined(CONFIG_PM_RUNTIME) && defined(CONFIG_ACPI)
 	&dev_attr_d3cold_allowed.attr,
+#endif
+#ifdef CONFIG_OF
+	&dev_attr_devspec.attr,
 #endif
 	NULL,
 };
