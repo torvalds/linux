@@ -229,7 +229,7 @@ static struct drm_fb_helper_funcs exynos_drm_fb_helper_funcs = {
 	.fb_probe =	exynos_drm_fbdev_create,
 };
 
-bool exynos_drm_fbdev_is_anything_connected(struct drm_device *dev)
+static bool exynos_drm_fbdev_is_anything_connected(struct drm_device *dev)
 {
 	struct drm_connector *connector;
 	bool ret = false;
