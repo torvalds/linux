@@ -204,11 +204,11 @@ struct hdmiphy_config {
 	u8 conf[32];
 };
 
-struct hdmi_driver_data exynos4212_hdmi_driver_data = {
+static struct hdmi_driver_data exynos4212_hdmi_driver_data = {
 	.type	= HDMI_TYPE14,
 };
 
-struct hdmi_driver_data exynos5_hdmi_driver_data = {
+static struct hdmi_driver_data exynos5_hdmi_driver_data = {
 	.type	= HDMI_TYPE14,
 };
 
