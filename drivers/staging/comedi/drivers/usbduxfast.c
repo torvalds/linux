@@ -398,8 +398,7 @@ static int usbduxfast_ai_cmdtest(struct comedi_device *dev,
 
 	/* Step 3: check if arguments are trivially valid */
 
-	if (cmd->start_src == TRIG_NOW)
-		err |= cfc_check_trigger_arg_is(&cmd->start_arg, 0);
+	err |= cfc_check_trigger_arg_is(&cmd->start_arg, 0);
 
 	if (!cmd->chanlist_len)
 		err |= -EINVAL;
@@ -451,21 +450,20 @@ static int usbduxfast_ai_cmdtest(struct comedi_device *dev,
 
 static int usbduxfast_ai_inttrig(struct comedi_device *dev,
 				 struct comedi_subdevice *s,
-				 unsigned int trignum)
+				 unsigned int trig_num)
 {
 	struct usbduxfast_private *devpriv = dev->private;
+	struct comedi_cmd *cmd = &s->async->cmd;
 	int ret;
 
 	if (!devpriv)
 		return -EFAULT;
 
+	if (trig_num != cmd->start_arg)
+		return -EINVAL;
+
 	down(&devpriv->sem);
 
-	if (trignum != 0) {
-		dev_err(dev->class_dev, "invalid trignum\n");
-		up(&devpriv->sem);
-		return -EINVAL;
-	}
 	if (!devpriv->ai_cmd_running) {
 		devpriv->ai_cmd_running = 1;
 		ret = usbduxfast_submit_urb(dev);
@@ -837,12 +835,7 @@ static int usbduxfast_ai_cmd(struct comedi_device *dev,
 			return ret;
 		}
 		s->async->inttrig = NULL;
-	} else {
-		/*
-		 * TRIG_INT
-		 * don't enable the acquision operation
-		 * wait for an internal signal
-		 */
+	} else {	/* TRIG_INT */
 		s->async->inttrig = usbduxfast_ai_inttrig;
 	}
 	up(&devpriv->sem);
