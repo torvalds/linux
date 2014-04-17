@@ -937,7 +937,7 @@ int em28xx_start_analog_streaming(struct vb2_queue *vq, unsigned int count)
 	return rc;
 }
 
-static int em28xx_stop_streaming(struct vb2_queue *vq)
+static void em28xx_stop_streaming(struct vb2_queue *vq)
 {
 	struct em28xx *dev = vb2_get_drv_priv(vq);
 	struct em28xx_dmaqueue *vidq = &dev->vidq;
@@ -961,11 +961,9 @@ static int em28xx_stop_streaming(struct vb2_queue *vq)
 	}
 	dev->usb_ctl.vid_buf = NULL;
 	spin_unlock_irqrestore(&dev->slock, flags);
-
-	return 0;
 }
 
-int em28xx_stop_vbi_streaming(struct vb2_queue *vq)
+void em28xx_stop_vbi_streaming(struct vb2_queue *vq)
 {
 	struct em28xx *dev = vb2_get_drv_priv(vq);
 	struct em28xx_dmaqueue *vbiq = &dev->vbiq;
@@ -989,8 +987,6 @@ int em28xx_stop_vbi_streaming(struct vb2_queue *vq)
 	}
 	dev->usb_ctl.vbi_buf = NULL;
 	spin_unlock_irqrestore(&dev->slock, flags);
-
-	return 0;
 }
 
 static void

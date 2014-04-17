@@ -368,7 +368,7 @@ static int vpbe_start_streaming(struct vb2_queue *vq, unsigned int count)
 	return ret;
 }
 
-static int vpbe_stop_streaming(struct vb2_queue *vq)
+static void vpbe_stop_streaming(struct vb2_queue *vq)
 {
 	struct vpbe_fh *fh = vb2_get_drv_priv(vq);
 	struct vpbe_layer *layer = fh->layer;
@@ -376,7 +376,7 @@ static int vpbe_stop_streaming(struct vb2_queue *vq)
 	unsigned long flags;
 
 	if (!vb2_is_streaming(vq))
-		return 0;
+		return;
 
 	/* release all active buffers */
 	spin_lock_irqsave(&disp->dma_queue_lock, flags);
@@ -398,7 +398,6 @@ static int vpbe_stop_streaming(struct vb2_queue *vq)
 		vb2_buffer_done(&layer->next_frm->vb, VB2_BUF_STATE_ERROR);
 	}
 	spin_unlock_irqrestore(&disp->dma_queue_lock, flags);
-	return 0;
 }
 
 static struct vb2_ops video_qops = {

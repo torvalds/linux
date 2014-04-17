@@ -269,7 +269,7 @@ static int start_streaming(struct vb2_queue *vq, unsigned int count)
  * Stop the DMA engine. Any remaining buffers in the DMA queue are dequeued
  * and passed on to the vb2 framework marked as STATE_ERROR.
  */
-static int stop_streaming(struct vb2_queue *vq)
+static void stop_streaming(struct vb2_queue *vq)
 {
 	struct skeleton *skel = vb2_get_drv_priv(vq);
 
@@ -277,7 +277,6 @@ static int stop_streaming(struct vb2_queue *vq)
 
 	/* Release all active buffers */
 	return_all_buffers(skel, VB2_BUF_STATE_ERROR);
-	return 0;
 }
 
 /*

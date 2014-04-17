@@ -346,7 +346,7 @@ static int vpif_start_streaming(struct vb2_queue *vq, unsigned int count)
 }
 
 /* abort streaming and wait for last buffer */
-static int vpif_stop_streaming(struct vb2_queue *vq)
+static void vpif_stop_streaming(struct vb2_queue *vq)
 {
 	struct vpif_fh *fh = vb2_get_drv_priv(vq);
 	struct channel_obj *ch = fh->channel;
@@ -354,7 +354,7 @@ static int vpif_stop_streaming(struct vb2_queue *vq)
 	unsigned long flags;
 
 	if (!vb2_is_streaming(vq))
-		return 0;
+		return;
 
 	common = &ch->common[VPIF_VIDEO_INDEX];
 
@@ -390,8 +390,6 @@ static int vpif_stop_streaming(struct vb2_queue *vq)
 		vb2_buffer_done(&common->next_frm->vb, VB2_BUF_STATE_ERROR);
 	}
 	spin_unlock_irqrestore(&common->irqlock, flags);
-
-	return 0;
 }
 
 static struct vb2_ops video_qops = {

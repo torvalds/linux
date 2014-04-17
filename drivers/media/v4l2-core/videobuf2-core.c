@@ -2086,7 +2086,7 @@ static void __vb2_queue_cancel(struct vb2_queue *q)
 	 * buffers.
 	 */
 	if (q->start_streaming_called)
-		call_qop(q, stop_streaming, q);
+		call_void_qop(q, stop_streaming, q);
 	q->streaming = 0;
 	q->start_streaming_called = 0;
 	q->queued_count = 0;

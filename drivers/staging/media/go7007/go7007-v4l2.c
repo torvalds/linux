@@ -516,7 +516,7 @@ static int go7007_start_streaming(struct vb2_queue *q, unsigned int count)
 	return ret;
 }
 
-static int go7007_stop_streaming(struct vb2_queue *q)
+static void go7007_stop_streaming(struct vb2_queue *q)
 {
 	struct go7007 *go = vb2_get_drv_priv(q);
 	unsigned long flags;
@@ -538,7 +538,6 @@ static int go7007_stop_streaming(struct vb2_queue *q)
 	/* Turn on Capture LED */
 	if (go->board_id == GO7007_BOARDID_ADS_USBAV_709)
 		go7007_write_addr(go, 0x3c82, 0x000d);
-	return 0;
 }
 
 static struct vb2_ops go7007_video_qops = {

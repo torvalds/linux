@@ -357,7 +357,7 @@ static int start_streaming(struct vb2_queue *vq, unsigned int count)
 }
 
 /* abort streaming and wait for last buffer */
-static int stop_streaming(struct vb2_queue *vq)
+static void stop_streaming(struct vb2_queue *vq)
 {
 	struct sta2x11_vip *vip = vb2_get_drv_priv(vq);
 	struct vip_buffer *vip_buf, *node;
@@ -374,7 +374,6 @@ static int stop_streaming(struct vb2_queue *vq)
 		list_del(&vip_buf->list);
 	}
 	spin_unlock(&vip->lock);
-	return 0;
 }
 
 static struct vb2_ops vip_video_qops = {

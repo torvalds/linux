@@ -714,7 +714,7 @@ static void buffer_queue(struct vb2_buffer *vb)
 }
 
 static int start_streaming(struct vb2_queue *vq, unsigned int count);
-static int stop_streaming(struct vb2_queue *vq);
+static void stop_streaming(struct vb2_queue *vq);
 
 static struct vb2_ops s2255_video_qops = {
 	.queue_setup = queue_setup,
@@ -1109,7 +1109,7 @@ static int start_streaming(struct vb2_queue *vq, unsigned int count)
 }
 
 /* abort streaming and wait for last buffer */
-static int stop_streaming(struct vb2_queue *vq)
+static void stop_streaming(struct vb2_queue *vq)
 {
 	struct s2255_vc *vc = vb2_get_drv_priv(vq);
 	struct s2255_buffer *buf, *node;
@@ -1123,7 +1123,6 @@ static int stop_streaming(struct vb2_queue *vq)
 			buf, buf->vb.v4l2_buf.index);
 	}
 	spin_unlock_irqrestore(&vc->qlock, flags);
-	return 0;
 }
 
 static int vidioc_s_std(struct file *file, void *priv, v4l2_std_id i)

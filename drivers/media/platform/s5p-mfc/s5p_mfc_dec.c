@@ -1027,7 +1027,7 @@ static int s5p_mfc_start_streaming(struct vb2_queue *q, unsigned int count)
 	return 0;
 }
 
-static int s5p_mfc_stop_streaming(struct vb2_queue *q)
+static void s5p_mfc_stop_streaming(struct vb2_queue *q)
 {
 	unsigned long flags;
 	struct s5p_mfc_ctx *ctx = fh_to_ctx(q->drv_priv);
@@ -1071,7 +1071,6 @@ static int s5p_mfc_stop_streaming(struct vb2_queue *q)
 	}
 	if (aborted)
 		ctx->state = MFCINST_RUNNING;
-	return 0;
 }
 
 

@@ -1156,7 +1156,7 @@ static int mcam_vb_start_streaming(struct vb2_queue *vq, unsigned int count)
 	return mcam_read_setup(cam);
 }
 
-static int mcam_vb_stop_streaming(struct vb2_queue *vq)
+static void mcam_vb_stop_streaming(struct vb2_queue *vq)
 {
 	struct mcam_camera *cam = vb2_get_drv_priv(vq);
 	unsigned long flags;
@@ -1164,10 +1164,10 @@ static int mcam_vb_stop_streaming(struct vb2_queue *vq)
 	if (cam->state == S_BUFWAIT) {
 		/* They never gave us buffers */
 		cam->state = S_IDLE;
-		return 0;
+		return;
 	}
 	if (cam->state != S_STREAMING)
-		return -EINVAL;
+		return;
 	mcam_ctlr_stop_dma(cam);
 	/*
 	 * Reset the CCIC PHY after stopping streaming,
@@ -1182,7 +1182,6 @@ static int mcam_vb_stop_streaming(struct vb2_queue *vq)
 	spin_lock_irqsave(&cam->dev_lock, flags);
 	INIT_LIST_HEAD(&cam->buffers);
 	spin_unlock_irqrestore(&cam->dev_lock, flags);
-	return 0;
 }
 
 

@@ -1670,13 +1670,11 @@ static int s5p_jpeg_start_streaming(struct vb2_queue *q, unsigned int count)
 	return ret > 0 ? 0 : ret;
 }
 
-static int s5p_jpeg_stop_streaming(struct vb2_queue *q)
+static void s5p_jpeg_stop_streaming(struct vb2_queue *q)
 {
 	struct s5p_jpeg_ctx *ctx = vb2_get_drv_priv(q);
 
 	pm_runtime_put(ctx->jpeg->dev);
-
-	return 0;
 }
 
 static struct vb2_ops s5p_jpeg_qops = {
