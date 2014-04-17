@@ -1086,7 +1086,7 @@ static struct videobuf_queue *saa7134_queue(struct file *file)
 
 	switch (vdev->vfl_type) {
 	case VFL_TYPE_GRABBER:
-		q = fh->is_empress ? &dev->empress_tsq : &dev->cap;
+		q = fh->is_empress ? &dev->empress_vbq : &dev->cap;
 		break;
 	case VFL_TYPE_VBI:
 		q = &dev->vbi;

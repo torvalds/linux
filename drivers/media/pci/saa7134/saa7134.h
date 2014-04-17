@@ -647,7 +647,7 @@ struct saa7134_dev {
 	/* SAA7134_MPEG_EMPRESS only */
 	struct video_device        *empress_dev;
 	struct v4l2_subdev	   *empress_sd;
-	struct videobuf_queue      empress_tsq;
+	struct videobuf_queue      empress_vbq;
 	struct work_struct         empress_workqueue;
 	int                        empress_started;
 	struct v4l2_ctrl_handler   empress_ctrl_handler;
