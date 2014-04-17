@@ -110,7 +110,7 @@ static void nmi_max_handler(struct irq_work *w)
 		a->handler, whole_msecs, decimal_msecs);
 }
 
-static int __kprobes nmi_handle(unsigned int type, struct pt_regs *regs, bool b2b)
+static int nmi_handle(unsigned int type, struct pt_regs *regs, bool b2b)
 {
 	struct nmi_desc *desc = nmi_to_desc(type);
 	struct nmiaction *a;
@@ -146,6 +146,7 @@ static int __kprobes nmi_handle(unsigned int type, struct pt_regs *regs, bool b2
 	/* return total number of NMI events handled */
 	return handled;
 }
+NOKPROBE_SYMBOL(nmi_handle);
 
 int __register_nmi_handler(unsigned int type, struct nmiaction *action)
 {
@@ -208,7 +209,7 @@ void unregister_nmi_handler(unsigned int type, const char *name)
 }
 EXPORT_SYMBOL_GPL(unregister_nmi_handler);
 
-static __kprobes void
+static void
 pci_serr_error(unsigned char reason, struct pt_regs *regs)
 {
 	/* check to see if anyone registered against these types of errors */
@@ -238,8 +239,9 @@ pci_serr_error(unsigned char reason, struct pt_regs *regs)
 	reason = (reason & NMI_REASON_CLEAR_MASK) | NMI_REASON_CLEAR_SERR;
 	outb(reason, NMI_REASON_PORT);
 }
+NOKPROBE_SYMBOL(pci_serr_error);
 
-static __kprobes void
+static void
 io_check_error(unsigned char reason, struct pt_regs *regs)
 {
 	unsigned long i;
@@ -269,8 +271,9 @@ io_check_error(unsigned char reason, struct pt_regs *regs)
 	reason &= ~NMI_REASON_CLEAR_IOCHK;
 	outb(reason, NMI_REASON_PORT);
 }
+NOKPROBE_SYMBOL(io_check_error);
 
-static __kprobes void
+static void
 unknown_nmi_error(unsigned char reason, struct pt_regs *regs)
 {
 	int handled;
@@ -298,11 +301,12 @@ unknown_nmi_error(unsigned char reason, struct pt_regs *regs)
 
 	pr_emerg("Dazed and confused, but trying to continue\n");
 }
+NOKPROBE_SYMBOL(unknown_nmi_error);
 
 static DEFINE_PER_CPU(bool, swallow_nmi);
 static DEFINE_PER_CPU(unsigned long, last_nmi_rip);
 
-static __kprobes void default_do_nmi(struct pt_regs *regs)
+static void default_do_nmi(struct pt_regs *regs)
 {
 	unsigned char reason = 0;
 	int handled;
@@ -401,6 +405,7 @@ static __kprobes void default_do_nmi(struct pt_regs *regs)
 	else
 		unknown_nmi_error(reason, regs);
 }
+NOKPROBE_SYMBOL(default_do_nmi);
 
 /*
  * NMIs can hit breakpoints which will cause it to lose its
@@ -520,7 +525,7 @@ static inline void nmi_nesting_postprocess(void)
 }
 #endif
 
-dotraplinkage notrace __kprobes void
+dotraplinkage notrace void
 do_nmi(struct pt_regs *regs, long error_code)
 {
 	nmi_nesting_preprocess(regs);
@@ -537,6 +542,7 @@ do_nmi(struct pt_regs *regs, long error_code)
 	/* On i386, may loop back to preprocess */
 	nmi_nesting_postprocess();
 }
+NOKPROBE_SYMBOL(do_nmi);
 
 void stop_nmi(void)
 {

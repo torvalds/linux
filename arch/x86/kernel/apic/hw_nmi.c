@@ -60,7 +60,7 @@ void arch_trigger_all_cpu_backtrace(void)
 	smp_mb__after_clear_bit();
 }
 
-static int __kprobes
+static int
 arch_trigger_all_cpu_backtrace_handler(unsigned int cmd, struct pt_regs *regs)
 {
 	int cpu;
@@ -80,6 +80,7 @@ arch_trigger_all_cpu_backtrace_handler(unsigned int cmd, struct pt_regs *regs)
 
 	return NMI_DONE;
 }
+NOKPROBE_SYMBOL(arch_trigger_all_cpu_backtrace_handler);
 
 static int __init register_trigger_all_cpu_backtrace(void)
 {
