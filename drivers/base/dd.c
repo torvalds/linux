@@ -200,8 +200,8 @@ static void driver_bound(struct device *dev)
 		return;
 	}
 
-	pr_debug("driver: '%s': %s: bound to device '%s'\n", dev_name(dev),
-		 __func__, dev->driver->name);
+	pr_debug("driver: '%s': %s: bound to device '%s'\n", dev->driver->name,
+		 __func__, dev_name(dev));
 
 	klist_add_tail(&dev->p->knode_driver, &dev->driver->p->klist_devices);
 
