@@ -429,11 +429,6 @@ int lx_dsp_read_async_events(struct lx6464es *chip, u32 *data)
 	return ret;
 }
 
-#define CSES_TIMEOUT        100     /* microseconds */
-#define CSES_CE             0x0001
-#define CSES_BROADCAST      0x0002
-#define CSES_UPDATE_LDSV    0x0004
-
 #define PIPE_INFO_TO_CMD(capture, pipe)					\
 	((u32)((u32)(pipe) | ((capture) ? ID_IS_CAPTURE : 0L)) << ID_OFFSET)
 
