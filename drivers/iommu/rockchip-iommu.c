@@ -1044,11 +1044,14 @@ static int rockchip_sysmmu_probe(struct platform_device *pdev)
 			ret = -ENOENT;
 			goto err_res;
 		}
-		/*reset sysmmu*/
-		if(!sysmmu_reset(data->res_bases[i],data->dbgname))
+		if(!strstr(data->dbgname,"isp"))
 		{
-			ret = -ENOENT;
-			goto err_res;
+			/*reset sysmmu*/
+			if(!sysmmu_reset(data->res_bases[i],data->dbgname))
+			{
+				ret = -ENOENT;
+				goto err_res;
+			}
 		}
 	}
 
