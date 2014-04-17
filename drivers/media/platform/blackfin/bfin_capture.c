@@ -433,9 +433,6 @@ static void bcap_stop_streaming(struct vb2_queue *vq)
 	struct ppi_if *ppi = bcap_dev->ppi;
 	int ret;
 
-	if (!vb2_is_streaming(vq))
-		return 0;
-
 	bcap_dev->stop = true;
 	wait_for_completion(&bcap_dev->comp);
 	ppi->ops->stop(ppi);
