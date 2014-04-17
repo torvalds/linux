@@ -1412,36 +1412,6 @@ static void exynos_dsi_unbind(struct device *dev, struct device *master,
 	drm_connector_cleanup(&dsi->connector);
 }
 
-#if CONFIG_PM_SLEEP
-static int exynos_dsi_resume(struct device *dev)
-{
-	struct exynos_dsi *dsi = exynos_dsi_display.ctx;
-
-	if (dsi->state & DSIM_STATE_ENABLED) {
-		dsi->state &= ~DSIM_STATE_ENABLED;
-		exynos_dsi_enable(dsi);
-	}
-
-	return 0;
-}
-
-static int exynos_dsi_suspend(struct device *dev)
-{
-	struct exynos_dsi *dsi = exynos_dsi_display.ctx;
-
-	if (dsi->state & DSIM_STATE_ENABLED) {
-		exynos_dsi_disable(dsi);
-		dsi->state |= DSIM_STATE_ENABLED;
-	}
-
-	return 0;
-}
-#endif
-
-static const struct dev_pm_ops exynos_dsi_pm_ops = {
-	SET_SYSTEM_SLEEP_PM_OPS(exynos_dsi_suspend, exynos_dsi_resume)
-};
-
 static const struct component_ops exynos_dsi_component_ops = {
 	.bind	= exynos_dsi_bind,
 	.unbind	= exynos_dsi_unbind,
@@ -1545,7 +1515,6 @@ struct platform_driver dsi_driver = {
 	.driver = {
 		   .name = "exynos-dsi",
 		   .owner = THIS_MODULE,
-		   .pm = &exynos_dsi_pm_ops,
 		   .of_match_table = exynos_dsi_of_match,
 	},
 };
