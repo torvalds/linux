@@ -1473,6 +1473,8 @@ struct drm_i915_private {
 	struct i915_dri1_state dri1;
 	/* Old ums support infrastructure, same warning applies. */
 	struct i915_ums_state ums;
+	/* the indicator for dispatch video commands on two BSD rings */
+	int ring_index;
 };
 
 static inline struct drm_i915_private *to_i915(const struct drm_device *dev)
@@ -1680,6 +1682,7 @@ struct drm_i915_file_private {
 
 	struct i915_hw_context *private_default_ctx;
 	atomic_t rps_wait_boost;
+	struct  intel_ring_buffer *bsd_ring;
 };
 
 /*
