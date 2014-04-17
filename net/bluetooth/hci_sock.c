@@ -524,16 +524,7 @@ static int hci_sock_bound_ioctl(struct sock *sk, unsigned int cmd,
 	case HCISETRAW:
 		if (!capable(CAP_NET_ADMIN))
 			return -EPERM;
-
-		if (test_bit(HCI_QUIRK_RAW_DEVICE, &hdev->quirks))
-			return -EPERM;
-
-		if (arg)
-			set_bit(HCI_RAW, &hdev->flags);
-		else
-			clear_bit(HCI_RAW, &hdev->flags);
-
-		return 0;
+		return -EOPNOTSUPP;
 
 	case HCIGETCONNINFO:
 		return hci_get_conn_info(hdev, (void __user *) arg);
