@@ -1,6 +1,11 @@
 /*
- * RockChip. lq070m1sx01
- *
+ * Copyright (C) 2014 ROCKCHIP, Inc.
+ * arch/arm/boot/dts/lcd-lq070m1sx01-mipi.dtsi
+ * author: libing@rock-chips.com
+ * create date: 2014-04-15
+ * lcd model: lq070m1sx01
+ * resolution: 1920 X 1200
+ * mipi channel: dual 
  */
 
 / {
@@ -8,7 +13,7 @@
 		disp_mipi_init: mipi_dsi_init{
 					rockchip,screen_init	= <1>;
 					rockchip,dsi_lane		= <2>;
-					rockchip,dsi_hs_clk		= <1020>;
+					rockchip,dsi_hs_clk		= <1000>;
 					rockchip,mipi_dsi_num	= <2>;
 		};
 		disp_mipi_power_ctr: mipi_power_ctr {
@@ -26,56 +31,57 @@
 					rockchip,on-cmds1 {
 							rockchip,cmd_type = <LPDT>;
 							rockchip,dsi_id = <2>;
-							rockchip,cmd = <0xb0 0x02>;
+							rockchip,cmd = <0x15 0xb0 0x02>;
 							rockchip,cmd_delay = <0>;
 					};
 					
 					rockchip,on-cmds2 {
 							rockchip,cmd_type = <LPDT>;
 							rockchip,dsi_id = <2>;
-							rockchip,cmd = <0xb1 0x21>;
+							rockchip,cmd = <0x15 0xb1 0x21>;
 							rockchip,cmd_delay = <0>;
 					};
 					rockchip,on-cmds3 {
 							rockchip,cmd_type = <LPDT>;
 							rockchip,dsi_id = <2>;
-							rockchip,cmd = <0xb0 0x06>;
+							rockchip,cmd = <0x15 0xb0 0x06>;
 							rockchip,cmd_delay = <0>;
 					};
 					rockchip,on-cmds4 {
 							rockchip,cmd_type = <LPDT>;
 							rockchip,dsi_id = <2>;
-							rockchip,cmd = <0xb1 0x21>;
+							rockchip,cmd = <0x15 0xb1 0x21>;
 							rockchip,cmd_delay = <0>;
 					};
 					rockchip,on-cmds5 {
 							rockchip,cmd_type = <LPDT>;
 							rockchip,dsi_id = <2>;
-							rockchip,cmd = <0xb4 0x15>;
+							rockchip,cmd = <0x15 0xb4 0x15>;
 							rockchip,cmd_delay = <0>;
 					};
 					rockchip,on-cmds6 {
 							rockchip,cmd_type = <LPDT>;
 							rockchip,dsi_id = <2>;
-							rockchip,cmd = <0xb9 0x40>;
+							rockchip,cmd = <0x15 0xb9 0x40>;
 							rockchip,cmd_delay = <0>;
 					};
 					rockchip,on-cmds7 {
 							rockchip,cmd_type = <LPDT>;
 							rockchip,dsi_id = <2>;
-							rockchip,cmd = <0xb0 0x00>;
+							rockchip,cmd = <0x15 0xb0 0x00>;
 							rockchip,cmd_delay = <0>;
 					};
 					rockchip,on-cmds8 {
 							rockchip,cmd_type = <LPDT>;
 							rockchip,dsi_id = <2>;
-							rockchip,cmd = <dcs_set_display_on>;
+							rockchip,cmd = <0x05 dcs_set_display_on>;
 							rockchip,cmd_delay = <10>;
 					};
 					rockchip,on-cmds9 {
 							rockchip,cmd_type = <LPDT>;
+							rockchip,data_type = <DATA_TYPE_DCS>;
 							rockchip,dsi_id = <2>;
-							rockchip,cmd = <dcs_exit_sleep_mode>;
+							rockchip,cmd = <0x05 dcs_exit_sleep_mode>;
 							rockchip,cmd_delay = <10>;
 					};
 		};
