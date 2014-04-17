@@ -649,8 +649,14 @@ static int labpc_ai_cmdtest(struct comedi_device *dev,
 
 	/* Step 3: check if arguments are trivially valid */
 
-	if (cmd->start_arg == TRIG_NOW)
+	switch (cmd->start_src) {
+	case TRIG_NOW:
 		err |= cfc_check_trigger_arg_is(&cmd->start_arg, 0);
+		break;
+	case TRIG_EXT:
+		/* start_arg value is ignored */
+		break;
+	}
 
 	if (!cmd->chanlist_len)
 		err |= -EINVAL;
