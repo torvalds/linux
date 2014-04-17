@@ -515,7 +515,6 @@ int lx_buffer_ask(struct lx6464es *chip, u32 pipe, int is_capture,
 				*r_needed += 1;
 		}
 
-#if 0
 		dev_dbg(chip->card->dev,
 			"CMD_08_ASK_BUFFERS: needed %d, freed %d\n",
 			    *r_needed, *r_freed);
@@ -526,7 +525,6 @@ int lx_buffer_ask(struct lx6464es *chip, u32 pipe, int is_capture,
 					    chip->rmh.stat[i],
 					    chip->rmh.stat[i] & MASK_DATA_SIZE);
 		}
-#endif
 	}
 
 	spin_unlock_irqrestore(&chip->msg_lock, flags);
@@ -1191,7 +1189,6 @@ irqreturn_t lx_interrupt(int irq, void *dev_id)
 	if (irqsrc & MASK_SYS_STATUS_CMD_DONE)
 		goto exit;
 
-#if 0
 	if (irqsrc & MASK_SYS_STATUS_EOBI)
 		dev_dbg(chip->card->dev, "interrupt: EOBI\n");
 
@@ -1203,7 +1200,6 @@ irqreturn_t lx_interrupt(int irq, void *dev_id)
 
 	if (irqsrc & MASK_SYS_STATUS_ORUN)
 		dev_dbg(chip->card->dev, "interrupt: ORUN\n");
-#endif
 
 	if (async_pending) {
 		u64 notified_in_pipe_mask = 0;
@@ -1230,7 +1226,6 @@ irqreturn_t lx_interrupt(int irq, void *dev_id)
 	}
 
 	if (async_escmd) {
-#if 0
 		/* backdoor for ethersound commands
 		 *
 		 * for now, we do not need this
@@ -1238,7 +1233,6 @@ irqreturn_t lx_interrupt(int irq, void *dev_id)
 		 * */
 
 		dev_dbg(chip->card->dev, "interrupt requests escmd handling\n");
-#endif
 	}
 
 exit:
