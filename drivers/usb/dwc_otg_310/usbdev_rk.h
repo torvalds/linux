@@ -57,6 +57,7 @@ struct dwc_otg_platform_data {
     struct clk* phyclk;
     struct clk* ahbclk;
     struct clk* busclk;
+    struct clk* phyclk_480m;
     int phy_status;
     void (*hw_init)(void);
     void (*phy_suspend)(void* pdata, int suspend);

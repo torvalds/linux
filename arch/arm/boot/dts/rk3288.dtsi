@@ -1049,8 +1049,10 @@
 		compatible = "rockchip,rk3288_usb20_host";
 		reg = <0xff540000 0x40000>;
 		interrupts = <GIC_SPI 25 IRQ_TYPE_LEVEL_HIGH>;
-		clocks = <&clk_gates13 6>, <&clk_gates7 7>;
-		clock-names = "clk_usbphy1", "hclk_usb1";
+		clocks = <&clk_gates13 6>, <&clk_gates7 7>,
+		         <&usbphy_480m>;
+		clock-names = "clk_usbphy1", "hclk_usb1",
+		              "usbphy_480m";
 	};
 
 	usb2: usb@ff500000 {

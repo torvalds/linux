@@ -215,7 +215,7 @@ static void usb20host_soft_reset(void)
 static void usb20host_clock_init(void* pdata)
 {
 	struct dwc_otg_platform_data *usbpdata=pdata;
-	struct clk* ahbclk,*phyclk;
+	struct clk* ahbclk, *phyclk, *phyclk_480m;
 
 	ahbclk = devm_clk_get(usbpdata->dev, "hclk_usb1");
 	if (IS_ERR(ahbclk)) {
@@ -229,8 +229,15 @@ static void usb20host_clock_init(void* pdata)
 		return;
 	}
 
+	phyclk_480m = devm_clk_get(usbpdata->dev, "usbphy_480m");
+	if (IS_ERR(phyclk_480m)) {
+		dev_err(usbpdata->dev, "Failed to get usbphy_480m\n");
+		return;
+	}
+
 	usbpdata->phyclk = phyclk;
 	usbpdata->ahbclk = ahbclk;
+	usbpdata->phyclk_480m = phyclk_480m;
 }
 
 static void usb20host_clock_enable(void* pdata, int enable)

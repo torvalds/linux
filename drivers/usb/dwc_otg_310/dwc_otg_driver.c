@@ -1141,6 +1141,7 @@ static int host20_driver_probe(struct platform_device *_dev)
 		goto fail;
 	}
 
+	clk_set_rate(pldata->phyclk_480m, 480000000);
 	/*
 	 * Enable the global interrupt after all the interrupt
 	 * handlers are installed if there is no ADP support else 
