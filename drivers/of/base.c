@@ -1800,7 +1800,7 @@ int of_update_property(struct device_node *np, struct property *newprop)
 {
 	struct property **next, *oldprop;
 	unsigned long flags;
-	int rc, found = 0;
+	int rc;
 
 	rc = of_property_notify(OF_RECONFIG_UPDATE_PROPERTY, np, newprop);
 	if (rc)
@@ -1809,30 +1809,34 @@ int of_update_property(struct device_node *np, struct property *newprop)
 	if (!newprop->name)
 		return -EINVAL;
 
-	oldprop = of_find_property(np, newprop->name, NULL);
-	if (!oldprop)
-		return of_add_property(np, newprop);
-
 	raw_spin_lock_irqsave(&devtree_lock, flags);
 	next = &np->properties;
-	while (*next) {
+	oldprop = __of_find_property(np, newprop->name, NULL);
+	if (!oldprop) {
+		/* add the new node */
+		rc = __of_add_property(np, newprop);
+	} else while (*next) {
+		/* replace the node */
 		if (*next == oldprop) {
-			/* found the node */
 			newprop->next = oldprop->next;
 			*next = newprop;
 			oldprop->next = np->deadprops;
 			np->deadprops = oldprop;
-			found = 1;
 			break;
 		}
 		next = &(*next)->next;
 	}
 	raw_spin_unlock_irqrestore(&devtree_lock, flags);
-	if (!found)
-		return -ENODEV;
+	if (rc)
+		return rc;
+
+	/* At early boot, bail out and defer setup to of_init() */
+	if (!of_kset)
+		return 0;
 
 	/* Update the sysfs attribute */
-	sysfs_remove_bin_file(&np->kobj, &oldprop->attr);
+	if (oldprop)
+		sysfs_remove_bin_file(&np->kobj, &oldprop->attr);
 	__of_add_property_sysfs(np, newprop);
 
 	return 0;
