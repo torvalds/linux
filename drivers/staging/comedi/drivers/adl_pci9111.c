@@ -354,68 +354,67 @@ static int pci9111_ai_do_cmd_test(struct comedi_device *dev,
 				  struct comedi_cmd *cmd)
 {
 	struct pci9111_private_data *dev_private = dev->private;
+	int err = 0;
 	int tmp;
-	int error = 0;
 
 	/* Step 1 : check if triggers are trivially valid */
 
-	error |= cfc_check_trigger_src(&cmd->start_src, TRIG_NOW);
-	error |= cfc_check_trigger_src(&cmd->scan_begin_src,
+	err |= cfc_check_trigger_src(&cmd->start_src, TRIG_NOW);
+	err |= cfc_check_trigger_src(&cmd->scan_begin_src,
 					TRIG_TIMER | TRIG_FOLLOW | TRIG_EXT);
-	error |= cfc_check_trigger_src(&cmd->convert_src,
+	err |= cfc_check_trigger_src(&cmd->convert_src,
 					TRIG_TIMER | TRIG_EXT);
-	error |= cfc_check_trigger_src(&cmd->scan_end_src, TRIG_COUNT);
-	error |= cfc_check_trigger_src(&cmd->stop_src,
+	err |= cfc_check_trigger_src(&cmd->scan_end_src, TRIG_COUNT);
+	err |= cfc_check_trigger_src(&cmd->stop_src,
 					TRIG_COUNT | TRIG_NONE);
 
-	if (error)
+	if (err)
 		return 1;
 
 	/* Step 2a : make sure trigger sources are unique */
 
-	error |= cfc_check_trigger_is_unique(cmd->scan_begin_src);
-	error |= cfc_check_trigger_is_unique(cmd->convert_src);
-	error |= cfc_check_trigger_is_unique(cmd->stop_src);
+	err |= cfc_check_trigger_is_unique(cmd->scan_begin_src);
+	err |= cfc_check_trigger_is_unique(cmd->convert_src);
+	err |= cfc_check_trigger_is_unique(cmd->stop_src);
 
 	/* Step 2b : and mutually compatible */
 
 	if ((cmd->convert_src == TRIG_TIMER) &&
 	    !((cmd->scan_begin_src == TRIG_TIMER) ||
 	      (cmd->scan_begin_src == TRIG_FOLLOW)))
-		error |= -EINVAL;
+		err |= -EINVAL;
 	if ((cmd->convert_src == TRIG_EXT) &&
 	    !((cmd->scan_begin_src == TRIG_EXT) ||
 	      (cmd->scan_begin_src == TRIG_FOLLOW)))
-		error |= -EINVAL;
+		err |= -EINVAL;
 
-	if (error)
+	if (err)
 		return 2;
 
 	/* Step 3: check if arguments are trivially valid */
 
-	error |= cfc_check_trigger_arg_is(&cmd->start_arg, 0);
+	err |= cfc_check_trigger_arg_is(&cmd->start_arg, 0);
 
 	if (cmd->convert_src == TRIG_TIMER)
-		error |= cfc_check_trigger_arg_min(&cmd->convert_arg,
+		err |= cfc_check_trigger_arg_min(&cmd->convert_arg,
 					PCI9111_AI_ACQUISITION_PERIOD_MIN_NS);
 	else	/* TRIG_EXT */
-		error |= cfc_check_trigger_arg_is(&cmd->convert_arg, 0);
+		err |= cfc_check_trigger_arg_is(&cmd->convert_arg, 0);
 
 	if (cmd->scan_begin_src == TRIG_TIMER)
-		error |= cfc_check_trigger_arg_min(&cmd->scan_begin_arg,
+		err |= cfc_check_trigger_arg_min(&cmd->scan_begin_arg,
 					PCI9111_AI_ACQUISITION_PERIOD_MIN_NS);
 	else	/* TRIG_FOLLOW || TRIG_EXT */
-		error |= cfc_check_trigger_arg_is(&cmd->scan_begin_arg, 0);
+		err |= cfc_check_trigger_arg_is(&cmd->scan_begin_arg, 0);
 
-	error |= cfc_check_trigger_arg_is(&cmd->scan_end_arg,
-					  cmd->chanlist_len);
+	err |= cfc_check_trigger_arg_is(&cmd->scan_end_arg, cmd->chanlist_len);
 
 	if (cmd->stop_src == TRIG_COUNT)
-		error |= cfc_check_trigger_arg_min(&cmd->stop_arg, 1);
+		err |= cfc_check_trigger_arg_min(&cmd->stop_arg, 1);
 	else	/* TRIG_NONE */
-		error |= cfc_check_trigger_arg_is(&cmd->stop_arg, 0);
+		err |= cfc_check_trigger_arg_is(&cmd->stop_arg, 0);
 
-	if (error)
+	if (err)
 		return 3;
 
 	/*  Step 4 : fix up any arguments */
@@ -427,7 +426,7 @@ static int pci9111_ai_do_cmd_test(struct comedi_device *dev,
 					  &dev_private->div2,
 					  &cmd->convert_arg, cmd->flags);
 		if (tmp != cmd->convert_arg)
-			error++;
+			err |= -EINVAL;
 	}
 	/*  There's only one timer on this card, so the scan_begin timer must */
 	/*  be a multiple of chanlist_len*convert_arg */
@@ -447,23 +446,23 @@ static int pci9111_ai_do_cmd_test(struct comedi_device *dev,
 				scan_begin_arg = scan_factor * scan_begin_min;
 				if (cmd->scan_begin_arg != scan_begin_arg) {
 					cmd->scan_begin_arg = scan_begin_arg;
-					error++;
+					err |= -EINVAL;
 				}
 			} else {
 				cmd->scan_begin_arg = scan_begin_min;
-				error++;
+				err |= -EINVAL;
 			}
 		}
 	}
 
-	if (error)
+	if (err)
 		return 4;
 
 	/* Step 5: check channel list if it exists */
 	if (cmd->chanlist && cmd->chanlist_len > 0)
-		error |= pci9111_ai_check_chanlist(dev, s, cmd);
+		err |= pci9111_ai_check_chanlist(dev, s, cmd);
 
-	if (error)
+	if (err)
 		return 5;
 
 	return 0;
