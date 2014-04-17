@@ -198,7 +198,7 @@ static int apci1032_cos_cmdtest(struct comedi_device *dev,
 	err |= cfc_check_trigger_arg_is(&cmd->start_arg, 0);
 	err |= cfc_check_trigger_arg_is(&cmd->scan_begin_arg, 0);
 	err |= cfc_check_trigger_arg_is(&cmd->convert_arg, 0);
-	err |= cfc_check_trigger_arg_is(&cmd->scan_end_arg, 1);
+	err |= cfc_check_trigger_arg_is(&cmd->scan_end_arg, cmd->chanlist_len);
 	err |= cfc_check_trigger_arg_is(&cmd->stop_arg, 0);
 
 	if (err)
@@ -332,6 +332,7 @@ static int apci1032_auto_attach(struct comedi_device *dev,
 		s->range_table	= &range_digital;
 		s->insn_config	= apci1032_cos_insn_config;
 		s->insn_bits	= apci1032_cos_insn_bits;
+		s->len_chanlist	= 1;
 		s->do_cmdtest	= apci1032_cos_cmdtest;
 		s->do_cmd	= apci1032_cos_cmd;
 		s->cancel	= apci1032_cos_cancel;

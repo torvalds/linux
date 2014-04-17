@@ -314,7 +314,7 @@ static int pc236_intr_cmdtest(struct comedi_device *dev,
 	err |= cfc_check_trigger_arg_is(&cmd->start_arg, 0);
 	err |= cfc_check_trigger_arg_is(&cmd->scan_begin_arg, 0);
 	err |= cfc_check_trigger_arg_is(&cmd->convert_arg, 0);
-	err |= cfc_check_trigger_arg_is(&cmd->scan_end_arg, 1);
+	err |= cfc_check_trigger_arg_is(&cmd->scan_end_arg, cmd->chanlist_len);
 	err |= cfc_check_trigger_arg_is(&cmd->stop_arg, 0);
 
 	if (err)
@@ -402,6 +402,7 @@ static int pc236_common_attach(struct comedi_device *dev, unsigned long iobase,
 			s->maxdata = 1;
 			s->range_table = &range_digital;
 			s->insn_bits = pc236_intr_insn;
+			s->len_chanlist	= 1;
 			s->do_cmdtest = pc236_intr_cmdtest;
 			s->do_cmd = pc236_intr_cmd;
 			s->cancel = pc236_intr_cancel;

@@ -2270,6 +2270,11 @@ static int apci3200_ai_cmdtest(struct comedi_device *dev,
 		apci3200_reset(dev);
 		return 2;
 	}
+
+	/* Step 3: check if arguments are trivially valid */
+
+	err |= cfc_check_trigger_arg_is(&cmd->scan_end_arg, cmd->chanlist_len);
+
 	/* i_FirstChannel=cmd->chanlist[0]; */
 	s_BoardInfos[dev->minor].i_FirstChannel = cmd->chanlist[0];
 	/* i_LastChannel=cmd->chanlist[1]; */

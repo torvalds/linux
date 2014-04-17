@@ -473,7 +473,7 @@ static int ni_65xx_intr_cmdtest(struct comedi_device *dev,
 	err |= cfc_check_trigger_arg_is(&cmd->start_arg, 0);
 	err |= cfc_check_trigger_arg_is(&cmd->scan_begin_arg, 0);
 	err |= cfc_check_trigger_arg_is(&cmd->convert_arg, 0);
-	err |= cfc_check_trigger_arg_is(&cmd->scan_end_arg, 1);
+	err |= cfc_check_trigger_arg_is(&cmd->scan_end_arg, cmd->chanlist_len);
 	err |= cfc_check_trigger_arg_is(&cmd->stop_arg, 0);
 
 	if (err)
@@ -671,6 +671,7 @@ static int ni_65xx_auto_attach(struct comedi_device *dev,
 	s->n_chan = 1;
 	s->range_table = &range_unknown;
 	s->maxdata = 1;
+	s->len_chanlist	= 1;
 	s->do_cmdtest = ni_65xx_intr_cmdtest;
 	s->do_cmd = ni_65xx_intr_cmd;
 	s->cancel = ni_65xx_intr_cancel;

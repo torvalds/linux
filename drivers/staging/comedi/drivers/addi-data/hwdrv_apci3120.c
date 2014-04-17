@@ -778,6 +778,7 @@ static int apci3120_ai_cmdtest(struct comedi_device *dev,
 	}
 
 	err |= cfc_check_trigger_arg_min(&cmd->chanlist_len, 1);
+	err |= cfc_check_trigger_arg_is(&cmd->scan_end_arg, cmd->chanlist_len);
 
 	if (cmd->stop_src == TRIG_COUNT)
 		err |= cfc_check_trigger_arg_min(&cmd->stop_arg, 1);
