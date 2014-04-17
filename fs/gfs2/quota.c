@@ -778,6 +778,7 @@ get_a_page:
 		i_size_write(inode, size);
 	inode->i_mtime = inode->i_atime = CURRENT_TIME;
 	mark_inode_dirty(inode);
+	set_bit(QDF_REFRESH, &qd->qd_flags);
 	return 0;
 
 unlock_out:
