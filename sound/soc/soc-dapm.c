@@ -426,7 +426,7 @@ static void soc_dapm_async_complete(struct snd_soc_dapm_context *dapm)
 }
 
 static int soc_widget_update_bits_locked(struct snd_soc_dapm_widget *w,
-	unsigned short reg, unsigned int mask, unsigned int value)
+	int reg, unsigned int mask, unsigned int value)
 {
 	bool change;
 	unsigned int old, new;
