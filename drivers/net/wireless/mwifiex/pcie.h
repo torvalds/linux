@@ -100,6 +100,28 @@
 #define MWIFIEX_DEF_SLEEP_COOKIE			0xBEEFBEEF
 #define MWIFIEX_MAX_DELAY_COUNT				5
 
+#define DEBUG_DUMP_CTRL_REG				0xCF4
+#define DEBUG_DUMP_START_REG				0xCF8
+#define DEBUG_DUMP_END_REG				0xCFF
+#define DEBUG_HOST_READY				0xEE
+#define DEBUG_FW_DONE					0xFF
+
+#define MAX_NAME_LEN					8
+#define MAX_FULL_NAME_LEN				32
+
+struct memory_type_mapping {
+	u8 mem_name[MAX_NAME_LEN];
+	u8 *mem_ptr;
+	struct file *file_mem;
+	u8 done_flag;
+};
+
+enum rdwr_status {
+	RDWR_STATUS_SUCCESS = 0,
+	RDWR_STATUS_FAILURE = 1,
+	RDWR_STATUS_DONE = 2
+};
+
 struct mwifiex_pcie_card_reg {
 	u16 cmd_addr_lo;
 	u16 cmd_addr_hi;
@@ -322,4 +344,9 @@ mwifiex_pcie_txbd_not_full(struct pcie_service_card *card)
 
 	return 0;
 }
+
+enum mwifiex_pcie_work_flags {
+	MWIFIEX_PCIE_WORK_FW_DUMP,
+};
+
 #endif /* _MWIFIEX_PCIE_H */
