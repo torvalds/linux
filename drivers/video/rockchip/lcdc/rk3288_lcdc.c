@@ -96,7 +96,7 @@ static int rk3288_lcdc_clk_enable(struct lcdc_device *lcdc_dev)
 		clk_prepare_enable(lcdc_dev->hclk);
 		clk_prepare_enable(lcdc_dev->dclk);
 		clk_prepare_enable(lcdc_dev->aclk);
-		/*clk_enable(lcdc_dev->pd);*/
+		clk_prepare_enable(lcdc_dev->pd);
 		spin_lock(&lcdc_dev->reg_lock);
 		lcdc_dev->clk_on = 1;
 		spin_unlock(&lcdc_dev->reg_lock);
@@ -119,7 +119,7 @@ static int rk3288_lcdc_clk_disable(struct lcdc_device *lcdc_dev)
 		clk_disable_unprepare(lcdc_dev->dclk);
 		clk_disable_unprepare(lcdc_dev->hclk);
 		clk_disable_unprepare(lcdc_dev->aclk);
-		/*clk_disable(lcdc_dev->pd);*/
+		clk_disable_unprepare(lcdc_dev->pd);
 	}
 
 	return 0;
@@ -211,6 +211,7 @@ static int rk3288_lcdc_pre_init(struct rk_lcdc_driver *dev_drv)
 	lcdc_dev->hclk = devm_clk_get(lcdc_dev->dev, "hclk_lcdc");
 	lcdc_dev->aclk = devm_clk_get(lcdc_dev->dev, "aclk_lcdc");
 	lcdc_dev->dclk = devm_clk_get(lcdc_dev->dev, "dclk_lcdc");
+	lcdc_dev->pd   = devm_clk_get(lcdc_dev->dev, "pd_lcdc");
 	
 	if (IS_ERR(lcdc_dev->pd) || (IS_ERR(lcdc_dev->aclk)) ||
 	    (IS_ERR(lcdc_dev->dclk)) || (IS_ERR(lcdc_dev->hclk))) {
