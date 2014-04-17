@@ -773,11 +773,13 @@ static int setup_mite_dma(struct comedi_device *dev, struct comedi_subdevice *s)
 }
 
 static int ni_pcidio_inttrig(struct comedi_device *dev,
-			     struct comedi_subdevice *s, unsigned int trignum)
+			     struct comedi_subdevice *s,
+			     unsigned int trig_num)
 {
 	struct nidio96_private *devpriv = dev->private;
+	struct comedi_cmd *cmd = &s->async->cmd;
 
-	if (trignum != 0)
+	if (trig_num != cmd->start_arg)
 		return -EINVAL;
 
 	writeb(devpriv->OpModeBits, devpriv->mite->daq_io_addr + OpMode);
