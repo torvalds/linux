@@ -872,9 +872,12 @@ static int cb_pcidas_ai_cmdtest(struct comedi_device *dev,
 	if (err)
 		return 2;
 
-	/* step 3: arguments are trivially compatible */
+	/* Step 3: check if arguments are trivially valid */
 
 	switch (cmd->start_src) {
+	case TRIG_NOW:
+		err |= cfc_check_trigger_arg_is(&cmd->start_arg, 0);
+		break;
 	case TRIG_EXT:
 		/* External trigger, only CR_EDGE and CR_INVERT flags allowed */
 		if ((cmd->start_arg
@@ -887,9 +890,6 @@ static int cb_pcidas_ai_cmdtest(struct comedi_device *dev,
 			cmd->start_arg &= (CR_FLAGS_MASK & ~CR_INVERT);
 			err |= -EINVAL;
 		}
-		break;
-	default:
-		err |= cfc_check_trigger_arg_is(&cmd->start_arg, 0);
 		break;
 	}
 
