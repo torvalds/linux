@@ -179,9 +179,7 @@ retry:
 			write_unlock(&nm_i->nat_tree_lock);
 			goto retry;
 		}
-		nat_set_blkaddr(e, le32_to_cpu(ne->block_addr));
-		nat_set_ino(e, le32_to_cpu(ne->ino));
-		nat_set_version(e, ne->version);
+		node_info_from_raw_nat(&e->ni, ne);
 	}
 	write_unlock(&nm_i->nat_tree_lock);
 }
@@ -1755,9 +1753,7 @@ retry:
 			write_unlock(&nm_i->nat_tree_lock);
 			goto retry;
 		}
-		nat_set_blkaddr(ne, le32_to_cpu(raw_ne.block_addr));
-		nat_set_ino(ne, le32_to_cpu(raw_ne.ino));
-		nat_set_version(ne, raw_ne.version);
+		node_info_from_raw_nat(&ne->ni, &raw_ne);
 		__set_nat_cache_dirty(nm_i, ne);
 		write_unlock(&nm_i->nat_tree_lock);
 	}
@@ -1790,7 +1786,6 @@ void flush_nat_entries(struct f2fs_sb_info *sbi)
 		nid_t nid;
 		struct f2fs_nat_entry raw_ne;
 		int offset = -1;
-		block_t new_blkaddr;
 
 		if (nat_get_blkaddr(ne) == NEW_ADDR)
 			continue;
@@ -1826,11 +1821,7 @@ to_nat_page:
 		f2fs_bug_on(!nat_blk);
 		raw_ne = nat_blk->entries[nid - start_nid];
 flush_now:
-		new_blkaddr = nat_get_blkaddr(ne);
-
-		raw_ne.ino = cpu_to_le32(nat_get_ino(ne));
-		raw_ne.block_addr = cpu_to_le32(new_blkaddr);
-		raw_ne.version = nat_get_version(ne);
+		raw_nat_from_node_info(&raw_ne, &ne->ni);
 
 		if (offset < 0) {
 			nat_blk->entries[nid - start_nid] = raw_ne;
