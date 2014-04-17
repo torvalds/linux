@@ -212,8 +212,7 @@ int mwifiex_cmd_append_11ac_tlv(struct mwifiex_private *priv,
 				      sizeof(struct mwifiex_ie_types_header));
 			memcpy((u8 *)vht_op +
 				sizeof(struct mwifiex_ie_types_header),
-			       (u8 *)bss_desc->bcn_vht_oper +
-			       sizeof(struct ieee_types_header),
+			       (u8 *)bss_desc->bcn_vht_oper,
 			       le16_to_cpu(vht_op->header.len));
 
 			/* negotiate the channel width and central freq

@@ -1340,23 +1340,17 @@ int mwifiex_update_bss_desc_with_ie(struct mwifiex_adapter *adapter,
 					      bss_entry->beacon_buf);
 			break;
 		case WLAN_EID_BSS_COEX_2040:
-			bss_entry->bcn_bss_co_2040 = current_ptr +
-				sizeof(struct ieee_types_header);
-			bss_entry->bss_co_2040_offset = (u16) (current_ptr +
-					sizeof(struct ieee_types_header) -
-						bss_entry->beacon_buf);
+			bss_entry->bcn_bss_co_2040 = current_ptr;
+			bss_entry->bss_co_2040_offset =
+				(u16) (current_ptr - bss_entry->beacon_buf);
 			break;
 		case WLAN_EID_EXT_CAPABILITY:
-			bss_entry->bcn_ext_cap = current_ptr +
-				sizeof(struct ieee_types_header);
-			bss_entry->ext_cap_offset = (u16) (current_ptr +
-					sizeof(struct ieee_types_header) -
-					bss_entry->beacon_buf);
+			bss_entry->bcn_ext_cap = current_ptr;
+			bss_entry->ext_cap_offset =
+				(u16) (current_ptr - bss_entry->beacon_buf);
 			break;
 		case WLAN_EID_OPMODE_NOTIF:
-			bss_entry->oper_mode =
-				(void *)(current_ptr +
-					 sizeof(struct ieee_types_header));
+			bss_entry->oper_mode = (void *)current_ptr;
 			bss_entry->oper_mode_offset =
 					(u16)((u8 *)bss_entry->oper_mode -
 					      bss_entry->beacon_buf);
