@@ -432,6 +432,7 @@ static s32 igb_read_invm_i210(struct e1000_hw *hw, u16 offset,
 			*data = ID_LED_RESERVED_FFFF;
 			ret_val = E1000_SUCCESS;
 		}
+		break;
 	case NVM_SUB_DEV_ID:
 		*data = hw->subsystem_device_id;
 		break;
