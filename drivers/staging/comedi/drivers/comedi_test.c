@@ -413,11 +413,7 @@ static int waveform_attach(struct comedi_device *dev,
 	s->n_chan = N_CHANS;
 	s->maxdata = 0xffff;
 	s->range_table = &waveform_ai_ranges;
-	s->len_chanlist = s->n_chan * 2;
 	s->insn_write = waveform_ao_insn_write;
-	s->do_cmd = NULL;
-	s->do_cmdtest = NULL;
-	s->cancel = NULL;
 
 	/* Our default loopback value is just a 0V flatline */
 	for (i = 0; i < s->n_chan; i++)
