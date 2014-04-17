@@ -700,8 +700,8 @@
 		rockchip,prop = <0>;
 		reg = <0xff960000 0x4000>;
 		interrupts = <GIC_SPI 19 IRQ_TYPE_LEVEL_HIGH>;
-		clocks = <&clk_gates5 15>, <&clk_gates16 4>;
-		clock-names = "clk_mipi_24m", "pclk_mipi_dsi";
+		clocks = <&clk_gates5 15>, <&clk_gates16 4> , <&pd_mipidsi>;
+		clock-names = "clk_mipi_24m", "pclk_mipi_dsi", "pd_mipi_dsi";
 		status = "disabled";
 	};
 
@@ -710,8 +710,8 @@
 		rockchip,prop = <1>;
 		reg = <0xff964000 0x4000>;
 		interrupts = <GIC_SPI 20 IRQ_TYPE_LEVEL_HIGH>;
-		clocks = <&clk_gates5 15>, <&clk_gates16 5>;
-		clock-names = "clk_mipi_24m", "pclk_mipi_dsi";
+		clocks = <&clk_gates5 15>, <&clk_gates16 5>, <&pd_mipidsi>;
+		clock-names = "clk_mipi_24m", "pclk_mipi_dsi", "pd_mipi_dsi";
 		status = "disabled"; 
 	};
 	

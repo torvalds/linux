@@ -178,6 +178,7 @@ static int rk32_phy_power_up(struct dsi *dsi)
     //enable ref clock
     clk_prepare_enable(dsi->phy.refclk); 
     clk_prepare_enable(dsi->dsi_pclk);
+    clk_prepare_enable(dsi->dsi_pd);
     udelay(10);
 
 	switch(dsi->host.lane) {
@@ -206,6 +207,7 @@ static int rk32_phy_power_down(struct dsi *dsi)
     rk32_dsi_set_bits(dsi, 0, phy_shutdownz);
     clk_disable_unprepare(dsi->phy.refclk); 
     clk_disable_unprepare(dsi->dsi_pclk);
+    clk_disable_unprepare(dsi->dsi_pd);
     
     return 0;
 }
@@ -1288,7 +1290,7 @@ static int rk32_mipi_dsi_probe(struct platform_device *pdev)
 
     dsi->phy.refclk  = devm_clk_get(&pdev->dev, "clk_mipi_24m"); 
 	if (unlikely(IS_ERR(dsi->phy.refclk))) {
-		dev_err(&pdev->dev, "get mipi_ref clock fail\n");
+		dev_err(&pdev->dev, "get clk_mipi_24m clock fail\n");
 		ret = PTR_ERR(dsi->phy.refclk);
 		//goto probe_err6;
 	}
@@ -1299,6 +1301,14 @@ static int rk32_mipi_dsi_probe(struct platform_device *pdev)
        ret = PTR_ERR(dsi->dsi_pclk);
        //goto probe_err7;
    }
+
+    dsi->dsi_pd = devm_clk_get(&pdev->dev, "pd_mipi_dsi");
+    if (unlikely(IS_ERR(dsi->dsi_pd))) {
+        dev_err(&pdev->dev, "get pd_mipi_dsi clock fail\n");
+        ret = PTR_ERR(dsi->dsi_pd);
+        //goto probe_err7;
+    }
+
 
 	dsi->host.irq = platform_get_irq(pdev, 0);
 	if (dsi->host.irq < 0) {
