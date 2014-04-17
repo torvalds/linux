@@ -826,24 +826,24 @@ static int buffer_activate(struct saa7134_dev *dev,
 
 	set_size(dev, TASK_A, buf->vb.width, buf->vb.height,
 		 V4L2_FIELD_HAS_BOTH(buf->vb.field));
-	if (buf->fmt->yuv)
+	if (dev->fmt->yuv)
 		saa_andorb(SAA7134_DATA_PATH(TASK_A), 0x3f, 0x03);
 	else
 		saa_andorb(SAA7134_DATA_PATH(TASK_A), 0x3f, 0x01);
-	saa_writeb(SAA7134_OFMT_VIDEO_A, buf->fmt->pm);
+	saa_writeb(SAA7134_OFMT_VIDEO_A, dev->fmt->pm);
 
 	/* DMA: setup channel 0 (= Video Task A0) */
 	base  = saa7134_buffer_base(buf);
-	if (buf->fmt->planar)
+	if (dev->fmt->planar)
 		bpl = buf->vb.width;
 	else
-		bpl = (buf->vb.width * buf->fmt->depth) / 8;
+		bpl = (buf->vb.width * dev->fmt->depth) / 8;
 	control = SAA7134_RS_CONTROL_BURST_16 |
 		SAA7134_RS_CONTROL_ME |
 		(buf->pt->dma >> 12);
-	if (buf->fmt->bswap)
+	if (dev->fmt->bswap)
 		control |= SAA7134_RS_CONTROL_BSWAP;
-	if (buf->fmt->wswap)
+	if (dev->fmt->wswap)
 		control |= SAA7134_RS_CONTROL_WSWAP;
 	if (V4L2_FIELD_HAS_BOTH(buf->vb.field)) {
 		/* interlaced */
@@ -858,13 +858,13 @@ static int buffer_activate(struct saa7134_dev *dev,
 	}
 	saa_writel(SAA7134_RS_CONTROL(0),control);
 
-	if (buf->fmt->planar) {
+	if (dev->fmt->planar) {
 		/* DMA: setup channel 4+5 (= planar task A) */
-		bpl_uv   = bpl >> buf->fmt->hshift;
-		lines_uv = buf->vb.height >> buf->fmt->vshift;
+		bpl_uv   = bpl >> dev->fmt->hshift;
+		lines_uv = buf->vb.height >> dev->fmt->vshift;
 		base2    = base + bpl * buf->vb.height;
 		base3    = base2 + bpl_uv * lines_uv;
-		if (buf->fmt->uvswap)
+		if (dev->fmt->uvswap)
 			tmp = base2, base2 = base3, base3 = tmp;
 		dprintk("uv: bpl=%ld lines=%ld base2/3=%ld/%ld\n",
 			bpl_uv,lines_uv,base2,base3);
@@ -924,8 +924,7 @@ static int buffer_prepare(struct videobuf_queue *q,
 	if (buf->vb.width  != dev->width  ||
 	    buf->vb.height != dev->height ||
 	    buf->vb.size   != size       ||
-	    buf->vb.field  != field      ||
-	    buf->fmt       != dev->fmt) {
+	    buf->vb.field  != field) {
 		saa7134_dma_free(q,buf);
 	}
 
@@ -936,7 +935,6 @@ static int buffer_prepare(struct videobuf_queue *q,
 		buf->vb.height = dev->height;
 		buf->vb.size   = size;
 		buf->vb.field  = field;
-		buf->fmt       = dev->fmt;
 		buf->pt        = &dev->pt_cap;
 		dev->video_q.curr = NULL;
 

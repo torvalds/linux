@@ -456,7 +456,6 @@ struct saa7134_buf {
 	struct videobuf_buffer vb;
 
 	/* saa7134 specific */
-	struct saa7134_format   *fmt;
 	unsigned int            top_seen;
 	int (*activate)(struct saa7134_dev *dev,
 			struct saa7134_buf *buf,

@@ -392,8 +392,7 @@ int saa7134_set_dmabits(struct saa7134_dev *dev)
 	}
 
 	/* video capture -- dma 1+2 (planar modes) */
-	if (dev->video_q.curr &&
-	    dev->video_q.curr->fmt->planar) {
+	if (dev->video_q.curr && dev->fmt->planar) {
 		ctrl |= SAA7134_MAIN_CTRL_TE4 |
 			SAA7134_MAIN_CTRL_TE5;
 	}
