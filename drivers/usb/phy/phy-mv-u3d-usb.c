@@ -39,8 +39,8 @@ static u32 mv_u3d_phy_read(void __iomem *base, u32 reg)
 	addr = base;
 	data = base + 0x4;
 
-	writel_relaxed(reg, addr);
-	return readl_relaxed(data);
+	writel(reg, addr);
+	return readl(data);
 }
 
 static void mv_u3d_phy_set(void __iomem *base, u32 reg, u32 value)
@@ -51,10 +51,10 @@ static void mv_u3d_phy_set(void __iomem *base, u32 reg, u32 value)
 	addr = base;
 	data = base + 0x4;
 
-	writel_relaxed(reg, addr);
-	tmp = readl_relaxed(data);
+	writel(reg, addr);
+	tmp = readl(data);
 	tmp |= value;
-	writel_relaxed(tmp, data);
+	writel(tmp, data);
 }
 
 static void mv_u3d_phy_clear(void __iomem *base, u32 reg, u32 value)
@@ -65,10 +65,10 @@ static void mv_u3d_phy_clear(void __iomem *base, u32 reg, u32 value)
 	addr = base;
 	data = base + 0x4;
 
-	writel_relaxed(reg, addr);
-	tmp = readl_relaxed(data);
+	writel(reg, addr);
+	tmp = readl(data);
 	tmp &= ~value;
-	writel_relaxed(tmp, data);
+	writel(tmp, data);
 }
 
 static void mv_u3d_phy_write(void __iomem *base, u32 reg, u32 value)
@@ -78,8 +78,8 @@ static void mv_u3d_phy_write(void __iomem *base, u32 reg, u32 value)
 	addr = base;
 	data = base + 0x4;
 
-	writel_relaxed(reg, addr);
-	writel_relaxed(value, data);
+	writel(reg, addr);
+	writel(value, data);
 }
 
 static void mv_u3d_phy_shutdown(struct usb_phy *phy)
