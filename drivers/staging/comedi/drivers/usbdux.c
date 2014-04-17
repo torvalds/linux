@@ -692,15 +692,16 @@ static int receive_dux_commands(struct comedi_device *dev, unsigned int command)
 
 static int usbdux_ai_inttrig(struct comedi_device *dev,
 			     struct comedi_subdevice *s,
-			     unsigned int trignum)
+			     unsigned int trig_num)
 {
 	struct usbdux_private *devpriv = dev->private;
-	int ret = -EINVAL;
+	struct comedi_cmd *cmd = &s->async->cmd;
+	int ret;
+
+	if (trig_num != cmd->start_arg)
+		return -EINVAL;
 
 	down(&devpriv->sem);
-
-	if (trignum != 0)
-		goto ai_trig_exit;
 
 	if (!devpriv->ai_cmd_running) {
 		devpriv->ai_cmd_running = 1;
@@ -913,15 +914,16 @@ ao_write_exit:
 
 static int usbdux_ao_inttrig(struct comedi_device *dev,
 			     struct comedi_subdevice *s,
-			     unsigned int trignum)
+			     unsigned int trig_num)
 {
 	struct usbdux_private *devpriv = dev->private;
-	int ret = -EINVAL;
+	struct comedi_cmd *cmd = &s->async->cmd;
+	int ret;
+
+	if (trig_num != cmd->start_arg)
+		return -EINVAL;
 
 	down(&devpriv->sem);
-
-	if (trignum != 0)
-		goto ao_trig_exit;
 
 	if (!devpriv->ao_cmd_running) {
 		devpriv->ao_cmd_running = 1;
