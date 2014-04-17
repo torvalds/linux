@@ -184,3 +184,6 @@ int cros_ec_resume(struct cros_ec_device *ec_dev)
 EXPORT_SYMBOL(cros_ec_resume);
 
 #endif
+
+MODULE_LICENSE("GPL");
+MODULE_DESCRIPTION("ChromeOS EC core driver");
