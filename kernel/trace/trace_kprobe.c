@@ -1196,9 +1196,8 @@ kretprobe_perf_func(struct trace_kprobe *tk, struct kretprobe_instance *ri,
  * kprobe_trace_self_tests_init() does enable_trace_probe/disable_trace_probe
  * lockless, but we can't race with this __init function.
  */
-static __kprobes
-int kprobe_register(struct ftrace_event_call *event,
-		    enum trace_reg type, void *data)
+static int kprobe_register(struct ftrace_event_call *event,
+			   enum trace_reg type, void *data)
 {
 	struct trace_kprobe *tk = (struct trace_kprobe *)event->data;
 	struct ftrace_event_file *file = data;
