@@ -7315,8 +7315,12 @@ void kvm_arch_commit_memory_region(struct kvm *kvm,
 		kvm_mmu_change_mmu_pages(kvm, nr_mmu_pages);
 	/*
 	 * Write protect all pages for dirty logging.
-	 * Existing largepage mappings are destroyed here and new ones will
-	 * not be created until the end of the logging.
+	 *
+	 * All the sptes including the large sptes which point to this
+	 * slot are set to readonly. We can not create any new large
+	 * spte on this slot until the end of the logging.
+	 *
+	 * See the comments in fast_page_fault().
 	 */
 	if ((change != KVM_MR_DELETE) && (mem->flags & KVM_MEM_LOG_DIRTY_PAGES))
 		kvm_mmu_slot_remove_write_access(kvm, mem->slot);

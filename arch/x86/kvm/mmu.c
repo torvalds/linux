@@ -1176,8 +1176,7 @@ static void drop_large_spte(struct kvm_vcpu *vcpu, u64 *sptep)
 
 /*
  * Write-protect on the specified @sptep, @pt_protect indicates whether
- * spte writ-protection is caused by protecting shadow page table.
- * @flush indicates whether tlb need be flushed.
+ * spte write-protection is caused by protecting shadow page table.
  *
  * Note: write protection is difference between drity logging and spte
  * protection:
@@ -1186,10 +1185,9 @@ static void drop_large_spte(struct kvm_vcpu *vcpu, u64 *sptep)
  * - for spte protection, the spte can be writable only after unsync-ing
  *   shadow page.
  *
- * Return true if the spte is dropped.
+ * Return true if tlb need be flushed.
  */
-static bool
-spte_write_protect(struct kvm *kvm, u64 *sptep, bool *flush, bool pt_protect)
+static bool spte_write_protect(struct kvm *kvm, u64 *sptep, bool pt_protect)
 {
 	u64 spte = *sptep;
 
@@ -1199,17 +1197,11 @@ spte_write_protect(struct kvm *kvm, u64 *sptep, bool *flush, bool pt_protect)
 
 	rmap_printk("rmap_write_protect: spte %p %llx\n", sptep, *sptep);
 
-	if (__drop_large_spte(kvm, sptep)) {
-		*flush |= true;
-		return true;
-	}
-
 	if (pt_protect)
 		spte &= ~SPTE_MMU_WRITEABLE;
 	spte = spte & ~PT_WRITABLE_MASK;
 
-	*flush |= mmu_spte_update(sptep, spte);
-	return false;
+	return mmu_spte_update(sptep, spte);
 }
 
 static bool __rmap_write_protect(struct kvm *kvm, unsigned long *rmapp,
@@ -1221,11 +1213,8 @@ static bool __rmap_write_protect(struct kvm *kvm, unsigned long *rmapp,
 
 	for (sptep = rmap_get_first(*rmapp, &iter); sptep;) {
 		BUG_ON(!(*sptep & PT_PRESENT_MASK));
-		if (spte_write_protect(kvm, sptep, &flush, pt_protect)) {
-			sptep = rmap_get_first(*rmapp, &iter);
-			continue;
-		}
 
+		flush |= spte_write_protect(kvm, sptep, pt_protect);
 		sptep = rmap_get_next(&iter);
 	}
 
@@ -2874,6 +2863,19 @@ static bool fast_page_fault(struct kvm_vcpu *vcpu, gva_t gva, int level,
 	 * by dirty-log can be fast fixed.
 	 */
 	if (!spte_is_locklessly_modifiable(spte))
+		goto exit;
+
+	/*
+	 * Do not fix write-permission on the large spte since we only dirty
+	 * the first page into the dirty-bitmap in fast_pf_fix_direct_spte()
+	 * that means other pages are missed if its slot is dirty-logged.
+	 *
+	 * Instead, we let the slow page fault path create a normal spte to
+	 * fix the access.
+	 *
+	 * See the comments in kvm_arch_commit_memory_region().
+	 */
+	if (sp->role.level > PT_PAGE_TABLE_LEVEL)
 		goto exit;
 
 	/*
