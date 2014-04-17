@@ -2447,8 +2447,8 @@ static int rk616_mipi_dsi_probe(struct platform_device *pdev)
         rk_fb_trsm_ops_register(&trsm_dsi_ops, SCREEN_MIPI);
         
 #ifdef MIPI_DSI_REGISTER_IO        
-		//debugfs_create_file("mipidsi0", S_IFREG | S_IRUGO, dsi->debugfs_dir, dsi, 
-	//						&reg_proc_fops);
+		debugfs_create_file("mipidsi0", S_IFREG | S_IRUGO, dsi->debugfs_dir, dsi, 
+							&reg_proc_fops);
 #endif
         dsi0 = dsi;
         
@@ -2456,8 +2456,8 @@ static int rk616_mipi_dsi_probe(struct platform_device *pdev)
         dsi1 = dsi;
         
 #ifdef MIPI_DSI_REGISTER_IO  
-       // debugfs_create_file("mipidsi1", S_IFREG | S_IRUGO, dsi->debugfs_dir, dsi, 
-//							&reg_proc_fops1);
+        debugfs_create_file("mipidsi1", S_IFREG | S_IRUGO, dsi->debugfs_dir, dsi, 
+							&reg_proc_fops1);
 #endif
 
     }

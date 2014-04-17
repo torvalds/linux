@@ -439,6 +439,7 @@ struct dsi {
 	struct early_suspend early_suspend;
 #endif
 #endif
+    struct dentry *debugfs_dir;
 	struct platform_device *pdev;
 };
 
