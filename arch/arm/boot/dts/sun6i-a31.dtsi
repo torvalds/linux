@@ -59,6 +59,14 @@
 		reg = <0x40000000 0x80000000>;
 	};
 
+	pmu {
+		compatible = "arm,cortex-a7-pmu", "arm,cortex-a15-pmu";
+		interrupts = <0 120 4>,
+			     <0 121 4>,
+			     <0 122 4>,
+			     <0 123 4>;
+	};
+
 	clocks {
 		#address-cells = <1>;
 		#size-cells = <1>;
