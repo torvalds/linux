@@ -142,6 +142,7 @@ void kvm_s390_reinject_io_int(struct kvm *kvm,
 int kvm_s390_mask_adapter(struct kvm *kvm, unsigned int id, bool masked);
 
 /* implemented in priv.c */
+int is_valid_psw(psw_t *psw);
 int kvm_s390_handle_b2(struct kvm_vcpu *vcpu);
 int kvm_s390_handle_e5(struct kvm_vcpu *vcpu);
 int kvm_s390_handle_01(struct kvm_vcpu *vcpu);

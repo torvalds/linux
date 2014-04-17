@@ -365,7 +365,8 @@ static void handle_new_psw(struct kvm_vcpu *vcpu)
 #define PSW_ADDR_24 0x0000000000ffffffUL
 #define PSW_ADDR_31 0x000000007fffffffUL
 
-static int is_valid_psw(psw_t *psw) {
+int is_valid_psw(psw_t *psw)
+{
 	if (psw->mask & PSW_MASK_UNASSIGNED)
 		return 0;
 	if ((psw->mask & PSW_MASK_ADDR_MODE) == PSW_MASK_BA) {
@@ -375,6 +376,8 @@ static int is_valid_psw(psw_t *psw) {
 	if (!(psw->mask & PSW_MASK_ADDR_MODE) && (psw->addr & ~PSW_ADDR_24))
 		return 0;
 	if ((psw->mask & PSW_MASK_ADDR_MODE) ==  PSW_MASK_EA)
+		return 0;
+	if (psw->addr & 1)
 		return 0;
 	return 1;
 }
