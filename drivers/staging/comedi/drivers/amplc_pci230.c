@@ -1427,7 +1427,9 @@ static int pci230_ao_inttrig_start(struct comedi_device *dev,
 				   struct comedi_subdevice *s,
 				   unsigned int trig_num)
 {
-	if (trig_num != 0)
+	struct comedi_cmd *cmd = &s->async->cmd;
+
+	if (trig_num != cmd->start_src)
 		return -EINVAL;
 
 	s->async->inttrig = NULL;
@@ -2146,7 +2148,9 @@ static int pci230_ai_inttrig_start(struct comedi_device *dev,
 				   struct comedi_subdevice *s,
 				   unsigned int trig_num)
 {
-	if (trig_num != 0)
+	struct comedi_cmd *cmd = &s->async->cmd;
+
+	if (trig_num != cmd->start_arg)
 		return -EINVAL;
 
 	s->async->inttrig = NULL;
@@ -2432,12 +2436,10 @@ static int pci230_ai_cmd(struct comedi_device *dev, struct comedi_subdevice *s)
 		}
 	}
 
-	if (cmd->start_src == TRIG_INT) {
+	if (cmd->start_src == TRIG_INT)
 		s->async->inttrig = pci230_ai_inttrig_start;
-	} else {
-		/* TRIG_NOW */
+	else	/* TRIG_NOW */
 		pci230_ai_start(dev, s);
-	}
 
 	return 0;
 }
