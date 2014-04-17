@@ -585,14 +585,15 @@ static int fill_inode(struct inode *inode,
 	struct ceph_mds_reply_inode *info = iinfo->in;
 	struct ceph_inode_info *ci = ceph_inode(inode);
 	int i;
-	int issued = 0, implemented;
+	int issued = 0, implemented, new_issued;
 	struct timespec mtime, atime, ctime;
 	u32 nsplits;
 	struct ceph_inode_frag *frag;
 	struct rb_node *rb_node;
 	struct ceph_buffer *xattr_blob = NULL;
 	int err = 0;
-	int queue_trunc = 0;
+	bool queue_trunc = false;
+	bool new_version = false;
 
 	dout("fill_inode %p ino %llx.%llx v %llu had %llu\n",
 	     inode, ceph_vinop(inode), le64_to_cpu(info->version),
@@ -623,19 +624,23 @@ static int fill_inode(struct inode *inode,
 	 *   3    2     skip
 	 *   3    3     update
 	 */
-	if (le64_to_cpu(info->version) > 0 &&
-	    (ci->i_version & ~1) >= le64_to_cpu(info->version))
-		goto no_change;
-	
+	if (ci->i_version == 0 ||
+	    ((info->cap.flags & CEPH_CAP_FLAG_AUTH) &&
+	     le64_to_cpu(info->version) > (ci->i_version & ~1)))
+		new_version = true;
+
 	issued = __ceph_caps_issued(ci, &implemented);
 	issued |= implemented | __ceph_caps_dirty(ci);
+	new_issued = ~issued & le32_to_cpu(info->cap.caps);
 
 	/* update inode */
 	ci->i_version = le64_to_cpu(info->version);
 	inode->i_version++;
 	inode->i_rdev = le32_to_cpu(info->rdev);
+	inode->i_blkbits = fls(le32_to_cpu(info->layout.fl_stripe_unit)) - 1;
 
-	if ((issued & CEPH_CAP_AUTH_EXCL) == 0) {
+	if ((new_version || (new_issued & CEPH_CAP_AUTH_SHARED)) &&
+	    (issued & CEPH_CAP_AUTH_EXCL) == 0) {
 		inode->i_mode = le32_to_cpu(info->mode);
 		inode->i_uid = make_kuid(&init_user_ns, le32_to_cpu(info->uid));
 		inode->i_gid = make_kgid(&init_user_ns, le32_to_cpu(info->gid));
@@ -644,23 +649,35 @@ static int fill_inode(struct inode *inode,
 		     from_kgid(&init_user_ns, inode->i_gid));
 	}
 
-	if ((issued & CEPH_CAP_LINK_EXCL) == 0)
+	if ((new_version || (new_issued & CEPH_CAP_LINK_SHARED)) &&
+	    (issued & CEPH_CAP_LINK_EXCL) == 0)
 		set_nlink(inode, le32_to_cpu(info->nlink));
 
-	/* be careful with mtime, atime, size */
-	ceph_decode_timespec(&atime, &info->atime);
-	ceph_decode_timespec(&mtime, &info->mtime);
-	ceph_decode_timespec(&ctime, &info->ctime);
-	queue_trunc = ceph_fill_file_size(inode, issued,
-					  le32_to_cpu(info->truncate_seq),
-					  le64_to_cpu(info->truncate_size),
-					  le64_to_cpu(info->size));
-	ceph_fill_file_time(inode, issued,
-			    le32_to_cpu(info->time_warp_seq),
-			    &ctime, &mtime, &atime);
+	if (new_version || (new_issued & CEPH_CAP_ANY_RD)) {
+		/* be careful with mtime, atime, size */
+		ceph_decode_timespec(&atime, &info->atime);
+		ceph_decode_timespec(&mtime, &info->mtime);
+		ceph_decode_timespec(&ctime, &info->ctime);
+		ceph_fill_file_time(inode, issued,
+				le32_to_cpu(info->time_warp_seq),
+				&ctime, &mtime, &atime);
+	}
 
-	ci->i_layout = info->layout;
-	inode->i_blkbits = fls(le32_to_cpu(info->layout.fl_stripe_unit)) - 1;
+	if (new_version ||
+	    (new_issued & (CEPH_CAP_ANY_FILE_RD | CEPH_CAP_ANY_FILE_WR))) {
+		ci->i_layout = info->layout;
+		queue_trunc = ceph_fill_file_size(inode, issued,
+					le32_to_cpu(info->truncate_seq),
+					le64_to_cpu(info->truncate_size),
+					le64_to_cpu(info->size));
+		/* only update max_size on auth cap */
+		if ((info->cap.flags & CEPH_CAP_FLAG_AUTH) &&
+		    ci->i_max_size != le64_to_cpu(info->max_size)) {
+			dout("max_size %lld -> %llu\n", ci->i_max_size,
+					le64_to_cpu(info->max_size));
+			ci->i_max_size = le64_to_cpu(info->max_size);
+		}
+	}
 
 	/* xattrs */
 	/* note that if i_xattrs.len <= 4, i_xattrs.data will still be NULL. */
@@ -745,15 +762,6 @@ static int fill_inode(struct inode *inode,
 		dout(" marking %p complete (empty)\n", inode);
 		__ceph_dir_set_complete(ci, atomic_read(&ci->i_release_count));
 	}
-no_change:
-	/* only update max_size on auth cap */
-	if ((info->cap.flags & CEPH_CAP_FLAG_AUTH) &&
-	    ci->i_max_size != le64_to_cpu(info->max_size)) {
-		dout("max_size %lld -> %llu\n", ci->i_max_size,
-		     le64_to_cpu(info->max_size));
-		ci->i_max_size = le64_to_cpu(info->max_size);
-	}
-
 	spin_unlock(&ci->i_ceph_lock);
 
 	/* queue truncate if we saw i_size decrease */

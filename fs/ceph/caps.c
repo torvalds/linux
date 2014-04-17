@@ -2476,7 +2476,8 @@ static void handle_cap_grant(struct inode *inode, struct ceph_mds_caps *grant,
 
 	__check_cap_issue(ci, cap, newcaps);
 
-	if ((issued & CEPH_CAP_AUTH_EXCL) == 0) {
+	if ((newcaps & CEPH_CAP_AUTH_SHARED) &&
+	    (issued & CEPH_CAP_AUTH_EXCL) == 0) {
 		inode->i_mode = le32_to_cpu(grant->mode);
 		inode->i_uid = make_kuid(&init_user_ns, le32_to_cpu(grant->uid));
 		inode->i_gid = make_kgid(&init_user_ns, le32_to_cpu(grant->gid));
@@ -2485,7 +2486,8 @@ static void handle_cap_grant(struct inode *inode, struct ceph_mds_caps *grant,
 		     from_kgid(&init_user_ns, inode->i_gid));
 	}
 
-	if ((issued & CEPH_CAP_LINK_EXCL) == 0) {
+	if ((newcaps & CEPH_CAP_AUTH_SHARED) &&
+	    (issued & CEPH_CAP_LINK_EXCL) == 0) {
 		set_nlink(inode, le32_to_cpu(grant->nlink));
 		if (inode->i_nlink == 0 &&
 		    (newcaps & (CEPH_CAP_LINK_SHARED | CEPH_CAP_LINK_EXCL)))
@@ -2512,31 +2514,35 @@ static void handle_cap_grant(struct inode *inode, struct ceph_mds_caps *grant,
 	if ((issued & CEPH_CAP_FILE_CACHE) && ci->i_rdcache_gen > 1)
 		queue_revalidate = 1;
 
-	/* size/ctime/mtime/atime? */
-	queue_trunc = ceph_fill_file_size(inode, issued,
-					  le32_to_cpu(grant->truncate_seq),
-					  le64_to_cpu(grant->truncate_size),
-					  size);
-	ceph_decode_timespec(&mtime, &grant->mtime);
-	ceph_decode_timespec(&atime, &grant->atime);
-	ceph_decode_timespec(&ctime, &grant->ctime);
-	ceph_fill_file_time(inode, issued,
-			    le32_to_cpu(grant->time_warp_seq), &ctime, &mtime,
-			    &atime);
+	if (newcaps & CEPH_CAP_ANY_RD) {
+		/* ctime/mtime/atime? */
+		ceph_decode_timespec(&mtime, &grant->mtime);
+		ceph_decode_timespec(&atime, &grant->atime);
+		ceph_decode_timespec(&ctime, &grant->ctime);
+		ceph_fill_file_time(inode, issued,
+				    le32_to_cpu(grant->time_warp_seq),
+				    &ctime, &mtime, &atime);
+	}
 
-
-	/* file layout may have changed */
-	ci->i_layout = grant->layout;
-
-	/* max size increase? */
-	if (ci->i_auth_cap == cap && max_size != ci->i_max_size) {
-		dout("max_size %lld -> %llu\n", ci->i_max_size, max_size);
-		ci->i_max_size = max_size;
-		if (max_size >= ci->i_wanted_max_size) {
-			ci->i_wanted_max_size = 0;  /* reset */
-			ci->i_requested_max_size = 0;
+	if (newcaps & (CEPH_CAP_ANY_FILE_RD | CEPH_CAP_ANY_FILE_WR)) {
+		/* file layout may have changed */
+		ci->i_layout = grant->layout;
+		/* size/truncate_seq? */
+		queue_trunc = ceph_fill_file_size(inode, issued,
+					le32_to_cpu(grant->truncate_seq),
+					le64_to_cpu(grant->truncate_size),
+					size);
+		/* max size increase? */
+		if (ci->i_auth_cap == cap && max_size != ci->i_max_size) {
+			dout("max_size %lld -> %llu\n",
+			     ci->i_max_size, max_size);
+			ci->i_max_size = max_size;
+			if (max_size >= ci->i_wanted_max_size) {
+				ci->i_wanted_max_size = 0;  /* reset */
+				ci->i_requested_max_size = 0;
+			}
+			wake = 1;
 		}
-		wake = 1;
 	}
 
 	/* check cap bits */
