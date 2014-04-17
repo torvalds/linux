@@ -45,6 +45,8 @@
 
 /* This is limited to 16 characters when displayed by X startup */
 static const char *clcd_name = "CLCD FB";
+static char *def_mode;
+module_param_named(mode, def_mode, charp, 0);
 
 /*
  * Unfortunately, the enable/disable functions may be called either from
@@ -763,10 +765,18 @@ static int clcdfb_dt_init(struct clcd_fb *fb)
 	na = of_n_addr_cells(node);
 	ns = of_n_size_cells(node);
 
-	if (WARN_ON(of_property_read_string(node, "mode", &mode)))
-		return -ENODEV;
+	if (def_mode && strlen(def_mode) > 0) {
+		fb->panel = clcdfb_get_panel(def_mode);
+		if (!fb->panel)
+			printk(KERN_ERR "CLCD: invalid mode specified on the command line (%s)\n", def_mode);
+	}
 
-	fb->panel = clcdfb_get_panel(mode);
+	if (!fb->panel) {
+		if (WARN_ON(of_property_read_string(node, "mode", &mode)))
+			return -ENODEV;
+		fb->panel = clcdfb_get_panel(mode);
+	}
+
 	if (!fb->panel)
 		return -EINVAL;
 	fb->fb.fix.smem_len = fb->panel->mode.xres * fb->panel->mode.yres * 2;
