@@ -81,10 +81,10 @@ static int buffer_activate(struct saa7134_dev *dev,
 			   struct saa7134_buf *buf,
 			   struct saa7134_buf *next)
 {
+	struct saa7134_dmaqueue *dmaq = buf->vb2.vb2_queue->drv_priv;
 	unsigned long control, base;
 
 	dprintk("buffer_activate [%p]\n", buf);
-	buf->vb.state = VIDEOBUF_ACTIVE;
 	buf->top_seen = 0;
 
 	task_init(dev, buf, TASK_A);
@@ -96,7 +96,7 @@ static int buffer_activate(struct saa7134_dev *dev,
 	base    = saa7134_buffer_base(buf);
 	control = SAA7134_RS_CONTROL_BURST_16 |
 		SAA7134_RS_CONTROL_ME |
-		(dev->vbi_q.pt.dma >> 12);
+		(dmaq->pt.dma >> 12);
 	saa_writel(SAA7134_RS_BA1(2), base);
 	saa_writel(SAA7134_RS_BA2(2), base + dev->vbi_hlen * dev->vbi_vlen);
 	saa_writel(SAA7134_RS_PITCH(2), dev->vbi_hlen);
@@ -108,93 +108,83 @@ static int buffer_activate(struct saa7134_dev *dev,
 
 	/* start DMA */
 	saa7134_set_dmabits(dev);
-	mod_timer(&dev->vbi_q.timeout, jiffies + BUFFER_TIMEOUT);
+	mod_timer(&dmaq->timeout, jiffies + BUFFER_TIMEOUT);
 
 	return 0;
 }
 
-static int buffer_prepare(struct videobuf_queue *q,
-			  struct videobuf_buffer *vb,
-			  enum v4l2_field field)
+static int buffer_prepare(struct vb2_buffer *vb2)
 {
-	struct saa7134_dmaqueue *dmaq = q->priv_data;
+	struct saa7134_dmaqueue *dmaq = vb2->vb2_queue->drv_priv;
 	struct saa7134_dev *dev = dmaq->dev;
-	struct saa7134_buf *buf = container_of(vb,struct saa7134_buf,vb);
+	struct saa7134_buf *buf = container_of(vb2, struct saa7134_buf, vb2);
+	struct sg_table *dma = vb2_dma_sg_plane_desc(&buf->vb2, 0);
 	unsigned int size;
-	int err;
+	int ret;
 
 	size = dev->vbi_hlen * dev->vbi_vlen * 2;
-	if (0 != buf->vb.baddr  &&  buf->vb.bsize < size)
+	if (vb2_plane_size(vb2, 0) < size)
 		return -EINVAL;
 
-	if (buf->vb.size != size)
-		saa7134_dma_free(q,buf);
+	vb2_set_plane_payload(vb2, 0, size);
 
-	if (VIDEOBUF_NEEDS_INIT == buf->vb.state) {
-		struct videobuf_dmabuf *dma=videobuf_to_dma(&buf->vb);
-
-		buf->vb.width  = dev->vbi_hlen;
-		buf->vb.height = dev->vbi_vlen;
-		buf->vb.size   = size;
-
-		err = videobuf_iolock(q,&buf->vb,NULL);
-		if (err)
-			goto oops;
-		err = saa7134_pgtable_build(dev->pci, &dmaq->pt,
-					    dma->sglist,
-					    dma->sglen,
-					    saa7134_buffer_startpage(buf));
-		if (err)
-			goto oops;
-	}
-	buf->vb.state = VIDEOBUF_PREPARED;
-	buf->activate = buffer_activate;
-	buf->vb.field = field;
-	return 0;
-
- oops:
-	saa7134_dma_free(q,buf);
-	return err;
+	ret = dma_map_sg(&dev->pci->dev, dma->sgl, dma->nents, DMA_FROM_DEVICE);
+	if (!ret)
+		return -EIO;
+	return saa7134_pgtable_build(dev->pci, &dmaq->pt, dma->sgl, dma->nents,
+				    saa7134_buffer_startpage(buf));
 }
 
-static int
-buffer_setup(struct videobuf_queue *q, unsigned int *count, unsigned int *size)
+static int queue_setup(struct vb2_queue *q, const struct v4l2_format *fmt,
+			   unsigned int *nbuffers, unsigned int *nplanes,
+			   unsigned int sizes[], void *alloc_ctxs[])
 {
-	struct saa7134_dmaqueue *dmaq = q->priv_data;
+	struct saa7134_dmaqueue *dmaq = q->drv_priv;
 	struct saa7134_dev *dev = dmaq->dev;
+	unsigned int size;
 
 	dev->vbi_vlen = dev->tvnorm->vbi_v_stop_0 - dev->tvnorm->vbi_v_start_0 + 1;
 	if (dev->vbi_vlen > VBI_LINE_COUNT)
 		dev->vbi_vlen = VBI_LINE_COUNT;
 	dev->vbi_hlen = VBI_LINE_LENGTH;
-	*size = dev->vbi_hlen * dev->vbi_vlen * 2;
-	if (0 == *count)
-		*count = vbibufs;
-	*count = saa7134_buffer_count(*size,*count);
+	size = dev->vbi_hlen * dev->vbi_vlen * 2;
+
+	*nbuffers = saa7134_buffer_count(size, *nbuffers);
+	*nplanes = 1;
+	sizes[0] = size;
 	return 0;
 }
 
-static void buffer_queue(struct videobuf_queue *q, struct videobuf_buffer *vb)
+static int buffer_init(struct vb2_buffer *vb2)
 {
-	struct saa7134_dmaqueue *dmaq = q->priv_data;
+	struct saa7134_dmaqueue *dmaq = vb2->vb2_queue->drv_priv;
+	struct saa7134_buf *buf = container_of(vb2, struct saa7134_buf, vb2);
+
+	dmaq->curr = NULL;
+	buf->activate = buffer_activate;
+	return 0;
+}
+
+static void buffer_finish(struct vb2_buffer *vb2)
+{
+	struct saa7134_dmaqueue *dmaq = vb2->vb2_queue->drv_priv;
 	struct saa7134_dev *dev = dmaq->dev;
-	struct saa7134_buf *buf = container_of(vb,struct saa7134_buf,vb);
+	struct saa7134_buf *buf = container_of(vb2, struct saa7134_buf, vb2);
+	struct sg_table *dma = vb2_dma_sg_plane_desc(&buf->vb2, 0);
 
-	saa7134_buffer_queue(dev,&dev->vbi_q,buf);
+	dma_unmap_sg(&dev->pci->dev, dma->sgl, dma->nents, DMA_FROM_DEVICE);
 }
 
-static void buffer_release(struct videobuf_queue *q, struct videobuf_buffer *vb)
-{
-	struct saa7134_buf *buf = container_of(vb,struct saa7134_buf,vb);
-
-	saa7134_dma_free(q,buf);
-}
-
-struct videobuf_queue_ops saa7134_vbi_qops = {
-	.buf_setup    = buffer_setup,
-	.buf_prepare  = buffer_prepare,
-	.buf_queue    = buffer_queue,
-	.buf_release  = buffer_release,
+struct vb2_ops saa7134_vbi_qops = {
+	.queue_setup	= queue_setup,
+	.buf_init	= buffer_init,
+	.buf_prepare	= buffer_prepare,
+	.buf_finish	= buffer_finish,
+	.buf_queue	= saa7134_vb2_buffer_queue,
+	.wait_prepare	= vb2_ops_wait_prepare,
+	.wait_finish	= vb2_ops_wait_finish,
+	.start_streaming = saa7134_vb2_start_streaming,
+	.stop_streaming = saa7134_vb2_stop_streaming,
 };
 
 /* ------------------------------------------------------------------ */
@@ -224,7 +214,6 @@ void saa7134_irq_vbi_done(struct saa7134_dev *dev, unsigned long status)
 {
 	spin_lock(&dev->slock);
 	if (dev->vbi_q.curr) {
-		dev->vbi_fieldcount++;
 		/* make sure we have seen both fields */
 		if ((status & 0x10) == 0x00) {
 			dev->vbi_q.curr->top_seen = 1;
@@ -233,8 +222,7 @@ void saa7134_irq_vbi_done(struct saa7134_dev *dev, unsigned long status)
 		if (!dev->vbi_q.curr->top_seen)
 			goto done;
 
-		dev->vbi_q.curr->vb.field_count = dev->vbi_fieldcount;
-		saa7134_buffer_finish(dev, &dev->vbi_q, VIDEOBUF_DONE);
+		saa7134_buffer_finish(dev, &dev->vbi_q, VB2_BUF_STATE_DONE);
 	}
 	saa7134_buffer_next(dev, &dev->vbi_q);
 
