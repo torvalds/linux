@@ -945,7 +945,7 @@
 					usbphy_480m: usbphy_480m_mux {
 						compatible = "rockchip,rk3188-mux-con";
 						rockchip,bits = <11 2>;
-						clocks = <&otgphy0_480m>, <&otgphy1_480m>, <&otgphy2_480m>;
+						clocks = <&otgphy1_480m>, <&otgphy2_480m>, <&otgphy0_480m>;
 						clock-output-names = "usbphy_480m";
 						#clock-cells = <0>;
 						rockchip,clkops-idx =
