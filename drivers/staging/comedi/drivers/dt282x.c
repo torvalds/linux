@@ -878,12 +878,14 @@ static int dt282x_ao_cmdtest(struct comedi_device *dev,
 }
 
 static int dt282x_ao_inttrig(struct comedi_device *dev,
-			     struct comedi_subdevice *s, unsigned int x)
+			     struct comedi_subdevice *s,
+			     unsigned int trig_num)
 {
 	struct dt282x_private *devpriv = dev->private;
+	struct comedi_cmd *cmd = &s->async->cmd;
 	int size;
 
-	if (x != 0)
+	if (trig_num != cmd->start_src)
 		return -EINVAL;
 
 	size = cfc_read_array_from_buffer(s, devpriv->dma[0].buf,
