@@ -183,7 +183,7 @@ struct c_can_priv {
 	void *priv;		/* for board-specific data */
 	enum c_can_dev_id type;
 	u32 __iomem *raminit_ctrlreg;
-	unsigned int instance;
+	int instance;
 	void (*raminit) (const struct c_can_priv *priv, bool enable);
 	u32 comm_rcv_high;
 	u32 rxmasked;
