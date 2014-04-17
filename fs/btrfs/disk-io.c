@@ -329,12 +329,19 @@ static int verify_parent_transid(struct extent_io_tree *io_tree,
 {
 	struct extent_state *cached_state = NULL;
 	int ret;
+	bool need_lock = (current->journal_info ==
+			  (void *)BTRFS_SEND_TRANS_STUB);
 
 	if (!parent_transid || btrfs_header_generation(eb) == parent_transid)
 		return 0;
 
 	if (atomic)
 		return -EAGAIN;
+
+	if (need_lock) {
+		btrfs_tree_read_lock(eb);
+		btrfs_set_lock_blocking_rw(eb, BTRFS_READ_LOCK);
+	}
 
 	lock_extent_bits(io_tree, eb->start, eb->start + eb->len - 1,
 			 0, &cached_state);
@@ -347,10 +354,21 @@ static int verify_parent_transid(struct extent_io_tree *io_tree,
 		       "found %llu\n",
 		       eb->start, parent_transid, btrfs_header_generation(eb));
 	ret = 1;
-	clear_extent_buffer_uptodate(eb);
+
+	/*
+	 * Things reading via commit roots that don't have normal protection,
+	 * like send, can have a really old block in cache that may point at a
+	 * block that has been free'd and re-allocated.  So don't clear uptodate
+	 * if we find an eb that is under IO (dirty/writeback) because we could
+	 * end up reading in the stale data and then writing it back out and
+	 * making everybody very sad.
+	 */
+	if (!extent_buffer_under_io(eb))
+		clear_extent_buffer_uptodate(eb);
 out:
 	unlock_extent_cached(io_tree, eb->start, eb->start + eb->len - 1,
 			     &cached_state, GFP_NOFS);
+	btrfs_tree_read_unlock_blocking(eb);
 	return ret;
 }
 
@@ -1546,7 +1564,6 @@ int btrfs_init_fs_root(struct btrfs_root *root)
 	root->subv_writers = writers;
 
 	btrfs_init_free_ino_ctl(root);
-	mutex_init(&root->fs_commit_mutex);
 	spin_lock_init(&root->cache_lock);
 	init_waitqueue_head(&root->cache_wait);
 
@@ -2324,7 +2341,7 @@ int open_ctree(struct super_block *sb,
 	mutex_init(&fs_info->transaction_kthread_mutex);
 	mutex_init(&fs_info->cleaner_mutex);
 	mutex_init(&fs_info->volume_mutex);
-	init_rwsem(&fs_info->extent_commit_sem);
+	init_rwsem(&fs_info->commit_root_sem);
 	init_rwsem(&fs_info->cleanup_work_sem);
 	init_rwsem(&fs_info->subvol_sem);
 	sema_init(&fs_info->uuid_tree_rescan_sem, 1);

@@ -79,6 +79,17 @@
 		nxp,enable-gpio = <&gpio3 3 GPIO_ACTIVE_HIGH>;
 		usb-phy = <&usb2_phy>;
 	};
+
+	tv: connector {
+		compatible = "composite-connector";
+		label = "tv";
+
+		port {
+			tv_connector_in: endpoint {
+				remote-endpoint = <&venc_out>;
+			};
+		};
+	};
 };
 
 &omap3_pmx_core {
@@ -145,9 +156,21 @@
 		>;
 	};
 
-	display_pins: pinmux_display_pins {
+	acx565akm_pins: pinmux_acx565akm_pins {
 		pinctrl-single,pins = <
 			0x0d4 (PIN_OUTPUT | MUX_MODE4)		/* RX51_LCD_RESET_GPIO */
+		>;
+	};
+
+	dss_sdi_pins: pinmux_dss_sdi_pins {
+		pinctrl-single,pins = <
+			0x0c0 (PIN_OUTPUT | MUX_MODE1)   /* dss_data10.sdi_dat1n */
+			0x0c2 (PIN_OUTPUT | MUX_MODE1)   /* dss_data11.sdi_dat1p */
+			0x0c4 (PIN_OUTPUT | MUX_MODE1)   /* dss_data12.sdi_dat2n */
+			0x0c6 (PIN_OUTPUT | MUX_MODE1)   /* dss_data13.sdi_dat2p */
+
+			0x0d8 (PIN_OUTPUT | MUX_MODE1)   /* dss_data22.sdi_clkp */
+			0x0da (PIN_OUTPUT | MUX_MODE1)   /* dss_data23.sdi_clkn */
 		>;
 	};
 };
@@ -561,13 +584,23 @@
 		spi-max-frequency = <6000000>;
 		reg = <0>;
 	};
-	mipid@2 {
-		compatible = "acx565akm";
+
+	acx565akm@2 {
+		compatible = "sony,acx565akm";
 		spi-max-frequency = <6000000>;
 		reg = <2>;
 
 		pinctrl-names = "default";
-		pinctrl-0 = <&display_pins>;
+		pinctrl-0 = <&acx565akm_pins>;
+
+		label = "lcd";
+		reset-gpios = <&gpio3 26 GPIO_ACTIVE_HIGH>; /* 90 */
+
+		port {
+			lcd_in: endpoint {
+				remote-endpoint = <&sdi_out>;
+			};
+		};
 	};
 };
 
@@ -592,4 +625,40 @@
 &uart3 {
 	pinctrl-names = "default";
 	pinctrl-0 = <&uart3_pins>;
+};
+
+&dss {
+	status = "ok";
+
+	pinctrl-names = "default";
+	pinctrl-0 = <&dss_sdi_pins>;
+
+	vdds_sdi-supply = <&vaux1>;
+
+	ports {
+		#address-cells = <1>;
+		#size-cells = <0>;
+
+		port@1 {
+			reg = <1>;
+
+			sdi_out: endpoint {
+				remote-endpoint = <&lcd_in>;
+				datapairs = <2>;
+			};
+		};
+	};
+};
+
+&venc {
+	status = "ok";
+
+	vdda-supply = <&vdac>;
+
+	port {
+		venc_out: endpoint {
+			remote-endpoint = <&tv_connector_in>;
+			ti,channels = <1>;
+		};
+	};
 };

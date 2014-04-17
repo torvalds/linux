@@ -738,7 +738,7 @@ int rsi_hal_load_key(struct rsi_common *common,
  *
  * Return: 0 on success, corresponding error code on failure.
  */
-static u8 rsi_load_bootup_params(struct rsi_common *common)
+static int rsi_load_bootup_params(struct rsi_common *common)
 {
 	struct sk_buff *skb;
 	struct rsi_boot_params *boot_params;
@@ -1272,6 +1272,7 @@ int rsi_mgmt_pkt_recv(struct rsi_common *common, u8 *msg)
 {
 	s32 msg_len = (le16_to_cpu(*(__le16 *)&msg[0]) & 0x0fff);
 	u16 msg_type = (msg[2]);
+	int ret;
 
 	rsi_dbg(FSM_ZONE, "%s: Msg Len: %d, Msg Type: %4x\n",
 		__func__, msg_len, msg_type);
@@ -1284,8 +1285,9 @@ int rsi_mgmt_pkt_recv(struct rsi_common *common, u8 *msg)
 		if (common->fsm_state == FSM_CARD_NOT_READY) {
 			rsi_set_default_parameters(common);
 
-			if (rsi_load_bootup_params(common))
-				return -ENOMEM;
+			ret = rsi_load_bootup_params(common);
+			if (ret)
+				return ret;
 			else
 				common->fsm_state = FSM_BOOT_PARAMS_SENT;
 		} else {

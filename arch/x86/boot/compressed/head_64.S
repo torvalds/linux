@@ -261,6 +261,8 @@ ENTRY(efi_pe_entry)
 	cmpq	$0,%rax
 	je	fail
 	mov	%rax, %rsi
+	leaq	startup_32(%rip), %rax
+	movl	%eax, BP_code32_start(%rsi)
 	jmp	2f		/* Skip the relocation */
 
 handover_entry:
@@ -284,12 +286,7 @@ fail:
 	hlt
 	jmp	fail
 2:
-	call	3f
-3:
-	popq	%rax
-	subq	$3b, %rax
-	subq	BP_pref_address(%rsi), %rax
-	add	BP_code32_start(%esi), %eax
+	movl	BP_code32_start(%esi), %eax
 	leaq	preferred_addr(%rax), %rax
 	jmp	*%rax
 

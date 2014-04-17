@@ -359,6 +359,8 @@ config FB_SA1100
 config FB_IMX
 	tristate "Freescale i.MX1/21/25/27 LCD support"
 	depends on FB && ARCH_MXC
+	select BACKLIGHT_LCD_SUPPORT
+	select LCD_CLASS_DEVICE
 	select FB_CFB_FILLRECT
 	select FB_CFB_COPYAREA
 	select FB_CFB_IMAGEBLIT

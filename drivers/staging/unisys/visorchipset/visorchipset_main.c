@@ -2414,6 +2414,9 @@ proc_read_installer(struct file *file, char __user *buf,
 	char *vbuf;
 	loff_t pos = *offset;
 
+	if (!ControlVm_channel)
+		return -ENODEV;
+
 	if (pos < 0)
 		return -EINVAL;
 
@@ -2462,6 +2465,9 @@ proc_write_installer(struct file *file,
 	char buf[32];
 	U16 remainingSteps;
 	U32 error, textId;
+
+	if (!ControlVm_channel)
+		return -ENODEV;
 
 	/* Check to make sure there is no buffer overflow */
 	if (count > (sizeof(buf) - 1))
@@ -2524,6 +2530,9 @@ proc_read_toolaction(struct file *file, char __user *buf,
 	char *vbuf;
 	loff_t pos = *offset;
 
+	if (!ControlVm_channel)
+		return -ENODEV;
+
 	if (pos < 0)
 		return -EINVAL;
 
@@ -2561,6 +2570,9 @@ proc_write_toolaction(struct file *file,
 {
 	char buf[3];
 	U8 toolAction;
+
+	if (!ControlVm_channel)
+		return -ENODEV;
 
 	/* Check to make sure there is no buffer overflow */
 	if (count > (sizeof(buf) - 1))
@@ -2601,6 +2613,9 @@ proc_read_bootToTool(struct file *file, char __user *buf,
 	char *vbuf;
 	loff_t pos = *offset;
 
+	if (!ControlVm_channel)
+		return -ENODEV;
+
 	if (pos < 0)
 		return -EINVAL;
 
@@ -2638,6 +2653,9 @@ proc_write_bootToTool(struct file *file,
 	char buf[3];
 	int inputVal;
 	ULTRA_EFI_SPAR_INDICATION efiSparIndication;
+
+	if (!ControlVm_channel)
+		return -ENODEV;
 
 	/* Check to make sure there is no buffer overflow */
 	if (count > (sizeof(buf) - 1))

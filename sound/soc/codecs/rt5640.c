@@ -2074,6 +2074,14 @@ static const struct i2c_device_id rt5640_i2c_id[] = {
 };
 MODULE_DEVICE_TABLE(i2c, rt5640_i2c_id);
 
+#if defined(CONFIG_OF)
+static const struct of_device_id rt5640_of_match[] = {
+	{ .compatible = "realtek,rt5640", },
+	{},
+};
+MODULE_DEVICE_TABLE(of, rt5640_of_match);
+#endif
+
 #ifdef CONFIG_ACPI
 static struct acpi_device_id rt5640_acpi_match[] = {
 	{ "INT33CA", 0 },
@@ -2203,6 +2211,7 @@ static struct i2c_driver rt5640_i2c_driver = {
 		.name = "rt5640",
 		.owner = THIS_MODULE,
 		.acpi_match_table = ACPI_PTR(rt5640_acpi_match),
+		.of_match_table = of_match_ptr(rt5640_of_match),
 	},
 	.probe = rt5640_i2c_probe,
 	.remove   = rt5640_i2c_remove,

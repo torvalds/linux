@@ -11,7 +11,6 @@
  */
 
 #include <linux/kernel.h>
-#include <linux/init.h>
 #include <linux/of.h>
 #include <linux/platform_device.h>
 #include <linux/i2c.h>

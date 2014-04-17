@@ -1291,13 +1291,13 @@ static struct net_device *xennet_create_dev(struct xenbus_device *dev)
 	for (i = 0; i < NET_TX_RING_SIZE; i++) {
 		skb_entry_set_link(&np->tx_skbs[i], i+1);
 		np->grant_tx_ref[i] = GRANT_INVALID_REF;
+		np->grant_tx_page[i] = NULL;
 	}
 
 	/* Clear out rx_skbs */
 	for (i = 0; i < NET_RX_RING_SIZE; i++) {
 		np->rx_skbs[i] = NULL;
 		np->grant_rx_ref[i] = GRANT_INVALID_REF;
-		np->grant_tx_page[i] = NULL;
 	}
 
 	/* A grant for every tx ring slot */

@@ -5100,16 +5100,14 @@ static int e1000_tso(struct e1000_ring *tx_ring, struct sk_buff *skb)
 	u32 cmd_length = 0;
 	u16 ipcse = 0, mss;
 	u8 ipcss, ipcso, tucss, tucso, hdr_len;
+	int err;
 
 	if (!skb_is_gso(skb))
 		return 0;
 
-	if (skb_header_cloned(skb)) {
-		int err = pskb_expand_head(skb, 0, 0, GFP_ATOMIC);
-
-		if (err)
-			return err;
-	}
+	err = skb_cow_head(skb, 0);
+	if (err < 0)
+		return err;
 
 	hdr_len = skb_transport_offset(skb) + tcp_hdrlen(skb);
 	mss = skb_shinfo(skb)->gso_size;

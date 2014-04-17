@@ -13,6 +13,7 @@
 #include <linux/nodemask.h>
 #include <linux/pagemap.h>
 #include <linux/mempolicy.h>
+#include <linux/compiler.h>
 #include <linux/cpuset.h>
 #include <linux/mutex.h>
 #include <linux/bootmem.h>
@@ -1535,6 +1536,7 @@ static unsigned long set_max_huge_pages(struct hstate *h, unsigned long count,
 	while (min_count < persistent_huge_pages(h)) {
 		if (!free_pool_huge_page(h, nodes_allowed, 0))
 			break;
+		cond_resched_lock(&hugetlb_lock);
 	}
 	while (count < persistent_huge_pages(h)) {
 		if (!adjust_pool_surplus(h, nodes_allowed, 1))
@@ -2690,7 +2692,8 @@ retry_avoidcopy:
 				BUG_ON(huge_pte_none(pte));
 				spin_lock(ptl);
 				ptep = huge_pte_offset(mm, address & huge_page_mask(h));
-				if (likely(pte_same(huge_ptep_get(ptep), pte)))
+				if (likely(ptep &&
+					   pte_same(huge_ptep_get(ptep), pte)))
 					goto retry_avoidcopy;
 				/*
 				 * race occurs while re-acquiring page table
@@ -2734,7 +2737,7 @@ retry_avoidcopy:
 	 */
 	spin_lock(ptl);
 	ptep = huge_pte_offset(mm, address & huge_page_mask(h));
-	if (likely(pte_same(huge_ptep_get(ptep), pte))) {
+	if (likely(ptep && pte_same(huge_ptep_get(ptep), pte))) {
 		ClearPagePrivate(new_page);
 
 		/* Break COW */
@@ -2896,8 +2899,7 @@ retry:
 	if (anon_rmap) {
 		ClearPagePrivate(page);
 		hugepage_add_new_anon_rmap(page, vma, address);
-	}
-	else
+	} else
 		page_dup_rmap(page);
 	new_pte = make_huge_pte(vma, page, ((vma->vm_flags & VM_WRITE)
 				&& (vma->vm_flags & VM_SHARED)));
@@ -3185,6 +3187,7 @@ unsigned long hugetlb_change_protection(struct vm_area_struct *vma,
 	BUG_ON(address >= end);
 	flush_cache_range(vma, address, end);
 
+	mmu_notifier_invalidate_range_start(mm, start, end);
 	mutex_lock(&vma->vm_file->f_mapping->i_mmap_mutex);
 	for (; address < end; address += huge_page_size(h)) {
 		spinlock_t *ptl;
@@ -3214,6 +3217,7 @@ unsigned long hugetlb_change_protection(struct vm_area_struct *vma,
 	 */
 	flush_tlb_range(vma, start, end);
 	mutex_unlock(&vma->vm_file->f_mapping->i_mmap_mutex);
+	mmu_notifier_invalidate_range_end(mm, start, end);
 
 	return pages << h->order;
 }
@@ -3518,7 +3522,7 @@ follow_huge_pud(struct mm_struct *mm, unsigned long address,
 #else /* !CONFIG_ARCH_WANT_GENERAL_HUGETLB */
 
 /* Can be overriden by architectures */
-__attribute__((weak)) struct page *
+struct page * __weak
 follow_huge_pud(struct mm_struct *mm, unsigned long address,
 	       pud_t *pud, int write)
 {

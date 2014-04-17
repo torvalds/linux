@@ -125,14 +125,15 @@ static int opal_async_comp_event(struct notifier_block *nb,
 {
 	struct opal_msg *comp_msg = msg;
 	unsigned long flags;
+	uint64_t token;
 
 	if (msg_type != OPAL_MSG_ASYNC_COMP)
 		return 0;
 
-	memcpy(&opal_async_responses[comp_msg->params[0]], comp_msg,
-			sizeof(*comp_msg));
+	token = be64_to_cpu(comp_msg->params[0]);
+	memcpy(&opal_async_responses[token], comp_msg, sizeof(*comp_msg));
 	spin_lock_irqsave(&opal_async_comp_lock, flags);
-	__set_bit(comp_msg->params[0], opal_async_complete_map);
+	__set_bit(token, opal_async_complete_map);
 	spin_unlock_irqrestore(&opal_async_comp_lock, flags);
 
 	wake_up(&opal_async_wait);

@@ -779,8 +779,7 @@ struct dentry *cachefiles_get_directory(struct cachefiles_cache *cache,
 	}
 
 	ret = -EPERM;
-	if (!subdir->d_inode->i_op ||
-	    !subdir->d_inode->i_op->setxattr ||
+	if (!subdir->d_inode->i_op->setxattr ||
 	    !subdir->d_inode->i_op->getxattr ||
 	    !subdir->d_inode->i_op->lookup ||
 	    !subdir->d_inode->i_op->mkdir ||

@@ -850,7 +850,6 @@ const struct inode_operations cifs_file_inode_ops = {
 /*	revalidate:cifs_revalidate, */
 	.setattr = cifs_setattr,
 	.getattr = cifs_getattr, /* do we need this anymore? */
-	.rename = cifs_rename,
 	.permission = cifs_permission,
 #ifdef CONFIG_CIFS_XATTR
 	.setxattr = cifs_setxattr,

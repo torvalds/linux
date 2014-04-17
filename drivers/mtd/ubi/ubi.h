@@ -22,7 +22,6 @@
 #ifndef __UBI_UBI_H__
 #define __UBI_UBI_H__
 
-#include <linux/init.h>
 #include <linux/types.h>
 #include <linux/list.h>
 #include <linux/rbtree.h>

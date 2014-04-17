@@ -10,7 +10,7 @@ config ARCH_VEXPRESS
 	select HAVE_ARM_TWD if SMP
 	select HAVE_PATA_PLATFORM
 	select ICST
-	select NO_IOPORT
+	select NO_IOPORT_MAP
 	select PLAT_VERSATILE
 	select PLAT_VERSATILE_CLCD
 	select POWER_RESET

@@ -382,31 +382,6 @@ err:
 }
 EXPORT_SYMBOL_GPL(usbip_recv);
 
-struct socket *sockfd_to_socket(unsigned int sockfd)
-{
-	struct socket *socket;
-	struct file *file;
-	struct inode *inode;
-
-	file = fget(sockfd);
-	if (!file) {
-		pr_err("invalid sockfd\n");
-		return NULL;
-	}
-
-	inode = file_inode(file);
-
-	if (!inode || !S_ISSOCK(inode->i_mode)) {
-		fput(file);
-		return NULL;
-	}
-
-	socket = SOCKET_I(inode);
-
-	return socket;
-}
-EXPORT_SYMBOL_GPL(sockfd_to_socket);
-
 /* there may be more cases to tweak the flags. */
 static unsigned int tweak_transfer_flags(unsigned int flags)
 {

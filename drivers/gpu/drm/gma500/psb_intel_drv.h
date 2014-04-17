@@ -238,8 +238,6 @@ static inline struct gma_encoder *gma_attached_encoder(
 
 extern struct drm_display_mode *psb_intel_crtc_mode_get(struct drm_device *dev,
 						    struct drm_crtc *crtc);
-extern int psb_intel_get_pipe_from_crtc_id(struct drm_device *dev, void *data,
-				struct drm_file *file_priv);
 extern struct drm_crtc *psb_intel_get_crtc_from_pipe(struct drm_device *dev,
 						 int pipe);
 extern struct drm_connector *psb_intel_sdvo_find(struct drm_device *dev,

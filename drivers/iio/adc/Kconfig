@@ -193,6 +193,16 @@ config TI_AM335X_ADC
 	  Say yes here to build support for Texas Instruments ADC
 	  driver which is also a MFD client.
 
+config TWL4030_MADC
+	tristate "TWL4030 MADC (Monitoring A/D Converter)"
+	depends on TWL4030_CORE
+	help
+	This driver provides support for Triton TWL4030-MADC. The
+	driver supports both RT and SW conversion methods.
+
+	This driver can also be built as a module. If so, the module will be
+	called twl4030-madc.
+
 config TWL6030_GPADC
 	tristate "TWL6030 GPADC (General Purpose A/D Converter) Support"
 	depends on TWL4030_CORE

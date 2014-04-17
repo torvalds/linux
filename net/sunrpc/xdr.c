@@ -833,8 +833,20 @@ xdr_buf_from_iov(struct kvec *iov, struct xdr_buf *buf)
 }
 EXPORT_SYMBOL_GPL(xdr_buf_from_iov);
 
-/* Sets subbuf to the portion of buf of length len beginning base bytes
- * from the start of buf. Returns -1 if base of length are out of bounds. */
+/**
+ * xdr_buf_subsegment - set subbuf to a portion of buf
+ * @buf: an xdr buffer
+ * @subbuf: the result buffer
+ * @base: beginning of range in bytes
+ * @len: length of range in bytes
+ *
+ * sets @subbuf to an xdr buffer representing the portion of @buf of
+ * length @len starting at offset @base.
+ *
+ * @buf and @subbuf may be pointers to the same struct xdr_buf.
+ *
+ * Returns -1 if base of length are out of bounds.
+ */
 int
 xdr_buf_subsegment(struct xdr_buf *buf, struct xdr_buf *subbuf,
 			unsigned int base, unsigned int len)
@@ -847,9 +859,8 @@ xdr_buf_subsegment(struct xdr_buf *buf, struct xdr_buf *subbuf,
 		len -= subbuf->head[0].iov_len;
 		base = 0;
 	} else {
-		subbuf->head[0].iov_base = NULL;
-		subbuf->head[0].iov_len = 0;
 		base -= buf->head[0].iov_len;
+		subbuf->head[0].iov_len = 0;
 	}
 
 	if (base < buf->page_len) {
@@ -871,9 +882,8 @@ xdr_buf_subsegment(struct xdr_buf *buf, struct xdr_buf *subbuf,
 		len -= subbuf->tail[0].iov_len;
 		base = 0;
 	} else {
-		subbuf->tail[0].iov_base = NULL;
-		subbuf->tail[0].iov_len = 0;
 		base -= buf->tail[0].iov_len;
+		subbuf->tail[0].iov_len = 0;
 	}
 
 	if (base || len)

@@ -1910,20 +1910,18 @@ static int igbvf_tso(struct igbvf_adapter *adapter,
                      struct sk_buff *skb, u32 tx_flags, u8 *hdr_len)
 {
 	struct e1000_adv_tx_context_desc *context_desc;
-	unsigned int i;
-	int err;
 	struct igbvf_buffer *buffer_info;
 	u32 info = 0, tu_cmd = 0;
 	u32 mss_l4len_idx, l4len;
+	unsigned int i;
+	int err;
+
 	*hdr_len = 0;
 
-	if (skb_header_cloned(skb)) {
-		err = pskb_expand_head(skb, 0, 0, GFP_ATOMIC);
-		if (err) {
-			dev_err(&adapter->pdev->dev,
-			        "igbvf_tso returning an error\n");
-			return err;
-		}
+	err = skb_cow_head(skb, 0);
+	if (err < 0) {
+		dev_err(&adapter->pdev->dev, "igbvf_tso returning an error\n");
+		return err;
 	}
 
 	l4len = tcp_hdrlen(skb);

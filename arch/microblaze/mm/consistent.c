@@ -117,7 +117,7 @@ void *consistent_alloc(gfp_t gfp, size_t size, dma_addr_t *dma_handle)
 	ret = (void *)va;
 
 	/* This gives us the real physical address of the first page. */
-	*dma_handle = pa = virt_to_bus((void *)vaddr);
+	*dma_handle = pa = __virt_to_phys(vaddr);
 #endif
 
 	/*

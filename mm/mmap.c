@@ -10,6 +10,7 @@
 #include <linux/slab.h>
 #include <linux/backing-dev.h>
 #include <linux/mm.h>
+#include <linux/vmacache.h>
 #include <linux/shm.h>
 #include <linux/mman.h>
 #include <linux/pagemap.h>
@@ -681,8 +682,9 @@ __vma_unlink(struct mm_struct *mm, struct vm_area_struct *vma,
 	prev->vm_next = next = vma->vm_next;
 	if (next)
 		next->vm_prev = prev;
-	if (mm->mmap_cache == vma)
-		mm->mmap_cache = prev;
+
+	/* Kill the cache */
+	vmacache_invalidate(mm);
 }
 
 /*
@@ -1989,34 +1991,33 @@ EXPORT_SYMBOL(get_unmapped_area);
 /* Look up the first VMA which satisfies  addr < vm_end,  NULL if none. */
 struct vm_area_struct *find_vma(struct mm_struct *mm, unsigned long addr)
 {
-	struct vm_area_struct *vma = NULL;
+	struct rb_node *rb_node;
+	struct vm_area_struct *vma;
 
 	/* Check the cache first. */
-	/* (Cache hit rate is typically around 35%.) */
-	vma = ACCESS_ONCE(mm->mmap_cache);
-	if (!(vma && vma->vm_end > addr && vma->vm_start <= addr)) {
-		struct rb_node *rb_node;
+	vma = vmacache_find(mm, addr);
+	if (likely(vma))
+		return vma;
 
-		rb_node = mm->mm_rb.rb_node;
-		vma = NULL;
+	rb_node = mm->mm_rb.rb_node;
+	vma = NULL;
 
-		while (rb_node) {
-			struct vm_area_struct *vma_tmp;
+	while (rb_node) {
+		struct vm_area_struct *tmp;
 
-			vma_tmp = rb_entry(rb_node,
-					   struct vm_area_struct, vm_rb);
+		tmp = rb_entry(rb_node, struct vm_area_struct, vm_rb);
 
-			if (vma_tmp->vm_end > addr) {
-				vma = vma_tmp;
-				if (vma_tmp->vm_start <= addr)
-					break;
-				rb_node = rb_node->rb_left;
-			} else
-				rb_node = rb_node->rb_right;
-		}
-		if (vma)
-			mm->mmap_cache = vma;
+		if (tmp->vm_end > addr) {
+			vma = tmp;
+			if (tmp->vm_start <= addr)
+				break;
+			rb_node = rb_node->rb_left;
+		} else
+			rb_node = rb_node->rb_right;
 	}
+
+	if (vma)
+		vmacache_update(addr, vma);
 	return vma;
 }
 
@@ -2388,7 +2389,9 @@ detach_vmas_to_be_unmapped(struct mm_struct *mm, struct vm_area_struct *vma,
 	} else
 		mm->highest_vm_end = prev ? prev->vm_end : 0;
 	tail_vma->vm_next = NULL;
-	mm->mmap_cache = NULL;		/* Kill the cache. */
+
+	/* Kill the cache */
+	vmacache_invalidate(mm);
 }
 
 /*

@@ -430,7 +430,7 @@ err_dma:
 	dma_unmap_single(dma_dev->dev, phys_addr, len, dir);
 err_buf:
 	if (err != 0)
-		dev_warn(host->dev, "Fall back to CPU I/O\n");
+		dev_dbg(host->dev, "Fall back to CPU I/O\n");
 	return err;
 }
 
@@ -1220,6 +1220,7 @@ static int atmel_pmecc_nand_init_params(struct platform_device *pdev,
 		goto err;
 	}
 
+	nand_chip->options |= NAND_NO_SUBPAGE_WRITE;
 	nand_chip->ecc.read_page = atmel_nand_pmecc_read_page;
 	nand_chip->ecc.write_page = atmel_nand_pmecc_write_page;
 
@@ -1659,8 +1660,8 @@ static void nfc_select_chip(struct mtd_info *mtd, int chip)
 		nfc_writel(host->nfc->hsmc_regs, CTRL, NFC_CTRL_ENABLE);
 }
 
-static int nfc_make_addr(struct mtd_info *mtd, int column, int page_addr,
-		unsigned int *addr1234, unsigned int *cycle0)
+static int nfc_make_addr(struct mtd_info *mtd, int command, int column,
+		int page_addr, unsigned int *addr1234, unsigned int *cycle0)
 {
 	struct nand_chip *chip = mtd->priv;
 
@@ -1674,7 +1675,8 @@ static int nfc_make_addr(struct mtd_info *mtd, int column, int page_addr,
 	*addr1234 = 0;
 
 	if (column != -1) {
-		if (chip->options & NAND_BUSWIDTH_16)
+		if (chip->options & NAND_BUSWIDTH_16 &&
+				!nand_opcode_8bits(command))
 			column >>= 1;
 		addr_bytes[acycle++] = column & 0xff;
 		if (mtd->writesize > 512)
@@ -1787,8 +1789,8 @@ static void nfc_nand_command(struct mtd_info *mtd, unsigned int command,
 	}
 
 	if (do_addr)
-		acycle = nfc_make_addr(mtd, column, page_addr, &addr1234,
-				&cycle0);
+		acycle = nfc_make_addr(mtd, command, column, page_addr,
+				&addr1234, &cycle0);
 
 	nfc_addr_cmd = cmd1 | cmd2 | vcmd2 | acycle | csid | dataen | nfcwr;
 	nfc_send_command(host, nfc_addr_cmd, addr1234, cycle0);

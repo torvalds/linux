@@ -142,12 +142,12 @@ loop:
 	mutex_unlock(&dst_gc_mutex);
 }
 
-int dst_discard(struct sk_buff *skb)
+int dst_discard_sk(struct sock *sk, struct sk_buff *skb)
 {
 	kfree_skb(skb);
 	return 0;
 }
-EXPORT_SYMBOL(dst_discard);
+EXPORT_SYMBOL(dst_discard_sk);
 
 const u32 dst_default_metrics[RTAX_MAX + 1] = {
 	/* This initializer is needed to force linker to place this variable
@@ -184,7 +184,7 @@ void *dst_alloc(struct dst_ops *ops, struct net_device *dev,
 	dst->xfrm = NULL;
 #endif
 	dst->input = dst_discard;
-	dst->output = dst_discard;
+	dst->output = dst_discard_sk;
 	dst->error = 0;
 	dst->obsolete = initial_obsolete;
 	dst->header_len = 0;
@@ -209,8 +209,10 @@ static void ___dst_free(struct dst_entry *dst)
 	/* The first case (dev==NULL) is required, when
 	   protocol module is unloaded.
 	 */
-	if (dst->dev == NULL || !(dst->dev->flags&IFF_UP))
-		dst->input = dst->output = dst_discard;
+	if (dst->dev == NULL || !(dst->dev->flags&IFF_UP)) {
+		dst->input = dst_discard;
+		dst->output = dst_discard_sk;
+	}
 	dst->obsolete = DST_OBSOLETE_DEAD;
 }
 
@@ -361,7 +363,8 @@ static void dst_ifdown(struct dst_entry *dst, struct net_device *dev,
 		return;
 
 	if (!unregister) {
-		dst->input = dst->output = dst_discard;
+		dst->input = dst_discard;
+		dst->output = dst_discard_sk;
 	} else {
 		dst->dev = dev_net(dst->dev)->loopback_dev;
 		dev_hold(dst->dev);

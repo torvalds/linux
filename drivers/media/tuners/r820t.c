@@ -1468,7 +1468,8 @@ static int r820t_imr_prepare(struct r820t_priv *priv)
 static int r820t_multi_read(struct r820t_priv *priv)
 {
 	int rc, i;
-	u8 data[2], min = 0, max = 255, sum = 0;
+	u16 sum = 0;
+	u8 data[2], min = 255, max = 0;
 
 	usleep_range(5000, 6000);
 

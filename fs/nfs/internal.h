@@ -301,6 +301,7 @@ extern struct nfs_client *nfs_init_client(struct nfs_client *clp,
 			   const char *ip_addr);
 
 /* dir.c */
+extern void nfs_force_use_readdirplus(struct inode *dir);
 extern unsigned long nfs_access_cache_count(struct shrinker *shrink,
 					    struct shrink_control *sc);
 extern unsigned long nfs_access_cache_scan(struct shrinker *shrink,
@@ -473,6 +474,13 @@ extern int nfs_migrate_page(struct address_space *,
 #else
 #define nfs_migrate_page NULL
 #endif
+
+/* unlink.c */
+extern struct rpc_task *
+nfs_async_rename(struct inode *old_dir, struct inode *new_dir,
+		 struct dentry *old_dentry, struct dentry *new_dentry,
+		 void (*complete)(struct rpc_task *, struct nfs_renamedata *));
+extern int nfs_sillyrename(struct inode *dir, struct dentry *dentry);
 
 /* direct.c */
 void nfs_init_cinfo_from_dreq(struct nfs_commit_info *cinfo,

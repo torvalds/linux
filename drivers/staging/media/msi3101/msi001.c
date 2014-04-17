@@ -201,7 +201,7 @@ static int msi001_set_tuner(struct msi001 *s)
 	dev_dbg(&s->spi->dev, "%s: bandwidth selected=%d\n",
 			__func__, bandwidth_lut[i].freq);
 
-	f_vco = (f_rf + f_if + f_if1) * lo_div;
+	f_vco = (u64) (f_rf + f_if + f_if1) * lo_div;
 	tmp64 = f_vco;
 	m = do_div(tmp64, F_REF * R_REF);
 	n = (unsigned int) tmp64;

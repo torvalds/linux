@@ -26,6 +26,8 @@
 #include <linux/time.h>
 #include <linux/uaccess.h>
 #include <linux/workqueue.h>
+#include <linux/if_ether.h>
+#include <linux/if_vlan.h>
 
 #include "cpts.h"
 

@@ -469,24 +469,14 @@ static void drbd_wait_ee_list_empty(struct drbd_device *device,
 
 static int drbd_recv_short(struct socket *sock, void *buf, size_t size, int flags)
 {
-	mm_segment_t oldfs;
 	struct kvec iov = {
 		.iov_base = buf,
 		.iov_len = size,
 	};
 	struct msghdr msg = {
-		.msg_iovlen = 1,
-		.msg_iov = (struct iovec *)&iov,
 		.msg_flags = (flags ? flags : MSG_WAITALL | MSG_NOSIGNAL)
 	};
-	int rv;
-
-	oldfs = get_fs();
-	set_fs(KERNEL_DS);
-	rv = sock_recvmsg(sock, &msg, size, msg.msg_flags);
-	set_fs(oldfs);
-
-	return rv;
+	return kernel_recvmsg(sock, &msg, &iov, 1, size, msg.msg_flags);
 }
 
 static int drbd_recv(struct drbd_connection *connection, void *buf, size_t size)

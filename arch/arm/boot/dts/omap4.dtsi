@@ -191,6 +191,22 @@
 			pinctrl-single,function-mask = <0x7fff>;
 		};
 
+		omap4_padconf_global: tisyscon@4a1005a0 {
+			compatible = "syscon";
+			reg = <0x4a1005a0 0x170>;
+		};
+
+		pbias_regulator: pbias_regulator {
+			compatible = "ti,pbias-omap";
+			reg = <0x60 0x4>;
+			syscon = <&omap4_padconf_global>;
+			pbias_mmc_reg: pbias_mmc_omap4 {
+				regulator-name = "pbias_mmc_omap4";
+				regulator-min-microvolt = <1800000>;
+				regulator-max-microvolt = <3000000>;
+			};
+		};
+
 		sdma: dma-controller@4a056000 {
 			compatible = "ti,omap4430-sdma";
 			reg = <0x4a056000 0x1000>;
@@ -427,6 +443,7 @@
 			ti,needs-special-reset;
 			dmas = <&sdma 61>, <&sdma 62>;
 			dma-names = "tx", "rx";
+			pbias-supply = <&pbias_mmc_reg>;
 		};
 
 		mmc2: mmc@480b4000 {
@@ -733,6 +750,12 @@
 			#address-cells = <1>;
 			#size-cells = <1>;
 			ranges;
+			clocks = <&init_60m_fclk>,
+				 <&xclk60mhsp1_ck>,
+				 <&xclk60mhsp2_ck>;
+			clock-names = "refclk_60m_int",
+				      "refclk_60m_ext_p1",
+				      "refclk_60m_ext_p2";
 
 			usbhsohci: ohci@4a064800 {
 				compatible = "ti,ohci-omap3";
@@ -818,6 +841,85 @@
 			ti,clock-cycles = <16>;
 
 			status = "disabled";
+		};
+
+		dss: dss@58000000 {
+			compatible = "ti,omap4-dss";
+			reg = <0x58000000 0x80>;
+			status = "disabled";
+			ti,hwmods = "dss_core";
+			clocks = <&dss_dss_clk>;
+			clock-names = "fck";
+			#address-cells = <1>;
+			#size-cells = <1>;
+			ranges;
+
+			dispc@58001000 {
+				compatible = "ti,omap4-dispc";
+				reg = <0x58001000 0x1000>;
+				interrupts = <GIC_SPI 25 IRQ_TYPE_LEVEL_HIGH>;
+				ti,hwmods = "dss_dispc";
+				clocks = <&dss_dss_clk>;
+				clock-names = "fck";
+			};
+
+			rfbi: encoder@58002000  {
+				compatible = "ti,omap4-rfbi";
+				reg = <0x58002000 0x1000>;
+				status = "disabled";
+				ti,hwmods = "dss_rfbi";
+				clocks = <&dss_dss_clk>, <&dss_fck>;
+				clock-names = "fck", "ick";
+			};
+
+			venc: encoder@58003000 {
+				compatible = "ti,omap4-venc";
+				reg = <0x58003000 0x1000>;
+				status = "disabled";
+				ti,hwmods = "dss_venc";
+				clocks = <&dss_tv_clk>;
+				clock-names = "fck";
+			};
+
+			dsi1: encoder@58004000 {
+				compatible = "ti,omap4-dsi";
+				reg = <0x58004000 0x200>,
+				      <0x58004200 0x40>,
+				      <0x58004300 0x20>;
+				reg-names = "proto", "phy", "pll";
+				interrupts = <GIC_SPI 53 IRQ_TYPE_LEVEL_HIGH>;
+				status = "disabled";
+				ti,hwmods = "dss_dsi1";
+				clocks = <&dss_dss_clk>, <&dss_sys_clk>;
+				clock-names = "fck", "sys_clk";
+			};
+
+			dsi2: encoder@58005000 {
+				compatible = "ti,omap4-dsi";
+				reg = <0x58005000 0x200>,
+				      <0x58005200 0x40>,
+				      <0x58005300 0x20>;
+				reg-names = "proto", "phy", "pll";
+				interrupts = <GIC_SPI 84 IRQ_TYPE_LEVEL_HIGH>;
+				status = "disabled";
+				ti,hwmods = "dss_dsi2";
+				clocks = <&dss_dss_clk>, <&dss_sys_clk>;
+				clock-names = "fck", "sys_clk";
+			};
+
+			hdmi: encoder@58006000 {
+				compatible = "ti,omap4-hdmi";
+				reg = <0x58006000 0x200>,
+				      <0x58006200 0x100>,
+				      <0x58006300 0x100>,
+				      <0x58006400 0x1000>;
+				reg-names = "wp", "pll", "phy", "core";
+				interrupts = <GIC_SPI 101 IRQ_TYPE_LEVEL_HIGH>;
+				status = "disabled";
+				ti,hwmods = "dss_hdmi";
+				clocks = <&dss_48mhz_clk>, <&dss_sys_clk>;
+				clock-names = "fck", "sys_clk";
+			};
 		};
 	};
 };

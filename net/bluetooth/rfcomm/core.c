@@ -186,9 +186,9 @@ static void rfcomm_l2state_change(struct sock *sk)
 	rfcomm_schedule();
 }
 
-static void rfcomm_l2data_ready(struct sock *sk, int bytes)
+static void rfcomm_l2data_ready(struct sock *sk)
 {
-	BT_DBG("%p bytes %d", sk, bytes);
+	BT_DBG("%p", sk);
 	rfcomm_schedule();
 }
 

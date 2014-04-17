@@ -34,7 +34,7 @@ int
 i915_verify_lists(struct drm_device *dev)
 {
 	static int warned;
-	drm_i915_private_t *dev_priv = dev->dev_private;
+	struct drm_i915_private *dev_priv = dev->dev_private;
 	struct drm_i915_gem_object *obj;
 	int err = 0;
 

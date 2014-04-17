@@ -6178,7 +6178,7 @@ static int sctp_eat_data(const struct sctp_association *asoc,
 	 * PMTU.  In cases, such as loopback, this might be a rather
 	 * large spill over.
 	 */
-	if ((!chunk->data_accepted) && (!asoc->rwnd ||
+	if ((!chunk->data_accepted) && (!asoc->rwnd || asoc->rwnd_over ||
 	    (datalen > asoc->rwnd + asoc->frag_point))) {
 
 		/* If this is the next TSN, consider reneging to make

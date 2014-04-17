@@ -59,6 +59,7 @@ ENTRY(efi_pe_entry)
 	call	make_boot_params
 	cmpl	$0, %eax
 	je	fail
+	movl	%esi, BP_code32_start(%eax)
 	popl	%ecx
 	pushl	%eax
 	pushl	%ecx
@@ -90,12 +91,7 @@ fail:
 	hlt
 	jmp	fail
 2:
-	call	3f
-3:
-	popl	%eax
-	subl	$3b, %eax
-	subl	BP_pref_address(%esi), %eax
-	add	BP_code32_start(%esi), %eax
+	movl	BP_code32_start(%esi), %eax
 	leal	preferred_addr(%eax), %eax
 	jmp	*%eax
 

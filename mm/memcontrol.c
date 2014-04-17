@@ -921,8 +921,6 @@ static void mem_cgroup_charge_statistics(struct mem_cgroup *memcg,
 					 struct page *page,
 					 bool anon, int nr_pages)
 {
-	preempt_disable();
-
 	/*
 	 * Here, RSS means 'mapped anon' and anon's SwapCache. Shmem/tmpfs is
 	 * counted as CACHE even if it's on ANON LRU.
@@ -947,8 +945,6 @@ static void mem_cgroup_charge_statistics(struct mem_cgroup *memcg,
 	}
 
 	__this_cpu_add(memcg->stat->nr_page_events, nr_pages);
-
-	preempt_enable();
 }
 
 unsigned long
@@ -1075,22 +1071,15 @@ struct mem_cgroup *mem_cgroup_from_task(struct task_struct *p)
 	return mem_cgroup_from_css(task_css(p, memory_cgrp_id));
 }
 
-struct mem_cgroup *try_get_mem_cgroup_from_mm(struct mm_struct *mm)
+static struct mem_cgroup *get_mem_cgroup_from_mm(struct mm_struct *mm)
 {
 	struct mem_cgroup *memcg = NULL;
 
-	if (!mm)
-		return NULL;
-	/*
-	 * Because we have no locks, mm->owner's may be being moved to other
-	 * cgroup. We use css_tryget() here even if this looks
-	 * pessimistic (rather than adding locks here).
-	 */
 	rcu_read_lock();
 	do {
 		memcg = mem_cgroup_from_task(rcu_dereference(mm->owner));
 		if (unlikely(!memcg))
-			break;
+			memcg = root_mem_cgroup;
 	} while (!css_tryget(&memcg->css));
 	rcu_read_unlock();
 	return memcg;
@@ -1486,7 +1475,7 @@ bool task_in_mem_cgroup(struct task_struct *task,
 
 	p = find_lock_task_mm(task);
 	if (p) {
-		curr = try_get_mem_cgroup_from_mm(p->mm);
+		curr = get_mem_cgroup_from_mm(p->mm);
 		task_unlock(p);
 	} else {
 		/*
@@ -1500,8 +1489,6 @@ bool task_in_mem_cgroup(struct task_struct *task,
 			css_get(&curr->css);
 		rcu_read_unlock();
 	}
-	if (!curr)
-		return false;
 	/*
 	 * We should check use_hierarchy of "memcg" not "curr". Because checking
 	 * use_hierarchy of "curr" here make this function true if hierarchy is
@@ -2588,7 +2575,7 @@ static int memcg_cpu_hotplug_callback(struct notifier_block *nb,
 }
 
 
-/* See __mem_cgroup_try_charge() for details */
+/* See mem_cgroup_try_charge() for details */
 enum {
 	CHARGE_OK,		/* success */
 	CHARGE_RETRY,		/* need to retry but retry is not bad */
@@ -2661,45 +2648,34 @@ static int mem_cgroup_do_charge(struct mem_cgroup *memcg, gfp_t gfp_mask,
 	return CHARGE_NOMEM;
 }
 
-/*
- * __mem_cgroup_try_charge() does
- * 1. detect memcg to be charged against from passed *mm and *ptr,
- * 2. update res_counter
- * 3. call memory reclaim if necessary.
+/**
+ * mem_cgroup_try_charge - try charging a memcg
+ * @memcg: memcg to charge
+ * @nr_pages: number of pages to charge
+ * @oom: trigger OOM if reclaim fails
  *
- * In some special case, if the task is fatal, fatal_signal_pending() or
- * has TIF_MEMDIE, this function returns -EINTR while writing root_mem_cgroup
- * to *ptr. There are two reasons for this. 1: fatal threads should quit as soon
- * as possible without any hazards. 2: all pages should have a valid
- * pc->mem_cgroup. If mm is NULL and the caller doesn't pass a valid memcg
- * pointer, that is treated as a charge to root_mem_cgroup.
- *
- * So __mem_cgroup_try_charge() will return
- *  0       ...  on success, filling *ptr with a valid memcg pointer.
- *  -ENOMEM ...  charge failure because of resource limits.
- *  -EINTR  ...  if thread is fatal. *ptr is filled with root_mem_cgroup.
- *
- * Unlike the exported interface, an "oom" parameter is added. if oom==true,
- * the oom-killer can be invoked.
+ * Returns 0 if @memcg was charged successfully, -EINTR if the charge
+ * was bypassed to root_mem_cgroup, and -ENOMEM if the charge failed.
  */
-static int __mem_cgroup_try_charge(struct mm_struct *mm,
-				   gfp_t gfp_mask,
-				   unsigned int nr_pages,
-				   struct mem_cgroup **ptr,
-				   bool oom)
+static int mem_cgroup_try_charge(struct mem_cgroup *memcg,
+				 gfp_t gfp_mask,
+				 unsigned int nr_pages,
+				 bool oom)
 {
 	unsigned int batch = max(CHARGE_BATCH, nr_pages);
 	int nr_oom_retries = MEM_CGROUP_RECLAIM_RETRIES;
-	struct mem_cgroup *memcg = NULL;
 	int ret;
 
+	if (mem_cgroup_is_root(memcg))
+		goto done;
 	/*
-	 * Unlike gloval-vm's OOM-kill, we're not in memory shortage
-	 * in system level. So, allow to go ahead dying process in addition to
-	 * MEMDIE process.
+	 * Unlike in global OOM situations, memcg is not in a physical
+	 * memory shortage.  Allow dying and OOM-killed tasks to
+	 * bypass the last charges so that they can exit quickly and
+	 * free their memory.
 	 */
-	if (unlikely(test_thread_flag(TIF_MEMDIE)
-		     || fatal_signal_pending(current)))
+	if (unlikely(test_thread_flag(TIF_MEMDIE) ||
+		     fatal_signal_pending(current)))
 		goto bypass;
 
 	if (unlikely(task_in_memcg_oom(current)))
@@ -2707,73 +2683,16 @@ static int __mem_cgroup_try_charge(struct mm_struct *mm,
 
 	if (gfp_mask & __GFP_NOFAIL)
 		oom = false;
-
-	/*
-	 * We always charge the cgroup the mm_struct belongs to.
-	 * The mm_struct's mem_cgroup changes on task migration if the
-	 * thread group leader migrates. It's possible that mm is not
-	 * set, if so charge the root memcg (happens for pagecache usage).
-	 */
-	if (!*ptr && !mm)
-		*ptr = root_mem_cgroup;
 again:
-	if (*ptr) { /* css should be a valid one */
-		memcg = *ptr;
-		if (mem_cgroup_is_root(memcg))
-			goto done;
-		if (consume_stock(memcg, nr_pages))
-			goto done;
-		css_get(&memcg->css);
-	} else {
-		struct task_struct *p;
-
-		rcu_read_lock();
-		p = rcu_dereference(mm->owner);
-		/*
-		 * Because we don't have task_lock(), "p" can exit.
-		 * In that case, "memcg" can point to root or p can be NULL with
-		 * race with swapoff. Then, we have small risk of mis-accouning.
-		 * But such kind of mis-account by race always happens because
-		 * we don't have cgroup_mutex(). It's overkill and we allo that
-		 * small race, here.
-		 * (*) swapoff at el will charge against mm-struct not against
-		 * task-struct. So, mm->owner can be NULL.
-		 */
-		memcg = mem_cgroup_from_task(p);
-		if (!memcg)
-			memcg = root_mem_cgroup;
-		if (mem_cgroup_is_root(memcg)) {
-			rcu_read_unlock();
-			goto done;
-		}
-		if (consume_stock(memcg, nr_pages)) {
-			/*
-			 * It seems dagerous to access memcg without css_get().
-			 * But considering how consume_stok works, it's not
-			 * necessary. If consume_stock success, some charges
-			 * from this memcg are cached on this cpu. So, we
-			 * don't need to call css_get()/css_tryget() before
-			 * calling consume_stock().
-			 */
-			rcu_read_unlock();
-			goto done;
-		}
-		/* after here, we may be blocked. we need to get refcnt */
-		if (!css_tryget(&memcg->css)) {
-			rcu_read_unlock();
-			goto again;
-		}
-		rcu_read_unlock();
-	}
+	if (consume_stock(memcg, nr_pages))
+		goto done;
 
 	do {
 		bool invoke_oom = oom && !nr_oom_retries;
 
 		/* If killed, bypass charge */
-		if (fatal_signal_pending(current)) {
-			css_put(&memcg->css);
+		if (fatal_signal_pending(current))
 			goto bypass;
-		}
 
 		ret = mem_cgroup_do_charge(memcg, gfp_mask, batch,
 					   nr_pages, invoke_oom);
@@ -2782,17 +2701,12 @@ again:
 			break;
 		case CHARGE_RETRY: /* not in OOM situation but retry */
 			batch = nr_pages;
-			css_put(&memcg->css);
-			memcg = NULL;
 			goto again;
 		case CHARGE_WOULDBLOCK: /* !__GFP_WAIT */
-			css_put(&memcg->css);
 			goto nomem;
 		case CHARGE_NOMEM: /* OOM routine works */
-			if (!oom || invoke_oom) {
-				css_put(&memcg->css);
+			if (!oom || invoke_oom)
 				goto nomem;
-			}
 			nr_oom_retries--;
 			break;
 		}
@@ -2800,18 +2714,42 @@ again:
 
 	if (batch > nr_pages)
 		refill_stock(memcg, batch - nr_pages);
-	css_put(&memcg->css);
 done:
-	*ptr = memcg;
 	return 0;
 nomem:
-	if (!(gfp_mask & __GFP_NOFAIL)) {
-		*ptr = NULL;
+	if (!(gfp_mask & __GFP_NOFAIL))
 		return -ENOMEM;
-	}
 bypass:
-	*ptr = root_mem_cgroup;
 	return -EINTR;
+}
+
+/**
+ * mem_cgroup_try_charge_mm - try charging a mm
+ * @mm: mm_struct to charge
+ * @nr_pages: number of pages to charge
+ * @oom: trigger OOM if reclaim fails
+ *
+ * Returns the charged mem_cgroup associated with the given mm_struct or
+ * NULL the charge failed.
+ */
+static struct mem_cgroup *mem_cgroup_try_charge_mm(struct mm_struct *mm,
+				 gfp_t gfp_mask,
+				 unsigned int nr_pages,
+				 bool oom)
+
+{
+	struct mem_cgroup *memcg;
+	int ret;
+
+	memcg = get_mem_cgroup_from_mm(mm);
+	ret = mem_cgroup_try_charge(memcg, gfp_mask, nr_pages, oom);
+	css_put(&memcg->css);
+	if (ret == -EINTR)
+		memcg = root_mem_cgroup;
+	else if (ret)
+		memcg = NULL;
+
+	return memcg;
 }
 
 /*
@@ -3009,20 +2947,17 @@ static int mem_cgroup_slabinfo_read(struct seq_file *m, void *v)
 static int memcg_charge_kmem(struct mem_cgroup *memcg, gfp_t gfp, u64 size)
 {
 	struct res_counter *fail_res;
-	struct mem_cgroup *_memcg;
 	int ret = 0;
 
 	ret = res_counter_charge(&memcg->kmem, size, &fail_res);
 	if (ret)
 		return ret;
 
-	_memcg = memcg;
-	ret = __mem_cgroup_try_charge(NULL, gfp, size >> PAGE_SHIFT,
-				      &_memcg, oom_gfp_allowed(gfp));
-
+	ret = mem_cgroup_try_charge(memcg, gfp, size >> PAGE_SHIFT,
+				    oom_gfp_allowed(gfp));
 	if (ret == -EINTR)  {
 		/*
-		 * __mem_cgroup_try_charge() chosed to bypass to root due to
+		 * mem_cgroup_try_charge() chosed to bypass to root due to
 		 * OOM kill or fatal signal.  Since our only options are to
 		 * either fail the allocation or charge it to this cgroup, do
 		 * it as a temporary condition. But we can't fail. From a
@@ -3032,7 +2967,7 @@ static int memcg_charge_kmem(struct mem_cgroup *memcg, gfp_t gfp, u64 size)
 		 *
 		 * This condition will only trigger if the task entered
 		 * memcg_charge_kmem in a sane state, but was OOM-killed during
-		 * __mem_cgroup_try_charge() above. Tasks that were already
+		 * mem_cgroup_try_charge() above. Tasks that were already
 		 * dying when the allocation triggers should have been already
 		 * directed to the root cgroup in memcontrol.h
 		 */
@@ -3159,6 +3094,29 @@ int memcg_update_cache_size(struct kmem_cache *s, int num_groups)
 	return 0;
 }
 
+char *memcg_create_cache_name(struct mem_cgroup *memcg,
+			      struct kmem_cache *root_cache)
+{
+	static char *buf = NULL;
+
+	/*
+	 * We need a mutex here to protect the shared buffer. Since this is
+	 * expected to be called only on cache creation, we can employ the
+	 * slab_mutex for that purpose.
+	 */
+	lockdep_assert_held(&slab_mutex);
+
+	if (!buf) {
+		buf = kmalloc(NAME_MAX + 1, GFP_KERNEL);
+		if (!buf)
+			return NULL;
+	}
+
+	cgroup_name(memcg->css.cgroup, buf, NAME_MAX + 1);
+	return kasprintf(GFP_KERNEL, "%s(%d:%s)", root_cache->name,
+			 memcg_cache_id(memcg), buf);
+}
+
 int memcg_alloc_cache_params(struct mem_cgroup *memcg, struct kmem_cache *s,
 			     struct kmem_cache *root_cache)
 {
@@ -3182,6 +3140,7 @@ int memcg_alloc_cache_params(struct mem_cgroup *memcg, struct kmem_cache *s,
 		s->memcg_params->root_cache = root_cache;
 		INIT_WORK(&s->memcg_params->destroy,
 				kmem_cache_destroy_work_func);
+		css_get(&memcg->css);
 	} else
 		s->memcg_params->is_root_cache = true;
 
@@ -3190,6 +3149,10 @@ int memcg_alloc_cache_params(struct mem_cgroup *memcg, struct kmem_cache *s,
 
 void memcg_free_cache_params(struct kmem_cache *s)
 {
+	if (!s->memcg_params)
+		return;
+	if (!s->memcg_params->is_root_cache)
+		css_put(&s->memcg_params->memcg->css);
 	kfree(s->memcg_params);
 }
 
@@ -3211,9 +3174,6 @@ void memcg_register_cache(struct kmem_cache *s)
 	root = s->memcg_params->root_cache;
 	memcg = s->memcg_params->memcg;
 	id = memcg_cache_id(memcg);
-
-	css_get(&memcg->css);
-
 
 	/*
 	 * Since readers won't lock (see cache_from_memcg_idx()), we need a
@@ -3263,10 +3223,8 @@ void memcg_unregister_cache(struct kmem_cache *s)
 	 * after removing it from the memcg_slab_caches list, otherwise we can
 	 * fail to convert memcg_params_to_cache() while traversing the list.
 	 */
-	VM_BUG_ON(!root->memcg_params->memcg_caches[id]);
+	VM_BUG_ON(root->memcg_params->memcg_caches[id] != s);
 	root->memcg_params->memcg_caches[id] = NULL;
-
-	css_put(&memcg->css);
 }
 
 /*
@@ -3363,55 +3321,10 @@ void mem_cgroup_destroy_cache(struct kmem_cache *cachep)
 	schedule_work(&cachep->memcg_params->destroy);
 }
 
-static struct kmem_cache *memcg_create_kmem_cache(struct mem_cgroup *memcg,
-						  struct kmem_cache *s)
-{
-	struct kmem_cache *new = NULL;
-	static char *tmp_path = NULL, *tmp_name = NULL;
-	static DEFINE_MUTEX(mutex);	/* protects tmp_name */
-
-	BUG_ON(!memcg_can_account_kmem(memcg));
-
-	mutex_lock(&mutex);
-	/*
-	 * kmem_cache_create_memcg duplicates the given name and
-	 * cgroup_name for this name requires RCU context.
-	 * This static temporary buffer is used to prevent from
-	 * pointless shortliving allocation.
-	 */
-	if (!tmp_path || !tmp_name) {
-		if (!tmp_path)
-			tmp_path = kmalloc(PATH_MAX, GFP_KERNEL);
-		if (!tmp_name)
-			tmp_name = kmalloc(NAME_MAX + 1, GFP_KERNEL);
-		if (!tmp_path || !tmp_name)
-			goto out;
-	}
-
-	cgroup_name(memcg->css.cgroup, tmp_name, NAME_MAX + 1);
-	snprintf(tmp_path, PATH_MAX, "%s(%d:%s)", s->name,
-		 memcg_cache_id(memcg), tmp_name);
-
-	new = kmem_cache_create_memcg(memcg, tmp_path, s->object_size, s->align,
-				      (s->flags & ~SLAB_PANIC), s->ctor, s);
-	if (new)
-		new->allocflags |= __GFP_KMEMCG;
-	else
-		new = s;
-out:
-	mutex_unlock(&mutex);
-	return new;
-}
-
-void kmem_cache_destroy_memcg_children(struct kmem_cache *s)
+int __kmem_cache_destroy_memcg_children(struct kmem_cache *s)
 {
 	struct kmem_cache *c;
-	int i;
-
-	if (!s->memcg_params)
-		return;
-	if (!s->memcg_params->is_root_cache)
-		return;
+	int i, failed = 0;
 
 	/*
 	 * If the cache is being destroyed, we trust that there is no one else
@@ -3445,15 +3358,13 @@ void kmem_cache_destroy_memcg_children(struct kmem_cache *s)
 		c->memcg_params->dead = false;
 		cancel_work_sync(&c->memcg_params->destroy);
 		kmem_cache_destroy(c);
+
+		if (cache_from_memcg_idx(s, i))
+			failed++;
 	}
 	mutex_unlock(&activate_kmem_mutex);
+	return failed;
 }
-
-struct create_work {
-	struct mem_cgroup *memcg;
-	struct kmem_cache *cachep;
-	struct work_struct work;
-};
 
 static void mem_cgroup_destroy_all_caches(struct mem_cgroup *memcg)
 {
@@ -3472,13 +3383,20 @@ static void mem_cgroup_destroy_all_caches(struct mem_cgroup *memcg)
 	mutex_unlock(&memcg->slab_caches_mutex);
 }
 
+struct create_work {
+	struct mem_cgroup *memcg;
+	struct kmem_cache *cachep;
+	struct work_struct work;
+};
+
 static void memcg_create_cache_work_func(struct work_struct *w)
 {
-	struct create_work *cw;
+	struct create_work *cw = container_of(w, struct create_work, work);
+	struct mem_cgroup *memcg = cw->memcg;
+	struct kmem_cache *cachep = cw->cachep;
 
-	cw = container_of(w, struct create_work, work);
-	memcg_create_kmem_cache(cw->memcg, cw->cachep);
-	css_put(&cw->memcg->css);
+	kmem_cache_create_memcg(memcg, cachep);
+	css_put(&memcg->css);
 	kfree(cw);
 }
 
@@ -3637,15 +3555,7 @@ __memcg_kmem_newpage_charge(gfp_t gfp, struct mem_cgroup **_memcg, int order)
 	if (!current->mm || current->memcg_kmem_skip_account)
 		return true;
 
-	memcg = try_get_mem_cgroup_from_mm(current->mm);
-
-	/*
-	 * very rare case described in mem_cgroup_from_task. Unfortunately there
-	 * isn't much we can do without complicating this too much, and it would
-	 * be gfp-dependent anyway. Just let it go
-	 */
-	if (unlikely(!memcg))
-		return true;
+	memcg = get_mem_cgroup_from_mm(current->mm);
 
 	if (!memcg_can_account_kmem(memcg)) {
 		css_put(&memcg->css);
@@ -3748,19 +3658,6 @@ void mem_cgroup_split_huge_fixup(struct page *head)
 }
 #endif /* CONFIG_TRANSPARENT_HUGEPAGE */
 
-static inline
-void mem_cgroup_move_account_page_stat(struct mem_cgroup *from,
-					struct mem_cgroup *to,
-					unsigned int nr_pages,
-					enum mem_cgroup_stat_index idx)
-{
-	/* Update stat data for mem_cgroup */
-	preempt_disable();
-	__this_cpu_sub(from->stat->count[idx], nr_pages);
-	__this_cpu_add(to->stat->count[idx], nr_pages);
-	preempt_enable();
-}
-
 /**
  * mem_cgroup_move_account - move account of the page
  * @page: the page
@@ -3806,13 +3703,19 @@ static int mem_cgroup_move_account(struct page *page,
 
 	move_lock_mem_cgroup(from, &flags);
 
-	if (!anon && page_mapped(page))
-		mem_cgroup_move_account_page_stat(from, to, nr_pages,
-			MEM_CGROUP_STAT_FILE_MAPPED);
+	if (!anon && page_mapped(page)) {
+		__this_cpu_sub(from->stat->count[MEM_CGROUP_STAT_FILE_MAPPED],
+			       nr_pages);
+		__this_cpu_add(to->stat->count[MEM_CGROUP_STAT_FILE_MAPPED],
+			       nr_pages);
+	}
 
-	if (PageWriteback(page))
-		mem_cgroup_move_account_page_stat(from, to, nr_pages,
-			MEM_CGROUP_STAT_WRITEBACK);
+	if (PageWriteback(page)) {
+		__this_cpu_sub(from->stat->count[MEM_CGROUP_STAT_WRITEBACK],
+			       nr_pages);
+		__this_cpu_add(to->stat->count[MEM_CGROUP_STAT_WRITEBACK],
+			       nr_pages);
+	}
 
 	mem_cgroup_charge_statistics(from, page, anon, -nr_pages);
 
@@ -3898,19 +3801,19 @@ out:
 	return ret;
 }
 
-/*
- * Charge the memory controller for page usage.
- * Return
- * 0 if the charge was successful
- * < 0 if the cgroup is over its limit
- */
-static int mem_cgroup_charge_common(struct page *page, struct mm_struct *mm,
-				gfp_t gfp_mask, enum charge_type ctype)
+int mem_cgroup_charge_anon(struct page *page,
+			      struct mm_struct *mm, gfp_t gfp_mask)
 {
-	struct mem_cgroup *memcg = NULL;
 	unsigned int nr_pages = 1;
+	struct mem_cgroup *memcg;
 	bool oom = true;
-	int ret;
+
+	if (mem_cgroup_disabled())
+		return 0;
+
+	VM_BUG_ON_PAGE(page_mapped(page), page);
+	VM_BUG_ON_PAGE(page->mapping && !PageAnon(page), page);
+	VM_BUG_ON(!mm);
 
 	if (PageTransHuge(page)) {
 		nr_pages <<= compound_order(page);
@@ -3922,23 +3825,12 @@ static int mem_cgroup_charge_common(struct page *page, struct mm_struct *mm,
 		oom = false;
 	}
 
-	ret = __mem_cgroup_try_charge(mm, gfp_mask, nr_pages, &memcg, oom);
-	if (ret == -ENOMEM)
-		return ret;
-	__mem_cgroup_commit_charge(memcg, page, nr_pages, ctype, false);
+	memcg = mem_cgroup_try_charge_mm(mm, gfp_mask, nr_pages, oom);
+	if (!memcg)
+		return -ENOMEM;
+	__mem_cgroup_commit_charge(memcg, page, nr_pages,
+				   MEM_CGROUP_CHARGE_TYPE_ANON, false);
 	return 0;
-}
-
-int mem_cgroup_newpage_charge(struct page *page,
-			      struct mm_struct *mm, gfp_t gfp_mask)
-{
-	if (mem_cgroup_disabled())
-		return 0;
-	VM_BUG_ON_PAGE(page_mapped(page), page);
-	VM_BUG_ON_PAGE(page->mapping && !PageAnon(page), page);
-	VM_BUG_ON(!mm);
-	return mem_cgroup_charge_common(page, mm, gfp_mask,
-					MEM_CGROUP_CHARGE_TYPE_ANON);
 }
 
 /*
@@ -3952,7 +3844,7 @@ static int __mem_cgroup_try_charge_swapin(struct mm_struct *mm,
 					  gfp_t mask,
 					  struct mem_cgroup **memcgp)
 {
-	struct mem_cgroup *memcg;
+	struct mem_cgroup *memcg = NULL;
 	struct page_cgroup *pc;
 	int ret;
 
@@ -3965,31 +3857,29 @@ static int __mem_cgroup_try_charge_swapin(struct mm_struct *mm,
 	 * in turn serializes uncharging.
 	 */
 	if (PageCgroupUsed(pc))
-		return 0;
-	if (!do_swap_account)
-		goto charge_cur_mm;
-	memcg = try_get_mem_cgroup_from_page(page);
+		goto out;
+	if (do_swap_account)
+		memcg = try_get_mem_cgroup_from_page(page);
 	if (!memcg)
-		goto charge_cur_mm;
-	*memcgp = memcg;
-	ret = __mem_cgroup_try_charge(NULL, mask, 1, memcgp, true);
+		memcg = get_mem_cgroup_from_mm(mm);
+	ret = mem_cgroup_try_charge(memcg, mask, 1, true);
 	css_put(&memcg->css);
 	if (ret == -EINTR)
-		ret = 0;
-	return ret;
-charge_cur_mm:
-	ret = __mem_cgroup_try_charge(mm, mask, 1, memcgp, true);
-	if (ret == -EINTR)
-		ret = 0;
-	return ret;
+		memcg = root_mem_cgroup;
+	else if (ret)
+		return ret;
+out:
+	*memcgp = memcg;
+	return 0;
 }
 
 int mem_cgroup_try_charge_swapin(struct mm_struct *mm, struct page *page,
 				 gfp_t gfp_mask, struct mem_cgroup **memcgp)
 {
-	*memcgp = NULL;
-	if (mem_cgroup_disabled())
+	if (mem_cgroup_disabled()) {
+		*memcgp = NULL;
 		return 0;
+	}
 	/*
 	 * A racing thread's fault, or swapoff, may have already
 	 * updated the pte, and even removed page from swap cache: in
@@ -3997,12 +3887,13 @@ int mem_cgroup_try_charge_swapin(struct mm_struct *mm, struct page *page,
 	 * there's also a KSM case which does need to charge the page.
 	 */
 	if (!PageSwapCache(page)) {
-		int ret;
+		struct mem_cgroup *memcg;
 
-		ret = __mem_cgroup_try_charge(mm, gfp_mask, 1, memcgp, true);
-		if (ret == -EINTR)
-			ret = 0;
-		return ret;
+		memcg = mem_cgroup_try_charge_mm(mm, gfp_mask, 1, true);
+		if (!memcg)
+			return -ENOMEM;
+		*memcgp = memcg;
+		return 0;
 	}
 	return __mem_cgroup_try_charge_swapin(mm, page, gfp_mask, memcgp);
 }
@@ -4046,11 +3937,11 @@ void mem_cgroup_commit_charge_swapin(struct page *page,
 					  MEM_CGROUP_CHARGE_TYPE_ANON);
 }
 
-int mem_cgroup_cache_charge(struct page *page, struct mm_struct *mm,
+int mem_cgroup_charge_file(struct page *page, struct mm_struct *mm,
 				gfp_t gfp_mask)
 {
-	struct mem_cgroup *memcg = NULL;
 	enum charge_type type = MEM_CGROUP_CHARGE_TYPE_CACHE;
+	struct mem_cgroup *memcg;
 	int ret;
 
 	if (mem_cgroup_disabled())
@@ -4058,15 +3949,28 @@ int mem_cgroup_cache_charge(struct page *page, struct mm_struct *mm,
 	if (PageCompound(page))
 		return 0;
 
-	if (!PageSwapCache(page))
-		ret = mem_cgroup_charge_common(page, mm, gfp_mask, type);
-	else { /* page is swapcache/shmem */
+	if (PageSwapCache(page)) { /* shmem */
 		ret = __mem_cgroup_try_charge_swapin(mm, page,
 						     gfp_mask, &memcg);
-		if (!ret)
-			__mem_cgroup_commit_charge_swapin(page, memcg, type);
+		if (ret)
+			return ret;
+		__mem_cgroup_commit_charge_swapin(page, memcg, type);
+		return 0;
 	}
-	return ret;
+
+	/*
+	 * Page cache insertions can happen without an actual mm
+	 * context, e.g. during disk probing on boot.
+	 */
+	if (unlikely(!mm))
+		memcg = root_mem_cgroup;
+	else {
+		memcg = mem_cgroup_try_charge_mm(mm, gfp_mask, 1, true);
+		if (!memcg)
+			return -ENOMEM;
+	}
+	__mem_cgroup_commit_charge(memcg, page, 1, type, false);
+	return 0;
 }
 
 static void mem_cgroup_do_uncharge(struct mem_cgroup *memcg,
@@ -6678,8 +6582,7 @@ one_by_one:
 			batch_count = PRECHARGE_COUNT_AT_ONCE;
 			cond_resched();
 		}
-		ret = __mem_cgroup_try_charge(NULL,
-					GFP_KERNEL, 1, &memcg, false);
+		ret = mem_cgroup_try_charge(memcg, GFP_KERNEL, 1, false);
 		if (ret)
 			/* mem_cgroup_clear_mc() will do uncharge later */
 			return ret;

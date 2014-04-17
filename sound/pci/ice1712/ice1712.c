@@ -685,9 +685,10 @@ static snd_pcm_uframes_t snd_ice1712_playback_pointer(struct snd_pcm_substream *
 	if (!(snd_ice1712_read(ice, ICE1712_IREG_PBK_CTRL) & 1))
 		return 0;
 	ptr = runtime->buffer_size - inw(ice->ddma_port + 4);
+	ptr = bytes_to_frames(substream->runtime, ptr);
 	if (ptr == runtime->buffer_size)
 		ptr = 0;
-	return bytes_to_frames(substream->runtime, ptr);
+	return ptr;
 }
 
 static snd_pcm_uframes_t snd_ice1712_playback_ds_pointer(struct snd_pcm_substream *substream)
@@ -704,9 +705,10 @@ static snd_pcm_uframes_t snd_ice1712_playback_ds_pointer(struct snd_pcm_substrea
 		addr = ICE1712_DSC_ADDR0;
 	ptr = snd_ice1712_ds_read(ice, substream->number * 2, addr) -
 		ice->playback_con_virt_addr[substream->number];
+	ptr = bytes_to_frames(substream->runtime, ptr);
 	if (ptr == substream->runtime->buffer_size)
 		ptr = 0;
-	return bytes_to_frames(substream->runtime, ptr);
+	return ptr;
 }
 
 static snd_pcm_uframes_t snd_ice1712_capture_pointer(struct snd_pcm_substream *substream)
@@ -717,9 +719,10 @@ static snd_pcm_uframes_t snd_ice1712_capture_pointer(struct snd_pcm_substream *s
 	if (!(snd_ice1712_read(ice, ICE1712_IREG_CAP_CTRL) & 1))
 		return 0;
 	ptr = inl(ICEREG(ice, CONCAP_ADDR)) - ice->capture_con_virt_addr;
+	ptr = bytes_to_frames(substream->runtime, ptr);
 	if (ptr == substream->runtime->buffer_size)
 		ptr = 0;
-	return bytes_to_frames(substream->runtime, ptr);
+	return ptr;
 }
 
 static const struct snd_pcm_hardware snd_ice1712_playback = {
@@ -1048,6 +1051,8 @@ __out:
 	old = inb(ICEMT(ice, RATE));
 	if (!force && old == val)
 		goto __out;
+
+	ice->cur_rate = rate;
 	outb(val, ICEMT(ice, RATE));
 	spin_unlock_irqrestore(&ice->reg_lock, flags);
 
@@ -1114,9 +1119,10 @@ static snd_pcm_uframes_t snd_ice1712_playback_pro_pointer(struct snd_pcm_substre
 	if (!(inl(ICEMT(ice, PLAYBACK_CONTROL)) & ICE1712_PLAYBACK_START))
 		return 0;
 	ptr = ice->playback_pro_size - (inw(ICEMT(ice, PLAYBACK_SIZE)) << 2);
+	ptr = bytes_to_frames(substream->runtime, ptr);
 	if (ptr == substream->runtime->buffer_size)
 		ptr = 0;
-	return bytes_to_frames(substream->runtime, ptr);
+	return ptr;
 }
 
 static snd_pcm_uframes_t snd_ice1712_capture_pro_pointer(struct snd_pcm_substream *substream)
@@ -1127,9 +1133,10 @@ static snd_pcm_uframes_t snd_ice1712_capture_pro_pointer(struct snd_pcm_substrea
 	if (!(inl(ICEMT(ice, PLAYBACK_CONTROL)) & ICE1712_CAPTURE_START_SHADOW))
 		return 0;
 	ptr = ice->capture_pro_size - (inw(ICEMT(ice, CAPTURE_SIZE)) << 2);
+	ptr = bytes_to_frames(substream->runtime, ptr);
 	if (ptr == substream->runtime->buffer_size)
 		ptr = 0;
-	return bytes_to_frames(substream->runtime, ptr);
+	return ptr;
 }
 
 static const struct snd_pcm_hardware snd_ice1712_playback_pro = {
@@ -2832,6 +2839,12 @@ static int snd_ice1712_suspend(struct device *dev)
 	snd_pcm_suspend_all(ice->pcm_ds);
 	snd_ac97_suspend(ice->ac97);
 
+	spin_lock_irq(&ice->reg_lock);
+	ice->pm_saved_is_spdif_master = is_spdif_master(ice);
+	ice->pm_saved_spdif_ctrl = inw(ICEMT(ice, ROUTE_SPDOUT));
+	ice->pm_saved_route = inw(ICEMT(ice, ROUTE_PSDOUT03));
+	spin_unlock_irq(&ice->reg_lock);
+
 	if (ice->pm_suspend)
 		ice->pm_suspend(ice);
 
@@ -2846,6 +2859,7 @@ static int snd_ice1712_resume(struct device *dev)
 	struct pci_dev *pci = to_pci_dev(dev);
 	struct snd_card *card = dev_get_drvdata(dev);
 	struct snd_ice1712 *ice = card->private_data;
+	int rate;
 
 	if (!ice->pm_suspend_enabled)
 		return 0;
@@ -2860,13 +2874,36 @@ static int snd_ice1712_resume(struct device *dev)
 
 	pci_set_master(pci);
 
+	if (ice->cur_rate)
+		rate = ice->cur_rate;
+	else
+		rate = PRO_RATE_DEFAULT;
+
 	if (snd_ice1712_chip_init(ice) < 0) {
 		snd_card_disconnect(card);
 		return -EIO;
 	}
 
+	ice->cur_rate = rate;
+
 	if (ice->pm_resume)
 		ice->pm_resume(ice);
+
+	if (ice->pm_saved_is_spdif_master) {
+		/* switching to external clock via SPDIF */
+		spin_lock_irq(&ice->reg_lock);
+		outb(inb(ICEMT(ice, RATE)) | ICE1712_SPDIF_MASTER,
+			ICEMT(ice, RATE));
+		spin_unlock_irq(&ice->reg_lock);
+		snd_ice1712_set_input_clock_source(ice, 1);
+	} else {
+		/* internal on-card clock */
+		snd_ice1712_set_pro_rate(ice, rate, 1);
+		snd_ice1712_set_input_clock_source(ice, 0);
+	}
+
+	outw(ice->pm_saved_spdif_ctrl, ICEMT(ice, ROUTE_SPDOUT));
+	outw(ice->pm_saved_route, ICEMT(ice, ROUTE_PSDOUT03));
 
 	if (ice->ac97)
 		snd_ac97_resume(ice->ac97);

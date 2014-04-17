@@ -72,7 +72,13 @@
 	};
 };
 
-/include/ "omap36xx-clocks.dtsi"
+/* OMAP3630 needs dss_96m_fck for VENC */
+&venc {
+	clocks = <&dss_tv_fck>, <&dss_96m_fck>;
+	clock-names = "fck", "tv_dac_clk";
+};
+
 /include/ "omap34xx-omap36xx-clocks.dtsi"
 /include/ "omap36xx-omap3430es2plus-clocks.dtsi"
 /include/ "omap36xx-am35xx-omap3430es2plus-clocks.dtsi"
+/include/ "omap36xx-clocks.dtsi"

@@ -569,7 +569,7 @@ static ssize_t cuse_class_waiting_show(struct device *dev,
 
 	return sprintf(buf, "%d\n", atomic_read(&cc->fc.num_waiting));
 }
-static DEVICE_ATTR(waiting, S_IFREG | 0400, cuse_class_waiting_show, NULL);
+static DEVICE_ATTR(waiting, 0400, cuse_class_waiting_show, NULL);
 
 static ssize_t cuse_class_abort_store(struct device *dev,
 				      struct device_attribute *attr,
@@ -580,7 +580,7 @@ static ssize_t cuse_class_abort_store(struct device *dev,
 	fuse_abort_conn(&cc->fc);
 	return count;
 }
-static DEVICE_ATTR(abort, S_IFREG | 0200, NULL, cuse_class_abort_store);
+static DEVICE_ATTR(abort, 0200, NULL, cuse_class_abort_store);
 
 static struct attribute *cuse_class_dev_attrs[] = {
 	&dev_attr_waiting.attr,

@@ -89,9 +89,8 @@
 #define      MVNETA_TX_IN_PRGRS                  BIT(1)
 #define      MVNETA_TX_FIFO_EMPTY                BIT(8)
 #define MVNETA_RX_MIN_FRAME_SIZE                 0x247c
-#define MVNETA_SERDES_CFG			 0x24A0
+#define MVNETA_SGMII_SERDES_CFG			 0x24A0
 #define      MVNETA_SGMII_SERDES_PROTO		 0x0cc7
-#define      MVNETA_RGMII_SERDES_PROTO		 0x0667
 #define MVNETA_TYPE_PRIO                         0x24bc
 #define      MVNETA_FORCE_UNI                    BIT(21)
 #define MVNETA_TXQ_CMD_1                         0x24e4
@@ -710,6 +709,35 @@ static void mvneta_rxq_bm_disable(struct mvneta_port *pp,
 	val = mvreg_read(pp, MVNETA_RXQ_CONFIG_REG(rxq->id));
 	val &= ~MVNETA_RXQ_HW_BUF_ALLOC;
 	mvreg_write(pp, MVNETA_RXQ_CONFIG_REG(rxq->id), val);
+}
+
+
+
+/* Sets the RGMII Enable bit (RGMIIEn) in port MAC control register */
+static void mvneta_gmac_rgmii_set(struct mvneta_port *pp, int enable)
+{
+	u32  val;
+
+	val = mvreg_read(pp, MVNETA_GMAC_CTRL_2);
+
+	if (enable)
+		val |= MVNETA_GMAC2_PORT_RGMII;
+	else
+		val &= ~MVNETA_GMAC2_PORT_RGMII;
+
+	mvreg_write(pp, MVNETA_GMAC_CTRL_2, val);
+}
+
+/* Config SGMII port */
+static void mvneta_port_sgmii_config(struct mvneta_port *pp)
+{
+	u32 val;
+
+	val = mvreg_read(pp, MVNETA_GMAC_CTRL_2);
+	val |= MVNETA_GMAC2_PCS_ENABLE;
+	mvreg_write(pp, MVNETA_GMAC_CTRL_2, val);
+
+	mvreg_write(pp, MVNETA_SGMII_SERDES_CFG, MVNETA_SGMII_SERDES_PROTO);
 }
 
 /* Start the Ethernet port RX and TX activity */
@@ -2729,15 +2757,12 @@ static void mvneta_port_power_up(struct mvneta_port *pp, int phy_mode)
 	mvreg_write(pp, MVNETA_UNIT_INTR_CAUSE, 0);
 
 	if (phy_mode == PHY_INTERFACE_MODE_SGMII)
-		mvreg_write(pp, MVNETA_SERDES_CFG, MVNETA_SGMII_SERDES_PROTO);
-	else
-		mvreg_write(pp, MVNETA_SERDES_CFG, MVNETA_RGMII_SERDES_PROTO);
+		mvneta_port_sgmii_config(pp);
 
-	val = mvreg_read(pp, MVNETA_GMAC_CTRL_2);
-
-	val |= MVNETA_GMAC2_PCS_ENABLE | MVNETA_GMAC2_PORT_RGMII;
+	mvneta_gmac_rgmii_set(pp, 1);
 
 	/* Cancel Port Reset */
+	val = mvreg_read(pp, MVNETA_GMAC_CTRL_2);
 	val &= ~MVNETA_GMAC2_PORT_RESET;
 	mvreg_write(pp, MVNETA_GMAC_CTRL_2, val);
 

@@ -1379,12 +1379,13 @@ static int omap2_mcspi_probe(struct platform_device *pdev)
 
 	INIT_LIST_HEAD(&mcspi->ctx.cs);
 
-	mcspi->dma_channels = kcalloc(master->num_chipselect,
-			sizeof(struct omap2_mcspi_dma),
-			GFP_KERNEL);
-
-	if (mcspi->dma_channels == NULL)
+	mcspi->dma_channels = devm_kcalloc(&pdev->dev, master->num_chipselect,
+					   sizeof(struct omap2_mcspi_dma),
+					   GFP_KERNEL);
+	if (mcspi->dma_channels == NULL) {
+		status = -ENOMEM;
 		goto free_master;
+	}
 
 	for (i = 0; i < master->num_chipselect; i++) {
 		char *dma_rx_ch_name = mcspi->dma_channels[i].dma_rx_ch_name;
@@ -1426,7 +1427,7 @@ static int omap2_mcspi_probe(struct platform_device *pdev)
 	}
 
 	if (status < 0)
-		goto dma_chnl_free;
+		goto free_master;
 
 	pm_runtime_use_autosuspend(&pdev->dev);
 	pm_runtime_set_autosuspend_delay(&pdev->dev, SPI_AUTOSUSPEND_TIMEOUT);
@@ -1444,8 +1445,6 @@ static int omap2_mcspi_probe(struct platform_device *pdev)
 
 disable_pm:
 	pm_runtime_disable(&pdev->dev);
-dma_chnl_free:
-	kfree(mcspi->dma_channels);
 free_master:
 	spi_master_put(master);
 	return status;
@@ -1453,18 +1452,11 @@ free_master:
 
 static int omap2_mcspi_remove(struct platform_device *pdev)
 {
-	struct spi_master	*master;
-	struct omap2_mcspi	*mcspi;
-	struct omap2_mcspi_dma	*dma_channels;
-
-	master = platform_get_drvdata(pdev);
-	mcspi = spi_master_get_devdata(master);
-	dma_channels = mcspi->dma_channels;
+	struct spi_master *master = platform_get_drvdata(pdev);
+	struct omap2_mcspi *mcspi = spi_master_get_devdata(master);
 
 	pm_runtime_put_sync(mcspi->dev);
 	pm_runtime_disable(&pdev->dev);
-
-	kfree(dma_channels);
 
 	return 0;
 }

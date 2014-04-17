@@ -154,7 +154,7 @@ nouveau_channel_prep(struct nouveau_drm *drm, struct nouveau_cli *cli,
 			 * nfi why this exists, it came from the -nv ddx.
 			 */
 			args.flags = NV_DMA_TARGET_PCI | NV_DMA_ACCESS_RDWR;
-			args.start = pci_resource_start(device->pdev, 1);
+			args.start = nv_device_resource_start(device, 1);
 			args.limit = args.start + limit;
 		} else {
 			args.flags = NV_DMA_TARGET_VRAM | NV_DMA_ACCESS_RDWR;

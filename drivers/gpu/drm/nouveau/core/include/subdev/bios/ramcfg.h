@@ -61,6 +61,6 @@ struct nvbios_ramcfg {
 };
 
 u8 nvbios_ramcfg_count(struct nouveau_bios *);
-u8 nvbios_ramcfg_index(struct nouveau_bios *);
+u8 nvbios_ramcfg_index(struct nouveau_subdev *);
 
 #endif

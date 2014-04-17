@@ -241,7 +241,6 @@ struct igb_ring {
 		struct igb_tx_buffer *tx_buffer_info;
 		struct igb_rx_buffer *rx_buffer_info;
 	};
-	unsigned long last_rx_timestamp;
 	void *desc;			/* descriptor ring memory */
 	unsigned long flags;		/* ring specific flags */
 	void __iomem *tail;		/* pointer to ring tail register */
@@ -437,6 +436,7 @@ struct igb_adapter {
 	struct hwtstamp_config tstamp_config;
 	unsigned long ptp_tx_start;
 	unsigned long last_rx_ptp_check;
+	unsigned long last_rx_timestamp;
 	spinlock_t tmreg_lock;
 	struct cyclecounter cc;
 	struct timecounter tc;
@@ -533,20 +533,6 @@ void igb_ptp_rx_hang(struct igb_adapter *adapter);
 void igb_ptp_rx_rgtstamp(struct igb_q_vector *q_vector, struct sk_buff *skb);
 void igb_ptp_rx_pktstamp(struct igb_q_vector *q_vector, unsigned char *va,
 			 struct sk_buff *skb);
-static inline void igb_ptp_rx_hwtstamp(struct igb_ring *rx_ring,
-				       union e1000_adv_rx_desc *rx_desc,
-				       struct sk_buff *skb)
-{
-	if (igb_test_staterr(rx_desc, E1000_RXDADV_STAT_TS) &&
-	    !igb_test_staterr(rx_desc, E1000_RXDADV_STAT_TSIP))
-		igb_ptp_rx_rgtstamp(rx_ring->q_vector, skb);
-
-	/* Update the last_rx_timestamp timer in order to enable watchdog check
-	 * for error case of latched timestamp on a dropped packet.
-	 */
-	rx_ring->last_rx_timestamp = jiffies;
-}
-
 int igb_ptp_set_ts_config(struct net_device *netdev, struct ifreq *ifr);
 int igb_ptp_get_ts_config(struct net_device *netdev, struct ifreq *ifr);
 #ifdef CONFIG_IGB_HWMON

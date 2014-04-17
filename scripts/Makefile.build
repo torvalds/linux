@@ -65,11 +65,21 @@ warning-  := $(empty)
 warning-1 := -Wextra -Wunused -Wno-unused-parameter
 warning-1 += -Wmissing-declarations
 warning-1 += -Wmissing-format-attribute
-warning-1 += -Wmissing-prototypes
+warning-1 += $(call cc-option, -Wmissing-prototypes)
 warning-1 += -Wold-style-definition
 warning-1 += $(call cc-option, -Wmissing-include-dirs)
 warning-1 += $(call cc-option, -Wunused-but-set-variable)
 warning-1 += $(call cc-disable-warning, missing-field-initializers)
+
+# Clang
+warning-1 += $(call cc-disable-warning, initializer-overrides)
+warning-1 += $(call cc-disable-warning, unused-value)
+warning-1 += $(call cc-disable-warning, format)
+warning-1 += $(call cc-disable-warning, unknown-warning-option)
+warning-1 += $(call cc-disable-warning, sign-compare)
+warning-1 += $(call cc-disable-warning, format-zero-length)
+warning-1 += $(call cc-disable-warning, uninitialized)
+warning-1 += $(call cc-option, -fcatch-undefined-behavior)
 
 warning-2 := -Waggregate-return
 warning-2 += -Wcast-align

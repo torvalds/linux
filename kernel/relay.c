@@ -1195,8 +1195,6 @@ static void relay_pipe_buf_release(struct pipe_inode_info *pipe,
 
 static const struct pipe_buf_operations relay_pipe_buf_ops = {
 	.can_merge = 0,
-	.map = generic_pipe_buf_map,
-	.unmap = generic_pipe_buf_unmap,
 	.confirm = generic_pipe_buf_confirm,
 	.release = relay_pipe_buf_release,
 	.steal = generic_pipe_buf_steal,
@@ -1253,7 +1251,7 @@ static ssize_t subbuf_splice_actor(struct file *in,
 	subbuf_pages = rbuf->chan->alloc_size >> PAGE_SHIFT;
 	pidx = (read_start / PAGE_SIZE) % subbuf_pages;
 	poff = read_start & ~PAGE_MASK;
-	nr_pages = min_t(unsigned int, subbuf_pages, pipe->buffers);
+	nr_pages = min_t(unsigned int, subbuf_pages, spd.nr_pages_max);
 
 	for (total_len = 0; spd.nr_pages < nr_pages; spd.nr_pages++) {
 		unsigned int this_len, this_end, private;

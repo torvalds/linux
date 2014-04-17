@@ -152,7 +152,7 @@
 		clocks = <&usb_l4_gate_ick>, <&usb_l4_div_ick>;
 	};
 
-	dss1_alwon_fck_3430es1: dss1_alwon_fck_3430es1 {
+	dss1_alwon_fck: dss1_alwon_fck_3430es1 {
 		#clock-cells = <0>;
 		compatible = "ti,gate-clock";
 		clocks = <&dpll4_m4x2_ck>;
@@ -161,7 +161,7 @@
 		ti,set-rate-parent;
 	};
 
-	dss_ick_3430es1: dss_ick_3430es1 {
+	dss_ick: dss_ick_3430es1 {
 		#clock-cells = <0>;
 		compatible = "ti,omap3-no-wait-interface-clock";
 		clocks = <&l4_ick>;
@@ -184,7 +184,7 @@
 	dss_clkdm: dss_clkdm {
 		compatible = "ti,clockdomain";
 		clocks = <&dss_tv_fck>, <&dss_96m_fck>, <&dss2_alwon_fck>,
-			 <&dss1_alwon_fck_3430es1>, <&dss_ick_3430es1>;
+			 <&dss1_alwon_fck>, <&dss_ick>;
 	};
 
 	d2d_clkdm: d2d_clkdm {

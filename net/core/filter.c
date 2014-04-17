@@ -295,43 +295,43 @@ select_insn:
 		(*(s64 *) &A) >>= K;
 		CONT;
 	BPF_ALU64_BPF_MOD_BPF_X:
+		if (unlikely(X == 0))
+			return 0;
 		tmp = A;
-		if (X)
-			A = do_div(tmp, X);
+		A = do_div(tmp, X);
 		CONT;
 	BPF_ALU_BPF_MOD_BPF_X:
+		if (unlikely(X == 0))
+			return 0;
 		tmp = (u32) A;
-		if (X)
-			A = do_div(tmp, (u32) X);
+		A = do_div(tmp, (u32) X);
 		CONT;
 	BPF_ALU64_BPF_MOD_BPF_K:
 		tmp = A;
-		if (K)
-			A = do_div(tmp, K);
+		A = do_div(tmp, K);
 		CONT;
 	BPF_ALU_BPF_MOD_BPF_K:
 		tmp = (u32) A;
-		if (K)
-			A = do_div(tmp, (u32) K);
+		A = do_div(tmp, (u32) K);
 		CONT;
 	BPF_ALU64_BPF_DIV_BPF_X:
-		if (X)
-			do_div(A, X);
+		if (unlikely(X == 0))
+			return 0;
+		do_div(A, X);
 		CONT;
 	BPF_ALU_BPF_DIV_BPF_X:
+		if (unlikely(X == 0))
+			return 0;
 		tmp = (u32) A;
-		if (X)
-			do_div(tmp, (u32) X);
+		do_div(tmp, (u32) X);
 		A = (u32) tmp;
 		CONT;
 	BPF_ALU64_BPF_DIV_BPF_K:
-		if (K)
-			do_div(A, K);
+		do_div(A, K);
 		CONT;
 	BPF_ALU_BPF_DIV_BPF_K:
 		tmp = (u32) A;
-		if (K)
-			do_div(tmp, (u32) K);
+		do_div(tmp, (u32) K);
 		A = (u32) tmp;
 		CONT;
 	BPF_ALU_BPF_END_BPF_TO_BE:
@@ -600,6 +600,9 @@ static u64 __skb_get_nlattr(u64 ctx, u64 A, u64 X, u64 r4, u64 r5)
 	if (skb_is_nonlinear(skb))
 		return 0;
 
+	if (skb->len < sizeof(struct nlattr))
+		return 0;
+
 	if (A > skb->len - sizeof(struct nlattr))
 		return 0;
 
@@ -618,11 +621,14 @@ static u64 __skb_get_nlattr_nest(u64 ctx, u64 A, u64 X, u64 r4, u64 r5)
 	if (skb_is_nonlinear(skb))
 		return 0;
 
+	if (skb->len < sizeof(struct nlattr))
+		return 0;
+
 	if (A > skb->len - sizeof(struct nlattr))
 		return 0;
 
 	nla = (struct nlattr *) &skb->data[A];
-	if (nla->nla_len > A - skb->len)
+	if (nla->nla_len > skb->len - A)
 		return 0;
 
 	nla = nla_find_nested(nla, X);
@@ -1737,7 +1743,6 @@ void sk_decode_filter(struct sock_filter *filt, struct sock_filter *to)
 		[BPF_S_ANC_RXHASH]	= BPF_LD|BPF_B|BPF_ABS,
 		[BPF_S_ANC_CPU]		= BPF_LD|BPF_B|BPF_ABS,
 		[BPF_S_ANC_ALU_XOR_X]	= BPF_LD|BPF_B|BPF_ABS,
-		[BPF_S_ANC_SECCOMP_LD_W] = BPF_LD|BPF_B|BPF_ABS,
 		[BPF_S_ANC_VLAN_TAG]	= BPF_LD|BPF_B|BPF_ABS,
 		[BPF_S_ANC_VLAN_TAG_PRESENT] = BPF_LD|BPF_B|BPF_ABS,
 		[BPF_S_ANC_PAY_OFFSET]	= BPF_LD|BPF_B|BPF_ABS,

@@ -1,5 +1,5 @@
 /*
- * Intel ICH6-10, Series 5 and 6 GPIO driver
+ * Intel ICH6-10, Series 5 and 6, Atom C2000 (Avoton/Rangeley) GPIO driver
  *
  * Copyright (C) 2010 Extreme Engineering Solutions.
  *
@@ -53,6 +53,16 @@ static const u8 ichx_regs[4][3] = {
 
 static const u8 ichx_reglen[3] = {
 	0x30, 0x10, 0x10,
+};
+
+static const u8 avoton_regs[4][3] = {
+	{0x00, 0x80, 0x00},
+	{0x04, 0x84, 0x00},
+	{0x08, 0x88, 0x00},
+};
+
+static const u8 avoton_reglen[3] = {
+	0x10, 0x10, 0x00,
 };
 
 #define ICHX_WRITE(val, reg, base_res)	outl(val, (reg) + (base_res)->start)
@@ -353,6 +363,17 @@ static struct ichx_desc intel5_desc = {
 	.reglen = ichx_reglen,
 };
 
+/* Avoton */
+static struct ichx_desc avoton_desc = {
+	/* Avoton has only 59 GPIOs, but we assume the first set of register
+	 * (Core) has 32 instead of 31 to keep gpio-ich compliance
+	 */
+	.ngpio = 60,
+	.regs = avoton_regs,
+	.reglen = avoton_reglen,
+	.use_outlvl_cache = true,
+};
+
 static int ichx_gpio_request_regions(struct resource *res_base,
 						const char *name, u8 use_gpio)
 {
@@ -426,6 +447,9 @@ static int ichx_gpio_probe(struct platform_device *pdev)
 		break;
 	case ICH_V10CONS_GPIO:
 		ichx_priv.desc = &ich10_cons_desc;
+		break;
+	case AVOTON_GPIO:
+		ichx_priv.desc = &avoton_desc;
 		break;
 	default:
 		return -ENODEV;

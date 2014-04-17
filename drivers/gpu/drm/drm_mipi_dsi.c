@@ -142,8 +142,12 @@ int mipi_dsi_host_register(struct mipi_dsi_host *host)
 {
 	struct device_node *node;
 
-	for_each_available_child_of_node(host->dev->of_node, node)
+	for_each_available_child_of_node(host->dev->of_node, node) {
+		/* skip nodes without reg property */
+		if (!of_find_property(node, "reg", NULL))
+			continue;
 		of_mipi_dsi_device_add(host, node);
+	}
 
 	return 0;
 }

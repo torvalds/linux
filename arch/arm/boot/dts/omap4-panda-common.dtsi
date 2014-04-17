@@ -16,6 +16,11 @@
 		reg = <0x80000000 0x40000000>; /* 1 GB */
 	};
 
+	aliases {
+		display0 = &dvi0;
+		display1 = &hdmi0;
+	};
+
 	leds: leds {
 		compatible = "gpio-leds";
 		pinctrl-names = "default";
@@ -99,6 +104,89 @@
 		gpio = <&gpio2 11 0>;
 		startup-delay-us = <70000>;
 		enable-active-high;
+	};
+
+	tfp410: encoder@0 {
+		compatible = "ti,tfp410";
+		powerdown-gpios = <&gpio1 0 GPIO_ACTIVE_LOW>;	/* gpio_0 */
+
+		ports {
+			#address-cells = <1>;
+			#size-cells = <0>;
+
+			port@0 {
+				reg = <0>;
+
+				tfp410_in: endpoint@0 {
+					remote-endpoint = <&dpi_out>;
+				};
+			};
+
+			port@1 {
+				reg = <1>;
+
+				tfp410_out: endpoint@0 {
+					remote-endpoint = <&dvi_connector_in>;
+				};
+			};
+		};
+	};
+
+	dvi0: connector@0 {
+		compatible = "dvi-connector";
+		label = "dvi";
+
+		digital;
+
+		ddc-i2c-bus = <&i2c3>;
+
+		port {
+			dvi_connector_in: endpoint {
+				remote-endpoint = <&tfp410_out>;
+			};
+		};
+	};
+
+	tpd12s015: encoder@1 {
+		compatible = "ti,tpd12s015";
+
+		gpios = <&gpio2 28 GPIO_ACTIVE_HIGH>,	/* 60, CT CP HPD */
+			<&gpio2 9 GPIO_ACTIVE_HIGH>,	/* 41, LS OE */
+			<&gpio2 31 GPIO_ACTIVE_HIGH>;	/* 63, HPD */
+
+		ports {
+			#address-cells = <1>;
+			#size-cells = <0>;
+
+			port@0 {
+				reg = <0>;
+
+				tpd12s015_in: endpoint@0 {
+					remote-endpoint = <&hdmi_out>;
+				};
+			};
+
+			port@1 {
+				reg = <1>;
+
+				tpd12s015_out: endpoint@0 {
+					remote-endpoint = <&hdmi_connector_in>;
+				};
+			};
+		};
+	};
+
+	hdmi0: connector@1 {
+		compatible = "hdmi-connector";
+		label = "hdmi";
+
+		type = "a";
+
+		port {
+			hdmi_connector_in: endpoint {
+				remote-endpoint = <&tpd12s015_out>;
+			};
+		};
 	};
 };
 
@@ -405,4 +493,31 @@
 
 &usbhsehci {
 	phys = <&hsusb1_phy>;
+};
+
+&dss {
+	status = "ok";
+
+	port {
+		dpi_out: endpoint {
+			remote-endpoint = <&tfp410_in>;
+			data-lines = <24>;
+		};
+	};
+};
+
+&dsi2 {
+	status = "ok";
+	vdd-supply = <&vcxio>;
+};
+
+&hdmi {
+	status = "ok";
+	vdda-supply = <&vdac>;
+
+	port {
+		hdmi_out: endpoint {
+			remote-endpoint = <&tpd12s015_in>;
+		};
+	};
 };
