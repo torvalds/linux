@@ -360,7 +360,7 @@ static int empress_init(struct saa7134_dev *dev)
 			    V4L2_BUF_TYPE_VIDEO_CAPTURE,
 			    V4L2_FIELD_ALTERNATE,
 			    sizeof(struct saa7134_buf),
-			    dev, NULL);
+			    &dev->ts_q, NULL);
 
 	empress_signal_update(&dev->empress_workqueue);
 	return 0;

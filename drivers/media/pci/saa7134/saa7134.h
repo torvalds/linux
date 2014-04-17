@@ -460,9 +460,6 @@ struct saa7134_buf {
 	int (*activate)(struct saa7134_dev *dev,
 			struct saa7134_buf *buf,
 			struct saa7134_buf *next);
-
-	/* page tables */
-	struct saa7134_pgtable  *pt;
 };
 
 struct saa7134_dmaqueue {
@@ -471,6 +468,7 @@ struct saa7134_dmaqueue {
 	struct list_head           queue;
 	struct timer_list          timeout;
 	unsigned int               need_two;
+	struct saa7134_pgtable     pt;
 };
 
 /* video filehandle status */
@@ -517,7 +515,6 @@ struct saa7134_dmasound {
 /* ts/mpeg status */
 struct saa7134_ts {
 	/* TS capture */
-	struct saa7134_pgtable     pt_ts;
 	int                        nr_packets;
 	int                        nr_bufs;
 };
@@ -590,10 +587,8 @@ struct saa7134_dev {
 
 	/* video+ts+vbi capture */
 	struct saa7134_dmaqueue    video_q;
-	struct saa7134_pgtable     pt_cap;
 	struct videobuf_queue      video_vbq;
 	struct saa7134_dmaqueue    vbi_q;
-	struct saa7134_pgtable     pt_vbi;
 	struct videobuf_queue      vbi_vbq;
 	unsigned int               video_fieldcount;
 	unsigned int               vbi_fieldcount;

@@ -75,7 +75,8 @@ static int buffer_activate(struct saa7134_dev *dev,
 static int buffer_prepare(struct videobuf_queue *q, struct videobuf_buffer *vb,
 		enum v4l2_field field)
 {
-	struct saa7134_dev *dev = q->priv_data;
+	struct saa7134_dmaqueue *dmaq = q->priv_data;
+	struct saa7134_dev *dev = dmaq->dev;
 	struct saa7134_buf *buf = container_of(vb, struct saa7134_buf, vb);
 	unsigned int lines, llength, size;
 	int err;
@@ -102,12 +103,11 @@ static int buffer_prepare(struct videobuf_queue *q, struct videobuf_buffer *vb,
 		buf->vb.width  = llength;
 		buf->vb.height = lines;
 		buf->vb.size   = size;
-		buf->pt        = &dev->ts.pt_ts;
 
 		err = videobuf_iolock(q,&buf->vb,NULL);
 		if (err)
 			goto oops;
-		err = saa7134_pgtable_build(dev->pci,buf->pt,
+		err = saa7134_pgtable_build(dev->pci, &dmaq->pt,
 					    dma->sglist,
 					    dma->sglen,
 					    saa7134_buffer_startpage(buf));
@@ -128,7 +128,8 @@ static int buffer_prepare(struct videobuf_queue *q, struct videobuf_buffer *vb,
 static int
 buffer_setup(struct videobuf_queue *q, unsigned int *count, unsigned int *size)
 {
-	struct saa7134_dev *dev = q->priv_data;
+	struct saa7134_dmaqueue *dmaq = q->priv_data;
+	struct saa7134_dev *dev = dmaq->dev;
 
 	*size = TS_PACKET_SIZE * dev->ts.nr_packets;
 	if (0 == *count)
@@ -140,7 +141,8 @@ buffer_setup(struct videobuf_queue *q, unsigned int *count, unsigned int *size)
 
 static void buffer_queue(struct videobuf_queue *q, struct videobuf_buffer *vb)
 {
-	struct saa7134_dev *dev = q->priv_data;
+	struct saa7134_dmaqueue *dmaq = q->priv_data;
+	struct saa7134_dev *dev = dmaq->dev;
 	struct saa7134_buf *buf = container_of(vb,struct saa7134_buf,vb);
 
 	saa7134_buffer_queue(dev,&dev->ts_q,buf);
@@ -149,7 +151,8 @@ static void buffer_queue(struct videobuf_queue *q, struct videobuf_buffer *vb)
 static void buffer_release(struct videobuf_queue *q, struct videobuf_buffer *vb)
 {
 	struct saa7134_buf *buf = container_of(vb,struct saa7134_buf,vb);
-	struct saa7134_dev *dev = q->priv_data;
+	struct saa7134_dmaqueue *dmaq = q->priv_data;
+	struct saa7134_dev *dev = dmaq->dev;
 
 	if (dev->ts_started)
 		saa7134_ts_stop(dev);
@@ -213,7 +216,7 @@ int saa7134_ts_init1(struct saa7134_dev *dev)
 	dev->ts_q.dev              = dev;
 	dev->ts_q.need_two         = 1;
 	dev->ts_started            = 0;
-	saa7134_pgtable_alloc(dev->pci, &dev->ts.pt_ts);
+	saa7134_pgtable_alloc(dev->pci, &dev->ts_q.pt);
 
 	/* init TS hw */
 	saa7134_ts_init_hw(dev);
@@ -259,7 +262,7 @@ int saa7134_ts_start(struct saa7134_dev *dev)
 	saa_writel(SAA7134_RS_PITCH(5), TS_PACKET_SIZE);
 	saa_writel(SAA7134_RS_CONTROL(5), SAA7134_RS_CONTROL_BURST_16 |
 					  SAA7134_RS_CONTROL_ME |
-					  (dev->ts.pt_ts.dma >> 12));
+					  (dev->ts_q.pt.dma >> 12));
 
 	/* reset hardware TS buffers */
 	saa_writeb(SAA7134_TS_SERIAL1, 0x00);
@@ -293,7 +296,7 @@ int saa7134_ts_start(struct saa7134_dev *dev)
 
 int saa7134_ts_fini(struct saa7134_dev *dev)
 {
-	saa7134_pgtable_free(dev->pci, &dev->ts.pt_ts);
+	saa7134_pgtable_free(dev->pci, &dev->ts_q.pt);
 	return 0;
 }
 

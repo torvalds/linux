@@ -847,7 +847,7 @@ static int buffer_activate(struct saa7134_dev *dev,
 		bpl = (buf->vb.width * dev->fmt->depth) / 8;
 	control = SAA7134_RS_CONTROL_BURST_16 |
 		SAA7134_RS_CONTROL_ME |
-		(buf->pt->dma >> 12);
+		(dev->video_q.pt.dma >> 12);
 	if (dev->fmt->bswap)
 		control |= SAA7134_RS_CONTROL_BSWAP;
 	if (dev->fmt->wswap)
@@ -906,7 +906,8 @@ static int buffer_prepare(struct videobuf_queue *q,
 			  struct videobuf_buffer *vb,
 			  enum v4l2_field field)
 {
-	struct saa7134_dev *dev = q->priv_data;
+	struct saa7134_dmaqueue *dmaq = q->priv_data;
+	struct saa7134_dev *dev = dmaq->dev;
 	struct saa7134_buf *buf = container_of(vb, struct saa7134_buf, vb);
 	unsigned int size;
 	int err;
@@ -942,13 +943,12 @@ static int buffer_prepare(struct videobuf_queue *q,
 		buf->vb.height = dev->height;
 		buf->vb.size   = size;
 		buf->vb.field  = field;
-		buf->pt        = &dev->pt_cap;
 		dev->video_q.curr = NULL;
 
 		err = videobuf_iolock(q,&buf->vb,&dev->ovbuf);
 		if (err)
 			goto oops;
-		err = saa7134_pgtable_build(dev->pci,buf->pt,
+		err = saa7134_pgtable_build(dev->pci, &dmaq->pt,
 					    dma->sglist,
 					    dma->sglen,
 					    saa7134_buffer_startpage(buf));
@@ -967,7 +967,8 @@ static int buffer_prepare(struct videobuf_queue *q,
 static int
 buffer_setup(struct videobuf_queue *q, unsigned int *count, unsigned int *size)
 {
-	struct saa7134_dev *dev = q->priv_data;
+	struct saa7134_dmaqueue *dmaq = q->priv_data;
+	struct saa7134_dev *dev = dmaq->dev;
 
 	*size = dev->fmt->depth * dev->width * dev->height >> 3;
 	if (0 == *count)
@@ -978,7 +979,8 @@ buffer_setup(struct videobuf_queue *q, unsigned int *count, unsigned int *size)
 
 static void buffer_queue(struct videobuf_queue *q, struct videobuf_buffer *vb)
 {
-	struct saa7134_dev *dev = q->priv_data;
+	struct saa7134_dmaqueue *dmaq = q->priv_data;
+	struct saa7134_dev *dev = dmaq->dev;
 	struct saa7134_buf *buf = container_of(vb, struct saa7134_buf, vb);
 
 	saa7134_buffer_queue(dev, &dev->video_q, buf);
@@ -2289,15 +2291,15 @@ int saa7134_video_init1(struct saa7134_dev *dev)
 			    V4L2_BUF_TYPE_VIDEO_CAPTURE,
 			    V4L2_FIELD_INTERLACED,
 			    sizeof(struct saa7134_buf),
-			    dev, NULL);
+			    &dev->video_q, NULL);
 	videobuf_queue_sg_init(&dev->vbi_vbq, &saa7134_vbi_qops,
 			    &dev->pci->dev, &dev->slock,
 			    V4L2_BUF_TYPE_VBI_CAPTURE,
 			    V4L2_FIELD_SEQ_TB,
 			    sizeof(struct saa7134_buf),
-			    dev, NULL);
-	saa7134_pgtable_alloc(dev->pci, &dev->pt_cap);
-	saa7134_pgtable_alloc(dev->pci, &dev->pt_vbi);
+			    &dev->vbi_q, NULL);
+	saa7134_pgtable_alloc(dev->pci, &dev->video_q.pt);
+	saa7134_pgtable_alloc(dev->pci, &dev->vbi_q.pt);
 
 	return 0;
 }
@@ -2305,8 +2307,8 @@ int saa7134_video_init1(struct saa7134_dev *dev)
 void saa7134_video_fini(struct saa7134_dev *dev)
 {
 	/* free stuff */
-	saa7134_pgtable_free(dev->pci, &dev->pt_cap);
-	saa7134_pgtable_free(dev->pci, &dev->pt_vbi);
+	saa7134_pgtable_free(dev->pci, &dev->video_q.pt);
+	saa7134_pgtable_free(dev->pci, &dev->vbi_q.pt);
 	v4l2_ctrl_handler_free(&dev->ctrl_handler);
 	if (card_has_radio(dev))
 		v4l2_ctrl_handler_free(&dev->radio_ctrl_handler);

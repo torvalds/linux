@@ -96,7 +96,7 @@ static int buffer_activate(struct saa7134_dev *dev,
 	base    = saa7134_buffer_base(buf);
 	control = SAA7134_RS_CONTROL_BURST_16 |
 		SAA7134_RS_CONTROL_ME |
-		(buf->pt->dma >> 12);
+		(dev->vbi_q.pt.dma >> 12);
 	saa_writel(SAA7134_RS_BA1(2), base);
 	saa_writel(SAA7134_RS_BA2(2), base + dev->vbi_hlen * dev->vbi_vlen);
 	saa_writel(SAA7134_RS_PITCH(2), dev->vbi_hlen);
@@ -117,7 +117,8 @@ static int buffer_prepare(struct videobuf_queue *q,
 			  struct videobuf_buffer *vb,
 			  enum v4l2_field field)
 {
-	struct saa7134_dev *dev = q->priv_data;
+	struct saa7134_dmaqueue *dmaq = q->priv_data;
+	struct saa7134_dev *dev = dmaq->dev;
 	struct saa7134_buf *buf = container_of(vb,struct saa7134_buf,vb);
 	unsigned int size;
 	int err;
@@ -135,12 +136,11 @@ static int buffer_prepare(struct videobuf_queue *q,
 		buf->vb.width  = dev->vbi_hlen;
 		buf->vb.height = dev->vbi_vlen;
 		buf->vb.size   = size;
-		buf->pt        = &dev->pt_vbi;
 
 		err = videobuf_iolock(q,&buf->vb,NULL);
 		if (err)
 			goto oops;
-		err = saa7134_pgtable_build(dev->pci,buf->pt,
+		err = saa7134_pgtable_build(dev->pci, &dmaq->pt,
 					    dma->sglist,
 					    dma->sglen,
 					    saa7134_buffer_startpage(buf));
@@ -160,7 +160,8 @@ static int buffer_prepare(struct videobuf_queue *q,
 static int
 buffer_setup(struct videobuf_queue *q, unsigned int *count, unsigned int *size)
 {
-	struct saa7134_dev *dev = q->priv_data;
+	struct saa7134_dmaqueue *dmaq = q->priv_data;
+	struct saa7134_dev *dev = dmaq->dev;
 
 	dev->vbi_vlen = dev->tvnorm->vbi_v_stop_0 - dev->tvnorm->vbi_v_start_0 + 1;
 	if (dev->vbi_vlen > VBI_LINE_COUNT)
@@ -175,7 +176,8 @@ buffer_setup(struct videobuf_queue *q, unsigned int *count, unsigned int *size)
 
 static void buffer_queue(struct videobuf_queue *q, struct videobuf_buffer *vb)
 {
-	struct saa7134_dev *dev = q->priv_data;
+	struct saa7134_dmaqueue *dmaq = q->priv_data;
+	struct saa7134_dev *dev = dmaq->dev;
 	struct saa7134_buf *buf = container_of(vb,struct saa7134_buf,vb);
 
 	saa7134_buffer_queue(dev,&dev->vbi_q,buf);
