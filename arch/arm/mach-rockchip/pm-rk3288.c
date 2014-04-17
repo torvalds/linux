@@ -871,10 +871,9 @@ enum rk3288_pwr_mode_con {
   
 };
  static u32 rk3288_powermode=0;
-
 static void ddr_pin_set_fun(u8 port,u8 bank,u8 b_gpio,u8 fun);
 
-static u32 sgrf_soc_con0,pmu_pwr_mode_con0,pmu_pwr_mode_con1;
+static u32 sgrf_soc_con0,pmu_wakeup_cfg0,pmu_wakeup_cfg1,pmu_pwr_mode_con0,pmu_pwr_mode_con1;
 
 static u32  rkpm_slp_mode_set(u32 ctrbits)
 {
@@ -882,11 +881,17 @@ static u32  rkpm_slp_mode_set(u32 ctrbits)
     
     // setting gpio0_a0 arm off pin
 
-    ddr_pin_set_fun(0x0,0xa,0x0,0x1);
-
     sgrf_soc_con0=reg_readl(RK_SGRF_VIRT+RK3288_SGRF_SOC_CON0);
+    
+    pmu_wakeup_cfg0=pmu_readl(RK3288_PMU_WAKEUP_CFG0);  
+    pmu_wakeup_cfg1=pmu_readl(RK3288_PMU_WAKEUP_CFG1);
+    
     pmu_pwr_mode_con0=pmu_readl(RK3288_PMU_PWRMODE_CON);  
     pmu_pwr_mode_con1=pmu_readl(RK3288_PMU_PWRMODE_CON1);
+    
+    ddr_pin_set_fun(0x0,0xa,0x0,0x1);
+
+
     
     //mode_set1=pmu_pwr_mode_con1;
     //mode_set=pmu_pwr_mode_con0;
@@ -991,6 +996,9 @@ static u32  rkpm_slp_mode_set(u32 ctrbits)
 static inline void  rkpm_slp_mode_set_resume(void)
 {
 
+    pmu_writel(pmu_wakeup_cfg0,RK3288_PMU_WAKEUP_CFG0);  
+    pmu_writel(pmu_wakeup_cfg1,RK3288_PMU_WAKEUP_CFG1);  
+    
     pmu_writel(pmu_pwr_mode_con0,RK3288_PMU_PWRMODE_CON);  
     pmu_writel(pmu_pwr_mode_con1,RK3288_PMU_PWRMODE_CON1);  
     reg_writel(sgrf_soc_con0|(0x1<<(8+16)),RK_SGRF_VIRT+RK3288_SGRF_SOC_CON0);
