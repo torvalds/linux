@@ -682,7 +682,6 @@ static void edma_callback(unsigned ch_num, u16 ch_status, void *data)
 	struct edma_chan *echan = data;
 	struct device *dev = echan->vchan.chan.device->dev;
 	struct edma_desc *edesc;
-	unsigned long flags;
 	struct edmacc_param p;
 
 	edesc = echan->edesc;
@@ -693,7 +692,7 @@ static void edma_callback(unsigned ch_num, u16 ch_status, void *data)
 
 	switch (ch_status) {
 	case EDMA_DMA_COMPLETE:
-		spin_lock_irqsave(&echan->vchan.lock, flags);
+		spin_lock(&echan->vchan.lock);
 
 		if (edesc) {
 			if (edesc->cyclic) {
@@ -709,11 +708,11 @@ static void edma_callback(unsigned ch_num, u16 ch_status, void *data)
 			}
 		}
 
-		spin_unlock_irqrestore(&echan->vchan.lock, flags);
+		spin_unlock(&echan->vchan.lock);
 
 		break;
 	case EDMA_DMA_CC_ERROR:
-		spin_lock_irqsave(&echan->vchan.lock, flags);
+		spin_lock(&echan->vchan.lock);
 
 		edma_read_slot(EDMA_CHAN_SLOT(echan->slot[0]), &p);
 
@@ -744,7 +743,7 @@ static void edma_callback(unsigned ch_num, u16 ch_status, void *data)
 			edma_trigger_channel(echan->ch_num);
 		}
 
-		spin_unlock_irqrestore(&echan->vchan.lock, flags);
+		spin_unlock(&echan->vchan.lock);
 
 		break;
 	default:
