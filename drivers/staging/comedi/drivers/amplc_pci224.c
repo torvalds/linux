@@ -671,14 +671,13 @@ static void pci224_ao_handle_fifo(struct comedi_device *dev,
 	cfc_handle_events(dev, s);
 }
 
-/*
- * Internal trigger function to start acquisition on AO subdevice.
- */
-static int
-pci224_ao_inttrig_start(struct comedi_device *dev, struct comedi_subdevice *s,
-			unsigned int trignum)
+static int pci224_ao_inttrig_start(struct comedi_device *dev,
+				   struct comedi_subdevice *s,
+				   unsigned int trig_num)
 {
-	if (trignum != 0)
+	struct comedi_cmd *cmd = &s->async->cmd;
+
+	if (trig_num != cmd->start_arg)
 		return -EINVAL;
 
 	s->async->inttrig = NULL;
@@ -1053,23 +1052,15 @@ static int pci224_ao_cmd(struct comedi_device *dev, struct comedi_subdevice *s)
 		break;
 	}
 
-	/*
-	 * Sort out start of acquisition.
-	 */
-	switch (cmd->start_src) {
-	case TRIG_INT:
-		spin_lock_irqsave(&devpriv->ao_spinlock, flags);
-		s->async->inttrig = &pci224_ao_inttrig_start;
-		spin_unlock_irqrestore(&devpriv->ao_spinlock, flags);
-		break;
-	case TRIG_EXT:
+	spin_lock_irqsave(&devpriv->ao_spinlock, flags);
+	if (cmd->start_src == TRIG_INT) {
+		s->async->inttrig = pci224_ao_inttrig_start;
+	} else {	/* TRIG_EXT */
 		/* Enable external interrupt trigger to start acquisition. */
-		spin_lock_irqsave(&devpriv->ao_spinlock, flags);
 		devpriv->intsce |= PCI224_INTR_EXT;
 		outb(devpriv->intsce, devpriv->iobase1 + PCI224_INT_SCE);
-		spin_unlock_irqrestore(&devpriv->ao_spinlock, flags);
-		break;
 	}
+	spin_unlock_irqrestore(&devpriv->ao_spinlock, flags);
 
 	return 0;
 }
