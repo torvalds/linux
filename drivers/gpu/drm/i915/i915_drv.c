@@ -279,6 +279,26 @@ static const struct intel_device_info intel_broadwell_m_info = {
 	GEN_DEFAULT_PIPEOFFSETS,
 };
 
+static const struct intel_device_info intel_broadwell_gt3d_info = {
+	.gen = 8, .num_pipes = 3,
+	.need_gfx_hws = 1, .has_hotplug = 1,
+	.ring_mask = RENDER_RING | BSD_RING | BLT_RING | VEBOX_RING,
+	.has_llc = 1,
+	.has_ddi = 1,
+	.has_fbc = 1,
+	GEN_DEFAULT_PIPEOFFSETS,
+};
+
+static const struct intel_device_info intel_broadwell_gt3m_info = {
+	.gen = 8, .is_mobile = 1, .num_pipes = 3,
+	.need_gfx_hws = 1, .has_hotplug = 1,
+	.ring_mask = RENDER_RING | BSD_RING | BLT_RING | VEBOX_RING,
+	.has_llc = 1,
+	.has_ddi = 1,
+	.has_fbc = 1,
+	GEN_DEFAULT_PIPEOFFSETS,
+};
+
 /*
  * Make sure any device matches here are from most specific to most
  * general.  For example, since the Quanta match is based on the subsystem
@@ -311,8 +331,10 @@ static const struct intel_device_info intel_broadwell_m_info = {
 	INTEL_HSW_M_IDS(&intel_haswell_m_info), \
 	INTEL_VLV_M_IDS(&intel_valleyview_m_info),	\
 	INTEL_VLV_D_IDS(&intel_valleyview_d_info),	\
-	INTEL_BDW_M_IDS(&intel_broadwell_m_info),	\
-	INTEL_BDW_D_IDS(&intel_broadwell_d_info)
+	INTEL_BDW_GT12M_IDS(&intel_broadwell_m_info),	\
+	INTEL_BDW_GT12D_IDS(&intel_broadwell_d_info),	\
+	INTEL_BDW_GT3M_IDS(&intel_broadwell_gt3m_info),	\
+	INTEL_BDW_GT3D_IDS(&intel_broadwell_gt3d_info)
 
 static const struct pci_device_id pciidlist[] = {		/* aka */
 	INTEL_PCI_IDS,
