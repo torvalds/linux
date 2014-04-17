@@ -994,6 +994,11 @@ void intel_ring_setup_status_page(struct intel_ring_buffer *ring)
 		case BCS:
 			mmio = BLT_HWS_PGA_GEN7;
 			break;
+		/*
+		 * VCS2 actually doesn't exist on Gen7. Only shut up
+		 * gcc switch check warning
+		 */
+		case VCS2:
 		case VCS:
 			mmio = BSD_HWS_PGA_GEN7;
 			break;
