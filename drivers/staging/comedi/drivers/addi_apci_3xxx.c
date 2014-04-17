@@ -573,26 +573,6 @@ static int apci3xxx_ai_cmdtest(struct comedi_device *dev,
 
 	/* step 4: fix up any arguments */
 
-	/*
-	 * FIXME: The hardware supports multiple scan modes but the original
-	 * addi-data driver only supported reading a single channel with
-	 * interrupts. Need a proper datasheet to fix this.
-	 *
-	 * The following scan modes are supported by the hardware:
-	 * 1) Single software scan
-	 * 2) Single hardware triggered scan
-	 * 3) Continuous software scan
-	 * 4) Continuous software scan with timer delay
-	 * 5) Continuous hardware triggered scan
-	 * 6) Continuous hardware triggered scan with timer delay
-	 *
-	 * For now, limit the chanlist to a single channel.
-	 */
-	if (cmd->chanlist_len > 1) {
-		cmd->chanlist_len = 1;
-		err |= -EINVAL;
-	}
-
 	tmp = cmd->convert_arg;
 	err |= apci3xxx_ai_ns_to_timer(dev, &cmd->convert_arg,
 				       cmd->flags & TRIG_ROUND_MASK);
@@ -842,12 +822,30 @@ static int apci3xxx_auto_attach(struct comedi_device *dev,
 		s->subdev_flags	= SDF_READABLE | board->ai_subdev_flags;
 		s->n_chan	= board->ai_n_chan;
 		s->maxdata	= board->ai_maxdata;
-		s->len_chanlist	= s->n_chan;
 		s->range_table	= &apci3xxx_ai_range;
 		s->insn_read	= apci3xxx_ai_insn_read;
 		if (dev->irq) {
+			/*
+			 * FIXME: The hardware supports multiple scan modes
+			 * but the original addi-data driver only supported
+			 * reading a single channel with interrupts. Need a
+			 * proper datasheet to fix this.
+			 *
+			 * The following scan modes are supported by the
+			 * hardware:
+			 *   1) Single software scan
+			 *   2) Single hardware triggered scan
+			 *   3) Continuous software scan
+			 *   4) Continuous software scan with timer delay
+			 *   5) Continuous hardware triggered scan
+			 *   6) Continuous hardware triggered scan with timer
+			 *      delay
+			 *
+			 * For now, limit the chanlist to a single channel.
+			 */
 			dev->read_subdev = s;
 			s->subdev_flags	|= SDF_CMD_READ;
+			s->len_chanlist	= 1;
 			s->do_cmdtest	= apci3xxx_ai_cmdtest;
 			s->do_cmd	= apci3xxx_ai_cmd;
 			s->cancel	= apci3xxx_ai_cancel;
