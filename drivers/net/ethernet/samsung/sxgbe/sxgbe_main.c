@@ -425,8 +425,8 @@ dmamem_err:
  * @rx_rsize: ring size
  * Description:  this function initializes the DMA RX descriptor
  */
-void free_rx_ring(struct device *dev, struct sxgbe_rx_queue *rx_ring,
-		  int rx_rsize)
+static void free_rx_ring(struct device *dev, struct sxgbe_rx_queue *rx_ring,
+			 int rx_rsize)
 {
 	dma_free_coherent(dev, rx_rsize * sizeof(struct sxgbe_rx_norm_desc),
 			  rx_ring->dma_rx, rx_ring->dma_rx_phy);
@@ -519,8 +519,8 @@ error:
  * @tx_rsize: ring size
  * Description:  this function initializes the DMA TX descriptor
  */
-void free_tx_ring(struct device *dev, struct sxgbe_tx_queue *tx_ring,
-		  int tx_rsize)
+static void free_tx_ring(struct device *dev, struct sxgbe_tx_queue *tx_ring,
+			 int tx_rsize)
 {
 	dma_free_coherent(dev, tx_rsize * sizeof(struct sxgbe_tx_norm_desc),
 			  tx_ring->dma_tx, tx_ring->dma_tx_phy);
@@ -1218,11 +1218,10 @@ static int sxgbe_release(struct net_device *dev)
 
 	return 0;
 }
-
 /* Prepare first Tx descriptor for doing TSO operation */
-void sxgbe_tso_prepare(struct sxgbe_priv_data *priv,
-		       struct sxgbe_tx_norm_desc *first_desc,
-		       struct sk_buff *skb)
+static void sxgbe_tso_prepare(struct sxgbe_priv_data *priv,
+			      struct sxgbe_tx_norm_desc *first_desc,
+			      struct sk_buff *skb)
 {
 	unsigned int total_hdr_len, tcp_hdr_len;
 
