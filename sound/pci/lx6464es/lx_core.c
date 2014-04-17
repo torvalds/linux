@@ -1197,7 +1197,7 @@ irqreturn_t lx_interrupt(int irq, void *dev_id)
 
 #if 0
 	if (irqsrc & MASK_SYS_STATUS_EOBI)
-		dev_dgg(chip->card->dev, "interrupt: EOBI\n");
+		dev_dbg(chip->card->dev, "interrupt: EOBI\n");
 
 	if (irqsrc & MASK_SYS_STATUS_EOBO)
 		dev_dbg(chip->card->dev, "interrupt: EOBO\n");
