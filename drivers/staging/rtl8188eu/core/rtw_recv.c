@@ -505,6 +505,7 @@ static struct recv_frame *portctrl(struct adapter *adapter,
 	u16	ether_type;
 	u16  eapol_type = 0x888e;/* for Funia BD's WPA issue */
 	struct rx_pkt_attrib *pattrib;
+	__be16 be_tmp;
 
 
 	pstapriv = &adapter->stapriv;
@@ -524,8 +525,8 @@ static struct recv_frame *portctrl(struct adapter *adapter,
 	if (auth_alg == 2) {
 		/* get ether_type */
 		ptr = ptr + pfhdr->attrib.hdrlen + LLC_HEADER_SIZE;
-		memcpy(&ether_type, ptr, 2);
-		ether_type = ntohs((unsigned short)ether_type);
+		memcpy(&be_tmp, ptr, 2);
+		ether_type = ntohs(be_tmp);
 
 		if ((psta != NULL) && (psta->ieee8021x_blocked)) {
 			/* blocked */
@@ -598,8 +599,8 @@ static int recv_decache(struct recv_frame *precv_frame, u8 bretry,
 	return _SUCCESS;
 }
 
-void process_pwrbit_data(struct adapter *padapter,
-			 struct recv_frame *precv_frame)
+static void process_pwrbit_data(struct adapter *padapter,
+				struct recv_frame *precv_frame)
 {
 #ifdef CONFIG_88EU_AP_MODE
 	unsigned char pwrbit;
@@ -1773,8 +1774,8 @@ static int check_indicate_seq(struct recv_reorder_ctrl *preorder_ctrl, u16 seq_n
 	return true;
 }
 
-int enqueue_reorder_recvframe(struct recv_reorder_ctrl *preorder_ctrl,
-			      struct recv_frame *prframe)
+static int enqueue_reorder_recvframe(struct recv_reorder_ctrl *preorder_ctrl,
+				     struct recv_frame *prframe)
 {
 	struct rx_pkt_attrib *pattrib = &prframe->attrib;
 	struct __queue *ppending_recvframe_queue = &preorder_ctrl->pending_recvframe_queue;
