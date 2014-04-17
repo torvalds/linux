@@ -195,6 +195,7 @@ static int handle_itdb(struct kvm_vcpu *vcpu)
 static int handle_prog(struct kvm_vcpu *vcpu)
 {
 	struct kvm_s390_pgm_info pgm_info;
+	psw_t psw;
 	int rc;
 
 	vcpu->stat.exit_program_interruption++;
@@ -207,7 +208,14 @@ static int handle_prog(struct kvm_vcpu *vcpu)
 	}
 
 	trace_kvm_s390_intercept_prog(vcpu, vcpu->arch.sie_block->iprcc);
-
+	if (vcpu->arch.sie_block->iprcc == PGM_SPECIFICATION) {
+		rc = read_guest_lc(vcpu, __LC_PGM_NEW_PSW, &psw, sizeof(psw_t));
+		if (rc)
+			return rc;
+		/* Avoid endless loops of specification exceptions */
+		if (!is_valid_psw(&psw))
+			return -EOPNOTSUPP;
+	}
 	rc = handle_itdb(vcpu);
 	if (rc)
 		return rc;
