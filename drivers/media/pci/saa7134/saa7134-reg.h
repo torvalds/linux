@@ -369,10 +369,3 @@
 #define SAA7135_DSP_RWCLEAR_RERR		    1
 
 #define SAA7133_I2S_AUDIO_CONTROL               0x591
-/* ------------------------------------------------------------------ */
-/*
- * Local variables:
- * c-basic-offset: 8
- * End:
- */
-

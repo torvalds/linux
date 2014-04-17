@@ -81,14 +81,14 @@ static int buffer_activate(struct saa7134_dev *dev,
 			   struct saa7134_buf *buf,
 			   struct saa7134_buf *next)
 {
-	unsigned long control,base;
+	unsigned long control, base;
 
-	dprintk("buffer_activate [%p]\n",buf);
+	dprintk("buffer_activate [%p]\n", buf);
 	buf->vb.state = VIDEOBUF_ACTIVE;
 	buf->top_seen = 0;
 
-	task_init(dev,buf,TASK_A);
-	task_init(dev,buf,TASK_B);
+	task_init(dev, buf, TASK_A);
+	task_init(dev, buf, TASK_B);
 	saa_writeb(SAA7134_OFMT_DATA_A, 0x06);
 	saa_writeb(SAA7134_OFMT_DATA_B, 0x06);
 
@@ -97,18 +97,18 @@ static int buffer_activate(struct saa7134_dev *dev,
 	control = SAA7134_RS_CONTROL_BURST_16 |
 		SAA7134_RS_CONTROL_ME |
 		(buf->pt->dma >> 12);
-	saa_writel(SAA7134_RS_BA1(2),base);
-	saa_writel(SAA7134_RS_BA2(2),base + buf->vb.size/2);
-	saa_writel(SAA7134_RS_PITCH(2),buf->vb.width);
-	saa_writel(SAA7134_RS_CONTROL(2),control);
-	saa_writel(SAA7134_RS_BA1(3),base);
-	saa_writel(SAA7134_RS_BA2(3),base + buf->vb.size/2);
-	saa_writel(SAA7134_RS_PITCH(3),buf->vb.width);
-	saa_writel(SAA7134_RS_CONTROL(3),control);
+	saa_writel(SAA7134_RS_BA1(2), base);
+	saa_writel(SAA7134_RS_BA2(2), base + buf->vb.size / 2);
+	saa_writel(SAA7134_RS_PITCH(2), buf->vb.width);
+	saa_writel(SAA7134_RS_CONTROL(2), control);
+	saa_writel(SAA7134_RS_BA1(3), base);
+	saa_writel(SAA7134_RS_BA2(3), base + buf->vb.size / 2);
+	saa_writel(SAA7134_RS_PITCH(3), buf->vb.width);
+	saa_writel(SAA7134_RS_CONTROL(3), control);
 
 	/* start DMA */
 	saa7134_set_dmabits(dev);
-	mod_timer(&dev->vbi_q.timeout, jiffies+BUFFER_TIMEOUT);
+	mod_timer(&dev->vbi_q.timeout, jiffies + BUFFER_TIMEOUT);
 
 	return 0;
 }
@@ -236,17 +236,10 @@ void saa7134_irq_vbi_done(struct saa7134_dev *dev, unsigned long status)
 			goto done;
 
 		dev->vbi_q.curr->vb.field_count = dev->vbi_fieldcount;
-		saa7134_buffer_finish(dev,&dev->vbi_q,VIDEOBUF_DONE);
+		saa7134_buffer_finish(dev, &dev->vbi_q, VIDEOBUF_DONE);
 	}
-	saa7134_buffer_next(dev,&dev->vbi_q);
+	saa7134_buffer_next(dev, &dev->vbi_q);
 
  done:
 	spin_unlock(&dev->slock);
 }
-
-/* ----------------------------------------------------------- */
-/*
- * Local variables:
- * c-basic-offset: 8
- * End:
- */

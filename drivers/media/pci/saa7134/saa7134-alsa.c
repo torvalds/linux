@@ -648,19 +648,20 @@ static int snd_card_saa7134_hw_params(struct snd_pcm_substream * substream,
 		return err;
 	}
 
-	if (0 != (err = videobuf_dma_map(&dev->pci->dev, &dev->dmasound.dma))) {
+	err = videobuf_dma_map(&dev->pci->dev, &dev->dmasound.dma);
+	if (err) {
 		dsp_buffer_free(dev);
 		return err;
 	}
-	if (0 != (err = saa7134_pgtable_alloc(dev->pci,&dev->dmasound.pt))) {
+	err = saa7134_pgtable_alloc(dev->pci, &dev->dmasound.pt);
+	if (err) {
 		videobuf_dma_unmap(&dev->pci->dev, &dev->dmasound.dma);
 		dsp_buffer_free(dev);
 		return err;
 	}
-	if (0 != (err = saa7134_pgtable_build(dev->pci,&dev->dmasound.pt,
-						dev->dmasound.dma.sglist,
-						dev->dmasound.dma.sglen,
-						0))) {
+	err = saa7134_pgtable_build(dev->pci, &dev->dmasound.pt,
+				dev->dmasound.sglist, dev->dmasound.sglen, 0);
+	if (err) {
 		saa7134_pgtable_free(dev->pci, &dev->dmasound.pt);
 		videobuf_dma_unmap(&dev->pci->dev, &dev->dmasound.dma);
 		dsp_buffer_free(dev);

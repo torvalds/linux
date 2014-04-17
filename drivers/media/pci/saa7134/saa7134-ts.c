@@ -76,11 +76,11 @@ static int buffer_prepare(struct videobuf_queue *q, struct videobuf_buffer *vb,
 		enum v4l2_field field)
 {
 	struct saa7134_dev *dev = q->priv_data;
-	struct saa7134_buf *buf = container_of(vb,struct saa7134_buf,vb);
+	struct saa7134_buf *buf = container_of(vb, struct saa7134_buf, vb);
 	unsigned int lines, llength, size;
 	int err;
 
-	dprintk("buffer_prepare [%p,%s]\n",buf,v4l2_field_names[field]);
+	dprintk("buffer_prepare [%p,%s]\n", buf, v4l2_field_names[field]);
 
 	llength = TS_PACKET_SIZE;
 	lines = dev->ts.nr_packets;
@@ -213,7 +213,7 @@ int saa7134_ts_init1(struct saa7134_dev *dev)
 	dev->ts_q.dev              = dev;
 	dev->ts_q.need_two         = 1;
 	dev->ts_started            = 0;
-	saa7134_pgtable_alloc(dev->pci,&dev->ts.pt_ts);
+	saa7134_pgtable_alloc(dev->pci, &dev->ts.pt_ts);
 
 	/* init TS hw */
 	saa7134_ts_init_hw(dev);
@@ -293,7 +293,7 @@ int saa7134_ts_start(struct saa7134_dev *dev)
 
 int saa7134_ts_fini(struct saa7134_dev *dev)
 {
-	saa7134_pgtable_free(dev->pci,&dev->ts.pt_ts);
+	saa7134_pgtable_free(dev->pci, &dev->ts.pt_ts);
 	return 0;
 }
 
@@ -311,17 +311,10 @@ void saa7134_irq_ts_done(struct saa7134_dev *dev, unsigned long status)
 			if ((status & 0x100000) != 0x100000)
 				goto done;
 		}
-		saa7134_buffer_finish(dev,&dev->ts_q,VIDEOBUF_DONE);
+		saa7134_buffer_finish(dev, &dev->ts_q, VIDEOBUF_DONE);
 	}
 	saa7134_buffer_next(dev,&dev->ts_q);
 
  done:
 	spin_unlock(&dev->slock);
 }
-
-/* ----------------------------------------------------------- */
-/*
- * Local variables:
- * c-basic-offset: 8
- * End:
- */

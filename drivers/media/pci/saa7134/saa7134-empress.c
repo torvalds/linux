@@ -395,10 +395,3 @@ static void __exit empress_unregister(void)
 
 module_init(empress_register);
 module_exit(empress_unregister);
-
-/* ----------------------------------------------------------- */
-/*
- * Local variables:
- * c-basic-offset: 8
- * End:
- */

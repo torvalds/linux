@@ -209,7 +209,7 @@ int saa7134_buffer_startpage(struct saa7134_buf *buf)
 unsigned long saa7134_buffer_base(struct saa7134_buf *buf)
 {
 	unsigned long base;
-	struct videobuf_dmabuf *dma=videobuf_to_dma(&buf->vb);
+	struct videobuf_dmabuf *dma = videobuf_to_dma(&buf->vb);
 
 	base  = saa7134_buffer_startpage(buf) * 4096;
 	base += dma->sglist[0].offset;
@@ -237,7 +237,7 @@ int saa7134_pgtable_build(struct pci_dev *pci, struct saa7134_pgtable *pt,
 			  unsigned int startpage)
 {
 	__le32        *ptr;
-	unsigned int  i,p;
+	unsigned int  i, p;
 
 	BUG_ON(NULL == pt || NULL == pt->cpu);
 
@@ -278,22 +278,22 @@ int saa7134_buffer_queue(struct saa7134_dev *dev,
 	struct saa7134_buf *next = NULL;
 
 	assert_spin_locked(&dev->slock);
-	dprintk("buffer_queue %p\n",buf);
+	dprintk("buffer_queue %p\n", buf);
 	if (NULL == q->curr) {
 		if (!q->need_two) {
 			q->curr = buf;
-			buf->activate(dev,buf,NULL);
+			buf->activate(dev, buf, NULL);
 		} else if (list_empty(&q->queue)) {
 			list_add_tail(&buf->vb.queue,&q->queue);
 			buf->vb.state = VIDEOBUF_QUEUED;
 		} else {
-			next = list_entry(q->queue.next,struct saa7134_buf,
+			next = list_entry(q->queue.next, struct saa7134_buf,
 					  vb.queue);
 			q->curr = buf;
-			buf->activate(dev,buf,next);
+			buf->activate(dev, buf, next);
 		}
 	} else {
-		list_add_tail(&buf->vb.queue,&q->queue);
+		list_add_tail(&buf->vb.queue, &q->queue);
 		buf->vb.state = VIDEOBUF_QUEUED;
 	}
 	return 0;
@@ -304,7 +304,7 @@ void saa7134_buffer_finish(struct saa7134_dev *dev,
 			   unsigned int state)
 {
 	assert_spin_locked(&dev->slock);
-	dprintk("buffer_finish %p\n",q->curr);
+	dprintk("buffer_finish %p\n", q->curr);
 
 	/* finish current buffer */
 	q->curr->vb.state = state;
@@ -323,20 +323,20 @@ void saa7134_buffer_next(struct saa7134_dev *dev,
 
 	if (!list_empty(&q->queue)) {
 		/* activate next one from queue */
-		buf = list_entry(q->queue.next,struct saa7134_buf,vb.queue);
+		buf = list_entry(q->queue.next, struct saa7134_buf, vb.queue);
 		dprintk("buffer_next %p [prev=%p/next=%p]\n",
-			buf,q->queue.prev,q->queue.next);
+			buf, q->queue.prev, q->queue.next);
 		list_del(&buf->vb.queue);
 		if (!list_empty(&q->queue))
-			next = list_entry(q->queue.next,struct saa7134_buf,
+			next = list_entry(q->queue.next, struct saa7134_buf,
 					  vb.queue);
 		q->curr = buf;
-		buf->activate(dev,buf,next);
+		buf->activate(dev, buf, next);
 		dprintk("buffer_next #2 prev=%p/next=%p\n",
-			q->queue.prev,q->queue.next);
+			q->queue.prev, q->queue.next);
 	} else {
 		/* nothing to do -- just stop DMA */
-		dprintk("buffer_next %p\n",NULL);
+		dprintk("buffer_next %p\n", NULL);
 		saa7134_set_dmabits(dev);
 		del_timer(&q->timeout);
 
@@ -348,11 +348,11 @@ void saa7134_buffer_next(struct saa7134_dev *dev,
 
 void saa7134_buffer_timeout(unsigned long data)
 {
-	struct saa7134_dmaqueue *q = (struct saa7134_dmaqueue*)data;
+	struct saa7134_dmaqueue *q = (struct saa7134_dmaqueue *)data;
 	struct saa7134_dev *dev = q->dev;
 	unsigned long flags;
 
-	spin_lock_irqsave(&dev->slock,flags);
+	spin_lock_irqsave(&dev->slock, flags);
 
 	/* try to reset the hardware (SWRST) */
 	saa_writeb(SAA7134_REGION_ENABLE, 0x00);
@@ -362,11 +362,11 @@ void saa7134_buffer_timeout(unsigned long data)
 	/* flag current buffer as failed,
 	   try to start over with the next one. */
 	if (q->curr) {
-		dprintk("timeout on %p\n",q->curr);
-		saa7134_buffer_finish(dev,q,VIDEOBUF_ERROR);
+		dprintk("timeout on %p\n", q->curr);
+		saa7134_buffer_finish(dev, q, VIDEOBUF_ERROR);
 	}
-	saa7134_buffer_next(dev,q);
-	spin_unlock_irqrestore(&dev->slock,flags);
+	saa7134_buffer_next(dev, q);
+	spin_unlock_irqrestore(&dev->slock, flags);
 }
 
 /* ------------------------------------------------------------------ */
@@ -1360,10 +1360,3 @@ EXPORT_SYMBOL(saa7134_pgtable_free);
 EXPORT_SYMBOL(saa7134_pgtable_build);
 EXPORT_SYMBOL(saa7134_pgtable_alloc);
 EXPORT_SYMBOL(saa7134_set_dmabits);
-
-/* ----------------------------------------------------------- */
-/*
- * Local variables:
- * c-basic-offset: 8
- * End:
- */
