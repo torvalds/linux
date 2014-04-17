@@ -4,11 +4,18 @@ This file contains the routines related to Quality of Service.
 */
 #include "headers.h"
 
-static void EThCSGetPktInfo(struct bcm_mini_adapter *Adapter, PVOID pvEthPayload, struct bcm_eth_packet_info *pstEthCsPktInfo);
-static bool EThCSClassifyPkt(struct bcm_mini_adapter *Adapter, struct sk_buff* skb, struct bcm_eth_packet_info *pstEthCsPktInfo, struct bcm_classifier_rule *pstClassifierRule, B_UINT8 EthCSCupport);
+static void EThCSGetPktInfo(struct bcm_mini_adapter *Adapter,
+			    PVOID pvEthPayload,
+			    struct bcm_eth_packet_info *pstEthCsPktInfo);
 
-static USHORT	IpVersion4(struct bcm_mini_adapter *Adapter, struct iphdr *iphd,
-			   struct bcm_classifier_rule *pstClassifierRule);
+static bool EThCSClassifyPkt(struct bcm_mini_adapter *Adapter,
+			     struct sk_buff *skb,
+			     struct bcm_eth_packet_info *pstEthCsPktInfo,
+			     struct bcm_classifier_rule *pstClassifierRule,
+			     B_UINT8 EthCSCupport);
+
+static USHORT IpVersion4(struct bcm_mini_adapter *Adapter, struct iphdr *iphd,
+			 struct bcm_classifier_rule *pstClassifierRule);
 
 static VOID PruneQueue(struct bcm_mini_adapter *Adapter, INT iIndex);
 
