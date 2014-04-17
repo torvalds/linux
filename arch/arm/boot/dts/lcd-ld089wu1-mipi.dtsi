@@ -1,6 +1,11 @@
 /*
- * RockChip. ld089wu1 
- * lcd
+ * Copyright (C) 2014 ROCKCHIP, Inc.
+ * arch/arm/boot/dts/lcd-lq070m1sx01-mipi.dtsi
+ * author: libing@rock-chips.com
+ * create date: 2014-04-15
+ * lcd model: ld089wu1 
+ * resolution: 1920 X 1200
+ * mipi channel: single
  */
 
 / {
@@ -29,13 +34,7 @@
 							rockchip,cmd = <0xb0 0x02>;
 							rockchip,cmd_delay = <0>;
 					};
-					
-					rockchip,on-cmds2 {
-							rockchip,cmd_type = <HSDT>;
-							rockchip,dsi_id = <2>;
-							rockchip,cmd = <0xb1 0x21>;
-							rockchip,cmd_delay = <110>;
-					};*/
+					*/
 		};
 
 
