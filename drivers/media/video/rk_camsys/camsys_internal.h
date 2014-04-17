@@ -216,7 +216,7 @@ typedef struct camsys_dev_s {
     struct platform_device *pdev;
 
     int (*clkin_cb)(void *ptr, unsigned int on);
-    int (*clkout_cb)(void *ptr,unsigned int on);
+    int (*clkout_cb)(void *ptr,unsigned int on,unsigned int clk);
     int (*reset_cb)(void *ptr);
     int (*phy_cb) (camsys_extdev_phy_t *phy,void* ptr, unsigned int on);
     int (*iomux)(camsys_extdev_t *extdev,void *ptr);
@@ -301,7 +301,7 @@ static inline int camsys_sysctl_extdev(camsys_extdev_t *extdev, camsys_sysctrl_t
         }
     } else if (devctl->ops == CamSys_ClkIn) {
         if (camsys_dev->clkout_cb)
-            camsys_dev->clkout_cb(camsys_dev, extdev->clk.in_rate);
+            camsys_dev->clkout_cb(camsys_dev,devctl->on,extdev->clk.in_rate);
         if (camsys_dev->phy_cb)
             camsys_dev->phy_cb(&extdev->phy, camsys_dev, devctl->on);
     }

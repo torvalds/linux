@@ -728,7 +728,7 @@
 		interrupts = <GIC_SPI 98 IRQ_TYPE_LEVEL_HIGH>;
 		clocks = <&clk_edp>, <&clk_edp_24m>, <&clk_gates16 8>;
 		clock-names = "clk_edp", "clk_edp_24m", "pclk_edp";
-        };
+		};
 	
 	hdmi: hdmi@ff980000 {
                 compatible = "rockchip,rk3288-hdmi";
@@ -1185,8 +1185,8 @@
 	        compatible = "rockchip,isp";
 	        reg = <0xff910000 0x10000>;
 	        interrupts = <GIC_SPI 14 IRQ_TYPE_LEVEL_HIGH>;
-	        clocks = <&clk_gates16 2>, <&clk_gates16 1>, <&clk_isp>, <&clk_isp_jpe>, <&clkin_isp>, <&clk_cif_out>,<&clk_gates5 15>;
-			clock-names = "aclk_isp", "hclk_isp", "clk_isp", "clk_isp_jpe", "pclkin_isp", "clk_vipout","clk_mipi_24m";
+	        clocks = <&clk_gates16 2>, <&clk_gates16 1>, <&clk_isp>, <&clk_isp_jpe>, <&clkin_isp>, <&clk_cif_out>,<&clk_gates5 15>,<&clk_cif_pll>,<&pd_isp>;
+			clock-names = "aclk_isp", "hclk_isp", "clk_isp", "clk_isp_jpe", "pclkin_isp", "clk_vipout","clk_mipi_24m","cif0_out_div","pd_isp";
 			pinctrl-names = "default", "isp_dvp8bit","isp_dvp10bit","isp_dvp12bit";
 			pinctrl-0 = <&isp_mipi>;
 			pinctrl-1 = <&isp_mipi &isp_dvp_sync_d2d9>;

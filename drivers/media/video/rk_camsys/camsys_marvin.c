@@ -121,10 +121,11 @@ static int camsys_mrv_clkin_cb(void *ptr, unsigned int on)
 {
     camsys_dev_t *camsys_dev = (camsys_dev_t*)ptr;
     camsys_mrv_clk_t *clk = (camsys_mrv_clk_t*)camsys_dev->clk;
-    
-  //  spin_lock(&clk->lock);
+    struct clk *cif_clk_out_div;
+	//  spin_lock(&clk->lock);
     if (on && !clk->in_on) {
-        clk_set_rate(clk->isp,180000000);
+        
+		clk_set_rate(clk->isp,180000000);
         clk_set_rate(clk->isp_jpe, 180000000);
    //     clk_set_rate(clk->aclk_isp,24000000);
    //     clk_set_rate(clk->hclk_isp,24000000);
@@ -136,7 +137,7 @@ static int camsys_mrv_clkin_cb(void *ptr, unsigned int on)
         clk_prepare_enable(clk->isp_jpe);
         clk_prepare_enable(clk->clk_mipi_24m); 
         clk_prepare_enable(clk->pclkin_isp); 
-
+		clk_prepare_enable(clk->pd_isp);
 
 
  //       clk_enable(clk->pd_isp);
@@ -160,13 +161,14 @@ static int camsys_mrv_clkin_cb(void *ptr, unsigned int on)
         clk_disable_unprepare(clk->isp_jpe);
         clk_disable_unprepare(clk->clk_mipi_24m); 
         clk_disable_unprepare(clk->pclkin_isp); 
-
+		clk_disable_unprepare(clk->pd_isp);
   //      clk_disable(clk->pd_isp);
   //      clk_disable(clk->aclk_isp);
    // 	clk_disable(clk->hclk_isp);
   //  	clk_disable(clk->isp);
   //  	clk_disable(clk->isp_jpe);
  //   	clk_disable(clk->pclkin_isp);
+
 
         clk->in_on = false;
         camsys_trace(1, "%s clock in turn off",dev_name(camsys_dev->miscdev.this_device));
@@ -175,7 +177,7 @@ static int camsys_mrv_clkin_cb(void *ptr, unsigned int on)
     return 0;
 }
 
-static int camsys_mrv_clkout_cb(void *ptr, unsigned int on)
+static int camsys_mrv_clkout_cb(void *ptr, unsigned int on,unsigned int inclk)
 {
     camsys_dev_t *camsys_dev = (camsys_dev_t*)ptr;
     camsys_mrv_clk_t *clk = (camsys_mrv_clk_t*)camsys_dev->clk;
@@ -183,18 +185,18 @@ static int camsys_mrv_clkout_cb(void *ptr, unsigned int on)
     
     spin_lock(&clk->lock);
     if (on && (clk->out_on != on)) {  
-        clk_prepare_enable(clk->cif_clk_out);
 
-//        clk_enable(clk->cif_clk_out);
-        clk_set_rate(clk->cif_clk_out,on);
-    	
-        clk->out_on = on;
+        clk_set_rate(clk->cif_clk_out,inclk);
+        clk_prepare_enable(clk->cif_clk_out);
+        
+		clk->out_on = on;
         camsys_trace(1, "%s clock out(rate: %dHz) turn on",dev_name(camsys_dev->miscdev.this_device),
                     clk->out_on);
     } else if (!on && clk->out_on) {
         cif_clk_out_div =  clk_get(NULL, "cif0_out_div");
         if(IS_ERR_OR_NULL(cif_clk_out_div)) {
             cif_clk_out_div =  clk_get(NULL, "cif_out_div");
+			printk("can't get clk_cif_pll");
         }
 
         if(!IS_ERR_OR_NULL(cif_clk_out_div)) {
@@ -288,12 +290,12 @@ static int camsys_mrv_remove_cb(struct platform_device *pdev)
 
         mrv_clk = (camsys_mrv_clk_t*)camsys_dev->clk;
         if (mrv_clk->out_on)
-            camsys_mrv_clkout_cb(mrv_clk,0);
+            camsys_mrv_clkout_cb(mrv_clk,0,0);
         if (mrv_clk->in_on)
             camsys_mrv_clkin_cb(mrv_clk,0);
     
         if (!IS_ERR_OR_NULL(mrv_clk->pd_isp)) {
-            clk_put(mrv_clk->pd_isp);
+		 	clk_put(mrv_clk->pd_isp);
         }
         if (!IS_ERR_OR_NULL(mrv_clk->aclk_isp)) {
             clk_put(mrv_clk->aclk_isp);
@@ -324,9 +326,10 @@ int camsys_mrv_probe_cb(struct platform_device *pdev, camsys_dev_t *camsys_dev)
 {
     int err = 0;   
     camsys_mrv_clk_t *mrv_clk=NULL;
-    //struct clk *clk_parent;
+    //struct clk *clk_parent; 
+    struct clk *cif_clk_out_div;
     
-    err = request_irq(camsys_dev->irq.irq_id, camsys_mrv_irq, 0, CAMSYS_MARVIN_IRQNAME,camsys_dev);
+	err = request_irq(camsys_dev->irq.irq_id, camsys_mrv_irq, 0, CAMSYS_MARVIN_IRQNAME,camsys_dev);
     if (err) {
         camsys_err("request irq for %s failed",CAMSYS_MARVIN_IRQNAME);
         goto end;
@@ -340,8 +343,7 @@ int camsys_mrv_probe_cb(struct platform_device *pdev, camsys_dev_t *camsys_dev)
         goto clk_failed;
     }
      
-   // mrv_clk->pd_isp = devm_clk_get(&pdev->dev, "pd_isp");
-    mrv_clk->pd_isp = NULL;
+    mrv_clk->pd_isp = devm_clk_get(&pdev->dev, "pd_isp");
     mrv_clk->aclk_isp = devm_clk_get(&pdev->dev, "aclk_isp");
     mrv_clk->hclk_isp = devm_clk_get(&pdev->dev, "hclk_isp");
     mrv_clk->isp = devm_clk_get(&pdev->dev, "clk_isp");
@@ -349,7 +351,8 @@ int camsys_mrv_probe_cb(struct platform_device *pdev, camsys_dev_t *camsys_dev)
     mrv_clk->pclkin_isp = devm_clk_get(&pdev->dev, "pclkin_isp");
     mrv_clk->cif_clk_out = devm_clk_get(&pdev->dev, "clk_vipout");
     mrv_clk->clk_mipi_24m = devm_clk_get(&pdev->dev,"clk_mipi_24m"); 
-    if (/*IS_ERR_OR_NULL(mrv_clk->pd_isp) ||*/ IS_ERR_OR_NULL(mrv_clk->aclk_isp) || IS_ERR_OR_NULL(mrv_clk->hclk_isp) ||
+    
+	if (IS_ERR_OR_NULL(mrv_clk->pd_isp) || IS_ERR_OR_NULL(mrv_clk->aclk_isp) || IS_ERR_OR_NULL(mrv_clk->hclk_isp) ||
         IS_ERR_OR_NULL(mrv_clk->isp) || IS_ERR_OR_NULL(mrv_clk->isp_jpe) || IS_ERR_OR_NULL(mrv_clk->pclkin_isp) || 
         IS_ERR_OR_NULL(mrv_clk->cif_clk_out) || IS_ERR_OR_NULL(mrv_clk->clk_mipi_24m)) {
         camsys_err("Get %s clock resouce failed!\n",miscdev_name);
@@ -357,7 +360,7 @@ int camsys_mrv_probe_cb(struct platform_device *pdev, camsys_dev_t *camsys_dev)
         goto clk_failed;
     }
 
-    
+   
 //    clk_set_rate(mrv_clk->isp,1800000000);
 //    clk_set_rate(mrv_clk->isp_jpe,180000000);
     
@@ -386,7 +389,8 @@ int camsys_mrv_probe_cb(struct platform_device *pdev, camsys_dev_t *camsys_dev)
     //Variable init
     camsys_dev->dev_id = CAMSYS_DEVID_MARVIN;
     camsys_dev->platform_remove = camsys_mrv_remove_cb;
-    
+   
+   	 
     return 0;
 misc_register_failed:
     if (!IS_ERR_OR_NULL(camsys_dev->miscdev.this_device)) {
