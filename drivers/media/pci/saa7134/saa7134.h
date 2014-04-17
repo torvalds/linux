@@ -600,6 +600,7 @@ struct saa7134_dev {
 	unsigned int               vbi_fieldcount;
 	struct saa7134_format      *fmt;
 	unsigned int               width, height;
+	unsigned int               vbi_hlen, vbi_vlen;
 	struct pm_qos_request	   qos_request;
 
 	/* various v4l controls */
