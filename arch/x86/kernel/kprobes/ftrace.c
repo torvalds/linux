@@ -85,7 +85,7 @@ end:
 	local_irq_restore(flags);
 }
 
-int __kprobes arch_prepare_kprobe_ftrace(struct kprobe *p)
+int arch_prepare_kprobe_ftrace(struct kprobe *p)
 {
 	p->ainsn.insn = NULL;
 	p->ainsn.boostable = -1;

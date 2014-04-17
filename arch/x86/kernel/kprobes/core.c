@@ -159,7 +159,7 @@ static kprobe_opcode_t *__kprobes skip_prefixes(kprobe_opcode_t *insn)
  * Returns non-zero if opcode is boostable.
  * RIP relative instructions are adjusted at copying time in 64 bits mode
  */
-int __kprobes can_boost(kprobe_opcode_t *opcodes)
+int can_boost(kprobe_opcode_t *opcodes)
 {
 	kprobe_opcode_t opcode;
 	kprobe_opcode_t *orig_opcodes = opcodes;
@@ -260,7 +260,7 @@ unsigned long recover_probed_instruction(kprobe_opcode_t *buf, unsigned long add
 }
 
 /* Check if paddr is at an instruction boundary */
-static int __kprobes can_probe(unsigned long paddr)
+static int can_probe(unsigned long paddr)
 {
 	unsigned long addr, __addr, offset = 0;
 	struct insn insn;
@@ -299,7 +299,7 @@ static int __kprobes can_probe(unsigned long paddr)
 /*
  * Returns non-zero if opcode modifies the interrupt flag.
  */
-static int __kprobes is_IF_modifier(kprobe_opcode_t *insn)
+static int is_IF_modifier(kprobe_opcode_t *insn)
 {
 	/* Skip prefixes */
 	insn = skip_prefixes(insn);
@@ -322,7 +322,7 @@ static int __kprobes is_IF_modifier(kprobe_opcode_t *insn)
  * If not, return null.
  * Only applicable to 64-bit x86.
  */
-int __kprobes __copy_instruction(u8 *dest, u8 *src)
+int __copy_instruction(u8 *dest, u8 *src)
 {
 	struct insn insn;
 	kprobe_opcode_t buf[MAX_INSN_SIZE];
@@ -365,7 +365,7 @@ int __kprobes __copy_instruction(u8 *dest, u8 *src)
 	return insn.length;
 }
 
-static int __kprobes arch_copy_kprobe(struct kprobe *p)
+static int arch_copy_kprobe(struct kprobe *p)
 {
 	int ret;
 
@@ -392,7 +392,7 @@ static int __kprobes arch_copy_kprobe(struct kprobe *p)
 	return 0;
 }
 
-int __kprobes arch_prepare_kprobe(struct kprobe *p)
+int arch_prepare_kprobe(struct kprobe *p)
 {
 	if (alternatives_text_reserved(p->addr, p->addr))
 		return -EINVAL;
@@ -407,17 +407,17 @@ int __kprobes arch_prepare_kprobe(struct kprobe *p)
 	return arch_copy_kprobe(p);
 }
 
-void __kprobes arch_arm_kprobe(struct kprobe *p)
+void arch_arm_kprobe(struct kprobe *p)
 {
 	text_poke(p->addr, ((unsigned char []){BREAKPOINT_INSTRUCTION}), 1);
 }
 
-void __kprobes arch_disarm_kprobe(struct kprobe *p)
+void arch_disarm_kprobe(struct kprobe *p)
 {
 	text_poke(p->addr, &p->opcode, 1);
 }
 
-void __kprobes arch_remove_kprobe(struct kprobe *p)
+void arch_remove_kprobe(struct kprobe *p)
 {
 	if (p->ainsn.insn) {
 		free_insn_slot(p->ainsn.insn, (p->ainsn.boostable == 1));
@@ -1060,7 +1060,7 @@ int __init arch_init_kprobes(void)
 	return 0;
 }
 
-int __kprobes arch_trampoline_kprobe(struct kprobe *p)
+int arch_trampoline_kprobe(struct kprobe *p)
 {
 	return 0;
 }
