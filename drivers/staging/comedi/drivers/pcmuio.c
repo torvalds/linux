@@ -460,20 +460,18 @@ static int pcmuio_cancel(struct comedi_device *dev, struct comedi_subdevice *s)
 	return 0;
 }
 
-/*
- * Internal trigger function to start acquisition for an 'INTERRUPT' subdevice.
- */
-static int
-pcmuio_inttrig_start_intr(struct comedi_device *dev, struct comedi_subdevice *s,
-			  unsigned int trignum)
+static int pcmuio_inttrig_start_intr(struct comedi_device *dev,
+				     struct comedi_subdevice *s,
+				     unsigned int trig_num)
 {
 	struct pcmuio_private *devpriv = dev->private;
+	struct comedi_cmd *cmd = &s->async->cmd;
 	int asic = pcmuio_subdevice_to_asic(s);
 	struct pcmuio_asic *chip = &devpriv->asics[asic];
 	unsigned long flags;
 	int event = 0;
 
-	if (trignum != 0)
+	if (trig_num != cmd->start_arg)
 		return -EINVAL;
 
 	spin_lock_irqsave(&chip->spinlock, flags);
@@ -518,15 +516,11 @@ static int pcmuio_cmd(struct comedi_device *dev, struct comedi_subdevice *s)
 	}
 
 	/* Set up start of acquisition. */
-	switch (cmd->start_src) {
-	case TRIG_INT:
+	if (cmd->start_src == TRIG_INT)
 		s->async->inttrig = pcmuio_inttrig_start_intr;
-		break;
-	default:
-		/* TRIG_NOW */
+	else	/* TRIG_NOW */
 		event = pcmuio_start_intr(dev, s);
-		break;
-	}
+
 	spin_unlock_irqrestore(&chip->spinlock, flags);
 
 	if (event)
