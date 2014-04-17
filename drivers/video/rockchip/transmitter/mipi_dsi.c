@@ -33,8 +33,9 @@
 *v1.0 : this driver is a top level architecture of mipi dsi driver;
 *v1.1 : add struct mipi_dsi_screen
 *v1.2 : add id argument to identify different dsi 
+*v1.3 : fix send commad's methods  
 */
-#define MIPI_DSI_VERSION_AND_TIME  "mipi_dsi v1.2 2014-03-07"
+#define MIPI_DSI_VERSION_AND_TIME  "mipi_dsi v1.3 2014-04-17"
 
 
 static struct mipi_dsi_ops *dsi_ops[MAX_DSI_CHIPS] = {NULL};
@@ -151,7 +152,7 @@ int dsi_set_regs(unsigned int id, void *array, u32 n) {
 }
 EXPORT_SYMBOL(dsi_set_regs);
 
-int dsi_init(unsigned int id, void *array, u32 n) {
+int dsi_init(unsigned int id, u32 n) {
 
 	struct mipi_dsi_ops *ops = NULL;
 
@@ -164,7 +165,7 @@ int dsi_init(unsigned int id, void *array, u32 n) {
 		return -EINVAL;
 
 	if(ops->dsi_init)
-		ops->dsi_init(ops->dsi, array, n);
+		ops->dsi_init(ops->dsi, n);
 
 	return 0;
 }
@@ -273,7 +274,7 @@ int dsi_send_dcs_packet(unsigned int id, unsigned char *packet, u32 n) {
 
 	struct mipi_dsi_ops *ops = NULL;
 
-    printk("dsi_send_dcs_packet-------id=%d\n",id);
+    //printk("dsi_send_dcs_packet-------id=%d\n",id);
 	if(id > (MAX_DSI_CHIPS - 1))
 		return -EINVAL;
 
@@ -308,7 +309,7 @@ int dsi_read_dcs_packet(unsigned int id, unsigned char *packet, u32 n) {
 EXPORT_SYMBOL(dsi_read_dcs_packet);
 
 
-int dsi_send_packet(unsigned int id, void *packet, u32 n) {
+int dsi_send_packet(unsigned int id, unsigned char *packet, u32 n) {
 
 	struct mipi_dsi_ops *ops = NULL;
 
