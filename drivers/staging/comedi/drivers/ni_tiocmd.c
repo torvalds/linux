@@ -89,14 +89,16 @@ static void ni_tio_configure_dma(struct ni_gpct *counter, short enable,
 
 static int ni_tio_input_inttrig(struct comedi_device *dev,
 				struct comedi_subdevice *s,
-				unsigned int trignum)
+				unsigned int trig_num)
 {
+	struct ni_gpct *counter = s->private;
+	struct comedi_cmd *cmd = &s->async->cmd;
 	unsigned long flags;
 	int retval = 0;
-	struct ni_gpct *counter = s->private;
 
 	BUG_ON(counter == NULL);
-	if (trignum != 0)
+
+	if (trig_num != cmd->start_src)
 		return -EINVAL;
 
 	spin_lock_irqsave(&counter->lock, flags);
@@ -271,8 +273,16 @@ int ni_tio_cmdtest(struct comedi_device *dev,
 
 	/* Step 3: check if arguments are trivially valid */
 
-	if (cmd->start_src != TRIG_EXT)
+	switch (cmd->start_src) {
+	case TRIG_NOW:
+	case TRIG_INT:
+	case TRIG_OTHER:
 		err |= cfc_check_trigger_arg_is(&cmd->start_arg, 0);
+		break;
+	case TRIG_EXT:
+		/* start_arg is the start_trigger passed to ni_tio_arm() */
+		break;
+	}
 
 	if (cmd->scan_begin_src != TRIG_EXT)
 		err |= cfc_check_trigger_arg_is(&cmd->scan_begin_arg, 0);
