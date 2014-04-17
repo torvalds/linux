@@ -411,7 +411,6 @@ struct pci9118_private {
 					 */
 	unsigned int ai_maskerr;	/* which warning was printed */
 	unsigned int ai_maskharderr;	/* on which error bits stops */
-	unsigned int ai_inttrig_start;	/* TRIG_INT for start */
 };
 
 static int check_channel_list(struct comedi_device *dev,
@@ -1135,11 +1134,13 @@ static irqreturn_t interrupt_pci9118(int irq, void *d)
 }
 
 static int pci9118_ai_inttrig(struct comedi_device *dev,
-			      struct comedi_subdevice *s, unsigned int trignum)
+			      struct comedi_subdevice *s,
+			      unsigned int trig_num)
 {
 	struct pci9118_private *devpriv = dev->private;
+	struct comedi_cmd *cmd = &s->async->cmd;
 
-	if (trignum != devpriv->ai_inttrig_start)
+	if (trig_num != cmd->start_arg)
 		return -EINVAL;
 
 	devpriv->ai12_startstop &= ~START_AI_INT;
@@ -1221,8 +1222,15 @@ static int pci9118_ai_cmdtest(struct comedi_device *dev,
 
 	/* Step 3: check if arguments are trivially valid */
 
-	if (cmd->start_src & (TRIG_NOW | TRIG_EXT))
+	switch (cmd->start_src) {
+	case TRIG_NOW:
+	case TRIG_EXT:
 		err |= cfc_check_trigger_arg_is(&cmd->start_arg, 0);
+		break;
+	case TRIG_INT:
+		/* start_arg is the internal trigger (any value) */
+		break;
+	}
 
 	if (cmd->scan_begin_src & (TRIG_FOLLOW | TRIG_EXT))
 		err |= cfc_check_trigger_arg_is(&cmd->scan_begin_arg, 0);
@@ -1627,7 +1635,6 @@ static int pci9118_ai_cmd(struct comedi_device *dev, struct comedi_subdevice *s)
 	}
 	if (cmd->start_src == TRIG_INT) {
 		devpriv->ai12_startstop |= START_AI_INT;
-		devpriv->ai_inttrig_start = cmd->start_arg;
 		s->async->inttrig = pci9118_ai_inttrig;
 	}
 #if 0
