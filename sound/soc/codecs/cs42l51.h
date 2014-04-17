@@ -26,6 +26,7 @@ int cs42l51_probe(struct device *dev, struct regmap *regmap);
 #define CS42L51_CHIP_ID			0x1B
 #define CS42L51_CHIP_REV_A		0x00
 #define CS42L51_CHIP_REV_B		0x01
+#define CS42L51_CHIP_REV_MASK		0x07
 
 #define CS42L51_CHIP_REV_ID		0x01
 #define CS42L51_MK_CHIP_REV(a, b)	((a)<<3|(b))
