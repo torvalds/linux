@@ -734,7 +734,6 @@ static int apci3120_ai_cmdtest(struct comedi_device *dev,
 			       struct comedi_subdevice *s,
 			       struct comedi_cmd *cmd)
 {
-	const struct addi_board *this_board = comedi_board(dev);
 	int err = 0;
 
 	/* Step 1 : check if triggers are trivially valid */
@@ -779,8 +778,6 @@ static int apci3120_ai_cmdtest(struct comedi_device *dev,
 	}
 
 	err |= cfc_check_trigger_arg_min(&cmd->chanlist_len, 1);
-	err |= cfc_check_trigger_arg_max(&cmd->chanlist_len,
-					 this_board->i_AiChannelList);
 
 	if (cmd->stop_src == TRIG_COUNT)
 		err |= cfc_check_trigger_arg_min(&cmd->stop_arg, 1);

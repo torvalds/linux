@@ -1259,8 +1259,6 @@ static int pci9118_ai_cmdtest(struct comedi_device *dev,
 		err |= cfc_check_trigger_arg_is(&cmd->stop_arg, 0);
 
 	err |= cfc_check_trigger_arg_min(&cmd->chanlist_len, 1);
-	err |= cfc_check_trigger_arg_max(&cmd->chanlist_len,
-					 this_board->n_aichanlist);
 
 	err |= cfc_check_trigger_arg_min(&cmd->scan_end_arg,
 					 cmd->chanlist_len);

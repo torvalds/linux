@@ -891,10 +891,6 @@ static int rtd_ai_cmdtest(struct comedi_device *dev,
 
 	/* step 4: fix up any arguments */
 
-	if (cmd->chanlist_len > RTD_MAX_CHANLIST) {
-		cmd->chanlist_len = RTD_MAX_CHANLIST;
-		err++;
-	}
 	if (cmd->scan_begin_src == TRIG_TIMER) {
 		tmp = cmd->scan_begin_arg;
 		rtd_ns_to_timer(&cmd->scan_begin_arg,
