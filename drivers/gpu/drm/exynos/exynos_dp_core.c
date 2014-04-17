@@ -1116,10 +1116,8 @@ static struct video_info *exynos_dp_dt_parse_pdata(struct device *dev)
 
 	dp_video_config = devm_kzalloc(dev,
 				sizeof(*dp_video_config), GFP_KERNEL);
-	if (!dp_video_config) {
-		dev_err(dev, "memory allocation for video config failed\n");
+	if (!dp_video_config)
 		return ERR_PTR(-ENOMEM);
-	}
 
 	dp_video_config->h_sync_polarity =
 		of_property_read_bool(dp_node, "hsync-active-high");
@@ -1232,10 +1230,8 @@ static int exynos_dp_probe(struct platform_device *pdev)
 
 	dp = devm_kzalloc(&pdev->dev, sizeof(struct exynos_dp_device),
 				GFP_KERNEL);
-	if (!dp) {
-		dev_err(&pdev->dev, "no memory for device data\n");
+	if (!dp)
 		return -ENOMEM;
-	}
 
 	dp->dev = &pdev->dev;
 	dp->dpms_mode = DRM_MODE_DPMS_OFF;
