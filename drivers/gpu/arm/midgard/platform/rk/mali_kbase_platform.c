@@ -74,17 +74,17 @@ static int kbase_platform_power_clock_init(kbase_device *kbdev)
 		panic("oops");
 	
 	/* enable mali t760 powerdomain*/	
-	platform->mali_pd_node = clk_get_dvfs_node("mali_pd");
-	if(IS_ERR_OR_NULL(platform->mali_pd_node))
+	platform->mali_pd = clk_get(NULL,"pd_gpu");
+	if(IS_ERR_OR_NULL(platform->mali_pd))
 	{
-		platform->mali_pd_node = NULL;
-		printk(KERN_ERR "%s, %s(): failed to get [platform->mali_pd_node]\n", __FILE__, __func__);
-		//goto out;
+		platform->mali_pd = NULL;
+		printk(KERN_ERR "%s, %s(): failed to get [platform->mali_pd]\n", __FILE__, __func__);
+		goto out;
 	}
 	else
 	{
-		//dvfs_clk_prepare_enable(platform->mali_pd_node);
-		printk("pd not enable\n");
+		clk_prepare_enable(platform->mali_pd);
+		printk("mali pd enabled\n");
 	}
 	mali_pd_status = 1;
 	
@@ -107,8 +107,8 @@ static int kbase_platform_power_clock_init(kbase_device *kbdev)
 	return 0;
 	
 out:
-	if(platform->mali_pd_node)
-		clk_put_dvfs_node(platform->mali_pd_node);
+	if(platform->mali_pd)
+		clk_put(platform->mali_pd);
 	
 	return -EPERM;
 
@@ -160,7 +160,7 @@ int kbase_platform_is_power_on(void)
 }
 
 /*turn on power domain*/
-static int kbase_platform_power_on(struct kbase_device *kbdev)
+int kbase_platform_power_on(struct kbase_device *kbdev)
 {
 	struct rk_context *platform;
 	if (!kbdev)
@@ -172,9 +172,9 @@ static int kbase_platform_power_on(struct kbase_device *kbdev)
 
 	if (mali_pd_status == 1)
 		return 0;
-#if 0	
-	if(platform->mali_pd_node)
-		dvfs_clk_prepare_enable(platform->mali_pd_node);
+#if 1	
+	if(platform->mali_pd)
+		clk_prepare_enable(platform->mali_pd);
 #endif
 	mali_pd_status = 1;
 	KBASE_TIMELINE_GPU_POWER(kbdev, 1);
@@ -183,7 +183,7 @@ static int kbase_platform_power_on(struct kbase_device *kbdev)
 }
 
 /*turn off power domain*/
-static int kbase_platform_power_off(struct kbase_device *kbdev)
+int kbase_platform_power_off(struct kbase_device *kbdev)
 {
 	struct rk_context *platform;
 	if (!kbdev)
@@ -195,9 +195,9 @@ static int kbase_platform_power_off(struct kbase_device *kbdev)
 
 	if (mali_pd_status== 0)
 		return 0;
-#if 0
-	if(platform->mali_pd_node)
-		dvfs_clk_disable_unprepare(platform->mali_pd_node);
+#if 1
+	if(platform->mali_pd)
+		clk_disable_unprepare(platform->mali_pd);
 #endif
 	mali_pd_status = 0;
 	KBASE_TIMELINE_GPU_POWER(kbdev, 0);
