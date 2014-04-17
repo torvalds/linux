@@ -471,7 +471,7 @@
 		rockchip,clocks-init-parent =
 			<&clk_core &clk_apll>,	<&aclk_bus_src &clk_gpll>,
 			<&aclk_peri &clk_gpll>,	<&uart_pll_mux &clk_gpll>,
-			<&clk_i2s_pll &clk_cpll>;
+			<&clk_i2s_pll &clk_cpll>, <&usbphy_480m &otgphy2_480m>;
 		rockchip,clocks-init-rate =
 			<&clk_core 792000000>,	<&clk_gpll 594000000>,
 			<&clk_cpll 384000000>,	<&clk_npll 500000000>,
@@ -584,6 +584,9 @@
 
 				/*UART*/
 				<&clk_gates11 9>,/*pclk_uart2*/
+
+				/*480M*/
+				<&usbphy_480m>,
 
 				/*PD*/
 				<&pd_gpu>,

@@ -51,6 +51,7 @@
 #define CLKOPS_RATE_CORE_CHILD		12
 #define CLKOPS_RATE_DDR			13
 #define CLKOPS_RATE_RK3288_I2S		14
+#define CLKOPS_RATE_RK3288_USB480M	15
 #define CLKOPS_TABLE_END		(~0)
 
 /* pd id */

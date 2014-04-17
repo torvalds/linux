@@ -513,6 +513,52 @@ const struct clk_ops clkops_rate_3288_i2s = {
 	.set_rate	= clk_3288_i2s_set_rate,
 };
 
+static bool usb480m_state = false;
+
+static long clk_3288_usb480m_determine_rate(struct clk_hw *hw, unsigned long rate,
+		unsigned long *best_parent_rate,
+		struct clk **best_parent_p)
+{
+	if(rate == 0)
+		return 0;
+	else
+		return 480*MHZ;
+}
+
+static long clk_3288_usb480m_round_rate(struct clk_hw *hw, unsigned long rate,
+		unsigned long *prate)
+{
+	return clk_3288_usb480m_determine_rate(hw, rate, prate, NULL);
+}
+
+static int clk_3288_usb480m_set_rate(struct clk_hw *hw, unsigned long rate,
+		unsigned long parent_rate)
+{
+	if(rate == 0)
+		usb480m_state = false;
+	else
+		usb480m_state = true;
+
+	return 0;
+}
+
+static unsigned long clk_3288_usb480m_recalc_rate(struct clk_hw *hw,
+		unsigned long parent_rate)
+{
+	if(usb480m_state)
+		return 480*MHZ;
+	else
+		return 0;
+}
+
+const struct clk_ops clkops_rate_3288_usb480m = {
+	.determine_rate = clk_3288_usb480m_determine_rate,
+	.set_rate	= clk_3288_usb480m_set_rate,
+	.round_rate	= clk_3288_usb480m_round_rate,
+	.recalc_rate	= clk_3288_usb480m_recalc_rate,
+};
+
+
 struct clk_ops_table rk_clkops_rate_table[] = {
 	{.index = CLKOPS_RATE_MUX_DIV,		.clk_ops = &clkops_rate_auto_parent},
 	{.index = CLKOPS_RATE_EVENDIV,		.clk_ops = &clkops_rate_evendiv},
@@ -523,6 +569,7 @@ struct clk_ops_table rk_clkops_rate_table[] = {
 	{.index = CLKOPS_RATE_CORE_CHILD,	.clk_ops = &clkops_rate_core_peri},
 	{.index = CLKOPS_RATE_DDR,		.clk_ops = &clkops_rate_ddr},
 	{.index = CLKOPS_RATE_RK3288_I2S,	.clk_ops = &clkops_rate_3288_i2s},
+	{.index = CLKOPS_RATE_RK3288_USB480M,	.clk_ops = &clkops_rate_3288_usb480m},
 	{.index = CLKOPS_RATE_I2S,		.clk_ops = NULL},
 	{.index = CLKOPS_RATE_CIFOUT,		.clk_ops = NULL},
 	{.index = CLKOPS_RATE_UART,		.clk_ops = NULL},
