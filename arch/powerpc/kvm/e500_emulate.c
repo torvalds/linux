@@ -19,6 +19,7 @@
 #include "booke.h"
 #include "e500.h"
 
+#define XOP_DCBTLS  166
 #define XOP_MSGSND  206
 #define XOP_MSGCLR  238
 #define XOP_TLBIVAX 786
@@ -103,6 +104,15 @@ static int kvmppc_e500_emul_ehpriv(struct kvm_run *run, struct kvm_vcpu *vcpu,
 	return emulated;
 }
 
+static int kvmppc_e500_emul_dcbtls(struct kvm_vcpu *vcpu)
+{
+	struct kvmppc_vcpu_e500 *vcpu_e500 = to_e500(vcpu);
+
+	/* Always fail to lock the cache */
+	vcpu_e500->l1csr0 |= L1CSR0_CUL;
+	return EMULATE_DONE;
+}
+
 int kvmppc_core_emulate_op_e500(struct kvm_run *run, struct kvm_vcpu *vcpu,
 				unsigned int inst, int *advance)
 {
@@ -115,6 +125,10 @@ int kvmppc_core_emulate_op_e500(struct kvm_run *run, struct kvm_vcpu *vcpu,
 	switch (get_op(inst)) {
 	case 31:
 		switch (get_xop(inst)) {
+
+		case XOP_DCBTLS:
+			emulated = kvmppc_e500_emul_dcbtls(vcpu);
+			break;
 
 #ifdef CONFIG_KVM_E500MC
 		case XOP_MSGSND:
