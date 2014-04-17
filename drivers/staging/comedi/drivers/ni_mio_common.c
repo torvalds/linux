@@ -2080,7 +2080,7 @@ static int ni_ai_cmdtest(struct comedi_device *dev, struct comedi_subdevice *s,
 	const struct ni_board_struct *board = comedi_board(dev);
 	struct ni_private *devpriv = dev->private;
 	int err = 0;
-	int tmp;
+	unsigned int tmp;
 	unsigned int sources;
 
 	/* Step 1 : check if triggers are trivially valid */
@@ -2119,17 +2119,19 @@ static int ni_ai_cmdtest(struct comedi_device *dev, struct comedi_subdevice *s,
 
 	/* Step 3: check if arguments are trivially valid */
 
-	if (cmd->start_src == TRIG_EXT) {
-		/* external trigger */
-		unsigned int tmp = CR_CHAN(cmd->start_arg);
+	switch (cmd->start_src) {
+	case TRIG_NOW:
+	case TRIG_INT:
+		err |= cfc_check_trigger_arg_is(&cmd->start_arg, 0);
+		break;
+	case TRIG_EXT:
+		tmp = CR_CHAN(cmd->start_arg);
 
 		if (tmp > 16)
 			tmp = 16;
 		tmp |= (cmd->start_arg & (CR_INVERT | CR_EDGE));
 		err |= cfc_check_trigger_arg_is(&cmd->start_arg, tmp);
-	} else {
-		/* true for both TRIG_NOW and TRIG_INT */
-		err |= cfc_check_trigger_arg_is(&cmd->start_arg, 0);
+		break;
 	}
 
 	if (cmd->scan_begin_src == TRIG_TIMER) {
@@ -2510,30 +2512,28 @@ static int ni_ai_cmd(struct comedi_device *dev, struct comedi_subdevice *s)
 	}
 #endif
 
-	switch (cmd->start_src) {
-	case TRIG_NOW:
+	if (cmd->start_src == TRIG_NOW) {
 		/* AI_START1_Pulse */
 		devpriv->stc_writew(dev, AI_START1_Pulse | devpriv->ai_cmd2,
 				    AI_Command_2_Register);
 		s->async->inttrig = NULL;
-		break;
-	case TRIG_EXT:
+	} else if (cmd->start_src == TRIG_EXT) {
 		s->async->inttrig = NULL;
-		break;
-	case TRIG_INT:
-		s->async->inttrig = &ni_ai_inttrig;
-		break;
+	} else {	/* TRIG_INT */
+		s->async->inttrig = ni_ai_inttrig;
 	}
 
 	return 0;
 }
 
-static int ni_ai_inttrig(struct comedi_device *dev, struct comedi_subdevice *s,
-			 unsigned int trignum)
+static int ni_ai_inttrig(struct comedi_device *dev,
+			 struct comedi_subdevice *s,
+			 unsigned int trig_num)
 {
 	struct ni_private *devpriv = dev->private;
+	struct comedi_cmd *cmd = &s->async->cmd;
 
-	if (trignum != 0)
+	if (trig_num != cmd->start_arg)
 		return -EINVAL;
 
 	devpriv->stc_writew(dev, AI_START1_Pulse | devpriv->ai_cmd2,
@@ -2946,17 +2946,19 @@ static int ni_ao_insn_config(struct comedi_device *dev,
 	return -EINVAL;
 }
 
-static int ni_ao_inttrig(struct comedi_device *dev, struct comedi_subdevice *s,
-			 unsigned int trignum)
+static int ni_ao_inttrig(struct comedi_device *dev,
+			 struct comedi_subdevice *s,
+			 unsigned int trig_num)
 {
 	const struct ni_board_struct *board __maybe_unused = comedi_board(dev);
 	struct ni_private *devpriv = dev->private;
+	struct comedi_cmd *cmd = &s->async->cmd;
 	int ret;
 	int interrupt_b_bits;
 	int i;
 	static const int timeout = 1000;
 
-	if (trignum != 0)
+	if (trig_num != cmd->start_arg)
 		return -EINVAL;
 
 	/* Null trig at beginning prevent ao start trigger from executing more than
@@ -3217,7 +3219,7 @@ static int ni_ao_cmd(struct comedi_device *dev, struct comedi_subdevice *s)
 			    AO_BC_TC_Interrupt_Enable, 1);
 	}
 
-	s->async->inttrig = &ni_ao_inttrig;
+	s->async->inttrig = ni_ao_inttrig;
 
 	return 0;
 }
@@ -3228,7 +3230,7 @@ static int ni_ao_cmdtest(struct comedi_device *dev, struct comedi_subdevice *s,
 	const struct ni_board_struct *board = comedi_board(dev);
 	struct ni_private *devpriv = dev->private;
 	int err = 0;
-	int tmp;
+	unsigned int tmp;
 
 	/* Step 1 : check if triggers are trivially valid */
 
@@ -3258,17 +3260,18 @@ static int ni_ao_cmdtest(struct comedi_device *dev, struct comedi_subdevice *s,
 
 	/* Step 3: check if arguments are trivially valid */
 
-	if (cmd->start_src == TRIG_EXT) {
-		/* external trigger */
-		unsigned int tmp = CR_CHAN(cmd->start_arg);
+	switch (cmd->start_src) {
+	case TRIG_INT:
+		err |= cfc_check_trigger_arg_is(&cmd->start_arg, 0);
+		break;
+	case TRIG_EXT:
+		tmp = CR_CHAN(cmd->start_arg);
 
 		if (tmp > 18)
 			tmp = 18;
 		tmp |= (cmd->start_arg & (CR_INVERT | CR_EDGE));
 		err |= cfc_check_trigger_arg_is(&cmd->start_arg, tmp);
-	} else {
-		/* true for both TRIG_NOW and TRIG_INT */
-		err |= cfc_check_trigger_arg_is(&cmd->start_arg, 0);
+		break;
 	}
 
 	if (cmd->scan_begin_src == TRIG_TIMER) {
@@ -3537,20 +3540,27 @@ static int ni_cdio_cmd(struct comedi_device *dev, struct comedi_subdevice *s)
 	retval = ni_request_cdo_mite_channel(dev);
 	if (retval < 0)
 		return retval;
-	s->async->inttrig = &ni_cdo_inttrig;
+
+	s->async->inttrig = ni_cdo_inttrig;
+
 	return 0;
 }
 
-static int ni_cdo_inttrig(struct comedi_device *dev, struct comedi_subdevice *s,
-			  unsigned int trignum)
+static int ni_cdo_inttrig(struct comedi_device *dev,
+			  struct comedi_subdevice *s,
+			  unsigned int trig_num)
 {
 #ifdef PCIDMA
 	struct ni_private *devpriv = dev->private;
 	unsigned long flags;
 #endif
+	struct comedi_cmd *cmd = &s->async->cmd;
 	int retval = 0;
 	unsigned i;
 	const unsigned timeout = 1000;
+
+	if (trig_num != cmd->start_arg)
+		return -EINVAL;
 
 	s->async->inttrig = NULL;
 
