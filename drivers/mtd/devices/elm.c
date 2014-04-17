@@ -418,6 +418,7 @@ static int elm_remove(struct platform_device *pdev)
 	return 0;
 }
 
+#ifdef CONFIG_PM_SLEEP
 /**
  * elm_context_save
  * saves ELM configurations to preserve them across Hardware powered-down
@@ -509,6 +510,7 @@ static int elm_resume(struct device *dev)
 	elm_context_restore(info);
 	return 0;
 }
+#endif
 
 static SIMPLE_DEV_PM_OPS(elm_pm_ops, elm_suspend, elm_resume);
 
