@@ -157,3 +157,5 @@
 		/include/ "rtsm_ve-motherboard.dtsi"
 	};
 };
+
+/include/ "clcd-panels.dtsi"
