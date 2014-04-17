@@ -235,6 +235,8 @@
 		reg = <0x40>;
 		interrupts = <30 0>;
 		interrupt-parent = <&gpio3>;
+		vcc-supply = <&sw2_reg>;
+		vio-supply = <&sw2_reg>;
 
 		stmpe_gpio1: stmpe_gpio {
 			#gpio-cells = <2>;
@@ -247,6 +249,8 @@
 		reg = <0x44>;
 		interrupts = <2 0>;
 		interrupt-parent = <&gpio5>;
+		vcc-supply = <&sw2_reg>;
+		vio-supply = <&sw2_reg>;
 
 		stmpe_gpio2: stmpe_gpio {
 			#gpio-cells = <2>;
