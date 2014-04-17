@@ -14,9 +14,6 @@
 
 #include <sound/rt5640.h>
 
-#define RT5639_RESET_ID				0x0008
-#define RT5640_RESET_ID				0x000c
-
 /* Info */
 #define RT5640_RESET				0x00
 #define RT5640_VENDOR_ID			0xfd
@@ -194,6 +191,13 @@
 #define RT5640_L_VOL_SFT			8
 #define RT5640_R_VOL_MASK			(0x3f)
 #define RT5640_R_VOL_SFT			0
+
+/* SW Reset & Device ID (0x00) */
+#define RT5640_ID_MASK				(0x3 << 1)
+#define RT5640_ID_5639				(0x0 << 1)
+#define RT5640_ID_5640				(0x1 << 1)
+#define RT5640_ID_5642				(0x3 << 1)
+
 
 /* IN1 and IN2 Control (0x0d) */
 /* IN3 and IN4 Control (0x0e) */

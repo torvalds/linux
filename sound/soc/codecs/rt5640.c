@@ -1997,8 +1997,9 @@ static int rt5640_probe(struct snd_soc_codec *codec)
 	snd_soc_update_bits(codec, RT5640_MICBIAS, 0x0030, 0x0030);
 	snd_soc_update_bits(codec, RT5640_DSP_PATH2, 0xfc00, 0x0c00);
 
-	switch (snd_soc_read(codec, RT5640_RESET)) {
-	case RT5640_RESET_ID:
+	switch (snd_soc_read(codec, RT5640_RESET) & RT5640_ID_MASK) {
+	case RT5640_ID_5640:
+	case RT5640_ID_5642:
 		snd_soc_add_codec_controls(codec,
 			rt5640_specific_snd_controls,
 			ARRAY_SIZE(rt5640_specific_snd_controls));
@@ -2009,7 +2010,7 @@ static int rt5640_probe(struct snd_soc_codec *codec)
 			rt5640_specific_dapm_routes,
 			ARRAY_SIZE(rt5640_specific_dapm_routes));
 		break;
-	case RT5639_RESET_ID:
+	case RT5640_ID_5639:
 		snd_soc_dapm_new_controls(&codec->dapm,
 			rt5639_specific_dapm_widgets,
 			ARRAY_SIZE(rt5639_specific_dapm_widgets));
@@ -2149,6 +2150,7 @@ static const struct regmap_config rt5640_regmap = {
 static const struct i2c_device_id rt5640_i2c_id[] = {
 	{ "rt5640", 0 },
 	{ "rt5639", 0 },
+	{ "rt5642", 0 },
 	{ }
 };
 MODULE_DEVICE_TABLE(i2c, rt5640_i2c_id);
