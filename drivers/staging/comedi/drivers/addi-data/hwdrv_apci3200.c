@@ -2221,12 +2221,11 @@ static int apci3200_ai_cmdtest(struct comedi_device *dev,
 	unsigned int ui_ConvertTimeBase = 0;
 	unsigned int ui_DelayTime = 0;
 	unsigned int ui_DelayTimeBase = 0;
-	int i_Triggermode = 0;
-	int i_TriggerEdge = 0;
 	int i_NbrOfChannel = 0;
 	int i_Cpt = 0;
 	double d_ConversionTimeForAllChannels = 0.0;
 	double d_SCANTimeNewUnit = 0.0;
+	unsigned int arg;
 
 	/* Step 1 : check if triggers are trivially valid */
 
@@ -2253,25 +2252,34 @@ static int apci3200_ai_cmdtest(struct comedi_device *dev,
 
 	/* Step 2b : and mutually compatible */
 
-	if (cmd->start_src == TRIG_EXT) {
-		i_TriggerEdge = cmd->start_arg & 0xFFFF;
-		i_Triggermode = cmd->start_arg >> 16;
-		if (i_TriggerEdge < 1 || i_TriggerEdge > 3) {
-			err++;
-			printk("\nThe trigger edge selection is in error\n");
-		}
-		if (i_Triggermode != 2) {
-			err++;
-			printk("\nThe trigger mode selection is in error\n");
-		}
-	}
-
 	if (err) {
 		apci3200_reset(dev);
 		return 2;
 	}
 
 	/* Step 3: check if arguments are trivially valid */
+
+	switch (cmd->start_src) {
+	case TRIG_NOW:
+		err |= cfc_check_trigger_arg_is(&cmd->start_arg, 0);
+		break;
+	case TRIG_EXT:
+		/* validate the trigger edge selection */
+		arg = cmd->start_arg & 0xffff;
+		if (arg < 1 || arg > 3) {
+			cmd->start_arg &= ~0xffff;
+			cmd->start_arg |= 1;
+			err |= -EINVAL;
+		}
+		/* validate the trigger mode selection */
+		arg = cmd->start_arg >> 16;
+		if (arg != 2) {
+			cmd->start_arg &= ~(0xffff << 16);
+			cmd->start_arg |= (2 << 16);
+			err |= -EINVAL;
+		}
+		break;
+	}
 
 	err |= cfc_check_trigger_arg_is(&cmd->scan_end_arg, cmd->chanlist_len);
 
