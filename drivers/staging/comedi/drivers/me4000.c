@@ -918,6 +918,8 @@ static int me4000_ai_do_cmd_test(struct comedi_device *dev,
 
 	/* Step 3: check if arguments are trivially valid */
 
+	err |= cfc_check_trigger_arg_is(&cmd->start_arg, 0);
+
 	if (cmd->chanlist_len < 1) {
 		cmd->chanlist_len = 1;
 		err |= -EINVAL;
