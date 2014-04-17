@@ -31,6 +31,7 @@ struct rk32_lvds {
 	struct device 		*dev;
 	void __iomem  		*regs;
 	struct clk    		*clk; /*phb clk*/
+	struct clk              *pd;
 	struct rk_screen	screen;
 };
 
