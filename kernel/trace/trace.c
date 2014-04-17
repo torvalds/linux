@@ -275,7 +275,7 @@ int call_filter_check_discard(struct ftrace_event_call *call, void *rec,
 }
 EXPORT_SYMBOL_GPL(call_filter_check_discard);
 
-cycle_t buffer_ftrace_now(struct trace_buffer *buf, int cpu)
+static cycle_t buffer_ftrace_now(struct trace_buffer *buf, int cpu)
 {
 	u64 ts;
 
@@ -599,7 +599,7 @@ static int alloc_snapshot(struct trace_array *tr)
 	return 0;
 }
 
-void free_snapshot(struct trace_array *tr)
+static void free_snapshot(struct trace_array *tr)
 {
 	/*
 	 * We don't free the ring buffer. instead, resize it because
