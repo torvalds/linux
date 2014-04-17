@@ -514,6 +514,7 @@ struct rk32_edp {
 	struct device 		*dev;
 	void __iomem  		*regs;
 	unsigned int  		irq;
+	struct clk		*pd;
 	struct clk    		*clk_edp;  /*clk for edp controller*/
 	struct clk    		*clk_24m;  /*clk for edp phy*/
 	struct clk		*pclk;	   /*clk for phb bus*/

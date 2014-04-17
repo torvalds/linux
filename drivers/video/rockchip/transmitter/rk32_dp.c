@@ -44,6 +44,7 @@ static struct rk32_edp *rk32_edp;
 static int rk32_edp_clk_enable(struct rk32_edp *edp)
 {
 	if (!edp->clk_on) {
+		clk_enable(edp->pd);
 		clk_enable(edp->pclk);
 		clk_enable(edp->clk_edp);
 		clk_enable(edp->clk_24m);
@@ -59,6 +60,7 @@ static int rk32_edp_clk_disable(struct rk32_edp *edp)
 		clk_disable(edp->pclk);
 		clk_disable(edp->clk_edp);
 		clk_disable(edp->clk_24m);
+		clk_disable(edp->pd);
 		edp->clk_on = false;
 	}
 
@@ -1319,6 +1321,10 @@ static int rk32_edp_probe(struct platform_device *pdev)
 		return PTR_ERR(edp->regs);
 	}
 
+	edp->pd = devm_clk_get(&pdev->dev,"pd_edp");
+	if (IS_ERR(edp->pd)) {
+		dev_err(&pdev->dev, "cannot get pd\n");
+	}
 	edp->clk_edp = devm_clk_get(&pdev->dev,"clk_edp");
 	if (IS_ERR(edp->clk_edp)) {
 		dev_err(&pdev->dev, "cannot get clk_edp\n");
@@ -1336,7 +1342,7 @@ static int rk32_edp_probe(struct platform_device *pdev)
 		dev_err(&pdev->dev, "cannot get pclk\n");
 		return PTR_ERR(edp->pclk);
 	}
-
+	clk_prepare(edp->pd);
 	clk_prepare(edp->pclk);
 	clk_prepare(edp->clk_edp);
 	clk_prepare(edp->clk_24m);
