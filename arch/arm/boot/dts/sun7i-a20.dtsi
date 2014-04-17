@@ -57,6 +57,12 @@
 			     <1 10 0xf08>;
 	};
 
+	pmu {
+		compatible = "arm,cortex-a7-pmu", "arm,cortex-a15-pmu";
+		interrupts = <0 120 4>,
+			     <0 121 4>;
+	};
+
 	clocks {
 		#address-cells = <1>;
 		#size-cells = <1>;
