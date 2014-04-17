@@ -48,17 +48,7 @@ MODULE_PARM_DESC(debug,"enable debug messages");
 
 /* ------------------------------------------------------------------ */
 
-static void ts_reset_encoder(struct saa7134_dev* dev)
-{
-	if (!dev->empress_started)
-		return;
-
-	saa_writeb(SAA7134_SPECIAL_MODE, 0x00);
-	msleep(10);
-	saa_writeb(SAA7134_SPECIAL_MODE, 0x01);
-	msleep(100);
-	dev->empress_started = 0;
-}
+static void ts_reset_encoder(struct saa7134_dev* dev);
 
 static int ts_init_encoder(struct saa7134_dev* dev)
 {
@@ -77,6 +67,18 @@ static int ts_init_encoder(struct saa7134_dev* dev)
 	saa_call_all(dev, core, init, leading_null_bytes);
 	dev->empress_started = 1;
 	return 0;
+}
+
+static void ts_reset_encoder(struct saa7134_dev* dev)
+{
+	if (!dev->empress_started)
+		return;
+
+	saa_writeb(SAA7134_SPECIAL_MODE, 0x00);
+	msleep(10);
+	saa_writeb(SAA7134_SPECIAL_MODE, 0x01);
+	msleep(100);
+	dev->empress_started = 0;
 }
 
 /* ------------------------------------------------------------------ */
