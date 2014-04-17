@@ -1169,7 +1169,7 @@ static int cb_pcidas_ao_inttrig(struct comedi_device *dev,
 	struct comedi_cmd *cmd = &s->async->cmd;
 	unsigned long flags;
 
-	if (trig_num != 0)
+	if (trig_num != cmd->start_arg)
 		return -EINVAL;
 
 	/*  load up fifo */
