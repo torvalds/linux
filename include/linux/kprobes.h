@@ -205,10 +205,10 @@ struct kretprobe_blackpoint {
 	void *addr;
 };
 
-struct kprobe_blackpoint {
-	const char *name;
+struct kprobe_blacklist_entry {
+	struct list_head list;
 	unsigned long start_addr;
-	unsigned long range;
+	unsigned long end_addr;
 };
 
 #ifdef CONFIG_KPROBES
@@ -476,5 +476,19 @@ static inline int enable_jprobe(struct jprobe *jp)
 {
 	return enable_kprobe(&jp->kp);
 }
+
+#ifdef CONFIG_KPROBES
+/*
+ * Blacklist ganerating macro. Specify functions which is not probed
+ * by using this macro.
+ */
+#define __NOKPROBE_SYMBOL(fname)			\
+static unsigned long __used				\
+	__attribute__((section("_kprobe_blacklist")))	\
+	_kbl_addr_##fname = (unsigned long)fname;
+#define NOKPROBE_SYMBOL(fname)	__NOKPROBE_SYMBOL(fname)
+#else
+#define NOKPROBE_SYMBOL(fname)
+#endif
 
 #endif /* _LINUX_KPROBES_H */

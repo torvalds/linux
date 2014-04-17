@@ -23,6 +23,7 @@
 #include <linux/efi.h>
 #include <linux/bcd.h>
 #include <linux/highmem.h>
+#include <linux/kprobes.h>
 
 #include <asm/bug.h>
 #include <asm/paravirt.h>
@@ -388,6 +389,9 @@ __visible struct pv_cpu_ops pv_cpu_ops = {
 	.start_context_switch = paravirt_nop,
 	.end_context_switch = paravirt_nop,
 };
+
+/* At this point, native_get_debugreg has a real function entry */
+NOKPROBE_SYMBOL(native_get_debugreg);
 
 struct pv_apic_ops pv_apic_ops = {
 #ifdef CONFIG_X86_LOCAL_APIC
