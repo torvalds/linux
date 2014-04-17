@@ -1,6 +1,11 @@
 /*
- * RockChip. lq070m1sx01
- *
+ * Copyright (C) 2014 ROCKCHIP, Inc.
+ * arch/arm/boot/dts/lcd-lq070m1sx01-mipi.dtsi
+ * author: libing@rock-chips.com
+ * create date: 2014-04-15
+ * lcd model: wqxga
+ * resolution: 2560 X 1600
+ * mipi channel: dual 
  */
 
 / {
@@ -13,7 +18,7 @@
 		};
 		disp_mipi_power_ctr: mipi_power_ctr {
 					mipi_lcd_rst:mipi_lcd_rst{
-							rockchip,gpios = <&gpio7 GPIO_B2 GPIO_ACTIVE_LOW>;
+							rockchip,gpios = <&gpio7 GPIO_B2 GPIO_ACTIVE_HIGH>;
 							rockchip,delay = <100>;
 					};
 					/*mipi_lcd_en:mipi_lcd_en {
@@ -23,136 +28,118 @@
 		};
 		disp_mipi_init_cmds: screen-on-cmds {
 					rockchip,cmd_debug = <0>;
-					rockchip,on-cmds1 {
+                    rockchip,on-cmds1 {
 							rockchip,cmd_type = <LPDT>;
-							rockchip,data_type = <DATA_TYPE_DCS>;
 							rockchip,dsi_id = <2>;
-							rockchip,cmd = <0x01>; //set soft reset
+							rockchip,cmd = <0x05 0x01>; //set soft reset
 							rockchip,cmd_delay = <10>;
 					};
 					
 					rockchip,on-cmds2 {
 							rockchip,cmd_type = <LPDT>;
-							rockchip,data_type = <DATA_TYPE_DCS>;
 							rockchip,dsi_id = <2>;
-							rockchip,cmd = <0x3a 0x77>;
+							rockchip,cmd = <0x15 0x3a 0x77>;
 							rockchip,cmd_delay = <0>;
 					};
-					/*rockchip,on-cmds3 {
+					rockchip,on-cmds3 {
 							rockchip,cmd_type = <LPDT>;
-							rockchip,data_type = <DATA_TYPE_DCS>;
 							rockchip,dsi_id = <2>;
-							rockchip,cmd = <0x2a 0x00 0x00 0x04 0xff>;
+							rockchip,cmd = <0x39 0x2a 0x00 0x00 0x04 0xff>;
 							rockchip,cmd_delay = <0>;
 					};
 					rockchip,on-cmds4 {
 							rockchip,cmd_type = <LPDT>;
-							rockchip,data_type = <DATA_TYPE_DCS>;
 							rockchip,dsi_id = <2>;
-							rockchip,cmd = <0x2b 0x00 0x00 0x06 0x3f>;
+							rockchip,cmd = <0x39 0x2b 0x00 0x00 0x06 0x3f>;
 							rockchip,cmd_delay = <0>;
 					};
 					rockchip,on-cmds5 {
 							rockchip,cmd_type = <LPDT>;
-							rockchip,data_type = <DATA_TYPE_DCS>;
 							rockchip,dsi_id = <1>;
-							rockchip,cmd = <0x35 0x00>;
+							rockchip,cmd = <0x15 0x35 0x00>;
 							rockchip,cmd_delay = <0>;
 					};
 					rockchip,on-cmds6 {
 							rockchip,cmd_type = <LPDT>;
-							rockchip,data_type = <DATA_TYPE_DCS>;
 							rockchip,dsi_id = <1>;
-							rockchip,cmd = <0x44 0x00 0x00>;
+							rockchip,cmd = <0x39 0x44 0x00 0x00>;
 							rockchip,cmd_delay = <0>;
-					};*/
+					};
 					rockchip,on-cmds7 {
 							rockchip,cmd_type = <LPDT>;
-							rockchip,data_type = <DATA_TYPE_DCS>;
 							rockchip,dsi_id = <2>;
-							rockchip,cmd = <0x51 0xff>; //0xff
+							rockchip,cmd = <0x15 0x51 0xff>; //0xff
 							rockchip,cmd_delay = <0>;
 					};
 					rockchip,on-cmds8 {
 							rockchip,cmd_type = <LPDT>;
-							rockchip,data_type = <DATA_TYPE_DCS>;
 							rockchip,dsi_id = <2>;
-							rockchip,cmd = <0x53 0x24>;
+							rockchip,cmd = <0x15 0x53 0x24>;
 							rockchip,cmd_delay = <0>;
 					};
 					rockchip,on-cmds9 {
 							rockchip,cmd_type = <LPDT>;
-							rockchip,data_type = <DATA_TYPE_DCS>;
 							rockchip,dsi_id = <2>;
-							rockchip,cmd = <0x51 0xff>; //0xff
+							rockchip,cmd = <0x15 0x51 0xff>; //0xff
 							rockchip,cmd_delay = <0>;
 					};
 					rockchip,on-cmds10 {
 							rockchip,cmd_type = <LPDT>;
-							rockchip,data_type = <DATA_TYPE_DCS>;
 							rockchip,dsi_id = <2>;
-							rockchip,cmd = <0x53 0x24>;
+							rockchip,cmd = <0x15 0x53 0x24>;
 							rockchip,cmd_delay = <0>;
 					};
 
 					rockchip,on-cmds11 {
 							rockchip,cmd_type = <LPDT>;
-							rockchip,data_type = <DATA_TYPE_DCS>;
 							rockchip,dsi_id = <2>;
-							rockchip,cmd = <0x55 0x03>;
+							rockchip,cmd = <0x15 0x55 0x03>;
 							rockchip,cmd_delay = <0>;
 					};			
 					rockchip,on-cmds12 {
 							rockchip,cmd_type = <LPDT>;
-							rockchip,data_type = <DATA_TYPE_DCS>;
 							rockchip,dsi_id = <2>;
-							rockchip,cmd = <dcs_exit_sleep_mode>;
+							rockchip,cmd = <0x05 dcs_exit_sleep_mode>;
 							rockchip,cmd_delay = <100>;
 					};
 
 					rockchip,on-cmds13 {
 							rockchip,cmd_type = <LPDT>;
-							rockchip,data_type = <DATA_TYPE_GEN>;
 							rockchip,dsi_id = <2>;
-							rockchip,cmd = <0xb0 0x00>;
+							rockchip,cmd = <0x23 0xb0 0x00>;
 							rockchip,cmd_delay = <0>;
 					};
 				
 					rockchip,on-cmds14 { //video
 							rockchip,cmd_type = <LPDT>;
-							rockchip,data_type = <DATA_TYPE_GEN>;
 							rockchip,dsi_id = <2>;
-							rockchip,cmd = <0xb3 0x1c>;
+							rockchip,cmd = <0x29 0xb3 0x1c>;
 							rockchip,cmd_delay = <0>;
 					};
 								
 					rockchip,on-cmds15 {
 							rockchip,cmd_type = <LPDT>;
-							rockchip,data_type = <DATA_TYPE_GEN>;
 							rockchip,dsi_id = <2>;
-							rockchip,cmd = <0xce 0x7d 0x40 0x48 0x56 0x67 0x78 0x88 0x98 0xa7 0xb5 0xc3 0xd1 0xde 0xe9 0xf2 0xfa 0xff 0x04 0x00>;
+							rockchip,cmd = <0x29 0xce 0x7d 0x40 0x48 0x56 0x67 0x78 0x88 0x98 0xa7 0xb5 0xc3 0xd1 0xde 0xe9 0xf2 0xfa 0xff 0x04 0x00>;
 							rockchip,cmd_delay = <0>;
 					};
 					rockchip,on-cmds16 {
 							rockchip,cmd_type = <LPDT>;
-							rockchip,data_type = <DATA_TYPE_GEN>;
 							rockchip,dsi_id = <2>;
-							rockchip,cmd = <0xb0 0x03>;
+							rockchip,cmd = <0x23 0xb0 0x03>;
 							rockchip,cmd_delay = <0>;
 					};
 					rockchip,on-cmds17 {
 							rockchip,cmd_type = <LPDT>;
-							rockchip,data_type = <DATA_TYPE_DCS>;
 							rockchip,dsi_id = <2>;
-							rockchip,cmd = <0x2c >;
+							rockchip,cmd = <0x39 0x2c >;
 							rockchip,cmd_delay = <0>;
 					};
 
 					rockchip,on-cmds18 {
 							rockchip,cmd_type = <LPDT>;
-							rockchip,data_type = <DATA_TYPE_DCS>;
 							rockchip,dsi_id = <2>;
-							rockchip,cmd = <dcs_set_display_on>;
+							rockchip,cmd = <0x05 dcs_set_display_on>;
 							rockchip,cmd_delay = <10>;
 					};
 
