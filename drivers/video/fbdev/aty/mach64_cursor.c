@@ -5,7 +5,7 @@
 #include <linux/fb.h>
 #include <linux/init.h>
 #include <linux/string.h>
-#include "../fb_draw.h"
+#include "../core/fb_draw.h"
 
 #include <asm/io.h>
 
