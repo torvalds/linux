@@ -122,6 +122,10 @@ static int buffer_prepare(struct vb2_buffer *vb2)
 	unsigned int size;
 	int ret;
 
+	if (dma->sgl->offset) {
+		pr_err("The buffer is not page-aligned\n");
+		return -EINVAL;
+	}
 	size = dev->vbi_hlen * dev->vbi_vlen * 2;
 	if (vb2_plane_size(vb2, 0) < size)
 		return -EINVAL;

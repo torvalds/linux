@@ -885,6 +885,10 @@ static int buffer_prepare(struct vb2_buffer *vb2)
 	unsigned int size;
 	int ret;
 
+	if (dma->sgl->offset) {
+		pr_err("The buffer is not page-aligned\n");
+		return -EINVAL;
+	}
 	size = (dev->width * dev->height * dev->fmt->depth) >> 3;
 	if (vb2_plane_size(vb2, 0) < size)
 		return -EINVAL;
@@ -2092,11 +2096,15 @@ int saa7134_video_init1(struct saa7134_dev *dev)
 	q = &dev->video_vbq;
 	q->type = V4L2_BUF_TYPE_VIDEO_CAPTURE;
 	/*
-	 * Do not add VB2_USERPTR: the saa7134 DMA engine cannot handle
-	 * transfers that do not start at the beginning of a page. A USERPTR
-	 * can start anywhere in a page, so USERPTR support is a no-go.
+	 * Do not add VB2_USERPTR unless explicitly requested: the saa7134 DMA
+	 * engine cannot handle transfers that do not start at the beginning
+	 * of a page. A user-provided pointer can start anywhere in a page, so
+	 * USERPTR support is a no-go unless the application knows about these
+	 * limitations and has special support for this.
 	 */
 	q->io_modes = VB2_MMAP | VB2_READ;
+	if (saa7134_userptr)
+		q->io_modes |= VB2_USERPTR;
 	q->drv_priv = &dev->video_q;
 	q->ops = &vb2_qops;
 	q->gfp_flags = GFP_DMA32;
@@ -2113,6 +2121,8 @@ int saa7134_video_init1(struct saa7134_dev *dev)
 	q->type = V4L2_BUF_TYPE_VBI_CAPTURE;
 	/* Don't add VB2_USERPTR, see comment above */
 	q->io_modes = VB2_MMAP | VB2_READ;
+	if (saa7134_userptr)
+		q->io_modes |= VB2_USERPTR;
 	q->drv_priv = &dev->vbi_q;
 	q->ops = &saa7134_vbi_qops;
 	q->gfp_flags = GFP_DMA32;

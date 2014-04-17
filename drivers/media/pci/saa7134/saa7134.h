@@ -714,6 +714,7 @@ static inline bool is_empress(struct file *file)
 extern struct list_head  saa7134_devlist;
 extern struct mutex saa7134_devlist_lock;
 extern int saa7134_no_overlay;
+extern bool saa7134_userptr;
 
 void saa7134_track_gpio(struct saa7134_dev *dev, char *msg);
 void saa7134_set_gpio(struct saa7134_dev *dev, int bit_no, int value);

@@ -69,6 +69,10 @@ module_param_named(no_overlay, saa7134_no_overlay, int, 0444);
 MODULE_PARM_DESC(no_overlay,"allow override overlay default (0 disables, 1 enables)"
 		" [some VIA/SIS chipsets are known to have problem with overlay]");
 
+bool saa7134_userptr;
+module_param(saa7134_userptr, bool, 0644);
+MODULE_PARM_DESC(saa7134_userptr, "enable page-aligned userptr support");
+
 static unsigned int video_nr[] = {[0 ... (SAA7134_MAXBOARDS - 1)] = UNSET };
 static unsigned int vbi_nr[]   = {[0 ... (SAA7134_MAXBOARDS - 1)] = UNSET };
 static unsigned int radio_nr[] = {[0 ... (SAA7134_MAXBOARDS - 1)] = UNSET };
