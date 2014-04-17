@@ -61,8 +61,9 @@ struct  intel_ring_buffer {
 		VCS,
 		BCS,
 		VECS,
+		VCS2
 	} id;
-#define I915_NUM_RINGS 4
+#define I915_NUM_RINGS 5
 #define LAST_USER_RING (VECS + 1)
 	u32		mmio_base;
 	void		__iomem *virtual_start;
@@ -288,6 +289,7 @@ int intel_ring_invalidate_all_caches(struct intel_ring_buffer *ring);
 
 int intel_init_render_ring_buffer(struct drm_device *dev);
 int intel_init_bsd_ring_buffer(struct drm_device *dev);
+int intel_init_bsd2_ring_buffer(struct drm_device *dev);
 int intel_init_blt_ring_buffer(struct drm_device *dev);
 int intel_init_vebox_ring_buffer(struct drm_device *dev);
 

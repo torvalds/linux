@@ -282,7 +282,7 @@ static const struct intel_device_info intel_broadwell_m_info = {
 static const struct intel_device_info intel_broadwell_gt3d_info = {
 	.gen = 8, .num_pipes = 3,
 	.need_gfx_hws = 1, .has_hotplug = 1,
-	.ring_mask = RENDER_RING | BSD_RING | BLT_RING | VEBOX_RING,
+	.ring_mask = RENDER_RING | BSD_RING | BLT_RING | VEBOX_RING | BSD2_RING,
 	.has_llc = 1,
 	.has_ddi = 1,
 	.has_fbc = 1,
@@ -292,7 +292,7 @@ static const struct intel_device_info intel_broadwell_gt3d_info = {
 static const struct intel_device_info intel_broadwell_gt3m_info = {
 	.gen = 8, .is_mobile = 1, .num_pipes = 3,
 	.need_gfx_hws = 1, .has_hotplug = 1,
-	.ring_mask = RENDER_RING | BSD_RING | BLT_RING | VEBOX_RING,
+	.ring_mask = RENDER_RING | BSD_RING | BLT_RING | VEBOX_RING | BSD2_RING,
 	.has_llc = 1,
 	.has_ddi = 1,
 	.has_fbc = 1,

@@ -42,6 +42,7 @@ static const char *ring_str(int ring)
 	case VCS: return "bsd";
 	case BCS: return "blt";
 	case VECS: return "vebox";
+	case VCS2: return "bsd2";
 	default: return "";
 	}
 }

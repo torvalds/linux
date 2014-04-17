@@ -760,6 +760,7 @@ enum punit_power_well {
 #define RENDER_RING_BASE	0x02000
 #define BSD_RING_BASE		0x04000
 #define GEN6_BSD_RING_BASE	0x12000
+#define GEN8_BSD2_RING_BASE	0x1c000
 #define VEBOX_RING_BASE		0x1a000
 #define BLT_RING_BASE		0x22000
 #define RING_TAIL(base)		((base)+0x30)
