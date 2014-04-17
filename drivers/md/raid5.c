@@ -4370,8 +4370,7 @@ static struct stripe_head *__get_priority_stripe(struct r5conf *conf, int group)
 		sh->group = NULL;
 	}
 	list_del_init(&sh->lru);
-	atomic_inc(&sh->count);
-	BUG_ON(atomic_read(&sh->count) != 1);
+	BUG_ON(atomic_inc_return(&sh->count) != 1);
 	return sh;
 }
 
