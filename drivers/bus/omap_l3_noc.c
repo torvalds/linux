@@ -26,14 +26,20 @@
 
 #include "omap_l3_noc.h"
 
-/*
- * Interrupt Handler for L3 error detection.
- *	1) Identify the L3 clockdomain partition to which the error belongs to.
- *	2) Identify the slave where the error information is logged
- *	3) Print the logged information.
- *	4) Add dump stack to provide kernel trace.
+/**
+ * l3_handle_target() - Handle Target specific parse and reporting
+ * @l3:		pointer to l3 struct
+ * @base:	base address of clkdm
+ * @flag_mux:	flagmux corresponding to the event
+ * @err_src:	error source index of the slave (target)
  *
- * Two Types of errors :
+ * This does the second part of the error interrupt handling:
+ *	3) Parse in the slave information
+ *	4) Print the logged information.
+ *	5) Add dump stack to provide kernel trace.
+ *	6) Clear the source if known.
+ *
+ * This handles two types of errors:
  *	1) Custom errors in L3 :
  *		Target like DMM/FW/EMIF generates SRESP=ERR error
  *	2) Standard L3 error:
@@ -49,21 +55,106 @@
  *	can be trapped as well. But the trapping is implemented as part
  *	secure software and hence need not be implemented here.
  */
-static irqreturn_t l3_interrupt_handler(int irq, void *_l3)
+static int l3_handle_target(struct omap_l3 *l3, void __iomem *base,
+			    struct l3_flagmux_data *flag_mux, int err_src)
 {
-
-	struct omap_l3 *l3 = _l3;
-	int inttype, i, k;
-	int err_src = 0;
-	u32 std_err_main, err_reg, clear, masterid;
-	void __iomem *base, *l3_targ_base;
+	int k;
+	u32 std_err_main, clear, masterid;
+	void __iomem *l3_targ_base;
 	void __iomem *l3_targ_stderr, *l3_targ_slvofslsb, *l3_targ_mstaddr;
-	char *target_name, *master_name = "UN IDENTIFIED";
 	struct l3_target_data *l3_targ_inst;
-	struct l3_flagmux_data *flag_mux;
 	struct l3_masters_data *master;
+	char *target_name, *master_name = "UN IDENTIFIED";
 	char *err_description;
 	char err_string[30] = { 0 };
+
+	/* We DONOT expect err_src to go out of bounds */
+	BUG_ON(err_src > MAX_CLKDM_TARGETS);
+
+	if (err_src < flag_mux->num_targ_data) {
+		l3_targ_inst = &flag_mux->l3_targ[err_src];
+		target_name = l3_targ_inst->name;
+		l3_targ_base = base + l3_targ_inst->offset;
+	} else {
+		target_name = L3_TARGET_NOT_SUPPORTED;
+	}
+
+	if (target_name == L3_TARGET_NOT_SUPPORTED)
+		return -ENODEV;
+
+	/* Read the stderrlog_main_source from clk domain */
+	l3_targ_stderr = l3_targ_base + L3_TARG_STDERRLOG_MAIN;
+	l3_targ_slvofslsb = l3_targ_base + L3_TARG_STDERRLOG_SLVOFSLSB;
+
+	std_err_main = readl_relaxed(l3_targ_stderr);
+
+	switch (std_err_main & CUSTOM_ERROR) {
+	case STANDARD_ERROR:
+		err_description = "Standard";
+		snprintf(err_string, sizeof(err_string),
+			 ": At Address: 0x%08X ",
+			 readl_relaxed(l3_targ_slvofslsb));
+
+		l3_targ_mstaddr = l3_targ_base + L3_TARG_STDERRLOG_MSTADDR;
+		break;
+
+	case CUSTOM_ERROR:
+		err_description = "Custom";
+
+		l3_targ_mstaddr = l3_targ_base +
+				  L3_TARG_STDERRLOG_CINFO_MSTADDR;
+		break;
+
+	default:
+		/* Nothing to be handled here as of now */
+		return 0;
+	}
+
+	/* STDERRLOG_MSTADDR Stores the NTTP master address. */
+	masterid = (readl_relaxed(l3_targ_mstaddr) &
+		    l3->mst_addr_mask) >> __ffs(l3->mst_addr_mask);
+
+	for (k = 0, master = l3->l3_masters; k < l3->num_masters;
+	     k++, master++) {
+		if (masterid == master->id) {
+			master_name = master->name;
+			break;
+		}
+	}
+
+	WARN(true,
+	     "%s:L3 %s Error: MASTER %s TARGET %s%s\n",
+	     dev_name(l3->dev),
+	     err_description,
+	     master_name, target_name,
+	     err_string);
+
+	/* clear the std error log*/
+	clear = std_err_main | CLEAR_STDERR_LOG;
+	writel_relaxed(clear, l3_targ_stderr);
+
+	return 0;
+}
+
+/**
+ * l3_interrupt_handler() - interrupt handler for l3 events
+ * @irq:	irq number
+ * @_l3:	pointer to l3 structure
+ *
+ * Interrupt Handler for L3 error detection.
+ *	1) Identify the L3 clockdomain partition to which the error belongs to.
+ *	2) Identify the slave where the error information is logged
+ *	... handle the slave event..
+ *	7) if the slave is unknown, mask out the slave.
+ */
+static irqreturn_t l3_interrupt_handler(int irq, void *_l3)
+{
+	struct omap_l3 *l3 = _l3;
+	int inttype, i, ret;
+	int err_src = 0;
+	u32 err_reg, mask_val;
+	void __iomem *base, *mask_reg;
+	struct l3_flagmux_data *flag_mux;
 
 	/* Get the Type of interrupt */
 	inttype = irq == l3->app_irq ? L3_APPLICATION_ERROR : L3_DEBUG_ERROR;
@@ -80,35 +171,18 @@ static irqreturn_t l3_interrupt_handler(int irq, void *_l3)
 
 		/* Get the corresponding error and analyse */
 		if (err_reg) {
-			bool std_err = true;
-
 			/* Identify the source from control status register */
 			err_src = __ffs(err_reg);
 
-			/* We DONOT expect err_src to go out of bounds */
-			BUG_ON(err_src > MAX_CLKDM_TARGETS);
-
-			if (err_src < flag_mux->num_targ_data) {
-				l3_targ_inst = &flag_mux->l3_targ[err_src];
-				target_name = l3_targ_inst->name;
-				l3_targ_base = base + l3_targ_inst->offset;
-			} else {
-				target_name = L3_TARGET_NOT_SUPPORTED;
-			}
+			ret = l3_handle_target(l3, base, flag_mux, err_src);
 
 			/*
-			 * If we do not know of a register offset to decode
-			 * and clear, then mask.
+			 * Certain plaforms may have "undocumented" status
+			 * pending on boot. So dont generate a severe warning
+			 * here. Just mask it off to prevent the error from
+			 * reoccuring and locking up the system.
 			 */
-			if (target_name == L3_TARGET_NOT_SUPPORTED) {
-				u32 mask_val;
-				void __iomem *mask_reg;
-
-				/*
-				 * Certain plaforms may have "undocumented"
-				 * status pending on boot.. So dont generate
-				 * a severe warning here.
-				 */
+			if (ret) {
 				dev_err(l3->dev,
 					"L3 %s error: target %d mod:%d %s\n",
 					inttype ? "debug" : "application",
@@ -119,66 +193,7 @@ static irqreturn_t l3_interrupt_handler(int irq, void *_l3)
 				mask_val = readl_relaxed(mask_reg);
 				mask_val &= ~(1 << err_src);
 				writel_relaxed(mask_val, mask_reg);
-
-				break;
 			}
-
-			/* Read the stderrlog_main_source from clk domain */
-			l3_targ_stderr = l3_targ_base + L3_TARG_STDERRLOG_MAIN;
-			l3_targ_slvofslsb = l3_targ_base +
-					    L3_TARG_STDERRLOG_SLVOFSLSB;
-
-			std_err_main = readl_relaxed(l3_targ_stderr);
-
-			switch (std_err_main & CUSTOM_ERROR) {
-			case STANDARD_ERROR:
-				err_description = "Standard";
-				snprintf(err_string, sizeof(err_string),
-					 ": At Address: 0x%08X ",
-					 readl_relaxed(l3_targ_slvofslsb));
-
-				l3_targ_mstaddr = l3_targ_base +
-						L3_TARG_STDERRLOG_MSTADDR;
-				break;
-
-			case CUSTOM_ERROR:
-				err_description = "Custom";
-
-				l3_targ_mstaddr = l3_targ_base +
-						L3_TARG_STDERRLOG_CINFO_MSTADDR;
-				break;
-
-			default:
-				std_err = false;
-				/* Nothing to be handled here as of now */
-				break;
-			}
-
-			if (!std_err)
-				break;
-
-			/* STDERRLOG_MSTADDR Stores the NTTP master address. */
-			masterid = (readl_relaxed(l3_targ_mstaddr) &
-				    l3->mst_addr_mask) >>
-					__ffs(l3->mst_addr_mask);
-
-			for (k = 0, master = l3->l3_masters;
-			     k < l3->num_masters; k++, master++) {
-				if (masterid == master->id) {
-					master_name = master->name;
-					break;
-				}
-			}
-
-			WARN(true,
-			     "%s:L3 %s Error: MASTER %s TARGET %s%s\n",
-			     dev_name(l3->dev),
-			     err_description,
-			     master_name, target_name,
-			     err_string);
-			/* clear the std error log*/
-			clear = std_err_main | CLEAR_STDERR_LOG;
-			writel_relaxed(clear, l3_targ_stderr);
 
 			/* Error found so break the for loop */
 			break;
