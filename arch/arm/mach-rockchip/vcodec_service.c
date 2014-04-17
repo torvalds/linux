@@ -1518,9 +1518,6 @@ static int vcodec_probe(struct platform_device *pdev)
                     &debug_vcodec_fops);
 #endif
 
-    vpu_service_power_off(pservice);
-    pr_info("init success\n");
-
 #if defined(CONFIG_VCODEC_MMU) & defined(CONFIG_ION_ROCKCHIP)
     pservice->ion_client = rockchip_ion_client_create("vpu");
     if (IS_ERR(pservice->ion_client)) {
@@ -1543,6 +1540,9 @@ static int vcodec_probe(struct platform_device *pdev)
         iovmm_activate(pservice->dev);
     }
 #endif
+
+    vpu_service_power_off(pservice);
+    pr_info("init success\n");
 
 #if HEVC_SIM_ENABLE
     if (pservice->hw_info->hw_id == HEVC_ID) {
