@@ -1167,7 +1167,7 @@ static int arm_smmu_domain_add_master(struct arm_smmu_domain *smmu_domain,
 	for (i = 0; i < master->num_streamids; ++i) {
 		u32 idx, s2cr;
 		idx = master->smrs ? master->smrs[i].idx : master->streamids[i];
-		s2cr = (S2CR_TYPE_TRANS << S2CR_TYPE_SHIFT) |
+		s2cr = S2CR_TYPE_TRANS |
 		       (smmu_domain->root_cfg.cbndx << S2CR_CBNDX_SHIFT);
 		writel_relaxed(s2cr, gr0_base + ARM_SMMU_GR0_S2CR(idx));
 	}
