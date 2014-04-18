@@ -227,4 +227,6 @@ int hid_sensor_format_scale(u32 usage_id,
 			    struct hid_sensor_hub_attribute_info *attr_info,
 			    int *val0, int *val1);
 
+s32 hid_sensor_read_poll_value(struct hid_sensor_common *st);
+
 #endif

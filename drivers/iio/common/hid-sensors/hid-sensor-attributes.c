@@ -147,6 +147,26 @@ static u32 convert_to_vtf_format(int size, int exp, int val1, int val2)
 	return value;
 }
 
+s32 hid_sensor_read_poll_value(struct hid_sensor_common *st)
+{
+	s32 value = 0;
+	int ret;
+
+	ret = sensor_hub_get_feature(st->hsdev,
+		st->poll.report_id,
+		st->poll.index, &value);
+
+	if (ret < 0 || value < 0) {
+		return -EINVAL;
+	} else {
+		if (st->poll.units == HID_USAGE_SENSOR_UNITS_SECOND)
+			value = value * 1000;
+	}
+
+	return value;
+}
+EXPORT_SYMBOL(hid_sensor_read_poll_value);
+
 int hid_sensor_read_samp_freq_value(struct hid_sensor_common *st,
 				int *val1, int *val2)
 {
