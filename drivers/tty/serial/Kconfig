@@ -73,6 +73,16 @@ config SERIAL_AMBA_PL011_CONSOLE
 	  your boot loader (lilo or loadlin) about how to pass options to the
 	  kernel at boot time.)
 
+config SERIAL_EARLYCON_ARM_SEMIHOST
+	bool "Early console using ARM semihosting"
+	depends on ARM64 || ARM
+	select SERIAL_EARLYCON
+	help
+	  Support for early debug console using ARM semihosting. This enables
+	  the console before standard serial driver is probed. This is enabled
+	  with "earlycon=smh" on the kernel command line. The console is
+	  enabled when early_param is processed.
+
 config SERIAL_SB1250_DUART
 	tristate "BCM1xxx on-chip DUART serial support"
 	depends on SIBYTE_SB1xxx_SOC=y
