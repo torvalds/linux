@@ -58,6 +58,7 @@
 				reg-shift = <2>;
 				interrupts = <43>;
 				reg-io-width = <1>;
+				clocks = <&coreclk 0>;
 				status = "disabled";
 			};
 			serial@12300 {
@@ -66,6 +67,7 @@
 				reg-shift = <2>;
 				interrupts = <44>;
 				reg-io-width = <1>;
+				clocks = <&coreclk 0>;
 				status = "disabled";
 			};
 

@@ -201,6 +201,7 @@
 				reg-shift = <2>;
 				interrupts = <GIC_SPI 12 IRQ_TYPE_LEVEL_HIGH>;
 				reg-io-width = <1>;
+				clocks = <&coreclk 0>;
 				status = "disabled";
 			};
 
@@ -210,6 +211,7 @@
 				reg-shift = <2>;
 				interrupts = <GIC_SPI 13 IRQ_TYPE_LEVEL_HIGH>;
 				reg-io-width = <1>;
+				clocks = <&coreclk 0>;
 				status = "disabled";
 			};
 
