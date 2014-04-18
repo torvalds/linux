@@ -63,7 +63,7 @@ void *kmap_atomic(struct page *page)
 	type = kmap_atomic_idx_push();
 
 	idx = type + KM_TYPE_NR * smp_processor_id();
-	vaddr = __fix_to_virt(FIX_KMAP_BEGIN + idx);
+	vaddr = __fix_to_virt(idx);
 #ifdef CONFIG_DEBUG_HIGHMEM
 	/*
 	 * With debugging enabled, kunmap_atomic forces that entry to 0.
@@ -94,7 +94,7 @@ void __kunmap_atomic(void *kvaddr)
 		if (cache_is_vivt())
 			__cpuc_flush_dcache_area((void *)vaddr, PAGE_SIZE);
 #ifdef CONFIG_DEBUG_HIGHMEM
-		BUG_ON(vaddr != __fix_to_virt(FIX_KMAP_BEGIN + idx));
+		BUG_ON(vaddr != __fix_to_virt(idx));
 		set_top_pte(vaddr, __pte(0));
 #else
 		(void) idx;  /* to kill a warning */
@@ -117,7 +117,7 @@ void *kmap_atomic_pfn(unsigned long pfn)
 
 	type = kmap_atomic_idx_push();
 	idx = type + KM_TYPE_NR * smp_processor_id();
-	vaddr = __fix_to_virt(FIX_KMAP_BEGIN + idx);
+	vaddr = __fix_to_virt(idx);
 #ifdef CONFIG_DEBUG_HIGHMEM
 	BUG_ON(!pte_none(get_top_pte(vaddr)));
 #endif
