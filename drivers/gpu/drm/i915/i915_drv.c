@@ -927,9 +927,7 @@ static void snb_runtime_resume(struct drm_i915_private *dev_priv)
 
 	intel_init_pch_refclk(dev);
 	i915_gem_init_swizzling(dev);
-	mutex_lock(&dev_priv->rps.hw_lock);
 	gen6_update_ring_freq(dev);
-	mutex_unlock(&dev_priv->rps.hw_lock);
 }
 
 static void hsw_runtime_resume(struct drm_i915_private *dev_priv)
