@@ -27,6 +27,7 @@
 
 
 	cpus {
+		enable-method = "allwinner,sun6i-a31";
 		#address-cells = <1>;
 		#size-cells = <0>;
 
