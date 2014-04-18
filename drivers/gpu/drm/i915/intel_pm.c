@@ -3129,16 +3129,7 @@ static void vlv_set_rps_idle(struct drm_i915_private *dev_priv)
 	/* Mask turbo interrupt so that they will not come in between */
 	I915_WRITE(GEN6_PMINTRMSK, 0xffffffff);
 
-	/* Bring up the Gfx clock */
-	I915_WRITE(VLV_GTLC_SURVIVABILITY_REG,
-		I915_READ(VLV_GTLC_SURVIVABILITY_REG) |
-				VLV_GFX_CLK_FORCE_ON_BIT);
-
-	if (wait_for(((VLV_GFX_CLK_STATUS_BIT &
-		I915_READ(VLV_GTLC_SURVIVABILITY_REG)) != 0), 5)) {
-			DRM_ERROR("GFX_CLK_ON request timed out\n");
-		return;
-	}
+	vlv_force_gfx_clock(dev_priv, true);
 
 	dev_priv->rps.cur_freq = dev_priv->rps.min_freq_softlimit;
 
@@ -3149,10 +3140,7 @@ static void vlv_set_rps_idle(struct drm_i915_private *dev_priv)
 				& GENFREQSTATUS) == 0, 5))
 		DRM_ERROR("timed out waiting for Punit\n");
 
-	/* Release the Gfx clock */
-	I915_WRITE(VLV_GTLC_SURVIVABILITY_REG,
-		I915_READ(VLV_GTLC_SURVIVABILITY_REG) &
-				~VLV_GFX_CLK_FORCE_ON_BIT);
+	vlv_force_gfx_clock(dev_priv, false);
 
 	I915_WRITE(GEN6_PMINTRMSK,
 		   gen6_rps_pm_mask(dev_priv, dev_priv->rps.cur_freq));

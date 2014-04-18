@@ -933,6 +933,43 @@ static void hsw_runtime_resume(struct drm_i915_private *dev_priv)
 	hsw_disable_pc8(dev_priv);
 }
 
+int vlv_force_gfx_clock(struct drm_i915_private *dev_priv, bool force_on)
+{
+	u32 val;
+	int err;
+
+	val = I915_READ(VLV_GTLC_SURVIVABILITY_REG);
+	WARN_ON(!!(val & VLV_GFX_CLK_FORCE_ON_BIT) == force_on);
+
+#define COND (I915_READ(VLV_GTLC_SURVIVABILITY_REG) & VLV_GFX_CLK_STATUS_BIT)
+	/* Wait for a previous force-off to settle */
+	if (force_on) {
+		err = wait_for(!COND, 5);
+		if (err) {
+			DRM_ERROR("timeout waiting for GFX clock force-off (%08x)\n",
+				  I915_READ(VLV_GTLC_SURVIVABILITY_REG));
+			return err;
+		}
+	}
+
+	val = I915_READ(VLV_GTLC_SURVIVABILITY_REG);
+	val &= ~VLV_GFX_CLK_FORCE_ON_BIT;
+	if (force_on)
+		val |= VLV_GFX_CLK_FORCE_ON_BIT;
+	I915_WRITE(VLV_GTLC_SURVIVABILITY_REG, val);
+
+	if (!force_on)
+		return 0;
+
+	err = wait_for(COND, 5);
+	if (err)
+		DRM_ERROR("timeout waiting for GFX clock force-on (%08x)\n",
+			  I915_READ(VLV_GTLC_SURVIVABILITY_REG));
+
+	return err;
+#undef COND
+}
+
 static int intel_runtime_suspend(struct device *device)
 {
 	struct pci_dev *pdev = to_pci_dev(device);
