@@ -232,6 +232,12 @@ static struct snd_soc_platform_driver omap_soc_platform = {
 	.pcm_free	= omap_pcm_free_dma_buffers,
 };
 
+int omap_pcm_platform_register(struct device *dev)
+{
+	return devm_snd_soc_register_platform(dev, &omap_soc_platform);
+}
+EXPORT_SYMBOL_GPL(omap_pcm_platform_register);
+
 static int omap_pcm_probe(struct platform_device *pdev)
 {
 	return snd_soc_register_platform(&pdev->dev,
