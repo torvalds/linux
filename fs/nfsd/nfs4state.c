@@ -3654,6 +3654,7 @@ nfs4_preprocess_stateid_op(struct net *net, struct nfsd4_compound_state *cstate,
 	struct svc_fh *current_fh = &cstate->current_fh;
 	struct inode *ino = current_fh->fh_dentry->d_inode;
 	struct nfsd_net *nn = net_generic(net, nfsd_net_id);
+	struct file *file = NULL;
 	__be32 status;
 
 	if (filpp)
@@ -3665,10 +3666,12 @@ nfs4_preprocess_stateid_op(struct net *net, struct nfsd4_compound_state *cstate,
 	if (ZERO_STATEID(stateid) || ONE_STATEID(stateid))
 		return check_special_stateids(net, current_fh, stateid, flags);
 
+	nfs4_lock_state();
+
 	status = nfsd4_lookup_stateid(stateid, NFS4_DELEG_STID|NFS4_OPEN_STID|NFS4_LOCK_STID,
 				      &s, cstate->minorversion, nn);
 	if (status)
-		return status;
+		goto out;
 	status = check_stateid_generation(stateid, &s->sc_stateid, nfsd4_has_session(cstate));
 	if (status)
 		goto out;
@@ -3679,8 +3682,8 @@ nfs4_preprocess_stateid_op(struct net *net, struct nfsd4_compound_state *cstate,
 		if (status)
 			goto out;
 		if (filpp) {
-			*filpp = dp->dl_file->fi_deleg_file;
-			if (!*filpp) {
+			file = dp->dl_file->fi_deleg_file;
+			if (!file) {
 				WARN_ON_ONCE(1);
 				status = nfserr_serverfault;
 				goto out;
@@ -3701,16 +3704,20 @@ nfs4_preprocess_stateid_op(struct net *net, struct nfsd4_compound_state *cstate,
 			goto out;
 		if (filpp) {
 			if (flags & RD_STATE)
-				*filpp = find_readable_file(stp->st_file);
+				file = find_readable_file(stp->st_file);
 			else
-				*filpp = find_writeable_file(stp->st_file);
+				file = find_writeable_file(stp->st_file);
 		}
 		break;
 	default:
-		return nfserr_bad_stateid;
+		status = nfserr_bad_stateid;
+		goto out;
 	}
 	status = nfs_ok;
+	if (file)
+		*filpp = get_file(file);
 out:
+	nfs4_unlock_state();
 	return status;
 }
 
