@@ -545,7 +545,8 @@ static int ahash_setkey(struct crypto_ahash *ahash,
 				      DMA_TO_DEVICE);
 	if (dma_mapping_error(jrdev, ctx->key_dma)) {
 		dev_err(jrdev, "unable to map key i/o memory\n");
-		return -ENOMEM;
+		ret = -ENOMEM;
+		goto map_err;
 	}
 #ifdef DEBUG
 	print_hex_dump(KERN_ERR, "ctx.key@"__stringify(__LINE__)": ",
@@ -559,6 +560,7 @@ static int ahash_setkey(struct crypto_ahash *ahash,
 				 DMA_TO_DEVICE);
 	}
 
+map_err:
 	kfree(hashed_key);
 	return ret;
 badkey:
