@@ -36,6 +36,10 @@ struct press_state {
 	struct hid_sensor_common common_attributes;
 	struct hid_sensor_hub_attribute_info press_attr;
 	u32 press_data;
+	int scale_pre_decml;
+	int scale_post_decml;
+	int scale_precision;
+	int value_offset;
 };
 
 /* Channel definitions */
@@ -102,12 +106,12 @@ static int press_read_raw(struct iio_dev *indio_dev,
 		ret_type = IIO_VAL_INT;
 		break;
 	case IIO_CHAN_INFO_SCALE:
-		*val = press_state->press_attr.units;
-		ret_type = IIO_VAL_INT;
+		*val = press_state->scale_pre_decml;
+		*val2 = press_state->scale_post_decml;
+		ret_type = press_state->scale_precision;
 		break;
 	case IIO_CHAN_INFO_OFFSET:
-		*val = hid_sensor_convert_exponent(
-				press_state->press_attr.unit_expo);
+		*val = press_state->value_offset;
 		ret_type = IIO_VAL_INT;
 		break;
 	case IIO_CHAN_INFO_SAMP_FREQ:
@@ -228,6 +232,11 @@ static int press_parse_report(struct platform_device *pdev,
 
 	dev_dbg(&pdev->dev, "press %x:%x\n", st->press_attr.index,
 			st->press_attr.report_id);
+
+	st->scale_precision = hid_sensor_format_scale(
+				HID_USAGE_SENSOR_PRESSURE,
+				&st->press_attr,
+				&st->scale_pre_decml, &st->scale_post_decml);
 
 	/* Set Sensitivity field ids, when there is no individual modifier */
 	if (st->common_attributes.sensitivity.index < 0) {
