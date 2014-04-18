@@ -4741,6 +4741,9 @@ static long ext4_zero_range(struct file *file, loff_t offset,
 
 	trace_ext4_zero_range(inode, offset, len, mode);
 
+	if (!S_ISREG(inode->i_mode))
+		return -EINVAL;
+
 	/*
 	 * Write out all dirty pages to avoid race conditions
 	 * Then release them.
