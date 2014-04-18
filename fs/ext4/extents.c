@@ -5474,7 +5474,7 @@ int ext4_collapse_range(struct inode *inode, loff_t offset, loff_t len)
 	}
 
 	new_size = i_size_read(inode) - len;
-	truncate_setsize(inode, new_size);
+	i_size_write(inode, new_size);
 	EXT4_I(inode)->i_disksize = new_size;
 
 	ext4_discard_preallocations(inode);
