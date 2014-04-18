@@ -23,7 +23,8 @@
  *
  * ########################################################################
  */
-
+#ifndef __IEEE754INT_H
+#define __IEEE754INT_H
 
 #include "ieee754.h"
 
@@ -162,3 +163,5 @@
 #define FLUSHYDP FLUSHDP(y, yc, ys, ye, ym)
 #define FLUSHXSP FLUSHSP(x, xc, xs, xe, xm)
 #define FLUSHYSP FLUSHSP(y, yc, ys, ye, ym)
+
+#endif /* __IEEE754INT_H  */
