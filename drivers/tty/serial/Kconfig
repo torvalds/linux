@@ -60,6 +60,7 @@ config SERIAL_AMBA_PL011_CONSOLE
 	bool "Support for console on AMBA serial port"
 	depends on SERIAL_AMBA_PL011=y
 	select SERIAL_CORE_CONSOLE
+	select SERIAL_EARLYCON
 	---help---
 	  Say Y here if you wish to use an AMBA PrimeCell UART as the system
 	  console (the system console is the device which receives all kernel
