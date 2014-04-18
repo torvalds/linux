@@ -1,7 +1,7 @@
 /*
- * Allwinner A1X SoCs pinctrl driver.
+ * Allwinner A20 SoCs pinctrl driver.
  *
- * Copyright (C) 2012 Maxime Ripard
+ * Copyright (C) 2014 Maxime Ripard
  *
  * Maxime Ripard <maxime.ripard@free-electrons.com>
  *
@@ -10,8 +10,11 @@
  * warranty of any kind, whether express or implied.
  */
 
-#ifndef __PINCTRL_SUNXI_PINS_H
-#define __PINCTRL_SUNXI_PINS_H
+#include <linux/module.h>
+#include <linux/platform_device.h>
+#include <linux/of.h>
+#include <linux/of_device.h>
+#include <linux/pinctrl/pinctrl.h>
 
 #include "pinctrl-sunxi.h"
 
@@ -1035,4 +1038,28 @@ static const struct sunxi_pinctrl_desc sun7i_a20_pinctrl_data = {
 	.npins = ARRAY_SIZE(sun7i_a20_pins),
 };
 
-#endif /* __PINCTRL_SUNXI_PINS_H */
+static int sun7i_a20_pinctrl_probe(struct platform_device *pdev)
+{
+	return sunxi_pinctrl_init(pdev,
+				  &sun7i_a20_pinctrl_data);
+}
+
+static struct of_device_id sun7i_a20_pinctrl_match[] = {
+	{ .compatible = "allwinner,sun7i-a20-pinctrl", },
+	{}
+};
+MODULE_DEVICE_TABLE(of, sun7i_a20_pinctrl_match);
+
+static struct platform_driver sun7i_a20_pinctrl_driver = {
+	.probe	= sun7i_a20_pinctrl_probe,
+	.driver	= {
+		.name		= "sun7i-a20-pinctrl",
+		.owner		= THIS_MODULE,
+		.of_match_table	= sun7i_a20_pinctrl_match,
+	},
+};
+module_platform_driver(sun7i_a20_pinctrl_driver);
+
+MODULE_AUTHOR("Maxime Ripard <maxime.ripard@free-electrons.com");
+MODULE_DESCRIPTION("Allwinner A20 pinctrl driver");
+MODULE_LICENSE("GPL");

@@ -31,7 +31,6 @@
 
 #include "../core.h"
 #include "pinctrl-sunxi.h"
-#include "pinctrl-sunxi-pins.h"
 
 static struct sunxi_pinctrl_group *
 sunxi_pinctrl_find_group_by_name(struct sunxi_pinctrl *pctl, const char *group)
@@ -673,12 +672,6 @@ static void sunxi_pinctrl_irq_handler(unsigned irq, struct irq_desc *desc)
 	}
 }
 
-static struct of_device_id sunxi_pinctrl_match[] = {
-	{ .compatible = "allwinner,sun7i-a20-pinctrl", .data = (void *)&sun7i_a20_pinctrl_data },
-	{}
-};
-MODULE_DEVICE_TABLE(of, sunxi_pinctrl_match);
-
 static int sunxi_pinctrl_add_function(struct sunxi_pinctrl *pctl,
 					const char *name)
 {
@@ -930,28 +923,3 @@ pinctrl_error:
 	pinctrl_unregister(pctl->pctl_dev);
 	return ret;
 }
-
-static int sunxi_pinctrl_probe(struct platform_device *pdev)
-{
-	const struct of_device_id *device;
-
-	device = of_match_device(sunxi_pinctrl_match, &pdev->dev);
-	if (!device)
-		return -ENODEV;
-
-	return sunxi_pinctrl_init(pdev, device->data);
-}
-
-static struct platform_driver sunxi_pinctrl_driver = {
-	.probe = sunxi_pinctrl_probe,
-	.driver = {
-		.name = "sunxi-pinctrl",
-		.owner = THIS_MODULE,
-		.of_match_table = sunxi_pinctrl_match,
-	},
-};
-module_platform_driver(sunxi_pinctrl_driver);
-
-MODULE_AUTHOR("Maxime Ripard <maxime.ripard@free-electrons.com>");
-MODULE_DESCRIPTION("Allwinner A1X pinctrl driver");
-MODULE_LICENSE("GPL");
