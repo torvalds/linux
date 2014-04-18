@@ -38,3 +38,21 @@ config ION_ROCKCHIP
     depends on ARCH_ROCKCHIP && ION
     help
       Choose this option if you wish to use ion on an Rockchip.
+
+if ION_ROCKCHIP
+
+config ION_ROCKCHIP_SNAPSHOT
+    bool "Snapshot for rockchip ion"
+    depends on ION_ROCKCHIP
+    help
+	  Provide ion snapshot for debug
+
+config ION_SNAPSHOT_BUF_SHIFT
+   int "ION snapshot buffer size (18 => 256KB, 19 => 512KB)"
+   depends on ION_ROCKCHIP_SNAPSHOT
+   range 12 21
+   default 18
+   help
+     Select ION snapshot buffer size as a power of 2
+
+endif

@@ -117,6 +117,8 @@ struct ion_handle {
 };
 
 static void ion_iommu_force_unmap(struct ion_buffer *buffer);
+extern char *rockchip_ion_snapshot_get(unsigned *size);
+extern int rockchip_ion_snapshot_debugfs(struct dentry* root);
 
 bool ion_buffer_fault_user_mappings(struct ion_buffer *buffer)
 {
@@ -1969,6 +1971,10 @@ struct ion_device *ion_device_create(long (*custom_ioctl)
 	if (!idev->clients_debug_root)
 		pr_err("ion: failed to create debugfs clients directory.\n");
 
+#ifdef CONFIG_ION_ROCKCHIP_SNAPSHOT
+	rockchip_ion_snapshot_debugfs(idev->debug_root);
+#endif
+
 debugfs_done:
 
 	idev->custom_ioctl = custom_ioctl;
@@ -2023,7 +2029,7 @@ void __init ion_reserve(struct ion_platform_data *data)
 	}
 }
 
-#define ION_SNAPSHOT_BUFFER_LEN		1<<18
+#ifdef CONFIG_ION_ROCKCHIP_SNAPSHOT
 int ion_snapshot_save(struct ion_device *idev)
 {
 	static struct seq_file seqf;
@@ -2031,18 +2037,14 @@ int ion_snapshot_save(struct ion_device *idev)
 	struct rb_node *n;
 
 	if (!seqf.buf) {
-		seqf.size = ION_SNAPSHOT_BUFFER_LEN;
-		seqf.buf = kmalloc(seqf.size, GFP_KERNEL);
+		seqf.buf = rockchip_ion_snapshot_get(&seqf.size);
 		if (!seqf.buf)
 			return -ENOMEM;
-		printk("%s: create snapshot 0x%x@0x%lx\n", __func__, seqf.size,
-			__pa(seqf.buf));
-	} else {
-		printk("%s: save snapshot 0x%x@0x%lx\n", __func__, seqf.size,
-			__pa(seqf.buf));
-		memset(seqf.buf, 0, seqf.size);
-		seqf.count = 0;
 	}
+	memset(seqf.buf, 0, seqf.size);
+	seqf.count = 0;
+	pr_info("%s: save snapshot 0x%x@0x%lx\n", __func__, seqf.size,
+		__pa(seqf.buf));
 
 	down_read(&idev->lock);
 
@@ -2078,3 +2080,9 @@ int ion_snapshot_save(struct ion_device *idev)
 
 	return 0;
 }
+#else
+int ion_snapshot_save(struct ion_device *idev)
+{
+	return 0;
+}
+#endif
