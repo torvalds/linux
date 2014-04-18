@@ -812,7 +812,7 @@ static int sunxi_pinctrl_probe(struct platform_device *pdev)
 	if (!device)
 		return -ENODEV;
 
-	pctl->desc = (struct sunxi_pinctrl_desc *)device->data;
+	pctl->desc = device->data;
 
 	ret = sunxi_pinctrl_build_state(pdev);
 	if (ret) {

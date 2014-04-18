@@ -468,7 +468,7 @@ struct sunxi_pinctrl_group {
 struct sunxi_pinctrl {
 	void __iomem			*membase;
 	struct gpio_chip		*chip;
-	struct sunxi_pinctrl_desc	*desc;
+	const struct sunxi_pinctrl_desc	*desc;
 	struct device			*dev;
 	struct irq_domain		*domain;
 	struct sunxi_pinctrl_function	*functions;
