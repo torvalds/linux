@@ -53,7 +53,7 @@
 #define OPCODE1(insn)		((insn)->opcode.bytes[0])
 #define OPCODE2(insn)		((insn)->opcode.bytes[1])
 #define OPCODE3(insn)		((insn)->opcode.bytes[2])
-#define MODRM_REG(insn)		X86_MODRM_REG(insn->modrm.value)
+#define MODRM_REG(insn)		X86_MODRM_REG((insn)->modrm.value)
 
 #define W(row, b0, b1, b2, b3, b4, b5, b6, b7, b8, b9, ba, bb, bc, bd, be, bf)\
 	(((b0##UL << 0x0)|(b1##UL << 0x1)|(b2##UL << 0x2)|(b3##UL << 0x3) |   \
@@ -229,63 +229,6 @@ static int validate_insn_32bits(struct arch_uprobe *auprobe, struct insn *insn)
 	return -ENOTSUPP;
 }
 
-/*
- * Figure out which fixups arch_uprobe_post_xol() will need to perform, and
- * annotate arch_uprobe->fixups accordingly.  To start with,
- * arch_uprobe->fixups is either zero or it reflects rip-related fixups.
- */
-static void prepare_fixups(struct arch_uprobe *auprobe, struct insn *insn)
-{
-	bool fix_ip = true, fix_call = false;	/* defaults */
-	int reg;
-
-	insn_get_opcode(insn);	/* should be a nop */
-
-	switch (OPCODE1(insn)) {
-	case 0x9d:
-		/* popf */
-		auprobe->fixups |= UPROBE_FIX_SETF;
-		break;
-	case 0xc3:		/* ret/lret */
-	case 0xcb:
-	case 0xc2:
-	case 0xca:
-		/* ip is correct */
-		fix_ip = false;
-		break;
-	case 0xe8:		/* call relative - Fix return addr */
-		fix_call = true;
-		break;
-	case 0x9a:		/* call absolute - Fix return addr, not ip */
-		fix_call = true;
-		fix_ip = false;
-		break;
-	case 0xff:
-		insn_get_modrm(insn);
-		reg = MODRM_REG(insn);
-		if (reg == 2 || reg == 3) {
-			/* call or lcall, indirect */
-			/* Fix return addr; ip is correct. */
-			fix_call = true;
-			fix_ip = false;
-		} else if (reg == 4 || reg == 5) {
-			/* jmp or ljmp, indirect */
-			/* ip is correct. */
-			fix_ip = false;
-		}
-		break;
-	case 0xea:		/* jmp absolute -- ip is correct */
-		fix_ip = false;
-		break;
-	default:
-		break;
-	}
-	if (fix_ip)
-		auprobe->fixups |= UPROBE_FIX_IP;
-	if (fix_call)
-		auprobe->fixups |= UPROBE_FIX_CALL;
-}
-
 #ifdef CONFIG_X86_64
 /*
  * If arch_uprobe->insn doesn't use rip-relative addressing, return
@@ -310,15 +253,11 @@ static void prepare_fixups(struct arch_uprobe *auprobe, struct insn *insn)
  *  - The displacement is always 4 bytes.
  */
 static void
-handle_riprel_insn(struct arch_uprobe *auprobe, struct mm_struct *mm, struct insn *insn)
+handle_riprel_insn(struct arch_uprobe *auprobe, struct insn *insn)
 {
 	u8 *cursor;
 	u8 reg;
 
-	if (mm->context.ia32_compat)
-		return;
-
-	auprobe->rip_rela_target_address = 0x0;
 	if (!insn_rip_relative(insn))
 		return;
 
@@ -372,7 +311,48 @@ handle_riprel_insn(struct arch_uprobe *auprobe, struct mm_struct *mm, struct ins
 		cursor++;
 		memmove(cursor, cursor + insn->displacement.nbytes, insn->immediate.nbytes);
 	}
-	return;
+}
+
+/*
+ * If we're emulating a rip-relative instruction, save the contents
+ * of the scratch register and store the target address in that register.
+ */
+static void
+pre_xol_rip_insn(struct arch_uprobe *auprobe, struct pt_regs *regs,
+				struct arch_uprobe_task *autask)
+{
+	if (auprobe->fixups & UPROBE_FIX_RIP_AX) {
+		autask->saved_scratch_register = regs->ax;
+		regs->ax = current->utask->vaddr;
+		regs->ax += auprobe->rip_rela_target_address;
+	} else if (auprobe->fixups & UPROBE_FIX_RIP_CX) {
+		autask->saved_scratch_register = regs->cx;
+		regs->cx = current->utask->vaddr;
+		regs->cx += auprobe->rip_rela_target_address;
+	}
+}
+
+static void
+handle_riprel_post_xol(struct arch_uprobe *auprobe, struct pt_regs *regs, long *correction)
+{
+	if (auprobe->fixups & (UPROBE_FIX_RIP_AX | UPROBE_FIX_RIP_CX)) {
+		struct arch_uprobe_task *autask;
+
+		autask = &current->utask->autask;
+		if (auprobe->fixups & UPROBE_FIX_RIP_AX)
+			regs->ax = autask->saved_scratch_register;
+		else
+			regs->cx = autask->saved_scratch_register;
+
+		/*
+		 * The original instruction includes a displacement, and so
+		 * is 4 bytes longer than what we've just single-stepped.
+		 * Caller may need to apply other fixups to handle stuff
+		 * like "jmpq *...(%rip)" and "callq *...(%rip)".
+		 */
+		if (correction)
+			*correction += 4;
+	}
 }
 
 static int validate_insn_64bits(struct arch_uprobe *auprobe, struct insn *insn)
@@ -401,9 +381,19 @@ static int validate_insn_bits(struct arch_uprobe *auprobe, struct mm_struct *mm,
 	return validate_insn_64bits(auprobe, insn);
 }
 #else /* 32-bit: */
-static void handle_riprel_insn(struct arch_uprobe *auprobe, struct mm_struct *mm, struct insn *insn)
+/*
+ * No RIP-relative addressing on 32-bit
+ */
+static void handle_riprel_insn(struct arch_uprobe *auprobe, struct insn *insn)
 {
-	/* No RIP-relative addressing on 32-bit */
+}
+static void pre_xol_rip_insn(struct arch_uprobe *auprobe, struct pt_regs *regs,
+				struct arch_uprobe_task *autask)
+{
+}
+static void handle_riprel_post_xol(struct arch_uprobe *auprobe, struct pt_regs *regs,
+					long *correction)
+{
 }
 
 static int validate_insn_bits(struct arch_uprobe *auprobe, struct mm_struct *mm,  struct insn *insn)
@@ -411,6 +401,224 @@ static int validate_insn_bits(struct arch_uprobe *auprobe, struct mm_struct *mm,
 	return validate_insn_32bits(auprobe, insn);
 }
 #endif /* CONFIG_X86_64 */
+
+struct uprobe_xol_ops {
+	bool	(*emulate)(struct arch_uprobe *, struct pt_regs *);
+	int	(*pre_xol)(struct arch_uprobe *, struct pt_regs *);
+	int	(*post_xol)(struct arch_uprobe *, struct pt_regs *);
+};
+
+static inline int sizeof_long(void)
+{
+	return is_ia32_task() ? 4 : 8;
+}
+
+static int default_pre_xol_op(struct arch_uprobe *auprobe, struct pt_regs *regs)
+{
+	pre_xol_rip_insn(auprobe, regs, &current->utask->autask);
+	return 0;
+}
+
+/*
+ * Adjust the return address pushed by a call insn executed out of line.
+ */
+static int adjust_ret_addr(unsigned long sp, long correction)
+{
+	int rasize = sizeof_long();
+	long ra;
+
+	if (copy_from_user(&ra, (void __user *)sp, rasize))
+		return -EFAULT;
+
+	ra += correction;
+	if (copy_to_user((void __user *)sp, &ra, rasize))
+		return -EFAULT;
+
+	return 0;
+}
+
+static int default_post_xol_op(struct arch_uprobe *auprobe, struct pt_regs *regs)
+{
+	struct uprobe_task *utask = current->utask;
+	long correction = (long)(utask->vaddr - utask->xol_vaddr);
+
+	handle_riprel_post_xol(auprobe, regs, &correction);
+	if (auprobe->fixups & UPROBE_FIX_IP)
+		regs->ip += correction;
+
+	if (auprobe->fixups & UPROBE_FIX_CALL) {
+		if (adjust_ret_addr(regs->sp, correction)) {
+			regs->sp += sizeof_long();
+			return -ERESTART;
+		}
+	}
+
+	return 0;
+}
+
+static struct uprobe_xol_ops default_xol_ops = {
+	.pre_xol  = default_pre_xol_op,
+	.post_xol = default_post_xol_op,
+};
+
+static bool branch_is_call(struct arch_uprobe *auprobe)
+{
+	return auprobe->branch.opc1 == 0xe8;
+}
+
+#define CASE_COND					\
+	COND(70, 71, XF(OF))				\
+	COND(72, 73, XF(CF))				\
+	COND(74, 75, XF(ZF))				\
+	COND(78, 79, XF(SF))				\
+	COND(7a, 7b, XF(PF))				\
+	COND(76, 77, XF(CF) || XF(ZF))			\
+	COND(7c, 7d, XF(SF) != XF(OF))			\
+	COND(7e, 7f, XF(ZF) || XF(SF) != XF(OF))
+
+#define COND(op_y, op_n, expr)				\
+	case 0x ## op_y: DO((expr) != 0)		\
+	case 0x ## op_n: DO((expr) == 0)
+
+#define XF(xf)	(!!(flags & X86_EFLAGS_ ## xf))
+
+static bool is_cond_jmp_opcode(u8 opcode)
+{
+	switch (opcode) {
+	#define DO(expr)	\
+		return true;
+	CASE_COND
+	#undef	DO
+
+	default:
+		return false;
+	}
+}
+
+static bool check_jmp_cond(struct arch_uprobe *auprobe, struct pt_regs *regs)
+{
+	unsigned long flags = regs->flags;
+
+	switch (auprobe->branch.opc1) {
+	#define DO(expr)	\
+		return expr;
+	CASE_COND
+	#undef	DO
+
+	default:	/* not a conditional jmp */
+		return true;
+	}
+}
+
+#undef	XF
+#undef	COND
+#undef	CASE_COND
+
+static bool branch_emulate_op(struct arch_uprobe *auprobe, struct pt_regs *regs)
+{
+	unsigned long new_ip = regs->ip += auprobe->branch.ilen;
+	unsigned long offs = (long)auprobe->branch.offs;
+
+	if (branch_is_call(auprobe)) {
+		unsigned long new_sp = regs->sp - sizeof_long();
+		/*
+		 * If it fails we execute this (mangled, see the comment in
+		 * branch_clear_offset) insn out-of-line. In the likely case
+		 * this should trigger the trap, and the probed application
+		 * should die or restart the same insn after it handles the
+		 * signal, arch_uprobe_post_xol() won't be even called.
+		 *
+		 * But there is corner case, see the comment in ->post_xol().
+		 */
+		if (copy_to_user((void __user *)new_sp, &new_ip, sizeof_long()))
+			return false;
+		regs->sp = new_sp;
+	} else if (!check_jmp_cond(auprobe, regs)) {
+		offs = 0;
+	}
+
+	regs->ip = new_ip + offs;
+	return true;
+}
+
+static int branch_post_xol_op(struct arch_uprobe *auprobe, struct pt_regs *regs)
+{
+	BUG_ON(!branch_is_call(auprobe));
+	/*
+	 * We can only get here if branch_emulate_op() failed to push the ret
+	 * address _and_ another thread expanded our stack before the (mangled)
+	 * "call" insn was executed out-of-line. Just restore ->sp and restart.
+	 * We could also restore ->ip and try to call branch_emulate_op() again.
+	 */
+	regs->sp += sizeof_long();
+	return -ERESTART;
+}
+
+static void branch_clear_offset(struct arch_uprobe *auprobe, struct insn *insn)
+{
+	/*
+	 * Turn this insn into "call 1f; 1:", this is what we will execute
+	 * out-of-line if ->emulate() fails. We only need this to generate
+	 * a trap, so that the probed task receives the correct signal with
+	 * the properly filled siginfo.
+	 *
+	 * But see the comment in ->post_xol(), in the unlikely case it can
+	 * succeed. So we need to ensure that the new ->ip can not fall into
+	 * the non-canonical area and trigger #GP.
+	 *
+	 * We could turn it into (say) "pushf", but then we would need to
+	 * divorce ->insn[] and ->ixol[]. We need to preserve the 1st byte
+	 * of ->insn[] for set_orig_insn().
+	 */
+	memset(auprobe->insn + insn_offset_immediate(insn),
+		0, insn->immediate.nbytes);
+}
+
+static struct uprobe_xol_ops branch_xol_ops = {
+	.emulate  = branch_emulate_op,
+	.post_xol = branch_post_xol_op,
+};
+
+/* Returns -ENOSYS if branch_xol_ops doesn't handle this insn */
+static int branch_setup_xol_ops(struct arch_uprobe *auprobe, struct insn *insn)
+{
+	u8 opc1 = OPCODE1(insn);
+
+	/* has the side-effect of processing the entire instruction */
+	insn_get_length(insn);
+	if (WARN_ON_ONCE(!insn_complete(insn)))
+		return -ENOEXEC;
+
+	switch (opc1) {
+	case 0xeb:	/* jmp 8 */
+	case 0xe9:	/* jmp 32 */
+	case 0x90:	/* prefix* + nop; same as jmp with .offs = 0 */
+		break;
+
+	case 0xe8:	/* call relative */
+		branch_clear_offset(auprobe, insn);
+		break;
+
+	case 0x0f:
+		if (insn->opcode.nbytes != 2)
+			return -ENOSYS;
+		/*
+		 * If it is a "near" conditional jmp, OPCODE2() - 0x10 matches
+		 * OPCODE1() of the "short" jmp which checks the same condition.
+		 */
+		opc1 = OPCODE2(insn) - 0x10;
+	default:
+		if (!is_cond_jmp_opcode(opc1))
+			return -ENOSYS;
+	}
+
+	auprobe->branch.opc1 = opc1;
+	auprobe->branch.ilen = insn->length;
+	auprobe->branch.offs = insn->immediate.value;
+
+	auprobe->ops = &branch_xol_ops;
+	return 0;
+}
 
 /**
  * arch_uprobe_analyze_insn - instruction analysis including validity and fixups.
@@ -421,47 +629,61 @@ static int validate_insn_bits(struct arch_uprobe *auprobe, struct mm_struct *mm,
  */
 int arch_uprobe_analyze_insn(struct arch_uprobe *auprobe, struct mm_struct *mm, unsigned long addr)
 {
-	int ret;
 	struct insn insn;
+	bool fix_ip = true, fix_call = false;
+	int ret;
 
-	auprobe->fixups = 0;
 	ret = validate_insn_bits(auprobe, mm, &insn);
-	if (ret != 0)
+	if (ret)
 		return ret;
 
-	handle_riprel_insn(auprobe, mm, &insn);
-	prepare_fixups(auprobe, &insn);
+	ret = branch_setup_xol_ops(auprobe, &insn);
+	if (ret != -ENOSYS)
+		return ret;
 
+	/*
+	 * Figure out which fixups arch_uprobe_post_xol() will need to perform,
+	 * and annotate arch_uprobe->fixups accordingly. To start with, ->fixups
+	 * is either zero or it reflects rip-related fixups.
+	 */
+	switch (OPCODE1(&insn)) {
+	case 0x9d:		/* popf */
+		auprobe->fixups |= UPROBE_FIX_SETF;
+		break;
+	case 0xc3:		/* ret or lret -- ip is correct */
+	case 0xcb:
+	case 0xc2:
+	case 0xca:
+		fix_ip = false;
+		break;
+	case 0x9a:		/* call absolute - Fix return addr, not ip */
+		fix_call = true;
+		fix_ip = false;
+		break;
+	case 0xea:		/* jmp absolute -- ip is correct */
+		fix_ip = false;
+		break;
+	case 0xff:
+		insn_get_modrm(&insn);
+		switch (MODRM_REG(&insn)) {
+		case 2: case 3:			/* call or lcall, indirect */
+			fix_call = true;
+		case 4: case 5:			/* jmp or ljmp, indirect */
+			fix_ip = false;
+		}
+		/* fall through */
+	default:
+		handle_riprel_insn(auprobe, &insn);
+	}
+
+	if (fix_ip)
+		auprobe->fixups |= UPROBE_FIX_IP;
+	if (fix_call)
+		auprobe->fixups |= UPROBE_FIX_CALL;
+
+	auprobe->ops = &default_xol_ops;
 	return 0;
 }
-
-#ifdef CONFIG_X86_64
-/*
- * If we're emulating a rip-relative instruction, save the contents
- * of the scratch register and store the target address in that register.
- */
-static void
-pre_xol_rip_insn(struct arch_uprobe *auprobe, struct pt_regs *regs,
-				struct arch_uprobe_task *autask)
-{
-	if (auprobe->fixups & UPROBE_FIX_RIP_AX) {
-		autask->saved_scratch_register = regs->ax;
-		regs->ax = current->utask->vaddr;
-		regs->ax += auprobe->rip_rela_target_address;
-	} else if (auprobe->fixups & UPROBE_FIX_RIP_CX) {
-		autask->saved_scratch_register = regs->cx;
-		regs->cx = current->utask->vaddr;
-		regs->cx += auprobe->rip_rela_target_address;
-	}
-}
-#else
-static void
-pre_xol_rip_insn(struct arch_uprobe *auprobe, struct pt_regs *regs,
-				struct arch_uprobe_task *autask)
-{
-	/* No RIP-relative addressing on 32-bit */
-}
-#endif
 
 /*
  * arch_uprobe_pre_xol - prepare to execute out of line.
@@ -470,83 +692,21 @@ pre_xol_rip_insn(struct arch_uprobe *auprobe, struct pt_regs *regs,
  */
 int arch_uprobe_pre_xol(struct arch_uprobe *auprobe, struct pt_regs *regs)
 {
-	struct arch_uprobe_task *autask;
+	struct uprobe_task *utask = current->utask;
 
-	autask = &current->utask->autask;
-	autask->saved_trap_nr = current->thread.trap_nr;
+	regs->ip = utask->xol_vaddr;
+	utask->autask.saved_trap_nr = current->thread.trap_nr;
 	current->thread.trap_nr = UPROBE_TRAP_NR;
-	regs->ip = current->utask->xol_vaddr;
-	pre_xol_rip_insn(auprobe, regs, autask);
 
-	autask->saved_tf = !!(regs->flags & X86_EFLAGS_TF);
+	utask->autask.saved_tf = !!(regs->flags & X86_EFLAGS_TF);
 	regs->flags |= X86_EFLAGS_TF;
 	if (test_tsk_thread_flag(current, TIF_BLOCKSTEP))
 		set_task_blockstep(current, false);
 
+	if (auprobe->ops->pre_xol)
+		return auprobe->ops->pre_xol(auprobe, regs);
 	return 0;
 }
-
-/*
- * This function is called by arch_uprobe_post_xol() to adjust the return
- * address pushed by a call instruction executed out of line.
- */
-static int adjust_ret_addr(unsigned long sp, long correction)
-{
-	int rasize, ncopied;
-	long ra = 0;
-
-	if (is_ia32_task())
-		rasize = 4;
-	else
-		rasize = 8;
-
-	ncopied = copy_from_user(&ra, (void __user *)sp, rasize);
-	if (unlikely(ncopied))
-		return -EFAULT;
-
-	ra += correction;
-	ncopied = copy_to_user((void __user *)sp, &ra, rasize);
-	if (unlikely(ncopied))
-		return -EFAULT;
-
-	return 0;
-}
-
-#ifdef CONFIG_X86_64
-static bool is_riprel_insn(struct arch_uprobe *auprobe)
-{
-	return ((auprobe->fixups & (UPROBE_FIX_RIP_AX | UPROBE_FIX_RIP_CX)) != 0);
-}
-
-static void
-handle_riprel_post_xol(struct arch_uprobe *auprobe, struct pt_regs *regs, long *correction)
-{
-	if (is_riprel_insn(auprobe)) {
-		struct arch_uprobe_task *autask;
-
-		autask = &current->utask->autask;
-		if (auprobe->fixups & UPROBE_FIX_RIP_AX)
-			regs->ax = autask->saved_scratch_register;
-		else
-			regs->cx = autask->saved_scratch_register;
-
-		/*
-		 * The original instruction includes a displacement, and so
-		 * is 4 bytes longer than what we've just single-stepped.
-		 * Fall through to handle stuff like "jmpq *...(%rip)" and
-		 * "callq *...(%rip)".
-		 */
-		if (correction)
-			*correction += 4;
-	}
-}
-#else
-static void
-handle_riprel_post_xol(struct arch_uprobe *auprobe, struct pt_regs *regs, long *correction)
-{
-	/* No RIP-relative addressing on 32-bit */
-}
-#endif
 
 /*
  * If xol insn itself traps and generates a signal(Say,
@@ -592,22 +752,25 @@ bool arch_uprobe_xol_was_trapped(struct task_struct *t)
  */
 int arch_uprobe_post_xol(struct arch_uprobe *auprobe, struct pt_regs *regs)
 {
-	struct uprobe_task *utask;
-	long correction;
-	int result = 0;
+	struct uprobe_task *utask = current->utask;
 
 	WARN_ON_ONCE(current->thread.trap_nr != UPROBE_TRAP_NR);
 
-	utask = current->utask;
+	if (auprobe->ops->post_xol) {
+		int err = auprobe->ops->post_xol(auprobe, regs);
+		if (err) {
+			arch_uprobe_abort_xol(auprobe, regs);
+			/*
+			 * Restart the probed insn. ->post_xol() must ensure
+			 * this is really possible if it returns -ERESTART.
+			 */
+			if (err == -ERESTART)
+				return 0;
+			return err;
+		}
+	}
+
 	current->thread.trap_nr = utask->autask.saved_trap_nr;
-	correction = (long)(utask->vaddr - utask->xol_vaddr);
-	handle_riprel_post_xol(auprobe, regs, &correction);
-	if (auprobe->fixups & UPROBE_FIX_IP)
-		regs->ip += correction;
-
-	if (auprobe->fixups & UPROBE_FIX_CALL)
-		result = adjust_ret_addr(regs->sp, correction);
-
 	/*
 	 * arch_uprobe_pre_xol() doesn't save the state of TIF_BLOCKSTEP
 	 * so we can get an extra SIGTRAP if we do not clear TF. We need
@@ -618,7 +781,7 @@ int arch_uprobe_post_xol(struct arch_uprobe *auprobe, struct pt_regs *regs)
 	else if (!(auprobe->fixups & UPROBE_FIX_SETF))
 		regs->flags &= ~X86_EFLAGS_TF;
 
-	return result;
+	return 0;
 }
 
 /* callback routine for handling exceptions. */
@@ -652,8 +815,9 @@ int arch_uprobe_exception_notify(struct notifier_block *self, unsigned long val,
 
 /*
  * This function gets called when XOL instruction either gets trapped or
- * the thread has a fatal signal, so reset the instruction pointer to its
- * probed address.
+ * the thread has a fatal signal, or if arch_uprobe_post_xol() failed.
+ * Reset the instruction pointer to its probed address for the potential
+ * restart or for post mortem analysis.
  */
 void arch_uprobe_abort_xol(struct arch_uprobe *auprobe, struct pt_regs *regs)
 {
@@ -668,25 +832,10 @@ void arch_uprobe_abort_xol(struct arch_uprobe *auprobe, struct pt_regs *regs)
 		regs->flags &= ~X86_EFLAGS_TF;
 }
 
-/*
- * Skip these instructions as per the currently known x86 ISA.
- * rep=0x66*; nop=0x90
- */
 static bool __skip_sstep(struct arch_uprobe *auprobe, struct pt_regs *regs)
 {
-	int i;
-
-	for (i = 0; i < MAX_UINSN_BYTES; i++) {
-		if (auprobe->insn[i] == 0x66)
-			continue;
-
-		if (auprobe->insn[i] == 0x90) {
-			regs->ip += i + 1;
-			return true;
-		}
-
-		break;
-	}
+	if (auprobe->ops->emulate)
+		return auprobe->ops->emulate(auprobe, regs);
 	return false;
 }
 
@@ -701,23 +850,21 @@ bool arch_uprobe_skip_sstep(struct arch_uprobe *auprobe, struct pt_regs *regs)
 unsigned long
 arch_uretprobe_hijack_return_addr(unsigned long trampoline_vaddr, struct pt_regs *regs)
 {
-	int rasize, ncopied;
+	int rasize = sizeof_long(), nleft;
 	unsigned long orig_ret_vaddr = 0; /* clear high bits for 32-bit apps */
 
-	rasize = is_ia32_task() ? 4 : 8;
-	ncopied = copy_from_user(&orig_ret_vaddr, (void __user *)regs->sp, rasize);
-	if (unlikely(ncopied))
+	if (copy_from_user(&orig_ret_vaddr, (void __user *)regs->sp, rasize))
 		return -1;
 
 	/* check whether address has been already hijacked */
 	if (orig_ret_vaddr == trampoline_vaddr)
 		return orig_ret_vaddr;
 
-	ncopied = copy_to_user((void __user *)regs->sp, &trampoline_vaddr, rasize);
-	if (likely(!ncopied))
+	nleft = copy_to_user((void __user *)regs->sp, &trampoline_vaddr, rasize);
+	if (likely(!nleft))
 		return orig_ret_vaddr;
 
-	if (ncopied != rasize) {
+	if (nleft != rasize) {
 		pr_err("uprobe: return address clobbered: pid=%d, %%sp=%#lx, "
 			"%%ip=%#lx\n", current->pid, regs->sp, regs->ip);
 
