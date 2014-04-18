@@ -22,6 +22,7 @@
 #include <linux/interrupt.h>
 #include <linux/irq.h>
 #include <linux/slab.h>
+#include <linux/delay.h>
 #include <linux/hid-sensor-hub.h>
 #include <linux/iio/iio.h>
 #include <linux/iio/sysfs.h>
@@ -110,11 +111,20 @@ static int incl_3d_read_raw(struct iio_dev *indio_dev,
 	int report_id = -1;
 	u32 address;
 	int ret_type;
+	s32 poll_value;
 
 	*val = 0;
 	*val2 = 0;
 	switch (mask) {
 	case IIO_CHAN_INFO_RAW:
+		poll_value = hid_sensor_read_poll_value(
+					&incl_state->common_attributes);
+		if (poll_value < 0)
+			return -EINVAL;
+
+		hid_sensor_power_state(&incl_state->common_attributes, true);
+		msleep_interruptible(poll_value * 2);
+
 		report_id =
 			incl_state->incl[chan->scan_index].report_id;
 		address = incl_3d_addresses[chan->scan_index];
@@ -124,8 +134,11 @@ static int incl_3d_read_raw(struct iio_dev *indio_dev,
 				HID_USAGE_SENSOR_INCLINOMETER_3D, address,
 				report_id);
 		else {
+			hid_sensor_power_state(&incl_state->common_attributes,
+						false);
 			return -EINVAL;
 		}
+		hid_sensor_power_state(&incl_state->common_attributes, false);
 		ret_type = IIO_VAL_INT;
 		break;
 	case IIO_CHAN_INFO_SCALE:
