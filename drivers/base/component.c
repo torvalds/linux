@@ -69,6 +69,11 @@ static void component_detach_master(struct master *master, struct component *c)
 	c->master = NULL;
 }
 
+/*
+ * Add a component to a master, finding the component via the compare
+ * function and compare data.  This is safe to call for duplicate matches
+ * and will not result in the same component being added multiple times.
+ */
 int component_master_add_child(struct master *master,
 	int (*compare)(struct device *, void *), void *compare_data)
 {
@@ -76,11 +81,12 @@ int component_master_add_child(struct master *master,
 	int ret = -ENXIO;
 
 	list_for_each_entry(c, &component_list, node) {
-		if (c->master)
+		if (c->master && c->master != master)
 			continue;
 
 		if (compare(c->dev, compare_data)) {
-			component_attach_master(master, c);
+			if (!c->master)
+				component_attach_master(master, c);
 			ret = 0;
 			break;
 		}
