@@ -744,7 +744,8 @@ musycc_init(ci_t *ci)
 
 #define INT_QUEUE_BOUNDARY  4
 
-    regaddr = OS_kmalloc((INT_QUEUE_SIZE + 1) * sizeof(u_int32_t));
+	regaddr = kzalloc((INT_QUEUE_SIZE + 1) * sizeof(u_int32_t),
+			  GFP_KERNEL | GFP_DMA);
     if (!regaddr)
 	return -ENOMEM;
     ci->iqd_p_saved = regaddr;      /* save orig value for free's usage */
@@ -765,11 +766,12 @@ musycc_init(ci_t *ci)
 
 #define GROUP_BOUNDARY   0x800
 
-	regaddr = OS_kmalloc(sizeof(struct musycc_groupr) + GROUP_BOUNDARY);
+	regaddr = kzalloc(sizeof(struct musycc_groupr) + GROUP_BOUNDARY,
+			  GFP_KERNEL | GFP_DMA);
 	if (!regaddr) {
 	    for (gchan = 0; gchan < i; gchan++) {
 		pi = &ci->port[gchan];
-		OS_kfree(pi->reg);
+		kfree(pi->reg);
 		pi->reg = NULL;
 	    }
 	    return -ENOMEM;
@@ -1576,10 +1578,10 @@ musycc_chan_down(ci_t *dummy, int channum)
 	if (ch->mdr[i].mem_token)
 	    OS_mem_token_free(ch->mdr[i].mem_token);
 
-    OS_kfree(ch->mdr);
+    kfree(ch->mdr);
     ch->mdr = NULL;
     ch->rxd_num = 0;
-    OS_kfree(ch->mdt);
+    kfree(ch->mdt);
     ch->mdt = NULL;
     ch->txd_num = 0;
 

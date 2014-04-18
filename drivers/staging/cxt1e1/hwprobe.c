@@ -205,7 +205,7 @@ cleanup_devs(void)
 #ifdef CONFIG_SBE_PMCC4_NCOMM
 		free_irq(hi->pdev[1]->irq, hi->ndev);
 #endif
-		OS_kfree(hi->ndev);
+		kfree(hi->ndev);
 	}
 }
 

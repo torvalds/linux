@@ -60,7 +60,6 @@ status_t    c4_chan_work_init(mpi_t *, mch_t *);
 void        musycc_wq_chan_restart(void *);
 status_t __init c4_init(ci_t *, u_char *, u_char *);
 status_t __init c4_init2(ci_t *);
-ci_t       *__init c4_new(void *);
 int __init  c4hw_attach_all(void);
 void __init hdw_sn_get(hdw_info_t *, int);
 
@@ -418,7 +417,7 @@ create_chan(struct net_device *ndev, ci_t *ci,
 		struct c4_priv *priv;
 
 		/* allocate then fill in private data structure */
-		priv = OS_kmalloc(sizeof(struct c4_priv));
+		priv = kzalloc(sizeof(struct c4_priv), GFP_KERNEL);
 		if (!priv) {
 			pr_warning("%s: no memory for net_device !\n",
 				   ci->devname);
@@ -428,7 +427,7 @@ create_chan(struct net_device *ndev, ci_t *ci,
 		if (!dev) {
 			pr_warning("%s: no memory for hdlc_device !\n",
 				   ci->devname);
-			OS_kfree(priv);
+			kfree(priv);
 			return NULL;
 		}
 		priv->ci = ci;
@@ -972,8 +971,8 @@ c4_add_dev(hdw_info_t *hi, int brdno, unsigned long f0, unsigned long f1,
 
 	if (register_netdev(ndev) ||
 		(c4_init(ci, (u_char *) f0, (u_char *) f1) != SBE_DRVR_SUCCESS)) {
-		OS_kfree(netdev_priv(ndev));
-		OS_kfree(ndev);
+		kfree(netdev_priv(ndev));
+		kfree(ndev);
 		error_flag = -ENODEV;
 		return NULL;
 	}
@@ -998,8 +997,8 @@ c4_add_dev(hdw_info_t *hi, int brdno, unsigned long f0, unsigned long f1,
 		pr_warning("%s: MUSYCC could not get irq: %d\n",
 			   ndev->name, irq0);
 		unregister_netdev(ndev);
-		OS_kfree(netdev_priv(ndev));
-		OS_kfree(ndev);
+		kfree(netdev_priv(ndev));
+		kfree(ndev);
 		error_flag = -EIO;
 		return NULL;
 	}
@@ -1008,8 +1007,8 @@ c4_add_dev(hdw_info_t *hi, int brdno, unsigned long f0, unsigned long f1,
 		pr_warning("%s: EBUS could not get irq: %d\n", hi->devname, irq1);
 		unregister_netdev(ndev);
 		free_irq(irq0, ndev);
-		OS_kfree(netdev_priv(ndev));
-		OS_kfree(ndev);
+		kfree(netdev_priv(ndev));
+		kfree(ndev);
 		error_flag = -EIO;
 		return NULL;
 	}
@@ -1068,8 +1067,8 @@ c4_add_dev(hdw_info_t *hi, int brdno, unsigned long f0, unsigned long f1,
 		unregister_netdev(ndev);
 		free_irq(irq1, ndev);
 		free_irq(irq0, ndev);
-		OS_kfree(netdev_priv(ndev));
-		OS_kfree(ndev);
+		kfree(netdev_priv(ndev));
+		kfree(ndev);
 		/* failure, error_flag is set */
 		return NULL;
 	}
