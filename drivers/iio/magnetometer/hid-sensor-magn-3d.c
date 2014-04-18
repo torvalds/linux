@@ -42,6 +42,10 @@ struct magn_3d_state {
 	struct hid_sensor_common common_attributes;
 	struct hid_sensor_hub_attribute_info magn[MAGN_3D_CHANNEL_MAX];
 	u32 magn_val[MAGN_3D_CHANNEL_MAX];
+	int scale_pre_decml;
+	int scale_post_decml;
+	int scale_precision;
+	int value_offset;
 };
 
 static const u32 magn_3d_addresses[MAGN_3D_CHANNEL_MAX] = {
@@ -124,12 +128,12 @@ static int magn_3d_read_raw(struct iio_dev *indio_dev,
 		ret_type = IIO_VAL_INT;
 		break;
 	case IIO_CHAN_INFO_SCALE:
-		*val = magn_state->magn[CHANNEL_SCAN_INDEX_X].units;
-		ret_type = IIO_VAL_INT;
+		*val = magn_state->scale_pre_decml;
+		*val2 = magn_state->scale_post_decml;
+		ret_type = magn_state->scale_precision;
 		break;
 	case IIO_CHAN_INFO_OFFSET:
-		*val = hid_sensor_convert_exponent(
-			magn_state->magn[CHANNEL_SCAN_INDEX_X].unit_expo);
+		*val = magn_state->value_offset;
 		ret_type = IIO_VAL_INT;
 		break;
 	case IIO_CHAN_INFO_SAMP_FREQ:
@@ -262,6 +266,11 @@ static int magn_3d_parse_report(struct platform_device *pdev,
 			st->magn[0].report_id,
 			st->magn[1].index, st->magn[1].report_id,
 			st->magn[2].index, st->magn[2].report_id);
+
+	st->scale_precision = hid_sensor_format_scale(
+				HID_USAGE_SENSOR_COMPASS_3D,
+				&st->magn[CHANNEL_SCAN_INDEX_X],
+				&st->scale_pre_decml, &st->scale_post_decml);
 
 	/* Set Sensitivity field ids, when there is no individual modifier */
 	if (st->common_attributes.sensitivity.index < 0) {
