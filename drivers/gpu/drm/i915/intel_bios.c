@@ -49,13 +49,19 @@ find_section(struct bdb_header *bdb, int section_id)
 	total = bdb->bdb_size;
 
 	/* walk the sections looking for section_id */
-	while (index < total) {
+	while (index + 3 < total) {
 		current_id = *(base + index);
 		index++;
+
 		current_size = *((u16 *)(base + index));
 		index += 2;
+
+		if (index + current_size > total)
+			return NULL;
+
 		if (current_id == section_id)
 			return base + index;
+
 		index += current_size;
 	}
 
