@@ -1837,12 +1837,13 @@ struct drm_i915_cmd_table {
 #define BLT_RING		(1<<BCS)
 #define VEBOX_RING		(1<<VECS)
 #define BSD2_RING		(1<<VCS2)
-#define HAS_BSD(dev)            (INTEL_INFO(dev)->ring_mask & BSD_RING)
+#define HAS_BSD(dev)		(INTEL_INFO(dev)->ring_mask & BSD_RING)
 #define HAS_BSD2(dev)		(INTEL_INFO(dev)->ring_mask & BSD2_RING)
-#define HAS_BLT(dev)            (INTEL_INFO(dev)->ring_mask & BLT_RING)
-#define HAS_VEBOX(dev)            (INTEL_INFO(dev)->ring_mask & VEBOX_RING)
-#define HAS_LLC(dev)            (INTEL_INFO(dev)->has_llc)
-#define HAS_WT(dev)            (IS_HASWELL(dev) && to_i915(dev)->ellc_size)
+#define HAS_BLT(dev)		(INTEL_INFO(dev)->ring_mask & BLT_RING)
+#define HAS_VEBOX(dev)		(INTEL_INFO(dev)->ring_mask & VEBOX_RING)
+#define HAS_LLC(dev)		(INTEL_INFO(dev)->has_llc)
+#define HAS_WT(dev)		((IS_HASWELL(dev) || IS_BROADWELL(dev)) && \
+				 to_i915(dev)->ellc_size)
 #define I915_NEED_GFX_HWS(dev)	(INTEL_INFO(dev)->need_gfx_hws)
 
 #define HAS_HW_CONTEXTS(dev)	(INTEL_INFO(dev)->gen >= 6)
