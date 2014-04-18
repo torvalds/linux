@@ -200,9 +200,8 @@ static int incl_3d_proc_event(struct hid_sensor_hub_device *hsdev,
 	struct iio_dev *indio_dev = platform_get_drvdata(priv);
 	struct incl_3d_state *incl_state = iio_priv(indio_dev);
 
-	dev_dbg(&indio_dev->dev, "incl_3d_proc_event [%d]\n",
-				incl_state->common_attributes.data_ready);
-	if (incl_state->common_attributes.data_ready)
+	dev_dbg(&indio_dev->dev, "incl_3d_proc_event\n");
+	if (atomic_read(&incl_state->common_attributes.data_ready))
 		hid_sensor_push_data(indio_dev,
 				(u8 *)incl_state->incl_val,
 				sizeof(incl_state->incl_val));
@@ -358,7 +357,7 @@ static int hid_incl_3d_probe(struct platform_device *pdev)
 		dev_err(&pdev->dev, "failed to initialize trigger buffer\n");
 		goto error_free_dev_mem;
 	}
-	incl_state->common_attributes.data_ready = false;
+	atomic_set(&incl_state->common_attributes.data_ready, 0);
 	ret = hid_sensor_setup_trigger(indio_dev, name,
 					&incl_state->common_attributes);
 	if (ret) {

@@ -180,9 +180,8 @@ static int press_proc_event(struct hid_sensor_hub_device *hsdev,
 	struct iio_dev *indio_dev = platform_get_drvdata(priv);
 	struct press_state *press_state = iio_priv(indio_dev);
 
-	dev_dbg(&indio_dev->dev, "press_proc_event [%d]\n",
-				press_state->common_attributes.data_ready);
-	if (press_state->common_attributes.data_ready)
+	dev_dbg(&indio_dev->dev, "press_proc_event\n");
+	if (atomic_read(&press_state->common_attributes.data_ready))
 		hid_sensor_push_data(indio_dev,
 				&press_state->press_data,
 				sizeof(press_state->press_data));
@@ -307,7 +306,7 @@ static int hid_press_probe(struct platform_device *pdev)
 		dev_err(&pdev->dev, "failed to initialize trigger buffer\n");
 		goto error_free_dev_mem;
 	}
-	press_state->common_attributes.data_ready = false;
+	atomic_set(&press_state->common_attributes.data_ready, 0);
 	ret = hid_sensor_setup_trigger(indio_dev, name,
 				&press_state->common_attributes);
 	if (ret) {

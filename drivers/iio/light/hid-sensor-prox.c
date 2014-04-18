@@ -176,9 +176,8 @@ static int prox_proc_event(struct hid_sensor_hub_device *hsdev,
 	struct iio_dev *indio_dev = platform_get_drvdata(priv);
 	struct prox_state *prox_state = iio_priv(indio_dev);
 
-	dev_dbg(&indio_dev->dev, "prox_proc_event [%d]\n",
-				prox_state->common_attributes.data_ready);
-	if (prox_state->common_attributes.data_ready)
+	dev_dbg(&indio_dev->dev, "prox_proc_event\n");
+	if (atomic_read(&prox_state->common_attributes.data_ready))
 		hid_sensor_push_data(indio_dev,
 				&prox_state->human_presence,
 				sizeof(prox_state->human_presence));
@@ -297,7 +296,7 @@ static int hid_prox_probe(struct platform_device *pdev)
 		dev_err(&pdev->dev, "failed to initialize trigger buffer\n");
 		goto error_free_dev_mem;
 	}
-	prox_state->common_attributes.data_ready = false;
+	atomic_set(&prox_state->common_attributes.data_ready, 0);
 	ret = hid_sensor_setup_trigger(indio_dev, name,
 				&prox_state->common_attributes);
 	if (ret) {

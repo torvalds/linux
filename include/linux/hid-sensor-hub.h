@@ -189,7 +189,7 @@ struct hid_sensor_common {
 	struct hid_sensor_hub_device *hsdev;
 	struct platform_device *pdev;
 	unsigned usage_id;
-	bool data_ready;
+	atomic_t data_ready;
 	struct iio_trigger *trigger;
 	struct hid_sensor_hub_attribute_info poll;
 	struct hid_sensor_hub_attribute_info report_state;
