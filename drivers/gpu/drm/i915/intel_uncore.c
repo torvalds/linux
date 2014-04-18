@@ -370,7 +370,7 @@ void intel_uncore_early_sanitize(struct drm_device *dev)
 	if (HAS_FPGA_DBG_UNCLAIMED(dev))
 		__raw_i915_write32(dev_priv, FPGA_DBG, FPGA_DBG_RM_NOCLAIM);
 
-	if (IS_HASWELL(dev) &&
+	if ((IS_HASWELL(dev) || IS_BROADWELL(dev)) &&
 	    (__raw_i915_read32(dev_priv, HSW_EDRAM_PRESENT) == 1)) {
 		/* The docs do not explain exactly how the calculation can be
 		 * made. It is somewhat guessable, but for now, it's always
