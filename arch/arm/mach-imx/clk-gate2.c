@@ -43,15 +43,13 @@ static int clk_gate2_enable(struct clk_hw *hw)
 	u32 reg;
 	unsigned long flags = 0;
 
-	if (gate->lock)
-		spin_lock_irqsave(gate->lock, flags);
+	spin_lock_irqsave(gate->lock, flags);
 
 	reg = readl(gate->reg);
 	reg |= 3 << gate->bit_idx;
 	writel(reg, gate->reg);
 
-	if (gate->lock)
-		spin_unlock_irqrestore(gate->lock, flags);
+	spin_unlock_irqrestore(gate->lock, flags);
 
 	return 0;
 }
@@ -62,15 +60,13 @@ static void clk_gate2_disable(struct clk_hw *hw)
 	u32 reg;
 	unsigned long flags = 0;
 
-	if (gate->lock)
-		spin_lock_irqsave(gate->lock, flags);
+	spin_lock_irqsave(gate->lock, flags);
 
 	reg = readl(gate->reg);
 	reg &= ~(3 << gate->bit_idx);
 	writel(reg, gate->reg);
 
-	if (gate->lock)
-		spin_unlock_irqrestore(gate->lock, flags);
+	spin_unlock_irqrestore(gate->lock, flags);
 }
 
 static int clk_gate2_is_enabled(struct clk_hw *hw)
