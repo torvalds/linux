@@ -645,6 +645,12 @@ static void unhash_lockowner(struct nfs4_lockowner *lo)
 	}
 }
 
+static void nfs4_free_lockowner(struct nfs4_lockowner *lo)
+{
+	kfree(lo->lo_owner.so_owner.data);
+	kmem_cache_free(lockowner_slab, lo);
+}
+
 static void release_lockowner(struct nfs4_lockowner *lo)
 {
 	unhash_lockowner(lo);
@@ -697,6 +703,12 @@ static void release_last_closed_stateid(struct nfs4_openowner *oo)
 		free_generic_stateid(s);
 		oo->oo_last_closed_stid = NULL;
 	}
+}
+
+static void nfs4_free_openowner(struct nfs4_openowner *oo)
+{
+	kfree(oo->oo_owner.so_owner.data);
+	kmem_cache_free(openowner_slab, oo);
 }
 
 static void release_openowner(struct nfs4_openowner *oo)
@@ -2551,18 +2563,6 @@ out_nomem:
 	nfsd4_free_slabs();
 	dprintk("nfsd4: out of memory while initializing nfsv4\n");
 	return -ENOMEM;
-}
-
-void nfs4_free_openowner(struct nfs4_openowner *oo)
-{
-	kfree(oo->oo_owner.so_owner.data);
-	kmem_cache_free(openowner_slab, oo);
-}
-
-void nfs4_free_lockowner(struct nfs4_lockowner *lo)
-{
-	kfree(lo->lo_owner.so_owner.data);
-	kmem_cache_free(lockowner_slab, lo);
 }
 
 static void init_nfs4_replay(struct nfs4_replay *rp)
