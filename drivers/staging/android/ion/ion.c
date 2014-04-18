@@ -2053,9 +2053,9 @@ int ion_snapshot_save(struct ion_device *idev)
 		seq_printf(&seqf, "++++++++++++++++ HEAP: %s ++++++++++++++++\n",
 			heap->name);
 		ion_debug_heap_show(&seqf, NULL);
-		seq_printf(&seqf, "\n");
-		if (ION_HEAP_TYPE_DMA==heap->type)
-			ion_cma_heap_debug_show(&seqf, NULL);
+//		seq_printf(&seqf, "\n");
+//		if (ION_HEAP_TYPE_DMA==heap->type)
+//			ion_cma_heap_debug_show(&seqf, NULL);
 	}
 
 	for (n = rb_first(&idev->clients); n; n = rb_next(n)) {
