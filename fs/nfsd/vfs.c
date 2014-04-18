@@ -857,20 +857,6 @@ nfsd_vfs_read(struct svc_rqst *rqstp, struct svc_fh *fhp, struct file *file,
 	return err;
 }
 
-static void kill_suid(struct dentry *dentry)
-{
-	struct iattr	ia;
-	ia.ia_valid = ATTR_KILL_SUID | ATTR_KILL_SGID | ATTR_KILL_PRIV;
-
-	mutex_lock(&dentry->d_inode->i_mutex);
-	/*
-	 * Note we call this on write, so notify_change will not
-	 * encounter any conflicting delegations:
-	 */
-	notify_change(dentry, &ia, NULL);
-	mutex_unlock(&dentry->d_inode->i_mutex);
-}
-
 /*
  * Gathered writes: If another process is currently writing to the file,
  * there's a high chance this is another nfsd (triggered by a bulk write
@@ -941,10 +927,6 @@ nfsd_vfs_write(struct svc_rqst *rqstp, struct svc_fh *fhp, struct file *file,
 	*cnt = host_err;
 	nfsdstats.io_write += host_err;
 	fsnotify_modify(file);
-
-	/* clear setuid/setgid flag after write */
-	if (inode->i_mode & (S_ISUID | S_ISGID))
-		kill_suid(dentry);
 
 	if (stable) {
 		if (use_wgather)
