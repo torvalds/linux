@@ -1093,7 +1093,7 @@ static struct nfs4_client *alloc_client(struct xdr_netobj name)
 	return clp;
 }
 
-static inline void
+static void
 free_client(struct nfs4_client *clp)
 {
 	struct nfsd_net __maybe_unused *nn = net_generic(clp->net, nfsd_net_id);
