@@ -570,7 +570,7 @@ void flush_all_cam_entry23a(struct rtw_adapter *padapter)
 int WFD_info_handler(struct rtw_adapter *padapter, struct ndis_802_11_var_ies *	pIE)
 {
 	struct wifidirect_info	*pwdinfo;
-	u8	wfd_ie[128] = {0x00};
+	u8	wfd_ie[MAX_WFD_IE_LEN] = {0x00};
 	u32	wfd_ielen = 0;
 
 	pwdinfo = &padapter->wdinfo;
@@ -681,7 +681,7 @@ void WMMOnAssocRsp23a(struct rtw_adapter *padapter)
 	inx[0] = 0; inx[1] = 1; inx[2] = 2; inx[3] = 3;
 
 	if (pregpriv->wifi_spec == 1) {
-		u32	j, tmp, change_inx;
+		u32	j, tmp, change_inx = false;
 
 		/* entry indx: 0->vo, 1->vi, 2->be, 3->bk. */
 		for (i = 0; i < 4; i++) {
