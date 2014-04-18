@@ -291,11 +291,6 @@ config PINCTRL_SIRF
 	select PINMUX
 	select GPIOLIB_IRQCHIP
 
-config PINCTRL_SUNXI
-	bool
-	select PINMUX
-	select GENERIC_PINCONF
-
 config PINCTRL_ST
 	bool
 	depends on OF
@@ -392,6 +387,7 @@ config PINCTRL_S3C64XX
 source "drivers/pinctrl/mvebu/Kconfig"
 source "drivers/pinctrl/sh-pfc/Kconfig"
 source "drivers/pinctrl/spear/Kconfig"
+source "drivers/pinctrl/sunxi/Kconfig"
 source "drivers/pinctrl/vt8500/Kconfig"
 
 config PINCTRL_XWAY

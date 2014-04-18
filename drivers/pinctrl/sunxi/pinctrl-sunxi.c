@@ -29,7 +29,7 @@
 #include <linux/reset.h>
 #include <linux/slab.h>
 
-#include "core.h"
+#include "../core.h"
 #include "pinctrl-sunxi.h"
 #include "pinctrl-sunxi-pins.h"
 

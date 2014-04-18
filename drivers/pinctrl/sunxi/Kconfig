@@ -1,0 +1,8 @@
+if ARCH_SUNXI
+
+config PINCTRL_SUNXI
+	bool
+	select PINMUX
+	select GENERIC_PINCONF
+
+endif
