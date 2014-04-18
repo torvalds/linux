@@ -1584,11 +1584,11 @@ static void lcd_init(void)
  */
 
 static ssize_t keypad_read(struct file *file,
-			   char *buf, size_t count, loff_t *ppos)
+			   char __user *buf, size_t count, loff_t *ppos)
 {
 
 	unsigned i = *ppos;
-	char *tmp = buf;
+	char __user *tmp = buf;
 
 	if (keypad_buflen == 0) {
 		if (file->f_flags & O_NONBLOCK)
