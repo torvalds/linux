@@ -292,7 +292,7 @@
 	  #address-cells = <1>;
 	  #size-cells = <0>;
 	  pinctrl-names = "default","idle";
-	  pinctrl-0 = <&sdio0_clk &sdio0_cmd &sdio0_dectn  &sdio0_wrprt &sdio0_pwr &sdio0_bkpwr
+	  pinctrl-0 = <&sdio0_clk &sdio0_cmd &sdio0_wrprt &sdio0_pwr &sdio0_bkpwr
 	  				 &sdio0_intn &sdio0_bus4>;
 	  pinctrl-1 = <&sdio0_gpio>;
 		
