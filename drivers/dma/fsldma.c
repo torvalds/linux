@@ -426,9 +426,7 @@ static struct fsl_desc_sw *fsl_dma_alloc_descriptor(struct fsldma_chan *chan)
 	desc->async_tx.tx_submit = fsl_dma_tx_submit;
 	desc->async_tx.phys = pdesc;
 
-#ifdef FSL_DMA_LD_DEBUG
 	chan_dbg(chan, "LD %p allocated\n", desc);
-#endif
 
 	return desc;
 }
@@ -479,9 +477,7 @@ static void fsldma_free_desc_list(struct fsldma_chan *chan,
 
 	list_for_each_entry_safe(desc, _desc, list, node) {
 		list_del(&desc->node);
-#ifdef FSL_DMA_LD_DEBUG
 		chan_dbg(chan, "LD %p free\n", desc);
-#endif
 		dma_pool_free(chan->desc_pool, desc, desc->async_tx.phys);
 	}
 }
@@ -493,9 +489,7 @@ static void fsldma_free_desc_list_reverse(struct fsldma_chan *chan,
 
 	list_for_each_entry_safe_reverse(desc, _desc, list, node) {
 		list_del(&desc->node);
-#ifdef FSL_DMA_LD_DEBUG
 		chan_dbg(chan, "LD %p free\n", desc);
-#endif
 		dma_pool_free(chan->desc_pool, desc, desc->async_tx.phys);
 	}
 }
@@ -832,9 +826,7 @@ static void fsldma_cleanup_descriptor(struct fsldma_chan *chan,
 
 	/* Run the link descriptor callback function */
 	if (txd->callback) {
-#ifdef FSL_DMA_LD_DEBUG
 		chan_dbg(chan, "LD %p callback\n", desc);
-#endif
 		txd->callback(txd->callback_param);
 	}
 
@@ -842,9 +834,7 @@ static void fsldma_cleanup_descriptor(struct fsldma_chan *chan,
 	dma_run_dependencies(txd);
 
 	dma_descriptor_unmap(txd);
-#ifdef FSL_DMA_LD_DEBUG
 	chan_dbg(chan, "LD %p free\n", desc);
-#endif
 	dma_pool_free(chan->desc_pool, desc, txd->phys);
 }
 
