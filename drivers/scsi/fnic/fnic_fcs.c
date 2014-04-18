@@ -267,11 +267,6 @@ static inline int is_fnic_fip_flogi_reject(struct fcoe_ctlr *fip,
 
 	if (desc->fip_dtype == FIP_DT_FLOGI) {
 
-		shost_printk(KERN_DEBUG, lport->host,
-			  " FIP TYPE FLOGI: fab name:%llx "
-			  "vfid:%d map:%x\n",
-			  fip->sel_fcf->fabric_name, fip->sel_fcf->vfid,
-			  fip->sel_fcf->fc_map);
 		if (dlen < sizeof(*els) + sizeof(*fh) + 1)
 			return 0;
 

@@ -111,7 +111,7 @@ static struct scsi_host_template fnic_host_template = {
 	.change_queue_type = fc_change_queue_type,
 	.this_id = -1,
 	.cmd_per_lun = 3,
-	.can_queue = FNIC_MAX_IO_REQ,
+	.can_queue = FNIC_DFLT_IO_REQ,
 	.use_clustering = ENABLE_CLUSTERING,
 	.sg_tablesize = FNIC_MAX_SG_DESC_CNT,
 	.max_sectors = 0xffff,
@@ -773,6 +773,7 @@ static int fnic_probe(struct pci_dev *pdev, const struct pci_device_id *ent)
 		shost_printk(KERN_INFO, fnic->lport->host,
 			     "firmware uses non-FIP mode\n");
 		fcoe_ctlr_init(&fnic->ctlr, FIP_MODE_NON_FIP);
+		fnic->ctlr.state = FIP_ST_NON_FIP;
 	}
 	fnic->state = FNIC_IN_FC_MODE;
 
