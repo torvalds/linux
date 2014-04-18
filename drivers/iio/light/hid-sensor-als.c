@@ -37,6 +37,10 @@ struct als_state {
 	struct hid_sensor_common common_attributes;
 	struct hid_sensor_hub_attribute_info als_illum;
 	u32 illum;
+	int scale_pre_decml;
+	int scale_post_decml;
+	int scale_precision;
+	int value_offset;
 };
 
 /* Channel definitions */
@@ -102,12 +106,12 @@ static int als_read_raw(struct iio_dev *indio_dev,
 		ret_type = IIO_VAL_INT;
 		break;
 	case IIO_CHAN_INFO_SCALE:
-		*val = als_state->als_illum.units;
-		ret_type = IIO_VAL_INT;
+		*val = als_state->scale_pre_decml;
+		*val2 = als_state->scale_post_decml;
+		ret_type = als_state->scale_precision;
 		break;
 	case IIO_CHAN_INFO_OFFSET:
-		*val = hid_sensor_convert_exponent(
-				als_state->als_illum.unit_expo);
+		*val = als_state->value_offset;
 		ret_type = IIO_VAL_INT;
 		break;
 	case IIO_CHAN_INFO_SAMP_FREQ:
@@ -228,6 +232,11 @@ static int als_parse_report(struct platform_device *pdev,
 
 	dev_dbg(&pdev->dev, "als %x:%x\n", st->als_illum.index,
 			st->als_illum.report_id);
+
+	st->scale_precision = hid_sensor_format_scale(
+				HID_USAGE_SENSOR_ALS,
+				&st->als_illum,
+				&st->scale_pre_decml, &st->scale_post_decml);
 
 	/* Set Sensitivity field ids, when there is no individual modifier */
 	if (st->common_attributes.sensitivity.index < 0) {
