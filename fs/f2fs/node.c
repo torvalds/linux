@@ -1447,7 +1447,7 @@ bool alloc_nid(struct f2fs_sb_info *sbi, nid_t *nid)
 	struct f2fs_nm_info *nm_i = NM_I(sbi);
 	struct free_nid *i = NULL;
 retry:
-	if (unlikely(sbi->total_valid_node_count + 1 >= nm_i->max_nid))
+	if (unlikely(sbi->total_valid_node_count + 1 > nm_i->available_nids))
 		return false;
 
 	spin_lock(&nm_i->free_nid_list_lock);
@@ -1859,8 +1859,10 @@ static int init_node_manager(struct f2fs_sb_info *sbi)
 	nat_segs = le32_to_cpu(sb_raw->segment_count_nat) >> 1;
 	nat_blocks = nat_segs << le32_to_cpu(sb_raw->log_blocks_per_seg);
 
+	nm_i->max_nid = NAT_ENTRY_PER_BLOCK * nat_blocks;
+
 	/* not used nids: 0, node, meta, (and root counted as valid node) */
-	nm_i->max_nid = NAT_ENTRY_PER_BLOCK * nat_blocks - 3;
+	nm_i->available_nids = nm_i->max_nid - 3;
 	nm_i->fcnt = 0;
 	nm_i->nat_cnt = 0;
 	nm_i->ram_thresh = DEF_RAM_THRESHOLD;
