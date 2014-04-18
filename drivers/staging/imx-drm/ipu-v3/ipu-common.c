@@ -900,7 +900,8 @@ static void ipu_irq_handle(struct ipu_soc *ipu, const int *regs, int num_regs)
 		status &= ipu_cm_read(ipu, IPU_INT_CTRL(regs[i]));
 
 		for_each_set_bit(bit, &status, 32) {
-			irq = irq_linear_revmap(ipu->domain, regs[i] * 32 + bit);
+			irq = irq_linear_revmap(ipu->domain,
+						regs[i] * 32 + bit);
 			if (irq)
 				generic_handle_irq(irq);
 		}
@@ -1053,7 +1054,8 @@ static int ipu_irq_init(struct ipu_soc *ipu)
 	}
 
 	ret = irq_alloc_domain_generic_chips(ipu->domain, 32, 1, "IPU",
-					     handle_level_irq, 0, IRQF_VALID, 0);
+					     handle_level_irq, 0,
+					     IRQF_VALID, 0);
 	if (ret < 0) {
 		dev_err(ipu->dev, "failed to alloc generic irq chips\n");
 		irq_domain_remove(ipu->domain);

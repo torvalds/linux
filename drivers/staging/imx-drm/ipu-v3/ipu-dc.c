@@ -370,7 +370,8 @@ int ipu_dc_init(struct ipu_soc *ipu, struct device *dev,
 	writel(DC_WR_CH_CONF_WORD_SIZE_24 | DC_WR_CH_CONF_DISP_ID_PARALLEL(0),
 			priv->channels[5].base + DC_WR_CH_CONF);
 
-	writel(DC_GEN_SYNC_1_6_SYNC | DC_GEN_SYNC_PRIORITY_1, priv->dc_reg + DC_GEN);
+	writel(DC_GEN_SYNC_1_6_SYNC | DC_GEN_SYNC_PRIORITY_1,
+		priv->dc_reg + DC_GEN);
 
 	ipu->dc_priv = priv;
 
