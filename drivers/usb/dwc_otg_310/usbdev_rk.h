@@ -19,6 +19,8 @@
 #include <linux/interrupt.h>
 #include <linux/irq.h>
 #include <linux/rockchip/cru.h>
+#include <linux/rockchip/grf.h>
+#include <linux/rockchip/cpu.h>
 
 #include "usbdev_grf_regs.h"
 #include "usbdev_bc.h"
