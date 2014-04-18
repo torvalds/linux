@@ -43,6 +43,8 @@
 #include <linux/slab.h>
 #include <linux/delay.h>
 #include <linux/rockchip/grf.h>
+#include <linux/of_gpio.h>
+
 
 #ifdef CONFIG_DEBUG_FS
 #include <linux/debugfs.h>
@@ -186,6 +188,12 @@ struct rockchip_pmx_func {
 	u8			ngroups;
 };
 
+struct gpio_init_config {
+	struct gpio *gpios;
+	int nr_gpios;
+};
+
+
 struct rockchip_pinctrl {
 	void __iomem			*reg_base;
 	
@@ -207,6 +215,7 @@ struct rockchip_pinctrl {
 #ifdef CONFIG_DEBUG_FS
 	struct dentry *debugfs;
 #endif
+	struct gpio_init_config		*config;
 };
 
 struct iomux_mode{
@@ -2941,13 +2950,55 @@ static void rockchip_pinctrl_resume(void)
 
 #endif
 
+
+static struct gpio_init_config *
+of_get_gpio_init_config(struct device *dev, struct device_node *np)
+{
+	struct gpio_init_config *config;
+	struct property *prop;
+	const char *regtype;
+	int proplen, gpio, i;	
+	enum of_gpio_flags flags;
+
+	config = devm_kzalloc(dev,
+			sizeof(struct gpio_init_config),
+			GFP_KERNEL);
+	if (!config)
+		return ERR_PTR(-ENOMEM);
+
+	/* Fetch GPIOs. */
+	config->nr_gpios = of_gpio_named_count(np, "init-gpios");
+
+	config->gpios = devm_kzalloc(dev,
+				sizeof(struct gpio) * config->nr_gpios,
+				GFP_KERNEL);
+	if (!config->gpios)
+		return ERR_PTR(-ENOMEM);
+
+	for (i = 0; i < config->nr_gpios; i++) {
+		//gpio = of_get_named_gpio(np, "gpios", i);	
+		gpio = of_get_named_gpio_flags(np, "init-gpios", i, &flags);
+		if (gpio < 0)
+			break;
+		config->gpios[i].gpio = gpio;	
+		config->gpios[i].flags = flags & OF_GPIO_ACTIVE_LOW;
+		
+		printk("%s:gpio[%d] = %d, value = %d\n",__func__, i, gpio, config->gpios[i].flags);
+	}
+
+	return config;
+}
+
+
 static int rockchip_pinctrl_probe(struct platform_device *pdev)
 {
 	struct rockchip_pinctrl *info;
 	struct device *dev = &pdev->dev;
 	struct rockchip_pin_ctrl *ctrl;
 	struct resource *res;
-	int ret;
+	int ret;	
+	struct device_node *np;
+	int i;
 	
 	if (!dev->of_node) {
 		dev_err(dev, "device tree node not found\n");
@@ -3057,6 +3108,25 @@ static int rockchip_pinctrl_probe(struct platform_device *pdev)
 	if (ret) {
 		rockchip_gpiolib_unregister(pdev, info);
 		return ret;
+	}
+
+	np = dev->of_node;
+	if (of_find_property(np, "init-gpios", NULL))
+	{
+		info->config = of_get_gpio_init_config(&pdev->dev, np);
+		if (IS_ERR(info->config))
+		return PTR_ERR(info->config);
+
+		ret = gpio_request_array(info->config->gpios, info->config->nr_gpios);
+		if (ret) {
+			dev_err(&pdev->dev, "Could not obtain init GPIOs: %d\n", ret);
+			return ret;
+		}
+
+		for(i=0; i<info->config->nr_gpios; i++)
+		{
+			gpio_direction_output(info->config->gpios[i].gpio, info->config->gpios[i].flags);
+		}
 	}
 	
 	pinctrl_debugfs_init(info);
