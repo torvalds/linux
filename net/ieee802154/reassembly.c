@@ -36,7 +36,7 @@ struct lowpan_frag_info {
 	u8 d_offset;
 };
 
-struct lowpan_frag_info *lowpan_cb(struct sk_buff *skb)
+static struct lowpan_frag_info *lowpan_cb(struct sk_buff *skb)
 {
 	return (struct lowpan_frag_info *)skb->cb;
 }
