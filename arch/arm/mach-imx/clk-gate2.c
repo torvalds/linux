@@ -27,11 +27,19 @@
  * parent - fixed parent.  No clk_set_parent support
  */
 
-#define to_clk_gate(_hw) container_of(_hw, struct clk_gate, hw)
+struct clk_gate2 {
+	struct clk_hw hw;
+	void __iomem	*reg;
+	u8		bit_idx;
+	u8		flags;
+	spinlock_t	*lock;
+};
+
+#define to_clk_gate2(_hw) container_of(_hw, struct clk_gate2, hw)
 
 static int clk_gate2_enable(struct clk_hw *hw)
 {
-	struct clk_gate *gate = to_clk_gate(hw);
+	struct clk_gate2 *gate = to_clk_gate2(hw);
 	u32 reg;
 	unsigned long flags = 0;
 
@@ -50,7 +58,7 @@ static int clk_gate2_enable(struct clk_hw *hw)
 
 static void clk_gate2_disable(struct clk_hw *hw)
 {
-	struct clk_gate *gate = to_clk_gate(hw);
+	struct clk_gate2 *gate = to_clk_gate2(hw);
 	u32 reg;
 	unsigned long flags = 0;
 
@@ -68,7 +76,7 @@ static void clk_gate2_disable(struct clk_hw *hw)
 static int clk_gate2_is_enabled(struct clk_hw *hw)
 {
 	u32 reg;
-	struct clk_gate *gate = to_clk_gate(hw);
+	struct clk_gate2 *gate = to_clk_gate2(hw);
 
 	reg = readl(gate->reg);
 
@@ -89,15 +97,15 @@ struct clk *clk_register_gate2(struct device *dev, const char *name,
 		void __iomem *reg, u8 bit_idx,
 		u8 clk_gate2_flags, spinlock_t *lock)
 {
-	struct clk_gate *gate;
+	struct clk_gate2 *gate;
 	struct clk *clk;
 	struct clk_init_data init;
 
-	gate = kzalloc(sizeof(struct clk_gate), GFP_KERNEL);
+	gate = kzalloc(sizeof(struct clk_gate2), GFP_KERNEL);
 	if (!gate)
 		return ERR_PTR(-ENOMEM);
 
-	/* struct clk_gate assignments */
+	/* struct clk_gate2 assignments */
 	gate->reg = reg;
 	gate->bit_idx = bit_idx;
 	gate->flags = clk_gate2_flags;
