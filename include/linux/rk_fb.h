@@ -84,7 +84,7 @@
 #define Y_MIRROR    	2
 #define X_Y_MIRROR    	3
 
-/*#define USE_ION_MMU 1*/
+//#define USE_ION_MMU 1
 #if defined(CONFIG_ION_ROCKCHIP)
 extern struct ion_client *rockchip_ion_client_create(const char * name);
 #endif
@@ -284,6 +284,7 @@ struct rk_lcdc_win_area{
 #if defined(CONFIG_ION_ROCKCHIP)
 		struct ion_handle *ion_hdl;
 		int dma_buf_fd;
+		struct dma_buf *dma_buf;
 #endif
 	u32 dsp_stx;
 	u32 dsp_sty;
