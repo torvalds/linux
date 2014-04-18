@@ -252,4 +252,7 @@ static inline u32 sunxi_irq_status_offset(u16 irq)
 	return irq_num * IRQ_STATUS_IRQ_BITS;
 }
 
+int sunxi_pinctrl_init(struct platform_device *pdev,
+		       const struct sunxi_pinctrl_desc *desc);
+
 #endif /* __PINCTRL_SUNXI_H */

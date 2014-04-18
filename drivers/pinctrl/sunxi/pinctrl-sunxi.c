@@ -787,10 +787,10 @@ static int sunxi_pinctrl_build_state(struct platform_device *pdev)
 	return 0;
 }
 
-static int sunxi_pinctrl_probe(struct platform_device *pdev)
+int sunxi_pinctrl_init(struct platform_device *pdev,
+		       const struct sunxi_pinctrl_desc *desc)
 {
 	struct device_node *node = pdev->dev.of_node;
-	const struct of_device_id *device;
 	struct pinctrl_pin_desc *pins;
 	struct sunxi_pinctrl *pctl;
 	struct reset_control *rstc;
@@ -810,11 +810,7 @@ static int sunxi_pinctrl_probe(struct platform_device *pdev)
 	if (IS_ERR(pctl->membase))
 		return PTR_ERR(pctl->membase);
 
-	device = of_match_device(sunxi_pinctrl_match, &pdev->dev);
-	if (!device)
-		return -ENODEV;
-
-	pctl->desc = device->data;
+	pctl->desc = desc;
 
 	ret = sunxi_pinctrl_build_state(pdev);
 	if (ret) {
@@ -938,6 +934,17 @@ gpiochip_error:
 pinctrl_error:
 	pinctrl_unregister(pctl->pctl_dev);
 	return ret;
+}
+
+static int sunxi_pinctrl_probe(struct platform_device *pdev)
+{
+	const struct of_device_id *device;
+
+	device = of_match_device(sunxi_pinctrl_match, &pdev->dev);
+	if (!device)
+		return -ENODEV;
+
+	return sunxi_pinctrl_init(pdev, device->data);
 }
 
 static struct platform_driver sunxi_pinctrl_driver = {
