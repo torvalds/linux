@@ -2140,9 +2140,10 @@ void clk_unregister(struct clk *clk)
 
 	if (!hlist_empty(&clk->children)) {
 		struct clk *child;
+		struct hlist_node *t;
 
 		/* Reparent all children to the orphan list. */
-		hlist_for_each_entry(child, &clk->children, child_node)
+		hlist_for_each_entry_safe(child, t, &clk->children, child_node)
 			clk_set_parent(child, NULL);
 	}
 
