@@ -5245,13 +5245,14 @@ ext4_ext_shift_path_extents(struct ext4_ext_path *path, ext4_lblk_t shift,
 
 			while (ex_start <= ex_last) {
 				le32_add_cpu(&ex_start->ee_block, -shift);
-				if (ex_start >
-					EXT_FIRST_EXTENT(path[depth].p_hdr)) {
-					if (ext4_ext_try_to_merge_right(inode,
-						path, ex_start - 1))
-						ex_last--;
-				}
-				ex_start++;
+				/* Try to merge to the left. */
+				if ((ex_start >
+				     EXT_FIRST_EXTENT(path[depth].p_hdr)) &&
+				    ext4_ext_try_to_merge_right(inode,
+							path, ex_start - 1))
+					ex_last--;
+				else
+					ex_start++;
 			}
 			err = ext4_ext_dirty(handle, inode, path + depth);
 			if (err)
