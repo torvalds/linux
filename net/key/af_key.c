@@ -1478,7 +1478,7 @@ static int pfkey_add(struct sock *sk, struct sk_buff *skb, const struct sadb_msg
 
 	xfrm_audit_state_add(x, err ? 0 : 1,
 			     audit_get_loginuid(current),
-			     audit_get_sessionid(current), 0);
+			     audit_get_sessionid(current));
 
 	if (err < 0) {
 		x->km.state = XFRM_STATE_DEAD;
@@ -1534,7 +1534,7 @@ static int pfkey_delete(struct sock *sk, struct sk_buff *skb, const struct sadb_
 out:
 	xfrm_audit_state_delete(x, err ? 0 : 1,
 				audit_get_loginuid(current),
-				audit_get_sessionid(current), 0);
+				audit_get_sessionid(current));
 	xfrm_state_put(x);
 
 	return err;
@@ -1735,7 +1735,6 @@ static int pfkey_flush(struct sock *sk, struct sk_buff *skb, const struct sadb_m
 
 	audit_info.loginuid = audit_get_loginuid(current);
 	audit_info.sessionid = audit_get_sessionid(current);
-	audit_info.secid = 0;
 	err = xfrm_state_flush(net, proto, &audit_info);
 	err2 = unicast_flush_resp(sk, hdr);
 	if (err || err2) {
@@ -2290,7 +2289,7 @@ static int pfkey_spdadd(struct sock *sk, struct sk_buff *skb, const struct sadb_
 
 	xfrm_audit_policy_add(xp, err ? 0 : 1,
 			      audit_get_loginuid(current),
-			      audit_get_sessionid(current), 0);
+			      audit_get_sessionid(current));
 
 	if (err)
 		goto out;
@@ -2374,7 +2373,7 @@ static int pfkey_spddelete(struct sock *sk, struct sk_buff *skb, const struct sa
 
 	xfrm_audit_policy_delete(xp, err ? 0 : 1,
 				 audit_get_loginuid(current),
-				 audit_get_sessionid(current), 0);
+				 audit_get_sessionid(current));
 
 	if (err)
 		goto out;
@@ -2624,7 +2623,7 @@ static int pfkey_spdget(struct sock *sk, struct sk_buff *skb, const struct sadb_
 	if (delete) {
 		xfrm_audit_policy_delete(xp, err ? 0 : 1,
 				audit_get_loginuid(current),
-				audit_get_sessionid(current), 0);
+				audit_get_sessionid(current));
 
 		if (err)
 			goto out;
@@ -2738,7 +2737,6 @@ static int pfkey_spdflush(struct sock *sk, struct sk_buff *skb, const struct sad
 
 	audit_info.loginuid = audit_get_loginuid(current);
 	audit_info.sessionid = audit_get_sessionid(current);
-	audit_info.secid = 0;
 	err = xfrm_policy_flush(net, XFRM_POLICY_TYPE_MAIN, &audit_info);
 	err2 = unicast_flush_resp(sk, hdr);
 	if (err || err2) {
