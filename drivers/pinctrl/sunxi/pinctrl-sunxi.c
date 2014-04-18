@@ -674,7 +674,6 @@ static void sunxi_pinctrl_irq_handler(unsigned irq, struct irq_desc *desc)
 }
 
 static struct of_device_id sunxi_pinctrl_match[] = {
-	{ .compatible = "allwinner,sun6i-a31-pinctrl", .data = (void *)&sun6i_a31_pinctrl_data },
 	{ .compatible = "allwinner,sun6i-a31-r-pinctrl", .data = (void *)&sun6i_a31_r_pinctrl_data },
 	{ .compatible = "allwinner,sun7i-a20-pinctrl", .data = (void *)&sun7i_a20_pinctrl_data },
 	{}
