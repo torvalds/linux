@@ -42,6 +42,10 @@ struct incl_3d_state {
 	struct hid_sensor_common common_attributes;
 	struct hid_sensor_hub_attribute_info incl[INCLI_3D_CHANNEL_MAX];
 	u32 incl_val[INCLI_3D_CHANNEL_MAX];
+	int scale_pre_decml;
+	int scale_post_decml;
+	int scale_precision;
+	int value_offset;
 };
 
 static const u32 incl_3d_addresses[INCLI_3D_CHANNEL_MAX] = {
@@ -125,12 +129,12 @@ static int incl_3d_read_raw(struct iio_dev *indio_dev,
 		ret_type = IIO_VAL_INT;
 		break;
 	case IIO_CHAN_INFO_SCALE:
-		*val = incl_state->incl[CHANNEL_SCAN_INDEX_X].units;
-		ret_type = IIO_VAL_INT;
+		*val = incl_state->scale_pre_decml;
+		*val2 = incl_state->scale_post_decml;
+		ret_type = incl_state->scale_precision;
 		break;
 	case IIO_CHAN_INFO_OFFSET:
-		*val = hid_sensor_convert_exponent(
-			incl_state->incl[CHANNEL_SCAN_INDEX_X].unit_expo);
+		*val = incl_state->value_offset;
 		ret_type = IIO_VAL_INT;
 		break;
 	case IIO_CHAN_INFO_SAMP_FREQ:
@@ -278,6 +282,11 @@ static int incl_3d_parse_report(struct platform_device *pdev,
 			st->incl[0].report_id,
 			st->incl[1].index, st->incl[1].report_id,
 			st->incl[2].index, st->incl[2].report_id);
+
+	st->scale_precision = hid_sensor_format_scale(
+				HID_USAGE_SENSOR_INCLINOMETER_3D,
+				&st->incl[CHANNEL_SCAN_INDEX_X],
+				&st->scale_pre_decml, &st->scale_post_decml);
 
 	/* Set Sensitivity field ids, when there is no individual modifier */
 	if (st->common_attributes.sensitivity.index < 0) {
