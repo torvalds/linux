@@ -2321,6 +2321,7 @@ struct radeon_device {
 	bool have_disp_power_ref;
 };
 
+bool radeon_is_px(struct drm_device *dev);
 int radeon_device_init(struct radeon_device *rdev,
 		       struct drm_device *ddev,
 		       struct pci_dev *pdev,
