@@ -245,11 +245,17 @@ static int ceph_fill_dirfrag(struct inode *inode,
 	u32 id = le32_to_cpu(dirinfo->frag);
 	int mds = le32_to_cpu(dirinfo->auth);
 	int ndist = le32_to_cpu(dirinfo->ndist);
+	int diri_auth = -1;
 	int i;
 	int err = 0;
 
+	spin_lock(&ci->i_ceph_lock);
+	if (ci->i_auth_cap)
+		diri_auth = ci->i_auth_cap->mds;
+	spin_unlock(&ci->i_ceph_lock);
+
 	mutex_lock(&ci->i_fragtree_mutex);
-	if (ndist == 0) {
+	if (ndist == 0 && mds == diri_auth) {
 		/* no delegation info needed. */
 		frag = __ceph_find_frag(ci, id);
 		if (!frag)
