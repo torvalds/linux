@@ -5404,7 +5404,7 @@ int ext4_collapse_range(struct inode *inode, loff_t offset, loff_t len)
 		return -EINVAL;
 
 	if (!S_ISREG(inode->i_mode))
-		return -EOPNOTSUPP;
+		return -EINVAL;
 
 	trace_ext4_collapse_range(inode, offset, len);
 
