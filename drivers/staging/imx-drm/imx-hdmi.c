@@ -120,8 +120,6 @@ struct imx_hdmi {
 	struct clk *isfr_clk;
 	struct clk *iahb_clk;
 
-	enum drm_connector_status connector_status;
-
 	struct hdmi_data_info hdmi_data;
 	int vic;
 
@@ -1379,7 +1377,9 @@ static enum drm_connector_status imx_hdmi_connector_detect(struct drm_connector
 {
 	struct imx_hdmi *hdmi = container_of(connector, struct imx_hdmi,
 					     connector);
-	return hdmi->connector_status;
+
+	return hdmi_readb(hdmi, HDMI_PHY_STAT0) & HDMI_PHY_HPD ?
+		connector_status_connected : connector_status_disconnected;
 }
 
 static int imx_hdmi_connector_get_modes(struct drm_connector *connector)
@@ -1521,7 +1521,6 @@ static irqreturn_t imx_hdmi_irq(int irq, void *dev_id)
 
 			hdmi_modb(hdmi, 0, HDMI_PHY_HPD, HDMI_PHY_POL0);
 
-			hdmi->connector_status = connector_status_connected;
 			imx_hdmi_poweron(hdmi);
 		} else {
 			dev_dbg(hdmi->dev, "EVENT=plugout\n");
@@ -1529,7 +1528,6 @@ static irqreturn_t imx_hdmi_irq(int irq, void *dev_id)
 			hdmi_modb(hdmi, HDMI_PHY_HPD, HDMI_PHY_HPD,
 				HDMI_PHY_POL0);
 
-			hdmi->connector_status = connector_status_disconnected;
 			imx_hdmi_poweroff(hdmi);
 		}
 		drm_helper_hpd_irq_event(hdmi->connector.dev);
@@ -1603,7 +1601,6 @@ static int imx_hdmi_bind(struct device *dev, struct device *master, void *data)
 		return -ENOMEM;
 
 	hdmi->dev = dev;
-	hdmi->connector_status = connector_status_disconnected;
 	hdmi->sample_rate = 48000;
 	hdmi->ratio = 100;
 
