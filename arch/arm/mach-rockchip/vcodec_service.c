@@ -623,6 +623,8 @@ static int vcodec_bufid_to_iova(struct vpu_service_info *pservice, u8 *tbl, int 
         return -1;
     }
     
+    vpu_service_power_on(pservice);
+    
     for (i=0; i<size; i++) {
 #if 0
         if (copy_from_user(&usr_fd, &reg->reg[addr_tbl_vpu_dec[i]], sizeof(usr_fd)))
@@ -663,7 +665,9 @@ static int vcodec_bufid_to_iova(struct vpu_service_info *pservice, u8 *tbl, int 
                     return -1;
                 }
                 
-                ret = ion_map_iommu(pservice->dev, pservice->ion_client, hdl, &mem_region->iova, &mem_region->len);
+                mem_region->hdl = hdl;
+                
+                ret = ion_map_iommu(pservice->dev, pservice->ion_client, mem_region->hdl, &mem_region->iova, &mem_region->len);
                 if (ret < 0) {
                     dev_err(pservice->dev, "ion map iommu failed\n");
                     kfree(mem_region);
