@@ -11911,6 +11911,7 @@ struct intel_display_error_state {
 	struct intel_pipe_error_state {
 		bool power_domain_on;
 		u32 source;
+		u32 stat;
 	} pipe[I915_MAX_PIPES];
 
 	struct intel_plane_error_state {
@@ -11992,6 +11993,9 @@ intel_display_capture_error_state(struct drm_device *dev)
 		}
 
 		error->pipe[i].source = I915_READ(PIPESRC(i));
+
+		if (!HAS_PCH_SPLIT(dev))
+			error->pipe[i].stat = I915_READ(PIPESTAT(i));
 	}
 
 	error->num_transcoders = INTEL_INFO(dev)->num_pipes;
@@ -12042,6 +12046,7 @@ intel_display_print_error_state(struct drm_i915_error_state_buf *m,
 		err_printf(m, "  Power: %s\n",
 			   error->pipe[i].power_domain_on ? "on" : "off");
 		err_printf(m, "  SRC: %08x\n", error->pipe[i].source);
+		err_printf(m, "  STAT: %08x\n", error->pipe[i].stat);
 
 		err_printf(m, "Plane [%d]:\n", i);
 		err_printf(m, "  CNTR: %08x\n", error->plane[i].control);

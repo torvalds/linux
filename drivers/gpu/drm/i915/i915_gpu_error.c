@@ -1029,7 +1029,6 @@ static void i915_capture_reg_state(struct drm_i915_private *dev_priv,
 				   struct drm_i915_error_state *error)
 {
 	struct drm_device *dev = dev_priv->dev;
-	int pipe;
 
 	/* General organization
 	 * 1. Registers specific to a single generation
@@ -1081,8 +1080,6 @@ static void i915_capture_reg_state(struct drm_i915_private *dev_priv,
 			error->ier = I915_READ16(IER);
 		else
 			error->ier = I915_READ(IER);
-		for_each_pipe(pipe)
-			error->pipestat[pipe] = I915_READ(PIPESTAT(pipe));
 	}
 
 	/* 4: Everything else */

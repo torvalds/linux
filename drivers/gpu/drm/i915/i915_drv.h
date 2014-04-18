@@ -325,7 +325,6 @@ struct drm_i915_error_state {
 	u32 gab_ctl;
 	u32 gfx_mode;
 	u32 extra_instdone[I915_NUM_INSTDONE_REG];
-	u32 pipestat[I915_MAX_PIPES];
 	u64 fence[I915_MAX_NUM_FENCES];
 	struct intel_overlay_error_state *overlay;
 	struct intel_display_error_state *display;
