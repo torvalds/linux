@@ -663,15 +663,7 @@ static int fb_setcolreg(unsigned regno, unsigned red, unsigned green,
 			(green << info->var.green.offset) |
 			(blue << info->var.blue.offset);
 
-		switch (info->var.bits_per_pixel) {
-		case 16:
-			((u16 *) (info->pseudo_palette))[regno] = v;
-			break;
-		case 24:
-		case 32:
-			((u32 *) (info->pseudo_palette))[regno] = v;
-			break;
-		}
+		((u32 *) (info->pseudo_palette))[regno] = v;
 		if (palette[0] != 0x4000) {
 			update_hw = 1;
 			palette[0] = 0x4000;

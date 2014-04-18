@@ -457,7 +457,7 @@ bool dss_div_calc(unsigned long pck, unsigned long fck_min,
 	fckd_stop = max(DIV_ROUND_UP(prate * m, fck_hw_max), 1ul);
 
 	for (fckd = fckd_start; fckd >= fckd_stop; --fckd) {
-		fck = prate / fckd * m;
+		fck = DIV_ROUND_UP(prate, fckd) * m;
 
 		if (func(fck, data))
 			return true;
@@ -506,7 +506,7 @@ static int dss_setup_default_clock(void)
 
 		fck_div = DIV_ROUND_UP(prate * dss.feat->dss_fck_multiplier,
 				max_dss_fck);
-		fck = prate / fck_div * dss.feat->dss_fck_multiplier;
+		fck = DIV_ROUND_UP(prate, fck_div) * dss.feat->dss_fck_multiplier;
 	}
 
 	r = dss_set_fck_rate(fck);

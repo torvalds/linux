@@ -297,6 +297,8 @@ struct dsi_data {
 
 	int irq;
 
+	bool is_enabled;
+
 	struct clk *dss_clk;
 	struct clk *sys_clk;
 
@@ -794,6 +796,9 @@ static irqreturn_t omap_dsi_irq_handler(int irq, void *arg)
 
 	dsidev = (struct platform_device *) arg;
 	dsi = dsi_get_dsidrv_data(dsidev);
+
+	if (!dsi->is_enabled)
+		return IRQ_NONE;
 
 	spin_lock(&dsi->irq_lock);
 
@@ -5671,6 +5676,15 @@ static int __exit omap_dsihw_remove(struct platform_device *dsidev)
 
 static int dsi_runtime_suspend(struct device *dev)
 {
+	struct platform_device *pdev = to_platform_device(dev);
+	struct dsi_data *dsi = dsi_get_dsidrv_data(pdev);
+
+	dsi->is_enabled = false;
+	/* ensure the irq handler sees the is_enabled value */
+	smp_wmb();
+	/* wait for current handler to finish before turning the DSI off */
+	synchronize_irq(dsi->irq);
+
 	dispc_runtime_put();
 
 	return 0;
@@ -5678,11 +5692,17 @@ static int dsi_runtime_suspend(struct device *dev)
 
 static int dsi_runtime_resume(struct device *dev)
 {
+	struct platform_device *pdev = to_platform_device(dev);
+	struct dsi_data *dsi = dsi_get_dsidrv_data(pdev);
 	int r;
 
 	r = dispc_runtime_get();
 	if (r)
 		return r;
+
+	dsi->is_enabled = true;
+	/* ensure the irq handler sees the is_enabled value */
+	smp_wmb();
 
 	return 0;
 }

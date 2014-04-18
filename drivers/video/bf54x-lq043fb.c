@@ -49,13 +49,13 @@
 #include <linux/spinlock.h>
 #include <linux/dma-mapping.h>
 #include <linux/platform_device.h>
+#include <linux/gpio.h>
 
 #include <asm/blackfin.h>
 #include <asm/irq.h>
 #include <asm/dpmc.h>
 #include <asm/dma-mapping.h>
 #include <asm/dma.h>
-#include <asm/gpio.h>
 #include <asm/portmux.h>
 
 #include <mach/bf54x-lq043.h>

@@ -10,6 +10,9 @@
 
 #define MAX_LOCK_DEPTH 2000UL
 
+#define asmlinkage
+#define __visible
+
 #include "../../../include/linux/lockdep.h"
 
 struct task_struct {
