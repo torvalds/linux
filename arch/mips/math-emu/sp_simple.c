@@ -33,7 +33,7 @@ int ieee754sp_finite(union ieee754sp x)
 
 union ieee754sp ieee754sp_copysign(union ieee754sp x, union ieee754sp y)
 {
-	CLEARCX;
+	ieee754_clearcx();
 	SPSIGN(x) = SPSIGN(y);
 	return x;
 }
@@ -44,7 +44,7 @@ union ieee754sp ieee754sp_neg(union ieee754sp x)
 	COMPXSP;
 
 	EXPLODEXSP;
-	CLEARCX;
+	ieee754_clearcx();
 	FLUSHXSP;
 
 	/*
@@ -56,7 +56,7 @@ union ieee754sp ieee754sp_neg(union ieee754sp x)
 
 	if (xc == IEEE754_CLASS_SNAN) {
 		union ieee754sp y = ieee754sp_indef();
-		SETCX(IEEE754_INVALID_OPERATION);
+		ieee754_setcx(IEEE754_INVALID_OPERATION);
 		SPSIGN(y) = SPSIGN(x);
 		return ieee754sp_nanxcpt(y, "neg");
 	}
@@ -70,14 +70,14 @@ union ieee754sp ieee754sp_abs(union ieee754sp x)
 	COMPXSP;
 
 	EXPLODEXSP;
-	CLEARCX;
+	ieee754_clearcx();
 	FLUSHXSP;
 
 	/* Clear sign ALWAYS, irrespective of NaN */
 	SPSIGN(x) = 0;
 
 	if (xc == IEEE754_CLASS_SNAN) {
-		SETCX(IEEE754_INVALID_OPERATION);
+		ieee754_setcx(IEEE754_INVALID_OPERATION);
 		return ieee754sp_nanxcpt(ieee754sp_indef(), "abs");
 	}
 

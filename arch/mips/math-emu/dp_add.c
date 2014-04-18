@@ -35,7 +35,7 @@ union ieee754dp ieee754dp_add(union ieee754dp x, union ieee754dp y)
 	EXPLODEXDP;
 	EXPLODEYDP;
 
-	CLEARCX;
+	ieee754_clearcx();
 
 	FLUSHXDP;
 	FLUSHYDP;
@@ -52,7 +52,7 @@ union ieee754dp ieee754dp_add(union ieee754dp x, union ieee754dp y)
 	case CLPAIR(IEEE754_CLASS_SNAN, IEEE754_CLASS_NORM):
 	case CLPAIR(IEEE754_CLASS_SNAN, IEEE754_CLASS_DNORM):
 	case CLPAIR(IEEE754_CLASS_SNAN, IEEE754_CLASS_INF):
-		SETCX(IEEE754_INVALID_OPERATION);
+		ieee754_setcx(IEEE754_INVALID_OPERATION);
 		return ieee754dp_nanxcpt(ieee754dp_indef(), "add", x, y);
 
 	case CLPAIR(IEEE754_CLASS_ZERO, IEEE754_CLASS_QNAN):
@@ -75,7 +75,7 @@ union ieee754dp ieee754dp_add(union ieee754dp x, union ieee754dp y)
 	case CLPAIR(IEEE754_CLASS_INF, IEEE754_CLASS_INF):
 		if (xs == ys)
 			return x;
-		SETCX(IEEE754_INVALID_OPERATION);
+		ieee754_setcx(IEEE754_INVALID_OPERATION);
 		return ieee754dp_xcpt(ieee754dp_indef(), "add", x, y);
 
 	case CLPAIR(IEEE754_CLASS_NORM, IEEE754_CLASS_INF):

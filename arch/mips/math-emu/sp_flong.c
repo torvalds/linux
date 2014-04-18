@@ -32,7 +32,7 @@ union ieee754sp ieee754sp_flong(s64 x)
 	int xe;
 	int xs;
 
-	CLEARCX;
+	ieee754_clearcx();
 
 	if (x == 0)
 		return ieee754sp_zero(0);

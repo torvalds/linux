@@ -32,7 +32,7 @@ union ieee754dp ieee754dp_modf(union ieee754dp x, union ieee754dp *ip)
 {
 	COMPXDP;
 
-	CLEARCX;
+	ieee754_clearcx();
 
 	EXPLODEXDP;
 

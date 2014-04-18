@@ -30,7 +30,7 @@ union ieee754sp ieee754sp_logb(union ieee754sp x)
 {
 	COMPXSP;
 
-	CLEARCX;
+	ieee754_clearcx();
 
 	EXPLODEXSP;
 

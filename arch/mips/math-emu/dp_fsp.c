@@ -32,13 +32,13 @@ union ieee754dp ieee754dp_fsp(union ieee754sp x)
 
 	EXPLODEXSP;
 
-	CLEARCX;
+	ieee754_clearcx();
 
 	FLUSHXSP;
 
 	switch (xc) {
 	case IEEE754_CLASS_SNAN:
-		SETCX(IEEE754_INVALID_OPERATION);
+		ieee754_setcx(IEEE754_INVALID_OPERATION);
 		return ieee754dp_nanxcpt(ieee754dp_indef(), "fsp");
 	case IEEE754_CLASS_QNAN:
 		return ieee754dp_nanxcpt(builddp(xs,

@@ -31,7 +31,7 @@
 union ieee754sp ieee754sp_frexp(union ieee754sp x, int *eptr)
 {
 	COMPXSP;
-	CLEARCX;
+	ieee754_clearcx();
 	EXPLODEXSP;
 
 	switch (xc) {

@@ -30,7 +30,7 @@ union ieee754dp ieee754dp_scalb(union ieee754dp x, int n)
 {
 	COMPXDP;
 
-	CLEARCX;
+	ieee754_clearcx();
 
 	EXPLODEXDP;
 

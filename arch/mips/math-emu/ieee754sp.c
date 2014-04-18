@@ -50,7 +50,7 @@ union ieee754sp __cold ieee754sp_xcpt(union ieee754sp r, const char *op, ...)
 {
 	struct ieee754xctx ax;
 
-	if (!TSTX())
+	if (!ieee754_tstx())
 		return r;
 
 	ax.op = op;
@@ -71,7 +71,7 @@ union ieee754sp __cold ieee754sp_nanxcpt(union ieee754sp r, const char *op, ...)
 	if (!ieee754sp_issnan(r))	/* QNAN does not cause invalid op !! */
 		return r;
 
-	if (!SETANDTESTCX(IEEE754_INVALID_OPERATION)) {
+	if (!ieee754_setandtestcx(IEEE754_INVALID_OPERATION)) {
 		/* not enabled convert to a quiet NaN */
 		SPMANT(r) &= (~SP_MBIT(SP_MBITS-1));
 		if (ieee754sp_isnan(r))
@@ -144,8 +144,8 @@ union ieee754sp ieee754sp_format(int sn, int xe, unsigned xm)
 		int es = SP_EMIN - xe;
 
 		if (ieee754_csr.nod) {
-			SETCX(IEEE754_UNDERFLOW);
-			SETCX(IEEE754_INEXACT);
+			ieee754_setcx(IEEE754_UNDERFLOW);
+			ieee754_setcx(IEEE754_INEXACT);
 
 			switch(ieee754_csr.rm) {
 			case IEEE754_RN:
@@ -168,7 +168,7 @@ union ieee754sp ieee754sp_format(int sn, int xe, unsigned xm)
 				&& get_rounding(sn, xm) >> (SP_MBITS + 1 + 3))
 		{
 			/* Not tiny after rounding */
-			SETCX(IEEE754_INEXACT);
+			ieee754_setcx(IEEE754_INEXACT);
 			xm = get_rounding(sn, xm);
 			xm >>= 1;
 			/* Clear grs bits */
@@ -183,9 +183,9 @@ union ieee754sp ieee754sp_format(int sn, int xe, unsigned xm)
 		}
 	}
 	if (xm & (SP_MBIT(3) - 1)) {
-		SETCX(IEEE754_INEXACT);
+		ieee754_setcx(IEEE754_INEXACT);
 		if ((xm & (SP_HIDDEN_BIT << 3)) == 0) {
-			SETCX(IEEE754_UNDERFLOW);
+			ieee754_setcx(IEEE754_UNDERFLOW);
 		}
 
 		/* inexact must round of 3 bits
@@ -206,8 +206,8 @@ union ieee754sp ieee754sp_format(int sn, int xe, unsigned xm)
 	assert(xe >= SP_EMIN);
 
 	if (xe > SP_EMAX) {
-		SETCX(IEEE754_OVERFLOW);
-		SETCX(IEEE754_INEXACT);
+		ieee754_setcx(IEEE754_OVERFLOW);
+		ieee754_setcx(IEEE754_INEXACT);
 		/* -O can be table indexed by (rm,sn) */
 		switch (ieee754_csr.rm) {
 		case IEEE754_RN:
@@ -232,7 +232,7 @@ union ieee754sp ieee754sp_format(int sn, int xe, unsigned xm)
 		/* we underflow (tiny/zero) */
 		assert(xe == SP_EMIN);
 		if (ieee754_csr.mx & IEEE754_UNDERFLOW)
-			SETCX(IEEE754_UNDERFLOW);
+			ieee754_setcx(IEEE754_UNDERFLOW);
 		return buildsp(sn, SP_EMIN - 1 + SP_EBIAS, xm);
 	} else {
 		assert((xm >> (SP_MBITS + 1)) == 0);	/* no execess */

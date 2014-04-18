@@ -34,7 +34,7 @@ union ieee754dp ieee754dp_mul(union ieee754dp x, union ieee754dp y)
 	EXPLODEXDP;
 	EXPLODEYDP;
 
-	CLEARCX;
+	ieee754_clearcx();
 
 	FLUSHXDP;
 	FLUSHYDP;
@@ -51,7 +51,7 @@ union ieee754dp ieee754dp_mul(union ieee754dp x, union ieee754dp y)
 	case CLPAIR(IEEE754_CLASS_SNAN, IEEE754_CLASS_NORM):
 	case CLPAIR(IEEE754_CLASS_SNAN, IEEE754_CLASS_DNORM):
 	case CLPAIR(IEEE754_CLASS_SNAN, IEEE754_CLASS_INF):
-		SETCX(IEEE754_INVALID_OPERATION);
+		ieee754_setcx(IEEE754_INVALID_OPERATION);
 		return ieee754dp_nanxcpt(ieee754dp_indef(), "mul", x, y);
 
 	case CLPAIR(IEEE754_CLASS_ZERO, IEEE754_CLASS_QNAN):
@@ -72,7 +72,7 @@ union ieee754dp ieee754dp_mul(union ieee754dp x, union ieee754dp y)
 
 	case CLPAIR(IEEE754_CLASS_INF, IEEE754_CLASS_ZERO):
 	case CLPAIR(IEEE754_CLASS_ZERO, IEEE754_CLASS_INF):
-		SETCX(IEEE754_INVALID_OPERATION);
+		ieee754_setcx(IEEE754_INVALID_OPERATION);
 		return ieee754dp_xcpt(ieee754dp_indef(), "mul", x, y);
 
 	case CLPAIR(IEEE754_CLASS_NORM, IEEE754_CLASS_INF):

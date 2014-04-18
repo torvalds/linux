@@ -49,7 +49,7 @@ int ieee754dp_issnan(union ieee754dp x)
 union ieee754dp __cold ieee754dp_xcpt(union ieee754dp r, const char *op, ...)
 {
 	struct ieee754xctx ax;
-	if (!TSTX())
+	if (!ieee754_tstx())
 		return r;
 
 	ax.op = op;
@@ -70,7 +70,7 @@ union ieee754dp __cold ieee754dp_nanxcpt(union ieee754dp r, const char *op, ...)
 	if (!ieee754dp_issnan(r))	/* QNAN does not cause invalid op !! */
 		return r;
 
-	if (!SETANDTESTCX(IEEE754_INVALID_OPERATION)) {
+	if (!ieee754_setandtestcx(IEEE754_INVALID_OPERATION)) {
 		/* not enabled convert to a quiet NaN */
 		DPMANT(r) &= (~DP_MBIT(DP_MBITS-1));
 		if (ieee754dp_isnan(r))
@@ -143,8 +143,8 @@ union ieee754dp ieee754dp_format(int sn, int xe, u64 xm)
 		int es = DP_EMIN - xe;
 
 		if (ieee754_csr.nod) {
-			SETCX(IEEE754_UNDERFLOW);
-			SETCX(IEEE754_INEXACT);
+			ieee754_setcx(IEEE754_UNDERFLOW);
+			ieee754_setcx(IEEE754_INEXACT);
 
 			switch(ieee754_csr.rm) {
 			case IEEE754_RN:
@@ -167,7 +167,7 @@ union ieee754dp ieee754dp_format(int sn, int xe, u64 xm)
 				&& get_rounding(sn, xm) >> (DP_MBITS + 1 + 3))
 		{
 			/* Not tiny after rounding */
-			SETCX(IEEE754_INEXACT);
+			ieee754_setcx(IEEE754_INEXACT);
 			xm = get_rounding(sn, xm);
 			xm >>= 1;
 			/* Clear grs bits */
@@ -184,9 +184,9 @@ union ieee754dp ieee754dp_format(int sn, int xe, u64 xm)
 		}
 	}
 	if (xm & (DP_MBIT(3) - 1)) {
-		SETCX(IEEE754_INEXACT);
+		ieee754_setcx(IEEE754_INEXACT);
 		if ((xm & (DP_HIDDEN_BIT << 3)) == 0) {
-			SETCX(IEEE754_UNDERFLOW);
+			ieee754_setcx(IEEE754_UNDERFLOW);
 		}
 
 		/* inexact must round of 3 bits
@@ -207,8 +207,8 @@ union ieee754dp ieee754dp_format(int sn, int xe, u64 xm)
 	assert(xe >= DP_EMIN);
 
 	if (xe > DP_EMAX) {
-		SETCX(IEEE754_OVERFLOW);
-		SETCX(IEEE754_INEXACT);
+		ieee754_setcx(IEEE754_OVERFLOW);
+		ieee754_setcx(IEEE754_INEXACT);
 		/* -O can be table indexed by (rm,sn) */
 		switch (ieee754_csr.rm) {
 		case IEEE754_RN:
@@ -233,7 +233,7 @@ union ieee754dp ieee754dp_format(int sn, int xe, u64 xm)
 		/* we underflow (tiny/zero) */
 		assert(xe == DP_EMIN);
 		if (ieee754_csr.mx & IEEE754_UNDERFLOW)
-			SETCX(IEEE754_UNDERFLOW);
+			ieee754_setcx(IEEE754_UNDERFLOW);
 		return builddp(sn, DP_EMIN - 1 + DP_EBIAS, xm);
 	} else {
 		assert((xm >> (DP_MBITS + 1)) == 0);	/* no execess */

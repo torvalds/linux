@@ -101,7 +101,7 @@ int __cold ieee754si_xcpt(int r, const char *op, ...)
 {
 	struct ieee754xctx ax;
 
-	if (!TSTX())
+	if (!ieee754_tstx())
 		return r;
 	ax.op = op;
 	ax.rt = IEEE754_RT_SI;
@@ -116,7 +116,7 @@ s64 __cold ieee754di_xcpt(s64 r, const char *op, ...)
 {
 	struct ieee754xctx ax;
 
-	if (!TSTX())
+	if (!ieee754_tstx())
 		return r;
 	ax.op = op;
 	ax.rt = IEEE754_RT_DI;

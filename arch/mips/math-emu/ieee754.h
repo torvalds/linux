@@ -170,12 +170,14 @@ union ieee754dp ieee754dp_sqrt(union ieee754dp x);
 
 /* 5 types of floating point number
 */
-#define IEEE754_CLASS_NORM	0x00
-#define IEEE754_CLASS_ZERO	0x01
-#define IEEE754_CLASS_DNORM	0x02
-#define IEEE754_CLASS_INF	0x03
-#define IEEE754_CLASS_SNAN	0x04
-#define IEEE754_CLASS_QNAN	0x05
+enum {
+	IEEE754_CLASS_NORM	= 0x00,
+	IEEE754_CLASS_ZERO	= 0x01,
+	IEEE754_CLASS_DNORM	= 0x02,
+	IEEE754_CLASS_INF	= 0x03,
+	IEEE754_CLASS_SNAN	= 0x04,
+	IEEE754_CLASS_QNAN	= 0x05,
+};
 
 /* exception numbers */
 #define IEEE754_INEXACT			0x01

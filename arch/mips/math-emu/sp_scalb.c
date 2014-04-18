@@ -30,7 +30,7 @@ union ieee754sp ieee754sp_scalb(union ieee754sp x, int n)
 {
 	COMPXSP;
 
-	CLEARCX;
+	ieee754_clearcx();
 
 	EXPLODEXSP;
 

@@ -42,7 +42,7 @@ union ieee754dp ieee754dp_sqrt(union ieee754dp x)
 	COMPXDP;
 
 	EXPLODEXDP;
-	CLEARCX;
+	ieee754_clearcx();
 	FLUSHXDP;
 
 	/* x == INF or NAN? */
@@ -51,7 +51,7 @@ union ieee754dp ieee754dp_sqrt(union ieee754dp x)
 		/* sqrt(Nan) = Nan */
 		return ieee754dp_nanxcpt(x, "sqrt");
 	case IEEE754_CLASS_SNAN:
-		SETCX(IEEE754_INVALID_OPERATION);
+		ieee754_setcx(IEEE754_INVALID_OPERATION);
 		return ieee754dp_nanxcpt(ieee754dp_indef(), "sqrt");
 	case IEEE754_CLASS_ZERO:
 		/* sqrt(0) = 0 */
@@ -59,7 +59,7 @@ union ieee754dp ieee754dp_sqrt(union ieee754dp x)
 	case IEEE754_CLASS_INF:
 		if (xs) {
 			/* sqrt(-Inf) = Nan */
-			SETCX(IEEE754_INVALID_OPERATION);
+			ieee754_setcx(IEEE754_INVALID_OPERATION);
 			return ieee754dp_nanxcpt(ieee754dp_indef(), "sqrt");
 		}
 		/* sqrt(+Inf) = Inf */
@@ -70,7 +70,7 @@ union ieee754dp ieee754dp_sqrt(union ieee754dp x)
 	case IEEE754_CLASS_NORM:
 		if (xs) {
 			/* sqrt(-x) = Nan */
-			SETCX(IEEE754_INVALID_OPERATION);
+			ieee754_setcx(IEEE754_INVALID_OPERATION);
 			return ieee754dp_nanxcpt(ieee754dp_indef(), "sqrt");
 		}
 		break;

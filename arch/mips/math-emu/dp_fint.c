@@ -32,7 +32,7 @@ union ieee754dp ieee754dp_fint(int x)
 	int xe;
 	int xs;
 
-	CLEARCX;
+	ieee754_clearcx();
 
 	if (x == 0)
 		return ieee754dp_zero(0);

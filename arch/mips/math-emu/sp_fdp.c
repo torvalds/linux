@@ -33,13 +33,13 @@ union ieee754sp ieee754sp_fdp(union ieee754dp x)
 
 	EXPLODEXDP;
 
-	CLEARCX;
+	ieee754_clearcx();
 
 	FLUSHXDP;
 
 	switch (xc) {
 	case IEEE754_CLASS_SNAN:
-		SETCX(IEEE754_INVALID_OPERATION);
+		ieee754_setcx(IEEE754_INVALID_OPERATION);
 		return ieee754sp_nanxcpt(ieee754sp_indef(), "fdp");
 	case IEEE754_CLASS_QNAN:
 		nan = buildsp(xs, SP_EMAX + 1 + SP_EBIAS, (u32)
@@ -53,8 +53,8 @@ union ieee754sp ieee754sp_fdp(union ieee754dp x)
 		return ieee754sp_zero(xs);
 	case IEEE754_CLASS_DNORM:
 		/* can't possibly be sp representable */
-		SETCX(IEEE754_UNDERFLOW);
-		SETCX(IEEE754_INEXACT);
+		ieee754_setcx(IEEE754_UNDERFLOW);
+		ieee754_setcx(IEEE754_INEXACT);
 		if ((ieee754_csr.rm == IEEE754_RU && !xs) ||
 				(ieee754_csr.rm == IEEE754_RD && xs))
 			return ieee754sp_xcpt(ieee754sp_mind(xs), "fdp", x);

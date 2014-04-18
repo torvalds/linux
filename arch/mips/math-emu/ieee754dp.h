@@ -74,7 +74,7 @@ extern union ieee754dp ieee754dp_format(int, int, u64);
 #define DPNORMRET2(s, e, m, name, a0, a1)				\
 {									\
 	union ieee754dp V = ieee754dp_format(s, e, m);			\
-	if (TSTX())							\
+	if (ieee754_tstx())						\
 		return ieee754dp_xcpt(V, name, a0, a1);			\
 	else								\
 		return V;						\

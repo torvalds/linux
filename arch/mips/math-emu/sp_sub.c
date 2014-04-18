@@ -34,7 +34,7 @@ union ieee754sp ieee754sp_sub(union ieee754sp x, union ieee754sp y)
 	EXPLODEXSP;
 	EXPLODEYSP;
 
-	CLEARCX;
+	ieee754_clearcx();
 
 	FLUSHXSP;
 	FLUSHYSP;
@@ -51,7 +51,7 @@ union ieee754sp ieee754sp_sub(union ieee754sp x, union ieee754sp y)
 	case CLPAIR(IEEE754_CLASS_SNAN, IEEE754_CLASS_NORM):
 	case CLPAIR(IEEE754_CLASS_SNAN, IEEE754_CLASS_DNORM):
 	case CLPAIR(IEEE754_CLASS_SNAN, IEEE754_CLASS_INF):
-		SETCX(IEEE754_INVALID_OPERATION);
+		ieee754_setcx(IEEE754_INVALID_OPERATION);
 		return ieee754sp_nanxcpt(ieee754sp_indef(), "sub", x, y);
 
 	case CLPAIR(IEEE754_CLASS_ZERO, IEEE754_CLASS_QNAN):
@@ -74,7 +74,7 @@ union ieee754sp ieee754sp_sub(union ieee754sp x, union ieee754sp y)
 	case CLPAIR(IEEE754_CLASS_INF, IEEE754_CLASS_INF):
 		if (xs != ys)
 			return x;
-		SETCX(IEEE754_INVALID_OPERATION);
+		ieee754_setcx(IEEE754_INVALID_OPERATION);
 		return ieee754sp_xcpt(ieee754sp_indef(), "sub", x, y);
 
 	case CLPAIR(IEEE754_CLASS_ZERO, IEEE754_CLASS_INF):

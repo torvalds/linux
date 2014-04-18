@@ -57,18 +57,28 @@
 
 #define CLPAIR(x, y)	((x)*6+(y))
 
-#define CLEARCX \
-	(ieee754_csr.cx = 0)
+static inline void ieee754_clearcx(void)
+{
+	ieee754_csr.cx = 0;
+}
 
-#define SETCX(x) \
-	(ieee754_csr.cx |= (x), ieee754_csr.sx |= (x))
+static inline void ieee754_setcx(const unsigned int flags)
+{
+	ieee754_csr.cx |= flags;
+	ieee754_csr.sx |= flags;
+}
 
-#define SETANDTESTCX(x) \
-	(SETCX(x), ieee754_csr.mx & (x))
+static inline int ieee754_setandtestcx(const unsigned int x)
+{
+	ieee754_setcx(x);
 
-#define TSTX()	\
-	(ieee754_csr.cx & ieee754_csr.mx)
+	return ieee754_csr.mx & x;
+}
 
+static inline int ieee754_tstx(void)
+{
+	return ieee754_csr.cx & ieee754_csr.mx;
+}
 
 #define COMPXSP \
 	unsigned xm; int xe; int xs __maybe_unused; int xc
@@ -140,7 +150,7 @@
 #define FLUSHDP(v, vc, vs, ve, vm)					\
 	if (vc==IEEE754_CLASS_DNORM) {					\
 		if (ieee754_csr.nod) {					\
-			SETCX(IEEE754_INEXACT);				\
+			ieee754_setcx(IEEE754_INEXACT);			\
 			vc = IEEE754_CLASS_ZERO;			\
 			ve = DP_EMIN-1+DP_EBIAS;			\
 			vm = 0;						\
@@ -151,7 +161,7 @@
 #define FLUSHSP(v, vc, vs, ve, vm)					\
 	if (vc==IEEE754_CLASS_DNORM) {					\
 		if (ieee754_csr.nod) {					\
-			SETCX(IEEE754_INEXACT);				\
+			ieee754_setcx(IEEE754_INEXACT);			\
 			vc = IEEE754_CLASS_ZERO;			\
 			ve = SP_EMIN-1+SP_EBIAS;			\
 			vm = 0;						\

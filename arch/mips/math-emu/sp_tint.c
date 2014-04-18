@@ -30,7 +30,7 @@ int ieee754sp_tint(union ieee754sp x)
 {
 	COMPXSP;
 
-	CLEARCX;
+	ieee754_clearcx();
 
 	EXPLODEXSP;
 	FLUSHXSP;
@@ -39,7 +39,7 @@ int ieee754sp_tint(union ieee754sp x)
 	case IEEE754_CLASS_SNAN:
 	case IEEE754_CLASS_QNAN:
 	case IEEE754_CLASS_INF:
-		SETCX(IEEE754_INVALID_OPERATION);
+		ieee754_setcx(IEEE754_INVALID_OPERATION);
 		return ieee754si_xcpt(ieee754si_indef(), "sp_tint", x);
 	case IEEE754_CLASS_ZERO:
 		return 0;
@@ -53,7 +53,7 @@ int ieee754sp_tint(union ieee754sp x)
 			return -0x80000000;
 		/* Set invalid. We will only use overflow for floating
 		   point overflow */
-		SETCX(IEEE754_INVALID_OPERATION);
+		ieee754_setcx(IEEE754_INVALID_OPERATION);
 		return ieee754si_xcpt(ieee754si_indef(), "sp_tint", x);
 	}
 	/* oh gawd */
@@ -99,11 +99,11 @@ int ieee754sp_tint(union ieee754sp x)
 		}
 		if ((xm >> 31) != 0) {
 			/* This can happen after rounding */
-			SETCX(IEEE754_INVALID_OPERATION);
+			ieee754_setcx(IEEE754_INVALID_OPERATION);
 			return ieee754si_xcpt(ieee754si_indef(), "sp_tint", x);
 		}
 		if (round || sticky)
-			SETCX(IEEE754_INEXACT);
+			ieee754_setcx(IEEE754_INEXACT);
 	}
 	if (xs)
 		return -xm;

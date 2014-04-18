@@ -81,7 +81,7 @@ extern union ieee754sp ieee754sp_format(int, int, unsigned);
 {									\
 	union ieee754sp V = ieee754sp_format(s, e, m);			\
 									\
-	if (TSTX())							\
+	if (ieee754_tstx())						\
 		return ieee754sp_xcpt(V, name, a0, a1);			\
 	else								\
 		return V;						\
