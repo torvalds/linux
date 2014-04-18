@@ -17,17 +17,12 @@ void component_unbind_all(struct device *, void *);
 struct master;
 
 struct component_master_ops {
-	int (*add_components)(struct device *, struct master *);
 	int (*bind)(struct device *);
 	void (*unbind)(struct device *);
 };
 
-int component_master_add(struct device *, const struct component_master_ops *);
 void component_master_del(struct device *,
 	const struct component_master_ops *);
-
-int component_master_add_child(struct master *master,
-	int (*compare)(struct device *, void *), void *compare_data);
 
 struct component_match;
 

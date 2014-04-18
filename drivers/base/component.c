@@ -84,7 +84,7 @@ static void component_detach_master(struct master *master, struct component *c)
  * function and compare data.  This is safe to call for duplicate matches
  * and will not result in the same component being added multiple times.
  */
-int component_master_add_child(struct master *master,
+static int component_master_add_child(struct master *master,
 	int (*compare)(struct device *, void *), void *compare_data)
 {
 	struct component *c;
@@ -104,21 +104,12 @@ int component_master_add_child(struct master *master,
 
 	return ret;
 }
-EXPORT_SYMBOL_GPL(component_master_add_child);
 
 static int find_components(struct master *master)
 {
 	struct component_match *match = master->match;
 	size_t i;
 	int ret = 0;
-
-	if (!match) {
-		/*
-		 * Search the list of components, looking for components that
-		 * belong to this master, and attach them to the master.
-		 */
-		return master->ops->add_components(master->dev, master);
-	}
 
 	/*
 	 * Scan the array of match functions and attach
@@ -290,15 +281,10 @@ int component_master_add_with_match(struct device *dev,
 	struct master *master;
 	int ret;
 
-	if (ops->add_components && match)
-		return -EINVAL;
-
-	if (match) {
-		/* Reallocate the match array for its true size */
-		match = component_match_realloc(dev, match, match->num);
-		if (IS_ERR(match))
-			return PTR_ERR(match);
-	}
+	/* Reallocate the match array for its true size */
+	match = component_match_realloc(dev, match, match->num);
+	if (IS_ERR(match))
+		return PTR_ERR(match);
 
 	master = kzalloc(sizeof(*master), GFP_KERNEL);
 	if (!master)
@@ -325,13 +311,6 @@ int component_master_add_with_match(struct device *dev,
 	return ret < 0 ? ret : 0;
 }
 EXPORT_SYMBOL_GPL(component_master_add_with_match);
-
-int component_master_add(struct device *dev,
-	const struct component_master_ops *ops)
-{
-	return component_master_add_with_match(dev, ops, NULL);
-}
-EXPORT_SYMBOL_GPL(component_master_add);
 
 void component_master_del(struct device *dev,
 	const struct component_master_ops *ops)
