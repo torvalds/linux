@@ -3262,15 +3262,32 @@ static void intel_print_rc6_info(struct drm_device *dev, u32 mode)
 		 (mode & GEN6_RC_CTL_RC6pp_ENABLE) ? "on" : "off");
 }
 
-int intel_enable_rc6(const struct drm_device *dev)
+static int sanitize_rc6_option(const struct drm_device *dev, int enable_rc6)
 {
 	/* No RC6 before Ironlake */
 	if (INTEL_INFO(dev)->gen < 5)
 		return 0;
 
+	/* RC6 is only on Ironlake mobile not on desktop */
+	if (INTEL_INFO(dev)->gen == 5 && !IS_IRONLAKE_M(dev))
+		return 0;
+
 	/* Respect the kernel parameter if it is set */
-	if (i915.enable_rc6 >= 0)
-		return i915.enable_rc6;
+	if (enable_rc6 >= 0) {
+		int mask;
+
+		if (INTEL_INFO(dev)->gen == 6 || IS_IVYBRIDGE(dev))
+			mask = INTEL_RC6_ENABLE | INTEL_RC6p_ENABLE |
+			       INTEL_RC6pp_ENABLE;
+		else
+			mask = INTEL_RC6_ENABLE;
+
+		if ((enable_rc6 & mask) != enable_rc6)
+			DRM_INFO("Adjusting RC6 mask to %d (requested %d, valid %d)\n",
+				 enable_rc6, enable_rc6 & mask, mask);
+
+		return enable_rc6 & mask;
+	}
 
 	/* Disable RC6 on Ironlake */
 	if (INTEL_INFO(dev)->gen == 5)
@@ -3280,6 +3297,11 @@ int intel_enable_rc6(const struct drm_device *dev)
 		return (INTEL_RC6_ENABLE | INTEL_RC6p_ENABLE);
 
 	return INTEL_RC6_ENABLE;
+}
+
+int intel_enable_rc6(const struct drm_device *dev)
+{
+	return i915.enable_rc6;
 }
 
 static void gen6_enable_rps_interrupts(struct drm_device *dev)
@@ -4496,6 +4518,8 @@ static void intel_init_emon(struct drm_device *dev)
 
 void intel_init_gt_powersave(struct drm_device *dev)
 {
+	i915.enable_rc6 = sanitize_rc6_option(dev, i915.enable_rc6);
+
 	if (IS_VALLEYVIEW(dev))
 		valleyview_setup_pctx(dev);
 }
