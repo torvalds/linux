@@ -14,14 +14,18 @@
 #include <linux/cache.h>
 #include <asm/cacheflush.h>
 
-static inline void __dma_sync(unsigned long addr, size_t size,
+static inline void __dma_sync(void *vaddr, size_t size,
 			      enum dma_data_direction direction)
 {
 	switch (direction) {
-	case DMA_FROM_DEVICE:
-	case DMA_TO_DEVICE:
+	case DMA_FROM_DEVICE:	/* invalidate cache */
+		invalidate_dcache_range((unsigned long)vaddr,
+			(unsigned long)(vaddr + size));
+		break;
+	case DMA_TO_DEVICE:	/* flush and invalidate cache */
 	case DMA_BIDIRECTIONAL:
-		flush_dcache_range(addr, (unsigned long)(addr + size));
+		flush_dcache_range((unsigned long)vaddr,
+			(unsigned long)(vaddr + size));
 		break;
 	default:
 		BUG();
@@ -41,7 +45,7 @@ static inline dma_addr_t dma_map_single(struct device *dev, void *ptr,
 					size_t size,
 					enum dma_data_direction direction)
 {
-	__dma_sync((unsigned long)ptr, size, direction);
+	__dma_sync(ptr, size, direction);
 	return virt_to_phys(ptr);
 }
 
@@ -103,7 +107,7 @@ static inline int dma_mapping_error(struct device *dev, dma_addr_t dma_addr)
 static inline void dma_cache_sync(struct device *dev, void *vaddr, size_t size,
 				  enum dma_data_direction direction)
 {
-	__dma_sync((unsigned long)vaddr, size, direction);
+	__dma_sync(vaddr, size, direction);
 }
 
 #endif /* _ASM_NIOS2_DMA_MAPPING_H */

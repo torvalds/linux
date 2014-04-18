@@ -56,6 +56,11 @@ void __init setup_cpuinfo(void)
 	if (!cpu)
 		panic("%s: No CPU found in devicetree!\n", __func__);
 
+	if (!fcpu_has(cpu, "ALTR,has-initda"))
+		panic("initda instruction is unimplemented. Please update your "
+			"hardware system to have more than 4-byte line data "
+			"cache\n");
+
 	cpuinfo.cpu_clock_freq = fcpu(cpu, "clock-frequency");
 
 	str = of_get_property(cpu, "ALTR,implementation", &len);
