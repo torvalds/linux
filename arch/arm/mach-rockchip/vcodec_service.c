@@ -630,8 +630,8 @@ static int vcodec_bufid_to_iova(struct vpu_service_info *pservice, u8 *tbl, int 
         if (copy_from_user(&usr_fd, &reg->reg[addr_tbl_vpu_dec[i]], sizeof(usr_fd)))
             return -EFAULT;
 #else
-        usr_fd = reg->reg[tbl[i]] & 0xFF;
-        offset = reg->reg[tbl[i]] >> 8;
+        usr_fd = reg->reg[tbl[i]] & 0x3FF;
+        offset = reg->reg[tbl[i]] >> 10;
         
 #endif
         if (usr_fd != 0) {
