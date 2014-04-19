@@ -2283,7 +2283,7 @@ static __init void nested_vmx_setup_ctls_msrs(void)
 	rdmsr(MSR_IA32_VMX_EXIT_CTLS,
 		nested_vmx_exit_ctls_low, nested_vmx_exit_ctls_high);
 	nested_vmx_exit_ctls_low = VM_EXIT_ALWAYSON_WITHOUT_TRUE_MSR;
-	/* Note that guest use of VM_EXIT_ACK_INTR_ON_EXIT is not supported. */
+
 	nested_vmx_exit_ctls_high &=
 #ifdef CONFIG_X86_64
 		VM_EXIT_HOST_ADDR_SPACE_SIZE |
@@ -2291,7 +2291,8 @@ static __init void nested_vmx_setup_ctls_msrs(void)
 		VM_EXIT_LOAD_IA32_PAT | VM_EXIT_SAVE_IA32_PAT;
 	nested_vmx_exit_ctls_high |= VM_EXIT_ALWAYSON_WITHOUT_TRUE_MSR |
 		VM_EXIT_LOAD_IA32_EFER | VM_EXIT_SAVE_IA32_EFER |
-		VM_EXIT_SAVE_VMX_PREEMPTION_TIMER;
+		VM_EXIT_SAVE_VMX_PREEMPTION_TIMER | VM_EXIT_ACK_INTR_ON_EXIT;
+
 	if (vmx_mpx_supported())
 		nested_vmx_exit_ctls_high |= VM_EXIT_CLEAR_BNDCFGS;
 
