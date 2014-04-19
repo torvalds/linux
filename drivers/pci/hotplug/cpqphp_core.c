@@ -706,8 +706,7 @@ static int ctrl_slot_setup(struct controller *ctrl,
 		hotplug_slot_info->adapter_status =
 			get_presence_status(ctrl, slot);
 
-		dbg("registering bus %d, dev %d, number %d, "
-				"ctrl->slot_device_offset %d, slot %d\n",
+		dbg("registering bus %d, dev %d, number %d, ctrl->slot_device_offset %d, slot %d\n",
 				slot->bus, slot->device,
 				slot->number, ctrl->slot_device_offset,
 				slot_number);
@@ -837,8 +836,7 @@ static int cpqhpc_probe(struct pci_dev *pdev, const struct pci_device_id *ent)
 
 	bus = pdev->subordinate;
 	if (!bus) {
-		dev_notice(&pdev->dev, "the device is not a bridge, "
-				"skipping\n");
+		dev_notice(&pdev->dev, "the device is not a bridge, skipping\n");
 		rc = -ENODEV;
 		goto err_disable_device;
 	}

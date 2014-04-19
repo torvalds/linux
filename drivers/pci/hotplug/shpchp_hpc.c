@@ -341,8 +341,7 @@ static int shpc_write_cmd(struct slot *slot, u8 t_slot, u8 cmd)
 
 	cmd_status = hpc_check_cmd_status(slot->ctrl);
 	if (cmd_status) {
-		ctrl_err(ctrl,
-			 "Failed to issued command 0x%x (error code = %d)\n",
+		ctrl_err(ctrl, "Failed to issued command 0x%x (error code = %d)\n",
 			 cmd, cmd_status);
 		retval = -EIO;
 	}
@@ -974,8 +973,8 @@ int shpc_init(struct controller *ctrl, struct pci_dev *pdev)
 		for (i = 0; i < 9 + num_slots; i++) {
 			rc = shpc_indirect_read(ctrl, i, &tempdword);
 			if (rc) {
-				ctrl_err(ctrl,
-					 "Cannot read creg (index = %d)\n", i);
+				ctrl_err(ctrl, "Cannot read creg (index = %d)\n",
+					 i);
 				goto abort;
 			}
 			ctrl_dbg(ctrl, " offset %d: value %x\n", i, tempdword);
@@ -1060,10 +1059,8 @@ int shpc_init(struct controller *ctrl, struct pci_dev *pdev)
 		/* Installs the interrupt handler */
 		rc = pci_enable_msi(pdev);
 		if (rc) {
-			ctrl_info(ctrl,
-				  "Can't get msi for the hotplug controller\n");
-			ctrl_info(ctrl,
-				  "Use INTx for the hotplug controller\n");
+			ctrl_info(ctrl, "Can't get msi for the hotplug controller\n");
+			ctrl_info(ctrl, "Use INTx for the hotplug controller\n");
 		}
 
 		rc = request_irq(ctrl->pci_dev->irq, shpc_isr, IRQF_SHARED,
@@ -1071,8 +1068,8 @@ int shpc_init(struct controller *ctrl, struct pci_dev *pdev)
 		ctrl_dbg(ctrl, "request_irq %d (returns %d)\n",
 			 ctrl->pci_dev->irq, rc);
 		if (rc) {
-			ctrl_err(ctrl, "Can't get irq %d for the hotplug "
-				 "controller\n", ctrl->pci_dev->irq);
+			ctrl_err(ctrl, "Can't get irq %d for the hotplug controller\n",
+				 ctrl->pci_dev->irq);
 			goto abort_iounmap;
 		}
 	}

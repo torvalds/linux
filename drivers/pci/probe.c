@@ -433,8 +433,7 @@ static void pci_read_bridge_mmio_pref(struct pci_bus *child)
 			limit |= ((unsigned long) mem_limit_hi) << 32;
 #else
 			if (mem_base_hi || mem_limit_hi) {
-				dev_err(&dev->dev, "can't handle 64-bit "
-					"address space for bridge\n");
+				dev_err(&dev->dev, "can't handle 64-bit address space for bridge\n");
 				return;
 			}
 #endif
@@ -933,8 +932,7 @@ int pci_scan_bridge(struct pci_bus *bus, struct pci_dev *dev, int max, int pass)
 		    (child->number > bus->busn_res.end) ||
 		    (child->number < bus->number) ||
 		    (child->busn_res.end < bus->number)) {
-			dev_info(&child->dev, "%pR %s "
-				"hidden behind%s bridge %s %pR\n",
+			dev_info(&child->dev, "%pR %s hidden behind%s bridge %s %pR\n",
 				&child->busn_res,
 				(bus->number > child->busn_res.end &&
 				 bus->busn_res.end < child->number) ?
@@ -1224,13 +1222,13 @@ int pci_setup_device(struct pci_dev *dev)
 		break;
 
 	default:				    /* unknown header */
-		dev_err(&dev->dev, "unknown header type %02x, "
-			"ignoring device\n", dev->hdr_type);
+		dev_err(&dev->dev, "unknown header type %02x, ignoring device\n",
+			dev->hdr_type);
 		return -EIO;
 
 	bad:
-		dev_err(&dev->dev, "ignoring class %#08x (doesn't match header "
-			"type %02x)\n", dev->class, dev->hdr_type);
+		dev_err(&dev->dev, "ignoring class %#08x (doesn't match header type %02x)\n",
+			dev->class, dev->hdr_type);
 		dev->class = PCI_CLASS_NOT_DEFINED;
 	}
 
@@ -1305,10 +1303,9 @@ bool pci_bus_read_dev_vendor_id(struct pci_bus *bus, int devfn, u32 *l,
 			return false;
 		/* Card hasn't responded in 60 seconds?  Must be stuck. */
 		if (delay > crs_timeout) {
-			printk(KERN_WARNING "pci %04x:%02x:%02x.%d: not "
-					"responding\n", pci_domain_nr(bus),
-					bus->number, PCI_SLOT(devfn),
-					PCI_FUNC(devfn));
+			printk(KERN_WARNING "pci %04x:%02x:%02x.%d: not responding\n",
+			       pci_domain_nr(bus), bus->number, PCI_SLOT(devfn),
+			       PCI_FUNC(devfn));
 			return false;
 		}
 	}
@@ -1613,9 +1610,7 @@ static void pcie_write_mrrs(struct pci_dev *dev)
 	}
 
 	if (mrrs < 128)
-		dev_err(&dev->dev, "MRRS was unable to be configured with a "
-			"safe value.  If problems are experienced, try running "
-			"with pci=pcie_bus_safe.\n");
+		dev_err(&dev->dev, "MRRS was unable to be configured with a safe value.  If problems are experienced, try running with pci=pcie_bus_safe\n");
 }
 
 static void pcie_bus_detect_mps(struct pci_dev *dev)
@@ -1652,8 +1647,8 @@ static int pcie_bus_configure_set(struct pci_dev *dev, void *data)
 	pcie_write_mps(dev, mps);
 	pcie_write_mrrs(dev);
 
-	dev_info(&dev->dev, "Max Payload Size set to %4d/%4d (was %4d), "
-		 "Max Read Rq %4d\n", pcie_get_mps(dev), 128 << dev->pcie_mpss,
+	dev_info(&dev->dev, "Max Payload Size set to %4d/%4d (was %4d), Max Read Rq %4d\n",
+		 pcie_get_mps(dev), 128 << dev->pcie_mpss,
 		 orig_mps, pcie_get_readrq(dev));
 
 	return 0;

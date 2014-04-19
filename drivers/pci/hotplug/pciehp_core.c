@@ -266,8 +266,7 @@ static int pciehp_probe(struct pcie_device *dev)
 	rc = init_slot(ctrl);
 	if (rc) {
 		if (rc == -EBUSY)
-			ctrl_warn(ctrl, "Slot already registered by another "
-				  "hotplug driver\n");
+			ctrl_warn(ctrl, "Slot already registered by another hotplug driver\n");
 		else
 			ctrl_err(ctrl, "Slot initialization failed\n");
 		goto err_out_release_ctlr;

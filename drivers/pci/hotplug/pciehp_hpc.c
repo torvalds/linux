@@ -174,12 +174,10 @@ static void pcie_write_cmd(struct controller *ctrl, u16 cmd, u16 mask)
 			 * event even though it supports none of power
 			 * controller, attention led, power led and EMI.
 			 */
-			ctrl_dbg(ctrl, "Unexpected CMD_COMPLETED. Need to "
-				 "wait for command completed event.\n");
+			ctrl_dbg(ctrl, "Unexpected CMD_COMPLETED. Need to wait for command completed event\n");
 			ctrl->no_cmd_complete = 0;
 		} else {
-			ctrl_dbg(ctrl, "Unexpected CMD_COMPLETED. Maybe "
-				 "the controller is broken.\n");
+			ctrl_dbg(ctrl, "Unexpected CMD_COMPLETED. Maybe the controller is broken\n");
 		}
 	}
 

@@ -789,8 +789,7 @@ int ibmphp_remove_resource (struct resource_node *res)
 	bus_cur = find_bus_wprev (res->busno, NULL, 0);
 
 	if (!bus_cur) {
-		err ("cannot find corresponding bus of the io resource to remove  "
-			"bailing out...\n");
+		err ("cannot find corresponding bus of the io resource to remove  bailing out...\n");
 		return -ENODEV;
 	}
 

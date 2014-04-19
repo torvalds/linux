@@ -555,8 +555,8 @@ static int pci_raw_set_power_state(struct pci_dev *dev, pci_power_t state)
 	 */
 	if (state != PCI_D0 && dev->current_state <= PCI_D3cold
 	    && dev->current_state > state) {
-		dev_err(&dev->dev, "invalid power transition "
-			"(from state %d to %d)\n", dev->current_state, state);
+		dev_err(&dev->dev, "invalid power transition (from state %d to %d)\n",
+			dev->current_state, state);
 		return -EINVAL;
 	}
 
@@ -603,8 +603,8 @@ static int pci_raw_set_power_state(struct pci_dev *dev, pci_power_t state)
 	pci_read_config_word(dev, dev->pm_cap + PCI_PM_CTRL, &pmcsr);
 	dev->current_state = (pmcsr & PCI_PM_CTRL_STATE_MASK);
 	if (dev->current_state != state && printk_ratelimit())
-		dev_info(&dev->dev, "Refused to change power state, "
-			"currently in D%d\n", dev->current_state);
+		dev_info(&dev->dev, "Refused to change power state, currently in D%d\n",
+			 dev->current_state);
 
 	/*
 	 * According to section 5.4.1 of the "PCI BUS POWER MANAGEMENT
@@ -1029,8 +1029,8 @@ static void pci_restore_config_dword(struct pci_dev *pdev, int offset,
 		return;
 
 	for (;;) {
-		dev_dbg(&pdev->dev, "restoring config space at offset "
-			"%#x (was %#x, writing %#x)\n", offset, val, saved_val);
+		dev_dbg(&pdev->dev, "restoring config space at offset %#x (was %#x, writing %#x)\n",
+			offset, val, saved_val);
 		pci_write_config_dword(pdev, offset, saved_val);
 		if (retry-- <= 0)
 			return;
@@ -2815,8 +2815,8 @@ int pci_set_cacheline_size(struct pci_dev *dev)
 	if (cacheline_size == pci_cache_line_size)
 		return 0;
 
-	dev_printk(KERN_DEBUG, &dev->dev, "cache line size of %d is not "
-		   "supported\n", pci_cache_line_size << 2);
+	dev_printk(KERN_DEBUG, &dev->dev, "cache line size of %d is not supported\n",
+		   pci_cache_line_size << 2);
 
 	return -EINVAL;
 }
@@ -2952,8 +2952,8 @@ bool pci_intx_mask_supported(struct pci_dev *dev)
 	 * go ahead and check it.
 	 */
 	if ((new ^ orig) & ~PCI_COMMAND_INTX_DISABLE) {
-		dev_err(&dev->dev, "Command register changed from "
-			"0x%x to 0x%x: driver or hardware bug?\n", orig, new);
+		dev_err(&dev->dev, "Command register changed from 0x%x to 0x%x: driver or hardware bug?\n",
+			orig, new);
 	} else if ((new ^ orig) & PCI_COMMAND_INTX_DISABLE) {
 		mask_supported = true;
 		pci_write_config_word(dev, PCI_COMMAND, orig);
@@ -3138,8 +3138,7 @@ static int pci_af_flr(struct pci_dev *dev, int probe)
 	if (pci_wait_for_pending(dev, PCI_AF_STATUS, PCI_AF_STATUS_TP))
 		goto clear;
 
-	dev_err(&dev->dev, "transaction is not cleared; "
-			"proceeding with reset anyway\n");
+	dev_err(&dev->dev, "transaction is not cleared; proceeding with reset anyway\n");
 
 clear:
 	pci_write_config_byte(dev, pos + PCI_AF_CTRL, PCI_AF_CTRL_FLR);

@@ -1045,8 +1045,7 @@ static int enable_slot(struct hotplug_slot *hs)
 	rc = check_limitations(slot_cur);
 	if (rc) {
 		err("Adding this card exceeds the limitations of this bus.\n");
-		err("(i.e., >1 133MHz cards running on same bus, or "
-		     ">2 66 PCI cards running on same bus.\n");
+		err("(i.e., >1 133MHz cards running on same bus, or >2 66 PCI cards running on same bus.\n");
 		err("Try hot-adding into another bus\n");
 		rc = -EINVAL;
 		goto error_nopower;
@@ -1070,12 +1069,10 @@ static int enable_slot(struct hotplug_slot *hs)
 					!(SLOT_PWRGD(slot_cur->status)))
 			err("power fault occurred trying to power up\n");
 		else if (SLOT_BUS_SPEED(slot_cur->status)) {
-			err("bus speed mismatch occurred.  please check "
-				"current bus speed and card capability\n");
+			err("bus speed mismatch occurred.  please check current bus speed and card capability\n");
 			print_card_capability(slot_cur);
 		} else if (SLOT_BUS_MODE(slot_cur->ext_status)) {
-			err("bus mode mismatch occurred.  please check "
-				"current bus mode and card capability\n");
+			err("bus mode mismatch occurred.  please check current bus mode and card capability\n");
 			print_card_capability(slot_cur);
 		}
 		ibmphp_update_slot_info(slot_cur);
@@ -1098,8 +1095,7 @@ static int enable_slot(struct hotplug_slot *hs)
 		goto error_power;
 	}
 	if (SLOT_POWER(slot_cur->status) && (SLOT_BUS_SPEED(slot_cur->status))) {
-		err("bus speed mismatch occurred.  please check current bus "
-					"speed and card capability\n");
+		err("bus speed mismatch occurred.  please check current bus speed and card capability\n");
 		print_card_capability(slot_cur);
 		goto error_power;
 	}

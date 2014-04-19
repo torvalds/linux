@@ -286,8 +286,8 @@ static ssize_t msi_bus_store(struct device *dev, struct device_attribute *attr,
 	    !!val) {
 		pdev->subordinate->bus_flags ^= PCI_BUS_FLAGS_NO_MSI;
 
-		dev_warn(&pdev->dev, "forced subordinate bus to%s support MSI,"
-			 " bad things could happen\n", val ? "" : " not");
+		dev_warn(&pdev->dev, "forced subordinate bus to%s support MSI, bad things could happen\n",
+			 val ? "" : " not");
 	}
 
 	return count;
@@ -945,8 +945,7 @@ legacy_io_err:
 	kfree(b->legacy_io);
 	b->legacy_io = NULL;
 kzalloc_err:
-	printk(KERN_WARNING "pci: warning: could not create legacy I/O port "
-	       "and ISA memory resources to sysfs\n");
+	printk(KERN_WARNING "pci: warning: could not create legacy I/O port and ISA memory resources to sysfs\n");
 	return;
 }
 
@@ -1006,8 +1005,7 @@ static int pci_mmap_resource(struct kobject *kobj, struct bin_attribute *attr,
 		return -ENODEV;
 
 	if (!pci_mmap_fits(pdev, i, vma, PCI_MMAP_SYSFS)) {
-		WARN(1, "process \"%s\" tried to map 0x%08lx bytes "
-			"at page 0x%08lx on %s BAR %d (start 0x%16Lx, size 0x%16Lx)\n",
+		WARN(1, "process \"%s\" tried to map 0x%08lx bytes at page 0x%08lx on %s BAR %d (start 0x%16Lx, size 0x%16Lx)\n",
 			current->comm, vma->vm_end-vma->vm_start, vma->vm_pgoff,
 			pci_name(pdev), i,
 			(u64)pci_resource_start(pdev, i),

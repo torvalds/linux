@@ -432,8 +432,7 @@ int __pci_hp_register(struct hotplug_slot *slot, struct pci_bus *bus,
 	if ((slot->info == NULL) || (slot->ops == NULL))
 		return -EINVAL;
 	if (slot->release == NULL) {
-		dbg("Why are you trying to register a hotplug slot "
-		    "without a proper release function?\n");
+		dbg("Why are you trying to register a hotplug slot without a proper release function?\n");
 		return -EINVAL;
 	}
 
