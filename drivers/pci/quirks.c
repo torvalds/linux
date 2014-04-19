@@ -48,8 +48,8 @@ static void quirk_mellanox_tavor(struct pci_dev *dev)
 {
 	dev->broken_parity_status = 1;	/* This device gives false positives */
 }
-DECLARE_PCI_FIXUP_FINAL(PCI_VENDOR_ID_MELLANOX,PCI_DEVICE_ID_MELLANOX_TAVOR,quirk_mellanox_tavor);
-DECLARE_PCI_FIXUP_FINAL(PCI_VENDOR_ID_MELLANOX,PCI_DEVICE_ID_MELLANOX_TAVOR_BRIDGE,quirk_mellanox_tavor);
+DECLARE_PCI_FIXUP_FINAL(PCI_VENDOR_ID_MELLANOX, PCI_DEVICE_ID_MELLANOX_TAVOR, quirk_mellanox_tavor);
+DECLARE_PCI_FIXUP_FINAL(PCI_VENDOR_ID_MELLANOX, PCI_DEVICE_ID_MELLANOX_TAVOR_BRIDGE, quirk_mellanox_tavor);
 
 /* Deal with broken BIOSes that neglect to enable passive release,
    which can cause problems in combination with the 82441FX/PPro MTRRs */
@@ -82,7 +82,7 @@ DECLARE_PCI_FIXUP_RESUME(PCI_VENDOR_ID_INTEL,	PCI_DEVICE_ID_INTEL_82441,	quirk_p
 static void quirk_isa_dma_hangs(struct pci_dev *dev)
 {
 	if (!isa_dma_bridge_buggy) {
-		isa_dma_bridge_buggy=1;
+		isa_dma_bridge_buggy = 1;
 		dev_info(&dev->dev, "Activating ISA DMA hang workarounds\n");
 	}
 }
@@ -123,7 +123,7 @@ DECLARE_PCI_FIXUP_HEADER(PCI_VENDOR_ID_INTEL, PCI_DEVICE_ID_INTEL_TGP_LPC, quirk
  */
 static void quirk_nopcipci(struct pci_dev *dev)
 {
-	if ((pci_pci_problems & PCIPCI_FAIL)==0) {
+	if ((pci_pci_problems & PCIPCI_FAIL) == 0) {
 		dev_info(&dev->dev, "Disabling direct PCI/PCI transfers\n");
 		pci_pci_problems |= PCIPCI_FAIL;
 	}
@@ -148,7 +148,7 @@ DECLARE_PCI_FIXUP_FINAL(PCI_VENDOR_ID_AMD,	PCI_DEVICE_ID_AMD_8151_0,	quirk_nopci
  */
 static void quirk_triton(struct pci_dev *dev)
 {
-	if ((pci_pci_problems&PCIPCI_TRITON)==0) {
+	if ((pci_pci_problems&PCIPCI_TRITON) == 0) {
 		dev_info(&dev->dev, "Limiting direct PCI/PCI transfers\n");
 		pci_pci_problems |= PCIPCI_TRITON;
 	}
@@ -163,8 +163,8 @@ DECLARE_PCI_FIXUP_FINAL(PCI_VENDOR_ID_INTEL,	PCI_DEVICE_ID_INTEL_82439TX,	quirk_
  *	Made according to a windows driver based patch by George E. Breese
  *	see PCI Latency Adjust on http://www.viahardware.com/download/viatweak.shtm
  *	and http://www.georgebreese.com/net/software/#PCI
- *      Also see http://www.au-ja.org/review-kt133a-1-en.phtml for
- *      the info on which Mr Breese based his work.
+ *	Also see http://www.au-ja.org/review-kt133a-1-en.phtml for
+ *	the info on which Mr Breese based his work.
  *
  *	Updated based on further information from the site and also on
  *	information provided by VIA
@@ -177,14 +177,14 @@ static void quirk_vialatency(struct pci_dev *dev)
 	   a buggy southbridge */
 
 	p = pci_get_device(PCI_VENDOR_ID_VIA, PCI_DEVICE_ID_VIA_82C686, NULL);
-	if (p!=NULL) {
+	if (p != NULL) {
 		/* 0x40 - 0x4f == 686B, 0x10 - 0x2f == 686A; thanks Dan Hollis */
 		/* Check for buggy part revisions */
 		if (p->revision < 0x40 || p->revision > 0x42)
 			goto exit;
 	} else {
 		p = pci_get_device(PCI_VENDOR_ID_VIA, PCI_DEVICE_ID_VIA_8231, NULL);
-		if (p==NULL)	/* No problem parts */
+		if (p == NULL)	/* No problem parts */
 			goto exit;
 		/* Check for buggy part revisions */
 		if (p->revision < 0x10 || p->revision > 0x12)
@@ -227,7 +227,7 @@ DECLARE_PCI_FIXUP_RESUME(PCI_VENDOR_ID_VIA,	PCI_DEVICE_ID_VIA_8361,		quirk_viala
  */
 static void quirk_viaetbf(struct pci_dev *dev)
 {
-	if ((pci_pci_problems&PCIPCI_VIAETBF)==0) {
+	if ((pci_pci_problems&PCIPCI_VIAETBF) == 0) {
 		dev_info(&dev->dev, "Limiting direct PCI/PCI transfers\n");
 		pci_pci_problems |= PCIPCI_VIAETBF;
 	}
@@ -236,7 +236,7 @@ DECLARE_PCI_FIXUP_FINAL(PCI_VENDOR_ID_VIA,	PCI_DEVICE_ID_VIA_82C597_0,	quirk_via
 
 static void quirk_vsfx(struct pci_dev *dev)
 {
-	if ((pci_pci_problems&PCIPCI_VSFX)==0) {
+	if ((pci_pci_problems&PCIPCI_VSFX) == 0) {
 		dev_info(&dev->dev, "Limiting direct PCI/PCI transfers\n");
 		pci_pci_problems |= PCIPCI_VSFX;
 	}
@@ -251,7 +251,7 @@ DECLARE_PCI_FIXUP_FINAL(PCI_VENDOR_ID_VIA,	PCI_DEVICE_ID_VIA_82C576,	quirk_vsfx)
  */
 static void quirk_alimagik(struct pci_dev *dev)
 {
-	if ((pci_pci_problems&PCIPCI_ALIMAGIK)==0) {
+	if ((pci_pci_problems&PCIPCI_ALIMAGIK) == 0) {
 		dev_info(&dev->dev, "Limiting direct PCI/PCI transfers\n");
 		pci_pci_problems |= PCIPCI_ALIMAGIK|PCIPCI_TRITON;
 	}
@@ -265,7 +265,7 @@ DECLARE_PCI_FIXUP_FINAL(PCI_VENDOR_ID_AL,	PCI_DEVICE_ID_AL_M1651,		quirk_alimagi
  */
 static void quirk_natoma(struct pci_dev *dev)
 {
-	if ((pci_pci_problems&PCIPCI_NATOMA)==0) {
+	if ((pci_pci_problems&PCIPCI_NATOMA) == 0) {
 		dev_info(&dev->dev, "Limiting direct PCI/PCI transfers\n");
 		pci_pci_problems |= PCIPCI_NATOMA;
 	}
@@ -703,7 +703,7 @@ static void quirk_via_ioapic(struct pci_dev *dev)
 	       tmp == 0 ? "Disa" : "Ena");
 
 	/* Offset 0x58: External APIC IRQ output control */
-	pci_write_config_byte (dev, 0x58, tmp);
+	pci_write_config_byte(dev, 0x58, tmp);
 }
 DECLARE_PCI_FIXUP_FINAL(PCI_VENDOR_ID_VIA,	PCI_DEVICE_ID_VIA_82C686,	quirk_via_ioapic);
 DECLARE_PCI_FIXUP_RESUME_EARLY(PCI_VENDOR_ID_VIA,	PCI_DEVICE_ID_VIA_82C686,	quirk_via_ioapic);
@@ -916,12 +916,12 @@ static void quirk_amd_ordering(struct pci_dev *dev)
 {
 	u32 pcic;
 	pci_read_config_dword(dev, 0x4C, &pcic);
-	if ((pcic&6)!=6) {
+	if ((pcic & 6) != 6) {
 		pcic |= 6;
 		dev_warn(&dev->dev, "BIOS failed to enable PCI standards compliance; fixing this error\n");
 		pci_write_config_dword(dev, 0x4C, pcic);
 		pci_read_config_dword(dev, 0x84, &pcic);
-		pcic |= (1<<23);	/* Required in this mode */
+		pcic |= (1 << 23);	/* Required in this mode */
 		pci_write_config_dword(dev, 0x84, pcic);
 	}
 }
@@ -937,7 +937,7 @@ DECLARE_PCI_FIXUP_RESUME_EARLY(PCI_VENDOR_ID_AMD,	PCI_DEVICE_ID_AMD_FE_GATE_700C
  */
 static void quirk_dunord(struct pci_dev *dev)
 {
-	struct resource *r = &dev->resource [1];
+	struct resource *r = &dev->resource[1];
 
 	r->flags |= IORESOURCE_UNSET;
 	r->start = 0;
@@ -967,11 +967,12 @@ DECLARE_PCI_FIXUP_HEADER(PCI_VENDOR_ID_TOSHIBA,	0x605,	quirk_transparent_bridge)
 static void quirk_mediagx_master(struct pci_dev *dev)
 {
 	u8 reg;
+
 	pci_read_config_byte(dev, 0x41, &reg);
 	if (reg & 2) {
 		reg &= ~2;
 		dev_info(&dev->dev, "Fixup for MediaGX/Geode Slave Disconnect Boundary (0x41=0x%02x)\n", reg);
-                pci_write_config_byte(dev, 0x41, reg);
+		pci_write_config_byte(dev, 0x41, reg);
 	}
 }
 DECLARE_PCI_FIXUP_FINAL(PCI_VENDOR_ID_CYRIX,	PCI_DEVICE_ID_CYRIX_PCI_MASTER, quirk_mediagx_master);
@@ -1120,7 +1121,7 @@ static void asus_hides_smbus_hostbridge(struct pci_dev *dev)
 {
 	if (unlikely(dev->subsystem_vendor == PCI_VENDOR_ID_ASUSTEK)) {
 		if (dev->device == PCI_DEVICE_ID_INTEL_82845_HB)
-			switch(dev->subsystem_device) {
+			switch (dev->subsystem_device) {
 			case 0x8025: /* P4B-LX */
 			case 0x8070: /* P4B */
 			case 0x8088: /* P4B533 */
@@ -1128,14 +1129,14 @@ static void asus_hides_smbus_hostbridge(struct pci_dev *dev)
 				asus_hides_smbus = 1;
 			}
 		else if (dev->device == PCI_DEVICE_ID_INTEL_82845G_HB)
-			switch(dev->subsystem_device) {
+			switch (dev->subsystem_device) {
 			case 0x80b1: /* P4GE-V */
 			case 0x80b2: /* P4PE */
 			case 0x8093: /* P4B533-V */
 				asus_hides_smbus = 1;
 			}
 		else if (dev->device == PCI_DEVICE_ID_INTEL_82850_HB)
-			switch(dev->subsystem_device) {
+			switch (dev->subsystem_device) {
 			case 0x8030: /* P4T533 */
 				asus_hides_smbus = 1;
 			}
@@ -1175,7 +1176,7 @@ static void asus_hides_smbus_hostbridge(struct pci_dev *dev)
 			}
 	} else if (unlikely(dev->subsystem_vendor == PCI_VENDOR_ID_HP)) {
 		if (dev->device ==  PCI_DEVICE_ID_INTEL_82855PM_HB)
-			switch(dev->subsystem_device) {
+			switch (dev->subsystem_device) {
 			case 0x088C: /* HP Compaq nc8000 */
 			case 0x0890: /* HP Compaq nc6000 */
 				asus_hides_smbus = 1;
@@ -1192,20 +1193,20 @@ static void asus_hides_smbus_hostbridge(struct pci_dev *dev)
 			case 0x12bf: /* HP xw4100 */
 				asus_hides_smbus = 1;
 			}
-       } else if (unlikely(dev->subsystem_vendor == PCI_VENDOR_ID_SAMSUNG)) {
-               if (dev->device ==  PCI_DEVICE_ID_INTEL_82855PM_HB)
-                       switch(dev->subsystem_device) {
-                       case 0xC00C: /* Samsung P35 notebook */
-                               asus_hides_smbus = 1;
-                       }
+	} else if (unlikely(dev->subsystem_vendor == PCI_VENDOR_ID_SAMSUNG)) {
+		if (dev->device ==  PCI_DEVICE_ID_INTEL_82855PM_HB)
+			switch (dev->subsystem_device) {
+			case 0xC00C: /* Samsung P35 notebook */
+				asus_hides_smbus = 1;
+		}
 	} else if (unlikely(dev->subsystem_vendor == PCI_VENDOR_ID_COMPAQ)) {
 		if (dev->device == PCI_DEVICE_ID_INTEL_82855PM_HB)
-			switch(dev->subsystem_device) {
+			switch (dev->subsystem_device) {
 			case 0x0058: /* Compaq Evo N620c */
 				asus_hides_smbus = 1;
 			}
 		else if (dev->device == PCI_DEVICE_ID_INTEL_82810_IG3)
-			switch(dev->subsystem_device) {
+			switch (dev->subsystem_device) {
 			case 0xB16C: /* Compaq Deskpro EP 401963-001 (PCA# 010174) */
 				/* Motherboard doesn't have Host bridge
 				 * subvendor/subdevice IDs, therefore checking
@@ -1213,7 +1214,7 @@ static void asus_hides_smbus_hostbridge(struct pci_dev *dev)
 				asus_hides_smbus = 1;
 			}
 		else if (dev->device == PCI_DEVICE_ID_INTEL_82801DB_2)
-			switch(dev->subsystem_device) {
+			switch (dev->subsystem_device) {
 			case 0x00b8: /* Compaq Evo D510 CMT */
 			case 0x00b9: /* Compaq Evo D510 SFF */
 			case 0x00ba: /* Compaq Evo D510 USDT */
@@ -1514,10 +1515,8 @@ static void quirk_alder_ioapic(struct pci_dev *pdev)
 
 	/* The next five BARs all seem to be rubbish, so just clean
 	 * them out */
-	for (i=1; i < 6; i++) {
+	for (i = 1; i < 6; i++)
 		memset(&pdev->resource[i], 0, sizeof(pdev->resource[i]));
-	}
-
 }
 DECLARE_PCI_FIXUP_HEADER(PCI_VENDOR_ID_INTEL,	PCI_DEVICE_ID_INTEL_EESSC,	quirk_alder_ioapic);
 #endif
@@ -1552,7 +1551,7 @@ DECLARE_PCI_FIXUP_EARLY(PCI_VENDOR_ID_INTEL,	PCI_DEVICE_ID_INTEL_PXHV,	quirk_pci
  * Some Intel PCI Express chipsets have trouble with downstream
  * device power management.
  */
-static void quirk_intel_pcie_pm(struct pci_dev * dev)
+static void quirk_intel_pcie_pm(struct pci_dev *dev)
 {
 	pci_pm_d3_delay = 120;
 	dev->no_d1d2 = 1;
@@ -2189,8 +2188,7 @@ static int msi_ht_cap_enabled(struct pci_dev *dev)
 		u8 flags;
 
 		if (pci_read_config_byte(dev, pos + HT_MSI_FLAGS,
-					 &flags) == 0)
-		{
+					 &flags) == 0) {
 			dev_info(&dev->dev, "Found %s HT MSI Mapping\n",
 				flags & HT_MSI_FLAGS_ENABLE ?
 				"enabled" : "disabled");
@@ -3040,7 +3038,7 @@ void pci_fixup_device(enum pci_fixup_pass pass, struct pci_dev *dev)
 {
 	struct pci_fixup *start, *end;
 
-	switch(pass) {
+	switch (pass) {
 	case pci_fixup_early:
 		start = __start_pci_fixups_early;
 		end = __end_pci_fixups_early;

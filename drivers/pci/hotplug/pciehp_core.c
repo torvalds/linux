@@ -312,12 +312,12 @@ static void pciehp_remove(struct pcie_device *dev)
 }
 
 #ifdef CONFIG_PM
-static int pciehp_suspend (struct pcie_device *dev)
+static int pciehp_suspend(struct pcie_device *dev)
 {
 	return 0;
 }
 
-static int pciehp_resume (struct pcie_device *dev)
+static int pciehp_resume(struct pcie_device *dev)
 {
 	struct controller *ctrl;
 	struct slot *slot;

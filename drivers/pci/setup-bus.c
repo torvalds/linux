@@ -68,7 +68,7 @@ static int add_to_list(struct list_head *head,
 
 	tmp = kzalloc(sizeof(*tmp), GFP_KERNEL);
 	if (!tmp) {
-		pr_warning("add_to_list: kmalloc() failed!\n");
+		pr_warn("add_to_list: kmalloc() failed!\n");
 		return -ENOMEM;
 	}
 
@@ -736,7 +736,7 @@ static resource_size_t calculate_iosize(resource_size_t size,
 {
 	if (size < min_size)
 		size = min_size;
-	if (old_size == 1 )
+	if (old_size == 1)
 		old_size = 0;
 	/* To be fixed in 2.5: we should have sort of HAVE_ISA
 	   flag in the struct pci_bus. */
@@ -757,7 +757,7 @@ static resource_size_t calculate_memsize(resource_size_t size,
 {
 	if (size < min_size)
 		size = min_size;
-	if (old_size == 1 )
+	if (old_size == 1)
 		old_size = 0;
 	if (size < old_size)
 		size = old_size;
@@ -1430,10 +1430,10 @@ static void pci_bus_dump_res(struct pci_bus *bus)
 
 	pci_bus_for_each_resource(bus, res, i) {
 		if (!res || !res->end || !res->flags)
-                        continue;
+			continue;
 
 		dev_printk(KERN_DEBUG, &bus->dev, "resource %d %pR\n", i, res);
-        }
+	}
 }
 
 static void pci_bus_dump_resources(struct pci_bus *bus)
@@ -1458,7 +1458,7 @@ static int pci_bus_get_depth(struct pci_bus *bus)
 	int depth = 0;
 	struct pci_bus *child_bus;
 
-	list_for_each_entry(child_bus, &bus->children, node){
+	list_for_each_entry(child_bus, &bus->children, node) {
 		int ret;
 
 		ret = pci_bus_get_depth(child_bus);

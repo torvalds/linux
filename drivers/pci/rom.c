@@ -137,7 +137,7 @@ void __iomem *pci_map_rom(struct pci_dev *pdev, size_t *size)
 		} else {
 			/* assign the ROM an address if it doesn't have one */
 			if (res->parent == NULL &&
-			    pci_assign_resource(pdev,PCI_ROM_RESOURCE))
+			    pci_assign_resource(pdev, PCI_ROM_RESOURCE))
 				return NULL;
 			start = pci_resource_start(pdev, PCI_ROM_RESOURCE);
 			*size = pci_resource_len(pdev, PCI_ROM_RESOURCE);
@@ -203,7 +203,7 @@ void pci_cleanup_rom(struct pci_dev *pdev)
 	struct resource *res = &pdev->resource[PCI_ROM_RESOURCE];
 
 	if (res->flags & IORESOURCE_ROM_COPY) {
-		kfree((void*)(unsigned long)res->start);
+		kfree((void *)(unsigned long)res->start);
 		res->flags |= IORESOURCE_UNSET;
 		res->flags &= ~IORESOURCE_ROM_COPY;
 		res->start = 0;

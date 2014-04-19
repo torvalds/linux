@@ -89,7 +89,7 @@ static int set_attention_status(struct hotplug_slot *hotplug_slot, u8 value)
  * @hotplug_slot: slot to get status
  * @value: pointer to store status
  */
-static int get_power_status(struct hotplug_slot *hotplug_slot, u8 * value)
+static int get_power_status(struct hotplug_slot *hotplug_slot, u8 *value)
 {
 	int retval, level;
 	struct slot *slot = (struct slot *)hotplug_slot->private;
@@ -105,14 +105,14 @@ static int get_power_status(struct hotplug_slot *hotplug_slot, u8 * value)
  * @hotplug_slot: slot to get status
  * @value: pointer to store status
  */
-static int get_attention_status(struct hotplug_slot *hotplug_slot, u8 * value)
+static int get_attention_status(struct hotplug_slot *hotplug_slot, u8 *value)
 {
 	struct slot *slot = (struct slot *)hotplug_slot->private;
 	*value = slot->hotplug_slot->info->attention_status;
 	return 0;
 }
 
-static int get_adapter_status(struct hotplug_slot *hotplug_slot, u8 * value)
+static int get_adapter_status(struct hotplug_slot *hotplug_slot, u8 *value)
 {
 	struct slot *slot = (struct slot *)hotplug_slot->private;
 	int rc, state;

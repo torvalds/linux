@@ -162,7 +162,7 @@ u8 shpchp_handle_power_fault(u8 hp_slot, struct controller *ctrl)
 
 	p_slot = shpchp_find_slot(ctrl, hp_slot + ctrl->slot_device_offset);
 
-	if ( !(p_slot->hpc_ops->query_power_fault(p_slot))) {
+	if (!(p_slot->hpc_ops->query_power_fault(p_slot))) {
 		/*
 		 * Power fault Cleared
 		 */

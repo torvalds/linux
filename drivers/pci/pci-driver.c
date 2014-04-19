@@ -99,15 +99,15 @@ static void pci_free_dynids(struct pci_driver *drv)
  *
  * Allow PCI IDs to be added to an existing driver via sysfs.
  */
-static ssize_t
-store_new_id(struct device_driver *driver, const char *buf, size_t count)
+static ssize_t store_new_id(struct device_driver *driver, const char *buf,
+			    size_t count)
 {
 	struct pci_driver *pdrv = to_pci_driver(driver);
 	const struct pci_device_id *ids = pdrv->id_table;
-	__u32 vendor, device, subvendor=PCI_ANY_ID,
-		subdevice=PCI_ANY_ID, class=0, class_mask=0;
-	unsigned long driver_data=0;
-	int fields=0;
+	__u32 vendor, device, subvendor = PCI_ANY_ID,
+		subdevice = PCI_ANY_ID, class = 0, class_mask = 0;
+	unsigned long driver_data = 0;
+	int fields = 0;
 	int retval = 0;
 
 	fields = sscanf(buf, "%x %x %x %x %x %x %lx",
@@ -167,8 +167,8 @@ static DRIVER_ATTR(new_id, S_IWUSR, NULL, store_new_id);
  *
  * Removes a dynamic pci device ID to this driver.
  */
-static ssize_t
-store_remove_id(struct device_driver *driver, const char *buf, size_t count)
+static ssize_t store_remove_id(struct device_driver *driver, const char *buf,
+			       size_t count)
 {
 	struct pci_dynid *dynid, *n;
 	struct pci_driver *pdrv = to_pci_driver(driver);
@@ -374,8 +374,7 @@ static int pci_call_probe(struct pci_driver *drv, struct pci_dev *dev,
  * returns 0 on success, else error.
  * side-effect: pci_dev->driver is set to drv when drv claims pci_dev.
  */
-static int
-__pci_device_probe(struct pci_driver *drv, struct pci_dev *pci_dev)
+static int __pci_device_probe(struct pci_driver *drv, struct pci_dev *pci_dev)
 {
 	const struct pci_device_id *id;
 	int error = 0;
@@ -392,7 +391,7 @@ __pci_device_probe(struct pci_driver *drv, struct pci_dev *pci_dev)
 	return error;
 }
 
-static int pci_device_probe(struct device * dev)
+static int pci_device_probe(struct device *dev)
 {
 	int error = 0;
 	struct pci_driver *drv;
@@ -408,10 +407,10 @@ static int pci_device_probe(struct device * dev)
 	return error;
 }
 
-static int pci_device_remove(struct device * dev)
+static int pci_device_remove(struct device *dev)
 {
-	struct pci_dev * pci_dev = to_pci_dev(dev);
-	struct pci_driver * drv = pci_dev->driver;
+	struct pci_dev *pci_dev = to_pci_dev(dev);
+	struct pci_driver *drv = pci_dev->driver;
 
 	if (drv) {
 		if (drv->remove) {
@@ -539,8 +538,8 @@ static int pci_pm_reenable_device(struct pci_dev *pci_dev)
 
 static int pci_legacy_suspend(struct device *dev, pm_message_t state)
 {
-	struct pci_dev * pci_dev = to_pci_dev(dev);
-	struct pci_driver * drv = pci_dev->driver;
+	struct pci_dev *pci_dev = to_pci_dev(dev);
+	struct pci_driver *drv = pci_dev->driver;
 
 	if (drv && drv->suspend) {
 		pci_power_t prev = pci_dev->current_state;
@@ -566,8 +565,8 @@ static int pci_legacy_suspend(struct device *dev, pm_message_t state)
 
 static int pci_legacy_suspend_late(struct device *dev, pm_message_t state)
 {
-	struct pci_dev * pci_dev = to_pci_dev(dev);
-	struct pci_driver * drv = pci_dev->driver;
+	struct pci_dev *pci_dev = to_pci_dev(dev);
+	struct pci_driver *drv = pci_dev->driver;
 
 	if (drv && drv->suspend_late) {
 		pci_power_t prev = pci_dev->current_state;
@@ -597,8 +596,8 @@ static int pci_legacy_suspend_late(struct device *dev, pm_message_t state)
 
 static int pci_legacy_resume_early(struct device *dev)
 {
-	struct pci_dev * pci_dev = to_pci_dev(dev);
-	struct pci_driver * drv = pci_dev->driver;
+	struct pci_dev *pci_dev = to_pci_dev(dev);
+	struct pci_driver *drv = pci_dev->driver;
 
 	return drv && drv->resume_early ?
 			drv->resume_early(pci_dev) : 0;
@@ -606,8 +605,8 @@ static int pci_legacy_resume_early(struct device *dev)
 
 static int pci_legacy_resume(struct device *dev)
 {
-	struct pci_dev * pci_dev = to_pci_dev(dev);
-	struct pci_driver * drv = pci_dev->driver;
+	struct pci_dev *pci_dev = to_pci_dev(dev);
+	struct pci_driver *drv = pci_dev->driver;
 
 	pci_fixup_device(pci_fixup_resume, pci_dev);
 
@@ -1269,8 +1268,7 @@ EXPORT_SYMBOL(__pci_register_driver);
  * driverless.
  */
 
-void
-pci_unregister_driver(struct pci_driver *drv)
+void pci_unregister_driver(struct pci_driver *drv)
 {
 	driver_unregister(&drv->driver);
 	pci_free_dynids(drv);
@@ -1288,14 +1286,13 @@ static struct pci_driver pci_compat_driver = {
  * Returns the appropriate pci_driver structure or %NULL if there is no
  * registered driver for the device.
  */
-struct pci_driver *
-pci_dev_driver(const struct pci_dev *dev)
+struct pci_driver *pci_dev_driver(const struct pci_dev *dev)
 {
 	if (dev->driver)
 		return dev->driver;
 	else {
 		int i;
-		for(i=0; i<=PCI_ROM_RESOURCE; i++)
+		for (i = 0; i <= PCI_ROM_RESOURCE; i++)
 			if (dev->resource[i].flags & IORESOURCE_BUSY)
 				return &pci_compat_driver;
 	}

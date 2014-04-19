@@ -110,8 +110,7 @@ int pci_for_each_dma_alias(struct pci_dev *pdev,
  * legacy PCI bridge and the bridge is directly connected to bus 0), return its
  * parent
  */
-struct pci_dev *
-pci_find_upstream_pcie_bridge(struct pci_dev *pdev)
+struct pci_dev *pci_find_upstream_pcie_bridge(struct pci_dev *pdev)
 {
 	struct pci_dev *tmp = NULL;
 
@@ -143,12 +142,12 @@ static struct pci_bus *pci_do_find_bus(struct pci_bus *bus, unsigned char busnr)
 	struct pci_bus *child;
 	struct pci_bus *tmp;
 
-	if(bus->number == busnr)
+	if (bus->number == busnr)
 		return bus;
 
 	list_for_each_entry(tmp, &bus->children, node) {
 		child = pci_do_find_bus(tmp, busnr);
-		if(child)
+		if (child)
 			return child;
 	}
 	return NULL;
@@ -163,7 +162,7 @@ static struct pci_bus *pci_do_find_bus(struct pci_bus *bus, unsigned char busnr)
  * in the global list of PCI buses.  If the bus is found, a pointer to its
  * data structure is returned.  If no bus is found, %NULL is returned.
  */
-struct pci_bus * pci_find_bus(int domain, int busnr)
+struct pci_bus *pci_find_bus(int domain, int busnr)
 {
 	struct pci_bus *bus = NULL;
 	struct pci_bus *tmp_bus;
@@ -188,8 +187,7 @@ EXPORT_SYMBOL(pci_find_bus);
  * @from is not %NULL, searches continue from next device on the
  * global list.
  */
-struct pci_bus *
-pci_find_next_bus(const struct pci_bus *from)
+struct pci_bus *pci_find_next_bus(const struct pci_bus *from)
 {
 	struct list_head *n;
 	struct pci_bus *b = NULL;
@@ -357,8 +355,8 @@ EXPORT_SYMBOL(pci_get_subsys);
  * from next device on the global list.  The reference count for @from is
  * always decremented if it is not %NULL.
  */
-struct pci_dev *
-pci_get_device(unsigned int vendor, unsigned int device, struct pci_dev *from)
+struct pci_dev *pci_get_device(unsigned int vendor, unsigned int device,
+			       struct pci_dev *from)
 {
 	return pci_get_subsys(vendor, device, PCI_ANY_ID, PCI_ANY_ID, from);
 }

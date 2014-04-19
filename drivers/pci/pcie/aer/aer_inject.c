@@ -464,8 +464,7 @@ static int aer_inject(struct aer_error_inj *einj)
 			goto out_put;
 		}
 		aer_irq(-1, edev);
-	}
-	else
+	} else
 		ret = -EINVAL;
 out_put:
 	kfree(err_alloc);

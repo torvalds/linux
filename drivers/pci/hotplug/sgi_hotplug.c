@@ -188,7 +188,7 @@ static int sn_hp_slot_private_alloc(struct hotplug_slot *bss_hotplug_slot,
 	return 0;
 }
 
-static struct hotplug_slot * sn_hp_destroy(void)
+static struct hotplug_slot *sn_hp_destroy(void)
 {
 	struct slot *slot;
 	struct pci_slot *pci_slot;

@@ -47,7 +47,7 @@ static u8 find_sec_number (u8 primary_busno, u8 slotno);
  * We also assign the same irq numbers for multi function devices.
  * These are PIC mode, so shouldn't matter n.e.ways (hopefully)
  */
-static void assign_alt_irq (struct pci_func * cur_func, u8 class_code)
+static void assign_alt_irq (struct pci_func *cur_func, u8 class_code)
 {
 	int j;
 	for (j = 0; j < 4; j++) {
@@ -1073,7 +1073,7 @@ error:
  * Input: bridge function
  * Output: amount of resources needed
  *****************************************************************************/
-static struct res_needed *scan_behind_bridge (struct pci_func * func, u8 busno)
+static struct res_needed *scan_behind_bridge (struct pci_func *func, u8 busno)
 {
 	int count, len[6];
 	u16 vendor_id;

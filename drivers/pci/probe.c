@@ -168,7 +168,7 @@ static inline unsigned long decode_bar(struct pci_dev *dev, u32 bar)
  * Returns 1 if the BAR is 64-bit, or 0 if 32-bit.
  */
 int __pci_read_base(struct pci_dev *dev, enum pci_bar_type type,
-			struct resource *res, unsigned int pos)
+		    struct resource *res, unsigned int pos)
 {
 	u32 l, sz, mask;
 	u64 l64, sz64, mask64;
@@ -604,7 +604,6 @@ static enum pci_bus_speed agp_speed(int agp3, int agpstat)
 	return agp_speeds[index];
 }
 
-
 static void pci_set_bus_speed(struct pci_bus *bus)
 {
 	struct pci_dev *bridge = bus->self;
@@ -636,11 +635,10 @@ static void pci_set_bus_speed(struct pci_bus *bus)
 		} else if (status & PCI_X_SSTATUS_266MHZ) {
 			max = PCI_SPEED_133MHz_PCIX_266;
 		} else if (status & PCI_X_SSTATUS_133MHZ) {
-			if ((status & PCI_X_SSTATUS_VERS) == PCI_X_SSTATUS_V2) {
+			if ((status & PCI_X_SSTATUS_VERS) == PCI_X_SSTATUS_V2)
 				max = PCI_SPEED_133MHz_PCIX_ECC;
-			} else {
+			else
 				max = PCI_SPEED_133MHz_PCIX;
-			}
 		} else {
 			max = PCI_SPEED_66MHz_PCIX;
 		}
@@ -663,7 +661,6 @@ static void pci_set_bus_speed(struct pci_bus *bus)
 		pcie_update_link_speed(bus, linksta);
 	}
 }
-
 
 static struct pci_bus *pci_alloc_child_bus(struct pci_bus *parent,
 					   struct pci_dev *bridge, int busnr)
@@ -729,7 +726,8 @@ add_dev:
 	return child;
 }
 
-struct pci_bus *pci_add_new_bus(struct pci_bus *parent, struct pci_dev *dev, int busnr)
+struct pci_bus *pci_add_new_bus(struct pci_bus *parent, struct pci_dev *dev,
+				int busnr)
 {
 	struct pci_bus *child;
 
@@ -888,7 +886,7 @@ int pci_scan_bridge(struct pci_bus *bus, struct pci_dev *dev, int max, int pass)
 			 * as cards with a PCI-to-PCI bridge can be
 			 * inserted later.
 			 */
-			for (i=0; i<CARDBUS_RESERVE_BUSNR; i++) {
+			for (i = 0; i < CARDBUS_RESERVE_BUSNR; i++) {
 				struct pci_bus *parent = bus;
 				if (pci_find_bus(pci_domain_nr(bus),
 							max+i+1))
@@ -993,7 +991,6 @@ void set_pcie_hotplug_bridge(struct pci_dev *pdev)
 	if (reg32 & PCI_EXP_SLTCAP_HPC)
 		pdev->is_hotplug_bridge = 1;
 }
-
 
 /**
  * pci_ext_cfg_is_aliased - is ext config space just an alias of std config?
@@ -1285,7 +1282,7 @@ struct pci_dev *pci_alloc_dev(struct pci_bus *bus)
 EXPORT_SYMBOL(pci_alloc_dev);
 
 bool pci_bus_read_dev_vendor_id(struct pci_bus *bus, int devfn, u32 *l,
-				 int crs_timeout)
+				int crs_timeout)
 {
 	int delay = 1;
 
@@ -1719,7 +1716,7 @@ unsigned int pci_scan_child_bus(struct pci_bus *bus)
 		bus->is_added = 1;
 	}
 
-	for (pass=0; pass < 2; pass++)
+	for (pass = 0; pass < 2; pass++)
 		list_for_each_entry(dev, &bus->devices, bus_list) {
 			if (pci_is_bridge(dev))
 				max = pci_scan_bridge(bus, dev, max, pass);
@@ -2062,7 +2059,8 @@ void pci_unlock_rescan_remove(void)
 }
 EXPORT_SYMBOL_GPL(pci_unlock_rescan_remove);
 
-static int __init pci_sort_bf_cmp(const struct device *d_a, const struct device *d_b)
+static int __init pci_sort_bf_cmp(const struct device *d_a,
+				  const struct device *d_b)
 {
 	const struct pci_dev *a = to_pci_dev(d_a);
 	const struct pci_dev *b = to_pci_dev(d_b);

@@ -175,7 +175,7 @@ void pciehp_handle_linkstate_change(struct slot *p_slot)
    hotplug controller logic
  */
 
-static void set_slot_off(struct controller *ctrl, struct slot * pslot)
+static void set_slot_off(struct controller *ctrl, struct slot *pslot)
 {
 	/* turn off slot, turn on Amber LED, turn off Green LED if supported*/
 	if (POWER_CTRL(ctrl)) {

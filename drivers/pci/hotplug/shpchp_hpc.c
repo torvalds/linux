@@ -404,7 +404,7 @@ static int hpc_get_attention_status(struct slot *slot, u8 *status)
 	return 0;
 }
 
-static int hpc_get_power_status(struct slot * slot, u8 *status)
+static int hpc_get_power_status(struct slot *slot, u8 *status)
 {
 	struct controller *ctrl = slot->ctrl;
 	u32 slot_reg = shpc_readl(ctrl, SLOT_REG(slot->hp_slot));
@@ -528,7 +528,7 @@ static int hpc_get_mode1_ECC_cap(struct slot *slot, u8 *mode)
 	return retval;
 }
 
-static int hpc_query_power_fault(struct slot * slot)
+static int hpc_query_power_fault(struct slot *slot)
 {
 	struct controller *ctrl = slot->ctrl;
 	u32 slot_reg = shpc_readl(ctrl, SLOT_REG(slot->hp_slot));
@@ -614,7 +614,7 @@ static void hpc_release_ctlr(struct controller *ctrl)
 	release_mem_region(ctrl->mmio_base, ctrl->mmio_size);
 }
 
-static int hpc_power_on_slot(struct slot * slot)
+static int hpc_power_on_slot(struct slot *slot)
 {
 	int retval;
 
@@ -625,7 +625,7 @@ static int hpc_power_on_slot(struct slot * slot)
 	return retval;
 }
 
-static int hpc_slot_enable(struct slot * slot)
+static int hpc_slot_enable(struct slot *slot)
 {
 	int retval;
 
@@ -638,7 +638,7 @@ static int hpc_slot_enable(struct slot * slot)
 	return retval;
 }
 
-static int hpc_slot_disable(struct slot * slot)
+static int hpc_slot_disable(struct slot *slot)
 {
 	int retval;
 
@@ -720,7 +720,7 @@ static int shpc_get_cur_bus_speed(struct controller *ctrl)
 }
 
 
-static int hpc_set_bus_speed_mode(struct slot * slot, enum pci_bus_speed value)
+static int hpc_set_bus_speed_mode(struct slot *slot, enum pci_bus_speed value)
 {
 	int retval;
 	struct controller *ctrl = slot->ctrl;

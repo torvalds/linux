@@ -105,7 +105,7 @@ int __ht_create_irq(struct pci_dev *dev, int idx, ht_irq_update_t *update)
 	spin_unlock_irqrestore(&ht_irq_lock, flags);
 
 	max_irq = (data >> 16) & 0xff;
-	if ( idx > max_irq)
+	if (idx > max_irq)
 		return -EINVAL;
 
 	cfg = kmalloc(sizeof(*cfg), GFP_KERNEL);

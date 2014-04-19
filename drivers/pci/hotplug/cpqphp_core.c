@@ -94,7 +94,7 @@ static inline int is_slot66mhz(struct slot *slot)
  *
  * Returns pointer to the head of the SMBIOS tables (or %NULL).
  */
-static void __iomem * detect_SMBIOS_pointer(void __iomem *begin, void __iomem *end)
+static void __iomem *detect_SMBIOS_pointer(void __iomem *begin, void __iomem *end)
 {
 	void __iomem *fp;
 	void __iomem *endp;
@@ -131,7 +131,7 @@ static void __iomem * detect_SMBIOS_pointer(void __iomem *begin, void __iomem *e
  *
  * For unexpected switch opens
  */
-static int init_SERR(struct controller * ctrl)
+static int init_SERR(struct controller *ctrl)
 {
 	u32 tempdword;
 	u32 number_of_slots;
@@ -291,7 +291,7 @@ static void release_slot(struct hotplug_slot *hotplug_slot)
 	kfree(slot);
 }
 
-static int ctrl_slot_cleanup (struct controller * ctrl)
+static int ctrl_slot_cleanup (struct controller *ctrl)
 {
 	struct slot *old_slot, *next_slot;
 
