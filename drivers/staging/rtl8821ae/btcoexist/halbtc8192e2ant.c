@@ -236,8 +236,8 @@ static u8 halbtc8192e2ant_wifirssi_state(struct btc_coexist *btcoexist,
 
 static void halbtc8192e2ant_monitor_bt_enable_disable(struct btc_coexist *btcoexist)
 {
-	static bool pre_bt_disabled = false;
-	static u32 bt_disable_cnt = 0;
+	static bool pre_bt_disabled;
+	static u32 bt_disable_cnt;
 	bool bt_active = true, bt_disabled = false;
 
 	/* This function check if bt is disabled */
@@ -505,8 +505,8 @@ static void halbtc8192e2ant_querybt_info(struct btc_coexist *btcoexist)
 
 static bool halbtc8192e2ant_iswifi_status_changed(struct btc_coexist *btcoexist)
 {
-	static bool pre_wifi_busy = false;
-	static bool pre_under_4way = false, pre_bt_hson = false;
+	static bool pre_wifi_busy;
+	static bool pre_under_4way, pre_bt_hson;
 	bool wifi_busy = false, under_4way = false, bt_hson = false;
 	bool wifi_connected = false;
 
@@ -4118,7 +4118,7 @@ void ex_halbtc8192e2ant_halt_notify(struct btc_coexist *btcoexist)
 
 void ex_halbtc8192e2ant_periodical(struct btc_coexist *btcoexist)
 {
-	static u8 dis_ver_info_cnt = 0;
+	static u8 dis_ver_info_cnt;
 	u32 fw_ver = 0, bt_patch_ver = 0;
 	struct btc_board_info *board_info = &btcoexist->board_info;
 	struct btc_stack_info *stack_info = &btcoexist->stack_info;
