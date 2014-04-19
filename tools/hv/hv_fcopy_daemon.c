@@ -82,8 +82,10 @@ static int hv_start_fcopy(struct hv_start_fcopy *smsg)
 
 	if (!access(target_fname, F_OK)) {
 		syslog(LOG_INFO, "File: %s exists", target_fname);
-		if (!smsg->copy_flags & OVER_WRITE)
+		if (!(smsg->copy_flags & OVER_WRITE)) {
+			error = HV_ERROR_ALREADY_EXISTS;
 			goto done;
+		}
 	}
 
 	target_fd = open(target_fname, O_RDWR | O_CREAT | O_CLOEXEC, 0744);
