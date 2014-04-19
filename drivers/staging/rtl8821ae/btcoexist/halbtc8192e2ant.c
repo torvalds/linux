@@ -39,10 +39,8 @@ static u32 glcoex_ver_8192e_2ant = 0x34;
 static u8 halbtc8192e2ant_btrssi_state(u8 level_num, u8 rssi_thresh,
 				       u8 rssi_thresh1)
 {
-	int btrssi=0;
+	int btrssi = coex_sta->bt_rssi;
 	u8 btrssi_state = coex_sta->pre_bt_rssi_state;
-
-	btrssi = coex_sta->bt_rssi;
 
 	if (level_num == 2) {
 		if ((coex_sta->pre_bt_rssi_state == BTC_RSSI_STATE_LOW) ||
