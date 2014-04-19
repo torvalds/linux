@@ -24,6 +24,7 @@
 #define HID_USAGE			0x09
 #define HID_USAGE_X			((HID_USAGE_PAGE_DESKTOP << 16) | 0x30)
 #define HID_USAGE_Y			((HID_USAGE_PAGE_DESKTOP << 16) | 0x31)
+#define HID_USAGE_PRESSURE		((HID_USAGE_PAGE_DIGITIZER << 16) | 0x30)
 #define HID_USAGE_X_TILT		((HID_USAGE_PAGE_DIGITIZER << 16) | 0x3d)
 #define HID_USAGE_Y_TILT		((HID_USAGE_PAGE_DIGITIZER << 16) | 0x3e)
 #define HID_USAGE_FINGER		((HID_USAGE_PAGE_DIGITIZER << 16) | 0x22)
@@ -464,6 +465,14 @@ static int wacom_parse_hid(struct usb_interface *intf,
 				if (!features->touch_max)
 					wacom_retrieve_report_data(intf, features);
 				i++;
+				break;
+
+			case HID_USAGE_PRESSURE:
+				if (pen) {
+					features->pressure_max =
+						get_unaligned_le16(&report[i + 3]);
+					i += 4;
+				}
 				break;
 			}
 			break;
