@@ -4526,6 +4526,16 @@ static bool nested_exit_on_intr(struct kvm_vcpu *vcpu)
 		PIN_BASED_EXT_INTR_MASK;
 }
 
+/*
+ * In nested virtualization, check if L1 has set
+ * VM_EXIT_ACK_INTR_ON_EXIT
+ */
+static bool nested_exit_intr_ack_set(struct kvm_vcpu *vcpu)
+{
+	return get_vmcs12(vcpu)->vm_exit_controls &
+		VM_EXIT_ACK_INTR_ON_EXIT;
+}
+
 static bool nested_exit_on_nmi(struct kvm_vcpu *vcpu)
 {
 	return get_vmcs12(vcpu)->pin_based_vm_exec_control &
@@ -8562,6 +8572,14 @@ static void nested_vmx_vmexit(struct kvm_vcpu *vcpu, u32 exit_reason,
 	leave_guest_mode(vcpu);
 	prepare_vmcs12(vcpu, vmcs12, exit_reason, exit_intr_info,
 		       exit_qualification);
+
+	if ((exit_reason == EXIT_REASON_EXTERNAL_INTERRUPT)
+	    && nested_exit_intr_ack_set(vcpu)) {
+		int irq = kvm_cpu_get_interrupt(vcpu);
+		WARN_ON(irq < 0);
+		vmcs12->vm_exit_intr_info = irq |
+			INTR_INFO_VALID_MASK | INTR_TYPE_EXT_INTR;
+	}
 
 	trace_kvm_nested_vmexit_inject(vmcs12->vm_exit_reason,
 				       vmcs12->exit_qualification,
