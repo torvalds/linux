@@ -7277,7 +7277,6 @@ F:	drivers/video/aty/aty128fb.c
 RALINK RT2X00 WIRELESS LAN DRIVER
 P:	rt2x00 project
 M:	Ivo van Doorn <IvDoorn@gmail.com>
-M:	Gertjan van Wingerde <gwingerde@gmail.com>
 M:	Helmut Schaa <helmut.schaa@googlemail.com>
 L:	linux-wireless@vger.kernel.org
 L:	users@rt2x00.serialmonkey.com (moderated for non-subscribers)
