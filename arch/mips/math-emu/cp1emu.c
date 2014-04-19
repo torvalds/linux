@@ -1119,11 +1119,9 @@ static int cop1Emulate(struct pt_regs *xcp, struct mips_fpu_struct *ctx,
 				value = ctx->fcr31;
 				value = (value & ~FPU_CSR_RM) |
 					mips_rm[modeindex(value)];
-#ifdef CSRTRACE
-				printk("%p gpr[%d]<-csr=%08x\n",
-					(void *) (xcp->cp0_epc),
-					MIPSInst_RT(ir), value);
-#endif
+				pr_debug("%p gpr[%d]<-csr=%08x\n",
+					 (void *) (xcp->cp0_epc),
+					 MIPSInst_RT(ir), value);
 			}
 			else if (MIPSInst_RD(ir) == FPCREG_RID)
 				value = 0;
@@ -1146,11 +1144,9 @@ static int cop1Emulate(struct pt_regs *xcp, struct mips_fpu_struct *ctx,
 			/* we only have one writable control reg
 			 */
 			if (MIPSInst_RD(ir) == FPCREG_CSR) {
-#ifdef CSRTRACE
-				printk("%p gpr[%d]->csr=%08x\n",
-					(void *) (xcp->cp0_epc),
-					MIPSInst_RT(ir), value);
-#endif
+				pr_debug("%p gpr[%d]->csr=%08x\n",
+					 (void *) (xcp->cp0_epc),
+					 MIPSInst_RT(ir), value);
 
 				/*
 				 * Don't write reserved bits,

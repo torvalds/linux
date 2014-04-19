@@ -44,10 +44,8 @@ int mips_dsemul(struct pt_regs *regs, mips_instruction ir, unsigned long cpc)
 		clear_delay_slot(regs);
 		return 0;
 	}
-#ifdef DSEMUL_TRACE
-	printk("dsemul %lx %lx\n", regs->cp0_epc, cpc);
 
-#endif
+	pr_debug("dsemul %lx %lx\n", regs->cp0_epc, cpc);
 
 	/*
 	 * The strategy is to push the instruction onto the user stack
@@ -149,9 +147,8 @@ int do_dsemulret(struct pt_regs *xcp)
 	 * emulating the branch delay instruction.
 	 */
 
-#ifdef DSEMUL_TRACE
-	printk("dsemulret\n");
-#endif
+	pr_debug("dsemulret\n");
+
 	if (__get_user(epc, &fr->epc)) {		/* Saved EPC */
 		/* This is not a good situation to be in */
 		force_sig(SIGBUS, current);
