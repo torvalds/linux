@@ -408,9 +408,6 @@ struct ieee754xctx {
 	union {
 		union ieee754sp sp;	/* single precision */
 		union ieee754dp dp;	/* double precision */
-#ifdef IEEE854_XP
-		ieee754xp xp;	/* extended precision */
-#endif
 		int si;		/* standard signed integer (32bits) */
 		s64 di;		/* extended signed integer (64bits) */
 	} rv;			/* default result format implied by op */
