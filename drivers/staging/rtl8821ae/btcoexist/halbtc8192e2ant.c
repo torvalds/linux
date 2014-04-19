@@ -372,16 +372,16 @@ static void halbtc8192e2ant_retrylimit(struct btc_coexist *btcoexist,
 	if (force_exec || (coex_dm->pre_retrylimit_type !=
 			   coex_dm->cur_retrylimit_type)) {
 		switch (coex_dm->cur_retrylimit_type) {
-			case 0:	/* normal mode */
-				btcoexist->btc_write_2byte(btcoexist, 0x42a,
-						    coex_dm->backup_retrylimit);
-				break;
-			case 1:	/* retry limit=8 */
-				btcoexist->btc_write_2byte(btcoexist, 0x42a,
-							   0x0808);
-				break;
-			default:
-				break;
+		case 0:	/* normal mode */
+			btcoexist->btc_write_2byte(btcoexist, 0x42a,
+					    coex_dm->backup_retrylimit);
+			break;
+		case 1:	/* retry limit=8 */
+			btcoexist->btc_write_2byte(btcoexist, 0x42a,
+						   0x0808);
+			break;
+		default:
+			break;
 		}
 	}
 
