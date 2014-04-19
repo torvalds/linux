@@ -757,6 +757,7 @@ static inline int efx_nic_irq_test_irq_cpu(struct efx_nic *efx)
 int efx_nic_flush_queues(struct efx_nic *efx);
 void siena_prepare_flush(struct efx_nic *efx);
 int efx_farch_fini_dmaq(struct efx_nic *efx);
+void efx_farch_finish_flr(struct efx_nic *efx);
 void siena_finish_flush(struct efx_nic *efx);
 void falcon_start_nic_stats(struct efx_nic *efx);
 void falcon_stop_nic_stats(struct efx_nic *efx);
