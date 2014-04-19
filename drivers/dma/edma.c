@@ -379,6 +379,11 @@ static int edma_config_pset(struct dma_chan *chan, struct edmacc_param *pset,
 		src_cidx = 0;
 		dst_bidx = acnt;
 		dst_cidx = cidx;
+	} else if (direction == DMA_MEM_TO_MEM)  {
+		src_bidx = acnt;
+		src_cidx = cidx;
+		dst_bidx = acnt;
+		dst_cidx = cidx;
 	} else {
 		dev_err(dev, "%s: direction not implemented yet\n", __func__);
 		return -EINVAL;
@@ -495,6 +500,44 @@ static struct dma_async_tx_descriptor *edma_prep_slave_sg(
 		if (i == sg_len - 1)
 			edesc->pset[i].opt |= TCINTEN;
 	}
+
+	return vchan_tx_prep(&echan->vchan, &edesc->vdesc, tx_flags);
+}
+
+struct dma_async_tx_descriptor *edma_prep_dma_memcpy(
+	struct dma_chan *chan, dma_addr_t dest, dma_addr_t src,
+	size_t len, unsigned long tx_flags)
+{
+	int ret;
+	struct edma_desc *edesc;
+	struct device *dev = chan->device->dev;
+	struct edma_chan *echan = to_edma_chan(chan);
+
+	if (unlikely(!echan || !len))
+		return NULL;
+
+	edesc = kzalloc(sizeof(*edesc) + sizeof(edesc->pset[0]), GFP_ATOMIC);
+	if (!edesc) {
+		dev_dbg(dev, "Failed to allocate a descriptor\n");
+		return NULL;
+	}
+
+	edesc->pset_nr = 1;
+
+	ret = edma_config_pset(chan, &edesc->pset[0], src, dest, 1,
+			       DMA_SLAVE_BUSWIDTH_4_BYTES, len, DMA_MEM_TO_MEM);
+	if (ret < 0)
+		return NULL;
+
+	edesc->absync = ret;
+
+	/*
+	 * Enable intermediate transfer chaining to re-trigger channel
+	 * on completion of every TR, and enable transfer-completion
+	 * interrupt on completion of the whole transfer.
+	 */
+	edesc->pset[0].opt |= ITCCHEN;
+	edesc->pset[0].opt |= TCINTEN;
 
 	return vchan_tx_prep(&echan->vchan, &edesc->vdesc, tx_flags);
 }
@@ -877,6 +920,7 @@ static void edma_dma_init(struct edma_cc *ecc, struct dma_device *dma,
 {
 	dma->device_prep_slave_sg = edma_prep_slave_sg;
 	dma->device_prep_dma_cyclic = edma_prep_dma_cyclic;
+	dma->device_prep_dma_memcpy = edma_prep_dma_memcpy;
 	dma->device_alloc_chan_resources = edma_alloc_chan_resources;
 	dma->device_free_chan_resources = edma_free_chan_resources;
 	dma->device_issue_pending = edma_issue_pending;
@@ -884,6 +928,12 @@ static void edma_dma_init(struct edma_cc *ecc, struct dma_device *dma,
 	dma->device_control = edma_control;
 	dma->device_slave_caps = edma_dma_device_slave_caps;
 	dma->dev = dev;
+
+	/*
+	 * code using dma memcpy must make sure alignment of
+	 * length is at dma->copy_align boundary.
+	 */
+	dma->copy_align = DMA_SLAVE_BUSWIDTH_4_BYTES;
 
 	INIT_LIST_HEAD(&dma->channels);
 }
@@ -913,6 +963,7 @@ static int edma_probe(struct platform_device *pdev)
 	dma_cap_zero(ecc->dma_slave.cap_mask);
 	dma_cap_set(DMA_SLAVE, ecc->dma_slave.cap_mask);
 	dma_cap_set(DMA_CYCLIC, ecc->dma_slave.cap_mask);
+	dma_cap_set(DMA_MEMCPY, ecc->dma_slave.cap_mask);
 
 	edma_dma_init(ecc, &ecc->dma_slave, &pdev->dev);
 
