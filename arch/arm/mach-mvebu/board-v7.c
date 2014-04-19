@@ -95,7 +95,7 @@ static void __init i2c_quirk(void)
 	 * mechanism. We can exit only if we are sure that we can
 	 * get the SoC revision and it is more recent than A0.
 	 */
-	if (mvebu_get_soc_id(&rev, &dev) == 0 && dev > MV78XX0_A0_REV)
+	if (mvebu_get_soc_id(&dev, &rev) == 0 && rev > MV78XX0_A0_REV)
 		return;
 
 	for_each_compatible_node(np, NULL, "marvell,mv78230-i2c") {
