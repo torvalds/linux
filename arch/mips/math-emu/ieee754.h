@@ -24,20 +24,13 @@
 #ifndef __ARCH_MIPS_MATH_EMU_IEEE754_H
 #define __ARCH_MIPS_MATH_EMU_IEEE754_H
 
+#include <stdarg.h>
 #include <linux/compiler.h>
 #include <asm/byteorder.h>
 #include <linux/kernel.h>
 #include <linux/types.h>
 #include <linux/sched.h>
 #include <asm/bitfield.h>
-
-/*
- * Not very pretty, but the Linux kernel's normal va_list definition
- * does not allow it to be used as a structure element, as it is here.
- */
-#ifndef _STDARG_H
-#include <stdarg.h>
-#endif
 
 struct ieee754dp_const {
 	__BITFIELD_FIELD(unsigned sign:1,

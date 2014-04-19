@@ -23,6 +23,7 @@
  * ########################################################################
  */
 
+#include <stdarg.h>
 #include <linux/compiler.h>
 
 #include "ieee754sp.h"
