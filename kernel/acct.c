@@ -93,64 +93,36 @@ static LIST_HEAD(acct_list);
 /*
  * Check the amount of free space and suspend/resume accordingly.
  */
-static int check_free_space(struct bsd_acct_struct *acct, struct file *file)
+static int check_free_space(struct bsd_acct_struct *acct)
 {
 	struct kstatfs sbuf;
-	int res;
-	int act;
-	u64 resume;
-	u64 suspend;
 
-	spin_lock(&acct_lock);
-	res = acct->active;
-	if (!file || time_is_before_jiffies(acct->needcheck))
+	if (time_is_before_jiffies(acct->needcheck))
 		goto out;
-	spin_unlock(&acct_lock);
 
 	/* May block */
-	if (vfs_statfs(&file->f_path, &sbuf))
-		return res;
-	suspend = sbuf.f_blocks * SUSPEND;
-	resume = sbuf.f_blocks * RESUME;
-
-	do_div(suspend, 100);
-	do_div(resume, 100);
-
-	if (sbuf.f_bavail <= suspend)
-		act = -1;
-	else if (sbuf.f_bavail >= resume)
-		act = 1;
-	else
-		act = 0;
-
-	/*
-	 * If some joker switched acct->file under us we'ld better be
-	 * silent and _not_ touch anything.
-	 */
-	spin_lock(&acct_lock);
-	if (file != acct->file) {
-		if (act)
-			res = act > 0;
+	if (vfs_statfs(&acct->file->f_path, &sbuf))
 		goto out;
-	}
 
 	if (acct->active) {
-		if (act < 0) {
+		u64 suspend = sbuf.f_blocks * SUSPEND;
+		do_div(suspend, 100);
+		if (sbuf.f_bavail <= suspend) {
 			acct->active = 0;
 			printk(KERN_INFO "Process accounting paused\n");
 		}
 	} else {
-		if (act > 0) {
+		u64 resume = sbuf.f_blocks * RESUME;
+		do_div(resume, 100);
+		if (sbuf.f_bavail >= resume) {
 			acct->active = 1;
 			printk(KERN_INFO "Process accounting resumed\n");
 		}
 	}
 
 	acct->needcheck = jiffies + ACCT_TIMEOUT*HZ;
-	res = acct->active;
 out:
-	spin_unlock(&acct_lock);
-	return res;
+	return acct->active;
 }
 
 static void acct_put(struct bsd_acct_struct *p)
@@ -550,7 +522,7 @@ static void do_acct_process(struct bsd_acct_struct *acct)
 	 * First check to see if there is enough free_space to continue
 	 * the process accounting system.
 	 */
-	if (!check_free_space(acct, file))
+	if (!check_free_space(acct))
 		goto out;
 
 	fill_ac(&ac);
