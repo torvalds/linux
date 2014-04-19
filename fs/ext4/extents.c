@@ -5406,6 +5406,9 @@ int ext4_collapse_range(struct inode *inode, loff_t offset, loff_t len)
 	if (!S_ISREG(inode->i_mode))
 		return -EINVAL;
 
+	if (EXT4_SB(inode->i_sb)->s_cluster_ratio > 1)
+		return -EOPNOTSUPP;
+
 	trace_ext4_collapse_range(inode, offset, len);
 
 	punch_start = offset >> EXT4_BLOCK_SIZE_BITS(sb);
