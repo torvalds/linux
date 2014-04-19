@@ -206,11 +206,11 @@ static int hostap_remove_sta(PSDevice pDevice,
 {
 	unsigned int uNodeIndex;
 
-	if (BSSDBbIsSTAInNodeDB(pDevice->pMgmt, param->sta_addr, &uNodeIndex)) {
+	if (BSSDBbIsSTAInNodeDB(pDevice->pMgmt, param->sta_addr, &uNodeIndex))
 		BSSvRemoveOneNode(pDevice, uNodeIndex);
-	} else {
+	else
 		return -ENOENT;
-	}
+
 	return 0;
 }
 
@@ -233,9 +233,9 @@ static int hostap_add_sta(PSDevice pDevice,
 	PSMgmtObject    pMgmt = pDevice->pMgmt;
 	unsigned int uNodeIndex;
 
-	if (!BSSDBbIsSTAInNodeDB(pMgmt, param->sta_addr, &uNodeIndex)) {
+	if (!BSSDBbIsSTAInNodeDB(pMgmt, param->sta_addr, &uNodeIndex))
 		BSSvCreateOneNode((PSDevice)pDevice, &uNodeIndex);
-	}
+
 	memcpy(pMgmt->sNodeDBTable[uNodeIndex].abyMACAddr, param->sta_addr, WLAN_ADDR_LEN);
 	pMgmt->sNodeDBTable[uNodeIndex].eNodeState = NODE_ASSOC;
 	pMgmt->sNodeDBTable[uNodeIndex].wCapInfo = param->u.add_sta.capability;
@@ -660,9 +660,8 @@ static int hostap_get_encryption(PSDevice pDevice,
 	}
 	DBG_PRT(MSG_LEVEL_DEBUG, KERN_INFO "hostap_get_encryption: %d\n", iNodeIndex);
 	memset(param->u.crypt.seq, 0, 8);
-	for (ii = 0; ii < 8; ii++) {
+	for (ii = 0; ii < 8; ii++)
 		param->u.crypt.seq[ii] = (unsigned char)pMgmt->sNodeDBTable[iNodeIndex].KeyRSC >> (ii * 8);
-	}
 
 	return ret;
 }
@@ -767,9 +766,8 @@ int vt6655_hostap_ioctl(PSDevice pDevice, struct iw_point *p)
 	}
 
 	if ((ret == 0) && ap_ioctl) {
-		if (copy_to_user(p->pointer, param, p->length)) {
+		if (copy_to_user(p->pointer, param, p->length))
 			ret = -EFAULT;
-		}
 	}
 
 out:

@@ -145,9 +145,9 @@ PSvDisablePowerSaving(
 
 	pDevice->bEnablePSMode = false;
 
-	if (pDevice->eOPMode == OP_MODE_INFRASTRUCTURE) {
+	if (pDevice->eOPMode == OP_MODE_INFRASTRUCTURE)
 		PSbSendNullPacket(pDevice);
-	}
+
 	pDevice->bPWBitOn = false;
 	return;
 }
@@ -276,17 +276,15 @@ PSbSendNullPacket(
 	PSMgmtObject        pMgmt = pDevice->pMgmt;
 	unsigned int uIdx;
 
-	if (!pDevice->bLinkPass) {
+	if (!pDevice->bLinkPass)
 		return false;
-	}
+
 #ifdef TxInSleep
-	if (!pDevice->bEnablePSMode && !pDevice->fTxDataInSleep) {
+	if (!pDevice->bEnablePSMode && !pDevice->fTxDataInSleep)
 		return false;
-	}
 #else
-	if (!pDevice->bEnablePSMode) {
+	if (!pDevice->bEnablePSMode)
 		return false;
-	}
 #endif
 	if (pDevice->bEnablePSMode) {
 		for (uIdx = 0; uIdx < TYPE_MAXTD; uIdx++) {
@@ -315,9 +313,8 @@ PSbSendNullPacket(
 ));
 	}
 
-	if (pMgmt->eCurrMode != WMAC_MODE_IBSS_STA) {
+	if (pMgmt->eCurrMode != WMAC_MODE_IBSS_STA)
 		pTxPacket->p80211Header->sA3.wFrameCtl |= cpu_to_le16((unsigned short)WLAN_SET_FC_TODS(1));
-	}
 
 	memcpy(pTxPacket->p80211Header->sA3.abyAddr1, pMgmt->abyCurrBSSID, WLAN_ADDR_LEN);
 	memcpy(pTxPacket->p80211Header->sA3.abyAddr2, pMgmt->abyMACAddr, WLAN_ADDR_LEN);
@@ -353,9 +350,8 @@ PSbIsNextTBTTWakeUp(
 	bool bWakeUp = false;
 
 	if (pMgmt->wListenInterval >= 2) {
-		if (pMgmt->wCountToWakeUp == 0) {
+		if (pMgmt->wCountToWakeUp == 0)
 			pMgmt->wCountToWakeUp = pMgmt->wListenInterval;
-		}
 
 		pMgmt->wCountToWakeUp--;
 

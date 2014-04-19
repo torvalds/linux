@@ -212,9 +212,9 @@ int wpa_set_keys(PSDevice pDevice, void *ctx,
 		pDevice->byKeyIndex = 0;
 		pDevice->bTransmitKey = false;
 		KeyvRemoveAllWEPKey(&(pDevice->sKey), pDevice->PortOffset);
-		for (uu = 0; uu < MAX_KEY_TABLE; uu++) {
+		for (uu = 0; uu < MAX_KEY_TABLE; uu++)
 			MACvDisableKeyEntry(pDevice->PortOffset, uu);
-		}
+
 		return ret;
 	}
 
@@ -283,13 +283,11 @@ int wpa_set_keys(PSDevice pDevice, void *ctx,
 		return -EINVAL;
 	}
 
-	if (param->u.wpa_key.alg_name == WPA_ALG_TKIP) {
+	if (param->u.wpa_key.alg_name == WPA_ALG_TKIP)
 		pDevice->eEncryptionStatus = Ndis802_11Encryption2Enabled;
-	}
 
-	if (param->u.wpa_key.alg_name == WPA_ALG_CCMP) {
+	if (param->u.wpa_key.alg_name == WPA_ALG_CCMP)
 		pDevice->eEncryptionStatus = Ndis802_11Encryption3Enabled;
-	}
 
 	if (param->u.wpa_key.set_tx)
 		dwKeyIndex |= (1 << 31);
@@ -639,9 +637,9 @@ static int wpa_get_scan(PSDevice pDevice,
 	if (jj < count)
 		count = jj;
 
-	if (copy_to_user(param->u.scan_results.buf, pBuf, sizeof(struct viawget_scan_result) * count)) {
+	if (copy_to_user(param->u.scan_results.buf, pBuf, sizeof(struct viawget_scan_result) * count))
 		ret = -EFAULT;
-	}
+
 	param->u.scan_results.scan_count = count;
 	DBG_PRT(MSG_LEVEL_DEBUG, KERN_INFO " param->u.scan_results.scan_count = %d\n", count);
 
@@ -703,9 +701,8 @@ static int wpa_set_associate(PSDevice pDevice,
 	// set bssid
 	if (memcmp(param->u.wpa_associate.bssid, &abyNullAddr[0], 6) != 0)
 		memcpy(pMgmt->abyDesireBSSID, param->u.wpa_associate.bssid, 6);
-	else {
+	else
 		bScheduleCommand((void *)pDevice, WLAN_CMD_BSSID_SCAN, pItemSSID->abySSID);
-	}
 
 	if (param->u.wpa_associate.wpa_ie_len == 0) {
 		if (param->u.wpa_associate.auth_alg & AUTH_ALG_SHARED_KEY)

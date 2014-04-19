@@ -181,11 +181,11 @@ s_vProcessRxMACHeader(PSDevice pDevice, unsigned char *pbyRxBufferAddr,
 			cbHeaderSize -= 8;
 			pwType = (unsigned short *)(pbyRxBufferAddr + cbHeaderSize);
 			if (bIsWEP) {
-				if (bExtIV) {
+				if (bExtIV)
 					*pwType = htons(cbPacketSize - WLAN_HDR_ADDR3_LEN - 8);    // 8 is IV&ExtIV
-				} else {
+				else
 					*pwType = htons(cbPacketSize - WLAN_HDR_ADDR3_LEN - 4);    // 4 is IV
-				}
+
 			} else {
 				*pwType = htons(cbPacketSize - WLAN_HDR_ADDR3_LEN);
 			}
@@ -194,11 +194,11 @@ s_vProcessRxMACHeader(PSDevice pDevice, unsigned char *pbyRxBufferAddr,
 		cbHeaderSize -= 2;
 		pwType = (unsigned short *)(pbyRxBufferAddr + cbHeaderSize);
 		if (bIsWEP) {
-			if (bExtIV) {
+			if (bExtIV)
 				*pwType = htons(cbPacketSize - WLAN_HDR_ADDR3_LEN - 8);    // 8 is IV&ExtIV
-			} else {
+			else
 				*pwType = htons(cbPacketSize - WLAN_HDR_ADDR3_LEN - 4);    // 4 is IV
-			}
+
 		} else {
 			*pwType = htons(cbPacketSize - WLAN_HDR_ADDR3_LEN);
 		}
@@ -222,6 +222,7 @@ static unsigned char s_byGetRateIdx(unsigned char byRate)
 		if (acbyRxRate[byRateIdx % MAX_RATE] == byRate)
 			return byRateIdx;
 	}
+
 	return 0;
 }
 
@@ -372,9 +373,9 @@ device_receive_frame(
 	pMACHeader = (PS802_11Header)((unsigned char *)(skb->data) + 8);
 //PLICE_DEBUG<-
 	if (pDevice->bMeasureInProgress) {
-		if ((*pbyRsr & RSR_CRCOK) != 0) {
+		if ((*pbyRsr & RSR_CRCOK) != 0)
 			pDevice->byBasicMap |= 0x01;
-		}
+
 		dwDuration = (FrameSize << 4);
 		dwDuration /= acbyRxRate[*pbyRxRate%MAX_RATE];
 		if (*pbyRxRate <= RATE_11M) {
@@ -391,9 +392,9 @@ device_receive_frame(
 		RFvRSSITodBm(pDevice, *pbyRSSI, &ldBm);
 		ldBmThreshold = -57;
 		for (ii = 7; ii > 0;) {
-			if (ldBm > ldBmThreshold) {
+			if (ldBm > ldBmThreshold)
 				break;
-			}
+
 			ldBmThreshold -= 5;
 			ii--;
 		}
@@ -428,9 +429,8 @@ device_receive_frame(
 	}
 
 	if (pMgmt->eCurrMode == WMAC_MODE_ESS_AP) {
-		if (s_bAPModeRxCtl(pDevice, pbyFrame, iSANodeIndex)) {
+		if (s_bAPModeRxCtl(pDevice, pbyFrame, iSANodeIndex))
 			return false;
-		}
 	}
 
 	if (IS_FC_WEP(pbyFrame)) {
@@ -480,11 +480,10 @@ device_receive_frame(
 				    (pDevice->pMgmt->eAuthenMode == WMAC_AUTH_WPANONE) ||
 				    (pDevice->pMgmt->eAuthenMode == WMAC_AUTH_WPA2) ||
 				    (pDevice->pMgmt->eAuthenMode == WMAC_AUTH_WPA2PSK)) {
-					if ((pKey != NULL) && (pKey->byCipherSuite == KEY_CTL_TKIP)) {
+					if ((pKey != NULL) && (pKey->byCipherSuite == KEY_CTL_TKIP))
 						pDevice->s802_11Counter.TKIPICVErrors++;
-					} else if ((pKey != NULL) && (pKey->byCipherSuite == KEY_CTL_CCMP)) {
+					else if ((pKey != NULL) && (pKey->byCipherSuite == KEY_CTL_CCMP))
 						pDevice->s802_11Counter.CCMPDecryptErrors++;
-					}
 				}
 				return false;
 			}
@@ -639,9 +638,9 @@ device_receive_frame(
 		BBvAntennaDiversity(pDevice, s_byGetRateIdx(*pbyRxRate), 0);
 	}
 
-	if (pDevice->byLocalID != REV_ID_VT3253_B1) {
+	if (pDevice->byLocalID != REV_ID_VT3253_B1)
 		pDevice->uCurrRSSI = *pbyRSSI;
-	}
+
 	pDevice->byCurrSQ = *pbySQ;
 
 	if ((*pbyRSSI != 0) &&
@@ -651,11 +650,10 @@ device_receive_frame(
 		pMgmt->pCurrBSS->byRSSIStatCnt++;
 		pMgmt->pCurrBSS->byRSSIStatCnt %= RSSI_STAT_COUNT;
 		pMgmt->pCurrBSS->ldBmAverage[pMgmt->pCurrBSS->byRSSIStatCnt] = ldBm;
-		for (ii = 0; ii < RSSI_STAT_COUNT; ii++) {
-			if (pMgmt->pCurrBSS->ldBmAverage[ii] != 0) {
+		for (ii = 0; ii < RSSI_STAT_COUNT; ii++)
+			if (pMgmt->pCurrBSS->ldBmAverage[ii] != 0)
 				pMgmt->pCurrBSS->ldBmMAX = max(pMgmt->pCurrBSS->ldBmAverage[ii], ldBm);
-			}
-		}
+
 	}
 
 	// -----------------------------------------------
@@ -698,9 +696,8 @@ device_receive_frame(
 	}
 
 	if ((pKey != NULL) && (pKey->byCipherSuite == KEY_CTL_TKIP)) {
-		if (bIsWEP) {
+		if (bIsWEP)
 			FrameSize -= 8;  //MIC
-		}
 	}
 
 	//--------------------------------------------------------------------------------
@@ -1093,9 +1090,9 @@ static bool s_bHandleRxEncryption(
 			rc4_init(&pDevice->SBox, pDevice->abyPRNG, pKey->uKeyLength + 3);
 			rc4_encrypt(&pDevice->SBox, pbyIV+4, pbyIV+4, PayloadLen);
 
-			if (ETHbIsBufferCrc32Ok(pbyIV+4, PayloadLen)) {
+			if (ETHbIsBufferCrc32Ok(pbyIV+4, PayloadLen))
 				*pbyNewRsr |= NEWRSR_DECRYPTOK;
-			}
+
 		}
 	} else if ((byDecMode == KEY_CTL_TKIP) ||
 		   (byDecMode == KEY_CTL_CCMP)) {
@@ -1104,11 +1101,11 @@ static bool s_bHandleRxEncryption(
 		PayloadLen -= (WLAN_HDR_ADDR3_LEN + 8 + 4); // 24 is 802.11 header, 8 is IV&ExtIV, 4 is crc
 		*pdwRxTSC47_16 = cpu_to_le32(*(unsigned long *)(pbyIV + 4));
 		DBG_PRT(MSG_LEVEL_DEBUG, KERN_INFO "ExtIV: %lx\n", *pdwRxTSC47_16);
-		if (byDecMode == KEY_CTL_TKIP) {
+		if (byDecMode == KEY_CTL_TKIP)
 			*pwRxTSC15_0 = cpu_to_le16(MAKEWORD(*(pbyIV + 2), *pbyIV));
-		} else {
+		else
 			*pwRxTSC15_0 = cpu_to_le16(*(unsigned short *)pbyIV);
-		}
+
 		DBG_PRT(MSG_LEVEL_DEBUG, KERN_INFO "TSC0_15: %x\n", *pwRxTSC15_0);
 
 		if ((byDecMode == KEY_CTL_TKIP) &&
@@ -1193,9 +1190,9 @@ static bool s_bHostWepRxEncryption(
 			rc4_init(&pDevice->SBox, pDevice->abyPRNG, pKey->uKeyLength + 3);
 			rc4_encrypt(&pDevice->SBox, pbyIV+4, pbyIV+4, PayloadLen);
 
-			if (ETHbIsBufferCrc32Ok(pbyIV+4, PayloadLen)) {
+			if (ETHbIsBufferCrc32Ok(pbyIV+4, PayloadLen))
 				*pbyNewRsr |= NEWRSR_DECRYPTOK;
-			}
+
 		}
 	} else if ((byDecMode == KEY_CTL_TKIP) ||
 		   (byDecMode == KEY_CTL_CCMP)) {
@@ -1205,11 +1202,11 @@ static bool s_bHostWepRxEncryption(
 		*pdwRxTSC47_16 = cpu_to_le32(*(unsigned long *)(pbyIV + 4));
 		DBG_PRT(MSG_LEVEL_DEBUG, KERN_INFO "ExtIV: %lx\n", *pdwRxTSC47_16);
 
-		if (byDecMode == KEY_CTL_TKIP) {
+		if (byDecMode == KEY_CTL_TKIP)
 			*pwRxTSC15_0 = cpu_to_le16(MAKEWORD(*(pbyIV+2), *pbyIV));
-		} else {
+		else
 			*pwRxTSC15_0 = cpu_to_le16(*(unsigned short *)pbyIV);
-		}
+
 		DBG_PRT(MSG_LEVEL_DEBUG, KERN_INFO "TSC0_15: %x\n", *pwRxTSC15_0);
 
 		if (byDecMode == KEY_CTL_TKIP) {
@@ -1322,9 +1319,8 @@ static bool s_bAPModeRxData(
 		if (bRelayAndForward)
 			iDANodeIndex = 0;
 
-		if ((pDevice->uAssocCount > 1) && (iDANodeIndex >= 0)) {
+		if ((pDevice->uAssocCount > 1) && (iDANodeIndex >= 0))
 			ROUTEbRelay(pDevice, (unsigned char *)(skb->data + cbHeaderOffset), FrameSize, (unsigned int)iDANodeIndex);
-		}
 
 		if (bRelayOnly)
 			return false;

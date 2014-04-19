@@ -253,9 +253,8 @@ RATEvParseMaxRate(
 		}
 	}
 
-	if ((pDevice->byPacketType == PK_TYPE_11GB) && CARDbIsOFDMinBasicRate((void *)pDevice)) {
+	if ((pDevice->byPacketType == PK_TYPE_11GB) && CARDbIsOFDMinBasicRate((void *)pDevice))
 		pDevice->byPacketType = PK_TYPE_11GA;
-	}
 
 	*pbyTopCCKRate = pDevice->byTopCCKBasicRate;
 	*pbyTopOFDMRate = pDevice->byTopOFDMBasicRate;
@@ -319,15 +318,14 @@ RATEvTxRateFallBack(
 		return;
 	}
 
-	if (psNodeDBTable->uTimeCount >= AUTORATE_TIMEOUT) {
+	if (psNodeDBTable->uTimeCount >= AUTORATE_TIMEOUT)
 		psNodeDBTable->uTimeCount = 0;
-	}
 
 	for (ii = 0; ii < MAX_RATE; ii++) {
 		if (psNodeDBTable->wSuppRate & (0x0001<<ii)) {
-			if (bAutoRate[ii]) {
+			if (bAutoRate[ii])
 				wIdxUpRate = (unsigned short) ii;
-			}
+
 		} else {
 			bAutoRate[ii] = false;
 		}
@@ -337,9 +335,9 @@ RATEvTxRateFallBack(
 		if ((psNodeDBTable->uTxOk[ii] != 0) ||
 		    (psNodeDBTable->uTxFail[ii] != 0)) {
 			dwThroughputTbl[ii] *= psNodeDBTable->uTxOk[ii];
-			if (ii < RATE_11M) {
+			if (ii < RATE_11M)
 				psNodeDBTable->uTxFail[ii] *= 4;
-			}
+
 			dwThroughputTbl[ii] /= (psNodeDBTable->uTxOk[ii] + psNodeDBTable->uTxFail[ii]);
 		}
 	}

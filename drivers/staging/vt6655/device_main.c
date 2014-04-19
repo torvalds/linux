@@ -593,9 +593,9 @@ static void device_init_registers(PSDevice pDevice, DEVICE_INIT_TYPE InitType)
 		pDevice->byRFType &= RF_MASK;
 		DBG_PRT(MSG_LEVEL_DEBUG, KERN_INFO "pDevice->byRFType = %x\n", pDevice->byRFType);
 
-		if (!pDevice->bZoneRegExist) {
+		if (!pDevice->bZoneRegExist)
 			pDevice->byZoneType = pDevice->abyEEPROM[EEP_OFS_ZONETYPE];
-		}
+
 		DBG_PRT(MSG_LEVEL_DEBUG, KERN_INFO "pDevice->byZoneType = %x\n", pDevice->byZoneType);
 
 		//Init RF module
@@ -610,13 +610,13 @@ static void device_init_registers(PSDevice pDevice, DEVICE_INIT_TYPE InitType)
 
 		for (ii = 0; ii < CB_MAX_CHANNEL_24G; ii++) {
 			pDevice->abyCCKPwrTbl[ii + 1] = SROMbyReadEmbedded(pDevice->PortOffset, (unsigned char)(ii + EEP_OFS_CCK_PWR_TBL));
-			if (pDevice->abyCCKPwrTbl[ii + 1] == 0) {
+			if (pDevice->abyCCKPwrTbl[ii + 1] == 0)
 				pDevice->abyCCKPwrTbl[ii+1] = pDevice->byCCKPwr;
-			}
+
 			pDevice->abyOFDMPwrTbl[ii + 1] = SROMbyReadEmbedded(pDevice->PortOffset, (unsigned char)(ii + EEP_OFS_OFDM_PWR_TBL));
-			if (pDevice->abyOFDMPwrTbl[ii + 1] == 0) {
+			if (pDevice->abyOFDMPwrTbl[ii + 1] == 0)
 				pDevice->abyOFDMPwrTbl[ii + 1] = pDevice->byOFDMPwrG;
-			}
+
 			pDevice->abyCCKDefaultPwr[ii + 1] = byCCKPwrdBm;
 			pDevice->abyOFDMDefaultPwr[ii + 1] = byOFDMPwrdBm;
 		}
@@ -672,11 +672,10 @@ static void device_init_registers(PSDevice pDevice, DEVICE_INIT_TYPE InitType)
 
 		// Set BB and packet type at the same time.
 		// Set Short Slot Time, xIFS, and RSPINF.
-		if (pDevice->uConnectionRate == RATE_AUTO) {
+		if (pDevice->uConnectionRate == RATE_AUTO)
 			pDevice->wCurrentRate = RATE_54M;
-		} else {
+		else
 			pDevice->wCurrentRate = (unsigned short)pDevice->uConnectionRate;
-		}
 
 		// default G Mode
 		VNTWIFIbConfigPhyMode(pDevice->pMgmt, PHY_TYPE_11G);
@@ -692,22 +691,25 @@ static void device_init_registers(PSDevice pDevice, DEVICE_INIT_TYPE InitType)
 			MACvGPIOIn(pDevice->PortOffset, &pDevice->byGPIO);
 //2008-4-14 <add> by chester for led issue
 #ifdef FOR_LED_ON_NOTEBOOK
-			if (pDevice->byGPIO & GPIO0_DATA) { pDevice->bHWRadioOff = true; }
-			if (!(pDevice->byGPIO & GPIO0_DATA)) { pDevice->bHWRadioOff = false; }
+			if (pDevice->byGPIO & GPIO0_DATA)
+				pDevice->bHWRadioOff = true;
 
+			if (!(pDevice->byGPIO & GPIO0_DATA))
+				pDevice->bHWRadioOff = false;
 		}
-		if (pDevice->bRadioControlOff) {
+
+		if (pDevice->bRadioControlOff)
 			CARDbRadioPowerOff(pDevice);
-		} else  CARDbRadioPowerOn(pDevice);
+		else
+			CARDbRadioPowerOn(pDevice);
 #else
 		if (((pDevice->byGPIO & GPIO0_DATA) && !(pDevice->byRadioCtl & EEP_RADIOCTL_INV)) ||
 		    (!(pDevice->byGPIO & GPIO0_DATA) && (pDevice->byRadioCtl & EEP_RADIOCTL_INV))) {
 			pDevice->bHWRadioOff = true;
 		}
 	}
-	if (pDevice->bHWRadioOff || pDevice->bRadioControlOff) {
+	if (pDevice->bHWRadioOff || pDevice->bRadioControlOff)
 		CARDbRadioPowerOff(pDevice);
-	}
 
 #endif
 }
@@ -722,9 +724,8 @@ CARDvSafeResetRx(pDevice);
 // reset Rx pointer
 CARDvSafeResetTx(pDevice);
 
-if (pDevice->byLocalID <= REV_ID_VT3253_A1) {
+if (pDevice->byLocalID <= REV_ID_VT3253_A1)
 	MACvRegBitsOn(pDevice->PortOffset, MAC_REG_RCR, RCR_WPAERR);
-}
 
 pDevice->eEncryptionStatus = Ndis802_11EncryptionDisabled;
 
@@ -1494,9 +1495,9 @@ static int device_tx_srv(PSDevice pDevice, unsigned int uIdx) {
 						DBG_PRT(MSG_LEVEL_DEBUG, KERN_INFO " Tx[%d] OK but has error. tsr1[%02X] tsr0[%02X].\n",
 							(int)uIdx, byTsr1, byTsr0);
 					}
-					if ((pTxBufHead->wFragCtl & FRAGCTL_ENDFRAG) != FRAGCTL_NONFRAG) {
+					if ((pTxBufHead->wFragCtl & FRAGCTL_ENDFRAG) != FRAGCTL_NONFRAG)
 						pDevice->s802_11Counter.TransmittedFragmentCount++;
-					}
+
 					pStats->tx_packets++;
 					pStats->tx_bytes += pTD->pTDInfo->skb->len;
 				} else {
@@ -1560,9 +1561,9 @@ static int device_tx_srv(PSDevice pDevice, unsigned int uIdx) {
 			bFull = true;
 			DBG_PRT(MSG_LEVEL_DEBUG, KERN_INFO " AC0DMA is Full = %d\n", pDevice->iTDUsed[uIdx]);
 		}
-		if (netif_queue_stopped(pDevice->dev) && !bFull) {
+		if (netif_queue_stopped(pDevice->dev) && !bFull)
 			netif_wake_queue(pDevice->dev);
-		}
+
 	}
 
 	pDevice->apTailTD[uIdx] = pTD;
@@ -1643,9 +1644,9 @@ static int  device_open(struct net_device *dev) {
 #endif
 
 	pDevice->rx_buf_sz = PKT_BUF_SZ;
-	if (!device_init_rings(pDevice)) {
+	if (!device_init_rings(pDevice))
 		return -ENOMEM;
-	}
+
 //2008-5-13 <add> by chester
 	i = request_irq(pDevice->pcid->irq, &device_intr, IRQF_SHARED, dev->name, dev);
 	if (i)
@@ -1666,9 +1667,9 @@ static int  device_open(struct net_device *dev) {
 	device_init_td0_ring(pDevice);
 	device_init_td1_ring(pDevice);
 
-	if (pDevice->bDiversityRegCtlON) {
+	if (pDevice->bDiversityRegCtlON)
 		device_init_diversity_timer(pDevice);
-	}
+
 	vMgrObjectInit(pDevice);
 	vMgrTimerInit(pDevice);
 
@@ -1855,9 +1856,9 @@ bool device_dma0_xmit(PSDevice pDevice, struct sk_buff *skb, unsigned int uNodeI
 	cbFrameBodySize = skb->len - ETH_HLEN;
 
 	// 802.1H
-	if (ntohs(pDevice->sTxEthHeader.wType) > ETH_DATA_LEN) {
+	if (ntohs(pDevice->sTxEthHeader.wType) > ETH_DATA_LEN)
 		cbFrameBodySize += 8;
-	}
+
 	uMACfragNum = cbGetFragCount(pDevice, pTransmitKey, cbFrameBodySize, &pDevice->sTxEthHeader);
 
 	if (uMACfragNum > AVAIL_TD(pDevice, TYPE_TXDMA0)) {
@@ -1868,11 +1869,10 @@ bool device_dma0_xmit(PSDevice pDevice, struct sk_buff *skb, unsigned int uNodeI
 
 	if (pDevice->bFixRate) {
 		if (pDevice->eCurrentPHYType == PHY_TYPE_11B) {
-			if (pDevice->uConnectionRate >= RATE_11M) {
+			if (pDevice->uConnectionRate >= RATE_11M)
 				pDevice->wCurrentRate = RATE_11M;
-			} else {
+			else
 				pDevice->wCurrentRate = (unsigned short)pDevice->uConnectionRate;
-			}
 		} else {
 			if (pDevice->uConnectionRate >= RATE_54M)
 				pDevice->wCurrentRate = RATE_54M;
@@ -1884,11 +1884,10 @@ bool device_dma0_xmit(PSDevice pDevice, struct sk_buff *skb, unsigned int uNodeI
 	}
 
 	//preamble type
-	if (pMgmt->sNodeDBTable[uNodeIndex].bShortPreamble) {
+	if (pMgmt->sNodeDBTable[uNodeIndex].bShortPreamble)
 		pDevice->byPreambleType = pDevice->byShortPreamble;
-	} else {
+	else
 		pDevice->byPreambleType = PREAMBLE_LONG;
-	}
 
 	DBG_PRT(MSG_LEVEL_DEBUG, KERN_INFO "dma0: pDevice->wCurrentRate = %d \n", pDevice->wCurrentRate);
 
@@ -1897,11 +1896,10 @@ bool device_dma0_xmit(PSDevice pDevice, struct sk_buff *skb, unsigned int uNodeI
 	} else if (pDevice->eCurrentPHYType == PHY_TYPE_11A) {
 		byPktType = PK_TYPE_11A;
 	} else {
-		if (pDevice->bProtectMode) {
+		if (pDevice->bProtectMode)
 			byPktType = PK_TYPE_11GB;
-		} else {
+		else
 			byPktType = PK_TYPE_11GA;
-		}
 	}
 
 	if (pDevice->bEncryptionEnable)
@@ -2023,12 +2021,11 @@ static int  device_xmit(struct sk_buff *skb, struct net_device *dev) {
 					return 0;
 				}
 
-				if (pMgmt->sNodeDBTable[uNodeIndex].bShortPreamble) {
+				if (pMgmt->sNodeDBTable[uNodeIndex].bShortPreamble)
 					pDevice->byPreambleType = pDevice->byShortPreamble;
-
-				} else {
+				else
 					pDevice->byPreambleType = PREAMBLE_LONG;
-				}
+
 				bNodeExist = true;
 
 			}
@@ -2049,9 +2046,8 @@ static int  device_xmit(struct sk_buff *skb, struct net_device *dev) {
 	memcpy(pDevice->sTxEthHeader.abyDstAddr, (unsigned char *)(skb->data), ETH_HLEN);
 	cbFrameBodySize = skb->len - ETH_HLEN;
 	// 802.1H
-	if (ntohs(pDevice->sTxEthHeader.wType) > ETH_DATA_LEN) {
+	if (ntohs(pDevice->sTxEthHeader.wType) > ETH_DATA_LEN)
 		cbFrameBodySize += 8;
-	}
 
 	if (pDevice->bEncryptionEnable) {
 		bNeedEncryption = true;
@@ -2087,9 +2083,9 @@ static int  device_xmit(struct sk_buff *skb, struct net_device *dev) {
 			pbyBSSID = pDevice->abyBroadcastAddr;
 			if (KeybGetTransmitKey(&(pDevice->sKey), pbyBSSID, GROUP_KEY, &pTransmitKey) == false) {
 				pTransmitKey = NULL;
-				if (pDevice->pMgmt->eCurrMode == WMAC_MODE_IBSS_STA) {
+				if (pDevice->pMgmt->eCurrMode == WMAC_MODE_IBSS_STA)
 					DBG_PRT(MSG_LEVEL_DEBUG, KERN_DEBUG "IBSS and KEY is NULL. [%d]\n", pDevice->pMgmt->eCurrMode);
-				} else
+				else
 					DBG_PRT(MSG_LEVEL_DEBUG, KERN_DEBUG "NOT IBSS and KEY is NULL. [%d]\n", pDevice->pMgmt->eCurrMode);
 			} else {
 				bTKIP_UseGTK = true;
@@ -2138,11 +2134,10 @@ static int  device_xmit(struct sk_buff *skb, struct net_device *dev) {
 #endif
 
 		if (pDevice->eCurrentPHYType == PHY_TYPE_11B) {
-			if (pDevice->uConnectionRate >= RATE_11M) {
+			if (pDevice->uConnectionRate >= RATE_11M)
 				pDevice->wCurrentRate = RATE_11M;
-			} else {
+			else
 				pDevice->wCurrentRate = (unsigned short)pDevice->uConnectionRate;
-			}
 		} else {
 			if ((pDevice->eCurrentPHYType == PHY_TYPE_11A) &&
 			    (pDevice->uConnectionRate <= RATE_6M)) {
@@ -2189,11 +2184,10 @@ static int  device_xmit(struct sk_buff *skb, struct net_device *dev) {
 	} else if (pDevice->eCurrentPHYType == PHY_TYPE_11A) {
 		byPktType = PK_TYPE_11A;
 	} else {
-		if (pDevice->bProtectMode) {
+		if (pDevice->bProtectMode)
 			byPktType = PK_TYPE_11GB;
-		} else {
+		else
 			byPktType = PK_TYPE_11GA;
-		}
 	}
 
 	if (bNeedEncryption) {
@@ -2268,15 +2262,13 @@ static int  device_xmit(struct sk_buff *skb, struct net_device *dev) {
 #ifdef TxInSleep
 	pDevice->nTxDataTimeCout = 0; //2008-8-21 chester <add> for send null packet
 #endif
-	if (AVAIL_TD(pDevice, TYPE_AC0DMA) <= 1) {
+	if (AVAIL_TD(pDevice, TYPE_AC0DMA) <= 1)
 		netif_stop_queue(dev);
-	}
 
 	pDevice->apCurrTD[TYPE_AC0DMA] = pHeadTD;
 
-	if (pDevice->bFixRate) {
+	if (pDevice->bFixRate)
 		printk("FixRate:Rate is %d,TxPower is %d\n", pDevice->wCurrentRate, pDevice->byCurPwr);
-	}
 
 	{
 		unsigned char Protocol_Version;    //802.1x Authentication
@@ -2343,9 +2335,9 @@ static  irqreturn_t  device_intr(int irq,  void *dev_instance) {
 
 	//Make sure current page is 0
 	VNSvInPortB(pDevice->PortOffset + MAC_REG_PAGE1SEL, &byOrgPageSel);
-	if (byOrgPageSel == 1) {
+	if (byOrgPageSel == 1)
 		MACvSelectPage0(pDevice->PortOffset);
-	} else
+	else
 		byOrgPageSel = 0;
 
 	MACvReadMIBCounter(pDevice->PortOffset, &dwMIBCounter);
@@ -2383,9 +2375,9 @@ static  irqreturn_t  device_intr(int irq,  void *dev_instance) {
 					MACvSelectPage0(pDevice->PortOffset);
 					pDevice->byBasicMap = 0;
 					pDevice->byCCAFraction = 0;
-					for (ii = 0; ii < 8; ii++) {
+					for (ii = 0; ii < 8; ii++)
 						pDevice->dwRPIs[ii] = 0;
-					}
+
 				} else {
 					// can not measure because set channel fail
 					// clear measure control
@@ -2484,9 +2476,8 @@ static  irqreturn_t  device_intr(int irq,  void *dev_instance) {
 			}
 
 			pDevice->bBeaconSent = false;
-			if (pDevice->bEnablePSMode) {
+			if (pDevice->bEnablePSMode)
 				PSbIsNextTBTTWakeUp((void *)pDevice);
-			}
 
 			if ((pDevice->eOPMode == OP_MODE_AP) ||
 			    (pDevice->eOPMode == OP_MODE_ADHOC)) {
@@ -2534,18 +2525,18 @@ static  irqreturn_t  device_intr(int irq,  void *dev_instance) {
 
 		}
 
-		if (pDevice->dwIsr & ISR_RXDMA0) {
+		if (pDevice->dwIsr & ISR_RXDMA0)
 			max_count += device_rx_srv(pDevice, TYPE_RXDMA0);
-		}
-		if (pDevice->dwIsr & ISR_RXDMA1) {
+
+		if (pDevice->dwIsr & ISR_RXDMA1)
 			max_count += device_rx_srv(pDevice, TYPE_RXDMA1);
-		}
-		if (pDevice->dwIsr & ISR_TXDMA0) {
+
+		if (pDevice->dwIsr & ISR_TXDMA0)
 			max_count += device_tx_srv(pDevice, TYPE_TXDMA0);
-		}
-		if (pDevice->dwIsr & ISR_AC0DMA) {
+
+		if (pDevice->dwIsr & ISR_AC0DMA)
 			max_count += device_tx_srv(pDevice, TYPE_AC0DMA);
-		}
+
 		if (pDevice->dwIsr & ISR_SOFTTIMER1) {
 			if (pDevice->eOPMode == OP_MODE_AP) {
 				if (pDevice->bShortSlotTime)
@@ -2566,9 +2557,8 @@ static  irqreturn_t  device_intr(int irq,  void *dev_instance) {
 			break;
 	}
 
-	if (byOrgPageSel == 1) {
+	if (byOrgPageSel == 1)
 		MACvSelectPage1(pDevice->PortOffset);
-	}
 
 	spin_unlock_irq(&pDevice->lock);
 	MACvIntEnable(pDevice->PortOffset, IMR_MASK_VALUE);
@@ -3059,9 +3049,9 @@ static int  device_ioctl(struct net_device *dev, struct ifreq *rq, int cmd) {
 				rc = 0;
 			}
 
-		if (test_and_set_bit(0, (void *)&(pMgmt->uCmdBusy))) {
+		if (test_and_set_bit(0, (void *)&(pMgmt->uCmdBusy)))
 			return -EBUSY;
-		}
+
 		rc = private_ioctl(pDevice, rq);
 		clear_bit(0, (void *)&(pMgmt->uCmdBusy));
 		break;

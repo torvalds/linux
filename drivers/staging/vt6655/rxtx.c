@@ -229,14 +229,14 @@ s_vFillTxKey(
 		*pdwIV |= (unsigned long)byKeyIndex << 30;
 		*pdwIV = cpu_to_le32(*pdwIV);
 		pDevice->dwIVCounter++;
-		if (pDevice->dwIVCounter > WEP_IV_MASK) {
+		if (pDevice->dwIVCounter > WEP_IV_MASK)
 			pDevice->dwIVCounter = 0;
-		}
+
 	} else if (pTransmitKey->byCipherSuite == KEY_CTL_TKIP) {
 		pTransmitKey->wTSC15_0++;
-		if (pTransmitKey->wTSC15_0 == 0) {
+		if (pTransmitKey->wTSC15_0 == 0)
 			pTransmitKey->dwTSC47_16++;
-		}
+
 		TKIPvMixKey(pTransmitKey->abyKey, pDevice->abyCurrentNetAddr,
 			    pTransmitKey->wTSC15_0, pTransmitKey->dwTSC47_16, pDevice->abyPRNG);
 		memcpy(pbyBuf, pDevice->abyPRNG, 16);
@@ -250,9 +250,9 @@ s_vFillTxKey(
 
 	} else if (pTransmitKey->byCipherSuite == KEY_CTL_CCMP) {
 		pTransmitKey->wTSC15_0++;
-		if (pTransmitKey->wTSC15_0 == 0) {
+		if (pTransmitKey->wTSC15_0 == 0)
 			pTransmitKey->dwTSC47_16++;
-		}
+
 		memcpy(pbyBuf, pTransmitKey->abyKey, 16);
 
 		// Make IV
@@ -277,11 +277,11 @@ s_vFillTxKey(
 
 		//Fill MICHDR1
 		*((unsigned char *)(pMICHDR+16)) = 0; // HLEN[15:8]
-		if (pDevice->bLongHeader) {
+		if (pDevice->bLongHeader)
 			*((unsigned char *)(pMICHDR+17)) = 28; // HLEN[7:0]
-		} else {
+		else
 			*((unsigned char *)(pMICHDR+17)) = 22; // HLEN[7:0]
-		}
+
 		wValue = cpu_to_le16(pMACHeader->wFrameCtl & 0xC78F);
 		memcpy(pMICHDR+18, (unsigned char *)&wValue, 2); // MSKFRACTL
 		memcpy(pMICHDR+20, &(pMACHeader->abyAddr1[0]), 6);
@@ -293,9 +293,9 @@ s_vFillTxKey(
 		wValue &= 0x000F;
 		wValue = cpu_to_le16(wValue);
 		memcpy(pMICHDR+38, (unsigned char *)&wValue, 2); // MSKSEQCTL
-		if (pDevice->bLongHeader) {
+		if (pDevice->bLongHeader)
 			memcpy(pMICHDR+40, &(pMACHeader->abyAddr4[0]), 6);
-		}
+
 	}
 }
 
@@ -358,17 +358,15 @@ s_uGetTxRsvTime(
 	unsigned int uDataTime, uAckTime;
 
 	uDataTime = BBuGetFrameTime(pDevice->byPreambleType, byPktType, cbFrameLength, wRate);
-	if (byPktType == PK_TYPE_11B) {//llb,CCK mode
+	if (byPktType == PK_TYPE_11B) //llb,CCK mode
 		uAckTime = BBuGetFrameTime(pDevice->byPreambleType, byPktType, 14, (unsigned short)pDevice->byTopCCKBasicRate);
-	} else {//11g 2.4G OFDM mode & 11a 5G OFDM mode
+	else //11g 2.4G OFDM mode & 11a 5G OFDM mode
 		uAckTime = BBuGetFrameTime(pDevice->byPreambleType, byPktType, 14, (unsigned short)pDevice->byTopOFDMBasicRate);
-	}
 
-	if (bNeedAck) {
+	if (bNeedAck)
 		return uDataTime + pDevice->uSIFS + uAckTime;
-	} else {
+	else
 		return uDataTime;
-	}
 }
 
 //byFreqType: 0=>5GHZ 1=>2.4GHZ
@@ -428,9 +426,8 @@ s_uGetDataDuration(
 	bool bLastFrag = 0;
 	unsigned int uAckTime = 0, uNextPktTime = 0;
 
-	if (uFragIdx == (uMACfragNum-1)) {
+	if (uFragIdx == (uMACfragNum-1))
 		bLastFrag = 1;
-	}
 
 	switch (byDurType) {
 	case DATADUR_B:    //DATADUR_B
@@ -442,11 +439,11 @@ s_uGetDataDuration(
 				return 0;
 			}
 		} else {//First Frag or Mid Frag
-			if (uFragIdx == (uMACfragNum-2)) {
+			if (uFragIdx == (uMACfragNum-2))
 				uNextPktTime = s_uGetTxRsvTime(pDevice, byPktType, cbLastFragmentSize, wRate, bNeedAck);
-			} else {
+			else
 				uNextPktTime = s_uGetTxRsvTime(pDevice, byPktType, cbFrameLength, wRate, bNeedAck);
-			}
+
 			if (bNeedAck) {
 				uAckTime = BBuGetFrameTime(pDevice->byPreambleType, byPktType, 14, pDevice->byTopCCKBasicRate);
 				return pDevice->uSIFS + uAckTime + uNextPktTime;
@@ -465,11 +462,11 @@ s_uGetDataDuration(
 				return 0;
 			}
 		} else {//First Frag or Mid Frag
-			if (uFragIdx == (uMACfragNum-2)) {
+			if (uFragIdx == (uMACfragNum-2))
 				uNextPktTime = s_uGetTxRsvTime(pDevice, byPktType, cbLastFragmentSize, wRate, bNeedAck);
-			} else {
+			else
 				uNextPktTime = s_uGetTxRsvTime(pDevice, byPktType, cbFrameLength, wRate, bNeedAck);
-			}
+
 			if (bNeedAck) {
 				uAckTime = BBuGetFrameTime(pDevice->byPreambleType, byPktType, 14, pDevice->byTopOFDMBasicRate);
 				return pDevice->uSIFS + uAckTime + uNextPktTime;
@@ -494,22 +491,22 @@ s_uGetDataDuration(
 				else if (wRate > RATE_54M)
 					wRate = RATE_54M;
 
-				if (uFragIdx == (uMACfragNum-2)) {
+				if (uFragIdx == (uMACfragNum-2))
 					uNextPktTime = s_uGetTxRsvTime(pDevice, byPktType, cbLastFragmentSize, wFB_Opt0[FB_RATE0][wRate-RATE_18M], bNeedAck);
-				} else {
+				else
 					uNextPktTime = s_uGetTxRsvTime(pDevice, byPktType, cbFrameLength, wFB_Opt0[FB_RATE0][wRate-RATE_18M], bNeedAck);
-				}
+
 			} else { // (byFBOption == AUTO_FB_1)
 				if (wRate < RATE_18M)
 					wRate = RATE_18M;
 				else if (wRate > RATE_54M)
 					wRate = RATE_54M;
 
-				if (uFragIdx == (uMACfragNum-2)) {
+				if (uFragIdx == (uMACfragNum-2))
 					uNextPktTime = s_uGetTxRsvTime(pDevice, byPktType, cbLastFragmentSize, wFB_Opt1[FB_RATE0][wRate-RATE_18M], bNeedAck);
-				} else {
+				else
 					uNextPktTime = s_uGetTxRsvTime(pDevice, byPktType, cbFrameLength, wFB_Opt1[FB_RATE0][wRate-RATE_18M], bNeedAck);
-				}
+
 			}
 
 			if (bNeedAck) {
@@ -536,11 +533,10 @@ s_uGetDataDuration(
 				else if (wRate > RATE_54M)
 					wRate = RATE_54M;
 
-				if (uFragIdx == (uMACfragNum-2)) {
+				if (uFragIdx == (uMACfragNum-2))
 					uNextPktTime = s_uGetTxRsvTime(pDevice, byPktType, cbLastFragmentSize, wFB_Opt0[FB_RATE1][wRate-RATE_18M], bNeedAck);
-				} else {
+				else
 					uNextPktTime = s_uGetTxRsvTime(pDevice, byPktType, cbFrameLength, wFB_Opt0[FB_RATE1][wRate-RATE_18M], bNeedAck);
-				}
 
 			} else { // (byFBOption == AUTO_FB_1)
 				if (wRate < RATE_18M)
@@ -548,11 +544,10 @@ s_uGetDataDuration(
 				else if (wRate > RATE_54M)
 					wRate = RATE_54M;
 
-				if (uFragIdx == (uMACfragNum-2)) {
+				if (uFragIdx == (uMACfragNum-2))
 					uNextPktTime = s_uGetTxRsvTime(pDevice, byPktType, cbLastFragmentSize, wFB_Opt1[FB_RATE1][wRate-RATE_18M], bNeedAck);
-				} else {
+				else
 					uNextPktTime = s_uGetTxRsvTime(pDevice, byPktType, cbFrameLength, wFB_Opt1[FB_RATE1][wRate-RATE_18M], bNeedAck);
-				}
 			}
 			if (bNeedAck) {
 				uAckTime = BBuGetFrameTime(pDevice->byPreambleType, byPktType, 14, pDevice->byTopOFDMBasicRate);
@@ -608,54 +603,54 @@ s_uGetRTSCTSDuration(
 
 	case RTSDUR_BA_F0: //RTSDuration_ba_f0
 		uCTSTime = BBuGetFrameTime(pDevice->byPreambleType, byPktType, 14, pDevice->byTopCCKBasicRate);
-		if ((byFBOption == AUTO_FB_0) && (wRate >= RATE_18M) && (wRate <= RATE_54M)) {
+		if ((byFBOption == AUTO_FB_0) && (wRate >= RATE_18M) && (wRate <= RATE_54M))
 			uDurTime = uCTSTime + 2 * pDevice->uSIFS + s_uGetTxRsvTime(pDevice, byPktType, cbFrameLength, wFB_Opt0[FB_RATE0][wRate-RATE_18M], bNeedAck);
-		} else if ((byFBOption == AUTO_FB_1) && (wRate >= RATE_18M) && (wRate <= RATE_54M)) {
+		else if ((byFBOption == AUTO_FB_1) && (wRate >= RATE_18M) && (wRate <= RATE_54M))
 			uDurTime = uCTSTime + 2 * pDevice->uSIFS + s_uGetTxRsvTime(pDevice, byPktType, cbFrameLength, wFB_Opt1[FB_RATE0][wRate-RATE_18M], bNeedAck);
-		}
+
 		break;
 
 	case RTSDUR_AA_F0: //RTSDuration_aa_f0
 		uCTSTime = BBuGetFrameTime(pDevice->byPreambleType, byPktType, 14, pDevice->byTopOFDMBasicRate);
-		if ((byFBOption == AUTO_FB_0) && (wRate >= RATE_18M) && (wRate <= RATE_54M)) {
+		if ((byFBOption == AUTO_FB_0) && (wRate >= RATE_18M) && (wRate <= RATE_54M))
 			uDurTime = uCTSTime + 2*pDevice->uSIFS + s_uGetTxRsvTime(pDevice, byPktType, cbFrameLength, wFB_Opt0[FB_RATE0][wRate-RATE_18M], bNeedAck);
-		} else if ((byFBOption == AUTO_FB_1) && (wRate >= RATE_18M) && (wRate <= RATE_54M)) {
+		else if ((byFBOption == AUTO_FB_1) && (wRate >= RATE_18M) && (wRate <= RATE_54M))
 			uDurTime = uCTSTime + 2*pDevice->uSIFS + s_uGetTxRsvTime(pDevice, byPktType, cbFrameLength, wFB_Opt1[FB_RATE0][wRate-RATE_18M], bNeedAck);
-		}
+
 		break;
 
 	case RTSDUR_BA_F1: //RTSDuration_ba_f1
 		uCTSTime = BBuGetFrameTime(pDevice->byPreambleType, byPktType, 14, pDevice->byTopCCKBasicRate);
-		if ((byFBOption == AUTO_FB_0) && (wRate >= RATE_18M) && (wRate <= RATE_54M)) {
+		if ((byFBOption == AUTO_FB_0) && (wRate >= RATE_18M) && (wRate <= RATE_54M))
 			uDurTime = uCTSTime + 2*pDevice->uSIFS + s_uGetTxRsvTime(pDevice, byPktType, cbFrameLength, wFB_Opt0[FB_RATE1][wRate-RATE_18M], bNeedAck);
-		} else if ((byFBOption == AUTO_FB_1) && (wRate >= RATE_18M) && (wRate <= RATE_54M)) {
+		else if ((byFBOption == AUTO_FB_1) && (wRate >= RATE_18M) && (wRate <= RATE_54M))
 			uDurTime = uCTSTime + 2*pDevice->uSIFS + s_uGetTxRsvTime(pDevice, byPktType, cbFrameLength, wFB_Opt1[FB_RATE1][wRate-RATE_18M], bNeedAck);
-		}
+
 		break;
 
 	case RTSDUR_AA_F1: //RTSDuration_aa_f1
 		uCTSTime = BBuGetFrameTime(pDevice->byPreambleType, byPktType, 14, pDevice->byTopOFDMBasicRate);
-		if ((byFBOption == AUTO_FB_0) && (wRate >= RATE_18M) && (wRate <= RATE_54M)) {
+		if ((byFBOption == AUTO_FB_0) && (wRate >= RATE_18M) && (wRate <= RATE_54M))
 			uDurTime = uCTSTime + 2*pDevice->uSIFS + s_uGetTxRsvTime(pDevice, byPktType, cbFrameLength, wFB_Opt0[FB_RATE1][wRate-RATE_18M], bNeedAck);
-		} else if ((byFBOption == AUTO_FB_1) && (wRate >= RATE_18M) && (wRate <= RATE_54M)) {
+		else if ((byFBOption == AUTO_FB_1) && (wRate >= RATE_18M) && (wRate <= RATE_54M))
 			uDurTime = uCTSTime + 2*pDevice->uSIFS + s_uGetTxRsvTime(pDevice, byPktType, cbFrameLength, wFB_Opt1[FB_RATE1][wRate-RATE_18M], bNeedAck);
-		}
+
 		break;
 
 	case CTSDUR_BA_F0: //CTSDuration_ba_f0
-		if ((byFBOption == AUTO_FB_0) && (wRate >= RATE_18M) && (wRate <= RATE_54M)) {
+		if ((byFBOption == AUTO_FB_0) && (wRate >= RATE_18M) && (wRate <= RATE_54M))
 			uDurTime = pDevice->uSIFS + s_uGetTxRsvTime(pDevice, byPktType, cbFrameLength, wFB_Opt0[FB_RATE0][wRate-RATE_18M], bNeedAck);
-		} else if ((byFBOption == AUTO_FB_1) && (wRate >= RATE_18M) && (wRate <= RATE_54M)) {
+		else if ((byFBOption == AUTO_FB_1) && (wRate >= RATE_18M) && (wRate <= RATE_54M))
 			uDurTime = pDevice->uSIFS + s_uGetTxRsvTime(pDevice, byPktType, cbFrameLength, wFB_Opt1[FB_RATE0][wRate-RATE_18M], bNeedAck);
-		}
+
 		break;
 
 	case CTSDUR_BA_F1: //CTSDuration_ba_f1
-		if ((byFBOption == AUTO_FB_0) && (wRate >= RATE_18M) && (wRate <= RATE_54M)) {
+		if ((byFBOption == AUTO_FB_0) && (wRate >= RATE_18M) && (wRate <= RATE_54M))
 			uDurTime = pDevice->uSIFS + s_uGetTxRsvTime(pDevice, byPktType, cbFrameLength, wFB_Opt0[FB_RATE1][wRate-RATE_18M], bNeedAck);
-		} else if ((byFBOption == AUTO_FB_1) && (wRate >= RATE_18M) && (wRate <= RATE_54M)) {
+		else if ((byFBOption == AUTO_FB_1) && (wRate >= RATE_18M) && (wRate <= RATE_54M))
 			uDurTime = pDevice->uSIFS + s_uGetTxRsvTime(pDevice, byPktType, cbFrameLength, wFB_Opt1[FB_RATE1][wRate-RATE_18M], bNeedAck);
-		}
+
 		break;
 
 	default:
@@ -683,9 +678,9 @@ s_uFillDataHead(
 {
 	unsigned short wLen = 0x0000;
 
-	if (pTxDataHead == NULL) {
+	if (pTxDataHead == NULL)
 		return 0;
-	}
+
 
 	if (byPktType == PK_TYPE_11GB || byPktType == PK_TYPE_11GA) {
 		if (byFBOption == AUTO_FB_NONE) {
@@ -848,11 +843,11 @@ s_vFillRTSHead(
 			} else {
 				memcpy(&(pBuf->Data.abyRA[0]), &(pDevice->abyBSSID[0]), ETH_ALEN);
 			}
-			if (pDevice->eOPMode == OP_MODE_AP) {
+			if (pDevice->eOPMode == OP_MODE_AP)
 				memcpy(&(pBuf->Data.abyTA[0]), &(pDevice->abyBSSID[0]), ETH_ALEN);
-			} else {
+			else
 				memcpy(&(pBuf->Data.abyTA[0]), &(psEthHeader->abySrcAddr[0]), ETH_ALEN);
-			}
+
 		} else {
 			PSRTS_g_FB pBuf = (PSRTS_g_FB)pvRTS;
 			//Get SignalField,ServiceField,Length
@@ -884,11 +879,10 @@ s_vFillRTSHead(
 				memcpy(&(pBuf->Data.abyRA[0]), &(pDevice->abyBSSID[0]), ETH_ALEN);
 			}
 
-			if (pDevice->eOPMode == OP_MODE_AP) {
+			if (pDevice->eOPMode == OP_MODE_AP)
 				memcpy(&(pBuf->Data.abyTA[0]), &(pDevice->abyBSSID[0]), ETH_ALEN);
-			} else {
+			else
 				memcpy(&(pBuf->Data.abyTA[0]), &(psEthHeader->abySrcAddr[0]), ETH_ALEN);
-			}
 
 		} // if (byFBOption == AUTO_FB_NONE)
 	} else if (byPktType == PK_TYPE_11A) {
@@ -912,11 +906,10 @@ s_vFillRTSHead(
 				memcpy(&(pBuf->Data.abyRA[0]), &(pDevice->abyBSSID[0]), ETH_ALEN);
 			}
 
-			if (pDevice->eOPMode == OP_MODE_AP) {
+			if (pDevice->eOPMode == OP_MODE_AP)
 				memcpy(&(pBuf->Data.abyTA[0]), &(pDevice->abyBSSID[0]), ETH_ALEN);
-			} else {
+			else
 				memcpy(&(pBuf->Data.abyTA[0]), &(psEthHeader->abySrcAddr[0]), ETH_ALEN);
-			}
 
 		} else {
 			PSRTS_a_FB pBuf = (PSRTS_a_FB)pvRTS;
@@ -939,11 +932,10 @@ s_vFillRTSHead(
 			} else {
 				memcpy(&(pBuf->Data.abyRA[0]), &(pDevice->abyBSSID[0]), ETH_ALEN);
 			}
-			if (pDevice->eOPMode == OP_MODE_AP) {
+			if (pDevice->eOPMode == OP_MODE_AP)
 				memcpy(&(pBuf->Data.abyTA[0]), &(pDevice->abyBSSID[0]), ETH_ALEN);
-			} else {
+			else
 				memcpy(&(pBuf->Data.abyTA[0]), &(psEthHeader->abySrcAddr[0]), ETH_ALEN);
-			}
 		}
 	} else if (byPktType == PK_TYPE_11B) {
 		PSRTS_ab pBuf = (PSRTS_ab)pvRTS;
@@ -965,11 +957,10 @@ s_vFillRTSHead(
 			memcpy(&(pBuf->Data.abyRA[0]), &(pDevice->abyBSSID[0]), ETH_ALEN);
 		}
 
-		if (pDevice->eOPMode == OP_MODE_AP) {
+		if (pDevice->eOPMode == OP_MODE_AP)
 			memcpy(&(pBuf->Data.abyTA[0]), &(pDevice->abyBSSID[0]), ETH_ALEN);
-		} else {
+		else
 			memcpy(&(pBuf->Data.abyTA[0]), &(psEthHeader->abySrcAddr[0]), ETH_ALEN);
-		}
 	}
 }
 
@@ -990,9 +981,8 @@ s_vFillCTSHead(
 	unsigned int uCTSFrameLen = 14;
 	unsigned short wLen = 0x0000;
 
-	if (pvCTS == NULL) {
+	if (pvCTS == NULL)
 		return;
-	}
 
 	if (bDisCRC) {
 		// When CRCDIS bit is on, H/W forgot to generate FCS for CTS frame,
@@ -1097,15 +1087,13 @@ s_vGenerateTxParameter(
 	pFifoHead->wReserved = wCurrentRate;
 	wFifoCtl = pFifoHead->wFIFOCtl;
 
-	if (wFifoCtl & FIFOCTL_CRCDIS) {
+	if (wFifoCtl & FIFOCTL_CRCDIS)
 		bDisCRC = true;
-	}
 
-	if (wFifoCtl & FIFOCTL_AUTO_FB_0) {
+	if (wFifoCtl & FIFOCTL_AUTO_FB_0)
 		byFBOption = AUTO_FB_0;
-	} else if (wFifoCtl & FIFOCTL_AUTO_FB_1) {
+	else if (wFifoCtl & FIFOCTL_AUTO_FB_1)
 		byFBOption = AUTO_FB_1;
-	}
 
 	if (pDevice->bLongHeader)
 		cbMACHdLen = WLAN_HDR_ADDR3_LEN + 6;
@@ -1194,20 +1182,18 @@ s_vFillFragParameter(
 		ptdCurr->m_wTimeStamp = pTxBufHead->wTimeStamp;
 		//Set TSR1 & ReqCount in TxDescHead
 		ptdCurr->m_td1TD1.wReqCount = cpu_to_le16((unsigned short)(cbReqCount));
-		if (wFragType == FRAGCTL_ENDFRAG) { //Last Fragmentation
+		if (wFragType == FRAGCTL_ENDFRAG) //Last Fragmentation
 			ptdCurr->m_td1TD1.byTCR |= (TCR_STP | TCR_EDP | EDMSDU);
-		} else {
+		else
 			ptdCurr->m_td1TD1.byTCR |= (TCR_STP | TCR_EDP);
-		}
 	} else {
 		PSTxDesc ptdCurr = (PSTxDesc)pvtdCurr;
 		//Set TSR1 & ReqCount in TxDescHead
 		ptdCurr->m_td1TD1.wReqCount = cpu_to_le16((unsigned short)(cbReqCount));
-		if (wFragType == FRAGCTL_ENDFRAG) { //Last Fragmentation
+		if (wFragType == FRAGCTL_ENDFRAG) //Last Fragmentation
 			ptdCurr->m_td1TD1.byTCR |= (TCR_STP | TCR_EDP | EDMSDU);
-		} else {
+		else
 			ptdCurr->m_td1TD1.byTCR |= (TCR_STP | TCR_EDP);
-		}
 	}
 
 	pTxBufHead->wFragCtl |= (unsigned short)wFragType;//0x0001; //0000 0000 0000 0001
@@ -1293,9 +1279,8 @@ s_cbFillTxBufHead(PSDevice pDevice, unsigned char byPktType, unsigned char *pbyT
 		if (pTransmitKey->byCipherSuite == KEY_CTL_WEP) {
 			cbIVlen = 4;
 			cbICVlen = 4;
-			if (pTransmitKey->uKeyLength == WLAN_WEP232_KEYLEN) {
+			if (pTransmitKey->uKeyLength == WLAN_WEP232_KEYLEN)
 				bIsWEP256 = true;
-			}
 		}
 		if (pTransmitKey->byCipherSuite == KEY_CTL_TKIP) {
 			cbIVlen = 8;//IV+ExtIV
@@ -1328,11 +1313,10 @@ s_cbFillTxBufHead(PSDevice pDevice, unsigned char byPktType, unsigned char *pbyT
 	//
 	// Use for AUTO FALL BACK
 	//
-	if (psTxBufHd->wFIFOCtl & FIFOCTL_AUTO_FB_0) {
+	if (psTxBufHd->wFIFOCtl & FIFOCTL_AUTO_FB_0)
 		byFBOption = AUTO_FB_0;
-	} else if (psTxBufHd->wFIFOCtl & FIFOCTL_AUTO_FB_1) {
+	else if (psTxBufHd->wFIFOCtl & FIFOCTL_AUTO_FB_1)
 		byFBOption = AUTO_FB_1;
-	}
 
 	//////////////////////////////////////////////////////
 	//Set RrvTime/RTS/CTS Buffer
@@ -1446,11 +1430,11 @@ s_cbFillTxBufHead(PSDevice pDevice, unsigned char byPktType, unsigned char *pbyT
 		//FragNum = (FrameSize-(Hdr+FCS))/(Fragment Size -(Hrd+FCS)))
 		uMACfragNum = (unsigned short) ((cbFrameBodySize + cbMIClen) / cbFragPayloadSize);
 		cbLastFragPayloadSize = (cbFrameBodySize + cbMIClen) % cbFragPayloadSize;
-		if (cbLastFragPayloadSize == 0) {
+		if (cbLastFragPayloadSize == 0)
 			cbLastFragPayloadSize = cbFragPayloadSize;
-		} else {
+		else
 			uMACfragNum++;
-		}
+
 		//[Hdr+(IV)+last fragment payload+(MIC)+(ICV)+FCS]
 		cbLastFragmentSize = cbMACHdLen + cbLastFragPayloadSize + cbIVlen + cbICVlen + cbFCSlen;
 
@@ -1916,40 +1900,37 @@ vGenerateFIFOHeader(PSDevice pDevice, unsigned char byPktType, unsigned char *pb
 	pTxBufHead->wFIFOCtl |= FIFOCTL_GENINT;
 
 	//Set FIFOCTL_ISDMA0
-	if (TYPE_TXDMA0 == uDMAIdx) {
+	if (TYPE_TXDMA0 == uDMAIdx)
 		pTxBufHead->wFIFOCtl |= FIFOCTL_ISDMA0;
-	}
 
 	//Set FRAGCTL_MACHDCNT
-	if (pDevice->bLongHeader) {
+	if (pDevice->bLongHeader)
 		cbMacHdLen = WLAN_HDR_ADDR3_LEN + 6;
-	} else {
+	else
 		cbMacHdLen = WLAN_HDR_ADDR3_LEN;
-	}
+
 	pTxBufHead->wFragCtl |= cpu_to_le16((unsigned short)(cbMacHdLen << 10));
 
 	//Set packet type
-	if (byPktType == PK_TYPE_11A) {//0000 0000 0000 0000
+	if (byPktType == PK_TYPE_11A) //0000 0000 0000 0000
 		;
-	} else if (byPktType == PK_TYPE_11B) {//0000 0001 0000 0000
+	else if (byPktType == PK_TYPE_11B) //0000 0001 0000 0000
 		pTxBufHead->wFIFOCtl |= FIFOCTL_11B;
-	} else if (byPktType == PK_TYPE_11GB) {//0000 0010 0000 0000
+	else if (byPktType == PK_TYPE_11GB) //0000 0010 0000 0000
 		pTxBufHead->wFIFOCtl |= FIFOCTL_11GB;
-	} else if (byPktType == PK_TYPE_11GA) {//0000 0011 0000 0000
+	else if (byPktType == PK_TYPE_11GA) //0000 0011 0000 0000
 		pTxBufHead->wFIFOCtl |= FIFOCTL_11GA;
-	}
+
 	//Set FIFOCTL_GrpAckPolicy
-	if (pDevice->bGrpAckPolicy == true) {//0000 0100 0000 0000
+	if (pDevice->bGrpAckPolicy == true) //0000 0100 0000 0000
 		pTxBufHead->wFIFOCtl |=	FIFOCTL_GRPACK;
-	}
 
 	//Set Auto Fallback Ctl
 	if (pDevice->wCurrentRate >= RATE_18M) {
-		if (pDevice->byAutoFBCtrl == AUTO_FB_0) {
+		if (pDevice->byAutoFBCtrl == AUTO_FB_0)
 			pTxBufHead->wFIFOCtl |= FIFOCTL_AUTO_FB_0;
-		} else if (pDevice->byAutoFBCtrl == AUTO_FB_1) {
+		else if (pDevice->byAutoFBCtrl == AUTO_FB_1)
 			pTxBufHead->wFIFOCtl |= FIFOCTL_AUTO_FB_1;
-		}
 	}
 
 	//Set FRAGCTL_WEPTYP
@@ -2016,11 +1997,10 @@ vGenerateMACHeader(
 
 	memset(pMACHeader, 0, (sizeof(S802_11Header)));
 
-	if (uDMAIdx == TYPE_ATIMDMA) {
+	if (uDMAIdx == TYPE_ATIMDMA)
 		pMACHeader->wFrameCtl = TYPE_802_11_ATIM;
-	} else {
+	else
 		pMACHeader->wFrameCtl = TYPE_802_11_DATA;
-	}
 
 	if (pDevice->eOPMode == OP_MODE_AP) {
 		memcpy(&(pMACHeader->abyAddr1[0]), &(psEthHeader->abyDstAddr[0]), ETH_ALEN);
@@ -2061,9 +2041,8 @@ vGenerateMACHeader(
 			pDevice->wSeqCounter = 0;
 	}
 
-	if ((wFragType == FRAGCTL_STAFRAG) || (wFragType == FRAGCTL_MIDFRAG)) { //StartFrag or MidFrag
+	if ((wFragType == FRAGCTL_STAFRAG) || (wFragType == FRAGCTL_MIDFRAG)) //StartFrag or MidFrag
 		pMACHeader->wFrameCtl |= FC_MOREFRAG;
-	}
 }
 
 CMD_STATUS csMgmt_xmit(PSDevice pDevice, PSTxMgmtPacket pPacket) {
@@ -2095,9 +2074,8 @@ CMD_STATUS csMgmt_xmit(PSDevice pDevice, PSTxMgmtPacket pPacket) {
 	PSMgmtObject    pMgmt = pDevice->pMgmt;
 	unsigned short wCurrentRate = RATE_1M;
 
-	if (AVAIL_TD(pDevice, TYPE_TXDMA0) <= 0) {
+	if (AVAIL_TD(pDevice, TYPE_TXDMA0) <= 0)
 		return CMD_STATUS_RESOURCES;
-	}
 
 	pFrstTD = pDevice->apCurrTD[TYPE_TXDMA0];
 	pbyTxBufferAddr = (unsigned char *)pFrstTD->pTDInfo->buf;
@@ -2118,11 +2096,11 @@ CMD_STATUS csMgmt_xmit(PSDevice pDevice, PSTxMgmtPacket pPacket) {
 	// 2004.11.11 Kyle -- Using OFDM power to tx MngPkt will decrease the connection capability.
 	//                    And cmd timer will wait data pkt TX finish before scanning so it's OK
 	//                    to set power here.
-	if (pDevice->pMgmt->eScanState != WMAC_NO_SCANNING) {
+	if (pDevice->pMgmt->eScanState != WMAC_NO_SCANNING)
 		RFbSetPower(pDevice, wCurrentRate, pDevice->byCurrentCh);
-	} else {
+	else
 		RFbSetPower(pDevice, wCurrentRate, pMgmt->uCurrChannel);
-	}
+
 	pTxBufHead->byTxPower = pDevice->byCurPwr;
 	//+++++++++++++++++++++ Patch VT3253 A1 performance +++++++++++++++++++++++++++
 	if (pDevice->byFOETuning) {
@@ -2200,9 +2178,9 @@ CMD_STATUS csMgmt_xmit(PSDevice pDevice, PSTxMgmtPacket pPacket) {
 	cbFrameSize = cbMacHdLen + cbFrameBodySize + cbIVlen + cbMIClen + cbICVlen + cbFCSlen;
 
 	//Set FIFOCTL_GrpAckPolicy
-	if (pDevice->bGrpAckPolicy == true) {//0000 0100 0000 0000
+	if (pDevice->bGrpAckPolicy == true) //0000 0100 0000 0000
 		pTxBufHead->wFIFOCtl |=	FIFOCTL_GRPACK;
-	}
+
 	//the rest of pTxBufHead->wFragCtl:FragTyp will be set later in s_vFillFragParameter()
 
 	//Set RrvTime/RTS/CTS Buffer
@@ -2338,9 +2316,8 @@ CMD_STATUS csMgmt_xmit(PSDevice pDevice, PSTxMgmtPacket pPacket) {
 
 	pDevice->iTDUsed[TYPE_TXDMA0]++;
 
-	if (AVAIL_TD(pDevice, TYPE_TXDMA0) <= 1) {
+	if (AVAIL_TD(pDevice, TYPE_TXDMA0) <= 1)
 		DBG_PRT(MSG_LEVEL_DEBUG, KERN_INFO " available td0 <= 1\n");
-	}
 
 	pDevice->apCurrTD[TYPE_TXDMA0] = pFrstTD->next;
 
@@ -2496,11 +2473,10 @@ cbGetFragCount(
 		cbFragPayloadSize = cbFragmentSize - cbMACHdLen - cbIVlen - cbICVlen - cbFCSlen;
 		uMACfragNum = (unsigned short) ((cbFrameBodySize + cbMIClen) / cbFragPayloadSize);
 		cbLastFragPayloadSize = (cbFrameBodySize + cbMIClen) % cbFragPayloadSize;
-		if (cbLastFragPayloadSize == 0) {
+		if (cbLastFragPayloadSize == 0)
 			cbLastFragPayloadSize = cbFragPayloadSize;
-		} else {
+		else
 			uMACfragNum++;
-		}
 	}
 	return uMACfragNum;
 }
@@ -2553,11 +2529,11 @@ vDMA0_tx_80211(PSDevice  pDevice, struct sk_buff *skb, unsigned char *pbMPDU, un
 
 	pvRrvTime = pMICHDR = pvRTS = pvCTS = pvTxDataHd = NULL;
 
-	if (cbMPDULen <= WLAN_HDR_ADDR3_LEN) {
+	if (cbMPDULen <= WLAN_HDR_ADDR3_LEN)
 		cbFrameBodySize = 0;
-	} else {
+	else
 		cbFrameBodySize = cbMPDULen - WLAN_HDR_ADDR3_LEN;
-	}
+
 	p80211Header = (PUWLAN_80211HDR)pbMPDU;
 
 	pFrstTD = pDevice->apCurrTD[TYPE_TXDMA0];
@@ -2578,11 +2554,11 @@ vDMA0_tx_80211(PSDevice  pDevice, struct sk_buff *skb, unsigned char *pbMPDU, un
 	// 2004.11.11 Kyle -- Using OFDM power to tx MngPkt will decrease the connection capability.
 	//                    And cmd timer will wait data pkt TX to finish before scanning so it's OK
 	//                    to set power here.
-	if (pDevice->pMgmt->eScanState != WMAC_NO_SCANNING) {
+	if (pDevice->pMgmt->eScanState != WMAC_NO_SCANNING)
 		RFbSetPower(pDevice, wCurrentRate, pDevice->byCurrentCh);
-	} else {
+	else
 		RFbSetPower(pDevice, wCurrentRate, pMgmt->uCurrChannel);
-	}
+
 	pTxBufHead->byTxPower = pDevice->byCurPwr;
 
 	//+++++++++++++++++++++ Patch VT3253 A1 performance +++++++++++++++++++++++++++
@@ -2640,17 +2616,14 @@ vDMA0_tx_80211(PSDevice  pDevice, struct sk_buff *skb, unsigned char *pbMPDU, un
 
 	// hostapd deamon ext support rate patch
 	if (WLAN_GET_FC_FSTYPE(p80211Header->sA4.wFrameCtl) == WLAN_FSTYPE_ASSOCRESP) {
-		if (((PWLAN_IE_SUPP_RATES)pMgmt->abyCurrSuppRates)->len != 0) {
+		if (((PWLAN_IE_SUPP_RATES)pMgmt->abyCurrSuppRates)->len != 0)
 			cbExtSuppRate += ((PWLAN_IE_SUPP_RATES)pMgmt->abyCurrSuppRates)->len + WLAN_IEHDR_LEN;
-		}
 
-		if (((PWLAN_IE_SUPP_RATES)pMgmt->abyCurrExtSuppRates)->len != 0) {
+		if (((PWLAN_IE_SUPP_RATES)pMgmt->abyCurrExtSuppRates)->len != 0)
 			cbExtSuppRate += ((PWLAN_IE_SUPP_RATES)pMgmt->abyCurrExtSuppRates)->len + WLAN_IEHDR_LEN;
-		}
 
-		if (cbExtSuppRate > 0) {
+		if (cbExtSuppRate > 0)
 			cbFrameBodySize = WLAN_ASSOCRESP_OFF_SUPP_RATES;
-		}
 	}
 
 	//Set FRAGCTL_MACHDCNT
@@ -2687,9 +2660,9 @@ vDMA0_tx_80211(PSDevice  pDevice, struct sk_buff *skb, unsigned char *pbMPDU, un
 	cbFrameSize = cbMacHdLen + cbFrameBodySize + cbIVlen + cbMIClen + cbICVlen + cbFCSlen + cbExtSuppRate;
 
 	//Set FIFOCTL_GrpAckPolicy
-	if (pDevice->bGrpAckPolicy == true) {//0000 0100 0000 0000
+	if (pDevice->bGrpAckPolicy == true) //0000 0100 0000 0000
 		pTxBufHead->wFIFOCtl |=	FIFOCTL_GRPACK;
-	}
+
 	//the rest of pTxBufHead->wFragCtl:FragTyp will be set later in s_vFillFragParameter()
 
 	if (byPktType == PK_TYPE_11GB || byPktType == PK_TYPE_11GA) {//802.11g packet
@@ -2815,9 +2788,8 @@ vDMA0_tx_80211(PSDevice  pDevice, struct sk_buff *skb, unsigned char *pbMPDU, un
 			pMgmt->sNodeDBTable[uNodeIndex].wTSC15_0 = pTransmitKey->wTSC15_0;
 		}
 
-		if ((pDevice->byLocalID <= REV_ID_VT3253_A1)) {
+		if ((pDevice->byLocalID <= REV_ID_VT3253_A1))
 			s_vSWencryption(pDevice, pTransmitKey, pbyPayloadHead, (unsigned short)(cbFrameBodySize + cbMIClen));
-		}
 	}
 
 	pMACHeader->wSeqCtl = cpu_to_le16(pDevice->wSeqCounter << 4);
@@ -2861,9 +2833,8 @@ vDMA0_tx_80211(PSDevice  pDevice, struct sk_buff *skb, unsigned char *pbMPDU, un
 
 	pDevice->iTDUsed[TYPE_TXDMA0]++;
 
-	if (AVAIL_TD(pDevice, TYPE_TXDMA0) <= 1) {
+	if (AVAIL_TD(pDevice, TYPE_TXDMA0) <= 1)
 		DBG_PRT(MSG_LEVEL_DEBUG, KERN_INFO " available td0 <= 1\n");
-	}
 
 	pDevice->apCurrTD[TYPE_TXDMA0] = pFrstTD->next;
 

@@ -137,9 +137,9 @@ void MIC_vGetMIC(u32 *pdwL, u32 *pdwR)
 	s_vAppendByte(0);
 	s_vAppendByte(0);
 	// and then zeroes until the length is a multiple of 4
-	while (nBytesInM != 0) {
+	while (nBytesInM != 0)
 		s_vAppendByte(0);
-	}
+
 	// The s_vAppendByte function has already computed the result.
 	*pdwL = L;
 	*pdwR = R;

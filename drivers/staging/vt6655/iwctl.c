@@ -235,11 +235,11 @@ int iwctl_giwscan(struct net_device *dev,
 			//ADD mode
 			memset(&iwe, 0, sizeof(iwe));
 			iwe.cmd = SIOCGIWMODE;
-			if (WLAN_GET_CAP_INFO_ESS(pBSS->wCapInfo)) {
+			if (WLAN_GET_CAP_INFO_ESS(pBSS->wCapInfo))
 				iwe.u.mode = IW_MODE_INFRA;
-			} else {
+			else
 				iwe.u.mode = IW_MODE_ADHOC;
-			}
+
 			iwe.len = IW_EV_UINT_LEN;
 			current_ev = iwe_stream_add_event(info, current_ev, end_buf, &iwe, IW_EV_UINT_LEN);
 			//ADD frequency
@@ -266,13 +266,13 @@ int iwctl_giwscan(struct net_device *dev,
 			iwe.u.qual.level = ldBm;
 			iwe.u.qual.noise = 0;
 //2008-0409-01, <Add> by Einsn Liu
-			if (-ldBm < 50) {
+			if (-ldBm < 50)
 				iwe.u.qual.qual = 100;
-			} else if (-ldBm > 90) {
+			else if (-ldBm > 90)
 				iwe.u.qual.qual = 0;
-			} else {
+			else
 				iwe.u.qual.qual = (40 - (-ldBm - 50)) * 100 / 40;
-			}
+
 			iwe.u.qual.updated = 7;
 
 			current_ev = iwe_stream_add_event(info, current_ev, end_buf, &iwe, IW_EV_QUAL_LEN);
@@ -280,11 +280,11 @@ int iwctl_giwscan(struct net_device *dev,
 			memset(&iwe, 0, sizeof(iwe));
 			iwe.cmd = SIOCGIWENCODE;
 			iwe.u.data.length = 0;
-			if (WLAN_GET_CAP_INFO_PRIVACY(pBSS->wCapInfo)) {
+			if (WLAN_GET_CAP_INFO_PRIVACY(pBSS->wCapInfo))
 				iwe.u.data.flags = IW_ENCODE_ENABLED | IW_ENCODE_NOKEY;
-			} else {
+			else
 				iwe.u.data.flags = IW_ENCODE_DISABLED;
-			}
+
 			current_ev = iwe_stream_add_point(info, current_ev, end_buf, &iwe, pItemSSID->abySSID);
 
 			memset(&iwe, 0, sizeof(iwe));
@@ -437,9 +437,9 @@ int iwctl_siwmode(struct net_device *dev,
 	case IW_MODE_ADHOC:
 		if (pMgmt->eConfigMode != WMAC_CONFIG_IBSS_STA) {
 			pMgmt->eConfigMode = WMAC_CONFIG_IBSS_STA;
-			if (pDevice->flags & DEVICE_FLAGS_OPENED) {
+			if (pDevice->flags & DEVICE_FLAGS_OPENED)
 				pDevice->bCommit = true;
-			}
+
 		}
 		DBG_PRT(MSG_LEVEL_DEBUG, KERN_INFO "set mode to ad-hoc \n");
 		break;
@@ -447,9 +447,9 @@ int iwctl_siwmode(struct net_device *dev,
 	case IW_MODE_INFRA:
 		if (pMgmt->eConfigMode != WMAC_CONFIG_ESS_STA) {
 			pMgmt->eConfigMode = WMAC_CONFIG_ESS_STA;
-			if (pDevice->flags & DEVICE_FLAGS_OPENED) {
+			if (pDevice->flags & DEVICE_FLAGS_OPENED)
 				pDevice->bCommit = true;
-			}
+
 		}
 		DBG_PRT(MSG_LEVEL_DEBUG, KERN_INFO "set mode to infrastructure \n");
 		break;
@@ -461,9 +461,9 @@ int iwctl_siwmode(struct net_device *dev,
 
 		if (pMgmt->eConfigMode != WMAC_CONFIG_AP) {
 			pMgmt->eConfigMode = WMAC_CONFIG_AP;
-			if (pDevice->flags & DEVICE_FLAGS_OPENED) {
+			if (pDevice->flags & DEVICE_FLAGS_OPENED)
 				pDevice->bCommit = true;
-			}
+
 		}
 		DBG_PRT(MSG_LEVEL_DEBUG, KERN_INFO "set mode to Access Point \n");
 		break;
@@ -670,9 +670,9 @@ int iwctl_siwap(struct net_device *dev,
 			}
 		}
 
-		if (pDevice->flags & DEVICE_FLAGS_OPENED) {
+		if (pDevice->flags & DEVICE_FLAGS_OPENED)
 			pDevice->bCommit = true;
-		}
+
 	}
 	return rc;
 }
@@ -696,9 +696,8 @@ int iwctl_giwap(struct net_device *dev,
 	if ((pDevice->bLinkPass == false) && (pMgmt->eCurrMode != WMAC_MODE_ESS_AP))
 		memset(wrq->sa_data, 0, 6);
 
-	if (pMgmt->eCurrMode == WMAC_MODE_ESS_AP) {
+	if (pMgmt->eCurrMode == WMAC_MODE_ESS_AP)
 		memcpy(wrq->sa_data, pMgmt->abyCurrBSSID, 6);
-	}
 
 	wrq->sa_family = ARPHRD_ETHER;
 
@@ -857,9 +856,8 @@ int iwctl_siwessid(struct net_device *dev,
 		DBG_PRT(MSG_LEVEL_DEBUG, KERN_INFO "set essid = %s \n", pItemSSID->abySSID);
 	}
 
-	if (pDevice->flags & DEVICE_FLAGS_OPENED) {
+	if (pDevice->flags & DEVICE_FLAGS_OPENED)
 		pDevice->bCommit = true;
-	}
 
 	return 0;
 }
@@ -1038,11 +1036,11 @@ int iwctl_siwrts(struct net_device *dev,
 		int rthr = wrq->value;
 		if (wrq->disabled)
 			rthr = 2312;
-		if ((rthr < 0) || (rthr > 2312)) {
+
+		if ((rthr < 0) || (rthr > 2312))
 			rc = -EINVAL;
-		} else {
+		else
 			pDevice->wRTSThreshold = rthr;
-		}
 	}
 
 	return 0;
@@ -1142,9 +1140,8 @@ int iwctl_siwretry(struct net_device *dev,
 			pDevice->byLongRetryLimit = wrq->value;
 		}
 	}
-	if (wrq->flags & IW_RETRY_LIFETIME) {
+	if (wrq->flags & IW_RETRY_LIFETIME)
 		pDevice->wMaxTransmitMSDULifetime = wrq->value;
-	}
 
 	return rc;
 }
@@ -1214,10 +1211,13 @@ int iwctl_siwencode(struct net_device *dev,
 		}
 
 		if (dwKeyIndex < 1 && ((wrq->flags & IW_ENCODE_NOKEY) == 0)) {//set default key
-			if (pDevice->byKeyIndex < WLAN_WEP_NKEYS) {
+			if (pDevice->byKeyIndex < WLAN_WEP_NKEYS)
 				dwKeyIndex = pDevice->byKeyIndex;
-			} else dwKeyIndex = 0;
-		} else dwKeyIndex--;
+			else
+				dwKeyIndex = 0;
+		} else {
+			dwKeyIndex--;
+		}
 
 		// Check the size of the key
 		if (wrq->length > WLAN_WEP232_KEYLEN) {
@@ -1241,9 +1241,8 @@ int iwctl_siwencode(struct net_device *dev,
 			memcpy(pDevice->abyKey, extra, wrq->length);
 
 			DBG_PRT(MSG_LEVEL_DEBUG, KERN_INFO "abyKey: ");
-			for (ii = 0; ii < wrq->length; ii++) {
+			for (ii = 0; ii < wrq->length; ii++)
 				DBG_PRT(MSG_LEVEL_DEBUG, KERN_INFO "%02x ", pDevice->abyKey[ii]);
-			}
 
 			if (pDevice->flags & DEVICE_FLAGS_OPENED) {
 				spin_lock_irq(&pDevice->lock);
@@ -1324,16 +1323,17 @@ int iwctl_giwencode(struct net_device *dev,
 
 	DBG_PRT(MSG_LEVEL_DEBUG, KERN_INFO " SIOCGIWENCODE\n");
 
-	if (index > WLAN_WEP_NKEYS) {
+	if (index > WLAN_WEP_NKEYS)
 		return	-EINVAL;
-	}
+
 	if (index < 1) {//get default key
-		if (pDevice->byKeyIndex < WLAN_WEP_NKEYS) {
+		if (pDevice->byKeyIndex < WLAN_WEP_NKEYS)
 			index = pDevice->byKeyIndex;
-		} else
+		else
 			index = 0;
-	} else
+	} else {
 		index--;
+	}
 
 	memset(abyKey, 0, WLAN_WEP232_KEYLEN);
 	// Check encryption mode
@@ -1490,37 +1490,36 @@ int iwctl_siwauth(struct net_device *dev,
 	switch (wrq->flags & IW_AUTH_INDEX) {
 	case IW_AUTH_WPA_VERSION:
 		wpa_version = wrq->value;
-		if (wrq->value == IW_AUTH_WPA_VERSION_DISABLED) {
+		if (wrq->value == IW_AUTH_WPA_VERSION_DISABLED)
 			PRINT_K("iwctl_siwauth:set WPADEV to disable at 1??????\n");
-		} else if (wrq->value == IW_AUTH_WPA_VERSION_WPA) {
+		else if (wrq->value == IW_AUTH_WPA_VERSION_WPA)
 			PRINT_K("iwctl_siwauth:set WPADEV to WPA1******\n");
-		} else {
+		else
 			PRINT_K("iwctl_siwauth:set WPADEV to WPA2******\n");
-		}
 
 		break;
 	case IW_AUTH_CIPHER_PAIRWISE:
 		pairwise = wrq->value;
-		if (pairwise == IW_AUTH_CIPHER_CCMP) {
+		if (pairwise == IW_AUTH_CIPHER_CCMP)
 			pDevice->eEncryptionStatus = Ndis802_11Encryption3Enabled;
-		} else if (pairwise == IW_AUTH_CIPHER_TKIP) {
+		else if (pairwise == IW_AUTH_CIPHER_TKIP)
 			pDevice->eEncryptionStatus = Ndis802_11Encryption2Enabled;
-		} else if (pairwise == IW_AUTH_CIPHER_WEP40 || pairwise == IW_AUTH_CIPHER_WEP104) {
+		else if (pairwise == IW_AUTH_CIPHER_WEP40 || pairwise == IW_AUTH_CIPHER_WEP104)
 			pDevice->eEncryptionStatus = Ndis802_11Encryption1Enabled;
-		} else if (pairwise == IW_AUTH_CIPHER_NONE) {
-			//do nothing,einsn liu
-		} else pDevice->eEncryptionStatus = Ndis802_11EncryptionDisabled;
+		else if (pairwise == IW_AUTH_CIPHER_NONE)
+			; /* do nothing,einsn liu */
+		else
+			pDevice->eEncryptionStatus = Ndis802_11EncryptionDisabled;
 
 		break;
 	case IW_AUTH_CIPHER_GROUP:
 		if (wpa_version == IW_AUTH_WPA_VERSION_DISABLED)
 			break;
 		if (pairwise == IW_AUTH_CIPHER_NONE) {
-			if (wrq->value == IW_AUTH_CIPHER_CCMP) {
+			if (wrq->value == IW_AUTH_CIPHER_CCMP)
 				pDevice->eEncryptionStatus = Ndis802_11Encryption3Enabled;
-			} else {
+			else
 				pDevice->eEncryptionStatus = Ndis802_11Encryption2Enabled;
-			}
 		}
 		break;
 	case IW_AUTH_KEY_MGMT:
@@ -1528,13 +1527,15 @@ int iwctl_siwauth(struct net_device *dev,
 		if (wpa_version == IW_AUTH_WPA_VERSION_WPA2) {
 			if (wrq->value == IW_AUTH_KEY_MGMT_PSK)
 				pMgmt->eAuthenMode = WMAC_AUTH_WPA2PSK;
-			else pMgmt->eAuthenMode = WMAC_AUTH_WPA2;
+			else
+				pMgmt->eAuthenMode = WMAC_AUTH_WPA2;
 		} else if (wpa_version == IW_AUTH_WPA_VERSION_WPA) {
-			if (wrq->value == 0) {
+			if (wrq->value == 0)
 				pMgmt->eAuthenMode = WMAC_AUTH_WPANONE;
-			} else if (wrq->value == IW_AUTH_KEY_MGMT_PSK)
+			else if (wrq->value == IW_AUTH_KEY_MGMT_PSK)
 				pMgmt->eAuthenMode = WMAC_AUTH_WPAPSK;
-			else pMgmt->eAuthenMode = WMAC_AUTH_WPA;
+			else
+				pMgmt->eAuthenMode = WMAC_AUTH_WPA;
 		}
 
 		break;
@@ -1543,11 +1544,11 @@ int iwctl_siwauth(struct net_device *dev,
 	case IW_AUTH_DROP_UNENCRYPTED:
 		break;
 	case IW_AUTH_80211_AUTH_ALG:
-		if (wrq->value == IW_AUTH_ALG_OPEN_SYSTEM) {
+		if (wrq->value == IW_AUTH_ALG_OPEN_SYSTEM)
 			pMgmt->bShareKeyAlgorithm = false;
-		} else if (wrq->value == IW_AUTH_ALG_SHARED_KEY) {
+		else if (wrq->value == IW_AUTH_ALG_SHARED_KEY)
 			pMgmt->bShareKeyAlgorithm = true;
-		}
+
 		break;
 	case IW_AUTH_WPA_ENABLED:
 		break;
@@ -1630,11 +1631,12 @@ int iwctl_giwgenie(struct net_device *dev,
 	if (pMgmt->wWPAIELen > 0) {
 		wrq->length = pMgmt->wWPAIELen;
 		if (pMgmt->wWPAIELen <= space) {
-			if (copy_to_user(extra, pMgmt->abyWPAIE, pMgmt->wWPAIELen)) {
+			if (copy_to_user(extra, pMgmt->abyWPAIE, pMgmt->wWPAIELen))
 				ret = -EFAULT;
-			}
-		} else
+
+		} else {
 			ret = -E2BIG;
+		}
 	}
 
 	return ret;
@@ -1725,18 +1727,18 @@ int iwctl_siwencodeext(struct net_device *dev,
 //****set if current action is Network Manager count??
 //****this method is so foolish,but there is no other way???
 	if (param->u.wpa_key.alg_name == WPA_ALG_NONE) {
-		if (param->u.wpa_key.key_index == 0) {
+		if (param->u.wpa_key.key_index == 0)
 			pDevice->bwextcount++;
-		}
-		if ((pDevice->bwextcount == 1) && (param->u.wpa_key.key_index == 1)) {
+
+		if ((pDevice->bwextcount == 1) && (param->u.wpa_key.key_index == 1))
 			pDevice->bwextcount++;
-		}
-		if ((pDevice->bwextcount == 2) && (param->u.wpa_key.key_index == 2)) {
+
+		if ((pDevice->bwextcount == 2) && (param->u.wpa_key.key_index == 2))
 			pDevice->bwextcount++;
-		}
-		if ((pDevice->bwextcount == 3) && (param->u.wpa_key.key_index == 3)) {
+
+		if ((pDevice->bwextcount == 3) && (param->u.wpa_key.key_index == 3))
 			pDevice->bwextcount++;
-		}
+
 	}
 	if (pDevice->bwextcount == 4) {
 		printk("SIOCSIWENCODEEXT:Enable WPA WEXT SUPPORT!!!!!\n");

@@ -191,9 +191,8 @@ bool WCTLbHandleFragment(PSDevice pDevice, PS802_11Header pMACHeader, unsigned i
 			pDevice->sRxDFCB[pDevice->uCurrentDFCBIdx].wFragNum = (pMACHeader->wSeqCtl & 0x000F);
 		} else {
 			pDevice->uCurrentDFCBIdx = WCTLuInsertDFCB(pDevice, pMACHeader);
-			if (pDevice->uCurrentDFCBIdx == pDevice->cbDFCB) {
+			if (pDevice->uCurrentDFCBIdx == pDevice->cbDFCB)
 				return false;
-			}
 		}
 		// reserve 4 byte to match MAC RX Buffer
 		pDevice->sRxDFCB[pDevice->uCurrentDFCBIdx].pbyRxBuffer = (unsigned char *)(pDevice->sRxDFCB[pDevice->uCurrentDFCBIdx].skb->data + 4);
