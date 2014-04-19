@@ -42,6 +42,7 @@ grace=120
 
 T=/tmp/kvm-test-1-run.sh.$$
 trap 'rm -rf $T' 0
+touch $T
 
 . $KVM/bin/functions.sh
 . $KVPATH/ver_functions.sh
