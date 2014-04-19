@@ -231,6 +231,11 @@ static int uprobe_init_insn(struct arch_uprobe *auprobe, struct insn *insn, bool
 }
 
 #ifdef CONFIG_X86_64
+static inline bool is_64bit_mm(struct mm_struct *mm)
+{
+	return	!config_enabled(CONFIG_IA32_EMULATION) ||
+		!mm->context.ia32_compat;
+}
 /*
  * If arch_uprobe->insn doesn't use rip-relative addressing, return
  * immediately.  Otherwise, rewrite the instruction so that it accesses
@@ -355,13 +360,11 @@ handle_riprel_post_xol(struct arch_uprobe *auprobe, struct pt_regs *regs, long *
 			*correction += 4;
 	}
 }
-
-static int validate_insn_bits(struct arch_uprobe *auprobe, struct mm_struct *mm, struct insn *insn)
-{
-	bool x86_64 = !mm->context.ia32_compat;
-	return uprobe_init_insn(auprobe, insn, x86_64);
-}
 #else /* 32-bit: */
+static inline bool is_64bit_mm(struct mm_struct *mm)
+{
+	return false;
+}
 /*
  * No RIP-relative addressing on 32-bit
  */
@@ -375,11 +378,6 @@ static void pre_xol_rip_insn(struct arch_uprobe *auprobe, struct pt_regs *regs,
 static void handle_riprel_post_xol(struct arch_uprobe *auprobe, struct pt_regs *regs,
 					long *correction)
 {
-}
-
-static int validate_insn_bits(struct arch_uprobe *auprobe, struct mm_struct *mm,  struct insn *insn)
-{
-	return uprobe_init_insn(auprobe, insn, false);
 }
 #endif /* CONFIG_X86_64 */
 
@@ -625,7 +623,7 @@ int arch_uprobe_analyze_insn(struct arch_uprobe *auprobe, struct mm_struct *mm, 
 	bool fix_ip = true, fix_call = false;
 	int ret;
 
-	ret = validate_insn_bits(auprobe, mm, &insn);
+	ret = uprobe_init_insn(auprobe, &insn, is_64bit_mm(mm));
 	if (ret)
 		return ret;
 
