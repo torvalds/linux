@@ -1871,7 +1871,7 @@ static int recv_indicatepkts_in_order(struct adapter *padapter, struct recv_reor
 			return true;
 
 		prhdr = container_of(plist, struct recv_frame, list);
-	        pattrib = &prhdr->attrib;
+		pattrib = &prhdr->attrib;
 		preorder_ctrl->indicate_seq = pattrib->seq_num;
 	}
 
