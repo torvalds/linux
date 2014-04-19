@@ -1781,7 +1781,7 @@ static int smc_findirq(struct smc_local *lp)
 	int timeout = 20;
 	unsigned long cookie;
 
-	DBG(2, dev, "%s: %s\n", CARDNAME, __func__);
+	DBG(2, lp->dev, "%s: %s\n", CARDNAME, __func__);
 
 	cookie = probe_irq_on();
 
