@@ -26,6 +26,7 @@
 
 #include <linux/compiler.h>
 #include <asm/byteorder.h>
+#include <linux/kernel.h>
 #include <linux/types.h>
 #include <linux/sched.h>
 #include <asm/bitfield.h>
@@ -394,12 +395,15 @@ extern const struct ieee754sp_const __ieee754sp_spcvals[];
 /*
  * Indefinite integer value
  */
-#define ieee754si_indef()	INT_MAX
-#ifdef LONG_LONG_MAX
-#define ieee754di_indef()	LONG_LONG_MAX
-#else
-#define ieee754di_indef()	((s64)(~0ULL>>1))
-#endif
+static inline int ieee754si_indef(void)
+{
+	return INT_MAX;
+}
+
+static inline s64 ieee754di_indef(void)
+{
+	return S64_MAX;
+}
 
 /* IEEE exception context, passed to handler */
 struct ieee754xctx {
