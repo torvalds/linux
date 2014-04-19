@@ -183,6 +183,17 @@
 /*
  * Shortcuts ...
  */
+#define cpu_has_mips_2_3_4_5	(cpu_has_mips_2 | cpu_has_mips_3_4_5)
+#define cpu_has_mips_3_4_5	(cpu_has_mips_3 | cpu_has_mips_4_5)
+#define cpu_has_mips_4_5	(cpu_has_mips_4 | cpu_has_mips_5)
+
+#define cpu_has_mips_2_3_4_5_r	(cpu_has_mips_2 | cpu_has_mips_3_4_5_r)
+#define cpu_has_mips_3_4_5_r	(cpu_has_mips_3 | cpu_has_mips_4_5_r)
+#define cpu_has_mips_4_5_r	(cpu_has_mips_4 | cpu_has_mips_5_r)
+#define cpu_has_mips_5_r	(cpu_has_mips_5 | cpu_has_mips_r)
+
+#define cpu_has_mips_4_5_r2	(cpu_has_mips_4_5 | cpu_has_mips_r2)
+
 #define cpu_has_mips32	(cpu_has_mips32r1 | cpu_has_mips32r2)
 #define cpu_has_mips64	(cpu_has_mips64r1 | cpu_has_mips64r2)
 #define cpu_has_mips_r1 (cpu_has_mips32r1 | cpu_has_mips64r1)

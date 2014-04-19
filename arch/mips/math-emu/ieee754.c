@@ -45,15 +45,14 @@
 /* special constants
 */
 
-
-#if (defined(BYTE_ORDER) && BYTE_ORDER == LITTLE_ENDIAN) || defined(__MIPSEL__)
-#define SPSTR(s, b, m) {m, b, s}
-#define DPSTR(s, b, mh, ml) {ml, mh, b, s}
-#endif
-
 #ifdef __MIPSEB__
 #define SPSTR(s, b, m) {s, b, m}
 #define DPSTR(s, b, mh, ml) {s, b, mh, ml}
+#elif defined(__MIPSEL__)
+#define SPSTR(s, b, m) {m, b, s}
+#define DPSTR(s, b, mh, ml) {ml, mh, b, s}
+#else /* !defined (__MIPSEB__) && !defined (__MIPSEL__) */
+#error "MIPS but neither __MIPSEB__ nor __MIPSEL__?"
 #endif
 
 const struct ieee754dp_const __ieee754dp_spcvals[] = {
