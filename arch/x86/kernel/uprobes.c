@@ -32,9 +32,6 @@
 
 /* Post-execution fixups. */
 
-/* No fixup needed */
-#define UPROBE_FIX_NONE		0x0
-
 /* Adjust IP back to vicinity of actual insn */
 #define UPROBE_FIX_IP		0x1
 
@@ -114,7 +111,6 @@ static volatile u32 good_2byte_insns[256 / 32] = {
 	/*      0  1  2  3  4  5  6  7  8  9  a  b  c  d  e  f         */
 };
 
-#ifdef CONFIG_X86_64
 /* Good-instruction tables for 64-bit apps */
 static volatile u32 good_insns_64[256 / 32] = {
 	/*      0  1  2  3  4  5  6  7  8  9  a  b  c  d  e  f         */
@@ -138,7 +134,6 @@ static volatile u32 good_insns_64[256 / 32] = {
 	/*      ----------------------------------------------         */
 	/*      0  1  2  3  4  5  6  7  8  9  a  b  c  d  e  f         */
 };
-#endif
 #undef W
 
 /*
@@ -209,16 +204,22 @@ static bool is_prefix_bad(struct insn *insn)
 	return false;
 }
 
-static int validate_insn_32bits(struct arch_uprobe *auprobe, struct insn *insn)
+static int uprobe_init_insn(struct arch_uprobe *auprobe, struct insn *insn, bool x86_64)
 {
-	insn_init(insn, auprobe->insn, false);
+	u32 volatile *good_insns;
 
-	/* Skip good instruction prefixes; reject "bad" ones. */
+	insn_init(insn, auprobe->insn, x86_64);
+
 	insn_get_opcode(insn);
 	if (is_prefix_bad(insn))
 		return -ENOTSUPP;
 
-	if (test_bit(OPCODE1(insn), (unsigned long *)good_insns_32))
+	if (x86_64)
+		good_insns = good_insns_64;
+	else
+		good_insns = good_insns_32;
+
+	if (test_bit(OPCODE1(insn), (unsigned long *)good_insns))
 		return 0;
 
 	if (insn->opcode.nbytes == 2) {
@@ -355,30 +356,10 @@ handle_riprel_post_xol(struct arch_uprobe *auprobe, struct pt_regs *regs, long *
 	}
 }
 
-static int validate_insn_64bits(struct arch_uprobe *auprobe, struct insn *insn)
-{
-	insn_init(insn, auprobe->insn, true);
-
-	/* Skip good instruction prefixes; reject "bad" ones. */
-	insn_get_opcode(insn);
-	if (is_prefix_bad(insn))
-		return -ENOTSUPP;
-
-	if (test_bit(OPCODE1(insn), (unsigned long *)good_insns_64))
-		return 0;
-
-	if (insn->opcode.nbytes == 2) {
-		if (test_bit(OPCODE2(insn), (unsigned long *)good_2byte_insns))
-			return 0;
-	}
-	return -ENOTSUPP;
-}
-
 static int validate_insn_bits(struct arch_uprobe *auprobe, struct mm_struct *mm, struct insn *insn)
 {
-	if (mm->context.ia32_compat)
-		return validate_insn_32bits(auprobe, insn);
-	return validate_insn_64bits(auprobe, insn);
+	bool x86_64 = !mm->context.ia32_compat;
+	return uprobe_init_insn(auprobe, insn, x86_64);
 }
 #else /* 32-bit: */
 /*
@@ -398,7 +379,7 @@ static void handle_riprel_post_xol(struct arch_uprobe *auprobe, struct pt_regs *
 
 static int validate_insn_bits(struct arch_uprobe *auprobe, struct mm_struct *mm,  struct insn *insn)
 {
-	return validate_insn_32bits(auprobe, insn);
+	return uprobe_init_insn(auprobe, insn, false);
 }
 #endif /* CONFIG_X86_64 */
 
