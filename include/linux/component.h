@@ -29,4 +29,11 @@ void component_master_del(struct device *,
 int component_master_add_child(struct master *master,
 	int (*compare)(struct device *, void *), void *compare_data);
 
+struct component_match;
+
+int component_master_add_with_match(struct device *,
+	const struct component_master_ops *, struct component_match *);
+void component_match_add(struct device *, struct component_match **,
+	int (*compare)(struct device *, void *), void *compare_data);
+
 #endif
