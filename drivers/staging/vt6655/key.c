@@ -46,7 +46,6 @@
 
 /*---------------------  Static Variables  --------------------------*/
 static int msglevel = MSG_LEVEL_INFO;
-//static int          msglevel                =MSG_LEVEL_DEBUG;
 /*---------------------  Static Functions  --------------------------*/
 
 /*---------------------  Export Variables  --------------------------*/
@@ -255,7 +254,6 @@ bool KeybSetKey(
 
 			DBG_PRT(MSG_LEVEL_DEBUG, KERN_INFO "KeybSetKey(R): \n");
 			DBG_PRT(MSG_LEVEL_DEBUG, KERN_INFO "pKey->bKeyValid: %d\n ", pKey->bKeyValid);
-			//DBG_PRT(MSG_LEVEL_DEBUG, KERN_INFO "pKey->uKeyLength: %d\n ", pKey->uKeyLength);
 			DBG_PRT(MSG_LEVEL_DEBUG, KERN_INFO "pKey->abyKey: ");
 			for (ii = 0; ii < pKey->uKeyLength; ii++) {
 				DBG_PRT(MSG_LEVEL_DEBUG, KERN_INFO "%02x ", pKey->abyKey[ii]);
@@ -785,10 +783,6 @@ bool KeybSetAllGroupKey(
 				DBG_PRT(MSG_LEVEL_DEBUG, KERN_INFO "%02x ", pKey->abyKey[ii]);
 			}
 			DBG_PRT(MSG_LEVEL_DEBUG, KERN_INFO "\n");
-
-			//DBG_PRN_GRP12(("pKey->dwTSC47_16: %lX\n ", pKey->dwTSC47_16));
-			//DBG_PRN_GRP12(("pKey->wTSC15_0: %X\n ", pKey->wTSC15_0));
-			//DBG_PRN_GRP12(("pKey->dwKeyIndex: %lX\n ", pKey->dwKeyIndex));
 
 		} // (pTable->KeyTable[i].bInUse == true)
 	}

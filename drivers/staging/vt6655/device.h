@@ -750,12 +750,6 @@ typedef struct __device_info {
 	bool bWPADEVUp;
 	struct sk_buff          *skb;
 #ifdef WPA_SUPPLICANT_DRIVER_WEXT_SUPPORT
-/*
-  bool bwextstep0;
-  bool bwextstep1;
-  bool bwextstep2;
-  bool bwextstep3;
-*/
 	unsigned int	bwextcount;
 	bool bWPASuppWextEnabled;
 #endif

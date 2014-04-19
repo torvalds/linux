@@ -1095,7 +1095,6 @@ unsigned char byVT3253B0_AIROHA2230[CB_VT3253B0_INIT_FOR_AIROHA2230][2] = {
 	{0x69, 0x00},
 	{0x6a, 0x00},
 	{0x6b, 0x00},
-	//{0x6c, 0x80},
 	{0x6c, 0x00}, //RobertYu:20050125, request by JJSue
 	{0x6d, 0x03},
 	{0x6e, 0x01},
@@ -1357,7 +1356,6 @@ unsigned char byVT3253B0_UW2451[CB_VT3253B0_INIT_FOR_UW2451][2] = {
 	{0x69, 0x00},
 	{0x6a, 0x00},
 	{0x6b, 0x00},
-	//{0x6c, 0x80},
 	{0x6c, 0x00}, //RobertYu:20050125, request by JJSue
 	{0x6d, 0x03},
 	{0x6e, 0x01},
@@ -2208,8 +2206,6 @@ bool BBbVT3253Init(PSDevice pDevice)
 		for (ii = 0; ii < CB_VT3253B0_AGC; ii++) {
 			bResult &= BBbWriteEmbedded(dwIoBase, byVT3253B0_AGC[ii][0], byVT3253B0_AGC[ii][1]);
 		}
-		//VNSvOutPortB(dwIoBase + MAC_REG_ITRTMSET, 0x23); // RobertYu: 20050104, 20050131 disable PA_Delay
-		//MACvRegBitsOn(dwIoBase, MAC_REG_PAPEDELAY, BIT0); // RobertYu: 20050104, 20050131 disable PA_Delay
 
 		pDevice->abyBBVGA[0] = 0x14;
 		pDevice->abyBBVGA[1] = 0x0A;
@@ -2613,13 +2609,11 @@ s_ulGetRatio(PSDevice pDevice)
 	if (pDevice->uNumSQ3[RATE_54M] != 0) {
 		ulPacketNum = pDevice->uNumSQ3[RATE_54M];
 		ulRatio = (ulPacketNum * 1000 / pDevice->uDiversityCnt);
-		//ulRatio = (pDevice->uNumSQ3[RATE_54M] * 1000 / pDevice->uDiversityCnt);
 		ulRatio += TOP_RATE_54M;
 	}
 	if (pDevice->uNumSQ3[RATE_48M] > ulMaxPacket) {
 		ulPacketNum = pDevice->uNumSQ3[RATE_54M] + pDevice->uNumSQ3[RATE_48M];
 		ulRatio = (ulPacketNum * 1000 / pDevice->uDiversityCnt);
-		//ulRatio = (pDevice->uNumSQ3[RATE_48M] * 1000 / pDevice->uDiversityCnt);
 		ulRatio += TOP_RATE_48M;
 		ulMaxPacket = pDevice->uNumSQ3[RATE_48M];
 	}
@@ -2627,7 +2621,6 @@ s_ulGetRatio(PSDevice pDevice)
 		ulPacketNum = pDevice->uNumSQ3[RATE_54M] + pDevice->uNumSQ3[RATE_48M] +
 			pDevice->uNumSQ3[RATE_36M];
 		ulRatio = (ulPacketNum * 1000 / pDevice->uDiversityCnt);
-		//ulRatio = (pDevice->uNumSQ3[RATE_36M] * 1000 / pDevice->uDiversityCnt);
 		ulRatio += TOP_RATE_36M;
 		ulMaxPacket = pDevice->uNumSQ3[RATE_36M];
 	}
@@ -2635,7 +2628,6 @@ s_ulGetRatio(PSDevice pDevice)
 		ulPacketNum = pDevice->uNumSQ3[RATE_54M] + pDevice->uNumSQ3[RATE_48M] +
 			pDevice->uNumSQ3[RATE_36M] + pDevice->uNumSQ3[RATE_24M];
 		ulRatio = (ulPacketNum * 1000 / pDevice->uDiversityCnt);
-		//ulRatio = (pDevice->uNumSQ3[RATE_24M] * 1000 / pDevice->uDiversityCnt);
 		ulRatio += TOP_RATE_24M;
 		ulMaxPacket = pDevice->uNumSQ3[RATE_24M];
 	}
@@ -2644,7 +2636,6 @@ s_ulGetRatio(PSDevice pDevice)
 			pDevice->uNumSQ3[RATE_36M] + pDevice->uNumSQ3[RATE_24M] +
 			pDevice->uNumSQ3[RATE_18M];
 		ulRatio = (ulPacketNum * 1000 / pDevice->uDiversityCnt);
-		//ulRatio = (pDevice->uNumSQ3[RATE_18M] * 1000 / pDevice->uDiversityCnt);
 		ulRatio += TOP_RATE_18M;
 		ulMaxPacket = pDevice->uNumSQ3[RATE_18M];
 	}
@@ -2653,7 +2644,6 @@ s_ulGetRatio(PSDevice pDevice)
 			pDevice->uNumSQ3[RATE_36M] + pDevice->uNumSQ3[RATE_24M] +
 			pDevice->uNumSQ3[RATE_18M] + pDevice->uNumSQ3[RATE_12M];
 		ulRatio = (ulPacketNum * 1000 / pDevice->uDiversityCnt);
-		//ulRatio = (pDevice->uNumSQ3[RATE_12M] * 1000 / pDevice->uDiversityCnt);
 		ulRatio += TOP_RATE_12M;
 		ulMaxPacket = pDevice->uNumSQ3[RATE_12M];
 	}
@@ -2662,7 +2652,6 @@ s_ulGetRatio(PSDevice pDevice)
 			pDevice->uNumSQ3[RATE_2M] - pDevice->uNumSQ3[RATE_5M] -
 			pDevice->uNumSQ3[RATE_6M] - pDevice->uNumSQ3[RATE_9M];
 		ulRatio = (ulPacketNum * 1000 / pDevice->uDiversityCnt);
-		//ulRatio = (pDevice->uNumSQ3[RATE_11M] * 1000 / pDevice->uDiversityCnt);
 		ulRatio += TOP_RATE_11M;
 		ulMaxPacket = pDevice->uNumSQ3[RATE_11M];
 	}
@@ -2671,7 +2660,6 @@ s_ulGetRatio(PSDevice pDevice)
 			pDevice->uNumSQ3[RATE_2M] - pDevice->uNumSQ3[RATE_5M] -
 			pDevice->uNumSQ3[RATE_6M];
 		ulRatio = (ulPacketNum * 1000 / pDevice->uDiversityCnt);
-		//ulRatio = (pDevice->uNumSQ3[RATE_9M] * 1000 / pDevice->uDiversityCnt);
 		ulRatio += TOP_RATE_9M;
 		ulMaxPacket = pDevice->uNumSQ3[RATE_9M];
 	}
@@ -2679,7 +2667,6 @@ s_ulGetRatio(PSDevice pDevice)
 		ulPacketNum = pDevice->uDiversityCnt - pDevice->uNumSQ3[RATE_1M] -
 			pDevice->uNumSQ3[RATE_2M] - pDevice->uNumSQ3[RATE_5M];
 		ulRatio = (ulPacketNum * 1000 / pDevice->uDiversityCnt);
-		//ulRatio = (pDevice->uNumSQ3[RATE_6M] * 1000 / pDevice->uDiversityCnt);
 		ulRatio += TOP_RATE_6M;
 		ulMaxPacket = pDevice->uNumSQ3[RATE_6M];
 	}
@@ -2687,21 +2674,18 @@ s_ulGetRatio(PSDevice pDevice)
 		ulPacketNum = pDevice->uDiversityCnt - pDevice->uNumSQ3[RATE_1M] -
 			pDevice->uNumSQ3[RATE_2M];
 		ulRatio = (ulPacketNum * 1000 / pDevice->uDiversityCnt);
-		//ulRatio = (pDevice->uNumSQ3[RATE_5M] * 1000 / pDevice->uDiversityCnt);
 		ulRatio += TOP_RATE_55M;
 		ulMaxPacket = pDevice->uNumSQ3[RATE_5M];
 	}
 	if (pDevice->uNumSQ3[RATE_2M] > ulMaxPacket) {
 		ulPacketNum = pDevice->uDiversityCnt - pDevice->uNumSQ3[RATE_1M];
 		ulRatio = (ulPacketNum * 1000 / pDevice->uDiversityCnt);
-		//ulRatio = (pDevice->uNumSQ3[RATE_2M]  * 1000 / pDevice->uDiversityCnt);
 		ulRatio += TOP_RATE_2M;
 		ulMaxPacket = pDevice->uNumSQ3[RATE_2M];
 	}
 	if (pDevice->uNumSQ3[RATE_1M] > ulMaxPacket) {
 		ulPacketNum = pDevice->uDiversityCnt;
 		ulRatio = (ulPacketNum * 1000 / pDevice->uDiversityCnt);
-		//ulRatio = (pDevice->uNumSQ3[RATE_1M]  * 1000 / pDevice->uDiversityCnt);
 		ulRatio += TOP_RATE_1M;
 	}
 
@@ -2741,7 +2725,6 @@ BBvAntennaDiversity(PSDevice pDevice, unsigned char byRxRate, unsigned char bySQ
 		return;
 	}
 	pDevice->uDiversityCnt++;
-	// DBG_PRT(MSG_LEVEL_DEBUG, KERN_INFO "pDevice->uDiversityCnt = %d\n", (int)pDevice->uDiversityCnt);
 
 	pDevice->uNumSQ3[byRxRate]++;
 

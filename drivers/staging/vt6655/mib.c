@@ -504,7 +504,6 @@ STAvUpdate802_11Counter(
 	unsigned long dwCounter
 )
 {
-	//p802_11Counter->TransmittedFragmentCount
 	p802_11Counter->MulticastTransmittedFrameCount = (unsigned long long) (pStatistic->dwTsrBroadcast[TYPE_AC0DMA] +
 									       pStatistic->dwTsrBroadcast[TYPE_TXDMA0] +
 									       pStatistic->dwTsrMulticast[TYPE_AC0DMA] +
@@ -513,12 +512,10 @@ STAvUpdate802_11Counter(
 	p802_11Counter->RetryCount = (unsigned long long) (pStatistic->dwTsrRetry[TYPE_AC0DMA] + pStatistic->dwTsrRetry[TYPE_TXDMA0]);
 	p802_11Counter->MultipleRetryCount = (unsigned long long) (pStatistic->dwTsrMoreThanOnceRetry[TYPE_AC0DMA] +
 								   pStatistic->dwTsrMoreThanOnceRetry[TYPE_TXDMA0]);
-	//p802_11Counter->FrameDuplicateCount
 	p802_11Counter->RTSSuccessCount += (unsigned long long)  (dwCounter & 0x000000ff);
 	p802_11Counter->RTSFailureCount += (unsigned long long) ((dwCounter & 0x0000ff00) >> 8);
 	p802_11Counter->ACKFailureCount += (unsigned long long) ((dwCounter & 0x00ff0000) >> 16);
 	p802_11Counter->FCSErrorCount +=   (unsigned long long) ((dwCounter & 0xff000000) >> 24);
-	//p802_11Counter->ReceivedFragmentCount
 	p802_11Counter->MulticastReceivedFrameCount = (unsigned long long) (pStatistic->dwRsrBroadcast +
 									    pStatistic->dwRsrMulticast);
 }

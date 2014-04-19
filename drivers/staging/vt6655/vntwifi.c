@@ -39,8 +39,6 @@
 #include "datarate.h"
 
 /*---------------------  Static Definitions -------------------------*/
-//static int          msglevel                =MSG_LEVEL_DEBUG;
-//static int          msglevel                =MSG_LEVEL_INFO;
 
 /*---------------------  Static Classes  ----------------------------*/
 
@@ -591,46 +589,6 @@ VNTWIFIbyGetKeyCypher(
 	}
 }
 
-/*
-  bool
-  VNTWIFIbInit(
-  void *pAdapterHandler,
-  void **pMgmtHandler
-) {
-  PSMgmtObject        pMgmt = NULL;
-  unsigned int ii;
-
-  pMgmt = (PSMgmtObject)kmalloc(sizeof(SMgmtObject), (int)GFP_ATOMIC);
-  if (pMgmt == NULL) {
-  *pMgmtHandler = NULL;
-  return false;
-  }
-
-  memset(pMgmt, 0, sizeof(SMgmtObject));
-  pMgmt->pAdapter = (void *) pAdapterHandler;
-
-  // should initial MAC address abyMACAddr
-  for (ii=0; ii<WLAN_BSSID_LEN; ii++) {
-  pMgmt->abyDesireBSSID[ii] = 0xFF;
-  }
-  pMgmt->pbyPSPacketPool = &pMgmt->byPSPacketPool[0];
-  pMgmt->pbyMgmtPacketPool = &pMgmt->byMgmtPacketPool[0];
-  pMgmt->byCSSPK = KEY_CTL_NONE;
-  pMgmt->byCSSGK = KEY_CTL_NONE;
-  pMgmt->wIBSSBeaconPeriod = DEFAULT_IBSS_BI;
-
-  pMgmt->cbFreeCmdQueue = CMD_Q_SIZE;
-  pMgmt->uCmdDequeueIdx = 0;
-  pMgmt->uCmdEnqueueIdx = 0;
-  pMgmt->eCommandState = WLAN_CMD_STATE_IDLE;
-  pMgmt->bCmdStop = false;
-  pMgmt->bCmdRunning = false;
-
-  *pMgmtHandler = pMgmt;
-  return true;
-  }
-*/
-
 bool
 VNTWIFIbSetPMKIDCache(
 	void *pMgmtObject,
@@ -693,7 +651,6 @@ VNTWIFIbMeasureReport(
 	PSMgmtObject    pMgmt = (PSMgmtObject) pMgmtObject;
 	unsigned char *pbyCurrentEID = (unsigned char *)(pMgmt->pCurrMeasureEIDRep);
 
-	//spin_lock_irq(&pDevice->lock);
 	if ((pvMeasureEID != NULL) &&
 	    (pMgmt->uLengthOfRepEIDs < (WLAN_A3FR_MAXLEN - sizeof(MEASEURE_REP) - sizeof(WLAN_80211HDR_A3) - 3))
 ) {
@@ -734,7 +691,7 @@ VNTWIFIbMeasureReport(
 	if (bEndOfReport) {
 		IEEE11hbMSRRepTx(pMgmt);
 	}
-	//spin_unlock_irq(&pDevice->lock);
+
 	return true;
 }
 
@@ -746,9 +703,7 @@ VNTWIFIbChannelSwitch(
 {
 	PSMgmtObject    pMgmt = (PSMgmtObject) pMgmtObject;
 
-	//spin_lock_irq(&pDevice->lock);
 	pMgmt->uCurrChannel = byNewChannel;
 	pMgmt->bSwitchChannel = false;
-	//spin_unlock_irq(&pDevice->lock);
 	return true;
 }

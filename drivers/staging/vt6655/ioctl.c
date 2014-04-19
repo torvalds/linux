@@ -319,7 +319,6 @@ int private_ioctl(PSDevice pDevice, struct ifreq *rq)
 				pList->sBSSIDList[ii].uChannel = pBSS->uChannel;
 				pList->sBSSIDList[ii].wBeaconInterval = pBSS->wBeaconInterval;
 				pList->sBSSIDList[ii].wCapInfo = pBSS->wCapInfo;
-				/* pList->sBSSIDList[ii].uRSSI = pBSS->uRSSI; */
 				RFvRSSITodBm(pDevice, (unsigned char)(pBSS->uRSSI), &ldBm);
 				pList->sBSSIDList[ii].uRSSI = (unsigned int)ldBm;
 				memcpy(pList->sBSSIDList[ii].abyBSSID, pBSS->abyBSSID, WLAN_BSSID_LEN);

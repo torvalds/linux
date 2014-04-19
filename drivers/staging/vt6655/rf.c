@@ -39,8 +39,6 @@
 
 /*---------------------  Static Definitions -------------------------*/
 
-//static int          msglevel                =MSG_LEVEL_INFO;
-
 #define BY_AL2230_REG_LEN     23 //24bit
 #define CB_AL2230_INIT_SEQ    15
 #define SWITCH_CHANNEL_DELAY_AL2230 200 //us
@@ -183,7 +181,6 @@ static const unsigned long dwAL7230InitTable[CB_AL7230_INIT_SEQ] = {
 	0x841FF200+(BY_AL7230_REG_LEN<<3)+IFREGCTL_REGW, // Need modify for 11a: 451FE2
 	0x3FDFA300+(BY_AL7230_REG_LEN<<3)+IFREGCTL_REGW, // Need modify for 11a: 5FDFA3
 	0x7FD78400+(BY_AL7230_REG_LEN<<3)+IFREGCTL_REGW, // 11b/g    // Need modify for 11a
-	//0x802B4500+(BY_AL7230_REG_LEN<<3)+IFREGCTL_REGW, // Need modify for 11a: 8D1B45
 	// RoberYu:20050113, Rev0.47 Regsiter Setting Guide
 	0x802B5500+(BY_AL7230_REG_LEN<<3)+IFREGCTL_REGW, // Need modify for 11a: 8D1B55
 	0x56AF3600+(BY_AL7230_REG_LEN<<3)+IFREGCTL_REGW,
@@ -192,7 +189,6 @@ static const unsigned long dwAL7230InitTable[CB_AL7230_INIT_SEQ] = {
 	0x221BB900+(BY_AL7230_REG_LEN<<3)+IFREGCTL_REGW,
 	0xE0000A00+(BY_AL7230_REG_LEN<<3)+IFREGCTL_REGW, // Need modify for 11a: E0600A
 	0x08031B00+(BY_AL7230_REG_LEN<<3)+IFREGCTL_REGW, // init 0x080B1B00 => 0x080F1B00 for 3 wire control TxGain(D10)
-	//0x00093C00+(BY_AL7230_REG_LEN<<3)+IFREGCTL_REGW, // Need modify for 11a: 00143C
 	// RoberYu:20050113, Rev0.47 Regsiter Setting Guide
 	0x000A3C00+(BY_AL7230_REG_LEN<<3)+IFREGCTL_REGW, // Need modify for 11a: 00143C
 	0xFFFFFD00+(BY_AL7230_REG_LEN<<3)+IFREGCTL_REGW,
@@ -585,10 +581,9 @@ bool IFRFbWriteEmbedded(unsigned long dwIoBase, unsigned long dwData)
 			break;
 	}
 
-	if (ww == W_MAX_TIMEOUT) {
-//        DBG_PORT80_ALWAYS(0x32);
+	if (ww == W_MAX_TIMEOUT)
 		return false;
-	}
+
 	return true;
 }
 
@@ -930,9 +925,6 @@ bool RFbSetPower(
 	case RATE_11M:
 		byPwr = pDevice->abyCCKPwrTbl[uCH];
 		byPwrdBm = pDevice->abyCCKDefaultPwr[uCH];
-//PLICE_DEBUG->
-		//byPwr+=5;
-//PLICE_DEBUG <-
 		break;
 	case RATE_6M:
 	case RATE_9M:
@@ -955,9 +947,6 @@ bool RFbSetPower(
 		}
 		byPwrdBm += pDevice->abyOFDMDefaultPwr[uCH];
 		byPwr = byDec;
-//PLICE_DEBUG->
-		//byPwr+=5;
-//PLICE_DEBUG<-
 		break;
 	case RATE_24M:
 	case RATE_36M:
@@ -965,9 +954,6 @@ bool RFbSetPower(
 	case RATE_54M:
 		byPwr = pDevice->abyOFDMPwrTbl[uCH];
 		byPwrdBm = pDevice->abyOFDMDefaultPwr[uCH];
-//PLICE_DEBUG->
-		//byPwr+=5;
-//PLICE_DEBUG<-
 		break;
 	}
 

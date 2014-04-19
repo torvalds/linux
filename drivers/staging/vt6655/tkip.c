@@ -189,7 +189,6 @@ void TKIPvMixKey(
 )
 {
 	unsigned int p1k[5];
-//    unsigned int ttak0, ttak1, ttak2, ttak3, ttak4;
 	unsigned int tsc0, tsc1, tsc2;
 	unsigned int ppk0, ppk1, ppk2, ppk3, ppk4, ppk5;
 	unsigned long int pnl, pnh;

@@ -95,14 +95,12 @@ PSvEnablePowerSaving(
 	if (wListenInterval >= 2) {
 		// clear always listen beacon
 		MACvRegBitsOff(pDevice->PortOffset, MAC_REG_PSCTL, PSCTL_ALBCN);
-		//pDevice->wCFG &= ~CFG_ALB;
 		// first time set listen next beacon
 		MACvRegBitsOn(pDevice->PortOffset, MAC_REG_PSCTL, PSCTL_LNBCN);
 		pMgmt->wCountToWakeUp = wListenInterval;
 	} else {
 		// always listen beacon
 		MACvRegBitsOn(pDevice->PortOffset, MAC_REG_PSCTL, PSCTL_ALBCN);
-		//pDevice->wCFG |= CFG_ALB;
 		pMgmt->wCountToWakeUp = 0;
 	}
 
@@ -110,13 +108,10 @@ PSvEnablePowerSaving(
 	MACvRegBitsOn(pDevice->PortOffset, MAC_REG_PSCTL, PSCTL_PSEN);
 	pDevice->bEnablePSMode = true;
 
-	if (pDevice->eOPMode == OP_MODE_ADHOC) {
-//        bMgrPrepareBeaconToSend((void *)pDevice, pMgmt);
-	}
-	// We don't send null pkt in ad hoc mode since beacon will handle this.
-	else if (pDevice->eOPMode == OP_MODE_INFRASTRUCTURE) {
+	/* We don't send null pkt in ad hoc mode since beacon will handle this. */
+	if (pDevice->eOPMode != OP_MODE_ADHOC && pDevice->eOPMode == OP_MODE_INFRASTRUCTURE)
 		PSbSendNullPacket(pDevice);
-	}
+
 	pDevice->bPWBitOn = true;
 	DBG_PRT(MSG_LEVEL_DEBUG, KERN_INFO "PS:Power Saving Mode Enable... \n");
 	return;
@@ -138,7 +133,6 @@ PSvDisablePowerSaving(
 )
 {
 	PSDevice        pDevice = (PSDevice)hDeviceContext;
-//    PSMgmtObject    pMgmt = pDevice->pMgmt;
 
 	// disable power saving hw function
 	MACbPSWakeup(pDevice->PortOffset);
@@ -258,8 +252,6 @@ PSvSendPSPOLL(
 	// send the frame
 	if (csMgmt_xmit(pDevice, pTxPacket) != CMD_STATUS_PENDING) {
 		DBG_PRT(MSG_LEVEL_DEBUG, KERN_INFO "Send PS-Poll packet failed..\n");
-	} else {
-//        DBG_PRT(MSG_LEVEL_DEBUG, KERN_INFO "Send PS-Poll packet success..\n");
 	}
 
 	return;
@@ -336,8 +328,6 @@ PSbSendNullPacket(
 	if (csMgmt_xmit(pDevice, pTxPacket) != CMD_STATUS_PENDING) {
 		DBG_PRT(MSG_LEVEL_DEBUG, KERN_INFO "Send Null Packet failed !\n");
 		return false;
-	} else {
-//            DBG_PRT(MSG_LEVEL_DEBUG, KERN_INFO "Send Null Packet success....\n");
 	}
 
 	return true;

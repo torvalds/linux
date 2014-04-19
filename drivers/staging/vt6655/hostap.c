@@ -48,7 +48,6 @@
 /*---------------------  Static Classes  ----------------------------*/
 
 /*---------------------  Static Variables  --------------------------*/
-//static int          msglevel                =MSG_LEVEL_DEBUG;
 static int msglevel = MSG_LEVEL_INFO;
 
 /*---------------------  Static Functions  --------------------------*/
@@ -241,7 +240,6 @@ static int hostap_add_sta(PSDevice pDevice,
 	pMgmt->sNodeDBTable[uNodeIndex].eNodeState = NODE_ASSOC;
 	pMgmt->sNodeDBTable[uNodeIndex].wCapInfo = param->u.add_sta.capability;
 // TODO listenInterval
-//    pMgmt->sNodeDBTable[uNodeIndex].wListenInterval = 1;
 	pMgmt->sNodeDBTable[uNodeIndex].bPSEnable = false;
 	pMgmt->sNodeDBTable[uNodeIndex].bySuppRate = param->u.add_sta.tx_supp_rates;
 
@@ -296,45 +294,12 @@ static int hostap_get_info_sta(PSDevice pDevice,
 	if (BSSDBbIsSTAInNodeDB(pMgmt, param->sta_addr, &uNodeIndex)) {
 		param->u.get_info_sta.inactive_sec =
 			(jiffies - pMgmt->sNodeDBTable[uNodeIndex].ulLastRxJiffer) / HZ;
-
-		//param->u.get_info_sta.txexc = pMgmt->sNodeDBTable[uNodeIndex].uTxAttempts;
 	} else {
 		return -ENOENT;
 	}
 
 	return 0;
 }
-
-/*
- * Description:
- *      reset txexec
- *
- * Parameters:
- *  In:
- *      pDevice   -
- *      param     -
- *  Out:
- *      true, false
- *
- * Return Value:
- *
- */
-/*
-  static int hostap_reset_txexc_sta(PSDevice pDevice,
-  struct viawget_hostapd_param *param)
-  {
-  PSMgmtObject    pMgmt = pDevice->pMgmt;
-  unsigned int uNodeIndex;
-
-  if (BSSDBbIsSTAInNodeDB(pMgmt, param->sta_addr, &uNodeIndex)) {
-  pMgmt->sNodeDBTable[uNodeIndex].uTxAttempts = 0;
-  } else {
-  return -ENOENT;
-  }
-
-  return 0;
-  }
-*/
 
 /*
  * Description:
@@ -463,12 +428,6 @@ static int hostap_set_encryption(PSDevice pDevice,
 	unsigned short wKeyCtl = 0;
 
 	param->u.crypt.err = 0;
-/*
-  if (param_len !=
-  (int) ((char *) param->u.crypt.key - (char *) param) +
-  param->u.crypt.key_len)
-  return -EINVAL;
-*/
 
 	if (param->u.crypt.alg > WPA_ALG_CCMP)
 		return -EINVAL;
@@ -780,12 +739,6 @@ int vt6655_hostap_ioctl(PSDevice pDevice, struct iw_point *p)
 		ret = hostap_get_info_sta(pDevice, param);
 		ap_ioctl = 1;
 		break;
-/*
-	case VIAWGET_HOSTAPD_RESET_TXEXC_STA:
-		DBG_PRT(MSG_LEVEL_DEBUG, KERN_INFO "VIAWGET_HOSTAPD_RESET_TXEXC_STA \n");
-		ret = hostap_reset_txexc_sta(pDevice, param);
-		break;
-*/
 	case VIAWGET_HOSTAPD_SET_FLAGS_STA:
 		DBG_PRT(MSG_LEVEL_DEBUG, KERN_INFO "VIAWGET_HOSTAPD_SET_FLAGS_STA \n");
 		ret = hostap_set_flags_sta(pDevice, param);

@@ -222,13 +222,6 @@ VNTWIFIvGetTxRate(
 	unsigned char *pbyCCKBasicRate,
 	unsigned char *pbyOFDMBasicRate
 );
-/*
-  bool
-  VNTWIFIbInit(
-  void *pAdapterHandler,
-  void **pMgmtHandler
-);
-*/
 
 unsigned char
 VNTWIFIbyGetKeyCypher(
@@ -276,12 +269,5 @@ VNTWIFIbChannelSwitch(
 	void *pMgmtObject,
 	unsigned char byNewChannel
 );
-/*
-  bool
-  VNTWIFIbRadarPresent(
-  void *pMgmtObject,
-  unsigned char byChannel
-);
-*/
 
 #endif //__VNTWIFI_H__

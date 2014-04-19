@@ -30,7 +30,6 @@
 
 #define CARD_MAX_CHANNEL_TBL    56
 
-//static int msglevel = MSG_LEVEL_DEBUG;
 static int msglevel = MSG_LEVEL_INFO;
 
 /*---------------------  Static Variables  --------------------------*/
@@ -509,7 +508,6 @@ unsigned char get_channel_mapping(void *pDeviceHandler, unsigned char byChannelN
 
 unsigned char get_channel_number(void *pDeviceHandler, unsigned char byChannelIndex)
 {
-	//PSDevice    pDevice = (PSDevice) pDeviceHandler;
 	return sChannelTbl[byChannelIndex].byChannelNumber;
 }
 
@@ -560,7 +558,6 @@ bool set_channel(void *pDeviceHandler, unsigned int uConnectionChannel)
 	if (pDevice->bEnablePSMode)
 		RFvWriteWakeProgSyn(pDevice->PortOffset, pDevice->byRFType, uConnectionChannel);
 
-	//DBG_PRT(MSG_LEVEL_DEBUG, KERN_INFO "CARDbSetMediaChannel: %d\n", (unsigned char)uConnectionChannel);
 	BBvSoftwareReset(pDevice->PortOffset);
 
 	if (pDevice->byLocalID > REV_ID_VT3253_B1) {

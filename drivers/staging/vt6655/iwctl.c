@@ -66,7 +66,6 @@ static const long frequency_list[] = {
 
 /*---------------------  Static Classes  ----------------------------*/
 
-//static int          msglevel                =MSG_LEVEL_DEBUG;
 static int msglevel = MSG_LEVEL_INFO;
 
 /*---------------------  Static Variables  --------------------------*/
@@ -89,7 +88,6 @@ struct iw_statistics *iwctl_get_wireless_stats(struct net_device *dev)
 #endif
 	RFvRSSITodBm(pDevice, (unsigned char)(pDevice->uCurrRSSI), &ldBm);
 	pDevice->wstats.qual.level = ldBm;
-	//pDevice->wstats.qual.level = 0x100 - pDevice->uCurrRSSI;
 	pDevice->wstats.qual.noise = 0;
 	pDevice->wstats.qual.updated = 1;
 	pDevice->wstats.discard.nwid = 0;
@@ -277,7 +275,6 @@ int iwctl_giwscan(struct net_device *dev,
 			}
 			iwe.u.qual.updated = 7;
 
-			//  iwe.u.qual.qual = 0;
 			current_ev = iwe_stream_add_event(info, current_ev, end_buf, &iwe, IW_EV_QUAL_LEN);
 
 			memset(&iwe, 0, sizeof(iwe));
@@ -640,7 +637,6 @@ int iwctl_siwap(struct net_device *dev,
 	if (pMgmt->eScanState ==  WMAC_IS_SCANNING) {
 		// In scanning..
 		printk("SIOCSIWAP(??)-->In scanning...\n");
-		//  return -EAGAIN;
 	}
 	if (wrq->sa_family != ARPHRD_ETHER)
 		rc = -EINVAL;
@@ -778,7 +774,6 @@ int iwctl_siwessid(struct net_device *dev,
 	if (pMgmt->eScanState ==  WMAC_IS_SCANNING) {
 		// In scanning..
 		printk("SIOCSIWESSID(??)-->In scanning...\n");
-		//  return -EAGAIN;
 	}
 	// Check if we asked for `any'
 	if (wrq->flags == 0) {
@@ -889,7 +884,6 @@ int iwctl_giwessid(struct net_device *dev,
 
 	// Get the current SSID
 	pItemSSID = (PWLAN_IE_SSID)pMgmt->abyCurrSSID;
-	//pItemSSID = (PWLAN_IE_SSID)pMgmt->abyDesireSSID;
 	memcpy(extra, pItemSSID->abySSID , pItemSSID->len);
 	extra[pItemSSID->len] = '\0';
 	wrq->length = pItemSSID->len + 1;
@@ -1016,21 +1010,7 @@ int iwctl_giwrate(struct net_device *dev,
 				brate = abySupportedRates[TxRate_iwconfig];
 			}
 		} else brate = 0;
-//2007-0118-05,<Mark> by EinsnLiu
-//Mark the unnecessary sentences.
-/*
-  if (pMgmt->eCurrMode == WMAC_MODE_ESS_AP) {
-  if (pDevice->byBBType == BB_TYPE_11B)
-  brate = 0x16;
-  if (pDevice->byBBType == BB_TYPE_11G)
-  brate = 0x6C;
-  if (pDevice->byBBType == BB_TYPE_11A)
-  brate = 0x6C;
-  }
-*/
 
-//		if (pDevice->uConnectionRate == 13)
-//                brate = abySupportedRates[pDevice->wCurrentRate];
 		wrq->value = brate * 500000;
 		// If more than one rate, set auto
 		if (pDevice->bFixRate == true)
@@ -1319,82 +1299,6 @@ int iwctl_siwencode(struct net_device *dev,
 	}
 //End Modify,Einsn
 
-/*
-  DBG_PRT(MSG_LEVEL_DEBUG, KERN_INFO " SIOCSIWENCODE \n");
-
-  // Check the size of the key
-  if (wrq->length > WLAN_WEP232_KEYLEN) {
-  rc = -EINVAL;
-  return rc;
-  }
-
-  if (dwKeyIndex > WLAN_WEP_NKEYS) {
-  rc = -EINVAL;
-  return rc;
-  }
-
-  if (dwKeyIndex > 0)
-  dwKeyIndex--;
-
-  // Send the key to the card
-  if (wrq->length > 0) {
-  if (wrq->length ==  WLAN_WEP232_KEYLEN) {
-  DBG_PRT(MSG_LEVEL_DEBUG, KERN_INFO "Set 232 bit wep key\n");
-  } else if (wrq->length ==  WLAN_WEP104_KEYLEN) {
-  DBG_PRT(MSG_LEVEL_DEBUG, KERN_INFO "Set 104 bit wep key\n");
-  } else if (wrq->length == WLAN_WEP40_KEYLEN) {
-  DBG_PRT(MSG_LEVEL_DEBUG, KERN_INFO "Set 40 bit wep key, index= %d\n", (int)dwKeyIndex);
-  }
-  memset(pDevice->abyKey, 0, WLAN_WEP232_KEYLEN);
-  memcpy(pDevice->abyKey, extra, wrq->length);
-
-  DBG_PRT(MSG_LEVEL_DEBUG, KERN_INFO "abyKey: ");
-  for (ii = 0; ii < wrq->length; ii++) {
-  DBG_PRT(MSG_LEVEL_DEBUG, KERN_INFO "%02x ", pDevice->abyKey[ii]);
-  }
-
-  if (pDevice->flags & DEVICE_FLAGS_OPENED) {
-  spin_lock_irq(&pDevice->lock);
-  KeybSetDefaultKey(&(pDevice->sKey),
-  (unsigned long)(pDevice->byKeyIndex | (1 << 31)),
-  pDevice->uKeyLength,
-  NULL,
-  pDevice->abyKey,
-  KEY_CTL_WEP,
-  pDevice->PortOffset,
-  pDevice->byLocalID
-);
-  spin_unlock_irq(&pDevice->lock);
-  }
-  pDevice->byKeyIndex = (unsigned char)dwKeyIndex;
-  pDevice->uKeyLength = wrq->length;
-  pDevice->bTransmitKey = true;
-  pDevice->bEncryptionEnable = true;
-  pDevice->eEncryptionStatus = Ndis802_11Encryption1Enabled;
-
-  // Do we want to just set the transmit key index ?
-  if (index < 4) {
-  pDevice->byKeyIndex = index;
-  } else if (!(wrq->flags & IW_ENCODE_MODE)) {
-  rc = -EINVAL;
-  return rc;
-  }
-  }
-  // Read the flags
-  if (wrq->flags & IW_ENCODE_DISABLED) {
-  DBG_PRT(MSG_LEVEL_DEBUG, KERN_INFO "Disable WEP function\n");
-  pMgmt->bShareKeyAlgorithm = false;
-  pDevice->bEncryptionEnable = false;
-  pDevice->eEncryptionStatus = Ndis802_11EncryptionDisabled;
-  if (pDevice->flags & DEVICE_FLAGS_OPENED) {
-  spin_lock_irq(&pDevice->lock);
-  for (uu=0; uu<MAX_KEY_TABLE; uu++)
-  MACvDisableKeyEntry(pDevice->PortOffset, uu);
-  spin_unlock_irq(&pDevice->lock);
-  }
-  }
-*/
-
 	if (wrq->flags & IW_ENCODE_RESTRICTED) {
 		DBG_PRT(MSG_LEVEL_DEBUG, KERN_INFO "Enable WEP & ShareKey System\n");
 		pMgmt->bShareKeyAlgorithm = true;
@@ -1405,77 +1309,6 @@ int iwctl_siwencode(struct net_device *dev,
 	}
 	return rc;
 }
-
-/*
- * Wireless Handler : get encode mode
- */
-/*
-  int iwctl_giwencode(struct net_device *dev,
-  struct iw_request_info *info,
-  struct iw_point *wrq,
-  char *extra) {
-  PSDevice	        pDevice = (PSDevice)netdev_priv(dev);
-  PSMgmtObject        pMgmt = &(pDevice->sMgmtObj);
-  int rc = 0;
-  char abyKey[WLAN_WEP232_KEYLEN];
-  unsigned int index = (unsigned int)(wrq->flags & IW_ENCODE_INDEX);
-  PSKeyItem   pKey = NULL;
-
-  DBG_PRT(MSG_LEVEL_DEBUG, KERN_INFO " SIOCGIWENCODE\n");
-//2007-0207-06,<Add> by EinsnLiu
-//the key index in iwconfig is 1-4 when our driver is 0-3
-//so it can't be used directly.
-//if the index is 0,we should used the index set by driver.
-if (index > WLAN_WEP_NKEYS) {
-rc = -EINVAL;
-return rc;
-}
-if (index<1) {//set default key
-if (pDevice->byKeyIndex<WLAN_WEP_NKEYS) {
-index=pDevice->byKeyIndex;
-}
-else index=0;
-} else index--;
-//End Add,Einsn
-
-memset(abyKey, 0, sizeof(abyKey));
-// Check encryption mode
-wrq->flags = IW_ENCODE_NOKEY;
-// Is WEP enabled ???
-if (pDevice->bEncryptionEnable)
-wrq->flags |=  IW_ENCODE_ENABLED;
-else
-wrq->flags |=  IW_ENCODE_DISABLED;
-
-if (pMgmt->bShareKeyAlgorithm)
-wrq->flags |=  IW_ENCODE_RESTRICTED;
-else
-wrq->flags |=  IW_ENCODE_OPEN;
-
-if (KeybGetKey(&(pDevice->sKey), pDevice->abyBroadcastAddr, (unsigned char)index , &pKey)) {
-wrq->length = pKey->uKeyLength;
-memcpy(abyKey, pKey->abyKey,  pKey->uKeyLength);
-//2007-0207-06,<Modify> by EinsnLiu
-//only get key success need to  copy data
-//index should +1.
-//there is not necessary to return -EINVAL when get key failed
-//if return -EINVAL,the encryption item can't be display by the command "iwconfig".
-wrq->flags |= index+1;
-memcpy(extra,  abyKey, WLAN_WEP232_KEYLEN);
-}
-
-//else {
-//    rc = -EINVAL;
-//     return rc;
-//  }
-
-//End Modify,Einsn
-
-return 0;
-}
-*/
-
-//2008-0409-06, <Add> by Einsn Liu
 
 int iwctl_giwencode(struct net_device *dev,
 		    struct iw_request_info *info,
@@ -1659,13 +1492,12 @@ int iwctl_siwauth(struct net_device *dev,
 		wpa_version = wrq->value;
 		if (wrq->value == IW_AUTH_WPA_VERSION_DISABLED) {
 			PRINT_K("iwctl_siwauth:set WPADEV to disable at 1??????\n");
-			//pDevice->bWPADevEnable = false;
 		} else if (wrq->value == IW_AUTH_WPA_VERSION_WPA) {
 			PRINT_K("iwctl_siwauth:set WPADEV to WPA1******\n");
 		} else {
 			PRINT_K("iwctl_siwauth:set WPADEV to WPA2******\n");
 		}
-		//pDevice->bWPASuppWextEnabled =true;
+
 		break;
 	case IW_AUTH_CIPHER_PAIRWISE:
 		pairwise = wrq->value;
@@ -1718,7 +1550,6 @@ int iwctl_siwauth(struct net_device *dev,
 		}
 		break;
 	case IW_AUTH_WPA_ENABLED:
-		//pDevice->bWPADevEnable = !! wrq->value;
 		break;
 	case IW_AUTH_RX_UNENCRYPTED_EAPOL:
 		break;
@@ -1733,7 +1564,6 @@ int iwctl_siwauth(struct net_device *dev,
 			pDevice->eEncryptionStatus = Ndis802_11EncryptionDisabled;
 			pMgmt->bShareKeyAlgorithm = false;
 			pMgmt->eAuthenMode = false;
-			//pDevice->bWPADevEnable = false;
 		}
 
 		break;
@@ -1741,15 +1571,7 @@ int iwctl_siwauth(struct net_device *dev,
 		ret = -EOPNOTSUPP;
 		break;
 	}
-/*
-  DBG_PRT(MSG_LEVEL_DEBUG, KERN_INFO "wpa_version = %d\n",wpa_version);
-  DBG_PRT(MSG_LEVEL_DEBUG, KERN_INFO "pairwise = %d\n",pairwise);
-  DBG_PRT(MSG_LEVEL_DEBUG, KERN_INFO "pDevice->eEncryptionStatus = %d\n",pDevice->eEncryptionStatus);
-  DBG_PRT(MSG_LEVEL_DEBUG, KERN_INFO "pMgmt->eAuthenMode  = %d\n",pMgmt->eAuthenMode);
-  DBG_PRT(MSG_LEVEL_DEBUG, KERN_INFO "pMgmt->bShareKeyAlgorithm = %s\n",pMgmt->bShareKeyAlgorithm?"true":"false");
-  DBG_PRT(MSG_LEVEL_DEBUG, KERN_INFO "pDevice->bEncryptionEnable = %s\n",pDevice->bEncryptionEnable?"true":"false");
-  DBG_PRT(MSG_LEVEL_DEBUG, KERN_INFO "pDevice->bWPADevEnable = %s\n",pDevice->bWPADevEnable?"true":"false");
-*/
+
 	return ret;
 }
 
@@ -1833,8 +1655,7 @@ int iwctl_siwencodeext(struct net_device *dev,
 	u8  seq[IW_ENCODE_SEQ_MAX_SIZE];
 	u8 key[64];
 	size_t seq_len = 0, key_len = 0;
-//
-	// int ii;
+
 	u8 key_array[64];
 	int ret = 0;
 
@@ -1949,7 +1770,6 @@ int iwctl_siwmlme(struct net_device *dev,
 	PSDevice			pDevice = (PSDevice)netdev_priv(dev);
 	PSMgmtObject	pMgmt = &(pDevice->sMgmtObj);
 	struct iw_mlme *mlme = (struct iw_mlme *)extra;
-	//u16 reason = cpu_to_le16(mlme->reason_code);
 	int ret = 0;
 
 	if (memcmp(pMgmt->abyCurrBSSID, mlme->addr.sa_data, ETH_ALEN)) {
@@ -1983,69 +1803,6 @@ int iwctl_siwmlme(struct net_device *dev,
 /*
  * Structures to export the Wireless Handlers
  */
-
-/*
-  static const iw_handler		iwctl_handler[] =
-  {
-  (iw_handler) iwctl_commit,      // SIOCSIWCOMMIT
-  (iw_handler) iwctl_giwname,     // SIOCGIWNAME
-  (iw_handler) NULL,				// SIOCSIWNWID
-  (iw_handler) NULL,				// SIOCGIWNWID
-  (iw_handler) iwctl_siwfreq,		// SIOCSIWFREQ
-  (iw_handler) iwctl_giwfreq,		// SIOCGIWFREQ
-  (iw_handler) iwctl_siwmode,		// SIOCSIWMODE
-  (iw_handler) iwctl_giwmode,		// SIOCGIWMODE
-  (iw_handler) NULL,		        // SIOCSIWSENS
-  (iw_handler) iwctl_giwsens,		        // SIOCGIWSENS
-  (iw_handler) NULL,		        // SIOCSIWRANGE
-  (iw_handler) iwctl_giwrange,		// SIOCGIWRANGE
-  (iw_handler) NULL,			// SIOCSIWPRIV
-  (iw_handler) NULL,			// SIOCGIWPRIV
-  (iw_handler) NULL,			// SIOCSIWSTATS
-  (iw_handler) NULL,                  // SIOCGIWSTATS
-  (iw_handler) NULL,                  // SIOCSIWSPY
-  (iw_handler) NULL,		            // SIOCGIWSPY
-  (iw_handler) NULL,				    // -- hole --
-  (iw_handler) NULL,				    // -- hole --
-  (iw_handler) iwctl_siwap,		    // SIOCSIWAP
-  (iw_handler) iwctl_giwap,		    // SIOCGIWAP
-  (iw_handler) NULL,				    // -- hole -- 0x16
-  (iw_handler) iwctl_giwaplist,       // SIOCGIWAPLIST
-  (iw_handler) iwctl_siwscan,         // SIOCSIWSCAN
-  (iw_handler) iwctl_giwscan,         // SIOCGIWSCAN
-  (iw_handler) iwctl_siwessid,		// SIOCSIWESSID
-  (iw_handler) iwctl_giwessid,		// SIOCGIWESSID
-  (iw_handler) NULL,		// SIOCSIWNICKN
-  (iw_handler) NULL,		// SIOCGIWNICKN
-  (iw_handler) NULL,				    // -- hole --
-  (iw_handler) NULL,				    // -- hole --
-  (iw_handler) iwctl_siwrate,		// SIOCSIWRATE 0x20
-  (iw_handler) iwctl_giwrate,		// SIOCGIWRATE
-  (iw_handler) iwctl_siwrts,		// SIOCSIWRTS
-  (iw_handler) iwctl_giwrts,		// SIOCGIWRTS
-  (iw_handler) iwctl_siwfrag,		// SIOCSIWFRAG
-  (iw_handler) iwctl_giwfrag,		// SIOCGIWFRAG
-  (iw_handler) NULL,		// SIOCSIWTXPOW
-  (iw_handler) NULL,		// SIOCGIWTXPOW
-  (iw_handler) iwctl_siwretry,		// SIOCSIWRETRY
-  (iw_handler) iwctl_giwretry,		// SIOCGIWRETRY
-  (iw_handler) iwctl_siwencode,		// SIOCSIWENCODE
-  (iw_handler) iwctl_giwencode,		// SIOCGIWENCODE
-  (iw_handler) iwctl_siwpower,		// SIOCSIWPOWER
-  (iw_handler) iwctl_giwpower,		// SIOCGIWPOWER
-  (iw_handler) NULL,			// -- hole --
-  (iw_handler) NULL,			// -- hole --
-  (iw_handler) iwctl_siwgenie,    // SIOCSIWGENIE
-  (iw_handler) iwctl_giwgenie,    // SIOCGIWGENIE
-  (iw_handler) iwctl_siwauth,		// SIOCSIWAUTH
-  (iw_handler) iwctl_giwauth,		// SIOCGIWAUTH
-  (iw_handler) iwctl_siwencodeext,		// SIOCSIWENCODEEXT
-  (iw_handler) iwctl_giwencodeext,		// SIOCGIWENCODEEXT
-  (iw_handler) NULL,				// SIOCSIWPMKSA
-  (iw_handler) NULL,				// -- hole --
-
-  };
-*/
 
 static const iw_handler		iwctl_handler[] =
 {
@@ -2124,13 +1881,9 @@ const struct iw_handler_def	iwctl_handler_def =
 {
 	.get_wireless_stats = &iwctl_get_wireless_stats,
 	.num_standard	= sizeof(iwctl_handler)/sizeof(iw_handler),
-//	.num_private	= sizeof(iwctl_private_handler)/sizeof(iw_handler),
-//	.num_private_args = sizeof(iwctl_private_args)/sizeof(struct iw_priv_args),
 	.num_private	= 0,
 	.num_private_args = 0,
 	.standard	= (iw_handler *)iwctl_handler,
-//	.private	= (iw_handler *) iwctl_private_handler,
-//	.private_args	= (struct iw_priv_args *)iwctl_private_args,
 	.private	= NULL,
 	.private_args	= NULL,
 };

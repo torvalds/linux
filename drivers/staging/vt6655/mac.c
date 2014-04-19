@@ -74,7 +74,6 @@
 
 unsigned short TxRate_iwconfig;//2008-5-8 <add> by chester
 /*---------------------  Static Definitions -------------------------*/
-//static int          msglevel                =MSG_LEVEL_DEBUG;
 static int msglevel = MSG_LEVEL_INFO;
 /*---------------------  Static Classes  ----------------------------*/
 
@@ -770,7 +769,6 @@ bool MACbSoftwareReset(unsigned long dwIoBase)
 	unsigned short ww;
 
 	// turn on HOSTCR_SOFTRST, just write 0x01 to reset
-	//MACvRegBitsOn(dwIoBase, MAC_REG_HOSTCR, HOSTCR_SOFTRST);
 	VNSvOutPortB(dwIoBase + MAC_REG_HOSTCR, 0x01);
 
 	for (ww = 0; ww < W_MAX_TIMEOUT; ww++) {
@@ -809,7 +807,6 @@ bool MACbSafeSoftwareReset(unsigned long dwIoBase)
 	MACvSaveContext(dwIoBase, abyTmpRegData);
 	// do reset
 	bRetVal = MACbSoftwareReset(dwIoBase);
-	//BBvSoftwareReset(pDevice->PortOffset);
 	// restore MAC context, except CR0
 	MACvRestoreContext(dwIoBase, abyTmpRegData);
 
@@ -1022,11 +1019,6 @@ void MACvInitialize(unsigned long dwIoBase)
 	// disable force PME-enable
 	VNSvOutPortB(dwIoBase + MAC_REG_PMC1, PME_OVR);
 	// only 3253 A
-	/*
-	  MACvPwrEvntDisable(dwIoBase);
-	  // clear power status
-	  VNSvOutPortW(dwIoBase + MAC_REG_WAKEUPSR0, 0x0F0F);
-	*/
 
 	// do reset
 	MACbSoftwareReset(dwIoBase);

@@ -59,7 +59,6 @@
 
 /*---------------------  Static Definitions -------------------------*/
 
-//static int          msglevel                =MSG_LEVEL_DEBUG;
 static int msglevel = MSG_LEVEL_INFO;
 
 #define C_SIFS_A        16      // micro sec.
@@ -338,36 +337,6 @@ s_vSetRSPINF(PSDevice pDevice, CARD_PHY_TYPE ePHYType, void *pvSupportRateIEs, v
 /*---------------------  Export Functions  --------------------------*/
 
 /*
- * Description: Card Send packet function
- *
- * Parameters:
- *  In:
- *      pDeviceHandler      - The adapter to be set
- *      pPacket             - Packet buffer pointer
- *      ePktType            - Packet type
- *      uLength             - Packet length
- *  Out:
- *      none
- *
- * Return Value: true if succeeded; false if failed.
- *
- */
-/*
-  bool CARDbSendPacket (void *pDeviceHandler, void *pPacket, CARD_PKT_TYPE ePktType, unsigned int uLength) {
-  PSDevice    pDevice = (PSDevice) pDeviceHandler;
-  if (ePktType == PKT_TYPE_802_11_MNG) {
-  return TXbTD0Send(pDevice, pPacket, uLength);
-  } else if (ePktType == PKT_TYPE_802_11_BCN) {
-  return TXbBeaconSend(pDevice, pPacket, uLength);
-  } if (ePktType == PKT_TYPE_802_11_DATA) {
-  return TXbTD1Send(pDevice, pPacket, uLength);
-  }
-
-  return true;
-  }
-*/
-
-/*
  * Description: Get Card short preamble option value
  *
  * Parameters:
@@ -426,7 +395,6 @@ bool CARDbSetPhyParameter(void *pDeviceHandler, CARD_PHY_TYPE ePHYType, unsigned
 	unsigned char bySIFS = 0;
 	unsigned char byDIFS = 0;
 	unsigned char byData;
-//    PWLAN_IE_SUPP_RATES pRates = NULL;
 	PWLAN_IE_SUPP_RATES pSupportRates = (PWLAN_IE_SUPP_RATES) pvSupportRateIEs;
 	PWLAN_IE_SUPP_RATES pExtSupportRates = (PWLAN_IE_SUPP_RATES) pvExtSupportRateIEs;
 
@@ -1301,8 +1269,6 @@ CARDbSetQuiet(
 		if (pDevice->byQuietStartCount < byQuietCount) {
 			pDevice->byQuietStartCount = byQuietCount;
 		}
-	} else {
-		// we can not handle Quiet EID more
 	}
 	return true;
 }
@@ -2060,8 +2026,6 @@ QWORD CARDqGetNextTBTT(QWORD qwTSF, unsigned short wBeaconInterval)
 	uLowNextTBTT = (LODWORD(qwTSF) >> 10) << 10;
 	// low dword (mod) bcn
 	uLowRemain = (uLowNextTBTT) % uBeaconInterval;
-//    uHighRemain = ((0x80000000 % uBeaconInterval)* 2 * HIDWORD(qwTSF))
-//                  % uBeaconInterval;
 	// high dword (mod) bcn
 	uHighRemain = (((0xffffffff % uBeaconInterval) + 1) * HIDWORD(qwTSF))
 		% uBeaconInterval;
@@ -2103,7 +2067,7 @@ void CARDvSetFirstNextTBTT(unsigned long dwIoBase, unsigned short wBeaconInterva
 	VNSvOutPortD(dwIoBase + MAC_REG_NEXTTBTT, LODWORD(qwNextTBTT));
 	VNSvOutPortD(dwIoBase + MAC_REG_NEXTTBTT + 4, HIDWORD(qwNextTBTT));
 	MACvRegBitsOn(dwIoBase, MAC_REG_TFTCTL, TFTCTL_TBTTSYNCEN);
-	//DBG_PRT(MSG_LEVEL_DEBUG, KERN_INFO "Card:First Next TBTT[%8xh:%8xh] \n", HIDWORD(qwNextTBTT), LODWORD(qwNextTBTT));
+
 	return;
 }
 
