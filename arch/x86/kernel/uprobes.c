@@ -245,7 +245,7 @@ static int uprobe_init_insn(struct arch_uprobe *auprobe, struct insn *insn, bool
 static inline bool is_64bit_mm(struct mm_struct *mm)
 {
 	return	!config_enabled(CONFIG_IA32_EMULATION) ||
-		!mm->context.ia32_compat;
+		!(mm->context.ia32_compat == TIF_IA32);
 }
 /*
  * If arch_uprobe->insn doesn't use rip-relative addressing, return
