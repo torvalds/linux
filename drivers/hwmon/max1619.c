@@ -325,6 +325,7 @@ static struct max1619_data *max1619_update_device(struct device *dev)
 {
 	struct i2c_client *client = to_i2c_client(dev);
 	struct max1619_data *data = i2c_get_clientdata(client);
+	int config;
 
 	mutex_lock(&data->update_lock);
 
@@ -344,6 +345,10 @@ static struct max1619_data *max1619_update_device(struct device *dev)
 					MAX1619_REG_R_TCRIT_HYST);
 		data->alarms = i2c_smbus_read_byte_data(client,
 					MAX1619_REG_R_STATUS);
+		/* If OVERT polarity is low, reverse alarm bit */
+		config = i2c_smbus_read_byte_data(client, MAX1619_REG_R_CONFIG);
+		if (!(config & 0x20))
+			data->alarms ^= 0x02;
 
 		data->last_updated = jiffies;
 		data->valid = 1;
