@@ -880,7 +880,12 @@ void radeon_compute_pll_avivo(struct radeon_pll *pll,
 		ref_div_min = pll->reference_div;
 	else
 		ref_div_min = pll->min_ref_div;
-	ref_div_max = pll->max_ref_div;
+
+	if (pll->flags & RADEON_PLL_USE_FRAC_FB_DIV &&
+	    pll->flags & RADEON_PLL_USE_REF_DIV)
+		ref_div_max = pll->reference_div;
+	else
+		ref_div_max = pll->max_ref_div;
 
 	/* determine allowed post divider range */
 	if (pll->flags & RADEON_PLL_USE_POST_DIV) {
