@@ -2353,12 +2353,11 @@ static __init void nested_vmx_setup_ctls_msrs(void)
 			 VMX_EPT_INVEPT_BIT;
 		nested_vmx_ept_caps &= vmx_capability.ept;
 		/*
-		 * Since invept is completely emulated we support both global
-		 * and context invalidation independent of what host cpu
-		 * supports
+		 * For nested guests, we don't do anything specific
+		 * for single context invalidation. Hence, only advertise
+		 * support for global context invalidation.
 		 */
-		nested_vmx_ept_caps |= VMX_EPT_EXTENT_GLOBAL_BIT |
-			VMX_EPT_EXTENT_CONTEXT_BIT;
+		nested_vmx_ept_caps |= VMX_EPT_EXTENT_GLOBAL_BIT;
 	} else
 		nested_vmx_ept_caps = 0;
 
@@ -6441,7 +6440,6 @@ static int handle_invept(struct kvm_vcpu *vcpu)
 	struct {
 		u64 eptp, gpa;
 	} operand;
-	u64 eptp_mask = ((1ull << 51) - 1) & PAGE_MASK;
 
 	if (!(nested_vmx_secondary_ctls_high & SECONDARY_EXEC_ENABLE_EPT) ||
 	    !(nested_vmx_ept_caps & VMX_EPT_INVEPT_BIT)) {
@@ -6481,16 +6479,13 @@ static int handle_invept(struct kvm_vcpu *vcpu)
 	}
 
 	switch (type) {
-	case VMX_EPT_EXTENT_CONTEXT:
-		if ((operand.eptp & eptp_mask) !=
-				(nested_ept_get_cr3(vcpu) & eptp_mask))
-			break;
 	case VMX_EPT_EXTENT_GLOBAL:
 		kvm_mmu_sync_roots(vcpu);
 		kvm_mmu_flush_tlb(vcpu);
 		nested_vmx_succeed(vcpu);
 		break;
 	default:
+		/* Trap single context invalidation invept calls */
 		BUG_ON(1);
 		break;
 	}
