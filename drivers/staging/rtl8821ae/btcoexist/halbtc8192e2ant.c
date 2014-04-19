@@ -12,7 +12,7 @@
  *   include files
  **************************************************************/
 #include "halbt_precomp.h"
-#if 1
+
 /**************************************************************
  *   Global variables, these are static variables
  **************************************************************/
@@ -4236,7 +4236,4 @@ void ex_halbtc8192e2ant_periodical(struct btc_coexist *btcoexist)
 		halbtc8192e2ant_run_coexist_mechanism(btcoexist);
 #endif
 }
-
-
-#endif
 
