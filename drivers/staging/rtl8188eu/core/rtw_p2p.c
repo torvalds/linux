@@ -1505,9 +1505,9 @@ static void find_phase_handler(struct adapter *padapter)
 
 	rtw_p2p_set_state(pwdinfo, P2P_STATE_FIND_PHASE_SEARCH);
 
-        spin_lock_bh(&pmlmepriv->lock);
-        rtw_sitesurvey_cmd(padapter, &ssid, 1, NULL, 0);
-        spin_unlock_bh(&pmlmepriv->lock);
+	spin_lock_bh(&pmlmepriv->lock);
+	rtw_sitesurvey_cmd(padapter, &ssid, 1, NULL, 0);
+	spin_unlock_bh(&pmlmepriv->lock);
 }
 
 void p2p_concurrent_handler(struct adapter *padapter);
