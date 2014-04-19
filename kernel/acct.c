@@ -456,12 +456,16 @@ static void do_acct_process(struct bsd_acct_struct *acct,
 {
 	struct pacct_struct *pacct = &current->signal->pacct;
 	acct_t ac;
-	mm_segment_t fs;
 	unsigned long flim;
 	u64 elapsed, run_time;
 	struct tty_struct *tty;
 	const struct cred *orig_cred;
 
+	/*
+	 * Accounting records are not subject to resource limits.
+	 */
+	flim = current->signal->rlim[RLIMIT_FSIZE].rlim_cur;
+	current->signal->rlim[RLIMIT_FSIZE].rlim_cur = RLIM_INFINITY;
 	/* Perform file operations on behalf of whoever enabled accounting */
 	orig_cred = override_creds(file->f_cred);
 
@@ -536,25 +540,14 @@ static void do_acct_process(struct bsd_acct_struct *acct,
 	 * Get freeze protection. If the fs is frozen, just skip the write
 	 * as we could deadlock the system otherwise.
 	 */
-	if (!file_start_write_trylock(file))
-		goto out;
-	/*
-	 * Kernel segment override to datasegment and write it
-	 * to the accounting file.
-	 */
-	fs = get_fs();
-	set_fs(KERNEL_DS);
-	/*
-	 * Accounting records are not subject to resource limits.
-	 */
-	flim = current->signal->rlim[RLIMIT_FSIZE].rlim_cur;
-	current->signal->rlim[RLIMIT_FSIZE].rlim_cur = RLIM_INFINITY;
-	file->f_op->write(file, (char *)&ac,
-			       sizeof(acct_t), &file->f_pos);
-	current->signal->rlim[RLIMIT_FSIZE].rlim_cur = flim;
-	set_fs(fs);
-	file_end_write(file);
+	if (file_start_write_trylock(file)) {
+		/* it's been opened O_APPEND, so position is irrelevant */
+		loff_t pos = 0;
+		__kernel_write(file, (char *)&ac, sizeof(acct_t), &pos);
+		file_end_write(file);
+	}
 out:
+	current->signal->rlim[RLIMIT_FSIZE].rlim_cur = flim;
 	revert_creds(orig_cred);
 }
 
