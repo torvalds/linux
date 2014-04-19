@@ -531,9 +531,6 @@ static void do_acct_process(struct bsd_acct_struct *acct,
 	ac.ac_majflt = encode_comp_t(pacct->ac_majflt);
 	ac.ac_exitcode = pacct->ac_exitcode;
 	spin_unlock_irq(&current->sighand->siglock);
-	ac.ac_io = encode_comp_t(0 /* current->io_usage */);	/* %% */
-	ac.ac_rw = encode_comp_t(ac.ac_io / 1024);
-	ac.ac_swaps = encode_comp_t(0);
 
 	/*
 	 * Get freeze protection. If the fs is frozen, just skip the write
