@@ -943,54 +943,6 @@ static void halbtc8192e2ant_rf_shrink(struct btc_coexist *btcoexist,
 	coex_dm->pre_rf_rx_lpf_shrink = coex_dm->cur_rf_rx_lpf_shrink;
 }
 
-static void halbtc8192e2ant_set_sw_penalty_tx_rateadaptive(
-						struct btc_coexist *btcoexist,
-						bool low_penalty_ra)
-{
-	u8 h2c_parameter[6] ={0};
-
-	h2c_parameter[0] = 0x6;	/* opCode, 0x6= Retry_Penalty */
-
-	if (low_penalty_ra) {
-		h2c_parameter[1] |= BIT0;
-		/* normal rate except MCS7/6/5, OFDM54/48/36 */
-		h2c_parameter[2] = 0x00;
-		h2c_parameter[3] = 0xf7;  /* MCS7 or OFDM54 */
-		h2c_parameter[4] = 0xf8;  /* MCS6 or OFDM48 */
-		h2c_parameter[5] = 0xf9;  /* MCS5 or OFDM36 */
-	}
-
-	BTC_PRINT(BTC_MSG_ALGORITHM, ALGO_TRACE_FW_EXEC,
-		  "[BTCoex], set WiFi Low-Penalty Retry: %s",
-		  (low_penalty_ra? "ON!!":"OFF!!"));
-
-	btcoexist->btc_fill_h2c(btcoexist, 0x69, 6, h2c_parameter);
-}
-
-static void halbtc8192e2ant_low_penalty_ra(struct btc_coexist *btcoexist,
-					   bool force_exec, bool low_penalty_ra)
-{
-	BTC_PRINT(BTC_MSG_ALGORITHM, ALGO_TRACE_SW,
-		  "[BTCoex], %s turn LowPenaltyRA = %s\n",
-		  (force_exec? "force to":""), ((low_penalty_ra)? "ON":"OFF"));
-	coex_dm->cur_low_penalty_ra = low_penalty_ra;
-
-	if (!force_exec) {
-		BTC_PRINT(BTC_MSG_ALGORITHM, ALGO_TRACE_SW_DETAIL,
-			  "[BTCoex] bPreLowPenaltyRa=%d, bCurLowPenaltyRa=%d\n",
-			  coex_dm->pre_low_penalty_ra,
-			  coex_dm->cur_low_penalty_ra);
-
-		if (coex_dm->pre_low_penalty_ra ==
-		    coex_dm->cur_low_penalty_ra)
-			return;
-	}
-	halbtc8192e2ant_set_sw_penalty_tx_rateadaptive(btcoexist,
-						coex_dm->cur_low_penalty_ra);
-
-	coex_dm->pre_low_penalty_ra = coex_dm->cur_low_penalty_ra;
-}
-
 static void halbtc8192e2ant_set_dac_swingreg(struct btc_coexist *btcoexist,
 					     u32 level)
 {
