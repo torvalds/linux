@@ -1041,44 +1041,6 @@ void halbtc8192e2ant_DacSwing(struct btc_coexist *btcoexist,
 	coex_dm->pre_dac_swing_lvl = coex_dm->cur_dac_swing_lvl;
 }
 
-void halbtc8192e2ant_set_adc_backoff(struct btc_coexist *btcoexist,
-				     bool adc_backoff)
-{
-	if(adc_backoff)
-	{
-		BTC_PRINT(BTC_MSG_ALGORITHM, ALGO_TRACE_SW_EXEC,
-			  "[BTCoex], BB BackOff Level On!\n");
-		btcoexist->btc_write_1byte_bitmask(btcoexist, 0xc05, 0x30, 0x3);
-	}
-	else
-	{
-		BTC_PRINT(BTC_MSG_ALGORITHM, ALGO_TRACE_SW_EXEC,
-			  "[BTCoex], BB BackOff Level Off!\n");
-		btcoexist->btc_write_1byte_bitmask(btcoexist, 0xc05, 0x30, 0x1);
-	}
-}
-
-void halbtc8192e2ant_adc_backoff(struct btc_coexist *btcoexist,
-				 bool force_exec, bool adc_backoff)
-{
-	BTC_PRINT(BTC_MSG_ALGORITHM, ALGO_TRACE_SW,
-		  "[BTCoex], %s turn AdcBackOff = %s\n",
-		  (force_exec? "force to":""), ((adc_backoff)? "ON":"OFF"));
-	coex_dm->cur_adc_back_off = adc_backoff;
-
-	if (!force_exec) {
-		BTC_PRINT(BTC_MSG_ALGORITHM, ALGO_TRACE_SW_DETAIL,
-			  "[BTCoex], bPreAdcBackOff=%d, bCurAdcBackOff=%d\n",
-			  coex_dm->pre_adc_back_off, coex_dm->cur_adc_back_off);
-
-		if (coex_dm->pre_adc_back_off == coex_dm->cur_adc_back_off)
-			return;
-	}
-	halbtc8192e2ant_set_adc_backoff(btcoexist, coex_dm->cur_adc_back_off);
-
-	coex_dm->pre_adc_back_off = coex_dm->cur_adc_back_off;
-}
-
 void halbtc8192e2ant_set_agc_table(struct btc_coexist *btcoexist,
 				   bool agc_table_en)
 {
