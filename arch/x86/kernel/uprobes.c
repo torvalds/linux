@@ -209,8 +209,11 @@ static int uprobe_init_insn(struct arch_uprobe *auprobe, struct insn *insn, bool
 	u32 volatile *good_insns;
 
 	insn_init(insn, auprobe->insn, x86_64);
+	/* has the side-effect of processing the entire instruction */
+	insn_get_length(insn);
+	if (WARN_ON_ONCE(!insn_complete(insn)))
+		return -ENOEXEC;
 
-	insn_get_opcode(insn);
 	if (is_prefix_bad(insn))
 		return -ENOTSUPP;
 
@@ -283,8 +286,6 @@ handle_riprel_insn(struct arch_uprobe *auprobe, struct insn *insn)
 	 * is the immediate operand.
 	 */
 	cursor = auprobe->insn + insn_offset_modrm(insn);
-	insn_get_length(insn);
-
 	/*
 	 * Convert from rip-relative addressing to indirect addressing
 	 * via a scratch register.  Change the r/m field from 0x5 (%rip)
@@ -564,11 +565,6 @@ static int branch_setup_xol_ops(struct arch_uprobe *auprobe, struct insn *insn)
 	u8 opc1 = OPCODE1(insn);
 	int i;
 
-	/* has the side-effect of processing the entire instruction */
-	insn_get_length(insn);
-	if (WARN_ON_ONCE(!insn_complete(insn)))
-		return -ENOEXEC;
-
 	switch (opc1) {
 	case 0xeb:	/* jmp 8 */
 	case 0xe9:	/* jmp 32 */
@@ -654,7 +650,6 @@ int arch_uprobe_analyze_insn(struct arch_uprobe *auprobe, struct mm_struct *mm, 
 		fix_ip = false;
 		break;
 	case 0xff:
-		insn_get_modrm(&insn);
 		switch (MODRM_REG(&insn)) {
 		case 2: case 3:			/* call or lcall, indirect */
 			fix_call = true;
