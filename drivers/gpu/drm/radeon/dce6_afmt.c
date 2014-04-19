@@ -309,11 +309,17 @@ int dce6_audio_init(struct radeon_device *rdev)
 
 	rdev->audio.enabled = true;
 
-	if (ASIC_IS_DCE8(rdev))
+	if (ASIC_IS_DCE81(rdev)) /* KV: 4 streams, 7 endpoints */
+		rdev->audio.num_pins = 7;
+	else if (ASIC_IS_DCE83(rdev)) /* KB: 2 streams, 3 endpoints */
+		rdev->audio.num_pins = 3;
+	else if (ASIC_IS_DCE8(rdev)) /* BN/HW: 6 streams, 7 endpoints */
+		rdev->audio.num_pins = 7;
+	else if (ASIC_IS_DCE61(rdev)) /* TN: 4 streams, 6 endpoints */
 		rdev->audio.num_pins = 6;
-	else if (ASIC_IS_DCE61(rdev))
-		rdev->audio.num_pins = 4;
-	else
+	else if (ASIC_IS_DCE64(rdev)) /* OL: 2 streams, 2 endpoints */
+		rdev->audio.num_pins = 2;
+	else /* SI: 6 streams, 6 endpoints */
 		rdev->audio.num_pins = 6;
 
 	for (i = 0; i < rdev->audio.num_pins; i++) {
