@@ -1115,6 +1115,8 @@ isp_video_streamoff(struct file *file, void *fh, enum v4l2_buf_type type)
 
 	/* Stop the stream. */
 	omap3isp_pipeline_set_stream(pipe, ISP_PIPELINE_STREAM_STOPPED);
+	omap3isp_video_cancel_stream(video);
+
 	mutex_lock(&video->queue_lock);
 	omap3isp_video_queue_streamoff(&vfh->queue);
 	mutex_unlock(&video->queue_lock);
