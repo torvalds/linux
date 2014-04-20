@@ -19,6 +19,7 @@
 
 #include <linux/string.h>
 #include "rtl_core.h"
+#include "rtl_wx.h"
 
 #define RATE_COUNT 12
 static u32 rtl8192_rates[] = {
@@ -1320,7 +1321,7 @@ static struct iw_statistics *r8192_get_wireless_stats(struct net_device *dev)
 	return wstats;
 }
 
-struct iw_handler_def  r8192_wx_handlers_def = {
+const struct iw_handler_def r8192_wx_handlers_def = {
 	.standard = r8192_wx_handlers,
 	.num_standard = ARRAY_SIZE(r8192_wx_handlers),
 	.private = r8192_private_handler,

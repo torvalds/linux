@@ -2926,8 +2926,7 @@ static int rtl8192_pci_probe(struct pci_dev *pdev,
 
 	dev->netdev_ops = &rtl8192_netdev_ops;
 
-	dev->wireless_handlers = (struct iw_handler_def *)
-				 &r8192_wx_handlers_def;
+	dev->wireless_handlers = &r8192_wx_handlers_def;
 	dev->ethtool_ops = &rtl819x_ethtool_ops;
 
 	dev->type = ARPHRD_ETHER;
