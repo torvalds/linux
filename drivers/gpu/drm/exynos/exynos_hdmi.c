@@ -1490,7 +1490,6 @@ static void hdmiphy_conf_apply(struct hdmi_context *hdata)
 	const u8 *hdmiphy_data;
 	u8 buffer[32];
 	u8 operation[2];
-	u8 read_buffer[32] = {0, };
 	int ret;
 	int i;
 
@@ -1530,15 +1529,6 @@ static void hdmiphy_conf_apply(struct hdmi_context *hdata)
 		return;
 	}
 
-	ret = i2c_master_recv(hdata->hdmiphy_port, read_buffer, 32);
-	if (ret < 0) {
-		DRM_ERROR("failed to read hdmiphy config\n");
-		return;
-	}
-
-	for (i = 0; i < ret; i++)
-		DRM_DEBUG_KMS("hdmiphy[0x%02x] write[0x%02x] - "
-			"recv [0x%02x]\n", i, buffer[i], read_buffer[i]);
 }
 
 static void hdmi_conf_apply(struct hdmi_context *hdata)
