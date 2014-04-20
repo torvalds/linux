@@ -305,6 +305,8 @@ static void bio_chain_endio(struct bio *bio, int error)
 
 /**
  * bio_chain - chain bio completions
+ * @bio: the target bio
+ * @parent: the @bio's parent bio
  *
  * The caller won't have a bi_end_io called when @bio completes - instead,
  * @parent's bi_end_io won't be called until both @parent and @bio have
