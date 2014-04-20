@@ -642,6 +642,22 @@ unsigned int emac_setup(struct net_device *ndev)
 	return 1;
 }
 
+static void sunxi_emac_set_rx_mode(struct net_device *ndev)
+{
+	unsigned int reg_val;
+	sunxi_emac_board_info_t *db = netdev_priv(ndev);
+
+	/* set up RX */
+	reg_val = readl(db->emac_vbase + SUNXI_EMAC_RX_CTL_REG);
+
+	if (ndev->flags & IFF_PROMISC)
+		reg_val |= (0x1<<4);
+	else
+		reg_val &= (~(0x1<<4));
+
+	writel(reg_val, db->emac_vbase + SUNXI_EMAC_RX_CTL_REG);
+}
+
 static void sunxi_emac_set_mac_addr(sunxi_emac_board_info_t *db, unsigned char *buf)
 {
 	writel(buf[0] << 16 | buf[1] << 8 | buf[2],
@@ -1497,7 +1513,7 @@ static const struct net_device_ops sunxi_emac_netdev_ops = {
 	.ndo_stop		= sunxi_emac_stop,
 	.ndo_start_xmit		= sunxi_emac_start_xmit,
 	.ndo_tx_timeout		= sunxi_emac_timeout,
-	.ndo_set_rx_mode	= sunxi_emac_hash_table,
+	.ndo_set_rx_mode	= sunxi_emac_set_rx_mode,
 	.ndo_do_ioctl		= sunxi_emac_ioctl,
 	.ndo_change_mtu		= eth_change_mtu,
 	.ndo_validate_addr	= eth_validate_addr,
