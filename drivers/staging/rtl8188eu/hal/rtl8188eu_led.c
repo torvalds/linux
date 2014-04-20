@@ -92,8 +92,12 @@ exit:
 void rtl8188eu_InitSwLeds(struct adapter *padapter)
 {
 	struct led_priv *pledpriv = &(padapter->ledpriv);
+	struct hal_data_8188e   *haldata = GET_HAL_DATA(padapter);
 
+	pledpriv->bRegUseLed = true;
+	pledpriv->LedStrategy = SW_LED_MODE1;
 	pledpriv->LedControlHandler = LedControl8188eu;
+	haldata->bLedOpenDrain = true;
 
 	InitLed871x(padapter, &(pledpriv->SwLed0), LED_PIN_LED0);
 

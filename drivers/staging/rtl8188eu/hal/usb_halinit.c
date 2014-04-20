@@ -1129,16 +1129,6 @@ static unsigned int rtl8188eu_inirp_deinit(struct adapter *Adapter)
 /*	EEPROM/EFUSE Content Parsing */
 /*  */
 /*  */
-static void _ReadLEDSetting(struct adapter *Adapter, u8 *PROMContent, bool AutoloadFail)
-{
-	struct led_priv *pledpriv = &(Adapter->ledpriv);
-	struct hal_data_8188e	*haldata = GET_HAL_DATA(Adapter);
-
-	pledpriv->bRegUseLed = true;
-	pledpriv->LedStrategy = SW_LED_MODE1;
-	haldata->bLedOpenDrain = true;/*  Support Open-drain arrangement for controlling the LED. */
-}
-
 static void Hal_EfuseParsePIDVID_8188EU(struct adapter *adapt, u8 *hwinfo, bool AutoLoadFail)
 {
 	struct hal_data_8188e	*haldata = GET_HAL_DATA(adapt);
@@ -1215,8 +1205,6 @@ readAdapterInfo_8188EU(
 	/*  */
 	Hal_InitChannelPlan(adapt);
 	Hal_CustomizeByCustomerID_8188EU(adapt);
-
-	_ReadLEDSetting(adapt, eeprom->efuse_eeprom_data, eeprom->bautoload_fail_flag);
 }
 
 static void _ReadPROMContent(
