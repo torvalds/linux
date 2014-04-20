@@ -662,6 +662,7 @@
 						clocks = <&clk_cpll>, <&clk_gpll>;
 						clock-output-names = "clk_spdif_pll";
 						#clock-cells = <0>;
+						#clock-init-cells = <1>;
 					};
 				};
 
@@ -1417,7 +1418,8 @@
 						rockchip,div-type = <CLK_DIVIDER_PLUS_ONE>;
 						#clock-cells = <0>;
 						rockchip,clkops-idx =
-							<CLKOPS_RATE_MUX_EVENDIV>;
+							<CLKOPS_RATE_RK3288_DCLK_LCDC0>;
+						rockchip,flags = <CLK_SET_RATE_PARENT>;
 					};
 				};
 
@@ -1524,7 +1526,8 @@
 						rockchip,div-type = <CLK_DIVIDER_PLUS_ONE>;
 						#clock-cells = <0>;
 						rockchip,clkops-idx =
-							<CLKOPS_RATE_MUX_DIV>;
+							<CLKOPS_RATE_RK3288_DCLK_LCDC1>;
+						rockchip,flags = <CLK_SET_RATE_PARENT>;
 					};
 				};
 
@@ -1594,6 +1597,7 @@
 						#clock-cells = <0>;
 						rockchip,clkops-idx =
 							<CLKOPS_RATE_MUX_DIV>;
+						rockchip,flags = <CLK_SET_RATE_NO_REPARENT>;
 					};
 
 					/* reg[5]: reserved */
@@ -1616,6 +1620,7 @@
 						#clock-cells = <0>;
 						rockchip,clkops-idx =
 							<CLKOPS_RATE_MUX_DIV>;
+						rockchip,flags = <CLK_SET_RATE_NO_REPARENT>;
 					};
 
 					/* reg[13]: reserved */

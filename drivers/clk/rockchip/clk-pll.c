@@ -6,6 +6,7 @@
 
 
 static const struct pll_clk_set pll_com_table[] = {
+	_RK3188_PLL_SET_CLKS(1250000,	12,	625,	1),
 	_RK3188_PLL_SET_CLKS(1200000,	1,	50,	1),
 	_RK3188_PLL_SET_CLKS(1188000,	2,	99,	1),
 	_RK3188_PLL_SET_CLKS(891000,	8,	594,	2),
