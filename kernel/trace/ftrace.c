@@ -3542,8 +3542,7 @@ int ftrace_set_notrace(struct ftrace_ops *ops, unsigned char *buf,
 }
 EXPORT_SYMBOL_GPL(ftrace_set_notrace);
 /**
- * ftrace_set_filter - set a function to filter on in ftrace
- * @ops - the ops to set the filter with
+ * ftrace_set_global_filter - set a function to filter on with global tracers
  * @buf - the string that holds the function filter text.
  * @len - the length of the string.
  * @reset - non zero to reset all filters before applying this filter.
@@ -3558,8 +3557,7 @@ void ftrace_set_global_filter(unsigned char *buf, int len, int reset)
 EXPORT_SYMBOL_GPL(ftrace_set_global_filter);
 
 /**
- * ftrace_set_notrace - set a function to not trace in ftrace
- * @ops - the ops to set the notrace filter with
+ * ftrace_set_global_notrace - set a function to not trace with global tracers
  * @buf - the string that holds the function notrace text.
  * @len - the length of the string.
  * @reset - non zero to reset all filters before applying this filter.
