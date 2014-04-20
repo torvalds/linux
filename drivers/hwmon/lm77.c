@@ -216,13 +216,11 @@ static ssize_t set_temp_crit_hyst(struct device *dev,
 	return count;
 }
 
-/* preserve hysteresis when setting T_crit */
 static ssize_t set_temp_crit(struct device *dev, struct device_attribute *attr,
 			     const char *buf, size_t count)
 {
 	struct i2c_client *client = to_i2c_client(dev);
 	struct lm77_data *data = i2c_get_clientdata(client);
-	int oldcrithyst;
 	unsigned long val;
 	int err;
 
@@ -231,13 +229,9 @@ static ssize_t set_temp_crit(struct device *dev, struct device_attribute *attr,
 		return err;
 
 	mutex_lock(&data->update_lock);
-	oldcrithyst = data->temp_crit - data->temp_hyst;
 	data->temp_crit = val;
-	data->temp_hyst = data->temp_crit - oldcrithyst;
 	lm77_write_value(client, LM77_REG_TEMP_CRIT,
 			 LM77_TEMP_TO_REG(data->temp_crit));
-	lm77_write_value(client, LM77_REG_TEMP_HYST,
-			 LM77_TEMP_TO_REG(data->temp_hyst));
 	mutex_unlock(&data->update_lock);
 	return count;
 }
