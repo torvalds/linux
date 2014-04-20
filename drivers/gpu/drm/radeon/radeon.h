@@ -2357,10 +2357,42 @@ int radeon_device_init(struct radeon_device *rdev,
 void radeon_device_fini(struct radeon_device *rdev);
 int radeon_gpu_wait_for_idle(struct radeon_device *rdev);
 
-uint32_t r100_mm_rreg(struct radeon_device *rdev, uint32_t reg,
-		      bool always_indirect);
-void r100_mm_wreg(struct radeon_device *rdev, uint32_t reg, uint32_t v,
-		  bool always_indirect);
+#define RADEON_MIN_MMIO_SIZE 0x10000
+
+static inline uint32_t r100_mm_rreg(struct radeon_device *rdev, uint32_t reg,
+				    bool always_indirect)
+{
+	/* The mmio size is 64kb at minimum. Allows the if to be optimized out. */
+	if ((reg < rdev->rmmio_size || reg < RADEON_MIN_MMIO_SIZE) && !always_indirect)
+		return readl(((void __iomem *)rdev->rmmio) + reg);
+	else {
+		unsigned long flags;
+		uint32_t ret;
+
+		spin_lock_irqsave(&rdev->mmio_idx_lock, flags);
+		writel(reg, ((void __iomem *)rdev->rmmio) + RADEON_MM_INDEX);
+		ret = readl(((void __iomem *)rdev->rmmio) + RADEON_MM_DATA);
+		spin_unlock_irqrestore(&rdev->mmio_idx_lock, flags);
+
+		return ret;
+	}
+}
+
+static inline void r100_mm_wreg(struct radeon_device *rdev, uint32_t reg, uint32_t v,
+				bool always_indirect)
+{
+	if ((reg < rdev->rmmio_size || reg < RADEON_MIN_MMIO_SIZE) && !always_indirect)
+		writel(v, ((void __iomem *)rdev->rmmio) + reg);
+	else {
+		unsigned long flags;
+
+		spin_lock_irqsave(&rdev->mmio_idx_lock, flags);
+		writel(reg, ((void __iomem *)rdev->rmmio) + RADEON_MM_INDEX);
+		writel(v, ((void __iomem *)rdev->rmmio) + RADEON_MM_DATA);
+		spin_unlock_irqrestore(&rdev->mmio_idx_lock, flags);
+	}
+}
+
 u32 r100_io_rreg(struct radeon_device *rdev, u32 reg);
 void r100_io_wreg(struct radeon_device *rdev, u32 reg, u32 v);
 
