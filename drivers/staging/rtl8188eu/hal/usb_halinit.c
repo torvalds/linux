@@ -424,18 +424,6 @@ static void _InitBeaconMaxError(struct adapter *Adapter, bool		InfraMode)
 {
 }
 
-static void _InitHWLed(struct adapter *Adapter)
-{
-	struct led_priv *pledpriv = &(Adapter->ledpriv);
-
-	if (pledpriv->LedStrategy != HW_LED)
-		return;
-
-/*  HW led control */
-/*  to do .... */
-/* must consider cases of antenna diversity/ commbo card/solo card/mini card */
-}
-
 static void _InitRDGSetting(struct adapter *Adapter)
 {
 	rtw_write8(Adapter, REG_RD_CTRL, 0xFF);
@@ -869,8 +857,6 @@ static u32 rtl8188eu_hal_init(struct adapter *Adapter)
 
 	rtw_write16(Adapter, REG_PKT_VO_VI_LIFE_TIME, 0x0400);	/*  unit: 256us. 256ms */
 	rtw_write16(Adapter, REG_PKT_BE_BK_LIFE_TIME, 0x0400);	/*  unit: 256us. 256ms */
-
-	_InitHWLed(Adapter);
 
 	/* Keep RfRegChnlVal for later use. */
 	haldata->RfRegChnlVal[0] = PHY_QueryRFReg(Adapter, (enum rf_radio_path)0, RF_CHNLBW, bRFRegOffsetMask);
