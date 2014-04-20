@@ -5522,8 +5522,11 @@ static u16 b43_nphy_op_radio_read(struct b43_wldev *dev, u16 reg)
 {
 	/* Register 1 is a 32-bit register. */
 	B43_WARN_ON(reg == 1);
-	/* N-PHY needs 0x100 for read access */
-	reg |= 0x100;
+
+	if (dev->phy.rev >= 7)
+		reg |= 0x200; /* Radio 0x2057 */
+	else
+		reg |= 0x100;
 
 	b43_write16(dev, B43_MMIO_RADIO_CONTROL, reg);
 	return b43_read16(dev, B43_MMIO_RADIO_DATA_LOW);
