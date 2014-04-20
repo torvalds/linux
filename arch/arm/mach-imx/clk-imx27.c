@@ -227,16 +227,6 @@ int __init mx27_clocks_init(unsigned long fref)
 	clk_register_clkdev(clk[per1_gate], "per", "imx21-uart.5");
 	clk_register_clkdev(clk[gpt1_ipg_gate], "ipg", "imx-gpt.0");
 	clk_register_clkdev(clk[per1_gate], "per", "imx-gpt.0");
-	clk_register_clkdev(clk[gpt2_ipg_gate], "ipg", "imx-gpt.1");
-	clk_register_clkdev(clk[per1_gate], "per", "imx-gpt.1");
-	clk_register_clkdev(clk[gpt3_ipg_gate], "ipg", "imx-gpt.2");
-	clk_register_clkdev(clk[per1_gate], "per", "imx-gpt.2");
-	clk_register_clkdev(clk[gpt4_ipg_gate], "ipg", "imx-gpt.3");
-	clk_register_clkdev(clk[per1_gate], "per", "imx-gpt.3");
-	clk_register_clkdev(clk[gpt5_ipg_gate], "ipg", "imx-gpt.4");
-	clk_register_clkdev(clk[per1_gate], "per", "imx-gpt.4");
-	clk_register_clkdev(clk[gpt6_ipg_gate], "ipg", "imx-gpt.5");
-	clk_register_clkdev(clk[per1_gate], "per", "imx-gpt.5");
 	clk_register_clkdev(clk[per2_gate], "per", "imx21-mmc.0");
 	clk_register_clkdev(clk[sdhc1_ipg_gate], "ipg", "imx21-mmc.0");
 	clk_register_clkdev(clk[per2_gate], "per", "imx21-mmc.1");
@@ -284,14 +274,7 @@ int __init mx27_clocks_init(unsigned long fref)
 	clk_register_clkdev(clk[emma_ipg_gate], "emma-ipg", "imx27-camera.0");
 	clk_register_clkdev(clk[emma_ahb_gate], "ahb", "m2m-emmaprp.0");
 	clk_register_clkdev(clk[emma_ipg_gate], "ipg", "m2m-emmaprp.0");
-	clk_register_clkdev(clk[iim_ipg_gate], "iim", NULL);
-	clk_register_clkdev(clk[gpio_ipg_gate], "gpio", NULL);
-	clk_register_clkdev(clk[brom_ahb_gate], "brom", NULL);
-	clk_register_clkdev(clk[ata_ahb_gate], "ata", NULL);
-	clk_register_clkdev(clk[rtc_ipg_gate], NULL, "imx21-rtc");
-	clk_register_clkdev(clk[scc_ipg_gate], "scc", NULL);
 	clk_register_clkdev(clk[cpu_div], NULL, "cpu0");
-	clk_register_clkdev(clk[emi_ahb_gate], "emi_ahb" , NULL);
 
 	mxc_timer_init(MX27_IO_ADDRESS(MX27_GPT1_BASE_ADDR), MX27_INT_GPT1);
 
