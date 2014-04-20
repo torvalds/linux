@@ -95,7 +95,6 @@ void rtl8188eu_InitSwLeds(struct adapter *padapter)
 	struct hal_data_8188e   *haldata = GET_HAL_DATA(padapter);
 
 	pledpriv->bRegUseLed = true;
-	pledpriv->LedStrategy = SW_LED_MODE1;
 	pledpriv->LedControlHandler = LedControl8188eu;
 	haldata->bLedOpenDrain = true;
 
