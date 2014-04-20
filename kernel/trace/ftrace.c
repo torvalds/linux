@@ -313,6 +313,11 @@ static void update_ftrace_function(void)
 	ftrace_trace_function = func;
 }
 
+int using_ftrace_ops_list_func(void)
+{
+	return ftrace_trace_function == ftrace_ops_list_func;
+}
+
 static void add_ftrace_ops(struct ftrace_ops **list, struct ftrace_ops *ops)
 {
 	ops->next = *list;
