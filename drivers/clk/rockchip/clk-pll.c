@@ -697,6 +697,181 @@ static const struct clk_ops clk_pll_ops_3188plus = {
 	.set_rate = clk_pll_set_rate_3188plus,
 };
 
+/* CLK_PLL_3188PLUS_AUTO type ops */
+#define PLL_FREF_MIN (269*KHZ)
+#define PLL_FREF_MAX (2200*MHZ)
+
+#define PLL_FVCO_MIN (440*MHZ)
+#define PLL_FVCO_MAX (2200*MHZ)
+
+#define PLL_FOUT_MIN (27500*KHZ) 
+#define PLL_FOUT_MAX (2200*MHZ)
+
+#define PLL_NF_MAX (4096)
+#define PLL_NR_MAX (64)
+#define PLL_NO_MAX (16)
+
+static u32 clk_gcd(u32 numerator, u32 denominator)
+{
+        u32 a, b;
+
+        if (!numerator || !denominator)
+                return 0;
+        if (numerator > denominator) {
+                a = numerator;
+                b = denominator;
+        } else {
+                a = denominator;
+                b = numerator;
+        }
+        while (b != 0) {
+                int r = b;
+                b = a % b;
+                a = r;
+        }
+
+        return a;
+}
+
+/* FIXME: calc using u64 */
+static int pll_clk_get_best_set(unsigned long fin_hz, unsigned long fout_hz,
+				u32 *best_nr, u32 *best_nf, u32 *best_no)
+{
+        u32 nr, nf, no, nonr;
+        u32 nr_out, nf_out, no_out;
+        u32 n;
+        u32 YFfenzi;
+        u32 YFfenmu;
+        u64 fref, fvco, fout;
+        u32 gcd_val = 0;
+
+
+        nr_out = PLL_NR_MAX + 1;
+        no_out = 0;
+
+//	printk("pll_clk_get_set fin=%lu,fout=%lu\n", fin_hz, fout_hz);
+        if(!fin_hz || !fout_hz || fout_hz == fin_hz)
+                return -EINVAL;
+        gcd_val = clk_gcd(fin_hz, fout_hz);
+
+//      printk("gcd_val = %d\n",gcd_val);
+
+        YFfenzi = fout_hz / gcd_val;
+        YFfenmu = fin_hz / gcd_val;
+
+//      printk("YFfenzi = %d, YFfenmu = %d\n",YFfenzi,YFfenmu);
+
+	for(n = 1;; n++) {
+	       nf = YFfenzi * n;
+	       nonr = YFfenmu * n;
+	       if(nf > PLL_NF_MAX || nonr > (PLL_NO_MAX * PLL_NR_MAX))
+		       break;
+	       for(no = 1; no <= PLL_NO_MAX; no++) {
+		       if(!(no == 1 || !(no % 2)))
+			       continue;
+
+		       if(nonr % no)
+			       continue;
+		       nr = nonr / no;
+
+		       if(nr > PLL_NR_MAX) //PLL_NR_MAX
+			       continue;
+
+		       fref = fin_hz / nr;
+		       if(fref < PLL_FREF_MIN || fref > PLL_FREF_MAX)
+			       continue;
+
+		       fvco = fref * nf;
+		       if(fvco < PLL_FVCO_MIN || fvco > PLL_FVCO_MAX)
+			       continue;
+		       fout = fvco / no;
+		       if(fout < PLL_FOUT_MIN || fout > PLL_FOUT_MAX)
+			       continue;
+
+		       /* output all available PLL settings */
+		       //printk("nr=%d,\tnf=%d,\tno=%d\n",nr,nf,no);
+		       //printk("_PLL_SET_CLKS(%lu,\t%d,\t%d,\t%d),\n",fout_hz/KHZ,nr,nf,no);
+
+		       /* select the best from all available PLL settings */
+		       if((nr < nr_out) || ((nr == nr_out)&&(no > no_out)))
+		       {
+			       nr_out = nr;
+			       nf_out = nf;
+			       no_out = no;
+		       }
+	       }
+
+       }
+
+        /* output the best PLL setting */
+        if((nr_out <= PLL_NR_MAX) && (no_out > 0)){
+                //printk("_PLL_SET_CLKS(%lu,\t%d,\t%d,\t%d),\n",fout_hz/KHZ,nr_out,nf_out,no_out);
+		if(best_nr && best_nf && best_no){
+			*best_nr = nr_out;
+			*best_nf = nf_out;
+			*best_no = no_out;
+		}
+		return 0;
+	} else {
+		return -EINVAL;
+	}
+}
+
+static unsigned long clk_pll_recalc_rate_3188plus_auto(struct clk_hw *hw,
+		unsigned long parent_rate)
+{
+	return clk_pll_recalc_rate_3188plus(hw, parent_rate);
+}
+
+static long clk_pll_round_rate_3188plus_auto(struct clk_hw *hw, unsigned long rate,
+		unsigned long *prate)
+{
+	unsigned long best;
+
+	for(best=rate; best>0; best--){
+		if(!pll_clk_get_best_set(*prate, best, NULL, NULL, NULL))
+			return best;
+	}
+
+	return 0;
+}
+
+static int clk_pll_set_rate_3188plus_auto(struct clk_hw *hw, unsigned long rate,
+		unsigned long parent_rate)
+{
+	unsigned long best;
+	u32 nr,nf,no;
+	struct pll_clk_set clk_set;
+	int ret;
+
+
+	best = clk_pll_round_rate_3188plus_auto(hw, rate, &parent_rate);
+
+	if(!best)
+		return -EINVAL;
+
+	pll_clk_get_best_set(parent_rate, best, &nr, &nf, &no);
+
+	/* prepare clk_set */
+	clk_set.rate = best;
+	clk_set.pllcon0 = RK3188_PLL_CLKR_SET(nr)|RK3188_PLL_CLKOD_SET(no), \
+	clk_set.pllcon1 = RK3188_PLL_CLKF_SET(nf),\
+	clk_set.pllcon2 = RK3188_PLL_CLK_BWADJ_SET(nf >> 1),\
+	clk_set.rst_dly = ((nr*500)/24+1),\
+
+	ret = _pll_clk_set_rate_3188plus(&clk_set, hw);
+	clk_debug("pll %s set rate=%lu OK!\n", __clk_get_name(hw->clk), best);
+
+	return ret;
+}
+
+
+static const struct clk_ops clk_pll_ops_3188plus_auto = {
+	.recalc_rate = clk_pll_recalc_rate_3188plus_auto,
+	.round_rate = clk_pll_round_rate_3188plus_auto,
+	.set_rate = clk_pll_set_rate_3188plus_auto,
+};
+
 
 /* CLK_PLL_3188PLUS_APLL type ops */
 static unsigned long clk_pll_recalc_rate_3188plus_apll(struct clk_hw *hw,
@@ -1104,6 +1279,9 @@ const struct clk_ops *rk_get_pll_ops(u32 pll_flags)
 
 		case CLK_PLL_3288_APLL:
 			return &clk_pll_ops_3288_apll;
+
+		case CLK_PLL_3188PLUS_AUTO:
+			return &clk_pll_ops_3188plus_auto;
 
 		default:
 			clk_err("%s: unknown pll_flags!\n", __func__);

@@ -35,6 +35,8 @@
 #define CLK_PLL_3188PLUS	BIT(2)
 #define CLK_PLL_3188PLUS_APLL	BIT(3)
 #define CLK_PLL_3288_APLL	BIT(4)
+#define CLK_PLL_3188PLUS_AUTO	BIT(5)
+
 
 /* rate_ops index */
 #define CLKOPS_RATE_MUX_DIV		1
