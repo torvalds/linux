@@ -156,7 +156,7 @@ ARCFP_DATA int1_saved_reg
 int1_saved_reg:
 	.zero 4
 
-/* Each Interrupt level needs it's own scratch */
+/* Each Interrupt level needs its own scratch */
 #ifdef CONFIG_ARC_COMPACT_IRQ_LEVELS
 
 ARCFP_DATA int2_saved_reg
@@ -473,7 +473,7 @@ trap_with_param:
 	lr  r0, [efa]
 	mov r1, sp
 
-	; Now that we have read EFA, its safe to do "fake" rtie
+	; Now that we have read EFA, it is safe to do "fake" rtie
 	;   and get out of CPU exception mode
 	FAKE_RET_FROM_EXCPN r11
 
@@ -678,9 +678,9 @@ not_exception:
 	brne r9, event_IRQ2, 149f
 
 	;------------------------------------------------------------------
-	; if L2 IRQ interrupted a L1 ISR,  we'd disbaled preemption earlier
-	; so that sched doesnt move to new task, causing L1 to be delayed
-	; undeterministically. Now that we've achieved that, lets reset
+	; if L2 IRQ interrupted an L1 ISR,  we'd disabled preemption earlier
+	; so that sched doesn't move to new task, causing L1 to be delayed
+	; undeterministically. Now that we've achieved that, let's reset
 	; things to what they were, before returning from L2 context
 	;----------------------------------------------------------------
 
@@ -736,7 +736,7 @@ ENTRY(ret_from_fork)
 	; put last task in scheduler queue
 	bl   @schedule_tail
 
-	; If kernel thread, jump to it's entry-point
+	; If kernel thread, jump to its entry-point
 	ld   r9, [sp, PT_status32]
 	brne r9, 0, 1f
 
