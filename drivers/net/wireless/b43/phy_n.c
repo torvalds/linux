@@ -2494,8 +2494,8 @@ static void b43_nphy_workarounds_rev3plus(struct b43_wldev *dev)
 	struct ssb_sprom *sprom = dev->dev->bus_sprom;
 
 	/* TX to RX */
-	u8 tx2rx_events[8] = { 0x4, 0x3, 0x6, 0x5, 0x2, 0x1, 0x8, 0x1F };
-	u8 tx2rx_delays[8] = { 8, 4, 2, 2, 4, 4, 6, 1 };
+	u8 tx2rx_events[7] = { 0x4, 0x3, 0x5, 0x2, 0x1, 0x8, 0x1F };
+	u8 tx2rx_delays[7] = { 8, 4, 4, 4, 4, 6, 1 };
 	/* RX to TX */
 	u8 rx2tx_events_ipa[9] = { 0x0, 0x1, 0x2, 0x8, 0x5, 0x6, 0xF, 0x3,
 					0x1F };
@@ -2503,6 +2503,23 @@ static void b43_nphy_workarounds_rev3plus(struct b43_wldev *dev)
 	u8 rx2tx_events[9] = { 0x0, 0x1, 0x2, 0x8, 0x5, 0x6, 0x3, 0x4, 0x1F };
 	u8 rx2tx_delays[9] = { 8, 6, 6, 4, 4, 18, 42, 1, 1 };
 
+	u16 vmids[5][4] = {
+		{ 0xa2, 0xb4, 0xb4, 0x89, }, /* 0 */
+		{ 0xb4, 0xb4, 0xb4, 0x24, }, /* 1 */
+		{ 0xa2, 0xb4, 0xb4, 0x74, }, /* 2 */
+		{ 0xa2, 0xb4, 0xb4, 0x270, }, /* 3 */
+		{ 0xa2, 0xb4, 0xb4, 0x00, }, /* 4 and 5 */
+	};
+	u16 gains[5][4] = {
+		{ 0x02, 0x02, 0x02, 0x00, }, /* 0 */
+		{ 0x02, 0x02, 0x02, 0x02, }, /* 1 */
+		{ 0x02, 0x02, 0x02, 0x04, }, /* 2 */
+		{ 0x02, 0x02, 0x02, 0x00, }, /* 3 */
+		{ 0x02, 0x02, 0x02, 0x00, }, /* 4 and 5 */
+	};
+	u16 *vmid, *gain;
+
+	u8 pdet_range;
 	u16 tmp16;
 	u32 tmp32;
 
@@ -2561,7 +2578,71 @@ static void b43_nphy_workarounds_rev3plus(struct b43_wldev *dev)
 	b43_ntab_write(dev, B43_NTAB16(8, 0), 2);
 	b43_ntab_write(dev, B43_NTAB16(8, 16), 2);
 
-	/* TODO */
+	if (b43_current_band(dev->wl) == IEEE80211_BAND_2GHZ)
+		pdet_range = sprom->fem.ghz2.pdet_range;
+	else
+		pdet_range = sprom->fem.ghz5.pdet_range;
+	vmid = vmids[min_t(u16, pdet_range, 4)];
+	gain = gains[min_t(u16, pdet_range, 4)];
+	switch (pdet_range) {
+	case 3:
+		if (!(dev->phy.rev >= 4 &&
+		      b43_current_band(dev->wl) == IEEE80211_BAND_2GHZ))
+			break;
+		/* FALL THROUGH */
+	case 0:
+	case 1:
+		b43_ntab_write_bulk(dev, B43_NTAB16(8, 0x08), 4, vmid);
+		b43_ntab_write_bulk(dev, B43_NTAB16(8, 0x18), 4, vmid);
+		b43_ntab_write_bulk(dev, B43_NTAB16(8, 0x0c), 4, gain);
+		b43_ntab_write_bulk(dev, B43_NTAB16(8, 0x1c), 4, gain);
+		break;
+	case 2:
+		if (dev->phy.rev >= 6) {
+			if (b43_current_band(dev->wl) == IEEE80211_BAND_2GHZ)
+				vmid[3] = 0x94;
+			else
+				vmid[3] = 0x8e;
+			gain[3] = 3;
+		} else if (dev->phy.rev == 5) {
+			vmid[3] = 0x84;
+			gain[3] = 2;
+		}
+		b43_ntab_write_bulk(dev, B43_NTAB16(8, 0x08), 4, vmid);
+		b43_ntab_write_bulk(dev, B43_NTAB16(8, 0x18), 4, vmid);
+		b43_ntab_write_bulk(dev, B43_NTAB16(8, 0x0c), 4, gain);
+		b43_ntab_write_bulk(dev, B43_NTAB16(8, 0x1c), 4, gain);
+		break;
+	case 4:
+	case 5:
+		if (b43_current_band(dev->wl) != IEEE80211_BAND_2GHZ) {
+			if (pdet_range == 4) {
+				vmid[3] = 0x8e;
+				tmp16 = 0x96;
+				gain[3] = 0x2;
+			} else {
+				vmid[3] = 0x89;
+				tmp16 = 0x89;
+				gain[3] = 0;
+			}
+		} else {
+			if (pdet_range == 4) {
+				vmid[3] = 0x89;
+				tmp16 = 0x8b;
+				gain[3] = 0x2;
+			} else {
+				vmid[3] = 0x74;
+				tmp16 = 0x70;
+				gain[3] = 0;
+			}
+		}
+		b43_ntab_write_bulk(dev, B43_NTAB16(8, 0x08), 4, vmid);
+		b43_ntab_write_bulk(dev, B43_NTAB16(8, 0x0c), 4, gain);
+		vmid[3] = tmp16;
+		b43_ntab_write_bulk(dev, B43_NTAB16(8, 0x18), 4, vmid);
+		b43_ntab_write_bulk(dev, B43_NTAB16(8, 0x1c), 4, gain);
+		break;
+	}
 
 	b43_radio_write(dev, B2056_RX0 | B2056_RX_MIXA_MAST_BIAS, 0x00);
 	b43_radio_write(dev, B2056_RX1 | B2056_RX_MIXA_MAST_BIAS, 0x00);
