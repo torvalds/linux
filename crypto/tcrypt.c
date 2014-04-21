@@ -282,6 +282,11 @@ static void test_aead_speed(const char *algo, int enc, unsigned int sec,
 	unsigned int *b_size;
 	unsigned int iv_len;
 
+	if (aad_size >= PAGE_SIZE) {
+		pr_err("associate data length (%u) too big\n", aad_size);
+		return;
+	}
+
 	if (enc == ENCRYPT)
 		e = "encryption";
 	else
@@ -323,14 +328,7 @@ static void test_aead_speed(const char *algo, int enc, unsigned int sec,
 		b_size = aead_sizes;
 		do {
 			assoc = axbuf[0];
-
-			if (aad_size < PAGE_SIZE)
-				memset(assoc, 0xff, aad_size);
-			else {
-				pr_err("associate data length (%u) too big\n",
-					aad_size);
-				goto out_nosg;
-			}
+			memset(assoc, 0xff, aad_size);
 			sg_init_one(&asg[0], assoc, aad_size);
 
 			if ((*keysize + *b_size) > TVMEMSIZE * PAGE_SIZE) {
