@@ -105,9 +105,8 @@ static int adc_jack_probe(struct platform_device *pdev)
 	data->edev.name = pdata->name;
 
 	if (!pdata->cable_names) {
-		err = -EINVAL;
 		dev_err(&pdev->dev, "error: cable_names not defined.\n");
-		goto out;
+		return -EINVAL;
 	}
 
 	data->edev.dev.parent = &pdev->dev;
@@ -117,18 +116,16 @@ static int adc_jack_probe(struct platform_device *pdev)
 	for (i = 0; data->edev.supported_cable[i]; i++)
 		;
 	if (i == 0 || i > SUPPORTED_CABLE_MAX) {
-		err = -EINVAL;
 		dev_err(&pdev->dev, "error: pdata->cable_names size = %d\n",
 				i - 1);
-		goto out;
+		return -EINVAL;
 	}
 	data->num_cables = i;
 
 	if (!pdata->adc_conditions ||
 			!pdata->adc_conditions[0].state) {
-		err = -EINVAL;
 		dev_err(&pdev->dev, "error: adc_conditions not defined.\n");
-		goto out;
+		return -EINVAL;
 	}
 	data->adc_conditions = pdata->adc_conditions;
 
@@ -138,10 +135,8 @@ static int adc_jack_probe(struct platform_device *pdev)
 	data->num_conditions = i;
 
 	data->chan = iio_channel_get(&pdev->dev, pdata->consumer_channel);
-	if (IS_ERR(data->chan)) {
-		err = PTR_ERR(data->chan);
-		goto out;
-	}
+	if (IS_ERR(data->chan))
+		return PTR_ERR(data->chan);
 
 	data->handling_delay = msecs_to_jiffies(pdata->handling_delay_ms);
 
@@ -149,15 +144,14 @@ static int adc_jack_probe(struct platform_device *pdev)
 
 	platform_set_drvdata(pdev, data);
 
-	err = extcon_dev_register(&data->edev);
+	err = devm_extcon_dev_register(&pdev->dev, &data->edev);
 	if (err)
-		goto out;
+		return err;
 
 	data->irq = platform_get_irq(pdev, 0);
 	if (!data->irq) {
 		dev_err(&pdev->dev, "platform_get_irq failed\n");
-		err = -ENODEV;
-		goto err_irq;
+		return -ENODEV;
 	}
 
 	err = request_any_context_irq(data->irq, adc_jack_irq_thread,
@@ -165,15 +159,10 @@ static int adc_jack_probe(struct platform_device *pdev)
 
 	if (err < 0) {
 		dev_err(&pdev->dev, "error: irq %d\n", data->irq);
-		goto err_irq;
+		return err;
 	}
 
 	return 0;
-
-err_irq:
-	extcon_dev_unregister(&data->edev);
-out:
-	return err;
 }
 
 static int adc_jack_remove(struct platform_device *pdev)
@@ -182,7 +171,6 @@ static int adc_jack_remove(struct platform_device *pdev)
 
 	free_irq(data->irq, data);
 	cancel_work_sync(&data->handler.work);
-	extcon_dev_unregister(&data->edev);
 
 	return 0;
 }
