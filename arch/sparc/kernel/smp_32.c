@@ -297,7 +297,7 @@ int __cpu_up(unsigned int cpu, struct task_struct *tidle)
 	return ret;
 }
 
-void arch_cpu_pre_starting(void *arg)
+static void arch_cpu_pre_starting(void *arg)
 {
 	local_ops->cache_all();
 	local_ops->tlb_all();
@@ -317,7 +317,7 @@ void arch_cpu_pre_starting(void *arg)
 	}
 }
 
-void arch_cpu_pre_online(void *arg)
+static void arch_cpu_pre_online(void *arg)
 {
 	unsigned int cpuid = hard_smp_processor_id();
 
@@ -344,7 +344,7 @@ void arch_cpu_pre_online(void *arg)
 	}
 }
 
-void sparc_start_secondary(void *arg)
+static void sparc_start_secondary(void *arg)
 {
 	unsigned int cpu;
 
