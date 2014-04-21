@@ -809,7 +809,7 @@ static int kona_peri_clk_enable(struct clk_hw *hw)
 	struct kona_clk *bcm_clk = to_kona_clk(hw);
 	struct bcm_clk_gate *gate = &bcm_clk->u.peri->gate;
 
-	return clk_gate(bcm_clk->ccu, bcm_clk->name, gate, true);
+	return clk_gate(bcm_clk->ccu, bcm_clk->init_data.name, gate, true);
 }
 
 static void kona_peri_clk_disable(struct clk_hw *hw)
@@ -817,7 +817,7 @@ static void kona_peri_clk_disable(struct clk_hw *hw)
 	struct kona_clk *bcm_clk = to_kona_clk(hw);
 	struct bcm_clk_gate *gate = &bcm_clk->u.peri->gate;
 
-	(void)clk_gate(bcm_clk->ccu, bcm_clk->name, gate, false);
+	(void)clk_gate(bcm_clk->ccu, bcm_clk->init_data.name, gate, false);
 }
 
 static int kona_peri_clk_is_enabled(struct clk_hw *hw)
@@ -875,12 +875,13 @@ static int kona_peri_clk_set_parent(struct clk_hw *hw, u8 index)
 
 	ret = selector_write(bcm_clk->ccu, &data->gate, sel, trig, index);
 	if (ret == -ENXIO) {
-		pr_err("%s: gating failure for %s\n", __func__, bcm_clk->name);
+		pr_err("%s: gating failure for %s\n", __func__,
+			bcm_clk->init_data.name);
 		ret = -EIO;	/* Don't proliferate weird errors */
 	} else if (ret == -EIO) {
 		pr_err("%s: %strigger failed for %s\n", __func__,
 			trig == &data->pre_trig ? "pre-" : "",
-			bcm_clk->name);
+			bcm_clk->init_data.name);
 	}
 
 	return ret;
@@ -939,10 +940,12 @@ static int kona_peri_clk_set_rate(struct clk_hw *hw, unsigned long rate,
 	ret = divider_write(bcm_clk->ccu, &data->gate, &data->div,
 				&data->trig, scaled_div);
 	if (ret == -ENXIO) {
-		pr_err("%s: gating failure for %s\n", __func__, bcm_clk->name);
+		pr_err("%s: gating failure for %s\n", __func__,
+			bcm_clk->init_data.name);
 		ret = -EIO;	/* Don't proliferate weird errors */
 	} else if (ret == -EIO) {
-		pr_err("%s: trigger failed for %s\n", __func__, bcm_clk->name);
+		pr_err("%s: trigger failed for %s\n", __func__,
+			bcm_clk->init_data.name);
 	}
 
 	return ret;
@@ -964,7 +967,7 @@ static bool __peri_clk_init(struct kona_clk *bcm_clk)
 {
 	struct ccu_data *ccu = bcm_clk->ccu;
 	struct peri_clk_data *peri = bcm_clk->u.peri;
-	const char *name = bcm_clk->name;
+	const char *name = bcm_clk->init_data.name;
 	struct bcm_clk_trig *trig;
 
 	BUG_ON(bcm_clk->type != bcm_clk_peri);

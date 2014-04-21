@@ -64,7 +64,7 @@ static bool peri_clk_data_offsets_valid(struct kona_clk *bcm_clk)
 
 	BUG_ON(bcm_clk->type != bcm_clk_peri);
 	peri = bcm_clk->u.peri;
-	name = bcm_clk->name;
+	name = bcm_clk->init_data.name;
 	range = bcm_clk->ccu->range;
 
 	limit = range - sizeof(u32);
@@ -330,7 +330,7 @@ peri_clk_data_valid(struct kona_clk *bcm_clk)
 		return false;
 
 	peri = bcm_clk->u.peri;
-	name = bcm_clk->name;
+	name = bcm_clk->init_data.name;
 	gate = &peri->gate;
 	if (gate_exists(gate) && !gate_valid(gate, "gate", name))
 		return false;
@@ -631,7 +631,7 @@ struct clk *kona_clk_setup(struct ccu_data *ccu, const char *name,
 		return NULL;
 	}
 	bcm_clk->ccu = ccu;
-	bcm_clk->name = name;
+	bcm_clk->init_data.name = name;
 
 	init_data = &bcm_clk->init_data;
 	init_data->name = name;
