@@ -1466,7 +1466,7 @@ s3c24xx_serial_console_putchar(struct uart_port *port, int ch)
 	unsigned int ufcon = rd_regl(port, S3C2410_UFCON);
 
 	while (!s3c24xx_serial_console_txrdy(port, ufcon))
-		barrier();
+		cpu_relax();
 	wr_regb(port, S3C2410_UTXH, ch);
 }
 
