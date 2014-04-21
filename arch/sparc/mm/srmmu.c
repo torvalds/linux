@@ -865,8 +865,6 @@ static void __init map_kernel(void)
 
 void (*poke_srmmu)(void) = NULL;
 
-extern unsigned long bootmem_init(unsigned long *pages_avail);
-
 void __init srmmu_paging_init(void)
 {
 	int i;
