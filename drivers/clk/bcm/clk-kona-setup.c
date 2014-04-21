@@ -675,50 +675,49 @@ static void ccu_clks_teardown(struct ccu_data *ccu)
 {
 	u32 i;
 
-	for (i = 0; i < ccu->data.clk_num; i++)
-		kona_clk_teardown(ccu->data.clks[i]);
-	kfree(ccu->data.clks);
+	for (i = 0; i < ccu->clk_data.clk_num; i++)
+		kona_clk_teardown(ccu->clk_data.clks[i]);
+	kfree(ccu->clk_data.clks);
 }
 
 static void kona_ccu_teardown(struct ccu_data *ccu)
 {
-	if (!ccu)
-		return;
-
+	kfree(ccu->clk_data.clks);
+	ccu->clk_data.clks = NULL;
 	if (!ccu->base)
-		goto done;
+		return;
 
 	of_clk_del_provider(ccu->node);	/* safe if never added */
 	ccu_clks_teardown(ccu);
 	list_del(&ccu->links);
 	of_node_put(ccu->node);
+	ccu->node = NULL;
 	iounmap(ccu->base);
-done:
-	kfree(ccu->name);
-	kfree(ccu);
+	ccu->base = NULL;
 }
 
 /*
  * Set up a CCU.  Call the provided ccu_clks_setup callback to
  * initialize the array of clocks provided by the CCU.
  */
-void __init kona_dt_ccu_setup(struct device_node *node,
+void __init kona_dt_ccu_setup(struct ccu_data *ccu,
+			struct device_node *node,
 			int (*ccu_clks_setup)(struct ccu_data *))
 {
-	struct ccu_data *ccu;
 	struct resource res = { 0 };
 	resource_size_t range;
 	int ret;
 
-	ccu = kzalloc(sizeof(*ccu), GFP_KERNEL);
-	if (ccu)
-		ccu->name = kstrdup(node->name, GFP_KERNEL);
-	if (!ccu || !ccu->name) {
-		pr_err("%s: unable to allocate CCU struct for %s\n",
-			__func__, node->name);
-		kfree(ccu);
+	if (ccu->clk_data.clk_num) {
+		size_t size;
 
-		return;
+		size = ccu->clk_data.clk_num * sizeof(*ccu->clk_data.clks);
+		ccu->clk_data.clks = kzalloc(size, GFP_KERNEL);
+		if (!ccu->clk_data.clks) {
+			pr_err("%s: unable to allocate %u clocks for %s\n",
+				__func__, ccu->clk_data.clk_num, node->name);
+			return;
+		}
 	}
 
 	ret = of_address_to_resource(node, 0, &res);
@@ -742,18 +741,14 @@ void __init kona_dt_ccu_setup(struct device_node *node,
 			node->name);
 		goto out_err;
 	}
-
-	spin_lock_init(&ccu->lock);
-	INIT_LIST_HEAD(&ccu->links);
 	ccu->node = of_node_get(node);
-
 	list_add_tail(&ccu->links, &ccu_list);
 
-	/* Set up clocks array (in ccu->data) */
+	/* Set up clocks array (in ccu->clk_data) */
 	if (ccu_clks_setup(ccu))
 		goto out_err;
 
-	ret = of_clk_add_provider(node, of_clk_src_onecell_get, &ccu->data);
+	ret = of_clk_add_provider(node, of_clk_src_onecell_get, &ccu->clk_data);
 	if (ret) {
 		pr_err("%s: error adding ccu %s as provider (%d)\n", __func__,
 				node->name, ret);

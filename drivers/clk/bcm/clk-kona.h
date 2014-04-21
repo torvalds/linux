@@ -85,10 +85,19 @@ struct ccu_data {
 	bool write_enabled;	/* write access is currently enabled */
 	struct list_head links;	/* for ccu_list */
 	struct device_node *node;
-	struct clk_onecell_data data;
+	struct clk_onecell_data clk_data;
 	const char *name;
 	u32 range;		/* byte range of address space */
 };
+
+/* Initialization for common fields in a Kona ccu_data structure */
+#define KONA_CCU_COMMON(_prefix, _name, _ucase_name)			    \
+	.name		= #_name "_ccu",				    \
+	.lock		= __SPIN_LOCK_UNLOCKED(_name ## _ccu_data.lock),    \
+	.links		= LIST_HEAD_INIT(_name ## _ccu_data.links),	    \
+	.clk_data	= {						    \
+		.clk_num = _prefix ## _ ## _ucase_name ## _CCU_CLOCK_COUNT, \
+	}
 
 /*
  * Gating control and status is managed by a 32-bit gate register.
@@ -390,8 +399,11 @@ extern struct clk_ops kona_peri_clk_ops;
 
 /* Help functions */
 
-#define PERI_CLK_SETUP(clks, ccu, id, name) \
-	clks[id] = kona_clk_setup(ccu, #name, bcm_clk_peri, &name ## _data)
+#define KONA_CLK_SETUP(_ccu, _type, _name) \
+	kona_clk_setup((_ccu), #_name, bcm_clk_## _type, &_name ## _data)
+
+#define PERI_CLK_SETUP(_ccu, _id, _name) \
+	(_ccu)->clk_data.clks[_id] = KONA_CLK_SETUP((_ccu), peri, _name)
 
 /* Externally visible functions */
 
@@ -402,7 +414,8 @@ extern u64 scaled_div_build(struct bcm_clk_div *div, u32 div_value,
 
 extern struct clk *kona_clk_setup(struct ccu_data *ccu, const char *name,
 			enum bcm_clk_type type, void *data);
-extern void __init kona_dt_ccu_setup(struct device_node *node,
+extern void __init kona_dt_ccu_setup(struct ccu_data *ccu,
+			struct device_node *node,
 			int (*ccu_clks_setup)(struct ccu_data *));
 extern bool __init kona_ccu_init(struct ccu_data *ccu);
 
