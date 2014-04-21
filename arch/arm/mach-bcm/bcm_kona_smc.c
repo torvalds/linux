@@ -79,11 +79,11 @@ static void __bcm_kona_smc(void *info)
 	/* Check map in the bounce area */
 	BUG_ON(!bridge_data.initialized);
 
-	/* Copy one 32 bit word into the bounce area */
-	args[0] = data->arg0;
-	args[1] = data->arg1;
-	args[2] = data->arg2;
-	args[3] = data->arg3;
+	/* Copy the four 32 bit argument values into the bounce area */
+	writel_relaxed(data->arg0, args++);
+	writel_relaxed(data->arg1, args++);
+	writel_relaxed(data->arg2, args++);
+	writel(data->arg3, args);
 
 	/* Flush caches for input data passed to Secure Monitor */
 	if (data->service_id != SSAPI_BRCM_START_VC_CORE)
