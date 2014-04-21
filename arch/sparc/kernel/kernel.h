@@ -110,6 +110,9 @@ asmlinkage int do_sys_sigstack(struct sigstack __user *ssptr,
                                struct sigstack __user *ossptr,
                                unsigned long sp);
 
+/* ptrace_32.c */
+asmlinkage int syscall_trace(struct pt_regs *regs, int syscall_exit_p);
+
 /* windows.c */
 void try_to_clear_window_buffer(struct pt_regs *regs, int who);
 
