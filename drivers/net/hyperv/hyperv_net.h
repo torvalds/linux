@@ -28,6 +28,96 @@
 #include <linux/hyperv.h>
 #include <linux/rndis.h>
 
+/* RSS related */
+#define OID_GEN_RECEIVE_SCALE_CAPABILITIES 0x00010203  /* query only */
+#define OID_GEN_RECEIVE_SCALE_PARAMETERS 0x00010204  /* query and set */
+
+#define NDIS_OBJECT_TYPE_RSS_CAPABILITIES 0x88
+#define NDIS_OBJECT_TYPE_RSS_PARAMETERS 0x89
+
+#define NDIS_RECEIVE_SCALE_CAPABILITIES_REVISION_2 2
+#define NDIS_RECEIVE_SCALE_PARAMETERS_REVISION_2 2
+
+struct ndis_obj_header {
+	u8 type;
+	u8 rev;
+	u16 size;
+} __packed;
+
+/* ndis_recv_scale_cap/cap_flag */
+#define NDIS_RSS_CAPS_MESSAGE_SIGNALED_INTERRUPTS 0x01000000
+#define NDIS_RSS_CAPS_CLASSIFICATION_AT_ISR       0x02000000
+#define NDIS_RSS_CAPS_CLASSIFICATION_AT_DPC       0x04000000
+#define NDIS_RSS_CAPS_USING_MSI_X                 0x08000000
+#define NDIS_RSS_CAPS_RSS_AVAILABLE_ON_PORTS      0x10000000
+#define NDIS_RSS_CAPS_SUPPORTS_MSI_X              0x20000000
+#define NDIS_RSS_CAPS_HASH_TYPE_TCP_IPV4          0x00000100
+#define NDIS_RSS_CAPS_HASH_TYPE_TCP_IPV6          0x00000200
+#define NDIS_RSS_CAPS_HASH_TYPE_TCP_IPV6_EX       0x00000400
+
+struct ndis_recv_scale_cap { /* NDIS_RECEIVE_SCALE_CAPABILITIES */
+	struct ndis_obj_header hdr;
+	u32 cap_flag;
+	u32 num_int_msg;
+	u32 num_recv_que;
+	u16 num_indirect_tabent;
+} __packed;
+
+
+/* ndis_recv_scale_param flags */
+#define NDIS_RSS_PARAM_FLAG_BASE_CPU_UNCHANGED     0x0001
+#define NDIS_RSS_PARAM_FLAG_HASH_INFO_UNCHANGED    0x0002
+#define NDIS_RSS_PARAM_FLAG_ITABLE_UNCHANGED       0x0004
+#define NDIS_RSS_PARAM_FLAG_HASH_KEY_UNCHANGED     0x0008
+#define NDIS_RSS_PARAM_FLAG_DISABLE_RSS            0x0010
+
+/* Hash info bits */
+#define NDIS_HASH_FUNC_TOEPLITZ 0x00000001
+#define NDIS_HASH_IPV4          0x00000100
+#define NDIS_HASH_TCP_IPV4      0x00000200
+#define NDIS_HASH_IPV6          0x00000400
+#define NDIS_HASH_IPV6_EX       0x00000800
+#define NDIS_HASH_TCP_IPV6      0x00001000
+#define NDIS_HASH_TCP_IPV6_EX   0x00002000
+
+#define NDIS_RSS_INDIRECTION_TABLE_MAX_SIZE_REVISION_2 (128 * 4)
+#define NDIS_RSS_HASH_SECRET_KEY_MAX_SIZE_REVISION_2   40
+
+#define ITAB_NUM 128
+#define HASH_KEYLEN NDIS_RSS_HASH_SECRET_KEY_MAX_SIZE_REVISION_2
+extern u8 netvsc_hash_key[];
+
+struct ndis_recv_scale_param { /* NDIS_RECEIVE_SCALE_PARAMETERS */
+	struct ndis_obj_header hdr;
+
+	/* Qualifies the rest of the information */
+	u16 flag;
+
+	/* The base CPU number to do receive processing. not used */
+	u16 base_cpu_number;
+
+	/* This describes the hash function and type being enabled */
+	u32 hashinfo;
+
+	/* The size of indirection table array */
+	u16 indirect_tabsize;
+
+	/* The offset of the indirection table from the beginning of this
+	 * structure
+	 */
+	u32 indirect_taboffset;
+
+	/* The size of the hash secret key */
+	u16 hashkey_size;
+
+	/* The offset of the secret key from the beginning of this structure */
+	u32 kashkey_offset;
+
+	u32 processor_masks_offset;
+	u32 num_processor_masks;
+	u32 processor_masks_entry_size;
+};
+
 /* Fwd declaration */
 struct hv_netvsc_packet;
 struct ndis_tcp_ip_checksum_info;
@@ -39,6 +129,8 @@ struct xferpage_packet {
 
 	/* # of netvsc packets this xfer packet contains */
 	u32 count;
+
+	struct vmbus_channel *channel;
 };
 
 /*
@@ -53,6 +145,9 @@ struct hv_netvsc_packet {
 	struct hv_device *device;
 	bool is_data_pkt;
 	u16 vlan_tci;
+
+	u16 q_idx;
+	struct vmbus_channel *channel;
 
 	/*
 	 * Valid only for receives when we break a xfer page packet
@@ -120,6 +215,7 @@ void netvsc_linkstatus_callback(struct hv_device *device_obj,
 int netvsc_recv_callback(struct hv_device *device_obj,
 			struct hv_netvsc_packet *packet,
 			struct ndis_tcp_ip_checksum_info *csum_info);
+void netvsc_channel_cb(void *context);
 int rndis_filter_open(struct hv_device *dev);
 int rndis_filter_close(struct hv_device *dev);
 int rndis_filter_device_add(struct hv_device *dev,
@@ -522,6 +618,8 @@ struct nvsp_message {
 
 #define NETVSC_PACKET_SIZE                      2048
 
+#define VRSS_SEND_TAB_SIZE 16
+
 /* Per netvsc channel-specific */
 struct netvsc_device {
 	struct hv_device *dev;
@@ -555,10 +653,20 @@ struct netvsc_device {
 
 	struct net_device *ndev;
 
+	struct vmbus_channel *chn_table[NR_CPUS];
+	u32 send_table[VRSS_SEND_TAB_SIZE];
+	u32 num_chn;
+	atomic_t queue_sends[NR_CPUS];
+
 	/* Holds rndis device info */
 	void *extension;
-	/* The recive buffer for this device */
+
+	int ring_size;
+
+	/* The primary channel callback buffer */
 	unsigned char cb_buffer[NETVSC_PACKET_SIZE];
+	/* The sub channel callback buffer */
+	unsigned char *sub_cb_buf;
 };
 
 /* NdisInitialize message */
