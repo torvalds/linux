@@ -535,13 +535,8 @@ static void serial_txx9_put_poll_char(struct uart_port *port, unsigned char c)
 	wait_for_xmitr(up);
 	/*
 	 *	Send the character out.
-	 *	If a LF, also do CR...
 	 */
 	sio_out(up, TXX9_SITFIFO, c);
-	if (c == 10) {
-		wait_for_xmitr(up);
-		sio_out(up, TXX9_SITFIFO, 13);
-	}
 
 	/*
 	 *	Finally, wait for transmitter to become empty

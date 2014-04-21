@@ -1590,13 +1590,8 @@ static void pch_uart_put_poll_char(struct uart_port *port,
 	wait_for_xmitr(priv, UART_LSR_THRE);
 	/*
 	 * Send the character out.
-	 * If a LF, also do CR...
 	 */
 	iowrite8(c, priv->membase + PCH_UART_THR);
-	if (c == 10) {
-		wait_for_xmitr(priv, UART_LSR_THRE);
-		iowrite8(13, priv->membase + PCH_UART_THR);
-	}
 
 	/*
 	 * Finally, wait for transmitter to become empty
