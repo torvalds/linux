@@ -393,6 +393,7 @@ static struct platform_driver pwm_backlight_driver = {
 	},
 	.probe		= pwm_backlight_probe,
 	.remove		= pwm_backlight_remove,
+	.shutdown       = pwm_backlight_remove,
 };
 
 module_platform_driver(pwm_backlight_driver);
