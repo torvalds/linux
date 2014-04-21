@@ -114,12 +114,7 @@ unsigned bcm_kona_smc(unsigned service_id, unsigned arg0, unsigned arg1,
 	 * Due to a limitation of the secure monitor, we must use the SMP
 	 * infrastructure to forward all secure monitor calls to Core 0.
 	 */
-	if (get_cpu() != 0)
-		smp_call_function_single(0, __bcm_kona_smc, (void *)&data, 1);
-	else
-		__bcm_kona_smc(&data);
-
-	put_cpu();
+	smp_call_function_single(0, __bcm_kona_smc, &data, 1);
 
 	return data.result;
 }
