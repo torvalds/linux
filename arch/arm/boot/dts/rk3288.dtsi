@@ -1088,6 +1088,14 @@
 		reg = <0xff290000 0x10000>;
 		interrupts = <GIC_SPI 27 IRQ_TYPE_LEVEL_HIGH>;  /*irq=59*/
 		interrupt-names = "macirq";
+		clocks = <&clk_mac>, <&clk_gates5 0>,
+		          <&clk_gates5 1>, <&clk_gates5 2>,
+		          <&clk_gates5 3>, <&clk_gates8 0>,
+		          <&clk_gates8 1>;
+		clock-names = "clk_mac", "mac_clk_rx",
+		          "mac_clk_tx", "clk_mac_ref",
+		          "clk_mac_refout", "aclk_mac",
+		          "pclk_mac";	
 		//phy-mode = "rmii";
 		phy-mode = "rgmii";
 		pinctrl-names = "default";

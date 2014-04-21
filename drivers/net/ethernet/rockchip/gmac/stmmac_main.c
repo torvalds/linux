@@ -148,6 +148,38 @@ static void stmmac_exit_fs(void);
 
 #define STMMAC_COAL_TIMER(x) (jiffies + usecs_to_jiffies(x))
 
+static int gmac_clk_enable(struct stmmac_priv *priv)
+{
+	if (!priv->clk_enable) {
+		clk_prepare_enable(priv->clk_mac);
+		clk_prepare_enable(priv->mac_clk_rx);
+		clk_prepare_enable(priv->mac_clk_tx);
+		clk_prepare_enable(priv->clk_mac_ref);
+		clk_prepare_enable(priv->clk_mac_refout);
+		clk_prepare_enable(priv->aclk_mac);
+		clk_prepare_enable(priv->pclk_mac);
+		priv->clk_enable = true;
+	}
+	
+	return 0;
+}
+
+static int gmac_clk_disable(struct stmmac_priv *priv)
+{
+	if (priv->clk_enable) {
+		clk_disable_unprepare(priv->clk_mac);
+		clk_disable_unprepare(priv->mac_clk_rx);
+		clk_disable_unprepare(priv->mac_clk_tx);
+		clk_disable_unprepare(priv->clk_mac_ref);
+		clk_disable_unprepare(priv->clk_mac_refout);
+		clk_disable_unprepare(priv->aclk_mac);
+		clk_disable_unprepare(priv->pclk_mac);
+		priv->clk_enable = false;
+	}
+	
+	return 0;
+}
+
 /**
  * stmmac_verify_args - verify the driver parameters.
  * Description: it verifies if some wrong parameter is passed to the driver.
@@ -1570,6 +1602,7 @@ static int stmmac_open(struct net_device *dev)
 	int ret;
 
 	clk_prepare_enable(priv->stmmac_clk);
+	gmac_clk_enable(priv);
 
 	if ((priv->plat) && (priv->plat->bsp_priv)) {
 		struct bsp_priv * bsp_priv = priv->plat->bsp_priv;
@@ -1721,6 +1754,7 @@ open_error:
 		phy_disconnect(priv->phydev);
 
 	clk_disable_unprepare(priv->stmmac_clk);
+	gmac_clk_disable(priv);
 
 	return ret;
 }
@@ -1774,6 +1808,7 @@ static int stmmac_release(struct net_device *dev)
 	stmmac_exit_fs();
 #endif
 	clk_disable_unprepare(priv->stmmac_clk);
+	gmac_clk_disable(priv);
 
 	stmmac_release_ptp(priv);
 
@@ -2728,6 +2763,49 @@ struct stmmac_priv *stmmac_dvr_probe(struct device *device,
 		goto error_netdev_register;
 	}
 
+	priv->clk_enable = 0;
+	priv->clk_mac = clk_get(priv->device,"clk_mac");
+	if (IS_ERR(priv->clk_mac)) {
+		pr_warn("%s: warning: cannot get clk_mac clock\n", __func__);
+		goto error_clk_get;
+	}
+
+	priv->mac_clk_rx = clk_get(priv->device,"mac_clk_rx");
+	if (IS_ERR(priv->mac_clk_rx)) {
+		pr_warn("%s: warning: cannot get mac_clk_rx clock\n", __func__);
+		goto error_clk_get;
+	}
+
+	priv->mac_clk_tx = clk_get(priv->device,"mac_clk_tx");
+	if (IS_ERR(priv->mac_clk_tx)) {
+		pr_warn("%s: warning: cannot get mac_clk_tx clock\n", __func__);
+		goto error_clk_get;
+	}
+
+	priv->clk_mac_ref = clk_get(priv->device,"clk_mac_ref");
+	if (IS_ERR(priv->clk_mac_ref)) {
+		pr_warn("%s: warning: cannot get clk_mac_ref clock\n", __func__);
+		goto error_clk_get;
+	}
+
+	priv->clk_mac_refout = clk_get(priv->device,"clk_mac_refout");
+	if (IS_ERR(priv->clk_mac_refout)) {
+		pr_warn("%s: warning: cannot get clk_mac_refout clock\n", __func__);
+		goto error_clk_get;
+	}
+
+	priv->aclk_mac = clk_get(priv->device,"aclk_mac");
+	if (IS_ERR(priv->aclk_mac)) {
+		pr_warn("%s: warning: cannot get aclk_mac clock\n", __func__);
+		goto error_clk_get;
+	}
+
+	priv->pclk_mac = clk_get(priv->device,"pclk_mac");
+	if (IS_ERR(priv->pclk_mac)) {
+		pr_warn("%s: warning: cannot get pclk_mac clock\n", __func__);
+		goto error_clk_get;
+	}
+
 	priv->stmmac_clk = clk_get(priv->device, "clk_mac"/*STMMAC_RESOURCE_NAME*/);
 	if (IS_ERR(priv->stmmac_clk)) {
 		pr_warn("%s: warning: cannot get CSR clock\n", __func__);
@@ -2751,6 +2829,13 @@ struct stmmac_priv *stmmac_dvr_probe(struct device *device,
 
 error_mdio_register:
 	clk_put(priv->stmmac_clk);
+	clk_put(priv->clk_mac);
+	clk_put(priv->mac_clk_rx);
+	clk_put(priv->mac_clk_tx);
+	clk_put(priv->clk_mac_ref);
+	clk_put(priv->clk_mac_refout);
+	clk_put(priv->aclk_mac);
+	clk_put(priv->pclk_mac);
 error_clk_get:
 	unregister_netdev(ndev);
 error_netdev_register:
@@ -2819,6 +2904,7 @@ int stmmac_suspend(struct net_device *ndev)
 		stmmac_set_mac(priv->ioaddr, false);
 		/* Disable clock in case of PWM is off */
 		clk_disable_unprepare(priv->stmmac_clk);
+		gmac_clk_disable(priv);
 	}
 	spin_unlock_irqrestore(&priv->lock, flags);
 	return 0;
@@ -2842,9 +2928,11 @@ int stmmac_resume(struct net_device *ndev)
 	 */
 	if (device_may_wakeup(priv->device))
 		priv->hw->mac->pmt(priv->ioaddr, 0);
-	else
+	else {
 		/* enable the clk prevously disabled */
 		clk_prepare_enable(priv->stmmac_clk);
+		gmac_clk_enable(priv);
+	}
 
 	netif_device_attach(ndev);
 

@@ -92,6 +92,14 @@ struct stmmac_priv {
 	int wolopts;
 	int wol_irq;
 	struct clk *stmmac_clk;
+	struct clk *clk_mac;
+	struct clk *mac_clk_rx;
+	struct clk *mac_clk_tx;
+	struct clk *clk_mac_ref;
+	struct clk *clk_mac_refout;
+	struct clk *aclk_mac;
+	struct clk *pclk_mac;
+	bool clk_enable;
 	int clk_csr;
 	struct timer_list eee_ctrl_timer;
 	int lpi_irq;
