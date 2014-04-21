@@ -51,6 +51,11 @@ extern void sun4m_clear_profile_irq(int cpu);
 /* sun4m_smp.c */
 void sun4m_cpu_pre_starting(void *arg);
 void sun4m_cpu_pre_online(void *arg);
+void __init smp4m_boot_cpus(void);
+int smp4m_boot_one_cpu(int i, struct task_struct *idle);
+void __init smp4m_smp_done(void);
+void smp4m_cross_call_irq(void);
+void smp4m_percpu_timer_interrupt(struct pt_regs *regs);
 
 /* sun4d_irq.c */
 extern spinlock_t sun4d_imsk_lock;
