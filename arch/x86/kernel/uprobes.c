@@ -441,6 +441,9 @@ static int default_post_xol_op(struct arch_uprobe *auprobe, struct pt_regs *regs
 			return -ERESTART;
 		}
 	}
+	/* popf; tell the caller to not touch TF */
+	if (auprobe->fixups & UPROBE_FIX_SETF)
+		utask->autask.saved_tf = true;
 
 	return 0;
 }
@@ -757,15 +760,15 @@ bool arch_uprobe_xol_was_trapped(struct task_struct *t)
 int arch_uprobe_post_xol(struct arch_uprobe *auprobe, struct pt_regs *regs)
 {
 	struct uprobe_task *utask = current->utask;
+	bool send_sigtrap = utask->autask.saved_tf;
+	int err = 0;
 
 	WARN_ON_ONCE(current->thread.trap_nr != UPROBE_TRAP_NR);
 	current->thread.trap_nr = utask->autask.saved_trap_nr;
 
 	if (auprobe->ops->post_xol) {
-		int err = auprobe->ops->post_xol(auprobe, regs);
+		err = auprobe->ops->post_xol(auprobe, regs);
 		if (err) {
-			if (!utask->autask.saved_tf)
-				regs->flags &= ~X86_EFLAGS_TF;
 			/*
 			 * Restore ->ip for restart or post mortem analysis.
 			 * ->post_xol() must not return -ERESTART unless this
@@ -773,8 +776,8 @@ int arch_uprobe_post_xol(struct arch_uprobe *auprobe, struct pt_regs *regs)
 			 */
 			regs->ip = utask->vaddr;
 			if (err == -ERESTART)
-				return 0;
-			return err;
+				err = 0;
+			send_sigtrap = false;
 		}
 	}
 	/*
@@ -782,12 +785,13 @@ int arch_uprobe_post_xol(struct arch_uprobe *auprobe, struct pt_regs *regs)
 	 * so we can get an extra SIGTRAP if we do not clear TF. We need
 	 * to examine the opcode to make it right.
 	 */
-	if (utask->autask.saved_tf)
+	if (send_sigtrap)
 		send_sig(SIGTRAP, current, 0);
-	else if (!(auprobe->fixups & UPROBE_FIX_SETF))
+
+	if (!utask->autask.saved_tf)
 		regs->flags &= ~X86_EFLAGS_TF;
 
-	return 0;
+	return err;
 }
 
 /* callback routine for handling exceptions. */
