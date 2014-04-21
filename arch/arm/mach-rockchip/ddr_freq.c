@@ -181,9 +181,7 @@ enum ddr_bandwidth_id{
     ddrbw_id_end
 };
 
-static struct workqueue_struct *ddr_freq_wq;
-static u32 high_load = 65; //65%
-static u32 ddrbw_work_delay_ms = 20; 
+
 
 #define DDR_BOOST_HOLD_MS	500
 #define HIGH_LOAD_HOLD_MS	500
@@ -191,9 +189,21 @@ static u32 ddrbw_work_delay_ms = 20;
 #define DDR_BOOST_HOLD		(DDR_BOOST_HOLD_MS/ddrbw_work_delay_ms)
 #define HIGH_LOAD_HOLD		(DDR_BOOST_HOLD_MS/ddrbw_work_delay_ms)
 #define RAISE_DELAY		(RAISE_DELAY_MS/ddrbw_work_delay_ms)
-#define DDR_NORMAL_RATE 	240000000
-#define DDR_BOOST_RATE  	324000000
-#define HIGH_LOAD_RATE		400000000
+#define DDR_RATE_NORMAL 	240000000
+#define DDR_RATE_BOOST		324000000
+#define DDR_RATE_HIGH_LOAD	533000000
+#define DDR_RATE_1080P		240000000
+#define DDR_RATE_4K		300000000
+#define HIGH_LOAD_NORMAL	65
+#define HGIH_LOAD_VIDEO		50
+
+static struct workqueue_struct *ddr_freq_wq;
+static u32 high_load = HIGH_LOAD_NORMAL;
+static u32 ddrbw_work_delay_ms = 20; 
+static u32 ddr_rate_normal = DDR_RATE_NORMAL;
+static u32 ddr_rate_boost = DDR_RATE_BOOST;
+static u32 ddr_rate_high_load = DDR_RATE_HIGH_LOAD;
+
 
 //#define  ddr_monitor_start() grf_writel(0xc000c000,RK3288_GRF_SOC_CON4)
 #define  ddr_monitor_start() grf_writel((((readl_relaxed(RK_PMU_VIRT + 0x9c)>>13)&7)==3)?0xc000c000:0xe000e000,RK3288_GRF_SOC_CON4)
@@ -234,11 +244,12 @@ static void ddrbw_work_fn(struct work_struct *work)
 	
 	ddr_monitor_stop();
         ddr_bandwidth_get(&ch0_eff, &ch1_eff);
+	printk(KERN_DEBUG "%d %d\n", ch0_eff, ch1_eff);
 
 	if (ddr_boost) {
 		ddr_boost = 0;
 		//dvfs_clk_set_rate(ddr.clk_dvfs_node, DDR_BOOST_RATE);
-		rate = DDR_BOOST_RATE;
+		rate = ddr_rate_boost;
 		ddrfreq_mode(false, &rate, "boost");
 		ddr_boost_hold = DDR_BOOST_HOLD;
 		high_load_hold = 0;
@@ -246,7 +257,7 @@ static void ddrbw_work_fn(struct work_struct *work)
 	} else if(!ddr_boost_hold && ((ch0_eff>high_load)||(ch1_eff>high_load))){
 		if (!raise_delay) {
 			//dvfs_clk_set_rate(ddr.clk_dvfs_node, HIGH_LOAD_RATE);
-			rate = HIGH_LOAD_RATE;
+			rate = ddr_rate_high_load;
 			ddrfreq_mode(false, &rate, "high load");
 			high_load_hold=HIGH_LOAD_HOLD;
 		} else {
@@ -260,7 +271,7 @@ static void ddrbw_work_fn(struct work_struct *work)
 		} else {
 			raise_delay = RAISE_DELAY;
 	       		//dvfs_clk_set_rate(ddr.clk_dvfs_node, DDR_NORMAL_RATE);
-	       		rate = DDR_NORMAL_RATE;
+	       		rate = ddr_rate_normal;
 	       		ddrfreq_mode(false, &rate, "normal");
 		}
     }
@@ -378,10 +389,16 @@ static ssize_t video_state_write(struct file *file, const char __user *buffer,
 
 	switch (state) {
 	case '0':
+		high_load = HIGH_LOAD_NORMAL;
+		ddr_rate_normal = DDR_RATE_NORMAL;
+		ddr_rate_high_load = DDR_RATE_HIGH_LOAD;
 		if (!ddr.auto_freq)
 			ddrfreq_clear_sys_status(SYS_STATUS_VIDEO);
 		break;
 	case '1':
+		high_load = HGIH_LOAD_VIDEO;
+		ddr_rate_normal = DDR_RATE_1080P;
+		ddr_rate_high_load = DDR_RATE_4K;
 		if( (v_width == 0) && (v_height == 0)){
 			if (!ddr.auto_freq)
 				ddrfreq_set_sys_status(SYS_STATUS_VIDEO_1080P);
