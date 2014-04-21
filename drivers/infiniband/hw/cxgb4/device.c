@@ -736,6 +736,7 @@ static struct c4iw_dev *c4iw_alloc(const struct cxgb4_lld_info *infop)
 			pci_resource_len(devp->rdev.lldi.pdev, 2));
 		if (!devp->rdev.bar2_kva) {
 			pr_err(MOD "Unable to ioremap BAR2\n");
+			ib_dealloc_device(&devp->ibdev);
 			return ERR_PTR(-EINVAL);
 		}
 	} else if (ocqp_supported(infop)) {
@@ -747,6 +748,7 @@ static struct c4iw_dev *c4iw_alloc(const struct cxgb4_lld_info *infop)
 			devp->rdev.lldi.vr->ocq.size);
 		if (!devp->rdev.oc_mw_kva) {
 			pr_err(MOD "Unable to ioremap onchip mem\n");
+			ib_dealloc_device(&devp->ibdev);
 			return ERR_PTR(-EINVAL);
 		}
 	}
