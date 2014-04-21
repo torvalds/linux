@@ -855,7 +855,11 @@ static int rk3288_lcdc_reg_update(struct rk_lcdc_driver *dev_drv)
 
 static int rk3288_lcdc_reg_restore(struct lcdc_device *lcdc_dev)
 {
-	memcpy((u8 *) lcdc_dev->regs, (u8 *) lcdc_dev->regsbak, 0x1f8);
+#ifdef CONFIG_ROCKCHIP_IOMMU
+	memcpy((u8 *) lcdc_dev->regs, (u8 *) lcdc_dev->regsbak, 0x330);
+#else
+	memcpy((u8 *) lcdc_dev->regs, (u8 *) lcdc_dev->regsbak, 0x1fc);
+#endif
 	return 0;
 }
 static int rk3288_lcdc_mmu_en(struct rk_lcdc_driver *dev_drv)
@@ -1196,7 +1200,7 @@ static int rk3288_lcdc_open(struct rk_lcdc_driver *dev_drv, int win_id,
 		rk3288_lcdc_pre_init(dev_drv);
 		rk3288_lcdc_clk_enable(lcdc_dev);
 		rk3288_lcdc_reg_restore(lcdc_dev);
-		#ifdef USE_ION_MMU
+		#ifdef CONFIG_ROCKCHIP_IOMMU
 			rk3288_lcdc_mmu_en(dev_drv);
 		#endif
 		if ((support_uboot_display()&&(lcdc_dev->prop == PRMRY))) {
@@ -2987,13 +2991,14 @@ static int rk3288_lcdc_get_dsp_addr(struct rk_lcdc_driver *dev_drv,unsigned int 
 {
 	struct lcdc_device *lcdc_dev =
 	    container_of(dev_drv, struct lcdc_device, driver);
-
+	spin_lock(&lcdc_dev->reg_lock);
 	if(lcdc_dev->clk_on){
 		dsp_addr[0] = lcdc_readl(lcdc_dev, WIN0_YRGB_MST);
 		dsp_addr[1] = lcdc_readl(lcdc_dev, WIN1_YRGB_MST);
 		dsp_addr[2] = lcdc_readl(lcdc_dev, WIN2_MST0);
 		dsp_addr[3] = lcdc_readl(lcdc_dev, WIN3_MST0);
 	}
+	spin_unlock(&lcdc_dev->reg_lock);
 	return 0;
 }
 
@@ -3357,7 +3362,7 @@ static int rk3288_lcdc_probe(struct platform_device *pdev)
 			lcdc_dev->irq, ret);
 		return ret;
 	}
-#ifdef USE_ION_MMU
+#ifdef CONFIG_ROCKCHIP_IOMMU
 		if(lcdc_dev->id == 0){
 			strcpy(dev_drv->mmu_dts_name, "iommu,vopb_mmu");
 		}else{

@@ -1112,6 +1112,9 @@ static void rk_fb_update_reg(struct rk_lcdc_driver * dev_drv,struct rk_fb_reg_da
 	struct rk_fb *rk_fb =  platform_get_drvdata(fb_pdev);
 	struct rk_lcdc_driver *ext_dev_drv;
 	struct rk_lcdc_win *ext_win;
+	bool wait_for_vsync;
+	int count = 100;
+	unsigned int dsp_addr[4];
 
 	for(i=0;i<dev_drv->lcdc_win_num;i++){ 
 		//old_reg_win_data[i]= regs->reg_win_data[i];
@@ -1208,9 +1211,25 @@ ext_win_exit:
 	/*dev_drv->atv_layer_cnt = regs->win_num;
 	dev_drv->ops->set_par(dev_drv,0);*/
 
-	ret = wait_event_interruptible_timeout(dev_drv->vsync_info.wait,
-			!ktime_equal(timestamp, dev_drv->vsync_info.timestamp),msecs_to_jiffies(dev_drv->cur_screen->ft+5));
-	
+	//ret = wait_event_interruptible_timeout(dev_drv->vsync_info.wait,
+	//		!ktime_equal(timestamp, dev_drv->vsync_info.timestamp),msecs_to_jiffies(dev_drv->cur_screen->ft+5));
+	do {
+		ret = wait_event_interruptible_timeout(dev_drv->vsync_info.wait,
+				!ktime_equal(timestamp, dev_drv->vsync_info.timestamp),msecs_to_jiffies(dev_drv->cur_screen->ft+5));		
+		dev_drv->ops->get_dsp_addr(dev_drv,dsp_addr);
+		wait_for_vsync = false;
+		for (i = 0; i < dev_drv->lcdc_win_num; i++) {
+			if(dev_drv->win[i]->state == 1){
+				u32 new_start = regs->reg_win_data[i].reg_area_data[0].smem_start +
+						regs->reg_win_data[i].reg_area_data[0].y_offset;
+				u32 reg_start = dsp_addr[i];
+				if (unlikely(new_start != reg_start)) {
+					wait_for_vsync = true;
+					break;
+				}
+			}
+		}
+	} while (wait_for_vsync && count--);
 #ifdef H_USE_FENCE
 	sw_sync_timeline_inc(dev_drv->timeline, 1);
 #endif
