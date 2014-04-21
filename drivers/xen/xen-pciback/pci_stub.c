@@ -493,6 +493,8 @@ static int pcistub_seize(struct pci_dev *dev)
 	return err;
 }
 
+/* Called when 'bind'. This means we must _NOT_ call pci_reset_function or
+ * other functions that take the sysfs lock. */
 static int pcistub_probe(struct pci_dev *dev, const struct pci_device_id *id)
 {
 	int err = 0;
@@ -520,6 +522,8 @@ out:
 	return err;
 }
 
+/* Called when 'unbind'. This means we must _NOT_ call pci_reset_function or
+ * other functions that take the sysfs lock. */
 static void pcistub_remove(struct pci_dev *dev)
 {
 	struct pcistub_device *psdev, *found_psdev = NULL;
