@@ -283,6 +283,11 @@ static int rk32_lvds_probe(struct platform_device *pdev)
 		dev_err(&pdev->dev, "get clk failed\n");
 		return PTR_ERR(lvds->pd);
 	}	
+	if (support_uboot_display()) {
+		clk_prepare_enable(lvds->clk);
+		clk_prepare_enable(lvds->pd);
+	}
+
 	rk32_lvds = lvds;
 	rk_fb_trsm_ops_register(&trsm_lvds_ops,SCREEN_LVDS);
 	dev_info(&pdev->dev, "rk32 lvds driver probe success\n");
