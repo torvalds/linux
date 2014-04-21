@@ -1800,10 +1800,24 @@ void PIE_FUNC(gtclks_sram_resume)(void)
         cru_writel(rkpm_clkgt_last_save[i]|0xffff0000, RK3288_CRU_CLKGATES_CON(i));
     }
 }
+#define grf_readl(offset)	readl_relaxed(RK_GRF_VIRT + offset)
+#define grf_writel(v, offset)	do { writel_relaxed(v, RK_GRF_VIRT + offset); dsb(); } while (0)
+
+#define gpio7_readl(offset)	readl_relaxed(RK_GPIO_VIRT(7)+ offset)
+#define gpio7_writel(v, offset)	do { writel_relaxed(v, RK_GPIO_VIRT(7) + offset); dsb(); } while (0)
+
+int gpio7_pin_data1, gpio7_pin_dir1;
+int gpio7_pin_iomux1;
 
 static void gtclks_suspend(void)
 {
     int i;
+	gpio7_pin_data1= gpio7_readl(0);
+	gpio7_pin_dir1 = gpio7_readl(0x04);
+	gpio7_pin_iomux1 =  gpio7_readl(0x6c);
+	grf_writel(0x00040000, 0x6c);
+	gpio7_writel(gpio7_pin_dir1|0x2, 0x04);
+	gpio7_writel((gpio7_pin_data1|2), 0x00);
 
   // rkpm_ddr_regs_dump(RK_CRU_VIRT,RK3288_CRU_CLKGATES_CON(0)
                                           //          ,RK3288_CRU_CLKGATES_CON(RK3288_CRU_CLKGATES_CON_CNT-1));
@@ -1871,7 +1885,8 @@ static void gtclks_resume(void)
      }
      //rkpm_ddr_regs_dump(RK_CRU_VIRT,RK3288_CRU_CLKGATES_CON(0)
                                                  //   ,RK3288_CRU_CLKGATES_CON(RK3288_CRU_CLKGATES_CON_CNT-1));
-    
+	grf_writel(0x00040004, 0x6c);
+
 }
 /********************************pll power down***************************************/
 
