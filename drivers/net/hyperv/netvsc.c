@@ -479,9 +479,8 @@ static void netvsc_send_completion(struct netvsc_device *net_device,
 		if (nvsc_packet) {
 			q_idx = nvsc_packet->q_idx;
 			channel = nvsc_packet->channel;
-			nvsc_packet->completion.send.send_completion(
-				nvsc_packet->completion.send.
-				send_completion_ctx);
+			nvsc_packet->send_completion(nvsc_packet->
+						     send_completion_ctx);
 		}
 
 		num_outstanding_sends =
@@ -534,7 +533,7 @@ int netvsc_send(struct hv_device *device,
 		0xFFFFFFFF;
 	sendMessage.msg.v1_msg.send_rndis_pkt.send_buf_section_size = 0;
 
-	if (packet->completion.send.send_completion)
+	if (packet->send_completion)
 		req_id = (ulong)packet;
 	else
 		req_id = 0;

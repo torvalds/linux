@@ -136,13 +136,9 @@ struct hv_netvsc_packet {
 	u16 q_idx;
 	struct vmbus_channel *channel;
 
-	union {
-		struct {
-			u64 send_completion_tid;
-			void *send_completion_ctx;
-			void (*send_completion)(void *context);
-		} send;
-	} completion;
+	u64 send_completion_tid;
+	void *send_completion_ctx;
+	void (*send_completion)(void *context);
 
 	/* This points to the memory after page_buf */
 	struct rndis_message *rndis_msg;

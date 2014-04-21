@@ -235,7 +235,7 @@ static void netvsc_xmit_completion(void *context)
 {
 	struct hv_netvsc_packet *packet = (struct hv_netvsc_packet *)context;
 	struct sk_buff *skb = (struct sk_buff *)
-		(unsigned long)packet->completion.send.send_completion_tid;
+		(unsigned long)packet->send_completion_tid;
 
 	kfree(packet);
 
@@ -425,9 +425,9 @@ static int netvsc_start_xmit(struct sk_buff *skb, struct net_device *net)
 				(num_data_pgs * sizeof(struct hv_page_buffer)));
 
 	/* Set the completion routine */
-	packet->completion.send.send_completion = netvsc_xmit_completion;
-	packet->completion.send.send_completion_ctx = packet;
-	packet->completion.send.send_completion_tid = (unsigned long)skb;
+	packet->send_completion = netvsc_xmit_completion;
+	packet->send_completion_ctx = packet;
+	packet->send_completion_tid = (unsigned long)skb;
 
 	isvlan = packet->vlan_tci & VLAN_TAG_PRESENT;
 
