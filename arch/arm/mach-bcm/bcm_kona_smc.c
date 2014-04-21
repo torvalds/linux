@@ -76,6 +76,50 @@ int __init bcm_kona_smc_init(void)
 	return 0;
 }
 
+/*
+ * Since interrupts are disabled in the open mode, we must keep
+ * interrupts disabled in secure mode by setting R5=0x3. If interrupts
+ * are enabled in open mode, we can set R5=0x0 to allow interrupts in
+ * secure mode.  If we did this, the secure monitor would return back
+ * control to the open mode to handle the interrupt prior to completing
+ * the secure service. If this happened, R12 would not be
+ * SEC_EXIT_NORMAL and we would need to call SMC again after resetting
+ * R5 (it gets clobbered by the secure monitor) and setting R4 to
+ * SSAPI_RET_FROM_INT_SERV to indicate that we want the secure monitor
+ * to finish up the previous uncompleted secure service.
+ */
+static int bcm_kona_do_smc(u32 service_id, u32 buffer_phys)
+{
+	register u32 ip asm("ip");	/* Also called r12 */
+	register u32 r0 asm("r0");
+	register u32 r4 asm("r4");
+	register u32 r5 asm("r5");
+	register u32 r6 asm("r6");
+
+	r4 = service_id;
+	r5 = 0x3;		/* Keep IRQ and FIQ off in SM */
+	r6 = buffer_phys;
+
+	asm volatile (
+		/* Make sure we got the registers we want */
+		__asmeq("%0", "ip")
+		__asmeq("%1", "r0")
+		__asmeq("%2", "r4")
+		__asmeq("%3", "r5")
+		__asmeq("%4", "r6")
+#ifdef REQUIRES_SEC
+		".arch_extension sec\n"
+#endif
+		"	smc    #0\n"
+		: "=r" (ip), "=r" (r0)
+		: "r" (r4), "r" (r5), "r" (r6)
+		: "r1", "r2", "r3", "r7", "lr");
+
+	BUG_ON(ip != SEC_EXIT_NORMAL);
+
+	return r0;
+}
+
 /* __bcm_kona_smc() should only run on CPU 0, with pre-emption disabled */
 static void __bcm_kona_smc(void *info)
 {
@@ -95,7 +139,7 @@ static void __bcm_kona_smc(void *info)
 	flush_cache_all();
 
 	/* Trap into Secure Monitor and record the request result */
-	data->result = bcm_kona_smc_asm(data->service_id, bcm_smc_buffer_phys);
+	data->result = bcm_kona_do_smc(data->service_id, bcm_smc_buffer_phys);
 }
 
 unsigned bcm_kona_smc(unsigned service_id, unsigned arg0, unsigned arg1,

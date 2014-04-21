@@ -21,7 +21,6 @@
 #define SEC_ROM_RET_OK			0x00000001
 #define SEC_EXIT_NORMAL			0x1
 
-#ifndef	__ASSEMBLY__
 extern int __init bcm_kona_smc_init(void);
 
 extern unsigned bcm_kona_smc(unsigned service_id,
@@ -29,10 +28,5 @@ extern unsigned bcm_kona_smc(unsigned service_id,
 			     unsigned arg1,
 			     unsigned arg2,
 			     unsigned arg3);
-
-extern int bcm_kona_smc_asm(u32 service_id,
-			    u32 buffer_addr);
-
-#endif	/* __ASSEMBLY__ */
 
 #endif /* BCM_KONA_SMC_H */
