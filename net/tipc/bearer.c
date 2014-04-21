@@ -198,7 +198,6 @@ struct sk_buff *tipc_bearer_get_names(void)
 	if (!buf)
 		return NULL;
 
-	read_lock_bh(&tipc_net_lock);
 	for (i = 0; media_info_array[i] != NULL; i++) {
 		for (j = 0; j < MAX_BEARERS; j++) {
 			b = rtnl_dereference(bearer_list[j]);
@@ -211,7 +210,6 @@ struct sk_buff *tipc_bearer_get_names(void)
 			}
 		}
 	}
-	read_unlock_bh(&tipc_net_lock);
 	return buf;
 }
 
@@ -285,13 +283,11 @@ int tipc_enable_bearer(const char *name, u32 disc_domain, u32 priority)
 		return -EINVAL;
 	}
 
-	write_lock_bh(&tipc_net_lock);
-
 	m_ptr = tipc_media_find(b_names.media_name);
 	if (!m_ptr) {
 		pr_warn("Bearer <%s> rejected, media <%s> not registered\n",
 			name, b_names.media_name);
-		goto exit;
+		return -EINVAL;
 	}
 
 	if (priority == TIPC_MEDIA_LINK_PRI)
@@ -309,14 +305,14 @@ restart:
 		if (!strcmp(name, b_ptr->name)) {
 			pr_warn("Bearer <%s> rejected, already enabled\n",
 				name);
-			goto exit;
+			return -EINVAL;
 		}
 		if ((b_ptr->priority == priority) &&
 		    (++with_this_prio > 2)) {
 			if (priority-- == 0) {
 				pr_warn("Bearer <%s> rejected, duplicate priority\n",
 					name);
-				goto exit;
+				return -EINVAL;
 			}
 			pr_warn("Bearer <%s> priority adjustment required %u->%u\n",
 				name, priority + 1, priority);
@@ -326,21 +322,20 @@ restart:
 	if (bearer_id >= MAX_BEARERS) {
 		pr_warn("Bearer <%s> rejected, bearer limit reached (%u)\n",
 			name, MAX_BEARERS);
-		goto exit;
+		return -EINVAL;
 	}
 
 	b_ptr = kzalloc(sizeof(*b_ptr), GFP_ATOMIC);
-	if (!b_ptr) {
-		res = -ENOMEM;
-		goto exit;
-	}
+	if (!b_ptr)
+		return -ENOMEM;
+
 	strcpy(b_ptr->name, name);
 	b_ptr->media = m_ptr;
 	res = m_ptr->enable_media(b_ptr);
 	if (res) {
 		pr_warn("Bearer <%s> rejected, enable failure (%d)\n",
 			name, -res);
-		goto exit;
+		return -EINVAL;
 	}
 
 	b_ptr->identity = bearer_id;
@@ -355,7 +350,7 @@ restart:
 		bearer_disable(b_ptr, false);
 		pr_warn("Bearer <%s> rejected, discovery object creation failed\n",
 			name);
-		goto exit;
+		return -EINVAL;
 	}
 
 	rcu_assign_pointer(bearer_list[bearer_id], b_ptr);
@@ -363,8 +358,6 @@ restart:
 	pr_info("Enabled bearer <%s>, discovery domain %s, priority %u\n",
 		name,
 		tipc_addr_string_fill(addr_string, disc_domain), priority);
-exit:
-	write_unlock_bh(&tipc_net_lock);
 	return res;
 }
 
@@ -373,19 +366,17 @@ exit:
  */
 static int tipc_reset_bearer(struct tipc_bearer *b_ptr)
 {
-	read_lock_bh(&tipc_net_lock);
 	pr_info("Resetting bearer <%s>\n", b_ptr->name);
 	tipc_disc_delete(b_ptr->link_req);
 	tipc_link_reset_list(b_ptr->identity);
 	tipc_disc_create(b_ptr, &b_ptr->bcast_addr);
-	read_unlock_bh(&tipc_net_lock);
 	return 0;
 }
 
 /**
  * bearer_disable
  *
- * Note: This routine assumes caller holds tipc_net_lock.
+ * Note: This routine assumes caller holds RTNL lock.
  */
 static void bearer_disable(struct tipc_bearer *b_ptr, bool shutting_down)
 {
@@ -412,7 +403,6 @@ int tipc_disable_bearer(const char *name)
 	struct tipc_bearer *b_ptr;
 	int res;
 
-	write_lock_bh(&tipc_net_lock);
 	b_ptr = tipc_bearer_find(name);
 	if (b_ptr == NULL) {
 		pr_warn("Attempt to disable unknown bearer <%s>\n", name);
@@ -421,7 +411,6 @@ int tipc_disable_bearer(const char *name)
 		bearer_disable(b_ptr, false);
 		res = 0;
 	}
-	write_unlock_bh(&tipc_net_lock);
 	return res;
 }
 

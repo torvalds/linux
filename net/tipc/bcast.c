@@ -273,7 +273,7 @@ exit:
 /**
  * tipc_bclink_update_link_state - update broadcast link state
  *
- * tipc_net_lock and node lock set
+ * RCU and node lock set
  */
 void tipc_bclink_update_link_state(struct tipc_node *n_ptr, u32 last_sent)
 {
@@ -335,8 +335,6 @@ void tipc_bclink_update_link_state(struct tipc_node *n_ptr, u32 last_sent)
  *
  * Delay any upcoming NACK by this node if another node has already
  * requested the first message this node is going to ask for.
- *
- * Only tipc_net_lock set.
  */
 static void bclink_peek_nack(struct tipc_msg *msg)
 {
@@ -408,7 +406,7 @@ static void bclink_accept_pkt(struct tipc_node *node, u32 seqno)
 /**
  * tipc_bclink_rcv - receive a broadcast packet, and deliver upwards
  *
- * tipc_net_lock is read_locked, no other locks set
+ * RCU is locked, no other locks set
  */
 void tipc_bclink_rcv(struct sk_buff *buf)
 {
