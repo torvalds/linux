@@ -313,7 +313,7 @@ static void test_aead_speed(const char *algo, int enc, unsigned int sec,
 	if (IS_ERR(tfm)) {
 		pr_err("alg: aead: Failed to load transform for %s: %ld\n", algo,
 		       PTR_ERR(tfm));
-		return;
+		goto out_notfm;
 	}
 
 	req = aead_request_alloc(tfm, GFP_KERNEL);
@@ -391,6 +391,7 @@ static void test_aead_speed(const char *algo, int enc, unsigned int sec,
 
 out:
 	crypto_free_aead(tfm);
+out_notfm:
 	kfree(sg);
 out_nosg:
 	testmgr_free_buf(xoutbuf);
