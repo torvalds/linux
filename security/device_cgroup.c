@@ -306,57 +306,139 @@ static int devcgroup_seq_show(struct seq_file *m, void *v)
 }
 
 /**
- * may_access - verifies if a new exception is part of what is allowed
- *		by a dev cgroup based on the default policy +
- *		exceptions. This is used to make sure a child cgroup
- *		won't have more privileges than its parent or to
- *		verify if a certain access is allowed.
- * @dev_cgroup: dev cgroup to be tested against
- * @refex: new exception
- * @behavior: behavior of the exception
+ * match_exception	- iterates the exception list trying to match a rule
+ * 			  based on type, major, minor and access type. It is
+ * 			  considered a match if an exception is found that
+ * 			  will contain the entire range of provided parameters.
+ * @exceptions: list of exceptions
+ * @type: device type (DEV_BLOCK or DEV_CHAR)
+ * @major: device file major number, ~0 to match all
+ * @minor: device file minor number, ~0 to match all
+ * @access: permission mask (ACC_READ, ACC_WRITE, ACC_MKNOD)
+ *
+ * returns: true in case it matches an exception completely
  */
-static bool may_access(struct dev_cgroup *dev_cgroup,
-		       struct dev_exception_item *refex,
-		       enum devcg_behavior behavior)
+static bool match_exception(struct list_head *exceptions, short type,
+			    u32 major, u32 minor, short access)
 {
 	struct dev_exception_item *ex;
+
+	list_for_each_entry_rcu(ex, exceptions, list) {
+		if ((type & DEV_BLOCK) && !(ex->type & DEV_BLOCK))
+			continue;
+		if ((type & DEV_CHAR) && !(ex->type & DEV_CHAR))
+			continue;
+		if (ex->major != ~0 && ex->major != major)
+			continue;
+		if (ex->minor != ~0 && ex->minor != minor)
+			continue;
+		/* provided access cannot have more than the exception rule */
+		if (access & (~ex->access))
+			continue;
+		return true;
+	}
+	return false;
+}
+
+/**
+ * match_exception_partial - iterates the exception list trying to match a rule
+ * 			     based on type, major, minor and access type. It is
+ * 			     considered a match if an exception's range is
+ * 			     found to contain *any* of the devices specified by
+ * 			     provided parameters. This is used to make sure no
+ * 			     extra access is being granted that is forbidden by
+ * 			     any of the exception list.
+ * @exceptions: list of exceptions
+ * @type: device type (DEV_BLOCK or DEV_CHAR)
+ * @major: device file major number, ~0 to match all
+ * @minor: device file minor number, ~0 to match all
+ * @access: permission mask (ACC_READ, ACC_WRITE, ACC_MKNOD)
+ *
+ * returns: true in case the provided range mat matches an exception completely
+ */
+static bool match_exception_partial(struct list_head *exceptions, short type,
+				    u32 major, u32 minor, short access)
+{
+	struct dev_exception_item *ex;
+
+	list_for_each_entry_rcu(ex, exceptions, list) {
+		if ((type & DEV_BLOCK) && !(ex->type & DEV_BLOCK))
+			continue;
+		if ((type & DEV_CHAR) && !(ex->type & DEV_CHAR))
+			continue;
+		/*
+		 * We must be sure that both the exception and the provided
+		 * range aren't masking all devices
+		 */
+		if (ex->major != ~0 && major != ~0 && ex->major != major)
+			continue;
+		if (ex->minor != ~0 && minor != ~0 && ex->minor != minor)
+			continue;
+		/*
+		 * In order to make sure the provided range isn't matching
+		 * an exception, all its access bits shouldn't match the
+		 * exception's access bits
+		 */
+		if (!(access & ex->access))
+			continue;
+		return true;
+	}
+	return false;
+}
+
+/**
+ * verify_new_ex - verifies if a new exception is part of what is allowed
+ *		   by a dev cgroup based on the default policy +
+ *		   exceptions. This is used to make sure a child cgroup
+ *		   won't have more privileges than its parent
+ * @dev_cgroup: dev cgroup to be tested against
+ * @refex: new exception
+ * @behavior: behavior of the exception's dev_cgroup
+ */
+static bool verify_new_ex(struct dev_cgroup *dev_cgroup,
+		          struct dev_exception_item *refex,
+		          enum devcg_behavior behavior)
+{
 	bool match = false;
 
 	rcu_lockdep_assert(rcu_read_lock_held() ||
 			   lockdep_is_held(&devcgroup_mutex),
-			   "device_cgroup::may_access() called without proper synchronization");
-
-	list_for_each_entry_rcu(ex, &dev_cgroup->exceptions, list) {
-		if ((refex->type & DEV_BLOCK) && !(ex->type & DEV_BLOCK))
-			continue;
-		if ((refex->type & DEV_CHAR) && !(ex->type & DEV_CHAR))
-			continue;
-		if (ex->major != ~0 && ex->major != refex->major)
-			continue;
-		if (ex->minor != ~0 && ex->minor != refex->minor)
-			continue;
-		if (refex->access & (~ex->access))
-			continue;
-		match = true;
-		break;
-	}
+			   "device_cgroup:verify_new_ex called without proper synchronization");
 
 	if (dev_cgroup->behavior == DEVCG_DEFAULT_ALLOW) {
 		if (behavior == DEVCG_DEFAULT_ALLOW) {
-			/* the exception will deny access to certain devices */
+			/*
+			 * new exception in the child doesn't matter, only
+			 * adding extra restrictions
+			 */ 
 			return true;
 		} else {
-			/* the exception will allow access to certain devices */
+			/*
+			 * new exception in the child will add more devices
+			 * that can be acessed, so it can't match any of
+			 * parent's exceptions, even slightly
+			 */ 
+			match = match_exception_partial(&dev_cgroup->exceptions,
+							refex->type,
+							refex->major,
+							refex->minor,
+							refex->access);
+
 			if (match)
-				/*
-				 * a new exception allowing access shouldn't
-				 * match an parent's exception
-				 */
 				return false;
 			return true;
 		}
 	} else {
-		/* only behavior == DEVCG_DEFAULT_DENY allowed here */
+		/*
+		 * Only behavior == DEVCG_DEFAULT_DENY allowed here, therefore
+		 * the new exception will add access to more devices and must
+		 * be contained completely in an parent's exception to be
+		 * allowed
+		 */
+		match = match_exception(&dev_cgroup->exceptions, refex->type,
+					refex->major, refex->minor,
+					refex->access);
+
 		if (match)
 			/* parent has an exception that matches the proposed */
 			return true;
@@ -378,7 +460,7 @@ static int parent_has_perm(struct dev_cgroup *childcg,
 
 	if (!parent)
 		return 1;
-	return may_access(parent, ex, childcg->behavior);
+	return verify_new_ex(parent, ex, childcg->behavior);
 }
 
 /**
@@ -704,18 +786,18 @@ static int __devcgroup_check_permission(short type, u32 major, u32 minor,
 				        short access)
 {
 	struct dev_cgroup *dev_cgroup;
-	struct dev_exception_item ex;
-	int rc;
-
-	memset(&ex, 0, sizeof(ex));
-	ex.type = type;
-	ex.major = major;
-	ex.minor = minor;
-	ex.access = access;
+	bool rc;
 
 	rcu_read_lock();
 	dev_cgroup = task_devcgroup(current);
-	rc = may_access(dev_cgroup, &ex, dev_cgroup->behavior);
+	if (dev_cgroup->behavior == DEVCG_DEFAULT_ALLOW)
+		/* Can't match any of the exceptions, even partially */
+		rc = !match_exception_partial(&dev_cgroup->exceptions,
+					      type, major, minor, access);
+	else
+		/* Need to match completely one exception to be allowed */
+		rc = match_exception(&dev_cgroup->exceptions, type, major,
+				     minor, access);
 	rcu_read_unlock();
 
 	if (!rc)
