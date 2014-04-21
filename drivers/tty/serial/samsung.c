@@ -1446,8 +1446,8 @@ static int s3c24xx_serial_get_poll_char(struct uart_port *port)
 static void s3c24xx_serial_put_poll_char(struct uart_port *port,
 		unsigned char c)
 {
-	unsigned int ufcon = rd_regl(cons_uart, S3C2410_UFCON);
-	unsigned int ucon = rd_regl(cons_uart, S3C2410_UCON);
+	unsigned int ufcon = rd_regl(port, S3C2410_UFCON);
+	unsigned int ucon = rd_regl(port, S3C2410_UCON);
 
 	/* not possible to xmit on unconfigured port */
 	if (!s3c24xx_port_configured(ucon))
@@ -1455,7 +1455,7 @@ static void s3c24xx_serial_put_poll_char(struct uart_port *port,
 
 	while (!s3c24xx_serial_console_txrdy(port, ufcon))
 		cpu_relax();
-	wr_regb(cons_uart, S3C2410_UTXH, c);
+	wr_regb(port, S3C2410_UTXH, c);
 }
 
 #endif /* CONFIG_CONSOLE_POLL */
@@ -1463,8 +1463,8 @@ static void s3c24xx_serial_put_poll_char(struct uart_port *port,
 static void
 s3c24xx_serial_console_putchar(struct uart_port *port, int ch)
 {
-	unsigned int ufcon = rd_regl(cons_uart, S3C2410_UFCON);
-	unsigned int ucon = rd_regl(cons_uart, S3C2410_UCON);
+	unsigned int ufcon = rd_regl(port, S3C2410_UFCON);
+	unsigned int ucon = rd_regl(port, S3C2410_UCON);
 
 	/* not possible to xmit on unconfigured port */
 	if (!s3c24xx_port_configured(ucon))
@@ -1472,7 +1472,7 @@ s3c24xx_serial_console_putchar(struct uart_port *port, int ch)
 
 	while (!s3c24xx_serial_console_txrdy(port, ufcon))
 		barrier();
-	wr_regb(cons_uart, S3C2410_UTXH, ch);
+	wr_regb(port, S3C2410_UTXH, ch);
 }
 
 static void
