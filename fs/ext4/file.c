@@ -107,16 +107,36 @@ ext4_file_write(struct kiocb *iocb, const struct iovec *iov,
 	BUG_ON(iocb->ki_pos != pos);
 
 	/*
+	 * Unaligned direct AIO must be serialized; see comment above
+	 * In the case of O_APPEND, assume that we must always serialize
+	 */
+	if (o_direct &&
+	    ext4_test_inode_flag(inode, EXT4_INODE_EXTENTS) &&
+	    !is_sync_kiocb(iocb) &&
+	    (file->f_flags & O_APPEND ||
+	     ext4_unaligned_aio(inode, iov, nr_segs, pos))) {
+		aio_mutex = ext4_aio_mutex(inode);
+		mutex_lock(aio_mutex);
+		ext4_unwritten_wait(inode);
+	}
+
+	mutex_lock(&inode->i_mutex);
+	if (file->f_flags & O_APPEND)
+		iocb->ki_pos = pos = i_size_read(inode);
+
+	/*
 	 * If we have encountered a bitmap-format file, the size limit
 	 * is smaller than s_maxbytes, which is for extent-mapped files.
 	 */
-
 	if (!(ext4_test_inode_flag(inode, EXT4_INODE_EXTENTS))) {
 		struct ext4_sb_info *sbi = EXT4_SB(inode->i_sb);
 
-		if ((pos > sbi->s_bitmap_maxbytes ||
-		    (pos == sbi->s_bitmap_maxbytes && length > 0)))
-			return -EFBIG;
+		if ((pos > sbi->s_bitmap_maxbytes) ||
+		    (pos == sbi->s_bitmap_maxbytes && length > 0)) {
+			mutex_unlock(&inode->i_mutex);
+			ret = -EFBIG;
+			goto errout;
+		}
 
 		if (pos + length > sbi->s_bitmap_maxbytes) {
 			nr_segs = iov_shorten((struct iovec *)iov, nr_segs,
@@ -125,16 +145,6 @@ ext4_file_write(struct kiocb *iocb, const struct iovec *iov,
 	}
 
 	if (o_direct) {
-		/* Unaligned direct AIO must be serialized; see comment above */
-		if (ext4_test_inode_flag(inode, EXT4_INODE_EXTENTS) &&
-		    !is_sync_kiocb(iocb) &&
-		    ext4_unaligned_aio(inode, iov, nr_segs, pos)) {
-			aio_mutex = ext4_aio_mutex(inode);
-			mutex_lock(aio_mutex);
-			ext4_unwritten_wait(inode);
-		}
-
-		mutex_lock(&inode->i_mutex);
 		blk_start_plug(&plug);
 
 		iocb->private = &overwrite;
@@ -167,8 +177,7 @@ ext4_file_write(struct kiocb *iocb, const struct iovec *iov,
 			if (err == len && (map.m_flags & EXT4_MAP_MAPPED))
 				overwrite = 1;
 		}
-	} else
-		mutex_lock(&inode->i_mutex);
+	}
 
 	ret = __generic_file_aio_write(iocb, iov, nr_segs);
 	mutex_unlock(&inode->i_mutex);
@@ -183,6 +192,7 @@ ext4_file_write(struct kiocb *iocb, const struct iovec *iov,
 	if (o_direct)
 		blk_finish_plug(&plug);
 
+errout:
 	if (aio_mutex)
 		mutex_unlock(aio_mutex);
 	return ret;
