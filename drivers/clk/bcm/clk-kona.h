@@ -71,35 +71,6 @@ enum bcm_clk_type {
 };
 
 /*
- * Each CCU defines a mapped area of memory containing registers
- * used to manage clocks implemented by the CCU.  Access to memory
- * within the CCU's space is serialized by a spinlock.  Before any
- * (other) address can be written, a special access "password" value
- * must be written to its WR_ACCESS register (located at the base
- * address of the range).  We keep track of the name of each CCU as
- * it is set up, and maintain them in a list.
- */
-struct ccu_data {
-	void __iomem *base;	/* base of mapped address space */
-	spinlock_t lock;	/* serialization lock */
-	bool write_enabled;	/* write access is currently enabled */
-	struct list_head links;	/* for ccu_list */
-	struct device_node *node;
-	struct clk_onecell_data clk_data;
-	const char *name;
-	u32 range;		/* byte range of address space */
-};
-
-/* Initialization for common fields in a Kona ccu_data structure */
-#define KONA_CCU_COMMON(_prefix, _name, _ucase_name)			    \
-	.name		= #_name "_ccu",				    \
-	.lock		= __SPIN_LOCK_UNLOCKED(_name ## _ccu_data.lock),    \
-	.links		= LIST_HEAD_INIT(_name ## _ccu_data.links),	    \
-	.clk_data	= {						    \
-		.clk_num = _prefix ## _ ## _ucase_name ## _CCU_CLOCK_COUNT, \
-	}
-
-/*
  * Gating control and status is managed by a 32-bit gate register.
  *
  * There are several types of gating available:
@@ -393,17 +364,52 @@ struct kona_clk {
 #define to_kona_clk(_hw) \
 	container_of(_hw, struct kona_clk, hw)
 
+/* Initialization macro for an entry in a CCU's kona_clks[] array. */
+#define KONA_CLK(_ccu_name, _clk_name, _type)				\
+	{								\
+		.init_data	= {					\
+			.name = #_clk_name,				\
+			.ops = &kona_ ## _type ## _clk_ops,		\
+		},							\
+		.ccu		= &_ccu_name ## _ccu_data,		\
+		.type		= bcm_clk_ ## _type,			\
+		.u.data		= &_clk_name ## _data,			\
+	}
+#define LAST_KONA_CLK	{ .type = bcm_clk_none }
+
+/*
+ * Each CCU defines a mapped area of memory containing registers
+ * used to manage clocks implemented by the CCU.  Access to memory
+ * within the CCU's space is serialized by a spinlock.  Before any
+ * (other) address can be written, a special access "password" value
+ * must be written to its WR_ACCESS register (located at the base
+ * address of the range).  We keep track of the name of each CCU as
+ * it is set up, and maintain them in a list.
+ */
+struct ccu_data {
+	void __iomem *base;	/* base of mapped address space */
+	spinlock_t lock;	/* serialization lock */
+	bool write_enabled;	/* write access is currently enabled */
+	struct list_head links;	/* for ccu_list */
+	struct device_node *node;
+	struct clk_onecell_data clk_data;
+	const char *name;
+	u32 range;		/* byte range of address space */
+	struct kona_clk kona_clks[];	/* must be last */
+};
+
+/* Initialization for common fields in a Kona ccu_data structure */
+#define KONA_CCU_COMMON(_prefix, _name, _ccuname)			    \
+	.name		= #_name "_ccu",				    \
+	.lock		= __SPIN_LOCK_UNLOCKED(_name ## _ccu_data.lock),    \
+	.links		= LIST_HEAD_INIT(_name ## _ccu_data.links),	    \
+	.clk_data	= {						    \
+		.clk_num = _prefix ## _ ## _ccuname ## _CCU_CLOCK_COUNT,    \
+	}
+
 /* Exported globals */
 
 extern struct clk_ops kona_peri_clk_ops;
-
-/* Help functions */
-
-#define KONA_CLK_SETUP(_ccu, _type, _name) \
-	kona_clk_setup((_ccu), #_name, bcm_clk_## _type, &_name ## _data)
-
-#define PERI_CLK_SETUP(_ccu, _id, _name) \
-	(_ccu)->clk_data.clks[_id] = KONA_CLK_SETUP((_ccu), peri, _name)
 
 /* Externally visible functions */
 
@@ -412,11 +418,9 @@ extern u64 scaled_div_max(struct bcm_clk_div *div);
 extern u64 scaled_div_build(struct bcm_clk_div *div, u32 div_value,
 				u32 billionths);
 
-extern struct clk *kona_clk_setup(struct ccu_data *ccu, const char *name,
-			enum bcm_clk_type type, void *data);
+extern struct clk *kona_clk_setup(struct kona_clk *bcm_clk);
 extern void __init kona_dt_ccu_setup(struct ccu_data *ccu,
-			struct device_node *node,
-			int (*ccu_clks_setup)(struct ccu_data *));
+				struct device_node *node);
 extern bool __init kona_ccu_init(struct ccu_data *ccu);
 
 #endif /* _CLK_KONA_H */

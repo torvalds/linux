@@ -567,7 +567,6 @@ static void peri_clk_teardown(struct peri_clk_data *data,
 				struct clk_init_data *init_data)
 {
 	clk_sel_teardown(&data->sel, init_data);
-	init_data->ops = NULL;
 }
 
 /*
@@ -576,10 +575,9 @@ static void peri_clk_teardown(struct peri_clk_data *data,
  * that can be assigned if the clock has one or more parent clocks
  * associated with it.
  */
-static int peri_clk_setup(struct ccu_data *ccu, struct peri_clk_data *data,
-			struct clk_init_data *init_data)
+static int
+peri_clk_setup(struct peri_clk_data *data, struct clk_init_data *init_data)
 {
-	init_data->ops = &kona_peri_clk_ops;
 	init_data->flags = CLK_IGNORE_UNUSED;
 
 	return clk_sel_setup(data->clocks, &data->sel, init_data);
@@ -617,39 +615,26 @@ static void kona_clk_teardown(struct clk *clk)
 	bcm_clk_teardown(bcm_clk);
 }
 
-struct clk *kona_clk_setup(struct ccu_data *ccu, const char *name,
-			enum bcm_clk_type type, void *data)
+struct clk *kona_clk_setup(struct kona_clk *bcm_clk)
 {
-	struct kona_clk *bcm_clk;
-	struct clk_init_data *init_data;
+	struct clk_init_data *init_data = &bcm_clk->init_data;
 	struct clk *clk = NULL;
 
-	bcm_clk = kzalloc(sizeof(*bcm_clk), GFP_KERNEL);
-	if (!bcm_clk) {
-		pr_err("%s: failed to allocate bcm_clk for %s\n", __func__,
-			name);
-		return NULL;
-	}
-	bcm_clk->ccu = ccu;
-	bcm_clk->init_data.name = name;
-
-	init_data = &bcm_clk->init_data;
-	init_data->name = name;
-	switch (type) {
+	switch (bcm_clk->type) {
 	case bcm_clk_peri:
-		if (peri_clk_setup(ccu, data, init_data))
-			goto out_free;
+		if (peri_clk_setup(bcm_clk->u.data, init_data))
+			return NULL;
 		break;
 	default:
-		data = NULL;
-		break;
+		pr_err("%s: clock type %d invalid for %s\n", __func__,
+			(int)bcm_clk->type, init_data->name);
+		return NULL;
 	}
-	bcm_clk->type = type;
-	bcm_clk->u.data = data;
 
 	/* Make sure everything makes sense before we set it up */
 	if (!kona_clk_valid(bcm_clk)) {
-		pr_err("%s: clock data invalid for %s\n", __func__, name);
+		pr_err("%s: clock data invalid for %s\n", __func__,
+			init_data->name);
 		goto out_teardown;
 	}
 
@@ -657,7 +642,7 @@ struct clk *kona_clk_setup(struct ccu_data *ccu, const char *name,
 	clk = clk_register(NULL, &bcm_clk->hw);
 	if (IS_ERR(clk)) {
 		pr_err("%s: error registering clock %s (%ld)\n", __func__,
-				name, PTR_ERR(clk));
+			init_data->name, PTR_ERR(clk));
 		goto out_teardown;
 	}
 	BUG_ON(!clk);
@@ -665,8 +650,6 @@ struct clk *kona_clk_setup(struct ccu_data *ccu, const char *name,
 	return clk;
 out_teardown:
 	bcm_clk_teardown(bcm_clk);
-out_free:
-	kfree(bcm_clk);
 
 	return NULL;
 }
@@ -701,11 +684,11 @@ static void kona_ccu_teardown(struct ccu_data *ccu)
  * initialize the array of clocks provided by the CCU.
  */
 void __init kona_dt_ccu_setup(struct ccu_data *ccu,
-			struct device_node *node,
-			int (*ccu_clks_setup)(struct ccu_data *))
+			struct device_node *node)
 {
 	struct resource res = { 0 };
 	resource_size_t range;
+	unsigned int i;
 	int ret;
 
 	if (ccu->clk_data.clk_num) {
@@ -744,9 +727,16 @@ void __init kona_dt_ccu_setup(struct ccu_data *ccu,
 	ccu->node = of_node_get(node);
 	list_add_tail(&ccu->links, &ccu_list);
 
-	/* Set up clocks array (in ccu->clk_data) */
-	if (ccu_clks_setup(ccu))
-		goto out_err;
+	/*
+	 * Set up each defined kona clock and save the result in
+	 * the clock framework clock array (in ccu->data).  Then
+	 * register as a provider for these clocks.
+	 */
+	for (i = 0; i < ccu->clk_data.clk_num; i++) {
+		if (!ccu->kona_clks[i].ccu)
+			continue;
+		ccu->clk_data.clks[i] = kona_clk_setup(&ccu->kona_clks[i]);
+	}
 
 	ret = of_clk_add_provider(node, of_clk_src_onecell_get, &ccu->clk_data);
 	if (ret) {
