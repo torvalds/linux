@@ -638,7 +638,7 @@ int netvsc_recv_callback(struct hv_device *device_obj,
 		__vlan_hwaccel_put_tag(skb, htons(ETH_P_8021Q),
 				       packet->vlan_tci);
 
-	skb_record_rx_queue(skb, packet->xfer_page_pkt->channel->
+	skb_record_rx_queue(skb, packet->channel->
 			    offermsg.offer.sub_channel_index %
 			    net->real_num_rx_queues);
 

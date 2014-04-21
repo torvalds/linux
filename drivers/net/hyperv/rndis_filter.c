@@ -401,8 +401,6 @@ static void rndis_filter_receive_data(struct rndis_device *dev,
 	pkt->total_data_buflen = rndis_pkt->data_len;
 	pkt->data = (void *)((unsigned long)pkt->data + data_offset);
 
-	pkt->is_data_pkt = true;
-
 	vlan = rndis_get_ppi(rndis_pkt, IEEE_8021Q_INFO);
 	if (vlan) {
 		pkt->vlan_tci = VLAN_TAG_PRESENT | vlan->vlanid |

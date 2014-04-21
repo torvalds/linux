@@ -387,7 +387,6 @@ static void netvsc_disconnect_vsp(struct netvsc_device *net_device)
 int netvsc_device_remove(struct hv_device *device)
 {
 	struct netvsc_device *net_device;
-	struct hv_netvsc_packet *netvsc_packet, *pos;
 	unsigned long flags;
 
 	net_device = hv_get_drvdata(device);
@@ -416,12 +415,6 @@ int netvsc_device_remove(struct hv_device *device)
 	vmbus_close(device->channel);
 
 	/* Release all resources */
-	list_for_each_entry_safe(netvsc_packet, pos,
-				 &net_device->recv_pkt_list, list_ent) {
-		list_del(&netvsc_packet->list_ent);
-		kfree(netvsc_packet);
-	}
-
 	if (net_device->sub_cb_buf)
 		vfree(net_device->sub_cb_buf);
 
@@ -641,62 +634,6 @@ retry_send_cmplt:
 	}
 }
 
-/* Send a receive completion packet to RNDIS device (ie NetVsp) */
-static void netvsc_receive_completion(void *context)
-{
-	struct hv_netvsc_packet *packet = context;
-	struct hv_device *device = packet->device;
-	struct vmbus_channel *channel;
-	struct netvsc_device *net_device;
-	u64 transaction_id = 0;
-	bool fsend_receive_comp = false;
-	unsigned long flags;
-	struct net_device *ndev;
-	u32 status = NVSP_STAT_NONE;
-
-	/*
-	 * Even though it seems logical to do a GetOutboundNetDevice() here to
-	 * send out receive completion, we are using GetInboundNetDevice()
-	 * since we may have disable outbound traffic already.
-	 */
-	net_device = get_inbound_net_device(device);
-	if (!net_device)
-		return;
-	ndev = net_device->ndev;
-
-	/* Overloading use of the lock. */
-	spin_lock_irqsave(&net_device->recv_pkt_list_lock, flags);
-
-	if (packet->status != NVSP_STAT_SUCCESS)
-		packet->xfer_page_pkt->status = NVSP_STAT_FAIL;
-
-	packet->xfer_page_pkt->count--;
-
-	/*
-	 * Last one in the line that represent 1 xfer page packet.
-	 * Return the xfer page packet itself to the freelist
-	 */
-	if (packet->xfer_page_pkt->count == 0) {
-		fsend_receive_comp = true;
-		channel = packet->xfer_page_pkt->channel;
-		transaction_id = packet->completion.recv.recv_completion_tid;
-		status = packet->xfer_page_pkt->status;
-		list_add_tail(&packet->xfer_page_pkt->list_ent,
-			      &net_device->recv_pkt_list);
-
-	}
-
-	/* Put the packet back */
-	list_add_tail(&packet->list_ent, &net_device->recv_pkt_list);
-	spin_unlock_irqrestore(&net_device->recv_pkt_list_lock, flags);
-
-	/* Send a receive completion for the xfer page packet */
-	if (fsend_receive_comp)
-		netvsc_send_recv_completion(device, channel, net_device,
-					    transaction_id, status);
-
-}
-
 static void netvsc_receive(struct netvsc_device *net_device,
 			struct vmbus_channel *channel,
 			struct hv_device *device,
@@ -704,15 +641,12 @@ static void netvsc_receive(struct netvsc_device *net_device,
 {
 	struct vmtransfer_page_packet_header *vmxferpage_packet;
 	struct nvsp_message *nvsp_packet;
-	struct hv_netvsc_packet *netvsc_packet = NULL;
-	/* struct netvsc_driver *netvscDriver; */
-	struct xferpage_packet *xferpage_packet = NULL;
+	struct hv_netvsc_packet nv_pkt;
+	struct hv_netvsc_packet *netvsc_packet = &nv_pkt;
+	u32 status = NVSP_STAT_SUCCESS;
 	int i;
 	int count = 0;
-	unsigned long flags;
 	struct net_device *ndev;
-
-	LIST_HEAD(listHead);
 
 	ndev = net_device->ndev;
 
@@ -746,78 +680,14 @@ static void netvsc_receive(struct netvsc_device *net_device,
 		return;
 	}
 
-	/*
-	 * Grab free packets (range count + 1) to represent this xfer
-	 * page packet. +1 to represent the xfer page packet itself.
-	 * We grab it here so that we know exactly how many we can
-	 * fulfil
-	 */
-	spin_lock_irqsave(&net_device->recv_pkt_list_lock, flags);
-	while (!list_empty(&net_device->recv_pkt_list)) {
-		list_move_tail(net_device->recv_pkt_list.next, &listHead);
-		if (++count == vmxferpage_packet->range_cnt + 1)
-			break;
-	}
-	spin_unlock_irqrestore(&net_device->recv_pkt_list_lock, flags);
-
-	/*
-	 * We need at least 2 netvsc pkts (1 to represent the xfer
-	 * page and at least 1 for the range) i.e. we can handled
-	 * some of the xfer page packet ranges...
-	 */
-	if (count < 2) {
-		netdev_err(ndev, "Got only %d netvsc pkt...needed "
-			"%d pkts. Dropping this xfer page packet completely!\n",
-			count, vmxferpage_packet->range_cnt + 1);
-
-		/* Return it to the freelist */
-		spin_lock_irqsave(&net_device->recv_pkt_list_lock, flags);
-		for (i = count; i != 0; i--) {
-			list_move_tail(listHead.next,
-				       &net_device->recv_pkt_list);
-		}
-		spin_unlock_irqrestore(&net_device->recv_pkt_list_lock,
-				       flags);
-
-		netvsc_send_recv_completion(device, channel, net_device,
-					    vmxferpage_packet->d.trans_id,
-					    NVSP_STAT_FAIL);
-
-		return;
-	}
-
-	/* Remove the 1st packet to represent the xfer page packet itself */
-	xferpage_packet = (struct xferpage_packet *)listHead.next;
-	list_del(&xferpage_packet->list_ent);
-	xferpage_packet->status = NVSP_STAT_SUCCESS;
-	xferpage_packet->channel = channel;
-
-	/* This is how much we can satisfy */
-	xferpage_packet->count = count - 1;
-
-	if (xferpage_packet->count != vmxferpage_packet->range_cnt) {
-		netdev_err(ndev, "Needed %d netvsc pkts to satisfy "
-			"this xfer page...got %d\n",
-			vmxferpage_packet->range_cnt, xferpage_packet->count);
-	}
+	count = vmxferpage_packet->range_cnt;
+	netvsc_packet->device = device;
+	netvsc_packet->channel = channel;
 
 	/* Each range represents 1 RNDIS pkt that contains 1 ethernet frame */
-	for (i = 0; i < (count - 1); i++) {
-		netvsc_packet = (struct hv_netvsc_packet *)listHead.next;
-		list_del(&netvsc_packet->list_ent);
-
+	for (i = 0; i < count; i++) {
 		/* Initialize the netvsc packet */
 		netvsc_packet->status = NVSP_STAT_SUCCESS;
-		netvsc_packet->xfer_page_pkt = xferpage_packet;
-		netvsc_packet->completion.recv.recv_completion =
-					netvsc_receive_completion;
-		netvsc_packet->completion.recv.recv_completion_ctx =
-					netvsc_packet;
-		netvsc_packet->device = device;
-		/* Save this so that we can send it back */
-		netvsc_packet->completion.recv.recv_completion_tid =
-					vmxferpage_packet->d.trans_id;
-
 		netvsc_packet->data = (void *)((unsigned long)net_device->
 			recv_buf + vmxferpage_packet->ranges[i].byte_offset);
 		netvsc_packet->total_data_buflen =
@@ -826,10 +696,12 @@ static void netvsc_receive(struct netvsc_device *net_device,
 		/* Pass it to the upper layer */
 		rndis_filter_receive(device, netvsc_packet);
 
-		netvsc_receive_completion(netvsc_packet->
-				completion.recv.recv_completion_ctx);
+		if (netvsc_packet->status != NVSP_STAT_SUCCESS)
+			status = NVSP_STAT_FAIL;
 	}
 
+	netvsc_send_recv_completion(device, channel, net_device,
+				    vmxferpage_packet->d.trans_id, status);
 }
 
 
@@ -956,11 +828,9 @@ void netvsc_channel_cb(void *context)
 int netvsc_device_add(struct hv_device *device, void *additional_info)
 {
 	int ret = 0;
-	int i;
 	int ring_size =
 	((struct netvsc_device_info *)additional_info)->ring_size;
 	struct netvsc_device *net_device;
-	struct hv_netvsc_packet *packet, *pos;
 	struct net_device *ndev;
 
 	net_device = alloc_net_device(device);
@@ -981,18 +851,6 @@ int netvsc_device_add(struct hv_device *device, void *additional_info)
 	ndev = net_device->ndev;
 
 	/* Initialize the NetVSC channel extension */
-	spin_lock_init(&net_device->recv_pkt_list_lock);
-
-	INIT_LIST_HEAD(&net_device->recv_pkt_list);
-
-	for (i = 0; i < NETVSC_RECEIVE_PACKETLIST_COUNT; i++) {
-		packet = kzalloc(sizeof(struct hv_netvsc_packet), GFP_KERNEL);
-		if (!packet)
-			break;
-
-		list_add_tail(&packet->list_ent,
-			      &net_device->recv_pkt_list);
-	}
 	init_completion(&net_device->channel_init_wait);
 
 	set_per_channel_state(device->channel, net_device->cb_buffer);
@@ -1028,16 +886,8 @@ close:
 
 cleanup:
 
-	if (net_device) {
-		list_for_each_entry_safe(packet, pos,
-					 &net_device->recv_pkt_list,
-					 list_ent) {
-			list_del(&packet->list_ent);
-			kfree(packet);
-		}
-
+	if (net_device)
 		kfree(net_device);
-	}
 
 	return ret;
 }

@@ -119,19 +119,7 @@ struct ndis_recv_scale_param { /* NDIS_RECEIVE_SCALE_PARAMETERS */
 };
 
 /* Fwd declaration */
-struct hv_netvsc_packet;
 struct ndis_tcp_ip_checksum_info;
-
-/* Represent the xfer page packet which contains 1 or more netvsc packet */
-struct xferpage_packet {
-	struct list_head list_ent;
-	u32 status;
-
-	/* # of netvsc packets this xfer packet contains */
-	u32 count;
-
-	struct vmbus_channel *channel;
-};
 
 /*
  * Represent netvsc packet which contains 1 RNDIS and 1 ethernet frame
@@ -139,7 +127,6 @@ struct xferpage_packet {
  */
 struct hv_netvsc_packet {
 	/* Bookkeeping stuff */
-	struct list_head list_ent;
 	u32 status;
 
 	struct hv_device *device;
@@ -149,18 +136,7 @@ struct hv_netvsc_packet {
 	u16 q_idx;
 	struct vmbus_channel *channel;
 
-	/*
-	 * Valid only for receives when we break a xfer page packet
-	 * into multiple netvsc packets
-	 */
-	struct xferpage_packet *xfer_page_pkt;
-
 	union {
-		struct {
-			u64 recv_completion_tid;
-			void *recv_completion_ctx;
-			void (*recv_completion)(void *context);
-		} recv;
 		struct {
 			u64 send_completion_tid;
 			void *send_completion_ctx;
@@ -613,9 +589,6 @@ struct nvsp_message {
 
 #define NETVSC_RECEIVE_BUFFER_ID		0xcafe
 
-/* Preallocated receive packets */
-#define NETVSC_RECEIVE_PACKETLIST_COUNT		256
-
 #define NETVSC_PACKET_SIZE                      2048
 
 #define VRSS_SEND_TAB_SIZE 16
@@ -630,12 +603,6 @@ struct netvsc_device {
 	wait_queue_head_t wait_drain;
 	bool start_remove;
 	bool destroy;
-	/*
-	 * List of free preallocated hv_netvsc_packet to represent receive
-	 * packet
-	 */
-	struct list_head recv_pkt_list;
-	spinlock_t recv_pkt_list_lock;
 
 	/* Receive buffer allocated by us but manages by NetVSP */
 	void *recv_buf;
