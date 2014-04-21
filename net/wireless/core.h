@@ -251,8 +251,8 @@ int cfg80211_dev_rename(struct cfg80211_registered_device *rdev,
 
 void ieee80211_set_bitrate_flags(struct wiphy *wiphy);
 
-void cfg80211_bss_expire(struct cfg80211_registered_device *dev);
-void cfg80211_bss_age(struct cfg80211_registered_device *dev,
+void cfg80211_bss_expire(struct cfg80211_registered_device *rdev);
+void cfg80211_bss_age(struct cfg80211_registered_device *rdev,
                       unsigned long age_secs);
 
 /* IBSS */
