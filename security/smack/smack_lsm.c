@@ -1462,19 +1462,32 @@ static int smack_file_receive(struct file *file)
 /**
  * smack_file_open - Smack dentry open processing
  * @file: the object
- * @cred: unused
+ * @cred: task credential
  *
  * Set the security blob in the file structure.
+ * Allow the open only if the task has read access. There are
+ * many read operations (e.g. fstat) that you can do with an
+ * fd even if you have the file open write-only.
  *
  * Returns 0
  */
 static int smack_file_open(struct file *file, const struct cred *cred)
 {
+	struct task_smack *tsp = cred->security;
 	struct inode_smack *isp = file_inode(file)->i_security;
+	struct smk_audit_info ad;
+	int rc;
 
-	file->f_security = isp->smk_inode;
+	if (smack_privileged(CAP_MAC_OVERRIDE))
+		return 0;
 
-	return 0;
+	smk_ad_init(&ad, __func__, LSM_AUDIT_DATA_PATH);
+	smk_ad_setfield_u_fs_path(&ad, file->f_path);
+	rc = smk_access(tsp->smk_task, isp->smk_inode, MAY_READ, &ad);
+	if (rc == 0)
+		file->f_security = isp->smk_inode;
+
+	return rc;
 }
 
 /*
