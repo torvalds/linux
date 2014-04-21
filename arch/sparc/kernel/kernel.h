@@ -113,6 +113,10 @@ asmlinkage int do_sys_sigstack(struct sigstack __user *ssptr,
 /* ptrace_32.c */
 asmlinkage int syscall_trace(struct pt_regs *regs, int syscall_exit_p);
 
+/* unaligned_32.c */
+asmlinkage void kernel_unaligned_trap(struct pt_regs *regs, unsigned int insn);
+asmlinkage void user_unaligned_trap(struct pt_regs *regs, unsigned int insn);
+
 /* windows.c */
 void try_to_clear_window_buffer(struct pt_regs *regs, int who);
 

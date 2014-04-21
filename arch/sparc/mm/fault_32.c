@@ -26,6 +26,7 @@
 #include <asm/pgtable.h>
 #include <asm/openprom.h>
 #include <asm/oplib.h>
+#include <asm/setup.h>
 #include <asm/smp.h>
 #include <asm/traps.h>
 #include <asm/uaccess.h>
@@ -139,9 +140,6 @@ static void __do_fault_siginfo(int code, int sig, struct pt_regs *regs,
 
 	force_sig_info (sig, &info, current);
 }
-
-extern unsigned long safe_compute_effective_address(struct pt_regs *,
-						    unsigned int);
 
 static unsigned long compute_si_addr(struct pt_regs *regs, int text_fault)
 {

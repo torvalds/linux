@@ -42,6 +42,9 @@ extern unsigned long cmdline_memory_size;
 /* devices.c */
 void __init device_scan(void);
 
+/* unaligned_32.c */
+unsigned long safe_compute_effective_address(struct pt_regs *, unsigned int);
+
 #endif
 
 extern void sun_do_break(void);
