@@ -32,7 +32,7 @@
 #include <linux/extcon/extcon-gpio.h>
 
 struct gpio_extcon_data {
-	struct extcon_dev edev;
+	struct extcon_dev *edev;
 	unsigned gpio;
 	bool gpio_active_low;
 	const char *state_on;
@@ -53,7 +53,7 @@ static void gpio_extcon_work(struct work_struct *work)
 	state = gpio_get_value(data->gpio);
 	if (data->gpio_active_low)
 		state = !state;
-	extcon_set_state(&data->edev, state);
+	extcon_set_state(data->edev, state);
 }
 
 static irqreturn_t gpio_irq_handler(int irq, void *dev_id)
@@ -67,9 +67,10 @@ static irqreturn_t gpio_irq_handler(int irq, void *dev_id)
 
 static ssize_t extcon_gpio_print_state(struct extcon_dev *edev, char *buf)
 {
-	struct gpio_extcon_data	*extcon_data =
-		container_of(edev, struct gpio_extcon_data, edev);
+	struct device *dev = edev->dev.parent;
+	struct gpio_extcon_data *extcon_data = dev_get_drvdata(dev);
 	const char *state;
+
 	if (extcon_get_state(edev))
 		state = extcon_data->state_on;
 	else
@@ -98,15 +99,21 @@ static int gpio_extcon_probe(struct platform_device *pdev)
 	if (!extcon_data)
 		return -ENOMEM;
 
-	extcon_data->edev.name = pdata->name;
-	extcon_data->edev.dev.parent = &pdev->dev;
+	extcon_data->edev = devm_extcon_dev_allocate(&pdev->dev, NULL);
+	if (IS_ERR(extcon_data->edev)) {
+		dev_err(&pdev->dev, "failed to allocate extcon device\n");
+		return -ENOMEM;
+	}
+	extcon_data->edev->name = pdata->name;
+	extcon_data->edev->dev.parent = &pdev->dev;
+
 	extcon_data->gpio = pdata->gpio;
 	extcon_data->gpio_active_low = pdata->gpio_active_low;
 	extcon_data->state_on = pdata->state_on;
 	extcon_data->state_off = pdata->state_off;
 	extcon_data->check_on_resume = pdata->check_on_resume;
 	if (pdata->state_on && pdata->state_off)
-		extcon_data->edev.print_state = extcon_gpio_print_state;
+		extcon_data->edev->print_state = extcon_gpio_print_state;
 
 	ret = devm_gpio_request_one(&pdev->dev, extcon_data->gpio, GPIOF_DIR_IN,
 				    pdev->name);
@@ -121,7 +128,7 @@ static int gpio_extcon_probe(struct platform_device *pdev)
 				msecs_to_jiffies(pdata->debounce);
 	}
 
-	ret = devm_extcon_dev_register(&pdev->dev, &extcon_data->edev);
+	ret = devm_extcon_dev_register(&pdev->dev, extcon_data->edev);
 	if (ret < 0)
 		return ret;
 
