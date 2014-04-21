@@ -1464,11 +1464,6 @@ static void
 s3c24xx_serial_console_putchar(struct uart_port *port, int ch)
 {
 	unsigned int ufcon = rd_regl(port, S3C2410_UFCON);
-	unsigned int ucon = rd_regl(port, S3C2410_UCON);
-
-	/* not possible to xmit on unconfigured port */
-	if (!s3c24xx_port_configured(ucon))
-		return;
 
 	while (!s3c24xx_serial_console_txrdy(port, ufcon))
 		barrier();
@@ -1479,6 +1474,12 @@ static void
 s3c24xx_serial_console_write(struct console *co, const char *s,
 			     unsigned int count)
 {
+	unsigned int ucon = rd_regl(cons_uart, S3C2410_UCON);
+
+	/* not possible to xmit on unconfigured port */
+	if (!s3c24xx_port_configured(ucon))
+		return;
+
 	uart_console_write(cons_uart, s, count, s3c24xx_serial_console_putchar);
 }
 
