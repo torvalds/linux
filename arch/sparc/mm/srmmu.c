@@ -100,7 +100,6 @@ static unsigned long srmmu_nocache_end;
 #define SRMMU_NOCACHE_ALIGN_MAX (sizeof(ctxd_t)*SRMMU_MAX_CONTEXTS)
 
 void *srmmu_nocache_pool;
-void *srmmu_nocache_bitmap;
 static struct bit_map srmmu_nocache_map;
 
 static inline int srmmu_pmd_none(pmd_t pmd)
@@ -173,7 +172,7 @@ static void *__srmmu_get_nocache(int size, int align)
 		printk(KERN_ERR "srmmu: out of nocache %d: %d/%d\n",
 		       size, (int) srmmu_nocache_size,
 		       srmmu_nocache_map.used << SRMMU_NOCACHE_BITMAP_SHIFT);
-		return 0;
+		return NULL;
 	}
 
 	addr = SRMMU_NOCACHE_VADDR + (offset << SRMMU_NOCACHE_BITMAP_SHIFT);
@@ -269,6 +268,7 @@ static void __init srmmu_nocache_calcsize(void)
 
 static void __init srmmu_nocache_init(void)
 {
+	void *srmmu_nocache_bitmap;
 	unsigned int bitmap_bits;
 	pgd_t *pgd;
 	pmd_t *pmd;
@@ -728,7 +728,7 @@ static inline unsigned long srmmu_probe(unsigned long vaddr)
 				     "=r" (retval) :
 				     "r" (vaddr | 0x400), "i" (ASI_M_FLUSH_PROBE));
 	} else {
-		retval = leon_swprobe(vaddr, 0);
+		retval = leon_swprobe(vaddr, NULL);
 	}
 	return retval;
 }

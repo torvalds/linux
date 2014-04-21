@@ -35,6 +35,8 @@
 #include <asm/prom.h>
 #include <asm/leon.h>
 
+#include "mm_32.h"
+
 unsigned long *sparc_valid_addr_bitmap;
 EXPORT_SYMBOL(sparc_valid_addr_bitmap);
 
@@ -246,7 +248,6 @@ unsigned long __init bootmem_init(unsigned long *pages_avail)
  * init routine based upon the Sun model type on the Sparc.
  *
  */
-extern void srmmu_paging_init(void);
 extern void device_scan(void);
 
 void __init paging_init(void)

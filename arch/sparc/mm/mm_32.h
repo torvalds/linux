@@ -10,5 +10,9 @@ void window_ret_fault(struct pt_regs *regs);
 
 /* srmmu.c */
 extern char *srmmu_name;
+extern int viking_mxcc_present;
+extern int flush_page_for_dma_global;
 
 extern void (*poke_srmmu)(void);
+
+void __init srmmu_paging_init(void);
