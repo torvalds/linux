@@ -534,7 +534,6 @@ int of_init_ddr_freq_table(void)
 static void ddrfreq_tst_init(void);
 #endif
 
-
 static int ddr_freq_suspend_notifier_call(struct notifier_block *self,
 				unsigned long action, void *data)
 {
@@ -544,16 +543,16 @@ static int ddr_freq_suspend_notifier_call(struct notifier_block *self,
 	if (action == FB_EARLY_EVENT_BLANK) {
 		switch (blank_mode) {
 		case FB_BLANK_UNBLANK:
+			ddrfreq_clear_sys_status(SYS_STATUS_SUSPEND);
 			break;
 		default:
-			ddrfreq_set_sys_status(SYS_STATUS_SUSPEND);
 			break;
 		}
 	}
 	else if (action == FB_EVENT_BLANK) {
 		switch (blank_mode) {
-		case FB_BLANK_UNBLANK:
-			ddrfreq_clear_sys_status(SYS_STATUS_SUSPEND);
+		case FB_BLANK_POWERDOWN:
+			ddrfreq_set_sys_status(SYS_STATUS_SUSPEND);
 			break;
 		default:
 			break;
