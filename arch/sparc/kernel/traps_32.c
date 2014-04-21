@@ -44,7 +44,7 @@ static void instruction_dump(unsigned long *pc)
 #define __SAVE __asm__ __volatile__("save %sp, -0x40, %sp\n\t")
 #define __RESTORE __asm__ __volatile__("restore %g0, %g0, %g0\n\t")
 
-void die_if_kernel(char *str, struct pt_regs *regs)
+void __noreturn die_if_kernel(char *str, struct pt_regs *regs)
 {
 	static int die_counter;
 	int count = 0;
