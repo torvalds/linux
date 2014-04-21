@@ -457,6 +457,7 @@
 		clocks = <&dpll4_m5_ck>;
 		ti,clock-mult = <2>;
 		ti,clock-div = <1>;
+		ti,set-rate-parent;
 	};
 
 	dpll4_m5x2_ck: dpll4_m5x2_ck {
