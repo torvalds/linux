@@ -30,10 +30,9 @@
 #include <asm/traps.h>
 #include <asm/uaccess.h>
 
-int show_unhandled_signals = 1;
+#include "mm_32.h"
 
-static void unhandled_fault(unsigned long, struct task_struct *,
-		struct pt_regs *) __attribute__ ((noreturn));
+int show_unhandled_signals = 1;
 
 static void __noreturn unhandled_fault(unsigned long address,
 				       struct task_struct *tsk,
