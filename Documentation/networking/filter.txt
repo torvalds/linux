@@ -281,6 +281,7 @@ Possible BPF extensions are shown in the following table:
   cpu                                   raw_smp_processor_id()
   vlan_tci                              vlan_tx_tag_get(skb)
   vlan_pr                               vlan_tx_tag_present(skb)
+  rand                                  prandom_u32()
 
 These extensions can also be prefixed with '#'.
 Examples for low-level BPF:
@@ -305,6 +306,18 @@ Examples for low-level BPF:
 
   ld vlan_tci
   jneq #10, drop
+  ret #-1
+  drop: ret #0
+
+** icmp random packet sampling, 1 in 4
+  ldh [12]
+  jne #0x800, drop
+  ldb [23]
+  jneq #1, drop
+  # get a random uint32 number
+  ld rand
+  mod #4
+  jneq #1, drop
   ret #-1
   drop: ret #0
 
