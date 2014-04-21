@@ -195,11 +195,13 @@ void tipc_net_stop(void)
 		return;
 
 	tipc_nametbl_withdraw(TIPC_CFG_SRV, tipc_own_addr, 0, tipc_own_addr);
+	rtnl_lock();
 	write_lock_bh(&tipc_net_lock);
 	tipc_bearer_stop();
 	tipc_bclink_stop();
 	tipc_node_stop();
 	write_unlock_bh(&tipc_net_lock);
+	rtnl_unlock();
 
 	pr_info("Left network mode\n");
 }
