@@ -160,7 +160,7 @@ static i40e_status i40e_poll_sr_srctl_done_bit(struct i40e_hw *hw)
 		udelay(5);
 	}
 	if (ret_code == I40E_ERR_TIMEOUT)
-		hw_dbg(hw, "Done bit in GLNVM_SRCTL not set");
+		hw_dbg(hw, "Done bit in GLNVM_SRCTL not set\n");
 	return ret_code;
 }
 
