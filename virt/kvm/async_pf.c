@@ -80,12 +80,10 @@ static void async_pf_execute(struct work_struct *work)
 
 	might_sleep();
 
-	use_mm(mm);
 	down_read(&mm->mmap_sem);
 	get_user_pages(current, mm, addr, 1, 1, 0, NULL, NULL);
 	up_read(&mm->mmap_sem);
 	kvm_async_page_present_sync(vcpu, apf);
-	unuse_mm(mm);
 
 	spin_lock(&vcpu->async_pf.lock);
 	list_add_tail(&apf->link, &vcpu->async_pf.done);
