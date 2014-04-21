@@ -2020,13 +2020,10 @@ int be_cmd_reset_function(struct be_adapter *adapter)
 }
 
 int be_cmd_rss_config(struct be_adapter *adapter, u8 *rsstable,
-			u32 rss_hash_opts, u16 table_size)
+			u32 rss_hash_opts, u16 table_size, u8 *rss_hkey)
 {
 	struct be_mcc_wrb *wrb;
 	struct be_cmd_req_rss_config *req;
-	u32 myhash[10] = {0x15d43fa5, 0x2534685a, 0x5f87693a, 0x5668494e,
-			0x33cf6a53, 0x383334c6, 0x76ac4257, 0x59b242b2,
-			0x3ea83c02, 0x4a110304};
 	int status;
 
 	if (!(be_if_cap_flags(adapter) & BE_IF_FLAGS_RSS))
@@ -2049,7 +2046,7 @@ int be_cmd_rss_config(struct be_adapter *adapter, u8 *rsstable,
 		req->hdr.version = 1;
 
 	memcpy(req->cpu_table, rsstable, table_size);
-	memcpy(req->hash, myhash, sizeof(myhash));
+	memcpy(req->hash, rss_hkey, RSS_HASH_KEY_LEN);
 	be_dws_cpu_to_le(req->hash, sizeof(req->hash));
 
 	status = be_mbox_notify_wait(adapter);

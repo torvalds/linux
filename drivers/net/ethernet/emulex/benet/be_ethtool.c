@@ -933,27 +933,27 @@ static u64 be_get_rss_hash_opts(struct be_adapter *adapter, u64 flow_type)
 
 	switch (flow_type) {
 	case TCP_V4_FLOW:
-		if (adapter->rss_flags & RSS_ENABLE_IPV4)
+		if (adapter->rss_info.rss_flags & RSS_ENABLE_IPV4)
 			data |= RXH_IP_DST | RXH_IP_SRC;
-		if (adapter->rss_flags & RSS_ENABLE_TCP_IPV4)
+		if (adapter->rss_info.rss_flags & RSS_ENABLE_TCP_IPV4)
 			data |= RXH_L4_B_0_1 | RXH_L4_B_2_3;
 		break;
 	case UDP_V4_FLOW:
-		if (adapter->rss_flags & RSS_ENABLE_IPV4)
+		if (adapter->rss_info.rss_flags & RSS_ENABLE_IPV4)
 			data |= RXH_IP_DST | RXH_IP_SRC;
-		if (adapter->rss_flags & RSS_ENABLE_UDP_IPV4)
+		if (adapter->rss_info.rss_flags & RSS_ENABLE_UDP_IPV4)
 			data |= RXH_L4_B_0_1 | RXH_L4_B_2_3;
 		break;
 	case TCP_V6_FLOW:
-		if (adapter->rss_flags & RSS_ENABLE_IPV6)
+		if (adapter->rss_info.rss_flags & RSS_ENABLE_IPV6)
 			data |= RXH_IP_DST | RXH_IP_SRC;
-		if (adapter->rss_flags & RSS_ENABLE_TCP_IPV6)
+		if (adapter->rss_info.rss_flags & RSS_ENABLE_TCP_IPV6)
 			data |= RXH_L4_B_0_1 | RXH_L4_B_2_3;
 		break;
 	case UDP_V6_FLOW:
-		if (adapter->rss_flags & RSS_ENABLE_IPV6)
+		if (adapter->rss_info.rss_flags & RSS_ENABLE_IPV6)
 			data |= RXH_IP_DST | RXH_IP_SRC;
-		if (adapter->rss_flags & RSS_ENABLE_UDP_IPV6)
+		if (adapter->rss_info.rss_flags & RSS_ENABLE_UDP_IPV6)
 			data |= RXH_L4_B_0_1 | RXH_L4_B_2_3;
 		break;
 	}
@@ -992,7 +992,7 @@ static int be_set_rss_hash_opts(struct be_adapter *adapter,
 	struct be_rx_obj *rxo;
 	int status = 0, i, j;
 	u8 rsstable[128];
-	u32 rss_flags = adapter->rss_flags;
+	u32 rss_flags = adapter->rss_info.rss_flags;
 
 	if (cmd->data != L3_RSS_FLAGS &&
 	    cmd->data != (L3_RSS_FLAGS | L4_RSS_FLAGS))
@@ -1039,7 +1039,7 @@ static int be_set_rss_hash_opts(struct be_adapter *adapter,
 		return -EINVAL;
 	}
 
-	if (rss_flags == adapter->rss_flags)
+	if (rss_flags == adapter->rss_info.rss_flags)
 		return status;
 
 	if (be_multi_rxq(adapter)) {
@@ -1051,9 +1051,11 @@ static int be_set_rss_hash_opts(struct be_adapter *adapter,
 			}
 		}
 	}
-	status = be_cmd_rss_config(adapter, rsstable, rss_flags, 128);
+
+	status = be_cmd_rss_config(adapter, adapter->rss_info.rsstable,
+				   rss_flags, 128, adapter->rss_info.rss_hkey);
 	if (!status)
-		adapter->rss_flags = rss_flags;
+		adapter->rss_info.rss_flags = rss_flags;
 
 	return status;
 }
@@ -1103,6 +1105,68 @@ static int be_set_channels(struct net_device  *netdev,
 	return be_update_queues(adapter);
 }
 
+static u32 be_get_rxfh_indir_size(struct net_device *netdev)
+{
+	return RSS_INDIR_TABLE_LEN;
+}
+
+static u32 be_get_rxfh_key_size(struct net_device *netdev)
+{
+	return RSS_HASH_KEY_LEN;
+}
+
+static int be_get_rxfh(struct net_device *netdev, u32 *indir, u8 *hkey)
+{
+	struct be_adapter *adapter = netdev_priv(netdev);
+	int i;
+	struct rss_info *rss = &adapter->rss_info;
+
+	if (indir) {
+		for (i = 0; i < RSS_INDIR_TABLE_LEN; i++)
+			indir[i] = rss->rss_queue[i];
+	}
+
+	if (hkey)
+		memcpy(hkey, rss->rss_hkey, RSS_HASH_KEY_LEN);
+
+	return 0;
+}
+
+static int be_set_rxfh(struct net_device *netdev, u32 *indir, u8 *hkey)
+{
+	int rc = 0, i, j;
+	struct be_adapter *adapter = netdev_priv(netdev);
+	u8 rsstable[RSS_INDIR_TABLE_LEN];
+
+	if (indir) {
+		struct be_rx_obj *rxo;
+		for (i = 0; i < RSS_INDIR_TABLE_LEN; i++) {
+			j = indir[i];
+			rxo = &adapter->rx_obj[j];
+			rsstable[i] = rxo->rss_id;
+			adapter->rss_info.rss_queue[i] = j;
+		}
+	} else {
+		memcpy(rsstable, adapter->rss_info.rsstable,
+		       RSS_INDIR_TABLE_LEN);
+	}
+
+	if (!hkey)
+		hkey =  adapter->rss_info.rss_hkey;
+
+	rc = be_cmd_rss_config(adapter, rsstable,
+			adapter->rss_info.rss_flags,
+			RSS_INDIR_TABLE_LEN, hkey);
+	if (rc) {
+		adapter->rss_info.rss_flags = RSS_ENABLE_NONE;
+		return -EIO;
+	}
+	memcpy(adapter->rss_info.rss_hkey, hkey, RSS_HASH_KEY_LEN);
+	memcpy(adapter->rss_info.rsstable, rsstable,
+	       RSS_INDIR_TABLE_LEN);
+	return 0;
+}
+
 const struct ethtool_ops be_ethtool_ops = {
 	.get_settings = be_get_settings,
 	.get_drvinfo = be_get_drvinfo,
@@ -1129,6 +1193,10 @@ const struct ethtool_ops be_ethtool_ops = {
 	.self_test = be_self_test,
 	.get_rxnfc = be_get_rxnfc,
 	.set_rxnfc = be_set_rxnfc,
+	.get_rxfh_indir_size = be_get_rxfh_indir_size,
+	.get_rxfh_key_size = be_get_rxfh_key_size,
+	.get_rxfh = be_get_rxfh,
+	.set_rxfh = be_set_rxfh,
 	.get_channels = be_get_channels,
 	.set_channels = be_set_channels
 };
