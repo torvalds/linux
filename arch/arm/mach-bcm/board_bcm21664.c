@@ -17,7 +17,7 @@
 
 #include <asm/mach/arch.h>
 
-#include "kona.h"
+#include "kona_l2_cache.h"
 
 #define RSTMGR_DT_STRING		"brcm,bcm21664-resetmgr"
 
