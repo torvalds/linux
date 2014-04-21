@@ -534,15 +534,6 @@ static inline void s2io_start_all_tx_queue(struct s2io_nic *sp)
 	netif_tx_start_all_queues(sp->dev);
 }
 
-static inline void s2io_start_tx_queue(struct s2io_nic *sp, int fifo_no)
-{
-	if (!sp->config.multiq)
-		sp->mac_control.fifos[fifo_no].queue_state =
-			FIFO_QUEUE_START;
-
-	netif_tx_start_all_queues(sp->dev);
-}
-
 static inline void s2io_wake_all_tx_queue(struct s2io_nic *sp)
 {
 	if (!sp->config.multiq) {
