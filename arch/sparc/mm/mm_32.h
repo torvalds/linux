@@ -16,3 +16,9 @@ extern int flush_page_for_dma_global;
 extern void (*poke_srmmu)(void);
 
 void __init srmmu_paging_init(void);
+
+/* iommu.c */
+void ld_mmu_iommu(void);
+
+/* io-unit.c */
+void ld_mmu_iounit(void);

@@ -1769,9 +1769,6 @@ static struct sparc32_cachetlb_ops smp_cachetlb_ops = {
 /* Load up routines and constants for sun4m and sun4d mmu */
 void __init load_mmu(void)
 {
-	extern void ld_mmu_iommu(void);
-	extern void ld_mmu_iounit(void);
-
 	/* Functions */
 	get_srmmu_type();
 
