@@ -500,7 +500,7 @@ int omap4iss_csi2_reset(struct iss_csi2_device *csi2)
 
 	timeout = iss_poll_condition_timeout(
 		iss_reg_read(csi2->iss, csi2->regs1, CSI2_SYSSTATUS) &
-		CSI2_SYSSTATUS_RESET_DONE, 500, 100, 100);
+		CSI2_SYSSTATUS_RESET_DONE, 500, 100, 200);
 	if (timeout) {
 		dev_err(csi2->iss->dev, "CSI2: Soft reset timeout!\n");
 		return -EBUSY;
@@ -511,7 +511,7 @@ int omap4iss_csi2_reset(struct iss_csi2_device *csi2)
 
 	timeout = iss_poll_condition_timeout(
 		iss_reg_read(csi2->iss, csi2->phy->phy_regs, REGISTER1) &
-		REGISTER1_RESET_DONE_CTRLCLK, 10000, 100, 100);
+		REGISTER1_RESET_DONE_CTRLCLK, 10000, 100, 500);
 	if (timeout) {
 		dev_err(csi2->iss->dev, "CSI2: CSI2_96M_FCLK reset timeout!\n");
 		return -EBUSY;

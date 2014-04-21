@@ -741,7 +741,7 @@ static int iss_reset(struct iss_device *iss)
 
 	timeout = iss_poll_condition_timeout(
 		!(iss_reg_read(iss, OMAP4_ISS_MEM_TOP, ISS_HL_SYSCONFIG) &
-		ISS_HL_SYSCONFIG_SOFTRESET), 1000, 10, 10);
+		ISS_HL_SYSCONFIG_SOFTRESET), 1000, 10, 100);
 	if (timeout) {
 		dev_err(iss->dev, "ISS reset timeout\n");
 		return -ETIMEDOUT;
