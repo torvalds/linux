@@ -25,6 +25,31 @@ LIST_HEAD(ccu_list);	/* The list of set up CCUs */
 
 /* Validity checking */
 
+static bool ccu_data_offsets_valid(struct ccu_data *ccu)
+{
+	struct ccu_policy *ccu_policy = &ccu->policy;
+	u32 limit;
+
+	limit = ccu->range - sizeof(u32);
+	limit = round_down(limit, sizeof(u32));
+	if (ccu_policy_exists(ccu_policy)) {
+		if (ccu_policy->enable.offset > limit) {
+			pr_err("%s: bad policy enable offset for %s "
+					"(%u > %u)\n", __func__,
+				ccu->name, ccu_policy->enable.offset, limit);
+			return false;
+		}
+		if (ccu_policy->control.offset > limit) {
+			pr_err("%s: bad policy control offset for %s "
+					"(%u > %u)\n", __func__,
+				ccu->name, ccu_policy->control.offset, limit);
+			return false;
+		}
+	}
+
+	return true;
+}
+
 static bool clk_requires_trigger(struct kona_clk *bcm_clk)
 {
 	struct peri_clk_data *peri = bcm_clk->u.peri;
@@ -54,6 +79,7 @@ static bool clk_requires_trigger(struct kona_clk *bcm_clk)
 static bool peri_clk_data_offsets_valid(struct kona_clk *bcm_clk)
 {
 	struct peri_clk_data *peri;
+	struct bcm_clk_policy *policy;
 	struct bcm_clk_gate *gate;
 	struct bcm_clk_div *div;
 	struct bcm_clk_sel *sel;
@@ -69,6 +95,15 @@ static bool peri_clk_data_offsets_valid(struct kona_clk *bcm_clk)
 
 	limit = range - sizeof(u32);
 	limit = round_down(limit, sizeof(u32));
+
+	policy = &peri->policy;
+	if (policy_exists(policy)) {
+		if (policy->offset > limit) {
+			pr_err("%s: bad policy offset for %s (%u > %u)\n",
+				__func__, name, policy->offset, limit);
+			return false;
+		}
+	}
 
 	gate = &peri->gate;
 	if (gate_exists(gate)) {
@@ -164,6 +199,36 @@ static bool bitfield_valid(u32 shift, u32 width, const char *field_name,
 			field_name, clock_name, shift, width, limit);
 		return false;
 	}
+	return true;
+}
+
+static bool
+ccu_policy_valid(struct ccu_policy *ccu_policy, const char *ccu_name)
+{
+	struct bcm_lvm_en *enable = &ccu_policy->enable;
+	struct bcm_policy_ctl *control;
+
+	if (!bit_posn_valid(enable->bit, "policy enable", ccu_name))
+		return false;
+
+	control = &ccu_policy->control;
+	if (!bit_posn_valid(control->go_bit, "policy control GO", ccu_name))
+		return false;
+
+	if (!bit_posn_valid(control->atl_bit, "policy control ATL", ccu_name))
+		return false;
+
+	if (!bit_posn_valid(control->ac_bit, "policy control AC", ccu_name))
+		return false;
+
+	return true;
+}
+
+static bool policy_valid(struct bcm_clk_policy *policy, const char *clock_name)
+{
+	if (!bit_posn_valid(policy->bit, "policy", clock_name))
+		return false;
+
 	return true;
 }
 
@@ -312,6 +377,7 @@ static bool
 peri_clk_data_valid(struct kona_clk *bcm_clk)
 {
 	struct peri_clk_data *peri;
+	struct bcm_clk_policy *policy;
 	struct bcm_clk_gate *gate;
 	struct bcm_clk_sel *sel;
 	struct bcm_clk_div *div;
@@ -331,6 +397,11 @@ peri_clk_data_valid(struct kona_clk *bcm_clk)
 
 	peri = bcm_clk->u.peri;
 	name = bcm_clk->init_data.name;
+
+	policy = &peri->policy;
+	if (policy_exists(policy) && !policy_valid(policy, name))
+		return false;
+
 	gate = &peri->gate;
 	if (gate_exists(gate) && !gate_valid(gate, "gate", name))
 		return false;
@@ -679,6 +750,21 @@ static void kona_ccu_teardown(struct ccu_data *ccu)
 	ccu->base = NULL;
 }
 
+static bool ccu_data_valid(struct ccu_data *ccu)
+{
+	struct ccu_policy *ccu_policy;
+
+	if (!ccu_data_offsets_valid(ccu))
+		return false;
+
+	ccu_policy = &ccu->policy;
+	if (ccu_policy_exists(ccu_policy))
+		if (!ccu_policy_valid(ccu_policy, ccu->name))
+			return false;
+
+	return true;
+}
+
 /*
  * Set up a CCU.  Call the provided ccu_clks_setup callback to
  * initialize the array of clocks provided by the CCU.
@@ -718,6 +804,12 @@ void __init kona_dt_ccu_setup(struct ccu_data *ccu,
 	}
 
 	ccu->range = (u32)range;
+
+	if (!ccu_data_valid(ccu)) {
+		pr_err("%s: ccu data not valid for %s\n", __func__, node->name);
+		goto out_err;
+	}
+
 	ccu->base = ioremap(res.start, ccu->range);
 	if (!ccu->base) {
 		pr_err("%s: unable to map CCU registers for %s\n", __func__,

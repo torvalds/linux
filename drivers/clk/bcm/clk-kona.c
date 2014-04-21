@@ -16,6 +16,14 @@
 
 #include <linux/delay.h>
 
+/*
+ * "Policies" affect the frequencies of bus clocks provided by a
+ * CCU.  (I believe these polices are named "Deep Sleep", "Economy",
+ * "Normal", and "Turbo".)  A lower policy number has lower power
+ * consumption, and policy 2 is the default.
+ */
+#define CCU_POLICY_COUNT	4
+
 #define CCU_ACCESS_PASSWORD      0xA5A500
 #define CLK_GATE_DELAY_LOOP      2000
 
@@ -211,6 +219,148 @@ __ccu_wait_bit(struct ccu_data *ccu, u32 reg_offset, u32 bit, bool want)
 		ccu->name, reg_offset, bit, want ? "set" : "clear");
 
 	return false;
+}
+
+/* Policy operations */
+
+static bool __ccu_policy_engine_start(struct ccu_data *ccu, bool sync)
+{
+	struct bcm_policy_ctl *control = &ccu->policy.control;
+	u32 offset;
+	u32 go_bit;
+	u32 mask;
+	bool ret;
+
+	/* If we don't need to control policy for this CCU, we're done. */
+	if (!policy_ctl_exists(control))
+		return true;
+
+	offset = control->offset;
+	go_bit = control->go_bit;
+
+	/* Ensure we're not busy before we start */
+	ret = __ccu_wait_bit(ccu, offset, go_bit, false);
+	if (!ret) {
+		pr_err("%s: ccu %s policy engine wouldn't go idle\n",
+			__func__, ccu->name);
+		return false;
+	}
+
+	/*
+	 * If it's a synchronous request, we'll wait for the voltage
+	 * and frequency of the active load to stabilize before
+	 * returning.  To do this we select the active load by
+	 * setting the ATL bit.
+	 *
+	 * An asynchronous request instead ramps the voltage in the
+	 * background, and when that process stabilizes, the target
+	 * load is copied to the active load and the CCU frequency
+	 * is switched.  We do this by selecting the target load
+	 * (ATL bit clear) and setting the request auto-copy (AC bit
+	 * set).
+	 *
+	 * Note, we do NOT read-modify-write this register.
+	 */
+	mask = (u32)1 << go_bit;
+	if (sync)
+		mask |= 1 << control->atl_bit;
+	else
+		mask |= 1 << control->ac_bit;
+	__ccu_write(ccu, offset, mask);
+
+	/* Wait for indication that operation is complete. */
+	ret = __ccu_wait_bit(ccu, offset, go_bit, false);
+	if (!ret)
+		pr_err("%s: ccu %s policy engine never started\n",
+			__func__, ccu->name);
+
+	return ret;
+}
+
+static bool __ccu_policy_engine_stop(struct ccu_data *ccu)
+{
+	struct bcm_lvm_en *enable = &ccu->policy.enable;
+	u32 offset;
+	u32 enable_bit;
+	bool ret;
+
+	/* If we don't need to control policy for this CCU, we're done. */
+	if (!policy_lvm_en_exists(enable))
+		return true;
+
+	/* Ensure we're not busy before we start */
+	offset = enable->offset;
+	enable_bit = enable->bit;
+	ret = __ccu_wait_bit(ccu, offset, enable_bit, false);
+	if (!ret) {
+		pr_err("%s: ccu %s policy engine already stopped\n",
+			__func__, ccu->name);
+		return false;
+	}
+
+	/* Now set the bit to stop the engine (NO read-modify-write) */
+	__ccu_write(ccu, offset, (u32)1 << enable_bit);
+
+	/* Wait for indication that it has stopped. */
+	ret = __ccu_wait_bit(ccu, offset, enable_bit, false);
+	if (!ret)
+		pr_err("%s: ccu %s policy engine never stopped\n",
+			__func__, ccu->name);
+
+	return ret;
+}
+
+/*
+ * A CCU has four operating conditions ("policies"), and some clocks
+ * can be disabled or enabled based on which policy is currently in
+ * effect.  Such clocks have a bit in a "policy mask" register for
+ * each policy indicating whether the clock is enabled for that
+ * policy or not.  The bit position for a clock is the same for all
+ * four registers, and the 32-bit registers are at consecutive
+ * addresses.
+ */
+static bool policy_init(struct ccu_data *ccu, struct bcm_clk_policy *policy)
+{
+	u32 offset;
+	u32 mask;
+	int i;
+	bool ret;
+
+	if (!policy_exists(policy))
+		return true;
+
+	/*
+	 * We need to stop the CCU policy engine to allow update
+	 * of our policy bits.
+	 */
+	if (!__ccu_policy_engine_stop(ccu)) {
+		pr_err("%s: unable to stop CCU %s policy engine\n",
+			__func__, ccu->name);
+		return false;
+	}
+
+	/*
+	 * For now, if a clock defines its policy bit we just mark
+	 * it "enabled" for all four policies.
+	 */
+	offset = policy->offset;
+	mask = (u32)1 << policy->bit;
+	for (i = 0; i < CCU_POLICY_COUNT; i++) {
+		u32 reg_val;
+
+		reg_val = __ccu_read(ccu, offset);
+		reg_val |= mask;
+		__ccu_write(ccu, offset, reg_val);
+		offset += sizeof(u32);
+	}
+
+	/* We're done updating; fire up the policy engine again. */
+	ret = __ccu_policy_engine_start(ccu, true);
+	if (!ret)
+		pr_err("%s: unable to restart CCU %s policy engine\n",
+			__func__, ccu->name);
+
+	return ret;
 }
 
 /* Gate operations */
@@ -972,6 +1122,11 @@ static bool __peri_clk_init(struct kona_clk *bcm_clk)
 
 	BUG_ON(bcm_clk->type != bcm_clk_peri);
 
+	if (!policy_init(ccu, &peri->policy)) {
+		pr_err("%s: error initializing policy for %s\n",
+			__func__, name);
+		return false;
+	}
 	if (!gate_init(ccu, &peri->gate)) {
 		pr_err("%s: error initializing gate for %s\n", __func__, name);
 		return false;
