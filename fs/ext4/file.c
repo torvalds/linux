@@ -113,8 +113,6 @@ ext4_file_dio_write(struct kiocb *iocb, const struct iovec *iov,
 		ext4_unwritten_wait(inode);
 	}
 
-	BUG_ON(iocb->ki_pos != pos);
-
 	mutex_lock(&inode->i_mutex);
 	blk_start_plug(&plug);
 
@@ -168,8 +166,11 @@ static ssize_t
 ext4_file_write(struct kiocb *iocb, const struct iovec *iov,
 		unsigned long nr_segs, loff_t pos)
 {
+	struct file *file = iocb->ki_filp;
 	struct inode *inode = file_inode(iocb->ki_filp);
 	ssize_t ret;
+
+	BUG_ON(iocb->ki_pos != pos);
 
 	/*
 	 * If we have encountered a bitmap-format file, the size limit
@@ -192,8 +193,19 @@ ext4_file_write(struct kiocb *iocb, const struct iovec *iov,
 
 	if (unlikely(iocb->ki_filp->f_flags & O_DIRECT))
 		ret = ext4_file_dio_write(iocb, iov, nr_segs, pos);
-	else
-		ret = generic_file_aio_write(iocb, iov, nr_segs, pos);
+	else {
+		mutex_lock(&inode->i_mutex);
+		ret = __generic_file_aio_write(iocb, iov, nr_segs);
+		mutex_unlock(&inode->i_mutex);
+
+		if (ret > 0) {
+			ssize_t err;
+
+			err = generic_write_sync(file, iocb->ki_pos - ret, ret);
+			if (err < 0)
+				ret = err;
+		}
+	}
 
 	return ret;
 }
