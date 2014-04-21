@@ -25,6 +25,8 @@
 //#include "sram.h"
 #include "pm-pie.c"
 
+__weak void rk_usb_power_down(void);
+__weak void rk_usb_power_up(void);
 
 static void ddr_pin_set_pull(u8 port,u8 bank,u8 b_gpio,u8 fun);
 static void ddr_gpio_set_in_output(u8 port,u8 bank,u8 b_gpio,u8 type);
@@ -1133,6 +1135,8 @@ static inline void  rkpm_peri_resume_first(u32 power_mode)
 
 static void rkpm_slp_setting(void)
 {
+	rk_usb_power_down();
+
    //rkpm_gic_disable(130);
   //  rkpm_gic_disable(132);
 
@@ -1143,6 +1147,7 @@ static void rkpm_slp_setting(void)
 
 static void rkpm_save_setting_resume_first(void)
 {
+	rk_usb_power_down();
         rkpm_peri_resume_first(rk3288_powermode);
         
         // rkpm_ddr_printhex(cru_readl(RK3288_CRU_MODE_CON));
