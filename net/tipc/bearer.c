@@ -458,7 +458,7 @@ int tipc_enable_l2_media(struct tipc_bearer *b)
 		return -ENODEV;
 
 	/* Associate TIPC bearer with Ethernet bearer */
-	b->media_ptr = dev;
+	rcu_assign_pointer(b->media_ptr, dev);
 	memset(b->bcast_addr.value, 0, sizeof(b->bcast_addr.value));
 	memcpy(b->bcast_addr.value, dev->broadcast, b->media->hwaddr_len);
 	b->bcast_addr.media_id = b->media->type_id;
@@ -477,7 +477,10 @@ int tipc_enable_l2_media(struct tipc_bearer *b)
  */
 void tipc_disable_l2_media(struct tipc_bearer *b)
 {
-	struct net_device *dev = (struct net_device *)b->media_ptr;
+	struct net_device *dev;
+
+	dev = (struct net_device *)rtnl_dereference(b->media_ptr);
+	RCU_INIT_POINTER(b->media_ptr, NULL);
 	RCU_INIT_POINTER(dev->tipc_ptr, NULL);
 	dev_put(dev);
 }
@@ -492,8 +495,12 @@ int tipc_l2_send_msg(struct sk_buff *buf, struct tipc_bearer *b,
 		     struct tipc_media_addr *dest)
 {
 	struct sk_buff *clone;
+	struct net_device *dev;
 	int delta;
-	struct net_device *dev = (struct net_device *)b->media_ptr;
+
+	dev = (struct net_device *)rcu_dereference_rtnl(b->media_ptr);
+	if (!dev)
+		return 0;
 
 	clone = skb_clone(buf, GFP_ATOMIC);
 	if (!clone)

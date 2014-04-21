@@ -128,7 +128,7 @@ struct tipc_media {
  * care of initializing all other fields.
  */
 struct tipc_bearer {
-	void *media_ptr;			/* initalized by media */
+	void __rcu *media_ptr;			/* initalized by media */
 	u32 mtu;				/* initalized by media */
 	struct tipc_media_addr addr;		/* initalized by media */
 	char name[TIPC_MAX_BEARER_NAME];
