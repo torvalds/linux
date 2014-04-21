@@ -45,6 +45,7 @@ static const struct of_device_id bcm_kona_smc_ids[] __initconst = {
 int __init bcm_kona_smc_init(void)
 {
 	struct device_node *node;
+	const __be32 *prop_val;
 
 	/* Read buffer addr and size from the device tree node */
 	node = of_find_matching_node(NULL, bcm_kona_smc_ids);
@@ -52,12 +53,17 @@ int __init bcm_kona_smc_init(void)
 		return -ENODEV;
 
 	/* Don't care about size or flags of the DT node */
-	bridge_data.buffer_addr =
-		be32_to_cpu(*of_get_address(node, 0, NULL, NULL));
-	BUG_ON(!bridge_data.buffer_addr);
+	prop_val = of_get_address(node, 0, NULL, NULL);
+	if (!prop_val)
+		return -EINVAL;
+
+	bridge_data.buffer_addr = be32_to_cpu(*prop_val);
+	if (!bridge_data.buffer_addr)
+		return -EINVAL;
 
 	bridge_data.bounce = of_iomap(node, 0);
-	BUG_ON(!bridge_data.bounce);
+	if (!bridge_data.bounce)
+		return -ENOMEM;
 
 	bridge_data.initialized = 1;
 
