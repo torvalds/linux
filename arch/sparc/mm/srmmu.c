@@ -49,7 +49,7 @@
 #include <asm/mxcc.h>
 #include <asm/ross.h>
 
-#include "srmmu.h"
+#include "mm_32.h"
 
 enum mbus_module srmmu_modtype;
 static unsigned int hwbug_bitmask;
