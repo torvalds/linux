@@ -109,6 +109,10 @@ void do_notify_resume(struct pt_regs *regs, unsigned long orig_i0,
 asmlinkage int do_sys_sigstack(struct sigstack __user *ssptr,
                                struct sigstack __user *ossptr,
                                unsigned long sp);
+
+/* windows.c */
+void try_to_clear_window_buffer(struct pt_regs *regs, int who);
+
 #else /* CONFIG_SPARC32 */
 #endif /* CONFIG_SPARC32 */
 #endif /* !(__SPARC_KERNEL_H) */
