@@ -1614,7 +1614,7 @@ static int stmmac_open(struct net_device *dev)
 	stmmac_check_ether_addr(priv);
 
 	if (priv->pcs != STMMAC_PCS_SGMII && priv->pcs != STMMAC_PCS_TBI &&
-	    priv->pcs != STMMAC_PCS_RTBI) {
+	    priv->pcs != STMMAC_PCS_RTBI && !priv->mdio_registered) {
 		/* MDIO bus Registration */
 		ret = stmmac_mdio_register(priv->dev);
 		if (ret < 0) {
@@ -1622,6 +1622,7 @@ static int stmmac_open(struct net_device *dev)
 				 __func__, priv->plat->bus_id);
 			goto open_error;
 		}
+		priv->mdio_registered = true;
 	}	
 
 	if (priv->pcs != STMMAC_PCS_SGMII && priv->pcs != STMMAC_PCS_TBI &&
@@ -2763,7 +2764,9 @@ struct stmmac_priv *stmmac_dvr_probe(struct device *device,
 		goto error_netdev_register;
 	}
 
-	priv->clk_enable = 0;
+	priv->mdio_registered = false;
+	priv->clk_enable = false;
+	
 	priv->clk_mac = clk_get(priv->device,"clk_mac");
 	if (IS_ERR(priv->clk_mac)) {
 		pr_warn("%s: warning: cannot get clk_mac clock\n", __func__);
@@ -2827,7 +2830,7 @@ struct stmmac_priv *stmmac_dvr_probe(struct device *device,
 
 	return priv;
 
-error_mdio_register:
+/*error_mdio_register:
 	clk_put(priv->stmmac_clk);
 	clk_put(priv->clk_mac);
 	clk_put(priv->mac_clk_rx);
@@ -2835,7 +2838,7 @@ error_mdio_register:
 	clk_put(priv->clk_mac_ref);
 	clk_put(priv->clk_mac_refout);
 	clk_put(priv->aclk_mac);
-	clk_put(priv->pclk_mac);
+	clk_put(priv->pclk_mac);*/
 error_clk_get:
 	unregister_netdev(ndev);
 error_netdev_register:
