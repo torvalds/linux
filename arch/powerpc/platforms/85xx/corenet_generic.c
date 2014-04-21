@@ -123,6 +123,8 @@ static const char * const boards[] __initconst = {
 	"fsl,B4860QDS",
 	"fsl,B4420QDS",
 	"fsl,B4220QDS",
+	"fsl,T1040QDS",
+	"fsl,T1042QDS",
 	"keymile,kmcoge4",
 	NULL
 };
@@ -138,6 +140,8 @@ static const char * const hv_boards[] __initconst = {
 	"fsl,B4860QDS-hv",
 	"fsl,B4420QDS-hv",
 	"fsl,B4220QDS-hv",
+	"fsl,T1040QDS-hv",
+	"fsl,T1042QDS-hv",
 	NULL
 };
 
