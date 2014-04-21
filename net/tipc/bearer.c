@@ -49,7 +49,7 @@ static struct tipc_media * const media_info_array[] = {
 	NULL
 };
 
-struct tipc_bearer *bearer_list[MAX_BEARERS + 1];
+struct tipc_bearer __rcu *bearer_list[MAX_BEARERS + 1];
 
 static void bearer_disable(struct tipc_bearer *b_ptr, bool shutting_down);
 
@@ -178,7 +178,7 @@ struct tipc_bearer *tipc_bearer_find(const char *name)
 	u32 i;
 
 	for (i = 0; i < MAX_BEARERS; i++) {
-		b_ptr = bearer_list[i];
+		b_ptr = rtnl_dereference(bearer_list[i]);
 		if (b_ptr && (!strcmp(b_ptr->name, name)))
 			return b_ptr;
 	}
@@ -201,7 +201,7 @@ struct sk_buff *tipc_bearer_get_names(void)
 	read_lock_bh(&tipc_net_lock);
 	for (i = 0; media_info_array[i] != NULL; i++) {
 		for (j = 0; j < MAX_BEARERS; j++) {
-			b = bearer_list[j];
+			b = rtnl_dereference(bearer_list[j]);
 			if (!b)
 				continue;
 			if (b->media == media_info_array[i]) {
@@ -287,7 +287,7 @@ restart:
 	bearer_id = MAX_BEARERS;
 	with_this_prio = 1;
 	for (i = MAX_BEARERS; i-- != 0; ) {
-		b_ptr = bearer_list[i];
+		b_ptr = rtnl_dereference(bearer_list[i]);
 		if (!b_ptr) {
 			bearer_id = i;
 			continue;
@@ -344,7 +344,7 @@ restart:
 		goto exit;
 	}
 
-	bearer_list[bearer_id] = b_ptr;
+	rcu_assign_pointer(bearer_list[bearer_id], b_ptr);
 
 	pr_info("Enabled bearer <%s>, discovery domain %s, priority %u\n",
 		name,
@@ -385,12 +385,12 @@ static void bearer_disable(struct tipc_bearer *b_ptr, bool shutting_down)
 		tipc_disc_delete(b_ptr->link_req);
 
 	for (i = 0; i < MAX_BEARERS; i++) {
-		if (b_ptr == bearer_list[i]) {
-			bearer_list[i] = NULL;
+		if (b_ptr == rtnl_dereference(bearer_list[i])) {
+			RCU_INIT_POINTER(bearer_list[i], NULL);
 			break;
 		}
 	}
-	kfree(b_ptr);
+	kfree_rcu(b_ptr, rcu);
 }
 
 int tipc_disable_bearer(const char *name)
@@ -628,7 +628,7 @@ void tipc_bearer_stop(void)
 	u32 i;
 
 	for (i = 0; i < MAX_BEARERS; i++) {
-		b_ptr = bearer_list[i];
+		b_ptr = rtnl_dereference(bearer_list[i]);
 		if (b_ptr) {
 			bearer_disable(b_ptr, true);
 			bearer_list[i] = NULL;

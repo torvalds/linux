@@ -659,6 +659,7 @@ void tipc_bcbearer_sort(void)
 {
 	struct tipc_bcbearer_pair *bp_temp = bcbearer->bpairs_temp;
 	struct tipc_bcbearer_pair *bp_curr;
+	struct tipc_bearer *b;
 	int b_index;
 	int pri;
 
@@ -667,8 +668,9 @@ void tipc_bcbearer_sort(void)
 	/* Group bearers by priority (can assume max of two per priority) */
 	memset(bp_temp, 0, sizeof(bcbearer->bpairs_temp));
 
+	rcu_read_lock();
 	for (b_index = 0; b_index < MAX_BEARERS; b_index++) {
-		struct tipc_bearer *b = bearer_list[b_index];
+		b = rcu_dereference_rtnl(bearer_list[b_index]);
 		if (!b || !b->nodes.count)
 			continue;
 
@@ -677,6 +679,7 @@ void tipc_bcbearer_sort(void)
 		else
 			bp_temp[b->priority].secondary = b;
 	}
+	rcu_read_unlock();
 
 	/* Create array of bearer pairs for broadcasting */
 	bp_curr = bcbearer->bpairs;
@@ -784,7 +787,7 @@ void tipc_bclink_init(void)
 	bcl->max_pkt = MAX_PKT_DEFAULT_MCAST;
 	tipc_link_set_queue_limits(bcl, BCLINK_WIN_DEFAULT);
 	bcl->b_ptr = &bcbearer->bearer;
-	bearer_list[BCBEARER] = &bcbearer->bearer;
+	rcu_assign_pointer(bearer_list[MAX_BEARERS], &bcbearer->bearer);
 	bcl->state = WORKING_WORKING;
 	strlcpy(bcl->name, tipc_bclink_name, TIPC_MAX_LINK_NAME);
 }
@@ -795,7 +798,7 @@ void tipc_bclink_stop(void)
 	tipc_link_purge_queues(bcl);
 	spin_unlock_bh(&bc_lock);
 
-	bearer_list[BCBEARER] = NULL;
+	RCU_INIT_POINTER(bearer_list[BCBEARER], NULL);
 	memset(bclink, 0, sizeof(*bclink));
 	memset(bcbearer, 0, sizeof(*bcbearer));
 }

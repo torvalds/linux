@@ -113,6 +113,7 @@ struct tipc_media {
  * @name: bearer name (format = media:interface)
  * @media: ptr to media structure associated with bearer
  * @bcast_addr: media address used in broadcasting
+ * @rcu: rcu struct for tipc_bearer
  * @priority: default link priority for bearer
  * @window: default window size for bearer
  * @tolerance: default link tolerance for bearer
@@ -133,6 +134,7 @@ struct tipc_bearer {
 	char name[TIPC_MAX_BEARER_NAME];
 	struct tipc_media *media;
 	struct tipc_media_addr bcast_addr;
+	struct rcu_head rcu;
 	u32 priority;
 	u32 window;
 	u32 tolerance;
@@ -150,7 +152,7 @@ struct tipc_bearer_names {
 
 struct tipc_link;
 
-extern struct tipc_bearer *bearer_list[];
+extern struct tipc_bearer __rcu *bearer_list[];
 
 /*
  * TIPC routines available to supported media types
