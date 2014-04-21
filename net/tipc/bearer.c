@@ -365,9 +365,8 @@ restart:
 static int tipc_reset_bearer(struct tipc_bearer *b_ptr)
 {
 	pr_info("Resetting bearer <%s>\n", b_ptr->name);
-	tipc_disc_delete(b_ptr->link_req);
 	tipc_link_reset_list(b_ptr->identity);
-	tipc_disc_create(b_ptr, &b_ptr->bcast_addr);
+	tipc_disc_reset(b_ptr);
 	return 0;
 }
 
