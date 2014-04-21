@@ -2185,7 +2185,8 @@ static void rs_rate_scale_perform(struct iwl_mvm *mvm,
 		break;
 	case RS_ACTION_STAY:
 		/* No change */
-		update_lq = rs_tpc_perform(mvm, sta, lq_sta, tbl);
+		if (lq_sta->rs_state == RS_STATE_STAY_IN_COLUMN)
+			update_lq = rs_tpc_perform(mvm, sta, lq_sta, tbl);
 		break;
 	default:
 		break;
