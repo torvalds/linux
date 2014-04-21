@@ -81,6 +81,7 @@ static bool peri_clk_data_offsets_valid(struct kona_clk *bcm_clk)
 	struct peri_clk_data *peri;
 	struct bcm_clk_policy *policy;
 	struct bcm_clk_gate *gate;
+	struct bcm_clk_hyst *hyst;
 	struct bcm_clk_div *div;
 	struct bcm_clk_sel *sel;
 	struct bcm_clk_trig *trig;
@@ -106,12 +107,25 @@ static bool peri_clk_data_offsets_valid(struct kona_clk *bcm_clk)
 	}
 
 	gate = &peri->gate;
+	hyst = &peri->hyst;
 	if (gate_exists(gate)) {
 		if (gate->offset > limit) {
 			pr_err("%s: bad gate offset for %s (%u > %u)\n",
 				__func__, name, gate->offset, limit);
 			return false;
 		}
+
+		if (hyst_exists(hyst)) {
+			if (hyst->offset > limit) {
+				pr_err("%s: bad hysteresis offset for %s "
+					"(%u > %u)\n", __func__,
+					name, hyst->offset, limit);
+				return false;
+			}
+		}
+	} else if (hyst_exists(hyst)) {
+		pr_err("%s: hysteresis but no gate for %s\n", __func__, name);
+		return false;
 	}
 
 	div = &peri->div;
@@ -261,6 +275,17 @@ static bool gate_valid(struct bcm_clk_gate *gate, const char *field_name,
 	return true;
 }
 
+static bool hyst_valid(struct bcm_clk_hyst *hyst, const char *clock_name)
+{
+	if (!bit_posn_valid(hyst->en_bit, "hysteresis enable", clock_name))
+		return false;
+
+	if (!bit_posn_valid(hyst->val_bit, "hysteresis value", clock_name))
+		return false;
+
+	return true;
+}
+
 /*
  * A selector bitfield must be valid.  Its parent_sel array must
  * also be reasonable for the field.
@@ -379,6 +404,7 @@ peri_clk_data_valid(struct kona_clk *bcm_clk)
 	struct peri_clk_data *peri;
 	struct bcm_clk_policy *policy;
 	struct bcm_clk_gate *gate;
+	struct bcm_clk_hyst *hyst;
 	struct bcm_clk_sel *sel;
 	struct bcm_clk_div *div;
 	struct bcm_clk_div *pre_div;
@@ -404,6 +430,10 @@ peri_clk_data_valid(struct kona_clk *bcm_clk)
 
 	gate = &peri->gate;
 	if (gate_exists(gate) && !gate_valid(gate, "gate", name))
+		return false;
+
+	hyst = &peri->hyst;
+	if (hyst_exists(hyst) && !hyst_valid(hyst, name))
 		return false;
 
 	sel = &peri->sel;

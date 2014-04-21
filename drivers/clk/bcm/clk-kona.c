@@ -527,6 +527,35 @@ static int clk_gate(struct ccu_data *ccu, const char *name,
 	return -EIO;
 }
 
+/* Hysteresis operations */
+
+/*
+ * If a clock gate requires a turn-off delay it will have
+ * "hysteresis" register bits defined.  The first, if set, enables
+ * the delay; and if enabled, the second bit determines whether the
+ * delay is "low" or "high" (1 means high).  For now, if it's
+ * defined for a clock, we set it.
+ */
+static bool hyst_init(struct ccu_data *ccu, struct bcm_clk_hyst *hyst)
+{
+	u32 offset;
+	u32 reg_val;
+	u32 mask;
+
+	if (!hyst_exists(hyst))
+		return true;
+
+	offset = hyst->offset;
+	mask = (u32)1 << hyst->en_bit;
+	mask |= (u32)1 << hyst->val_bit;
+
+	reg_val = __ccu_read(ccu, offset);
+	reg_val |= mask;
+	__ccu_write(ccu, offset, reg_val);
+
+	return true;
+}
+
 /* Trigger operations */
 
 /*
@@ -1129,6 +1158,10 @@ static bool __peri_clk_init(struct kona_clk *bcm_clk)
 	}
 	if (!gate_init(ccu, &peri->gate)) {
 		pr_err("%s: error initializing gate for %s\n", __func__, name);
+		return false;
+	}
+	if (!hyst_init(ccu, &peri->hyst)) {
+		pr_err("%s: error initializing hyst for %s\n", __func__, name);
 		return false;
 	}
 	if (!div_init(ccu, &peri->gate, &peri->div, &peri->trig)) {
