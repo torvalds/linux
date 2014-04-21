@@ -19,6 +19,7 @@
 #include <asm/smp.h>
 #include <asm/cpudata.h>
 #include <asm/cpu_type.h>
+#include <asm/setup.h>
 
 extern void clock_stop_probe(void); /* tadpole.c */
 

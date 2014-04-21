@@ -39,6 +39,9 @@ int sparc_floppy_request_irq(unsigned int irq, irq_handler_t irq_handler);
 /* setup_32.c */
 extern unsigned long cmdline_memory_size;
 
+/* devices.c */
+void __init device_scan(void);
+
 #endif
 
 extern void sun_do_break(void);

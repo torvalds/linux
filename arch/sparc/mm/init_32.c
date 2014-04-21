@@ -248,8 +248,6 @@ unsigned long __init bootmem_init(unsigned long *pages_avail)
  * init routine based upon the Sun model type on the Sparc.
  *
  */
-extern void device_scan(void);
-
 void __init paging_init(void)
 {
 	srmmu_paging_init();
