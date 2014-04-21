@@ -81,6 +81,8 @@ void smp4d_percpu_timer_interrupt(struct pt_regs *regs);
 /* leon_smp.c */
 void leon_cpu_pre_starting(void *arg);
 void leon_cpu_pre_online(void *arg);
+void leonsmp_ipi_interrupt(void);
+void leon_cross_call_irq(void);
 
 /* head_32.S */
 extern unsigned int t_nmi[];
