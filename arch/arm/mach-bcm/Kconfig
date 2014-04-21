@@ -18,7 +18,6 @@ config ARCH_BCM_MOBILE
 	select ARM_GIC
 	select GPIO_BCM_KONA
 	select TICK_ONESHOT
-	select CACHE_L2X0
 	select HAVE_ARM_ARCH_TIMER
 	select PINCTRL
 	help
@@ -42,6 +41,17 @@ config ARCH_BCM_21664
 	help
 	  Enable support for the the BCM21664 family, which includes
 	  BCM21663 and BCM21664 variants.
+
+config ARCH_BCM_MOBILE_L2_CACHE
+	bool "Broadcom mobile SoC level 2 cache support"
+	depends on (ARCH_BCM_281XX || ARCH_BCM_21664)
+	default y
+	select CACHE_L2X0
+	select ARCH_BCM_MOBILE_SMC
+
+config ARCH_BCM_MOBILE_SMC
+	bool
+	depends on ARCH_BCM_281XX || ARCH_BCM_21664
 
 endmenu
 

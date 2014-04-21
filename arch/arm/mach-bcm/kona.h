@@ -11,4 +11,9 @@
  * GNU General Public License for more details.
  */
 
+#ifdef CONFIG_ARCH_BCM_MOBILE_L2_CACHE
+
 void __init kona_l2_cache_init(void);
+#else
+#define kona_l2_cache_init() ((void)0)
+#endif
