@@ -215,18 +215,32 @@ struct sk_buff *tipc_bearer_get_names(void)
 	return buf;
 }
 
-void tipc_bearer_add_dest(struct tipc_bearer *b_ptr, u32 dest)
+void tipc_bearer_add_dest(u32 bearer_id, u32 dest)
 {
-	tipc_nmap_add(&b_ptr->nodes, dest);
-	tipc_bcbearer_sort();
-	tipc_disc_add_dest(b_ptr->link_req);
+	struct tipc_bearer *b_ptr;
+
+	rcu_read_lock();
+	b_ptr = rcu_dereference_rtnl(bearer_list[bearer_id]);
+	if (b_ptr) {
+		tipc_nmap_add(&b_ptr->nodes, dest);
+		tipc_bcbearer_sort();
+		tipc_disc_add_dest(b_ptr->link_req);
+	}
+	rcu_read_unlock();
 }
 
-void tipc_bearer_remove_dest(struct tipc_bearer *b_ptr, u32 dest)
+void tipc_bearer_remove_dest(u32 bearer_id, u32 dest)
 {
-	tipc_nmap_remove(&b_ptr->nodes, dest);
-	tipc_bcbearer_sort();
-	tipc_disc_remove_dest(b_ptr->link_req);
+	struct tipc_bearer *b_ptr;
+
+	rcu_read_lock();
+	b_ptr = rcu_dereference_rtnl(bearer_list[bearer_id]);
+	if (b_ptr) {
+		tipc_nmap_remove(&b_ptr->nodes, dest);
+		tipc_bcbearer_sort();
+		tipc_disc_remove_dest(b_ptr->link_req);
+	}
+	rcu_read_unlock();
 }
 
 /**
@@ -507,10 +521,16 @@ int tipc_l2_send_msg(struct sk_buff *buf, struct tipc_bearer *b,
  * The media send routine must not alter the buffer being passed in
  * as it may be needed for later retransmission!
  */
-void tipc_bearer_send(struct tipc_bearer *b, struct sk_buff *buf,
+void tipc_bearer_send(u32 bearer_id, struct sk_buff *buf,
 		      struct tipc_media_addr *dest)
 {
-	b->media->send_msg(buf, b, dest);
+	struct tipc_bearer *b_ptr;
+
+	rcu_read_lock();
+	b_ptr = rcu_dereference_rtnl(bearer_list[bearer_id]);
+	if (likely(b_ptr))
+		b_ptr->media->send_msg(buf, b_ptr, dest);
+	rcu_read_unlock();
 }
 
 /**
