@@ -320,7 +320,7 @@ static void test_aead_speed(const char *algo, int enc, unsigned int sec,
 	if (!req) {
 		pr_err("alg: aead: Failed to allocate request for %s\n",
 		       algo);
-		goto out;
+		goto out_noreq;
 	}
 
 	i = 0;
@@ -390,6 +390,8 @@ static void test_aead_speed(const char *algo, int enc, unsigned int sec,
 	} while (*keysize);
 
 out:
+	aead_request_free(req);
+out_noreq:
 	crypto_free_aead(tfm);
 out_notfm:
 	kfree(sg);
