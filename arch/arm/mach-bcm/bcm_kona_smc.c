@@ -30,6 +30,7 @@ struct bcm_kona_smc_data {
 	unsigned arg1;
 	unsigned arg2;
 	unsigned arg3;
+	unsigned result;
 };
 
 static const struct of_device_id bcm_kona_smc_ids[] __initconst = {
@@ -80,7 +81,6 @@ static void __bcm_kona_smc(void *info)
 {
 	struct bcm_kona_smc_data *data = info;
 	u32 *args = bcm_smc_buffer;
-	int rc;
 
 	BUG_ON(smp_processor_id() != 0);
 	BUG_ON(!args);
@@ -94,11 +94,8 @@ static void __bcm_kona_smc(void *info)
 	/* Flush caches for input data passed to Secure Monitor */
 	flush_cache_all();
 
-	/* Trap into Secure Monitor */
-	rc = bcm_kona_smc_asm(data->service_id, bcm_smc_buffer_phys);
-
-	if (rc != SEC_ROM_RET_OK)
-		pr_err("Secure Monitor call failed (0x%x)!\n", rc);
+	/* Trap into Secure Monitor and record the request result */
+	data->result = bcm_kona_smc_asm(data->service_id, bcm_smc_buffer_phys);
 }
 
 unsigned bcm_kona_smc(unsigned service_id, unsigned arg0, unsigned arg1,
@@ -111,6 +108,7 @@ unsigned bcm_kona_smc(unsigned service_id, unsigned arg0, unsigned arg1,
 	data.arg1 = arg1;
 	data.arg2 = arg2;
 	data.arg3 = arg3;
+	data.result = 0;
 
 	/*
 	 * Due to a limitation of the secure monitor, we must use the SMP
@@ -123,5 +121,5 @@ unsigned bcm_kona_smc(unsigned service_id, unsigned arg0, unsigned arg1,
 
 	put_cpu();
 
-	return 0;
+	return data.result;
 }
