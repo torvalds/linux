@@ -159,6 +159,7 @@ struct exynos_dp_device {
 	struct work_struct	hotplug_work;
 	struct phy		*phy;
 	int			dpms_mode;
+	int			hpd_gpio;
 
 	struct exynos_drm_panel_info panel;
 };

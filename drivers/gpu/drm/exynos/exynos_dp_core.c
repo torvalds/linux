@@ -18,6 +18,8 @@
 #include <linux/interrupt.h>
 #include <linux/delay.h>
 #include <linux/of.h>
+#include <linux/of_gpio.h>
+#include <linux/gpio.h>
 #include <linux/component.h>
 #include <linux/phy/phy.h>
 #include <video/of_display_timing.h>
@@ -1217,6 +1219,7 @@ static int exynos_dp_bind(struct device *dev, struct device *master, void *data)
 	struct drm_device *drm_dev = data;
 	struct resource *res;
 	struct exynos_dp_device *dp;
+	unsigned int irq_flags;
 
 	int ret = 0;
 
@@ -1254,7 +1257,30 @@ static int exynos_dp_bind(struct device *dev, struct device *master, void *data)
 	if (IS_ERR(dp->reg_base))
 		return PTR_ERR(dp->reg_base);
 
-	dp->irq = platform_get_irq(pdev, 0);
+	dp->hpd_gpio = of_get_named_gpio(dev->of_node, "samsung,hpd-gpio", 0);
+
+	if (gpio_is_valid(dp->hpd_gpio)) {
+		/*
+		 * Set up the hotplug GPIO from the device tree as an interrupt.
+		 * Simply specifying a different interrupt in the device tree
+		 * doesn't work since we handle hotplug rather differently when
+		 * using a GPIO.  We also need the actual GPIO specifier so
+		 * that we can get the current state of the GPIO.
+		 */
+		ret = devm_gpio_request_one(&pdev->dev, dp->hpd_gpio, GPIOF_IN,
+					    "hpd_gpio");
+		if (ret) {
+			dev_err(&pdev->dev, "failed to get hpd gpio\n");
+			return ret;
+		}
+		dp->irq = gpio_to_irq(dp->hpd_gpio);
+		irq_flags = IRQF_TRIGGER_RISING | IRQF_TRIGGER_FALLING;
+	} else {
+		dp->hpd_gpio = -ENODEV;
+		dp->irq = platform_get_irq(pdev, 0);
+		irq_flags = 0;
+	}
+
 	if (dp->irq == -ENXIO) {
 		dev_err(&pdev->dev, "failed to get irq\n");
 		return -ENODEV;
@@ -1266,8 +1292,8 @@ static int exynos_dp_bind(struct device *dev, struct device *master, void *data)
 
 	exynos_dp_init_dp(dp);
 
-	ret = devm_request_irq(&pdev->dev, dp->irq, exynos_dp_irq_handler, 0,
-				"exynos-dp", dp);
+	ret = devm_request_irq(&pdev->dev, dp->irq, exynos_dp_irq_handler,
+			irq_flags, "exynos-dp", dp);
 	if (ret) {
 		dev_err(&pdev->dev, "failed to request irq\n");
 		return ret;
