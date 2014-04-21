@@ -127,11 +127,14 @@ void __init hisi_clk_register_mux(struct hisi_mux_clock *clks,
 	int i;
 
 	for (i = 0; i < nums; i++) {
-		clk = clk_register_mux(NULL, clks[i].name, clks[i].parent_names,
-				       clks[i].num_parents, clks[i].flags,
-				       base + clks[i].offset, clks[i].shift,
-				       clks[i].width, clks[i].mux_flags,
-				       &hisi_clk_lock);
+		u32 mask = BIT(clks[i].width) - 1;
+
+		clk = clk_register_mux_table(NULL, clks[i].name,
+					clks[i].parent_names,
+					clks[i].num_parents, clks[i].flags,
+					base + clks[i].offset, clks[i].shift,
+					mask, clks[i].mux_flags,
+					clks[i].table, &hisi_clk_lock);
 		if (IS_ERR(clk)) {
 			pr_err("%s: failed to register clock %s\n",
 			       __func__, clks[i].name);
