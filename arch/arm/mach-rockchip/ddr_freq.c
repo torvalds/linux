@@ -184,11 +184,13 @@ enum ddr_bandwidth_id{
 
 
 #define DDR_BOOST_HOLD_MS	500
-#define HIGH_LOAD_HOLD_MS	500
-#define RAISE_DELAY_MS		60
+#define HIGH_LOAD_HOLD_MS	1000
+#define HIGH_LOAD_DELAY_MS	60
+#define LOW_LOAD_DELAY_MS	500
 #define DDR_BOOST_HOLD		(DDR_BOOST_HOLD_MS/ddrbw_work_delay_ms)
 #define HIGH_LOAD_HOLD		(DDR_BOOST_HOLD_MS/ddrbw_work_delay_ms)
-#define RAISE_DELAY		(RAISE_DELAY_MS/ddrbw_work_delay_ms)
+#define HIGH_LOAD_DELAY		(HIGH_LOAD_DELAY_MS/ddrbw_work_delay_ms)
+#define LOW_LOAD_DELAY		(LOW_LOAD_DELAY_MS/ddrbw_work_delay_ms)
 #define DDR_RATE_NORMAL 	240000000
 #define DDR_RATE_BOOST		324000000
 #define DDR_RATE_HIGH_LOAD	533000000
@@ -240,11 +242,11 @@ static void ddrbw_work_fn(struct work_struct *work)
 {
 	unsigned long rate;
 	u32 ch0_eff, ch1_eff;
-	static u32 ddr_boost_hold=0, high_load_hold=0, raise_delay = 0;
+	static u32 ddr_boost_hold=0, high_load_hold=0;
+	static u32 high_load_delay = 0, low_load_delay = 0;
 	
 	ddr_monitor_stop();
         ddr_bandwidth_get(&ch0_eff, &ch1_eff);
-	printk(KERN_DEBUG "%d %d\n", ch0_eff, ch1_eff);
 
 	if (ddr_boost) {
 		ddr_boost = 0;
@@ -253,15 +255,16 @@ static void ddrbw_work_fn(struct work_struct *work)
 		ddrfreq_mode(false, &rate, "boost");
 		ddr_boost_hold = DDR_BOOST_HOLD;
 		high_load_hold = 0;
-		raise_delay = RAISE_DELAY;
+		high_load_delay = HIGH_LOAD_DELAY;
 	} else if(!ddr_boost_hold && ((ch0_eff>high_load)||(ch1_eff>high_load))){
-		if (!raise_delay) {
+		if (!high_load_delay) {
 			//dvfs_clk_set_rate(ddr.clk_dvfs_node, HIGH_LOAD_RATE);
 			rate = ddr_rate_high_load;
 			ddrfreq_mode(false, &rate, "high load");
-			high_load_hold=HIGH_LOAD_HOLD;
+			low_load_delay = LOW_LOAD_DELAY;
+			high_load_hold = HIGH_LOAD_HOLD;
 		} else {
-			raise_delay--;
+			high_load_delay--;
 		}
 	} else {
 		if (ddr_boost_hold) {
@@ -269,10 +272,14 @@ static void ddrbw_work_fn(struct work_struct *work)
 		} else if (high_load_hold) {
 			high_load_hold--;
 		} else {
-			raise_delay = RAISE_DELAY;
+			high_load_delay = HIGH_LOAD_DELAY;
 	       		//dvfs_clk_set_rate(ddr.clk_dvfs_node, DDR_NORMAL_RATE);
-	       		rate = ddr_rate_normal;
-	       		ddrfreq_mode(false, &rate, "normal");
+	       		if (!low_load_delay) {
+	       			rate = ddr_rate_normal;
+	       			ddrfreq_mode(false, &rate, "normal");
+	       		} else {
+	       			low_load_delay--;
+	       		}
 		}
     }
 
