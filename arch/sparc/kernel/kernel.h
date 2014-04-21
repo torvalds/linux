@@ -95,6 +95,12 @@ extern void floppy_hardint(void);
 extern unsigned long sun4m_cpu_startup;
 extern unsigned long sun4d_cpu_startup;
 
+/* process_32.c */
+asmlinkage int sparc_do_fork(unsigned long clone_flags,
+                             unsigned long stack_start,
+                             struct pt_regs *regs,
+                             unsigned long stack_size);
+
 #else /* CONFIG_SPARC32 */
 #endif /* CONFIG_SPARC32 */
 #endif /* !(__SPARC_KERNEL_H) */
