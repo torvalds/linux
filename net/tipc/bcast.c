@@ -112,6 +112,8 @@ const char tipc_bclink_name[] = "broadcast-link";
 static void tipc_nmap_diff(struct tipc_node_map *nm_a,
 			   struct tipc_node_map *nm_b,
 			   struct tipc_node_map *nm_diff);
+static void tipc_nmap_add(struct tipc_node_map *nm_ptr, u32 node);
+static void tipc_nmap_remove(struct tipc_node_map *nm_ptr, u32 node);
 
 static u32 bcbuf_acks(struct sk_buff *buf)
 {
@@ -653,7 +655,7 @@ static int tipc_bcbearer_send(struct sk_buff *buf, struct tipc_bearer *unused1,
 /**
  * tipc_bcbearer_sort - create sets of bearer pairs used by broadcast bearer
  */
-void tipc_bcbearer_sort(void)
+void tipc_bcbearer_sort(struct tipc_node_map *nm_ptr, u32 node, bool action)
 {
 	struct tipc_bcbearer_pair *bp_temp = bcbearer->bpairs_temp;
 	struct tipc_bcbearer_pair *bp_curr;
@@ -662,6 +664,11 @@ void tipc_bcbearer_sort(void)
 	int pri;
 
 	spin_lock_bh(&bc_lock);
+
+	if (action)
+		tipc_nmap_add(nm_ptr, node);
+	else
+		tipc_nmap_remove(nm_ptr, node);
 
 	/* Group bearers by priority (can assume max of two per priority) */
 	memset(bp_temp, 0, sizeof(bcbearer->bpairs_temp));
@@ -801,11 +808,10 @@ void tipc_bclink_stop(void)
 	memset(bcbearer, 0, sizeof(*bcbearer));
 }
 
-
 /**
  * tipc_nmap_add - add a node to a node map
  */
-void tipc_nmap_add(struct tipc_node_map *nm_ptr, u32 node)
+static void tipc_nmap_add(struct tipc_node_map *nm_ptr, u32 node)
 {
 	int n = tipc_node(node);
 	int w = n / WSIZE;
@@ -820,7 +826,7 @@ void tipc_nmap_add(struct tipc_node_map *nm_ptr, u32 node)
 /**
  * tipc_nmap_remove - remove a node from a node map
  */
-void tipc_nmap_remove(struct tipc_node_map *nm_ptr, u32 node)
+static void tipc_nmap_remove(struct tipc_node_map *nm_ptr, u32 node)
 {
 	int n = tipc_node(node);
 	int w = n / WSIZE;

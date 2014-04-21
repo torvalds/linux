@@ -220,8 +220,7 @@ void tipc_bearer_add_dest(u32 bearer_id, u32 dest)
 	rcu_read_lock();
 	b_ptr = rcu_dereference_rtnl(bearer_list[bearer_id]);
 	if (b_ptr) {
-		tipc_nmap_add(&b_ptr->nodes, dest);
-		tipc_bcbearer_sort();
+		tipc_bcbearer_sort(&b_ptr->nodes, dest, true);
 		tipc_disc_add_dest(b_ptr->link_req);
 	}
 	rcu_read_unlock();
@@ -234,8 +233,7 @@ void tipc_bearer_remove_dest(u32 bearer_id, u32 dest)
 	rcu_read_lock();
 	b_ptr = rcu_dereference_rtnl(bearer_list[bearer_id]);
 	if (b_ptr) {
-		tipc_nmap_remove(&b_ptr->nodes, dest);
-		tipc_bcbearer_sort();
+		tipc_bcbearer_sort(&b_ptr->nodes, dest, false);
 		tipc_disc_remove_dest(b_ptr->link_req);
 	}
 	rcu_read_unlock();
