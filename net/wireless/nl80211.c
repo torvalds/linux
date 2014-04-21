@@ -11672,7 +11672,7 @@ static int nl80211_netlink_notify(struct notifier_block * nb,
 
 	rcu_read_unlock();
 
-	return NOTIFY_DONE;
+	return NOTIFY_OK;
 }
 
 static struct notifier_block nl80211_netlink_notifier = {

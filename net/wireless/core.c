@@ -1002,9 +1002,11 @@ static int cfg80211_netdev_notifier_call(struct notifier_block *nb,
 		if (rfkill_blocked(rdev->rfkill))
 			return notifier_from_errno(-ERFKILL);
 		break;
+	default:
+		return NOTIFY_DONE;
 	}
 
-	return NOTIFY_DONE;
+	return NOTIFY_OK;
 }
 
 static struct notifier_block cfg80211_netdev_notifier = {
