@@ -121,34 +121,27 @@ static int gpio_extcon_probe(struct platform_device *pdev)
 				msecs_to_jiffies(pdata->debounce);
 	}
 
-	ret = extcon_dev_register(&extcon_data->edev);
+	ret = devm_extcon_dev_register(&pdev->dev, &extcon_data->edev);
 	if (ret < 0)
 		return ret;
 
 	INIT_DELAYED_WORK(&extcon_data->work, gpio_extcon_work);
 
 	extcon_data->irq = gpio_to_irq(extcon_data->gpio);
-	if (extcon_data->irq < 0) {
-		ret = extcon_data->irq;
-		goto err;
-	}
+	if (extcon_data->irq < 0)
+		return extcon_data->irq;
 
 	ret = request_any_context_irq(extcon_data->irq, gpio_irq_handler,
 				      pdata->irq_flags, pdev->name,
 				      extcon_data);
 	if (ret < 0)
-		goto err;
+		return ret;
 
 	platform_set_drvdata(pdev, extcon_data);
 	/* Perform initial detection */
 	gpio_extcon_work(&extcon_data->work.work);
 
 	return 0;
-
-err:
-	extcon_dev_unregister(&extcon_data->edev);
-
-	return ret;
 }
 
 static int gpio_extcon_remove(struct platform_device *pdev)
@@ -157,7 +150,6 @@ static int gpio_extcon_remove(struct platform_device *pdev)
 
 	cancel_delayed_work_sync(&extcon_data->work);
 	free_irq(extcon_data->irq, extcon_data);
-	extcon_dev_unregister(&extcon_data->edev);
 
 	return 0;
 }
