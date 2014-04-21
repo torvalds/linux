@@ -115,6 +115,7 @@ struct stmmac_priv {
 	u32 adv_ts;
 	int use_riwt;
 	spinlock_t ptp_lock;
+	bool mdio_registered;
 };
 
 struct bsp_priv {

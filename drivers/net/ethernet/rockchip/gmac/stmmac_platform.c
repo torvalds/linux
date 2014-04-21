@@ -70,12 +70,12 @@ static int phy_power_on(struct plat_stmmacenet_data *plat, int enable)
 {
 	struct bsp_priv * bsp_priv;
 
-	printk("enter %s ,enable = %d \n",__func__,enable);
+	pr_info("%s: enable = %d \n", __func__, enable);
 
 	if ((plat) && (plat->bsp_priv)) {
 		bsp_priv = plat->bsp_priv;
 	} else {
-		printk("ERROR: platform data or private data is NULL. %s\n", __FUNCTION__);
+		pr_err("%s: ERROR: platform data or private data is NULL.\n", __FUNCTION__);
 		return -1;
 	}
 
@@ -108,11 +108,12 @@ static int phy_power_on(struct plat_stmmacenet_data *plat, int enable)
 }
 
 int stmmc_pltfr_init(struct platform_device *pdev) {
-	struct pinctrl_state *gmac_state;
+	//struct pinctrl_state *gmac_state;
 	int phy_iface;
 	int err;
+	struct bsp_priv *bsp_priv;
 
-	printk("enter func %s...\n", __func__);
+	pr_info("%s: \n", __func__);
 
 //iomux
 #if 0
@@ -127,34 +128,34 @@ int stmmc_pltfr_init(struct platform_device *pdev) {
 	}
 #endif
 
-	struct bsp_priv * bsp_priv = &g_bsp_priv;
+	bsp_priv = &g_bsp_priv;
 	phy_iface = bsp_priv->phy_iface;
 //power
 	if (!gpio_is_valid(bsp_priv->power_io)) {
-		printk("%s: ERROR: Get power-gpio failed.\n", __func__);
+		pr_err("%s: ERROR: Get power-gpio failed.\n", __func__);
 		//return -EINVAL;
 	}
 
 	err = gpio_request(bsp_priv->power_io, "gmac_phy_power");
 	if (err) {
-		printk("%s: ERROR: Request gmac phy power pin failed.\n", __func__);
+		pr_err("%s: ERROR: Request gmac phy power pin failed.\n", __func__);
 		//return -EINVAL;
 	}
 
 	if (!gpio_is_valid(bsp_priv->reset_io)) {
-		printk("%s: ERROR: Get reset-gpio failed.\n", __func__);
+		pr_err("%s: ERROR: Get reset-gpio failed.\n", __func__);
 		//return -EINVAL;
 	}
 
 	err = gpio_request(bsp_priv->reset_io, "gmac_phy_reset");
 	if (err) {
-		printk("%s: ERROR: Request gmac phy reset pin failed.\n", __func__);
+		pr_err("%s: ERROR: Request gmac phy reset pin failed.\n", __func__);
 		//return -EINVAL;
 	}
 
 //rmii or rgmii
 	if (phy_iface & PHY_INTERFACE_MODE_RGMII) {
-		printk("init for RGMII\n");
+		pr_info("%s: init for RGMII\n", __func__);
 		grf_writel(GMAC_PHY_INTF_SEL_RGMII, RK3288_GRF_SOC_CON1);
 		grf_writel(GMAC_RMII_MODE_CLR, RK3288_GRF_SOC_CON1);
 		grf_writel(GMAC_RXCLK_DLY_ENABLE, RK3288_GRF_SOC_CON3);
@@ -162,29 +163,28 @@ int stmmc_pltfr_init(struct platform_device *pdev) {
 		grf_writel(GMAC_CLK_RX_DL_CFG(0x10), RK3288_GRF_SOC_CON3);
 		grf_writel(GMAC_CLK_TX_DL_CFG(0x40), RK3288_GRF_SOC_CON3);
 	} else if (phy_iface & PHY_INTERFACE_MODE_RMII) {
-		printk("init for RMII\n");
+		pr_info("%s: init for RMII\n", __func__);
 		grf_writel(GMAC_PHY_INTF_SEL_RMII, RK3288_GRF_SOC_CON1);
 		grf_writel(GMAC_RMII_MODE, RK3288_GRF_SOC_CON1);
 	} else {
-		printk("ERROR: NO interface defined!\n");
+		pr_err("%s: ERROR: NO interface defined!\n", __func__);
 	}
 
 	return 0;
 }
 
-void * stmmc_pltfr_fix_mac_speed(void *priv, unsigned int speed){
-	printk("enter func %s...\n", __func__);
+void stmmc_pltfr_fix_mac_speed(void *priv, unsigned int speed){
 	struct bsp_priv * bsp_priv = priv;
 	int interface;
 
-	printk("fix speed to %d\n", speed);
+	pr_info("%s: fix speed to %d\n", __func__, speed);
 
 	if (bsp_priv) {
 		interface = bsp_priv->phy_iface;
 	}
 
 	if (interface & PHY_INTERFACE_MODE_RGMII) {
-		printk("fix speed for RGMII\n");
+		pr_info("%s: fix speed for RGMII\n", __func__);
 
 		switch (speed) {
 			case 10: {
@@ -200,12 +200,12 @@ void * stmmc_pltfr_fix_mac_speed(void *priv, unsigned int speed){
 				break;
 			}
 			default: {
-				printk("ERROR: speed %d is not defined!\n");
+				pr_err("%s: ERROR: speed %d is not defined!\n", __func__, speed);
 			}
 		}
 
 	} else if (interface & PHY_INTERFACE_MODE_RMII) {
-		printk("fix speed for RMII\n");
+		pr_info("%s: fix speed for RMII\n", __func__);
 		switch (speed) {
 			case 10: {
 				grf_writel(GMAC_RMII_CLK_2_5M, RK3288_GRF_SOC_CON1);
@@ -216,14 +216,12 @@ void * stmmc_pltfr_fix_mac_speed(void *priv, unsigned int speed){
 				break;
 			}
 			default: {
-				printk("ERROR: speed %d is not defined!\n");
+				pr_err("%s: ERROR: speed %d is not defined!\n", __func__, speed);
 			}
 		}
 	} else {
-		printk("ERROR: NO interface defined!\n");
+		pr_err("%s: ERROR: NO interface defined!\n", __func__);
 	}
-
-	return NULL;
 }
 
 
@@ -316,7 +314,7 @@ static int stmmac_pltfr_probe(struct platform_device *pdev)
 
 		ret = stmmac_probe_config_dt(pdev, plat_dat, &mac);
 		if (ret) {
-			pr_err("%s: main dt probe failed", __func__);
+			pr_err("%s: ERROR: main dt probe failed", __func__);
 			return ret;
 		}
 	} else {
@@ -332,7 +330,7 @@ static int stmmac_pltfr_probe(struct platform_device *pdev)
 
 	priv = stmmac_dvr_probe(&(pdev->dev), plat_dat, addr);
 	if (!priv) {
-		pr_err("%s: main driver probe failed", __func__);
+		pr_err("%s: ERROR: main driver probe failed", __func__);
 		return -ENODEV;
 	}
 
