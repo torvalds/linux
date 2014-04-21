@@ -133,7 +133,7 @@ static void ct363_deinit(struct ct36x_data *ts)
 	return;
 }
 
-int ct363_first_init_flag = 1;
+static int ct363_first_init_flag = 1;
 static int ct363_suspend(struct ct36x_data *ts)
 {
 	int ret = 0;

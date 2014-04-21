@@ -29,7 +29,7 @@ static int five_v_en_probe(struct platform_device *pdev)
         int ret;
         int en_value;
 
-        printk("func: %s\n", __func__); 
+        //printk("func: %s\n", __func__); 
         if (!node)
                 return -ENODEV;
 
@@ -49,26 +49,26 @@ static int five_v_en_probe(struct platform_device *pdev)
 	}
 	gpio_direction_output(gpio, en_value);
 
-        printk("func: %s\n", __func__); 
+        //printk("func: %s\n", __func__); 
         return 0;
 }
 
 static int five_v_en_remove(struct platform_device *pdev)
 {
-        printk("func: %s\n", __func__); 
+        //printk("func: %s\n", __func__); 
 	return 0;
 }
 
 #ifdef CONFIG_PM_SLEEP
 static int five_v_en_suspend(struct device *dev)
 {
-        printk("func: %s\n", __func__); 
+        //printk("func: %s\n", __func__); 
 	return 0;
 }
 
 static int five_v_en_resume(struct device *dev)
 {
-        printk("func: %s\n", __func__); 
+        //printk("func: %s\n", __func__); 
 	return 0;
 }
 #endif
