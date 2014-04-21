@@ -116,6 +116,10 @@ void try_to_clear_window_buffer(struct pt_regs *regs, int who);
 /* tadpole.c */
 void __init clock_stop_probe(void);
 
+/* auxio_32.c */
+void __init auxio_probe(void);
+void __init auxio_power_probe(void);
+
 #else /* CONFIG_SPARC32 */
 #endif /* CONFIG_SPARC32 */
 #endif /* !(__SPARC_KERNEL_H) */

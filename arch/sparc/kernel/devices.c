@@ -132,11 +132,7 @@ void __init device_scan(void)
 	}
 #endif /* !CONFIG_SMP */
 
-	{
-		extern void auxio_probe(void);
-		extern void auxio_power_probe(void);
-		auxio_probe();
-		auxio_power_probe();
-	}
+	auxio_probe();
+	auxio_power_probe();
 	clock_stop_probe();
 }
