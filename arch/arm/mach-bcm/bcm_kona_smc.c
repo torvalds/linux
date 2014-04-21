@@ -21,11 +21,8 @@
 
 #include "bcm_kona_smc.h"
 
-struct secure_bridge_data {
-	void __iomem *bounce;		/* virtual address */
-	u32 __iomem buffer_addr;	/* physical address */
-	int initialized;
-} bridge_data;
+static u32		bcm_smc_buffer_phys;	/* physical address */
+static void __iomem	*bcm_smc_buffer;	/* virtual address */
 
 struct bcm_kona_smc_data {
 	unsigned service_id;
@@ -41,31 +38,37 @@ static const struct of_device_id bcm_kona_smc_ids[] __initconst = {
 	{},
 };
 
-/* Map in the bounce area */
+/* Map in the args buffer area */
 int __init bcm_kona_smc_init(void)
 {
 	struct device_node *node;
 	const __be32 *prop_val;
+	u64 prop_size = 0;
+	unsigned long buffer_size;
+	u32 buffer_phys;
 
 	/* Read buffer addr and size from the device tree node */
 	node = of_find_matching_node(NULL, bcm_kona_smc_ids);
 	if (!node)
 		return -ENODEV;
 
-	/* Don't care about size or flags of the DT node */
-	prop_val = of_get_address(node, 0, NULL, NULL);
+	prop_val = of_get_address(node, 0, &prop_size, NULL);
 	if (!prop_val)
 		return -EINVAL;
 
-	bridge_data.buffer_addr = be32_to_cpu(*prop_val);
-	if (!bridge_data.buffer_addr)
+	/* We assume space for four 32-bit arguments */
+	if (prop_size < 4 * sizeof(u32) || prop_size > (u64)ULONG_MAX)
+		return -EINVAL;
+	buffer_size = (unsigned long)prop_size;
+
+	buffer_phys = be32_to_cpup(prop_val);
+	if (!buffer_phys)
 		return -EINVAL;
 
-	bridge_data.bounce = of_iomap(node, 0);
-	if (!bridge_data.bounce)
+	bcm_smc_buffer = ioremap(buffer_phys, buffer_size);
+	if (!bcm_smc_buffer)
 		return -ENOMEM;
-
-	bridge_data.initialized = 1;
+	bcm_smc_buffer_phys = buffer_phys;
 
 	pr_info("Kona Secure API initialized\n");
 
@@ -76,14 +79,11 @@ int __init bcm_kona_smc_init(void)
 static void __bcm_kona_smc(void *info)
 {
 	struct bcm_kona_smc_data *data = info;
-	u32 *args = bridge_data.bounce;
-	int rc = 0;
+	u32 *args = bcm_smc_buffer;
+	int rc;
 
-	/* Must run on CPU 0 */
 	BUG_ON(smp_processor_id() != 0);
-
-	/* Check map in the bounce area */
-	BUG_ON(!bridge_data.initialized);
+	BUG_ON(!args);
 
 	/* Copy the four 32 bit argument values into the bounce area */
 	writel_relaxed(data->arg0, args++);
@@ -92,11 +92,10 @@ static void __bcm_kona_smc(void *info)
 	writel(data->arg3, args);
 
 	/* Flush caches for input data passed to Secure Monitor */
-	if (data->service_id != SSAPI_BRCM_START_VC_CORE)
-		flush_cache_all();
+	flush_cache_all();
 
 	/* Trap into Secure Monitor */
-	rc = bcm_kona_smc_asm(data->service_id, bridge_data.buffer_addr);
+	rc = bcm_kona_smc_asm(data->service_id, bcm_smc_buffer_phys);
 
 	if (rc != SEC_ROM_RET_OK)
 		pr_err("Secure Monitor call failed (0x%x)!\n", rc);
