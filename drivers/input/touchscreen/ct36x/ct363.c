@@ -133,12 +133,13 @@ static void ct363_deinit(struct ct36x_data *ts)
 	return;
 }
 
+int ct363_first_init_flag = 1;
 static int ct363_suspend(struct ct36x_data *ts)
 {
 	int ret = 0;
 
 	ret = ct36x_chip_go_sleep(ts);
-
+	ct363_first_init_flag=0;
 	if(ret < 0)
 		dev_warn(ts->dev, "CT363 chip: failed to go to sleep\n");
 	return ret;
@@ -149,9 +150,17 @@ static int ct363_resume(struct ct36x_data *ts)
 	int i;
 
 	/* Hardware reset */
-	ct363_reset_hw(ts);
-	msleep(3);
-
+	if(ct363_first_init_flag)
+		ct363_reset_hw(ts);
+	else
+	{
+	//	gpio_direction_output(ts->rst_io.gpio, ts->rst_io.active_low);
+	//	msleep(50);
+		gpio_set_value(ts->rst_io.gpio, !ts->rst_io.active_low);
+		msleep(50);
+		gpio_set_value(ts->rst_io.gpio, ts->rst_io.active_low);
+		msleep(50);
+	}
 	for(i = 0; i < ts->point_num; i++){
 		input_mt_slot(ts->input, i);
 		input_mt_report_slot_state(ts->input, MT_TOOL_FINGER, false);
