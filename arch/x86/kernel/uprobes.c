@@ -759,22 +759,24 @@ int arch_uprobe_post_xol(struct arch_uprobe *auprobe, struct pt_regs *regs)
 	struct uprobe_task *utask = current->utask;
 
 	WARN_ON_ONCE(current->thread.trap_nr != UPROBE_TRAP_NR);
+	current->thread.trap_nr = utask->autask.saved_trap_nr;
 
 	if (auprobe->ops->post_xol) {
 		int err = auprobe->ops->post_xol(auprobe, regs);
 		if (err) {
-			arch_uprobe_abort_xol(auprobe, regs);
+			if (!utask->autask.saved_tf)
+				regs->flags &= ~X86_EFLAGS_TF;
 			/*
-			 * Restart the probed insn. ->post_xol() must ensure
-			 * this is really possible if it returns -ERESTART.
+			 * Restore ->ip for restart or post mortem analysis.
+			 * ->post_xol() must not return -ERESTART unless this
+			 * is really possible.
 			 */
+			regs->ip = utask->vaddr;
 			if (err == -ERESTART)
 				return 0;
 			return err;
 		}
 	}
-
-	current->thread.trap_nr = utask->autask.saved_trap_nr;
 	/*
 	 * arch_uprobe_pre_xol() doesn't save the state of TIF_BLOCKSTEP
 	 * so we can get an extra SIGTRAP if we do not clear TF. We need
@@ -819,9 +821,8 @@ int arch_uprobe_exception_notify(struct notifier_block *self, unsigned long val,
 
 /*
  * This function gets called when XOL instruction either gets trapped or
- * the thread has a fatal signal, or if arch_uprobe_post_xol() failed.
- * Reset the instruction pointer to its probed address for the potential
- * restart or for post mortem analysis.
+ * the thread has a fatal signal. Reset the instruction pointer to its
+ * probed address for the potential restart or for post mortem analysis.
  */
 void arch_uprobe_abort_xol(struct arch_uprobe *auprobe, struct pt_regs *regs)
 {
