@@ -4033,8 +4033,6 @@ ext4_ext_handle_uninitialized_extents(handle_t *handle, struct inode *inode,
 		else
 			ext4_set_inode_state(inode, EXT4_STATE_DIO_UNWRITTEN);
 		map->m_flags |= EXT4_MAP_UNWRITTEN;
-		if (ext4_should_dioread_nolock(inode))
-			map->m_flags |= EXT4_MAP_UNINIT;
 		goto out;
 	}
 	/* IO end_io complete, convert the filled extent to written */
@@ -4479,8 +4477,6 @@ got_allocated_blocks:
 		 */
 		if ((flags & EXT4_GET_BLOCKS_PRE_IO))
 			set_unwritten = 1;
-		if (ext4_should_dioread_nolock(inode))
-			map->m_flags |= EXT4_MAP_UNINIT;
 	}
 
 	err = 0;

@@ -51,7 +51,6 @@ struct extent_status;
 	{ EXT4_MAP_MAPPED,	"M" },			\
 	{ EXT4_MAP_UNWRITTEN,	"U" },			\
 	{ EXT4_MAP_BOUNDARY,	"B" },			\
-	{ EXT4_MAP_UNINIT,	"u" },			\
 	{ EXT4_MAP_FROM_CLUSTER, "C" })
 
 #define show_free_flags(flags) __print_flags(flags, "|",	\

@@ -2126,7 +2126,7 @@ static int mpage_map_one_extent(handle_t *handle, struct mpage_da_data *mpd)
 	struct inode *inode = mpd->inode;
 	struct ext4_map_blocks *map = &mpd->map;
 	int get_blocks_flags;
-	int err;
+	int err, dioread_nolock;
 
 	trace_ext4_da_write_pages_extent(inode, map);
 	/*
@@ -2148,7 +2148,8 @@ static int mpage_map_one_extent(handle_t *handle, struct mpage_da_data *mpd)
 	 */
 	get_blocks_flags = EXT4_GET_BLOCKS_CREATE |
 			   EXT4_GET_BLOCKS_METADATA_NOFAIL;
-	if (ext4_should_dioread_nolock(inode))
+	dioread_nolock = ext4_should_dioread_nolock(inode);
+	if (dioread_nolock)
 		get_blocks_flags |= EXT4_GET_BLOCKS_IO_CREATE_EXT;
 	if (map->m_flags & (1 << BH_Delay))
 		get_blocks_flags |= EXT4_GET_BLOCKS_DELALLOC_RESERVE;
@@ -2156,7 +2157,7 @@ static int mpage_map_one_extent(handle_t *handle, struct mpage_da_data *mpd)
 	err = ext4_map_blocks(handle, inode, map, get_blocks_flags);
 	if (err < 0)
 		return err;
-	if (map->m_flags & EXT4_MAP_UNINIT) {
+	if (dioread_nolock && (map->m_flags & EXT4_MAP_UNWRITTEN)) {
 		if (!mpd->io_submit.io_end->handle &&
 		    ext4_handle_valid(handle)) {
 			mpd->io_submit.io_end->handle = handle->h_rsv_handle;
