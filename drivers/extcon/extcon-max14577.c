@@ -747,7 +747,7 @@ static int max14577_muic_probe(struct platform_device *pdev)
 
 	info->edev->name = dev_name(&pdev->dev);
 	info->edev->supported_cable = max14577_extcon_cable;
-	ret = extcon_dev_register(info->edev);
+	ret = devm_extcon_dev_register(&pdev->dev, info->edev);
 	if (ret) {
 		dev_err(&pdev->dev, "failed to register extcon device\n");
 		return ret;
@@ -766,7 +766,7 @@ static int max14577_muic_probe(struct platform_device *pdev)
 			MAX14577_REG_DEVICEID, &id);
 	if (ret < 0) {
 		dev_err(&pdev->dev, "failed to read revision number\n");
-		goto err_extcon;
+		return ret;
 	}
 	dev_info(info->dev, "device ID : 0x%x\n", id);
 
@@ -786,10 +786,6 @@ static int max14577_muic_probe(struct platform_device *pdev)
 			delay_jiffies);
 
 	return ret;
-
-err_extcon:
-	extcon_dev_unregister(info->edev);
-	return ret;
 }
 
 static int max14577_muic_remove(struct platform_device *pdev)
@@ -797,7 +793,6 @@ static int max14577_muic_remove(struct platform_device *pdev)
 	struct max14577_muic_info *info = platform_get_drvdata(pdev);
 
 	cancel_work_sync(&info->irq_work);
-	extcon_dev_unregister(info->edev);
 
 	return 0;
 }
