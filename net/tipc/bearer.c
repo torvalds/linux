@@ -535,7 +535,7 @@ static int tipc_l2_rcv_msg(struct sk_buff *buf, struct net_device *dev,
 	}
 
 	rcu_read_lock();
-	b_ptr = rcu_dereference(dev->tipc_ptr);
+	b_ptr = rcu_dereference_rtnl(dev->tipc_ptr);
 	if (likely(b_ptr)) {
 		if (likely(buf->pkt_type <= PACKET_BROADCAST)) {
 			buf->next = NULL;
@@ -568,12 +568,9 @@ static int tipc_l2_device_event(struct notifier_block *nb, unsigned long evt,
 	if (!net_eq(dev_net(dev), &init_net))
 		return NOTIFY_DONE;
 
-	rcu_read_lock();
-	b_ptr = rcu_dereference(dev->tipc_ptr);
-	if (!b_ptr) {
-		rcu_read_unlock();
+	b_ptr = rtnl_dereference(dev->tipc_ptr);
+	if (!b_ptr)
 		return NOTIFY_DONE;
-	}
 
 	b_ptr->mtu = dev->mtu;
 
@@ -595,8 +592,6 @@ static int tipc_l2_device_event(struct notifier_block *nb, unsigned long evt,
 		tipc_disable_bearer(b_ptr->name);
 		break;
 	}
-	rcu_read_unlock();
-
 	return NOTIFY_OK;
 }
 
