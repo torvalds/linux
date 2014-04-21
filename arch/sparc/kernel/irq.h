@@ -82,6 +82,9 @@ void handler_irq(unsigned int pil, struct pt_regs *regs);
 
 unsigned long leon_get_irqmask(unsigned int irq);
 
+/* irq_32.c */
+void sparc_floppy_irq(int irq, void *dev_id, struct pt_regs *regs);
+
 /* sun4m_irq.c */
 void sun4m_nmi(struct pt_regs *regs);
 
