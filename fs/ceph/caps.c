@@ -2805,7 +2805,7 @@ static void handle_cap_export(struct inode *inode, struct ceph_mds_caps *ex,
 retry:
 	spin_lock(&ci->i_ceph_lock);
 	cap = __get_cap_for_mds(ci, mds);
-	if (!cap)
+	if (!cap || cap->cap_id != le64_to_cpu(ex->cap_id))
 		goto out_unlock;
 
 	if (target < 0) {
