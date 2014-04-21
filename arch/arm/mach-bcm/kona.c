@@ -11,11 +11,12 @@
  * GNU General Public License for more details.
  */
 
-#include <linux/of_platform.h>
+
+#include <linux/init.h>
+#include <linux/printk.h>
 #include <asm/hardware/cache-l2x0.h>
 
 #include "bcm_kona_smc.h"
-#include "kona.h"
 
 void __init kona_l2_cache_init(void)
 {
