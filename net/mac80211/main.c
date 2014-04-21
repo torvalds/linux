@@ -338,7 +338,7 @@ static int ieee80211_ifa_changed(struct notifier_block *nb,
 
 	sdata_unlock(sdata);
 
-	return NOTIFY_DONE;
+	return NOTIFY_OK;
 }
 #endif
 
@@ -369,7 +369,7 @@ static int ieee80211_ifa6_changed(struct notifier_block *nb,
 
 	drv_ipv6_addr_change(local, sdata, idev);
 
-	return NOTIFY_DONE;
+	return NOTIFY_OK;
 }
 #endif
 

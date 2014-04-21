@@ -1787,20 +1787,19 @@ static int netdev_notify(struct notifier_block *nb,
 	struct ieee80211_sub_if_data *sdata;
 
 	if (state != NETDEV_CHANGENAME)
-		return 0;
+		return NOTIFY_DONE;
 
 	if (!dev->ieee80211_ptr || !dev->ieee80211_ptr->wiphy)
-		return 0;
+		return NOTIFY_DONE;
 
 	if (dev->ieee80211_ptr->wiphy->privid != mac80211_wiphy_privid)
-		return 0;
+		return NOTIFY_DONE;
 
 	sdata = IEEE80211_DEV_TO_SUB_IF(dev);
-
 	memcpy(sdata->name, dev->name, IFNAMSIZ);
-
 	ieee80211_debugfs_rename_netdev(sdata);
-	return 0;
+
+	return NOTIFY_OK;
 }
 
 static struct notifier_block mac80211_netdev_notifier = {

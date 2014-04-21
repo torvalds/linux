@@ -3701,7 +3701,7 @@ int ieee80211_max_network_latency(struct notifier_block *nb,
 	ieee80211_recalc_ps(local, latency_usec);
 	mutex_unlock(&local->iflist_mtx);
 
-	return 0;
+	return NOTIFY_OK;
 }
 
 static u8 ieee80211_ht_vht_rx_chains(struct ieee80211_sub_if_data *sdata,
