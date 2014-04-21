@@ -39,7 +39,7 @@
  * @chan:		iio channel being queried.
  */
 struct adc_jack_data {
-	struct extcon_dev edev;
+	struct extcon_dev *edev;
 
 	const char **cable_names;
 	int num_cables;
@@ -64,7 +64,7 @@ static void adc_jack_handler(struct work_struct *work)
 
 	ret = iio_read_channel_raw(data->chan, &adc_val);
 	if (ret < 0) {
-		dev_err(&data->edev.dev, "read channel() error: %d\n", ret);
+		dev_err(&data->edev->dev, "read channel() error: %d\n", ret);
 		return;
 	}
 
@@ -80,7 +80,7 @@ static void adc_jack_handler(struct work_struct *work)
 	}
 	/* if no def has met, it means state = 0 (no cables attached) */
 
-	extcon_set_state(&data->edev, state);
+	extcon_set_state(data->edev, state);
 }
 
 static irqreturn_t adc_jack_irq_thread(int irq, void *_data)
@@ -102,18 +102,21 @@ static int adc_jack_probe(struct platform_device *pdev)
 	if (!data)
 		return -ENOMEM;
 
-	data->edev.name = pdata->name;
-
 	if (!pdata->cable_names) {
 		dev_err(&pdev->dev, "error: cable_names not defined.\n");
 		return -EINVAL;
 	}
 
-	data->edev.dev.parent = &pdev->dev;
-	data->edev.supported_cable = pdata->cable_names;
+	data->edev = devm_extcon_dev_allocate(&pdev->dev, pdata->cable_names);
+	if (IS_ERR(data->edev)) {
+		dev_err(&pdev->dev, "failed to allocate extcon device\n");
+		return -ENOMEM;
+	}
+	data->edev->dev.parent = &pdev->dev;
+	data->edev->name = pdata->name;
 
 	/* Check the length of array and set num_cables */
-	for (i = 0; data->edev.supported_cable[i]; i++)
+	for (i = 0; data->edev->supported_cable[i]; i++)
 		;
 	if (i == 0 || i > SUPPORTED_CABLE_MAX) {
 		dev_err(&pdev->dev, "error: pdata->cable_names size = %d\n",
@@ -144,7 +147,7 @@ static int adc_jack_probe(struct platform_device *pdev)
 
 	platform_set_drvdata(pdev, data);
 
-	err = devm_extcon_dev_register(&pdev->dev, &data->edev);
+	err = devm_extcon_dev_register(&pdev->dev, data->edev);
 	if (err)
 		return err;
 
