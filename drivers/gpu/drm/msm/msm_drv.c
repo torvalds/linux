@@ -56,6 +56,10 @@ static char *vram;
 MODULE_PARM_DESC(vram, "Configure VRAM size (for devices without IOMMU/GPUMMU");
 module_param(vram, charp, 0);
 
+/*
+ * Util/helpers:
+ */
+
 void __iomem *msm_ioremap(struct platform_device *pdev, const char *name,
 		const char *dbgname)
 {
@@ -143,6 +147,8 @@ static int msm_unload(struct drm_device *dev)
 				priv->vram.paddr, &attrs);
 	}
 
+	component_unbind_all(dev->dev, dev);
+
 	dev->dev_private = NULL;
 
 	kfree(priv);
@@ -174,6 +180,7 @@ static int msm_load(struct drm_device *dev, unsigned long flags)
 	struct msm_drm_private *priv;
 	struct msm_kms *kms;
 	int ret;
+
 
 	priv = kzalloc(sizeof(*priv), GFP_KERNEL);
 	if (!priv) {
@@ -225,6 +232,13 @@ static int msm_load(struct drm_device *dev, unsigned long flags)
 				(uint32_t)priv->vram.paddr,
 				(uint32_t)(priv->vram.paddr + size));
 	}
+
+	platform_set_drvdata(pdev, dev);
+
+	/* Bind all our sub-components: */
+	ret = component_bind_all(dev->dev, dev);
+	if (ret)
+		return ret;
 
 	switch (get_mdp_ver(pdev)) {
 	case 4:
@@ -281,8 +295,6 @@ static int msm_load(struct drm_device *dev, unsigned long flags)
 		goto fail;
 	}
 
-	platform_set_drvdata(pdev, dev);
-
 #ifdef CONFIG_DRM_MSM_FBDEV
 	priv->fbdev = msm_fbdev_init(dev);
 #endif
@@ -311,7 +323,6 @@ static void load_gpu(struct drm_device *dev)
 		gpu = NULL;
 		/* not fatal */
 	}
-	mutex_unlock(&dev->struct_mutex);
 
 	if (gpu) {
 		int ret;
@@ -321,10 +332,16 @@ static void load_gpu(struct drm_device *dev)
 			dev_err(dev->dev, "gpu hw init failed: %d\n", ret);
 			gpu->funcs->destroy(gpu);
 			gpu = NULL;
+		} else {
+			/* give inactive pm a chance to kick in: */
+			msm_gpu_retire(gpu);
 		}
+
 	}
 
 	priv->gpu = gpu;
+
+	mutex_unlock(&dev->struct_mutex);
 }
 
 static int msm_open(struct drm_device *dev, struct drm_file *file)
@@ -647,6 +664,12 @@ static int msm_ioctl_gem_new(struct drm_device *dev, void *data,
 		struct drm_file *file)
 {
 	struct drm_msm_gem_new *args = data;
+
+	if (args->flags & ~MSM_BO_FLAGS) {
+		DRM_ERROR("invalid flags: %08x\n", args->flags);
+		return -EINVAL;
+	}
+
 	return msm_gem_new_handle(dev, file, args->size,
 			args->flags, &args->handle);
 }
@@ -659,6 +682,11 @@ static int msm_ioctl_gem_cpu_prep(struct drm_device *dev, void *data,
 	struct drm_msm_gem_cpu_prep *args = data;
 	struct drm_gem_object *obj;
 	int ret;
+
+	if (args->op & ~MSM_PREP_FLAGS) {
+		DRM_ERROR("invalid op: %08x\n", args->op);
+		return -EINVAL;
+	}
 
 	obj = drm_gem_object_lookup(dev, file, args->handle);
 	if (!obj)
@@ -714,7 +742,14 @@ static int msm_ioctl_wait_fence(struct drm_device *dev, void *data,
 		struct drm_file *file)
 {
 	struct drm_msm_wait_fence *args = data;
-	return msm_wait_fence_interruptable(dev, args->fence, &TS(args->timeout));
+
+	if (args->pad) {
+		DRM_ERROR("invalid pad: %08x\n", args->pad);
+		return -EINVAL;
+	}
+
+	return msm_wait_fence_interruptable(dev, args->fence,
+			&TS(args->timeout));
 }
 
 static const struct drm_ioctl_desc msm_ioctls[] = {
@@ -819,18 +854,110 @@ static const struct dev_pm_ops msm_pm_ops = {
 };
 
 /*
+ * Componentized driver support:
+ */
+
+#ifdef CONFIG_OF
+/* NOTE: the CONFIG_OF case duplicates the same code as exynos or imx
+ * (or probably any other).. so probably some room for some helpers
+ */
+static int compare_of(struct device *dev, void *data)
+{
+	return dev->of_node == data;
+}
+
+static int msm_drm_add_components(struct device *master, struct master *m)
+{
+	struct device_node *np = master->of_node;
+	unsigned i;
+	int ret;
+
+	for (i = 0; ; i++) {
+		struct device_node *node;
+
+		node = of_parse_phandle(np, "connectors", i);
+		if (!node)
+			break;
+
+		ret = component_master_add_child(m, compare_of, node);
+		of_node_put(node);
+
+		if (ret)
+			return ret;
+	}
+	return 0;
+}
+#else
+static int compare_dev(struct device *dev, void *data)
+{
+	return dev == data;
+}
+
+static int msm_drm_add_components(struct device *master, struct master *m)
+{
+	/* For non-DT case, it kinda sucks.  We don't actually have a way
+	 * to know whether or not we are waiting for certain devices (or if
+	 * they are simply not present).  But for non-DT we only need to
+	 * care about apq8064/apq8060/etc (all mdp4/a3xx):
+	 */
+	static const char *devnames[] = {
+			"hdmi_msm.0", "kgsl-3d0.0",
+	};
+	int i;
+
+	DBG("Adding components..");
+
+	for (i = 0; i < ARRAY_SIZE(devnames); i++) {
+		struct device *dev;
+		int ret;
+
+		dev = bus_find_device_by_name(&platform_bus_type,
+				NULL, devnames[i]);
+		if (!dev) {
+			dev_info(master, "still waiting for %s\n", devnames[i]);
+			return -EPROBE_DEFER;
+		}
+
+		ret = component_master_add_child(m, compare_dev, dev);
+		if (ret) {
+			DBG("could not add child: %d", ret);
+			return ret;
+		}
+	}
+
+	return 0;
+}
+#endif
+
+static int msm_drm_bind(struct device *dev)
+{
+	return drm_platform_init(&msm_driver, to_platform_device(dev));
+}
+
+static void msm_drm_unbind(struct device *dev)
+{
+	drm_put_dev(platform_get_drvdata(to_platform_device(dev)));
+}
+
+static const struct component_master_ops msm_drm_ops = {
+		.add_components = msm_drm_add_components,
+		.bind = msm_drm_bind,
+		.unbind = msm_drm_unbind,
+};
+
+/*
  * Platform driver:
  */
 
 static int msm_pdev_probe(struct platform_device *pdev)
 {
 	pdev->dev.coherent_dma_mask = DMA_BIT_MASK(32);
-	return drm_platform_init(&msm_driver, pdev);
+	return component_master_add(&pdev->dev, &msm_drm_ops);
 }
 
 static int msm_pdev_remove(struct platform_device *pdev)
 {
-	drm_put_dev(platform_get_drvdata(pdev));
+	component_master_del(&pdev->dev, &msm_drm_ops);
 
 	return 0;
 }

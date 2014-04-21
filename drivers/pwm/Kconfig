@@ -71,6 +71,15 @@ config PWM_BFIN
 	  To compile this driver as a module, choose M here: the module
 	  will be called pwm-bfin.
 
+config PWM_CLPS711X
+	tristate "CLPS711X PWM support"
+	depends on ARCH_CLPS711X || COMPILE_TEST
+	help
+	  Generic PWM framework driver for Cirrus Logic CLPS711X.
+
+	  To compile this driver as a module, choose M here: the module
+	  will be called pwm-clps711x.
+
 config PWM_EP93XX
 	tristate "Cirrus Logic EP93xx PWM support"
 	depends on ARCH_EP93XX
@@ -79,6 +88,16 @@ config PWM_EP93XX
 
 	  To compile this driver as a module, choose M here: the module
 	  will be called pwm-ep93xx.
+
+config PWM_FSL_FTM
+	tristate "Freescale FlexTimer Module (FTM) PWM support"
+	depends on OF
+	help
+	  Generic FTM PWM framework driver for Freescale VF610 and
+	  Layerscape LS-1 SoCs.
+
+	  To compile this driver as a module, choose M here: the module
+	  will be called pwm-fsl-ftm.
 
 config PWM_IMX
 	tristate "i.MX PWM support"
@@ -118,6 +137,16 @@ config PWM_LPC32XX
 
 	  To compile this driver as a module, choose M here: the module
 	  will be called pwm-lpc32xx.
+
+config PWM_LPSS
+	tristate "Intel LPSS PWM support"
+	depends on ACPI
+	help
+	  Generic PWM framework driver for Intel Low Power Subsystem PWM
+	  controller.
+
+	  To compile this driver as a module, choose M here: the module
+	  will be called pwm-lpss.
 
 config PWM_MXS
 	tristate "Freescale MXS PWM support"
@@ -160,6 +189,7 @@ config PWM_PXA
 config PWM_RENESAS_TPU
 	tristate "Renesas TPU PWM support"
 	depends on ARCH_SHMOBILE || COMPILE_TEST
+	depends on HAS_IOMEM
 	help
 	  This driver exposes the Timer Pulse Unit (TPU) PWM controller found
 	  in Renesas chips through the PWM API.

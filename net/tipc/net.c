@@ -182,6 +182,8 @@ void tipc_net_start(u32 addr)
 	tipc_bclink_init();
 	write_unlock_bh(&tipc_net_lock);
 
+	tipc_nametbl_publish(TIPC_CFG_SRV, tipc_own_addr, tipc_own_addr,
+			     TIPC_ZONE_SCOPE, 0, tipc_own_addr);
 	pr_info("Started in network mode\n");
 	pr_info("Own node address %s, network identity %u\n",
 		tipc_addr_string_fill(addr_string, tipc_own_addr), tipc_net_id);
@@ -192,6 +194,7 @@ void tipc_net_stop(void)
 	if (!tipc_own_addr)
 		return;
 
+	tipc_nametbl_withdraw(TIPC_CFG_SRV, tipc_own_addr, 0, tipc_own_addr);
 	write_lock_bh(&tipc_net_lock);
 	tipc_bearer_stop();
 	tipc_bclink_stop();

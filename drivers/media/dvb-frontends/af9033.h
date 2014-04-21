@@ -78,16 +78,42 @@ struct af9033_config {
 };
 
 
+struct af9033_ops {
+	int (*pid_filter_ctrl)(struct dvb_frontend *fe, int onoff);
+	int (*pid_filter)(struct dvb_frontend *fe, int index, u16 pid,
+			  int onoff);
+};
+
+
 #if IS_ENABLED(CONFIG_DVB_AF9033)
-extern struct dvb_frontend *af9033_attach(const struct af9033_config *config,
-	struct i2c_adapter *i2c);
+extern
+struct dvb_frontend *af9033_attach(const struct af9033_config *config,
+				   struct i2c_adapter *i2c,
+				   struct af9033_ops *ops);
+
 #else
-static inline struct dvb_frontend *af9033_attach(
-	const struct af9033_config *config, struct i2c_adapter *i2c)
+static inline
+struct dvb_frontend *af9033_attach(const struct af9033_config *config,
+				   struct i2c_adapter *i2c,
+				   struct af9033_ops *ops)
 {
 	pr_warn("%s: driver disabled by Kconfig\n", __func__);
 	return NULL;
 }
+
+static inline int af9033_pid_filter_ctrl(struct dvb_frontend *fe, int onoff)
+{
+	pr_warn("%s: driver disabled by Kconfig\n", __func__);
+	return -ENODEV;
+}
+
+static inline int af9033_pid_filter(struct dvb_frontend *fe, int index, u16 pid,
+	int onoff)
+{
+	pr_warn("%s: driver disabled by Kconfig\n", __func__);
+	return -ENODEV;
+}
+
 #endif
 
 #endif /* AF9033_H */

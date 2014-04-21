@@ -38,6 +38,7 @@ MODULE_FIRMWARE("radeon/BONAIRE_me.bin");
 MODULE_FIRMWARE("radeon/BONAIRE_ce.bin");
 MODULE_FIRMWARE("radeon/BONAIRE_mec.bin");
 MODULE_FIRMWARE("radeon/BONAIRE_mc.bin");
+MODULE_FIRMWARE("radeon/BONAIRE_mc2.bin");
 MODULE_FIRMWARE("radeon/BONAIRE_rlc.bin");
 MODULE_FIRMWARE("radeon/BONAIRE_sdma.bin");
 MODULE_FIRMWARE("radeon/BONAIRE_smc.bin");
@@ -46,6 +47,7 @@ MODULE_FIRMWARE("radeon/HAWAII_me.bin");
 MODULE_FIRMWARE("radeon/HAWAII_ce.bin");
 MODULE_FIRMWARE("radeon/HAWAII_mec.bin");
 MODULE_FIRMWARE("radeon/HAWAII_mc.bin");
+MODULE_FIRMWARE("radeon/HAWAII_mc2.bin");
 MODULE_FIRMWARE("radeon/HAWAII_rlc.bin");
 MODULE_FIRMWARE("radeon/HAWAII_sdma.bin");
 MODULE_FIRMWARE("radeon/HAWAII_smc.bin");
@@ -75,6 +77,7 @@ extern void si_init_uvd_internal_cg(struct radeon_device *rdev);
 extern int cik_sdma_resume(struct radeon_device *rdev);
 extern void cik_sdma_enable(struct radeon_device *rdev, bool enable);
 extern void cik_sdma_fini(struct radeon_device *rdev);
+extern void vce_v2_0_enable_mgcg(struct radeon_device *rdev, bool enable);
 static void cik_rlc_stop(struct radeon_device *rdev);
 static void cik_pcie_gen3_enable(struct radeon_device *rdev);
 static void cik_program_aspm(struct radeon_device *rdev);
@@ -1095,7 +1098,7 @@ static const u32 spectre_golden_registers[] =
 	0x8a14, 0xf000003f, 0x00000007,
 	0x8b24, 0xffffffff, 0x00ffffff,
 	0x28350, 0x3f3f3fff, 0x00000082,
-	0x28355, 0x0000003f, 0x00000000,
+	0x28354, 0x0000003f, 0x00000000,
 	0x3e78, 0x00000001, 0x00000002,
 	0x913c, 0xffff03df, 0x00000004,
 	0xc768, 0x00000008, 0x00000008,
@@ -1702,20 +1705,20 @@ int ci_mc_load_microcode(struct radeon_device *rdev)
 	const __be32 *fw_data;
 	u32 running, blackout = 0;
 	u32 *io_mc_regs;
-	int i, ucode_size, regs_size;
+	int i, regs_size, ucode_size;
 
 	if (!rdev->mc_fw)
 		return -EINVAL;
 
+	ucode_size = rdev->mc_fw->size / 4;
+
 	switch (rdev->family) {
 	case CHIP_BONAIRE:
 		io_mc_regs = (u32 *)&bonaire_io_mc_regs;
-		ucode_size = CIK_MC_UCODE_SIZE;
 		regs_size = BONAIRE_IO_MC_REGS_SIZE;
 		break;
 	case CHIP_HAWAII:
 		io_mc_regs = (u32 *)&hawaii_io_mc_regs;
-		ucode_size = HAWAII_MC_UCODE_SIZE;
 		regs_size = HAWAII_IO_MC_REGS_SIZE;
 		break;
 	default:
@@ -1782,7 +1785,7 @@ static int cik_init_microcode(struct radeon_device *rdev)
 	const char *chip_name;
 	size_t pfp_req_size, me_req_size, ce_req_size,
 		mec_req_size, rlc_req_size, mc_req_size = 0,
-		sdma_req_size, smc_req_size = 0;
+		sdma_req_size, smc_req_size = 0, mc2_req_size = 0;
 	char fw_name[30];
 	int err;
 
@@ -1796,7 +1799,8 @@ static int cik_init_microcode(struct radeon_device *rdev)
 		ce_req_size = CIK_CE_UCODE_SIZE * 4;
 		mec_req_size = CIK_MEC_UCODE_SIZE * 4;
 		rlc_req_size = BONAIRE_RLC_UCODE_SIZE * 4;
-		mc_req_size = CIK_MC_UCODE_SIZE * 4;
+		mc_req_size = BONAIRE_MC_UCODE_SIZE * 4;
+		mc2_req_size = BONAIRE_MC2_UCODE_SIZE * 4;
 		sdma_req_size = CIK_SDMA_UCODE_SIZE * 4;
 		smc_req_size = ALIGN(BONAIRE_SMC_UCODE_SIZE, 4);
 		break;
@@ -1808,6 +1812,7 @@ static int cik_init_microcode(struct radeon_device *rdev)
 		mec_req_size = CIK_MEC_UCODE_SIZE * 4;
 		rlc_req_size = BONAIRE_RLC_UCODE_SIZE * 4;
 		mc_req_size = HAWAII_MC_UCODE_SIZE * 4;
+		mc2_req_size = HAWAII_MC2_UCODE_SIZE * 4;
 		sdma_req_size = CIK_SDMA_UCODE_SIZE * 4;
 		smc_req_size = ALIGN(HAWAII_SMC_UCODE_SIZE, 4);
 		break;
@@ -1903,16 +1908,22 @@ static int cik_init_microcode(struct radeon_device *rdev)
 
 	/* No SMC, MC ucode on APUs */
 	if (!(rdev->flags & RADEON_IS_IGP)) {
-		snprintf(fw_name, sizeof(fw_name), "radeon/%s_mc.bin", chip_name);
+		snprintf(fw_name, sizeof(fw_name), "radeon/%s_mc2.bin", chip_name);
 		err = request_firmware(&rdev->mc_fw, fw_name, rdev->dev);
-		if (err)
-			goto out;
-		if (rdev->mc_fw->size != mc_req_size) {
+		if (err) {
+			snprintf(fw_name, sizeof(fw_name), "radeon/%s_mc.bin", chip_name);
+			err = request_firmware(&rdev->mc_fw, fw_name, rdev->dev);
+			if (err)
+				goto out;
+		}
+		if ((rdev->mc_fw->size != mc_req_size) &&
+		    (rdev->mc_fw->size != mc2_req_size)){
 			printk(KERN_ERR
 			       "cik_mc: Bogus length %zu in firmware \"%s\"\n",
 			       rdev->mc_fw->size, fw_name);
 			err = -EINVAL;
 		}
+		DRM_INFO("%s: %zu bytes\n", fw_name, rdev->mc_fw->size);
 
 		snprintf(fw_name, sizeof(fw_name), "radeon/%s_smc.bin", chip_name);
 		err = request_firmware(&rdev->smc_fw, fw_name, rdev->dev);
@@ -2028,6 +2039,7 @@ static void cik_tiling_mode_table_init(struct radeon_device *rdev)
 				break;
 			case 5:
 				gb_tile_moden = (ARRAY_MODE(ARRAY_1D_TILED_THIN1) |
+						 PIPE_CONFIG(ADDR_SURF_P16_32x32_16x16) |
 						 MICRO_TILE_MODE_NEW(ADDR_SURF_DEPTH_MICRO_TILING));
 				break;
 			case 6:
@@ -2048,6 +2060,7 @@ static void cik_tiling_mode_table_init(struct radeon_device *rdev)
 				break;
 			case 9:
 				gb_tile_moden = (ARRAY_MODE(ARRAY_1D_TILED_THIN1) |
+						 PIPE_CONFIG(ADDR_SURF_P16_32x32_16x16) |
 						 MICRO_TILE_MODE_NEW(ADDR_SURF_DISPLAY_MICRO_TILING));
 				break;
 			case 10:
@@ -2070,6 +2083,7 @@ static void cik_tiling_mode_table_init(struct radeon_device *rdev)
 				break;
 			case 13:
 				gb_tile_moden = (ARRAY_MODE(ARRAY_1D_TILED_THIN1) |
+						 PIPE_CONFIG(ADDR_SURF_P16_32x32_16x16) |
 						 MICRO_TILE_MODE_NEW(ADDR_SURF_THIN_MICRO_TILING));
 				break;
 			case 14:
@@ -2092,6 +2106,7 @@ static void cik_tiling_mode_table_init(struct radeon_device *rdev)
 				break;
 			case 27:
 				gb_tile_moden = (ARRAY_MODE(ARRAY_1D_TILED_THIN1) |
+						 PIPE_CONFIG(ADDR_SURF_P16_32x32_16x16) |
 						 MICRO_TILE_MODE_NEW(ADDR_SURF_ROTATED_MICRO_TILING));
 				break;
 			case 28:
@@ -2246,6 +2261,7 @@ static void cik_tiling_mode_table_init(struct radeon_device *rdev)
 				break;
 			case 5:
 				gb_tile_moden = (ARRAY_MODE(ARRAY_1D_TILED_THIN1) |
+						 PIPE_CONFIG(ADDR_SURF_P8_32x32_16x16) |
 						 MICRO_TILE_MODE_NEW(ADDR_SURF_DEPTH_MICRO_TILING));
 				break;
 			case 6:
@@ -2266,6 +2282,7 @@ static void cik_tiling_mode_table_init(struct radeon_device *rdev)
 				break;
 			case 9:
 				gb_tile_moden = (ARRAY_MODE(ARRAY_1D_TILED_THIN1) |
+						 PIPE_CONFIG(ADDR_SURF_P8_32x32_16x16) |
 						 MICRO_TILE_MODE_NEW(ADDR_SURF_DISPLAY_MICRO_TILING));
 				break;
 			case 10:
@@ -2288,6 +2305,7 @@ static void cik_tiling_mode_table_init(struct radeon_device *rdev)
 				break;
 			case 13:
 				gb_tile_moden = (ARRAY_MODE(ARRAY_1D_TILED_THIN1) |
+						 PIPE_CONFIG(ADDR_SURF_P8_32x32_16x16) |
 						 MICRO_TILE_MODE_NEW(ADDR_SURF_THIN_MICRO_TILING));
 				break;
 			case 14:
@@ -2310,6 +2328,7 @@ static void cik_tiling_mode_table_init(struct radeon_device *rdev)
 				break;
 			case 27:
 				gb_tile_moden = (ARRAY_MODE(ARRAY_1D_TILED_THIN1) |
+						 PIPE_CONFIG(ADDR_SURF_P8_32x32_16x16) |
 						 MICRO_TILE_MODE_NEW(ADDR_SURF_ROTATED_MICRO_TILING));
 				break;
 			case 28:
@@ -2466,6 +2485,7 @@ static void cik_tiling_mode_table_init(struct radeon_device *rdev)
 					break;
 				case 5:
 					gb_tile_moden = (ARRAY_MODE(ARRAY_1D_TILED_THIN1) |
+							 PIPE_CONFIG(ADDR_SURF_P4_16x16) |
 							 MICRO_TILE_MODE_NEW(ADDR_SURF_DEPTH_MICRO_TILING));
 					break;
 				case 6:
@@ -2486,6 +2506,7 @@ static void cik_tiling_mode_table_init(struct radeon_device *rdev)
 					break;
 				case 9:
 					gb_tile_moden = (ARRAY_MODE(ARRAY_1D_TILED_THIN1) |
+							 PIPE_CONFIG(ADDR_SURF_P4_16x16) |
 							 MICRO_TILE_MODE_NEW(ADDR_SURF_DISPLAY_MICRO_TILING));
 					break;
 				case 10:
@@ -2508,6 +2529,7 @@ static void cik_tiling_mode_table_init(struct radeon_device *rdev)
 					break;
 				case 13:
 					gb_tile_moden = (ARRAY_MODE(ARRAY_1D_TILED_THIN1) |
+							 PIPE_CONFIG(ADDR_SURF_P4_16x16) |
 							 MICRO_TILE_MODE_NEW(ADDR_SURF_THIN_MICRO_TILING));
 					break;
 				case 14:
@@ -2530,6 +2552,7 @@ static void cik_tiling_mode_table_init(struct radeon_device *rdev)
 					break;
 				case 27:
 					gb_tile_moden = (ARRAY_MODE(ARRAY_1D_TILED_THIN1) |
+							 PIPE_CONFIG(ADDR_SURF_P4_16x16) |
 							 MICRO_TILE_MODE_NEW(ADDR_SURF_ROTATED_MICRO_TILING));
 					break;
 				case 28:
@@ -2592,6 +2615,7 @@ static void cik_tiling_mode_table_init(struct radeon_device *rdev)
 					break;
 				case 5:
 					gb_tile_moden = (ARRAY_MODE(ARRAY_1D_TILED_THIN1) |
+							 PIPE_CONFIG(ADDR_SURF_P4_8x16) |
 							 MICRO_TILE_MODE_NEW(ADDR_SURF_DEPTH_MICRO_TILING));
 					break;
 				case 6:
@@ -2612,6 +2636,7 @@ static void cik_tiling_mode_table_init(struct radeon_device *rdev)
 					break;
 				case 9:
 					gb_tile_moden = (ARRAY_MODE(ARRAY_1D_TILED_THIN1) |
+							 PIPE_CONFIG(ADDR_SURF_P4_8x16) |
 							 MICRO_TILE_MODE_NEW(ADDR_SURF_DISPLAY_MICRO_TILING));
 					break;
 				case 10:
@@ -2634,6 +2659,7 @@ static void cik_tiling_mode_table_init(struct radeon_device *rdev)
 					break;
 				case 13:
 					gb_tile_moden = (ARRAY_MODE(ARRAY_1D_TILED_THIN1) |
+							 PIPE_CONFIG(ADDR_SURF_P4_8x16) |
 							 MICRO_TILE_MODE_NEW(ADDR_SURF_THIN_MICRO_TILING));
 					break;
 				case 14:
@@ -2656,6 +2682,7 @@ static void cik_tiling_mode_table_init(struct radeon_device *rdev)
 					break;
 				case 27:
 					gb_tile_moden = (ARRAY_MODE(ARRAY_1D_TILED_THIN1) |
+							 PIPE_CONFIG(ADDR_SURF_P4_8x16) |
 							 MICRO_TILE_MODE_NEW(ADDR_SURF_ROTATED_MICRO_TILING));
 					break;
 				case 28:
@@ -2812,6 +2839,7 @@ static void cik_tiling_mode_table_init(struct radeon_device *rdev)
 				break;
 			case 5:
 				gb_tile_moden = (ARRAY_MODE(ARRAY_1D_TILED_THIN1) |
+						 PIPE_CONFIG(ADDR_SURF_P2) |
 						 MICRO_TILE_MODE_NEW(ADDR_SURF_DEPTH_MICRO_TILING));
 				break;
 			case 6:
@@ -2827,11 +2855,13 @@ static void cik_tiling_mode_table_init(struct radeon_device *rdev)
 						 TILE_SPLIT(split_equal_to_row_size));
 				break;
 			case 8:
-				gb_tile_moden = ARRAY_MODE(ARRAY_LINEAR_ALIGNED);
+				gb_tile_moden = ARRAY_MODE(ARRAY_LINEAR_ALIGNED) |
+						PIPE_CONFIG(ADDR_SURF_P2);
 				break;
 			case 9:
 				gb_tile_moden = (ARRAY_MODE(ARRAY_1D_TILED_THIN1) |
-						 MICRO_TILE_MODE_NEW(ADDR_SURF_DISPLAY_MICRO_TILING));
+						 MICRO_TILE_MODE_NEW(ADDR_SURF_DISPLAY_MICRO_TILING) |
+						 PIPE_CONFIG(ADDR_SURF_P2));
 				break;
 			case 10:
 				gb_tile_moden = (ARRAY_MODE(ARRAY_2D_TILED_THIN1) |
@@ -2853,6 +2883,7 @@ static void cik_tiling_mode_table_init(struct radeon_device *rdev)
 				break;
 			case 13:
 				gb_tile_moden = (ARRAY_MODE(ARRAY_1D_TILED_THIN1) |
+						 PIPE_CONFIG(ADDR_SURF_P2) |
 						 MICRO_TILE_MODE_NEW(ADDR_SURF_THIN_MICRO_TILING));
 				break;
 			case 14:
@@ -2875,7 +2906,8 @@ static void cik_tiling_mode_table_init(struct radeon_device *rdev)
 				break;
 			case 27:
 				gb_tile_moden = (ARRAY_MODE(ARRAY_1D_TILED_THIN1) |
-						 MICRO_TILE_MODE_NEW(ADDR_SURF_ROTATED_MICRO_TILING));
+						 MICRO_TILE_MODE_NEW(ADDR_SURF_ROTATED_MICRO_TILING) |
+						 PIPE_CONFIG(ADDR_SURF_P2));
 				break;
 			case 28:
 				gb_tile_moden = (ARRAY_MODE(ARRAY_PRT_2D_TILED_THIN1) |
@@ -4030,8 +4062,6 @@ static int cik_cp_gfx_resume(struct radeon_device *rdev)
 	WREG32(CP_RB0_BASE, rb_addr);
 	WREG32(CP_RB0_BASE_HI, upper_32_bits(rb_addr));
 
-	ring->rptr = RREG32(CP_RB0_RPTR);
-
 	/* start the ring */
 	cik_cp_gfx_start(rdev);
 	rdev->ring[RADEON_RING_TYPE_GFX_INDEX].ready = true;
@@ -4589,8 +4619,7 @@ static int cik_cp_compute_resume(struct radeon_device *rdev)
 		rdev->ring[idx].wptr = 0;
 		mqd->queue_state.cp_hqd_pq_wptr = rdev->ring[idx].wptr;
 		WREG32(CP_HQD_PQ_WPTR, mqd->queue_state.cp_hqd_pq_wptr);
-		rdev->ring[idx].rptr = RREG32(CP_HQD_PQ_RPTR);
-		mqd->queue_state.cp_hqd_pq_rptr = rdev->ring[idx].rptr;
+		mqd->queue_state.cp_hqd_pq_rptr = RREG32(CP_HQD_PQ_RPTR);
 
 		/* set the vmid for the queue */
 		mqd->queue_state.cp_hqd_vmid = 0;
@@ -5120,11 +5149,9 @@ bool cik_gfx_is_lockup(struct radeon_device *rdev, struct radeon_ring *ring)
 	if (!(reset_mask & (RADEON_RESET_GFX |
 			    RADEON_RESET_COMPUTE |
 			    RADEON_RESET_CP))) {
-		radeon_ring_lockup_update(ring);
+		radeon_ring_lockup_update(rdev, ring);
 		return false;
 	}
-	/* force CP activities */
-	radeon_ring_force_activity(rdev, ring);
 	return radeon_ring_test_lockup(rdev, ring);
 }
 
@@ -6144,6 +6171,10 @@ void cik_update_cg(struct radeon_device *rdev,
 		cik_enable_hdp_mgcg(rdev, enable);
 		cik_enable_hdp_ls(rdev, enable);
 	}
+
+	if (block & RADEON_CG_BLOCK_VCE) {
+		vce_v2_0_enable_mgcg(rdev, enable);
+	}
 }
 
 static void cik_init_cg(struct radeon_device *rdev)
@@ -6521,8 +6552,8 @@ void cik_get_csb_buffer(struct radeon_device *rdev, volatile u32 *buffer)
 		buffer[count++] = cpu_to_le32(0x00000000);
 		break;
 	case CHIP_HAWAII:
-		buffer[count++] = 0x3a00161a;
-		buffer[count++] = 0x0000002e;
+		buffer[count++] = cpu_to_le32(0x3a00161a);
+		buffer[count++] = cpu_to_le32(0x0000002e);
 		break;
 	default:
 		buffer[count++] = cpu_to_le32(0x00000000);
@@ -7493,6 +7524,20 @@ restart_ih:
 			/* reset addr and status */
 			WREG32_P(VM_CONTEXT1_CNTL2, 1, ~1);
 			break;
+		case 167: /* VCE */
+			DRM_DEBUG("IH: VCE int: 0x%08x\n", src_data);
+			switch (src_data) {
+			case 0:
+				radeon_fence_process(rdev, TN_RING_TYPE_VCE1_INDEX);
+				break;
+			case 1:
+				radeon_fence_process(rdev, TN_RING_TYPE_VCE2_INDEX);
+				break;
+			default:
+				DRM_ERROR("Unhandled interrupt: %d %d\n", src_id, src_data);
+				break;
+			}
+			break;
 		case 176: /* GFX RB CP_INT */
 		case 177: /* GFX IB CP_INT */
 			radeon_fence_process(rdev, RADEON_RING_TYPE_GFX_INDEX);
@@ -7792,6 +7837,22 @@ static int cik_startup(struct radeon_device *rdev)
 	if (r)
 		rdev->ring[R600_RING_TYPE_UVD_INDEX].ring_size = 0;
 
+	r = radeon_vce_resume(rdev);
+	if (!r) {
+		r = vce_v2_0_resume(rdev);
+		if (!r)
+			r = radeon_fence_driver_start_ring(rdev,
+							   TN_RING_TYPE_VCE1_INDEX);
+		if (!r)
+			r = radeon_fence_driver_start_ring(rdev,
+							   TN_RING_TYPE_VCE2_INDEX);
+	}
+	if (r) {
+		dev_err(rdev->dev, "VCE init error (%d).\n", r);
+		rdev->ring[TN_RING_TYPE_VCE1_INDEX].ring_size = 0;
+		rdev->ring[TN_RING_TYPE_VCE2_INDEX].ring_size = 0;
+	}
+
 	/* Enable IRQ */
 	if (!rdev->irq.installed) {
 		r = radeon_irq_kms_init(rdev);
@@ -7867,6 +7928,23 @@ static int cik_startup(struct radeon_device *rdev)
 			DRM_ERROR("radeon: failed initializing UVD (%d).\n", r);
 	}
 
+	r = -ENOENT;
+
+	ring = &rdev->ring[TN_RING_TYPE_VCE1_INDEX];
+	if (ring->ring_size)
+		r = radeon_ring_init(rdev, ring, ring->ring_size, 0,
+				     VCE_CMD_NO_OP);
+
+	ring = &rdev->ring[TN_RING_TYPE_VCE2_INDEX];
+	if (ring->ring_size)
+		r = radeon_ring_init(rdev, ring, ring->ring_size, 0,
+				     VCE_CMD_NO_OP);
+
+	if (!r)
+		r = vce_v1_0_init(rdev);
+	else if (r != -ENOENT)
+		DRM_ERROR("radeon: failed initializing VCE (%d).\n", r);
+
 	r = radeon_ib_pool_init(rdev);
 	if (r) {
 		dev_err(rdev->dev, "IB initialization failed (%d).\n", r);
@@ -7938,6 +8016,7 @@ int cik_suspend(struct radeon_device *rdev)
 	cik_sdma_enable(rdev, false);
 	uvd_v1_0_fini(rdev);
 	radeon_uvd_suspend(rdev);
+	radeon_vce_suspend(rdev);
 	cik_fini_pg(rdev);
 	cik_fini_cg(rdev);
 	cik_irq_suspend(rdev);
@@ -8070,6 +8149,17 @@ int cik_init(struct radeon_device *rdev)
 		r600_ring_init(rdev, ring, 4096);
 	}
 
+	r = radeon_vce_init(rdev);
+	if (!r) {
+		ring = &rdev->ring[TN_RING_TYPE_VCE1_INDEX];
+		ring->ring_obj = NULL;
+		r600_ring_init(rdev, ring, 4096);
+
+		ring = &rdev->ring[TN_RING_TYPE_VCE2_INDEX];
+		ring->ring_obj = NULL;
+		r600_ring_init(rdev, ring, 4096);
+	}
+
 	rdev->ih.ring_obj = NULL;
 	r600_ih_ring_init(rdev, 64 * 1024);
 
@@ -8131,6 +8221,7 @@ void cik_fini(struct radeon_device *rdev)
 	radeon_irq_kms_fini(rdev);
 	uvd_v1_0_fini(rdev);
 	radeon_uvd_fini(rdev);
+	radeon_vce_fini(rdev);
 	cik_pcie_gart_fini(rdev);
 	r600_vram_scratch_fini(rdev);
 	radeon_gem_fini(rdev);
@@ -8867,6 +8958,41 @@ int cik_set_uvd_clocks(struct radeon_device *rdev, u32 vclk, u32 dclk)
 
 	r = cik_set_uvd_clock(rdev, dclk, CG_DCLK_CNTL, CG_DCLK_STATUS);
 	return r;
+}
+
+int cik_set_vce_clocks(struct radeon_device *rdev, u32 evclk, u32 ecclk)
+{
+	int r, i;
+	struct atom_clock_dividers dividers;
+	u32 tmp;
+
+	r = radeon_atom_get_clock_dividers(rdev, COMPUTE_GPUCLK_INPUT_FLAG_DEFAULT_GPUCLK,
+					   ecclk, false, &dividers);
+	if (r)
+		return r;
+
+	for (i = 0; i < 100; i++) {
+		if (RREG32_SMC(CG_ECLK_STATUS) & ECLK_STATUS)
+			break;
+		mdelay(10);
+	}
+	if (i == 100)
+		return -ETIMEDOUT;
+
+	tmp = RREG32_SMC(CG_ECLK_CNTL);
+	tmp &= ~(ECLK_DIR_CNTL_EN|ECLK_DIVIDER_MASK);
+	tmp |= dividers.post_divider;
+	WREG32_SMC(CG_ECLK_CNTL, tmp);
+
+	for (i = 0; i < 100; i++) {
+		if (RREG32_SMC(CG_ECLK_STATUS) & ECLK_STATUS)
+			break;
+		mdelay(10);
+	}
+	if (i == 100)
+		return -ETIMEDOUT;
+
+	return 0;
 }
 
 static void cik_pcie_gen3_enable(struct radeon_device *rdev)

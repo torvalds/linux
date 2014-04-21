@@ -202,13 +202,11 @@ static int s2mps11_set_ramp_delay(struct regulator_dev *rdev, int ramp_delay)
 	if (!ramp_enable)
 		goto ramp_disable;
 
-	if (enable_shift) {
-		ret = regmap_update_bits(rdev->regmap, S2MPS11_REG_RAMP,
-					1 << enable_shift, 1 << enable_shift);
-		if (ret) {
-			dev_err(&rdev->dev, "failed to enable ramp rate\n");
-			return ret;
-		}
+	ret = regmap_update_bits(rdev->regmap, S2MPS11_REG_RAMP,
+				 1 << enable_shift, 1 << enable_shift);
+	if (ret) {
+		dev_err(&rdev->dev, "failed to enable ramp rate\n");
+		return ret;
 	}
 
 	ramp_val = get_ramp_delay(ramp_delay);

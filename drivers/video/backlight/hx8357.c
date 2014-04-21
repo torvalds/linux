@@ -587,10 +587,8 @@ static int hx8357_probe(struct spi_device *spi)
 	int i, ret;
 
 	lcd = devm_kzalloc(&spi->dev, sizeof(*lcd), GFP_KERNEL);
-	if (!lcd) {
-		dev_err(&spi->dev, "Couldn't allocate lcd internal structure!\n");
+	if (!lcd)
 		return -ENOMEM;
-	}
 
 	ret = spi_setup(spi);
 	if (ret < 0) {

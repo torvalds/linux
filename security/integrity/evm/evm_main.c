@@ -14,6 +14,8 @@
  *	evm_inode_removexattr, and evm_verifyxattr
  */
 
+#define pr_fmt(fmt) KBUILD_MODNAME ": " fmt
+
 #include <linux/module.h>
 #include <linux/crypto.h>
 #include <linux/audit.h>
@@ -62,7 +64,7 @@ static int evm_find_protected_xattrs(struct dentry *dentry)
 	int error;
 	int count = 0;
 
-	if (!inode->i_op || !inode->i_op->getxattr)
+	if (!inode->i_op->getxattr)
 		return -EOPNOTSUPP;
 
 	for (xattr = evm_config_xattrnames; *xattr != NULL; xattr++) {
@@ -432,7 +434,7 @@ static int __init init_evm(void)
 
 	error = evm_init_secfs();
 	if (error < 0) {
-		printk(KERN_INFO "EVM: Error registering secfs\n");
+		pr_info("Error registering secfs\n");
 		goto err;
 	}
 
@@ -449,7 +451,7 @@ static int __init evm_display_config(void)
 	char **xattrname;
 
 	for (xattrname = evm_config_xattrnames; *xattrname != NULL; xattrname++)
-		printk(KERN_INFO "EVM: %s\n", *xattrname);
+		pr_info("%s\n", *xattrname);
 	return 0;
 }
 

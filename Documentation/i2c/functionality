@@ -46,7 +46,7 @@ A few combinations of the above flags are also defined for your convenience:
                                   and write_block_data commands
   I2C_FUNC_SMBUS_I2C_BLOCK        Handles the SMBus read_i2c_block_data
                                   and write_i2c_block_data commands
-  I2C_FUNC_SMBUS_EMUL             Handles all SMBus commands than can be
+  I2C_FUNC_SMBUS_EMUL             Handles all SMBus commands that can be
                                   emulated by a real I2C adapter (using
                                   the transparent emulation layer)
 

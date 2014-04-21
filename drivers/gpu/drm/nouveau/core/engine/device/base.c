@@ -131,8 +131,8 @@ nouveau_devobj_ctor(struct nouveau_object *parent,
 	if (ret)
 		return ret;
 
-	mmio_base = pci_resource_start(device->pdev, 0);
-	mmio_size = pci_resource_len(device->pdev, 0);
+	mmio_base = nv_device_resource_start(device, 0);
+	mmio_size = nv_device_resource_len(device, 0);
 
 	/* translate api disable mask into internal mapping */
 	disable = args->debug0;
@@ -185,6 +185,7 @@ nouveau_devobj_ctor(struct nouveau_object *parent,
 			case 0x0e0:
 			case 0x0f0:
 			case 0x100: device->card_type = NV_E0; break;
+			case 0x110: device->card_type = GM100; break;
 			default:
 				break;
 			}
@@ -208,6 +209,7 @@ nouveau_devobj_ctor(struct nouveau_object *parent,
 		case NV_C0:
 		case NV_D0: ret = nvc0_identify(device); break;
 		case NV_E0: ret = nve0_identify(device); break;
+		case GM100: ret = gm100_identify(device); break;
 		default:
 			ret = -EINVAL;
 			break;
@@ -446,6 +448,72 @@ nouveau_device_dtor(struct nouveau_object *object)
 	nouveau_engine_destroy(&device->base);
 }
 
+resource_size_t
+nv_device_resource_start(struct nouveau_device *device, unsigned int bar)
+{
+	if (nv_device_is_pci(device)) {
+		return pci_resource_start(device->pdev, bar);
+	} else {
+		struct resource *res;
+		res = platform_get_resource(device->platformdev,
+					    IORESOURCE_MEM, bar);
+		if (!res)
+			return 0;
+		return res->start;
+	}
+}
+
+resource_size_t
+nv_device_resource_len(struct nouveau_device *device, unsigned int bar)
+{
+	if (nv_device_is_pci(device)) {
+		return pci_resource_len(device->pdev, bar);
+	} else {
+		struct resource *res;
+		res = platform_get_resource(device->platformdev,
+					    IORESOURCE_MEM, bar);
+		if (!res)
+			return 0;
+		return resource_size(res);
+	}
+}
+
+dma_addr_t
+nv_device_map_page(struct nouveau_device *device, struct page *page)
+{
+	dma_addr_t ret;
+
+	if (nv_device_is_pci(device)) {
+		ret = pci_map_page(device->pdev, page, 0, PAGE_SIZE,
+				   PCI_DMA_BIDIRECTIONAL);
+		if (pci_dma_mapping_error(device->pdev, ret))
+			ret = 0;
+	} else {
+		ret = page_to_phys(page);
+	}
+
+	return ret;
+}
+
+void
+nv_device_unmap_page(struct nouveau_device *device, dma_addr_t addr)
+{
+	if (nv_device_is_pci(device))
+		pci_unmap_page(device->pdev, addr, PAGE_SIZE,
+			       PCI_DMA_BIDIRECTIONAL);
+}
+
+int
+nv_device_get_irq(struct nouveau_device *device, bool stall)
+{
+	if (nv_device_is_pci(device)) {
+		return device->pdev->irq;
+	} else {
+		return platform_get_irq_byname(device->platformdev,
+					       stall ? "stall" : "nonstall");
+	}
+}
+
 static struct nouveau_oclass
 nouveau_device_oclass = {
 	.handle = NV_ENGINE(DEVICE, 0x00),
@@ -457,8 +525,8 @@ nouveau_device_oclass = {
 };
 
 int
-nouveau_device_create_(struct pci_dev *pdev, u64 name, const char *sname,
-		       const char *cfg, const char *dbg,
+nouveau_device_create_(void *dev, enum nv_bus_type type, u64 name,
+		       const char *sname, const char *cfg, const char *dbg,
 		       int length, void **pobject)
 {
 	struct nouveau_device *device;
@@ -476,7 +544,14 @@ nouveau_device_create_(struct pci_dev *pdev, u64 name, const char *sname,
 	if (ret)
 		goto done;
 
-	device->pdev = pdev;
+	switch (type) {
+	case NOUVEAU_BUS_PCI:
+		device->pdev = dev;
+		break;
+	case NOUVEAU_BUS_PLATFORM:
+		device->platformdev = dev;
+		break;
+	}
 	device->handle = name;
 	device->cfgopt = cfg;
 	device->dbgopt = dbg;

@@ -641,6 +641,16 @@ int rndis_filter_set_offload_params(struct hv_device *hdev,
 	struct rndis_set_complete *set_complete;
 	u32 extlen = sizeof(struct ndis_offload_params);
 	int ret, t;
+	u32 vsp_version = nvdev->nvsp_version;
+
+	if (vsp_version <= NVSP_PROTOCOL_VERSION_4) {
+		extlen = VERSION_4_OFFLOAD_SIZE;
+		/* On NVSP_PROTOCOL_VERSION_4 and below, we do not support
+		 * UDP checksum offload.
+		 */
+		req_offloads->udp_ip_v4_csum = 0;
+		req_offloads->udp_ip_v6_csum = 0;
+	}
 
 	request = get_rndis_request(rdev, RNDIS_MSG_SET,
 		RNDIS_MESSAGE_SIZE(struct rndis_set_request) + extlen);
@@ -674,7 +684,7 @@ int rndis_filter_set_offload_params(struct hv_device *hdev,
 	} else {
 		set_complete = &request->response_msg.msg.set_complete;
 		if (set_complete->status != RNDIS_STATUS_SUCCESS) {
-			netdev_err(ndev, "Fail to set MAC on host side:0x%x\n",
+			netdev_err(ndev, "Fail to set offload on host side:0x%x\n",
 				   set_complete->status);
 			ret = -EINVAL;
 		}

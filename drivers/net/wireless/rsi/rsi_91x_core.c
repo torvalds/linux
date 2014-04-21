@@ -88,7 +88,7 @@ static u8 rsi_core_determine_hal_queue(struct rsi_common *common)
 	bool recontend_queue = false;
 	u32 q_len = 0;
 	u8 q_num = INVALID_QUEUE;
-	u8 ii, min = 0;
+	u8 ii = 0, min = 0;
 
 	if (skb_queue_len(&common->tx_queue[MGMT_SOFT_Q])) {
 		if (!common->mgmt_q_block)
@@ -102,10 +102,10 @@ static u8 rsi_core_determine_hal_queue(struct rsi_common *common)
 	}
 
 get_queue_num:
-	q_num = 0;
 	recontend_queue = false;
 
 	q_num = rsi_determine_min_weight_queue(common);
+
 	q_len = skb_queue_len(&common->tx_queue[ii]);
 	ii = q_num;
 
@@ -118,7 +118,9 @@ get_queue_num:
 		}
 	}
 
-	common->tx_qinfo[q_num].pkt_contended = 0;
+	if (q_num < NUM_EDCA_QUEUES)
+		common->tx_qinfo[q_num].pkt_contended = 0;
+
 	/* Adjust the back off values for all queues again */
 	recontend_queue = rsi_recalculate_weights(common);
 

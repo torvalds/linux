@@ -84,6 +84,11 @@ nouveau_vga_init(struct nouveau_drm *drm)
 {
 	struct drm_device *dev = drm->dev;
 	bool runtime = false;
+
+	/* only relevant for PCI devices */
+	if (!dev->pdev)
+		return;
+
 	vga_client_register(dev->pdev, dev, NULL, nouveau_vga_set_decode);
 
 	if (nouveau_runtime_pm == 1)

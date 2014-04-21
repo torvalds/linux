@@ -33,7 +33,8 @@ static struct dma_chan *shdma_of_xlate(struct of_phandle_args *dma_spec,
 	/* Only slave DMA channels can be allocated via DT */
 	dma_cap_set(DMA_SLAVE, mask);
 
-	chan = dma_request_channel(mask, shdma_chan_filter, (void *)id);
+	chan = dma_request_channel(mask, shdma_chan_filter,
+				   (void *)(uintptr_t)id);
 	if (chan)
 		to_shdma_chan(chan)->hw_req = id;
 

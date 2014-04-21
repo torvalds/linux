@@ -30,7 +30,7 @@ config ARM_EXYNOS_CPUFREQ
 
 config ARM_EXYNOS4210_CPUFREQ
 	bool "SAMSUNG EXYNOS4210"
-	depends on CPU_EXYNOS4210
+	depends on CPU_EXYNOS4210 && !ARCH_MULTIPLATFORM
 	default y
 	select ARM_EXYNOS_CPUFREQ
 	help
@@ -41,7 +41,7 @@ config ARM_EXYNOS4210_CPUFREQ
 
 config ARM_EXYNOS4X12_CPUFREQ
 	bool "SAMSUNG EXYNOS4x12"
-	depends on (SOC_EXYNOS4212 || SOC_EXYNOS4412)
+	depends on (SOC_EXYNOS4212 || SOC_EXYNOS4412) && !ARCH_MULTIPLATFORM
 	default y
 	select ARM_EXYNOS_CPUFREQ
 	help
@@ -52,7 +52,7 @@ config ARM_EXYNOS4X12_CPUFREQ
 
 config ARM_EXYNOS5250_CPUFREQ
 	bool "SAMSUNG EXYNOS5250"
-	depends on SOC_EXYNOS5250
+	depends on SOC_EXYNOS5250 && !ARCH_MULTIPLATFORM
 	default y
 	select ARM_EXYNOS_CPUFREQ
 	help
@@ -122,7 +122,7 @@ config ARM_INTEGRATOR
 	  If in doubt, say Y.
 
 config ARM_KIRKWOOD_CPUFREQ
-	def_bool ARCH_KIRKWOOD && OF
+	def_bool MACH_KIRKWOOD
 	help
 	  This adds the CPUFreq driver for Marvell Kirkwood
 	  SoCs.

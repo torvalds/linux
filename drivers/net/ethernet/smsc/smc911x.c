@@ -1211,7 +1211,6 @@ static void
 smc911x_rx_dma_irq(int dma, void *data)
 {
 	struct net_device *dev = (struct net_device *)data;
-	unsigned long ioaddr = dev->base_addr;
 	struct smc911x_local *lp = netdev_priv(dev);
 	struct sk_buff *skb = lp->current_rx_skb;
 	unsigned long flags;

@@ -599,8 +599,11 @@ static void uwb_drp_handle_alien_drp(struct uwb_rc *rc, struct uwb_ie_drp *drp_i
 
 	/* alloc and initialize new uwb_cnflt_alien */
 	cnflt = kzalloc(sizeof(struct uwb_cnflt_alien), GFP_KERNEL);
-	if (!cnflt)
+	if (!cnflt) {
 		dev_err(dev, "failed to alloc uwb_cnflt_alien struct\n");
+		return;
+	}
+
 	INIT_LIST_HEAD(&cnflt->rc_node);
 	init_timer(&cnflt->timer);
 	cnflt->timer.function = uwb_cnflt_timer;

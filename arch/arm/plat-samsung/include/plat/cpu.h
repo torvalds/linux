@@ -20,6 +20,9 @@
 
 extern unsigned long samsung_cpu_id;
 
+#define S3C2410_CPU_ID		0x32410000
+#define S3C2410_CPU_MASK	0xFFFFFFFF
+
 #define S3C24XX_CPU_ID		0x32400000
 #define S3C24XX_CPU_MASK	0xFFF00000
 
@@ -56,6 +59,7 @@ static inline int is_samsung_##name(void)	\
 	return ((samsung_cpu_id & mask) == (id & mask));	\
 }
 
+IS_SAMSUNG_CPU(s3c2410, S3C2410_CPU_ID, S3C2410_CPU_MASK)
 IS_SAMSUNG_CPU(s3c24xx, S3C24XX_CPU_ID, S3C24XX_CPU_MASK)
 IS_SAMSUNG_CPU(s3c2412, S3C2412_CPU_ID, S3C2412_CPU_MASK)
 IS_SAMSUNG_CPU(s3c6400, S3C6400_CPU_ID, S3C64XX_CPU_MASK)
@@ -76,8 +80,10 @@ IS_SAMSUNG_CPU(exynos5440, EXYNOS5440_SOC_ID, EXYNOS5_SOC_MASK)
     defined(CONFIG_CPU_S3C2442) || defined(CONFIG_CPU_S3C244X) || \
     defined(CONFIG_CPU_S3C2443)
 # define soc_is_s3c24xx()	is_samsung_s3c24xx()
+# define soc_is_s3c2410()	is_samsung_s3c2410()
 #else
 # define soc_is_s3c24xx()	0
+# define soc_is_s3c2410()	0
 #endif
 
 #if defined(CONFIG_CPU_S3C2412)
@@ -160,6 +166,10 @@ IS_SAMSUNG_CPU(exynos5440, EXYNOS5440_SOC_ID, EXYNOS5_SOC_MASK)
 # define soc_is_exynos5440()	0
 #endif
 
+#define soc_is_exynos4() (soc_is_exynos4210() || soc_is_exynos4212() || \
+			  soc_is_exynos4412())
+#define soc_is_exynos5() (soc_is_exynos5250() || soc_is_exynos5420())
+
 #define IODESC_ENT(x) { (unsigned long)S3C24XX_VA_##x, __phys_to_pfn(S3C24XX_PA_##x), S3C24XX_SZ_##x, MT_DEVICE }
 
 #ifndef KHZ
@@ -199,7 +209,6 @@ extern void s5p_init_irq(u32 *vic, u32 num_vic);
 
 extern void s3c24xx_init_io(struct map_desc *mach_desc, int size);
 
-extern void s3c24xx_init_cpu(void);
 extern void s3c64xx_init_cpu(void);
 extern void s5p_init_cpu(void __iomem *cpuid_addr);
 

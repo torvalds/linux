@@ -42,29 +42,29 @@
 
 #include "uverbs.h"
 
-#define IB_UMEM_MAX_PAGE_CHUNK						\
-	((PAGE_SIZE - offsetof(struct ib_umem_chunk, page_list)) /	\
-	 ((void *) &((struct ib_umem_chunk *) 0)->page_list[1] -	\
-	  (void *) &((struct ib_umem_chunk *) 0)->page_list[0]))
 
 static void __ib_umem_release(struct ib_device *dev, struct ib_umem *umem, int dirty)
 {
-	struct ib_umem_chunk *chunk, *tmp;
+	struct scatterlist *sg;
+	struct page *page;
 	int i;
 
-	list_for_each_entry_safe(chunk, tmp, &umem->chunk_list, list) {
-		ib_dma_unmap_sg(dev, chunk->page_list,
-				chunk->nents, DMA_BIDIRECTIONAL);
-		for (i = 0; i < chunk->nents; ++i) {
-			struct page *page = sg_page(&chunk->page_list[i]);
+	if (umem->nmap > 0)
+		ib_dma_unmap_sg(dev, umem->sg_head.sgl,
+				umem->nmap,
+				DMA_BIDIRECTIONAL);
 
-			if (umem->writable && dirty)
-				set_page_dirty_lock(page);
-			put_page(page);
-		}
+	for_each_sg(umem->sg_head.sgl, sg, umem->npages, i) {
 
-		kfree(chunk);
+		page = sg_page(sg);
+		if (umem->writable && dirty)
+			set_page_dirty_lock(page);
+		put_page(page);
 	}
+
+	sg_free_table(&umem->sg_head);
+	return;
+
 }
 
 /**
@@ -81,15 +81,15 @@ struct ib_umem *ib_umem_get(struct ib_ucontext *context, unsigned long addr,
 	struct ib_umem *umem;
 	struct page **page_list;
 	struct vm_area_struct **vma_list;
-	struct ib_umem_chunk *chunk;
 	unsigned long locked;
 	unsigned long lock_limit;
 	unsigned long cur_base;
 	unsigned long npages;
 	int ret;
-	int off;
 	int i;
 	DEFINE_DMA_ATTRS(attrs);
+	struct scatterlist *sg, *sg_list_start;
+	int need_release = 0;
 
 	if (dmasync)
 		dma_set_attr(DMA_ATTR_WRITE_BARRIER, &attrs);
@@ -97,7 +97,7 @@ struct ib_umem *ib_umem_get(struct ib_ucontext *context, unsigned long addr,
 	if (!can_do_mlock())
 		return ERR_PTR(-EPERM);
 
-	umem = kmalloc(sizeof *umem, GFP_KERNEL);
+	umem = kzalloc(sizeof *umem, GFP_KERNEL);
 	if (!umem)
 		return ERR_PTR(-ENOMEM);
 
@@ -116,8 +116,6 @@ struct ib_umem *ib_umem_get(struct ib_ucontext *context, unsigned long addr,
 
 	/* We assume the memory is from hugetlb until proved otherwise */
 	umem->hugetlb   = 1;
-
-	INIT_LIST_HEAD(&umem->chunk_list);
 
 	page_list = (struct page **) __get_free_page(GFP_KERNEL);
 	if (!page_list) {
@@ -147,7 +145,18 @@ struct ib_umem *ib_umem_get(struct ib_ucontext *context, unsigned long addr,
 
 	cur_base = addr & PAGE_MASK;
 
-	ret = 0;
+	if (npages == 0) {
+		ret = -EINVAL;
+		goto out;
+	}
+
+	ret = sg_alloc_table(&umem->sg_head, npages, GFP_KERNEL);
+	if (ret)
+		goto out;
+
+	need_release = 1;
+	sg_list_start = umem->sg_head.sgl;
+
 	while (npages) {
 		ret = get_user_pages(current, current->mm, cur_base,
 				     min_t(unsigned long, npages,
@@ -157,54 +166,38 @@ struct ib_umem *ib_umem_get(struct ib_ucontext *context, unsigned long addr,
 		if (ret < 0)
 			goto out;
 
+		umem->npages += ret;
 		cur_base += ret * PAGE_SIZE;
 		npages   -= ret;
 
-		off = 0;
+		for_each_sg(sg_list_start, sg, ret, i) {
+			if (vma_list && !is_vm_hugetlb_page(vma_list[i]))
+				umem->hugetlb = 0;
 
-		while (ret) {
-			chunk = kmalloc(sizeof *chunk + sizeof (struct scatterlist) *
-					min_t(int, ret, IB_UMEM_MAX_PAGE_CHUNK),
-					GFP_KERNEL);
-			if (!chunk) {
-				ret = -ENOMEM;
-				goto out;
-			}
-
-			chunk->nents = min_t(int, ret, IB_UMEM_MAX_PAGE_CHUNK);
-			sg_init_table(chunk->page_list, chunk->nents);
-			for (i = 0; i < chunk->nents; ++i) {
-				if (vma_list &&
-				    !is_vm_hugetlb_page(vma_list[i + off]))
-					umem->hugetlb = 0;
-				sg_set_page(&chunk->page_list[i], page_list[i + off], PAGE_SIZE, 0);
-			}
-
-			chunk->nmap = ib_dma_map_sg_attrs(context->device,
-							  &chunk->page_list[0],
-							  chunk->nents,
-							  DMA_BIDIRECTIONAL,
-							  &attrs);
-			if (chunk->nmap <= 0) {
-				for (i = 0; i < chunk->nents; ++i)
-					put_page(sg_page(&chunk->page_list[i]));
-				kfree(chunk);
-
-				ret = -ENOMEM;
-				goto out;
-			}
-
-			ret -= chunk->nents;
-			off += chunk->nents;
-			list_add_tail(&chunk->list, &umem->chunk_list);
+			sg_set_page(sg, page_list[i], PAGE_SIZE, 0);
 		}
 
-		ret = 0;
+		/* preparing for next loop */
+		sg_list_start = sg;
 	}
+
+	umem->nmap = ib_dma_map_sg_attrs(context->device,
+				  umem->sg_head.sgl,
+				  umem->npages,
+				  DMA_BIDIRECTIONAL,
+				  &attrs);
+
+	if (umem->nmap <= 0) {
+		ret = -ENOMEM;
+		goto out;
+	}
+
+	ret = 0;
 
 out:
 	if (ret < 0) {
-		__ib_umem_release(context->device, umem, 0);
+		if (need_release)
+			__ib_umem_release(context->device, umem, 0);
 		kfree(umem);
 	} else
 		current->mm->pinned_vm = locked;
@@ -278,17 +271,16 @@ EXPORT_SYMBOL(ib_umem_release);
 
 int ib_umem_page_count(struct ib_umem *umem)
 {
-	struct ib_umem_chunk *chunk;
 	int shift;
 	int i;
 	int n;
+	struct scatterlist *sg;
 
 	shift = ilog2(umem->page_size);
 
 	n = 0;
-	list_for_each_entry(chunk, &umem->chunk_list, list)
-		for (i = 0; i < chunk->nmap; ++i)
-			n += sg_dma_len(&chunk->page_list[i]) >> shift;
+	for_each_sg(umem->sg_head.sgl, sg, umem->nmap, i)
+		n += sg_dma_len(sg) >> shift;
 
 	return n;
 }

@@ -36,11 +36,13 @@
  * @base:           The TTM base object handling user-space visibility.
  * @srf:            The surface metadata.
  * @size:           TTM accounting size for the surface.
+ * @master:         master of the creating client. Used for security check.
  */
 struct vmw_user_surface {
 	struct ttm_prime_object prime;
 	struct vmw_surface srf;
 	uint32_t size;
+	struct drm_master *master;
 };
 
 /**
@@ -624,6 +626,8 @@ static void vmw_user_surface_free(struct vmw_resource *res)
 	struct vmw_private *dev_priv = srf->res.dev_priv;
 	uint32_t size = user_srf->size;
 
+	if (user_srf->master)
+		drm_master_put(&user_srf->master);
 	kfree(srf->offsets);
 	kfree(srf->sizes);
 	kfree(srf->snooper.image);
@@ -697,7 +701,6 @@ int vmw_surface_define_ioctl(struct drm_device *dev, void *data,
 	struct vmw_surface_offset *cur_offset;
 	uint32_t num_sizes;
 	uint32_t size;
-	struct vmw_master *vmaster = vmw_master(file_priv->master);
 	const struct svga3d_surface_desc *desc;
 
 	if (unlikely(vmw_user_surface_size == 0))
@@ -723,7 +726,7 @@ int vmw_surface_define_ioctl(struct drm_device *dev, void *data,
 		return -EINVAL;
 	}
 
-	ret = ttm_read_lock(&vmaster->lock, true);
+	ret = ttm_read_lock(&dev_priv->reservation_sem, true);
 	if (unlikely(ret != 0))
 		return ret;
 
@@ -820,6 +823,8 @@ int vmw_surface_define_ioctl(struct drm_device *dev, void *data,
 
 	user_srf->prime.base.shareable = false;
 	user_srf->prime.base.tfile = NULL;
+	if (drm_is_primary_client(file_priv))
+		user_srf->master = drm_master_get(file_priv->master);
 
 	/**
 	 * From this point, the generic resource management functions
@@ -862,7 +867,7 @@ int vmw_surface_define_ioctl(struct drm_device *dev, void *data,
 	rep->sid = user_srf->prime.base.hash.key;
 	vmw_resource_unreference(&res);
 
-	ttm_read_unlock(&vmaster->lock);
+	ttm_read_unlock(&dev_priv->reservation_sem);
 	return 0;
 out_no_copy:
 	kfree(srf->offsets);
@@ -873,7 +878,81 @@ out_no_sizes:
 out_no_user_srf:
 	ttm_mem_global_free(vmw_mem_glob(dev_priv), size);
 out_unlock:
-	ttm_read_unlock(&vmaster->lock);
+	ttm_read_unlock(&dev_priv->reservation_sem);
+	return ret;
+}
+
+
+static int
+vmw_surface_handle_reference(struct vmw_private *dev_priv,
+			     struct drm_file *file_priv,
+			     uint32_t u_handle,
+			     enum drm_vmw_handle_type handle_type,
+			     struct ttm_base_object **base_p)
+{
+	struct ttm_object_file *tfile = vmw_fpriv(file_priv)->tfile;
+	struct vmw_user_surface *user_srf;
+	uint32_t handle;
+	struct ttm_base_object *base;
+	int ret;
+
+	if (handle_type == DRM_VMW_HANDLE_PRIME) {
+		ret = ttm_prime_fd_to_handle(tfile, u_handle, &handle);
+		if (unlikely(ret != 0))
+			return ret;
+	} else {
+		if (unlikely(drm_is_render_client(file_priv))) {
+			DRM_ERROR("Render client refused legacy "
+				  "surface reference.\n");
+			return -EACCES;
+		}
+		handle = u_handle;
+	}
+
+	ret = -EINVAL;
+	base = ttm_base_object_lookup_for_ref(dev_priv->tdev, handle);
+	if (unlikely(base == NULL)) {
+		DRM_ERROR("Could not find surface to reference.\n");
+		goto out_no_lookup;
+	}
+
+	if (unlikely(ttm_base_object_type(base) != VMW_RES_SURFACE)) {
+		DRM_ERROR("Referenced object is not a surface.\n");
+		goto out_bad_resource;
+	}
+
+	if (handle_type != DRM_VMW_HANDLE_PRIME) {
+		user_srf = container_of(base, struct vmw_user_surface,
+					prime.base);
+
+		/*
+		 * Make sure the surface creator has the same
+		 * authenticating master.
+		 */
+		if (drm_is_primary_client(file_priv) &&
+		    user_srf->master != file_priv->master) {
+			DRM_ERROR("Trying to reference surface outside of"
+				  " master domain.\n");
+			ret = -EACCES;
+			goto out_bad_resource;
+		}
+
+		ret = ttm_ref_object_add(tfile, base, TTM_REF_USAGE, NULL);
+		if (unlikely(ret != 0)) {
+			DRM_ERROR("Could not add a reference to a surface.\n");
+			goto out_bad_resource;
+		}
+	}
+
+	*base_p = base;
+	return 0;
+
+out_bad_resource:
+	ttm_base_object_unref(&base);
+out_no_lookup:
+	if (handle_type == DRM_VMW_HANDLE_PRIME)
+		(void) ttm_ref_object_base_unref(tfile, handle, TTM_REF_USAGE);
+
 	return ret;
 }
 
@@ -898,26 +977,15 @@ int vmw_surface_reference_ioctl(struct drm_device *dev, void *data,
 	struct vmw_user_surface *user_srf;
 	struct drm_vmw_size __user *user_sizes;
 	struct ttm_base_object *base;
-	int ret = -EINVAL;
+	int ret;
 
-	base = ttm_base_object_lookup_for_ref(dev_priv->tdev, req->sid);
-	if (unlikely(base == NULL)) {
-		DRM_ERROR("Could not find surface to reference.\n");
-		return -EINVAL;
-	}
-
-	if (unlikely(ttm_base_object_type(base) != VMW_RES_SURFACE))
-		goto out_bad_resource;
+	ret = vmw_surface_handle_reference(dev_priv, file_priv, req->sid,
+					   req->handle_type, &base);
+	if (unlikely(ret != 0))
+		return ret;
 
 	user_srf = container_of(base, struct vmw_user_surface, prime.base);
 	srf = &user_srf->srf;
-
-	ret = ttm_ref_object_add(tfile, &user_srf->prime.base,
-				 TTM_REF_USAGE, NULL);
-	if (unlikely(ret != 0)) {
-		DRM_ERROR("Could not add a reference to a surface.\n");
-		goto out_no_reference;
-	}
 
 	rep->flags = srf->flags;
 	rep->format = srf->format;
@@ -931,10 +999,10 @@ int vmw_surface_reference_ioctl(struct drm_device *dev, void *data,
 	if (unlikely(ret != 0)) {
 		DRM_ERROR("copy_to_user failed %p %u\n",
 			  user_sizes, srf->num_sizes);
+		ttm_ref_object_base_unref(tfile, base->hash.key, TTM_REF_USAGE);
 		ret = -EFAULT;
 	}
-out_bad_resource:
-out_no_reference:
+
 	ttm_base_object_unref(&base);
 
 	return ret;
@@ -1173,7 +1241,6 @@ int vmw_gb_surface_define_ioctl(struct drm_device *dev, void *data,
 	struct ttm_object_file *tfile = vmw_fpriv(file_priv)->tfile;
 	int ret;
 	uint32_t size;
-	struct vmw_master *vmaster = vmw_master(file_priv->master);
 	const struct svga3d_surface_desc *desc;
 	uint32_t backup_handle;
 
@@ -1189,7 +1256,7 @@ int vmw_gb_surface_define_ioctl(struct drm_device *dev, void *data,
 		return -EINVAL;
 	}
 
-	ret = ttm_read_lock(&vmaster->lock, true);
+	ret = ttm_read_lock(&dev_priv->reservation_sem, true);
 	if (unlikely(ret != 0))
 		return ret;
 
@@ -1228,6 +1295,8 @@ int vmw_gb_surface_define_ioctl(struct drm_device *dev, void *data,
 
 	user_srf->prime.base.shareable = false;
 	user_srf->prime.base.tfile = NULL;
+	if (drm_is_primary_client(file_priv))
+		user_srf->master = drm_master_get(file_priv->master);
 
 	/**
 	 * From this point, the generic resource management functions
@@ -1283,12 +1352,12 @@ int vmw_gb_surface_define_ioctl(struct drm_device *dev, void *data,
 
 	vmw_resource_unreference(&res);
 
-	ttm_read_unlock(&vmaster->lock);
+	ttm_read_unlock(&dev_priv->reservation_sem);
 	return 0;
 out_no_user_srf:
 	ttm_mem_global_free(vmw_mem_glob(dev_priv), size);
 out_unlock:
-	ttm_read_unlock(&vmaster->lock);
+	ttm_read_unlock(&dev_priv->reservation_sem);
 	return ret;
 }
 
@@ -1315,26 +1384,15 @@ int vmw_gb_surface_reference_ioctl(struct drm_device *dev, void *data,
 	uint32_t backup_handle;
 	int ret = -EINVAL;
 
-	base = ttm_base_object_lookup_for_ref(dev_priv->tdev, req->sid);
-	if (unlikely(base == NULL)) {
-		DRM_ERROR("Could not find surface to reference.\n");
-		return -EINVAL;
-	}
-
-	if (unlikely(ttm_base_object_type(base) != VMW_RES_SURFACE))
-		goto out_bad_resource;
+	ret = vmw_surface_handle_reference(dev_priv, file_priv, req->sid,
+					   req->handle_type, &base);
+	if (unlikely(ret != 0))
+		return ret;
 
 	user_srf = container_of(base, struct vmw_user_surface, prime.base);
 	srf = &user_srf->srf;
 	if (srf->res.backup == NULL) {
 		DRM_ERROR("Shared GB surface is missing a backup buffer.\n");
-		goto out_bad_resource;
-	}
-
-	ret = ttm_ref_object_add(tfile, &user_srf->prime.base,
-				 TTM_REF_USAGE, NULL);
-	if (unlikely(ret != 0)) {
-		DRM_ERROR("Could not add a reference to a GB surface.\n");
 		goto out_bad_resource;
 	}
 
@@ -1346,8 +1404,7 @@ int vmw_gb_surface_reference_ioctl(struct drm_device *dev, void *data,
 	if (unlikely(ret != 0)) {
 		DRM_ERROR("Could not add a reference to a GB surface "
 			  "backup buffer.\n");
-		(void) ttm_ref_object_base_unref(vmw_fpriv(file_priv)->tfile,
-						 req->sid,
+		(void) ttm_ref_object_base_unref(tfile, base->hash.key,
 						 TTM_REF_USAGE);
 		goto out_bad_resource;
 	}

@@ -421,6 +421,7 @@ enum ixbgevf_state_t {
 	__IXGBEVF_DOWN,
 	__IXGBEVF_DISABLED,
 	__IXGBEVF_REMOVING,
+	__IXGBEVF_WORK_INIT,
 };
 
 struct ixgbevf_cb {

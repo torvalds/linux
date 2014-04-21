@@ -71,6 +71,7 @@ spc_emulate_inquiry_std(struct se_cmd *cmd, unsigned char *buf)
 {
 	struct se_lun *lun = cmd->se_lun;
 	struct se_device *dev = cmd->se_dev;
+	struct se_session *sess = cmd->se_sess;
 
 	/* Set RMB (removable media) for tape devices */
 	if (dev->transport->get_device_type(dev) == TYPE_TAPE)
@@ -101,10 +102,13 @@ spc_emulate_inquiry_std(struct se_cmd *cmd, unsigned char *buf)
 	if (dev->dev_attrib.emulate_3pc)
 		buf[5] |= 0x8;
 	/*
-	 * Set Protection (PROTECT) bit when DIF has been enabled.
+	 * Set Protection (PROTECT) bit when DIF has been enabled on the
+	 * device, and the transport supports VERIFY + PASS.
 	 */
-	if (dev->dev_attrib.pi_prot_type)
-		buf[5] |= 0x1;
+	if (sess->sup_prot_ops & (TARGET_PROT_DIN_PASS | TARGET_PROT_DOUT_PASS)) {
+		if (dev->dev_attrib.pi_prot_type)
+			buf[5] |= 0x1;
+	}
 
 	buf[7] = 0x2; /* CmdQue=1 */
 
@@ -473,16 +477,19 @@ static sense_reason_t
 spc_emulate_evpd_86(struct se_cmd *cmd, unsigned char *buf)
 {
 	struct se_device *dev = cmd->se_dev;
+	struct se_session *sess = cmd->se_sess;
 
 	buf[3] = 0x3c;
 	/*
 	 * Set GRD_CHK + REF_CHK for TYPE1 protection, or GRD_CHK
 	 * only for TYPE3 protection.
 	 */
-	if (dev->dev_attrib.pi_prot_type == TARGET_DIF_TYPE1_PROT)
-		buf[4] = 0x5;
-	else if (dev->dev_attrib.pi_prot_type == TARGET_DIF_TYPE3_PROT)
-		buf[4] = 0x4;
+	if (sess->sup_prot_ops & (TARGET_PROT_DIN_PASS | TARGET_PROT_DOUT_PASS)) {
+		if (dev->dev_attrib.pi_prot_type == TARGET_DIF_TYPE1_PROT)
+			buf[4] = 0x5;
+		else if (dev->dev_attrib.pi_prot_type == TARGET_DIF_TYPE3_PROT)
+			buf[4] = 0x4;
+	}
 
 	/* Set HEADSUP, ORDSUP, SIMPSUP */
 	buf[5] = 0x07;
@@ -762,7 +769,7 @@ out:
 	return ret;
 }
 
-static int spc_modesense_rwrecovery(struct se_device *dev, u8 pc, u8 *p)
+static int spc_modesense_rwrecovery(struct se_cmd *cmd, u8 pc, u8 *p)
 {
 	p[0] = 0x01;
 	p[1] = 0x0a;
@@ -775,8 +782,11 @@ out:
 	return 12;
 }
 
-static int spc_modesense_control(struct se_device *dev, u8 pc, u8 *p)
+static int spc_modesense_control(struct se_cmd *cmd, u8 pc, u8 *p)
 {
+	struct se_device *dev = cmd->se_dev;
+	struct se_session *sess = cmd->se_sess;
+
 	p[0] = 0x0a;
 	p[1] = 0x0a;
 
@@ -868,8 +878,10 @@ static int spc_modesense_control(struct se_device *dev, u8 pc, u8 *p)
 	 * type, shall not modify the contents of the LOGICAL BLOCK REFERENCE
 	 * TAG field.
 	 */
-	if (dev->dev_attrib.pi_prot_type)
-		p[5] |= 0x80;
+	if (sess->sup_prot_ops & (TARGET_PROT_DIN_PASS | TARGET_PROT_DOUT_PASS)) {
+		if (dev->dev_attrib.pi_prot_type)
+			p[5] |= 0x80;
+	}
 
 	p[8] = 0xff;
 	p[9] = 0xff;
@@ -879,8 +891,10 @@ out:
 	return 12;
 }
 
-static int spc_modesense_caching(struct se_device *dev, u8 pc, u8 *p)
+static int spc_modesense_caching(struct se_cmd *cmd, u8 pc, u8 *p)
 {
+	struct se_device *dev = cmd->se_dev;
+
 	p[0] = 0x08;
 	p[1] = 0x12;
 
@@ -896,7 +910,7 @@ out:
 	return 20;
 }
 
-static int spc_modesense_informational_exceptions(struct se_device *dev, u8 pc, unsigned char *p)
+static int spc_modesense_informational_exceptions(struct se_cmd *cmd, u8 pc, unsigned char *p)
 {
 	p[0] = 0x1c;
 	p[1] = 0x0a;
@@ -912,7 +926,7 @@ out:
 static struct {
 	uint8_t		page;
 	uint8_t		subpage;
-	int		(*emulate)(struct se_device *, u8, unsigned char *);
+	int		(*emulate)(struct se_cmd *, u8, unsigned char *);
 } modesense_handlers[] = {
 	{ .page = 0x01, .subpage = 0x00, .emulate = spc_modesense_rwrecovery },
 	{ .page = 0x08, .subpage = 0x00, .emulate = spc_modesense_caching },
@@ -1050,7 +1064,7 @@ static sense_reason_t spc_emulate_modesense(struct se_cmd *cmd)
 			 * the only two possibilities).
 			 */
 			if ((modesense_handlers[i].subpage & ~subpage) == 0) {
-				ret = modesense_handlers[i].emulate(dev, pc, &buf[length]);
+				ret = modesense_handlers[i].emulate(cmd, pc, &buf[length]);
 				if (!ten && length + ret >= 255)
 					break;
 				length += ret;
@@ -1063,7 +1077,7 @@ static sense_reason_t spc_emulate_modesense(struct se_cmd *cmd)
 	for (i = 0; i < ARRAY_SIZE(modesense_handlers); ++i)
 		if (modesense_handlers[i].page == page &&
 		    modesense_handlers[i].subpage == subpage) {
-			length += modesense_handlers[i].emulate(dev, pc, &buf[length]);
+			length += modesense_handlers[i].emulate(cmd, pc, &buf[length]);
 			goto set_length;
 		}
 
@@ -1095,7 +1109,6 @@ set_length:
 
 static sense_reason_t spc_emulate_modeselect(struct se_cmd *cmd)
 {
-	struct se_device *dev = cmd->se_dev;
 	char *cdb = cmd->t_task_cdb;
 	bool ten = cdb[0] == MODE_SELECT_10;
 	int off = ten ? 8 : 4;
@@ -1131,7 +1144,7 @@ static sense_reason_t spc_emulate_modeselect(struct se_cmd *cmd)
 		if (modesense_handlers[i].page == page &&
 		    modesense_handlers[i].subpage == subpage) {
 			memset(tbuf, 0, SE_MODE_PAGE_BUF);
-			length = modesense_handlers[i].emulate(dev, 0, tbuf);
+			length = modesense_handlers[i].emulate(cmd, 0, tbuf);
 			goto check_contents;
 		}
 

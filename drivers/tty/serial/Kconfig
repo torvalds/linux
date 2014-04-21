@@ -1024,7 +1024,7 @@ config SERIAL_SGI_IOC3
 
 config SERIAL_MSM
 	bool "MSM on-chip serial port support"
-	depends on ARCH_MSM
+	depends on ARCH_MSM || ARCH_QCOM
 	select SERIAL_CORE
 
 config SERIAL_MSM_CONSOLE
@@ -1226,6 +1226,7 @@ config SERIAL_BFIN_SPORT3_UART_CTSRTS
 config SERIAL_TIMBERDALE
 	tristate "Support for timberdale UART"
 	select SERIAL_CORE
+	depends on X86_32 || COMPILE_TEST
 	---help---
 	Add support for UART controller on timberdale.
 

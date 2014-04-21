@@ -24,13 +24,9 @@ static inline int printk_get_level(const char *buffer)
 
 static inline const char *printk_skip_level(const char *buffer)
 {
-	if (printk_get_level(buffer)) {
-		switch (buffer[1]) {
-		case '0' ... '7':
-		case 'd':	/* KERN_DEFAULT */
-			return buffer + 2;
-		}
-	}
+	if (printk_get_level(buffer))
+		return buffer + 2;
+
 	return buffer;
 }
 
@@ -124,9 +120,9 @@ asmlinkage __printf(1, 0)
 int vprintk(const char *fmt, va_list args);
 
 asmlinkage __printf(5, 6) __cold
-asmlinkage int printk_emit(int facility, int level,
-			   const char *dict, size_t dictlen,
-			   const char *fmt, ...);
+int printk_emit(int facility, int level,
+		const char *dict, size_t dictlen,
+		const char *fmt, ...);
 
 asmlinkage __printf(1, 2) __cold
 int printk(const char *fmt, ...);

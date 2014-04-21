@@ -41,7 +41,6 @@ enum srp_rport_state {
  * @mutex:             Protects against concurrent rport reconnect /
  *                     fast_io_fail / dev_loss_tmo activity.
  * @state:             rport state.
- * @deleted:           Whether or not srp_rport_del() has already been invoked.
  * @reconnect_delay:   Reconnect delay in seconds.
  * @failed_reconnects: Number of failed reconnect attempts.
  * @reconnect_work:    Work structure used for scheduling reconnect attempts.

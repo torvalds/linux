@@ -37,7 +37,7 @@ int azx_alloc_stream_pages(struct azx *chip);
 void azx_free_stream_pages(struct azx *chip);
 
 /* Low level azx interface */
-void azx_init_chip(struct azx *chip, int full_reset);
+void azx_init_chip(struct azx *chip, bool full_reset);
 void azx_stop_chip(struct azx *chip);
 void azx_enter_link_reset(struct azx *chip);
 irqreturn_t azx_interrupt(int irq, void *dev_id);

@@ -182,7 +182,6 @@ static struct ti_dt_clk omap54xx_clks[] = {
 	DT_CLK(NULL, "auxclk3_src_ck", "auxclk3_src_ck"),
 	DT_CLK(NULL, "auxclk3_ck", "auxclk3_ck"),
 	DT_CLK(NULL, "auxclkreq3_ck", "auxclkreq3_ck"),
-	DT_CLK(NULL, "gpmc_ck", "dummy_ck"),
 	DT_CLK("omap_i2c.1", "ick", "dummy_ck"),
 	DT_CLK("omap_i2c.2", "ick", "dummy_ck"),
 	DT_CLK("omap_i2c.3", "ick", "dummy_ck"),

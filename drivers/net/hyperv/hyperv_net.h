@@ -747,6 +747,7 @@ struct ndis_oject_header {
 #define NDIS_TCP_LARGE_SEND_OFFLOAD_IPV4	0
 #define NDIS_TCP_LARGE_SEND_OFFLOAD_IPV6	1
 
+#define VERSION_4_OFFLOAD_SIZE			22
 /*
  * New offload OIDs for NDIS 6
  */

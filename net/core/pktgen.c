@@ -3338,9 +3338,11 @@ static void pktgen_xmit(struct pktgen_dev *pkt_dev)
 	queue_map = skb_get_queue_mapping(pkt_dev->skb);
 	txq = netdev_get_tx_queue(odev, queue_map);
 
-	__netif_tx_lock_bh(txq);
+	local_bh_disable();
 
-	if (unlikely(netif_xmit_frozen_or_stopped(txq))) {
+	HARD_TX_LOCK(odev, txq, smp_processor_id());
+
+	if (unlikely(netif_xmit_frozen_or_drv_stopped(txq))) {
 		ret = NETDEV_TX_BUSY;
 		pkt_dev->last_ok = 0;
 		goto unlock;
@@ -3374,7 +3376,9 @@ static void pktgen_xmit(struct pktgen_dev *pkt_dev)
 		pkt_dev->last_ok = 0;
 	}
 unlock:
-	__netif_tx_unlock_bh(txq);
+	HARD_TX_UNLOCK(odev, txq);
+
+	local_bh_enable();
 
 	/* If pkt_dev->count is zero, then run forever */
 	if ((pkt_dev->count != 0) && (pkt_dev->sofar >= pkt_dev->count)) {

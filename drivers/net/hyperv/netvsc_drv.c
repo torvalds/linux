@@ -319,7 +319,9 @@ static int netvsc_start_xmit(struct sk_buff *skb, struct net_device *net)
 	packet = kzalloc(sizeof(struct hv_netvsc_packet) +
 			 (num_data_pgs * sizeof(struct hv_page_buffer)) +
 			 sizeof(struct rndis_message) +
-			 NDIS_VLAN_PPI_SIZE, GFP_ATOMIC);
+			 NDIS_VLAN_PPI_SIZE +
+			 NDIS_CSUM_PPI_SIZE +
+			 NDIS_LSO_PPI_SIZE, GFP_ATOMIC);
 	if (!packet) {
 		/* out of memory, drop packet */
 		netdev_err(net, "unable to allocate hv_netvsc_packet\n");
@@ -396,7 +398,30 @@ static int netvsc_start_xmit(struct sk_buff *skb, struct net_device *net)
 		csum_info->transmit.tcp_checksum = 1;
 		csum_info->transmit.tcp_header_offset = hdr_offset;
 	} else if (net_trans_info & INFO_UDP) {
-		csum_info->transmit.udp_checksum = 1;
+		/* UDP checksum offload is not supported on ws2008r2.
+		 * Furthermore, on ws2012 and ws2012r2, there are some
+		 * issues with udp checksum offload from Linux guests.
+		 * (these are host issues).
+		 * For now compute the checksum here.
+		 */
+		struct udphdr *uh;
+		u16 udp_len;
+
+		ret = skb_cow_head(skb, 0);
+		if (ret)
+			goto drop;
+
+		uh = udp_hdr(skb);
+		udp_len = ntohs(uh->len);
+		uh->check = 0;
+		uh->check = csum_tcpudp_magic(ip_hdr(skb)->saddr,
+					      ip_hdr(skb)->daddr,
+					      udp_len, IPPROTO_UDP,
+					      csum_partial(uh, udp_len, 0));
+		if (uh->check == 0)
+			uh->check = CSUM_MANGLED_0;
+
+		csum_info->transmit.udp_checksum = 0;
 	}
 	goto do_send;
 
@@ -436,6 +461,7 @@ do_send:
 
 	ret = netvsc_send(net_device_ctx->device_ctx, packet);
 
+drop:
 	if (ret == 0) {
 		net->stats.tx_bytes += skb->len;
 		net->stats.tx_packets++;

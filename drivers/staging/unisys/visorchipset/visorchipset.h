@@ -104,9 +104,9 @@ finddevice(struct list_head *list, U32 busNo, U32 devNo)
 
 static inline void delbusdevices(struct list_head *list, U32 busNo)
 {
-	VISORCHIPSET_DEVICE_INFO *p;
+	VISORCHIPSET_DEVICE_INFO *p, *tmp;
 
-	list_for_each_entry(p, list, entry) {
+	list_for_each_entry_safe(p, tmp, list, entry) {
 		if (p->busNo == busNo) {
 			list_del(&p->entry);
 			kfree(p);

@@ -186,7 +186,7 @@ static inline struct blkcg *css_to_blkcg(struct cgroup_subsys_state *css)
 
 static inline struct blkcg *task_blkcg(struct task_struct *tsk)
 {
-	return css_to_blkcg(task_css(tsk, blkio_subsys_id));
+	return css_to_blkcg(task_css(tsk, blkio_cgrp_id));
 }
 
 static inline struct blkcg *bio_blkcg(struct bio *bio)
@@ -241,12 +241,16 @@ static inline struct blkcg_gq *pd_to_blkg(struct blkg_policy_data *pd)
  */
 static inline int blkg_path(struct blkcg_gq *blkg, char *buf, int buflen)
 {
-	int ret;
+	char *p;
 
-	ret = cgroup_path(blkg->blkcg->css.cgroup, buf, buflen);
-	if (ret)
+	p = cgroup_path(blkg->blkcg->css.cgroup, buf, buflen);
+	if (!p) {
 		strncpy(buf, "<unavailable>", buflen);
-	return ret;
+		return -ENAMETOOLONG;
+	}
+
+	memmove(buf, p, buf + buflen - p);
+	return 0;
 }
 
 /**

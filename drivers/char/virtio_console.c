@@ -901,9 +901,9 @@ static int pipe_to_sg(struct pipe_inode_info *pipe, struct pipe_buffer *buf,
 		if (len + offset > PAGE_SIZE)
 			len = PAGE_SIZE - offset;
 
-		src = buf->ops->map(pipe, buf, 1);
+		src = kmap_atomic(buf->page);
 		memcpy(page_address(page) + offset, src + buf->offset, len);
-		buf->ops->unmap(pipe, buf, src);
+		kunmap_atomic(src);
 
 		sg_set_page(&(sgl->sg[sgl->n]), page, len, offset);
 	}

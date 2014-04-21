@@ -35,11 +35,6 @@ struct trace_kprobe {
 	struct trace_probe	tp;
 };
 
-struct event_file_link {
-	struct ftrace_event_file	*file;
-	struct list_head		list;
-};
-
 #define SIZEOF_TRACE_KPROBE(n)				\
 	(offsetof(struct trace_kprobe, tp.args) +	\
 	(sizeof(struct probe_arg) * (n)))
@@ -346,7 +341,7 @@ static struct trace_kprobe *find_trace_kprobe(const char *event,
 	struct trace_kprobe *tk;
 
 	list_for_each_entry(tk, &probe_list, list)
-		if (strcmp(tk->tp.call.name, event) == 0 &&
+		if (strcmp(ftrace_event_name(&tk->tp.call), event) == 0 &&
 		    strcmp(tk->tp.call.class->system, group) == 0)
 			return tk;
 	return NULL;
@@ -385,18 +380,6 @@ enable_trace_kprobe(struct trace_kprobe *tk, struct ftrace_event_file *file)
 	}
  out:
 	return ret;
-}
-
-static struct event_file_link *
-find_event_file_link(struct trace_probe *tp, struct ftrace_event_file *file)
-{
-	struct event_file_link *link;
-
-	list_for_each_entry(link, &tp->files, list)
-		if (link->file == file)
-			return link;
-
-	return NULL;
 }
 
 /*
@@ -533,7 +516,8 @@ static int register_trace_kprobe(struct trace_kprobe *tk)
 	mutex_lock(&probe_lock);
 
 	/* Delete old (same name) event if exist */
-	old_tk = find_trace_kprobe(tk->tp.call.name, tk->tp.call.class->system);
+	old_tk = find_trace_kprobe(ftrace_event_name(&tk->tp.call),
+			tk->tp.call.class->system);
 	if (old_tk) {
 		ret = unregister_trace_kprobe(old_tk);
 		if (ret < 0)
@@ -581,7 +565,8 @@ static int trace_kprobe_module_callback(struct notifier_block *nb,
 			if (ret)
 				pr_warning("Failed to re-register probe %s on"
 					   "%s: %d\n",
-					   tk->tp.call.name, mod->name, ret);
+					   ftrace_event_name(&tk->tp.call),
+					   mod->name, ret);
 		}
 	}
 	mutex_unlock(&probe_lock);
@@ -835,7 +820,8 @@ static int probes_seq_show(struct seq_file *m, void *v)
 	int i;
 
 	seq_printf(m, "%c", trace_kprobe_is_return(tk) ? 'r' : 'p');
-	seq_printf(m, ":%s/%s", tk->tp.call.class->system, tk->tp.call.name);
+	seq_printf(m, ":%s/%s", tk->tp.call.class->system,
+			ftrace_event_name(&tk->tp.call));
 
 	if (!tk->symbol)
 		seq_printf(m, " 0x%p", tk->rp.kp.addr);
@@ -893,7 +879,8 @@ static int probes_profile_seq_show(struct seq_file *m, void *v)
 {
 	struct trace_kprobe *tk = v;
 
-	seq_printf(m, "  %-44s %15lu %15lu\n", tk->tp.call.name, tk->nhit,
+	seq_printf(m, "  %-44s %15lu %15lu\n",
+		   ftrace_event_name(&tk->tp.call), tk->nhit,
 		   tk->rp.kp.nmissed);
 
 	return 0;
@@ -1028,7 +1015,7 @@ print_kprobe_event(struct trace_iterator *iter, int flags,
 	field = (struct kprobe_trace_entry_head *)iter->ent;
 	tp = container_of(event, struct trace_probe, call.event);
 
-	if (!trace_seq_printf(s, "%s: (", tp->call.name))
+	if (!trace_seq_printf(s, "%s: (", ftrace_event_name(&tp->call)))
 		goto partial;
 
 	if (!seq_print_ip_sym(s, field->ip, flags | TRACE_ITER_SYM_OFFSET))
@@ -1064,7 +1051,7 @@ print_kretprobe_event(struct trace_iterator *iter, int flags,
 	field = (struct kretprobe_trace_entry_head *)iter->ent;
 	tp = container_of(event, struct trace_probe, call.event);
 
-	if (!trace_seq_printf(s, "%s: (", tp->call.name))
+	if (!trace_seq_printf(s, "%s: (", ftrace_event_name(&tp->call)))
 		goto partial;
 
 	if (!seq_print_ip_sym(s, field->ret_ip, flags | TRACE_ITER_SYM_OFFSET))
@@ -1303,7 +1290,8 @@ static int register_kprobe_event(struct trace_kprobe *tk)
 	call->data = tk;
 	ret = trace_add_event_call(call);
 	if (ret) {
-		pr_info("Failed to register kprobe event: %s\n", call->name);
+		pr_info("Failed to register kprobe event: %s\n",
+			ftrace_event_name(call));
 		kfree(call->print_fmt);
 		unregister_ftrace_event(&call->event);
 	}

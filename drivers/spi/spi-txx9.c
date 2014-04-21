@@ -262,7 +262,8 @@ static void txx9spi_work_one(struct txx9spi *c, struct spi_message *m)
 
 exit:
 	m->status = status;
-	m->complete(m->context);
+	if (m->complete)
+		m->complete(m->context);
 
 	/* normally deactivate chipselect ... unless no error and
 	 * cs_change has hinted that the next message will probably

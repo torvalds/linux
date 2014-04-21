@@ -330,9 +330,6 @@ static void nvt_cir_wake_ldev_init(struct nvt_dev *nvt)
 	/* Enable CIR Wake via PSOUT# (Pin60) */
 	nvt_set_reg_bit(nvt, CIR_WAKE_ENABLE_BIT, CR_ACPI_CIR_WAKE);
 
-	/* enable cir interrupt of mouse/keyboard IRQ event */
-	nvt_set_reg_bit(nvt, CIR_INTR_MOUSE_IRQ_BIT, CR_ACPI_IRQ_EVENTS);
-
 	/* enable pme interrupt of cir wakeup event */
 	nvt_set_reg_bit(nvt, PME_INTR_CIR_PASS_BIT, CR_ACPI_IRQ_EVENTS2);
 
@@ -456,7 +453,6 @@ static void nvt_enable_wake(struct nvt_dev *nvt)
 
 	nvt_select_logical_dev(nvt, LOGICAL_DEV_ACPI);
 	nvt_set_reg_bit(nvt, CIR_WAKE_ENABLE_BIT, CR_ACPI_CIR_WAKE);
-	nvt_set_reg_bit(nvt, CIR_INTR_MOUSE_IRQ_BIT, CR_ACPI_IRQ_EVENTS);
 	nvt_set_reg_bit(nvt, PME_INTR_CIR_PASS_BIT, CR_ACPI_IRQ_EVENTS2);
 
 	nvt_select_logical_dev(nvt, LOGICAL_DEV_CIR_WAKE);
@@ -989,6 +985,12 @@ static int nvt_probe(struct pnp_dev *pdev, const struct pnp_device_id *dev_id)
 		goto exit_free_dev_rdev;
 
 	ret = -ENODEV;
+	/* activate pnp device */
+	if (pnp_activate_dev(pdev) < 0) {
+		dev_err(&pdev->dev, "Could not activate PNP device!\n");
+		goto exit_free_dev_rdev;
+	}
+
 	/* validate pnp resources */
 	if (!pnp_port_valid(pdev, 0) ||
 	    pnp_port_len(pdev, 0) < CIR_IOREG_LENGTH) {
@@ -1042,7 +1044,7 @@ static int nvt_probe(struct pnp_dev *pdev, const struct pnp_device_id *dev_id)
 	/* Set up the rc device */
 	rdev->priv = nvt;
 	rdev->driver_type = RC_DRIVER_IR_RAW;
-	rdev->allowed_protos = RC_BIT_ALL;
+	rc_set_allowed_protocols(rdev, RC_BIT_ALL);
 	rdev->open = nvt_open;
 	rdev->close = nvt_close;
 	rdev->tx_ir = nvt_tx_ir;

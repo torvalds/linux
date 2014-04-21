@@ -56,15 +56,15 @@ static struct s_elan_multiplier elan_multiplier[] = {
 };
 
 static struct cpufreq_frequency_table elanfreq_table[] = {
-	{0,	1000},
-	{1,	2000},
-	{2,	4000},
-	{3,	8000},
-	{4,	16000},
-	{5,	33000},
-	{6,	66000},
-	{7,	99000},
-	{0,	CPUFREQ_TABLE_END},
+	{0, 0,	1000},
+	{0, 1,	2000},
+	{0, 2,	4000},
+	{0, 3,	8000},
+	{0, 4,	16000},
+	{0, 5,	33000},
+	{0, 6,	66000},
+	{0, 7,	99000},
+	{0, 0,	CPUFREQ_TABLE_END},
 };
 
 

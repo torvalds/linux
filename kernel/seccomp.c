@@ -69,18 +69,17 @@ static void populate_seccomp_data(struct seccomp_data *sd)
 {
 	struct task_struct *task = current;
 	struct pt_regs *regs = task_pt_regs(task);
+	unsigned long args[6];
 
 	sd->nr = syscall_get_nr(task, regs);
-	sd->arch = syscall_get_arch(task, regs);
-
-	/* Unroll syscall_get_args to help gcc on arm. */
-	syscall_get_arguments(task, regs, 0, 1, (unsigned long *) &sd->args[0]);
-	syscall_get_arguments(task, regs, 1, 1, (unsigned long *) &sd->args[1]);
-	syscall_get_arguments(task, regs, 2, 1, (unsigned long *) &sd->args[2]);
-	syscall_get_arguments(task, regs, 3, 1, (unsigned long *) &sd->args[3]);
-	syscall_get_arguments(task, regs, 4, 1, (unsigned long *) &sd->args[4]);
-	syscall_get_arguments(task, regs, 5, 1, (unsigned long *) &sd->args[5]);
-
+	sd->arch = syscall_get_arch();
+	syscall_get_arguments(task, regs, 0, 6, args);
+	sd->args[0] = args[0];
+	sd->args[1] = args[1];
+	sd->args[2] = args[2];
+	sd->args[3] = args[3];
+	sd->args[4] = args[4];
+	sd->args[5] = args[5];
 	sd->instruction_pointer = KSTK_EIP(task);
 }
 
@@ -256,6 +255,7 @@ static long seccomp_attach_filter(struct sock_fprog *fprog)
 		goto free_prog;
 
 	/* Allocate a new seccomp_filter */
+	ret = -ENOMEM;
 	filter = kzalloc(sizeof(struct seccomp_filter) +
 			 sizeof(struct sock_filter_int) * new_len,
 			 GFP_KERNEL|__GFP_NOWARN);
@@ -265,6 +265,7 @@ static long seccomp_attach_filter(struct sock_fprog *fprog)
 	ret = sk_convert_filter(fp, fprog->len, filter->insnsi, &new_len);
 	if (ret)
 		goto free_filter;
+	kfree(fp);
 
 	atomic_set(&filter->usage, 1);
 	filter->len = new_len;
@@ -290,7 +291,7 @@ free_prog:
  *
  * Returns 0 on success and non-zero otherwise.
  */
-long seccomp_attach_user_filter(char __user *user_filter)
+static long seccomp_attach_user_filter(char __user *user_filter)
 {
 	struct sock_fprog fprog;
 	long ret = -EFAULT;
@@ -348,7 +349,7 @@ static void seccomp_send_sigsys(int syscall, int reason)
 	info.si_code = SYS_SECCOMP;
 	info.si_call_addr = (void __user *)KSTK_EIP(current);
 	info.si_errno = reason;
-	info.si_arch = syscall_get_arch(current, task_pt_regs(current));
+	info.si_arch = syscall_get_arch();
 	info.si_syscall = syscall;
 	force_sig_info(SIGSYS, &info, current);
 }

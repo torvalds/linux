@@ -820,13 +820,13 @@ struct xenvif_tx_cb {
 
 #define XENVIF_TX_CB(skb) ((struct xenvif_tx_cb *)(skb)->cb)
 
-static inline void xenvif_tx_create_gop(struct xenvif *vif,
-					u16 pending_idx,
-					struct xen_netif_tx_request *txp,
-					struct gnttab_map_grant_ref *gop)
+static inline void xenvif_tx_create_map_op(struct xenvif *vif,
+					  u16 pending_idx,
+					  struct xen_netif_tx_request *txp,
+					  struct gnttab_map_grant_ref *mop)
 {
-	vif->pages_to_map[gop-vif->tx_map_ops] = vif->mmap_pages[pending_idx];
-	gnttab_set_map_op(gop, idx_to_kaddr(vif, pending_idx),
+	vif->pages_to_map[mop-vif->tx_map_ops] = vif->mmap_pages[pending_idx];
+	gnttab_set_map_op(mop, idx_to_kaddr(vif, pending_idx),
 			  GNTMAP_host_map | GNTMAP_readonly,
 			  txp->gref, vif->domid);
 
@@ -880,7 +880,7 @@ static struct gnttab_map_grant_ref *xenvif_get_requests(struct xenvif *vif,
 	     shinfo->nr_frags++, txp++, gop++) {
 		index = pending_index(vif->pending_cons++);
 		pending_idx = vif->pending_ring[index];
-		xenvif_tx_create_gop(vif, pending_idx, txp, gop);
+		xenvif_tx_create_map_op(vif, pending_idx, txp, gop);
 		frag_set_pending_idx(&frags[shinfo->nr_frags], pending_idx);
 	}
 
@@ -900,7 +900,7 @@ static struct gnttab_map_grant_ref *xenvif_get_requests(struct xenvif *vif,
 		     shinfo->nr_frags++, txp++, gop++) {
 			index = pending_index(vif->pending_cons++);
 			pending_idx = vif->pending_ring[index];
-			xenvif_tx_create_gop(vif, pending_idx, txp, gop);
+			xenvif_tx_create_map_op(vif, pending_idx, txp, gop);
 			frag_set_pending_idx(&frags[shinfo->nr_frags],
 					     pending_idx);
 		}
@@ -940,38 +940,42 @@ static inline void xenvif_grant_handle_reset(struct xenvif *vif,
 
 static int xenvif_tx_check_gop(struct xenvif *vif,
 			       struct sk_buff *skb,
-			       struct gnttab_map_grant_ref **gopp)
+			       struct gnttab_map_grant_ref **gopp_map,
+			       struct gnttab_copy **gopp_copy)
 {
-	struct gnttab_map_grant_ref *gop = *gopp;
+	struct gnttab_map_grant_ref *gop_map = *gopp_map;
 	u16 pending_idx = XENVIF_TX_CB(skb)->pending_idx;
 	struct skb_shared_info *shinfo = skb_shinfo(skb);
-	struct pending_tx_info *tx_info;
 	int nr_frags = shinfo->nr_frags;
-	int i, err, start;
+	int i, err;
 	struct sk_buff *first_skb = NULL;
 
 	/* Check status of header. */
-	err = gop->status;
-	if (unlikely(err))
+	err = (*gopp_copy)->status;
+	(*gopp_copy)++;
+	if (unlikely(err)) {
+		if (net_ratelimit())
+			netdev_dbg(vif->dev,
+				   "Grant copy of header failed! status: %d pending_idx: %u ref: %u\n",
+				   (*gopp_copy)->status,
+				   pending_idx,
+				   (*gopp_copy)->source.u.ref);
 		xenvif_idx_release(vif, pending_idx, XEN_NETIF_RSP_ERROR);
-	else
-		xenvif_grant_handle_set(vif, pending_idx , gop->handle);
-
-	/* Skip first skb fragment if it is on same page as header fragment. */
-	start = (frag_get_pending_idx(&shinfo->frags[0]) == pending_idx);
+	}
 
 check_frags:
-	for (i = start; i < nr_frags; i++) {
+	for (i = 0; i < nr_frags; i++, gop_map++) {
 		int j, newerr;
 
 		pending_idx = frag_get_pending_idx(&shinfo->frags[i]);
-		tx_info = &vif->pending_tx_info[pending_idx];
 
 		/* Check error status: if okay then remember grant handle. */
-		newerr = (++gop)->status;
+		newerr = gop_map->status;
 
 		if (likely(!newerr)) {
-			xenvif_grant_handle_set(vif, pending_idx , gop->handle);
+			xenvif_grant_handle_set(vif,
+						pending_idx,
+						gop_map->handle);
 			/* Had a previous error? Invalidate this fragment. */
 			if (unlikely(err))
 				xenvif_idx_unmap(vif, pending_idx);
@@ -979,18 +983,20 @@ check_frags:
 		}
 
 		/* Error on this fragment: respond to client with an error. */
+		if (net_ratelimit())
+			netdev_dbg(vif->dev,
+				   "Grant map of %d. frag failed! status: %d pending_idx: %u ref: %u\n",
+				   i,
+				   gop_map->status,
+				   pending_idx,
+				   gop_map->ref);
 		xenvif_idx_release(vif, pending_idx, XEN_NETIF_RSP_ERROR);
 
 		/* Not the first error? Preceding frags already invalidated. */
 		if (err)
 			continue;
-		/* First error: invalidate header and preceding fragments. */
-		if (!first_skb)
-			pending_idx = XENVIF_TX_CB(skb)->pending_idx;
-		else
-			pending_idx = XENVIF_TX_CB(skb)->pending_idx;
-		xenvif_idx_unmap(vif, pending_idx);
-		for (j = start; j < i; j++) {
+		/* First error: invalidate preceding fragments. */
+		for (j = 0; j < i; j++) {
 			pending_idx = frag_get_pending_idx(&shinfo->frags[j]);
 			xenvif_idx_unmap(vif, pending_idx);
 		}
@@ -1004,7 +1010,6 @@ check_frags:
 		skb = shinfo->frag_list;
 		shinfo = skb_shinfo(skb);
 		nr_frags = shinfo->nr_frags;
-		start = 0;
 
 		goto check_frags;
 	}
@@ -1015,15 +1020,13 @@ check_frags:
 	if (first_skb && err) {
 		int j;
 		shinfo = skb_shinfo(first_skb);
-		pending_idx = XENVIF_TX_CB(skb)->pending_idx;
-		start = (frag_get_pending_idx(&shinfo->frags[0]) == pending_idx);
-		for (j = start; j < shinfo->nr_frags; j++) {
+		for (j = 0; j < shinfo->nr_frags; j++) {
 			pending_idx = frag_get_pending_idx(&shinfo->frags[j]);
 			xenvif_idx_unmap(vif, pending_idx);
 		}
 	}
 
-	*gopp = gop + 1;
+	*gopp_map = gop_map;
 	return err;
 }
 
@@ -1034,9 +1037,6 @@ static void xenvif_fill_frags(struct xenvif *vif, struct sk_buff *skb)
 	int i;
 	u16 prev_pending_idx = INVALID_PENDING_IDX;
 
-	if (skb_shinfo(skb)->destructor_arg)
-		prev_pending_idx = XENVIF_TX_CB(skb)->pending_idx;
-
 	for (i = 0; i < nr_frags; i++) {
 		skb_frag_t *frag = shinfo->frags + i;
 		struct xen_netif_tx_request *txp;
@@ -1046,10 +1046,10 @@ static void xenvif_fill_frags(struct xenvif *vif, struct sk_buff *skb)
 		pending_idx = frag_get_pending_idx(frag);
 
 		/* If this is not the first frag, chain it to the previous*/
-		if (unlikely(prev_pending_idx == INVALID_PENDING_IDX))
+		if (prev_pending_idx == INVALID_PENDING_IDX)
 			skb_shinfo(skb)->destructor_arg =
 				&callback_param(vif, pending_idx);
-		else if (likely(pending_idx != prev_pending_idx))
+		else
 			callback_param(vif, prev_pending_idx).ctx =
 				&callback_param(vif, pending_idx);
 
@@ -1189,7 +1189,10 @@ static bool tx_credit_exceeded(struct xenvif *vif, unsigned size)
 	return false;
 }
 
-static unsigned xenvif_tx_build_gops(struct xenvif *vif, int budget)
+static void xenvif_tx_build_gops(struct xenvif *vif,
+				     int budget,
+				     unsigned *copy_ops,
+				     unsigned *map_ops)
 {
 	struct gnttab_map_grant_ref *gop = vif->tx_map_ops, *request_gop;
 	struct sk_buff *skb;
@@ -1292,22 +1295,36 @@ static unsigned xenvif_tx_build_gops(struct xenvif *vif, int budget)
 			}
 		}
 
-		xenvif_tx_create_gop(vif, pending_idx, &txreq, gop);
-
-		gop++;
-
 		XENVIF_TX_CB(skb)->pending_idx = pending_idx;
 
 		__skb_put(skb, data_len);
+		vif->tx_copy_ops[*copy_ops].source.u.ref = txreq.gref;
+		vif->tx_copy_ops[*copy_ops].source.domid = vif->domid;
+		vif->tx_copy_ops[*copy_ops].source.offset = txreq.offset;
+
+		vif->tx_copy_ops[*copy_ops].dest.u.gmfn =
+			virt_to_mfn(skb->data);
+		vif->tx_copy_ops[*copy_ops].dest.domid = DOMID_SELF;
+		vif->tx_copy_ops[*copy_ops].dest.offset =
+			offset_in_page(skb->data);
+
+		vif->tx_copy_ops[*copy_ops].len = data_len;
+		vif->tx_copy_ops[*copy_ops].flags = GNTCOPY_source_gref;
+
+		(*copy_ops)++;
 
 		skb_shinfo(skb)->nr_frags = ret;
 		if (data_len < txreq.size) {
 			skb_shinfo(skb)->nr_frags++;
 			frag_set_pending_idx(&skb_shinfo(skb)->frags[0],
 					     pending_idx);
+			xenvif_tx_create_map_op(vif, pending_idx, &txreq, gop);
+			gop++;
 		} else {
 			frag_set_pending_idx(&skb_shinfo(skb)->frags[0],
 					     INVALID_PENDING_IDX);
+			memcpy(&vif->pending_tx_info[pending_idx].req, &txreq,
+			       sizeof(txreq));
 		}
 
 		vif->pending_cons++;
@@ -1324,11 +1341,13 @@ static unsigned xenvif_tx_build_gops(struct xenvif *vif, int budget)
 
 		vif->tx.req_cons = idx;
 
-		if ((gop-vif->tx_map_ops) >= ARRAY_SIZE(vif->tx_map_ops))
+		if (((gop-vif->tx_map_ops) >= ARRAY_SIZE(vif->tx_map_ops)) ||
+		    (*copy_ops >= ARRAY_SIZE(vif->tx_copy_ops)))
 			break;
 	}
 
-	return gop - vif->tx_map_ops;
+	(*map_ops) = gop - vif->tx_map_ops;
+	return;
 }
 
 /* Consolidate skb with a frag_list into a brand new one with local pages on
@@ -1399,7 +1418,8 @@ static int xenvif_handle_frag_list(struct xenvif *vif, struct sk_buff *skb)
 
 static int xenvif_tx_submit(struct xenvif *vif)
 {
-	struct gnttab_map_grant_ref *gop = vif->tx_map_ops;
+	struct gnttab_map_grant_ref *gop_map = vif->tx_map_ops;
+	struct gnttab_copy *gop_copy = vif->tx_copy_ops;
 	struct sk_buff *skb;
 	int work_done = 0;
 
@@ -1412,27 +1432,22 @@ static int xenvif_tx_submit(struct xenvif *vif)
 		txp = &vif->pending_tx_info[pending_idx].req;
 
 		/* Check the remap error code. */
-		if (unlikely(xenvif_tx_check_gop(vif, skb, &gop))) {
-			netdev_dbg(vif->dev, "netback grant failed.\n");
+		if (unlikely(xenvif_tx_check_gop(vif, skb, &gop_map, &gop_copy))) {
 			skb_shinfo(skb)->nr_frags = 0;
 			kfree_skb(skb);
 			continue;
 		}
 
 		data_len = skb->len;
-		memcpy(skb->data,
-		       (void *)(idx_to_kaddr(vif, pending_idx)|txp->offset),
-		       data_len);
 		callback_param(vif, pending_idx).ctx = NULL;
 		if (data_len < txp->size) {
 			/* Append the packet payload as a fragment. */
 			txp->offset += data_len;
 			txp->size -= data_len;
-			skb_shinfo(skb)->destructor_arg =
-				&callback_param(vif, pending_idx);
 		} else {
 			/* Schedule a response immediately. */
-			xenvif_idx_unmap(vif, pending_idx);
+			xenvif_idx_release(vif, pending_idx,
+					   XEN_NETIF_RSP_OKAY);
 		}
 
 		if (txp->flags & XEN_NETTXF_csum_blank)
@@ -1611,22 +1626,25 @@ static inline void xenvif_tx_dealloc_action(struct xenvif *vif)
 /* Called after netfront has transmitted */
 int xenvif_tx_action(struct xenvif *vif, int budget)
 {
-	unsigned nr_gops;
+	unsigned nr_mops, nr_cops = 0;
 	int work_done, ret;
 
 	if (unlikely(!tx_work_todo(vif)))
 		return 0;
 
-	nr_gops = xenvif_tx_build_gops(vif, budget);
+	xenvif_tx_build_gops(vif, budget, &nr_cops, &nr_mops);
 
-	if (nr_gops == 0)
+	if (nr_cops == 0)
 		return 0;
 
-	ret = gnttab_map_refs(vif->tx_map_ops,
-			      NULL,
-			      vif->pages_to_map,
-			      nr_gops);
-	BUG_ON(ret);
+	gnttab_batch_copy(vif->tx_copy_ops, nr_cops);
+	if (nr_mops != 0) {
+		ret = gnttab_map_refs(vif->tx_map_ops,
+				      NULL,
+				      vif->pages_to_map,
+				      nr_mops);
+		BUG_ON(ret);
+	}
 
 	work_done = xenvif_tx_submit(vif);
 

@@ -274,7 +274,7 @@ void __init xen_init_spinlocks(void)
 		printk(KERN_DEBUG "xen: PV spinlocks disabled\n");
 		return;
 	}
-
+	printk(KERN_DEBUG "xen: PV spinlocks enabled\n");
 	pv_lock_ops.lock_spinning = PV_CALLEE_SAVE(xen_lock_spinning);
 	pv_lock_ops.unlock_kick = xen_unlock_kick;
 }
@@ -288,6 +288,9 @@ void __init xen_init_spinlocks(void)
 static __init int xen_init_spinlocks_jump(void)
 {
 	if (!xen_pvspin)
+		return 0;
+
+	if (!xen_domain())
 		return 0;
 
 	static_key_slow_inc(&paravirt_ticketlocks_enabled);

@@ -56,7 +56,7 @@ static void __fimc_is_hw_update_param_sensor_framerate(struct fimc_is *is)
 	__hw_param_copy(dst, src);
 }
 
-static int __fimc_is_hw_update_param(struct fimc_is *is, u32 offset)
+int __fimc_is_hw_update_param(struct fimc_is *is, u32 offset)
 {
 	struct is_param_region *par = &is->is_p_region->parameter;
 	struct chain_config *cfg = &is->config[is->config_index];

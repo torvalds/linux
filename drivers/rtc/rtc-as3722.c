@@ -242,9 +242,8 @@ static int as3722_rtc_resume(struct device *dev)
 }
 #endif
 
-static const struct dev_pm_ops as3722_rtc_pm_ops = {
-	SET_SYSTEM_SLEEP_PM_OPS(as3722_rtc_suspend, as3722_rtc_resume)
-};
+static SIMPLE_DEV_PM_OPS(as3722_rtc_pm_ops, as3722_rtc_suspend,
+			 as3722_rtc_resume);
 
 static struct platform_driver as3722_rtc_driver = {
 	.probe = as3722_rtc_probe,

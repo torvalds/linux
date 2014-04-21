@@ -48,6 +48,8 @@ enum {
 	MLX5_MAX_COMMANDS		= 32,
 	MLX5_CMD_DATA_BLOCK_SIZE	= 512,
 	MLX5_PCI_CMD_XPORT		= 7,
+	MLX5_MKEY_BSF_OCTO_SIZE		= 4,
+	MLX5_MAX_PSVS			= 4,
 };
 
 enum {
@@ -116,6 +118,7 @@ enum {
 	MLX5_MKEY_MASK_START_ADDR	= 1ull << 6,
 	MLX5_MKEY_MASK_PD		= 1ull << 7,
 	MLX5_MKEY_MASK_EN_RINVAL	= 1ull << 8,
+	MLX5_MKEY_MASK_EN_SIGERR	= 1ull << 9,
 	MLX5_MKEY_MASK_BSF_EN		= 1ull << 12,
 	MLX5_MKEY_MASK_KEY		= 1ull << 13,
 	MLX5_MKEY_MASK_QPN		= 1ull << 14,
@@ -176,6 +179,7 @@ enum {
 	MLX5_DEV_CAP_FLAG_BAD_QKEY_CNTR	= 1LL <<  9,
 	MLX5_DEV_CAP_FLAG_APM		= 1LL << 17,
 	MLX5_DEV_CAP_FLAG_ATOMIC	= 1LL << 18,
+	MLX5_DEV_CAP_FLAG_BLOCK_MCAST	= 1LL << 23,
 	MLX5_DEV_CAP_FLAG_ON_DMND_PG	= 1LL << 24,
 	MLX5_DEV_CAP_FLAG_CQ_MODER	= 1LL << 29,
 	MLX5_DEV_CAP_FLAG_RESIZE_CQ	= 1LL << 30,
@@ -551,6 +555,23 @@ struct mlx5_cqe64 {
 	__be64		timestamp;
 	__be32		sop_drop_qpn;
 	__be16		wqe_counter;
+	u8		signature;
+	u8		op_own;
+};
+
+struct mlx5_sig_err_cqe {
+	u8		rsvd0[16];
+	__be32		expected_trans_sig;
+	__be32		actual_trans_sig;
+	__be32		expected_reftag;
+	__be32		actual_reftag;
+	__be16		syndrome;
+	u8		rsvd22[2];
+	__be32		mkey;
+	__be64		err_offset;
+	u8		rsvd30[8];
+	__be32		qpn;
+	u8		rsvd38[2];
 	u8		signature;
 	u8		op_own;
 };
@@ -934,6 +955,29 @@ struct mlx5_access_reg_mbox_out {
 
 enum {
 	MLX_EXT_PORT_CAP_FLAG_EXTENDED_PORT_INFO	= 1 <<  0
+};
+
+struct mlx5_allocate_psv_in {
+	struct mlx5_inbox_hdr   hdr;
+	__be32			npsv_pd;
+	__be32			rsvd_psv0;
+};
+
+struct mlx5_allocate_psv_out {
+	struct mlx5_outbox_hdr  hdr;
+	u8			rsvd[8];
+	__be32			psv_idx[4];
+};
+
+struct mlx5_destroy_psv_in {
+	struct mlx5_inbox_hdr	hdr;
+	__be32                  psv_number;
+	u8                      rsvd[4];
+};
+
+struct mlx5_destroy_psv_out {
+	struct mlx5_outbox_hdr  hdr;
+	u8                      rsvd[8];
 };
 
 #endif /* MLX5_DEVICE_H */

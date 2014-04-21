@@ -11,6 +11,7 @@
  *  similar parts.  The other devices are supported by different drivers.
  *
  *  Supports: IT8603E  Super I/O chip w/LPC interface
+ *            IT8623E  Super I/O chip w/LPC interface
  *            IT8705F  Super I/O chip w/LPC interface
  *            IT8712F  Super I/O chip w/LPC interface
  *            IT8716F  Super I/O chip w/LPC interface
@@ -147,7 +148,8 @@ static inline void superio_exit(void)
 #define IT8772E_DEVID 0x8772
 #define IT8782F_DEVID 0x8782
 #define IT8783E_DEVID 0x8783
-#define IT8306E_DEVID 0x8603
+#define IT8603E_DEVID 0x8603
+#define IT8623E_DEVID 0x8623
 #define IT87_ACT_REG  0x30
 #define IT87_BASE_REG 0x60
 
@@ -1431,7 +1433,7 @@ static ssize_t show_label(struct device *dev, struct device_attribute *attr,
 static SENSOR_DEVICE_ATTR(in3_label, S_IRUGO, show_label, NULL, 0);
 static SENSOR_DEVICE_ATTR(in7_label, S_IRUGO, show_label, NULL, 1);
 static SENSOR_DEVICE_ATTR(in8_label, S_IRUGO, show_label, NULL, 2);
-/* special AVCC3 IT8306E in9 */
+/* special AVCC3 IT8603E in9 */
 static SENSOR_DEVICE_ATTR(in9_label, S_IRUGO, show_label, NULL, 0);
 
 static ssize_t show_name(struct device *dev, struct device_attribute
@@ -1766,7 +1768,8 @@ static int __init it87_find(unsigned short *address,
 	case IT8783E_DEVID:
 		sio_data->type = it8783;
 		break;
-	case IT8306E_DEVID:
+	case IT8603E_DEVID:
+	case IT8623E_DEVID:
 		sio_data->type = it8603;
 		break;
 	case 0xffff:	/* No device at all */

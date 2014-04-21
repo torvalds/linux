@@ -397,7 +397,7 @@ static efi_status_t handle_cmdline_files(efi_system_table_t *sys_table_arg,
 				else
 					chunksize = size;
 
-				status = efi_file_read(fh, files[j].handle,
+				status = efi_file_read(files[j].handle,
 						       &chunksize,
 						       (void *)addr);
 				if (status != EFI_SUCCESS) {
@@ -408,7 +408,7 @@ static efi_status_t handle_cmdline_files(efi_system_table_t *sys_table_arg,
 				size -= chunksize;
 			}
 
-			efi_file_close(fh, files[j].handle);
+			efi_file_close(files[j].handle);
 		}
 
 	}
@@ -425,7 +425,7 @@ free_file_total:
 
 close_handles:
 	for (k = j; k < i; k++)
-		efi_file_close(fh, files[k].handle);
+		efi_file_close(files[k].handle);
 free_files:
 	efi_call_early(free_pool, files);
 fail:

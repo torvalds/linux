@@ -12,7 +12,7 @@
 
 /dts-v1/;
 
-#include "omap34xx.dtsi"
+#include "omap3-overo.dtsi"
 #include "omap3-overo-tobi-common.dtsi"
 
 / {

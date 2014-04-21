@@ -805,6 +805,9 @@ static __init void evm_init(void)
 
 	platform_device_register(&davinci_nand_device);
 
+	if (davinci_aemif_setup(&davinci_nand_device))
+		pr_warn("%s: Cannot configure AEMIF.\n", __func__);
+
 	dm646x_init_edma(dm646x_edma_rsv);
 
 	if (HAS_ATA)

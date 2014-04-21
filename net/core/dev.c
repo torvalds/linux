@@ -2284,7 +2284,7 @@ EXPORT_SYMBOL(skb_checksum_help);
 __be16 skb_network_protocol(struct sk_buff *skb, int *depth)
 {
 	__be16 type = skb->protocol;
-	int vlan_depth = ETH_HLEN;
+	int vlan_depth = skb->mac_len;
 
 	/* Tunnel gso handlers can set protocol to ethernet. */
 	if (type == htons(ETH_P_TEB)) {
@@ -4043,6 +4043,7 @@ static void napi_reuse_skb(struct napi_struct *napi, struct sk_buff *skb)
 	skb->vlan_tci = 0;
 	skb->dev = napi->dev;
 	skb->skb_iif = 0;
+	skb->truesize = SKB_TRUESIZE(skb_end_offset(skb));
 
 	napi->skb = skb;
 }
@@ -4588,8 +4589,7 @@ void *netdev_lower_get_next_private(struct net_device *dev,
 	if (&lower->list == &dev->adj_list.lower)
 		return NULL;
 
-	if (iter)
-		*iter = lower->list.next;
+	*iter = lower->list.next;
 
 	return lower->private;
 }
@@ -4617,8 +4617,7 @@ void *netdev_lower_get_next_private_rcu(struct net_device *dev,
 	if (&lower->list == &dev->adj_list.lower)
 		return NULL;
 
-	if (iter)
-		*iter = &lower->list;
+	*iter = &lower->list;
 
 	return lower->private;
 }
@@ -5239,6 +5238,7 @@ void __dev_set_rx_mode(struct net_device *dev)
 	if (ops->ndo_set_rx_mode)
 		ops->ndo_set_rx_mode(dev);
 }
+EXPORT_SYMBOL(__dev_set_rx_mode);
 
 void dev_set_rx_mode(struct net_device *dev)
 {
@@ -5695,6 +5695,13 @@ static netdev_features_t netdev_fix_features(struct net_device *dev,
 			features &= ~NETIF_F_UFO;
 		}
 	}
+
+#ifdef CONFIG_NET_RX_BUSY_POLL
+	if (dev->netdev_ops->ndo_busy_poll)
+		features |= NETIF_F_BUSY_POLL;
+	else
+#endif
+		features &= ~NETIF_F_BUSY_POLL;
 
 	return features;
 }

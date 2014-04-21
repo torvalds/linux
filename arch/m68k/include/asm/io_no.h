@@ -55,7 +55,7 @@ static inline unsigned int _swapl(volatile unsigned long v)
 #define __raw_writew writew
 #define __raw_writel writel
 
-static inline void io_outsb(unsigned int addr, void *buf, int len)
+static inline void io_outsb(unsigned int addr, const void *buf, int len)
 {
 	volatile unsigned char *ap = (volatile unsigned char *) addr;
 	unsigned char *bp = (unsigned char *) buf;
@@ -63,7 +63,7 @@ static inline void io_outsb(unsigned int addr, void *buf, int len)
 		*ap = *bp++;
 }
 
-static inline void io_outsw(unsigned int addr, void *buf, int len)
+static inline void io_outsw(unsigned int addr, const void *buf, int len)
 {
 	volatile unsigned short *ap = (volatile unsigned short *) addr;
 	unsigned short *bp = (unsigned short *) buf;
@@ -71,7 +71,7 @@ static inline void io_outsw(unsigned int addr, void *buf, int len)
 		*ap = _swapw(*bp++);
 }
 
-static inline void io_outsl(unsigned int addr, void *buf, int len)
+static inline void io_outsl(unsigned int addr, const void *buf, int len)
 {
 	volatile unsigned int *ap = (volatile unsigned int *) addr;
 	unsigned int *bp = (unsigned int *) buf;
