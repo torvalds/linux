@@ -394,6 +394,7 @@ struct uprobe_xol_ops {
 	bool	(*emulate)(struct arch_uprobe *, struct pt_regs *);
 	int	(*pre_xol)(struct arch_uprobe *, struct pt_regs *);
 	int	(*post_xol)(struct arch_uprobe *, struct pt_regs *);
+	void	(*abort)(struct arch_uprobe *, struct pt_regs *);
 };
 
 static inline int sizeof_long(void)
@@ -444,9 +445,15 @@ static int default_post_xol_op(struct arch_uprobe *auprobe, struct pt_regs *regs
 	return 0;
 }
 
+static void default_abort_op(struct arch_uprobe *auprobe, struct pt_regs *regs)
+{
+	handle_riprel_post_xol(auprobe, regs, NULL);
+}
+
 static struct uprobe_xol_ops default_xol_ops = {
 	.pre_xol  = default_pre_xol_op,
 	.post_xol = default_post_xol_op,
+	.abort	  = default_abort_op,
 };
 
 static bool branch_is_call(struct arch_uprobe *auprobe)
@@ -820,10 +827,11 @@ void arch_uprobe_abort_xol(struct arch_uprobe *auprobe, struct pt_regs *regs)
 {
 	struct uprobe_task *utask = current->utask;
 
-	current->thread.trap_nr = utask->autask.saved_trap_nr;
-	handle_riprel_post_xol(auprobe, regs, NULL);
-	instruction_pointer_set(regs, utask->vaddr);
+	if (auprobe->ops->abort)
+		auprobe->ops->abort(auprobe, regs);
 
+	current->thread.trap_nr = utask->autask.saved_trap_nr;
+	regs->ip = utask->vaddr;
 	/* clear TF if it was set by us in arch_uprobe_pre_xol() */
 	if (!utask->autask.saved_tf)
 		regs->flags &= ~X86_EFLAGS_TF;
