@@ -433,7 +433,7 @@ static void ext4_es_insert_extent_ext_check(struct inode *inode,
 		ee_start = ext4_ext_pblock(ex);
 		ee_len = ext4_ext_get_actual_len(ex);
 
-		ee_status = ext4_ext_is_uninitialized(ex) ? 1 : 0;
+		ee_status = ext4_ext_is_unwritten(ex) ? 1 : 0;
 		es_status = ext4_es_is_unwritten(es) ? 1 : 0;
 
 		/*

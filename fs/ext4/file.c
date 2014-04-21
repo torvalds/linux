@@ -136,7 +136,7 @@ ext4_file_dio_write(struct kiocb *iocb, const struct iovec *iov,
 		/*
 		 * 'err==len' means that all of blocks has been preallocated no
 		 * matter they are initialized or not.  For excluding
-		 * uninitialized extents, we need to check m_flags.  There are
+		 * unwritten extents, we need to check m_flags.  There are
 		 * two conditions that indicate for initialized extents.
 		 * 1) If we hit extent cache, EXT4_MAP_MAPPED flag is returned;
 		 * 2) If we do a real lookup, non-flags are returned.

@@ -489,8 +489,8 @@ static void ext4_map_blocks_es_recheck(handle_t *handle,
  * Otherwise, call with ext4_ind_map_blocks() to handle indirect mapping
  * based files
  *
- * On success, it returns the number of blocks being mapped or allocate.
- * if create==0 and the blocks are pre-allocated and uninitialized block,
+ * On success, it returns the number of blocks being mapped or allocated.
+ * if create==0 and the blocks are pre-allocated and unwritten block,
  * the result buffer head is unmapped. If the create ==1, it will make sure
  * the buffer head is mapped.
  *
@@ -622,7 +622,7 @@ found:
 	map->m_flags &= ~EXT4_MAP_FLAGS;
 
 	/*
-	 * New blocks allocate and/or writing to uninitialized extent
+	 * New blocks allocate and/or writing to unwritten extent
 	 * will possibly result in updating i_data, so we take
 	 * the write lock of i_data_sem, and call get_blocks()
 	 * with create == 1 flag.
@@ -2032,7 +2032,7 @@ static int mpage_process_page_bufs(struct mpage_da_data *mpd,
  * Scan buffers corresponding to changed extent (we expect corresponding pages
  * to be already locked) and update buffer state according to new extent state.
  * We map delalloc buffers to their physical location, clear unwritten bits,
- * and mark buffers as uninit when we perform writes to uninitialized extents
+ * and mark buffers as uninit when we perform writes to unwritten extents
  * and do extent conversion after IO is finished. If the last page is not fully
  * mapped, we update @map to the next extent in the last page that needs
  * mapping. Otherwise we submit the page for IO.
@@ -2131,7 +2131,7 @@ static int mpage_map_one_extent(handle_t *handle, struct mpage_da_data *mpd)
 	trace_ext4_da_write_pages_extent(inode, map);
 	/*
 	 * Call ext4_map_blocks() to allocate any delayed allocation blocks, or
-	 * to convert an uninitialized extent to be initialized (in the case
+	 * to convert an unwritten extent to be initialized (in the case
 	 * where we have written into one or more preallocated blocks).  It is
 	 * possible that we're going to need more metadata blocks than
 	 * previously reserved. However we must not fail because we're in
@@ -3071,9 +3071,9 @@ static void ext4_end_io_dio(struct kiocb *iocb, loff_t offset,
  * preallocated extents, and those write extend the file, no need to
  * fall back to buffered IO.
  *
- * For holes, we fallocate those blocks, mark them as uninitialized
+ * For holes, we fallocate those blocks, mark them as unwritten
  * If those blocks were preallocated, we mark sure they are split, but
- * still keep the range to write as uninitialized.
+ * still keep the range to write as unwritten.
  *
  * The unwritten extents will be converted to written when DIO is completed.
  * For async direct IO, since the IO may still pending when return, we
@@ -3125,12 +3125,12 @@ static ssize_t ext4_ext_direct_IO(int rw, struct kiocb *iocb,
 	 * We could direct write to holes and fallocate.
 	 *
 	 * Allocated blocks to fill the hole are marked as
-	 * uninitialized to prevent parallel buffered read to expose
+	 * unwritten to prevent parallel buffered read to expose
 	 * the stale data before DIO complete the data IO.
 	 *
 	 * As to previously fallocated extents, ext4 get_block will
 	 * just simply mark the buffer mapped but still keep the
-	 * extents uninitialized.
+	 * extents unwritten.
 	 *
 	 * For non AIO case, we will convert those unwritten extents
 	 * to written after return back from blockdev_direct_IO.
