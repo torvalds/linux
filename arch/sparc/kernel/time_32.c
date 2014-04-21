@@ -83,7 +83,7 @@ unsigned long profile_pc(struct pt_regs *regs)
 
 EXPORT_SYMBOL(profile_pc);
 
-__volatile__ unsigned int *master_l10_counter;
+volatile unsigned int __iomem *master_l10_counter;
 
 int update_persistent_clock(struct timespec now)
 {

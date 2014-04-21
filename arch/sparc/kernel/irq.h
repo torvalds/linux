@@ -82,6 +82,9 @@ void handler_irq(unsigned int pil, struct pt_regs *regs);
 
 unsigned long leon_get_irqmask(unsigned int irq);
 
+/* sun4m_irq.c */
+void sun4m_nmi(struct pt_regs *regs);
+
 #ifdef CONFIG_SMP
 
 /* All SUN4D IPIs are sent on this IRQ, may be shared with hard IRQs */
