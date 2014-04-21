@@ -185,6 +185,10 @@ struct extcon_specific_cable_nb {
  */
 extern int extcon_dev_register(struct extcon_dev *edev);
 extern void extcon_dev_unregister(struct extcon_dev *edev);
+extern int devm_extcon_dev_register(struct device *dev,
+				    struct extcon_dev *edev);
+extern void devm_extcon_dev_unregister(struct device *dev,
+				       struct extcon_dev *edev);
 extern struct extcon_dev *extcon_get_extcon_dev(const char *extcon_name);
 
 /*
@@ -253,6 +257,15 @@ static inline int extcon_dev_register(struct extcon_dev *edev)
 }
 
 static inline void extcon_dev_unregister(struct extcon_dev *edev) { }
+
+static inline int devm_extcon_dev_register(struct device *dev,
+					   struct extcon_dev *edev)
+{
+	return -EINVAL;
+}
+
+static inline void devm_extcon_dev_unregister(struct device *dev,
+					      struct extcon_dev *edev) { }
 
 static inline u32 extcon_get_state(struct extcon_dev *edev)
 {
