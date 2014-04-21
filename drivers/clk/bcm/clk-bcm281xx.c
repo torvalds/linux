@@ -15,12 +15,17 @@
 #include "clk-kona.h"
 #include "dt-bindings/clock/bcm281xx.h"
 
-/* bcm11351 CCU device tree "compatible" strings */
-#define BCM11351_DT_ROOT_CCU_COMPAT	"brcm,bcm11351-root-ccu"
-#define BCM11351_DT_AON_CCU_COMPAT	"brcm,bcm11351-aon-ccu"
-#define BCM11351_DT_HUB_CCU_COMPAT	"brcm,bcm11351-hub-ccu"
-#define BCM11351_DT_MASTER_CCU_COMPAT	"brcm,bcm11351-master-ccu"
-#define BCM11351_DT_SLAVE_CCU_COMPAT	"brcm,bcm11351-slave-ccu"
+/*
+ * These are the bcm281xx CCU device tree "compatible" strings.
+ * We're stuck with using "bcm11351" in the string because wild
+ * cards aren't allowed, and that name was the first one defined
+ * in this family of devices.
+ */
+#define BCM281XX_DT_ROOT_CCU_COMPAT	"brcm,bcm11351-root-ccu"
+#define BCM281XX_DT_AON_CCU_COMPAT	"brcm,bcm11351-aon-ccu"
+#define BCM281XX_DT_HUB_CCU_COMPAT	"brcm,bcm11351-hub-ccu"
+#define BCM281XX_DT_MASTER_CCU_COMPAT	"brcm,bcm11351-master-ccu"
+#define BCM281XX_DT_SLAVE_CCU_COMPAT	"brcm,bcm11351-slave-ccu"
 
 /* Root CCU clocks */
 
@@ -404,13 +409,13 @@ static void __init kona_dt_slave_ccu_setup(struct device_node *node)
 	kona_dt_ccu_setup(node, bcm281xx_slave_ccu_clks_setup);
 }
 
-CLK_OF_DECLARE(bcm11351_root_ccu, BCM11351_DT_ROOT_CCU_COMPAT,
+CLK_OF_DECLARE(bcm281xx_root_ccu, BCM281XX_DT_ROOT_CCU_COMPAT,
 			kona_dt_root_ccu_setup);
-CLK_OF_DECLARE(bcm11351_aon_ccu, BCM11351_DT_AON_CCU_COMPAT,
+CLK_OF_DECLARE(bcm281xx_aon_ccu, BCM281XX_DT_AON_CCU_COMPAT,
 			kona_dt_aon_ccu_setup);
-CLK_OF_DECLARE(bcm11351_hub_ccu, BCM11351_DT_HUB_CCU_COMPAT,
+CLK_OF_DECLARE(bcm281xx_hub_ccu, BCM281XX_DT_HUB_CCU_COMPAT,
 			kona_dt_hub_ccu_setup);
-CLK_OF_DECLARE(bcm11351_master_ccu, BCM11351_DT_MASTER_CCU_COMPAT,
+CLK_OF_DECLARE(bcm281xx_master_ccu, BCM281XX_DT_MASTER_CCU_COMPAT,
 			kona_dt_master_ccu_setup);
-CLK_OF_DECLARE(bcm11351_slave_ccu, BCM11351_DT_SLAVE_CCU_COMPAT,
+CLK_OF_DECLARE(bcm281xx_slave_ccu, BCM281XX_DT_SLAVE_CCU_COMPAT,
 			kona_dt_slave_ccu_setup);
