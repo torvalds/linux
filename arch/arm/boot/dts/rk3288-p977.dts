@@ -8,6 +8,13 @@
 		status = "okay";
 	};
 
+	5v_power_en {
+        compatible = "5v_en";
+		5ven,pin =<&gpio7 GPIO_B4 GPIO_ACTIVE_HIGH>;	// 5v power for otg and hdmi
+		status = "okay";	
+	};
+
+
     wireless-wlan {
         compatible = "wlan-platdata";
 
@@ -223,7 +230,7 @@
 };
 
 &spi1 {
-	status = "okay";
+	status = "disabled";
 	max-freq = <48000000>;
 	/*
 	spi_test@10 {
