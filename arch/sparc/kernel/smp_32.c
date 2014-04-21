@@ -75,7 +75,6 @@ void smp_store_cpu_info(int id)
 
 void __init smp_cpus_done(unsigned int max_cpus)
 {
-	extern void smp4d_smp_done(void);
 	unsigned long bogosum = 0;
 	int cpu, num = 0;
 
@@ -182,7 +181,6 @@ int setup_profiling_timer(unsigned int multiplier)
 
 void __init smp_prepare_cpus(unsigned int max_cpus)
 {
-	extern void __init smp4d_boot_cpus(void);
 	int i, cpuid, extra;
 
 	printk("Entering SMP Mode...\n");
@@ -259,7 +257,6 @@ void __init smp_prepare_boot_cpu(void)
 
 int __cpu_up(unsigned int cpu, struct task_struct *tidle)
 {
-	extern int smp4d_boot_one_cpu(int, struct task_struct *);
 	int ret=0;
 
 	switch(sparc_cpu_model) {

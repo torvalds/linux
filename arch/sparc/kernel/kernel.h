@@ -72,6 +72,11 @@ extern void sun4d_free_irq(unsigned int irq, void *dev_id);
 /* sun4d_smp.c */
 void sun4d_cpu_pre_starting(void *arg);
 void sun4d_cpu_pre_online(void *arg);
+void __init smp4d_boot_cpus(void);
+int smp4d_boot_one_cpu(int i, struct task_struct *idle);
+void __init smp4d_smp_done(void);
+void smp4d_cross_call_irq(void);
+void smp4d_percpu_timer_interrupt(struct pt_regs *regs);
 
 /* leon_smp.c */
 void leon_cpu_pre_starting(void *arg);
