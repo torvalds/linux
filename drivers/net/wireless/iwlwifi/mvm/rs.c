@@ -1750,16 +1750,21 @@ static void rs_get_adjacent_txp(struct iwl_mvm *mvm, int index,
 		*stronger = TPC_INVALID;
 }
 
-static bool rs_tpc_allowed(struct iwl_mvm *mvm, struct rs_rate *rate,
-			   enum ieee80211_band band)
+static bool rs_tpc_allowed(struct iwl_mvm *mvm, struct ieee80211_vif *vif,
+			   struct rs_rate *rate, enum ieee80211_band band)
 {
 	int index = rate->index;
+	bool cam = (iwlmvm_mod_params.power_scheme == IWL_POWER_SCHEME_CAM);
+	bool sta_ps_disabled = (vif->type == NL80211_IFTYPE_STATION &&
+				!vif->bss_conf.ps);
 
+	IWL_DEBUG_RATE(mvm, "cam: %d sta_ps_disabled %d\n",
+		       cam, sta_ps_disabled);
 	/*
 	 * allow tpc only if power management is enabled, or bt coex
 	 * activity grade allows it and we are on 2.4Ghz.
 	 */
-	if (iwlmvm_mod_params.power_scheme == IWL_POWER_SCHEME_CAM &&
+	if ((cam || sta_ps_disabled) &&
 	    !iwl_mvm_bt_coex_is_tpc_allowed(mvm, band))
 		return false;
 
@@ -1876,7 +1881,7 @@ static bool rs_tpc_perform(struct iwl_mvm *mvm,
 		band = chanctx_conf->def.chan->band;
 	rcu_read_unlock();
 
-	if (!rs_tpc_allowed(mvm, rate, band)) {
+	if (!rs_tpc_allowed(mvm, vif, rate, band)) {
 		IWL_DEBUG_RATE(mvm,
 			       "tpc is not allowed. remove txp restrictions");
 		lq_sta->lq.reduced_tpc = TPC_NO_REDUCTION;
