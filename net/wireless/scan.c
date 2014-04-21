@@ -238,11 +238,11 @@ void __cfg80211_scan_done(struct work_struct *wk)
 void cfg80211_scan_done(struct cfg80211_scan_request *request, bool aborted)
 {
 	trace_cfg80211_scan_done(request, aborted);
-	WARN_ON(request != wiphy_to_dev(request->wiphy)->scan_req);
+	WARN_ON(request != wiphy_to_rdev(request->wiphy)->scan_req);
 
 	request->aborted = aborted;
 	request->notified = true;
-	queue_work(cfg80211_wq, &wiphy_to_dev(request->wiphy)->scan_done_wk);
+	queue_work(cfg80211_wq, &wiphy_to_rdev(request->wiphy)->scan_done_wk);
 }
 EXPORT_SYMBOL(cfg80211_scan_done);
 
@@ -278,15 +278,15 @@ void cfg80211_sched_scan_results(struct wiphy *wiphy)
 {
 	trace_cfg80211_sched_scan_results(wiphy);
 	/* ignore if we're not scanning */
-	if (wiphy_to_dev(wiphy)->sched_scan_req)
+	if (wiphy_to_rdev(wiphy)->sched_scan_req)
 		queue_work(cfg80211_wq,
-			   &wiphy_to_dev(wiphy)->sched_scan_results_wk);
+			   &wiphy_to_rdev(wiphy)->sched_scan_results_wk);
 }
 EXPORT_SYMBOL(cfg80211_sched_scan_results);
 
 void cfg80211_sched_scan_stopped(struct wiphy *wiphy)
 {
-	struct cfg80211_registered_device *rdev = wiphy_to_dev(wiphy);
+	struct cfg80211_registered_device *rdev = wiphy_to_rdev(wiphy);
 
 	trace_cfg80211_sched_scan_stopped(wiphy);
 
@@ -526,7 +526,7 @@ struct cfg80211_bss *cfg80211_get_bss(struct wiphy *wiphy,
 				      const u8 *ssid, size_t ssid_len,
 				      u16 capa_mask, u16 capa_val)
 {
-	struct cfg80211_registered_device *rdev = wiphy_to_dev(wiphy);
+	struct cfg80211_registered_device *rdev = wiphy_to_rdev(wiphy);
 	struct cfg80211_internal_bss *bss, *res = NULL;
 	unsigned long now = jiffies;
 
@@ -919,7 +919,7 @@ cfg80211_inform_bss_width(struct wiphy *wiphy,
 	rcu_assign_pointer(tmp.pub.beacon_ies, ies);
 	rcu_assign_pointer(tmp.pub.ies, ies);
 
-	res = cfg80211_bss_update(wiphy_to_dev(wiphy), &tmp,
+	res = cfg80211_bss_update(wiphy_to_rdev(wiphy), &tmp,
 				  rx_channel == channel);
 	if (!res)
 		return NULL;
@@ -991,7 +991,7 @@ cfg80211_inform_bss_width_frame(struct wiphy *wiphy,
 	tmp.pub.beacon_interval = le16_to_cpu(mgmt->u.probe_resp.beacon_int);
 	tmp.pub.capability = le16_to_cpu(mgmt->u.probe_resp.capab_info);
 
-	res = cfg80211_bss_update(wiphy_to_dev(wiphy), &tmp,
+	res = cfg80211_bss_update(wiphy_to_rdev(wiphy), &tmp,
 				  rx_channel == channel);
 	if (!res)
 		return NULL;
@@ -1007,7 +1007,7 @@ EXPORT_SYMBOL(cfg80211_inform_bss_width_frame);
 
 void cfg80211_ref_bss(struct wiphy *wiphy, struct cfg80211_bss *pub)
 {
-	struct cfg80211_registered_device *rdev = wiphy_to_dev(wiphy);
+	struct cfg80211_registered_device *rdev = wiphy_to_rdev(wiphy);
 	struct cfg80211_internal_bss *bss;
 
 	if (!pub)
@@ -1023,7 +1023,7 @@ EXPORT_SYMBOL(cfg80211_ref_bss);
 
 void cfg80211_put_bss(struct wiphy *wiphy, struct cfg80211_bss *pub)
 {
-	struct cfg80211_registered_device *rdev = wiphy_to_dev(wiphy);
+	struct cfg80211_registered_device *rdev = wiphy_to_rdev(wiphy);
 	struct cfg80211_internal_bss *bss;
 
 	if (!pub)
@@ -1039,7 +1039,7 @@ EXPORT_SYMBOL(cfg80211_put_bss);
 
 void cfg80211_unlink_bss(struct wiphy *wiphy, struct cfg80211_bss *pub)
 {
-	struct cfg80211_registered_device *rdev = wiphy_to_dev(wiphy);
+	struct cfg80211_registered_device *rdev = wiphy_to_rdev(wiphy);
 	struct cfg80211_internal_bss *bss;
 
 	if (WARN_ON(!pub))
@@ -1069,7 +1069,7 @@ cfg80211_get_dev_from_ifindex(struct net *net, int ifindex)
 	if (!dev)
 		return ERR_PTR(-ENODEV);
 	if (dev->ieee80211_ptr)
-		rdev = wiphy_to_dev(dev->ieee80211_ptr->wiphy);
+		rdev = wiphy_to_rdev(dev->ieee80211_ptr->wiphy);
 	else
 		rdev = ERR_PTR(-ENODEV);
 	dev_put(dev);
