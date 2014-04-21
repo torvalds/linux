@@ -21,7 +21,7 @@
 #include <asm/cpu_type.h>
 #include <asm/setup.h>
 
-extern void clock_stop_probe(void); /* tadpole.c */
+#include "kernel.h"
 
 static char *cpu_mid_prop(void)
 {

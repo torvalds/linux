@@ -12,13 +12,17 @@
 #include <asm/oplib.h>
 #include <asm/io.h>
 
+#include "kernel.h"
+
 #define MACIO_SCSI_CSR_ADDR	0x78400000
 #define MACIO_EN_DMA		0x00000200
 #define CLOCK_INIT_DONE		1
 
 static int clk_state;
 static volatile unsigned char *clk_ctrl;
-void (*cpu_pwr_save)(void);
+
+/* TODO - cpu_pwr_save is only assigned - cleanup potential. */
+static void (*cpu_pwr_save)(void);
 
 static inline unsigned int ldphys(unsigned int addr)
 {

@@ -113,6 +113,9 @@ asmlinkage int do_sys_sigstack(struct sigstack __user *ssptr,
 /* windows.c */
 void try_to_clear_window_buffer(struct pt_regs *regs, int who);
 
+/* tadpole.c */
+void __init clock_stop_probe(void);
+
 #else /* CONFIG_SPARC32 */
 #endif /* CONFIG_SPARC32 */
 #endif /* !(__SPARC_KERNEL_H) */
