@@ -18,6 +18,16 @@
 			pinctrl: pinctrl@10000 {
 				compatible = "marvell,88f5182-pinctrl";
 				reg = <0x10000 0x8>, <0x10050 0x4>;
+
+				pmx_sata0: pmx-sata0 {
+					marvell,pins = "mpp12", "mpp14";
+					marvell,function = "sata0";
+				};
+
+				pmx_sata1: pmx-sata1 {
+					marvell,pins = "mpp13", "mpp15";
+					marvell,function = "sata1";
+				};
 			};
 
 			core_clk: core-clocks@10030 {
