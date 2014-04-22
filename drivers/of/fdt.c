@@ -554,6 +554,14 @@ unsigned long __init of_get_flat_dt_root(void)
 }
 
 /**
+ * of_get_flat_dt_size - Return the total size of the FDT
+ */
+int __init of_get_flat_dt_size(void)
+{
+	return fdt_totalsize(initial_boot_params);
+}
+
+/**
  * of_get_flat_dt_prop - Given a node in the flat blob, return the property ptr
  *
  * This function can be used within scan_flattened_dt callback to get
