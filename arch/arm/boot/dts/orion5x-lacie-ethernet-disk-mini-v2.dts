@@ -28,18 +28,6 @@
 	soc {
 		ranges = <MBUS_ID(0xf0, 0x01) 0 0xf1000000 0x100000>,
 			 <MBUS_ID(0x09, 0x00) 0 0xf2200000 0x800>;
-
-		internal-regs {
-			serial@12000 {
-				clock-frequency = <166666667>;
-				status = "okay";
-			};
-
-			sata@80000 {
-				status = "okay";
-				nr-ports = <2>;
-			};
-		};
 	};
 
 	gpio-keys {
@@ -63,6 +51,14 @@
 	};
 };
 
+&eth {
+	status = "okay";
+
+	ethernet-port@0 {
+		phy-handle = <&ethphy>;
+	};
+};
+
 &mdio {
 	status = "okay";
 
@@ -71,10 +67,12 @@
 	};
 };
 
-&eth {
+&sata {
 	status = "okay";
+	nr-ports = <2>;
+};
 
-	ethernet-port@0 {
-		phy-handle = <&ethphy>;
-	};
+&uart0 {
+	clock-frequency = <166666667>;
+	status = "okay";
 };
