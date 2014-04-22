@@ -8,6 +8,8 @@
 
 /dts-v1/;
 
+#include <dt-bindings/gpio/gpio.h>
+#include <dt-bindings/input/input.h>
 #include "orion5x.dtsi"
 
 / {
@@ -40,8 +42,8 @@
 		#size-cells = <0>;
 		button@1 {
 			label = "Power-on Switch";
-			linux,code = <116>; /* KEY_POWER */
-			gpios = <&gpio0 18 0>;
+			linux,code = <KEY_POWER>;
+			gpios = <&gpio0 18 GPIO_ACTIVE_HIGH>;
 		};
 	};
 
@@ -50,7 +52,7 @@
 
 		led@1 {
 			label = "power:blue";
-			gpios = <&gpio0 16 1>;
+			gpios = <&gpio0 16 GPIO_ACTIVE_LOW>;
 		};
 	};
 };
