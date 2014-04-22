@@ -374,19 +374,18 @@ static int sec_pmic_suspend(struct device *dev)
 	struct i2c_client *i2c = container_of(dev, struct i2c_client, dev);
 	struct sec_pmic_dev *sec_pmic = i2c_get_clientdata(i2c);
 
-	if (device_may_wakeup(dev)) {
+	if (device_may_wakeup(dev))
 		enable_irq_wake(sec_pmic->irq);
-		/*
-		 * PMIC IRQ must be disabled during suspend for RTC alarm
-		 * to work properly.
-		 * When device is woken up from suspend by RTC Alarm, an
-		 * interrupt occurs before resuming I2C bus controller.
-		 * The interrupt is handled by regmap_irq_thread which tries
-		 * to read RTC registers. This read fails (I2C is still
-		 * suspended) and RTC Alarm interrupt is disabled.
-		 */
-		disable_irq(sec_pmic->irq);
-	}
+	/*
+	 * PMIC IRQ must be disabled during suspend for RTC alarm
+	 * to work properly.
+	 * When device is woken up from suspend, an
+	 * interrupt occurs before resuming I2C bus controller.
+	 * The interrupt is handled by regmap_irq_thread which tries
+	 * to read RTC registers. This read fails (I2C is still
+	 * suspended) and RTC Alarm interrupt is disabled.
+	 */
+	disable_irq(sec_pmic->irq);
 
 	return 0;
 }
@@ -396,10 +395,9 @@ static int sec_pmic_resume(struct device *dev)
 	struct i2c_client *i2c = container_of(dev, struct i2c_client, dev);
 	struct sec_pmic_dev *sec_pmic = i2c_get_clientdata(i2c);
 
-	if (device_may_wakeup(dev)) {
+	if (device_may_wakeup(dev))
 		disable_irq_wake(sec_pmic->irq);
-		enable_irq(sec_pmic->irq);
-	}
+	enable_irq(sec_pmic->irq);
 
 	return 0;
 }
