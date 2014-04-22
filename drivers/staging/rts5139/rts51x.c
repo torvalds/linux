@@ -607,7 +607,8 @@ static int rts51x_acquire_resources(struct rts51x_chip *chip)
 		return -ENOMEM;
 	}
 
-	chip->cmd_buf = chip->rsp_buf = rts51x->iobuf;
+	chip->cmd_buf = rts51x->iobuf;
+	chip->rsp_buf = rts51x->iobuf;
 
 	rts51x_init_options(chip);
 
