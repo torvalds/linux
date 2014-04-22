@@ -15,6 +15,12 @@
 		compatible = "marvell,orion5x-88f5182-mbus", "simple-bus";
 
 		internal-regs {
+			core_clk: core-clocks@10030 {
+				compatible = "marvell,mv88f5182-core-clock";
+				reg = <0x10010 0x4>;
+				#clock-cells = <1>;
+			};
+
 			mbusc: mbus-controller@20000 {
 				compatible = "marvell,mbus-controller";
 				reg = <0x20000 0x100>, <0x1500 0x20>;

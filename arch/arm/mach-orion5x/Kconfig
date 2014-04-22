@@ -5,6 +5,7 @@ menu "Orion Implementations"
 config ARCH_ORION5X_DT
 	bool "Marvell Orion5x Flattened Device Tree"
 	select USE_OF
+	select ORION_CLK
 	help
 	  Say 'Y' here if you want your kernel to support the
 	  Marvell Orion5x using flattened device tree.

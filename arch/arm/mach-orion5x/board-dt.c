@@ -16,6 +16,7 @@
 #include <linux/of_platform.h>
 #include <linux/cpu.h>
 #include <linux/mbus.h>
+#include <linux/clk-provider.h>
 #include <asm/system_misc.h>
 #include <asm/mach/arch.h>
 #include <asm/mach/map.h>
@@ -43,6 +44,7 @@ static void orion5x_dt_init_early(void)
 static void orion5x_dt_init_time(void)
 {
 	orion5x_timer_init();
+	of_clk_init(NULL);
 }
 
 static void __init orion5x_dt_init(void)
@@ -59,9 +61,6 @@ static void __init orion5x_dt_init(void)
 	 * Setup Orion address map
 	 */
 	orion5x_setup_wins();
-
-	/* Setup root of clk tree */
-	clk_init();
 
 	/*
 	 * Don't issue "Wait for Interrupt" instruction if we are
