@@ -41,7 +41,7 @@
 		};
 	};
 
-	gpio_keys {
+	gpio-keys {
 		compatible = "gpio-keys";
 		#address-cells = <1>;
 		#size-cells = <0>;
@@ -52,7 +52,7 @@
 		};
 	};
 
-	gpio_leds {
+	gpio-leds {
 		compatible = "gpio-leds";
 
 		led@1 {
