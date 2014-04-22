@@ -1377,6 +1377,12 @@ void gpiochip_set_chained_irqchip(struct gpio_chip *gpiochip,
 }
 EXPORT_SYMBOL_GPL(gpiochip_set_chained_irqchip);
 
+/*
+ * This lock class tells lockdep that GPIO irqs are in a different
+ * category than their parents, so it won't report false recursion.
+ */
+static struct lock_class_key gpiochip_irq_lock_class;
+
 /**
  * gpiochip_irq_map() - maps an IRQ into a GPIO irqchip
  * @d: the irqdomain used by this irqchip
@@ -1393,6 +1399,7 @@ static int gpiochip_irq_map(struct irq_domain *d, unsigned int irq,
 	struct gpio_chip *chip = d->host_data;
 
 	irq_set_chip_data(irq, chip);
+	irq_set_lockdep_class(irq, &gpiochip_irq_lock_class);
 	irq_set_chip_and_handler(irq, chip->irqchip, chip->irq_handler);
 	/* Chips that can sleep need nested thread handlers */
 	if (chip->can_sleep)
