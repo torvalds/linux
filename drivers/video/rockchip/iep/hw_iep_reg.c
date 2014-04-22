@@ -1111,6 +1111,89 @@ void iep_switch_input_address(void *base) {
     IEP_REGB_SRC_ADDR_CR1  (base, src_addr_cr);
 }
 
+#if defined(CONFIG_IEP_IOMMU)
+static int iep_bufid_to_iova(iep_service_info *pservice, u8 *tbl, int size, struct iep_reg *reg)
+{
+    int i;
+    int usr_fd = 0;
+    int offset = 0;
+    
+    if (tbl == NULL || size <= 0) {
+        dev_err(pservice->iommu_dev, "input arguments invalidate\n");
+        return -1;
+    }
+   
+    for (i=0; i<size; i++) {
+#if 0
+        if (copy_from_user(&usr_fd, &reg->reg[addr_tbl_vpu_dec[i]], sizeof(usr_fd)))
+            return -EFAULT;
+#else
+        usr_fd = reg->reg[tbl[i]] & 0x3FF;
+        offset = reg->reg[tbl[i]] >> 10;
+        
+#endif
+        if (usr_fd != 0) {
+            struct ion_handle *hdl;
+            
+            hdl = ion_import_dma_buf(pservice->ion_client, usr_fd);
+            if (IS_ERR(hdl)) {
+                dev_err(pservice->iommu_dev, "import dma-buf from fd %d failed, reg[%d]\n", usr_fd, tbl[i]);
+                return PTR_ERR(hdl);
+            }
+
+#if 0
+            {
+                ion_phys_addr_t phy_addr;
+                size_t len;
+                ion_phys(pservice->ion_client, hdl, &phy_addr, &len);
+    
+                reg->reg[tbl[i]] = phy_addr + offset;
+                
+                ion_free(pservice->ion_client, hdl);
+            }
+#else 
+            {
+                int ret;
+                struct iep_mem_region *mem_region;
+                mem_region = kzalloc(sizeof(struct iep_mem_region), GFP_KERNEL);
+     
+                if (mem_region == NULL) {
+                    dev_err(pservice->iommu_dev, "allocate memory for iommu memory region failed\n");
+                    ion_free(pservice->ion_client, hdl);
+                    return -1;
+                }
+                
+                mem_region->hdl = hdl;
+                
+                ret = ion_map_iommu(pservice->iommu_dev, pservice->ion_client, mem_region->hdl, &mem_region->iova, &mem_region->len);
+                if (ret < 0) {
+                    dev_err(pservice->iommu_dev, "ion map iommu failed\n");
+                    kfree(mem_region);
+                    ion_free(pservice->ion_client, hdl);
+                    return ret;
+                }
+                
+                reg->reg[tbl[i]] = mem_region->iova + offset;
+                INIT_LIST_HEAD(&mem_region->reg_lnk);
+                list_add_tail(&mem_region->reg_lnk, &reg->mem_region_list);
+            }
+#endif
+        }
+    }
+    
+    return 0;
+}
+
+static u8 addr_tbl_iep[] = {
+    32, 33, 34, 35, 36, 37, 38, 39, 40, 41, 42, 43, 44, 45, 46, 47, 48, 49, 50, 51, 52, 53, 54, 55
+};
+
+static int iep_reg_address_translate(iep_service_info *pservice, struct iep_reg *reg)
+{
+    return iep_bufid_to_iova(pservice, addr_tbl_iep, sizeof(addr_tbl_iep), reg);
+}
+#endif
+
 /**
  * generating a series of registers copy from iep message
  */
@@ -1125,6 +1208,10 @@ void iep_config(iep_session *session, IEP_MSG *iep_msg)
 
     INIT_LIST_HEAD(&reg->session_link);
     INIT_LIST_HEAD(&reg->status_link);
+    
+#if defined(CONFIG_IEP_IOMMU)
+    INIT_LIST_HEAD(&reg->mem_region_list);    
+#endif    
 
     //write config
     iep_config_src_size(iep_msg);
@@ -1175,6 +1262,14 @@ void iep_config(iep_session *session, IEP_MSG *iep_msg)
         iep_config_mmu_page_fault_int_en(iep_msg->base, 0);
     }
     iep_config_mmu_dte_addr(iep_msg->base, (uint32_t)virt_to_phys((uint32_t*)session->dte_table));
+#endif
+
+#if defined(CONFIG_IEP_IOMMU)
+    if (0 > iep_reg_address_translate(&iep_service, reg)) {
+        pr_err("error: translate reg address failed\n");
+        kfree(reg);
+        return;
+    }
 #endif
 
     mutex_lock(&iep_service.lock);

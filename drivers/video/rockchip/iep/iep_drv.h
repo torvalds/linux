@@ -4,6 +4,17 @@
 #include <linux/device.h>
 #include <linux/miscdevice.h>
 #include <linux/mutex.h>
+
+#if defined(CONFIG_ROCKCHIP_IOMMU) && defined(CONFIG_ION_ROCKCHIP)
+//#define CONFIG_IEP_IOMMU
+#endif
+
+#ifdef CONFIG_IEP_IOMMU
+#include <linux/rockchip_ion.h>
+#include <linux/rockchip/iovmm.h>
+#include <linux/rockchip/sysmmu.h>
+#include <linux/dma-buf.h>
+#endif
 #include "iep.h"
 
 #define IEP_REG_LEN         0x100
@@ -131,6 +142,11 @@ typedef struct iep_service_info {
     bool                enable;
 
     struct mutex	    mutex;  // mutex
+    
+#ifdef CONFIG_IEP_IOMMU
+    struct ion_client *ion_client;
+    struct device *iommu_dev;
+#endif 
 } iep_service_info;
 
 struct iep_reg {
@@ -147,7 +163,21 @@ struct iep_reg {
     int                 vir_height;
     int                 layer;
     unsigned int        format;
+#if defined(CONFIG_IEP_IOMMU)    
+    struct list_head    mem_region_list;
+#endif        
 };
+
+#if defined(CONFIG_IEP_IOMMU)
+struct iep_mem_region {
+    struct list_head srv_lnk;
+    struct list_head reg_lnk;
+    struct list_head session_lnk;
+    unsigned long iova;              /* virtual address for iommu */
+    unsigned long len;
+    struct ion_handle *hdl;
+};
+#endif
 
 #endif
 
