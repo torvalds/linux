@@ -24,6 +24,46 @@
 		#size-cells = <1>;
 		controller = <&mbusc>;
 
+		devbus_bootcs: devbus-bootcs {
+			compatible = "marvell,orion-devbus";
+			reg = <MBUS_ID(0xf0, 0x01) 0x1046C 0x4>;
+			ranges = <0 MBUS_ID(0x01, 0x0f) 0 0xffffffff>;
+			#address-cells = <1>;
+			#size-cells = <1>;
+			clocks = <&core_clk 0>;
+			status = "disabled";
+		};
+
+		devbus_cs0: devbus-cs0 {
+			compatible = "marvell,orion-devbus";
+			reg = <MBUS_ID(0xf0, 0x01) 0x1045C 0x4>;
+			ranges = <0 MBUS_ID(0x01, 0x1e) 0 0xffffffff>;
+			#address-cells = <1>;
+			#size-cells = <1>;
+			clocks = <&core_clk 0>;
+			status = "disabled";
+		};
+
+		devbus_cs1: devbus-cs1 {
+			compatible = "marvell,orion-devbus";
+			reg = <MBUS_ID(0xf0, 0x01) 0x10460 0x4>;
+			ranges = <0 MBUS_ID(0x01, 0x1d) 0 0xffffffff>;
+			#address-cells = <1>;
+			#size-cells = <1>;
+			clocks = <&core_clk 0>;
+			status = "disabled";
+		};
+
+		devbus_cs2: devbus-cs2 {
+			compatible = "marvell,orion-devbus";
+			reg = <MBUS_ID(0xf0, 0x01) 0x10464 0x4>;
+			ranges = <0 MBUS_ID(0x01, 0x1b) 0 0xffffffff>;
+			#address-cells = <1>;
+			#size-cells = <1>;
+			clocks = <&core_clk 0>;
+			status = "disabled";
+		};
+
 		internal-regs {
 			compatible = "simple-bus";
 			#address-cells = <1>;
