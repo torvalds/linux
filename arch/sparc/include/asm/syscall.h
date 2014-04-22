@@ -128,12 +128,7 @@ static inline void syscall_set_arguments(struct task_struct *task,
 
 static inline int syscall_get_arch(void)
 {
-#if defined(__sparc__) && defined(__arch64__)
-	return test_thread_flag(TIF_32BIT) ? AUDIT_ARCH_SPARC
-					   : AUDIT_ARCH_SPARC64;
-#else
-	return AUDIT_ARCH_SPARC;
-#endif
+	return is_32bit_task() ? AUDIT_ARCH_SPARC : AUDIT_ARCH_SPARC64;
 }
 
 #endif /* __ASM_SPARC_SYSCALL_H */

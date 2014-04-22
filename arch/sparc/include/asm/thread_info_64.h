@@ -219,6 +219,8 @@ register struct thread_info *current_thread_info_reg asm("g6");
 				 _TIF_NEED_RESCHED)
 #define _TIF_DO_NOTIFY_RESUME_MASK	(_TIF_NOTIFY_RESUME | _TIF_SIGPENDING)
 
+#define is_32bit_task()	(test_thread_flag(TIF_32BIT))
+
 /*
  * Thread-synchronous status.
  *
