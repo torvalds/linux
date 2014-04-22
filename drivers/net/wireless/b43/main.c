@@ -5178,7 +5178,6 @@ static int b43_wireless_core_attach(struct b43_wldev *dev)
 	}
 
 	dev->phy.gmode = have_2ghz_phy;
-	dev->phy.radio_on = true;
 	b43_wireless_core_reset(dev, dev->phy.gmode);
 
 	err = b43_phy_versioning(dev);
