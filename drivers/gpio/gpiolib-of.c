@@ -48,7 +48,7 @@ static int of_gpiochip_find_and_xlate(struct gpio_chip *gc, void *data)
 	if (ret < 0)
 		return false;
 
-	gg_data->out_gpio = gpio_to_desc(ret + gc->base);
+	gg_data->out_gpio = gpiochip_get_desc(gc, ret);
 	return true;
 }
 
