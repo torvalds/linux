@@ -1229,13 +1229,12 @@ static int edp_dpcd_debugfs_show(struct seq_file *s, void *v)
 
 static int edp_edid_debugfs_show(struct seq_file *s, void *v)
 {
-	int i = 0;
-	unsigned char buf[12];
 	struct rk32_edp *edp = s->private;
 	if (!edp) {
 		dev_err(edp->dev, "no edp device!\n");
 		return -ENODEV;
 	}
+	rk32_edp_read_edid(edp);
 	seq_printf(s,"edid");
 	return 0;
 }

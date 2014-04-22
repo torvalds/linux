@@ -1,8 +1,5 @@
 /*
- * Samsung DP (Display port) register interface driver.
- *
- * Copyright (C) 2012 Samsung Electronics Co., Ltd.
- * Author: Jingoo Han <jg1.han@samsung.com>
+ *RockChip DP (Display port) register interface driver.
  *
  * This program is free software; you can redistribute it and/or modify it
  * under the terms of the GNU General Public License as published by the
@@ -16,7 +13,6 @@
 #include <linux/rockchip/cpu.h>
 #include <linux/rockchip/iomap.h>
 #include <linux/rockchip/grf.h>
-
 #include "rk32_dp.h"
 
 
