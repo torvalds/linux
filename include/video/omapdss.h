@@ -795,6 +795,9 @@ struct omap_dss_device {
 	/* output instance */
 	enum omap_dss_output_id id;
 
+	/* the port number in the DT node */
+	int port_num;
+
 	/* dynamic fields */
 	struct omap_overlay_manager *manager;
 
@@ -918,7 +921,7 @@ int omapdss_register_output(struct omap_dss_device *output);
 void omapdss_unregister_output(struct omap_dss_device *output);
 struct omap_dss_device *omap_dss_get_output(enum omap_dss_output_id id);
 struct omap_dss_device *omap_dss_find_output(const char *name);
-struct omap_dss_device *omap_dss_find_output_by_node(struct device_node *node);
+struct omap_dss_device *omap_dss_find_output_by_port_node(struct device_node *port);
 int omapdss_output_set_device(struct omap_dss_device *out,
 		struct omap_dss_device *dssdev);
 int omapdss_output_unset_device(struct omap_dss_device *out);

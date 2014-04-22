@@ -19,6 +19,7 @@
 #include <linux/module.h>
 #include <linux/platform_device.h>
 #include <linux/slab.h>
+#include <linux/of.h>
 
 #include <video/omapdss.h>
 
@@ -131,18 +132,30 @@ struct omap_dss_device *omap_dss_find_output(const char *name)
 }
 EXPORT_SYMBOL(omap_dss_find_output);
 
-struct omap_dss_device *omap_dss_find_output_by_node(struct device_node *node)
+struct omap_dss_device *omap_dss_find_output_by_port_node(struct device_node *port)
 {
+	struct device_node *src_node;
 	struct omap_dss_device *out;
+	u32 reg;
+
+	src_node = dss_of_port_get_parent_device(port);
+	if (!src_node)
+		return NULL;
+
+	reg = dss_of_port_get_port_number(port);
 
 	list_for_each_entry(out, &output_list, list) {
-		if (out->dev->of_node == node)
+		if (out->dev->of_node == src_node && out->port_num == reg) {
+			of_node_put(src_node);
 			return omap_dss_get_device(out);
+		}
 	}
+
+	of_node_put(src_node);
 
 	return NULL;
 }
-EXPORT_SYMBOL(omap_dss_find_output_by_node);
+EXPORT_SYMBOL(omap_dss_find_output_by_port_node);
 
 struct omap_dss_device *omapdss_find_output_from_display(struct omap_dss_device *dssdev)
 {

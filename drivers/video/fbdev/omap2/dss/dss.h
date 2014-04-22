@@ -215,6 +215,10 @@ enum dss_hdmi_venc_clk_source_select dss_get_hdmi_venc_clk_source(void);
 const char *dss_get_generic_clk_source_name(enum omap_dss_clk_source clk_src);
 void dss_dump_clocks(struct seq_file *s);
 
+/* dss-of */
+struct device_node *dss_of_port_get_parent_device(struct device_node *port);
+u32 dss_of_port_get_port_number(struct device_node *port);
+
 #if defined(CONFIG_OMAP2_DSS_DEBUGFS)
 void dss_debug_dump_clocks(struct seq_file *s);
 #endif
