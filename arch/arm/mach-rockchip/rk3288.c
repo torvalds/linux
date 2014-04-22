@@ -454,7 +454,8 @@ static void __init rk3288_init_cpuidle(void)
 {
 	int ret;
 
-	rk3288_cpuidle_driver.states[0].enter = rk3288_cpuidle_enter;
+	if (!rockchip_jtag_enabled)
+		rk3288_cpuidle_driver.states[0].enter = rk3288_cpuidle_enter;
 	ret = cpuidle_register(&rk3288_cpuidle_driver, NULL);
 	if (ret)
 		pr_err("%s: failed to register cpuidle driver: %d\n", __func__, ret);
@@ -470,6 +471,8 @@ static void __init rk3288_init_late(void)
 #ifdef CONFIG_CPU_IDLE
 	rk3288_init_cpuidle();
 #endif
+	if (rockchip_jtag_enabled)
+		clk_prepare_enable(clk_get_sys(NULL, "clk_jtag"));
 }
 
 DT_MACHINE_START(RK3288_DT, "Rockchip RK3288 (Flattened Device Tree)")

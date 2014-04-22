@@ -9,6 +9,7 @@
 		.type		= MT_DEVICE, \
 	}
 
+extern bool rockchip_jtag_enabled;
 extern unsigned long rockchip_boot_fn;
 extern struct smp_operations rockchip_smp_ops;
 

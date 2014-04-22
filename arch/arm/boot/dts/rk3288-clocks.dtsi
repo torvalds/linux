@@ -2536,8 +2536,8 @@
 						<&clk_l2ram>,		<&aclk_core_m0>,
 						<&aclk_core_mp>,		<&atclk_core>,
 
-						<&pclk_dbg_src>,		<&clk_gates12 8>,
-						<&clk_gates12 8>,		<&clk_gates12 8>,
+						<&pclk_dbg_src>,		<&pclk_dbg_src>,
+						<&pclk_dbg_src>,		<&pclk_dbg_src>,
 
 						<&dummy>,		<&dummy>,
 						<&dummy>,		<&dummy>;
@@ -2549,8 +2549,8 @@
 						"clk_l2ram",		"aclk_core_m0",
 						"aclk_core_mp",		"atclk_core",
 
-						"pclk_dbg_src",		"reserved",	/*"g_dbg_core_clk",*/
-						"reserved",		"reserved",		/*"g_cs_dbg_clk",	"g_pclk_core_niu",*/
+						"pclk_dbg_src",		"g_dbg_core_clk",
+						"g_cs_dbg_clk",		"g_pclk_core_niu",
 
 						"reserved",		"reserved",
 						"reserved",		"reserved";

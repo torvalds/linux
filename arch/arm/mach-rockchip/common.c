@@ -272,3 +272,11 @@ void __init rockchip_ion_reserve(void)
 #endif
 }
 
+bool rockchip_jtag_enabled = false;
+static int __init rockchip_jtag_enable(char *__unused)
+{
+	rockchip_jtag_enabled = true;
+	printk("rockchip jtag enabled\n");
+	return 1;
+}
+__setup("rockchip_jtag", rockchip_jtag_enable);

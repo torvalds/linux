@@ -500,6 +500,8 @@
 				<&clk_core3>, <&clk_l2ram>,
 				<&aclk_core_m0>, <&aclk_core_mp>,
 				<&atclk_core>, <&pclk_dbg_src>,
+				<&clk_gates12 9>, <&clk_gates12 10>,
+				<&clk_gates12 11>,
 
 				/*PD_BUS*/
 				<&aclk_bus>, <&clk_gates0 3>,
