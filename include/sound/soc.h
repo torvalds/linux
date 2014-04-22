@@ -393,8 +393,6 @@ int devm_snd_soc_register_component(struct device *dev,
 			 const struct snd_soc_component_driver *cmpnt_drv,
 			 struct snd_soc_dai_driver *dai_drv, int num_dai);
 void snd_soc_unregister_component(struct device *dev);
-int snd_soc_codec_set_cache_io(struct snd_soc_codec *codec,
-			       struct regmap *regmap);
 int snd_soc_cache_sync(struct snd_soc_codec *codec);
 int snd_soc_cache_init(struct snd_soc_codec *codec);
 int snd_soc_cache_exit(struct snd_soc_codec *codec);
@@ -672,6 +670,14 @@ struct snd_soc_component {
 	const struct snd_soc_component_driver *driver;
 
 	struct list_head dai_list;
+
+	int (*read)(struct snd_soc_component *, unsigned int, unsigned int *);
+	int (*write)(struct snd_soc_component *, unsigned int, unsigned int);
+
+	struct regmap *regmap;
+	int val_bytes;
+
+	struct mutex io_mutex;
 };
 
 /* SoC Audio Codec device */
@@ -696,18 +702,14 @@ struct snd_soc_codec {
 	unsigned int ac97_registered:1; /* Codec has been AC97 registered */
 	unsigned int ac97_created:1; /* Codec has been created by SoC */
 	unsigned int cache_init:1; /* codec cache has been initialized */
-	unsigned int using_regmap:1; /* using regmap access */
 	u32 cache_only;  /* Suppress writes to hardware */
 	u32 cache_sync; /* Cache needs to be synced to hardware */
 
 	/* codec IO */
 	void *control_data; /* codec control (i2c/3wire) data */
 	hw_write_t hw_write;
-	unsigned int (*read)(struct snd_soc_codec *, unsigned int);
-	int (*write)(struct snd_soc_codec *, unsigned int, unsigned int);
 	void *reg_cache;
 	struct mutex cache_rw_mutex;
-	int val_bytes;
 
 	/* component */
 	struct snd_soc_component component;
@@ -824,7 +826,6 @@ struct snd_soc_platform {
 	int id;
 	struct device *dev;
 	const struct snd_soc_platform_driver *driver;
-	struct mutex mutex;
 
 	unsigned int suspended:1; /* platform is suspended */
 	unsigned int probed:1;
@@ -1128,6 +1129,22 @@ static inline struct snd_soc_platform *snd_soc_component_to_platform(
 unsigned int snd_soc_read(struct snd_soc_codec *codec, unsigned int reg);
 int snd_soc_write(struct snd_soc_codec *codec, unsigned int reg,
 	unsigned int val);
+
+/* component IO */
+int snd_soc_component_read(struct snd_soc_component *component,
+	unsigned int reg, unsigned int *val);
+int snd_soc_component_write(struct snd_soc_component *component,
+	unsigned int reg, unsigned int val);
+int snd_soc_component_update_bits(struct snd_soc_component *component,
+	unsigned int reg, unsigned int mask, unsigned int val);
+int snd_soc_component_update_bits_async(struct snd_soc_component *component,
+	unsigned int reg, unsigned int mask, unsigned int val);
+void snd_soc_component_async_complete(struct snd_soc_component *component);
+int snd_soc_component_test_bits(struct snd_soc_component *component,
+	unsigned int reg, unsigned int mask, unsigned int value);
+
+int snd_soc_component_init_io(struct snd_soc_component *component,
+	struct regmap *regmap);
 
 /* device driver data */
 

@@ -656,8 +656,8 @@ int snd_soc_suspend(struct device *dev)
 				codec->driver->suspend(codec);
 				codec->suspended = 1;
 				codec->cache_sync = 1;
-				if (codec->using_regmap)
-					regcache_mark_dirty(codec->control_data);
+				if (codec->component.regmap)
+					regcache_mark_dirty(codec->component.regmap);
 				/* deactivate pins to sleep state */
 				pinctrl_pm_select_sleep_state(codec->dev);
 				break;
@@ -2971,7 +2971,7 @@ int snd_soc_bytes_info(struct snd_kcontrol *kcontrol,
 	struct soc_bytes *params = (void *)kcontrol->private_value;
 
 	uinfo->type = SNDRV_CTL_ELEM_TYPE_BYTES;
-	uinfo->count = params->num_regs * codec->val_bytes;
+	uinfo->count = params->num_regs * codec->component.val_bytes;
 
 	return 0;
 }
@@ -2984,16 +2984,16 @@ int snd_soc_bytes_get(struct snd_kcontrol *kcontrol,
 	struct snd_soc_codec *codec = snd_kcontrol_chip(kcontrol);
 	int ret;
 
-	if (codec->using_regmap)
-		ret = regmap_raw_read(codec->control_data, params->base,
+	if (codec->component.regmap)
+		ret = regmap_raw_read(codec->component.regmap, params->base,
 				      ucontrol->value.bytes.data,
-				      params->num_regs * codec->val_bytes);
+				      params->num_regs * codec->component.val_bytes);
 	else
 		ret = -EINVAL;
 
 	/* Hide any masked bytes to ensure consistent data reporting */
 	if (ret == 0 && params->mask) {
-		switch (codec->val_bytes) {
+		switch (codec->component.val_bytes) {
 		case 1:
 			ucontrol->value.bytes.data[0] &= ~params->mask;
 			break;
@@ -3023,10 +3023,10 @@ int snd_soc_bytes_put(struct snd_kcontrol *kcontrol,
 	unsigned int val, mask;
 	void *data;
 
-	if (!codec->using_regmap)
+	if (!codec->component.regmap)
 		return -EINVAL;
 
-	len = params->num_regs * codec->val_bytes;
+	len = params->num_regs * codec->component.val_bytes;
 
 	data = kmemdup(ucontrol->value.bytes.data, len, GFP_KERNEL | GFP_DMA);
 	if (!data)
@@ -3038,27 +3038,27 @@ int snd_soc_bytes_put(struct snd_kcontrol *kcontrol,
 	 * copy.
 	 */
 	if (params->mask) {
-		ret = regmap_read(codec->control_data, params->base, &val);
+		ret = regmap_read(codec->component.regmap, params->base, &val);
 		if (ret != 0)
 			goto out;
 
 		val &= params->mask;
 
-		switch (codec->val_bytes) {
+		switch (codec->component.val_bytes) {
 		case 1:
 			((u8 *)data)[0] &= ~params->mask;
 			((u8 *)data)[0] |= val;
 			break;
 		case 2:
 			mask = ~params->mask;
-			ret = regmap_parse_val(codec->control_data,
+			ret = regmap_parse_val(codec->component.regmap,
 							&mask, &mask);
 			if (ret != 0)
 				goto out;
 
 			((u16 *)data)[0] &= mask;
 
-			ret = regmap_parse_val(codec->control_data,
+			ret = regmap_parse_val(codec->component.regmap,
 							&val, &val);
 			if (ret != 0)
 				goto out;
@@ -3067,14 +3067,14 @@ int snd_soc_bytes_put(struct snd_kcontrol *kcontrol,
 			break;
 		case 4:
 			mask = ~params->mask;
-			ret = regmap_parse_val(codec->control_data,
+			ret = regmap_parse_val(codec->component.regmap,
 							&mask, &mask);
 			if (ret != 0)
 				goto out;
 
 			((u32 *)data)[0] &= mask;
 
-			ret = regmap_parse_val(codec->control_data,
+			ret = regmap_parse_val(codec->component.regmap,
 							&val, &val);
 			if (ret != 0)
 				goto out;
@@ -3087,7 +3087,7 @@ int snd_soc_bytes_put(struct snd_kcontrol *kcontrol,
 		}
 	}
 
-	ret = regmap_raw_write(codec->control_data, params->base,
+	ret = regmap_raw_write(codec->component.regmap, params->base,
 			       data, len);
 
 out:
@@ -3143,7 +3143,7 @@ int snd_soc_get_xr_sx(struct snd_kcontrol *kcontrol,
 	struct snd_soc_codec *codec = snd_kcontrol_chip(kcontrol);
 	unsigned int regbase = mc->regbase;
 	unsigned int regcount = mc->regcount;
-	unsigned int regwshift = codec->val_bytes * BITS_PER_BYTE;
+	unsigned int regwshift = codec->component.val_bytes * BITS_PER_BYTE;
 	unsigned int regwmask = (1<<regwshift)-1;
 	unsigned int invert = mc->invert;
 	unsigned long mask = (1UL<<mc->nbits)-1;
@@ -3189,7 +3189,7 @@ int snd_soc_put_xr_sx(struct snd_kcontrol *kcontrol,
 	struct snd_soc_codec *codec = snd_kcontrol_chip(kcontrol);
 	unsigned int regbase = mc->regbase;
 	unsigned int regcount = mc->regcount;
-	unsigned int regwshift = codec->val_bytes * BITS_PER_BYTE;
+	unsigned int regwshift = codec->component.val_bytes * BITS_PER_BYTE;
 	unsigned int regwmask = (1<<regwshift)-1;
 	unsigned int invert = mc->invert;
 	unsigned long mask = (1UL<<mc->nbits)-1;
@@ -3837,6 +3837,8 @@ __snd_soc_register_component(struct device *dev,
 		return -ENOMEM;
 	}
 
+	mutex_init(&cmpnt->io_mutex);
+
 	cmpnt->name = fmt_single_name(dev, &cmpnt->id);
 	if (!cmpnt->name) {
 		dev_err(dev, "ASoC: Failed to simplifying name\n");
@@ -3917,6 +3919,24 @@ found:
 }
 EXPORT_SYMBOL_GPL(snd_soc_unregister_component);
 
+static int snd_soc_platform_drv_write(struct snd_soc_component *component,
+	unsigned int reg, unsigned int val)
+{
+	struct snd_soc_platform *platform = snd_soc_component_to_platform(component);
+
+	return platform->driver->write(platform, reg, val);
+}
+
+static int snd_soc_platform_drv_read(struct snd_soc_component *component,
+	unsigned int reg, unsigned int *val)
+{
+	struct snd_soc_platform *platform = snd_soc_component_to_platform(component);
+
+	*val = platform->driver->read(platform, reg);
+
+	return 0;
+}
+
 /**
  * snd_soc_add_platform - Add a platform to the ASoC core
  * @dev: The parent device for the platform
@@ -3937,8 +3957,12 @@ int snd_soc_add_platform(struct device *dev, struct snd_soc_platform *platform,
 	platform->driver = platform_drv;
 	platform->dapm.dev = dev;
 	platform->dapm.platform = platform;
+	platform->dapm.component = &platform->component;
 	platform->dapm.stream_event = platform_drv->stream_event;
-	mutex_init(&platform->mutex);
+	if (platform_drv->write)
+		platform->component.write = snd_soc_platform_drv_write;
+	if (platform_drv->read)
+		platform->component.read = snd_soc_platform_drv_read;
 
 	/* register component */
 	ret = __snd_soc_register_component(dev, &platform->component,
@@ -4067,6 +4091,24 @@ static void fixup_codec_formats(struct snd_soc_pcm_stream *stream)
 			stream->formats |= codec_format_map[i];
 }
 
+static int snd_soc_codec_drv_write(struct snd_soc_component *component,
+	unsigned int reg, unsigned int val)
+{
+	struct snd_soc_codec *codec = snd_soc_component_to_codec(component);
+
+	return codec->driver->write(codec, reg, val);
+}
+
+static int snd_soc_codec_drv_read(struct snd_soc_component *component,
+	unsigned int reg, unsigned int *val)
+{
+	struct snd_soc_codec *codec = snd_soc_component_to_codec(component);
+
+	*val = codec->driver->read(codec, reg);
+
+	return 0;
+}
+
 /**
  * snd_soc_register_codec - Register a codec with the ASoC core
  *
@@ -4094,29 +4136,33 @@ int snd_soc_register_codec(struct device *dev,
 		goto fail_codec;
 	}
 
-	codec->write = codec_drv->write;
-	codec->read = codec_drv->read;
+	if (codec_drv->write)
+		codec->component.write = snd_soc_codec_drv_write;
+	if (codec_drv->read)
+		codec->component.read = snd_soc_codec_drv_read;
 	codec->component.ignore_pmdown_time = codec_drv->ignore_pmdown_time;
 	codec->dapm.bias_level = SND_SOC_BIAS_OFF;
 	codec->dapm.dev = dev;
 	codec->dapm.codec = codec;
+	codec->dapm.component = &codec->component;
 	codec->dapm.seq_notifier = codec_drv->seq_notifier;
 	codec->dapm.stream_event = codec_drv->stream_event;
 	codec->dev = dev;
 	codec->driver = codec_drv;
 	codec->num_dai = num_dai;
-	codec->val_bytes = codec_drv->reg_word_size;
+	codec->component.val_bytes = codec_drv->reg_word_size;
 	mutex_init(&codec->mutex);
 
-	if (!codec->write) {
+	if (!codec->component.write) {
 		if (codec_drv->get_regmap)
 			regmap = codec_drv->get_regmap(dev);
 		else
 			regmap = dev_get_regmap(dev, NULL);
 
 		if (regmap) {
-			ret = snd_soc_codec_set_cache_io(codec, regmap);
-			if (ret && ret != -ENOTSUPP) {
+			ret = snd_soc_component_init_io(&codec->component,
+				regmap);
+			if (ret) {
 				dev_err(codec->dev,
 						"Failed to set cache I/O:%d\n",
 						ret);
