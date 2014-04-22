@@ -103,7 +103,6 @@ static void iwl_pcie_set_pwr(struct iwl_trans *trans, bool vaux)
 
 /* PCI registers */
 #define PCI_CFG_RETRY_TIMEOUT	0x041
-#define CPU1_CPU2_SEPARATOR_SECTION	0xFFFFCCCC
 
 static void iwl_pcie_apm_config(struct iwl_trans *trans)
 {
@@ -1053,6 +1052,12 @@ static void iwl_trans_pcie_write_prph(struct iwl_trans *trans, u32 addr,
 	iwl_trans_pcie_write32(trans, HBUS_TARG_PRPH_WDAT, val);
 }
 
+static int iwl_pcie_dummy_napi_poll(struct napi_struct *napi, int budget)
+{
+	WARN_ON(1);
+	return 0;
+}
+
 static void iwl_trans_pcie_configure(struct iwl_trans *trans,
 				     const struct iwl_trans_config *trans_cfg)
 {
@@ -1079,6 +1084,18 @@ static void iwl_trans_pcie_configure(struct iwl_trans *trans,
 
 	trans_pcie->command_names = trans_cfg->command_names;
 	trans_pcie->bc_table_dword = trans_cfg->bc_table_dword;
+
+	/* Initialize NAPI here - it should be before registering to mac80211
+	 * in the opmode but after the HW struct is allocated.
+	 * As this function may be called again in some corner cases don't
+	 * do anything if NAPI was already initialized.
+	 */
+	if (!trans_pcie->napi.poll && trans->op_mode->ops->napi_add) {
+		init_dummy_netdev(&trans_pcie->napi_dev);
+		iwl_op_mode_napi_add(trans->op_mode, &trans_pcie->napi,
+				     &trans_pcie->napi_dev,
+				     iwl_pcie_dummy_napi_poll, 64);
+	}
 }
 
 void iwl_trans_pcie_free(struct iwl_trans *trans)
@@ -1098,6 +1115,9 @@ void iwl_trans_pcie_free(struct iwl_trans *trans)
 	pci_release_regions(trans_pcie->pci_dev);
 	pci_disable_device(trans_pcie->pci_dev);
 	kmem_cache_destroy(trans->dev_cmd_pool);
+
+	if (trans_pcie->napi.poll)
+		netif_napi_del(&trans_pcie->napi);
 
 	kfree(trans);
 }
@@ -1237,7 +1257,7 @@ static int iwl_trans_pcie_write_mem(struct iwl_trans *trans, u32 addr,
 
 #define IWL_FLUSH_WAIT_MS	2000
 
-static int iwl_trans_pcie_wait_txq_empty(struct iwl_trans *trans)
+static int iwl_trans_pcie_wait_txq_empty(struct iwl_trans *trans, u32 txq_bm)
 {
 	struct iwl_trans_pcie *trans_pcie = IWL_TRANS_GET_PCIE_TRANS(trans);
 	struct iwl_txq *txq;
@@ -1250,13 +1270,31 @@ static int iwl_trans_pcie_wait_txq_empty(struct iwl_trans *trans)
 
 	/* waiting for all the tx frames complete might take a while */
 	for (cnt = 0; cnt < trans->cfg->base_params->num_of_queues; cnt++) {
+		u8 wr_ptr;
+
 		if (cnt == trans_pcie->cmd_queue)
 			continue;
+		if (!test_bit(cnt, trans_pcie->queue_used))
+			continue;
+		if (!(BIT(cnt) & txq_bm))
+			continue;
+
+		IWL_DEBUG_TX_QUEUES(trans, "Emptying queue %d...\n", cnt);
 		txq = &trans_pcie->txq[cnt];
 		q = &txq->q;
-		while (q->read_ptr != q->write_ptr && !time_after(jiffies,
-		       now + msecs_to_jiffies(IWL_FLUSH_WAIT_MS)))
+		wr_ptr = ACCESS_ONCE(q->write_ptr);
+
+		while (q->read_ptr != ACCESS_ONCE(q->write_ptr) &&
+		       !time_after(jiffies,
+				   now + msecs_to_jiffies(IWL_FLUSH_WAIT_MS))) {
+			u8 write_ptr = ACCESS_ONCE(q->write_ptr);
+
+			if (WARN_ONCE(wr_ptr != write_ptr,
+				      "WR pointer moved while flushing %d -> %d\n",
+				      wr_ptr, write_ptr))
+				return -ETIMEDOUT;
 			msleep(1);
+		}
 
 		if (q->read_ptr != q->write_ptr) {
 			IWL_ERR(trans,
@@ -1264,6 +1302,7 @@ static int iwl_trans_pcie_wait_txq_empty(struct iwl_trans *trans)
 			ret = -ETIMEDOUT;
 			break;
 		}
+		IWL_DEBUG_TX_QUEUES(trans, "Queue %d is now empty.\n", cnt);
 	}
 
 	if (!ret)

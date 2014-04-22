@@ -146,6 +146,9 @@ static inline u8 num_of_ant(u8 mask)
  * @wd_timeout: TX queues watchdog timeout
  * @max_event_log_size: size of event log buffer size for ucode event logging
  * @shadow_reg_enable: HW shadow register support
+ * @apmg_wake_up_wa: should the MAC access REQ be asserted when a command
+ *	is in flight. This is due to a HW bug in 7260, 3160 and 7265.
+ * @scd_chain_ext_wa: should the chain extension feature in SCD be disabled.
  */
 struct iwl_base_params {
 	int eeprom_size;
@@ -160,6 +163,8 @@ struct iwl_base_params {
 	u32 max_event_log_size;
 	const bool shadow_reg_enable;
 	const bool pcie_l1_allowed;
+	const bool apmg_wake_up_wa;
+	const bool scd_chain_ext_wa;
 };
 
 /*

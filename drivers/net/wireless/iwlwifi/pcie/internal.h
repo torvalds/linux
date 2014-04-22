@@ -102,7 +102,7 @@ struct iwl_rxq {
 	u32 write_actual;
 	struct list_head rx_free;
 	struct list_head rx_used;
-	int need_update;
+	bool need_update;
 	struct iwl_rb_status *rb_stts;
 	dma_addr_t rb_stts_dma;
 	spinlock_t lock;
@@ -231,7 +231,7 @@ struct iwl_txq {
 	spinlock_t lock;
 	struct timer_list stuck_timer;
 	struct iwl_trans_pcie *trans_pcie;
-	u8 need_update;
+	bool need_update;
 	u8 active;
 	bool ampdu;
 };
@@ -269,6 +269,9 @@ struct iwl_trans_pcie {
 	struct work_struct rx_replenish;
 	struct iwl_trans *trans;
 	struct iwl_drv *drv;
+
+	struct net_device napi_dev;
+	struct napi_struct napi;
 
 	/* INT ICT Table */
 	__le32 *ict_tbl;
@@ -362,7 +365,7 @@ void iwl_trans_pcie_txq_enable(struct iwl_trans *trans, int txq_id, int fifo,
 void iwl_trans_pcie_txq_disable(struct iwl_trans *trans, int queue);
 int iwl_trans_pcie_tx(struct iwl_trans *trans, struct sk_buff *skb,
 		      struct iwl_device_cmd *dev_cmd, int txq_id);
-void iwl_pcie_txq_inc_wr_ptr(struct iwl_trans *trans, struct iwl_txq *txq);
+void iwl_pcie_txq_check_wrptrs(struct iwl_trans *trans);
 int iwl_trans_pcie_send_hcmd(struct iwl_trans *trans, struct iwl_host_cmd *cmd);
 void iwl_pcie_hcmd_complete(struct iwl_trans *trans,
 			    struct iwl_rx_cmd_buffer *rxb, int handler_status);
