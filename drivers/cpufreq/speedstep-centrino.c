@@ -28,7 +28,7 @@
 #include <asm/cpu_device_id.h>
 
 #define PFX		"speedstep-centrino: "
-#define MAINTAINER	"cpufreq@vger.kernel.org"
+#define MAINTAINER	"linux-pm@vger.kernel.org"
 
 #define INTEL_MSR_RANGE	(0xffff)
 
