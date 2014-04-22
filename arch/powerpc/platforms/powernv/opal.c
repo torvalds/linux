@@ -242,14 +242,14 @@ void opal_notifier_update_evt(uint64_t evt_mask,
 void opal_notifier_enable(void)
 {
 	int64_t rc;
-	uint64_t evt = 0;
+	__be64 evt = 0;
 
 	atomic_set(&opal_notifier_hold, 0);
 
 	/* Process pending events */
 	rc = opal_poll_events(&evt);
 	if (rc == OPAL_SUCCESS && evt)
-		opal_do_notifier(evt);
+		opal_do_notifier(be64_to_cpu(evt));
 }
 
 void opal_notifier_disable(void)
@@ -529,7 +529,7 @@ static irqreturn_t opal_interrupt(int irq, void *data)
 
 	opal_handle_interrupt(virq_to_hw(irq), &events);
 
-	opal_do_notifier(events);
+	opal_do_notifier(be64_to_cpu(events));
 
 	return IRQ_HANDLED;
 }
