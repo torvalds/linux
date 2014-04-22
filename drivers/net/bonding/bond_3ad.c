@@ -2440,7 +2440,7 @@ int bond_3ad_xmit_xor(struct sk_buff *skb, struct net_device *dev)
 		goto err_free;
 	}
 
-	slave_agg_no = bond_xmit_hash(bond, skb, slaves_in_agg);
+	slave_agg_no = bond_xmit_hash(bond, skb) % slaves_in_agg;
 	first_ok_slave = NULL;
 
 	bond_for_each_slave_rcu(bond, slave, iter) {
