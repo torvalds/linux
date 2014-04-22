@@ -57,9 +57,6 @@ static int qi_lb60_codec_init(struct snd_soc_pcm_runtime *rtd)
 	struct snd_soc_dapm_context *dapm = &codec->dapm;
 	int ret;
 
-	snd_soc_dapm_nc_pin(dapm, "LIN");
-	snd_soc_dapm_nc_pin(dapm, "RIN");
-
 	ret = snd_soc_dai_set_fmt(cpu_dai, QI_LB60_DAIFMT);
 	if (ret < 0) {
 		dev_err(codec->dev, "Failed to set cpu dai format: %d\n", ret);
@@ -89,6 +86,7 @@ static struct snd_soc_card qi_lb60 = {
 	.num_dapm_widgets = ARRAY_SIZE(qi_lb60_widgets),
 	.dapm_routes = qi_lb60_routes,
 	.num_dapm_routes = ARRAY_SIZE(qi_lb60_routes),
+	.fully_routed = true,
 };
 
 static const struct gpio qi_lb60_gpios[] = {
