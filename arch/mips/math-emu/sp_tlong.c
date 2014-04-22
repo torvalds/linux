@@ -25,6 +25,7 @@
 
 
 #include "ieee754sp.h"
+#include "ieee754dp.h"
 
 s64 ieee754sp_tlong(union ieee754sp x)
 {

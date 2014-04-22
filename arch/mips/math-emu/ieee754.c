@@ -35,14 +35,6 @@
 #include "ieee754sp.h"
 #include "ieee754dp.h"
 
-#define DP_EBIAS	1023
-#define DP_EMIN		(-1022)
-#define DP_EMAX		1023
-
-#define SP_EBIAS	127
-#define SP_EMIN		(-126)
-#define SP_EMAX		127
-
 /* special constants
 */
 

@@ -24,6 +24,7 @@
  */
 
 
+#include "ieee754sp.h"
 #include "ieee754dp.h"
 
 union ieee754dp ieee754dp_fsp(union ieee754sp x)

@@ -30,6 +30,20 @@
 
 #define assert(expr) ((void)0)
 
+#define SP_EBIAS	127
+#define SP_EMIN		(-126)
+#define SP_EMAX		127
+#define SP_FBITS	23
+#define SP_MBITS	23
+
+#define SP_MBIT(x)	((u32)1 << (x))
+#define SP_HIDDEN_BIT	SP_MBIT(SP_FBITS)
+#define SP_SIGN_BIT	SP_MBIT(31)
+
+#define SPSIGN(sp)	(sp.parts.sign)
+#define SPBEXP(sp)	(sp.parts.bexp)
+#define SPMANT(sp)	(sp.parts.mant)
+
 /* 3bit extended single precision sticky right shift */
 #define SPXSRSXn(rs)							\
 	(xe += rs,							\

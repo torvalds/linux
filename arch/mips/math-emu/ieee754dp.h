@@ -30,6 +30,20 @@
 
 #define assert(expr) ((void)0)
 
+#define DP_EBIAS	1023
+#define DP_EMIN		(-1022)
+#define DP_EMAX		1023
+#define DP_FBITS	52
+#define DP_MBITS	52
+
+#define DP_MBIT(x)	((u64)1 << (x))
+#define DP_HIDDEN_BIT	DP_MBIT(DP_FBITS)
+#define DP_SIGN_BIT	DP_MBIT(63)
+
+#define DPSIGN(dp)	(dp.parts.sign)
+#define DPBEXP(dp)	(dp.parts.bexp)
+#define DPMANT(dp)	(dp.parts.mant)
+
 /* 3bit extended double precision sticky right shift */
 #define XDPSRS(v,rs)	\
 	((rs > (DP_FBITS+3))?1:((v) >> (rs)) | ((v) << (64-(rs)) != 0))
