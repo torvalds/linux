@@ -35,6 +35,11 @@ static int hists__browser_title(struct hists *hists, char *bf, size_t size,
 				const char *ev_name);
 static void hist_browser__update_nr_entries(struct hist_browser *hb);
 
+static bool hist_browser__has_filter(struct hist_browser *hb)
+{
+	return hists__has_filter(hb->hists) || hb->min_pcnt;
+}
+
 static void hist_browser__refresh_dimensions(struct hist_browser *browser)
 {
 	/* 3 == +/- toggle symbol before actual hist_entry rendering */
@@ -44,7 +49,8 @@ static void hist_browser__refresh_dimensions(struct hist_browser *browser)
 
 static void hist_browser__reset(struct hist_browser *browser)
 {
-	browser->b.nr_entries = browser->hists->nr_entries;
+	hist_browser__update_nr_entries(browser);
+	browser->b.nr_entries = browser->nr_non_filtered_entries;
 	hist_browser__refresh_dimensions(browser);
 	ui_browser__reset_index(&browser->b);
 }
@@ -319,9 +325,10 @@ static int hist_browser__run(struct hist_browser *browser, const char *ev_name,
 	int delay_secs = hbt ? hbt->refresh : 0;
 
 	browser->b.entries = &browser->hists->entries;
-	browser->b.nr_entries = browser->hists->nr_entries;
-	if (browser->min_pcnt)
+	if (hist_browser__has_filter(browser))
 		browser->b.nr_entries = browser->nr_non_filtered_entries;
+	else
+		browser->b.nr_entries = browser->hists->nr_entries;
 
 	hist_browser__refresh_dimensions(browser);
 	hists__browser_title(browser->hists, title, sizeof(title), ev_name);
@@ -338,7 +345,7 @@ static int hist_browser__run(struct hist_browser *browser, const char *ev_name,
 			u64 nr_entries;
 			hbt->timer(hbt->arg);
 
-			if (browser->min_pcnt) {
+			if (hist_browser__has_filter(browser)) {
 				hist_browser__update_nr_entries(browser);
 				nr_entries = browser->nr_non_filtered_entries;
 			} else {
@@ -1346,6 +1353,11 @@ static void hist_browser__update_nr_entries(struct hist_browser *hb)
 {
 	u64 nr_entries = 0;
 	struct rb_node *nd = rb_first(&hb->hists->entries);
+
+	if (hb->min_pcnt == 0) {
+		hb->nr_non_filtered_entries = hb->hists->nr_non_filtered_entries;
+		return;
+	}
 
 	while ((nd = hists__filter_entries(nd, hb->hists,
 					   hb->min_pcnt)) != NULL) {
