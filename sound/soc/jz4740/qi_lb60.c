@@ -86,7 +86,7 @@ static int qi_lb60_probe(struct platform_device *pdev)
 
 	card->dev = &pdev->dev;
 
-	ret = snd_soc_register_card(card);
+	ret = devm_snd_soc_register_card(&pdev->dev, card);
 	if (ret) {
 		dev_err(&pdev->dev, "snd_soc_register_card() failed: %d\n",
 			ret);
@@ -97,9 +97,6 @@ static int qi_lb60_probe(struct platform_device *pdev)
 
 static int qi_lb60_remove(struct platform_device *pdev)
 {
-	struct snd_soc_card *card = platform_get_drvdata(pdev);
-
-	snd_soc_unregister_card(card);
 	gpio_free_array(qi_lb60_gpios, ARRAY_SIZE(qi_lb60_gpios));
 	return 0;
 }
