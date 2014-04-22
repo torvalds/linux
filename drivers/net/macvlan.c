@@ -239,25 +239,28 @@ static void macvlan_process_broadcast(struct work_struct *w)
 static void macvlan_broadcast_enqueue(struct macvlan_port *port,
 				      struct sk_buff *skb)
 {
+	struct sk_buff *nskb;
 	int err = -ENOMEM;
 
-	skb = skb_clone(skb, GFP_ATOMIC);
-	if (!skb)
+	nskb = skb_clone(skb, GFP_ATOMIC);
+	if (!nskb)
 		goto err;
 
 	spin_lock(&port->bc_queue.lock);
 	if (skb_queue_len(&port->bc_queue) < skb->dev->tx_queue_len) {
-		__skb_queue_tail(&port->bc_queue, skb);
+		__skb_queue_tail(&port->bc_queue, nskb);
 		err = 0;
 	}
 	spin_unlock(&port->bc_queue.lock);
 
 	if (err)
-		goto err;
+		goto free_nskb;
 
 	schedule_work(&port->bc_work);
 	return;
 
+free_nskb:
+	kfree_skb(nskb);
 err:
 	atomic_long_inc(&skb->dev->rx_dropped);
 }
