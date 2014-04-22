@@ -769,7 +769,7 @@ use_carrier
 xmit_hash_policy
 
 	Selects the transmit hash policy to use for slave selection in
-	balance-xor and 802.3ad modes.  Possible values are:
+	balance-xor, 802.3ad, and tlb modes.  Possible values are:
 
 	layer2
 
