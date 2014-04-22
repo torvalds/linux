@@ -221,6 +221,8 @@ static int m25p_probe(struct spi_device *spi)
 
 	if (spi->mode & SPI_RX_QUAD)
 		mode = SPI_NOR_QUAD;
+	else if (spi->mode & SPI_RX_DUAL)
+		mode = SPI_NOR_DUAL;
 	ret = spi_nor_scan(nor, spi_get_device_id(spi), mode);
 	if (ret)
 		return ret;
