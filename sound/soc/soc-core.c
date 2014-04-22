@@ -847,14 +847,47 @@ EXPORT_SYMBOL_GPL(snd_soc_resume);
 static const struct snd_soc_dai_ops null_dai_ops = {
 };
 
+static struct snd_soc_codec *soc_find_codec(const struct device_node *codec_of_node,
+					    const char *codec_name)
+{
+	struct snd_soc_codec *codec;
+
+	list_for_each_entry(codec, &codec_list, list) {
+		if (codec_of_node) {
+			if (codec->dev->of_node != codec_of_node)
+				continue;
+		} else {
+			if (strcmp(codec->name, codec_name))
+				continue;
+		}
+
+		return codec;
+	}
+
+	return NULL;
+}
+
+static struct snd_soc_dai *soc_find_codec_dai(struct snd_soc_codec *codec,
+					      const char *codec_dai_name)
+{
+	struct snd_soc_dai *codec_dai;
+
+	list_for_each_entry(codec_dai, &codec->component.dai_list, list) {
+		if (!strcmp(codec_dai->name, codec_dai_name)) {
+			return codec_dai;
+		}
+	}
+
+	return NULL;
+}
+
 static int soc_bind_dai_link(struct snd_soc_card *card, int num)
 {
 	struct snd_soc_dai_link *dai_link = &card->dai_link[num];
 	struct snd_soc_pcm_runtime *rtd = &card->rtd[num];
 	struct snd_soc_component *component;
-	struct snd_soc_codec *codec;
 	struct snd_soc_platform *platform;
-	struct snd_soc_dai *codec_dai, *cpu_dai;
+	struct snd_soc_dai *cpu_dai;
 	const char *platform_name;
 
 	dev_dbg(card->dev, "ASoC: binding %s at idx %d\n", dai_link->name, num);
@@ -882,39 +915,21 @@ static int soc_bind_dai_link(struct snd_soc_card *card, int num)
 		return -EPROBE_DEFER;
 	}
 
-	/* Find CODEC from registered CODECs */
-	list_for_each_entry(codec, &codec_list, list) {
-		if (dai_link->codec_of_node) {
-			if (codec->dev->of_node != dai_link->codec_of_node)
-				continue;
-		} else {
-			if (strcmp(codec->name, dai_link->codec_name))
-				continue;
-		}
-
-		rtd->codec = codec;
-
-		/*
-		 * CODEC found, so find CODEC DAI from registered DAIs from
-		 * this CODEC
-		 */
-		list_for_each_entry(codec_dai, &codec->component.dai_list, list) {
-			if (!strcmp(codec_dai->name, dai_link->codec_dai_name)) {
-				rtd->codec_dai = codec_dai;
-				break;
-			}
-		}
-
-		if (!rtd->codec_dai) {
-			dev_err(card->dev, "ASoC: CODEC DAI %s not registered\n",
-				dai_link->codec_dai_name);
-			return -EPROBE_DEFER;
-		}
-	}
-
+	/* Find CODEC from registered list */
+	rtd->codec = soc_find_codec(dai_link->codec_of_node,
+				    dai_link->codec_name);
 	if (!rtd->codec) {
 		dev_err(card->dev, "ASoC: CODEC %s not registered\n",
 			dai_link->codec_name);
+		return -EPROBE_DEFER;
+	}
+
+	/* Find CODEC DAI from registered list */
+	rtd->codec_dai = soc_find_codec_dai(rtd->codec,
+					    dai_link->codec_dai_name);
+	if (!rtd->codec_dai) {
+		dev_err(card->dev, "ASoC: CODEC DAI %s not registered\n",
+			dai_link->codec_dai_name);
 		return -EPROBE_DEFER;
 	}
 
@@ -988,6 +1003,24 @@ static void soc_remove_codec(struct snd_soc_codec *codec)
 	module_put(codec->dev->driver->owner);
 }
 
+static void soc_remove_codec_dai(struct snd_soc_dai *codec_dai, int order)
+{
+	int err;
+
+	if (codec_dai && codec_dai->probed &&
+			codec_dai->driver->remove_order == order) {
+		if (codec_dai->driver->remove) {
+			err = codec_dai->driver->remove(codec_dai);
+			if (err < 0)
+				dev_err(codec_dai->dev,
+					"ASoC: failed to remove %s: %d\n",
+					codec_dai->name, err);
+		}
+		codec_dai->probed = 0;
+		list_del(&codec_dai->card_list);
+	}
+}
+
 static void soc_remove_link_dais(struct snd_soc_card *card, int num, int order)
 {
 	struct snd_soc_pcm_runtime *rtd = &card->rtd[num];
@@ -1003,18 +1036,7 @@ static void soc_remove_link_dais(struct snd_soc_card *card, int num, int order)
 	}
 
 	/* remove the CODEC DAI */
-	if (codec_dai && codec_dai->probed &&
-			codec_dai->driver->remove_order == order) {
-		if (codec_dai->driver->remove) {
-			err = codec_dai->driver->remove(codec_dai);
-			if (err < 0)
-				dev_err(codec_dai->dev,
-					"ASoC: failed to remove %s: %d\n",
-					codec_dai->name, err);
-		}
-		codec_dai->probed = 0;
-		list_del(&codec_dai->card_list);
-	}
+	soc_remove_codec_dai(codec_dai, order);
 
 	/* remove the cpu_dai */
 	if (cpu_dai && cpu_dai->probed &&
@@ -1364,6 +1386,67 @@ static int soc_probe_link_components(struct snd_soc_card *card, int num,
 	return 0;
 }
 
+static int soc_probe_codec_dai(struct snd_soc_card *card,
+			       struct snd_soc_dai *codec_dai,
+			       int order)
+{
+	int ret;
+
+	if (!codec_dai->probed && codec_dai->driver->probe_order == order) {
+		if (codec_dai->driver->probe) {
+			ret = codec_dai->driver->probe(codec_dai);
+			if (ret < 0) {
+				dev_err(codec_dai->dev,
+					"ASoC: failed to probe CODEC DAI %s: %d\n",
+					codec_dai->name, ret);
+				return ret;
+			}
+		}
+
+		/* mark codec_dai as probed and add to card dai list */
+		codec_dai->probed = 1;
+		list_add(&codec_dai->card_list, &card->dai_dev_list);
+	}
+
+	return 0;
+}
+
+static int soc_link_dai_widgets(struct snd_soc_card *card,
+				struct snd_soc_dai_link *dai_link,
+				struct snd_soc_dai *cpu_dai,
+				struct snd_soc_dai *codec_dai)
+{
+	struct snd_soc_dapm_widget *play_w, *capture_w;
+	int ret;
+
+	/* link the DAI widgets */
+	play_w = codec_dai->playback_widget;
+	capture_w = cpu_dai->capture_widget;
+	if (play_w && capture_w) {
+		ret = snd_soc_dapm_new_pcm(card, dai_link->params,
+					   capture_w, play_w);
+		if (ret != 0) {
+			dev_err(card->dev, "ASoC: Can't link %s to %s: %d\n",
+				play_w->name, capture_w->name, ret);
+			return ret;
+		}
+	}
+
+	play_w = cpu_dai->playback_widget;
+	capture_w = codec_dai->capture_widget;
+	if (play_w && capture_w) {
+		ret = snd_soc_dapm_new_pcm(card, dai_link->params,
+					   capture_w, play_w);
+		if (ret != 0) {
+			dev_err(card->dev, "ASoC: Can't link %s to %s: %d\n",
+				play_w->name, capture_w->name, ret);
+			return ret;
+		}
+	}
+
+	return 0;
+}
+
 static int soc_probe_link_dais(struct snd_soc_card *card, int num, int order)
 {
 	struct snd_soc_dai_link *dai_link = &card->dai_link[num];
@@ -1372,7 +1455,6 @@ static int soc_probe_link_dais(struct snd_soc_card *card, int num, int order)
 	struct snd_soc_platform *platform = rtd->platform;
 	struct snd_soc_dai *codec_dai = rtd->codec_dai;
 	struct snd_soc_dai *cpu_dai = rtd->cpu_dai;
-	struct snd_soc_dapm_widget *play_w, *capture_w;
 	int ret;
 
 	dev_dbg(card->dev, "ASoC: probe %s dai link %d late %d\n",
@@ -1413,21 +1495,9 @@ static int soc_probe_link_dais(struct snd_soc_card *card, int num, int order)
 	}
 
 	/* probe the CODEC DAI */
-	if (!codec_dai->probed && codec_dai->driver->probe_order == order) {
-		if (codec_dai->driver->probe) {
-			ret = codec_dai->driver->probe(codec_dai);
-			if (ret < 0) {
-				dev_err(codec_dai->dev,
-					"ASoC: failed to probe CODEC DAI %s: %d\n",
-					codec_dai->name, ret);
-				return ret;
-			}
-		}
-
-		/* mark codec_dai as probed and add to card dai list */
-		codec_dai->probed = 1;
-		list_add(&codec_dai->card_list, &card->dai_dev_list);
-	}
+	ret = soc_probe_codec_dai(card, codec_dai, order);
+	if (ret)
+		return ret;
 
 	/* complete DAI probe during last probe */
 	if (order != SND_SOC_COMP_ORDER_LAST)
@@ -1465,29 +1535,10 @@ static int soc_probe_link_dais(struct snd_soc_card *card, int num, int order)
 						codec2codec_close_delayed_work);
 
 			/* link the DAI widgets */
-			play_w = codec_dai->playback_widget;
-			capture_w = cpu_dai->capture_widget;
-			if (play_w && capture_w) {
-				ret = snd_soc_dapm_new_pcm(card, dai_link->params,
-						   capture_w, play_w);
-				if (ret != 0) {
-					dev_err(card->dev, "ASoC: Can't link %s to %s: %d\n",
-						play_w->name, capture_w->name, ret);
-					return ret;
-				}
-			}
-
-			play_w = cpu_dai->playback_widget;
-			capture_w = codec_dai->capture_widget;
-			if (play_w && capture_w) {
-				ret = snd_soc_dapm_new_pcm(card, dai_link->params,
-						   capture_w, play_w);
-				if (ret != 0) {
-					dev_err(card->dev, "ASoC: Can't link %s to %s: %d\n",
-						play_w->name, capture_w->name, ret);
-					return ret;
-				}
-			}
+			ret = soc_link_dai_widgets(card, dai_link,
+					cpu_dai, codec_dai);
+			if (ret)
+				return ret;
 		}
 	}
 
@@ -1499,14 +1550,15 @@ static int soc_probe_link_dais(struct snd_soc_card *card, int num, int order)
 }
 
 #ifdef CONFIG_SND_SOC_AC97_BUS
-static int soc_register_ac97_dai_link(struct snd_soc_pcm_runtime *rtd)
+static int soc_register_ac97_codec(struct snd_soc_codec *codec,
+				   struct snd_soc_dai *codec_dai)
 {
 	int ret;
 
 	/* Only instantiate AC97 if not already done by the adaptor
 	 * for the generic AC97 subsystem.
 	 */
-	if (rtd->codec_dai->driver->ac97_control && !rtd->codec->ac97_registered) {
+	if (codec_dai->driver->ac97_control && !codec->ac97_registered) {
 		/*
 		 * It is possible that the AC97 device is already registered to
 		 * the device subsystem. This happens when the device is created
@@ -1515,27 +1567,37 @@ static int soc_register_ac97_dai_link(struct snd_soc_pcm_runtime *rtd)
 		 *
 		 * In those cases we don't try to register the device again.
 		 */
-		if (!rtd->codec->ac97_created)
+		if (!codec->ac97_created)
 			return 0;
 
-		ret = soc_ac97_dev_register(rtd->codec);
+		ret = soc_ac97_dev_register(codec);
 		if (ret < 0) {
-			dev_err(rtd->codec->dev,
+			dev_err(codec->dev,
 				"ASoC: AC97 device register failed: %d\n", ret);
 			return ret;
 		}
 
-		rtd->codec->ac97_registered = 1;
+		codec->ac97_registered = 1;
 	}
 	return 0;
 }
 
-static void soc_unregister_ac97_dai_link(struct snd_soc_codec *codec)
+static int soc_register_ac97_dai_link(struct snd_soc_pcm_runtime *rtd)
+{
+	return soc_register_ac97_codec(rtd->codec, rtd->codec_dai);
+}
+
+static void soc_unregister_ac97_codec(struct snd_soc_codec *codec)
 {
 	if (codec->ac97_registered) {
 		soc_ac97_dev_unregister(codec);
 		codec->ac97_registered = 0;
 	}
+}
+
+static void soc_unregister_ac97_dai_link(struct snd_soc_pcm_runtime *rtd)
+{
+	soc_unregister_ac97_codec(rtd->codec);
 }
 #endif
 
@@ -1835,7 +1897,7 @@ static int snd_soc_instantiate_card(struct snd_soc_card *card)
 			dev_err(card->dev,
 				"ASoC: failed to register AC97: %d\n", ret);
 			while (--i >= 0)
-				soc_unregister_ac97_dai_link(card->rtd[i].codec);
+				soc_unregister_ac97_dai_link(&card->rtd[i]);
 			goto probe_aux_dev_err;
 		}
 	}
@@ -2185,7 +2247,7 @@ void snd_soc_free_ac97_codec(struct snd_soc_codec *codec)
 {
 	mutex_lock(&codec->mutex);
 #ifdef CONFIG_SND_SOC_AC97_BUS
-	soc_unregister_ac97_dai_link(codec);
+	soc_unregister_ac97_codec(codec);
 #endif
 	kfree(codec->ac97->bus);
 	kfree(codec->ac97);
