@@ -6,6 +6,13 @@
  * warranty of any kind, whether express or implied.
  */
 
+/*
+ * TODO: add Orion USB device port init when kernel.org support is added.
+ * TODO: add flash write support: see below.
+ * TODO: add power-off support.
+ * TODO: add I2C EEPROM support.
+ */
+
 /dts-v1/;
 
 #include <dt-bindings/gpio/gpio.h>
