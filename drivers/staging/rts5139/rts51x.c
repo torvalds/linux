@@ -291,15 +291,15 @@ static int rts51x_control_thread(void *__chip)
 		 */
 		else if (chip->srb->device->id) {
 			RTS51X_DEBUGP("Bad target number (%d:%d)\n",
-				       chip->srb->device->id,
-				       chip->srb->device->lun);
+				      chip->srb->device->id,
+				      chip->srb->device->lun);
 			chip->srb->result = DID_BAD_TARGET << 16;
 		}
 
 		else if (chip->srb->device->lun > chip->max_lun) {
 			RTS51X_DEBUGP("Bad LUN (%d:%d)\n",
-				       chip->srb->device->id,
-				       chip->srb->device->lun);
+				      chip->srb->device->id,
+				      chip->srb->device->lun);
 			chip->srb->result = DID_BAD_TARGET << 16;
 		}
 
@@ -433,12 +433,12 @@ static int associate_dev(struct rts51x_chip *chip, struct usb_interface *intf)
 	rts51x->pusb_intf = intf;
 	rts51x->ifnum = intf->cur_altsetting->desc.bInterfaceNumber;
 	RTS51X_DEBUGP("Vendor: 0x%04x, Product: 0x%04x, Revision: 0x%04x\n",
-		       le16_to_cpu(rts51x->pusb_dev->descriptor.idVendor),
-		       le16_to_cpu(rts51x->pusb_dev->descriptor.idProduct),
-		       le16_to_cpu(rts51x->pusb_dev->descriptor.bcdDevice));
+		      le16_to_cpu(rts51x->pusb_dev->descriptor.idVendor),
+		      le16_to_cpu(rts51x->pusb_dev->descriptor.idProduct),
+		      le16_to_cpu(rts51x->pusb_dev->descriptor.bcdDevice));
 	RTS51X_DEBUGP("Interface Subclass: 0x%02x, Protocol: 0x%02x\n",
-		       intf->cur_altsetting->desc.bInterfaceSubClass,
-		       intf->cur_altsetting->desc.bInterfaceProtocol);
+		      intf->cur_altsetting->desc.bInterfaceSubClass,
+		      intf->cur_altsetting->desc.bInterfaceProtocol);
 
 	/* Store our private data in the interface */
 	usb_set_intfdata(intf, chip);
@@ -569,8 +569,7 @@ static int get_pipes(struct rts51x_chip *chip)
 	}
 
 	if (!ep_in || !ep_out) {
-		RTS51X_DEBUGP("Endpoint sanity check failed!"
-					"Rejecting dev.\n");
+		RTS51X_DEBUGP("Endpoint sanity check failed! Rejecting dev.\n");
 		return -EIO;
 	}
 
