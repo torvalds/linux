@@ -466,7 +466,7 @@ static int bluetooth_platdata_parse_dt(struct device *dev,
 
     if (of_find_property(node, "wifi-bt-power-toggle", NULL)) {
         data->power_toggle = true;
-        LOG("%s: get property wifi-bt-power-toggle.\n");
+        LOG("%s: get property wifi-bt-power-toggle.\n", __func__);
     } else {
         data->power_toggle = false;
     }
@@ -609,10 +609,12 @@ static int rfkill_rk_probe(struct platform_device *pdev)
     ret = rfkill_rk_setup_gpio(pdev, &pdata->wake_gpio, pdata->name, "wake");
     if (ret) goto fail_gpio;
 
-    ret = rfkill_rk_setup_wake_irq(rfkill);
+    ret = rfkill_rk_setup_gpio(pdev, &pdata->rts_gpio, rfkill->pdata->name, "rts"); 
     if (ret) goto fail_gpio;
 
-    ret = rfkill_rk_setup_gpio(pdev, &pdata->rts_gpio, rfkill->pdata->name, "rts"); 
+    wake_lock_init(&(rfkill->bt_irq_wl), WAKE_LOCK_SUSPEND, "rfkill_rk_irq_wl");
+
+    ret = rfkill_rk_setup_wake_irq(rfkill);
     if (ret) goto fail_gpio;
 
     DBG("setup rfkill\n");
@@ -626,7 +628,6 @@ static int rfkill_rk_probe(struct platform_device *pdev)
 	if (ret < 0)
 		goto fail_rfkill;
 
-    wake_lock_init(&(rfkill->bt_irq_wl), WAKE_LOCK_SUSPEND, "rfkill_rk_irq_wl");
     INIT_DELAYED_WORK(&rfkill->bt_sleep_delay_work, rfkill_rk_delay_sleep_bt);
 
     //rfkill_rk_set_power(rfkill, BT_BLOCKED);
