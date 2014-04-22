@@ -96,7 +96,7 @@ int b43_phy_init(struct b43_wldev *dev)
 
 	phy->channel = ops->get_default_chan(dev);
 
-	ops->software_rfkill(dev, false);
+	b43_software_rfkill(dev, false);
 	err = ops->init(dev);
 	if (err) {
 		b43err(dev->wl, "PHY init failed\n");
@@ -116,7 +116,7 @@ err_phy_exit:
 	if (ops->exit)
 		ops->exit(dev);
 err_block_rf:
-	ops->software_rfkill(dev, true);
+	b43_software_rfkill(dev, true);
 
 	return err;
 }
@@ -125,7 +125,7 @@ void b43_phy_exit(struct b43_wldev *dev)
 {
 	const struct b43_phy_operations *ops = dev->phy.ops;
 
-	ops->software_rfkill(dev, true);
+	b43_software_rfkill(dev, true);
 	if (ops->exit)
 		ops->exit(dev);
 }
