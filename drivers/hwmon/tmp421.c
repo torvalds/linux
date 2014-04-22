@@ -42,6 +42,7 @@ static const unsigned short normal_i2c[] = { 0x2a, 0x4c, 0x4d, 0x4e, 0x4f,
 enum chips { tmp421, tmp422, tmp423 };
 
 /* The TMP421 registers */
+#define TMP421_STATUS_REG			0x08
 #define TMP421_CONFIG_REG_1			0x09
 #define TMP421_CONVERSION_RATE_REG		0x0B
 #define TMP421_MANUFACTURER_ID_REG		0xFE
@@ -235,6 +236,7 @@ static int tmp421_detect(struct i2c_client *client,
 	enum chips kind;
 	struct i2c_adapter *adapter = client->adapter;
 	const char *names[] = { "TMP421", "TMP422", "TMP423" };
+	int addr = client->addr;
 	u8 reg;
 
 	if (!i2c_check_functionality(adapter, I2C_FUNC_SMBUS_BYTE_DATA))
@@ -244,15 +246,27 @@ static int tmp421_detect(struct i2c_client *client,
 	if (reg != TMP421_MANUFACTURER_ID)
 		return -ENODEV;
 
+	reg = i2c_smbus_read_byte_data(client, TMP421_CONVERSION_RATE_REG);
+	if (reg & 0xf8)
+		return -ENODEV;
+
+	reg = i2c_smbus_read_byte_data(client, TMP421_STATUS_REG);
+	if (reg & 0x7f)
+		return -ENODEV;
+
 	reg = i2c_smbus_read_byte_data(client, TMP421_DEVICE_ID_REG);
 	switch (reg) {
 	case TMP421_DEVICE_ID:
 		kind = tmp421;
 		break;
 	case TMP422_DEVICE_ID:
+		if (addr == 0x2a)
+			return -ENODEV;
 		kind = tmp422;
 		break;
 	case TMP423_DEVICE_ID:
+		if (addr != 0x4c && addr != 0x4d)
+			return -ENODEV;
 		kind = tmp423;
 		break;
 	default:

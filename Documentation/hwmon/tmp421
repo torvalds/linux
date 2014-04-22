@@ -8,11 +8,11 @@ Supported chips:
     Datasheet: http://focus.ti.com/docs/prod/folders/print/tmp421.html
   * Texas Instruments TMP422
     Prefix: 'tmp422'
-    Addresses scanned: I2C 0x2a, 0x4c, 0x4d, 0x4e and 0x4f
+    Addresses scanned: I2C 0x4c, 0x4d, 0x4e and 0x4f
     Datasheet: http://focus.ti.com/docs/prod/folders/print/tmp421.html
   * Texas Instruments TMP423
     Prefix: 'tmp423'
-    Addresses scanned: I2C 0x2a, 0x4c, 0x4d, 0x4e and 0x4f
+    Addresses scanned: I2C 0x4c and 0x4d
     Datasheet: http://focus.ti.com/docs/prod/folders/print/tmp421.html
 
 Authors:
