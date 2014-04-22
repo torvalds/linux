@@ -26,11 +26,6 @@
 
 #include "ieee754sp.h"
 
-int ieee754sp_finite(union ieee754sp x)
-{
-	return SPBEXP(x) != SP_EMAX + 1 + SP_EBIAS;
-}
-
 union ieee754sp ieee754sp_copysign(union ieee754sp x, union ieee754sp y)
 {
 	ieee754_clearcx();

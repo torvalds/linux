@@ -44,6 +44,11 @@
 #define DPBEXP(dp)	(dp.parts.bexp)
 #define DPMANT(dp)	(dp.parts.mant)
 
+static inline int ieee754dp_finite(union ieee754dp x)
+{
+	return DPBEXP(x) != DP_EMAX + 1 + DP_EBIAS;
+}
+
 /* 3bit extended double precision sticky right shift */
 #define XDPSRS(v,rs)	\
 	((rs > (DP_FBITS+3))?1:((v) >> (rs)) | ((v) << (64-(rs)) != 0))

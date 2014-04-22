@@ -26,11 +26,6 @@
 
 #include "ieee754dp.h"
 
-int ieee754dp_finite(union ieee754dp x)
-{
-	return DPBEXP(x) != DP_EMAX + 1 + DP_EBIAS;
-}
-
 union ieee754dp ieee754dp_copysign(union ieee754dp x, union ieee754dp y)
 {
 	ieee754_clearcx();

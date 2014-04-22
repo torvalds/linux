@@ -68,7 +68,6 @@ union ieee754sp {
 /*
  * single precision (often aka float)
 */
-int ieee754sp_finite(union ieee754sp x);
 int ieee754sp_class(union ieee754sp x);
 
 union ieee754sp ieee754sp_abs(union ieee754sp x);
@@ -112,7 +111,6 @@ union ieee754sp ieee754sp_sqrt(union ieee754sp x);
 /*
  * double precision (often aka double)
 */
-int ieee754dp_finite(union ieee754dp x);
 int ieee754dp_class(union ieee754dp x);
 
 /* x with sign of y */

@@ -44,6 +44,11 @@
 #define SPBEXP(sp)	(sp.parts.bexp)
 #define SPMANT(sp)	(sp.parts.mant)
 
+static inline int ieee754sp_finite(union ieee754sp x)
+{
+	return SPBEXP(x) != SP_EMAX + 1 + SP_EBIAS;
+}
+
 /* 3bit extended single precision sticky right shift */
 #define SPXSRSXn(rs)							\
 	(xe += rs,							\
