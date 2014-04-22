@@ -310,16 +310,18 @@ static int mvebu_devbus_probe(struct platform_device *pdev)
 	dev_dbg(devbus->dev, "Setting timing parameter, tick is %lu ps\n",
 		devbus->tick_ps);
 
-	/* Read the Device Tree node */
-	err = devbus_get_timing_params(devbus, node, &r, &w);
-	if (err < 0)
-		return err;
+	if (!of_property_read_bool(node, "devbus,keep-config")) {
+		/* Read the Device Tree node */
+		err = devbus_get_timing_params(devbus, node, &r, &w);
+		if (err < 0)
+			return err;
 
-	/* Set the new timing parameters */
-	if (of_device_is_compatible(node, "marvell,orion-devbus"))
-		devbus_orion_set_timing_params(devbus, node, &r, &w);
-	else
-		devbus_armada_set_timing_params(devbus, node, &r, &w);
+		/* Set the new timing parameters */
+		if (of_device_is_compatible(node, "marvell,orion-devbus"))
+			devbus_orion_set_timing_params(devbus, node, &r, &w);
+		else
+			devbus_armada_set_timing_params(devbus, node, &r, &w);
+	}
 
 	/*
 	 * We need to create a child device explicitly from here to

@@ -23,6 +23,13 @@ Required properties:
                         integer values for each chip-select line in use:
                         0 <physical address of mapping> <size>
 
+Optional properties:
+
+ - devbus,keep-config   This property can optionally be used to keep
+                        using the timing parameters set by the
+                        bootloader. It makes all the timing properties
+                        described below unused.
+
 Timing properties for child nodes:
 
 Read parameters:
@@ -31,26 +38,26 @@ Read parameters:
                         drive the AD bus after the completion of a device read.
                         This prevents contentions on the Device Bus after a read
                         cycle from a slow device.
-                        Mandatory.
+                        Mandatory, except if devbus,keep-config is used.
 
  - devbus,bus-width:    Defines the bus width, in bits (e.g. <16>).
-                        Mandatory.
+                        Mandatory, except if devbus,keep-config is used.
 
  - devbus,badr-skew-ps: Defines the time delay from from A[2:0] toggle,
                         to read data sample. This parameter is useful for
                         synchronous pipelined devices, where the address
                         precedes the read data by one or two cycles.
-                        Mandatory.
+                        Mandatory, except if devbus,keep-config is used.
 
  - devbus,acc-first-ps: Defines the time delay from the negation of
                         ALE[0] to the cycle that the first read data is sampled
                         by the controller.
-                        Mandatory.
+                        Mandatory, except if devbus,keep-config is used.
 
  - devbus,acc-next-ps:  Defines the time delay between the cycle that
                         samples data N and the cycle that samples data N+1
                         (in burst accesses).
-                        Mandatory.
+                        Mandatory, except if devbus,keep-config is used.
 
  - devbus,rd-setup-ps:  Defines the time delay between DEV_CSn assertion to
 			DEV_OEn assertion. If set to 0 (default),
@@ -58,8 +65,8 @@ Read parameters:
                         This parameter has no affect on <acc-first-ps> parameter
                         (no affect on first data sample). Set <rd-setup-ps>
                         to a value smaller than <acc-first-ps>.
-                        Mandatory for "marvell,mvebu-devbus"
-                        compatible string, ignored otherwise.
+                        Mandatory for "marvell,mvebu-devbus" compatible string,
+                        except if devbus,keep-config is used.
 
  - devbus,rd-hold-ps:   Defines the time between the last data sample to the
 			de-assertion of DEV_CSn. If set to 0 (default),
@@ -70,8 +77,8 @@ Read parameters:
                         last data sampled. Also this parameter has no
                         affect on <turn-off-ps> parameter.
                         Set <rd-hold-ps> to a value smaller than <turn-off-ps>.
-                        Mandatory for "marvell,mvebu-devbus"
-                        compatible string, ignored otherwise.
+                        Mandatory for "marvell,mvebu-devbus" compatible string,
+                        except if devbus,keep-config is used.
 
 Write parameters:
 
@@ -96,8 +103,8 @@ Write parameters:
  - devbus,sync-enable: Synchronous device enable.
                        1: True
                        0: False
-                       Mandatory for "marvell,mvebu-devbus" compatible
-                       string, ignored otherwise.
+                       Mandatory for "marvell,mvebu-devbus" compatible string,
+                       except if devbus,keep-config is used.
 
 An example for an Armada XP GP board, with a 16 MiB NOR device as child
 is showed below. Note that the Device Bus driver is in charge of allocating
