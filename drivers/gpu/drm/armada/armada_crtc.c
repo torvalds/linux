@@ -1108,7 +1108,7 @@ int armada_drm_crtc_create(struct drm_device *dev, struct resource *res,
 	}
 
 	if (priv->variant->crtc_init) {
-		ret = priv->variant->crtc_init(dcrtc);
+		ret = priv->variant->crtc_init(dcrtc, dev->dev);
 		if (ret) {
 			kfree(dcrtc);
 			return ret;

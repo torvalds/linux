@@ -38,6 +38,7 @@ struct armada_crtc {
 	unsigned		num;
 	void __iomem		*base;
 	struct clk		*clk;
+	struct clk		*extclk[2];
 	struct {
 		uint32_t	spu_v_h_total;
 		uint32_t	spu_v_porch;

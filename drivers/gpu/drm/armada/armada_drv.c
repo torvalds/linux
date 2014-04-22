@@ -130,10 +130,6 @@ static int armada_drm_load(struct drm_device *dev, unsigned long flags)
 
 	priv->variant = (struct armada_variant *)id->driver_data;
 
-	ret = priv->variant->init(priv, dev->dev);
-	if (ret)
-		return ret;
-
 	INIT_WORK(&priv->fb_unref_work, armada_drm_unref_work);
 	INIT_KFIFO(priv->fb_unref);
 

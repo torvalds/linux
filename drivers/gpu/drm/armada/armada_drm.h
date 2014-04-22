@@ -59,10 +59,9 @@ void armada_drm_vbl_event_remove_unlocked(struct armada_crtc *,
 struct armada_private;
 
 struct armada_variant {
-	bool	has_spu_adv_reg;
+	bool has_spu_adv_reg;
 	uint32_t spu_adv_reg;
-	int (*init)(struct armada_private *, struct device *);
-	int (*crtc_init)(struct armada_crtc *);
+	int (*crtc_init)(struct armada_crtc *, struct device *);
 	int (*crtc_compute_clock)(struct armada_crtc *,
 				  const struct drm_display_mode *,
 				  uint32_t *);
@@ -78,7 +77,6 @@ struct armada_private {
 	struct drm_fb_helper	*fbdev;
 	struct armada_crtc	*dcrtc[2];
 	struct drm_mm		linear;
-	struct clk		*extclk[2];
 	struct drm_property	*csc_yuv_prop;
 	struct drm_property	*csc_rgb_prop;
 	struct drm_property	*colorkey_prop;
