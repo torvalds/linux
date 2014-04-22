@@ -719,7 +719,7 @@ static int rts51x_probe(struct usb_interface *intf,
 
 	pr_debug("%s detected\n", RTS51X_NAME);
 
-	rts51x = kzalloc(sizeof(struct rts51x_usb), GFP_KERNEL);
+	rts51x = kzalloc(sizeof(*rts51x), GFP_KERNEL);
 	if (!rts51x)
 		return -ENOMEM;
 
