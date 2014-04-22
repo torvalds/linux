@@ -430,8 +430,6 @@ xfs_fstrm_free_func(
 		container_of(mru, fstrm_item_t, mru);
 	xfs_inode_t	*ip = item->ip;
 
-	xfs_iflags_clear(ip, XFS_IFILESTREAM);
-
 	/* Drop the reference taken on the AG when the item was added. */
 	xfs_filestream_put_ag(ip->i_mount, item->ag);
 
