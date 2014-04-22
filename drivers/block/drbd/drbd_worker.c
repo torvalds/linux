@@ -504,9 +504,9 @@ struct fifo_buffer *fifo_alloc(int fifo_size)
 static int drbd_rs_controller(struct drbd_device *device, unsigned int sect_in)
 {
 	struct disk_conf *dc;
-	unsigned int want;     /* The number of sectors we want in the proxy */
+	unsigned int want;     /* The number of sectors we want in-flight */
 	int req_sect; /* Number of sectors to request in this turn */
-	int correction; /* Number of sectors more we need in the proxy*/
+	int correction; /* Number of sectors more we need in-flight */
 	int cps; /* correction per invocation of drbd_rs_controller() */
 	int steps; /* Number of time steps to plan ahead */
 	int curr_corr;
@@ -577,8 +577,13 @@ static int drbd_rs_number_requests(struct drbd_device *device)
 	 * potentially causing a distributed deadlock on congestion during
 	 * online-verify or (checksum-based) resync, if max-buffers,
 	 * socket buffer sizes and resync rate settings are mis-configured. */
-	if (mxb - device->rs_in_flight < number)
-		number = mxb - device->rs_in_flight;
+
+	/* note that "number" is in units of "BM_BLOCK_SIZE" (which is 4k),
+	 * mxb (as used here, and in drbd_alloc_pages on the peer) is
+	 * "number of pages" (typically also 4k),
+	 * but "rs_in_flight" is in "sectors" (512 Byte). */
+	if (mxb - device->rs_in_flight/8 < number)
+		number = mxb - device->rs_in_flight/8;
 
 	return number;
 }
