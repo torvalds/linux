@@ -98,7 +98,7 @@
 				status = "disabled";
 			};
 
-			xor: xor@60900 {
+			xor: dma-controller@60900 {
 				compatible = "marvell,orion-xor";
 				reg = <0x60900 0x100
 				       0x60b00 0x100>;
