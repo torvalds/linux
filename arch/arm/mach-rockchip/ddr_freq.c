@@ -183,10 +183,10 @@ enum ddr_bandwidth_id{
 
 
 
-#define DDR_BOOST_HOLD_MS	500
-#define HIGH_LOAD_HOLD_MS	1000
-#define HIGH_LOAD_DELAY_MS	60
-#define LOW_LOAD_DELAY_MS	500
+#define DDR_BOOST_HOLD_MS	300
+#define HIGH_LOAD_HOLD_MS	300
+#define HIGH_LOAD_DELAY_MS	0
+#define LOW_LOAD_DELAY_MS	200
 #define DDR_BOOST_HOLD		(DDR_BOOST_HOLD_MS/ddrbw_work_delay_ms)
 #define HIGH_LOAD_HOLD		(DDR_BOOST_HOLD_MS/ddrbw_work_delay_ms)
 #define HIGH_LOAD_DELAY		(HIGH_LOAD_DELAY_MS/ddrbw_work_delay_ms)
@@ -196,7 +196,7 @@ enum ddr_bandwidth_id{
 #define DDR_RATE_HIGH_LOAD	533000000
 #define DDR_RATE_1080P		240000000
 #define DDR_RATE_4K		300000000
-#define HIGH_LOAD_NORMAL	65
+#define HIGH_LOAD_NORMAL	70
 #define HGIH_LOAD_VIDEO		50
 
 static struct workqueue_struct *ddr_freq_wq;
@@ -238,6 +238,7 @@ void ddr_bandwidth_get(u32 *ch0_eff, u32 *ch1_eff)
 	*ch1_eff = temp64;
 }
 
+
 static void ddrbw_work_fn(struct work_struct *work)
 {
 	unsigned long rate;
@@ -251,17 +252,17 @@ static void ddrbw_work_fn(struct work_struct *work)
 	if (ddr_boost) {
 		ddr_boost = 0;
 		//dvfs_clk_set_rate(ddr.clk_dvfs_node, DDR_BOOST_RATE);
-		rate = ddr_rate_boost;
-		ddrfreq_mode(false, &rate, "boost");
-		ddr_boost_hold = DDR_BOOST_HOLD;
-		high_load_hold = 0;
-		high_load_delay = HIGH_LOAD_DELAY;
+		if (!high_load_hold && !low_load_delay) {
+			rate = ddr_rate_boost;
+			ddrfreq_mode(false, &rate, "boost");
+			ddr_boost_hold = DDR_BOOST_HOLD;
+		}
 	} else if(!ddr_boost_hold && ((ch0_eff>high_load)||(ch1_eff>high_load))){
+		low_load_delay = LOW_LOAD_DELAY;
 		if (!high_load_delay) {
 			//dvfs_clk_set_rate(ddr.clk_dvfs_node, HIGH_LOAD_RATE);
 			rate = ddr_rate_high_load;
 			ddrfreq_mode(false, &rate, "high load");
-			low_load_delay = LOW_LOAD_DELAY;
 			high_load_hold = HIGH_LOAD_HOLD;
 		} else {
 			high_load_delay--;
@@ -281,12 +282,13 @@ static void ddrbw_work_fn(struct work_struct *work)
 	       			low_load_delay--;
 	       		}
 		}
-    }
+  	  }
 
 	ddr_monitor_start();
 
 	queue_delayed_work_on(0, ddr_freq_wq, to_delayed_work(work), HZ*ddrbw_work_delay_ms/1000);
 }
+
 static DECLARE_DELAYED_WORK(ddrbw_work, ddrbw_work_fn);
 
 static noinline void ddrfreq_work(unsigned long sys_status)
