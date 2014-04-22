@@ -118,6 +118,7 @@ static kmem_zone_t *item_zone;
  */
 typedef struct fstrm_item
 {
+	struct xfs_mru_cache_elem mru;
 	xfs_agnumber_t	ag;	/* AG currently in use for the file/directory. */
 	xfs_inode_t	*ip;	/* inode self-pointer. */
 	xfs_inode_t	*pip;	/* Parent directory inode pointer. */
@@ -335,10 +336,10 @@ _xfs_filestream_update_ag(
 {
 	int		err = 0;
 	xfs_mount_t	*mp;
-	xfs_mru_cache_t	*cache;
 	fstrm_item_t	*item;
 	xfs_agnumber_t	old_ag;
 	xfs_inode_t	*old_pip;
+	struct xfs_mru_cache_elem *mru;
 
 	/*
 	 * Either ip is a regular file and pip is a directory, or ip is a
@@ -349,16 +350,17 @@ _xfs_filestream_update_ag(
 	              (S_ISDIR(ip->i_d.di_mode) && !pip)));
 
 	mp = ip->i_mount;
-	cache = mp->m_filestream;
 
-	item = xfs_mru_cache_lookup(cache, ip->i_ino);
-	if (item) {
+	mru = xfs_mru_cache_lookup(mp->m_filestream, ip->i_ino);
+	if (mru) {
+		item = container_of(mru, fstrm_item_t, mru);
+
 		ASSERT(item->ip == ip);
 		old_ag = item->ag;
 		item->ag = ag;
 		old_pip = item->pip;
 		item->pip = pip;
-		xfs_mru_cache_done(cache);
+		xfs_mru_cache_done(mp->m_filestream);
 
 		/*
 		 * If the AG has changed, drop the old ref and take a new one,
@@ -391,7 +393,7 @@ _xfs_filestream_update_ag(
 	item->ip = ip;
 	item->pip = pip;
 
-	err = xfs_mru_cache_insert(cache, ip->i_ino, item);
+	err = xfs_mru_cache_insert(mp->m_filestream, ip->i_ino, &item->mru);
 	if (err) {
 		kmem_zone_free(item_zone, item);
 		return err;
@@ -422,13 +424,11 @@ _xfs_filestream_update_ag(
 /* xfs_fstrm_free_func(): callback for freeing cached stream items. */
 STATIC void
 xfs_fstrm_free_func(
-	unsigned long	ino,
-	void		*data)
+	struct xfs_mru_cache_elem *mru)
 {
-	fstrm_item_t	*item  = (fstrm_item_t *)data;
+	fstrm_item_t	*item =
+		container_of(mru, fstrm_item_t, mru);
 	xfs_inode_t	*ip = item->ip;
-
-	ASSERT(ip->i_ino == ino);
 
 	xfs_iflags_clear(ip, XFS_IFILESTREAM);
 
@@ -532,7 +532,8 @@ xfs_agnumber_t
 xfs_filestream_lookup_ag(
 	xfs_inode_t	*ip)
 {
-	xfs_mru_cache_t	*cache;
+	struct xfs_mount *mp = ip->i_mount;
+	struct xfs_mru_cache_elem *mru;
 	fstrm_item_t	*item;
 	xfs_agnumber_t	ag;
 	int		ref;
@@ -542,17 +543,17 @@ xfs_filestream_lookup_ag(
 		return NULLAGNUMBER;
 	}
 
-	cache = ip->i_mount->m_filestream;
-	item = xfs_mru_cache_lookup(cache, ip->i_ino);
-	if (!item) {
+	mru = xfs_mru_cache_lookup(mp->m_filestream, ip->i_ino);
+	if (!mru) {
 		TRACE_LOOKUP(ip->i_mount, ip, NULL, NULLAGNUMBER, 0);
 		return NULLAGNUMBER;
 	}
 
+	item = container_of(mru, fstrm_item_t, mru);
 	ASSERT(ip == item->ip);
 	ag = item->ag;
 	ref = xfs_filestream_peek_ag(ip->i_mount, ag);
-	xfs_mru_cache_done(cache);
+	xfs_mru_cache_done(mp->m_filestream);
 
 	TRACE_LOOKUP(ip->i_mount, ip, item->pip, ag, ref);
 	return ag;
@@ -573,8 +574,8 @@ xfs_filestream_associate(
 	xfs_inode_t	*pip,
 	xfs_inode_t	*ip)
 {
+	struct xfs_mru_cache_elem *mru;
 	xfs_mount_t	*mp;
-	xfs_mru_cache_t	*cache;
 	fstrm_item_t	*item;
 	xfs_agnumber_t	ag, rotorstep, startag;
 	int		err = 0;
@@ -585,7 +586,6 @@ xfs_filestream_associate(
 		return -EINVAL;
 
 	mp = pip->i_mount;
-	cache = mp->m_filestream;
 
 	/*
 	 * We have a problem, Houston.
@@ -606,11 +606,13 @@ xfs_filestream_associate(
 		return 1;
 
 	/* If the parent directory is already in the cache, use its AG. */
-	item = xfs_mru_cache_lookup(cache, pip->i_ino);
-	if (item) {
+	mru = xfs_mru_cache_lookup(mp->m_filestream, pip->i_ino);
+	if (mru) {
+		item = container_of(mru, fstrm_item_t, mru);
+
 		ASSERT(item->ip == pip);
 		ag = item->ag;
-		xfs_mru_cache_done(cache);
+		xfs_mru_cache_done(mp->m_filestream);
 
 		TRACE_LOOKUP(mp, pip, pip, ag, xfs_filestream_peek_ag(mp, ag));
 		err = _xfs_filestream_update_ag(ip, pip, ag);
@@ -671,17 +673,16 @@ xfs_filestream_new_ag(
 	struct xfs_bmalloca	*ap,
 	xfs_agnumber_t		*agp)
 {
+	struct xfs_mru_cache_elem *mru, *mru2;
 	int		flags, err;
 	xfs_inode_t	*ip, *pip = NULL;
 	xfs_mount_t	*mp;
-	xfs_mru_cache_t	*cache;
 	xfs_extlen_t	minlen;
 	fstrm_item_t	*dir, *file;
 	xfs_agnumber_t	ag = NULLAGNUMBER;
 
 	ip = ap->ip;
 	mp = ip->i_mount;
-	cache = mp->m_filestream;
 	minlen = ap->length;
 	*agp = NULLAGNUMBER;
 
@@ -689,8 +690,9 @@ xfs_filestream_new_ag(
 	 * Look for the file in the cache, removing it if it's found.  Doing
 	 * this allows it to be held across the dir lookup that follows.
 	 */
-	file = xfs_mru_cache_remove(cache, ip->i_ino);
-	if (file) {
+	mru = xfs_mru_cache_remove(mp->m_filestream, ip->i_ino);
+	if (mru) {
+		file = container_of(mru, fstrm_item_t, mru);
 		ASSERT(ip == file->ip);
 
 		/* Save the file's parent inode and old AG number for later. */
@@ -698,8 +700,9 @@ xfs_filestream_new_ag(
 		ag = file->ag;
 
 		/* Look for the file's directory in the cache. */
-		dir = xfs_mru_cache_lookup(cache, pip->i_ino);
-		if (dir) {
+		mru2 = xfs_mru_cache_lookup(mp->m_filestream, pip->i_ino);
+		if (mru2) {
+			dir = container_of(mru2, fstrm_item_t, mru);
 			ASSERT(pip == dir->ip);
 
 			/*
@@ -714,7 +717,7 @@ xfs_filestream_new_ag(
 				*agp = file->ag = dir->ag;
 			}
 
-			xfs_mru_cache_done(cache);
+			xfs_mru_cache_done(mp->m_filestream);
 		}
 
 		/*
@@ -722,9 +725,9 @@ xfs_filestream_new_ag(
 		 * function needs to be called to tidy up in the same way as if
 		 * the item had simply expired from the cache.
 		 */
-		err = xfs_mru_cache_insert(cache, ip->i_ino, file);
+		err = xfs_mru_cache_insert(mp->m_filestream, ip->i_ino, mru);
 		if (err) {
-			xfs_fstrm_free_func(ip->i_ino, file);
+			xfs_fstrm_free_func(mru);
 			return err;
 		}
 
@@ -818,7 +821,5 @@ void
 xfs_filestream_deassociate(
 	xfs_inode_t	*ip)
 {
-	xfs_mru_cache_t	*cache = ip->i_mount->m_filestream;
-
-	xfs_mru_cache_delete(cache, ip->i_ino);
+	xfs_mru_cache_delete(ip->i_mount->m_filestream, ip->i_ino);
 }
