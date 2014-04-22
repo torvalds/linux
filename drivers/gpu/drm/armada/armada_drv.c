@@ -85,6 +85,7 @@ void armada_drm_queue_unref_work(struct drm_device *dev,
 static int armada_drm_load(struct drm_device *dev, unsigned long flags)
 {
 	const struct platform_device_id *id;
+	const struct armada_variant *variant;
 	struct armada_private *priv;
 	struct resource *res[ARRAY_SIZE(priv->dcrtc)];
 	struct resource *mem = NULL;
@@ -128,7 +129,7 @@ static int armada_drm_load(struct drm_device *dev, unsigned long flags)
 	if (!id)
 		return -ENXIO;
 
-	priv->variant = (struct armada_variant *)id->driver_data;
+	variant = (const struct armada_variant *)id->driver_data;
 
 	INIT_WORK(&priv->fb_unref_work, armada_drm_unref_work);
 	INIT_KFIFO(priv->fb_unref);
@@ -160,7 +161,7 @@ static int armada_drm_load(struct drm_device *dev, unsigned long flags)
 		if (irq < 0)
 			goto err_kms;
 
-		ret = armada_drm_crtc_create(dev, res[n], irq);
+		ret = armada_drm_crtc_create(dev, res[n], irq, variant);
 		if (ret)
 			goto err_kms;
 	}

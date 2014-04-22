@@ -332,17 +332,16 @@ static void armada_drm_crtc_commit(struct drm_crtc *crtc)
 static bool armada_drm_crtc_mode_fixup(struct drm_crtc *crtc,
 	const struct drm_display_mode *mode, struct drm_display_mode *adj)
 {
-	struct armada_private *priv = crtc->dev->dev_private;
 	struct armada_crtc *dcrtc = drm_to_armada_crtc(crtc);
 	int ret;
 
 	/* We can't do interlaced modes if we don't have the SPU_ADV_REG */
-	if (!priv->variant->has_spu_adv_reg &&
+	if (!dcrtc->variant->has_spu_adv_reg &&
 	    adj->flags & DRM_MODE_FLAG_INTERLACE)
 		return false;
 
 	/* Check whether the display mode is possible */
-	ret = priv->variant->crtc_compute_clock(dcrtc, adj, NULL);
+	ret = dcrtc->variant->compute_clock(dcrtc, adj, NULL);
 	if (ret)
 		return false;
 
@@ -491,7 +490,6 @@ static int armada_drm_crtc_mode_set(struct drm_crtc *crtc,
 	struct drm_display_mode *mode, struct drm_display_mode *adj,
 	int x, int y, struct drm_framebuffer *old_fb)
 {
-	struct armada_private *priv = crtc->dev->dev_private;
 	struct armada_crtc *dcrtc = drm_to_armada_crtc(crtc);
 	struct armada_regs regs[17];
 	uint32_t lm, rm, tm, bm, val, sclk;
@@ -536,7 +534,7 @@ static int armada_drm_crtc_mode_set(struct drm_crtc *crtc,
 	}
 
 	/* Now compute the divider for real */
-	priv->variant->crtc_compute_clock(dcrtc, adj, &sclk);
+	dcrtc->variant->compute_clock(dcrtc, adj, &sclk);
 
 	/* Ensure graphic fifo is enabled */
 	armada_reg_queue_mod(regs, i, 0, CFG_PDWN64x66, LCD_SPU_SRAM_PARA1);
@@ -558,7 +556,7 @@ static int armada_drm_crtc_mode_set(struct drm_crtc *crtc,
 	dcrtc->v[1].spu_v_porch = tm << 16 | bm;
 	val = adj->crtc_hsync_start;
 	dcrtc->v[1].spu_adv_reg = val << 20 | val | ADV_VSYNCOFFEN |
-		priv->variant->spu_adv_reg;
+		dcrtc->variant->spu_adv_reg;
 
 	if (interlaced) {
 		/* Odd interlaced frame */
@@ -567,7 +565,7 @@ static int armada_drm_crtc_mode_set(struct drm_crtc *crtc,
 		dcrtc->v[0].spu_v_porch = dcrtc->v[1].spu_v_porch + 1;
 		val = adj->crtc_hsync_start - adj->crtc_htotal / 2;
 		dcrtc->v[0].spu_adv_reg = val << 20 | val | ADV_VSYNCOFFEN |
-			priv->variant->spu_adv_reg;
+			dcrtc->variant->spu_adv_reg;
 	} else {
 		dcrtc->v[0] = dcrtc->v[1];
 	}
@@ -582,7 +580,7 @@ static int armada_drm_crtc_mode_set(struct drm_crtc *crtc,
 	armada_reg_queue_set(regs, i, dcrtc->v[0].spu_v_h_total,
 			   LCD_SPUT_V_H_TOTAL);
 
-	if (priv->variant->has_spu_adv_reg) {
+	if (dcrtc->variant->has_spu_adv_reg) {
 		armada_reg_queue_mod(regs, i, dcrtc->v[0].spu_adv_reg,
 				     ADV_VSYNC_L_OFF | ADV_VSYNC_H_OFF |
 				     ADV_VSYNCOFFEN, LCD_SPU_ADV_REG);
@@ -826,12 +824,11 @@ static int armada_drm_crtc_cursor_set(struct drm_crtc *crtc,
 {
 	struct drm_device *dev = crtc->dev;
 	struct armada_crtc *dcrtc = drm_to_armada_crtc(crtc);
-	struct armada_private *priv = crtc->dev->dev_private;
 	struct armada_gem_object *obj = NULL;
 	int ret;
 
 	/* If no cursor support, replicate drm's return value */
-	if (!priv->variant->has_spu_adv_reg)
+	if (!dcrtc->variant->has_spu_adv_reg)
 		return -ENXIO;
 
 	if (handle && w > 0 && h > 0) {
@@ -879,11 +876,10 @@ static int armada_drm_crtc_cursor_move(struct drm_crtc *crtc, int x, int y)
 {
 	struct drm_device *dev = crtc->dev;
 	struct armada_crtc *dcrtc = drm_to_armada_crtc(crtc);
-	struct armada_private *priv = crtc->dev->dev_private;
 	int ret;
 
 	/* If no cursor support, replicate drm's return value */
-	if (!priv->variant->has_spu_adv_reg)
+	if (!dcrtc->variant->has_spu_adv_reg)
 		return -EFAULT;
 
 	mutex_lock(&dev->struct_mutex);
@@ -1051,7 +1047,7 @@ static int armada_drm_crtc_create_properties(struct drm_device *dev)
 }
 
 int armada_drm_crtc_create(struct drm_device *dev, struct resource *res,
-	int irq)
+	int irq, const struct armada_variant *variant)
 {
 	struct armada_private *priv = dev->dev_private;
 	struct armada_crtc *dcrtc;
@@ -1074,6 +1070,7 @@ int armada_drm_crtc_create(struct drm_device *dev, struct resource *res,
 		return -ENOMEM;
 	}
 
+	dcrtc->variant = variant;
 	dcrtc->base = base;
 	dcrtc->num = dev->mode_config.num_crtc;
 	dcrtc->clk = ERR_PTR(-EINVAL);
@@ -1107,8 +1104,8 @@ int armada_drm_crtc_create(struct drm_device *dev, struct resource *res,
 		return ret;
 	}
 
-	if (priv->variant->crtc_init) {
-		ret = priv->variant->crtc_init(dcrtc, dev->dev);
+	if (dcrtc->variant->init) {
+		ret = dcrtc->variant->init(dcrtc, dev->dev);
 		if (ret) {
 			kfree(dcrtc);
 			return ret;

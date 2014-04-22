@@ -32,9 +32,11 @@ struct armada_regs {
 	armada_reg_queue_mod(_r, _i, 0, 0, ~0)
 
 struct armada_frame_work;
+struct armada_variant;
 
 struct armada_crtc {
 	struct drm_crtc		crtc;
+	const struct armada_variant *variant;
 	unsigned		num;
 	void __iomem		*base;
 	struct clk		*clk;
@@ -73,7 +75,8 @@ struct armada_crtc {
 };
 #define drm_to_armada_crtc(c) container_of(c, struct armada_crtc, crtc)
 
-int armada_drm_crtc_create(struct drm_device *, struct resource *, int);
+int armada_drm_crtc_create(struct drm_device *, struct resource *, int,
+	const struct armada_variant *);
 void armada_drm_crtc_gamma_set(struct drm_crtc *, u16, u16, u16, int);
 void armada_drm_crtc_gamma_get(struct drm_crtc *, u16 *, u16 *, u16 *, int);
 void armada_drm_crtc_disable_irq(struct armada_crtc *, u32);
