@@ -501,7 +501,7 @@ static int gpmc_cs_delete_mem(int cs)
 	int r;
 
 	spin_lock(&gpmc_mem_lock);
-	r = release_resource(&gpmc_cs_mem[cs]);
+	r = release_resource(res);
 	res->start = 0;
 	res->end = 0;
 	spin_unlock(&gpmc_mem_lock);
@@ -586,6 +586,8 @@ EXPORT_SYMBOL(gpmc_cs_request);
 
 void gpmc_cs_free(int cs)
 {
+	struct resource	*res = &gpmc_cs_mem[cs];
+
 	spin_lock(&gpmc_mem_lock);
 	if (cs >= gpmc_cs_num || cs < 0 || !gpmc_cs_reserved(cs)) {
 		printk(KERN_ERR "Trying to free non-reserved GPMC CS%d\n", cs);
@@ -594,7 +596,8 @@ void gpmc_cs_free(int cs)
 		return;
 	}
 	gpmc_cs_disable_mem(cs);
-	release_resource(&gpmc_cs_mem[cs]);
+	if (res->flags)
+		release_resource(res);
 	gpmc_cs_set_reserved(cs, 0);
 	spin_unlock(&gpmc_mem_lock);
 }
