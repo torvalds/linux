@@ -67,7 +67,7 @@ void __init corenet_gen_setup_arch(void)
 
 	swiotlb_detect_4g();
 
-	pr_info("%s board from Freescale Semiconductor\n", ppc_md.name);
+	pr_info("%s board\n", ppc_md.name);
 
 	mpc85xx_qe_init();
 }
@@ -122,6 +122,7 @@ static const char * const boards[] __initconst = {
 	"fsl,B4860QDS",
 	"fsl,B4420QDS",
 	"fsl,B4220QDS",
+	"keymile,kmcoge4",
 	NULL
 };
 
