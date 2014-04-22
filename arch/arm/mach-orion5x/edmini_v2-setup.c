@@ -104,8 +104,6 @@ void __init edmini_v2_init(void)
 	/*
 	 * Configure peripherals.
 	 */
-	orion5x_ehci0_init();
-
 	mvebu_mbus_add_window_by_id(ORION_MBUS_DEVBUS_BOOT_TARGET,
 				    ORION_MBUS_DEVBUS_BOOT_ATTR,
 				    EDMINI_V2_NOR_BOOT_BASE,

@@ -56,6 +56,10 @@
 	};
 };
 
+&ehci0 {
+	status = "okay";
+};
+
 &eth {
 	status = "okay";
 
