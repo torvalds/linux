@@ -471,7 +471,7 @@ static int rk808_rtc_suspend(struct device *dev)
 	else
 		ret = rk808_rtc_stop_alarm(rk808_rtc);
 
-	if (ret != 0)
+	if (ret < 0)
 		dev_err(&pdev->dev, "Failed to update RTC alarm: %d\n", ret);
 
 	return 0;
@@ -488,7 +488,7 @@ static int rk808_rtc_resume(struct device *dev)
 
 	if (rk808_rtc->alarm_enabled) {
 		ret = rk808_rtc_start_alarm(rk808_rtc);
-		if (ret != 0)
+		if (ret <0)
 			dev_err(&pdev->dev,
 				"Failed to restart RTC alarm: %d\n", ret);
 	}
@@ -504,7 +504,7 @@ static int rk808_rtc_freeze(struct device *dev)
 	int ret;
 	
 	ret = rk808_rtc_stop_alarm(rk808_rtc);
-	if (ret != 0)
+	if (ret < 0)
 		dev_err(&pdev->dev, "Failed to stop RTC alarm: %d\n", ret);
 
 	return 0;
