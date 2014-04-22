@@ -33,12 +33,6 @@
 #include "xfs_filestream.h"
 #include "xfs_trace.h"
 
-#define TRACE_AG_SCAN(mp, ag, ag2)
-#define TRACE_AG_PICK1(mp, max_ag, maxfree)
-#define TRACE_AG_PICK2(mp, ag, ag2, cnt, free, scan, flag)
-#define TRACE_FREE(mp, ip, pip, ag, cnt)
-#define TRACE_LOOKUP(mp, ip, pip, ag, cnt)
-
 struct xfs_fstrm_item {
 	struct xfs_mru_cache_elem	mru;
 	struct xfs_inode		*ip;
@@ -87,7 +81,7 @@ enum xfs_fstrm_alloc {
  * the cache that reference per-ag array elements that have since been
  * reallocated.
  */
-static int
+int
 xfs_filestream_peek_ag(
 	xfs_mount_t	*mp,
 	xfs_agnumber_t	agno)
@@ -136,8 +130,7 @@ xfs_fstrm_free_func(
 
 	xfs_filestream_put_ag(item->ip->i_mount, item->ag);
 
-	TRACE_FREE(mp, ip, NULL, item->ag,
-		   xfs_filestream_peek_ag(mp, item->ag));
+	trace_xfs_filestream_free(item->ip, item->ag);
 
 	kmem_free(item);
 }
@@ -157,9 +150,8 @@ xfs_filestream_pick_ag(
 	struct xfs_mount	*mp = ip->i_mount;
 	struct xfs_fstrm_item	*item;
 	struct xfs_perag	*pag;
-	xfs_extlen_t		longest, free, minfree, maxfree = 0;
+	xfs_extlen_t		longest, free = 0, minfree, maxfree = 0;
 	xfs_agnumber_t		ag, max_ag = NULLAGNUMBER;
-	int			streams, max_streams;
 	int			err, trylock, nscan;
 
 	ASSERT(S_ISDIR(ip->i_d.di_mode));
@@ -174,8 +166,9 @@ xfs_filestream_pick_ag(
 	trylock = XFS_ALLOC_FLAG_TRYLOCK;
 
 	for (nscan = 0; 1; nscan++) {
+		trace_xfs_filestream_scan(ip, ag);
+
 		pag = xfs_perag_get(mp, ag);
-		TRACE_AG_SCAN(mp, ag, atomic_read(&pag->pagf_fstrms));
 
 		if (!pag->pagf_init) {
 			err = xfs_alloc_pagf_init(mp, NULL, ag, trylock);
@@ -192,7 +185,6 @@ xfs_filestream_pick_ag(
 		/* Keep track of the AG with the most free blocks. */
 		if (pag->pagf_freeblks > maxfree) {
 			maxfree = pag->pagf_freeblks;
-			max_streams = atomic_read(&pag->pagf_fstrms);
 			max_ag = ag;
 		}
 
@@ -215,7 +207,6 @@ xfs_filestream_pick_ag(
 
 			/* Break out, retaining the reference on the AG. */
 			free = pag->pagf_freeblks;
-			streams = atomic_read(&pag->pagf_fstrms);
 			xfs_perag_put(pag);
 			*agp = ag;
 			break;
@@ -251,20 +242,18 @@ next_ag:
 		 */
 		if (max_ag != NULLAGNUMBER) {
 			xfs_filestream_get_ag(mp, max_ag);
-			TRACE_AG_PICK1(mp, max_ag, maxfree);
-			streams = max_streams;
 			free = maxfree;
 			*agp = max_ag;
 			break;
 		}
 
 		/* take AG 0 if none matched */
-		TRACE_AG_PICK1(mp, max_ag, maxfree);
+		trace_xfs_filestream_pick(ip, *agp, free, nscan);
 		*agp = 0;
 		return 0;
 	}
 
-	TRACE_AG_PICK2(mp, startag, *agp, streams, free, nscan, flags);
+	trace_xfs_filestream_pick(ip, *agp, free, nscan);
 
 	if (*agp == NULLAGNUMBER)
 		return 0;
@@ -330,7 +319,6 @@ xfs_filestream_lookup_ag(
 	struct xfs_mount	*mp = ip->i_mount;
 	struct xfs_inode	*pip = NULL;
 	xfs_agnumber_t		startag, ag = NULLAGNUMBER;
-	int			ref = 0;
 	struct xfs_mru_cache_elem *mru;
 
 	ASSERT(S_ISREG(ip->i_d.di_mode));
@@ -344,8 +332,7 @@ xfs_filestream_lookup_ag(
 		ag = container_of(mru, struct xfs_fstrm_item, mru)->ag;
 		xfs_mru_cache_done(mp->m_filestream);
 
-		ref = xfs_filestream_peek_ag(ip->i_mount, ag);
-		TRACE_LOOKUP(mp, ip, pip, ag, ref);
+		trace_xfs_filestream_lookup(ip, ag);
 		goto out;
 	}
 

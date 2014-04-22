@@ -27,6 +27,7 @@ void xfs_filestream_unmount(struct xfs_mount *mp);
 void xfs_filestream_deassociate(struct xfs_inode *ip);
 xfs_agnumber_t xfs_filestream_lookup_ag(struct xfs_inode *ip);
 int xfs_filestream_new_ag(struct xfs_bmalloca *ap, xfs_agnumber_t *agp);
+int xfs_filestream_peek_ag(struct xfs_mount *mp, xfs_agnumber_t agno);
 
 static inline int
 xfs_inode_is_filestream(
