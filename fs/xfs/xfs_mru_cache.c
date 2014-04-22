@@ -443,6 +443,7 @@ xfs_mru_cache_insert(
 	void		*value)
 {
 	xfs_mru_cache_elem_t *elem;
+	int error;
 
 	ASSERT(mru && mru->lists);
 	if (!mru || !mru->lists)
@@ -453,8 +454,8 @@ xfs_mru_cache_insert(
 		return ENOMEM;
 
 	if (radix_tree_preload(GFP_KERNEL)) {
-		kmem_zone_free(xfs_mru_elem_zone, elem);
-		return ENOMEM;
+		error = ENOMEM;
+		goto out_free_item;
 	}
 
 	INIT_LIST_HEAD(&elem->list_node);
@@ -463,13 +464,20 @@ xfs_mru_cache_insert(
 
 	spin_lock(&mru->lock);
 
-	radix_tree_insert(&mru->store, key, elem);
+	error = -radix_tree_insert(&mru->store, key, elem);
 	radix_tree_preload_end();
+	if (error) {
+		spin_unlock(&mru->lock);
+		goto out_free_item;
+	}
 	_xfs_mru_cache_list_insert(mru, elem);
 
 	spin_unlock(&mru->lock);
 
 	return 0;
+out_free_item:
+	kmem_zone_free(xfs_mru_elem_zone, elem);
+	return error;
 }
 
 /*
