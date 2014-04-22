@@ -1254,22 +1254,7 @@ err_release_clk:
 
 static int davinci_mcasp_remove(struct platform_device *pdev)
 {
-	struct davinci_mcasp *mcasp = dev_get_drvdata(&pdev->dev);
-
 	snd_soc_unregister_component(&pdev->dev);
-
-	switch (mcasp->version) {
-	case MCASP_VERSION_1:
-	case MCASP_VERSION_2:
-	case MCASP_VERSION_3:
-		davinci_soc_platform_unregister(&pdev->dev);
-		break;
-	case MCASP_VERSION_4:
-		/* Using the resource managed omap-pcm as platform driver */
-		break;
-	default:
-		break;
-	}
 
 	pm_runtime_put_sync(&pdev->dev);
 	pm_runtime_disable(&pdev->dev);
