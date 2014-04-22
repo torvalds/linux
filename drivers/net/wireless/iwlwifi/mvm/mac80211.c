@@ -539,13 +539,22 @@ static int iwl_mvm_mac_ampdu_action(struct ieee80211_hw *hw,
 		return -EACCES;
 
 	/* return from D0i3 before starting a new Tx aggregation */
-	if (action == IEEE80211_AMPDU_TX_START) {
+	switch (action) {
+	case IEEE80211_AMPDU_TX_START:
+	case IEEE80211_AMPDU_TX_STOP_CONT:
+	case IEEE80211_AMPDU_TX_STOP_FLUSH:
+	case IEEE80211_AMPDU_TX_STOP_FLUSH_CONT:
+	case IEEE80211_AMPDU_TX_OPERATIONAL:
 		iwl_mvm_ref(mvm, IWL_MVM_REF_TX_AGG);
 		tx_agg_ref = true;
 
 		/*
-		 * wait synchronously until D0i3 exit to get the correct
-		 * sequence number for the tid
+		 * for tx start, wait synchronously until D0i3 exit to
+		 * get the correct sequence number for the tid.
+		 * additionally, some other ampdu actions use direct
+		 * target access, which is not handled automatically
+		 * by the trans layer (unlike commands), so wait for
+		 * d0i3 exit in these cases as well.
 		 */
 		if (!wait_event_timeout(mvm->d0i3_exit_waitq,
 			  !test_bit(IWL_MVM_STATUS_IN_D0I3, &mvm->status), HZ)) {
@@ -553,6 +562,9 @@ static int iwl_mvm_mac_ampdu_action(struct ieee80211_hw *hw,
 			iwl_mvm_unref(mvm, IWL_MVM_REF_TX_AGG);
 			return -EIO;
 		}
+		break;
+	default:
+		break;
 	}
 
 	mutex_lock(&mvm->mutex);
