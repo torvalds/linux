@@ -56,7 +56,7 @@
 				#address-cells = <1>;
 				#size-cells = <0>;
 				interrupts = <5>;
-				clock-frequency = <100000>;
+				clocks = <&core_clk 0>;
 				status = "disabled";
 			};
 
