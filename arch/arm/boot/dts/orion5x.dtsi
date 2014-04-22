@@ -65,7 +65,7 @@
 				reg = <0x12000 0x100>;
 				reg-shift = <2>;
 				interrupts = <3>;
-				/* set clock-frequency in board dts */
+				clocks = <&core_clk 0>;
 				status = "disabled";
 			};
 
@@ -74,7 +74,7 @@
 				reg = <0x12100 0x100>;
 				reg-shift = <2>;
 				interrupts = <4>;
-				/* set clock-frequency in board dts */
+				clocks = <&core_clk 0>;
 				status = "disabled";
 			};
 
