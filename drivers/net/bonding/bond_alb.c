@@ -1347,99 +1347,11 @@ void bond_alb_deinitialize(struct bonding *bond)
 		rlb_deinitialize(bond);
 }
 
-int bond_alb_xmit(struct sk_buff *skb, struct net_device *bond_dev)
+static int bond_do_alb_xmit(struct sk_buff *skb, struct bonding *bond,
+		struct slave *tx_slave)
 {
-	struct bonding *bond = netdev_priv(bond_dev);
-	struct ethhdr *eth_data;
 	struct alb_bond_info *bond_info = &(BOND_ALB_INFO(bond));
-	struct slave *tx_slave = NULL;
-	static const __be32 ip_bcast = htonl(0xffffffff);
-	int hash_size = 0;
-	int do_tx_balance = 1;
-	u32 hash_index = 0;
-	const u8 *hash_start = NULL;
-	struct ipv6hdr *ip6hdr;
-
-	skb_reset_mac_header(skb);
-	eth_data = eth_hdr(skb);
-
-	switch (ntohs(skb->protocol)) {
-	case ETH_P_IP: {
-		const struct iphdr *iph = ip_hdr(skb);
-
-		if (ether_addr_equal_64bits(eth_data->h_dest, mac_bcast) ||
-		    (iph->daddr == ip_bcast) ||
-		    (iph->protocol == IPPROTO_IGMP)) {
-			do_tx_balance = 0;
-			break;
-		}
-		hash_start = (char *)&(iph->daddr);
-		hash_size = sizeof(iph->daddr);
-	}
-		break;
-	case ETH_P_IPV6:
-		/* IPv6 doesn't really use broadcast mac address, but leave
-		 * that here just in case.
-		 */
-		if (ether_addr_equal_64bits(eth_data->h_dest, mac_bcast)) {
-			do_tx_balance = 0;
-			break;
-		}
-
-		/* IPv6 uses all-nodes multicast as an equivalent to
-		 * broadcasts in IPv4.
-		 */
-		if (ether_addr_equal_64bits(eth_data->h_dest, mac_v6_allmcast)) {
-			do_tx_balance = 0;
-			break;
-		}
-
-		/* Additianally, DAD probes should not be tx-balanced as that
-		 * will lead to false positives for duplicate addresses and
-		 * prevent address configuration from working.
-		 */
-		ip6hdr = ipv6_hdr(skb);
-		if (ipv6_addr_any(&ip6hdr->saddr)) {
-			do_tx_balance = 0;
-			break;
-		}
-
-		hash_start = (char *)&(ipv6_hdr(skb)->daddr);
-		hash_size = sizeof(ipv6_hdr(skb)->daddr);
-		break;
-	case ETH_P_IPX:
-		if (ipx_hdr(skb)->ipx_checksum != IPX_NO_CHECKSUM) {
-			/* something is wrong with this packet */
-			do_tx_balance = 0;
-			break;
-		}
-
-		if (ipx_hdr(skb)->ipx_type != IPX_TYPE_NCP) {
-			/* The only protocol worth balancing in
-			 * this family since it has an "ARP" like
-			 * mechanism
-			 */
-			do_tx_balance = 0;
-			break;
-		}
-
-		hash_start = (char *)eth_data->h_dest;
-		hash_size = ETH_ALEN;
-		break;
-	case ETH_P_ARP:
-		do_tx_balance = 0;
-		if (bond_info->rlb_enabled)
-			tx_slave = rlb_arp_xmit(skb, bond);
-		break;
-	default:
-		do_tx_balance = 0;
-		break;
-	}
-
-	if (do_tx_balance) {
-		hash_index = _simple_hash(hash_start, hash_size);
-		tx_slave = tlb_choose_channel(bond, hash_index, skb->len);
-	}
+	struct ethhdr *eth_data = eth_hdr(skb);
 
 	if (!tx_slave) {
 		/* unbalanced or unassigned, send through primary */
@@ -1467,6 +1379,103 @@ int bond_alb_xmit(struct sk_buff *skb, struct net_device *bond_dev)
 	dev_kfree_skb_any(skb);
 out:
 	return NETDEV_TX_OK;
+}
+
+int bond_alb_xmit(struct sk_buff *skb, struct net_device *bond_dev)
+{
+	struct bonding *bond = netdev_priv(bond_dev);
+	struct ethhdr *eth_data;
+	struct alb_bond_info *bond_info = &(BOND_ALB_INFO(bond));
+	struct slave *tx_slave = NULL;
+	static const __be32 ip_bcast = htonl(0xffffffff);
+	int hash_size = 0;
+	bool do_tx_balance = true;
+	u32 hash_index = 0;
+	const u8 *hash_start = NULL;
+	struct ipv6hdr *ip6hdr;
+
+	skb_reset_mac_header(skb);
+	eth_data = eth_hdr(skb);
+
+	switch (ntohs(skb->protocol)) {
+	case ETH_P_IP: {
+		const struct iphdr *iph = ip_hdr(skb);
+
+		if (ether_addr_equal_64bits(eth_data->h_dest, mac_bcast) ||
+		    (iph->daddr == ip_bcast) ||
+		    (iph->protocol == IPPROTO_IGMP)) {
+			do_tx_balance = false;
+			break;
+		}
+		hash_start = (char *)&(iph->daddr);
+		hash_size = sizeof(iph->daddr);
+	}
+		break;
+	case ETH_P_IPV6:
+		/* IPv6 doesn't really use broadcast mac address, but leave
+		 * that here just in case.
+		 */
+		if (ether_addr_equal_64bits(eth_data->h_dest, mac_bcast)) {
+			do_tx_balance = false;
+			break;
+		}
+
+		/* IPv6 uses all-nodes multicast as an equivalent to
+		 * broadcasts in IPv4.
+		 */
+		if (ether_addr_equal_64bits(eth_data->h_dest, mac_v6_allmcast)) {
+			do_tx_balance = false;
+			break;
+		}
+
+		/* Additianally, DAD probes should not be tx-balanced as that
+		 * will lead to false positives for duplicate addresses and
+		 * prevent address configuration from working.
+		 */
+		ip6hdr = ipv6_hdr(skb);
+		if (ipv6_addr_any(&ip6hdr->saddr)) {
+			do_tx_balance = false;
+			break;
+		}
+
+		hash_start = (char *)&(ipv6_hdr(skb)->daddr);
+		hash_size = sizeof(ipv6_hdr(skb)->daddr);
+		break;
+	case ETH_P_IPX:
+		if (ipx_hdr(skb)->ipx_checksum != IPX_NO_CHECKSUM) {
+			/* something is wrong with this packet */
+			do_tx_balance = false;
+			break;
+		}
+
+		if (ipx_hdr(skb)->ipx_type != IPX_TYPE_NCP) {
+			/* The only protocol worth balancing in
+			 * this family since it has an "ARP" like
+			 * mechanism
+			 */
+			do_tx_balance = false;
+			break;
+		}
+
+		hash_start = (char *)eth_data->h_dest;
+		hash_size = ETH_ALEN;
+		break;
+	case ETH_P_ARP:
+		do_tx_balance = false;
+		if (bond_info->rlb_enabled)
+			tx_slave = rlb_arp_xmit(skb, bond);
+		break;
+	default:
+		do_tx_balance = false;
+		break;
+	}
+
+	if (do_tx_balance) {
+		hash_index = _simple_hash(hash_start, hash_size);
+		tx_slave = tlb_choose_channel(bond, hash_index, skb->len);
+	}
+
+	return bond_do_alb_xmit(skb, bond, tx_slave);
 }
 
 void bond_alb_monitor(struct work_struct *work)
