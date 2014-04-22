@@ -174,6 +174,7 @@ struct bond_params {
 	int resend_igmp;
 	int lp_interval;
 	int packets_per_slave;
+	int tlb_dynamic_lb;
 	struct reciprocal_value reciprocal_packets_per_slave;
 };
 

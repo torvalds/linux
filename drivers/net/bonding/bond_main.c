@@ -3096,7 +3096,8 @@ static int bond_open(struct net_device *bond_dev)
 		 */
 		if (bond_alb_initialize(bond, (bond->params.mode == BOND_MODE_ALB)))
 			return -ENOMEM;
-		queue_delayed_work(bond->wq, &bond->alb_work, 0);
+		if (bond->params.tlb_dynamic_lb)
+			queue_delayed_work(bond->wq, &bond->alb_work, 0);
 	}
 
 	if (bond->params.miimon)  /* link check interval, in milliseconds. */
@@ -4304,6 +4305,7 @@ static int bond_check_params(struct bond_params *params)
 	params->min_links = min_links;
 	params->lp_interval = lp_interval;
 	params->packets_per_slave = packets_per_slave;
+	params->tlb_dynamic_lb = 1; /* Default value */
 	if (packets_per_slave > 0) {
 		params->reciprocal_packets_per_slave =
 			reciprocal_value(packets_per_slave);

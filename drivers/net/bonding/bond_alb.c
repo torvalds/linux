@@ -1356,7 +1356,8 @@ static int bond_do_alb_xmit(struct sk_buff *skb, struct bonding *bond,
 	if (!tx_slave) {
 		/* unbalanced or unassigned, send through primary */
 		tx_slave = rcu_dereference(bond->curr_active_slave);
-		bond_info->unbalanced_load += skb->len;
+		if (bond->params.tlb_dynamic_lb)
+			bond_info->unbalanced_load += skb->len;
 	}
 
 	if (tx_slave && SLAVE_IS_OK(tx_slave)) {
@@ -1369,7 +1370,7 @@ static int bond_do_alb_xmit(struct sk_buff *skb, struct bonding *bond,
 		goto out;
 	}
 
-	if (tx_slave) {
+	if (tx_slave && bond->params.tlb_dynamic_lb) {
 		_lock_tx_hashtbl(bond);
 		__tlb_clear_slave(bond, tx_slave, 0);
 		_unlock_tx_hashtbl(bond);
@@ -1399,11 +1400,21 @@ int bond_tlb_xmit(struct sk_buff *skb, struct net_device *bond_dev)
 		    /* In case of IPX, it will falback to L2 hash */
 		case htons(ETH_P_IPV6):
 			hash_index = bond_xmit_hash(bond, skb);
-			tx_slave = tlb_choose_channel(bond, hash_index & 0xFF, skb->len);
+			if (bond->params.tlb_dynamic_lb) {
+				tx_slave = tlb_choose_channel(bond,
+							      hash_index & 0xFF,
+							      skb->len);
+			} else {
+				struct list_head *iter;
+				int idx = hash_index % bond->slave_cnt;
+
+				bond_for_each_slave_rcu(bond, tx_slave, iter)
+					if (--idx < 0)
+						break;
+			}
 			break;
 		}
 	}
-
 	return bond_do_alb_xmit(skb, bond, tx_slave);
 }
 

@@ -1039,6 +1039,34 @@ static ssize_t bonding_store_lp_interval(struct device *d,
 static DEVICE_ATTR(lp_interval, S_IRUGO | S_IWUSR,
 		   bonding_show_lp_interval, bonding_store_lp_interval);
 
+static ssize_t bonding_show_tlb_dynamic_lb(struct device *d,
+					   struct device_attribute *attr,
+					   char *buf)
+{
+	struct bonding *bond = to_bond(d);
+	return sprintf(buf, "%d\n", bond->params.tlb_dynamic_lb);
+}
+
+static ssize_t bonding_store_tlb_dynamic_lb(struct device *d,
+					    struct device_attribute *attr,
+					    const char *buf,
+					    size_t count)
+{
+	struct bonding *bond = to_bond(d);
+	int ret;
+
+	ret = bond_opt_tryset_rtnl(bond, BOND_OPT_TLB_DYNAMIC_LB,
+				   (char *)buf);
+	if (!ret)
+		ret = count;
+
+	return ret;
+}
+
+static DEVICE_ATTR(tlb_dynamic_lb, S_IRUGO | S_IWUSR,
+		   bonding_show_tlb_dynamic_lb,
+		   bonding_store_tlb_dynamic_lb);
+
 static ssize_t bonding_show_packets_per_slave(struct device *d,
 					      struct device_attribute *attr,
 					      char *buf)
@@ -1099,6 +1127,7 @@ static struct attribute *per_bond_attrs[] = {
 	&dev_attr_min_links.attr,
 	&dev_attr_lp_interval.attr,
 	&dev_attr_packets_per_slave.attr,
+	&dev_attr_tlb_dynamic_lb.attr,
 	NULL,
 };
 
