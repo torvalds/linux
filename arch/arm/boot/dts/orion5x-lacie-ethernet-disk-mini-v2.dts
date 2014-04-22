@@ -28,7 +28,8 @@
 
 	soc {
 		ranges = <MBUS_ID(0xf0, 0x01) 0 0xf1000000 0x100000>,
-			 <MBUS_ID(0x09, 0x00) 0 0xf2200000 0x800>;
+			 <MBUS_ID(0x09, 0x00) 0 0xf2200000 0x800>,
+			 <MBUS_ID(0x01, 0x0f) 0 0xfff80000 0x80000>;
 	};
 
 	gpio-keys {
@@ -52,6 +53,46 @@
 		led@1 {
 			label = "power:blue";
 			gpios = <&gpio0 16 GPIO_ACTIVE_LOW>;
+		};
+	};
+};
+
+&devbus_bootcs {
+	status = "okay";
+
+	/* Read parameters */
+	devbus,bus-width    = <8>;
+	devbus,turn-off-ps  = <90000>;
+	devbus,badr-skew-ps = <0>;
+	devbus,acc-first-ps = <186000>;
+	devbus,acc-next-ps  = <186000>;
+
+	/* Write parameters */
+	devbus,wr-high-ps  = <90000>;
+	devbus,wr-low-ps   = <90000>;
+	devbus,ale-wr-ps   = <90000>;
+
+	/*
+	 * Currently the MTD code does not recognize the MX29LV400CBCT
+	 * as a bottom-type device. This could cause risks of
+	 * accidentally erasing critical flash sectors. We thus define
+	 * a single, write-protected partition covering the whole
+	 * flash.  TODO: once the flash part TOP/BOTTOM detection
+	 * issue is sorted out in the MTD code, break this into at
+	 * least three partitions: 'u-boot code', 'u-boot environment'
+	 * and 'whatever is left'.
+	 */
+	flash@0 {
+		compatible = "cfi-flash";
+		reg = <0 0x80000>;
+		bank-width = <1>;
+		#address-cells = <1>;
+		#size-cells = <1>;
+
+		partition@0 {
+			label = "Full512Kb";
+			reg = <0 0x80000>;
+			read-only;
 		};
 	};
 };
