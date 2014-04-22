@@ -115,7 +115,7 @@ static int armada_drm_load(struct drm_device *dev, unsigned long flags)
 			return -EINVAL;
 	}
 
-	if (!res[0] || !mem)
+	if (!mem)
 		return -ENXIO;
 
 	if (!devm_request_mem_region(dev->dev, mem->start,
@@ -168,7 +168,8 @@ static int armada_drm_load(struct drm_device *dev, unsigned long flags)
 		if (irq < 0)
 			goto err_kms;
 
-		ret = armada_drm_crtc_create(dev, res[n], irq, variant);
+		ret = armada_drm_crtc_create(dev, dev->dev, res[n], irq,
+					     variant);
 		if (ret)
 			goto err_kms;
 	}
@@ -490,14 +491,24 @@ static struct platform_driver armada_drm_platform_driver = {
 
 static int __init armada_drm_init(void)
 {
+	int ret;
+
 	armada_drm_driver.num_ioctls = ARRAY_SIZE(armada_ioctls);
-	return platform_driver_register(&armada_drm_platform_driver);
+
+	ret = platform_driver_register(&armada_lcd_platform_driver);
+	if (ret)
+		return ret;
+	ret = platform_driver_register(&armada_drm_platform_driver);
+	if (ret)
+		platform_driver_unregister(&armada_lcd_platform_driver);
+	return ret;
 }
 module_init(armada_drm_init);
 
 static void __exit armada_drm_exit(void)
 {
 	platform_driver_unregister(&armada_drm_platform_driver);
+	platform_driver_unregister(&armada_lcd_platform_driver);
 }
 module_exit(armada_drm_exit);
 
