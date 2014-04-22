@@ -91,6 +91,7 @@ extern void omap3_sync32k_timer_init(void);
 extern void omap3_secure_sync32k_timer_init(void);
 extern void omap3_gptimer_timer_init(void);
 extern void omap4_local_timer_init(void);
+int omap_l2_cache_init(void);
 extern void omap5_realtime_timer_init(void);
 
 void omap2420_init_early(void);

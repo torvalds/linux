@@ -196,16 +196,9 @@ static void omap4_l2c310_write_sec(unsigned long val, unsigned reg)
 	omap_smc1(smc_op, val);
 }
 
-static int __init omap_l2_cache_init(void)
+int __init omap_l2_cache_init(void)
 {
 	u32 aux_ctrl;
-
-	/*
-	 * To avoid code running on other OMAPs in
-	 * multi-omap builds
-	 */
-	if (!cpu_is_omap44xx())
-		return -ENODEV;
 
 	/* Static mapping, never released */
 	l2cache_base = ioremap(OMAP44XX_L2CACHE_BASE, SZ_4K);
@@ -225,7 +218,6 @@ static int __init omap_l2_cache_init(void)
 
 	return 0;
 }
-omap_early_initcall(omap_l2_cache_init);
 #endif
 
 void __iomem *omap4_get_sar_ram_base(void)
