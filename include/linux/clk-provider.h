@@ -81,11 +81,19 @@ struct dentry;
  *		this op is not set then clock rate will be initialized to 0.
  *
  * @round_rate:	Given a target rate as input, returns the closest rate actually
- *		supported by the clock.
+ *		supported by the clock. The parent rate is an input/output
+ *		parameter.
  *
  * @determine_rate: Given a target rate as input, returns the closest rate
  *		actually supported by the clock, and optionally the parent clock
  *		that should be used to provide the clock rate.
+ *
+ * @set_parent:	Change the input source of this clock; for clocks with multiple
+ *		possible parents specify a new parent by passing in the index
+ *		as a u8 corresponding to the parent in either the .parent_names
+ *		or .parents arrays.  This function in affect translates an
+ *		array index into the value programmed into the hardware.
+ *		Returns 0 on success, -EERROR otherwise.
  *
  * @get_parent:	Queries the hardware to determine the parent of a clock.  The
  *		return value is a u8 which specifies the index corresponding to
@@ -97,25 +105,11 @@ struct dentry;
  *		multiple parents.  It is optional (and unnecessary) for clocks
  *		with 0 or 1 parents.
  *
- * @set_parent:	Change the input source of this clock; for clocks with multiple
- *		possible parents specify a new parent by passing in the index
- *		as a u8 corresponding to the parent in either the .parent_names
- *		or .parents arrays.  This function in affect translates an
- *		array index into the value programmed into the hardware.
- *		Returns 0 on success, -EERROR otherwise.
- *
  * @set_rate:	Change the rate of this clock. The requested rate is specified
  *		by the second argument, which should typically be the return
  *		of .round_rate call.  The third argument gives the parent rate
  *		which is likely helpful for most .set_rate implementation.
  *		Returns 0 on success, -EERROR otherwise.
- *
- * @recalc_accuracy: Recalculate the accuracy of this clock. The clock accuracy
- *		is expressed in ppb (parts per billion). The parent accuracy is
- *		an input parameter.
- *		Returns the calculated accuracy.  Optional - if	this op is not
- *		set then clock accuracy will be initialized to parent accuracy
- *		or 0 (perfect clock) if clock has no parent.
  *
  * @set_rate_and_parent: Change the rate and the parent of this clock. The
  *		requested rate is specified by the second argument, which
@@ -127,6 +121,18 @@ struct dentry;
  *		for clocks that can tolerate switching the rate and the parent
  *		separately via calls to .set_parent and .set_rate.
  *		Returns 0 on success, -EERROR otherwise.
+ *
+ * @recalc_accuracy: Recalculate the accuracy of this clock. The clock accuracy
+ *		is expressed in ppb (parts per billion). The parent accuracy is
+ *		an input parameter.
+ *		Returns the calculated accuracy.  Optional - if	this op is not
+ *		set then clock accuracy will be initialized to parent accuracy
+ *		or 0 (perfect clock) if clock has no parent.
+ *
+ * @init:	Perform platform-specific initialization magic.
+ *		This is not not used by any of the basic clock types.
+ *		Please consider other ways of solving initialization problems
+ *		before using this callback, as its use is discouraged.
  *
  * @debug_init:	Set up type-specific debugfs entries for this clock.  This
  *		is called once, after the debugfs directory entry for this
@@ -157,15 +163,15 @@ struct clk_ops {
 	void		(*disable_unused)(struct clk_hw *hw);
 	unsigned long	(*recalc_rate)(struct clk_hw *hw,
 					unsigned long parent_rate);
-	long		(*round_rate)(struct clk_hw *hw, unsigned long,
-					unsigned long *);
+	long		(*round_rate)(struct clk_hw *hw, unsigned long rate,
+					unsigned long *parent_rate);
 	long		(*determine_rate)(struct clk_hw *hw, unsigned long rate,
 					unsigned long *best_parent_rate,
 					struct clk **best_parent_clk);
 	int		(*set_parent)(struct clk_hw *hw, u8 index);
 	u8		(*get_parent)(struct clk_hw *hw);
-	int		(*set_rate)(struct clk_hw *hw, unsigned long,
-				    unsigned long);
+	int		(*set_rate)(struct clk_hw *hw, unsigned long rate,
+				    unsigned long parent_rate);
 	int		(*set_rate_and_parent)(struct clk_hw *hw,
 				    unsigned long rate,
 				    unsigned long parent_rate, u8 index);
