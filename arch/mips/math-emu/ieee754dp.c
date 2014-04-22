@@ -89,18 +89,6 @@ union ieee754dp __cold ieee754dp_nanxcpt(union ieee754dp r, const char *op, ...)
 	return ax.rv.dp;
 }
 
-union ieee754dp ieee754dp_bestnan(union ieee754dp x, union ieee754dp y)
-{
-	assert(ieee754dp_isnan(x));
-	assert(ieee754dp_isnan(y));
-
-	if (DPMANT(x) > DPMANT(y))
-		return x;
-	else
-		return y;
-}
-
-
 static u64 get_rounding(int sn, u64 xm)
 {
 	/* inexact must round of 3 bits

@@ -90,18 +90,6 @@ union ieee754sp __cold ieee754sp_nanxcpt(union ieee754sp r, const char *op, ...)
 	return ax.rv.sp;
 }
 
-union ieee754sp ieee754sp_bestnan(union ieee754sp x, union ieee754sp y)
-{
-	assert(ieee754sp_isnan(x));
-	assert(ieee754sp_isnan(y));
-
-	if (SPMANT(x) > SPMANT(y))
-		return x;
-	else
-		return y;
-}
-
-
 static unsigned get_rounding(int sn, unsigned xm)
 {
 	/* inexact must round of 3 bits

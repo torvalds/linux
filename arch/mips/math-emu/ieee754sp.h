@@ -92,7 +92,6 @@ extern int __cold ieee754si_xcpt(int, const char *, ...);
 extern s64 __cold ieee754di_xcpt(s64, const char *, ...);
 extern union ieee754sp __cold ieee754sp_xcpt(union ieee754sp, const char *, ...);
 extern union ieee754sp __cold ieee754sp_nanxcpt(union ieee754sp, const char *, ...);
-extern union ieee754sp ieee754sp_bestnan(union ieee754sp, union ieee754sp);
 extern union ieee754sp ieee754sp_format(int, int, unsigned);
 
 
