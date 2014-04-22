@@ -238,7 +238,7 @@ static struct elog_obj *create_elog_obj(uint64_t id, size_t size, uint64_t type)
 
 static void elog_work_fn(struct work_struct *work)
 {
-	size_t elog_size;
+	uint64_t elog_size;
 	uint64_t log_id;
 	uint64_t elog_type;
 	int rc;
