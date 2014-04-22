@@ -318,17 +318,18 @@ out:
 }
 
 /*
- * Return the AG of the filestream the file or directory belongs to, or
- * NULLAGNUMBER otherwise.
+ * Find the right allocation group for a file, either by finding an
+ * existing file stream or creating a new one.
+ *
+ * Returns NULLAGNUMBER in case of an error.
  */
 xfs_agnumber_t
 xfs_filestream_lookup_ag(
 	struct xfs_inode	*ip)
 {
 	struct xfs_mount	*mp = ip->i_mount;
-	struct xfs_fstrm_item	*item;
 	struct xfs_inode	*pip = NULL;
-	xfs_agnumber_t		ag = NULLAGNUMBER;
+	xfs_agnumber_t		startag, ag = NULLAGNUMBER;
 	int			ref = 0;
 	struct xfs_mru_cache_elem *mru;
 
@@ -339,45 +340,13 @@ xfs_filestream_lookup_ag(
 		goto out;
 
 	mru = xfs_mru_cache_lookup(mp->m_filestream, pip->i_ino);
-	if (!mru)
-		goto out;
-
-	item = container_of(mru, struct xfs_fstrm_item, mru);
-
-	ag = item->ag;
-	xfs_mru_cache_done(mp->m_filestream);
-
-	ref = xfs_filestream_peek_ag(ip->i_mount, ag);
-out:
-	TRACE_LOOKUP(mp, ip, pip, ag, ref);
-	IRELE(pip);
-	return ag;
-}
-
-/*
- * Make sure a directory has a filestream associated with it.
- *
- * This is called when creating regular files in an directory that has
- * filestreams enabled, so that a stream is ready by the time we need it
- * in the allocator for the files inside the directory.
- */
-int
-xfs_filestream_associate(
-	struct xfs_inode	*pip)
-{
-	struct xfs_mount	*mp = pip->i_mount;
-	struct xfs_mru_cache_elem *mru;
-	xfs_agnumber_t		startag, ag;
-
-	ASSERT(S_ISDIR(pip->i_d.di_mode));
-
-	/*
-	 * If the directory already has a file stream associated we're done.
-	 */
-	mru = xfs_mru_cache_lookup(mp->m_filestream, pip->i_ino);
 	if (mru) {
+		ag = container_of(mru, struct xfs_fstrm_item, mru)->ag;
 		xfs_mru_cache_done(mp->m_filestream);
-		return 0;
+
+		ref = xfs_filestream_peek_ag(ip->i_mount, ag);
+		TRACE_LOOKUP(mp, ip, pip, ag, ref);
+		goto out;
 	}
 
 	/*
@@ -392,7 +361,11 @@ xfs_filestream_associate(
 	} else
 		startag = XFS_INO_TO_AGNO(mp, pip->i_ino);
 
-	return xfs_filestream_pick_ag(pip, startag, &ag, 0, 0);
+	if (xfs_filestream_pick_ag(pip, startag, &ag, 0, 0))
+		ag = NULLAGNUMBER;
+out:
+	IRELE(pip);
+	return ag;
 }
 
 /*
