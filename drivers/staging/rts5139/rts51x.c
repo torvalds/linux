@@ -273,7 +273,7 @@ static int rts51x_control_thread(void *__chip)
 		/* has the command timed out *already* ? */
 		if (test_bit(FLIDX_TIMED_OUT, &chip->usb->dflags)) {
 			chip->srb->result = DID_ABORT << 16;
-			goto SkipForAbort;
+			goto abort;
 		}
 
 		scsi_unlock(host);
@@ -316,7 +316,7 @@ static int rts51x_control_thread(void *__chip)
 		if (chip->srb->result != DID_ABORT << 16)
 			chip->srb->scsi_done(chip->srb);
 		else
-SkipForAbort :
+abort :
 			RTS51X_DEBUGP("scsi command aborted\n");
 
 		/* If an abort request was received we need to signal that
@@ -763,17 +763,17 @@ static int rts51x_probe(struct usb_interface *intf,
 	/* Associate the us_data structure with the USB device */
 	result = associate_dev(chip, intf);
 	if (result)
-		goto BadDevice;
+		goto bad_device;
 
 	/* Find the endpoints and calculate pipe values */
 	result = get_pipes(chip);
 	if (result)
-		goto BadDevice;
+		goto bad_device;
 
 	/* Acquire all the other resources and add the host */
 	result = rts51x_acquire_resources(chip);
 	if (result)
-		goto BadDevice;
+		goto bad_device;
 
 	/* Start up our control thread */
 	th = kthread_run(rts51x_control_thread, chip, RTS51X_CTL_THREAD);
@@ -781,14 +781,14 @@ static int rts51x_probe(struct usb_interface *intf,
 		printk(KERN_WARNING RTS51X_TIP
 		       "Unable to start control thread\n");
 		result = PTR_ERR(th);
-		goto BadDevice;
+		goto bad_device;
 	}
 	rts51x->ctl_thread = th;
 
 	result = scsi_add_host(rts51x_to_host(chip), &rts51x->pusb_intf->dev);
 	if (result) {
 		printk(KERN_WARNING RTS51X_TIP "Unable to add the scsi host\n");
-		goto BadDevice;
+		goto bad_device;
 	}
 	scsi_scan_host(rts51x_to_host(chip));
 
@@ -798,7 +798,7 @@ static int rts51x_probe(struct usb_interface *intf,
 		printk(KERN_WARNING RTS51X_TIP
 		       "Unable to start polling thread\n");
 		result = PTR_ERR(th);
-		goto BadDevice;
+		goto bad_device;
 	}
 	rts51x->polling_thread = th;
 
@@ -813,7 +813,7 @@ static int rts51x_probe(struct usb_interface *intf,
 	return 0;
 
 	/* We come here if there are any problems */
-BadDevice:
+bad_device:
 	RTS51X_DEBUGP("rts51x_probe() failed\n");
 	release_everything(chip);
 	return result;
