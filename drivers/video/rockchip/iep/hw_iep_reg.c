@@ -381,6 +381,10 @@ static void iep_config_color_enh(IEP_MSG *iep_msg)
 static void iep_config_yuv_dns(IEP_MSG *iep_msg)
 {
     IEP_REGB_YUV_DNS_EN(iep_msg->base, iep_msg->yuv_3D_denoise_en);
+    IEP_REGB_YUV_DNS_LUMA_SPAT_SEL(iep_msg->base, 0);
+    IEP_REGB_YUV_DNS_LUMA_TEMP_SEL(iep_msg->base, 1);
+    IEP_REGB_YUV_DNS_CHROMA_SPAT_SEL(iep_msg->base, 2);
+    IEP_REGB_YUV_DNS_CHROMA_TEMP_SEL(iep_msg->base, 3);
 #ifdef IEP_PRINT_INFO
     IEP_DBG("//==yuv denoise config========================// \n\n");
     IEP_DBG("sw_yuv_dns_en              = %d;//0:yuv 3d denoise disable; 1:enable\n\n", iep_msg->yuv_3D_denoise_en);

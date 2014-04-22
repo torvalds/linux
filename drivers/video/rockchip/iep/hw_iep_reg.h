@@ -234,6 +234,10 @@ enum iep_mmu_cmd {
 #define     IEP_REGB_COLOR_BAR_U_Z(x)         (((x)&0xff ) <<  8  )
 #define     IEP_REGB_COLOR_BAR_Y_Z(x)         (((x)&0xff ) <<  0  )
 //iep_enh_rgb_cnfg
+#define     IEP_REGB_YUV_DNS_LUMA_SPAT_SEL_Z(x)   (((x)&0x3  ) <<  30 )
+#define     IEP_REGB_YUV_DNS_LUMA_TEMP_SEL_Z(x)   (((x)&0x3  ) <<  28 )
+#define     IEP_REGB_YUV_DNS_CHROMA_SPAT_SEL_Z(x) (((x)&0x3  ) <<  26 )
+#define     IEP_REGB_YUV_DNS_CHROMA_TEMP_SEL_Z(x) (((x)&0x3  ) <<  24 )
 #define     IEP_REGB_ENH_THRESHOLD_Z(x)       (((x)&0xff ) <<  16 )
 #define     IEP_REGB_ENH_ALPHA_Z(x)           (((x)&0x3f ) <<  8  )
 #define     IEP_REGB_ENH_RADIUS_Z(x)          (((x)&0x3  ) <<  0  )
@@ -394,6 +398,10 @@ enum iep_mmu_cmd {
 #define     IEP_REGB_COLOR_BAR_U_Y         (0xff  <<  8 )
 #define     IEP_REGB_COLOR_BAR_Y_Y         (0xff  <<  0 )
 //iep_enh_rgb_cnfg
+#define     IEP_REGB_YUV_DNS_LUMA_SPAT_SEL_Y (0x3   <<  30)
+#define     IEP_REGB_YUV_DNS_LUMA_TEMP_SEL_Y (0x3   <<  28)
+#define     IEP_REGB_YUV_DNS_CHROMA_SPAT_SEL_Y (0x3  <<  26)
+#define     IEP_REGB_YUV_DNS_CHROMA_TEMP_SEL_Y (0x3  <<  24)
 #define     IEP_REGB_ENH_THRESHOLD_Y       (0xff  <<  16)
 #define     IEP_REGB_ENH_ALPHA_Y           (0x3f  <<  8 )
 #define     IEP_REGB_ENH_RADIUS_Y          (0x3   <<  0 )
@@ -563,6 +571,10 @@ enum iep_mmu_cmd {
 #define     IEP_REGB_COLOR_BAR_U(base, x)         ConfRegBits32(base, RAW_rIEP_ENH_YUV_CNFG_2,rIEP_ENH_YUV_CNFG_2,IEP_REGB_COLOR_BAR_U_Y,IEP_REGB_COLOR_BAR_U_Z(x))
 #define     IEP_REGB_COLOR_BAR_Y(base, x)         ConfRegBits32(base, RAW_rIEP_ENH_YUV_CNFG_2,rIEP_ENH_YUV_CNFG_2,IEP_REGB_COLOR_BAR_Y_Y,IEP_REGB_COLOR_BAR_Y_Z(x))
 //iep_enh_rgb_cnfg
+#define     IEP_REGB_YUV_DNS_LUMA_SPAT_SEL(base, x) ConfRegBits32(base, RAW_rIEP_ENH_RGB_CNFG,rIEP_ENH_RGB_CNFG,IEP_REGB_YUV_DNS_LUMA_SPAT_SEL_Y,IEP_REGB_YUV_DNS_LUMA_SPAT_SEL_Z(x))
+#define     IEP_REGB_YUV_DNS_LUMA_TEMP_SEL(base, x) ConfRegBits32(base, RAW_rIEP_ENH_RGB_CNFG,rIEP_ENH_RGB_CNFG,IEP_REGB_YUV_DNS_LUMA_TEMP_SEL_Y,IEP_REGB_YUV_DNS_LUMA_TEMP_SEL_Z(x))
+#define     IEP_REGB_YUV_DNS_CHROMA_SPAT_SEL(base, x) ConfRegBits32(base, RAW_rIEP_ENH_RGB_CNFG,rIEP_ENH_RGB_CNFG,IEP_REGB_YUV_DNS_CHROMA_SPAT_SEL_Y,IEP_REGB_YUV_DNS_CHROMA_SPAT_SEL_Z(x))
+#define     IEP_REGB_YUV_DNS_CHROMA_TEMP_SEL(base, x) ConfRegBits32(base, RAW_rIEP_ENH_RGB_CNFG,rIEP_ENH_RGB_CNFG,IEP_REGB_YUV_DNS_CHROMA_TEMP_SEL_Y,IEP_REGB_YUV_DNS_CHROMA_TEMP_SEL_Z(x))
 #define     IEP_REGB_ENH_THRESHOLD(base, x)       ConfRegBits32(base, RAW_rIEP_ENH_RGB_CNFG,rIEP_ENH_RGB_CNFG,IEP_REGB_ENH_THRESHOLD_Y,IEP_REGB_ENH_THRESHOLD_Z(x))
 #define     IEP_REGB_ENH_ALPHA(base, x)           ConfRegBits32(base, RAW_rIEP_ENH_RGB_CNFG,rIEP_ENH_RGB_CNFG,IEP_REGB_ENH_ALPHA_Y,IEP_REGB_ENH_ALPHA_Z(x))
 #define     IEP_REGB_ENH_RADIUS(base, x)          ConfRegBits32(base, RAW_rIEP_ENH_RGB_CNFG,rIEP_ENH_RGB_CNFG,IEP_REGB_ENH_RADIUS_Y,IEP_REGB_ENH_RADIUS_Z(x))
