@@ -1060,15 +1060,15 @@ static void btree_node_free(struct btree *b)
 	mutex_unlock(&b->c->bucket_lock);
 }
 
-struct btree *bch_btree_node_alloc(struct cache_set *c, struct btree_op *op,
-				   int level)
+struct btree *__bch_btree_node_alloc(struct cache_set *c, struct btree_op *op,
+				     int level, bool wait)
 {
 	BKEY_PADDED(key) k;
 	struct btree *b = ERR_PTR(-EAGAIN);
 
 	mutex_lock(&c->bucket_lock);
 retry:
-	if (__bch_bucket_alloc_set(c, RESERVE_BTREE, &k.key, 1, op != NULL))
+	if (__bch_bucket_alloc_set(c, RESERVE_BTREE, &k.key, 1, wait))
 		goto err;
 
 	bkey_put(c, &k.key);
@@ -1098,6 +1098,12 @@ err:
 
 	trace_bcache_btree_node_alloc_fail(b);
 	return b;
+}
+
+static struct btree *bch_btree_node_alloc(struct cache_set *c,
+					  struct btree_op *op, int level)
+{
+	return __bch_btree_node_alloc(c, op, level, op != NULL);
 }
 
 static struct btree *btree_node_alloc_replacement(struct btree *b,
