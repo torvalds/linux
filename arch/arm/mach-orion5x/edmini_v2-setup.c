@@ -109,37 +109,9 @@ static struct i2c_board_info __initdata edmini_v2_i2c_rtc = {
 /*****************************************************************************
  * General Setup
  ****************************************************************************/
-static unsigned int edminiv2_mpp_modes[] __initdata = {
-	MPP0_UNUSED,
-	MPP1_UNUSED,
-	MPP2_UNUSED,
-	MPP3_GPIO,	/* RTC interrupt */
-	MPP4_UNUSED,
-	MPP5_UNUSED,
-	MPP6_UNUSED,
-	MPP7_UNUSED,
-	MPP8_UNUSED,
-	MPP9_UNUSED,
-	MPP10_UNUSED,
-	MPP11_UNUSED,
-	MPP12_SATA_LED,	/* SATA 0 presence */
-	MPP13_SATA_LED,	/* SATA 1 presence */
-	MPP14_SATA_LED,	/* SATA 0 active */
-	MPP15_SATA_LED,	/* SATA 1 active */
-	/* 16: Power LED control (0 = On, 1 = Off) */
-	MPP16_GPIO,
-	/* 17: Power LED control select (0 = CPLD, 1 = GPIO16) */
-	MPP17_GPIO,
-	/* 18: Power button status (0 = Released, 1 = Pressed) */
-	MPP18_GPIO,
-	MPP19_UNUSED,
-	0,
-};
 
 void __init edmini_v2_init(void)
 {
-	orion5x_mpp_conf(edminiv2_mpp_modes);
-
 	/*
 	 * Configure peripherals.
 	 */

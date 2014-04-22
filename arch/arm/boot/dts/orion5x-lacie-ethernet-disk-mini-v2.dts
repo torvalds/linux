@@ -32,6 +32,8 @@
 
 	gpio-keys {
 		compatible = "gpio-keys";
+		pinctrl-0 = <&pmx_power_button>;
+		pinctrl-names = "default";
 		#address-cells = <1>;
 		#size-cells = <0>;
 		button@1 {
@@ -43,6 +45,8 @@
 
 	gpio-leds {
 		compatible = "gpio-leds";
+		pinctrl-0 = <&pmx_power_led>;
+		pinctrl-names = "default";
 
 		led@1 {
 			label = "power:blue";
@@ -67,7 +71,34 @@
 	};
 };
 
+&pinctrl {
+	pinctrl-0 = <&pmx_rtc &pmx_power_led_ctrl>;
+	pinctrl-names = "default";
+
+	pmx_power_button: pmx-power-button {
+		marvell,pins = "mpp18";
+		marvell,function = "gpio";
+	};
+
+	pmx_power_led: pmx-power-led {
+		marvell,pins = "mpp16";
+		marvell,function = "gpio";
+	};
+
+	pmx_power_led_ctrl: pmx-power-led-ctrl {
+		marvell,pins = "mpp17";
+		marvell,function = "gpio";
+	};
+
+	pmx_rtc: pmx-rtc {
+		marvell,pins = "mpp3";
+		marvell,function = "gpio";
+	};
+};
+
 &sata {
+	pinctrl-0 = <&pmx_sata0 &pmx_sata1>;
+	pinctrl-names = "default";
 	status = "okay";
 	nr-ports = <2>;
 };
