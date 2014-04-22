@@ -1147,7 +1147,7 @@ static void rkpm_slp_setting(void)
 
 static void rkpm_save_setting_resume_first(void)
 {
-	rk_usb_power_down();
+	rk_usb_power_up();
         rkpm_peri_resume_first(rk3288_powermode);
         
         // rkpm_ddr_printhex(cru_readl(RK3288_CRU_MODE_CON));
