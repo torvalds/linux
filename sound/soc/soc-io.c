@@ -17,8 +17,6 @@
 #include <linux/export.h>
 #include <sound/soc.h>
 
-#include <trace/events/asoc.h>
-
 /**
  * snd_soc_component_read() - Read register value
  * @component: Component to read from
@@ -39,8 +37,6 @@ int snd_soc_component_read(struct snd_soc_component *component,
 	else
 		ret = -EIO;
 
-	dev_dbg(component->dev, "read %x => %x\n", reg, *val);
-
 	return ret;
 }
 EXPORT_SYMBOL_GPL(snd_soc_component_read);
@@ -56,8 +52,6 @@ EXPORT_SYMBOL_GPL(snd_soc_component_read);
 int snd_soc_component_write(struct snd_soc_component *component,
 	unsigned int reg, unsigned int val)
 {
-	dev_dbg(component->dev, "write %x = %x\n", reg, val);
-
 	if (component->regmap)
 		return regmap_write(component->regmap, reg, val);
 	else if (component->write)
@@ -207,7 +201,6 @@ unsigned int snd_soc_read(struct snd_soc_codec *codec, unsigned int reg)
 	ret = snd_soc_component_read(&codec->component, reg, &val);
 	if (ret < 0)
 		return -1;
-	trace_snd_soc_reg_read(codec, reg, val);
 
 	return val;
 }
@@ -216,7 +209,6 @@ EXPORT_SYMBOL_GPL(snd_soc_read);
 int snd_soc_write(struct snd_soc_codec *codec, unsigned int reg,
 	unsigned int val)
 {
-	trace_snd_soc_reg_write(codec, reg, val);
 	return snd_soc_component_write(&codec->component, reg, val);
 }
 EXPORT_SYMBOL_GPL(snd_soc_write);
@@ -269,8 +261,6 @@ int snd_soc_platform_read(struct snd_soc_platform *platform,
 	if (ret < 0)
 		return -1;
 
-	trace_snd_soc_preg_read(platform, reg, val);
-
 	return val;
 }
 EXPORT_SYMBOL_GPL(snd_soc_platform_read);
@@ -278,7 +268,6 @@ EXPORT_SYMBOL_GPL(snd_soc_platform_read);
 int snd_soc_platform_write(struct snd_soc_platform *platform,
 					 unsigned int reg, unsigned int val)
 {
-	trace_snd_soc_preg_write(platform, reg, val);
 	return snd_soc_component_write(&platform->component, reg, val);
 }
 EXPORT_SYMBOL_GPL(snd_soc_platform_write);
