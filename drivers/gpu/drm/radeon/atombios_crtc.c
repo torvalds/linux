@@ -1177,27 +1177,43 @@ static int dce4_crtc_do_set_base(struct drm_crtc *crtc,
 
 		/* Set NUM_BANKS. */
 		if (rdev->family >= CHIP_TAHITI) {
-			unsigned tileb, index, num_banks, tile_split_bytes;
+			unsigned index, num_banks;
 
-			/* Calculate the macrotile mode index. */
-			tile_split_bytes = 64 << tile_split;
-			tileb = 8 * 8 * target_fb->bits_per_pixel / 8;
-			tileb = min(tile_split_bytes, tileb);
+			if (rdev->family >= CHIP_BONAIRE) {
+				unsigned tileb, tile_split_bytes;
 
-			for (index = 0; tileb > 64; index++) {
-				tileb >>= 1;
-			}
+				/* Calculate the macrotile mode index. */
+				tile_split_bytes = 64 << tile_split;
+				tileb = 8 * 8 * target_fb->bits_per_pixel / 8;
+				tileb = min(tile_split_bytes, tileb);
 
-			if (index >= 16) {
-				DRM_ERROR("Wrong screen bpp (%u) or tile split (%u)\n",
-					  target_fb->bits_per_pixel, tile_split);
-				return -EINVAL;
-			}
+				for (index = 0; tileb > 64; index++)
+					tileb >>= 1;
 
-			if (rdev->family >= CHIP_BONAIRE)
+				if (index >= 16) {
+					DRM_ERROR("Wrong screen bpp (%u) or tile split (%u)\n",
+						  target_fb->bits_per_pixel, tile_split);
+					return -EINVAL;
+				}
+
 				num_banks = (rdev->config.cik.macrotile_mode_array[index] >> 6) & 0x3;
-			else
+			} else {
+				switch (target_fb->bits_per_pixel) {
+				case 8:
+					index = 10;
+					break;
+				case 16:
+					index = SI_TILE_MODE_COLOR_2D_SCANOUT_16BPP;
+					break;
+				default:
+				case 32:
+					index = SI_TILE_MODE_COLOR_2D_SCANOUT_32BPP;
+					break;
+				}
+
 				num_banks = (rdev->config.si.tile_mode_array[index] >> 20) & 0x3;
+			}
+
 			fb_format |= EVERGREEN_GRPH_NUM_BANKS(num_banks);
 		} else {
 			/* NI and older. */
