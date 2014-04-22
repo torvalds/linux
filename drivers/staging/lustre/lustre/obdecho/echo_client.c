@@ -2432,7 +2432,7 @@ static int echo_client_kbrw(struct echo_device *ed, int rw, struct obdo *oa,
 	int		     i;
 	int		     rc;
 	int		     verify;
-	int		     gfp_mask;
+	gfp_t		     gfp_mask;
 	int		     brw_flags = 0;
 
 	verify = (ostid_id(&oa->o_oi) != ECHO_PERSISTENT_OBJID &&

@@ -66,7 +66,7 @@ cfs_tage_from_list(struct list_head *list)
 	return list_entry(list, struct cfs_trace_page, linkage);
 }
 
-static struct cfs_trace_page *cfs_tage_alloc(int gfp)
+static struct cfs_trace_page *cfs_tage_alloc(gfp_t gfp)
 {
 	struct page	    *page;
 	struct cfs_trace_page *tage;
@@ -114,7 +114,7 @@ static void cfs_tage_to_tail(struct cfs_trace_page *tage,
 	list_move_tail(&tage->linkage, queue);
 }
 
-int cfs_trace_refill_stock(struct cfs_trace_cpu_data *tcd, int gfp,
+int cfs_trace_refill_stock(struct cfs_trace_cpu_data *tcd, gfp_t gfp,
 			   struct list_head *stock)
 {
 	int i;
