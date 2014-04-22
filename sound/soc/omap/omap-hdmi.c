@@ -330,7 +330,6 @@ static int omap_hdmi_probe(struct platform_device *pdev)
 
 	return omap_pcm_platform_register(&pdev->dev);
 }
-}
 
 static int omap_hdmi_remove(struct platform_device *pdev)
 {
