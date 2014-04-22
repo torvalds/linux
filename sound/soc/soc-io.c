@@ -241,26 +241,6 @@ int snd_soc_update_bits(struct snd_soc_codec *codec, unsigned int reg,
 EXPORT_SYMBOL_GPL(snd_soc_update_bits);
 
 /**
- * snd_soc_update_bits_locked - update codec register bits
- * @codec: audio codec
- * @reg: codec register
- * @mask: register mask
- * @value: new value
- *
- * Writes new register value, and takes the codec mutex.
- *
- * Returns 1 for change else 0.
- */
-int snd_soc_update_bits_locked(struct snd_soc_codec *codec,
-			       unsigned int reg, unsigned int mask,
-			       unsigned int value)
-{
-	return snd_soc_component_update_bits(&codec->component, reg, mask,
-		value);
-}
-EXPORT_SYMBOL_GPL(snd_soc_update_bits_locked);
-
-/**
  * snd_soc_test_bits - test register for change
  * @codec: audio codec
  * @reg: codec register
