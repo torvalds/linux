@@ -23,6 +23,7 @@ static inline int init_new_context(struct task_struct *tsk,
 	mm->context.asce_bits |= _ASCE_TYPE_REGION3;
 #endif
 	mm->context.has_pgste = 0;
+	mm->context.use_skey = 0;
 	mm->context.asce_limit = STACK_TOP_MAX;
 	crst_table_init((unsigned long *) mm->pgd, pgd_entry_type(mm));
 	return 0;

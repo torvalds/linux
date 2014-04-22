@@ -16,6 +16,7 @@
 #include <linux/pagemap.h>
 
 #include <asm/kvm_host.h>
+#include <asm/asm-offsets.h>
 
 #include "kvm-s390.h"
 #include "gaccess.h"
@@ -29,6 +30,7 @@ static const intercept_handler_t instruction_handlers[256] = {
 	[0x83] = kvm_s390_handle_diag,
 	[0xae] = kvm_s390_handle_sigp,
 	[0xb2] = kvm_s390_handle_b2,
+	[0xb6] = kvm_s390_handle_stctl,
 	[0xb7] = kvm_s390_handle_lctl,
 	[0xb9] = kvm_s390_handle_b9,
 	[0xe5] = kvm_s390_handle_e5,
@@ -109,22 +111,112 @@ static int handle_instruction(struct kvm_vcpu *vcpu)
 	return -EOPNOTSUPP;
 }
 
+static void __extract_prog_irq(struct kvm_vcpu *vcpu,
+			       struct kvm_s390_pgm_info *pgm_info)
+{
+	memset(pgm_info, 0, sizeof(struct kvm_s390_pgm_info));
+	pgm_info->code = vcpu->arch.sie_block->iprcc;
+
+	switch (vcpu->arch.sie_block->iprcc & ~PGM_PER) {
+	case PGM_AFX_TRANSLATION:
+	case PGM_ASX_TRANSLATION:
+	case PGM_EX_TRANSLATION:
+	case PGM_LFX_TRANSLATION:
+	case PGM_LSTE_SEQUENCE:
+	case PGM_LSX_TRANSLATION:
+	case PGM_LX_TRANSLATION:
+	case PGM_PRIMARY_AUTHORITY:
+	case PGM_SECONDARY_AUTHORITY:
+	case PGM_SPACE_SWITCH:
+		pgm_info->trans_exc_code = vcpu->arch.sie_block->tecmc;
+		break;
+	case PGM_ALEN_TRANSLATION:
+	case PGM_ALE_SEQUENCE:
+	case PGM_ASTE_INSTANCE:
+	case PGM_ASTE_SEQUENCE:
+	case PGM_ASTE_VALIDITY:
+	case PGM_EXTENDED_AUTHORITY:
+		pgm_info->exc_access_id = vcpu->arch.sie_block->eai;
+		break;
+	case PGM_ASCE_TYPE:
+	case PGM_PAGE_TRANSLATION:
+	case PGM_REGION_FIRST_TRANS:
+	case PGM_REGION_SECOND_TRANS:
+	case PGM_REGION_THIRD_TRANS:
+	case PGM_SEGMENT_TRANSLATION:
+		pgm_info->trans_exc_code = vcpu->arch.sie_block->tecmc;
+		pgm_info->exc_access_id  = vcpu->arch.sie_block->eai;
+		pgm_info->op_access_id  = vcpu->arch.sie_block->oai;
+		break;
+	case PGM_MONITOR:
+		pgm_info->mon_class_nr = vcpu->arch.sie_block->mcn;
+		pgm_info->mon_code = vcpu->arch.sie_block->tecmc;
+		break;
+	case PGM_DATA:
+		pgm_info->data_exc_code = vcpu->arch.sie_block->dxc;
+		break;
+	case PGM_PROTECTION:
+		pgm_info->trans_exc_code = vcpu->arch.sie_block->tecmc;
+		pgm_info->exc_access_id  = vcpu->arch.sie_block->eai;
+		break;
+	default:
+		break;
+	}
+
+	if (vcpu->arch.sie_block->iprcc & PGM_PER) {
+		pgm_info->per_code = vcpu->arch.sie_block->perc;
+		pgm_info->per_atmid = vcpu->arch.sie_block->peratmid;
+		pgm_info->per_address = vcpu->arch.sie_block->peraddr;
+		pgm_info->per_access_id = vcpu->arch.sie_block->peraid;
+	}
+}
+
+/*
+ * restore ITDB to program-interruption TDB in guest lowcore
+ * and set TX abort indication if required
+*/
+static int handle_itdb(struct kvm_vcpu *vcpu)
+{
+	struct kvm_s390_itdb *itdb;
+	int rc;
+
+	if (!IS_TE_ENABLED(vcpu) || !IS_ITDB_VALID(vcpu))
+		return 0;
+	if (current->thread.per_flags & PER_FLAG_NO_TE)
+		return 0;
+	itdb = (struct kvm_s390_itdb *)vcpu->arch.sie_block->itdba;
+	rc = write_guest_lc(vcpu, __LC_PGM_TDB, itdb, sizeof(*itdb));
+	if (rc)
+		return rc;
+	memset(itdb, 0, sizeof(*itdb));
+
+	return 0;
+}
+
+#define per_event(vcpu) (vcpu->arch.sie_block->iprcc & PGM_PER)
+
 static int handle_prog(struct kvm_vcpu *vcpu)
 {
+	struct kvm_s390_pgm_info pgm_info;
+	int rc;
+
 	vcpu->stat.exit_program_interruption++;
 
-	/* Restore ITDB to Program-Interruption TDB in guest memory */
-	if (IS_TE_ENABLED(vcpu) &&
-	    !(current->thread.per_flags & PER_FLAG_NO_TE) &&
-	    IS_ITDB_VALID(vcpu)) {
-		copy_to_guest(vcpu, TDB_ADDR, vcpu->arch.sie_block->itdba,
-			      sizeof(struct kvm_s390_itdb));
-		memset((void *) vcpu->arch.sie_block->itdba, 0,
-		       sizeof(struct kvm_s390_itdb));
+	if (guestdbg_enabled(vcpu) && per_event(vcpu)) {
+		kvm_s390_handle_per_event(vcpu);
+		/* the interrupt might have been filtered out completely */
+		if (vcpu->arch.sie_block->iprcc == 0)
+			return 0;
 	}
 
 	trace_kvm_s390_intercept_prog(vcpu, vcpu->arch.sie_block->iprcc);
-	return kvm_s390_inject_program_int(vcpu, vcpu->arch.sie_block->iprcc);
+
+	rc = handle_itdb(vcpu);
+	if (rc)
+		return rc;
+
+	__extract_prog_irq(vcpu, &pgm_info);
+	return kvm_s390_inject_prog_irq(vcpu, &pgm_info);
 }
 
 static int handle_instruction_and_prog(struct kvm_vcpu *vcpu)

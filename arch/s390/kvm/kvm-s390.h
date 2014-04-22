@@ -28,7 +28,6 @@ int kvm_handle_sie_intercept(struct kvm_vcpu *vcpu);
 
 /* Transactional Memory Execution related macros */
 #define IS_TE_ENABLED(vcpu)	((vcpu->arch.sie_block->ecb & 0x10))
-#define TDB_ADDR		0x1800UL
 #define TDB_FORMAT1		1
 #define IS_ITDB_VALID(vcpu)	((*(char *)vcpu->arch.sie_block->itdba == TDB_FORMAT1))
 
@@ -130,6 +129,7 @@ void kvm_s390_tasklet(unsigned long parm);
 void kvm_s390_deliver_pending_interrupts(struct kvm_vcpu *vcpu);
 void kvm_s390_deliver_pending_machine_checks(struct kvm_vcpu *vcpu);
 void kvm_s390_clear_local_irqs(struct kvm_vcpu *vcpu);
+void kvm_s390_clear_float_irqs(struct kvm *kvm);
 int __must_check kvm_s390_inject_vm(struct kvm *kvm,
 				    struct kvm_s390_interrupt *s390int);
 int __must_check kvm_s390_inject_vcpu(struct kvm_vcpu *vcpu,
@@ -137,6 +137,8 @@ int __must_check kvm_s390_inject_vcpu(struct kvm_vcpu *vcpu,
 int __must_check kvm_s390_inject_program_int(struct kvm_vcpu *vcpu, u16 code);
 struct kvm_s390_interrupt_info *kvm_s390_get_io_int(struct kvm *kvm,
 						    u64 cr6, u64 schid);
+void kvm_s390_reinject_io_int(struct kvm *kvm,
+			      struct kvm_s390_interrupt_info *inti);
 int kvm_s390_mask_adapter(struct kvm *kvm, unsigned int id, bool masked);
 
 /* implemented in priv.c */
@@ -145,6 +147,7 @@ int kvm_s390_handle_e5(struct kvm_vcpu *vcpu);
 int kvm_s390_handle_01(struct kvm_vcpu *vcpu);
 int kvm_s390_handle_b9(struct kvm_vcpu *vcpu);
 int kvm_s390_handle_lpsw(struct kvm_vcpu *vcpu);
+int kvm_s390_handle_stctl(struct kvm_vcpu *vcpu);
 int kvm_s390_handle_lctl(struct kvm_vcpu *vcpu);
 int kvm_s390_handle_eb(struct kvm_vcpu *vcpu);
 
@@ -158,14 +161,64 @@ void s390_vcpu_block(struct kvm_vcpu *vcpu);
 void s390_vcpu_unblock(struct kvm_vcpu *vcpu);
 void exit_sie(struct kvm_vcpu *vcpu);
 void exit_sie_sync(struct kvm_vcpu *vcpu);
-/* are we going to support cmma? */
-bool kvm_enabled_cmma(void);
+int kvm_s390_vcpu_setup_cmma(struct kvm_vcpu *vcpu);
+void kvm_s390_vcpu_unsetup_cmma(struct kvm_vcpu *vcpu);
+/* is cmma enabled */
+bool kvm_s390_cmma_enabled(struct kvm *kvm);
+int test_vfacility(unsigned long nr);
+
 /* implemented in diag.c */
 int kvm_s390_handle_diag(struct kvm_vcpu *vcpu);
+/* implemented in interrupt.c */
+int kvm_s390_inject_prog_irq(struct kvm_vcpu *vcpu,
+			     struct kvm_s390_pgm_info *pgm_info);
+
+/**
+ * kvm_s390_inject_prog_cond - conditionally inject a program check
+ * @vcpu: virtual cpu
+ * @rc: original return/error code
+ *
+ * This function is supposed to be used after regular guest access functions
+ * failed, to conditionally inject a program check to a vcpu. The typical
+ * pattern would look like
+ *
+ * rc = write_guest(vcpu, addr, data, len);
+ * if (rc)
+ *	return kvm_s390_inject_prog_cond(vcpu, rc);
+ *
+ * A negative return code from guest access functions implies an internal error
+ * like e.g. out of memory. In these cases no program check should be injected
+ * to the guest.
+ * A positive value implies that an exception happened while accessing a guest's
+ * memory. In this case all data belonging to the corresponding program check
+ * has been stored in vcpu->arch.pgm and can be injected with
+ * kvm_s390_inject_prog_irq().
+ *
+ * Returns: - the original @rc value if @rc was negative (internal error)
+ *	    - zero if @rc was already zero
+ *	    - zero or error code from injecting if @rc was positive
+ *	      (program check injected to @vcpu)
+ */
+static inline int kvm_s390_inject_prog_cond(struct kvm_vcpu *vcpu, int rc)
+{
+	if (rc <= 0)
+		return rc;
+	return kvm_s390_inject_prog_irq(vcpu, &vcpu->arch.pgm);
+}
 
 /* implemented in interrupt.c */
 int kvm_cpu_has_interrupt(struct kvm_vcpu *vcpu);
 int psw_extint_disabled(struct kvm_vcpu *vcpu);
 void kvm_s390_destroy_adapters(struct kvm *kvm);
+
+/* implemented in guestdbg.c */
+void kvm_s390_backup_guest_per_regs(struct kvm_vcpu *vcpu);
+void kvm_s390_restore_guest_per_regs(struct kvm_vcpu *vcpu);
+void kvm_s390_patch_guest_per_regs(struct kvm_vcpu *vcpu);
+int kvm_s390_import_bp_data(struct kvm_vcpu *vcpu,
+			    struct kvm_guest_debug *dbg);
+void kvm_s390_clear_bp_data(struct kvm_vcpu *vcpu);
+void kvm_s390_prepare_debug_exit(struct kvm_vcpu *vcpu);
+void kvm_s390_handle_per_event(struct kvm_vcpu *vcpu);
 
 #endif
