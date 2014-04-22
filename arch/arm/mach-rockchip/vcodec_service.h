@@ -33,6 +33,8 @@
 #define VPU_IOC_SET_REG                     _IOW(VPU_IOC_MAGIC, 3, unsigned long)
 #define VPU_IOC_GET_REG                     _IOW(VPU_IOC_MAGIC, 4, unsigned long)
 
+#define VPU_IOC_PROBE_IOMMU_STATUS          _IOR(VPU_IOC_MAGIC, 5, unsigned long)
+
 typedef enum VPU_CLIENT_TYPE {
     VPU_ENC                 = 0x0,
     VPU_DEC                 = 0x1,

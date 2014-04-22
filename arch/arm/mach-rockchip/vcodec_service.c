@@ -43,8 +43,8 @@
 #include <linux/rockchip_ion.h>
 #endif
 
-#if defined(CONFIG_ROCKCHIP_IOMMU)
-//#define CONFIG_VCODEC_MMU
+#if defined(CONFIG_ROCKCHIP_IOMMU) & defined(CONFIG_ION_ROCKCHIP)
+#define CONFIG_VCODEC_MMU
 #endif
 
 #ifdef CONFIG_VCODEC_MMU
@@ -304,7 +304,7 @@ typedef struct vpu_service_info {
     struct dentry   *debugfs_file_regs;
 
     u32 irq_status;
-#if defined(CONFIG_ION_ROCKCHIP)	
+#if defined(CONFIG_VCODEC_MMU)	
 	struct ion_client * ion_client;
 #endif	
 
@@ -1225,6 +1225,18 @@ static long vpu_service_ioctl(struct file *filp, unsigned int cmd, unsigned long
 		reg = list_entry(session->done.next, vpu_reg, session_link);
 		return_reg(pservice, reg, (u32 __user *)req.req);
 		mutex_unlock(&pservice->lock);
+		break;
+	}
+	case VPU_IOC_PROBE_IOMMU_STATUS: {
+#if defined(CONFIG_VCODEC_MMU)
+		int iommu_enable = 1;
+#else
+		int iommu_enable = 0;
+#endif
+		if (copy_to_user((void __user *)arg, &iommu_enable, sizeof(int))) {
+			pr_err("error: VPU_IOC_PROBE_IOMMU_STATUS copy_to_user failed\n");
+			return -EFAULT;
+		}
 		break;
 	}
 	default : {
