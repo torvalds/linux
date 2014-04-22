@@ -10,6 +10,7 @@
 
 #include <dt-bindings/gpio/gpio.h>
 #include <dt-bindings/input/input.h>
+#include <dt-bindings/interrupt-controller/irq.h>
 #include "orion5x-mv88f5182.dtsi"
 
 / {
@@ -60,6 +61,19 @@
 
 	ethernet-port@0 {
 		phy-handle = <&ethphy>;
+	};
+};
+
+&i2c {
+	status = "okay";
+	clock-frequency = <100000>;
+	#address-cells = <1>;
+
+	rtc@32 {
+		compatible = "ricoh,rs5c372a";
+		reg = <0x32>;
+		interrupt-parent = <&gpio0>;
+		interrupts = <3 IRQ_TYPE_LEVEL_LOW>;
 	};
 };
 

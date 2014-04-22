@@ -96,17 +96,6 @@ static struct platform_device edmini_v2_nor_flash = {
 };
 
 /*****************************************************************************
- * RTC 5C372a on I2C bus
- ****************************************************************************/
-
-#define EDMINIV2_RTC_GPIO	3
-
-static struct i2c_board_info __initdata edmini_v2_i2c_rtc = {
-	I2C_BOARD_INFO("rs5c372a", 0x32),
-	.irq = 0,
-};
-
-/*****************************************************************************
  * General Setup
  ****************************************************************************/
 
@@ -125,17 +114,4 @@ void __init edmini_v2_init(void)
 
 	pr_notice("edmini_v2: USB device port, flash write and power-off "
 		  "are not yet supported.\n");
-
-	/* Get RTC IRQ and register the chip */
-	if (gpio_request(EDMINIV2_RTC_GPIO, "rtc") == 0) {
-		if (gpio_direction_input(EDMINIV2_RTC_GPIO) == 0)
-			edmini_v2_i2c_rtc.irq = gpio_to_irq(EDMINIV2_RTC_GPIO);
-		else
-			gpio_free(EDMINIV2_RTC_GPIO);
-	}
-
-	if (edmini_v2_i2c_rtc.irq == 0)
-		pr_warning("edmini_v2: failed to get RTC IRQ\n");
-
-	i2c_register_board_info(0, &edmini_v2_i2c_rtc, 1);
 }
