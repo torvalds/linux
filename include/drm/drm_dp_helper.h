@@ -456,6 +456,10 @@ struct drm_dp_aux_msg {
  * transactions. The drm_dp_aux_register_i2c_bus() function registers an
  * I2C adapter that can be passed to drm_probe_ddc(). Upon removal, drivers
  * should call drm_dp_aux_unregister_i2c_bus() to remove the I2C adapter.
+ *
+ * Note that the aux helper code assumes that the .transfer() function
+ * only modifies the reply field of the drm_dp_aux_msg structure.  The
+ * retry logic and i2c helpers assume this is the case.
  */
 struct drm_dp_aux {
 	const char *name;

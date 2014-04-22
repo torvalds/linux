@@ -491,7 +491,7 @@ static int __init __reserved_mem_reserve_reg(unsigned long node,
  * in /reserved-memory matches the values supported by the current implementation,
  * also check if ranges property has been provided
  */
-static int __reserved_mem_check_root(unsigned long node)
+static int __init __reserved_mem_check_root(unsigned long node)
 {
 	__be32 *prop;
 

@@ -968,7 +968,17 @@ static struct platform_driver fsl_edma_driver = {
 	.remove		= fsl_edma_remove,
 };
 
-module_platform_driver(fsl_edma_driver);
+static int __init fsl_edma_init(void)
+{
+	return platform_driver_register(&fsl_edma_driver);
+}
+subsys_initcall(fsl_edma_init);
+
+static void __exit fsl_edma_exit(void)
+{
+	platform_driver_unregister(&fsl_edma_driver);
+}
+module_exit(fsl_edma_exit);
 
 MODULE_ALIAS("platform:fsl-edma");
 MODULE_DESCRIPTION("Freescale eDMA engine driver");

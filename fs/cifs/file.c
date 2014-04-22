@@ -2599,7 +2599,7 @@ cifs_writev(struct kiocb *iocb, const struct iovec *iov,
 			ssize_t err;
 
 			err = generic_write_sync(file, iocb->ki_pos - rc, rc);
-			if (rc < 0)
+			if (err < 0)
 				rc = err;
 		}
 	} else {
@@ -2621,12 +2621,20 @@ cifs_strict_writev(struct kiocb *iocb, const struct iovec *iov,
 	struct cifs_tcon *tcon = tlink_tcon(cfile->tlink);
 	ssize_t written;
 
+	written = cifs_get_writer(cinode);
+	if (written)
+		return written;
+
 	if (CIFS_CACHE_WRITE(cinode)) {
 		if (cap_unix(tcon->ses) &&
 		(CIFS_UNIX_FCNTL_CAP & le64_to_cpu(tcon->fsUnixInfo.Capability))
-		    && ((cifs_sb->mnt_cifs_flags & CIFS_MOUNT_NOPOSIXBRL) == 0))
-			return generic_file_aio_write(iocb, iov, nr_segs, pos);
-		return cifs_writev(iocb, iov, nr_segs, pos);
+		  && ((cifs_sb->mnt_cifs_flags & CIFS_MOUNT_NOPOSIXBRL) == 0)) {
+			written = generic_file_aio_write(
+					iocb, iov, nr_segs, pos);
+			goto out;
+		}
+		written = cifs_writev(iocb, iov, nr_segs, pos);
+		goto out;
 	}
 	/*
 	 * For non-oplocked files in strict cache mode we need to write the data
@@ -2646,6 +2654,8 @@ cifs_strict_writev(struct kiocb *iocb, const struct iovec *iov,
 			 inode);
 		cinode->oplock = 0;
 	}
+out:
+	cifs_put_writer(cinode);
 	return written;
 }
 
@@ -2872,7 +2882,7 @@ ssize_t cifs_user_readv(struct kiocb *iocb, const struct iovec *iov,
 					    cifs_uncached_readv_complete);
 		if (!rdata) {
 			rc = -ENOMEM;
-			goto error;
+			break;
 		}
 
 		rc = cifs_read_allocate_pages(rdata, npages);
@@ -3621,6 +3631,13 @@ static int cifs_launder_page(struct page *page)
 	return rc;
 }
 
+static int
+cifs_pending_writers_wait(void *unused)
+{
+	schedule();
+	return 0;
+}
+
 void cifs_oplock_break(struct work_struct *work)
 {
 	struct cifsFileInfo *cfile = container_of(work, struct cifsFileInfo,
@@ -3628,7 +3645,14 @@ void cifs_oplock_break(struct work_struct *work)
 	struct inode *inode = cfile->dentry->d_inode;
 	struct cifsInodeInfo *cinode = CIFS_I(inode);
 	struct cifs_tcon *tcon = tlink_tcon(cfile->tlink);
+	struct TCP_Server_Info *server = tcon->ses->server;
 	int rc = 0;
+
+	wait_on_bit(&cinode->flags, CIFS_INODE_PENDING_WRITERS,
+			cifs_pending_writers_wait, TASK_UNINTERRUPTIBLE);
+
+	server->ops->downgrade_oplock(server, cinode,
+		test_bit(CIFS_INODE_DOWNGRADE_OPLOCK_TO_L2, &cinode->flags));
 
 	if (!CIFS_CACHE_WRITE(cinode) && CIFS_CACHE_READ(cinode) &&
 						cifs_has_mand_locks(cinode)) {
@@ -3666,6 +3690,7 @@ void cifs_oplock_break(struct work_struct *work)
 							     cinode);
 		cifs_dbg(FYI, "Oplock release rc = %d\n", rc);
 	}
+	cifs_done_oplock_break(cinode);
 }
 
 /*
