@@ -124,11 +124,12 @@ static int wl1251_event_process(struct wl1251 *wl, struct event_mailbox *mbox)
 			return ret;
 	}
 
-	if (wl->vif && vector & SYNCHRONIZATION_TIMEOUT_EVENT_ID) {
+	if (vector & SYNCHRONIZATION_TIMEOUT_EVENT_ID) {
 		wl1251_debug(DEBUG_EVENT, "SYNCHRONIZATION_TIMEOUT_EVENT");
 
 		/* indicate to the stack, that beacons have been lost */
-		ieee80211_beacon_loss(wl->vif);
+		if (wl->vif && wl->vif->type == NL80211_IFTYPE_STATION)
+			ieee80211_beacon_loss(wl->vif);
 	}
 
 	if (vector & REGAINED_BSS_EVENT_ID) {
