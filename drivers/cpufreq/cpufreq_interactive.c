@@ -1155,6 +1155,9 @@ static int cpufreq_governor_interactive(struct cpufreq_policy *policy,
 		tunables->boostpulse_duration_val = DEFAULT_MIN_SAMPLE_TIME;
 		tunables->timer_slack_val = DEFAULT_TIMER_SLACK;
 
+		spin_lock_init(&tunables->target_loads_lock);
+		spin_lock_init(&tunables->above_hispeed_delay_lock);
+
 #ifdef CONFIG_ARCH_ROCKCHIP
 		{
 			unsigned int index;
@@ -1171,9 +1174,6 @@ static int cpufreq_governor_interactive(struct cpufreq_policy *policy,
 			tunables->boostpulse_duration_val = 500 * USEC_PER_MSEC;
 		}
 #endif
-
-		spin_lock_init(&tunables->target_loads_lock);
-		spin_lock_init(&tunables->above_hispeed_delay_lock);
 
 		policy->governor_data = tunables;
 		if (!have_governor_per_policy())
