@@ -10,7 +10,7 @@
 
 #include <dt-bindings/gpio/gpio.h>
 #include <dt-bindings/input/input.h>
-#include "orion5x.dtsi"
+#include "orion5x-mv88f5182.dtsi"
 
 / {
 	model = "LaCie Ethernet Disk mini V2";
@@ -24,15 +24,20 @@
 		bootargs = "console=ttyS0,115200n8 earlyprintk";
 	};
 
-	ocp@f1000000 {
-		serial@12000 {
-			clock-frequency = <166666667>;
-			status = "okay";
-		};
+	soc {
+		ranges = <MBUS_ID(0xf0, 0x01) 0 0xf1000000 0x100000>,
+			 <MBUS_ID(0x09, 0x00) 0 0xf2200000 0x800>;
 
-		sata@80000 {
-			status = "okay";
-			nr-ports = <2>;
+		internal-regs {
+			serial@12000 {
+				clock-frequency = <166666667>;
+				status = "okay";
+			};
+
+			sata@80000 {
+				status = "okay";
+				nr-ports = <2>;
+			};
 		};
 	};
 

@@ -15,10 +15,14 @@
 #include <linux/of.h>
 #include <linux/of_platform.h>
 #include <linux/cpu.h>
+#include <linux/mbus.h>
 #include <asm/system_misc.h>
 #include <asm/mach/arch.h>
+#include <asm/mach/map.h>
 #include <mach/orion5x.h>
+#include <mach/bridge-regs.h>
 #include <plat/irq.h>
+#include <plat/time.h>
 #include "common.h"
 
 static struct of_dev_auxdata orion5x_auxdata_lookup[] __initdata = {
@@ -31,6 +35,16 @@ static struct of_dev_auxdata orion5x_auxdata_lookup[] __initdata = {
 	{},
 };
 
+static void orion5x_dt_init_early(void)
+{
+	orion_time_set_base(TIMER_VIRT_BASE);
+}
+
+static void orion5x_dt_init_time(void)
+{
+	orion5x_timer_init();
+}
+
 static void __init orion5x_dt_init(void)
 {
 	char *dev_name;
@@ -38,6 +52,8 @@ static void __init orion5x_dt_init(void)
 
 	orion5x_id(&dev, &rev, &dev_name);
 	printk(KERN_INFO "Orion ID: %s. TCLK=%d.\n", dev_name, orion5x_tclk);
+
+	BUG_ON(mvebu_mbus_dt_init());
 
 	/*
 	 * Setup Orion address map
@@ -71,9 +87,9 @@ static const char *orion5x_dt_compat[] = {
 DT_MACHINE_START(ORION5X_DT, "Marvell Orion5x (Flattened Device Tree)")
 	/* Maintainer: Thomas Petazzoni <thomas.petazzoni@free-electrons.com> */
 	.map_io		= orion5x_map_io,
-	.init_early	= orion5x_init_early,
+	.init_early	= orion5x_dt_init_early,
 	.init_irq	= orion_dt_init_irq,
-	.init_time	= orion5x_timer_init,
+	.init_time	= orion5x_dt_init_time,
 	.init_machine	= orion5x_dt_init,
 	.restart	= orion5x_restart,
 	.dt_compat	= orion5x_dt_compat,
