@@ -2188,6 +2188,14 @@ static void i915_error_work_func(struct work_struct *work)
 				   reset_event);
 
 		/*
+		 * In most cases it's guaranteed that we get here with an RPM
+		 * reference held, for example because there is a pending GPU
+		 * request that won't finish until the reset is done. This
+		 * isn't the case at least when we get here by doing a
+		 * simulated reset via debugs, so get an RPM reference.
+		 */
+		intel_runtime_pm_get(dev_priv);
+		/*
 		 * All state reset _must_ be completed before we update the
 		 * reset counter, for otherwise waiters might miss the reset
 		 * pending state and not properly drop locks, resulting in
@@ -2196,6 +2204,8 @@ static void i915_error_work_func(struct work_struct *work)
 		ret = i915_reset(dev);
 
 		intel_display_handle_reset(dev);
+
+		intel_runtime_pm_put(dev_priv);
 
 		if (ret == 0) {
 			/*
