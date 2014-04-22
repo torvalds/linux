@@ -2493,51 +2493,44 @@ release:
  *  e1000_k1_gig_workaround_lv - K1 Si workaround
  *  @hw:   pointer to the HW structure
  *
- *  Workaround to set the K1 beacon duration for 82579 parts
+ *  Workaround to set the K1 beacon duration for 82579 parts in 10Mbps
+ *  Disable K1 in 1000Mbps and 100Mbps
  **/
 static s32 e1000_k1_workaround_lv(struct e1000_hw *hw)
 {
 	s32 ret_val = 0;
 	u16 status_reg = 0;
-	u32 mac_reg;
-	u16 phy_reg;
 
 	if (hw->mac.type != e1000_pch2lan)
 		return 0;
 
-	/* Set K1 beacon duration based on 1Gbps speed or otherwise */
+	/* Set K1 beacon duration based on 10Mbs speed */
 	ret_val = e1e_rphy(hw, HV_M_STATUS, &status_reg);
 	if (ret_val)
 		return ret_val;
 
 	if ((status_reg & (HV_M_STATUS_LINK_UP | HV_M_STATUS_AUTONEG_COMPLETE))
 	    == (HV_M_STATUS_LINK_UP | HV_M_STATUS_AUTONEG_COMPLETE)) {
-		mac_reg = er32(FEXTNVM4);
-		mac_reg &= ~E1000_FEXTNVM4_BEACON_DURATION_MASK;
-
-		ret_val = e1e_rphy(hw, I82579_LPI_CTRL, &phy_reg);
-		if (ret_val)
-			return ret_val;
-
-		if (status_reg & HV_M_STATUS_SPEED_1000) {
+		if (status_reg &
+		    (HV_M_STATUS_SPEED_1000 | HV_M_STATUS_SPEED_100)) {
 			u16 pm_phy_reg;
 
-			mac_reg |= E1000_FEXTNVM4_BEACON_DURATION_8USEC;
-			phy_reg &= ~I82579_LPI_CTRL_FORCE_PLL_LOCK_COUNT;
-			/* LV 1G Packet drop issue wa  */
+			/* LV 1G/100 Packet drop issue wa  */
 			ret_val = e1e_rphy(hw, HV_PM_CTRL, &pm_phy_reg);
 			if (ret_val)
 				return ret_val;
-			pm_phy_reg &= ~HV_PM_CTRL_PLL_STOP_IN_K1_GIGA;
+			pm_phy_reg &= ~HV_PM_CTRL_K1_ENABLE;
 			ret_val = e1e_wphy(hw, HV_PM_CTRL, pm_phy_reg);
 			if (ret_val)
 				return ret_val;
 		} else {
+			u32 mac_reg;
+
+			mac_reg = er32(FEXTNVM4);
+			mac_reg &= ~E1000_FEXTNVM4_BEACON_DURATION_MASK;
 			mac_reg |= E1000_FEXTNVM4_BEACON_DURATION_16USEC;
-			phy_reg |= I82579_LPI_CTRL_FORCE_PLL_LOCK_COUNT;
+			ew32(FEXTNVM4, mac_reg);
 		}
-		ew32(FEXTNVM4, mac_reg);
-		ret_val = e1e_wphy(hw, I82579_LPI_CTRL, phy_reg);
 	}
 
 	return ret_val;
