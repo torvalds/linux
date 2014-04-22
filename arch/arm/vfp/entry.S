@@ -22,11 +22,10 @@
 @  r9  = normal "successful" return address
 @  r10 = this threads thread_info structure
 @  lr  = unrecognised instruction return address
-@  IRQs disabled.
+@  IRQs enabled.
 @
 ENTRY(do_vfp)
 	inc_preempt_count r10, r4
-	enable_irq
  	ldr	r4, .LCvfp
 	ldr	r11, [r10, #TI_CPU]	@ CPU number
 	add	r10, r10, #TI_VFPSTATE	@ r10 = workspace
