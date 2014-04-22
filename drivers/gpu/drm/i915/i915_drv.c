@@ -947,6 +947,12 @@ static int intel_runtime_suspend(struct device *device)
 
 	DRM_DEBUG_KMS("Suspending device\n");
 
+	/*
+	 * rps.work can't be rearmed here, since we get here only after making
+	 * sure the GPU is idle and the RPS freq is set to the minimum. See
+	 * intel_mark_idle().
+	 */
+	cancel_work_sync(&dev_priv->rps.work);
 	intel_runtime_pm_disable_interrupts(dev);
 
 	if (IS_GEN6(dev))
@@ -998,6 +1004,7 @@ static int intel_runtime_resume(struct device *device)
 	gen6_update_ring_freq(dev);
 
 	intel_runtime_pm_restore_interrupts(dev);
+	intel_reset_gt_powersave(dev);
 
 	DRM_DEBUG_KMS("Device resumed\n");
 	return 0;
