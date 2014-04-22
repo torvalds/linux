@@ -364,7 +364,7 @@ int of_irq_to_resource(struct device_node *dev, int index, struct resource *r)
 
 		memset(r, 0, sizeof(*r));
 		/*
-		 * Get optional "interrupts-names" property to add a name
+		 * Get optional "interrupt-names" property to add a name
 		 * to the resource.
 		 */
 		of_property_read_string_index(dev, "interrupt-names", index,
