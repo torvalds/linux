@@ -41,14 +41,14 @@ struct opal_takeover_args {
  * size except the last one in the list to be as well.
  */
 struct opal_sg_entry {
-	void    *data;
-	long    length;
+	__be64 data;
+	__be64 length;
 };
 
-/* sg list */
+/* SG list */
 struct opal_sg_list {
-	unsigned long num_entries;
-	struct opal_sg_list *next;
+	__be64 length;
+	__be64 next;
 	struct opal_sg_entry entry[];
 };
 
@@ -928,6 +928,10 @@ extern void opal_shutdown(void);
 extern int opal_resync_timebase(void);
 
 extern void opal_lpc_init(void);
+
+struct opal_sg_list *opal_vmalloc_to_sg_list(void *vmalloc_addr,
+					     unsigned long vmalloc_size);
+void opal_free_sg_list(struct opal_sg_list *sg);
 
 #endif /* __ASSEMBLY__ */
 
