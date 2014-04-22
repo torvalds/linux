@@ -102,7 +102,7 @@ enum {
 };
 
 /**
- * struct ad799x_chip_info - chip specifc information
+ * struct ad799x_chip_info - chip specific information
  * @channel:		channel specification
  * @num_channels:	number of channels
  * @monitor_mode:	whether the chip supports monitor interrupts
