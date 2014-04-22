@@ -716,6 +716,12 @@ static int atmel_aes_crypt(struct ablkcipher_request *req, unsigned long mode)
 			return -EINVAL;
 		}
 		ctx->block_size = CFB32_BLOCK_SIZE;
+	} else if (mode & AES_FLAGS_CFB64) {
+		if (!IS_ALIGNED(req->nbytes, CFB64_BLOCK_SIZE)) {
+			pr_err("request size is not exact amount of CFB64 blocks\n");
+			return -EINVAL;
+		}
+		ctx->block_size = CFB64_BLOCK_SIZE;
 	} else {
 		if (!IS_ALIGNED(req->nbytes, AES_BLOCK_SIZE)) {
 			pr_err("request size is not exact amount of AES blocks\n");
