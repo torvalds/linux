@@ -1,10 +1,8 @@
 /*
  * Copyright (C) 2011 Alexander Stein <alexander.stein@systec-electronic.com>
  *
- * The LM95245 is a sensor chip made by National Semiconductors.
+ * The LM95245 is a sensor chip made by TI / National Semiconductor.
  * It reports up to two temperatures (its own plus an external one).
- * Complete datasheet can be obtained from National's website at:
- *   http://www.national.com/ds.cgi/LM/LM95245.pdf
  *
  * This driver is based on lm95241.c
  *
@@ -33,8 +31,6 @@
 #include <linux/err.h>
 #include <linux/mutex.h>
 #include <linux/sysfs.h>
-
-#define DEVNAME "lm95245"
 
 static const unsigned short normal_i2c[] = {
 	0x18, 0x19, 0x29, 0x4c, 0x4d, I2C_CLIENT_END };
@@ -98,7 +94,8 @@ static const unsigned short normal_i2c[] = {
 #define STATUS1_LOC		0x01
 
 #define MANUFACTURER_ID		0x01
-#define DEFAULT_REVISION	0xB3
+#define LM95235_REVISION	0xB1
+#define LM95245_REVISION	0xB3
 
 static const u8 lm95245_reg_address[] = {
 	LM95245_REG_R_LOCAL_TEMPH_S,
@@ -427,17 +424,32 @@ static int lm95245_detect(struct i2c_client *new_client,
 			  struct i2c_board_info *info)
 {
 	struct i2c_adapter *adapter = new_client->adapter;
+	int address = new_client->addr;
+	const char *name;
+	int rev, id;
 
 	if (!i2c_check_functionality(adapter, I2C_FUNC_SMBUS_BYTE_DATA))
 		return -ENODEV;
 
-	if (i2c_smbus_read_byte_data(new_client, LM95245_REG_R_MAN_ID)
-			!= MANUFACTURER_ID
-		|| i2c_smbus_read_byte_data(new_client, LM95245_REG_R_CHIP_ID)
-			!= DEFAULT_REVISION)
+	id = i2c_smbus_read_byte_data(new_client, LM95245_REG_R_MAN_ID);
+	if (id != MANUFACTURER_ID)
 		return -ENODEV;
 
-	strlcpy(info->type, DEVNAME, I2C_NAME_SIZE);
+	rev = i2c_smbus_read_byte_data(new_client, LM95245_REG_R_CHIP_ID);
+	switch (rev) {
+	case LM95235_REVISION:
+		if (address != 0x18 && address != 0x29 && address != 0x4c)
+			return -ENODEV;
+		name = "lm95235";
+		break;
+	case LM95245_REVISION:
+		name = "lm95245";
+		break;
+	default:
+		return -ENODEV;
+	}
+
+	strlcpy(info->type, name, I2C_NAME_SIZE);
 	return 0;
 }
 
@@ -484,7 +496,8 @@ static int lm95245_probe(struct i2c_client *client,
 
 /* Driver data (common to all clients) */
 static const struct i2c_device_id lm95245_id[] = {
-	{ DEVNAME, 0 },
+	{ "lm95235", 0 },
+	{ "lm95245", 0 },
 	{ }
 };
 MODULE_DEVICE_TABLE(i2c, lm95245_id);
@@ -492,7 +505,7 @@ MODULE_DEVICE_TABLE(i2c, lm95245_id);
 static struct i2c_driver lm95245_driver = {
 	.class		= I2C_CLASS_HWMON,
 	.driver = {
-		.name	= DEVNAME,
+		.name	= "lm95245",
 	},
 	.probe		= lm95245_probe,
 	.id_table	= lm95245_id,
@@ -503,5 +516,5 @@ static struct i2c_driver lm95245_driver = {
 module_i2c_driver(lm95245_driver);
 
 MODULE_AUTHOR("Alexander Stein <alexander.stein@systec-electronic.com>");
-MODULE_DESCRIPTION("LM95245 sensor driver");
+MODULE_DESCRIPTION("LM95235/LM95245 sensor driver");
 MODULE_LICENSE("GPL");
