@@ -10,7 +10,7 @@ config X86_INTEL_PSTATE
 	  The driver implements an internal governor and will become
           the scaling driver and governor for Sandy bridge processors.
 
-	  When this driver is enabled it will become the perferred
+	  When this driver is enabled it will become the preferred
           scaling driver for Sandy bridge processors.
 
 	  If in doubt, say N.
@@ -52,7 +52,7 @@ config X86_ACPI_CPUFREQ_CPB
 	help
 	  The powernow-k8 driver used to provide a sysfs knob called "cpb"
 	  to disable the Core Performance Boosting feature of AMD CPUs. This
-	  file has now been superseeded by the more generic "boost" entry.
+	  file has now been superseded by the more generic "boost" entry.
 
 	  By enabling this option the acpi_cpufreq driver provides the old
 	  entry in addition to the new boost ones, for compatibility reasons.
