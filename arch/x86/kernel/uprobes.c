@@ -251,10 +251,9 @@ static inline bool is_64bit_mm(struct mm_struct *mm)
  * If arch_uprobe->insn doesn't use rip-relative addressing, return
  * immediately.  Otherwise, rewrite the instruction so that it accesses
  * its memory operand indirectly through a scratch register.  Set
- * arch_uprobe->fixups and arch_uprobe->rip_rela_target_address
- * accordingly.  (The contents of the scratch register will be saved
- * before we single-step the modified instruction, and restored
- * afterward.)
+ * def->fixups and def->riprel_target accordingly. (The contents of the
+ * scratch register will be saved before we single-step the modified
+ * instruction, and restored afterward).
  *
  * We do this because a rip-relative instruction can access only a
  * relatively small area (+/- 2 GB from the instruction), and the XOL
@@ -308,18 +307,18 @@ handle_riprel_insn(struct arch_uprobe *auprobe, struct insn *insn)
 		 * is NOT the register operand, so we use %rcx (register
 		 * #1) for the scratch register.
 		 */
-		auprobe->fixups = UPROBE_FIX_RIP_CX;
+		auprobe->def.fixups = UPROBE_FIX_RIP_CX;
 		/* Change modrm from 00 000 101 to 00 000 001. */
 		*cursor = 0x1;
 	} else {
 		/* Use %rax (register #0) for the scratch register. */
-		auprobe->fixups = UPROBE_FIX_RIP_AX;
+		auprobe->def.fixups = UPROBE_FIX_RIP_AX;
 		/* Change modrm from 00 xxx 101 to 00 xxx 000 */
 		*cursor = (reg << 3);
 	}
 
 	/* Target address = address of next instruction + (signed) offset */
-	auprobe->rip_rela_target_address = (long)insn->length + insn->displacement.value;
+	auprobe->def.riprel_target = (long)insn->length + insn->displacement.value;
 
 	/* Displacement field is gone; slide immediate field (if any) over. */
 	if (insn->immediate.nbytes) {
@@ -336,25 +335,25 @@ static void
 pre_xol_rip_insn(struct arch_uprobe *auprobe, struct pt_regs *regs,
 				struct arch_uprobe_task *autask)
 {
-	if (auprobe->fixups & UPROBE_FIX_RIP_AX) {
+	if (auprobe->def.fixups & UPROBE_FIX_RIP_AX) {
 		autask->saved_scratch_register = regs->ax;
 		regs->ax = current->utask->vaddr;
-		regs->ax += auprobe->rip_rela_target_address;
-	} else if (auprobe->fixups & UPROBE_FIX_RIP_CX) {
+		regs->ax += auprobe->def.riprel_target;
+	} else if (auprobe->def.fixups & UPROBE_FIX_RIP_CX) {
 		autask->saved_scratch_register = regs->cx;
 		regs->cx = current->utask->vaddr;
-		regs->cx += auprobe->rip_rela_target_address;
+		regs->cx += auprobe->def.riprel_target;
 	}
 }
 
 static void
 handle_riprel_post_xol(struct arch_uprobe *auprobe, struct pt_regs *regs, long *correction)
 {
-	if (auprobe->fixups & (UPROBE_FIX_RIP_AX | UPROBE_FIX_RIP_CX)) {
+	if (auprobe->def.fixups & (UPROBE_FIX_RIP_AX | UPROBE_FIX_RIP_CX)) {
 		struct arch_uprobe_task *autask;
 
 		autask = &current->utask->autask;
-		if (auprobe->fixups & UPROBE_FIX_RIP_AX)
+		if (auprobe->def.fixups & UPROBE_FIX_RIP_AX)
 			regs->ax = autask->saved_scratch_register;
 		else
 			regs->cx = autask->saved_scratch_register;
@@ -432,17 +431,17 @@ static int default_post_xol_op(struct arch_uprobe *auprobe, struct pt_regs *regs
 	long correction = (long)(utask->vaddr - utask->xol_vaddr);
 
 	handle_riprel_post_xol(auprobe, regs, &correction);
-	if (auprobe->fixups & UPROBE_FIX_IP)
+	if (auprobe->def.fixups & UPROBE_FIX_IP)
 		regs->ip += correction;
 
-	if (auprobe->fixups & UPROBE_FIX_CALL) {
+	if (auprobe->def.fixups & UPROBE_FIX_CALL) {
 		if (adjust_ret_addr(regs->sp, correction)) {
 			regs->sp += sizeof_long();
 			return -ERESTART;
 		}
 	}
 	/* popf; tell the caller to not touch TF */
-	if (auprobe->fixups & UPROBE_FIX_SETF)
+	if (auprobe->def.fixups & UPROBE_FIX_SETF)
 		utask->autask.saved_tf = true;
 
 	return 0;
@@ -646,13 +645,13 @@ int arch_uprobe_analyze_insn(struct arch_uprobe *auprobe, struct mm_struct *mm, 
 		return ret;
 
 	/*
-	 * Figure out which fixups arch_uprobe_post_xol() will need to perform,
-	 * and annotate arch_uprobe->fixups accordingly. To start with, ->fixups
-	 * is either zero or it reflects rip-related fixups.
+	 * Figure out which fixups default_post_xol_op() will need to perform,
+	 * and annotate def->fixups accordingly. To start with, ->fixups is
+	 * either zero or it reflects rip-related fixups.
 	 */
 	switch (OPCODE1(&insn)) {
 	case 0x9d:		/* popf */
-		auprobe->fixups |= UPROBE_FIX_SETF;
+		auprobe->def.fixups |= UPROBE_FIX_SETF;
 		break;
 	case 0xc3:		/* ret or lret -- ip is correct */
 	case 0xcb:
@@ -680,9 +679,9 @@ int arch_uprobe_analyze_insn(struct arch_uprobe *auprobe, struct mm_struct *mm, 
 	}
 
 	if (fix_ip)
-		auprobe->fixups |= UPROBE_FIX_IP;
+		auprobe->def.fixups |= UPROBE_FIX_IP;
 	if (fix_call)
-		auprobe->fixups |= UPROBE_FIX_CALL;
+		auprobe->def.fixups |= UPROBE_FIX_CALL;
 
 	auprobe->ops = &default_xol_ops;
 	return 0;
