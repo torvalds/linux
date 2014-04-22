@@ -384,7 +384,7 @@ static int soc_widget_read(struct snd_soc_dapm_widget *w, int reg,
 	return snd_soc_component_read(w->dapm->component, reg, value);
 }
 
-static int soc_widget_update_bits_locked(struct snd_soc_dapm_widget *w,
+static int soc_widget_update_bits(struct snd_soc_dapm_widget *w,
 	int reg, unsigned int mask, unsigned int value)
 {
 	if (!w->dapm->component)
@@ -1071,7 +1071,7 @@ int dapm_reg_event(struct snd_soc_dapm_widget *w,
 	else
 		val = w->off_val;
 
-	soc_widget_update_bits_locked(w, -(w->reg + 1),
+	soc_widget_update_bits(w, -(w->reg + 1),
 			    w->mask << w->shift, val << w->shift);
 
 	return 0;
@@ -1367,7 +1367,7 @@ static void dapm_seq_run_coalesced(struct snd_soc_card *card,
 			"pop test : Applying 0x%x/0x%x to %x in %dms\n",
 			value, mask, reg, card->pop_time);
 		pop_wait(card->pop_time);
-		soc_widget_update_bits_locked(w, reg, mask, value);
+		soc_widget_update_bits(w, reg, mask, value);
 	}
 
 	list_for_each_entry(w, pending, power_list) {
@@ -1513,8 +1513,7 @@ static void dapm_widget_update(struct snd_soc_card *card)
 	if (!w)
 		return;
 
-	ret = soc_widget_update_bits_locked(w, update->reg, update->mask,
-				  update->val);
+	ret = soc_widget_update_bits(w, update->reg, update->mask, update->val);
 	if (ret < 0)
 		dev_err(w->dapm->dev, "ASoC: %s DAPM update failed: %d\n",
 			w->name, ret);
