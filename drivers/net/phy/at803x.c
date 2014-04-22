@@ -253,8 +253,7 @@ static int __init atheros_init(void)
 
 static void __exit atheros_exit(void)
 {
-	return phy_drivers_unregister(at803x_driver,
-				      ARRAY_SIZE(at803x_driver));
+	phy_drivers_unregister(at803x_driver, ARRAY_SIZE(at803x_driver));
 }
 
 module_init(atheros_init);
