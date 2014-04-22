@@ -104,7 +104,7 @@ union ieee754sp ieee754sp_sub(union ieee754sp x, union ieee754sp y)
 	case CLPAIR(IEEE754_CLASS_ZERO, IEEE754_CLASS_NORM):
 	case CLPAIR(IEEE754_CLASS_ZERO, IEEE754_CLASS_DNORM):
 		/* quick fix up */
-		DPSIGN(y) ^= 1;
+		SPSIGN(y) ^= 1;
 		return y;
 
 	case CLPAIR(IEEE754_CLASS_DNORM, IEEE754_CLASS_DNORM):
