@@ -85,6 +85,7 @@ int devm_snd_soc_register_platform(struct device *dev,
 
 	return ret;
 }
+EXPORT_SYMBOL_GPL(devm_snd_soc_register_platform);
 
 static void devm_card_release(struct device *dev, void *res)
 {
