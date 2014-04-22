@@ -859,7 +859,7 @@ int64_t opal_lpc_read(uint32_t chip_id, enum OpalLPCAddressType addr_type,
 		      uint32_t addr, __be32 *data, uint32_t sz);
 
 int64_t opal_read_elog(uint64_t buffer, uint64_t size, uint64_t log_id);
-int64_t opal_get_elog_size(uint64_t *log_id, uint64_t *size, uint64_t *elog_type);
+int64_t opal_get_elog_size(__be64 *log_id, __be64 *size, __be64 *elog_type);
 int64_t opal_write_elog(uint64_t buffer, uint64_t size, uint64_t offset);
 int64_t opal_send_ack_elog(uint64_t log_id);
 void opal_resend_pending_logs(void);
