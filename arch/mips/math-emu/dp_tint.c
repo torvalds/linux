@@ -54,9 +54,9 @@ int ieee754dp_tint(union ieee754dp x)
 		return ieee754si_xcpt(ieee754si_indef(), "dp_tint", x);
 	}
 	/* oh gawd */
-	if (xe > DP_MBITS) {
-		xm <<= xe - DP_MBITS;
-	} else if (xe < DP_MBITS) {
+	if (xe > DP_FBITS) {
+		xm <<= xe - DP_FBITS;
+	} else if (xe < DP_FBITS) {
 		u64 residue;
 		int round;
 		int sticky;
@@ -68,10 +68,10 @@ int ieee754dp_tint(union ieee754dp x)
 			sticky = residue != 0;
 			xm = 0;
 		} else {
-			residue = xm << (64 - DP_MBITS + xe);
+			residue = xm << (64 - DP_FBITS + xe);
 			round = (residue >> 63) != 0;
 			sticky = (residue << 1) != 0;
-			xm >>= DP_MBITS - xe;
+			xm >>= DP_FBITS - xe;
 		}
 		/* Note: At this point upper 32 bits of xm are guaranteed
 		   to be zero */

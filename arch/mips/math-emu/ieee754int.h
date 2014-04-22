@@ -31,19 +31,19 @@
 #define DP_EBIAS	1023
 #define DP_EMIN		(-1022)
 #define DP_EMAX		1023
-#define DP_MBITS	52
+#define DP_FBITS	52
 
 #define SP_EBIAS	127
 #define SP_EMIN		(-126)
 #define SP_EMAX		127
-#define SP_MBITS	23
+#define SP_FBITS	23
 
 #define DP_MBIT(x)	((u64)1 << (x))
-#define DP_HIDDEN_BIT	DP_MBIT(DP_MBITS)
+#define DP_HIDDEN_BIT	DP_MBIT(DP_FBITS)
 #define DP_SIGN_BIT	DP_MBIT(63)
 
 #define SP_MBIT(x)	((u32)1 << (x))
-#define SP_HIDDEN_BIT	SP_MBIT(SP_MBITS)
+#define SP_HIDDEN_BIT	SP_MBIT(SP_FBITS)
 #define SP_SIGN_BIT	SP_MBIT(31)
 
 
@@ -94,7 +94,7 @@ static inline int ieee754_tstx(void)
 	if (ve == SP_EMAX+1+SP_EBIAS) {					\
 		if (vm == 0)						\
 			vc = IEEE754_CLASS_INF;				\
-		else if (vm & SP_MBIT(SP_MBITS-1))			\
+		else if (vm & SP_MBIT(SP_FBITS-1))			\
 			vc = IEEE754_CLASS_SNAN;			\
 	else								\
 		vc = IEEE754_CLASS_QNAN;				\
@@ -128,7 +128,7 @@ static inline int ieee754_tstx(void)
 	if (ve == DP_EMAX+1+DP_EBIAS) {					\
 		if (vm == 0)						\
 			vc = IEEE754_CLASS_INF;				\
-		else if (vm & DP_MBIT(DP_MBITS-1))			\
+		else if (vm & DP_MBIT(DP_FBITS-1))			\
 			vc = IEEE754_CLASS_SNAN;			\
 		else							\
 			vc = IEEE754_CLASS_QNAN;			\

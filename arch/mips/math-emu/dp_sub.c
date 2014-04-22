@@ -158,7 +158,7 @@ union ieee754dp ieee754dp_sub(union ieee754dp x, union ieee754dp y)
 		xe = xe;
 		xs = xs;
 
-		if (xm >> (DP_MBITS + 1 + 3)) { /* carry out */
+		if (xm >> (DP_FBITS + 1 + 3)) { /* carry out */
 			xm = XDPSRS1(xm);	/* shift preserving sticky */
 			xe++;
 		}
@@ -181,7 +181,7 @@ union ieee754dp ieee754dp_sub(union ieee754dp x, union ieee754dp y)
 
 		/* normalize to rounding precision
 		 */
-		while ((xm >> (DP_MBITS + 3)) == 0) {
+		while ((xm >> (DP_FBITS + 3)) == 0) {
 			xm <<= 1;
 			xe--;
 		}

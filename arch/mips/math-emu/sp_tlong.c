@@ -57,9 +57,9 @@ s64 ieee754sp_tlong(union ieee754sp x)
 		return ieee754di_xcpt(ieee754di_indef(), "sp_tlong", x);
 	}
 	/* oh gawd */
-	if (xe > SP_MBITS) {
-		xm <<= xe - SP_MBITS;
-	} else if (xe < SP_MBITS) {
+	if (xe > SP_FBITS) {
+		xm <<= xe - SP_FBITS;
+	} else if (xe < SP_FBITS) {
 		u32 residue;
 		int round;
 		int sticky;
@@ -71,10 +71,10 @@ s64 ieee754sp_tlong(union ieee754sp x)
 			sticky = residue != 0;
 			xm = 0;
 		} else {
-			residue = xm << (32 - SP_MBITS + xe);
+			residue = xm << (32 - SP_FBITS + xe);
 			round = (residue >> 31) != 0;
 			sticky = (residue << 1) != 0;
-			xm >>= SP_MBITS - xe;
+			xm >>= SP_FBITS - xe;
 		}
 		odd = (xm & 0x1) != 0x0;
 		switch (ieee754_csr.rm) {

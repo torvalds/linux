@@ -32,7 +32,7 @@
 
 /* 3bit extended double precision sticky right shift */
 #define XDPSRS(v,rs)	\
-	((rs > (DP_MBITS+3))?1:((v) >> (rs)) | ((v) << (64-(rs)) != 0))
+	((rs > (DP_FBITS+3))?1:((v) >> (rs)) | ((v) << (64-(rs)) != 0))
 
 #define XDPSRSX1() \
 	(xe++, (xm = (xm >> 1) | (xm & 1)))
@@ -42,7 +42,7 @@
 
 /* convert denormal to normalized with extended exponent */
 #define DPDNORMx(m,e) \
-	while ((m >> DP_MBITS) == 0) { m <<= 1; e--; }
+	while ((m >> DP_FBITS) == 0) { m <<= 1; e--; }
 #define DPDNORMX	DPDNORMx(xm, xe)
 #define DPDNORMY	DPDNORMx(ym, ye)
 
@@ -53,7 +53,7 @@ static inline union ieee754dp builddp(int s, int bx, u64 m)
 	assert((s) == 0 || (s) == 1);
 	assert((bx) >= DP_EMIN - 1 + DP_EBIAS
 	       && (bx) <= DP_EMAX + 1 + DP_EBIAS);
-	assert(((m) >> DP_MBITS) == 0);
+	assert(((m) >> DP_FBITS) == 0);
 
 	r.parts.sign = s;
 	r.parts.bexp = bx;

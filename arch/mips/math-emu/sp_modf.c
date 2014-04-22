@@ -54,24 +54,24 @@ union ieee754sp ieee754sp_modf(union ieee754sp x, union ieee754sp *ip)
 		*ip = ieee754sp_zero(xs);
 		return x;
 	}
-	if (xe >= SP_MBITS) {
+	if (xe >= SP_FBITS) {
 		*ip = x;
 		return ieee754sp_zero(xs);
 	}
 	/* generate ipart mantissa by clearing bottom bits
 	 */
 	*ip = buildsp(xs, xe + SP_EBIAS,
-		      ((xm >> (SP_MBITS - xe)) << (SP_MBITS - xe)) &
+		      ((xm >> (SP_FBITS - xe)) << (SP_FBITS - xe)) &
 		      ~SP_HIDDEN_BIT);
 
 	/* generate fpart mantissa by clearing top bits
 	 * and normalizing (must be able to normalize)
 	 */
-	xm = (xm << (32 - (SP_MBITS - xe))) >> (32 - (SP_MBITS - xe));
+	xm = (xm << (32 - (SP_FBITS - xe))) >> (32 - (SP_FBITS - xe));
 	if (xm == 0)
 		return ieee754sp_zero(xs);
 
-	while ((xm >> SP_MBITS) == 0) {
+	while ((xm >> SP_FBITS) == 0) {
 		xm <<= 1;
 		xe--;
 	}

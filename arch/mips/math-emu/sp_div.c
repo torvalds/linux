@@ -129,7 +129,7 @@ union ieee754sp ieee754sp_div(union ieee754sp x, union ieee754sp y)
 		int re = xe - ye;
 		unsigned bm;
 
-		for (bm = SP_MBIT(SP_MBITS + 2); bm; bm >>= 1) {
+		for (bm = SP_MBIT(SP_FBITS + 2); bm; bm >>= 1) {
 			if (xm >= ym) {
 				xm -= ym;
 				rm |= bm;
@@ -146,7 +146,7 @@ union ieee754sp ieee754sp_div(union ieee754sp x, union ieee754sp y)
 
 		/* normalise rm to rounding precision ?
 		 */
-		while ((rm >> (SP_MBITS + 3)) == 0) {
+		while ((rm >> (SP_FBITS + 3)) == 0) {
 			rm <<= 1;
 			re--;
 		}

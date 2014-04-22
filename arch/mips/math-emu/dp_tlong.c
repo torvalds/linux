@@ -57,9 +57,9 @@ s64 ieee754dp_tlong(union ieee754dp x)
 		return ieee754di_xcpt(ieee754di_indef(), "dp_tlong", x);
 	}
 	/* oh gawd */
-	if (xe > DP_MBITS) {
-		xm <<= xe - DP_MBITS;
-	} else if (xe < DP_MBITS) {
+	if (xe > DP_FBITS) {
+		xm <<= xe - DP_FBITS;
+	} else if (xe < DP_FBITS) {
 		u64 residue;
 		int round;
 		int sticky;
@@ -75,10 +75,10 @@ s64 ieee754dp_tlong(union ieee754dp x)
 			* so we do it in two steps. Be aware that xe
 			* may be -1 */
 			residue = xm << (xe + 1);
-			residue <<= 63 - DP_MBITS;
+			residue <<= 63 - DP_FBITS;
 			round = (residue >> 63) != 0;
 			sticky = (residue << 1) != 0;
-			xm >>= DP_MBITS - xe;
+			xm >>= DP_FBITS - xe;
 		}
 		odd = (xm & 0x1) != 0x0;
 		switch (ieee754_csr.rm) {

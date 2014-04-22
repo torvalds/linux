@@ -44,8 +44,8 @@ union ieee754dp ieee754dp_fsp(union ieee754sp x)
 		return ieee754dp_nanxcpt(builddp(xs,
 						 DP_EMAX + 1 + DP_EBIAS,
 						 ((u64) xm
-						  << (DP_MBITS -
-						      SP_MBITS))), "fsp",
+						  << (DP_FBITS -
+						      SP_FBITS))), "fsp",
 					 x);
 	case IEEE754_CLASS_INF:
 		return ieee754dp_inf(xs);
@@ -53,7 +53,7 @@ union ieee754dp ieee754dp_fsp(union ieee754sp x)
 		return ieee754dp_zero(xs);
 	case IEEE754_CLASS_DNORM:
 		/* normalize */
-		while ((xm >> SP_MBITS) == 0) {
+		while ((xm >> SP_FBITS) == 0) {
 			xm <<= 1;
 			xe--;
 		}
@@ -69,5 +69,5 @@ union ieee754dp ieee754dp_fsp(union ieee754sp x)
 	xm &= ~SP_HIDDEN_BIT;
 
 	return builddp(xs, xe + DP_EBIAS,
-		       (u64) xm << (DP_MBITS - SP_MBITS));
+		       (u64) xm << (DP_FBITS - SP_FBITS));
 }

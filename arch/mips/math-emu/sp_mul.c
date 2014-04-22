@@ -114,8 +114,8 @@ union ieee754sp ieee754sp_mul(union ieee754sp x, union ieee754sp y)
 		unsigned rm;
 
 		/* shunt to top of word */
-		xm <<= 32 - (SP_MBITS + 1);
-		ym <<= 32 - (SP_MBITS + 1);
+		xm <<= 32 - (SP_FBITS + 1);
+		ym <<= 32 - (SP_FBITS + 1);
 
 		/* multiply 32bits xm,ym to give high 32bits rm with stickness
 		 */
@@ -156,12 +156,12 @@ union ieee754sp ieee754sp_mul(union ieee754sp x, union ieee754sp y)
 		 * sticky shift down to normal rounding precision
 		 */
 		if ((int) rm < 0) {
-			rm = (rm >> (32 - (SP_MBITS + 1 + 3))) |
-			    ((rm << (SP_MBITS + 1 + 3)) != 0);
+			rm = (rm >> (32 - (SP_FBITS + 1 + 3))) |
+			    ((rm << (SP_FBITS + 1 + 3)) != 0);
 			re++;
 		} else {
-			rm = (rm >> (32 - (SP_MBITS + 1 + 3 + 1))) |
-			    ((rm << (SP_MBITS + 1 + 3 + 1)) != 0);
+			rm = (rm >> (32 - (SP_FBITS + 1 + 3 + 1))) |
+			    ((rm << (SP_FBITS + 1 + 3 + 1)) != 0);
 		}
 		assert(rm & (SP_HIDDEN_BIT << 3));
 

@@ -113,8 +113,8 @@ union ieee754dp ieee754dp_mul(union ieee754dp x, union ieee754dp y)
 		u64 rm;
 
 		/* shunt to top of word */
-		xm <<= 64 - (DP_MBITS + 1);
-		ym <<= 64 - (DP_MBITS + 1);
+		xm <<= 64 - (DP_FBITS + 1);
+		ym <<= 64 - (DP_FBITS + 1);
 
 		/* multiply 32bits xm,ym to give high 32bits rm with stickness
 		 */
@@ -162,13 +162,13 @@ union ieee754dp ieee754dp_mul(union ieee754dp x, union ieee754dp y)
 		 */
 		if ((s64) rm < 0) {
 			rm =
-			    (rm >> (64 - (DP_MBITS + 1 + 3))) |
-			    ((rm << (DP_MBITS + 1 + 3)) != 0);
+			    (rm >> (64 - (DP_FBITS + 1 + 3))) |
+			    ((rm << (DP_FBITS + 1 + 3)) != 0);
 			re++;
 		} else {
 			rm =
-			    (rm >> (64 - (DP_MBITS + 1 + 3 + 1))) |
-			    ((rm << (DP_MBITS + 1 + 3 + 1)) != 0);
+			    (rm >> (64 - (DP_FBITS + 1 + 3 + 1))) |
+			    ((rm << (DP_FBITS + 1 + 3 + 1)) != 0);
 		}
 		assert(rm & (DP_HIDDEN_BIT << 3));
 		DPNORMRET2(rs, re, rm, "mul", x, y);

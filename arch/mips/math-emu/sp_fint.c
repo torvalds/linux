@@ -50,18 +50,18 @@ union ieee754sp ieee754sp_fint(int x)
 	} else {
 		xm = x;
 	}
-	xe = SP_MBITS + 3;
+	xe = SP_FBITS + 3;
 
-	if (xm >> (SP_MBITS + 1 + 3)) {
+	if (xm >> (SP_FBITS + 1 + 3)) {
 		/* shunt out overflow bits
 		 */
-		while (xm >> (SP_MBITS + 1 + 3)) {
+		while (xm >> (SP_FBITS + 1 + 3)) {
 			SPXSRSX1();
 		}
 	} else {
 		/* normalize in grs extended single precision
 		 */
-		while ((xm >> (SP_MBITS + 3)) == 0) {
+		while ((xm >> (SP_FBITS + 3)) == 0) {
 			xm <<= 1;
 			xe--;
 		}

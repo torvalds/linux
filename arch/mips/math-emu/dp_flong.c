@@ -52,15 +52,15 @@ union ieee754dp ieee754dp_flong(s64 x)
 	}
 
 	/* normalize */
-	xe = DP_MBITS + 3;
-	if (xm >> (DP_MBITS + 1 + 3)) {
+	xe = DP_FBITS + 3;
+	if (xm >> (DP_FBITS + 1 + 3)) {
 		/* shunt out overflow bits */
-		while (xm >> (DP_MBITS + 1 + 3)) {
+		while (xm >> (DP_FBITS + 1 + 3)) {
 			XDPSRSX1();
 		}
 	} else {
 		/* normalize in grs extended double precision */
-		while ((xm >> (DP_MBITS + 3)) == 0) {
+		while ((xm >> (DP_FBITS + 3)) == 0) {
 			xm <<= 1;
 			xe--;
 		}

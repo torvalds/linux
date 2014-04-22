@@ -129,7 +129,7 @@ union ieee754dp ieee754dp_div(union ieee754dp x, union ieee754dp y)
 		int re = xe - ye;
 		u64 bm;
 
-		for (bm = DP_MBIT(DP_MBITS + 2); bm; bm >>= 1) {
+		for (bm = DP_MBIT(DP_FBITS + 2); bm; bm >>= 1) {
 			if (xm >= ym) {
 				xm -= ym;
 				rm |= bm;
@@ -146,7 +146,7 @@ union ieee754dp ieee754dp_div(union ieee754dp x, union ieee754dp y)
 
 		/* normalise rm to rounding precision ?
 		 */
-		while ((rm >> (DP_MBITS + 3)) == 0) {
+		while ((rm >> (DP_FBITS + 3)) == 0) {
 			rm <<= 1;
 			re--;
 		}

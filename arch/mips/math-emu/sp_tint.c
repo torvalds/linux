@@ -57,8 +57,8 @@ int ieee754sp_tint(union ieee754sp x)
 		return ieee754si_xcpt(ieee754si_indef(), "sp_tint", x);
 	}
 	/* oh gawd */
-	if (xe > SP_MBITS) {
-		xm <<= xe - SP_MBITS;
+	if (xe > SP_FBITS) {
+		xm <<= xe - SP_FBITS;
 	} else {
 		u32 residue;
 		int round;
@@ -75,10 +75,10 @@ int ieee754sp_tint(union ieee754sp x)
 			* so we do it in two steps. Be aware that xe
 			* may be -1 */
 			residue = xm << (xe + 1);
-			residue <<= 31 - SP_MBITS;
+			residue <<= 31 - SP_FBITS;
 			round = (residue >> 31) != 0;
 			sticky = (residue << 1) != 0;
-			xm >>= SP_MBITS - xe;
+			xm >>= SP_FBITS - xe;
 		}
 		odd = (xm & 0x1) != 0x0;
 		switch (ieee754_csr.rm) {

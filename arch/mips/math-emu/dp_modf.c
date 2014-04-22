@@ -54,24 +54,24 @@ union ieee754dp ieee754dp_modf(union ieee754dp x, union ieee754dp *ip)
 		*ip = ieee754dp_zero(xs);
 		return x;
 	}
-	if (xe >= DP_MBITS) {
+	if (xe >= DP_FBITS) {
 		*ip = x;
 		return ieee754dp_zero(xs);
 	}
 	/* generate ipart mantissa by clearing bottom bits
 	 */
 	*ip = builddp(xs, xe + DP_EBIAS,
-		      ((xm >> (DP_MBITS - xe)) << (DP_MBITS - xe)) &
+		      ((xm >> (DP_FBITS - xe)) << (DP_FBITS - xe)) &
 		      ~DP_HIDDEN_BIT);
 
 	/* generate fpart mantissa by clearing top bits
 	 * and normalizing (must be able to normalize)
 	 */
-	xm = (xm << (64 - (DP_MBITS - xe))) >> (64 - (DP_MBITS - xe));
+	xm = (xm << (64 - (DP_FBITS - xe))) >> (64 - (DP_FBITS - xe));
 	if (xm == 0)
 		return ieee754dp_zero(xs);
 
-	while ((xm >> DP_MBITS) == 0) {
+	while ((xm >> DP_FBITS) == 0) {
 		xm <<= 1;
 		xe--;
 	}

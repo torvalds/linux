@@ -43,7 +43,7 @@ int ieee754sp_isnan(union ieee754sp x)
 int ieee754sp_issnan(union ieee754sp x)
 {
 	assert(ieee754sp_isnan(x));
-	return (SPMANT(x) & SP_MBIT(SP_MBITS-1));
+	return (SPMANT(x) & SP_MBIT(SP_FBITS-1));
 }
 
 
@@ -74,7 +74,7 @@ union ieee754sp __cold ieee754sp_nanxcpt(union ieee754sp r, const char *op, ...)
 
 	if (!ieee754_setandtestcx(IEEE754_INVALID_OPERATION)) {
 		/* not enabled convert to a quiet NaN */
-		SPMANT(r) &= (~SP_MBIT(SP_MBITS-1));
+		SPMANT(r) &= (~SP_MBIT(SP_FBITS-1));
 		if (ieee754sp_isnan(r))
 			return r;
 		else
@@ -137,7 +137,7 @@ union ieee754sp ieee754sp_format(int sn, int xe, unsigned xm)
 {
 	assert(xm);		/* we don't gen exact zeros (probably should) */
 
-	assert((xm >> (SP_MBITS + 1 + 3)) == 0);	/* no execess */
+	assert((xm >> (SP_FBITS + 1 + 3)) == 0);	/* no execess */
 	assert(xm & (SP_HIDDEN_BIT << 3));
 
 	if (xe < SP_EMIN) {
@@ -166,7 +166,7 @@ union ieee754sp ieee754sp_format(int sn, int xe, unsigned xm)
 		}
 
 		if (xe == SP_EMIN - 1
-				&& get_rounding(sn, xm) >> (SP_MBITS + 1 + 3))
+				&& get_rounding(sn, xm) >> (SP_FBITS + 1 + 3))
 		{
 			/* Not tiny after rounding */
 			ieee754_setcx(IEEE754_INEXACT);
@@ -194,7 +194,7 @@ union ieee754sp ieee754sp_format(int sn, int xe, unsigned xm)
 		xm = get_rounding(sn, xm);
 		/* adjust exponent for rounding add overflowing
 		 */
-		if (xm >> (SP_MBITS + 1 + 3)) {
+		if (xm >> (SP_FBITS + 1 + 3)) {
 			/* add causes mantissa overflow */
 			xm >>= 1;
 			xe++;
@@ -203,7 +203,7 @@ union ieee754sp ieee754sp_format(int sn, int xe, unsigned xm)
 	/* strip grs bits */
 	xm >>= 3;
 
-	assert((xm >> (SP_MBITS + 1)) == 0);	/* no execess */
+	assert((xm >> (SP_FBITS + 1)) == 0);	/* no execess */
 	assert(xe >= SP_EMIN);
 
 	if (xe > SP_EMAX) {
@@ -236,7 +236,7 @@ union ieee754sp ieee754sp_format(int sn, int xe, unsigned xm)
 			ieee754_setcx(IEEE754_UNDERFLOW);
 		return buildsp(sn, SP_EMIN - 1 + SP_EBIAS, xm);
 	} else {
-		assert((xm >> (SP_MBITS + 1)) == 0);	/* no execess */
+		assert((xm >> (SP_FBITS + 1)) == 0);	/* no execess */
 		assert(xm & SP_HIDDEN_BIT);
 
 		return buildsp(sn, xe + SP_EBIAS, xm & ~SP_HIDDEN_BIT);

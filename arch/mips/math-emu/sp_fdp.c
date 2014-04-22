@@ -43,7 +43,7 @@ union ieee754sp ieee754sp_fdp(union ieee754dp x)
 		return ieee754sp_nanxcpt(ieee754sp_indef(), "fdp");
 	case IEEE754_CLASS_QNAN:
 		nan = buildsp(xs, SP_EMAX + 1 + SP_EBIAS, (u32)
-				(xm >> (DP_MBITS - SP_MBITS)));
+				(xm >> (DP_FBITS - SP_FBITS)));
 		if (!ieee754sp_isnan(nan))
 			nan = ieee754sp_indef();
 		return ieee754sp_nanxcpt(nan, "fdp", x);
@@ -66,10 +66,10 @@ union ieee754sp ieee754sp_fdp(union ieee754dp x)
 	{
 		u32 rm;
 
-		/* convert from DP_MBITS to SP_MBITS+3 with sticky right shift
+		/* convert from DP_FBITS to SP_FBITS+3 with sticky right shift
 		 */
-		rm = (xm >> (DP_MBITS - (SP_MBITS + 3))) |
-		    ((xm << (64 - (DP_MBITS - (SP_MBITS + 3)))) != 0);
+		rm = (xm >> (DP_FBITS - (SP_FBITS + 3))) |
+		    ((xm << (64 - (DP_FBITS - (SP_FBITS + 3)))) != 0);
 
 		SPNORMRET1(xs, xe, rm, "fdp", x);
 	}
