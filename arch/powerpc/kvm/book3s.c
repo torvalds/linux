@@ -634,6 +634,9 @@ int kvm_vcpu_ioctl_get_one_reg(struct kvm_vcpu *vcpu, struct kvm_one_reg *reg)
 		case KVM_REG_PPC_FSCR:
 			val = get_reg_val(reg->id, vcpu->arch.fscr);
 			break;
+		case KVM_REG_PPC_TAR:
+			val = get_reg_val(reg->id, vcpu->arch.tar);
+			break;
 		default:
 			r = -EINVAL;
 			break;
@@ -725,6 +728,9 @@ int kvm_vcpu_ioctl_set_one_reg(struct kvm_vcpu *vcpu, struct kvm_one_reg *reg)
 #endif /* CONFIG_KVM_XICS */
 		case KVM_REG_PPC_FSCR:
 			vcpu->arch.fscr = set_reg_val(reg->id, val);
+			break;
+		case KVM_REG_PPC_TAR:
+			vcpu->arch.tar = set_reg_val(reg->id, val);
 			break;
 		default:
 			r = -EINVAL;

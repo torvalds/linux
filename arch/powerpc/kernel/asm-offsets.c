@@ -446,7 +446,9 @@ int main(void)
 	DEFINE(VCPU_XER, offsetof(struct kvm_vcpu, arch.xer));
 	DEFINE(VCPU_CTR, offsetof(struct kvm_vcpu, arch.ctr));
 	DEFINE(VCPU_LR, offsetof(struct kvm_vcpu, arch.lr));
+#ifdef CONFIG_PPC_BOOK3S
 	DEFINE(VCPU_TAR, offsetof(struct kvm_vcpu, arch.tar));
+#endif
 	DEFINE(VCPU_CR, offsetof(struct kvm_vcpu, arch.cr));
 	DEFINE(VCPU_PC, offsetof(struct kvm_vcpu, arch.pc));
 #ifdef CONFIG_KVM_BOOK3S_HV_POSSIBLE

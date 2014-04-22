@@ -90,6 +90,7 @@ static void kvmppc_core_vcpu_put_pr(struct kvm_vcpu *vcpu)
 #endif
 
 	kvmppc_giveup_ext(vcpu, MSR_FP | MSR_VEC | MSR_VSX);
+	kvmppc_giveup_fac(vcpu, FSCR_TAR_LG);
 	vcpu->cpu = -1;
 }
 
@@ -625,6 +626,14 @@ static void kvmppc_giveup_fac(struct kvm_vcpu *vcpu, ulong fac)
 		/* Facility not available to the guest, ignore giveup request*/
 		return;
 	}
+
+	switch (fac) {
+	case FSCR_TAR_LG:
+		vcpu->arch.tar = mfspr(SPRN_TAR);
+		mtspr(SPRN_TAR, current->thread.tar);
+		vcpu->arch.shadow_fscr &= ~FSCR_TAR;
+		break;
+	}
 #endif
 }
 
@@ -794,6 +803,12 @@ static int kvmppc_handle_fac(struct kvm_vcpu *vcpu, ulong fac)
 	}
 
 	switch (fac) {
+	case FSCR_TAR_LG:
+		/* TAR switching isn't lazy in Linux yet */
+		current->thread.tar = mfspr(SPRN_TAR);
+		mtspr(SPRN_TAR, vcpu->arch.tar);
+		vcpu->arch.shadow_fscr |= FSCR_TAR;
+		break;
 	default:
 		kvmppc_emulate_fac(vcpu, fac);
 		break;
@@ -1392,6 +1407,9 @@ static int kvmppc_vcpu_run_pr(struct kvm_run *kvm_run, struct kvm_vcpu *vcpu)
 
 	/* Make sure we save the guest FPU/Altivec/VSX state */
 	kvmppc_giveup_ext(vcpu, MSR_FP | MSR_VEC | MSR_VSX);
+
+	/* Make sure we save the guest TAR/EBB/DSCR state */
+	kvmppc_giveup_fac(vcpu, FSCR_TAR_LG);
 
 out:
 	vcpu->mode = OUTSIDE_GUEST_MODE;
