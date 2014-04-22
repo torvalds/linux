@@ -26,7 +26,6 @@
 #include <linux/sched.h>
 #include <linux/ptrace.h>
 #include <uapi/linux/audit.h>
-#include <asm/syscall.h>
 
 struct audit_sig_info {
 	uid_t		uid;
@@ -110,6 +109,8 @@ extern void audit_log_session_info(struct audit_buffer *ab);
 #endif
 
 #ifdef CONFIG_AUDITSYSCALL
+#include <asm/syscall.h> /* for syscall_get_arch() */
+
 /* These are defined in auditsc.c */
 				/* Public API */
 extern int  audit_alloc(struct task_struct *task);
