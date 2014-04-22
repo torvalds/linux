@@ -99,10 +99,6 @@ static void paravirt_smp_finish(void)
 	local_irq_enable();
 }
 
-static void paravirt_cpus_done(void)
-{
-}
-
 static void paravirt_boot_secondary(int cpu, struct task_struct *idle)
 {
 	paravirt_smp_gp[cpu] = (unsigned long)task_thread_info(idle);
@@ -141,7 +137,6 @@ struct plat_smp_ops paravirt_smp_ops = {
 	.send_ipi_mask		= paravirt_send_ipi_mask,
 	.init_secondary		= paravirt_init_secondary,
 	.smp_finish		= paravirt_smp_finish,
-	.cpus_done		= paravirt_cpus_done,
 	.boot_secondary		= paravirt_boot_secondary,
 	.smp_setup		= paravirt_smp_setup,
 	.prepare_cpus		= paravirt_prepare_cpus,
