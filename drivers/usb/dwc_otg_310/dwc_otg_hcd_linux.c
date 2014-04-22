@@ -415,9 +415,9 @@ static void dwc_otg_hcd_connect_detect(unsigned long pdata)
 	return;
 }
 
-static void otg20_hcd_connect_detect(unsigned long pdata)
+static void otg20_hcd_connect_detect(struct work_struct *work)
 {
-	dwc_otg_hcd_t *dwc_otg_hcd = (dwc_otg_hcd_t *)pdata;
+	dwc_otg_hcd_t *dwc_otg_hcd = container_of(work, dwc_otg_hcd_t, host_enable_work.work);
 	dwc_otg_core_if_t *core_if = dwc_otg_hcd->core_if;
 	struct dwc_otg_platform_data *pldata;
 	pldata = core_if->otg_dev->pldata;
@@ -519,10 +519,8 @@ int otg20_hcd_init( struct platform_device *_dev )
 	dwc_otg_hcd->host_enabled = 1;
 	if(dwc_otg_is_host_mode(otg_dev->core_if) ||
 	  (otg_dev->core_if->usb_mode == USB_MODE_FORCE_HOST)){
-		dwc_otg_hcd->connect_detect_timer.function = otg20_hcd_connect_detect;
-		dwc_otg_hcd->connect_detect_timer.data = (unsigned long)(dwc_otg_hcd);
-		init_timer( &dwc_otg_hcd->connect_detect_timer);
-		mod_timer(&dwc_otg_hcd->connect_detect_timer, jiffies+(HZ>>2));
+		INIT_DELAYED_WORK(&dwc_otg_hcd->host_enable_work, otg20_hcd_connect_detect);
+		schedule_delayed_work(&dwc_otg_hcd->host_enable_work, HZ>>2);
 	}
 	return 0;
 
