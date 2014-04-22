@@ -7,7 +7,8 @@
  */
 
 /dts-v1/;
-/include/ "orion5x.dtsi"
+
+#include "orion5x.dtsi"
 
 / {
 	model = "LaCie Ethernet Disk mini V2";
