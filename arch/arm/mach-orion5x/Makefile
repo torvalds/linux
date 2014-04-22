@@ -23,3 +23,4 @@ obj-$(CONFIG_MACH_RD88F6183AP_GE)	+= rd88f6183ap-ge-setup.o
 obj-$(CONFIG_MACH_LINKSTATION_LSCHL)	+= ls-chl-setup.o
 
 obj-$(CONFIG_ARCH_ORION5X_DT)		+= board-dt.o
+obj-$(CONFIG_MACH_RD88F5182_DT)	+= board-rd88f5182.o
