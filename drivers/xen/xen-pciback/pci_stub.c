@@ -242,6 +242,15 @@ struct pci_dev *pcistub_get_pci_dev(struct xen_pcibk_device *pdev,
 	return found_dev;
 }
 
+/*
+ * Called when:
+ *  - XenBus state has been reconfigure (pci unplug). See xen_pcibk_remove_device
+ *  - XenBus state has been disconnected (guest shutdown). See xen_pcibk_xenbus_remove
+ *  - 'echo BDF > unbind' on pciback module with no guest attached. See pcistub_remove
+ *  - 'echo BDF > unbind' with a guest still using it. See pcistub_remove
+ *
+ *  As such we have to be careful.
+ */
 void pcistub_put_pci_dev(struct pci_dev *dev)
 {
 	struct pcistub_device *psdev, *found_psdev = NULL;
