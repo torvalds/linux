@@ -68,6 +68,12 @@ struct meminfo;
 struct tag;
 extern void __init tag_fixup_mem32(struct tag *, char **, struct meminfo *);
 
+#ifdef CONFIG_MACH_MSS2_DT
+extern void mss2_init(void);
+#else
+static inline void mss2_init(void) {}
+#endif
+
 /*****************************************************************************
  * Helpers to access Orion registers
  ****************************************************************************/

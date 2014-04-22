@@ -61,6 +61,9 @@ static void __init orion5x_dt_init(void)
 		cpu_idle_poll_ctrl(true);
 	}
 
+	if (of_machine_is_compatible("maxtor,shared-storage-2"))
+		mss2_init();
+
 	of_platform_populate(NULL, of_default_bus_match_table,
 			     orion5x_auxdata_lookup, NULL);
 }
