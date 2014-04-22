@@ -111,12 +111,12 @@ int rk3288_hdmi_detect_hotplug(struct hdmi *hdmi_drv)
 
 int rk3288_hdmi_read_edid(struct hdmi *hdmi_drv, int block, unsigned char *buff)
 {
-	int i = 0, n = 0, index = 0, interrupt = 0, ret = -1, trytime = 2;
-	int offset = (block%2)*0x80;
-	unsigned long flags;
+	int i = 0, n = 0, index = 0, ret = -1, trytime = 2;
+	int offset = (block % 2) * 0x80;
+	//int interrupt = 0;
+	//unsigned long flags;
 	struct rk3288_hdmi_device *hdmi_dev = container_of(hdmi_drv, struct rk3288_hdmi_device, driver);
 
-	return -1;
 	hdmi_dbg(hdmi_drv->dev, "[%s] block %d\n", __FUNCTION__, block);
 	//spin_lock_irqsave(&hdmi_drv->irq_lock, flags);
 	hdmi_dev->i2cm_int = 0;
@@ -134,14 +134,16 @@ int rk3288_hdmi_read_edid(struct hdmi *hdmi_drv, int block, unsigned char *buff)
 
 	hdmi_writel(hdmi_dev, I2CM_SLAVE, DDC_I2C_EDID_ADDR);
 	hdmi_writel(hdmi_dev, I2CM_SEGADDR, DDC_I2C_SEG_ADDR);
+	hdmi_writel(hdmi_dev, I2CM_SEGPTR, block / 2);
 	while(trytime--) {
-		for(n = 0; n < HDMI_EDID_BLOCK_SIZE/8; n++) {
-			// Config EDID block and segment addr
-			hdmi_writel(hdmi_dev, I2CM_SEGPTR, block/2);
-			hdmi_writel(hdmi_dev, I2CM_ADDRESS, offset + 8*n);
+		for(n = 0; n < HDMI_EDID_BLOCK_SIZE / 8; n++) {
+			hdmi_writel(hdmi_dev, I2CM_ADDRESS, offset + 8 * n);
 			//enable extend sequential read operation
-			hdmi_msk_reg(hdmi_dev, I2CM_OPERATION, m_I2CM_RD8_EXT, v_I2CM_RD8_EXT(1));
-
+			if(block == 0)
+				hdmi_msk_reg(hdmi_dev, I2CM_OPERATION, m_I2CM_RD8, v_I2CM_RD8(1));
+			else
+				hdmi_msk_reg(hdmi_dev, I2CM_OPERATION, m_I2CM_RD8_EXT, v_I2CM_RD8_EXT(1));
+#if 0
 			i = 200;
 			while(i--)
 			{
@@ -159,18 +161,19 @@ int rk3288_hdmi_read_edid(struct hdmi *hdmi_drv, int block, unsigned char *buff)
 				rk3288_hdmi_i2cm_reset(hdmi_dev);
 				break;
 			}
-
-			if(interrupt & m_I2CM_DONE) {
+#endif
+			//if(interrupt & m_I2CM_DONE)
+			{
+				msleep(1);
 				for(index = 0; index < 8; index++) {
-					buff[8*n + index] = hdmi_readl(hdmi_dev, I2CM_READ_BUFF0 + index);
+					buff[8 * n + index] = hdmi_readl(hdmi_dev, I2CM_READ_BUFF0 + index);
 				}
-				continue;
 
-				if(n == HDMI_EDID_BLOCK_SIZE/8 - 1) {
+				if(n == HDMI_EDID_BLOCK_SIZE / 8 - 1) {
 					ret = 0;
 					hdmi_dbg(hdmi_drv->dev, "[%s] edid read sucess\n", __FUNCTION__);
 
-				#ifdef HDMI_DEBUG
+				#if 1//def HDMI_DEBUG
 					for(i = 0; i < 128; i++) {
 						printk("%02x ,", buff[i]);
 						if( (i + 1) % 16 == 0)

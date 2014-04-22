@@ -582,7 +582,7 @@
 				<&clk_gates15 12>,/*aclk_vio1_niu*/
 
 				/*HDMI*/
-				<&clk_gates5 12>,/*hdmi_hdcp_clk*/
+				//<&clk_gates5 12>,/*hdmi_hdcp_clk*/
 
 				/*UART*/
 				<&clk_gates11 9>,/*pclk_uart2*/
