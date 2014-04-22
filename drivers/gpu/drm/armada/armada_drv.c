@@ -164,7 +164,7 @@ static int armada_drm_load(struct drm_device *dev, unsigned long flags)
 		if (irq < 0)
 			goto err_kms;
 
-		ret = armada_drm_crtc_create(dev, n, res[n], irq);
+		ret = armada_drm_crtc_create(dev, res[n], irq);
 		if (ret)
 			goto err_kms;
 	}
@@ -175,7 +175,7 @@ static int armada_drm_load(struct drm_device *dev, unsigned long flags)
 		goto err_kms;
 #endif
 
-	ret = drm_vblank_init(dev, n);
+	ret = drm_vblank_init(dev, dev->mode_config.num_crtc);
 	if (ret)
 		goto err_kms;
 

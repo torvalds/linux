@@ -1050,8 +1050,8 @@ static int armada_drm_crtc_create_properties(struct drm_device *dev)
 	return 0;
 }
 
-int armada_drm_crtc_create(struct drm_device *dev, unsigned num,
-	struct resource *res, int irq)
+int armada_drm_crtc_create(struct drm_device *dev, struct resource *res,
+	int irq)
 {
 	struct armada_private *priv = dev->dev_private;
 	struct armada_crtc *dcrtc;
@@ -1075,7 +1075,7 @@ int armada_drm_crtc_create(struct drm_device *dev, unsigned num,
 	}
 
 	dcrtc->base = base;
-	dcrtc->num = num;
+	dcrtc->num = dev->mode_config.num_crtc;
 	dcrtc->clk = ERR_PTR(-EINVAL);
 	dcrtc->csc_yuv_mode = CSC_AUTO;
 	dcrtc->csc_rgb_mode = CSC_AUTO;
