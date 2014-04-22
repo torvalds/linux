@@ -31,8 +31,8 @@ unsigned int snd_soc_read(struct snd_soc_codec *codec, unsigned int reg)
 }
 EXPORT_SYMBOL_GPL(snd_soc_read);
 
-unsigned int snd_soc_write(struct snd_soc_codec *codec,
-			   unsigned int reg, unsigned int val)
+int snd_soc_write(struct snd_soc_codec *codec, unsigned int reg,
+	unsigned int val)
 {
 	dev_dbg(codec->dev, "write %x = %x\n", reg, val);
 	trace_snd_soc_reg_write(codec, reg, val);
@@ -51,7 +51,7 @@ EXPORT_SYMBOL_GPL(snd_soc_write);
  *
  * Returns 1 for change, 0 for no change, or negative error code.
  */
-int snd_soc_update_bits(struct snd_soc_codec *codec, unsigned short reg,
+int snd_soc_update_bits(struct snd_soc_codec *codec, unsigned int reg,
 				unsigned int mask, unsigned int value)
 {
 	bool change;
@@ -92,7 +92,7 @@ EXPORT_SYMBOL_GPL(snd_soc_update_bits);
  * Returns 1 for change else 0.
  */
 int snd_soc_update_bits_locked(struct snd_soc_codec *codec,
-			       unsigned short reg, unsigned int mask,
+			       unsigned int reg, unsigned int mask,
 			       unsigned int value)
 {
 	int change;
@@ -117,7 +117,7 @@ EXPORT_SYMBOL_GPL(snd_soc_update_bits_locked);
  *
  * Returns 1 for change else 0.
  */
-int snd_soc_test_bits(struct snd_soc_codec *codec, unsigned short reg,
+int snd_soc_test_bits(struct snd_soc_codec *codec, unsigned int reg,
 				unsigned int mask, unsigned int value)
 {
 	int change;
@@ -204,14 +204,11 @@ int snd_soc_codec_set_cache_io(struct snd_soc_codec *codec,
 {
 	int ret;
 
-	/* Device has made its own regmap arrangements */
 	if (!regmap)
-		codec->control_data = dev_get_regmap(codec->dev, NULL);
-	else
-		codec->control_data = regmap;
+		return -EINVAL;
 
-	if (IS_ERR(codec->control_data))
-		return PTR_ERR(codec->control_data);
+	/* Device has made its own regmap arrangements */
+	codec->control_data = regmap;
 
 	codec->write = hw_write;
 	codec->read = hw_read;

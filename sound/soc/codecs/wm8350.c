@@ -1505,8 +1505,6 @@ static  int wm8350_codec_probe(struct snd_soc_codec *codec)
 	if (ret != 0)
 		return ret;
 
-	snd_soc_codec_set_cache_io(codec, wm8350->regmap);
-
 	/* Put the codec into reset if it wasn't already */
 	wm8350_clear_bits(wm8350, WM8350_POWER_MGMT_5, WM8350_CODEC_ENA);
 
@@ -1608,11 +1606,19 @@ static int  wm8350_codec_remove(struct snd_soc_codec *codec)
 	return 0;
 }
 
+static struct regmap *wm8350_get_regmap(struct device *dev)
+{
+	struct wm8350 *wm8350 = dev_get_platdata(dev);
+
+	return wm8350->regmap;
+}
+
 static struct snd_soc_codec_driver soc_codec_dev_wm8350 = {
 	.probe =	wm8350_codec_probe,
 	.remove =	wm8350_codec_remove,
 	.suspend = 	wm8350_suspend,
 	.resume =	wm8350_resume,
+	.get_regmap =	wm8350_get_regmap,
 	.set_bias_level = wm8350_set_bias_level,
 
 	.controls = wm8350_snd_controls,

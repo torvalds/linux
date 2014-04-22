@@ -463,12 +463,12 @@ static inline void snd_soc_jack_free_gpios(struct snd_soc_jack *jack, int count,
 #endif
 
 /* codec register bit access */
-int snd_soc_update_bits(struct snd_soc_codec *codec, unsigned short reg,
+int snd_soc_update_bits(struct snd_soc_codec *codec, unsigned int reg,
 				unsigned int mask, unsigned int value);
 int snd_soc_update_bits_locked(struct snd_soc_codec *codec,
-			       unsigned short reg, unsigned int mask,
+			       unsigned int reg, unsigned int mask,
 			       unsigned int value);
-int snd_soc_test_bits(struct snd_soc_codec *codec, unsigned short reg,
+int snd_soc_test_bits(struct snd_soc_codec *codec, unsigned int reg,
 				unsigned int mask, unsigned int value);
 
 int snd_soc_new_ac97_codec(struct snd_soc_codec *codec,
@@ -746,6 +746,7 @@ struct snd_soc_codec_driver {
 		unsigned int freq_in, unsigned int freq_out);
 
 	/* codec IO */
+	struct regmap *(*get_regmap)(struct device *);
 	unsigned int (*read)(struct snd_soc_codec *, unsigned int);
 	int (*write)(struct snd_soc_codec *, unsigned int, unsigned int);
 	unsigned int reg_cache_size;
@@ -1125,8 +1126,8 @@ static inline struct snd_soc_platform *snd_soc_component_to_platform(
 
 /* codec IO */
 unsigned int snd_soc_read(struct snd_soc_codec *codec, unsigned int reg);
-unsigned int snd_soc_write(struct snd_soc_codec *codec,
-			   unsigned int reg, unsigned int val);
+int snd_soc_write(struct snd_soc_codec *codec, unsigned int reg,
+	unsigned int val);
 
 /* device driver data */
 

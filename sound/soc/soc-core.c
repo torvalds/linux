@@ -1120,25 +1120,30 @@ static int soc_probe_codec(struct snd_soc_card *card,
 
 	soc_init_codec_debugfs(codec);
 
-	if (driver->dapm_widgets)
-		snd_soc_dapm_new_controls(&codec->dapm, driver->dapm_widgets,
-					  driver->num_dapm_widgets);
+	if (driver->dapm_widgets) {
+		ret = snd_soc_dapm_new_controls(&codec->dapm,
+						driver->dapm_widgets,
+					 	driver->num_dapm_widgets);
 
-	/* Create DAPM widgets for each DAI stream */
-	list_for_each_entry(dai, &codec->component.dai_list, list)
-		snd_soc_dapm_new_dai_widgets(&codec->dapm, dai);
-
-	codec->dapm.idle_bias_off = driver->idle_bias_off;
-
-	if (!codec->write && dev_get_regmap(codec->dev, NULL)) {
-		/* Set the default I/O up try regmap */
-		ret = snd_soc_codec_set_cache_io(codec, NULL);
-		if (ret < 0) {
+		if (ret != 0) {
 			dev_err(codec->dev,
-				"Failed to set cache I/O: %d\n", ret);
+				"Failed to create new controls %d\n", ret);
 			goto err_probe;
 		}
 	}
+
+	/* Create DAPM widgets for each DAI stream */
+	list_for_each_entry(dai, &codec->component.dai_list, list) {
+		ret = snd_soc_dapm_new_dai_widgets(&codec->dapm, dai);
+
+		if (ret != 0) {
+			dev_err(codec->dev,
+				"Failed to create DAI widgets %d\n", ret);
+			goto err_probe;
+		}
+	}
+
+	codec->dapm.idle_bias_off = driver->idle_bias_off;
 
 	if (driver->probe) {
 		ret = driver->probe(codec);
@@ -2060,28 +2065,28 @@ static int snd_soc_ac97_parse_pinctl(struct device *dev,
 	p = devm_pinctrl_get(dev);
 	if (IS_ERR(p)) {
 		dev_err(dev, "Failed to get pinctrl\n");
-		return PTR_RET(p);
+		return PTR_ERR(p);
 	}
 	cfg->pctl = p;
 
 	state = pinctrl_lookup_state(p, "ac97-reset");
 	if (IS_ERR(state)) {
 		dev_err(dev, "Can't find pinctrl state ac97-reset\n");
-		return PTR_RET(state);
+		return PTR_ERR(state);
 	}
 	cfg->pstate_reset = state;
 
 	state = pinctrl_lookup_state(p, "ac97-warm-reset");
 	if (IS_ERR(state)) {
 		dev_err(dev, "Can't find pinctrl state ac97-warm-reset\n");
-		return PTR_RET(state);
+		return PTR_ERR(state);
 	}
 	cfg->pstate_warm_reset = state;
 
 	state = pinctrl_lookup_state(p, "ac97-running");
 	if (IS_ERR(state)) {
 		dev_err(dev, "Can't find pinctrl state ac97-running\n");
-		return PTR_RET(state);
+		return PTR_ERR(state);
 	}
 	cfg->pstate_run = state;
 
@@ -2691,7 +2696,7 @@ int snd_soc_put_volsw_sx(struct snd_kcontrol *kcontrol,
 	int min = mc->min;
 	int mask = (1 << (fls(min + max) - 1)) - 1;
 	int err = 0;
-	unsigned short val, val_mask, val2 = 0;
+	unsigned int val, val_mask, val2 = 0;
 
 	val_mask = mask << shift;
 	val = (ucontrol->value.integer.value[0] + min) & mask;
@@ -4073,6 +4078,7 @@ int snd_soc_register_codec(struct device *dev,
 			   int num_dai)
 {
 	struct snd_soc_codec *codec;
+	struct regmap *regmap;
 	int ret, i;
 
 	dev_dbg(dev, "codec register %s\n", dev_name(dev));
@@ -4101,6 +4107,23 @@ int snd_soc_register_codec(struct device *dev,
 	codec->num_dai = num_dai;
 	codec->val_bytes = codec_drv->reg_word_size;
 	mutex_init(&codec->mutex);
+
+	if (!codec->write) {
+		if (codec_drv->get_regmap)
+			regmap = codec_drv->get_regmap(dev);
+		else
+			regmap = dev_get_regmap(dev, NULL);
+
+		if (regmap) {
+			ret = snd_soc_codec_set_cache_io(codec, regmap);
+			if (ret && ret != -ENOTSUPP) {
+				dev_err(codec->dev,
+						"Failed to set cache I/O:%d\n",
+						ret);
+				return ret;
+			}
+		}
+	}
 
 	for (i = 0; i < num_dai; i++) {
 		fixup_codec_formats(&dai_drv[i].playback);
