@@ -1485,10 +1485,8 @@ static int btusb_probe(struct usb_interface *intf,
 	if (id->driver_info & BTUSB_BCM92035)
 		hdev->setup = btusb_setup_bcm92035;
 
-	if (id->driver_info & BTUSB_INTEL) {
-		usb_enable_autosuspend(data->udev);
+	if (id->driver_info & BTUSB_INTEL)
 		hdev->setup = btusb_setup_intel;
-	}
 
 	/* Interface numbers are hardcoded in the specification */
 	data->isoc = usb_ifnum_to_if(data->udev, 1);
