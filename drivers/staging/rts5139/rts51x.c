@@ -460,7 +460,6 @@ static int associate_dev(struct rts51x_chip *chip, struct usb_interface *intf)
 	rts51x->cr = usb_buffer_alloc(rts51x->pusb_dev, sizeof(*rts51x->cr),
 				      GFP_KERNEL, &rts51x->cr_dma);
 	if (!rts51x->cr) {
-		pr_debug("usb_ctrlrequest allocation failed\n");
 		usb_set_intfdata(intf, NULL);
 		return -ENOMEM;
 	}
@@ -468,7 +467,6 @@ static int associate_dev(struct rts51x_chip *chip, struct usb_interface *intf)
 	rts51x->iobuf = usb_buffer_alloc(rts51x->pusb_dev, RTS51X_IOBUF_SIZE,
 					 GFP_KERNEL, &rts51x->iobuf_dma);
 	if (!rts51x->iobuf) {
-		pr_debug("I/O buffer allocation failed\n");
 		usb_set_intfdata(intf, NULL);
 		return -ENOMEM;
 	}
@@ -598,16 +596,12 @@ static int rts51x_acquire_resources(struct rts51x_chip *chip)
 	int retval;
 
 	rts51x->current_urb = usb_alloc_urb(0, GFP_KERNEL);
-	if (!rts51x->current_urb) {
-		pr_debug("URB allocation failed\n");
+	if (!rts51x->current_urb)
 		return -ENOMEM;
-	}
 
 	rts51x->intr_urb = usb_alloc_urb(0, GFP_KERNEL);
-	if (!rts51x->intr_urb) {
-		pr_debug("URB allocation failed\n");
+	if (!rts51x->intr_urb)
 		return -ENOMEM;
-	}
 
 	chip->cmd_buf = rts51x->iobuf;
 	chip->rsp_buf = rts51x->iobuf;
@@ -726,11 +720,8 @@ static int rts51x_probe(struct usb_interface *intf,
 	pr_debug("%s detected\n", RTS51X_NAME);
 
 	rts51x = kzalloc(sizeof(struct rts51x_usb), GFP_KERNEL);
-	if (!rts51x) {
-		pr_warn(RTS51X_TIP
-			"Unable to allocate rts51x_usb\n");
+	if (!rts51x)
 		return -ENOMEM;
-	}
 
 	/*
 	 * Ask the SCSI layer to allocate a host structure, with extra
@@ -738,8 +729,6 @@ static int rts51x_probe(struct usb_interface *intf,
 	 */
 	host = scsi_host_alloc(&rts51x_host_template, sizeof(*chip));
 	if (!host) {
-		pr_warn(RTS51X_TIP
-			"Unable to allocate the scsi host\n");
 		kfree(rts51x);
 		return -ENOMEM;
 	}
