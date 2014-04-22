@@ -687,6 +687,12 @@ int arch_uprobe_pre_xol(struct arch_uprobe *auprobe, struct pt_regs *regs)
 {
 	struct uprobe_task *utask = current->utask;
 
+	if (auprobe->ops->pre_xol) {
+		int err = auprobe->ops->pre_xol(auprobe, regs);
+		if (err)
+			return err;
+	}
+
 	regs->ip = utask->xol_vaddr;
 	utask->autask.saved_trap_nr = current->thread.trap_nr;
 	current->thread.trap_nr = UPROBE_TRAP_NR;
@@ -696,8 +702,6 @@ int arch_uprobe_pre_xol(struct arch_uprobe *auprobe, struct pt_regs *regs)
 	if (test_tsk_thread_flag(current, TIF_BLOCKSTEP))
 		set_task_blockstep(current, false);
 
-	if (auprobe->ops->pre_xol)
-		return auprobe->ops->pre_xol(auprobe, regs);
 	return 0;
 }
 
