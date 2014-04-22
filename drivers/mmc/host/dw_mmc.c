@@ -1229,7 +1229,7 @@ static int dw_mci_data_complete(struct dw_mci *host, struct mmc_data *data)
 			data->error = -EIO;
 		}
 
-		dev_err(host->dev, "data error, status 0x%08x\n", status);
+		dev_dbg(host->dev, "data error, status 0x%08x\n", status);
 
 		/*
 		 * After an error, there may be data lingering
