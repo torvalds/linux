@@ -128,6 +128,7 @@
 				ethport: ethernet-port@0 {
 					compatible = "marvell,orion-eth-port";
 					reg = <0>;
+					interrupts = <21>;
 					/* overwrite MAC address in bootloader */
 					local-mac-address = [00 00 00 00 00 00];
 					/* set phy-handle property in board file */
