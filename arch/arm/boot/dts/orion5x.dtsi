@@ -17,13 +17,6 @@
 		gpio0 = &gpio0;
 	};
 
-	intc: interrupt-controller {
-		compatible = "marvell,orion-intc";
-		interrupt-controller;
-		#interrupt-cells = <1>;
-		reg = <0xf1020200 0x08>;
-	};
-
 	ocp@f1000000 {
 		compatible = "simple-bus";
 		ranges = <0x00000000 0xf1000000 0x4000000
@@ -77,6 +70,13 @@
 			interrupts = <4>;
 			/* set clock-frequency in board dts */
 			status = "disabled";
+		};
+
+		intc: interrupt-controller@20200 {
+			compatible = "marvell,orion-intc";
+			interrupt-controller;
+			#interrupt-cells = <1>;
+			reg = <0x20200 0x08>;
 		};
 
 		wdt@20300 {
