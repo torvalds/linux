@@ -39,8 +39,6 @@
 #define TRACE_FREE(mp, ip, pip, ag, cnt)
 #define TRACE_LOOKUP(mp, ip, pip, ag, cnt)
 
-static kmem_zone_t *item_zone;
-
 struct xfs_fstrm_item {
 	struct xfs_mru_cache_elem	mru;
 	struct xfs_inode		*ip;
@@ -141,7 +139,7 @@ xfs_fstrm_free_func(
 	TRACE_FREE(mp, ip, NULL, item->ag,
 		   xfs_filestream_peek_ag(mp, item->ag));
 
-	kmem_zone_free(item_zone, item);
+	kmem_free(item);
 }
 
 /*
@@ -272,7 +270,7 @@ next_ag:
 		return 0;
 
 	err = ENOMEM;
-	item = kmem_zone_zalloc(item_zone, KM_MAYFAIL);
+	item = kmem_alloc(sizeof(*item), KM_MAYFAIL);
 	if (!item)
 		goto out_put_ag;
 
@@ -289,7 +287,7 @@ next_ag:
 	return 0;
 
 out_free_item:
-	kmem_zone_free(item_zone, item);
+	kmem_free(item);
 out_put_ag:
 	xfs_filestream_put_ag(mp, *agp);
 	return err;
@@ -473,21 +471,4 @@ xfs_filestream_unmount(
 	xfs_mount_t	*mp)
 {
 	xfs_mru_cache_destroy(mp->m_filestream);
-}
-
-
-/* needs to return a positive errno for the init path */
-int
-xfs_filestream_init(void)
-{
-	item_zone = kmem_zone_init(sizeof(struct xfs_fstrm_item), "fstrm_item");
-	if (!item_zone)
-		return -ENOMEM;
-	return 0;
-}
-
-void
-xfs_filestream_uninit(void)
-{
-	kmem_zone_destroy(item_zone);
 }
