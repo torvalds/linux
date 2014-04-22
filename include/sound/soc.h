@@ -1250,6 +1250,22 @@ static inline bool snd_soc_codec_is_active(struct snd_soc_codec *codec)
 }
 
 /**
+ * snd_soc_kcontrol_component() - Returns the component that registered the
+ *  control
+ * @kcontrol: The control for which to get the component
+ *
+ * Note: This function will work correctly if the control has been registered
+ * for a component. Either with snd_soc_add_codec_controls() or
+ * snd_soc_add_platform_controls() or via  table based setup for either a
+ * CODEC, a platform or component driver. Otherwise the behavior is undefined.
+ */
+static inline struct snd_soc_component *snd_soc_kcontrol_component(
+	struct snd_kcontrol *kcontrol)
+{
+	return snd_kcontrol_chip(kcontrol);
+}
+
+/**
  * snd_soc_kcontrol_codec() - Returns the CODEC that registered the control
  * @kcontrol: The control for which to get the CODEC
  *
@@ -1260,7 +1276,7 @@ static inline bool snd_soc_codec_is_active(struct snd_soc_codec *codec)
 static inline struct snd_soc_codec *snd_soc_kcontrol_codec(
 	struct snd_kcontrol *kcontrol)
 {
-	return snd_kcontrol_chip(kcontrol);
+	return snd_soc_component_to_codec(snd_soc_kcontrol_component(kcontrol));
 }
 
 /**
@@ -1274,7 +1290,7 @@ static inline struct snd_soc_codec *snd_soc_kcontrol_codec(
 static inline struct snd_soc_platform *snd_soc_kcontrol_platform(
 	struct snd_kcontrol *kcontrol)
 {
-	return snd_kcontrol_chip(kcontrol);
+	return snd_soc_component_to_platform(snd_soc_kcontrol_component(kcontrol));
 }
 
 int snd_soc_util_init(void);
