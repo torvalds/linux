@@ -617,7 +617,7 @@ int bioset_integrity_create(struct bio_set *bs, int pool_size)
 	if (!bs->bio_integrity_pool)
 		return -1;
 
-	bs->bvec_integrity_pool = biovec_create_pool(bs, pool_size);
+	bs->bvec_integrity_pool = biovec_create_pool(pool_size);
 	if (!bs->bvec_integrity_pool) {
 		mempool_destroy(bs->bio_integrity_pool);
 		return -1;
