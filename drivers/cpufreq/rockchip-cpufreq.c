@@ -356,6 +356,7 @@ static int cpufreq_pm_notifier_event(struct notifier_block *this, unsigned long 
 
 	switch (event) {
 	case PM_SUSPEND_PREPARE:
+		policy->cur++;
 		ret = cpufreq_driver_target(policy, suspend_freq, DISABLE_FURTHER_CPUFREQ | CPUFREQ_RELATION_H);
 		if (ret < 0) {
 			ret = NOTIFY_BAD;
@@ -388,6 +389,7 @@ static int cpufreq_reboot_notifier_event(struct notifier_block *this, unsigned l
 
 	if (policy) {
 		is_booting = false;
+		policy->cur++;
 		cpufreq_driver_target(policy, suspend_freq, DISABLE_FURTHER_CPUFREQ | CPUFREQ_RELATION_H);
 		cpufreq_cpu_put(policy);
 	}
