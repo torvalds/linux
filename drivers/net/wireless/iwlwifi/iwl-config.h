@@ -193,6 +193,11 @@ struct iwl_ht_params {
 #define EEPROM_6000_REG_BAND_24_HT40_CHANNELS	0x80
 #define EEPROM_REGULATORY_BAND_NO_HT40		0
 
+/* lower blocks contain EEPROM image and calibration data */
+#define OTP_LOW_IMAGE_SIZE		(2 * 512 * sizeof(u16)) /* 2 KB */
+#define OTP_LOW_IMAGE_SIZE_FAMILY_7000	(4 * 512 * sizeof(u16)) /* 4 KB */
+#define OTP_LOW_IMAGE_SIZE_FAMILY_8000	(32 * 512 * sizeof(u16)) /* 32 KB */
+
 struct iwl_eeprom_params {
 	const u8 regulatory_bands[7];
 	bool enhanced_txpower;

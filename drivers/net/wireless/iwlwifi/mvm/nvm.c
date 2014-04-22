@@ -463,7 +463,6 @@ int iwl_nvm_init(struct iwl_mvm *mvm)
 		/* Read From FW NVM */
 		IWL_DEBUG_EEPROM(mvm->trans->dev, "Read from NVM\n");
 
-		/* TODO: find correct NVM max size for a section */
 		nvm_buffer = kmalloc(mvm->cfg->base_params->eeprom_size,
 				     GFP_KERNEL);
 		if (!nvm_buffer)
