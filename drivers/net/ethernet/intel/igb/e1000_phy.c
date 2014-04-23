@@ -924,8 +924,7 @@ static s32 igb_copper_link_autoneg(struct e1000_hw *hw)
 	if (phy->autoneg_wait_to_complete) {
 		ret_val = igb_wait_autoneg(hw);
 		if (ret_val) {
-			hw_dbg("Error while waiting for "
-			       "autoneg to complete\n");
+			hw_dbg("Error while waiting for autoneg to complete\n");
 			goto out;
 		}
 	}

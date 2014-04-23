@@ -265,10 +265,10 @@ struct e1000_adapter {
 	u32 tx_hwtstamp_timeouts;
 
 	/* Rx */
-	bool (*clean_rx) (struct e1000_ring *ring, int *work_done,
-			  int work_to_do) ____cacheline_aligned_in_smp;
-	void (*alloc_rx_buf) (struct e1000_ring *ring, int cleaned_count,
-			      gfp_t gfp);
+	bool (*clean_rx)(struct e1000_ring *ring, int *work_done,
+			 int work_to_do) ____cacheline_aligned_in_smp;
+	void (*alloc_rx_buf)(struct e1000_ring *ring, int cleaned_count,
+			     gfp_t gfp);
 	struct e1000_ring *rx_ring;
 
 	u32 rx_int_delay;

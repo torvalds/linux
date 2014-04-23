@@ -141,8 +141,6 @@ static inline bool ixgbe_removed(void __iomem *addr)
 	return unlikely(!addr);
 }
 
-void ixgbe_check_remove(struct ixgbe_hw *hw, u32 reg);
-
 static inline void ixgbe_write_reg(struct ixgbe_hw *hw, u32 reg, u32 value)
 {
 	u8 __iomem *reg_addr = ACCESS_ONCE(hw->hw_addr);
@@ -172,18 +170,7 @@ static inline void ixgbe_write_reg64(struct ixgbe_hw *hw, u32 reg, u64 value)
 }
 #define IXGBE_WRITE_REG64(a, reg, value) ixgbe_write_reg64((a), (reg), (value))
 
-static inline u32 ixgbe_read_reg(struct ixgbe_hw *hw, u32 reg)
-{
-	u8 __iomem *reg_addr = ACCESS_ONCE(hw->hw_addr);
-	u32 value;
-
-	if (ixgbe_removed(reg_addr))
-		return IXGBE_FAILED_READ_REG;
-	value = readl(reg_addr + reg);
-	if (unlikely(value == IXGBE_FAILED_READ_REG))
-		ixgbe_check_remove(hw, reg);
-	return value;
-}
+u32 ixgbe_read_reg(struct ixgbe_hw *hw, u32 reg);
 #define IXGBE_READ_REG(a, reg) ixgbe_read_reg((a), (reg))
 
 #define IXGBE_WRITE_REG_ARRAY(a, reg, offset, value) \

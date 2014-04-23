@@ -320,15 +320,15 @@ struct e1000_host_mng_command_info {
 #include "e1000_mbx.h"
 
 struct e1000_mac_operations {
-	s32  (*check_for_link)(struct e1000_hw *);
-	s32  (*reset_hw)(struct e1000_hw *);
-	s32  (*init_hw)(struct e1000_hw *);
+	s32 (*check_for_link)(struct e1000_hw *);
+	s32 (*reset_hw)(struct e1000_hw *);
+	s32 (*init_hw)(struct e1000_hw *);
 	bool (*check_mng_mode)(struct e1000_hw *);
-	s32  (*setup_physical_interface)(struct e1000_hw *);
+	s32 (*setup_physical_interface)(struct e1000_hw *);
 	void (*rar_set)(struct e1000_hw *, u8 *, u32);
-	s32  (*read_mac_addr)(struct e1000_hw *);
-	s32  (*get_speed_and_duplex)(struct e1000_hw *, u16 *, u16 *);
-	s32  (*acquire_swfw_sync)(struct e1000_hw *, u16);
+	s32 (*read_mac_addr)(struct e1000_hw *);
+	s32 (*get_speed_and_duplex)(struct e1000_hw *, u16 *, u16 *);
+	s32 (*acquire_swfw_sync)(struct e1000_hw *, u16);
 	void (*release_swfw_sync)(struct e1000_hw *, u16);
 #ifdef CONFIG_IGB_HWMON
 	s32 (*get_thermal_sensor_data)(struct e1000_hw *);
@@ -338,31 +338,31 @@ struct e1000_mac_operations {
 };
 
 struct e1000_phy_operations {
-	s32  (*acquire)(struct e1000_hw *);
-	s32  (*check_polarity)(struct e1000_hw *);
-	s32  (*check_reset_block)(struct e1000_hw *);
-	s32  (*force_speed_duplex)(struct e1000_hw *);
-	s32  (*get_cfg_done)(struct e1000_hw *hw);
-	s32  (*get_cable_length)(struct e1000_hw *);
-	s32  (*get_phy_info)(struct e1000_hw *);
-	s32  (*read_reg)(struct e1000_hw *, u32, u16 *);
+	s32 (*acquire)(struct e1000_hw *);
+	s32 (*check_polarity)(struct e1000_hw *);
+	s32 (*check_reset_block)(struct e1000_hw *);
+	s32 (*force_speed_duplex)(struct e1000_hw *);
+	s32 (*get_cfg_done)(struct e1000_hw *hw);
+	s32 (*get_cable_length)(struct e1000_hw *);
+	s32 (*get_phy_info)(struct e1000_hw *);
+	s32 (*read_reg)(struct e1000_hw *, u32, u16 *);
 	void (*release)(struct e1000_hw *);
-	s32  (*reset)(struct e1000_hw *);
-	s32  (*set_d0_lplu_state)(struct e1000_hw *, bool);
-	s32  (*set_d3_lplu_state)(struct e1000_hw *, bool);
-	s32  (*write_reg)(struct e1000_hw *, u32, u16);
+	s32 (*reset)(struct e1000_hw *);
+	s32 (*set_d0_lplu_state)(struct e1000_hw *, bool);
+	s32 (*set_d3_lplu_state)(struct e1000_hw *, bool);
+	s32 (*write_reg)(struct e1000_hw *, u32, u16);
 	s32 (*read_i2c_byte)(struct e1000_hw *, u8, u8, u8 *);
 	s32 (*write_i2c_byte)(struct e1000_hw *, u8, u8, u8);
 };
 
 struct e1000_nvm_operations {
-	s32  (*acquire)(struct e1000_hw *);
-	s32  (*read)(struct e1000_hw *, u16, u16, u16 *);
+	s32 (*acquire)(struct e1000_hw *);
+	s32 (*read)(struct e1000_hw *, u16, u16, u16 *);
 	void (*release)(struct e1000_hw *);
-	s32  (*write)(struct e1000_hw *, u16, u16, u16 *);
-	s32  (*update)(struct e1000_hw *);
-	s32  (*validate)(struct e1000_hw *);
-	s32  (*valid_led_default)(struct e1000_hw *, u16 *);
+	s32 (*write)(struct e1000_hw *, u16, u16, u16 *);
+	s32 (*update)(struct e1000_hw *);
+	s32 (*validate)(struct e1000_hw *);
+	s32 (*valid_led_default)(struct e1000_hw *, u16 *);
 };
 
 #define E1000_MAX_SENSORS		3

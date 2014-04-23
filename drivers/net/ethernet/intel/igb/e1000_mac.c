@@ -442,7 +442,7 @@ static u32 igb_hash_mc_addr(struct e1000_hw *hw, u8 *mc_addr)
  *  The caller must have a packed mc_addr_list of multicast addresses.
  **/
 void igb_update_mc_addr_list(struct e1000_hw *hw,
-                             u8 *mc_addr_list, u32 mc_addr_count)
+			     u8 *mc_addr_list, u32 mc_addr_count)
 {
 	u32 hash_value, hash_bit, hash_reg;
 	int i;
@@ -866,8 +866,7 @@ s32 igb_config_fc_after_link_up(struct e1000_hw *hw)
 			goto out;
 
 		if (!(mii_status_reg & MII_SR_AUTONEG_COMPLETE)) {
-			hw_dbg("Copper PHY and Auto Neg "
-				 "has not completed.\n");
+			hw_dbg("Copper PHY and Auto Neg has not completed.\n");
 			goto out;
 		}
 
@@ -932,8 +931,7 @@ s32 igb_config_fc_after_link_up(struct e1000_hw *hw)
 				hw_dbg("Flow Control = FULL.\r\n");
 			} else {
 				hw->fc.current_mode = e1000_fc_rx_pause;
-				hw_dbg("Flow Control = "
-				       "RX PAUSE frames only.\r\n");
+				hw_dbg("Flow Control = RX PAUSE frames only.\r\n");
 			}
 		}
 		/* For receiving PAUSE frames ONLY.
@@ -1299,7 +1297,7 @@ static s32 igb_valid_led_default(struct e1000_hw *hw, u16 *data)
 	}
 
 	if (*data == ID_LED_RESERVED_0000 || *data == ID_LED_RESERVED_FFFF) {
-		switch(hw->phy.media_type) {
+		switch (hw->phy.media_type) {
 		case e1000_media_type_internal_serdes:
 			*data = ID_LED_DEFAULT_82575_SERDES;
 			break;

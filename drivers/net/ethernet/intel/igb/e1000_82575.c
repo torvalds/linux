@@ -73,9 +73,8 @@ static s32  igb_validate_nvm_checksum_82580(struct e1000_hw *hw);
 static s32  igb_update_nvm_checksum_82580(struct e1000_hw *hw);
 static s32 igb_validate_nvm_checksum_i350(struct e1000_hw *hw);
 static s32 igb_update_nvm_checksum_i350(struct e1000_hw *hw);
-static const u16 e1000_82580_rxpbs_table[] =
-	{ 36, 72, 144, 1, 2, 4, 8, 16,
-	  35, 70, 140 };
+static const u16 e1000_82580_rxpbs_table[] = {
+	36, 72, 144, 1, 2, 4, 8, 16, 35, 70, 140 };
 
 /**
  *  igb_sgmii_uses_mdio_82575 - Determine if I2C pins are for external MDIO
@@ -1269,7 +1268,7 @@ static s32 igb_check_for_link_82575(struct e1000_hw *hw)
 
 	if (hw->phy.media_type != e1000_media_type_copper) {
 		ret_val = igb_get_pcs_speed_and_duplex_82575(hw, &speed,
-		                                             &duplex);
+							     &duplex);
 		/* Use this flag to determine if link needs to be checked or
 		 * not.  If  we have link clear the flag so that we do not
 		 * continue to check for link.
@@ -1436,9 +1435,8 @@ static s32 igb_reset_hw_82575(struct e1000_hw *hw)
 
 	/* set the completion timeout for interface */
 	ret_val = igb_set_pcie_completion_timeout(hw);
-	if (ret_val) {
+	if (ret_val)
 		hw_dbg("PCI-E Set completion timeout has failed.\n");
-	}
 
 	hw_dbg("Masking off all interrupts\n");
 	wr32(E1000_IMC, 0xffffffff);
@@ -1676,7 +1674,7 @@ static s32 igb_setup_serdes_link_82575(struct e1000_hw *hw)
 		    hw->mac.type == e1000_82576) {
 			ret_val = hw->nvm.ops.read(hw, NVM_COMPAT, 1, &data);
 			if (ret_val) {
-				printk(KERN_DEBUG "NVM Read Error\n\n");
+				hw_dbg(KERN_DEBUG "NVM Read Error\n\n");
 				return ret_val;
 			}
 
@@ -1689,7 +1687,7 @@ static s32 igb_setup_serdes_link_82575(struct e1000_hw *hw)
 		 * link either autoneg or be forced to 1000/Full
 		 */
 		ctrl_reg |= E1000_CTRL_SPD_1000 | E1000_CTRL_FRCSPD |
-		            E1000_CTRL_FD | E1000_CTRL_FRCDPX;
+				E1000_CTRL_FD | E1000_CTRL_FRCDPX;
 
 		/* set speed of 1000/Full if speed/duplex is forced */
 		reg |= E1000_PCS_LCTL_FSV_1000 | E1000_PCS_LCTL_FDV_FULL;
@@ -2005,14 +2003,14 @@ static s32 igb_set_pcie_completion_timeout(struct e1000_hw *hw)
 	 * 16ms to 55ms
 	 */
 	ret_val = igb_read_pcie_cap_reg(hw, PCIE_DEVICE_CONTROL2,
-	                                &pcie_devctl2);
+					&pcie_devctl2);
 	if (ret_val)
 		goto out;
 
 	pcie_devctl2 |= PCIE_DEVICE_CONTROL2_16ms;
 
 	ret_val = igb_write_pcie_cap_reg(hw, PCIE_DEVICE_CONTROL2,
-	                                 &pcie_devctl2);
+					 &pcie_devctl2);
 out:
 	/* disable completion timeout resend */
 	gcr &= ~E1000_GCR_CMPL_TMOUT_RESEND;
@@ -2436,8 +2434,7 @@ static s32 igb_update_nvm_checksum_82580(struct e1000_hw *hw)
 
 	ret_val = hw->nvm.ops.read(hw, NVM_COMPATIBILITY_REG_3, 1, &nvm_data);
 	if (ret_val) {
-		hw_dbg("NVM Read Error while updating checksum"
-			" compatibility bit.\n");
+		hw_dbg("NVM Read Error while updating checksum compatibility bit.\n");
 		goto out;
 	}
 
@@ -2447,8 +2444,7 @@ static s32 igb_update_nvm_checksum_82580(struct e1000_hw *hw)
 		ret_val = hw->nvm.ops.write(hw, NVM_COMPATIBILITY_REG_3, 1,
 					&nvm_data);
 		if (ret_val) {
-			hw_dbg("NVM Write Error while updating checksum"
-				" compatibility bit.\n");
+			hw_dbg("NVM Write Error while updating checksum compatibility bit.\n");
 			goto out;
 		}
 	}

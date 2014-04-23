@@ -37,9 +37,9 @@ s32 igb_write_i2c_byte(struct e1000_hw *hw, u8 byte_offset, u8 dev_addr,
 		       u8 data);
 
 #define ID_LED_DEFAULT_82575_SERDES ((ID_LED_DEF1_DEF2 << 12) | \
-                                     (ID_LED_DEF1_DEF2 <<  8) | \
-                                     (ID_LED_DEF1_DEF2 <<  4) | \
-                                     (ID_LED_OFF1_ON2))
+				     (ID_LED_DEF1_DEF2 <<  8) | \
+				     (ID_LED_DEF1_DEF2 <<  4) | \
+				     (ID_LED_OFF1_ON2))
 
 #define E1000_RAR_ENTRIES_82575        16
 #define E1000_RAR_ENTRIES_82576        24
@@ -67,16 +67,16 @@ s32 igb_write_i2c_byte(struct e1000_hw *hw, u8 byte_offset, u8 dev_addr,
 #define E1000_MRQC_RSS_FIELD_IPV6_UDP_EX    0x01000000
 
 #define E1000_EICR_TX_QUEUE ( \
-    E1000_EICR_TX_QUEUE0 |    \
-    E1000_EICR_TX_QUEUE1 |    \
-    E1000_EICR_TX_QUEUE2 |    \
-    E1000_EICR_TX_QUEUE3)
+	E1000_EICR_TX_QUEUE0 |    \
+	E1000_EICR_TX_QUEUE1 |    \
+	E1000_EICR_TX_QUEUE2 |    \
+	E1000_EICR_TX_QUEUE3)
 
 #define E1000_EICR_RX_QUEUE ( \
-    E1000_EICR_RX_QUEUE0 |    \
-    E1000_EICR_RX_QUEUE1 |    \
-    E1000_EICR_RX_QUEUE2 |    \
-    E1000_EICR_RX_QUEUE3)
+	E1000_EICR_RX_QUEUE0 |    \
+	E1000_EICR_RX_QUEUE1 |    \
+	E1000_EICR_RX_QUEUE2 |    \
+	E1000_EICR_RX_QUEUE3)
 
 /* Immediate Interrupt Rx (A.K.A. Low Latency Interrupt) */
 #define E1000_IMIREXT_SIZE_BP     0x00001000  /* Packet size bypass */

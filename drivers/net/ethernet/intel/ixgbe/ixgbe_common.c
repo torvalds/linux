@@ -271,6 +271,7 @@ out:
  **/
 s32 ixgbe_start_hw_generic(struct ixgbe_hw *hw)
 {
+	s32 ret_val;
 	u32 ctrl_ext;
 
 	/* Set the media type */
@@ -292,12 +293,15 @@ s32 ixgbe_start_hw_generic(struct ixgbe_hw *hw)
 	IXGBE_WRITE_FLUSH(hw);
 
 	/* Setup flow control */
-	ixgbe_setup_fc(hw);
+	ret_val = ixgbe_setup_fc(hw);
+	if (!ret_val)
+		goto out;
 
 	/* Clear adapter stopped flag */
 	hw->adapter_stopped = false;
 
-	return 0;
+out:
+	return ret_val;
 }
 
 /**
@@ -2106,17 +2110,23 @@ s32 ixgbe_fc_enable_generic(struct ixgbe_hw *hw)
 	u32 fcrtl, fcrth;
 	int i;
 
-	/*
-	 * Validate the water mark configuration for packet buffer 0.  Zero
-	 * water marks indicate that the packet buffer was not configured
-	 * and the watermarks for packet buffer 0 should always be configured.
-	 */
-	if (!hw->fc.low_water ||
-	    !hw->fc.high_water[0] ||
-	    !hw->fc.pause_time) {
-		hw_dbg(hw, "Invalid water mark configuration\n");
+	/* Validate the water mark configuration. */
+	if (!hw->fc.pause_time) {
 		ret_val = IXGBE_ERR_INVALID_LINK_SETTINGS;
 		goto out;
+	}
+
+	/* Low water mark of zero causes XOFF floods */
+	for (i = 0; i < MAX_TRAFFIC_CLASS; i++) {
+		if ((hw->fc.current_mode & ixgbe_fc_tx_pause) &&
+		    hw->fc.high_water[i]) {
+			if (!hw->fc.low_water[i] ||
+			    hw->fc.low_water[i] >= hw->fc.high_water[i]) {
+				hw_dbg(hw, "Invalid water mark configuration\n");
+				ret_val = IXGBE_ERR_INVALID_LINK_SETTINGS;
+				goto out;
+			}
+		}
 	}
 
 	/* Negotiate the fc mode to use */
@@ -2181,12 +2191,11 @@ s32 ixgbe_fc_enable_generic(struct ixgbe_hw *hw)
 	IXGBE_WRITE_REG(hw, IXGBE_MFLCN, mflcn_reg);
 	IXGBE_WRITE_REG(hw, IXGBE_FCCFG, fccfg_reg);
 
-	fcrtl = (hw->fc.low_water << 10) | IXGBE_FCRTL_XONE;
-
 	/* Set up and enable Rx high/low water mark thresholds, enable XON. */
 	for (i = 0; i < MAX_TRAFFIC_CLASS; i++) {
 		if ((hw->fc.current_mode & ixgbe_fc_tx_pause) &&
 		    hw->fc.high_water[i]) {
+			fcrtl = (hw->fc.low_water[i] << 10) | IXGBE_FCRTL_XONE;
 			IXGBE_WRITE_REG(hw, IXGBE_FCRTL_82599(i), fcrtl);
 			fcrth = (hw->fc.high_water[i] << 10) | IXGBE_FCRTH_FCEN;
 		} else {

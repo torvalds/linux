@@ -301,9 +301,9 @@
 #define E1000_RA2      0x054E0  /* 2nd half of Rx address array - RW Array */
 #define E1000_PSRTYPE(_i)       (0x05480 + ((_i) * 4))
 #define E1000_RAL(_i)  (((_i) <= 15) ? (0x05400 + ((_i) * 8)) : \
-                                       (0x054E0 + ((_i - 16) * 8)))
+					(0x054E0 + ((_i - 16) * 8)))
 #define E1000_RAH(_i)  (((_i) <= 15) ? (0x05404 + ((_i) * 8)) : \
-                                       (0x054E4 + ((_i - 16) * 8)))
+					(0x054E4 + ((_i - 16) * 8)))
 #define E1000_IP4AT_REG(_i)     (0x05840 + ((_i) * 8))
 #define E1000_IP6AT_REG(_i)     (0x05880 + ((_i) * 4))
 #define E1000_WUPM_REG(_i)      (0x05A00 + ((_i) * 4))
@@ -358,8 +358,7 @@
 #define E1000_VMBMEM(_n)       (0x00800 + (64 * (_n)))
 #define E1000_VMOLR(_n)        (0x05AD0 + (4 * (_n)))
 #define E1000_DVMOLR(_n)       (0x0C038 + (64 * (_n)))
-#define E1000_VLVF(_n)         (0x05D00 + (4 * (_n))) /* VLAN Virtual Machine
-                                                       * Filter - RW */
+#define E1000_VLVF(_n)         (0x05D00 + (4 * (_n))) /* VLAN VM Filter */
 #define E1000_VMVIR(_n)        (0x03700 + (4 * (_n)))
 
 struct e1000_hw;
