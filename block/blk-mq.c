@@ -1562,6 +1562,7 @@ void blk_mq_free_tag_set(struct blk_mq_tag_set *set)
 
 	for (i = 0; i < set->nr_hw_queues; i++)
 		blk_mq_free_rq_map(set, set->tags[i], i);
+	kfree(set->tags);
 }
 EXPORT_SYMBOL(blk_mq_free_tag_set);
 
