@@ -5429,7 +5429,7 @@ static void i40e_fdir_teardown(struct i40e_pf *pf)
 static int i40e_prep_for_reset(struct i40e_pf *pf)
 {
 	struct i40e_hw *hw = &pf->hw;
-	i40e_status ret;
+	i40e_status ret = 0;
 	u32 v;
 
 	clear_bit(__I40E_RESET_INTR_RECEIVED, &pf->state);
@@ -5449,10 +5449,13 @@ static int i40e_prep_for_reset(struct i40e_pf *pf)
 	i40e_shutdown_adminq(&pf->hw);
 
 	/* call shutdown HMC */
-	ret = i40e_shutdown_lan_hmc(hw);
-	if (ret) {
-		dev_info(&pf->pdev->dev, "shutdown_lan_hmc failed: %d\n", ret);
-		clear_bit(__I40E_RESET_RECOVERY_PENDING, &pf->state);
+	if (hw->hmc.hmc_obj) {
+		ret = i40e_shutdown_lan_hmc(hw);
+		if (ret) {
+			dev_warn(&pf->pdev->dev,
+				 "shutdown_lan_hmc failed: %d\n", ret);
+			clear_bit(__I40E_RESET_RECOVERY_PENDING, &pf->state);
+		}
 	}
 	return ret;
 }
@@ -8637,10 +8640,13 @@ static void i40e_remove(struct pci_dev *pdev)
 	}
 
 	/* shutdown and destroy the HMC */
-	ret_code = i40e_shutdown_lan_hmc(&pf->hw);
-	if (ret_code)
-		dev_warn(&pdev->dev,
-			 "Failed to destroy the HMC resources: %d\n", ret_code);
+	if (pf->hw.hmc.hmc_obj) {
+		ret_code = i40e_shutdown_lan_hmc(&pf->hw);
+		if (ret_code)
+			dev_warn(&pdev->dev,
+				 "Failed to destroy the HMC resources: %d\n",
+				 ret_code);
+	}
 
 	/* shutdown the adminq */
 	ret_code = i40e_shutdown_adminq(&pf->hw);
