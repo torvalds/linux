@@ -46,6 +46,167 @@ static struct ci_otg_fsm_timer *otg_timer_initializer
 	return timer;
 }
 
+/* Add for otg: interact with user space app */
+static ssize_t
+get_a_bus_req(struct device *dev, struct device_attribute *attr, char *buf)
+{
+	char		*next;
+	unsigned	size, t;
+	struct ci_hdrc	*ci = dev_get_drvdata(dev);
+
+	next = buf;
+	size = PAGE_SIZE;
+	t = scnprintf(next, size, "%d\n", ci->fsm.a_bus_req);
+	size -= t;
+	next += t;
+
+	return PAGE_SIZE - size;
+}
+
+static ssize_t
+set_a_bus_req(struct device *dev, struct device_attribute *attr,
+					const char *buf, size_t count)
+{
+	struct ci_hdrc *ci = dev_get_drvdata(dev);
+
+	if (count > 2)
+		return -1;
+
+	mutex_lock(&ci->fsm.lock);
+	if (buf[0] == '0') {
+		ci->fsm.a_bus_req = 0;
+	} else if (buf[0] == '1') {
+		/* If a_bus_drop is TRUE, a_bus_req can't be set */
+		if (ci->fsm.a_bus_drop) {
+			mutex_unlock(&ci->fsm.lock);
+			return count;
+		}
+		ci->fsm.a_bus_req = 1;
+	}
+
+	disable_irq_nosync(ci->irq);
+	queue_work(ci->wq, &ci->work);
+	mutex_unlock(&ci->fsm.lock);
+
+	return count;
+}
+static DEVICE_ATTR(a_bus_req, S_IRUGO | S_IWUSR, get_a_bus_req, set_a_bus_req);
+
+static ssize_t
+get_a_bus_drop(struct device *dev, struct device_attribute *attr, char *buf)
+{
+	char		*next;
+	unsigned	size, t;
+	struct ci_hdrc	*ci = dev_get_drvdata(dev);
+
+	next = buf;
+	size = PAGE_SIZE;
+	t = scnprintf(next, size, "%d\n", ci->fsm.a_bus_drop);
+	size -= t;
+	next += t;
+
+	return PAGE_SIZE - size;
+}
+
+static ssize_t
+set_a_bus_drop(struct device *dev, struct device_attribute *attr,
+					const char *buf, size_t count)
+{
+	struct ci_hdrc	*ci = dev_get_drvdata(dev);
+
+	if (count > 2)
+		return -1;
+
+	mutex_lock(&ci->fsm.lock);
+	if (buf[0] == '0') {
+		ci->fsm.a_bus_drop = 0;
+	} else if (buf[0] == '1') {
+		ci->fsm.a_bus_drop = 1;
+		ci->fsm.a_bus_req = 0;
+	}
+
+	disable_irq_nosync(ci->irq);
+	queue_work(ci->wq, &ci->work);
+	mutex_unlock(&ci->fsm.lock);
+
+	return count;
+}
+static DEVICE_ATTR(a_bus_drop, S_IRUGO | S_IWUSR, get_a_bus_drop,
+						set_a_bus_drop);
+
+static ssize_t
+get_b_bus_req(struct device *dev, struct device_attribute *attr, char *buf)
+{
+	char		*next;
+	unsigned	size, t;
+	struct ci_hdrc	*ci = dev_get_drvdata(dev);
+
+	next = buf;
+	size = PAGE_SIZE;
+	t = scnprintf(next, size, "%d\n", ci->fsm.b_bus_req);
+	size -= t;
+	next += t;
+
+	return PAGE_SIZE - size;
+}
+
+static ssize_t
+set_b_bus_req(struct device *dev, struct device_attribute *attr,
+					const char *buf, size_t count)
+{
+	struct ci_hdrc	*ci = dev_get_drvdata(dev);
+
+	if (count > 2)
+		return -1;
+
+	mutex_lock(&ci->fsm.lock);
+	if (buf[0] == '0')
+		ci->fsm.b_bus_req = 0;
+	else if (buf[0] == '1')
+		ci->fsm.b_bus_req = 1;
+
+	disable_irq_nosync(ci->irq);
+	queue_work(ci->wq, &ci->work);
+	mutex_unlock(&ci->fsm.lock);
+
+	return count;
+}
+static DEVICE_ATTR(b_bus_req, S_IRUGO | S_IWUSR, get_b_bus_req, set_b_bus_req);
+
+static ssize_t
+set_a_clr_err(struct device *dev, struct device_attribute *attr,
+					const char *buf, size_t count)
+{
+	struct ci_hdrc	*ci = dev_get_drvdata(dev);
+
+	if (count > 2)
+		return -1;
+
+	mutex_lock(&ci->fsm.lock);
+	if (buf[0] == '1')
+		ci->fsm.a_clr_err = 1;
+
+	disable_irq_nosync(ci->irq);
+	queue_work(ci->wq, &ci->work);
+	mutex_unlock(&ci->fsm.lock);
+
+	return count;
+}
+static DEVICE_ATTR(a_clr_err, S_IWUSR, NULL, set_a_clr_err);
+
+static struct attribute *inputs_attrs[] = {
+	&dev_attr_a_bus_req.attr,
+	&dev_attr_a_bus_drop.attr,
+	&dev_attr_b_bus_req.attr,
+	&dev_attr_a_clr_err.attr,
+	NULL,
+};
+
+static struct attribute_group inputs_attr_group = {
+	.name = "inputs",
+	.attrs = inputs_attrs,
+};
+
 /*
  * Add timer to active timer list
  */
@@ -676,6 +837,13 @@ int ci_hdrc_otg_fsm_init(struct ci_hdrc *ci)
 		return retval;
 	}
 
+	retval = sysfs_create_group(&ci->dev->kobj, &inputs_attr_group);
+	if (retval < 0) {
+		dev_dbg(ci->dev,
+			"Can't register sysfs attr group: %d\n", retval);
+		return retval;
+	}
+
 	/* Enable A vbus valid irq */
 	hw_write_otgsc(ci, OTGSC_AVVIE, OTGSC_AVVIE);
 
@@ -689,4 +857,9 @@ int ci_hdrc_otg_fsm_init(struct ci_hdrc *ci)
 	}
 
 	return 0;
+}
+
+void ci_hdrc_otg_fsm_remove(struct ci_hdrc *ci)
+{
+	sysfs_remove_group(&ci->dev->kobj, &inputs_attr_group);
 }

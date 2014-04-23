@@ -141,4 +141,6 @@ void ci_hdrc_otg_destroy(struct ci_hdrc *ci)
 	/* Disable all OTG irq and clear status */
 	hw_write_otgsc(ci, OTGSC_INT_EN_BITS | OTGSC_INT_STATUS_BITS,
 						OTGSC_INT_STATUS_BITS);
+	if (ci_otg_is_fsm_mode(ci))
+		ci_hdrc_otg_fsm_remove(ci);
 }
