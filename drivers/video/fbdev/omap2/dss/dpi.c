@@ -396,7 +396,7 @@ static int dpi_display_enable(struct omap_dss_device *dssdev)
 	if (r)
 		goto err_get_dispc;
 
-	r = dss_dpi_select_source(out->manager->id);
+	r = dss_dpi_select_source(out->port_num, out->manager->id);
 	if (r)
 		goto err_src_sel;
 
