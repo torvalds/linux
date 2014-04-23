@@ -144,7 +144,6 @@ struct cx23885_fh {
 	struct v4l2_fh		   fh;
 	struct cx23885_dev         *dev;
 	enum v4l2_buf_type         type;
-	int                        radio;
 	u32                        resources;
 
 	/* video overlay */
@@ -413,7 +412,6 @@ struct cx23885_dev {
 	unsigned int               tuner_bus;
 	unsigned int               radio_type;
 	unsigned char              radio_addr;
-	unsigned int               has_radio;
 	struct v4l2_subdev 	   *sd_cx25840;
 	struct work_struct	   cx25840_work;
 
@@ -431,7 +429,6 @@ struct cx23885_dev {
 	u32                        freq;
 	struct video_device        *video_dev;
 	struct video_device        *vbi_dev;
-	struct video_device        *radio_dev;
 
 	struct cx23885_dmaqueue    vidq;
 	struct cx23885_dmaqueue    vbiq;

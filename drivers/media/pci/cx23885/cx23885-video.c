@@ -49,15 +49,12 @@ MODULE_LICENSE("GPL");
 
 static unsigned int video_nr[] = {[0 ... (CX23885_MAXBOARDS - 1)] = UNSET };
 static unsigned int vbi_nr[]   = {[0 ... (CX23885_MAXBOARDS - 1)] = UNSET };
-static unsigned int radio_nr[] = {[0 ... (CX23885_MAXBOARDS - 1)] = UNSET };
 
 module_param_array(video_nr, int, NULL, 0444);
 module_param_array(vbi_nr,   int, NULL, 0444);
-module_param_array(radio_nr, int, NULL, 0444);
 
 MODULE_PARM_DESC(video_nr, "video device numbers");
 MODULE_PARM_DESC(vbi_nr, "vbi device numbers");
-MODULE_PARM_DESC(radio_nr, "radio device numbers");
 
 static unsigned int video_debug;
 module_param(video_debug, int, 0644);
@@ -727,7 +724,6 @@ static int video_open(struct file *file)
 	struct cx23885_dev *dev = video_drvdata(file);
 	struct cx23885_fh *fh;
 	enum v4l2_buf_type type = 0;
-	int radio = 0;
 
 	switch (vdev->vfl_type) {
 	case VFL_TYPE_GRABBER:
@@ -736,13 +732,10 @@ static int video_open(struct file *file)
 	case VFL_TYPE_VBI:
 		type = V4L2_BUF_TYPE_VBI_CAPTURE;
 		break;
-	case VFL_TYPE_RADIO:
-		radio = 1;
-		break;
 	}
 
-	dprintk(1, "open dev=%s radio=%d type=%s\n",
-		video_device_node_name(vdev), radio, v4l2_type_names[type]);
+	dprintk(1, "open dev=%s type=%s\n",
+		video_device_node_name(vdev), v4l2_type_names[type]);
 
 	/* allocate + initialize per filehandle data */
 	fh = kzalloc(sizeof(*fh), GFP_KERNEL);
@@ -752,7 +745,6 @@ static int video_open(struct file *file)
 	v4l2_fh_init(&fh->fh, vdev);
 	file->private_data = &fh->fh;
 	fh->dev      = dev;
-	fh->radio    = radio;
 	fh->type     = type;
 	fh->width    = 320;
 	fh->height   = 240;
@@ -1333,8 +1325,7 @@ static int vidioc_g_frequency(struct file *file, void *priv,
 	if (dev->tuner_type == TUNER_ABSENT)
 		return -EINVAL;
 
-	/* f->type = fh->radio ? V4L2_TUNER_RADIO : V4L2_TUNER_ANALOG_TV; */
-	f->type = fh->radio ? V4L2_TUNER_RADIO : V4L2_TUNER_ANALOG_TV;
+	f->type = V4L2_TUNER_ANALOG_TV;
 	f->frequency = dev->freq;
 
 	call_all(dev, tuner, g_frequency, f);
