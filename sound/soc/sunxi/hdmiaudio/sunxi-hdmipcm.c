@@ -30,7 +30,6 @@
 #include <plat/dma_compat.h>
 
 #include "sunxi-hdmiaudio.h"
-#include "sunxi-hdmipcm.h"
 
 static volatile unsigned int dmasrc = 0;
 static volatile unsigned int dmadst = 0;

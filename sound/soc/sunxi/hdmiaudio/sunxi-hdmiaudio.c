@@ -34,7 +34,6 @@
 #include <plat/sys_config.h>
 #include <plat/dma_compat.h>
 
-#include "sunxi-hdmipcm.h"
 #include "sunxi-hdmiaudio.h"
 
 //save the register value

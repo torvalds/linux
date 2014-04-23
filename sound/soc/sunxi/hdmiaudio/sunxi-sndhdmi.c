@@ -25,9 +25,6 @@
 #include <linux/io.h>
 
 #include "sunxi-hdmiaudio.h"
-#include "sunxi-hdmipcm.h"
-
-#include "sndhdmi.h"
 
 static struct clk *xtal;
 

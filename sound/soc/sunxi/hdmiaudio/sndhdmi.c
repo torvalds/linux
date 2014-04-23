@@ -22,8 +22,7 @@
 #include <sound/initval.h>
 #include <plat/sys_config.h>
 #include <linux/io.h>
-
-#include "sndhdmi.h"
+#include <linux/drv_hdmi.h>
 
 struct sndhdmi_priv {
 	int sysclk;
