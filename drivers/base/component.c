@@ -113,44 +113,44 @@ static void master_remove_components(struct master *master)
 static int try_to_bring_up_master(struct master *master,
 	struct component *component)
 {
-	int ret = 0;
+	int ret;
 
-	if (!master->bound) {
-		/*
-		 * Search the list of components, looking for components that
-		 * belong to this master, and attach them to the master.
-		 */
-		if (master->ops->add_components(master->dev, master)) {
-			/* Failed to find all components */
-			master_remove_components(master);
-			ret = 0;
-			goto out;
-		}
+	if (master->bound)
+		return 0;
 
-		if (component && component->master != master) {
-			master_remove_components(master);
-			ret = 0;
-			goto out;
-		}
-
-		if (!devres_open_group(master->dev, NULL, GFP_KERNEL)) {
-			ret = -ENOMEM;
-			goto out;
-		}
-
-		/* Found all components */
-		ret = master->ops->bind(master->dev);
-		if (ret < 0) {
-			devres_release_group(master->dev, NULL);
-			dev_info(master->dev, "master bind failed: %d\n", ret);
-			master_remove_components(master);
-			goto out;
-		}
-
-		master->bound = true;
-		ret = 1;
+	/*
+	 * Search the list of components, looking for components that
+	 * belong to this master, and attach them to the master.
+	 */
+	if (master->ops->add_components(master->dev, master)) {
+		/* Failed to find all components */
+		ret = 0;
+		goto out;
 	}
+
+	if (component && component->master != master) {
+		ret = 0;
+		goto out;
+	}
+
+	if (!devres_open_group(master->dev, NULL, GFP_KERNEL)) {
+		ret = -ENOMEM;
+		goto out;
+	}
+
+	/* Found all components */
+	ret = master->ops->bind(master->dev);
+	if (ret < 0) {
+		devres_release_group(master->dev, NULL);
+		dev_info(master->dev, "master bind failed: %d\n", ret);
+		goto out;
+	}
+
+	master->bound = true;
+	return 1;
+
 out:
+	master_remove_components(master);
 
 	return ret;
 }
