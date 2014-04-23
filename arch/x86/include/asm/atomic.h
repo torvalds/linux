@@ -182,6 +182,23 @@ static inline int atomic_xchg(atomic_t *v, int new)
 	return xchg(&v->counter, new);
 }
 
+#define ATOMIC_OP(op)							\
+static inline void atomic_##op(int i, atomic_t *v)			\
+{									\
+	asm volatile(LOCK_PREFIX #op"l %1,%0"				\
+			: "+m" (v->counter)				\
+			: "ir" (i)					\
+			: "memory");					\
+}
+
+#define CONFIG_ARCH_HAS_ATOMIC_OR
+
+ATOMIC_OP(and)
+ATOMIC_OP(or)
+ATOMIC_OP(xor)
+
+#undef ATOMIC_OP
+
 /**
  * __atomic_add_unless - add unless the number is already a given value
  * @v: pointer of type atomic_t
@@ -219,15 +236,15 @@ static __always_inline short int atomic_inc_short(short int *v)
 	return *v;
 }
 
-/* These are x86-specific, used by some header files */
-#define atomic_clear_mask(mask, addr)				\
-	asm volatile(LOCK_PREFIX "andl %0,%1"			\
-		     : : "r" (~(mask)), "m" (*(addr)) : "memory")
+static inline __deprecated void atomic_clear_mask(unsigned int mask, atomic_t *v)
+{
+	atomic_and(~mask, v);
+}
 
-#define atomic_set_mask(mask, addr)				\
-	asm volatile(LOCK_PREFIX "orl %0,%1"			\
-		     : : "r" ((unsigned)(mask)), "m" (*(addr))	\
-		     : "memory")
+static inline __deprecated void atomic_set_mask(unsigned int mask, atomic_t *v)
+{
+	atomic_or(mask, v);
+}
 
 #ifdef CONFIG_X86_32
 # include <asm/atomic64_32.h>
