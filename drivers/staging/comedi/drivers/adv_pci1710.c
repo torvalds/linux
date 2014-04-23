@@ -316,7 +316,6 @@ struct pci1710_private {
 	unsigned char da_ranges;	/*  copy of D/A outpit range register */
 	unsigned int ai_scans;	/*  len of scanlist */
 	unsigned int ai_n_chan;	/*  how many channels is measured */
-	unsigned int *ai_chanlist;	/*  actaul chanlist */
 	unsigned int ai_data_len;	/*  len of data buffer */
 	unsigned short ao_data[4];	/*  data output buffer */
 	unsigned int cnt0_write_wait;	/* after a write, wait for update of the
@@ -961,11 +960,11 @@ static int pci171x_ai_docmd_and_mode(int mode, struct comedi_device *dev,
 
 	start_pacer(dev, -1, 0, 0);	/*  stop pacer */
 
-	seglen = check_channel_list(dev, s, devpriv->ai_chanlist,
+	seglen = check_channel_list(dev, s, cmd->chanlist,
 				    devpriv->ai_n_chan);
 	if (seglen < 1)
 		return -EINVAL;
-	setup_channel_list(dev, s, devpriv->ai_chanlist,
+	setup_channel_list(dev, s, cmd->chanlist,
 			   devpriv->ai_n_chan, seglen);
 
 	outb(0, dev->iobase + PCI171x_CLRFIFO);
@@ -1120,7 +1119,6 @@ static int pci171x_ai_cmd(struct comedi_device *dev, struct comedi_subdevice *s)
 	struct comedi_cmd *cmd = &s->async->cmd;
 
 	devpriv->ai_n_chan = cmd->chanlist_len;
-	devpriv->ai_chanlist = cmd->chanlist;
 	devpriv->ai_data_len = s->async->prealloc_bufsz;
 
 	if (cmd->stop_src == TRIG_COUNT)
