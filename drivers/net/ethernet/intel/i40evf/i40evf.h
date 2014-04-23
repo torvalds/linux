@@ -80,7 +80,7 @@ struct i40e_vsi {
 #define I40EVF_MIN_TXD       64
 #define I40EVF_MAX_RXD       4096
 #define I40EVF_MIN_RXD       64
-#define I40EVF_REQ_DESCRIPTOR_MULTIPLE  8
+#define I40EVF_REQ_DESCRIPTOR_MULTIPLE  32
 
 /* Supported Rx Buffer Sizes */
 #define I40EVF_RXBUFFER_64    64     /* Used for packet split */
