@@ -264,25 +264,18 @@ static struct platform_device cmt_device = {
 };
 
 static struct sh_timer_config tmu0_platform_data = {
-	.channel_offset = 0x04,
-	.timer_bit = 0,
-	.clockevent_rating = 200,
+	.channels_mask = 7,
 };
 
 static struct resource tmu0_resources[] = {
-	[0] = {
-		.start	= 0xffd80008,
-		.end	= 0xffd80013,
-		.flags	= IORESOURCE_MEM,
-	},
-	[1] = {
-		.start	= evt2irq(0x400),
-		.flags	= IORESOURCE_IRQ,
-	},
+	DEFINE_RES_MEM(0xffd80000, 0x2c),
+	DEFINE_RES_IRQ(evt2irq(0x400)),
+	DEFINE_RES_IRQ(evt2irq(0x420)),
+	DEFINE_RES_IRQ(evt2irq(0x440)),
 };
 
 static struct platform_device tmu0_device = {
-	.name		= "sh_tmu",
+	.name		= "sh-tmu",
 	.id		= 0,
 	.dev = {
 		.platform_data	= &tmu0_platform_data,
@@ -292,139 +285,24 @@ static struct platform_device tmu0_device = {
 };
 
 static struct sh_timer_config tmu1_platform_data = {
-	.channel_offset = 0x10,
-	.timer_bit = 1,
-	.clocksource_rating = 200,
+	.channels_mask = 7,
 };
 
 static struct resource tmu1_resources[] = {
-	[0] = {
-		.start	= 0xffd80014,
-		.end	= 0xffd8001f,
-		.flags	= IORESOURCE_MEM,
-	},
-	[1] = {
-		.start	= evt2irq(0x420),
-		.flags	= IORESOURCE_IRQ,
-	},
+	DEFINE_RES_MEM(0xffd90000, 0x2c),
+	DEFINE_RES_IRQ(evt2irq(0x920)),
+	DEFINE_RES_IRQ(evt2irq(0x940)),
+	DEFINE_RES_IRQ(evt2irq(0x960)),
 };
 
 static struct platform_device tmu1_device = {
-	.name		= "sh_tmu",
+	.name		= "sh-tmu",
 	.id		= 1,
 	.dev = {
 		.platform_data	= &tmu1_platform_data,
 	},
 	.resource	= tmu1_resources,
 	.num_resources	= ARRAY_SIZE(tmu1_resources),
-};
-
-static struct sh_timer_config tmu2_platform_data = {
-	.channel_offset = 0x1c,
-	.timer_bit = 2,
-};
-
-static struct resource tmu2_resources[] = {
-	[0] = {
-		.start	= 0xffd80020,
-		.end	= 0xffd8002b,
-		.flags	= IORESOURCE_MEM,
-	},
-	[1] = {
-		.start	= evt2irq(0x440),
-		.flags	= IORESOURCE_IRQ,
-	},
-};
-
-static struct platform_device tmu2_device = {
-	.name		= "sh_tmu",
-	.id		= 2,
-	.dev = {
-		.platform_data	= &tmu2_platform_data,
-	},
-	.resource	= tmu2_resources,
-	.num_resources	= ARRAY_SIZE(tmu2_resources),
-};
-
-static struct sh_timer_config tmu3_platform_data = {
-	.channel_offset = 0x04,
-	.timer_bit = 0,
-};
-
-static struct resource tmu3_resources[] = {
-	[0] = {
-		.start	= 0xffd90008,
-		.end	= 0xffd90013,
-		.flags	= IORESOURCE_MEM,
-	},
-	[1] = {
-		.start	= evt2irq(0x920),
-		.flags	= IORESOURCE_IRQ,
-	},
-};
-
-static struct platform_device tmu3_device = {
-	.name		= "sh_tmu",
-	.id		= 3,
-	.dev = {
-		.platform_data	= &tmu3_platform_data,
-	},
-	.resource	= tmu3_resources,
-	.num_resources	= ARRAY_SIZE(tmu3_resources),
-};
-
-static struct sh_timer_config tmu4_platform_data = {
-	.channel_offset = 0x10,
-	.timer_bit = 1,
-};
-
-static struct resource tmu4_resources[] = {
-	[0] = {
-		.start	= 0xffd90014,
-		.end	= 0xffd9001f,
-		.flags	= IORESOURCE_MEM,
-	},
-	[1] = {
-		.start	= evt2irq(0x940),
-		.flags	= IORESOURCE_IRQ,
-	},
-};
-
-static struct platform_device tmu4_device = {
-	.name		= "sh_tmu",
-	.id		= 4,
-	.dev = {
-		.platform_data	= &tmu4_platform_data,
-	},
-	.resource	= tmu4_resources,
-	.num_resources	= ARRAY_SIZE(tmu4_resources),
-};
-
-static struct sh_timer_config tmu5_platform_data = {
-	.channel_offset = 0x1c,
-	.timer_bit = 2,
-};
-
-static struct resource tmu5_resources[] = {
-	[0] = {
-		.start	= 0xffd90020,
-		.end	= 0xffd9002b,
-		.flags	= IORESOURCE_MEM,
-	},
-	[1] = {
-		.start	= evt2irq(0x920),
-		.flags	= IORESOURCE_IRQ,
-	},
-};
-
-static struct platform_device tmu5_device = {
-	.name		= "sh_tmu",
-	.id		= 5,
-	.dev = {
-		.platform_data	= &tmu5_platform_data,
-	},
-	.resource	= tmu5_resources,
-	.num_resources	= ARRAY_SIZE(tmu5_resources),
 };
 
 static struct resource rtc_resources[] = {
@@ -517,10 +395,6 @@ static struct platform_device *sh7723_devices[] __initdata = {
 	&cmt_device,
 	&tmu0_device,
 	&tmu1_device,
-	&tmu2_device,
-	&tmu3_device,
-	&tmu4_device,
-	&tmu5_device,
 	&rtc_device,
 	&iic_device,
 	&sh7723_usb_host_device,
@@ -550,10 +424,6 @@ static struct platform_device *sh7723_early_devices[] __initdata = {
 	&cmt_device,
 	&tmu0_device,
 	&tmu1_device,
-	&tmu2_device,
-	&tmu3_device,
-	&tmu4_device,
-	&tmu5_device,
 };
 
 void __init plat_early_device_setup(void)
