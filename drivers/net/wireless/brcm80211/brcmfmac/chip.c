@@ -303,10 +303,10 @@ static void brcmf_chip_ai_coredisable(struct brcmf_core_priv *core,
 
 	ci = core->chip;
 
-	/* if core is already in reset, just return */
+	/* if core is already in reset, skip reset */
 	regdata = ci->ops->read32(ci->ctx, core->wrapbase + BCMA_RESET_CTL);
 	if ((regdata & BCMA_RESET_CTL_RESET) != 0)
-		return;
+		goto in_reset_configure;
 
 	/* configure reset */
 	ci->ops->write32(ci->ctx, core->wrapbase + BCMA_IOCTL,
@@ -322,6 +322,7 @@ static void brcmf_chip_ai_coredisable(struct brcmf_core_priv *core,
 	SPINWAIT(ci->ops->read32(ci->ctx, core->wrapbase + BCMA_RESET_CTL) !=
 		 BCMA_RESET_CTL_RESET, 300);
 
+in_reset_configure:
 	/* in-reset configure */
 	ci->ops->write32(ci->ctx, core->wrapbase + BCMA_IOCTL,
 			 reset | BCMA_IOCTL_FGC | BCMA_IOCTL_CLK);
