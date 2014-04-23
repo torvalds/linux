@@ -1101,7 +1101,7 @@ static int digital_tg_send_sensf_res(struct nfc_digital_dev *ddev,
 
 	size = sizeof(struct digital_sensf_res);
 
-	if (sensf_req->rc != DIGITAL_SENSF_REQ_RC_NONE)
+	if (sensf_req->rc == DIGITAL_SENSF_REQ_RC_NONE)
 		size -= sizeof(sensf_res->rd);
 
 	skb = digital_skb_alloc(ddev, size);
