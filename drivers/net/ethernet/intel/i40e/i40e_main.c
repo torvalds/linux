@@ -2790,6 +2790,7 @@ static int i40e_vsi_request_irq_msix(struct i40e_vsi *vsi, char *basename)
 				      &q_vector->affinity_mask);
 	}
 
+	vsi->irqs_ready = true;
 	return 0;
 
 free_queue_irqs:
@@ -3349,6 +3350,10 @@ static void i40e_vsi_free_irq(struct i40e_vsi *vsi)
 		if (!vsi->q_vectors)
 			return;
 
+		if (!vsi->irqs_ready)
+			return;
+
+		vsi->irqs_ready = false;
 		for (i = 0; i < vsi->num_q_vectors; i++) {
 			u16 vector = i + base;
 
@@ -5953,6 +5958,7 @@ static int i40e_vsi_mem_alloc(struct i40e_pf *pf, enum i40e_vsi_type type)
 	vsi->netdev_registered = false;
 	vsi->work_limit = I40E_DEFAULT_IRQ_WORK;
 	INIT_LIST_HEAD(&vsi->mac_filter_list);
+	vsi->irqs_ready = false;
 
 	ret = i40e_set_num_rings_in_vsi(vsi);
 	if (ret)
