@@ -114,14 +114,14 @@ extern const struct xattr_handler f2fs_xattr_security_handler;
 extern const struct xattr_handler *f2fs_xattr_handlers[];
 
 extern int f2fs_setxattr(struct inode *, int, const char *,
-				const void *, size_t, struct page *);
+				const void *, size_t, struct page *, int);
 extern int f2fs_getxattr(struct inode *, int, const char *, void *, size_t);
 extern ssize_t f2fs_listxattr(struct dentry *, char *, size_t);
 #else
 
 #define f2fs_xattr_handlers	NULL
 static inline int f2fs_setxattr(struct inode *inode, int index,
-		const char *name, const void *value, size_t size)
+		const char *name, const void *value, size_t size, int flags)
 {
 	return -EOPNOTSUPP;
 }
