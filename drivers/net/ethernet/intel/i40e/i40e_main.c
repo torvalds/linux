@@ -4412,6 +4412,9 @@ void i40e_do_reset(struct i40e_pf *pf, u32 reset_flags)
 
 	WARN_ON(in_interrupt());
 
+	if (i40e_check_asq_alive(&pf->hw))
+		i40e_vc_notify_reset(pf);
+
 	/* do the biggest reset indicated */
 	if (reset_flags & (1 << __I40E_GLOBAL_RESET_REQUESTED)) {
 
@@ -5327,9 +5330,6 @@ static int i40e_prep_for_reset(struct i40e_pf *pf)
 		return 0;
 
 	dev_dbg(&pf->pdev->dev, "Tearing down internal switch for reset\n");
-
-	if (i40e_check_asq_alive(hw))
-		i40e_vc_notify_reset(pf);
 
 	/* quiesce the VSIs and their queues that are not already DOWN */
 	i40e_pf_quiesce_all_vsi(pf);
