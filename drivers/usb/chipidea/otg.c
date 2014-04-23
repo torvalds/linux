@@ -24,13 +24,31 @@
 #include "otg.h"
 
 /**
+ * hw_read_otgsc returns otgsc register bits value.
+ * @mask: bitfield mask
+ */
+u32 hw_read_otgsc(struct ci_hdrc *ci, u32 mask)
+{
+	return hw_read(ci, OP_OTGSC, mask);
+}
+
+/**
+ * hw_write_otgsc updates target bits of OTGSC register.
+ * @mask: bitfield mask
+ * @data: to be written
+ */
+void hw_write_otgsc(struct ci_hdrc *ci, u32 mask, u32 data)
+{
+	hw_write(ci, OP_OTGSC, mask | OTGSC_INT_STATUS_BITS, data);
+}
+
+/**
  * ci_otg_role - pick role based on ID pin state
  * @ci: the controller
  */
 enum ci_role ci_otg_role(struct ci_hdrc *ci)
 {
-	u32 sts = hw_read(ci, OP_OTGSC, ~0);
-	enum ci_role role = sts & OTGSC_ID
+	enum ci_role role = hw_read_otgsc(ci, OTGSC_ID)
 		? CI_ROLE_GADGET
 		: CI_ROLE_HOST;
 
@@ -39,14 +57,10 @@ enum ci_role ci_otg_role(struct ci_hdrc *ci)
 
 void ci_handle_vbus_change(struct ci_hdrc *ci)
 {
-	u32 otgsc;
-
 	if (!ci->is_otg)
 		return;
 
-	otgsc = hw_read(ci, OP_OTGSC, ~0);
-
-	if (otgsc & OTGSC_BSV)
+	if (hw_read_otgsc(ci, OTGSC_BSV))
 		usb_gadget_vbus_connect(&ci->gadget);
 	else
 		usb_gadget_vbus_disconnect(&ci->gadget);
@@ -115,6 +129,7 @@ void ci_hdrc_otg_destroy(struct ci_hdrc *ci)
 		flush_workqueue(ci->wq);
 		destroy_workqueue(ci->wq);
 	}
-	ci_disable_otg_interrupt(ci, OTGSC_INT_EN_BITS);
-	ci_clear_otg_interrupt(ci, OTGSC_INT_STATUS_BITS);
+	/* Disable all OTG irq and clear status */
+	hw_write_otgsc(ci, OTGSC_INT_EN_BITS | OTGSC_INT_STATUS_BITS,
+						OTGSC_INT_STATUS_BITS);
 }

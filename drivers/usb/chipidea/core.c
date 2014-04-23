@@ -393,7 +393,7 @@ static irqreturn_t ci_irq(int irq, void *data)
 	u32 otgsc = 0;
 
 	if (ci->is_otg)
-		otgsc = hw_read(ci, OP_OTGSC, ~0);
+		otgsc = hw_read_otgsc(ci, ~0);
 
 	/*
 	 * Handle id change interrupt, it indicates device/host function
@@ -401,7 +401,8 @@ static irqreturn_t ci_irq(int irq, void *data)
 	 */
 	if (ci->is_otg && (otgsc & OTGSC_IDIE) && (otgsc & OTGSC_IDIS)) {
 		ci->id_event = true;
-		ci_clear_otg_interrupt(ci, OTGSC_IDIS);
+		/* Clear ID change irq status */
+		hw_write_otgsc(ci, OTGSC_IDIS, OTGSC_IDIS);
 		disable_irq_nosync(ci->irq);
 		queue_work(ci->wq, &ci->work);
 		return IRQ_HANDLED;
@@ -413,7 +414,8 @@ static irqreturn_t ci_irq(int irq, void *data)
 	 */
 	if (ci->is_otg && (otgsc & OTGSC_BSVIE) && (otgsc & OTGSC_BSVIS)) {
 		ci->b_sess_valid_event = true;
-		ci_clear_otg_interrupt(ci, OTGSC_BSVIS);
+		/* Clear BSV irq */
+		hw_write_otgsc(ci, OTGSC_BSVIS, OTGSC_BSVIS);
 		disable_irq_nosync(ci->irq);
 		queue_work(ci->wq, &ci->work);
 		return IRQ_HANDLED;
@@ -535,8 +537,9 @@ static void ci_get_otg_capable(struct ci_hdrc *ci)
 					== (DCCPARAMS_DC | DCCPARAMS_HC));
 	if (ci->is_otg) {
 		dev_dbg(ci->dev, "It is OTG capable controller\n");
-		ci_disable_otg_interrupt(ci, OTGSC_INT_EN_BITS);
-		ci_clear_otg_interrupt(ci, OTGSC_INT_STATUS_BITS);
+		/* Disable and clear all OTG irq */
+		hw_write_otgsc(ci, OTGSC_INT_EN_BITS | OTGSC_INT_STATUS_BITS,
+							OTGSC_INT_STATUS_BITS);
 	}
 }
 
@@ -648,7 +651,8 @@ static int ci_hdrc_probe(struct platform_device *pdev)
 			 */
 			mdelay(2);
 			ci->role = ci_otg_role(ci);
-			ci_enable_otg_interrupt(ci, OTGSC_IDIE);
+			/* Enable ID change irq */
+			hw_write_otgsc(ci, OTGSC_IDIE, OTGSC_IDIE);
 		} else {
 			/*
 			 * If the controller is not OTG capable, but support
