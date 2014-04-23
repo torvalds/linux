@@ -1611,7 +1611,7 @@ static int serial_omap_probe_rs485(struct uart_omap_port *up,
 	/* check for tx enable gpio */
 	up->rts_gpio = of_get_named_gpio_flags(np, "rts-gpio", 0, &flags);
 	if (gpio_is_valid(up->rts_gpio)) {
-		ret = gpio_request(up->rts_gpio, "omap-serial");
+		ret = devm_gpio_request(up->dev, up->rts_gpio, "omap-serial");
 		if (ret < 0)
 			return ret;
 		ret = gpio_direction_output(up->rts_gpio,
@@ -1677,7 +1677,8 @@ static int serial_omap_probe(struct platform_device *pdev)
 
 	if (gpio_is_valid(omap_up_info->DTR_gpio) &&
 	    omap_up_info->DTR_present) {
-		ret = gpio_request(omap_up_info->DTR_gpio, "omap-serial");
+		ret = devm_gpio_request(&pdev->dev, omap_up_info->DTR_gpio,
+				"omap-serial");
 		if (ret < 0)
 			return ret;
 		ret = gpio_direction_output(omap_up_info->DTR_gpio,
