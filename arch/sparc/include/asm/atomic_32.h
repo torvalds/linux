@@ -17,10 +17,14 @@
 #include <asm/barrier.h>
 #include <asm-generic/atomic64.h>
 
+#define CONFIG_ARCH_HAS_ATOMIC_OR
 
 #define ATOMIC_INIT(i)  { (i) }
 
 int atomic_add_return(int, atomic_t *);
+void atomic_and(int, atomic_t *);
+void atomic_or(int, atomic_t *);
+void atomic_xor(int, atomic_t *);
 int atomic_cmpxchg(atomic_t *, int, int);
 int atomic_xchg(atomic_t *, int);
 int __atomic_add_unless(atomic_t *, int, int);
