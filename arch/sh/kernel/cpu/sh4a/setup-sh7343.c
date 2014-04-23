@@ -228,26 +228,16 @@ static struct platform_device jpu_device = {
 };
 
 static struct sh_timer_config cmt_platform_data = {
-	.channel_offset = 0x60,
-	.timer_bit = 5,
-	.clockevent_rating = 125,
-	.clocksource_rating = 200,
+	.channels_mask = 0x20,
 };
 
 static struct resource cmt_resources[] = {
-	[0] = {
-		.start	= 0x044a0060,
-		.end	= 0x044a006b,
-		.flags	= IORESOURCE_MEM,
-	},
-	[1] = {
-		.start	= evt2irq(0xf00),
-		.flags	= IORESOURCE_IRQ,
-	},
+	DEFINE_RES_MEM(0x044a0000, 0x70),
+	DEFINE_RES_IRQ(evt2irq(0xf00)),
 };
 
 static struct platform_device cmt_device = {
-	.name		= "sh_cmt",
+	.name		= "sh-cmt-32",
 	.id		= 0,
 	.dev = {
 		.platform_data	= &cmt_platform_data,

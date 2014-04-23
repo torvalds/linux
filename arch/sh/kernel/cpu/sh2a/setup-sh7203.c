@@ -265,62 +265,24 @@ static struct platform_device scif3_device = {
 	},
 };
 
-static struct sh_timer_config cmt0_platform_data = {
-	.channel_offset = 0x02,
-	.timer_bit = 0,
-	.clockevent_rating = 125,
-	.clocksource_rating = 0, /* disabled due to code generation issues */
+static struct sh_timer_config cmt_platform_data = {
+	.channels_mask = 3,
 };
 
-static struct resource cmt0_resources[] = {
-	[0] = {
-		.start	= 0xfffec002,
-		.end	= 0xfffec007,
-		.flags	= IORESOURCE_MEM,
-	},
-	[1] = {
-		.start	= 142,
-		.flags	= IORESOURCE_IRQ,
-	},
+static struct resource cmt_resources[] = {
+	DEFINE_RES_MEM(0xfffec000, 0x10),
+	DEFINE_RES_IRQ(142),
+	DEFINE_RES_IRQ(143),
 };
 
-static struct platform_device cmt0_device = {
-	.name		= "sh_cmt",
+static struct platform_device cmt_device = {
+	.name		= "sh-cmt-16",
 	.id		= 0,
 	.dev = {
-		.platform_data	= &cmt0_platform_data,
+		.platform_data	= &cmt_platform_data,
 	},
-	.resource	= cmt0_resources,
-	.num_resources	= ARRAY_SIZE(cmt0_resources),
-};
-
-static struct sh_timer_config cmt1_platform_data = {
-	.channel_offset = 0x08,
-	.timer_bit = 1,
-	.clockevent_rating = 125,
-	.clocksource_rating = 0, /* disabled due to code generation issues */
-};
-
-static struct resource cmt1_resources[] = {
-	[0] = {
-		.start	= 0xfffec008,
-		.end	= 0xfffec00d,
-		.flags	= IORESOURCE_MEM,
-	},
-	[1] = {
-		.start	= 143,
-		.flags	= IORESOURCE_IRQ,
-	},
-};
-
-static struct platform_device cmt1_device = {
-	.name		= "sh_cmt",
-	.id		= 1,
-	.dev = {
-		.platform_data	= &cmt1_platform_data,
-	},
-	.resource	= cmt1_resources,
-	.num_resources	= ARRAY_SIZE(cmt1_resources),
+	.resource	= cmt_resources,
+	.num_resources	= ARRAY_SIZE(cmt_resources),
 };
 
 static struct sh_timer_config mtu2_0_platform_data = {
@@ -404,8 +366,7 @@ static struct platform_device *sh7203_devices[] __initdata = {
 	&scif1_device,
 	&scif2_device,
 	&scif3_device,
-	&cmt0_device,
-	&cmt1_device,
+	&cmt_device,
 	&mtu2_0_device,
 	&mtu2_1_device,
 	&rtc_device,
@@ -428,8 +389,7 @@ static struct platform_device *sh7203_early_devices[] __initdata = {
 	&scif1_device,
 	&scif2_device,
 	&scif3_device,
-	&cmt0_device,
-	&cmt1_device,
+	&cmt_device,
 	&mtu2_0_device,
 	&mtu2_1_device,
 };
