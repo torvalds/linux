@@ -28,6 +28,16 @@
 #include "i40e_prototype.h"
 
 /**
+ * i40e_is_nvm_update_op - return true if this is an NVM update operation
+ * @desc: API request descriptor
+ **/
+static inline bool i40e_is_nvm_update_op(struct i40e_aq_desc *desc)
+{
+	return (desc->opcode == i40e_aqc_opc_nvm_erase) ||
+	       (desc->opcode == i40e_aqc_opc_nvm_update);
+}
+
+/**
  *  i40e_adminq_init_regs - Initialize AdminQ registers
  *  @hw: pointer to the hardware structure
  *
@@ -659,6 +669,12 @@ i40e_status i40evf_asq_send_command(struct i40e_hw *hw,
 		goto asq_send_command_exit;
 	}
 
+	if (i40e_is_nvm_update_op(desc) && hw->aq.nvm_busy) {
+		i40e_debug(hw, I40E_DEBUG_AQ_MESSAGE, "AQTX: NVM busy.\n");
+		status = I40E_ERR_NVM;
+		goto asq_send_command_exit;
+	}
+
 	details = I40E_ADMINQ_DETAILS(hw->aq.asq, hw->aq.asq.next_to_use);
 	if (cmd_details) {
 		*details = *cmd_details;
@@ -786,6 +802,9 @@ i40e_status i40evf_asq_send_command(struct i40e_hw *hw,
 		hw->aq.asq_last_status = (enum i40e_admin_queue_err)retval;
 	}
 
+	if (i40e_is_nvm_update_op(desc))
+		hw->aq.nvm_busy = true;
+
 	/* update the error if time out occurred */
 	if ((!cmd_completed) &&
 	    (!details->async && !details->postpone)) {
@@ -879,6 +898,9 @@ i40e_status i40evf_clean_arq_element(struct i40e_hw *hw,
 			memcpy(e->msg_buf, hw->aq.arq.r.arq_bi[desc_idx].va,
 			       e->msg_size);
 	}
+
+	if (i40e_is_nvm_update_op(&e->desc))
+		hw->aq.nvm_busy = false;
 
 	/* Restore the original datalen and buffer address in the desc,
 	 * FW updates datalen to indicate the event message

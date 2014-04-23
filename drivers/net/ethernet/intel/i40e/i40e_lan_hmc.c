@@ -747,6 +747,7 @@ static struct i40e_context_ele i40e_hmc_rxq_ce_info[] = {
 	{ I40E_HMC_STORE(i40e_hmc_obj_rxq, tphdata_ena),  1,	195 },
 	{ I40E_HMC_STORE(i40e_hmc_obj_rxq, tphhead_ena),  1,	196 },
 	{ I40E_HMC_STORE(i40e_hmc_obj_rxq, lrxqthresh),   3,	198 },
+	{ I40E_HMC_STORE(i40e_hmc_obj_rxq, prefena),      1,	201 },
 	{ 0 }
 };
 

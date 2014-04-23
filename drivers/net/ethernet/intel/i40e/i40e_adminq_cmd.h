@@ -182,9 +182,6 @@ enum i40e_admin_queue_opc {
 	i40e_aqc_opc_add_mirror_rule    = 0x0260,
 	i40e_aqc_opc_delete_mirror_rule = 0x0261,
 
-	i40e_aqc_opc_set_storm_control_config = 0x0280,
-	i40e_aqc_opc_get_storm_control_config = 0x0281,
-
 	/* DCB commands */
 	i40e_aqc_opc_dcb_ignore_pfc = 0x0301,
 	i40e_aqc_opc_dcb_updated    = 0x0302,
@@ -207,6 +204,7 @@ enum i40e_admin_queue_opc {
 	i40e_aqc_opc_query_switching_comp_bw_config        = 0x041A,
 	i40e_aqc_opc_suspend_port_tx                       = 0x041B,
 	i40e_aqc_opc_resume_port_tx                        = 0x041C,
+	i40e_aqc_opc_configure_partition_bw                = 0x041D,
 
 	/* hmc */
 	i40e_aqc_opc_query_hmc_resource_profile = 0x0500,
@@ -1289,27 +1287,6 @@ struct i40e_aqc_add_delete_mirror_rule_completion {
 
 I40E_CHECK_CMD_LENGTH(i40e_aqc_add_delete_mirror_rule_completion);
 
-/* Set Storm Control Configuration (direct 0x0280)
- * Get Storm Control Configuration (direct 0x0281)
- *    the command and response use the same descriptor structure
- */
-struct i40e_aqc_set_get_storm_control_config {
-	__le32 broadcast_threshold;
-	__le32 multicast_threshold;
-	__le32 control_flags;
-#define I40E_AQC_STORM_CONTROL_MDIPW            0x01
-#define I40E_AQC_STORM_CONTROL_MDICW            0x02
-#define I40E_AQC_STORM_CONTROL_BDIPW            0x04
-#define I40E_AQC_STORM_CONTROL_BDICW            0x08
-#define I40E_AQC_STORM_CONTROL_BIDU             0x10
-#define I40E_AQC_STORM_CONTROL_INTERVAL_SHIFT   8
-#define I40E_AQC_STORM_CONTROL_INTERVAL_MASK    (0x3FF << \
-					I40E_AQC_STORM_CONTROL_INTERVAL_SHIFT)
-	u8     reserved[4];
-};
-
-I40E_CHECK_CMD_LENGTH(i40e_aqc_set_get_storm_control_config);
-
 /* DCB 0x03xx*/
 
 /* PFC Ignore (direct 0x0301)
@@ -1499,6 +1476,15 @@ struct i40e_aqc_query_switching_comp_bw_config_resp {
  * (direct 0x041B and 0x041C) uses the generic SEID struct
  */
 
+/* Configure partition BW
+ * (indirect 0x041D)
+ */
+struct i40e_aqc_configure_partition_bw_data {
+	__le16 pf_valid_bits;
+	u8     min_bw[16];      /* guaranteed bandwidth */
+	u8     max_bw[16];      /* bandwidth limit */
+};
+
 /* Get and set the active HMC resource profile and status.
  * (direct 0x0500) and (direct 0x0501)
  */
@@ -1583,11 +1569,8 @@ struct i40e_aq_get_phy_abilities_resp {
 #define I40E_AQ_PHY_FLAG_PAUSE_TX         0x01
 #define I40E_AQ_PHY_FLAG_PAUSE_RX         0x02
 #define I40E_AQ_PHY_FLAG_LOW_POWER        0x04
-#define I40E_AQ_PHY_FLAG_AN_SHIFT         3
-#define I40E_AQ_PHY_FLAG_AN_MASK          (0x3 << I40E_AQ_PHY_FLAG_AN_SHIFT)
-#define I40E_AQ_PHY_FLAG_AN_OFF           0x00 /* link forced on */
-#define I40E_AQ_PHY_FLAG_AN_OFF_LINK_DOWN 0x01
-#define I40E_AQ_PHY_FLAG_AN_ON            0x02
+#define I40E_AQ_PHY_LINK_ENABLED		  0x08
+#define I40E_AQ_PHY_AN_ENABLED			  0x10
 #define I40E_AQ_PHY_FLAG_MODULE_QUAL      0x20
 	__le16 eee_capability;
 #define I40E_AQ_EEE_100BASE_TX       0x0002
