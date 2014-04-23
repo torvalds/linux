@@ -11,7 +11,7 @@
 	5v_power_en {
         compatible = "5v_en";
 		5ven,pin =<&gpio7 GPIO_B4 GPIO_ACTIVE_HIGH>;	// 5v power for otg and hdmi
-		status = "disabled";	
+		status = "okay";	
 	};
 
 
