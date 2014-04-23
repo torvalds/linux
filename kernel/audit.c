@@ -1076,10 +1076,20 @@ static void audit_receive(struct sk_buff  *skb)
 	mutex_unlock(&audit_cmd_mutex);
 }
 
+/* Run custom bind function on netlink socket group connect or bind requests. */
+static int audit_bind(int group)
+{
+	if (!capable(CAP_AUDIT_READ))
+		return -EPERM;
+
+	return 0;
+}
+
 static int __net_init audit_net_init(struct net *net)
 {
 	struct netlink_kernel_cfg cfg = {
 		.input	= audit_receive,
+		.bind	= audit_bind,
 	};
 
 	struct audit_net *aunet = net_generic(net, audit_net_id);
