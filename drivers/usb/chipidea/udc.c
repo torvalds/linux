@@ -20,6 +20,7 @@
 #include <linux/pm_runtime.h>
 #include <linux/usb/ch9.h>
 #include <linux/usb/gadget.h>
+#include <linux/usb/otg-fsm.h>
 #include <linux/usb/chipidea.h>
 
 #include "ci.h"
@@ -1052,6 +1053,14 @@ __acquires(ci->lock)
 				default:
 					break;
 				}
+				break;
+			case USB_DEVICE_B_HNP_ENABLE:
+				if (ci_otg_is_fsm_mode(ci)) {
+					ci->gadget.b_hnp_enable = 1;
+					err = isr_setup_status_phase(
+							ci);
+				}
+				break;
 			default:
 				goto delegate;
 			}
@@ -1759,7 +1768,7 @@ static int udc_start(struct ci_hdrc *ci)
 	ci->gadget.ops          = &usb_gadget_ops;
 	ci->gadget.speed        = USB_SPEED_UNKNOWN;
 	ci->gadget.max_speed    = USB_SPEED_HIGH;
-	ci->gadget.is_otg       = 0;
+	ci->gadget.is_otg       = ci->is_otg ? 1 : 0;
 	ci->gadget.name         = ci->platdata->name;
 
 	INIT_LIST_HEAD(&ci->gadget.ep_list);
