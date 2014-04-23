@@ -1115,15 +1115,13 @@ static int pci171x_ai_cmd(struct comedi_device *dev, struct comedi_subdevice *s)
 {
 	struct comedi_cmd *cmd = &s->async->cmd;
 
-	if (cmd->scan_begin_src == TRIG_FOLLOW) {	/*  mode 1, 2, 3 */
-		if (cmd->convert_src == TRIG_TIMER) {	/*  mode 1 and 2 */
-			return pci171x_ai_docmd_and_mode(cmd->start_src ==
-							 TRIG_EXT ? 2 : 1, dev,
-							 s);
-		}
-		if (cmd->convert_src == TRIG_EXT) {	/*  mode 3 */
-			return pci171x_ai_docmd_and_mode(3, dev, s);
-		}
+	if (cmd->convert_src == TRIG_TIMER) {	/*  mode 1 and 2 */
+		return pci171x_ai_docmd_and_mode(cmd->start_src ==
+						 TRIG_EXT ? 2 : 1, dev,
+						 s);
+	}
+	if (cmd->convert_src == TRIG_EXT) {	/*  mode 3 */
+		return pci171x_ai_docmd_and_mode(3, dev, s);
 	}
 
 	return -1;
