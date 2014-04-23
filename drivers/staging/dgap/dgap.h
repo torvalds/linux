@@ -571,8 +571,8 @@ struct board_t {
 	ulong		membase;	/* Start of base memory of the card */
 	ulong		membase_end;	/* End of base memory of the card */
 
-	u8		*re_map_port;	/* Remapped io port of the card */
-	u8		*re_map_membase;/* Remapped memory of the card */
+	u8 __iomem	*re_map_port;	/* Remapped io port of the card */
+	u8 __iomem	*re_map_membase;/* Remapped memory of the card */
 
 	u8		runwait;	/* # Processes waiting for FEP  */
 	u8		inhibit_poller; /* Tells the poller to leave us alone */

@@ -1300,7 +1300,7 @@ static int dgap_tty_init(struct board_t *brd)
 	int i;
 	int tlw;
 	uint true_count = 0;
-	u8 *vaddr;
+	u8 __iomem *vaddr;
 	u8 modem = 0;
 	struct channel_t *ch;
 	struct bs_t *bs;
@@ -4310,7 +4310,7 @@ static int dgap_tty_register_ports(struct board_t *brd)
  */
 static void dgap_do_bios_load(struct board_t *brd, const u8 *ubios, int len)
 {
-	u8 *addr;
+	u8 __iomem *addr;
 	uint offset;
 	int i;
 
@@ -4343,7 +4343,7 @@ static void dgap_do_bios_load(struct board_t *brd, const u8 *ubios, int len)
  */
 static int dgap_test_bios(struct board_t *brd)
 {
-	u8 *addr;
+	u8 __iomem *addr;
 	u16 word;
 	u16 err1;
 	u16 err2;
@@ -4386,7 +4386,7 @@ static int dgap_test_bios(struct board_t *brd)
  */
 static void dgap_do_fep_load(struct board_t *brd, const u8 *ufep, int len)
 {
-	u8 *addr;
+	u8 __iomem *addr;
 	uint offset;
 
 	if (!brd || (brd->magic != DGAP_BOARD_MAGIC) || !brd->re_map_membase)
@@ -4430,7 +4430,7 @@ static void dgap_do_fep_load(struct board_t *brd, const u8 *ufep, int len)
  */
 static int dgap_test_fep(struct board_t *brd)
 {
-	u8 *addr;
+	u8 __iomem *addr;
 	u16 word;
 	u16 err1;
 	u16 err2;
@@ -4529,7 +4529,7 @@ static void dgap_do_reset_board(struct board_t *brd)
  */
 static void dgap_do_conc_load(struct board_t *brd, u8 *uaddr, int len)
 {
-	char *vaddr;
+	char __iomem *vaddr;
 	u16 offset = 0;
 	struct downld_t *to_dp;
 
@@ -4667,7 +4667,7 @@ static void dgap_poll_tasklet(unsigned long data)
 {
 	struct board_t *bd = (struct board_t *) data;
 	ulong  lock_flags;
-	char *vaddr;
+	char __iomem *vaddr;
 	u16 head, tail;
 
 	if (!bd || (bd->magic != DGAP_BOARD_MAGIC))
@@ -4743,7 +4743,7 @@ out:
 static void dgap_cmdb(struct channel_t *ch, u8 cmd, u8 byte1,
 			u8 byte2, uint ncmds)
 {
-	char		*vaddr = NULL;
+	char __iomem	*vaddr;
 	struct cm_t	*cm_addr = NULL;
 	uint		count;
 	uint		n;
@@ -4828,7 +4828,7 @@ static void dgap_cmdb(struct channel_t *ch, u8 cmd, u8 byte1,
  *=======================================================================*/
 static void dgap_cmdw(struct channel_t *ch, u8 cmd, u16 word, uint ncmds)
 {
-	char		*vaddr = NULL;
+	char __iomem	*vaddr;
 	struct cm_t	*cm_addr = NULL;
 	uint		count;
 	uint		n;
@@ -4911,7 +4911,7 @@ static void dgap_cmdw(struct channel_t *ch, u8 cmd, u16 word, uint ncmds)
  *=======================================================================*/
 static void dgap_cmdw_ext(struct channel_t *ch, u16 cmd, u16 word, uint ncmds)
 {
-	char		*vaddr = NULL;
+	char __iomem	*vaddr;
 	struct cm_t	*cm_addr = NULL;
 	uint		count;
 	uint		n;
@@ -5058,7 +5058,7 @@ static void dgap_wmove(struct channel_t *ch, char *buf, uint cnt)
  */
 static uint dgap_get_custom_baud(struct channel_t *ch)
 {
-	u8 *vaddr;
+	u8 __iomem *vaddr;
 	ulong offset = 0;
 	uint value = 0;
 
@@ -5580,7 +5580,7 @@ static int dgap_event(struct board_t *bd)
 	ulong		lock_flags2;
 	struct bs_t	*bs;
 	u8		*event;
-	u8		*vaddr = NULL;
+	u8 __iomem	*vaddr;
 	struct ev_t	*eaddr = NULL;
 	uint		head;
 	uint		tail;
