@@ -53,7 +53,7 @@ config AD525X_DPOT_SPI
 
 config ATMEL_PWM
 	tristate "Atmel AT32/AT91 PWM support"
-	depends on HAVE_CLK
+	depends on HAVE_CLK && (AVR32 || ARCH_AT91 || COMPILE_TEST)
 	help
 	  This option enables device driver support for the PWM channels
 	  on certain Atmel processors.  Pulse Width Modulation is used for
@@ -200,7 +200,7 @@ config ICS932S401
 
 config ATMEL_SSC
 	tristate "Device driver for Atmel SSC peripheral"
-	depends on HAS_IOMEM
+	depends on HAS_IOMEM && (AVR32 || ARCH_AT91 || COMPILE_TEST)
 	---help---
 	  This option enables device driver support for Atmel Synchronized
 	  Serial Communication peripheral (SSC).
