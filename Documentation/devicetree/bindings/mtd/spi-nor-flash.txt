@@ -1,0 +1,7 @@
+This file defines some DT properties for specific SPI NOR flash features.
+The SPI NOR controller drivers may refer to this file, such as fsl-quadspi.txt
+
+Optional properties:
+  - spi-nor,ddr-quad-read-dummy: The dummy cycles used by the DDR Quad read.
+                                 Please refer to the chip's datasheet. This
+                                 property can be 4 or 6 which is less then 8.
