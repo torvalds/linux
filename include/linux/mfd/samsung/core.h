@@ -48,13 +48,12 @@ struct sec_pmic_dev {
 	struct regmap *regmap_pmic;
 	struct i2c_client *i2c;
 
-	int device_type;
+	unsigned long device_type;
 	int irq_base;
 	int irq;
 	struct regmap_irq_chip_data *irq_data;
 
 	int ono;
-	unsigned long type;
 	bool wakeup;
 	bool wtsr_smpl;
 };

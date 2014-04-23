@@ -251,6 +251,7 @@ static int sec_pmic_probe(struct i2c_client *i2c,
 	struct sec_platform_data *pdata = dev_get_platdata(&i2c->dev);
 	const struct regmap_config *regmap;
 	struct sec_pmic_dev *sec_pmic;
+	unsigned long device_type;
 	int ret;
 
 	sec_pmic = devm_kzalloc(&i2c->dev, sizeof(struct sec_pmic_dev),
@@ -262,7 +263,7 @@ static int sec_pmic_probe(struct i2c_client *i2c,
 	sec_pmic->dev = &i2c->dev;
 	sec_pmic->i2c = i2c;
 	sec_pmic->irq = i2c->irq;
-	sec_pmic->type = sec_i2c_get_driver_data(i2c, id);
+	device_type = sec_i2c_get_driver_data(i2c, id);
 
 	if (sec_pmic->dev->of_node) {
 		pdata = sec_pmic_i2c_parse_dt_pdata(sec_pmic->dev);
@@ -270,7 +271,7 @@ static int sec_pmic_probe(struct i2c_client *i2c,
 			ret = PTR_ERR(pdata);
 			return ret;
 		}
-		pdata->device_type = sec_pmic->type;
+		pdata->device_type = device_type;
 	}
 	if (pdata) {
 		sec_pmic->device_type = pdata->device_type;
