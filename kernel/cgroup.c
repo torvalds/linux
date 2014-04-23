@@ -2436,10 +2436,6 @@ static int cgroup_apply_cftypes(struct cftype *cfts, bool is_add)
 
 	lockdep_assert_held(&cgroup_tree_mutex);
 
-	/* don't bother if @ss isn't attached */
-	if (ss->root == &cgrp_dfl_root)
-		return 0;
-
 	/* add/rm files for all cgroups created before */
 	css_for_each_descendant_pre(css, cgroup_css(root, ss)) {
 		struct cgroup *cgrp = css->cgroup;
