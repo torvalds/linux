@@ -1370,6 +1370,11 @@ int drbd_submit_peer_request(struct drbd_device *device,
 		/* wait for all pending IO completions, before we start
 		 * zeroing things out. */
 		conn_wait_active_ee_empty(first_peer_device(device)->connection);
+		/* add it to the active list now,
+		 * so we can find it to present it in debugfs */
+		spin_lock_irq(&device->resource->req_lock);
+		list_add_tail(&peer_req->w.list, &device->active_ee);
+		spin_unlock_irq(&device->resource->req_lock);
 		if (blkdev_issue_zeroout(device->ldev->backing_bdev,
 			sector, ds >> 9, GFP_NOIO))
 			peer_req->flags |= EE_WAS_ERROR;
