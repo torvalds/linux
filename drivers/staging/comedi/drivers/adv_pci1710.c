@@ -319,7 +319,6 @@ struct pci1710_private {
 	unsigned int *ai_chanlist;	/*  actaul chanlist */
 	unsigned int ai_flags;	/*  flaglist */
 	unsigned int ai_data_len;	/*  len of data buffer */
-	unsigned int ai_timer1;	/*  timers */
 	unsigned short ao_data[4];	/*  data output buffer */
 	unsigned int cnt0_write_wait;	/* after a write, wait for update of the
 					 * internal state */
@@ -956,8 +955,8 @@ static irqreturn_t interrupt_service_pci1710(int irq, void *d)
 static int pci171x_ai_docmd_and_mode(int mode, struct comedi_device *dev,
 				     struct comedi_subdevice *s)
 {
-	const struct boardtype *this_board = comedi_board(dev);
 	struct pci1710_private *devpriv = dev->private;
+	struct comedi_cmd *cmd = &s->async->cmd;
 	unsigned int divisor1 = 0, divisor2 = 0;
 	unsigned int seglen;
 
@@ -998,8 +997,6 @@ static int pci171x_ai_docmd_and_mode(int mode, struct comedi_device *dev,
 	switch (mode) {
 	case 1:
 	case 2:
-		if (devpriv->ai_timer1 < this_board->ai_ns_min)
-			devpriv->ai_timer1 = this_board->ai_ns_min;
 		devpriv->CntrlReg |= Control_PACER | Control_IRQEN;
 		if (mode == 2) {
 			devpriv->ai_et_CntrlReg = devpriv->CntrlReg;
@@ -1012,7 +1009,7 @@ static int pci171x_ai_docmd_and_mode(int mode, struct comedi_device *dev,
 		}
 		i8253_cascade_ns_to_timer(devpriv->i8254_osc_base,
 					  &divisor1, &divisor2,
-					  &devpriv->ai_timer1,
+					  &cmd->convert_arg,
 					  devpriv->ai_flags);
 		outw(devpriv->CntrlReg, dev->iobase + PCI171x_CONTROL);
 		if (mode != 2) {
@@ -1127,7 +1124,6 @@ static int pci171x_ai_cmd(struct comedi_device *dev, struct comedi_subdevice *s)
 	devpriv->ai_chanlist = cmd->chanlist;
 	devpriv->ai_flags = cmd->flags;
 	devpriv->ai_data_len = s->async->prealloc_bufsz;
-	devpriv->ai_timer1 = 0;
 
 	if (cmd->stop_src == TRIG_COUNT)
 		devpriv->ai_scans = cmd->stop_arg;
@@ -1137,7 +1133,6 @@ static int pci171x_ai_cmd(struct comedi_device *dev, struct comedi_subdevice *s)
 
 	if (cmd->scan_begin_src == TRIG_FOLLOW) {	/*  mode 1, 2, 3 */
 		if (cmd->convert_src == TRIG_TIMER) {	/*  mode 1 and 2 */
-			devpriv->ai_timer1 = cmd->convert_arg;
 			return pci171x_ai_docmd_and_mode(cmd->start_src ==
 							 TRIG_EXT ? 2 : 1, dev,
 							 s);
