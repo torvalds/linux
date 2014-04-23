@@ -291,8 +291,11 @@ static void i40e_free_asq_bufs(struct i40e_hw *hw)
  *
  *  Configure base address and length registers for the transmit queue
  **/
-static void i40e_config_asq_regs(struct i40e_hw *hw)
+static i40e_status i40e_config_asq_regs(struct i40e_hw *hw)
 {
+	i40e_status ret_code = 0;
+	u32 reg = 0;
+
 	if (hw->mac.type == I40E_MAC_VF) {
 		/* configure the transmit queue */
 		wr32(hw, I40E_VF_ATQBAH1,
@@ -301,6 +304,7 @@ static void i40e_config_asq_regs(struct i40e_hw *hw)
 		    lower_32_bits(hw->aq.asq.desc_buf.pa));
 		wr32(hw, I40E_VF_ATQLEN1, (hw->aq.num_asq_entries |
 					  I40E_VF_ATQLEN1_ATQENABLE_MASK));
+		reg = rd32(hw, I40E_VF_ATQBAL1);
 	} else {
 		/* configure the transmit queue */
 		wr32(hw, I40E_PF_ATQBAH,
@@ -309,7 +313,14 @@ static void i40e_config_asq_regs(struct i40e_hw *hw)
 		    lower_32_bits(hw->aq.asq.desc_buf.pa));
 		wr32(hw, I40E_PF_ATQLEN, (hw->aq.num_asq_entries |
 					  I40E_PF_ATQLEN_ATQENABLE_MASK));
+		reg = rd32(hw, I40E_PF_ATQBAL);
 	}
+
+	/* Check one register to verify that config was applied */
+	if (reg != lower_32_bits(hw->aq.asq.desc_buf.pa))
+		ret_code = I40E_ERR_ADMIN_QUEUE_ERROR;
+
+	return ret_code;
 }
 
 /**
@@ -318,8 +329,11 @@ static void i40e_config_asq_regs(struct i40e_hw *hw)
  *
  * Configure base address and length registers for the receive (event queue)
  **/
-static void i40e_config_arq_regs(struct i40e_hw *hw)
+static i40e_status i40e_config_arq_regs(struct i40e_hw *hw)
 {
+	i40e_status ret_code = 0;
+	u32 reg = 0;
+
 	if (hw->mac.type == I40E_MAC_VF) {
 		/* configure the receive queue */
 		wr32(hw, I40E_VF_ARQBAH1,
@@ -328,6 +342,7 @@ static void i40e_config_arq_regs(struct i40e_hw *hw)
 		    lower_32_bits(hw->aq.arq.desc_buf.pa));
 		wr32(hw, I40E_VF_ARQLEN1, (hw->aq.num_arq_entries |
 					  I40E_VF_ARQLEN1_ARQENABLE_MASK));
+		reg = rd32(hw, I40E_VF_ARQBAL1);
 	} else {
 		/* configure the receive queue */
 		wr32(hw, I40E_PF_ARQBAH,
@@ -336,10 +351,17 @@ static void i40e_config_arq_regs(struct i40e_hw *hw)
 		    lower_32_bits(hw->aq.arq.desc_buf.pa));
 		wr32(hw, I40E_PF_ARQLEN, (hw->aq.num_arq_entries |
 					  I40E_PF_ARQLEN_ARQENABLE_MASK));
+		reg = rd32(hw, I40E_PF_ARQBAL);
 	}
 
 	/* Update tail in the HW to post pre-allocated buffers */
 	wr32(hw, hw->aq.arq.tail, hw->aq.num_arq_entries - 1);
+
+	/* Check one register to verify that config was applied */
+	if (reg != lower_32_bits(hw->aq.arq.desc_buf.pa))
+		ret_code = I40E_ERR_ADMIN_QUEUE_ERROR;
+
+	return ret_code;
 }
 
 /**
@@ -387,7 +409,9 @@ static i40e_status i40e_init_asq(struct i40e_hw *hw)
 		goto init_adminq_free_rings;
 
 	/* initialize base registers */
-	i40e_config_asq_regs(hw);
+	ret_code = i40e_config_asq_regs(hw);
+	if (ret_code)
+		goto init_adminq_free_rings;
 
 	/* success! */
 	goto init_adminq_exit;
@@ -444,7 +468,9 @@ static i40e_status i40e_init_arq(struct i40e_hw *hw)
 		goto init_adminq_free_rings;
 
 	/* initialize base registers */
-	i40e_config_arq_regs(hw);
+	ret_code = i40e_config_arq_regs(hw);
+	if (ret_code)
+		goto init_adminq_free_rings;
 
 	/* success! */
 	goto init_adminq_exit;
