@@ -178,7 +178,7 @@ static inline void _gpio_rmw(void __iomem *base, u32 reg, u32 mask, bool set)
 static inline void _gpio_dbck_enable(struct gpio_bank *bank)
 {
 	if (bank->dbck_enable_mask && !bank->dbck_enabled) {
-		clk_enable(bank->dbck);
+		clk_prepare_enable(bank->dbck);
 		bank->dbck_enabled = true;
 
 		writel_relaxed(bank->dbck_enable_mask,
@@ -196,7 +196,7 @@ static inline void _gpio_dbck_disable(struct gpio_bank *bank)
 		 */
 		writel_relaxed(0, bank->base + bank->regs->debounce_en);
 
-		clk_disable(bank->dbck);
+		clk_disable_unprepare(bank->dbck);
 		bank->dbck_enabled = false;
 	}
 }
@@ -229,7 +229,7 @@ static void _set_gpio_debounce(struct gpio_bank *bank, unsigned gpio,
 
 	l = GPIO_BIT(bank, gpio);
 
-	clk_enable(bank->dbck);
+	clk_prepare_enable(bank->dbck);
 	reg = bank->base + bank->regs->debounce;
 	writel_relaxed(debounce, reg);
 
@@ -243,7 +243,7 @@ static void _set_gpio_debounce(struct gpio_bank *bank, unsigned gpio,
 	bank->dbck_enable_mask = val;
 
 	writel_relaxed(val, reg);
-	clk_disable(bank->dbck);
+	clk_disable_unprepare(bank->dbck);
 	/*
 	 * Enable debounce clock per module.
 	 * This call is mandatory because in omap_gpio_request() when
@@ -288,7 +288,7 @@ static void _clear_gpio_debounce(struct gpio_bank *bank, unsigned gpio)
 		bank->context.debounce = 0;
 		writel_relaxed(bank->context.debounce, bank->base +
 			     bank->regs->debounce);
-		clk_disable(bank->dbck);
+		clk_disable_unprepare(bank->dbck);
 		bank->dbck_enabled = false;
 	}
 }
