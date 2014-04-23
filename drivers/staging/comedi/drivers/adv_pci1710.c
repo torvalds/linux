@@ -320,7 +320,6 @@ struct pci1710_private {
 	unsigned int ai_flags;	/*  flaglist */
 	unsigned int ai_data_len;	/*  len of data buffer */
 	unsigned int ai_timer1;	/*  timers */
-	unsigned int ai_timer2;
 	unsigned short ao_data[4];	/*  data output buffer */
 	unsigned int cnt0_write_wait;	/* after a write, wait for update of the
 					 * internal state */
@@ -1129,7 +1128,6 @@ static int pci171x_ai_cmd(struct comedi_device *dev, struct comedi_subdevice *s)
 	devpriv->ai_flags = cmd->flags;
 	devpriv->ai_data_len = s->async->prealloc_bufsz;
 	devpriv->ai_timer1 = 0;
-	devpriv->ai_timer2 = 0;
 
 	if (cmd->stop_src == TRIG_COUNT)
 		devpriv->ai_scans = cmd->stop_arg;
