@@ -29,14 +29,15 @@ static int rk_screen_probe(struct platform_device *pdev)
 		dev_err(&pdev->dev, "Missing device tree node.\n");
 		return -EINVAL;
 	}
-	rk_screen = devm_kzalloc(&pdev->dev, sizeof(struct rk_screen), GFP_KERNEL);
+	rk_screen = devm_kzalloc(&pdev->dev,
+			sizeof(struct rk_screen), GFP_KERNEL);
 	if (!rk_screen) {
 		dev_err(&pdev->dev, "kmalloc for rk screen fail!");
 		return  -ENOMEM;
 	}
-	ret = rk_fb_prase_timing_dt(np,rk_screen);
+	ret = rk_fb_prase_timing_dt(np, rk_screen);
 	dev_info(&pdev->dev, "rockchip screen probe %s\n",
-				ret? "failed" : "success");
+				ret ? "failed" : "success");
 	return ret;
 }
 
