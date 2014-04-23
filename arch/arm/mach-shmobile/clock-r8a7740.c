@@ -548,15 +548,9 @@ static struct clk_lookup lookups[] = {
 
 	/* MSTP32 clocks */
 	CLKDEV_DEV_ID("sh_mobile_lcdc_fb.0",	&mstp_clks[MSTP100]),
-	CLKDEV_DEV_ID("sh_tmu.3",		&mstp_clks[MSTP111]),
-	CLKDEV_DEV_ID("sh_tmu.4",		&mstp_clks[MSTP111]),
-	CLKDEV_DEV_ID("sh_tmu.5",		&mstp_clks[MSTP111]),
 	CLKDEV_DEV_ID("i2c-sh_mobile.0",	&mstp_clks[MSTP116]),
 	CLKDEV_DEV_ID("fff20000.i2c",		&mstp_clks[MSTP116]),
 	CLKDEV_DEV_ID("sh_mobile_lcdc_fb.1",	&mstp_clks[MSTP117]),
-	CLKDEV_DEV_ID("sh_tmu.0",		&mstp_clks[MSTP125]),
-	CLKDEV_DEV_ID("sh_tmu.1",		&mstp_clks[MSTP125]),
-	CLKDEV_DEV_ID("sh_tmu.2",		&mstp_clks[MSTP125]),
 	CLKDEV_DEV_ID("sh_mobile_ceu.0",	&mstp_clks[MSTP127]),
 	CLKDEV_DEV_ID("sh_mobile_ceu.1",	&mstp_clks[MSTP128]),
 
@@ -603,6 +597,8 @@ static struct clk_lookup lookups[] = {
 	CLKDEV_DEV_ID("e6870000.sd",		&mstp_clks[MSTP415]),
 
 	/* ICK */
+	CLKDEV_ICK_ID("fck",	"sh-tmu.1",		&mstp_clks[MSTP111]),
+	CLKDEV_ICK_ID("fck",	"sh-tmu.0",		&mstp_clks[MSTP125]),
 	CLKDEV_ICK_ID("fck",	"sh-cmt-48.1",		&mstp_clks[MSTP329]),
 	CLKDEV_ICK_ID("host",	"renesas_usbhs",	&mstp_clks[MSTP416]),
 	CLKDEV_ICK_ID("func",	"renesas_usbhs",	&mstp_clks[MSTP407]),

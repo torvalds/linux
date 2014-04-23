@@ -257,94 +257,25 @@ static struct platform_device cmt1_device = {
 };
 
 /* TMU */
-static struct sh_timer_config tmu00_platform_data = {
-	.name = "TMU00",
-	.channel_offset = 0x4,
-	.timer_bit = 0,
-	.clockevent_rating = 200,
+static struct sh_timer_config tmu0_platform_data = {
+	.channels_mask = 7,
 };
 
-static struct resource tmu00_resources[] = {
-	[0] = {
-		.name	= "TMU00",
-		.start	= 0xfff80008,
-		.end	= 0xfff80014 - 1,
-		.flags	= IORESOURCE_MEM,
-	},
-	[1] = {
-		.start	= gic_spi(198),
-		.flags	= IORESOURCE_IRQ,
-	},
+static struct resource tmu0_resources[] = {
+	DEFINE_RES_MEM(0xfff80000, 0x2c),
+	DEFINE_RES_IRQ(gic_spi(198)),
+	DEFINE_RES_IRQ(gic_spi(199)),
+	DEFINE_RES_IRQ(gic_spi(200)),
 };
 
-static struct platform_device tmu00_device = {
-	.name		= "sh_tmu",
+static struct platform_device tmu0_device = {
+	.name		= "sh-tmu",
 	.id		= 0,
 	.dev = {
-		.platform_data	= &tmu00_platform_data,
+		.platform_data	= &tmu0_platform_data,
 	},
-	.resource	= tmu00_resources,
-	.num_resources	= ARRAY_SIZE(tmu00_resources),
-};
-
-static struct sh_timer_config tmu01_platform_data = {
-	.name = "TMU01",
-	.channel_offset = 0x10,
-	.timer_bit = 1,
-	.clocksource_rating = 200,
-};
-
-static struct resource tmu01_resources[] = {
-	[0] = {
-		.name	= "TMU01",
-		.start	= 0xfff80014,
-		.end	= 0xfff80020 - 1,
-		.flags	= IORESOURCE_MEM,
-	},
-	[1] = {
-		.start	= gic_spi(199),
-		.flags	= IORESOURCE_IRQ,
-	},
-};
-
-static struct platform_device tmu01_device = {
-	.name		= "sh_tmu",
-	.id		= 1,
-	.dev = {
-		.platform_data	= &tmu01_platform_data,
-	},
-	.resource	= tmu01_resources,
-	.num_resources	= ARRAY_SIZE(tmu01_resources),
-};
-
-static struct sh_timer_config tmu02_platform_data = {
-	.name = "TMU02",
-	.channel_offset = 0x1C,
-	.timer_bit = 2,
-	.clocksource_rating = 200,
-};
-
-static struct resource tmu02_resources[] = {
-	[0] = {
-		.name	= "TMU02",
-		.start	= 0xfff80020,
-		.end	= 0xfff8002C - 1,
-		.flags	= IORESOURCE_MEM,
-	},
-	[1] = {
-		.start	= gic_spi(200),
-		.flags	= IORESOURCE_IRQ,
-	},
-};
-
-static struct platform_device tmu02_device = {
-	.name		= "sh_tmu",
-	.id		= 2,
-	.dev = {
-		.platform_data	= &tmu02_platform_data,
-	},
-	.resource	= tmu02_resources,
-	.num_resources	= ARRAY_SIZE(tmu02_resources),
+	.resource	= tmu0_resources,
+	.num_resources	= ARRAY_SIZE(tmu0_resources),
 };
 
 /* IPMMUI (an IPMMU module for ICB/LMB) */
@@ -396,9 +327,7 @@ static struct platform_device *r8a7740_early_devices[] __initdata = {
 	&irqpin1_device,
 	&irqpin2_device,
 	&irqpin3_device,
-	&tmu00_device,
-	&tmu01_device,
-	&tmu02_device,
+	&tmu0_device,
 	&ipmmu_device,
 };
 
