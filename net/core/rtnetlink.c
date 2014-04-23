@@ -1294,7 +1294,8 @@ static int do_set_master(struct net_device *dev, int ifindex)
 	return 0;
 }
 
-static int do_setlink(struct net_device *dev, struct ifinfomsg *ifm,
+static int do_setlink(const struct sk_buff *skb,
+		      struct net_device *dev, struct ifinfomsg *ifm,
 		      struct nlattr **tb, char *ifname, int modified)
 {
 	const struct net_device_ops *ops = dev->netdev_ops;
@@ -1306,7 +1307,7 @@ static int do_setlink(struct net_device *dev, struct ifinfomsg *ifm,
 			err = PTR_ERR(net);
 			goto errout;
 		}
-		if (!ns_capable(net->user_ns, CAP_NET_ADMIN)) {
+		if (!netlink_ns_capable(skb, net->user_ns, CAP_NET_ADMIN)) {
 			err = -EPERM;
 			goto errout;
 		}
@@ -1560,7 +1561,7 @@ static int rtnl_setlink(struct sk_buff *skb, struct nlmsghdr *nlh)
 	if (err < 0)
 		goto errout;
 
-	err = do_setlink(dev, ifm, tb, ifname, 0);
+	err = do_setlink(skb, dev, ifm, tb, ifname, 0);
 errout:
 	return err;
 }
@@ -1678,7 +1679,8 @@ err:
 }
 EXPORT_SYMBOL(rtnl_create_link);
 
-static int rtnl_group_changelink(struct net *net, int group,
+static int rtnl_group_changelink(const struct sk_buff *skb,
+		struct net *net, int group,
 		struct ifinfomsg *ifm,
 		struct nlattr **tb)
 {
@@ -1687,7 +1689,7 @@ static int rtnl_group_changelink(struct net *net, int group,
 
 	for_each_netdev(net, dev) {
 		if (dev->group == group) {
-			err = do_setlink(dev, ifm, tb, NULL, 0);
+			err = do_setlink(skb, dev, ifm, tb, NULL, 0);
 			if (err < 0)
 				return err;
 		}
@@ -1789,12 +1791,12 @@ replay:
 				modified = 1;
 			}
 
-			return do_setlink(dev, ifm, tb, ifname, modified);
+			return do_setlink(skb, dev, ifm, tb, ifname, modified);
 		}
 
 		if (!(nlh->nlmsg_flags & NLM_F_CREATE)) {
 			if (ifm->ifi_index == 0 && tb[IFLA_GROUP])
-				return rtnl_group_changelink(net,
+				return rtnl_group_changelink(skb, net,
 						nla_get_u32(tb[IFLA_GROUP]),
 						ifm, tb);
 			return -ENODEV;
@@ -2179,7 +2181,7 @@ static int rtnl_fdb_del(struct sk_buff *skb, struct nlmsghdr *nlh)
 	int err = -EINVAL;
 	__u8 *addr;
 
-	if (!capable(CAP_NET_ADMIN))
+	if (!netlink_capable(skb, CAP_NET_ADMIN))
 		return -EPERM;
 
 	err = nlmsg_parse(nlh, sizeof(*ndm), tb, NDA_MAX, NULL);
@@ -2635,7 +2637,7 @@ static int rtnetlink_rcv_msg(struct sk_buff *skb, struct nlmsghdr *nlh)
 	sz_idx = type>>2;
 	kind = type&3;
 
-	if (kind != 2 && !ns_capable(net->user_ns, CAP_NET_ADMIN))
+	if (kind != 2 && !netlink_net_capable(skb, CAP_NET_ADMIN))
 		return -EPERM;
 
 	if (kind == 2 && nlh->nlmsg_flags&NLM_F_DUMP) {

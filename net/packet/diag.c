@@ -193,7 +193,7 @@ static int packet_diag_dump(struct sk_buff *skb, struct netlink_callback *cb)
 
 	net = sock_net(skb->sk);
 	req = nlmsg_data(cb->nlh);
-	may_report_filterinfo = ns_capable(net->user_ns, CAP_NET_ADMIN);
+	may_report_filterinfo = netlink_net_capable(cb->skb, CAP_NET_ADMIN);
 
 	mutex_lock(&net->packet.sklist_lock);
 	sk_for_each(sk, &net->packet.sklist) {
