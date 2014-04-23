@@ -29,27 +29,30 @@
 #include <mach/hardware.h>
 #include <plat/dma_compat.h>
 
-
-static volatile unsigned int dmasrc = 0;
-static volatile unsigned int dmadst = 0;
+static volatile unsigned int dmasrc;
+static volatile unsigned int dmadst;
 
 static const struct snd_pcm_hardware sunxi_pcm_hardware = {
-	.info			= SNDRV_PCM_INFO_INTERLEAVED | SNDRV_PCM_INFO_BLOCK_TRANSFER |
-				      SNDRV_PCM_INFO_MMAP | SNDRV_PCM_INFO_MMAP_VALID |
-				      SNDRV_PCM_INFO_PAUSE | SNDRV_PCM_INFO_RESUME,
+	.info			= SNDRV_PCM_INFO_INTERLEAVED |
+					SNDRV_PCM_INFO_BLOCK_TRANSFER |
+					SNDRV_PCM_INFO_MMAP |
+					SNDRV_PCM_INFO_MMAP_VALID |
+					SNDRV_PCM_INFO_PAUSE |
+					SNDRV_PCM_INFO_RESUME,
 	.formats		= SNDRV_PCM_FMTBIT_S16_LE |
-				      SNDRV_PCM_FMTBIT_S32_LE,
-	.rates			= SNDRV_PCM_RATE_8000_192000 | SNDRV_PCM_RATE_KNOT,
+					SNDRV_PCM_FMTBIT_S32_LE,
+	.rates			= SNDRV_PCM_RATE_8000_192000 |
+					SNDRV_PCM_RATE_KNOT,
 	.rate_min		= 8000,
 	.rate_max		= 192000,
 	.channels_min		= 1,
 	.channels_max		= 2,
-	.buffer_bytes_max	= 128*1024,    /* value must be (2^n)Kbyte size */
-	.period_bytes_min	= 1024*4,//1024*4,
-	.period_bytes_max	= 1024*32,//1024*32,
-	.periods_min		= 4,//4,
-	.periods_max		= 8,//8,
-	.fifo_size		= 128,//32,
+	.buffer_bytes_max	= 128*1024, /* value must be (2^n)Kbyte size */
+	.period_bytes_min	= 1024*4,
+	.period_bytes_max	= 1024*32,
+	.periods_min		= 4,
+	.periods_max		= 8,
+	.fifo_size		= 128,
 };
 
 struct sunxi_runtime_data {
@@ -72,23 +75,19 @@ static void sunxi_pcm_enqueue(struct snd_pcm_substream *substream)
 	int ret;
 
 	unsigned long len = prtd->dma_period;
-  	limit = prtd->dma_limit;
-  	while(prtd->dma_loaded < limit)
-	{
-		if((pos + len) > prtd->dma_end){
-			len  = prtd->dma_end - pos;
-		}
+	limit = prtd->dma_limit;
+	while (prtd->dma_loaded < limit) {
+		if ((pos + len) > prtd->dma_end)
+			len = prtd->dma_end - pos;
 
 		ret = sunxi_dma_enqueue(prtd->params, pos, len, 0);
 		if (ret == 0) {
 			prtd->dma_loaded++;
 			pos += prtd->dma_period;
-			if(pos >= prtd->dma_end)
+			if (pos >= prtd->dma_end)
 				pos = prtd->dma_start;
-		}else {
+		} else
 			break;
-		}
-
 	}
 	prtd->dma_pos = pos;
 }
@@ -99,9 +98,8 @@ static void sunxi_audio_buffdone(struct sunxi_dma_params *dma, void *dev_id)
 	struct snd_pcm_substream *substream = dev_id;
 
 	prtd = substream->runtime->private_data;
-		if (substream) {
-			snd_pcm_period_elapsed(substream);
-		}
+	if (substream)
+		snd_pcm_period_elapsed(substream);
 
 	spin_lock(&prtd->lock);
 	{
@@ -128,13 +126,12 @@ static int sunxi_pcm_hw_params(struct snd_pcm_substream *substream,
 	if (prtd->params == NULL) {
 		prtd->params = dma;
 		ret = sunxi_dma_request(prtd->params, 1);
-		if (ret < 0) {
-				return ret;
-		}
+		if (ret < 0)
+			return ret;
 	}
 
 	if (sunxi_dma_set_callback(prtd->params, sunxi_audio_buffdone,
-							    substream) != 0) {
+							substream) != 0) {
 		sunxi_dma_release(prtd->params);
 		prtd->params = NULL;
 		return -EINVAL;
@@ -181,25 +178,25 @@ static int sunxi_pcm_prepare(struct snd_pcm_substream *substream)
 	if (!prtd->params)
 		return 0;
 
-   	if (substream->stream == SNDRV_PCM_STREAM_PLAYBACK){
+	if (substream->stream == SNDRV_PCM_STREAM_PLAYBACK) {
 #if defined CONFIG_ARCH_SUN4I || defined CONFIG_ARCH_SUN5I
 		struct dma_hw_conf codec_dma_conf;
-		codec_dma_conf.drqsrc_type  = DRQ_TYPE_SDRAM;
-		codec_dma_conf.drqdst_type  = DRQ_TYPE_HDMIAUDIO;
-		codec_dma_conf.xfer_type    = DMAXFER_D_BWORD_S_BWORD;
-		codec_dma_conf.address_type = DMAADDRT_D_IO_S_LN;
-		codec_dma_conf.dir          = SW_DMA_WDEV;
-		codec_dma_conf.reload       = 0;
-		codec_dma_conf.hf_irq       = SW_DMA_IRQ_FULL;
-		codec_dma_conf.from         = prtd->dma_start;
-		codec_dma_conf.to           = prtd->params->dma_addr;
+		codec_dma_conf.drqsrc_type	= DRQ_TYPE_SDRAM;
+		codec_dma_conf.drqdst_type	= DRQ_TYPE_HDMIAUDIO;
+		codec_dma_conf.xfer_type	= DMAXFER_D_BWORD_S_BWORD;
+		codec_dma_conf.address_type	= DMAADDRT_D_IO_S_LN;
+		codec_dma_conf.dir		= SW_DMA_WDEV;
+		codec_dma_conf.reload		= 0;
+		codec_dma_conf.hf_irq		= SW_DMA_IRQ_FULL;
+		codec_dma_conf.from		= prtd->dma_start;
+		codec_dma_conf.to		= prtd->params->dma_addr;
 #else
 		dma_config_t codec_dma_conf;
 		memset(&codec_dma_conf, 0, sizeof(codec_dma_conf));
 		codec_dma_conf.xfer_type.src_data_width	= DATA_WIDTH_32BIT;
-		codec_dma_conf.xfer_type.src_bst_len 	= DATA_BRST_4;
+		codec_dma_conf.xfer_type.src_bst_len	= DATA_BRST_4;
 		codec_dma_conf.xfer_type.dst_data_width	= DATA_WIDTH_32BIT;
-		codec_dma_conf.xfer_type.dst_bst_len 	= DATA_BRST_4;
+		codec_dma_conf.xfer_type.dst_bst_len	= DATA_BRST_4;
 		codec_dma_conf.address_type.src_addr_mode = DDMA_ADDR_LINEAR;
 		codec_dma_conf.address_type.dst_addr_mode = DDMA_ADDR_IO;
 		codec_dma_conf.src_drq_type		= D_SRC_SDRAM;
@@ -261,21 +258,19 @@ static snd_pcm_uframes_t sunxi_pcm_pointer(struct snd_pcm_substream *substream)
 	snd_pcm_uframes_t offset = 0;
 
 	spin_lock(&prtd->lock);
-
-	sunxi_dma_getcurposition(prtd->params, (dma_addr_t*)&dmasrc,
-				 (dma_addr_t*)&dmadst);
+	sunxi_dma_getcurposition(prtd->params, (dma_addr_t *)&dmasrc,
+				 (dma_addr_t *)&dmadst);
 
 	if (substream->stream == SNDRV_PCM_STREAM_CAPTURE)
 		res = dmadst - prtd->dma_start;
 	else
-	{
-		offset = bytes_to_frames(runtime, dmasrc + prtd->dma_period - runtime->dma_addr);
-	}
+		offset = bytes_to_frames(runtime, dmasrc + prtd->dma_period -
+							runtime->dma_addr);
 	spin_unlock(&prtd->lock);
 
-	if(offset >= runtime->buffer_size)
+	if (offset >= runtime->buffer_size)
 		offset = 0;
-		return offset;
+	return offset;
 }
 
 static int sunxi_pcm_open(struct snd_pcm_substream *substream)
@@ -312,21 +307,21 @@ static int sunxi_pcm_mmap(struct snd_pcm_substream *substream,
 	struct snd_pcm_runtime *runtime = substream->runtime;
 
 	return dma_mmap_writecombine(substream->pcm->card->dev, vma,
-				     runtime->dma_area,
-				     runtime->dma_addr,
-				     runtime->dma_bytes);
+							runtime->dma_area,
+							runtime->dma_addr,
+							runtime->dma_bytes);
 }
 
 static struct snd_pcm_ops sunxi_pcm_ops = {
-	.open				= sunxi_pcm_open,
+	.open			= sunxi_pcm_open,
 	.close			= sunxi_pcm_close,
 	.ioctl			= snd_pcm_lib_ioctl,
-	.hw_params	= sunxi_pcm_hw_params,
+	.hw_params		= sunxi_pcm_hw_params,
 	.hw_free		= sunxi_pcm_hw_free,
 	.prepare		= sunxi_pcm_prepare,
 	.trigger		= sunxi_pcm_trigger,
 	.pointer		= sunxi_pcm_pointer,
-	.mmap				= sunxi_pcm_mmap,
+	.mmap			= sunxi_pcm_mmap,
 };
 
 static int sunxi_pcm_preallocate_dma_buffer(struct snd_pcm *pcm, int stream)
@@ -339,7 +334,7 @@ static int sunxi_pcm_preallocate_dma_buffer(struct snd_pcm *pcm, int stream)
 	buf->dev.dev = pcm->card->dev;
 	buf->private_data = NULL;
 	buf->area = dma_alloc_writecombine(pcm->card->dev, size,
-					   &buf->addr, GFP_KERNEL);
+							&buf->addr, GFP_KERNEL);
 	if (!buf->area)
 		return -ENOMEM;
 	buf->bytes = size;
@@ -348,9 +343,9 @@ static int sunxi_pcm_preallocate_dma_buffer(struct snd_pcm *pcm, int stream)
 
 static void sunxi_pcm_free_dma_buffers(struct snd_pcm *pcm)
 {
-	struct snd_pcm_substream *substream;
-	struct snd_dma_buffer *buf;
 	int stream;
+	struct snd_dma_buffer *buf;
+	struct snd_pcm_substream *substream;
 
 	for (stream = 0; stream < 2; stream++) {
 		substream = pcm->streams[stream].substream;
@@ -362,7 +357,7 @@ static void sunxi_pcm_free_dma_buffers(struct snd_pcm *pcm)
 			continue;
 
 		dma_free_writecombine(pcm->card->dev, buf->bytes,
-				      buf->area, buf->addr);
+							buf->area, buf->addr);
 		buf->area = NULL;
 	}
 }
@@ -371,9 +366,9 @@ static u64 sunxi_pcm_mask = DMA_BIT_MASK(32);
 
 static int sunxi_pcm_new(struct snd_soc_pcm_runtime *rtd)
 {
-	struct snd_card *card = rtd->card->snd_card;
-	struct snd_pcm *pcm = rtd->pcm;
 	int ret = 0;
+	struct snd_pcm *pcm	= rtd->pcm;
+	struct snd_card *card	= rtd->card->snd_card;
 
 	if (!card->dev->dma_mask)
 		card->dev->dma_mask = &sunxi_pcm_mask;
@@ -398,14 +393,15 @@ static int sunxi_pcm_new(struct snd_soc_pcm_runtime *rtd)
 }
 
 static struct snd_soc_platform_driver sunxi_soc_platform_hdmiaudio = {
-		.ops        =        &sunxi_pcm_ops,
-		.pcm_new	=		 sunxi_pcm_new,
-		.pcm_free	=		 sunxi_pcm_free_dma_buffers,
+		.ops		=		&sunxi_pcm_ops,
+		.pcm_new	=		sunxi_pcm_new,
+		.pcm_free	=		sunxi_pcm_free_dma_buffers,
 };
 
 static int __devinit sunxi_hdmiaudio_pcm_probe(struct platform_device *pdev)
 {
-	return snd_soc_register_platform(&pdev->dev, &sunxi_soc_platform_hdmiaudio);
+	return snd_soc_register_platform(&pdev->dev,
+						&sunxi_soc_platform_hdmiaudio);
 }
 
 static int __devexit sunxi_hdmiaudio_pcm_remove(struct platform_device *pdev)
@@ -415,9 +411,9 @@ static int __devexit sunxi_hdmiaudio_pcm_remove(struct platform_device *pdev)
 }
 
 static struct platform_driver sunxi_hdmiaudio_pcm_driver = {
-	.probe = sunxi_hdmiaudio_pcm_probe,
-	.remove = __devexit_p(sunxi_hdmiaudio_pcm_remove),
-	.driver = {
+	.probe	= sunxi_hdmiaudio_pcm_probe,
+	.remove	= __devexit_p(sunxi_hdmiaudio_pcm_remove),
+	.driver	= {
 		.name = "sunxi-hdmiaudio-pcm-audio",
 		.owner = THIS_MODULE,
 	},
@@ -427,7 +423,8 @@ static struct platform_driver sunxi_hdmiaudio_pcm_driver = {
 static int __init sunxi_soc_platform_hdmiaudio_init(void)
 {
 	int err = 0;
-	if ((err = platform_driver_register(&sunxi_hdmiaudio_pcm_driver)) < 0)
+	err = platform_driver_register(&sunxi_hdmiaudio_pcm_driver);
+	if (err < 0)
 		return err;
 	return 0;
 }

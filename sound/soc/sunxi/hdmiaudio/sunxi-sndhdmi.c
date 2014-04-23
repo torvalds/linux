@@ -27,10 +27,18 @@
 static int sunxi_sndhdmi_hw_params(struct snd_pcm_substream *substream,
 					struct snd_pcm_hw_params *params)
 {
-	struct snd_soc_pcm_runtime *rtd = substream->private_data;
-	struct snd_soc_dai *codec_dai = rtd->codec_dai;
-	struct snd_soc_dai *cpu_dai = rtd->cpu_dai;
 	int ret = 0;
+	struct snd_soc_pcm_runtime *rtd;
+	struct snd_soc_dai *codec_dai;
+	struct snd_soc_dai *cpu_dai;
+
+	if (!substream) {
+		printk("error:%s,line:%d\n", __func__, __LINE__);
+		return -EAGAIN;
+	}
+	rtd		= substream->private_data;
+	codec_dai	= rtd->codec_dai;
+	cpu_dai		= rtd->cpu_dai;
 
 	ret = snd_soc_dai_set_fmt(codec_dai, 0);
 	if (ret < 0)
@@ -48,20 +56,20 @@ static struct snd_soc_ops sunxi_sndhdmi_ops = {
 };
 
 static struct snd_soc_dai_link sunxi_sndhdmi_dai_link = {
-	.name 			= "HDMIAUDIO",
-	.stream_name 	= "SUNXI-HDMIAUDIO",
-	.cpu_dai_name 	= "sunxi-hdmiaudio.0",
+	.name		= "HDMIAUDIO",
+	.stream_name	= "SUNXI-HDMIAUDIO",
+	.cpu_dai_name	= "sunxi-hdmiaudio.0",
 	.codec_dai_name = "sndhdmi",
-	.platform_name 	= "sunxi-hdmiaudio-pcm-audio.0",
-	.codec_name 	= "sunxi-hdmiaudio-codec.0",
-	.ops 			= &sunxi_sndhdmi_ops,
+	.platform_name	= "sunxi-hdmiaudio-pcm-audio.0",
+	.codec_name	= "sunxi-hdmiaudio-codec.0",
+	.ops			= &sunxi_sndhdmi_ops,
 };
 
 static struct snd_soc_card snd_soc_sunxi_sndhdmi = {
-	.name 		= "sunxi-sndhdmi",
+	.name		= "sunxi-sndhdmi",
 	.owner		= THIS_MODULE,
-	.dai_link 	= &sunxi_sndhdmi_dai_link,
-	.num_links 	= 1,
+	.dai_link	= &sunxi_sndhdmi_dai_link,
+	.num_links	= 1,
 };
 
 static int __devinit sunxi_sndhdmi_probe(struct platform_device *pdev)

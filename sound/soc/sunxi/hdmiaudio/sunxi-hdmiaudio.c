@@ -39,7 +39,7 @@ static struct sunxi_dma_params sunxi_hdmiaudio_pcm_stereo_out = {
 #if defined CONFIG_ARCH_SUN4I || defined CONFIG_ARCH_SUN5I
 	.channel	=	DMACH_HDMIAUDIO,
 #endif
-	.dma_addr 	=	0,
+	.dma_addr	=	0,
 };
 
 void sunxi_snd_txctrl_hdmiaudio(struct snd_pcm_substream *substream, int on)
@@ -53,14 +53,14 @@ static int sunxi_hdmiaudio_set_fmt(struct snd_soc_dai *cpu_dai,
 }
 
 static int sunxi_hdmiaudio_hw_params(struct snd_pcm_substream *substream,
-																struct snd_pcm_hw_params *params,
-																struct snd_soc_dai *dai)
+					struct snd_pcm_hw_params *params,
+					struct snd_soc_dai *dai)
 {
 	struct snd_soc_pcm_runtime *rtd = substream->private_data;
 	struct sunxi_dma_params *dma_data;
 
 	/* play or record */
-	if(substream->stream == SNDRV_PCM_STREAM_PLAYBACK)
+	if (substream->stream == SNDRV_PCM_STREAM_PLAYBACK)
 		dma_data = &sunxi_hdmiaudio_pcm_stereo_out;
 	else
 		printk("error:hdmiaudio can't support capture:%s,line:%d\n",
@@ -72,7 +72,7 @@ static int sunxi_hdmiaudio_hw_params(struct snd_pcm_substream *substream,
 }
 
 static int sunxi_hdmiaudio_trigger(struct snd_pcm_substream *substream,
-                              int cmd, struct snd_soc_dai *dai)
+					int cmd, struct snd_soc_dai *dai)
 {
 	int ret = 0;
 	struct snd_soc_pcm_runtime *rtd = substream->private_data;
@@ -101,14 +101,15 @@ static int sunxi_hdmiaudio_trigger(struct snd_pcm_substream *substream,
 	return ret;
 }
 
-//freq:   1: 22.5792MHz   0: 24.576MHz
+/* freq: 1: 22.5792MHz 0: 24.576MHz */
 static int sunxi_hdmiaudio_set_sysclk(struct snd_soc_dai *cpu_dai, int clk_id,
-                                 unsigned int freq, int dir)
+						unsigned int freq, int dir)
 {
 	return 0;
 }
 
-static int sunxi_hdmiaudio_set_clkdiv(struct snd_soc_dai *cpu_dai, int div_id, int div)
+static int sunxi_hdmiaudio_set_clkdiv(struct snd_soc_dai *cpu_dai, int div_id,
+									int div)
 {
 	return 0;
 }
@@ -162,25 +163,26 @@ static int sunxi_hdmiaudio_resume(struct snd_soc_dai *cpu_dai)
 
 #define SUNXI_HDMI_RATES (SNDRV_PCM_RATE_8000_192000 | SNDRV_PCM_RATE_KNOT)
 static struct snd_soc_dai_ops sunxi_hdmiaudio_dai_ops = {
-	.trigger 		= sunxi_hdmiaudio_trigger,
-	.hw_params 	= sunxi_hdmiaudio_hw_params,
-	.set_fmt 		= sunxi_hdmiaudio_set_fmt,
-	.set_clkdiv = sunxi_hdmiaudio_set_clkdiv,
-	.set_sysclk = sunxi_hdmiaudio_set_sysclk,
+	.trigger		= sunxi_hdmiaudio_trigger,
+	.hw_params		= sunxi_hdmiaudio_hw_params,
+	.set_fmt		= sunxi_hdmiaudio_set_fmt,
+	.set_clkdiv		= sunxi_hdmiaudio_set_clkdiv,
+	.set_sysclk		= sunxi_hdmiaudio_set_sysclk,
 };
 static struct snd_soc_dai_driver sunxi_hdmiaudio_dai = {
-	.probe 		= sunxi_hdmiaudio_dai_probe,
-	.suspend 	= sunxi_hdmiaudio_suspend,
-	.resume 	= sunxi_hdmiaudio_resume,
-	.remove 	= sunxi_hdmiaudio_dai_remove,
-	.playback = {
-		.channels_min = 1,
-		.channels_max = 2,
-		.rates = SUNXI_HDMI_RATES,
-		.formats = SNDRV_PCM_FMTBIT_S16_LE | SNDRV_PCM_FMTBIT_S32_LE
+
+	.probe			= sunxi_hdmiaudio_dai_probe,
+	.suspend		= sunxi_hdmiaudio_suspend,
+	.resume			= sunxi_hdmiaudio_resume,
+	.remove			= sunxi_hdmiaudio_dai_remove,
+	.playback		= {
+		.channels_min	= 1,
+		.channels_max	= 2,
+		.rates		= SUNXI_HDMI_RATES,
+		.formats = SNDRV_PCM_FMTBIT_S16_LE | SNDRV_PCM_FMTBIT_S32_LE,
 	},
-	.symmetric_rates = 1,
-	.ops = &sunxi_hdmiaudio_dai_ops,
+	.symmetric_rates	= 1,
+	.ops			= &sunxi_hdmiaudio_dai_ops,
 };
 
 static int __devinit sunxi_hdmiaudio_dev_probe(struct platform_device *pdev)
@@ -196,9 +198,9 @@ static int __devexit sunxi_hdmiaudio_dev_remove(struct platform_device *pdev)
 }
 
 static struct platform_driver sunxi_hdmiaudio_driver = {
-	.probe = sunxi_hdmiaudio_dev_probe,
-	.remove = __devexit_p(sunxi_hdmiaudio_dev_remove),
-	.driver = {
+	.probe	= sunxi_hdmiaudio_dev_probe,
+	.remove	= __devexit_p(sunxi_hdmiaudio_dev_remove),
+	.driver	= {
 		.name = "sunxi-hdmiaudio",
 		.owner = THIS_MODULE,
 	},
@@ -208,7 +210,8 @@ static int __init sunxi_hdmiaudio_init(void)
 {
 	int err = 0;
 
-	if ((err = platform_driver_register(&sunxi_hdmiaudio_driver)) < 0)
+	err = platform_driver_register(&sunxi_hdmiaudio_driver);
+	if (err < 0)
 		return err;
 
 	return 0;
