@@ -675,6 +675,7 @@ config MFD_DB8500_PRCMU
 config MFD_STMPE
 	bool "STMicroelectronics STMPE"
 	depends on (I2C=y || SPI_MASTER=y)
+	depends on OF
 	select MFD_CORE
 	help
 	  Support for the STMPE family of I/O Expanders from
