@@ -1694,8 +1694,10 @@ static int serial_omap_probe(struct platform_device *pdev)
 	    omap_up_info->DTR_present) {
 		up->DTR_gpio = omap_up_info->DTR_gpio;
 		up->DTR_inverted = omap_up_info->DTR_inverted;
-	} else
+	} else {
 		up->DTR_gpio = -EINVAL;
+	}
+
 	up->DTR_active = 0;
 
 	up->dev = &pdev->dev;
@@ -1757,6 +1759,7 @@ static int serial_omap_probe(struct platform_device *pdev)
 	platform_set_drvdata(pdev, up);
 	if (omap_up_info->autosuspend_timeout == 0)
 		omap_up_info->autosuspend_timeout = -1;
+
 	device_init_wakeup(up->dev, true);
 	pm_runtime_use_autosuspend(&pdev->dev);
 	pm_runtime_set_autosuspend_delay(&pdev->dev,
