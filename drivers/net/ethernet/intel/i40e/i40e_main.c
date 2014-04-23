@@ -530,6 +530,12 @@ void i40e_update_eth_stats(struct i40e_vsi *vsi)
 	i40e_stat_update32(hw, I40E_GLV_RDPC(stat_idx),
 			   vsi->stat_offsets_loaded,
 			   &oes->rx_discards, &es->rx_discards);
+	i40e_stat_update32(hw, I40E_GLV_RUPP(stat_idx),
+			   vsi->stat_offsets_loaded,
+			   &oes->rx_unknown_protocol, &es->rx_unknown_protocol);
+	i40e_stat_update32(hw, I40E_GLV_TEPC(stat_idx),
+			   vsi->stat_offsets_loaded,
+			   &oes->tx_errors, &es->tx_errors);
 
 	i40e_stat_update48(hw, I40E_GLV_GORCH(stat_idx),
 			   I40E_GLV_GORCL(stat_idx),
@@ -807,6 +813,8 @@ static void i40e_update_vsi_stats(struct i40e_vsi *vsi)
 	ns->tx_errors = es->tx_errors;
 	ons->multicast = oes->rx_multicast;
 	ns->multicast = es->rx_multicast;
+	ons->rx_dropped = oes->rx_discards;
+	ns->rx_dropped = es->rx_discards;
 	ons->tx_dropped = oes->tx_discards;
 	ns->tx_dropped = es->tx_discards;
 
