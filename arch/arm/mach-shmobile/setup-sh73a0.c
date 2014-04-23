@@ -104,35 +104,23 @@ SH73A0_SCIF(PORT_SCIFA, 6, 0xe6cc0000, gic_spi(156));
 SH73A0_SCIF(PORT_SCIFA, 7, 0xe6cd0000, gic_spi(143));
 SH73A0_SCIF(PORT_SCIFB, 8, 0xe6c30000, gic_spi(80));
 
-static struct sh_timer_config cmt10_platform_data = {
-	.name = "CMT10",
-	.channel_offset = 0x10,
-	.timer_bit = 0,
-	.clockevent_rating = 80,
-	.clocksource_rating = 125,
+static struct sh_timer_config cmt1_platform_data = {
+	.channels_mask = 0x3f,
 };
 
-static struct resource cmt10_resources[] = {
-	[0] = {
-		.name	= "CMT10",
-		.start	= 0xe6138010,
-		.end	= 0xe613801b,
-		.flags	= IORESOURCE_MEM,
-	},
-	[1] = {
-		.start	= gic_spi(65),
-		.flags	= IORESOURCE_IRQ,
-	},
+static struct resource cmt1_resources[] = {
+	DEFINE_RES_MEM(0xe6138000, 0x200),
+	DEFINE_RES_IRQ(gic_spi(65)),
 };
 
-static struct platform_device cmt10_device = {
-	.name		= "sh_cmt",
-	.id		= 10,
+static struct platform_device cmt1_device = {
+	.name		= "sh-cmt-48",
+	.id		= 1,
 	.dev = {
-		.platform_data	= &cmt10_platform_data,
+		.platform_data	= &cmt1_platform_data,
 	},
-	.resource	= cmt10_resources,
-	.num_resources	= ARRAY_SIZE(cmt10_resources),
+	.resource	= cmt1_resources,
+	.num_resources	= ARRAY_SIZE(cmt1_resources),
 };
 
 /* TMU */
@@ -746,7 +734,7 @@ static struct platform_device *sh73a0_devices_dt[] __initdata = {
 	&scif6_device,
 	&scif7_device,
 	&scif8_device,
-	&cmt10_device,
+	&cmt1_device,
 };
 
 static struct platform_device *sh73a0_early_devices[] __initdata = {
