@@ -2,18 +2,13 @@
  * Copyright 2000 by Hans Reiser, licensing governed by reiserfs/README
  */
 
-/* Now we have all buffers that must be used in balancing of the tree 	*/
-/* Further calculations can not cause schedule(), and thus the buffer 	*/
-/* tree will be stable until the balancing will be finished 		*/
-/* balance the tree according to the analysis made before,		*/
-/* and using buffers obtained after all above.				*/
-
-/**
- ** balance_leaf_when_delete
- ** balance_leaf
- ** do_balance
- **
- **/
+/*
+ * Now we have all buffers that must be used in balancing of the tree
+ * Further calculations can not cause schedule(), and thus the buffer
+ * tree will be stable until the balancing will be finished
+ * balance the tree according to the analysis made before,
+ * and using buffers obtained after all above.
+ */
 
 #include <asm/uaccess.h>
 #include <linux/time.h>
@@ -68,35 +63,39 @@ inline void do_balance_mark_leaf_dirty(struct tree_balance *tb,
 #define do_balance_mark_internal_dirty do_balance_mark_leaf_dirty
 #define do_balance_mark_sb_dirty do_balance_mark_leaf_dirty
 
-/* summary:
- if deleting something ( tb->insert_size[0] < 0 )
-   return(balance_leaf_when_delete()); (flag d handled here)
- else
-   if lnum is larger than 0 we put items into the left node
-   if rnum is larger than 0 we put items into the right node
-   if snum1 is larger than 0 we put items into the new node s1
-   if snum2 is larger than 0 we put items into the new node s2
-Note that all *num* count new items being created.
+/*
+ * summary:
+ *  if deleting something ( tb->insert_size[0] < 0 )
+ *    return(balance_leaf_when_delete()); (flag d handled here)
+ *  else
+ *    if lnum is larger than 0 we put items into the left node
+ *    if rnum is larger than 0 we put items into the right node
+ *    if snum1 is larger than 0 we put items into the new node s1
+ *    if snum2 is larger than 0 we put items into the new node s2
+ * Note that all *num* count new items being created.
+ *
+ * It would be easier to read balance_leaf() if each of these summary
+ * lines was a separate procedure rather than being inlined.  I think
+ * that there are many passages here and in balance_leaf_when_delete() in
+ * which two calls to one procedure can replace two passages, and it
+ * might save cache space and improve software maintenance costs to do so.
+ *
+ * Vladimir made the perceptive comment that we should offload most of
+ * the decision making in this function into fix_nodes/check_balance, and
+ * then create some sort of structure in tb that says what actions should
+ * be performed by do_balance.
+ *
+ * -Hans
+ */
 
-It would be easier to read balance_leaf() if each of these summary
-lines was a separate procedure rather than being inlined.  I think
-that there are many passages here and in balance_leaf_when_delete() in
-which two calls to one procedure can replace two passages, and it
-might save cache space and improve software maintenance costs to do so.
-
-Vladimir made the perceptive comment that we should offload most of
-the decision making in this function into fix_nodes/check_balance, and
-then create some sort of structure in tb that says what actions should
-be performed by do_balance.
-
--Hans */
-
-/* Balance leaf node in case of delete or cut: insert_size[0] < 0
+/*
+ * Balance leaf node in case of delete or cut: insert_size[0] < 0
  *
  * lnum, rnum can have values >= -1
  *	-1 means that the neighbor must be joined with S
  *	 0 means that nothing should be done with the neighbor
- *	>0 means to shift entirely or partly the specified number of items to the neighbor
+ *	>0 means to shift entirely or partly the specified number of items
+ *         to the neighbor
  */
 static int balance_leaf_when_delete(struct tree_balance *tb, int flag)
 {
@@ -149,8 +148,16 @@ static int balance_leaf_when_delete(struct tree_balance *tb, int flag)
 	case M_CUT:{		/* cut item in S[0] */
 			if (is_direntry_le_ih(ih)) {
 
-				/* UFS unlink semantics are such that you can only delete one directory entry at a time. */
-				/* when we cut a directory tb->insert_size[0] means number of entries to be cut (always 1) */
+				/*
+				 * UFS unlink semantics are such that you
+				 * can only delete one directory entry at
+				 * a time.
+				 */
+
+				/*
+				 * when we cut a directory tb->insert_size[0]
+				 * means number of entries to be cut (always 1)
+				 */
 				tb->insert_size[0] = -1;
 				leaf_cut_from_buffer(&bi, item_pos, pos_in_item,
 						     -tb->insert_size[0]);
@@ -183,13 +190,22 @@ static int balance_leaf_when_delete(struct tree_balance *tb, int flag)
 						      "UNKNOWN"), flag);
 	}
 
-	/* the rule is that no shifting occurs unless by shifting a node can be freed */
+	/*
+	 * the rule is that no shifting occurs unless by shifting
+	 * a node can be freed
+	 */
 	n = B_NR_ITEMS(tbS0);
-	if (tb->lnum[0]) {	/* L[0] takes part in balancing */
-		if (tb->lnum[0] == -1) {	/* L[0] must be joined with S[0] */
-			if (tb->rnum[0] == -1) {	/* R[0] must be also joined with S[0] */
+	/* L[0] takes part in balancing */
+	if (tb->lnum[0]) {
+		/* L[0] must be joined with S[0] */
+		if (tb->lnum[0] == -1) {
+			/* R[0] must be also joined with S[0] */
+			if (tb->rnum[0] == -1) {
 				if (tb->FR[0] == PATH_H_PPARENT(tb->tb_path, 0)) {
-					/* all contents of all the 3 buffers will be in L[0] */
+					/*
+					 * all contents of all the 3 buffers
+					 * will be in L[0]
+					 */
 					if (PATH_H_POSITION(tb->tb_path, 1) == 0
 					    && 1 < B_NR_ITEMS(tb->FR[0]))
 						replace_key(tb, tb->CFL[0],
@@ -208,7 +224,10 @@ static int balance_leaf_when_delete(struct tree_balance *tb, int flag)
 
 					return 0;
 				}
-				/* all contents of all the 3 buffers will be in R[0] */
+				/*
+				 * all contents of all the 3 buffers will
+				 * be in R[0]
+				 */
 				leaf_move_items(LEAF_FROM_S_TO_R, tb, n, -1,
 						NULL);
 				leaf_move_items(LEAF_FROM_L_TO_R, tb,
@@ -233,7 +252,11 @@ static int balance_leaf_when_delete(struct tree_balance *tb, int flag)
 
 			return 0;
 		}
-		/* a part of contents of S[0] will be in L[0] and the rest part of S[0] will be in R[0] */
+
+		/*
+		 * a part of contents of S[0] will be in L[0] and the
+		 * rest part of S[0] will be in R[0]
+		 */
 
 		RFALSE((tb->lnum[0] + tb->rnum[0] < n) ||
 		       (tb->lnum[0] + tb->rnum[0] > n + 1),
@@ -1178,9 +1201,7 @@ struct buffer_head *get_FEB(struct tree_balance *tb)
 	return tb->used[i];
 }
 
-/* This is now used because reiserfs_free_block has to be able to
-** schedule.
-*/
+/* This is now used because reiserfs_free_block has to be able to schedule. */
 static void store_thrown(struct tree_balance *tb, struct buffer_head *bh)
 {
 	int i;
@@ -1335,8 +1356,10 @@ static int check_before_balancing(struct tree_balance *tb)
 			       "mount point.");
 	}
 
-	/* double check that buffers that we will modify are unlocked. (fix_nodes should already have
-	   prepped all of these for us). */
+	/*
+	 * double check that buffers that we will modify are unlocked.
+	 * (fix_nodes should already have prepped all of these for us).
+	 */
 	if (tb->lnum[0]) {
 		retval |= locked_or_not_in_tree(tb, tb->L[0], "L[0]");
 		retval |= locked_or_not_in_tree(tb, tb->FL[0], "FL[0]");
@@ -1429,49 +1452,51 @@ static void check_internal_levels(struct tree_balance *tb)
 
 #endif
 
-/* Now we have all of the buffers that must be used in balancing of
-   the tree.  We rely on the assumption that schedule() will not occur
-   while do_balance works. ( Only interrupt handlers are acceptable.)
-   We balance the tree according to the analysis made before this,
-   using buffers already obtained.  For SMP support it will someday be
-   necessary to add ordered locking of tb. */
+/*
+ * Now we have all of the buffers that must be used in balancing of
+ * the tree.  We rely on the assumption that schedule() will not occur
+ * while do_balance works. ( Only interrupt handlers are acceptable.)
+ * We balance the tree according to the analysis made before this,
+ * using buffers already obtained.  For SMP support it will someday be
+ * necessary to add ordered locking of tb.
+ */
 
-/* Some interesting rules of balancing:
-
-   we delete a maximum of two nodes per level per balancing: we never
-   delete R, when we delete two of three nodes L, S, R then we move
-   them into R.
-
-   we only delete L if we are deleting two nodes, if we delete only
-   one node we delete S
-
-   if we shift leaves then we shift as much as we can: this is a
-   deliberate policy of extremism in node packing which results in
-   higher average utilization after repeated random balance operations
-   at the cost of more memory copies and more balancing as a result of
-   small insertions to full nodes.
-
-   if we shift internal nodes we try to evenly balance the node
-   utilization, with consequent less balancing at the cost of lower
-   utilization.
-
-   one could argue that the policy for directories in leaves should be
-   that of internal nodes, but we will wait until another day to
-   evaluate this....  It would be nice to someday measure and prove
-   these assumptions as to what is optimal....
-
-*/
+/*
+ * Some interesting rules of balancing:
+ * we delete a maximum of two nodes per level per balancing: we never
+ * delete R, when we delete two of three nodes L, S, R then we move
+ * them into R.
+ *
+ * we only delete L if we are deleting two nodes, if we delete only
+ * one node we delete S
+ *
+ * if we shift leaves then we shift as much as we can: this is a
+ * deliberate policy of extremism in node packing which results in
+ * higher average utilization after repeated random balance operations
+ * at the cost of more memory copies and more balancing as a result of
+ * small insertions to full nodes.
+ *
+ * if we shift internal nodes we try to evenly balance the node
+ * utilization, with consequent less balancing at the cost of lower
+ * utilization.
+ *
+ * one could argue that the policy for directories in leaves should be
+ * that of internal nodes, but we will wait until another day to
+ * evaluate this....  It would be nice to someday measure and prove
+ * these assumptions as to what is optimal....
+ */
 
 static inline void do_balance_starts(struct tree_balance *tb)
 {
-	/* use print_cur_tb() to see initial state of struct
-	   tree_balance */
+	/* use print_cur_tb() to see initial state of struct tree_balance */
 
 	/* store_print_tb (tb); */
 
 	/* do not delete, just comment it out */
-/*    print_tb(flag, PATH_LAST_POSITION(tb->tb_path), tb->tb_path->pos_in_item, tb,
-	     "check");*/
+	/*
+	print_tb(flag, PATH_LAST_POSITION(tb->tb_path),
+		 tb->tb_path->pos_in_item, tb, "check");
+	*/
 	RFALSE(check_before_balancing(tb), "PAP-12340: locked buffers in TB");
 #ifdef CONFIG_REISERFS_CHECK
 	REISERFS_SB(tb->tb_sb)->cur_tb = tb;
@@ -1487,9 +1512,10 @@ static inline void do_balance_completed(struct tree_balance *tb)
 	REISERFS_SB(tb->tb_sb)->cur_tb = NULL;
 #endif
 
-	/* reiserfs_free_block is no longer schedule safe.  So, we need to
-	 ** put the buffers we want freed on the thrown list during do_balance,
-	 ** and then free them now
+	/*
+	 * reiserfs_free_block is no longer schedule safe.  So, we need to
+	 * put the buffers we want freed on the thrown list during do_balance,
+	 * and then free them now
 	 */
 
 	REISERFS_SB(tb->tb_sb)->s_do_balance++;
@@ -1500,36 +1526,40 @@ static inline void do_balance_completed(struct tree_balance *tb)
 	free_thrown(tb);
 }
 
-void do_balance(struct tree_balance *tb,	/* tree_balance structure */
-		struct item_head *ih,	/* item header of inserted item */
-		const char *body,	/* body  of inserted item or bytes to paste */
-		int flag)
-{				/* i - insert, d - delete
-				   c - cut, p - paste
+/*
+ * do_balance - balance the tree
+ *
+ * @tb: tree_balance structure
+ * @ih: item header of inserted item
+ * @body: body of inserted item or bytes to paste
+ * @flag: 'i' - insert, 'd' - delete, 'c' - cut, 'p' paste
+ *
+ * Cut means delete part of an item (includes removing an entry from a
+ * directory).
+ *
+ * Delete means delete whole item.
+ *
+ * Insert means add a new item into the tree.
+ *
+ * Paste means to append to the end of an existing file or to
+ * insert a directory entry.
+ */
+void do_balance(struct tree_balance *tb, struct item_head *ih,
+		const char *body, int flag)
+{
+	int child_pos;		/* position of a child node in its parent */
+	int h;			/* level of the tree being processed */
 
-				   Cut means delete part of an item
-				   (includes removing an entry from a
-				   directory).
+	/*
+	 * in our processing of one level we sometimes determine what
+	 * must be inserted into the next higher level.  This insertion
+	 * consists of a key or two keys and their corresponding
+	 * pointers
+	 */
+	struct item_head insert_key[2];
 
-				   Delete means delete whole item.
-
-				   Insert means add a new item into the
-				   tree.
-
-				   Paste means to append to the end of an
-				   existing file or to insert a directory
-				   entry.  */
-	int child_pos,		/* position of a child node in its parent */
-	 h;			/* level of the tree being processed */
-	struct item_head insert_key[2];	/* in our processing of one level
-					   we sometimes determine what
-					   must be inserted into the next
-					   higher level.  This insertion
-					   consists of a key or two keys
-					   and their corresponding
-					   pointers */
-	struct buffer_head *insert_ptr[2];	/* inserted node-ptrs for the next
-						   level */
+	/* inserted node-ptrs for the next level */
+	struct buffer_head *insert_ptr[2];
 
 	tb->tb_mode = flag;
 	tb->need_balance_dirty = 0;
@@ -1549,9 +1579,11 @@ void do_balance(struct tree_balance *tb,	/* tree_balance structure */
 	atomic_inc(&(fs_generation(tb->tb_sb)));
 	do_balance_starts(tb);
 
-	/* balance leaf returns 0 except if combining L R and S into
-	   one node.  see balance_internal() for explanation of this
-	   line of code. */
+	/*
+	 * balance_leaf returns 0 except if combining L R and S into
+	 * one node.  see balance_internal() for explanation of this
+	 * line of code.
+	 */
 	child_pos = PATH_H_B_ITEM_ORDER(tb->tb_path, 0) +
 	    balance_leaf(tb, ih, body, flag, insert_key, insert_ptr);
 

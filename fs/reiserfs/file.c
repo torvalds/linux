@@ -15,20 +15,20 @@
 #include <linux/quotaops.h>
 
 /*
-** We pack the tails of files on file close, not at the time they are written.
-** This implies an unnecessary copy of the tail and an unnecessary indirect item
-** insertion/balancing, for files that are written in one write.
-** It avoids unnecessary tail packings (balances) for files that are written in
-** multiple writes and are small enough to have tails.
-**
-** file_release is called by the VFS layer when the file is closed.  If
-** this is the last open file descriptor, and the file
-** small enough to have a tail, and the tail is currently in an
-** unformatted node, the tail is converted back into a direct item.
-**
-** We use reiserfs_truncate_file to pack the tail, since it already has
-** all the conditions coded.
-*/
+ * We pack the tails of files on file close, not at the time they are written.
+ * This implies an unnecessary copy of the tail and an unnecessary indirect item
+ * insertion/balancing, for files that are written in one write.
+ * It avoids unnecessary tail packings (balances) for files that are written in
+ * multiple writes and are small enough to have tails.
+ *
+ * file_release is called by the VFS layer when the file is closed.  If
+ * this is the last open file descriptor, and the file
+ * small enough to have a tail, and the tail is currently in an
+ * unformatted node, the tail is converted back into a direct item.
+ *
+ * We use reiserfs_truncate_file to pack the tail, since it already has
+ * all the conditions coded.
+ */
 static int reiserfs_file_release(struct inode *inode, struct file *filp)
 {
 
@@ -57,14 +57,16 @@ static int reiserfs_file_release(struct inode *inode, struct file *filp)
 	}
 
 	reiserfs_write_lock(inode->i_sb);
-	/* freeing preallocation only involves relogging blocks that
+	/*
+	 * freeing preallocation only involves relogging blocks that
 	 * are already in the current transaction.  preallocation gets
 	 * freed at the end of each transaction, so it is impossible for
 	 * us to log any additional blocks (including quota blocks)
 	 */
 	err = journal_begin(&th, inode->i_sb, 1);
 	if (err) {
-		/* uh oh, we can't allow the inode to go away while there
+		/*
+		 * uh oh, we can't allow the inode to go away while there
 		 * is still preallocation blocks pending.  Try to join the
 		 * aborted transaction
 		 */
@@ -72,11 +74,13 @@ static int reiserfs_file_release(struct inode *inode, struct file *filp)
 		err = journal_join_abort(&th, inode->i_sb, 1);
 
 		if (err) {
-			/* hmpf, our choices here aren't good.  We can pin the inode
-			 * which will disallow unmount from every happening, we can
-			 * do nothing, which will corrupt random memory on unmount,
-			 * or we can forcibly remove the file from the preallocation
-			 * list, which will leak blocks on disk.  Lets pin the inode
+			/*
+			 * hmpf, our choices here aren't good.  We can pin
+			 * the inode which will disallow unmount from ever
+			 * happening, we can do nothing, which will corrupt
+			 * random memory on unmount, or we can forcibly
+			 * remove the file from the preallocation list, which
+			 * will leak blocks on disk.  Lets pin the inode
 			 * and let the admin know what is going on.
 			 */
 			igrab(inode);
@@ -102,10 +106,12 @@ static int reiserfs_file_release(struct inode *inode, struct file *filp)
 	    (REISERFS_I(inode)->i_flags & i_pack_on_close_mask) &&
 	    tail_has_to_be_packed(inode)) {
 
-		/* if regular file is released by last holder and it has been
-		   appended (we append by unformatted node only) or its direct
-		   item(s) had to be converted, then it may have to be
-		   indirect2direct converted */
+		/*
+		 * if regular file is released by last holder and it has been
+		 * appended (we append by unformatted node only) or its direct
+		 * item(s) had to be converted, then it may have to be
+		 * indirect2direct converted
+		 */
 		err = reiserfs_truncate_file(inode, 0);
 	}
       out:
@@ -117,8 +123,9 @@ static int reiserfs_file_release(struct inode *inode, struct file *filp)
 static int reiserfs_file_open(struct inode *inode, struct file *file)
 {
 	int err = dquot_file_open(inode, file);
+
+	/* somebody might be tailpacking on final close; wait for it */
         if (!atomic_inc_not_zero(&REISERFS_I(inode)->openers)) {
-		/* somebody might be tailpacking on final close; wait for it */
 		mutex_lock(&(REISERFS_I(inode)->tailpack));
 		atomic_inc(&REISERFS_I(inode)->openers);
 		mutex_unlock(&(REISERFS_I(inode)->tailpack));
@@ -208,7 +215,8 @@ int reiserfs_commit_page(struct inode *inode, struct page *page,
 				journal_mark_dirty(&th, s, bh);
 			} else if (!buffer_dirty(bh)) {
 				mark_buffer_dirty(bh);
-				/* do data=ordered on any page past the end
+				/*
+				 * do data=ordered on any page past the end
 				 * of file and any buffer marked BH_New.
 				 */
 				if (reiserfs_data_ordered(inode->i_sb) &&

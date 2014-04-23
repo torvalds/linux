@@ -59,7 +59,10 @@ static inline bool is_privroot_deh(struct inode *dir, struct reiserfs_de_head *d
 
 int reiserfs_readdir_inode(struct inode *inode, struct dir_context *ctx)
 {
-	struct cpu_key pos_key;	/* key of current position in the directory (key of directory entry) */
+
+	/* key of current position in the directory (key of directory entry) */
+	struct cpu_key pos_key;
+
 	INITIALIZE_PATH(path_to_entry);
 	struct buffer_head *bh;
 	int item_num, entry_num;
@@ -77,21 +80,28 @@ int reiserfs_readdir_inode(struct inode *inode, struct dir_context *ctx)
 
 	reiserfs_check_lock_depth(inode->i_sb, "readdir");
 
-	/* form key for search the next directory entry using f_pos field of
-	   file structure */
+	/*
+	 * form key for search the next directory entry using
+	 * f_pos field of file structure
+	 */
 	make_cpu_key(&pos_key, inode, ctx->pos ?: DOT_OFFSET, TYPE_DIRENTRY, 3);
 	next_pos = cpu_key_k_offset(&pos_key);
 
 	path_to_entry.reada = PATH_READA;
 	while (1) {
 	      research:
-		/* search the directory item, containing entry with specified key */
+		/*
+		 * search the directory item, containing entry with
+		 * specified key
+		 */
 		search_res =
 		    search_by_entry_key(inode->i_sb, &pos_key, &path_to_entry,
 					&de);
 		if (search_res == IO_ERROR) {
-			// FIXME: we could just skip part of directory which could
-			// not be read
+			/*
+			 * FIXME: we could just skip part of directory
+			 * which could not be read
+			 */
 			ret = -EIO;
 			goto out;
 		}
@@ -109,14 +119,20 @@ int reiserfs_readdir_inode(struct inode *inode, struct dir_context *ctx)
 		       "vs-9005 item_num == %d, item amount == %d",
 		       item_num, B_NR_ITEMS(bh));
 
-		/* and entry must be not more than number of entries in the item */
+		/*
+		 * and entry must be not more than number of entries
+		 * in the item
+		 */
 		RFALSE(ih_entry_count(ih) < entry_num,
 		       "vs-9010: entry number is too big %d (%d)",
 		       entry_num, ih_entry_count(ih));
 
+		/*
+		 * go through all entries in the directory item beginning
+		 * from the entry, that has been found
+		 */
 		if (search_res == POSITION_FOUND
 		    || entry_num < ih_entry_count(ih)) {
-			/* go through all entries in the directory item beginning from the entry, that has been found */
 			struct reiserfs_de_head *deh =
 			    B_I_DEH(bh, ih) + entry_num;
 
@@ -127,16 +143,18 @@ int reiserfs_readdir_inode(struct inode *inode, struct dir_context *ctx)
 				ino_t d_ino;
 				loff_t cur_pos = deh_offset(deh);
 
+				/* it is hidden entry */
 				if (!de_visible(deh))
-					/* it is hidden entry */
 					continue;
 				d_reclen = entry_length(bh, ih, entry_num);
 				d_name = B_I_DEH_ENTRY_FILE_NAME(bh, ih, deh);
 
 				if (d_reclen <= 0 ||
 				    d_name + d_reclen > bh->b_data + bh->b_size) {
-					/* There is corrupted data in entry,
-					 * We'd better stop here */
+					/*
+					 * There is corrupted data in entry,
+					 * We'd better stop here
+					 */
 					pathrelse(&path_to_entry);
 					ret = -EIO;
 					goto out;
@@ -145,10 +163,10 @@ int reiserfs_readdir_inode(struct inode *inode, struct dir_context *ctx)
 				if (!d_name[d_reclen - 1])
 					d_reclen = strlen(d_name);
 
+				/* too big to send back to VFS */
 				if (d_reclen >
 				    REISERFS_MAX_NAME(inode->i_sb->
 						      s_blocksize)) {
-					/* too big to send back to VFS */
 					continue;
 				}
 
@@ -173,10 +191,14 @@ int reiserfs_readdir_inode(struct inode *inode, struct dir_context *ctx)
 						goto research;
 					}
 				}
-				// Note, that we copy name to user space via temporary
-				// buffer (local_buf) because filldir will block if
-				// user space buffer is swapped out. At that time
-				// entry can move to somewhere else
+
+				/*
+				 * Note, that we copy name to user space via
+				 * temporary buffer (local_buf) because
+				 * filldir will block if user space buffer is
+				 * swapped out. At that time entry can move to
+				 * somewhere else
+				 */
 				memcpy(local_buf, d_name, d_reclen);
 
 				/*
@@ -209,22 +231,26 @@ int reiserfs_readdir_inode(struct inode *inode, struct dir_context *ctx)
 			}	/* for */
 		}
 
+		/* end of directory has been reached */
 		if (item_num != B_NR_ITEMS(bh) - 1)
-			// end of directory has been reached
 			goto end;
 
-		/* item we went through is last item of node. Using right
-		   delimiting key check is it directory end */
+		/*
+		 * item we went through is last item of node. Using right
+		 * delimiting key check is it directory end
+		 */
 		rkey = get_rkey(&path_to_entry, inode->i_sb);
 		if (!comp_le_keys(rkey, &MIN_KEY)) {
-			/* set pos_key to key, that is the smallest and greater
-			   that key of the last entry in the item */
+			/*
+			 * set pos_key to key, that is the smallest and greater
+			 * that key of the last entry in the item
+			 */
 			set_cpu_key_k_offset(&pos_key, next_pos);
 			continue;
 		}
 
+		/* end of directory has been reached */
 		if (COMP_SHORT_KEYS(rkey, &pos_key)) {
-			// end of directory has been reached
 			goto end;
 		}
 
@@ -248,9 +274,10 @@ static int reiserfs_readdir(struct file *file, struct dir_context *ctx)
 	return reiserfs_readdir_inode(file_inode(file), ctx);
 }
 
-/* compose directory item containing "." and ".." entries (entries are
-   not aligned to 4 byte boundary) */
-/* the last four params are LE */
+/*
+ * compose directory item containing "." and ".." entries (entries are
+ * not aligned to 4 byte boundary)
+ */
 void make_empty_dir_item_v1(char *body, __le32 dirid, __le32 objid,
 			    __le32 par_dirid, __le32 par_objid)
 {
