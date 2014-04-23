@@ -314,7 +314,6 @@ struct pci1710_private {
 	unsigned char act_chanlist_len;	/*  len of scanlist */
 	unsigned char act_chanlist_pos;	/*  actual position in MUX list */
 	unsigned char da_ranges;	/*  copy of D/A outpit range register */
-	unsigned int ai_data_len;	/*  len of data buffer */
 	unsigned short ao_data[4];	/*  data output buffer */
 	unsigned int cnt0_write_wait;	/* after a write, wait for update of the
 					 * internal state */
@@ -888,8 +887,8 @@ static void interrupt_pci1710_half_fifo(void *d)
 	}
 
 	samplesinbuf = this_board->fifo_half_size;
-	if (samplesinbuf * sizeof(short) >= devpriv->ai_data_len) {
-		m = devpriv->ai_data_len / sizeof(short);
+	if (samplesinbuf * sizeof(short) >= s->async->prealloc_bufsz) {
+		m = s->async->prealloc_bufsz / sizeof(short);
 		if (move_block_from_fifo(dev, s, m, 0))
 			return;
 		samplesinbuf -= m;
@@ -1114,10 +1113,7 @@ static int pci171x_ai_cmdtest(struct comedi_device *dev,
 */
 static int pci171x_ai_cmd(struct comedi_device *dev, struct comedi_subdevice *s)
 {
-	struct pci1710_private *devpriv = dev->private;
 	struct comedi_cmd *cmd = &s->async->cmd;
-
-	devpriv->ai_data_len = s->async->prealloc_bufsz;
 
 	if (cmd->scan_begin_src == TRIG_FOLLOW) {	/*  mode 1, 2, 3 */
 		if (cmd->convert_src == TRIG_TIMER) {	/*  mode 1 and 2 */
