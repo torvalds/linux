@@ -90,7 +90,7 @@ static int flush_commit_list(struct super_block *s,
 			     struct reiserfs_journal_list *jl, int flushall);
 static int can_dirty(struct reiserfs_journal_cnode *cn);
 static int journal_join(struct reiserfs_transaction_handle *th,
-			struct super_block *sb, unsigned long nblocks);
+			struct super_block *sb);
 static void release_journal_dev(struct super_block *super,
 			       struct reiserfs_journal *journal);
 static int dirty_one_transaction(struct super_block *s,
@@ -1925,7 +1925,7 @@ static int do_journal_release(struct reiserfs_transaction_handle *th,
 		 * make sure something gets logged to force
 		 * our way into the flush code
 		 */
-		if (!journal_join(&myth, sb, 1)) {
+		if (!journal_join(&myth, sb)) {
 			reiserfs_prepare_for_journal(sb,
 						     SB_BUFFER_WITH_SB(sb),
 						     1);
@@ -1938,7 +1938,7 @@ static int do_journal_release(struct reiserfs_transaction_handle *th,
 	/* this also catches errors during the do_journal_end above */
 	if (!error && reiserfs_is_journal_aborted(journal)) {
 		memset(&myth, 0, sizeof(myth));
-		if (!journal_join_abort(&myth, sb, 1)) {
+		if (!journal_join_abort(&myth, sb)) {
 			reiserfs_prepare_for_journal(sb,
 						     SB_BUFFER_WITH_SB(sb),
 						     1);
@@ -3092,7 +3092,7 @@ static int do_journal_begin_r(struct reiserfs_transaction_handle *th,
 			}
 			goto relock;
 		}
-		retval = journal_join(&myth, sb, 1);
+		retval = journal_join(&myth, sb);
 		if (retval)
 			goto out_fail;
 
@@ -3181,7 +3181,7 @@ int reiserfs_end_persistent_transaction(struct reiserfs_transaction_handle *th)
 }
 
 static int journal_join(struct reiserfs_transaction_handle *th,
-			struct super_block *sb, unsigned long nblocks)
+			struct super_block *sb)
 {
 	struct reiserfs_transaction_handle *cur_th = current->journal_info;
 
@@ -3191,11 +3191,11 @@ static int journal_join(struct reiserfs_transaction_handle *th,
 	 */
 	th->t_handle_save = cur_th;
 	BUG_ON(cur_th && cur_th->t_refcount > 1);
-	return do_journal_begin_r(th, sb, nblocks, JBEGIN_JOIN);
+	return do_journal_begin_r(th, sb, 1, JBEGIN_JOIN);
 }
 
 int journal_join_abort(struct reiserfs_transaction_handle *th,
-		       struct super_block *sb, unsigned long nblocks)
+		       struct super_block *sb)
 {
 	struct reiserfs_transaction_handle *cur_th = current->journal_info;
 
@@ -3205,7 +3205,7 @@ int journal_join_abort(struct reiserfs_transaction_handle *th,
 	 */
 	th->t_handle_save = cur_th;
 	BUG_ON(cur_th && cur_th->t_refcount > 1);
-	return do_journal_begin_r(th, sb, nblocks, JBEGIN_ABORT);
+	return do_journal_begin_r(th, sb, 1, JBEGIN_ABORT);
 }
 
 int journal_begin(struct reiserfs_transaction_handle *th,
@@ -3571,7 +3571,7 @@ void reiserfs_flush_old_commits(struct super_block *sb)
 	    journal->j_trans_start_time > 0 &&
 	    journal->j_len > 0 &&
 	    (now - journal->j_trans_start_time) > journal->j_max_trans_age) {
-		if (!journal_join(&th, sb, 1)) {
+		if (!journal_join(&th, sb)) {
 			reiserfs_prepare_for_journal(sb,
 						     SB_BUFFER_WITH_SB(sb),
 						     1);

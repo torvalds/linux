@@ -71,7 +71,7 @@ static int reiserfs_file_release(struct inode *inode, struct file *filp)
 		 * aborted transaction
 		 */
 		jbegin_failure = err;
-		err = journal_join_abort(&th, inode->i_sb, 1);
+		err = journal_join_abort(&th, inode->i_sb);
 
 		if (err) {
 			/*

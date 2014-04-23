@@ -2924,7 +2924,7 @@ int reiserfs_in_journal(struct super_block *sb, unsigned int bmap_nr,
 int journal_begin(struct reiserfs_transaction_handle *,
 		  struct super_block *sb, unsigned long);
 int journal_join_abort(struct reiserfs_transaction_handle *,
-		       struct super_block *sb, unsigned long);
+		       struct super_block *sb);
 void reiserfs_abort_journal(struct super_block *sb, int errno);
 void reiserfs_abort(struct super_block *sb, int errno, const char *fmt, ...);
 int reiserfs_allocate_list_bitmaps(struct super_block *s,
