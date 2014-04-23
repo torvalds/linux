@@ -1303,7 +1303,7 @@ static int dgap_tty_init(struct board_t *brd)
 	u8 __iomem *vaddr;
 	u8 modem = 0;
 	struct channel_t *ch;
-	struct bs_t *bs;
+	struct bs_t __iomem *bs;
 	struct cm_t *cm;
 
 	if (!brd)
@@ -1635,7 +1635,7 @@ static void dgap_sniff_nowait_nolock(struct channel_t *ch, u8 *text,
 static void dgap_input(struct channel_t *ch)
 {
 	struct board_t *bd;
-	struct bs_t	*bs;
+	struct bs_t __iomem *bs;
 	struct tty_struct *tp;
 	struct tty_ldisc *ld;
 	uint	rmask;
@@ -1962,7 +1962,7 @@ static int dgap_tty_open(struct tty_struct *tty, struct file *file)
 	struct board_t	*brd;
 	struct channel_t *ch;
 	struct un_t	*un;
-	struct bs_t	*bs;
+	struct bs_t __iomem *bs;
 	uint		major = 0;
 	uint		minor = 0;
 	int		rc = 0;
@@ -2416,7 +2416,7 @@ static int dgap_tty_chars_in_buffer(struct tty_struct *tty)
 	struct board_t *bd = NULL;
 	struct channel_t *ch = NULL;
 	struct un_t *un = NULL;
-	struct bs_t *bs = NULL;
+	struct bs_t __iomem *bs;
 	u8 tbusy;
 	uint chars = 0;
 	u16 thead, ttail, tmask, chead, ctail;
@@ -2507,7 +2507,7 @@ static int dgap_wait_for_drain(struct tty_struct *tty)
 {
 	struct channel_t *ch;
 	struct un_t *un;
-	struct bs_t *bs;
+	struct bs_t __iomem *bs;
 	int ret = -EIO;
 	uint count = 1;
 	ulong   lock_flags = 0;
@@ -2618,7 +2618,7 @@ static int dgap_maxcps_room(struct tty_struct *tty, int bytes_available)
 static inline void dgap_set_firmware_event(struct un_t *un, unsigned int event)
 {
 	struct channel_t *ch = NULL;
-	struct bs_t *bs = NULL;
+	struct bs_t __iomem *bs = NULL;
 
 	if (!un || un->magic != DGAP_UNIT_MAGIC)
 		return;
@@ -2652,7 +2652,7 @@ static int dgap_tty_write_room(struct tty_struct *tty)
 {
 	struct channel_t *ch = NULL;
 	struct un_t *un = NULL;
-	struct bs_t *bs = NULL;
+	struct bs_t __iomem *bs;
 	u16 head, tail, tmask;
 	int ret = 0;
 	ulong   lock_flags = 0;
@@ -2741,7 +2741,7 @@ static int dgap_tty_write(struct tty_struct *tty, const unsigned char *buf,
 {
 	struct channel_t *ch = NULL;
 	struct un_t *un = NULL;
-	struct bs_t *bs = NULL;
+	struct bs_t __iomem *bs;
 	char *vaddr = NULL;
 	u16 head, tail, tmask, remain;
 	int bufcount = 0, n = 0;
@@ -5006,7 +5006,7 @@ static void dgap_wmove(struct channel_t *ch, char *buf, uint cnt)
 {
 	int    n;
 	char   *taddr;
-	struct bs_t    *bs;
+	struct bs_t __iomem *bs;
 	u16    head;
 
 	if (!ch || ch->magic != DGAP_CHANNEL_MAGIC)
@@ -5125,7 +5125,7 @@ static int dgap_param(struct tty_struct *tty)
 	struct ktermios *ts;
 	struct board_t *bd;
 	struct channel_t *ch;
-	struct bs_t   *bs;
+	struct bs_t __iomem *bs;
 	struct un_t   *un;
 	u16	head;
 	u16	cflag;
@@ -5578,7 +5578,7 @@ static int dgap_event(struct board_t *bd)
 	struct channel_t *ch;
 	ulong		lock_flags;
 	ulong		lock_flags2;
-	struct bs_t	*bs;
+	struct bs_t __iomem *bs;
 	u8		*event;
 	u8 __iomem	*vaddr;
 	struct ev_t	*eaddr = NULL;

@@ -593,7 +593,7 @@ struct board_t {
 	u32		dgap_Serial_Major;
 	u32		dgap_TransparentPrint_Major;
 
-	struct bs_t	*bd_bs;		/* Base structure pointer         */
+	struct bs_t __iomem *bd_bs;	/* Base structure pointer         */
 
 	char	*flipbuf;		/* Our flip buffer, alloced if    */
 					/* board is found                 */
@@ -968,7 +968,7 @@ struct digi_cmd {
  ************************************************************************/
 struct channel_t {
 	int magic;			/* Channel Magic Number		*/
-	struct bs_t	*ch_bs;		/* Base structure pointer       */
+	struct bs_t __iomem *ch_bs;	/* Base structure pointer       */
 	struct cm_t	*ch_cm;		/* Command queue pointer        */
 	struct board_t *ch_bd;		/* Board structure pointer      */
 	unsigned char *ch_vaddr;	/* FEP memory origin            */
