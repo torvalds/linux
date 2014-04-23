@@ -1324,7 +1324,7 @@ static ssize_t lcd_write(struct file *file,
 			   that need some CPU */
 			schedule();
 
-		if (get_user(c, buf))
+		if (get_user(c, tmp))
 			return -EFAULT;
 
 		lcd_write_char(c);
