@@ -1,5 +1,11 @@
 * Freescale Quad Serial Peripheral Interface(QuadSPI)
 
+The QuadSPI controller acts as the SPI master. It is described with a node
+for the controller and a set of child nodes for each SPI NOR flash.
+
+Part I - The DT node for the controller:
+------------------------------
+
 Required properties:
   - compatible : Should be "fsl,vf610-qspi" or "fsl,imx6sx-qspi"
   - reg : the first contains the register location and length,
@@ -17,6 +23,16 @@ Optional properties:
 			      But if there are two NOR flashes connected to the
 			      bus, you should enable this property.
 			      (Please check the board's schematic.)
+
+Part II - The DT nodes for each SPI NOR flash
+------------------------------
+Required properties:
+- spi-max-frequency : Maximum frequency of the SPI bus the chip can operate at
+
+Optional properties:
+  Please refer to the Documentation/devicetree/bindings/mtd/spi-nor-flash.txt
+  If you set the "spi-nor,ddr-quad-read-dummy", it means you enable the DDR
+  quad read feature for the driver.
 
 Example:
 
