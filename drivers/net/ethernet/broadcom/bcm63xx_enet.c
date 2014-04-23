@@ -1315,8 +1315,7 @@ static const struct bcm_enet_stats bcm_enet_gstrings_stats[] = {
 
 };
 
-#define BCM_ENET_STATS_LEN	\
-	(sizeof(bcm_enet_gstrings_stats) / sizeof(struct bcm_enet_stats))
+#define BCM_ENET_STATS_LEN	ARRAY_SIZE(bcm_enet_gstrings_stats)
 
 static const u32 unused_mib_regs[] = {
 	ETH_MIB_TX_ALL_OCTETS,
