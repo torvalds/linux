@@ -5351,13 +5351,28 @@ static int i40e_prep_for_reset(struct i40e_pf *pf)
 }
 
 /**
+ * i40e_send_version - update firmware with driver version
+ * @pf: PF struct
+ */
+static void i40e_send_version(struct i40e_pf *pf)
+{
+	struct i40e_driver_version dv;
+
+	dv.major_version = DRV_VERSION_MAJOR;
+	dv.minor_version = DRV_VERSION_MINOR;
+	dv.build_version = DRV_VERSION_BUILD;
+	dv.subbuild_version = 0;
+	strncpy(dv.driver_string, DRV_VERSION, sizeof(dv.driver_string));
+	i40e_aq_send_driver_version(&pf->hw, &dv, NULL);
+}
+
+/**
  * i40e_reset_and_rebuild - reset and rebuild using a saved config
  * @pf: board private structure
  * @reinit: if the Main VSI needs to re-initialized.
  **/
 static void i40e_reset_and_rebuild(struct i40e_pf *pf, bool reinit)
 {
-	struct i40e_driver_version dv;
 	struct i40e_hw *hw = &pf->hw;
 	i40e_status ret;
 	u32 v;
@@ -5490,11 +5505,7 @@ static void i40e_reset_and_rebuild(struct i40e_pf *pf, bool reinit)
 	}
 
 	/* tell the firmware that we're starting */
-	dv.major_version = DRV_VERSION_MAJOR;
-	dv.minor_version = DRV_VERSION_MINOR;
-	dv.build_version = DRV_VERSION_BUILD;
-	dv.subbuild_version = 0;
-	i40e_aq_send_driver_version(&pf->hw, &dv, NULL);
+	i40e_send_version(pf);
 
 	dev_info(&pf->pdev->dev, "reset complete\n");
 
@@ -8138,7 +8149,6 @@ static void i40e_print_features(struct i40e_pf *pf)
  **/
 static int i40e_probe(struct pci_dev *pdev, const struct pci_device_id *ent)
 {
-	struct i40e_driver_version dv;
 	struct i40e_pf *pf;
 	struct i40e_hw *hw;
 	static u16 pfs_found;
@@ -8393,12 +8403,7 @@ static int i40e_probe(struct pci_dev *pdev, const struct pci_device_id *ent)
 	i40e_dbg_pf_init(pf);
 
 	/* tell the firmware that we're starting */
-	dv.major_version = DRV_VERSION_MAJOR;
-	dv.minor_version = DRV_VERSION_MINOR;
-	dv.build_version = DRV_VERSION_BUILD;
-	dv.subbuild_version = 0;
-	strncpy(dv.driver_string, DRV_VERSION, sizeof(dv.driver_string));
-	i40e_aq_send_driver_version(&pf->hw, &dv, NULL);
+	i40e_send_version(pf);
 
 	/* since everything's happy, start the service_task timer */
 	mod_timer(&pf->service_timer,
