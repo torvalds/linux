@@ -869,14 +869,6 @@ static void pci224_ao_start_pacer(struct comedi_device *dev,
 				  struct comedi_subdevice *s)
 {
 	struct pci224_private *devpriv = dev->private;
-	struct comedi_cmd *cmd = &s->async->cmd;
-
-	/* Use two timers. */
-	i8253_cascade_ns_to_timer(I8254_OSC_BASE_10MHZ,
-				  &devpriv->cached_div1,
-				  &devpriv->cached_div2,
-				  &cmd->scan_begin_arg,
-				  cmd->flags);
 
 	/*
 	 * The output of timer Z2-0 will be used as the scan trigger
