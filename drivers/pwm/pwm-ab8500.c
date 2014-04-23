@@ -101,10 +101,8 @@ static int ab8500_pwm_probe(struct platform_device *pdev)
 	 * device which is required for ab8500 read and write
 	 */
 	ab8500 = devm_kzalloc(&pdev->dev, sizeof(*ab8500), GFP_KERNEL);
-	if (ab8500 == NULL) {
-		dev_err(&pdev->dev, "failed to allocate memory\n");
+	if (ab8500 == NULL)
 		return -ENOMEM;
-	}
 
 	ab8500->chip.dev = &pdev->dev;
 	ab8500->chip.ops = &ab8500_pwm_ops;
