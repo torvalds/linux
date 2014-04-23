@@ -67,6 +67,11 @@ config RK_PM_TESTS
 	select DVFS
 	select WATCHDOG
 
+config DDR_TEST
+	bool "DDR Test"
+	select CRC32
+	default n
+
 config RK_VPU
 	tristate "VPU (Video Processing Unit) service driver in kernel"
 	depends on ARCH_ROCKCHIP

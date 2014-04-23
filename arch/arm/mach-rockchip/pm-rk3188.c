@@ -530,7 +530,7 @@ static  void rkpm_prepare(void)
 	rk30_pm_dump_inten();
         #ifdef CONFIG_DDR_TEST
         // memory tester
-        ddr_testmode();
+        //ddr_testmode();
         #endif
 }
 
