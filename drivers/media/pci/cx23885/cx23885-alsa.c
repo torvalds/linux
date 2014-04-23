@@ -84,6 +84,82 @@ MODULE_PARM_DESC(audio_debug, "enable debug messages [analog audio]");
 #define AUD_INT_MCHG_IRQ        (1 << 21)
 #define GP_COUNT_CONTROL_RESET	0x3
 
+static int cx23885_alsa_dma_init(struct cx23885_audio_dev *chip, int nr_pages)
+{
+	struct cx23885_audio_buffer *buf = chip->buf;
+	struct page *pg;
+	int i;
+
+	buf->vaddr = vmalloc_32(nr_pages << PAGE_SHIFT);
+	if (NULL == buf->vaddr) {
+		dprintk(1, "vmalloc_32(%d pages) failed\n", nr_pages);
+		return -ENOMEM;
+	}
+
+	dprintk(1, "vmalloc is at addr 0x%08lx, size=%d\n",
+				(unsigned long)buf->vaddr,
+				nr_pages << PAGE_SHIFT);
+
+	memset(buf->vaddr, 0, nr_pages << PAGE_SHIFT);
+	buf->nr_pages = nr_pages;
+
+	buf->sglist = vzalloc(buf->nr_pages * sizeof(*buf->sglist));
+	if (NULL == buf->sglist)
+		goto vzalloc_err;
+
+	sg_init_table(buf->sglist, buf->nr_pages);
+	for (i = 0; i < buf->nr_pages; i++) {
+		pg = vmalloc_to_page(buf->vaddr + i * PAGE_SIZE);
+		if (NULL == pg)
+			goto vmalloc_to_page_err;
+		sg_set_page(&buf->sglist[i], pg, PAGE_SIZE, 0);
+	}
+	return 0;
+
+vmalloc_to_page_err:
+	vfree(buf->sglist);
+	buf->sglist = NULL;
+vzalloc_err:
+	vfree(buf->vaddr);
+	buf->vaddr = NULL;
+	return -ENOMEM;
+}
+
+static int cx23885_alsa_dma_map(struct cx23885_audio_dev *dev)
+{
+	struct cx23885_audio_buffer *buf = dev->buf;
+
+	buf->sglen = dma_map_sg(&dev->pci->dev, buf->sglist,
+			buf->nr_pages, PCI_DMA_FROMDEVICE);
+
+	if (0 == buf->sglen) {
+		pr_warn("%s: cx23885_alsa_map_sg failed\n", __func__);
+		return -ENOMEM;
+	}
+	return 0;
+}
+
+static int cx23885_alsa_dma_unmap(struct cx23885_audio_dev *dev)
+{
+	struct cx23885_audio_buffer *buf = dev->buf;
+
+	if (!buf->sglen)
+		return 0;
+
+	dma_unmap_sg(&dev->pci->dev, buf->sglist, buf->sglen, PCI_DMA_FROMDEVICE);
+	buf->sglen = 0;
+	return 0;
+}
+
+static int cx23885_alsa_dma_free(struct cx23885_audio_buffer *buf)
+{
+	vfree(buf->sglist);
+	buf->sglist = NULL;
+	vfree(buf->vaddr);
+	buf->vaddr = NULL;
+	return 0;
+}
+
 /*
  * BOARD Specific: Sets audio DMA
  */
@@ -201,12 +277,12 @@ static int dsp_buffer_free(struct cx23885_audio_dev *chip)
 	BUG_ON(!chip->dma_size);
 
 	dprintk(2, "Freeing buffer\n");
-	videobuf_dma_unmap(&chip->pci->dev, chip->dma_risc);
-	videobuf_dma_free(chip->dma_risc);
+	cx23885_alsa_dma_unmap(chip);
+	cx23885_alsa_dma_free(chip->buf);
 	btcx_riscmem_free(chip->pci, &chip->buf->risc);
 	kfree(chip->buf);
 
-	chip->dma_risc = NULL;
+	chip->buf = NULL;
 	chip->dma_size = 0;
 
 	return 0;
@@ -289,6 +365,7 @@ static int snd_cx23885_close(struct snd_pcm_substream *substream)
 	return 0;
 }
 
+
 /*
  * hw_params callback
  */
@@ -296,8 +373,6 @@ static int snd_cx23885_hw_params(struct snd_pcm_substream *substream,
 			      struct snd_pcm_hw_params *hw_params)
 {
 	struct cx23885_audio_dev *chip = snd_pcm_substream_chip(substream);
-	struct videobuf_dmabuf *dma;
-
 	struct cx23885_audio_buffer *buf;
 	int ret;
 
@@ -319,18 +394,16 @@ static int snd_cx23885_hw_params(struct snd_pcm_substream *substream,
 
 	buf->bpl = chip->period_size;
 
-	dma = &buf->dma;
-	videobuf_dma_init(dma);
-	ret = videobuf_dma_init_kernel(dma, PCI_DMA_FROMDEVICE,
+	ret = cx23885_alsa_dma_init(chip,
 			(PAGE_ALIGN(chip->dma_size) >> PAGE_SHIFT));
 	if (ret < 0)
 		goto error;
 
-	ret = videobuf_dma_map(&chip->pci->dev, dma);
+	ret = cx23885_alsa_dma_map(chip);
 	if (ret < 0)
 		goto error;
 
-	ret = cx23885_risc_databuffer(chip->pci, &buf->risc, dma->sglist,
+	ret = cx23885_risc_databuffer(chip->pci, &buf->risc, buf->sglist,
 				   chip->period_size, chip->num_periods, 1);
 	if (ret < 0)
 		goto error;
@@ -341,9 +414,8 @@ static int snd_cx23885_hw_params(struct snd_pcm_substream *substream,
 	buf->risc.jmp[2] = cpu_to_le32(0); /* bits 63-32 */
 
 	chip->buf = buf;
-	chip->dma_risc = dma;
 
-	substream->runtime->dma_area = chip->dma_risc->vaddr;
+	substream->runtime->dma_area = chip->buf->vaddr;
 	substream->runtime->dma_bytes = chip->dma_size;
 	substream->runtime->dma_addr = 0;
 

@@ -324,7 +324,10 @@ struct cx23885_kernel_ir {
 struct cx23885_audio_buffer {
 	unsigned int		bpl;
 	struct btcx_riscmem	risc;
-	struct videobuf_dmabuf	dma;
+	void			*vaddr;
+	struct scatterlist	*sglist;
+	int                     sglen;
+	int                     nr_pages;
 };
 
 struct cx23885_audio_dev {
@@ -341,8 +344,6 @@ struct cx23885_audio_dev {
 	unsigned int		dma_size;
 	unsigned int		period_size;
 	unsigned int		num_periods;
-
-	struct videobuf_dmabuf	*dma_risc;
 
 	struct cx23885_audio_buffer   *buf;
 
