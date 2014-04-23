@@ -8298,6 +8298,10 @@ static int i40e_probe(struct pci_dev *pdev, const struct pci_device_id *ent)
 
 	i40e_verify_eeprom(pf);
 
+	/* Rev 0 hardware was never productized */
+	if (hw->revision_id < 1)
+		dev_warn(&pdev->dev, "This device is a pre-production adapter/LOM. Please be aware there may be issues with your hardware. If you are experiencing problems please contact your Intel or hardware representative who provided you with this hardware.\n");
+
 	i40e_clear_pxe_mode(hw);
 	err = i40e_get_capabilities(pf);
 	if (err)
