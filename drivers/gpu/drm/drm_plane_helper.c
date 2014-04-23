@@ -124,7 +124,6 @@ int drm_primary_helper_update(struct drm_plane *plane, struct drm_crtc *crtc,
 		.y2 = crtc->mode.vdisplay,
 	};
 	struct drm_connector **connector_list;
-	struct drm_framebuffer *tmpfb;
 	int num_connectors, ret;
 
 	if (!crtc->enabled) {
@@ -178,21 +177,14 @@ int drm_primary_helper_update(struct drm_plane *plane, struct drm_crtc *crtc,
 	set.num_connectors = num_connectors;
 
 	/*
-	 * set_config() adjusts crtc->primary->fb; however the DRM setplane
-	 * code that called us expects to handle the framebuffer update and
-	 * reference counting; save and restore the current fb before
-	 * calling it.
-	 *
-	 * N.B., we call set_config() directly here rather than using
+	 * We call set_config() directly here rather than using
 	 * drm_mode_set_config_internal.  We're reprogramming the same
 	 * connectors that were already in use, so we shouldn't need the extra
 	 * cross-CRTC fb refcounting to accomodate stealing connectors.
 	 * drm_mode_setplane() already handles the basic refcounting for the
 	 * framebuffers involved in this operation.
 	 */
-	tmpfb = plane->fb;
 	ret = crtc->funcs->set_config(&set);
-	plane->fb = tmpfb;
 
 	kfree(connector_list);
 	return ret;
