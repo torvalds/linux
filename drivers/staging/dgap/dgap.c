@@ -820,6 +820,7 @@ static int dgap_firmware_load(struct pci_dev *pdev, int card_type)
 {
 	struct board_t *brd = dgap_Board[dgap_NumBoards - 1];
 	const struct firmware *fw;
+	char *tmp_ptr;
 	int ret;
 
 	dgap_get_vpd(brd);
@@ -843,7 +844,14 @@ static int dgap_firmware_load(struct pci_dev *pdev, int card_type)
 		memcpy(dgap_config_buf, fw->data, fw->size);
 		release_firmware(fw);
 
-		if (dgap_parsefile(&dgap_config_buf, TRUE) != 0) {
+		/*
+		 * preserve dgap_config_buf
+		 * as dgap_parsefile would
+		 * otherwise alter it.
+		 */
+		tmp_ptr = dgap_config_buf;
+
+		if (dgap_parsefile(&tmp_ptr, TRUE) != 0) {
 			kfree(dgap_config_buf);
 			return -EINVAL;
 		}
