@@ -301,7 +301,6 @@ struct pci1710_private {
 	char neverending_ai;	/*  we do unlimited AI */
 	unsigned int CntrlReg;	/*  Control register */
 	unsigned int i8254_osc_base;	/*  frequence of onboard oscilator */
-	unsigned int ai_do;	/*  what do AI? 0=nothing, 1 to 4 mode */
 	unsigned int ai_act_scan;	/*  how many scans we finished */
 	unsigned int ai_act_chan;	/*  actual position in actual scan */
 	unsigned int ai_buf_ptr;	/*  data buffer ptr in samples */
@@ -726,7 +725,6 @@ static int pci171x_ai_cancel(struct comedi_device *dev,
 		break;
 	}
 
-	devpriv->ai_do = 0;
 	devpriv->ai_act_scan = 0;
 	s->async->cur_chan = 0;
 	devpriv->ai_buf_ptr = 0;
@@ -973,8 +971,6 @@ static int pci171x_ai_cmd(struct comedi_device *dev, struct comedi_subdevice *s)
 
 	outb(0, dev->iobase + PCI171x_CLRFIFO);
 	outb(0, dev->iobase + PCI171x_CLRINT);
-
-	devpriv->ai_do = mode;
 
 	devpriv->ai_act_scan = 0;
 	s->async->cur_chan = 0;
