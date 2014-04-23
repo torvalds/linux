@@ -1495,8 +1495,8 @@ static int d40_pause(struct d40_chan *d40c)
 	if (!d40c->busy)
 		return 0;
 
-	pm_runtime_get_sync(d40c->base->dev);
 	spin_lock_irqsave(&d40c->lock, flags);
+	pm_runtime_get_sync(d40c->base->dev);
 
 	res = d40_channel_execute_command(d40c, D40_DMA_SUSPEND_REQ);
 
