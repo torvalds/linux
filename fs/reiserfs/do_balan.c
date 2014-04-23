@@ -114,7 +114,7 @@ static int balance_leaf_when_delete(struct tree_balance *tb, int flag)
 	RFALSE(!tb->blknum[0] && !PATH_H_PPARENT(tb->tb_path, 0),
 	       "PAP-12010: tree can not be empty");
 
-	ih = B_N_PITEM_HEAD(tbS0, item_pos);
+	ih = item_head(tbS0, item_pos);
 	buffer_info_init_tbS0(tb, &bi);
 
 	/* Delete or truncate the item */
@@ -312,7 +312,7 @@ static int balance_leaf(struct tree_balance *tb, struct item_head *ih,	/* item h
 	/* for indirect item pos_in_item is measured in unformatted node
 	   pointers. Recalculate to bytes */
 	if (flag != M_INSERT
-	    && is_indirect_le_ih(B_N_PITEM_HEAD(tbS0, item_pos)))
+	    && is_indirect_le_ih(item_head(tbS0, item_pos)))
 		pos_in_item *= UNFM_P_SIZE;
 
 	if (tb->lnum[0] > 0) {
@@ -378,7 +378,7 @@ static int balance_leaf(struct tree_balance *tb, struct item_head *ih,	/* item h
 
 				if (item_pos == tb->lnum[0] - 1 && tb->lbytes != -1) {
 					/* we must shift the part of the appended item */
-					if (is_direntry_le_ih(B_N_PITEM_HEAD(tbS0, item_pos))) {
+					if (is_direntry_le_ih(item_head(tbS0, item_pos))) {
 
 						RFALSE(zeros_num,
 						       "PAP-12090: invalid parameter in case of a directory");
@@ -391,8 +391,8 @@ static int balance_leaf(struct tree_balance *tb, struct item_head *ih,	/* item h
 							/* Shift lnum[0] - 1 items in whole. Shift lbytes - 1 entries from given directory item */
 							ret_val = leaf_shift_left(tb, tb->lnum[0], tb->lbytes-1);
 							if (ret_val && !item_pos) {
-								pasted = B_N_PITEM_HEAD(tb->L[0], B_NR_ITEMS(tb->L[0]) - 1);
-								l_pos_in_item += I_ENTRY_COUNT(pasted) - (tb->lbytes -1);
+								pasted = item_head(tb->L[0], B_NR_ITEMS(tb->L[0]) - 1);
+								l_pos_in_item += ih_entry_count(pasted) - (tb->lbytes -1);
 							}
 
 							/* Append given directory entry to directory item */
@@ -418,9 +418,9 @@ static int balance_leaf(struct tree_balance *tb, struct item_head *ih,	/* item h
 					} else {
 						/* regular object */
 						RFALSE(tb->lbytes <= 0, "PAP-12095: there is nothing to shift to L[0]. lbytes=%d", tb->lbytes);
-						RFALSE(pos_in_item != ih_item_len(B_N_PITEM_HEAD(tbS0, item_pos)),
+						RFALSE(pos_in_item != ih_item_len(item_head(tbS0, item_pos)),
 						       "PAP-12100: incorrect position to paste: item_len=%d, pos_in_item=%d",
-						       ih_item_len(B_N_PITEM_HEAD(tbS0, item_pos)),pos_in_item);
+						       ih_item_len(item_head(tbS0, item_pos)),pos_in_item);
 
 						if (tb->lbytes >= pos_in_item) {
 							/* appended item will be in L[0] in whole */
@@ -436,12 +436,12 @@ static int balance_leaf(struct tree_balance *tb, struct item_head *ih,	/* item h
 							       "PAP-12105: there is nothing to paste into L[0]. insert_size=%d",
 							       tb->insert_size[0]);
 							ret_val = leaf_shift_left(tb, tb->lnum[0], ih_item_len
-									    (B_N_PITEM_HEAD(tbS0, item_pos)));
+									    (item_head(tbS0, item_pos)));
 							/* Append to body of item in L[0] */
 							buffer_info_init_left(tb, &bi);
 							leaf_paste_in_buffer
 							    (&bi, n + item_pos - ret_val, ih_item_len
-							     (B_N_PITEM_HEAD(tb->L[0], n + item_pos - ret_val)),
+							     (item_head(tb->L[0], n + item_pos - ret_val)),
 							     l_n, body,
 							     zeros_num > l_n ? l_n : zeros_num);
 							/* 0-th item in S0 can be only of DIRECT type when l_n != 0 */
@@ -449,21 +449,21 @@ static int balance_leaf(struct tree_balance *tb, struct item_head *ih,	/* item h
 								int version;
 								int temp_l = l_n;
 
-								RFALSE(ih_item_len(B_N_PITEM_HEAD(tbS0, 0)),
+								RFALSE(ih_item_len(item_head(tbS0, 0)),
 								     "PAP-12106: item length must be 0");
-								RFALSE(comp_short_le_keys(B_N_PKEY(tbS0, 0), B_N_PKEY
+								RFALSE(comp_short_le_keys(leaf_key(tbS0, 0), leaf_key
 								      (tb->L[0], n + item_pos - ret_val)),
 								     "PAP-12107: items must be of the same file");
-								if (is_indirect_le_ih(B_N_PITEM_HEAD(tb->L[0], n + item_pos - ret_val))) {
+								if (is_indirect_le_ih(item_head(tb->L[0], n + item_pos - ret_val))) {
 									temp_l = l_n << (tb->tb_sb-> s_blocksize_bits - UNFM_P_SHIFT);
 								}
 								/* update key of first item in S0 */
-								version = ih_version(B_N_PITEM_HEAD(tbS0, 0));
-								set_le_key_k_offset(version, B_N_PKEY(tbS0, 0),
-								     le_key_k_offset(version,B_N_PKEY(tbS0, 0)) + temp_l);
+								version = ih_version(item_head(tbS0, 0));
+								set_le_key_k_offset(version, leaf_key(tbS0, 0),
+								     le_key_k_offset(version,leaf_key(tbS0, 0)) + temp_l);
 								/* update left delimiting key */
-								set_le_key_k_offset(version, B_N_PDELIM_KEY(tb->CFL[0], tb->lkey[0]),
-								     le_key_k_offset(version, B_N_PDELIM_KEY(tb->CFL[0], tb->lkey[0])) + temp_l);
+								set_le_key_k_offset(version, internal_key(tb->CFL[0], tb->lkey[0]),
+								     le_key_k_offset(version, internal_key(tb->CFL[0], tb->lkey[0])) + temp_l);
 							}
 
 							/* Calculate new body, position in item and insert_size[0] */
@@ -474,9 +474,9 @@ static int balance_leaf(struct tree_balance *tb, struct item_head *ih,	/* item h
 								zeros_num -= l_n;
 							pos_in_item = 0;
 
-							RFALSE(comp_short_le_keys(B_N_PKEY(tbS0, 0), B_N_PKEY(tb->L[0], B_NR_ITEMS(tb->L[0]) - 1))
-							     || !op_is_left_mergeable(B_N_PKEY(tbS0, 0), tbS0->b_size)
-							     || !op_is_left_mergeable(B_N_PDELIM_KEY(tb->CFL[0], tb->lkey[0]), tbS0->b_size),
+							RFALSE(comp_short_le_keys(leaf_key(tbS0, 0), leaf_key(tb->L[0], B_NR_ITEMS(tb->L[0]) - 1))
+							     || !op_is_left_mergeable(leaf_key(tbS0, 0), tbS0->b_size)
+							     || !op_is_left_mergeable(internal_key(tb->CFL[0], tb->lkey[0]), tbS0->b_size),
 							     "PAP-12120: item must be merge-able with left neighboring item");
 						} else {	/* only part of the appended item will be in L[0] */
 
@@ -493,9 +493,9 @@ static int balance_leaf(struct tree_balance *tb, struct item_head *ih,	/* item h
 
 					struct item_head *pasted;
 
-					if (!item_pos && op_is_left_mergeable(B_N_PKEY(tbS0, 0), tbS0->b_size)) {	/* if we paste into first item of S[0] and it is left mergable */
+					if (!item_pos && op_is_left_mergeable(leaf_key(tbS0, 0), tbS0->b_size)) {	/* if we paste into first item of S[0] and it is left mergable */
 						/* then increment pos_in_item by the size of the last item in L[0] */
-						pasted = B_N_PITEM_HEAD(tb->L[0], n - 1);
+						pasted = item_head(tb->L[0], n - 1);
 						if (is_direntry_le_ih(pasted))
 							pos_in_item += ih_entry_count(pasted);
 						else
@@ -512,7 +512,7 @@ static int balance_leaf(struct tree_balance *tb, struct item_head *ih,	/* item h
 							     body, zeros_num);
 
 					/* if appended item is directory, paste entry */
-					pasted = B_N_PITEM_HEAD(tb->L[0], n + item_pos - ret_val);
+					pasted = item_head(tb->L[0], n + item_pos - ret_val);
 					if (is_direntry_le_ih(pasted))
 						leaf_paste_entries(&bi, n + item_pos - ret_val,
 								   pos_in_item, 1,
@@ -617,12 +617,12 @@ static int balance_leaf(struct tree_balance *tb, struct item_head *ih,	/* item h
 
 			if (n - tb->rnum[0] <= item_pos) {	/* pasted item or part of it falls to R[0] */
 				if (item_pos == n - tb->rnum[0] && tb->rbytes != -1) {	/* we must shift the part of the appended item */
-					if (is_direntry_le_ih(B_N_PITEM_HEAD(tbS0, item_pos))) {	/* we append to directory item */
+					if (is_direntry_le_ih(item_head(tbS0, item_pos))) {	/* we append to directory item */
 						int entry_count;
 
 						RFALSE(zeros_num,
 						       "PAP-12145: invalid parameter in case of a directory");
-						entry_count = I_ENTRY_COUNT(B_N_PITEM_HEAD
+						entry_count = ih_entry_count(item_head
 								  (tbS0, item_pos));
 						if (entry_count - tb->rbytes <
 						    pos_in_item)
@@ -665,10 +665,10 @@ static int balance_leaf(struct tree_balance *tb, struct item_head *ih,	/* item h
 							n_shift = 0;
 
 						RFALSE(pos_in_item != ih_item_len
-						       (B_N_PITEM_HEAD(tbS0, item_pos)),
+						       (item_head(tbS0, item_pos)),
 						       "PAP-12155: invalid position to paste. ih_item_len=%d, pos_in_item=%d",
 						       pos_in_item, ih_item_len
-						       (B_N_PITEM_HEAD(tbS0, item_pos)));
+						       (item_head(tbS0, item_pos)));
 
 						leaf_shift_right(tb, tb->rnum[0], n_shift);
 						/* Calculate number of bytes which must remain in body after appending to R[0] */
@@ -679,17 +679,17 @@ static int balance_leaf(struct tree_balance *tb, struct item_head *ih,	/* item h
 							int version;
 							unsigned long temp_rem = n_rem;
 
-							version = ih_version(B_N_PITEM_HEAD(tb->R[0], 0));
-							if (is_indirect_le_key(version, B_N_PKEY(tb->R[0], 0))) {
+							version = ih_version(item_head(tb->R[0], 0));
+							if (is_indirect_le_key(version, leaf_key(tb->R[0], 0))) {
 								temp_rem = n_rem << (tb->tb_sb->s_blocksize_bits - UNFM_P_SHIFT);
 							}
-							set_le_key_k_offset(version, B_N_PKEY(tb->R[0], 0),
-							     le_key_k_offset(version, B_N_PKEY(tb->R[0], 0)) + temp_rem);
-							set_le_key_k_offset(version, B_N_PDELIM_KEY(tb->CFR[0], tb->rkey[0]),
-							     le_key_k_offset(version, B_N_PDELIM_KEY(tb->CFR[0], tb->rkey[0])) + temp_rem);
+							set_le_key_k_offset(version, leaf_key(tb->R[0], 0),
+							     le_key_k_offset(version, leaf_key(tb->R[0], 0)) + temp_rem);
+							set_le_key_k_offset(version, internal_key(tb->CFR[0], tb->rkey[0]),
+							     le_key_k_offset(version, internal_key(tb->CFR[0], tb->rkey[0])) + temp_rem);
 						}
-/*		  k_offset (B_N_PKEY(tb->R[0],0)) += n_rem;
-		  k_offset (B_N_PDELIM_KEY(tb->CFR[0],tb->rkey[0])) += n_rem;*/
+/*		  k_offset (leaf_key(tb->R[0],0)) += n_rem;
+		  k_offset (internal_key(tb->CFR[0],tb->rkey[0])) += n_rem;*/
 						do_balance_mark_internal_dirty(tb, tb->CFR[0], 0);
 
 						/* Append part of body into R[0] */
@@ -707,12 +707,12 @@ static int balance_leaf(struct tree_balance *tb, struct item_head *ih,	/* item h
 								     tb->insert_size[0] - n_rem,
 								     r_body, r_zeros_number);
 
-						if (is_indirect_le_ih(B_N_PITEM_HEAD(tb->R[0], 0))) {
+						if (is_indirect_le_ih(item_head(tb->R[0], 0))) {
 #if 0
 							RFALSE(n_rem,
 							       "PAP-12160: paste more than one unformatted node pointer");
 #endif
-							set_ih_free_space(B_N_PITEM_HEAD(tb->R[0], 0), 0);
+							set_ih_free_space(item_head(tb->R[0], 0), 0);
 						}
 						tb->insert_size[0] = n_rem;
 						if (!n_rem)
@@ -731,7 +731,7 @@ static int balance_leaf(struct tree_balance *tb, struct item_head *ih,	/* item h
 					}
 
 					/* paste new entry, if item is directory item */
-					pasted = B_N_PITEM_HEAD(tb->R[0], item_pos - n + tb->rnum[0]);
+					pasted = item_head(tb->R[0], item_pos - n + tb->rnum[0]);
 					if (is_direntry_le_ih(pasted) && pos_in_item >= 0) {
 						leaf_paste_entries(&bi, item_pos - n + tb->rnum[0],
 								   pos_in_item, 1,
@@ -784,8 +784,8 @@ static int balance_leaf(struct tree_balance *tb, struct item_head *ih,	/* item h
 			if (!tb->CFR[0])
 				reiserfs_panic(tb->tb_sb, "vs-12195",
 					       "CFR not initialized");
-			copy_key(B_N_PDELIM_KEY(tb->CFL[0], tb->lkey[0]),
-				 B_N_PDELIM_KEY(tb->CFR[0], tb->rkey[0]));
+			copy_key(internal_key(tb->CFL[0], tb->lkey[0]),
+				 internal_key(tb->CFR[0], tb->rkey[0]));
 			do_balance_mark_internal_dirty(tb, tb->CFL[0], 0);
 		}
 
@@ -886,7 +886,7 @@ static int balance_leaf(struct tree_balance *tb, struct item_head *ih,	/* item h
 
 					RFALSE(ih, "PAP-12210: ih must be 0");
 
-					aux_ih = B_N_PITEM_HEAD(tbS0, item_pos);
+					aux_ih = item_head(tbS0, item_pos);
 					if (is_direntry_le_ih(aux_ih)) {
 						/* we append to directory item */
 
@@ -922,7 +922,7 @@ static int balance_leaf(struct tree_balance *tb, struct item_head *ih,	/* item h
 						int n_shift, n_rem, r_zeros_number;
 						const char *r_body;
 
-						RFALSE(pos_in_item != ih_item_len(B_N_PITEM_HEAD(tbS0, item_pos)) || tb->insert_size[0] <= 0,
+						RFALSE(pos_in_item != ih_item_len(item_head(tbS0, item_pos)) || tb->insert_size[0] <= 0,
 						       "PAP-12225: item too short or insert_size <= 0");
 
 						/* Calculate number of bytes which must be shifted from appended item */
@@ -952,7 +952,7 @@ static int balance_leaf(struct tree_balance *tb, struct item_head *ih,	/* item h
 						{
 							struct item_head *tmp;
 
-							tmp = B_N_PITEM_HEAD(S_new[i], 0);
+							tmp = item_head(S_new[i], 0);
 							if (is_indirect_le_ih
 							    (tmp)) {
 								set_ih_free_space(tmp, 0);
@@ -973,7 +973,7 @@ static int balance_leaf(struct tree_balance *tb, struct item_head *ih,	/* item h
 					struct item_head *pasted;
 
 #ifdef CONFIG_REISERFS_CHECK
-					struct item_head *ih_check = B_N_PITEM_HEAD(tbS0, item_pos);
+					struct item_head *ih_check = item_head(tbS0, item_pos);
 
 					if (!is_direntry_le_ih(ih_check)
 					    && (pos_in_item != ih_item_len(ih_check)
@@ -1002,7 +1002,7 @@ static int balance_leaf(struct tree_balance *tb, struct item_head *ih,	/* item h
 							     tb->insert_size[0],
 							     body, zeros_num);
 
-					pasted = B_N_PITEM_HEAD(S_new[i], item_pos - n + snum[i]);
+					pasted = item_head(S_new[i], item_pos - n + snum[i]);
 					if (is_direntry_le_ih(pasted)) {
 						leaf_paste_entries(&bi,
 								   item_pos - n + snum[i],
@@ -1032,7 +1032,7 @@ static int balance_leaf(struct tree_balance *tb, struct item_head *ih,	/* item h
 				       (flag == M_DELETE) ? "DELETE" : ((flag == M_CUT) ? "CUT" : "UNKNOWN"), flag);
 		}
 
-		memcpy(insert_key + i, B_N_PKEY(S_new[i], 0), KEY_SIZE);
+		memcpy(insert_key + i, leaf_key(S_new[i], 0), KEY_SIZE);
 		insert_ptr[i] = S_new[i];
 
 		RFALSE(!buffer_journaled(S_new[i])
@@ -1061,7 +1061,7 @@ static int balance_leaf(struct tree_balance *tb, struct item_head *ih,	/* item h
 		case M_PASTE:{	/* append item in S[0] */
 				struct item_head *pasted;
 
-				pasted = B_N_PITEM_HEAD(tbS0, item_pos);
+				pasted = item_head(tbS0, item_pos);
 				/* when directory, may be new entry already pasted */
 				if (is_direntry_le_ih(pasted)) {
 					if (pos_in_item >= 0 && pos_in_item <= ih_entry_count(pasted)) {
@@ -1246,10 +1246,10 @@ void replace_key(struct tree_balance *tb, struct buffer_head *dest, int n_dest,
 
 	if (B_IS_ITEMS_LEVEL(src))
 		/* source buffer contains leaf node */
-		memcpy(B_N_PDELIM_KEY(dest, n_dest), B_N_PITEM_HEAD(src, n_src),
+		memcpy(internal_key(dest, n_dest), item_head(src, n_src),
 		       KEY_SIZE);
 	else
-		memcpy(B_N_PDELIM_KEY(dest, n_dest), B_N_PDELIM_KEY(src, n_src),
+		memcpy(internal_key(dest, n_dest), internal_key(src, n_src),
 		       KEY_SIZE);
 
 	do_balance_mark_internal_dirty(tb, dest, 0);

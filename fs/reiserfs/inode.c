@@ -295,9 +295,9 @@ static int _get_block_create_0(struct inode *inode, sector_t block,
 	}
 	//
 	bh = get_last_bh(&path);
-	ih = get_ih(&path);
+	ih = tp_item_head(&path);
 	if (is_indirect_le_ih(ih)) {
-		__le32 *ind_item = (__le32 *) B_I_PITEM(bh, ih);
+		__le32 *ind_item = (__le32 *) ih_item_body(bh, ih);
 
 		/* FIXME: here we could cache indirect item or part of it in
 		   the inode to avoid search_by_key in case of subsequent
@@ -383,7 +383,7 @@ static int _get_block_create_0(struct inode *inode, sector_t block,
 		} else {
 			chars = ih_item_len(ih) - path.pos_in_item;
 		}
-		memcpy(p, B_I_PITEM(bh, ih) + path.pos_in_item, chars);
+		memcpy(p, ih_item_body(bh, ih) + path.pos_in_item, chars);
 
 		if (done)
 			break;
@@ -404,7 +404,7 @@ static int _get_block_create_0(struct inode *inode, sector_t block,
 			// i/o error most likely
 			break;
 		bh = get_last_bh(&path);
-		ih = get_ih(&path);
+		ih = tp_item_head(&path);
 	} while (1);
 
 	flush_dcache_page(bh_result->b_page);
@@ -684,8 +684,8 @@ int reiserfs_get_block(struct inode *inode, sector_t block,
 	}
 
 	bh = get_last_bh(&path);
-	ih = get_ih(&path);
-	item = get_item(&path);
+	ih = tp_item_head(&path);
+	item = tp_item_body(&path);
 	pos_in_item = path.pos_in_item;
 
 	fs_gen = get_generation(inode->i_sb);
@@ -1031,8 +1031,8 @@ int reiserfs_get_block(struct inode *inode, sector_t block,
 			goto failure;
 		}
 		bh = get_last_bh(&path);
-		ih = get_ih(&path);
-		item = get_item(&path);
+		ih = tp_item_head(&path);
+		item = tp_item_body(&path);
 		pos_in_item = path.pos_in_item;
 	} while (1);
 
@@ -1133,7 +1133,7 @@ static void init_inode(struct inode *inode, struct treepath *path)
 	//int version = ITEM_VERSION_1;
 
 	bh = PATH_PLAST_BUFFER(path);
-	ih = PATH_PITEM_HEAD(path);
+	ih = tp_item_head(path);
 
 	copy_key(INODE_PKEY(inode), &(ih->ih_key));
 
@@ -1147,7 +1147,7 @@ static void init_inode(struct inode *inode, struct treepath *path)
 
 	if (stat_data_v1(ih)) {
 		struct stat_data_v1 *sd =
-		    (struct stat_data_v1 *)B_I_PITEM(bh, ih);
+		    (struct stat_data_v1 *)ih_item_body(bh, ih);
 		unsigned long blocks;
 
 		set_inode_item_key_version(inode, KEY_FORMAT_3_5);
@@ -1195,7 +1195,7 @@ static void init_inode(struct inode *inode, struct treepath *path)
 	} else {
 		// new stat data found, but object may have old items
 		// (directories and symlinks)
-		struct stat_data *sd = (struct stat_data *)B_I_PITEM(bh, ih);
+		struct stat_data *sd = (struct stat_data *)ih_item_body(bh, ih);
 
 		inode->i_mode = sd_v2_mode(sd);
 		set_nlink(inode, sd_v2_nlink(sd));
@@ -1307,7 +1307,7 @@ static void update_stat_data(struct treepath *path, struct inode *inode,
 	struct item_head *ih;
 
 	bh = PATH_PLAST_BUFFER(path);
-	ih = PATH_PITEM_HEAD(path);
+	ih = tp_item_head(path);
 
 	if (!is_statdata_le_ih(ih))
 		reiserfs_panic(inode->i_sb, "vs-13065", "key %k, found item %h",
@@ -1315,9 +1315,9 @@ static void update_stat_data(struct treepath *path, struct inode *inode,
 
 	if (stat_data_v1(ih)) {
 		// path points to old stat data
-		inode2sd_v1(B_I_PITEM(bh, ih), inode, size);
+		inode2sd_v1(ih_item_body(bh, ih), inode, size);
 	} else {
-		inode2sd(B_I_PITEM(bh, ih), inode, size);
+		inode2sd(ih_item_body(bh, ih), inode, size);
 	}
 
 	return;
@@ -1368,7 +1368,7 @@ void reiserfs_update_sd_size(struct reiserfs_transaction_handle *th,
 		 ** search if the stat data item has moved
 		 */
 		bh = get_last_bh(&path);
-		ih = get_ih(&path);
+		ih = tp_item_head(&path);
 		copy_item_head(&tmp_ih, ih);
 		fs_gen = get_generation(inode->i_sb);
 		reiserfs_prepare_for_journal(inode->i_sb, bh, 1);
@@ -2232,8 +2232,8 @@ static int map_block_for_writepage(struct inode *inode,
 	}
 
 	bh = get_last_bh(&path);
-	ih = get_ih(&path);
-	item = get_item(&path);
+	ih = tp_item_head(&path);
+	item = tp_item_body(&path);
 	pos_in_item = path.pos_in_item;
 
 	/* we've found an unformatted node */
@@ -2281,7 +2281,7 @@ static int map_block_for_writepage(struct inode *inode,
 			goto research;
 		}
 
-		memcpy(B_I_PITEM(bh, ih) + pos_in_item, p + bytes_copied,
+		memcpy(ih_item_body(bh, ih) + pos_in_item, p + bytes_copied,
 		       copy_size);
 
 		journal_mark_dirty(&th, inode->i_sb, bh);

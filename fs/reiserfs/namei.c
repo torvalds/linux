@@ -31,7 +31,7 @@ static int bin_search_in_dir_item(struct reiserfs_dir_entry *de, loff_t off)
 	int rbound, lbound, j;
 
 	lbound = 0;
-	rbound = I_ENTRY_COUNT(ih) - 1;
+	rbound = ih_entry_count(ih) - 1;
 
 	for (j = (rbound + lbound) / 2; lbound <= rbound;
 	     j = (rbound + lbound) / 2) {
@@ -57,7 +57,7 @@ static inline void set_de_item_location(struct reiserfs_dir_entry *de,
 					struct treepath *path)
 {
 	de->de_bh = get_last_bh(path);
-	de->de_ih = get_ih(path);
+	de->de_ih = tp_item_head(path);
 	de->de_deh = B_I_DEH(de->de_bh, de->de_ih);
 	de->de_item_num = PATH_LAST_POSITION(path);
 }
@@ -71,7 +71,7 @@ inline void set_de_name_and_namelen(struct reiserfs_dir_entry *de)
 
 	de->de_entrylen = entry_length(de->de_bh, de->de_ih, de->de_entry_num);
 	de->de_namelen = de->de_entrylen - (de_with_sd(deh) ? SD_SIZE : 0);
-	de->de_name = B_I_PITEM(de->de_bh, de->de_ih) + deh_location(deh);
+	de->de_name = ih_item_body(de->de_bh, de->de_ih) + deh_location(deh);
 	if (de->de_name[de->de_namelen - 1] == 0)
 		de->de_namelen = strlen(de->de_name);
 }
@@ -220,7 +220,7 @@ static int linear_search_in_dir_item(struct cpu_key *key,
 
 	i = de->de_entry_num;
 
-	if (i == I_ENTRY_COUNT(de->de_ih) ||
+	if (i == ih_entry_count(de->de_ih) ||
 	    GET_HASH_VALUE(deh_offset(deh + i)) !=
 	    GET_HASH_VALUE(cpu_key_k_offset(key))) {
 		i--;
@@ -1331,7 +1331,7 @@ static int reiserfs_rename(struct inode *old_dir, struct dentry *old_dentry,
 			return -EIO;
 		}
 
-		copy_item_head(&old_entry_ih, get_ih(&old_entry_path));
+		copy_item_head(&old_entry_ih, tp_item_head(&old_entry_path));
 
 		reiserfs_prepare_for_journal(old_inode->i_sb, old_de.de_bh, 1);
 
@@ -1351,7 +1351,7 @@ static int reiserfs_rename(struct inode *old_dir, struct dentry *old_dentry,
 			return -EIO;
 		}
 
-		copy_item_head(&new_entry_ih, get_ih(&new_entry_path));
+		copy_item_head(&new_entry_ih, tp_item_head(&new_entry_path));
 
 		reiserfs_prepare_for_journal(old_inode->i_sb, new_de.de_bh, 1);
 
@@ -1369,7 +1369,7 @@ static int reiserfs_rename(struct inode *old_dir, struct dentry *old_dentry,
 				return -EIO;
 			}
 			copy_item_head(&dot_dot_ih,
-				       get_ih(&dot_dot_entry_path));
+				       tp_item_head(&dot_dot_entry_path));
 			// node containing ".." gets into transaction
 			reiserfs_prepare_for_journal(old_inode->i_sb,
 						     dot_dot_de.de_bh, 1);

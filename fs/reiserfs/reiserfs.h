@@ -1277,9 +1277,11 @@ static inline loff_t le_ih_k_offset(const struct item_head *ih)
 
 static inline loff_t le_key_k_type(int version, const struct reiserfs_key *key)
 {
-	return (version == KEY_FORMAT_3_5) ?
-	    uniqueness2type(le32_to_cpu(key->u.k_offset_v1.k_uniqueness)) :
-	    offset_v2_k_type(&(key->u.k_offset_v2));
+	if (version == KEY_FORMAT_3_5) {
+		loff_t val = le32_to_cpu(key->u.k_offset_v1.k_uniqueness);
+		return uniqueness2type(val);
+	} else
+		return offset_v2_k_type(&(key->u.k_offset_v2));
 }
 
 static inline loff_t le_ih_k_type(const struct item_head *ih)
@@ -1290,8 +1292,22 @@ static inline loff_t le_ih_k_type(const struct item_head *ih)
 static inline void set_le_key_k_offset(int version, struct reiserfs_key *key,
 				       loff_t offset)
 {
-	(version == KEY_FORMAT_3_5) ? (void)(key->u.k_offset_v1.k_offset = cpu_to_le32(offset)) :	/* jdm check */
-	    (void)(set_offset_v2_k_offset(&(key->u.k_offset_v2), offset));
+	if (version == KEY_FORMAT_3_5)
+		key->u.k_offset_v1.k_offset = cpu_to_le32(offset);
+	else
+		set_offset_v2_k_offset(&key->u.k_offset_v2, offset);
+}
+
+static inline void add_le_key_k_offset(int version, struct reiserfs_key *key,
+				       loff_t offset)
+{
+	set_le_key_k_offset(version, key,
+			    le_key_k_offset(version, key) + offset);
+}
+
+static inline void add_le_ih_k_offset(struct item_head *ih, loff_t offset)
+{
+	add_le_key_k_offset(ih_version(ih), &(ih->ih_key), offset);
 }
 
 static inline void set_le_ih_k_offset(struct item_head *ih, loff_t offset)
@@ -1302,10 +1318,11 @@ static inline void set_le_ih_k_offset(struct item_head *ih, loff_t offset)
 static inline void set_le_key_k_type(int version, struct reiserfs_key *key,
 				     int type)
 {
-	(version == KEY_FORMAT_3_5) ?
-	    (void)(key->u.k_offset_v1.k_uniqueness =
-		   cpu_to_le32(type2uniqueness(type)))
-	    : (void)(set_offset_v2_k_type(&(key->u.k_offset_v2), type));
+	if (version == KEY_FORMAT_3_5) {
+		type = type2uniqueness(type);
+		key->u.k_offset_v1.k_uniqueness = cpu_to_le32(type);
+	} else
+	       set_offset_v2_k_type(&key->u.k_offset_v2, type);
 }
 
 static inline void set_le_ih_k_type(struct item_head *ih, int type)
@@ -1723,39 +1740,6 @@ extern void make_empty_dir_item_v1(char *body, __le32 dirid, __le32 objid,
 extern void make_empty_dir_item(char *body, __le32 dirid, __le32 objid,
 				__le32 par_dirid, __le32 par_objid);
 
-/* array of the entry headers */
- /* get item body */
-#define B_I_PITEM(bh,ih) ( (bh)->b_data + ih_location(ih) )
-#define B_I_DEH(bh,ih) ((struct reiserfs_de_head *)(B_I_PITEM(bh,ih)))
-
-/* length of the directory entry in directory item. This define
-   calculates length of i-th directory entry using directory entry
-   locations from dir entry head. When it calculates length of 0-th
-   directory entry, it uses length of whole item in place of entry
-   location of the non-existent following entry in the calculation.
-   See picture above.*/
-/*
-#define I_DEH_N_ENTRY_LENGTH(ih,deh,i) \
-((i) ? (deh_location((deh)-1) - deh_location((deh))) : (ih_item_len((ih)) - deh_location((deh))))
-*/
-static inline int entry_length(const struct buffer_head *bh,
-			       const struct item_head *ih, int pos_in_item)
-{
-	struct reiserfs_de_head *deh;
-
-	deh = B_I_DEH(bh, ih) + pos_in_item;
-	if (pos_in_item)
-		return deh_location(deh - 1) - deh_location(deh);
-
-	return ih_item_len(ih) - deh_location(deh);
-}
-
-/* number of entries in the directory item, depends on ENTRY_COUNT being at the start of directory dynamic data. */
-#define I_ENTRY_COUNT(ih) (ih_entry_count((ih)))
-
-/* name by bh, ih and entry_num */
-#define B_I_E_NAME(bh,ih,entry_num) ((char *)(bh->b_data + ih_location(ih) + deh_location(B_I_DEH(bh,ih)+(entry_num))))
-
 // two entries per block (at least)
 #define REISERFS_MAX_NAME(block_size) 255
 
@@ -1783,7 +1767,8 @@ struct reiserfs_dir_entry {
 /* these defines are useful when a particular member of a reiserfs_dir_entry is needed */
 
 /* pointer to file name, stored in entry */
-#define B_I_DEH_ENTRY_FILE_NAME(bh,ih,deh) (B_I_PITEM (bh, ih) + deh_location(deh))
+#define B_I_DEH_ENTRY_FILE_NAME(bh, ih, deh) \
+				(ih_item_body(bh, ih) + deh_location(deh))
 
 /* length of name */
 #define I_DEH_N_ENTRY_FILE_NAME_LENGTH(ih,deh,entry_num) \
@@ -1918,8 +1903,6 @@ struct treepath var = {.path_length = ILLEGAL_PATH_ELEMENT_OFFSET, .reada = 0,}
 				   dumping paths... -Hans */
 #define PATH_LAST_POSITION(path) (PATH_OFFSET_POSITION((path), (path)->path_length))
 
-#define PATH_PITEM_HEAD(path)    B_N_PITEM_HEAD(PATH_PLAST_BUFFER(path), PATH_LAST_POSITION(path))
-
 /* in do_balance leaf has h == 0 in contrast with path structure,
    where root has level == 0. That is why we need these defines */
 #define PATH_H_PBUFFER(path, h) PATH_OFFSET_PBUFFER (path, path->path_length - (h))	/* tb->S[h] */
@@ -1929,12 +1912,88 @@ struct treepath var = {.path_length = ILLEGAL_PATH_ELEMENT_OFFSET, .reada = 0,}
 
 #define PATH_H_PATH_OFFSET(path, n_h) ((path)->path_length - (n_h))
 
+static inline void *reiserfs_node_data(const struct buffer_head *bh)
+{
+	return bh->b_data + sizeof(struct block_head);
+}
+
+/* get key from internal node */
+static inline struct reiserfs_key *internal_key(struct buffer_head *bh,
+						int item_num)
+{
+	struct reiserfs_key *key = reiserfs_node_data(bh);
+
+	return &key[item_num];
+}
+
+/* get the item header from leaf node */
+static inline struct item_head *item_head(const struct buffer_head *bh,
+					  int item_num)
+{
+	struct item_head *ih = reiserfs_node_data(bh);
+
+	return &ih[item_num];
+}
+
+/* get the key from leaf node */
+static inline struct reiserfs_key *leaf_key(const struct buffer_head *bh,
+					    int item_num)
+{
+	return &item_head(bh, item_num)->ih_key;
+}
+
+static inline void *ih_item_body(const struct buffer_head *bh,
+				 const struct item_head *ih)
+{
+	return bh->b_data + ih_location(ih);
+}
+
+/* get item body from leaf node */
+static inline void *item_body(const struct buffer_head *bh, int item_num)
+{
+	return ih_item_body(bh, item_head(bh, item_num));
+}
+
+static inline struct item_head *tp_item_head(const struct treepath *path)
+{
+	return item_head(PATH_PLAST_BUFFER(path), PATH_LAST_POSITION(path));
+}
+
+static inline void *tp_item_body(const struct treepath *path)
+{
+	return item_body(PATH_PLAST_BUFFER(path), PATH_LAST_POSITION(path));
+}
+
 #define get_last_bh(path) PATH_PLAST_BUFFER(path)
-#define get_ih(path) PATH_PITEM_HEAD(path)
 #define get_item_pos(path) PATH_LAST_POSITION(path)
-#define get_item(path) ((void *)B_N_PITEM(PATH_PLAST_BUFFER(path), PATH_LAST_POSITION (path)))
 #define item_moved(ih,path) comp_items(ih, path)
 #define path_changed(ih,path) comp_items (ih, path)
+
+/* array of the entry headers */
+ /* get item body */
+#define B_I_DEH(bh, ih) ((struct reiserfs_de_head *)(ih_item_body(bh, ih)))
+
+/* length of the directory entry in directory item. This define
+   calculates length of i-th directory entry using directory entry
+   locations from dir entry head. When it calculates length of 0-th
+   directory entry, it uses length of whole item in place of entry
+   location of the non-existent following entry in the calculation.
+   See picture above.*/
+/*
+#define I_DEH_N_ENTRY_LENGTH(ih,deh,i) \
+((i) ? (deh_location((deh)-1) - deh_location((deh))) : (ih_item_len((ih)) - deh_location((deh))))
+*/
+static inline int entry_length(const struct buffer_head *bh,
+			       const struct item_head *ih, int pos_in_item)
+{
+	struct reiserfs_de_head *deh;
+
+	deh = B_I_DEH(bh, ih) + pos_in_item;
+	if (pos_in_item)
+		return deh_location(deh - 1) - deh_location(deh);
+
+	return ih_item_len(ih) - deh_location(deh);
+}
 
 /***************************************************************************/
 /*                       MISC                                              */
@@ -2226,22 +2285,6 @@ extern struct item_operations *item_ops[TYPE_ANY + 1];
 
 /* number of bytes contained by the direct item or the unformatted nodes the indirect item points to */
 
-/* get the item header */
-#define B_N_PITEM_HEAD(bh,item_num) ( (struct item_head * )((bh)->b_data + BLKH_SIZE) + (item_num) )
-
-/* get key */
-#define B_N_PDELIM_KEY(bh,item_num) ( (struct reiserfs_key * )((bh)->b_data + BLKH_SIZE) + (item_num) )
-
-/* get the key */
-#define B_N_PKEY(bh,item_num) ( &(B_N_PITEM_HEAD(bh,item_num)->ih_key) )
-
-/* get item body */
-#define B_N_PITEM(bh,item_num) ( (bh)->b_data + ih_location(B_N_PITEM_HEAD((bh),(item_num))))
-
-/* get the stat data by the buffer header and the item order */
-#define B_N_STAT_DATA(bh,nr) \
-( (struct stat_data *)((bh)->b_data + ih_location(B_N_PITEM_HEAD((bh),(nr))) ) )
-
     /* following defines use reiserfs buffer header and item header */
 
 /* get stat-data */
@@ -2253,8 +2296,10 @@ extern struct item_operations *item_ops[TYPE_ANY + 1];
 /* indirect items consist of entries which contain blocknrs, pos
    indicates which entry, and B_I_POS_UNFM_POINTER resolves to the
    blocknr contained by the entry pos points to */
-#define B_I_POS_UNFM_POINTER(bh,ih,pos) le32_to_cpu(*(((unp_t *)B_I_PITEM(bh,ih)) + (pos)))
-#define PUT_B_I_POS_UNFM_POINTER(bh,ih,pos, val) do {*(((unp_t *)B_I_PITEM(bh,ih)) + (pos)) = cpu_to_le32(val); } while (0)
+#define B_I_POS_UNFM_POINTER(bh, ih, pos)				\
+	le32_to_cpu(*(((unp_t *)ih_item_body(bh, ih)) + (pos)))
+#define PUT_B_I_POS_UNFM_POINTER(bh, ih, pos, val)			\
+	(*(((unp_t *)ih_item_body(bh, ih)) + (pos)) = cpu_to_le32(val))
 
 struct reiserfs_iget_args {
 	__u32 objectid;

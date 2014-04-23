@@ -258,7 +258,7 @@ static int finish_unfinished(struct super_block *s)
 			break;
 		}
 		item_pos--;
-		ih = B_N_PITEM_HEAD(bh, item_pos);
+		ih = item_head(bh, item_pos);
 
 		if (le32_to_cpu(ih->ih_key.k_dir_id) != MAX_KEY_OBJECTID)
 			/* there are no "save" links anymore */
@@ -271,7 +271,7 @@ static int finish_unfinished(struct super_block *s)
 			truncate = 0;
 
 		/* reiserfs_iget needs k_dirid and k_objectid only */
-		item = B_I_PITEM(bh, ih);
+		item = ih_item_body(bh, ih);
 		obj_key.on_disk_key.k_dir_id = le32_to_cpu(*(__le32 *) item);
 		obj_key.on_disk_key.k_objectid =
 		    le32_to_cpu(ih->ih_key.k_objectid);

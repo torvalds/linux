@@ -819,9 +819,9 @@ static int get_left_neighbor(reiserfs_blocknr_hint_t * hint)
 	path = hint->path;
 	bh = get_last_bh(path);
 	RFALSE(!bh, "green-4002: Illegal path specified to get_left_neighbor");
-	ih = get_ih(path);
+	ih = tp_item_head(path);
 	pos_in_item = path->pos_in_item;
-	item = get_item(path);
+	item = tp_item_body(path);
 
 	hint->search_start = bh->b_blocknr;
 

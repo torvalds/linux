@@ -153,7 +153,7 @@ static void internal_insert_childs(struct buffer_info *cur_bi,
 	memcpy(dc, new_dc, DC_SIZE * count);
 
 	/* prepare space for count items  */
-	ih = B_N_PDELIM_KEY(cur, ((to == -1) ? 0 : to));
+	ih = internal_key(cur, ((to == -1) ? 0 : to));
 
 	memmove(ih + count, ih,
 		(nr - to) * KEY_SIZE + (nr + 1 + count) * DC_SIZE);
@@ -233,7 +233,7 @@ static void internal_delete_pointers_items(struct buffer_info *cur_bi,
 	dc = B_N_CHILD(cur, first_p);
 
 	memmove(dc, dc + del_num, (nr + 1 - first_p - del_num) * DC_SIZE);
-	key = B_N_PDELIM_KEY(cur, first_i);
+	key = internal_key(cur, first_i);
 	memmove(key, key + del_num,
 		(nr - first_i - del_num) * KEY_SIZE + (nr + 1 -
 						       del_num) * DC_SIZE);
@@ -330,13 +330,13 @@ static void internal_copy_pointers_items(struct buffer_info *dest_bi,
 	memcpy(dc, B_N_CHILD(src, src_order), DC_SIZE * cpy_num);
 
 	/* prepare space for cpy_num - 1 item headers */
-	key = B_N_PDELIM_KEY(dest, dest_order);
+	key = internal_key(dest, dest_order);
 	memmove(key + cpy_num - 1, key,
 		KEY_SIZE * (nr_dest - dest_order) + DC_SIZE * (nr_dest +
 							       cpy_num));
 
 	/* insert headers */
-	memcpy(key, B_N_PDELIM_KEY(src, src_order), KEY_SIZE * (cpy_num - 1));
+	memcpy(key, internal_key(src, src_order), KEY_SIZE * (cpy_num - 1));
 
 	/* sizes, item number */
 	set_blkh_nr_item(blkh, blkh_nr_item(blkh) + (cpy_num - 1));
@@ -429,12 +429,12 @@ static void internal_insert_key(struct buffer_info *dest_bi, int dest_position_b
 	nr = blkh_nr_item(blkh);
 
 	/* prepare space for inserting key */
-	key = B_N_PDELIM_KEY(dest, dest_position_before);
+	key = internal_key(dest, dest_position_before);
 	memmove(key + 1, key,
 		(nr - dest_position_before) * KEY_SIZE + (nr + 1) * DC_SIZE);
 
 	/* insert key */
-	memcpy(key, B_N_PDELIM_KEY(src, src_position), KEY_SIZE);
+	memcpy(key, internal_key(src, src_position), KEY_SIZE);
 
 	/* Change dirt, free space, item number fields. */
 
@@ -717,7 +717,7 @@ static void replace_lkey(struct tree_balance *tb, int h, struct item_head *key)
 	if (B_NR_ITEMS(PATH_H_PBUFFER(tb->tb_path, h)) == 0)
 		return;
 
-	memcpy(B_N_PDELIM_KEY(tb->CFL[h], tb->lkey[h]), key, KEY_SIZE);
+	memcpy(internal_key(tb->CFL[h], tb->lkey[h]), key, KEY_SIZE);
 
 	do_balance_mark_internal_dirty(tb, tb->CFL[h], 0);
 }
@@ -732,7 +732,7 @@ static void replace_rkey(struct tree_balance *tb, int h, struct item_head *key)
 	       "R[h] can not be empty if it exists (item number=%d)",
 	       B_NR_ITEMS(tb->R[h]));
 
-	memcpy(B_N_PDELIM_KEY(tb->CFR[h], tb->rkey[h]), key, KEY_SIZE);
+	memcpy(internal_key(tb->CFR[h], tb->rkey[h]), key, KEY_SIZE);
 
 	do_balance_mark_internal_dirty(tb, tb->CFR[h], 0);
 }
@@ -997,7 +997,7 @@ int balance_internal(struct tree_balance *tb,	/* tree_balance structure         
 			/* new items don't fall into S_new */
 			/*  store the delimiting key for the next level */
 			/* new_insert_key = (n - snum)'th key in S[h] */
-			memcpy(&new_insert_key, B_N_PDELIM_KEY(tbSh, n - snum),
+			memcpy(&new_insert_key, internal_key(tbSh, n - snum),
 			       KEY_SIZE);
 			/* last parameter is del_par */
 			internal_move_pointers_items(&dest_bi, &src_bi,
@@ -1008,7 +1008,7 @@ int balance_internal(struct tree_balance *tb,	/* tree_balance structure         
 			/*  store the delimiting key for the next level */
 			/* new_insert_key = (n + insert_item - snum)'th key in S[h] */
 			memcpy(&new_insert_key,
-			       B_N_PDELIM_KEY(tbSh, n + insert_num - snum),
+			       internal_key(tbSh, n + insert_num - snum),
 			       KEY_SIZE);
 			/* last parameter is del_par */
 			internal_move_pointers_items(&dest_bi, &src_bi,

@@ -439,7 +439,7 @@ static int print_internal(struct buffer_head *bh, int first, int last)
 	dc = B_N_CHILD(bh, from);
 	reiserfs_printk("PTR %d: %y ", from, dc);
 
-	for (i = from, key = B_N_PDELIM_KEY(bh, from), dc++; i < to;
+	for (i = from, key = internal_key(bh, from), dc++; i < to;
 	     i++, key++, dc++) {
 		reiserfs_printk("KEY %d: %k PTR %d: %y ", i, key, i + 1, dc);
 		if (i && i % 4 == 0)
@@ -463,7 +463,7 @@ static int print_leaf(struct buffer_head *bh, int print_mode, int first,
 	check_leaf(bh);
 
 	blkh = B_BLK_HEAD(bh);
-	ih = B_N_PITEM_HEAD(bh, 0);
+	ih = item_head(bh, 0);
 	nr = blkh_nr_item(blkh);
 
 	printk
@@ -496,7 +496,7 @@ static int print_leaf(struct buffer_head *bh, int print_mode, int first,
 		    ("-------------------------------------------------------------------------------\n");
 		reiserfs_printk("|%2d| %h |\n", i, ih);
 		if (print_mode & PRINT_LEAF_ITEMS)
-			op_print_item(ih, B_I_PITEM(bh, ih));
+			op_print_item(ih, ih_item_body(bh, ih));
 	}
 
 	printk
@@ -744,8 +744,8 @@ void check_leaf(struct buffer_head *bh)
 	if (!bh)
 		return;
 	check_leaf_block_head(bh);
-	for (i = 0, ih = B_N_PITEM_HEAD(bh, 0); i < B_NR_ITEMS(bh); i++, ih++)
-		op_check_item(ih, B_I_PITEM(bh, ih));
+	for (i = 0, ih = item_head(bh, 0); i < B_NR_ITEMS(bh); i++, ih++)
+		op_check_item(ih, ih_item_body(bh, ih));
 }
 
 void check_internal(struct buffer_head *bh)

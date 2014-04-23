@@ -105,7 +105,7 @@ static void create_virtual_node(struct tree_balance *tb, int h)
 	vn->vn_free_ptr += vn->vn_nr_item * sizeof(struct virtual_item);
 
 	/* first item in the node */
-	ih = B_N_PITEM_HEAD(Sh, 0);
+	ih = item_head(Sh, 0);
 
 	/* define the mergeability for 0-th item (if it is not being deleted) */
 	if (op_is_left_mergeable(&(ih->ih_key), Sh->b_size)
@@ -128,7 +128,7 @@ static void create_virtual_node(struct tree_balance *tb, int h)
 
 		vi->vi_item_len += ih_item_len(ih + j) + IH_SIZE;
 		vi->vi_ih = ih + j;
-		vi->vi_item = B_I_PITEM(Sh, ih + j);
+		vi->vi_item = ih_item_body(Sh, ih + j);
 		vi->vi_uarea = vn->vn_free_ptr;
 
 		// FIXME: there is no check, that item operation did not
@@ -168,7 +168,7 @@ static void create_virtual_node(struct tree_balance *tb, int h)
 	if (tb->CFR[0]) {
 		struct reiserfs_key *key;
 
-		key = B_N_PDELIM_KEY(tb->CFR[0], tb->rkey[0]);
+		key = internal_key(tb->CFR[0], tb->rkey[0]);
 		if (op_is_left_mergeable(key, Sh->b_size)
 		    && (vn->vn_mode != M_DELETE
 			|| vn->vn_affected_item_num != B_NR_ITEMS(Sh) - 1))
@@ -182,8 +182,8 @@ static void create_virtual_node(struct tree_balance *tb, int h)
 			/* we delete last item and it could be merged with right neighbor's first item */
 			if (!
 			    (B_NR_ITEMS(Sh) == 1
-			     && is_direntry_le_ih(B_N_PITEM_HEAD(Sh, 0))
-			     && I_ENTRY_COUNT(B_N_PITEM_HEAD(Sh, 0)) == 1)) {
+			     && is_direntry_le_ih(item_head(Sh, 0))
+			     && ih_entry_count(item_head(Sh, 0)) == 1)) {
 				/* node contains more than 1 item, or item is not directory item, or this item contains more than 1 entry */
 				print_block(Sh, 0, -1, -1);
 				reiserfs_panic(tb->tb_sb, "vs-8045",
@@ -675,10 +675,10 @@ static int are_leaves_removable(struct tree_balance *tb, int lfree, int rfree)
 		       "vs-8125: item number must be 1: it is %d",
 		       B_NR_ITEMS(S0));
 
-		ih = B_N_PITEM_HEAD(S0, 0);
+		ih = item_head(S0, 0);
 		if (tb->CFR[0]
 		    && !comp_short_le_keys(&(ih->ih_key),
-					   B_N_PDELIM_KEY(tb->CFR[0],
+					   internal_key(tb->CFR[0],
 							  tb->rkey[0])))
 			if (is_direntry_le_ih(ih)) {
 				/* Directory must be in correct state here: that is
@@ -1036,7 +1036,7 @@ static int get_far_parent(struct tree_balance *tb,
 
 	/* Form key to get parent of the left/right neighbor. */
 	le_key2cpu_key(&s_lr_father_key,
-		       B_N_PDELIM_KEY(*pcom_father,
+		       internal_key(*pcom_father,
 				      (c_lr_par ==
 				       LEFT_PARENTS) ? (tb->lkey[h - 1] =
 							position -
@@ -1175,9 +1175,9 @@ static inline int can_node_be_removed(int mode, int lfree, int sfree, int rfree,
 	struct item_head *ih;
 	struct reiserfs_key *r_key = NULL;
 
-	ih = B_N_PITEM_HEAD(Sh, 0);
+	ih = item_head(Sh, 0);
 	if (tb->CFR[h])
-		r_key = B_N_PDELIM_KEY(tb->CFR[h], tb->rkey[h]);
+		r_key = internal_key(tb->CFR[h], tb->rkey[h]);
 
 	if (lfree + rfree + sfree < MAX_CHILD_SIZE(Sh) + levbytes
 	    /* shifting may merge items which might save space */

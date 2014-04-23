@@ -20,7 +20,7 @@ int direct2indirect(struct reiserfs_transaction_handle *th, struct inode *inode,
 {
 	struct super_block *sb = inode->i_sb;
 	struct buffer_head *up_to_date_bh;
-	struct item_head *p_le_ih = PATH_PITEM_HEAD(path);
+	struct item_head *p_le_ih = tp_item_head(path);
 	unsigned long total_tail = 0;
 	struct cpu_key end_key;	/* Key to search for the last byte of the
 				   converted item. */
@@ -55,7 +55,7 @@ int direct2indirect(struct reiserfs_transaction_handle *th, struct inode *inode,
 		return -EIO;
 	}
 
-	p_le_ih = PATH_PITEM_HEAD(path);
+	p_le_ih = tp_item_head(path);
 
 	unfm_ptr = cpu_to_le32(unbh->b_blocknr);
 
@@ -94,7 +94,7 @@ int direct2indirect(struct reiserfs_transaction_handle *th, struct inode *inode,
 		    POSITION_FOUND)
 			reiserfs_panic(sb, "PAP-14050",
 				       "direct item (%K) not found", &end_key);
-		p_le_ih = PATH_PITEM_HEAD(path);
+		p_le_ih = tp_item_head(path);
 		RFALSE(!is_direct_le_ih(p_le_ih),
 		       "vs-14055: direct item expected(%K), found %h",
 		       &end_key, p_le_ih);
@@ -194,7 +194,7 @@ int indirect2direct(struct reiserfs_transaction_handle *th,
 	*mode = M_SKIP_BALANCING;
 
 	/* store item head path points to. */
-	copy_item_head(&s_ih, PATH_PITEM_HEAD(path));
+	copy_item_head(&s_ih, tp_item_head(path));
 
 	tail_len = (n_new_file_size & (block_size - 1));
 	if (get_inode_sd_version(inode) == STAT_DATA_V2)
@@ -220,7 +220,7 @@ int indirect2direct(struct reiserfs_transaction_handle *th,
 			reiserfs_panic(sb, "PAP-5520",
 				       "item to be converted %K does not exist",
 				       item_key);
-		copy_item_head(&s_ih, PATH_PITEM_HEAD(path));
+		copy_item_head(&s_ih, tp_item_head(path));
 #ifdef CONFIG_REISERFS_CHECK
 		pos = le_ih_k_offset(&s_ih) - 1 +
 		    (ih_item_len(&s_ih) / UNFM_P_SIZE -

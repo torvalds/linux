@@ -110,17 +110,17 @@ int reiserfs_readdir_inode(struct inode *inode, struct dir_context *ctx)
 		       item_num, B_NR_ITEMS(bh));
 
 		/* and entry must be not more than number of entries in the item */
-		RFALSE(I_ENTRY_COUNT(ih) < entry_num,
+		RFALSE(ih_entry_count(ih) < entry_num,
 		       "vs-9010: entry number is too big %d (%d)",
-		       entry_num, I_ENTRY_COUNT(ih));
+		       entry_num, ih_entry_count(ih));
 
 		if (search_res == POSITION_FOUND
-		    || entry_num < I_ENTRY_COUNT(ih)) {
+		    || entry_num < ih_entry_count(ih)) {
 			/* go through all entries in the directory item beginning from the entry, that has been found */
 			struct reiserfs_de_head *deh =
 			    B_I_DEH(bh, ih) + entry_num;
 
-			for (; entry_num < I_ENTRY_COUNT(ih);
+			for (; entry_num < ih_entry_count(ih);
 			     entry_num++, deh++) {
 				int d_reclen;
 				char *d_name;

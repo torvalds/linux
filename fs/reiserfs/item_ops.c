@@ -396,7 +396,7 @@ static void direntry_print_item(struct item_head *ih, char *item)
 
 	deh = (struct reiserfs_de_head *)item;
 
-	for (i = 0; i < I_ENTRY_COUNT(ih); i++, deh++) {
+	for (i = 0; i < ih_entry_count(ih); i++, deh++) {
 		namelen =
 		    (i ? (deh_location(deh - 1)) : ih_item_len(ih)) -
 		    deh_location(deh);
@@ -430,7 +430,7 @@ static void direntry_check_item(struct item_head *ih, char *item)
 
 	// FIXME: type something here!
 	deh = (struct reiserfs_de_head *)item;
-	for (i = 0; i < I_ENTRY_COUNT(ih); i++, deh++) {
+	for (i = 0; i < ih_entry_count(ih); i++, deh++) {
 		;
 	}
 }
