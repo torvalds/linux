@@ -177,6 +177,12 @@ static const struct i2c_device_id ds1307_id[] = {
 };
 MODULE_DEVICE_TABLE(i2c, ds1307_id);
 
+static struct i2c_board_info i2c_ds1307_info[] __initdata = {
+	{
+		I2C_BOARD_INFO("ds1307", 0x68),
+	}
+};
+
 /*----------------------------------------------------------------------*/
 
 #define BLOCK_DATA_MAX_TRIES 10
@@ -320,6 +326,9 @@ static void ds1307_work(struct work_struct *work)
 	struct i2c_client	*client;
 	struct mutex		*lock;
 	int			stat, control;
+	
+	i2c_register_board_info(1, i2c_ds1307_info,
+			ARRAY_SIZE(i2c_ds1307_info));
 
 	ds1307 = container_of(work, struct ds1307, work);
 	client = ds1307->client;
