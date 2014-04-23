@@ -686,7 +686,7 @@ static int reiserfs_create(struct inode *dir, struct dentry *dentry, umode_t mod
 	d_instantiate(dentry, inode);
 	retval = journal_end(&th);
 
-      out_failed:
+out_failed:
 	reiserfs_write_unlock(dir->i_sb);
 	return retval;
 }
@@ -767,7 +767,7 @@ static int reiserfs_mknod(struct inode *dir, struct dentry *dentry, umode_t mode
 	d_instantiate(dentry, inode);
 	retval = journal_end(&th);
 
-      out_failed:
+out_failed:
 	reiserfs_write_unlock(dir->i_sb);
 	return retval;
 }
@@ -958,11 +958,11 @@ static int reiserfs_rmdir(struct inode *dir, struct dentry *dentry)
 
 	retval = journal_end(&th);
 	reiserfs_check_path(&path);
-      out_rmdir:
+out_rmdir:
 	reiserfs_write_unlock(dir->i_sb);
 	return retval;
 
-      end_rmdir:
+end_rmdir:
 	/*
 	 * we must release path, because we did not call
 	 * reiserfs_cut_from_item, or reiserfs_cut_from_item does not
@@ -1064,13 +1064,13 @@ static int reiserfs_unlink(struct inode *dir, struct dentry *dentry)
 	reiserfs_write_unlock(dir->i_sb);
 	return retval;
 
-      end_unlink:
+end_unlink:
 	pathrelse(&path);
 	err = journal_end(&th);
 	reiserfs_check_path(&path);
 	if (err)
 		retval = err;
-      out_unlink:
+out_unlink:
 	reiserfs_write_unlock(dir->i_sb);
 	return retval;
 }
@@ -1164,7 +1164,7 @@ static int reiserfs_symlink(struct inode *parent_dir,
 	unlock_new_inode(inode);
 	d_instantiate(dentry, inode);
 	retval = journal_end(&th);
-      out_failed:
+out_failed:
 	reiserfs_write_unlock(parent_dir->i_sb);
 	return retval;
 }

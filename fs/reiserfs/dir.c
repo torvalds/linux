@@ -89,7 +89,7 @@ int reiserfs_readdir_inode(struct inode *inode, struct dir_context *ctx)
 
 	path_to_entry.reada = PATH_READA;
 	while (1) {
-	      research:
+research:
 		/*
 		 * search the directory item, containing entry with
 		 * specified key

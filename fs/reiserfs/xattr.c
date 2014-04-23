@@ -423,7 +423,7 @@ static struct page *reiserfs_get_page(struct inode *dir, size_t n)
 	}
 	return page;
 
-      fail:
+fail:
 	reiserfs_put_page(page);
 	return ERR_PTR(-EIO);
 }

@@ -668,7 +668,7 @@ int search_by_key(struct super_block *sb, const struct cpu_key *key,
 			if (!buffer_uptodate(bh))
 				goto io_error;
 		} else {
-		      io_error:
+io_error:
 			search_path->path_length--;
 			pathrelse(search_path);
 			return IO_ERROR;
@@ -2010,7 +2010,7 @@ int reiserfs_do_truncate(struct reiserfs_transaction_handle *th,
 	       "PAP-5680: truncate did not finish: new_file_size %Ld, current %Ld, oid %d",
 	       new_file_size, file_size, s_item_key.on_disk_key.k_objectid);
 
-      update_and_out:
+update_and_out:
 	if (update_timestamps) {
 		/* this is truncate, not file closing */
 		inode->i_mtime = CURRENT_TIME_SEC;
@@ -2018,7 +2018,7 @@ int reiserfs_do_truncate(struct reiserfs_transaction_handle *th,
 	}
 	reiserfs_update_sd(th, inode);
 
-      out:
+out:
 	pathrelse(&s_search_path);
 	return err;
 }
@@ -2112,7 +2112,7 @@ int reiserfs_paste_into_item(struct reiserfs_transaction_handle *th,
 	while ((retval =
 		fix_nodes(M_PASTE, &s_paste_balance, NULL,
 			  body)) == REPEAT_SEARCH) {
-	      search_again:
+search_again:
 		/* file system changed while we were in the fix_nodes */
 		PROC_INFO_INC(th->t_super, paste_into_item_restarted);
 		retval =
@@ -2143,7 +2143,7 @@ int reiserfs_paste_into_item(struct reiserfs_transaction_handle *th,
 		return 0;
 	}
 	retval = (retval == NO_DISK_SPACE) ? -ENOSPC : -EIO;
-      error_out:
+error_out:
 	/* this also releases the path */
 	unfix_nodes(&s_paste_balance);
 #ifdef REISERQUOTA_DEBUG
@@ -2222,7 +2222,7 @@ int reiserfs_insert_item(struct reiserfs_transaction_handle *th,
 	while ((retval =
 		fix_nodes(M_INSERT, &s_ins_balance, ih,
 			  body)) == REPEAT_SEARCH) {
-	      search_again:
+search_again:
 		/* file system changed while we were in the fix_nodes */
 		PROC_INFO_INC(th->t_super, insert_item_restarted);
 		retval = search_item(th->t_super, key, path);
@@ -2246,7 +2246,7 @@ int reiserfs_insert_item(struct reiserfs_transaction_handle *th,
 	}
 
 	retval = (retval == NO_DISK_SPACE) ? -ENOSPC : -EIO;
-      error_out:
+error_out:
 	/* also releases the path */
 	unfix_nodes(&s_ins_balance);
 #ifdef REISERQUOTA_DEBUG

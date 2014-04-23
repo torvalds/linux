@@ -114,7 +114,7 @@ static int reiserfs_file_release(struct inode *inode, struct file *filp)
 		 */
 		err = reiserfs_truncate_file(inode, 0);
 	}
-      out:
+out:
 	reiserfs_write_unlock(inode->i_sb);
 	mutex_unlock(&(REISERFS_I(inode)->tailpack));
 	return err;
@@ -228,7 +228,7 @@ int reiserfs_commit_page(struct inode *inode, struct page *page,
 	}
 	if (logit) {
 		ret = journal_end(&th);
-	      drop_write_lock:
+drop_write_lock:
 		reiserfs_write_unlock(s);
 	}
 	/*

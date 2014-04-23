@@ -2714,7 +2714,7 @@ int fix_nodes(int op_mode, struct tree_balance *tb,
 		goto repeat;
 	}
 
-      repeat:
+repeat:
 	/*
 	 * fix_nodes was unable to perform its calculation due to
 	 * filesystem got changed under us, lack of free disk space or i/o

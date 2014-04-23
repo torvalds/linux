@@ -219,11 +219,11 @@ int reiserfs_unpack(struct inode *inode, struct file *filp)
 	retval = reiserfs_commit_write(NULL, page, write_from, write_from);
 	REISERFS_I(inode)->i_flags |= i_nopack_mask;
 
-      out_unlock:
+out_unlock:
 	unlock_page(page);
 	page_cache_release(page);
 
-      out:
+out:
 	mutex_unlock(&inode->i_mutex);
 	reiserfs_write_unlock(inode->i_sb);
 	return retval;

@@ -113,7 +113,7 @@ static struct posix_acl *reiserfs_posix_acl_from_disk(const void *value, size_t 
 		goto fail;
 	return acl;
 
-      fail:
+fail:
 	posix_acl_release(acl);
 	return ERR_PTR(-EINVAL);
 }
@@ -166,7 +166,7 @@ static void *reiserfs_posix_acl_to_disk(const struct posix_acl *acl, size_t * si
 	}
 	return (char *)ext_acl;
 
-      fail:
+fail:
 	kfree(ext_acl);
 	return ERR_PTR(-EINVAL);
 }
@@ -345,7 +345,7 @@ reiserfs_inherit_default_acl(struct reiserfs_transaction_handle *th,
 
 	return err;
 
-      apply_umask:
+apply_umask:
 	/* no ACL, apply umask */
 	inode->i_mode &= ~current_umask();
 	return err;

@@ -449,7 +449,7 @@ static int _get_block_create_0(struct inode *inode, sector_t block,
 	flush_dcache_page(bh_result->b_page);
 	kunmap(bh_result->b_page);
 
-      finished:
+finished:
 	pathrelse(&path);
 
 	if (result == IO_ERROR)
@@ -558,7 +558,7 @@ static int reiserfs_get_blocks_direct_io(struct inode *inode,
 		if (err < 0)
 			ret = err;
 	}
-      out:
+out:
 	return ret;
 }
 
@@ -626,12 +626,12 @@ static int convert_tail_for_hole(struct inode *inode,
 
 	retval = reiserfs_commit_write(NULL, tail_page, tail_start, tail_end);
 
-      unlock:
+unlock:
 	if (tail_page != hole_page) {
 		unlock_page(tail_page);
 		page_cache_release(tail_page);
 	}
-      out:
+out:
 	return retval;
 }
 
@@ -727,7 +727,7 @@ int reiserfs_get_block(struct inode *inode, sector_t block,
 	/* set the key of the first byte in the 'block'-th block of file */
 	make_cpu_key(&key, inode, new_offset, TYPE_ANY, 3 /*key length */ );
 	if ((new_offset + inode->i_sb->s_blocksize - 1) > inode->i_size) {
-	      start_trans:
+start_trans:
 		th = reiserfs_persistent_transaction(inode->i_sb, jbegin_count);
 		if (!th) {
 			retval = -ENOMEM;
@@ -735,7 +735,7 @@ int reiserfs_get_block(struct inode *inode, sector_t block,
 		}
 		reiserfs_update_inode_transaction(inode);
 	}
-      research:
+research:
 
 	retval = search_for_position_by_key(inode->i_sb, &key, &path);
 	if (retval == IO_ERROR) {
@@ -1143,7 +1143,7 @@ int reiserfs_get_block(struct inode *inode, sector_t block,
 
 	retval = 0;
 
-      failure:
+failure:
 	if (th && (!dangle || (retval && !th->t_trans_id))) {
 		int err;
 		if (th->t_trans_id)
@@ -2137,7 +2137,7 @@ int reiserfs_new_inode(struct reiserfs_transaction_handle *th,
 
 	return 0;
 
-      out_bad_inode:
+out_bad_inode:
 	/* Invalidate the object, nothing was inserted yet */
 	INODE_PKEY(inode)->k_objectid = 0;
 
@@ -2146,7 +2146,7 @@ int reiserfs_new_inode(struct reiserfs_transaction_handle *th,
 	dquot_free_inode(inode);
 	reiserfs_write_lock_nested(inode->i_sb, depth);
 
-      out_end_trans:
+out_end_trans:
 	journal_end(th);
 	/*
 	 * Drop can be outside and it needs more credits so it's better
@@ -2158,7 +2158,7 @@ int reiserfs_new_inode(struct reiserfs_transaction_handle *th,
 	inode->i_flags |= S_NOQUOTA;
 	make_bad_inode(inode);
 
-      out_inserted_sd:
+out_inserted_sd:
 	clear_nlink(inode);
 	th->t_trans_id = 0;	/* so the caller can't use this handle later */
 	unlock_new_inode(inode); /* OK to do even if we hadn't locked it */
@@ -2245,10 +2245,10 @@ static int grab_tail_page(struct inode *inode,
 	*bh_result = bh;
 	*page_result = page;
 
-      out:
+out:
 	return error;
 
-      unlock:
+unlock:
 	unlock_page(page);
 	page_cache_release(page);
 	return error;
@@ -2350,7 +2350,7 @@ int reiserfs_truncate_file(struct inode *inode, int update_timestamps)
 	reiserfs_write_unlock(inode->i_sb);
 
 	return 0;
-      out:
+out:
 	if (page) {
 		unlock_page(page);
 		page_cache_release(page);
@@ -2393,11 +2393,11 @@ static int map_block_for_writepage(struct inode *inode,
 	}
 
 	kmap(bh_result->b_page);
-      start_over:
+start_over:
 	reiserfs_write_lock(inode->i_sb);
 	make_cpu_key(&key, inode, byte_offset, TYPE_ANY, 3);
 
-      research:
+research:
 	retval = search_for_position_by_key(inode->i_sb, &key, &path);
 	if (retval != POSITION_FOUND) {
 		use_get_block = 1;
@@ -2477,7 +2477,7 @@ static int map_block_for_writepage(struct inode *inode,
 	}
 	retval = 0;
 
-      out:
+out:
 	pathrelse(&path);
 	if (trans_running) {
 		int err = journal_end(&th);
@@ -2675,7 +2675,7 @@ static int reiserfs_write_full_page(struct page *page,
 	} while (bh != head);
 
 	error = 0;
-      done:
+done:
 	if (nr == 0) {
 		/*
 		 * if this page only had a direct item, it is very possible for
@@ -2697,7 +2697,7 @@ static int reiserfs_write_full_page(struct page *page,
 	}
 	return error;
 
-      fail:
+fail:
 	/*
 	 * catches various errors, we need to make sure any valid dirty blocks
 	 * get to the media.  The page is currently locked and not marked for
@@ -2969,7 +2969,7 @@ static int reiserfs_write_end(struct file *file, struct address_space *mapping,
 			goto out;
 	}
 
-      out:
+out:
 	if (locked)
 		reiserfs_write_unlock(inode->i_sb);
 	unlock_page(page);
@@ -2980,7 +2980,7 @@ static int reiserfs_write_end(struct file *file, struct address_space *mapping,
 
 	return ret == 0 ? copied : ret;
 
-      journal_error:
+journal_error:
 	reiserfs_write_unlock(inode->i_sb);
 	locked = false;
 	if (th) {
@@ -3054,10 +3054,10 @@ int reiserfs_commit_write(struct file *f, struct page *page,
 			goto out;
 	}
 
-      out:
+out:
 	return ret;
 
-      journal_error:
+journal_error:
 	if (th) {
 		if (!update_sd)
 			reiserfs_update_sd(th, inode);
@@ -3163,7 +3163,7 @@ static int invalidatepage_can_drop(struct inode *inode, struct buffer_head *bh)
 		    && jl != SB_JOURNAL(inode->i_sb)->j_current_jl)
 			ret = 0;
 	}
-      free_jh:
+free_jh:
 	if (ret && bh->b_private) {
 		reiserfs_free_jh(bh);
 	}
@@ -3222,7 +3222,7 @@ static void reiserfs_invalidatepage(struct page *page, unsigned int offset,
 		ret = try_to_release_page(page, 0);
 		/* maybe should BUG_ON(!ret); - neilb */
 	}
-      out:
+out:
 	return;
 }
 

@@ -160,7 +160,7 @@ static struct reiserfs_bitmap_node *get_bitmap_node(struct super_block *sb)
 	struct list_head *entry = journal->j_bitmap_nodes.next;
 
 	journal->j_used_bitmap_nodes++;
-      repeat:
+repeat:
 
 	if (entry != &journal->j_bitmap_nodes) {
 		bn = list_entry(entry, struct reiserfs_bitmap_node, list);
@@ -757,7 +757,7 @@ static inline int __add_jh(struct reiserfs_journal *j, struct buffer_head *bh,
 		jh = bh->b_private;
 		list_del_init(&jh->list);
 	} else {
-	      no_jh:
+no_jh:
 		get_bh(bh);
 		jh = alloc_jh();
 		spin_lock(&j->j_dirty_buffers_lock);
@@ -836,7 +836,7 @@ static int write_ordered_buffers(spinlock_t * lock,
 			reiserfs_free_jh(bh);
 			unlock_buffer(bh);
 		}
-	      loop_next:
+loop_next:
 		put_bh(bh);
 		cond_resched_lock(lock);
 	}
@@ -891,7 +891,7 @@ static int flush_older_commits(struct super_block *s,
 	unsigned int other_trans_id;
 	unsigned int first_trans_id;
 
-      find_first:
+find_first:
 	/*
 	 * first we walk backwards to find the oldest uncommitted transation
 	 */
@@ -1153,7 +1153,7 @@ static int flush_commit_list(struct super_block *s,
 		atomic_set(&(jl->j_older_commits_done), 1);
 	}
 	mutex_unlock(&jl->j_commit_mutex);
-      put_jl:
+put_jl:
 	put_journal_list(s, jl);
 
 	if (retval)
@@ -1306,7 +1306,7 @@ static int flush_older_journal_lists(struct super_block *sb,
 	 * we know we are the only ones flushing things, no extra race
 	 * protection is required.
 	 */
-      restart:
+restart:
 	entry = journal->j_journal_list.next;
 	/* Did we wrap? */
 	if (entry == &journal->j_journal_list)
@@ -1504,7 +1504,7 @@ static int flush_journal_list(struct super_block *s,
 					 (unsigned long long)saved_bh->
 					 b_blocknr, __func__);
 		}
-	      free_cnode:
+free_cnode:
 		last = cn;
 		cn = cn->next;
 		if (saved_bh) {
@@ -1564,7 +1564,7 @@ static int flush_journal_list(struct super_block *s,
 		reiserfs_abort(s, -EIO,
 			       "Write error while pushing transaction to disk in %s",
 			       __func__);
-      flush_older_and_return:
+flush_older_and_return:
 
 	/*
 	 * before we can update the journal header block, we _must_ flush all
@@ -1670,7 +1670,7 @@ static int write_one_transaction(struct super_block *s,
 			}
 			put_bh(tmp_bh);
 		}
-	      next:
+next:
 		cn = cn->next;
 		cond_resched();
 	}
@@ -1770,7 +1770,7 @@ static int kupdate_transactions(struct super_block *s,
 		write_chunk(&chunk);
 	}
 
-      done:
+done:
 	mutex_unlock(&journal->j_flush_mutex);
 	return ret;
 }
@@ -2229,7 +2229,7 @@ static int journal_read_transaction(struct super_block *sb,
 			reiserfs_warning(sb, "journal-1204",
 					 "REPLAY FAILURE fsck required! "
 					 "Trying to replay onto a log block");
-		      abort_replay:
+abort_replay:
 			brelse_array(log_blocks, i);
 			brelse_array(real_blocks, i);
 			brelse(c_bh);
@@ -2491,7 +2491,7 @@ static int journal_read(struct super_block *sb)
 		brelse(d_bh);
 	}
 
-      start_log_replay:
+start_log_replay:
 	cur_dblock = oldest_start;
 	if (oldest_trans_id) {
 		reiserfs_debug(sb, REISERFS_DEBUG_CODE,
@@ -2892,7 +2892,7 @@ int journal_init(struct super_block *sb, const char *j_dev_name,
 	INIT_DELAYED_WORK(&journal->j_work, flush_async_commits);
 	journal->j_work_sb = sb;
 	return 0;
-      free_and_return:
+free_and_return:
 	free_journal_ram(sb);
 	return 1;
 }
@@ -3031,7 +3031,7 @@ static int do_journal_begin_r(struct reiserfs_transaction_handle *th,
 	th->t_refcount = 1;
 	th->t_super = sb;
 
-      relock:
+relock:
 	lock_journal(sb);
 	if (join != JBEGIN_ABORT && reiserfs_is_journal_aborted(journal)) {
 		unlock_journal(sb);
@@ -3122,7 +3122,7 @@ static int do_journal_begin_r(struct reiserfs_transaction_handle *th,
 	INIT_LIST_HEAD(&th->t_list);
 	return 0;
 
-      out_fail:
+out_fail:
 	memset(th, 0, sizeof(*th));
 	/*
 	 * Re-set th->t_super, so we can properly keep track of how many
@@ -3876,7 +3876,7 @@ static int __commit_trans_jl(struct inode *inode, unsigned long id,
 		 * the inode still exists.  We know the list is still around
 		 * if we've got a larger transaction id than the oldest list
 		 */
-	      flush_commit_only:
+flush_commit_only:
 		if (journal_list_still_alive(inode->i_sb, id)) {
 			/*
 			 * we only set ret to 1 when we know for sure
@@ -4302,7 +4302,7 @@ static int do_journal_end(struct reiserfs_transaction_handle *th, int flags)
 	 * transactions that might get overwritten.  If any journal lists
 	 * are very old flush them as well.
 	 */
-      first_jl:
+first_jl:
 	list_for_each_safe(entry, safe, &journal->j_journal_list) {
 		temp_jl = JOURNAL_LIST_ENTRY(entry);
 		if (journal->j_start <= temp_jl->j_start) {
@@ -4359,7 +4359,7 @@ static int do_journal_end(struct reiserfs_transaction_handle *th, int flags)
 	    journal_list_still_alive(sb, commit_trans_id)) {
 		flush_commit_list(sb, jl, 1);
 	}
-      out:
+out:
 	reiserfs_check_lock_depth(sb, "journal end2");
 
 	memset(th, 0, sizeof(*th));

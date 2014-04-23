@@ -167,7 +167,7 @@ static int scan_bitmap_block(struct reiserfs_transaction_handle *th,
 		return 0;
 
 	while (1) {
-	      cont:
+cont:
 		if (bi->free_count < min) {
 			brelse(bh);
 			return 0;	/* No free blocks in this bitmap */
@@ -409,7 +409,7 @@ static int scan_bitmap(struct reiserfs_transaction_handle *th,
 	nr_allocated =
 	    scan_bitmap_block(th, bm, &off, end_off + 1, min, max, unfm);
 
-      ret:
+ret:
 	*start = bm * off_max + off;
 	return nr_allocated;
 
