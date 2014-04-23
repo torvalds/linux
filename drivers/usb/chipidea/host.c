@@ -67,7 +67,11 @@ static int host_start(struct ci_hdrc *ci)
 	ehci->has_tdi_phy_lpm = ci->hw_bank.lpm;
 	ehci->imx28_write_fix = ci->imx28_write_fix;
 
-	if (ci->platdata->reg_vbus) {
+	/*
+	 * vbus is always on if host is not in OTG FSM mode,
+	 * otherwise should be controlled by OTG FSM
+	 */
+	if (ci->platdata->reg_vbus && !ci_otg_is_fsm_mode(ci)) {
 		ret = regulator_enable(ci->platdata->reg_vbus);
 		if (ret) {
 			dev_err(ci->dev,
@@ -89,7 +93,7 @@ static int host_start(struct ci_hdrc *ci)
 	return ret;
 
 disable_reg:
-	if (ci->platdata->reg_vbus)
+	if (ci->platdata->reg_vbus && !ci_otg_is_fsm_mode(ci))
 		regulator_disable(ci->platdata->reg_vbus);
 
 put_hcd:
@@ -105,7 +109,7 @@ static void host_stop(struct ci_hdrc *ci)
 	if (hcd) {
 		usb_remove_hcd(hcd);
 		usb_put_hcd(hcd);
-		if (ci->platdata->reg_vbus)
+		if (ci->platdata->reg_vbus && !ci_otg_is_fsm_mode(ci))
 			regulator_disable(ci->platdata->reg_vbus);
 	}
 }
