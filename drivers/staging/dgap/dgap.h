@@ -969,7 +969,7 @@ struct digi_cmd {
 struct channel_t {
 	int magic;			/* Channel Magic Number		*/
 	struct bs_t __iomem *ch_bs;	/* Base structure pointer       */
-	struct cm_t	*ch_cm;		/* Command queue pointer        */
+	struct cm_t __iomem *ch_cm;	/* Command queue pointer        */
 	struct board_t *ch_bd;		/* Board structure pointer      */
 	unsigned char *ch_vaddr;	/* FEP memory origin            */
 	unsigned char *ch_taddr;	/* Write buffer origin          */

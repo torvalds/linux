@@ -1304,7 +1304,7 @@ static int dgap_tty_init(struct board_t *brd)
 	u8 modem = 0;
 	struct channel_t *ch;
 	struct bs_t __iomem *bs;
-	struct cm_t *cm;
+	struct cm_t __iomem *cm;
 
 	if (!brd)
 		return -ENXIO;
@@ -4744,7 +4744,7 @@ static void dgap_cmdb(struct channel_t *ch, u8 cmd, u8 byte1,
 			u8 byte2, uint ncmds)
 {
 	char __iomem	*vaddr;
-	struct cm_t	*cm_addr = NULL;
+	struct __iomem cm_t *cm_addr;
 	uint		count;
 	uint		n;
 	u16		head;
@@ -4829,7 +4829,7 @@ static void dgap_cmdb(struct channel_t *ch, u8 cmd, u8 byte1,
 static void dgap_cmdw(struct channel_t *ch, u8 cmd, u16 word, uint ncmds)
 {
 	char __iomem	*vaddr;
-	struct cm_t	*cm_addr = NULL;
+	struct __iomem cm_t *cm_addr;
 	uint		count;
 	uint		n;
 	u16		head;
@@ -4912,7 +4912,7 @@ static void dgap_cmdw(struct channel_t *ch, u8 cmd, u16 word, uint ncmds)
 static void dgap_cmdw_ext(struct channel_t *ch, u16 cmd, u16 word, uint ncmds)
 {
 	char __iomem	*vaddr;
-	struct cm_t	*cm_addr = NULL;
+	struct __iomem cm_t *cm_addr;
 	uint		count;
 	uint		n;
 	u16		head;
