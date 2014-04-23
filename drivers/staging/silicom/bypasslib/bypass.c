@@ -149,38 +149,33 @@ static int is_bypass_dev(int if_index)
 
 	while ((pdev = pci_get_class(PCI_CLASS_NETWORK_ETHERNET << 8, pdev))) {
 		dev = pci_get_drvdata(pdev);
-		if (dev != NULL) {
-			dev = pci_get_drvdata(pdev);
-			if ((dev != NULL) && (dev->ifindex == if_index)) {
-				if ((pdev->vendor == SILICOM_VID) &&
-				    (pdev->device >= SILICOM_BP_PID_MIN) &&
-				    (pdev->device <= SILICOM_BP_PID_MAX)) {
-					goto send_cmd;
-				}
-#if defined(BP_VENDOR_SUPPORT) && defined(ETHTOOL_GDRVINFO)
-				else {
-					struct ethtool_drvinfo info;
-					const struct ethtool_ops *ops =
-					    dev->ethtool_ops;
-					int k = 0;
-
-					if (ops->get_drvinfo) {
-						memset(&info, 0, sizeof(info));
-						info.cmd = ETHTOOL_GDRVINFO;
-						ops->get_drvinfo(dev, &info);
-						for (; bp_desc_array[k]; k++)
-							if (!
-							    (strcmp
-							     (bp_desc_array[k],
-							      info.driver)))
-								goto send_cmd;
-
-					}
-
-				}
-#endif
-				return -1;
+		if ((dev != NULL) && (dev->ifindex == if_index)) {
+			if ((pdev->vendor == SILICOM_VID) &&
+			    (pdev->device >= SILICOM_BP_PID_MIN) &&
+			    (pdev->device <= SILICOM_BP_PID_MAX)) {
+				goto send_cmd;
 			}
+#if defined(BP_VENDOR_SUPPORT) && defined(ETHTOOL_GDRVINFO)
+			else {
+				struct ethtool_drvinfo info;
+				const struct ethtool_ops *ops =
+					dev->ethtool_ops;
+				int k = 0;
+
+				if (ops->get_drvinfo) {
+					memset(&info, 0, sizeof(info));
+					info.cmd = ETHTOOL_GDRVINFO;
+					ops->get_drvinfo(dev, &info);
+					for (; bp_desc_array[k]; k++)
+						if (!(strcmp(bp_desc_array[k],
+							     info.driver)))
+							goto send_cmd;
+
+				}
+
+			}
+#endif
+			return -1;
 		}
 	}
  send_cmd:
