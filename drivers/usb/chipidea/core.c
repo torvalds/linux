@@ -140,6 +140,26 @@ static int hw_alloc_regmap(struct ci_hdrc *ci, bool is_lpm)
 }
 
 /**
+ * hw_read_intr_enable: returns interrupt enable register
+ *
+ * This function returns register data
+ */
+u32 hw_read_intr_enable(struct ci_hdrc *ci)
+{
+	return hw_read(ci, OP_USBINTR, ~0);
+}
+
+/**
+ * hw_read_intr_status: returns interrupt status register
+ *
+ * This function returns register data
+ */
+u32 hw_read_intr_status(struct ci_hdrc *ci)
+{
+	return hw_read(ci, OP_USBSTS, ~0);
+}
+
+/**
  * hw_port_test_set: writes port test mode (execute without interruption)
  * @mode: new value
  *

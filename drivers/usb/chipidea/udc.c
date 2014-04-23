@@ -242,26 +242,6 @@ static int hw_port_is_high_speed(struct ci_hdrc *ci)
 }
 
 /**
- * hw_read_intr_enable: returns interrupt enable register
- *
- * This function returns register data
- */
-static u32 hw_read_intr_enable(struct ci_hdrc *ci)
-{
-	return hw_read(ci, OP_USBINTR, ~0);
-}
-
-/**
- * hw_read_intr_status: returns interrupt status register
- *
- * This function returns register data
- */
-static u32 hw_read_intr_status(struct ci_hdrc *ci)
-{
-	return hw_read(ci, OP_USBSTS, ~0);
-}
-
-/**
  * hw_test_and_clear_complete: test & clear complete status (execute without
  *                             interruption)
  * @n: endpoint number
