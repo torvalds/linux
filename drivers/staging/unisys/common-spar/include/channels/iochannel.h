@@ -1,4 +1,4 @@
-/* Copyright © 2010 - 2013 UNISYS CORPORATION */
+/* Copyright (C) 2010 - 2013 UNISYS CORPORATION */
 /* All rights reserved. */
 #ifndef __IOCHANNEL_H__
 #define __IOCHANNEL_H__
