@@ -491,8 +491,8 @@ static int direntry_create_vi(struct virtual_node *vn,
 		j = old_entry_num(is_affected, i, vn->vn_pos_in_item,
 				  vn->vn_mode);
 		dir_u->entry_sizes[i] =
-		    (j ? deh_location(&(deh[j - 1])) : ih_item_len(vi->vi_ih)) -
-		    deh_location(&(deh[j])) + DEH_SIZE;
+		    (j ? deh_location(&deh[j - 1]) : ih_item_len(vi->vi_ih)) -
+		    deh_location(&deh[j]) + DEH_SIZE;
 	}
 
 	size += (dir_u->entry_count * sizeof(short));

@@ -1027,7 +1027,7 @@ research:
 			 */
 			make_cpu_key(&tmp_key, inode,
 				     le_key_k_offset(version,
-						     &(ih->ih_key)) +
+						     &ih->ih_key) +
 				     op_bytes_number(ih,
 						     inode->i_sb->s_blocksize),
 				     TYPE_INDIRECT, 3);
@@ -1243,9 +1243,9 @@ static void init_inode(struct inode *inode, struct treepath *path)
 	bh = PATH_PLAST_BUFFER(path);
 	ih = tp_item_head(path);
 
-	copy_key(INODE_PKEY(inode), &(ih->ih_key));
+	copy_key(INODE_PKEY(inode), &ih->ih_key);
 
-	INIT_LIST_HEAD(&(REISERFS_I(inode)->i_prealloc_list));
+	INIT_LIST_HEAD(&REISERFS_I(inode)->i_prealloc_list);
 	REISERFS_I(inode)->i_flags = 0;
 	REISERFS_I(inode)->i_prealloc_block = 0;
 	REISERFS_I(inode)->i_prealloc_count = 0;
@@ -1967,7 +1967,7 @@ int reiserfs_new_inode(struct reiserfs_transaction_handle *th,
 	else
 		make_le_item_head(&ih, NULL, KEY_FORMAT_3_6, SD_OFFSET,
 				  TYPE_STAT_DATA, SD_SIZE, MAX_US_INT);
-	memcpy(INODE_PKEY(inode), &(ih.ih_key), KEY_SIZE);
+	memcpy(INODE_PKEY(inode), &ih.ih_key, KEY_SIZE);
 	args.dirid = le32_to_cpu(ih.ih_key.k_dir_id);
 
 	depth = reiserfs_write_unlock_nested(inode->i_sb);
@@ -2011,7 +2011,7 @@ int reiserfs_new_inode(struct reiserfs_transaction_handle *th,
 	REISERFS_I(inode)->i_first_direct_byte = S_ISLNK(mode) ? 1 :
 	    U32_MAX /*NO_BYTES_IN_DIRECT_ITEM */ ;
 
-	INIT_LIST_HEAD(&(REISERFS_I(inode)->i_prealloc_list));
+	INIT_LIST_HEAD(&REISERFS_I(inode)->i_prealloc_list);
 	REISERFS_I(inode)->i_flags = 0;
 	REISERFS_I(inode)->i_prealloc_block = 0;
 	REISERFS_I(inode)->i_prealloc_count = 0;

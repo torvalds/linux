@@ -86,8 +86,8 @@ inline void set_de_name_and_namelen(struct reiserfs_dir_entry *de)
 static inline void set_de_object_key(struct reiserfs_dir_entry *de)
 {
 	BUG_ON(de->de_entry_num >= ih_entry_count(de->de_ih));
-	de->de_dir_id = deh_dir_id(&(de->de_deh[de->de_entry_num]));
-	de->de_objectid = deh_objectid(&(de->de_deh[de->de_entry_num]));
+	de->de_dir_id = deh_dir_id(&de->de_deh[de->de_entry_num]);
+	de->de_objectid = deh_objectid(&de->de_deh[de->de_entry_num]);
 }
 
 static inline void store_de_entry_key(struct reiserfs_dir_entry *de)
@@ -102,8 +102,8 @@ static inline void store_de_entry_key(struct reiserfs_dir_entry *de)
 	    le32_to_cpu(de->de_ih->ih_key.k_dir_id);
 	de->de_entry_key.on_disk_key.k_objectid =
 	    le32_to_cpu(de->de_ih->ih_key.k_objectid);
-	set_cpu_key_k_offset(&(de->de_entry_key), deh_offset(deh));
-	set_cpu_key_k_type(&(de->de_entry_key), TYPE_DIRENTRY);
+	set_cpu_key_k_offset(&de->de_entry_key, deh_offset(deh));
+	set_cpu_key_k_type(&de->de_entry_key, TYPE_DIRENTRY);
 }
 
 /*
@@ -149,7 +149,7 @@ int search_by_entry_key(struct super_block *sb, const struct cpu_key *key,
 
 #ifdef CONFIG_REISERFS_CHECK
 	if (!is_direntry_le_ih(de->de_ih) ||
-	    COMP_SHORT_KEYS(&(de->de_ih->ih_key), key)) {
+	    COMP_SHORT_KEYS(&de->de_ih->ih_key, key)) {
 		print_block(de->de_bh, 0, -1, -1);
 		reiserfs_panic(sb, "vs-7005", "found item %h is not directory "
 			       "item or does not belong to the same directory "
@@ -369,7 +369,7 @@ static struct dentry *reiserfs_lookup(struct inode *dir, struct dentry *dentry,
 	pathrelse(&path_to_entry);
 	if (retval == NAME_FOUND) {
 		inode = reiserfs_iget(dir->i_sb,
-				      (struct cpu_key *)&(de.de_dir_id));
+				      (struct cpu_key *)&de.de_dir_id);
 		if (!inode || IS_ERR(inode)) {
 			reiserfs_write_unlock(dir->i_sb);
 			return ERR_PTR(-EACCES);
@@ -414,7 +414,7 @@ struct dentry *reiserfs_get_parent(struct dentry *child)
 		reiserfs_write_unlock(dir->i_sb);
 		return ERR_PTR(-ENOENT);
 	}
-	inode = reiserfs_iget(dir->i_sb, (struct cpu_key *)&(de.de_dir_id));
+	inode = reiserfs_iget(dir->i_sb, (struct cpu_key *)&de.de_dir_id);
 	reiserfs_write_unlock(dir->i_sb);
 
 	return d_obtain_alias(inode);
@@ -935,7 +935,8 @@ static int reiserfs_rmdir(struct inode *dir, struct dentry *dentry)
 	}
 
 	/* cut entry from dir directory */
-	retval = reiserfs_cut_from_item(&th, &path, &(de.de_entry_key), dir, NULL,	/* page */
+	retval = reiserfs_cut_from_item(&th, &path, &de.de_entry_key,
+					dir, NULL,	/* page */
 					0 /*new file size - not used here */ );
 	if (retval < 0)
 		goto end_rmdir;
@@ -1042,7 +1043,7 @@ static int reiserfs_unlink(struct inode *dir, struct dentry *dentry)
 	savelink = inode->i_nlink;
 
 	retval =
-	    reiserfs_cut_from_item(&th, &path, &(de.de_entry_key), dir, NULL,
+	    reiserfs_cut_from_item(&th, &path, &de.de_entry_key, dir, NULL,
 				   0);
 	if (retval < 0) {
 		inc_nlink(inode);
@@ -1583,7 +1584,7 @@ static int reiserfs_rename(struct inode *old_dir, struct dentry *old_dentry,
 	 * entry. This needs one more clean up
 	 */
 	if (reiserfs_cut_from_item
-	    (&th, &old_entry_path, &(old_de.de_entry_key), old_dir, NULL,
+	    (&th, &old_entry_path, &old_de.de_entry_key, old_dir, NULL,
 	     0) < 0)
 		reiserfs_error(old_dir->i_sb, "vs-7060",
 			       "couldn't not cut old name. Fsck later?");

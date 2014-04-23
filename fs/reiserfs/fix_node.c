@@ -81,7 +81,7 @@ static void create_virtual_node(struct tree_balance *tb, int h)
 	ih = item_head(Sh, 0);
 
 	/* define the mergeability for 0-th item (if it is not being deleted) */
-	if (op_is_left_mergeable(&(ih->ih_key), Sh->b_size)
+	if (op_is_left_mergeable(&ih->ih_key, Sh->b_size)
 	    && (vn->vn_mode != M_DELETE || vn->vn_affected_item_num))
 		vn->vn_vi[0].vi_type |= VI_TYPE_LEFT_MERGEABLE;
 
@@ -682,7 +682,7 @@ static int is_leaf_removable(struct tree_balance *tb)
 	/* check whether we can divide 1 remaining item between neighbors */
 
 	/* get size of remaining item (in item units) */
-	size = op_unit_num(&(vn->vn_vi[to_left]));
+	size = op_unit_num(&vn->vn_vi[to_left]);
 
 	if (tb->lbytes + tb->rbytes >= size) {
 		set_parameters(tb, 0, to_left + 1, to_right + 1, 0, NULL,
@@ -720,7 +720,7 @@ static int are_leaves_removable(struct tree_balance *tb, int lfree, int rfree)
 
 		ih = item_head(S0, 0);
 		if (tb->CFR[0]
-		    && !comp_short_le_keys(&(ih->ih_key),
+		    && !comp_short_le_keys(&ih->ih_key,
 					   internal_key(tb->CFR[0],
 							  tb->rkey[0])))
 			/*
@@ -1287,7 +1287,7 @@ static inline int can_node_be_removed(int mode, int lfree, int sfree, int rfree,
 	    /* shifting may merge items which might save space */
 	    -
 	    ((!h
-	      && op_is_left_mergeable(&(ih->ih_key), Sh->b_size)) ? IH_SIZE : 0)
+	      && op_is_left_mergeable(&ih->ih_key, Sh->b_size)) ? IH_SIZE : 0)
 	    -
 	    ((!h && r_key
 	      && op_is_left_mergeable(r_key, Sh->b_size)) ? IH_SIZE : 0)

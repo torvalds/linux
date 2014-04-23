@@ -748,7 +748,7 @@ io_error:
 				      (node_level ==
 				       DISK_LEAF_NODE_LEVEL) ? IH_SIZE :
 				      KEY_SIZE,
-				      &(last_element->pe_position));
+				      &last_element->pe_position);
 		if (node_level == stop_level) {
 			return retval;
 		}
@@ -871,9 +871,8 @@ int search_for_position_by_key(struct super_block *sb,
 			   --PATH_LAST_POSITION(search_path));
 	blk_size = sb->s_blocksize;
 
-	if (comp_short_keys(&(p_le_ih->ih_key), p_cpu_key)) {
+	if (comp_short_keys(&p_le_ih->ih_key, p_cpu_key))
 		return FILE_NOT_FOUND;
-	}
 
 	/* FIXME: quite ugly this far */
 
@@ -2088,7 +2087,7 @@ int reiserfs_paste_into_item(struct reiserfs_transaction_handle *th,
 	reiserfs_debug(inode->i_sb, REISERFS_DEBUG_CODE,
 		       "reiserquota paste_into_item(): allocating %u id=%u type=%c",
 		       pasted_size, inode->i_uid,
-		       key2type(&(key->on_disk_key)));
+		       key2type(&key->on_disk_key));
 #endif
 
 	depth = reiserfs_write_unlock_nested(sb);
@@ -2150,7 +2149,7 @@ error_out:
 	reiserfs_debug(inode->i_sb, REISERFS_DEBUG_CODE,
 		       "reiserquota paste_into_item(): freeing %u id=%u type=%c",
 		       pasted_size, inode->i_uid,
-		       key2type(&(key->on_disk_key)));
+		       key2type(&key->on_disk_key));
 #endif
 	depth = reiserfs_write_unlock_nested(sb);
 	dquot_free_space_nodirty(inode, pasted_size);

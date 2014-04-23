@@ -1642,7 +1642,7 @@ static int read_super_block(struct super_block *s, int offset)
 /* after journal replay, reread all bitmap and super blocks */
 static int reread_meta_blocks(struct super_block *s)
 {
-	ll_rw_block(READ, 1, &(SB_BUFFER_WITH_SB(s)));
+	ll_rw_block(READ, 1, &SB_BUFFER_WITH_SB(s));
 	wait_on_buffer(SB_BUFFER_WITH_SB(s));
 	if (!buffer_uptodate(SB_BUFFER_WITH_SB(s))) {
 		reiserfs_warning(s, "reiserfs-2504", "error reading the super");
@@ -1886,7 +1886,7 @@ static int reiserfs_fill_super(struct super_block *s, void *data, int silent)
 
 	jdev_name = NULL;
 	if (reiserfs_parse_options
-	    (s, (char *)data, &(sbi->s_mount_opt), &blocks, &jdev_name,
+	    (s, (char *)data, &sbi->s_mount_opt, &blocks, &jdev_name,
 	     &commit_max_age, qf_names, &qfmt) == 0) {
 		goto error_unlocked;
 	}
@@ -2003,7 +2003,7 @@ static int reiserfs_fill_super(struct super_block *s, void *data, int silent)
 	args.dirid = REISERFS_ROOT_PARENT_OBJECTID;
 	root_inode =
 	    iget5_locked(s, REISERFS_ROOT_OBJECTID, reiserfs_find_actor,
-			 reiserfs_init_locked_inode, (void *)(&args));
+			 reiserfs_init_locked_inode, (void *)&args);
 	if (!root_inode) {
 		SWARN(silent, s, "jmacd-10", "get root inode failed");
 		goto error_unlocked;
@@ -2037,11 +2037,11 @@ static int reiserfs_fill_super(struct super_block *s, void *data, int silent)
 
 	if (is_reiserfs_3_5(rs)
 	    || (is_reiserfs_jr(rs) && SB_VERSION(s) == REISERFS_VERSION_1))
-		set_bit(REISERFS_3_5, &(sbi->s_properties));
+		set_bit(REISERFS_3_5, &sbi->s_properties);
 	else if (old_format)
-		set_bit(REISERFS_OLD_FORMAT, &(sbi->s_properties));
+		set_bit(REISERFS_OLD_FORMAT, &sbi->s_properties);
 	else
-		set_bit(REISERFS_3_6, &(sbi->s_properties));
+		set_bit(REISERFS_3_6, &sbi->s_properties);
 
 	if (!(s->s_flags & MS_RDONLY)) {
 
@@ -2097,8 +2097,8 @@ static int reiserfs_fill_super(struct super_block *s, void *data, int silent)
 
 				set_sb_version(rs, REISERFS_VERSION_2);
 				reiserfs_convert_objectid_map_v1(s);
-				set_bit(REISERFS_3_6, &(sbi->s_properties));
-				clear_bit(REISERFS_3_5, &(sbi->s_properties));
+				set_bit(REISERFS_3_6, &sbi->s_properties);
+				clear_bit(REISERFS_3_5, &sbi->s_properties);
 			} else if (!silent) {
 				reiserfs_info(s, "using 3.5.x disk format\n");
 			}

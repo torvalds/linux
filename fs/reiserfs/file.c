@@ -41,10 +41,10 @@ static int reiserfs_file_release(struct inode *inode, struct file *filp)
         if (atomic_add_unless(&REISERFS_I(inode)->openers, -1, 1))
 		return 0;
 
-	mutex_lock(&(REISERFS_I(inode)->tailpack));
+	mutex_lock(&REISERFS_I(inode)->tailpack);
 
         if (!atomic_dec_and_test(&REISERFS_I(inode)->openers)) {
-		mutex_unlock(&(REISERFS_I(inode)->tailpack));
+		mutex_unlock(&REISERFS_I(inode)->tailpack);
 		return 0;
 	}
 
@@ -52,7 +52,7 @@ static int reiserfs_file_release(struct inode *inode, struct file *filp)
 	if ((!(REISERFS_I(inode)->i_flags & i_pack_on_close_mask) ||
 	     !tail_has_to_be_packed(inode)) &&
 	    REISERFS_I(inode)->i_prealloc_count <= 0) {
-		mutex_unlock(&(REISERFS_I(inode)->tailpack));
+		mutex_unlock(&REISERFS_I(inode)->tailpack);
 		return 0;
 	}
 
@@ -116,7 +116,7 @@ static int reiserfs_file_release(struct inode *inode, struct file *filp)
 	}
 out:
 	reiserfs_write_unlock(inode->i_sb);
-	mutex_unlock(&(REISERFS_I(inode)->tailpack));
+	mutex_unlock(&REISERFS_I(inode)->tailpack);
 	return err;
 }
 
@@ -126,18 +126,18 @@ static int reiserfs_file_open(struct inode *inode, struct file *file)
 
 	/* somebody might be tailpacking on final close; wait for it */
         if (!atomic_inc_not_zero(&REISERFS_I(inode)->openers)) {
-		mutex_lock(&(REISERFS_I(inode)->tailpack));
+		mutex_lock(&REISERFS_I(inode)->tailpack);
 		atomic_inc(&REISERFS_I(inode)->openers);
-		mutex_unlock(&(REISERFS_I(inode)->tailpack));
+		mutex_unlock(&REISERFS_I(inode)->tailpack);
 	}
 	return err;
 }
 
 void reiserfs_vfs_truncate_file(struct inode *inode)
 {
-	mutex_lock(&(REISERFS_I(inode)->tailpack));
+	mutex_lock(&REISERFS_I(inode)->tailpack);
 	reiserfs_truncate_file(inode, 1);
-	mutex_unlock(&(REISERFS_I(inode)->tailpack));
+	mutex_unlock(&REISERFS_I(inode)->tailpack);
 }
 
 /* Sync a reiserfs file. */

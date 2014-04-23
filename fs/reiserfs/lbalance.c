@@ -38,12 +38,12 @@ static void leaf_copy_dir_entries(struct buffer_info *dest_bi,
 	 */
 	deh = B_I_DEH(source, ih);
 	if (copy_count) {
-		copy_records_len = (from ? deh_location(&(deh[from - 1])) :
+		copy_records_len = (from ? deh_location(&deh[from - 1]) :
 				    ih_item_len(ih)) -
-		    deh_location(&(deh[from + copy_count - 1]));
+		    deh_location(&deh[from + copy_count - 1]);
 		records =
 		    source->b_data + ih_location(ih) +
-		    deh_location(&(deh[from + copy_count - 1]));
+		    deh_location(&deh[from + copy_count - 1]);
 	} else {
 		copy_records_len = 0;
 		records = NULL;
@@ -81,7 +81,7 @@ static void leaf_copy_dir_entries(struct buffer_info *dest_bi,
 			/* form key by the following way */
 			if (from < ih_entry_count(ih)) {
 				set_le_ih_k_offset(&new_ih,
-						   deh_offset(&(deh[from])));
+						   deh_offset(&deh[from]));
 			} else {
 				/*
 				 * no entries will be copied to this
@@ -94,7 +94,7 @@ static void leaf_copy_dir_entries(struct buffer_info *dest_bi,
 				 * for it, so we -1
 				 */
 			}
-			set_le_key_k_type(KEY_FORMAT_3_5, &(new_ih.ih_key),
+			set_le_key_k_type(KEY_FORMAT_3_5, &new_ih.ih_key,
 					  TYPE_DIRENTRY);
 		}
 
@@ -155,7 +155,7 @@ static int leaf_copy_boundary_item(struct buffer_info *dest_bi,
 
 		/* there is nothing to merge */
 		if (!dest_nr_item
-		    || (!op_is_left_mergeable(&(ih->ih_key), src->b_size)))
+		    || (!op_is_left_mergeable(&ih->ih_key, src->b_size)))
 			return 0;
 
 		RFALSE(!ih_item_len(ih),
@@ -221,7 +221,7 @@ static int leaf_copy_boundary_item(struct buffer_info *dest_bi,
 	ih = item_head(src, src_nr_item - 1);
 	dih = item_head(dest, 0);
 
-	if (!dest_nr_item || !op_is_left_mergeable(&(dih->ih_key), src->b_size))
+	if (!dest_nr_item || !op_is_left_mergeable(&dih->ih_key, src->b_size))
 		return 0;
 
 	if (is_direntry_le_ih(ih)) {
@@ -368,8 +368,8 @@ static void leaf_copy_items_entirely(struct buffer_info *dest_bi,
 	}
 
 	/* prepare space for items */
-	last_loc = ih_location(&(ih[nr + cpy_num - 1 - dest_before]));
-	last_inserted_loc = ih_location(&(ih[cpy_num - 1]));
+	last_loc = ih_location(&ih[nr + cpy_num - 1 - dest_before]);
+	last_inserted_loc = ih_location(&ih[cpy_num - 1]);
 
 	/* check free space */
 	RFALSE(free_space < j - last_inserted_loc,
@@ -449,7 +449,7 @@ static void leaf_item_bottle(struct buffer_info *dest_bi,
 				set_ih_free_space(&n_ih, 0);
 			}
 
-			RFALSE(op_is_left_mergeable(&(ih->ih_key), src->b_size),
+			RFALSE(op_is_left_mergeable(&ih->ih_key, src->b_size),
 			       "vs-10190: bad mergeability of item %h", ih);
 			n_ih.ih_version = ih->ih_version;	/* JDM Endian safe, both le */
 			leaf_insert_into_buf(dest_bi, B_NR_ITEMS(dest), &n_ih,
@@ -926,7 +926,7 @@ void leaf_insert_into_buf(struct buffer_info *bi, int before,
 	ih = item_head(bh, before);
 
 	/* prepare space for the body of new item */
-	last_loc = nr ? ih_location(&(ih[nr - before - 1])) : bh->b_size;
+	last_loc = nr ? ih_location(&ih[nr - before - 1]) : bh->b_size;
 	unmoved_loc = before ? ih_location(ih - 1) : bh->b_size;
 
 	memmove(bh->b_data + last_loc - ih_item_len(inserted_item_ih),
@@ -949,8 +949,8 @@ void leaf_insert_into_buf(struct buffer_info *bi, int before,
 
 	/* change locations */
 	for (i = before; i < nr + 1; i++) {
-		unmoved_loc -= ih_item_len(&(ih[i - before]));
-		put_ih_location(&(ih[i - before]), unmoved_loc);
+		unmoved_loc -= ih_item_len(&ih[i - before]);
+		put_ih_location(&ih[i - before], unmoved_loc);
 	}
 
 	/* sizes, free space, item number */
@@ -1009,7 +1009,7 @@ void leaf_paste_in_buffer(struct buffer_info *bi, int affected_item_num,
 	/* item to be appended */
 	ih = item_head(bh, affected_item_num);
 
-	last_loc = ih_location(&(ih[nr - affected_item_num - 1]));
+	last_loc = ih_location(&ih[nr - affected_item_num - 1]);
 	unmoved_loc = affected_item_num ? ih_location(ih - 1) : bh->b_size;
 
 	/* prepare space */
@@ -1018,8 +1018,8 @@ void leaf_paste_in_buffer(struct buffer_info *bi, int affected_item_num,
 
 	/* change locations */
 	for (i = affected_item_num; i < nr; i++)
-		put_ih_location(&(ih[i - affected_item_num]),
-				ih_location(&(ih[i - affected_item_num])) -
+		put_ih_location(&ih[i - affected_item_num],
+				ih_location(&ih[i - affected_item_num]) -
 				paste_size);
 
 	if (body) {
@@ -1101,19 +1101,19 @@ static int leaf_cut_entries(struct buffer_head *bh,
 	 * (prev_record) and length of all removed records (cut_records_len)
 	 */
 	prev_record_offset =
-	    (from ? deh_location(&(deh[from - 1])) : ih_item_len(ih));
+	    (from ? deh_location(&deh[from - 1]) : ih_item_len(ih));
 	cut_records_len = prev_record_offset /*from_record */  -
-	    deh_location(&(deh[from + del_count - 1]));
+	    deh_location(&deh[from + del_count - 1]);
 	prev_record = item + prev_record_offset;
 
 	/* adjust locations of remaining entries */
 	for (i = ih_entry_count(ih) - 1; i > from + del_count - 1; i--)
-		put_deh_location(&(deh[i]),
+		put_deh_location(&deh[i],
 				 deh_location(&deh[i]) -
 				 (DEH_SIZE * del_count));
 
 	for (i = 0; i < from; i++)
-		put_deh_location(&(deh[i]),
+		put_deh_location(&deh[i],
 				 deh_location(&deh[i]) - (DEH_SIZE * del_count +
 							  cut_records_len));
 
@@ -1200,7 +1200,7 @@ void leaf_cut_from_buffer(struct buffer_info *bi, int cut_item_num,
 	}
 
 	/* location of the last item */
-	last_loc = ih_location(&(ih[nr - cut_item_num - 1]));
+	last_loc = ih_location(&ih[nr - cut_item_num - 1]);
 
 	/* location of the item, which is remaining at the same place */
 	unmoved_loc = cut_item_num ? ih_location(ih - 1) : bh->b_size;
@@ -1219,7 +1219,7 @@ void leaf_cut_from_buffer(struct buffer_info *bi, int cut_item_num,
 
 	/* change locations */
 	for (i = cut_item_num; i < nr; i++)
-		put_ih_location(&(ih[i - cut_item_num]),
+		put_ih_location(&ih[i - cut_item_num],
 				ih_location(&ih[i - cut_item_num]) + cut_size);
 
 	/* size, free space */
@@ -1273,8 +1273,8 @@ static void leaf_delete_items_entirely(struct buffer_info *bi,
 	j = (first == 0) ? bh->b_size : ih_location(ih - 1);
 
 	/* delete items */
-	last_loc = ih_location(&(ih[nr - 1 - first]));
-	last_removed_loc = ih_location(&(ih[del_num - 1]));
+	last_loc = ih_location(&ih[nr - 1 - first]);
+	last_removed_loc = ih_location(&ih[del_num - 1]);
 
 	memmove(bh->b_data + last_loc + j - last_removed_loc,
 		bh->b_data + last_loc, last_removed_loc - last_loc);
@@ -1284,8 +1284,8 @@ static void leaf_delete_items_entirely(struct buffer_info *bi,
 
 	/* change item location */
 	for (i = first; i < nr - del_num; i++)
-		put_ih_location(&(ih[i - first]),
-				ih_location(&(ih[i - first])) + (j -
+		put_ih_location(&ih[i - first],
+				ih_location(&ih[i - first]) + (j -
 								 last_removed_loc));
 
 	/* sizes, item number */
@@ -1347,19 +1347,19 @@ void leaf_paste_entries(struct buffer_info *bi,
 	/* new records will be pasted at this point */
 	insert_point =
 	    item +
-	    (before ? deh_location(&(deh[before - 1]))
+	    (before ? deh_location(&deh[before - 1])
 	     : (ih_item_len(ih) - paste_size));
 
 	/* adjust locations of records that will be AFTER new records */
 	for (i = ih_entry_count(ih) - 1; i >= before; i--)
-		put_deh_location(&(deh[i]),
-				 deh_location(&(deh[i])) +
+		put_deh_location(&deh[i],
+				 deh_location(&deh[i]) +
 				 (DEH_SIZE * new_entry_count));
 
 	/* adjust locations of records that will be BEFORE new records */
 	for (i = 0; i < before; i++)
-		put_deh_location(&(deh[i]),
-				 deh_location(&(deh[i])) + paste_size);
+		put_deh_location(&deh[i],
+				 deh_location(&deh[i]) + paste_size);
 
 	old_entry_num = ih_entry_count(ih);
 	put_ih_entry_count(ih, ih_entry_count(ih) + new_entry_count);
@@ -1383,10 +1383,10 @@ void leaf_paste_entries(struct buffer_info *bi,
 
 	/* set locations of new records */
 	for (i = 0; i < new_entry_count; i++) {
-		put_deh_location(&(deh[i]),
-				 deh_location(&(deh[i])) +
+		put_deh_location(&deh[i],
+				 deh_location(&deh[i]) +
 				 (-deh_location
-				  (&(new_dehs[new_entry_count - 1])) +
+				  (&new_dehs[new_entry_count - 1]) +
 				  insert_point + DEH_SIZE * new_entry_count -
 				  item));
 	}
@@ -1404,16 +1404,16 @@ void leaf_paste_entries(struct buffer_info *bi,
 			next =
 			    (i <
 			     ih_entry_count(ih) -
-			     1) ? deh_location(&(deh[i + 1])) : 0;
-			prev = (i != 0) ? deh_location(&(deh[i - 1])) : 0;
+			     1) ? deh_location(&deh[i + 1]) : 0;
+			prev = (i != 0) ? deh_location(&deh[i - 1]) : 0;
 
-			if (prev && prev <= deh_location(&(deh[i])))
+			if (prev && prev <= deh_location(&deh[i]))
 				reiserfs_error(sb_from_bi(bi), "vs-10240",
 					       "directory item (%h) "
 					       "corrupted (prev %a, "
 					       "cur(%d) %a)",
 					       ih, deh + i - 1, i, deh + i);
-			if (next && next >= deh_location(&(deh[i])))
+			if (next && next >= deh_location(&deh[i]))
 				reiserfs_error(sb_from_bi(bi), "vs-10250",
 					       "directory item (%h) "
 					       "corrupted (cur(%d) %a, "

@@ -652,11 +652,11 @@ void store_print_tb(struct tree_balance *tb)
 			"* %d * %3lld(%2d) * %3lld(%2d) * %3lld(%2d) * %5lld * %5lld * %5lld * %5lld * %5lld *\n",
 			h,
 			(tbSh) ? (long long)(tbSh->b_blocknr) : (-1LL),
-			(tbSh) ? atomic_read(&(tbSh->b_count)) : -1,
+			(tbSh) ? atomic_read(&tbSh->b_count) : -1,
 			(tb->L[h]) ? (long long)(tb->L[h]->b_blocknr) : (-1LL),
-			(tb->L[h]) ? atomic_read(&(tb->L[h]->b_count)) : -1,
+			(tb->L[h]) ? atomic_read(&tb->L[h]->b_count) : -1,
 			(tb->R[h]) ? (long long)(tb->R[h]->b_blocknr) : (-1LL),
-			(tb->R[h]) ? atomic_read(&(tb->R[h]->b_count)) : -1,
+			(tb->R[h]) ? atomic_read(&tb->R[h]->b_count) : -1,
 			(tbFh) ? (long long)(tbFh->b_blocknr) : (-1LL),
 			(tb->FL[h]) ? (long long)(tb->FL[h]->
 						  b_blocknr) : (-1LL),
@@ -698,7 +698,7 @@ void store_print_tb(struct tree_balance *tb)
 			"%p (%llu %d)%s", tb->FEB[i],
 			tb->FEB[i] ? (unsigned long long)tb->FEB[i]->
 			b_blocknr : 0ULL,
-			tb->FEB[i] ? atomic_read(&(tb->FEB[i]->b_count)) : 0,
+			tb->FEB[i] ? atomic_read(&tb->FEB[i]->b_count) : 0,
 			(i == ARRAY_SIZE(tb->FEB) - 1) ? "\n" : ", ");
 
 	sprintf(print_tb_buf + strlen(print_tb_buf),

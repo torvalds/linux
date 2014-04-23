@@ -1027,8 +1027,8 @@ int reiserfs_xattr_init(struct super_block *s, int mount_flags)
 
 error:
 	if (err) {
-		clear_bit(REISERFS_XATTRS_USER, &(REISERFS_SB(s)->s_mount_opt));
-		clear_bit(REISERFS_POSIXACL, &(REISERFS_SB(s)->s_mount_opt));
+		clear_bit(REISERFS_XATTRS_USER, &REISERFS_SB(s)->s_mount_opt);
+		clear_bit(REISERFS_POSIXACL, &REISERFS_SB(s)->s_mount_opt);
 	}
 
 	/* The super_block MS_POSIXACL must mirror the (no)acl mount option. */

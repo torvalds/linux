@@ -1016,9 +1016,9 @@ static int flush_commit_list(struct super_block *s,
 	BUG_ON(jl->j_trans_id == 0);
 
 	/* this commit is done, exit */
-	if (atomic_read(&(jl->j_commit_left)) <= 0) {
+	if (atomic_read(&jl->j_commit_left) <= 0) {
 		if (flushall) {
-			atomic_set(&(jl->j_older_commits_done), 1);
+			atomic_set(&jl->j_older_commits_done, 1);
 		}
 		mutex_unlock(&jl->j_commit_mutex);
 		goto put_jl;
@@ -1094,10 +1094,10 @@ static int flush_commit_list(struct super_block *s,
 		put_bh(tbh);
 		/* once due to original getblk in do_journal_end */
 		put_bh(tbh);
-		atomic_dec(&(jl->j_commit_left));
+		atomic_dec(&jl->j_commit_left);
 	}
 
-	BUG_ON(atomic_read(&(jl->j_commit_left)) != 1);
+	BUG_ON(atomic_read(&jl->j_commit_left) != 1);
 
 	/*
 	 * If there was a write error in the journal - we can't commit
@@ -1147,10 +1147,10 @@ static int flush_commit_list(struct super_block *s,
 	/* mark the metadata dirty */
 	if (!retval)
 		dirty_one_transaction(s, jl);
-	atomic_dec(&(jl->j_commit_left));
+	atomic_dec(&jl->j_commit_left);
 
 	if (flushall) {
-		atomic_set(&(jl->j_older_commits_done), 1);
+		atomic_set(&jl->j_older_commits_done, 1);
 	}
 	mutex_unlock(&jl->j_commit_mutex);
 put_jl:
@@ -1379,8 +1379,8 @@ static int flush_journal_list(struct super_block *s,
 	}
 
 	/* if all the work is already done, get out of here */
-	if (atomic_read(&(jl->j_nonzerolen)) <= 0 &&
-	    atomic_read(&(jl->j_commit_left)) <= 0) {
+	if (atomic_read(&jl->j_nonzerolen) <= 0 &&
+	    atomic_read(&jl->j_commit_left) <= 0) {
 		goto flush_older_and_return;
 	}
 
@@ -1395,8 +1395,8 @@ static int flush_journal_list(struct super_block *s,
 		BUG();
 
 	/* are we done now? */
-	if (atomic_read(&(jl->j_nonzerolen)) <= 0 &&
-	    atomic_read(&(jl->j_commit_left)) <= 0) {
+	if (atomic_read(&jl->j_nonzerolen) <= 0 &&
+	    atomic_read(&jl->j_commit_left) <= 0) {
 		goto flush_older_and_return;
 	}
 
@@ -1404,7 +1404,7 @@ static int flush_journal_list(struct super_block *s,
 	 * loop through each cnode, see if we need to write it,
 	 * or wait on a more recent transaction, or just ignore it
 	 */
-	if (atomic_read(&(journal->j_wcount)) != 0) {
+	if (atomic_read(&journal->j_wcount) != 0) {
 		reiserfs_panic(s, "journal-844", "journal list is flushing, "
 			       "wcount is not 0");
 	}
@@ -1513,7 +1513,7 @@ free_cnode:
 			 * taking the buffer head away
 			 */
 			put_bh(saved_bh);
-			if (atomic_read(&(saved_bh->b_count)) < 0) {
+			if (atomic_read(&saved_bh->b_count) < 0) {
 				reiserfs_warning(s, "journal-945",
 						 "saved_bh->b_count < 0");
 			}
@@ -1614,7 +1614,7 @@ flush_older_and_return:
 	 * help find code using dead lists later on
 	 */
 	jl->j_len = 0;
-	atomic_set(&(jl->j_nonzerolen), 0);
+	atomic_set(&jl->j_nonzerolen, 0);
 	jl->j_start = 0;
 	jl->j_realblock = NULL;
 	jl->j_commit_bh = NULL;
@@ -1873,7 +1873,7 @@ void remove_journal_hash(struct super_block *sb,
 			 * dec the nonzerolen
 			 */
 			if (cur->bh && cur->jlist)
-				atomic_dec(&(cur->jlist->j_nonzerolen));
+				atomic_dec(&cur->jlist->j_nonzerolen);
 			cur->bh = NULL;
 			cur->jlist = NULL;
 		}
@@ -2836,20 +2836,20 @@ int journal_init(struct super_block *sb, const char *j_dev_name,
 	journal->j_start = 0;
 	journal->j_len = 0;
 	journal->j_len_alloc = 0;
-	atomic_set(&(journal->j_wcount), 0);
-	atomic_set(&(journal->j_async_throttle), 0);
+	atomic_set(&journal->j_wcount, 0);
+	atomic_set(&journal->j_async_throttle, 0);
 	journal->j_bcount = 0;
 	journal->j_trans_start_time = 0;
 	journal->j_last = NULL;
 	journal->j_first = NULL;
-	init_waitqueue_head(&(journal->j_join_wait));
+	init_waitqueue_head(&journal->j_join_wait);
 	mutex_init(&journal->j_mutex);
 	mutex_init(&journal->j_flush_mutex);
 
 	journal->j_trans_id = 10;
 	journal->j_mount_id = 10;
 	journal->j_state = 0;
-	atomic_set(&(journal->j_jlock), 0);
+	atomic_set(&journal->j_jlock, 0);
 	journal->j_cnode_free_list = allocate_cnodes(num_cnodes);
 	journal->j_cnode_free_orig = journal->j_cnode_free_list;
 	journal->j_cnode_free = journal->j_cnode_free_list ? num_cnodes : 0;
@@ -2913,7 +2913,7 @@ int journal_transaction_should_end(struct reiserfs_transaction_handle *th,
 		return 0;
 	if (journal->j_must_wait > 0 ||
 	    (journal->j_len_alloc + new_alloc) >= journal->j_max_batch ||
-	    atomic_read(&(journal->j_jlock)) ||
+	    atomic_read(&journal->j_jlock) ||
 	    (now - journal->j_trans_start_time) > journal->j_max_trans_age ||
 	    journal->j_cnode_free < (journal->j_trans_max * 3)) {
 		return 1;
@@ -3113,7 +3113,7 @@ relock:
 	if (journal->j_trans_start_time == 0) {
 		journal->j_trans_start_time = get_seconds();
 	}
-	atomic_inc(&(journal->j_wcount));
+	atomic_inc(&journal->j_wcount);
 	journal->j_len_alloc += nblocks;
 	th->t_blocks_logged = 0;
 	th->t_blocks_allocated = nblocks;
@@ -3306,10 +3306,10 @@ int journal_mark_dirty(struct reiserfs_transaction_handle *th,
 				 buffer_journal_dirty(bh) ? ' ' : '!');
 	}
 
-	if (atomic_read(&(journal->j_wcount)) <= 0) {
+	if (atomic_read(&journal->j_wcount) <= 0) {
 		reiserfs_warning(sb, "journal-1409",
 				 "returning because j_wcount was %d",
-				 atomic_read(&(journal->j_wcount)));
+				 atomic_read(&journal->j_wcount));
 		return 1;
 	}
 	/*
@@ -3448,7 +3448,7 @@ static int remove_from_transaction(struct super_block *sb,
 		clear_buffer_dirty(bh);
 		clear_buffer_journal_test(bh);
 		put_bh(bh);
-		if (atomic_read(&(bh->b_count)) < 0) {
+		if (atomic_read(&bh->b_count) < 0) {
 			reiserfs_warning(sb, "journal-1752",
 					 "b_count < 0");
 		}
@@ -3497,7 +3497,7 @@ static int can_dirty(struct reiserfs_journal_cnode *cn)
 	cur = cn->hnext;
 	while (cur && can_dirty) {
 		if (cur->jlist && cur->jlist->j_len > 0 &&
-		    atomic_read(&(cur->jlist->j_commit_left)) > 0 && cur->bh &&
+		    atomic_read(&cur->jlist->j_commit_left) > 0 && cur->bh &&
 		    cur->blocknr && cur->sb == sb && cur->blocknr == blocknr) {
 			can_dirty = 0;
 		}
@@ -3623,8 +3623,8 @@ static int check_journal_end(struct reiserfs_transaction_handle *th, int flags)
 
 	journal->j_len_alloc -= (th->t_blocks_allocated - th->t_blocks_logged);
 	/* <= 0 is allowed.  unmounting might not call begin */
-	if (atomic_read(&(journal->j_wcount)) > 0)
-		atomic_dec(&(journal->j_wcount));
+	if (atomic_read(&journal->j_wcount) > 0)
+		atomic_dec(&journal->j_wcount);
 
 	/*
 	 * BUG, deal with case where j_len is 0, but people previously
@@ -3642,7 +3642,7 @@ static int check_journal_end(struct reiserfs_transaction_handle *th, int flags)
 	 * because the rest of journal end was already done for this
 	 * transaction.
 	 */
-	if (atomic_read(&(journal->j_wcount)) > 0) {
+	if (atomic_read(&journal->j_wcount) > 0) {
 		if (flush || commit_now) {
 			unsigned trans_id;
 
@@ -3650,7 +3650,7 @@ static int check_journal_end(struct reiserfs_transaction_handle *th, int flags)
 			trans_id = jl->j_trans_id;
 			if (wait_on_commit)
 				jl->j_state |= LIST_COMMIT_PENDING;
-			atomic_set(&(journal->j_jlock), 1);
+			atomic_set(&journal->j_jlock, 1);
 			if (flush) {
 				journal->j_next_full_flush = 1;
 			}
@@ -3666,7 +3666,7 @@ static int check_journal_end(struct reiserfs_transaction_handle *th, int flags)
 				} else {
 					lock_journal(sb);
 					if (journal->j_trans_id == trans_id) {
-						atomic_set(&(journal->j_jlock),
+						atomic_set(&journal->j_jlock,
 							   1);
 					}
 					unlock_journal(sb);
@@ -3693,7 +3693,7 @@ static int check_journal_end(struct reiserfs_transaction_handle *th, int flags)
 	}
 	/* don't batch when someone is waiting on j_join_wait */
 	/* don't batch when syncing the commit or flushing the whole trans */
-	if (!(journal->j_must_wait > 0) && !(atomic_read(&(journal->j_jlock)))
+	if (!(journal->j_must_wait > 0) && !(atomic_read(&journal->j_jlock))
 	    && !flush && !commit_now && (journal->j_len < journal->j_max_batch)
 	    && journal->j_len_alloc < journal->j_max_batch
 	    && journal->j_cnode_free > (journal->j_trans_max * 3)) {
@@ -3792,7 +3792,7 @@ int journal_mark_freed(struct reiserfs_transaction_handle *th,
 						cleaned = 1;
 						put_bh(cn->bh);
 						if (atomic_read
-						    (&(cn->bh->b_count)) < 0) {
+						    (&cn->bh->b_count) < 0) {
 							reiserfs_warning(sb,
 								 "journal-2138",
 								 "cn->bh->b_count < 0");
@@ -3803,9 +3803,8 @@ int journal_mark_freed(struct reiserfs_transaction_handle *th,
 					 * we MUST dec nonzerolen
 					 */
 					if (cn->jlist) {
-						atomic_dec(&
-							   (cn->jlist->
-							    j_nonzerolen));
+						atomic_dec(&cn->jlist->
+							   j_nonzerolen);
 					}
 					cn->bh = NULL;
 				}
@@ -4244,7 +4243,7 @@ static int do_journal_end(struct reiserfs_transaction_handle *th, int flags)
 	journal->j_start =
 	    (journal->j_start + journal->j_len +
 	     2) % SB_ONDISK_JOURNAL_SIZE(sb);
-	atomic_set(&(journal->j_wcount), 0);
+	atomic_set(&journal->j_wcount, 0);
 	journal->j_bcount = 0;
 	journal->j_last = NULL;
 	journal->j_first = NULL;
@@ -4349,11 +4348,11 @@ first_jl:
 			       "could not get a list bitmap");
 	}
 
-	atomic_set(&(journal->j_jlock), 0);
+	atomic_set(&journal->j_jlock, 0);
 	unlock_journal(sb);
 	/* wake up any body waiting to join. */
 	clear_bit(J_WRITERS_QUEUED, &journal->j_state);
-	wake_up(&(journal->j_join_wait));
+	wake_up(&journal->j_join_wait);
 
 	if (!flush && wait_on_commit &&
 	    journal_list_still_alive(sb, commit_trans_id)) {

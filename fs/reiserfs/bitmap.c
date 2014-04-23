@@ -78,7 +78,7 @@ int is_reusable(struct super_block *s, b_blocknr_t block, int bit_value)
 	 * up front so we need to account for it.
 	 */
 	if (unlikely(test_bit(REISERFS_OLD_FORMAT,
-			      &(REISERFS_SB(s)->s_properties)))) {
+			      &REISERFS_SB(s)->s_properties))) {
 		b_blocknr_t bmap1 = REISERFS_SB(s)->s_sbh->b_blocknr + 1;
 		if (block >= bmap1 &&
 		    block <= bmap1 + bmap_count) {
@@ -524,7 +524,7 @@ static void __discard_prealloc(struct reiserfs_transaction_handle *th,
 	if (dirty)
 		reiserfs_update_sd(th, inode);
 	ei->i_prealloc_block = save;
-	list_del_init(&(ei->i_prealloc_list));
+	list_del_init(&ei->i_prealloc_list);
 }
 
 /* FIXME: It should be inline function */
@@ -1417,7 +1417,7 @@ struct buffer_head *reiserfs_read_bitmap_block(struct super_block *sb,
 	 * I doubt there are any of these left, but just in case...
 	 */
 	if (unlikely(test_bit(REISERFS_OLD_FORMAT,
-	                      &(REISERFS_SB(sb)->s_properties))))
+			      &REISERFS_SB(sb)->s_properties)))
 		block = REISERFS_SB(sb)->s_sbh->b_blocknr + 1 + bitmap;
 	else if (bitmap == 0)
 		block = (REISERFS_DISK_OFFSET_IN_BYTES >> sb->s_blocksize_bits) + 1;

@@ -154,9 +154,9 @@ static void internal_insert_childs(struct buffer_info *cur_bi,
 
 	/* copy to_be_insert disk children */
 	for (i = 0; i < count; i++) {
-		put_dc_size(&(new_dc[i]),
+		put_dc_size(&new_dc[i],
 			    MAX_CHILD_SIZE(bh[i]) - B_FREE_SPACE(bh[i]));
-		put_dc_block_number(&(new_dc[i]), bh[i]->b_blocknr);
+		put_dc_block_number(&new_dc[i], bh[i]->b_blocknr);
 	}
 	memcpy(dc, new_dc, DC_SIZE * count);
 
