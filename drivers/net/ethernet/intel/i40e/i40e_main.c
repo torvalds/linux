@@ -854,11 +854,37 @@ static void i40e_update_pf_stats(struct i40e_pf *pf)
 			   pf->stat_offsets_loaded,
 			   &osd->eth.tx_discards,
 			   &nsd->eth.tx_discards);
+
+	i40e_stat_update48(hw, I40E_GLPRT_UPRCH(hw->port),
+			   I40E_GLPRT_UPRCL(hw->port),
+			   pf->stat_offsets_loaded,
+			   &osd->eth.rx_unicast,
+			   &nsd->eth.rx_unicast);
 	i40e_stat_update48(hw, I40E_GLPRT_MPRCH(hw->port),
 			   I40E_GLPRT_MPRCL(hw->port),
 			   pf->stat_offsets_loaded,
 			   &osd->eth.rx_multicast,
 			   &nsd->eth.rx_multicast);
+	i40e_stat_update48(hw, I40E_GLPRT_BPRCH(hw->port),
+			   I40E_GLPRT_BPRCL(hw->port),
+			   pf->stat_offsets_loaded,
+			   &osd->eth.rx_broadcast,
+			   &nsd->eth.rx_broadcast);
+	i40e_stat_update48(hw, I40E_GLPRT_UPTCH(hw->port),
+			   I40E_GLPRT_UPTCL(hw->port),
+			   pf->stat_offsets_loaded,
+			   &osd->eth.tx_unicast,
+			   &nsd->eth.tx_unicast);
+	i40e_stat_update48(hw, I40E_GLPRT_MPTCH(hw->port),
+			   I40E_GLPRT_MPTCL(hw->port),
+			   pf->stat_offsets_loaded,
+			   &osd->eth.tx_multicast,
+			   &nsd->eth.tx_multicast);
+	i40e_stat_update48(hw, I40E_GLPRT_BPTCH(hw->port),
+			   I40E_GLPRT_BPTCL(hw->port),
+			   pf->stat_offsets_loaded,
+			   &osd->eth.tx_broadcast,
+			   &nsd->eth.tx_broadcast);
 
 	i40e_stat_update32(hw, I40E_GLPRT_TDOLD(hw->port),
 			   pf->stat_offsets_loaded,
