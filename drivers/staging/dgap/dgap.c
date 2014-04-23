@@ -834,7 +834,7 @@ static int dgap_firmware_load(struct pci_dev *pdev, int card_type)
 			return ret;
 		}
 
-		dgap_config_buf = kmalloc(fw->size + 1, GFP_KERNEL);
+		dgap_config_buf = kzalloc(fw->size + 1, GFP_KERNEL);
 		if (!dgap_config_buf) {
 			release_firmware(fw);
 			return -ENOMEM;
@@ -842,7 +842,6 @@ static int dgap_firmware_load(struct pci_dev *pdev, int card_type)
 
 		memcpy(dgap_config_buf, fw->data, fw->size);
 		release_firmware(fw);
-		dgap_config_buf[fw->size + 1] = '\0';
 
 		if (dgap_parsefile(&dgap_config_buf, TRUE) != 0) {
 			kfree(dgap_config_buf);
