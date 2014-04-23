@@ -314,7 +314,6 @@ struct pci1710_private {
 	unsigned char act_chanlist_len;	/*  len of scanlist */
 	unsigned char act_chanlist_pos;	/*  actual position in MUX list */
 	unsigned char da_ranges;	/*  copy of D/A outpit range register */
-	unsigned int ai_scans;	/*  len of scanlist */
 	unsigned int ai_data_len;	/*  len of data buffer */
 	unsigned short ao_data[4];	/*  data output buffer */
 	unsigned int cnt0_write_wait;	/* after a write, wait for update of the
@@ -801,7 +800,7 @@ static void interrupt_pci1710_every_sample(void *d)
 		if (s->async->cur_chan == 0) {	/*  one scan done */
 			devpriv->ai_act_scan++;
 			if ((!devpriv->neverending_ai) &&
-			    (devpriv->ai_act_scan >= devpriv->ai_scans)) {
+			    (devpriv->ai_act_scan >= cmd->stop_arg)) {
 				/*  all data sampled */
 				s->async->events |= COMEDI_CB_EOA;
 				cfc_handle_events(dev, s);
@@ -870,6 +869,7 @@ static void interrupt_pci1710_half_fifo(void *d)
 	const struct boardtype *this_board = comedi_board(dev);
 	struct pci1710_private *devpriv = dev->private;
 	struct comedi_subdevice *s = dev->read_subdev;
+	struct comedi_cmd *cmd = &s->async->cmd;
 	int m, samplesinbuf;
 
 	m = inw(dev->iobase + PCI171x_STATUS);
@@ -901,8 +901,8 @@ static void interrupt_pci1710_half_fifo(void *d)
 	}
 
 	if (!devpriv->neverending_ai)
-		if (devpriv->ai_act_scan >= devpriv->ai_scans) { /* all data
-								    sampled */
+		if (devpriv->ai_act_scan >= cmd->stop_arg) {
+			/* all data sampled */
 			s->async->events |= COMEDI_CB_EOA;
 			cfc_handle_events(dev, s);
 			return;
@@ -985,7 +985,7 @@ static int pci171x_ai_docmd_and_mode(int mode, struct comedi_device *dev,
 		devpriv->ai_eos = 0;
 	}
 
-	if ((devpriv->ai_scans == 0) || (devpriv->ai_scans == -1))
+	if (cmd->stop_arg == 0)
 		devpriv->neverending_ai = 1;
 	/* well, user want neverending */
 	else
@@ -1118,12 +1118,6 @@ static int pci171x_ai_cmd(struct comedi_device *dev, struct comedi_subdevice *s)
 	struct comedi_cmd *cmd = &s->async->cmd;
 
 	devpriv->ai_data_len = s->async->prealloc_bufsz;
-
-	if (cmd->stop_src == TRIG_COUNT)
-		devpriv->ai_scans = cmd->stop_arg;
-	else
-		devpriv->ai_scans = 0;
-
 
 	if (cmd->scan_begin_src == TRIG_FOLLOW) {	/*  mode 1, 2, 3 */
 		if (cmd->convert_src == TRIG_TIMER) {	/*  mode 1 and 2 */
