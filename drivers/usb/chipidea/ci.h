@@ -141,6 +141,7 @@ struct hw_bank {
  * @role: current role
  * @is_otg: if the device is otg-capable
  * @fsm: otg finite state machine
+ * @fsm_timer: pointer to timer list of otg fsm
  * @work: work for role changing
  * @wq: workqueue thread
  * @qh_pool: allocation pool for queue heads
@@ -177,6 +178,7 @@ struct ci_hdrc {
 	enum ci_role			role;
 	bool				is_otg;
 	struct otg_fsm			fsm;
+	struct ci_otg_fsm_timer_list	*fsm_timer;
 	struct work_struct		work;
 	struct workqueue_struct		*wq;
 
