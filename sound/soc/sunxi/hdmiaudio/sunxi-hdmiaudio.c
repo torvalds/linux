@@ -47,14 +47,6 @@ static struct sunxi_dma_params sunxi_hdmiaudio_pcm_stereo_out = {
 	.dma_addr 	=	0,
 };
 
-static struct sunxi_dma_params sunxi_hdmiaudio_pcm_stereo_in = {
-	.client.name	=	"HDMIAUDIO PCM Stereo in",
-#if defined CONFIG_ARCH_SUN4I || defined CONFIG_ARCH_SUN5I
-	.channel	=	DMACH_HDMIAUDIO,
-#endif
-	.dma_addr 	=	SUNXI_HDMIAUDIOBASE + SUNXI_HDMIAUDIORXFIFO,
-};
-
 struct sunxi_hdmiaudio_info sunxi_hdmiaudio;
 
 //clock handle
@@ -145,52 +137,8 @@ void sunxi_snd_txctrl_hdmiaudio(struct snd_pcm_substream *substream, int on)
 	}
 }
 
-void sunxi_snd_rxctrl_hdmiaudio(struct snd_pcm_substream *substream, int on)
-{
-	u32 reg_val;
-
-	//flush RX FIFO
-	reg_val = readl(sunxi_hdmiaudio.regs + SUNXI_HDMIAUDIOFCTL);
-	reg_val |= SUNXI_HDMIAUDIOFCTL_FRX;
-	writel(reg_val, sunxi_hdmiaudio.regs + SUNXI_HDMIAUDIOFCTL);
-
-	//clear RX counter
-	writel(0, sunxi_hdmiaudio.regs + SUNXI_HDMIAUDIORXCNT);
-
-	if (on) {
-		/* HDMIAUDIO RX ENABLE */
-		reg_val = readl(sunxi_hdmiaudio.regs + SUNXI_HDMIAUDIOCTL);
-		reg_val |= SUNXI_HDMIAUDIOCTL_RXEN;
-		writel(reg_val, sunxi_hdmiaudio.regs + SUNXI_HDMIAUDIOCTL);
-
-		/* enable DMA DRQ mode for record */
-		reg_val = readl(sunxi_hdmiaudio.regs + SUNXI_HDMIAUDIOINT);
-		reg_val |= SUNXI_HDMIAUDIOINT_RXDRQEN;
-		writel(reg_val, sunxi_hdmiaudio.regs + SUNXI_HDMIAUDIOINT);
-
-		//Global Enable Digital Audio Interface
-		reg_val = readl(sunxi_hdmiaudio.regs + SUNXI_HDMIAUDIOCTL);
-		reg_val |= SUNXI_HDMIAUDIOCTL_GEN;
-		writel(reg_val, sunxi_hdmiaudio.regs + SUNXI_HDMIAUDIOCTL);
-	} else {
-		/* HDMIAUDIO RX DISABLE */
-		reg_val = readl(sunxi_hdmiaudio.regs + SUNXI_HDMIAUDIOCTL);
-		reg_val &= ~SUNXI_HDMIAUDIOCTL_RXEN;
-		writel(reg_val, sunxi_hdmiaudio.regs + SUNXI_HDMIAUDIOCTL);
-
-		/* DISBALE dma DRQ mode */
-		reg_val = readl(sunxi_hdmiaudio.regs + SUNXI_HDMIAUDIOINT);
-		reg_val &= ~SUNXI_HDMIAUDIOINT_RXDRQEN;
-		writel(reg_val, sunxi_hdmiaudio.regs + SUNXI_HDMIAUDIOINT);
-
-		//Global disable Digital Audio Interface
-		reg_val = readl(sunxi_hdmiaudio.regs + SUNXI_HDMIAUDIOCTL);
-		reg_val &= ~SUNXI_HDMIAUDIOCTL_GEN;
-		writel(reg_val, sunxi_hdmiaudio.regs + SUNXI_HDMIAUDIOCTL);
-	}
-}
-
-static int sunxi_hdmiaudio_set_fmt(struct snd_soc_dai *cpu_dai, unsigned int fmt)
+static int sunxi_hdmiaudio_set_fmt(struct snd_soc_dai *cpu_dai,
+							unsigned int fmt)
 {
 	u32 reg_val;
 	u32 reg_val1;
@@ -326,7 +274,8 @@ static int sunxi_hdmiaudio_hw_params(struct snd_pcm_substream *substream,
 	if(substream->stream == SNDRV_PCM_STREAM_PLAYBACK)
 		dma_data = &sunxi_hdmiaudio_pcm_stereo_out;
 	else
-		dma_data = &sunxi_hdmiaudio_pcm_stereo_in;
+		printk("error:hdmiaudio can't support capture:%s,line:%d\n",
+							__func__, __LINE__);
 
 	snd_soc_dai_set_dma_data(rtd->cpu_dai, substream, dma_data);
 
@@ -345,28 +294,20 @@ static int sunxi_hdmiaudio_trigger(struct snd_pcm_substream *substream,
 		return 0; /* No rx / tx control, etc. on sun7i() */
 
 	switch (cmd) {
-		case SNDRV_PCM_TRIGGER_START:
-		case SNDRV_PCM_TRIGGER_RESUME:
-		case SNDRV_PCM_TRIGGER_PAUSE_RELEASE:
-			if (substream->stream == SNDRV_PCM_STREAM_CAPTURE) {
-				sunxi_snd_rxctrl_hdmiaudio(substream, 1);
-			} else {
-				sunxi_snd_txctrl_hdmiaudio(substream, 1);
-			}
-			sunxi_dma_started(dma_data);
-			break;
-		case SNDRV_PCM_TRIGGER_STOP:
-		case SNDRV_PCM_TRIGGER_SUSPEND:
-		case SNDRV_PCM_TRIGGER_PAUSE_PUSH:
-			if (substream->stream == SNDRV_PCM_STREAM_CAPTURE) {
-				sunxi_snd_rxctrl_hdmiaudio(substream, 0);
-			} else {
-			  sunxi_snd_txctrl_hdmiaudio(substream, 0);
-			}
-			break;
-		default:
-			ret = -EINVAL;
-			break;
+	case SNDRV_PCM_TRIGGER_START:
+	case SNDRV_PCM_TRIGGER_RESUME:
+	case SNDRV_PCM_TRIGGER_PAUSE_RELEASE:
+		sunxi_snd_txctrl_hdmiaudio(substream, 1);
+		sunxi_dma_started(dma_data);
+		break;
+	case SNDRV_PCM_TRIGGER_STOP:
+	case SNDRV_PCM_TRIGGER_SUSPEND:
+	case SNDRV_PCM_TRIGGER_PAUSE_PUSH:
+		sunxi_snd_txctrl_hdmiaudio(substream, 0);
+		break;
+	default:
+		ret = -EINVAL;
+		break;
 	}
 	return ret;
 }
@@ -553,12 +494,6 @@ static struct snd_soc_dai_driver sunxi_hdmiaudio_dai = {
 	.resume 	= sunxi_hdmiaudio_resume,
 	.remove 	= sunxi_hdmiaudio_dai_remove,
 	.playback = {
-		.channels_min = 1,
-		.channels_max = 2,
-		.rates = SUNXI_I2S_RATES,
-		.formats = SNDRV_PCM_FMTBIT_S16_LE | SNDRV_PCM_FMTBIT_S32_LE
-	},
-	.capture = {
 		.channels_min = 1,
 		.channels_max = 2,
 		.rates = SUNXI_I2S_RATES,
