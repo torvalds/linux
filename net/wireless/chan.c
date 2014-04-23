@@ -750,8 +750,24 @@ static bool cfg80211_go_permissive_chan(struct cfg80211_registered_device *rdev,
 		r1 = cfg80211_get_unii(chan->center_freq);
 		r2 = cfg80211_get_unii(other_chan->center_freq);
 
-		if (r1 != -EINVAL && r1 == r2)
+		if (r1 != -EINVAL && r1 == r2) {
+			/*
+			 * At some locations channels 149-165 are considered a
+			 * bundle, but at other locations, e.g., Indonesia,
+			 * channels 149-161 are considered a bundle while
+			 * channel 165 is left out and considered to be in a
+			 * different bundle. Thus, in case that there is a
+			 * station interface connected to an AP on channel 165,
+			 * it is assumed that channels 149-161 are allowed for
+			 * GO operations. However, having a station interface
+			 * connected to an AP on channels 149-161, does not
+			 * allow GO operation on channel 165.
+			 */
+			if (chan->center_freq == 5825 &&
+			    other_chan->center_freq != 5825)
+				continue;
 			return true;
+		}
 	}
 
 	return false;
