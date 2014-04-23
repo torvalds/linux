@@ -68,29 +68,22 @@ static inline int atomic_##op##_return(int i, atomic_t *v)		\
 
 ATOMIC_OPS(add, +=)
 ATOMIC_OPS(sub, -=)
+ATOMIC_OP(and, &=)
+ATOMIC_OP(or, |=)
+ATOMIC_OP(xor, ^=)
 
 #undef ATOMIC_OPS
 #undef ATOMIC_OP_RETURN
 #undef ATOMIC_OP
 
-static inline void atomic_clear_mask(unsigned int mask, atomic_t *v)
+static inline __deprecated void atomic_clear_mask(unsigned int mask, atomic_t *v)
 {
-	unsigned long flags;
-
-	__global_lock1(flags);
-	fence();
-	v->counter &= ~mask;
-	__global_unlock1(flags);
+	atomic_and(~mask, v);
 }
 
-static inline void atomic_set_mask(unsigned int mask, atomic_t *v)
+static inline __deprecated void atomic_set_mask(unsigned int mask, atomic_t *v)
 {
-	unsigned long flags;
-
-	__global_lock1(flags);
-	fence();
-	v->counter |= mask;
-	__global_unlock1(flags);
+	atomic_or(mask, v);
 }
 
 static inline int atomic_cmpxchg(atomic_t *v, int old, int new)
