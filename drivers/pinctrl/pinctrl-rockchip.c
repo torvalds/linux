@@ -740,13 +740,14 @@ static int rockchip_pinconf_get(struct pinctrl_dev *pctldev, unsigned int pin,
 	struct rockchip_pinctrl *info = pinctrl_dev_get_drvdata(pctldev);
 	struct rockchip_pin_bank *bank = pin_to_bank(info, pin);
 	enum pin_config_param param = pinconf_to_config_param(*config);
+	u16 arg;
 
 	switch (param) {
 	case PIN_CONFIG_BIAS_DISABLE:
 		if (rockchip_get_pull(bank, pin - bank->pin_base) != param)
 			return -EINVAL;
 
-		*config = 0;
+		arg = 0;
 		break;
 	case PIN_CONFIG_BIAS_PULL_UP:
 	case PIN_CONFIG_BIAS_PULL_DOWN:
@@ -758,12 +759,14 @@ static int rockchip_pinconf_get(struct pinctrl_dev *pctldev, unsigned int pin,
 		if (rockchip_get_pull(bank, pin - bank->pin_base) != param)
 			return -EINVAL;
 
-		*config = 1;
+		arg = 1;
 		break;
 	default:
 		return -ENOTSUPP;
 		break;
 	}
+
+	*config = pinconf_to_config_packed(param, arg);
 
 	return 0;
 }
