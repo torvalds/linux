@@ -529,7 +529,7 @@ static struct css_set *find_existing_css_set(struct css_set *old_cset,
 	 * won't change, so no need for locking.
 	 */
 	for_each_subsys(ss, i) {
-		if (root->cgrp.subsys_mask & (1UL << i)) {
+		if (root->subsys_mask & (1UL << i)) {
 			/* Subsystem is in this hierarchy. So we want
 			 * the subsystem state from the new
 			 * cgroup */
@@ -742,7 +742,7 @@ static void cgroup_destroy_root(struct cgroup_root *root)
 	BUG_ON(!list_empty(&cgrp->children));
 
 	/* Rebind all subsystems back to the default hierarchy */
-	rebind_subsystems(&cgrp_dfl_root, cgrp->subsys_mask);
+	rebind_subsystems(&cgrp_dfl_root, root->subsys_mask);
 
 	/*
 	 * Release all the links from cset_links to this hierarchy's
@@ -1050,8 +1050,11 @@ static int rebind_subsystems(struct cgroup_root *dst_root,
 		ss->root = dst_root;
 		css->cgroup = &dst_root->cgrp;
 
-		src_root->cgrp.subsys_mask &= ~(1 << ssid);
-		dst_root->cgrp.subsys_mask |= 1 << ssid;
+		src_root->subsys_mask &= ~(1 << ssid);
+		src_root->cgrp.child_subsys_mask &= ~(1 << ssid);
+
+		dst_root->subsys_mask |= 1 << ssid;
+		dst_root->cgrp.child_subsys_mask |= 1 << ssid;
 
 		if (ss->bind)
 			ss->bind(css);
@@ -1069,7 +1072,7 @@ static int cgroup_show_options(struct seq_file *seq,
 	int ssid;
 
 	for_each_subsys(ss, ssid)
-		if (root->cgrp.subsys_mask & (1 << ssid))
+		if (root->subsys_mask & (1 << ssid))
 			seq_printf(seq, ",%s", ss->name);
 	if (root->flags & CGRP_ROOT_SANE_BEHAVIOR)
 		seq_puts(seq, ",sane_behavior");
@@ -1273,12 +1276,12 @@ static int cgroup_remount(struct kernfs_root *kf_root, int *flags, char *data)
 	if (ret)
 		goto out_unlock;
 
-	if (opts.subsys_mask != root->cgrp.subsys_mask || opts.release_agent)
+	if (opts.subsys_mask != root->subsys_mask || opts.release_agent)
 		pr_warning("cgroup: option changes via remount are deprecated (pid=%d comm=%s)\n",
 			   task_tgid_nr(current), current->comm);
 
-	added_mask = opts.subsys_mask & ~root->cgrp.subsys_mask;
-	removed_mask = root->cgrp.subsys_mask & ~opts.subsys_mask;
+	added_mask = opts.subsys_mask & ~root->subsys_mask;
+	removed_mask = root->subsys_mask & ~opts.subsys_mask;
 
 	/* Don't allow flags or name to change at remount */
 	if (((opts.flags ^ root->flags) & CGRP_ROOT_OPTION_MASK) ||
@@ -1535,7 +1538,7 @@ retry:
 		 * subsystems) then they must match.
 		 */
 		if ((opts.subsys_mask || opts.none) &&
-		    (opts.subsys_mask != root->cgrp.subsys_mask)) {
+		    (opts.subsys_mask != root->subsys_mask)) {
 			if (!name_match)
 				continue;
 			ret = -EBUSY;
@@ -3658,8 +3661,6 @@ static int create_css(struct cgroup *cgrp, struct cgroup_subsys *ss)
 	cgroup_get(cgrp);
 	css_get(css->parent);
 
-	cgrp->subsys_mask |= 1 << ss->id;
-
 	if (ss->broken_hierarchy && !ss->warned_broken_hierarchy &&
 	    parent->parent) {
 		pr_warning("cgroup: %s (%d) created nested cgroup for controller \"%s\" which has incomplete hierarchy support. Nested cgroups may change behavior in the future.\n",
@@ -3780,12 +3781,14 @@ static long cgroup_create(struct cgroup *parent, const char *name,
 
 	/* let's create and online css's */
 	for_each_subsys(ss, ssid) {
-		if (root->cgrp.subsys_mask & (1 << ssid)) {
+		if (parent->child_subsys_mask & (1 << ssid)) {
 			err = create_css(cgrp, ss);
 			if (err)
 				goto err_destroy;
 		}
 	}
+
+	cgrp->child_subsys_mask = parent->child_subsys_mask;
 
 	kernfs_activate(kn);
 
@@ -3882,7 +3885,16 @@ static void css_killed_ref_fn(struct percpu_ref *ref)
 	queue_work(cgroup_destroy_wq, &css->destroy_work);
 }
 
-static void __kill_css(struct cgroup_subsys_state *css)
+/**
+ * kill_css - destroy a css
+ * @css: css to destroy
+ *
+ * This function initiates destruction of @css by removing cgroup interface
+ * files and putting its base reference.  ->css_offline() will be invoked
+ * asynchronously once css_tryget() is guaranteed to fail and when the
+ * reference count reaches zero, @css will be released.
+ */
+static void kill_css(struct cgroup_subsys_state *css)
 {
 	lockdep_assert_held(&cgroup_tree_mutex);
 
@@ -3909,28 +3921,6 @@ static void __kill_css(struct cgroup_subsys_state *css)
 	 * css is confirmed to be seen as killed on all CPUs.
 	 */
 	percpu_ref_kill_and_confirm(&css->refcnt, css_killed_ref_fn);
-}
-
-/**
- * kill_css - destroy a css
- * @css: css to destroy
- *
- * This function initiates destruction of @css by removing cgroup interface
- * files and putting its base reference.  ->css_offline() will be invoked
- * asynchronously once css_tryget() is guaranteed to fail and when the
- * reference count reaches zero, @css will be released.
- */
-static void kill_css(struct cgroup_subsys_state *css)
-{
-	struct cgroup *cgrp = css->cgroup;
-
-	lockdep_assert_held(&cgroup_tree_mutex);
-
-	/* if already killed, noop */
-	if (cgrp->subsys_mask & (1 << css->ss->id)) {
-		cgrp->subsys_mask &= ~(1 << css->ss->id);
-		__kill_css(css);
-	}
 }
 
 /**
@@ -4145,7 +4135,7 @@ static void __init cgroup_init_subsys(struct cgroup_subsys *ss)
 
 	BUG_ON(online_css(css));
 
-	cgrp_dfl_root.cgrp.subsys_mask |= 1 << ss->id;
+	cgrp_dfl_root.subsys_mask |= 1 << ss->id;
 
 	mutex_unlock(&cgroup_mutex);
 	mutex_unlock(&cgroup_tree_mutex);
@@ -4302,7 +4292,7 @@ int proc_cgroup_show(struct seq_file *m, void *v)
 
 		seq_printf(m, "%d:", root->hierarchy_id);
 		for_each_subsys(ss, ssid)
-			if (root->cgrp.subsys_mask & (1 << ssid))
+			if (root->subsys_mask & (1 << ssid))
 				seq_printf(m, "%s%s", count++ ? "," : "", ss->name);
 		if (strlen(root->name))
 			seq_printf(m, "%sname=%s", count ? "," : "",
