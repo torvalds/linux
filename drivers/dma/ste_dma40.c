@@ -2945,7 +2945,11 @@ static int dma40_suspend(struct device *dev)
 {
 	struct platform_device *pdev = to_platform_device(dev);
 	struct d40_base *base = platform_get_drvdata(pdev);
-	int ret = 0;
+	int ret;
+
+	ret = pm_runtime_force_suspend(dev);
+	if (ret)
+		return ret;
 
 	if (base->lcpa_regulator)
 		ret = regulator_disable(base->lcpa_regulator);
@@ -2958,10 +2962,13 @@ static int dma40_resume(struct device *dev)
 	struct d40_base *base = platform_get_drvdata(pdev);
 	int ret = 0;
 
-	if (base->lcpa_regulator)
+	if (base->lcpa_regulator) {
 		ret = regulator_enable(base->lcpa_regulator);
+		if (ret)
+			return ret;
+	}
 
-	return ret;
+	return pm_runtime_force_resume(dev);
 }
 #endif
 
