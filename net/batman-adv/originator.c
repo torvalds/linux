@@ -1079,7 +1079,8 @@ int batadv_orig_hardif_seq_print_text(struct seq_file *seq, void *offset)
 	bat_priv->bat_algo_ops->bat_orig_print(bat_priv, seq, hard_iface);
 
 out:
-	batadv_hardif_free_ref(hard_iface);
+	if (hard_iface)
+		batadv_hardif_free_ref(hard_iface);
 	return 0;
 }
 
