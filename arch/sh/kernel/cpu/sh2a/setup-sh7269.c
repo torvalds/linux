@@ -475,60 +475,17 @@ static struct platform_device cmt_device = {
 	.num_resources	= ARRAY_SIZE(cmt_resources),
 };
 
-static struct sh_timer_config mtu2_0_platform_data = {
-	.channel_offset = -0x80,
-	.timer_bit = 0,
-	.clockevent_rating = 200,
+static struct resource mtu2_resources[] = {
+	DEFINE_RES_MEM(0xfffe4000, 0x400),
+	DEFINE_RES_IRQ_NAMED(192, "tgi0a"),
+	DEFINE_RES_IRQ_NAMED(203, "tgi1a"),
 };
 
-static struct resource mtu2_0_resources[] = {
-	[0] = {
-		.start	= 0xfffe4300,
-		.end	= 0xfffe4326,
-		.flags	= IORESOURCE_MEM,
-	},
-	[1] = {
-		.start	= 192,
-		.flags	= IORESOURCE_IRQ,
-	},
-};
-
-static struct platform_device mtu2_0_device = {
-	.name		= "sh_mtu2",
-	.id		= 0,
-	.dev = {
-		.platform_data	= &mtu2_0_platform_data,
-	},
-	.resource	= mtu2_0_resources,
-	.num_resources	= ARRAY_SIZE(mtu2_0_resources),
-};
-
-static struct sh_timer_config mtu2_1_platform_data = {
-	.channel_offset = -0x100,
-	.timer_bit = 1,
-	.clockevent_rating = 200,
-};
-
-static struct resource mtu2_1_resources[] = {
-	[0] = {
-		.start	= 0xfffe4380,
-		.end	= 0xfffe4390,
-		.flags	= IORESOURCE_MEM,
-	},
-	[1] = {
-		.start	= 203,
-		.flags	= IORESOURCE_IRQ,
-	},
-};
-
-static struct platform_device mtu2_1_device = {
-	.name		= "sh_mtu2",
-	.id		= 1,
-	.dev = {
-		.platform_data	= &mtu2_1_platform_data,
-	},
-	.resource	= mtu2_1_resources,
-	.num_resources	= ARRAY_SIZE(mtu2_1_resources),
+static struct platform_device mtu2_device = {
+	.name		= "sh-mtu2",
+	.id		= -1,
+	.resource	= mtu2_resources,
+	.num_resources	= ARRAY_SIZE(mtu2_resources),
 };
 
 static struct resource rtc_resources[] = {
@@ -592,8 +549,7 @@ static struct platform_device *sh7269_devices[] __initdata = {
 	&scif6_device,
 	&scif7_device,
 	&cmt_device,
-	&mtu2_0_device,
-	&mtu2_1_device,
+	&mtu2_device,
 	&rtc_device,
 	&r8a66597_usb_host_device,
 };
@@ -620,8 +576,7 @@ static struct platform_device *sh7269_early_devices[] __initdata = {
 	&scif6_device,
 	&scif7_device,
 	&cmt_device,
-	&mtu2_0_device,
-	&mtu2_1_device,
+	&mtu2_device,
 };
 
 void __init plat_early_device_setup(void)
