@@ -94,6 +94,12 @@ static __inline__ int atomic_##op##_return(int i, atomic_t *v)		\
 ATOMIC_OPS(add)
 ATOMIC_OPS(sub)
 
+#define CONFIG_ARCH_HAS_ATOMIC_OR
+
+ATOMIC_OP(and)
+ATOMIC_OP(or)
+ATOMIC_OP(xor)
+
 #undef ATOMIC_OPS
 #undef ATOMIC_OP_RETURN
 #undef ATOMIC_OP
@@ -240,44 +246,14 @@ static __inline__ int __atomic_add_unless(atomic_t *v, int a, int u)
 }
 
 
-static __inline__ void atomic_clear_mask(unsigned long  mask, atomic_t *addr)
+static __inline__ __deprecated void atomic_clear_mask(unsigned int mask, atomic_t *v)
 {
-	unsigned long flags;
-	unsigned long tmp;
-
-	local_irq_save(flags);
-	__asm__ __volatile__ (
-		"# atomic_clear_mask		\n\t"
-		DCACHE_CLEAR("%0", "r5", "%1")
-		M32R_LOCK" %0, @%1;		\n\t"
-		"and	%0, %2;			\n\t"
-		M32R_UNLOCK" %0, @%1;		\n\t"
-		: "=&r" (tmp)
-		: "r" (addr), "r" (~mask)
-		: "memory"
-		__ATOMIC_CLOBBER
-	);
-	local_irq_restore(flags);
+	atomic_and(~mask, v);
 }
 
-static __inline__ void atomic_set_mask(unsigned long  mask, atomic_t *addr)
+static __inline__ __deprecated void atomic_set_mask(unsigned int mask, atomic_t *v)
 {
-	unsigned long flags;
-	unsigned long tmp;
-
-	local_irq_save(flags);
-	__asm__ __volatile__ (
-		"# atomic_set_mask		\n\t"
-		DCACHE_CLEAR("%0", "r5", "%1")
-		M32R_LOCK" %0, @%1;		\n\t"
-		"or	%0, %2;			\n\t"
-		M32R_UNLOCK" %0, @%1;		\n\t"
-		: "=&r" (tmp)
-		: "r" (addr), "r" (mask)
-		: "memory"
-		__ATOMIC_CLOBBER
-	);
-	local_irq_restore(flags);
+	atomic_or(mask, v);
 }
 
 #endif	/* _ASM_M32R_ATOMIC_H */
