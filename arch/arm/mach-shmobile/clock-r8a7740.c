@@ -583,7 +583,6 @@ static struct clk_lookup lookups[] = {
 	CLKDEV_DEV_ID("sh-sci.6",		&mstp_clks[MSTP230]),
 	CLKDEV_DEV_ID("e6cc0000.sci",		&mstp_clks[MSTP230]),
 
-	CLKDEV_DEV_ID("sh_cmt.10",		&mstp_clks[MSTP329]),
 	CLKDEV_DEV_ID("sh_fsi2",		&mstp_clks[MSTP328]),
 	CLKDEV_DEV_ID("fe1f0000.sound",		&mstp_clks[MSTP328]),
 	CLKDEV_DEV_ID("i2c-sh_mobile.1",	&mstp_clks[MSTP323]),
@@ -604,6 +603,7 @@ static struct clk_lookup lookups[] = {
 	CLKDEV_DEV_ID("e6870000.sd",		&mstp_clks[MSTP415]),
 
 	/* ICK */
+	CLKDEV_ICK_ID("fck",	"sh-cmt-48.1",		&mstp_clks[MSTP329]),
 	CLKDEV_ICK_ID("host",	"renesas_usbhs",	&mstp_clks[MSTP416]),
 	CLKDEV_ICK_ID("func",	"renesas_usbhs",	&mstp_clks[MSTP407]),
 	CLKDEV_ICK_ID("phy",	"renesas_usbhs",	&mstp_clks[MSTP406]),
