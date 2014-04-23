@@ -47,8 +47,6 @@ static const struct i40evf_stats i40evf_gstrings_stats[] = {
 	I40EVF_STAT("rx_multicast", current_stats.rx_multicast),
 	I40EVF_STAT("rx_broadcast", current_stats.rx_broadcast),
 	I40EVF_STAT("rx_discards", current_stats.rx_discards),
-	I40EVF_STAT("rx_errors", current_stats.rx_errors),
-	I40EVF_STAT("rx_missed", current_stats.rx_missed),
 	I40EVF_STAT("rx_unknown_protocol", current_stats.rx_unknown_protocol),
 	I40EVF_STAT("tx_bytes", current_stats.tx_bytes),
 	I40EVF_STAT("tx_unicast", current_stats.tx_unicast),

@@ -972,8 +972,6 @@ struct i40e_eth_stats {
 	u64 rx_multicast;		/* mprc */
 	u64 rx_broadcast;		/* bprc */
 	u64 rx_discards;		/* rdpc */
-	u64 rx_errors;			/* repc */
-	u64 rx_missed;			/* rmpc */
 	u64 rx_unknown_protocol;	/* rupp */
 	u64 tx_bytes;			/* gotc */
 	u64 tx_unicast;			/* uptc */

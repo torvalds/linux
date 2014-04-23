@@ -803,8 +803,6 @@ static void i40e_update_vsi_stats(struct i40e_vsi *vsi)
 
 	/* update netdev stats from eth stats */
 	i40e_update_eth_stats(vsi);
-	ons->rx_errors = oes->rx_errors;
-	ns->rx_errors = es->rx_errors;
 	ons->tx_errors = oes->tx_errors;
 	ns->tx_errors = es->tx_errors;
 	ons->multicast = oes->rx_multicast;

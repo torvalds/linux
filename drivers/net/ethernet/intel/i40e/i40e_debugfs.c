@@ -862,12 +862,11 @@ static void i40e_dbg_dump_eth_stats(struct i40e_pf *pf,
 		 "    rx_bytes = \t%lld \trx_unicast = \t\t%lld \trx_multicast = \t%lld\n",
 		estats->rx_bytes, estats->rx_unicast, estats->rx_multicast);
 	dev_info(&pf->pdev->dev,
-		 "    rx_broadcast = \t%lld \trx_discards = \t\t%lld \trx_errors = \t%lld\n",
-		 estats->rx_broadcast, estats->rx_discards, estats->rx_errors);
+		 "    rx_broadcast = \t%lld \trx_discards = \t\t%lld\n",
+		 estats->rx_broadcast, estats->rx_discards);
 	dev_info(&pf->pdev->dev,
-		 "    rx_missed = \t%lld \trx_unknown_protocol = \t%lld \ttx_bytes = \t%lld\n",
-		 estats->rx_missed, estats->rx_unknown_protocol,
-		 estats->tx_bytes);
+		 "    rx_unknown_protocol = \t%lld \ttx_bytes = \t%lld\n",
+		 estats->rx_unknown_protocol, estats->tx_bytes);
 	dev_info(&pf->pdev->dev,
 		 "    tx_unicast = \t%lld \ttx_multicast = \t\t%lld \ttx_broadcast = \t%lld\n",
 		 estats->tx_unicast, estats->tx_multicast, estats->tx_broadcast);
