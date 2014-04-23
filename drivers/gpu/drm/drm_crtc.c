@@ -1152,8 +1152,10 @@ void drm_plane_force_disable(struct drm_plane *plane)
 		return;
 
 	ret = plane->funcs->disable_plane(plane);
-	if (ret)
+	if (ret) {
 		DRM_ERROR("failed to disable plane with busy fb\n");
+		return;
+	}
 	/* disconnect the plane from the fb and crtc: */
 	__drm_framebuffer_unreference(old_fb);
 	plane->fb = NULL;
@@ -2117,9 +2119,13 @@ int drm_mode_setplane(struct drm_device *dev, void *data,
 	if (!plane_req->fb_id) {
 		drm_modeset_lock_all(dev);
 		old_fb = plane->fb;
-		plane->funcs->disable_plane(plane);
-		plane->crtc = NULL;
-		plane->fb = NULL;
+		ret = plane->funcs->disable_plane(plane);
+		if (!ret) {
+			plane->crtc = NULL;
+			plane->fb = NULL;
+		} else {
+			old_fb = NULL;
+		}
 		drm_modeset_unlock_all(dev);
 		goto out;
 	}
