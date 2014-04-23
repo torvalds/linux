@@ -947,16 +947,22 @@ static irqreturn_t interrupt_service_pci1710(int irq, void *d)
 	return IRQ_HANDLED;
 }
 
-/*
-==============================================================================
-*/
-static int pci171x_ai_docmd_and_mode(int mode, struct comedi_device *dev,
-				     struct comedi_subdevice *s)
+static int pci171x_ai_cmd(struct comedi_device *dev, struct comedi_subdevice *s)
 {
 	struct pci1710_private *devpriv = dev->private;
 	struct comedi_cmd *cmd = &s->async->cmd;
 	unsigned int divisor1 = 0, divisor2 = 0;
 	unsigned int seglen;
+	int mode;
+
+	if (cmd->convert_src == TRIG_TIMER) {
+		if (cmd->start_src == TRIG_EXT)
+			mode = 2;
+		else
+			mode = 1;
+	} else {	/* TRIG_EXT */
+		mode = 3;
+	}
 
 	start_pacer(dev, -1, 0, 0);	/*  stop pacer */
 
@@ -1106,25 +1112,6 @@ static int pci171x_ai_cmdtest(struct comedi_device *dev,
 	}
 
 	return 0;
-}
-
-/*
-==============================================================================
-*/
-static int pci171x_ai_cmd(struct comedi_device *dev, struct comedi_subdevice *s)
-{
-	struct comedi_cmd *cmd = &s->async->cmd;
-
-	if (cmd->convert_src == TRIG_TIMER) {	/*  mode 1 and 2 */
-		return pci171x_ai_docmd_and_mode(cmd->start_src ==
-						 TRIG_EXT ? 2 : 1, dev,
-						 s);
-	}
-	if (cmd->convert_src == TRIG_EXT) {	/*  mode 3 */
-		return pci171x_ai_docmd_and_mode(3, dev, s);
-	}
-
-	return -1;
 }
 
 /*
