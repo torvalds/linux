@@ -143,7 +143,6 @@ struct cx23885_tvnorm {
 struct cx23885_fh {
 	struct v4l2_fh		   fh;
 	struct cx23885_dev         *dev;
-	enum v4l2_buf_type         type;
 	u32                        resources;
 
 	/* video overlay */
