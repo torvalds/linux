@@ -1409,7 +1409,12 @@ static int gpiochip_irq_map(struct irq_domain *d, unsigned int irq,
 #else
 	irq_set_noprobe(irq);
 #endif
-	irq_set_irq_type(irq, chip->irq_default_type);
+	/*
+	 * No set-up of the hardware will happen if IRQ_TYPE_NONE
+	 * is passed as default type.
+	 */
+	if (chip->irq_default_type != IRQ_TYPE_NONE)
+		irq_set_irq_type(irq, chip->irq_default_type);
 
 	return 0;
 }
@@ -1490,7 +1495,8 @@ static void gpiochip_irqchip_remove(struct gpio_chip *gpiochip)
  * @first_irq: if not dynamically assigned, the base (first) IRQ to
  * allocate gpiochip irqs from
  * @handler: the irq handler to use (often a predefined irq core function)
- * @type: the default type for IRQs on this irqchip
+ * @type: the default type for IRQs on this irqchip, pass IRQ_TYPE_NONE
+ * to have the core avoid setting up any default type in the hardware.
  *
  * This function closely associates a certain irqchip with a certain
  * gpiochip, providing an irq domain to translate the local IRQs to
