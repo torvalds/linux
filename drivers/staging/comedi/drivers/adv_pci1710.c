@@ -317,7 +317,6 @@ struct pci1710_private {
 	unsigned int ai_scans;	/*  len of scanlist */
 	unsigned int ai_n_chan;	/*  how many channels is measured */
 	unsigned int *ai_chanlist;	/*  actaul chanlist */
-	unsigned int ai_flags;	/*  flaglist */
 	unsigned int ai_data_len;	/*  len of data buffer */
 	unsigned short ao_data[4];	/*  data output buffer */
 	unsigned int cnt0_write_wait;	/* after a write, wait for update of the
@@ -981,7 +980,7 @@ static int pci171x_ai_docmd_and_mode(int mode, struct comedi_device *dev,
 
 	devpriv->CntrlReg &= Control_CNT0;
 	/*  don't we want wake up every scan?  devpriv->ai_eos=1; */
-	if ((devpriv->ai_flags & TRIG_WAKE_EOS)) {
+	if (cmd->flags & TRIG_WAKE_EOS) {
 		devpriv->ai_eos = 1;
 	} else {
 		devpriv->CntrlReg |= Control_ONEFH;
@@ -1010,7 +1009,7 @@ static int pci171x_ai_docmd_and_mode(int mode, struct comedi_device *dev,
 		i8253_cascade_ns_to_timer(devpriv->i8254_osc_base,
 					  &divisor1, &divisor2,
 					  &cmd->convert_arg,
-					  devpriv->ai_flags);
+					  cmd->flags);
 		outw(devpriv->CntrlReg, dev->iobase + PCI171x_CONTROL);
 		if (mode != 2) {
 			/*  start pacer */
@@ -1122,7 +1121,6 @@ static int pci171x_ai_cmd(struct comedi_device *dev, struct comedi_subdevice *s)
 
 	devpriv->ai_n_chan = cmd->chanlist_len;
 	devpriv->ai_chanlist = cmd->chanlist;
-	devpriv->ai_flags = cmd->flags;
 	devpriv->ai_data_len = s->async->prealloc_bufsz;
 
 	if (cmd->stop_src == TRIG_COUNT)
