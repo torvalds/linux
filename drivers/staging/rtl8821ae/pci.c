@@ -2313,16 +2313,16 @@ int __devinit rtl_pci_probe(struct pci_dev *pdev,
 
 	/*shared mem start */
 	rtlpriv->io.pci_mem_start =
-			(unsigned long)pci_iomap(pdev,
+			pci_iomap(pdev,
 			rtlpriv->cfg->bar_id, pmem_len);
-	if (rtlpriv->io.pci_mem_start == 0) {
+	if (rtlpriv->io.pci_mem_start == NULL) {
 		RT_ASSERT(false, ("Can't map PCI mem\n"));
 		goto fail2;
 	}
 
 	RT_TRACE(COMP_INIT, DBG_DMESG,
 		 ("mem mapped space: start: 0x%08lx len:%08lx "
-		  "flags:%08lx, after map:0x%08lx\n",
+		  "flags:%08lx, after map:0x%p\n",
 		  pmem_start, pmem_len, pmem_flags,
 		  rtlpriv->io.pci_mem_start));
 
@@ -2415,8 +2415,8 @@ fail3:
 	rtl_deinit_core(hw);
 	ieee80211_free_hw(hw);
 
-	if (rtlpriv->io.pci_mem_start != 0)
-		pci_iounmap(pdev, (void *)rtlpriv->io.pci_mem_start);
+	if (rtlpriv->io.pci_mem_start != NULL)
+		pci_iounmap(pdev, rtlpriv->io.pci_mem_start);
 
 fail2:
 	pci_release_regions(pdev);
@@ -2478,8 +2478,8 @@ void rtl_pci_disconnect(struct pci_dev *pdev)
 		pci_disable_msi(rtlpci->pdev);
 
 	list_del(&rtlpriv->list);
-	if (rtlpriv->io.pci_mem_start != 0) {
-		pci_iounmap(pdev, (void *)rtlpriv->io.pci_mem_start);
+	if (rtlpriv->io.pci_mem_start != NULL) {
+		pci_iounmap(pdev, rtlpriv->io.pci_mem_start);
 		pci_release_regions(pdev);
 	}
 
