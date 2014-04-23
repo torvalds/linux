@@ -657,6 +657,37 @@ i40e_status i40e_get_mac_addr(struct i40e_hw *hw, u8 *mac_addr)
 }
 
 /**
+ * i40e_pre_tx_queue_cfg - pre tx queue configure
+ * @hw: pointer to the HW structure
+ * @queue: target pf queue index
+ * @enable: state change request
+ *
+ * Handles hw requirement to indicate intention to enable
+ * or disable target queue.
+ **/
+void i40e_pre_tx_queue_cfg(struct i40e_hw *hw, u32 queue, bool enable)
+{
+	u32 reg_val = rd32(hw, I40E_PFLAN_QALLOC);
+	u32 first_queue = (reg_val & I40E_PFLAN_QALLOC_FIRSTQ_MASK);
+	u32 abs_queue_idx = first_queue + queue;
+	u32 reg_block = 0;
+
+	if (abs_queue_idx >= 128)
+		reg_block = abs_queue_idx / 128;
+
+	reg_val = rd32(hw, I40E_GLLAN_TXPRE_QDIS(reg_block));
+	reg_val &= ~I40E_GLLAN_TXPRE_QDIS_QINDX_MASK;
+	reg_val |= (abs_queue_idx << I40E_GLLAN_TXPRE_QDIS_QINDX_SHIFT);
+
+	if (enable)
+		reg_val |= I40E_GLLAN_TXPRE_QDIS_CLEAR_QDIS_MASK;
+	else
+		reg_val |= I40E_GLLAN_TXPRE_QDIS_SET_QDIS_MASK;
+
+	wr32(hw, I40E_GLLAN_TXPRE_QDIS(reg_block), reg_val);
+}
+
+/**
  * i40e_get_media_type - Gets media type
  * @hw: pointer to the hardware structure
  **/

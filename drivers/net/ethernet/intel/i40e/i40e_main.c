@@ -3183,6 +3183,12 @@ static int i40e_vsi_control_tx(struct i40e_vsi *vsi, bool enable)
 
 	pf_q = vsi->base_queue;
 	for (i = 0; i < vsi->num_queue_pairs; i++, pf_q++) {
+
+		/* warn the TX unit of coming changes */
+		i40e_pre_tx_queue_cfg(&pf->hw, pf_q, enable);
+		if (!enable)
+			udelay(10);
+
 		for (j = 0; j < 50; j++) {
 			tx_reg = rd32(hw, I40E_QTX_ENA(pf_q));
 			if (((tx_reg >> I40E_QTX_ENA_QENA_REQ_SHIFT) & 1) ==
