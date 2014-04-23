@@ -432,7 +432,7 @@ static int buffer_setup(struct videobuf_queue *q, unsigned int *count,
 	unsigned int *size)
 {
 	struct cx23885_fh *fh = q->priv_data;
-	struct cx23885_dev *dev = fh->dev;
+	struct cx23885_dev *dev = fh->q_dev;
 
 	*size = (dev->fmt->depth * dev->width * dev->height) >> 3;
 	if (0 == *count)
@@ -446,7 +446,7 @@ static int buffer_prepare(struct videobuf_queue *q, struct videobuf_buffer *vb,
 	       enum v4l2_field field)
 {
 	struct cx23885_fh *fh  = q->priv_data;
-	struct cx23885_dev *dev = fh->dev;
+	struct cx23885_dev *dev = fh->q_dev;
 	struct cx23885_buffer *buf =
 		container_of(vb, struct cx23885_buffer, vb);
 	int rc, init_buffer = 0;
@@ -562,7 +562,7 @@ static void buffer_queue(struct videobuf_queue *vq, struct videobuf_buffer *vb)
 		struct cx23885_buffer, vb);
 	struct cx23885_buffer   *prev;
 	struct cx23885_fh       *fh   = vq->priv_data;
-	struct cx23885_dev      *dev  = fh->dev;
+	struct cx23885_dev      *dev  = fh->q_dev;
 	struct cx23885_dmaqueue *q    = &dev->vidq;
 
 	/* add jump to stopper */
@@ -670,7 +670,7 @@ static int video_open(struct file *file)
 
 	v4l2_fh_init(&fh->fh, vdev);
 	file->private_data = &fh->fh;
-	fh->dev      = dev;
+	fh->q_dev      = dev;
 
 	videobuf_queue_sg_init(&fh->vidq, &cx23885_video_qops,
 			    &dev->pci->dev, &dev->slock,
@@ -697,16 +697,17 @@ static ssize_t video_read(struct file *file, char __user *data,
 	size_t count, loff_t *ppos)
 {
 	struct video_device *vdev = video_devdata(file);
+	struct cx23885_dev *dev = video_drvdata(file);
 	struct cx23885_fh *fh = file->private_data;
 
 	switch (vdev->vfl_type) {
 	case VFL_TYPE_GRABBER:
-		if (res_locked(fh->dev, RESOURCE_VIDEO))
+		if (res_locked(dev, RESOURCE_VIDEO))
 			return -EBUSY;
 		return videobuf_read_one(&fh->vidq, data, count, ppos,
 					 file->f_flags & O_NONBLOCK);
 	case VFL_TYPE_VBI:
-		if (!res_get(fh->dev, fh, RESOURCE_VBI))
+		if (!res_get(dev, fh, RESOURCE_VBI))
 			return -EBUSY;
 		return videobuf_read_stream(&fh->vbiq, data, count, ppos, 1,
 					    file->f_flags & O_NONBLOCK);
@@ -719,6 +720,7 @@ static unsigned int video_poll(struct file *file,
 	struct poll_table_struct *wait)
 {
 	struct video_device *vdev = video_devdata(file);
+	struct cx23885_dev *dev = video_drvdata(file);
 	struct cx23885_fh *fh = file->private_data;
 	struct cx23885_buffer *buf;
 	unsigned long req_events = poll_requested_events(wait);
@@ -732,7 +734,7 @@ static unsigned int video_poll(struct file *file,
 		return rc;
 
 	if (vdev->vfl_type == VFL_TYPE_VBI) {
-		if (!res_get(fh->dev, fh, RESOURCE_VBI))
+		if (!res_get(dev, fh, RESOURCE_VBI))
 			return rc | POLLERR;
 		return rc | videobuf_poll_stream(file, &fh->vbiq, wait);
 	}
@@ -761,8 +763,8 @@ done:
 
 static int video_release(struct file *file)
 {
+	struct cx23885_dev *dev = video_drvdata(file);
 	struct cx23885_fh *fh = file->private_data;
-	struct cx23885_dev *dev = fh->dev;
 
 	/* turn off overlay */
 	if (res_check(fh, RESOURCE_OVERLAY)) {
@@ -816,8 +818,8 @@ static int video_mmap(struct file *file, struct vm_area_struct *vma)
 static int vidioc_g_fmt_vid_cap(struct file *file, void *priv,
 	struct v4l2_format *f)
 {
+	struct cx23885_dev *dev = video_drvdata(file);
 	struct cx23885_fh *fh   = priv;
-	struct cx23885_dev *dev = fh->dev;
 
 	f->fmt.pix.width        = dev->width;
 	f->fmt.pix.height       = dev->height;
@@ -835,7 +837,7 @@ static int vidioc_g_fmt_vid_cap(struct file *file, void *priv,
 static int vidioc_try_fmt_vid_cap(struct file *file, void *priv,
 	struct v4l2_format *f)
 {
-	struct cx23885_dev *dev = ((struct cx23885_fh *)priv)->dev;
+	struct cx23885_dev *dev = video_drvdata(file);
 	struct cx23885_fmt *fmt;
 	enum v4l2_field   field;
 	unsigned int      maxw, maxh;
@@ -881,8 +883,8 @@ static int vidioc_try_fmt_vid_cap(struct file *file, void *priv,
 static int vidioc_s_fmt_vid_cap(struct file *file, void *priv,
 	struct v4l2_format *f)
 {
+	struct cx23885_dev *dev = video_drvdata(file);
 	struct cx23885_fh *fh = priv;
-	struct cx23885_dev *dev  = fh->dev;
 	struct v4l2_mbus_framefmt mbus_fmt;
 	int err;
 
@@ -906,9 +908,8 @@ static int vidioc_s_fmt_vid_cap(struct file *file, void *priv,
 static int vidioc_querycap(struct file *file, void  *priv,
 	struct v4l2_capability *cap)
 {
+	struct cx23885_dev *dev = video_drvdata(file);
 	struct video_device *vdev = video_devdata(file);
-	struct cx23885_fh *fh = priv;
-	struct cx23885_dev *dev = fh->dev;
 
 	strcpy(cap->driver, "cx23885");
 	strlcpy(cap->card, cx23885_boards[dev->board].name,
@@ -967,9 +968,9 @@ static int vidioc_dqbuf(struct file *file, void *priv,
 static int vidioc_streamon(struct file *file, void *priv,
 	enum v4l2_buf_type i)
 {
+	struct cx23885_dev *dev = video_drvdata(file);
 	struct video_device *vdev = video_devdata(file);
 	struct cx23885_fh *fh = priv;
-	struct cx23885_dev *dev = fh->dev;
 	dprintk(1, "%s()\n", __func__);
 
 	if (vdev->vfl_type == VFL_TYPE_VBI &&
@@ -994,9 +995,9 @@ static int vidioc_streamon(struct file *file, void *priv,
 
 static int vidioc_streamoff(struct file *file, void *priv, enum v4l2_buf_type i)
 {
+	struct cx23885_dev *dev = video_drvdata(file);
 	struct video_device *vdev = video_devdata(file);
 	struct cx23885_fh *fh = priv;
-	struct cx23885_dev *dev = fh->dev;
 	int err, res;
 	dprintk(1, "%s()\n", __func__);
 
@@ -1017,7 +1018,7 @@ static int vidioc_streamoff(struct file *file, void *priv, enum v4l2_buf_type i)
 
 static int vidioc_g_std(struct file *file, void *priv, v4l2_std_id *id)
 {
-	struct cx23885_dev *dev = ((struct cx23885_fh *)priv)->dev;
+	struct cx23885_dev *dev = video_drvdata(file);
 	dprintk(1, "%s()\n", __func__);
 
 	*id = dev->tvnorm;
@@ -1026,7 +1027,7 @@ static int vidioc_g_std(struct file *file, void *priv, v4l2_std_id *id)
 
 static int vidioc_s_std(struct file *file, void *priv, v4l2_std_id tvnorms)
 {
-	struct cx23885_dev *dev = ((struct cx23885_fh *)priv)->dev;
+	struct cx23885_dev *dev = video_drvdata(file);
 	dprintk(1, "%s()\n", __func__);
 
 	cx23885_set_tvnorm(dev, tvnorms);
@@ -1086,14 +1087,14 @@ int cx23885_enum_input(struct cx23885_dev *dev, struct v4l2_input *i)
 static int vidioc_enum_input(struct file *file, void *priv,
 				struct v4l2_input *i)
 {
-	struct cx23885_dev *dev = ((struct cx23885_fh *)priv)->dev;
+	struct cx23885_dev *dev = video_drvdata(file);
 	dprintk(1, "%s()\n", __func__);
 	return cx23885_enum_input(dev, i);
 }
 
 int cx23885_get_input(struct file *file, void *priv, unsigned int *i)
 {
-	struct cx23885_dev *dev = ((struct cx23885_fh *)priv)->dev;
+	struct cx23885_dev *dev = video_drvdata(file);
 
 	*i = dev->input;
 	dprintk(1, "%s() returns %d\n", __func__, *i);
@@ -1107,7 +1108,7 @@ static int vidioc_g_input(struct file *file, void *priv, unsigned int *i)
 
 int cx23885_set_input(struct file *file, void *priv, unsigned int i)
 {
-	struct cx23885_dev *dev = ((struct cx23885_fh *)priv)->dev;
+	struct cx23885_dev *dev = video_drvdata(file);
 
 	dprintk(1, "%s(%d)\n", __func__, i);
 
@@ -1134,8 +1135,7 @@ static int vidioc_s_input(struct file *file, void *priv, unsigned int i)
 
 static int vidioc_log_status(struct file *file, void *priv)
 {
-	struct cx23885_fh  *fh  = priv;
-	struct cx23885_dev *dev = fh->dev;
+	struct cx23885_dev *dev = video_drvdata(file);
 
 	call_all(dev, core, log_status);
 	return 0;
@@ -1144,7 +1144,7 @@ static int vidioc_log_status(struct file *file, void *priv)
 static int cx23885_query_audinput(struct file *file, void *priv,
 	struct v4l2_audio *i)
 {
-	struct cx23885_dev *dev = ((struct cx23885_fh *)priv)->dev;
+	struct cx23885_dev *dev = video_drvdata(file);
 	static const char *iname[] = {
 		[0] = "Baseband L/R 1",
 		[1] = "Baseband L/R 2",
@@ -1174,7 +1174,7 @@ static int vidioc_enum_audinput(struct file *file, void *priv,
 static int vidioc_g_audinput(struct file *file, void *priv,
 	struct v4l2_audio *i)
 {
-	struct cx23885_dev *dev = ((struct cx23885_fh *)priv)->dev;
+	struct cx23885_dev *dev = video_drvdata(file);
 
 	if ((CX23885_VMUX_TELEVISION == INPUT(dev->input)->type) ||
 		(CX23885_VMUX_CABLE == INPUT(dev->input)->type))
@@ -1189,7 +1189,7 @@ static int vidioc_g_audinput(struct file *file, void *priv,
 static int vidioc_s_audinput(struct file *file, void *priv,
 	const struct v4l2_audio *i)
 {
-	struct cx23885_dev *dev = ((struct cx23885_fh *)priv)->dev;
+	struct cx23885_dev *dev = video_drvdata(file);
 
 	if ((CX23885_VMUX_TELEVISION == INPUT(dev->input)->type) ||
 		(CX23885_VMUX_CABLE == INPUT(dev->input)->type)) {
@@ -1211,7 +1211,7 @@ static int vidioc_s_audinput(struct file *file, void *priv,
 static int vidioc_g_tuner(struct file *file, void *priv,
 				struct v4l2_tuner *t)
 {
-	struct cx23885_dev *dev = ((struct cx23885_fh *)priv)->dev;
+	struct cx23885_dev *dev = video_drvdata(file);
 
 	if (dev->tuner_type == TUNER_ABSENT)
 		return -EINVAL;
@@ -1227,7 +1227,7 @@ static int vidioc_g_tuner(struct file *file, void *priv,
 static int vidioc_s_tuner(struct file *file, void *priv,
 				const struct v4l2_tuner *t)
 {
-	struct cx23885_dev *dev = ((struct cx23885_fh *)priv)->dev;
+	struct cx23885_dev *dev = video_drvdata(file);
 
 	if (dev->tuner_type == TUNER_ABSENT)
 		return -EINVAL;
@@ -1242,8 +1242,7 @@ static int vidioc_s_tuner(struct file *file, void *priv,
 static int vidioc_g_frequency(struct file *file, void *priv,
 				struct v4l2_frequency *f)
 {
-	struct cx23885_fh *fh = priv;
-	struct cx23885_dev *dev = fh->dev;
+	struct cx23885_dev *dev = video_drvdata(file);
 
 	if (dev->tuner_type == TUNER_ABSENT)
 		return -EINVAL;
@@ -1349,8 +1348,7 @@ static int cx23885_set_freq_via_ops(struct cx23885_dev *dev,
 int cx23885_set_frequency(struct file *file, void *priv,
 	const struct v4l2_frequency *f)
 {
-	struct cx23885_fh *fh = priv;
-	struct cx23885_dev *dev = fh->dev;
+	struct cx23885_dev *dev = video_drvdata(file);
 	int ret;
 
 	switch (dev->board) {

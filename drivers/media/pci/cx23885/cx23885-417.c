@@ -1147,10 +1147,10 @@ static int bb_buf_setup(struct videobuf_queue *q,
 {
 	struct cx23885_fh *fh = q->priv_data;
 
-	fh->dev->ts1.ts_packet_size  = mpeglinesize;
-	fh->dev->ts1.ts_packet_count = mpeglines;
+	fh->q_dev->ts1.ts_packet_size  = mpeglinesize;
+	fh->q_dev->ts1.ts_packet_count = mpeglines;
 
-	*size = fh->dev->ts1.ts_packet_size * fh->dev->ts1.ts_packet_count;
+	*size = fh->q_dev->ts1.ts_packet_size * fh->q_dev->ts1.ts_packet_count;
 	*count = mpegbufs;
 
 	return 0;
@@ -1160,7 +1160,7 @@ static int bb_buf_prepare(struct videobuf_queue *q,
 	struct videobuf_buffer *vb, enum v4l2_field field)
 {
 	struct cx23885_fh *fh = q->priv_data;
-	return cx23885_buf_prepare(q, &fh->dev->ts1,
+	return cx23885_buf_prepare(q, &fh->q_dev->ts1,
 		(struct cx23885_buffer *)vb,
 		field);
 }
@@ -1169,7 +1169,7 @@ static void bb_buf_queue(struct videobuf_queue *q,
 	struct videobuf_buffer *vb)
 {
 	struct cx23885_fh *fh = q->priv_data;
-	cx23885_buf_queue(&fh->dev->ts1, (struct cx23885_buffer *)vb);
+	cx23885_buf_queue(&fh->q_dev->ts1, (struct cx23885_buffer *)vb);
 }
 
 static void bb_buf_release(struct videobuf_queue *q,
@@ -1189,8 +1189,7 @@ static struct videobuf_queue_ops cx23885_qops = {
 
 static int vidioc_g_std(struct file *file, void *priv, v4l2_std_id *id)
 {
-	struct cx23885_fh  *fh  = file->private_data;
-	struct cx23885_dev *dev = fh->dev;
+	struct cx23885_dev *dev = video_drvdata(file);
 
 	*id = dev->tvnorm;
 	return 0;
@@ -1198,8 +1197,7 @@ static int vidioc_g_std(struct file *file, void *priv, v4l2_std_id *id)
 
 static int vidioc_s_std(struct file *file, void *priv, v4l2_std_id id)
 {
-	struct cx23885_fh  *fh  = file->private_data;
-	struct cx23885_dev *dev = fh->dev;
+	struct cx23885_dev *dev = video_drvdata(file);
 	unsigned int i;
 
 	for (i = 0; i < ARRAY_SIZE(cx23885_tvnorms); i++)
@@ -1218,7 +1216,7 @@ static int vidioc_s_std(struct file *file, void *priv, v4l2_std_id id)
 static int vidioc_enum_input(struct file *file, void *priv,
 	struct v4l2_input *i)
 {
-	struct cx23885_dev *dev = ((struct cx23885_fh *)priv)->dev;
+	struct cx23885_dev *dev = video_drvdata(file);
 	dprintk(1, "%s()\n", __func__);
 	return cx23885_enum_input(dev, i);
 }
@@ -1236,8 +1234,7 @@ static int vidioc_s_input(struct file *file, void *priv, unsigned int i)
 static int vidioc_g_tuner(struct file *file, void *priv,
 				struct v4l2_tuner *t)
 {
-	struct cx23885_fh  *fh  = file->private_data;
-	struct cx23885_dev *dev = fh->dev;
+	struct cx23885_dev *dev = video_drvdata(file);
 
 	if (dev->tuner_type == TUNER_ABSENT)
 		return -EINVAL;
@@ -1254,8 +1251,7 @@ static int vidioc_g_tuner(struct file *file, void *priv,
 static int vidioc_s_tuner(struct file *file, void *priv,
 				const struct v4l2_tuner *t)
 {
-	struct cx23885_fh  *fh  = file->private_data;
-	struct cx23885_dev *dev = fh->dev;
+	struct cx23885_dev *dev = video_drvdata(file);
 
 	if (dev->tuner_type == TUNER_ABSENT)
 		return -EINVAL;
@@ -1269,8 +1265,7 @@ static int vidioc_s_tuner(struct file *file, void *priv,
 static int vidioc_g_frequency(struct file *file, void *priv,
 				struct v4l2_frequency *f)
 {
-	struct cx23885_fh  *fh  = file->private_data;
-	struct cx23885_dev *dev = fh->dev;
+	struct cx23885_dev *dev = video_drvdata(file);
 
 	if (dev->tuner_type == TUNER_ABSENT)
 		return -EINVAL;
@@ -1291,8 +1286,7 @@ static int vidioc_s_frequency(struct file *file, void *priv,
 static int vidioc_querycap(struct file *file, void  *priv,
 				struct v4l2_capability *cap)
 {
-	struct cx23885_fh  *fh  = file->private_data;
-	struct cx23885_dev *dev = fh->dev;
+	struct cx23885_dev *dev = video_drvdata(file);
 	struct cx23885_tsport  *tsport = &dev->ts1;
 
 	strlcpy(cap->driver, dev->name, sizeof(cap->driver));
@@ -1325,8 +1319,8 @@ static int vidioc_enum_fmt_vid_cap(struct file *file, void  *priv,
 static int vidioc_g_fmt_vid_cap(struct file *file, void *priv,
 				struct v4l2_format *f)
 {
+	struct cx23885_dev *dev = video_drvdata(file);
 	struct cx23885_fh  *fh  = file->private_data;
-	struct cx23885_dev *dev = fh->dev;
 
 	f->fmt.pix.pixelformat  = V4L2_PIX_FMT_MPEG;
 	f->fmt.pix.bytesperline = 0;
@@ -1344,8 +1338,8 @@ static int vidioc_g_fmt_vid_cap(struct file *file, void *priv,
 static int vidioc_try_fmt_vid_cap(struct file *file, void *priv,
 				struct v4l2_format *f)
 {
+	struct cx23885_dev *dev = video_drvdata(file);
 	struct cx23885_fh  *fh  = file->private_data;
-	struct cx23885_dev *dev = fh->dev;
 
 	f->fmt.pix.pixelformat  = V4L2_PIX_FMT_MPEG;
 	f->fmt.pix.bytesperline = 0;
@@ -1360,8 +1354,7 @@ static int vidioc_try_fmt_vid_cap(struct file *file, void *priv,
 static int vidioc_s_fmt_vid_cap(struct file *file, void *priv,
 				struct v4l2_format *f)
 {
-	struct cx23885_fh  *fh  = file->private_data;
-	struct cx23885_dev *dev = fh->dev;
+	struct cx23885_dev *dev = video_drvdata(file);
 
 	f->fmt.pix.pixelformat  = V4L2_PIX_FMT_MPEG;
 	f->fmt.pix.bytesperline = 0;
@@ -1422,8 +1415,7 @@ static int vidioc_streamoff(struct file *file, void *priv, enum v4l2_buf_type i)
 
 static int vidioc_log_status(struct file *file, void *priv)
 {
-	struct cx23885_fh  *fh  = priv;
-	struct cx23885_dev *dev = fh->dev;
+	struct cx23885_dev *dev = video_drvdata(file);
 	char name[32 + 2];
 
 	snprintf(name, sizeof(name), "%s/2", dev->name);
@@ -1434,8 +1426,8 @@ static int vidioc_log_status(struct file *file, void *priv)
 
 static int mpeg_open(struct file *file)
 {
-	struct video_device *vdev = video_devdata(file);
 	struct cx23885_dev *dev = video_drvdata(file);
+	struct video_device *vdev = video_devdata(file);
 	struct cx23885_fh *fh;
 
 	dprintk(2, "%s()\n", __func__);
@@ -1447,7 +1439,7 @@ static int mpeg_open(struct file *file)
 
 	v4l2_fh_init(&fh->fh, vdev);
 	file->private_data = fh;
-	fh->dev      = dev;
+	fh->q_dev      = dev;
 
 	videobuf_queue_sg_init(&fh->mpegq, &cx23885_qops,
 			    &dev->pci->dev, &dev->ts1.slock,
@@ -1461,8 +1453,8 @@ static int mpeg_open(struct file *file)
 
 static int mpeg_release(struct file *file)
 {
+	struct cx23885_dev *dev = video_drvdata(file);
 	struct cx23885_fh  *fh  = file->private_data;
-	struct cx23885_dev *dev = fh->dev;
 
 	dprintk(2, "%s()\n", __func__);
 
@@ -1471,14 +1463,14 @@ static int mpeg_release(struct file *file)
 	if (atomic_cmpxchg(&fh->v4l_reading, 1, 0) == 1) {
 		if (atomic_dec_return(&dev->v4l_reader_count) == 0) {
 			/* stop mpeg capture */
-			cx23885_api_cmd(fh->dev, CX2341X_ENC_STOP_CAPTURE, 3, 0,
+			cx23885_api_cmd(dev, CX2341X_ENC_STOP_CAPTURE, 3, 0,
 				CX23885_END_NOW, CX23885_MPEG_CAPTURE,
 				CX23885_RAW_BITS_NONE);
 
 			msleep(500);
 			cx23885_417_check_encoder(dev);
 
-			cx23885_cancel_buffers(&fh->dev->ts1);
+			cx23885_cancel_buffers(&dev->ts1);
 		}
 	}
 
@@ -1499,8 +1491,8 @@ static int mpeg_release(struct file *file)
 static ssize_t mpeg_read(struct file *file, char __user *data,
 	size_t count, loff_t *ppos)
 {
+	struct cx23885_dev *dev = video_drvdata(file);
 	struct cx23885_fh *fh = file->private_data;
-	struct cx23885_dev *dev = fh->dev;
 
 	dprintk(2, "%s()\n", __func__);
 
@@ -1520,8 +1512,8 @@ static ssize_t mpeg_read(struct file *file, char __user *data,
 static unsigned int mpeg_poll(struct file *file,
 	struct poll_table_struct *wait)
 {
+	struct cx23885_dev *dev = video_drvdata(file);
 	struct cx23885_fh *fh = file->private_data;
-	struct cx23885_dev *dev = fh->dev;
 
 	dprintk(2, "%s\n", __func__);
 
@@ -1530,8 +1522,8 @@ static unsigned int mpeg_poll(struct file *file,
 
 static int mpeg_mmap(struct file *file, struct vm_area_struct *vma)
 {
+	struct cx23885_dev *dev = video_drvdata(file);
 	struct cx23885_fh *fh = file->private_data;
-	struct cx23885_dev *dev = fh->dev;
 
 	dprintk(2, "%s()\n", __func__);
 

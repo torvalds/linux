@@ -142,8 +142,8 @@ struct cx23885_tvnorm {
 
 struct cx23885_fh {
 	struct v4l2_fh		   fh;
-	struct cx23885_dev         *dev;
 	u32                        resources;
+	struct cx23885_dev         *q_dev;
 
 	/* vbi capture */
 	struct videobuf_queue      vidq;

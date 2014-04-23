@@ -50,8 +50,7 @@ MODULE_PARM_DESC(vbi_debug, "enable debug messages [vbi]");
 int cx23885_vbi_fmt(struct file *file, void *priv,
 	struct v4l2_format *f)
 {
-	struct cx23885_fh *fh = priv;
-	struct cx23885_dev *dev = fh->dev;
+	struct cx23885_dev *dev = video_drvdata(file);
 
 	if (dev->tvnorm & V4L2_STD_525_60) {
 		/* ntsc */
@@ -201,7 +200,7 @@ vbi_prepare(struct videobuf_queue *q, struct videobuf_buffer *vb,
 	    enum v4l2_field field)
 {
 	struct cx23885_fh *fh  = q->priv_data;
-	struct cx23885_dev *dev = fh->dev;
+	struct cx23885_dev *dev = fh->q_dev;
 	struct cx23885_buffer *buf = container_of(vb,
 		struct cx23885_buffer, vb);
 	struct videobuf_dmabuf *dma = videobuf_to_dma(&buf->vb);
@@ -242,7 +241,7 @@ vbi_queue(struct videobuf_queue *vq, struct videobuf_buffer *vb)
 		container_of(vb, struct cx23885_buffer, vb);
 	struct cx23885_buffer   *prev;
 	struct cx23885_fh       *fh   = vq->priv_data;
-	struct cx23885_dev      *dev  = fh->dev;
+	struct cx23885_dev      *dev  = fh->q_dev;
 	struct cx23885_dmaqueue *q    = &dev->vbiq;
 
 	/* add jump to stopper */
