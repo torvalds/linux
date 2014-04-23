@@ -773,12 +773,12 @@ static int dwc_otg_hcd_suspend(struct usb_hcd *hcd)
 		if(!pldata->get_status(USB_REMOTE_WAKEUP)){
 			if(pldata->phy_suspend)
 				pldata->phy_suspend(pldata, USB_PHY_SUSPEND);
+			udelay(3);
 			if (pldata->clock_enable)
 					pldata->clock_enable(pldata, 0);
 		}
 	}
 
-	udelay(3);
 
 	return 0;
 }
