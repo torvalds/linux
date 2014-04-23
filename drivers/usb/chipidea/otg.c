@@ -22,6 +22,7 @@
 #include "ci.h"
 #include "bits.h"
 #include "otg.h"
+#include "otg_fsm.h"
 
 /**
  * hw_read_otgsc returns otgsc register bits value.
@@ -115,6 +116,9 @@ int ci_hdrc_otg_init(struct ci_hdrc *ci)
 		dev_err(ci->dev, "can't create workqueue\n");
 		return -ENODEV;
 	}
+
+	if (ci_otg_is_fsm_mode(ci))
+		return ci_hdrc_otg_fsm_init(ci);
 
 	return 0;
 }
