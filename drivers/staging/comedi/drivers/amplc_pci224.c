@@ -901,9 +901,77 @@ pci224_ao_cmdtest(struct comedi_device *dev, struct comedi_subdevice *s,
 	return 0;
 }
 
-/*
- * 'do_cmd' function for AO subdevice.
- */
+static void pci224_ao_start_pacer(struct comedi_device *dev,
+				  struct comedi_subdevice *s)
+{
+	struct pci224_private *devpriv = dev->private;
+	struct comedi_cmd *cmd = &s->async->cmd;
+	unsigned int div1, div2, round;
+	unsigned int ns = cmd->scan_begin_arg;
+	int round_mode = cmd->flags & TRIG_ROUND_MASK;
+
+	/* Check whether to use a single timer. */
+	switch (round_mode) {
+	case TRIG_ROUND_NEAREST:
+	default:
+		round = I8254_OSC_BASE_10MHZ / 2;
+		break;
+	case TRIG_ROUND_DOWN:
+		round = 0;
+		break;
+	case TRIG_ROUND_UP:
+		round = I8254_OSC_BASE_10MHZ - 1;
+		break;
+	}
+	/* Be careful to avoid overflow! */
+	div2 = cmd->scan_begin_arg / I8254_OSC_BASE_10MHZ;
+	div2 += (round + cmd->scan_begin_arg % I8254_OSC_BASE_10MHZ) /
+		I8254_OSC_BASE_10MHZ;
+	if (div2 <= 0x10000) {
+		/* A single timer will suffice. */
+		if (div2 < 2)
+			div2 = 2;
+		div2 &= 0xffff;
+		div1 = 1;	/* Flag that single timer to be used. */
+	} else {
+		/* Use two timers. */
+		div1 = devpriv->cached_div1;
+		div2 = devpriv->cached_div2;
+		i8253_cascade_ns_to_timer(I8254_OSC_BASE_10MHZ,
+					 &div1, &div2,
+					 &ns, round_mode);
+	}
+
+	/*
+	 * The output of timer Z2-0 will be used as the scan trigger
+	 * source.
+	 */
+	/* Make sure Z2-0 is gated on.  */
+	outb(GAT_CONFIG(0, GAT_VCC),
+		devpriv->iobase1 + PCI224_ZGAT_SCE);
+	if (div1 == 1) {
+		/* Not cascading.  Z2-0 needs 10 MHz clock. */
+		outb(CLK_CONFIG(0, CLK_10MHZ),
+			devpriv->iobase1 + PCI224_ZCLK_SCE);
+	} else {
+		/* Cascading with Z2-2. */
+		/* Make sure Z2-2 is gated on.  */
+		outb(GAT_CONFIG(2, GAT_VCC),
+			devpriv->iobase1 + PCI224_ZGAT_SCE);
+		/* Z2-2 needs 10 MHz clock. */
+		outb(CLK_CONFIG(2, CLK_10MHZ),
+			devpriv->iobase1 + PCI224_ZCLK_SCE);
+		/* Load Z2-2 mode (2) and counter (div1). */
+		i8254_load(devpriv->iobase1 + PCI224_Z2_CT0, 0,
+				2, div1, 2);
+		/* Z2-0 is clocked from Z2-2's output. */
+		outb(CLK_CONFIG(0, CLK_OUTNM1),
+			devpriv->iobase1 + PCI224_ZCLK_SCE);
+	}
+	/* Load Z2-0 mode (2) and counter (div2). */
+	i8254_load(devpriv->iobase1 + PCI224_Z2_CT0, 0, 0, div2, 2);
+}
+
 static int pci224_ao_cmd(struct comedi_device *dev, struct comedi_subdevice *s)
 {
 	struct pci224_private *devpriv = dev->private;
@@ -959,72 +1027,8 @@ static int pci224_ao_cmd(struct comedi_device *dev, struct comedi_subdevice *s)
 	outw(devpriv->daccon | PCI224_DACCON_FIFORESET,
 	     dev->iobase + PCI224_DACCON);
 
-	if (cmd->scan_begin_src == TRIG_TIMER) {
-		unsigned int div1, div2, round;
-		unsigned int ns = cmd->scan_begin_arg;
-		int round_mode = cmd->flags & TRIG_ROUND_MASK;
-
-		/* Check whether to use a single timer. */
-		switch (round_mode) {
-		case TRIG_ROUND_NEAREST:
-		default:
-			round = I8254_OSC_BASE_10MHZ / 2;
-			break;
-		case TRIG_ROUND_DOWN:
-			round = 0;
-			break;
-		case TRIG_ROUND_UP:
-			round = I8254_OSC_BASE_10MHZ - 1;
-			break;
-		}
-		/* Be careful to avoid overflow! */
-		div2 = cmd->scan_begin_arg / I8254_OSC_BASE_10MHZ;
-		div2 += (round + cmd->scan_begin_arg % I8254_OSC_BASE_10MHZ) /
-			I8254_OSC_BASE_10MHZ;
-		if (div2 <= 0x10000) {
-			/* A single timer will suffice. */
-			if (div2 < 2)
-				div2 = 2;
-			div2 &= 0xffff;
-			div1 = 1;	/* Flag that single timer to be used. */
-		} else {
-			/* Use two timers. */
-			div1 = devpriv->cached_div1;
-			div2 = devpriv->cached_div2;
-			i8253_cascade_ns_to_timer(I8254_OSC_BASE_10MHZ,
-						  &div1, &div2,
-						  &ns, round_mode);
-		}
-
-		/*
-		 * The output of timer Z2-0 will be used as the scan trigger
-		 * source.
-		 */
-		/* Make sure Z2-0 is gated on.  */
-		outb(GAT_CONFIG(0, GAT_VCC),
-		     devpriv->iobase1 + PCI224_ZGAT_SCE);
-		if (div1 == 1) {
-			/* Not cascading.  Z2-0 needs 10 MHz clock. */
-			outb(CLK_CONFIG(0, CLK_10MHZ),
-			     devpriv->iobase1 + PCI224_ZCLK_SCE);
-		} else {
-			/* Cascading with Z2-2. */
-			/* Make sure Z2-2 is gated on.  */
-			outb(GAT_CONFIG(2, GAT_VCC),
-			     devpriv->iobase1 + PCI224_ZGAT_SCE);
-			/* Z2-2 needs 10 MHz clock. */
-			outb(CLK_CONFIG(2, CLK_10MHZ),
-			     devpriv->iobase1 + PCI224_ZCLK_SCE);
-			/* Load Z2-2 mode (2) and counter (div1). */
-			i8254_load(devpriv->iobase1 + PCI224_Z2_CT0, 0,
-				   2, div1, 2);
-			/* Z2-0 is clocked from Z2-2's output. */
-			outb(CLK_CONFIG(0, CLK_OUTNM1),
-			     devpriv->iobase1 + PCI224_ZCLK_SCE);
-		}
-		/* Load Z2-0 mode (2) and counter (div2). */
-		i8254_load(devpriv->iobase1 + PCI224_Z2_CT0, 0, 0, div2, 2);
-	}
+	if (cmd->scan_begin_src == TRIG_TIMER)
+		pci224_ao_start_pacer(dev, s);
 
 	/*
 	 * Sort out end of acquisition.
