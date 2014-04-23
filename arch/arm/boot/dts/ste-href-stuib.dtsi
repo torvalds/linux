@@ -77,6 +77,34 @@
 			};
 		};
 
+		/* Sensors mounted on this board variant */
+		i2c@80128000 {
+			lis331dl@1c {
+				/* Accelerometer */
+				compatible = "st,lis331dl-accel";
+				st,drdy-int-pin = <1>;
+				reg = <0x1c>;
+				vdd-supply = <&ab8500_ldo_aux1_reg>;
+				vddio-supply = <&db8500_vsmps2_reg>;
+				pinctrl-names = "default";
+				pinctrl-0 = <&accel_stuib_mode>;
+				interrupt-parent = <&gpio2>;
+				interrupts = <18 IRQ_TYPE_EDGE_RISING>,
+					     <19 IRQ_TYPE_EDGE_RISING>;
+			};
+			ak8974@0f {
+				/* Magnetometer */
+				compatible = "asahi-kasei,ak8974";
+				reg = <0x0f>;
+				vdd-supply = <&ab8500_ldo_aux1_reg>;
+				vddio-supply = <&db8500_vsmps2_reg>;
+				pinctrl-names = "default";
+				pinctrl-0 = <&magneto_stuib_mode>;
+				interrupt-parent = <&gpio1>;
+				interrupts = <0 IRQ_TYPE_EDGE_RISING>;
+			};
+		};
+
 		i2c@80110000 {
 			bu21013_tp@5c {
 				compatible = "rohm,bu21013_tp";
@@ -113,6 +141,28 @@
 					stuib_cfg {
 						pins = "GPIO145_C13";
 						ste,config = <&gpio_in_pu>;
+					};
+				};
+			};
+			accelerometer {
+				accel_stuib_mode: accel_stuib {
+					/* Accelerometer interrupt lines 1 & 2 */
+					stuib_cfg {
+						pins = "GPIO82_C1", "GPIO83_D3";
+						ste,config = <&gpio_in_pu>;
+					};
+				};
+			};
+			magnetometer {
+				magneto_stuib_mode: magneto_stuib {
+					/* Magnetometer uses GPIO 31 and 32, pull these up/down respectively */
+					stuib_cfg1 {
+						pins = "GPIO31_V3";
+						ste,config = <&gpio_in_pu>;
+					};
+					stuib_cfg2 {
+						pins = "GPIO32_V2";
+						ste,config = <&gpio_in_pd>;
 					};
 				};
 			};
