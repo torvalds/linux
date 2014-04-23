@@ -363,3 +363,4 @@ int otg_statemachine(struct otg_fsm *fsm)
 	VDBG("quit statemachine, changed = %d\n", state_changed);
 	return state_changed;
 }
+EXPORT_SYMBOL_GPL(otg_statemachine);
