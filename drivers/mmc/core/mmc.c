@@ -242,7 +242,7 @@ static void mmc_select_card_type(struct mmc_card *card)
 	struct mmc_host *host = card->host;
 	u8 card_type = card->ext_csd.raw_card_type & EXT_CSD_CARD_TYPE_MASK;
 	u32 caps = host->caps, caps2 = host->caps2;
-	unsigned int hs_max_dtr = 0;
+	unsigned int hs_max_dtr = 0, hs200_max_dtr = 0;
 	unsigned int avail_type = 0;
 
 	if (caps & MMC_CAP_MMC_HIGHSPEED &&
@@ -271,17 +271,18 @@ static void mmc_select_card_type(struct mmc_card *card)
 
 	if (caps2 & MMC_CAP2_HS200_1_8V_SDR &&
 	    card_type & EXT_CSD_CARD_TYPE_HS200_1_8V) {
-		hs_max_dtr = MMC_HS200_MAX_DTR;
+		hs200_max_dtr = MMC_HS200_MAX_DTR;
 		avail_type |= EXT_CSD_CARD_TYPE_HS200_1_8V;
 	}
 
 	if (caps2 & MMC_CAP2_HS200_1_2V_SDR &&
 	    card_type & EXT_CSD_CARD_TYPE_HS200_1_2V) {
-		hs_max_dtr = MMC_HS200_MAX_DTR;
+		hs200_max_dtr = MMC_HS200_MAX_DTR;
 		avail_type |= EXT_CSD_CARD_TYPE_HS200_1_2V;
 	}
 
 	card->ext_csd.hs_max_dtr = hs_max_dtr;
+	card->ext_csd.hs200_max_dtr = hs200_max_dtr;
 	card->mmc_avail_type = avail_type;
 }
 
@@ -825,37 +826,46 @@ static int mmc_select_powerclass(struct mmc_card *card)
 }
 
 /*
- * Selects the desired buswidth and switch to the HS200 mode
- * if bus width set without error
+ * Set the bus speed for the selected speed mode.
  */
-static int mmc_select_hs200(struct mmc_card *card)
+static void mmc_set_bus_speed(struct mmc_card *card)
 {
-	int idx, err = -EINVAL;
-	struct mmc_host *host;
+	unsigned int max_dtr = (unsigned int)-1;
+
+	if (mmc_card_hs200(card) && max_dtr > card->ext_csd.hs200_max_dtr)
+		max_dtr = card->ext_csd.hs200_max_dtr;
+	else if (mmc_card_hs(card) && max_dtr > card->ext_csd.hs_max_dtr)
+		max_dtr = card->ext_csd.hs_max_dtr;
+	else if (max_dtr > card->csd.max_dtr)
+		max_dtr = card->csd.max_dtr;
+
+	mmc_set_clock(card->host, max_dtr);
+}
+
+/*
+ * Select the bus width amoung 4-bit and 8-bit(SDR).
+ * If the bus width is changed successfully, return the selected width value.
+ * Zero is returned instead of error value if the wide width is not supported.
+ */
+static int mmc_select_bus_width(struct mmc_card *card)
+{
 	static unsigned ext_csd_bits[] = {
-		EXT_CSD_BUS_WIDTH_4,
 		EXT_CSD_BUS_WIDTH_8,
+		EXT_CSD_BUS_WIDTH_4,
 	};
 	static unsigned bus_widths[] = {
-		MMC_BUS_WIDTH_4,
 		MMC_BUS_WIDTH_8,
+		MMC_BUS_WIDTH_4,
 	};
+	struct mmc_host *host = card->host;
+	unsigned idx, bus_width = 0;
+	int err = 0;
 
-	BUG_ON(!card);
+	if ((card->csd.mmca_vsn < CSD_SPEC_VER_4) &&
+	    !(host->caps & (MMC_CAP_4_BIT_DATA | MMC_CAP_8_BIT_DATA)))
+		return 0;
 
-	host = card->host;
-
-	if (card->mmc_avail_type & EXT_CSD_CARD_TYPE_HS200_1_2V)
-		err = __mmc_set_signal_voltage(host, MMC_SIGNAL_VOLTAGE_120);
-
-	if (err && card->mmc_avail_type & EXT_CSD_CARD_TYPE_HS200_1_8V)
-		err = __mmc_set_signal_voltage(host, MMC_SIGNAL_VOLTAGE_180);
-
-	/* If fails try again during next card power cycle */
-	if (err)
-		goto err;
-
-	idx = (host->caps & MMC_CAP_8_BIT_DATA) ? 1 : 0;
+	idx = (host->caps & MMC_CAP_8_BIT_DATA) ? 0 : 1;
 
 	/*
 	 * Unlike SD, MMC cards dont have a configuration register to notify
@@ -863,8 +873,7 @@ static int mmc_select_hs200(struct mmc_card *card)
 	 * the supported bus width or compare the ext csd values of current
 	 * bus width and ext csd values of 1 bit mode read earlier.
 	 */
-	for (; idx >= 0; idx--) {
-
+	for (; idx < ARRAY_SIZE(bus_widths); idx++) {
 		/*
 		 * Host is capable of 8bit transfer, then switch
 		 * the device to work in 8bit transfer mode. If the
@@ -879,23 +888,198 @@ static int mmc_select_hs200(struct mmc_card *card)
 		if (err)
 			continue;
 
-		mmc_set_bus_width(card->host, bus_widths[idx]);
+		bus_width = bus_widths[idx];
+		mmc_set_bus_width(host, bus_width);
 
+		/*
+		 * If controller can't handle bus width test,
+		 * compare ext_csd previously read in 1 bit mode
+		 * against ext_csd at new bus width
+		 */
 		if (!(host->caps & MMC_CAP_BUS_WIDTH_TEST))
-			err = mmc_compare_ext_csds(card, bus_widths[idx]);
+			err = mmc_compare_ext_csds(card, bus_width);
 		else
-			err = mmc_bus_test(card, bus_widths[idx]);
-		if (!err)
+			err = mmc_bus_test(card, bus_width);
+
+		if (!err) {
+			err = bus_width;
 			break;
+		} else {
+			pr_warn("%s: switch to bus width %d failed\n",
+				mmc_hostname(host), ext_csd_bits[idx]);
+		}
 	}
 
-	/* switch to HS200 mode if bus width set successfully */
+	return err;
+}
+
+/*
+ * Switch to the high-speed mode
+ */
+static int mmc_select_hs(struct mmc_card *card)
+{
+	int err;
+
+	err = __mmc_switch(card, EXT_CSD_CMD_SET_NORMAL,
+			   EXT_CSD_HS_TIMING, EXT_CSD_TIMING_HS,
+			   card->ext_csd.generic_cmd6_time,
+			   true, true, true);
 	if (!err)
+		mmc_set_timing(card->host, MMC_TIMING_MMC_HS);
+
+	return err;
+}
+
+/*
+ * Activate wide bus and DDR if supported.
+ */
+static int mmc_select_hs_ddr(struct mmc_card *card)
+{
+	struct mmc_host *host = card->host;
+	u32 bus_width, ext_csd_bits;
+	int err = 0;
+
+	if (!(card->mmc_avail_type & EXT_CSD_CARD_TYPE_DDR_52))
+		return 0;
+
+	bus_width = host->ios.bus_width;
+	if (bus_width == MMC_BUS_WIDTH_1)
+		return 0;
+
+	ext_csd_bits = (bus_width == MMC_BUS_WIDTH_8) ?
+		EXT_CSD_DDR_BUS_WIDTH_8 : EXT_CSD_DDR_BUS_WIDTH_4;
+
+	err = mmc_switch(card, EXT_CSD_CMD_SET_NORMAL,
+			EXT_CSD_BUS_WIDTH,
+			ext_csd_bits,
+			card->ext_csd.generic_cmd6_time);
+	if (err) {
+		pr_warn("%s: switch to bus width %d ddr failed\n",
+			mmc_hostname(host), 1 << bus_width);
+		return err;
+	}
+
+	/*
+	 * eMMC cards can support 3.3V to 1.2V i/o (vccq)
+	 * signaling.
+	 *
+	 * EXT_CSD_CARD_TYPE_DDR_1_8V means 3.3V or 1.8V vccq.
+	 *
+	 * 1.8V vccq at 3.3V core voltage (vcc) is not required
+	 * in the JEDEC spec for DDR.
+	 *
+	 * Do not force change in vccq since we are obviously
+	 * working and no change to vccq is needed.
+	 *
+	 * WARNING: eMMC rules are NOT the same as SD DDR
+	 */
+	if (card->mmc_avail_type & EXT_CSD_CARD_TYPE_DDR_1_2V) {
+		err = __mmc_set_signal_voltage(host,
+				MMC_SIGNAL_VOLTAGE_120);
+		if (err)
+			return err;
+	}
+
+	mmc_set_timing(host, MMC_TIMING_MMC_DDR52);
+
+	return err;
+}
+
+/*
+ * For device supporting HS200 mode, the following sequence
+ * should be done before executing the tuning process.
+ * 1. set the desired bus width(4-bit or 8-bit, 1-bit is not supported)
+ * 2. switch to HS200 mode
+ * 3. set the clock to > 52Mhz and <=200MHz
+ */
+static int mmc_select_hs200(struct mmc_card *card)
+{
+	struct mmc_host *host = card->host;
+	int err = -EINVAL;
+
+	if (card->mmc_avail_type & EXT_CSD_CARD_TYPE_HS200_1_2V)
+		err = __mmc_set_signal_voltage(host, MMC_SIGNAL_VOLTAGE_120);
+
+	if (err && card->mmc_avail_type & EXT_CSD_CARD_TYPE_HS200_1_8V)
+		err = __mmc_set_signal_voltage(host, MMC_SIGNAL_VOLTAGE_180);
+
+	/* If fails try again during next card power cycle */
+	if (err)
+		goto err;
+
+	/*
+	 * Set the bus width(4 or 8) with host's support and
+	 * switch to HS200 mode if bus width is set successfully.
+	 */
+	err = mmc_select_bus_width(card);
+	if (!IS_ERR_VALUE(err)) {
 		err = __mmc_switch(card, EXT_CSD_CMD_SET_NORMAL,
-				EXT_CSD_HS_TIMING, 2,
-				card->ext_csd.generic_cmd6_time,
-				true, true, true);
+				   EXT_CSD_HS_TIMING, EXT_CSD_TIMING_HS200,
+				   card->ext_csd.generic_cmd6_time,
+				   true, true, true);
+		if (!err)
+			mmc_set_timing(host, MMC_TIMING_MMC_HS200);
+	}
 err:
+	return err;
+}
+
+/*
+ * Activate High Speed or HS200 mode if supported.
+ */
+static int mmc_select_timing(struct mmc_card *card)
+{
+	int err = 0;
+
+	if ((card->csd.mmca_vsn < CSD_SPEC_VER_4 &&
+	     card->ext_csd.hs_max_dtr == 0))
+		goto bus_speed;
+
+	if (card->mmc_avail_type & EXT_CSD_CARD_TYPE_HS200)
+		err = mmc_select_hs200(card);
+	else if (card->mmc_avail_type & EXT_CSD_CARD_TYPE_HS)
+		err = mmc_select_hs(card);
+
+	if (err && err != -EBADMSG)
+		return err;
+
+	if (err) {
+		pr_warn("%s: switch to %s failed\n",
+			mmc_card_hs(card) ? "high-speed" :
+			(mmc_card_hs200(card) ? "hs200" : ""),
+			mmc_hostname(card->host));
+		err = 0;
+	}
+
+bus_speed:
+	/*
+	 * Set the bus speed to the selected bus timing.
+	 * If timing is not selected, backward compatible is the default.
+	 */
+	mmc_set_bus_speed(card);
+	return err;
+}
+
+/*
+ * Execute tuning sequence to seek the proper bus operating
+ * conditions for HS200, which sends CMD21 to the device.
+ */
+static int mmc_hs200_tuning(struct mmc_card *card)
+{
+	struct mmc_host *host = card->host;
+	int err = 0;
+
+	if (host->ops->execute_tuning) {
+		mmc_host_clk_hold(host);
+		err = host->ops->execute_tuning(host,
+				MMC_SEND_TUNING_BLOCK_HS200);
+		mmc_host_clk_release(host);
+
+		if (err)
+			pr_warn("%s: tuning execution failed\n",
+				mmc_hostname(host));
+	}
+
 	return err;
 }
 
@@ -909,9 +1093,8 @@ static int mmc_init_card(struct mmc_host *host, u32 ocr,
 	struct mmc_card *oldcard)
 {
 	struct mmc_card *card;
-	int err, ddr = 0;
+	int err;
 	u32 cid[4];
-	unsigned int max_dtr;
 	u32 rocr;
 	u8 *ext_csd = NULL;
 
@@ -1103,173 +1286,23 @@ static int mmc_init_card(struct mmc_host *host, u32 ocr,
 	}
 
 	/*
-	 * Activate high speed (if supported)
+	 * Select timing interface
 	 */
-	if (card->ext_csd.hs_max_dtr != 0) {
-		err = 0;
-		if (card->mmc_avail_type & EXT_CSD_CARD_TYPE_HS200)
-			err = mmc_select_hs200(card);
-		else if	(card->mmc_avail_type & EXT_CSD_CARD_TYPE_HS)
-			err = __mmc_switch(card, EXT_CSD_CMD_SET_NORMAL,
-					EXT_CSD_HS_TIMING, 1,
-					card->ext_csd.generic_cmd6_time,
-					true, true, true);
+	err = mmc_select_timing(card);
+	if (err)
+		goto free_card;
 
-		if (err && err != -EBADMSG)
-			goto free_card;
-
-		if (err) {
-			pr_warning("%s: switch to highspeed failed\n",
-			       mmc_hostname(card->host));
-			err = 0;
-		} else {
-			if (card->mmc_avail_type & EXT_CSD_CARD_TYPE_HS200)
-				mmc_set_timing(card->host,
-					       MMC_TIMING_MMC_HS200);
-			else
-				mmc_set_timing(card->host, MMC_TIMING_MMC_HS);
-		}
-	}
-
-	/*
-	 * Compute bus speed.
-	 */
-	max_dtr = (unsigned int)-1;
-
-	if (mmc_card_hs(card) || mmc_card_hs200(card)) {
-		if (max_dtr > card->ext_csd.hs_max_dtr)
-			max_dtr = card->ext_csd.hs_max_dtr;
-		if (mmc_card_hs(card) && (max_dtr > 52000000))
-			max_dtr = 52000000;
-	} else if (max_dtr > card->csd.max_dtr) {
-		max_dtr = card->csd.max_dtr;
-	}
-
-	mmc_set_clock(host, max_dtr);
-
-	/*
-	 * Indicate DDR mode (if supported).
-	 */
-	if (mmc_card_hs(card))
-		ddr = card->mmc_avail_type & EXT_CSD_CARD_TYPE_DDR_52;
-
-	/*
-	 * Indicate HS200 SDR mode (if supported).
-	 */
 	if (mmc_card_hs200(card)) {
-		u32 ext_csd_bits;
-		u32 bus_width = card->host->ios.bus_width;
-
-		/*
-		 * For devices supporting HS200 mode, the bus width has
-		 * to be set before executing the tuning function. If
-		 * set before tuning, then device will respond with CRC
-		 * errors for responses on CMD line. So for HS200 the
-		 * sequence will be
-		 * 1. set bus width 4bit / 8 bit (1 bit not supported)
-		 * 2. switch to HS200 mode
-		 * 3. set the clock to > 52Mhz <=200MHz and
-		 * 4. execute tuning for HS200
-		 */
-		if (card->host->ops->execute_tuning) {
-			mmc_host_clk_hold(card->host);
-			err = card->host->ops->execute_tuning(card->host,
-				MMC_SEND_TUNING_BLOCK_HS200);
-			mmc_host_clk_release(card->host);
-		}
-		if (err) {
-			pr_warning("%s: tuning execution failed\n",
-				   mmc_hostname(card->host));
+		err = mmc_hs200_tuning(card);
+		if (err)
 			goto err;
-		}
-
-		ext_csd_bits = (bus_width == MMC_BUS_WIDTH_8) ?
-				EXT_CSD_BUS_WIDTH_8 : EXT_CSD_BUS_WIDTH_4;
-	}
-
-	/*
-	 * Activate wide bus and DDR (if supported).
-	 */
-	if (!mmc_card_hs200(card) &&
-	    (card->csd.mmca_vsn >= CSD_SPEC_VER_4) &&
-	    (host->caps & (MMC_CAP_4_BIT_DATA | MMC_CAP_8_BIT_DATA))) {
-		static unsigned ext_csd_bits[][2] = {
-			{ EXT_CSD_BUS_WIDTH_8, EXT_CSD_DDR_BUS_WIDTH_8 },
-			{ EXT_CSD_BUS_WIDTH_4, EXT_CSD_DDR_BUS_WIDTH_4 },
-			{ EXT_CSD_BUS_WIDTH_1, EXT_CSD_BUS_WIDTH_1 },
-		};
-		static unsigned bus_widths[] = {
-			MMC_BUS_WIDTH_8,
-			MMC_BUS_WIDTH_4,
-			MMC_BUS_WIDTH_1
-		};
-		unsigned idx, bus_width = 0;
-
-		if (host->caps & MMC_CAP_8_BIT_DATA)
-			idx = 0;
-		else
-			idx = 1;
-		for (; idx < ARRAY_SIZE(bus_widths); idx++) {
-			bus_width = bus_widths[idx];
-			if (bus_width == MMC_BUS_WIDTH_1)
-				ddr = 0; /* no DDR for 1-bit width */
-
-			err = mmc_switch(card, EXT_CSD_CMD_SET_NORMAL,
-					 EXT_CSD_BUS_WIDTH,
-					 ext_csd_bits[idx][0],
-					 card->ext_csd.generic_cmd6_time);
-			if (!err) {
-				mmc_set_bus_width(card->host, bus_width);
-
-				/*
-				 * If controller can't handle bus width test,
-				 * compare ext_csd previously read in 1 bit mode
-				 * against ext_csd at new bus width
-				 */
-				if (!(host->caps & MMC_CAP_BUS_WIDTH_TEST))
-					err = mmc_compare_ext_csds(card,
-						bus_width);
-				else
-					err = mmc_bus_test(card, bus_width);
-				if (!err)
-					break;
-			}
-		}
-
-		if (!err && ddr) {
-			err = mmc_switch(card, EXT_CSD_CMD_SET_NORMAL,
-					 EXT_CSD_BUS_WIDTH,
-					 ext_csd_bits[idx][1],
-					 card->ext_csd.generic_cmd6_time);
-		}
-		if (err) {
-			pr_warning("%s: switch to bus width %d ddr %d "
-				"failed\n", mmc_hostname(card->host),
-				1 << bus_width, ddr);
-			goto free_card;
-		} else if (ddr) {
-			/*
-			 * eMMC cards can support 3.3V to 1.2V i/o (vccq)
-			 * signaling.
-			 *
-			 * EXT_CSD_CARD_TYPE_DDR_1_8V means 3.3V or 1.8V vccq.
-			 *
-			 * 1.8V vccq at 3.3V core voltage (vcc) is not required
-			 * in the JEDEC spec for DDR.
-			 *
-			 * Do not force change in vccq since we are obviously
-			 * working and no change to vccq is needed.
-			 *
-			 * WARNING: eMMC rules are NOT the same as SD DDR
-			 */
-			if (ddr & EXT_CSD_CARD_TYPE_DDR_1_2V) {
-				err = __mmc_set_signal_voltage(host,
-					MMC_SIGNAL_VOLTAGE_120);
-				if (err)
-					goto err;
-			}
-			mmc_set_timing(card->host, MMC_TIMING_MMC_DDR52);
-			mmc_set_bus_width(card->host, bus_width);
+	} else if (mmc_card_hs(card)) {
+		/* Select the desired bus width optionally */
+		err = mmc_select_bus_width(card);
+		if (!IS_ERR_VALUE(err)) {
+			err = mmc_select_hs_ddr(card);
+			if (err)
+				goto err;
 		}
 	}
 
