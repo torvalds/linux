@@ -21,6 +21,26 @@
 #define MX25_USB_PHY_CTRL_OFFSET	0x08
 #define MX25_BM_EXTERNAL_VBUS_DIVIDER	BIT(23)
 
+#define MX25_EHCI_INTERFACE_SINGLE_UNI	(2 << 0)
+#define MX25_EHCI_INTERFACE_DIFF_UNI	(0 << 0)
+#define MX25_EHCI_INTERFACE_MASK	(0xf)
+
+#define MX25_OTG_SIC_SHIFT		29
+#define MX25_OTG_SIC_MASK		(0x3 << MX25_OTG_SIC_SHIFT)
+#define MX25_OTG_PM_BIT			BIT(24)
+#define MX25_OTG_PP_BIT			BIT(11)
+#define MX25_OTG_OCPOL_BIT		BIT(3)
+
+#define MX25_H1_SIC_SHIFT		21
+#define MX25_H1_SIC_MASK		(0x3 << MX25_H1_SIC_SHIFT)
+#define MX25_H1_PP_BIT			BIT(18)
+#define MX25_H1_PM_BIT			BIT(16)
+#define MX25_H1_IPPUE_UP_BIT		BIT(7)
+#define MX25_H1_IPPUE_DOWN_BIT		BIT(6)
+#define MX25_H1_TLL_BIT			BIT(5)
+#define MX25_H1_USBTE_BIT		BIT(4)
+#define MX25_H1_OCPOL_BIT		BIT(2)
+
 #define MX27_H1_PM_BIT			BIT(8)
 #define MX27_H2_PM_BIT			BIT(16)
 #define MX27_OTG_PM_BIT			BIT(24)
@@ -49,6 +69,39 @@ struct imx_usbmisc {
 };
 
 static struct imx_usbmisc *usbmisc;
+
+static int usbmisc_imx25_init(struct imx_usbmisc_data *data)
+{
+	unsigned long flags;
+	u32 val = 0;
+
+	if (data->index > 1)
+		return -EINVAL;
+
+	spin_lock_irqsave(&usbmisc->lock, flags);
+	switch (data->index) {
+	case 0:
+		val = readl(usbmisc->base);
+		val &= ~(MX25_OTG_SIC_MASK | MX25_OTG_PP_BIT);
+		val |= (MX25_EHCI_INTERFACE_DIFF_UNI & MX25_EHCI_INTERFACE_MASK) << MX25_OTG_SIC_SHIFT;
+		val |= (MX25_OTG_PM_BIT | MX25_OTG_OCPOL_BIT);
+		writel(val, usbmisc->base);
+		break;
+	case 1:
+		val = readl(usbmisc->base);
+		val &= ~(MX25_H1_SIC_MASK | MX25_H1_PP_BIT |  MX25_H1_IPPUE_UP_BIT);
+		val |= (MX25_EHCI_INTERFACE_SINGLE_UNI & MX25_EHCI_INTERFACE_MASK) << MX25_H1_SIC_SHIFT;
+		val |= (MX25_H1_PM_BIT | MX25_H1_OCPOL_BIT | MX25_H1_TLL_BIT |
+			MX25_H1_USBTE_BIT | MX25_H1_IPPUE_DOWN_BIT);
+
+		writel(val, usbmisc->base);
+
+		break;
+	}
+	spin_unlock_irqrestore(&usbmisc->lock, flags);
+
+	return 0;
+}
 
 static int usbmisc_imx25_post(struct imx_usbmisc_data *data)
 {
@@ -159,6 +212,7 @@ static int usbmisc_imx6q_init(struct imx_usbmisc_data *data)
 }
 
 static const struct usbmisc_ops imx25_usbmisc_ops = {
+	.init = usbmisc_imx25_init,
 	.post = usbmisc_imx25_post,
 };
 
@@ -197,6 +251,10 @@ EXPORT_SYMBOL_GPL(imx_usbmisc_init_post);
 static const struct of_device_id usbmisc_imx_dt_ids[] = {
 	{
 		.compatible = "fsl,imx25-usbmisc",
+		.data = &imx25_usbmisc_ops,
+	},
+	{
+		.compatible = "fsl,imx35-usbmisc",
 		.data = &imx25_usbmisc_ops,
 	},
 	{
