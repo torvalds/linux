@@ -363,7 +363,7 @@ static unsigned mmc_sdio_get_max_clock(struct mmc_card *card)
 {
 	unsigned max_dtr;
 
-	if (mmc_card_highspeed(card)) {
+	if (mmc_card_hs(card)) {
 		/*
 		 * The SDIO specification doesn't mention how
 		 * the CIS transfer speed register relates to
@@ -733,7 +733,6 @@ try_again:
 		mmc_set_clock(host, card->cis.max_dtr);
 
 		if (card->cccr.high_speed) {
-			mmc_card_set_highspeed(card);
 			mmc_set_timing(card->host, MMC_TIMING_SD_HS);
 		}
 
@@ -792,16 +791,13 @@ try_again:
 		err = mmc_sdio_init_uhs_card(card);
 		if (err)
 			goto remove;
-
-		/* Card is an ultra-high-speed card */
-		mmc_card_set_uhs(card);
 	} else {
 		/*
 		 * Switch to high-speed (if supported).
 		 */
 		err = sdio_enable_hs(card);
 		if (err > 0)
-			mmc_sd_go_highspeed(card);
+			mmc_set_timing(card->host, MMC_TIMING_SD_HS);
 		else if (err)
 			goto remove;
 
