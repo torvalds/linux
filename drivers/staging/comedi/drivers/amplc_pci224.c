@@ -467,16 +467,6 @@ pci224_ao_insn_read(struct comedi_device *dev, struct comedi_subdevice *s,
 }
 
 /*
- * Just a wrapper for the inline function 'i8253_cascade_ns_to_timer'.
- */
-static void
-pci224_cascade_ns_to_timer(int osc_base, unsigned int *d1, unsigned int *d2,
-			   unsigned int *nanosec, int round_mode)
-{
-	i8253_cascade_ns_to_timer(osc_base, d1, d2, nanosec, round_mode);
-}
-
-/*
  * Kills a command running on the AO subdevice.
  */
 static void pci224_ao_stop(struct comedi_device *dev,
@@ -886,10 +876,10 @@ pci224_ao_cmdtest(struct comedi_device *dev, struct comedi_subdevice *s,
 			/* Use two timers. */
 			div1 = devpriv->cached_div1;
 			div2 = devpriv->cached_div2;
-			pci224_cascade_ns_to_timer(I8254_OSC_BASE_10MHZ,
-						   &div1, &div2,
-						   &cmd->scan_begin_arg,
-						   round_mode);
+			i8253_cascade_ns_to_timer(I8254_OSC_BASE_10MHZ,
+						  &div1, &div2,
+						  &cmd->scan_begin_arg,
+						  round_mode);
 			devpriv->cached_div1 = div1;
 			devpriv->cached_div2 = div2;
 		}
@@ -1001,9 +991,9 @@ static int pci224_ao_cmd(struct comedi_device *dev, struct comedi_subdevice *s)
 			/* Use two timers. */
 			div1 = devpriv->cached_div1;
 			div2 = devpriv->cached_div2;
-			pci224_cascade_ns_to_timer(I8254_OSC_BASE_10MHZ,
-						   &div1, &div2,
-						   &ns, round_mode);
+			i8253_cascade_ns_to_timer(I8254_OSC_BASE_10MHZ,
+						  &div1, &div2,
+						  &ns, round_mode);
 		}
 
 		/*
