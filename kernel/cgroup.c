@@ -425,6 +425,8 @@ static unsigned long css_set_hash(struct cgroup_subsys_state *css[])
 static void put_css_set_locked(struct css_set *cset, bool taskexit)
 {
 	struct cgrp_cset_link *link, *tmp_link;
+	struct cgroup_subsys *ss;
+	int ssid;
 
 	lockdep_assert_held(&css_set_rwsem);
 
@@ -432,6 +434,8 @@ static void put_css_set_locked(struct css_set *cset, bool taskexit)
 		return;
 
 	/* This css_set is dead. unlink it and release cgroup refcounts */
+	for_each_subsys(ss, ssid)
+		list_del(&cset->e_cset_node[ssid]);
 	hash_del(&cset->hlist);
 	css_set_count--;
 
@@ -673,7 +677,9 @@ static struct css_set *find_css_set(struct css_set *old_cset,
 	struct css_set *cset;
 	struct list_head tmp_links;
 	struct cgrp_cset_link *link;
+	struct cgroup_subsys *ss;
 	unsigned long key;
+	int ssid;
 
 	lockdep_assert_held(&cgroup_mutex);
 
@@ -724,9 +730,13 @@ static struct css_set *find_css_set(struct css_set *old_cset,
 
 	css_set_count++;
 
-	/* Add this cgroup group to the hash table */
+	/* Add @cset to the hash table */
 	key = css_set_hash(cset->subsys);
 	hash_add(css_set_table, &cset->hlist, key);
+
+	for_each_subsys(ss, ssid)
+		list_add_tail(&cset->e_cset_node[ssid],
+			      &cset->subsys[ssid]->cgroup->e_csets[ssid]);
 
 	up_write(&css_set_rwsem);
 
@@ -1028,7 +1038,7 @@ static int rebind_subsystems(struct cgroup_root *dst_root,
 			     unsigned long ss_mask)
 {
 	struct cgroup_subsys *ss;
-	int ssid, ret;
+	int ssid, i, ret;
 
 	lockdep_assert_held(&cgroup_tree_mutex);
 	lockdep_assert_held(&cgroup_mutex);
@@ -1081,6 +1091,7 @@ static int rebind_subsystems(struct cgroup_root *dst_root,
 	for_each_subsys(ss, ssid) {
 		struct cgroup_root *src_root;
 		struct cgroup_subsys_state *css;
+		struct css_set *cset;
 
 		if (!(ss_mask & (1 << ssid)))
 			continue;
@@ -1094,6 +1105,12 @@ static int rebind_subsystems(struct cgroup_root *dst_root,
 		rcu_assign_pointer(dst_root->cgrp.subsys[ssid], css);
 		ss->root = dst_root;
 		css->cgroup = &dst_root->cgrp;
+
+		down_write(&css_set_rwsem);
+		hash_for_each(css_set_table, i, cset, hlist)
+			list_move_tail(&cset->e_cset_node[ss->id],
+				       &dst_root->cgrp.e_csets[ss->id]);
+		up_write(&css_set_rwsem);
 
 		src_root->subsys_mask &= ~(1 << ssid);
 		src_root->cgrp.child_subsys_mask &= ~(1 << ssid);
@@ -1417,6 +1434,9 @@ out_unlock:
 
 static void init_cgroup_housekeeping(struct cgroup *cgrp)
 {
+	struct cgroup_subsys *ss;
+	int ssid;
+
 	atomic_set(&cgrp->refcnt, 1);
 	INIT_LIST_HEAD(&cgrp->sibling);
 	INIT_LIST_HEAD(&cgrp->children);
@@ -1425,6 +1445,9 @@ static void init_cgroup_housekeeping(struct cgroup *cgrp)
 	INIT_LIST_HEAD(&cgrp->pidlists);
 	mutex_init(&cgrp->pidlist_mutex);
 	cgrp->dummy_css.cgroup = cgrp;
+
+	for_each_subsys(ss, ssid)
+		INIT_LIST_HEAD(&cgrp->e_csets[ssid]);
 }
 
 static void init_cgroup_root(struct cgroup_root *root,
@@ -4248,6 +4271,9 @@ int __init cgroup_init(void)
 	for_each_subsys(ss, ssid) {
 		if (!ss->early_init)
 			cgroup_init_subsys(ss);
+
+		list_add_tail(&init_css_set.e_cset_node[ssid],
+			      &cgrp_dfl_root.cgrp.e_csets[ssid]);
 
 		/*
 		 * cftype registration needs kmalloc and can't be done
