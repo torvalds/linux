@@ -199,11 +199,10 @@ static void ci_hdrc_enter_lpm(struct ci_hdrc *ci, bool enable)
 		hw_write(ci, reg, PORTSC_PHCD(ci->hw_bank.lpm),
 				0);
 		/* 
-		 * The controller needs at least 1ms to reflect
-		 * PHY's status, the PHY also needs some time (less
+		 * the PHY needs some time (less
 		 * than 1ms) to leave low power mode.
 		 */
-		usleep_range(1500, 2000);
+		usleep_range(1000, 1100);
 	}
 }
 
@@ -555,12 +554,8 @@ static void ci_get_otg_capable(struct ci_hdrc *ci)
 		ci->is_otg = (hw_read(ci, CAP_DCCPARAMS,
 				DCCPARAMS_DC | DCCPARAMS_HC)
 					== (DCCPARAMS_DC | DCCPARAMS_HC));
-	if (ci->is_otg) {
+	if (ci->is_otg)
 		dev_dbg(ci->dev, "It is OTG capable controller\n");
-		/* Disable and clear all OTG irq */
-		hw_write_otgsc(ci, OTGSC_INT_EN_BITS | OTGSC_INT_STATUS_BITS,
-							OTGSC_INT_STATUS_BITS);
-	}
 }
 
 static int ci_hdrc_probe(struct platform_device *pdev)
@@ -622,6 +617,13 @@ static int ci_hdrc_probe(struct platform_device *pdev)
 	if (ret) {
 		dev_err(dev, "unable to init phy: %d\n", ret);
 		return ret;
+	} else {
+		/* 
+		 * The delay to sync PHY's status, the maximum delay is
+		 * 2ms since the otgsc uses 1ms timer to debounce the
+		 * PHY's input
+		 */
+		usleep_range(2000, 2500);
 	}
 
 	ci->hw_bank.phys = res->start;
@@ -656,6 +658,9 @@ static int ci_hdrc_probe(struct platform_device *pdev)
 	}
 
 	if (ci->is_otg) {
+		/* Disable and clear all OTG irq */
+		hw_write_otgsc(ci, OTGSC_INT_EN_BITS | OTGSC_INT_STATUS_BITS,
+							OTGSC_INT_STATUS_BITS);
 		ret = ci_hdrc_otg_init(ci);
 		if (ret) {
 			dev_err(dev, "init otg fails, ret = %d\n", ret);
@@ -665,11 +670,6 @@ static int ci_hdrc_probe(struct platform_device *pdev)
 
 	if (ci->roles[CI_ROLE_HOST] && ci->roles[CI_ROLE_GADGET]) {
 		if (ci->is_otg) {
-			/*
-			 * ID pin needs 1ms debouce time,
-			 * we delay 2ms for safe.
-			 */
-			mdelay(2);
 			ci->role = ci_otg_role(ci);
 			/* Enable ID change irq */
 			hw_write_otgsc(ci, OTGSC_IDIE, OTGSC_IDIE);
