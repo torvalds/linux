@@ -746,6 +746,21 @@ static int em28xx_pctv_290e_set_lna(struct dvb_frontend *fe)
 #endif
 }
 
+static int em28xx_pctv_292e_set_lna(struct dvb_frontend *fe)
+{
+	struct dtv_frontend_properties *c = &fe->dtv_property_cache;
+	struct em28xx_i2c_bus *i2c_bus = fe->dvb->priv;
+	struct em28xx *dev = i2c_bus->dev;
+	u8 lna;
+
+	if (c->lna == 1)
+		lna = 0x01;
+	else
+		lna = 0x00;
+
+	return em28xx_write_reg_bits(dev, EM2874_R80_GPIO_P0_CTRL, lna, 0x01);
+}
+
 static int em28xx_mt352_terratec_xs_init(struct dvb_frontend *fe)
 {
 	/* Values extracted from a USB trace of the Terratec Windows driver */
@@ -1553,6 +1568,7 @@ static int em28xx_dvb_init(struct em28xx *dev)
 			}
 
 			dvb->i2c_client_tuner = client;
+			dvb->fe[0]->ops.set_lna = em28xx_pctv_292e_set_lna;
 		}
 		break;
 	default:
