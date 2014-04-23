@@ -58,13 +58,6 @@
 #define JOURNAL_WORK_ENTRY(h) (list_entry((h), struct reiserfs_journal_list, \
                                j_working_list))
 
-/* the number of mounted filesystems.  This is used to decide when to
-** start and kill the commit workqueue
-*/
-static int reiserfs_mounted_fs_count;
-
-static struct workqueue_struct *commit_wq;
-
 #define JOURNAL_TRANS_HALF 1018	/* must be correct to keep the desc and commit
 				   structs at 4k */
 #define BUFNR 64		/*read ahead */
@@ -1882,7 +1875,6 @@ static int do_journal_release(struct reiserfs_transaction_handle *th,
 		}
 	}
 
-	reiserfs_mounted_fs_count--;
 	/* wait for all commits to finish */
 	cancel_delayed_work(&SB_JOURNAL(sb)->j_work);
 
@@ -1893,12 +1885,7 @@ static int do_journal_release(struct reiserfs_transaction_handle *th,
 	reiserfs_write_unlock(sb);
 
 	cancel_delayed_work_sync(&REISERFS_SB(sb)->old_work);
-	flush_workqueue(commit_wq);
-
-	if (!reiserfs_mounted_fs_count) {
-		destroy_workqueue(commit_wq);
-		commit_wq = NULL;
-	}
+	flush_workqueue(REISERFS_SB(sb)->commit_wq);
 
 	free_journal_ram(sb);
 
@@ -2806,10 +2793,6 @@ int journal_init(struct super_block *sb, const char *j_dev_name,
 				 "Replay Failure, unable to mount");
 		goto free_and_return;
 	}
-
-	reiserfs_mounted_fs_count++;
-	if (reiserfs_mounted_fs_count <= 1)
-		commit_wq = alloc_workqueue("reiserfs", WQ_MEM_RECLAIM, 0);
 
 	INIT_DELAYED_WORK(&journal->j_work, flush_async_commits);
 	journal->j_work_sb = sb;
@@ -4134,7 +4117,8 @@ static int do_journal_end(struct reiserfs_transaction_handle *th,
 		flush_commit_list(sb, jl, 1);
 		flush_journal_list(sb, jl, 1);
 	} else if (!(jl->j_state & LIST_COMMIT_PENDING))
-		queue_delayed_work(commit_wq, &journal->j_work, HZ / 10);
+		queue_delayed_work(REISERFS_SB(sb)->commit_wq,
+				   &journal->j_work, HZ / 10);
 
 	/* if the next transaction has any chance of wrapping, flush
 	 ** transactions that might get overwritten.  If any journal lists are very

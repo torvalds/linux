@@ -559,6 +559,7 @@ static void reiserfs_put_super(struct super_block *s)
 
 	reiserfs_write_unlock(s);
 	mutex_destroy(&REISERFS_SB(s)->lock);
+	destroy_workqueue(REISERFS_SB(s)->commit_wq);
 	kfree(s->s_fs_info);
 	s->s_fs_info = NULL;
 }
@@ -1796,6 +1797,14 @@ static int reiserfs_fill_super(struct super_block *s, void *data, int silent)
 	mutex_init(&sbi->lock);
 	sbi->lock_depth = -1;
 
+	sbi->commit_wq = alloc_workqueue("reiserfs/%s", WQ_MEM_RECLAIM, 0,
+					 s->s_id);
+	if (!sbi->commit_wq) {
+		SWARN(silent, s, "", "Cannot allocate commit workqueue");
+		errval = -ENOMEM;
+		goto error_unlocked;
+	}
+
 	jdev_name = NULL;
 	if (reiserfs_parse_options
 	    (s, (char *)data, &(sbi->s_mount_opt), &blocks, &jdev_name,
@@ -2402,18 +2411,18 @@ static int __init init_reiserfs_fs(void)
 {
 	int ret;
 
-	if ((ret = init_inodecache())) {
+	ret = init_inodecache();
+	if (ret)
 		return ret;
-	}
 
 	reiserfs_proc_info_global_init();
 
 	ret = register_filesystem(&reiserfs_fs_type);
+	if (ret)
+		goto out;
 
-	if (ret == 0) {
-		return 0;
-	}
-
+	return 0;
+out:
 	reiserfs_proc_info_global_done();
 	destroy_inodecache();
 

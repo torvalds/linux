@@ -431,6 +431,8 @@ struct reiserfs_sb_info {
 	/* Depth of the lock, start from -1 like the bkl */
 	int lock_depth;
 
+	struct workqueue_struct *commit_wq;
+
 	/* Comment? -Hans */
 	void (*end_io_handler) (struct buffer_head *, int);
 	hashf_t s_hash_function;	/* pointer to function which is used
