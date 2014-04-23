@@ -315,7 +315,6 @@ struct pci1710_private {
 	unsigned char act_chanlist_pos;	/*  actual position in MUX list */
 	unsigned char da_ranges;	/*  copy of D/A outpit range register */
 	unsigned int ai_scans;	/*  len of scanlist */
-	unsigned int ai_n_chan;	/*  how many channels is measured */
 	unsigned int ai_data_len;	/*  len of data buffer */
 	unsigned short ao_data[4];	/*  data output buffer */
 	unsigned int cnt0_write_wait;	/* after a write, wait for update of the
@@ -746,6 +745,7 @@ static void interrupt_pci1710_every_sample(void *d)
 	struct comedi_device *dev = d;
 	struct pci1710_private *devpriv = dev->private;
 	struct comedi_subdevice *s = dev->read_subdev;
+	struct comedi_cmd *cmd = &s->async->cmd;
 	int m;
 #ifdef PCI171x_PARANOIDCHECK
 	const struct boardtype *this_board = comedi_board(dev);
@@ -794,7 +794,7 @@ static void interrupt_pci1710_every_sample(void *d)
 #endif
 		++s->async->cur_chan;
 
-		if (s->async->cur_chan >= devpriv->ai_n_chan)
+		if (s->async->cur_chan >= cmd->chanlist_len)
 			s->async->cur_chan = 0;
 
 
@@ -822,6 +822,7 @@ static int move_block_from_fifo(struct comedi_device *dev,
 				struct comedi_subdevice *s, int n, int turn)
 {
 	struct pci1710_private *devpriv = dev->private;
+	struct comedi_cmd *cmd = &s->async->cmd;
 	int i, j;
 #ifdef PCI171x_PARANOIDCHECK
 	const struct boardtype *this_board = comedi_board(dev);
@@ -851,7 +852,7 @@ static int move_block_from_fifo(struct comedi_device *dev,
 			       inw(dev->iobase + PCI171x_AD_DATA) & 0x0fff);
 #endif
 		j++;
-		if (j >= devpriv->ai_n_chan) {
+		if (j >= cmd->chanlist_len) {
 			j = 0;
 			devpriv->ai_act_scan++;
 		}
@@ -960,12 +961,10 @@ static int pci171x_ai_docmd_and_mode(int mode, struct comedi_device *dev,
 
 	start_pacer(dev, -1, 0, 0);	/*  stop pacer */
 
-	seglen = check_channel_list(dev, s, cmd->chanlist,
-				    devpriv->ai_n_chan);
+	seglen = check_channel_list(dev, s, cmd->chanlist, cmd->chanlist_len);
 	if (seglen < 1)
 		return -EINVAL;
-	setup_channel_list(dev, s, cmd->chanlist,
-			   devpriv->ai_n_chan, seglen);
+	setup_channel_list(dev, s, cmd->chanlist, cmd->chanlist_len, seglen);
 
 	outb(0, dev->iobase + PCI171x_CLRFIFO);
 	outb(0, dev->iobase + PCI171x_CLRINT);
@@ -1118,7 +1117,6 @@ static int pci171x_ai_cmd(struct comedi_device *dev, struct comedi_subdevice *s)
 	struct pci1710_private *devpriv = dev->private;
 	struct comedi_cmd *cmd = &s->async->cmd;
 
-	devpriv->ai_n_chan = cmd->chanlist_len;
 	devpriv->ai_data_len = s->async->prealloc_bufsz;
 
 	if (cmd->stop_src == TRIG_COUNT)
