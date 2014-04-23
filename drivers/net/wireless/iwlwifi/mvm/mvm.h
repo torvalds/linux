@@ -757,7 +757,7 @@ int iwl_mvm_rx_statistics(struct iwl_mvm *mvm,
 			  struct iwl_device_cmd *cmd);
 
 /* NVM */
-int iwl_nvm_init(struct iwl_mvm *mvm);
+int iwl_nvm_init(struct iwl_mvm *mvm, bool read_nvm_from_nic);
 int iwl_mvm_load_nvm_to_nic(struct iwl_mvm *mvm);
 
 int iwl_mvm_up(struct iwl_mvm *mvm);

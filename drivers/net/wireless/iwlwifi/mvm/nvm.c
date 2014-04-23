@@ -427,7 +427,7 @@ int iwl_mvm_load_nvm_to_nic(struct iwl_mvm *mvm)
 	return ret;
 }
 
-int iwl_nvm_init(struct iwl_mvm *mvm)
+int iwl_nvm_init(struct iwl_mvm *mvm, bool read_nvm_from_nic)
 {
 	int ret, i, section;
 	u8 *nvm_buffer, *temp;
@@ -443,7 +443,9 @@ int iwl_nvm_init(struct iwl_mvm *mvm)
 		ret = iwl_mvm_read_external_nvm(mvm);
 		if (ret)
 			return ret;
-	} else {
+	}
+
+	if (read_nvm_from_nic) {
 		/* list of NVM sections we are allowed/need to read */
 		if (mvm->trans->cfg->device_family != IWL_DEVICE_FAMILY_8000) {
 			nvm_to_read[0] = mvm->cfg->nvm_hw_section_num;

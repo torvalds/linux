@@ -467,12 +467,18 @@ iwl_op_mode_mvm_start(struct iwl_trans *trans, const struct iwl_cfg *cfg,
 	min_backoff = calc_min_backoff(trans, cfg);
 	iwl_mvm_tt_initialize(mvm, min_backoff);
 
+	if (WARN(cfg->no_power_up_nic_in_init && !iwlwifi_mod_params.nvm_file,
+		 "not allowing power-up and not having nvm_file\n"))
+		goto out_free;
+
 	/*
-	 * If the NVM exists in an external file,
-	 * there is no need to unnecessarily power up the NIC at driver load
+	 * Even if nvm exists in the nvm_file driver should read agin the nvm
+	 * from the nic because there might be entries that exist in the OTP
+	 * and not in the file.
+	 * for nics with no_power_up_nic_in_init: rely completley on nvm_file
 	 */
-	if (iwlwifi_mod_params.nvm_file) {
-		err = iwl_nvm_init(mvm);
+	if (cfg->no_power_up_nic_in_init && iwlwifi_mod_params.nvm_file) {
+		err = iwl_nvm_init(mvm, false);
 		if (err)
 			goto out_free;
 	} else {
@@ -519,7 +525,7 @@ iwl_op_mode_mvm_start(struct iwl_trans *trans, const struct iwl_cfg *cfg,
  out_free:
 	iwl_phy_db_free(mvm->phy_db);
 	kfree(mvm->scan_cmd);
-	if (!iwlwifi_mod_params.nvm_file)
+	if (!cfg->no_power_up_nic_in_init || !iwlwifi_mod_params.nvm_file)
 		iwl_trans_op_mode_leave(trans);
 	ieee80211_free_hw(mvm->hw);
 	return NULL;

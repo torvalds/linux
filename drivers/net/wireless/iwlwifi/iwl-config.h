@@ -274,6 +274,7 @@ struct iwl_cfg {
 	u8   nvm_hw_section_num;
 	bool lp_xtal_workaround;
 	const struct iwl_pwr_tx_backoff *pwr_tx_backoffs;
+	bool no_power_up_nic_in_init;
 };
 
 /*
