@@ -1219,13 +1219,7 @@ static int vidioc_log_status(struct file *file, void *priv)
 	struct cx23885_fh  *fh  = priv;
 	struct cx23885_dev *dev = fh->dev;
 
-	printk(KERN_INFO
-		"%s/0: ============  START LOG STATUS  ============\n",
-		dev->name);
 	call_all(dev, core, log_status);
-	printk(KERN_INFO
-		"%s/0: =============  END LOG STATUS  =============\n",
-		dev->name);
 	return 0;
 }
 

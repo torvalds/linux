@@ -439,7 +439,7 @@ struct cx23885_dev {
 
 	/* MPEG Encoder ONLY settings */
 	u32                        cx23417_mailbox;
-	struct cx2341x_mpeg_params mpeg_params;
+	struct cx2341x_handler     cxhdl;
 	struct video_device        *v4l_device;
 	atomic_t                   v4l_reader_count;
 	struct cx23885_tvnorm      encodernorm;
