@@ -182,7 +182,7 @@ int reiserfs_resize(struct super_block *s, unsigned long block_count_new)
 	info = SB_AP_BITMAP(s) + bmap_nr - 1;
 	bh = reiserfs_read_bitmap_block(s, bmap_nr - 1);
 	if (!bh) {
-		int jerr = journal_end(&th, s);
+		int jerr = journal_end(&th);
 		if (jerr)
 			return jerr;
 		return -EIO;
@@ -200,7 +200,7 @@ int reiserfs_resize(struct super_block *s, unsigned long block_count_new)
 	info = SB_AP_BITMAP(s) + bmap_nr_new - 1;
 	bh = reiserfs_read_bitmap_block(s, bmap_nr_new - 1);
 	if (!bh) {
-		int jerr = journal_end(&th, s);
+		int jerr = journal_end(&th);
 		if (jerr)
 			return jerr;
 		return -EIO;
@@ -225,5 +225,5 @@ int reiserfs_resize(struct super_block *s, unsigned long block_count_new)
 	journal_mark_dirty(&th, s, SB_BUFFER_WITH_SB(s));
 
 	SB_JOURNAL(s)->j_must_wait = 1;
-	return journal_end(&th, s);
+	return journal_end(&th);
 }

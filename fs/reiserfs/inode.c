@@ -72,7 +72,7 @@ void reiserfs_evict_inode(struct inode *inode)
 			reiserfs_write_lock_nested(inode->i_sb, depth);
 		}
 
-		if (journal_end(&th, inode->i_sb))
+		if (journal_end(&th))
 			goto out;
 
 		/*
@@ -264,7 +264,7 @@ static int restart_transaction(struct reiserfs_transaction_handle *th,
 		return 0;
 	}
 	reiserfs_update_sd(th, inode);
-	err = journal_end(th, s);
+	err = journal_end(th);
 	if (!err) {
 		err = journal_begin(th, s, JOURNAL_PER_BALANCE_CNT * 6);
 		if (!err)
@@ -1790,7 +1790,7 @@ int reiserfs_write_inode(struct inode *inode, struct writeback_control *wbc)
 		reiserfs_write_lock(inode->i_sb);
 		if (!journal_begin(&th, inode->i_sb, jbegin_count)) {
 			reiserfs_update_sd(&th, inode);
-			journal_end_sync(&th, inode->i_sb);
+			journal_end_sync(&th);
 		}
 		reiserfs_write_unlock(inode->i_sb);
 	}
@@ -2097,7 +2097,7 @@ int reiserfs_new_inode(struct reiserfs_transaction_handle *th,
 	if (retval) {
 		err = retval;
 		reiserfs_check_path(&path_to_key);
-		journal_end(th, th->t_super);
+		journal_end(th);
 		goto out_inserted_sd;
 	}
 
@@ -2108,7 +2108,7 @@ int reiserfs_new_inode(struct reiserfs_transaction_handle *th,
 		if (retval) {
 			err = retval;
 			reiserfs_check_path(&path_to_key);
-			journal_end(th, th->t_super);
+			journal_end(th);
 			goto out_inserted_sd;
 		}
 	} else if (inode->i_sb->s_flags & MS_POSIXACL) {
@@ -2125,7 +2125,7 @@ int reiserfs_new_inode(struct reiserfs_transaction_handle *th,
 		if (retval) {
 			err = retval;
 			reiserfs_check_path(&path_to_key);
-			retval = journal_end(th, th->t_super);
+			retval = journal_end(th);
 			if (retval)
 				err = retval;
 			goto out_inserted_sd;
@@ -2147,7 +2147,7 @@ int reiserfs_new_inode(struct reiserfs_transaction_handle *th,
 	reiserfs_write_lock_nested(inode->i_sb, depth);
 
       out_end_trans:
-	journal_end(th, th->t_super);
+	journal_end(th);
 	/*
 	 * Drop can be outside and it needs more credits so it's better
 	 * to have it outside
@@ -2317,7 +2317,7 @@ int reiserfs_truncate_file(struct inode *inode, int update_timestamps)
 		 */
 		add_save_link(&th, inode, 1);
 	err2 = reiserfs_do_truncate(&th, inode, page, update_timestamps);
-	error = journal_end(&th, inode->i_sb);
+	error = journal_end(&th);
 	if (error)
 		goto out;
 
@@ -2480,7 +2480,7 @@ static int map_block_for_writepage(struct inode *inode,
       out:
 	pathrelse(&path);
 	if (trans_running) {
-		int err = journal_end(&th, inode->i_sb);
+		int err = journal_end(&th);
 		if (err)
 			retval = err;
 		trans_running = 0;
@@ -2650,7 +2650,7 @@ static int reiserfs_write_full_page(struct page *page,
 	} while ((bh = bh->b_this_page) != head);
 
 	if (checked) {
-		error = journal_end(&th, s);
+		error = journal_end(&th);
 		reiserfs_write_unlock(s);
 		if (error)
 			goto fail;
@@ -2953,7 +2953,7 @@ static int reiserfs_write_end(struct file *file, struct address_space *mapping,
 		mark_inode_dirty(inode);
 		reiserfs_update_sd(&myth, inode);
 		update_sd = 1;
-		ret = journal_end(&myth, inode->i_sb);
+		ret = journal_end(&myth);
 		if (ret)
 			goto journal_error;
 	}
@@ -3042,7 +3042,7 @@ int reiserfs_commit_write(struct file *f, struct page *page,
 		mark_inode_dirty(inode);
 		reiserfs_update_sd(&myth, inode);
 		update_sd = 1;
-		ret = journal_end(&myth, inode->i_sb);
+		ret = journal_end(&myth);
 		if (ret)
 			goto journal_error;
 	}
@@ -3346,7 +3346,7 @@ int reiserfs_setattr(struct dentry *dentry, struct iattr *attr)
 				err = journal_begin(&th, inode->i_sb, 4);
 				if (!err) {
 					reiserfs_discard_prealloc(&th, inode);
-					err = journal_end(&th, inode->i_sb);
+					err = journal_end(&th);
 				}
 				if (err)
 					error = err;
@@ -3398,7 +3398,7 @@ int reiserfs_setattr(struct dentry *dentry, struct iattr *attr)
 		error = dquot_transfer(inode, attr);
 		reiserfs_write_lock(inode->i_sb);
 		if (error) {
-			journal_end(&th, inode->i_sb);
+			journal_end(&th);
 			reiserfs_write_unlock(inode->i_sb);
 			goto out;
 		}
@@ -3412,7 +3412,7 @@ int reiserfs_setattr(struct dentry *dentry, struct iattr *attr)
 		if (attr->ia_valid & ATTR_GID)
 			inode->i_gid = attr->ia_gid;
 		mark_inode_dirty(inode);
-		error = journal_end(&th, inode->i_sb);
+		error = journal_end(&th);
 		reiserfs_write_unlock(inode->i_sb);
 		if (error)
 			goto out;

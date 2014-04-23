@@ -96,7 +96,7 @@ static int reiserfs_file_release(struct inode *inode, struct file *filp)
 #ifdef REISERFS_PREALLOCATE
 	reiserfs_discard_prealloc(&th, inode);
 #endif
-	err = journal_end(&th, inode->i_sb);
+	err = journal_end(&th);
 
 	/* copy back the error code from journal_begin */
 	if (!err)
@@ -227,7 +227,7 @@ int reiserfs_commit_page(struct inode *inode, struct page *page,
 		}
 	}
 	if (logit) {
-		ret = journal_end(&th, s);
+		ret = journal_end(&th);
 	      drop_write_lock:
 		reiserfs_write_unlock(s);
 	}

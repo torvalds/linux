@@ -1993,7 +1993,7 @@ int reiserfs_do_truncate(struct reiserfs_transaction_handle *th,
 			}
 			reiserfs_update_sd(th, inode);
 
-			err = journal_end(th, inode->i_sb);
+			err = journal_end(th);
 			if (err)
 				goto out;
 			err = journal_begin(th, inode->i_sb,
