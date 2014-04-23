@@ -269,20 +269,17 @@ static const struct resource thermal_resources[] __initconst = {
 					thermal_resources,		\
 					ARRAY_SIZE(thermal_resources))
 
-static const struct sh_timer_config cmt00_platform_data __initconst = {
-	.name = "CMT00",
-	.timer_bit = 0,
-	.clockevent_rating = 80,
+static struct sh_timer_config cmt0_platform_data = {
+	.channels_mask = 0x60,
 };
 
-static const struct resource cmt00_resources[] __initconst = {
-	DEFINE_RES_MEM(0xffca0510, 0x0c),
-	DEFINE_RES_MEM(0xffca0500, 0x04),
-	DEFINE_RES_IRQ(gic_spi(142)), /* CMT0_0 */
+static struct resource cmt0_resources[] = {
+	DEFINE_RES_MEM(0xffca0000, 0x1004),
+	DEFINE_RES_IRQ(gic_spi(142)),
 };
 
 #define r8a7790_register_cmt(idx)					\
-	platform_device_register_resndata(&platform_bus, "sh_cmt",	\
+	platform_device_register_resndata(&platform_bus, "sh-cmt-48-gen2", \
 					  idx, cmt##idx##_resources,	\
 					  ARRAY_SIZE(cmt##idx##_resources), \
 					  &cmt##idx##_platform_data,	\
@@ -300,7 +297,7 @@ void __init r8a7790_add_dt_devices(void)
 	r8a7790_register_scif(7);
 	r8a7790_register_scif(8);
 	r8a7790_register_scif(9);
-	r8a7790_register_cmt(00);
+	r8a7790_register_cmt(0);
 }
 
 void __init r8a7790_add_standard_devices(void)

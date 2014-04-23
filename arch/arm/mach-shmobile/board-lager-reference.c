@@ -90,7 +90,7 @@ static void __init lager_add_du_device(void)
  * devices until they get moved to DT.
  */
 static const struct clk_name clk_names[] __initconst = {
-	{ "cmt0", NULL, "sh_cmt.0" },
+	{ "cmt0", "fck", "sh-cmt-48-gen2.0" },
 	{ "scifa0", NULL, "sh-sci.0" },
 	{ "scifa1", NULL, "sh-sci.1" },
 	{ "scifb0", NULL, "sh-sci.2" },
