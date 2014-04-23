@@ -842,6 +842,8 @@ css_next_descendant_post(struct cgroup_subsys_state *pos,
 
 /* A css_task_iter should be treated as an opaque object */
 struct css_task_iter {
+	struct cgroup_subsys		*ss;
+
 	struct list_head		*cset_pos;
 	struct list_head		*cset_head;
 
