@@ -1091,6 +1091,18 @@ exit:
 	dev_kfree_skb(resp);
 }
 
+static void digital_tg_recv_atr_or_sensf_req(struct nfc_digital_dev *ddev,
+		void *arg, struct sk_buff *resp)
+{
+	if (!IS_ERR(resp) && (resp->len >= 2) &&
+			(resp->data[1] == DIGITAL_CMD_SENSF_REQ))
+		digital_tg_recv_sensf_req(ddev, arg, resp);
+	else
+		digital_tg_recv_atr_req(ddev, arg, resp);
+
+	return;
+}
+
 static int digital_tg_send_sensf_res(struct nfc_digital_dev *ddev,
 			      struct digital_sensf_req *sensf_req)
 {
@@ -1136,7 +1148,7 @@ static int digital_tg_send_sensf_res(struct nfc_digital_dev *ddev,
 		digital_skb_add_crc_f(skb);
 
 	rc = digital_tg_send_cmd(ddev, skb, 300,
-				 digital_tg_recv_atr_req, NULL);
+				 digital_tg_recv_atr_or_sensf_req, NULL);
 	if (rc)
 		kfree_skb(skb);
 
