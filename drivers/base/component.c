@@ -150,13 +150,6 @@ static int try_to_bring_up_master(struct master *master,
 {
 	int ret;
 
-	if (master->bound)
-		return 0;
-
-	/*
-	 * Search the list of components, looking for components that
-	 * belong to this master, and attach them to the master.
-	 */
 	if (find_components(master)) {
 		/* Failed to find all components */
 		ret = 0;
@@ -196,9 +189,11 @@ static int try_to_bring_up_masters(struct component *component)
 	int ret = 0;
 
 	list_for_each_entry(m, &masters, node) {
-		ret = try_to_bring_up_master(m, component);
-		if (ret != 0)
-			break;
+		if (!m->bound) {
+			ret = try_to_bring_up_master(m, component);
+			if (ret != 0)
+				break;
+		}
 	}
 
 	return ret;
