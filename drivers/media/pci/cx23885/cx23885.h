@@ -145,11 +145,6 @@ struct cx23885_fh {
 	struct cx23885_dev         *dev;
 	u32                        resources;
 
-	/* video overlay */
-	struct v4l2_window         win;
-	struct v4l2_clip           *clips;
-	unsigned int               nclips;
-
 	/* video capture */
 	struct cx23885_fmt         *fmt;
 	unsigned int               width, height;
