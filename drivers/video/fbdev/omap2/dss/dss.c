@@ -813,7 +813,7 @@ static int __init dss_init_ports(struct platform_device *pdev)
 	return 0;
 }
 
-static void dss_uninit_ports(void)
+static void __exit dss_uninit_ports(void)
 {
 #ifdef CONFIG_OMAP2_DSS_DPI
 	dpi_uninit_port();
