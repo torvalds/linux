@@ -1525,17 +1525,8 @@ static void rkclk_cache_parents(struct rkclk *rkclk)
 
 void rk_dump_cru(void)
 {
-	u32 i;
-
-	printk("\n");
-	printk("dump cru regs:");
-	for (i = 0; i * 4 <= 0x01b0; i++) {
-		if (i % 4 == 0)
-			printk("\n%s: \t[0x%08x]: ", __func__,
-				(unsigned int)RK_CRU_VIRT + i * 4);
-		printk("%08x ", readl(RK_CRU_VIRT + i * 4));
-	}
-	printk("\n\n");
+	printk(KERN_WARNING "CRU:\n");
+	print_hex_dump(KERN_WARNING, "", DUMP_PREFIX_OFFSET, 16, 4, RK_CRU_VIRT, 0x220, false);
 }
 EXPORT_SYMBOL_GPL(rk_dump_cru);
 
@@ -1815,6 +1806,16 @@ void rk_clk_test(void) {}
 #endif
 EXPORT_SYMBOL_GPL(rk_clk_test);
 
+static int rkclk_panic(struct notifier_block *this, unsigned long ev, void *ptr)
+{
+	rk_dump_cru();
+	return NOTIFY_DONE;
+}
+
+static struct notifier_block rkclk_panic_block = {
+	.notifier_call = rkclk_panic,
+};
+
 void __init rkclk_init_clks(struct device_node *node);
 
 static struct device_node * clk_root_node=NULL;
@@ -1883,6 +1884,7 @@ static void __init rk_clk_tree_init(struct device_node *np)
 
 	rk_clk_test();
 
+	atomic_notifier_chain_register(&panic_notifier_list, &rkclk_panic_block);
 }
 CLK_OF_DECLARE(rk_clocks, "rockchip,rk-clocks", rk_clk_tree_init);
 
