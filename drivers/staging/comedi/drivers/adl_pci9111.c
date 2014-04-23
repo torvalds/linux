@@ -379,14 +379,10 @@ static int pci9111_ai_do_cmd_test(struct comedi_device *dev,
 
 	/* Step 2b : and mutually compatible */
 
-	if ((cmd->convert_src == TRIG_TIMER) &&
-	    !((cmd->scan_begin_src == TRIG_TIMER) ||
-	      (cmd->scan_begin_src == TRIG_FOLLOW)))
-		err |= -EINVAL;
-	if ((cmd->convert_src == TRIG_EXT) &&
-	    !((cmd->scan_begin_src == TRIG_EXT) ||
-	      (cmd->scan_begin_src == TRIG_FOLLOW)))
-		err |= -EINVAL;
+	if (cmd->scan_begin_src != TRIG_FOLLOW) {
+		if (cmd->scan_begin_src != cmd->convert_src)
+			err |= -EINVAL;
+	}
 
 	if (err)
 		return 2;
