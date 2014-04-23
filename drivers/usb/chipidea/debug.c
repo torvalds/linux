@@ -12,6 +12,7 @@
 #include "udc.h"
 #include "bits.h"
 #include "debug.h"
+#include "otg.h"
 
 /**
  * ci_device_show: prints information about device capabilities and status
@@ -253,6 +254,50 @@ static const struct file_operations ci_role_fops = {
 	.release	= single_release,
 };
 
+int ci_registers_show(struct seq_file *s, void *unused)
+{
+	struct ci_hdrc *ci = s->private;
+	u32 tmp_reg;
+
+	if (!ci)
+		return 0;
+
+	/* ------ Registers ----- */
+	tmp_reg = hw_read_intr_enable(ci);
+	seq_printf(s, "USBINTR reg: %08x\n", tmp_reg);
+
+	tmp_reg = hw_read_intr_status(ci);
+	seq_printf(s, "USBSTS reg: %08x\n", tmp_reg);
+
+	tmp_reg = hw_read(ci, OP_USBMODE, ~0);
+	seq_printf(s, "USBMODE reg: %08x\n", tmp_reg);
+
+	tmp_reg = hw_read(ci, OP_USBCMD, ~0);
+	seq_printf(s, "USBCMD reg: %08x\n", tmp_reg);
+
+	tmp_reg = hw_read(ci, OP_PORTSC, ~0);
+	seq_printf(s, "PORTSC reg: %08x\n", tmp_reg);
+
+	if (ci->is_otg) {
+		tmp_reg = hw_read_otgsc(ci, ~0);
+		seq_printf(s, "OTGSC reg: %08x\n", tmp_reg);
+	}
+
+	return 0;
+}
+
+static int ci_registers_open(struct inode *inode, struct file *file)
+{
+	return single_open(file, ci_registers_show, inode->i_private);
+}
+
+static const struct file_operations ci_registers_fops = {
+	.open			= ci_registers_open,
+	.read			= seq_read,
+	.llseek			= seq_lseek,
+	.release		= single_release,
+};
+
 /**
  * dbg_create_files: initializes the attribute interface
  * @ci: device
@@ -289,6 +334,12 @@ int dbg_create_files(struct ci_hdrc *ci)
 
 	dent = debugfs_create_file("role", S_IRUGO | S_IWUSR, ci->debugfs, ci,
 				   &ci_role_fops);
+	if (!dent)
+		goto err;
+
+	dent = debugfs_create_file("registers", S_IRUGO, ci->debugfs, ci,
+				&ci_registers_fops);
+
 	if (dent)
 		return 0;
 err:
