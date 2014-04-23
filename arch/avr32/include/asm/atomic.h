@@ -51,8 +51,6 @@ static inline void atomic_##op(int i, atomic_t *v)			\
 	(void)__atomic_##op##_return(i, v);				\
 }
 
-#define CONFIG_ARCH_HAS_ATOMIC_OR
-
 ATOMIC_OP(and, and)
 ATOMIC_OP(or, or)
 ATOMIC_OP(xor, eor)

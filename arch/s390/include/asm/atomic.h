@@ -282,8 +282,6 @@ static inline void atomic64_##op(long i, atomic64_t *v)			\
 	__ATOMIC64_LOOP(v, i, __ATOMIC64_##OP, __ATOMIC64_NO_BARRIER);	\
 }
 
-#define CONFIG_ARCH_HAS_ATOMIC_OR
-
 ATOMIC64_OP(and, AND)
 ATOMIC64_OP(or, OR)
 ATOMIC64_OP(xor, XOR)

@@ -67,8 +67,6 @@ static __inline__ int atomic_##op##_return(int a, atomic_t *v)		\
 ATOMIC_OPS(add, add)
 ATOMIC_OPS(sub, subf)
 
-#define CONFIG_ARCH_HAS_ATOMIC_OR
-
 ATOMIC_OP(and, and)
 ATOMIC_OP(or, or)
 ATOMIC_OP(xor, xor)

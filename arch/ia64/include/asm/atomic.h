@@ -69,8 +69,6 @@ ATOMIC_OP(sub, -)
 		: ia64_atomic_sub(__ia64_asr_i, v);			\
 })
 
-#define CONFIG_ARCH_HAS_ATOMIC_OR
-
 ATOMIC_OP(and, &)
 ATOMIC_OP(or, |)
 ATOMIC_OP(xor, ^)

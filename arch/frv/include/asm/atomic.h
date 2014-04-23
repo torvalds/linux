@@ -192,8 +192,6 @@ static inline void atomic64_##op(long long i, atomic64_t *v)		\
 	(void)__atomic64_fetch_##op(i, &v->counter);			\
 }
 
-#define CONFIG_ARCH_HAS_ATOMIC_OR
-
 ATOMIC_OP(or)
 ATOMIC_OP(and)
 ATOMIC_OP(xor)

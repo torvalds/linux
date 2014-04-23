@@ -191,8 +191,6 @@ static inline void atomic_##op(int i, atomic_t *v)			\
 			: "memory");					\
 }
 
-#define CONFIG_ARCH_HAS_ATOMIC_OR
-
 ATOMIC_OP(and)
 ATOMIC_OP(or)
 ATOMIC_OP(xor)

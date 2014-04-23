@@ -58,8 +58,6 @@ static inline int __atomic_add_unless(atomic_t *v, int a, int u)
 	return oldval;
 }
 
-#define CONFIG_ARCH_HAS_ATOMIC_OR
-
 static inline void atomic_and(int i, atomic_t *v)
 {
 	__insn_fetchand4((void *)&v->counter, i);

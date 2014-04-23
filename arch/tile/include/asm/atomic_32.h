@@ -41,8 +41,6 @@ static inline void atomic_##op(int i, atomic_t *v)			\
 	_atomic_##op((unsigned long *)&v->counter, i);			\
 }
 
-#define CONFIG_ARCH_HAS_ATOMIC_OR
-
 ATOMIC_OP(and)
 ATOMIC_OP(or)
 ATOMIC_OP(xor)

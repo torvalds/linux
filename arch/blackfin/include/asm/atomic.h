@@ -28,8 +28,6 @@ asmlinkage int __raw_atomic_test_asm(const volatile int *ptr, int value);
 #define atomic_add_return(i, v) __raw_atomic_add_asm(&(v)->counter, i)
 #define atomic_sub_return(i, v) __raw_atomic_add_asm(&(v)->counter, -(i))
 
-#define CONFIG_ARCH_HAS_ATOMIC_OR
-
 #define atomic_or(i, v)  (void)__raw_atomic_or_asm(&(v)->counter, i)
 #define atomic_and(i, v) (void)__raw_atomic_and_asm(&(v)->counter, i)
 #define atomic_xor(i, v) (void)__raw_atomic_xor_asm(&(v)->counter, i)

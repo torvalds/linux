@@ -102,23 +102,26 @@ ATOMIC_OP_RETURN(sub, -)
 ATOMIC_OP(and, &)
 #endif
 
-#ifndef atomic_clear_mask
-#define atomic_clear_mask(i, v) atomic_and(~(i), (v))
-#endif
-
 #ifndef atomic_or
-#ifndef CONFIG_ARCH_HAS_ATOMIC_OR
-#define CONFIG_ARCH_HAS_ATOMIC_OR
-#endif
 ATOMIC_OP(or, |)
 #endif
 
-#ifndef atomic_set_mask
-#define atomic_set_mask(i, v)	atomic_or((i), (v))
+#ifndef atomic_xor
+ATOMIC_OP(xor, ^)
 #endif
 
 #undef ATOMIC_OP_RETURN
 #undef ATOMIC_OP
+
+static inline __deprecated void atomic_clear_mask(unsigned int mask, atomic_t *v)
+{
+	atomic_and(~mask, v);
+}
+
+static inline __deprecated void atomic_set_mask(unsigned int mask, atomic_t *v)
+{
+	atomic_or(mask, v);
+}
 
 /*
  * Atomic operations that C can't guarantee us.  Useful for

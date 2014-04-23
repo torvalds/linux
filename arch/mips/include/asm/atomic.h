@@ -137,8 +137,6 @@ static __inline__ int atomic_##op##_return(int i, atomic_t * v)		      \
 ATOMIC_OPS(add, +=, addu)
 ATOMIC_OPS(sub, -=, subu)
 
-#define CONFIG_ARCH_HAS_ATOMIC_OR
-
 ATOMIC_OP(and, &=, and)
 ATOMIC_OP(or, |=, or)
 ATOMIC_OP(xor, ^=, xor)

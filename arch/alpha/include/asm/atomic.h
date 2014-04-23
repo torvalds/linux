@@ -110,7 +110,6 @@ static __inline__ long atomic64_##op##_return(long i, atomic64_t * v)	\
 ATOMIC_OPS(add)
 ATOMIC_OPS(sub)
 
-#define CONFIG_ARCH_HAS_ATOMIC_OR
 #define atomic_andnot atomic_andnot
 #define atomic64_andnot atomic64_andnot
 

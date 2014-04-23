@@ -85,7 +85,6 @@ static inline int atomic_##op##_return(int i, atomic_t *v)		\
 ATOMIC_OPS(add, add)
 ATOMIC_OPS(sub, sub)
 
-#define CONFIG_ARCH_HAS_ATOMIC_OR
 #define atomic_andnot atomic_andnot
 
 ATOMIC_OP(and, and)
