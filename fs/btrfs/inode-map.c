@@ -176,7 +176,11 @@ static void start_caching(struct btrfs_root *root)
 
 	tsk = kthread_run(caching_kthread, root, "btrfs-ino-cache-%llu\n",
 			  root->root_key.objectid);
-	BUG_ON(IS_ERR(tsk)); /* -ENOMEM */
+	if (IS_ERR(tsk)) {
+		btrfs_warn(root->fs_info, "failed to start inode caching task");
+		btrfs_clear_and_info(root, CHANGE_INODE_CACHE,
+				"disabling inode map caching");
+	}
 }
 
 int btrfs_find_free_ino(struct btrfs_root *root, u64 *objectid)
