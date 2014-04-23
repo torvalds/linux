@@ -7735,6 +7735,8 @@ struct i40e_veb *i40e_veb_setup(struct i40e_pf *pf, u16 flags,
 	ret = i40e_add_veb(veb, pf->vsi[vsi_idx]);
 	if (ret)
 		goto err_veb;
+	if (vsi_idx == pf->lan_vsi)
+		pf->lan_veb = veb->idx;
 
 	return veb;
 
