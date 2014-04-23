@@ -50,11 +50,7 @@ static inline bool has_zero(unsigned long val, unsigned long *data, const struct
 }
 
 #ifndef zero_bytemask
-#ifdef CONFIG_64BIT
-#define zero_bytemask(mask)	(~0ul << fls64(mask))
-#else
-#define zero_bytemask(mask)	(~0ul << fls(mask))
-#endif /* CONFIG_64BIT */
-#endif /* zero_bytemask */
+#define zero_bytemask(mask) (~0ul << __fls(mask) << 1)
+#endif
 
 #endif /* _ASM_WORD_AT_A_TIME_H */
