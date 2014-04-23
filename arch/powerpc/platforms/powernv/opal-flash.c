@@ -131,11 +131,15 @@ static DEFINE_MUTEX(image_data_mutex);
  */
 static inline void opal_flash_validate(void)
 {
-	struct validate_flash_t *args_buf = &validate_flash_data;
+	long ret;
+	void *buf = validate_flash_data.buf;
+	__be32 size, result;
 
-	args_buf->status = opal_validate_flash(__pa(args_buf->buf),
-					       &(args_buf->buf_size),
-					       &(args_buf->result));
+	ret = opal_validate_flash(__pa(buf), &size, &result);
+
+	validate_flash_data.status = ret;
+	validate_flash_data.buf_size = be32_to_cpu(size);
+	validate_flash_data.result = be32_to_cpu(result);
 }
 
 /*
