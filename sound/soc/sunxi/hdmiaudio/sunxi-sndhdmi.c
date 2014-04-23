@@ -24,8 +24,6 @@
 #include <plat/sys_config.h>
 #include <linux/io.h>
 
-#include "sunxi-hdmiaudio.h"
-
 static int sunxi_sndhdmi_hw_params(struct snd_pcm_substream *substream,
 					struct snd_pcm_hw_params *params)
 {
