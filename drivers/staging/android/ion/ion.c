@@ -2030,6 +2030,29 @@ void __init ion_reserve(struct ion_platform_data *data)
 }
 
 #ifdef CONFIG_ION_ROCKCHIP_SNAPSHOT
+
+// Find the maximum can be allocated memory
+static unsigned long ion_find_max_zero_area(unsigned long *map, unsigned long size)
+{
+	unsigned long index, i, zero_sz, max_zero_sz, start;
+	start = 0;
+	max_zero_sz = 0;
+
+	do {
+		index = find_next_zero_bit(map, size, start);
+		if (index>=size) break;
+
+		i = find_next_bit(map, size, index);
+		zero_sz = i-index;
+		pr_debug("zero[%lx, %lx]\n", index, zero_sz);
+		max_zero_sz = max(max_zero_sz, zero_sz);
+		start = i + 1;
+	} while(start<=size);
+
+	pr_debug("max_zero_sz=%lx\n", max_zero_sz);
+	return max_zero_sz;
+}
+
 int ion_snapshot_save(struct ion_device *idev)
 {
 	static struct seq_file seqf;
@@ -2053,9 +2076,16 @@ int ion_snapshot_save(struct ion_device *idev)
 		seq_printf(&seqf, "++++++++++++++++ HEAP: %s ++++++++++++++++\n",
 			heap->name);
 		ion_debug_heap_show(&seqf, NULL);
-//		seq_printf(&seqf, "\n");
-//		if (ION_HEAP_TYPE_DMA==heap->type)
-//			ion_cma_heap_debug_show(&seqf, NULL);
+		if (ION_HEAP_TYPE_DMA==heap->type) {
+			struct ion_cma_heap *cma_heap = container_of(heap,
+									struct ion_cma_heap,
+									heap);
+			struct cma *cma = dev_get_cma_area(cma_heap->dev);
+			seq_printf(&seqf, "\n");
+			seq_printf(&seqf, "Maximum allocation of pages: %ld\n",
+					ion_find_max_zero_area(cma->bitmap, cma->count));
+			seq_printf(&seqf, "\n");
+		}
 	}
 
 	for (n = rb_first(&idev->clients); n; n = rb_next(n)) {
