@@ -145,10 +145,6 @@ struct cx23885_fh {
 	struct cx23885_dev         *dev;
 	u32                        resources;
 
-	/* video capture */
-	struct cx23885_fmt         *fmt;
-	unsigned int               width, height;
-
 	/* vbi capture */
 	struct videobuf_queue      vidq;
 	struct videobuf_queue      vbiq;
@@ -423,6 +419,10 @@ struct cx23885_dev {
 	u32                        freq;
 	struct video_device        *video_dev;
 	struct video_device        *vbi_dev;
+
+	/* video capture */
+	struct cx23885_fmt         *fmt;
+	unsigned int               width, height;
 
 	struct cx23885_dmaqueue    vidq;
 	struct cx23885_dmaqueue    vbiq;
