@@ -42,7 +42,6 @@
  * - Not Supported: 15 & 16 (ISO)
  *
  * TODO List
- * - OTG
  * - Interrupt Traffic
  * - GET_STATUS(device) - always reports 0
  * - Gadget API (majority of optional features)
@@ -74,6 +73,7 @@
 #include "host.h"
 #include "debug.h"
 #include "otg.h"
+#include "otg_fsm.h"
 
 /* Controller register map */
 static const u8 ci_regs_nolpm[] = {
@@ -411,8 +411,14 @@ static irqreturn_t ci_irq(int irq, void *data)
 	irqreturn_t ret = IRQ_NONE;
 	u32 otgsc = 0;
 
-	if (ci->is_otg)
+	if (ci->is_otg) {
 		otgsc = hw_read_otgsc(ci, ~0);
+		if (ci_otg_is_fsm_mode(ci)) {
+			ret = ci_otg_fsm_irq(ci);
+			if (ret == IRQ_HANDLED)
+				return ret;
+		}
+	}
 
 	/*
 	 * Handle id change interrupt, it indicates device/host function
@@ -691,10 +697,13 @@ static int ci_hdrc_probe(struct platform_device *pdev)
 	if (ci->role == CI_ROLE_GADGET)
 		ci_handle_vbus_change(ci);
 
-	ret = ci_role_start(ci, ci->role);
-	if (ret) {
-		dev_err(dev, "can't start %s role\n", ci_role(ci)->name);
-		goto stop;
+	if (!ci_otg_is_fsm_mode(ci)) {
+		ret = ci_role_start(ci, ci->role);
+		if (ret) {
+			dev_err(dev, "can't start %s role\n",
+						ci_role(ci)->name);
+			goto stop;
+		}
 	}
 
 	platform_set_drvdata(pdev, ci);
@@ -702,6 +711,9 @@ static int ci_hdrc_probe(struct platform_device *pdev)
 			  ci);
 	if (ret)
 		goto stop;
+
+	if (ci_otg_is_fsm_mode(ci))
+		ci_hdrc_otg_fsm_start(ci);
 
 	ret = dbg_create_files(ci);
 	if (!ret)

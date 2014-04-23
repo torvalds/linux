@@ -13,6 +13,10 @@
 /*
  * This file mainly handles OTG fsm, it includes OTG fsm operations
  * for HNP and SRP.
+ *
+ * TODO List
+ * - ADP
+ * - OTG test device
  */
 
 #include <linux/usb/otg.h>
@@ -91,6 +95,33 @@ static void ci_otg_del_timer(struct ci_hdrc *ci, enum ci_otg_fsm_timer_index t)
 	/* Disable 1ms irq if there is no any active timer */
 	if (list_empty(active_timers))
 		hw_write_otgsc(ci, OTGSC_1MSIE, 0);
+}
+
+/*
+ * Reduce timer count by 1, and find timeout conditions.
+ * Called by otg 1ms timer interrupt
+ */
+static inline int ci_otg_tick_timer(struct ci_hdrc *ci)
+{
+	struct ci_otg_fsm_timer *tmp_timer, *del_tmp;
+	struct list_head *active_timers = &ci->fsm_timer->active_timers;
+	int expired = 0;
+
+	list_for_each_entry_safe(tmp_timer, del_tmp, active_timers, list) {
+		tmp_timer->count--;
+		/* check if timer expires */
+		if (!tmp_timer->count) {
+			list_del(&tmp_timer->list);
+			tmp_timer->function(ci, tmp_timer->data);
+			expired = 1;
+		}
+	}
+
+	/* disable 1ms irq if there is no any timer active */
+	if ((expired == 1) && list_empty(active_timers))
+		hw_write_otgsc(ci, OTGSC_1MSIE, 0);
+
+	return expired;
 }
 
 /* The timeout callback function to set time out bit */
@@ -393,6 +424,218 @@ static struct otg_fsm_ops ci_otg_ops = {
 	.start_host = ci_otg_start_host,
 	.start_gadget = ci_otg_start_gadget,
 };
+
+int ci_otg_fsm_work(struct ci_hdrc *ci)
+{
+	/*
+	 * Don't do fsm transition for B device
+	 * when there is no gadget class driver
+	 */
+	if (ci->fsm.id && !(ci->driver) &&
+		ci->transceiver->state < OTG_STATE_A_IDLE)
+		return 0;
+
+	if (otg_statemachine(&ci->fsm)) {
+		if (ci->transceiver->state == OTG_STATE_A_IDLE) {
+			/*
+			 * Further state change for cases:
+			 * a_idle to b_idle; or
+			 * a_idle to a_wait_vrise due to ID change(1->0), so
+			 * B-dev becomes A-dev can try to start new session
+			 * consequently; or
+			 * a_idle to a_wait_vrise when power up
+			 */
+			if ((ci->fsm.id) || (ci->id_event) ||
+						(ci->fsm.power_up)) {
+				disable_irq_nosync(ci->irq);
+				queue_work(ci->wq, &ci->work);
+			}
+			if (ci->id_event)
+				ci->id_event = false;
+		} else if (ci->transceiver->state == OTG_STATE_B_IDLE) {
+			if (ci->fsm.b_sess_vld) {
+				ci->fsm.power_up = 0;
+				/*
+				 * Further transite to b_periphearl state
+				 * when register gadget driver with vbus on
+				 */
+				disable_irq_nosync(ci->irq);
+				queue_work(ci->wq, &ci->work);
+			}
+		}
+	}
+	return 0;
+}
+
+/*
+ * Update fsm variables in each state if catching expected interrupts,
+ * called by otg fsm isr.
+ */
+static void ci_otg_fsm_event(struct ci_hdrc *ci)
+{
+	u32 intr_sts, otg_bsess_vld, port_conn;
+	struct otg_fsm *fsm = &ci->fsm;
+
+	intr_sts = hw_read_intr_status(ci);
+	otg_bsess_vld = hw_read_otgsc(ci, OTGSC_BSV);
+	port_conn = hw_read(ci, OP_PORTSC, PORTSC_CCS);
+
+	switch (ci->transceiver->state) {
+	case OTG_STATE_A_WAIT_BCON:
+		if (port_conn) {
+			fsm->b_conn = 1;
+			fsm->a_bus_req = 1;
+			disable_irq_nosync(ci->irq);
+			queue_work(ci->wq, &ci->work);
+		}
+		break;
+	case OTG_STATE_B_IDLE:
+		if (otg_bsess_vld && (intr_sts & USBi_PCI) && port_conn) {
+			fsm->b_sess_vld = 1;
+			disable_irq_nosync(ci->irq);
+			queue_work(ci->wq, &ci->work);
+		}
+		break;
+	case OTG_STATE_B_PERIPHERAL:
+		if ((intr_sts & USBi_SLI) && port_conn && otg_bsess_vld) {
+			fsm->a_bus_suspend = 1;
+			disable_irq_nosync(ci->irq);
+			queue_work(ci->wq, &ci->work);
+		} else if (intr_sts & USBi_PCI) {
+			if (fsm->a_bus_suspend == 1)
+				fsm->a_bus_suspend = 0;
+		}
+		break;
+	case OTG_STATE_B_HOST:
+		if ((intr_sts & USBi_PCI) && !port_conn) {
+			fsm->a_conn = 0;
+			fsm->b_bus_req = 0;
+			disable_irq_nosync(ci->irq);
+			queue_work(ci->wq, &ci->work);
+			ci_otg_add_timer(ci, B_SESS_VLD);
+		}
+		break;
+	case OTG_STATE_A_PERIPHERAL:
+		if (intr_sts & USBi_SLI) {
+			 fsm->b_bus_suspend = 1;
+			/*
+			 * Init a timer to know how long this suspend
+			 * will contine, if time out, indicates B no longer
+			 * wants to be host role
+			 */
+			 ci_otg_add_timer(ci, A_BIDL_ADIS);
+		}
+
+		if (intr_sts & USBi_URI)
+			ci_otg_del_timer(ci, A_BIDL_ADIS);
+
+		if (intr_sts & USBi_PCI) {
+			if (fsm->b_bus_suspend == 1) {
+				ci_otg_del_timer(ci, A_BIDL_ADIS);
+				fsm->b_bus_suspend = 0;
+			}
+		}
+		break;
+	case OTG_STATE_A_SUSPEND:
+		if ((intr_sts & USBi_PCI) && !port_conn) {
+			fsm->b_conn = 0;
+
+			/* if gadget driver is binded */
+			if (ci->driver) {
+				/* A device to be peripheral mode */
+				ci->gadget.is_a_peripheral = 1;
+			}
+			disable_irq_nosync(ci->irq);
+			queue_work(ci->wq, &ci->work);
+		}
+		break;
+	case OTG_STATE_A_HOST:
+		if ((intr_sts & USBi_PCI) && !port_conn) {
+			fsm->b_conn = 0;
+			disable_irq_nosync(ci->irq);
+			queue_work(ci->wq, &ci->work);
+		}
+		break;
+	case OTG_STATE_B_WAIT_ACON:
+		if ((intr_sts & USBi_PCI) && port_conn) {
+			fsm->a_conn = 1;
+			disable_irq_nosync(ci->irq);
+			queue_work(ci->wq, &ci->work);
+		}
+		break;
+	default:
+		break;
+	}
+}
+
+/*
+ * ci_otg_irq - otg fsm related irq handling
+ * and also update otg fsm variable by monitoring usb host and udc
+ * state change interrupts.
+ * @ci: ci_hdrc
+ */
+irqreturn_t ci_otg_fsm_irq(struct ci_hdrc *ci)
+{
+	irqreturn_t retval =  IRQ_NONE;
+	u32 otgsc, otg_int_src = 0;
+	struct otg_fsm *fsm = &ci->fsm;
+
+	otgsc = hw_read_otgsc(ci, ~0);
+	otg_int_src = otgsc & OTGSC_INT_STATUS_BITS & (otgsc >> 8);
+	fsm->id = (otgsc & OTGSC_ID) ? 1 : 0;
+
+	if (otg_int_src) {
+		if (otg_int_src & OTGSC_1MSIS) {
+			hw_write_otgsc(ci, OTGSC_1MSIS, OTGSC_1MSIS);
+			retval = ci_otg_tick_timer(ci);
+			return IRQ_HANDLED;
+		} else if (otg_int_src & OTGSC_DPIS) {
+			hw_write_otgsc(ci, OTGSC_DPIS, OTGSC_DPIS);
+			fsm->a_srp_det = 1;
+			fsm->a_bus_drop = 0;
+		} else if (otg_int_src & OTGSC_IDIS) {
+			hw_write_otgsc(ci, OTGSC_IDIS, OTGSC_IDIS);
+			if (fsm->id == 0) {
+				fsm->a_bus_drop = 0;
+				fsm->a_bus_req = 1;
+				ci->id_event = true;
+			}
+		} else if (otg_int_src & OTGSC_BSVIS) {
+			hw_write_otgsc(ci, OTGSC_BSVIS, OTGSC_BSVIS);
+			if (otgsc & OTGSC_BSV) {
+				fsm->b_sess_vld = 1;
+				ci_otg_del_timer(ci, B_SSEND_SRP);
+				ci_otg_del_timer(ci, B_SRP_FAIL);
+				fsm->b_ssend_srp = 0;
+			} else {
+				fsm->b_sess_vld = 0;
+				if (fsm->id)
+					ci_otg_add_timer(ci, B_SSEND_SRP);
+			}
+		} else if (otg_int_src & OTGSC_AVVIS) {
+			hw_write_otgsc(ci, OTGSC_AVVIS, OTGSC_AVVIS);
+			if (otgsc & OTGSC_AVV) {
+				fsm->a_vbus_vld = 1;
+			} else {
+				fsm->a_vbus_vld = 0;
+				fsm->b_conn = 0;
+			}
+		}
+		disable_irq_nosync(ci->irq);
+		queue_work(ci->wq, &ci->work);
+		return IRQ_HANDLED;
+	}
+
+	ci_otg_fsm_event(ci);
+
+	return retval;
+}
+
+void ci_hdrc_otg_fsm_start(struct ci_hdrc *ci)
+{
+	disable_irq_nosync(ci->irq);
+	queue_work(ci->wq, &ci->work);
+}
 
 int ci_hdrc_otg_fsm_init(struct ci_hdrc *ci)
 {

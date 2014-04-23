@@ -11,8 +11,8 @@
  */
 
 /*
- * This file mainly handles otgsc register, it may include OTG operation
- * in the future.
+ * This file mainly handles otgsc register, OTG fsm operations for HNP and SRP
+ * are also included.
  */
 
 #include <linux/usb/otg.h>
@@ -90,6 +90,11 @@ static void ci_handle_id_switch(struct ci_hdrc *ci)
 static void ci_otg_work(struct work_struct *work)
 {
 	struct ci_hdrc *ci = container_of(work, struct ci_hdrc, work);
+
+	if (ci_otg_is_fsm_mode(ci) && !ci_otg_fsm_work(ci)) {
+		enable_irq(ci->irq);
+		return;
+	}
 
 	if (ci->id_event) {
 		ci->id_event = false;

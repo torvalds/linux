@@ -92,12 +92,30 @@ struct ci_otg_fsm_timer_list {
 #ifdef CONFIG_USB_OTG_FSM
 
 int ci_hdrc_otg_fsm_init(struct ci_hdrc *ci);
+int ci_otg_fsm_work(struct ci_hdrc *ci);
+irqreturn_t ci_otg_fsm_irq(struct ci_hdrc *ci);
+void ci_hdrc_otg_fsm_start(struct ci_hdrc *ci);
 
 #else
 
 static inline int ci_hdrc_otg_fsm_init(struct ci_hdrc *ci)
 {
 	return 0;
+}
+
+static inline int ci_otg_fsm_work(struct ci_hdrc *ci)
+{
+	return -ENXIO;
+}
+
+static inline irqreturn_t ci_otg_fsm_irq(struct ci_hdrc *ci)
+{
+	return IRQ_NONE;
+}
+
+static inline void ci_hdrc_otg_fsm_start(struct ci_hdrc *ci)
+{
+
 }
 
 #endif

@@ -28,6 +28,7 @@
 #include "bits.h"
 #include "debug.h"
 #include "otg.h"
+#include "otg_fsm.h"
 
 /* control endpoint description */
 static const struct usb_endpoint_descriptor
@@ -1644,6 +1645,13 @@ static int ci_udc_start(struct usb_gadget *gadget,
 		return retval;
 
 	ci->driver = driver;
+
+	/* Start otg fsm for B-device */
+	if (ci_otg_is_fsm_mode(ci) && ci->fsm.id) {
+		ci_hdrc_otg_fsm_start(ci);
+		return retval;
+	}
+
 	pm_runtime_get_sync(&ci->gadget.dev);
 	if (ci->vbus_active) {
 		spin_lock_irqsave(&ci->lock, flags);
