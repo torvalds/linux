@@ -1641,10 +1641,13 @@ static int serial_omap_probe_rs485(struct uart_omap_port *up,
 
 static int serial_omap_probe(struct platform_device *pdev)
 {
-	struct uart_omap_port	*up;
-	struct resource		*mem, *irq;
 	struct omap_uart_port_info *omap_up_info = dev_get_platdata(&pdev->dev);
-	int ret, uartirq = 0, wakeirq = 0;
+	struct uart_omap_port *up;
+	struct resource *mem;
+	struct resource *irq;
+	int uartirq = 0;
+	int wakeirq = 0;
+	int ret;
 
 	/* The optional wakeirq may be specified in the board dts file */
 	if (pdev->dev.of_node) {
