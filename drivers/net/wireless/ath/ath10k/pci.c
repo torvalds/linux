@@ -2464,7 +2464,13 @@ static int ath10k_pci_wait_for_target_init(struct ath10k *ar)
 		mdelay(10);
 	} while (time_before(jiffies, timeout));
 
-	if (val == 0xffffffff || !(val & FW_IND_INITIALIZED)) {
+	if (val == 0xffffffff) {
+		ath10k_err("failed to read device register, device is gone\n");
+		ret = -EIO;
+		goto out;
+	}
+
+	if (!(val & FW_IND_INITIALIZED)) {
 		ath10k_err("failed to receive initialized event from target: %08x\n",
 			   val);
 		ret = -ETIMEDOUT;
