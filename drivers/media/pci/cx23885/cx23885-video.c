@@ -883,7 +883,8 @@ static int video_open(struct file *file)
 	if (NULL == fh)
 		return -ENOMEM;
 
-	file->private_data = fh;
+	v4l2_fh_init(&fh->fh, vdev);
+	file->private_data = &fh->fh;
 	fh->dev      = dev;
 	fh->radio    = radio;
 	fh->type     = type;
@@ -905,6 +906,7 @@ static int video_open(struct file *file)
 		sizeof(struct cx23885_buffer),
 		fh, NULL);
 
+	v4l2_fh_add(&fh->fh);
 
 	dprintk(1, "post videobuf_queue_init()\n");
 
@@ -1003,6 +1005,8 @@ static int video_release(struct file *file)
 	videobuf_mmap_free(&fh->vidq);
 	videobuf_mmap_free(&fh->vbiq);
 
+	v4l2_fh_del(&fh->fh);
+	v4l2_fh_exit(&fh->fh);
 	file->private_data = NULL;
 	kfree(fh);
 

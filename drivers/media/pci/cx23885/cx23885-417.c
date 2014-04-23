@@ -1550,6 +1550,7 @@ static int vidioc_queryctrl(struct file *file, void *priv,
 
 static int mpeg_open(struct file *file)
 {
+	struct video_device *vdev = video_devdata(file);
 	struct cx23885_dev *dev = video_drvdata(file);
 	struct cx23885_fh *fh;
 
@@ -1560,6 +1561,7 @@ static int mpeg_open(struct file *file)
 	if (!fh)
 		return -ENOMEM;
 
+	v4l2_fh_init(&fh->fh, vdev);
 	file->private_data = fh;
 	fh->dev      = dev;
 
@@ -1569,6 +1571,7 @@ static int mpeg_open(struct file *file)
 			    V4L2_FIELD_INTERLACED,
 			    sizeof(struct cx23885_buffer),
 			    fh, NULL);
+	v4l2_fh_add(&fh->fh);
 	return 0;
 }
 
@@ -1601,6 +1604,8 @@ static int mpeg_release(struct file *file)
 		videobuf_read_stop(&fh->mpegq);
 
 	videobuf_mmap_free(&fh->mpegq);
+	v4l2_fh_del(&fh->fh);
+	v4l2_fh_exit(&fh->fh);
 	file->private_data = NULL;
 	kfree(fh);
 

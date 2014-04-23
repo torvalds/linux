@@ -25,6 +25,7 @@
 #include <linux/slab.h>
 
 #include <media/v4l2-device.h>
+#include <media/v4l2-fh.h>
 #include <media/tuner.h>
 #include <media/tveeprom.h>
 #include <media/videobuf-dma-sg.h>
@@ -147,6 +148,7 @@ struct cx23885_tvnorm {
 };
 
 struct cx23885_fh {
+	struct v4l2_fh		   fh;
 	struct cx23885_dev         *dev;
 	enum v4l2_buf_type         type;
 	int                        radio;
