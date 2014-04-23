@@ -120,12 +120,12 @@ extern ssize_t f2fs_listxattr(struct dentry *, char *, size_t);
 #else
 
 #define f2fs_xattr_handlers	NULL
-static inline int f2fs_setxattr(struct inode *inode, int name_index,
-		const char *name, const void *value, size_t value_len)
+static inline int f2fs_setxattr(struct inode *inode, int index,
+		const char *name, const void *value, size_t size)
 {
 	return -EOPNOTSUPP;
 }
-static inline int f2fs_getxattr(struct inode *inode, int name_index,
+static inline int f2fs_getxattr(struct inode *inode, int index,
 		const char *name, void *buffer, size_t buffer_size)
 {
 	return -EOPNOTSUPP;
