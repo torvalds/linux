@@ -1929,8 +1929,7 @@ static int do_journal_release(struct reiserfs_transaction_handle *th,
 			reiserfs_prepare_for_journal(sb,
 						     SB_BUFFER_WITH_SB(sb),
 						     1);
-			journal_mark_dirty(&myth, sb,
-					   SB_BUFFER_WITH_SB(sb));
+			journal_mark_dirty(&myth, SB_BUFFER_WITH_SB(sb));
 			do_journal_end(&myth, FLUSH_ALL);
 			flushed = 1;
 		}
@@ -1943,8 +1942,7 @@ static int do_journal_release(struct reiserfs_transaction_handle *th,
 			reiserfs_prepare_for_journal(sb,
 						     SB_BUFFER_WITH_SB(sb),
 						     1);
-			journal_mark_dirty(&myth, sb,
-					   SB_BUFFER_WITH_SB(sb));
+			journal_mark_dirty(&myth, SB_BUFFER_WITH_SB(sb));
 			do_journal_end(&myth, FLUSH_ALL);
 		}
 	}
@@ -3268,8 +3266,9 @@ int journal_begin(struct reiserfs_transaction_handle *th,
  * if j_len, is bigger than j_len_alloc, it pushes j_len_alloc to 10 + j_len.
  */
 int journal_mark_dirty(struct reiserfs_transaction_handle *th,
-		       struct super_block *sb, struct buffer_head *bh)
+		       struct buffer_head *bh)
 {
+	struct super_block *sb = th->t_super;
 	struct reiserfs_journal *journal = SB_JOURNAL(sb);
 	struct reiserfs_journal_cnode *cn = NULL;
 	int count_already_incd = 0;
@@ -3522,7 +3521,7 @@ int journal_end_sync(struct reiserfs_transaction_handle *th)
 	if (journal->j_len == 0) {
 		reiserfs_prepare_for_journal(sb, SB_BUFFER_WITH_SB(sb),
 					     1);
-		journal_mark_dirty(th, sb, SB_BUFFER_WITH_SB(sb));
+		journal_mark_dirty(th, SB_BUFFER_WITH_SB(sb));
 	}
 	return do_journal_end(th, COMMIT_NOW | WAIT);
 }
@@ -3576,8 +3575,7 @@ void reiserfs_flush_old_commits(struct super_block *sb)
 			reiserfs_prepare_for_journal(sb,
 						     SB_BUFFER_WITH_SB(sb),
 						     1);
-			journal_mark_dirty(&th, sb,
-					   SB_BUFFER_WITH_SB(sb));
+			journal_mark_dirty(&th, SB_BUFFER_WITH_SB(sb));
 
 			/*
 			 * we're only being called from kreiserfsd, it makes
@@ -3863,7 +3861,7 @@ static int __commit_trans_jl(struct inode *inode, unsigned long id,
 		if (journal->j_trans_id != id) {
 			reiserfs_prepare_for_journal(sb, SB_BUFFER_WITH_SB(sb),
 						     1);
-			journal_mark_dirty(&th, sb, SB_BUFFER_WITH_SB(sb));
+			journal_mark_dirty(&th, SB_BUFFER_WITH_SB(sb));
 			ret = journal_end(&th);
 			goto flush_commit_only;
 		}
@@ -4014,7 +4012,7 @@ static int do_journal_end(struct reiserfs_transaction_handle *th, int flags)
 	if (journal->j_len == 0) {
 		reiserfs_prepare_for_journal(sb, SB_BUFFER_WITH_SB(sb),
 					     1);
-		journal_mark_dirty(th, sb, SB_BUFFER_WITH_SB(sb));
+		journal_mark_dirty(th, SB_BUFFER_WITH_SB(sb));
 	}
 
 	lock_journal(sb);

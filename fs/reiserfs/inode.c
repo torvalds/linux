@@ -816,7 +816,7 @@ int reiserfs_get_block(struct inode *inode, sector_t block,
 				reiserfs_add_ordered_list(inode, bh_result);
 			put_block_num(item, pos_in_item, allocated_block_nr);
 			unfm_ptr = allocated_block_nr;
-			journal_mark_dirty(th, inode->i_sb, bh);
+			journal_mark_dirty(th, bh);
 			reiserfs_update_sd(th, inode);
 		}
 		set_block_dev_mapped(bh_result, unfm_ptr, inode);
@@ -1505,7 +1505,7 @@ void reiserfs_update_sd_size(struct reiserfs_transaction_handle *th,
 		break;
 	}
 	update_stat_data(&path, inode, size);
-	journal_mark_dirty(th, th->t_super, bh);
+	journal_mark_dirty(th, bh);
 	pathrelse(&path);
 	return;
 }
@@ -2457,7 +2457,7 @@ static int map_block_for_writepage(struct inode *inode,
 		memcpy(ih_item_body(bh, ih) + pos_in_item, p + bytes_copied,
 		       copy_size);
 
-		journal_mark_dirty(&th, inode->i_sb, bh);
+		journal_mark_dirty(&th, bh);
 		bytes_copied += copy_size;
 		set_block_dev_mapped(bh_result, 0, inode);
 
@@ -2627,7 +2627,7 @@ static int reiserfs_write_full_page(struct page *page,
 
 		if (checked) {
 			reiserfs_prepare_for_journal(s, bh, 1);
-			journal_mark_dirty(&th, s, bh);
+			journal_mark_dirty(&th, bh);
 			continue;
 		}
 		/*

@@ -136,7 +136,7 @@ static int reiserfs_freeze(struct super_block *s)
 		} else {
 			reiserfs_prepare_for_journal(s, SB_BUFFER_WITH_SB(s),
 						     1);
-			journal_mark_dirty(&th, s, SB_BUFFER_WITH_SB(s));
+			journal_mark_dirty(&th, SB_BUFFER_WITH_SB(s));
 			reiserfs_block_writes(&th);
 			journal_end_sync(&th);
 		}
@@ -551,7 +551,7 @@ static void reiserfs_put_super(struct super_block *s)
 						     1);
 			set_sb_umount_state(SB_DISK_SUPER_BLOCK(s),
 					    REISERFS_SB(s)->s_mount_state);
-			journal_mark_dirty(&th, s, SB_BUFFER_WITH_SB(s));
+			journal_mark_dirty(&th, SB_BUFFER_WITH_SB(s));
 		}
 	}
 
@@ -1477,7 +1477,7 @@ static int reiserfs_remount(struct super_block *s, int *mount_flags, char *arg)
 		/* Mounting a rw partition read-only. */
 		reiserfs_prepare_for_journal(s, SB_BUFFER_WITH_SB(s), 1);
 		set_sb_umount_state(rs, REISERFS_SB(s)->s_mount_state);
-		journal_mark_dirty(&th, s, SB_BUFFER_WITH_SB(s));
+		journal_mark_dirty(&th, SB_BUFFER_WITH_SB(s));
 	} else {
 		/* remount read-write */
 		if (!(s->s_flags & MS_RDONLY)) {
@@ -1509,7 +1509,7 @@ static int reiserfs_remount(struct super_block *s, int *mount_flags, char *arg)
 		if (!old_format_only(s))
 			set_sb_mnt_count(rs, sb_mnt_count(rs) + 1);
 		/* mark_buffer_dirty (SB_BUFFER_WITH_SB (s), 1); */
-		journal_mark_dirty(&th, s, SB_BUFFER_WITH_SB(s));
+		journal_mark_dirty(&th, SB_BUFFER_WITH_SB(s));
 		REISERFS_SB(s)->s_mount_state = REISERFS_VALID_FS;
 	}
 	/* this will force a full flush of all journal lists */
@@ -2106,7 +2106,7 @@ static int reiserfs_fill_super(struct super_block *s, void *data, int silent)
 			set_sb_mnt_count(rs, sb_mnt_count(rs) + 1);
 
 
-		journal_mark_dirty(&th, s, SB_BUFFER_WITH_SB(s));
+		journal_mark_dirty(&th, SB_BUFFER_WITH_SB(s));
 		errval = journal_end(&th);
 		if (errval) {
 			dput(s->s_root);
@@ -2481,7 +2481,7 @@ static ssize_t reiserfs_quota_write(struct super_block *sb, int type,
 		unlock_buffer(bh);
 		reiserfs_write_lock(sb);
 		reiserfs_prepare_for_journal(sb, bh, 1);
-		journal_mark_dirty(current->journal_info, sb, bh);
+		journal_mark_dirty(current->journal_info, bh);
 		if (!journal_quota)
 			reiserfs_add_ordered_list(inode, bh);
 		reiserfs_write_unlock(sb);

@@ -1531,10 +1531,10 @@ static int reiserfs_rename(struct inode *old_dir, struct dentry *old_dentry,
 
 	mark_de_visible(new_de.de_deh + new_de.de_entry_num);
 	set_ino_in_dir_entry(&new_de, INODE_PKEY(old_inode));
-	journal_mark_dirty(&th, old_dir->i_sb, new_de.de_bh);
+	journal_mark_dirty(&th, new_de.de_bh);
 
 	mark_de_hidden(old_de.de_deh + old_de.de_entry_num);
-	journal_mark_dirty(&th, old_dir->i_sb, old_de.de_bh);
+	journal_mark_dirty(&th, old_de.de_bh);
 	ctime = CURRENT_TIME_SEC;
 	old_dir->i_ctime = old_dir->i_mtime = ctime;
 	new_dir->i_ctime = new_dir->i_mtime = ctime;
@@ -1558,7 +1558,7 @@ static int reiserfs_rename(struct inode *old_dir, struct dentry *old_dentry,
 	if (S_ISDIR(old_inode_mode)) {
 		/* adjust ".." of renamed directory */
 		set_ino_in_dir_entry(&dot_dot_de, INODE_PKEY(new_dir));
-		journal_mark_dirty(&th, new_dir->i_sb, dot_dot_de.de_bh);
+		journal_mark_dirty(&th, dot_dot_de.de_bh);
 
 		/*
 		 * there (in new_dir) was no directory, so it got new link

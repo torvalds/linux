@@ -1101,7 +1101,7 @@ static char prepare_for_delete_or_cut(struct reiserfs_transaction_handle *th,
 		    if (block != 0) {
 			reiserfs_prepare_for_journal(sb, bh, 1);
 			put_block_num(unfm, 0, 0);
-			journal_mark_dirty(th, sb, bh);
+			journal_mark_dirty(th, bh);
 			reiserfs_free_block(th, inode, block, 1);
 		    }
 

@@ -2572,7 +2572,7 @@ int fix_nodes(int op_mode, struct tree_balance *tb,
 	 */
 	reiserfs_prepare_for_journal(tb->tb_sb,
 				     SB_BUFFER_WITH_SB(tb->tb_sb), 1);
-	journal_mark_dirty(tb->transaction_handle, tb->tb_sb,
+	journal_mark_dirty(tb->transaction_handle,
 			   SB_BUFFER_WITH_SB(tb->tb_sb));
 	if (FILESYSTEM_CHANGED_TB(tb))
 		return REPEAT_SEARCH;

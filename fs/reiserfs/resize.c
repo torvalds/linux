@@ -193,7 +193,7 @@ int reiserfs_resize(struct super_block *s, unsigned long block_count_new)
 		reiserfs_clear_le_bit(i, bh->b_data);
 	info->free_count += s->s_blocksize * 8 - block_r;
 
-	journal_mark_dirty(&th, s, bh);
+	journal_mark_dirty(&th, bh);
 	brelse(bh);
 
 	/* Correct new last bitmap block - It may not be full */
@@ -209,7 +209,7 @@ int reiserfs_resize(struct super_block *s, unsigned long block_count_new)
 	reiserfs_prepare_for_journal(s, bh, 1);
 	for (i = block_r_new; i < s->s_blocksize * 8; i++)
 		reiserfs_set_le_bit(i, bh->b_data);
-	journal_mark_dirty(&th, s, bh);
+	journal_mark_dirty(&th, bh);
 	brelse(bh);
 
 	info->free_count -= s->s_blocksize * 8 - block_r_new;
@@ -222,7 +222,7 @@ int reiserfs_resize(struct super_block *s, unsigned long block_count_new)
 	PUT_SB_BLOCK_COUNT(s, block_count_new);
 	PUT_SB_BMAP_NR(s, bmap_would_wrap(bmap_nr_new) ? : bmap_nr_new);
 
-	journal_mark_dirty(&th, s, SB_BUFFER_WITH_SB(s));
+	journal_mark_dirty(&th, SB_BUFFER_WITH_SB(s));
 
 	SB_JOURNAL(s)->j_must_wait = 1;
 	return journal_end(&th);

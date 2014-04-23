@@ -256,14 +256,14 @@ static int scan_bitmap_block(struct reiserfs_transaction_handle *th,
 				}
 			}
 			bi->free_count -= (end - *beg);
-			journal_mark_dirty(th, s, bh);
+			journal_mark_dirty(th, bh);
 			brelse(bh);
 
 			/* free block count calculation */
 			reiserfs_prepare_for_journal(s, SB_BUFFER_WITH_SB(s),
 						     1);
 			PUT_SB_FREE_BLOCKS(s, SB_FREE_BLOCKS(s) - (end - *beg));
-			journal_mark_dirty(th, s, SB_BUFFER_WITH_SB(s));
+			journal_mark_dirty(th, SB_BUFFER_WITH_SB(s));
 
 			return end - (*beg);
 		} else {
@@ -453,14 +453,14 @@ static void _reiserfs_free_block(struct reiserfs_transaction_handle *th,
 			       "block %lu: bit already cleared", block);
 	}
 	apbi[nr].free_count++;
-	journal_mark_dirty(th, s, bmbh);
+	journal_mark_dirty(th, bmbh);
 	brelse(bmbh);
 
 	reiserfs_prepare_for_journal(s, sbh, 1);
 	/* update super block */
 	set_sb_free_blocks(rs, sb_free_blocks(rs) + 1);
 
-	journal_mark_dirty(th, s, sbh);
+	journal_mark_dirty(th, sbh);
 	if (for_unformatted) {
 		int depth = reiserfs_write_unlock_nested(s);
 		dquot_free_block_nodirty(inode, 1);

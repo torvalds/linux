@@ -89,7 +89,7 @@ __u32 reiserfs_get_unused_objectid(struct reiserfs_transaction_handle *th)
 		set_sb_oid_cursize(rs, sb_oid_cursize(rs) - 2);
 	}
 
-	journal_mark_dirty(th, s, SB_BUFFER_WITH_SB(s));
+	journal_mark_dirty(th, SB_BUFFER_WITH_SB(s));
 	return unused_objectid;
 }
 
@@ -107,7 +107,7 @@ void reiserfs_release_objectid(struct reiserfs_transaction_handle *th,
 	check_objectid_map(s, map);
 
 	reiserfs_prepare_for_journal(s, SB_BUFFER_WITH_SB(s), 1);
-	journal_mark_dirty(th, s, SB_BUFFER_WITH_SB(s));
+	journal_mark_dirty(th, SB_BUFFER_WITH_SB(s));
 
 	/*
 	 * start at the beginning of the objectid map (i = 0) and go to

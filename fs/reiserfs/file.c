@@ -212,7 +212,7 @@ int reiserfs_commit_page(struct inode *inode, struct page *page,
 			set_buffer_uptodate(bh);
 			if (logit) {
 				reiserfs_prepare_for_journal(s, bh, 1);
-				journal_mark_dirty(&th, s, bh);
+				journal_mark_dirty(&th, bh);
 			} else if (!buffer_dirty(bh)) {
 				mark_buffer_dirty(bh);
 				/*

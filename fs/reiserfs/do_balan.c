@@ -56,8 +56,7 @@ static inline void buffer_info_init_bh(struct tree_balance *tb,
 inline void do_balance_mark_leaf_dirty(struct tree_balance *tb,
 				       struct buffer_head *bh, int flag)
 {
-	journal_mark_dirty(tb->transaction_handle,
-			   tb->transaction_handle->t_super, bh);
+	journal_mark_dirty(tb->transaction_handle, bh);
 }
 
 #define do_balance_mark_internal_dirty do_balance_mark_leaf_dirty

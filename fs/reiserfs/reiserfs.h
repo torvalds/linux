@@ -2864,7 +2864,7 @@ void reiserfs_free_jh(struct buffer_head *bh);
 int reiserfs_add_tail_list(struct inode *inode, struct buffer_head *bh);
 int reiserfs_add_ordered_list(struct inode *inode, struct buffer_head *bh);
 int journal_mark_dirty(struct reiserfs_transaction_handle *,
-		       struct super_block *, struct buffer_head *bh);
+		       struct buffer_head *bh);
 
 static inline int reiserfs_file_data_log(struct inode *inode)
 {
