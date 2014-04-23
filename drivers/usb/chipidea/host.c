@@ -82,10 +82,17 @@ static int host_start(struct ci_hdrc *ci)
 	}
 
 	ret = usb_add_hcd(hcd, 0, 0);
-	if (ret)
+	if (ret) {
 		goto disable_reg;
-	else
+	} else {
+		struct usb_otg *otg = ci->transceiver->otg;
+
 		ci->hcd = hcd;
+		if (otg) {
+			otg->host = &hcd->self;
+			hcd->self.otg_port = 1;
+		}
+	}
 
 	if (ci->platdata->flags & CI_HDRC_DISABLE_STREAMING)
 		hw_write(ci, OP_USBMODE, USBMODE_CI_SDIS, USBMODE_CI_SDIS);
