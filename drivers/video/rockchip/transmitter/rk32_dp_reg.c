@@ -44,14 +44,14 @@ void rk32_edp_lane_swap(struct rk32_edp *edp, bool enable)
 {
 	u32 val;
 
-	
+
 	if (enable)
 		val = LANE3_MAP_LOGIC_LANE_0 | LANE2_MAP_LOGIC_LANE_1 |
 			LANE1_MAP_LOGIC_LANE_2 | LANE0_MAP_LOGIC_LANE_3;
 	else
 		val = LANE3_MAP_LOGIC_LANE_3 | LANE2_MAP_LOGIC_LANE_2 |
 			LANE1_MAP_LOGIC_LANE_1 | LANE0_MAP_LOGIC_LANE_0;
-	
+
 	writel(val, edp->regs + LANE_MAP);
 }
 
@@ -78,10 +78,10 @@ void rk32_edp_init_refclk(struct rk32_edp *edp)
 
 	val = 0x58;
 	writel(val, edp->regs + PLL_REG_4);
-	
+
 	val = 0x22;
 	writel(val, edp->regs + PLL_REG_5);
-	
+
 	val = 0x19;
 	writel(val, edp->regs + SSC_REG);
 	val = 0x87;
@@ -92,8 +92,8 @@ void rk32_edp_init_refclk(struct rk32_edp *edp)
 	writel(val, edp->regs + DP_BIAS);
 	val = 0x55;
 	writel(val, edp->regs + DP_RESERVE2);
-	
-	
+
+
 	/*val = DRIVE_DVDD_BIT_1_0625V | VCO_BIT_600_MICRO;
 	writel(val, edp->regs + ANALOG_CTL_3);
 
@@ -150,7 +150,7 @@ void rk32_edp_init_interrupt(struct rk32_edp *edp)
 	writel(0x4f, edp->regs + COMMON_INT_STA_2);
 	writel(0xff, edp->regs + COMMON_INT_STA_3);
 	writel(0x27, edp->regs + COMMON_INT_STA_4);
-	
+
 	writel(0x7f, edp->regs + DP_INT_STA);
 
 	/* 0:mask,1: unmask */
@@ -165,8 +165,6 @@ void rk32_edp_reset(struct rk32_edp *edp)
 {
 	u32 val;
 
-	//writel(RST_DP_TX, edp->regs + TX_SW_RST);
-	
 	rk32_edp_stop_video(edp);
 	rk32_edp_enable_video_mute(edp, 0);
 
@@ -244,7 +242,7 @@ void rk32_edp_analog_power_ctr(struct rk32_edp *edp, bool enable)
 			PD_CH3 | PD_CH2 | PD_CH1 | PD_CH0;
 		writel(val, edp->regs + DP_PWRDN);
 		udelay(10);
-		writel(0x0,edp->regs + DP_PWRDN);
+		writel(0x0, edp->regs + DP_PWRDN);
 	} else {
 		val = PD_EXP_BG | PD_AUX | PD_PLL |
 			PD_CH3 | PD_CH2 | PD_CH1 | PD_CH0;
@@ -274,7 +272,7 @@ void rk32_edp_init_analog_func(struct rk32_edp *edp)
 		} else {
 			wt++;
 			udelay(5);
-		}	
+		}
 	}
 
 	/* Enable Serdes FIFO function and Link symbol clock domain module */
@@ -787,7 +785,7 @@ void rk32_edp_get_link_bandwidth(struct rk32_edp *edp, u32 *bwtype)
 	*bwtype = val;
 }
 
-void rk32_edp_hw_link_training_en(struct rk32_edp * edp)
+void rk32_edp_hw_link_training_en(struct rk32_edp *edp)
 {
 	u32 val;
 	val = HW_LT_EN;
@@ -803,15 +801,15 @@ int rk32_edp_wait_hw_lt_done(struct rk32_edp *edp)
 #else
 	val = readl(edp->regs + DP_INT_STA);
 	if (val&HW_LT_DONE) {
-		writel(val,edp->regs + DP_INT_STA);
+		writel(val, edp->regs + DP_INT_STA);
 		return 0;
-	}
-	else
+	} else {
 		return 1;
+	}
 #endif
 }
 
-int rk32_edp_get_hw_lt_status(struct rk32_edp * edp)
+int rk32_edp_get_hw_lt_status(struct rk32_edp *edp)
 {
 	u32 val;
 	val = readl(edp->regs + HW_LT_CTL);
@@ -989,7 +987,7 @@ void rk32_edp_reset_macro(struct rk32_edp *edp)
 	val |= MACRO_RST;
 	writel(val, edp->regs + PHY_TEST);
 
-	
+
 	udelay(10);
 
 	val &= ~MACRO_RST;
@@ -1009,8 +1007,8 @@ int rk32_edp_init_video(struct rk32_edp *edp)
 	val = CHA_CRI(4) | CHA_CTRL;
 	writel(val, edp->regs + SYS_CTL_2);
 
-	//val = 0x0;
-	//writel(val, edp->regs + SYS_CTL_3);
+	/*val = 0x0;
+	writel(val, edp->regs + SYS_CTL_3);*/
 
 	val = VID_HRES_TH(2) | VID_VRES_TH(0);
 	writel(val, edp->regs + VIDEO_CTL_8);
@@ -1123,7 +1121,7 @@ int rk32_edp_bist_cfg(struct rk32_edp *edp)
 {
 	struct video_info *video_info = &edp->video_info;
 	struct rk_screen *screen = &edp->screen;
-	u16 x_total ,y_total, x_act;
+	u16 x_total, y_total, x_act;
 	u32 val;
 	x_total = screen->mode.left_margin + screen->mode.right_margin +
 			screen->mode.xres + screen->mode.hsync_len;
@@ -1175,16 +1173,11 @@ int rk32_edp_bist_cfg(struct rk32_edp *edp)
 	val = BIST_EN | BIST_WH_64 | BIST_TYPE_COLR_BAR;
 	writel(val, edp->regs + VIDEO_CTL_4);
 
-#ifndef CONFIG_RK_FPGA
-	//val = (GRF_EDP_BIST_EN << 16) | GRF_EDP_BIST_EN;
-	//writel_relaxed(val,RK_GRF_VIRT + RK3288_GRF_SOC_CON8);
-#endif
-
 	val = readl(edp->regs + VIDEO_CTL_10);
 	val &= ~F_SEL;
 	writel(val, edp->regs + VIDEO_CTL_10);
 	return 0;
-	
+
 }
 
 void rk32_edp_enable_video_master(struct rk32_edp *edp, bool enable)
@@ -1303,4 +1296,3 @@ void rk32_edp_clear_hotplug_interrupts(struct rk32_edp *edp)
 	val = INT_HPD;
 	writel(val, edp->regs + DP_INT_STA);
 }
-
