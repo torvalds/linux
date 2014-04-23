@@ -902,17 +902,6 @@ static int me4000_ai_do_cmd_test(struct comedi_device *dev,
 		err |= -EINVAL;
 	}
 
-	if (cmd->stop_src == TRIG_NONE && cmd->scan_end_src == TRIG_NONE) {
-	} else if (cmd->stop_src == TRIG_COUNT &&
-		   cmd->scan_end_src == TRIG_NONE) {
-	} else if (cmd->stop_src == TRIG_NONE &&
-		   cmd->scan_end_src == TRIG_COUNT) {
-	} else if (cmd->stop_src == TRIG_COUNT &&
-		   cmd->scan_end_src == TRIG_COUNT) {
-	} else {
-		err |= -EINVAL;
-	}
-
 	if (err)
 		return 2;
 
