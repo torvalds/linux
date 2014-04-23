@@ -332,12 +332,14 @@ static const unsigned int muxonechan[] = {
  If it's ok, then program scan/gain logic.
  This works for all cards.
 */
-static int check_channel_list(struct comedi_device *dev,
-			      struct comedi_subdevice *s,
-			      unsigned int *chanlist, unsigned int n_chan)
+static int pci171x_ai_check_chanlist(struct comedi_device *dev,
+				     struct comedi_subdevice *s,
+				     struct comedi_cmd *cmd)
 {
 	unsigned int chansegment[32];
 	unsigned int i, nowmustbechan, seglen, segpos;
+	unsigned int *chanlist = cmd->chanlist;
+	unsigned int n_chan = cmd->chanlist_len;
 
 	/* correct channel and range number check itself comedi/range.c */
 	if (n_chan < 1) {
@@ -964,7 +966,7 @@ static int pci171x_ai_cmd(struct comedi_device *dev, struct comedi_subdevice *s)
 
 	start_pacer(dev, -1, 0, 0);	/*  stop pacer */
 
-	seglen = check_channel_list(dev, s, cmd->chanlist, cmd->chanlist_len);
+	seglen = pci171x_ai_check_chanlist(dev, s, cmd);
 	if (seglen < 1)
 		return -EINVAL;
 	setup_channel_list(dev, s, cmd->chanlist, cmd->chanlist_len, seglen);
@@ -1099,13 +1101,10 @@ static int pci171x_ai_cmdtest(struct comedi_device *dev,
 	if (err)
 		return 4;
 
-	/* step 5: complain about special chanlist considerations */
+	/* Step 5: check channel list */
 
-	if (cmd->chanlist) {
-		if (!check_channel_list(dev, s, cmd->chanlist,
-					cmd->chanlist_len))
-			return 5;	/*  incorrect channels list */
-	}
+	if (!pci171x_ai_check_chanlist(dev, s, cmd))
+		return 5;
 
 	return 0;
 }
