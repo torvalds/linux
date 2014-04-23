@@ -148,7 +148,7 @@ void tipc_node_link_up(struct tipc_node *n_ptr, struct tipc_link *l_ptr)
 	n_ptr->working_links++;
 
 	pr_info("Established link <%s> on network plane %c\n",
-		l_ptr->name, l_ptr->b_ptr->net_plane);
+		l_ptr->name, l_ptr->net_plane);
 
 	if (!active[0]) {
 		active[0] = active[1] = l_ptr;
@@ -208,11 +208,11 @@ void tipc_node_link_down(struct tipc_node *n_ptr, struct tipc_link *l_ptr)
 
 	if (!tipc_link_is_active(l_ptr)) {
 		pr_info("Lost standby link <%s> on network plane %c\n",
-			l_ptr->name, l_ptr->b_ptr->net_plane);
+			l_ptr->name, l_ptr->net_plane);
 		return;
 	}
 	pr_info("Lost link <%s> on network plane %c\n",
-		l_ptr->name, l_ptr->b_ptr->net_plane);
+		l_ptr->name, l_ptr->net_plane);
 
 	active = &n_ptr->active_links[0];
 	if (active[0] == l_ptr)
@@ -239,7 +239,7 @@ int tipc_node_is_up(struct tipc_node *n_ptr)
 
 void tipc_node_attach_link(struct tipc_node *n_ptr, struct tipc_link *l_ptr)
 {
-	n_ptr->links[l_ptr->b_ptr->identity] = l_ptr;
+	n_ptr->links[l_ptr->bearer_id] = l_ptr;
 	spin_lock_bh(&node_list_lock);
 	tipc_num_links++;
 	spin_unlock_bh(&node_list_lock);
@@ -273,14 +273,12 @@ static void node_name_purge_complete(unsigned long node_addr)
 {
 	struct tipc_node *n_ptr;
 
-	read_lock_bh(&tipc_net_lock);
 	n_ptr = tipc_node_find(node_addr);
 	if (n_ptr) {
 		tipc_node_lock(n_ptr);
 		n_ptr->block_setup &= ~WAIT_NAMES_GONE;
 		tipc_node_unlock(n_ptr);
 	}
-	read_unlock_bh(&tipc_net_lock);
 }
 
 static void node_lost_contact(struct tipc_node *n_ptr)

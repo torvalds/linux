@@ -56,7 +56,7 @@
 #include <linux/list.h>
 #include <linux/slab.h>
 #include <linux/vmalloc.h>
-
+#include <linux/rtnetlink.h>
 
 #define TIPC_MOD_VER "2.0.0"
 

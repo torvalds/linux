@@ -69,9 +69,6 @@ struct tipc_node;
 
 extern const char tipc_bclink_name[];
 
-void tipc_nmap_add(struct tipc_node_map *nm_ptr, u32 node);
-void tipc_nmap_remove(struct tipc_node_map *nm_ptr, u32 node);
-
 /**
  * tipc_nmap_equal - test for equality of node maps
  */
@@ -98,6 +95,6 @@ void tipc_bclink_update_link_state(struct tipc_node *n_ptr, u32 last_sent);
 int  tipc_bclink_stats(char *stats_buf, const u32 buf_size);
 int  tipc_bclink_reset_stats(void);
 int  tipc_bclink_set_queue_limits(u32 limit);
-void tipc_bcbearer_sort(void);
+void tipc_bcbearer_sort(struct tipc_node_map *nm_ptr, u32 node, bool action);
 
 #endif

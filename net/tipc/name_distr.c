@@ -248,7 +248,6 @@ void tipc_named_node_up(unsigned long nodearg)
 	u32 max_item_buf = 0;
 
 	/* compute maximum amount of publication data to send per message */
-	read_lock_bh(&tipc_net_lock);
 	n_ptr = tipc_node_find(node);
 	if (n_ptr) {
 		tipc_node_lock(n_ptr);
@@ -258,7 +257,6 @@ void tipc_named_node_up(unsigned long nodearg)
 				ITEM_SIZE) * ITEM_SIZE;
 		tipc_node_unlock(n_ptr);
 	}
-	read_unlock_bh(&tipc_net_lock);
 	if (!max_item_buf)
 		return;
 

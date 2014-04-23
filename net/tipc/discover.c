@@ -46,8 +46,9 @@
 
 /**
  * struct tipc_link_req - information about an ongoing link setup request
- * @bearer: bearer issuing requests
+ * @bearer_id: identity of bearer issuing requests
  * @dest: destination address for request messages
+ * @domain: network domain to which links can be established
  * @num_nodes: number of nodes currently discovered (i.e. with an active link)
  * @lock: spinlock for controlling access to requests
  * @buf: request message to be (repeatedly) sent
@@ -55,8 +56,9 @@
  * @timer_intv: current interval between requests (in ms)
  */
 struct tipc_link_req {
-	struct tipc_bearer *bearer;
+	u32 bearer_id;
 	struct tipc_media_addr dest;
+	u32 domain;
 	int num_nodes;
 	spinlock_t lock;
 	struct sk_buff *buf;
@@ -69,22 +71,19 @@ struct tipc_link_req {
  * @type: message type (request or response)
  * @b_ptr: ptr to bearer issuing message
  */
-static struct sk_buff *tipc_disc_init_msg(u32 type, struct tipc_bearer *b_ptr)
+static void tipc_disc_init_msg(struct sk_buff *buf, u32 type,
+			       struct tipc_bearer *b_ptr)
 {
-	struct sk_buff *buf = tipc_buf_acquire(INT_H_SIZE);
 	struct tipc_msg *msg;
 	u32 dest_domain = b_ptr->domain;
 
-	if (buf) {
-		msg = buf_msg(buf);
-		tipc_msg_init(msg, LINK_CONFIG, type, INT_H_SIZE, dest_domain);
-		msg_set_non_seq(msg, 1);
-		msg_set_node_sig(msg, tipc_random);
-		msg_set_dest_domain(msg, dest_domain);
-		msg_set_bc_netid(msg, tipc_net_id);
-		b_ptr->media->addr2msg(&b_ptr->addr, msg_media_addr(msg));
-	}
-	return buf;
+	msg = buf_msg(buf);
+	tipc_msg_init(msg, LINK_CONFIG, type, INT_H_SIZE, dest_domain);
+	msg_set_non_seq(msg, 1);
+	msg_set_node_sig(msg, tipc_random);
+	msg_set_dest_domain(msg, dest_domain);
+	msg_set_bc_netid(msg, tipc_net_id);
+	b_ptr->media->addr2msg(&b_ptr->addr, msg_media_addr(msg));
 }
 
 /**
@@ -239,9 +238,10 @@ void tipc_disc_rcv(struct sk_buff *buf, struct tipc_bearer *b_ptr)
 	link_fully_up = link_working_working(link);
 
 	if ((type == DSC_REQ_MSG) && !link_fully_up) {
-		rbuf = tipc_disc_init_msg(DSC_RESP_MSG, b_ptr);
+		rbuf = tipc_buf_acquire(INT_H_SIZE);
 		if (rbuf) {
-			tipc_bearer_send(b_ptr, rbuf, &media_addr);
+			tipc_disc_init_msg(rbuf, DSC_RESP_MSG, b_ptr);
+			tipc_bearer_send(b_ptr->identity, rbuf, &media_addr);
 			kfree_skb(rbuf);
 		}
 	}
@@ -303,7 +303,7 @@ static void disc_timeout(struct tipc_link_req *req)
 	spin_lock_bh(&req->lock);
 
 	/* Stop searching if only desired node has been found */
-	if (tipc_node(req->bearer->domain) && req->num_nodes) {
+	if (tipc_node(req->domain) && req->num_nodes) {
 		req->timer_intv = TIPC_LINK_REQ_INACTIVE;
 		goto exit;
 	}
@@ -315,7 +315,7 @@ static void disc_timeout(struct tipc_link_req *req)
 	 * hold at fast polling rate if don't have any associated nodes,
 	 * otherwise hold at slow polling rate
 	 */
-	tipc_bearer_send(req->bearer, req->buf, &req->dest);
+	tipc_bearer_send(req->bearer_id, req->buf, &req->dest);
 
 
 	req->timer_intv *= 2;
@@ -347,21 +347,21 @@ int tipc_disc_create(struct tipc_bearer *b_ptr, struct tipc_media_addr *dest)
 	if (!req)
 		return -ENOMEM;
 
-	req->buf = tipc_disc_init_msg(DSC_REQ_MSG, b_ptr);
-	if (!req->buf) {
-		kfree(req);
-		return -ENOMSG;
-	}
+	req->buf = tipc_buf_acquire(INT_H_SIZE);
+	if (!req->buf)
+		return -ENOMEM;
 
+	tipc_disc_init_msg(req->buf, DSC_REQ_MSG, b_ptr);
 	memcpy(&req->dest, dest, sizeof(*dest));
-	req->bearer = b_ptr;
+	req->bearer_id = b_ptr->identity;
+	req->domain = b_ptr->domain;
 	req->num_nodes = 0;
 	req->timer_intv = TIPC_LINK_REQ_INIT;
 	spin_lock_init(&req->lock);
 	k_init_timer(&req->timer, (Handler)disc_timeout, (unsigned long)req);
 	k_start_timer(&req->timer, req->timer_intv);
 	b_ptr->link_req = req;
-	tipc_bearer_send(req->bearer, req->buf, &req->dest);
+	tipc_bearer_send(req->bearer_id, req->buf, &req->dest);
 	return 0;
 }
 
@@ -375,4 +375,24 @@ void tipc_disc_delete(struct tipc_link_req *req)
 	k_term_timer(&req->timer);
 	kfree_skb(req->buf);
 	kfree(req);
+}
+
+/**
+ * tipc_disc_reset - reset object to send periodic link setup requests
+ * @b_ptr: ptr to bearer issuing requests
+ * @dest_domain: network domain to which links can be established
+ */
+void tipc_disc_reset(struct tipc_bearer *b_ptr)
+{
+	struct tipc_link_req *req = b_ptr->link_req;
+
+	spin_lock_bh(&req->lock);
+	tipc_disc_init_msg(req->buf, DSC_REQ_MSG, b_ptr);
+	req->bearer_id = b_ptr->identity;
+	req->domain = b_ptr->domain;
+	req->num_nodes = 0;
+	req->timer_intv = TIPC_LINK_REQ_INIT;
+	k_start_timer(&req->timer, req->timer_intv);
+	tipc_bearer_send(req->bearer_id, req->buf, &req->dest);
+	spin_unlock_bh(&req->lock);
 }
