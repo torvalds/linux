@@ -480,7 +480,7 @@ static int sunxi_hdmiaudio_resume(struct snd_soc_dai *cpu_dai)
 	return 0;
 }
 
-#define SUNXI_I2S_RATES (SNDRV_PCM_RATE_8000_192000 | SNDRV_PCM_RATE_KNOT)
+#define SUNXI_HDMI_RATES (SNDRV_PCM_RATE_8000_192000 | SNDRV_PCM_RATE_KNOT)
 static struct snd_soc_dai_ops sunxi_hdmiaudio_dai_ops = {
 	.trigger 		= sunxi_hdmiaudio_trigger,
 	.hw_params 	= sunxi_hdmiaudio_hw_params,
@@ -496,7 +496,7 @@ static struct snd_soc_dai_driver sunxi_hdmiaudio_dai = {
 	.playback = {
 		.channels_min = 1,
 		.channels_max = 2,
-		.rates = SUNXI_I2S_RATES,
+		.rates = SUNXI_HDMI_RATES,
 		.formats = SNDRV_PCM_FMTBIT_S16_LE | SNDRV_PCM_FMTBIT_S32_LE
 	},
 	.symmetric_rates = 1,
