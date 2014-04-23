@@ -1227,12 +1227,17 @@ config MCP_UCB1200_TS
 
 endmenu
 
-config VEXPRESS_CONFIG
-	bool "ARM Versatile Express platform infrastructure"
-	depends on ARM || ARM64
+config MFD_VEXPRESS_SYSREG
+	bool "Versatile Express System Registers"
+	depends on VEXPRESS_CONFIG
+	default y
+	select CLKSRC_MMIO
+	select GPIO_GENERIC_PLATFORM
+	select MFD_CORE
+	select MFD_SYSCON
 	help
-	  Platform configuration infrastructure for the ARM Ltd.
-	  Versatile Express.
+	  System Registers are the platform configuration block
+	  on the ARM Ltd. Versatile Express board.
 
 endmenu
 endif

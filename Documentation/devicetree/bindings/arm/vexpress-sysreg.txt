@@ -8,6 +8,8 @@ interrupt generation, MMC and NOR Flash control etc.
 Required node properties:
 - compatible value : = "arm,vexpress,sysreg";
 - reg : physical base address and the size of the registers window
+
+Deprecated properties, replaced by GPIO subnodes (see below):
 - gpio-controller : specifies that the node is a GPIO controller
 - #gpio-cells : size of the GPIO specifier, should be 2:
   - first cell is the pseudo-GPIO line number:
@@ -16,12 +18,42 @@ Required node properties:
     2 - NOR FLASH WPn
   - second cell can take standard GPIO flags (currently ignored).
 
+Control registers providing pseudo-GPIO lines must be represented
+by subnodes, each of them requiring the following properties:
+- compatible value : one of
+			"arm,vexpress-sysreg,sys_led"
+			"arm,vexpress-sysreg,sys_mci"
+			"arm,vexpress-sysreg,sys_flash"
+- gpio-controller : makes the node a GPIO controller
+- #gpio-cells : size of the GPIO specifier, must be 2:
+  - first cell is the function number:
+    - for sys_led : 0..7 = LED 0..7
+    - for sys_mci : 0 = MMC CARDIN, 1 = MMC WPROT
+    - for sys_flash : 0 = NOR FLASH WPn
+  - second cell can take standard GPIO flags (currently ignored).
+
 Example:
 	v2m_sysreg: sysreg@10000000 {
  		compatible = "arm,vexpress-sysreg";
  		reg = <0x10000000 0x1000>;
-		gpio-controller;
-		#gpio-cells = <2>;
+
+		v2m_led_gpios: sys_led@08 {
+			compatible = "arm,vexpress-sysreg,sys_led";
+			gpio-controller;
+			#gpio-cells = <2>;
+		};
+
+		v2m_mmc_gpios: sys_mci@48 {
+			compatible = "arm,vexpress-sysreg,sys_mci";
+			gpio-controller;
+			#gpio-cells = <2>;
+		};
+
+		v2m_flash_gpios: sys_flash@4c {
+			compatible = "arm,vexpress-sysreg,sys_flash";
+			gpio-controller;
+			#gpio-cells = <2>;
+		};
  	};
 
 This block also can also act a bridge to the platform's configuration

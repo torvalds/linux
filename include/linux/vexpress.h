@@ -24,18 +24,6 @@
 #define VEXPRESS_SITE_DB2		2
 #define VEXPRESS_SITE_MASTER		0xf
 
-#define VEXPRESS_GPIO_MMC_CARDIN	0
-#define VEXPRESS_GPIO_MMC_WPROT		1
-#define VEXPRESS_GPIO_FLASH_WPn		2
-#define VEXPRESS_GPIO_LED0		3
-#define VEXPRESS_GPIO_LED1		4
-#define VEXPRESS_GPIO_LED2		5
-#define VEXPRESS_GPIO_LED3		6
-#define VEXPRESS_GPIO_LED4		7
-#define VEXPRESS_GPIO_LED5		8
-#define VEXPRESS_GPIO_LED6		9
-#define VEXPRESS_GPIO_LED7		10
-
 #define VEXPRESS_RES_FUNC(_site, _func)	\
 {					\
 	.start = (_site),		\
@@ -70,14 +58,14 @@ struct regmap *devm_regmap_init_vexpress_config(struct device *dev);
 
 /* Platform control */
 
+unsigned int vexpress_get_mci_cardin(struct device *dev);
 u32 vexpress_get_procid(int site);
 u32 vexpress_get_hbi(int site);
 void *vexpress_get_24mhz_clock_base(void);
 void vexpress_flags_set(u32 data);
 
 void vexpress_sysreg_early_init(void __iomem *base);
-void vexpress_sysreg_of_early_init(void);
-int vexpress_sysreg_config_device_register(struct platform_device *pdev);
+int vexpress_syscfg_device_register(struct platform_device *pdev);
 
 /* Clocks */
 

@@ -160,7 +160,7 @@ static void __init ct_ca9x4_init(void)
 		amba_device_register(ct_ca9x4_amba_devs[i], &iomem_resource);
 
 	platform_device_register(&pmu_device);
-	vexpress_sysreg_config_device_register(&osc1_device);
+	vexpress_syscfg_device_register(&osc1_device);
 }
 
 #ifdef CONFIG_SMP

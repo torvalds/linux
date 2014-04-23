@@ -201,8 +201,9 @@ static struct platform_device v2m_cf_device = {
 
 static struct mmci_platform_data v2m_mmci_data = {
 	.ocr_mask	= MMC_VDD_32_33|MMC_VDD_33_34,
-	.gpio_wp	= VEXPRESS_GPIO_MMC_WPROT,
-	.gpio_cd	= VEXPRESS_GPIO_MMC_CARDIN,
+	.status		= vexpress_get_mci_cardin,
+	.gpio_cd	= -1,
+	.gpio_wp	= -1,
 };
 
 static struct resource v2m_sysreg_resources[] = {
@@ -351,10 +352,10 @@ static void __init v2m_init(void)
 	for (i = 0; i < ARRAY_SIZE(v2m_amba_devs); i++)
 		amba_device_register(v2m_amba_devs[i], &iomem_resource);
 
-	vexpress_sysreg_config_device_register(&v2m_muxfpga_device);
-	vexpress_sysreg_config_device_register(&v2m_shutdown_device);
-	vexpress_sysreg_config_device_register(&v2m_reboot_device);
-	vexpress_sysreg_config_device_register(&v2m_dvimode_device);
+	vexpress_syscfg_device_register(&v2m_muxfpga_device);
+	vexpress_syscfg_device_register(&v2m_shutdown_device);
+	vexpress_syscfg_device_register(&v2m_reboot_device);
+	vexpress_syscfg_device_register(&v2m_dvimode_device);
 
 	ct_desc->init_tile();
 }
@@ -408,8 +409,6 @@ void __init v2m_dt_map_io(void)
 void __init v2m_dt_init_early(void)
 {
 	u32 dt_hbi;
-
-	vexpress_sysreg_of_early_init();
 
 	/* Confirm board type against DT property, if available */
 	if (of_property_read_u32(of_allnodes, "arm,hbi", &dt_hbi) == 0) {

@@ -74,8 +74,24 @@
 			v2m_sysreg: sysreg@010000 {
 				compatible = "arm,vexpress-sysreg";
 				reg = <0x010000 0x1000>;
-				gpio-controller;
-				#gpio-cells = <2>;
+
+				v2m_led_gpios: sys_led@08 {
+					compatible = "arm,vexpress-sysreg,sys_led";
+					gpio-controller;
+					#gpio-cells = <2>;
+				};
+
+				v2m_mmc_gpios: sys_mci@48 {
+					compatible = "arm,vexpress-sysreg,sys_mci";
+					gpio-controller;
+					#gpio-cells = <2>;
+				};
+
+				v2m_flash_gpios: sys_flash@4c {
+					compatible = "arm,vexpress-sysreg,sys_flash";
+					gpio-controller;
+					#gpio-cells = <2>;
+				};
 			};
 
 			v2m_sysctl: sysctl@020000 {
@@ -113,8 +129,8 @@
 				compatible = "arm,pl180", "arm,primecell";
 				reg = <0x050000 0x1000>;
 				interrupts = <9 10>;
-				cd-gpios = <&v2m_sysreg 0 0>;
-				wp-gpios = <&v2m_sysreg 1 0>;
+				cd-gpios = <&v2m_mmc_gpios 0 0>;
+				wp-gpios = <&v2m_mmc_gpios 1 0>;
 				max-frequency = <12000000>;
 				vmmc-supply = <&v2m_fixed_3v3>;
 				clocks = <&v2m_clk24mhz>, <&smbclk>;
@@ -263,6 +279,58 @@
 			#clock-cells = <0>;
 			clock-frequency = <32768>;
 			clock-output-names = "v2m:refclk32khz";
+		};
+
+		leds {
+			compatible = "gpio-leds";
+
+			user@1 {
+				label = "v2m:green:user1";
+				gpios = <&v2m_led_gpios 0 0>;
+				linux,default-trigger = "heartbeat";
+			};
+
+			user@2 {
+				label = "v2m:green:user2";
+				gpios = <&v2m_led_gpios 1 0>;
+				linux,default-trigger = "mmc0";
+			};
+
+			user@3 {
+				label = "v2m:green:user3";
+				gpios = <&v2m_led_gpios 2 0>;
+				linux,default-trigger = "cpu0";
+			};
+
+			user@4 {
+				label = "v2m:green:user4";
+				gpios = <&v2m_led_gpios 3 0>;
+				linux,default-trigger = "cpu1";
+			};
+
+			user@5 {
+				label = "v2m:green:user5";
+				gpios = <&v2m_led_gpios 4 0>;
+				linux,default-trigger = "cpu2";
+			};
+
+			user@6 {
+				label = "v2m:green:user6";
+				gpios = <&v2m_led_gpios 5 0>;
+				linux,default-trigger = "cpu3";
+			};
+
+			user@7 {
+				label = "v2m:green:user7";
+				gpios = <&v2m_led_gpios 6 0>;
+				linux,default-trigger = "cpu4";
+			};
+
+			user@8 {
+				label = "v2m:green:user8";
+				gpios = <&v2m_led_gpios 7 0>;
+				linux,default-trigger = "cpu5";
+			};
 		};
 
 		mcc {
