@@ -243,28 +243,46 @@ static void mmc_select_card_type(struct mmc_card *card)
 	u8 card_type = card->ext_csd.raw_card_type & EXT_CSD_CARD_TYPE_MASK;
 	u32 caps = host->caps, caps2 = host->caps2;
 	unsigned int hs_max_dtr = 0;
-
-	if (card_type & EXT_CSD_CARD_TYPE_26)
-		hs_max_dtr = MMC_HIGH_26_MAX_DTR;
+	unsigned int avail_type = 0;
 
 	if (caps & MMC_CAP_MMC_HIGHSPEED &&
-			card_type & EXT_CSD_CARD_TYPE_52)
+	    card_type & EXT_CSD_CARD_TYPE_HS_26) {
+		hs_max_dtr = MMC_HIGH_26_MAX_DTR;
+		avail_type |= EXT_CSD_CARD_TYPE_HS_26;
+	}
+
+	if (caps & MMC_CAP_MMC_HIGHSPEED &&
+	    card_type & EXT_CSD_CARD_TYPE_HS_52) {
 		hs_max_dtr = MMC_HIGH_52_MAX_DTR;
+		avail_type |= EXT_CSD_CARD_TYPE_HS_52;
+	}
 
-	if ((caps & MMC_CAP_1_8V_DDR &&
-			card_type & EXT_CSD_CARD_TYPE_DDR_1_8V) ||
-	    (caps & MMC_CAP_1_2V_DDR &&
-			card_type & EXT_CSD_CARD_TYPE_DDR_1_2V))
+	if (caps & MMC_CAP_1_8V_DDR &&
+	    card_type & EXT_CSD_CARD_TYPE_DDR_1_8V) {
 		hs_max_dtr = MMC_HIGH_DDR_MAX_DTR;
+		avail_type |= EXT_CSD_CARD_TYPE_DDR_1_8V;
+	}
 
-	if ((caps2 & MMC_CAP2_HS200_1_8V_SDR &&
-			card_type & EXT_CSD_CARD_TYPE_SDR_1_8V) ||
-	    (caps2 & MMC_CAP2_HS200_1_2V_SDR &&
-			card_type & EXT_CSD_CARD_TYPE_SDR_1_2V))
+	if (caps & MMC_CAP_1_2V_DDR &&
+	    card_type & EXT_CSD_CARD_TYPE_DDR_1_2V) {
+		hs_max_dtr = MMC_HIGH_DDR_MAX_DTR;
+		avail_type |= EXT_CSD_CARD_TYPE_DDR_1_2V;
+	}
+
+	if (caps2 & MMC_CAP2_HS200_1_8V_SDR &&
+	    card_type & EXT_CSD_CARD_TYPE_HS200_1_8V) {
 		hs_max_dtr = MMC_HS200_MAX_DTR;
+		avail_type |= EXT_CSD_CARD_TYPE_HS200_1_8V;
+	}
+
+	if (caps2 & MMC_CAP2_HS200_1_2V_SDR &&
+	    card_type & EXT_CSD_CARD_TYPE_HS200_1_2V) {
+		hs_max_dtr = MMC_HS200_MAX_DTR;
+		avail_type |= EXT_CSD_CARD_TYPE_HS200_1_2V;
+	}
 
 	card->ext_csd.hs_max_dtr = hs_max_dtr;
-	card->ext_csd.card_type = card_type;
+	card->mmc_avail_type = avail_type;
 }
 
 /*
@@ -800,12 +818,10 @@ static int mmc_select_hs200(struct mmc_card *card)
 
 	host = card->host;
 
-	if (card->ext_csd.card_type & EXT_CSD_CARD_TYPE_SDR_1_2V &&
-			host->caps2 & MMC_CAP2_HS200_1_2V_SDR)
+	if (card->mmc_avail_type & EXT_CSD_CARD_TYPE_HS200_1_2V)
 		err = __mmc_set_signal_voltage(host, MMC_SIGNAL_VOLTAGE_120);
 
-	if (err && card->ext_csd.card_type & EXT_CSD_CARD_TYPE_SDR_1_8V &&
-			host->caps2 & MMC_CAP2_HS200_1_8V_SDR)
+	if (err && card->mmc_avail_type & EXT_CSD_CARD_TYPE_HS200_1_8V)
 		err = __mmc_set_signal_voltage(host, MMC_SIGNAL_VOLTAGE_180);
 
 	/* If fails try again during next card power cycle */
@@ -1064,10 +1080,9 @@ static int mmc_init_card(struct mmc_host *host, u32 ocr,
 	 */
 	if (card->ext_csd.hs_max_dtr != 0) {
 		err = 0;
-		if (card->ext_csd.hs_max_dtr > 52000000 &&
-		    host->caps2 & MMC_CAP2_HS200)
+		if (card->mmc_avail_type & EXT_CSD_CARD_TYPE_HS200)
 			err = mmc_select_hs200(card);
-		else if	(host->caps & MMC_CAP_MMC_HIGHSPEED)
+		else if	(card->mmc_avail_type & EXT_CSD_CARD_TYPE_HS)
 			err = __mmc_switch(card, EXT_CSD_CMD_SET_NORMAL,
 					EXT_CSD_HS_TIMING, 1,
 					card->ext_csd.generic_cmd6_time,
@@ -1081,13 +1096,11 @@ static int mmc_init_card(struct mmc_host *host, u32 ocr,
 			       mmc_hostname(card->host));
 			err = 0;
 		} else {
-			if (card->ext_csd.hs_max_dtr > 52000000 &&
-			    host->caps2 & MMC_CAP2_HS200) {
+			if (card->mmc_avail_type & EXT_CSD_CARD_TYPE_HS200)
 				mmc_set_timing(card->host,
 					       MMC_TIMING_MMC_HS200);
-			} else {
+			else
 				mmc_set_timing(card->host, MMC_TIMING_MMC_HS);
-			}
 		}
 	}
 
@@ -1110,14 +1123,8 @@ static int mmc_init_card(struct mmc_host *host, u32 ocr,
 	/*
 	 * Indicate DDR mode (if supported).
 	 */
-	if (mmc_card_hs(card)) {
-		if ((card->ext_csd.card_type & EXT_CSD_CARD_TYPE_DDR_1_8V)
-			&& (host->caps & MMC_CAP_1_8V_DDR))
-				ddr = MMC_1_8V_DDR_MODE;
-		else if ((card->ext_csd.card_type & EXT_CSD_CARD_TYPE_DDR_1_2V)
-			&& (host->caps & MMC_CAP_1_2V_DDR))
-				ddr = MMC_1_2V_DDR_MODE;
-	}
+	if (mmc_card_hs(card))
+		ddr = card->mmc_avail_type & EXT_CSD_CARD_TYPE_DDR_52;
 
 	/*
 	 * Indicate HS200 SDR mode (if supported).
@@ -1137,8 +1144,7 @@ static int mmc_init_card(struct mmc_host *host, u32 ocr,
 		 * 3. set the clock to > 52Mhz <=200MHz and
 		 * 4. execute tuning for HS200
 		 */
-		if ((host->caps2 & MMC_CAP2_HS200) &&
-		    card->host->ops->execute_tuning) {
+		if (card->host->ops->execute_tuning) {
 			mmc_host_clk_hold(card->host);
 			err = card->host->ops->execute_tuning(card->host,
 				MMC_SEND_TUNING_BLOCK_HS200);
@@ -1247,7 +1253,7 @@ static int mmc_init_card(struct mmc_host *host, u32 ocr,
 			 *
 			 * WARNING: eMMC rules are NOT the same as SD DDR
 			 */
-			if (ddr == MMC_1_2V_DDR_MODE) {
+			if (ddr & EXT_CSD_CARD_TYPE_DDR_1_2V) {
 				err = __mmc_set_signal_voltage(host,
 					MMC_SIGNAL_VOLTAGE_120);
 				if (err)

@@ -62,12 +62,6 @@ struct mmc_ios {
 #define MMC_TIMING_MMC_DDR52	8
 #define MMC_TIMING_MMC_HS200	9
 
-#define MMC_SDR_MODE		0
-#define MMC_1_2V_DDR_MODE	1
-#define MMC_1_8V_DDR_MODE	2
-#define MMC_1_2V_SDR_MODE	3
-#define MMC_1_8V_SDR_MODE	4
-
 	unsigned char	signal_voltage;		/* signalling voltage (1.8V or 3.3V) */
 
 #define MMC_SIGNAL_VOLTAGE_330	0
