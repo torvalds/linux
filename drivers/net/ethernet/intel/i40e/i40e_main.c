@@ -4135,6 +4135,54 @@ out:
 	return err;
 }
 #endif /* CONFIG_I40E_DCB */
+#define SPEED_SIZE 14
+#define FC_SIZE 8
+/**
+ * i40e_print_link_message - print link up or down
+ * @vsi: the VSI for which link needs a message
+ */
+static void i40e_print_link_message(struct i40e_vsi *vsi, bool isup)
+{
+	char speed[SPEED_SIZE] = "Unknown";
+	char fc[FC_SIZE] = "RX/TX";
+
+	if (!isup) {
+		netdev_info(vsi->netdev, "NIC Link is Down\n");
+		return;
+	}
+
+	switch (vsi->back->hw.phy.link_info.link_speed) {
+	case I40E_LINK_SPEED_40GB:
+		strncpy(speed, "40 Gbps", SPEED_SIZE);
+		break;
+	case I40E_LINK_SPEED_10GB:
+		strncpy(speed, "10 Gbps", SPEED_SIZE);
+		break;
+	case I40E_LINK_SPEED_1GB:
+		strncpy(speed, "1000 Mbps", SPEED_SIZE);
+		break;
+	default:
+		break;
+	}
+
+	switch (vsi->back->hw.fc.current_mode) {
+	case I40E_FC_FULL:
+		strncpy(fc, "RX/TX", FC_SIZE);
+		break;
+	case I40E_FC_TX_PAUSE:
+		strncpy(fc, "TX", FC_SIZE);
+		break;
+	case I40E_FC_RX_PAUSE:
+		strncpy(fc, "RX", FC_SIZE);
+		break;
+	default:
+		strncpy(fc, "None", FC_SIZE);
+		break;
+	}
+
+	netdev_info(vsi->netdev, "NIC Link is Up %s Full Duplex, Flow Control: %s\n",
+		    speed, fc);
+}
 
 /**
  * i40e_up_complete - Finish the last steps of bringing up a connection
@@ -4161,11 +4209,11 @@ static int i40e_up_complete(struct i40e_vsi *vsi)
 
 	if ((pf->hw.phy.link_info.link_info & I40E_AQ_LINK_UP) &&
 	    (vsi->netdev)) {
-		netdev_info(vsi->netdev, "NIC Link is Up\n");
+		i40e_print_link_message(vsi, true);
 		netif_tx_start_all_queues(vsi->netdev);
 		netif_carrier_on(vsi->netdev);
 	} else if (vsi->netdev) {
-		netdev_info(vsi->netdev, "NIC Link is Down\n");
+		i40e_print_link_message(vsi, false);
 	}
 
 	/* replay FDIR SB filters */
@@ -4886,10 +4934,8 @@ static void i40e_link_event(struct i40e_pf *pf)
 
 	if (new_link == old_link)
 		return;
-
 	if (!test_bit(__I40E_DOWN, &pf->vsi[pf->lan_vsi]->state))
-		netdev_info(pf->vsi[pf->lan_vsi]->netdev,
-			    "NIC Link is %s\n", (new_link ? "Up" : "Down"));
+		i40e_print_link_message(pf->vsi[pf->lan_vsi], new_link);
 
 	/* Notify the base of the switch tree connected to
 	 * the link.  Floating VEBs are not notified.
