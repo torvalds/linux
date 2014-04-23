@@ -26,6 +26,7 @@
 
 #include <media/v4l2-device.h>
 #include <media/v4l2-fh.h>
+#include <media/v4l2-ctrls.h>
 #include <media/tuner.h>
 #include <media/tveeprom.h>
 #include <media/videobuf-dma-sg.h>
@@ -130,14 +131,6 @@ struct cx23885_fmt {
 	int   depth;
 	int   flags;
 	u32   cxformat;
-};
-
-struct cx23885_ctrl {
-	struct v4l2_queryctrl v;
-	u32                   off;
-	u32                   reg;
-	u32                   mask;
-	u32                   shift;
 };
 
 struct cx23885_tvnorm {
@@ -370,6 +363,7 @@ struct cx23885_audio_dev {
 struct cx23885_dev {
 	atomic_t                   refcount;
 	struct v4l2_device 	   v4l2_dev;
+	struct v4l2_ctrl_handler   ctrl_handler;
 
 	/* pci stuff */
 	struct pci_dev             *pci;
@@ -597,8 +591,6 @@ int cx23885_enum_input(struct cx23885_dev *dev, struct v4l2_input *i);
 int cx23885_set_input(struct file *file, void *priv, unsigned int i);
 int cx23885_get_input(struct file *file, void *priv, unsigned int *i);
 int cx23885_set_frequency(struct file *file, void *priv, const struct v4l2_frequency *f);
-int cx23885_set_control(struct cx23885_dev *dev, struct v4l2_control *ctl);
-int cx23885_get_control(struct cx23885_dev *dev, struct v4l2_control *ctl);
 int cx23885_set_tvnorm(struct cx23885_dev *dev, v4l2_std_id norm);
 
 /* ----------------------------------------------------------- */

@@ -1313,22 +1313,6 @@ static int vidioc_s_frequency(struct file *file, void *priv,
 	return cx23885_set_frequency(file, priv, f);
 }
 
-static int vidioc_g_ctrl(struct file *file, void *priv,
-	struct v4l2_control *ctl)
-{
-	struct cx23885_dev *dev = ((struct cx23885_fh *)priv)->dev;
-
-	return cx23885_get_control(dev, ctl);
-}
-
-static int vidioc_s_ctrl(struct file *file, void *priv,
-	struct v4l2_control *ctl)
-{
-	struct cx23885_dev *dev = ((struct cx23885_fh *)priv)->dev;
-
-	return cx23885_set_control(dev, ctl);
-}
-
 static int vidioc_querycap(struct file *file, void  *priv,
 				struct v4l2_capability *cap)
 {
@@ -1672,8 +1656,6 @@ static const struct v4l2_ioctl_ops mpeg_ioctl_ops = {
 	.vidioc_s_tuner		 = vidioc_s_tuner,
 	.vidioc_g_frequency	 = vidioc_g_frequency,
 	.vidioc_s_frequency	 = vidioc_s_frequency,
-	.vidioc_s_ctrl		 = vidioc_s_ctrl,
-	.vidioc_g_ctrl		 = vidioc_g_ctrl,
 	.vidioc_querycap	 = vidioc_querycap,
 	.vidioc_enum_fmt_vid_cap = vidioc_enum_fmt_vid_cap,
 	.vidioc_g_fmt_vid_cap	 = vidioc_g_fmt_vid_cap,
@@ -1689,8 +1671,6 @@ static const struct v4l2_ioctl_ops mpeg_ioctl_ops = {
 	.vidioc_s_ext_ctrls	 = vidioc_s_ext_ctrls,
 	.vidioc_try_ext_ctrls	 = vidioc_try_ext_ctrls,
 	.vidioc_log_status	 = vidioc_log_status,
-	.vidioc_querymenu	 = vidioc_querymenu,
-	.vidioc_queryctrl	 = vidioc_queryctrl,
 #ifdef CONFIG_VIDEO_ADV_DEBUG
 	.vidioc_g_chip_info	 = cx23885_g_chip_info,
 	.vidioc_g_register	 = cx23885_g_register,
