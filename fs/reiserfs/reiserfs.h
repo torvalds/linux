@@ -2914,10 +2914,9 @@ int journal_init(struct super_block *, const char *j_dev_name, int old_format,
 int journal_release(struct reiserfs_transaction_handle *, struct super_block *);
 int journal_release_error(struct reiserfs_transaction_handle *,
 			  struct super_block *);
-int journal_end(struct reiserfs_transaction_handle *, struct super_block *,
-		unsigned long);
-int journal_end_sync(struct reiserfs_transaction_handle *, struct super_block *,
-		     unsigned long);
+int journal_end(struct reiserfs_transaction_handle *, struct super_block *);
+int journal_end_sync(struct reiserfs_transaction_handle *,
+		     struct super_block *);
 int journal_mark_freed(struct reiserfs_transaction_handle *,
 		       struct super_block *, b_blocknr_t blocknr);
 int journal_transaction_should_end(struct reiserfs_transaction_handle *, int);

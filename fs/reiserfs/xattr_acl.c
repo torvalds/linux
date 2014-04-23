@@ -39,7 +39,7 @@ reiserfs_set_acl(struct inode *inode, struct posix_acl *acl, int type)
 	if (error == 0) {
 		error = __reiserfs_set_acl(&th, inode, type, acl);
 		reiserfs_write_lock(inode->i_sb);
-		error2 = journal_end(&th, inode->i_sb, jcreate_blocks);
+		error2 = journal_end(&th, inode->i_sb);
 		reiserfs_write_unlock(inode->i_sb);
 		if (error2)
 			error = error2;

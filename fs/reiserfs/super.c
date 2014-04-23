@@ -74,7 +74,7 @@ static int reiserfs_sync_fs(struct super_block *s, int wait)
 	dquot_writeback_dquots(s, -1);
 	reiserfs_write_lock(s);
 	if (!journal_begin(&th, s, 1))
-		if (!journal_end_sync(&th, s, 1))
+		if (!journal_end_sync(&th, s))
 			reiserfs_flush_old_commits(s);
 	reiserfs_write_unlock(s);
 	return 0;
@@ -138,7 +138,7 @@ static int reiserfs_freeze(struct super_block *s)
 						     1);
 			journal_mark_dirty(&th, s, SB_BUFFER_WITH_SB(s));
 			reiserfs_block_writes(&th);
-			journal_end_sync(&th, s, 1);
+			journal_end_sync(&th, s);
 		}
 	}
 	reiserfs_write_unlock(s);
@@ -178,7 +178,7 @@ static int remove_save_link_only(struct super_block *s,
 		/* removals are protected by direct items */
 		reiserfs_release_objectid(&th, le32_to_cpu(key->k_objectid));
 
-	return journal_end(&th, s, JOURNAL_PER_BALANCE_CNT);
+	return journal_end(&th, s);
 }
 
 #ifdef CONFIG_QUOTA
@@ -506,7 +506,7 @@ int remove_save_link(struct inode *inode, int truncate)
 	} else
 		REISERFS_I(inode)->i_flags &= ~i_link_saved_truncate_mask;
 
-	return journal_end(&th, inode->i_sb, JOURNAL_PER_BALANCE_CNT);
+	return journal_end(&th, inode->i_sb);
 }
 
 static void reiserfs_kill_sb(struct super_block *s)
@@ -659,7 +659,7 @@ static void reiserfs_dirty_inode(struct inode *inode, int flags)
 		goto out;
 
 	reiserfs_update_sd(&th, inode);
-	journal_end(&th, inode->i_sb, 1);
+	journal_end(&th, inode->i_sb);
 
 out:
 	reiserfs_write_unlock(inode->i_sb);
@@ -1514,7 +1514,7 @@ static int reiserfs_remount(struct super_block *s, int *mount_flags, char *arg)
 	}
 	/* this will force a full flush of all journal lists */
 	SB_JOURNAL(s)->j_must_wait = 1;
-	err = journal_end(&th, s, 10);
+	err = journal_end(&th, s);
 	if (err)
 		goto out_err_unlock;
 
@@ -2107,7 +2107,7 @@ static int reiserfs_fill_super(struct super_block *s, void *data, int silent)
 
 
 		journal_mark_dirty(&th, s, SB_BUFFER_WITH_SB(s));
-		errval = journal_end(&th, s, 1);
+		errval = journal_end(&th, s);
 		if (errval) {
 			dput(s->s_root);
 			s->s_root = NULL;
@@ -2220,9 +2220,7 @@ static int reiserfs_write_dquot(struct dquot *dquot)
 	depth = reiserfs_write_unlock_nested(dquot->dq_sb);
 	ret = dquot_commit(dquot);
 	reiserfs_write_lock_nested(dquot->dq_sb, depth);
-	err =
-	    journal_end(&th, dquot->dq_sb,
-			REISERFS_QUOTA_TRANS_BLOCKS(dquot->dq_sb));
+	err = journal_end(&th, dquot->dq_sb);
 	if (!ret && err)
 		ret = err;
 out:
@@ -2245,9 +2243,7 @@ static int reiserfs_acquire_dquot(struct dquot *dquot)
 	depth = reiserfs_write_unlock_nested(dquot->dq_sb);
 	ret = dquot_acquire(dquot);
 	reiserfs_write_lock_nested(dquot->dq_sb, depth);
-	err =
-	    journal_end(&th, dquot->dq_sb,
-			REISERFS_QUOTA_INIT_BLOCKS(dquot->dq_sb));
+	err = journal_end(&th, dquot->dq_sb);
 	if (!ret && err)
 		ret = err;
 out:
@@ -2272,9 +2268,7 @@ static int reiserfs_release_dquot(struct dquot *dquot)
 	}
 	ret = dquot_release(dquot);
 	reiserfs_write_lock(dquot->dq_sb);
-	err =
-	    journal_end(&th, dquot->dq_sb,
-			REISERFS_QUOTA_DEL_BLOCKS(dquot->dq_sb));
+	err = journal_end(&th, dquot->dq_sb);
 	if (!ret && err)
 		ret = err;
 	reiserfs_write_unlock(dquot->dq_sb);
@@ -2307,7 +2301,7 @@ static int reiserfs_write_info(struct super_block *sb, int type)
 	depth = reiserfs_write_unlock_nested(sb);
 	ret = dquot_commit_info(sb, type);
 	reiserfs_write_lock_nested(sb, depth);
-	err = journal_end(&th, sb, 2);
+	err = journal_end(&th, sb);
 	if (!ret && err)
 		ret = err;
 out:
@@ -2380,7 +2374,7 @@ static int reiserfs_quota_on(struct super_block *sb, int type, int format_id,
 		err = journal_begin(&th, sb, 1);
 		if (err)
 			goto out;
-		err = journal_end_sync(&th, sb, 1);
+		err = journal_end_sync(&th, sb);
 		if (err)
 			goto out;
 	}

@@ -292,7 +292,7 @@ static int reiserfs_for_each_xattr(struct inode *inode,
 					  I_MUTEX_XATTR);
 			err = action(dir, data);
 			reiserfs_write_lock(inode->i_sb);
-			jerror = journal_end(&th, inode->i_sb, blocks);
+			jerror = journal_end(&th, inode->i_sb);
 			reiserfs_write_unlock(inode->i_sb);
 			mutex_unlock(&dir->d_parent->d_inode->i_mutex);
 			err = jerror ?: err;
@@ -601,7 +601,7 @@ int reiserfs_xattr_set(struct inode *inode, const char *name,
 					  buffer, buffer_size, flags);
 
 	reiserfs_write_lock(inode->i_sb);
-	error2 = journal_end(&th, inode->i_sb, jbegin_count);
+	error2 = journal_end(&th, inode->i_sb);
 	reiserfs_write_unlock(inode->i_sb);
 	if (error == 0)
 		error = error2;

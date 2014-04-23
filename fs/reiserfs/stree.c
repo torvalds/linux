@@ -1985,7 +1985,6 @@ int reiserfs_do_truncate(struct reiserfs_transaction_handle *th,
 		 */
 		if (journal_transaction_should_end(th, 0) ||
 		    reiserfs_transaction_free_space(th) <= JOURNAL_FOR_FREE_BLOCK_AND_UPDATE_SD) {
-			int orig_len_alloc = th->t_blocks_allocated;
 			pathrelse(&s_search_path);
 
 			if (update_timestamps) {
@@ -1994,7 +1993,7 @@ int reiserfs_do_truncate(struct reiserfs_transaction_handle *th,
 			}
 			reiserfs_update_sd(th, inode);
 
-			err = journal_end(th, inode->i_sb, orig_len_alloc);
+			err = journal_end(th, inode->i_sb);
 			if (err)
 				goto out;
 			err = journal_begin(th, inode->i_sb,
