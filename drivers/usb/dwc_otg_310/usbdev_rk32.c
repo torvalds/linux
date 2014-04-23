@@ -33,9 +33,20 @@ static void usb20otg_phy_suspend(void* pdata, int suspend)
 		control_usb->grf_uoc0_base->CON2 = (0x01<<2)|((0x01<<2)<<16);
 		//enter suspend
 		control_usb->grf_uoc0_base->CON3 = 0x2A|(0x3F<<16);
+		mdelay(1);
+		/* set siddq,the analog blocks are powered down
+		 * note:
+		 * 1. Before asserting SIDDQ, ensure that VDATSRCENB0,
+		 * VDATDETENB0, DCDENB0, BYPASSSEL0, ADPPRBENB0,
+		 * and TESTBURNIN are set to 1'b0.
+		 * 2. Before asserting SIDDQ, ensure that phy enter suspend.*/
+		control_usb->grf_uoc0_base->CON0 = (0x01<<13)|((0x01<<13)<<16);
 		usbpdata->phy_status = 1;
 	}else{
-		// exit suspend.
+		/* unset siddq,the analog blocks are powered up */
+		control_usb->grf_uoc0_base->CON0 = (0x01<<13)<<16;
+		mdelay(1);
+		//exit suspend
 		control_usb->grf_uoc0_base->CON2 = ((0x01<<2)<<16);
 		usbpdata->phy_status = 0;
 	}
@@ -191,9 +202,15 @@ static void usb20host_phy_suspend(void* pdata, int suspend)
 		control_usb->grf_uoc2_base->CON2 = (0x01<<2)|((0x01<<2)<<16);
 		// enter suspend
 		control_usb->grf_uoc2_base->CON3 = 0x2A|(0x3F<<16); 
+		mdelay(1);
+		// set siddq
+		control_usb->grf_uoc2_base->CON0 = (0x01<<13)|((0x01<<13)<<16);
 		usbpdata->phy_status = 1;
 	}else{
-		//exit suspend.
+		// unset siddq
+		control_usb->grf_uoc2_base->CON0 = (0x01<<13)<<16;
+		mdelay(1);
+		// exit suspend
 		control_usb->grf_uoc2_base->CON2 = ((0x01<<2)<<16);
 		usbpdata->phy_status = 0;
 	}
@@ -433,8 +450,14 @@ static void rk_ehci_phy_suspend(void* pdata, int suspend)
 		control_usb->grf_uoc1_base->CON2 = (0x01<<2)|((0x01<<2)<<16);
 		// enter suspend
 		control_usb->grf_uoc1_base->CON3 = 0x2A|(0x3F<<16);
+		mdelay(1);
+		// set siddq
+		control_usb->grf_uoc1_base->CON0 = (0x01<<13) | ((0x01<<13) << 16);
 		usbpdata->phy_status = 1;
 	}else{
+		// unset siddq
+		control_usb->grf_uoc1_base->CON0 = ((0x01<<13) << 16);
+		mdelay(1);
 		// exit suspend
 		control_usb->grf_uoc1_base->CON2 = ((0x01<<2)<<16);
 		usbpdata->phy_status = 0;
