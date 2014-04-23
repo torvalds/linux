@@ -2471,12 +2471,6 @@ struct tree_balance {
 	/* number of items that fall into left most node when S[0] splits */
 	int s0num;
 
-	/* number of items that fall into first new node when S[0] splits */
-	int s1num;
-
-	/* number of items that fall into second new node when S[0] splits */
-	int s2num;
-
 	/*
 	 * number of bytes which can flow to the left neighbor from the left
 	 * most liquid item that cannot be shifted from S[0] entirely
@@ -2491,12 +2485,30 @@ struct tree_balance {
 	 */
 	int rbytes;
 
+
 	/*
-	 * number of bytes which flow to the first new node when S[0] splits
+	 * index into the array of item headers in
+	 * S[0] of the affected item
+	 */
+	int item_pos;
+
+	/* new nodes allocated to hold what could not fit into S */
+	struct buffer_head *S_new[2];
+
+	/*
+	 * number of items that will be placed into nodes in S_new
+	 * when S[0] splits
+	 */
+	int snum[2];
+
+	/*
+	 * number of bytes which flow to nodes in S_new when S[0] splits
 	 * note: if S[0] splits into 3 nodes, then items do not need to be cut
 	 */
-	int s1bytes;
-	int s2bytes;
+	int sbytes[2];
+
+	int pos_in_item;
+	int zeroes_num;
 
 	/*
 	 * buffers which are to be freed after do_balance finishes

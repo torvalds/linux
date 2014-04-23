@@ -673,9 +673,9 @@ void store_print_tb(struct tree_balance *tb)
 		"* h * size * ln * lb * rn * rb * blkn * s0 * s1 * s1b * s2 * s2b * curb * lk * rk *\n"
 		"* 0 * %4d * %2d * %2d * %2d * %2d * %4d * %2d * %2d * %3d * %2d * %3d * %4d * %2d * %2d *\n",
 		tb->insert_size[0], tb->lnum[0], tb->lbytes, tb->rnum[0],
-		tb->rbytes, tb->blknum[0], tb->s0num, tb->s1num, tb->s1bytes,
-		tb->s2num, tb->s2bytes, tb->cur_blknum, tb->lkey[0],
-		tb->rkey[0]);
+		tb->rbytes, tb->blknum[0], tb->s0num, tb->snum[0],
+		tb->sbytes[0], tb->snum[1], tb->sbytes[1],
+		tb->cur_blknum, tb->lkey[0], tb->rkey[0]);
 
 	/* this prints balance parameters for non-leaf levels */
 	h = 0;

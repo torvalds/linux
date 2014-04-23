@@ -631,10 +631,11 @@ static void set_parameters(struct tree_balance *tb, int h, int lnum,
 	/* only for leaf level */
 	if (h == 0) {
 		if (s012 != NULL) {
-			tb->s0num = *s012++,
-			    tb->s1num = *s012++, tb->s2num = *s012++;
-			tb->s1bytes = *s012++;
-			tb->s2bytes = *s012;
+			tb->s0num = *s012++;
+			tb->snum[0] = *s012++;
+			tb->snum[1] = *s012++;
+			tb->sbytes[0] = *s012++;
+			tb->sbytes[1] = *s012;
 		}
 		tb->lbytes = lb;
 		tb->rbytes = rb;
