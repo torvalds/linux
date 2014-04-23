@@ -174,7 +174,7 @@ static int queue_setup(struct vb2_queue *vq, const struct v4l2_format *fmt,
 		 * You cannot use read() with FIELD_ALTERNATE since the field
 		 * information (TOP/BOTTOM) cannot be passed back to the user.
 		 */
-		if (vb2_fileio_is_active(q))
+		if (vb2_fileio_is_active(vq))
 			return -EINVAL;
 		skel->field = V4L2_FIELD_TOP;
 	}
