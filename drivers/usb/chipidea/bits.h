@@ -81,6 +81,7 @@
 /* OTGSC */
 #define OTGSC_IDPU	      BIT(5)
 #define OTGSC_HADP	      BIT(6)
+#define OTGSC_HABA	      BIT(7)
 #define OTGSC_ID	      BIT(8)
 #define OTGSC_AVV	      BIT(9)
 #define OTGSC_ASV	      BIT(10)
