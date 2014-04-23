@@ -1644,7 +1644,6 @@ static int serial_omap_probe(struct platform_device *pdev)
 	struct omap_uart_port_info *omap_up_info = dev_get_platdata(&pdev->dev);
 	struct uart_omap_port *up;
 	struct resource *mem;
-	struct resource *irq;
 	int uartirq = 0;
 	int wakeirq = 0;
 	int ret;
@@ -1658,12 +1657,9 @@ static int serial_omap_probe(struct platform_device *pdev)
 		omap_up_info = of_get_uart_port_info(&pdev->dev);
 		pdev->dev.platform_data = omap_up_info;
 	} else {
-		irq = platform_get_resource(pdev, IORESOURCE_IRQ, 0);
-		if (!irq) {
-			dev_err(&pdev->dev, "no irq resource?\n");
-			return -ENODEV;
-		}
-		uartirq = irq->start;
+		uartirq = platform_get_irq(pdev, 0);
+		if (uartirq < 0)
+			return -EPROBE_DEFER;
 	}
 
 	mem = platform_get_resource(pdev, IORESOURCE_MEM, 0);
