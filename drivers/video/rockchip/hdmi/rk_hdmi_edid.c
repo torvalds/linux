@@ -147,7 +147,11 @@ static int hdmi_edid_get_cea_svd(unsigned char *buf, struct hdmi_edid *pedid)
 	for(i = 0; i < count; i++)
 	{
 		hdmi_edid_debug("[EDID-CEA] %02x VID %d native %d\n", buf[1 + i], buf[1 + i] & 0x7f, buf[1 + i] >> 7);
+	#ifndef HDMI_VERSION_2
 		vic = buf[1 + i] & 0x7f;
+	#else
+		vic = buf[1 + i] & 0xff;
+	#endif
 		for(j = 0; j < ARRAY_SIZE(double_aspect_vic); j++)
 		{
 			if(vic == double_aspect_vic[j])
@@ -192,14 +196,101 @@ static int hdmi_edid_parse_cea_sad(unsigned char *buf, struct hdmi_edid *pedid)
 	}
 	return E_HDMI_EDID_SUCCESS;
 }
+
+//Parse CEA Vendor Specific Data Block
+static int hdmi_edid_parse_cea_sdb(unsigned char * buf, struct hdmi_edid *pedid)
+{
+	unsigned int count = 0, cur_offset = 0, i = 0;
+	unsigned int IEEEOUI = 0;
+	unsigned int supports_ai,  dc_48bit, dc_36bit, dc_30bit, dc_y444;
+	unsigned int len_3d, len_4k;
+	unsigned char vic = 0;
+	const struct fb_videomode *mode;
+
+	count = buf[0] & 0x1F;
+	IEEEOUI = buf[3];
+	IEEEOUI <<= 8;
+	IEEEOUI += buf[2];
+	IEEEOUI <<= 8;
+	IEEEOUI += buf[1];
+	hdmi_edid_debug("[EDID-CEA] IEEEOUI is 0x%08x.\n", IEEEOUI);
+	if(IEEEOUI == 0x0c03)
+		pedid->sink_hdmi = 1;
+
+	if (count > 5) {
+		pedid->deepcolor = (buf[6] >> 3) & 0x0F;
+		supports_ai = buf[6] >> 7;
+		dc_48bit = (buf[6] >> 6) & 0x1;
+		dc_36bit = (buf[6] >> 5) & 0x1;
+		dc_30bit = (buf[6] >> 4) & 0x1;
+		dc_y444 = (buf[6] >> 3) & 0x1;
+		hdmi_edid_debug("[EDID-CEA] supports_ai %d dc_48bit %d dc_36bit %d dc_30bit %d dc_y444 %d \n", supports_ai, dc_48bit, dc_36bit, dc_30bit, dc_y444);
+	}
+	if (count > 6) {
+		pedid->maxtmdsclock = buf[7] * 5000000;
+	}
+	if (count > 7) {
+		pedid->latency_fields_present = (buf[8] & 0x80) ? 1 : 0;
+		pedid->i_latency_fields_present = (buf[8] & 0x40) ? 1 : 0;
+		pedid->video_present = (buf[8] & 0x20) ? 1 : 0;
+	}
+
+	cur_offset = 9;
+	if (count >= cur_offset) {
+		if (pedid->latency_fields_present == 1) {
+			pedid->video_latency = buf[cur_offset++];
+			pedid->audio_latency = buf[cur_offset++];
+		}
+		if(count >= cur_offset && pedid->i_latency_fields_present) {
+			pedid->interlaced_video_latency = buf[cur_offset++];
+			pedid->interlaced_audio_latency = buf[cur_offset++];
+		}
+	}
+
+	if(pedid->video_present == 0)
+		return E_HDMI_EDID_SUCCESS;
+
+	if (count >= cur_offset) {
+		pedid->support_3d = (buf[cur_offset++] & 0x80) ? 1 : 0;
+
+		len_4k = (buf[cur_offset] >> 5) & 0x07;
+		len_3d = buf[cur_offset] & 0x1F;
+		cur_offset++;
+	}
+	if (count >= cur_offset && len_4k > 0) {
+		for(i = 0; i < len_4k; i++) {
+		#ifndef HDMI_VERSION_2
+			vic = buf[cur_offset + i] & 0x7f;
+			if (vic > 0 && vic < 5) {
+				vic = (vic == 4) ? 98 : (96 - vic);
+			}
+			hdmi_edid_debug("[EDID-CEA] %02x VID %d native %d\n", buf[cur_offset + i], vic, buf[cur_offset + i] >> 7);
+		#else
+			vic = buf[cur_offset + i] & 0xff;
+			hdmi_edid_debug("[EDID-CEA] %02x VID %d native %d\n", buf[cur_offset + i], vic);
+		#endif
+			if (vic) {
+				mode = hdmi_vic_to_videomode(vic);
+				if (mode) {
+					hdmi_add_videomode(mode, &pedid->modelist);
+				}
+			}
+		}
+		cur_offset += i;
+	}
+	if (count >= cur_offset && pedid->support_3d && len_3d > 0) {
+		//TODO Daisen wait to add
+	}
+
+	return E_HDMI_EDID_SUCCESS;
+}
+
 // Parse CEA 861 Serial Extension.
 static int hdmi_edid_parse_extensions_cea(unsigned char *buf, struct hdmi_edid *pedid)
 {
 	unsigned int ddc_offset, native_dtd_num, cur_offset = 4;
 	unsigned int underscan_support, baseaudio_support;
-	unsigned int tag, IEEEOUI = 0;
-//	unsigned int supports_ai,  dc_48bit, dc_36bit, dc_30bit, dc_y444;
-//	unsigned char vic;
+	unsigned int tag;
 	
 	if(buf == NULL)
 		return E_HDMI_EDID_PARAM;
@@ -238,42 +329,7 @@ static int hdmi_edid_parse_extensions_cea(unsigned char *buf, struct hdmi_edid *
 				break;
 			case 0x03:	// Vendor Specific Data Block
 				hdmi_edid_debug("[EDID-CEA] It is a Vendor Specific Data Block.\n");
-
-				IEEEOUI = buf[cur_offset + 2 + 1];
-				IEEEOUI <<= 8;
-				IEEEOUI += buf[cur_offset + 1 + 1];
-				IEEEOUI <<= 8;
-				IEEEOUI += buf[cur_offset + 1];
-				hdmi_edid_debug("[EDID-CEA] IEEEOUI is 0x%08x.\n", IEEEOUI);
-				if(IEEEOUI == 0x0c03)
-					pedid->sink_hdmi = 1;
-//				if(count > 5)
-//				{
-//					pedid->deepcolor = (buf[cur_offset + 5] >> 3) & 0x0F;
-//					supports_ai = buf[cur_offset + 5] >> 7;
-//					dc_48bit = (buf[cur_offset + 5] >> 6) & 0x1;
-//					dc_36bit = (buf[cur_offset + 5] >> 5) & 0x1;
-//					dc_30bit = (buf[cur_offset + 5] >> 4) & 0x1;
-//					dc_y444 = (buf[cur_offset + 5] >> 3) & 0x1;
-//					hdmi_edid_debug("[EDID-CEA] supports_ai %d dc_48bit %d dc_36bit %d dc_30bit %d dc_y444 %d \n", supports_ai, dc_48bit, dc_36bit, dc_30bit, dc_y444);
-//				}
-//				if(count > 6)
-//					pedid->maxtmdsclock = buf[cur_offset + 6] * 5000000;
-//				if(count > 7)
-//				{
-//					pedid->latency_fields_present = (buf[cur_offset + 7] & 0x80) ? 1:0;
-//					pedid->i_latency_fields_present = (buf[cur_offset + 7] & 0x40) ? 1:0;
-//				}
-//				if(count > 9 && pedid->latency_fields_present)
-//				{
-//					pedid->video_latency = buf[cur_offset + 8];
-//					pedid->audio_latency = buf[cur_offset + 9];
-//				}
-//				if(count > 11 && pedid->i_latency_fields_present)
-//				{
-//					pedid->interlaced_video_latency = buf[cur_offset + 10];
-//					pedid->interlaced_audio_latency = buf[cur_offset + 11];
-//				}
+				hdmi_edid_parse_cea_sdb(buf + cur_offset, pedid);
 				break;		
 			case 0x05:	// VESA DTC Data Block
 				hdmi_edid_debug("[EDID-CEA] It is a VESA DTC Data Block.\n");

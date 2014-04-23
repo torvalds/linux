@@ -139,6 +139,14 @@ enum {
 	HDMI_COLOR_YCbCr444
 };
 
+/*HDMI Video Color Depth*/
+enum {
+	HDMI_COLOR_DEPTH_8BIT = 0x1,
+	HDMI_COLOR_DEPTH_10BIT = 0x2,
+	HDMI_COLOR_DEPTH_12BIT = 0x4,
+	HDMI_COLOR_DEPTH_16BIT = 0x8
+};
+
 /* HDMI Audio type */
 enum hdmi_audio_type
 {
@@ -238,6 +246,15 @@ struct hdmi_edid {
 	unsigned char ycbcr444;				//Display device support YCbCr444
 	unsigned char ycbcr422;				//Display device support YCbCr422
 	unsigned char deepcolor;			//bit3:DC_48bit; bit2:DC_36bit; bit1:DC_30bit; bit0:DC_Y444;
+	unsigned char latency_fields_present;
+	unsigned char i_latency_fields_present;
+	unsigned char video_latency;
+	unsigned char audio_latency;
+	unsigned char interlaced_video_latency;
+	unsigned char interlaced_audio_latency;
+	unsigned char video_present;			//have additional video format abount 4k and/or 3d
+	unsigned char support_3d;			//3D format support
+	unsigned int maxtmdsclock;			//max tmds clock freq support
 	struct fb_monspecs	*specs;			//Device spec
 	struct list_head modelist;			//Device supported display mode list
 	struct hdmi_audio *audio;			//Device supported audio info
@@ -252,7 +269,10 @@ struct hdmi_video_para {
 	int input_color;	//input video color mode
 	int output_mode;	//output hdmi or dvi
 	int output_color;	//output video color mode
-	int format_3d;
+	unsigned char format_3d;		//output 3d format
+	unsigned char color_depth;	//color depth: 8bit; 10bit; 12bit; 16bit;
+	unsigned char pixel_repet;	//pixel repettion
+	unsigned char pixel_pack_phase;	//pixel packing default phase
 };
 
 struct hdmi {
@@ -337,6 +357,7 @@ extern struct hdmi_video_timing * hdmi_find_mode(int vic);
 extern int hdmi_find_best_mode(struct hdmi* hdmi_drv, int vic);
 extern int hdmi_ouputmode_select(struct hdmi *hdmi_drv, int edid_ok);
 extern int hdmi_switch_fb(struct hdmi *hdmi_drv, int vic);
+extern int hdmi_init_video_para(struct hdmi *hdmi_drv, struct hdmi_video_para *video);
 extern void hdmi_work(struct work_struct *work);
 extern void hdmi_register_display_sysfs(struct hdmi *hdmi_drv, struct device *parent);
 extern void hdmi_unregister_display_sysfs(struct hdmi *hdmi_drv);

@@ -544,6 +544,45 @@ int hdmi_switch_fb(struct hdmi *hdmi, int vic)
 }
 
 /**
+ * hdmi_init_video_para: init video_para variable
+ *
+ * NOTES:
+ *This parameters should be modified according to need by user
+ */
+int hdmi_init_video_para(struct hdmi *hdmi_drv, struct hdmi_video_para *video)
+{
+	memset(video, 0, sizeof(struct hdmi_video_para));
+	video->vic = hdmi_drv->vic;
+	video->input_mode = VIDEO_INPUT_RGB_YCBCR_444;
+	video->input_color = VIDEO_INPUT_COLOR_RGB;//VIDEO_INPUT_COLOR_YCBCR
+	video->output_mode = hdmi_drv->edid.sink_hdmi;
+	video->format_3d = 0; 	/*TODO modify according to EDID if need*/
+	video->pixel_repet = 0;
+
+	if (hdmi_drv->edid.deepcolor & HDMI_COLOR_DEPTH_16BIT)
+		video->color_depth = HDMI_COLOR_DEPTH_16BIT;
+	else if (hdmi_drv->edid.deepcolor & HDMI_COLOR_DEPTH_12BIT)
+		video->color_depth = HDMI_COLOR_DEPTH_12BIT;
+	else if (hdmi_drv->edid.deepcolor & HDMI_COLOR_DEPTH_10BIT)
+		video->color_depth = HDMI_COLOR_DEPTH_10BIT;
+	else
+		video->color_depth = HDMI_COLOR_DEPTH_8BIT;
+
+	if (hdmi_drv->edid.ycbcr444)
+		video->output_color = VIDEO_OUTPUT_YCBCR444;
+	else if (hdmi_drv->edid.ycbcr422)
+		video->output_color = VIDEO_OUTPUT_YCBCR422;
+	else
+		video->output_color = VIDEO_OUTPUT_RGB444;
+
+	/*For DVI, output RGB*/
+	if (hdmi_drv->edid.sink_hdmi == 0)
+		video->output_color = VIDEO_OUTPUT_RGB444;
+
+	return 0;
+}
+
+/**
  * hdmi_drv_register: init hdmi_drv variable
  *
  * NOTES:
