@@ -132,14 +132,11 @@ static int si2168_read_status(struct dvb_frontend *fe, fe_status_t *status)
 	 * [b4] statistics ready? Set in a few secs after lock is gained.
 	 */
 
-	switch ((cmd.args[2] >> 0) & 0x0f) {
-	case 0x0a:
+	switch ((cmd.args[2] >> 1) & 0x03) {
+	case 0x01:
 		*status = FE_HAS_SIGNAL | FE_HAS_CARRIER;
 		break;
-	case 0x0e:
-		*status = FE_HAS_SIGNAL | FE_HAS_CARRIER | FE_HAS_VITERBI;
-		break;
-	case 0x06:
+	case 0x03:
 		*status = FE_HAS_SIGNAL | FE_HAS_CARRIER | FE_HAS_VITERBI |
 				FE_HAS_SYNC | FE_HAS_LOCK;
 		break;
