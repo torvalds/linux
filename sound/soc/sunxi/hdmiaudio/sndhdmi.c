@@ -68,6 +68,10 @@ static int sndhdmi_hw_params(struct snd_pcm_substream *substream,
 				struct snd_pcm_hw_params *params,
 				struct snd_soc_dai *dai)
 {
+	if ((!substream) || (!params)) {
+		printk("error:%s,line:%d\n", __func__, __LINE__);
+		return -EAGAIN;
+	}
 	hdmi_para.sample_rate = params_rate(params);
 	hdmi_para.channel_num = params_channels(params);
 	switch (params_format(params)) {
