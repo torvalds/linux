@@ -4267,6 +4267,14 @@ static int i40e_open(struct net_device *netdev)
 	if (err)
 		return err;
 
+	/* configure global TSO hardware offload settings */
+	wr32(&pf->hw, I40E_GLLAN_TSOMSK_F, be32_to_cpu(TCP_FLAG_PSH |
+						       TCP_FLAG_FIN) >> 16);
+	wr32(&pf->hw, I40E_GLLAN_TSOMSK_M, be32_to_cpu(TCP_FLAG_PSH |
+						       TCP_FLAG_FIN |
+						       TCP_FLAG_CWR) >> 16);
+	wr32(&pf->hw, I40E_GLLAN_TSOMSK_L, be32_to_cpu(TCP_FLAG_CWR) >> 16);
+
 #ifdef CONFIG_I40E_VXLAN
 	vxlan_get_rx_port(netdev);
 #endif
@@ -6767,6 +6775,7 @@ static int i40e_config_netdev(struct i40e_vsi *vsi)
 			   NETIF_F_HW_VLAN_CTAG_FILTER |
 			   NETIF_F_IPV6_CSUM	       |
 			   NETIF_F_TSO		       |
+			   NETIF_F_TSO_ECN	       |
 			   NETIF_F_TSO6		       |
 			   NETIF_F_RXCSUM	       |
 			   NETIF_F_NTUPLE	       |
