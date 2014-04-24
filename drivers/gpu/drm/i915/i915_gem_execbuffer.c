@@ -1060,14 +1060,22 @@ i915_gem_do_execbuffer(struct drm_device *dev, void *data,
 	case I915_EXEC_CONSTANTS_REL_GENERAL:
 	case I915_EXEC_CONSTANTS_ABSOLUTE:
 	case I915_EXEC_CONSTANTS_REL_SURFACE:
-		if (ring == &dev_priv->ring[RCS] &&
-		    mode != dev_priv->relative_constants_mode) {
-			if (INTEL_INFO(dev)->gen < 4)
+		if (mode != 0 && ring != &dev_priv->ring[RCS]) {
+			DRM_DEBUG("non-0 rel constants mode on non-RCS\n");
+			return -EINVAL;
+		}
+
+		if (mode != dev_priv->relative_constants_mode) {
+			if (INTEL_INFO(dev)->gen < 4) {
+				DRM_DEBUG("no rel constants on pre-gen4\n");
 				return -EINVAL;
+			}
 
 			if (INTEL_INFO(dev)->gen > 5 &&
-			    mode == I915_EXEC_CONSTANTS_REL_SURFACE)
+			    mode == I915_EXEC_CONSTANTS_REL_SURFACE) {
+				DRM_DEBUG("rel surface constants mode invalid on gen5+\n");
 				return -EINVAL;
+			}
 
 			/* The HW changed the meaning on this bit on gen6 */
 			if (INTEL_INFO(dev)->gen >= 6)
