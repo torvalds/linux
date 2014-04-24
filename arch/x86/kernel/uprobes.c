@@ -583,6 +583,7 @@ static struct uprobe_xol_ops branch_xol_ops = {
 static int branch_setup_xol_ops(struct arch_uprobe *auprobe, struct insn *insn)
 {
 	u8 opc1 = OPCODE1(insn);
+	int i;
 
 	/* has the side-effect of processing the entire instruction */
 	insn_get_length(insn);
@@ -610,6 +611,16 @@ static int branch_setup_xol_ops(struct arch_uprobe *auprobe, struct insn *insn)
 	default:
 		if (!is_cond_jmp_opcode(opc1))
 			return -ENOSYS;
+	}
+
+	/*
+	 * 16-bit overrides such as CALLW (66 e8 nn nn) are not supported.
+	 * Intel and AMD behavior differ in 64-bit mode: Intel ignores 66 prefix.
+	 * No one uses these insns, reject any branch insns with such prefix.
+	 */
+	for (i = 0; i < insn->prefixes.nbytes; i++) {
+		if (insn->prefixes.bytes[i] == 0x66)
+			return -ENOTSUPP;
 	}
 
 	auprobe->branch.opc1 = opc1;
