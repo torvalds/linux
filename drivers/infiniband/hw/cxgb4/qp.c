@@ -1777,11 +1777,15 @@ int c4iw_ib_modify_qp(struct ib_qp *ibqp, struct ib_qp_attr *attr,
 	/*
 	 * Use SQ_PSN and RQ_PSN to pass in IDX_INC values for
 	 * ringing the queue db when we're in DB_FULL mode.
+	 * Only allow this on T4 devices.
 	 */
 	attrs.sq_db_inc = attr->sq_psn;
 	attrs.rq_db_inc = attr->rq_psn;
 	mask |= (attr_mask & IB_QP_SQ_PSN) ? C4IW_QP_ATTR_SQ_DB : 0;
 	mask |= (attr_mask & IB_QP_RQ_PSN) ? C4IW_QP_ATTR_RQ_DB : 0;
+	if (is_t5(to_c4iw_qp(ibqp)->rhp->rdev.lldi.adapter_type) &&
+	    (mask & (C4IW_QP_ATTR_SQ_DB|C4IW_QP_ATTR_RQ_DB)))
+		return -EINVAL;
 
 	return c4iw_modify_qp(rhp, qhp, mask, &attrs, 0);
 }
