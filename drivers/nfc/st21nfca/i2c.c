@@ -315,11 +315,10 @@ static int st21nfca_hci_i2c_repack(struct sk_buff *skb)
 		skb_trim(skb, size);
 		/* remove ST21NFCA byte stuffing for upper layer */
 		for (i = 1, j = 0; i < skb->len; i++) {
-			if (skb->data[i] ==
+			if (skb->data[i + j] ==
 					(u8) ST21NFCA_ESCAPE_BYTE_STUFFING) {
-				skb->data[i] =
-				    skb->data[i +
-					      1] | ST21NFCA_BYTE_STUFFING_MASK;
+				skb->data[i] = skb->data[i + j + 1]
+						| ST21NFCA_BYTE_STUFFING_MASK;
 				i++;
 				j++;
 			}
