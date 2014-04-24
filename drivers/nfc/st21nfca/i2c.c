@@ -48,11 +48,11 @@
 #define ST21NFCA_BYTE_STUFFING_MASK	0x20
 #define ST21NFCA_ESCAPE_BYTE_STUFFING	0x7d
 
-/* SOF + 00 fill size */
+/* SOF + 00 */
 #define ST21NFCA_FRAME_HEADROOM			2
 
-/* 4 bytes crc (worst case byte stuffing) + EOF */
-#define ST21NFCA_FRAME_TAILROOM 5
+/* 2 bytes crc + EOF */
+#define ST21NFCA_FRAME_TAILROOM 3
 
 #define ST21NFCA_HCI_I2C_DRIVER_NAME "st21nfca_hci_i2c"
 
@@ -166,9 +166,8 @@ static void st21nfca_hci_i2c_disable(void *phy_id)
 	phy->powered = 0;
 }
 
-static int st21nfca_hci_add_len_crc(struct sk_buff *skb)
+static void st21nfca_hci_add_len_crc(struct sk_buff *skb)
 {
-	int ret = 2;
 	u16 crc;
 	u8 tmp;
 
@@ -182,14 +181,12 @@ static int st21nfca_hci_add_len_crc(struct sk_buff *skb)
 
 	tmp = (crc >> 8) & 0x00ff;
 	*skb_put(skb, 1) = tmp;
-
-	return ret;
 }
 
-static void st21nfca_hci_remove_len_crc(struct sk_buff *skb, int crc_len)
+static void st21nfca_hci_remove_len_crc(struct sk_buff *skb)
 {
 	skb_pull(skb, ST21NFCA_FRAME_HEADROOM);
-	skb_trim(skb, crc_len);
+	skb_trim(skb, skb->len - ST21NFCA_FRAME_TAILROOM);
 }
 
 /*
@@ -199,7 +196,7 @@ static void st21nfca_hci_remove_len_crc(struct sk_buff *skb, int crc_len)
  */
 static int st21nfca_hci_i2c_write(void *phy_id, struct sk_buff *skb)
 {
-	int r = -1, i, j, len;
+	int r = -1, i, j;
 	struct st21nfca_i2c_phy *phy = phy_id;
 	struct i2c_client *client = phy->i2c_dev;
 	u8 tmp[ST21NFCA_HCI_LLC_MAX_SIZE * 2];
@@ -215,7 +212,7 @@ static int st21nfca_hci_i2c_write(void *phy_id, struct sk_buff *skb)
 	 * Note st21nfca_hci_add_len_crc is doing a byte stuffing
 	 * on its own value
 	 */
-	len = st21nfca_hci_add_len_crc(skb);
+	st21nfca_hci_add_len_crc(skb);
 
 	/* add ST21NFCA_SOF_EOF on tail */
 	*skb_put(skb, 1) = ST21NFCA_SOF_EOF;
@@ -259,7 +256,7 @@ static int st21nfca_hci_i2c_write(void *phy_id, struct sk_buff *skb)
 			r = 0;
 	}
 
-	st21nfca_hci_remove_len_crc(skb, len);
+	st21nfca_hci_remove_len_crc(skb);
 
 	return r;
 }
