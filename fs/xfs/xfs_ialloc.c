@@ -1488,7 +1488,16 @@ xfs_ialloc_compute_maxlevels(
 }
 
 /*
- * Log specified fields for the ag hdr (inode section)
+ * Log specified fields for the ag hdr (inode section). The growth of the agi
+ * structure over time requires that we interpret the buffer as two logical
+ * regions delineated by the end of the unlinked list. This is due to the size
+ * of the hash table and its location in the middle of the agi.
+ *
+ * For example, a request to log a field before agi_unlinked and a field after
+ * agi_unlinked could cause us to log the entire hash table and use an excessive
+ * amount of log space. To avoid this behavior, log the region up through
+ * agi_unlinked in one call and the region after agi_unlinked through the end of
+ * the structure in another.
  */
 void
 xfs_ialloc_log_agi(
@@ -1511,6 +1520,8 @@ xfs_ialloc_log_agi(
 		offsetof(xfs_agi_t, agi_newino),
 		offsetof(xfs_agi_t, agi_dirino),
 		offsetof(xfs_agi_t, agi_unlinked),
+		offsetof(xfs_agi_t, agi_free_root),
+		offsetof(xfs_agi_t, agi_free_level),
 		sizeof(xfs_agi_t)
 	};
 #ifdef DEBUG
@@ -1519,15 +1530,30 @@ xfs_ialloc_log_agi(
 	agi = XFS_BUF_TO_AGI(bp);
 	ASSERT(agi->agi_magicnum == cpu_to_be32(XFS_AGI_MAGIC));
 #endif
-	/*
-	 * Compute byte offsets for the first and last fields.
-	 */
-	xfs_btree_offsets(fields, offsets, XFS_AGI_NUM_BITS, &first, &last);
-	/*
-	 * Log the allocation group inode header buffer.
-	 */
+
 	xfs_trans_buf_set_type(tp, bp, XFS_BLFT_AGI_BUF);
-	xfs_trans_log_buf(tp, bp, first, last);
+
+	/*
+	 * Compute byte offsets for the first and last fields in the first
+	 * region and log the agi buffer. This only logs up through
+	 * agi_unlinked.
+	 */
+	if (fields & XFS_AGI_ALL_BITS_R1) {
+		xfs_btree_offsets(fields, offsets, XFS_AGI_NUM_BITS_R1,
+				  &first, &last);
+		xfs_trans_log_buf(tp, bp, first, last);
+	}
+
+	/*
+	 * Mask off the bits in the first region and calculate the first and
+	 * last field offsets for any bits in the second region.
+	 */
+	fields &= ~XFS_AGI_ALL_BITS_R1;
+	if (fields) {
+		xfs_btree_offsets(fields, offsets, XFS_AGI_NUM_BITS_R2,
+				  &first, &last);
+		xfs_trans_log_buf(tp, bp, first, last);
+	}
 }
 
 #ifdef DEBUG
