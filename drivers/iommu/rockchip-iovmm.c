@@ -136,9 +136,9 @@ dma_addr_t iovmm_map(struct device *dev,struct scatterlist *sg, off_t offset,siz
 	spin_unlock(&vmm->lock);
 
 	rockchip_sysmmu_tlb_invalidate(dev);
-
+	/*
 	pr_err("IOVMM: Allocated VM region @ %#x/%#X bytes.\n",region->start, region->size);
-
+	*/
 	return region->start;
 
 err_map_map:
@@ -182,8 +182,9 @@ void iovmm_unmap(struct device *dev, dma_addr_t iova)
 	gen_pool_free(vmm->vmm_pool, region->start, region->size);
 
 	WARN_ON(unmapped_size != region->size);
+	/*
 	pr_err("IOVMM: Unmapped %#x bytes from %#x.\n",unmapped_size, region->start);
-
+	*/
 	kfree(region);
 }
 
