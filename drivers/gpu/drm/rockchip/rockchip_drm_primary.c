@@ -1,8 +1,11 @@
 /*
- * rk3288_drm_fimd.c
+ * rockchip_drm_primary.c
  *
  * Copyright (C) ROCKCHIP, Inc.
  * Author:yzq<yzq@rock-chips.com>
+ *
+ * based on exynos_drm_fimd.c
+ *
  * This software is licensed under the terms of the GNU General Public
  * License version 2, as published by the Free Software Foundation, and
  * may be copied, distributed, and modified under those terms.
