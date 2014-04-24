@@ -151,18 +151,18 @@ static size_t eeh_gather_pci_data(struct eeh_dev *edev, char * buf, size_t len)
 	int n = 0;
 
 	n += scnprintf(buf+n, len-n, "%s\n", dn->full_name);
-	printk(KERN_WARNING "EEH: of node=%s\n", dn->full_name);
+	pr_warn("EEH: of node=%s\n", dn->full_name);
 
 	eeh_ops->read_config(dn, PCI_VENDOR_ID, 4, &cfg);
 	n += scnprintf(buf+n, len-n, "dev/vend:%08x\n", cfg);
-	printk(KERN_WARNING "EEH: PCI device/vendor: %08x\n", cfg);
+	pr_warn("EEH: PCI device/vendor: %08x\n", cfg);
 
 	eeh_ops->read_config(dn, PCI_COMMAND, 4, &cfg);
 	n += scnprintf(buf+n, len-n, "cmd/stat:%x\n", cfg);
-	printk(KERN_WARNING "EEH: PCI cmd/status register: %08x\n", cfg);
+	pr_warn("EEH: PCI cmd/status register: %08x\n", cfg);
 
 	if (!dev) {
-		printk(KERN_WARNING "EEH: no PCI device for this of node\n");
+		pr_warn("EEH: no PCI device for this of node\n");
 		return n;
 	}
 
@@ -170,11 +170,11 @@ static size_t eeh_gather_pci_data(struct eeh_dev *edev, char * buf, size_t len)
 	if (dev->class >> 16 == PCI_BASE_CLASS_BRIDGE) {
 		eeh_ops->read_config(dn, PCI_SEC_STATUS, 2, &cfg);
 		n += scnprintf(buf+n, len-n, "sec stat:%x\n", cfg);
-		printk(KERN_WARNING "EEH: Bridge secondary status: %04x\n", cfg);
+		pr_warn("EEH: Bridge secondary status: %04x\n", cfg);
 
 		eeh_ops->read_config(dn, PCI_BRIDGE_CONTROL, 2, &cfg);
 		n += scnprintf(buf+n, len-n, "brdg ctl:%x\n", cfg);
-		printk(KERN_WARNING "EEH: Bridge control: %04x\n", cfg);
+		pr_warn("EEH: Bridge control: %04x\n", cfg);
 	}
 
 	/* Dump out the PCI-X command and status regs */
@@ -182,35 +182,34 @@ static size_t eeh_gather_pci_data(struct eeh_dev *edev, char * buf, size_t len)
 	if (cap) {
 		eeh_ops->read_config(dn, cap, 4, &cfg);
 		n += scnprintf(buf+n, len-n, "pcix-cmd:%x\n", cfg);
-		printk(KERN_WARNING "EEH: PCI-X cmd: %08x\n", cfg);
+		pr_warn("EEH: PCI-X cmd: %08x\n", cfg);
 
 		eeh_ops->read_config(dn, cap+4, 4, &cfg);
 		n += scnprintf(buf+n, len-n, "pcix-stat:%x\n", cfg);
-		printk(KERN_WARNING "EEH: PCI-X status: %08x\n", cfg);
+		pr_warn("EEH: PCI-X status: %08x\n", cfg);
 	}
 
 	/* If PCI-E capable, dump PCI-E cap 10, and the AER */
 	if (pci_is_pcie(dev)) {
 		n += scnprintf(buf+n, len-n, "pci-e cap10:\n");
-		printk(KERN_WARNING
-		       "EEH: PCI-E capabilities and status follow:\n");
+		pr_warn("EEH: PCI-E capabilities and status follow:\n");
 
 		for (i=0; i<=8; i++) {
 			eeh_ops->read_config(dn, dev->pcie_cap+4*i, 4, &cfg);
 			n += scnprintf(buf+n, len-n, "%02x:%x\n", 4*i, cfg);
-			printk(KERN_WARNING "EEH: PCI-E %02x: %08x\n", i, cfg);
+			pr_warn("EEH: PCI-E %02x: %08x\n", i, cfg);
 		}
 
 		cap = pci_find_ext_capability(dev, PCI_EXT_CAP_ID_ERR);
 		if (cap) {
 			n += scnprintf(buf+n, len-n, "pci-e AER:\n");
-			printk(KERN_WARNING
-			       "EEH: PCI-E AER capability register set follows:\n");
+			pr_warn("EEH: PCI-E AER capability register "
+				"set follows:\n");
 
 			for (i=0; i<14; i++) {
 				eeh_ops->read_config(dn, cap+4*i, 4, &cfg);
 				n += scnprintf(buf+n, len-n, "%02x:%x\n", 4*i, cfg);
-				printk(KERN_WARNING "EEH: PCI-E AER %02x: %08x\n", i, cfg);
+				pr_warn("EEH: PCI-E AER %02x: %08x\n", i, cfg);
 			}
 		}
 	}
