@@ -58,6 +58,8 @@
 /* MAC function configuration default settings */
 #define ALTERA_TSE_TX_IPG_LENGTH	12
 
+#define ALTERA_TSE_PAUSE_QUANTA		0xffff
+
 #define GET_BIT_VALUE(v, bit)		(((v) >> (bit)) & 0x1)
 
 /* MAC Command_Config Register Bit Definitions

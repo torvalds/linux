@@ -891,6 +891,8 @@ static int init_mac(struct altera_tse_private *priv)
 
 	iowrite32(cmd, &mac->command_config);
 
+	iowrite32(ALTERA_TSE_PAUSE_QUANTA, &mac->pause_quanta);
+
 	if (netif_msg_hw(priv))
 		dev_dbg(priv->device,
 			"MAC post-initialization: CMD_CONFIG = 0x%08x\n", cmd);
