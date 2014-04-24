@@ -273,6 +273,9 @@ struct intel_crtc_config {
 	 * accordingly. */
 	bool has_dp_encoder;
 
+	/* Whether we should send NULL infoframes. Required for audio. */
+	bool has_hdmi_sink;
+
 	/*
 	 * Enable dithering, used when the selected pipe bpp doesn't match the
 	 * plane bpp.
@@ -486,6 +489,7 @@ struct intel_hdmi {
 				enum hdmi_infoframe_type type,
 				const void *frame, ssize_t len);
 	void (*set_infoframes)(struct drm_encoder *encoder,
+			       bool enable,
 			       struct drm_display_mode *adjusted_mode);
 };
 

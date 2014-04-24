@@ -409,7 +409,9 @@ static void intel_ddi_mode_set(struct intel_encoder *encoder)
 			intel_write_eld(&encoder->base, adjusted_mode);
 		}
 
-		intel_hdmi->set_infoframes(&encoder->base, adjusted_mode);
+		intel_hdmi->set_infoframes(&encoder->base,
+					   crtc->config.has_hdmi_sink,
+					   adjusted_mode);
 	}
 }
 
@@ -1062,9 +1064,7 @@ void intel_ddi_enable_transcoder_func(struct drm_crtc *crtc)
 	}
 
 	if (type == INTEL_OUTPUT_HDMI) {
-		struct intel_hdmi *intel_hdmi = enc_to_intel_hdmi(encoder);
-
-		if (intel_hdmi->has_hdmi_sink)
+		if (intel_crtc->config.has_hdmi_sink)
 			temp |= TRANS_DDI_MODE_SELECT_HDMI;
 		else
 			temp |= TRANS_DDI_MODE_SELECT_DVI;
@@ -1580,6 +1580,7 @@ void intel_ddi_get_config(struct intel_encoder *encoder,
 
 	switch (temp & TRANS_DDI_MODE_SELECT_MASK) {
 	case TRANS_DDI_MODE_SELECT_HDMI:
+		pipe_config->has_hdmi_sink = true;
 	case TRANS_DDI_MODE_SELECT_DVI:
 	case TRANS_DDI_MODE_SELECT_FDI:
 		break;

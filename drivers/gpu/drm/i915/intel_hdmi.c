@@ -418,6 +418,7 @@ intel_hdmi_set_hdmi_infoframe(struct drm_encoder *encoder,
 }
 
 static void g4x_set_infoframes(struct drm_encoder *encoder,
+			       bool enable,
 			       struct drm_display_mode *adjusted_mode)
 {
 	struct drm_i915_private *dev_priv = encoder->dev->dev_private;
@@ -440,7 +441,7 @@ static void g4x_set_infoframes(struct drm_encoder *encoder,
 	 * either. */
 	val |= VIDEO_DIP_SELECT_AVI | VIDEO_DIP_FREQ_VSYNC;
 
-	if (!intel_hdmi->has_hdmi_sink) {
+	if (!enable) {
 		if (!(val & VIDEO_DIP_ENABLE))
 			return;
 		val &= ~VIDEO_DIP_ENABLE;
@@ -471,6 +472,7 @@ static void g4x_set_infoframes(struct drm_encoder *encoder,
 }
 
 static void ibx_set_infoframes(struct drm_encoder *encoder,
+			       bool enable,
 			       struct drm_display_mode *adjusted_mode)
 {
 	struct drm_i915_private *dev_priv = encoder->dev->dev_private;
@@ -486,7 +488,7 @@ static void ibx_set_infoframes(struct drm_encoder *encoder,
 	/* See the big comment in g4x_set_infoframes() */
 	val |= VIDEO_DIP_SELECT_AVI | VIDEO_DIP_FREQ_VSYNC;
 
-	if (!intel_hdmi->has_hdmi_sink) {
+	if (!enable) {
 		if (!(val & VIDEO_DIP_ENABLE))
 			return;
 		val &= ~VIDEO_DIP_ENABLE;
@@ -518,6 +520,7 @@ static void ibx_set_infoframes(struct drm_encoder *encoder,
 }
 
 static void cpt_set_infoframes(struct drm_encoder *encoder,
+			       bool enable,
 			       struct drm_display_mode *adjusted_mode)
 {
 	struct drm_i915_private *dev_priv = encoder->dev->dev_private;
@@ -531,7 +534,7 @@ static void cpt_set_infoframes(struct drm_encoder *encoder,
 	/* See the big comment in g4x_set_infoframes() */
 	val |= VIDEO_DIP_SELECT_AVI | VIDEO_DIP_FREQ_VSYNC;
 
-	if (!intel_hdmi->has_hdmi_sink) {
+	if (!enable) {
 		if (!(val & VIDEO_DIP_ENABLE))
 			return;
 		val &= ~(VIDEO_DIP_ENABLE | VIDEO_DIP_ENABLE_AVI);
@@ -554,6 +557,7 @@ static void cpt_set_infoframes(struct drm_encoder *encoder,
 }
 
 static void vlv_set_infoframes(struct drm_encoder *encoder,
+			       bool enable,
 			       struct drm_display_mode *adjusted_mode)
 {
 	struct drm_i915_private *dev_priv = encoder->dev->dev_private;
@@ -569,7 +573,7 @@ static void vlv_set_infoframes(struct drm_encoder *encoder,
 	/* See the big comment in g4x_set_infoframes() */
 	val |= VIDEO_DIP_SELECT_AVI | VIDEO_DIP_FREQ_VSYNC;
 
-	if (!intel_hdmi->has_hdmi_sink) {
+	if (!enable) {
 		if (!(val & VIDEO_DIP_ENABLE))
 			return;
 		val &= ~VIDEO_DIP_ENABLE;
@@ -601,6 +605,7 @@ static void vlv_set_infoframes(struct drm_encoder *encoder,
 }
 
 static void hsw_set_infoframes(struct drm_encoder *encoder,
+			       bool enable,
 			       struct drm_display_mode *adjusted_mode)
 {
 	struct drm_i915_private *dev_priv = encoder->dev->dev_private;
@@ -611,7 +616,7 @@ static void hsw_set_infoframes(struct drm_encoder *encoder,
 
 	assert_hdmi_port_disabled(intel_hdmi);
 
-	if (!intel_hdmi->has_hdmi_sink) {
+	if (!enable) {
 		I915_WRITE(reg, 0);
 		POSTING_READ(reg);
 		return;
@@ -650,11 +655,11 @@ static void intel_hdmi_mode_set(struct intel_encoder *encoder)
 	else
 		hdmi_val |= SDVO_COLOR_FORMAT_8bpc;
 
-	if (intel_hdmi->has_hdmi_sink)
+	if (crtc->config.has_hdmi_sink)
 		hdmi_val |= HDMI_MODE_SELECT_HDMI;
 
 	if (intel_hdmi->has_audio) {
-		WARN_ON(!intel_hdmi->has_hdmi_sink);
+		WARN_ON(!crtc->config.has_hdmi_sink);
 		DRM_DEBUG_DRIVER("Enabling HDMI audio on pipe %c\n",
 				 pipe_name(crtc->pipe));
 		hdmi_val |= SDVO_AUDIO_ENABLE;
@@ -717,6 +722,9 @@ static void intel_hdmi_get_config(struct intel_encoder *encoder,
 		flags |= DRM_MODE_FLAG_PVSYNC;
 	else
 		flags |= DRM_MODE_FLAG_NVSYNC;
+
+	if (tmp & HDMI_MODE_SELECT_HDMI)
+		pipe_config->has_hdmi_sink = true;
 
 	pipe_config->adjusted_mode.flags |= flags;
 
@@ -894,9 +902,11 @@ bool intel_hdmi_compute_config(struct intel_encoder *encoder,
 	int portclock_limit = hdmi_portclock_limit(intel_hdmi, false);
 	int desired_bpp;
 
+	pipe_config->has_hdmi_sink = intel_hdmi->has_hdmi_sink;
+
 	if (intel_hdmi->color_range_auto) {
 		/* See CEA-861-E - 5.1 Default Encoding Parameters */
-		if (intel_hdmi->has_hdmi_sink &&
+		if (pipe_config->has_hdmi_sink &&
 		    drm_match_cea_mode(adjusted_mode) > 1)
 			intel_hdmi->color_range = HDMI_COLOR_RANGE_16_235;
 		else
@@ -915,7 +925,7 @@ bool intel_hdmi_compute_config(struct intel_encoder *encoder,
 	 * outputs. We also need to check that the higher clock still fits
 	 * within limits.
 	 */
-	if (pipe_config->pipe_bpp > 8*3 && intel_hdmi->has_hdmi_sink &&
+	if (pipe_config->pipe_bpp > 8*3 && pipe_config->has_hdmi_sink &&
 	    clock_12bpc <= portclock_limit &&
 	    hdmi_12bpc_possible(encoder->new_crtc)) {
 		DRM_DEBUG_KMS("picking bpc to 12 for HDMI output\n");
@@ -1122,7 +1132,9 @@ static void intel_hdmi_pre_enable(struct intel_encoder *encoder)
 	struct drm_display_mode *adjusted_mode =
 		&intel_crtc->config.adjusted_mode;
 
-	intel_hdmi->set_infoframes(&encoder->base, adjusted_mode);
+	intel_hdmi->set_infoframes(&encoder->base,
+				   intel_crtc->config.has_hdmi_sink,
+				   adjusted_mode);
 }
 
 static void vlv_hdmi_pre_enable(struct intel_encoder *encoder)
@@ -1168,7 +1180,9 @@ static void vlv_hdmi_pre_enable(struct intel_encoder *encoder)
 	vlv_dpio_write(dev_priv, pipe, VLV_PCS_DW23(port), 0x00400888);
 	mutex_unlock(&dev_priv->dpio_lock);
 
-	intel_hdmi->set_infoframes(&encoder->base, adjusted_mode);
+	intel_hdmi->set_infoframes(&encoder->base,
+				   intel_crtc->config.has_hdmi_sink,
+				   adjusted_mode);
 
 	intel_enable_hdmi(encoder);
 
