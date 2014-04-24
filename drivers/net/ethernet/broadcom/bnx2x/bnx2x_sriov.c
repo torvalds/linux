@@ -2896,6 +2896,14 @@ void __iomem *bnx2x_vf_doorbells(struct bnx2x *bp)
 	return bp->regview + PXP_VF_ADDR_DB_START;
 }
 
+void bnx2x_vf_pci_dealloc(struct bnx2x *bp)
+{
+	BNX2X_PCI_FREE(bp->vf2pf_mbox, bp->vf2pf_mbox_mapping,
+		       sizeof(struct bnx2x_vf_mbx_msg));
+	BNX2X_PCI_FREE(bp->vf2pf_mbox, bp->pf2vf_bulletin_mapping,
+		       sizeof(union pf_vf_bulletin));
+}
+
 int bnx2x_vf_pci_alloc(struct bnx2x *bp)
 {
 	mutex_init(&bp->vf2pf_mutex);
@@ -2915,10 +2923,7 @@ int bnx2x_vf_pci_alloc(struct bnx2x *bp)
 	return 0;
 
 alloc_mem_err:
-	BNX2X_PCI_FREE(bp->vf2pf_mbox, bp->vf2pf_mbox_mapping,
-		       sizeof(struct bnx2x_vf_mbx_msg));
-	BNX2X_PCI_FREE(bp->vf2pf_mbox, bp->pf2vf_bulletin_mapping,
-		       sizeof(union pf_vf_bulletin));
+	bnx2x_vf_pci_dealloc(bp);
 	return -ENOMEM;
 }
 

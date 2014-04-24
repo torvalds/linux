@@ -502,6 +502,7 @@ static inline int bnx2x_vf_ustorm_prods_offset(struct bnx2x *bp,
 enum sample_bulletin_result bnx2x_sample_bulletin(struct bnx2x *bp);
 void bnx2x_timer_sriov(struct bnx2x *bp);
 void __iomem *bnx2x_vf_doorbells(struct bnx2x *bp);
+void bnx2x_vf_pci_dealloc(struct bnx2x *bp);
 int bnx2x_vf_pci_alloc(struct bnx2x *bp);
 int bnx2x_enable_sriov(struct bnx2x *bp);
 void bnx2x_disable_sriov(struct bnx2x *bp);
@@ -568,6 +569,7 @@ static inline void __iomem *bnx2x_vf_doorbells(struct bnx2x *bp)
 	return NULL;
 }
 
+static inline void bnx2x_vf_pci_dealloc(struct bnx2 *bp) {return 0; }
 static inline int bnx2x_vf_pci_alloc(struct bnx2x *bp) {return 0; }
 static inline void bnx2x_pf_set_vfs_vlan(struct bnx2x *bp) {}
 static inline int bnx2x_sriov_configure(struct pci_dev *dev, int num_vfs) {return 0; }
