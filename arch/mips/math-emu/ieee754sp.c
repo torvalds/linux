@@ -40,7 +40,7 @@ int ieee754sp_isnan(union ieee754sp x)
 	return ieee754sp_class(x) >= IEEE754_CLASS_SNAN;
 }
 
-int ieee754sp_issnan(union ieee754sp x)
+static inline int ieee754sp_issnan(union ieee754sp x)
 {
 	assert(ieee754sp_isnan(x));
 	return (SPMANT(x) & SP_MBIT(SP_FBITS-1));
