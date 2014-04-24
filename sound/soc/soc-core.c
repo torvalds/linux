@@ -1268,6 +1268,63 @@ static void rtd_release(struct device *dev)
 	kfree(dev);
 }
 
+static int soc_aux_dev_init(struct snd_soc_card *card,
+			    struct snd_soc_codec *codec,
+			    int num)
+{
+	struct snd_soc_aux_dev *aux_dev = &card->aux_dev[num];
+	struct snd_soc_pcm_runtime *rtd = &card->rtd_aux[num];
+	const char *temp;
+	int ret;
+
+	rtd->card = card;
+
+	temp = codec->name_prefix;
+	codec->name_prefix = NULL;
+
+	/* do machine specific initialization */
+	if (aux_dev->init) {
+		ret = aux_dev->init(&codec->dapm);
+		if (ret < 0)
+			return ret;
+	}
+
+	codec->name_prefix = temp;
+
+	rtd->codec = codec;
+
+	return 0;
+}
+
+static int soc_dai_link_init(struct snd_soc_card *card,
+			     struct snd_soc_codec *codec,
+			     int num)
+{
+	struct snd_soc_dai_link *dai_link =  &card->dai_link[num];
+	struct snd_soc_pcm_runtime *rtd = &card->rtd[num];
+	const char *temp;
+	int ret;
+
+	rtd->card = card;
+
+	/* machine controls, routes and widgets are not prefixed */
+	temp = codec->name_prefix;
+	codec->name_prefix = NULL;
+
+	/* do machine specific initialization */
+	if (dai_link->init) {
+		ret = dai_link->init(rtd);
+		if (ret < 0)
+			return ret;
+	}
+
+	codec->name_prefix = temp;
+
+	rtd->codec = codec;
+
+	return 0;
+}
+
 static int soc_post_component_init(struct snd_soc_card *card,
 				   struct snd_soc_codec *codec,
 				   int num, int dailess)
@@ -1282,26 +1339,20 @@ static int soc_post_component_init(struct snd_soc_card *card,
 		dai_link = &card->dai_link[num];
 		rtd = &card->rtd[num];
 		name = dai_link->name;
+		ret = soc_dai_link_init(card, codec, num);
 	} else {
 		aux_dev = &card->aux_dev[num];
 		rtd = &card->rtd_aux[num];
 		name = aux_dev->name;
+		ret = soc_aux_dev_init(card, codec, num);
 	}
-	rtd->card = card;
 
-	/* do machine specific initialization */
-	if (!dailess && dai_link->init)
-		ret = dai_link->init(rtd);
-	else if (dailess && aux_dev->init)
-		ret = aux_dev->init(&codec->dapm);
 	if (ret < 0) {
 		dev_err(card->dev, "ASoC: failed to init %s: %d\n", name, ret);
 		return ret;
 	}
 
 	/* register the rtd device */
-	rtd->codec = codec;
-
 	rtd->dev = kzalloc(sizeof(struct device), GFP_KERNEL);
 	if (!rtd->dev)
 		return -ENOMEM;
