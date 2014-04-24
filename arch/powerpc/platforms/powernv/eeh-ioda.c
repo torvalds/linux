@@ -639,22 +639,6 @@ static void ioda_eeh_hub_diag(struct pci_controller *hose)
 	}
 }
 
-static int ioda_eeh_get_phb_pe(struct pci_controller *hose,
-			       struct eeh_pe **pe)
-{
-	struct eeh_pe *phb_pe;
-
-	phb_pe = eeh_phb_pe_get(hose);
-	if (!phb_pe) {
-		pr_warning("%s Can't find PE for PHB#%d\n",
-			   __func__, hose->global_number);
-		return -EEXIST;
-	}
-
-	*pe = phb_pe;
-	return 0;
-}
-
 static int ioda_eeh_get_pe(struct pci_controller *hose,
 			   u16 pe_no, struct eeh_pe **pe)
 {
@@ -662,7 +646,8 @@ static int ioda_eeh_get_pe(struct pci_controller *hose,
 	struct eeh_dev dev;
 
 	/* Find the PHB PE */
-	if (ioda_eeh_get_phb_pe(hose, &phb_pe))
+	phb_pe = eeh_phb_pe_get(hose);
+	if (!phb_pe)
 		return -EEXIST;
 
 	/* Find the PE according to PE# */
@@ -690,6 +675,7 @@ static int ioda_eeh_next_error(struct eeh_pe **pe)
 {
 	struct pci_controller *hose;
 	struct pnv_phb *phb;
+	struct eeh_pe *phb_pe;
 	u64 frozen_pe_no;
 	u16 err_type, severity;
 	long rc;
@@ -706,10 +692,12 @@ static int ioda_eeh_next_error(struct eeh_pe **pe)
 	list_for_each_entry(hose, &hose_list, list_node) {
 		/*
 		 * If the subordinate PCI buses of the PHB has been
-		 * removed, we needn't take care of it any more.
+		 * removed or is exactly under error recovery, we
+		 * needn't take care of it any more.
 		 */
 		phb = hose->private_data;
-		if (phb->eeh_state & PNV_EEH_STATE_REMOVED)
+		phb_pe = eeh_phb_pe_get(hose);
+		if (!phb_pe || (phb_pe->state & EEH_PE_ISOLATED))
 			continue;
 
 		rc = opal_pci_next_error(phb->opal_id,
@@ -742,12 +730,6 @@ static int ioda_eeh_next_error(struct eeh_pe **pe)
 		switch (err_type) {
 		case OPAL_EEH_IOC_ERROR:
 			if (severity == OPAL_EEH_SEV_IOC_DEAD) {
-				list_for_each_entry(hose, &hose_list,
-						    list_node) {
-					phb = hose->private_data;
-					phb->eeh_state |= PNV_EEH_STATE_REMOVED;
-				}
-
 				pr_err("EEH: dead IOC detected\n");
 				ret = EEH_NEXT_ERR_DEAD_IOC;
 			} else if (severity == OPAL_EEH_SEV_INF) {
@@ -760,17 +742,12 @@ static int ioda_eeh_next_error(struct eeh_pe **pe)
 			break;
 		case OPAL_EEH_PHB_ERROR:
 			if (severity == OPAL_EEH_SEV_PHB_DEAD) {
-				if (ioda_eeh_get_phb_pe(hose, pe))
-					break;
-
+				*pe = phb_pe;
 				pr_err("EEH: dead PHB#%x detected\n",
 					hose->global_number);
-				phb->eeh_state |= PNV_EEH_STATE_REMOVED;
 				ret = EEH_NEXT_ERR_DEAD_PHB;
 			} else if (severity == OPAL_EEH_SEV_PHB_FENCED) {
-				if (ioda_eeh_get_phb_pe(hose, pe))
-					break;
-
+				*pe = phb_pe;
 				pr_err("EEH: fenced PHB#%x detected\n",
 					hose->global_number);
 				ret = EEH_NEXT_ERR_FENCED_PHB;
@@ -790,15 +767,12 @@ static int ioda_eeh_next_error(struct eeh_pe **pe)
 			 * fenced PHB so that it can be recovered.
 			 */
 			if (ioda_eeh_get_pe(hose, frozen_pe_no, pe)) {
-				if (!ioda_eeh_get_phb_pe(hose, pe)) {
-					pr_err("EEH: Escalated fenced PHB#%x "
-					       "detected for PE#%llx\n",
-						hose->global_number,
-						frozen_pe_no);
-					ret = EEH_NEXT_ERR_FENCED_PHB;
-				} else {
-					ret = EEH_NEXT_ERR_NONE;
-				}
+				*pe = phb_pe;
+				pr_err("EEH: Escalated fenced PHB#%x "
+				       "detected for PE#%llx\n",
+					hose->global_number,
+					frozen_pe_no);
+				ret = EEH_NEXT_ERR_FENCED_PHB;
 			} else {
 				pr_err("EEH: Frozen PE#%x on PHB#%x detected\n",
 					(*pe)->addr, (*pe)->phb->global_number);

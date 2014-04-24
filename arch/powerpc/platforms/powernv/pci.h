@@ -83,7 +83,6 @@ struct pnv_eeh_ops {
 };
 
 #define PNV_EEH_STATE_ENABLED	(1 << 0)	/* EEH enabled	*/
-#define PNV_EEH_STATE_REMOVED	(1 << 1)	/* PHB removed	*/
 
 #endif /* CONFIG_EEH */
 
