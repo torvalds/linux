@@ -380,7 +380,6 @@ static int idletimer_tg_checkentry(const struct xt_tgchk_param *par)
 {
 	struct idletimer_tg_info *info = par->targinfo;
 	int ret;
-	unsigned long now = jiffies;
 
 	pr_debug("checkentry targinfo %s\n", info->label);
 
