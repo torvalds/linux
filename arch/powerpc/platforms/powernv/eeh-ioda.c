@@ -745,6 +745,11 @@ static int ioda_eeh_next_error(struct eeh_pe **pe)
 			 * If we can't find the corresponding PE, the
 			 * PEEV / PEST would be messy. So we force an
 			 * fenced PHB so that it can be recovered.
+			 *
+			 * If the PE has been marked as isolated, that
+			 * should have been removed permanently or in
+			 * progress with recovery. We needn't report
+			 * it again.
 			 */
 			if (ioda_eeh_get_pe(hose, frozen_pe_no, pe)) {
 				*pe = phb_pe;
@@ -753,6 +758,8 @@ static int ioda_eeh_next_error(struct eeh_pe **pe)
 					hose->global_number,
 					frozen_pe_no);
 				ret = EEH_NEXT_ERR_FENCED_PHB;
+			} else if ((*pe)->state & EEH_PE_ISOLATED) {
+				ret = EEH_NEXT_ERR_NONE;
 			} else {
 				pr_err("EEH: Frozen PE#%x on PHB#%x detected\n",
 					(*pe)->addr, (*pe)->phb->global_number);
