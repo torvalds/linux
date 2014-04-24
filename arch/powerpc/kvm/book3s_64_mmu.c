@@ -275,12 +275,15 @@ do_second:
 		key = 4;
 
 	for (i=0; i<16; i+=2) {
+		u64 pte0 = be64_to_cpu(pteg[i]);
+		u64 pte1 = be64_to_cpu(pteg[i + 1]);
+
 		/* Check all relevant fields of 1st dword */
-		if ((pteg[i] & v_mask) == v_val) {
+		if ((pte0 & v_mask) == v_val) {
 			/* If large page bit is set, check pgsize encoding */
 			if (slbe->large &&
 			    (vcpu->arch.hflags & BOOK3S_HFLAG_MULTI_PGSIZE)) {
-				pgsize = decode_pagesize(slbe, pteg[i+1]);
+				pgsize = decode_pagesize(slbe, pte1);
 				if (pgsize < 0)
 					continue;
 			}
@@ -297,8 +300,8 @@ do_second:
 		goto do_second;
 	}
 
-	v = pteg[i];
-	r = pteg[i+1];
+	v = be64_to_cpu(pteg[i]);
+	r = be64_to_cpu(pteg[i+1]);
 	pp = (r & HPTE_R_PP) | key;
 	if (r & HPTE_R_PP0)
 		pp |= 8;
