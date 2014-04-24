@@ -27,11 +27,17 @@ struct prom_args {
 	__be32 args[10];	/* Input/output arguments. */
 };
 
+#ifdef __powerpc64__
+extern int prom(void *);
+#else
 static int (*prom) (void *);
+#endif
 
 void of_init(void *promptr)
 {
+#ifndef __powerpc64__
 	prom = (int (*)(void *))promptr;
+#endif
 }
 
 #define ADDR(x)		(u32)(unsigned long)(x)

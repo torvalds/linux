@@ -126,3 +126,74 @@ RELACOUNT = 0x6ffffff9
 
 	/* Call start */
 	b	start
+
+#ifdef __powerpc64__
+
+#define PROM_FRAME_SIZE 512
+#define SAVE_GPR(n, base)       std     n,8*(n)(base)
+#define REST_GPR(n, base)       ld      n,8*(n)(base)
+#define SAVE_2GPRS(n, base)     SAVE_GPR(n, base); SAVE_GPR(n+1, base)
+#define SAVE_4GPRS(n, base)     SAVE_2GPRS(n, base); SAVE_2GPRS(n+2, base)
+#define SAVE_8GPRS(n, base)     SAVE_4GPRS(n, base); SAVE_4GPRS(n+4, base)
+#define SAVE_10GPRS(n, base)    SAVE_8GPRS(n, base); SAVE_2GPRS(n+8, base)
+#define REST_2GPRS(n, base)     REST_GPR(n, base); REST_GPR(n+1, base)
+#define REST_4GPRS(n, base)     REST_2GPRS(n, base); REST_2GPRS(n+2, base)
+#define REST_8GPRS(n, base)     REST_4GPRS(n, base); REST_4GPRS(n+4, base)
+#define REST_10GPRS(n, base)    REST_8GPRS(n, base); REST_2GPRS(n+8, base)
+
+/* prom handles the jump into and return from firmware.  The prom args pointer
+   is loaded in r3. */
+.globl prom
+prom:
+	mflr	r0
+	std	r0,16(r1)
+	stdu	r1,-PROM_FRAME_SIZE(r1) /* Save SP and create stack space */
+
+	SAVE_GPR(2, r1)
+	SAVE_GPR(13, r1)
+	SAVE_8GPRS(14, r1)
+	SAVE_10GPRS(22, r1)
+	mfcr    r10
+	std     r10,8*32(r1)
+	mfmsr   r10
+	std     r10,8*33(r1)
+
+	/* remove MSR_LE from msr but keep MSR_SF */
+	mfmsr	r10
+	rldicr	r10,r10,0,62
+	mtsrr1	r10
+
+	/* Load FW address, set LR to label 1, and jump to FW */
+	bl	0f
+0:	mflr	r10
+	addi	r11,r10,(1f-0b)
+	mtlr	r11
+
+	ld	r10,(p_prom-0b)(r10)
+	mtsrr0	r10
+
+	rfid
+
+1:	/* Return from OF */
+
+	/* Restore registers and return. */
+	rldicl  r1,r1,0,32
+
+	/* Restore the MSR (back to 64 bits) */
+	ld      r10,8*(33)(r1)
+	mtmsr	r10
+	isync
+
+	/* Restore other registers */
+	REST_GPR(2, r1)
+	REST_GPR(13, r1)
+	REST_8GPRS(14, r1)
+	REST_10GPRS(22, r1)
+	ld      r10,8*32(r1)
+	mtcr	r10
+
+	addi    r1,r1,PROM_FRAME_SIZE
+	ld      r0,16(r1)
+	mtlr    r0
+	blr
+#endif
