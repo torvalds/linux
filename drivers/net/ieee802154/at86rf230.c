@@ -1216,7 +1216,7 @@ static int at86rf230_remove(struct spi_device *spi)
 }
 
 #if IS_ENABLED(CONFIG_OF)
-static struct of_device_id at86rf230_of_match[] = {
+static const struct of_device_id at86rf230_of_match[] = {
 	{ .compatible = "atmel,at86rf230", },
 	{ .compatible = "atmel,at86rf231", },
 	{ .compatible = "atmel,at86rf233", },
