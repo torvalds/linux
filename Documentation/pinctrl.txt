@@ -203,15 +203,8 @@ using a certain resistor value - pull up and pull down - so that the pin has a
 stable value when nothing is driving the rail it is connected to, or when it's
 unconnected.
 
-Pin configuration can be programmed either using the explicit APIs described
-immediately below, or by adding configuration entries into the mapping table;
-see section "Board/machine configuration" below.
-
-For example, a platform may do the following to pull up a pin to VDD:
-
-#include <linux/pinctrl/consumer.h>
-
-ret = pin_config_set("foo-dev", "FOO_GPIO_PIN", PLATFORM_X_PULL_UP);
+Pin configuration can be programmed by adding configuration entries into the
+mapping table; see section "Board/machine configuration" below.
 
 The format and meaning of the configuration parameter, PLATFORM_X_PULL_UP
 above, is entirely defined by the pin controller driver.

@@ -1,6 +1,6 @@
-  <counter_set name="ARM_Cortex-A5_cnt" count="2"/>
-  <category name="Cortex-A5" counter_set="ARM_Cortex-A5_cnt" per_cpu="yes" supports_event_based_sampling="yes">
-    <event counter="ARM_Cortex-A5_ccnt" event="0xff" title="Clock" name="Cycles" display="hertz" units="Hz" average_selection="yes" average_cores="yes" description="The number of core clock cycles"/>
+  <counter_set name="ARMv7_Cortex_A5_cnt" count="2"/>
+  <category name="Cortex-A5" counter_set="ARMv7_Cortex_A5_cnt" per_cpu="yes" supports_event_based_sampling="yes">
+    <event counter="ARMv7_Cortex_A5_ccnt" event="0xff" title="Clock" name="Cycles" display="hertz" units="Hz" average_selection="yes" average_cores="yes" description="The number of core clock cycles"/>
     <event event="0x00" title="Software" name="Increment" description="Incremented only on writes to the Software Increment Register"/>
     <event event="0x01" title="Cache" name="Instruction refill" description="Instruction fetch that causes a refill of at least the level of instruction or unified cache closest to the processor"/>
     <event event="0x02" title="Cache" name="Inst TLB refill" description="Instruction fetch that causes a TLB refill of at least the level of TLB closest to the processor"/>

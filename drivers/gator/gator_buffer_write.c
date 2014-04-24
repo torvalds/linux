@@ -1,5 +1,5 @@
 /**
- * Copyright (C) ARM Limited 2010-2013. All rights reserved.
+ * Copyright (C) ARM Limited 2010-2014. All rights reserved.
  *
  * This program is free software; you can redistribute it and/or modify
  * it under the terms of the GNU General Public License version 2 as
@@ -55,4 +55,26 @@ static void gator_buffer_write_packed_int64(int cpu, int buftype, long long x)
 	}
 
 	per_cpu(gator_buffer_write, cpu)[buftype] = (write + packedBytes) & mask;
+}
+
+static void gator_buffer_write_bytes(int cpu, int buftype, const char *x, int len)
+{
+	int i;
+	u32 write = per_cpu(gator_buffer_write, cpu)[buftype];
+	u32 mask = gator_buffer_mask[buftype];
+	char *buffer = per_cpu(gator_buffer, cpu)[buftype];
+
+	for (i = 0; i < len; i++) {
+		buffer[write] = x[i];
+		write = (write + 1) & mask;
+	}
+
+	per_cpu(gator_buffer_write, cpu)[buftype] = write;
+}
+
+static void gator_buffer_write_string(int cpu, int buftype, const char *x)
+{
+	int len = strlen(x);
+	gator_buffer_write_packed_int(cpu, buftype, len);
+	gator_buffer_write_bytes(cpu, buftype, x, len);
 }

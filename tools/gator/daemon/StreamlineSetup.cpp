@@ -1,26 +1,23 @@
 /**
- * Copyright (C) ARM Limited 2011-2013. All rights reserved.
+ * Copyright (C) ARM Limited 2011-2014. All rights reserved.
  *
  * This program is free software; you can redistribute it and/or modify
  * it under the terms of the GNU General Public License version 2 as
  * published by the Free Software Foundation.
  */
 
-#include <string.h>
-#include <stdlib.h>
-#include <unistd.h>
-#include <arpa/inet.h>
-#include <sys/socket.h>
-#include <netinet/in.h>
-#include "Sender.h"
-#include "Logging.h"
-#include "OlyUtility.h"
-#include "SessionData.h"
-#include "CapturedXML.h"
 #include "StreamlineSetup.h"
+
+#include "Buffer.h"
+#include "CapturedXML.h"
 #include "ConfigurationXML.h"
 #include "Driver.h"
 #include "EventsXML.h"
+#include "Logging.h"
+#include "OlySocket.h"
+#include "OlyUtility.h"
+#include "Sender.h"
+#include "SessionData.h"
 
 static const char* TAG_SESSION = "session";
 static const char* TAG_REQUEST = "request";
@@ -198,12 +195,9 @@ void StreamlineSetup::handleDeliver(char* xml) {
 void StreamlineSetup::sendData(const char* data, uint32_t length, char type) {
 	unsigned char header[5];
 	header[0] = type;
-	header[1] = (length >> 0) & 0xff;
-	header[2] = (length >> 8) & 0xff;
-	header[3] = (length >> 16) & 0xff;
-	header[4] = (length >> 24) & 0xff;
+	Buffer::writeLEInt(header + 1, length);
 	mSocket->send((char*)&header, sizeof(header));
-	mSocket->send((char*)data, length);
+	mSocket->send((const char*)data, length);
 }
 
 void StreamlineSetup::sendEvents() {
@@ -241,8 +235,14 @@ void StreamlineSetup::sendCounters() {
 
 	xml = mxmlNewXML("1.0");
 	counters = mxmlNewElement(xml, "counters");
+	int count = 0;
 	for (Driver *driver = Driver::getHead(); driver != NULL; driver = driver->getNext()) {
-		driver->writeCounters(counters);
+		count += driver->writeCounters(counters);
+	}
+
+	if (count == 0) {
+		logg->logError(__FILE__, __LINE__, "No counters found, this could be because /dev/gator/events can not be read or because perf is not working correctly");
+		handleException();
 	}
 
 	char* string = mxmlSaveAllocString(xml, mxmlWhitespaceCB);

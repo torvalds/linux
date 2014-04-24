@@ -1,5 +1,5 @@
 /**
- * Copyright (C) ARM Limited 2012-2013. All rights reserved.
+ * Copyright (C) ARM Limited 2012-2014. All rights reserved.
  *
  * This program is free software; you can redistribute it and/or modify
  * it under the terms of the GNU General Public License version 2 as
@@ -16,9 +16,17 @@
 #include <asm/io.h>
 
 /* Mali T6xx DDK includes */
+#ifdef MALI_DIR_MIDGARD
+/* New DDK Directory structure with kernel/drivers/gpu/arm/midgard*/
+#include "mali_linux_trace.h"
+#include "mali_kbase.h"
+#include "mali_kbase_mem_linux.h"
+#else
+/* Old DDK Directory structure with kernel/drivers/gpu/arm/t6xx*/
 #include "linux/mali_linux_trace.h"
 #include "kbase/src/common/mali_kbase.h"
 #include "kbase/src/linux/mali_kbase_mem_linux.h"
+#endif
 
 #include "gator_events_mali_common.h"
 

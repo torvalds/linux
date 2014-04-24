@@ -1,9 +1,5 @@
 if ARCH_IXP4XX
 
-config ARCH_SUPPORTS_BIG_ENDIAN
-	bool
-	default y
-
 menu "Intel IXP4xx Implementation Options"
 
 comment "IXP4xx Platforms"

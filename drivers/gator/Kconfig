@@ -4,7 +4,11 @@ config GATOR
 	depends on PROFILING
 	depends on HIGH_RES_TIMERS
 	depends on LOCAL_TIMERS || !(ARM && SMP)
+	depends on PERF_EVENTS
+	depends on HW_PERF_EVENTS || !(ARM || ARM64)
 	select TRACING
+	help
+	  Gator module for ARM's Streamline Performance Analyzer
 
 config GATOR_WITH_MALI_SUPPORT
 	bool
@@ -13,9 +17,11 @@ choice
 	prompt "Enable Mali GPU support in Gator"
 	depends on GATOR
 	optional
+	help
+	  Enable Mali GPU support in Gator
 
-config GATOR_MALI_400MP
-	bool "Mali-400MP"
+config GATOR_MALI_4XXMP
+	bool "Mali-400MP or Mali-450MP"
 	select GATOR_WITH_MALI_SUPPORT
 
 config GATOR_MALI_T6XX

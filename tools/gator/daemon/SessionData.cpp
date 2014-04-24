@@ -1,13 +1,15 @@
 /**
- * Copyright (C) ARM Limited 2010-2013. All rights reserved.
+ * Copyright (C) ARM Limited 2010-2014. All rights reserved.
  *
  * This program is free software; you can redistribute it and/or modify
  * it under the terms of the GNU General Public License version 2 as
  * published by the Free Software Foundation.
  */
 
-#include <string.h>
 #include "SessionData.h"
+
+#include <string.h>
+
 #include "SessionXML.h"
 #include "Logging.h"
 
@@ -38,6 +40,7 @@ void SessionData::initialize() {
 	mTotalBufferSize = 0;
 	// sysconf(_SC_NPROCESSORS_CONF) is unreliable on 2.6 Android, get the value from the kernel module
 	mCores = 1;
+	mPageSize = 0;
 }
 
 void SessionData::parseSessionXML(char* xmlString) {
@@ -88,7 +91,8 @@ void SessionData::parseSessionXML(char* xmlString) {
 void SessionData::readCpuInfo() {
 	char temp[256]; // arbitrarily large amount
 	strcpy(mCoreName, "unknown");
-	mCpuId = -1;
+	memset(&mCpuIds, -1, sizeof(mCpuIds));
+	mMaxCpuId = -1;
 
 	FILE* f = fopen("/proc/cpuinfo", "r");	
 	if (f == NULL) {
@@ -98,15 +102,16 @@ void SessionData::readCpuInfo() {
 	}
 
 	bool foundCoreName = false;
-	bool foundCpuId = false;
-	while (fgets(temp, sizeof(temp), f) && (!foundCoreName || !foundCpuId)) {
+	int processor = 0;
+	while (fgets(temp, sizeof(temp), f)) {
 		if (strlen(temp) > 0) {
 			temp[strlen(temp) - 1] = 0;	// Replace the line feed with a null
 		}
 
 		const bool foundHardware = strstr(temp, "Hardware") != 0;
 		const bool foundCPUPart = strstr(temp, "CPU part") != 0;
-		if (foundHardware || foundCPUPart) {
+		const bool foundProcessor = strstr(temp, "processor") != 0;
+		if (foundHardware || foundCPUPart || foundProcessor) {
 			char* position = strchr(temp, ':');
 			if (position == NULL || (unsigned int)(position - temp) + 2 >= strlen(temp)) {
 				logg->logMessage("Unknown format of /proc/cpuinfo\n"
@@ -122,11 +127,15 @@ void SessionData::readCpuInfo() {
 			}
 
 			if (foundCPUPart) {
-				int cpuId = strtol(position, NULL, 16);
-				if (cpuId > mCpuId) {
-					mCpuId = cpuId;
+				mCpuIds[processor] = strtol(position, NULL, 0);
+				// If this does not have the full topology in /proc/cpuinfo, mCpuIds[0] may not have the 1 CPU part emitted - this guarantees it's in mMaxCpuId
+				if (mCpuIds[processor] > mMaxCpuId) {
+					mMaxCpuId = mCpuIds[processor];
 				}
-				foundCpuId = true;
+			}
+
+			if (foundProcessor) {
+				processor = strtol(position, NULL, 0);
 			}
 		}
 	}

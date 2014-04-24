@@ -1,38 +1,39 @@
 /**
- * Copyright (C) ARM Limited 2010-2013. All rights reserved.
+ * Copyright (C) ARM Limited 2010-2014. All rights reserved.
  *
  * This program is free software; you can redistribute it and/or modify
  * it under the terms of the GNU General Public License version 2 as
  * published by the Free Software Foundation.
  */
 
+#include "Child.h"
+
 #include <stdlib.h>
 #include <string.h>
 #include <signal.h>
 #include <unistd.h>
 #include <sys/prctl.h>
+
 #include "Logging.h"
 #include "CapturedXML.h"
 #include "SessionData.h"
-#include "Child.h"
 #include "LocalCapture.h"
-#include "Collector.h"
 #include "Sender.h"
 #include "OlyUtility.h"
+#include "OlySocket.h"
 #include "StreamlineSetup.h"
 #include "ConfigurationXML.h"
 #include "Driver.h"
-#include "Fifo.h"
-#include "Buffer.h"
-
-#define NS_PER_S ((uint64_t)1000000000)
-#define NS_PER_US 1000
+#include "PerfSource.h"
+#include "DriverSource.h"
+#include "UserSpaceSource.h"
+#include "ExternalSource.h"
 
 static sem_t haltPipeline, senderThreadStarted, startProfile, senderSem; // Shared by Child and spawned threads
-static Fifo* collectorFifo = NULL;   // Shared by Child.cpp and spawned threads
-static Buffer* buffer = NULL;
+static Source *primarySource = NULL;
+static Source *userSpaceSource = NULL;
+static Source *externalSource = NULL;
 static Sender* sender = NULL;        // Shared by Child.cpp and spawned threads
-static Collector* collector = NULL;
 Child* child = NULL;                 // shared by Child.cpp and main.cpp
 
 extern void cleanUp();
@@ -78,7 +79,7 @@ static void child_handler(int signum) {
 	}
 	beenHere = true;
 	logg->logMessage("Gator is shutting down.");
-	if (signum == SIGALRM || !collector) {
+	if (signum == SIGALRM || !primarySource) {
 		exit(1);
 	} else {
 		child->endSession();
@@ -139,77 +140,22 @@ static void *stopThread(void *) {
 	return 0;
 }
 
-static void *countersThread(void *) {
-	prctl(PR_SET_NAME, (unsigned long)&"gatord-counters", 0, 0, 0);
-
-	gSessionData->hwmon.start();
-
-	int64_t monotonic_started = 0;
-	while (monotonic_started <= 0) {
-		usleep(10);
-
-		if (Collector::readInt64Driver("/dev/gator/started", &monotonic_started) == -1) {
-			logg->logError(__FILE__, __LINE__, "Error reading gator driver start time");
-			handleException();
-		}
-	}
-
-	uint64_t next_time = 0;
-	while (gSessionData->mSessionIsActive) {
-		struct timespec ts;
-#ifndef CLOCK_MONOTONIC_RAW
-		// Android doesn't have this defined but it was added in Linux 2.6.28
-#define CLOCK_MONOTONIC_RAW 4
-#endif
-		if (clock_gettime(CLOCK_MONOTONIC_RAW, &ts) != 0) {
-			logg->logError(__FILE__, __LINE__, "Failed to get uptime");
-			handleException();
-		}
-		const uint64_t curr_time = (NS_PER_S*ts.tv_sec + ts.tv_nsec) - monotonic_started;
-		// Sample ten times a second ignoring gSessionData->mSampleRate
-		next_time += NS_PER_S/10;//gSessionData->mSampleRate;
-		if (next_time < curr_time) {
-			logg->logMessage("Too slow, curr_time: %lli next_time: %lli", curr_time, next_time);
-			next_time = curr_time;
-		}
-
-		if (buffer->eventHeader(curr_time)) {
-			gSessionData->hwmon.read(buffer);
-			// Only check after writing all counters so that time and corresponding counters appear in the same frame
-			buffer->check(curr_time);
-		}
-
-		if (buffer->bytesAvailable() <= 0) {
-			logg->logMessage("One shot (counters)");
-			child->endSession();
-		}
-
-		usleep((next_time - curr_time)/NS_PER_US);
-	}
-
-	buffer->setDone();
-
-	return NULL;
-}
-
 static void *senderThread(void *) {
-	int length = 1;
-	char* data;
 	char end_sequence[] = {RESPONSE_APC_DATA, 0, 0, 0, 0};
 
 	sem_post(&senderThreadStarted);
 	prctl(PR_SET_NAME, (unsigned long)&"gatord-sender", 0, 0, 0);
 	sem_wait(&haltPipeline);
 
-	while (length > 0 || !buffer->isDone()) {
+	while (!primarySource->isDone() || (userSpaceSource != NULL && !userSpaceSource->isDone()) || (externalSource != NULL && !externalSource->isDone())) {
 		sem_wait(&senderSem);
-		data = collectorFifo->read(&length);
-		if (data != NULL) {
-			sender->writeData(data, length, RESPONSE_APC_DATA);
-			collectorFifo->release();
+
+		primarySource->write(sender);
+		if (userSpaceSource != NULL) {
+			userSpaceSource->write(sender);
 		}
-		if (!buffer->isDone()) {
-			buffer->write(sender);
+		if (externalSource != NULL) {
+			externalSource->write(sender);
 		}
 	}
 
@@ -255,15 +201,13 @@ void Child::initialization() {
 
 void Child::endSession() {
 	gSessionData->mSessionIsActive = false;
-	collector->stop();
+	primarySource->interrupt();
 	sem_post(&haltPipeline);
 }
 
 void Child::run() {
-	char* collectBuffer;
-	int bytesCollected = 0;
 	LocalCapture* localCapture = NULL;
-	pthread_t durationThreadID, stopThreadID, senderThreadID, countersThreadID;
+	pthread_t durationThreadID, stopThreadID, senderThreadID;
 
 	prctl(PR_SET_NAME, (unsigned long)&"gatord-child", 0, 0, 0);
 
@@ -282,7 +226,11 @@ void Child::run() {
 	{ ConfigurationXML configuration; }
 
 	// Set up the driver; must be done after gSessionData->mPerfCounterType[] is populated
-	collector = new Collector();
+	if (!gSessionData->perf.isSetup()) {
+	  primarySource = new DriverSource(&senderSem, &startProfile);
+	} else {
+	  primarySource = new PerfSource(&senderSem, &startProfile);
+	}
 
 	// Initialize all drivers
 	for (Driver *driver = Driver::getHead(); driver != NULL; driver = driver->getNext()) {
@@ -317,15 +265,11 @@ void Child::run() {
 		free(xmlString);
 	}
 
-	// Create user-space buffers, add 5 to the size to account for the 1-byte type and 4-byte length
-	logg->logMessage("Created %d MB collector buffer with a %d-byte ragged end", gSessionData->mTotalBufferSize, collector->getBufferSize());
-	collectorFifo = new Fifo(collector->getBufferSize() + 5, gSessionData->mTotalBufferSize*1024*1024, &senderSem);
-
-	// Get the initial pointer to the collect buffer
-	collectBuffer = collectorFifo->start();
-
-	// Create a new Block Counter Buffer
-	buffer = new Buffer(0, 5, gSessionData->mTotalBufferSize*1024*1024, &senderSem);
+	// Must be after session XML is parsed
+	if (!primarySource->prepare()) {
+		logg->logError(__FILE__, __LINE__, "Unable to prepare for capture");
+		handleException();
+	}
 
 	// Sender thread shall be halted until it is signaled for one shot mode
 	sem_init(&haltPipeline, 0, gSessionData->mOneShot ? 0 : 2);
@@ -340,14 +284,21 @@ void Child::run() {
 		thread_creation_success = false;
 	}
 
-	bool startcountersThread = gSessionData->hwmon.countersEnabled();
-	if (startcountersThread) {
-		if (pthread_create(&countersThreadID, NULL, countersThread, this)) {
-			thread_creation_success = false;
+	if (gSessionData->hwmon.countersEnabled()) {
+		userSpaceSource = new UserSpaceSource(&senderSem);
+		if (!userSpaceSource->prepare()) {
+			logg->logError(__FILE__, __LINE__, "Unable to prepare for capture");
+			handleException();
 		}
-	} else {
-		// Let senderThread know there is no buffer data to send
-		buffer->setDone();
+		userSpaceSource->start();
+	}
+	if (access("/tmp/gator", F_OK) == 0) {
+		externalSource = new ExternalSource(&senderSem);
+		if (!externalSource->prepare()) {
+			logg->logError(__FILE__, __LINE__, "Unable to prepare for capture");
+			handleException();
+		}
+		externalSource->start();
 	}
 
 	if (!thread_creation_success) {
@@ -359,28 +310,13 @@ void Child::run() {
 	sem_wait(&senderThreadStarted);
 
 	// Start profiling
-	logg->logMessage("********** Profiling started **********");
-	collector->start();
-	sem_post(&startProfile);
+	primarySource->run();
 
-	// Collect Data
-	do {
-		// This command will stall until data is received from the driver
-		bytesCollected = collector->collect(collectBuffer);
-
-		// In one shot mode, stop collection once all the buffers are filled
-		if (gSessionData->mOneShot && gSessionData->mSessionIsActive) {
-			if (bytesCollected == -1 || collectorFifo->willFill(bytesCollected)) {
-				logg->logMessage("One shot");
-				endSession();
-			}
-		}
-		collectBuffer = collectorFifo->write(bytesCollected);
-	} while (bytesCollected > 0);
-	logg->logMessage("Exit collect data loop");
-
-	if (startcountersThread) {
-		pthread_join(countersThreadID, NULL);
+	if (externalSource != NULL) {
+		externalSource->join();
+	}
+	if (userSpaceSource != NULL) {
+		userSpaceSource->join();
 	}
 
 	// Wait for the other threads to exit
@@ -401,9 +337,9 @@ void Child::run() {
 
 	logg->logMessage("Profiling ended.");
 
-	delete buffer;
-	delete collectorFifo;
+	delete externalSource;
+	delete userSpaceSource;
+	delete primarySource;
 	delete sender;
-	delete collector;
 	delete localCapture;
 }

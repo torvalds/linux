@@ -1,5 +1,5 @@
 /**
- * Copyright (C) ARM Limited 2013. All rights reserved.
+ * Copyright (C) ARM Limited 2013-2014. All rights reserved.
  *
  * This program is free software; you can redistribute it and/or modify
  * it under the terms of the GNU General Public License version 2 as
@@ -25,7 +25,7 @@ public:
 	void clear () {
 		mType[0] = '\0';
 		mEnabled = false;
-		mEvent = 0;
+		mEvent = -1;
 		mCount = 0;
 		mKey = 0;
 		mDriver = NULL;

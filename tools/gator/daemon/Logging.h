@@ -1,5 +1,5 @@
 /**
- * Copyright (C) ARM Limited 2010-2013. All rights reserved.
+ * Copyright (C) ARM Limited 2010-2014. All rights reserved.
  *
  * This program is free software; you can redistribute it and/or modify
  * it under the terms of the GNU General Public License version 2 as
@@ -9,14 +9,7 @@
 #ifndef	__LOGGING_H__
 #define	__LOGGING_H__
 
-#include <stdio.h>
-#include <string.h>
-#include <limits.h>
-#ifdef WIN32
-#include <windows.h>
-#else
 #include <pthread.h>
-#endif
 
 #define DRIVER_ERROR "\n Driver issue:\n  >> gator.ko must be built against the current kernel version & configuration\n  >> gator.ko should be co-located with gatord in the same directory\n  >>   OR insmod gator.ko prior to launching gatord"
 
@@ -33,11 +26,7 @@ private:
 	char	mErrBuf[4096]; // Arbitrarily large buffer to hold a string
 	char	mLogBuf[4096]; // Arbitrarily large buffer to hold a string
 	bool	mDebug;
-#ifdef WIN32
-	HANDLE	mLoggingMutex;
-#else
 	pthread_mutex_t	mLoggingMutex;
-#endif
 };
 
 extern Logging* logg;

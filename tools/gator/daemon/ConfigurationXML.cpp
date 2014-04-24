@@ -1,15 +1,17 @@
 /**
- * Copyright (C) ARM Limited 2010-2013. All rights reserved.
+ * Copyright (C) ARM Limited 2010-2014. All rights reserved.
  *
  * This program is free software; you can redistribute it and/or modify
  * it under the terms of the GNU General Public License version 2 as
  * published by the Free Software Foundation.
  */
 
+#include "ConfigurationXML.h"
+
 #include <string.h>
 #include <stdlib.h>
 #include <dirent.h>
-#include "ConfigurationXML.h"
+
 #include "Driver.h"
 #include "Logging.h"
 #include "OlyUtility.h"
@@ -67,6 +69,7 @@ int ConfigurationXML::parse(const char* configurationXML) {
 
 	// clear counter overflow
 	gSessionData->mCounterOverflow = 0;
+	gSessionData->mIsEBS = false;
 	mIndex = 0;
 
 	// disable all counters prior to parsing the configuration xml
@@ -155,6 +158,9 @@ void ConfigurationXML::configurationTag(mxml_node_t *node) {
 	if (mxmlElementGetAttr(node, ATTR_COUNTER)) counter.setType(mxmlElementGetAttr(node, ATTR_COUNTER));
 	if (mxmlElementGetAttr(node, ATTR_EVENT)) counter.setEvent(strtol(mxmlElementGetAttr(node, ATTR_EVENT), NULL, 16));
 	if (mxmlElementGetAttr(node, ATTR_COUNT)) counter.setCount(strtol(mxmlElementGetAttr(node, ATTR_COUNT), NULL, 10));
+	if (counter.getCount() > 0) {
+		gSessionData->mIsEBS = true;
+	}
 	counter.setEnabled(true);
 
 	// Associate a driver with each counter
@@ -181,9 +187,9 @@ void ConfigurationXML::configurationTag(mxml_node_t *node) {
 }
 
 void ConfigurationXML::getDefaultConfigurationXml(const char * & xml, unsigned int & len) {
-#include "configuration_xml.h" // defines and initializes char configuration_xml[] and int configuration_xml_len
-	xml = (const char *)configuration_xml;
-	len = configuration_xml_len;
+#include "defaults_xml.h" // defines and initializes char defaults_xml[] and int defaults_xml_len
+	xml = (const char *)defaults_xml;
+	len = defaults_xml_len;
 }
 
 void ConfigurationXML::getPath(char* path) {

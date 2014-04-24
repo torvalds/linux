@@ -1,15 +1,11 @@
 /**
- * Copyright (C) ARM Limited 2011-2013. All rights reserved.
+ * Copyright (C) ARM Limited 2011-2014. All rights reserved.
  *
  * This program is free software; you can redistribute it and/or modify
  * it under the terms of the GNU General Public License version 2 as
  * published by the Free Software Foundation.
  *
  */
-
-// gator_hrtimer_perf.c is used if perf is supported
-//   update, gator_hrtimer_gator.c always used until issues resolved with perf hrtimers
-#if 1
 
 void (*callback)(void);
 DEFINE_PER_CPU(struct hrtimer, percpu_hrtimer);
@@ -82,5 +78,3 @@ static void gator_hrtimer_shutdown(void)
 {
 	/* empty */
 }
-
-#endif

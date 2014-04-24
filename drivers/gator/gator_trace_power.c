@@ -1,5 +1,5 @@
 /**
- * Copyright (C) ARM Limited 2011-2013. All rights reserved.
+ * Copyright (C) ARM Limited 2011-2014. All rights reserved.
  *
  * This program is free software; you can redistribute it and/or modify
  * it under the terms of the GNU General Public License version 2 as
@@ -166,7 +166,7 @@ static void gator_trace_power_stop(void)
 	}
 }
 
-void gator_trace_power_init(void)
+static void gator_trace_power_init(void)
 {
 	int i;
 	for (i = 0; i < POWER_TOTAL; i++) {
@@ -197,7 +197,7 @@ static void gator_trace_power_stop(void)
 {
 }
 
-void gator_trace_power_init(void)
+static void gator_trace_power_init(void)
 {
 }
 #endif

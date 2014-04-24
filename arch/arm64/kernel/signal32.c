@@ -100,34 +100,6 @@ struct compat_rt_sigframe {
 
 #define _BLOCKABLE (~(sigmask(SIGKILL) | sigmask(SIGSTOP)))
 
-/*
- * For ARM syscalls, the syscall number has to be loaded into r7.
- * We do not support an OABI userspace.
- */
-#define MOV_R7_NR_SIGRETURN	(0xe3a07000 | __NR_compat_sigreturn)
-#define SVC_SYS_SIGRETURN	(0xef000000 | __NR_compat_sigreturn)
-#define MOV_R7_NR_RT_SIGRETURN	(0xe3a07000 | __NR_compat_rt_sigreturn)
-#define SVC_SYS_RT_SIGRETURN	(0xef000000 | __NR_compat_rt_sigreturn)
-
-/*
- * For Thumb syscalls, we also pass the syscall number via r7. We therefore
- * need two 16-bit instructions.
- */
-#define SVC_THUMB_SIGRETURN	(((0xdf00 | __NR_compat_sigreturn) << 16) | \
-				   0x2700 | __NR_compat_sigreturn)
-#define SVC_THUMB_RT_SIGRETURN	(((0xdf00 | __NR_compat_rt_sigreturn) << 16) | \
-				   0x2700 | __NR_compat_rt_sigreturn)
-
-const compat_ulong_t aarch32_sigret_code[6] = {
-	/*
-	 * AArch32 sigreturn code.
-	 * We don't construct an OABI SWI - instead we just set the imm24 field
-	 * to the EABI syscall number so that we create a sane disassembly.
-	 */
-	MOV_R7_NR_SIGRETURN,    SVC_SYS_SIGRETURN,    SVC_THUMB_SIGRETURN,
-	MOV_R7_NR_RT_SIGRETURN, SVC_SYS_RT_SIGRETURN, SVC_THUMB_RT_SIGRETURN,
-};
-
 static inline int put_sigset_t(compat_sigset_t __user *uset, sigset_t *set)
 {
 	compat_sigset_t	cset;

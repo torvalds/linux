@@ -142,6 +142,11 @@ temperature) and throttle appropriate devices.
     This is an optional feature where some platforms can choose not to
     provide this data.
     .governor_name: Name of the thermal governor used for this zone
+    .no_hwmon: a boolean to indicate if the thermal to hwmon sysfs interface
+               is required. when no_hwmon == false, a hwmon sysfs interface
+               will be created. when no_hwmon == true, nothing will be done.
+               In case the thermal_zone_params is NULL, the hwmon interface
+               will be created (for backward compatibility).
     .num_tbps: Number of thermal_bind_params entries for this zone
     .tbp: thermal_bind_params entries
 

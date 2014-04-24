@@ -53,6 +53,13 @@
 #define put_byte_3      lsl #0
 #endif
 
+/* Select code for any configuration running in BE8 mode */
+#ifdef CONFIG_CPU_ENDIAN_BE8
+#define ARM_BE8(code...) code
+#else
+#define ARM_BE8(code...)
+#endif
+
 /*
  * Data preload for architectures that support it
  */

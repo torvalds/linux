@@ -18,12 +18,14 @@
 
 		.macro	waituart,rd,rx
 1001:		ldr	\rd, [\rx, #UART01x_FR]
+ ARM_BE8(	rev	\rd, \rd )
 		tst	\rd, #UART01x_FR_TXFF
 		bne	1001b
 		.endm
 
 		.macro	busyuart,rd,rx
 1001:		ldr	\rd, [\rx, #UART01x_FR]
+ ARM_BE8(	rev	\rd, \rd )
 		tst	\rd, #UART01x_FR_BUSY
 		bne	1001b
 		.endm

@@ -1,5 +1,5 @@
 /**
- * Copyright (C) ARM Limited 2013. All rights reserved.
+ * Copyright (C) ARM Limited 2013-2014. All rights reserved.
  *
  * This program is free software; you can redistribute it and/or modify
  * it under the terms of the GNU General Public License version 2 as
@@ -21,7 +21,7 @@ public:
 	void resetCounters();
 	void setupCounter(Counter &counter);
 
-	void writeCounters(mxml_node_t *root) const;
+	int writeCounters(mxml_node_t *root) const;
 };
 
 #endif // KMOD_H

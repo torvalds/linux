@@ -1,5 +1,5 @@
 /**
- * Copyright (C) ARM Limited 2010-2013. All rights reserved.
+ * Copyright (C) ARM Limited 2010-2014. All rights reserved.
  *
  * This program is free software; you can redistribute it and/or modify
  * it under the terms of the GNU General Public License version 2 as
@@ -22,7 +22,6 @@ enum {
 
 static DEFINE_PER_CPU(uint64_t *, taskname_keys);
 static DEFINE_PER_CPU(int, collecting);
-static DEFINE_PER_CPU(bool, in_scheduler_context);
 
 // this array is never read as the cpu wait charts are derived counters
 // the files are needed, nonetheless, to show that these counters are available
@@ -52,7 +51,7 @@ static int sched_trace_create_files(struct super_block *sb, struct dentry *root)
 	return 0;
 }
 
-void emit_pid_name(struct task_struct *task)
+static void emit_pid_name(struct task_struct *task)
 {
 	bool found = false;
 	char taskcomm[TASK_COMM_LEN + 3];
@@ -116,20 +115,21 @@ static void collect_counters(u64 time, struct task_struct *task)
 		// Commit buffers on timeout
 		if (gator_live_rate > 0 && time >= per_cpu(gator_buffer_commit_time, cpu)) {
 			static const int buftypes[] = { NAME_BUF, COUNTER_BUF, BLOCK_COUNTER_BUF, SCHED_TRACE_BUF };
-			unsigned long flags;
 			int i;
 
-			local_irq_save(flags);
 			for (i = 0; i < ARRAY_SIZE(buftypes); ++i) {
 				gator_commit_buffer(cpu, buftypes[i], time);
 			}
-			local_irq_restore(flags);
 
+			// spinlocks are noops on uniprocessor machines and mutexes do not work in sched_switch context in
+			// RT-Preempt full, so disable proactive flushing of the annotate frame on uniprocessor machines.
+#ifdef CONFIG_SMP
 			// Try to preemptively flush the annotate buffer to reduce the chance of the buffer being full
 			if (on_primary_core() && spin_trylock(&annotate_lock)) {
 				gator_commit_buffer(0, ANNOTATE_BUF, time);
 				spin_unlock(&annotate_lock);
 			}
+#endif
 		}
 	}
 }
@@ -222,7 +222,7 @@ fail_sched_process_fork:
 	return -1;
 }
 
-int gator_trace_sched_start(void)
+static int gator_trace_sched_start(void)
 {
 	int cpu, size;
 
@@ -237,7 +237,7 @@ int gator_trace_sched_start(void)
 	return register_scheduler_tracepoints();
 }
 
-void gator_trace_sched_offline(void)
+static void gator_trace_sched_offline(void)
 {
 	trace_sched_insert_idle();
 }
@@ -250,7 +250,7 @@ static void unregister_scheduler_tracepoints(void)
 	pr_debug("gator: unregistered tracepoints\n");
 }
 
-void gator_trace_sched_stop(void)
+static void gator_trace_sched_stop(void)
 {
 	int cpu;
 	unregister_scheduler_tracepoints();
@@ -260,7 +260,7 @@ void gator_trace_sched_stop(void)
 	}
 }
 
-void gator_trace_sched_init(void)
+static void gator_trace_sched_init(void)
 {
 	int i;
 	for (i = 0; i < CPU_WAIT_TOTAL; i++) {

@@ -10,8 +10,17 @@ EXTRA_CFLAGS += -DMALI_USE_UMP=1 \
                 -DMALI_NO_MALI=0
 
 DDK_DIR ?= .
+ifneq ($(wildcard $(DDK_DIR)/drivers/gpu/arm/t6xx),)
 KBASE_DIR = $(DDK_DIR)/drivers/gpu/arm/t6xx/kbase
 OSK_DIR = $(DDK_DIR)/drivers/gpu/arm/t6xx/kbase/osk
+endif
+
+ifneq ($(wildcard $(DDK_DIR)/drivers/gpu/arm/midgard),)
+KBASE_DIR = $(DDK_DIR)/drivers/gpu/arm/midgard
+OSK_DIR = $(DDK_DIR)/drivers/gpu/arm/midgard/osk
+EXTRA_CFLAGS += -DMALI_DIR_MIDGARD=1
+endif
+
 UMP_DIR = $(DDK_DIR)/include/linux
 
 # Include directories in the DDK

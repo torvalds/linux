@@ -17,8 +17,30 @@ if THERMAL
 
 config THERMAL_HWMON
 	bool
+	prompt "Expose thermal sensors as hwmon device"
 	depends on HWMON=y || HWMON=THERMAL
 	default y
+	help
+	  In case a sensor is registered with the thermal
+	  framework, this option will also register it
+	  as a hwmon. The sensor will then have the common
+	  hwmon sysfs interface.
+
+	  Say 'Y' here if you want all thermal sensors to
+	  have hwmon sysfs interface too.
+
+config THERMAL_OF
+	bool
+	prompt "APIs to parse thermal data out of device tree"
+	depends on OF
+	default y
+	help
+	  This options provides helpers to add the support to
+	  read and parse thermal data definitions out of the
+	  device tree blob.
+
+	  Say 'Y' here if you need to build thermal infrastructure
+	  based on device tree.
 
 choice
 	prompt "Default Thermal governor"
@@ -69,6 +91,7 @@ config THERMAL_GOV_USER_SPACE
 config CPU_THERMAL
 	bool "generic cpu cooling support"
 	depends on CPU_FREQ
+	depends on THERMAL_OF
 	select CPU_FREQ_TABLE
 	help
 	  This implements the generic cpu cooling mechanism through frequency

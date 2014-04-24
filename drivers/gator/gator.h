@@ -1,5 +1,5 @@
 /**
- * Copyright (C) ARM Limited 2010-2013. All rights reserved.
+ * Copyright (C) ARM Limited 2010-2014. All rights reserved.
  *
  * This program is free software; you can redistribute it and/or modify
  * it under the terms of the GNU General Public License version 2 as
@@ -31,6 +31,7 @@
 #define CORTEX_A9   0xc09
 #define CORTEX_A12  0xc0d
 #define CORTEX_A15  0xc0f
+#define CORTEX_A17  0xc0e
 #define SCORPION    0x00f
 #define SCORPIONMP  0x02d
 #define KRAITSIM    0x049
@@ -47,9 +48,7 @@ struct gator_cpu {
 	const int cpuid;
 	// Human readable name
 	const char core_name[MAXSIZE_CORE_NAME];
-	// Perf PMU name
-	const char * const pmu_name;
-	// gatorfs event name
+	// gatorfs event and Perf PMU name
 	const char * const pmnc_name;
 	// compatible from Documentation/devicetree/bindings/arm/cpus.txt
 	const char * const dt_name;
@@ -62,10 +61,6 @@ const struct gator_cpu *gator_find_cpu_by_pmu_name(const char *const name);
 /******************************************************************************
  * Filesystem
  ******************************************************************************/
-int gatorfs_create_file_perm(struct super_block *sb, struct dentry *root,
-			     char const *name,
-			     const struct file_operations *fops, int perm);
-
 struct dentry *gatorfs_mkdir(struct super_block *sb, struct dentry *root,
 			     char const *name);
 
@@ -74,8 +69,6 @@ int gatorfs_create_ulong(struct super_block *sb, struct dentry *root,
 
 int gatorfs_create_ro_ulong(struct super_block *sb, struct dentry *root,
 			    char const *name, unsigned long *val);
-
-void gator_op_create_files(struct super_block *sb, struct dentry *root);
 
 /******************************************************************************
  * Tracepoints

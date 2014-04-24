@@ -1,5 +1,5 @@
 /**
- * Copyright (C) ARM Limited 2010-2013. All rights reserved.
+ * Copyright (C) ARM Limited 2010-2014. All rights reserved.
  *
  * This program is free software; you can redistribute it and/or modify
  * it under the terms of the GNU General Public License version 2 as
@@ -24,13 +24,13 @@ struct ConfigParameters {
 
 class SessionXML {
 public:
-	SessionXML(const char* str);
+	SessionXML(const char *str);
 	~SessionXML();
 	void parse();
 	ConfigParameters parameters;
 private:
-	char*  mSessionXML;
-	char*  mPath;
+	const char *mSessionXML;
+	const char *mPath;
 	void sessionTag(mxml_node_t *tree, mxml_node_t *node);
 	void sessionImage(mxml_node_t *node);
 

@@ -1,5 +1,5 @@
 /**
- * Copyright (C) ARM Limited 2010-2013. All rights reserved.
+ * Copyright (C) ARM Limited 2010-2014. All rights reserved.
  *
  * This program is free software; you can redistribute it and/or modify
  * it under the terms of the GNU General Public License version 2 as
@@ -15,6 +15,7 @@
 #else
 #include <netinet/in.h>
 #include <sys/socket.h>
+#include <sys/un.h>
 #include <unistd.h>
 #include <netdb.h>
 #endif
@@ -30,7 +31,7 @@
 #define SHUTDOWN_RX_TX SHUT_RDWR
 #endif
 
-OlySocket::OlySocket(int port, bool multiple) {
+OlyServerSocket::OlyServerSocket(int port) {
 #ifdef WIN32
   WSADATA wsaData;
   if (WSAStartup(0x0202, &wsaData) != 0) {
@@ -39,21 +40,79 @@ OlySocket::OlySocket(int port, bool multiple) {
   }
 #endif
 
-  if (multiple) {
-    createServerSocket(port);
-  } else {
-    createSingleServerConnection(port);
+  createServerSocket(port);
+}
+
+OlySocket::OlySocket(int port, const char* host) {
+  createClientSocket(host, port);
+}
+
+OlySocket::OlySocket(int socketID) : mSocketID(socketID) {
+}
+
+#ifndef WIN32
+
+OlyServerSocket::OlyServerSocket(const char* path) {
+  // Create socket
+  mFDServer = socket(PF_UNIX, SOCK_STREAM, 0);
+  if (mFDServer < 0) {
+    logg->logError(__FILE__, __LINE__, "Error creating server socket");
+    handleException();
+  }
+
+  unlink(path);
+
+  // Create sockaddr_in structure, ensuring non-populated fields are zero
+  struct sockaddr_un sockaddr;
+  memset((void*)&sockaddr, 0, sizeof(sockaddr));
+  sockaddr.sun_family = AF_UNIX;
+  strncpy(sockaddr.sun_path, path, sizeof(sockaddr.sun_path) - 1);
+  sockaddr.sun_path[sizeof(sockaddr.sun_path) - 1] = '\0';
+
+  // Bind the socket to an address
+  if (bind(mFDServer, (const struct sockaddr*)&sockaddr, sizeof(sockaddr)) < 0) {
+    logg->logError(__FILE__, __LINE__, "Binding of server socket failed.");
+    handleException();
+  }
+
+  // Listen for connections on this socket
+  if (listen(mFDServer, 1) < 0) {
+    logg->logError(__FILE__, __LINE__, "Listening of server socket failed");
+    handleException();
   }
 }
 
-OlySocket::OlySocket(int port, char* host) {
-  mFDServer = 0;
-  createClientSocket(host, port);
+OlySocket::OlySocket(const char* path) {
+  mSocketID = socket(PF_UNIX, SOCK_STREAM, 0);
+  if (mSocketID < 0) {
+    return;
+  }
+
+  // Create sockaddr_in structure, ensuring non-populated fields are zero
+  struct sockaddr_un sockaddr;
+  memset((void*)&sockaddr, 0, sizeof(sockaddr));
+  sockaddr.sun_family = AF_UNIX;
+  strncpy(sockaddr.sun_path, path, sizeof(sockaddr.sun_path) - 1);
+  sockaddr.sun_path[sizeof(sockaddr.sun_path) - 1] = '\0';
+
+  if (connect(mSocketID, (const struct sockaddr*)&sockaddr, sizeof(sockaddr)) < 0) {
+    close(mSocketID);
+    mSocketID = -1;
+    return;
+  }
 }
+
+#endif
 
 OlySocket::~OlySocket() {
   if (mSocketID > 0) {
     CLOSE_SOCKET(mSocketID);
+  }
+}
+
+OlyServerSocket::~OlyServerSocket() {
+  if (mFDServer > 0) {
+    CLOSE_SOCKET(mFDServer);
   }
 }
 
@@ -70,7 +129,7 @@ void OlySocket::closeSocket() {
   }
 }
 
-void OlySocket::closeServerSocket() {
+void OlyServerSocket::closeServerSocket() {
   if (CLOSE_SOCKET(mFDServer) != 0) {
     logg->logError(__FILE__, __LINE__, "Failed to close server socket.");
     handleException();
@@ -78,7 +137,7 @@ void OlySocket::closeServerSocket() {
   mFDServer = 0;
 }
 
-void OlySocket::createClientSocket(char* hostname, int portno) {
+void OlySocket::createClientSocket(const char* hostname, int portno) {
 #ifdef WIN32
   // TODO: Implement for Windows
 #else
@@ -119,14 +178,7 @@ void OlySocket::createClientSocket(char* hostname, int portno) {
 #endif
 }
 
-void OlySocket::createSingleServerConnection(int port) {
-  createServerSocket(port);
-
-  mSocketID = acceptConnection();
-  closeServerSocket();
-}
-
-void OlySocket::createServerSocket(int port) {
+void OlyServerSocket::createServerSocket(int port) {
   int family = AF_INET6;
 
   // Create socket
@@ -169,22 +221,23 @@ void OlySocket::createServerSocket(int port) {
 
 // mSocketID is always set to the most recently accepted connection
 // The user of this class should maintain the different socket connections, e.g. by forking the process
-int OlySocket::acceptConnection() {
+int OlyServerSocket::acceptConnection() {
+  int socketID;
   if (mFDServer <= 0) {
     logg->logError(__FILE__, __LINE__, "Attempting multiple connections on a single connection server socket or attempting to accept on a client socket");
     handleException();
   }
 
   // Accept a connection, note that this call blocks until a client connects
-  mSocketID = accept(mFDServer, NULL, NULL);
-  if (mSocketID < 0) {
+  socketID = accept(mFDServer, NULL, NULL);
+  if (socketID < 0) {
     logg->logError(__FILE__, __LINE__, "Socket acceptance failed");
     handleException();
   }
-  return mSocketID;
+  return socketID;
 }
 
-void OlySocket::send(char* buffer, int size) {
+void OlySocket::send(const char* buffer, int size) {
   if (size <= 0 || buffer == NULL) {
     return;
   }

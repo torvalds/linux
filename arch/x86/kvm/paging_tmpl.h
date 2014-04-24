@@ -423,6 +423,9 @@ static int FNAME(fetch)(struct kvm_vcpu *vcpu, gva_t addr,
 	if (FNAME(gpte_changed)(vcpu, gw, top_level))
 		goto out_gpte_changed;
 
+	if (!VALID_PAGE(vcpu->arch.mmu.root_hpa))
+		goto out_gpte_changed;
+
 	for (shadow_walk_init(&it, vcpu, addr);
 	     shadow_walk_okay(&it) && it.level > gw->level;
 	     shadow_walk_next(&it)) {
@@ -670,6 +673,11 @@ static void FNAME(invlpg)(struct kvm_vcpu *vcpu, gva_t gva)
 	 * help us to skip pte prefetch later.
 	 */
 	mmu_topup_memory_caches(vcpu);
+
+	if (!VALID_PAGE(vcpu->arch.mmu.root_hpa)) {
+		WARN_ON(1);
+		return;
+	}
 
 	spin_lock(&vcpu->kvm->mmu_lock);
 	for_each_shadow_entry(vcpu, gva, iterator) {

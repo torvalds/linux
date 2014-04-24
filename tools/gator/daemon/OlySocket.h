@@ -1,5 +1,5 @@
 /**
- * Copyright (C) ARM Limited 2010-2013. All rights reserved.
+ * Copyright (C) ARM Limited 2010-2014. All rights reserved.
  *
  * This program is free software; you can redistribute it and/or modify
  * it under the terms of the GNU General Public License version 2 as
@@ -9,27 +9,44 @@
 #ifndef __OLY_SOCKET_H__
 #define __OLY_SOCKET_H__
 
-#include <string.h>
-
 class OlySocket {
 public:
-  OlySocket(int port, bool multipleConnections = false);
-  OlySocket(int port, char* hostname);
+  OlySocket(int port, const char* hostname);
+  OlySocket(int socketID);
+#ifndef WIN32
+  OlySocket(const char* path);
+#endif
   ~OlySocket();
-  int acceptConnection();
+
   void closeSocket();
-  void closeServerSocket();
   void shutdownConnection();
-  void send(char* buffer, int size);
-  void sendString(const char* string) {send((char*)string, strlen(string));}
+  void send(const char* buffer, int size);
   int receive(char* buffer, int size);
   int receiveNBytes(char* buffer, int size);
   int receiveString(char* buffer, int size);
-  int getSocketID() {return mSocketID;}
+
+  bool isValid() const { return mSocketID >= 0; }
+
 private:
-  int mSocketID, mFDServer;
-  void createClientSocket(char* hostname, int port);
-  void createSingleServerConnection(int port);
+  int mSocketID;
+
+  void createClientSocket(const char* hostname, int port);
+};
+
+class OlyServerSocket {
+public:
+  OlyServerSocket(int port);
+#ifndef WIN32
+  OlyServerSocket(const char* path);
+#endif
+  ~OlyServerSocket();
+
+  int acceptConnection();
+  void closeServerSocket();
+
+private:
+  int mFDServer;
+
   void createServerSocket(int port);
 };
 

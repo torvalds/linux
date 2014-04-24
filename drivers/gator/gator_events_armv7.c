@@ -1,5 +1,5 @@
 /**
- * Copyright (C) ARM Limited 2010-2013. All rights reserved.
+ * Copyright (C) ARM Limited 2010-2014. All rights reserved.
  *
  * This program is free software; you can redistribute it and/or modify
  * it under the terms of the GNU General Public License version 2 as
@@ -141,9 +141,9 @@ static int gator_events_armv7_create_files(struct super_block *sb, struct dentry
 	for (i = 0; i < pmnc_counters; i++) {
 		char buf[40];
 		if (i == 0) {
-			snprintf(buf, sizeof buf, "ARM_%s_ccnt", pmnc_name);
+			snprintf(buf, sizeof buf, "%s_ccnt", pmnc_name);
 		} else {
-			snprintf(buf, sizeof buf, "ARM_%s_cnt%d", pmnc_name, i - 1);
+			snprintf(buf, sizeof buf, "%s_cnt%d", pmnc_name, i - 1);
 		}
 		dir = gatorfs_mkdir(sb, root, buf);
 		if (!dir) {
@@ -275,25 +275,27 @@ int gator_events_armv7_init(void)
 
 	switch (gator_cpuid()) {
 	case CORTEX_A5:
-		pmnc_name = "Cortex-A5";
+		pmnc_name = "ARMv7_Cortex_A5";
 		pmnc_counters = 2;
 		break;
 	case CORTEX_A7:
-		pmnc_name = "Cortex-A7";
+		pmnc_name = "ARMv7_Cortex_A7";
 		pmnc_counters = 4;
 		break;
 	case CORTEX_A8:
-		pmnc_name = "Cortex-A8";
+		pmnc_name = "ARMv7_Cortex_A8";
 		pmnc_counters = 4;
 		break;
 	case CORTEX_A9:
-		pmnc_name = "Cortex-A9";
+		pmnc_name = "ARMv7_Cortex_A9";
 		pmnc_counters = 6;
 		break;
+	// ARM Cortex A12 is not supported by version of Linux before 3.0
 	case CORTEX_A15:
-		pmnc_name = "Cortex-A15";
+		pmnc_name = "ARMv7_Cortex_A15";
 		pmnc_counters = 6;
 		break;
+	// ARM Cortex A17 is not supported by version of Linux before 3.0
 	default:
 		return -1;
 	}

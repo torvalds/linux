@@ -1,6 +1,6 @@
-  <counter_set name="ARM_Cortex-A12_cnt" count="6"/>
-  <category name="Cortex-A12" counter_set="ARM_Cortex-A12_cnt" per_cpu="yes" supports_event_based_sampling="yes">
-    <event counter="ARM_Cortex-A12_ccnt" event="0xff" title="Clock" name="Cycles" display="hertz" units="Hz" average_selection="yes" average_cores="yes" description="The number of core clock cycles"/>
+  <counter_set name="ARMv7_Cortex_A12_cnt" count="6"/>
+  <category name="Cortex-A12" counter_set="ARMv7_Cortex_A12_cnt" per_cpu="yes" supports_event_based_sampling="yes">
+    <event counter="ARMv7_Cortex_A12_ccnt" event="0xff" title="Clock" name="Cycles" display="hertz" units="Hz" average_selection="yes" average_cores="yes" description="The number of core clock cycles"/>
     <event event="0x01" title="Cache" name="Instruction refill" description="Instruction fetch that causes a refill of at least the level of instruction or unified cache closest to the processor"/>
     <event event="0x02" title="Cache" name="Inst TLB refill" description="Instruction fetch that causes a TLB refill of at least the level of TLB closest to the processor"/>
     <event event="0x03" title="Cache" name="Data refill" description="Memory Read or Write operation that causes a refill of at least the level of data or unified cache closest to the processor"/>

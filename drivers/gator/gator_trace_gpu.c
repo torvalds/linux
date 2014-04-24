@@ -1,5 +1,5 @@
 /**
- * Copyright (C) ARM Limited 2010-2013. All rights reserved.
+ * Copyright (C) ARM Limited 2010-2014. All rights reserved.
  *
  * This program is free software; you can redistribute it and/or modify
  * it under the terms of the GNU General Public License version 2 as
@@ -14,8 +14,15 @@
 #include <linux/math64.h>
 
 #ifdef MALI_SUPPORT
+#ifdef MALI_DIR_MIDGARD
+/* New DDK Directory structure with kernel/drivers/gpu/arm/midgard*/
+#include "mali_linux_trace.h"
+#else
+/* Old DDK Directory structure with kernel/drivers/gpu/arm/t6xx*/
 #include "linux/mali_linux_trace.h"
 #endif
+#endif
+
 #include "gator_trace_gpu.h"
 
 /*
@@ -235,7 +242,7 @@ GATOR_DEFINE_PROBE(gpu_activity_stop, TP_PROTO(int gpu_unit, int gpu_core))
 	mali_gpu_stop(gpu_unit, gpu_core);
 }
 
-int gator_trace_gpu_start(void)
+static int gator_trace_gpu_start(void)
 {
 	/*
 	 * Returns nonzero for installation failed
@@ -271,7 +278,7 @@ int gator_trace_gpu_start(void)
 	return 0;
 }
 
-void gator_trace_gpu_stop(void)
+static void gator_trace_gpu_stop(void)
 {
 #if defined(MALI_SUPPORT) && (MALI_SUPPORT != MALI_T6xx)
 	if (mali_timeline_trace_registered) {

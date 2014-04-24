@@ -4,14 +4,14 @@
   </category>
 
   <category name="Mali-T6xx-PMShader" per_cpu="no">
-    <event counter="ARM_Mali-T6xx_PM_SHADER_0" display="average" average_selection="yes" percentage="yes" title="Mali PM Shader" name="PM Shader Core 0" description="Mali PM Shader: PM Shader Core 0."/>
-    <event counter="ARM_Mali-T6xx_PM_SHADER_1" display="average" average_selection="yes" percentage="yes" title="Mali PM Shader" name="PM Shader Core 1" description="Mali PM Shader: PM Shader Core 1."/>
-    <event counter="ARM_Mali-T6xx_PM_SHADER_2" display="average" average_selection="yes" percentage="yes" title="Mali PM Shader" name="PM Shader Core 2" description="Mali PM Shader: PM Shader Core 2."/>
-    <event counter="ARM_Mali-T6xx_PM_SHADER_3" display="average" average_selection="yes" percentage="yes" title="Mali PM Shader" name="PM Shader Core 3" description="Mali PM Shader: PM Shader Core 3."/>
-    <event counter="ARM_Mali-T6xx_PM_SHADER_4" display="average" average_selection="yes" percentage="yes" title="Mali PM Shader" name="PM Shader Core 4" description="Mali PM Shader: PM Shader Core 4."/>
-    <event counter="ARM_Mali-T6xx_PM_SHADER_5" display="average" average_selection="yes" percentage="yes" title="Mali PM Shader" name="PM Shader Core 5" description="Mali PM Shader: PM Shader Core 5."/>
-    <event counter="ARM_Mali-T6xx_PM_SHADER_6" display="average" average_selection="yes" percentage="yes" title="Mali PM Shader" name="PM Shader Core 6" description="Mali PM Shader: PM Shader Core 6."/>
-    <event counter="ARM_Mali-T6xx_PM_SHADER_7" display="average" average_selection="yes" percentage="yes" title="Mali PM Shader" name="PM Shader Core 7" description="Mali PM Shader: PM Shader Core 7."/>
+    <event counter="ARM_Mali-T6xx_PM_SHADER_0" class="absolute" display="average" average_selection="yes" percentage="yes" title="Mali PM Shader" name="PM Shader Core 0" description="Mali PM Shader: PM Shader Core 0."/>
+    <event counter="ARM_Mali-T6xx_PM_SHADER_1" class="absolute" display="average" average_selection="yes" percentage="yes" title="Mali PM Shader" name="PM Shader Core 1" description="Mali PM Shader: PM Shader Core 1."/>
+    <event counter="ARM_Mali-T6xx_PM_SHADER_2" class="absolute" display="average" average_selection="yes" percentage="yes" title="Mali PM Shader" name="PM Shader Core 2" description="Mali PM Shader: PM Shader Core 2."/>
+    <event counter="ARM_Mali-T6xx_PM_SHADER_3" class="absolute" display="average" average_selection="yes" percentage="yes" title="Mali PM Shader" name="PM Shader Core 3" description="Mali PM Shader: PM Shader Core 3."/>
+    <event counter="ARM_Mali-T6xx_PM_SHADER_4" class="absolute" display="average" average_selection="yes" percentage="yes" title="Mali PM Shader" name="PM Shader Core 4" description="Mali PM Shader: PM Shader Core 4."/>
+    <event counter="ARM_Mali-T6xx_PM_SHADER_5" class="absolute" display="average" average_selection="yes" percentage="yes" title="Mali PM Shader" name="PM Shader Core 5" description="Mali PM Shader: PM Shader Core 5."/>
+    <event counter="ARM_Mali-T6xx_PM_SHADER_6" class="absolute" display="average" average_selection="yes" percentage="yes" title="Mali PM Shader" name="PM Shader Core 6" description="Mali PM Shader: PM Shader Core 6."/>
+    <event counter="ARM_Mali-T6xx_PM_SHADER_7" class="absolute" display="average" average_selection="yes" percentage="yes" title="Mali PM Shader" name="PM Shader Core 7" description="Mali PM Shader: PM Shader Core 7."/>
   </category>
 
   <category name="Mali-T6xx-PMTiler" per_cpu="no">

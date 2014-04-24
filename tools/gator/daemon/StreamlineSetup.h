@@ -1,5 +1,5 @@
 /**
- * Copyright (C) ARM Limited 2010-2013. All rights reserved.
+ * Copyright (C) ARM Limited 2010-2014. All rights reserved.
  *
  * This program is free software; you can redistribute it and/or modify
  * it under the terms of the GNU General Public License version 2 as
@@ -9,7 +9,10 @@
 #ifndef	__STREAMLINE_SETUP_H__
 #define	__STREAMLINE_SETUP_H__
 
-#include "OlySocket.h"
+#include <stdint.h>
+#include <string.h>
+
+class OlySocket;
 
 // Commands from Streamline
 enum {

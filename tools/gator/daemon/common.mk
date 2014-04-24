@@ -25,7 +25,7 @@ include $(wildcard *.d)
 include $(wildcard mxml/*.d)
 
 EventsXML.cpp: events_xml.h
-ConfigurationXML.cpp: configuration_xml.h
+ConfigurationXML.cpp: defaults_xml.h
 
 # Don't regenerate conf-lex.c or conf-parse.c
 libsensors/conf-lex.c: ;
@@ -47,4 +47,4 @@ escape: escape.c
 	gcc $^ -o $@
 
 clean:
-	rm -f *.d *.o mxml/*.d mxml/*.o libsensors/*.d libsensors/*.o $(TARGET) escape events.xml events_xml.h configuration_xml.h
+	rm -f *.d *.o mxml/*.d mxml/*.o libsensors/*.d libsensors/*.o $(TARGET) escape events.xml events_xml.h defaults_xml.h
