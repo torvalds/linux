@@ -120,7 +120,7 @@ cflags-$(CONFIG_SB1XXX_CORELIS)	+= $(call cc-option,-mno-sched-prolog) \
 				   -fno-omit-frame-pointer
 
 ifeq ($(CONFIG_CPU_HAS_MSA),y)
-toolchain-msa			:= $(call cc-option-yn,-mhard-float -mfp64 -mmsa)
+toolchain-msa	:= $(call cc-option-yn,-mhard-float -mfp64 -Wa$(comma)-mmsa)
 cflags-$(toolchain-msa)		+= -DTOOLCHAIN_SUPPORTS_MSA
 endif
 
