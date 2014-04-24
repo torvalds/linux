@@ -158,16 +158,6 @@ static const char * const rng_err_id_list[] = {
 	"Secure key generation",
 };
 
-#define SPRINTFCAT(str, format, param, max_alloc)		\
-{								\
-	char *tmp;						\
-								\
-	tmp = kmalloc(sizeof(format) + max_alloc, GFP_ATOMIC);	\
-	sprintf(tmp, format, param);				\
-	strcat(str, tmp);					\
-	kfree(tmp);						\
-}
-
 static void report_ccb_status(struct device *jrdev, u32 status,
 			      const char *error, char *__outstr)
 {
