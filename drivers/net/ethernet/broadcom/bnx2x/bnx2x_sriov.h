@@ -159,6 +159,8 @@ struct bnx2x_virtf {
 #define vf_mac_rules_cnt(vf)		((vf)->alloc_resc.num_mac_filters)
 #define vf_vlan_rules_cnt(vf)		((vf)->alloc_resc.num_vlan_filters)
 #define vf_mc_rules_cnt(vf)		((vf)->alloc_resc.num_mc_filters)
+	/* Hide a single vlan filter credit for the hypervisor */
+#define vf_vlan_rules_visible_cnt(vf)	(vf_vlan_rules_cnt(vf) - 1)
 
 	u8 sb_count;	/* actual number of SBs */
 	u8 igu_base_id;	/* base igu status block id */
