@@ -223,7 +223,11 @@ static int rk3288_lcdc_pre_init(struct rk_lcdc_driver *dev_drv)
 	rk3288_lcdc_clk_enable(lcdc_dev);
 
 	/*backup reg config at uboot*/
-	for (i = 0; i < 0x1a0;) {
+#ifdef CONFIG_ROCKCHIP_IOMMU
+		for (i = 0; i < 0x330;) {
+#else
+		for (i = 0; i < 0x1a0;) {
+#endif
 		lcdc_readl(lcdc_dev,i);
 		i += 4;
 	}
