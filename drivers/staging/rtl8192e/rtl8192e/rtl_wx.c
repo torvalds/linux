@@ -1214,7 +1214,7 @@ static iw_handler r8192_wx_handlers[] = {
 };
 
 /*
- * the following rule need to be follwing,
+ * the following rule need to be following,
  * Odd : get (world access),
  * even : set (root access)
  * */

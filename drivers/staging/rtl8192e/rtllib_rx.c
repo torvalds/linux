@@ -712,7 +712,7 @@ static void RxReorderIndicatePacket(struct rtllib_device *ieee,
 
 		if (index > REORDER_WIN_SIZE) {
 			RTLLIB_DEBUG(RTLLIB_DL_ERR, "RxReorderIndicatePacket():"
-				     " Rx Reorer struct buffer full!!\n");
+				     " Rx Reorder struct buffer full!!\n");
 			spin_unlock_irqrestore(&(ieee->reorder_spinlock),
 					       flags);
 			return;

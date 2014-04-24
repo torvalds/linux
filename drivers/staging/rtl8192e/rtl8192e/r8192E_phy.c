@@ -1555,7 +1555,7 @@ static bool SetRFPowerState8190(struct net_device *dev,
 
 		default:
 			bResult = false;
-			RT_TRACE(COMP_ERR, "SetRFPowerState8190(): unknow state"
+			RT_TRACE(COMP_ERR, "SetRFPowerState8190(): unknown state"
 				 " to set: 0x%X!!!\n", eRFPowerState);
 			break;
 		}
