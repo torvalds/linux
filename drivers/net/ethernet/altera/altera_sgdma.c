@@ -71,6 +71,8 @@ int sgdma_initialize(struct altera_tse_private *priv)
 		      SGDMA_CTRLREG_INTEN |
 		      SGDMA_CTRLREG_ILASTD;
 
+	priv->sgdmadesclen = sizeof(sgdma_descrip);
+
 	INIT_LIST_HEAD(&priv->txlisthd);
 	INIT_LIST_HEAD(&priv->rxlisthd);
 
@@ -144,7 +146,11 @@ void sgdma_reset(struct altera_tse_private *priv)
 	iowrite32(0, &prxsgdma->control);
 }
 
-/* for SGDMA, RX interrupts remain enabled */
+/* For SGDMA, interrupts remain enabled after initially enabling,
+ * so no need to provide implementations for abstract enable
+ * and disable
+ */
+
 void sgdma_enable_rxirq(struct altera_tse_private *priv)
 {
 }
@@ -154,12 +160,10 @@ void sgdma_enable_txirq(struct altera_tse_private *priv)
 {
 }
 
-/* for SGDMA, RX interrupts remain enabled */
 void sgdma_disable_rxirq(struct altera_tse_private *priv)
 {
 }
 
-/* for SGDMA, TX interrupts remain enabled */
 void sgdma_disable_txirq(struct altera_tse_private *priv)
 {
 }
@@ -234,7 +238,7 @@ void sgdma_start_rxdma(struct altera_tse_private *priv)
 }
 
 void sgdma_add_rx_desc(struct altera_tse_private *priv,
-		      struct tse_buffer *rxbuffer)
+		       struct tse_buffer *rxbuffer)
 {
 	queue_rx(priv, rxbuffer);
 }

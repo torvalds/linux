@@ -875,6 +875,7 @@ static int init_mac(struct altera_tse_private *priv)
 
 	/* Set the MAC options */
 	cmd = ioread32(&mac->command_config);
+	cmd &= ~MAC_CMDCFG_PAD_EN;	/* No padding Removal on Receive */
 	cmd &= ~MAC_CMDCFG_CRC_FWD;	/* CRC Removal */
 	cmd |= MAC_CMDCFG_RX_ERR_DISC;	/* Automatically discard frames
 					 * with CRC errors
@@ -1092,7 +1093,6 @@ static int tse_open(struct net_device *dev)
 		priv->dmaops->add_rx_desc(priv, &priv->rx_ring[i]);
 
 	spin_unlock_irqrestore(&priv->rxdma_irq_lock, flags);
-
 
 	if (priv->phydev)
 		phy_start(priv->phydev);
