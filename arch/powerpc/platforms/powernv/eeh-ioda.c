@@ -388,13 +388,16 @@ static s64 ioda_eeh_phb_poll(struct pnv_phb *phb)
 		if (rc <= 0)
 			break;
 
-		msleep(rc);
+		if (system_state < SYSTEM_RUNNING)
+			udelay(1000 * rc);
+		else
+			msleep(rc);
 	}
 
 	return rc;
 }
 
-static int ioda_eeh_phb_reset(struct pci_controller *hose, int option)
+int ioda_eeh_phb_reset(struct pci_controller *hose, int option)
 {
 	struct pnv_phb *phb = hose->private_data;
 	s64 rc = OPAL_HARDWARE;
@@ -422,8 +425,12 @@ static int ioda_eeh_phb_reset(struct pci_controller *hose, int option)
 	 * need the PCI bus settlement delay.
 	 */
 	rc = ioda_eeh_phb_poll(phb);
-	if (option == EEH_RESET_DEACTIVATE)
-		msleep(EEH_PE_RST_SETTLE_TIME);
+	if (option == EEH_RESET_DEACTIVATE) {
+		if (system_state < SYSTEM_RUNNING)
+			udelay(1000 * EEH_PE_RST_SETTLE_TIME);
+		else
+			msleep(EEH_PE_RST_SETTLE_TIME);
+	}
 out:
 	if (rc != OPAL_SUCCESS)
 		return -EIO;

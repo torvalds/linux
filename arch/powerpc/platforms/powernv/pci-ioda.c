@@ -13,6 +13,7 @@
 
 #include <linux/kernel.h>
 #include <linux/pci.h>
+#include <linux/crash_dump.h>
 #include <linux/debugfs.h>
 #include <linux/delay.h>
 #include <linux/string.h>
@@ -1393,6 +1394,17 @@ void __init pnv_pci_init_ioda_phb(struct device_node *np,
 	rc = opal_pci_reset(phb_id, OPAL_PCI_IODA_TABLE_RESET, OPAL_ASSERT_RESET);
 	if (rc)
 		pr_warning("  OPAL Error %ld performing IODA table reset !\n", rc);
+
+	/* If we're running in kdump kerenl, the previous kerenl never
+	 * shutdown PCI devices correctly. We already got IODA table
+	 * cleaned out. So we have to issue PHB reset to stop all PCI
+	 * transactions from previous kerenl.
+	 */
+	if (is_kdump_kernel()) {
+		pr_info("  Issue PHB reset ...\n");
+		ioda_eeh_phb_reset(hose, EEH_RESET_FUNDAMENTAL);
+		ioda_eeh_phb_reset(hose, OPAL_DEASSERT_RESET);
+	}
 }
 
 void __init pnv_pci_init_ioda2_phb(struct device_node *np)
