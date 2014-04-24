@@ -7469,40 +7469,6 @@ static bool haswell_get_pipe_config(struct intel_crtc *crtc,
 	return true;
 }
 
-static int intel_crtc_mode_set(struct drm_crtc *crtc,
-			       int x, int y,
-			       struct drm_framebuffer *fb)
-{
-	struct drm_device *dev = crtc->dev;
-	struct drm_i915_private *dev_priv = dev->dev_private;
-	struct intel_encoder *encoder;
-	struct intel_crtc *intel_crtc = to_intel_crtc(crtc);
-	struct drm_display_mode *mode = &intel_crtc->config.requested_mode;
-	int pipe = intel_crtc->pipe;
-	int ret;
-
-	drm_vblank_pre_modeset(dev, pipe);
-
-	ret = dev_priv->display.crtc_mode_set(crtc, x, y, fb);
-
-	drm_vblank_post_modeset(dev, pipe);
-
-	if (ret != 0)
-		return ret;
-
-	for_each_encoder_on_crtc(dev, crtc, encoder) {
-		DRM_DEBUG_KMS("[ENCODER:%d:%s] set [MODE:%d:%s]\n",
-			encoder->base.base.id,
-			drm_get_encoder_name(&encoder->base),
-			mode->base.id, mode->name);
-
-		if (encoder->mode_set)
-			encoder->mode_set(encoder);
-	}
-
-	return 0;
-}
-
 static struct {
 	int clock;
 	u32 config;
@@ -10260,8 +10226,8 @@ static int __intel_set_mode(struct drm_crtc *crtc,
 	 * on the DPLL.
 	 */
 	for_each_intel_crtc_masked(dev, modeset_pipes, intel_crtc) {
-		ret = intel_crtc_mode_set(&intel_crtc->base,
-					  x, y, fb);
+		ret = dev_priv->display.crtc_mode_set(&intel_crtc->base,
+						      x, y, fb);
 		if (ret)
 			goto done;
 	}
