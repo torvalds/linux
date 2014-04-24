@@ -17,29 +17,28 @@
  * Authors: Alexander Graf <agraf@suse.de>
  */
 
-#ifdef __LITTLE_ENDIAN__
-#error Need to fix SLB shadow accesses in little endian mode
-#endif
-
 #define SHADOW_SLB_ESID(num)	(SLBSHADOW_SAVEAREA + (num * 0x10))
 #define SHADOW_SLB_VSID(num)	(SLBSHADOW_SAVEAREA + (num * 0x10) + 0x8)
 #define UNBOLT_SLB_ENTRY(num) \
-	ld	r9, SHADOW_SLB_ESID(num)(r12); \
-	/* Invalid? Skip. */; \
-	rldicl. r0, r9, 37, 63; \
-	beq	slb_entry_skip_ ## num; \
-	xoris	r9, r9, SLB_ESID_V@h; \
-	std	r9, SHADOW_SLB_ESID(num)(r12); \
+	li	r11, SHADOW_SLB_ESID(num);	\
+	LDX_BE	r9, r12, r11;			\
+	/* Invalid? Skip. */;			\
+	rldicl. r0, r9, 37, 63;			\
+	beq	slb_entry_skip_ ## num;		\
+	xoris	r9, r9, SLB_ESID_V@h;		\
+	STDX_BE	r9, r12, r11;			\
   slb_entry_skip_ ## num:
 
 #define REBOLT_SLB_ENTRY(num) \
-	ld	r10, SHADOW_SLB_ESID(num)(r11); \
-	cmpdi	r10, 0; \
-	beq	slb_exit_skip_ ## num; \
-	oris	r10, r10, SLB_ESID_V@h; \
-	ld	r9, SHADOW_SLB_VSID(num)(r11); \
-	slbmte	r9, r10; \
-	std	r10, SHADOW_SLB_ESID(num)(r11); \
+	li	r8, SHADOW_SLB_ESID(num);	\
+	li	r7, SHADOW_SLB_VSID(num);	\
+	LDX_BE	r10, r11, r8;			\
+	cmpdi	r10, 0;				\
+	beq	slb_exit_skip_ ## num;		\
+	oris	r10, r10, SLB_ESID_V@h;		\
+	LDX_BE	r9, r11, r7;			\
+	slbmte	r9, r10;			\
+	STDX_BE	r10, r11, r8;			\
 slb_exit_skip_ ## num:
 
 /******************************************************************************
