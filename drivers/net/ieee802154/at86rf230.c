@@ -1190,24 +1190,22 @@ static int at86rf230_probe(struct spi_device *spi)
 	if (rc)
 		goto err_hw_init;
 
-	rc = request_irq(spi->irq, irq_handler, IRQF_SHARED,
-			 dev_name(&spi->dev), lp);
+	rc = devm_request_irq(&spi->dev, spi->irq, irq_handler, IRQF_SHARED,
+			      dev_name(&spi->dev), lp);
 	if (rc)
 		goto err_hw_init;
 
 	/* Read irq status register to reset irq line */
 	rc = at86rf230_read_subreg(lp, RG_IRQ_STATUS, 0xff, 0, &status);
 	if (rc)
-		goto err_irq;
+		goto err_hw_init;
 
 	rc = ieee802154_register_device(lp->dev);
 	if (rc)
-		goto err_irq;
+		goto err_hw_init;
 
 	return rc;
 
-err_irq:
-	free_irq(spi->irq, lp);
 err_hw_init:
 	flush_work(&lp->irqwork);
 	spi_set_drvdata(spi, NULL);
@@ -1232,7 +1230,6 @@ static int at86rf230_remove(struct spi_device *spi)
 	at86rf230_write_subreg(lp, SR_IRQ_MASK, 0);
 	ieee802154_unregister_device(lp->dev);
 
-	free_irq(spi->irq, lp);
 	flush_work(&lp->irqwork);
 
 	if (gpio_is_valid(pdata->slp_tr))
