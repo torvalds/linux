@@ -969,12 +969,8 @@ static int at86rf230_irq_polarity(struct at86rf230_local *lp, int pol)
 static int at86rf230_hw_init(struct at86rf230_local *lp)
 {
 	int rc, irq_pol, irq_type;
-	u8 status;
+	u8 dvdd;
 	u8 csma_seed[2];
-
-	rc = at86rf230_read_subreg(lp, SR_TRX_STATUS, &status);
-	if (rc)
-		return rc;
 
 	rc = at86rf230_write_subreg(lp, SR_TRX_CMD, STATE_FORCE_TRX_OFF);
 	if (rc)
@@ -1015,10 +1011,10 @@ static int at86rf230_hw_init(struct at86rf230_local *lp)
 	/* Wait the next SLEEP cycle */
 	msleep(100);
 
-	rc = at86rf230_read_subreg(lp, SR_DVDD_OK, &status);
+	rc = at86rf230_read_subreg(lp, SR_DVDD_OK, &dvdd);
 	if (rc)
 		return rc;
-	if (!status) {
+	if (!dvdd) {
 		dev_err(&lp->spi->dev, "DVDD error\n");
 		return -EINVAL;
 	}
