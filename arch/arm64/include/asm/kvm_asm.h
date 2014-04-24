@@ -45,14 +45,25 @@
 #define	AMAIR_EL1	19	/* Aux Memory Attribute Indirection Register */
 #define	CNTKCTL_EL1	20	/* Timer Control Register (EL1) */
 #define	PAR_EL1		21	/* Physical Address Register */
+#define MDSCR_EL1	22	/* Monitor Debug System Control Register */
+#define DBGBCR0_EL1	23	/* Debug Breakpoint Control Registers (0-15) */
+#define DBGBCR15_EL1	38
+#define DBGBVR0_EL1	39	/* Debug Breakpoint Value Registers (0-15) */
+#define DBGBVR15_EL1	54
+#define DBGWCR0_EL1	55	/* Debug Watchpoint Control Registers (0-15) */
+#define DBGWCR15_EL1	70
+#define DBGWVR0_EL1	71	/* Debug Watchpoint Value Registers (0-15) */
+#define DBGWVR15_EL1	86
+#define MDCCINT_EL1	87	/* Monitor Debug Comms Channel Interrupt Enable Reg */
+
 /* 32bit specific registers. Keep them at the end of the range */
-#define	DACR32_EL2	22	/* Domain Access Control Register */
-#define	IFSR32_EL2	23	/* Instruction Fault Status Register */
-#define	FPEXC32_EL2	24	/* Floating-Point Exception Control Register */
-#define	DBGVCR32_EL2	25	/* Debug Vector Catch Register */
-#define	TEECR32_EL1	26	/* ThumbEE Configuration Register */
-#define	TEEHBR32_EL1	27	/* ThumbEE Handler Base Register */
-#define	NR_SYS_REGS	28
+#define	DACR32_EL2	88	/* Domain Access Control Register */
+#define	IFSR32_EL2	89	/* Instruction Fault Status Register */
+#define	FPEXC32_EL2	90	/* Floating-Point Exception Control Register */
+#define	DBGVCR32_EL2	91	/* Debug Vector Catch Register */
+#define	TEECR32_EL1	92	/* ThumbEE Configuration Register */
+#define	TEEHBR32_EL1	93	/* ThumbEE Handler Base Register */
+#define	NR_SYS_REGS	94
 
 /* 32bit mapping */
 #define c0_MPIDR	(MPIDR_EL1 * 2)	/* MultiProcessor ID Register */
@@ -88,6 +99,9 @@
 
 #define ARM_EXCEPTION_IRQ	  0
 #define ARM_EXCEPTION_TRAP	  1
+
+#define KVM_ARM64_DEBUG_DIRTY_SHIFT	0
+#define KVM_ARM64_DEBUG_DIRTY		(1 << KVM_ARM64_DEBUG_DIRTY_SHIFT)
 
 #ifndef __ASSEMBLY__
 struct kvm;

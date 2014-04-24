@@ -101,6 +101,9 @@ struct kvm_vcpu_arch {
 	/* Exception Information */
 	struct kvm_vcpu_fault_info fault;
 
+	/* Debug state */
+	u64 debug_flags;
+
 	/* Pointer to host CPU context */
 	kvm_cpu_context_t *host_cpu_context;
 
