@@ -23,6 +23,7 @@
 #include <linux/kernel.h>
 #include <linux/module.h>
 #include <linux/interrupt.h>
+#include <linux/irq.h>
 #include <linux/gpio.h>
 #include <linux/delay.h>
 #include <linux/mutex.h>
@@ -970,8 +971,7 @@ static int at86rf230_irq_polarity(struct at86rf230_local *lp, int pol)
 
 static int at86rf230_hw_init(struct at86rf230_local *lp)
 {
-	struct at86rf230_platform_data *pdata = lp->spi->dev.platform_data;
-	int rc, irq_pol;
+	int rc, irq_pol, irq_type;
 	u8 status;
 	u8 csma_seed[2];
 
@@ -983,8 +983,9 @@ static int at86rf230_hw_init(struct at86rf230_local *lp)
 	if (rc)
 		return rc;
 
+	irq_type = irq_get_trigger_type(lp->spi->irq);
 	/* configure irq polarity, defaults to high active */
-	if (pdata->irq_type & (IRQF_TRIGGER_FALLING | IRQF_TRIGGER_LOW))
+	if (irq_type & (IRQF_TRIGGER_FALLING | IRQF_TRIGGER_LOW))
 		irq_pol = IRQ_ACTIVE_LOW;
 	else
 		irq_pol = IRQ_ACTIVE_HIGH;
@@ -1032,7 +1033,6 @@ static struct at86rf230_platform_data *
 at86rf230_get_pdata(struct spi_device *spi)
 {
 	struct at86rf230_platform_data *pdata;
-	const char *irq_type;
 
 	if (!IS_ENABLED(CONFIG_OF) || !spi->dev.of_node)
 		return spi->dev.platform_data;
@@ -1043,19 +1043,6 @@ at86rf230_get_pdata(struct spi_device *spi)
 
 	pdata->rstn = of_get_named_gpio(spi->dev.of_node, "reset-gpio", 0);
 	pdata->slp_tr = of_get_named_gpio(spi->dev.of_node, "sleep-gpio", 0);
-
-	pdata->irq_type = IRQF_TRIGGER_RISING;
-	of_property_read_string(spi->dev.of_node, "irq-type", &irq_type);
-	if (!strcmp(irq_type, "level-high"))
-		pdata->irq_type = IRQF_TRIGGER_HIGH;
-	else if (!strcmp(irq_type, "level-low"))
-		pdata->irq_type = IRQF_TRIGGER_LOW;
-	else if (!strcmp(irq_type, "edge-rising"))
-		pdata->irq_type = IRQF_TRIGGER_RISING;
-	else if (!strcmp(irq_type, "edge-falling"))
-		pdata->irq_type = IRQF_TRIGGER_FALLING;
-	else
-		dev_warn(&spi->dev, "wrong irq-type specified using edge-rising\n");
 
 	spi->dev.platform_data = pdata;
 done:
@@ -1071,7 +1058,7 @@ static int at86rf230_probe(struct spi_device *spi)
 	u8 part = 0, version = 0, status;
 	irq_handler_t irq_handler;
 	work_func_t irq_worker;
-	int rc;
+	int rc, irq_type;
 	const char *chip;
 	struct ieee802154_ops *ops = NULL;
 
@@ -1176,7 +1163,8 @@ static int at86rf230_probe(struct spi_device *spi)
 	dev->extra_tx_headroom = 0;
 	dev->flags = IEEE802154_HW_OMIT_CKSUM | IEEE802154_HW_AACK;
 
-	if (pdata->irq_type & (IRQF_TRIGGER_RISING | IRQF_TRIGGER_FALLING)) {
+	irq_type = irq_get_trigger_type(spi->irq);
+	if (irq_type & (IRQF_TRIGGER_RISING | IRQF_TRIGGER_FALLING)) {
 		irq_worker = at86rf230_irqwork;
 		irq_handler = at86rf230_isr;
 	} else {
@@ -1203,7 +1191,7 @@ static int at86rf230_probe(struct spi_device *spi)
 		goto err_hw_init;
 
 	rc = request_irq(spi->irq, irq_handler,
-			 IRQF_SHARED | pdata->irq_type,
+			 IRQF_SHARED | irq_type,
 			 dev_name(&spi->dev), lp);
 	if (rc)
 		goto err_hw_init;
