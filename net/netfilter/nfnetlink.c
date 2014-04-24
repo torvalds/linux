@@ -368,7 +368,6 @@ done:
 static void nfnetlink_rcv(struct sk_buff *skb)
 {
 	struct nlmsghdr *nlh = nlmsg_hdr(skb);
-	struct net *net = sock_net(skb->sk);
 	int msglen;
 
 	if (nlh->nlmsg_len < NLMSG_HDRLEN ||
