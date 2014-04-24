@@ -658,7 +658,7 @@ static void intel_hdmi_mode_set(struct intel_encoder *encoder)
 	if (crtc->config.has_hdmi_sink)
 		hdmi_val |= HDMI_MODE_SELECT_HDMI;
 
-	if (intel_hdmi->has_audio) {
+	if (crtc->config.has_audio) {
 		WARN_ON(!crtc->config.has_hdmi_sink);
 		DRM_DEBUG_DRIVER("Enabling HDMI audio on pipe %c\n",
 				 pipe_name(crtc->pipe));
@@ -726,6 +726,9 @@ static void intel_hdmi_get_config(struct intel_encoder *encoder,
 	if (tmp & HDMI_MODE_SELECT_HDMI)
 		pipe_config->has_hdmi_sink = true;
 
+	if (tmp & HDMI_MODE_SELECT_HDMI)
+		pipe_config->has_audio = true;
+
 	pipe_config->adjusted_mode.flags |= flags;
 
 	if ((tmp & SDVO_COLOR_FORMAT_MASK) == HDMI_COLOR_FORMAT_12bpc)
@@ -748,7 +751,7 @@ static void intel_enable_hdmi(struct intel_encoder *encoder)
 	u32 temp;
 	u32 enable_bits = SDVO_ENABLE;
 
-	if (intel_hdmi->has_audio)
+	if (intel_crtc->config.has_audio)
 		enable_bits |= SDVO_AUDIO_ENABLE;
 
 	temp = I915_READ(intel_hdmi->hdmi_reg);
@@ -918,6 +921,9 @@ bool intel_hdmi_compute_config(struct intel_encoder *encoder,
 
 	if (HAS_PCH_SPLIT(dev) && !HAS_DDI(dev))
 		pipe_config->has_pch_encoder = true;
+
+	if (pipe_config->has_hdmi_sink && intel_hdmi->has_audio)
+		pipe_config->has_audio = true;
 
 	/*
 	 * HDMI is either 12 or 8, so if the display lets 10bpc sneak

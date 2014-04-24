@@ -276,6 +276,10 @@ struct intel_crtc_config {
 	/* Whether we should send NULL infoframes. Required for audio. */
 	bool has_hdmi_sink;
 
+	/* Audio enabled on this pipe. Only valid if either has_hdmi_sink or
+	 * has_dp_encoder is set. */
+	bool has_audio;
+
 	/*
 	 * Enable dithering, used when the selected pipe bpp doesn't match the
 	 * plane bpp.
@@ -366,7 +370,6 @@ struct intel_crtc {
 	 */
 	bool active;
 	unsigned long enabled_power_domains;
-	bool eld_vld;
 	bool primary_enabled; /* is the primary plane (partially) visible? */
 	bool lowfreq_avail;
 	struct intel_overlay *overlay;
