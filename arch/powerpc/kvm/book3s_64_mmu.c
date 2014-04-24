@@ -342,14 +342,14 @@ do_second:
 		 * non-PAPR platforms such as mac99, and this is
 		 * what real hardware does.
 		 */
-		char __user *addr = (char __user *) &pteg[i+1];
+                char __user *addr = (char __user *) (ptegp + (i + 1) * sizeof(u64));
 		r |= HPTE_R_R;
 		put_user(r >> 8, addr + 6);
 	}
 	if (iswrite && gpte->may_write && !(r & HPTE_R_C)) {
 		/* Set the dirty flag */
 		/* Use a single byte write */
-		char __user *addr = (char __user *) &pteg[i+1];
+                char __user *addr = (char __user *) (ptegp + (i + 1) * sizeof(u64));
 		r |= HPTE_R_C;
 		put_user(r, addr + 7);
 	}

@@ -270,7 +270,7 @@ static int kvmppc_mmu_book3s_32_xlate_pte(struct kvm_vcpu *vcpu, gva_t eaddr,
 	   page */
 	if (found) {
 		u32 pte_r = pteg[i+1];
-		char __user *addr = (char __user *) &pteg[i+1];
+		char __user *addr = (char __user *) (ptegp + (i+1) * sizeof(u32));
 
 		/*
 		 * Use single-byte writes to update the HPTE, to
