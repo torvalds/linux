@@ -1280,6 +1280,17 @@ static struct kvm_vcpu *kvmppc_core_vcpu_create_hv(struct kvm *kvm,
 		goto free_vcpu;
 
 	vcpu->arch.shared = &vcpu->arch.shregs;
+#ifdef CONFIG_KVM_BOOK3S_PR_POSSIBLE
+	/*
+	 * The shared struct is never shared on HV,
+	 * so we can always use host endianness
+	 */
+#ifdef __BIG_ENDIAN__
+	vcpu->arch.shared_big_endian = true;
+#else
+	vcpu->arch.shared_big_endian = false;
+#endif
+#endif
 	vcpu->arch.mmcr[0] = MMCR0_FC;
 	vcpu->arch.ctrl = CTRL_RUNLATCH;
 	/* default to host PVR, since we can't spoof it */

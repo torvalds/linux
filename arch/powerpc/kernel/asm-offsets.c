@@ -54,6 +54,7 @@
 #endif
 #if defined(CONFIG_KVM) && defined(CONFIG_PPC_BOOK3S)
 #include <asm/kvm_book3s.h>
+#include <asm/kvm_ppc.h>
 #endif
 
 #ifdef CONFIG_PPC32
@@ -467,6 +468,9 @@ int main(void)
 	DEFINE(VCPU_SHARED, offsetof(struct kvm_vcpu, arch.shared));
 	DEFINE(VCPU_SHARED_MSR, offsetof(struct kvm_vcpu_arch_shared, msr));
 	DEFINE(VCPU_SHADOW_MSR, offsetof(struct kvm_vcpu, arch.shadow_msr));
+#if defined(CONFIG_PPC_BOOK3S_64) && defined(CONFIG_KVM_BOOK3S_PR_POSSIBLE)
+	DEFINE(VCPU_SHAREDBE, offsetof(struct kvm_vcpu, arch.shared_big_endian));
+#endif
 
 	DEFINE(VCPU_SHARED_MAS0, offsetof(struct kvm_vcpu_arch_shared, mas0));
 	DEFINE(VCPU_SHARED_MAS1, offsetof(struct kvm_vcpu_arch_shared, mas1));

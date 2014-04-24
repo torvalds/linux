@@ -125,6 +125,27 @@ int kvmppc_prepare_to_enter(struct kvm_vcpu *vcpu)
 }
 EXPORT_SYMBOL_GPL(kvmppc_prepare_to_enter);
 
+#if defined(CONFIG_PPC_BOOK3S_64) && defined(CONFIG_KVM_BOOK3S_PR_POSSIBLE)
+static void kvmppc_swab_shared(struct kvm_vcpu *vcpu)
+{
+	struct kvm_vcpu_arch_shared *shared = vcpu->arch.shared;
+	int i;
+
+	shared->sprg0 = swab64(shared->sprg0);
+	shared->sprg1 = swab64(shared->sprg1);
+	shared->sprg2 = swab64(shared->sprg2);
+	shared->sprg3 = swab64(shared->sprg3);
+	shared->srr0 = swab64(shared->srr0);
+	shared->srr1 = swab64(shared->srr1);
+	shared->dar = swab64(shared->dar);
+	shared->msr = swab64(shared->msr);
+	shared->dsisr = swab32(shared->dsisr);
+	shared->int_pending = swab32(shared->int_pending);
+	for (i = 0; i < ARRAY_SIZE(shared->sr); i++)
+		shared->sr[i] = swab32(shared->sr[i]);
+}
+#endif
+
 int kvmppc_kvm_pv(struct kvm_vcpu *vcpu)
 {
 	int nr = kvmppc_get_gpr(vcpu, 11);
@@ -135,7 +156,7 @@ int kvmppc_kvm_pv(struct kvm_vcpu *vcpu)
 	unsigned long __maybe_unused param4 = kvmppc_get_gpr(vcpu, 6);
 	unsigned long r2 = 0;
 
-	if (!(vcpu->arch.shared->msr & MSR_SF)) {
+	if (!(kvmppc_get_msr(vcpu) & MSR_SF)) {
 		/* 32 bit mode */
 		param1 &= 0xffffffff;
 		param2 &= 0xffffffff;
@@ -146,6 +167,16 @@ int kvmppc_kvm_pv(struct kvm_vcpu *vcpu)
 	switch (nr) {
 	case KVM_HCALL_TOKEN(KVM_HC_PPC_MAP_MAGIC_PAGE):
 	{
+#if defined(CONFIG_PPC_BOOK3S_64) && defined(CONFIG_KVM_BOOK3S_PR_POSSIBLE)
+		/* Book3S can be little endian, find it out here */
+		int shared_big_endian = true;
+		if (vcpu->arch.intr_msr & MSR_LE)
+			shared_big_endian = false;
+		if (shared_big_endian != vcpu->arch.shared_big_endian)
+			kvmppc_swab_shared(vcpu);
+		vcpu->arch.shared_big_endian = shared_big_endian;
+#endif
+
 		vcpu->arch.magic_page_pa = param1;
 		vcpu->arch.magic_page_ea = param2;
 

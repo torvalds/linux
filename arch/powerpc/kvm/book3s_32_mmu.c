@@ -91,7 +91,7 @@ static int kvmppc_mmu_book3s_32_esid_to_vsid(struct kvm_vcpu *vcpu, ulong esid,
 
 static u32 find_sr(struct kvm_vcpu *vcpu, gva_t eaddr)
 {
-	return vcpu->arch.shared->sr[(eaddr >> 28) & 0xf];
+	return kvmppc_get_sr(vcpu, (eaddr >> 28) & 0xf);
 }
 
 static u64 kvmppc_mmu_book3s_32_ea_to_vp(struct kvm_vcpu *vcpu, gva_t eaddr,
@@ -160,7 +160,7 @@ static int kvmppc_mmu_book3s_32_xlate_bat(struct kvm_vcpu *vcpu, gva_t eaddr,
 		else
 			bat = &vcpu_book3s->ibat[i];
 
-		if (vcpu->arch.shared->msr & MSR_PR) {
+		if (kvmppc_get_msr(vcpu) & MSR_PR) {
 			if (!bat->vp)
 				continue;
 		} else {
@@ -242,8 +242,8 @@ static int kvmppc_mmu_book3s_32_xlate_pte(struct kvm_vcpu *vcpu, gva_t eaddr,
 			pte->raddr = (pte1 & ~(0xFFFULL)) | (eaddr & 0xFFF);
 			pp = pte1 & 3;
 
-			if ((sr_kp(sre) &&  (vcpu->arch.shared->msr & MSR_PR)) ||
-			    (sr_ks(sre) && !(vcpu->arch.shared->msr & MSR_PR)))
+			if ((sr_kp(sre) &&  (kvmppc_get_msr(vcpu) & MSR_PR)) ||
+			    (sr_ks(sre) && !(kvmppc_get_msr(vcpu) & MSR_PR)))
 				pp |= 4;
 
 			pte->may_write = false;
@@ -320,7 +320,7 @@ static int kvmppc_mmu_book3s_32_xlate(struct kvm_vcpu *vcpu, gva_t eaddr,
 	/* Magic page override */
 	if (unlikely(mp_ea) &&
 	    unlikely((eaddr & ~0xfffULL) == (mp_ea & ~0xfffULL)) &&
-	    !(vcpu->arch.shared->msr & MSR_PR)) {
+	    !(kvmppc_get_msr(vcpu) & MSR_PR)) {
 		pte->vpage = kvmppc_mmu_book3s_32_ea_to_vp(vcpu, eaddr, data);
 		pte->raddr = vcpu->arch.magic_page_pa | (pte->raddr & 0xfff);
 		pte->raddr &= KVM_PAM;
@@ -345,13 +345,13 @@ static int kvmppc_mmu_book3s_32_xlate(struct kvm_vcpu *vcpu, gva_t eaddr,
 
 static u32 kvmppc_mmu_book3s_32_mfsrin(struct kvm_vcpu *vcpu, u32 srnum)
 {
-	return vcpu->arch.shared->sr[srnum];
+	return kvmppc_get_sr(vcpu, srnum);
 }
 
 static void kvmppc_mmu_book3s_32_mtsrin(struct kvm_vcpu *vcpu, u32 srnum,
 					ulong value)
 {
-	vcpu->arch.shared->sr[srnum] = value;
+	kvmppc_set_sr(vcpu, srnum, value);
 	kvmppc_mmu_map_segment(vcpu, srnum << SID_SHIFT);
 }
 
@@ -371,8 +371,9 @@ static int kvmppc_mmu_book3s_32_esid_to_vsid(struct kvm_vcpu *vcpu, ulong esid,
 	ulong ea = esid << SID_SHIFT;
 	u32 sr;
 	u64 gvsid = esid;
+	u64 msr = kvmppc_get_msr(vcpu);
 
-	if (vcpu->arch.shared->msr & (MSR_DR|MSR_IR)) {
+	if (msr & (MSR_DR|MSR_IR)) {
 		sr = find_sr(vcpu, ea);
 		if (sr_valid(sr))
 			gvsid = sr_vsid(sr);
@@ -381,7 +382,7 @@ static int kvmppc_mmu_book3s_32_esid_to_vsid(struct kvm_vcpu *vcpu, ulong esid,
 	/* In case we only have one of MSR_IR or MSR_DR set, let's put
 	   that in the real-mode context (and hope RM doesn't access
 	   high memory) */
-	switch (vcpu->arch.shared->msr & (MSR_DR|MSR_IR)) {
+	switch (msr & (MSR_DR|MSR_IR)) {
 	case 0:
 		*vsid = VSID_REAL | esid;
 		break;
@@ -401,7 +402,7 @@ static int kvmppc_mmu_book3s_32_esid_to_vsid(struct kvm_vcpu *vcpu, ulong esid,
 		BUG();
 	}
 
-	if (vcpu->arch.shared->msr & MSR_PR)
+	if (msr & MSR_PR)
 		*vsid |= VSID_PR;
 
 	return 0;

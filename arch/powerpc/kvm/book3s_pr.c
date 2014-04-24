@@ -246,14 +246,15 @@ static void kvm_set_spte_hva_pr(struct kvm *kvm, unsigned long hva, pte_t pte)
 
 static void kvmppc_recalc_shadow_msr(struct kvm_vcpu *vcpu)
 {
-	ulong smsr = vcpu->arch.shared->msr;
+	ulong guest_msr = kvmppc_get_msr(vcpu);
+	ulong smsr = guest_msr;
 
 	/* Guest MSR values */
 	smsr &= MSR_FE0 | MSR_FE1 | MSR_SF | MSR_SE | MSR_BE | MSR_LE;
 	/* Process MSR values */
 	smsr |= MSR_ME | MSR_RI | MSR_IR | MSR_DR | MSR_PR | MSR_EE;
 	/* External providers the guest reserved */
-	smsr |= (vcpu->arch.shared->msr & vcpu->arch.guest_owned_ext);
+	smsr |= (guest_msr & vcpu->arch.guest_owned_ext);
 	/* 64-bit Process MSR values */
 #ifdef CONFIG_PPC_BOOK3S_64
 	smsr |= MSR_ISF | MSR_HV;
@@ -263,14 +264,14 @@ static void kvmppc_recalc_shadow_msr(struct kvm_vcpu *vcpu)
 
 static void kvmppc_set_msr_pr(struct kvm_vcpu *vcpu, u64 msr)
 {
-	ulong old_msr = vcpu->arch.shared->msr;
+	ulong old_msr = kvmppc_get_msr(vcpu);
 
 #ifdef EXIT_DEBUG
 	printk(KERN_INFO "KVM: Set MSR to 0x%llx\n", msr);
 #endif
 
 	msr &= to_book3s(vcpu)->msr_mask;
-	vcpu->arch.shared->msr = msr;
+	kvmppc_set_msr_fast(vcpu, msr);
 	kvmppc_recalc_shadow_msr(vcpu);
 
 	if (msr & MSR_POW) {
@@ -281,11 +282,11 @@ static void kvmppc_set_msr_pr(struct kvm_vcpu *vcpu, u64 msr)
 
 			/* Unset POW bit after we woke up */
 			msr &= ~MSR_POW;
-			vcpu->arch.shared->msr = msr;
+			kvmppc_set_msr_fast(vcpu, msr);
 		}
 	}
 
-	if ((vcpu->arch.shared->msr & (MSR_PR|MSR_IR|MSR_DR)) !=
+	if ((kvmppc_get_msr(vcpu) & (MSR_PR|MSR_IR|MSR_DR)) !=
 		   (old_msr & (MSR_PR|MSR_IR|MSR_DR))) {
 		kvmppc_mmu_flush_segments(vcpu);
 		kvmppc_mmu_map_segment(vcpu, kvmppc_get_pc(vcpu));
@@ -317,7 +318,7 @@ static void kvmppc_set_msr_pr(struct kvm_vcpu *vcpu, u64 msr)
 	}
 
 	/* Preload FPU if it's enabled */
-	if (vcpu->arch.shared->msr & MSR_FP)
+	if (kvmppc_get_msr(vcpu) & MSR_FP)
 		kvmppc_handle_ext(vcpu, BOOK3S_INTERRUPT_FP_UNAVAIL, MSR_FP);
 }
 
@@ -438,7 +439,7 @@ static int kvmppc_visible_gfn(struct kvm_vcpu *vcpu, gfn_t gfn)
 {
 	ulong mp_pa = vcpu->arch.magic_page_pa;
 
-	if (!(vcpu->arch.shared->msr & MSR_SF))
+	if (!(kvmppc_get_msr(vcpu) & MSR_SF))
 		mp_pa = (uint32_t)mp_pa;
 
 	if (unlikely(mp_pa) &&
@@ -459,8 +460,8 @@ int kvmppc_handle_pagefault(struct kvm_run *run, struct kvm_vcpu *vcpu,
 	int page_found = 0;
 	struct kvmppc_pte pte;
 	bool is_mmio = false;
-	bool dr = (vcpu->arch.shared->msr & MSR_DR) ? true : false;
-	bool ir = (vcpu->arch.shared->msr & MSR_IR) ? true : false;
+	bool dr = (kvmppc_get_msr(vcpu) & MSR_DR) ? true : false;
+	bool ir = (kvmppc_get_msr(vcpu) & MSR_IR) ? true : false;
 	u64 vsid;
 
 	relocated = data ? dr : ir;
@@ -480,7 +481,7 @@ int kvmppc_handle_pagefault(struct kvm_run *run, struct kvm_vcpu *vcpu,
 		pte.page_size = MMU_PAGE_64K;
 	}
 
-	switch (vcpu->arch.shared->msr & (MSR_DR|MSR_IR)) {
+	switch (kvmppc_get_msr(vcpu) & (MSR_DR|MSR_IR)) {
 	case 0:
 		pte.vpage |= ((u64)VSID_REAL << (SID_SHIFT - 12));
 		break;
@@ -488,7 +489,7 @@ int kvmppc_handle_pagefault(struct kvm_run *run, struct kvm_vcpu *vcpu,
 	case MSR_IR:
 		vcpu->arch.mmu.esid_to_vsid(vcpu, eaddr >> SID_SHIFT, &vsid);
 
-		if ((vcpu->arch.shared->msr & (MSR_DR|MSR_IR)) == MSR_DR)
+		if ((kvmppc_get_msr(vcpu) & (MSR_DR|MSR_IR)) == MSR_DR)
 			pte.vpage |= ((u64)VSID_REAL_DR << (SID_SHIFT - 12));
 		else
 			pte.vpage |= ((u64)VSID_REAL_IR << (SID_SHIFT - 12));
@@ -511,22 +512,25 @@ int kvmppc_handle_pagefault(struct kvm_run *run, struct kvm_vcpu *vcpu,
 
 	if (page_found == -ENOENT) {
 		/* Page not found in guest PTE entries */
-		vcpu->arch.shared->dar = kvmppc_get_fault_dar(vcpu);
-		vcpu->arch.shared->dsisr = vcpu->arch.fault_dsisr;
-		vcpu->arch.shared->msr |=
-			vcpu->arch.shadow_srr1 & 0x00000000f8000000ULL;
+		u64 ssrr1 = vcpu->arch.shadow_srr1;
+		u64 msr = kvmppc_get_msr(vcpu);
+		kvmppc_set_dar(vcpu, kvmppc_get_fault_dar(vcpu));
+		kvmppc_set_dsisr(vcpu, vcpu->arch.fault_dsisr);
+		kvmppc_set_msr_fast(vcpu, msr | (ssrr1 & 0xf8000000ULL));
 		kvmppc_book3s_queue_irqprio(vcpu, vec);
 	} else if (page_found == -EPERM) {
 		/* Storage protection */
-		vcpu->arch.shared->dar = kvmppc_get_fault_dar(vcpu);
-		vcpu->arch.shared->dsisr = vcpu->arch.fault_dsisr & ~DSISR_NOHPTE;
-		vcpu->arch.shared->dsisr |= DSISR_PROTFAULT;
-		vcpu->arch.shared->msr |=
-			vcpu->arch.shadow_srr1 & 0x00000000f8000000ULL;
+		u32 dsisr = vcpu->arch.fault_dsisr;
+		u64 ssrr1 = vcpu->arch.shadow_srr1;
+		u64 msr = kvmppc_get_msr(vcpu);
+		kvmppc_set_dar(vcpu, kvmppc_get_fault_dar(vcpu));
+		dsisr = (dsisr & ~DSISR_NOHPTE) | DSISR_PROTFAULT;
+		kvmppc_set_dsisr(vcpu, dsisr);
+		kvmppc_set_msr_fast(vcpu, msr | (ssrr1 & 0xf8000000ULL));
 		kvmppc_book3s_queue_irqprio(vcpu, vec);
 	} else if (page_found == -EINVAL) {
 		/* Page not found in guest SLB */
-		vcpu->arch.shared->dar = kvmppc_get_fault_dar(vcpu);
+		kvmppc_set_dar(vcpu, kvmppc_get_fault_dar(vcpu));
 		kvmppc_book3s_queue_irqprio(vcpu, vec + 0x80);
 	} else if (!is_mmio &&
 		   kvmppc_visible_gfn(vcpu, pte.raddr >> PAGE_SHIFT)) {
@@ -614,11 +618,12 @@ static int kvmppc_read_inst(struct kvm_vcpu *vcpu)
 
 	ret = kvmppc_ld(vcpu, &srr0, sizeof(u32), &last_inst, false);
 	if (ret == -ENOENT) {
-		ulong msr = vcpu->arch.shared->msr;
+		ulong msr = kvmppc_get_msr(vcpu);
 
 		msr = kvmppc_set_field(msr, 33, 33, 1);
 		msr = kvmppc_set_field(msr, 34, 36, 0);
-		vcpu->arch.shared->msr = kvmppc_set_field(msr, 42, 47, 0);
+		msr = kvmppc_set_field(msr, 42, 47, 0);
+		kvmppc_set_msr_fast(vcpu, msr);
 		kvmppc_book3s_queue_irqprio(vcpu, BOOK3S_INTERRUPT_INST_STORAGE);
 		return EMULATE_AGAIN;
 	}
@@ -651,7 +656,7 @@ static int kvmppc_handle_ext(struct kvm_vcpu *vcpu, unsigned int exit_nr,
 	if (vcpu->arch.hflags & BOOK3S_HFLAG_PAIRED_SINGLE)
 		return RESUME_GUEST;
 
-	if (!(vcpu->arch.shared->msr & msr)) {
+	if (!(kvmppc_get_msr(vcpu) & msr)) {
 		kvmppc_book3s_queue_irqprio(vcpu, exit_nr);
 		return RESUME_GUEST;
 	}
@@ -792,7 +797,9 @@ int kvmppc_handle_exit_pr(struct kvm_run *run, struct kvm_vcpu *vcpu,
 			kvmppc_mmu_pte_flush(vcpu, kvmppc_get_pc(vcpu), ~0xFFFUL);
 			r = RESUME_GUEST;
 		} else {
-			vcpu->arch.shared->msr |= shadow_srr1 & 0x58000000;
+			u64 msr = kvmppc_get_msr(vcpu);
+			msr |= shadow_srr1 & 0x58000000;
+			kvmppc_set_msr_fast(vcpu, msr);
 			kvmppc_book3s_queue_irqprio(vcpu, exit_nr);
 			r = RESUME_GUEST;
 		}
@@ -832,8 +839,8 @@ int kvmppc_handle_exit_pr(struct kvm_run *run, struct kvm_vcpu *vcpu,
 			r = kvmppc_handle_pagefault(run, vcpu, dar, exit_nr);
 			srcu_read_unlock(&vcpu->kvm->srcu, idx);
 		} else {
-			vcpu->arch.shared->dar = dar;
-			vcpu->arch.shared->dsisr = fault_dsisr;
+			kvmppc_set_dar(vcpu, dar);
+			kvmppc_set_dsisr(vcpu, fault_dsisr);
 			kvmppc_book3s_queue_irqprio(vcpu, exit_nr);
 			r = RESUME_GUEST;
 		}
@@ -841,7 +848,7 @@ int kvmppc_handle_exit_pr(struct kvm_run *run, struct kvm_vcpu *vcpu,
 	}
 	case BOOK3S_INTERRUPT_DATA_SEGMENT:
 		if (kvmppc_mmu_map_segment(vcpu, kvmppc_get_fault_dar(vcpu)) < 0) {
-			vcpu->arch.shared->dar = kvmppc_get_fault_dar(vcpu);
+			kvmppc_set_dar(vcpu, kvmppc_get_fault_dar(vcpu));
 			kvmppc_book3s_queue_irqprio(vcpu,
 				BOOK3S_INTERRUPT_DATA_SEGMENT);
 		}
@@ -879,7 +886,7 @@ int kvmppc_handle_exit_pr(struct kvm_run *run, struct kvm_vcpu *vcpu,
 program_interrupt:
 		flags = vcpu->arch.shadow_srr1 & 0x1f0000ull;
 
-		if (vcpu->arch.shared->msr & MSR_PR) {
+		if (kvmppc_get_msr(vcpu) & MSR_PR) {
 #ifdef EXIT_DEBUG
 			printk(KERN_INFO "Userspace triggered 0x700 exception at 0x%lx (0x%x)\n", kvmppc_get_pc(vcpu), kvmppc_get_last_inst(vcpu));
 #endif
@@ -921,7 +928,7 @@ program_interrupt:
 	case BOOK3S_INTERRUPT_SYSCALL:
 		if (vcpu->arch.papr_enabled &&
 		    (kvmppc_get_last_sc(vcpu) == 0x44000022) &&
-		    !(vcpu->arch.shared->msr & MSR_PR)) {
+		    !(kvmppc_get_msr(vcpu) & MSR_PR)) {
 			/* SC 1 papr hypercalls */
 			ulong cmd = kvmppc_get_gpr(vcpu, 3);
 			int i;
@@ -953,7 +960,7 @@ program_interrupt:
 				gprs[i] = kvmppc_get_gpr(vcpu, i);
 			vcpu->arch.osi_needed = 1;
 			r = RESUME_HOST_NV;
-		} else if (!(vcpu->arch.shared->msr & MSR_PR) &&
+		} else if (!(kvmppc_get_msr(vcpu) & MSR_PR) &&
 		    (((u32)kvmppc_get_gpr(vcpu, 0)) == KVM_SC_MAGIC_R0)) {
 			/* KVM PV hypercalls */
 			kvmppc_set_gpr(vcpu, 3, kvmppc_kvm_pv(vcpu));
@@ -994,10 +1001,16 @@ program_interrupt:
 	}
 	case BOOK3S_INTERRUPT_ALIGNMENT:
 		if (kvmppc_read_inst(vcpu) == EMULATE_DONE) {
-			vcpu->arch.shared->dsisr = kvmppc_alignment_dsisr(vcpu,
-				kvmppc_get_last_inst(vcpu));
-			vcpu->arch.shared->dar = kvmppc_alignment_dar(vcpu,
-				kvmppc_get_last_inst(vcpu));
+			u32 last_inst = kvmppc_get_last_inst(vcpu);
+			u32 dsisr;
+			u64 dar;
+
+			dsisr = kvmppc_alignment_dsisr(vcpu, last_inst);
+			dar = kvmppc_alignment_dar(vcpu, last_inst);
+
+			kvmppc_set_dsisr(vcpu, dsisr);
+			kvmppc_set_dar(vcpu, dar);
+
 			kvmppc_book3s_queue_irqprio(vcpu, exit_nr);
 		}
 		r = RESUME_GUEST;
@@ -1062,7 +1075,7 @@ static int kvm_arch_vcpu_ioctl_get_sregs_pr(struct kvm_vcpu *vcpu,
 		}
 	} else {
 		for (i = 0; i < 16; i++)
-			sregs->u.s.ppc32.sr[i] = vcpu->arch.shared->sr[i];
+			sregs->u.s.ppc32.sr[i] = kvmppc_get_sr(vcpu, i);
 
 		for (i = 0; i < 8; i++) {
 			sregs->u.s.ppc32.ibat[i] = vcpu3s->ibat[i].raw;
@@ -1198,8 +1211,14 @@ static struct kvm_vcpu *kvmppc_core_vcpu_create_pr(struct kvm *kvm,
 		goto uninit_vcpu;
 	/* the real shared page fills the last 4k of our page */
 	vcpu->arch.shared = (void *)(p + PAGE_SIZE - 4096);
-
 #ifdef CONFIG_PPC_BOOK3S_64
+	/* Always start the shared struct in native endian mode */
+#ifdef __BIG_ENDIAN__
+        vcpu->arch.shared_big_endian = true;
+#else
+        vcpu->arch.shared_big_endian = false;
+#endif
+
 	/*
 	 * Default to the same as the host if we're on sufficiently
 	 * recent machine that we have 1TB segments;
@@ -1293,7 +1312,7 @@ static int kvmppc_vcpu_run_pr(struct kvm_run *kvm_run, struct kvm_vcpu *vcpu)
 #endif
 
 	/* Preload FPU if it's enabled */
-	if (vcpu->arch.shared->msr & MSR_FP)
+	if (kvmppc_get_msr(vcpu) & MSR_FP)
 		kvmppc_handle_ext(vcpu, BOOK3S_INTERRUPT_FP_UNAVAIL, MSR_FP);
 
 	kvmppc_fix_ee_before_entry();

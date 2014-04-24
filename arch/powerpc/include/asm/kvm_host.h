@@ -623,6 +623,9 @@ struct kvm_vcpu_arch {
 	wait_queue_head_t cpu_run;
 
 	struct kvm_vcpu_arch_shared *shared;
+#if defined(CONFIG_PPC_BOOK3S_64) && defined(CONFIG_KVM_BOOK3S_PR_POSSIBLE)
+	bool shared_big_endian;
+#endif
 	unsigned long magic_page_pa; /* phys addr to map the magic page to */
 	unsigned long magic_page_ea; /* effect. addr to map the magic page to */
 
