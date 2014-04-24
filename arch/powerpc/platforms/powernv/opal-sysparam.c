@@ -121,9 +121,10 @@ static ssize_t sys_param_show(struct kobject *kobj,
 
 	memcpy(buf, param_data_buf, attr->param_size);
 
+	ret = attr->param_size;
 out:
 	mutex_unlock(&opal_sysparam_mutex);
-	return ret ? ret : attr->param_size;
+	return ret;
 }
 
 static ssize_t sys_param_store(struct kobject *kobj,
@@ -138,7 +139,9 @@ static ssize_t sys_param_store(struct kobject *kobj,
 	ret = opal_set_sys_param(attr->param_id, attr->param_size,
 			param_data_buf);
 	mutex_unlock(&opal_sysparam_mutex);
-	return ret ? ret : count;
+	if (!ret)
+		ret = count;
+	return ret;
 }
 
 void __init opal_sys_param_init(void)
