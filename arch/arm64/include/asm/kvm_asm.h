@@ -95,6 +95,15 @@
 #define c10_AMAIR0	(AMAIR_EL1 * 2)	/* Aux Memory Attr Indirection Reg */
 #define c10_AMAIR1	(c10_AMAIR0 + 1)/* Aux Memory Attr Indirection Reg */
 #define c14_CNTKCTL	(CNTKCTL_EL1 * 2) /* Timer Control Register (PL1) */
+
+#define cp14_DBGDSCRext	(MDSCR_EL1 * 2)
+#define cp14_DBGBCR0	(DBGBCR0_EL1 * 2)
+#define cp14_DBGBVR0	(DBGBVR0_EL1 * 2)
+#define cp14_DBGBXVR0	(cp14_DBGBVR0 + 1)
+#define cp14_DBGWCR0	(DBGWCR0_EL1 * 2)
+#define cp14_DBGWVR0	(DBGWVR0_EL1 * 2)
+#define cp14_DBGDCCINT	(MDCCINT_EL1 * 2)
+
 #define NR_COPRO_REGS	(NR_SYS_REGS * 2)
 
 #define ARM_EXCEPTION_IRQ	  0
