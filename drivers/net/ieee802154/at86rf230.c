@@ -1172,13 +1172,13 @@ static int at86rf230_probe(struct spi_device *spi)
 	if (rc)
 		goto err_hw_init;
 
-	rc = devm_request_irq(&spi->dev, spi->irq, irq_handler, IRQF_SHARED,
-			      dev_name(&spi->dev), lp);
+	/* Read irq status register to reset irq line */
+	rc = at86rf230_read_subreg(lp, RG_IRQ_STATUS, 0xff, 0, &status);
 	if (rc)
 		goto err_hw_init;
 
-	/* Read irq status register to reset irq line */
-	rc = at86rf230_read_subreg(lp, RG_IRQ_STATUS, 0xff, 0, &status);
+	rc = devm_request_irq(&spi->dev, spi->irq, irq_handler, IRQF_SHARED,
+			      dev_name(&spi->dev), lp);
 	if (rc)
 		goto err_hw_init;
 
