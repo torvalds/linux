@@ -1388,11 +1388,12 @@ int c4iw_modify_qp(struct c4iw_dev *rhp, struct c4iw_qp *qhp,
 			qhp->attr.layer_etype = attrs->layer_etype;
 			qhp->attr.ecode = attrs->ecode;
 			ep = qhp->ep;
-			disconnect = 1;
-			c4iw_get_ep(&qhp->ep->com);
-			if (!internal)
+			if (!internal) {
+				c4iw_get_ep(&qhp->ep->com);
 				terminate = 1;
-			else {
+				disconnect = 1;
+			} else {
+				terminate = qhp->attr.send_term;
 				ret = rdma_fini(rhp, qhp, ep);
 				if (ret)
 					goto err;
