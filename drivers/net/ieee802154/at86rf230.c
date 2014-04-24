@@ -961,11 +961,6 @@ static irqreturn_t at86rf230_isr_level(int irq, void *data)
 	return at86rf230_isr(irq, data);
 }
 
-static int at86rf230_irq_polarity(struct at86rf230_local *lp, int pol)
-{
-	return at86rf230_write_subreg(lp, SR_IRQ_POLARITY, pol);
-}
-
 static int at86rf230_hw_init(struct at86rf230_local *lp)
 {
 	int rc, irq_pol, irq_type;
@@ -983,7 +978,7 @@ static int at86rf230_hw_init(struct at86rf230_local *lp)
 	else
 		irq_pol = IRQ_ACTIVE_HIGH;
 
-	rc = at86rf230_irq_polarity(lp, irq_pol);
+	rc = at86rf230_write_subreg(lp, SR_IRQ_POLARITY, irq_pol);
 	if (rc)
 		return rc;
 
