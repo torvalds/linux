@@ -192,6 +192,12 @@ extern void devm_extcon_dev_unregister(struct device *dev,
 extern struct extcon_dev *extcon_get_extcon_dev(const char *extcon_name);
 
 /*
+ * Following APIs control the memory of extcon device.
+ */
+extern struct extcon_dev *extcon_dev_allocate(const char **cables);
+extern void extcon_dev_free(struct extcon_dev *edev);
+
+/*
  * get/set/update_state access the 32b encoded state value, which represents
  * states of all possible cables of the multistate port. For example, if one
  * calls extcon_set_state(edev, 0x7), it may mean that all the three cables
@@ -266,6 +272,13 @@ static inline int devm_extcon_dev_register(struct device *dev,
 
 static inline void devm_extcon_dev_unregister(struct device *dev,
 					      struct extcon_dev *edev) { }
+
+static inline struct extcon_dev *extcon_dev_allocate(const char **cables)
+{
+	return ERR_PTR(-ENOSYS);
+}
+
+static inline void extcon_dev_free(struct extcon_dev *edev) { }
 
 static inline u32 extcon_get_state(struct extcon_dev *edev)
 {
