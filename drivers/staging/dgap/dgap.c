@@ -226,7 +226,7 @@ static uint dgap_count = 500;
 /*
  * Poller stuff
  */
-DEFINE_SPINLOCK(dgap_poll_lock);	/* Poll scheduling lock */
+static DEFINE_SPINLOCK(dgap_poll_lock);	/* Poll scheduling lock */
 static ulong dgap_poll_time;		/* Time of next poll */
 static uint dgap_poll_stop;		/* Used to tell poller to stop */
 static struct timer_list dgap_poll_timer;
