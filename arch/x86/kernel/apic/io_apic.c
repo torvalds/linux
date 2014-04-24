@@ -3425,6 +3425,11 @@ int get_nr_irqs_gsi(void)
 	return nr_irqs_gsi;
 }
 
+unsigned int arch_dynirq_lower_bound(unsigned int from)
+{
+	return from < nr_irqs_gsi ? nr_irqs_gsi : from;
+}
+
 int __init arch_probe_nr_irqs(void)
 {
 	int nr;
