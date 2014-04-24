@@ -2065,7 +2065,7 @@ config FB_S3C2410_DEBUG
 	  through sysfs
 
 config FB_NUC900
-        bool "NUC900 LCD framebuffer support"
+        tristate "NUC900 LCD framebuffer support"
         depends on FB && ARCH_W90X900
         select FB_CFB_FILLRECT
         select FB_CFB_COPYAREA
