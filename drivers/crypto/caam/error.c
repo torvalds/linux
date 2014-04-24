@@ -265,10 +265,18 @@ void caam_jr_strstatus(struct device *jrdev, u32 status)
 	};
 	u32 ssrc = status >> JRSTA_SSRC_SHIFT;
 
+	/*
+	 * If there is no further error handling function, just
+	 * print the error code, error string and exit.
+	 */
+	if (!status_src[ssrc].report_ssed) {
+		dev_err(jrdev, "%08x: %s: \n", status, status_src[ssrc].error);
+		return;
+	}
+
 	sprintf(outstr, "%s: ", status_src[ssrc].error);
 
-	if (status_src[ssrc].report_ssed)
-		status_src[ssrc].report_ssed(status, outstr);
+	status_src[ssrc].report_ssed(status, outstr);
 
 	dev_err(jrdev, "%08x: %s\n", status, outstr);
 }
