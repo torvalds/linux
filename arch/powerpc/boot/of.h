@@ -1,6 +1,8 @@
 #ifndef _PPC_BOOT_OF_H_
 #define _PPC_BOOT_OF_H_
 
+#include "swab.h"
+
 typedef void *phandle;
 typedef u32 ihandle;
 
@@ -21,8 +23,13 @@ void of_console_init(void);
 
 typedef u32			__be32;
 
+#ifdef __LITTLE_ENDIAN__
+#define cpu_to_be32(x) swab32(x)
+#define be32_to_cpu(x) swab32(x)
+#else
 #define cpu_to_be32(x) (x)
 #define be32_to_cpu(x) (x)
+#endif
 
 #define PROM_ERROR (-1u)
 
