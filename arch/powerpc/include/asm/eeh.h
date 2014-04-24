@@ -99,7 +99,9 @@ struct eeh_dev {
 	int config_addr;		/* Config address		*/
 	int pe_config_addr;		/* PE config address		*/
 	u32 config_space[16];		/* Saved PCI config space	*/
-	u8 pcie_cap;			/* Saved PCIe capability	*/
+	int pcix_cap;			/* Saved PCIx capability	*/
+	int pcie_cap;			/* Saved PCIe capability	*/
+	int aer_cap;			/* Saved AER capability		*/
 	struct eeh_pe *pe;		/* Associated PE		*/
 	struct list_head list;		/* Form link list in the PE	*/
 	struct pci_controller *phb;	/* Associated PHB		*/
