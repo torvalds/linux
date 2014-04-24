@@ -981,8 +981,10 @@ i915_reset_gen7_sol_offsets(struct drm_device *dev,
 	struct drm_i915_private *dev_priv = dev->dev_private;
 	int ret, i;
 
-	if (!IS_GEN7(dev) || ring != &dev_priv->ring[RCS])
-		return 0;
+	if (!IS_GEN7(dev) || ring != &dev_priv->ring[RCS]) {
+		DRM_DEBUG("sol reset is gen7/rcs only\n");
+		return -EINVAL;
+	}
 
 	ret = intel_ring_begin(ring, 4 * 3);
 	if (ret)
