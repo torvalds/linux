@@ -1370,7 +1370,7 @@ static int qlcnic_sriov_issue_cmd(struct qlcnic_adapter *adapter,
 
 	rsp = qlcnic_sriov_alloc_bc_trans(&trans);
 	if (rsp)
-		return rsp;
+		goto free_cmd;
 
 	rsp = qlcnic_sriov_prepare_bc_hdr(trans, cmd, seq, QLC_BC_COMMAND);
 	if (rsp)
@@ -1425,6 +1425,13 @@ err_out:
 
 cleanup_transaction:
 	qlcnic_sriov_cleanup_transaction(trans);
+
+free_cmd:
+	if (cmd->type == QLC_83XX_MBX_CMD_NO_WAIT) {
+		qlcnic_free_mbx_args(cmd);
+		kfree(cmd);
+	}
+
 	return rsp;
 }
 
