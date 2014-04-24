@@ -69,7 +69,7 @@ int __init early_init_dt_scan_fw_dump(unsigned long node,
 	 */
 	token = of_get_flat_dt_prop(node, "ibm,configure-kernel-dump", NULL);
 	if (!token)
-		return 0;
+		return 1;
 
 	fw_dump.fadump_supported = 1;
 	fw_dump.ibm_configure_kernel_dump = *token;
@@ -92,7 +92,7 @@ int __init early_init_dt_scan_fw_dump(unsigned long node,
 					&size);
 
 	if (!sections)
-		return 0;
+		return 1;
 
 	num_sections = size / (3 * sizeof(u32));
 
@@ -110,6 +110,7 @@ int __init early_init_dt_scan_fw_dump(unsigned long node,
 			break;
 		}
 	}
+
 	return 1;
 }
 
