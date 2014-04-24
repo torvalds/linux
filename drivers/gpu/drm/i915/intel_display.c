@@ -2330,9 +2330,9 @@ static void intel_find_plane_obj(struct intel_crtc *intel_crtc,
 	}
 }
 
-static int i9xx_update_primary_plane(struct drm_crtc *crtc,
-				     struct drm_framebuffer *fb,
-				     int x, int y)
+static void i9xx_update_primary_plane(struct drm_crtc *crtc,
+				      struct drm_framebuffer *fb,
+				      int x, int y)
 {
 	struct drm_device *dev = crtc->dev;
 	struct drm_i915_private *dev_priv = dev->dev_private;
@@ -2418,13 +2418,11 @@ static int i9xx_update_primary_plane(struct drm_crtc *crtc,
 	} else
 		I915_WRITE(DSPADDR(plane), i915_gem_obj_ggtt_offset(obj) + linear_offset);
 	POSTING_READ(reg);
-
-	return 0;
 }
 
-static int ironlake_update_primary_plane(struct drm_crtc *crtc,
-					 struct drm_framebuffer *fb,
-					 int x, int y)
+static void ironlake_update_primary_plane(struct drm_crtc *crtc,
+					  struct drm_framebuffer *fb,
+					  int x, int y)
 {
 	struct drm_device *dev = crtc->dev;
 	struct drm_i915_private *dev_priv = dev->dev_private;
@@ -2502,8 +2500,6 @@ static int ironlake_update_primary_plane(struct drm_crtc *crtc,
 		I915_WRITE(DSPLINOFF(plane), linear_offset);
 	}
 	POSTING_READ(reg);
-
-	return 0;
 }
 
 /* Assume fb object is pinned & idle & fenced and just update base pointers */
@@ -2518,7 +2514,9 @@ intel_pipe_set_base_atomic(struct drm_crtc *crtc, struct drm_framebuffer *fb,
 		dev_priv->display.disable_fbc(dev);
 	intel_increase_pllclock(crtc);
 
-	return dev_priv->display.update_primary_plane(crtc, fb, x, y);
+	dev_priv->display.update_primary_plane(crtc, fb, x, y);
+
+	return 0;
 }
 
 void intel_display_handle_reset(struct drm_device *dev)
@@ -2677,14 +2675,7 @@ intel_pipe_set_base(struct drm_crtc *crtc, int x, int y,
 		intel_crtc->config.pipe_src_h = adjusted_mode->crtc_vdisplay;
 	}
 
-	ret = dev_priv->display.update_primary_plane(crtc, fb, x, y);
-	if (ret) {
-		mutex_lock(&dev->struct_mutex);
-		intel_unpin_fb_obj(to_intel_framebuffer(fb)->obj);
-		mutex_unlock(&dev->struct_mutex);
-		DRM_ERROR("failed to update base address\n");
-		return ret;
-	}
+	dev_priv->display.update_primary_plane(crtc, fb, x, y);
 
 	old_fb = crtc->primary->fb;
 	crtc->primary->fb = fb;
