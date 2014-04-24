@@ -587,6 +587,9 @@ static void hists__compute_resort(struct hists *hists)
 
 		insert_hist_entry_by_compute(&hists->entries, he, compute);
 		hists__inc_stats(hists, he);
+
+		if (!he->filtered)
+			hists__calc_col_len(hists, he);
 	}
 }
 

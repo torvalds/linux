@@ -320,7 +320,6 @@ static struct hist_entry *hist_entry__new(struct hist_entry *template)
 void hists__inc_stats(struct hists *hists, struct hist_entry *h)
 {
 	if (!h->filtered) {
-		hists__calc_col_len(hists, h);
 		hists->nr_non_filtered_entries++;
 		hists->stats.total_non_filtered_period += h->stat.period;
 	}
@@ -687,6 +686,9 @@ void hists__output_resort(struct hists *hists)
 
 		__hists__insert_output_entry(&hists->entries, n, min_callchain_hits);
 		hists__inc_stats(hists, n);
+
+		if (!n->filtered)
+			hists__calc_col_len(hists, n);
 	}
 }
 
