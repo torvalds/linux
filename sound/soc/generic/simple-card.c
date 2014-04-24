@@ -66,8 +66,7 @@ err:
 
 static int asoc_simple_card_dai_init(struct snd_soc_pcm_runtime *rtd)
 {
-	struct simple_card_data *priv =
-				snd_soc_card_get_drvdata(rtd->card);
+	struct simple_card_data *priv =	snd_soc_card_get_drvdata(rtd->card);
 	struct snd_soc_dai *codec = rtd->codec_dai;
 	struct snd_soc_dai *cpu = rtd->cpu_dai;
 	struct simple_dai_props *dai_props;
@@ -177,7 +176,7 @@ static int simple_card_dai_link_of(struct device_node *node,
 		goto dai_link_of_err;
 
 	dai_props->cpu_dai.fmt = daifmt;
-	switch (((np == bitclkmaster)<<4)|(np == framemaster)) {
+	switch (((np == bitclkmaster) << 4) | (np == framemaster)) {
 	case 0x11:
 		dai_props->cpu_dai.fmt |= SND_SOC_DAIFMT_CBS_CFS;
 		break;
@@ -218,7 +217,7 @@ static int simple_card_dai_link_of(struct device_node *node,
 			(daifmt & ~SND_SOC_DAIFMT_CLOCK_MASK);
 	} else {
 		dai_props->codec_dai.fmt = daifmt;
-		switch (((np == bitclkmaster)<<4)|(np == framemaster)) {
+		switch (((np == bitclkmaster) << 4) | (np == framemaster)) {
 		case 0x11:
 			dai_props->codec_dai.fmt |= SND_SOC_DAIFMT_CBM_CFM;
 			break;
@@ -235,8 +234,8 @@ static int simple_card_dai_link_of(struct device_node *node,
 	}
 
 	if (!dai_link->cpu_dai_name || !dai_link->codec_dai_name) {
-			ret = -EINVAL;
-			goto dai_link_of_err;
+		ret = -EINVAL;
+		goto dai_link_of_err;
 	}
 
 	/* simple-card assumes platform == cpu */
@@ -417,10 +416,10 @@ static int asoc_simple_card_probe(struct platform_device *pdev)
 			return -EINVAL;
 		}
 
-		if (!cinfo->name	||
-		    !cinfo->codec_dai.name	||
-		    !cinfo->codec	||
-		    !cinfo->platform	||
+		if (!cinfo->name ||
+		    !cinfo->codec_dai.name ||
+		    !cinfo->codec ||
+		    !cinfo->platform ||
 		    !cinfo->cpu_dai.name) {
 			dev_err(dev, "insufficient asoc_simple_card_info settings\n");
 			return -EINVAL;
@@ -464,11 +463,11 @@ MODULE_DEVICE_TABLE(of, asoc_simple_of_match);
 
 static struct platform_driver asoc_simple_card = {
 	.driver = {
-		.name	= "asoc-simple-card",
+		.name = "asoc-simple-card",
 		.owner = THIS_MODULE,
 		.of_match_table = asoc_simple_of_match,
 	},
-	.probe		= asoc_simple_card_probe,
+	.probe = asoc_simple_card_probe,
 };
 
 module_platform_driver(asoc_simple_card);
