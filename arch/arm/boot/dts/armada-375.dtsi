@@ -416,6 +416,12 @@
 				status = "disabled";
 			};
 
+			thermal@e8078 {
+				compatible = "marvell,armada375-thermal";
+				reg = <0xe8078 0x4>, <0xe807c 0x8>;
+				status = "okay";
+			};
+
 			coreclk: mvebu-sar@e8204 {
 				compatible = "marvell,armada-375-core-clock";
 				reg = <0xe8204 0x04>;
