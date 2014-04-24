@@ -55,7 +55,7 @@ static int ion_chunk_heap_allocate(struct ion_heap *heap,
 	if (allocated_size > chunk_heap->size - chunk_heap->allocated)
 		return -ENOMEM;
 
-	table = kzalloc(sizeof(struct sg_table), GFP_KERNEL);
+	table = kmalloc(sizeof(struct sg_table), GFP_KERNEL);
 	if (!table)
 		return -ENOMEM;
 	ret = sg_alloc_table(table, num_chunks, GFP_KERNEL);
