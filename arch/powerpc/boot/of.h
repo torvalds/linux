@@ -18,4 +18,6 @@ int of_setprop(const void *phandle, const char *name, const void *buf,
 /* Console functions */
 void of_console_init(void);
 
+typedef u32			__be32;
+
 #endif /* _PPC_BOOT_OF_H_ */

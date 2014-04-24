@@ -16,6 +16,15 @@
 
 #include "of.h"
 
+/* The following structure is used to communicate with open firmware.
+ * All arguments in and out are in big endian format. */
+struct prom_args {
+	__be32 service;	/* Address of service name string. */
+	__be32 nargs;	/* Number of input arguments. */
+	__be32 nret;	/* Number of output arguments. */
+	__be32 args[10];	/* Input/output arguments. */
+};
+
 static int (*prom) (void *);
 
 void of_init(void *promptr)
@@ -23,18 +32,15 @@ void of_init(void *promptr)
 	prom = (int (*)(void *))promptr;
 }
 
+#define ADDR(x)		(u32)(unsigned long)(x)
+
 int of_call_prom(const char *service, int nargs, int nret, ...)
 {
 	int i;
-	struct prom_args {
-		const char *service;
-		int nargs;
-		int nret;
-		unsigned int args[12];
-	} args;
+	struct prom_args args;
 	va_list list;
 
-	args.service = service;
+	args.service = ADDR(service);
 	args.nargs = nargs;
 	args.nret = nret;
 
@@ -56,15 +62,10 @@ static int of_call_prom_ret(const char *service, int nargs, int nret,
 			    unsigned int *rets, ...)
 {
 	int i;
-	struct prom_args {
-		const char *service;
-		int nargs;
-		int nret;
-		unsigned int args[12];
-	} args;
+	struct prom_args args;
 	va_list list;
 
-	args.service = service;
+	args.service = ADDR(service);
 	args.nargs = nargs;
 	args.nret = nret;
 
