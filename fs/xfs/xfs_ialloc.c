@@ -1559,6 +1559,99 @@ error0:
 }
 
 /*
+ * Free an inode in the free inode btree.
+ */
+STATIC int
+xfs_difree_finobt(
+	struct xfs_mount		*mp,
+	struct xfs_trans		*tp,
+	struct xfs_buf			*agbp,
+	xfs_agino_t			agino,
+	struct xfs_inobt_rec_incore	*ibtrec) /* inobt record */
+{
+	struct xfs_agi			*agi = XFS_BUF_TO_AGI(agbp);
+	xfs_agnumber_t			agno = be32_to_cpu(agi->agi_seqno);
+	struct xfs_btree_cur		*cur;
+	struct xfs_inobt_rec_incore	rec;
+	int				offset = agino - ibtrec->ir_startino;
+	int				error;
+	int				i;
+
+	cur = xfs_inobt_init_cursor(mp, tp, agbp, agno, XFS_BTNUM_FINO);
+
+	error = xfs_inobt_lookup(cur, ibtrec->ir_startino, XFS_LOOKUP_EQ, &i);
+	if (error)
+		goto error;
+	if (i == 0) {
+		/*
+		 * If the record does not exist in the finobt, we must have just
+		 * freed an inode in a previously fully allocated chunk. If not,
+		 * something is out of sync.
+		 */
+		XFS_WANT_CORRUPTED_GOTO(ibtrec->ir_freecount == 1, error);
+
+		error = xfs_inobt_insert_rec(cur, ibtrec->ir_freecount,
+					     ibtrec->ir_free, &i);
+		if (error)
+			goto error;
+		ASSERT(i == 1);
+
+		goto out;
+	}
+
+	/*
+	 * Read and update the existing record. We could just copy the ibtrec
+	 * across here, but that would defeat the purpose of having redundant
+	 * metadata. By making the modifications independently, we can catch
+	 * corruptions that we wouldn't see if we just copied from one record
+	 * to another.
+	 */
+	error = xfs_inobt_get_rec(cur, &rec, &i);
+	if (error)
+		goto error;
+	XFS_WANT_CORRUPTED_GOTO(i == 1, error);
+
+	rec.ir_free |= XFS_INOBT_MASK(offset);
+	rec.ir_freecount++;
+
+	XFS_WANT_CORRUPTED_GOTO((rec.ir_free == ibtrec->ir_free) &&
+				(rec.ir_freecount == ibtrec->ir_freecount),
+				error);
+
+	/*
+	 * The content of inobt records should always match between the inobt
+	 * and finobt. The lifecycle of records in the finobt is different from
+	 * the inobt in that the finobt only tracks records with at least one
+	 * free inode. Hence, if all of the inodes are free and we aren't
+	 * keeping inode chunks permanently on disk, remove the record.
+	 * Otherwise, update the record with the new information.
+	 */
+	if (rec.ir_freecount == mp->m_ialloc_inos &&
+	    !(mp->m_flags & XFS_MOUNT_IKEEP)) {
+		error = xfs_btree_delete(cur, &i);
+		if (error)
+			goto error;
+		ASSERT(i == 1);
+	} else {
+		error = xfs_inobt_update(cur, &rec);
+		if (error)
+			goto error;
+	}
+
+out:
+	error = xfs_check_agi_freecount(cur, agi);
+	if (error)
+		goto error;
+
+	xfs_btree_del_cursor(cur, XFS_BTREE_NOERROR);
+	return 0;
+
+error:
+	xfs_btree_del_cursor(cur, XFS_BTREE_ERROR);
+	return error;
+}
+
+/*
  * Free disk inode.  Carefully avoids touching the incore inode, all
  * manipulations incore are the caller's responsibility.
  * The on-disk inode is not changed by this operation, only the
@@ -1625,6 +1718,15 @@ xfs_difree(
 				 &rec);
 	if (error)
 		goto error0;
+
+	/*
+	 * Fix up the free inode btree.
+	 */
+	if (xfs_sb_version_hasfinobt(&mp->m_sb)) {
+		error = xfs_difree_finobt(mp, tp, agbp, agino, &rec);
+		if (error)
+			goto error0;
+	}
 
 	return 0;
 
