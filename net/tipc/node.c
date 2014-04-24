@@ -438,3 +438,30 @@ struct sk_buff *tipc_node_get_links(const void *req_tlv_area, int req_tlv_space)
 	rcu_read_unlock();
 	return buf;
 }
+
+/**
+ * tipc_node_get_linkname - get the name of a link
+ *
+ * @bearer_id: id of the bearer
+ * @node: peer node address
+ * @linkname: link name output buffer
+ *
+ * Returns 0 on success
+ */
+int tipc_node_get_linkname(u32 bearer_id, u32 addr, char *linkname, size_t len)
+{
+	struct tipc_link *link;
+	struct tipc_node *node = tipc_node_find(addr);
+
+	if ((bearer_id > MAX_BEARERS) || !node)
+		return -EINVAL;
+	tipc_node_lock(node);
+	link = node->links[bearer_id];
+	if (link) {
+		strncpy(linkname, link->name, len);
+		tipc_node_unlock(node);
+		return 0;
+	}
+	tipc_node_unlock(node);
+	return -EINVAL;
+}
