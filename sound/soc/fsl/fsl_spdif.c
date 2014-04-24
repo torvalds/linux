@@ -80,6 +80,7 @@ struct fsl_spdif_priv {
 	u8 rxclk_src;
 	struct clk *txclk[SPDIF_TXRATE_MAX];
 	struct clk *rxclk;
+	struct clk *coreclk;
 	struct snd_dmaengine_dai_dma_data dma_params_tx;
 	struct snd_dmaengine_dai_dma_data dma_params_rx;
 
@@ -423,10 +424,16 @@ static int fsl_spdif_startup(struct snd_pcm_substream *substream,
 
 	/* Reset module and interrupts only for first initialization */
 	if (!cpu_dai->active) {
+		ret = clk_prepare_enable(spdif_priv->coreclk);
+		if (ret) {
+			dev_err(&pdev->dev, "failed to enable core clock\n");
+			return ret;
+		}
+
 		ret = spdif_softreset(spdif_priv);
 		if (ret) {
 			dev_err(&pdev->dev, "failed to soft reset\n");
-			return ret;
+			goto err;
 		}
 
 		/* Disable all the interrupts */
@@ -454,6 +461,11 @@ static int fsl_spdif_startup(struct snd_pcm_substream *substream,
 	regmap_update_bits(regmap, REG_SPDIF_SCR, SCR_LOW_POWER, 0);
 
 	return 0;
+
+err:
+	clk_disable_unprepare(spdif_priv->coreclk);
+
+	return ret;
 }
 
 static void fsl_spdif_shutdown(struct snd_pcm_substream *substream,
@@ -484,6 +496,7 @@ static void fsl_spdif_shutdown(struct snd_pcm_substream *substream,
 		spdif_intr_status_clear(spdif_priv);
 		regmap_update_bits(regmap, REG_SPDIF_SCR,
 				SCR_LOW_POWER, SCR_LOW_POWER);
+		clk_disable_unprepare(spdif_priv->coreclk);
 	}
 }
 
@@ -1132,6 +1145,13 @@ static int fsl_spdif_probe(struct platform_device *pdev)
 	if (ret) {
 		dev_err(&pdev->dev, "could not claim irq %u\n", irq);
 		return ret;
+	}
+
+	/* Get core clock for data register access via DMA */
+	spdif_priv->coreclk = devm_clk_get(&pdev->dev, "core");
+	if (IS_ERR(spdif_priv->coreclk)) {
+		dev_err(&pdev->dev, "no core clock in devicetree\n");
+		return PTR_ERR(spdif_priv->coreclk);
 	}
 
 	/* Select clock source for rx/tx clock */
