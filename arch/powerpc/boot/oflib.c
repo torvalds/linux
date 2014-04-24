@@ -55,7 +55,7 @@ int of_call_prom(const char *service, int nargs, int nret, ...)
 		args.args[nargs+i] = 0;
 
 	if (prom(&args) < 0)
-		return -1;
+		return PROM_ERROR;
 
 	return (nret > 0) ? be32_to_cpu(args.args[nargs]) : 0;
 }
@@ -80,9 +80,9 @@ static int of_call_prom_ret(const char *service, int nargs, int nret,
 		args.args[nargs+i] = 0;
 
 	if (prom(&args) < 0)
-		return -1;
+		return PROM_ERROR;
 
-	if (rets != (void *) 0)
+	if (rets != NULL)
 		for (i = 1; i < nret; ++i)
 			rets[i-1] = be32_to_cpu(args.args[nargs+i]);
 

@@ -23,4 +23,6 @@ typedef u32			__be32;
 #define cpu_to_be32(x) (x)
 #define be32_to_cpu(x) (x)
 
+#define PROM_ERROR (-1u)
+
 #endif /* _PPC_BOOT_OF_H_ */
