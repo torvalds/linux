@@ -633,7 +633,7 @@ static void hsw_set_infoframes(struct drm_encoder *encoder,
 	intel_hdmi_set_hdmi_infoframe(encoder, adjusted_mode);
 }
 
-static void intel_hdmi_mode_set(struct intel_encoder *encoder)
+static void intel_hdmi_prepare(struct intel_encoder *encoder)
 {
 	struct drm_device *dev = encoder->base.dev;
 	struct drm_i915_private *dev_priv = dev->dev_private;
@@ -1138,6 +1138,8 @@ static void intel_hdmi_pre_enable(struct intel_encoder *encoder)
 	struct drm_display_mode *adjusted_mode =
 		&intel_crtc->config.adjusted_mode;
 
+	intel_hdmi_prepare(encoder);
+
 	intel_hdmi->set_infoframes(&encoder->base,
 				   intel_crtc->config.has_hdmi_sink,
 				   adjusted_mode);
@@ -1201,6 +1203,8 @@ static void vlv_hdmi_pre_pll_enable(struct intel_encoder *encoder)
 		to_intel_crtc(encoder->base.crtc);
 	enum dpio_channel port = vlv_dport_to_channel(dport);
 	int pipe = intel_crtc->pipe;
+
+	intel_hdmi_prepare(encoder);
 
 	/* Program Tx lane resets to default */
 	mutex_lock(&dev_priv->dpio_lock);
@@ -1448,7 +1452,6 @@ void intel_hdmi_init(struct drm_device *dev, int hdmi_reg, enum port port)
 			 DRM_MODE_ENCODER_TMDS);
 
 	intel_encoder->compute_config = intel_hdmi_compute_config;
-	intel_encoder->mode_set = intel_hdmi_mode_set;
 	intel_encoder->disable = intel_disable_hdmi;
 	intel_encoder->get_hw_state = intel_hdmi_get_hw_state;
 	intel_encoder->get_config = intel_hdmi_get_config;
