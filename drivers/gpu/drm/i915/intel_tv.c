@@ -934,54 +934,14 @@ intel_tv_compute_config(struct intel_encoder *encoder,
 	return true;
 }
 
-static void intel_tv_mode_set(struct intel_encoder *encoder)
+static void
+set_tv_mode_timings(struct drm_i915_private *dev_priv,
+		    const struct tv_mode *tv_mode,
+		    bool burst_ena)
 {
-	struct drm_device *dev = encoder->base.dev;
-	struct drm_i915_private *dev_priv = dev->dev_private;
-	struct intel_crtc *intel_crtc = to_intel_crtc(encoder->base.crtc);
-	struct intel_tv *intel_tv = enc_to_tv(encoder);
-	const struct tv_mode *tv_mode = intel_tv_mode_find(intel_tv);
-	u32 tv_ctl;
 	u32 hctl1, hctl2, hctl3;
 	u32 vctl1, vctl2, vctl3, vctl4, vctl5, vctl6, vctl7;
-	u32 scctl1, scctl2, scctl3;
-	int i, j;
-	const struct video_levels *video_levels;
-	const struct color_conversion *color_conversion;
-	bool burst_ena;
-	int pipe = intel_crtc->pipe;
 
-	if (!tv_mode)
-		return;	/* can't happen (mode_prepare prevents this) */
-
-	tv_ctl = I915_READ(TV_CTL);
-	tv_ctl &= TV_CTL_SAVE;
-
-	switch (intel_tv->type) {
-	default:
-	case DRM_MODE_CONNECTOR_Unknown:
-	case DRM_MODE_CONNECTOR_Composite:
-		tv_ctl |= TV_ENC_OUTPUT_COMPOSITE;
-		video_levels = tv_mode->composite_levels;
-		color_conversion = tv_mode->composite_color;
-		burst_ena = tv_mode->burst_ena;
-		break;
-	case DRM_MODE_CONNECTOR_Component:
-		tv_ctl |= TV_ENC_OUTPUT_COMPONENT;
-		video_levels = &component_levels;
-		if (tv_mode->burst_ena)
-			color_conversion = &sdtv_csc_yprpb;
-		else
-			color_conversion = &hdtv_csc_yprpb;
-		burst_ena = false;
-		break;
-	case DRM_MODE_CONNECTOR_SVIDEO:
-		tv_ctl |= TV_ENC_OUTPUT_SVIDEO;
-		video_levels = tv_mode->svideo_levels;
-		color_conversion = tv_mode->svideo_color;
-		burst_ena = tv_mode->burst_ena;
-		break;
-	}
 	hctl1 = (tv_mode->hsync_end << TV_HSYNC_END_SHIFT) |
 		(tv_mode->htotal << TV_HTOTAL_SHIFT);
 
@@ -1021,6 +981,65 @@ static void intel_tv_mode_set(struct intel_encoder *encoder)
 	vctl7 = (tv_mode->vburst_start_f4 << TV_VBURST_START_F4_SHIFT) |
 		(tv_mode->vburst_end_f4 << TV_VBURST_END_F4_SHIFT);
 
+	I915_WRITE(TV_H_CTL_1, hctl1);
+	I915_WRITE(TV_H_CTL_2, hctl2);
+	I915_WRITE(TV_H_CTL_3, hctl3);
+	I915_WRITE(TV_V_CTL_1, vctl1);
+	I915_WRITE(TV_V_CTL_2, vctl2);
+	I915_WRITE(TV_V_CTL_3, vctl3);
+	I915_WRITE(TV_V_CTL_4, vctl4);
+	I915_WRITE(TV_V_CTL_5, vctl5);
+	I915_WRITE(TV_V_CTL_6, vctl6);
+	I915_WRITE(TV_V_CTL_7, vctl7);
+}
+
+static void intel_tv_mode_set(struct intel_encoder *encoder)
+{
+	struct drm_device *dev = encoder->base.dev;
+	struct drm_i915_private *dev_priv = dev->dev_private;
+	struct intel_crtc *intel_crtc = to_intel_crtc(encoder->base.crtc);
+	struct intel_tv *intel_tv = enc_to_tv(encoder);
+	const struct tv_mode *tv_mode = intel_tv_mode_find(intel_tv);
+	u32 tv_ctl;
+	u32 scctl1, scctl2, scctl3;
+	int i, j;
+	const struct video_levels *video_levels;
+	const struct color_conversion *color_conversion;
+	bool burst_ena;
+	int pipe = intel_crtc->pipe;
+
+	if (!tv_mode)
+		return;	/* can't happen (mode_prepare prevents this) */
+
+	tv_ctl = I915_READ(TV_CTL);
+	tv_ctl &= TV_CTL_SAVE;
+
+	switch (intel_tv->type) {
+	default:
+	case DRM_MODE_CONNECTOR_Unknown:
+	case DRM_MODE_CONNECTOR_Composite:
+		tv_ctl |= TV_ENC_OUTPUT_COMPOSITE;
+		video_levels = tv_mode->composite_levels;
+		color_conversion = tv_mode->composite_color;
+		burst_ena = tv_mode->burst_ena;
+		break;
+	case DRM_MODE_CONNECTOR_Component:
+		tv_ctl |= TV_ENC_OUTPUT_COMPONENT;
+		video_levels = &component_levels;
+		if (tv_mode->burst_ena)
+			color_conversion = &sdtv_csc_yprpb;
+		else
+			color_conversion = &hdtv_csc_yprpb;
+		burst_ena = false;
+		break;
+	case DRM_MODE_CONNECTOR_SVIDEO:
+		tv_ctl |= TV_ENC_OUTPUT_SVIDEO;
+		video_levels = tv_mode->svideo_levels;
+		color_conversion = tv_mode->svideo_color;
+		burst_ena = tv_mode->burst_ena;
+		break;
+	}
+
 	if (intel_crtc->pipe == 1)
 		tv_ctl |= TV_ENC_PIPEB_SELECT;
 	tv_ctl |= tv_mode->oversample;
@@ -1054,16 +1073,8 @@ static void intel_tv_mode_set(struct intel_encoder *encoder)
 	if (dev->pdev->device < 0x2772)
 		tv_ctl |= TV_ENC_C0_FIX | TV_ENC_SDP_FIX;
 
-	I915_WRITE(TV_H_CTL_1, hctl1);
-	I915_WRITE(TV_H_CTL_2, hctl2);
-	I915_WRITE(TV_H_CTL_3, hctl3);
-	I915_WRITE(TV_V_CTL_1, vctl1);
-	I915_WRITE(TV_V_CTL_2, vctl2);
-	I915_WRITE(TV_V_CTL_3, vctl3);
-	I915_WRITE(TV_V_CTL_4, vctl4);
-	I915_WRITE(TV_V_CTL_5, vctl5);
-	I915_WRITE(TV_V_CTL_6, vctl6);
-	I915_WRITE(TV_V_CTL_7, vctl7);
+	set_tv_mode_timings(dev_priv, tv_mode, burst_ena);
+
 	I915_WRITE(TV_SC_CTL_1, scctl1);
 	I915_WRITE(TV_SC_CTL_2, scctl2);
 	I915_WRITE(TV_SC_CTL_3, scctl3);
