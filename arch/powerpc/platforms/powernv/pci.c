@@ -131,65 +131,60 @@ static void pnv_pci_dump_p7ioc_diag_data(struct pci_controller *hose,
 	int i;
 
 	data = (struct OpalIoP7IOCPhbErrorData *)common;
-	pr_info("P7IOC PHB#%d Diag-data (Version: %d)\n\n",
+	pr_info("P7IOC PHB#%d Diag-data (Version: %d)\n",
 		hose->global_number, common->version);
 
 	if (data->brdgCtl)
-		pr_info("  brdgCtl:     %08x\n",
+		pr_info("brdgCtl:     %08x\n",
 			data->brdgCtl);
 	if (data->portStatusReg || data->rootCmplxStatus ||
 	    data->busAgentStatus)
-		pr_info("  UtlSts:      %08x %08x %08x\n",
+		pr_info("UtlSts:      %08x %08x %08x\n",
 			data->portStatusReg, data->rootCmplxStatus,
 			data->busAgentStatus);
 	if (data->deviceStatus || data->slotStatus   ||
 	    data->linkStatus   || data->devCmdStatus ||
 	    data->devSecStatus)
-		pr_info("  RootSts:     %08x %08x %08x %08x %08x\n",
+		pr_info("RootSts:     %08x %08x %08x %08x %08x\n",
 			data->deviceStatus, data->slotStatus,
 			data->linkStatus, data->devCmdStatus,
 			data->devSecStatus);
 	if (data->rootErrorStatus   || data->uncorrErrorStatus ||
 	    data->corrErrorStatus)
-		pr_info("  RootErrSts:  %08x %08x %08x\n",
+		pr_info("RootErrSts:  %08x %08x %08x\n",
 			data->rootErrorStatus, data->uncorrErrorStatus,
 			data->corrErrorStatus);
 	if (data->tlpHdr1 || data->tlpHdr2 ||
 	    data->tlpHdr3 || data->tlpHdr4)
-		pr_info("  RootErrLog:  %08x %08x %08x %08x\n",
+		pr_info("RootErrLog:  %08x %08x %08x %08x\n",
 			data->tlpHdr1, data->tlpHdr2,
 			data->tlpHdr3, data->tlpHdr4);
 	if (data->sourceId || data->errorClass ||
 	    data->correlator)
-		pr_info("  RootErrLog1: %08x %016llx %016llx\n",
+		pr_info("RootErrLog1: %08x %016llx %016llx\n",
 			data->sourceId, data->errorClass,
 			data->correlator);
 	if (data->p7iocPlssr || data->p7iocCsr)
-		pr_info("  PhbSts:      %016llx %016llx\n",
+		pr_info("PhbSts:      %016llx %016llx\n",
 			data->p7iocPlssr, data->p7iocCsr);
-	if (data->lemFir || data->lemErrorMask ||
-	    data->lemWOF)
-		pr_info("  Lem:         %016llx %016llx %016llx\n",
+	if (data->lemFir)
+		pr_info("Lem:         %016llx %016llx %016llx\n",
 			data->lemFir, data->lemErrorMask,
 			data->lemWOF);
-	if (data->phbErrorStatus || data->phbFirstErrorStatus ||
-	    data->phbErrorLog0   || data->phbErrorLog1)
-		pr_info("  PhbErr:      %016llx %016llx %016llx %016llx\n",
+	if (data->phbErrorStatus)
+		pr_info("PhbErr:      %016llx %016llx %016llx %016llx\n",
 			data->phbErrorStatus, data->phbFirstErrorStatus,
 			data->phbErrorLog0, data->phbErrorLog1);
-	if (data->mmioErrorStatus || data->mmioFirstErrorStatus ||
-	    data->mmioErrorLog0   || data->mmioErrorLog1)
-		pr_info("  OutErr:      %016llx %016llx %016llx %016llx\n",
+	if (data->mmioErrorStatus)
+		pr_info("OutErr:      %016llx %016llx %016llx %016llx\n",
 			data->mmioErrorStatus, data->mmioFirstErrorStatus,
 			data->mmioErrorLog0, data->mmioErrorLog1);
-	if (data->dma0ErrorStatus || data->dma0FirstErrorStatus ||
-	    data->dma0ErrorLog0   || data->dma0ErrorLog1)
-		pr_info("  InAErr:      %016llx %016llx %016llx %016llx\n",
+	if (data->dma0ErrorStatus)
+		pr_info("InAErr:      %016llx %016llx %016llx %016llx\n",
 			data->dma0ErrorStatus, data->dma0FirstErrorStatus,
 			data->dma0ErrorLog0, data->dma0ErrorLog1);
-	if (data->dma1ErrorStatus || data->dma1FirstErrorStatus ||
-	    data->dma1ErrorLog0   || data->dma1ErrorLog1)
-		pr_info("  InBErr:      %016llx %016llx %016llx %016llx\n",
+	if (data->dma1ErrorStatus)
+		pr_info("InBErr:      %016llx %016llx %016llx %016llx\n",
 			data->dma1ErrorStatus, data->dma1FirstErrorStatus,
 			data->dma1ErrorLog0, data->dma1ErrorLog1);
 
@@ -198,7 +193,7 @@ static void pnv_pci_dump_p7ioc_diag_data(struct pci_controller *hose,
 		    (data->pestB[i] >> 63) == 0)
 			continue;
 
-		pr_info("  PE[%3d] A/B: %016llx %016llx\n",
+		pr_info("PE[%3d] A/B: %016llx %016llx\n",
 			i, data->pestA[i], data->pestB[i]);
 	}
 }
@@ -210,69 +205,63 @@ static void pnv_pci_dump_phb3_diag_data(struct pci_controller *hose,
 	int i;
 
 	data = (struct OpalIoPhb3ErrorData*)common;
-	pr_info("PHB3 PHB#%d Diag-data (Version: %d)\n\n",
+	pr_info("PHB3 PHB#%d Diag-data (Version: %d)\n",
 		hose->global_number, common->version);
 	if (data->brdgCtl)
-		pr_info("  brdgCtl:     %08x\n",
+		pr_info("brdgCtl:     %08x\n",
 			data->brdgCtl);
 	if (data->portStatusReg || data->rootCmplxStatus ||
 	    data->busAgentStatus)
-		pr_info("  UtlSts:      %08x %08x %08x\n",
+		pr_info("UtlSts:      %08x %08x %08x\n",
 			data->portStatusReg, data->rootCmplxStatus,
 			data->busAgentStatus);
 	if (data->deviceStatus || data->slotStatus   ||
 	    data->linkStatus   || data->devCmdStatus ||
 	    data->devSecStatus)
-		pr_info("  RootSts:     %08x %08x %08x %08x %08x\n",
+		pr_info("RootSts:     %08x %08x %08x %08x %08x\n",
 			data->deviceStatus, data->slotStatus,
 			data->linkStatus, data->devCmdStatus,
 			data->devSecStatus);
 	if (data->rootErrorStatus || data->uncorrErrorStatus ||
 	    data->corrErrorStatus)
-		pr_info("  RootErrSts:  %08x %08x %08x\n",
+		pr_info("RootErrSts:  %08x %08x %08x\n",
 			data->rootErrorStatus, data->uncorrErrorStatus,
 			data->corrErrorStatus);
 	if (data->tlpHdr1 || data->tlpHdr2 ||
 	    data->tlpHdr3 || data->tlpHdr4)
-		pr_info("  RootErrLog:  %08x %08x %08x %08x\n",
+		pr_info("RootErrLog:  %08x %08x %08x %08x\n",
 			data->tlpHdr1, data->tlpHdr2,
 			data->tlpHdr3, data->tlpHdr4);
 	if (data->sourceId || data->errorClass ||
 	    data->correlator)
-		pr_info("  RootErrLog1: %08x %016llx %016llx\n",
+		pr_info("RootErrLog1: %08x %016llx %016llx\n",
 			data->sourceId, data->errorClass,
 			data->correlator);
-	if (data->nFir || data->nFirMask ||
-	    data->nFirWOF)
-		pr_info("  nFir:        %016llx %016llx %016llx\n",
+	if (data->nFir)
+		pr_info("nFir:        %016llx %016llx %016llx\n",
 			data->nFir, data->nFirMask,
 			data->nFirWOF);
 	if (data->phbPlssr || data->phbCsr)
-		pr_info("  PhbSts:      %016llx %016llx\n",
+		pr_info("PhbSts:      %016llx %016llx\n",
 			data->phbPlssr, data->phbCsr);
-	if (data->lemFir || data->lemErrorMask ||
-	    data->lemWOF)
-		pr_info("  Lem:         %016llx %016llx %016llx\n",
+	if (data->lemFir)
+		pr_info("Lem:         %016llx %016llx %016llx\n",
 			data->lemFir, data->lemErrorMask,
 			data->lemWOF);
-	if (data->phbErrorStatus || data->phbFirstErrorStatus ||
-	    data->phbErrorLog0   || data->phbErrorLog1)
-		pr_info("  PhbErr:      %016llx %016llx %016llx %016llx\n",
+	if (data->phbErrorStatus)
+		pr_info("PhbErr:      %016llx %016llx %016llx %016llx\n",
 			data->phbErrorStatus, data->phbFirstErrorStatus,
 			data->phbErrorLog0, data->phbErrorLog1);
-	if (data->mmioErrorStatus || data->mmioFirstErrorStatus ||
-	    data->mmioErrorLog0   || data->mmioErrorLog1)
-		pr_info("  OutErr:      %016llx %016llx %016llx %016llx\n",
+	if (data->mmioErrorStatus)
+		pr_info("OutErr:      %016llx %016llx %016llx %016llx\n",
 			data->mmioErrorStatus, data->mmioFirstErrorStatus,
 			data->mmioErrorLog0, data->mmioErrorLog1);
-	if (data->dma0ErrorStatus || data->dma0FirstErrorStatus ||
-	    data->dma0ErrorLog0   || data->dma0ErrorLog1)
-		pr_info("  InAErr:      %016llx %016llx %016llx %016llx\n",
+	if (data->dma0ErrorStatus)
+		pr_info("InAErr:      %016llx %016llx %016llx %016llx\n",
 			data->dma0ErrorStatus, data->dma0FirstErrorStatus,
 			data->dma0ErrorLog0, data->dma0ErrorLog1);
-	if (data->dma1ErrorStatus || data->dma1FirstErrorStatus ||
-	    data->dma1ErrorLog0   || data->dma1ErrorLog1)
-		pr_info("  InBErr:      %016llx %016llx %016llx %016llx\n",
+	if (data->dma1ErrorStatus)
+		pr_info("InBErr:      %016llx %016llx %016llx %016llx\n",
 			data->dma1ErrorStatus, data->dma1FirstErrorStatus,
 			data->dma1ErrorLog0, data->dma1ErrorLog1);
 
@@ -281,7 +270,7 @@ static void pnv_pci_dump_phb3_diag_data(struct pci_controller *hose,
 		    (data->pestB[i] >> 63) == 0)
 			continue;
 
-		pr_info("  PE[%3d] A/B: %016llx %016llx\n",
+		pr_info("PE[%3d] A/B: %016llx %016llx\n",
 			i, data->pestA[i], data->pestB[i]);
 	}
 }
