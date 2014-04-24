@@ -144,10 +144,10 @@ void show_registers(struct pt_regs *regs)
 	char *mode;
 
 	mode = user_mode(regs) ? "User" : "Krnl";
-	printk("%s PSW : %p %p (%pSR)\n",
-	       mode, (void *) regs->psw.mask,
-	       (void *) regs->psw.addr,
-	       (void *) regs->psw.addr);
+	printk("%s PSW : %p %p", mode, (void *)regs->psw.mask, (void *)regs->psw.addr);
+	if (!user_mode(regs))
+		printk(" (%pSR)", (void *)regs->psw.addr);
+	printk("\n");
 	printk("           R:%x T:%x IO:%x EX:%x Key:%x M:%x W:%x "
 	       "P:%x AS:%x CC:%x PM:%x", mask_bits(regs, PSW_MASK_PER),
 	       mask_bits(regs, PSW_MASK_DAT), mask_bits(regs, PSW_MASK_IO),

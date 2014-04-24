@@ -253,6 +253,11 @@ cifs_alloc_inode(struct super_block *sb)
 	cifs_set_oplock_level(cifs_inode, 0);
 	cifs_inode->delete_pending = false;
 	cifs_inode->invalid_mapping = false;
+	clear_bit(CIFS_INODE_PENDING_OPLOCK_BREAK, &cifs_inode->flags);
+	clear_bit(CIFS_INODE_PENDING_WRITERS, &cifs_inode->flags);
+	clear_bit(CIFS_INODE_DOWNGRADE_OPLOCK_TO_L2, &cifs_inode->flags);
+	spin_lock_init(&cifs_inode->writers_lock);
+	cifs_inode->writers = 0;
 	cifs_inode->vfs_inode.i_blkbits = 14;  /* 2**14 = CIFS_MAX_MSGSIZE */
 	cifs_inode->server_eof = 0;
 	cifs_inode->uniqueid = 0;
@@ -732,19 +737,26 @@ static ssize_t cifs_file_aio_write(struct kiocb *iocb, const struct iovec *iov,
 				   unsigned long nr_segs, loff_t pos)
 {
 	struct inode *inode = file_inode(iocb->ki_filp);
+	struct cifsInodeInfo *cinode = CIFS_I(inode);
 	ssize_t written;
 	int rc;
+
+	written = cifs_get_writer(cinode);
+	if (written)
+		return written;
 
 	written = generic_file_aio_write(iocb, iov, nr_segs, pos);
 
 	if (CIFS_CACHE_WRITE(CIFS_I(inode)))
-		return written;
+		goto out;
 
 	rc = filemap_fdatawrite(inode->i_mapping);
 	if (rc)
 		cifs_dbg(FYI, "cifs_file_aio_write: %d rc on %p inode\n",
 			 rc, inode);
 
+out:
+	cifs_put_writer(cinode);
 	return written;
 }
 

@@ -1065,6 +1065,11 @@ int intel_panel_setup_backlight(struct drm_connector *connector)
 	unsigned long flags;
 	int ret;
 
+	if (!dev_priv->vbt.backlight.present) {
+		DRM_DEBUG_KMS("native backlight control not available per VBT\n");
+		return 0;
+	}
+
 	/* set level and max in panel struct */
 	spin_lock_irqsave(&dev_priv->backlight_lock, flags);
 	ret = dev_priv->display.setup_backlight(intel_connector);

@@ -682,7 +682,7 @@ enum {
 	SF_RD_ID        = 0x9f,       /* read ID */
 	SF_ERASE_SECTOR = 0xd8,       /* erase sector */
 
-	FW_MAX_SIZE = 512 * 1024,
+	FW_MAX_SIZE = 16 * SF_SEC_SIZE,
 };
 
 /**

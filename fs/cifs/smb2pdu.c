@@ -1352,7 +1352,6 @@ SMB2_set_compression(const unsigned int xid, struct cifs_tcon *tcon,
 		     u64 persistent_fid, u64 volatile_fid)
 {
 	int rc;
-	char *res_key = NULL;
 	struct  compress_ioctl fsctl_input;
 	char *ret_data = NULL;
 
@@ -1365,7 +1364,6 @@ SMB2_set_compression(const unsigned int xid, struct cifs_tcon *tcon,
 			2 /* in data len */, &ret_data /* out data */, NULL);
 
 	cifs_dbg(FYI, "set compression rc %d\n", rc);
-	kfree(res_key);
 
 	return rc;
 }

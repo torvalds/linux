@@ -1418,6 +1418,8 @@ xfs_zero_file_space(
 	xfs_off_t		end_boundary;
 	int			error;
 
+	trace_xfs_zero_file_space(ip);
+
 	granularity = max_t(uint, 1 << mp->m_sb.sb_blocklog, PAGE_CACHE_SIZE);
 
 	/*
@@ -1432,9 +1434,18 @@ xfs_zero_file_space(
 	ASSERT(end_boundary <= offset + len);
 
 	if (start_boundary < end_boundary - 1) {
-		/* punch out the page cache over the conversion range */
+		/*
+		 * punch out delayed allocation blocks and the page cache over
+		 * the conversion range
+		 */
+		xfs_ilock(ip, XFS_ILOCK_EXCL);
+		error = xfs_bmap_punch_delalloc_range(ip,
+				XFS_B_TO_FSBT(mp, start_boundary),
+				XFS_B_TO_FSB(mp, end_boundary - start_boundary));
+		xfs_iunlock(ip, XFS_ILOCK_EXCL);
 		truncate_pagecache_range(VFS_I(ip), start_boundary,
 					 end_boundary - 1);
+
 		/* convert the blocks */
 		error = xfs_alloc_file_space(ip, start_boundary,
 					end_boundary - start_boundary - 1,

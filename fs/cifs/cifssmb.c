@@ -6197,6 +6197,9 @@ QAllEAsRetry:
 	cifs_dbg(FYI, "ea length %d\n", list_len);
 	if (list_len <= 8) {
 		cifs_dbg(FYI, "empty EA list returned from server\n");
+		/* didn't find the named attribute */
+		if (ea_name)
+			rc = -ENODATA;
 		goto QAllEAsOut;
 	}
 

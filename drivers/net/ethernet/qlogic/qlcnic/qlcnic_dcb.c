@@ -330,8 +330,6 @@ static int __qlcnic_dcb_attach(struct qlcnic_dcb *dcb)
 		goto out_free_cfg;
 	}
 
-	qlcnic_dcb_get_info(dcb);
-
 	return 0;
 out_free_cfg:
 	kfree(dcb->cfg);
