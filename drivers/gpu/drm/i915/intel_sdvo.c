@@ -1348,6 +1348,8 @@ static void intel_sdvo_get_config(struct intel_encoder *encoder,
 	u8 val;
 	bool ret;
 
+	sdvox = I915_READ(intel_sdvo->sdvo_reg);
+
 	ret = intel_sdvo_get_input_timing(intel_sdvo, &dtd);
 	if (!ret) {
 		/* Some sdvo encoders are not spec compliant and don't
@@ -1376,7 +1378,6 @@ static void intel_sdvo_get_config(struct intel_encoder *encoder,
 	 * other platfroms.
 	 */
 	if (IS_I915G(dev) || IS_I915GM(dev)) {
-		sdvox = I915_READ(intel_sdvo->sdvo_reg);
 		pipe_config->pixel_multiplier =
 			((sdvox & SDVO_PORT_MULTIPLY_MASK)
 			 >> SDVO_PORT_MULTIPLY_SHIFT) + 1;
@@ -1404,6 +1405,9 @@ static void intel_sdvo_get_config(struct intel_encoder *encoder,
 			break;
 		}
 	}
+
+	if (sdvox & HDMI_COLOR_RANGE_16_235)
+		pipe_config->limited_color_range = true;
 
 	WARN(encoder_pixel_multiplier != pipe_config->pixel_multiplier,
 	     "SDVO pixel multiplier mismatch, port: %i, encoder: %i\n",
