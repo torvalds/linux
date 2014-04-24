@@ -112,6 +112,66 @@ xfs_inobt_get_rec(
 }
 
 /*
+ * Insert a single inobt record. Cursor must already point to desired location.
+ */
+STATIC int
+xfs_inobt_insert_rec(
+	struct xfs_btree_cur	*cur,
+	__int32_t		freecount,
+	xfs_inofree_t		free,
+	int			*stat)
+{
+	cur->bc_rec.i.ir_freecount = freecount;
+	cur->bc_rec.i.ir_free = free;
+	return xfs_btree_insert(cur, stat);
+}
+
+/*
+ * Insert records describing a newly allocated inode chunk into the inobt.
+ */
+STATIC int
+xfs_inobt_insert(
+	struct xfs_mount	*mp,
+	struct xfs_trans	*tp,
+	struct xfs_buf		*agbp,
+	xfs_agino_t		newino,
+	xfs_agino_t		newlen,
+	xfs_btnum_t		btnum)
+{
+	struct xfs_btree_cur	*cur;
+	struct xfs_agi		*agi = XFS_BUF_TO_AGI(agbp);
+	xfs_agnumber_t		agno = be32_to_cpu(agi->agi_seqno);
+	xfs_agino_t		thisino;
+	int			i;
+	int			error;
+
+	cur = xfs_inobt_init_cursor(mp, tp, agbp, agno, btnum);
+
+	for (thisino = newino;
+	     thisino < newino + newlen;
+	     thisino += XFS_INODES_PER_CHUNK) {
+		error = xfs_inobt_lookup(cur, thisino, XFS_LOOKUP_EQ, &i);
+		if (error) {
+			xfs_btree_del_cursor(cur, XFS_BTREE_ERROR);
+			return error;
+		}
+		ASSERT(i == 0);
+
+		error = xfs_inobt_insert_rec(cur, XFS_INODES_PER_CHUNK,
+					     XFS_INOBT_ALL_FREE, &i);
+		if (error) {
+			xfs_btree_del_cursor(cur, XFS_BTREE_ERROR);
+			return error;
+		}
+		ASSERT(i == 1);
+	}
+
+	xfs_btree_del_cursor(cur, XFS_BTREE_NOERROR);
+
+	return 0;
+}
+
+/*
  * Verify that the number of free inodes in the AGI is correct.
  */
 #ifdef DEBUG
@@ -303,13 +363,10 @@ xfs_ialloc_ag_alloc(
 {
 	xfs_agi_t	*agi;		/* allocation group header */
 	xfs_alloc_arg_t	args;		/* allocation argument structure */
-	xfs_btree_cur_t	*cur;		/* inode btree cursor */
 	xfs_agnumber_t	agno;
 	int		error;
-	int		i;
 	xfs_agino_t	newino;		/* new first inode's number */
 	xfs_agino_t	newlen;		/* new number of inodes */
-	xfs_agino_t	thisino;	/* current inode number, for loop */
 	int		isaligned = 0;	/* inode allocation at stripe unit */
 					/* boundary */
 	struct xfs_perag *pag;
@@ -459,29 +516,19 @@ xfs_ialloc_ag_alloc(
 	agi->agi_newino = cpu_to_be32(newino);
 
 	/*
-	 * Insert records describing the new inode chunk into the btree.
+	 * Insert records describing the new inode chunk into the btrees.
 	 */
-	cur = xfs_inobt_init_cursor(args.mp, tp, agbp, agno, XFS_BTNUM_INO);
-	for (thisino = newino;
-	     thisino < newino + newlen;
-	     thisino += XFS_INODES_PER_CHUNK) {
-		cur->bc_rec.i.ir_startino = thisino;
-		cur->bc_rec.i.ir_freecount = XFS_INODES_PER_CHUNK;
-		cur->bc_rec.i.ir_free = XFS_INOBT_ALL_FREE;
-		error = xfs_btree_lookup(cur, XFS_LOOKUP_EQ, &i);
-		if (error) {
-			xfs_btree_del_cursor(cur, XFS_BTREE_ERROR);
+	error = xfs_inobt_insert(args.mp, tp, agbp, newino, newlen,
+				 XFS_BTNUM_INO);
+	if (error)
+		return error;
+
+	if (xfs_sb_version_hasfinobt(&args.mp->m_sb)) {
+		error = xfs_inobt_insert(args.mp, tp, agbp, newino, newlen,
+					 XFS_BTNUM_FINO);
+		if (error)
 			return error;
-		}
-		ASSERT(i == 0);
-		error = xfs_btree_insert(cur, &i);
-		if (error) {
-			xfs_btree_del_cursor(cur, XFS_BTREE_ERROR);
-			return error;
-		}
-		ASSERT(i == 1);
 	}
-	xfs_btree_del_cursor(cur, XFS_BTREE_NOERROR);
 	/*
 	 * Log allocation group header fields
 	 */
