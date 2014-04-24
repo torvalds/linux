@@ -56,6 +56,12 @@
 				status = "okay";
 			};
 
+			pwm0: pwm@f002c000 {
+				pinctrl-names = "default";
+				pinctrl-0 = <&pinctrl_pwm0_pwmh0_0 &pinctrl_pwm0_pwmh1_0>;
+				status = "okay";
+			};
+
 			usart0: serial@f001c000 {
 				status = "okay";
 			};
