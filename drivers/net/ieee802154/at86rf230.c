@@ -1223,6 +1223,7 @@ static struct of_device_id at86rf230_of_match[] = {
 	{ .compatible = "atmel,at86rf212", },
 	{ },
 };
+MODULE_DEVICE_TABLE(of, at86rf230_of_match);
 #endif
 
 static struct spi_driver at86rf230_driver = {
