@@ -1403,12 +1403,10 @@ static void intel_disable_ddi(struct intel_encoder *intel_encoder)
 	struct drm_i915_private *dev_priv = dev->dev_private;
 	uint32_t tmp;
 
-	if (intel_crtc->eld_vld && type != INTEL_OUTPUT_EDP) {
-		tmp = I915_READ(HSW_AUD_PIN_ELD_CP_VLD);
-		tmp &= ~((AUDIO_OUTPUT_ENABLE_A | AUDIO_ELD_VALID_A) <<
-			 (pipe * 4));
-		I915_WRITE(HSW_AUD_PIN_ELD_CP_VLD, tmp);
-	}
+	tmp = I915_READ(HSW_AUD_PIN_ELD_CP_VLD);
+	tmp &= ~((AUDIO_OUTPUT_ENABLE_A | AUDIO_ELD_VALID_A) <<
+		 (pipe * 4));
+	I915_WRITE(HSW_AUD_PIN_ELD_CP_VLD, tmp);
 
 	if (type == INTEL_OUTPUT_EDP) {
 		struct intel_dp *intel_dp = enc_to_intel_dp(encoder);
