@@ -770,6 +770,14 @@
 	mrs	x2, mdcr_el2
 	and	x2, x2, #MDCR_EL2_HPMN_MASK
 	orr	x2, x2, #(MDCR_EL2_TPM | MDCR_EL2_TPMCR)
+	orr	x2, x2, #(MDCR_EL2_TDRA | MDCR_EL2_TDOSA)
+
+	// Check for KVM_ARM64_DEBUG_DIRTY, and set debug to trap
+	// if not dirty.
+	ldr	x3, [x0, #VCPU_DEBUG_FLAGS]
+	tbnz	x3, #KVM_ARM64_DEBUG_DIRTY_SHIFT, 1f
+	orr	x2, x2,  #MDCR_EL2_TDA
+1:
 	msr	mdcr_el2, x2
 .endm
 
