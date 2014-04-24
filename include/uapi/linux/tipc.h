@@ -87,6 +87,7 @@ static inline unsigned int tipc_node(__u32 addr)
 
 #define TIPC_CFG_SRV		0	/* configuration service name type */
 #define TIPC_TOP_SRV		1	/* topology service name type */
+#define TIPC_LINK_STATE		2	/* link state name type */
 #define TIPC_RESERVED_TYPES	64	/* lowest user-publishable name type */
 
 /*
