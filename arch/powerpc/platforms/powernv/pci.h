@@ -81,10 +81,9 @@ struct pnv_eeh_ops {
 	int (*configure_bridge)(struct eeh_pe *pe);
 	int (*next_error)(struct eeh_pe **pe);
 };
-
-#define PNV_EEH_STATE_ENABLED	(1 << 0)	/* EEH enabled	*/
-
 #endif /* CONFIG_EEH */
+
+#define PNV_PHB_FLAG_EEH	(1 << 0)
 
 struct pnv_phb {
 	struct pci_controller	*hose;
@@ -92,13 +91,13 @@ struct pnv_phb {
 	enum pnv_phb_model	model;
 	u64			hub_id;
 	u64			opal_id;
+	int			flags;
 	void __iomem		*regs;
 	int			initialized;
 	spinlock_t		lock;
 
 #ifdef CONFIG_EEH
 	struct pnv_eeh_ops	*eeh_ops;
-	int			eeh_state;
 #endif
 
 #ifdef CONFIG_DEBUG_FS

@@ -154,7 +154,7 @@ static int ioda_eeh_post_init(struct pci_controller *hose)
 	}
 #endif
 
-	phb->eeh_state |= PNV_EEH_STATE_ENABLED;
+	phb->flags |= PNV_PHB_FLAG_EEH;
 
 	return 0;
 }

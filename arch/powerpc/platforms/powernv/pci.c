@@ -426,7 +426,7 @@ int pnv_pci_cfg_read(struct device_node *dn,
 	if (phb_pe && (phb_pe->state & EEH_PE_ISOLATED))
 		return PCIBIOS_SUCCESSFUL;
 
-	if (phb->eeh_state & PNV_EEH_STATE_ENABLED) {
+	if (phb->flags & PNV_PHB_FLAG_EEH) {
 		if (*val == EEH_IO_ERROR_VALUE(size) &&
 		    eeh_dev_check_failure(of_node_to_eeh_dev(dn)))
 			return PCIBIOS_DEVICE_NOT_FOUND;
@@ -464,12 +464,8 @@ int pnv_pci_cfg_write(struct device_node *dn,
 	}
 
 	/* Check if the PHB got frozen due to an error (no response) */
-#ifdef CONFIG_EEH
-	if (!(phb->eeh_state & PNV_EEH_STATE_ENABLED))
+	if (!(phb->flags & PNV_PHB_FLAG_EEH))
 		pnv_pci_config_check_eeh(phb, dn);
-#else
-	pnv_pci_config_check_eeh(phb, dn);
-#endif
 
 	return PCIBIOS_SUCCESSFUL;
 }
