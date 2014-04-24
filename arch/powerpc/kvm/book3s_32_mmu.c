@@ -131,7 +131,7 @@ static hva_t kvmppc_mmu_book3s_32_get_pteg(struct kvm_vcpu *vcpu,
 	pteg = (vcpu_book3s->sdr1 & 0xffff0000) | hash;
 
 	dprintk("MMU: pc=0x%lx eaddr=0x%lx sdr1=0x%llx pteg=0x%x vsid=0x%x\n",
-		kvmppc_get_pc(&vcpu_book3s->vcpu), eaddr, vcpu_book3s->sdr1, pteg,
+		kvmppc_get_pc(vcpu), eaddr, vcpu_book3s->sdr1, pteg,
 		sr_vsid(sre));
 
 	r = gfn_to_hva(vcpu->kvm, pteg >> PAGE_SHIFT);

@@ -428,8 +428,8 @@ static void kvmppc_patch_dcbz(struct kvm_vcpu *vcpu, struct kvmppc_pte *pte)
 
 	/* patch dcbz into reserved instruction, so we trap */
 	for (i=hpage_offset; i < hpage_offset + (HW_PAGE_SIZE / 4); i++)
-		if ((page[i] & 0xff0007ff) == INS_DCBZ)
-			page[i] &= 0xfffffff7;
+		if ((be32_to_cpu(page[i]) & 0xff0007ff) == INS_DCBZ)
+			page[i] &= cpu_to_be32(0xfffffff7);
 
 	kunmap_atomic(page);
 	put_page(hpage);
