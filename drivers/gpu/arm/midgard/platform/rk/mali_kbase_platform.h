@@ -19,12 +19,8 @@ struct rk_context {
 	int cmu_pmu_status;
 	/** cmd & pmu lock */
 	spinlock_t cmu_pmu_lock;
-	struct clk *clk_mali;
 	struct clk *mali_pd;
-#if 1
-	struct clk * mali_pd_node;
 	struct dvfs_node * mali_clk_node;
-#endif
 #ifdef CONFIG_MALI_MIDGARD_DVFS
 	/*To calculate utilization for x sec */
 	int time_tick;

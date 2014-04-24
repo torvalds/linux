@@ -70,7 +70,7 @@ int get_cpu_clock_speed(u32 *cpu_clock);
 #define KBASE_VE_JS_RESET_TIMEOUT_MS            500	/* 3s before cancelling stuck jobs */
 #define KBASE_VE_JS_CTX_TIMESLICE_NS            1000000	/* 1ms - an agressive timeslice for testing purposes (causes lots of scheduling out for >4 ctxs) */
 #define KBASE_VE_SECURE_BUT_LOSS_OF_PERFORMANCE	((uintptr_t)MALI_FALSE)	/* By default we prefer performance over security on r0p0-15dev0 and KBASE_CONFIG_ATTR_ earlier */
-//#define KBASE_VE_POWER_MANAGEMENT_CALLBACKS     ((uintptr_t)&pm_callbacks)
+/*#define KBASE_VE_POWER_MANAGEMENT_CALLBACKS     ((uintptr_t)&pm_callbacks)*/
 #define KBASE_VE_CPU_SPEED_FUNC                 ((uintptr_t)&get_cpu_clock_speed)
 
 static int mali_pm_notifier(struct notifier_block *nb,unsigned long event,void* cmd);
@@ -108,14 +108,16 @@ static int mali_pm_notifier(struct notifier_block *nb,unsigned long event,void* 
 	switch (event) {
 		case PM_SUSPEND_PREPARE:
 #ifdef CONFIG_MALI_MIDGARD_DVFS
-			//if (kbase_platform_dvfs_enable(false, MALI_DVFS_BL_CONFIG_FREQ)!= MALI_TRUE)
+			/*if (kbase_platform_dvfs_enable(false, MALI_DVFS_BL_CONFIG_FREQ)!= MALI_TRUE)*/
+			/*printk("%s,PM_SUSPEND_PREPARE\n",__func__);*/
 			if (kbase_platform_dvfs_enable(false, p_mali_dvfs_infotbl[0].clock)!= MALI_TRUE)
 				err = NOTIFY_BAD;
 #endif
 			break;
 		case PM_POST_SUSPEND:
 #ifdef CONFIG_MALI_MIDGARD_DVFS
-			//if (kbase_platform_dvfs_enable(true, MALI_DVFS_START_FREQ)!= MALI_TRUE)
+			/*if (kbase_platform_dvfs_enable(true, MALI_DVFS_START_FREQ)!= MALI_TRUE)*/
+			/*printk("%s,PM_POST_SUSPEND\n",__func__);*/
 			if (kbase_platform_dvfs_enable(true, p_mali_dvfs_infotbl[0].clock)!= MALI_TRUE)
 				err = NOTIFY_BAD;
 #endif
@@ -219,7 +221,8 @@ static int pm_callback_runtime_on(kbase_device *kbdev)
 	kbase_platform_clock_on(kbdev);
 #ifdef CONFIG_MALI_MIDGARD_DVFS
 	if (platform->dvfs_enabled) {
-		//if (kbase_platform_dvfs_enable(true, MALI_DVFS_START_FREQ)!= MALI_TRUE)
+		/*if (kbase_platform_dvfs_enable(true, MALI_DVFS_START_FREQ)!= MALI_TRUE)*/
+		/*printk("%s\n",__func__);*/
 		if (kbase_platform_dvfs_enable(true, p_mali_dvfs_infotbl[MALI_DVFS_STEP-1].clock)!= MALI_TRUE)
 			return -EPERM;
 	} else {
@@ -232,11 +235,19 @@ static int pm_callback_runtime_on(kbase_device *kbdev)
 
 static void pm_callback_runtime_off(kbase_device *kbdev)
 {
+#ifdef CONFIG_MALI_MIDGARD_DVFS	
+	struct rk_context *platform = (struct rk_context *)kbdev->platform_context;
+#endif
+
 	kbase_platform_clock_off(kbdev);
 	kbase_platform_power_off(kbdev);
 #ifdef CONFIG_MALI_MIDGARD_DVFS
-	if (kbase_platform_dvfs_enable(false, p_mali_dvfs_infotbl[0].clock)!= MALI_TRUE)
-		printk("[err] disabling dvfs is faled\n");
+	if (platform->dvfs_enabled)
+	{
+		/*printk("%s\n",__func__);*/
+		if (kbase_platform_dvfs_enable(false, p_mali_dvfs_infotbl[0].clock)!= MALI_TRUE)
+			printk("[err] disabling dvfs is faled\n");
+	}
 #endif
 }
 
