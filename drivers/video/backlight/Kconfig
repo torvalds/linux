@@ -29,7 +29,7 @@ if LCD_CLASS_DEVICE
 
 config LCD_CORGI
 	tristate "LCD Panel support for SHARP corgi/spitz model"
-	depends on SPI_MASTER && PXA_SHARPSL
+	depends on SPI_MASTER && PXA_SHARPSL && BACKLIGHT_CLASS_DEVICE
 	help
 	  Say y here to support the LCD panels usually found on SHARP
 	  corgi (C7x0) and spitz (Cxx00) models.
