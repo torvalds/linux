@@ -113,10 +113,66 @@ static void __init i2c_quirk(void)
 	return;
 }
 
+#define A375_Z1_THERMAL_FIXUP_OFFSET 0xc
+
+static void __init thermal_quirk(void)
+{
+	struct device_node *np;
+	u32 dev, rev;
+
+	if (mvebu_get_soc_id(&dev, &rev) && rev > ARMADA_375_Z1_REV)
+		return;
+
+	for_each_compatible_node(np, NULL, "marvell,armada375-thermal") {
+		struct property *prop;
+		__be32 newval, *newprop, *oldprop;
+		int len;
+
+		/*
+		 * The register offset is at a wrong location. This quirk
+		 * creates a new reg property as a clone of the previous
+		 * one and corrects the offset.
+		 */
+		oldprop = (__be32 *)of_get_property(np, "reg", &len);
+		if (!oldprop)
+			continue;
+
+		/* Create a duplicate of the 'reg' property */
+		prop = kzalloc(sizeof(*prop), GFP_KERNEL);
+		prop->length = len;
+		prop->name = kstrdup("reg", GFP_KERNEL);
+		prop->value = kzalloc(len, GFP_KERNEL);
+		memcpy(prop->value, oldprop, len);
+
+		/* Fixup the register offset of the second entry */
+		oldprop += 2;
+		newprop = (__be32 *)prop->value + 2;
+		newval = cpu_to_be32(be32_to_cpu(*oldprop) -
+				     A375_Z1_THERMAL_FIXUP_OFFSET);
+		*newprop = newval;
+		of_update_property(np, prop);
+
+		/*
+		 * The thermal controller needs some quirk too, so let's change
+		 * the compatible string to reflect this.
+		 */
+		prop = kzalloc(sizeof(*prop), GFP_KERNEL);
+		prop->name = kstrdup("compatible", GFP_KERNEL);
+		prop->length = sizeof("marvell,armada375-z1-thermal");
+		prop->value = kstrdup("marvell,armada375-z1-thermal",
+						GFP_KERNEL);
+		of_update_property(np, prop);
+	}
+	return;
+}
+
 static void __init mvebu_dt_init(void)
 {
 	if (of_machine_is_compatible("plathome,openblocks-ax3-4"))
 		i2c_quirk();
+	if (of_machine_is_compatible("marvell,a375-db"))
+		thermal_quirk();
+
 	of_platform_populate(NULL, of_default_bus_match_table, NULL, NULL);
 }
 
@@ -140,6 +196,7 @@ static const char * const armada_375_dt_compat[] = {
 
 DT_MACHINE_START(ARMADA_375_DT, "Marvell Armada 375 (Device Tree)")
 	.init_time	= mvebu_timer_and_clk_init,
+	.init_machine	= mvebu_dt_init,
 	.restart	= mvebu_restart,
 	.dt_compat	= armada_375_dt_compat,
 MACHINE_END
