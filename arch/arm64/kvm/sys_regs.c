@@ -30,6 +30,7 @@
 #include <asm/kvm_mmu.h>
 #include <asm/cacheflush.h>
 #include <asm/cputype.h>
+#include <asm/debug-monitors.h>
 #include <trace/events/kvm.h>
 
 #include "sys_regs.h"
@@ -171,6 +172,73 @@ static bool trap_raz_wi(struct kvm_vcpu *vcpu,
 		return read_zero(vcpu, p);
 }
 
+static bool trap_oslsr_el1(struct kvm_vcpu *vcpu,
+			   const struct sys_reg_params *p,
+			   const struct sys_reg_desc *r)
+{
+	if (p->is_write) {
+		return ignore_write(vcpu, p);
+	} else {
+		*vcpu_reg(vcpu, p->Rt) = (1 << 3);
+		return true;
+	}
+}
+
+static bool trap_dbgauthstatus_el1(struct kvm_vcpu *vcpu,
+				   const struct sys_reg_params *p,
+				   const struct sys_reg_desc *r)
+{
+	if (p->is_write) {
+		return ignore_write(vcpu, p);
+	} else {
+		u32 val;
+		asm volatile("mrs %0, dbgauthstatus_el1" : "=r" (val));
+		*vcpu_reg(vcpu, p->Rt) = val;
+		return true;
+	}
+}
+
+/*
+ * We want to avoid world-switching all the DBG registers all the
+ * time:
+ * 
+ * - If we've touched any debug register, it is likely that we're
+ *   going to touch more of them. It then makes sense to disable the
+ *   traps and start doing the save/restore dance
+ * - If debug is active (DBG_MDSCR_KDE or DBG_MDSCR_MDE set), it is
+ *   then mandatory to save/restore the registers, as the guest
+ *   depends on them.
+ * 
+ * For this, we use a DIRTY bit, indicating the guest has modified the
+ * debug registers, used as follow:
+ *
+ * On guest entry:
+ * - If the dirty bit is set (because we're coming back from trapping),
+ *   disable the traps, save host registers, restore guest registers.
+ * - If debug is actively in use (DBG_MDSCR_KDE or DBG_MDSCR_MDE set),
+ *   set the dirty bit, disable the traps, save host registers,
+ *   restore guest registers.
+ * - Otherwise, enable the traps
+ *
+ * On guest exit:
+ * - If the dirty bit is set, save guest registers, restore host
+ *   registers and clear the dirty bit. This ensure that the host can
+ *   now use the debug registers.
+ */
+static bool trap_debug_regs(struct kvm_vcpu *vcpu,
+			    const struct sys_reg_params *p,
+			    const struct sys_reg_desc *r)
+{
+	if (p->is_write) {
+		vcpu_sys_reg(vcpu, r->reg) = *vcpu_reg(vcpu, p->Rt);
+		vcpu->arch.debug_flags |= KVM_ARM64_DEBUG_DIRTY;
+	} else {
+		*vcpu_reg(vcpu, p->Rt) = vcpu_sys_reg(vcpu, r->reg);
+	}
+
+	return true;
+}
+
 static void reset_amair_el1(struct kvm_vcpu *vcpu, const struct sys_reg_desc *r)
 {
 	u64 amair;
@@ -187,6 +255,21 @@ static void reset_mpidr(struct kvm_vcpu *vcpu, const struct sys_reg_desc *r)
 	vcpu_sys_reg(vcpu, MPIDR_EL1) = (1UL << 31) | (vcpu->vcpu_id & 0xff);
 }
 
+/* Silly macro to expand the DBG{BCR,BVR,WVR,WCR}n_EL1 registers in one go */
+#define DBG_BCR_BVR_WCR_WVR_EL1(n)					\
+	/* DBGBVRn_EL1 */						\
+	{ Op0(0b10), Op1(0b000), CRn(0b0000), CRm((n)), Op2(0b100),	\
+	  trap_debug_regs, reset_val, (DBGBVR0_EL1 + (n)), 0 },		\
+	/* DBGBCRn_EL1 */						\
+	{ Op0(0b10), Op1(0b000), CRn(0b0000), CRm((n)), Op2(0b101),	\
+	  trap_debug_regs, reset_val, (DBGBCR0_EL1 + (n)), 0 },		\
+	/* DBGWVRn_EL1 */						\
+	{ Op0(0b10), Op1(0b000), CRn(0b0000), CRm((n)), Op2(0b110),	\
+	  trap_debug_regs, reset_val, (DBGWVR0_EL1 + (n)), 0 },		\
+	/* DBGWCRn_EL1 */						\
+	{ Op0(0b10), Op1(0b000), CRn(0b0000), CRm((n)), Op2(0b111),	\
+	  trap_debug_regs, reset_val, (DBGWCR0_EL1 + (n)), 0 }
+
 /*
  * Architected system registers.
  * Important: Must be sorted ascending by Op0, Op1, CRn, CRm, Op2
@@ -199,8 +282,12 @@ static void reset_mpidr(struct kvm_vcpu *vcpu, const struct sys_reg_desc *r)
  * must always support PMCCNTR (the cycle counter): we just RAZ/WI for
  * all PM registers, which doesn't crash the guest kernel at least.
  *
- * Same goes for the whole debug infrastructure, which probably breaks
- * some guest functionnality. This should be fixed.
+ * Debug handling: We do trap most, if not all debug related system
+ * registers. The implementation is good enough to ensure that a guest
+ * can use these with minimal performance degradation. The drawback is
+ * that we don't implement any of the external debug, none of the
+ * OSlock protocol. This should be revisited if we ever encounter a
+ * more demanding guest...
  */
 static const struct sys_reg_desc sys_reg_descs[] = {
 	/* DC ISW */
@@ -213,12 +300,71 @@ static const struct sys_reg_desc sys_reg_descs[] = {
 	{ Op0(0b01), Op1(0b000), CRn(0b0111), CRm(0b1110), Op2(0b010),
 	  access_dcsw },
 
+	DBG_BCR_BVR_WCR_WVR_EL1(0),
+	DBG_BCR_BVR_WCR_WVR_EL1(1),
+	/* MDCCINT_EL1 */
+	{ Op0(0b10), Op1(0b000), CRn(0b0000), CRm(0b0010), Op2(0b000),
+	  trap_debug_regs, reset_val, MDCCINT_EL1, 0 },
+	/* MDSCR_EL1 */
+	{ Op0(0b10), Op1(0b000), CRn(0b0000), CRm(0b0010), Op2(0b010),
+	  trap_debug_regs, reset_val, MDSCR_EL1, 0 },
+	DBG_BCR_BVR_WCR_WVR_EL1(2),
+	DBG_BCR_BVR_WCR_WVR_EL1(3),
+	DBG_BCR_BVR_WCR_WVR_EL1(4),
+	DBG_BCR_BVR_WCR_WVR_EL1(5),
+	DBG_BCR_BVR_WCR_WVR_EL1(6),
+	DBG_BCR_BVR_WCR_WVR_EL1(7),
+	DBG_BCR_BVR_WCR_WVR_EL1(8),
+	DBG_BCR_BVR_WCR_WVR_EL1(9),
+	DBG_BCR_BVR_WCR_WVR_EL1(10),
+	DBG_BCR_BVR_WCR_WVR_EL1(11),
+	DBG_BCR_BVR_WCR_WVR_EL1(12),
+	DBG_BCR_BVR_WCR_WVR_EL1(13),
+	DBG_BCR_BVR_WCR_WVR_EL1(14),
+	DBG_BCR_BVR_WCR_WVR_EL1(15),
+
+	/* MDRAR_EL1 */
+	{ Op0(0b10), Op1(0b000), CRn(0b0001), CRm(0b0000), Op2(0b000),
+	  trap_raz_wi },
+	/* OSLAR_EL1 */
+	{ Op0(0b10), Op1(0b000), CRn(0b0001), CRm(0b0000), Op2(0b100),
+	  trap_raz_wi },
+	/* OSLSR_EL1 */
+	{ Op0(0b10), Op1(0b000), CRn(0b0001), CRm(0b0001), Op2(0b100),
+	  trap_oslsr_el1 },
+	/* OSDLR_EL1 */
+	{ Op0(0b10), Op1(0b000), CRn(0b0001), CRm(0b0011), Op2(0b100),
+	  trap_raz_wi },
+	/* DBGPRCR_EL1 */
+	{ Op0(0b10), Op1(0b000), CRn(0b0001), CRm(0b0100), Op2(0b100),
+	  trap_raz_wi },
+	/* DBGCLAIMSET_EL1 */
+	{ Op0(0b10), Op1(0b000), CRn(0b0111), CRm(0b1000), Op2(0b110),
+	  trap_raz_wi },
+	/* DBGCLAIMCLR_EL1 */
+	{ Op0(0b10), Op1(0b000), CRn(0b0111), CRm(0b1001), Op2(0b110),
+	  trap_raz_wi },
+	/* DBGAUTHSTATUS_EL1 */
+	{ Op0(0b10), Op1(0b000), CRn(0b0111), CRm(0b1110), Op2(0b110),
+	  trap_dbgauthstatus_el1 },
+
 	/* TEECR32_EL1 */
 	{ Op0(0b10), Op1(0b010), CRn(0b0000), CRm(0b0000), Op2(0b000),
 	  NULL, reset_val, TEECR32_EL1, 0 },
 	/* TEEHBR32_EL1 */
 	{ Op0(0b10), Op1(0b010), CRn(0b0001), CRm(0b0000), Op2(0b000),
 	  NULL, reset_val, TEEHBR32_EL1, 0 },
+
+	/* MDCCSR_EL1 */
+	{ Op0(0b10), Op1(0b011), CRn(0b0000), CRm(0b0001), Op2(0b000),
+	  trap_raz_wi },
+	/* DBGDTR_EL0 */
+	{ Op0(0b10), Op1(0b011), CRn(0b0000), CRm(0b0100), Op2(0b000),
+	  trap_raz_wi },
+	/* DBGDTR[TR]X_EL0 */
+	{ Op0(0b10), Op1(0b011), CRn(0b0000), CRm(0b0101), Op2(0b000),
+	  trap_raz_wi },
+
 	/* DBGVCR32_EL2 */
 	{ Op0(0b10), Op1(0b100), CRn(0b0000), CRm(0b0111), Op2(0b000),
 	  NULL, reset_val, DBGVCR32_EL2, 0 },
