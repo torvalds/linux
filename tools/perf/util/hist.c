@@ -716,8 +716,8 @@ static void hists__remove_entry_filter(struct hists *hists, struct hist_entry *h
 	if (h->filtered)
 		return;
 
-	if (h->ms.unfolded)
-		hists->nr_non_filtered_entries += h->nr_rows;
+	/* force fold unfiltered entry for simplicity */
+	h->ms.unfolded = false;
 	h->row_offset = 0;
 
 	hists->stats.nr_non_filtered_samples += h->stat.nr_events;
