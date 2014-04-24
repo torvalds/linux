@@ -33,7 +33,7 @@ void vxlan_sock_release(struct vxlan_sock *vs);
 int vxlan_xmit_skb(struct vxlan_sock *vs,
 		   struct rtable *rt, struct sk_buff *skb,
 		   __be32 src, __be32 dst, __u8 tos, __u8 ttl, __be16 df,
-		   __be16 src_port, __be16 dst_port, __be32 vni);
+		   __be16 src_port, __be16 dst_port, __be32 vni, bool xnet);
 
 __be16 vxlan_src_port(__u16 port_min, __u16 port_max, struct sk_buff *skb);
 
