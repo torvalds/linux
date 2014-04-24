@@ -640,7 +640,6 @@ static void eeh_handle_normal_event(struct eeh_pe *pe)
 			result = PCI_ERS_RESULT_NEED_RESET;
 		} else {
 			pr_info("EEH: Notify device drivers to resume I/O\n");
-			result = PCI_ERS_RESULT_NONE;
 			eeh_pe_dev_traverse(pe, eeh_report_mmio_enabled, &result);
 		}
 	}
@@ -652,10 +651,17 @@ static void eeh_handle_normal_event(struct eeh_pe *pe)
 
 		if (rc < 0)
 			goto hard_fail;
-		if (rc)
+		if (rc) {
 			result = PCI_ERS_RESULT_NEED_RESET;
-		else
+		} else {
+			/*
+			 * We didn't do PE reset for the case. The PE
+			 * is still in frozen state. Clear it before
+			 * resuming the PE.
+			 */
+			eeh_pe_state_clear(pe, EEH_PE_ISOLATED);
 			result = PCI_ERS_RESULT_RECOVERED;
+		}
 	}
 
 	/* If any device has a hard failure, then shut off everything. */
