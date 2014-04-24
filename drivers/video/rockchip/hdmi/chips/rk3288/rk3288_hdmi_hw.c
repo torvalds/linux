@@ -4,13 +4,24 @@
 
 
 static const struct phy_mpll_config_tab PHY_MPLL_TABLE[] = {	//opmode: 0:HDMI1.4 	1:HDMI2.0
-//     	|pixclock|pixrepet|colordepth|prepdiv|tmdsmhl|opmode|fbdiv2|fbdiv1|ref_cntrl|nctrl|propctrl|intctrl|gmpctrl|
-	{27000000,	0,	8,	0,	0,	0,	2,	3,	0,	3,	7,	0,	3},
-	{74250000, 	0,	8, 	0,	0,	0, 	4, 	3,	3,	2,	7,	0, 	3},
-	{148500000, 	0, 	8,  	0, 	0,	0,	4,	3,	3,	2,	7,	0,	3},
-	{297000000,	0, 	8,	0, 	0, 	0, 	1, 	1, 	0, 	1, 	7, 	0, 	3},
-	{297000000, 	0, 	16,  	3, 	3, 	1, 	1, 	1, 	0, 	0, 	5, 	0, 	3},
-	{594000000,	0, 	8, 	0, 	3, 	1, 	1, 	0, 	0, 	0, 	3, 	0, 	3},
+//     	pixclock    pixrepet	    colordepth	            prepdiv  tmdsmhl opmode  fbdiv2  fbdiv1  ref_cntrl nctrl propctrl intctrl gmpctrl
+	{27000000,	0,	HDMI_COLOR_DEPTH_8BIT,		0,	0,	0,	2,	3,	0,	3,	7,	0,	3},
+	{27000000,	0,	HDMI_COLOR_DEPTH_10BIT,		1,	0,	0,	5,	1,	0,	3,	3,	0,	0},
+	{27000000,	0,	HDMI_COLOR_DEPTH_12BIT,		2,	0,	0,	3,	3,	0,	3,	3,	0,	0},
+	{27000000,	0,	HDMI_COLOR_DEPTH_16BIT,		3,	0,	0,	2,	3,	0,	2,	5,	0,	1},
+	{74250000, 	0,	HDMI_COLOR_DEPTH_8BIT, 		0,	0,	0, 	4, 	3,	3,	2,	7,	0, 	3},
+	{74250000,	0,	HDMI_COLOR_DEPTH_10BIT,		1,	0,	0,	5,	0,	1,	1,	7,	0,	2},
+	{74250000,	0,	HDMI_COLOR_DEPTH_12BIT,		2,	0,	0,	1,	2,	0,	1,	7,	0,	2},
+	{74250000,	0,	HDMI_COLOR_DEPTH_16BIT,		3,	0,	0,	1,	3,	0,	1,	7,	0,	2},
+	{148500000, 	0, 	HDMI_COLOR_DEPTH_8BIT,  	0, 	0,	0,	4,	3,	3,	2,	7,	0,	3},
+	{148500000,	0,	HDMI_COLOR_DEPTH_10BIT,		1,	0,	0,	5,	0,	3,	0,	7,	0,	3},
+	{148500000,	0,	HDMI_COLOR_DEPTH_12BIT,		2,	0,	0,	1,	2,	1,	0,	7,	0,	3},
+	{148500000,	0,	HDMI_COLOR_DEPTH_16BIT,		3,	0,	0,	1,	1,	0,	0,	7,	0,	3},
+	{297000000,	0, 	HDMI_COLOR_DEPTH_8BIT,		0, 	0, 	0, 	1, 	1, 	0, 	1, 	7, 	0, 	3},
+	{297000000,	0, 	HDMI_COLOR_DEPTH_10BIT,		1, 	3, 	1, 	5, 	0, 	3, 	0, 	7, 	0, 	3},
+	{297000000,	0, 	HDMI_COLOR_DEPTH_12BIT,		2, 	3, 	1, 	1, 	2, 	2, 	0, 	7, 	0, 	3},
+	{297000000, 	0, 	HDMI_COLOR_DEPTH_16BIT,  	3, 	3, 	1, 	1, 	1, 	0, 	0, 	5, 	0, 	3},
+	{594000000,	0, 	HDMI_COLOR_DEPTH_8BIT, 		0, 	3, 	1, 	1, 	0, 	0, 	0, 	3, 	0, 	3},
 };
 
 const struct phy_mpll_config_tab* get_phy_mpll_tab(int pixClock, char pixRepet, char colorDepth)
@@ -238,7 +249,7 @@ static int rk3288_hdmi_video_frameComposer(struct hdmi *hdmi_drv, struct hdmi_vi
 	}
 
 	hdmi_drv->tmdsclk = mode->pixclock;
-	rk3288_hdmi_config_phy(hdmi_drv);
+	rk3288_hdmi_config_phy(hdmi_drv, vpara->pixel_repet, vpara->color_depth);
 
 	if(hdmi_drv->tmdsclk > 340000000) {	//used for HDMI 2.0 TX	//TODO Daisen wait to modify HDCP KEEPOUT
 		hdmi_msk_reg(hdmi_dev, FC_INVIDCONF, m_FC_HDCP_KEEPOUT, v_FC_HDCP_KEEPOUT(1));
@@ -302,52 +313,95 @@ static int rk3288_hdmi_video_frameComposer(struct hdmi *hdmi_drv, struct hdmi_vi
 	}
 #endif
 	/*Set PixelRepetition:No pixel repetition*/
-	hdmi_writel(hdmi_dev, FC_PRCONF, v_FC_PR_FACTOR(1));
+	hdmi_writel(hdmi_dev, FC_PRCONF, v_FC_PR_FACTOR(vpara->pixel_repet + 1));
 
 	return 0;
 }
 
 static int rk3288_hdmi_video_packetizer(struct hdmi *hdmi_drv, struct hdmi_video_para *vpara)
 {
-	int color_depth = 0, output_select = 0;
+	unsigned char color_depth = 0;
+	unsigned char output_select = 0;
+	unsigned char remap_size = 0;
 	struct rk3288_hdmi_device *hdmi_dev = container_of(hdmi_drv, struct rk3288_hdmi_device, driver);
 
-	if(vpara->output_color == VIDEO_OUTPUT_RGB444 || vpara->output_color == VIDEO_OUTPUT_YCBCR444
-		|| vpara->output_color == VIDEO_OUTPUT_YCBCR420) {
-		output_select = OUT_FROM_8BIT_BYPASS;
-		color_depth = COLOR_DEPTH_24BIT;	//TODO modify if need
-	}
-	else if(vpara->output_color == VIDEO_OUTPUT_YCBCR420) {
-		hdmi_msk_reg(hdmi_dev, VP_REMAP, m_YCC422_SIZE, v_YCC422_SIZE(0));	//TODO modify accord to the color depth if need
+	if (vpara->output_color == VIDEO_OUTPUT_RGB444 || vpara->output_color == VIDEO_OUTPUT_YCBCR444
+							|| vpara->output_color == VIDEO_OUTPUT_YCBCR420) {
+
+		switch (vpara->color_depth) {
+		case HDMI_COLOR_DEPTH_8BIT:
+			color_depth = COLOR_DEPTH_24BIT;
+			output_select = OUT_FROM_8BIT_BYPASS;
+			break;
+		case HDMI_COLOR_DEPTH_10BIT:
+			color_depth = COLOR_DEPTH_30BIT;
+			output_select = OUT_FROM_PIXEL_PACKING;
+			break;
+		case HDMI_COLOR_DEPTH_12BIT:
+			color_depth = COLOR_DEPTH_36BIT;
+			output_select = OUT_FROM_PIXEL_PACKING;
+			break;
+		case HDMI_COLOR_DEPTH_16BIT:
+			color_depth = COLOR_DEPTH_48BIT;
+			output_select = OUT_FROM_PIXEL_PACKING;
+			break;
+		default:
+			color_depth = COLOR_DEPTH_24BIT;
+			output_select = OUT_FROM_8BIT_BYPASS;
+			break;
+		}
+
+		/*Config Color Depth*/
+		hdmi_msk_reg(hdmi_dev, VP_PR_CD, m_COLOR_DEPTH, v_COLOR_DEPTH(color_depth));
+	} else if (vpara->output_color == VIDEO_OUTPUT_YCBCR422) {
+
+		switch (vpara->color_depth) {
+		case HDMI_COLOR_DEPTH_8BIT:
+			remap_size = YCC422_16BIT;
+			break;
+		case HDMI_COLOR_DEPTH_10BIT:
+			remap_size = YCC422_20BIT;
+			break;
+		case HDMI_COLOR_DEPTH_12BIT:
+			remap_size = YCC422_24BIT;
+			break;
+		default:
+			remap_size = YCC422_16BIT;
+			break;
+		}
+
 		output_select = OUT_FROM_YCC422_REMAP;
-	}
-	else {
+		/*Config remap size for the different color Depth*/
+		hdmi_msk_reg(hdmi_dev, VP_REMAP, m_YCC422_SIZE, v_YCC422_SIZE(remap_size));
+	} else {
 		hdmi_err(hdmi_drv->dev, "invalid output color type: %d", vpara->output_color);
 		return -1;
 	}
 
-	/*no pixel repet*/
-	hdmi_writel(hdmi_dev, VP_PR_CD, v_COLOR_DEPTH(color_depth) | v_DESIRED_PR_FACTOR(0));
-	hdmi_msk_reg(hdmi_dev, VP_STUFF, m_PR_STUFFING, v_PR_STUFFING(1));
-	hdmi_msk_reg(hdmi_dev, VP_CONF, m_PIXEL_REPET_EN | m_BYPASS_SEL, v_PIXEL_REPET_EN(0) | v_BYPASS_SEL(1));
+	/*Config pixel repettion*/
+	hdmi_msk_reg(hdmi_dev, VP_PR_CD, m_DESIRED_PR_FACTOR, v_DESIRED_PR_FACTOR(vpara->pixel_repet));
+	if (vpara->pixel_repet > 0)
+		hdmi_msk_reg(hdmi_dev, VP_CONF, m_PIXEL_REPET_EN | m_BYPASS_SEL, v_PIXEL_REPET_EN(1) | v_BYPASS_SEL(0));
+	else
+		hdmi_msk_reg(hdmi_dev, VP_CONF, m_PIXEL_REPET_EN | m_BYPASS_SEL, v_PIXEL_REPET_EN(0) | v_BYPASS_SEL(1));
 
-	/*video output select*/
-	if(output_select == OUT_FROM_PIXEL_PACKING) { /* pixel packing */
+	/*config output select*/
+	if (output_select == OUT_FROM_PIXEL_PACKING) { /* pixel packing */
 		hdmi_msk_reg(hdmi_dev, VP_CONF, m_BYPASS_EN | m_PIXEL_PACK_EN | m_YCC422_EN | m_OUTPUT_SEL,
 			v_BYPASS_EN(0) | v_PIXEL_PACK_EN(1) | v_YCC422_EN(0) | v_OUTPUT_SEL(output_select));
-	}
-	else if(output_select == OUT_FROM_YCC422_REMAP) { /* YCC422 */
+	} else if (output_select == OUT_FROM_YCC422_REMAP) { /* YCC422 */
 		hdmi_msk_reg(hdmi_dev, VP_CONF, m_BYPASS_EN | m_PIXEL_PACK_EN | m_YCC422_EN | m_OUTPUT_SEL,
 			v_BYPASS_EN(0) | v_PIXEL_PACK_EN(0) | v_YCC422_EN(1) | v_OUTPUT_SEL(output_select));
-	}
-	else if (output_select == OUT_FROM_8BIT_BYPASS || output_select == 3) { /* bypass */
+	} else if (output_select == OUT_FROM_8BIT_BYPASS || output_select == 3) { /* bypass */
 		hdmi_msk_reg(hdmi_dev, VP_CONF, m_BYPASS_EN | m_PIXEL_PACK_EN | m_YCC422_EN | m_OUTPUT_SEL,
 			v_BYPASS_EN(1) | v_PIXEL_PACK_EN(0) | v_YCC422_EN(0) | v_OUTPUT_SEL(output_select));
 	}
 
+#if defined(HDMI_VIDEO_STUFFING)
 	/* YCC422 and pixel packing stuffing*/
-	//hdmi_msk_reg(hdmi_dev, VP_STUFF, m_YCC422_STUFFING | m_PP_STUFFING, v_YCC422_STUFFING(1) | v_PP_STUFFING(1));
-
+	hdmi_msk_reg(hdmi_dev, VP_STUFF, m_PR_STUFFING, v_PR_STUFFING(1));
+	hdmi_msk_reg(hdmi_dev, VP_STUFF, m_YCC422_STUFFING | m_PP_STUFFING, v_YCC422_STUFFING(1) | v_PP_STUFFING(1));
+#endif
 	return 0;
 }
 
@@ -356,24 +410,52 @@ int rk3288_hdmi_video_sampler(struct hdmi *hdmi_drv, struct hdmi_video_para *vpa
 	int map_code = 0;
 	struct rk3288_hdmi_device *hdmi_dev = container_of(hdmi_drv, struct rk3288_hdmi_device, driver);
 
-	if(vpara->input_color == VIDEO_INPUT_COLOR_RGB || vpara->input_color == VIDEO_INPUT_COLOR_YCBCR444
-		|| vpara->input_color == VIDEO_INPUT_COLOR_YCBCR420) {
-		map_code = VIDEO_RGB444_8BIT;	//TODO modify accord to color depth
+	if (vpara->input_color == VIDEO_INPUT_COLOR_RGB || vpara->input_color == VIDEO_INPUT_COLOR_YCBCR444
+							|| vpara->input_color == VIDEO_INPUT_COLOR_YCBCR420) {
+
+		switch (vpara->color_depth) {
+		case HDMI_COLOR_DEPTH_8BIT:
+			map_code = VIDEO_RGB444_8BIT;
+			break;
+		case HDMI_COLOR_DEPTH_10BIT:
+			map_code = VIDEO_RGB444_10BIT;
+			break;
+		case HDMI_COLOR_DEPTH_12BIT:
+			map_code = VIDEO_RGB444_12BIT;
+			break;
+		case HDMI_COLOR_DEPTH_16BIT:
+			map_code = VIDEO_RGB444_16BIT;
+			break;
+		default:
+			map_code = VIDEO_RGB444_8BIT;
+			break;
+		}
 		map_code += (vpara->input_color == VIDEO_INPUT_COLOR_YCBCR444) ? 8 : 0;
-	}
-	else if(vpara->input_color == VIDEO_INPUT_COLOR_YCBCR422) {
+	} else if (vpara->input_color == VIDEO_INPUT_COLOR_YCBCR422) {
 		/* YCC422 mapping is discontinued - only map 1 is supported */
-		map_code = VIDEO_YCBCR422_8BIT;
-	}
-	else {
+		switch (vpara->color_depth) {
+		case HDMI_COLOR_DEPTH_8BIT:
+			map_code = VIDEO_YCBCR422_8BIT;
+			break;
+		case HDMI_COLOR_DEPTH_10BIT:
+			map_code = VIDEO_YCBCR422_10BIT;
+			break;
+		case HDMI_COLOR_DEPTH_12BIT:
+			map_code = VIDEO_YCBCR422_12BIT;
+			break;
+		default:
+			map_code = VIDEO_YCBCR422_8BIT;
+			break;
+		}
+	} else {
 		hdmi_err(hdmi_drv->dev, "invalid input color type: %d", vpara->input_color);
 		return -1;
 	}
 
 	//Set Data enable signal from external and set video sample input mapping
 	hdmi_msk_reg(hdmi_dev, TX_INVID0, m_INTERNAL_DE_GEN | m_VIDEO_MAPPING, v_INTERNAL_DE_GEN(0) | v_VIDEO_MAPPING(map_code));
-#if 0
-	//TODO Daisen
+
+#if defined(HDMI_VIDEO_STUFFING)
 	hdmi_writel(hdmi_dev, TX_GYDATA0, 0x00);
 	hdmi_writel(hdmi_dev, TX_GYDATA1, 0x00);
 	hdmi_msk_reg(hdmi_dev, TX_INSTUFFING, m_GYDATA_STUFF, v_GYDATA_STUFF(1));
@@ -480,10 +562,9 @@ static int rk3288_hdmi_write_phy(struct rk3288_hdmi_device *hdmi_dev, int reg_ad
 	return -1;
 }
 
-int rk3288_hdmi_config_phy(struct hdmi *hdmi_drv)
+int rk3288_hdmi_config_phy(struct hdmi *hdmi_drv, unsigned char pixel_repet, unsigned char color_depth)
 {
 	int stat = 0, i = 0;
-	char pix_repet = NO_PIXEL_REPET;
 	const struct phy_mpll_config_tab *phy_mpll = NULL;
 	struct rk3288_hdmi_device *hdmi_dev = container_of(hdmi_drv, struct rk3288_hdmi_device, driver);
 
@@ -502,7 +583,7 @@ int rk3288_hdmi_config_phy(struct hdmi *hdmi_drv)
 	hdmi_writel(hdmi_dev, PHY_I2CM_SLAVE, PHY_GEN2_ADDR);
 
 	//config the required PHY I2C register
-	phy_mpll = get_phy_mpll_tab(hdmi_drv->tmdsclk, pix_repet, 8);	//TODO Modify if color depth is 24bit
+	phy_mpll = get_phy_mpll_tab(hdmi_drv->tmdsclk, pixel_repet, color_depth);
 	if(phy_mpll) {
 		rk3288_hdmi_write_phy(hdmi_dev, PHYTX_OPMODE_PLLCFG, v_PREP_DIV(phy_mpll->prep_div) | v_TMDS_CNTRL(phy_mpll->tmdsmhl_cntrl) | v_OPMODE(phy_mpll->opmode) |
 			v_FBDIV2_CNTRL(phy_mpll->fbdiv2_cntrl) | v_FBDIV1_CNTRL(phy_mpll->fbdiv1_cntrl) | v_REF_CNTRL(phy_mpll->ref_cntrl) | v_MPLL_N_CNTRL(phy_mpll->n_cntrl));
@@ -599,17 +680,17 @@ int rk3288_hdmi_config_vsi(struct hdmi *hdmi_drv, unsigned char vic_3d, unsigned
 	return 0;
 }
 
-static void rk3288_hdmi_config_avi(struct hdmi *hdmi_drv, unsigned char vic, unsigned char output_color)
+static void rk3288_hdmi_config_avi(struct hdmi *hdmi_drv, unsigned char vic, struct hdmi_video_para *vpara)
 {
-	int clolorimetry, aspect_ratio, y1y0;
+	int colorimetry, ext_colorimetry, aspect_ratio, y1y0;
 	struct rk3288_hdmi_device *hdmi_dev = container_of(hdmi_drv, struct rk3288_hdmi_device, driver);
 
 	//Set AVI infoFrame Data byte1
-	if(output_color == VIDEO_OUTPUT_YCBCR444)
+	if(vpara->output_color == VIDEO_OUTPUT_YCBCR444)
 		y1y0 = AVI_COLOR_MODE_YCBCR444;
-	else if(output_color == VIDEO_OUTPUT_YCBCR422)
+	else if(vpara->output_color == VIDEO_OUTPUT_YCBCR422)
 		y1y0 = AVI_COLOR_MODE_YCBCR422;
-	else if(output_color == VIDEO_OUTPUT_YCBCR420)
+	else if(vpara->output_color == VIDEO_OUTPUT_YCBCR420)
 		y1y0 = AVI_COLOR_MODE_YCBCR420;
 	else
 		y1y0 = AVI_COLOR_MODE_RGB;
@@ -624,27 +705,33 @@ static void rk3288_hdmi_config_avi(struct hdmi *hdmi_drv, unsigned char vic, uns
 		case HDMI_720x480p_60Hz_4_3:
 		case HDMI_720x576p_50Hz_4_3:
 			aspect_ratio = AVI_CODED_FRAME_ASPECT_4_3;
-			clolorimetry = AVI_COLORIMETRY_SMPTE_170M;
+			colorimetry = AVI_COLORIMETRY_SMPTE_170M;
 			break;
 		case HDMI_720x480i_60Hz_16_9:
 		case HDMI_720x576i_50Hz_16_9:
 		case HDMI_720x480p_60Hz_16_9:
 		case HDMI_720x576p_50Hz_16_9:
 			aspect_ratio = AVI_CODED_FRAME_ASPECT_16_9;
-			clolorimetry = AVI_COLORIMETRY_SMPTE_170M;
+			colorimetry = AVI_COLORIMETRY_SMPTE_170M;
 			break;
 		default:
 			aspect_ratio = AVI_CODED_FRAME_ASPECT_16_9;
-			clolorimetry = AVI_COLORIMETRY_ITU709;
+			colorimetry = AVI_COLORIMETRY_ITU709;
 	}
 
-	if(output_color == VIDEO_OUTPUT_RGB444)
-		clolorimetry = AVI_COLORIMETRY_NO_DATA;
+	if(vpara->color_depth > HDMI_COLOR_DEPTH_8BIT) {
+		colorimetry = AVI_COLORIMETRY_EXTENDED;
+		ext_colorimetry = 6;
+	}
+	else if(vpara->output_color == VIDEO_OUTPUT_RGB444) {
+		colorimetry = AVI_COLORIMETRY_NO_DATA;
+		ext_colorimetry = 0;
+	}
 
-	hdmi_writel(hdmi_dev, FC_AVICONF1, v_FC_COLORIMETRY(clolorimetry) | v_FC_PIC_ASPEC_RATIO(aspect_ratio) | v_FC_ACT_ASPEC_RATIO(ACTIVE_ASPECT_RATE_SAME_AS_CODED_FRAME));
+	hdmi_writel(hdmi_dev, FC_AVICONF1, v_FC_COLORIMETRY(colorimetry) | v_FC_PIC_ASPEC_RATIO(aspect_ratio) | v_FC_ACT_ASPEC_RATIO(ACTIVE_ASPECT_RATE_SAME_AS_CODED_FRAME));
 
 	//Set AVI infoFrame Data byte3
-	hdmi_writel(hdmi_dev, FC_AVICONF2, 0x00);
+	hdmi_msk_reg(hdmi_dev, FC_AVICONF2, m_FC_EXT_COLORIMETRY, v_FC_EXT_COLORIMETRY(ext_colorimetry));
 
 	//Set AVI infoFrame Data byte4
 	hdmi_writel(hdmi_dev, FC_AVIVID, (vic & 0xff));
@@ -688,6 +775,7 @@ static int rk3288_hdmi_video_csc(struct hdmi *hdmi_drv, struct hdmi_video_para *
 {
 	int i, mode, interpolation, decimation, csc_scale;
 	const char *coeff = NULL;
+	unsigned char color_depth = 0;
 	struct rk3288_hdmi_device *hdmi_dev = container_of(hdmi_drv, struct rk3288_hdmi_device, driver);
 
 	if( ((vpara->input_color == VIDEO_INPUT_COLOR_RGB) && (vpara->output_color == VIDEO_OUTPUT_RGB444)) ||
@@ -707,6 +795,24 @@ static int rk3288_hdmi_video_csc(struct hdmi *hdmi_drv, struct hdmi_video_para *
 		&& vpara->output_color == VIDEO_OUTPUT_YCBCR422) {
 		decimation = 1;
 		hdmi_msk_reg(hdmi_dev, CSC_CFG, m_CSC_DECIMODE, v_CSC_DECIMODE(decimation));
+	}
+
+	switch (vpara->color_depth) {
+		case HDMI_COLOR_DEPTH_8BIT:
+			color_depth = COLOR_DEPTH_24BIT;
+			break;
+		case HDMI_COLOR_DEPTH_10BIT:
+			color_depth = COLOR_DEPTH_30BIT;
+			break;
+		case HDMI_COLOR_DEPTH_12BIT:
+			color_depth = COLOR_DEPTH_36BIT;
+			break;
+		case HDMI_COLOR_DEPTH_16BIT:
+			color_depth = COLOR_DEPTH_48BIT;
+			break;
+		default:
+			color_depth = COLOR_DEPTH_24BIT;
+			break;
 	}
 
 	switch(vpara->vic)
@@ -745,7 +851,8 @@ static int rk3288_hdmi_video_csc(struct hdmi *hdmi_drv, struct hdmi_video_para *
 		hdmi_writel(hdmi_dev, CSC_COEF_A1_MSB + i, coeff[i]);
 	}
 	hdmi_msk_reg(hdmi_dev, CSC_SCALE, m_CSC_SCALE, v_CSC_SCALE(csc_scale));
-	//CSC_COLOR_DEPTH is not set and retain default:24 bits per pixel video,TODO modify if need
+	/*config CSC_COLOR_DEPTH*/
+	hdmi_msk_reg(hdmi_dev, CSC_SCALE, m_CSC_COLOR_DEPTH, v_CSC_COLOR_DEPTH(color_depth));
 
 	//enable CSC
 	hdmi_msk_reg(hdmi_dev, MC_FLOWCTRL, m_FEED_THROUGH_OFF, v_FEED_THROUGH_OFF(1));
@@ -771,12 +878,17 @@ int rk3288_hdmi_config_video(struct hdmi *hdmi_drv, struct hdmi_video_para *vpar
 		return -1;
 
 	if (vpara->output_mode == OUTPUT_HDMI) {
-		rk3288_hdmi_config_avi(hdmi_drv, vpara->vic, vpara->output_color);
+		rk3288_hdmi_config_avi(hdmi_drv, vpara->vic, vpara);
 		hdmi_dbg(hdmi_drv->dev, "[%s] sucess output HDMI.\n", __FUNCTION__);
+
 		if ( vpara->format_3d != 0)
                         rk3288_hdmi_config_vsi(hdmi_drv, vpara->format_3d, HDMI_VIDEO_FORMAT_3D, 1);
-                else if (vpara->vic > 0 && vpara->vic < 5)
+		#ifndef HDMI_VERSION_2
+                else if ((vpara->vic > 92 && vpara->vic < 96) || (vpara->vic == 98)) {
+			vpara->vic = (vpara->vic == 98) ? 4 : (96 - vpara->vic);
                         rk3288_hdmi_config_vsi(hdmi_drv, vpara->vic, HDMI_VIDEO_FORMAT_4Kx2K, 1);
+                }
+		#endif
                 else
                         rk3288_hdmi_config_vsi(hdmi_drv, vpara->vic, HDMI_VIDEO_FORMAT_NORMAL, 1);
 	}

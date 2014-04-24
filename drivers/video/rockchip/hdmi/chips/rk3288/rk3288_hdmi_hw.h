@@ -1029,9 +1029,9 @@ enum {
 
 #define	CSC_SCALE			0x4101
 #define m_CSC_COLOR_DEPTH	(0x0f << 4)
-#define v_CSC_COLOR_DEPTH(n)	(((n)&0x0f) >> 4)
+#define v_CSC_COLOR_DEPTH(n)	(((n)&0x0f) << 4)
 #define m_CSC_SCALE       	(0x03 << 0)
-#define v_CSC_SCALE(n)       	(((n)&0x03) >> 0)
+#define v_CSC_SCALE(n)       	(((n)&0x03) << 0)
 
 #define	CSC_COEF_A1_MSB			0x4102
 #define	CSC_COEF_A1_LSB			0x4103
@@ -1480,7 +1480,7 @@ static inline int hdmi_msk_reg(struct rk3288_hdmi_device *hdmi_dev, u16 offset, 
 
 int rk3288_hdmi_initial(struct hdmi *hdmi_drv);
 void rk3288_hdmi_control_output(struct hdmi *hdmi_drv, int enable);
-int rk3288_hdmi_config_phy(struct hdmi * hdmi_drv);
+int rk3288_hdmi_config_phy(struct hdmi *hdmi_drv, unsigned char pixel_repet, unsigned char color_depth);
 
 
 #endif
