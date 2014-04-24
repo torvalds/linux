@@ -4876,16 +4876,43 @@ void intel_crtc_update_dpms(struct drm_crtc *crtc)
 {
 	struct drm_device *dev = crtc->dev;
 	struct drm_i915_private *dev_priv = dev->dev_private;
+	struct intel_crtc *intel_crtc = to_intel_crtc(crtc);
 	struct intel_encoder *intel_encoder;
+	enum intel_display_power_domain domain;
+	unsigned long domains;
 	bool enable = false;
 
 	for_each_encoder_on_crtc(dev, crtc, intel_encoder)
 		enable |= intel_encoder->connectors_active;
 
-	if (enable)
-		dev_priv->display.crtc_enable(crtc);
-	else
-		dev_priv->display.crtc_disable(crtc);
+	if (enable) {
+		if (!intel_crtc->active) {
+			/*
+			 * FIXME: DDI plls and relevant code isn't converted
+			 * yet, so do runtime PM for DPMS only for all other
+			 * platforms for now.
+			 */
+			if (!HAS_DDI(dev)) {
+				domains = get_crtc_power_domains(crtc);
+				for_each_power_domain(domain, domains)
+					intel_display_power_get(dev_priv, domain);
+				intel_crtc->enabled_power_domains = domains;
+			}
+
+			dev_priv->display.crtc_enable(crtc);
+		}
+	} else {
+		if (intel_crtc->active) {
+			dev_priv->display.crtc_disable(crtc);
+
+			if (!HAS_DDI(dev)) {
+				domains = intel_crtc->enabled_power_domains;
+				for_each_power_domain(domain, domains)
+					intel_display_power_put(dev_priv, domain);
+				intel_crtc->enabled_power_domains = 0;
+			}
+		}
+	}
 
 	intel_crtc_update_sarea(crtc, enable);
 }
