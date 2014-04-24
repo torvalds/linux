@@ -69,6 +69,14 @@
 		      <0xffc02000 0x1000>;
 	};
 
+	arm-pmu {
+		compatible = "arm,cortex-a12-pmu";
+		interrupts = <GIC_SPI 151 IRQ_TYPE_LEVEL_HIGH>,
+			     <GIC_SPI 152 IRQ_TYPE_LEVEL_HIGH>,
+			     <GIC_SPI 153 IRQ_TYPE_LEVEL_HIGH>,
+			     <GIC_SPI 154 IRQ_TYPE_LEVEL_HIGH>;
+	};
+
 	cpu_axi_bus: cpu_axi_bus {
 		compatible = "rockchip,cpu_axi_bus";
 		#address-cells = <1>;
