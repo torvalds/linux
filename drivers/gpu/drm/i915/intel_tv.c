@@ -1026,7 +1026,8 @@ static void intel_tv_mode_set(struct intel_encoder *encoder)
 	const struct video_levels *video_levels;
 	const struct color_conversion *color_conversion;
 	bool burst_ena;
-	int pipe = intel_crtc->pipe;
+	int xpos = 0x0, ypos = 0x0;
+	unsigned int xsize, ysize;
 
 	if (!tv_mode)
 		return;	/* can't happen (mode_prepare prevents this) */
@@ -1110,46 +1111,25 @@ static void intel_tv_mode_set(struct intel_encoder *encoder)
 		I915_WRITE(TV_CLR_LEVEL,
 			   ((video_levels->black << TV_BLACK_LEVEL_SHIFT) |
 			    (video_levels->blank << TV_BLANK_LEVEL_SHIFT)));
-	{
-		int pipeconf_reg = PIPECONF(pipe);
-		int dspcntr_reg = DSPCNTR(intel_crtc->plane);
-		int pipeconf = I915_READ(pipeconf_reg);
-		int dspcntr = I915_READ(dspcntr_reg);
-		int xpos = 0x0, ypos = 0x0;
-		unsigned int xsize, ysize;
-		/* Pipe must be off here */
-		I915_WRITE(dspcntr_reg, dspcntr & ~DISPLAY_PLANE_ENABLE);
-		intel_flush_primary_plane(dev_priv, intel_crtc->plane);
 
-		/* Wait for vblank for the disable to take effect */
-		if (IS_GEN2(dev))
-			intel_wait_for_vblank(dev, intel_crtc->pipe);
+	assert_pipe_disabled(dev_priv, intel_crtc->pipe);
 
-		I915_WRITE(pipeconf_reg, pipeconf & ~PIPECONF_ENABLE);
-		/* Wait for vblank for the disable to take effect. */
-		intel_wait_for_pipe_off(dev, intel_crtc->pipe);
+	/* Filter ctl must be set before TV_WIN_SIZE */
+	I915_WRITE(TV_FILTER_CTL_1, TV_AUTO_SCALE);
+	xsize = tv_mode->hblank_start - tv_mode->hblank_end;
+	if (tv_mode->progressive)
+		ysize = tv_mode->nbr_end + 1;
+	else
+		ysize = 2*tv_mode->nbr_end + 1;
 
-		/* Filter ctl must be set before TV_WIN_SIZE */
-		I915_WRITE(TV_FILTER_CTL_1, TV_AUTO_SCALE);
-		xsize = tv_mode->hblank_start - tv_mode->hblank_end;
-		if (tv_mode->progressive)
-			ysize = tv_mode->nbr_end + 1;
-		else
-			ysize = 2*tv_mode->nbr_end + 1;
-
-		xpos += intel_tv->margin[TV_MARGIN_LEFT];
-		ypos += intel_tv->margin[TV_MARGIN_TOP];
-		xsize -= (intel_tv->margin[TV_MARGIN_LEFT] +
-			  intel_tv->margin[TV_MARGIN_RIGHT]);
-		ysize -= (intel_tv->margin[TV_MARGIN_TOP] +
-			  intel_tv->margin[TV_MARGIN_BOTTOM]);
-		I915_WRITE(TV_WIN_POS, (xpos<<16)|ypos);
-		I915_WRITE(TV_WIN_SIZE, (xsize<<16)|ysize);
-
-		I915_WRITE(pipeconf_reg, pipeconf);
-		I915_WRITE(dspcntr_reg, dspcntr);
-		intel_flush_primary_plane(dev_priv, intel_crtc->plane);
-	}
+	xpos += intel_tv->margin[TV_MARGIN_LEFT];
+	ypos += intel_tv->margin[TV_MARGIN_TOP];
+	xsize -= (intel_tv->margin[TV_MARGIN_LEFT] +
+		  intel_tv->margin[TV_MARGIN_RIGHT]);
+	ysize -= (intel_tv->margin[TV_MARGIN_TOP] +
+		  intel_tv->margin[TV_MARGIN_BOTTOM]);
+	I915_WRITE(TV_WIN_POS, (xpos<<16)|ypos);
+	I915_WRITE(TV_WIN_SIZE, (xsize<<16)|ysize);
 
 	j = 0;
 	for (i = 0; i < 60; i++)
