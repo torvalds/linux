@@ -587,6 +587,10 @@ static int send_connect(struct c4iw_ep *ep)
 		opt2 |= SACK_EN(1);
 	if (wscale && enable_tcp_window_scaling)
 		opt2 |= WND_SCALE_EN(1);
+	if (is_t5(ep->com.dev->rdev.lldi.adapter_type)) {
+		opt2 |= T5_OPT_2_VALID;
+		opt2 |= V_CONG_CNTRL(CONG_ALG_TAHOE);
+	}
 	t4_set_arp_err_handler(skb, NULL, act_open_req_arp_failure);
 
 	if (is_t4(ep->com.dev->rdev.lldi.adapter_type)) {
@@ -2017,6 +2021,10 @@ static void accept_cr(struct c4iw_ep *ep, struct sk_buff *skb,
 			G_IP_HDR_LEN(hlen);
 		if (tcph->ece && tcph->cwr)
 			opt2 |= CCTRL_ECN(1);
+	}
+	if (is_t5(ep->com.dev->rdev.lldi.adapter_type)) {
+		opt2 |= T5_OPT_2_VALID;
+		opt2 |= V_CONG_CNTRL(CONG_ALG_TAHOE);
 	}
 
 	rpl = cplhdr(skb);
