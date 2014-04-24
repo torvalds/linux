@@ -4618,7 +4618,9 @@ static void i9xx_crtc_disable(struct drm_crtc *crtc)
 	intel_crtc->active = false;
 	intel_update_watermarks(crtc);
 
+	mutex_lock(&dev->struct_mutex);
 	intel_update_fbc(dev);
+	mutex_unlock(&dev->struct_mutex);
 }
 
 static void i9xx_crtc_off(struct drm_crtc *crtc)
