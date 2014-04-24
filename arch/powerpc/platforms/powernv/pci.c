@@ -441,11 +441,16 @@ static bool pnv_pci_cfg_check(struct pci_controller *hose,
 	if (!(phb->flags & PNV_PHB_FLAG_EEH))
 		return true;
 
-	/* PE reset ? */
+	/* PE reset or device removed ? */
 	edev = of_node_to_eeh_dev(dn);
-	if (edev && edev->pe &&
-	    (edev->pe->state & EEH_PE_RESET))
-		return false;
+	if (edev) {
+		if (edev->pe &&
+		    (edev->pe->state & EEH_PE_RESET))
+			return false;
+
+		if (edev->mode & EEH_DEV_REMOVED)
+			return false;
+	}
 
 	return true;
 }

@@ -98,6 +98,7 @@ struct eeh_pe {
 
 #define EEH_DEV_NO_HANDLER	(1 << 8)	/* No error handler	*/
 #define EEH_DEV_SYSFS		(1 << 9)	/* Sysfs created	*/
+#define EEH_DEV_REMOVED		(1 << 10)	/* Removed permanently	*/
 
 struct eeh_dev {
 	int mode;			/* EEH mode			*/
