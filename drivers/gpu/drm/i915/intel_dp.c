@@ -1002,9 +1002,6 @@ static void intel_dp_mode_set(struct intel_encoder *encoder)
 	} else {
 		intel_dp->DP |= DP_LINK_TRAIN_OFF_CPT;
 	}
-
-	if (port == PORT_A && !IS_VALLEYVIEW(dev))
-		ironlake_set_pll_cpu_edp(intel_dp);
 }
 
 #define IDLE_ON_MASK		(PP_ON | PP_SEQUENCE_MASK | 0                     | PP_SEQUENCE_STATE_MASK)
@@ -1905,8 +1902,11 @@ static void g4x_pre_enable_dp(struct intel_encoder *encoder)
 	struct intel_dp *intel_dp = enc_to_intel_dp(&encoder->base);
 	struct intel_digital_port *dport = dp_to_dig_port(intel_dp);
 
-	if (dport->port == PORT_A)
+	/* Only ilk+ has port A */
+	if (dport->port == PORT_A) {
+		ironlake_set_pll_cpu_edp(intel_dp);
 		ironlake_edp_pll_on(intel_dp);
+	}
 }
 
 static void vlv_pre_enable_dp(struct intel_encoder *encoder)
