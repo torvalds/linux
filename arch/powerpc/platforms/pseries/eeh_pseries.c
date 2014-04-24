@@ -319,6 +319,7 @@ static int pseries_eeh_get_state(struct device_node *dn, int *state)
 			} else {
 				result = EEH_STATE_NOT_SUPPORT;
 			}
+			break;
 		default:
 			result = EEH_STATE_NOT_SUPPORT;
 		}
