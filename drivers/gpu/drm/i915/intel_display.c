@@ -66,6 +66,7 @@ static void intel_cpu_transcoder_set_m_n(struct intel_crtc *crtc,
 static void ironlake_set_pipeconf(struct drm_crtc *crtc);
 static void haswell_set_pipeconf(struct drm_crtc *crtc);
 static void intel_set_pipe_csc(struct drm_crtc *crtc);
+static void vlv_prepare_pll(struct intel_crtc *crtc);
 
 typedef struct {
 	int	min, max;
@@ -4555,6 +4556,8 @@ static void valleyview_crtc_enable(struct drm_crtc *crtc)
 	if (intel_crtc->active)
 		return;
 
+	vlv_prepare_pll(intel_crtc);
+
 	/* Set up the display plane register */
 	dspcntr = DISPPLANE_GAMMA_ENABLE;
 
@@ -5376,12 +5379,34 @@ static void intel_dp_set_m_n(struct intel_crtc *crtc)
 
 static void vlv_update_pll(struct intel_crtc *crtc)
 {
+	u32 dpll, dpll_md;
+
+	/*
+	 * Enable DPIO clock input. We should never disable the reference
+	 * clock for pipe B, since VGA hotplug / manual detection depends
+	 * on it.
+	 */
+	dpll = DPLL_EXT_BUFFER_ENABLE_VLV | DPLL_REFA_CLK_ENABLE_VLV |
+		DPLL_VGA_MODE_DIS | DPLL_INTEGRATED_CLOCK_VLV;
+	/* We should never disable this, set it here for state tracking */
+	if (crtc->pipe == PIPE_B)
+		dpll |= DPLL_INTEGRATED_CRI_CLK_VLV;
+	dpll |= DPLL_VCO_ENABLE;
+	crtc->config.dpll_hw_state.dpll = dpll;
+
+	dpll_md = (crtc->config.pixel_multiplier - 1)
+		<< DPLL_MD_UDI_MULTIPLIER_SHIFT;
+	crtc->config.dpll_hw_state.dpll_md = dpll_md;
+}
+
+static void vlv_prepare_pll(struct intel_crtc *crtc)
+{
 	struct drm_device *dev = crtc->base.dev;
 	struct drm_i915_private *dev_priv = dev->dev_private;
 	int pipe = crtc->pipe;
-	u32 dpll, mdiv;
+	u32 mdiv;
 	u32 bestn, bestm1, bestm2, bestp1, bestp2;
-	u32 coreclk, reg_val, dpll_md;
+	u32 coreclk, reg_val;
 
 	mutex_lock(&dev_priv->dpio_lock);
 
@@ -5394,7 +5419,7 @@ static void vlv_update_pll(struct intel_crtc *crtc)
 	/* See eDP HDMI DPIO driver vbios notes doc */
 
 	/* PLL B needs special handling */
-	if (pipe)
+	if (pipe == PIPE_B)
 		vlv_pllb_recal_opamp(dev_priv, pipe);
 
 	/* Set up Tx target for periodic Rcomp update */
@@ -5438,7 +5463,7 @@ static void vlv_update_pll(struct intel_crtc *crtc)
 	if (intel_pipe_has_type(&crtc->base, INTEL_OUTPUT_EDP) ||
 	    intel_pipe_has_type(&crtc->base, INTEL_OUTPUT_DISPLAYPORT)) {
 		/* Use SSC source */
-		if (!pipe)
+		if (pipe == PIPE_A)
 			vlv_dpio_write(dev_priv, pipe, VLV_PLL_DW5(pipe),
 					 0x0df40000);
 		else
@@ -5446,7 +5471,7 @@ static void vlv_update_pll(struct intel_crtc *crtc)
 					 0x0df70000);
 	} else { /* HDMI or VGA */
 		/* Use bend source */
-		if (!pipe)
+		if (pipe == PIPE_A)
 			vlv_dpio_write(dev_priv, pipe, VLV_PLL_DW5(pipe),
 					 0x0df70000);
 		else
@@ -5462,24 +5487,6 @@ static void vlv_update_pll(struct intel_crtc *crtc)
 	vlv_dpio_write(dev_priv, pipe, VLV_PLL_DW7(pipe), coreclk);
 
 	vlv_dpio_write(dev_priv, pipe, VLV_PLL_DW11(pipe), 0x87871000);
-
-	/*
-	 * Enable DPIO clock input. We should never disable the reference
-	 * clock for pipe B, since VGA hotplug / manual detection depends
-	 * on it.
-	 */
-	dpll = DPLL_EXT_BUFFER_ENABLE_VLV | DPLL_REFA_CLK_ENABLE_VLV |
-		DPLL_VGA_MODE_DIS | DPLL_INTEGRATED_CLOCK_VLV;
-	/* We should never disable this, set it here for state tracking */
-	if (pipe == PIPE_B)
-		dpll |= DPLL_INTEGRATED_CRI_CLK_VLV;
-	dpll |= DPLL_VCO_ENABLE;
-	crtc->config.dpll_hw_state.dpll = dpll;
-
-	dpll_md = (crtc->config.pixel_multiplier - 1)
-		<< DPLL_MD_UDI_MULTIPLIER_SHIFT;
-	crtc->config.dpll_hw_state.dpll_md = dpll_md;
-
 	mutex_unlock(&dev_priv->dpio_lock);
 }
 
