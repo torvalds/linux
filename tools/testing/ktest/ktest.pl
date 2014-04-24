@@ -3125,6 +3125,7 @@ sub config_bisect {
     my ($i) = @_;
 
     my $type = $config_bisect_type;
+    my $ret;
 
     $bad_config = $config_bisect;
 
@@ -3134,7 +3135,7 @@ sub config_bisect {
 	$good_config = $minconfig;
     } else {
 	doprint "No config specified, checking if defconfig works";
-	my $ret = run_bisect_test $type, "defconfig";
+	$ret = run_bisect_test $type, "defconfig";
 	if (!$ret) {
 	    fail "Have no good config to compare with, please set CONFIG_BISECT_GOOD";
 	    return 1;
@@ -3166,7 +3167,27 @@ sub config_bisect {
     save_config \%good_configs, $good_config;
     save_config \%bad_configs, $bad_config;
 
-    my $ret;
+
+    if (defined($config_bisect_check) && $config_bisect_check ne "0") {
+	if ($config_bisect_check ne "good") {
+	    doprint "Testing bad config\n";
+
+	    $ret = run_bisect_test $type, "useconfig:$bad_config";
+	    if ($ret) {
+		fail "Bad config succeeded when expected to fail!";
+		return 0;
+	    }
+	}
+	if ($config_bisect_check ne "bad") {
+	    doprint "Testing good config\n";
+
+	    $ret = run_bisect_test $type, "useconfig:$good_config";
+	    if (!$ret) {
+		fail "Good config failed when expected to succeed!";
+		return 0;
+	    }
+	}
+    }
 
     do {
 	$ret = run_config_bisect \%good_configs, \%bad_configs;
