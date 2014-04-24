@@ -5771,8 +5771,6 @@ static int i9xx_crtc_mode_set(struct drm_crtc *crtc,
 	bool is_lvds = false, is_dsi = false;
 	struct intel_encoder *encoder;
 	const intel_limit_t *limit;
-	struct drm_framebuffer *old_fb;
-	int ret;
 
 	for_each_encoder_on_crtc(dev, crtc, encoder) {
 		switch (encoder->type) {
@@ -5872,25 +5870,7 @@ skip_dpll:
 	I915_WRITE(DSPCNTR(plane), dspcntr);
 	POSTING_READ(DSPCNTR(plane));
 
-	mutex_lock(&dev->struct_mutex);
-	ret = intel_pin_and_fence_fb_obj(dev,
-					 to_intel_framebuffer(fb)->obj,
-					 NULL);
-	if (ret != 0) {
-		DRM_ERROR("pin & fence failed\n");
-		mutex_unlock(&dev->struct_mutex);
-		return ret;
-	}
-	old_fb = crtc->primary->fb;
-	if (old_fb)
-		intel_unpin_fb_obj(to_intel_framebuffer(old_fb)->obj);
-	mutex_unlock(&dev->struct_mutex);
-
 	dev_priv->display.update_primary_plane(crtc, fb, x, y);
-
-	crtc->primary->fb = fb;
-	crtc->x = x;
-	crtc->y = y;
 
 	return 0;
 }
@@ -6828,8 +6808,6 @@ static int ironlake_crtc_mode_set(struct drm_crtc *crtc,
 	bool is_lvds = false;
 	struct intel_encoder *encoder;
 	struct intel_shared_dpll *pll;
-	struct drm_framebuffer *old_fb;
-	int ret;
 
 	for_each_encoder_on_crtc(dev, crtc, encoder) {
 		switch (encoder->type) {
@@ -6906,25 +6884,7 @@ static int ironlake_crtc_mode_set(struct drm_crtc *crtc,
 	I915_WRITE(DSPCNTR(plane), DISPPLANE_GAMMA_ENABLE);
 	POSTING_READ(DSPCNTR(plane));
 
-	mutex_lock(&dev->struct_mutex);
-	ret = intel_pin_and_fence_fb_obj(dev,
-					 to_intel_framebuffer(fb)->obj,
-					 NULL);
-	if (ret != 0) {
-		DRM_ERROR("pin & fence failed\n");
-		mutex_unlock(&dev->struct_mutex);
-		return ret;
-	}
-	old_fb = crtc->primary->fb;
-	if (old_fb)
-		intel_unpin_fb_obj(to_intel_framebuffer(old_fb)->obj);
-	mutex_unlock(&dev->struct_mutex);
-
 	dev_priv->display.update_primary_plane(crtc, fb, x, y);
-
-	crtc->primary->fb = fb;
-	crtc->x = x;
-	crtc->y = y;
 
 	return 0;
 }
@@ -7396,8 +7356,6 @@ static int haswell_crtc_mode_set(struct drm_crtc *crtc,
 	struct drm_i915_private *dev_priv = dev->dev_private;
 	struct intel_crtc *intel_crtc = to_intel_crtc(crtc);
 	int plane = intel_crtc->plane;
-	struct drm_framebuffer *old_fb;
-	int ret;
 
 	if (!intel_ddi_pll_select(intel_crtc))
 		return -EINVAL;
@@ -7423,25 +7381,7 @@ static int haswell_crtc_mode_set(struct drm_crtc *crtc,
 	I915_WRITE(DSPCNTR(plane), DISPPLANE_GAMMA_ENABLE | DISPPLANE_PIPE_CSC_ENABLE);
 	POSTING_READ(DSPCNTR(plane));
 
-	mutex_lock(&dev->struct_mutex);
-	ret = intel_pin_and_fence_fb_obj(dev,
-					 to_intel_framebuffer(fb)->obj,
-					 NULL);
-	if (ret != 0) {
-		DRM_ERROR("pin & fence failed\n");
-		mutex_unlock(&dev->struct_mutex);
-		return ret;
-	}
-	old_fb = crtc->primary->fb;
-	if (old_fb)
-		intel_unpin_fb_obj(to_intel_framebuffer(old_fb)->obj);
-	mutex_unlock(&dev->struct_mutex);
-
 	dev_priv->display.update_primary_plane(crtc, fb, x, y);
-
-	crtc->primary->fb = fb;
-	crtc->x = x;
-	crtc->y = y;
 
 	return 0;
 }
@@ -10280,6 +10220,26 @@ static int __intel_set_mode(struct drm_crtc *crtc,
 	 * on the DPLL.
 	 */
 	for_each_intel_crtc_masked(dev, modeset_pipes, intel_crtc) {
+		struct drm_framebuffer *old_fb;
+
+		mutex_lock(&dev->struct_mutex);
+		ret = intel_pin_and_fence_fb_obj(dev,
+						 to_intel_framebuffer(fb)->obj,
+						 NULL);
+		if (ret != 0) {
+			DRM_ERROR("pin & fence failed\n");
+			mutex_unlock(&dev->struct_mutex);
+			goto done;
+		}
+		old_fb = crtc->primary->fb;
+		if (old_fb)
+			intel_unpin_fb_obj(to_intel_framebuffer(old_fb)->obj);
+		mutex_unlock(&dev->struct_mutex);
+
+		crtc->primary->fb = fb;
+		crtc->x = x;
+		crtc->y = y;
+
 		ret = dev_priv->display.crtc_mode_set(&intel_crtc->base,
 						      x, y, fb);
 		if (ret)
