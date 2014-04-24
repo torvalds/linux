@@ -1739,6 +1739,22 @@ void vlv_wait_port_ready(struct drm_i915_private *dev_priv,
 		     port_name(dport->port), I915_READ(dpll_reg));
 }
 
+static void intel_prepare_shared_dpll(struct intel_crtc *crtc)
+{
+	struct drm_device *dev = crtc->base.dev;
+	struct drm_i915_private *dev_priv = dev->dev_private;
+	struct intel_shared_dpll *pll = intel_crtc_to_shared_dpll(crtc);
+
+	WARN_ON(!pll->refcount);
+	if (pll->active == 0) {
+		DRM_DEBUG_DRIVER("setting up %s\n", pll->name);
+		WARN_ON(pll->on);
+		assert_shared_dpll_disabled(dev_priv, pll);
+
+		pll->mode_set(dev_priv, pll);
+	}
+}
+
 /**
  * ironlake_enable_shared_dpll - enable PCH PLL
  * @dev_priv: i915 private structure
@@ -3644,13 +3660,6 @@ found:
 	DRM_DEBUG_DRIVER("using %s for pipe %c\n", pll->name,
 			 pipe_name(crtc->pipe));
 
-	if (pll->active == 0) {
-		DRM_DEBUG_DRIVER("setting up %s\n", pll->name);
-		WARN_ON(pll->on);
-		assert_shared_dpll_disabled(dev_priv, pll);
-
-		pll->mode_set(dev_priv, pll);
-	}
 	pll->refcount++;
 
 	return pll;
@@ -3925,6 +3934,9 @@ static void ironlake_crtc_enable(struct drm_crtc *crtc)
 
 	if (intel_crtc->active)
 		return;
+
+	if (intel_crtc->config.has_pch_encoder)
+		intel_prepare_shared_dpll(intel_crtc);
 
 	if (intel_crtc->config.has_dp_encoder)
 		intel_dp_set_m_n(intel_crtc);
