@@ -306,17 +306,17 @@ static int devcgroup_seq_show(struct seq_file *m, void *v)
 }
 
 /**
- * match_exception	- iterates the exception list trying to match a rule
- * 			  based on type, major, minor and access type. It is
- * 			  considered a match if an exception is found that
- * 			  will contain the entire range of provided parameters.
+ * match_exception	- iterates the exception list trying to find a complete match
  * @exceptions: list of exceptions
  * @type: device type (DEV_BLOCK or DEV_CHAR)
  * @major: device file major number, ~0 to match all
  * @minor: device file minor number, ~0 to match all
  * @access: permission mask (ACC_READ, ACC_WRITE, ACC_MKNOD)
  *
- * returns: true in case it matches an exception completely
+ * It is considered a complete match if an exception is found that will
+ * contain the entire range of provided parameters.
+ *
+ * Return: true in case it matches an exception completely
  */
 static bool match_exception(struct list_head *exceptions, short type,
 			    u32 major, u32 minor, short access)
@@ -341,20 +341,19 @@ static bool match_exception(struct list_head *exceptions, short type,
 }
 
 /**
- * match_exception_partial - iterates the exception list trying to match a rule
- * 			     based on type, major, minor and access type. It is
- * 			     considered a match if an exception's range is
- * 			     found to contain *any* of the devices specified by
- * 			     provided parameters. This is used to make sure no
- * 			     extra access is being granted that is forbidden by
- * 			     any of the exception list.
+ * match_exception_partial - iterates the exception list trying to find a partial match
  * @exceptions: list of exceptions
  * @type: device type (DEV_BLOCK or DEV_CHAR)
  * @major: device file major number, ~0 to match all
  * @minor: device file minor number, ~0 to match all
  * @access: permission mask (ACC_READ, ACC_WRITE, ACC_MKNOD)
  *
- * returns: true in case the provided range mat matches an exception completely
+ * It is considered a partial match if an exception's range is found to
+ * contain *any* of the devices specified by provided parameters. This is
+ * used to make sure no extra access is being granted that is forbidden by
+ * any of the exception list.
+ *
+ * Return: true in case the provided range mat matches an exception completely
  */
 static bool match_exception_partial(struct list_head *exceptions, short type,
 				    u32 major, u32 minor, short access)
@@ -387,13 +386,13 @@ static bool match_exception_partial(struct list_head *exceptions, short type,
 }
 
 /**
- * verify_new_ex - verifies if a new exception is part of what is allowed
- *		   by a dev cgroup based on the default policy +
- *		   exceptions. This is used to make sure a child cgroup
- *		   won't have more privileges than its parent
+ * verify_new_ex - verifies if a new exception is allowed by parent cgroup's permissions
  * @dev_cgroup: dev cgroup to be tested against
  * @refex: new exception
  * @behavior: behavior of the exception's dev_cgroup
+ *
+ * This is used to make sure a child cgroup won't have more privileges
+ * than its parent
  */
 static bool verify_new_ex(struct dev_cgroup *dev_cgroup,
 		          struct dev_exception_item *refex,
