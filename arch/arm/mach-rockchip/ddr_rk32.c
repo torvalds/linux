@@ -32,7 +32,7 @@ typedef uint32_t uint32;
 
 #define DDR3_DDR2_ODT_DISABLE_FREQ    (333)
 #define DDR3_DDR2_DLL_DISABLE_FREQ    (333)
-#define SR_IDLE                       (0x1)   //unit:32*DDR clk cycle, and 0 for disable auto self-refresh
+#define SR_IDLE                       (0x3)   //unit:32*DDR clk cycle, and 0 for disable auto self-refresh
 #define PD_IDLE                       (0X40)  //unit:DDR clk cycle, and 0 for disable auto power-down
 
 //#if (DDR3_DDR2_ODT_DISABLE_FREQ > DDR3_DDR2_DLL_DISABLE_FREQ)
