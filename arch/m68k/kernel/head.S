@@ -292,6 +292,7 @@
 
 .globl kernel_pg_dir
 .globl availmem
+.globl m68k_init_mapped_size
 .globl m68k_pgtable_cachemode
 .globl m68k_supervisor_cachemode
 #ifdef CONFIG_MVME16x
@@ -907,10 +908,21 @@ L(nocon):
  *
  *	This block of code does what's necessary to map in the various kinds
  *	of machines for execution of Linux.
- *	First map the first 4 MB of kernel code & data
+ *	First map the first 4, 8, or 16 MB of kernel code & data
  */
 
-	mmu_map	#PAGE_OFFSET,%pc@(L(phys_kernel_start)),#4*1024*1024,\
+	get_bi_record BI_MEMCHUNK
+	movel	%a0@(4),%d0
+	movel	#16*1024*1024,%d1
+	cmpl	%d0,%d1
+	jls	1f
+	lsrl	#1,%d1
+	cmpl	%d0,%d1
+	jls	1f
+	lsrl	#1,%d1
+1:
+	movel	%d1,m68k_init_mapped_size
+	mmu_map	#PAGE_OFFSET,%pc@(L(phys_kernel_start)),%d1,\
 		%pc@(m68k_supervisor_cachemode)
 
 	putc	'C'
@@ -3729,6 +3741,9 @@ func_return	console_plot_pixel
 
 __INITDATA
 	.align	4
+
+m68k_init_mapped_size:
+	.long	0
 
 #if defined(CONFIG_ATARI) || defined(CONFIG_AMIGA) || \
     defined(CONFIG_HP300) || defined(CONFIG_APOLLO)
