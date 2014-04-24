@@ -510,12 +510,10 @@ static int ioda_eeh_reset(struct eeh_pe *pe, int option)
 	int ret;
 
 	/*
-	 * The rules applied to reset, either fundamental or hot reset:
-	 *
-	 * We always reset the direct upstream bridge of the PE. If the
-	 * direct upstream bridge isn't root bridge, we always take hot
-	 * reset no matter what option (fundamental or hot) is. Otherwise,
-	 * we should do the reset according to the required option.
+	 * For PHB reset, we always have complete reset. For those PEs whose
+	 * primary bus derived from root complex (root bus) or root port
+	 * (usually bus#1), we apply hot or fundamental reset on the root port.
+	 * For other PEs, we always have hot reset on the PE primary bus.
 	 *
 	 * Here, we have different design to pHyp, which always clear the
 	 * frozen state during PE reset. However, the good idea here from
@@ -529,7 +527,8 @@ static int ioda_eeh_reset(struct eeh_pe *pe, int option)
 		ret = ioda_eeh_phb_reset(hose, option);
 	} else {
 		bus = eeh_pe_bus_get(pe);
-		if (pci_is_root_bus(bus))
+		if (pci_is_root_bus(bus) ||
+		    pci_is_root_bus(bus->parent))
 			ret = ioda_eeh_root_reset(hose, option);
 		else
 			ret = ioda_eeh_bridge_reset(bus->self, option);
