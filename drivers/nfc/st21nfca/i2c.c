@@ -89,6 +89,7 @@ struct st21nfca_i2c_phy {
 	 * and prevents normal operation.
 	 */
 	int hard_fault;
+	struct mutex phy_lock;
 };
 static u8 len_seq[] = { 13, 24, 15, 29 };
 static u16 wait_tab[] = { 2, 3, 5, 15, 20, 40};
@@ -245,11 +246,13 @@ static int st21nfca_hci_i2c_write(void *phy_id, struct sk_buff *skb)
 	 * Manage sleep mode
 	 * Try 3 times to send data with delay between each
 	 */
+	mutex_lock(&phy->phy_lock);
 	for (i = 0; i < ARRAY_SIZE(wait_tab) && r < 0; i++) {
 		r = i2c_master_send(client, tmp, j);
 		if (r < 0)
 			msleep(wait_tab[i]);
 	}
+	mutex_unlock(&phy->phy_lock);
 
 	if (r >= 0) {
 		if (r != j)
@@ -375,11 +378,13 @@ static int st21nfca_hci_i2c_read(struct st21nfca_i2c_phy *phy,
 		 * RF or SWP interface
 		 */
 		r = 0;
+		mutex_lock(&phy->phy_lock);
 		for (i = 0; i < ARRAY_SIZE(wait_tab) && r <= 0; i++) {
 			r = i2c_master_recv(client, buf, len);
 			if (r < 0)
 				msleep(wait_tab[i]);
 		}
+		mutex_unlock(&phy->phy_lock);
 
 		if (r != len) {
 			phy->current_read_len = 0;
@@ -575,6 +580,7 @@ static int st21nfca_hci_i2c_probe(struct i2c_client *client,
 
 	phy->current_read_len = 0;
 	phy->crc_trials = 0;
+	mutex_init(&phy->phy_lock);
 	i2c_set_clientdata(client, phy);
 
 	pdata = client->dev.platform_data;
