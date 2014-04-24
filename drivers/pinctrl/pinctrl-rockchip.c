@@ -621,7 +621,7 @@ static const struct pinctrl_ops rockchip_pctrl_ops = {
 
 static int rk32_iomux_bit_op(struct rockchip_pin_bank *bank, int pin, int mux, void __iomem *reg, int bits)
 {	
-	u32 data,result;
+	u32 data = 0,result;
 	u8 bit;
 	unsigned long flags;	
 	struct rockchip_pinctrl *info = bank->drvdata;
@@ -636,6 +636,7 @@ static int rk32_iomux_bit_op(struct rockchip_pin_bank *bank, int pin, int mux, v
 		if(bank->bank_num == 0)
 		{
 			data = readl_relaxed(reg);
+			data &= ~(3<<bit);
 			data |= (mux & 3) << bit;
 			writel(data, reg);
 		}
@@ -658,6 +659,7 @@ static int rk32_iomux_bit_op(struct rockchip_pin_bank *bank, int pin, int mux, v
 		if(bank->bank_num == 0)
 		{
 			data = readl_relaxed(reg);
+			data &= ~(0x0f<<bit);
 			data |= (mux & 0x0f) << bit;
 			writel(data, reg);
 		}
@@ -677,7 +679,9 @@ static int rk32_iomux_bit_op(struct rockchip_pin_bank *bank, int pin, int mux, v
 
 	
 	result = readl_relaxed(reg);
-
+	if(bank->bank_num == 0)
+	DBG_PINCTRL("%s:GPIO%d-%d,reg=0x%x,data=0x%x,result=0x%x\n",__func__, bank->bank_num, pin, reg - bank->reg_mux_bank0, data, result);
+	else
 	DBG_PINCTRL("%s:GPIO%d-%d,reg=0x%x,data=0x%x,result=0x%x\n",__func__, bank->bank_num, pin, reg - info->reg_base, data, result);
 
 	return 0;
