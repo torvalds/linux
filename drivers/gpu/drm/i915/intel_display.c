@@ -6890,13 +6890,13 @@ static int ironlake_crtc_mode_set(struct drm_crtc *crtc,
 	} else
 		intel_put_shared_dpll(intel_crtc);
 
-	if (intel_crtc->config.has_dp_encoder)
-		intel_dp_set_m_n(intel_crtc);
-
 	if (is_lvds && has_reduced_clock && i915.powersave)
 		intel_crtc->lowfreq_avail = true;
 	else
 		intel_crtc->lowfreq_avail = false;
+
+	if (intel_crtc->config.has_dp_encoder)
+		intel_dp_set_m_n(intel_crtc);
 
 	intel_set_pipe_timings(intel_crtc);
 
@@ -7388,10 +7388,10 @@ static int haswell_crtc_mode_set(struct drm_crtc *crtc,
 		return -EINVAL;
 	intel_ddi_pll_enable(intel_crtc);
 
+	intel_crtc->lowfreq_avail = false;
+
 	if (intel_crtc->config.has_dp_encoder)
 		intel_dp_set_m_n(intel_crtc);
-
-	intel_crtc->lowfreq_avail = false;
 
 	intel_set_pipe_timings(intel_crtc);
 
