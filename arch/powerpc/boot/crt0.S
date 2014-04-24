@@ -275,6 +275,7 @@ prom:
 	rfid
 
 1:	/* Return from OF */
+	FIXUP_ENDIAN
 
 	/* Restore registers and return. */
 	rldicl  r1,r1,0,32
