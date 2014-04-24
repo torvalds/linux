@@ -589,7 +589,9 @@ struct iwl_mvm {
 	u32 *fw_error_rxf;
 	u32 fw_error_rxf_len;
 
+#ifdef CONFIG_IWLWIFI_LEDS
 	struct led_classdev led;
+#endif
 
 	struct ieee80211_vif *p2p_device_vif;
 
@@ -896,8 +898,18 @@ int iwl_mvm_power_uapsd_misbehaving_ap_notif(struct iwl_mvm *mvm,
 					     struct iwl_rx_cmd_buffer *rxb,
 					     struct iwl_device_cmd *cmd);
 
+#ifdef CONFIG_IWLWIFI_LEDS
 int iwl_mvm_leds_init(struct iwl_mvm *mvm);
 void iwl_mvm_leds_exit(struct iwl_mvm *mvm);
+#else
+static inline int iwl_mvm_leds_init(struct iwl_mvm *mvm)
+{
+	return 0;
+}
+static inline void iwl_mvm_leds_exit(struct iwl_mvm *mvm)
+{
+}
+#endif
 
 /* D3 (WoWLAN, NetDetect) */
 int iwl_mvm_suspend(struct ieee80211_hw *hw, struct cfg80211_wowlan *wowlan);
