@@ -3621,8 +3621,6 @@ intel_dp_detect(struct drm_connector *connector, bool force)
 	enum intel_display_power_domain power_domain;
 	struct edid *edid = NULL;
 
-	intel_runtime_pm_get(dev_priv);
-
 	power_domain = intel_display_port_power_domain(intel_encoder);
 	intel_display_power_get(dev_priv, power_domain);
 
@@ -3657,9 +3655,6 @@ intel_dp_detect(struct drm_connector *connector, bool force)
 
 out:
 	intel_display_power_put(dev_priv, power_domain);
-
-	intel_runtime_pm_put(dev_priv);
-
 	return status;
 }
 
