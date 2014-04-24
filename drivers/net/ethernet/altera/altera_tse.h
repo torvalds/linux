@@ -390,10 +390,11 @@ struct altera_dmaops {
 	void (*clear_rxirq)(struct altera_tse_private *);
 	int (*tx_buffer)(struct altera_tse_private *, struct tse_buffer *);
 	u32 (*tx_completions)(struct altera_tse_private *);
-	int (*add_rx_desc)(struct altera_tse_private *, struct tse_buffer *);
+	void (*add_rx_desc)(struct altera_tse_private *, struct tse_buffer *);
 	u32 (*get_rx_status)(struct altera_tse_private *);
 	int (*init_dma)(struct altera_tse_private *);
 	void (*uninit_dma)(struct altera_tse_private *);
+	void (*start_rxdma)(struct altera_tse_private *);
 };
 
 /* This structure is private to each device.
@@ -453,6 +454,7 @@ struct altera_tse_private {
 	u32 rxctrlreg;
 	dma_addr_t rxdescphys;
 	dma_addr_t txdescphys;
+	size_t sgdmadesclen;
 
 	struct list_head txlisthd;
 	struct list_head rxlisthd;

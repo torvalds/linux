@@ -224,6 +224,7 @@ static int tse_init_rx_buffer(struct altera_tse_private *priv,
 		dev_kfree_skb_any(rxbuffer->skb);
 		return -EINVAL;
 	}
+	rxbuffer->dma_addr &= (dma_addr_t)~3;
 	rxbuffer->len = len;
 	return 0;
 }
@@ -425,9 +426,10 @@ static int tse_rx(struct altera_tse_private *priv, int limit)
 		priv->dev->stats.rx_bytes += pktlength;
 
 		entry = next_entry;
+
+		tse_rx_refill(priv);
 	}
 
-	tse_rx_refill(priv);
 	return count;
 }
 
@@ -519,7 +521,6 @@ static irqreturn_t altera_isr(int irq, void *dev_id)
 	struct net_device *dev = dev_id;
 	struct altera_tse_private *priv;
 	unsigned long int flags;
-
 
 	if (unlikely(!dev)) {
 		pr_err("%s: invalid dev pointer\n", __func__);
@@ -868,13 +869,13 @@ static int init_mac(struct altera_tse_private *priv)
 	/* Disable RX/TX shift 16 for alignment of all received frames on 16-bit
 	 * start address
 	 */
-	tse_clear_bit(&mac->rx_cmd_stat, ALTERA_TSE_RX_CMD_STAT_RX_SHIFT16);
+	tse_set_bit(&mac->rx_cmd_stat, ALTERA_TSE_RX_CMD_STAT_RX_SHIFT16);
 	tse_clear_bit(&mac->tx_cmd_stat, ALTERA_TSE_TX_CMD_STAT_TX_SHIFT16 |
 					 ALTERA_TSE_TX_CMD_STAT_OMIT_CRC);
 
 	/* Set the MAC options */
 	cmd = ioread32(&mac->command_config);
-	cmd |= MAC_CMDCFG_PAD_EN;	/* Padding Removal on Receive */
+	cmd &= ~MAC_CMDCFG_PAD_EN;	/* No padding Removal on Receive */
 	cmd &= ~MAC_CMDCFG_CRC_FWD;	/* CRC Removal */
 	cmd |= MAC_CMDCFG_RX_ERR_DISC;	/* Automatically discard frames
 					 * with CRC errors
@@ -882,6 +883,12 @@ static int init_mac(struct altera_tse_private *priv)
 	cmd |= MAC_CMDCFG_CNTL_FRM_ENA;
 	cmd &= ~MAC_CMDCFG_TX_ENA;
 	cmd &= ~MAC_CMDCFG_RX_ENA;
+
+	/* Default speed and duplex setting, full/100 */
+	cmd &= ~MAC_CMDCFG_HD_ENA;
+	cmd &= ~MAC_CMDCFG_ETH_SPEED;
+	cmd &= ~MAC_CMDCFG_ENA_10;
+
 	iowrite32(cmd, &mac->command_config);
 
 	if (netif_msg_hw(priv))
@@ -1085,16 +1092,18 @@ static int tse_open(struct net_device *dev)
 
 	spin_unlock_irqrestore(&priv->rxdma_irq_lock, flags);
 
-	/* Start MAC Rx/Tx */
-	spin_lock(&priv->mac_cfg_lock);
-	tse_set_mac(priv, true);
-	spin_unlock(&priv->mac_cfg_lock);
-
 	if (priv->phydev)
 		phy_start(priv->phydev);
 
 	napi_enable(&priv->napi);
 	netif_start_queue(dev);
+
+	priv->dmaops->start_rxdma(priv);
+
+	/* Start MAC Rx/Tx */
+	spin_lock(&priv->mac_cfg_lock);
+	tse_set_mac(priv, true);
+	spin_unlock(&priv->mac_cfg_lock);
 
 	return 0;
 
@@ -1166,7 +1175,6 @@ static struct net_device_ops altera_tse_netdev_ops = {
 	.ndo_change_mtu		= tse_change_mtu,
 	.ndo_validate_addr	= eth_validate_addr,
 };
-
 
 static int request_and_map(struct platform_device *pdev, const char *name,
 			   struct resource **res, void __iomem **ptr)
@@ -1496,6 +1504,7 @@ struct altera_dmaops altera_dtype_sgdma = {
 	.get_rx_status = sgdma_rx_status,
 	.init_dma = sgdma_initialize,
 	.uninit_dma = sgdma_uninitialize,
+	.start_rxdma = sgdma_start_rxdma,
 };
 
 struct altera_dmaops altera_dtype_msgdma = {
@@ -1514,6 +1523,7 @@ struct altera_dmaops altera_dtype_msgdma = {
 	.get_rx_status = msgdma_rx_status,
 	.init_dma = msgdma_initialize,
 	.uninit_dma = msgdma_uninitialize,
+	.start_rxdma = msgdma_start_rxdma,
 };
 
 static struct of_device_id altera_tse_ids[] = {
