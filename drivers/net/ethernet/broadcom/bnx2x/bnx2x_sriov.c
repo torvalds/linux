@@ -612,6 +612,7 @@ int bnx2x_vf_mcast(struct bnx2x *bp, struct bnx2x_virtf *vf,
 		}
 
 		/* add new mcasts */
+		mcast.mcast_list_len = mc_num;
 		rc = bnx2x_config_mcast(bp, &mcast, BNX2X_MCAST_CMD_ADD);
 		if (rc)
 			BNX2X_ERR("Faled to add multicasts\n");
