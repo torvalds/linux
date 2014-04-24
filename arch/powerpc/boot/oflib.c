@@ -16,6 +16,8 @@
 
 #include "of.h"
 
+typedef u32 prom_arg_t;
+
 /* The following structure is used to communicate with open firmware.
  * All arguments in and out are in big endian format. */
 struct prom_args {
@@ -46,7 +48,7 @@ int of_call_prom(const char *service, int nargs, int nret, ...)
 
 	va_start(list, nret);
 	for (i = 0; i < nargs; i++)
-		args.args[i] = va_arg(list, unsigned int);
+		args.args[i] = va_arg(list, prom_arg_t);
 	va_end(list);
 
 	for (i = 0; i < nret; i++)
@@ -59,7 +61,7 @@ int of_call_prom(const char *service, int nargs, int nret, ...)
 }
 
 static int of_call_prom_ret(const char *service, int nargs, int nret,
-			    unsigned int *rets, ...)
+			    prom_arg_t *rets, ...)
 {
 	int i;
 	struct prom_args args;
@@ -71,7 +73,7 @@ static int of_call_prom_ret(const char *service, int nargs, int nret,
 
 	va_start(list, rets);
 	for (i = 0; i < nargs; i++)
-		args.args[i] = va_arg(list, unsigned int);
+		args.args[i] = va_arg(list, prom_arg_t);
 	va_end(list);
 
 	for (i = 0; i < nret; i++)
@@ -148,7 +150,7 @@ static int check_of_version(void)
 void *of_claim(unsigned long virt, unsigned long size, unsigned long align)
 {
 	int ret;
-	unsigned int result;
+	prom_arg_t result;
 
 	if (need_map < 0)
 		need_map = check_of_version();
