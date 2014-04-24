@@ -1245,7 +1245,7 @@ static int altera_tse_probe(struct platform_device *pdev)
 		/* Get the mapped address to the SGDMA descriptor memory */
 		ret = request_and_map(pdev, "s1", &dma_res, &descmap);
 		if (ret)
-			goto out_free;
+			goto err_free_netdev;
 
 		/* Start of that memory is for transmit descriptors */
 		priv->tx_dma_desc = descmap;
@@ -1264,24 +1264,24 @@ static int altera_tse_probe(struct platform_device *pdev)
 		if (upper_32_bits(priv->rxdescmem_busaddr)) {
 			dev_dbg(priv->device,
 				"SGDMA bus addresses greater than 32-bits\n");
-			goto out_free;
+			goto err_free_netdev;
 		}
 		if (upper_32_bits(priv->txdescmem_busaddr)) {
 			dev_dbg(priv->device,
 				"SGDMA bus addresses greater than 32-bits\n");
-			goto out_free;
+			goto err_free_netdev;
 		}
 	} else if (priv->dmaops &&
 		   priv->dmaops->altera_dtype == ALTERA_DTYPE_MSGDMA) {
 		ret = request_and_map(pdev, "rx_resp", &dma_res,
 				      &priv->rx_dma_resp);
 		if (ret)
-			goto out_free;
+			goto err_free_netdev;
 
 		ret = request_and_map(pdev, "tx_desc", &dma_res,
 				      &priv->tx_dma_desc);
 		if (ret)
-			goto out_free;
+			goto err_free_netdev;
 
 		priv->txdescmem = resource_size(dma_res);
 		priv->txdescmem_busaddr = dma_res->start;
@@ -1289,13 +1289,13 @@ static int altera_tse_probe(struct platform_device *pdev)
 		ret = request_and_map(pdev, "rx_desc", &dma_res,
 				      &priv->rx_dma_desc);
 		if (ret)
-			goto out_free;
+			goto err_free_netdev;
 
 		priv->rxdescmem = resource_size(dma_res);
 		priv->rxdescmem_busaddr = dma_res->start;
 
 	} else {
-		goto out_free;
+		goto err_free_netdev;
 	}
 
 	if (!dma_set_mask(priv->device, DMA_BIT_MASK(priv->dmaops->dmamask)))
@@ -1304,26 +1304,26 @@ static int altera_tse_probe(struct platform_device *pdev)
 	else if (!dma_set_mask(priv->device, DMA_BIT_MASK(32)))
 		dma_set_coherent_mask(priv->device, DMA_BIT_MASK(32));
 	else
-		goto out_free;
+		goto err_free_netdev;
 
 	/* MAC address space */
 	ret = request_and_map(pdev, "control_port", &control_port,
 			      (void __iomem **)&priv->mac_dev);
 	if (ret)
-		goto out_free;
+		goto err_free_netdev;
 
 	/* xSGDMA Rx Dispatcher address space */
 	ret = request_and_map(pdev, "rx_csr", &dma_res,
 			      &priv->rx_dma_csr);
 	if (ret)
-		goto out_free;
+		goto err_free_netdev;
 
 
 	/* xSGDMA Tx Dispatcher address space */
 	ret = request_and_map(pdev, "tx_csr", &dma_res,
 			      &priv->tx_dma_csr);
 	if (ret)
-		goto out_free;
+		goto err_free_netdev;
 
 
 	/* Rx IRQ */
@@ -1331,7 +1331,7 @@ static int altera_tse_probe(struct platform_device *pdev)
 	if (priv->rx_irq == -ENXIO) {
 		dev_err(&pdev->dev, "cannot obtain Rx IRQ\n");
 		ret = -ENXIO;
-		goto out_free;
+		goto err_free_netdev;
 	}
 
 	/* Tx IRQ */
@@ -1339,7 +1339,7 @@ static int altera_tse_probe(struct platform_device *pdev)
 	if (priv->tx_irq == -ENXIO) {
 		dev_err(&pdev->dev, "cannot obtain Tx IRQ\n");
 		ret = -ENXIO;
-		goto out_free;
+		goto err_free_netdev;
 	}
 
 	/* get FIFO depths from device tree */
@@ -1347,14 +1347,14 @@ static int altera_tse_probe(struct platform_device *pdev)
 				 &priv->rx_fifo_depth)) {
 		dev_err(&pdev->dev, "cannot obtain rx-fifo-depth\n");
 		ret = -ENXIO;
-		goto out_free;
+		goto err_free_netdev;
 	}
 
 	if (of_property_read_u32(pdev->dev.of_node, "tx-fifo-depth",
 				 &priv->rx_fifo_depth)) {
 		dev_err(&pdev->dev, "cannot obtain tx-fifo-depth\n");
 		ret = -ENXIO;
-		goto out_free;
+		goto err_free_netdev;
 	}
 
 	/* get hash filter settings for this instance */
@@ -1403,7 +1403,7 @@ static int altera_tse_probe(struct platform_device *pdev)
 	      ((priv->phy_addr >= 0) && (priv->phy_addr < PHY_MAX_ADDR)))) {
 		dev_err(&pdev->dev, "invalid phy-addr specified %d\n",
 			priv->phy_addr);
-		goto out_free;
+		goto err_free_netdev;
 	}
 
 	/* Create/attach to MDIO bus */
@@ -1411,7 +1411,7 @@ static int altera_tse_probe(struct platform_device *pdev)
 				     atomic_add_return(1, &instance_count));
 
 	if (ret)
-		goto out_free;
+		goto err_free_netdev;
 
 	/* initialize netdev */
 	ether_setup(ndev);
@@ -1448,7 +1448,7 @@ static int altera_tse_probe(struct platform_device *pdev)
 	ret = register_netdev(ndev);
 	if (ret) {
 		dev_err(&pdev->dev, "failed to register TSE net device\n");
-		goto out_free_mdio;
+		goto err_register_netdev;
 	}
 
 	platform_set_drvdata(pdev, ndev);
@@ -1465,13 +1465,16 @@ static int altera_tse_probe(struct platform_device *pdev)
 	ret = init_phy(ndev);
 	if (ret != 0) {
 		netdev_err(ndev, "Cannot attach to PHY (error: %d)\n", ret);
-		goto out_free_mdio;
+		goto err_init_phy;
 	}
 	return 0;
 
-out_free_mdio:
+err_init_phy:
+	unregister_netdev(ndev);
+err_register_netdev:
+	netif_napi_del(&priv->napi);
 	altera_tse_mdio_destroy(ndev);
-out_free:
+err_free_netdev:
 	free_netdev(ndev);
 	return ret;
 }
