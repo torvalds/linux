@@ -268,6 +268,21 @@ static int ioda_eeh_get_state(struct eeh_pe *pe)
 		return EEH_STATE_NOT_SUPPORT;
 	}
 
+	/*
+	 * If we're in middle of PE reset, return normal
+	 * state to keep EEH core going. For PHB reset, we
+	 * still expect to have fenced PHB cleared with
+	 * PHB reset.
+	 */
+	if (!(pe->type & EEH_PE_PHB) &&
+	    (pe->state & EEH_PE_RESET)) {
+		result = (EEH_STATE_MMIO_ACTIVE |
+			  EEH_STATE_DMA_ACTIVE |
+			  EEH_STATE_MMIO_ENABLED |
+			  EEH_STATE_DMA_ENABLED);
+		return result;
+	}
+
 	/* Retrieve PE status through OPAL */
 	pe_no = pe->addr;
 	ret = opal_pci_eeh_freeze_status(phb->opal_id, pe_no,
@@ -345,52 +360,6 @@ static int ioda_eeh_get_state(struct eeh_pe *pe)
 	}
 
 	return result;
-}
-
-static int ioda_eeh_pe_clear(struct eeh_pe *pe)
-{
-	struct pci_controller *hose;
-	struct pnv_phb *phb;
-	u32 pe_no;
-	u8 fstate;
-	u16 pcierr;
-	s64 ret;
-
-	pe_no = pe->addr;
-	hose = pe->phb;
-	phb = pe->phb->private_data;
-
-	/* Clear the EEH error on the PE */
-	ret = opal_pci_eeh_freeze_clear(phb->opal_id,
-			pe_no, OPAL_EEH_ACTION_CLEAR_FREEZE_ALL);
-	if (ret) {
-		pr_err("%s: Failed to clear EEH error for "
-		       "PHB#%x-PE#%x, err=%lld\n",
-		       __func__, hose->global_number, pe_no, ret);
-		return -EIO;
-	}
-
-	/*
-	 * Read the PE state back and verify that the frozen
-	 * state has been removed.
-	 */
-	ret = opal_pci_eeh_freeze_status(phb->opal_id, pe_no,
-			&fstate, &pcierr, NULL);
-	if (ret) {
-		pr_err("%s: Failed to get EEH status on "
-		       "PHB#%x-PE#%x\n, err=%lld\n",
-		       __func__, hose->global_number, pe_no, ret);
-		return -EIO;
-	}
-
-	if (fstate != OPAL_EEH_STOPPED_NOT_FROZEN) {
-		pr_err("%s: Frozen state not cleared on "
-		       "PHB#%x-PE#%x, sts=%x\n",
-		       __func__, hose->global_number, pe_no, fstate);
-		return -EIO;
-	}
-
-	return 0;
 }
 
 static s64 ioda_eeh_phb_poll(struct pnv_phb *phb)
@@ -524,27 +493,20 @@ static int ioda_eeh_reset(struct eeh_pe *pe, int option)
 	int ret;
 
 	/*
-	 * Anyway, we have to clear the problematic state for the
-	 * corresponding PE. However, we needn't do it if the PE
-	 * is PHB associated. That means the PHB is having fatal
-	 * errors and it needs reset. Further more, the AIB interface
-	 * isn't reliable any more.
-	 */
-	if (!(pe->type & EEH_PE_PHB) &&
-	    (option == EEH_RESET_HOT ||
-	    option == EEH_RESET_FUNDAMENTAL)) {
-		ret = ioda_eeh_pe_clear(pe);
-		if (ret)
-			return -EIO;
-	}
-
-	/*
 	 * The rules applied to reset, either fundamental or hot reset:
 	 *
 	 * We always reset the direct upstream bridge of the PE. If the
 	 * direct upstream bridge isn't root bridge, we always take hot
 	 * reset no matter what option (fundamental or hot) is. Otherwise,
 	 * we should do the reset according to the required option.
+	 *
+	 * Here, we have different design to pHyp, which always clear the
+	 * frozen state during PE reset. However, the good idea here from
+	 * benh is to keep frozen state before we get PE reset done completely
+	 * (until BAR restore). With the frozen state, HW drops illegal IO
+	 * or MMIO access, which can incur recrusive frozen PE during PE
+	 * reset. The side effect is that EEH core has to clear the frozen
+	 * state explicitly after BAR restore.
 	 */
 	if (pe->type & EEH_PE_PHB) {
 		ret = ioda_eeh_phb_reset(hose, option);

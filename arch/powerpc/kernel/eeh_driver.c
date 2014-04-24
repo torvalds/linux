@@ -417,6 +417,36 @@ static void *eeh_pe_detach_dev(void *data, void *userdata)
 	return NULL;
 }
 
+/*
+ * Explicitly clear PE's frozen state for PowerNV where
+ * we have frozen PE until BAR restore is completed. It's
+ * harmless to clear it for pSeries. To be consistent with
+ * PE reset (for 3 times), we try to clear the frozen state
+ * for 3 times as well.
+ */
+static int eeh_clear_pe_frozen_state(struct eeh_pe *pe)
+{
+	int i, rc;
+
+	for (i = 0; i < 3; i++) {
+		rc = eeh_pci_enable(pe, EEH_OPT_THAW_MMIO);
+		if (rc)
+			continue;
+		rc = eeh_pci_enable(pe, EEH_OPT_THAW_DMA);
+		if (!rc)
+			break;
+	}
+
+	/* The PE has been isolated, clear it */
+	if (rc)
+		pr_warn("%s: Can't clear frozen PHB#%x-PE#%x (%d)\n",
+			__func__, pe->phb->global_number, pe->addr, rc);
+	else
+		eeh_pe_state_clear(pe, EEH_PE_ISOLATED);
+
+	return rc;
+}
+
 /**
  * eeh_reset_device - Perform actual reset of a pci slot
  * @pe: EEH PE
@@ -473,6 +503,11 @@ static int eeh_reset_device(struct eeh_pe *pe, struct pci_bus *bus)
 	eeh_ops->configure_bridge(pe);
 	eeh_pe_restore_bars(pe);
 	eeh_pe_state_clear(pe, EEH_PE_RESET);
+
+	/* Clear frozen state */
+	rc = eeh_clear_pe_frozen_state(pe);
+	if (rc)
+		return rc;
 
 	/* Give the system 5 seconds to finish running the user-space
 	 * hotplug shutdown scripts, e.g. ifdown for ethernet.  Yes,

@@ -238,9 +238,13 @@ void eeh_slot_error_detail(struct eeh_pe *pe, int severity)
 	 * the data from PCI config space because it should return
 	 * 0xFF's. For ER, we still retrieve the data from the PCI
 	 * config space.
+	 *
+	 * For pHyp, we have to enable IO for log retrieval. Otherwise,
+	 * 0xFF's is always returned from PCI config space.
 	 */
 	if (!(pe->type & EEH_PE_PHB)) {
-		eeh_pci_enable(pe, EEH_OPT_THAW_MMIO);
+		if (eeh_probe_mode_devtree())
+			eeh_pci_enable(pe, EEH_OPT_THAW_MMIO);
 		eeh_ops->configure_bridge(pe);
 		eeh_pe_restore_bars(pe);
 
@@ -509,16 +513,42 @@ EXPORT_SYMBOL(eeh_check_failure);
  */
 int eeh_pci_enable(struct eeh_pe *pe, int function)
 {
-	int rc;
+	int rc, flags = (EEH_STATE_MMIO_ACTIVE | EEH_STATE_DMA_ACTIVE);
+
+	/*
+	 * pHyp doesn't allow to enable IO or DMA on unfrozen PE.
+	 * Also, it's pointless to enable them on unfrozen PE. So
+	 * we have the check here.
+	 */
+	if (function == EEH_OPT_THAW_MMIO ||
+	    function == EEH_OPT_THAW_DMA) {
+		rc = eeh_ops->get_state(pe, NULL);
+		if (rc < 0)
+			return rc;
+
+		/* Needn't to enable or already enabled */
+		if ((rc == EEH_STATE_NOT_SUPPORT) ||
+		    ((rc & flags) == flags))
+			return 0;
+	}
 
 	rc = eeh_ops->set_option(pe, function);
 	if (rc)
-		pr_warning("%s: Unexpected state change %d on PHB#%d-PE#%x, err=%d\n",
-			__func__, function, pe->phb->global_number, pe->addr, rc);
+		pr_warn("%s: Unexpected state change %d on "
+			"PHB#%d-PE#%x, err=%d\n",
+			__func__, function, pe->phb->global_number,
+			pe->addr, rc);
 
 	rc = eeh_ops->wait_state(pe, PCI_BUS_RESET_WAIT_MSEC);
-	if (rc > 0 && (rc & EEH_STATE_MMIO_ENABLED) &&
-	   (function == EEH_OPT_THAW_MMIO))
+	if (rc <= 0)
+		return rc;
+
+	if ((function == EEH_OPT_THAW_MMIO) &&
+	    (rc & EEH_STATE_MMIO_ENABLED))
+		return 0;
+
+	if ((function == EEH_OPT_THAW_DMA) &&
+	    (rc & EEH_STATE_DMA_ENABLED))
 		return 0;
 
 	return rc;
@@ -639,11 +669,13 @@ int eeh_reset_pe(struct eeh_pe *pe)
 	for (i=0; i<3; i++) {
 		eeh_reset_pe_once(pe);
 
+		/*
+		 * EEH_PE_ISOLATED is expected to be removed after
+		 * BAR restore.
+		 */
 		rc = eeh_ops->wait_state(pe, PCI_BUS_RESET_WAIT_MSEC);
-		if ((rc & flags) == flags) {
-			eeh_pe_state_clear(pe, EEH_PE_ISOLATED);
+		if ((rc & flags) == flags)
 			return 0;
-		}
 
 		if (rc < 0) {
 			pr_err("%s: Unrecoverable slot failure on PHB#%d-PE#%x",
