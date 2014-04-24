@@ -2807,27 +2807,6 @@ sub process_config_ignore {
     assign_configs \%config_ignore, $config;
 }
 
-sub read_current_config {
-    my ($config_ref) = @_;
-
-    %{$config_ref} = ();
-    undef %{$config_ref};
-
-    my @key = keys %{$config_ref};
-    if ($#key >= 0) {
-	print "did not delete!\n";
-	exit;
-    }
-    open (IN, "$output_config");
-
-    while (<IN>) {
-	if (/^(CONFIG\S+)=(.*)/) {
-	    ${$config_ref}{$1} = $2;
-	}
-    }
-    close(IN);
-}
-
 sub get_dependencies {
     my ($config) = @_;
 
@@ -2947,23 +2926,6 @@ sub run_config_bisect_test {
     return run_bisect_test $type, "oldconfig";
 }
 
-sub process_passed {
-    my (%configs) = @_;
-
-    doprint "These configs had no failure: (Enabling them for further compiles)\n";
-    # Passed! All these configs are part of a good compile.
-    # Add them to the min options.
-    foreach my $config (keys %configs) {
-	if (defined($config_list{$config})) {
-	    doprint " removing $config\n";
-	    $config_ignore{$config} = $config_list{$config};
-	    delete $config_list{$config};
-	}
-    }
-    doprint "config copied to $outputdir/config_good\n";
-    run_command "cp -f $output_config $outputdir/config_good";
-}
-
 sub process_failed {
     my ($config) = @_;
 
@@ -3066,7 +3028,7 @@ sub run_config_bisect {
     if (!$runtest && $len_diff > 0) {
 
 	if ($len_diff == 1) {
-	    doprint "The bad config setting is: $diff_arr[0]\n";
+	    process_failed $diff_arr[0];
 	    return 1;
 	}
 	my %tmp_config = %bad_configs;
@@ -3469,29 +3431,6 @@ sub read_depends {
     }
 
     read_kconfig($kconfig);
-}
-
-sub read_config_list {
-    my ($config) = @_;
-
-    open (IN, $config)
-	or dodie "Failed to read $config";
-
-    while (<IN>) {
-	if (/^((CONFIG\S*)=.*)/) {
-	    if (!defined($config_ignore{$2})) {
-		$config_list{$2} = $1;
-	    }
-	}
-    }
-
-    close(IN);
-}
-
-sub read_output_config {
-    my ($config) = @_;
-
-    assign_configs \%config_ignore, $config;
 }
 
 sub make_new_config {
