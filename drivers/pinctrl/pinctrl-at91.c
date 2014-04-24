@@ -1453,6 +1453,7 @@ static void gpio_irq_handler(unsigned irq, struct irq_desc *desc)
 				break;
 			at91_gpio = at91_gpio->next;
 			pio = at91_gpio->regbase;
+			gpio_chip = &at91_gpio->chip;
 			continue;
 		}
 
@@ -1468,6 +1469,7 @@ static void gpio_irq_handler(unsigned irq, struct irq_desc *desc)
 static int at91_gpio_of_irq_setup(struct device_node *node,
 				  struct at91_gpio_chip *at91_gpio)
 {
+	struct at91_gpio_chip   *prev = NULL;
 	struct irq_data		*d = irq_get_irq_data(at91_gpio->pioc_virq);
 	int ret;
 
@@ -1492,6 +1494,17 @@ static int at91_gpio_of_irq_setup(struct device_node *node,
 	if (ret)
 		panic("at91_gpio.%d: couldn't allocate irq domain (DT).\n",
 			at91_gpio->pioc_idx);
+
+	/* Setup chained handler */
+	if (at91_gpio->pioc_idx)
+		prev = gpio_chips[at91_gpio->pioc_idx - 1];
+
+	/* The top level handler handles one bank of GPIOs, except
+	 * on some SoC it can handle up to three...
+	 * We only set up the handler for the first of the list.
+	 */
+	if (prev && prev->next == at91_gpio)
+		return 0;
 
 	/* Then register the chain on the parent IRQ */
 	gpiochip_set_chained_irqchip(&at91_gpio->chip,
