@@ -166,8 +166,7 @@ static int simple_card_dai_link_of(struct device_node *node,
 	np = of_get_child_by_name(node, prop);
 	if (!np) {
 		ret = -EINVAL;
-		dev_err(dev, "%s: Can't find simple-audio-card,cpu DT node\n",
-			__func__);
+		dev_err(dev, "%s: Can't find %s DT node\n", __func__, prop);
 		goto dai_link_of_err;
 	}
 
@@ -198,8 +197,7 @@ static int simple_card_dai_link_of(struct device_node *node,
 	np = of_get_child_by_name(node, prop);
 	if (!np) {
 		ret = -EINVAL;
-		dev_err(dev, "%s: Can't find simple-audio-card,codec DT node\n",
-			__func__);
+		dev_err(dev, "%s: Can't find %s DT node\n", __func__, prop);
 		goto dai_link_of_err;
 	}
 
