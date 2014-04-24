@@ -1190,7 +1190,6 @@ static int at86rf230_probe(struct spi_device *spi)
 
 err_hw_init:
 	flush_work(&lp->irqwork);
-	spi_set_drvdata(spi, NULL);
 	mutex_destroy(&lp->bmux);
 	ieee802154_free_device(lp->dev);
 
