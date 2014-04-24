@@ -187,6 +187,64 @@ struct platform_device *of_device_alloc(struct device_node *np,
 EXPORT_SYMBOL(of_device_alloc);
 
 /**
+ * of_dma_configure - Setup DMA configuration
+ * @dev:	Device to apply DMA configuration
+ *
+ * Try to get devices's DMA configuration from DT and update it
+ * accordingly.
+ *
+ * In case if platform code need to use own special DMA configuration,it
+ * can use Platform bus notifier and handle BUS_NOTIFY_ADD_DEVICE event
+ * to fix up DMA configuration.
+ */
+static void of_dma_configure(struct platform_device *pdev)
+{
+	u64 dma_addr, paddr, size;
+	int ret;
+	struct device *dev = &pdev->dev;
+
+#if defined(CONFIG_MICROBLAZE)
+	pdev->archdata.dma_mask = 0xffffffffUL;
+#endif
+
+	/*
+	 * Set default dma-mask to 32 bit. Drivers are expected to setup
+	 * the correct supported dma_mask.
+	 */
+	dev->coherent_dma_mask = DMA_BIT_MASK(32);
+
+	/*
+	 * Set it to coherent_dma_mask by default if the architecture
+	 * code has not set it.
+	 */
+	if (!dev->dma_mask)
+		dev->dma_mask = &dev->coherent_dma_mask;
+
+	/*
+	 * if dma-coherent property exist, call arch hook to setup
+	 * dma coherent operations.
+	 */
+	if (of_dma_is_coherent(dev->of_node)) {
+		set_arch_dma_coherent_ops(dev);
+		dev_dbg(dev, "device is dma coherent\n");
+	}
+
+	/*
+	 * if dma-ranges property doesn't exist - just return else
+	 * setup the dma offset
+	 */
+	ret = of_dma_get_range(dev->of_node, &dma_addr, &paddr, &size);
+	if (ret < 0) {
+		dev_dbg(dev, "no dma range information to setup\n");
+		return;
+	}
+
+	/* DMA ranges found. Calculate and set dma_pfn_offset */
+	dev->dma_pfn_offset = PFN_DOWN(paddr - dma_addr);
+	dev_dbg(dev, "dma_pfn_offset(%#08lx)\n", dev->dma_pfn_offset);
+}
+
+/**
  * of_platform_device_create_pdata - Alloc, initialize and register an of_device
  * @np: pointer to node to create device for
  * @bus_id: name to assign device
@@ -211,12 +269,7 @@ static struct platform_device *of_platform_device_create_pdata(
 	if (!dev)
 		return NULL;
 
-#if defined(CONFIG_MICROBLAZE)
-	dev->archdata.dma_mask = 0xffffffffUL;
-#endif
-	dev->dev.coherent_dma_mask = DMA_BIT_MASK(32);
-	if (!dev->dev.dma_mask)
-		dev->dev.dma_mask = &dev->dev.coherent_dma_mask;
+	of_dma_configure(dev);
 	dev->dev.bus = &platform_bus_type;
 	dev->dev.platform_data = platform_data;
 
