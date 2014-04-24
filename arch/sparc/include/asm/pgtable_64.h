@@ -719,20 +719,6 @@ static inline pmd_t pmd_mkwrite(pmd_t pmd)
 	return __pmd(pte_val(pte));
 }
 
-static inline pmd_t pmd_mknotpresent(pmd_t pmd)
-{
-	unsigned long mask;
-
-	if (tlb_type == hypervisor)
-		mask = _PAGE_PRESENT_4V;
-	else
-		mask = _PAGE_PRESENT_4U;
-
-	pmd_val(pmd) &= ~mask;
-
-	return pmd;
-}
-
 static inline pmd_t pmd_mksplitting(pmd_t pmd)
 {
 	pte_t pte = __pte(pmd_val(pmd));
@@ -892,6 +878,10 @@ extern void update_mmu_cache(struct vm_area_struct *, unsigned long, pte_t *);
 #ifdef CONFIG_TRANSPARENT_HUGEPAGE
 extern void update_mmu_cache_pmd(struct vm_area_struct *vma, unsigned long addr,
 				 pmd_t *pmd);
+
+#define __HAVE_ARCH_PMDP_INVALIDATE
+extern void pmdp_invalidate(struct vm_area_struct *vma, unsigned long address,
+			    pmd_t *pmdp);
 
 #define __HAVE_ARCH_PGTABLE_DEPOSIT
 extern void pgtable_trans_huge_deposit(struct mm_struct *mm, pmd_t *pmdp,

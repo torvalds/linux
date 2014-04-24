@@ -193,6 +193,17 @@ void set_pmd_at(struct mm_struct *mm, unsigned long addr,
 	}
 }
 
+void pmdp_invalidate(struct vm_area_struct *vma, unsigned long address,
+		     pmd_t *pmdp)
+{
+	pmd_t entry = *pmdp;
+
+	pmd_val(entry) &= ~_PAGE_VALID;
+
+	set_pmd_at(vma->vm_mm, address, pmdp, entry);
+	flush_tlb_range(vma, address, address + HPAGE_PMD_SIZE);
+}
+
 void pgtable_trans_huge_deposit(struct mm_struct *mm, pmd_t *pmdp,
 				pgtable_t pgtable)
 {
