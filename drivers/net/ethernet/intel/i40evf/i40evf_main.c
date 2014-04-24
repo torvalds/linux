@@ -1091,14 +1091,14 @@ static int i40evf_alloc_queues(struct i40evf_adapter *adapter)
 		tx_ring->queue_index = i;
 		tx_ring->netdev = adapter->netdev;
 		tx_ring->dev = &adapter->pdev->dev;
-		tx_ring->count = I40EVF_DEFAULT_TXD;
+		tx_ring->count = adapter->tx_desc_count;
 		adapter->tx_rings[i] = tx_ring;
 
 		rx_ring = &tx_ring[1];
 		rx_ring->queue_index = i;
 		rx_ring->netdev = adapter->netdev;
 		rx_ring->dev = &adapter->pdev->dev;
-		rx_ring->count = I40EVF_DEFAULT_RXD;
+		rx_ring->count = adapter->rx_desc_count;
 		adapter->rx_rings[i] = rx_ring;
 	}
 
@@ -1669,6 +1669,7 @@ static int i40evf_setup_all_tx_resources(struct i40evf_adapter *adapter)
 	int i, err = 0;
 
 	for (i = 0; i < adapter->vsi_res->num_queue_pairs; i++) {
+		adapter->tx_rings[i]->count = adapter->tx_desc_count;
 		err = i40evf_setup_tx_descriptors(adapter->tx_rings[i]);
 		if (!err)
 			continue;
@@ -1696,6 +1697,7 @@ static int i40evf_setup_all_rx_resources(struct i40evf_adapter *adapter)
 	int i, err = 0;
 
 	for (i = 0; i < adapter->vsi_res->num_queue_pairs; i++) {
+		adapter->rx_rings[i]->count = adapter->rx_desc_count;
 		err = i40evf_setup_rx_descriptors(adapter->rx_rings[i]);
 		if (!err)
 			continue;
@@ -2092,6 +2094,8 @@ static void i40evf_init_task(struct work_struct *work)
 	adapter->watchdog_timer.data = (unsigned long)adapter;
 	mod_timer(&adapter->watchdog_timer, jiffies + 1);
 
+	adapter->tx_desc_count = I40EVF_DEFAULT_TXD;
+	adapter->rx_desc_count = I40EVF_DEFAULT_RXD;
 	err = i40evf_init_interrupt_scheme(adapter);
 	if (err)
 		goto err_sw_init;

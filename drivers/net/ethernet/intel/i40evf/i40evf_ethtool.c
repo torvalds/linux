@@ -224,13 +224,11 @@ static void i40evf_get_ringparam(struct net_device *netdev,
 				  struct ethtool_ringparam *ring)
 {
 	struct i40evf_adapter *adapter = netdev_priv(netdev);
-	struct i40e_ring *tx_ring = adapter->tx_rings[0];
-	struct i40e_ring *rx_ring = adapter->rx_rings[0];
 
 	ring->rx_max_pending = I40EVF_MAX_RXD;
 	ring->tx_max_pending = I40EVF_MAX_TXD;
-	ring->rx_pending = rx_ring->count;
-	ring->tx_pending = tx_ring->count;
+	ring->rx_pending = adapter->rx_desc_count;
+	ring->tx_pending = adapter->tx_desc_count;
 }
 
 /**
@@ -246,7 +244,6 @@ static int i40evf_set_ringparam(struct net_device *netdev,
 {
 	struct i40evf_adapter *adapter = netdev_priv(netdev);
 	u32 new_rx_count, new_tx_count;
-	int i;
 
 	if ((ring->rx_mini_pending) || (ring->rx_jumbo_pending))
 		return -EINVAL;
@@ -262,17 +259,16 @@ static int i40evf_set_ringparam(struct net_device *netdev,
 	new_rx_count = ALIGN(new_rx_count, I40EVF_REQ_DESCRIPTOR_MULTIPLE);
 
 	/* if nothing to do return success */
-	if ((new_tx_count == adapter->tx_rings[0]->count) &&
-	    (new_rx_count == adapter->rx_rings[0]->count))
+	if ((new_tx_count == adapter->tx_desc_count) &&
+	    (new_rx_count == adapter->rx_desc_count))
 		return 0;
 
-	for (i = 0; i < adapter->vsi_res->num_queue_pairs; i++) {
-		adapter->tx_rings[0]->count = new_tx_count;
-		adapter->rx_rings[0]->count = new_rx_count;
-	}
+	adapter->tx_desc_count = new_tx_count;
+	adapter->rx_desc_count = new_rx_count;
 
 	if (netif_running(netdev))
 		i40evf_reinit_locked(adapter);
+
 	return 0;
 }
 
