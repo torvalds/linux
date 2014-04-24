@@ -1374,14 +1374,23 @@ static struct clk *clk_propagate_rate_change(struct clk *clk, unsigned long even
 static void clk_change_rate(struct clk *clk)
 {
 	struct clk *child;
-	unsigned long old_rate;
+	unsigned long old_rate, tmp_rate;
 	unsigned long best_parent_rate = 0;
 
 	old_rate = clk->rate;
 
 	/* set parent */
-	if (clk->new_parent && clk->new_parent != clk->parent)
+	if (clk->new_parent && clk->new_parent != clk->parent) {
+		if (clk->flags & CLK_SET_RATE_PARENT_IN_ORDER) {
+			tmp_rate = clk->ops->recalc_rate(clk->hw, clk->new_parent->rate);
+			if ((tmp_rate > clk->rate) && (tmp_rate > clk->new_rate)) {
+				if (clk->ops->set_rate)
+					clk->ops->set_rate(clk->hw, clk->new_rate, clk->new_parent->rate);
+			}
+		}
+
 		__clk_set_parent(clk, clk->new_parent, clk->new_parent_index);
+	}
 
 	if (clk->parent)
 		best_parent_rate = clk->parent->rate;

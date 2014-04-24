@@ -28,6 +28,9 @@
 #define CLK_IS_BASIC		BIT(5) /* Basic clk, can't do a to_clk_foo() */
 #define CLK_GET_RATE_NOCACHE	BIT(6) /* do not use the cached clk rate */
 #define CLK_SET_RATE_NO_REPARENT BIT(7) /* don't re-parent on rate change */
+#define CLK_SET_RATE_PARENT_IN_ORDER BIT(8) /* consider the order of re-parent
+						and set_div on rate change */
+
 
 struct clk_hw;
 
