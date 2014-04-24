@@ -318,22 +318,22 @@ struct firmware_info {
  * Firmware - BIOS, FEP, and CONC filenames
  */
 static struct firmware_info fw_info[] = {
-	{ "dgap/dgap.conf", "dgap/sxbios.bin",  "dgap/sxfep.bin",  0, 0 },
-	{ "dgap/dgap.conf", "dgap/cxpbios.bin", "dgap/cxpfep.bin", 0, 1 },
-	{ "dgap/dgap.conf", "dgap/cxpbios.bin", "dgap/cxpfep.bin", 0, 2 },
-	{ "dgap/dgap.conf", "dgap/pcibios.bin", "dgap/pcifep.bin", 0, 3 },
-	{ "dgap/dgap.conf", "dgap/xrbios.bin",  "dgap/xrfep.bin",  0, 4 },
-	{ "dgap/dgap.conf", "dgap/xrbios.bin",  "dgap/xrfep.bin",  0, 5 },
-	{ "dgap/dgap.conf", "dgap/xrbios.bin",  "dgap/xrfep.bin",  0, 6 },
-	{ "dgap/dgap.conf", "dgap/xrbios.bin",  "dgap/xrfep.bin",  0, 7 },
-	{ "dgap/dgap.conf", "dgap/xrbios.bin",  "dgap/xrfep.bin",  0, 8 },
-	{ "dgap/dgap.conf", "dgap/xrbios.bin",  "dgap/xrfep.bin",  0, 9 },
-	{ "dgap/dgap.conf", "dgap/xrbios.bin",  "dgap/xrfep.bin",  0, 10 },
-	{ "dgap/dgap.conf", "dgap/xrbios.bin",  "dgap/xrfep.bin",  0, 11 },
-	{ "dgap/dgap.conf", "dgap/xrbios.bin",  "dgap/xrfep.bin",  0, 12 },
-	{ "dgap/dgap.conf", "dgap/xrbios.bin",  "dgap/xrfep.bin",  0, 13 },
-	{ "dgap/dgap.conf", "dgap/sxbios.bin",  "dgap/sxfep.bin",  0, 14 },
-	{0,}
+	{ "dgap/dgap.conf", "dgap/sxbios.bin",  "dgap/sxfep.bin",  NULL, 0 },
+	{ "dgap/dgap.conf", "dgap/cxpbios.bin", "dgap/cxpfep.bin", NULL, 1 },
+	{ "dgap/dgap.conf", "dgap/cxpbios.bin", "dgap/cxpfep.bin", NULL, 2 },
+	{ "dgap/dgap.conf", "dgap/pcibios.bin", "dgap/pcifep.bin", NULL, 3 },
+	{ "dgap/dgap.conf", "dgap/xrbios.bin",  "dgap/xrfep.bin",  NULL, 4 },
+	{ "dgap/dgap.conf", "dgap/xrbios.bin",  "dgap/xrfep.bin",  NULL, 5 },
+	{ "dgap/dgap.conf", "dgap/xrbios.bin",  "dgap/xrfep.bin",  NULL, 6 },
+	{ "dgap/dgap.conf", "dgap/xrbios.bin",  "dgap/xrfep.bin",  NULL, 7 },
+	{ "dgap/dgap.conf", "dgap/xrbios.bin",  "dgap/xrfep.bin",  NULL, 8 },
+	{ "dgap/dgap.conf", "dgap/xrbios.bin",  "dgap/xrfep.bin",  NULL, 9 },
+	{ "dgap/dgap.conf", "dgap/xrbios.bin",  "dgap/xrfep.bin",  NULL, 10 },
+	{ "dgap/dgap.conf", "dgap/xrbios.bin",  "dgap/xrfep.bin",  NULL, 11 },
+	{ "dgap/dgap.conf", "dgap/xrbios.bin",  "dgap/xrfep.bin",  NULL, 12 },
+	{ "dgap/dgap.conf", "dgap/xrbios.bin",  "dgap/xrfep.bin",  NULL, 13 },
+	{ "dgap/dgap.conf", "dgap/sxbios.bin",  "dgap/sxfep.bin",  NULL, 14 },
+	{NULL,}
 };
 
 /*
