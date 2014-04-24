@@ -124,8 +124,6 @@ void __init paging_init(void)
 	__ctl_load(S390_lowcore.kernel_asce, 13, 13);
 	arch_local_irq_restore(4UL << (BITS_PER_LONG - 8));
 
-	atomic_set(&init_mm.context.attach_count, 1);
-
 	sparse_memory_present_with_active_regions(MAX_NUMNODES);
 	sparse_init();
 	memset(max_zone_pfns, 0, sizeof(max_zone_pfns));
@@ -136,6 +134,11 @@ void __init paging_init(void)
 
 void __init mem_init(void)
 {
+	if (MACHINE_HAS_TLB_LC)
+		cpumask_set_cpu(0, &init_mm.context.cpu_attach_mask);
+	cpumask_set_cpu(0, mm_cpumask(&init_mm));
+	atomic_set(&init_mm.context.attach_count, 1);
+
         max_mapnr = max_low_pfn;
         high_memory = (void *) __va(max_low_pfn * PAGE_SIZE);
 

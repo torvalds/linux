@@ -174,8 +174,20 @@
 };
 
 &mmc1 {
+	/* See 35xx errata 2.1.1.128 in SPRZ278F */
+	compatible = "ti,omap3-pre-es3-hsmmc";
 	vmmc-supply = <&vmmc1>;
 	bus-width = <4>;
+	pinctrl-names = "default";
+	pinctrl-0 = <&mmc1_pins>;
+};
+
+&mmc2 {
+	status="disabled";
+};
+
+&mmc3 {
+	status="disabled";
 };
 
 &omap3_pmx_core {
@@ -207,6 +219,17 @@
 			0x176 (PIN_INPUT | MUX_MODE0)	/* hsusb0_dir.hsusb0_dir */
 			0x178 (PIN_INPUT | MUX_MODE0)	/* hsusb0_nxt.hsusb0_nxt */
 			0x174 (PIN_OUTPUT | MUX_MODE0)	/* hsusb0_stp.hsusb0_stp */
+		>;
+	};
+
+	mmc1_pins: pinmux_mmc1_pins {
+		pinctrl-single,pins = <
+			OMAP3_CORE1_IOPAD(0x2144, PIN_INPUT_PULLUP | MUX_MODE0)	/* mmc1_clk.mmc1_clk */
+			OMAP3_CORE1_IOPAD(0x2146, PIN_INPUT_PULLUP | MUX_MODE0)	/* mmc1_cmd.mmc1_cmd */
+			OMAP3_CORE1_IOPAD(0x2148, PIN_INPUT_PULLUP | MUX_MODE0)	/* mmc1_dat0.mmc1_dat0 */
+			OMAP3_CORE1_IOPAD(0x214A, PIN_INPUT_PULLUP | MUX_MODE0)	/* mmc1_dat1.mmc1_dat1 */
+			OMAP3_CORE1_IOPAD(0x214C, PIN_INPUT_PULLUP | MUX_MODE0)	/* mmc1_dat2.mmc1_dat2 */
+			OMAP3_CORE1_IOPAD(0x214e, PIN_INPUT_PULLUP | MUX_MODE0)	/* mmc1_dat3.mmc1_dat3 */
 		>;
 	};
 };

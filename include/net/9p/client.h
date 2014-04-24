@@ -67,7 +67,6 @@ enum p9_trans_status {
  * @REQ_STATUS_ALLOC: request has been allocated but not sent
  * @REQ_STATUS_UNSENT: request waiting to be sent
  * @REQ_STATUS_SENT: request sent to server
- * @REQ_STATUS_FLSH: a flush has been sent for this request
  * @REQ_STATUS_RCVD: response received from server
  * @REQ_STATUS_FLSHD: request has been flushed
  * @REQ_STATUS_ERROR: request encountered an error on the client side
@@ -83,7 +82,6 @@ enum p9_req_status_t {
 	REQ_STATUS_ALLOC,
 	REQ_STATUS_UNSENT,
 	REQ_STATUS_SENT,
-	REQ_STATUS_FLSH,
 	REQ_STATUS_RCVD,
 	REQ_STATUS_FLSHD,
 	REQ_STATUS_ERROR,
@@ -130,7 +128,6 @@ struct p9_req_t {
  * @proto_version: 9P protocol version to use
  * @trans_mod: module API instantiated with this client
  * @trans: tranport instance state and API
- * @conn: connection state information used by trans_fd
  * @fidpool: fid handle accounting for session
  * @fidlist: List of active fid handles
  * @tagpool - transaction id accounting for session
@@ -159,7 +156,6 @@ struct p9_client {
 	struct p9_trans_module *trans_mod;
 	enum p9_trans_status status;
 	void *trans;
-	struct p9_conn *conn;
 
 	struct p9_idpool *fidpool;
 	struct list_head fidlist;
@@ -261,7 +257,7 @@ int p9_client_mkdir_dotl(struct p9_fid *fid, char *name, int mode,
 int p9_client_lock_dotl(struct p9_fid *fid, struct p9_flock *flock, u8 *status);
 int p9_client_getlock_dotl(struct p9_fid *fid, struct p9_getlock *fl);
 struct p9_req_t *p9_tag_lookup(struct p9_client *, u16);
-void p9_client_cb(struct p9_client *c, struct p9_req_t *req);
+void p9_client_cb(struct p9_client *c, struct p9_req_t *req, int status);
 
 int p9_parse_header(struct p9_fcall *, int32_t *, int8_t *, int16_t *, int);
 int p9stat_read(struct p9_client *, char *, int, struct p9_wstat *);

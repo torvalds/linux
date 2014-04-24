@@ -16,7 +16,7 @@
 
 / {
 	model = "FriendlyARM TINY4412 board based on Exynos4412";
-	compatible = "friendlyarm,tiny4412", "samsung,exynos4412";
+	compatible = "friendlyarm,tiny4412", "samsung,exynos4412", "samsung,exynos4";
 
 	memory {
 		reg = <0x40000000 0x40000000>;

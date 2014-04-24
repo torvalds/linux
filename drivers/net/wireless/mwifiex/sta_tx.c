@@ -95,6 +95,9 @@ void *mwifiex_process_sta_txpd(struct mwifiex_private *priv,
 		}
 	}
 
+	if (tx_info->flags & MWIFIEX_BUF_FLAG_TDLS_PKT)
+		local_tx_pd->flags |= MWIFIEX_TXPD_FLAGS_TDLS_PACKET;
+
 	/* Offset of actual data */
 	pkt_offset = sizeof(struct txpd) + pad;
 	if (pkt_type == PKT_TYPE_MGMT) {

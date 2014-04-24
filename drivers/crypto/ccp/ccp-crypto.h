@@ -137,11 +137,14 @@ struct ccp_aes_cmac_req_ctx {
 #define MAX_SHA_BLOCK_SIZE	SHA256_BLOCK_SIZE
 
 struct ccp_sha_ctx {
+	struct scatterlist opad_sg;
+	unsigned int opad_count;
+
 	unsigned int key_len;
 	u8 key[MAX_SHA_BLOCK_SIZE];
 	u8 ipad[MAX_SHA_BLOCK_SIZE];
 	u8 opad[MAX_SHA_BLOCK_SIZE];
-	struct crypto_ahash *hmac_tfm;
+	struct crypto_shash *hmac_tfm;
 };
 
 struct ccp_sha_req_ctx {
@@ -166,9 +169,6 @@ struct ccp_sha_req_ctx {
 	struct scatterlist buf_sg;
 	unsigned int buf_count;
 	u8 buf[MAX_SHA_BLOCK_SIZE];
-
-	/* HMAC support field */
-	struct scatterlist pad_sg;
 
 	/* CCP driver command */
 	struct ccp_cmd cmd;

@@ -647,9 +647,8 @@ static u16 i40e_clean_asq(struct i40e_hw *hw)
 			desc_cb = *desc;
 			cb_func(hw, &desc_cb);
 		}
-		memset((void *)desc, 0, sizeof(struct i40e_aq_desc));
-		memset((void *)details, 0,
-		       sizeof(struct i40e_asq_cmd_details));
+		memset(desc, 0, sizeof(*desc));
+		memset(details, 0, sizeof(*details));
 		ntc++;
 		if (ntc == asq->count)
 			ntc = 0;

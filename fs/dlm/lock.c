@@ -687,6 +687,7 @@ static int find_rsb_dir(struct dlm_ls *ls, char *name, int len,
 		log_error(ls, "find_rsb new from_other %d dir %d our %d %s",
 			  from_nodeid, dir_nodeid, our_nodeid, r->res_name);
 		dlm_free_rsb(r);
+		r = NULL;
 		error = -ENOTBLK;
 		goto out_unlock;
 	}
@@ -5462,7 +5463,7 @@ void dlm_recover_purge(struct dlm_ls *ls)
 	up_write(&ls->ls_root_sem);
 
 	if (lkb_count)
-		log_debug(ls, "dlm_recover_purge %u locks for %u nodes",
+		log_rinfo(ls, "dlm_recover_purge %u locks for %u nodes",
 			  lkb_count, nodes_count);
 }
 
@@ -5536,7 +5537,7 @@ void dlm_recover_grant(struct dlm_ls *ls)
 	}
 
 	if (lkb_count)
-		log_debug(ls, "dlm_recover_grant %u locks on %u resources",
+		log_rinfo(ls, "dlm_recover_grant %u locks on %u resources",
 			  lkb_count, rsb_count);
 }
 
@@ -5695,7 +5696,7 @@ int dlm_recover_master_copy(struct dlm_ls *ls, struct dlm_rcom *rc)
 	put_rsb(r);
  out:
 	if (error && error != -EEXIST)
-		log_debug(ls, "dlm_recover_master_copy remote %d %x error %d",
+		log_rinfo(ls, "dlm_recover_master_copy remote %d %x error %d",
 			  from_nodeid, remid, error);
 	rl->rl_result = cpu_to_le32(error);
 	return error;

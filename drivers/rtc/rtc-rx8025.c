@@ -551,7 +551,6 @@ static int rx8025_probe(struct i2c_client *client,
 
 	rx8025 = devm_kzalloc(&client->dev, sizeof(*rx8025), GFP_KERNEL);
 	if (!rx8025) {
-		dev_err(&adapter->dev, "failed to alloc memory\n");
 		err = -ENOMEM;
 		goto errout;
 	}

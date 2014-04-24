@@ -1571,7 +1571,8 @@ static int da732x_i2c_probe(struct i2c_client *i2c,
 	}
 
 	dev_info(&i2c->dev, "Revision: %d.%d\n",
-		 (reg & DA732X_ID_MAJOR_MASK), (reg & DA732X_ID_MINOR_MASK));
+		 (reg & DA732X_ID_MAJOR_MASK) >> 4,
+		 (reg & DA732X_ID_MINOR_MASK));
 
 	ret = snd_soc_register_codec(&i2c->dev, &soc_codec_dev_da732x,
 				     da732x_dai, ARRAY_SIZE(da732x_dai));

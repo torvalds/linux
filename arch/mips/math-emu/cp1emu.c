@@ -876,20 +876,43 @@ static inline int cop1_64bit(struct pt_regs *xcp)
 #endif
 }
 
-#define SIFROMREG(si, x) ((si) = cop1_64bit(xcp) || !(x & 1) ? \
-			(int)ctx->fpr[x] : (int)(ctx->fpr[x & ~1] >> 32))
+#define SIFROMREG(si, x) do {						\
+	if (cop1_64bit(xcp))						\
+		(si) = get_fpr32(&ctx->fpr[x], 0);			\
+	else								\
+		(si) = get_fpr32(&ctx->fpr[(x) & ~1], (x) & 1);		\
+} while (0)
 
-#define SITOREG(si, x)	(ctx->fpr[x & ~(cop1_64bit(xcp) == 0)] = \
-			cop1_64bit(xcp) || !(x & 1) ? \
-			ctx->fpr[x & ~1] >> 32 << 32 | (u32)(si) : \
-			ctx->fpr[x & ~1] << 32 >> 32 | (u64)(si) << 32)
+#define SITOREG(si, x) do {						\
+	if (cop1_64bit(xcp)) {						\
+		unsigned i;						\
+		set_fpr32(&ctx->fpr[x], 0, si);				\
+		for (i = 1; i < ARRAY_SIZE(ctx->fpr[x].val32); i++)	\
+			set_fpr32(&ctx->fpr[x], i, 0);			\
+	} else {							\
+		set_fpr32(&ctx->fpr[(x) & ~1], (x) & 1, si);		\
+	}								\
+} while (0)
 
-#define SIFROMHREG(si, x)	((si) = (int)(ctx->fpr[x] >> 32))
-#define SITOHREG(si, x)		(ctx->fpr[x] = \
-				ctx->fpr[x] << 32 >> 32 | (u64)(si) << 32)
+#define SIFROMHREG(si, x)	((si) = get_fpr32(&ctx->fpr[x], 1))
 
-#define DIFROMREG(di, x) ((di) = ctx->fpr[x & ~(cop1_64bit(xcp) == 0)])
-#define DITOREG(di, x)	(ctx->fpr[x & ~(cop1_64bit(xcp) == 0)] = (di))
+#define SITOHREG(si, x) do {						\
+	unsigned i;							\
+	set_fpr32(&ctx->fpr[x], 1, si);					\
+	for (i = 2; i < ARRAY_SIZE(ctx->fpr[x].val32); i++)		\
+		set_fpr32(&ctx->fpr[x], i, 0);				\
+} while (0)
+
+#define DIFROMREG(di, x) \
+	((di) = get_fpr64(&ctx->fpr[(x) & ~(cop1_64bit(xcp) == 0)], 0))
+
+#define DITOREG(di, x) do {						\
+	unsigned fpr, i;						\
+	fpr = (x) & ~(cop1_64bit(xcp) == 0);				\
+	set_fpr64(&ctx->fpr[fpr], 0, di);				\
+	for (i = 1; i < ARRAY_SIZE(ctx->fpr[x].val64); i++)		\
+		set_fpr64(&ctx->fpr[fpr], i, 0);			\
+} while (0)
 
 #define SPFROMREG(sp, x) SIFROMREG((sp).bits, x)
 #define SPTOREG(sp, x)	SITOREG((sp).bits, x)
@@ -1960,15 +1983,18 @@ static int fpu_emu(struct pt_regs *xcp, struct mips_fpu_struct *ctx,
 
 #if defined(__mips64)
 	case l_fmt:{
+		u64 bits;
+		DIFROMREG(bits, MIPSInst_FS(ir));
+
 		switch (MIPSInst_FUNC(ir)) {
 		case fcvts_op:
 			/* convert long to single precision real */
-			rv.s = ieee754sp_flong(ctx->fpr[MIPSInst_FS(ir)]);
+			rv.s = ieee754sp_flong(bits);
 			rfmt = s_fmt;
 			goto copcsr;
 		case fcvtd_op:
 			/* convert long to double precision real */
-			rv.d = ieee754dp_flong(ctx->fpr[MIPSInst_FS(ir)]);
+			rv.d = ieee754dp_flong(bits);
 			rfmt = d_fmt;
 			goto copcsr;
 		default:

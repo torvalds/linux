@@ -568,11 +568,23 @@
 #define MIPS_CONF1_PC		(_ULCAST_(1) <<	 4)
 #define MIPS_CONF1_MD		(_ULCAST_(1) <<	 5)
 #define MIPS_CONF1_C2		(_ULCAST_(1) <<	 6)
+#define MIPS_CONF1_DA_SHF	7
+#define MIPS_CONF1_DA_SZ	3
 #define MIPS_CONF1_DA		(_ULCAST_(7) <<	 7)
+#define MIPS_CONF1_DL_SHF	10
+#define MIPS_CONF1_DL_SZ	3
 #define MIPS_CONF1_DL		(_ULCAST_(7) << 10)
+#define MIPS_CONF1_DS_SHF	13
+#define MIPS_CONF1_DS_SZ	3
 #define MIPS_CONF1_DS		(_ULCAST_(7) << 13)
+#define MIPS_CONF1_IA_SHF	16
+#define MIPS_CONF1_IA_SZ	3
 #define MIPS_CONF1_IA		(_ULCAST_(7) << 16)
+#define MIPS_CONF1_IL_SHF	19
+#define MIPS_CONF1_IL_SZ	3
 #define MIPS_CONF1_IL		(_ULCAST_(7) << 19)
+#define MIPS_CONF1_IS_SHF	22
+#define MIPS_CONF1_IS_SZ	3
 #define MIPS_CONF1_IS		(_ULCAST_(7) << 22)
 #define MIPS_CONF1_TLBS_SHIFT   (25)
 #define MIPS_CONF1_TLBS_SIZE    (6)
@@ -653,8 +665,15 @@
 
 #define MIPS_CONF7_RPS		(_ULCAST_(1) << 2)
 
+#define MIPS_CONF7_IAR		(_ULCAST_(1) << 10)
+#define MIPS_CONF7_AR		(_ULCAST_(1) << 16)
+
 /*  EntryHI bit definition */
 #define MIPS_ENTRYHI_EHINV	(_ULCAST_(1) << 10)
+
+/* CMGCRBase bit definitions */
+#define MIPS_CMGCRB_BASE	11
+#define MIPS_CMGCRF_BASE	(~_ULCAST_((1 << MIPS_CMGCRB_BASE) - 1))
 
 /*
  * Bits in the MIPS32/64 coprocessor 1 (FPU) revision register.
@@ -1009,6 +1028,8 @@ do {									\
 #define write_c0_epc(val)	__write_ulong_c0_register($14, 0, val)
 
 #define read_c0_prid()		__read_32bit_c0_register($15, 0)
+
+#define read_c0_cmgcrbase()	__read_ulong_c0_register($15, 3)
 
 #define read_c0_config()	__read_32bit_c0_register($16, 0)
 #define read_c0_config1()	__read_32bit_c0_register($16, 1)
@@ -1883,6 +1904,7 @@ change_c0_##name(unsigned int change, unsigned int newbits)	\
 __BUILD_SET_C0(status)
 __BUILD_SET_C0(cause)
 __BUILD_SET_C0(config)
+__BUILD_SET_C0(config5)
 __BUILD_SET_C0(intcontrol)
 __BUILD_SET_C0(intctl)
 __BUILD_SET_C0(srsmap)

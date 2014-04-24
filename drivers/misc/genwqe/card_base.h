@@ -337,6 +337,44 @@ enum genwqe_requ_state {
 };
 
 /**
+ * struct genwqe_sgl - Scatter gather list describing user-space memory
+ * @sgl:            scatter gather list needs to be 128 byte aligned
+ * @sgl_dma_addr:   dma address of sgl
+ * @sgl_size:       size of area used for sgl
+ * @user_addr:      user-space address of memory area
+ * @user_size:      size of user-space memory area
+ * @page:           buffer for partial pages if needed
+ * @page_dma_addr:  dma address partial pages
+ */
+struct genwqe_sgl {
+	dma_addr_t sgl_dma_addr;
+	struct sg_entry *sgl;
+	size_t sgl_size;	/* size of sgl */
+
+	void __user *user_addr; /* user-space base-address */
+	size_t user_size;       /* size of memory area */
+
+	unsigned long nr_pages;
+	unsigned long fpage_offs;
+	size_t fpage_size;
+	size_t lpage_size;
+
+	void *fpage;
+	dma_addr_t fpage_dma_addr;
+
+	void *lpage;
+	dma_addr_t lpage_dma_addr;
+};
+
+int genwqe_alloc_sync_sgl(struct genwqe_dev *cd, struct genwqe_sgl *sgl,
+			  void __user *user_addr, size_t user_size);
+
+int genwqe_setup_sgl(struct genwqe_dev *cd, struct genwqe_sgl *sgl,
+		     dma_addr_t *dma_list);
+
+int genwqe_free_sync_sgl(struct genwqe_dev *cd, struct genwqe_sgl *sgl);
+
+/**
  * struct ddcb_requ - Kernel internal representation of the DDCB request
  * @cmd:          User space representation of the DDCB execution request
  */
@@ -347,9 +385,7 @@ struct ddcb_requ {
 	struct ddcb_queue *queue;	  /* associated queue */
 
 	struct dma_mapping  dma_mappings[DDCB_FIXUPS];
-	struct sg_entry     *sgl[DDCB_FIXUPS];
-	dma_addr_t	    sgl_dma_addr[DDCB_FIXUPS];
-	size_t		    sgl_size[DDCB_FIXUPS];
+	struct genwqe_sgl sgls[DDCB_FIXUPS];
 
 	/* kernel/user shared content */
 	struct genwqe_ddcb_cmd cmd;	/* ddcb_no for this request */
@@ -452,22 +488,6 @@ int  genwqe_user_vmap(struct genwqe_dev *cd, struct dma_mapping *m,
 
 int  genwqe_user_vunmap(struct genwqe_dev *cd, struct dma_mapping *m,
 			struct ddcb_requ *req);
-
-struct sg_entry *genwqe_alloc_sgl(struct genwqe_dev *cd, int num_pages,
-				 dma_addr_t *dma_addr, size_t *sgl_size);
-
-void genwqe_free_sgl(struct genwqe_dev *cd, struct sg_entry *sg_list,
-		    dma_addr_t dma_addr, size_t size);
-
-int genwqe_setup_sgl(struct genwqe_dev *cd,
-		    unsigned long offs,
-		    unsigned long size,
-		    struct sg_entry *sgl, /* genwqe sgl */
-		    dma_addr_t dma_addr, size_t sgl_size,
-		    dma_addr_t *dma_list, int page_offs, int num_pages);
-
-int genwqe_check_sgl(struct genwqe_dev *cd, struct sg_entry *sg_list,
-		     int size);
 
 static inline bool dma_mapping_used(struct dma_mapping *m)
 {

@@ -1,5 +1,5 @@
 /*
- * Copyright (C) 2005 - 2013 Emulex
+ * Copyright (C) 2005 - 2014 Emulex
  * All rights reserved.
  *
  * This program is free software; you can redistribute it and/or
@@ -357,10 +357,10 @@ be_get_ethtool_stats(struct net_device *netdev,
 		struct be_rx_stats *stats = rx_stats(rxo);
 
 		do {
-			start = u64_stats_fetch_begin_bh(&stats->sync);
+			start = u64_stats_fetch_begin_irq(&stats->sync);
 			data[base] = stats->rx_bytes;
 			data[base + 1] = stats->rx_pkts;
-		} while (u64_stats_fetch_retry_bh(&stats->sync, start));
+		} while (u64_stats_fetch_retry_irq(&stats->sync, start));
 
 		for (i = 2; i < ETHTOOL_RXSTATS_NUM; i++) {
 			p = (u8 *)stats + et_rx_stats[i].offset;
@@ -373,19 +373,19 @@ be_get_ethtool_stats(struct net_device *netdev,
 		struct be_tx_stats *stats = tx_stats(txo);
 
 		do {
-			start = u64_stats_fetch_begin_bh(&stats->sync_compl);
+			start = u64_stats_fetch_begin_irq(&stats->sync_compl);
 			data[base] = stats->tx_compl;
-		} while (u64_stats_fetch_retry_bh(&stats->sync_compl, start));
+		} while (u64_stats_fetch_retry_irq(&stats->sync_compl, start));
 
 		do {
-			start = u64_stats_fetch_begin_bh(&stats->sync);
+			start = u64_stats_fetch_begin_irq(&stats->sync);
 			for (i = 1; i < ETHTOOL_TXSTATS_NUM; i++) {
 				p = (u8 *)stats + et_tx_stats[i].offset;
 				data[base + i] =
 					(et_tx_stats[i].size == sizeof(u64)) ?
 						*(u64 *)p : *(u32 *)p;
 			}
-		} while (u64_stats_fetch_retry_bh(&stats->sync, start));
+		} while (u64_stats_fetch_retry_irq(&stats->sync, start));
 		base += ETHTOOL_TXSTATS_NUM;
 	}
 }
@@ -802,16 +802,18 @@ be_self_test(struct net_device *netdev, struct ethtool_test *test, u64 *data)
 
 	if (test->flags & ETH_TEST_FL_OFFLINE) {
 		if (be_loopback_test(adapter, BE_MAC_LOOPBACK,
-						&data[0]) != 0) {
+				     &data[0]) != 0)
 			test->flags |= ETH_TEST_FL_FAILED;
-		}
+
 		if (be_loopback_test(adapter, BE_PHY_LOOPBACK,
-						&data[1]) != 0) {
+				     &data[1]) != 0)
 			test->flags |= ETH_TEST_FL_FAILED;
-		}
-		if (be_loopback_test(adapter, BE_ONE_PORT_EXT_LOOPBACK,
-						&data[2]) != 0) {
-			test->flags |= ETH_TEST_FL_FAILED;
+
+		if (test->flags & ETH_TEST_FL_EXTERNAL_LB) {
+			if (be_loopback_test(adapter, BE_ONE_PORT_EXT_LOOPBACK,
+					     &data[2]) != 0)
+				test->flags |= ETH_TEST_FL_FAILED;
+			test->flags |= ETH_TEST_FL_EXTERNAL_LB_DONE;
 		}
 	}
 

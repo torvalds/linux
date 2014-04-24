@@ -88,7 +88,8 @@ int wl12xx_roc(struct wl1271 *wl, struct wl12xx_vif *wlvif, u8 role_id,
 int wl12xx_croc(struct wl1271 *wl, u8 role_id);
 int wl12xx_cmd_add_peer(struct wl1271 *wl, struct wl12xx_vif *wlvif,
 			struct ieee80211_sta *sta, u8 hlid);
-int wl12xx_cmd_remove_peer(struct wl1271 *wl, u8 hlid);
+int wl12xx_cmd_remove_peer(struct wl1271 *wl, struct wl12xx_vif *wlvif,
+			   u8 hlid);
 void wlcore_set_pending_regdomain_ch(struct wl1271 *wl, u16 channel,
 				     enum ieee80211_band band);
 int wlcore_cmd_regdomain_config_locked(struct wl1271 *wl);
@@ -206,7 +207,7 @@ enum cmd_templ {
 #define WL1271_COMMAND_TIMEOUT     2000
 #define WL1271_CMD_TEMPL_DFLT_SIZE 252
 #define WL1271_CMD_TEMPL_MAX_SIZE  512
-#define WL1271_EVENT_TIMEOUT       1500
+#define WL1271_EVENT_TIMEOUT       5000
 
 struct wl1271_cmd_header {
 	__le16 id;
@@ -594,6 +595,8 @@ struct wl12xx_cmd_add_peer {
 	u8 sp_len;
 	u8 wmm;
 	u8 session_id;
+	u8 role_id;
+	u8 padding[3];
 } __packed;
 
 struct wl12xx_cmd_remove_peer {
@@ -602,7 +605,7 @@ struct wl12xx_cmd_remove_peer {
 	u8 hlid;
 	u8 reason_opcode;
 	u8 send_deauth_flag;
-	u8 padding1;
+	u8 role_id;
 } __packed;
 
 /*

@@ -1,5 +1,5 @@
 /*
- * Copyright (C) 2005 - 2013 Emulex
+ * Copyright (C) 2005 - 2014 Emulex
  * All rights reserved.
  *
  * This program is free software; you can redistribute it and/or
@@ -34,7 +34,7 @@
 #include "be_hw.h"
 #include "be_roce.h"
 
-#define DRV_VER			"10.0.600.0u"
+#define DRV_VER			"10.2u"
 #define DRV_NAME		"be2net"
 #define BE_NAME			"Emulex BladeEngine2"
 #define BE3_NAME		"Emulex BladeEngine3"
@@ -88,7 +88,6 @@ static inline char *nic_name(struct pci_dev *pdev)
 #define BE_MIN_MTU		256
 
 #define BE_NUM_VLANS_SUPPORTED	64
-#define BE_UMC_NUM_VLANS_SUPPORTED	15
 #define BE_MAX_EQD		128u
 #define	BE_MAX_TX_FRAG_COUNT	30
 
@@ -262,9 +261,10 @@ struct be_tx_obj {
 /* Struct to remember the pages posted for rx frags */
 struct be_rx_page_info {
 	struct page *page;
+	/* set to page-addr for last frag of the page & frag-addr otherwise */
 	DEFINE_DMA_UNMAP_ADDR(bus);
 	u16 page_offset;
-	bool last_page_user;
+	bool last_frag;		/* last frag of the page */
 };
 
 struct be_rx_stats {
@@ -293,9 +293,10 @@ struct be_rx_compl_info {
 	u8 ip_csum;
 	u8 l4_csum;
 	u8 ipv6;
-	u8 vtm;
+	u8 qnq;
 	u8 pkt_type;
 	u8 ip_frag;
+	u8 tunneled;
 };
 
 struct be_rx_obj {
@@ -359,6 +360,7 @@ struct be_vf_cfg {
 	int pmac_id;
 	u16 vlan_tag;
 	u32 tx_rate;
+	u32 plink_tracking;
 };
 
 enum vf_state {
@@ -370,10 +372,12 @@ enum vf_state {
 #define BE_FLAGS_WORKER_SCHEDULED		(1 << 3)
 #define BE_FLAGS_VLAN_PROMISC			(1 << 4)
 #define BE_FLAGS_NAPI_ENABLED			(1 << 9)
-#define BE_UC_PMAC_COUNT		30
-#define BE_VF_UC_PMAC_COUNT		2
 #define BE_FLAGS_QNQ_ASYNC_EVT_RCVD		(1 << 11)
+#define BE_FLAGS_VXLAN_OFFLOADS			(1 << 12)
+#define BE_FLAGS_SETUP_DONE			(1 << 13)
 
+#define BE_UC_PMAC_COUNT			30
+#define BE_VF_UC_PMAC_COUNT			2
 /* Ethtool set_dump flags */
 #define LANCER_INITIATE_FW_DUMP			0x1
 
@@ -467,6 +471,7 @@ struct be_adapter {
 
 	u32 port_num;
 	bool promiscuous;
+	u8 mc_type;
 	u32 function_mode;
 	u32 function_caps;
 	u32 rx_fc;		/* Rx flow control */
@@ -492,6 +497,7 @@ struct be_adapter {
 	u32 sli_family;
 	u8 hba_port_num;
 	u16 pvid;
+	__be16 vxlan_port;
 	struct phy_info phy;
 	u8 wol_cap;
 	bool wol_en;
@@ -535,6 +541,14 @@ static inline u16 be_max_qs(struct be_adapter *adapter)
 	num = min(num, be_max_eqs(adapter));
 	return min_t(u16, num, num_online_cpus());
 }
+
+/* Is BE in pvid_tagging mode */
+#define be_pvid_tagging_enabled(adapter)	(adapter->pvid)
+
+/* Is BE in QNQ multi-channel mode */
+#define be_is_qnq_mode(adapter)		(adapter->mc_type == FLEX10 ||  \
+					 adapter->mc_type == vNIC1 ||	\
+					 adapter->mc_type == UFP)
 
 #define lancer_chip(adapter)	(adapter->pdev->device == OC_DEVICE_ID3 || \
 				 adapter->pdev->device == OC_DEVICE_ID4)

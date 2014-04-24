@@ -1040,11 +1040,11 @@ static int ath_max_framelen(int usec, int mcs, bool ht40, bool sgi)
 	int symbols, bits;
 	int bytes = 0;
 
+	usec -= L_STF + L_LTF + L_SIG + HT_SIG + HT_STF + HT_LTF(streams);
 	symbols = sgi ? TIME_SYMBOLS_HALFGI(usec) : TIME_SYMBOLS(usec);
 	bits = symbols * bits_per_symbol[mcs % 8][ht40] * streams;
 	bits -= OFDM_PLCP_BITS;
 	bytes = bits / 8;
-	bytes -= L_STF + L_LTF + L_SIG + HT_SIG + HT_STF + HT_LTF(streams);
 	if (bytes > 65532)
 		bytes = 65532;
 
@@ -1076,6 +1076,7 @@ static void ath_buf_set_rate(struct ath_softc *sc, struct ath_buf *bf,
 			     struct ath_tx_info *info, int len, bool rts)
 {
 	struct ath_hw *ah = sc->sc_ah;
+	struct ath_common *common = ath9k_hw_common(ah);
 	struct sk_buff *skb;
 	struct ieee80211_tx_info *tx_info;
 	struct ieee80211_tx_rate *rates;
@@ -1145,7 +1146,7 @@ static void ath_buf_set_rate(struct ath_softc *sc, struct ath_buf *bf,
 		}
 
 		/* legacy rates */
-		rate = &sc->sbands[tx_info->band].bitrates[rates[i].idx];
+		rate = &common->sbands[tx_info->band].bitrates[rates[i].idx];
 		if ((tx_info->band == IEEE80211_BAND_2GHZ) &&
 		    !(rate->flags & IEEE80211_RATE_ERP_G))
 			phy = WLAN_RC_PHY_CCK;
@@ -1698,7 +1699,7 @@ int ath_cabq_update(struct ath_softc *sc)
 
 	ath9k_hw_get_txq_props(sc->sc_ah, qnum, &qi);
 
-	qi.tqi_readyTime = (cur_conf->beacon_interval *
+	qi.tqi_readyTime = (TU_TO_USEC(cur_conf->beacon_interval) *
 			    ATH_CABQ_READY_TIME) / 100;
 	ath_txq_update(sc, qnum, &qi);
 
@@ -1768,7 +1769,7 @@ bool ath_drain_all_txq(struct ath_softc *sc)
 	int i;
 	u32 npend = 0;
 
-	if (test_bit(SC_OP_INVALID, &sc->sc_flags))
+	if (test_bit(ATH_OP_INVALID, &common->op_flags))
 		return true;
 
 	ath9k_hw_abort_tx_dma(ah);
@@ -1816,11 +1817,12 @@ void ath_tx_cleanupq(struct ath_softc *sc, struct ath_txq *txq)
  */
 void ath_txq_schedule(struct ath_softc *sc, struct ath_txq *txq)
 {
+	struct ath_common *common = ath9k_hw_common(sc->sc_ah);
 	struct ath_atx_ac *ac, *last_ac;
 	struct ath_atx_tid *tid, *last_tid;
 	bool sent = false;
 
-	if (test_bit(SC_OP_HW_RESET, &sc->sc_flags) ||
+	if (test_bit(ATH_OP_HW_RESET, &common->op_flags) ||
 	    list_empty(&txq->axq_acq))
 		return;
 
@@ -2470,7 +2472,7 @@ static void ath_tx_processq(struct ath_softc *sc, struct ath_txq *txq)
 
 	ath_txq_lock(sc, txq);
 	for (;;) {
-		if (test_bit(SC_OP_HW_RESET, &sc->sc_flags))
+		if (test_bit(ATH_OP_HW_RESET, &common->op_flags))
 			break;
 
 		if (list_empty(&txq->axq_q)) {
@@ -2553,7 +2555,7 @@ void ath_tx_edma_tasklet(struct ath_softc *sc)
 	int status;
 
 	for (;;) {
-		if (test_bit(SC_OP_HW_RESET, &sc->sc_flags))
+		if (test_bit(ATH_OP_HW_RESET, &common->op_flags))
 			break;
 
 		status = ath9k_hw_txprocdesc(ah, NULL, (void *)&ts);
@@ -2569,7 +2571,7 @@ void ath_tx_edma_tasklet(struct ath_softc *sc)
 			sc->beacon.tx_processed = true;
 			sc->beacon.tx_last = !(ts.ts_status & ATH9K_TXERR_MASK);
 
-			ath9k_csa_is_finished(sc);
+			ath9k_csa_update(sc);
 			continue;
 		}
 

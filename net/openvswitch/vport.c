@@ -121,7 +121,6 @@ struct vport *ovs_vport_alloc(int priv_size, const struct vport_ops *ops,
 {
 	struct vport *vport;
 	size_t alloc_size;
-	int i;
 
 	alloc_size = sizeof(struct vport);
 	if (priv_size) {
@@ -139,18 +138,11 @@ struct vport *ovs_vport_alloc(int priv_size, const struct vport_ops *ops,
 	vport->ops = ops;
 	INIT_HLIST_NODE(&vport->dp_hash_node);
 
-	vport->percpu_stats = alloc_percpu(struct pcpu_sw_netstats);
+	vport->percpu_stats = netdev_alloc_pcpu_stats(struct pcpu_sw_netstats);
 	if (!vport->percpu_stats) {
 		kfree(vport);
 		return ERR_PTR(-ENOMEM);
 	}
-
-	for_each_possible_cpu(i) {
-		struct pcpu_sw_netstats *vport_stats;
-		vport_stats = per_cpu_ptr(vport->percpu_stats, i);
-		u64_stats_init(&vport_stats->syncp);
-	}
-
 
 	spin_lock_init(&vport->stats_lock);
 
@@ -285,9 +277,9 @@ void ovs_vport_get_stats(struct vport *vport, struct ovs_vport_stats *stats)
 		percpu_stats = per_cpu_ptr(vport->percpu_stats, i);
 
 		do {
-			start = u64_stats_fetch_begin_bh(&percpu_stats->syncp);
+			start = u64_stats_fetch_begin_irq(&percpu_stats->syncp);
 			local_stats = *percpu_stats;
-		} while (u64_stats_fetch_retry_bh(&percpu_stats->syncp, start));
+		} while (u64_stats_fetch_retry_irq(&percpu_stats->syncp, start));
 
 		stats->rx_bytes		+= local_stats.rx_bytes;
 		stats->rx_packets	+= local_stats.rx_packets;

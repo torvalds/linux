@@ -73,24 +73,6 @@ static void clk_reg_write_mask(u32 reg, uint32_t val, uint32_t mask)
 	bfin_write32(reg, val2);
 }
 
-static void clk_reg_set_bits(u32 reg, uint32_t mask)
-{
-	u32 val;
-
-	val = bfin_read32(reg);
-	val |= mask;
-	bfin_write32(reg, val);
-}
-
-static void clk_reg_clear_bits(u32 reg, uint32_t mask)
-{
-	u32 val;
-
-	val = bfin_read32(reg);
-	val &= ~mask;
-	bfin_write32(reg, val);
-}
-
 int wait_for_pll_align(void)
 {
 	int i = 10000;

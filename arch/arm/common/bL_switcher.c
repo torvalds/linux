@@ -797,10 +797,8 @@ static int __init bL_switcher_init(void)
 {
 	int ret;
 
-	if (MAX_NR_CLUSTERS != 2) {
-		pr_err("%s: only dual cluster systems are supported\n", __func__);
-		return -EINVAL;
-	}
+	if (!mcpm_is_available())
+		return -ENODEV;
 
 	cpu_notifier(bL_switcher_hotplug_callback, 0);
 

@@ -190,7 +190,9 @@ typedef struct { unsigned long pgprot; } pgprot_t;
  * https://patchwork.linux-mips.org/patch/1541/
  */
 
+#ifndef __pa_symbol
 #define __pa_symbol(x)	__pa(RELOC_HIDE((unsigned long)(x), 0))
+#endif
 
 #define pfn_to_kaddr(pfn)	__va((pfn) << PAGE_SHIFT)
 

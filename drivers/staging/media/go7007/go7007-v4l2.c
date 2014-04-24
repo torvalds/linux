@@ -471,7 +471,7 @@ static int go7007_buf_prepare(struct vb2_buffer *vb)
 	return 0;
 }
 
-static int go7007_buf_finish(struct vb2_buffer *vb)
+static void go7007_buf_finish(struct vb2_buffer *vb)
 {
 	struct vb2_queue *vq = vb->vb2_queue;
 	struct go7007 *go = vb2_get_drv_priv(vq);
@@ -484,7 +484,6 @@ static int go7007_buf_finish(struct vb2_buffer *vb)
 			V4L2_BUF_FLAG_PFRAME);
 	buf->flags |= frame_type_flag;
 	buf->field = V4L2_FIELD_NONE;
-	return 0;
 }
 
 static int go7007_start_streaming(struct vb2_queue *q, unsigned int count)
@@ -995,7 +994,7 @@ int go7007_v4l2_init(struct go7007 *go)
 	go->vidq.mem_ops = &vb2_vmalloc_memops;
 	go->vidq.drv_priv = go;
 	go->vidq.buf_struct_size = sizeof(struct go7007_buffer);
-	go->vidq.timestamp_type = V4L2_BUF_FLAG_TIMESTAMP_MONOTONIC;
+	go->vidq.timestamp_flags = V4L2_BUF_FLAG_TIMESTAMP_MONOTONIC;
 	go->vidq.lock = &go->queue_lock;
 	rv = vb2_queue_init(&go->vidq);
 	if (rv)

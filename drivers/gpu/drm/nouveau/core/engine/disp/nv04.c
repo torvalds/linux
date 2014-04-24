@@ -22,7 +22,7 @@
  * Authors: Ben Skeggs
  */
 
-#include <engine/disp.h>
+#include "priv.h"
 
 #include <core/event.h>
 #include <core/class.h>
@@ -138,13 +138,13 @@ nv04_disp_ctor(struct nouveau_object *parent, struct nouveau_object *engine,
 	return 0;
 }
 
-struct nouveau_oclass
-nv04_disp_oclass = {
-	.handle = NV_ENGINE(DISP, 0x04),
-	.ofuncs = &(struct nouveau_ofuncs) {
+struct nouveau_oclass *
+nv04_disp_oclass = &(struct nouveau_disp_impl) {
+	.base.handle = NV_ENGINE(DISP, 0x04),
+	.base.ofuncs = &(struct nouveau_ofuncs) {
 		.ctor = nv04_disp_ctor,
 		.dtor = _nouveau_disp_dtor,
 		.init = _nouveau_disp_init,
 		.fini = _nouveau_disp_fini,
 	},
-};
+}.base;

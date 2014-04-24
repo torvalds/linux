@@ -39,37 +39,49 @@
  *                                                                    *
  **********************************************************************/
 
+/*
+ * Note that, unlike non-bolted handlers, TLB_EXFRAME is not
+ * modified by the TLB miss handlers themselves, since the TLB miss
+ * handler code will not itself cause a recursive TLB miss.
+ *
+ * TLB_EXFRAME will be modified when crit/mc/debug exceptions are
+ * entered/exited.
+ */
 .macro tlb_prolog_bolted intnum addr
-	mtspr	SPRN_SPRG_GEN_SCRATCH,r13
+	mtspr	SPRN_SPRG_GEN_SCRATCH,r12
+	mfspr	r12,SPRN_SPRG_TLB_EXFRAME
+	std	r13,EX_TLB_R13(r12)
+	std	r10,EX_TLB_R10(r12)
 	mfspr	r13,SPRN_SPRG_PACA
-	std	r10,PACA_EXTLB+EX_TLB_R10(r13)
+
 	mfcr	r10
-	std	r11,PACA_EXTLB+EX_TLB_R11(r13)
+	std	r11,EX_TLB_R11(r12)
 #ifdef CONFIG_KVM_BOOKE_HV
 BEGIN_FTR_SECTION
 	mfspr	r11, SPRN_SRR1
 END_FTR_SECTION_IFSET(CPU_FTR_EMB_HV)
 #endif
 	DO_KVM	\intnum, SPRN_SRR1
-	std	r16,PACA_EXTLB+EX_TLB_R16(r13)
+	std	r16,EX_TLB_R16(r12)
 	mfspr	r16,\addr		/* get faulting address */
-	std	r14,PACA_EXTLB+EX_TLB_R14(r13)
+	std	r14,EX_TLB_R14(r12)
 	ld	r14,PACAPGD(r13)
-	std	r15,PACA_EXTLB+EX_TLB_R15(r13)
-	std	r10,PACA_EXTLB+EX_TLB_CR(r13)
-	TLB_MISS_PROLOG_STATS_BOLTED
+	std	r15,EX_TLB_R15(r12)
+	std	r10,EX_TLB_CR(r12)
+	TLB_MISS_PROLOG_STATS
 .endm
 
 .macro tlb_epilog_bolted
-	ld	r14,PACA_EXTLB+EX_TLB_CR(r13)
-	ld	r10,PACA_EXTLB+EX_TLB_R10(r13)
-	ld	r11,PACA_EXTLB+EX_TLB_R11(r13)
+	ld	r14,EX_TLB_CR(r12)
+	ld	r10,EX_TLB_R10(r12)
+	ld	r11,EX_TLB_R11(r12)
+	ld	r13,EX_TLB_R13(r12)
 	mtcr	r14
-	ld	r14,PACA_EXTLB+EX_TLB_R14(r13)
-	ld	r15,PACA_EXTLB+EX_TLB_R15(r13)
-	TLB_MISS_RESTORE_STATS_BOLTED
-	ld	r16,PACA_EXTLB+EX_TLB_R16(r13)
-	mfspr	r13,SPRN_SPRG_GEN_SCRATCH
+	ld	r14,EX_TLB_R14(r12)
+	ld	r15,EX_TLB_R15(r12)
+	TLB_MISS_RESTORE_STATS
+	ld	r16,EX_TLB_R16(r12)
+	mfspr	r12,SPRN_SPRG_GEN_SCRATCH
 .endm
 
 /* Data TLB miss */
@@ -284,7 +296,7 @@ itlb_miss_fault_bolted:
  * r14 = page table base
  * r13 = PACA
  * r11 = tlb_per_core ptr
- * r10 = crap (free to use)
+ * r10 = cpu number
  */
 tlb_miss_common_e6500:
 	/*
@@ -293,15 +305,18 @@ tlb_miss_common_e6500:
 	 *
 	 * MAS6:IND should be already set based on MAS4
 	 */
-	addi	r10,r11,TCD_LOCK
-1:	lbarx	r15,0,r10
+1:	lbarx	r15,0,r11
+	lhz	r10,PACAPACAINDEX(r13)
 	cmpdi	r15,0
+	cmpdi	cr1,r15,1	/* set cr1.eq = 0 for non-recursive */
 	bne	2f
-	li	r15,1
-	stbcx.	r15,0,r10
+	stbcx.	r10,0,r11
 	bne	1b
+3:
 	.subsection 1
-2:	lbz	r15,0(r10)
+2:	cmpd	cr1,r15,r10	/* recursive lock due to mcheck/crit/etc? */
+	beq	cr1,3b		/* unlock will happen if cr1.eq = 0 */
+	lbz	r15,0(r11)
 	cmpdi	r15,0
 	bne	2b
 	b	1b
@@ -379,9 +394,11 @@ tlb_miss_common_e6500:
 
 tlb_miss_done_e6500:
 	.macro	tlb_unlock_e6500
+	beq	cr1,1f		/* no unlock if lock was recursively grabbed */
 	li	r15,0
 	isync
-	stb	r15,TCD_LOCK(r11)
+	stb	r15,0(r11)
+1:
 	.endm
 
 	tlb_unlock_e6500
@@ -1091,7 +1108,8 @@ tlb_load_linear:
 	ld	r11,PACATOC(r13)
 	ld	r11,linear_map_top@got(r11)
 	ld	r10,0(r11)
-	cmpld	cr0,r10,r16
+	tovirt(10,10)
+	cmpld	cr0,r16,r10
 	bge	tlb_load_linear_fault
 
 	/* MAS1 need whole new setup. */

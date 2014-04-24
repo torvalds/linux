@@ -4,7 +4,6 @@ config INTEL_MIC_HOST
 	tristate "Intel MIC Host Driver"
 	depends on 64BIT && PCI && X86
 	select VHOST_RING
-	default N
 	help
 	  This enables Host Driver support for the Intel Many Integrated
 	  Core (MIC) family of PCIe form factor coprocessor devices that
@@ -25,7 +24,6 @@ config INTEL_MIC_CARD
 	tristate "Intel MIC Card Driver"
 	depends on 64BIT && X86
 	select VIRTIO
-	default N
 	help
 	  This enables card driver support for the Intel Many Integrated
 	  Core (MIC) device family. The card driver communicates shutdown/

@@ -2,11 +2,36 @@
  * Common support for CompuLab SB-T35 used on SBC-T3530, SBC-T3517 and SBC-T3730
  */
 
+/ {
+	vddvario_sb_t35: regulator-vddvario-sb-t35 {
+		compatible = "regulator-fixed";
+		regulator-name = "vddvario";
+		regulator-always-on;
+	};
+
+	vdd33a_sb_t35: regulator-vdd33a-sb-t35 {
+		compatible = "regulator-fixed";
+		regulator-name = "vdd33a";
+		regulator-always-on;
+	};
+};
+
+&omap3_pmx_core {
+	smsc2_pins: pinmux_smsc2_pins {
+		pinctrl-single,pins = <
+			OMAP3_CORE1_IOPAD(0x20b6, PIN_OUTPUT | MUX_MODE0)	/* gpmc_ncs4.gpmc_ncs4 */
+			OMAP3_CORE1_IOPAD(0x20d2, PIN_INPUT_PULLUP | MUX_MODE4)	/* gpmc_wait3.gpio_65 */
+		>;
+	};
+};
+
 &gpmc {
 	ranges = <4 0 0x2d000000 0x01000000>;
 
 	smsc2: ethernet@4,0 {
 		compatible = "smsc,lan9221", "smsc,lan9115";
+		pinctrl-names = "default";
+		pinctrl-0 = <&smsc2_pins>;
 		interrupt-parent = <&gpio3>;
 		interrupts = <1 IRQ_TYPE_LEVEL_LOW>;
 		reg = <4 0 0xff>;
@@ -32,8 +57,8 @@
 		gpmc,wr-access-ns = <186>;
 		gpmc,cycle2cycle-samecsen;
 		gpmc,cycle2cycle-diffcsen;
-		vddvario-supply = <&vddvario>;
-		vdd33a-supply = <&vdd33a>;
+		vddvario-supply = <&vddvario_sb_t35>;
+		vdd33a-supply = <&vdd33a_sb_t35>;
 		reg-io-width = <4>;
 		smsc,save-mac-address;
 	};

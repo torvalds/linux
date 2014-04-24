@@ -25,6 +25,7 @@
 #include "prminst44xx.h"
 #include "prm-regbits-44xx.h"
 #include "prcm44xx.h"
+#include "prcm43xx.h"
 #include "prcm_mpu44xx.h"
 #include "soc.h"
 
@@ -176,6 +177,8 @@ void omap4_prminst_global_warm_sw_reset(void)
 		dev_inst = OMAP54XX_PRM_DEVICE_INST;
 	else if (soc_is_dra7xx())
 		dev_inst = DRA7XX_PRM_DEVICE_INST;
+	else if (soc_is_am43xx())
+		dev_inst = AM43XX_PRM_DEVICE_INST;
 	else
 		return;
 

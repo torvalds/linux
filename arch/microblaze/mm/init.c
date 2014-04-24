@@ -369,7 +369,7 @@ asmlinkage void __init mmu_init(void)
 	if (initrd_start) {
 		unsigned long size;
 		size = initrd_end - initrd_start;
-		memblock_reserve(virt_to_phys(initrd_start), size);
+		memblock_reserve(__virt_to_phys(initrd_start), size);
 	}
 #endif /* CONFIG_BLK_DEV_INITRD */
 

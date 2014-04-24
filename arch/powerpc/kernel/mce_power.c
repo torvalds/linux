@@ -26,6 +26,7 @@
 #include <linux/ptrace.h>
 #include <asm/mmu.h>
 #include <asm/mce.h>
+#include <asm/machdep.h>
 
 /* flush SLBs and reload */
 static void flush_and_reload_slb(void)
@@ -197,13 +198,32 @@ static void mce_get_derror_p7(struct mce_error_info *mce_err, uint64_t dsisr)
 	}
 }
 
+static long mce_handle_ue_error(struct pt_regs *regs)
+{
+	long handled = 0;
+
+	/*
+	 * On specific SCOM read via MMIO we may get a machine check
+	 * exception with SRR0 pointing inside opal. If that is the
+	 * case OPAL may have recovery address to re-read SCOM data in
+	 * different way and hence we can recover from this MC.
+	 */
+
+	if (ppc_md.mce_check_early_recovery) {
+		if (ppc_md.mce_check_early_recovery(regs))
+			handled = 1;
+	}
+	return handled;
+}
+
 long __machine_check_early_realmode_p7(struct pt_regs *regs)
 {
-	uint64_t srr1, addr;
+	uint64_t srr1, nip, addr;
 	long handled = 1;
 	struct mce_error_info mce_error_info = { 0 };
 
 	srr1 = regs->msr;
+	nip = regs->nip;
 
 	/*
 	 * Handle memory errors depending whether this was a load/store or
@@ -221,7 +241,11 @@ long __machine_check_early_realmode_p7(struct pt_regs *regs)
 		addr = regs->nip;
 	}
 
-	save_mce_event(regs, handled, &mce_error_info, addr);
+	/* Handle UE error. */
+	if (mce_error_info.error_type == MCE_ERROR_TYPE_UE)
+		handled = mce_handle_ue_error(regs);
+
+	save_mce_event(regs, handled, &mce_error_info, nip, addr);
 	return handled;
 }
 
@@ -263,11 +287,12 @@ static long mce_handle_derror_p8(uint64_t dsisr)
 
 long __machine_check_early_realmode_p8(struct pt_regs *regs)
 {
-	uint64_t srr1, addr;
+	uint64_t srr1, nip, addr;
 	long handled = 1;
 	struct mce_error_info mce_error_info = { 0 };
 
 	srr1 = regs->msr;
+	nip = regs->nip;
 
 	if (P7_SRR1_MC_LOADSTORE(srr1)) {
 		handled = mce_handle_derror_p8(regs->dsisr);
@@ -279,6 +304,10 @@ long __machine_check_early_realmode_p8(struct pt_regs *regs)
 		addr = regs->nip;
 	}
 
-	save_mce_event(regs, handled, &mce_error_info, addr);
+	/* Handle UE error. */
+	if (mce_error_info.error_type == MCE_ERROR_TYPE_UE)
+		handled = mce_handle_ue_error(regs);
+
+	save_mce_event(regs, handled, &mce_error_info, nip, addr);
 	return handled;
 }

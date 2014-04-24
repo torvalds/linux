@@ -13,6 +13,8 @@
 /* list_lru_walk_cb has to always return one of those */
 enum lru_status {
 	LRU_REMOVED,		/* item removed from list */
+	LRU_REMOVED_RETRY,	/* item removed, but lock has been
+				   dropped and reacquired */
 	LRU_ROTATE,		/* item referenced, give another pass */
 	LRU_SKIP,		/* item cannot be locked, skip */
 	LRU_RETRY,		/* item not freeable. May drop the lock
@@ -32,7 +34,11 @@ struct list_lru {
 };
 
 void list_lru_destroy(struct list_lru *lru);
-int list_lru_init(struct list_lru *lru);
+int list_lru_init_key(struct list_lru *lru, struct lock_class_key *key);
+static inline int list_lru_init(struct list_lru *lru)
+{
+	return list_lru_init_key(lru, NULL);
+}
 
 /**
  * list_lru_add: add an element to the lru list's tail

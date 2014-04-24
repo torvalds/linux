@@ -131,16 +131,24 @@ static void named_cluster_distribute(struct sk_buff *buf)
 {
 	struct sk_buff *buf_copy;
 	struct tipc_node *n_ptr;
+	struct tipc_link *l_ptr;
 
-	list_for_each_entry(n_ptr, &tipc_node_list, list) {
-		if (tipc_node_active_links(n_ptr)) {
+	rcu_read_lock();
+	list_for_each_entry_rcu(n_ptr, &tipc_node_list, list) {
+		spin_lock_bh(&n_ptr->lock);
+		l_ptr = n_ptr->active_links[n_ptr->addr & 1];
+		if (l_ptr) {
 			buf_copy = skb_copy(buf, GFP_ATOMIC);
-			if (!buf_copy)
+			if (!buf_copy) {
+				spin_unlock_bh(&n_ptr->lock);
 				break;
+			}
 			msg_set_destnode(buf_msg(buf_copy), n_ptr->addr);
-			tipc_link_send(buf_copy, n_ptr->addr, n_ptr->addr);
+			__tipc_link_xmit(l_ptr, buf_copy);
 		}
+		spin_unlock_bh(&n_ptr->lock);
 	}
+	rcu_read_unlock();
 
 	kfree_skb(buf);
 }
@@ -262,7 +270,7 @@ void tipc_named_node_up(unsigned long nodearg)
 	named_distribute(&message_list, node, &publ_zone, max_item_buf);
 	read_unlock_bh(&tipc_nametbl_lock);
 
-	tipc_link_send_names(&message_list, node);
+	tipc_link_names_xmit(&message_list, node);
 }
 
 /**
@@ -293,9 +301,9 @@ static void named_purge_publ(struct publication *publ)
 }
 
 /**
- * tipc_named_recv - process name table update message sent by another node
+ * tipc_named_rcv - process name table update message sent by another node
  */
-void tipc_named_recv(struct sk_buff *buf)
+void tipc_named_rcv(struct sk_buff *buf)
 {
 	struct publication *publ;
 	struct tipc_msg *msg = buf_msg(buf);

@@ -786,7 +786,7 @@ static int pn544_hci_fw_download(struct nfc_hci_dev *hdev,
 	if (info->fw_download == NULL)
 		return -ENOTSUPP;
 
-	return info->fw_download(info->phy_id, firmware_name);
+	return info->fw_download(info->phy_id, firmware_name, hdev->sw_romlib);
 }
 
 static int pn544_hci_discover_se(struct nfc_hci_dev *hdev)

@@ -10,6 +10,8 @@
  * 2 of the License, or (at your option) any later version.
  */
 
+#define pr_fmt(fmt)	"power8-pmu: " fmt
+
 #include <linux/kernel.h>
 #include <linux/perf_event.h>
 #include <asm/firmware.h>
@@ -62,9 +64,11 @@
  *
  *        60        56        52        48        44        40        36        32
  * | - - - - | - - - - | - - - - | - - - - | - - - - | - - - - | - - - - | - - - - |
- *   |                                 [      thresh_cmp     ]   [  thresh_ctl   ]
- *   |                                                                   |
- *   *- EBB (Linux)                      thresh start/stop OR FAB match -*
+ *   | | [ ]                           [      thresh_cmp     ]   [  thresh_ctl   ]
+ *   | |  |                                                              |
+ *   | |  *- IFM (Linux)                 thresh start/stop OR FAB match -*
+ *   | *- BHRB (Linux)
+ *   *- EBB (Linux)
  *
  *        28        24        20        16        12         8         4         0
  * | - - - - | - - - - | - - - - | - - - - | - - - - | - - - - | - - - - | - - - - |
@@ -114,9 +118,18 @@
  *	MMCRA[57:59] = sample[0:2]	(RAND_SAMP_ELIG)
  *	MMCRA[61:62] = sample[3:4]	(RAND_SAMP_MODE)
  *
+ * if EBB and BHRB:
+ *	MMCRA[32:33] = IFM
+ *
  */
 
 #define EVENT_EBB_MASK		1ull
+#define EVENT_EBB_SHIFT		PERF_EVENT_CONFIG_EBB_SHIFT
+#define EVENT_BHRB_MASK		1ull
+#define EVENT_BHRB_SHIFT	62
+#define EVENT_WANTS_BHRB	(EVENT_BHRB_MASK << EVENT_BHRB_SHIFT)
+#define EVENT_IFM_MASK		3ull
+#define EVENT_IFM_SHIFT		60
 #define EVENT_THR_CMP_SHIFT	40	/* Threshold CMP value */
 #define EVENT_THR_CMP_MASK	0x3ff
 #define EVENT_THR_CTL_SHIFT	32	/* Threshold control value (start/stop) */
@@ -141,6 +154,12 @@
 #define EVENT_IS_MARKED		(EVENT_MARKED_MASK << EVENT_MARKED_SHIFT)
 #define EVENT_PSEL_MASK		0xff	/* PMCxSEL value */
 
+/* Bits defined by Linux */
+#define EVENT_LINUX_MASK	\
+	((EVENT_EBB_MASK  << EVENT_EBB_SHIFT)			|	\
+	 (EVENT_BHRB_MASK << EVENT_BHRB_SHIFT)			|	\
+	 (EVENT_IFM_MASK  << EVENT_IFM_SHIFT))
+
 #define EVENT_VALID_MASK	\
 	((EVENT_THRESH_MASK    << EVENT_THRESH_SHIFT)		|	\
 	 (EVENT_SAMPLE_MASK    << EVENT_SAMPLE_SHIFT)		|	\
@@ -149,7 +168,7 @@
 	 (EVENT_UNIT_MASK      << EVENT_UNIT_SHIFT)		|	\
 	 (EVENT_COMBINE_MASK   << EVENT_COMBINE_SHIFT)		|	\
 	 (EVENT_MARKED_MASK    << EVENT_MARKED_SHIFT)		|	\
-	 (EVENT_EBB_MASK       << PERF_EVENT_CONFIG_EBB_SHIFT)	|	\
+	  EVENT_LINUX_MASK					|	\
 	  EVENT_PSEL_MASK)
 
 /* MMCRA IFM bits - POWER8 */
@@ -173,10 +192,11 @@
  *
  *        28        24        20        16        12         8         4         0
  * | - - - - | - - - - | - - - - | - - - - | - - - - | - - - - | - - - - | - - - - |
- *                   |   [ ]   [  sample ]   [     ]   [6] [5]   [4] [3]   [2] [1]
- *              EBB -*    |                     |
- *                        |                     |      Count of events for each PMC.
- *      L1 I/D qualifier -*                     |        p1, p2, p3, p4, p5, p6.
+ *               [ ] |   [ ]   [  sample ]   [     ]   [6] [5]   [4] [3]   [2] [1]
+ *                |  |    |                     |
+ *      BHRB IFM -*  |    |                     |      Count of events for each PMC.
+ *              EBB -*    |                     |        p1, p2, p3, p4, p5, p6.
+ *      L1 I/D qualifier -*                     |
  *                     nc - number of counters -*
  *
  * The PMC fields P1..P6, and NC, are adder fields. As we accumulate constraints
@@ -194,6 +214,9 @@
 
 #define CNST_EBB_VAL(v)		(((v) & EVENT_EBB_MASK) << 24)
 #define CNST_EBB_MASK		CNST_EBB_VAL(EVENT_EBB_MASK)
+
+#define CNST_IFM_VAL(v)		(((v) & EVENT_IFM_MASK) << 25)
+#define CNST_IFM_MASK		CNST_IFM_VAL(EVENT_IFM_MASK)
 
 #define CNST_L1_QUAL_VAL(v)	(((v) & 3) << 22)
 #define CNST_L1_QUAL_MASK	CNST_L1_QUAL_VAL(3)
@@ -241,6 +264,7 @@
 #define MMCRA_THR_SEL_SHIFT		16
 #define MMCRA_THR_CMP_SHIFT		32
 #define MMCRA_SDAR_MODE_TLB		(1ull << 42)
+#define MMCRA_IFM_SHIFT			30
 
 
 static inline bool event_is_fab_match(u64 event)
@@ -265,20 +289,22 @@ static int power8_get_constraint(u64 event, unsigned long *maskp, unsigned long 
 	pmc   = (event >> EVENT_PMC_SHIFT)        & EVENT_PMC_MASK;
 	unit  = (event >> EVENT_UNIT_SHIFT)       & EVENT_UNIT_MASK;
 	cache = (event >> EVENT_CACHE_SEL_SHIFT)  & EVENT_CACHE_SEL_MASK;
-	ebb   = (event >> PERF_EVENT_CONFIG_EBB_SHIFT) & EVENT_EBB_MASK;
-
-	/* Clear the EBB bit in the event, so event checks work below */
-	event &= ~(EVENT_EBB_MASK << PERF_EVENT_CONFIG_EBB_SHIFT);
+	ebb   = (event >> EVENT_EBB_SHIFT)        & EVENT_EBB_MASK;
 
 	if (pmc) {
+		u64 base_event;
+
 		if (pmc > 6)
+			return -1;
+
+		/* Ignore Linux defined bits when checking event below */
+		base_event = event & ~EVENT_LINUX_MASK;
+
+		if (pmc >= 5 && base_event != 0x500fa && base_event != 0x600f4)
 			return -1;
 
 		mask  |= CNST_PMC_MASK(pmc);
 		value |= CNST_PMC_VAL(pmc);
-
-		if (pmc >= 5 && event != 0x500fa && event != 0x600f4)
-			return -1;
 	}
 
 	if (pmc <= 4) {
@@ -299,9 +325,10 @@ static int power8_get_constraint(u64 event, unsigned long *maskp, unsigned long 
 		 * HV writable, and there is no API for guest kernels to modify
 		 * it. The solution is for the hypervisor to initialise the
 		 * field to zeroes, and for us to only ever allow events that
-		 * have a cache selector of zero.
+		 * have a cache selector of zero. The bank selector (bit 3) is
+		 * irrelevant, as long as the rest of the value is 0.
 		 */
-		if (cache)
+		if (cache & 0x7)
 			return -1;
 
 	} else if (event & EVENT_IS_L1) {
@@ -341,6 +368,15 @@ static int power8_get_constraint(u64 event, unsigned long *maskp, unsigned long 
 	if (!pmc && ebb)
 		/* EBB events must specify the PMC */
 		return -1;
+
+	if (event & EVENT_WANTS_BHRB) {
+		if (!ebb)
+			/* Only EBB events can request BHRB */
+			return -1;
+
+		mask  |= CNST_IFM_MASK;
+		value |= CNST_IFM_VAL(event >> EVENT_IFM_SHIFT);
+	}
 
 	/*
 	 * All events must agree on EBB, either all request it or none.
@@ -429,6 +465,11 @@ static int power8_compute_mmcr(u64 event[], int n_ev,
 			mmcra |= val << MMCRA_THR_SEL_SHIFT;
 			val = (event[i] >> EVENT_THR_CMP_SHIFT) & EVENT_THR_CMP_MASK;
 			mmcra |= val << MMCRA_THR_CMP_SHIFT;
+		}
+
+		if (event[i] & EVENT_WANTS_BHRB) {
+			val = (event[i] >> EVENT_IFM_SHIFT) & EVENT_IFM_MASK;
+			mmcra |= val << MMCRA_IFM_SHIFT;
 		}
 
 		hwc[i] = pmc - 1;
@@ -773,6 +814,9 @@ static int __init init_power8_pmu(void)
 
 	/* Tell userspace that EBB is supported */
 	cur_cpu_spec->cpu_user_features2 |= PPC_FEATURE2_EBB;
+
+	if (cpu_has_feature(CPU_FTR_PMAO_BUG))
+		pr_info("PMAO restore workaround active.\n");
 
 	return 0;
 }

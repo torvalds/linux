@@ -566,7 +566,7 @@ static int exynos5_i2c_xfer_msg(struct exynos5_i2c *i2c,
 static int exynos5_i2c_xfer(struct i2c_adapter *adap,
 			struct i2c_msg *msgs, int num)
 {
-	struct exynos5_i2c *i2c = (struct exynos5_i2c *)adap->algo_data;
+	struct exynos5_i2c *i2c = adap->algo_data;
 	int i = 0, ret = 0, stop = 0;
 
 	if (i2c->suspended) {
@@ -715,6 +715,7 @@ static int exynos5_i2c_remove(struct platform_device *pdev)
 	return 0;
 }
 
+#ifdef CONFIG_PM_SLEEP
 static int exynos5_i2c_suspend_noirq(struct device *dev)
 {
 	struct platform_device *pdev = to_platform_device(dev);
@@ -745,6 +746,7 @@ static int exynos5_i2c_resume_noirq(struct device *dev)
 
 	return 0;
 }
+#endif
 
 static SIMPLE_DEV_PM_OPS(exynos5_i2c_dev_pm_ops, exynos5_i2c_suspend_noirq,
 			 exynos5_i2c_resume_noirq);

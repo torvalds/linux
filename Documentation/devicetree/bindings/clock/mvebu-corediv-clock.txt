@@ -4,7 +4,10 @@ The following is a list of provided IDs and clock names on Armada 370/XP:
  0 = nand (NAND clock)
 
 Required properties:
-- compatible : must be "marvell,armada-370-corediv-clock"
+- compatible : must be "marvell,armada-370-corediv-clock",
+		       "marvell,armada-375-corediv-clock",
+		       "marvell,armada-380-corediv-clock",
+
 - reg : must be the register address of Core Divider control register
 - #clock-cells : from common clock binding; shall be set to 1
 - clocks : must be set to the parent's phandle

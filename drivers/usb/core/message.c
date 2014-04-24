@@ -178,7 +178,7 @@ EXPORT_SYMBOL_GPL(usb_control_msg);
  *
  * Return:
  * If successful, 0. Otherwise a negative error number. The number of actual
- * bytes transferred will be stored in the @actual_length paramater.
+ * bytes transferred will be stored in the @actual_length parameter.
  */
 int usb_interrupt_msg(struct usb_device *usb_dev, unsigned int pipe,
 		      void *data, int len, int *actual_length, int timeout)

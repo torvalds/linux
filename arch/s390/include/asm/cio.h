@@ -199,7 +199,7 @@ struct esw_eadm {
 /**
  * struct irb - interruption response block
  * @scsw: subchannel status word
- * @esw: extened status word
+ * @esw: extended status word
  * @ecw: extended control word
  *
  * The irb that is handed to the device driver when an interrupt occurs. For

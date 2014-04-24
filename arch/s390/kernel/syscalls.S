@@ -355,3 +355,4 @@ SYSCALL(sys_kcmp,sys_kcmp,compat_sys_kcmp)
 SYSCALL(sys_finit_module,sys_finit_module,compat_sys_finit_module)
 SYSCALL(sys_sched_setattr,sys_sched_setattr,compat_sys_sched_setattr) /* 345 */
 SYSCALL(sys_sched_getattr,sys_sched_getattr,compat_sys_sched_getattr)
+SYSCALL(sys_renameat2,sys_renameat2,compat_sys_renameat2)

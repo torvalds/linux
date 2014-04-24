@@ -273,6 +273,17 @@ static int mlx5_ib_query_device(struct ib_device *ibdev,
 	if (flags & MLX5_DEV_CAP_FLAG_XRC)
 		props->device_cap_flags |= IB_DEVICE_XRC;
 	props->device_cap_flags |= IB_DEVICE_MEM_MGT_EXTENSIONS;
+	if (flags & MLX5_DEV_CAP_FLAG_SIG_HAND_OVER) {
+		props->device_cap_flags |= IB_DEVICE_SIGNATURE_HANDOVER;
+		/* At this stage no support for signature handover */
+		props->sig_prot_cap = IB_PROT_T10DIF_TYPE_1 |
+				      IB_PROT_T10DIF_TYPE_2 |
+				      IB_PROT_T10DIF_TYPE_3;
+		props->sig_guard_cap = IB_GUARD_T10DIF_CRC |
+				       IB_GUARD_T10DIF_CSUM;
+	}
+	if (flags & MLX5_DEV_CAP_FLAG_BLOCK_MCAST)
+		props->device_cap_flags |= IB_DEVICE_BLOCK_MULTICAST_LOOPBACK;
 
 	props->vendor_id	   = be32_to_cpup((__be32 *)(out_mad->data + 36)) &
 		0xffffff;
@@ -1423,12 +1434,15 @@ static int init_one(struct pci_dev *pdev,
 	dev->ib_dev.get_dma_mr		= mlx5_ib_get_dma_mr;
 	dev->ib_dev.reg_user_mr		= mlx5_ib_reg_user_mr;
 	dev->ib_dev.dereg_mr		= mlx5_ib_dereg_mr;
+	dev->ib_dev.destroy_mr		= mlx5_ib_destroy_mr;
 	dev->ib_dev.attach_mcast	= mlx5_ib_mcg_attach;
 	dev->ib_dev.detach_mcast	= mlx5_ib_mcg_detach;
 	dev->ib_dev.process_mad		= mlx5_ib_process_mad;
+	dev->ib_dev.create_mr		= mlx5_ib_create_mr;
 	dev->ib_dev.alloc_fast_reg_mr	= mlx5_ib_alloc_fast_reg_mr;
 	dev->ib_dev.alloc_fast_reg_page_list = mlx5_ib_alloc_fast_reg_page_list;
 	dev->ib_dev.free_fast_reg_page_list  = mlx5_ib_free_fast_reg_page_list;
+	dev->ib_dev.check_mr_status	= mlx5_ib_check_mr_status;
 
 	if (mdev->caps.flags & MLX5_DEV_CAP_FLAG_XRC) {
 		dev->ib_dev.alloc_xrcd = mlx5_ib_alloc_xrcd;

@@ -34,15 +34,13 @@
 #include <linux/of_pci.h>
 #include <video/vga.h>
 
-#include <mach/hardware.h>
-#include <mach/platform.h>
-
 #include <asm/mach/map.h>
 #include <asm/signal.h>
 #include <asm/mach/pci.h>
 #include <asm/irq_regs.h>
 
 #include "pci_v3.h"
+#include "hardware.h"
 
 /*
  * Where in the memory map does PCI live?

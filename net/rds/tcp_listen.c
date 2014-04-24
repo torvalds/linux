@@ -108,9 +108,9 @@ static void rds_tcp_accept_worker(struct work_struct *work)
 		cond_resched();
 }
 
-void rds_tcp_listen_data_ready(struct sock *sk, int bytes)
+void rds_tcp_listen_data_ready(struct sock *sk)
 {
-	void (*ready)(struct sock *sk, int bytes);
+	void (*ready)(struct sock *sk);
 
 	rdsdebug("listen data ready sk %p\n", sk);
 
@@ -132,7 +132,7 @@ void rds_tcp_listen_data_ready(struct sock *sk, int bytes)
 
 out:
 	read_unlock(&sk->sk_callback_lock);
-	ready(sk, bytes);
+	ready(sk);
 }
 
 int rds_tcp_listen_init(void)

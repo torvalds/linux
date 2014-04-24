@@ -1017,7 +1017,7 @@ solution for a couple of reasons:
 	in case of a bus-off condition after the specified delay time
 	in milliseconds. By default it's off.
 
-    "bitrate 125000 sample_point 0.875"
+    "bitrate 125000 sample-point 0.875"
 	Shows the real bit-rate in bits/sec and the sample-point in the
 	range 0.000..0.999. If the calculation of bit-timing parameters
 	is enabled in the kernel (CONFIG_CAN_CALC_BITTIMING=y), the

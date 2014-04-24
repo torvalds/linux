@@ -48,8 +48,8 @@ struct s3c_rtc_drv_data {
 
 static struct clk *rtc_clk;
 static void __iomem *s3c_rtc_base;
-static int s3c_rtc_alarmno = NO_IRQ;
-static int s3c_rtc_tickno  = NO_IRQ;
+static int s3c_rtc_alarmno;
+static int s3c_rtc_tickno;
 static enum s3c_cpu_type s3c_rtc_cpu_type;
 
 static DEFINE_SPINLOCK(s3c_rtc_pie_lock);

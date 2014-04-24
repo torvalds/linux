@@ -93,14 +93,14 @@ int iwl_poll_direct_bit(struct iwl_trans *trans, u32 addr, u32 mask,
 }
 IWL_EXPORT_SYMBOL(iwl_poll_direct_bit);
 
-static inline u32 __iwl_read_prph(struct iwl_trans *trans, u32 ofs)
+u32 __iwl_read_prph(struct iwl_trans *trans, u32 ofs)
 {
 	u32 val = iwl_trans_read_prph(trans, ofs);
 	trace_iwlwifi_dev_ioread_prph32(trans->dev, ofs, val);
 	return val;
 }
 
-static inline void __iwl_write_prph(struct iwl_trans *trans, u32 ofs, u32 val)
+void __iwl_write_prph(struct iwl_trans *trans, u32 ofs, u32 val)
 {
 	trace_iwlwifi_dev_iowrite_prph32(trans->dev, ofs, val);
 	iwl_trans_write_prph(trans, ofs, val);
@@ -129,6 +129,21 @@ void iwl_write_prph(struct iwl_trans *trans, u32 ofs, u32 val)
 	}
 }
 IWL_EXPORT_SYMBOL(iwl_write_prph);
+
+int iwl_poll_prph_bit(struct iwl_trans *trans, u32 addr,
+		      u32 bits, u32 mask, int timeout)
+{
+	int t = 0;
+
+	do {
+		if ((iwl_read_prph(trans, addr) & mask) == (bits & mask))
+			return t;
+		udelay(IWL_POLL_INTERVAL);
+		t += IWL_POLL_INTERVAL;
+	} while (t < timeout);
+
+	return -ETIMEDOUT;
+}
 
 void iwl_set_bits_prph(struct iwl_trans *trans, u32 ofs, u32 mask)
 {

@@ -52,7 +52,7 @@ int ieee802154_nl_assoc_indic(struct net_device *dev,
  * Note: This is in section 7.3.2 of the IEEE 802.15.4 document.
  */
 int ieee802154_nl_assoc_confirm(struct net_device *dev,
-		u16 short_addr, u8 status);
+		__le16 short_addr, u8 status);
 
 /**
  * ieee802154_nl_disassoc_indic - Notify userland of disassociation.
@@ -111,8 +111,8 @@ int ieee802154_nl_scan_confirm(struct net_device *dev,
  * Note: This API cannot indicate a beacon frame for a coordinator
  *       operating in long addressing mode.
  */
-int ieee802154_nl_beacon_indic(struct net_device *dev, u16 panid,
-		u16 coord_addr);
+int ieee802154_nl_beacon_indic(struct net_device *dev, __le16 panid,
+		__le16 coord_addr);
 
 /**
  * ieee802154_nl_start_confirm - Notify userland of completion of start.

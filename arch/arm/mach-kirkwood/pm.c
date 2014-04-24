@@ -21,15 +21,16 @@
 #include "common.h"
 
 static void __iomem *ddr_operation_base;
+static void __iomem *memory_pm_ctrl;
 
 static void kirkwood_low_power(void)
 {
 	u32 mem_pm_ctrl;
 
-	mem_pm_ctrl = readl(MEMORY_PM_CTRL);
+	mem_pm_ctrl = readl(memory_pm_ctrl);
 
 	/* Set peripherals to low-power mode */
-	writel_relaxed(~0, MEMORY_PM_CTRL);
+	writel_relaxed(~0, memory_pm_ctrl);
 
 	/* Set DDR in self-refresh */
 	writel_relaxed(0x7, ddr_operation_base);
@@ -41,7 +42,7 @@ static void kirkwood_low_power(void)
 	 */
 	cpu_do_idle();
 
-	writel_relaxed(mem_pm_ctrl, MEMORY_PM_CTRL);
+	writel_relaxed(mem_pm_ctrl, memory_pm_ctrl);
 }
 
 static int kirkwood_suspend_enter(suspend_state_t state)
@@ -69,5 +70,7 @@ static const struct platform_suspend_ops kirkwood_suspend_ops = {
 void __init kirkwood_pm_init(void)
 {
 	ddr_operation_base = ioremap(DDR_OPERATION_BASE, 4);
+	memory_pm_ctrl = ioremap(MEMORY_PM_CTRL_PHYS, 4);
+
 	suspend_set_ops(&kirkwood_suspend_ops);
 }

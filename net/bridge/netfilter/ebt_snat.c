@@ -24,7 +24,7 @@ ebt_snat_tg(struct sk_buff *skb, const struct xt_action_param *par)
 	if (!skb_make_writable(skb, 0))
 		return EBT_DROP;
 
-	memcpy(eth_hdr(skb)->h_source, info->mac, ETH_ALEN);
+	ether_addr_copy(eth_hdr(skb)->h_source, info->mac);
 	if (!(info->target & NAT_ARP_BIT) &&
 	    eth_hdr(skb)->h_proto == htons(ETH_P_ARP)) {
 		const struct arphdr *ap;

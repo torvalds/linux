@@ -12,6 +12,8 @@
  * published by the Free Software Foundation.
  */
 
+#include <linux/serial_s3c.h>
+
 #include <mach/regs-gpio.h>
 
 static inline void s3c_pm_debug_init_uart(void)

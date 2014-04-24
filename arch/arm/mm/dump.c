@@ -120,25 +120,7 @@ static const struct prot_bits pte_bits[] = {
 };
 
 static const struct prot_bits section_bits[] = {
-#ifndef CONFIG_ARM_LPAE
-	/* These are approximate */
-	{
-		.mask	= PMD_SECT_AP_READ | PMD_SECT_AP_WRITE,
-		.val	= 0,
-		.set	= "    ro",
-	}, {
-		.mask	= PMD_SECT_AP_READ | PMD_SECT_AP_WRITE,
-		.val	= PMD_SECT_AP_WRITE,
-		.set	= "    RW",
-	}, {
-		.mask	= PMD_SECT_AP_READ | PMD_SECT_AP_WRITE,
-		.val	= PMD_SECT_AP_READ,
-		.set	= "USR ro",
-	}, {
-		.mask	= PMD_SECT_AP_READ | PMD_SECT_AP_WRITE,
-		.val	= PMD_SECT_AP_READ | PMD_SECT_AP_WRITE,
-		.set	= "USR RW",
-#else
+#ifdef CONFIG_ARM_LPAE
 	{
 		.mask	= PMD_SECT_USER,
 		.val	= PMD_SECT_USER,
@@ -148,6 +130,41 @@ static const struct prot_bits section_bits[] = {
 		.val	= PMD_SECT_RDONLY,
 		.set	= "ro",
 		.clear	= "RW",
+#elif __LINUX_ARM_ARCH__ >= 6
+	{
+		.mask	= PMD_SECT_APX | PMD_SECT_AP_READ | PMD_SECT_AP_WRITE,
+		.val	= PMD_SECT_APX | PMD_SECT_AP_WRITE,
+		.set	= "    ro",
+	}, {
+		.mask	= PMD_SECT_APX | PMD_SECT_AP_READ | PMD_SECT_AP_WRITE,
+		.val	= PMD_SECT_AP_WRITE,
+		.set	= "    RW",
+	}, {
+		.mask	= PMD_SECT_APX | PMD_SECT_AP_READ | PMD_SECT_AP_WRITE,
+		.val	= PMD_SECT_AP_READ,
+		.set	= "USR ro",
+	}, {
+		.mask	= PMD_SECT_APX | PMD_SECT_AP_READ | PMD_SECT_AP_WRITE,
+		.val	= PMD_SECT_AP_READ | PMD_SECT_AP_WRITE,
+		.set	= "USR RW",
+#else /* ARMv4/ARMv5  */
+	/* These are approximate */
+	{
+		.mask   = PMD_SECT_AP_READ | PMD_SECT_AP_WRITE,
+		.val    = 0,
+		.set    = "    ro",
+	}, {
+		.mask   = PMD_SECT_AP_READ | PMD_SECT_AP_WRITE,
+		.val    = PMD_SECT_AP_WRITE,
+		.set    = "    RW",
+	}, {
+		.mask   = PMD_SECT_AP_READ | PMD_SECT_AP_WRITE,
+		.val    = PMD_SECT_AP_READ,
+		.set    = "USR ro",
+	}, {
+		.mask   = PMD_SECT_AP_READ | PMD_SECT_AP_WRITE,
+		.val    = PMD_SECT_AP_READ | PMD_SECT_AP_WRITE,
+		.set    = "USR RW",
 #endif
 	}, {
 		.mask	= PMD_SECT_XN,

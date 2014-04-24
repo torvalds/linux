@@ -254,6 +254,11 @@ void omap4_cminst_clkdm_force_wakeup(u8 part, u16 inst, u16 cdoffs)
  *
  */
 
+void omap4_cminst_clkdm_force_sleep(u8 part, u16 inst, u16 cdoffs)
+{
+	_clktrctrl_write(OMAP34XX_CLKSTCTRL_FORCE_SLEEP, part, inst, cdoffs);
+}
+
 /**
  * omap4_cminst_wait_module_ready - wait for a module to be in 'func' state
  * @part: PRCM partition ID that the CM_CLKCTRL register exists in
@@ -404,8 +409,17 @@ static int omap4_clkdm_clear_all_wkup_sleep_deps(struct clockdomain *clkdm)
 
 static int omap4_clkdm_sleep(struct clockdomain *clkdm)
 {
-	omap4_cminst_clkdm_enable_hwsup(clkdm->prcm_partition,
-					clkdm->cm_inst, clkdm->clkdm_offs);
+	if (clkdm->flags & CLKDM_CAN_HWSUP)
+		omap4_cminst_clkdm_enable_hwsup(clkdm->prcm_partition,
+						clkdm->cm_inst,
+						clkdm->clkdm_offs);
+	else if (clkdm->flags & CLKDM_CAN_FORCE_SLEEP)
+		omap4_cminst_clkdm_force_sleep(clkdm->prcm_partition,
+					       clkdm->cm_inst,
+					       clkdm->clkdm_offs);
+	else
+		return -EINVAL;
+
 	return 0;
 }
 

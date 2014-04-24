@@ -71,6 +71,7 @@ static struct spi_device_id da9052_spi_id[] = {
 	{"da9053-aa", DA9053_AA},
 	{"da9053-ba", DA9053_BA},
 	{"da9053-bb", DA9053_BB},
+	{"da9053-bc", DA9053_BC},
 	{}
 };
 

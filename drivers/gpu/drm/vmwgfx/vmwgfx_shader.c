@@ -449,7 +449,6 @@ int vmw_shader_define_ioctl(struct drm_device *dev, void *data,
 	struct drm_vmw_shader_create_arg *arg =
 		(struct drm_vmw_shader_create_arg *)data;
 	struct ttm_object_file *tfile = vmw_fpriv(file_priv)->tfile;
-	struct vmw_master *vmaster = vmw_master(file_priv->master);
 	struct vmw_dma_buffer *buffer = NULL;
 	SVGA3dShaderType shader_type;
 	int ret;
@@ -487,14 +486,14 @@ int vmw_shader_define_ioctl(struct drm_device *dev, void *data,
 		goto out_bad_arg;
 	}
 
-	ret = ttm_read_lock(&vmaster->lock, true);
+	ret = ttm_read_lock(&dev_priv->reservation_sem, true);
 	if (unlikely(ret != 0))
 		goto out_bad_arg;
 
 	ret = vmw_shader_alloc(dev_priv, buffer, arg->size, arg->offset,
 			       shader_type, tfile, &arg->shader_handle);
 
-	ttm_read_unlock(&vmaster->lock);
+	ttm_read_unlock(&dev_priv->reservation_sem);
 out_bad_arg:
 	vmw_dmabuf_unreference(&buffer);
 	return ret;

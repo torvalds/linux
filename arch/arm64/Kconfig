@@ -17,6 +17,7 @@ config ARM64
 	select GENERIC_CLOCKEVENTS
 	select GENERIC_CLOCKEVENTS_BROADCAST if SMP
 	select GENERIC_CPU_AUTOPROBE
+	select GENERIC_EARLY_IOREMAP
 	select GENERIC_IOMAP
 	select GENERIC_IRQ_PROBE
 	select GENERIC_IRQ_SHOW
@@ -47,6 +48,7 @@ config ARM64
 	select NO_BOOTMEM
 	select OF
 	select OF_EARLY_FLATTREE
+	select OF_RESERVED_MEM
 	select PERF_USE_VMALLOC
 	select POWER_RESET
 	select POWER_SUPPLY
@@ -65,7 +67,7 @@ config ARCH_PHYS_ADDR_T_64BIT
 config MMU
 	def_bool y
 
-config NO_IOPORT
+config NO_IOPORT_MAP
 	def_bool y
 
 config STACKTRACE_SUPPORT
@@ -320,12 +322,6 @@ endmenu
 menu "CPU Power Management"
 
 source "drivers/cpuidle/Kconfig"
-
-source "drivers/cpufreq/Kconfig"
-
-endmenu
-
-menu "Power management options"
 
 source "kernel/power/Kconfig"
 

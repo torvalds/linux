@@ -825,8 +825,8 @@ b_epilogue:
 			break;
 		case BPF_S_ANC_RXHASH:
 			ctx->seen |= SEEN_SKB;
-			BUILD_BUG_ON(FIELD_SIZEOF(struct sk_buff, rxhash) != 4);
-			off = offsetof(struct sk_buff, rxhash);
+			BUILD_BUG_ON(FIELD_SIZEOF(struct sk_buff, hash) != 4);
+			off = offsetof(struct sk_buff, hash);
 			emit(ARM_LDR_I(r_A, r_skb, off), ctx);
 			break;
 		case BPF_S_ANC_VLAN_TAG:
@@ -925,6 +925,7 @@ void bpf_jit_compile(struct sk_filter *fp)
 		bpf_jit_dump(fp->len, alloc_size, 2, ctx.target);
 
 	fp->bpf_func = (void *)ctx.target;
+	fp->jited = 1;
 out:
 	kfree(ctx.offsets);
 	return;
@@ -932,7 +933,7 @@ out:
 
 void bpf_jit_free(struct sk_filter *fp)
 {
-	if (fp->bpf_func != sk_run_filter)
+	if (fp->jited)
 		module_free(NULL, fp->bpf_func);
 	kfree(fp);
 }

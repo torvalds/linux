@@ -1,7 +1,7 @@
 /*
  * Remote Controller core raw events header
  *
- * Copyright (C) 2010 by Mauro Carvalho Chehab <mchehab@redhat.com>
+ * Copyright (C) 2010 by Mauro Carvalho Chehab
  *
  * This program is free software; you can redistribute it and/or modify
  *  it under the terms of the GNU General Public License as published by
@@ -88,6 +88,12 @@ struct ir_raw_event_ctrl {
 		unsigned count;
 		u64 bits;
 	} sanyo;
+	struct sharp_dec {
+		int state;
+		unsigned count;
+		u32 bits;
+		unsigned int pulse_len;
+	} sharp;
 	struct mce_kbd_dec {
 		struct input_dev *idev;
 		struct timer_list rx_timeout;
@@ -202,6 +208,13 @@ static inline void load_sony_decode(void) { }
 #define load_sanyo_decode()	request_module_nowait("ir-sanyo-decoder")
 #else
 static inline void load_sanyo_decode(void) { }
+#endif
+
+/* from ir-sharp-decoder.c */
+#ifdef CONFIG_IR_SHARP_DECODER_MODULE
+#define load_sharp_decode()	request_module_nowait("ir-sharp-decoder")
+#else
+static inline void load_sharp_decode(void) { }
 #endif
 
 /* from ir-mce_kbd-decoder.c */

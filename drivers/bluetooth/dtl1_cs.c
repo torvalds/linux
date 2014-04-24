@@ -153,7 +153,8 @@ static void dtl1_write_wakeup(dtl1_info_t *info)
 		if (!pcmcia_dev_present(info->p_dev))
 			return;
 
-		if (!(skb = skb_dequeue(&(info->txq))))
+		skb = skb_dequeue(&(info->txq));
+		if (!skb)
 			break;
 
 		/* Send frame */
@@ -215,13 +216,15 @@ static void dtl1_receive(dtl1_info_t *info)
 		info->hdev->stat.byte_rx++;
 
 		/* Allocate packet */
-		if (info->rx_skb == NULL)
-			if (!(info->rx_skb = bt_skb_alloc(HCI_MAX_FRAME_SIZE, GFP_ATOMIC))) {
+		if (info->rx_skb == NULL) {
+			info->rx_skb = bt_skb_alloc(HCI_MAX_FRAME_SIZE, GFP_ATOMIC);
+			if (!info->rx_skb) {
 				BT_ERR("Can't allocate mem for new packet");
 				info->rx_state = RECV_WAIT_NSH;
 				info->rx_count = NSHL;
 				return;
 			}
+		}
 
 		*skb_put(info->rx_skb, 1) = inb(iobase + UART_RX);
 		nsh = (nsh_t *)info->rx_skb->data;

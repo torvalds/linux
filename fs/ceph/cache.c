@@ -205,6 +205,7 @@ void ceph_fscache_register_inode_cookie(struct ceph_fs_client* fsc,
 	ci->fscache = fscache_acquire_cookie(fsc->fscache,
 					     &ceph_fscache_inode_object_def,
 					     ci, true);
+	fscache_check_consistency(ci->fscache);
 done:
 	mutex_unlock(&inode->i_mutex);
 

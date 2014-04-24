@@ -39,7 +39,6 @@
 #define ATH_RESTART_CALINTERVAL   1200000 /* 20 minutes */
 
 #define ATH_DEFAULT_BMISS_LIMIT 10
-#define IEEE80211_MS_TO_TU(x)   (((x) * 1000) / 1024)
 #define TSF_TO_TU(_h, _l) \
 	((((u32)(_h)) << 22) | (((u32)(_l)) >> 10))
 
@@ -277,7 +276,6 @@ struct ath9k_htc_rxbuf {
 };
 
 struct ath9k_htc_rx {
-	int last_rssi; /* FIXME: per-STA */
 	struct list_head rxbuf;
 	spinlock_t rxbuflock;
 };
@@ -407,12 +405,18 @@ static inline void ath9k_htc_err_stat_rx(struct ath9k_htc_priv *priv,
 #define DEFAULT_SWBA_RESPONSE 40 /* in TUs */
 #define MIN_SWBA_RESPONSE     10 /* in TUs */
 
-struct htc_beacon_config {
+struct htc_beacon {
+	enum {
+		OK,		/* no change needed */
+		UPDATE,		/* update pending */
+		COMMIT		/* beacon sent, commit change */
+	} updateslot;		/* slot time update fsm */
+
 	struct ieee80211_vif *bslot[ATH9K_HTC_MAX_BCN_VIF];
-	u16 beacon_interval;
-	u16 dtim_period;
-	u16 bmiss_timeout;
-	u32 bmiss_cnt;
+	u32 bmisscnt;
+	u32 beaconq;
+	int slottime;
+	int slotupdate;
 };
 
 struct ath_btcoex {
@@ -440,12 +444,8 @@ static inline void ath9k_htc_stop_btcoex(struct ath9k_htc_priv *priv)
 }
 #endif /* CONFIG_ATH9K_BTCOEX_SUPPORT */
 
-#define OP_INVALID		   BIT(0)
-#define OP_SCANNING		   BIT(1)
-#define OP_ENABLE_BEACON           BIT(2)
 #define OP_BT_PRIORITY_DETECTED    BIT(3)
 #define OP_BT_SCAN                 BIT(4)
-#define OP_ANI_RUNNING             BIT(5)
 #define OP_TSF_RESET               BIT(6)
 
 struct ath9k_htc_priv {
@@ -488,10 +488,10 @@ struct ath9k_htc_priv {
 	unsigned long op_flags;
 
 	struct ath9k_hw_cal_data caldata;
-	struct ieee80211_supported_band sbands[IEEE80211_NUM_BANDS];
 
 	spinlock_t beacon_lock;
-	struct htc_beacon_config cur_beacon_conf;
+	struct ath_beacon_config cur_beacon_conf;
+	struct htc_beacon beacon;
 
 	struct ath9k_htc_rx rx;
 	struct ath9k_htc_tx tx;
@@ -516,7 +516,6 @@ struct ath9k_htc_priv {
 	struct work_struct led_work;
 #endif
 
-	int beaconq;
 	int cabq;
 	int hwq_map[IEEE80211_NUM_ACS];
 

@@ -737,7 +737,7 @@ void cfg80211_unregister_wdev(struct wireless_dev *wdev)
 }
 EXPORT_SYMBOL(cfg80211_unregister_wdev);
 
-static struct device_type wiphy_type = {
+static const struct device_type wiphy_type = {
 	.name	= "wlan",
 };
 
@@ -783,7 +783,7 @@ void cfg80211_leave(struct cfg80211_registered_device *rdev,
 		break;
 	case NL80211_IFTYPE_AP:
 	case NL80211_IFTYPE_P2P_GO:
-		cfg80211_stop_ap(rdev, dev);
+		cfg80211_stop_ap(rdev, dev, true);
 		break;
 	default:
 		break;

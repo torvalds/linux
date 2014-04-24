@@ -1020,10 +1020,99 @@ static int qlcnic_83xx_idc_check_state_validity(struct qlcnic_adapter *adapter,
 	return 0;
 }
 
+#ifdef CONFIG_QLCNIC_VXLAN
+#define QLC_83XX_ENCAP_TYPE_VXLAN	BIT_1
+#define QLC_83XX_MATCH_ENCAP_ID		BIT_2
+#define QLC_83XX_SET_VXLAN_UDP_DPORT	BIT_3
+#define QLC_83XX_VXLAN_UDP_DPORT(PORT)	((PORT & 0xffff) << 16)
+
+#define QLCNIC_ENABLE_INGRESS_ENCAP_PARSING 1
+#define QLCNIC_DISABLE_INGRESS_ENCAP_PARSING 0
+
+static int qlcnic_set_vxlan_port(struct qlcnic_adapter *adapter)
+{
+	u16 port = adapter->ahw->vxlan_port;
+	struct qlcnic_cmd_args cmd;
+	int ret = 0;
+
+	memset(&cmd, 0, sizeof(cmd));
+
+	ret = qlcnic_alloc_mbx_args(&cmd, adapter,
+				    QLCNIC_CMD_INIT_NIC_FUNC);
+	if (ret)
+		return ret;
+
+	cmd.req.arg[1] = QLC_83XX_MULTI_TENANCY_INFO;
+	cmd.req.arg[2] = QLC_83XX_ENCAP_TYPE_VXLAN |
+			 QLC_83XX_SET_VXLAN_UDP_DPORT |
+			 QLC_83XX_VXLAN_UDP_DPORT(port);
+
+	ret = qlcnic_issue_cmd(adapter, &cmd);
+	if (ret)
+		netdev_err(adapter->netdev,
+			   "Failed to set VXLAN port %d in adapter\n",
+			   port);
+
+	qlcnic_free_mbx_args(&cmd);
+
+	return ret;
+}
+
+static int qlcnic_set_vxlan_parsing(struct qlcnic_adapter *adapter,
+				    bool state)
+{
+	u16 vxlan_port = adapter->ahw->vxlan_port;
+	struct qlcnic_cmd_args cmd;
+	int ret = 0;
+
+	memset(&cmd, 0, sizeof(cmd));
+
+	ret = qlcnic_alloc_mbx_args(&cmd, adapter,
+				    QLCNIC_CMD_SET_INGRESS_ENCAP);
+	if (ret)
+		return ret;
+
+	cmd.req.arg[1] = state ? QLCNIC_ENABLE_INGRESS_ENCAP_PARSING :
+				 QLCNIC_DISABLE_INGRESS_ENCAP_PARSING;
+
+	ret = qlcnic_issue_cmd(adapter, &cmd);
+	if (ret)
+		netdev_err(adapter->netdev,
+			   "Failed to %s VXLAN parsing for port %d\n",
+			   state ? "enable" : "disable", vxlan_port);
+	else
+		netdev_info(adapter->netdev,
+			    "%s VXLAN parsing for port %d\n",
+			    state ? "Enabled" : "Disabled", vxlan_port);
+
+	qlcnic_free_mbx_args(&cmd);
+
+	return ret;
+}
+#endif
+
 static void qlcnic_83xx_periodic_tasks(struct qlcnic_adapter *adapter)
 {
 	if (adapter->fhash.fnum)
 		qlcnic_prune_lb_filters(adapter);
+
+#ifdef CONFIG_QLCNIC_VXLAN
+	if (adapter->flags & QLCNIC_ADD_VXLAN_PORT) {
+		if (qlcnic_set_vxlan_port(adapter))
+			return;
+
+		if (qlcnic_set_vxlan_parsing(adapter, true))
+			return;
+
+		adapter->flags &= ~QLCNIC_ADD_VXLAN_PORT;
+	} else if (adapter->flags & QLCNIC_DEL_VXLAN_PORT) {
+		if (qlcnic_set_vxlan_parsing(adapter, false))
+			return;
+
+		adapter->ahw->vxlan_port = 0;
+		adapter->flags &= ~QLCNIC_DEL_VXLAN_PORT;
+	}
+#endif
 }
 
 /**
@@ -1301,7 +1390,7 @@ static int qlcnic_83xx_copy_fw_file(struct qlcnic_adapter *adapter)
 	addr = (u64)dest;
 
 	ret = qlcnic_83xx_ms_mem_write128(adapter, addr,
-					  (u32 *)p_cache, size / 16);
+					  p_cache, size / 16);
 	if (ret) {
 		dev_err(&adapter->pdev->dev, "MS memory write failed\n");
 		release_firmware(fw);
@@ -2050,8 +2139,6 @@ static int qlcnic_83xx_get_nic_configuration(struct qlcnic_adapter *adapter)
 	ahw->max_mac_filters = nic_info.max_mac_filters;
 	ahw->max_mtu = nic_info.max_mtu;
 
-	adapter->max_tx_rings = ahw->max_tx_ques;
-	adapter->max_sds_rings = ahw->max_rx_ques;
 	/* eSwitch capability indicates vNIC mode.
 	 * vNIC and SRIOV are mutually exclusive operational modes.
 	 * If SR-IOV capability is detected, SR-IOV physical function
@@ -2072,6 +2159,7 @@ static int qlcnic_83xx_get_nic_configuration(struct qlcnic_adapter *adapter)
 int qlcnic_83xx_configure_opmode(struct qlcnic_adapter *adapter)
 {
 	struct qlcnic_hardware_context *ahw = adapter->ahw;
+	u16 max_sds_rings, max_tx_rings;
 	int ret;
 
 	ret = qlcnic_83xx_get_nic_configuration(adapter);
@@ -2084,17 +2172,20 @@ int qlcnic_83xx_configure_opmode(struct qlcnic_adapter *adapter)
 		if (qlcnic_83xx_config_vnic_opmode(adapter))
 			return -EIO;
 
-		adapter->max_sds_rings = QLCNIC_MAX_VNIC_SDS_RINGS;
-		adapter->max_tx_rings = QLCNIC_MAX_VNIC_TX_RINGS;
+		max_sds_rings = QLCNIC_MAX_VNIC_SDS_RINGS;
+		max_tx_rings = QLCNIC_MAX_VNIC_TX_RINGS;
 	} else if (ret == QLC_83XX_DEFAULT_OPMODE) {
 		ahw->nic_mode = QLCNIC_DEFAULT_MODE;
 		adapter->nic_ops->init_driver = qlcnic_83xx_init_default_driver;
 		ahw->idc.state_entry = qlcnic_83xx_idc_ready_state_entry;
-		adapter->max_sds_rings = QLCNIC_MAX_SDS_RINGS;
-		adapter->max_tx_rings = QLCNIC_MAX_TX_RINGS;
+		max_sds_rings = QLCNIC_MAX_SDS_RINGS;
+		max_tx_rings = QLCNIC_MAX_TX_RINGS;
 	} else {
 		return -EIO;
 	}
+
+	adapter->max_sds_rings = min(ahw->max_rx_ques, max_sds_rings);
+	adapter->max_tx_rings = min(ahw->max_tx_ques, max_tx_rings);
 
 	return 0;
 }
@@ -2259,15 +2350,16 @@ int qlcnic_83xx_init(struct qlcnic_adapter *adapter, int pci_using_dac)
 		goto disable_intr;
 	}
 
+	INIT_DELAYED_WORK(&adapter->idc_aen_work, qlcnic_83xx_idc_aen_work);
+
 	err = qlcnic_83xx_setup_mbx_intr(adapter);
 	if (err)
 		goto disable_mbx_intr;
 
 	qlcnic_83xx_clear_function_resources(adapter);
-
-	INIT_DELAYED_WORK(&adapter->idc_aen_work, qlcnic_83xx_idc_aen_work);
-
+	qlcnic_dcb_enable(adapter->dcb);
 	qlcnic_83xx_initialize_nic(adapter, 1);
+	qlcnic_dcb_get_info(adapter->dcb);
 
 	/* Configure default, SR-IOV or Virtual NIC mode of operation */
 	err = qlcnic_83xx_configure_opmode(adapter);

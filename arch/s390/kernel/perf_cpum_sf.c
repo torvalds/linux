@@ -1621,7 +1621,8 @@ static int __init init_cpum_sampling_pmu(void)
 		pr_err("Registering for s390dbf failed\n");
 	debug_register_view(sfdbg, &debug_sprintf_view);
 
-	err = register_external_interrupt(0x1407, cpumf_measurement_alert);
+	err = register_external_irq(EXT_IRQ_MEASURE_ALERT,
+				    cpumf_measurement_alert);
 	if (err) {
 		pr_cpumsf_err(RS_INIT_FAILURE_ALRT);
 		goto out;
@@ -1630,7 +1631,8 @@ static int __init init_cpum_sampling_pmu(void)
 	err = perf_pmu_register(&cpumf_sampling, "cpum_sf", PERF_TYPE_RAW);
 	if (err) {
 		pr_cpumsf_err(RS_INIT_FAILURE_PERF);
-		unregister_external_interrupt(0x1407, cpumf_measurement_alert);
+		unregister_external_irq(EXT_IRQ_MEASURE_ALERT,
+					cpumf_measurement_alert);
 		goto out;
 	}
 	perf_cpu_notifier(cpumf_pmu_notifier);

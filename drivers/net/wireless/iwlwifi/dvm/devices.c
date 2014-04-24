@@ -317,7 +317,7 @@ static const struct iwl_sensitivity_ranges iwl5000_sensitivity = {
 	.nrg_th_cca = 62,
 };
 
-static struct iwl_sensitivity_ranges iwl5150_sensitivity = {
+static const struct iwl_sensitivity_ranges iwl5150_sensitivity = {
 	.min_nrg_cck = 95,
 	.auto_corr_min_ofdm = 90,
 	.auto_corr_min_ofdm_mrc = 170,

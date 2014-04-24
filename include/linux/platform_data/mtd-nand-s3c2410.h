@@ -1,5 +1,4 @@
-/* arch/arm/mach-s3c2410/include/mach/nand.h
- *
+/*
  * Copyright (c) 2004 Simtec Electronics
  *	Ben Dooks <ben@simtec.co.uk>
  *
@@ -9,6 +8,9 @@
  * it under the terms of the GNU General Public License version 2 as
  * published by the Free Software Foundation.
 */
+
+#ifndef __MTD_NAND_S3C2410_H
+#define __MTD_NAND_S3C2410_H
 
 /**
  * struct s3c2410_nand_set - define a set of one or more nand chips
@@ -65,3 +67,5 @@ struct s3c2410_platform_nand {
  * it with the s3c_device_nand. This allows @nand to be __initdata.
 */
 extern void s3c_nand_set_platdata(struct s3c2410_platform_nand *nand);
+
+#endif /*__MTD_NAND_S3C2410_H */

@@ -262,7 +262,14 @@ int kvmppc_mmu_hv_init(void)
 
 static void kvmppc_mmu_book3s_64_hv_reset_msr(struct kvm_vcpu *vcpu)
 {
-	kvmppc_set_msr(vcpu, vcpu->arch.intr_msr);
+	unsigned long msr = vcpu->arch.intr_msr;
+
+	/* If transactional, change to suspend mode on IRQ delivery */
+	if (MSR_TM_TRANSACTIONAL(vcpu->arch.shregs.msr))
+		msr |= MSR_TS_S;
+	else
+		msr |= vcpu->arch.shregs.msr & MSR_TS_MASK;
+	kvmppc_set_msr(vcpu, msr);
 }
 
 /*

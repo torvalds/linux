@@ -44,6 +44,23 @@ For example:
   clocks by index. The names should reflect the clock output signal
   names for the device.
 
+clock-indices:	   If the identifyng number for the clocks in the node
+		   is not linear from zero, then the this mapping allows
+		   the mapping of identifiers into the clock-output-names
+		   array.
+
+For example, if we have two clocks <&oscillator 1> and <&oscillator 3>:
+
+	oscillator {
+		compatible = "myclocktype";
+		#clock-cells = <1>;
+		clock-indices = <1>, <3>;
+		clock-output-names = "clka", "clkb";
+	}
+
+	This ensures we do not have any empty nodes in clock-output-names
+
+
 ==Clock consumers==
 
 Required properties:

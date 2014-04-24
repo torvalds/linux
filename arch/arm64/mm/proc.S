@@ -28,13 +28,20 @@
 
 #include "proc-macros.S"
 
-#ifndef CONFIG_SMP
-/* PTWs cacheable, inner/outer WBWA not shareable */
-#define TCR_FLAGS	TCR_IRGN_WBWA | TCR_ORGN_WBWA
+#ifdef CONFIG_ARM64_64K_PAGES
+#define TCR_TG_FLAGS	TCR_TG0_64K | TCR_TG1_64K
 #else
-/* PTWs cacheable, inner/outer WBWA shareable */
-#define TCR_FLAGS	TCR_IRGN_WBWA | TCR_ORGN_WBWA | TCR_SHARED
+#define TCR_TG_FLAGS	TCR_TG0_4K | TCR_TG1_4K
 #endif
+
+#ifdef CONFIG_SMP
+#define TCR_SMP_FLAGS	TCR_SHARED
+#else
+#define TCR_SMP_FLAGS	0
+#endif
+
+/* PTWs cacheable, inner/outer WBWA */
+#define TCR_CACHE_FLAGS	TCR_IRGN_WBWA | TCR_ORGN_WBWA
 
 #define MAIR(attr, mt)	((attr) << ((mt) * 8))
 
@@ -209,18 +216,14 @@ ENTRY(__cpu_setup)
 	 * Set/prepare TCR and TTBR. We use 512GB (39-bit) address range for
 	 * both user and kernel.
 	 */
-	ldr	x10, =TCR_TxSZ(VA_BITS) | TCR_FLAGS | \
-		      TCR_ASID16 | TCR_TBI0 | (1 << 31)
+	ldr	x10, =TCR_TxSZ(VA_BITS) | TCR_CACHE_FLAGS | TCR_SMP_FLAGS | \
+			TCR_TG_FLAGS | TCR_ASID16 | TCR_TBI0
 	/*
 	 * Read the PARange bits from ID_AA64MMFR0_EL1 and set the IPS bits in
 	 * TCR_EL1.
 	 */
 	mrs	x9, ID_AA64MMFR0_EL1
 	bfi	x10, x9, #32, #3
-#ifdef CONFIG_ARM64_64K_PAGES
-	orr	x10, x10, TCR_TG0_64K
-	orr	x10, x10, TCR_TG1_64K
-#endif
 	msr	tcr_el1, x10
 	ret					// return to head.S
 ENDPROC(__cpu_setup)

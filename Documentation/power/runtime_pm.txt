@@ -232,7 +232,7 @@ defined in include/linux/pm.h:
       equal to zero); the initial value of it is 1 (i.e. runtime PM is
       initially disabled for all devices)
 
-  unsigned int runtime_error;
+  int runtime_error;
     - if set, there was a fatal error (one of the callbacks returned error code
       as described in Section 2), so the helper funtions will not work until
       this flag is cleared; this is the error code returned by the failing
@@ -401,11 +401,11 @@ drivers/base/power/runtime.c and include/linux/pm_runtime.h:
   int pm_runtime_disable(struct device *dev);
     - increment the device's 'power.disable_depth' field (if the value of that
       field was previously zero, this prevents subsystem-level runtime PM
-      callbacks from being run for the device), make sure that all of the pending
-      runtime PM operations on the device are either completed or canceled;
-      returns 1 if there was a resume request pending and it was necessary to
-      execute the subsystem-level resume callback for the device to satisfy that
-      request, otherwise 0 is returned
+      callbacks from being run for the device), make sure that all of the
+      pending runtime PM operations on the device are either completed or
+      canceled; returns 1 if there was a resume request pending and it was
+      necessary to execute the subsystem-level resume callback for the device
+      to satisfy that request, otherwise 0 is returned
 
   int pm_runtime_barrier(struct device *dev);
     - check if there's a resume request pending for the device and resume it
@@ -667,11 +667,11 @@ driver/base/power/generic_ops.c:
 
   int pm_generic_runtime_suspend(struct device *dev);
     - invoke the ->runtime_suspend() callback provided by the driver of this
-      device and return its result, or return -EINVAL if not defined
+      device and return its result, or return 0 if not defined
 
   int pm_generic_runtime_resume(struct device *dev);
     - invoke the ->runtime_resume() callback provided by the driver of this
-      device and return its result, or return -EINVAL if not defined
+      device and return its result, or return 0 if not defined
 
   int pm_generic_suspend(struct device *dev);
     - if the device has not been suspended at run time, invoke the ->suspend()
@@ -727,15 +727,12 @@ driver/base/power/generic_ops.c:
   int pm_generic_restore_noirq(struct device *dev);
     - invoke the ->restore_noirq() callback provided by the device's driver
 
-These functions can be assigned to the ->runtime_idle(), ->runtime_suspend(),
+These functions are the defaults used by the PM core, if a subsystem doesn't
+provide its own callbacks for ->runtime_idle(), ->runtime_suspend(),
 ->runtime_resume(), ->suspend(), ->suspend_noirq(), ->resume(),
 ->resume_noirq(), ->freeze(), ->freeze_noirq(), ->thaw(), ->thaw_noirq(),
-->poweroff(), ->poweroff_noirq(), ->restore(), ->restore_noirq() callback
-pointers in the subsystem-level dev_pm_ops structures.
-
-If a subsystem wishes to use all of them at the same time, it can simply assign
-the GENERIC_SUBSYS_PM_OPS macro, defined in include/linux/pm.h, to its
-dev_pm_ops structure pointer.
+->poweroff(), ->poweroff_noirq(), ->restore(), ->restore_noirq() in the
+subsystem-level dev_pm_ops structure.
 
 Device drivers that wish to use the same function as a system suspend, freeze,
 poweroff and runtime suspend callback, and similarly for system resume, thaw,
@@ -873,7 +870,7 @@ Here is a schematic pseudo-code example:
 		foo->is_suspended = 0;
 		pm_runtime_mark_last_busy(&foo->dev);
 		if (foo->num_pending_requests > 0)
-			foo_process_requests(foo);
+			foo_process_next_request(foo);
 		unlock(&foo->private_lock);
 		return 0;
 	}

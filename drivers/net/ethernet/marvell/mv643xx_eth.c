@@ -730,7 +730,7 @@ static int txq_submit_skb(struct tx_queue *txq, struct sk_buff *skb)
 		    unlikely(tag_bytes & ~12)) {
 			if (skb_checksum_help(skb) == 0)
 				goto no_csum;
-			kfree_skb(skb);
+			dev_kfree_skb_any(skb);
 			return 1;
 		}
 
@@ -819,7 +819,7 @@ static netdev_tx_t mv643xx_eth_xmit(struct sk_buff *skb, struct net_device *dev)
 	if (txq->tx_ring_size - txq->tx_desc_count < MAX_SKB_FRAGS + 1) {
 		if (net_ratelimit())
 			netdev_err(dev, "tx queue full?!\n");
-		kfree_skb(skb);
+		dev_kfree_skb_any(skb);
 		return NETDEV_TX_OK;
 	}
 

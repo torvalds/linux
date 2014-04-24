@@ -119,7 +119,8 @@ struct iwl_cfg;
  * @queue_not_full: notifies that a HW queue is not full any more.
  *	Must be atomic and called with BH disabled.
  * @hw_rf_kill:notifies of a change in the HW rf kill switch. True means that
- *	the radio is killed. May sleep.
+ *	the radio is killed. Return %true if the device should be stopped by
+ *	the transport immediately after the call. May sleep.
  * @free_skb: allows the transport layer to free skbs that haven't been
  *	reclaimed by the op_mode. This can happen when the driver is freed and
  *	there are Tx packets pending in the transport layer.
@@ -131,6 +132,8 @@ struct iwl_cfg;
  * @nic_config: configure NIC, called before firmware is started.
  *	May sleep
  * @wimax_active: invoked when WiMax becomes active. May sleep
+ * @enter_d0i3: configure the fw to enter d0i3. May sleep.
+ * @exit_d0i3: configure the fw to exit d0i3. May sleep.
  */
 struct iwl_op_mode_ops {
 	struct iwl_op_mode *(*start)(struct iwl_trans *trans,
@@ -142,12 +145,14 @@ struct iwl_op_mode_ops {
 		  struct iwl_device_cmd *cmd);
 	void (*queue_full)(struct iwl_op_mode *op_mode, int queue);
 	void (*queue_not_full)(struct iwl_op_mode *op_mode, int queue);
-	void (*hw_rf_kill)(struct iwl_op_mode *op_mode, bool state);
+	bool (*hw_rf_kill)(struct iwl_op_mode *op_mode, bool state);
 	void (*free_skb)(struct iwl_op_mode *op_mode, struct sk_buff *skb);
 	void (*nic_error)(struct iwl_op_mode *op_mode);
 	void (*cmd_queue_full)(struct iwl_op_mode *op_mode);
 	void (*nic_config)(struct iwl_op_mode *op_mode);
 	void (*wimax_active)(struct iwl_op_mode *op_mode);
+	int (*enter_d0i3)(struct iwl_op_mode *op_mode);
+	int (*exit_d0i3)(struct iwl_op_mode *op_mode);
 };
 
 int iwl_opmode_register(const char *name, const struct iwl_op_mode_ops *ops);
@@ -155,7 +160,7 @@ void iwl_opmode_deregister(const char *name);
 
 /**
  * struct iwl_op_mode - operational mode
- * @ops - pointer to its own ops
+ * @ops: pointer to its own ops
  *
  * This holds an implementation of the mac80211 / fw API.
  */
@@ -191,11 +196,11 @@ static inline void iwl_op_mode_queue_not_full(struct iwl_op_mode *op_mode,
 	op_mode->ops->queue_not_full(op_mode, queue);
 }
 
-static inline void iwl_op_mode_hw_rf_kill(struct iwl_op_mode *op_mode,
-					  bool state)
+static inline bool __must_check
+iwl_op_mode_hw_rf_kill(struct iwl_op_mode *op_mode, bool state)
 {
 	might_sleep();
-	op_mode->ops->hw_rf_kill(op_mode, state);
+	return op_mode->ops->hw_rf_kill(op_mode, state);
 }
 
 static inline void iwl_op_mode_free_skb(struct iwl_op_mode *op_mode,
@@ -224,6 +229,24 @@ static inline void iwl_op_mode_wimax_active(struct iwl_op_mode *op_mode)
 {
 	might_sleep();
 	op_mode->ops->wimax_active(op_mode);
+}
+
+static inline int iwl_op_mode_enter_d0i3(struct iwl_op_mode *op_mode)
+{
+	might_sleep();
+
+	if (!op_mode->ops->enter_d0i3)
+		return 0;
+	return op_mode->ops->enter_d0i3(op_mode);
+}
+
+static inline int iwl_op_mode_exit_d0i3(struct iwl_op_mode *op_mode)
+{
+	might_sleep();
+
+	if (!op_mode->ops->exit_d0i3)
+		return 0;
+	return op_mode->ops->exit_d0i3(op_mode);
 }
 
 #endif /* __iwl_op_mode_h__ */

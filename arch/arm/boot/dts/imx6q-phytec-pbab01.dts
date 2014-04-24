@@ -21,7 +21,23 @@
 	status = "okay";
 };
 
+&gpmi {
+	status = "okay";
+};
+
+&sata {
+	status = "okay";
+};
+
 &uart4 {
+	status = "okay";
+};
+
+&usbh1 {
+	status = "okay";
+};
+
+&usbotg {
 	status = "okay";
 };
 

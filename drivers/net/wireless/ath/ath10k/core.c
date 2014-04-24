@@ -55,8 +55,7 @@ static void ath10k_send_suspend_complete(struct ath10k *ar)
 {
 	ath10k_dbg(ATH10K_DBG_BOOT, "boot suspend complete\n");
 
-	ar->is_target_paused = true;
-	wake_up(&ar->event_queue);
+	complete(&ar->target_suspend);
 }
 
 static int ath10k_init_connect_htc(struct ath10k *ar)
@@ -470,8 +469,12 @@ static int ath10k_core_fetch_firmware_api_n(struct ath10k *ar, const char *name)
 				if (index == ie_len)
 					break;
 
-				if (data[index] & (1 << bit))
+				if (data[index] & (1 << bit)) {
+					ath10k_dbg(ATH10K_DBG_BOOT,
+						   "Enabling feature bit: %i\n",
+						   i);
 					__set_bit(i, ar->fw_features);
+				}
 			}
 
 			ath10k_dbg_dump(ATH10K_DBG_BOOT, "features", "",
@@ -699,6 +702,7 @@ struct ath10k *ath10k_core_create(void *hif_priv, struct device *dev,
 	init_completion(&ar->scan.started);
 	init_completion(&ar->scan.completed);
 	init_completion(&ar->scan.on_channel);
+	init_completion(&ar->target_suspend);
 
 	init_completion(&ar->install_key_done);
 	init_completion(&ar->vdev_setup_done);
@@ -721,8 +725,6 @@ struct ath10k *ath10k_core_create(void *hif_priv, struct device *dev,
 
 	INIT_WORK(&ar->wmi_mgmt_tx_work, ath10k_mgmt_over_wmi_tx_work);
 	skb_queue_head_init(&ar->wmi_mgmt_tx_queue);
-
-	init_waitqueue_head(&ar->event_queue);
 
 	INIT_WORK(&ar->restart_work, ath10k_core_restart);
 
@@ -856,10 +858,34 @@ err:
 }
 EXPORT_SYMBOL(ath10k_core_start);
 
+int ath10k_wait_for_suspend(struct ath10k *ar, u32 suspend_opt)
+{
+	int ret;
+
+	reinit_completion(&ar->target_suspend);
+
+	ret = ath10k_wmi_pdev_suspend_target(ar, suspend_opt);
+	if (ret) {
+		ath10k_warn("could not suspend target (%d)\n", ret);
+		return ret;
+	}
+
+	ret = wait_for_completion_timeout(&ar->target_suspend, 1 * HZ);
+
+	if (ret == 0) {
+		ath10k_warn("suspend timed out - target pause event never came\n");
+		return -ETIMEDOUT;
+	}
+
+	return 0;
+}
+
 void ath10k_core_stop(struct ath10k *ar)
 {
 	lockdep_assert_held(&ar->conf_mutex);
 
+	/* try to suspend target */
+	ath10k_wait_for_suspend(ar, WMI_PDEV_SUSPEND_AND_DISABLE_INTR);
 	ath10k_debug_stop(ar);
 	ath10k_htc_stop(&ar->htc);
 	ath10k_htt_detach(&ar->htt);

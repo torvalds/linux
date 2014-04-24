@@ -206,7 +206,7 @@ static void resizer_set_bilinear(struct isp_res_device *res,
 /*
  * resizer_set_ycpos - Luminance and chrominance order
  * @res: Device context.
- * @order: order type.
+ * @pixelcode: pixel code.
  */
 static void resizer_set_ycpos(struct isp_res_device *res,
 			      enum v4l2_mbus_pixelcode pixelcode)
@@ -918,8 +918,8 @@ static void resizer_calc_ratios(struct isp_res_device *res,
 /*
  * resizer_set_crop_params - Setup hardware with cropping parameters
  * @res : resizer private structure
- * @crop_rect : current crop rectangle
- * @ratio : resizer ratios
+ * @input : format on sink pad
+ * @output : format on source pad
  * return none
  */
 static void resizer_set_crop_params(struct isp_res_device *res,

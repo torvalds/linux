@@ -1,0 +1,35 @@
+SPM AVS Wrapper 2 (SAW2)
+
+The SAW2 is a wrapper around the Subsystem Power Manager (SPM) and the
+Adaptive Voltage Scaling (AVS) hardware. The SPM is a programmable
+micro-controller that transitions a piece of hardware (like a processor or
+subsystem) into and out of low power modes via a direct connection to
+the PMIC. It can also be wired up to interact with other processors in the
+system, notifying them when a low power state is entered or exited.
+
+PROPERTIES
+
+- compatible:
+	Usage: required
+	Value type: <string>
+	Definition: shall contain "qcom,saw2". A more specific value should be
+		    one of:
+			 "qcom,saw2-v1"
+			 "qcom,saw2-v1.1"
+			 "qcom,saw2-v2"
+			 "qcom,saw2-v2.1"
+
+- reg:
+	Usage: required
+	Value type: <prop-encoded-array>
+	Definition: the first element specifies the base address and size of
+		    the register region. An optional second element specifies
+		    the base address and size of the alias register region.
+
+
+Example:
+
+	regulator@2099000 {
+		compatible = "qcom,saw2";
+		reg = <0x02099000 0x1000>, <0x02009000 0x1000>;
+	};

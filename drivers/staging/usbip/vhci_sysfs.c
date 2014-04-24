@@ -176,6 +176,7 @@ static ssize_t store_attach(struct device *dev, struct device_attribute *attr,
 	struct socket *socket;
 	int sockfd = 0;
 	__u32 rhport = 0, devid = 0, speed = 0;
+	int err;
 
 	/*
 	 * @rhport: port number of vhci_hcd
@@ -183,7 +184,7 @@ static ssize_t store_attach(struct device *dev, struct device_attribute *attr,
 	 * @devid: unique device identifier in a remote host
 	 * @speed: usb device speed in a remote host
 	 */
-	if (sscanf(buf, "%u %u %u %u", &rhport, &sockfd, &devid, &speed) != 1)
+	if (sscanf(buf, "%u %u %u %u", &rhport, &sockfd, &devid, &speed) != 4)
 		return -EINVAL;
 
 	usbip_dbg_vhci_sysfs("rhport(%u) sockfd(%u) devid(%u) speed(%u)\n",
@@ -194,8 +195,7 @@ static ssize_t store_attach(struct device *dev, struct device_attribute *attr,
 		return -EINVAL;
 
 	/* Extract socket from fd. */
-	/* The correct way to clean this up is to fput(socket->file). */
-	socket = sockfd_to_socket(sockfd);
+	socket = sockfd_lookup(sockfd, &err);
 	if (!socket)
 		return -EINVAL;
 
@@ -211,7 +211,7 @@ static ssize_t store_attach(struct device *dev, struct device_attribute *attr,
 		spin_unlock(&vdev->ud.lock);
 		spin_unlock(&the_controller->lock);
 
-		fput(socket->file);
+		sockfd_put(socket);
 
 		dev_err(dev, "port %d already used\n", rhport);
 		return -EINVAL;

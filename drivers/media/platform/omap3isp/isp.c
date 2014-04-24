@@ -391,7 +391,7 @@ static void isp_disable_interrupts(struct isp_device *isp)
  * @isp: OMAP3 ISP device
  * @idle: Consider idle state.
  *
- * Set the power settings for the ISP and SBL bus and cConfigure the HS/VS
+ * Set the power settings for the ISP and SBL bus and configure the HS/VS
  * interrupt source.
  *
  * We need to configure the HS/VS interrupt source before interrupts get
@@ -588,9 +588,6 @@ static void isp_isr_sbl(struct isp_device *isp)
  * @_isp: Pointer to the OMAP3 ISP device
  *
  * Handles the corresponding callback if plugged in.
- *
- * Returns IRQ_HANDLED when IRQ was correctly handled, or IRQ_NONE when the
- * IRQ wasn't handled.
  */
 static irqreturn_t isp_isr(int irq, void *_isp)
 {
@@ -1420,7 +1417,7 @@ int omap3isp_module_sync_idle(struct media_entity *me, wait_queue_head_t *wait,
 }
 
 /*
- * omap3isp_module_sync_is_stopped - Helper to verify if module was stopping
+ * omap3isp_module_sync_is_stopping - Helper to verify if module was stopping
  * @wait: ISP submodule's wait queue for streamoff/interrupt synchronization
  * @stopping: flag which tells module wants to stop
  *
