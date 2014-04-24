@@ -87,22 +87,21 @@
 /* Time to wait for a PCI slot to report status, in milliseconds */
 #define PCI_BUS_RESET_WAIT_MSEC (5*60*1000)
 
+/*
+ * EEH probe mode support, which is part of the flags,
+ * is to support multiple platforms for EEH. Some platforms
+ * like pSeries do PCI emunation based on device tree.
+ * However, other platforms like powernv probe PCI devices
+ * from hardware. The flag is used to distinguish that.
+ * In addition, struct eeh_ops::probe would be invoked for
+ * particular OF node or PCI device so that the corresponding
+ * PE would be created there.
+ */
+int eeh_subsystem_flags;
+EXPORT_SYMBOL(eeh_subsystem_flags);
+
 /* Platform dependent EEH operations */
 struct eeh_ops *eeh_ops = NULL;
-
-bool eeh_subsystem_enabled = false;
-EXPORT_SYMBOL(eeh_subsystem_enabled);
-
-/*
- * EEH probe mode support. The intention is to support multiple
- * platforms for EEH. Some platforms like pSeries do PCI emunation
- * based on device tree. However, other platforms like powernv probe
- * PCI devices from hardware. The flag is used to distinguish that.
- * In addition, struct eeh_ops::probe would be invoked for particular
- * OF node or PCI device so that the corresponding PE would be created
- * there.
- */
-int eeh_probe_mode;
 
 /* Lock to avoid races due to multiple reports of an error */
 DEFINE_RAW_SPINLOCK(confirm_error_lock);
@@ -842,8 +841,8 @@ int eeh_init(void)
 			&hose_list, list_node)
 			pci_walk_bus(hose->bus, eeh_ops->dev_probe, NULL);
 	} else {
-		pr_warning("%s: Invalid probe mode %d\n",
-			   __func__, eeh_probe_mode);
+		pr_warn("%s: Invalid probe mode %x",
+			__func__, eeh_subsystem_flags);
 		return -EINVAL;
 	}
 

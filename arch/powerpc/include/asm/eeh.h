@@ -32,6 +32,12 @@ struct device_node;
 
 #ifdef CONFIG_EEH
 
+/* EEH subsystem flags */
+#define EEH_ENABLED		0x1	/* EEH enabled		*/
+#define EEH_FORCE_DISABLED	0x2	/* EEH disabled		*/
+#define EEH_PROBE_MODE_DEV	0x4	/* From PCI device	*/
+#define EEH_PROBE_MODE_DEVTREE	0x8	/* From device tree	*/
+
 /*
  * The struct is used to trace PE related EEH functionality.
  * In theory, there will have one instance of the struct to
@@ -173,37 +179,40 @@ struct eeh_ops {
 	int (*restore_config)(struct device_node *dn);
 };
 
+extern int eeh_subsystem_flags;
 extern struct eeh_ops *eeh_ops;
-extern bool eeh_subsystem_enabled;
 extern raw_spinlock_t confirm_error_lock;
-extern int eeh_probe_mode;
 
 static inline bool eeh_enabled(void)
 {
-	return eeh_subsystem_enabled;
+	if ((eeh_subsystem_flags & EEH_FORCE_DISABLED) ||
+	    !(eeh_subsystem_flags & EEH_ENABLED))
+		return false;
+
+	return true;
 }
 
 static inline void eeh_set_enable(bool mode)
 {
-	eeh_subsystem_enabled = mode;
+	if (mode)
+		eeh_subsystem_flags |= EEH_ENABLED;
+	else
+		eeh_subsystem_flags &= ~EEH_ENABLED;
 }
-
-#define EEH_PROBE_MODE_DEV	(1<<0)	/* From PCI device	*/
-#define EEH_PROBE_MODE_DEVTREE	(1<<1)	/* From device tree	*/
 
 static inline void eeh_probe_mode_set(int flag)
 {
-	eeh_probe_mode = flag;
+	eeh_subsystem_flags |= flag;
 }
 
 static inline int eeh_probe_mode_devtree(void)
 {
-	return (eeh_probe_mode == EEH_PROBE_MODE_DEVTREE);
+	return (eeh_subsystem_flags & EEH_PROBE_MODE_DEVTREE);
 }
 
 static inline int eeh_probe_mode_dev(void)
 {
-	return (eeh_probe_mode == EEH_PROBE_MODE_DEV);
+	return (eeh_subsystem_flags & EEH_PROBE_MODE_DEV);
 }
 
 static inline void eeh_serialize_lock(unsigned long *flags)
