@@ -145,7 +145,7 @@ static const struct file_operations audmux_debugfs_fops = {
 	.llseek = default_llseek,
 };
 
-static void __init audmux_debugfs_init(void)
+static void audmux_debugfs_init(void)
 {
 	int i;
 	char buf[20];
