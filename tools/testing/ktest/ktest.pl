@@ -2923,7 +2923,13 @@ sub compare_configs {
 sub run_config_bisect_test {
     my ($type) = @_;
 
-    return run_bisect_test $type, "oldconfig";
+    my $ret = run_bisect_test $type, "oldconfig";
+
+    if ($bisect_manual) {
+	$ret = answer_bisect;
+    }
+
+    return $ret;
 }
 
 sub process_failed {
