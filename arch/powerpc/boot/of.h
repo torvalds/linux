@@ -2,7 +2,7 @@
 #define _PPC_BOOT_OF_H_
 
 typedef void *phandle;
-typedef void *ihandle;
+typedef u32 ihandle;
 
 void of_init(void *promptr);
 int of_call_prom(const char *service, int nargs, int nret, ...);

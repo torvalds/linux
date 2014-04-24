@@ -106,7 +106,7 @@ static int string_match(const char *s1, const char *s2)
  */
 static int need_map = -1;
 static ihandle chosen_mmu;
-static phandle memory;
+static ihandle memory;
 
 static int check_of_version(void)
 {
@@ -135,10 +135,10 @@ static int check_of_version(void)
 		printf("no mmu\n");
 		return 0;
 	}
-	memory = (ihandle) of_call_prom("open", 1, 1, "/memory");
-	if (memory == (ihandle) -1) {
-		memory = (ihandle) of_call_prom("open", 1, 1, "/memory@0");
-		if (memory == (ihandle) -1) {
+	memory = of_call_prom("open", 1, 1, "/memory");
+	if (memory == PROM_ERROR) {
+		memory = of_call_prom("open", 1, 1, "/memory@0");
+		if (memory == PROM_ERROR) {
 			printf("no memory node\n");
 			return 0;
 		}
