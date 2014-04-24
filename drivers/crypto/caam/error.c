@@ -168,19 +168,6 @@ static const char * const rng_err_id_list[] = {
 	kfree(tmp);						\
 }
 
-static void report_jump_idx(u32 status, char *outstr)
-{
-	u8 idx = (status & JRSTA_DECOERR_INDEX_MASK) >>
-		  JRSTA_DECOERR_INDEX_SHIFT;
-
-	if (status & JRSTA_DECOERR_JUMP)
-		strcat(outstr, "jump tgt desc idx ");
-	else
-		strcat(outstr, "desc idx ");
-
-	SPRINTFCAT(outstr, "%d: ", idx, sizeof("255"));
-}
-
 static void report_ccb_status(struct device *jrdev, u32 status,
 			      const char *error, char *__outstr)
 {
@@ -189,10 +176,17 @@ static void report_ccb_status(struct device *jrdev, u32 status,
 	u8 cha_id = (status & JRSTA_CCBERR_CHAID_MASK) >>
 		    JRSTA_CCBERR_CHAID_SHIFT;
 	u8 err_id = status & JRSTA_CCBERR_ERRID_MASK;
+	u8 idx = (status & JRSTA_DECOERR_INDEX_MASK) >>
+		  JRSTA_DECOERR_INDEX_SHIFT;
 
 	sprintf(outstr, "%s: ", error);
 
-	report_jump_idx(status, outstr);
+	if (status & JRSTA_DECOERR_JUMP)
+		strcat(outstr, "jump tgt desc idx ");
+	else
+		strcat(outstr, "desc idx ");
+
+	SPRINTFCAT(outstr, "%d: ", idx, sizeof("255"));
 
 	if (cha_id < ARRAY_SIZE(cha_id_list)) {
 		SPRINTFCAT(outstr, "%s: ", cha_id_list[cha_id],
@@ -232,10 +226,18 @@ static void report_deco_status(struct device *jrdev, u32 status,
 	char outstr[CAAM_ERROR_STR_MAX];
 
 	u8 desc_error = status & JRSTA_DECOERR_ERROR_MASK;
+	u8 idx = (status & JRSTA_DECOERR_INDEX_MASK) >>
+		  JRSTA_DECOERR_INDEX_SHIFT;
+
 	int i;
 	sprintf(outstr, "%s: ", error);
 
-	report_jump_idx(status, outstr);
+	if (status & JRSTA_DECOERR_JUMP)
+		strcat(outstr, "jump tgt desc idx ");
+	else
+		strcat(outstr, "desc idx ");
+
+	SPRINTFCAT(outstr, "%d: ", idx, sizeof("255"));
 
 	for (i = 0; i < ARRAY_SIZE(desc_error_list); i++)
 		if (desc_error_list[i].value == desc_error)
