@@ -243,8 +243,9 @@ static void report_cond_code_status(u32 status, char *outstr)
 	SPRINTFCAT(outstr, "%s() not implemented", __func__, sizeof(__func__));
 }
 
-char *caam_jr_strstatus(char *outstr, u32 status)
+void caam_jr_strstatus(struct device *jrdev, u32 status)
 {
+	char outstr[CAAM_ERROR_STR_MAX];
 	static const struct stat_src {
 		void (*report_ssed)(u32 status, char *outstr);
 		char *error;
@@ -265,6 +266,6 @@ char *caam_jr_strstatus(char *outstr, u32 status)
 	if (status_src[ssrc].report_ssed)
 		status_src[ssrc].report_ssed(status, outstr);
 
-	return outstr;
+	dev_err(jrdev, "%08x: %s\n", status, outstr);
 }
 EXPORT_SYMBOL(caam_jr_strstatus);
