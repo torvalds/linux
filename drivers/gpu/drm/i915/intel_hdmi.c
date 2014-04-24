@@ -650,15 +650,14 @@ static void intel_hdmi_mode_set(struct intel_encoder *encoder)
 	else
 		hdmi_val |= SDVO_COLOR_FORMAT_8bpc;
 
-	if (intel_hdmi->has_hdmi_sink &&
-	    (HAS_PCH_CPT(dev) || IS_VALLEYVIEW(dev)))
+	if (intel_hdmi->has_hdmi_sink)
 		hdmi_val |= HDMI_MODE_SELECT_HDMI;
 
 	if (intel_hdmi->has_audio) {
+		WARN_ON(!intel_hdmi->has_hdmi_sink);
 		DRM_DEBUG_DRIVER("Enabling HDMI audio on pipe %c\n",
 				 pipe_name(crtc->pipe));
 		hdmi_val |= SDVO_AUDIO_ENABLE;
-		hdmi_val |= HDMI_MODE_SELECT_HDMI;
 		intel_write_eld(&encoder->base, adjusted_mode);
 	}
 
