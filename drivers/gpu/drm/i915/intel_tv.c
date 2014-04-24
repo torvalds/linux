@@ -993,6 +993,26 @@ set_tv_mode_timings(struct drm_i915_private *dev_priv,
 	I915_WRITE(TV_V_CTL_7, vctl7);
 }
 
+static void set_color_conversion(struct drm_i915_private *dev_priv,
+				 const struct color_conversion *color_conversion)
+{
+	if (!color_conversion)
+		return;
+
+	I915_WRITE(TV_CSC_Y, (color_conversion->ry << 16) |
+		   color_conversion->gy);
+	I915_WRITE(TV_CSC_Y2, (color_conversion->by << 16) |
+		   color_conversion->ay);
+	I915_WRITE(TV_CSC_U, (color_conversion->ru << 16) |
+		   color_conversion->gu);
+	I915_WRITE(TV_CSC_U2, (color_conversion->bu << 16) |
+		   color_conversion->au);
+	I915_WRITE(TV_CSC_V, (color_conversion->rv << 16) |
+		   color_conversion->gv);
+	I915_WRITE(TV_CSC_V2, (color_conversion->bv << 16) |
+		   color_conversion->av);
+}
+
 static void intel_tv_mode_set(struct intel_encoder *encoder)
 {
 	struct drm_device *dev = encoder->base.dev;
@@ -1079,20 +1099,7 @@ static void intel_tv_mode_set(struct intel_encoder *encoder)
 	I915_WRITE(TV_SC_CTL_2, scctl2);
 	I915_WRITE(TV_SC_CTL_3, scctl3);
 
-	if (color_conversion) {
-		I915_WRITE(TV_CSC_Y, (color_conversion->ry << 16) |
-			   color_conversion->gy);
-		I915_WRITE(TV_CSC_Y2, (color_conversion->by << 16) |
-			   color_conversion->ay);
-		I915_WRITE(TV_CSC_U, (color_conversion->ru << 16) |
-			   color_conversion->gu);
-		I915_WRITE(TV_CSC_U2, (color_conversion->bu << 16) |
-			   color_conversion->au);
-		I915_WRITE(TV_CSC_V, (color_conversion->rv << 16) |
-			   color_conversion->gv);
-		I915_WRITE(TV_CSC_V2, (color_conversion->bv << 16) |
-			   color_conversion->av);
-	}
+	set_color_conversion(dev_priv, color_conversion);
 
 	if (INTEL_INFO(dev)->gen >= 4)
 		I915_WRITE(TV_CLR_KNOBS, 0x00404000);
