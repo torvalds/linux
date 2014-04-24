@@ -122,6 +122,8 @@ int obd_ioctl_getdata(char **buf, int *len, void *arg)
 		OBD_FREE_LARGE(*buf, hdr.ioc_len);
 		return err;
 	}
+	if (hdr.ioc_len != data->ioc_len)
+		return -EINVAL;
 
 	if (obd_ioctl_is_invalid(data)) {
 		CERROR("ioctl not correctly formatted\n");

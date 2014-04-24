@@ -44,6 +44,7 @@ int libcfs_ioctl_getdata(char *buf, char *end, void *arg)
 {
 	struct libcfs_ioctl_hdr   *hdr;
 	struct libcfs_ioctl_data  *data;
+	int orig_len;
 	int err;
 
 	hdr = (struct libcfs_ioctl_hdr *)buf;
@@ -69,9 +70,12 @@ int libcfs_ioctl_getdata(char *buf, char *end, void *arg)
 		return -EINVAL;
 	}
 
+	orig_len = hdr->ioc_len;
 	err = copy_from_user(buf, (void *)arg, hdr->ioc_len);
 	if (err)
 		return err;
+	if (orig_len != data->ioc_len)
+		return -EINVAL;
 
 	if (libcfs_ioctl_is_invalid(data)) {
 		CERROR("PORTALS: ioctl not correctly formatted\n");
