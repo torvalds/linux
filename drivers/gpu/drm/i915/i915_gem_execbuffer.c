@@ -1123,6 +1123,11 @@ i915_gem_do_execbuffer(struct drm_device *dev, void *data,
 			ret = -EFAULT;
 			goto pre_mutex_err;
 		}
+	} else {
+		if (args->DR1 || args->DR4 || args->cliprects_ptr) {
+			DRM_DEBUG("0 cliprects but dirt in cliprects fields\n");
+			return -EINVAL;
+		}
 	}
 
 	intel_runtime_pm_get(dev_priv);
@@ -1397,6 +1402,11 @@ i915_gem_execbuffer2(struct drm_device *dev, void *data,
 	if (args->buffer_count < 1 ||
 	    args->buffer_count > UINT_MAX / sizeof(*exec2_list)) {
 		DRM_DEBUG("execbuf2 with %d buffers\n", args->buffer_count);
+		return -EINVAL;
+	}
+
+	if (args->rsvd2 != 0) {
+		DRM_DEBUG("dirty rvsd2 field\n");
 		return -EINVAL;
 	}
 
