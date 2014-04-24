@@ -106,16 +106,3 @@ int ieee754dp_tint(union ieee754dp x)
 	else
 		return xm;
 }
-
-
-unsigned int ieee754dp_tuns(union ieee754dp x)
-{
-	union ieee754dp hb = ieee754dp_1e31();
-
-	/* what if x < 0 ?? */
-	if (ieee754dp_lt(x, hb))
-		return (unsigned) ieee754dp_tint(x);
-
-	return (unsigned) ieee754dp_tint(ieee754dp_sub(x, hb)) |
-	    ((unsigned) 1 << 31);
-}

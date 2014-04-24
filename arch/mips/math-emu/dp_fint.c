@@ -59,11 +59,3 @@ union ieee754dp ieee754dp_fint(int x)
 	}
 	return builddp(xs, xe + DP_EBIAS, xm & ~DP_HIDDEN_BIT);
 }
-
-union ieee754dp ieee754dp_funs(unsigned int u)
-{
-	if ((int) u < 0)
-		return ieee754dp_add(ieee754dp_1e31(),
-				     ieee754dp_fint(u & ~(1 << 31)));
-	return ieee754dp_fint(u);
-}

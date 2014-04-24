@@ -67,11 +67,3 @@ union ieee754dp ieee754dp_flong(s64 x)
 	}
 	DPNORMRET1(xs, xe, xm, "dp_flong", x);
 }
-
-union ieee754dp ieee754dp_fulong(u64 u)
-{
-	if ((s64) u < 0)
-		return ieee754dp_add(ieee754dp_1e63(),
-				     ieee754dp_flong(u & ~(1ULL << 63)));
-	return ieee754dp_flong(u);
-}

@@ -72,11 +72,6 @@ int ieee754sp_class(union ieee754sp x);
 
 union ieee754sp ieee754sp_abs(union ieee754sp x);
 union ieee754sp ieee754sp_neg(union ieee754sp x);
-union ieee754sp ieee754sp_scalb(union ieee754sp x, int);
-union ieee754sp ieee754sp_logb(union ieee754sp x);
-
-/* x with sign of y */
-union ieee754sp ieee754sp_copysign(union ieee754sp x, union ieee754sp y);
 
 union ieee754sp ieee754sp_add(union ieee754sp x, union ieee754sp y);
 union ieee754sp ieee754sp_sub(union ieee754sp x, union ieee754sp y);
@@ -84,27 +79,13 @@ union ieee754sp ieee754sp_mul(union ieee754sp x, union ieee754sp y);
 union ieee754sp ieee754sp_div(union ieee754sp x, union ieee754sp y);
 
 union ieee754sp ieee754sp_fint(int x);
-union ieee754sp ieee754sp_funs(unsigned x);
 union ieee754sp ieee754sp_flong(s64 x);
-union ieee754sp ieee754sp_fulong(u64 x);
 union ieee754sp ieee754sp_fdp(union ieee754dp x);
 
 int ieee754sp_tint(union ieee754sp x);
-unsigned int ieee754sp_tuns(union ieee754sp x);
 s64 ieee754sp_tlong(union ieee754sp x);
-u64 ieee754sp_tulong(union ieee754sp x);
 
 int ieee754sp_cmp(union ieee754sp x, union ieee754sp y, int cop, int sig);
-/*
- * basic sp math
- */
-union ieee754sp ieee754sp_modf(union ieee754sp x, union ieee754sp * ip);
-union ieee754sp ieee754sp_frexp(union ieee754sp x, int *exp);
-union ieee754sp ieee754sp_ldexp(union ieee754sp x, int exp);
-
-union ieee754sp ieee754sp_ceil(union ieee754sp x);
-union ieee754sp ieee754sp_floor(union ieee754sp x);
-union ieee754sp ieee754sp_trunc(union ieee754sp x);
 
 union ieee754sp ieee754sp_sqrt(union ieee754sp x);
 
@@ -113,9 +94,6 @@ union ieee754sp ieee754sp_sqrt(union ieee754sp x);
 */
 int ieee754dp_class(union ieee754dp x);
 
-/* x with sign of y */
-union ieee754dp ieee754dp_copysign(union ieee754dp x, union ieee754dp y);
-
 union ieee754dp ieee754dp_add(union ieee754dp x, union ieee754dp y);
 union ieee754dp ieee754dp_sub(union ieee754dp x, union ieee754dp y);
 union ieee754dp ieee754dp_mul(union ieee754dp x, union ieee754dp y);
@@ -123,38 +101,15 @@ union ieee754dp ieee754dp_div(union ieee754dp x, union ieee754dp y);
 
 union ieee754dp ieee754dp_abs(union ieee754dp x);
 union ieee754dp ieee754dp_neg(union ieee754dp x);
-union ieee754dp ieee754dp_scalb(union ieee754dp x, int);
-
-/* return exponent as integer in floating point format
- */
-union ieee754dp ieee754dp_logb(union ieee754dp x);
 
 union ieee754dp ieee754dp_fint(int x);
-union ieee754dp ieee754dp_funs(unsigned x);
 union ieee754dp ieee754dp_flong(s64 x);
-union ieee754dp ieee754dp_fulong(u64 x);
 union ieee754dp ieee754dp_fsp(union ieee754sp x);
 
-union ieee754dp ieee754dp_ceil(union ieee754dp x);
-union ieee754dp ieee754dp_floor(union ieee754dp x);
-union ieee754dp ieee754dp_trunc(union ieee754dp x);
-
 int ieee754dp_tint(union ieee754dp x);
-unsigned int ieee754dp_tuns(union ieee754dp x);
 s64 ieee754dp_tlong(union ieee754dp x);
-u64 ieee754dp_tulong(union ieee754dp x);
 
 int ieee754dp_cmp(union ieee754dp x, union ieee754dp y, int cop, int sig);
-/*
- * basic sp math
- */
-union ieee754dp ieee754dp_modf(union ieee754dp x, union ieee754dp * ip);
-union ieee754dp ieee754dp_frexp(union ieee754dp x, int *exp);
-union ieee754dp ieee754dp_ldexp(union ieee754dp x, int exp);
-
-union ieee754dp ieee754dp_ceil(union ieee754dp x);
-union ieee754dp ieee754dp_floor(union ieee754dp x);
-union ieee754dp ieee754dp_trunc(union ieee754dp x);
 
 union ieee754dp ieee754dp_sqrt(union ieee754dp x);
 
@@ -260,14 +215,6 @@ static inline int ieee754dp_ge(union ieee754dp x, union ieee754dp y)
 {
 	return ieee754dp_cmp(x, y, IEEE754_CGT | IEEE754_CEQ, 0);
 }
-
-
-/*
- * Like strtod
- */
-union ieee754dp ieee754dp_fstr(const char *s, char **endp);
-char *ieee754dp_tstr(union ieee754dp x, int prec, int fmt, int af);
-
 
 /*
  * The control status register

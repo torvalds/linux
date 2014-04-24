@@ -26,14 +26,6 @@
 
 #include "ieee754sp.h"
 
-union ieee754sp ieee754sp_copysign(union ieee754sp x, union ieee754sp y)
-{
-	ieee754_clearcx();
-	SPSIGN(x) = SPSIGN(y);
-	return x;
-}
-
-
 union ieee754sp ieee754sp_neg(union ieee754sp x)
 {
 	COMPXSP;

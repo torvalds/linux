@@ -26,14 +26,6 @@
 
 #include "ieee754dp.h"
 
-union ieee754dp ieee754dp_copysign(union ieee754dp x, union ieee754dp y)
-{
-	ieee754_clearcx();
-	DPSIGN(x) = DPSIGN(y);
-	return x;
-}
-
-
 union ieee754dp ieee754dp_neg(union ieee754dp x)
 {
 	COMPXDP;

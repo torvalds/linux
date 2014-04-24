@@ -67,12 +67,3 @@ union ieee754sp ieee754sp_flong(s64 x)
 	}
 	SPNORMRET1(xs, xe, xm, "sp_flong", x);
 }
-
-
-union ieee754sp ieee754sp_fulong(u64 u)
-{
-	if ((s64) u < 0)
-		return ieee754sp_add(ieee754sp_1e63(),
-				     ieee754sp_flong(u & ~(1ULL << 63)));
-	return ieee754sp_flong(u);
-}

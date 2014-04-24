@@ -110,16 +110,3 @@ s64 ieee754dp_tlong(union ieee754dp x)
 	else
 		return xm;
 }
-
-
-u64 ieee754dp_tulong(union ieee754dp x)
-{
-	union ieee754dp hb = ieee754dp_1e63();
-
-	/* what if x < 0 ?? */
-	if (ieee754dp_lt(x, hb))
-		return (u64) ieee754dp_tlong(x);
-
-	return (u64) ieee754dp_tlong(ieee754dp_sub(x, hb)) |
-	    (1ULL << 63);
-}

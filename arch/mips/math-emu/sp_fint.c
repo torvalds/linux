@@ -68,12 +68,3 @@ union ieee754sp ieee754sp_fint(int x)
 	}
 	SPNORMRET1(xs, xe, xm, "fint", x);
 }
-
-
-union ieee754sp ieee754sp_funs(unsigned int u)
-{
-	if ((int) u < 0)
-		return ieee754sp_add(ieee754sp_1e31(),
-				     ieee754sp_fint(u & ~(1 << 31)));
-	return ieee754sp_fint(u);
-}
