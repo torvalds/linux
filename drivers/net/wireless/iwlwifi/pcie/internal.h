@@ -117,21 +117,19 @@ struct iwl_dma_ptr {
 /**
  * iwl_queue_inc_wrap - increment queue index, wrap back to beginning
  * @index -- current index
- * @n_bd -- total number of entries in queue (must be power of 2)
  */
-static inline int iwl_queue_inc_wrap(int index, int n_bd)
+static inline int iwl_queue_inc_wrap(int index)
 {
-	return ++index & (n_bd - 1);
+	return ++index & (TFD_QUEUE_SIZE_MAX - 1);
 }
 
 /**
  * iwl_queue_dec_wrap - decrement queue index, wrap back to end
  * @index -- current index
- * @n_bd -- total number of entries in queue (must be power of 2)
  */
-static inline int iwl_queue_dec_wrap(int index, int n_bd)
+static inline int iwl_queue_dec_wrap(int index)
 {
-	return --index & (n_bd - 1);
+	return --index & (TFD_QUEUE_SIZE_MAX - 1);
 }
 
 struct iwl_cmd_meta {
@@ -145,13 +143,13 @@ struct iwl_cmd_meta {
  *
  * Contains common data for Rx and Tx queues.
  *
- * Note the difference between n_bd and n_window: the hardware
- * always assumes 256 descriptors, so n_bd is always 256 (unless
+ * Note the difference between TFD_QUEUE_SIZE_MAX and n_window: the hardware
+ * always assumes 256 descriptors, so TFD_QUEUE_SIZE_MAX is always 256 (unless
  * there might be HW changes in the future). For the normal TX
  * queues, n_window, which is the size of the software queue data
  * is also 256; however, for the command queue, n_window is only
  * 32 since we don't need so many commands pending. Since the HW
- * still uses 256 BDs for DMA though, n_bd stays 256. As a result,
+ * still uses 256 BDs for DMA though, TFD_QUEUE_SIZE_MAX stays 256. As a result,
  * the software buffers (in the variables @meta, @txb in struct
  * iwl_txq) only have 32 entries, while the HW buffers (@tfds in
  * the same struct) have 256.
@@ -162,7 +160,6 @@ struct iwl_cmd_meta {
  * data is a window overlayed over the HW queue.
  */
 struct iwl_queue {
-	int n_bd;              /* number of BDs in this queue */
 	int write_ptr;       /* 1-st empty entry (index) host_w*/
 	int read_ptr;         /* last used entry (index) host_r*/
 	/* use for monitoring and recovering the stuck queue */

@@ -1337,8 +1337,8 @@ static int iwl_trans_pcie_wait_txq_empty(struct iwl_trans *trans, u32 txq_bm)
 		IWL_ERR(trans,
 			"Q %d is %sactive and mapped to fifo %d ra_tid 0x%04x [%d,%d]\n",
 			cnt, active ? "" : "in", fifo, tbl_dw,
-			iwl_read_prph(trans,
-				      SCD_QUEUE_RDPTR(cnt)) & (txq->q.n_bd - 1),
+			iwl_read_prph(trans, SCD_QUEUE_RDPTR(cnt)) &
+				(TFD_QUEUE_SIZE_MAX - 1),
 			iwl_read_prph(trans, SCD_QUEUE_WRPTR(cnt)));
 	}
 
