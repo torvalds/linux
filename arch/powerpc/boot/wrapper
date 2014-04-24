@@ -152,7 +152,7 @@ of)
     make_space=n
     ;;
 pseries)
-    platformo="$object/of.o $object/epapr.o"
+    platformo="$object/pseries-head.o $object/of.o $object/epapr.o"
     link_address='0x4000000'
     make_space=n
     ;;
