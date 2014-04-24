@@ -2593,9 +2593,6 @@ static long btrfs_ioctl_dev_info(struct btrfs_root *root, void __user *arg)
 	int ret = 0;
 	char *s_uuid = NULL;
 
-	if (!capable(CAP_SYS_ADMIN))
-		return -EPERM;
-
 	di_args = memdup_user(arg, sizeof(*di_args));
 	if (IS_ERR(di_args))
 		return PTR_ERR(di_args);
