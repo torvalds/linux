@@ -19,8 +19,10 @@ static void usb20otg_hw_init(void)
 
 	/* other haredware init,include:
 	 * DRV_VBUS GPIO init */
-	if(gpio_get_value(control_usb->otg_gpios->gpio)){
-		gpio_set_value(control_usb->otg_gpios->gpio, 0);
+	if(gpio_is_valid(control_usb->otg_gpios->gpio)){
+		if(gpio_get_value(control_usb->otg_gpios->gpio)){
+			gpio_set_value(control_usb->otg_gpios->gpio, 0);
+		}
 	}
 }
 
@@ -149,9 +151,11 @@ static void dwc_otg_uart_mode(void* pdata, int enter_usb_uart_mode)
 static void usb20otg_power_enable(int enable)
 {
 	if(0 == enable){//disable otg_drv power
-		gpio_set_value(control_usb->otg_gpios->gpio, 0);
+		if(gpio_is_valid(control_usb->otg_gpios->gpio))
+			gpio_set_value(control_usb->otg_gpios->gpio, 0);
 	}else if(1 == enable){//enable otg_drv power
-		gpio_set_value(control_usb->otg_gpios->gpio, 1);
+		if(gpio_is_valid(control_usb->otg_gpios->gpio))
+			gpio_set_value(control_usb->otg_gpios->gpio, 1);
 	}
 }
 
@@ -188,8 +192,10 @@ static void usb20host_hw_init(void)
 
 	/* other haredware init,include:
 	 * DRV_VBUS GPIO init */
-	if(!gpio_get_value(control_usb->host_gpios->gpio)){
-		gpio_set_value(control_usb->host_gpios->gpio, 1);
+	if(gpio_is_valid(control_usb->host_gpios->gpio)){
+		if(!gpio_get_value(control_usb->host_gpios->gpio)){
+			gpio_set_value(control_usb->host_gpios->gpio, 1);
+		}
 	}
 }
 
@@ -308,7 +314,8 @@ static void usb20host_power_enable(int enable)
 	if(0 == enable){//disable host_drv power
 		//do not disable power in default
 	}else if(1 == enable){//enable host_drv power
-		gpio_set_value(control_usb->host_gpios->gpio, 1);
+		if(gpio_is_valid(control_usb->host_gpios->gpio))
+			gpio_set_value(control_usb->host_gpios->gpio, 1);
 	}
 }
 
@@ -436,8 +443,10 @@ static void rk_ehci_hw_init(void)
 	/* usb phy config init */
 
 	/* DRV_VBUS GPIO init */
-	if(!gpio_get_value(control_usb->host_gpios->gpio)){
-		gpio_set_value(control_usb->host_gpios->gpio, 1);
+	if(gpio_is_valid(control_usb->host_gpios->gpio)){
+		if(!gpio_get_value(control_usb->host_gpios->gpio)){
+			gpio_set_value(control_usb->host_gpios->gpio, 1);
+		}
 	}
 }
 
@@ -562,8 +571,10 @@ static void rk_ohci_hw_init(void)
 	/* usb phy config init */
 
 	/* DRV_VBUS GPIO init */
-	if(!gpio_get_value(control_usb->host_gpios->gpio)){
-		gpio_set_value(control_usb->host_gpios->gpio, 1);
+	if(gpio_is_valid(control_usb->host_gpios->gpio)){
+		if(!gpio_get_value(control_usb->host_gpios->gpio)){
+			gpio_set_value(control_usb->host_gpios->gpio, 1);
+		}
 	}
 }
 
@@ -903,6 +914,106 @@ static int usb_grf_ioremap(struct platform_device *pdev)
 
 #ifdef CONFIG_OF
 
+static const struct of_device_id rk_usb_control_id_table[] = {
+	{
+		.compatible = "rockchip,rk3288-usb-control",
+	},
+	{ },
+};
+
+#endif
+
+static int rk_usb_control_probe(struct platform_device *pdev)
+{
+	int gpio, err;
+	struct device_node *np = pdev->dev.of_node;
+	int ret = 0;
+
+	control_usb = devm_kzalloc(&pdev->dev, sizeof(*control_usb),GFP_KERNEL);
+	if (!control_usb) {
+		dev_err(&pdev->dev, "unable to alloc memory for control usb\n");
+		ret =  -ENOMEM;
+		goto out;
+	}
+
+	control_usb->chip_id = RK3288_USB_CTLR;
+	control_usb->remote_wakeup = of_property_read_bool(np,
+		"rockchip,remote_wakeup");
+	control_usb->usb_irq_wakeup = of_property_read_bool(np,
+		"rockchip,usb_irq_wakeup");
+
+	INIT_DELAYED_WORK(&control_usb->usb_charger_det_work, usb_battery_charger_detect_work);
+
+
+	control_usb->host_gpios = devm_kzalloc(&pdev->dev, sizeof(struct gpio), GFP_KERNEL);
+	if(!control_usb->host_gpios){
+		dev_err(&pdev->dev, "unable to alloc memory for host_gpios\n");
+		ret =  -ENOMEM;
+		goto out;
+	}
+
+	gpio =  of_get_named_gpio(np, "host_drv_gpio", 0);
+	control_usb->host_gpios->gpio = gpio;
+
+	if(!gpio_is_valid(gpio)){
+		dev_err(&pdev->dev, "invalid host gpio%d\n", gpio);
+	}else{
+		err = devm_gpio_request(&pdev->dev, gpio, "host_drv_gpio");
+		if (err) {
+			dev_err(&pdev->dev,
+				"failed to request GPIO%d for host_drv\n",
+				gpio);
+			ret = err;
+			goto out;
+		}
+		gpio_direction_output(control_usb->host_gpios->gpio, 1);
+	}
+
+	control_usb->otg_gpios = devm_kzalloc(&pdev->dev, sizeof(struct gpio), GFP_KERNEL);
+	if(!control_usb->otg_gpios){
+		dev_err(&pdev->dev, "unable to alloc memory for otg_gpios\n");
+		ret =  -ENOMEM;
+		goto out;
+	}
+
+	gpio =  of_get_named_gpio(np, "otg_drv_gpio", 0);
+	control_usb->otg_gpios->gpio = gpio;
+
+	if(!gpio_is_valid(gpio)){
+		dev_err(&pdev->dev, "invalid otg gpio%d\n", gpio);
+	}else{
+		err = devm_gpio_request(&pdev->dev, gpio, "otg_drv_gpio");
+		if (err) {
+			dev_err(&pdev->dev,
+				"failed to request GPIO%d for otg_drv\n",
+				gpio);
+			ret = err;
+			goto out;
+		}
+		gpio_direction_output(control_usb->otg_gpios->gpio, 0);
+	}
+
+out:
+	return ret;
+}
+
+static int rk_usb_control_remove(struct platform_device *pdev)
+{
+	return 0;
+}
+
+static struct platform_driver rk_usb_control_driver = {
+	.probe          = rk_usb_control_probe,
+	.remove         = rk_usb_control_remove,
+	.driver         = {
+		.name   = "rk3288-usb-control",
+		.owner  = THIS_MODULE,
+		.of_match_table = of_match_ptr(rk_usb_control_id_table),
+	},
+};
+
+#ifdef CONFIG_OF
+
 static const struct of_device_id dwc_otg_control_usb_id_table[] = {
 	{
 		.compatible = "rockchip,rk3288-dwc-control-usb",
@@ -914,25 +1025,14 @@ static const struct of_device_id dwc_otg_control_usb_id_table[] = {
 
 static int dwc_otg_control_usb_probe(struct platform_device *pdev)
 {
-	int gpio, err;
-	struct device_node *np = pdev->dev.of_node;
 	struct clk* hclk_usb_peri, *phyclk_480m, *phyclk480m_parent;
 	int ret = 0;
 
-	control_usb = devm_kzalloc(&pdev->dev, sizeof(*control_usb),GFP_KERNEL);
 	if (!control_usb) {
 		dev_err(&pdev->dev, "unable to alloc memory for control usb\n");
 		ret =  -ENOMEM;
 		goto err1;
 	}
-
-	control_usb->chip_id = RK3288_USB_CTLR;
-	control_usb->remote_wakeup = of_property_read_bool(np,
-		"rockchip,remote_wakeup");
-	control_usb->usb_irq_wakeup = of_property_read_bool(np,
-		"rockchip,usb_irq_wakeup");
-
-	INIT_DELAYED_WORK(&control_usb->usb_charger_det_work, usb_battery_charger_detect_work);
 
 	hclk_usb_peri = devm_clk_get(&pdev->dev, "hclk_usb_peri");
 	if (IS_ERR(hclk_usb_peri)) {
@@ -963,54 +1063,6 @@ static int dwc_otg_control_usb_probe(struct platform_device *pdev)
 		dev_err(&pdev->dev, "Failed to ioremap usb grf\n");
 		goto err2;
 	}
-
-	control_usb->host_gpios = devm_kzalloc(&pdev->dev, sizeof(struct gpio), GFP_KERNEL);
-	if(!control_usb->host_gpios){
-		dev_err(&pdev->dev, "unable to alloc memory for host_gpios\n");
-		ret =  -ENOMEM;
-		goto err2;
-	}
-
-	gpio =  of_get_named_gpio(np, "gpios", 0);
-	if(!gpio_is_valid(gpio)){
-		dev_err(&pdev->dev, "invalid host gpio%d\n", gpio);
-		ret = -EINVAL;
-		goto err2;
-	}
-	control_usb->host_gpios->gpio = gpio;
-	err = devm_gpio_request(&pdev->dev, gpio, "host_drv_gpio");
-	if (err) {
-		dev_err(&pdev->dev,
-			"failed to request GPIO%d for host_drv\n",
-			gpio);
-		ret = err;
-		goto err2;
-	}
-	gpio_direction_output(control_usb->host_gpios->gpio, 1);
-
-	control_usb->otg_gpios = devm_kzalloc(&pdev->dev, sizeof(struct gpio), GFP_KERNEL);
-	if(!control_usb->otg_gpios){
-		dev_err(&pdev->dev, "unable to alloc memory for otg_gpios\n");
-		ret =  -ENOMEM;
-		goto err2;
-	}
-
-	gpio =  of_get_named_gpio(np, "gpios", 1);
-	if(!gpio_is_valid(gpio)){
-		dev_err(&pdev->dev, "invalid otg gpio%d\n", gpio);
-		ret = -EINVAL;
-		goto err2;
-	}
-	control_usb->otg_gpios->gpio = gpio;
-	err = devm_gpio_request(&pdev->dev, gpio, "otg_drv_gpio");
-	if (err) {
-		dev_err(&pdev->dev,
-			"failed to request GPIO%d for otg_drv\n",
-			gpio);
-		ret = err;
-		goto err2;
-	}
-	gpio_direction_output(control_usb->otg_gpios->gpio, 0);
 
 #ifdef CONFIG_USB20_OTG
 	if(usb20otg_get_status(USB_STATUS_BVABLID)){
@@ -1049,13 +1101,28 @@ static struct platform_driver dwc_otg_control_usb_driver = {
 
 static int __init dwc_otg_control_usb_init(void)
 {
-	return platform_driver_register(&dwc_otg_control_usb_driver);
+	int retval = 0;
+
+	retval = platform_driver_register(&rk_usb_control_driver);
+	if (retval < 0) {
+		printk(KERN_ERR "%s retval=%d\n", __func__, retval);
+		return retval;
+	}
+
+	retval = platform_driver_register(&dwc_otg_control_usb_driver);
+
+	if (retval < 0) {
+		printk(KERN_ERR "%s retval=%d\n", __func__, retval);
+		return retval;
+	}
+	return retval;
 }
 
 subsys_initcall(dwc_otg_control_usb_init);
 
 static void __exit dwc_otg_control_usb_exit(void)
 {
+	platform_driver_unregister(&rk_usb_control_driver);
 	platform_driver_unregister(&dwc_otg_control_usb_driver);
 }
 
