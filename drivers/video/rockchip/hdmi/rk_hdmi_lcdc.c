@@ -559,11 +559,14 @@ int hdmi_init_video_para(struct hdmi *hdmi_drv, struct hdmi_video_para *video)
 	video->format_3d = 0; 	/*TODO modify according to EDID if need*/
 	video->pixel_repet = 0;
 
+#ifdef SOURCE_ABOVE_10BIT
 	if (hdmi_drv->edid.deepcolor & HDMI_COLOR_DEPTH_16BIT)
 		video->color_depth = HDMI_COLOR_DEPTH_16BIT;
 	else if (hdmi_drv->edid.deepcolor & HDMI_COLOR_DEPTH_12BIT)
 		video->color_depth = HDMI_COLOR_DEPTH_12BIT;
-	else if (hdmi_drv->edid.deepcolor & HDMI_COLOR_DEPTH_10BIT)
+	else
+#endif
+	if (hdmi_drv->edid.deepcolor & HDMI_COLOR_DEPTH_10BIT)
 		video->color_depth = HDMI_COLOR_DEPTH_10BIT;
 	else
 		video->color_depth = HDMI_COLOR_DEPTH_8BIT;

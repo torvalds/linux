@@ -184,7 +184,7 @@ int rk3288_hdmi_read_edid(struct hdmi *hdmi_drv, int block, unsigned char *buff)
 					ret = 0;
 					hdmi_dbg(hdmi_drv->dev, "[%s] edid read sucess\n", __FUNCTION__);
 
-				#if 1//def HDMI_DEBUG
+				#ifdef HDMI_DEBUG
 					for(i = 0; i < 128; i++) {
 						printk("%02x ,", buff[i]);
 						if( (i + 1) % 16 == 0)
