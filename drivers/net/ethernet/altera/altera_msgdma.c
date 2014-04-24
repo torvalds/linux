@@ -36,10 +36,8 @@ void msgdma_start_rxdma(struct altera_tse_private *priv)
 void msgdma_reset(struct altera_tse_private *priv)
 {
 	int counter;
-	struct msgdma_csr *txcsr =
-		(struct msgdma_csr *)priv->tx_dma_csr;
-	struct msgdma_csr *rxcsr =
-		(struct msgdma_csr *)priv->rx_dma_csr;
+	struct msgdma_csr *txcsr = priv->tx_dma_csr;
+	struct msgdma_csr *rxcsr = priv->rx_dma_csr;
 
 	/* Reset Rx mSGDMA */
 	iowrite32(MSGDMA_CSR_STAT_MASK, &rxcsr->status);
@@ -137,8 +135,7 @@ u32 msgdma_tx_completions(struct altera_tse_private *priv)
 	u32 ready = 0;
 	u32 inuse;
 	u32 status;
-	struct msgdma_csr *txcsr =
-		(struct msgdma_csr *)priv->tx_dma_csr;
+	struct msgdma_csr *txcsr = priv->tx_dma_csr;
 
 	/* Get number of sent descriptors */
 	inuse = ioread32(&txcsr->rw_fill_level) & 0xffff;
@@ -189,10 +186,8 @@ u32 msgdma_rx_status(struct altera_tse_private *priv)
 	u32 rxstatus = 0;
 	u32 pktlength;
 	u32 pktstatus;
-	struct msgdma_csr *rxcsr =
-		(struct msgdma_csr *)priv->rx_dma_csr;
-	struct msgdma_response *rxresp =
-		(struct msgdma_response *)priv->rx_dma_resp;
+	struct msgdma_csr *rxcsr = priv->rx_dma_csr;
+	struct msgdma_response *rxresp = priv->rx_dma_resp;
 
 	if (ioread32(&rxcsr->resp_fill_level) & 0xffff) {
 		pktlength = ioread32(&rxresp->bytes_transferred);
