@@ -1226,6 +1226,11 @@ static int edp_dpcd_debugfs_show(struct seq_file *s, void *v)
 	return 0;
 }
 
+static ssize_t edp_dpcd_write (struct file *file, const char __user *buf, size_t count, loff_t *ppos)
+{ 
+	return count;
+}
+
 static int edp_edid_debugfs_show(struct seq_file *s, void *v)
 {
 	struct rk32_edp *edp = s->private;
@@ -1236,6 +1241,18 @@ static int edp_edid_debugfs_show(struct seq_file *s, void *v)
 	rk32_edp_read_edid(edp);
 	seq_puts(s, "edid");
 	return 0;
+}
+
+static ssize_t edp_edid_write (struct file *file, const char __user *buf, size_t count, loff_t *ppos)
+{ 
+	struct rk32_edp *edp =  ((struct seq_file *)file->private_data)->private;
+	if (!edp) {
+		dev_err(edp->dev, "no edp device!\n");
+		return -ENODEV;
+	}
+	rk32_edp_disable();
+	rk32_edp_enable();
+	return count;
 }
 
 static int edp_reg_debugfs_show(struct seq_file *s, void *v)
@@ -1255,6 +1272,10 @@ static int edp_reg_debugfs_show(struct seq_file *s, void *v)
 	return 0;
 }
 
+static ssize_t edp_reg_write (struct file *file, const char __user *buf, size_t count, loff_t *ppos)
+{ 
+	return count;
+}
 
 #define EDP_DEBUG_ENTRY(name) \
 static int edp_##name##_debugfs_open(struct inode *inode, struct file *file) \
@@ -1266,14 +1287,14 @@ static const struct file_operations edp_##name##_debugfs_fops = { \
 	.owner = THIS_MODULE, \
 	.open = edp_##name##_debugfs_open, \
 	.read = seq_read, \
+	.write = edp_##name##_write,	\
 	.llseek = seq_lseek, \
 	.release = single_release, \
 }
 
-EDP_DEBUG_ENTRY(dpcd);
+EDP_DEBUG_ENTRY(dpcd); 
 EDP_DEBUG_ENTRY(edid);
 EDP_DEBUG_ENTRY(reg);
-
 #endif
 
 static int rk32_edp_probe(struct platform_device *pdev)
