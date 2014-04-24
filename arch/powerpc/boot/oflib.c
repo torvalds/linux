@@ -201,7 +201,7 @@ void of_exit(void)
  */
 void *of_finddevice(const char *name)
 {
-	return (phandle) of_call_prom("finddevice", 1, 1, name);
+	return (void *) (unsigned long) of_call_prom("finddevice", 1, 1, name);
 }
 
 int of_getprop(const void *phandle, const char *name, void *buf,
