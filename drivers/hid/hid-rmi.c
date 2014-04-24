@@ -641,10 +641,15 @@ static int rmi_populate_f11(struct hid_device *hdev)
 		}
 	}
 
-	/* retrieve the ctrl registers */
-	ret = rmi_read_block(hdev, data->f11.control_base_addr, buf, 20);
+	/*
+	 * retrieve the ctrl registers
+	 * the ctrl register has a size of 20 but a fw bug split it into 16 + 4,
+	 * and there is no way to know if the first 20 bytes are here or not.
+	 * We use only the first 10 bytes, so get only them.
+	 */
+	ret = rmi_read_block(hdev, data->f11.control_base_addr, buf, 10);
 	if (ret) {
-		hid_err(hdev, "can not read ctrl block of size 20: %d.\n", ret);
+		hid_err(hdev, "can not read ctrl block of size 10: %d.\n", ret);
 		return ret;
 	}
 
