@@ -144,7 +144,8 @@ asoc_simple_card_sub_parse_of(struct device_node *np,
 static int simple_card_dai_link_of(struct device_node *node,
 				   struct device *dev,
 				   struct snd_soc_dai_link *dai_link,
-				   struct simple_dai_props *dai_props)
+				   struct simple_dai_props *dai_props,
+				   bool is_top_level_node)
 {
 	struct device_node *np = NULL;
 	struct device_node *bitclkmaster = NULL;
@@ -155,7 +156,8 @@ static int simple_card_dai_link_of(struct device_node *node,
 	char *prefix = "";
 	int ret;
 
-	prefix = "simple-audio-card,";
+	if (is_top_level_node)
+		prefix = "simple-audio-card,";
 
 	daifmt = snd_soc_of_parse_daifmt(node, prefix,
 					 &bitclkmaster, &framemaster);
@@ -307,14 +309,15 @@ static int asoc_simple_card_parse_of(struct device_node *node,
 		for (i = 0; (np = of_get_next_child(node, np)); i++) {
 			dev_dbg(dev, "\tlink %d:\n", i);
 			ret = simple_card_dai_link_of(np, dev, dai_link + i,
-						      dai_props + i);
+						      dai_props + i, false);
 			if (ret < 0) {
 				of_node_put(np);
 				return ret;
 			}
 		}
 	} else {
-		ret = simple_card_dai_link_of(node, dev, dai_link, dai_props);
+		ret = simple_card_dai_link_of(node, dev, dai_link, dai_props,
+					      true);
 		if (ret < 0)
 			return ret;
 	}
