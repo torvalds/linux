@@ -1542,6 +1542,7 @@ again:
 				ret = 0;
 		}
 		if (ret) {
+			key.objectid = bytenr;
 			key.type = BTRFS_EXTENT_ITEM_KEY;
 			key.offset = num_bytes;
 			btrfs_release_path(path);
@@ -5719,6 +5720,7 @@ static int __btrfs_free_extent(struct btrfs_trans_handle *trans,
 
 			if (ret > 0 && skinny_metadata) {
 				skinny_metadata = false;
+				key.objectid = bytenr;
 				key.type = BTRFS_EXTENT_ITEM_KEY;
 				key.offset = num_bytes;
 				btrfs_release_path(path);
