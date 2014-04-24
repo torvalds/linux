@@ -26,6 +26,7 @@
 #include <linux/of_device.h>
 #include <linux/irqchip/chained_irq.h>
 #include <linux/gpio.h>
+#include <linux/bitops.h>
 #include <linux/platform_data/gpio-omap.h>
 
 #define OFF_MODE	1
@@ -927,6 +928,21 @@ static inline void mpuio_init(struct gpio_bank *bank)
 
 /*---------------------------------------------------------------------*/
 
+static int gpio_get_direction(struct gpio_chip *chip, unsigned offset)
+{
+	struct gpio_bank *bank;
+	unsigned long flags;
+	void __iomem *reg;
+	int dir;
+
+	bank = container_of(chip, struct gpio_bank, chip);
+	reg = bank->base + bank->regs->direction;
+	spin_lock_irqsave(&bank->lock, flags);
+	dir = !!(readl_relaxed(reg) & BIT(offset));
+	spin_unlock_irqrestore(&bank->lock, flags);
+	return dir;
+}
+
 static int gpio_input(struct gpio_chip *chip, unsigned offset)
 {
 	struct gpio_bank *bank;
@@ -1085,6 +1101,7 @@ static int omap_gpio_chip_init(struct gpio_bank *bank)
 	 */
 	bank->chip.request = omap_gpio_request;
 	bank->chip.free = omap_gpio_free;
+	bank->chip.get_direction = gpio_get_direction;
 	bank->chip.direction_input = gpio_input;
 	bank->chip.get = gpio_get;
 	bank->chip.direction_output = gpio_output;
