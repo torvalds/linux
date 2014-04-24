@@ -360,6 +360,7 @@ config FB_CYBER2000_DDC
 config FB_CYBER2000_I2C
 	bool "CyberPro 2000/2010/5000 I2C support"
 	depends on FB_CYBER2000 && I2C && ARCH_NETWINDER
+	depends on I2C=y || FB_CYBER2000=m
 	select I2C_ALGOBIT
 	help
 	  Enable support for the I2C video decoder interface on the
@@ -2296,6 +2297,7 @@ endchoice
 config FB_MB862XX_I2C
 	bool "Support I2C bus on MB862XX GDC"
 	depends on FB_MB862XX && I2C
+	depends on FB_MB862XX=m || I2C=y
 	default y
 	help
 	  Selecting this option adds Coral-P(A)/Lime GDC I2C bus adapter
