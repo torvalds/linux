@@ -53,6 +53,8 @@
 
 /* 2 bytes crc + EOF */
 #define ST21NFCA_FRAME_TAILROOM 3
+#define IS_START_OF_FRAME(buf) (buf[0] == ST21NFCA_SOF_EOF && \
+				buf[1] == 0)
 
 #define ST21NFCA_HCI_I2C_DRIVER_NAME "st21nfca_hci_i2c"
 
@@ -361,6 +363,7 @@ static int st21nfca_hci_i2c_read(struct st21nfca_i2c_phy *phy,
 {
 	int r, i;
 	u8 len;
+	u8 buf[ST21NFCA_HCI_LLC_MAX_PAYLOAD];
 	struct i2c_client *client = phy->i2c_dev;
 
 	if (phy->current_read_len < ARRAY_SIZE(len_seq)) {
@@ -373,7 +376,7 @@ static int st21nfca_hci_i2c_read(struct st21nfca_i2c_phy *phy,
 		 */
 		r = 0;
 		for (i = 0; i < ARRAY_SIZE(wait_tab) && r <= 0; i++) {
-			r = i2c_master_recv(client, skb_put(skb, len), len);
+			r = i2c_master_recv(client, buf, len);
 			if (r < 0)
 				msleep(wait_tab[i]);
 		}
@@ -383,8 +386,28 @@ static int st21nfca_hci_i2c_read(struct st21nfca_i2c_phy *phy,
 			return -EREMOTEIO;
 		}
 
-		if (memchr(skb->data + 2, ST21NFCA_SOF_EOF,
-				skb->len - 2) != NULL) {
+		/*
+		 * The first read sequence does not start with SOF.
+		 * Data is corrupeted so we drop it.
+		 */
+		if (!phy->current_read_len && buf[0] != ST21NFCA_SOF_EOF) {
+			skb_trim(skb, 0);
+			phy->current_read_len = 0;
+			return -EIO;
+		} else if (phy->current_read_len &&
+			IS_START_OF_FRAME(buf)) {
+			/*
+			 * Previous frame transmission was interrupted and
+			 * the frame got repeated.
+			 * Received frame start with ST21NFCA_SOF_EOF + 00.
+			 */
+			skb_trim(skb, 0);
+			phy->current_read_len = 0;
+		}
+
+		memcpy(skb_put(skb, len), buf, len);
+
+		if (skb->data[skb->len - 1] == ST21NFCA_SOF_EOF) {
 			phy->current_read_len = 0;
 			return st21nfca_hci_i2c_repack(skb);
 		}
