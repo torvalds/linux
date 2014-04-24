@@ -181,11 +181,14 @@ static void report_jump_idx(u32 status, char *outstr)
 	SPRINTFCAT(outstr, "%d: ", idx, sizeof("255"));
 }
 
-static void report_ccb_status(u32 status, char *outstr)
+static void report_ccb_status(struct device *jrdev, u32 status,
+			      const char *error, char *outstr)
 {
 	u8 cha_id = (status & JRSTA_CCBERR_CHAID_MASK) >>
 		    JRSTA_CCBERR_CHAID_SHIFT;
 	u8 err_id = status & JRSTA_CCBERR_ERRID_MASK;
+
+	sprintf(outstr, "%s: ", error);
 
 	report_jump_idx(status, outstr);
 
@@ -212,15 +215,19 @@ static void report_ccb_status(u32 status, char *outstr)
 	}
 }
 
-static void report_jump_status(u32 status, char *outstr)
+static void report_jump_status(struct device *jrdev, u32 status,
+			       const char *error, char *outstr)
 {
+	sprintf(outstr, "%s: ", error);
 	SPRINTFCAT(outstr, "%s() not implemented", __func__, sizeof(__func__));
 }
 
-static void report_deco_status(u32 status, char *outstr)
+static void report_deco_status(struct device *jrdev, u32 status,
+			       const char *error, char *outstr)
 {
 	u8 desc_error = status & JRSTA_DECOERR_ERROR_MASK;
 	int i;
+	sprintf(outstr, "%s: ", error);
 
 	report_jump_idx(status, outstr);
 
@@ -237,13 +244,17 @@ static void report_deco_status(u32 status, char *outstr)
 	}
 }
 
-static void report_jr_status(u32 status, char *outstr)
+static void report_jr_status(struct device *jrdev, u32 status,
+			     const char *error, char *outstr)
 {
+	sprintf(outstr, "%s: ", error);
 	SPRINTFCAT(outstr, "%s() not implemented", __func__, sizeof(__func__));
 }
 
-static void report_cond_code_status(u32 status, char *outstr)
+static void report_cond_code_status(struct device *jrdev, u32 status,
+				    const char *error, char *outstr)
 {
+	sprintf(outstr, "%s: ", error);
 	SPRINTFCAT(outstr, "%s() not implemented", __func__, sizeof(__func__));
 }
 
@@ -251,8 +262,9 @@ void caam_jr_strstatus(struct device *jrdev, u32 status)
 {
 	char outstr[CAAM_ERROR_STR_MAX];
 	static const struct stat_src {
-		void (*report_ssed)(u32 status, char *outstr);
-		char *error;
+		void (*report_ssed)(struct device *jrdev, u32 status,
+				    const char *error, char *outstr);
+		const char *error;
 	} status_src[] = {
 		{ NULL, "No error" },
 		{ NULL, NULL },
@@ -274,9 +286,8 @@ void caam_jr_strstatus(struct device *jrdev, u32 status)
 		return;
 	}
 
-	sprintf(outstr, "%s: ", status_src[ssrc].error);
-
-	status_src[ssrc].report_ssed(status, outstr);
+	status_src[ssrc].report_ssed(jrdev, status,
+			status_src[ssrc].error, outstr);
 
 	dev_err(jrdev, "%08x: %s\n", status, outstr);
 }
