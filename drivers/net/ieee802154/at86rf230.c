@@ -1190,8 +1190,7 @@ static int at86rf230_probe(struct spi_device *spi)
 	if (rc)
 		goto err_hw_init;
 
-	rc = request_irq(spi->irq, irq_handler,
-			 IRQF_SHARED | irq_type,
+	rc = request_irq(spi->irq, irq_handler, IRQF_SHARED,
 			 dev_name(&spi->dev), lp);
 	if (rc)
 		goto err_hw_init;
