@@ -171,46 +171,41 @@ static const char * const rng_err_id_list[] = {
 static void report_ccb_status(struct device *jrdev, u32 status,
 			      const char *error, char *__outstr)
 {
-	char outstr[CAAM_ERROR_STR_MAX];
-
 	u8 cha_id = (status & JRSTA_CCBERR_CHAID_MASK) >>
 		    JRSTA_CCBERR_CHAID_SHIFT;
 	u8 err_id = status & JRSTA_CCBERR_ERRID_MASK;
 	u8 idx = (status & JRSTA_DECOERR_INDEX_MASK) >>
 		  JRSTA_DECOERR_INDEX_SHIFT;
-
-	sprintf(outstr, "%s: ", error);
+	char *idx_str;
+	const char *cha_str = "unidentified cha_id value 0x";
+	char cha_err_code[3] = { 0 };
+	const char *err_str = "unidentified err_id value 0x";
+	char err_err_code[3] = { 0 };
 
 	if (status & JRSTA_DECOERR_JUMP)
-		strcat(outstr, "jump tgt desc idx ");
+		idx_str = "jump tgt desc idx";
 	else
-		strcat(outstr, "desc idx ");
+		idx_str = "desc idx";
 
-	SPRINTFCAT(outstr, "%d: ", idx, sizeof("255"));
-
-	if (cha_id < ARRAY_SIZE(cha_id_list)) {
-		SPRINTFCAT(outstr, "%s: ", cha_id_list[cha_id],
-			   strlen(cha_id_list[cha_id]));
-	} else {
-		SPRINTFCAT(outstr, "unidentified cha_id value 0x%02x: ",
-			   cha_id, sizeof("ff"));
-	}
+	if (cha_id < ARRAY_SIZE(cha_id_list))
+		cha_str = cha_id_list[cha_id];
+	else
+		snprintf(cha_err_code, sizeof(cha_err_code), "%02x", cha_id);
 
 	if ((cha_id << JRSTA_CCBERR_CHAID_SHIFT) == JRSTA_CCBERR_CHAID_RNG &&
 	    err_id < ARRAY_SIZE(rng_err_id_list) &&
 	    strlen(rng_err_id_list[err_id])) {
 		/* RNG-only error */
-		SPRINTFCAT(outstr, "%s", rng_err_id_list[err_id],
-			   strlen(rng_err_id_list[err_id]));
-	} else if (err_id < ARRAY_SIZE(err_id_list)) {
-		SPRINTFCAT(outstr, "%s", err_id_list[err_id],
-			   strlen(err_id_list[err_id]));
-	} else {
-		SPRINTFCAT(outstr, "unidentified err_id value 0x%02x",
-			   err_id, sizeof("ff"));
-	}
+		err_str = rng_err_id_list[err_id];
+	} else if (err_id < ARRAY_SIZE(err_id_list))
+		err_str = err_id_list[err_id];
+	else
+		snprintf(err_err_code, sizeof(err_err_code), "%02x", err_id);
 
-	dev_err(jrdev, "%08x: %s\n", status, outstr);
+	dev_err(jrdev, "%08x: %s: %s %d: %s%s: %s%s\n",
+		status, error, idx_str, idx,
+		cha_str, cha_err_code,
+		err_str, err_err_code);
 }
 
 static void report_jump_status(struct device *jrdev, u32 status,
