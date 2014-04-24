@@ -830,14 +830,14 @@ static void avivo_reduce_ratio(unsigned *nom, unsigned *den,
 
 	/* make sure nominator is large enough */
         if (*nom < nom_min) {
-		tmp = (nom_min + *nom - 1) / *nom;
+		tmp = DIV_ROUND_UP(nom_min, *nom);
 		*nom *= tmp;
 		*den *= tmp;
 	}
 
 	/* make sure the denominator is large enough */
 	if (*den < den_min) {
-		tmp = (den_min + *den - 1) / *den;
+		tmp = DIV_ROUND_UP(den_min, *den);
 		*nom *= tmp;
 		*den *= tmp;
 	}
@@ -996,6 +996,16 @@ void radeon_compute_pll_avivo(struct radeon_pll *pll,
 	/* reduce the numbers to a simpler ratio once more */
 	/* this also makes sure that the reference divider is large enough */
 	avivo_reduce_ratio(&fb_div, &ref_div, fb_div_min, ref_div_min);
+
+	/* avoid high jitter with small fractional dividers */
+	if (pll->flags & RADEON_PLL_USE_FRAC_FB_DIV && (fb_div % 10)) {
+		fb_div_min = max(fb_div_min, (9 - (fb_div % 10)) * 20 + 60);
+		if (fb_div < fb_div_min) {
+			unsigned tmp = DIV_ROUND_UP(fb_div_min, fb_div);
+			fb_div *= tmp;
+			ref_div *= tmp;
+		}
+	}
 
 	/* and finally save the result */
 	if (pll->flags & RADEON_PLL_USE_FRAC_FB_DIV) {
