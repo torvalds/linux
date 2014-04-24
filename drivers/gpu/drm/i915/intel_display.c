@@ -58,6 +58,9 @@ static int intel_framebuffer_init(struct drm_device *dev,
 				  struct intel_framebuffer *ifb,
 				  struct drm_mode_fb_cmd2 *mode_cmd,
 				  struct drm_i915_gem_object *obj);
+static void intel_dp_set_m_n(struct intel_crtc *crtc);
+static void i9xx_set_pipeconf(struct intel_crtc *intel_crtc);
+static void intel_set_pipe_timings(struct intel_crtc *intel_crtc);
 
 typedef struct {
 	int	min, max;
@@ -4492,15 +4495,42 @@ static void valleyview_modeset_global_resources(struct drm_device *dev)
 static void valleyview_crtc_enable(struct drm_crtc *crtc)
 {
 	struct drm_device *dev = crtc->dev;
+	struct drm_i915_private *dev_priv = dev->dev_private;
 	struct intel_crtc *intel_crtc = to_intel_crtc(crtc);
 	struct intel_encoder *encoder;
 	int pipe = intel_crtc->pipe;
+	int plane = intel_crtc->plane;
 	bool is_dsi;
+	u32 dspcntr;
 
 	WARN_ON(!crtc->enabled);
 
 	if (intel_crtc->active)
 		return;
+
+	/* Set up the display plane register */
+	dspcntr = DISPPLANE_GAMMA_ENABLE;
+
+	if (intel_crtc->config.has_dp_encoder)
+		intel_dp_set_m_n(intel_crtc);
+
+	intel_set_pipe_timings(intel_crtc);
+
+	/* pipesrc and dspsize control the size that is scaled from,
+	 * which should always be the user's requested size.
+	 */
+	I915_WRITE(DSPSIZE(plane),
+		   ((intel_crtc->config.pipe_src_h - 1) << 16) |
+		   (intel_crtc->config.pipe_src_w - 1));
+	I915_WRITE(DSPPOS(plane), 0);
+
+	i9xx_set_pipeconf(intel_crtc);
+
+	I915_WRITE(DSPCNTR(plane), dspcntr);
+	POSTING_READ(DSPCNTR(plane));
+
+	dev_priv->display.update_primary_plane(crtc, crtc->primary->fb,
+					       crtc->x, crtc->y);
 
 	intel_crtc->active = true;
 
@@ -4538,14 +4568,46 @@ static void valleyview_crtc_enable(struct drm_crtc *crtc)
 static void i9xx_crtc_enable(struct drm_crtc *crtc)
 {
 	struct drm_device *dev = crtc->dev;
+	struct drm_i915_private *dev_priv = dev->dev_private;
 	struct intel_crtc *intel_crtc = to_intel_crtc(crtc);
 	struct intel_encoder *encoder;
 	int pipe = intel_crtc->pipe;
+	int plane = intel_crtc->plane;
+	u32 dspcntr;
 
 	WARN_ON(!crtc->enabled);
 
 	if (intel_crtc->active)
 		return;
+
+	/* Set up the display plane register */
+	dspcntr = DISPPLANE_GAMMA_ENABLE;
+
+	if (pipe == 0)
+		dspcntr &= ~DISPPLANE_SEL_PIPE_MASK;
+	else
+		dspcntr |= DISPPLANE_SEL_PIPE_B;
+
+	if (intel_crtc->config.has_dp_encoder)
+		intel_dp_set_m_n(intel_crtc);
+
+	intel_set_pipe_timings(intel_crtc);
+
+	/* pipesrc and dspsize control the size that is scaled from,
+	 * which should always be the user's requested size.
+	 */
+	I915_WRITE(DSPSIZE(plane),
+		   ((intel_crtc->config.pipe_src_h - 1) << 16) |
+		   (intel_crtc->config.pipe_src_w - 1));
+	I915_WRITE(DSPPOS(plane), 0);
+
+	i9xx_set_pipeconf(intel_crtc);
+
+	I915_WRITE(DSPCNTR(plane), dspcntr);
+	POSTING_READ(DSPCNTR(plane));
+
+	dev_priv->display.update_primary_plane(crtc, crtc->primary->fb,
+					       crtc->x, crtc->y);
 
 	intel_crtc->active = true;
 
@@ -5762,11 +5824,8 @@ static int i9xx_crtc_mode_set(struct drm_crtc *crtc,
 	struct drm_device *dev = crtc->dev;
 	struct drm_i915_private *dev_priv = dev->dev_private;
 	struct intel_crtc *intel_crtc = to_intel_crtc(crtc);
-	int pipe = intel_crtc->pipe;
-	int plane = intel_crtc->plane;
 	int refclk, num_connectors = 0;
 	intel_clock_t clock, reduced_clock;
-	u32 dspcntr;
 	bool ok, has_reduced_clock = false;
 	bool is_lvds = false, is_dsi = false;
 	struct intel_encoder *encoder;
@@ -5786,7 +5845,7 @@ static int i9xx_crtc_mode_set(struct drm_crtc *crtc,
 	}
 
 	if (is_dsi)
-		goto skip_dpll;
+		return 0;
 
 	if (!intel_crtc->config.clock_set) {
 		refclk = i9xx_get_refclk(crtc, num_connectors);
@@ -5840,37 +5899,6 @@ static int i9xx_crtc_mode_set(struct drm_crtc *crtc,
 				has_reduced_clock ? &reduced_clock : NULL,
 				num_connectors);
 	}
-
-skip_dpll:
-	/* Set up the display plane register */
-	dspcntr = DISPPLANE_GAMMA_ENABLE;
-
-	if (!IS_VALLEYVIEW(dev)) {
-		if (pipe == 0)
-			dspcntr &= ~DISPPLANE_SEL_PIPE_MASK;
-		else
-			dspcntr |= DISPPLANE_SEL_PIPE_B;
-	}
-
-	if (intel_crtc->config.has_dp_encoder)
-		intel_dp_set_m_n(intel_crtc);
-
-	intel_set_pipe_timings(intel_crtc);
-
-	/* pipesrc and dspsize control the size that is scaled from,
-	 * which should always be the user's requested size.
-	 */
-	I915_WRITE(DSPSIZE(plane),
-		   ((intel_crtc->config.pipe_src_h - 1) << 16) |
-		   (intel_crtc->config.pipe_src_w - 1));
-	I915_WRITE(DSPPOS(plane), 0);
-
-	i9xx_set_pipeconf(intel_crtc);
-
-	I915_WRITE(DSPCNTR(plane), dspcntr);
-	POSTING_READ(DSPCNTR(plane));
-
-	dev_priv->display.update_primary_plane(crtc, fb, x, y);
 
 	return 0;
 }
