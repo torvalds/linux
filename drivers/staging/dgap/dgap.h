@@ -971,9 +971,9 @@ struct channel_t {
 	struct bs_t __iomem *ch_bs;	/* Base structure pointer       */
 	struct cm_t __iomem *ch_cm;	/* Command queue pointer        */
 	struct board_t *ch_bd;		/* Board structure pointer      */
-	unsigned char *ch_vaddr;	/* FEP memory origin            */
-	unsigned char *ch_taddr;	/* Write buffer origin          */
-	unsigned char *ch_raddr;	/* Read buffer origin           */
+	u8 __iomem *ch_vaddr;		/* FEP memory origin            */
+	u8 __iomem *ch_taddr;		/* Write buffer origin          */
+	u8 __iomem *ch_raddr;		/* Read buffer origin           */
 	struct digi_t  ch_digi;		/* Transparent Print structure  */
 	struct un_t ch_tun;		/* Terminal unit info           */
 	struct un_t ch_pun;		/* Printer unit info            */

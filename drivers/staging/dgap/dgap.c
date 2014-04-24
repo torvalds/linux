@@ -1365,8 +1365,8 @@ static int dgap_tty_init(struct board_t *brd)
 	ch = brd->channels[0];
 	vaddr = brd->re_map_membase;
 
-	bs = (struct bs_t *) ((ulong) vaddr + CHANBUF);
-	cm = (struct cm_t *) ((ulong) vaddr + CMDBUF);
+	bs = (struct bs_t __iomem *) ((ulong) vaddr + CHANBUF);
+	cm = (struct cm_t __iomem *) ((ulong) vaddr + CMDBUF);
 
 	brd->bd_bs = bs;
 
@@ -1786,7 +1786,7 @@ static void dgap_input(struct channel_t *ch)
 		if (s <= 0)
 			break;
 
-		memcpy_fromio(buf, (char *) ch->ch_raddr + tail, s);
+		memcpy_fromio(buf, ch->ch_raddr + tail, s);
 		dgap_sniff_nowait_nolock(ch, "USER READ", buf, s);
 
 		tail += s;
@@ -2742,7 +2742,7 @@ static int dgap_tty_write(struct tty_struct *tty, const unsigned char *buf,
 	struct channel_t *ch = NULL;
 	struct un_t *un = NULL;
 	struct bs_t __iomem *bs;
-	char *vaddr = NULL;
+	char __iomem *vaddr;
 	u16 head, tail, tmask, remain;
 	int bufcount = 0, n = 0;
 	int orig_count = 0;
@@ -4935,7 +4935,7 @@ static void dgap_cmdw_ext(struct channel_t *ch, u16 cmd, u16 word, uint ncmds)
 	if (!vaddr)
 		return;
 
-	cm_addr = (struct cm_t *) (vaddr + CMDBUF);
+	cm_addr = (struct cm_t __iomem *) (vaddr + CMDBUF);
 	head = readw(&(cm_addr->cm_head));
 
 	/*
@@ -4951,19 +4951,19 @@ static void dgap_cmdw_ext(struct channel_t *ch, u16 cmd, u16 word, uint ncmds)
 	 */
 
 	/* Write an FF to tell the FEP that we want an extended command */
-	writeb((u8) 0xff, (char *) (vaddr + head + CMDSTART + 0));
+	writeb((u8) 0xff, (vaddr + head + CMDSTART + 0));
 
-	writeb((u8) ch->ch_portnum, (u8 *) (vaddr + head + CMDSTART + 1));
-	writew((u16) cmd, (char *) (vaddr + head + CMDSTART + 2));
+	writeb((u8) ch->ch_portnum, (vaddr + head + CMDSTART + 1));
+	writew((u16) cmd, (vaddr + head + CMDSTART + 2));
 
 	/*
 	 * If the second part of the command won't fit,
 	 * put it at the beginning of the circular buffer.
 	 */
 	if (((head + 4) >= ((CMDMAX - CMDSTART)) || (head & 03)))
-		writew((u16) word, (char *) (vaddr + CMDSTART));
+		writew((u16) word, (vaddr + CMDSTART));
 	else
-		writew((u16) word, (char *) (vaddr + head + CMDSTART + 4));
+		writew((u16) word, (vaddr + head + CMDSTART + 4));
 
 	head = (head + 8) & (CMDMAX - CMDSTART - 4);
 
