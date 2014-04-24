@@ -1026,7 +1026,7 @@ static int uprobe_perf_close(struct trace_uprobe *tu, struct perf_event *event)
 	write_unlock(&tu->filter.rwlock);
 
 	if (!done)
-		uprobe_apply(tu->inode, tu->offset, &tu->consumer, false);
+		return uprobe_apply(tu->inode, tu->offset, &tu->consumer, false);
 
 	return 0;
 }
@@ -1034,6 +1034,7 @@ static int uprobe_perf_close(struct trace_uprobe *tu, struct perf_event *event)
 static int uprobe_perf_open(struct trace_uprobe *tu, struct perf_event *event)
 {
 	bool done;
+	int err;
 
 	write_lock(&tu->filter.rwlock);
 	if (event->hw.tp_target) {
@@ -1055,10 +1056,13 @@ static int uprobe_perf_open(struct trace_uprobe *tu, struct perf_event *event)
 	}
 	write_unlock(&tu->filter.rwlock);
 
-	if (!done)
-		uprobe_apply(tu->inode, tu->offset, &tu->consumer, true);
-
-	return 0;
+	err = 0;
+	if (!done) {
+		err = uprobe_apply(tu->inode, tu->offset, &tu->consumer, true);
+		if (err)
+			uprobe_perf_close(tu, event);
+	}
+	return err;
 }
 
 static bool uprobe_perf_filter(struct uprobe_consumer *uc,
