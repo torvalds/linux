@@ -20,4 +20,7 @@ void of_console_init(void);
 
 typedef u32			__be32;
 
+#define cpu_to_be32(x) (x)
+#define be32_to_cpu(x) (x)
+
 #endif /* _PPC_BOOT_OF_H_ */
