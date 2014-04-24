@@ -1226,7 +1226,17 @@ static const struct of_device_id at86rf230_of_match[] = {
 MODULE_DEVICE_TABLE(of, at86rf230_of_match);
 #endif
 
+static const struct spi_device_id at86rf230_device_id[] = {
+	{ .name = "at86rf230", },
+	{ .name = "at86rf231", },
+	{ .name = "at86rf233", },
+	{ .name = "at86rf212", },
+	{ },
+};
+MODULE_DEVICE_TABLE(spi, at86rf230_device_id);
+
 static struct spi_driver at86rf230_driver = {
+	.id_table = at86rf230_device_id,
 	.driver = {
 		.of_match_table = of_match_ptr(at86rf230_of_match),
 		.name	= "at86rf230",
