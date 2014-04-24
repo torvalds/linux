@@ -476,6 +476,7 @@ static irqreturn_t st21nfca_hci_irq_thread_fn(int irq, void *phy_id)
 		msleep(wait_tab[phy->crc_trials]);
 		phy->crc_trials++;
 		phy->current_read_len = 0;
+		kfree_skb(phy->pending_skb);
 	} else if (r > 0) {
 		/*
 		 * We succeeded to read data from the CLF and
