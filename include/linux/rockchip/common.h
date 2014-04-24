@@ -1,6 +1,8 @@
 #ifndef __MACH_ROCKCHIP_COMMON_H
 #define __MACH_ROCKCHIP_COMMON_H
 
+#include <linux/notifier.h>
+
 #define RK_DEVICE(VIRT,PHYS,SIZE) \
 	{ \
 		.virtual	= (unsigned long)(VIRT), \
@@ -37,5 +39,17 @@ extern void __init rockchip_boot_mode_init(u32 flag, u32 mode);
 extern void rockchip_restart_get_boot_mode(const char *cmd, u32 *flag, u32 *mode);
 extern void __init rockchip_suspend_init(void);
 extern void __init rockchip_ion_reserve(void);
+
+enum rockchip_pm_policy {
+	ROCKCHIP_PM_POLICY_PERFORMANCE = 0,
+	ROCKCHIP_PM_POLICY_NORMAL,
+	ROCKCHIP_PM_POLICY_POWERSAVE,
+	ROCKCHIP_PM_NR_POLICYS,
+};
+
+extern enum rockchip_pm_policy rockchip_pm_get_policy(void);
+extern int rockchip_pm_set_policy(enum rockchip_pm_policy policy);
+extern int rockchip_pm_policy_register_notifier(struct notifier_block *nb);
+extern int rockchip_pm_policy_unregister_notifier(struct notifier_block *nb);
 
 #endif

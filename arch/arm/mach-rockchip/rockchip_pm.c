@@ -5,6 +5,8 @@
 #include <asm/tlbflush.h>
 #include <asm/suspend.h>
 #include <linux/delay.h>
+#include <linux/moduleparam.h>
+#include <linux/rockchip/common.h>
 
 #include <asm/io.h>
 #include "pm.h"
@@ -558,4 +560,60 @@ void __init rockchip_suspend_init(void)
     return;
 }
 
+static enum rockchip_pm_policy pm_policy;
+static BLOCKING_NOTIFIER_HEAD(policy_notifier_list);
 
+int rockchip_pm_policy_register_notifier(struct notifier_block *nb)
+{
+	return blocking_notifier_chain_register(&policy_notifier_list, nb);
+}
+
+int rockchip_pm_policy_unregister_notifier(struct notifier_block *nb)
+{
+	return blocking_notifier_chain_unregister(&policy_notifier_list, nb);
+}
+
+static int rockchip_pm_policy_notify(void)
+{
+	return blocking_notifier_call_chain(&policy_notifier_list,
+			pm_policy, NULL);
+}
+
+enum rockchip_pm_policy rockchip_pm_get_policy(void)
+{
+	return pm_policy;
+}
+
+int rockchip_pm_set_policy(enum rockchip_pm_policy policy)
+{
+	if (policy < ROCKCHIP_PM_NR_POLICYS && policy != pm_policy) {
+		printk(KERN_INFO "pm policy %d -> %d\n", pm_policy, policy);
+		pm_policy = policy;
+		rockchip_pm_policy_notify();
+	}
+
+	return 0;
+}
+
+static unsigned int policy;
+
+static int set_policy(const char *val, const struct kernel_param *kp)
+{
+	int ret;
+
+	ret = param_set_uint(val, kp);
+	if (ret < 0)
+		return ret;
+
+	rockchip_pm_set_policy(policy);
+	policy = rockchip_pm_get_policy();
+
+	return 0;
+}
+
+static struct kernel_param_ops policy_param_ops = {
+	.set = set_policy,
+	.get = param_get_uint,
+};
+
+module_param_cb(policy, &policy_param_ops, &policy, 0600);
