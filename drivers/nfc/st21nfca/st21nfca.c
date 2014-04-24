@@ -16,23 +16,12 @@
  * along with this program; if not, see <http://www.gnu.org/licenses/>.
  */
 
-#include <linux/crc-ccitt.h>
 #include <linux/module.h>
-#include <linux/delay.h>
-#include <linux/slab.h>
-#include <linux/miscdevice.h>
-#include <linux/interrupt.h>
-#include <linux/gpio.h>
-#include <linux/i2c.h>
-
 #include <linux/nfc.h>
 #include <net/nfc/hci.h>
 #include <net/nfc/llc.h>
 
-#include <uapi/linux/nfc.h>
-
 #include "st21nfca.h"
-#include <linux/platform_data/st21nfca.h>
 
 #define DRIVER_DESC "HCI NFC driver for ST21NFCA"
 
