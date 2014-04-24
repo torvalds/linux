@@ -135,6 +135,10 @@ static ssize_t sys_param_store(struct kobject *kobj,
 			kobj_attr);
 	ssize_t ret;
 
+        /* MAX_PARAM_DATA_LEN is sizeof(param_data_buf) */
+        if (count > MAX_PARAM_DATA_LEN)
+                count = MAX_PARAM_DATA_LEN;
+
 	mutex_lock(&opal_sysparam_mutex);
 	memcpy(param_data_buf, buf, count);
 	ret = opal_set_sys_param(attr->param_id, attr->param_size,
