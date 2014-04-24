@@ -90,6 +90,15 @@ struct timekeeper {
 	u64			xtime_interval;
 	s64			xtime_remainder;
 	u32			raw_interval;
+	/* The ntp_tick_length() value currently being used.
+	 * This cached copy ensures we consistently apply the tick
+	 * length for an entire tick, as ntp_tick_length may change
+	 * mid-tick, and we don't want to apply that new value to
+	 * the tick in progress.
+	 */
+	u64			ntp_tick;
+	/* Difference between accumulated time and NTP time in ntp
+	 * shifted nano seconds. */
 	s64			ntp_error;
 	u32			ntp_error_shift;
 	u32			ntp_err_mult;

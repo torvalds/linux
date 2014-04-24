@@ -171,6 +171,7 @@ static void tk_setup_internals(struct timekeeper *tk, struct clocksource *clock)
 
 	tk->ntp_error = 0;
 	tk->ntp_error_shift = NTP_SCALE_SHIFT - clock->shift;
+	tk->ntp_tick = ntpinterval << tk->ntp_error_shift;
 
 	/*
 	 * The timekeeper keeps its own mult values for the currently
@@ -1352,6 +1353,8 @@ static __always_inline void timekeeping_freqadjust(struct timekeeper *tk,
 	if (tk->ntp_err_mult)
 		xinterval -= tk->cycle_interval;
 
+	tk->ntp_tick = ntp_tick_length();
+
 	/* Calculate current error per tick */
 	tick_error = ntp_tick_length() >> tk->ntp_error_shift;
 	tick_error -= (xinterval + tk->xtime_remainder);
@@ -1497,7 +1500,7 @@ static cycle_t logarithmic_accumulation(struct timekeeper *tk, cycle_t offset,
 	tk->raw_time.tv_nsec = raw_nsecs;
 
 	/* Accumulate error between NTP and clock interval */
-	tk->ntp_error += ntp_tick_length() << shift;
+	tk->ntp_error += tk->ntp_tick << shift;
 	tk->ntp_error -= (tk->xtime_interval + tk->xtime_remainder) <<
 						(tk->ntp_error_shift + shift);
 
