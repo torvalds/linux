@@ -51,6 +51,4 @@ void blk_mq_disable_hotplug(void);
 extern unsigned int *blk_mq_make_queue_map(struct blk_mq_tag_set *set);
 extern int blk_mq_update_queue_map(unsigned int *map, unsigned int nr_queues);
 
-void blk_mq_add_timer(struct request *rq);
-
 #endif

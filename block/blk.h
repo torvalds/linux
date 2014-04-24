@@ -37,9 +37,8 @@ bool __blk_end_bidi_request(struct request *rq, int error,
 void blk_rq_timed_out_timer(unsigned long data);
 void blk_rq_check_expired(struct request *rq, unsigned long *next_timeout,
 			  unsigned int *next_set);
-void __blk_add_timer(struct request *req, struct list_head *timeout_list);
+void blk_add_timer(struct request *req);
 void blk_delete_timer(struct request *);
-void blk_add_timer(struct request *);
 
 
 bool bio_attempt_front_merge(struct request_queue *q, struct request *req,
