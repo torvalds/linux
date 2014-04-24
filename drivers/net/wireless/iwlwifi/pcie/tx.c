@@ -353,13 +353,6 @@ static inline dma_addr_t iwl_pcie_tfd_tb_get_addr(struct iwl_tfd *tfd, u8 idx)
 	return addr;
 }
 
-static inline u16 iwl_pcie_tfd_tb_get_len(struct iwl_tfd *tfd, u8 idx)
-{
-	struct iwl_tfd_tb *tb = &tfd->tbs[idx];
-
-	return le16_to_cpu(tb->hi_n_len) >> 4;
-}
-
 static inline void iwl_pcie_tfd_set_tb(struct iwl_tfd *tfd, u8 idx,
 				       dma_addr_t addr, u16 len)
 {
@@ -1322,27 +1315,38 @@ static int iwl_pcie_enqueue_hcmd(struct iwl_trans *trans,
 	cmd_pos = offsetof(struct iwl_device_cmd, payload);
 	copy_size = sizeof(out_cmd->hdr);
 	for (i = 0; i < IWL_MAX_CMD_TBS_PER_TFD; i++) {
-		int copy = 0;
+		int copy;
 
 		if (!cmd->len[i])
 			continue;
 
-		/* need at least IWL_HCMD_SCRATCHBUF_SIZE copied */
+		/* copy everything if not nocopy/dup */
+		if (!(cmd->dataflags[i] & (IWL_HCMD_DFL_NOCOPY |
+					   IWL_HCMD_DFL_DUP))) {
+			copy = cmd->len[i];
+
+			memcpy((u8 *)out_cmd + cmd_pos, cmd->data[i], copy);
+			cmd_pos += copy;
+			copy_size += copy;
+			continue;
+		}
+
+		/*
+		 * Otherwise we need at least IWL_HCMD_SCRATCHBUF_SIZE copied
+		 * in total (for the scratchbuf handling), but copy up to what
+		 * we can fit into the payload for debug dump purposes.
+		 */
+		copy = min_t(int, TFD_MAX_PAYLOAD_SIZE - cmd_pos, cmd->len[i]);
+
+		memcpy((u8 *)out_cmd + cmd_pos, cmd->data[i], copy);
+		cmd_pos += copy;
+
+		/* However, treat copy_size the proper way, we need it below */
 		if (copy_size < IWL_HCMD_SCRATCHBUF_SIZE) {
 			copy = IWL_HCMD_SCRATCHBUF_SIZE - copy_size;
 
 			if (copy > cmd->len[i])
 				copy = cmd->len[i];
-		}
-
-		/* copy everything if not nocopy/dup */
-		if (!(cmd->dataflags[i] & (IWL_HCMD_DFL_NOCOPY |
-					   IWL_HCMD_DFL_DUP)))
-			copy = cmd->len[i];
-
-		if (copy) {
-			memcpy((u8 *)out_cmd + cmd_pos, cmd->data[i], copy);
-			cmd_pos += copy;
 			copy_size += copy;
 		}
 	}

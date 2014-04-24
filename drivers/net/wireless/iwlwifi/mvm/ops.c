@@ -79,8 +79,8 @@
 #include "iwl-prph.h"
 #include "rs.h"
 #include "fw-api-scan.h"
-#include "fw-error-dump.h"
 #include "time-event.h"
+#include "iwl-fw-error-dump.h"
 
 /*
  * module name, copyright, version, etc.
@@ -822,6 +822,7 @@ void iwl_mvm_fw_error_dump(struct iwl_mvm *mvm)
 	struct iwl_fw_error_dump_file *dump_file;
 	struct iwl_fw_error_dump_data *dump_data;
 	u32 file_len;
+	u32 trans_len;
 
 	lockdep_assert_held(&mvm->mutex);
 
@@ -832,6 +833,10 @@ void iwl_mvm_fw_error_dump(struct iwl_mvm *mvm)
 		   mvm->fw_error_rxf_len +
 		   sizeof(*dump_file) +
 		   sizeof(*dump_data) * 2;
+
+	trans_len = iwl_trans_dump_data(mvm->trans, NULL, 0);
+	if (trans_len)
+		file_len += trans_len;
 
 	dump_file = vmalloc(file_len);
 	if (!dump_file)
@@ -846,7 +851,7 @@ void iwl_mvm_fw_error_dump(struct iwl_mvm *mvm)
 	dump_data->len = cpu_to_le32(mvm->fw_error_rxf_len);
 	memcpy(dump_data->data, mvm->fw_error_rxf, mvm->fw_error_rxf_len);
 
-	dump_data = (void *)((u8 *)dump_data->data + mvm->fw_error_rxf_len);
+	dump_data = iwl_mvm_fw_error_next_data(dump_data);
 	dump_data->type = cpu_to_le32(IWL_FW_ERROR_DUMP_SRAM);
 	dump_data->len = cpu_to_le32(mvm->fw_error_sram_len);
 
@@ -864,6 +869,15 @@ void iwl_mvm_fw_error_dump(struct iwl_mvm *mvm)
 	kfree(mvm->fw_error_sram);
 	mvm->fw_error_sram = NULL;
 	mvm->fw_error_sram_len = 0;
+
+	if (trans_len) {
+		void *buf = iwl_mvm_fw_error_next_data(dump_data);
+		u32 real_trans_len = iwl_trans_dump_data(mvm->trans, buf,
+							 trans_len);
+		dump_data = (void *)((u8 *)buf + real_trans_len);
+		dump_file->file_len =
+			cpu_to_le32(file_len - trans_len + real_trans_len);
+	}
 }
 #endif
 
