@@ -101,6 +101,7 @@ struct pnv_phb {
 #endif
 
 #ifdef CONFIG_DEBUG_FS
+	int			has_dbgfs;
 	struct dentry		*dbgfs;
 #endif
 

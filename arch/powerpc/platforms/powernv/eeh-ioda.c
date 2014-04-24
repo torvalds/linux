@@ -42,11 +42,19 @@ static int ioda_eeh_event(struct notifier_block *nb,
 {
 	uint64_t changed_evts = (uint64_t)change;
 
-	/* We simply send special EEH event */
-	if ((changed_evts & OPAL_EVENT_PCI_ERROR) &&
-	    (events & OPAL_EVENT_PCI_ERROR) &&
-	    eeh_enabled())
+	/*
+	 * We simply send special EEH event if EEH has
+	 * been enabled, or clear pending events in
+	 * case that we enable EEH soon
+	 */
+	if (!(changed_evts & OPAL_EVENT_PCI_ERROR) ||
+	    !(events & OPAL_EVENT_PCI_ERROR))
+		return 0;
+
+	if (eeh_enabled())
 		eeh_send_failure_event(NULL);
+	else
+		opal_notifier_update_evt(OPAL_EVENT_PCI_ERROR, 0x0ul);
 
 	return 0;
 }
@@ -141,7 +149,9 @@ static int ioda_eeh_post_init(struct pci_controller *hose)
 	}
 
 #ifdef CONFIG_DEBUG_FS
-	if (phb->dbgfs) {
+	if (!phb->has_dbgfs && phb->dbgfs) {
+		phb->has_dbgfs = 1;
+
 		debugfs_create_file("err_injct_outbound", 0600,
 				    phb->dbgfs, hose,
 				    &ioda_eeh_outb_dbgfs_ops);
@@ -154,7 +164,14 @@ static int ioda_eeh_post_init(struct pci_controller *hose)
 	}
 #endif
 
-	phb->flags |= PNV_PHB_FLAG_EEH;
+	/* If EEH is enabled, we're going to rely on that.
+	 * Otherwise, we restore to conventional mechanism
+	 * to clear frozen PE during PCI config access.
+	 */
+	if (eeh_enabled())
+		phb->flags |= PNV_PHB_FLAG_EEH;
+	else
+		phb->flags &= ~PNV_PHB_FLAG_EEH;
 
 	return 0;
 }

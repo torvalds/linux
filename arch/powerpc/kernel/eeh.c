@@ -22,6 +22,7 @@
  */
 
 #include <linux/delay.h>
+#include <linux/debugfs.h>
 #include <linux/sched.h>
 #include <linux/init.h>
 #include <linux/list.h>
@@ -131,6 +132,15 @@ struct eeh_stats {
 static struct eeh_stats eeh_stats;
 
 #define IS_BRIDGE(class_code) (((class_code)<<16) == PCI_BASE_CLASS_BRIDGE)
+
+static int __init eeh_setup(char *str)
+{
+	if (!strcmp(str, "off"))
+		eeh_subsystem_flags |= EEH_FORCE_DISABLED;
+
+	return 1;
+}
+__setup("eeh=", eeh_setup);
 
 /**
  * eeh_gather_pci_data - Copy assorted PCI config space registers to buff
@@ -1117,10 +1127,45 @@ static const struct file_operations proc_eeh_operations = {
 	.release   = single_release,
 };
 
+#ifdef CONFIG_DEBUG_FS
+static int eeh_enable_dbgfs_set(void *data, u64 val)
+{
+	if (val)
+		eeh_subsystem_flags &= ~EEH_FORCE_DISABLED;
+	else
+		eeh_subsystem_flags |= EEH_FORCE_DISABLED;
+
+	/* Notify the backend */
+	if (eeh_ops->post_init)
+		eeh_ops->post_init();
+
+	return 0;
+}
+
+static int eeh_enable_dbgfs_get(void *data, u64 *val)
+{
+	if (eeh_enabled())
+		*val = 0x1ul;
+	else
+		*val = 0x0ul;
+	return 0;
+}
+
+DEFINE_SIMPLE_ATTRIBUTE(eeh_enable_dbgfs_ops, eeh_enable_dbgfs_get,
+			eeh_enable_dbgfs_set, "0x%llx\n");
+#endif
+
 static int __init eeh_init_proc(void)
 {
-	if (machine_is(pseries) || machine_is(powernv))
+	if (machine_is(pseries) || machine_is(powernv)) {
 		proc_create("powerpc/eeh", 0, NULL, &proc_eeh_operations);
+#ifdef CONFIG_DEBUG_FS
+		debugfs_create_file("eeh_enable", 0600,
+                                    powerpc_debugfs_root, NULL,
+                                    &eeh_enable_dbgfs_ops);
+#endif
+	}
+
 	return 0;
 }
 __initcall(eeh_init_proc);
