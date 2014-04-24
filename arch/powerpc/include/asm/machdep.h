@@ -241,6 +241,9 @@ struct machdep_calls {
 	/* Called during PCI resource reassignment */
 	resource_size_t (*pcibios_window_alignment)(struct pci_bus *, unsigned long type);
 
+	/* Reset the secondary bus of bridge */
+	void  (*pcibios_reset_secondary_bus)(struct pci_dev *dev);
+
 	/* Called to shutdown machine specific hardware not already controlled
 	 * by other drivers.
 	 */

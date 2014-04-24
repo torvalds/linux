@@ -474,6 +474,8 @@ static int ioda_eeh_bridge_reset(struct pci_dev *dev, int option)
 
 {
 	struct device_node *dn = pci_device_to_OF_node(dev);
+	struct eeh_dev *edev = of_node_to_eeh_dev(dn);
+	int aer = edev ? edev->aer_cap : 0;
 	u32 ctrl;
 
 	pr_debug("%s: Reset PCI bus %04x:%02x with option %d\n",
@@ -483,22 +485,54 @@ static int ioda_eeh_bridge_reset(struct pci_dev *dev, int option)
 	switch (option) {
 	case EEH_RESET_FUNDAMENTAL:
 	case EEH_RESET_HOT:
+		/* Don't report linkDown event */
+		if (aer) {
+			eeh_ops->read_config(dn, aer + PCI_ERR_UNCOR_MASK,
+					     4, &ctrl);
+			ctrl |= PCI_ERR_UNC_SURPDN;
+                        eeh_ops->write_config(dn, aer + PCI_ERR_UNCOR_MASK,
+					      4, ctrl);
+                }
+
 		eeh_ops->read_config(dn, PCI_BRIDGE_CONTROL, 2, &ctrl);
 		ctrl |= PCI_BRIDGE_CTL_BUS_RESET;
 		eeh_ops->write_config(dn, PCI_BRIDGE_CONTROL, 2, ctrl);
-
 		msleep(EEH_PE_RST_HOLD_TIME);
+
 		break;
 	case EEH_RESET_DEACTIVATE:
 		eeh_ops->read_config(dn, PCI_BRIDGE_CONTROL, 2, &ctrl);
 		ctrl &= ~PCI_BRIDGE_CTL_BUS_RESET;
 		eeh_ops->write_config(dn, PCI_BRIDGE_CONTROL, 2, ctrl);
-
 		msleep(EEH_PE_RST_SETTLE_TIME);
+
+		/* Continue reporting linkDown event */
+		if (aer) {
+			eeh_ops->read_config(dn, aer + PCI_ERR_UNCOR_MASK,
+					     4, &ctrl);
+			ctrl &= ~PCI_ERR_UNC_SURPDN;
+			eeh_ops->write_config(dn, aer + PCI_ERR_UNCOR_MASK,
+					      4, ctrl);
+		}
+
 		break;
 	}
 
 	return 0;
+}
+
+void pnv_pci_reset_secondary_bus(struct pci_dev *dev)
+{
+	struct pci_controller *hose;
+
+	if (pci_is_root_bus(dev->bus)) {
+		hose = pci_bus_to_host(dev->bus);
+		ioda_eeh_root_reset(hose, EEH_RESET_HOT);
+		ioda_eeh_root_reset(hose, EEH_RESET_DEACTIVATE);
+	} else {
+		ioda_eeh_bridge_reset(dev, EEH_RESET_HOT);
+		ioda_eeh_bridge_reset(dev, EEH_RESET_DEACTIVATE);
+	}
 }
 
 /**
