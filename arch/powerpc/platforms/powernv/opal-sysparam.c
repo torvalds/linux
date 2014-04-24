@@ -39,10 +39,11 @@ struct param_attr {
 	struct kobj_attribute kobj_attr;
 };
 
-static int opal_get_sys_param(u32 param_id, u32 length, void *buffer)
+static ssize_t opal_get_sys_param(u32 param_id, u32 length, void *buffer)
 {
 	struct opal_msg msg;
-	int ret, token;
+	ssize_t ret;
+	int token;
 
 	token = opal_async_get_token_interruptible();
 	if (token < 0) {
@@ -59,7 +60,7 @@ static int opal_get_sys_param(u32 param_id, u32 length, void *buffer)
 
 	ret = opal_async_wait_response(token, &msg);
 	if (ret) {
-		pr_err("%s: Failed to wait for the async response, %d\n",
+		pr_err("%s: Failed to wait for the async response, %zd\n",
 				__func__, ret);
 		goto out_token;
 	}
@@ -111,7 +112,7 @@ static ssize_t sys_param_show(struct kobject *kobj,
 {
 	struct param_attr *attr = container_of(kobj_attr, struct param_attr,
 			kobj_attr);
-	int ret;
+	ssize_t ret;
 
 	mutex_lock(&opal_sysparam_mutex);
 	ret = opal_get_sys_param(attr->param_id, attr->param_size,
@@ -132,7 +133,7 @@ static ssize_t sys_param_store(struct kobject *kobj,
 {
 	struct param_attr *attr = container_of(kobj_attr, struct param_attr,
 			kobj_attr);
-	int ret;
+	ssize_t ret;
 
 	mutex_lock(&opal_sysparam_mutex);
 	memcpy(param_data_buf, buf, count);
