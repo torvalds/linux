@@ -736,9 +736,4 @@ static struct platform_driver mvebu_gpio_driver = {
 	},
 	.probe		= mvebu_gpio_probe,
 };
-
-static int __init mvebu_gpio_init(void)
-{
-	return platform_driver_register(&mvebu_gpio_driver);
-}
-postcore_initcall(mvebu_gpio_init);
+module_platform_driver(mvebu_gpio_driver);
