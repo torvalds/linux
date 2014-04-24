@@ -1157,9 +1157,6 @@ static void vlv_hdmi_pre_enable(struct intel_encoder *encoder)
 	int pipe = intel_crtc->pipe;
 	u32 val;
 
-	if (!IS_VALLEYVIEW(dev))
-		return;
-
 	/* Enable clock channels for this port */
 	mutex_lock(&dev_priv->dpio_lock);
 	val = vlv_dpio_read(dev_priv, pipe, VLV_PCS01_DW8(port));
@@ -1204,9 +1201,6 @@ static void vlv_hdmi_pre_pll_enable(struct intel_encoder *encoder)
 		to_intel_crtc(encoder->base.crtc);
 	enum dpio_channel port = vlv_dport_to_channel(dport);
 	int pipe = intel_crtc->pipe;
-
-	if (!IS_VALLEYVIEW(dev))
-		return;
 
 	/* Program Tx lane resets to default */
 	mutex_lock(&dev_priv->dpio_lock);
