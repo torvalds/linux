@@ -33,16 +33,16 @@
 /* Post-execution fixups. */
 
 /* Adjust IP back to vicinity of actual insn */
-#define UPROBE_FIX_IP		0x1
+#define UPROBE_FIX_IP		0x01
 
 /* Adjust the return address of a call insn */
-#define UPROBE_FIX_CALL	0x2
+#define UPROBE_FIX_CALL		0x02
 
 /* Instruction will modify TF, don't change it */
-#define UPROBE_FIX_SETF	0x4
+#define UPROBE_FIX_SETF		0x04
 
-#define UPROBE_FIX_RIP_AX	0x8000
-#define UPROBE_FIX_RIP_CX	0x4000
+#define UPROBE_FIX_RIP_AX	0x08
+#define UPROBE_FIX_RIP_CX	0x10
 
 #define	UPROBE_TRAP_NR		UINT_MAX
 
@@ -307,12 +307,12 @@ handle_riprel_insn(struct arch_uprobe *auprobe, struct insn *insn)
 		 * is NOT the register operand, so we use %rcx (register
 		 * #1) for the scratch register.
 		 */
-		auprobe->def.fixups = UPROBE_FIX_RIP_CX;
+		auprobe->def.fixups |= UPROBE_FIX_RIP_CX;
 		/* Change modrm from 00 000 101 to 00 000 001. */
 		*cursor = 0x1;
 	} else {
 		/* Use %rax (register #0) for the scratch register. */
-		auprobe->def.fixups = UPROBE_FIX_RIP_AX;
+		auprobe->def.fixups |= UPROBE_FIX_RIP_AX;
 		/* Change modrm from 00 xxx 101 to 00 xxx 000 */
 		*cursor = (reg << 3);
 	}

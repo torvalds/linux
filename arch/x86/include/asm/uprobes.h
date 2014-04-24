@@ -53,7 +53,7 @@ struct arch_uprobe {
 #ifdef CONFIG_X86_64
 			long	riprel_target;
 #endif
-			u16	fixups;
+			u8	fixups;
 		} 			def;
 	};
 };
