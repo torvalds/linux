@@ -218,35 +218,30 @@ static void report_jump_status(struct device *jrdev, u32 status,
 static void report_deco_status(struct device *jrdev, u32 status,
 			       const char *error, char *__outstr)
 {
-	char outstr[CAAM_ERROR_STR_MAX];
-
-	u8 desc_error = status & JRSTA_DECOERR_ERROR_MASK;
+	u8 err_id = status & JRSTA_DECOERR_ERROR_MASK;
 	u8 idx = (status & JRSTA_DECOERR_INDEX_MASK) >>
 		  JRSTA_DECOERR_INDEX_SHIFT;
-
+	char *idx_str;
+	char *err_str = "unidentified error value 0x";
+	char err_err_code[3] = { 0 };
 	int i;
-	sprintf(outstr, "%s: ", error);
 
 	if (status & JRSTA_DECOERR_JUMP)
-		strcat(outstr, "jump tgt desc idx ");
+		idx_str = "jump tgt desc idx";
 	else
-		strcat(outstr, "desc idx ");
-
-	SPRINTFCAT(outstr, "%d: ", idx, sizeof("255"));
+		idx_str = "desc idx";
 
 	for (i = 0; i < ARRAY_SIZE(desc_error_list); i++)
-		if (desc_error_list[i].value == desc_error)
+		if (desc_error_list[i].value == err_id)
 			break;
 
-	if (i != ARRAY_SIZE(desc_error_list) && desc_error_list[i].error_text) {
-		SPRINTFCAT(outstr, "%s", desc_error_list[i].error_text,
-			   strlen(desc_error_list[i].error_text));
-	} else {
-		SPRINTFCAT(outstr, "unidentified error value 0x%02x",
-			   desc_error, sizeof("ff"));
-	}
+	if (i != ARRAY_SIZE(desc_error_list) && desc_error_list[i].error_text)
+		err_str = desc_error_list[i].error_text;
+	else
+		snprintf(err_err_code, sizeof(err_err_code), "%02x", err_id);
 
-	dev_err(jrdev, "%08x: %s\n", status, outstr);
+	dev_err(jrdev, "%08x: %s: %s %d: %s%s\n",
+		status, error, idx_str, idx, err_str, err_err_code);
 }
 
 static void report_jr_status(struct device *jrdev, u32 status,
