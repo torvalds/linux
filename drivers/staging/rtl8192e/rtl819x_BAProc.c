@@ -230,8 +230,8 @@ static void rtllib_send_DELBA(struct rtllib_device *ieee, u8 *dst,
 	if (skb)
 		softmac_mgmt_xmit(skb, ieee);
 	else
-		RTLLIB_DEBUG(RTLLIB_DL_ERR, "alloc skb error in func"
-			     "tion %s()\n", __func__);
+		RTLLIB_DEBUG(RTLLIB_DL_ERR, "alloc skb error in function"
+			     " %s()\n", __func__);
 	return ;
 }
 
