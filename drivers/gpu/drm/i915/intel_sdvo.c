@@ -1159,13 +1159,12 @@ static bool intel_sdvo_compute_config(struct intel_encoder *encoder,
 		 * bit per color mode. */
 		if (intel_sdvo->has_hdmi_monitor &&
 		    drm_match_cea_mode(adjusted_mode) > 1)
-			intel_sdvo->color_range = HDMI_COLOR_RANGE_16_235;
-		else
-			intel_sdvo->color_range = 0;
+			pipe_config->limited_color_range = true;
+	} else {
+		if (intel_sdvo->has_hdmi_monitor &&
+		    intel_sdvo->color_range == HDMI_COLOR_RANGE_16_235)
+			pipe_config->limited_color_range = true;
 	}
-
-	if (intel_sdvo->color_range)
-		pipe_config->limited_color_range = true;
 
 	/* Clock computation needs to happen after pixel multiplier. */
 	if (intel_sdvo->is_tv)
@@ -1258,8 +1257,8 @@ static void intel_sdvo_pre_enable(struct intel_encoder *intel_encoder)
 		/* The real mode polarity is set by the SDVO commands, using
 		 * struct intel_sdvo_dtd. */
 		sdvox = SDVO_VSYNC_ACTIVE_HIGH | SDVO_HSYNC_ACTIVE_HIGH;
-		if (!HAS_PCH_SPLIT(dev) && intel_sdvo->is_hdmi)
-			sdvox |= intel_sdvo->color_range;
+		if (!HAS_PCH_SPLIT(dev) && crtc->config.limited_color_range)
+			sdvox |= HDMI_COLOR_RANGE_16_235;
 		if (INTEL_INFO(dev)->gen < 5)
 			sdvox |= SDVO_BORDER_ENABLE;
 	} else {
