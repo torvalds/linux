@@ -156,8 +156,7 @@ static int simple_card_dai_link_of(struct device_node *node,
 	char *prefix = "";
 	int ret;
 
-	if (!strcmp("sound", node->name))
-		prefix = "simple-audio-card,";
+	prefix = "simple-audio-card,";
 
 	daifmt = snd_soc_of_parse_daifmt(node, prefix,
 					 &bitclkmaster, &framemaster);
