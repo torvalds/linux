@@ -48,8 +48,6 @@
 
 #define UETH__VERSION	"29-May-2008"
 
-#define GETHER_NAPI_WEIGHT	32
-
 struct eth_dev {
 	/* lock is held while accessing port_usb
 	 */
@@ -74,7 +72,6 @@ struct eth_dev {
 						struct sk_buff_head *list);
 
 	struct work_struct	work;
-	struct napi_struct	rx_napi;
 
 	unsigned long		todo;
 #define	WORK_RX_MEMORY		0
@@ -256,16 +253,18 @@ enomem:
 		DBG(dev, "rx submit --> %d\n", retval);
 		if (skb)
 			dev_kfree_skb_any(skb);
+		spin_lock_irqsave(&dev->req_lock, flags);
+		list_add(&req->list, &dev->rx_reqs);
+		spin_unlock_irqrestore(&dev->req_lock, flags);
 	}
 	return retval;
 }
 
 static void rx_complete(struct usb_ep *ep, struct usb_request *req)
 {
-	struct sk_buff	*skb = req->context;
+	struct sk_buff	*skb = req->context, *skb2;
 	struct eth_dev	*dev = ep->driver_data;
 	int		status = req->status;
-	bool		rx_queue = 0;
 
 	switch (status) {
 
@@ -289,8 +288,30 @@ static void rx_complete(struct usb_ep *ep, struct usb_request *req)
 		} else {
 			skb_queue_tail(&dev->rx_frames, skb);
 		}
-		if (!status)
-			rx_queue = 1;
+		skb = NULL;
+
+		skb2 = skb_dequeue(&dev->rx_frames);
+		while (skb2) {
+			if (status < 0
+					|| ETH_HLEN > skb2->len
+					|| skb2->len > VLAN_ETH_FRAME_LEN) {
+				dev->net->stats.rx_errors++;
+				dev->net->stats.rx_length_errors++;
+				DBG(dev, "rx length %d\n", skb2->len);
+				dev_kfree_skb_any(skb2);
+				goto next_frame;
+			}
+			skb2->protocol = eth_type_trans(skb2, dev->net);
+			dev->net->stats.rx_packets++;
+			dev->net->stats.rx_bytes += skb2->len;
+
+			/* no buffer copies needed, unless hardware can't
+			 * use skb buffers.
+			 */
+			status = netif_rx(skb2);
+next_frame:
+			skb2 = skb_dequeue(&dev->rx_frames);
+		}
 		break;
 
 	/* software-driven interface shutdown */
@@ -313,20 +334,22 @@ quiesce:
 		/* FALLTHROUGH */
 
 	default:
-		rx_queue = 1;
-		dev_kfree_skb_any(skb);
 		dev->net->stats.rx_errors++;
 		DBG(dev, "rx status %d\n", status);
 		break;
 	}
 
+	if (skb)
+		dev_kfree_skb_any(skb);
+	if (!netif_running(dev->net)) {
 clean:
 		spin_lock(&dev->req_lock);
 		list_add(&req->list, &dev->rx_reqs);
 		spin_unlock(&dev->req_lock);
-
-	if (rx_queue && likely(napi_schedule_prep(&dev->rx_napi)))
-		__napi_schedule(&dev->rx_napi);
+		req = NULL;
+	}
+	if (req)
+		rx_submit(dev, req, GFP_ATOMIC);
 }
 
 static int prealloc(struct list_head *list, struct usb_ep *ep, unsigned n)
@@ -391,24 +414,16 @@ static void rx_fill(struct eth_dev *dev, gfp_t gfp_flags)
 {
 	struct usb_request	*req;
 	unsigned long		flags;
-	int			rx_counts = 0;
 
 	/* fill unused rxq slots with some skb */
 	spin_lock_irqsave(&dev->req_lock, flags);
 	while (!list_empty(&dev->rx_reqs)) {
-
-		if (++rx_counts > qlen(dev->gadget, dev->qmult))
-			break;
-
 		req = container_of(dev->rx_reqs.next,
 				struct usb_request, list);
 		list_del_init(&req->list);
 		spin_unlock_irqrestore(&dev->req_lock, flags);
 
 		if (rx_submit(dev, req, gfp_flags) < 0) {
-			spin_lock_irqsave(&dev->req_lock, flags);
-			list_add(&req->list, &dev->rx_reqs);
-			spin_unlock_irqrestore(&dev->req_lock, flags);
 			defer_kevent(dev, WORK_RX_MEMORY);
 			return;
 		}
@@ -416,41 +431,6 @@ static void rx_fill(struct eth_dev *dev, gfp_t gfp_flags)
 		spin_lock_irqsave(&dev->req_lock, flags);
 	}
 	spin_unlock_irqrestore(&dev->req_lock, flags);
-}
-
-static int gether_poll(struct napi_struct *napi, int budget)
-{
-	struct eth_dev  *dev = container_of(napi, struct eth_dev, rx_napi);
-	struct sk_buff	*skb;
-	unsigned int	work_done = 0;
-	int		status = 0;
-
-	while ((skb = skb_dequeue(&dev->rx_frames))) {
-		if (status < 0
-				|| ETH_HLEN > skb->len
-				|| skb->len > VLAN_ETH_FRAME_LEN) {
-			dev->net->stats.rx_errors++;
-			dev->net->stats.rx_length_errors++;
-			DBG(dev, "rx length %d\n", skb->len);
-			dev_kfree_skb_any(skb);
-			continue;
-		}
-		skb->protocol = eth_type_trans(skb, dev->net);
-		dev->net->stats.rx_packets++;
-		dev->net->stats.rx_bytes += skb->len;
-
-		status = netif_rx_ni(skb);
-	}
-
-	if (netif_running(dev->net)) {
-		rx_fill(dev, GFP_KERNEL);
-		work_done++;
-	}
-
-	if (work_done < budget)
-		napi_complete(&dev->rx_napi);
-
-	return work_done;
 }
 
 static void eth_work(struct work_struct *work)
@@ -645,7 +625,6 @@ static void eth_start(struct eth_dev *dev, gfp_t gfp_flags)
 	/* and open the tx floodgates */
 	atomic_set(&dev->tx_qlen, 0);
 	netif_wake_queue(dev->net);
-	napi_enable(&dev->rx_napi);
 }
 
 static int eth_open(struct net_device *net)
@@ -672,7 +651,6 @@ static int eth_stop(struct net_device *net)
 	unsigned long	flags;
 
 	VDBG(dev, "%s\n", __func__);
-	napi_disable(&dev->rx_napi);
 	netif_stop_queue(net);
 
 	DBG(dev, "stop stats: rx/tx %ld/%ld, errs %ld/%ld\n",
@@ -790,7 +768,6 @@ struct eth_dev *gether_setup_name(struct usb_gadget *g,
 		return ERR_PTR(-ENOMEM);
 
 	dev = netdev_priv(net);
-	netif_napi_add(net, &dev->rx_napi, gether_poll, GETHER_NAPI_WEIGHT);
 	spin_lock_init(&dev->lock);
 	spin_lock_init(&dev->req_lock);
 	INIT_WORK(&dev->work, eth_work);
@@ -853,7 +830,6 @@ struct net_device *gether_setup_name_default(const char *netname)
 		return ERR_PTR(-ENOMEM);
 
 	dev = netdev_priv(net);
-	netif_napi_add(net, &dev->rx_napi, gether_poll, GETHER_NAPI_WEIGHT);
 	spin_lock_init(&dev->lock);
 	spin_lock_init(&dev->req_lock);
 	INIT_WORK(&dev->work, eth_work);
@@ -1137,7 +1113,6 @@ void gether_disconnect(struct gether *link)
 {
 	struct eth_dev		*dev = link->ioport;
 	struct usb_request	*req;
-	struct sk_buff		*skb;
 
 	WARN_ON(!dev);
 	if (!dev)
@@ -1164,12 +1139,6 @@ void gether_disconnect(struct gether *link)
 		spin_lock(&dev->req_lock);
 	}
 	spin_unlock(&dev->req_lock);
-
-	spin_lock(&dev->rx_frames.lock);
-	while ((skb = __skb_dequeue(&dev->rx_frames)))
-		dev_kfree_skb_any(skb);
-	spin_unlock(&dev->rx_frames.lock);
-
 	link->in_ep->driver_data = NULL;
 	link->in_ep->desc = NULL;
 
