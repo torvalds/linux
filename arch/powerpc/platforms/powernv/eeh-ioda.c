@@ -478,26 +478,27 @@ out:
 	return 0;
 }
 
-static int ioda_eeh_bridge_reset(struct pci_controller *hose,
-		struct pci_dev *dev, int option)
-{
-	u16 ctrl;
+static int ioda_eeh_bridge_reset(struct pci_dev *dev, int option)
 
-	pr_debug("%s: Reset device %04x:%02x:%02x.%01x with option %d\n",
-		 __func__, hose->global_number, dev->bus->number,
-		 PCI_SLOT(dev->devfn), PCI_FUNC(dev->devfn), option);
+{
+	struct device_node *dn = pci_device_to_OF_node(dev);
+	u32 ctrl;
+
+	pr_debug("%s: Reset PCI bus %04x:%02x with option %d\n",
+		 __func__, pci_domain_nr(dev->bus),
+		 dev->bus->number, option);
 
 	switch (option) {
 	case EEH_RESET_FUNDAMENTAL:
 	case EEH_RESET_HOT:
-		pci_read_config_word(dev, PCI_BRIDGE_CONTROL, &ctrl);
+		eeh_ops->read_config(dn, PCI_BRIDGE_CONTROL, 2, &ctrl);
 		ctrl |= PCI_BRIDGE_CTL_BUS_RESET;
-		pci_write_config_word(dev, PCI_BRIDGE_CONTROL, ctrl);
+		eeh_ops->write_config(dn, PCI_BRIDGE_CONTROL, 2, ctrl);
 		break;
 	case EEH_RESET_DEACTIVATE:
-		pci_read_config_word(dev, PCI_BRIDGE_CONTROL, &ctrl);
+		eeh_ops->read_config(dn, PCI_BRIDGE_CONTROL, 2, &ctrl);
 		ctrl &= ~PCI_BRIDGE_CTL_BUS_RESET;
-		pci_write_config_word(dev, PCI_BRIDGE_CONTROL, ctrl);
+		eeh_ops->write_config(dn, PCI_BRIDGE_CONTROL, 2, ctrl);
 		break;
 	}
 
@@ -552,7 +553,7 @@ static int ioda_eeh_reset(struct eeh_pe *pe, int option)
 		if (pci_is_root_bus(bus))
 			ret = ioda_eeh_root_reset(hose, option);
 		else
-			ret = ioda_eeh_bridge_reset(hose, bus->self, option);
+			ret = ioda_eeh_bridge_reset(bus->self, option);
 	}
 
 	return ret;
