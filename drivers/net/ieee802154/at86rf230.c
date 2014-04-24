@@ -693,10 +693,7 @@ at86rf230_xmit(struct ieee802154_dev *dev, struct sk_buff *skb)
 	if (rc < 0)
 		goto err_rx;
 
-	rc = at86rf230_start(dev);
-
-	return rc;
-
+	return at86rf230_start(dev);
 err_rx:
 	at86rf230_start(dev);
 err:
