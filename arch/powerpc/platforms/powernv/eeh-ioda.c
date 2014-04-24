@@ -417,9 +417,13 @@ static int ioda_eeh_phb_reset(struct pci_controller *hose, int option)
 
 	/*
 	 * Poll state of the PHB until the request is done
-	 * successfully.
+	 * successfully. The PHB reset is usually PHB complete
+	 * reset followed by hot reset on root bus. So we also
+	 * need the PCI bus settlement delay.
 	 */
 	rc = ioda_eeh_phb_poll(phb);
+	if (option == EEH_RESET_DEACTIVATE)
+		msleep(EEH_PE_RST_SETTLE_TIME);
 out:
 	if (rc != OPAL_SUCCESS)
 		return -EIO;
@@ -457,6 +461,8 @@ static int ioda_eeh_root_reset(struct pci_controller *hose, int option)
 
 	/* Poll state of the PHB until the request is done */
 	rc = ioda_eeh_phb_poll(phb);
+	if (option == EEH_RESET_DEACTIVATE)
+		msleep(EEH_PE_RST_SETTLE_TIME);
 out:
 	if (rc != OPAL_SUCCESS)
 		return -EIO;
@@ -480,11 +486,15 @@ static int ioda_eeh_bridge_reset(struct pci_dev *dev, int option)
 		eeh_ops->read_config(dn, PCI_BRIDGE_CONTROL, 2, &ctrl);
 		ctrl |= PCI_BRIDGE_CTL_BUS_RESET;
 		eeh_ops->write_config(dn, PCI_BRIDGE_CONTROL, 2, ctrl);
+
+		msleep(EEH_PE_RST_HOLD_TIME);
 		break;
 	case EEH_RESET_DEACTIVATE:
 		eeh_ops->read_config(dn, PCI_BRIDGE_CONTROL, 2, &ctrl);
 		ctrl &= ~PCI_BRIDGE_CTL_BUS_RESET;
 		eeh_ops->write_config(dn, PCI_BRIDGE_CONTROL, 2, ctrl);
+
+		msleep(EEH_PE_RST_SETTLE_TIME);
 		break;
 	}
 

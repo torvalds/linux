@@ -639,20 +639,7 @@ static void eeh_reset_pe_once(struct eeh_pe *pe)
 	else
 		eeh_ops->reset(pe, EEH_RESET_HOT);
 
-	/* The PCI bus requires that the reset be held high for at least
-	 * a 100 milliseconds. We wait a bit longer 'just in case'.
-	 */
-#define PCI_BUS_RST_HOLD_TIME_MSEC 250
-	msleep(PCI_BUS_RST_HOLD_TIME_MSEC);
-
 	eeh_ops->reset(pe, EEH_RESET_DEACTIVATE);
-
-	/* After a PCI slot has been reset, the PCI Express spec requires
-	 * a 1.5 second idle time for the bus to stabilize, before starting
-	 * up traffic.
-	 */
-#define PCI_BUS_SETTLE_TIME_MSEC 1800
-	msleep(PCI_BUS_SETTLE_TIME_MSEC);
 }
 
 /**

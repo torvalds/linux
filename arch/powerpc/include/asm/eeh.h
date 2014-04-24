@@ -39,6 +39,16 @@ struct device_node;
 #define EEH_PROBE_MODE_DEVTREE	0x8	/* From device tree	*/
 
 /*
+ * Delay for PE reset, all in ms
+ *
+ * PCI specification has reset hold time of 100 milliseconds.
+ * We have 250 milliseconds here. The PCI bus settlement time
+ * is specified as 1.5 seconds and we have 1.8 seconds.
+ */
+#define EEH_PE_RST_HOLD_TIME		250
+#define EEH_PE_RST_SETTLE_TIME		1800
+
+/*
  * The struct is used to trace PE related EEH functionality.
  * In theory, there will have one instance of the struct to
  * be created against particular PE. In nature, PEs corelate
