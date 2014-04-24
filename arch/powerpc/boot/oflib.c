@@ -147,7 +147,8 @@ static int check_of_version(void)
 	return 1;
 }
 
-void *of_claim(unsigned long virt, unsigned long size, unsigned long align)
+unsigned int of_claim(unsigned long virt, unsigned long size,
+		      unsigned long align)
 {
 	int ret;
 	prom_arg_t result;
@@ -155,32 +156,32 @@ void *of_claim(unsigned long virt, unsigned long size, unsigned long align)
 	if (need_map < 0)
 		need_map = check_of_version();
 	if (align || !need_map)
-		return (void *) of_call_prom("claim", 3, 1, virt, size, align);
+		return of_call_prom("claim", 3, 1, virt, size, align);
 
 	ret = of_call_prom_ret("call-method", 5, 2, &result, "claim", memory,
 			       align, size, virt);
 	if (ret != 0 || result == -1)
-		return (void *) -1;
+		return  -1;
 	ret = of_call_prom_ret("call-method", 5, 2, &result, "claim", chosen_mmu,
 			       align, size, virt);
 	/* 0x12 == coherent + read/write */
 	ret = of_call_prom("call-method", 6, 1, "map", chosen_mmu,
 			   0x12, size, virt, virt);
-	return (void *) virt;
+	return virt;
 }
 
 void *of_vmlinux_alloc(unsigned long size)
 {
 	unsigned long start = (unsigned long)_start, end = (unsigned long)_end;
-	void *addr;
+	unsigned long addr;
 	void *p;
 
 	/* With some older POWER4 firmware we need to claim the area the kernel
 	 * will reside in.  Newer firmwares don't need this so we just ignore
 	 * the return value.
 	 */
-	addr = of_claim(start, end - start, 0);
-	printf("Trying to claim from 0x%lx to 0x%lx (0x%lx) got %p\r\n",
+	addr = (unsigned long) of_claim(start, end - start, 0);
+	printf("Trying to claim from 0x%lx to 0x%lx (0x%lx) got %lx\r\n",
 	       start, end, end - start, addr);
 
 	p = malloc(size);
