@@ -451,19 +451,28 @@ static int eeh_reset_device(struct eeh_pe *pe, struct pci_bus *bus)
 		eeh_pe_dev_traverse(pe, eeh_rmv_device, &removed);
 	}
 
-	/* Reset the pci controller. (Asserts RST#; resets config space).
+	/*
+	 * Reset the pci controller. (Asserts RST#; resets config space).
 	 * Reconfigure bridges and devices. Don't try to bring the system
 	 * up if the reset failed for some reason.
+	 *
+	 * During the reset, it's very dangerous to have uncontrolled PCI
+	 * config accesses. So we prefer to block them. However, controlled
+	 * PCI config accesses initiated from EEH itself are allowed.
 	 */
+	eeh_pe_state_mark(pe, EEH_PE_RESET);
 	rc = eeh_reset_pe(pe);
-	if (rc)
+	if (rc) {
+		eeh_pe_state_clear(pe, EEH_PE_RESET);
 		return rc;
+	}
 
 	pci_lock_rescan_remove();
 
 	/* Restore PE */
 	eeh_ops->configure_bridge(pe);
 	eeh_pe_restore_bars(pe);
+	eeh_pe_state_clear(pe, EEH_PE_RESET);
 
 	/* Give the system 5 seconds to finish running the user-space
 	 * hotplug shutdown scripts, e.g. ifdown for ethernet.  Yes,

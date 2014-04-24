@@ -373,9 +373,6 @@ int pnv_pci_cfg_read(struct device_node *dn,
 	struct pci_dn *pdn = PCI_DN(dn);
 	struct pnv_phb *phb = pdn->phb->private_data;
 	u32 bdfn = (pdn->busno << 8) | pdn->devfn;
-#ifdef CONFIG_EEH
-	struct eeh_pe *phb_pe = NULL;
-#endif
 	s64 rc;
 
 	switch (size) {
@@ -401,31 +398,9 @@ int pnv_pci_cfg_read(struct device_node *dn,
 	default:
 		return PCIBIOS_FUNC_NOT_SUPPORTED;
 	}
+
 	cfg_dbg("%s: bus: %x devfn: %x +%x/%x -> %08x\n",
 		__func__, pdn->busno, pdn->devfn, where, size, *val);
-
-	/*
-	 * Check if the specified PE has been put into frozen
-	 * state. On the other hand, we needn't do that while
-	 * the PHB has been put into frozen state because of
-	 * PHB-fatal errors.
-	 */
-#ifdef CONFIG_EEH
-	phb_pe = eeh_phb_pe_get(pdn->phb);
-	if (phb_pe && (phb_pe->state & EEH_PE_ISOLATED))
-		return PCIBIOS_SUCCESSFUL;
-
-	if (phb->flags & PNV_PHB_FLAG_EEH) {
-		if (*val == EEH_IO_ERROR_VALUE(size) &&
-		    eeh_dev_check_failure(of_node_to_eeh_dev(dn)))
-			return PCIBIOS_DEVICE_NOT_FOUND;
-	} else {
-		pnv_pci_config_check_eeh(phb, dn);
-	}
-#else
-	pnv_pci_config_check_eeh(phb, dn);
-#endif
-
 	return PCIBIOS_SUCCESSFUL;
 }
 
@@ -452,12 +427,35 @@ int pnv_pci_cfg_write(struct device_node *dn,
 		return PCIBIOS_FUNC_NOT_SUPPORTED;
 	}
 
-	/* Check if the PHB got frozen due to an error (no response) */
-	if (!(phb->flags & PNV_PHB_FLAG_EEH))
-		pnv_pci_config_check_eeh(phb, dn);
-
 	return PCIBIOS_SUCCESSFUL;
 }
+
+#if CONFIG_EEH
+static bool pnv_pci_cfg_check(struct pci_controller *hose,
+			      struct device_node *dn)
+{
+	struct eeh_dev *edev = NULL;
+	struct pnv_phb *phb = hose->private_data;
+
+	/* EEH not enabled ? */
+	if (!(phb->flags & PNV_PHB_FLAG_EEH))
+		return true;
+
+	/* PE reset ? */
+	edev = of_node_to_eeh_dev(dn);
+	if (edev && edev->pe &&
+	    (edev->pe->state & EEH_PE_RESET))
+		return false;
+
+	return true;
+}
+#else
+static inline pnv_pci_cfg_check(struct pci_controller *hose,
+				struct device_node *dn)
+{
+	return true;
+}
+#endif /* CONFIG_EEH */
 
 static int pnv_pci_read_config(struct pci_bus *bus,
 			       unsigned int devfn,
@@ -465,16 +463,33 @@ static int pnv_pci_read_config(struct pci_bus *bus,
 {
 	struct device_node *dn, *busdn = pci_bus_to_OF_node(bus);
 	struct pci_dn *pdn;
-
-	for (dn = busdn->child; dn; dn = dn->sibling) {
-		pdn = PCI_DN(dn);
-		if (pdn && pdn->devfn == devfn)
-			return pnv_pci_cfg_read(dn, where, size, val);
-	}
+	struct pnv_phb *phb;
+	bool found = false;
+	int ret;
 
 	*val = 0xFFFFFFFF;
-	return PCIBIOS_DEVICE_NOT_FOUND;
+	for (dn = busdn->child; dn; dn = dn->sibling) {
+		pdn = PCI_DN(dn);
+		if (pdn && pdn->devfn == devfn) {
+			phb = pdn->phb->private_data;
+			found = true;
+			break;
+		}
+	}
 
+	if (!found || !pnv_pci_cfg_check(pdn->phb, dn))
+		return PCIBIOS_DEVICE_NOT_FOUND;
+
+	ret = pnv_pci_cfg_read(dn, where, size, val);
+	if (phb->flags & PNV_PHB_FLAG_EEH) {
+		if (*val == EEH_IO_ERROR_VALUE(size) &&
+		    eeh_dev_check_failure(of_node_to_eeh_dev(dn)))
+                        return PCIBIOS_DEVICE_NOT_FOUND;
+	} else {
+		pnv_pci_config_check_eeh(phb, dn);
+	}
+
+	return ret;
 }
 
 static int pnv_pci_write_config(struct pci_bus *bus,
@@ -483,14 +498,27 @@ static int pnv_pci_write_config(struct pci_bus *bus,
 {
 	struct device_node *dn, *busdn = pci_bus_to_OF_node(bus);
 	struct pci_dn *pdn;
+	struct pnv_phb *phb;
+	bool found = false;
+	int ret;
 
 	for (dn = busdn->child; dn; dn = dn->sibling) {
 		pdn = PCI_DN(dn);
-		if (pdn && pdn->devfn == devfn)
-			return pnv_pci_cfg_write(dn, where, size, val);
+		if (pdn && pdn->devfn == devfn) {
+			phb = pdn->phb->private_data;
+			found = true;
+			break;
+		}
 	}
 
-	return PCIBIOS_DEVICE_NOT_FOUND;
+	if (!found || !pnv_pci_cfg_check(pdn->phb, dn))
+		return PCIBIOS_DEVICE_NOT_FOUND;
+
+	ret = pnv_pci_cfg_write(dn, where, size, val);
+	if (!(phb->flags & PNV_PHB_FLAG_EEH))
+		pnv_pci_config_check_eeh(phb, dn);
+
+	return ret;
 }
 
 struct pci_ops pnv_pci_ops = {
