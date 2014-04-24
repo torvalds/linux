@@ -208,6 +208,7 @@ static int kvmppc_mmu_book3s_32_xlate_pte(struct kvm_vcpu *vcpu, gva_t eaddr,
 	u32 sre;
 	hva_t ptegp;
 	u32 pteg[16];
+	u32 pte0, pte1;
 	u32 ptem = 0;
 	int i;
 	int found = 0;
@@ -233,11 +234,13 @@ static int kvmppc_mmu_book3s_32_xlate_pte(struct kvm_vcpu *vcpu, gva_t eaddr,
 	}
 
 	for (i=0; i<16; i+=2) {
-		if (ptem == pteg[i]) {
+		pte0 = be32_to_cpu(pteg[i]);
+		pte1 = be32_to_cpu(pteg[i + 1]);
+		if (ptem == pte0) {
 			u8 pp;
 
-			pte->raddr = (pteg[i+1] & ~(0xFFFULL)) | (eaddr & 0xFFF);
-			pp = pteg[i+1] & 3;
+			pte->raddr = (pte1 & ~(0xFFFULL)) | (eaddr & 0xFFF);
+			pp = pte1 & 3;
 
 			if ((sr_kp(sre) &&  (vcpu->arch.shared->msr & MSR_PR)) ||
 			    (sr_ks(sre) && !(vcpu->arch.shared->msr & MSR_PR)))
@@ -260,7 +263,7 @@ static int kvmppc_mmu_book3s_32_xlate_pte(struct kvm_vcpu *vcpu, gva_t eaddr,
 			}
 
 			dprintk_pte("MMU: Found PTE -> %x %x - %x\n",
-				    pteg[i], pteg[i+1], pp);
+				    pte0, pte1, pp);
 			found = 1;
 			break;
 		}
@@ -269,7 +272,7 @@ static int kvmppc_mmu_book3s_32_xlate_pte(struct kvm_vcpu *vcpu, gva_t eaddr,
 	/* Update PTE C and A bits, so the guest's swapper knows we used the
 	   page */
 	if (found) {
-		u32 pte_r = pteg[i+1];
+		u32 pte_r = pte1;
 		char __user *addr = (char __user *) (ptegp + (i+1) * sizeof(u32));
 
 		/*
@@ -296,7 +299,8 @@ no_page_found:
 			    to_book3s(vcpu)->sdr1, ptegp);
 		for (i=0; i<16; i+=2) {
 			dprintk_pte("   %02d: 0x%x - 0x%x (0x%x)\n",
-				    i, pteg[i], pteg[i+1], ptem);
+				    i, be32_to_cpu(pteg[i]),
+				    be32_to_cpu(pteg[i+1]), ptem);
 		}
 	}
 
