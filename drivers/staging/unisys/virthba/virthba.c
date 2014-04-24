@@ -82,6 +82,14 @@ static int virthba_ioctl(struct scsi_device *dev, int cmd, void __user *arg);
 static int virthba_queue_command_lck(struct scsi_cmnd *scsicmd,
 				     void (*virthba_cmnd_done)(struct scsi_cmnd *));
 
+static const struct x86_cpu_id unisys_spar_ids[] = {
+	{ X86_VENDOR_INTEL, 6, 62, X86_FEATURE_ANY },
+	{}
+};
+
+/* Autoload */
+MODULE_DEVICE_TABLE(x86cpu, unisys_spar_ids);
+
 #ifdef DEF_SCSI_QCMD
 DEF_SCSI_QCMD(virthba_queue_command)
 #else
