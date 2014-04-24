@@ -407,6 +407,17 @@ static int default_pre_xol_op(struct arch_uprobe *auprobe, struct pt_regs *regs)
 	return 0;
 }
 
+static int push_ret_address(struct pt_regs *regs, unsigned long ip)
+{
+	unsigned long new_sp = regs->sp - sizeof_long();
+
+	if (copy_to_user((void __user *)new_sp, &ip, sizeof_long()))
+		return -EFAULT;
+
+	regs->sp = new_sp;
+	return 0;
+}
+
 /*
  * Adjust the return address pushed by a call insn executed out of line.
  */
@@ -517,7 +528,6 @@ static bool branch_emulate_op(struct arch_uprobe *auprobe, struct pt_regs *regs)
 	unsigned long offs = (long)auprobe->branch.offs;
 
 	if (branch_is_call(auprobe)) {
-		unsigned long new_sp = regs->sp - sizeof_long();
 		/*
 		 * If it fails we execute this (mangled, see the comment in
 		 * branch_clear_offset) insn out-of-line. In the likely case
@@ -527,9 +537,8 @@ static bool branch_emulate_op(struct arch_uprobe *auprobe, struct pt_regs *regs)
 		 *
 		 * But there is corner case, see the comment in ->post_xol().
 		 */
-		if (copy_to_user((void __user *)new_sp, &new_ip, sizeof_long()))
+		if (push_ret_address(regs, new_ip))
 			return false;
-		regs->sp = new_sp;
 	} else if (!check_jmp_cond(auprobe, regs)) {
 		offs = 0;
 	}
