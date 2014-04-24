@@ -2577,9 +2577,9 @@ int dispc_ovl_setup(enum omap_plane plane, const struct omap_overlay_info *oi,
 
 	channel = dispc_ovl_get_channel_out(plane);
 
-	DSSDBG("dispc_ovl_setup %d, pa %x, pa_uv %x, sw %d, %d,%d, %dx%d -> "
-		"%dx%d, cmode %x, rot %d, mir %d, chan %d repl %d\n",
-		plane, oi->paddr, oi->p_uv_addr, oi->screen_width, oi->pos_x,
+	DSSDBG("dispc_ovl_setup %d, pa %pad, pa_uv %pad, sw %d, %d,%d, %dx%d ->"
+		" %dx%d, cmode %x, rot %d, mir %d, chan %d repl %d\n",
+		plane, &oi->paddr, &oi->p_uv_addr, oi->screen_width, oi->pos_x,
 		oi->pos_y, oi->width, oi->height, oi->out_width, oi->out_height,
 		oi->color_mode, oi->rotation, oi->mirror, channel, replication);
 
