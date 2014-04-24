@@ -94,13 +94,6 @@ static bool intel_dsi_compute_config(struct intel_encoder *encoder,
 	return true;
 }
 
-static void intel_dsi_pre_pll_enable(struct intel_encoder *encoder)
-{
-	DRM_DEBUG_KMS("\n");
-
-	vlv_enable_dsi_pll(encoder);
-}
-
 static void intel_dsi_device_ready(struct intel_encoder *encoder)
 {
 	struct drm_i915_private *dev_priv = encoder->base.dev->dev_private;
@@ -433,7 +426,7 @@ static void set_dsi_timings(struct drm_encoder *encoder,
 	I915_WRITE(MIPI_VBP_COUNT(pipe), vbp);
 }
 
-static void intel_dsi_mode_set(struct intel_encoder *intel_encoder)
+static void intel_dsi_prepare(struct intel_encoder *intel_encoder)
 {
 	struct drm_encoder *encoder = &intel_encoder->base;
 	struct drm_device *dev = encoder->dev;
@@ -570,6 +563,15 @@ static void intel_dsi_mode_set(struct intel_encoder *intel_encoder)
 				RANDOM_DPI_DISPLAY_RESOLUTION);
 }
 
+static void intel_dsi_pre_pll_enable(struct intel_encoder *encoder)
+{
+	DRM_DEBUG_KMS("\n");
+
+	intel_dsi_prepare(encoder);
+
+	vlv_enable_dsi_pll(encoder);
+}
+
 static enum drm_connector_status
 intel_dsi_detect(struct drm_connector *connector, bool force)
 {
@@ -676,7 +678,6 @@ bool intel_dsi_init(struct drm_device *dev)
 	intel_encoder->pre_pll_enable = intel_dsi_pre_pll_enable;
 	intel_encoder->pre_enable = intel_dsi_pre_enable;
 	intel_encoder->enable = intel_dsi_enable_nop;
-	intel_encoder->mode_set = intel_dsi_mode_set;
 	intel_encoder->disable = intel_dsi_disable;
 	intel_encoder->post_disable = intel_dsi_post_disable;
 	intel_encoder->get_hw_state = intel_dsi_get_hw_state;
