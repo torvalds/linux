@@ -494,6 +494,10 @@ static const struct sys_reg_desc sys_reg_descs[] = {
 	  NULL, reset_val, FPEXC32_EL2, 0x70 },
 };
 
+/* Trapped cp14 registers */
+static const struct sys_reg_desc cp14_regs[] = {
+};
+
 /*
  * Trapped cp15 registers. TTBR0/TTBR1 get a double encoding,
  * depending on the way they are accessed (as a 32bit or a 64bit
@@ -601,26 +605,29 @@ int kvm_handle_cp14_load_store(struct kvm_vcpu *vcpu, struct kvm_run *run)
 	return 1;
 }
 
-int kvm_handle_cp14_access(struct kvm_vcpu *vcpu, struct kvm_run *run)
+/*
+ * emulate_cp --  tries to match a sys_reg access in a handling table, and
+ *                call the corresponding trap handler.
+ *
+ * @params: pointer to the descriptor of the access
+ * @table: array of trap descriptors
+ * @num: size of the trap descriptor array
+ *
+ * Return 0 if the access has been handled, and -1 if not.
+ */
+static int emulate_cp(struct kvm_vcpu *vcpu,
+		      const struct sys_reg_params *params,
+		      const struct sys_reg_desc *table,
+		      size_t num)
 {
-	kvm_inject_undefined(vcpu);
-	return 1;
-}
+	const struct sys_reg_desc *r;
 
-static void emulate_cp15(struct kvm_vcpu *vcpu,
-			 const struct sys_reg_params *params)
-{
-	size_t num;
-	const struct sys_reg_desc *table, *r;
+	if (!table)
+		return -1;	/* Not handled */
 
-	table = get_target_table(vcpu->arch.target, false, &num);
-
-	/* Search target-specific then generic table. */
 	r = find_reg(params, table, num);
-	if (!r)
-		r = find_reg(params, cp15_regs, ARRAY_SIZE(cp15_regs));
 
-	if (likely(r)) {
+	if (r) {
 		/*
 		 * Not having an accessor means that we have
 		 * configured a trap that we don't know how to
@@ -632,22 +639,51 @@ static void emulate_cp15(struct kvm_vcpu *vcpu,
 		if (likely(r->access(vcpu, params, r))) {
 			/* Skip instruction, since it was emulated */
 			kvm_skip_instr(vcpu, kvm_vcpu_trap_il_is32bit(vcpu));
-			return;
 		}
-		/* If access function fails, it should complain. */
+
+		/* Handled */
+		return 0;
 	}
 
-	kvm_err("Unsupported guest CP15 access at: %08lx\n", *vcpu_pc(vcpu));
+	/* Not handled */
+	return -1;
+}
+
+static void unhandled_cp_access(struct kvm_vcpu *vcpu,
+				struct sys_reg_params *params)
+{
+	u8 hsr_ec = kvm_vcpu_trap_get_class(vcpu);
+	int cp;
+
+	switch(hsr_ec) {
+	case ESR_EL2_EC_CP15_32:
+	case ESR_EL2_EC_CP15_64:
+		cp = 15;
+		break;
+	case ESR_EL2_EC_CP14_MR:
+	case ESR_EL2_EC_CP14_64:
+		cp = 14;
+		break;
+	default:
+		WARN_ON((cp = -1));
+	}
+
+	kvm_err("Unsupported guest CP%d access at: %08lx\n",
+		cp, *vcpu_pc(vcpu));
 	print_sys_reg_instr(params);
 	kvm_inject_undefined(vcpu);
 }
 
 /**
- * kvm_handle_cp15_64 -- handles a mrrc/mcrr trap on a guest CP15 access
+ * kvm_handle_cp_64 -- handles a mrrc/mcrr trap on a guest CP15 access
  * @vcpu: The VCPU pointer
  * @run:  The kvm_run struct
  */
-int kvm_handle_cp15_64(struct kvm_vcpu *vcpu, struct kvm_run *run)
+static int kvm_handle_cp_64(struct kvm_vcpu *vcpu,
+			    const struct sys_reg_desc *global,
+			    size_t nr_global,
+			    const struct sys_reg_desc *target_specific,
+			    size_t nr_specific)
 {
 	struct sys_reg_params params;
 	u32 hsr = kvm_vcpu_get_hsr(vcpu);
@@ -676,8 +712,14 @@ int kvm_handle_cp15_64(struct kvm_vcpu *vcpu, struct kvm_run *run)
 		*vcpu_reg(vcpu, params.Rt) = val;
 	}
 
-	emulate_cp15(vcpu, &params);
+	if (!emulate_cp(vcpu, &params, target_specific, nr_specific))
+		goto out;
+	if (!emulate_cp(vcpu, &params, global, nr_global))
+		goto out;
 
+	unhandled_cp_access(vcpu, &params);
+
+out:
 	/* Do the opposite hack for the read side */
 	if (!params.is_write) {
 		u64 val = *vcpu_reg(vcpu, params.Rt);
@@ -693,7 +735,11 @@ int kvm_handle_cp15_64(struct kvm_vcpu *vcpu, struct kvm_run *run)
  * @vcpu: The VCPU pointer
  * @run:  The kvm_run struct
  */
-int kvm_handle_cp15_32(struct kvm_vcpu *vcpu, struct kvm_run *run)
+static int kvm_handle_cp_32(struct kvm_vcpu *vcpu,
+			    const struct sys_reg_desc *global,
+			    size_t nr_global,
+			    const struct sys_reg_desc *target_specific,
+			    size_t nr_specific)
 {
 	struct sys_reg_params params;
 	u32 hsr = kvm_vcpu_get_hsr(vcpu);
@@ -708,8 +754,49 @@ int kvm_handle_cp15_32(struct kvm_vcpu *vcpu, struct kvm_run *run)
 	params.Op1 = (hsr >> 14) & 0x7;
 	params.Op2 = (hsr >> 17) & 0x7;
 
-	emulate_cp15(vcpu, &params);
+	if (!emulate_cp(vcpu, &params, target_specific, nr_specific))
+		return 1;
+	if (!emulate_cp(vcpu, &params, global, nr_global))
+		return 1;
+
+	unhandled_cp_access(vcpu, &params);
 	return 1;
+}
+
+int kvm_handle_cp15_64(struct kvm_vcpu *vcpu, struct kvm_run *run)
+{
+	const struct sys_reg_desc *target_specific;
+	size_t num;
+
+	target_specific = get_target_table(vcpu->arch.target, false, &num);
+	return kvm_handle_cp_64(vcpu,
+				cp15_regs, ARRAY_SIZE(cp15_regs),
+				target_specific, num);
+}
+
+int kvm_handle_cp15_32(struct kvm_vcpu *vcpu, struct kvm_run *run)
+{
+	const struct sys_reg_desc *target_specific;
+	size_t num;
+
+	target_specific = get_target_table(vcpu->arch.target, false, &num);
+	return kvm_handle_cp_32(vcpu,
+				cp15_regs, ARRAY_SIZE(cp15_regs),
+				target_specific, num);
+}
+
+int kvm_handle_cp14_64(struct kvm_vcpu *vcpu, struct kvm_run *run)
+{
+	return kvm_handle_cp_64(vcpu,
+				cp14_regs, ARRAY_SIZE(cp14_regs),
+				NULL, 0);
+}
+
+int kvm_handle_cp14_32(struct kvm_vcpu *vcpu, struct kvm_run *run)
+{
+	return kvm_handle_cp_32(vcpu,
+				cp14_regs, ARRAY_SIZE(cp14_regs),
+				NULL, 0);
 }
 
 static int emulate_sys_reg(struct kvm_vcpu *vcpu,

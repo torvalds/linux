@@ -86,7 +86,7 @@ struct kvm_cpu_context {
 	struct kvm_regs	gp_regs;
 	union {
 		u64 sys_regs[NR_SYS_REGS];
-		u32 cp15[NR_CP15_REGS];
+		u32 copro[NR_COPRO_REGS];
 	};
 };
 
@@ -141,12 +141,17 @@ struct kvm_vcpu_arch {
 
 #define vcpu_gp_regs(v)		(&(v)->arch.ctxt.gp_regs)
 #define vcpu_sys_reg(v,r)	((v)->arch.ctxt.sys_regs[(r)])
-#define vcpu_cp15(v,r)		((v)->arch.ctxt.cp15[(r)])
+/*
+ * CP14 and CP15 live in the same array, as they are backed by the
+ * same system registers.
+ */
+#define vcpu_cp14(v,r)		((v)->arch.ctxt.copro[(r)])
+#define vcpu_cp15(v,r)		((v)->arch.ctxt.copro[(r)])
 
 #ifdef CONFIG_CPU_BIG_ENDIAN
-#define vcpu_cp15_64_low(v,r) ((v)->arch.ctxt.cp15[((r) + 1)])
+#define vcpu_cp15_64_low(v,r) ((v)->arch.ctxt.copro[((r) + 1)])
 #else
-#define vcpu_cp15_64_low(v,r) ((v)->arch.ctxt.cp15[((r) + 0)])
+#define vcpu_cp15_64_low(v,r) ((v)->arch.ctxt.copro[((r) + 0)])
 #endif
 
 struct kvm_vm_stat {
