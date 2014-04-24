@@ -664,12 +664,12 @@ static void pnv_pci_ioda_setup_dma_pe(struct pnv_phb *phb,
 		 * errors, and on the first pass the data will be a relative
 		 * bus number, print that out instead.
 		 */
-		tbl->it_busno = 0;
 		pe->tce_inval_reg_phys = be64_to_cpup(swinvp);
 		tbl->it_index = (unsigned long)ioremap(pe->tce_inval_reg_phys,
 				8);
-		tbl->it_type = TCE_PCI_SWINV_CREATE | TCE_PCI_SWINV_FREE |
-			       TCE_PCI_SWINV_PAIR;
+		tbl->it_type |= (TCE_PCI_SWINV_CREATE |
+				 TCE_PCI_SWINV_FREE   |
+				 TCE_PCI_SWINV_PAIR);
 	}
 	iommu_init_table(tbl, phb->hose->node);
 	iommu_register_group(tbl, pci_domain_nr(pe->pbus), pe->pe_number);
@@ -794,11 +794,10 @@ static void pnv_pci_ioda2_setup_dma_pe(struct pnv_phb *phb,
 		 * errors, and on the first pass the data will be a relative
 		 * bus number, print that out instead.
 		 */
-		tbl->it_busno = 0;
 		pe->tce_inval_reg_phys = be64_to_cpup(swinvp);
 		tbl->it_index = (unsigned long)ioremap(pe->tce_inval_reg_phys,
 				8);
-		tbl->it_type = TCE_PCI_SWINV_CREATE | TCE_PCI_SWINV_FREE;
+		tbl->it_type |= (TCE_PCI_SWINV_CREATE | TCE_PCI_SWINV_FREE);
 	}
 	iommu_init_table(tbl, phb->hose->node);
 	iommu_register_group(tbl, pci_domain_nr(pe->pbus), pe->pe_number);
