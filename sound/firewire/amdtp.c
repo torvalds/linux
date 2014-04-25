@@ -662,7 +662,9 @@ static void handle_in_packet(struct amdtp_stream *s,
 
 	/* Check data block counter continuity */
 	data_block_counter = cip_header[0] & AMDTP_DBC_MASK;
-	if (!(s->flags & CIP_DBC_IS_END_EVENT)) {
+	if ((s->flags & CIP_SKIP_DBC_ZERO_CHECK) && data_block_counter == 0) {
+		lost = false;
+	} else if (!(s->flags & CIP_DBC_IS_END_EVENT)) {
 		lost = data_block_counter != s->data_block_counter;
 	} else {
 		if ((data_blocks > 0) && (s->tx_dbc_interval > 0))
