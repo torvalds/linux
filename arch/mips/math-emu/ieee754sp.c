@@ -65,7 +65,7 @@ union ieee754sp __cold ieee754sp_nanxcpt(union ieee754sp r)
 	return r;
 }
 
-static unsigned get_rounding(int sn, unsigned xm)
+static unsigned ieee754sp_get_rounding(int sn, unsigned xm)
 {
 	/* inexact must round of 3 bits
 	 */
@@ -128,12 +128,12 @@ union ieee754sp ieee754sp_format(int sn, int xe, unsigned xm)
 			}
 		}
 
-		if (xe == SP_EMIN - 1
-				&& get_rounding(sn, xm) >> (SP_FBITS + 1 + 3))
+		if (xe == SP_EMIN - 1 &&
+		    ieee754sp_get_rounding(sn, xm) >> (SP_FBITS + 1 + 3))
 		{
 			/* Not tiny after rounding */
 			ieee754_setcx(IEEE754_INEXACT);
-			xm = get_rounding(sn, xm);
+			xm = ieee754sp_get_rounding(sn, xm);
 			xm >>= 1;
 			/* Clear grs bits */
 			xm &= ~(SP_MBIT(3) - 1);
@@ -154,7 +154,7 @@ union ieee754sp ieee754sp_format(int sn, int xe, unsigned xm)
 
 		/* inexact must round of 3 bits
 		 */
-		xm = get_rounding(sn, xm);
+		xm = ieee754sp_get_rounding(sn, xm);
 		/* adjust exponent for rounding add overflowing
 		 */
 		if (xm >> (SP_FBITS + 1 + 3)) {
