@@ -1180,6 +1180,7 @@ config SERIAL_SCCNXP_CONSOLE
 
 config SERIAL_SC16IS7XX
 	tristate "SC16IS7xx serial support"
+	depends on I2C
 	select SERIAL_CORE
 	select REGMAP_I2C if I2C
 	help
