@@ -23,7 +23,6 @@
  * ########################################################################
  */
 
-#include <stdarg.h>
 #include <linux/compiler.h>
 
 #include "ieee754sp.h"
@@ -47,26 +46,8 @@ static inline int ieee754sp_issnan(union ieee754sp x)
 }
 
 
-union ieee754sp __cold ieee754sp_xcpt(union ieee754sp r, const char *op, ...)
+union ieee754sp __cold ieee754sp_nanxcpt(union ieee754sp r)
 {
-	struct ieee754xctx ax;
-
-	if (!ieee754_tstx())
-		return r;
-
-	ax.op = op;
-	ax.rt = IEEE754_RT_SP;
-	ax.rv.sp = r;
-	va_start(ax.ap, op);
-	ieee754_xcpt(&ax);
-	va_end(ax.ap);
-	return ax.rv.sp;
-}
-
-union ieee754sp __cold ieee754sp_nanxcpt(union ieee754sp r, const char *op, ...)
-{
-	struct ieee754xctx ax;
-
 	assert(ieee754sp_isnan(r));
 
 	if (!ieee754sp_issnan(r))	/* QNAN does not cause invalid op !! */
@@ -81,13 +62,7 @@ union ieee754sp __cold ieee754sp_nanxcpt(union ieee754sp r, const char *op, ...)
 			return ieee754sp_indef();
 	}
 
-	ax.op = op;
-	ax.rt = 0;
-	ax.rv.sp = r;
-	va_start(ax.ap, op);
-	ieee754_xcpt(&ax);
-	va_end(ax.ap);
-	return ax.rv.sp;
+	return r;
 }
 
 static unsigned get_rounding(int sn, unsigned xm)

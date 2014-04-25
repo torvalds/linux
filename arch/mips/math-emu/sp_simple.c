@@ -45,7 +45,7 @@ union ieee754sp ieee754sp_neg(union ieee754sp x)
 		union ieee754sp y = ieee754sp_indef();
 		ieee754_setcx(IEEE754_INVALID_OPERATION);
 		SPSIGN(y) = SPSIGN(x);
-		return ieee754sp_nanxcpt(y, "neg");
+		return ieee754sp_nanxcpt(y);
 	}
 
 	return x;
@@ -65,7 +65,7 @@ union ieee754sp ieee754sp_abs(union ieee754sp x)
 
 	if (xc == IEEE754_CLASS_SNAN) {
 		ieee754_setcx(IEEE754_INVALID_OPERATION);
-		return ieee754sp_nanxcpt(ieee754sp_indef(), "abs");
+		return ieee754sp_nanxcpt(ieee754sp_indef());
 	}
 
 	return x;

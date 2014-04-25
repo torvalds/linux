@@ -40,14 +40,13 @@ union ieee754dp ieee754dp_fsp(union ieee754sp x)
 	switch (xc) {
 	case IEEE754_CLASS_SNAN:
 		ieee754_setcx(IEEE754_INVALID_OPERATION);
-		return ieee754dp_nanxcpt(ieee754dp_indef(), "fsp");
+		return ieee754dp_nanxcpt(ieee754dp_indef());
 	case IEEE754_CLASS_QNAN:
 		return ieee754dp_nanxcpt(builddp(xs,
 						 DP_EMAX + 1 + DP_EBIAS,
 						 ((u64) xm
 						  << (DP_FBITS -
-						      SP_FBITS))), "fsp",
-					 x);
+						      SP_FBITS))));
 	case IEEE754_CLASS_INF:
 		return ieee754dp_inf(xs);
 	case IEEE754_CLASS_ZERO:

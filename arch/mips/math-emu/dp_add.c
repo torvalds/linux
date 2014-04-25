@@ -53,7 +53,7 @@ union ieee754dp ieee754dp_add(union ieee754dp x, union ieee754dp y)
 	case CLPAIR(IEEE754_CLASS_SNAN, IEEE754_CLASS_DNORM):
 	case CLPAIR(IEEE754_CLASS_SNAN, IEEE754_CLASS_INF):
 		ieee754_setcx(IEEE754_INVALID_OPERATION);
-		return ieee754dp_nanxcpt(ieee754dp_indef(), "add", x, y);
+		return ieee754dp_nanxcpt(ieee754dp_indef());
 
 	case CLPAIR(IEEE754_CLASS_ZERO, IEEE754_CLASS_QNAN):
 	case CLPAIR(IEEE754_CLASS_NORM, IEEE754_CLASS_QNAN):
@@ -76,7 +76,7 @@ union ieee754dp ieee754dp_add(union ieee754dp x, union ieee754dp y)
 		if (xs == ys)
 			return x;
 		ieee754_setcx(IEEE754_INVALID_OPERATION);
-		return ieee754dp_xcpt(ieee754dp_indef(), "add", x, y);
+		return ieee754dp_indef();
 
 	case CLPAIR(IEEE754_CLASS_NORM, IEEE754_CLASS_INF):
 	case CLPAIR(IEEE754_CLASS_ZERO, IEEE754_CLASS_INF):
@@ -178,5 +178,6 @@ union ieee754dp ieee754dp_add(union ieee754dp x, union ieee754dp y)
 		}
 
 	}
-	DPNORMRET2(xs, xe, xm, "add", x, y);
+
+	return ieee754dp_format(xs, xe, xm);
 }

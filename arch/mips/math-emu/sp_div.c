@@ -52,7 +52,7 @@ union ieee754sp ieee754sp_div(union ieee754sp x, union ieee754sp y)
 	case CLPAIR(IEEE754_CLASS_SNAN, IEEE754_CLASS_DNORM):
 	case CLPAIR(IEEE754_CLASS_SNAN, IEEE754_CLASS_INF):
 		ieee754_setcx(IEEE754_INVALID_OPERATION);
-		return ieee754sp_nanxcpt(ieee754sp_indef(), "div", x, y);
+		return ieee754sp_nanxcpt(ieee754sp_indef());
 
 	case CLPAIR(IEEE754_CLASS_ZERO, IEEE754_CLASS_QNAN):
 	case CLPAIR(IEEE754_CLASS_NORM, IEEE754_CLASS_QNAN):
@@ -73,7 +73,7 @@ union ieee754sp ieee754sp_div(union ieee754sp x, union ieee754sp y)
 
 	case CLPAIR(IEEE754_CLASS_INF, IEEE754_CLASS_INF):
 		ieee754_setcx(IEEE754_INVALID_OPERATION);
-		return ieee754sp_xcpt(ieee754sp_indef(), "div", x, y);
+		return ieee754sp_indef();
 
 	case CLPAIR(IEEE754_CLASS_NORM, IEEE754_CLASS_INF):
 	case CLPAIR(IEEE754_CLASS_ZERO, IEEE754_CLASS_INF):
@@ -90,12 +90,12 @@ union ieee754sp ieee754sp_div(union ieee754sp x, union ieee754sp y)
 
 	case CLPAIR(IEEE754_CLASS_ZERO, IEEE754_CLASS_ZERO):
 		ieee754_setcx(IEEE754_INVALID_OPERATION);
-		return ieee754sp_xcpt(ieee754sp_indef(), "div", x, y);
+		return ieee754sp_indef();
 
 	case CLPAIR(IEEE754_CLASS_NORM, IEEE754_CLASS_ZERO):
 	case CLPAIR(IEEE754_CLASS_DNORM, IEEE754_CLASS_ZERO):
 		ieee754_setcx(IEEE754_ZERO_DIVIDE);
-		return ieee754sp_xcpt(ieee754sp_inf(xs ^ ys), "div", x, y);
+		return ieee754sp_inf(xs ^ ys);
 
 	case CLPAIR(IEEE754_CLASS_ZERO, IEEE754_CLASS_NORM):
 	case CLPAIR(IEEE754_CLASS_ZERO, IEEE754_CLASS_DNORM):
@@ -151,6 +151,6 @@ union ieee754sp ieee754sp_div(union ieee754sp x, union ieee754sp y)
 			re--;
 		}
 
-		SPNORMRET2(xs == ys ? 0 : 1, re, rm, "div", x, y);
+		return ieee754sp_format(xs == ys ? 0 : 1, re, rm);
 	}
 }

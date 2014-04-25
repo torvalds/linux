@@ -52,7 +52,7 @@ union ieee754dp ieee754dp_mul(union ieee754dp x, union ieee754dp y)
 	case CLPAIR(IEEE754_CLASS_SNAN, IEEE754_CLASS_DNORM):
 	case CLPAIR(IEEE754_CLASS_SNAN, IEEE754_CLASS_INF):
 		ieee754_setcx(IEEE754_INVALID_OPERATION);
-		return ieee754dp_nanxcpt(ieee754dp_indef(), "mul", x, y);
+		return ieee754dp_nanxcpt(ieee754dp_indef());
 
 	case CLPAIR(IEEE754_CLASS_ZERO, IEEE754_CLASS_QNAN):
 	case CLPAIR(IEEE754_CLASS_NORM, IEEE754_CLASS_QNAN):
@@ -73,7 +73,7 @@ union ieee754dp ieee754dp_mul(union ieee754dp x, union ieee754dp y)
 	case CLPAIR(IEEE754_CLASS_INF, IEEE754_CLASS_ZERO):
 	case CLPAIR(IEEE754_CLASS_ZERO, IEEE754_CLASS_INF):
 		ieee754_setcx(IEEE754_INVALID_OPERATION);
-		return ieee754dp_xcpt(ieee754dp_indef(), "mul", x, y);
+		return ieee754dp_indef();
 
 	case CLPAIR(IEEE754_CLASS_NORM, IEEE754_CLASS_INF):
 	case CLPAIR(IEEE754_CLASS_DNORM, IEEE754_CLASS_INF):
@@ -171,6 +171,7 @@ union ieee754dp ieee754dp_mul(union ieee754dp x, union ieee754dp y)
 			    ((rm << (DP_FBITS + 1 + 3 + 1)) != 0);
 		}
 		assert(rm & (DP_HIDDEN_BIT << 3));
-		DPNORMRET2(rs, re, rm, "mul", x, y);
+
+		return ieee754dp_format(rs, re, rm);
 	}
 }

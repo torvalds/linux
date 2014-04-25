@@ -24,7 +24,6 @@
 #ifndef __ARCH_MIPS_MATH_EMU_IEEE754_H
 #define __ARCH_MIPS_MATH_EMU_IEEE754_H
 
-#include <stdarg.h>
 #include <linux/compiler.h>
 #include <asm/byteorder.h>
 #include <linux/kernel.h>
@@ -343,27 +342,12 @@ static inline s64 ieee754di_indef(void)
 	return S64_MAX;
 }
 
-/* IEEE exception context, passed to handler */
-struct ieee754xctx {
-	const char *op;		/* operation name */
-	int rt;			/* result type */
-	union {
-		union ieee754sp sp;	/* single precision */
-		union ieee754dp dp;	/* double precision */
-		int si;		/* standard signed integer (32bits) */
-		s64 di;		/* extended signed integer (64bits) */
-	} rv;			/* default result format implied by op */
-	va_list ap;
-};
-
 /* result types for xctx.rt */
 #define IEEE754_RT_SP	0
 #define IEEE754_RT_DP	1
 #define IEEE754_RT_XP	2
 #define IEEE754_RT_SI	3
 #define IEEE754_RT_DI	4
-
-extern void __cold ieee754_xcpt(struct ieee754xctx *xcp);
 
 /* compat */
 #define ieee754dp_fix(x)	ieee754dp_tint(x)

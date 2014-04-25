@@ -48,11 +48,6 @@ static inline int ieee754_setandtestcx(const unsigned int x)
 	return ieee754_csr.mx & x;
 }
 
-static inline int ieee754_tstx(void)
-{
-	return ieee754_csr.cx & ieee754_csr.mx;
-}
-
 #define COMPXSP \
 	unsigned xm; int xe; int xs __maybe_unused; int xc
 

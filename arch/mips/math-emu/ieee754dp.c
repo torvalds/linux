@@ -23,7 +23,6 @@
  * ########################################################################
  */
 
-#include <stdarg.h>
 #include <linux/compiler.h>
 
 #include "ieee754dp.h"
@@ -47,25 +46,8 @@ static inline int ieee754dp_issnan(union ieee754dp x)
 }
 
 
-union ieee754dp __cold ieee754dp_xcpt(union ieee754dp r, const char *op, ...)
+union ieee754dp __cold ieee754dp_nanxcpt(union ieee754dp r)
 {
-	struct ieee754xctx ax;
-	if (!ieee754_tstx())
-		return r;
-
-	ax.op = op;
-	ax.rt = IEEE754_RT_DP;
-	ax.rv.dp = r;
-	va_start(ax.ap, op);
-	ieee754_xcpt(&ax);
-	va_end(ax.ap);
-	return ax.rv.dp;
-}
-
-union ieee754dp __cold ieee754dp_nanxcpt(union ieee754dp r, const char *op, ...)
-{
-	struct ieee754xctx ax;
-
 	assert(ieee754dp_isnan(r));
 
 	if (!ieee754dp_issnan(r))	/* QNAN does not cause invalid op !! */
@@ -80,13 +62,7 @@ union ieee754dp __cold ieee754dp_nanxcpt(union ieee754dp r, const char *op, ...)
 			return ieee754dp_indef();
 	}
 
-	ax.op = op;
-	ax.rt = 0;
-	ax.rv.dp = r;
-	va_start(ax.ap, op);
-	ieee754_xcpt(&ax);
-	va_end(ax.ap);
-	return ax.rv.dp;
+	return r;
 }
 
 static u64 get_rounding(int sn, u64 xm)

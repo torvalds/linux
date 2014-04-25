@@ -66,5 +66,5 @@ union ieee754sp ieee754sp_fint(int x)
 			xe--;
 		}
 	}
-	SPNORMRET1(xs, xe, xm, "fint", x);
+	return ieee754sp_format(xs, xe, xm);
 }

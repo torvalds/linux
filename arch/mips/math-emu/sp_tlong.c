@@ -41,7 +41,7 @@ s64 ieee754sp_tlong(union ieee754sp x)
 	case IEEE754_CLASS_QNAN:
 	case IEEE754_CLASS_INF:
 		ieee754_setcx(IEEE754_INVALID_OPERATION);
-		return ieee754di_xcpt(ieee754di_indef(), "sp_tlong", x);
+		return ieee754di_indef();
 	case IEEE754_CLASS_ZERO:
 		return 0;
 	case IEEE754_CLASS_DNORM:
@@ -55,7 +55,7 @@ s64 ieee754sp_tlong(union ieee754sp x)
 		/* Set invalid. We will only use overflow for floating
 		   point overflow */
 		ieee754_setcx(IEEE754_INVALID_OPERATION);
-		return ieee754di_xcpt(ieee754di_indef(), "sp_tlong", x);
+		return ieee754di_indef();
 	}
 	/* oh gawd */
 	if (xe > SP_FBITS) {
@@ -97,7 +97,7 @@ s64 ieee754sp_tlong(union ieee754sp x)
 		if ((xm >> 63) != 0) {
 			/* This can happen after rounding */
 			ieee754_setcx(IEEE754_INVALID_OPERATION);
-			return ieee754di_xcpt(ieee754di_indef(), "sp_tlong", x);
+			return ieee754di_indef();
 		}
 		if (round || sticky)
 			ieee754_setcx(IEEE754_INEXACT);

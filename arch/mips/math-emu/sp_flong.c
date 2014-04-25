@@ -65,5 +65,5 @@ union ieee754sp ieee754sp_flong(s64 x)
 			xe--;
 		}
 	}
-	SPNORMRET1(xs, xe, xm, "sp_flong", x);
+	return ieee754sp_format(xs, xe, xm);
 }

@@ -44,7 +44,7 @@ int ieee754sp_cmp(union ieee754sp x, union ieee754sp y, int cmp, int sig)
 			return 1;
 		if (cmp & (IEEE754_CLT | IEEE754_CGT)) {
 			if (sig && ieee754_setandtestcx(IEEE754_INVALID_OPERATION))
-				return ieee754si_xcpt(0, "fcmpf", x);
+				return 0;
 		}
 		return 0;
 	} else {

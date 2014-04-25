@@ -65,5 +65,6 @@ union ieee754dp ieee754dp_flong(s64 x)
 			xe--;
 		}
 	}
-	DPNORMRET1(xs, xe, xm, "dp_flong", x);
+
+	return ieee754dp_format(xs, xe, xm);
 }

@@ -87,21 +87,5 @@ static inline union ieee754sp buildsp(int s, int bx, unsigned m)
 }
 
 extern int ieee754sp_isnan(union ieee754sp);
-extern int __cold ieee754si_xcpt(int, const char *, ...);
-extern s64 __cold ieee754di_xcpt(s64, const char *, ...);
-extern union ieee754sp __cold ieee754sp_xcpt(union ieee754sp, const char *, ...);
-extern union ieee754sp __cold ieee754sp_nanxcpt(union ieee754sp, const char *, ...);
+extern union ieee754sp __cold ieee754sp_nanxcpt(union ieee754sp);
 extern union ieee754sp ieee754sp_format(int, int, unsigned);
-
-
-#define SPNORMRET2(s, e, m, name, a0, a1)				\
-{									\
-	union ieee754sp V = ieee754sp_format(s, e, m);			\
-									\
-	if (ieee754_tstx())						\
-		return ieee754sp_xcpt(V, name, a0, a1);			\
-	else								\
-		return V;						\
-}
-
-#define SPNORMRET1(s, e, m, name, a0)  SPNORMRET2(s, e, m, name, a0, a0)
