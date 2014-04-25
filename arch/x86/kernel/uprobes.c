@@ -418,24 +418,6 @@ static int push_ret_address(struct pt_regs *regs, unsigned long ip)
 	return 0;
 }
 
-/*
- * Adjust the return address pushed by a call insn executed out of line.
- */
-static int adjust_ret_addr(unsigned long sp, long correction)
-{
-	int rasize = sizeof_long();
-	long ra;
-
-	if (copy_from_user(&ra, (void __user *)sp, rasize))
-		return -EFAULT;
-
-	ra += correction;
-	if (copy_to_user((void __user *)sp, &ra, rasize))
-		return -EFAULT;
-
-	return 0;
-}
-
 static int default_post_xol_op(struct arch_uprobe *auprobe, struct pt_regs *regs)
 {
 	struct uprobe_task *utask = current->utask;
@@ -446,10 +428,9 @@ static int default_post_xol_op(struct arch_uprobe *auprobe, struct pt_regs *regs
 		regs->ip += correction;
 
 	if (auprobe->def.fixups & UPROBE_FIX_CALL) {
-		if (adjust_ret_addr(regs->sp, correction)) {
-			regs->sp += sizeof_long();
+		regs->sp += sizeof_long();
+		if (push_ret_address(regs, utask->vaddr + auprobe->def.ilen))
 			return -ERESTART;
-		}
 	}
 	/* popf; tell the caller to not touch TF */
 	if (auprobe->def.fixups & UPROBE_FIX_SETF)
@@ -687,6 +668,7 @@ int arch_uprobe_analyze_insn(struct arch_uprobe *auprobe, struct mm_struct *mm, 
 		handle_riprel_insn(auprobe, &insn);
 	}
 
+	auprobe->def.ilen = insn.length;
 	if (fix_ip)
 		auprobe->def.fixups |= UPROBE_FIX_IP;
 	if (fix_call)
