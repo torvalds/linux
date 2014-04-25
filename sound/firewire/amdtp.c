@@ -898,7 +898,7 @@ EXPORT_SYMBOL(amdtp_stream_start);
 unsigned long amdtp_stream_pcm_pointer(struct amdtp_stream *s)
 {
 	/* this optimization is allowed to be racy */
-	if (s->pointer_flush)
+	if (s->pointer_flush && amdtp_stream_running(s))
 		fw_iso_context_flush_completions(s->context);
 	else
 		s->pointer_flush = true;
