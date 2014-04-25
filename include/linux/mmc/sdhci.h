@@ -172,6 +172,8 @@ struct sdhci_host {
 	unsigned int            ocr_avail_mmc;
 	u32 ocr_mask;		/* available voltages */
 
+	unsigned		timing;		/* Current timing */
+
 	u32			thread_isr;
 
 	/* cached registers */
