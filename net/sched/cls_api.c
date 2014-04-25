@@ -544,14 +544,12 @@ void tcf_exts_change(struct tcf_proto *tp, struct tcf_exts *dst,
 		     struct tcf_exts *src)
 {
 #ifdef CONFIG_NET_CLS_ACT
-	if (!list_empty(&src->actions)) {
-		LIST_HEAD(tmp);
-		tcf_tree_lock(tp);
-		list_splice_init(&dst->actions, &tmp);
-		list_splice(&src->actions, &dst->actions);
-		tcf_tree_unlock(tp);
-		tcf_action_destroy(&tmp, TCA_ACT_UNBIND);
-	}
+	LIST_HEAD(tmp);
+	tcf_tree_lock(tp);
+	list_splice_init(&dst->actions, &tmp);
+	list_splice(&src->actions, &dst->actions);
+	tcf_tree_unlock(tp);
+	tcf_action_destroy(&tmp, TCA_ACT_UNBIND);
 #endif
 }
 EXPORT_SYMBOL(tcf_exts_change);
