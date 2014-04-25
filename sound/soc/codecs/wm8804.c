@@ -535,7 +535,6 @@ static int wm8804_remove(struct snd_soc_codec *codec)
 	for (i = 0; i < ARRAY_SIZE(wm8804->supplies); ++i)
 		regulator_unregister_notifier(wm8804->supplies[i].consumer,
 					      &wm8804->disable_nb[i]);
-	regulator_bulk_free(ARRAY_SIZE(wm8804->supplies), wm8804->supplies);
 	return 0;
 }
 
@@ -549,7 +548,7 @@ static int wm8804_probe(struct snd_soc_codec *codec)
 	for (i = 0; i < ARRAY_SIZE(wm8804->supplies); i++)
 		wm8804->supplies[i].supply = wm8804_supply_names[i];
 
-	ret = regulator_bulk_get(codec->dev, ARRAY_SIZE(wm8804->supplies),
+	ret = devm_regulator_bulk_get(codec->dev, ARRAY_SIZE(wm8804->supplies),
 				 wm8804->supplies);
 	if (ret) {
 		dev_err(codec->dev, "Failed to request supplies: %d\n", ret);
@@ -574,7 +573,7 @@ static int wm8804_probe(struct snd_soc_codec *codec)
 				    wm8804->supplies);
 	if (ret) {
 		dev_err(codec->dev, "Failed to enable supplies: %d\n", ret);
-		goto err_reg_get;
+		return ret;
 	}
 
 	id1 = snd_soc_read(codec, WM8804_RST_DEVID1);
@@ -619,8 +618,6 @@ static int wm8804_probe(struct snd_soc_codec *codec)
 
 err_reg_enable:
 	regulator_bulk_disable(ARRAY_SIZE(wm8804->supplies), wm8804->supplies);
-err_reg_get:
-	regulator_bulk_free(ARRAY_SIZE(wm8804->supplies), wm8804->supplies);
 	return ret;
 }
 
