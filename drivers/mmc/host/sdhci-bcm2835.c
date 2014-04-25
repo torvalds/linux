@@ -136,6 +136,7 @@ static const struct sdhci_ops bcm2835_sdhci_ops = {
 	.get_min_clock = bcm2835_sdhci_get_min_clock,
 	.set_bus_width = sdhci_set_bus_width,
 	.reset = sdhci_reset,
+	.set_uhs_signaling = sdhci_set_uhs_signaling,
 };
 
 static const struct sdhci_pltfm_data bcm2835_sdhci_pdata = {

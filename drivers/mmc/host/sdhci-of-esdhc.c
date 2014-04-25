@@ -309,6 +309,7 @@ static const struct sdhci_ops sdhci_esdhc_ops = {
 	.adma_workaround = esdhci_of_adma_workaround,
 	.set_bus_width = esdhc_pltfm_set_bus_width,
 	.reset = sdhci_reset,
+	.set_uhs_signaling = sdhci_set_uhs_signaling,
 };
 
 static const struct sdhci_pltfm_data sdhci_esdhc_pdata = {

@@ -156,6 +156,7 @@ static const struct sdhci_ops tegra_sdhci_ops = {
 	.set_clock  = sdhci_set_clock,
 	.set_bus_width = tegra_sdhci_set_bus_width,
 	.reset      = tegra_sdhci_reset,
+	.set_uhs_signaling = sdhci_set_uhs_signaling,
 };
 
 static const struct sdhci_pltfm_data sdhci_tegra20_pdata = {

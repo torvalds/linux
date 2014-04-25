@@ -212,6 +212,7 @@ static struct sdhci_ops sdhci_bcm_kona_ops = {
 	.platform_send_init_74_clocks = sdhci_bcm_kona_init_74_clocks,
 	.set_bus_width = sdhci_set_bus_width,
 	.reset = sdhci_reset,
+	.set_uhs_signaling = sdhci_set_uhs_signaling,
 	.card_event = sdhci_bcm_kona_card_event,
 };
 

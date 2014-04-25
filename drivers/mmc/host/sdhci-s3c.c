@@ -371,6 +371,7 @@ static struct sdhci_ops sdhci_s3c_ops = {
 	.get_min_clock		= sdhci_s3c_get_min_clock,
 	.set_bus_width		= sdhci_s3c_set_bus_width,
 	.reset			= sdhci_reset,
+	.set_uhs_signaling	= sdhci_set_uhs_signaling,
 };
 
 static void sdhci_s3c_notify_change(struct platform_device *dev, int state)
