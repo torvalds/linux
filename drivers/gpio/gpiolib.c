@@ -2723,7 +2723,7 @@ static struct gpio_desc *gpiod_find(struct device *dev, const char *con_id,
 }
 
 /**
- * gpio_get - obtain a GPIO for a given GPIO function
+ * gpiod_get - obtain a GPIO for a given GPIO function
  * @dev:	GPIO consumer, can be NULL for system-global GPIOs
  * @con_id:	function within the GPIO consumer
  *
