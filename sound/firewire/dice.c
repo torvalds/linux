@@ -563,7 +563,7 @@ static int dice_hw_params(struct snd_pcm_substream *substream,
 			  struct snd_pcm_hw_params *hw_params)
 {
 	struct dice *dice = substream->private_data;
-	unsigned int rate_index, mode;
+	unsigned int rate_index, mode, rate, channels, i;
 	int err;
 
 	mutex_lock(&dice->mutex);
@@ -575,15 +575,36 @@ static int dice_hw_params(struct snd_pcm_substream *substream,
 	if (err < 0)
 		return err;
 
-	rate_index = rate_to_index(params_rate(hw_params));
+	rate = params_rate(hw_params);
+	rate_index = rate_to_index(rate);
 	err = dice_change_rate(dice, rate_index << CLOCK_RATE_SHIFT);
 	if (err < 0)
 		return err;
 
+	/*
+	 * At rates above 96 kHz, pretend that the stream runs at half the
+	 * actual sample rate with twice the number of channels; two samples
+	 * of a channel are stored consecutively in the packet. Requires
+	 * blocking mode and PCM buffer size should be aligned to SYT_INTERVAL.
+	 */
+	channels = params_channels(hw_params);
+	if (rate_index > 4) {
+		if (channels > AMDTP_MAX_CHANNELS_FOR_PCM / 2) {
+			err = -ENOSYS;
+			return err;
+		}
+
+		for (i = 0; i < channels; i++) {
+			dice->stream.pcm_positions[i * 2] = i;
+			dice->stream.pcm_positions[i * 2 + 1] = i + channels;
+		}
+
+		rate /= 2;
+		channels *= 2;
+	}
+
 	mode = rate_index_to_mode(rate_index);
-	amdtp_stream_set_parameters(&dice->stream,
-				    params_rate(hw_params),
-				    params_channels(hw_params),
+	amdtp_stream_set_parameters(&dice->stream, rate, channels,
 				    dice->rx_midi_ports[mode]);
 	amdtp_stream_set_pcm_format(&dice->stream,
 				    params_format(hw_params));
@@ -1361,7 +1382,7 @@ static int dice_probe(struct fw_unit *unit, const struct ieee1394_device_id *id)
 	dice->resources.channels_mask = 0x00000000ffffffffuLL;
 
 	err = amdtp_stream_init(&dice->stream, unit, AMDTP_OUT_STREAM,
-				CIP_BLOCKING | CIP_HI_DUALWIRE);
+				CIP_BLOCKING);
 	if (err < 0)
 		goto err_resources;
 
