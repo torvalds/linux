@@ -1036,7 +1036,7 @@ remove:
 
 static int tegra_sor_debugfs_exit(struct tegra_sor *sor)
 {
-	debugfs_remove(sor->debugfs);
+	debugfs_remove_recursive(sor->debugfs);
 	sor->debugfs = NULL;
 
 	return 0;
