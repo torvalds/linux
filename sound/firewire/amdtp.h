@@ -21,6 +21,8 @@
  * @CIP_EMPTY_WITH_TAG0: Only for in-stream. Empty in-packets have TAG0.
  * @CIP_DBC_IS_END_EVENT: Only for in-stream. The value of dbc in an in-packet
  *	corresponds to the end of event in the packet. Out of IEC 61883.
+ * @CIP_WRONG_DBS: Only for in-stream. The value of dbs is wrong in in-packets.
+ *	The value of data_block_quadlets is used instead of reported value.
  */
 enum cip_flags {
 	CIP_NONBLOCKING		= 0x00,
@@ -28,6 +30,7 @@ enum cip_flags {
 	CIP_SYNC_TO_DEVICE	= 0x02,
 	CIP_EMPTY_WITH_TAG0	= 0x04,
 	CIP_DBC_IS_END_EVENT	= 0x08,
+	CIP_WRONG_DBS		= 0x10,
 };
 
 /**

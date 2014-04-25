@@ -61,6 +61,9 @@ struct snd_efw {
 	u32 seqnum;
 	bool resp_addr_changable;
 
+	/* for quirks */
+	bool is_af9;
+
 	unsigned int midi_in_ports;
 	unsigned int midi_out_ports;
 

@@ -653,6 +653,8 @@ static void handle_in_packet(struct amdtp_stream *s,
 				cip_header[0]);
 			goto err;
 		}
+		if (s->flags & CIP_WRONG_DBS)
+			data_block_quadlets = s->data_block_quadlets;
 
 		data_blocks = (payload_quadlets - 2) / data_block_quadlets;
 	}

@@ -205,6 +205,8 @@ efw_probe(struct fw_unit *unit,
 	err = get_hardware_info(efw);
 	if (err < 0)
 		goto error;
+	if (entry->model_id == MODEL_ECHO_AUDIOFIRE_9)
+		efw->is_af9 = true;
 
 	err = snd_efw_stream_init_duplex(efw);
 	if (err < 0)

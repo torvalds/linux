@@ -198,6 +198,9 @@ int snd_efw_stream_init_duplex(struct snd_efw *efw)
 	efw->tx_stream.flags |= CIP_EMPTY_WITH_TAG0;
 	/* Fireworks has its own meaning for dbc. */
 	efw->tx_stream.flags |= CIP_DBC_IS_END_EVENT;
+	/* AudioFire9 always reports wrong dbs. */
+	if (efw->is_af9)
+		efw->tx_stream.flags |= CIP_WRONG_DBS;
 
 	err = init_stream(efw, &efw->rx_stream);
 	if (err < 0) {
