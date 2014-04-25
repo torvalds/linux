@@ -580,18 +580,18 @@ struct board_t {
 	struct channel_t *channels[MAXPORTS]; /* array of pointers to our */
 					      /* channels.                */
 
-	struct tty_driver	*SerialDriver;
-	struct tty_port *SerialPorts;
-	char		SerialName[200];
-	struct tty_driver	*PrintDriver;
-	struct tty_port *PrinterPorts;
-	char		PrintName[200];
+	struct tty_driver	*serial_driver;
+	struct tty_port *serial_ports;
+	char		serial_name[200];
+	struct tty_driver	*print_driver;
+	struct tty_port *printer_ports;
+	char		print_name[200];
 
-	u32		dgap_Major_Serial_Registered;
-	u32		dgap_Major_TransparentPrint_Registered;
+	u32		dgap_major_serial_registered;
+	u32		dgap_major_transparent_print_registered;
 
-	u32		dgap_Serial_Major;
-	u32		dgap_TransparentPrint_Major;
+	u32		dgap_serial_major;
+	u32		dgap_transparent_print_major;
 
 	struct bs_t __iomem *bd_bs;	/* Base structure pointer         */
 
