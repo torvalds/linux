@@ -738,14 +738,12 @@ static int esdhc_send_tuning_cmd(struct sdhci_host *host, u32 opcode,
 	mrq.done = esdhc_request_done;
 	init_completion(&(mrq.completion));
 
-	disable_irq(host->irq);
-	spin_lock(&host->lock);
+	spin_lock_irq(&host->lock);
 	host->mrq = &mrq;
 
 	sdhci_send_command(host, mrq.cmd);
 
-	spin_unlock(&host->lock);
-	enable_irq(host->irq);
+	spin_unlock_irq(&host->lock);
 
 	wait_for_completion(&mrq.completion);
 
