@@ -882,8 +882,13 @@ static int dgap_firmware_load(struct pci_dev *pdev, int card_type)
 		return -EINVAL;
 	}
 
-	dgap_tty_register(brd);
-	dgap_finalize_board_init(brd);
+	ret = dgap_tty_register(brd);
+	if (ret)
+		return ret;
+
+	ret = dgap_finalize_board_init(brd);
+	if (ret)
+		return ret;
 
 	if (fw_info[card_type].bios_name) {
 		ret = request_firmware(&fw, fw_info[card_type].bios_name,
