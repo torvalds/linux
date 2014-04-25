@@ -5,8 +5,6 @@
  * MIPS floating point support
  * Copyright (C) 1994-2000 Algorithmics Ltd.
  *
- * ########################################################################
- *
  *  This program is free software; you can distribute it and/or modify it
  *  under the terms of the GNU General Public License (Version 2) as
  *  published by the Free Software Foundation.
@@ -18,16 +16,25 @@
  *
  *  You should have received a copy of the GNU General Public License along
  *  with this program; if not, write to the Free Software Foundation, Inc.,
- *  59 Temple Place - Suite 330, Boston MA 02111-1307, USA.
- *
- * ########################################################################
+ *  51 Franklin St, Fifth Floor, Boston, MA  02110-1301  USA.
  */
-
 
 #include "ieee754dp.h"
 
 union ieee754dp ieee754dp_mul(union ieee754dp x, union ieee754dp y)
 {
+	int re;
+	int rs;
+	u64 rm;
+	unsigned lxm;
+	unsigned hxm;
+	unsigned lym;
+	unsigned hym;
+	u64 lrm;
+	u64 hrm;
+	u64 t;
+	u64 at;
+
 	COMPXDP;
 	COMPYDP;
 
@@ -68,8 +75,9 @@ union ieee754dp ieee754dp_mul(union ieee754dp x, union ieee754dp y)
 		return x;
 
 
-		/* Infinity handling */
-
+	/*
+	 * Infinity handling
+	 */
 	case CLPAIR(IEEE754_CLASS_INF, IEEE754_CLASS_ZERO):
 	case CLPAIR(IEEE754_CLASS_ZERO, IEEE754_CLASS_INF):
 		ieee754_setcx(IEEE754_INVALID_OPERATION);
@@ -107,71 +115,59 @@ union ieee754dp ieee754dp_mul(union ieee754dp x, union ieee754dp y)
 	/* rm = xm * ym, re = xe+ye basically */
 	assert(xm & DP_HIDDEN_BIT);
 	assert(ym & DP_HIDDEN_BIT);
-	{
-		int re = xe + ye;
-		int rs = xs ^ ys;
-		u64 rm;
 
-		/* shunt to top of word */
-		xm <<= 64 - (DP_FBITS + 1);
-		ym <<= 64 - (DP_FBITS + 1);
+	re = xe + ye;
+	rs = xs ^ ys;
 
-		/* multiply 32bits xm,ym to give high 32bits rm with stickness
-		 */
+	/* shunt to top of word */
+	xm <<= 64 - (DP_FBITS + 1);
+	ym <<= 64 - (DP_FBITS + 1);
 
-		/* 32 * 32 => 64 */
+	/*
+	 * Multiply 32 bits xm, ym to give high 32 bits rm with stickness.
+	 */
+
+	/* 32 * 32 => 64 */
 #define DPXMULT(x, y)	((u64)(x) * (u64)y)
 
-		{
-			unsigned lxm = xm;
-			unsigned hxm = xm >> 32;
-			unsigned lym = ym;
-			unsigned hym = ym >> 32;
-			u64 lrm;
-			u64 hrm;
+	lxm = xm;
+	hxm = xm >> 32;
+	lym = ym;
+	hym = ym >> 32;
 
-			lrm = DPXMULT(lxm, lym);
-			hrm = DPXMULT(hxm, hym);
+	lrm = DPXMULT(lxm, lym);
+	hrm = DPXMULT(hxm, hym);
 
-			{
-				u64 t = DPXMULT(lxm, hym);
-				{
-					u64 at =
-					    lrm + (t << 32);
-					hrm += at < lrm;
-					lrm = at;
-				}
-				hrm = hrm + (t >> 32);
-			}
+	t = DPXMULT(lxm, hym);
 
-			{
-				u64 t = DPXMULT(hxm, lym);
-				{
-					u64 at =
-					    lrm + (t << 32);
-					hrm += at < lrm;
-					lrm = at;
-				}
-				hrm = hrm + (t >> 32);
-			}
-			rm = hrm | (lrm != 0);
-		}
+	at = lrm + (t << 32);
+	hrm += at < lrm;
+	lrm = at;
 
-		/*
-		 * sticky shift down to normal rounding precision
-		 */
-		if ((s64) rm < 0) {
-			rm =
-			    (rm >> (64 - (DP_FBITS + 1 + 3))) |
-			    ((rm << (DP_FBITS + 1 + 3)) != 0);
+	hrm = hrm + (t >> 32);
+
+	t = DPXMULT(hxm, lym);
+
+	at = lrm + (t << 32);
+	hrm += at < lrm;
+	lrm = at;
+
+	hrm = hrm + (t >> 32);
+
+	rm = hrm | (lrm != 0);
+
+	/*
+	 * Sticky shift down to normal rounding precision.
+	 */
+	if ((s64) rm < 0) {
+		rm = (rm >> (64 - (DP_FBITS + 1 + 3))) |
+		     ((rm << (DP_FBITS + 1 + 3)) != 0);
 			re++;
-		} else {
-			rm =
-			    (rm >> (64 - (DP_FBITS + 1 + 3 + 1))) |
-			    ((rm << (DP_FBITS + 1 + 3 + 1)) != 0);
-		}
-		assert(rm & (DP_HIDDEN_BIT << 3));
-
-		return ieee754dp_format(rs, re, rm);
+	} else {
+		rm = (rm >> (64 - (DP_FBITS + 1 + 3 + 1))) |
+		     ((rm << (DP_FBITS + 1 + 3 + 1)) != 0);
 	}
+	assert(rm & (DP_HIDDEN_BIT << 3));
+
+	return ieee754dp_format(rs, re, rm);
 }

@@ -5,8 +5,6 @@
  * MIPS floating point support
  * Copyright (C) 1994-2000 Algorithmics Ltd.
  *
- * ########################################################################
- *
  *  This program is free software; you can distribute it and/or modify it
  *  under the terms of the GNU General Public License (Version 2) as
  *  published by the Free Software Foundation.
@@ -18,16 +16,18 @@
  *
  *  You should have received a copy of the GNU General Public License along
  *  with this program; if not, write to the Free Software Foundation, Inc.,
- *  59 Temple Place - Suite 330, Boston MA 02111-1307, USA.
- *
- * ########################################################################
+ *  51 Franklin St, Fifth Floor, Boston, MA  02110-1301  USA.
  */
-
 
 #include "ieee754dp.h"
 
 int ieee754dp_tint(union ieee754dp x)
 {
+	u64 residue;
+	int round;
+	int sticky;
+	int odd;
+
 	COMPXDP;
 
 	ieee754_clearcx();
@@ -41,8 +41,10 @@ int ieee754dp_tint(union ieee754dp x)
 	case IEEE754_CLASS_INF:
 		ieee754_setcx(IEEE754_INVALID_OPERATION);
 		return ieee754si_indef();
+
 	case IEEE754_CLASS_ZERO:
 		return 0;
+
 	case IEEE754_CLASS_DNORM:
 	case IEEE754_CLASS_NORM:
 		break;
@@ -57,11 +59,6 @@ int ieee754dp_tint(union ieee754dp x)
 	if (xe > DP_FBITS) {
 		xm <<= xe - DP_FBITS;
 	} else if (xe < DP_FBITS) {
-		u64 residue;
-		int round;
-		int sticky;
-		int odd;
-
 		if (xe < -1) {
 			residue = xm;
 			round = 0;

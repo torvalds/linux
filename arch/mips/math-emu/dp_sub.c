@@ -5,8 +5,6 @@
  * MIPS floating point support
  * Copyright (C) 1994-2000 Algorithmics Ltd.
  *
- * ########################################################################
- *
  *  This program is free software; you can distribute it and/or modify it
  *  under the terms of the GNU General Public License (Version 2) as
  *  published by the Free Software Foundation.
@@ -18,16 +16,15 @@
  *
  *  You should have received a copy of the GNU General Public License along
  *  with this program; if not, write to the Free Software Foundation, Inc.,
- *  59 Temple Place - Suite 330, Boston MA 02111-1307, USA.
- *
- * ########################################################################
+ *  51 Franklin St, Fifth Floor, Boston, MA  02110-1301  USA.
  */
-
 
 #include "ieee754dp.h"
 
 union ieee754dp ieee754dp_sub(union ieee754dp x, union ieee754dp y)
 {
+	int s;
+
 	COMPXDP;
 	COMPYDP;
 
@@ -68,9 +65,9 @@ union ieee754dp ieee754dp_sub(union ieee754dp x, union ieee754dp y)
 		return x;
 
 
-		/* Infinity handling
-		 */
-
+	/*
+	 * Infinity handling
+	 */
 	case CLPAIR(IEEE754_CLASS_INF, IEEE754_CLASS_INF):
 		if (xs != ys)
 			return x;
@@ -87,15 +84,14 @@ union ieee754dp ieee754dp_sub(union ieee754dp x, union ieee754dp y)
 	case CLPAIR(IEEE754_CLASS_INF, IEEE754_CLASS_DNORM):
 		return x;
 
-		/* Zero handling
-		 */
-
+	/*
+	 * Zero handling
+	 */
 	case CLPAIR(IEEE754_CLASS_ZERO, IEEE754_CLASS_ZERO):
 		if (xs != ys)
 			return x;
 		else
-			return ieee754dp_zero(ieee754_csr.rm ==
-					      IEEE754_RD);
+			return ieee754dp_zero(ieee754_csr.rm == IEEE754_RD);
 
 	case CLPAIR(IEEE754_CLASS_NORM, IEEE754_CLASS_ZERO):
 	case CLPAIR(IEEE754_CLASS_DNORM, IEEE754_CLASS_ZERO):
@@ -136,15 +132,17 @@ union ieee754dp ieee754dp_sub(union ieee754dp x, union ieee754dp y)
 	ym <<= 3;
 
 	if (xe > ye) {
-		/* have to shift y fraction right to align
+		/*
+		 * Have to shift y fraction right to align
 		 */
-		int s = xe - ye;
+		s = xe - ye;
 		ym = XDPSRS(ym, s);
 		ye += s;
 	} else if (ye > xe) {
-		/* have to shift x fraction right to align
+		/*
+		 * Have to shift x fraction right to align
 		 */
-		int s = ye - xe;
+		s = ye - xe;
 		xm = XDPSRS(xm, s);
 		xe += s;
 	}

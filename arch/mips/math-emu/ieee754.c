@@ -10,8 +10,6 @@
  * MIPS floating point support
  * Copyright (C) 1994-2000 Algorithmics Ltd.
  *
- * ########################################################################
- *
  *  This program is free software; you can distribute it and/or modify it
  *  under the terms of the GNU General Public License (Version 2) as
  *  published by the Free Software Foundation.
@@ -23,9 +21,7 @@
  *
  *  You should have received a copy of the GNU General Public License along
  *  with this program; if not, write to the Free Software Foundation, Inc.,
- *  59 Temple Place - Suite 330, Boston MA 02111-1307, USA.
- *
- * ########################################################################
+ *  51 Franklin St, Fifth Floor, Boston, MA  02110-1301  USA.
  */
 
 #include <linux/compiler.h>
@@ -34,8 +30,9 @@
 #include "ieee754sp.h"
 #include "ieee754dp.h"
 
-/* special constants
-*/
+/*
+ * Special constants
+ */
 
 #define DPCNST(s, b, m)							\
 {									\

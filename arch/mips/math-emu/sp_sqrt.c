@@ -5,8 +5,6 @@
  * MIPS floating point support
  * Copyright (C) 1994-2000 Algorithmics Ltd.
  *
- * ########################################################################
- *
  *  This program is free software; you can distribute it and/or modify it
  *  under the terms of the GNU General Public License (Version 2) as
  *  published by the Free Software Foundation.
@@ -18,11 +16,8 @@
  *
  *  You should have received a copy of the GNU General Public License along
  *  with this program; if not, write to the Free Software Foundation, Inc.,
- *  59 Temple Place - Suite 330, Boston MA 02111-1307, USA.
- *
- * ########################################################################
+ *  51 Franklin St, Fifth Floor, Boston, MA  02110-1301  USA.
  */
-
 
 #include "ieee754sp.h"
 
@@ -43,12 +38,15 @@ union ieee754sp ieee754sp_sqrt(union ieee754sp x)
 	case IEEE754_CLASS_QNAN:
 		/* sqrt(Nan) = Nan */
 		return ieee754sp_nanxcpt(x);
+
 	case IEEE754_CLASS_SNAN:
 		ieee754_setcx(IEEE754_INVALID_OPERATION);
 		return ieee754sp_nanxcpt(ieee754sp_indef());
+
 	case IEEE754_CLASS_ZERO:
 		/* sqrt(0) = 0 */
 		return x;
+
 	case IEEE754_CLASS_INF:
 		if (xs) {
 			/* sqrt(-Inf) = Nan */
@@ -57,6 +55,7 @@ union ieee754sp ieee754sp_sqrt(union ieee754sp x)
 		}
 		/* sqrt(+Inf) = Inf */
 		return x;
+
 	case IEEE754_CLASS_DNORM:
 	case IEEE754_CLASS_NORM:
 		if (xs) {
