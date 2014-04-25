@@ -25,6 +25,7 @@
 		hdmi@54280000 {
 			status = "okay";
 
+			hdmi-supply = <&vdd_5v0_hdmi>;
 			vdd-supply = <&vdd_hdmi_reg>;
 			pll-supply = <&palmas_smps3_reg>;
 
@@ -1231,8 +1232,6 @@
 			regulator-name = "vdd_hdmi_5v0";
 			regulator-min-microvolt = <5000000>;
 			regulator-max-microvolt = <5000000>;
-			enable-active-high;
-			gpio = <&gpio TEGRA_GPIO(K, 1) GPIO_ACTIVE_HIGH>;
 			vin-supply = <&tps65090_dcdc1_reg>;
 		};
 
@@ -1244,6 +1243,17 @@
 			regulator-max-microvolt = <1800000>;
 			enable-active-high;
 			gpio = <&palmas_gpio 6 0>;
+		};
+
+		vdd_5v0_hdmi: regulator@7 {
+			compatible = "regulator-fixed";
+			reg = <7>;
+			regulator-name = "VDD_5V0_HDMI_CON";
+			regulator-min-microvolt = <5000000>;
+			regulator-max-microvolt = <5000000>;
+			gpio = <&gpio TEGRA_GPIO(K, 1) GPIO_ACTIVE_HIGH>;
+			enable-active-high;
+			vin-supply = <&tps65090_dcdc1_reg>;
 		};
 	};
 
