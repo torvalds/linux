@@ -2599,12 +2599,10 @@ static void ironlake_fdi_link_train(struct drm_crtc *crtc)
 	struct drm_i915_private *dev_priv = dev->dev_private;
 	struct intel_crtc *intel_crtc = to_intel_crtc(crtc);
 	int pipe = intel_crtc->pipe;
-	int plane = intel_crtc->plane;
 	u32 reg, temp, tries;
 
-	/* FDI needs bits from pipe & plane first */
+	/* FDI needs bits from pipe first */
 	assert_pipe_enabled(dev_priv, pipe);
-	assert_plane_enabled(dev_priv, plane);
 
 	/* Train 1: umask FDI RX Interrupt symbol_lock and bit_lock bit
 	   for train result */
