@@ -125,8 +125,10 @@ int uwb_rc_beacon(struct uwb_rc *rc, int channel, unsigned bpst_offset)
 	else {
 		/* channel >= 0...dah */
 		result = uwb_rc_start_beacon(rc, bpst_offset, channel);
-		if (result < 0)
+		if (result < 0) {
+			dev_err(dev, "Cannot start beaconing: %d\n", result);
 			return result;
+		}
 		if (le16_to_cpu(rc->ies->wIELength) > 0) {
 			result = uwb_rc_set_ie(rc, rc->ies);
 			if (result < 0) {

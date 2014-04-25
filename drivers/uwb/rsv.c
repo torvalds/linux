@@ -163,8 +163,10 @@ static int uwb_rsv_get_stream(struct uwb_rsv *rsv)
 	}
 
 	stream = find_first_zero_bit(streams_bm, UWB_NUM_STREAMS);
-	if (stream >= UWB_NUM_STREAMS)
+	if (stream >= UWB_NUM_STREAMS) {
+		dev_err(dev, "%s: no available stream found\n", __func__);
 		return -EBUSY;
+	}
 
 	rsv->stream = stream;
 	set_bit(stream, streams_bm);
@@ -555,12 +557,16 @@ int uwb_rsv_establish(struct uwb_rsv *rsv)
 {
 	struct uwb_rc *rc = rsv->rc;
 	struct uwb_mas_bm available;
+	struct device *dev = &rc->uwb_dev.dev;
 	int ret;
 
 	mutex_lock(&rc->rsvs_mutex);
 	ret = uwb_rsv_get_stream(rsv);
-	if (ret)
+	if (ret) {
+		dev_err(dev, "%s: uwb_rsv_get_stream failed: %d\n",
+			__func__, ret);
 		goto out;
+	}
 
 	rsv->tiebreaker = prandom_u32() & 1;
 	/* get available mas bitmap */
@@ -570,12 +576,16 @@ int uwb_rsv_establish(struct uwb_rsv *rsv)
 	if (ret == UWB_RSV_ALLOC_NOT_FOUND) {
 		ret = -EBUSY;
 		uwb_rsv_put_stream(rsv);
+		dev_err(dev, "%s: uwb_rsv_find_best_allocation failed: %d\n",
+			__func__, ret);
 		goto out;
 	}
 
 	ret = uwb_drp_avail_reserve_pending(rc, &rsv->mas);
 	if (ret != 0) {
 		uwb_rsv_put_stream(rsv);
+		dev_err(dev, "%s: uwb_drp_avail_reserve_pending failed: %d\n",
+			__func__, ret);
 		goto out;
 	}
 
