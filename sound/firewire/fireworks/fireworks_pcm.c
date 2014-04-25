@@ -199,13 +199,17 @@ static int pcm_open(struct snd_pcm_substream *substream)
 	unsigned int clock_source;
 	int err;
 
-	err = pcm_init_hw_params(efw, substream);
+	err = snd_efw_stream_lock_try(efw);
 	if (err < 0)
 		goto end;
 
+	err = pcm_init_hw_params(efw, substream);
+	if (err < 0)
+		goto err_locked;
+
 	err = snd_efw_command_get_clock_source(efw, &clock_source);
 	if (err < 0)
-		goto end;
+		goto err_locked;
 
 	/*
 	 * When source of clock is not internal or any PCM streams are running,
@@ -216,7 +220,7 @@ static int pcm_open(struct snd_pcm_substream *substream)
 	    amdtp_stream_pcm_running(&efw->rx_stream)) {
 		err = snd_efw_command_get_sampling_rate(efw, &sampling_rate);
 		if (err < 0)
-			goto end;
+			goto err_locked;
 		substream->runtime->hw.rate_min = sampling_rate;
 		substream->runtime->hw.rate_max = sampling_rate;
 	}
@@ -224,10 +228,15 @@ static int pcm_open(struct snd_pcm_substream *substream)
 	snd_pcm_set_sync(substream);
 end:
 	return err;
+err_locked:
+	snd_efw_stream_lock_release(efw);
+	return err;
 }
 
 static int pcm_close(struct snd_pcm_substream *substream)
 {
+	struct snd_efw *efw = substream->private_data;
+	snd_efw_stream_lock_release(efw);
 	return 0;
 }
 

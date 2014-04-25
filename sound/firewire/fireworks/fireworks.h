@@ -24,6 +24,8 @@
 #include <sound/info.h>
 #include <sound/rawmidi.h>
 #include <sound/pcm_params.h>
+#include <sound/firewire.h>
+#include <sound/hwdep.h>
 
 #include "../packets-buffer.h"
 #include "../iso-resources.h"
@@ -90,6 +92,11 @@ struct snd_efw {
 	unsigned int phys_in_grp_count;
 	struct snd_efw_phys_grp phys_out_grps[HWINFO_MAX_CAPS_GROUPS];
 	struct snd_efw_phys_grp phys_in_grps[HWINFO_MAX_CAPS_GROUPS];
+
+	/* for uapi */
+	int dev_lock_count;
+	bool dev_lock_changed;
+	wait_queue_head_t hwdep_wait;
 };
 
 struct snd_efw_transaction {
@@ -197,6 +204,9 @@ int snd_efw_stream_start_duplex(struct snd_efw *efw, int sampling_rate);
 void snd_efw_stream_stop_duplex(struct snd_efw *efw);
 void snd_efw_stream_update_duplex(struct snd_efw *efw);
 void snd_efw_stream_destroy_duplex(struct snd_efw *efw);
+void snd_efw_stream_lock_changed(struct snd_efw *efw);
+int snd_efw_stream_lock_try(struct snd_efw *efw);
+void snd_efw_stream_lock_release(struct snd_efw *efw);
 
 void snd_efw_proc_init(struct snd_efw *efw);
 
@@ -204,6 +214,8 @@ int snd_efw_create_midi_devices(struct snd_efw *efw);
 
 int snd_efw_create_pcm_devices(struct snd_efw *efw);
 int snd_efw_get_multiplier_mode(unsigned int sampling_rate, unsigned int *mode);
+
+int snd_efw_create_hwdep_device(struct snd_efw *efw);
 
 #define SND_EFW_DEV_ENTRY(vendor, model) \
 { \
