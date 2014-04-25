@@ -3595,7 +3595,7 @@ static int ql_request_irq(struct ql_adapter *qdev)
 	}
 	return status;
 err_irq:
-	netif_err(qdev, ifup, qdev->ndev, "Failed to get the interrupts!!!/n");
+	netif_err(qdev, ifup, qdev->ndev, "Failed to get the interrupts!!!\n");
 	ql_free_irq(qdev);
 	return status;
 }
