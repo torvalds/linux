@@ -158,6 +158,8 @@ static void sdhci_s3c_set_clock(struct sdhci_host *host, unsigned int clock)
 	int src;
 	u32 ctrl;
 
+	host->mmc->actual_clock = 0;
+
 	/* don't bother if the clock is going off. */
 	if (clock == 0)
 		return;
@@ -291,6 +293,8 @@ static void sdhci_cmu_set_clock(struct sdhci_host *host, unsigned int clock)
 	struct device *dev = &ourhost->pdev->dev;
 	unsigned long timeout;
 	u16 clk = 0;
+
+	host->mmc->actual_clock = 0;
 
 	/* If the clock is going off, set to 0 at clock control register */
 	if (clock == 0) {

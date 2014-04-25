@@ -199,10 +199,11 @@ static unsigned int esdhc_of_get_min_clock(struct sdhci_host *host)
 
 static void esdhc_of_set_clock(struct sdhci_host *host, unsigned int clock)
 {
-
 	int pre_div = 2;
 	int div = 1;
 	u32 temp;
+
+	host->mmc->actual_clock = 0;
 
 	if (clock == 0)
 		return;
