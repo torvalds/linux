@@ -57,6 +57,7 @@ struct report {
 	const char		*cpu_list;
 	const char		*symbol_filter_str;
 	float			min_percent;
+	u64			nr_entries;
 	DECLARE_BITMAP(cpu_bitmap, MAX_NR_CPUS);
 };
 
@@ -73,6 +74,27 @@ static int report__config(const char *var, const char *value, void *cb)
 	}
 
 	return perf_default_config(var, value, cb);
+}
+
+static void report__inc_stats(struct report *rep, struct hist_entry *he)
+{
+	/*
+	 * The @he is either of a newly created one or an existing one
+	 * merging current sample.  We only want to count a new one so
+	 * checking ->nr_events being 1.
+	 */
+	if (he->stat.nr_events == 1)
+		rep->nr_entries++;
+
+	/*
+	 * Only counts number of samples at this stage as it's more
+	 * natural to do it here and non-sample events are also
+	 * counted in perf_session_deliver_event().  The dump_trace
+	 * requires this info is ready before going to the output tree.
+	 */
+	hists__inc_nr_events(he->hists, PERF_RECORD_SAMPLE);
+	if (!he->filtered)
+		he->hists->stats.nr_non_filtered_samples++;
 }
 
 static int report__add_mem_hist_entry(struct report *rep, struct addr_location *al,
@@ -121,10 +143,8 @@ static int report__add_mem_hist_entry(struct report *rep, struct addr_location *
 			goto out;
 	}
 
-	evsel->hists.stats.total_period += cost;
-	hists__inc_nr_events(&evsel->hists, PERF_RECORD_SAMPLE);
-	if (!he->filtered)
-		evsel->hists.stats.nr_non_filtered_samples++;
+	report__inc_stats(rep, he);
+
 	err = hist_entry__append_callchain(he, sample);
 out:
 	return err;
@@ -175,11 +195,7 @@ static int report__add_branch_hist_entry(struct report *rep, struct addr_locatio
 				if (err)
 					goto out;
 			}
-
-			evsel->hists.stats.total_period += 1;
-			hists__inc_nr_events(&evsel->hists, PERF_RECORD_SAMPLE);
-			if (!he->filtered)
-				evsel->hists.stats.nr_non_filtered_samples++;
+			report__inc_stats(rep, he);
 		} else
 			goto out;
 	}
@@ -212,10 +228,8 @@ static int report__add_hist_entry(struct report *rep, struct perf_evsel *evsel,
 	if (ui__has_annotation())
 		err = hist_entry__inc_addr_samples(he, evsel->idx, al->addr);
 
-	evsel->hists.stats.total_period += sample->period;
-	if (!he->filtered)
-		evsel->hists.stats.nr_non_filtered_samples++;
-	hists__inc_nr_events(&evsel->hists, PERF_RECORD_SAMPLE);
+	report__inc_stats(rep, he);
+
 out:
 	return err;
 }
@@ -486,24 +500,12 @@ static int report__browse_hists(struct report *rep)
 	return ret;
 }
 
-static u64 report__collapse_hists(struct report *rep)
+static void report__collapse_hists(struct report *rep)
 {
 	struct ui_progress prog;
 	struct perf_evsel *pos;
-	u64 nr_samples = 0;
-	/*
- 	 * Count number of histogram entries to use when showing progress,
- 	 * reusing nr_samples variable.
- 	 */
-	evlist__for_each(rep->session->evlist, pos)
-		nr_samples += pos->hists.nr_entries;
 
-	ui_progress__init(&prog, nr_samples, "Merging related events...");
-	/*
-	 * Count total number of samples, will be used to check if this
- 	 * session had any.
- 	 */
-	nr_samples = 0;
+	ui_progress__init(&prog, rep->nr_entries, "Merging related events...");
 
 	evlist__for_each(rep->session->evlist, pos) {
 		struct hists *hists = &pos->hists;
@@ -512,7 +514,6 @@ static u64 report__collapse_hists(struct report *rep)
 			hists->symbol_filter_str = rep->symbol_filter_str;
 
 		hists__collapse_resort(hists, &prog);
-		nr_samples += hists->stats.nr_events[PERF_RECORD_SAMPLE];
 
 		/* Non-group events are considered as leader */
 		if (symbol_conf.event_group &&
@@ -525,14 +526,11 @@ static u64 report__collapse_hists(struct report *rep)
 	}
 
 	ui_progress__finish();
-
-	return nr_samples;
 }
 
 static int __cmd_report(struct report *rep)
 {
 	int ret;
-	u64 nr_samples;
 	struct perf_session *session = rep->session;
 	struct perf_evsel *pos;
 	struct perf_data_file *file = session->file;
@@ -572,12 +570,12 @@ static int __cmd_report(struct report *rep)
 		}
 	}
 
-	nr_samples = report__collapse_hists(rep);
+	report__collapse_hists(rep);
 
 	if (session_done())
 		return 0;
 
-	if (nr_samples == 0) {
+	if (rep->nr_entries == 0) {
 		ui__error("The %s file has no samples!\n", file->path);
 		return 0;
 	}
