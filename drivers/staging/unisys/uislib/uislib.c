@@ -381,17 +381,17 @@ create_bus(CONTROLVM_MESSAGE *msg, char *buf)
 		cmd.add_vbus.busTypeGuid = msg->cmd.createBus.busDataTypeGuid;
 		cmd.add_vbus.busInstGuid = msg->cmd.createBus.busInstGuid;
 		if (!VirtControlChanFunc) {
-			kfree(bus);
 			LOGERR("CONTROLVM_BUS_CREATE Failed: virtpci callback not registered.");
 			POSTCODE_LINUX_3(BUS_CREATE_FAILURE_PC, bus->busNo,
 					 POSTCODE_SEVERITY_ERR);
+			kfree(bus);
 			return CONTROLVM_RESP_ERROR_VIRTPCI_DRIVER_FAILURE;
 		}
 		if (!VirtControlChanFunc(&cmd)) {
-			kfree(bus);
 			LOGERR("CONTROLVM_BUS_CREATE Failed: virtpci GUEST_ADD_VBUS returned error.");
 			POSTCODE_LINUX_3(BUS_CREATE_FAILURE_PC, bus->busNo,
 					 POSTCODE_SEVERITY_ERR);
+			kfree(bus);
 			return
 			    CONTROLVM_RESP_ERROR_VIRTPCI_DRIVER_CALLBACK_ERROR;
 		}

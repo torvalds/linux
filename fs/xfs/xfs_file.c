@@ -679,7 +679,7 @@ xfs_file_dio_aio_write(
 		goto out;
 
 	if (mapping->nrpages) {
-		ret = -filemap_write_and_wait_range(VFS_I(ip)->i_mapping,
+		ret = filemap_write_and_wait_range(VFS_I(ip)->i_mapping,
 						    pos, -1);
 		if (ret)
 			goto out;
@@ -841,7 +841,15 @@ xfs_file_fallocate(
 			goto out_unlock;
 		}
 
-		ASSERT(offset + len < i_size_read(inode));
+		/*
+		 * There is no need to overlap collapse range with EOF,
+		 * in which case it is effectively a truncate operation
+		 */
+		if (offset + len >= i_size_read(inode)) {
+			error = -EINVAL;
+			goto out_unlock;
+		}
+
 		new_size = i_size_read(inode) - len;
 
 		error = xfs_collapse_file_space(ip, offset, len);

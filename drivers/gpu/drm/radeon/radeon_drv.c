@@ -115,6 +115,7 @@ extern int radeon_get_crtc_scanoutpos(struct drm_device *dev, int crtc,
 				      unsigned int flags,
 				      int *vpos, int *hpos, ktime_t *stime,
 				      ktime_t *etime);
+extern bool radeon_is_px(struct drm_device *dev);
 extern const struct drm_ioctl_desc radeon_ioctls_kms[];
 extern int radeon_max_kms_ioctl;
 int radeon_mmap(struct file *filp, struct vm_area_struct *vma);
@@ -144,11 +145,9 @@ void radeon_debugfs_cleanup(struct drm_minor *minor);
 #if defined(CONFIG_VGA_SWITCHEROO)
 void radeon_register_atpx_handler(void);
 void radeon_unregister_atpx_handler(void);
-bool radeon_is_px(void);
 #else
 static inline void radeon_register_atpx_handler(void) {}
 static inline void radeon_unregister_atpx_handler(void) {}
-static inline bool radeon_is_px(void) { return false; }
 #endif
 
 int radeon_no_wb;
@@ -186,7 +185,7 @@ module_param_named(dynclks, radeon_dynclks, int, 0444);
 MODULE_PARM_DESC(r4xx_atom, "Enable ATOMBIOS modesetting for R4xx");
 module_param_named(r4xx_atom, radeon_r4xx_atom, int, 0444);
 
-MODULE_PARM_DESC(vramlimit, "Restrict VRAM for testing");
+MODULE_PARM_DESC(vramlimit, "Restrict VRAM for testing, in megabytes");
 module_param_named(vramlimit, radeon_vram_limit, int, 0600);
 
 MODULE_PARM_DESC(agpmode, "AGP Mode (-1 == PCI)");
@@ -405,12 +404,7 @@ static int radeon_pmops_runtime_suspend(struct device *dev)
 	struct drm_device *drm_dev = pci_get_drvdata(pdev);
 	int ret;
 
-	if (radeon_runtime_pm == 0) {
-		pm_runtime_forbid(dev);
-		return -EBUSY;
-	}
-
-	if (radeon_runtime_pm == -1 && !radeon_is_px()) {
+	if (!radeon_is_px(drm_dev)) {
 		pm_runtime_forbid(dev);
 		return -EBUSY;
 	}
@@ -434,10 +428,7 @@ static int radeon_pmops_runtime_resume(struct device *dev)
 	struct drm_device *drm_dev = pci_get_drvdata(pdev);
 	int ret;
 
-	if (radeon_runtime_pm == 0)
-		return -EINVAL;
-
-	if (radeon_runtime_pm == -1 && !radeon_is_px())
+	if (!radeon_is_px(drm_dev))
 		return -EINVAL;
 
 	drm_dev->switch_power_state = DRM_SWITCH_POWER_CHANGING;
@@ -462,14 +453,7 @@ static int radeon_pmops_runtime_idle(struct device *dev)
 	struct drm_device *drm_dev = pci_get_drvdata(pdev);
 	struct drm_crtc *crtc;
 
-	if (radeon_runtime_pm == 0) {
-		pm_runtime_forbid(dev);
-		return -EBUSY;
-	}
-
-	/* are we PX enabled? */
-	if (radeon_runtime_pm == -1 && !radeon_is_px()) {
-		DRM_DEBUG_DRIVER("failing to power off - not px\n");
+	if (!radeon_is_px(drm_dev)) {
 		pm_runtime_forbid(dev);
 		return -EBUSY;
 	}

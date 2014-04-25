@@ -15,7 +15,7 @@
 #include <linux/i2c-algo-bit.h>
 #include <linux/slab.h>
 
-#include "edid.h"
+#include "../edid.h"
 
 #define DDC_ADDR	0x50
 

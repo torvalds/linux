@@ -28,9 +28,16 @@ enum efx_mcdi_state {
 	MCDI_STATE_COMPLETED,
 };
 
+/**
+ * enum efx_mcdi_mode - MCDI transaction mode
+ * @MCDI_MODE_POLL: poll for MCDI completion, until timeout
+ * @MCDI_MODE_EVENTS: wait for an mcdi_event.  On timeout, poll once
+ * @MCDI_MODE_FAIL: we think MCDI is dead, so fail-fast all calls
+ */
 enum efx_mcdi_mode {
 	MCDI_MODE_POLL,
 	MCDI_MODE_EVENTS,
+	MCDI_MODE_FAIL,
 };
 
 /**
@@ -103,6 +110,12 @@ struct efx_mcdi_data {
 #endif
 	u32 fn_flags;
 };
+
+static inline struct efx_mcdi_iface *efx_mcdi(struct efx_nic *efx)
+{
+	EFX_BUG_ON_PARANOID(!efx->mcdi);
+	return &efx->mcdi->iface;
+}
 
 #ifdef CONFIG_SFC_MCDI_MON
 static inline struct efx_mcdi_mon *efx_mcdi_mon(struct efx_nic *efx)

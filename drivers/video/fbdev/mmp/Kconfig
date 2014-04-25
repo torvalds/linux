@@ -5,7 +5,7 @@ menuconfig MMP_DISP
 	  Marvell Display Subsystem support.
 
 if MMP_DISP
-source "drivers/video/mmp/hw/Kconfig"
-source "drivers/video/mmp/panel/Kconfig"
-source "drivers/video/mmp/fb/Kconfig"
+source "drivers/video/fbdev/mmp/hw/Kconfig"
+source "drivers/video/fbdev/mmp/panel/Kconfig"
+source "drivers/video/fbdev/mmp/fb/Kconfig"
 endif
