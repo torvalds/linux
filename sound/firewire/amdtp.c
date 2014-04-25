@@ -13,6 +13,7 @@
 #include <linux/slab.h>
 #include <linux/sched.h>
 #include <sound/pcm.h>
+#include <sound/pcm_params.h>
 #include <sound/rawmidi.h>
 #include "amdtp.h"
 
@@ -103,6 +104,61 @@ const unsigned int amdtp_syt_intervals[CIP_SFC_COUNT] = {
 	[CIP_SFC_192000] = 32,
 };
 EXPORT_SYMBOL(amdtp_syt_intervals);
+
+/**
+ * amdtp_stream_add_pcm_hw_constraints - add hw constraints for PCM substream
+ * @s:		the AMDTP stream, which must be initialized.
+ * @runtime:	the PCM substream runtime
+ */
+int amdtp_stream_add_pcm_hw_constraints(struct amdtp_stream *s,
+					struct snd_pcm_runtime *runtime)
+{
+	int err;
+
+	/* AM824 in IEC 61883-6 can deliver 24bit data */
+	err = snd_pcm_hw_constraint_msbits(runtime, 0, 32, 24);
+	if (err < 0)
+		goto end;
+
+	/*
+	 * Currently firewire-lib processes 16 packets in one software
+	 * interrupt callback. This equals to 2msec but actually the
+	 * interval of the interrupts has a jitter.
+	 * Additionally, even if adding a constraint to fit period size to
+	 * 2msec, actual calculated frames per period doesn't equal to 2msec,
+	 * depending on sampling rate.
+	 * Anyway, the interval to call snd_pcm_period_elapsed() cannot 2msec.
+	 * Here let us use 5msec for safe period interrupt.
+	 */
+	err = snd_pcm_hw_constraint_minmax(runtime,
+					   SNDRV_PCM_HW_PARAM_PERIOD_TIME,
+					   5000, UINT_MAX);
+	if (err < 0)
+		goto end;
+
+	/* Non-Blocking stream has no more constraints */
+	if (!(s->flags & CIP_BLOCKING))
+		goto end;
+
+	/*
+	 * One AMDTP packet can include some frames. In blocking mode, the
+	 * number equals to SYT_INTERVAL. So the number is 8, 16 or 32,
+	 * depending on its sampling rate. For accurate period interrupt, it's
+	 * preferrable to aligh period/buffer sizes to current SYT_INTERVAL.
+	 *
+	 * TODO: These constraints can be improved with propper rules.
+	 * Currently apply LCM of SYT_INTEVALs.
+	 */
+	err = snd_pcm_hw_constraint_step(runtime, 0,
+					 SNDRV_PCM_HW_PARAM_PERIOD_SIZE, 32);
+	if (err < 0)
+		goto end;
+	err = snd_pcm_hw_constraint_step(runtime, 0,
+					 SNDRV_PCM_HW_PARAM_BUFFER_SIZE, 32);
+end:
+	return err;
+}
+EXPORT_SYMBOL(amdtp_stream_add_pcm_hw_constraints);
 
 /**
  * amdtp_stream_set_parameters - set stream parameters

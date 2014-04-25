@@ -64,6 +64,7 @@ enum cip_sfc {
 struct fw_unit;
 struct fw_iso_context;
 struct snd_pcm_substream;
+struct snd_pcm_runtime;
 struct snd_rawmidi_substream;
 
 enum amdtp_stream_direction {
@@ -130,6 +131,8 @@ int amdtp_stream_start(struct amdtp_stream *s, int channel, int speed);
 void amdtp_stream_update(struct amdtp_stream *s);
 void amdtp_stream_stop(struct amdtp_stream *s);
 
+int amdtp_stream_add_pcm_hw_constraints(struct amdtp_stream *s,
+					struct snd_pcm_runtime *runtime);
 void amdtp_stream_set_pcm_format(struct amdtp_stream *s,
 				 snd_pcm_format_t format);
 void amdtp_stream_pcm_prepare(struct amdtp_stream *s);

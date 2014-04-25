@@ -420,22 +420,7 @@ static int dice_open(struct snd_pcm_substream *substream)
 	if (err < 0)
 		goto err_lock;
 
-	err = snd_pcm_hw_constraint_step(runtime, 0,
-					 SNDRV_PCM_HW_PARAM_PERIOD_SIZE, 32);
-	if (err < 0)
-		goto err_lock;
-	err = snd_pcm_hw_constraint_step(runtime, 0,
-					 SNDRV_PCM_HW_PARAM_BUFFER_SIZE, 32);
-	if (err < 0)
-		goto err_lock;
-
-	err = snd_pcm_hw_constraint_minmax(runtime,
-					   SNDRV_PCM_HW_PARAM_PERIOD_TIME,
-					   5000, UINT_MAX);
-	if (err < 0)
-		goto err_lock;
-
-	err = snd_pcm_hw_constraint_msbits(runtime, 0, 32, 24);
+	err = amdtp_stream_add_pcm_hw_constraints(&dice->stream, runtime);
 	if (err < 0)
 		goto err_lock;
 
