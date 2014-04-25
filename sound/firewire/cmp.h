@@ -11,8 +11,8 @@ struct fw_unit;
  * struct cmp_connection - manages an isochronous connection to a device
  * @speed: the connection's actual speed
  *
- * This structure manages (using CMP) an isochronous stream from the local
- * computer to a device's input plug (iPCR).
+ * This structure manages (using CMP) an isochronous stream between the local
+ * computer and a device's input plug (iPCR) and output plug (oPCR).
  *
  * There is no corresponding oPCR created on the local computer, so it is not
  * possible to overlay connections on top of this one.
@@ -30,7 +30,7 @@ struct cmp_connection {
 
 int cmp_connection_init(struct cmp_connection *connection,
 			struct fw_unit *unit,
-			unsigned int ipcr_index);
+			unsigned int pcr_index);
 void cmp_connection_destroy(struct cmp_connection *connection);
 
 int cmp_connection_establish(struct cmp_connection *connection,
