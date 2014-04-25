@@ -2431,7 +2431,7 @@ static irqreturn_t sdhci_irq(int irq, void *dev_id)
 {
 	irqreturn_t result;
 	struct sdhci_host *host = dev_id;
-	u32 intmask, unexpected = 0;
+	u32 intmask, mask, unexpected = 0;
 	int cardint = 0, max_loops = 16;
 
 	spin_lock(&host->lock);
@@ -2442,88 +2442,80 @@ static irqreturn_t sdhci_irq(int irq, void *dev_id)
 	}
 
 	intmask = sdhci_readl(host, SDHCI_INT_STATUS);
-
 	if (!intmask || intmask == 0xffffffff) {
 		result = IRQ_NONE;
 		goto out;
 	}
 
-again:
-	DBG("*** %s got interrupt: 0x%08x\n",
-		mmc_hostname(host->mmc), intmask);
+	do {
+		/* Clear selected interrupts. */
+		mask = intmask & (SDHCI_INT_CMD_MASK | SDHCI_INT_DATA_MASK |
+				  SDHCI_INT_BUS_POWER);
+		sdhci_writel(host, mask, SDHCI_INT_STATUS);
 
-	if (intmask & (SDHCI_INT_CARD_INSERT | SDHCI_INT_CARD_REMOVE)) {
-		u32 present = sdhci_readl(host, SDHCI_PRESENT_STATE) &
-			      SDHCI_CARD_PRESENT;
+		DBG("*** %s got interrupt: 0x%08x\n",
+			mmc_hostname(host->mmc), intmask);
+
+		if (intmask & (SDHCI_INT_CARD_INSERT | SDHCI_INT_CARD_REMOVE)) {
+			u32 present = sdhci_readl(host, SDHCI_PRESENT_STATE) &
+				      SDHCI_CARD_PRESENT;
+
+			/*
+			 * There is a observation on i.mx esdhc.  INSERT
+			 * bit will be immediately set again when it gets
+			 * cleared, if a card is inserted.  We have to mask
+			 * the irq to prevent interrupt storm which will
+			 * freeze the system.  And the REMOVE gets the
+			 * same situation.
+			 *
+			 * More testing are needed here to ensure it works
+			 * for other platforms though.
+			 */
+			sdhci_mask_irqs(host, present ? SDHCI_INT_CARD_INSERT :
+							SDHCI_INT_CARD_REMOVE);
+			sdhci_unmask_irqs(host, present ? SDHCI_INT_CARD_REMOVE :
+							  SDHCI_INT_CARD_INSERT);
+
+			sdhci_writel(host, intmask & (SDHCI_INT_CARD_INSERT |
+				     SDHCI_INT_CARD_REMOVE), SDHCI_INT_STATUS);
+			tasklet_schedule(&host->card_tasklet);
+		}
+
+		if (intmask & SDHCI_INT_CMD_MASK)
+			sdhci_cmd_irq(host, intmask & SDHCI_INT_CMD_MASK);
+
+		if (intmask & SDHCI_INT_DATA_MASK)
+			sdhci_data_irq(host, intmask & SDHCI_INT_DATA_MASK);
+
+		if (intmask & SDHCI_INT_BUS_POWER)
+			pr_err("%s: Card is consuming too much power!\n",
+				mmc_hostname(host->mmc));
+
+		if (intmask & SDHCI_INT_CARD_INT)
+			cardint = 1;
+
+		intmask &= ~(SDHCI_INT_CARD_INSERT | SDHCI_INT_CARD_REMOVE |
+			     SDHCI_INT_CMD_MASK | SDHCI_INT_DATA_MASK |
+			     SDHCI_INT_ERROR | SDHCI_INT_BUS_POWER |
+			     SDHCI_INT_CARD_INT);
+
+		if (intmask) {
+			unexpected |= intmask;
+			sdhci_writel(host, intmask, SDHCI_INT_STATUS);
+		}
+
+		result = IRQ_HANDLED;
+
+		intmask = sdhci_readl(host, SDHCI_INT_STATUS);
 
 		/*
-		 * There is a observation on i.mx esdhc.  INSERT bit will be
-		 * immediately set again when it gets cleared, if a card is
-		 * inserted.  We have to mask the irq to prevent interrupt
-		 * storm which will freeze the system.  And the REMOVE gets
-		 * the same situation.
-		 *
-		 * More testing are needed here to ensure it works for other
-		 * platforms though.
+		 * If we know we'll call the driver to signal SDIO IRQ,
+		 * disregard further indications of Card Interrupt in
+		 * the status to avoid a needless loop.
 		 */
-		sdhci_mask_irqs(host, present ? SDHCI_INT_CARD_INSERT :
-						SDHCI_INT_CARD_REMOVE);
-		sdhci_unmask_irqs(host, present ? SDHCI_INT_CARD_REMOVE :
-						  SDHCI_INT_CARD_INSERT);
-
-		sdhci_writel(host, intmask & (SDHCI_INT_CARD_INSERT |
-			     SDHCI_INT_CARD_REMOVE), SDHCI_INT_STATUS);
-		intmask &= ~(SDHCI_INT_CARD_INSERT | SDHCI_INT_CARD_REMOVE);
-		tasklet_schedule(&host->card_tasklet);
-	}
-
-	if (intmask & SDHCI_INT_CMD_MASK) {
-		sdhci_writel(host, intmask & SDHCI_INT_CMD_MASK,
-			SDHCI_INT_STATUS);
-		sdhci_cmd_irq(host, intmask & SDHCI_INT_CMD_MASK);
-	}
-
-	if (intmask & SDHCI_INT_DATA_MASK) {
-		sdhci_writel(host, intmask & SDHCI_INT_DATA_MASK,
-			SDHCI_INT_STATUS);
-		sdhci_data_irq(host, intmask & SDHCI_INT_DATA_MASK);
-	}
-
-	intmask &= ~(SDHCI_INT_CMD_MASK | SDHCI_INT_DATA_MASK);
-
-	intmask &= ~SDHCI_INT_ERROR;
-
-	if (intmask & SDHCI_INT_BUS_POWER) {
-		pr_err("%s: Card is consuming too much power!\n",
-			mmc_hostname(host->mmc));
-		sdhci_writel(host, SDHCI_INT_BUS_POWER, SDHCI_INT_STATUS);
-	}
-
-	intmask &= ~SDHCI_INT_BUS_POWER;
-
-	if (intmask & SDHCI_INT_CARD_INT)
-		cardint = 1;
-
-	intmask &= ~SDHCI_INT_CARD_INT;
-
-	if (intmask) {
-		unexpected |= intmask;
-		sdhci_writel(host, intmask, SDHCI_INT_STATUS);
-	}
-
-	result = IRQ_HANDLED;
-
-	intmask = sdhci_readl(host, SDHCI_INT_STATUS);
-
-	/*
-	 * If we know we'll call the driver to signal SDIO IRQ, disregard
-	 * further indications of Card Interrupt in the status to avoid a
-	 * needless loop.
-	 */
-	if (cardint)
-		intmask &= ~SDHCI_INT_CARD_INT;
-	if (intmask && --max_loops)
-		goto again;
+		if (cardint)
+			intmask &= ~SDHCI_INT_CARD_INT;
+	} while (intmask && --max_loops);
 out:
 	spin_unlock(&host->lock);
 
