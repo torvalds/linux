@@ -249,7 +249,9 @@ static void uwb_rsv_stroke_timer(struct uwb_rsv *rsv)
 	 * super frame and should not be terminated if no response is
 	 * received.
 	 */
-	if (rsv->is_multicast) {
+	if (rsv->state == UWB_RSV_STATE_NONE) {
+		sframes = 0;
+	} else if (rsv->is_multicast) {
 		if (rsv->state == UWB_RSV_STATE_O_INITIATED
 		    || rsv->state == UWB_RSV_STATE_O_MOVE_EXPANDING
 		    || rsv->state == UWB_RSV_STATE_O_MOVE_COMBINING
@@ -322,6 +324,7 @@ void uwb_rsv_set_state(struct uwb_rsv *rsv, enum uwb_rsv_state new_state)
 	switch (new_state) {
 	case UWB_RSV_STATE_NONE:
 		uwb_rsv_state_update(rsv, UWB_RSV_STATE_NONE);
+		uwb_rsv_remove(rsv);
 		uwb_rsv_callback(rsv);
 		break;
 	case UWB_RSV_STATE_O_INITIATED:
@@ -441,6 +444,8 @@ static void uwb_rsv_handle_timeout_work(struct work_struct *work)
 		 */
 		uwb_rsv_set_state(rsv, UWB_RSV_STATE_T_ACCEPTED);
 		uwb_drp_avail_release(rsv->rc, &rsv->mv.companion_mas);
+		goto unlock;
+	case UWB_RSV_STATE_NONE:
 		goto unlock;
 	default:
 		break;
