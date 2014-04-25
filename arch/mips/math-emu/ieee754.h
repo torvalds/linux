@@ -31,36 +31,23 @@
 #include <linux/sched.h>
 #include <asm/bitfield.h>
 
-struct ieee754dp_const {
-	__BITFIELD_FIELD(unsigned sign:1,
-	__BITFIELD_FIELD(unsigned bexp:11,
-	__BITFIELD_FIELD(unsigned manthi:20,
-	__BITFIELD_FIELD(unsigned mantlo:32,
-	;))))
-};
-
 union ieee754dp {
-	struct ieee754dp_const oparts;
 	struct {
 		__BITFIELD_FIELD(unsigned int sign:1,
 		__BITFIELD_FIELD(unsigned int bexp:11,
 		__BITFIELD_FIELD(u64 mant:52,
 		;)))
-	} parts;
-	double d;
+	};
 	u64 bits;
 };
 
-struct ieee754sp_const {
-	__BITFIELD_FIELD(unsigned sign:1,
-	__BITFIELD_FIELD(unsigned bexp:8,
-	__BITFIELD_FIELD(unsigned mant:23,
-	;)))
-};
-
 union ieee754sp {
-	struct ieee754sp_const parts;
-	float f;
+	struct {
+		__BITFIELD_FIELD(unsigned sign:1,
+		__BITFIELD_FIELD(unsigned bexp:8,
+		__BITFIELD_FIELD(unsigned mant:23,
+		;)))
+	};
 	u32 bits;
 };
 
@@ -299,8 +286,8 @@ union ieee754dp ieee754dp_dump(char *s, union ieee754dp x);
 #define IEEE754_SPCVAL_P1E31	15	/* + 1.0e31 */
 #define IEEE754_SPCVAL_P1E63	16	/* + 1.0e63 */
 
-extern const struct ieee754dp_const __ieee754dp_spcvals[];
-extern const struct ieee754sp_const __ieee754sp_spcvals[];
+extern const union ieee754dp __ieee754dp_spcvals[];
+extern const union ieee754sp __ieee754sp_spcvals[];
 #define ieee754dp_spcvals ((const union ieee754dp *)__ieee754dp_spcvals)
 #define ieee754sp_spcvals ((const union ieee754sp *)__ieee754sp_spcvals)
 

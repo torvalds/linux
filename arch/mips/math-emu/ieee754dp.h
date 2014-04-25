@@ -40,9 +40,9 @@
 #define DP_HIDDEN_BIT	DP_MBIT(DP_FBITS)
 #define DP_SIGN_BIT	DP_MBIT(63)
 
-#define DPSIGN(dp)	(dp.parts.sign)
-#define DPBEXP(dp)	(dp.parts.bexp)
-#define DPMANT(dp)	(dp.parts.mant)
+#define DPSIGN(dp)	(dp.sign)
+#define DPBEXP(dp)	(dp.bexp)
+#define DPMANT(dp)	(dp.mant)
 
 static inline int ieee754dp_finite(union ieee754dp x)
 {
@@ -74,9 +74,10 @@ static inline union ieee754dp builddp(int s, int bx, u64 m)
 	       && (bx) <= DP_EMAX + 1 + DP_EBIAS);
 	assert(((m) >> DP_FBITS) == 0);
 
-	r.parts.sign = s;
-	r.parts.bexp = bx;
-	r.parts.mant = m;
+	r.sign = s;
+	r.bexp = bx;
+	r.mant = m;
+
 	return r;
 }
 

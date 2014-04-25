@@ -40,9 +40,9 @@
 #define SP_HIDDEN_BIT	SP_MBIT(SP_FBITS)
 #define SP_SIGN_BIT	SP_MBIT(31)
 
-#define SPSIGN(sp)	(sp.parts.sign)
-#define SPBEXP(sp)	(sp.parts.bexp)
-#define SPMANT(sp)	(sp.parts.mant)
+#define SPSIGN(sp)	(sp.sign)
+#define SPBEXP(sp)	(sp.bexp)
+#define SPMANT(sp)	(sp.mant)
 
 static inline int ieee754sp_finite(union ieee754sp x)
 {
@@ -79,9 +79,9 @@ static inline union ieee754sp buildsp(int s, int bx, unsigned m)
 	       && (bx) <= SP_EMAX + 1 + SP_EBIAS);
 	assert(((m) >> SP_FBITS) == 0);
 
-	r.parts.sign = s;
-	r.parts.bexp = bx;
-	r.parts.mant = m;
+	r.sign = s;
+	r.bexp = bx;
+	r.mant = m;
 
 	return r;
 }

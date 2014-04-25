@@ -110,13 +110,13 @@ union ieee754dp ieee754dp_sqrt(union ieee754dp x)
 	/* triple to almost 56 sig. bits: y ~= sqrt(x) to within 1 ulp */
 	/* t=y*y; z=t;	pt[n0]+=0x00100000; t+=z; z=(x-z)*y; */
 	z = t = ieee754dp_mul(y, y);
-	t.parts.bexp += 0x001;
+	t.bexp += 0x001;
 	t = ieee754dp_add(t, z);
 	z = ieee754dp_mul(ieee754dp_sub(x, z), y);
 
 	/* t=z/(t+x) ;	pt[n0]+=0x00100000; y+=t; */
 	t = ieee754dp_div(z, ieee754dp_add(t, x));
-	t.parts.bexp += 0x001;
+	t.bexp += 0x001;
 	y = ieee754dp_add(y, t);
 
 	/* twiddle last bit to force y correctly rounded */
@@ -155,7 +155,7 @@ union ieee754dp ieee754dp_sqrt(union ieee754dp x)
 	}
 
 	/* py[n0]=py[n0]+scalx; ...scale back y */
-	y.parts.bexp += scalx;
+	y.bexp += scalx;
 
 	/* restore rounding mode, possibly set inexact */
 	ieee754_csr = oldcsr;
