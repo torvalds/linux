@@ -7,6 +7,8 @@
 #ifndef __ASM_SMP_H
 #define __ASM_SMP_H
 
+#include <asm/sigp.h>
+
 #ifdef CONFIG_SMP
 
 #include <asm/lowcore.h>
@@ -50,8 +52,17 @@ static inline int smp_store_status(int cpu) { return 0; }
 static inline int smp_vcpu_scheduled(int cpu) { return 1; }
 static inline void smp_yield_cpu(int cpu) { }
 static inline void smp_yield(void) { }
-static inline void smp_stop_cpu(void) { }
 static inline void smp_fill_possible_mask(void) { }
+
+static inline void smp_stop_cpu(void)
+{
+	u16 pcpu = stap();
+
+	for (;;) {
+		__pcpu_sigp(pcpu, SIGP_STOP, 0, NULL);
+		cpu_relax();
+	}
+}
 
 #endif /* CONFIG_SMP */
 

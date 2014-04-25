@@ -520,7 +520,7 @@ static int snd_es18xx_playback1_trigger(struct snd_es18xx *chip,
 			snd_es18xx_mixer_write(chip, 0x78, 0x93);
 #ifdef AVOID_POPS
 		/* Avoid pops */
-                udelay(100000);
+		mdelay(100);
 		if (chip->caps & ES18XX_PCM2)
 			/* Restore Audio 2 volume */
 			snd_es18xx_mixer_write(chip, 0x7C, chip->audio2_vol);
@@ -537,7 +537,7 @@ static int snd_es18xx_playback1_trigger(struct snd_es18xx *chip,
                 /* Stop DMA */
                 snd_es18xx_mixer_write(chip, 0x78, 0x00);
 #ifdef AVOID_POPS
-                udelay(25000);
+		mdelay(25);
 		if (chip->caps & ES18XX_PCM2)
 			/* Set Audio 2 volume to 0 */
 			snd_es18xx_mixer_write(chip, 0x7C, 0);
@@ -596,7 +596,7 @@ static int snd_es18xx_capture_prepare(struct snd_pcm_substream *substream)
 	snd_es18xx_write(chip, 0xA5, count >> 8);
 
 #ifdef AVOID_POPS
-	udelay(100000);
+	mdelay(100);
 #endif
 
         /* Set format */
@@ -691,7 +691,7 @@ static int snd_es18xx_playback2_trigger(struct snd_es18xx *chip,
                 snd_es18xx_write(chip, 0xB8, 0x05);
 #ifdef AVOID_POPS
 		/* Avoid pops */
-                udelay(100000);
+		mdelay(100);
                 /* Enable Audio 1 */
                 snd_es18xx_dsp_command(chip, 0xD1);
 #endif
@@ -705,7 +705,7 @@ static int snd_es18xx_playback2_trigger(struct snd_es18xx *chip,
                 snd_es18xx_write(chip, 0xB8, 0x00);
 #ifdef AVOID_POPS
 		/* Avoid pops */
-                udelay(25000);
+		mdelay(25);
                 /* Disable Audio 1 */
                 snd_es18xx_dsp_command(chip, 0xD3);
 #endif

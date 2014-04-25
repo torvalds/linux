@@ -388,7 +388,7 @@ static void _rtl_init_mac80211(struct ieee80211_hw *hw)
 
 }
 
-static void _rtl_init_deferred_work(struct ieee80211_hw *hw)
+static int _rtl_init_deferred_work(struct ieee80211_hw *hw)
 {
 	struct rtl_priv *rtlpriv = rtl_priv(hw);
 
@@ -410,6 +410,9 @@ static void _rtl_init_deferred_work(struct ieee80211_hw *hw)
 	rtlpriv->works.rtl_wq = create_workqueue(rtlpriv->cfg->name);
 #endif
 /*<delete in kernel end>*/
+	if (!rtlpriv->works.rtl_wq)
+		return -ENOMEM;
+
 	INIT_DELAYED_WORK(&rtlpriv->works.watchdog_wq,
 			  (void *)rtl_watchdog_wq_callback);
 	INIT_DELAYED_WORK(&rtlpriv->works.ips_nic_off_wq,
@@ -420,6 +423,8 @@ static void _rtl_init_deferred_work(struct ieee80211_hw *hw)
 			  (void *)rtl_swlps_rfon_wq_callback);
 	INIT_DELAYED_WORK(&rtlpriv->works.fwevt_wq,
 			  (void *)rtl_fwevt_wq_callback);
+
+	return 0;
 
 }
 
@@ -519,7 +524,8 @@ int rtl_init_core(struct ieee80211_hw *hw)
 	INIT_LIST_HEAD(&rtlpriv->entry_list);
 
 	/* <6> init deferred work */
-	_rtl_init_deferred_work(hw);
+	if (_rtl_init_deferred_work(hw))
+		return 1;
 
 	/* <7> */
 #ifdef VIF_TODO

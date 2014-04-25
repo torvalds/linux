@@ -109,7 +109,7 @@ nouveau_bios_shadow_pramin(struct nouveau_bios *bios)
 			return;
 		}
 
-		addr = (u64)(addr >> 8) << 8;
+		addr = (addr & 0xffffff00) << 8;
 		if (!addr) {
 			addr  = (u64)nv_rd32(bios, 0x001700) << 16;
 			addr += 0xf0000;

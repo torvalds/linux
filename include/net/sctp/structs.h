@@ -1241,6 +1241,7 @@ struct sctp_endpoint {
 	/* SCTP-AUTH: endpoint shared keys */
 	struct list_head endpoint_shared_keys;
 	__u16 active_key_id;
+	__u8  auth_enable;
 };
 
 /* Recover the outter endpoint structure. */
@@ -1269,7 +1270,8 @@ struct sctp_endpoint *sctp_endpoint_is_match(struct sctp_endpoint *,
 int sctp_has_association(struct net *net, const union sctp_addr *laddr,
 			 const union sctp_addr *paddr);
 
-int sctp_verify_init(struct net *net, const struct sctp_association *asoc,
+int sctp_verify_init(struct net *net, const struct sctp_endpoint *ep,
+		     const struct sctp_association *asoc,
 		     sctp_cid_t, sctp_init_chunk_t *peer_init,
 		     struct sctp_chunk *chunk, struct sctp_chunk **err_chunk);
 int sctp_process_init(struct sctp_association *, struct sctp_chunk *chunk,
@@ -1653,6 +1655,17 @@ struct sctp_association {
 	/* This is the last advertised value of rwnd over a SACK chunk. */
 	__u32 a_rwnd;
 
+	/* Number of bytes by which the rwnd has slopped.  The rwnd is allowed
+	 * to slop over a maximum of the association's frag_point.
+	 */
+	__u32 rwnd_over;
+
+	/* Keeps treack of rwnd pressure.  This happens when we have
+	 * a window, but not recevie buffer (i.e small packets).  This one
+	 * is releases slowly (1 PMTU at a time ).
+	 */
+	__u32 rwnd_press;
+
 	/* This is the sndbuf size in use for the association.
 	 * This corresponds to the sndbuf size for the association,
 	 * as specified in the sk->sndbuf.
@@ -1881,7 +1894,8 @@ void sctp_assoc_update(struct sctp_association *old,
 __u32 sctp_association_get_next_tsn(struct sctp_association *);
 
 void sctp_assoc_sync_pmtu(struct sock *, struct sctp_association *);
-void sctp_assoc_rwnd_update(struct sctp_association *, bool);
+void sctp_assoc_rwnd_increase(struct sctp_association *, unsigned int);
+void sctp_assoc_rwnd_decrease(struct sctp_association *, unsigned int);
 void sctp_assoc_set_primary(struct sctp_association *,
 			    struct sctp_transport *);
 void sctp_assoc_del_nonprimary_peers(struct sctp_association *,

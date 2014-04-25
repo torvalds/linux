@@ -197,7 +197,7 @@ config AMCC_PPC440SPE_ADMA
 
 config TIMB_DMA
 	tristate "Timberdale FPGA DMA support"
-	depends on MFD_TIMBERDALE || HAS_IOMEM
+	depends on MFD_TIMBERDALE
 	select DMA_ENGINE
 	help
 	  Enable support for the Timberdale FPGA DMA engine.
