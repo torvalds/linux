@@ -1112,18 +1112,12 @@ static u16 sdhci_get_preset_value(struct sdhci_host *host)
 	return preset;
 }
 
-static void sdhci_set_clock(struct sdhci_host *host, unsigned int clock)
+void sdhci_set_clock(struct sdhci_host *host, unsigned int clock)
 {
 	int div = 0; /* Initialized for compiler warning */
 	int real_div = div, clk_mul = 1;
 	u16 clk = 0;
 	unsigned long timeout;
-
-	if (host->ops->set_clock) {
-		host->ops->set_clock(host, clock);
-		if (host->quirks & SDHCI_QUIRK_NONSTANDARD_CLOCK)
-			return;
-	}
 
 	host->mmc->actual_clock = 0;
 
@@ -1221,6 +1215,7 @@ clock_set:
 	clk |= SDHCI_CLOCK_CARD_EN;
 	sdhci_writew(host, clk, SDHCI_CLOCK_CONTROL);
 }
+EXPORT_SYMBOL_GPL(sdhci_set_clock);
 
 static int sdhci_set_power(struct sdhci_host *host, unsigned short power)
 {
@@ -1439,7 +1434,7 @@ static void sdhci_do_set_ios(struct sdhci_host *host, struct mmc_ios *ios)
 		sdhci_enable_preset_value(host, false);
 
 	if (!ios->clock || ios->clock != host->clock) {
-		sdhci_set_clock(host, ios->clock);
+		host->ops->set_clock(host, ios->clock);
 		host->clock = ios->clock;
 	}
 
@@ -1510,7 +1505,7 @@ static void sdhci_do_set_ios(struct sdhci_host *host, struct mmc_ios *ios)
 			sdhci_writeb(host, ctrl, SDHCI_HOST_CONTROL);
 
 			/* Re-enable SD Clock */
-			sdhci_set_clock(host, host->clock);
+			host->ops->set_clock(host, host->clock);
 		}
 
 
@@ -1555,7 +1550,7 @@ static void sdhci_do_set_ios(struct sdhci_host *host, struct mmc_ios *ios)
 		}
 
 		/* Re-enable SD Clock */
-		sdhci_set_clock(host, host->clock);
+		host->ops->set_clock(host, host->clock);
 	} else
 		sdhci_writeb(host, ctrl, SDHCI_HOST_CONTROL);
 
@@ -2129,7 +2124,7 @@ static void sdhci_tasklet_finish(unsigned long param)
 		/* Some controllers need this kick or reset won't work here */
 		if (host->quirks & SDHCI_QUIRK_CLOCK_BEFORE_RESET)
 			/* This is to force an update */
-			sdhci_set_clock(host, host->clock);
+			host->ops->set_clock(host, host->clock);
 
 		/* Spec says we should do both at the same time, but Ricoh
 		   controllers do not like that. */

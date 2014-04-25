@@ -400,6 +400,7 @@ static inline bool sdhci_sdio_irq_enabled(struct sdhci_host *host)
 	return !!(host->flags & SDHCI_SDIO_IRQ_ENABLED);
 }
 
+void sdhci_set_clock(struct sdhci_host *host, unsigned int clock);
 void sdhci_set_bus_width(struct sdhci_host *host, int width);
 void sdhci_reset(struct sdhci_host *host, u8 mask);
 

@@ -89,8 +89,7 @@ static const struct sdhci_pltfm_data sdhci_cns3xxx_pdata = {
 		  SDHCI_QUIRK_DATA_TIMEOUT_USES_SDCLK |
 		  SDHCI_QUIRK_INVERTED_WRITE_PROTECT |
 		  SDHCI_QUIRK_CAP_CLOCK_BASE_BROKEN |
-		  SDHCI_QUIRK_BROKEN_TIMEOUT_VAL |
-		  SDHCI_QUIRK_NONSTANDARD_CLOCK,
+		  SDHCI_QUIRK_BROKEN_TIMEOUT_VAL,
 };
 
 static int sdhci_cns3xxx_probe(struct platform_device *pdev)
