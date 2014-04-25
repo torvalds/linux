@@ -187,42 +187,6 @@ static void fwspk_stop_stream(struct fwspk *fwspk)
 	}
 }
 
-static int fwspk_set_rate(struct fwspk *fwspk, unsigned int sfc)
-{
-	u8 *buf;
-	int err;
-
-	buf = kmalloc(8, GFP_KERNEL);
-	if (!buf)
-		return -ENOMEM;
-
-	buf[0] = 0x00;		/* AV/C, CONTROL */
-	buf[1] = 0xff;		/* unit */
-	buf[2] = 0x19;		/* INPUT PLUG SIGNAL FORMAT */
-	buf[3] = 0x00;		/* plug 0 */
-	buf[4] = 0x90;		/* format: audio */
-	buf[5] = 0x00 | sfc;	/* AM824, frequency */
-	buf[6] = 0xff;		/* SYT (not used) */
-	buf[7] = 0xff;
-
-	err = fcp_avc_transaction(fwspk->unit, buf, 8, buf, 8,
-				  BIT(1) | BIT(2) | BIT(3) | BIT(4) | BIT(5));
-	if (err < 0)
-		goto error;
-	if (err < 6 || buf[0] != 0x09 /* ACCEPTED */) {
-		dev_err(&fwspk->unit->device, "failed to set sample rate\n");
-		err = -EIO;
-		goto error;
-	}
-
-	err = 0;
-
-error:
-	kfree(buf);
-
-	return err;
-}
-
 static int fwspk_hw_params(struct snd_pcm_substream *substream,
 			   struct snd_pcm_hw_params *hw_params)
 {
@@ -246,9 +210,12 @@ static int fwspk_hw_params(struct snd_pcm_substream *substream,
 	amdtp_stream_set_pcm_format(&fwspk->stream,
 				    params_format(hw_params));
 
-	err = fwspk_set_rate(fwspk, fwspk->stream.sfc);
-	if (err < 0)
+	err = avc_general_set_sig_fmt(fwspk->unit, params_rate(hw_params),
+				      AVC_GENERAL_PLUG_DIR_IN, 0);
+	if (err < 0) {
+		dev_err(&fwspk->unit->device, "failed to set sample rate\n");
 		goto err_buffer;
+	}
 
 	return 0;
 

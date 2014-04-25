@@ -10,18 +10,172 @@
 #include <linux/firewire-constants.h>
 #include <linux/list.h>
 #include <linux/module.h>
+#include <linux/slab.h>
 #include <linux/sched.h>
 #include <linux/spinlock.h>
 #include <linux/wait.h>
 #include <linux/delay.h>
 #include "fcp.h"
 #include "lib.h"
+#include "amdtp.h"
 
 #define CTS_AVC 0x00
 
 #define ERROR_RETRIES	3
 #define ERROR_DELAY_MS	5
 #define FCP_TIMEOUT_MS	125
+
+int avc_general_set_sig_fmt(struct fw_unit *unit, unsigned int rate,
+			    enum avc_general_plug_dir dir,
+			    unsigned short pid)
+{
+	unsigned int sfc;
+	u8 *buf;
+	bool flag;
+	int err;
+
+	flag = false;
+	for (sfc = 0; sfc < CIP_SFC_COUNT; sfc++) {
+		if (amdtp_rate_table[sfc] == rate) {
+			flag = true;
+			break;
+		}
+	}
+	if (!flag)
+		return -EINVAL;
+
+	buf = kzalloc(8, GFP_KERNEL);
+	if (buf == NULL)
+		return -ENOMEM;
+
+	buf[0] = 0x00;		/* AV/C CONTROL */
+	buf[1] = 0xff;		/* UNIT */
+	if (dir == AVC_GENERAL_PLUG_DIR_IN)
+		buf[2] = 0x19;	/* INPUT PLUG SIGNAL FORMAT */
+	else
+		buf[2] = 0x18;	/* OUTPUT PLUG SIGNAL FORMAT */
+	buf[3] = 0xff & pid;	/* plug id */
+	buf[4] = 0x90;		/* EOH_1, Form_1, FMT. AM824 */
+	buf[5] = 0x07 & sfc;	/* FDF-hi. AM824, frequency */
+	buf[6] = 0xff;		/* FDF-mid. AM824, SYT hi (not used)*/
+	buf[7] = 0xff;		/* FDF-low. AM824, SYT lo (not used) */
+
+	/* do transaction and check buf[1-5] are the same against command */
+	err = fcp_avc_transaction(unit, buf, 8, buf, 8,
+				  BIT(1) | BIT(2) | BIT(3) | BIT(4) | BIT(5));
+	if (err >= 0 && err < 8)
+		err = -EIO;
+	else if (buf[0] == 0x08) /* NOT IMPLEMENTED */
+		err = -ENOSYS;
+	else if (buf[0] == 0x0a) /* REJECTED */
+		err = -EINVAL;
+	if (err < 0)
+		goto end;
+
+	err = 0;
+end:
+	kfree(buf);
+	return err;
+}
+EXPORT_SYMBOL(avc_general_set_sig_fmt);
+
+int avc_general_get_sig_fmt(struct fw_unit *unit, unsigned int *rate,
+			    enum avc_general_plug_dir dir,
+			    unsigned short pid)
+{
+	unsigned int sfc;
+	u8 *buf;
+	int err;
+
+	buf = kzalloc(8, GFP_KERNEL);
+	if (buf == NULL)
+		return -ENOMEM;
+
+	buf[0] = 0x01;		/* AV/C STATUS */
+	buf[1] = 0xff;		/* Unit */
+	if (dir == AVC_GENERAL_PLUG_DIR_IN)
+		buf[2] = 0x19;	/* INPUT PLUG SIGNAL FORMAT */
+	else
+		buf[2] = 0x18;	/* OUTPUT PLUG SIGNAL FORMAT */
+	buf[3] = 0xff & pid;	/* plug id */
+	buf[4] = 0x90;		/* EOH_1, Form_1, FMT. AM824 */
+	buf[5] = 0xff;		/* FDF-hi. AM824, frequency */
+	buf[6] = 0xff;		/* FDF-mid. AM824, SYT hi (not used) */
+	buf[7] = 0xff;		/* FDF-low. AM824, SYT lo (not used) */
+
+	/* do transaction and check buf[1-4] are the same against command */
+	err = fcp_avc_transaction(unit, buf, 8, buf, 8,
+				  BIT(1) | BIT(2) | BIT(3) | BIT(4));
+	if (err >= 0 && err < 8)
+		err = -EIO;
+	else if (buf[0] == 0x08) /* NOT IMPLEMENTED */
+		err = -ENOSYS;
+	else if (buf[0] == 0x0a) /* REJECTED */
+		err = -EINVAL;
+	else if (buf[0] == 0x0b) /* IN TRANSITION */
+		err = -EAGAIN;
+	if (err < 0)
+		goto end;
+
+	/* check sfc field and pick up rate */
+	sfc = 0x07 & buf[5];
+	if (sfc >= CIP_SFC_COUNT) {
+		err = -EAGAIN;	/* also in transition */
+		goto end;
+	}
+
+	*rate = amdtp_rate_table[sfc];
+	err = 0;
+end:
+	kfree(buf);
+	return err;
+}
+EXPORT_SYMBOL(avc_general_get_sig_fmt);
+
+int avc_general_get_plug_info(struct fw_unit *unit, unsigned int subunit_type,
+			      unsigned int subunit_id, unsigned int subfunction,
+			      u8 info[AVC_PLUG_INFO_BUF_BYTES])
+{
+	u8 *buf;
+	int err;
+
+	/* extended subunit in spec.4.2 is not supported */
+	if ((subunit_type == 0x1E) || (subunit_id == 5))
+		return -EINVAL;
+
+	buf = kzalloc(8, GFP_KERNEL);
+	if (buf == NULL)
+		return -ENOMEM;
+
+	buf[0] = 0x01;	/* AV/C STATUS */
+	/* UNIT or Subunit, Functionblock */
+	buf[1] = ((subunit_type & 0x1f) << 3) | (subunit_id & 0x7);
+	buf[2] = 0x02;	/* PLUG INFO */
+	buf[3] = 0xff & subfunction;
+
+	err = fcp_avc_transaction(unit, buf, 8, buf, 8, BIT(1) | BIT(2));
+	if (err >= 0 && err < 8)
+		err = -EIO;
+	else if (buf[0] == 0x08) /* NOT IMPLEMENTED */
+		err = -ENOSYS;
+	else if (buf[0] == 0x0a) /* REJECTED */
+		err = -EINVAL;
+	else if (buf[0] == 0x0b) /* IN TRANSITION */
+		err = -EAGAIN;
+	if (err < 0)
+		goto end;
+
+	info[0] = buf[4];
+	info[1] = buf[5];
+	info[2] = buf[6];
+	info[3] = buf[7];
+
+	err = 0;
+end:
+	kfree(buf);
+	return err;
+}
+EXPORT_SYMBOL(avc_general_get_plug_info);
 
 static DEFINE_SPINLOCK(transactions_lock);
 static LIST_HEAD(transactions);

@@ -140,6 +140,7 @@ unsigned long amdtp_stream_pcm_pointer(struct amdtp_stream *s);
 void amdtp_stream_pcm_abort(struct amdtp_stream *s);
 
 extern const unsigned int amdtp_syt_intervals[CIP_SFC_COUNT];
+extern const unsigned int amdtp_rate_table[CIP_SFC_COUNT];
 
 /**
  * amdtp_stream_running - check stream is running or not
