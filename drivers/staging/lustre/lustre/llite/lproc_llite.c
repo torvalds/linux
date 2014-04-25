@@ -44,9 +44,9 @@
 
 /* /proc/lustre/llite mount point registration */
 extern struct file_operations vvp_dump_pgcache_file_ops;
-struct file_operations ll_rw_extents_stats_fops;
-struct file_operations ll_rw_extents_stats_pp_fops;
-struct file_operations ll_rw_offset_stats_fops;
+static struct file_operations ll_rw_extents_stats_fops;
+static struct file_operations ll_rw_extents_stats_pp_fops;
+static struct file_operations ll_rw_offset_stats_fops;
 
 static int ll_blksize_seq_show(struct seq_file *m, void *v)
 {

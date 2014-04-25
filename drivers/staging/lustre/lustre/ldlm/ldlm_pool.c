@@ -546,13 +546,13 @@ static int ldlm_cli_pool_shrink(struct ldlm_pool *pl,
 		return ldlm_cancel_lru(ns, nr, LCF_ASYNC, LDLM_CANCEL_SHRINK);
 }
 
-struct ldlm_pool_ops ldlm_srv_pool_ops = {
+static const struct ldlm_pool_ops ldlm_srv_pool_ops = {
 	.po_recalc = ldlm_srv_pool_recalc,
 	.po_shrink = ldlm_srv_pool_shrink,
 	.po_setup  = ldlm_srv_pool_setup
 };
 
-struct ldlm_pool_ops ldlm_cli_pool_ops = {
+static const struct ldlm_pool_ops ldlm_cli_pool_ops = {
 	.po_recalc = ldlm_cli_pool_recalc,
 	.po_shrink = ldlm_cli_pool_shrink
 };

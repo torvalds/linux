@@ -260,7 +260,7 @@ struct ldlm_pool {
 	/** Recalculation period for pool. */
 	time_t			pl_recalc_period;
 	/** Recalculation and shrink operations. */
-	struct ldlm_pool_ops	*pl_ops;
+	const struct ldlm_pool_ops	*pl_ops;
 	/** Number of planned locks for next period. */
 	int			pl_grant_plan;
 	/** Pool statistics. */
