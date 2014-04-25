@@ -59,6 +59,7 @@ static const struct sdhci_ops sdhci_hlwd_ops = {
 	.write_w = sdhci_hlwd_writew,
 	.write_b = sdhci_hlwd_writeb,
 	.set_bus_width = sdhci_set_bus_width,
+	.reset = sdhci_reset,
 };
 
 static const struct sdhci_pltfm_data sdhci_hlwd_pdata = {

@@ -888,6 +888,7 @@ static struct sdhci_ops sdhci_esdhc_ops = {
 	.get_ro = esdhc_pltfm_get_ro,
 	.set_bus_width = esdhc_pltfm_set_bus_width,
 	.set_uhs_signaling = esdhc_set_uhs_signaling,
+	.reset = sdhci_reset,
 };
 
 static const struct sdhci_pltfm_data sdhci_esdhc_imx_pdata = {

@@ -39,6 +39,7 @@ struct spear_sdhci {
 /* sdhci ops */
 static const struct sdhci_ops sdhci_pltfm_ops = {
 	.set_bus_width = sdhci_set_bus_width,
+	.reset = sdhci_reset,
 };
 
 #ifdef CONFIG_OF

@@ -112,10 +112,12 @@ static int mv_conf_mbus_windows(struct platform_device *pdev,
 	return 0;
 }
 
-static void pxav3_set_private_registers(struct sdhci_host *host, u8 mask)
+static void pxav3_reset(struct sdhci_host *host, u8 mask)
 {
 	struct platform_device *pdev = to_platform_device(mmc_dev(host->mmc));
 	struct sdhci_pxa_platdata *pdata = pdev->dev.platform_data;
+
+	sdhci_reset(host, mask);
 
 	if (mask == SDHCI_RESET_ALL) {
 		/*
@@ -223,11 +225,11 @@ static int pxav3_set_uhs_signaling(struct sdhci_host *host, unsigned int uhs)
 }
 
 static const struct sdhci_ops pxav3_sdhci_ops = {
-	.platform_reset_exit = pxav3_set_private_registers,
 	.set_uhs_signaling = pxav3_set_uhs_signaling,
 	.platform_send_init_74_clocks = pxav3_gen_init_74_clocks,
 	.get_max_clock = sdhci_pltfm_clk_get_max_clock,
 	.set_bus_width = sdhci_set_bus_width,
+	.reset = pxav3_reset,
 };
 
 static struct sdhci_pltfm_data sdhci_pxav3_pdata = {

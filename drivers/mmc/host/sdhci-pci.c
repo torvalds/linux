@@ -1080,6 +1080,7 @@ static void sdhci_pci_hw_reset(struct sdhci_host *host)
 static const struct sdhci_ops sdhci_pci_ops = {
 	.enable_dma	= sdhci_pci_enable_dma,
 	.set_bus_width	= sdhci_pci_set_bus_width,
+	.reset		= sdhci_reset,
 	.hw_reset		= sdhci_pci_hw_reset,
 };
 

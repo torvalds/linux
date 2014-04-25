@@ -104,11 +104,13 @@ static void sdhci_acpi_int_hw_reset(struct sdhci_host *host)
 static const struct sdhci_ops sdhci_acpi_ops_dflt = {
 	.enable_dma = sdhci_acpi_enable_dma,
 	.set_bus_width = sdhci_set_bus_width,
+	.reset = sdhci_reset,
 };
 
 static const struct sdhci_ops sdhci_acpi_ops_int = {
 	.enable_dma = sdhci_acpi_enable_dma,
 	.set_bus_width = sdhci_set_bus_width,
+	.reset = sdhci_reset,
 	.hw_reset   = sdhci_acpi_int_hw_reset,
 };
 

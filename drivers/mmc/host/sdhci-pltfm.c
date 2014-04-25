@@ -46,6 +46,7 @@ EXPORT_SYMBOL_GPL(sdhci_pltfm_clk_get_max_clock);
 
 static const struct sdhci_ops sdhci_pltfm_ops = {
 	.set_bus_width = sdhci_set_bus_width,
+	.reset = sdhci_reset,
 };
 
 #ifdef CONFIG_OF

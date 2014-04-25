@@ -83,6 +83,7 @@ static const struct sdhci_ops sdhci_cns3xxx_ops = {
 	.get_max_clock	= sdhci_cns3xxx_get_max_clk,
 	.set_clock	= sdhci_cns3xxx_set_clock,
 	.set_bus_width	= sdhci_set_bus_width,
+	.reset          = sdhci_reset,
 };
 
 static const struct sdhci_pltfm_data sdhci_cns3xxx_pdata = {
