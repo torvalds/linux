@@ -227,6 +227,7 @@ int snd_bebob_create_hwdep_device(struct snd_bebob *bebob);
 /* model specific operations */
 extern struct snd_bebob_spec phase88_rack_spec;
 extern struct snd_bebob_spec phase24_series_spec;
+extern struct snd_bebob_spec yamaha_go_spec;
 
 #define SND_BEBOB_DEV_ENTRY(vendor, model, data) \
 { \

@@ -53,6 +53,7 @@ static DECLARE_BITMAP(devices_used, SNDRV_CARDS);
 #define VEN_ICON	0x00001a9e
 #define VEN_PRISMSOUND	0x00001198
 #define VEN_TERRATEC	0x00000aac
+#define VEN_YAMAHA	0x0000a0de
 
 static int
 name_device(struct snd_bebob *bebob, unsigned int vendor_id)
@@ -301,6 +302,10 @@ static const struct ieee1394_device_id bebob_id_table[] = {
 	SND_BEBOB_DEV_ENTRY(VEN_TERRATEC, 0x00000005, &spec_normal),
 	/* Terratec Electronic GmbH, Aureon 7.1 Firewire */
 	SND_BEBOB_DEV_ENTRY(VEN_TERRATEC, 0x00000002, &spec_normal),
+	/* Yamaha, GO44 */
+	SND_BEBOB_DEV_ENTRY(VEN_YAMAHA, 0x0010000b, &yamaha_go_spec),
+	/* YAMAHA, GO46 */
+	SND_BEBOB_DEV_ENTRY(VEN_YAMAHA, 0x0010000c, &yamaha_go_spec),
 	/* IDs are unknown but able to be supported */
 	/*  Apogee, Mini-ME Firewire */
 	/*  Apogee, Mini-DAC Firewire */

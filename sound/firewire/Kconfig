@@ -111,6 +111,7 @@ config SND_BEBOB
 	  * TerraTec PHASE 24 FW/PHASE X24 FW/PHASE 88 Rack FW
 	  * Terratec EWS MIC2/EWS MIC4
 	  * Terratec Aureon 7.1 Firewire
+	  * Yamaha GO44/GO46
 
           To compile this driver as a module, choose M here: the module
           will be called snd-bebob.

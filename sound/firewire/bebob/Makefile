@@ -1,3 +1,4 @@
 snd-bebob-objs := bebob_command.o bebob_stream.o bebob_proc.o bebob_midi.o \
-		  bebob_pcm.o bebob_hwdep.o bebob_terratec.o bebob.o
+		  bebob_pcm.o bebob_hwdep.o bebob_terratec.o bebob_yamaha.o \
+		  bebob.o
 obj-m += snd-bebob.o
