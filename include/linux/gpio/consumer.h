@@ -23,6 +23,12 @@ struct gpio_desc *__must_check gpiod_get(struct device *dev,
 struct gpio_desc *__must_check gpiod_get_index(struct device *dev,
 					       const char *con_id,
 					       unsigned int idx);
+struct gpio_desc *__must_check gpiod_get_optional(struct device *dev,
+						  const char *con_id);
+struct gpio_desc *__must_check gpiod_get_index_optional(struct device *dev,
+							const char *con_id,
+							unsigned int index);
+
 void gpiod_put(struct gpio_desc *desc);
 
 struct gpio_desc *__must_check devm_gpiod_get(struct device *dev,
@@ -30,6 +36,12 @@ struct gpio_desc *__must_check devm_gpiod_get(struct device *dev,
 struct gpio_desc *__must_check devm_gpiod_get_index(struct device *dev,
 						    const char *con_id,
 						    unsigned int idx);
+struct gpio_desc *__must_check devm_gpiod_get_optional(struct device *dev,
+						       const char *con_id);
+struct gpio_desc *__must_check
+devm_gpiod_get_index_optional(struct device *dev, const char *con_id,
+			      unsigned int index);
+
 void devm_gpiod_put(struct device *dev, struct gpio_desc *desc);
 
 int gpiod_get_direction(const struct gpio_desc *desc);
@@ -73,6 +85,20 @@ static inline struct gpio_desc *__must_check gpiod_get_index(struct device *dev,
 {
 	return ERR_PTR(-ENOSYS);
 }
+
+static inline struct gpio_desc *__must_check
+gpiod_get_optional(struct device *dev, const char *con_id)
+{
+	return ERR_PTR(-ENOSYS);
+}
+
+static inline struct gpio_desc *__must_check
+gpiod_get_index_optional(struct device *dev, const char *con_id,
+			 unsigned int index)
+{
+	return ERR_PTR(-ENOSYS);
+}
+
 static inline void gpiod_put(struct gpio_desc *desc)
 {
 	might_sleep();
@@ -93,6 +119,20 @@ struct gpio_desc *__must_check devm_gpiod_get_index(struct device *dev,
 {
 	return ERR_PTR(-ENOSYS);
 }
+
+static inline struct gpio_desc *__must_check
+devm_gpiod_get_optional(struct device *dev, const char *con_id)
+{
+	return ERR_PTR(-ENOSYS);
+}
+
+static inline struct gpio_desc *__must_check
+devm_gpiod_get_index_optional(struct device *dev, const char *con_id,
+			      unsigned int index)
+{
+	return ERR_PTR(-ENOSYS);
+}
+
 static inline void devm_gpiod_put(struct device *dev, struct gpio_desc *desc)
 {
 	might_sleep();

@@ -312,4 +312,6 @@ SPI
 GPIO
   devm_gpiod_get()
   devm_gpiod_get_index()
+  devm_gpiod_get_optional()
+  devm_gpiod_get_index_optional()
   devm_gpiod_put()
