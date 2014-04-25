@@ -718,7 +718,7 @@ LPROC_SEQ_FOPS_RO(lprocfs_grant_speed);
 		snprintf(var_name, MAX_STRING_SIZE, #name);	\
 		pool_vars[0].data = var;			\
 		pool_vars[0].fops = ops;			\
-		lprocfs_add_vars(pl->pl_proc_dir, pool_vars, 0);\
+		lprocfs_add_vars(pl->pl_proc_dir, pool_vars, NULL);\
 	} while (0)
 
 static int ldlm_pool_proc_init(struct ldlm_pool *pl)
