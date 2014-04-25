@@ -2945,13 +2945,13 @@ static void _dispc_mgr_set_lcd_timings(enum omap_channel channel, int hsw,
 		BUG();
 	}
 
-	l = dispc_read_reg(DISPC_POL_FREQ(channel));
-	l |= FLD_VAL(onoff, 17, 17);
-	l |= FLD_VAL(rf, 16, 16);
-	l |= FLD_VAL(de_level, 15, 15);
-	l |= FLD_VAL(ipc, 14, 14);
-	l |= FLD_VAL(hsync_level, 13, 13);
-	l |= FLD_VAL(vsync_level, 12, 12);
+	l = FLD_VAL(onoff, 17, 17) |
+		FLD_VAL(rf, 16, 16) |
+		FLD_VAL(de_level, 15, 15) |
+		FLD_VAL(ipc, 14, 14) |
+		FLD_VAL(hsync_level, 13, 13) |
+		FLD_VAL(vsync_level, 12, 12);
+
 	dispc_write_reg(DISPC_POL_FREQ(channel), l);
 }
 
