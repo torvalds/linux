@@ -150,6 +150,21 @@ get_hardware_info(struct snd_efw *efw)
 	efw->pcm_playback_channels[0] = hwinfo->amdtp_rx_pcm_channels;
 	efw->pcm_playback_channels[1] = hwinfo->amdtp_rx_pcm_channels_2x;
 	efw->pcm_playback_channels[2] = hwinfo->amdtp_rx_pcm_channels_4x;
+
+	/* Hardware metering. */
+	if (hwinfo->phys_in_grp_count  > HWINFO_MAX_CAPS_GROUPS ||
+	    hwinfo->phys_out_grp_count > HWINFO_MAX_CAPS_GROUPS) {
+		return -EIO;
+		goto end;
+	}
+	efw->phys_in = hwinfo->phys_in;
+	efw->phys_out = hwinfo->phys_out;
+	efw->phys_in_grp_count = hwinfo->phys_in_grp_count;
+	efw->phys_out_grp_count = hwinfo->phys_out_grp_count;
+	memcpy(&efw->phys_in_grps, hwinfo->phys_in_grps,
+	       sizeof(struct snd_efw_phys_grp) * hwinfo->phys_in_grp_count);
+	memcpy(&efw->phys_out_grps, hwinfo->phys_out_grps,
+	       sizeof(struct snd_efw_phys_grp) * hwinfo->phys_out_grp_count);
 end:
 	kfree(hwinfo);
 	return err;
@@ -208,6 +223,8 @@ efw_probe(struct fw_unit *unit,
 		goto error;
 	if (entry->model_id == MODEL_ECHO_AUDIOFIRE_9)
 		efw->is_af9 = true;
+
+	snd_efw_proc_init(efw);
 
 	err = snd_efw_stream_init_duplex(efw);
 	if (err < 0)
