@@ -348,8 +348,10 @@ int tipc_disc_create(struct tipc_bearer *b_ptr, struct tipc_media_addr *dest)
 		return -ENOMEM;
 
 	req->buf = tipc_buf_acquire(INT_H_SIZE);
-	if (!req->buf)
+	if (!req->buf) {
+		kfree(req);
 		return -ENOMEM;
+	}
 
 	tipc_disc_init_msg(req->buf, DSC_REQ_MSG, b_ptr);
 	memcpy(&req->dest, dest, sizeof(*dest));
