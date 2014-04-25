@@ -130,14 +130,14 @@ static const struct nla_policy basic_policy[TCA_BASIC_MAX + 1] = {
 static int basic_set_parms(struct net *net, struct tcf_proto *tp,
 			   struct basic_filter *f, unsigned long base,
 			   struct nlattr **tb,
-			   struct nlattr *est)
+			   struct nlattr *est, bool ovr)
 {
 	int err;
 	struct tcf_exts e;
 	struct tcf_ematch_tree t;
 
 	tcf_exts_init(&e, TCA_BASIC_ACT, TCA_BASIC_POLICE);
-	err = tcf_exts_validate(net, tp, tb, est, &e);
+	err = tcf_exts_validate(net, tp, tb, est, &e, ovr);
 	if (err < 0)
 		return err;
 
@@ -161,7 +161,7 @@ errout:
 
 static int basic_change(struct net *net, struct sk_buff *in_skb,
 			struct tcf_proto *tp, unsigned long base, u32 handle,
-			struct nlattr **tca, unsigned long *arg)
+			struct nlattr **tca, unsigned long *arg, bool ovr)
 {
 	int err;
 	struct basic_head *head = tp->root;
@@ -179,7 +179,7 @@ static int basic_change(struct net *net, struct sk_buff *in_skb,
 	if (f != NULL) {
 		if (handle && f->handle != handle)
 			return -EINVAL;
-		return basic_set_parms(net, tp, f, base, tb, tca[TCA_RATE]);
+		return basic_set_parms(net, tp, f, base, tb, tca[TCA_RATE], ovr);
 	}
 
 	err = -ENOBUFS;
@@ -206,7 +206,7 @@ static int basic_change(struct net *net, struct sk_buff *in_skb,
 		f->handle = head->hgenerator;
 	}
 
-	err = basic_set_parms(net, tp, f, base, tb, tca[TCA_RATE]);
+	err = basic_set_parms(net, tp, f, base, tb, tca[TCA_RATE], ovr);
 	if (err < 0)
 		goto errout;
 

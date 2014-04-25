@@ -83,7 +83,7 @@ static const struct nla_policy cgroup_policy[TCA_CGROUP_MAX + 1] = {
 static int cls_cgroup_change(struct net *net, struct sk_buff *in_skb,
 			     struct tcf_proto *tp, unsigned long base,
 			     u32 handle, struct nlattr **tca,
-			     unsigned long *arg)
+			     unsigned long *arg, bool ovr)
 {
 	struct nlattr *tb[TCA_CGROUP_MAX + 1];
 	struct cls_cgroup_head *head = tp->root;
@@ -119,7 +119,7 @@ static int cls_cgroup_change(struct net *net, struct sk_buff *in_skb,
 		return err;
 
 	tcf_exts_init(&e, TCA_CGROUP_ACT, TCA_CGROUP_POLICE);
-	err = tcf_exts_validate(net, tp, tb, tca[TCA_RATE], &e);
+	err = tcf_exts_validate(net, tp, tb, tca[TCA_RATE], &e, ovr);
 	if (err < 0)
 		return err;
 

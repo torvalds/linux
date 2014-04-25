@@ -136,7 +136,7 @@ tcf_exts_exec(struct sk_buff *skb, struct tcf_exts *exts,
 
 int tcf_exts_validate(struct net *net, struct tcf_proto *tp,
 		      struct nlattr **tb, struct nlattr *rate_tlv,
-		      struct tcf_exts *exts);
+		      struct tcf_exts *exts, bool ovr);
 void tcf_exts_destroy(struct tcf_proto *tp, struct tcf_exts *exts);
 void tcf_exts_change(struct tcf_proto *tp, struct tcf_exts *dst,
 		     struct tcf_exts *src);
