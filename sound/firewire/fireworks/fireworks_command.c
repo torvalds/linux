@@ -22,7 +22,8 @@
  * Information commands. But this module don't use them.
  */
 
-#define EFW_TRANSACTION_SEQNUM_MAX	((u32)~0)
+#define KERNEL_SEQNUM_MIN	(SND_EFW_TRANSACTION_USER_SEQNUM_MAX + 2)
+#define KERNEL_SEQNUM_MAX	((u32)~0)
 
 /* for clock source and sampling rate */
 struct efc_clock {
@@ -120,8 +121,9 @@ efw_transaction(struct snd_efw *efw, unsigned int category,
 
 	/* to keep consistency of sequence number */
 	spin_lock(&efw->lock);
-	if (efw->seqnum + 2 >= EFW_TRANSACTION_SEQNUM_MAX)
-		efw->seqnum = 0;
+	if ((efw->seqnum < KERNEL_SEQNUM_MIN) ||
+	    (efw->seqnum >= KERNEL_SEQNUM_MAX - 2))
+		efw->seqnum = KERNEL_SEQNUM_MIN;
 	else
 		efw->seqnum += 2;
 	seqnum = efw->seqnum;

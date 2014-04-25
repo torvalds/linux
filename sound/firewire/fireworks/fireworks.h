@@ -49,6 +49,9 @@
  */
 #define SND_EFW_RESPONSE_MAXIMUM_BYTES	0x200U
 
+extern unsigned int snd_efw_resp_buf_size;
+extern bool snd_efw_resp_buf_debug;
+
 struct snd_efw_phys_grp {
 	u8 type;	/* see enum snd_efw_grp_type */
 	u8 count;
@@ -97,23 +100,24 @@ struct snd_efw {
 	int dev_lock_count;
 	bool dev_lock_changed;
 	wait_queue_head_t hwdep_wait;
+
+	/* response queue */
+	u8 *resp_buf;
+	u8 *pull_ptr;
+	u8 *push_ptr;
+	unsigned int resp_queues;
 };
 
-struct snd_efw_transaction {
-	__be32 length;
-	__be32 version;
-	__be32 seqnum;
-	__be32 category;
-	__be32 command;
-	__be32 status;
-	__be32 params[0];
-};
+int snd_efw_transaction_cmd(struct fw_unit *unit,
+			    const void *cmd, unsigned int size);
 int snd_efw_transaction_run(struct fw_unit *unit,
 			    const void *cmd, unsigned int cmd_size,
 			    void *resp, unsigned int resp_size);
 int snd_efw_transaction_register(void);
 void snd_efw_transaction_unregister(void);
 void snd_efw_transaction_bus_reset(struct fw_unit *unit);
+void snd_efw_transaction_add_instance(struct snd_efw *efw);
+void snd_efw_transaction_remove_instance(struct snd_efw *efw);
 
 struct snd_efw_hwinfo {
 	u32 flags;

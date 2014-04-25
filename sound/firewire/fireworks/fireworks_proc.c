@@ -176,6 +176,23 @@ end:
 }
 
 static void
+proc_read_queues_state(struct snd_info_entry *entry,
+		       struct snd_info_buffer *buffer)
+{
+	struct snd_efw *efw = entry->private_data;
+	unsigned int consumed;
+
+	if (efw->pull_ptr > efw->push_ptr)
+		consumed = snd_efw_resp_buf_size -
+			   (unsigned int)(efw->pull_ptr - efw->push_ptr);
+	else
+		consumed = (unsigned int)(efw->push_ptr - efw->pull_ptr);
+
+	snd_iprintf(buffer, "%d %d/%d\n",
+		    efw->resp_queues, consumed, snd_efw_resp_buf_size);
+}
+
+static void
 add_node(struct snd_efw *efw, struct snd_info_entry *root, const char *name,
 	 void (*op)(struct snd_info_entry *e, struct snd_info_buffer *b))
 {
@@ -211,4 +228,5 @@ void snd_efw_proc_init(struct snd_efw *efw)
 	add_node(efw, root, "clock", proc_read_clock);
 	add_node(efw, root, "firmware", proc_read_hwinfo);
 	add_node(efw, root, "meters", proc_read_phys_meters);
+	add_node(efw, root, "queues", proc_read_queues_state);
 }

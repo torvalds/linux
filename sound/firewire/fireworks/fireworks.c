@@ -24,6 +24,8 @@ MODULE_LICENSE("GPL v2");
 static int index[SNDRV_CARDS]	= SNDRV_DEFAULT_IDX;
 static char *id[SNDRV_CARDS]	= SNDRV_DEFAULT_STR;
 static bool enable[SNDRV_CARDS]	= SNDRV_DEFAULT_ENABLE_PNP;
+unsigned int snd_efw_resp_buf_size	= 1024;
+bool snd_efw_resp_buf_debug		= false;
 
 module_param_array(index, int, NULL, 0444);
 MODULE_PARM_DESC(index, "card index");
@@ -31,6 +33,11 @@ module_param_array(id, charp, NULL, 0444);
 MODULE_PARM_DESC(id, "ID string");
 module_param_array(enable, bool, NULL, 0444);
 MODULE_PARM_DESC(enable, "enable Fireworks sound card");
+module_param_named(resp_buf_size, snd_efw_resp_buf_size, uint, 0444);
+MODULE_PARM_DESC(resp_buf_size,
+		 "response buffer size (max 4096, default 1024)");
+module_param_named(resp_buf_debug, snd_efw_resp_buf_debug, bool, 0444);
+MODULE_PARM_DESC(resp_buf_debug, "store all responses to buffer");
 
 static DEFINE_MUTEX(devices_mutex);
 static DECLARE_BITMAP(devices_used, SNDRV_CARDS);
@@ -182,6 +189,7 @@ efw_card_free(struct snd_card *card)
 	}
 
 	mutex_destroy(&efw->mutex);
+	kfree(efw->resp_buf);
 }
 
 static int
@@ -218,6 +226,17 @@ efw_probe(struct fw_unit *unit,
 	mutex_init(&efw->mutex);
 	spin_lock_init(&efw->lock);
 	init_waitqueue_head(&efw->hwdep_wait);
+
+	/* prepare response buffer */
+	snd_efw_resp_buf_size = clamp(snd_efw_resp_buf_size,
+				      SND_EFW_RESPONSE_MAXIMUM_BYTES, 4096U);
+	efw->resp_buf = kzalloc(snd_efw_resp_buf_size, GFP_KERNEL);
+	if (efw->resp_buf == NULL) {
+		err = -ENOMEM;
+		goto error;
+	}
+	efw->pull_ptr = efw->push_ptr = efw->resp_buf;
+	snd_efw_transaction_add_instance(efw);
 
 	err = get_hardware_info(efw);
 	if (err < 0)
@@ -256,6 +275,7 @@ end:
 	mutex_unlock(&devices_mutex);
 	return err;
 error:
+	snd_efw_transaction_remove_instance(efw);
 	mutex_unlock(&devices_mutex);
 	snd_card_free(card);
 	return err;
@@ -274,6 +294,7 @@ static void efw_remove(struct fw_unit *unit)
 	struct snd_efw *efw = dev_get_drvdata(&unit->device);
 
 	snd_efw_stream_destroy_duplex(efw);
+	snd_efw_transaction_remove_instance(efw);
 
 	snd_card_disconnect(efw->card);
 	snd_card_free_when_closed(efw->card);
