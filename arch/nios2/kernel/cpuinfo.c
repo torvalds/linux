@@ -99,6 +99,12 @@ void __init setup_cpuinfo(void)
 		CONFIG_NIOS2_ICACHE_SIZE, cpuinfo.icache_size);
 
 	cpuinfo.dcache_line_size = fcpu(cpu, "dcache-line-size");
+	if (CONFIG_NIOS2_DCACHE_LINE_SIZE != cpuinfo.dcache_line_size)
+		pr_warn("Warning: dcache line size configuration mismatch "
+		"(0x%x vs 0x%x) of CONFIG_NIOS2_DCACHE_LINE_SIZE vs "
+		"device tree dcache-line-size\n",
+		CONFIG_NIOS2_DCACHE_LINE_SIZE, cpuinfo.dcache_line_size);
+
 	cpuinfo.dcache_size = fcpu(cpu, "dcache-size");
 	if (CONFIG_NIOS2_DCACHE_SIZE != cpuinfo.dcache_size)
 		pr_warn("Warning: dcache size configuration mismatch "

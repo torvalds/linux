@@ -114,7 +114,8 @@ config NIOS2_DCACHE_SIZE
 
 config NIOS2_DCACHE_LINE_SIZE
 	hex "D-Cache line size" if CUSTOM_CACHE_SETTINGS
-	default "0x4"
+	range 0x10 0x20
+	default "0x20"
 	help
 	  Minimum possible data cache line size.
 
