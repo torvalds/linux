@@ -20,7 +20,7 @@
 #include "pinctrl-msm.h"
 
 static const struct pinctrl_pin_desc ipq8064_pins[] = {
-	PINCTRL_PIN(0, "GPIO_1"),
+	PINCTRL_PIN(0, "GPIO_0"),
 	PINCTRL_PIN(1, "GPIO_1"),
 	PINCTRL_PIN(2, "GPIO_2"),
 	PINCTRL_PIN(3, "GPIO_3"),
