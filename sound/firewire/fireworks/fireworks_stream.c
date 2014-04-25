@@ -9,39 +9,6 @@
 
 #define CALLBACK_TIMEOUT	100
 
-static unsigned int freq_table[] = {
-	/* multiplier mode 0 */
-	[0] = 32000,
-	[1] = 44100,
-	[2] = 48000,
-	/* multiplier mode 1 */
-	[3] = 88200,
-	[4] = 96000,
-	/* multiplier mode 2 */
-	[5] = 176400,
-	[6] = 192000,
-};
-
-static inline unsigned int
-get_multiplier_mode_with_index(unsigned int index)
-{
-	return ((int)index - 1) / 2;
-}
-
-int snd_efw_get_multiplier_mode(unsigned int sampling_rate, unsigned int *mode)
-{
-	unsigned int i;
-
-	for (i = 0; i < ARRAY_SIZE(freq_table); i++) {
-		if (freq_table[i] == sampling_rate) {
-			*mode = get_multiplier_mode_with_index(i);
-			return 0;
-		}
-	}
-
-	return -EINVAL;
-}
-
 static int
 init_stream(struct snd_efw *efw, struct amdtp_stream *stream)
 {

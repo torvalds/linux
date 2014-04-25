@@ -232,6 +232,10 @@ efw_probe(struct fw_unit *unit,
 			goto error;
 	}
 
+	err = snd_efw_create_pcm_devices(efw);
+	if (err < 0)
+		goto error;
+
 	err = snd_efw_stream_init_duplex(efw);
 	if (err < 0)
 		goto error;
