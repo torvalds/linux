@@ -2183,7 +2183,7 @@ int nsDMA_tx_packet(struct vnt_private *pDevice,
         return STATUS_RESOURCES;
     }
 
-    memcpy(pDevice->sTxEthHeader.h_dest, (u8 *)(skb->data), ETH_HLEN);
+	memcpy(&pDevice->sTxEthHeader, skb->data, ETH_HLEN);
 
 //mike add:station mode check eapol-key challenge--->
 {
@@ -2506,7 +2506,7 @@ int bRelayPacketSend(struct vnt_private *pDevice, u8 *pbySkbData, u32 uDataLen,
         return false;
     }
 
-    memcpy(pDevice->sTxEthHeader.h_dest, (u8 *)pbySkbData, ETH_HLEN);
+	memcpy(&pDevice->sTxEthHeader, pbySkbData, ETH_HLEN);
 
     if (pDevice->bEncryptionEnable == true) {
         bNeedEncryption = true;
