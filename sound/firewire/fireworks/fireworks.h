@@ -22,8 +22,14 @@
 #include <sound/initval.h>
 #include <sound/pcm.h>
 
+#include "../packets-buffer.h"
+#include "../iso-resources.h"
+#include "../amdtp.h"
 #include "../cmp.h"
 #include "../lib.h"
+
+#define SND_EFW_MAX_MIDI_OUT_PORTS	2
+#define SND_EFW_MAX_MIDI_IN_PORTS	2
 
 #define SND_EFW_MULTIPLIER_MODES	3
 #define HWINFO_NAME_SIZE_BYTES		32
@@ -54,6 +60,21 @@ struct snd_efw {
 	/* for transaction */
 	u32 seqnum;
 	bool resp_addr_changable;
+
+	unsigned int midi_in_ports;
+	unsigned int midi_out_ports;
+
+	unsigned int supported_sampling_rate;
+	unsigned int pcm_capture_channels[SND_EFW_MULTIPLIER_MODES];
+	unsigned int pcm_playback_channels[SND_EFW_MULTIPLIER_MODES];
+
+	struct amdtp_stream *master;
+	struct amdtp_stream tx_stream;
+	struct amdtp_stream rx_stream;
+	struct cmp_connection out_conn;
+	struct cmp_connection in_conn;
+	atomic_t capture_substreams;
+	atomic_t playback_substreams;
 };
 
 struct snd_efw_transaction {
@@ -155,6 +176,12 @@ int snd_efw_command_get_clock_source(struct snd_efw *efw,
 				     enum snd_efw_clock_source *source);
 int snd_efw_command_get_sampling_rate(struct snd_efw *efw, unsigned int *rate);
 int snd_efw_command_set_sampling_rate(struct snd_efw *efw, unsigned int rate);
+
+int snd_efw_stream_init_duplex(struct snd_efw *efw);
+int snd_efw_stream_start_duplex(struct snd_efw *efw, int sampling_rate);
+void snd_efw_stream_stop_duplex(struct snd_efw *efw);
+void snd_efw_stream_update_duplex(struct snd_efw *efw);
+void snd_efw_stream_destroy_duplex(struct snd_efw *efw);
 
 #define SND_EFW_DEV_ENTRY(vendor, model) \
 { \

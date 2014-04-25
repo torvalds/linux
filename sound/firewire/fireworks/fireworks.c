@@ -98,6 +98,57 @@ get_hardware_info(struct snd_efw *efw)
 
 	if (hwinfo->flags & BIT(FLAG_RESP_ADDR_CHANGABLE))
 		efw->resp_addr_changable = true;
+
+	efw->supported_sampling_rate = 0;
+	if ((hwinfo->min_sample_rate <= 22050)
+	 && (22050 <= hwinfo->max_sample_rate))
+		efw->supported_sampling_rate |= SNDRV_PCM_RATE_22050;
+	if ((hwinfo->min_sample_rate <= 32000)
+	 && (32000 <= hwinfo->max_sample_rate))
+		efw->supported_sampling_rate |= SNDRV_PCM_RATE_32000;
+	if ((hwinfo->min_sample_rate <= 44100)
+	 && (44100 <= hwinfo->max_sample_rate))
+		efw->supported_sampling_rate |= SNDRV_PCM_RATE_44100;
+	if ((hwinfo->min_sample_rate <= 48000)
+	 && (48000 <= hwinfo->max_sample_rate))
+		efw->supported_sampling_rate |= SNDRV_PCM_RATE_48000;
+	if ((hwinfo->min_sample_rate <= 88200)
+	 && (88200 <= hwinfo->max_sample_rate))
+		efw->supported_sampling_rate |= SNDRV_PCM_RATE_88200;
+	if ((hwinfo->min_sample_rate <= 96000)
+	 && (96000 <= hwinfo->max_sample_rate))
+		efw->supported_sampling_rate |= SNDRV_PCM_RATE_96000;
+	if ((hwinfo->min_sample_rate <= 176400)
+	 && (176400 <= hwinfo->max_sample_rate))
+		efw->supported_sampling_rate |= SNDRV_PCM_RATE_176400;
+	if ((hwinfo->min_sample_rate <= 192000)
+	 && (192000 <= hwinfo->max_sample_rate))
+		efw->supported_sampling_rate |= SNDRV_PCM_RATE_192000;
+
+	/* the number of MIDI ports, not of MIDI conformant data channels */
+	if (hwinfo->midi_out_ports > SND_EFW_MAX_MIDI_OUT_PORTS ||
+	    hwinfo->midi_in_ports > SND_EFW_MAX_MIDI_IN_PORTS) {
+		err = -EIO;
+		goto end;
+	}
+	efw->midi_out_ports = hwinfo->midi_out_ports;
+	efw->midi_in_ports = hwinfo->midi_in_ports;
+
+	if (hwinfo->amdtp_tx_pcm_channels    > AMDTP_MAX_CHANNELS_FOR_PCM ||
+	    hwinfo->amdtp_tx_pcm_channels_2x > AMDTP_MAX_CHANNELS_FOR_PCM ||
+	    hwinfo->amdtp_tx_pcm_channels_4x > AMDTP_MAX_CHANNELS_FOR_PCM ||
+	    hwinfo->amdtp_rx_pcm_channels    > AMDTP_MAX_CHANNELS_FOR_PCM ||
+	    hwinfo->amdtp_rx_pcm_channels_2x > AMDTP_MAX_CHANNELS_FOR_PCM ||
+	    hwinfo->amdtp_rx_pcm_channels_4x > AMDTP_MAX_CHANNELS_FOR_PCM) {
+		err = -ENOSYS;
+		goto end;
+	}
+	efw->pcm_capture_channels[0] = hwinfo->amdtp_tx_pcm_channels;
+	efw->pcm_capture_channels[1] = hwinfo->amdtp_tx_pcm_channels_2x;
+	efw->pcm_capture_channels[2] = hwinfo->amdtp_tx_pcm_channels_4x;
+	efw->pcm_playback_channels[0] = hwinfo->amdtp_rx_pcm_channels;
+	efw->pcm_playback_channels[1] = hwinfo->amdtp_rx_pcm_channels_2x;
+	efw->pcm_playback_channels[2] = hwinfo->amdtp_rx_pcm_channels_4x;
 end:
 	kfree(hwinfo);
 	return err;
@@ -155,9 +206,15 @@ efw_probe(struct fw_unit *unit,
 	if (err < 0)
 		goto error;
 
-	err = snd_card_register(card);
+	err = snd_efw_stream_init_duplex(efw);
 	if (err < 0)
 		goto error;
+
+	err = snd_card_register(card);
+	if (err < 0) {
+		snd_efw_stream_destroy_duplex(efw);
+		goto error;
+	}
 
 	dev_set_drvdata(&unit->device, efw);
 end:
@@ -172,12 +229,17 @@ error:
 static void efw_update(struct fw_unit *unit)
 {
 	struct snd_efw *efw = dev_get_drvdata(&unit->device);
+
 	snd_efw_transaction_bus_reset(efw->unit);
+	snd_efw_stream_update_duplex(efw);
 }
 
 static void efw_remove(struct fw_unit *unit)
 {
 	struct snd_efw *efw = dev_get_drvdata(&unit->device);
+
+	snd_efw_stream_destroy_duplex(efw);
+
 	snd_card_disconnect(efw->card);
 	snd_card_free_when_closed(efw->card);
 }
