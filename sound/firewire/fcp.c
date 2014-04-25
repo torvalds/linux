@@ -30,6 +30,7 @@ enum fcp_state {
 	STATE_PENDING,
 	STATE_BUS_RESET,
 	STATE_COMPLETE,
+	STATE_DEFERRED,
 };
 
 struct fcp_transaction {
@@ -40,6 +41,7 @@ struct fcp_transaction {
 	unsigned int response_match_bytes;
 	enum fcp_state state;
 	wait_queue_head_t wait;
+	bool deferrable;
 };
 
 /**
@@ -81,6 +83,9 @@ int fcp_avc_transaction(struct fw_unit *unit,
 	t.state = STATE_PENDING;
 	init_waitqueue_head(&t.wait);
 
+	if (*(const u8 *)command == 0x00 || *(const u8 *)command == 0x03)
+		t.deferrable = true;
+
 	spin_lock_irq(&transactions_lock);
 	list_add_tail(&t.list, &transactions);
 	spin_unlock_irq(&transactions_lock);
@@ -93,11 +98,21 @@ int fcp_avc_transaction(struct fw_unit *unit,
 					 (void *)command, command_size, 0);
 		if (ret < 0)
 			break;
-
+deferred:
 		wait_event_timeout(t.wait, t.state != STATE_PENDING,
 				   msecs_to_jiffies(FCP_TIMEOUT_MS));
 
-		if (t.state == STATE_COMPLETE) {
+		if (t.state == STATE_DEFERRED) {
+			/*
+			 * 'AV/C General Specification' define no time limit
+			 * on command completion once an INTERIM response has
+			 * been sent. but we promise to finish this function
+			 * for a caller. Here we use FCP_TIMEOUT_MS for next
+			 * interval. This is not in the specification.
+			 */
+			t.state = STATE_PENDING;
+			goto deferred;
+		} else if (t.state == STATE_COMPLETE) {
 			ret = t.response_size;
 			break;
 		} else if (t.state == STATE_BUS_RESET) {
@@ -132,7 +147,8 @@ void fcp_bus_reset(struct fw_unit *unit)
 	spin_lock_irq(&transactions_lock);
 	list_for_each_entry(t, &transactions, list) {
 		if (t->unit == unit &&
-		    t->state == STATE_PENDING) {
+		    (t->state == STATE_PENDING ||
+		     t->state == STATE_DEFERRED)) {
 			t->state = STATE_BUS_RESET;
 			wake_up(&t->wait);
 		}
@@ -186,10 +202,15 @@ static void fcp_response(struct fw_card *card, struct fw_request *request,
 
 		if (t->state == STATE_PENDING &&
 		    is_matching_response(t, data, length)) {
-			t->state = STATE_COMPLETE;
-			t->response_size = min((unsigned int)length,
-					       t->response_size);
-			memcpy(t->response_buffer, data, t->response_size);
+			if (t->deferrable && *(const u8 *)data == 0x0f) {
+				t->state = STATE_DEFERRED;
+			} else {
+				t->state = STATE_COMPLETE;
+				t->response_size = min_t(unsigned int, length,
+							 t->response_size);
+				memcpy(t->response_buffer, data,
+				       t->response_size);
+			}
 			wake_up(&t->wait);
 		}
 	}
