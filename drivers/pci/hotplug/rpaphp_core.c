@@ -39,6 +39,7 @@
 
 bool rpaphp_debug;
 LIST_HEAD(rpaphp_slot_head);
+EXPORT_SYMBOL_GPL(rpaphp_slot_head);
 
 #define DRIVER_VERSION	"0.1"
 #define DRIVER_AUTHOR	"Linda Xie <lxie@us.ibm.com>"
@@ -241,6 +242,7 @@ int rpaphp_get_drc_props(struct device_node *dn, int *drc_index,
 
 	return -EINVAL;
 }
+EXPORT_SYMBOL_GPL(rpaphp_get_drc_props);
 
 static int is_php_type(char *drc_type)
 {
@@ -350,6 +352,7 @@ int rpaphp_add_slot(struct device_node *dn)
 	/* XXX FIXME: reports a failure only if last entry in loop failed */
 	return retval;
 }
+EXPORT_SYMBOL_GPL(rpaphp_add_slot);
 
 static void __exit cleanup_slots(void)
 {
@@ -443,7 +446,3 @@ struct hotplug_slot_ops rpaphp_hotplug_slot_ops = {
 
 module_init(rpaphp_init);
 module_exit(rpaphp_exit);
-
-EXPORT_SYMBOL_GPL(rpaphp_add_slot);
-EXPORT_SYMBOL_GPL(rpaphp_slot_head);
-EXPORT_SYMBOL_GPL(rpaphp_get_drc_props);

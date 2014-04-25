@@ -177,6 +177,7 @@ struct pci_bus * pci_find_bus(int domain, int busnr)
 	}
 	return NULL;
 }
+EXPORT_SYMBOL(pci_find_bus);
 
 /**
  * pci_find_next_bus - begin or continue searching for a PCI bus
@@ -201,6 +202,7 @@ pci_find_next_bus(const struct pci_bus *from)
 	up_read(&pci_bus_sem);
 	return b;
 }
+EXPORT_SYMBOL(pci_find_next_bus);
 
 /**
  * pci_get_slot - locate PCI device for a given PCI slot
@@ -234,6 +236,7 @@ struct pci_dev *pci_get_slot(struct pci_bus *bus, unsigned int devfn)
 	up_read(&pci_bus_sem);
 	return dev;
 }
+EXPORT_SYMBOL(pci_get_slot);
 
 /**
  * pci_get_domain_bus_and_slot - locate PCI device for a given PCI domain (segment), bus, and slot
@@ -338,6 +341,7 @@ struct pci_dev *pci_get_subsys(unsigned int vendor, unsigned int device,
 
 	return pci_get_dev_by_id(&id, from);
 }
+EXPORT_SYMBOL(pci_get_subsys);
 
 /**
  * pci_get_device - begin or continue searching for a PCI device by vendor/device id
@@ -358,6 +362,7 @@ pci_get_device(unsigned int vendor, unsigned int device, struct pci_dev *from)
 {
 	return pci_get_subsys(vendor, device, PCI_ANY_ID, PCI_ANY_ID, from);
 }
+EXPORT_SYMBOL(pci_get_device);
 
 /**
  * pci_get_class - begin or continue searching for a PCI device by class
@@ -386,6 +391,7 @@ struct pci_dev *pci_get_class(unsigned int class, struct pci_dev *from)
 
 	return pci_get_dev_by_id(&id, from);
 }
+EXPORT_SYMBOL(pci_get_class);
 
 /**
  * pci_dev_present - Returns 1 if device matching the device list is present, 0 if not.
@@ -415,12 +421,3 @@ int pci_dev_present(const struct pci_device_id *ids)
 	return 0;
 }
 EXPORT_SYMBOL(pci_dev_present);
-
-/* For boot time work */
-EXPORT_SYMBOL(pci_find_bus);
-EXPORT_SYMBOL(pci_find_next_bus);
-/* For everyone */
-EXPORT_SYMBOL(pci_get_device);
-EXPORT_SYMBOL(pci_get_subsys);
-EXPORT_SYMBOL(pci_get_slot);
-EXPORT_SYMBOL(pci_get_class);

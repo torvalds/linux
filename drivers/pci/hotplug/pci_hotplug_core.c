@@ -468,6 +468,7 @@ out:
 	mutex_unlock(&pci_hp_mutex);
 	return result;
 }
+EXPORT_SYMBOL_GPL(__pci_hp_register);
 
 /**
  * pci_hp_deregister - deregister a hotplug_slot with the PCI hotplug subsystem
@@ -506,6 +507,7 @@ int pci_hp_deregister(struct hotplug_slot *hotplug)
 
 	return 0;
 }
+EXPORT_SYMBOL_GPL(pci_hp_deregister);
 
 /**
  * pci_hp_change_slot_info - changes the slot's information structure in the core
@@ -527,6 +529,7 @@ int pci_hp_change_slot_info(struct hotplug_slot *hotplug,
 
 	return 0;
 }
+EXPORT_SYMBOL_GPL(pci_hp_change_slot_info);
 
 static int __init pci_hotplug_init (void)
 {
@@ -557,7 +560,3 @@ MODULE_DESCRIPTION(DRIVER_DESC);
 MODULE_LICENSE("GPL");
 module_param(debug, bool, 0644);
 MODULE_PARM_DESC(debug, "Debugging mode enabled or not");
-
-EXPORT_SYMBOL_GPL(__pci_hp_register);
-EXPORT_SYMBOL_GPL(pci_hp_deregister);
-EXPORT_SYMBOL_GPL(pci_hp_change_slot_info);

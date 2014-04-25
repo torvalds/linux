@@ -741,6 +741,7 @@ struct pci_bus *pci_add_new_bus(struct pci_bus *parent, struct pci_dev *dev, int
 	}
 	return child;
 }
+EXPORT_SYMBOL(pci_add_new_bus);
 
 /*
  * If it's a bridge, configure it and scan the bus behind it.
@@ -952,6 +953,7 @@ out:
 
 	return max;
 }
+EXPORT_SYMBOL(pci_scan_bridge);
 
 /*
  * Read interrupt line and base address registers.
@@ -1519,6 +1521,7 @@ int pci_scan_slot(struct pci_bus *bus, int devfn)
 
 	return nr;
 }
+EXPORT_SYMBOL(pci_scan_slot);
 
 static int pcie_find_smpss(struct pci_dev *dev, void *data)
 {
@@ -1732,6 +1735,7 @@ unsigned int pci_scan_child_bus(struct pci_bus *bus)
 	dev_dbg(&bus->dev, "bus scan returning with max=%02x\n", max);
 	return max;
 }
+EXPORT_SYMBOL_GPL(pci_scan_child_bus);
 
 /**
  * pcibios_root_bridge_prepare - Platform-specific host bridge setup.
@@ -2039,11 +2043,6 @@ unsigned int pci_rescan_bus(struct pci_bus *bus)
 	return max;
 }
 EXPORT_SYMBOL_GPL(pci_rescan_bus);
-
-EXPORT_SYMBOL(pci_add_new_bus);
-EXPORT_SYMBOL(pci_scan_slot);
-EXPORT_SYMBOL(pci_scan_bridge);
-EXPORT_SYMBOL_GPL(pci_scan_child_bus);
 
 /*
  * pci_rescan_bus(), pci_rescan_bus_bridge_resize() and PCI device removal

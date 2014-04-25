@@ -136,6 +136,7 @@ int __ht_create_irq(struct pci_dev *dev, int idx, ht_irq_update_t *update)
 
 	return irq;
 }
+EXPORT_SYMBOL(__ht_create_irq);
 
 /**
  * ht_create_irq - create an irq and attach it to a device.
@@ -151,6 +152,7 @@ int ht_create_irq(struct pci_dev *dev, int idx)
 {
 	return __ht_create_irq(dev, idx, NULL);
 }
+EXPORT_SYMBOL(ht_create_irq);
 
 /**
  * ht_destroy_irq - destroy an irq created with ht_create_irq
@@ -170,7 +172,4 @@ void ht_destroy_irq(unsigned int irq)
 
 	kfree(cfg);
 }
-
-EXPORT_SYMBOL(__ht_create_irq);
-EXPORT_SYMBOL(ht_create_irq);
 EXPORT_SYMBOL(ht_destroy_irq);

@@ -38,6 +38,7 @@ int pci_enable_rom(struct pci_dev *pdev)
 	pci_write_config_dword(pdev, pdev->rom_base_reg, rom_addr);
 	return 0;
 }
+EXPORT_SYMBOL_GPL(pci_enable_rom);
 
 /**
  * pci_disable_rom - disable ROM decoding for a PCI device
@@ -53,6 +54,7 @@ void pci_disable_rom(struct pci_dev *pdev)
 	rom_addr &= ~PCI_ROM_ADDRESS_ENABLE;
 	pci_write_config_dword(pdev, pdev->rom_base_reg, rom_addr);
 }
+EXPORT_SYMBOL_GPL(pci_disable_rom);
 
 /**
  * pci_get_rom_size - obtain the actual size of the ROM image
@@ -166,6 +168,7 @@ void __iomem *pci_map_rom(struct pci_dev *pdev, size_t *size)
 	*size = pci_get_rom_size(pdev, rom, *size);
 	return rom;
 }
+EXPORT_SYMBOL(pci_map_rom);
 
 /**
  * pci_unmap_rom - unmap the ROM from kernel space
@@ -187,6 +190,7 @@ void pci_unmap_rom(struct pci_dev *pdev, void __iomem *rom)
 	if (!(res->flags & (IORESOURCE_ROM_ENABLE | IORESOURCE_ROM_SHADOW)))
 		pci_disable_rom(pdev);
 }
+EXPORT_SYMBOL(pci_unmap_rom);
 
 /**
  * pci_cleanup_rom - free the ROM copy created by pci_map_rom_copy
@@ -222,9 +226,4 @@ void __iomem *pci_platform_rom(struct pci_dev *pdev, size_t *size)
 
 	return NULL;
 }
-
-EXPORT_SYMBOL(pci_map_rom);
-EXPORT_SYMBOL(pci_unmap_rom);
-EXPORT_SYMBOL_GPL(pci_enable_rom);
-EXPORT_SYMBOL_GPL(pci_disable_rom);
 EXPORT_SYMBOL(pci_platform_rom);
