@@ -4,7 +4,6 @@
 #ifdef __KERNEL__
 
 #include <linux/types.h>
-#include <asm-generic/dma-contiguous.h>
 
 static inline void
 dma_contiguous_early_fixup(phys_addr_t base, unsigned long size) { }
