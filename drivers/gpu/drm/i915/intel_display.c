@@ -11252,9 +11252,7 @@ void intel_modeset_init_hw(struct drm_device *dev)
 
 	intel_reset_dpio(dev);
 
-	mutex_lock(&dev->struct_mutex);
 	intel_enable_gt_powersave(dev);
-	mutex_unlock(&dev->struct_mutex);
 }
 
 void intel_modeset_suspend_hw(struct drm_device *dev)
