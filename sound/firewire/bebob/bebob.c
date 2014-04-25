@@ -177,18 +177,21 @@ bebob_probe(struct fw_unit *unit,
 	}
 
 	if ((entry->vendor_id == VEN_FOCUSRITE) &&
-	    (entry->model_id == MODEL_FOCUSRITE_SAFFIRE_BOTH)) {
+	    (entry->model_id == MODEL_FOCUSRITE_SAFFIRE_BOTH))
 		spec = get_saffire_spec(unit);
-	} else if ((entry->vendor_id == VEN_MAUDIO1) &&
-		   (entry->model_id == MODEL_MAUDIO_AUDIOPHILE_BOTH) &&
-		   !check_audiophile_booted(unit)) {
-			err = 0;
-			goto end;
-	} else {
+	else if ((entry->vendor_id == VEN_MAUDIO1) &&
+		 (entry->model_id == MODEL_MAUDIO_AUDIOPHILE_BOTH) &&
+		 !check_audiophile_booted(unit))
+		spec = NULL;
+	else
 		spec = (const struct snd_bebob_spec *)entry->driver_data;
-	}
+
 	if (spec == NULL) {
-		err = -ENOSYS;
+		if ((entry->vendor_id == VEN_MAUDIO1) ||
+		    (entry->vendor_id == VEN_MAUDIO2))
+			err = snd_bebob_maudio_load_firmware(unit);
+		else
+			err = -ENOSYS;
 		goto end;
 	}
 
@@ -374,6 +377,7 @@ static const struct ieee1394_device_id bebob_id_table[] = {
 	SND_BEBOB_DEV_ENTRY(VEN_FOCUSRITE, MODEL_FOCUSRITE_SAFFIRE_BOTH,
 			    &saffire_spec),
 	/* M-Audio, Firewire 410 */
+	SND_BEBOB_DEV_ENTRY(VEN_MAUDIO2, 0x00010058, NULL),	/* bootloader */
 	SND_BEBOB_DEV_ENTRY(VEN_MAUDIO2, 0x00010046, &maudio_fw410_spec),
 	/* M-Audio, Firewire Audiophile */
 	SND_BEBOB_DEV_ENTRY(VEN_MAUDIO1, MODEL_MAUDIO_AUDIOPHILE_BOTH,
@@ -387,6 +391,7 @@ static const struct ieee1394_device_id bebob_id_table[] = {
 	/* M-Audio, ProFireLightbridge */
 	SND_BEBOB_DEV_ENTRY(VEN_MAUDIO1, 0x000100a1, &spec_normal),
 	/* Firewire 1814 */
+	SND_BEBOB_DEV_ENTRY(VEN_MAUDIO1, 0x00010070, NULL),	/* bootloader */
 	SND_BEBOB_DEV_ENTRY(VEN_MAUDIO1, MODEL_MAUDIO_FW1814,
 			    &maudio_special_spec),
 	/* M-Audio ProjectMix */

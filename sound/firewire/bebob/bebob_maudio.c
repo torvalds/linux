@@ -16,6 +16,10 @@
  * settings when completing uploading. Then these devices generate bus reset
  * and are recognized as new devices with the firmware.
  *
+ * But with firmware version 5058 or later, the firmware is stored to flash
+ * memory in the device and drivers can tell bootloader to load the firmware
+ * by sending a cue. This cue must be sent one time.
+ *
  * For streaming, both of output and input streams are needed for Firewire 410
  * and Ozonic. The single stream is OK for the other devices even if the clock
  * source is not SYT-Match (I note no devices use SYT-Match).
@@ -30,6 +34,20 @@
  * write-transaction directly into a certain address. All of addresses for mixer
  * functionality is between 0xffc700700000 to 0xffc70070009c.
  */
+
+/* Offset from information register */
+#define INFO_OFFSET_SW_DATE	0x20
+
+/* Bootloader Protocol Version 1 */
+#define MAUDIO_BOOTLOADER_CUE1	0x00000001
+/*
+ * Initializing configuration to factory settings (= 0x1101), (swapped in line),
+ * Command code is zero (= 0x00),
+ * the number of operands is zero (= 0x00)(at least significant byte)
+ */
+#define MAUDIO_BOOTLOADER_CUE2	0x01110000
+/* padding */
+#define MAUDIO_BOOTLOADER_CUE3	0x00000000
 
 #define MAUDIO_SPECIFIC_ADDRESS	0xffc700000000
 
@@ -66,6 +84,52 @@ struct special_params {
 	unsigned int clk_lock;
 	struct snd_ctl_elem_id *ctl_id_sync;
 };
+
+/*
+ * For some M-Audio devices, this module just send cue to load firmware. After
+ * loading, the device generates bus reset and newly detected.
+ *
+ * If we make any transactions to load firmware, the operation may failed.
+ */
+int snd_bebob_maudio_load_firmware(struct fw_unit *unit)
+{
+	struct fw_device *device = fw_parent_device(unit);
+	int err, rcode;
+	u64 date;
+	__be32 cues[3] = {
+		MAUDIO_BOOTLOADER_CUE1,
+		MAUDIO_BOOTLOADER_CUE2,
+		MAUDIO_BOOTLOADER_CUE3
+	};
+
+	/* check date of software used to build */
+	err = snd_bebob_read_block(unit, INFO_OFFSET_SW_DATE,
+				   &date, sizeof(u64));
+	if (err < 0)
+		goto end;
+	/*
+	 * firmware version 5058 or later has date later than "20070401", but
+	 * 'date' is not null-terminated.
+	 */
+	if (date < 0x3230303730343031) {
+		dev_err(&unit->device,
+			"Use firmware version 5058 or later\n");
+		err = -ENOSYS;
+		goto end;
+	}
+
+	rcode = fw_run_transaction(device->card, TCODE_WRITE_BLOCK_REQUEST,
+				   device->node_id, device->generation,
+				   device->max_speed, BEBOB_ADDR_REG_REQ,
+				   cues, sizeof(cues));
+	if (rcode != RCODE_COMPLETE) {
+		dev_err(&unit->device,
+			"Failed to send a cue to load firmware\n");
+		err = -EIO;
+	}
+end:
+	return err;
+}
 
 static inline int
 get_meter(struct snd_bebob *bebob, void *buf, unsigned int size)
