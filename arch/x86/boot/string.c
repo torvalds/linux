@@ -12,7 +12,8 @@
  * Very basic string functions
  */
 
-#include "boot.h"
+#include <linux/types.h>
+#include "ctype.h"
 
 /*
  * This file gets included in compressed/string.c which might pull in
