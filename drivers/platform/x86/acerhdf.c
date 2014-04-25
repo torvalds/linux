@@ -50,7 +50,7 @@
  */
 #undef START_IN_KERNEL_MODE
 
-#define DRV_VER "0.5.30"
+#define DRV_VER "0.7.0"
 
 /*
  * According to the Atom N270 datasheet,
@@ -258,6 +258,14 @@ static const struct bios_settings_t bios_tbl[] = {
 
 static const struct bios_settings_t *bios_cfg __read_mostly;
 
+/*
+ * this struct is used to instruct thermal layer to use bang_bang instead of
+ * default governor for acerhdf
+ */
+static struct thermal_zone_params acerhdf_zone_params = {
+	.governor_name = "bang_bang",
+};
+
 static int acerhdf_get_temp(int *temp)
 {
 	u8 read_temp;
@@ -439,6 +447,17 @@ static int acerhdf_get_trip_type(struct thermal_zone_device *thermal, int trip,
 	return 0;
 }
 
+static int acerhdf_get_trip_hyst(struct thermal_zone_device *thermal, int trip,
+				 unsigned long *temp)
+{
+	if (trip != 0)
+		return -EINVAL;
+
+	*temp = fanon - fanoff;
+
+	return 0;
+}
+
 static int acerhdf_get_trip_temp(struct thermal_zone_device *thermal, int trip,
 				 unsigned long *temp)
 {
@@ -463,6 +482,7 @@ static struct thermal_zone_device_ops acerhdf_dev_ops = {
 	.get_mode = acerhdf_get_mode,
 	.set_mode = acerhdf_set_mode,
 	.get_trip_type = acerhdf_get_trip_type,
+	.get_trip_hyst = acerhdf_get_trip_hyst,
 	.get_trip_temp = acerhdf_get_trip_temp,
 	.get_crit_temp = acerhdf_get_crit_temp,
 };
@@ -515,9 +535,7 @@ static int acerhdf_set_cur_state(struct thermal_cooling_device *cdev,
 	}
 
 	if (state == 0) {
-		/* turn fan off only if below fanoff temperature */
-		if ((cur_state == ACERHDF_FAN_AUTO) &&
-		    (cur_temp < fanoff))
+		if (cur_state == ACERHDF_FAN_AUTO)
 			acerhdf_change_fanstate(ACERHDF_FAN_OFF);
 	} else {
 		if (cur_state == ACERHDF_FAN_OFF)
@@ -696,10 +714,18 @@ static int acerhdf_register_thermal(void)
 		return -EINVAL;
 
 	thz_dev = thermal_zone_device_register("acerhdf", 1, 0, NULL,
-					      &acerhdf_dev_ops, NULL, 0,
+					      &acerhdf_dev_ops,
+					      &acerhdf_zone_params, 0,
 					      (kernelmode) ? interval*1000 : 0);
 	if (IS_ERR(thz_dev))
 		return -EINVAL;
+
+	if (strcmp(thz_dev->governor->name,
+				acerhdf_zone_params.governor_name)) {
+		pr_err("Didn't get thermal governor %s, perhaps not compiled into thermal subsystem.\n",
+				acerhdf_zone_params.governor_name);
+		return -EINVAL;
+	}
 
 	return 0;
 }
