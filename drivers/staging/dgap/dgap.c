@@ -4406,7 +4406,8 @@ static void dgap_do_fep_load(struct board_t *brd, const u8 *ufep, int len)
 	 */
 	if ((brd->type == PCX) || (brd->type == PEPC)) {
 		u8 string[100];
-		u8 *config, *xconfig;
+		u8 __iomem *config;
+		u8 *xconfig;
 		int i = 0;
 
 		xconfig = dgap_create_config_string(brd, string);
@@ -4685,7 +4686,7 @@ static void dgap_poll_tasklet(unsigned long data)
 	 */
 	if (bd->state == BOARD_READY) {
 
-		struct ev_t *eaddr = NULL;
+		struct ev_t __iomem *eaddr;
 
 		if (!bd->re_map_membase) {
 			spin_unlock_irqrestore(&bd->bd_lock, lock_flags);
@@ -4699,7 +4700,7 @@ static void dgap_poll_tasklet(unsigned long data)
 		if (!bd->nasync)
 			goto out;
 
-		eaddr = (struct ev_t *) (vaddr + EVBUF);
+		eaddr = (struct ev_t __iomem *) (vaddr + EVBUF);
 
 		/* Get our head and tail */
 		head = readw(&(eaddr->ev_head));
@@ -4768,7 +4769,7 @@ static void dgap_cmdb(struct channel_t *ch, u8 cmd, u8 byte1,
 	if (!vaddr)
 		return;
 
-	cm_addr = (struct cm_t *) (vaddr + CMDBUF);
+	cm_addr = (struct cm_t __iomem *) (vaddr + CMDBUF);
 	head = readw(&(cm_addr->cm_head));
 
 	/*
@@ -4782,10 +4783,10 @@ static void dgap_cmdb(struct channel_t *ch, u8 cmd, u8 byte1,
 	/*
 	 * Put the data in the circular command buffer.
 	 */
-	writeb(cmd, (char *) (vaddr + head + CMDSTART + 0));
-	writeb((u8) ch->ch_portnum, (char *) (vaddr + head + CMDSTART + 1));
-	writeb(byte1, (char *) (vaddr + head + CMDSTART + 2));
-	writeb(byte2, (char *) (vaddr + head + CMDSTART + 3));
+	writeb(cmd, (vaddr + head + CMDSTART + 0));
+	writeb((u8) ch->ch_portnum, (vaddr + head + CMDSTART + 1));
+	writeb(byte1, (vaddr + head + CMDSTART + 2));
+	writeb(byte2, (vaddr + head + CMDSTART + 3));
 
 	head = (head + 4) & (CMDMAX - CMDSTART - 4);
 
@@ -4852,7 +4853,7 @@ static void dgap_cmdw(struct channel_t *ch, u8 cmd, u16 word, uint ncmds)
 	if (!vaddr)
 		return;
 
-	cm_addr = (struct cm_t *) (vaddr + CMDBUF);
+	cm_addr = (struct cm_t __iomem *) (vaddr + CMDBUF);
 	head = readw(&(cm_addr->cm_head));
 
 	/*
@@ -4866,9 +4867,9 @@ static void dgap_cmdw(struct channel_t *ch, u8 cmd, u16 word, uint ncmds)
 	/*
 	 * Put the data in the circular command buffer.
 	 */
-	writeb(cmd, (char *) (vaddr + head + CMDSTART + 0));
-	writeb((u8) ch->ch_portnum, (char *) (vaddr + head + CMDSTART + 1));
-	writew((u16) word, (char *) (vaddr + head + CMDSTART + 2));
+	writeb(cmd, (vaddr + head + CMDSTART + 0));
+	writeb((u8) ch->ch_portnum, (vaddr + head + CMDSTART + 1));
+	writew((u16) word, (vaddr + head + CMDSTART + 2));
 
 	head = (head + 4) & (CMDMAX - CMDSTART - 4);
 
@@ -5005,7 +5006,7 @@ static void dgap_cmdw_ext(struct channel_t *ch, u16 cmd, u16 word, uint ncmds)
 static void dgap_wmove(struct channel_t *ch, char *buf, uint cnt)
 {
 	int    n;
-	char   *taddr;
+	char   __iomem *taddr;
 	struct bs_t __iomem *bs;
 	u16    head;
 
@@ -5059,7 +5060,7 @@ static void dgap_wmove(struct channel_t *ch, char *buf, uint cnt)
 static uint dgap_get_custom_baud(struct channel_t *ch)
 {
 	u8 __iomem *vaddr;
-	ulong offset = 0;
+	ulong offset;
 	uint value = 0;
 
 	if (!ch || ch->magic != DGAP_CHANNEL_MAGIC)
@@ -5080,7 +5081,7 @@ static uint dgap_get_custom_baud(struct channel_t *ch)
 	 * Go get from fep mem, what the fep
 	 * believes the custom baud rate is.
 	 */
-	offset = ((((*(unsigned short *)(vaddr + ECS_SEG)) << 4) +
+	offset = ((((*(unsigned short __iomem *)(vaddr + ECS_SEG)) << 4) +
 		(ch->ch_portnum * 0x28) + LINE_SPEED));
 
 	value = readw(vaddr + offset);
@@ -5579,9 +5580,9 @@ static int dgap_event(struct board_t *bd)
 	ulong		lock_flags;
 	ulong		lock_flags2;
 	struct bs_t __iomem *bs;
-	u8		*event;
+	u8 __iomem	*event;
 	u8 __iomem	*vaddr;
-	struct ev_t	*eaddr = NULL;
+	struct ev_t __iomem *eaddr;
 	uint		head;
 	uint		tail;
 	int		port;
@@ -5601,7 +5602,7 @@ static int dgap_event(struct board_t *bd)
 		return -ENXIO;
 	}
 
-	eaddr = (struct ev_t *) (vaddr + EVBUF);
+	eaddr = (struct ev_t __iomem *) (vaddr + EVBUF);
 
 	/* Get our head and tail */
 	head = readw(&(eaddr->ev_head));
