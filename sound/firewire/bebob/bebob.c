@@ -54,6 +54,9 @@ static DECLARE_BITMAP(devices_used, SNDRV_CARDS);
 #define VEN_PRISMSOUND	0x00001198
 #define VEN_TERRATEC	0x00000aac
 #define VEN_YAMAHA	0x0000a0de
+#define VEN_FOCUSRITE	0x0000130e
+
+#define MODEL_FOCUSRITE_SAFFIRE_BOTH	0x00000000
 
 static int
 name_device(struct snd_bebob *bebob, unsigned int vendor_id)
@@ -122,6 +125,20 @@ bebob_card_free(struct snd_card *card)
 	mutex_destroy(&bebob->mutex);
 }
 
+static const struct snd_bebob_spec *
+get_saffire_spec(struct fw_unit *unit)
+{
+	char name[24] = {0};
+
+	if (fw_csr_string(unit->directory, CSR_MODEL, name, sizeof(name)) < 0)
+		return NULL;
+
+	if (strcmp(name, "SaffireLE") == 0)
+		return &saffire_le_spec;
+	else
+		return &saffire_spec;
+}
+
 static int
 bebob_probe(struct fw_unit *unit,
 	    const struct ieee1394_device_id *entry)
@@ -143,7 +160,11 @@ bebob_probe(struct fw_unit *unit,
 		goto end;
 	}
 
-	spec = (const struct snd_bebob_spec *)entry->driver_data;
+	if ((entry->vendor_id == VEN_FOCUSRITE) &&
+	    (entry->model_id == MODEL_FOCUSRITE_SAFFIRE_BOTH))
+		spec = get_saffire_spec(unit);
+	else
+		spec = (const struct snd_bebob_spec *)entry->driver_data;
 	if (spec == NULL) {
 		err = -ENOSYS;
 		goto end;
@@ -306,6 +327,13 @@ static const struct ieee1394_device_id bebob_id_table[] = {
 	SND_BEBOB_DEV_ENTRY(VEN_YAMAHA, 0x0010000b, &yamaha_go_spec),
 	/* YAMAHA, GO46 */
 	SND_BEBOB_DEV_ENTRY(VEN_YAMAHA, 0x0010000c, &yamaha_go_spec),
+	/* Focusrite, SaffirePro 26 I/O */
+	SND_BEBOB_DEV_ENTRY(VEN_FOCUSRITE, 0x00000003, &saffirepro_26_spec),
+	/* Focusrite, SaffirePro 10 I/O */
+	SND_BEBOB_DEV_ENTRY(VEN_FOCUSRITE, 0x00000006, &saffirepro_10_spec),
+	/* Focusrite, Saffire(no label and LE) */
+	SND_BEBOB_DEV_ENTRY(VEN_FOCUSRITE, MODEL_FOCUSRITE_SAFFIRE_BOTH,
+			    &saffire_spec),
 	/* IDs are unknown but able to be supported */
 	/*  Apogee, Mini-ME Firewire */
 	/*  Apogee, Mini-DAC Firewire */
