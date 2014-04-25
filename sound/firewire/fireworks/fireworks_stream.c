@@ -201,6 +201,9 @@ int snd_efw_stream_init_duplex(struct snd_efw *efw)
 	/* AudioFire9 always reports wrong dbs. */
 	if (efw->is_af9)
 		efw->tx_stream.flags |= CIP_WRONG_DBS;
+	/* Firmware version 5.5 reports fixed interval for dbc. */
+	if (efw->firmware_version == 0x5050000)
+		efw->tx_stream.tx_dbc_interval = 8;
 
 	err = init_stream(efw, &efw->rx_stream);
 	if (err < 0) {

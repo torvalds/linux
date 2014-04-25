@@ -618,7 +618,8 @@ static void handle_in_packet(struct amdtp_stream *s,
 			     __be32 *buffer)
 {
 	u32 cip_header[2];
-	unsigned int data_blocks, data_block_quadlets, data_block_counter;
+	unsigned int data_blocks, data_block_quadlets, data_block_counter,
+		     dbc_interval;
 	struct snd_pcm_substream *pcm = NULL;
 	bool lost;
 
@@ -661,11 +662,17 @@ static void handle_in_packet(struct amdtp_stream *s,
 
 	/* Check data block counter continuity */
 	data_block_counter = cip_header[0] & AMDTP_DBC_MASK;
-	if (!(s->flags & CIP_DBC_IS_END_EVENT))
+	if (!(s->flags & CIP_DBC_IS_END_EVENT)) {
 		lost = data_block_counter != s->data_block_counter;
-	else
+	} else {
+		if ((data_blocks > 0) && (s->tx_dbc_interval > 0))
+			dbc_interval = s->tx_dbc_interval;
+		else
+			dbc_interval = data_blocks;
+
 		lost = data_block_counter !=
-		       ((s->data_block_counter + data_blocks) & 0xff);
+		       ((s->data_block_counter + dbc_interval) & 0xff);
+	}
 
 	if (lost) {
 		dev_info(&s->unit->device,

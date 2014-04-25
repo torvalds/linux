@@ -63,6 +63,7 @@ struct snd_efw {
 
 	/* for quirks */
 	bool is_af9;
+	u32 firmware_version;
 
 	unsigned int midi_in_ports;
 	unsigned int midi_out_ports;
