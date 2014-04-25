@@ -205,7 +205,7 @@ static void esdhc_of_set_clock(struct sdhci_host *host, unsigned int clock)
 	u32 temp;
 
 	if (clock == 0)
-		goto out;
+		return;
 
 	/* Workaround to reduce the clock frequency for p1010 esdhc */
 	if (of_find_compatible_node(NULL, NULL, "fsl,p1010-esdhc")) {
@@ -238,8 +238,6 @@ static void esdhc_of_set_clock(struct sdhci_host *host, unsigned int clock)
 		| (pre_div << ESDHC_PREDIV_SHIFT));
 	sdhci_writel(host, temp, ESDHC_SYSTEM_CONTROL);
 	mdelay(1);
-out:
-	host->clock = clock;
 }
 
 #ifdef CONFIG_PM

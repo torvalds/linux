@@ -605,7 +605,7 @@ static inline void esdhc_pltfm_set_clock(struct sdhci_host *host,
 			writel(val & ~ESDHC_VENDOR_SPEC_FRC_SDCLK_ON,
 					host->ioaddr + ESDHC_VENDOR_SPEC);
 		}
-		goto out;
+		return;
 	}
 
 	if (esdhc_is_usdhc(imx_data) && !imx_data->is_ddr)
@@ -645,8 +645,6 @@ static inline void esdhc_pltfm_set_clock(struct sdhci_host *host,
 	}
 
 	mdelay(1);
-out:
-	host->clock = clock;
 }
 
 static unsigned int esdhc_pltfm_get_ro(struct sdhci_host *host)

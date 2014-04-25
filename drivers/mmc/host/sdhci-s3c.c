@@ -295,15 +295,12 @@ static void sdhci_cmu_set_clock(struct sdhci_host *host, unsigned int clock)
 	/* If the clock is going off, set to 0 at clock control register */
 	if (clock == 0) {
 		sdhci_writew(host, 0, SDHCI_CLOCK_CONTROL);
-		host->clock = clock;
 		return;
 	}
 
 	sdhci_s3c_set_clock(host, clock);
 
 	clk_set_rate(ourhost->clk_bus[ourhost->cur_clk], clock);
-
-	host->clock = clock;
 
 	clk = SDHCI_CLOCK_INT_EN;
 	sdhci_writew(host, clk, SDHCI_CLOCK_CONTROL);

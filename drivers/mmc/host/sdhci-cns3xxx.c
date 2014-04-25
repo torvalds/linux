@@ -33,7 +33,7 @@ static void sdhci_cns3xxx_set_clock(struct sdhci_host *host, unsigned int clock)
 	sdhci_writew(host, 0, SDHCI_CLOCK_CONTROL);
 
 	if (clock == 0)
-		goto out;
+		return;
 
 	while (host->max_clk / div > clock) {
 		/*
@@ -72,8 +72,6 @@ static void sdhci_cns3xxx_set_clock(struct sdhci_host *host, unsigned int clock)
 
 	clk |= SDHCI_CLOCK_CARD_EN;
 	sdhci_writew(host, clk, SDHCI_CLOCK_CONTROL);
-out:
-	host->clock = clock;
 }
 
 static const struct sdhci_ops sdhci_cns3xxx_ops = {
