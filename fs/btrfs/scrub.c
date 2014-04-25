@@ -717,8 +717,8 @@ static int scrub_fixup_readpage(u64 inum, u64 offset, u64 root, void *fixup_ctx)
 out:
 	if (page)
 		put_page(page);
-	if (inode)
-		iput(inode);
+
+	iput(inode);
 
 	if (ret < 0)
 		return ret;
