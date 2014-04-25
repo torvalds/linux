@@ -665,7 +665,8 @@ static void handle_in_packet(struct amdtp_stream *s,
 
 	/* Check data block counter continuity */
 	data_block_counter = cip_header[0] & AMDTP_DBC_MASK;
-	if ((s->flags & CIP_SKIP_DBC_ZERO_CHECK) && data_block_counter == 0) {
+	if (((s->flags & CIP_SKIP_DBC_ZERO_CHECK) && data_block_counter == 0) ||
+	    (s->data_block_counter == UINT_MAX)) {
 		lost = false;
 	} else if (!(s->flags & CIP_DBC_IS_END_EVENT)) {
 		lost = data_block_counter != s->data_block_counter;
@@ -850,7 +851,11 @@ int amdtp_stream_start(struct amdtp_stream *s, int channel, int speed)
 		goto err_unlock;
 	}
 
-	s->data_block_counter = 0;
+	if (s->direction == AMDTP_IN_STREAM &&
+	    s->flags & CIP_SKIP_INIT_DBC_CHECK)
+		s->data_block_counter = UINT_MAX;
+	else
+		s->data_block_counter = 0;
 	s->data_block_state = initial_state[s->sfc].data_block;
 	s->syt_offset_state = initial_state[s->sfc].syt_offset;
 	s->last_syt_offset = TICKS_PER_CYCLE;

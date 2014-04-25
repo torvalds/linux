@@ -9,6 +9,7 @@
 #include "./bebob.h"
 
 #define CALLBACK_TIMEOUT	1000
+#define FW_ISO_RESOURCE_DELAY	1000
 
 /*
  * NOTE;
@@ -325,7 +326,10 @@ check_connection_used_by_others(struct snd_bebob *bebob, struct amdtp_stream *s)
 static int
 make_both_connections(struct snd_bebob *bebob, unsigned int rate)
 {
-	int index, pcm_channels, midi_channels, err;
+	int index, pcm_channels, midi_channels, err = 0;
+
+	if (bebob->connected)
+		goto end;
 
 	/* confirm params for both streams */
 	index = get_formation_index(rate);
@@ -345,8 +349,12 @@ make_both_connections(struct snd_bebob *bebob, unsigned int rate)
 		goto end;
 	err = cmp_connection_establish(&bebob->in_conn,
 			amdtp_stream_get_max_payload(&bebob->rx_stream));
-	if (err < 0)
+	if (err < 0) {
 		cmp_connection_break(&bebob->out_conn);
+		goto end;
+	}
+
+	bebob->connected = true;
 end:
 	return err;
 }
@@ -356,6 +364,8 @@ break_both_connections(struct snd_bebob *bebob)
 {
 	cmp_connection_break(&bebob->in_conn);
 	cmp_connection_break(&bebob->out_conn);
+
+	bebob->connected = false;
 }
 
 static void
@@ -415,6 +425,9 @@ int snd_bebob_stream_init_duplex(struct snd_bebob *bebob)
 		destroy_both_connections(bebob);
 		goto end;
 	}
+	/* See comments in next function */
+	init_completion(&bebob->bus_reset);
+	bebob->tx_stream.flags |= CIP_SKIP_INIT_DBC_CHECK;
 
 	err = amdtp_stream_init(&bebob->rx_stream, bebob->unit,
 				AMDTP_OUT_STREAM, CIP_BLOCKING);
@@ -433,7 +446,24 @@ int snd_bebob_stream_start_duplex(struct snd_bebob *bebob, int rate)
 	atomic_t *slave_substreams;
 	enum cip_flags sync_mode;
 	unsigned int curr_rate;
+	bool updated = false;
 	int err = 0;
+
+	/*
+	 * Normal BeBoB firmware has a quirk at bus reset to transmits packets
+	 * with discontinuous value in dbc field.
+	 *
+	 * This 'struct completion' is used to call .update() at first to update
+	 * connections/streams. Next following codes handle streaming error.
+	 */
+	if (amdtp_streaming_error(&bebob->tx_stream)) {
+		if (completion_done(&bebob->bus_reset))
+			reinit_completion(&bebob->bus_reset);
+
+		updated = (wait_for_completion_interruptible_timeout(
+				&bebob->bus_reset,
+				msecs_to_jiffies(FW_ISO_RESOURCE_DELAY)) > 0);
+	}
 
 	mutex_lock(&bebob->mutex);
 
@@ -463,13 +493,19 @@ int snd_bebob_stream_start_duplex(struct snd_bebob *bebob, int rate)
 	if (err < 0)
 		goto end;
 
-	/* packet queueing error */
-	if (amdtp_streaming_error(master)) {
+	/*
+	 * packet queueing error or detecting discontinuity
+	 *
+	 * At bus reset, connections should not be broken here. So streams need
+	 * to be re-started. This is a reason to use SKIP_INIT_DBC_CHECK flag.
+	 */
+	if (amdtp_streaming_error(master))
 		amdtp_stream_stop(master);
-		amdtp_stream_stop(slave);
-	}
 	if (amdtp_streaming_error(slave))
 		amdtp_stream_stop(slave);
+	if (!updated &&
+	    !amdtp_stream_running(master) && !amdtp_stream_running(slave))
+		break_both_connections(bebob);
 
 	/* stop streams if rate is different */
 	err = snd_bebob_stream_get_rate(bebob, &curr_rate);
@@ -598,6 +634,10 @@ void snd_bebob_stream_update_duplex(struct snd_bebob *bebob)
 		amdtp_stream_update(&bebob->rx_stream);
 		amdtp_stream_update(&bebob->tx_stream);
 	}
+
+	/* wake up stream_start_duplex() */
+	if (!completion_done(&bebob->bus_reset))
+		complete_all(&bebob->bus_reset);
 
 	mutex_unlock(&bebob->mutex);
 }
