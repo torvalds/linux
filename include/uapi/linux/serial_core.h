@@ -241,4 +241,7 @@
 /* MEN 16z135 UART */
 #define PORT_MEN_Z135	107
 
+/* SC16IS74xx */
+#define PORT_SC16IS7XX   108
+
 #endif /* _UAPILINUX_SERIAL_CORE_H */
