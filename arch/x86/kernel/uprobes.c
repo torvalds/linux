@@ -424,10 +424,9 @@ static int default_post_xol_op(struct arch_uprobe *auprobe, struct pt_regs *regs
 	long correction = (long)(utask->vaddr - utask->xol_vaddr);
 
 	handle_riprel_post_xol(auprobe, regs, &correction);
-	if (auprobe->def.fixups & UPROBE_FIX_IP)
+	if (auprobe->def.fixups & UPROBE_FIX_IP) {
 		regs->ip += correction;
-
-	if (auprobe->def.fixups & UPROBE_FIX_CALL) {
+	} else if (auprobe->def.fixups & UPROBE_FIX_CALL) {
 		regs->sp += sizeof_long();
 		if (push_ret_address(regs, utask->vaddr + auprobe->def.ilen))
 			return -ERESTART;
@@ -623,7 +622,7 @@ static int branch_setup_xol_ops(struct arch_uprobe *auprobe, struct insn *insn)
 int arch_uprobe_analyze_insn(struct arch_uprobe *auprobe, struct mm_struct *mm, unsigned long addr)
 {
 	struct insn insn;
-	bool fix_ip = true, fix_call = false;
+	u8 fix_ip_or_call = UPROBE_FIX_IP;
 	int ret;
 
 	ret = uprobe_init_insn(auprobe, &insn, is_64bit_mm(mm));
@@ -647,21 +646,20 @@ int arch_uprobe_analyze_insn(struct arch_uprobe *auprobe, struct mm_struct *mm, 
 	case 0xcb:
 	case 0xc2:
 	case 0xca:
-		fix_ip = false;
+	case 0xea:		/* jmp absolute -- ip is correct */
+		fix_ip_or_call = 0;
 		break;
 	case 0x9a:		/* call absolute - Fix return addr, not ip */
-		fix_call = true;
-		fix_ip = false;
-		break;
-	case 0xea:		/* jmp absolute -- ip is correct */
-		fix_ip = false;
+		fix_ip_or_call = UPROBE_FIX_CALL;
 		break;
 	case 0xff:
 		switch (MODRM_REG(&insn)) {
 		case 2: case 3:			/* call or lcall, indirect */
-			fix_call = true;
+			fix_ip_or_call = UPROBE_FIX_CALL;
+			break;
 		case 4: case 5:			/* jmp or ljmp, indirect */
-			fix_ip = false;
+			fix_ip_or_call = 0;
+			break;
 		}
 		/* fall through */
 	default:
@@ -669,10 +667,7 @@ int arch_uprobe_analyze_insn(struct arch_uprobe *auprobe, struct mm_struct *mm, 
 	}
 
 	auprobe->def.ilen = insn.length;
-	if (fix_ip)
-		auprobe->def.fixups |= UPROBE_FIX_IP;
-	if (fix_call)
-		auprobe->def.fixups |= UPROBE_FIX_CALL;
+	auprobe->def.fixups |= fix_ip_or_call;
 
 	auprobe->ops = &default_xol_ops;
 	return 0;
