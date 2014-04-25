@@ -22,12 +22,7 @@
 # include <linux/of.h>
 # include <linux/of_platform.h>
 # include "ehci.h"
-#ifdef CONFIG_DWC_OTG_274
-# include "../dwc_otg/usbdev_rk.h"
-#endif
-#ifdef CONFIG_DWC_OTG_310
 # include "../dwc_otg_310/usbdev_rk.h"
-#endif
 
 static int rkehci_status = 1;
 static struct ehci_hcd *g_ehci;

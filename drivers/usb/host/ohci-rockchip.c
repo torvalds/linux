@@ -14,12 +14,7 @@
 #include <linux/clk.h>
 #include <linux/dma-mapping.h>
 #include <linux/of_platform.h>
-#ifdef CONFIG_DWC_OTG_274
-# include "../dwc_otg/usbdev_rk.h"
-#endif
-#ifdef CONFIG_DWC_OTG_310
-# include "../dwc_otg_310/usbdev_rk.h"
-#endif
+#include "../dwc_otg_310/usbdev_rk.h"
 
 static struct rkehci_pdata_id rkohci_pdata[] = {
 	{
