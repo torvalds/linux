@@ -73,7 +73,7 @@ static int gup_huge_pmd(pmd_t *pmdp, pmd_t pmd, unsigned long addr,
 	struct page *head, *page, *tail;
 	int refs;
 
-	if (!pmd_large(pmd))
+	if (!(pmd_val(pmd) & _PAGE_VALID))
 		return 0;
 
 	if (write && !pmd_write(pmd))
