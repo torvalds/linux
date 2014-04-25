@@ -63,6 +63,7 @@ config SND_SCS1X
 
 config SND_FIREWORKS
 	tristate "Echo Fireworks board module support"
+	select SND_FIREWIRE_LIB
 	help
 	  Say Y here to include support for FireWire devices based
 	  on Echo Digital Audio Fireworks board:

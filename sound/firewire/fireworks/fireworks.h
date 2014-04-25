@@ -20,6 +20,28 @@
 
 #include <sound/core.h>
 #include <sound/initval.h>
+#include <sound/pcm.h>
+
+#include "../cmp.h"
+#include "../lib.h"
+
+#define SND_EFW_MULTIPLIER_MODES	3
+#define HWINFO_NAME_SIZE_BYTES		32
+#define HWINFO_MAX_CAPS_GROUPS		8
+
+/*
+ * This should be greater than maximum bytes for EFW response content.
+ * Currently response against command for isochronous channel mapping is
+ * confirmed to be the maximum one. But for flexibility, use maximum data
+ * payload for asynchronous primary packets at S100 (Cable base rate) in
+ * IEEE Std 1394-1995.
+ */
+#define SND_EFW_RESPONSE_MAXIMUM_BYTES	0x200U
+
+struct snd_efw_phys_grp {
+	u8 type;	/* see enum snd_efw_grp_type */
+	u8 count;
+} __packed;
 
 struct snd_efw {
 	struct snd_card *card;
@@ -28,7 +50,111 @@ struct snd_efw {
 
 	struct mutex mutex;
 	spinlock_t lock;
+
+	/* for transaction */
+	u32 seqnum;
+	bool resp_addr_changable;
 };
+
+struct snd_efw_transaction {
+	__be32 length;
+	__be32 version;
+	__be32 seqnum;
+	__be32 category;
+	__be32 command;
+	__be32 status;
+	__be32 params[0];
+};
+int snd_efw_transaction_run(struct fw_unit *unit,
+			    const void *cmd, unsigned int cmd_size,
+			    void *resp, unsigned int resp_size);
+int snd_efw_transaction_register(void);
+void snd_efw_transaction_unregister(void);
+void snd_efw_transaction_bus_reset(struct fw_unit *unit);
+
+struct snd_efw_hwinfo {
+	u32 flags;
+	u32 guid_hi;
+	u32 guid_lo;
+	u32 type;
+	u32 version;
+	char vendor_name[HWINFO_NAME_SIZE_BYTES];
+	char model_name[HWINFO_NAME_SIZE_BYTES];
+	u32 supported_clocks;
+	u32 amdtp_rx_pcm_channels;
+	u32 amdtp_tx_pcm_channels;
+	u32 phys_out;
+	u32 phys_in;
+	u32 phys_out_grp_count;
+	struct snd_efw_phys_grp phys_out_grps[HWINFO_MAX_CAPS_GROUPS];
+	u32 phys_in_grp_count;
+	struct snd_efw_phys_grp phys_in_grps[HWINFO_MAX_CAPS_GROUPS];
+	u32 midi_out_ports;
+	u32 midi_in_ports;
+	u32 max_sample_rate;
+	u32 min_sample_rate;
+	u32 dsp_version;
+	u32 arm_version;
+	u32 mixer_playback_channels;
+	u32 mixer_capture_channels;
+	u32 fpga_version;
+	u32 amdtp_rx_pcm_channels_2x;
+	u32 amdtp_tx_pcm_channels_2x;
+	u32 amdtp_rx_pcm_channels_4x;
+	u32 amdtp_tx_pcm_channels_4x;
+	u32 reserved[16];
+} __packed;
+enum snd_efw_grp_type {
+	SND_EFW_CH_TYPE_ANALOG			= 0,
+	SND_EFW_CH_TYPE_SPDIF			= 1,
+	SND_EFW_CH_TYPE_ADAT			= 2,
+	SND_EFW_CH_TYPE_SPDIF_OR_ADAT		= 3,
+	SND_EFW_CH_TYPE_ANALOG_MIRRORING	= 4,
+	SND_EFW_CH_TYPE_HEADPHONES		= 5,
+	SND_EFW_CH_TYPE_I2S			= 6,
+	SND_EFW_CH_TYPE_GUITAR			= 7,
+	SND_EFW_CH_TYPE_PIEZO_GUITAR		= 8,
+	SND_EFW_CH_TYPE_GUITAR_STRING		= 9,
+	SND_EFW_CH_TYPE_VIRTUAL			= 0x10000,
+	SND_EFW_CH_TYPE_DUMMY
+};
+struct snd_efw_phys_meters {
+	u32 status;	/* guitar state/midi signal/clock input detect */
+	u32 reserved0;
+	u32 reserved1;
+	u32 reserved2;
+	u32 reserved3;
+	u32 out_meters;
+	u32 in_meters;
+	u32 reserved4;
+	u32 reserved5;
+	u32 values[0];
+} __packed;
+enum snd_efw_clock_source {
+	SND_EFW_CLOCK_SOURCE_INTERNAL	= 0,
+	SND_EFW_CLOCK_SOURCE_SYTMATCH	= 1,
+	SND_EFW_CLOCK_SOURCE_WORDCLOCK	= 2,
+	SND_EFW_CLOCK_SOURCE_SPDIF	= 3,
+	SND_EFW_CLOCK_SOURCE_ADAT_1	= 4,
+	SND_EFW_CLOCK_SOURCE_ADAT_2	= 5,
+	SND_EFW_CLOCK_SOURCE_CONTINUOUS	= 6	/* internal variable clock */
+};
+enum snd_efw_transport_mode {
+	SND_EFW_TRANSPORT_MODE_WINDOWS	= 0,
+	SND_EFW_TRANSPORT_MODE_IEC61883	= 1,
+};
+int snd_efw_command_set_resp_addr(struct snd_efw *efw,
+				  u16 addr_high, u32 addr_low);
+int snd_efw_command_set_tx_mode(struct snd_efw *efw, unsigned int mode);
+int snd_efw_command_get_hwinfo(struct snd_efw *efw,
+			       struct snd_efw_hwinfo *hwinfo);
+int snd_efw_command_get_phys_meters(struct snd_efw *efw,
+				    struct snd_efw_phys_meters *meters,
+				    unsigned int len);
+int snd_efw_command_get_clock_source(struct snd_efw *efw,
+				     enum snd_efw_clock_source *source);
+int snd_efw_command_get_sampling_rate(struct snd_efw *efw, unsigned int *rate);
+int snd_efw_command_set_sampling_rate(struct snd_efw *efw, unsigned int rate);
 
 #define SND_EFW_DEV_ENTRY(vendor, model) \
 { \

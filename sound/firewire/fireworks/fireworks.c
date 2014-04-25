@@ -59,6 +59,50 @@ static DECLARE_BITMAP(devices_used, SNDRV_CARDS);
 /* unknown as product */
 #define  MODEL_GIBSON_GOLDTOP		0x00afb9
 
+/* part of hardware capability flags */
+#define FLAG_RESP_ADDR_CHANGABLE	0
+
+static int
+get_hardware_info(struct snd_efw *efw)
+{
+	struct fw_device *fw_dev = fw_parent_device(efw->unit);
+	struct snd_efw_hwinfo *hwinfo;
+	char version[12] = {0};
+	int err;
+
+	hwinfo = kzalloc(sizeof(struct snd_efw_hwinfo), GFP_KERNEL);
+	if (hwinfo == NULL)
+		return -ENOMEM;
+
+	err = snd_efw_command_get_hwinfo(efw, hwinfo);
+	if (err < 0)
+		goto end;
+
+	/* firmware version for communication chipset */
+	snprintf(version, sizeof(version), "%u.%u",
+		 (hwinfo->arm_version >> 24) & 0xff,
+		 (hwinfo->arm_version >> 16) & 0xff);
+	if (err < 0)
+		goto end;
+
+	strcpy(efw->card->driver, "Fireworks");
+	strcpy(efw->card->shortname, hwinfo->model_name);
+	strcpy(efw->card->mixername, hwinfo->model_name);
+	snprintf(efw->card->longname, sizeof(efw->card->longname),
+		 "%s %s v%s, GUID %08x%08x at %s, S%d",
+		 hwinfo->vendor_name, hwinfo->model_name, version,
+		 hwinfo->guid_hi, hwinfo->guid_lo,
+		 dev_name(&efw->unit->device), 100 << fw_dev->max_speed);
+	if (err < 0)
+		goto end;
+
+	if (hwinfo->flags & BIT(FLAG_RESP_ADDR_CHANGABLE))
+		efw->resp_addr_changable = true;
+end:
+	kfree(hwinfo);
+	return err;
+}
+
 static void
 efw_card_free(struct snd_card *card)
 {
@@ -107,14 +151,14 @@ efw_probe(struct fw_unit *unit,
 	mutex_init(&efw->mutex);
 	spin_lock_init(&efw->lock);
 
-	strcpy(efw->card->driver, "Fireworks");
-	strcpy(efw->card->shortname, efw->card->driver);
-	strcpy(efw->card->longname, efw->card->driver);
-	strcpy(efw->card->mixername, efw->card->driver);
+	err = get_hardware_info(efw);
+	if (err < 0)
+		goto error;
 
 	err = snd_card_register(card);
 	if (err < 0)
 		goto error;
+
 	dev_set_drvdata(&unit->device, efw);
 end:
 	mutex_unlock(&devices_mutex);
@@ -127,7 +171,8 @@ error:
 
 static void efw_update(struct fw_unit *unit)
 {
-	return;
+	struct snd_efw *efw = dev_get_drvdata(&unit->device);
+	snd_efw_transaction_bus_reset(efw->unit);
 }
 
 static void efw_remove(struct fw_unit *unit)
@@ -169,11 +214,23 @@ static struct fw_driver efw_driver = {
 
 static int __init snd_efw_init(void)
 {
-	return driver_register(&efw_driver.driver);
+	int err;
+
+	err = snd_efw_transaction_register();
+	if (err < 0)
+		goto end;
+
+	err = driver_register(&efw_driver.driver);
+	if (err < 0)
+		snd_efw_transaction_unregister();
+
+end:
+	return err;
 }
 
 static void __exit snd_efw_exit(void)
 {
+	snd_efw_transaction_unregister();
 	driver_unregister(&efw_driver.driver);
 	mutex_destroy(&devices_mutex);
 }
