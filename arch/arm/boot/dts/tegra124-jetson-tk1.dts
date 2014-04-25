@@ -1360,8 +1360,8 @@
 		status = "okay";
 		clock-frequency = <100000>;
 
-		rt5640: audio-codec@1c {
-			compatible = "realtek,rt5640";
+		rt5639: audio-codec@1c {
+			compatible = "realtek,rt5639";
 			reg = <0x1c>;
 			interrupt-parent = <&gpio>;
 			interrupts = <TEGRA_GPIO(H, 4) GPIO_ACTIVE_HIGH>;
@@ -1814,7 +1814,7 @@
 			"IN2P", "Mic Jack";
 
 		nvidia,i2s-controller = <&tegra_i2s1>;
-		nvidia,audio-codec = <&rt5640>;
+		nvidia,audio-codec = <&rt5639>;
 
 		nvidia,hp-det-gpios = <&gpio TEGRA_GPIO(R, 7) GPIO_ACTIVE_LOW>;
 
