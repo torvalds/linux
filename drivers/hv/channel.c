@@ -682,8 +682,7 @@ int vmbus_sendpacket_multipagebuffer(struct vmbus_channel *channel,
 	u32 pfncount = NUM_PAGES_SPANNED(multi_pagebuffer->offset,
 					 multi_pagebuffer->len);
 
-
-	if ((pfncount < 0) || (pfncount > MAX_MULTIPAGE_BUFFER_COUNT))
+	if (pfncount > MAX_MULTIPAGE_BUFFER_COUNT)
 		return -EINVAL;
 
 	/*
