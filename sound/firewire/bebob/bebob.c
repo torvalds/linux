@@ -171,6 +171,10 @@ bebob_probe(struct fw_unit *unit,
 			goto error;
 	}
 
+	err = snd_bebob_create_pcm_devices(bebob);
+	if (err < 0)
+		goto error;
+
 	err = snd_bebob_stream_init_duplex(bebob);
 	if (err < 0)
 		goto error;
