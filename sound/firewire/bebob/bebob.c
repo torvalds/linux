@@ -247,10 +247,26 @@ bebob_probe(struct fw_unit *unit,
 	if (err < 0)
 		goto error;
 
-	err = snd_card_register(card);
-	if (err < 0) {
-		snd_bebob_stream_destroy_duplex(bebob);
-		goto error;
+	if (!bebob->maudio_special_quirk) {
+		err = snd_card_register(card);
+		if (err < 0) {
+			snd_bebob_stream_destroy_duplex(bebob);
+			goto error;
+		}
+	} else {
+		/*
+		 * This is a workaround. This bus reset seems to have an effect
+		 * to make devices correctly handling transactions. Without
+		 * this, the devices have gap_count mismatch. This causes much
+		 * failure of transaction.
+		 *
+		 * Just after registration, user-land application receive
+		 * signals from dbus and starts I/Os. To avoid I/Os till the
+		 * future bus reset, registration is done in next update().
+		 */
+		bebob->deferred_registration = true;
+		fw_schedule_bus_reset(fw_parent_device(bebob->unit)->card,
+				      false, true);
 	}
 
 	dev_set_drvdata(&unit->device, bebob);
@@ -273,6 +289,14 @@ bebob_update(struct fw_unit *unit)
 
 	fcp_bus_reset(bebob->unit);
 	snd_bebob_stream_update_duplex(bebob);
+
+	if (bebob->deferred_registration) {
+		if (snd_card_register(bebob->card) < 0) {
+			snd_bebob_stream_destroy_duplex(bebob);
+			snd_card_free(bebob->card);
+		}
+		bebob->deferred_registration = false;
+	}
 }
 
 static void bebob_remove(struct fw_unit *unit)
