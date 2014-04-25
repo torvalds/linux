@@ -164,6 +164,13 @@ bebob_probe(struct fw_unit *unit,
 
 	snd_bebob_proc_init(bebob);
 
+	if ((bebob->midi_input_ports > 0) ||
+	    (bebob->midi_output_ports > 0)) {
+		err = snd_bebob_create_midi_devices(bebob);
+		if (err < 0)
+			goto error;
+	}
+
 	err = snd_bebob_stream_init_duplex(bebob);
 	if (err < 0)
 		goto error;
