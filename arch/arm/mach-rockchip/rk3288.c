@@ -426,6 +426,9 @@ static void rk3288_restart(char mode, const char *cmd)
 	writel_relaxed(boot_mode, RK_PMU_VIRT + RK3288_PMU_SYS_REG1);	// for linux
 	dsb();
 
+	/* pll enter slow mode */
+	writel_relaxed(0xf3030000, RK_CRU_VIRT + RK3288_CRU_MODE_CON);
+	dsb();
 	writel_relaxed(0xeca8, RK_CRU_VIRT + RK3288_CRU_GLB_SRST_SND_VALUE);
 	dsb();
 }
