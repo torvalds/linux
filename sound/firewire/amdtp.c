@@ -78,6 +78,8 @@ int amdtp_stream_init(struct amdtp_stream *s, struct fw_unit *unit,
 	s->callbacked = false;
 	s->sync_slave = NULL;
 
+	s->rx_blocks_for_midi = UINT_MAX;
+
 	return 0;
 }
 EXPORT_SYMBOL(amdtp_stream_init);
@@ -472,7 +474,8 @@ static void amdtp_fill_midi(struct amdtp_stream *s,
 		b = (u8 *)&buffer[s->midi_position];
 
 		port = (s->data_block_counter + f) % 8;
-		if ((s->midi[port] == NULL) ||
+		if ((f >= s->rx_blocks_for_midi) ||
+		    (s->midi[port] == NULL) ||
 		    (snd_rawmidi_transmit(s->midi[port], b + 1, 1) <= 0))
 			b[0] = 0x80;
 		else
