@@ -22,6 +22,7 @@
 #include <sound/initval.h>
 #include <sound/pcm.h>
 #include <sound/info.h>
+#include <sound/rawmidi.h>
 
 #include "../packets-buffer.h"
 #include "../iso-resources.h"
@@ -197,6 +198,8 @@ void snd_efw_stream_update_duplex(struct snd_efw *efw);
 void snd_efw_stream_destroy_duplex(struct snd_efw *efw);
 
 void snd_efw_proc_init(struct snd_efw *efw);
+
+int snd_efw_create_midi_devices(struct snd_efw *efw);
 
 #define SND_EFW_DEV_ENTRY(vendor, model) \
 { \

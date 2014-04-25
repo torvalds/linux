@@ -226,6 +226,12 @@ efw_probe(struct fw_unit *unit,
 
 	snd_efw_proc_init(efw);
 
+	if (efw->midi_out_ports || efw->midi_in_ports) {
+		err = snd_efw_create_midi_devices(efw);
+		if (err < 0)
+			goto error;
+	}
+
 	err = snd_efw_stream_init_duplex(efw);
 	if (err < 0)
 		goto error;
