@@ -61,4 +61,18 @@ config SND_SCS1X
 	  To compile this driver as a module, choose M here: the module
 	  will be called snd-scs1x.
 
+config SND_FIREWORKS
+	tristate "Echo Fireworks board module support"
+	help
+	  Say Y here to include support for FireWire devices based
+	  on Echo Digital Audio Fireworks board:
+	   * Mackie Onyx 400F/1200F
+	   * Echo AudioFire12/8(until 2009 July)
+	   * Echo AudioFire2/4/Pre8/8(since 2009 July)
+	   * Echo Fireworks 8/HDMI
+	   * Gibson Robot Interface Pack/GoldTop
+
+	  To compile this driver as a module, choose M here: the module
+	  will be called snd-fireworks.
+
 endif # SND_FIREWIRE

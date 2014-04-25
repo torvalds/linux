@@ -10,3 +10,4 @@ obj-$(CONFIG_SND_DICE) += snd-dice.o
 obj-$(CONFIG_SND_FIREWIRE_SPEAKERS) += snd-firewire-speakers.o
 obj-$(CONFIG_SND_ISIGHT) += snd-isight.o
 obj-$(CONFIG_SND_SCS1X) += snd-scs1x.o
+obj-$(CONFIG_SND_FIREWORKS) += fireworks/
