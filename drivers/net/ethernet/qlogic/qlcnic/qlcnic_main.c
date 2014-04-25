@@ -2532,6 +2532,9 @@ qlcnic_probe(struct pci_dev *pdev, const struct pci_device_id *ent)
 			case -ENOMEM:
 				dev_err(&pdev->dev, "Adapter initialization failed. Please reboot\n");
 				goto err_out_free_hw;
+			case -EOPNOTSUPP:
+				dev_err(&pdev->dev, "Adapter initialization failed\n");
+				goto err_out_free_hw;
 			default:
 				dev_err(&pdev->dev, "Adapter initialization failed. Driver will load in maintenance mode to recover the adapter using the application\n");
 				goto err_out_maintenance_mode;
