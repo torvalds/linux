@@ -331,6 +331,18 @@ static void fsl_qspi_init_lut(struct fsl_qspi *q)
 			writel(LUT0(READ_DDR, PAD4, rxfifo)
 				| LUT1(JMP_ON_CS, PAD1, 0),
 				base + QUADSPI_LUT(lut_base + 2));
+		} else if (op == SPINOR_OP_READ_1_1_4_D) {
+			/* read mode : 1-1-4, such as Micron N25Q256A. */
+			writel(LUT0(CMD, PAD1, op)
+				| LUT1(ADDR_DDR, PAD1, addrlen),
+				base + QUADSPI_LUT(lut_base));
+
+			writel(LUT0(DUMMY, PAD1, dm)
+				| LUT1(READ_DDR, PAD4, rxfifo),
+				base + QUADSPI_LUT(lut_base + 1));
+
+			writel(LUT0(JMP_ON_CS, PAD1, 0),
+				base + QUADSPI_LUT(lut_base + 2));
 		} else {
 			dev_err(nor->dev, "Unsupported opcode : 0x%.2x\n", op);
 		}
@@ -395,6 +407,7 @@ static void fsl_qspi_init_lut(struct fsl_qspi *q)
 static int fsl_qspi_get_seqid(struct fsl_qspi *q, u8 cmd)
 {
 	switch (cmd) {
+	case SPINOR_OP_READ_1_1_4_D:
 	case SPINOR_OP_READ_1_4_4_D:
 	case SPINOR_OP_READ4_1_4_4_D:
 	case SPINOR_OP_READ4_1_1_4:
