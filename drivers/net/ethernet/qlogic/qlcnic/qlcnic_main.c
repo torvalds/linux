@@ -2593,7 +2593,7 @@ qlcnic_probe(struct pci_dev *pdev, const struct pci_device_id *ent)
 		qlcnic_alloc_lb_filters_mem(adapter);
 
 	qlcnic_add_sysfs(adapter);
-
+	qlcnic_register_hwmon_dev(adapter);
 	return 0;
 
 err_out_disable_mbx_intr:
@@ -2699,6 +2699,8 @@ static void qlcnic_remove(struct pci_dev *pdev)
 	qlcnic_teardown_intr(adapter);
 
 	qlcnic_remove_sysfs(adapter);
+
+	qlcnic_unregister_hwmon_dev(adapter);
 
 	qlcnic_cleanup_pci_map(adapter->ahw);
 

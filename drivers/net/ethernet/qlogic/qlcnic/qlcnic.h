@@ -537,6 +537,7 @@ struct qlcnic_hardware_context {
 	u8 phys_port_id[ETH_ALEN];
 	u8 lb_mode;
 	u16 vxlan_port;
+	struct device *hwmon_dev;
 };
 
 struct qlcnic_adapter_stats {
@@ -2361,4 +2362,18 @@ static inline u32 qlcnic_get_vnic_func_count(struct qlcnic_adapter *adapter)
 	else
 		return QLC_DEFAULT_VNIC_COUNT;
 }
+
+#ifdef CONFIG_QLCNIC_HWMON
+void qlcnic_register_hwmon_dev(struct qlcnic_adapter *);
+void qlcnic_unregister_hwmon_dev(struct qlcnic_adapter *);
+#else
+static inline void qlcnic_register_hwmon_dev(struct qlcnic_adapter *adapter)
+{
+	return;
+}
+static inline void qlcnic_unregister_hwmon_dev(struct qlcnic_adapter *adapter)
+{
+	return;
+}
+#endif
 #endif				/* __QLCNIC_H_ */
