@@ -56,9 +56,6 @@ struct rt5631_priv {
 	int eq_mode;
 	int phone_det_level;
 	int pll_used_flag;
-	
-	struct workqueue_struct *irq_wq;
-	struct delayed_work rt5631_delayed_work;
 };
 #if (RT5631_SPK_TIMER == 1)
 static struct timer_list spk_timer;
@@ -1991,14 +1988,23 @@ static int rt5631_set_bias_level(struct snd_soc_codec *codec,
 	return 0;
 }
 
-static void rt5631_init_work(struct work_struct *work)
+static int rt5631_probe(struct snd_soc_codec *codec)
 {
-	struct snd_soc_codec *codec = rt5631_codec;
 	struct rt5631_priv *rt5631 = snd_soc_codec_get_drvdata(codec);
-	int val,ret;
-	DBG("Enter::%s----%d\n",__FUNCTION__,__LINE__);	
-	
+	int val;
+	int ret;
+	ret = snd_soc_codec_set_cache_io(codec, 8, 16, SND_SOC_I2C);
+	if (ret != 0) {
+		dev_err(codec->dev, "Failed to set cache I/O: %d\n", ret);
+		return ret;
+	}
+	codec->cache_bypass = 1;
+
 	val = rt5631_read_index(codec, RT5631_ADDA_MIXER_INTL_REG3);
+	if(val < 0)
+	{
+		return -ENODEV;
+	}
 	if (val & 0x0002)
 		rt5631->codec_version = 1;
 	else
@@ -2025,6 +2031,7 @@ static void rt5631_init_work(struct work_struct *work)
 					0, 0x2000);
 
 	codec->dapm.bias_level = SND_SOC_BIAS_STANDBY;
+	rt5631_codec = codec;
 
 #if (RT5631_SPK_TIMER == 1)
 	/* Timer module installing */
@@ -2035,31 +2042,6 @@ static void rt5631_init_work(struct work_struct *work)
 
 	INIT_WORK(&spk_work, spk_work_handler);
 #endif
-	
-}
-
-static int rt5631_probe(struct snd_soc_codec *codec)
-{
-	struct rt5631_priv *rt5631 = snd_soc_codec_get_drvdata(codec);
-	int val;
-	int ret;
-	
-	rt5631_codec = codec;
-	ret = snd_soc_codec_set_cache_io(codec, 8, 16, SND_SOC_I2C);
-	if (ret != 0) {
-		dev_err(codec->dev, "Failed to set cache I/O: %d\n", ret);
-		return ret;
-	}
-	codec->cache_bypass = 1;
-
-	rt5631->irq_wq = create_singlethread_workqueue("rt5631-irq_wq");
-	if (!rt5631->irq_wq) {
-		printk( "Failed to rt5631 allocate IRQ worker\n");
-		return -ESRCH;
-	}	
-	INIT_DELAYED_WORK(&rt5631->rt5631_delayed_work, rt5631_init_work);
-	queue_delayed_work(rt5631->irq_wq, &rt5631->rt5631_delayed_work, msecs_to_jiffies(10));
-
 //bard 7-16 s
 	INIT_DELAYED_WORK(&rt5631_delay_cap,rt5631_adc_on);
 //bard 7-16 e
