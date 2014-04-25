@@ -20,12 +20,28 @@
 
 #define TRANSFER_DELAY_TICKS	0x2e00 /* 479.17 µs */
 
+/* isochronous header parameters */
+#define ISO_DATA_LENGTH_SHIFT	16
 #define TAG_CIP			1
 
+/* common isochronous packet header parameters */
 #define CIP_EOH			(1u << 31)
+#define CIP_EOH_MASK		0x80000000
 #define CIP_FMT_AM		(0x10 << 24)
-#define AMDTP_FDF_AM824		(0 << 19)
-#define AMDTP_FDF_SFC_SHIFT	16
+#define CIP_FMT_MASK		0x3f000000
+#define CIP_SYT_MASK		0x0000ffff
+#define CIP_SYT_NO_INFO		0xffff
+#define CIP_FDF_MASK		0x00ff0000
+#define CIP_FDF_SFC_SHIFT	16
+
+/*
+ * Audio and Music transfer protocol specific parameters
+ * only "Clock-based rate control mode" is supported
+ */
+#define AMDTP_FDF_AM824		(0 << (CIP_FDF_SFC_SHIFT + 3))
+#define AMDTP_DBS_MASK		0x00ff0000
+#define AMDTP_DBS_SHIFT		16
+#define AMDTP_DBC_MASK		0x000000ff
 
 /* TODO: make these configurable */
 #define INTERRUPT_INTERVAL	16
@@ -280,9 +296,9 @@ static unsigned int calculate_syt(struct amdtp_stream *s,
 		syt = (cycle + syt_offset / TICKS_PER_CYCLE) << 12;
 		syt += syt_offset % TICKS_PER_CYCLE;
 
-		return syt & 0xffff;
+		return syt & CIP_SYT_MASK;
 	} else {
-		return 0xffff; /* no info */
+		return CIP_SYT_NO_INFO;
 	}
 }
 
@@ -438,17 +454,17 @@ static void queue_out_packet(struct amdtp_stream *s, unsigned int cycle)
 	syt = calculate_syt(s, cycle);
 	if (!(s->flags & CIP_BLOCKING))
 		data_blocks = calculate_data_blocks(s);
-	else if (syt != 0xffff)
+	else if (syt != CIP_SYT_NO_INFO)
 		data_blocks = s->syt_interval;
 	else
 		data_blocks = 0;
 
 	buffer = s->buffer.packets[index].buffer;
 	buffer[0] = cpu_to_be32(ACCESS_ONCE(s->source_node_id_field) |
-				(s->data_block_quadlets << 16) |
+				(s->data_block_quadlets << AMDTP_DBS_SHIFT) |
 				s->data_block_counter);
 	buffer[1] = cpu_to_be32(CIP_EOH | CIP_FMT_AM | AMDTP_FDF_AM824 |
-				(s->sfc << AMDTP_FDF_SFC_SHIFT) | syt);
+				(s->sfc << CIP_FDF_SFC_SHIFT) | syt);
 	buffer += 2;
 
 	pcm = ACCESS_ONCE(s->pcm);
