@@ -1119,9 +1119,6 @@ static void sdhci_set_clock(struct sdhci_host *host, unsigned int clock)
 	u16 clk = 0;
 	unsigned long timeout;
 
-	if (clock && clock == host->clock)
-		return;
-
 	host->mmc->actual_clock = 0;
 
 	if (host->ops->set_clock) {
@@ -1226,15 +1223,6 @@ clock_set:
 
 out:
 	host->clock = clock;
-}
-
-static inline void sdhci_update_clock(struct sdhci_host *host)
-{
-	unsigned int clock;
-
-	clock = host->clock;
-	host->clock = 0;
-	sdhci_set_clock(host, clock);
 }
 
 static int sdhci_set_power(struct sdhci_host *host, unsigned short power)
@@ -1453,7 +1441,8 @@ static void sdhci_do_set_ios(struct sdhci_host *host, struct mmc_ios *ios)
 		!(host->quirks2 & SDHCI_QUIRK2_PRESET_VALUE_BROKEN))
 		sdhci_enable_preset_value(host, false);
 
-	sdhci_set_clock(host, ios->clock);
+	if (!ios->clock || ios->clock != host->clock)
+		sdhci_set_clock(host, ios->clock);
 
 	if (ios->power_mode == MMC_POWER_OFF)
 		vdd_bit = sdhci_set_power(host, -1);
@@ -1522,7 +1511,7 @@ static void sdhci_do_set_ios(struct sdhci_host *host, struct mmc_ios *ios)
 			sdhci_writeb(host, ctrl, SDHCI_HOST_CONTROL);
 
 			/* Re-enable SD Clock */
-			sdhci_update_clock(host);
+			sdhci_set_clock(host, host->clock);
 		}
 
 
@@ -1567,7 +1556,7 @@ static void sdhci_do_set_ios(struct sdhci_host *host, struct mmc_ios *ios)
 		}
 
 		/* Re-enable SD Clock */
-		sdhci_update_clock(host);
+		sdhci_set_clock(host, host->clock);
 	} else
 		sdhci_writeb(host, ctrl, SDHCI_HOST_CONTROL);
 
@@ -2141,7 +2130,7 @@ static void sdhci_tasklet_finish(unsigned long param)
 		/* Some controllers need this kick or reset won't work here */
 		if (host->quirks & SDHCI_QUIRK_CLOCK_BEFORE_RESET)
 			/* This is to force an update */
-			sdhci_update_clock(host);
+			sdhci_set_clock(host, host->clock);
 
 		/* Spec says we should do both at the same time, but Ricoh
 		   controllers do not like that. */
