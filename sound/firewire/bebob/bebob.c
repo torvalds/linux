@@ -158,9 +158,20 @@ bebob_probe(struct fw_unit *unit,
 	if (err < 0)
 		goto error;
 
-	err = snd_card_register(card);
+	err = snd_bebob_stream_discover(bebob);
 	if (err < 0)
 		goto error;
+
+	err = snd_bebob_stream_init_duplex(bebob);
+	if (err < 0)
+		goto error;
+
+	err = snd_card_register(card);
+	if (err < 0) {
+		snd_bebob_stream_destroy_duplex(bebob);
+		goto error;
+	}
+
 	dev_set_drvdata(&unit->device, bebob);
 end:
 	mutex_unlock(&devices_mutex);
@@ -176,11 +187,13 @@ bebob_update(struct fw_unit *unit)
 {
 	struct snd_bebob *bebob = dev_get_drvdata(&unit->device);
 	fcp_bus_reset(bebob->unit);
+	snd_bebob_stream_update_duplex(bebob);
 }
 
 static void bebob_remove(struct fw_unit *unit)
 {
 	struct snd_bebob *bebob = dev_get_drvdata(&unit->device);
+	snd_bebob_stream_destroy_duplex(bebob);
 	snd_card_disconnect(bebob->card);
 	snd_card_free_when_closed(bebob->card);
 }
