@@ -11,7 +11,7 @@
  * Copyright (C) 2012 ARM Limited
  */
 
-#include <linux/jiffies.h>
+#include <linux/delay.h>
 #include <linux/of.h>
 #include <linux/of_device.h>
 #include <linux/platform_device.h>
@@ -23,17 +23,12 @@
 static void vexpress_reset_do(struct device *dev, const char *what)
 {
 	int err = -ENOENT;
-	struct vexpress_config_func *func =
-			vexpress_config_func_get_by_dev(dev);
+	struct vexpress_config_func *func = dev_get_drvdata(dev);
 
 	if (func) {
-		unsigned long timeout;
-
 		err = vexpress_config_write(func, 0, 0);
-
-		timeout = jiffies + HZ;
-		while (time_before(jiffies, timeout))
-			cpu_relax();
+		if (!err)
+			mdelay(1000);
 	}
 
 	dev_emerg(dev, "Unable to %s (%d)\n", what, err);
@@ -96,11 +91,17 @@ static int vexpress_reset_probe(struct platform_device *pdev)
 	enum vexpress_reset_func func;
 	const struct of_device_id *match =
 			of_match_device(vexpress_reset_of_match, &pdev->dev);
+	struct vexpress_config_func *config_func;
 
 	if (match)
 		func = (enum vexpress_reset_func)match->data;
 	else
 		func = pdev->id_entry->driver_data;
+
+	config_func = vexpress_config_func_get_by_dev(&pdev->dev);
+	if (!config_func)
+		return -EINVAL;
+	dev_set_drvdata(&pdev->dev, config_func);
 
 	switch (func) {
 	case FUNC_SHUTDOWN:

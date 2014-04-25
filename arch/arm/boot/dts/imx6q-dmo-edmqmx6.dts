@@ -19,7 +19,10 @@
 	compatible = "dmo,imx6q-edmqmx6", "fsl,imx6q";
 
 	aliases {
-		gpio7 = &stmpe_gpio;
+		gpio7 = &stmpe_gpio1;
+		gpio8 = &stmpe_gpio2;
+		stmpe-i2c0 = &stmpe1;
+		stmpe-i2c1 = &stmpe2;
 	};
 
 	memory {
@@ -40,13 +43,15 @@
 			regulator-always-on;
 		};
 
-		reg_usb_otg_vbus: regulator@1 {
+		reg_usb_otg_switch: regulator@1 {
 			compatible = "regulator-fixed";
 			reg = <1>;
-			regulator-name = "usb_otg_vbus";
+			regulator-name = "usb_otg_switch";
 			regulator-min-microvolt = <5000000>;
 			regulator-max-microvolt = <5000000>;
 			gpio = <&gpio7 12 0>;
+			regulator-boot-on;
+			regulator-always-on;
 		};
 
 		reg_usb_host1: regulator@2 {
@@ -65,23 +70,23 @@
 
 		led-blue {
 			label = "blue";
-			gpios = <&stmpe_gpio 8 GPIO_ACTIVE_HIGH>;
+			gpios = <&stmpe_gpio1 8 GPIO_ACTIVE_HIGH>;
 			linux,default-trigger = "heartbeat";
 		};
 
 		led-green {
 			label = "green";
-			gpios = <&stmpe_gpio 9 GPIO_ACTIVE_HIGH>;
+			gpios = <&stmpe_gpio1 9 GPIO_ACTIVE_HIGH>;
 		};
 
 		led-pink {
 			label = "pink";
-			gpios = <&stmpe_gpio 10 GPIO_ACTIVE_HIGH>;
+			gpios = <&stmpe_gpio1 10 GPIO_ACTIVE_HIGH>;
 		};
 
 		led-red {
 			label = "red";
-			gpios = <&stmpe_gpio 11 GPIO_ACTIVE_HIGH>;
+			gpios = <&stmpe_gpio1 11 GPIO_ACTIVE_HIGH>;
 		};
 	};
 };
@@ -99,7 +104,8 @@
 	clock-frequency = <100000>;
 	pinctrl-names = "default";
 	pinctrl-0 = <&pinctrl_i2c2
-		     &pinctrl_stmpe>;
+		     &pinctrl_stmpe1
+		     &pinctrl_stmpe2>;
 	status = "okay";
 
 	pmic: pfuze100@08 {
@@ -205,13 +211,25 @@
 		};
 	};
 
-	stmpe: stmpe1601@40 {
+	stmpe1: stmpe1601@40 {
 		compatible = "st,stmpe1601";
 		reg = <0x40>;
 		interrupts = <30 0>;
 		interrupt-parent = <&gpio3>;
 
-		stmpe_gpio: stmpe_gpio {
+		stmpe_gpio1: stmpe_gpio {
+			#gpio-cells = <2>;
+			compatible = "st,stmpe-gpio";
+		};
+	};
+
+	stmpe2: stmpe1601@44 {
+		compatible = "st,stmpe1601";
+		reg = <0x44>;
+		interrupts = <2 0>;
+		interrupt-parent = <&gpio5>;
+
+		stmpe_gpio2: stmpe_gpio {
 			#gpio-cells = <2>;
 			compatible = "st,stmpe-gpio";
 		};
@@ -273,8 +291,12 @@
 			>;
 		};
 
-		pinctrl_stmpe: stmpegrp {
+		pinctrl_stmpe1: stmpe1grp {
 			fsl,pins = <MX6QDL_PAD_EIM_D30__GPIO3_IO30 0x80000000>;
+		};
+
+		pinctrl_stmpe2: stmpe2grp {
+			fsl,pins = <MX6QDL_PAD_EIM_A25__GPIO5_IO02 0x80000000>;
 		};
 
 		pinctrl_uart1: uart1grp {
@@ -293,7 +315,7 @@
 
 		pinctrl_usbotg: usbotggrp {
 			fsl,pins = <
-				MX6QDL_PAD_GPIO_1__USB_OTG_ID		0x17059
+				MX6QDL_PAD_ENET_RX_ER__USB_OTG_ID	0x17059
 			>;
 		};
 
@@ -344,11 +366,11 @@
 &usbh1 {
 	vbus-supply = <&reg_usb_host1>;
 	disable-over-current;
+	dr_mode = "host";
 	status = "okay";
 };
 
 &usbotg {
-	vbus-supply = <&reg_usb_otg_vbus>;
 	pinctrl-names = "default";
 	pinctrl-0 = <&pinctrl_usbotg>;
 	disable-over-current;

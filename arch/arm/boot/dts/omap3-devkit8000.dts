@@ -112,7 +112,6 @@
 		reg = <0 0 0>; /* CS0, offset 0 */
 		nand-bus-width = <16>;
 
-		gpmc,device-nand;
 		gpmc,sync-clk-ps = <0>;
 		gpmc,cs-on-ns = <0>;
 		gpmc,cs-rd-off-ns = <44>;
