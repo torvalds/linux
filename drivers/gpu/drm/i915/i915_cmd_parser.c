@@ -28,7 +28,7 @@
 #include "i915_drv.h"
 
 /**
- * DOC: i915 batch buffer command parser
+ * DOC: batch buffer command parser
  *
  * Motivation:
  * Certain OpenGL features (e.g. transform feedback, performance monitoring)
