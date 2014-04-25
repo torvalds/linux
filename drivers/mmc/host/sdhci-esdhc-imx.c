@@ -711,13 +711,12 @@ static void esdhc_request_done(struct mmc_request *mrq)
 	complete(&mrq->completion);
 }
 
-static int esdhc_send_tuning_cmd(struct sdhci_host *host, u32 opcode)
+static int esdhc_send_tuning_cmd(struct sdhci_host *host, u32 opcode,
+				 struct scatterlist *sg)
 {
 	struct mmc_command cmd = {0};
 	struct mmc_request mrq = {NULL};
 	struct mmc_data data = {0};
-	struct scatterlist sg;
-	char tuning_pattern[ESDHC_TUNING_BLOCK_PATTERN_LEN];
 
 	cmd.opcode = opcode;
 	cmd.arg = 0;
@@ -726,10 +725,8 @@ static int esdhc_send_tuning_cmd(struct sdhci_host *host, u32 opcode)
 	data.blksz = ESDHC_TUNING_BLOCK_PATTERN_LEN;
 	data.blocks = 1;
 	data.flags = MMC_DATA_READ;
-	data.sg = &sg;
+	data.sg = sg;
 	data.sg_len = 1;
-
-	sg_init_one(&sg, tuning_pattern, sizeof(tuning_pattern));
 
 	mrq.cmd = &cmd;
 	mrq.cmd->mrq = &mrq;
@@ -770,13 +767,21 @@ static void esdhc_post_tuning(struct sdhci_host *host)
 
 static int esdhc_executing_tuning(struct sdhci_host *host, u32 opcode)
 {
+	struct scatterlist sg;
+	char *tuning_pattern;
 	int min, max, avg, ret;
+
+	tuning_pattern = kmalloc(ESDHC_TUNING_BLOCK_PATTERN_LEN, GFP_KERNEL);
+	if (!tuning_pattern)
+		return -ENOMEM;
+
+	sg_init_one(&sg, tuning_pattern, ESDHC_TUNING_BLOCK_PATTERN_LEN);
 
 	/* find the mininum delay first which can pass tuning */
 	min = ESDHC_TUNE_CTRL_MIN;
 	while (min < ESDHC_TUNE_CTRL_MAX) {
 		esdhc_prepare_tuning(host, min);
-		if (!esdhc_send_tuning_cmd(host, opcode))
+		if (!esdhc_send_tuning_cmd(host, opcode, &sg))
 			break;
 		min += ESDHC_TUNE_CTRL_STEP;
 	}
@@ -785,7 +790,7 @@ static int esdhc_executing_tuning(struct sdhci_host *host, u32 opcode)
 	max = min + ESDHC_TUNE_CTRL_STEP;
 	while (max < ESDHC_TUNE_CTRL_MAX) {
 		esdhc_prepare_tuning(host, max);
-		if (esdhc_send_tuning_cmd(host, opcode)) {
+		if (esdhc_send_tuning_cmd(host, opcode, &sg)) {
 			max -= ESDHC_TUNE_CTRL_STEP;
 			break;
 		}
@@ -795,8 +800,10 @@ static int esdhc_executing_tuning(struct sdhci_host *host, u32 opcode)
 	/* use average delay to get the best timing */
 	avg = (min + max) / 2;
 	esdhc_prepare_tuning(host, avg);
-	ret = esdhc_send_tuning_cmd(host, opcode);
+	ret = esdhc_send_tuning_cmd(host, opcode, &sg);
 	esdhc_post_tuning(host);
+
+	kfree(tuning_pattern);
 
 	dev_dbg(mmc_dev(host->mmc), "tunning %s at 0x%x ret %d\n",
 		ret ? "failed" : "passed", avg, ret);
