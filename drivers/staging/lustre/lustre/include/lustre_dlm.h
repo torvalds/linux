@@ -212,7 +212,7 @@ struct ldlm_pool_ops {
 	int (*po_recalc)(struct ldlm_pool *pl);
 	/** Cancel at least \a nr locks from pool \a pl */
 	int (*po_shrink)(struct ldlm_pool *pl, int nr,
-			 unsigned int gfp_mask);
+			 gfp_t gfp_mask);
 	int (*po_setup)(struct ldlm_pool *pl, int limit);
 };
 
@@ -1463,7 +1463,7 @@ void ldlm_pools_fini(void);
 int ldlm_pool_init(struct ldlm_pool *pl, struct ldlm_namespace *ns,
 		   int idx, ldlm_side_t client);
 int ldlm_pool_shrink(struct ldlm_pool *pl, int nr,
-		     unsigned int gfp_mask);
+		     gfp_t gfp_mask);
 void ldlm_pool_fini(struct ldlm_pool *pl);
 int ldlm_pool_setup(struct ldlm_pool *pl, int limit);
 int ldlm_pool_recalc(struct ldlm_pool *pl);

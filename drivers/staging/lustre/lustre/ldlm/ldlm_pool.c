@@ -378,7 +378,7 @@ static int ldlm_srv_pool_recalc(struct ldlm_pool *pl)
  * locks smaller in next 10h.
  */
 static int ldlm_srv_pool_shrink(struct ldlm_pool *pl,
-				int nr, unsigned int gfp_mask)
+				int nr, gfp_t gfp_mask)
 {
 	__u32 limit;
 
@@ -518,7 +518,7 @@ static int ldlm_cli_pool_recalc(struct ldlm_pool *pl)
  * passed \a pl according to \a nr and \a gfp_mask.
  */
 static int ldlm_cli_pool_shrink(struct ldlm_pool *pl,
-				int nr, unsigned int gfp_mask)
+				int nr, gfp_t gfp_mask)
 {
 	struct ldlm_namespace *ns;
 	int unused;
@@ -603,7 +603,7 @@ int ldlm_pool_recalc(struct ldlm_pool *pl)
  * freeable locks. Otherwise, return the number of canceled locks.
  */
 int ldlm_pool_shrink(struct ldlm_pool *pl, int nr,
-		     unsigned int gfp_mask)
+		     gfp_t gfp_mask)
 {
 	int cancel = 0;
 
@@ -1029,7 +1029,7 @@ static struct completion ldlm_pools_comp;
  * count locks from all namespaces (if possible). Returns number of
  * cached locks.
  */
-static unsigned long ldlm_pools_count(ldlm_side_t client, unsigned int gfp_mask)
+static unsigned long ldlm_pools_count(ldlm_side_t client, gfp_t gfp_mask)
 {
 	int total = 0, nr_ns;
 	struct ldlm_namespace *ns;
@@ -1082,7 +1082,7 @@ static unsigned long ldlm_pools_count(ldlm_side_t client, unsigned int gfp_mask)
 	return total;
 }
 
-static unsigned long ldlm_pools_scan(ldlm_side_t client, int nr, unsigned int gfp_mask)
+static unsigned long ldlm_pools_scan(ldlm_side_t client, int nr, gfp_t gfp_mask)
 {
 	unsigned long freed = 0;
 	int tmp, nr_ns;
