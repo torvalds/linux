@@ -12,6 +12,7 @@
 #include <linux/module.h>
 #include <linux/slab.h>
 #include <sound/pcm.h>
+#include <sound/rawmidi.h>
 #include "amdtp.h"
 
 #define TICKS_PER_CYCLE		3072
@@ -123,9 +124,12 @@ void amdtp_stream_set_parameters(struct amdtp_stream *s,
 		[CIP_SFC_176400] = 176400,
 		[CIP_SFC_192000] = 192000,
 	};
-	unsigned int sfc;
+	unsigned int sfc, midi_channels;
 
-	if (WARN_ON(amdtp_stream_running(s)))
+	midi_channels = DIV_ROUND_UP(midi_ports, 8);
+
+	if (WARN_ON(amdtp_stream_running(s)) ||
+	    WARN_ON(midi_channels > AMDTP_MAX_CHANNELS_FOR_MIDI))
 		return;
 
 	for (sfc = 0; sfc < CIP_SFC_COUNT; ++sfc)
@@ -142,7 +146,7 @@ sfc_found:
 		pcm_channels *= 2;
 	}
 	s->sfc = sfc;
-	s->data_block_quadlets = pcm_channels + DIV_ROUND_UP(midi_ports, 8);
+	s->data_block_quadlets = pcm_channels + midi_channels;
 	s->pcm_channels = pcm_channels;
 	s->midi_ports = midi_ports;
 
@@ -200,7 +204,7 @@ static void amdtp_read_s32_dualwire(struct amdtp_stream *s,
 void amdtp_stream_set_pcm_format(struct amdtp_stream *s,
 				 snd_pcm_format_t format)
 {
-	if (WARN_ON(amdtp_stream_running(s)))
+	if (WARN_ON(amdtp_stream_pcm_running(s)))
 		return;
 
 	switch (format) {
@@ -507,11 +511,41 @@ static void amdtp_fill_pcm_silence(struct amdtp_stream *s,
 static void amdtp_fill_midi(struct amdtp_stream *s,
 			    __be32 *buffer, unsigned int frames)
 {
-	unsigned int i;
+	unsigned int f, port;
+	u8 *b;
 
-	for (i = 0; i < frames; ++i)
-		buffer[s->pcm_channels + i * s->data_block_quadlets] =
-						cpu_to_be32(0x80000000);
+	for (f = 0; f < frames; f++) {
+		buffer[s->pcm_channels + 1] = 0;
+		b = (u8 *)&buffer[s->pcm_channels + 1];
+
+		port = (s->data_block_counter + f) % 8;
+		if ((s->midi[port] == NULL) ||
+		    (snd_rawmidi_transmit(s->midi[port], b + 1, 1) <= 0))
+			b[0] = 0x80;
+		else
+			b[0] = 0x81;
+
+		buffer += s->data_block_quadlets;
+	}
+}
+
+static void amdtp_pull_midi(struct amdtp_stream *s,
+			    __be32 *buffer, unsigned int frames)
+{
+	unsigned int f, port;
+	int len;
+	u8 *b;
+
+	for (f = 0; f < frames; f++) {
+		port = (s->data_block_counter + f) % 8;
+		b = (u8 *)&buffer[s->pcm_channels + 1];
+
+		len = b[0] - 0x80;
+		if ((1 <= len) &&  (len <= 3) && (s->midi[port]))
+			snd_rawmidi_receive(s->midi[port], b + 1, len);
+
+		buffer += s->data_block_quadlets;
+	}
 }
 
 static void update_pcm_pointers(struct amdtp_stream *s,
@@ -688,6 +722,9 @@ static void handle_in_packet(struct amdtp_stream *s,
 		pcm = ACCESS_ONCE(s->pcm);
 		if (pcm)
 			s->transfer_samples(s, pcm, buffer, data_blocks);
+
+		if (s->midi_ports)
+			amdtp_pull_midi(s, buffer, data_blocks);
 	}
 
 	s->data_block_counter = (data_block_counter + data_blocks) & 0xff;

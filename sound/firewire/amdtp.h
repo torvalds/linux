@@ -46,9 +46,21 @@ enum cip_sfc {
 #define AMDTP_OUT_PCM_FORMAT_BITS	(SNDRV_PCM_FMTBIT_S16 | \
 					 SNDRV_PCM_FMTBIT_S32)
 
+
+/*
+ * AMDTP packet can include channels for MIDI conformant data.
+ * Each MIDI conformant data channel includes 8 MPX-MIDI data stream.
+ * Each MPX-MIDI data stream includes one data stream from/to MIDI ports.
+ *
+ * This module supports maximum 1 MIDI conformant data channels.
+ * Then this AMDTP packets can transfer maximum 8 MIDI data streams.
+ */
+#define AMDTP_MAX_CHANNELS_FOR_MIDI	1
+
 struct fw_unit;
 struct fw_iso_context;
 struct snd_pcm_substream;
+struct snd_rawmidi_substream;
 
 enum amdtp_stream_direction {
 	AMDTP_OUT_STREAM = 0,
@@ -90,6 +102,8 @@ struct amdtp_stream {
 	unsigned int pcm_buffer_pointer;
 	unsigned int pcm_period_pointer;
 	bool pointer_flush;
+
+	struct snd_rawmidi_substream *midi[AMDTP_MAX_CHANNELS_FOR_MIDI * 8];
 };
 
 int amdtp_stream_init(struct amdtp_stream *s, struct fw_unit *unit,
@@ -139,6 +153,17 @@ static inline bool amdtp_streaming_error(struct amdtp_stream *s)
 }
 
 /**
+ * amdtp_stream_pcm_running - check PCM substream is running or not
+ * @s: the AMDTP stream
+ *
+ * If this function returns true, PCM substream in the AMDTP stream is running.
+ */
+static inline bool amdtp_stream_pcm_running(struct amdtp_stream *s)
+{
+	return !!s->pcm;
+}
+
+/**
  * amdtp_stream_pcm_trigger - start/stop playback from a PCM device
  * @s: the AMDTP stream
  * @pcm: the PCM device to be started, or %NULL to stop the current device
@@ -151,6 +176,24 @@ static inline void amdtp_stream_pcm_trigger(struct amdtp_stream *s,
 					    struct snd_pcm_substream *pcm)
 {
 	ACCESS_ONCE(s->pcm) = pcm;
+}
+
+/**
+ * amdtp_stream_midi_trigger - start/stop playback/capture with a MIDI device
+ * @s: the AMDTP stream
+ * @port: index of MIDI port
+ * @midi: the MIDI device to be started, or %NULL to stop the current device
+ *
+ * Call this function on a running isochronous stream to enable the actual
+ * transmission of MIDI data.  This function should be called from the MIDI
+ * device's .trigger callback.
+ */
+static inline void amdtp_stream_midi_trigger(struct amdtp_stream *s,
+					     unsigned int port,
+					     struct snd_rawmidi_substream *midi)
+{
+	if (port < s->midi_ports)
+		ACCESS_ONCE(s->midi[port]) = midi;
 }
 
 static inline bool cip_sfc_is_base_44100(enum cip_sfc sfc)
