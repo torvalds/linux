@@ -27,6 +27,8 @@
  *	skipped for detecting discontinuity.
  * @CIP_SKIP_INIT_DBC_CHECK: Only for in-stream. The value of dbc in first
  *	packet is not continuous from an initial value.
+ * @CIP_EMPTY_HAS_WRONG_DBC: Only for in-stream. The value of dbc in empty
+ *	packet is wrong but the others are correct.
  */
 enum cip_flags {
 	CIP_NONBLOCKING		= 0x00,
@@ -37,6 +39,7 @@ enum cip_flags {
 	CIP_WRONG_DBS		= 0x10,
 	CIP_SKIP_DBC_ZERO_CHECK	= 0x20,
 	CIP_SKIP_INIT_DBC_CHECK	= 0x40,
+	CIP_EMPTY_HAS_WRONG_DBC	= 0x80,
 };
 
 /**

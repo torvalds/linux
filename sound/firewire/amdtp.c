@@ -665,6 +665,10 @@ static void handle_in_packet(struct amdtp_stream *s,
 
 	/* Check data block counter continuity */
 	data_block_counter = cip_header[0] & AMDTP_DBC_MASK;
+	if (data_blocks == 0 && (s->flags & CIP_EMPTY_HAS_WRONG_DBC) &&
+	    s->data_block_counter != UINT_MAX)
+		data_block_counter = s->data_block_counter;
+
 	if (((s->flags & CIP_SKIP_DBC_ZERO_CHECK) && data_block_counter == 0) ||
 	    (s->data_block_counter == UINT_MAX)) {
 		lost = false;

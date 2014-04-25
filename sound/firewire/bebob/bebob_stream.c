@@ -457,6 +457,13 @@ int snd_bebob_stream_init_duplex(struct snd_bebob *bebob)
 	/* See comments in next function */
 	init_completion(&bebob->bus_reset);
 	bebob->tx_stream.flags |= CIP_SKIP_INIT_DBC_CHECK;
+	/*
+	 * At high sampling rate, M-Audio special firmware transmits empty
+	 * packet with the value of dbc incremented by 8 but the others are
+	 * valid to IEC 61883-1.
+	 */
+	if (bebob->maudio_special_quirk)
+		bebob->tx_stream.flags |= CIP_EMPTY_HAS_WRONG_DBC;
 
 	err = amdtp_stream_init(&bebob->rx_stream, bebob->unit,
 				AMDTP_OUT_STREAM, CIP_BLOCKING);
