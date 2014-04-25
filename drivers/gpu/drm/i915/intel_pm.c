@@ -5696,11 +5696,13 @@ static void vlv_display_power_well_enable(struct drm_i915_private *dev_priv,
 	spin_unlock_irq(&dev_priv->irq_lock);
 
 	/*
-	 * During driver initialization we need to defer enabling hotplug
-	 * processing until fbdev is set up.
+	 * During driver initialization/resume we can avoid restoring the
+	 * part of the HW/SW state that will be inited anyway explicitly.
 	 */
-	if (dev_priv->enable_hotplug_processing)
-		intel_hpd_init(dev_priv->dev);
+	if (dev_priv->power_domains.initializing)
+		return;
+
+	intel_hpd_init(dev_priv->dev);
 
 	i915_redisable_vga_power_on(dev_priv->dev);
 }
@@ -6064,9 +6066,13 @@ static void intel_power_domains_resume(struct drm_i915_private *dev_priv)
 
 void intel_power_domains_init_hw(struct drm_i915_private *dev_priv)
 {
+	struct i915_power_domains *power_domains = &dev_priv->power_domains;
+
+	power_domains->initializing = true;
 	/* For now, we need the power well to be always enabled. */
 	intel_display_set_init_power(dev_priv, true);
 	intel_power_domains_resume(dev_priv);
+	power_domains->initializing = false;
 }
 
 void intel_aux_display_runtime_get(struct drm_i915_private *dev_priv)

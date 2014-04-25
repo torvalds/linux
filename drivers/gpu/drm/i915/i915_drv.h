@@ -928,6 +928,7 @@ struct i915_power_domains {
 	 * time are on. They are kept on until after the first modeset.
 	 */
 	bool init_power_on;
+	bool initializing;
 	int power_well_count;
 
 	struct mutex lock;
