@@ -169,6 +169,9 @@ static irqreturn_t l3_interrupt_handler(int irq, void *_l3)
 		err_reg = readl_relaxed(base + flag_mux->offset +
 					L3_FLAGMUX_REGERR0 + (inttype << 3));
 
+		err_reg &= ~(inttype ? flag_mux->mask_app_bits :
+				flag_mux->mask_dbg_bits);
+
 		/* Get the corresponding error and analyse */
 		if (err_reg) {
 			/* Identify the source from control status register */
@@ -193,6 +196,12 @@ static irqreturn_t l3_interrupt_handler(int irq, void *_l3)
 				mask_val = readl_relaxed(mask_reg);
 				mask_val &= ~(1 << err_src);
 				writel_relaxed(mask_val, mask_reg);
+
+				/* Mark these bits as to be ignored */
+				if (inttype)
+					flag_mux->mask_app_bits |= 1 << err_src;
+				else
+					flag_mux->mask_dbg_bits |= 1 << err_src;
 			}
 
 			/* Error found so break the for loop */
