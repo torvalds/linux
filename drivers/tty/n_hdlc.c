@@ -952,8 +952,6 @@ static char hdlc_register_ok[] __initdata =
 	KERN_INFO "N_HDLC line discipline registered.\n";
 static char hdlc_register_fail[] __initdata =
 	KERN_ERR "error registering line discipline: %d\n";
-static char hdlc_init_fail[] __initdata =
-	KERN_INFO "N_HDLC: init failure %d\n";
 
 static int __init n_hdlc_init(void)
 {
@@ -973,8 +971,6 @@ static int __init n_hdlc_init(void)
 	else
 		printk(hdlc_register_fail, status);
 
-	if (status)
-		printk(hdlc_init_fail, status);
 	return status;
 	
 }	/* end of init_module() */
