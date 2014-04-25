@@ -86,6 +86,7 @@ static u32 sdhci_dove_readl(struct sdhci_host *host, int reg)
 static const struct sdhci_ops sdhci_dove_ops = {
 	.read_w	= sdhci_dove_readw,
 	.read_l	= sdhci_dove_readl,
+	.set_bus_width = sdhci_set_bus_width,
 };
 
 static const struct sdhci_pltfm_data sdhci_dove_pdata = {

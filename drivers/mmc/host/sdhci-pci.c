@@ -1031,7 +1031,7 @@ static int sdhci_pci_enable_dma(struct sdhci_host *host)
 	return 0;
 }
 
-static int sdhci_pci_bus_width(struct sdhci_host *host, int width)
+static void sdhci_pci_set_bus_width(struct sdhci_host *host, int width)
 {
 	u8 ctrl;
 
@@ -1052,8 +1052,6 @@ static int sdhci_pci_bus_width(struct sdhci_host *host, int width)
 	}
 
 	sdhci_writeb(host, ctrl, SDHCI_HOST_CONTROL);
-
-	return 0;
 }
 
 static void sdhci_pci_gpio_hw_reset(struct sdhci_host *host)
@@ -1081,7 +1079,7 @@ static void sdhci_pci_hw_reset(struct sdhci_host *host)
 
 static const struct sdhci_ops sdhci_pci_ops = {
 	.enable_dma	= sdhci_pci_enable_dma,
-	.platform_bus_width	= sdhci_pci_bus_width,
+	.set_bus_width	= sdhci_pci_set_bus_width,
 	.hw_reset		= sdhci_pci_hw_reset,
 };
 

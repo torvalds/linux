@@ -281,8 +281,7 @@ struct sdhci_ops {
 	unsigned int	(*get_max_clock)(struct sdhci_host *host);
 	unsigned int	(*get_min_clock)(struct sdhci_host *host);
 	unsigned int	(*get_timeout_clock)(struct sdhci_host *host);
-	int		(*platform_bus_width)(struct sdhci_host *host,
-					       int width);
+	void		(*set_bus_width)(struct sdhci_host *host, int width);
 	void (*platform_send_init_74_clocks)(struct sdhci_host *host,
 					     u8 power_mode);
 	unsigned int    (*get_ro)(struct sdhci_host *host);
@@ -401,6 +400,8 @@ static inline bool sdhci_sdio_irq_enabled(struct sdhci_host *host)
 {
 	return !!(host->flags & SDHCI_SDIO_IRQ_ENABLED);
 }
+
+void sdhci_set_bus_width(struct sdhci_host *host, int width);
 
 #ifdef CONFIG_PM
 extern int sdhci_suspend_host(struct sdhci_host *host);

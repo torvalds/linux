@@ -54,6 +54,7 @@ static unsigned int sdhci_arasan_get_timeout_clock(struct sdhci_host *host)
 static struct sdhci_ops sdhci_arasan_ops = {
 	.get_max_clock = sdhci_pltfm_clk_get_max_clock,
 	.get_timeout_clock = sdhci_arasan_get_timeout_clock,
+	.set_bus_width = sdhci_set_bus_width,
 };
 
 static struct sdhci_pltfm_data sdhci_arasan_pdata = {
