@@ -1094,7 +1094,8 @@ static void s3c_hsotg_process_control(struct s3c_hsotg *hsotg,
 			s3c_hsotg_disconnect(hsotg);
 			dcfg = readl(hsotg->regs + DCFG);
 			dcfg &= ~DCFG_DEVADDR_MASK;
-			dcfg |= ctrl->wValue << DCFG_DEVADDR_SHIFT;
+			dcfg |= (le16_to_cpu(ctrl->wValue) <<
+				 DCFG_DEVADDR_SHIFT) & DCFG_DEVADDR_MASK;
 			writel(dcfg, hsotg->regs + DCFG);
 
 			dev_info(hsotg->dev, "new address %d\n", ctrl->wValue);
