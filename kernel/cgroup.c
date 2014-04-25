@@ -1221,12 +1221,6 @@ struct cgroup_sb_opts {
 	bool none;
 };
 
-/*
- * Convert a hierarchy specifier into a bitmask of subsystems and
- * flags. Call with cgroup_mutex held to protect the cgroup_subsys[]
- * array. This function takes refcounts on subsystems to be used, unless it
- * returns error, in which case no refcounts are taken.
- */
 static int parse_cgroupfs_options(char *data, struct cgroup_sb_opts *opts)
 {
 	char *token, *o = data;
@@ -1234,8 +1228,6 @@ static int parse_cgroupfs_options(char *data, struct cgroup_sb_opts *opts)
 	unsigned long mask = (unsigned long)-1;
 	struct cgroup_subsys *ss;
 	int i;
-
-	BUG_ON(!mutex_is_locked(&cgroup_mutex));
 
 #ifdef CONFIG_CPUSETS
 	mask = ~(1UL << cpuset_cgrp_id);
