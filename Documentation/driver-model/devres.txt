@@ -308,3 +308,8 @@ SLAVE DMA ENGINE
 
 SPI
   devm_spi_register_master()
+
+GPIO
+  devm_gpiod_get()
+  devm_gpiod_get_index()
+  devm_gpiod_put()
