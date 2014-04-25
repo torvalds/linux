@@ -1680,7 +1680,7 @@ enum punit_power_well {
 # define DPIOUNIT_CLOCK_GATE_DISABLE		(1 << 6) /* 915-945 */
 # define OVFUNIT_CLOCK_GATE_DISABLE		(1 << 5)
 # define OVBUNIT_CLOCK_GATE_DISABLE		(1 << 4)
-/**
+/*
  * This bit must be set on the 830 to prevent hangs when turning off the
  * overlay scaler.
  */
@@ -1700,12 +1700,12 @@ enum punit_power_well {
 # define COLOR_CALCULATOR_CLOCK_GATE_DISABLE	(1 << 7)
 # define MOTION_COMP_CLOCK_GATE_DISABLE		(1 << 6)
 # define MAG_CLOCK_GATE_DISABLE			(1 << 5)
-/** This bit must be unset on 855,865 */
+/* This bit must be unset on 855,865 */
 # define MECI_CLOCK_GATE_DISABLE		(1 << 4)
 # define DCMP_CLOCK_GATE_DISABLE		(1 << 3)
 # define MEC_CLOCK_GATE_DISABLE			(1 << 2)
 # define MECO_CLOCK_GATE_DISABLE		(1 << 1)
-/** This bit must be set on 855,865. */
+/* This bit must be set on 855,865. */
 # define SV_CLOCK_GATE_DISABLE			(1 << 0)
 # define I915_MPEG_CLOCK_GATE_DISABLE		(1 << 16)
 # define I915_VLD_IP_PR_CLOCK_GATE_DISABLE	(1 << 15)
@@ -1726,14 +1726,14 @@ enum punit_power_well {
 # define I915_BY_CLOCK_GATE_DISABLE		(1 << 0)
 
 # define I965_RCZ_CLOCK_GATE_DISABLE		(1 << 30)
-/** This bit must always be set on 965G/965GM */
+/* This bit must always be set on 965G/965GM */
 # define I965_RCC_CLOCK_GATE_DISABLE		(1 << 29)
 # define I965_RCPB_CLOCK_GATE_DISABLE		(1 << 28)
 # define I965_DAP_CLOCK_GATE_DISABLE		(1 << 27)
 # define I965_ROC_CLOCK_GATE_DISABLE		(1 << 26)
 # define I965_GW_CLOCK_GATE_DISABLE		(1 << 25)
 # define I965_TD_CLOCK_GATE_DISABLE		(1 << 24)
-/** This bit must always be set on 965G */
+/* This bit must always be set on 965G */
 # define I965_ISC_CLOCK_GATE_DISABLE		(1 << 23)
 # define I965_IC_CLOCK_GATE_DISABLE		(1 << 22)
 # define I965_EU_CLOCK_GATE_DISABLE		(1 << 21)
@@ -1800,7 +1800,7 @@ enum punit_power_well {
 /* Memory controller frequency in MCHBAR for Haswell (possible SNB+) */
 #define DCLK (MCHBAR_MIRROR_BASE_SNB + 0x5e04)
 
-/** 915-945 and GM965 MCH register controlling DRAM channel access */
+/* 915-945 and GM965 MCH register controlling DRAM channel access */
 #define DCC			0x10200
 #define DCC_ADDRESSING_MODE_SINGLE_CHANNEL		(0 << 0)
 #define DCC_ADDRESSING_MODE_DUAL_CHANNEL_ASYMMETRIC	(1 << 0)
@@ -1809,15 +1809,15 @@ enum punit_power_well {
 #define DCC_CHANNEL_XOR_DISABLE				(1 << 10)
 #define DCC_CHANNEL_XOR_BIT_17				(1 << 9)
 
-/** Pineview MCH register contains DDR3 setting */
+/* Pineview MCH register contains DDR3 setting */
 #define CSHRDDR3CTL            0x101a8
 #define CSHRDDR3CTL_DDR3       (1 << 2)
 
-/** 965 MCH register controlling DRAM channel configuration */
+/* 965 MCH register controlling DRAM channel configuration */
 #define C0DRB3			0x10206
 #define C1DRB3			0x10606
 
-/** snb MCH registers for reading the DRAM channel configuration */
+/* snb MCH registers for reading the DRAM channel configuration */
 #define MAD_DIMM_C0			(MCHBAR_MIRROR_BASE_SNB + 0x5004)
 #define MAD_DIMM_C1			(MCHBAR_MIRROR_BASE_SNB + 0x5008)
 #define MAD_DIMM_C2			(MCHBAR_MIRROR_BASE_SNB + 0x500C)
@@ -1839,7 +1839,7 @@ enum punit_power_well {
 #define   MAD_DIMM_A_SIZE_SHIFT		0
 #define   MAD_DIMM_A_SIZE_MASK		(0xff << MAD_DIMM_A_SIZE_SHIFT)
 
-/** snb MCH registers for priority tuning */
+/* snb MCH registers for priority tuning */
 #define MCH_SSKPD			(MCHBAR_MIRROR_BASE_SNB + 0x5d10)
 #define   MCH_SSKPD_WM0_MASK		0x3f
 #define   MCH_SSKPD_WM0_VAL		0xc
@@ -2513,7 +2513,7 @@ enum punit_power_well {
 #define   SDVO_PIPE_B_SELECT			(1 << 30)
 #define   SDVO_STALL_SELECT			(1 << 29)
 #define   SDVO_INTERRUPT_ENABLE			(1 << 26)
-/**
+/*
  * 915G/GM SDVO pixel multiplier.
  * Programmed value is multiplier - 1, up to 5x.
  * \sa DPLL_MD_UDI_MULTIPLIER_MASK
@@ -2827,65 +2827,65 @@ enum punit_power_well {
 
 /* TV port control */
 #define TV_CTL			0x68000
-/** Enables the TV encoder */
+/* Enables the TV encoder */
 # define TV_ENC_ENABLE			(1 << 31)
-/** Sources the TV encoder input from pipe B instead of A. */
+/* Sources the TV encoder input from pipe B instead of A. */
 # define TV_ENC_PIPEB_SELECT		(1 << 30)
-/** Outputs composite video (DAC A only) */
+/* Outputs composite video (DAC A only) */
 # define TV_ENC_OUTPUT_COMPOSITE	(0 << 28)
-/** Outputs SVideo video (DAC B/C) */
+/* Outputs SVideo video (DAC B/C) */
 # define TV_ENC_OUTPUT_SVIDEO		(1 << 28)
-/** Outputs Component video (DAC A/B/C) */
+/* Outputs Component video (DAC A/B/C) */
 # define TV_ENC_OUTPUT_COMPONENT	(2 << 28)
-/** Outputs Composite and SVideo (DAC A/B/C) */
+/* Outputs Composite and SVideo (DAC A/B/C) */
 # define TV_ENC_OUTPUT_SVIDEO_COMPOSITE	(3 << 28)
 # define TV_TRILEVEL_SYNC		(1 << 21)
-/** Enables slow sync generation (945GM only) */
+/* Enables slow sync generation (945GM only) */
 # define TV_SLOW_SYNC			(1 << 20)
-/** Selects 4x oversampling for 480i and 576p */
+/* Selects 4x oversampling for 480i and 576p */
 # define TV_OVERSAMPLE_4X		(0 << 18)
-/** Selects 2x oversampling for 720p and 1080i */
+/* Selects 2x oversampling for 720p and 1080i */
 # define TV_OVERSAMPLE_2X		(1 << 18)
-/** Selects no oversampling for 1080p */
+/* Selects no oversampling for 1080p */
 # define TV_OVERSAMPLE_NONE		(2 << 18)
-/** Selects 8x oversampling */
+/* Selects 8x oversampling */
 # define TV_OVERSAMPLE_8X		(3 << 18)
-/** Selects progressive mode rather than interlaced */
+/* Selects progressive mode rather than interlaced */
 # define TV_PROGRESSIVE			(1 << 17)
-/** Sets the colorburst to PAL mode.  Required for non-M PAL modes. */
+/* Sets the colorburst to PAL mode.  Required for non-M PAL modes. */
 # define TV_PAL_BURST			(1 << 16)
-/** Field for setting delay of Y compared to C */
+/* Field for setting delay of Y compared to C */
 # define TV_YC_SKEW_MASK		(7 << 12)
-/** Enables a fix for 480p/576p standard definition modes on the 915GM only */
+/* Enables a fix for 480p/576p standard definition modes on the 915GM only */
 # define TV_ENC_SDP_FIX			(1 << 11)
-/**
+/*
  * Enables a fix for the 915GM only.
  *
  * Not sure what it does.
  */
 # define TV_ENC_C0_FIX			(1 << 10)
-/** Bits that must be preserved by software */
+/* Bits that must be preserved by software */
 # define TV_CTL_SAVE			((1 << 11) | (3 << 9) | (7 << 6) | 0xf)
 # define TV_FUSE_STATE_MASK		(3 << 4)
-/** Read-only state that reports all features enabled */
+/* Read-only state that reports all features enabled */
 # define TV_FUSE_STATE_ENABLED		(0 << 4)
-/** Read-only state that reports that Macrovision is disabled in hardware*/
+/* Read-only state that reports that Macrovision is disabled in hardware*/
 # define TV_FUSE_STATE_NO_MACROVISION	(1 << 4)
-/** Read-only state that reports that TV-out is disabled in hardware. */
+/* Read-only state that reports that TV-out is disabled in hardware. */
 # define TV_FUSE_STATE_DISABLED		(2 << 4)
-/** Normal operation */
+/* Normal operation */
 # define TV_TEST_MODE_NORMAL		(0 << 0)
-/** Encoder test pattern 1 - combo pattern */
+/* Encoder test pattern 1 - combo pattern */
 # define TV_TEST_MODE_PATTERN_1		(1 << 0)
-/** Encoder test pattern 2 - full screen vertical 75% color bars */
+/* Encoder test pattern 2 - full screen vertical 75% color bars */
 # define TV_TEST_MODE_PATTERN_2		(2 << 0)
-/** Encoder test pattern 3 - full screen horizontal 75% color bars */
+/* Encoder test pattern 3 - full screen horizontal 75% color bars */
 # define TV_TEST_MODE_PATTERN_3		(3 << 0)
-/** Encoder test pattern 4 - random noise */
+/* Encoder test pattern 4 - random noise */
 # define TV_TEST_MODE_PATTERN_4		(4 << 0)
-/** Encoder test pattern 5 - linear color ramps */
+/* Encoder test pattern 5 - linear color ramps */
 # define TV_TEST_MODE_PATTERN_5		(5 << 0)
-/**
+/*
  * This test mode forces the DACs to 50% of full output.
  *
  * This is used for load detection in combination with TVDAC_SENSE_MASK
@@ -2895,35 +2895,35 @@ enum punit_power_well {
 
 #define TV_DAC			0x68004
 # define TV_DAC_SAVE		0x00ffff00
-/**
+/*
  * Reports that DAC state change logic has reported change (RO).
  *
  * This gets cleared when TV_DAC_STATE_EN is cleared
 */
 # define TVDAC_STATE_CHG		(1 << 31)
 # define TVDAC_SENSE_MASK		(7 << 28)
-/** Reports that DAC A voltage is above the detect threshold */
+/* Reports that DAC A voltage is above the detect threshold */
 # define TVDAC_A_SENSE			(1 << 30)
-/** Reports that DAC B voltage is above the detect threshold */
+/* Reports that DAC B voltage is above the detect threshold */
 # define TVDAC_B_SENSE			(1 << 29)
-/** Reports that DAC C voltage is above the detect threshold */
+/* Reports that DAC C voltage is above the detect threshold */
 # define TVDAC_C_SENSE			(1 << 28)
-/**
+/*
  * Enables DAC state detection logic, for load-based TV detection.
  *
  * The PLL of the chosen pipe (in TV_CTL) must be running, and the encoder set
  * to off, for load detection to work.
  */
 # define TVDAC_STATE_CHG_EN		(1 << 27)
-/** Sets the DAC A sense value to high */
+/* Sets the DAC A sense value to high */
 # define TVDAC_A_SENSE_CTL		(1 << 26)
-/** Sets the DAC B sense value to high */
+/* Sets the DAC B sense value to high */
 # define TVDAC_B_SENSE_CTL		(1 << 25)
-/** Sets the DAC C sense value to high */
+/* Sets the DAC C sense value to high */
 # define TVDAC_C_SENSE_CTL		(1 << 24)
-/** Overrides the ENC_ENABLE and DAC voltage levels */
+/* Overrides the ENC_ENABLE and DAC voltage levels */
 # define DAC_CTL_OVERRIDE		(1 << 7)
-/** Sets the slew rate.  Must be preserved in software */
+/* Sets the slew rate.  Must be preserved in software */
 # define ENC_TVDAC_SLEW_FAST		(1 << 6)
 # define DAC_A_1_3_V			(0 << 4)
 # define DAC_A_1_1_V			(1 << 4)
@@ -2938,7 +2938,7 @@ enum punit_power_well {
 # define DAC_C_0_7_V			(2 << 0)
 # define DAC_C_MASK			(3 << 0)
 
-/**
+/*
  * CSC coefficients are stored in a floating point format with 9 bits of
  * mantissa and 2 or 3 bits of exponent.  The exponent is represented as 2**-n,
  * where 2-bit exponents are unsigned n, and 3-bit exponents are signed n with
@@ -2953,7 +2953,7 @@ enum punit_power_well {
 #define TV_CSC_Y2		0x68014
 # define TV_BY_MASK			0x07ff0000
 # define TV_BY_SHIFT			16
-/**
+/*
  * Y attenuation for component video.
  *
  * Stored in 1.9 fixed point.
@@ -2970,7 +2970,7 @@ enum punit_power_well {
 #define TV_CSC_U2		0x6801c
 # define TV_BU_MASK			0x07ff0000
 # define TV_BU_SHIFT			16
-/**
+/*
  * U attenuation for component video.
  *
  * Stored in 1.9 fixed point.
@@ -2987,7 +2987,7 @@ enum punit_power_well {
 #define TV_CSC_V2		0x68024
 # define TV_BV_MASK			0x07ff0000
 # define TV_BV_SHIFT			16
-/**
+/*
  * V attenuation for component video.
  *
  * Stored in 1.9 fixed point.
@@ -2996,74 +2996,74 @@ enum punit_power_well {
 # define TV_AV_SHIFT			0
 
 #define TV_CLR_KNOBS		0x68028
-/** 2s-complement brightness adjustment */
+/* 2s-complement brightness adjustment */
 # define TV_BRIGHTNESS_MASK		0xff000000
 # define TV_BRIGHTNESS_SHIFT		24
-/** Contrast adjustment, as a 2.6 unsigned floating point number */
+/* Contrast adjustment, as a 2.6 unsigned floating point number */
 # define TV_CONTRAST_MASK		0x00ff0000
 # define TV_CONTRAST_SHIFT		16
-/** Saturation adjustment, as a 2.6 unsigned floating point number */
+/* Saturation adjustment, as a 2.6 unsigned floating point number */
 # define TV_SATURATION_MASK		0x0000ff00
 # define TV_SATURATION_SHIFT		8
-/** Hue adjustment, as an integer phase angle in degrees */
+/* Hue adjustment, as an integer phase angle in degrees */
 # define TV_HUE_MASK			0x000000ff
 # define TV_HUE_SHIFT			0
 
 #define TV_CLR_LEVEL		0x6802c
-/** Controls the DAC level for black */
+/* Controls the DAC level for black */
 # define TV_BLACK_LEVEL_MASK		0x01ff0000
 # define TV_BLACK_LEVEL_SHIFT		16
-/** Controls the DAC level for blanking */
+/* Controls the DAC level for blanking */
 # define TV_BLANK_LEVEL_MASK		0x000001ff
 # define TV_BLANK_LEVEL_SHIFT		0
 
 #define TV_H_CTL_1		0x68030
-/** Number of pixels in the hsync. */
+/* Number of pixels in the hsync. */
 # define TV_HSYNC_END_MASK		0x1fff0000
 # define TV_HSYNC_END_SHIFT		16
-/** Total number of pixels minus one in the line (display and blanking). */
+/* Total number of pixels minus one in the line (display and blanking). */
 # define TV_HTOTAL_MASK			0x00001fff
 # define TV_HTOTAL_SHIFT		0
 
 #define TV_H_CTL_2		0x68034
-/** Enables the colorburst (needed for non-component color) */
+/* Enables the colorburst (needed for non-component color) */
 # define TV_BURST_ENA			(1 << 31)
-/** Offset of the colorburst from the start of hsync, in pixels minus one. */
+/* Offset of the colorburst from the start of hsync, in pixels minus one. */
 # define TV_HBURST_START_SHIFT		16
 # define TV_HBURST_START_MASK		0x1fff0000
-/** Length of the colorburst */
+/* Length of the colorburst */
 # define TV_HBURST_LEN_SHIFT		0
 # define TV_HBURST_LEN_MASK		0x0001fff
 
 #define TV_H_CTL_3		0x68038
-/** End of hblank, measured in pixels minus one from start of hsync */
+/* End of hblank, measured in pixels minus one from start of hsync */
 # define TV_HBLANK_END_SHIFT		16
 # define TV_HBLANK_END_MASK		0x1fff0000
-/** Start of hblank, measured in pixels minus one from start of hsync */
+/* Start of hblank, measured in pixels minus one from start of hsync */
 # define TV_HBLANK_START_SHIFT		0
 # define TV_HBLANK_START_MASK		0x0001fff
 
 #define TV_V_CTL_1		0x6803c
-/** XXX */
+/* XXX */
 # define TV_NBR_END_SHIFT		16
 # define TV_NBR_END_MASK		0x07ff0000
-/** XXX */
+/* XXX */
 # define TV_VI_END_F1_SHIFT		8
 # define TV_VI_END_F1_MASK		0x00003f00
-/** XXX */
+/* XXX */
 # define TV_VI_END_F2_SHIFT		0
 # define TV_VI_END_F2_MASK		0x0000003f
 
 #define TV_V_CTL_2		0x68040
-/** Length of vsync, in half lines */
+/* Length of vsync, in half lines */
 # define TV_VSYNC_LEN_MASK		0x07ff0000
 # define TV_VSYNC_LEN_SHIFT		16
-/** Offset of the start of vsync in field 1, measured in one less than the
+/* Offset of the start of vsync in field 1, measured in one less than the
  * number of half lines.
  */
 # define TV_VSYNC_START_F1_MASK		0x00007f00
 # define TV_VSYNC_START_F1_SHIFT	8
-/**
+/*
  * Offset of the start of vsync in field 2, measured in one less than the
  * number of half lines.
  */
@@ -3071,17 +3071,17 @@ enum punit_power_well {
 # define TV_VSYNC_START_F2_SHIFT	0
 
 #define TV_V_CTL_3		0x68044
-/** Enables generation of the equalization signal */
+/* Enables generation of the equalization signal */
 # define TV_EQUAL_ENA			(1 << 31)
-/** Length of vsync, in half lines */
+/* Length of vsync, in half lines */
 # define TV_VEQ_LEN_MASK		0x007f0000
 # define TV_VEQ_LEN_SHIFT		16
-/** Offset of the start of equalization in field 1, measured in one less than
+/* Offset of the start of equalization in field 1, measured in one less than
  * the number of half lines.
  */
 # define TV_VEQ_START_F1_MASK		0x0007f00
 # define TV_VEQ_START_F1_SHIFT		8
-/**
+/*
  * Offset of the start of equalization in field 2, measured in one less than
  * the number of half lines.
  */
@@ -3089,13 +3089,13 @@ enum punit_power_well {
 # define TV_VEQ_START_F2_SHIFT		0
 
 #define TV_V_CTL_4		0x68048
-/**
+/*
  * Offset to start of vertical colorburst, measured in one less than the
  * number of lines from vertical start.
  */
 # define TV_VBURST_START_F1_MASK	0x003f0000
 # define TV_VBURST_START_F1_SHIFT	16
-/**
+/*
  * Offset to the end of vertical colorburst, measured in one less than the
  * number of lines from the start of NBR.
  */
@@ -3103,13 +3103,13 @@ enum punit_power_well {
 # define TV_VBURST_END_F1_SHIFT		0
 
 #define TV_V_CTL_5		0x6804c
-/**
+/*
  * Offset to start of vertical colorburst, measured in one less than the
  * number of lines from vertical start.
  */
 # define TV_VBURST_START_F2_MASK	0x003f0000
 # define TV_VBURST_START_F2_SHIFT	16
-/**
+/*
  * Offset to the end of vertical colorburst, measured in one less than the
  * number of lines from the start of NBR.
  */
@@ -3117,13 +3117,13 @@ enum punit_power_well {
 # define TV_VBURST_END_F2_SHIFT		0
 
 #define TV_V_CTL_6		0x68050
-/**
+/*
  * Offset to start of vertical colorburst, measured in one less than the
  * number of lines from vertical start.
  */
 # define TV_VBURST_START_F3_MASK	0x003f0000
 # define TV_VBURST_START_F3_SHIFT	16
-/**
+/*
  * Offset to the end of vertical colorburst, measured in one less than the
  * number of lines from the start of NBR.
  */
@@ -3131,13 +3131,13 @@ enum punit_power_well {
 # define TV_VBURST_END_F3_SHIFT		0
 
 #define TV_V_CTL_7		0x68054
-/**
+/*
  * Offset to start of vertical colorburst, measured in one less than the
  * number of lines from vertical start.
  */
 # define TV_VBURST_START_F4_MASK	0x003f0000
 # define TV_VBURST_START_F4_SHIFT	16
-/**
+/*
  * Offset to the end of vertical colorburst, measured in one less than the
  * number of lines from the start of NBR.
  */
@@ -3145,56 +3145,56 @@ enum punit_power_well {
 # define TV_VBURST_END_F4_SHIFT		0
 
 #define TV_SC_CTL_1		0x68060
-/** Turns on the first subcarrier phase generation DDA */
+/* Turns on the first subcarrier phase generation DDA */
 # define TV_SC_DDA1_EN			(1 << 31)
-/** Turns on the first subcarrier phase generation DDA */
+/* Turns on the first subcarrier phase generation DDA */
 # define TV_SC_DDA2_EN			(1 << 30)
-/** Turns on the first subcarrier phase generation DDA */
+/* Turns on the first subcarrier phase generation DDA */
 # define TV_SC_DDA3_EN			(1 << 29)
-/** Sets the subcarrier DDA to reset frequency every other field */
+/* Sets the subcarrier DDA to reset frequency every other field */
 # define TV_SC_RESET_EVERY_2		(0 << 24)
-/** Sets the subcarrier DDA to reset frequency every fourth field */
+/* Sets the subcarrier DDA to reset frequency every fourth field */
 # define TV_SC_RESET_EVERY_4		(1 << 24)
-/** Sets the subcarrier DDA to reset frequency every eighth field */
+/* Sets the subcarrier DDA to reset frequency every eighth field */
 # define TV_SC_RESET_EVERY_8		(2 << 24)
-/** Sets the subcarrier DDA to never reset the frequency */
+/* Sets the subcarrier DDA to never reset the frequency */
 # define TV_SC_RESET_NEVER		(3 << 24)
-/** Sets the peak amplitude of the colorburst.*/
+/* Sets the peak amplitude of the colorburst.*/
 # define TV_BURST_LEVEL_MASK		0x00ff0000
 # define TV_BURST_LEVEL_SHIFT		16
-/** Sets the increment of the first subcarrier phase generation DDA */
+/* Sets the increment of the first subcarrier phase generation DDA */
 # define TV_SCDDA1_INC_MASK		0x00000fff
 # define TV_SCDDA1_INC_SHIFT		0
 
 #define TV_SC_CTL_2		0x68064
-/** Sets the rollover for the second subcarrier phase generation DDA */
+/* Sets the rollover for the second subcarrier phase generation DDA */
 # define TV_SCDDA2_SIZE_MASK		0x7fff0000
 # define TV_SCDDA2_SIZE_SHIFT		16
-/** Sets the increent of the second subcarrier phase generation DDA */
+/* Sets the increent of the second subcarrier phase generation DDA */
 # define TV_SCDDA2_INC_MASK		0x00007fff
 # define TV_SCDDA2_INC_SHIFT		0
 
 #define TV_SC_CTL_3		0x68068
-/** Sets the rollover for the third subcarrier phase generation DDA */
+/* Sets the rollover for the third subcarrier phase generation DDA */
 # define TV_SCDDA3_SIZE_MASK		0x7fff0000
 # define TV_SCDDA3_SIZE_SHIFT		16
-/** Sets the increent of the third subcarrier phase generation DDA */
+/* Sets the increent of the third subcarrier phase generation DDA */
 # define TV_SCDDA3_INC_MASK		0x00007fff
 # define TV_SCDDA3_INC_SHIFT		0
 
 #define TV_WIN_POS		0x68070
-/** X coordinate of the display from the start of horizontal active */
+/* X coordinate of the display from the start of horizontal active */
 # define TV_XPOS_MASK			0x1fff0000
 # define TV_XPOS_SHIFT			16
-/** Y coordinate of the display from the start of vertical active (NBR) */
+/* Y coordinate of the display from the start of vertical active (NBR) */
 # define TV_YPOS_MASK			0x00000fff
 # define TV_YPOS_SHIFT			0
 
 #define TV_WIN_SIZE		0x68074
-/** Horizontal size of the display window, measured in pixels*/
+/* Horizontal size of the display window, measured in pixels*/
 # define TV_XSIZE_MASK			0x1fff0000
 # define TV_XSIZE_SHIFT			16
-/**
+/*
  * Vertical size of the display window, measured in pixels.
  *
  * Must be even for interlaced modes.
@@ -3203,28 +3203,28 @@ enum punit_power_well {
 # define TV_YSIZE_SHIFT			0
 
 #define TV_FILTER_CTL_1		0x68080
-/**
+/*
  * Enables automatic scaling calculation.
  *
  * If set, the rest of the registers are ignored, and the calculated values can
  * be read back from the register.
  */
 # define TV_AUTO_SCALE			(1 << 31)
-/**
+/*
  * Disables the vertical filter.
  *
  * This is required on modes more than 1024 pixels wide */
 # define TV_V_FILTER_BYPASS		(1 << 29)
-/** Enables adaptive vertical filtering */
+/* Enables adaptive vertical filtering */
 # define TV_VADAPT			(1 << 28)
 # define TV_VADAPT_MODE_MASK		(3 << 26)
-/** Selects the least adaptive vertical filtering mode */
+/* Selects the least adaptive vertical filtering mode */
 # define TV_VADAPT_MODE_LEAST		(0 << 26)
-/** Selects the moderately adaptive vertical filtering mode */
+/* Selects the moderately adaptive vertical filtering mode */
 # define TV_VADAPT_MODE_MODERATE	(1 << 26)
-/** Selects the most adaptive vertical filtering mode */
+/* Selects the most adaptive vertical filtering mode */
 # define TV_VADAPT_MODE_MOST		(3 << 26)
-/**
+/*
  * Sets the horizontal scaling factor.
  *
  * This should be the fractional part of the horizontal scaling factor divided
@@ -3236,14 +3236,14 @@ enum punit_power_well {
 # define TV_HSCALE_FRAC_SHIFT		0
 
 #define TV_FILTER_CTL_2		0x68084
-/**
+/*
  * Sets the integer part of the 3.15 fixed-point vertical scaling factor.
  *
  * TV_VSCALE should be (src height - 1) / ((interlace * dest height) - 1)
  */
 # define TV_VSCALE_INT_MASK		0x00038000
 # define TV_VSCALE_INT_SHIFT		15
-/**
+/*
  * Sets the fractional part of the 3.15 fixed-point vertical scaling factor.
  *
  * \sa TV_VSCALE_INT_MASK
@@ -3252,7 +3252,7 @@ enum punit_power_well {
 # define TV_VSCALE_FRAC_SHIFT		0
 
 #define TV_FILTER_CTL_3		0x68088
-/**
+/*
  * Sets the integer part of the 3.15 fixed-point vertical scaling factor.
  *
  * TV_VSCALE should be (src height - 1) / (1/4 * (dest height - 1))
@@ -3261,7 +3261,7 @@ enum punit_power_well {
  */
 # define TV_VSCALE_IP_INT_MASK		0x00038000
 # define TV_VSCALE_IP_INT_SHIFT		15
-/**
+/*
  * Sets the fractional part of the 3.15 fixed-point vertical scaling factor.
  *
  * For progressive modes, TV_VSCALE_IP_INT should be set to zeroes.
@@ -3273,26 +3273,26 @@ enum punit_power_well {
 
 #define TV_CC_CONTROL		0x68090
 # define TV_CC_ENABLE			(1 << 31)
-/**
+/*
  * Specifies which field to send the CC data in.
  *
  * CC data is usually sent in field 0.
  */
 # define TV_CC_FID_MASK			(1 << 27)
 # define TV_CC_FID_SHIFT		27
-/** Sets the horizontal position of the CC data.  Usually 135. */
+/* Sets the horizontal position of the CC data.  Usually 135. */
 # define TV_CC_HOFF_MASK		0x03ff0000
 # define TV_CC_HOFF_SHIFT		16
-/** Sets the vertical position of the CC data.  Usually 21 */
+/* Sets the vertical position of the CC data.  Usually 21 */
 # define TV_CC_LINE_MASK		0x0000003f
 # define TV_CC_LINE_SHIFT		0
 
 #define TV_CC_DATA		0x68094
 # define TV_CC_RDY			(1 << 31)
-/** Second word of CC data to be transmitted. */
+/* Second word of CC data to be transmitted. */
 # define TV_CC_DATA_2_MASK		0x007f0000
 # define TV_CC_DATA_2_SHIFT		16
-/** First word of CC data to be transmitted. */
+/* First word of CC data to be transmitted. */
 # define TV_CC_DATA_1_MASK		0x0000007f
 # define TV_CC_DATA_1_SHIFT		0
 
@@ -3363,32 +3363,32 @@ enum punit_power_well {
 #define   DP_PLL_FREQ_160MHZ		(1 << 16)
 #define   DP_PLL_FREQ_MASK		(3 << 16)
 
-/** locked once port is enabled */
+/* locked once port is enabled */
 #define   DP_PORT_REVERSAL		(1 << 15)
 
 /* eDP */
 #define   DP_PLL_ENABLE			(1 << 14)
 
-/** sends the clock on lane 15 of the PEG for debug */
+/* sends the clock on lane 15 of the PEG for debug */
 #define   DP_CLOCK_OUTPUT_ENABLE	(1 << 13)
 
 #define   DP_SCRAMBLING_DISABLE		(1 << 12)
 #define   DP_SCRAMBLING_DISABLE_IRONLAKE	(1 << 7)
 
-/** limit RGB values to avoid confusing TVs */
+/* limit RGB values to avoid confusing TVs */
 #define   DP_COLOR_RANGE_16_235		(1 << 8)
 
-/** Turn on the audio link */
+/* Turn on the audio link */
 #define   DP_AUDIO_OUTPUT_ENABLE	(1 << 6)
 
-/** vs and hs sync polarity */
+/* vs and hs sync polarity */
 #define   DP_SYNC_VS_HIGH		(1 << 4)
 #define   DP_SYNC_HS_HIGH		(1 << 3)
 
-/** A fantasy */
+/* A fantasy */
 #define   DP_DETECTED			(1 << 2)
 
-/** The aux channel provides a way to talk to the
+/* The aux channel provides a way to talk to the
  * signal sink for DDC etc. Max packet size supported
  * is 20 bytes in each direction, hence the 5 fixed
  * data registers
