@@ -37,6 +37,8 @@
 		dsi@54300000 {
 			status = "okay";
 
+			avdd-dsi-csi-supply = <&avdd_1v2_reg>;
+
 			panel@0 {
 				compatible = "panasonic,vvx10f004b00",
 					     "simple-panel";
@@ -983,12 +985,10 @@
 						regulator-max-microvolt = <2800000>;
 					};
 
-					ldo3 {
+					avdd_1v2_reg: ldo3 {
 						regulator-name = "avdd-dsi-csi";
 						regulator-min-microvolt = <1200000>;
 						regulator-max-microvolt = <1200000>;
-						regulator-always-on;
-						regulator-boot-on;
 					};
 
 					ldo4 {
