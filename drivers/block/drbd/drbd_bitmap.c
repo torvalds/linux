@@ -1155,9 +1155,7 @@ static int bm_rw(struct drbd_device *device, int rw, unsigned flags, unsigned la
 		err = -EIO; /* Disk timeout/force-detach during IO... */
 
 	now = jiffies;
-	if (rw == WRITE) {
-		drbd_md_flush(device);
-	} else /* rw == READ */ {
+	if (rw == READ) {
 		b->bm_set = bm_count_bits(b);
 		drbd_info(device, "recounting of set bits took additional %lu jiffies\n",
 		     jiffies - now);

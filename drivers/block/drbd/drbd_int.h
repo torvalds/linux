@@ -2182,25 +2182,6 @@ static inline int drbd_queue_order_type(struct drbd_device *device)
 	return QUEUE_ORDERED_NONE;
 }
 
-static inline void drbd_md_flush(struct drbd_device *device)
-{
-	int r;
-
-	if (device->ldev == NULL) {
-		drbd_warn(device, "device->ldev == NULL in drbd_md_flush\n");
-		return;
-	}
-
-	if (test_bit(MD_NO_FUA, &device->flags))
-		return;
-
-	r = blkdev_issue_flush(device->ldev->md_bdev, GFP_NOIO, NULL);
-	if (r) {
-		set_bit(MD_NO_FUA, &device->flags);
-		drbd_err(device, "meta data flush failed with status %d, disabling md-flushes\n", r);
-	}
-}
-
 static inline struct drbd_connection *first_connection(struct drbd_resource *resource)
 {
 	return list_first_entry_or_null(&resource->connections,
