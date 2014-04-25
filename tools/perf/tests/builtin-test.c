@@ -124,6 +124,10 @@ static struct test {
 #endif
 #endif
 	{
+		.desc = "Test filtering hist entries",
+		.func = test__hists_filter,
+	},
+	{
 		.func = NULL,
 	},
 };
