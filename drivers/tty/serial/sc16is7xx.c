@@ -25,6 +25,7 @@
 #include <linux/serial.h>
 #include <linux/tty.h>
 #include <linux/tty_flip.h>
+#include <linux/uaccess.h>
 
 #define SC16IS7XX_NAME			"sc16is7xx"
 
