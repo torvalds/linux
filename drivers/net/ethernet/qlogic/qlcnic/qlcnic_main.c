@@ -1014,6 +1014,8 @@ int qlcnic_init_pci_info(struct qlcnic_adapter *adapter)
 
 		if (pfn >= ahw->max_vnic_func) {
 			ret = QL_STATUS_INVALID_PARAM;
+			dev_err(&adapter->pdev->dev, "%s: Invalid function 0x%x, max 0x%x\n",
+				__func__, pfn, ahw->max_vnic_func);
 			goto err_eswitch;
 		}
 
@@ -2531,8 +2533,7 @@ qlcnic_probe(struct pci_dev *pdev, const struct pci_device_id *ent)
 				dev_err(&pdev->dev, "Adapter initialization failed. Please reboot\n");
 				goto err_out_free_hw;
 			default:
-				dev_err(&pdev->dev, "Adapter initialization failed. A reboot may be required to recover from this failure\n");
-				dev_err(&pdev->dev, "If reboot does not help to recover from this failure, try a flash update of the adapter\n");
+				dev_err(&pdev->dev, "Adapter initialization failed. Driver will load in maintenance mode to recover the adapter using the application\n");
 				goto err_out_maintenance_mode;
 			}
 		}

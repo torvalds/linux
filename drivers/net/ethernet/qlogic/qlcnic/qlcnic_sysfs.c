@@ -362,6 +362,8 @@ int qlcnic_is_valid_nic_func(struct qlcnic_adapter *adapter, u8 pci_func)
 		if (adapter->npars[i].pci_func == pci_func)
 			return i;
 	}
+
+	dev_err(&adapter->pdev->dev, "%s: Invalid nic function\n", __func__);
 	return -EINVAL;
 }
 
