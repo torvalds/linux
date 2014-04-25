@@ -1271,25 +1271,21 @@ static int dgap_tty_register(struct board_t *brd)
 	 */
 	tty_set_operations(brd->PrintDriver, &dgap_tty_ops);
 
-	if (!brd->dgap_Major_Serial_Registered) {
-		/* Register tty devices */
-		rc = tty_register_driver(brd->SerialDriver);
-		if (rc < 0)
-			return rc;
-		brd->dgap_Major_Serial_Registered = TRUE;
-		dgap_BoardsByMajor[brd->SerialDriver->major] = brd;
-		brd->dgap_Serial_Major = brd->SerialDriver->major;
-	}
+	/* Register tty devices */
+	rc = tty_register_driver(brd->SerialDriver);
+	if (rc < 0)
+		return rc;
+	brd->dgap_Major_Serial_Registered = TRUE;
+	dgap_BoardsByMajor[brd->SerialDriver->major] = brd;
+	brd->dgap_Serial_Major = brd->SerialDriver->major;
 
-	if (!brd->dgap_Major_TransparentPrint_Registered) {
-		/* Register Transparent Print devices */
-		rc = tty_register_driver(brd->PrintDriver);
-		if (rc < 0)
-			return rc;
-		brd->dgap_Major_TransparentPrint_Registered = TRUE;
-		dgap_BoardsByMajor[brd->PrintDriver->major] = brd;
-		brd->dgap_TransparentPrint_Major = brd->PrintDriver->major;
-	}
+	/* Register Transparent Print devices */
+	rc = tty_register_driver(brd->PrintDriver);
+	if (rc < 0)
+		return rc;
+	brd->dgap_Major_TransparentPrint_Registered = TRUE;
+	dgap_BoardsByMajor[brd->PrintDriver->major] = brd;
+	brd->dgap_TransparentPrint_Major = brd->PrintDriver->major;
 
 	return rc;
 }
