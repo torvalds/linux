@@ -826,6 +826,28 @@
 		pinctrl-0 = <&spdif_tx>;
 	};
 
+       vop1pwm: pwm@ff9401a0 {
+                compatible = "rockchip,vop-pwm";
+                reg = <0xff9401a0 0x10>;
+                #pwm-cells = <2>;
+                pinctrl-names = "default";
+                pinctrl-0 = <&vop1_pwm_pin>;
+                clocks = <&clk_gates13 11>;
+                clock-names = "pclk_pwm";
+                status = "disabled";
+        };
+
+       vop0pwm: pwm@ff9301a0 {
+                compatible = "rockchip,vop-pwm";
+                reg = <0xff9301a0 0x10>;
+                #pwm-cells = <2>;
+                pinctrl-names = "default";
+                pinctrl-0 = <&vop0_pwm_pin>;
+                clocks = <&clk_gates13 10>;
+                clock-names = "pclk_pwm";
+                status = "disabled";
+        };
+
 	pwm0: pwm@ff680000 {
 		compatible = "rockchip,rk-pwm";
 		reg = <0xff680000 0x10>;
@@ -834,7 +856,7 @@
 		pinctrl-0 = <&pwm0_pin>;
 		clocks = <&clk_gates11 11>;
 		clock-names = "pclk_pwm";
-		status = "okay";
+		status = "disabled";
 	};
 
 	pwm1: pwm@ff680010 {

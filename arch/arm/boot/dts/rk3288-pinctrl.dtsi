@@ -634,6 +634,21 @@
 		};
 
 		gpio7_pwm {
+                        vop0_pwm_pin:vop0-pwm {
+                                rockchip,pins = <VOP0_PWM>;
+                                rockchip,pull = <VALUE_PULL_DISABLE>;
+                                rockchip,drive = <VALUE_DRV_DEFAULT>;
+                                //rockchip,tristate = <VALUE_TRI_DEFAULT>;
+
+                        };
+
+                        vop1_pwm_pin:vop1-pwm {
+                                rockchip,pins = <VOP1_PWM>;
+                                rockchip,pull = <VALUE_PULL_DISABLE>;
+                                rockchip,drive = <VALUE_DRV_DEFAULT>;
+                                //rockchip,tristate = <VALUE_TRI_DEFAULT>;
+                        };
+
 			pwm0_pin:pwm0 {
 				rockchip,pins = <PWM0>;
 				rockchip,pull = <VALUE_PULL_DISABLE>;
