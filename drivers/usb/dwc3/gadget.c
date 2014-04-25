@@ -336,9 +336,9 @@ int dwc3_send_gadget_ep_cmd(struct dwc3 *dwc, unsigned ep,
 	u32			timeout = 500;
 	u32			reg;
 
-	dev_vdbg(dwc->dev, "%s: cmd '%s' params %08x %08x %08x\n",
+	dev_vdbg(dwc->dev, "%s: cmd '%s' [%d] params %08x %08x %08x\n",
 			dep->name,
-			dwc3_gadget_ep_cmd_string(cmd), params->param0,
+			dwc3_gadget_ep_cmd_string(cmd), cmd, params->param0,
 			params->param1, params->param2);
 
 	dwc3_writel(dwc->regs, DWC3_DEPCMDPAR0(ep), params->param0);
