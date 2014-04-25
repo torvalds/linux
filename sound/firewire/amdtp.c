@@ -11,6 +11,7 @@
 #include <linux/firewire.h>
 #include <linux/module.h>
 #include <linux/slab.h>
+#include <linux/sched.h>
 #include <sound/pcm.h>
 #include <sound/rawmidi.h>
 #include "amdtp.h"
@@ -71,6 +72,10 @@ int amdtp_stream_init(struct amdtp_stream *s, struct fw_unit *unit,
 	mutex_init(&s->mutex);
 	tasklet_init(&s->period_tasklet, pcm_period_tasklet, (unsigned long)s);
 	s->packet_index = 0;
+
+	init_waitqueue_head(&s->callback_wait);
+	s->callbacked = false;
+	s->sync_slave = NULL;
 
 	return 0;
 }
@@ -585,7 +590,10 @@ static int queue_packet(struct amdtp_stream *s,
 			unsigned int payload_length, bool skip)
 {
 	struct fw_iso_packet p = {0};
-	int err;
+	int err = 0;
+
+	if (IS_ERR(s->context))
+		goto end;
 
 	p.interrupt = IS_ALIGNED(s->packet_index + 1, INTERRUPT_INTERVAL);
 	p.tag = TAG_CIP;
@@ -765,7 +773,7 @@ static void in_stream_callback(struct fw_iso_context *context, u32 cycle,
 			       void *private_data)
 {
 	struct amdtp_stream *s = private_data;
-	unsigned int p, packets, payload_quadlets;
+	unsigned int p, syt, packets, payload_quadlets;
 	__be32 *buffer, *headers = header;
 
 	/* The number of packets in buffer */
@@ -773,8 +781,15 @@ static void in_stream_callback(struct fw_iso_context *context, u32 cycle,
 
 	for (p = 0; p < packets; p++) {
 		if (s->packet_index < 0)
-			return;
+			break;
+
 		buffer = s->buffer.packets[s->packet_index].buffer;
+
+		/* Process sync slave stream */
+		if (s->sync_slave && s->sync_slave->callbacked) {
+			syt = be32_to_cpu(buffer[1]) & CIP_SYT_MASK;
+			handle_out_packet(s->sync_slave, syt);
+		}
 
 		/* The number of quadlets in this packet */
 		payload_quadlets =
@@ -782,7 +797,53 @@ static void in_stream_callback(struct fw_iso_context *context, u32 cycle,
 		handle_in_packet(s, payload_quadlets, buffer);
 	}
 
+	/* Queueing error or detecting discontinuity */
+	if (s->packet_index < 0) {
+		/* Abort sync slave. */
+		if (s->sync_slave) {
+			s->sync_slave->packet_index = -1;
+			amdtp_stream_pcm_abort(s->sync_slave);
+		}
+		return;
+	}
+
+	/* when sync to device, flush the packets for slave stream */
+	if (s->sync_slave && s->sync_slave->callbacked)
+		fw_iso_context_queue_flush(s->sync_slave->context);
+
 	fw_iso_context_queue_flush(s->context);
+}
+
+/* processing is done by master callback */
+static void slave_stream_callback(struct fw_iso_context *context, u32 cycle,
+				  size_t header_length, void *header,
+				  void *private_data)
+{
+	return;
+}
+
+/* this is executed one time */
+static void amdtp_stream_first_callback(struct fw_iso_context *context,
+					u32 cycle, size_t header_length,
+					void *header, void *private_data)
+{
+	struct amdtp_stream *s = private_data;
+
+	/*
+	 * For in-stream, first packet has come.
+	 * For out-stream, prepared to transmit first packet
+	 */
+	s->callbacked = true;
+	wake_up(&s->callback_wait);
+
+	if (s->direction == AMDTP_IN_STREAM)
+		context->callback.sc = in_stream_callback;
+	else if ((s->flags & CIP_BLOCKING) && (s->flags & CIP_SYNC_TO_DEVICE))
+		context->callback.sc = slave_stream_callback;
+	else
+		context->callback.sc = out_stream_callback;
+
+	context->callback.sc(context, cycle, header_length, header, s);
 }
 
 /**
@@ -811,7 +872,6 @@ int amdtp_stream_start(struct amdtp_stream *s, int channel, int speed)
 	};
 	unsigned int header_size;
 	enum dma_data_direction dir;
-	fw_iso_callback_t cb;
 	int type, err;
 
 	mutex_lock(&s->mutex);
@@ -832,12 +892,10 @@ int amdtp_stream_start(struct amdtp_stream *s, int channel, int speed)
 		dir = DMA_FROM_DEVICE;
 		type = FW_ISO_CONTEXT_RECEIVE;
 		header_size = IN_PACKET_HEADER_SIZE;
-		cb = in_stream_callback;
 	} else {
 		dir = DMA_TO_DEVICE;
 		type = FW_ISO_CONTEXT_TRANSMIT;
 		header_size = OUT_PACKET_HEADER_SIZE;
-		cb = out_stream_callback;
 	}
 	err = iso_packets_buffer_init(&s->buffer, s->unit, QUEUE_LENGTH,
 				      amdtp_stream_get_max_payload(s), dir);
@@ -846,7 +904,7 @@ int amdtp_stream_start(struct amdtp_stream *s, int channel, int speed)
 
 	s->context = fw_iso_context_create(fw_parent_device(s->unit)->card,
 					   type, channel, speed, header_size,
-					   cb, s);
+					   amdtp_stream_first_callback, s);
 	if (IS_ERR(s->context)) {
 		err = PTR_ERR(s->context);
 		if (err == -EBUSY)
@@ -868,6 +926,7 @@ int amdtp_stream_start(struct amdtp_stream *s, int channel, int speed)
 	} while (s->packet_index > 0);
 
 	/* NOTE: TAG1 matches CIP. This just affects in stream. */
+	s->callbacked = false;
 	err = fw_iso_context_start(s->context, -1, 0,
 				   FW_ISO_CONTEXT_MATCH_TAG1);
 	if (err < 0)
@@ -939,6 +998,8 @@ void amdtp_stream_stop(struct amdtp_stream *s)
 	fw_iso_context_destroy(s->context);
 	s->context = ERR_PTR(-1);
 	iso_packets_buffer_destroy(&s->buffer, s->unit);
+
+	s->callbacked = false;
 
 	mutex_unlock(&s->mutex);
 }
