@@ -154,6 +154,14 @@ struct cgroup {
 	/* the number of attached css's */
 	int nr_css;
 
+	/*
+	 * If this cgroup contains any tasks, it contributes one to
+	 * populated_cnt.  All children with non-zero popuplated_cnt of
+	 * their own contribute one.  The count is zero iff there's no task
+	 * in this cgroup or its subtree.
+	 */
+	int populated_cnt;
+
 	atomic_t refcnt;
 
 	/*
@@ -166,6 +174,7 @@ struct cgroup {
 	struct cgroup *parent;		/* my parent */
 	struct kernfs_node *kn;		/* cgroup kernfs entry */
 	struct kernfs_node *control_kn;	/* kn for "cgroup.subtree_control" */
+	struct kernfs_node *populated_kn; /* kn for "cgroup.subtree_populated" */
 
 	/*
 	 * Monotonically increasing unique serial number which defines a
@@ -263,6 +272,12 @@ enum {
 	 *   Replacement notification mechanism will be implemented.
 	 *
 	 * - "cgroup.clone_children" is removed.
+	 *
+	 * - "cgroup.subtree_populated" is available.  Its value is 0 if
+	 *   the cgroup and its descendants contain no task; otherwise, 1.
+	 *   The file also generates kernfs notification which can be
+	 *   monitored through poll and [di]notify when the value of the
+	 *   file changes.
 	 *
 	 * - If mount is requested with sane_behavior but without any
 	 *   subsystem, the default unified hierarchy is mounted.

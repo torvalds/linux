@@ -411,6 +411,43 @@ static struct css_set init_css_set = {
 
 static int css_set_count	= 1;	/* 1 for init_css_set */
 
+/**
+ * cgroup_update_populated - updated populated count of a cgroup
+ * @cgrp: the target cgroup
+ * @populated: inc or dec populated count
+ *
+ * @cgrp is either getting the first task (css_set) or losing the last.
+ * Update @cgrp->populated_cnt accordingly.  The count is propagated
+ * towards root so that a given cgroup's populated_cnt is zero iff the
+ * cgroup and all its descendants are empty.
+ *
+ * @cgrp's interface file "cgroup.populated" is zero if
+ * @cgrp->populated_cnt is zero and 1 otherwise.  When @cgrp->populated_cnt
+ * changes from or to zero, userland is notified that the content of the
+ * interface file has changed.  This can be used to detect when @cgrp and
+ * its descendants become populated or empty.
+ */
+static void cgroup_update_populated(struct cgroup *cgrp, bool populated)
+{
+	lockdep_assert_held(&css_set_rwsem);
+
+	do {
+		bool trigger;
+
+		if (populated)
+			trigger = !cgrp->populated_cnt++;
+		else
+			trigger = !--cgrp->populated_cnt;
+
+		if (!trigger)
+			break;
+
+		if (cgrp->populated_kn)
+			kernfs_notify(cgrp->populated_kn);
+		cgrp = cgrp->parent;
+	} while (cgrp);
+}
+
 /*
  * hash table for cgroup groups. This improves the performance to find
  * an existing css_set. This hash doesn't (currently) take into
@@ -456,10 +493,13 @@ static void put_css_set_locked(struct css_set *cset, bool taskexit)
 		list_del(&link->cgrp_link);
 
 		/* @cgrp can't go away while we're holding css_set_rwsem */
-		if (list_empty(&cgrp->cset_links) && notify_on_release(cgrp)) {
-			if (taskexit)
-				set_bit(CGRP_RELEASABLE, &cgrp->flags);
-			check_for_release(cgrp);
+		if (list_empty(&cgrp->cset_links)) {
+			cgroup_update_populated(cgrp, false);
+			if (notify_on_release(cgrp)) {
+				if (taskexit)
+					set_bit(CGRP_RELEASABLE, &cgrp->flags);
+				check_for_release(cgrp);
+			}
 		}
 
 		kfree(link);
@@ -668,7 +708,11 @@ static void link_css_set(struct list_head *tmp_links, struct css_set *cset,
 	link = list_first_entry(tmp_links, struct cgrp_cset_link, cset_link);
 	link->cset = cset;
 	link->cgrp = cgrp;
+
+	if (list_empty(&cgrp->cset_links))
+		cgroup_update_populated(cgrp, true);
 	list_move(&link->cset_link, &cgrp->cset_links);
+
 	/*
 	 * Always add links to the tail of the list so that the list
 	 * is sorted by order of hierarchy creation
@@ -2643,6 +2687,12 @@ err_undo_css:
 	goto out_unlock;
 }
 
+static int cgroup_populated_show(struct seq_file *seq, void *v)
+{
+	seq_printf(seq, "%d\n", (bool)seq_css(seq)->cgroup->populated_cnt);
+	return 0;
+}
+
 static ssize_t cgroup_file_write(struct kernfs_open_file *of, char *buf,
 				 size_t nbytes, loff_t off)
 {
@@ -2809,6 +2859,8 @@ static int cgroup_add_file(struct cgroup *cgrp, struct cftype *cft)
 
 	if (cft->seq_show == cgroup_subtree_control_show)
 		cgrp->control_kn = kn;
+	else if (cft->seq_show == cgroup_populated_show)
+		cgrp->populated_kn = kn;
 	return 0;
 }
 
@@ -3917,6 +3969,11 @@ static struct cftype cgroup_base_files[] = {
 		.flags = CFTYPE_ONLY_ON_DFL,
 		.seq_show = cgroup_subtree_control_show,
 		.write_string = cgroup_subtree_control_write,
+	},
+	{
+		.name = "cgroup.populated",
+		.flags = CFTYPE_ONLY_ON_DFL | CFTYPE_NOT_ON_ROOT,
+		.seq_show = cgroup_populated_show,
 	},
 
 	/*
