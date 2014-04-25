@@ -572,6 +572,9 @@ static int dgap_init_one(struct pci_dev *pdev, const struct pci_device_id *ent)
 {
 	int rc;
 
+	if (dgap_NumBoards >= MAXBOARDS)
+		return -EPERM;
+
 	/* wake up and enable device */
 	rc = pci_enable_device(pdev);
 
