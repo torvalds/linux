@@ -1,5 +1,5 @@
 #include <linux/compiler.h>
-#include <sys/types.h>
+#include <linux/types.h>
 #include <unistd.h>
 #include "tests.h"
 #include "debug.h"

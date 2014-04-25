@@ -1,7 +1,7 @@
 #ifndef __PERF_REGS_H
 #define __PERF_REGS_H
 
-#include "types.h"
+#include <linux/types.h>
 #include "event.h"
 
 #ifdef HAVE_PERF_REGS_SUPPORT

@@ -173,9 +173,8 @@
 #include <sys/types.h>
 #include <sys/syscall.h>
 
+#include <linux/types.h>
 #include <linux/perf_event.h>
-#include "util/types.h"
-#include <stdbool.h>
 
 /*
  * prctl(PR_TASK_PERF_EVENTS_DISABLE) will (cheaply) disable all
@@ -202,7 +201,6 @@ static inline unsigned long long rdclock(void)
 /*
  * Pick up some kernel type conventions:
  */
-#define __user
 #define asmlinkage
 
 #define unlikely(x)	__builtin_expect(!!(x), 0)

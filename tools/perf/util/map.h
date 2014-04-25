@@ -6,7 +6,7 @@
 #include <linux/rbtree.h>
 #include <stdio.h>
 #include <stdbool.h>
-#include "types.h"
+#include <linux/types.h>
 
 enum map_type {
 	MAP__FUNCTION = 0,

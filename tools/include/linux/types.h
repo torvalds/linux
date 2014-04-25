@@ -1,8 +1,9 @@
-#ifndef _LIBLOCKDEP_LINUX_TYPES_H_
-#define _LIBLOCKDEP_LINUX_TYPES_H_
+#ifndef _TOOLS_LINUX_TYPES_H_
+#define _TOOLS_LINUX_TYPES_H_
 
 #include <stdbool.h>
 #include <stddef.h>
+#include <stdint.h>
 
 #define __SANE_USERSPACE_TYPES__	/* For PPC64, to get LL64 types */
 #include <asm/types.h>
@@ -10,10 +11,22 @@
 struct page;
 struct kmem_cache;
 
-typedef unsigned gfp_t;
+typedef enum {
+	GFP_KERNEL,
+	GFP_ATOMIC,
+	__GFP_HIGHMEM,
+	__GFP_HIGH
+} gfp_t;
 
-typedef __u64 u64;
-typedef __s64 s64;
+/*
+ * We define u64 as uint64_t for every architecture
+ * so that we can print it with "%"PRIx64 without getting warnings.
+ *
+ * typedef __u64 u64;
+ * typedef __s64 s64;
+ */
+typedef uint64_t u64;
+typedef int64_t s64;
 
 typedef __u32 u32;
 typedef __s32 s32;
@@ -35,6 +48,10 @@ typedef __s8  s8;
 #define __bitwise
 #endif
 
+#define __force
+#define __user
+#define __must_check
+#define __cold
 
 typedef __u16 __bitwise __le16;
 typedef __u16 __bitwise __be16;
@@ -55,4 +72,4 @@ struct hlist_node {
 	struct hlist_node *next, **pprev;
 };
 
-#endif
+#endif /* _TOOLS_LINUX_TYPES_H_ */

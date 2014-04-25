@@ -1,8 +1,7 @@
-#include <sys/types.h>
+#include <linux/types.h>
 #include <stdlib.h>
 #include <unistd.h>
 #include <stdio.h>
-#include <inttypes.h>
 #include <ctype.h>
 #include <string.h>
 
