@@ -596,13 +596,7 @@
 				<&clk_gates11 9>,/*pclk_uart2*/
 
 				/*480M*/
-				<&usbphy_480m>,
-
-				/*PD*/
-				<&pd_gpu>,
-				<&pd_video>,
-				<&pd_vio>,
-				<&pd_hevc>;
+				<&usbphy_480m>;
 	};
 
 	i2c0: i2c@ff650000 {
