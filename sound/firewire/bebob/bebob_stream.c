@@ -389,6 +389,10 @@ break_both_connections(struct snd_bebob *bebob)
 	cmp_connection_break(&bebob->out_conn);
 
 	bebob->connected = false;
+
+	/* These models seems to be in transition state for a longer time. */
+	if (bebob->maudio_special_quirk != NULL)
+		msleep(200);
 }
 
 static void
@@ -421,9 +425,11 @@ start_stream(struct snd_bebob *bebob, struct amdtp_stream *stream,
 		conn = &bebob->out_conn;
 
 	/* channel mapping */
-	err = map_data_channels(bebob, stream);
-	if (err < 0)
-		goto end;
+	if (bebob->maudio_special_quirk == NULL) {
+		err = map_data_channels(bebob, stream);
+		if (err < 0)
+			goto end;
+	}
 
 	/* start amdtp stream */
 	err = amdtp_stream_start(stream,
@@ -555,13 +561,17 @@ int snd_bebob_stream_start_duplex(struct snd_bebob *bebob, int rate)
 		 * NOTE:
 		 * If establishing connections at first, Yamaha GO46
 		 * (and maybe Terratec X24) don't generate sound.
+		 *
+		 * For firmware customized by M-Audio, refer to next NOTE.
 		 */
-		err = rate_spec->set(bebob, rate);
-		if (err < 0) {
-			dev_err(&bebob->unit->device,
-				"fail to set sampling rate: %d\n",
-				err);
-			goto end;
+		if (bebob->maudio_special_quirk == NULL) {
+			err = rate_spec->set(bebob, rate);
+			if (err < 0) {
+				dev_err(&bebob->unit->device,
+					"fail to set sampling rate: %d\n",
+					err);
+				goto end;
+			}
 		}
 
 		err = make_both_connections(bebob, rate);
@@ -574,6 +584,23 @@ int snd_bebob_stream_start_duplex(struct snd_bebob *bebob, int rate)
 				"fail to run AMDTP master stream:%d\n", err);
 			break_both_connections(bebob);
 			goto end;
+		}
+
+		/*
+		 * NOTE:
+		 * The firmware customized by M-Audio uses these commands to
+		 * start transmitting stream. This is not usual way.
+		 */
+		if (bebob->maudio_special_quirk != NULL) {
+			err = rate_spec->set(bebob, rate);
+			if (err < 0) {
+				dev_err(&bebob->unit->device,
+					"fail to ensure sampling rate: %d\n",
+					err);
+				amdtp_stream_stop(master);
+				break_both_connections(bebob);
+				goto end;
+			}
 		}
 
 		/* wait first callback */

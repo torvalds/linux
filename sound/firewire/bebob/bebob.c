@@ -60,6 +60,8 @@ static DECLARE_BITMAP(devices_used, SNDRV_CARDS);
 
 #define MODEL_FOCUSRITE_SAFFIRE_BOTH	0x00000000
 #define MODEL_MAUDIO_AUDIOPHILE_BOTH	0x00010060
+#define MODEL_MAUDIO_FW1814		0x00010071
+#define MODEL_MAUDIO_PROJECTMIX		0x00010091
 
 static int
 name_device(struct snd_bebob *bebob, unsigned int vendor_id)
@@ -210,7 +212,14 @@ bebob_probe(struct fw_unit *unit,
 	if (err < 0)
 		goto error;
 
-	err = snd_bebob_stream_discover(bebob);
+	if ((entry->vendor_id == VEN_MAUDIO1) &&
+	    (entry->model_id == MODEL_MAUDIO_FW1814))
+		err = snd_bebob_maudio_special_discover(bebob, true);
+	else if ((entry->vendor_id == VEN_MAUDIO1) &&
+		 (entry->model_id == MODEL_MAUDIO_PROJECTMIX))
+		err = snd_bebob_maudio_special_discover(bebob, false);
+	else
+		err = snd_bebob_stream_discover(bebob);
 	if (err < 0)
 		goto error;
 
@@ -269,6 +278,8 @@ static void bebob_remove(struct fw_unit *unit)
 
 	if (bebob == NULL)
 		return;
+
+	kfree(bebob->maudio_special_quirk);
 
 	snd_bebob_stream_destroy_duplex(bebob);
 	snd_card_disconnect(bebob->card);
@@ -375,6 +386,12 @@ static const struct ieee1394_device_id bebob_id_table[] = {
 	SND_BEBOB_DEV_ENTRY(VEN_MAUDIO1, 0x00010081, &maudio_nrv10_spec),
 	/* M-Audio, ProFireLightbridge */
 	SND_BEBOB_DEV_ENTRY(VEN_MAUDIO1, 0x000100a1, &spec_normal),
+	/* Firewire 1814 */
+	SND_BEBOB_DEV_ENTRY(VEN_MAUDIO1, MODEL_MAUDIO_FW1814,
+			    &maudio_special_spec),
+	/* M-Audio ProjectMix */
+	SND_BEBOB_DEV_ENTRY(VEN_MAUDIO1, MODEL_MAUDIO_PROJECTMIX,
+			    &maudio_special_spec),
 	/* IDs are unknown but able to be supported */
 	/*  Apogee, Mini-ME Firewire */
 	/*  Apogee, Mini-DAC Firewire */
