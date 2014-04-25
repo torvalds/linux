@@ -414,6 +414,7 @@ int tegra_dpaux_attach(struct tegra_dpaux *dpaux, struct tegra_output *output)
 	unsigned long timeout;
 	int err;
 
+	output->connector.polled = DRM_CONNECTOR_POLL_HPD;
 	dpaux->output = output;
 
 	err = regulator_enable(dpaux->vdd);
