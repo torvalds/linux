@@ -815,7 +815,7 @@ int amdtp_stream_start(struct amdtp_stream *s, int channel, int speed)
 	};
 	unsigned int header_size;
 	enum dma_data_direction dir;
-	int type, err;
+	int type, tag, err;
 
 	mutex_lock(&s->mutex);
 
@@ -869,9 +869,12 @@ int amdtp_stream_start(struct amdtp_stream *s, int channel, int speed)
 	} while (s->packet_index > 0);
 
 	/* NOTE: TAG1 matches CIP. This just affects in stream. */
+	tag = FW_ISO_CONTEXT_MATCH_TAG1;
+	if (s->flags & CIP_EMPTY_WITH_TAG0)
+		tag |= FW_ISO_CONTEXT_MATCH_TAG0;
+
 	s->callbacked = false;
-	err = fw_iso_context_start(s->context, -1, 0,
-				   FW_ISO_CONTEXT_MATCH_TAG1);
+	err = fw_iso_context_start(s->context, -1, 0, tag);
 	if (err < 0)
 		goto err_context;
 
