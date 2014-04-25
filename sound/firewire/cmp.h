@@ -38,6 +38,7 @@ int cmp_connection_init(struct cmp_connection *connection,
 			struct fw_unit *unit,
 			enum cmp_direction direction,
 			unsigned int pcr_index);
+int cmp_connection_check_used(struct cmp_connection *connection, bool *used);
 void cmp_connection_destroy(struct cmp_connection *connection);
 
 int cmp_connection_establish(struct cmp_connection *connection,
