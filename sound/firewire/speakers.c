@@ -51,7 +51,7 @@ struct fwspk {
 	const struct device_info *device_info;
 	struct mutex mutex;
 	struct cmp_connection connection;
-	struct amdtp_out_stream stream;
+	struct amdtp_stream stream;
 	bool mute;
 	s16 volume[6];
 	s16 volume_min;
@@ -187,8 +187,8 @@ static int fwspk_close(struct snd_pcm_substream *substream)
 
 static void fwspk_stop_stream(struct fwspk *fwspk)
 {
-	if (amdtp_out_stream_running(&fwspk->stream)) {
-		amdtp_out_stream_stop(&fwspk->stream);
+	if (amdtp_stream_running(&fwspk->stream)) {
+		amdtp_stream_stop(&fwspk->stream);
 		cmp_connection_break(&fwspk->connection);
 	}
 }
@@ -244,13 +244,13 @@ static int fwspk_hw_params(struct snd_pcm_substream *substream,
 	if (err < 0)
 		goto error;
 
-	amdtp_out_stream_set_parameters(&fwspk->stream,
-					params_rate(hw_params),
-					params_channels(hw_params),
-					0);
+	amdtp_stream_set_parameters(&fwspk->stream,
+				    params_rate(hw_params),
+				    params_channels(hw_params),
+				    0);
 
-	amdtp_out_stream_set_pcm_format(&fwspk->stream,
-					params_format(hw_params));
+	amdtp_stream_set_pcm_format(&fwspk->stream,
+				    params_format(hw_params));
 
 	err = fwspk_set_rate(fwspk, fwspk->stream.sfc);
 	if (err < 0)
@@ -282,25 +282,25 @@ static int fwspk_prepare(struct snd_pcm_substream *substream)
 
 	mutex_lock(&fwspk->mutex);
 
-	if (amdtp_out_streaming_error(&fwspk->stream))
+	if (amdtp_streaming_error(&fwspk->stream))
 		fwspk_stop_stream(fwspk);
 
-	if (!amdtp_out_stream_running(&fwspk->stream)) {
+	if (!amdtp_stream_running(&fwspk->stream)) {
 		err = cmp_connection_establish(&fwspk->connection,
-			amdtp_out_stream_get_max_payload(&fwspk->stream));
+			amdtp_stream_get_max_payload(&fwspk->stream));
 		if (err < 0)
 			goto err_mutex;
 
-		err = amdtp_out_stream_start(&fwspk->stream,
-					fwspk->connection.resources.channel,
-					fwspk->connection.speed);
+		err = amdtp_stream_start(&fwspk->stream,
+					 fwspk->connection.resources.channel,
+					 fwspk->connection.speed);
 		if (err < 0)
 			goto err_connection;
 	}
 
 	mutex_unlock(&fwspk->mutex);
 
-	amdtp_out_stream_pcm_prepare(&fwspk->stream);
+	amdtp_stream_pcm_prepare(&fwspk->stream);
 
 	return 0;
 
@@ -327,7 +327,7 @@ static int fwspk_trigger(struct snd_pcm_substream *substream, int cmd)
 	default:
 		return -EINVAL;
 	}
-	amdtp_out_stream_pcm_trigger(&fwspk->stream, pcm);
+	amdtp_stream_pcm_trigger(&fwspk->stream, pcm);
 	return 0;
 }
 
@@ -335,7 +335,7 @@ static snd_pcm_uframes_t fwspk_pointer(struct snd_pcm_substream *substream)
 {
 	struct fwspk *fwspk = substream->private_data;
 
-	return amdtp_out_stream_pcm_pointer(&fwspk->stream);
+	return amdtp_stream_pcm_pointer(&fwspk->stream);
 }
 
 static int fwspk_create_pcm(struct fwspk *fwspk)
@@ -653,7 +653,7 @@ static void fwspk_card_free(struct snd_card *card)
 {
 	struct fwspk *fwspk = card->private_data;
 
-	amdtp_out_stream_destroy(&fwspk->stream);
+	amdtp_stream_destroy(&fwspk->stream);
 	cmp_connection_destroy(&fwspk->connection);
 	fw_unit_put(fwspk->unit);
 	mutex_destroy(&fwspk->mutex);
@@ -683,7 +683,7 @@ static int fwspk_probe(struct fw_unit *unit,
 	if (err < 0)
 		goto err_unit;
 
-	err = amdtp_out_stream_init(&fwspk->stream, unit, CIP_NONBLOCKING);
+	err = amdtp_stream_init(&fwspk->stream, unit, CIP_NONBLOCKING);
 	if (err < 0)
 		goto err_connection;
 
@@ -733,21 +733,21 @@ static void fwspk_bus_reset(struct fw_unit *unit)
 	fcp_bus_reset(fwspk->unit);
 
 	if (cmp_connection_update(&fwspk->connection) < 0) {
-		amdtp_out_stream_pcm_abort(&fwspk->stream);
+		amdtp_stream_pcm_abort(&fwspk->stream);
 		mutex_lock(&fwspk->mutex);
 		fwspk_stop_stream(fwspk);
 		mutex_unlock(&fwspk->mutex);
 		return;
 	}
 
-	amdtp_out_stream_update(&fwspk->stream);
+	amdtp_stream_update(&fwspk->stream);
 }
 
 static void fwspk_remove(struct fw_unit *unit)
 {
 	struct fwspk *fwspk = dev_get_drvdata(&unit->device);
 
-	amdtp_out_stream_pcm_abort(&fwspk->stream);
+	amdtp_stream_pcm_abort(&fwspk->stream);
 	snd_card_disconnect(fwspk->card);
 
 	mutex_lock(&fwspk->mutex);

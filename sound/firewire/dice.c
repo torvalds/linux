@@ -51,7 +51,7 @@ struct dice {
 	wait_queue_head_t hwdep_wait;
 	u32 notification_bits;
 	struct fw_iso_resources resources;
-	struct amdtp_out_stream stream;
+	struct amdtp_stream stream;
 };
 
 MODULE_DESCRIPTION("DICE driver");
@@ -460,17 +460,17 @@ static int dice_stream_start_packets(struct dice *dice)
 {
 	int err;
 
-	if (amdtp_out_stream_running(&dice->stream))
+	if (amdtp_stream_running(&dice->stream))
 		return 0;
 
-	err = amdtp_out_stream_start(&dice->stream, dice->resources.channel,
-				     fw_parent_device(dice->unit)->max_speed);
+	err = amdtp_stream_start(&dice->stream, dice->resources.channel,
+				 fw_parent_device(dice->unit)->max_speed);
 	if (err < 0)
 		return err;
 
 	err = dice_enable_set(dice);
 	if (err < 0) {
-		amdtp_out_stream_stop(&dice->stream);
+		amdtp_stream_stop(&dice->stream);
 		return err;
 	}
 
@@ -484,7 +484,7 @@ static int dice_stream_start(struct dice *dice)
 
 	if (!dice->resources.allocated) {
 		err = fw_iso_resources_allocate(&dice->resources,
-				amdtp_out_stream_get_max_payload(&dice->stream),
+				amdtp_stream_get_max_payload(&dice->stream),
 				fw_parent_device(dice->unit)->max_speed);
 		if (err < 0)
 			goto error;
@@ -516,9 +516,9 @@ error:
 
 static void dice_stream_stop_packets(struct dice *dice)
 {
-	if (amdtp_out_stream_running(&dice->stream)) {
+	if (amdtp_stream_running(&dice->stream)) {
 		dice_enable_clear(dice);
-		amdtp_out_stream_stop(&dice->stream);
+		amdtp_stream_stop(&dice->stream);
 	}
 }
 
@@ -581,12 +581,12 @@ static int dice_hw_params(struct snd_pcm_substream *substream,
 		return err;
 
 	mode = rate_index_to_mode(rate_index);
-	amdtp_out_stream_set_parameters(&dice->stream,
-					params_rate(hw_params),
-					params_channels(hw_params),
-					dice->rx_midi_ports[mode]);
-	amdtp_out_stream_set_pcm_format(&dice->stream,
-					params_format(hw_params));
+	amdtp_stream_set_parameters(&dice->stream,
+				    params_rate(hw_params),
+				    params_channels(hw_params),
+				    dice->rx_midi_ports[mode]);
+	amdtp_stream_set_pcm_format(&dice->stream,
+				    params_format(hw_params));
 
 	return 0;
 }
@@ -609,7 +609,7 @@ static int dice_prepare(struct snd_pcm_substream *substream)
 
 	mutex_lock(&dice->mutex);
 
-	if (amdtp_out_streaming_error(&dice->stream))
+	if (amdtp_streaming_error(&dice->stream))
 		dice_stream_stop_packets(dice);
 
 	err = dice_stream_start(dice);
@@ -620,7 +620,7 @@ static int dice_prepare(struct snd_pcm_substream *substream)
 
 	mutex_unlock(&dice->mutex);
 
-	amdtp_out_stream_pcm_prepare(&dice->stream);
+	amdtp_stream_pcm_prepare(&dice->stream);
 
 	return 0;
 }
@@ -640,7 +640,7 @@ static int dice_trigger(struct snd_pcm_substream *substream, int cmd)
 	default:
 		return -EINVAL;
 	}
-	amdtp_out_stream_pcm_trigger(&dice->stream, pcm);
+	amdtp_stream_pcm_trigger(&dice->stream, pcm);
 
 	return 0;
 }
@@ -649,7 +649,7 @@ static snd_pcm_uframes_t dice_pointer(struct snd_pcm_substream *substream)
 {
 	struct dice *dice = substream->private_data;
 
-	return amdtp_out_stream_pcm_pointer(&dice->stream);
+	return amdtp_stream_pcm_pointer(&dice->stream);
 }
 
 static int dice_create_pcm(struct dice *dice)
@@ -1104,7 +1104,7 @@ static void dice_card_free(struct snd_card *card)
 {
 	struct dice *dice = card->private_data;
 
-	amdtp_out_stream_destroy(&dice->stream);
+	amdtp_stream_destroy(&dice->stream);
 	fw_core_remove_address_handler(&dice->notification_handler);
 	mutex_destroy(&dice->mutex);
 }
@@ -1360,8 +1360,8 @@ static int dice_probe(struct fw_unit *unit, const struct ieee1394_device_id *id)
 		goto err_owner;
 	dice->resources.channels_mask = 0x00000000ffffffffuLL;
 
-	err = amdtp_out_stream_init(&dice->stream, unit,
-				    CIP_BLOCKING | CIP_HI_DUALWIRE);
+	err = amdtp_stream_init(&dice->stream, unit,
+				CIP_BLOCKING | CIP_HI_DUALWIRE);
 	if (err < 0)
 		goto err_resources;
 
@@ -1417,7 +1417,7 @@ static void dice_remove(struct fw_unit *unit)
 {
 	struct dice *dice = dev_get_drvdata(&unit->device);
 
-	amdtp_out_stream_pcm_abort(&dice->stream);
+	amdtp_stream_pcm_abort(&dice->stream);
 
 	snd_card_disconnect(dice->card);
 
@@ -1443,7 +1443,7 @@ static void dice_bus_reset(struct fw_unit *unit)
 	 * to stop so that the application can restart them in an orderly
 	 * manner.
 	 */
-	amdtp_out_stream_pcm_abort(&dice->stream);
+	amdtp_stream_pcm_abort(&dice->stream);
 
 	mutex_lock(&dice->mutex);
 
