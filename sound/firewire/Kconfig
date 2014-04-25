@@ -113,6 +113,8 @@ config SND_BEBOB
 	  * Terratec Aureon 7.1 Firewire
 	  * Yamaha GO44/GO46
 	  * Focusrite Saffire/Saffire LE/SaffirePro10 IO/SaffirePro26 IO
+	  * M-Audio Firewire410/AudioPhile/Solo
+	  * M-Audio Ozonic/NRV10/ProfireLightBridge
 
           To compile this driver as a module, choose M here: the module
           will be called snd-bebob.

@@ -55,8 +55,11 @@ static DECLARE_BITMAP(devices_used, SNDRV_CARDS);
 #define VEN_TERRATEC	0x00000aac
 #define VEN_YAMAHA	0x0000a0de
 #define VEN_FOCUSRITE	0x0000130e
+#define VEN_MAUDIO1	0x00000d6c
+#define VEN_MAUDIO2	0x000007f5
 
 #define MODEL_FOCUSRITE_SAFFIRE_BOTH	0x00000000
+#define MODEL_MAUDIO_AUDIOPHILE_BOTH	0x00010060
 
 static int
 name_device(struct snd_bebob *bebob, unsigned int vendor_id)
@@ -139,6 +142,17 @@ get_saffire_spec(struct fw_unit *unit)
 		return &saffire_spec;
 }
 
+static bool
+check_audiophile_booted(struct fw_unit *unit)
+{
+	char name[24] = {0};
+
+	if (fw_csr_string(unit->directory, CSR_MODEL, name, sizeof(name)) < 0)
+		return false;
+
+	return strncmp(name, "FW Audiophile Bootloader", 15) != 0;
+}
+
 static int
 bebob_probe(struct fw_unit *unit,
 	    const struct ieee1394_device_id *entry)
@@ -161,10 +175,16 @@ bebob_probe(struct fw_unit *unit,
 	}
 
 	if ((entry->vendor_id == VEN_FOCUSRITE) &&
-	    (entry->model_id == MODEL_FOCUSRITE_SAFFIRE_BOTH))
+	    (entry->model_id == MODEL_FOCUSRITE_SAFFIRE_BOTH)) {
 		spec = get_saffire_spec(unit);
-	else
+	} else if ((entry->vendor_id == VEN_MAUDIO1) &&
+		   (entry->model_id == MODEL_MAUDIO_AUDIOPHILE_BOTH) &&
+		   !check_audiophile_booted(unit)) {
+			err = 0;
+			goto end;
+	} else {
 		spec = (const struct snd_bebob_spec *)entry->driver_data;
+	}
 	if (spec == NULL) {
 		err = -ENOSYS;
 		goto end;
@@ -235,6 +255,10 @@ static void
 bebob_update(struct fw_unit *unit)
 {
 	struct snd_bebob *bebob = dev_get_drvdata(&unit->device);
+
+	if (bebob == NULL)
+		return;
+
 	fcp_bus_reset(bebob->unit);
 	snd_bebob_stream_update_duplex(bebob);
 }
@@ -242,6 +266,10 @@ bebob_update(struct fw_unit *unit)
 static void bebob_remove(struct fw_unit *unit)
 {
 	struct snd_bebob *bebob = dev_get_drvdata(&unit->device);
+
+	if (bebob == NULL)
+		return;
+
 	snd_bebob_stream_destroy_duplex(bebob);
 	snd_card_disconnect(bebob->card);
 	snd_card_free_when_closed(bebob->card);
@@ -334,6 +362,19 @@ static const struct ieee1394_device_id bebob_id_table[] = {
 	/* Focusrite, Saffire(no label and LE) */
 	SND_BEBOB_DEV_ENTRY(VEN_FOCUSRITE, MODEL_FOCUSRITE_SAFFIRE_BOTH,
 			    &saffire_spec),
+	/* M-Audio, Firewire 410 */
+	SND_BEBOB_DEV_ENTRY(VEN_MAUDIO2, 0x00010046, &maudio_fw410_spec),
+	/* M-Audio, Firewire Audiophile */
+	SND_BEBOB_DEV_ENTRY(VEN_MAUDIO1, MODEL_MAUDIO_AUDIOPHILE_BOTH,
+			    &maudio_audiophile_spec),
+	/* M-Audio, Firewire Solo */
+	SND_BEBOB_DEV_ENTRY(VEN_MAUDIO1, 0x00010062, &maudio_solo_spec),
+	/* M-Audio, Ozonic */
+	SND_BEBOB_DEV_ENTRY(VEN_MAUDIO1, 0x0000000a, &maudio_ozonic_spec),
+	/* M-Audio NRV10 */
+	SND_BEBOB_DEV_ENTRY(VEN_MAUDIO1, 0x00010081, &maudio_nrv10_spec),
+	/* M-Audio, ProFireLightbridge */
+	SND_BEBOB_DEV_ENTRY(VEN_MAUDIO1, 0x000100a1, &spec_normal),
 	/* IDs are unknown but able to be supported */
 	/*  Apogee, Mini-ME Firewire */
 	/*  Apogee, Mini-DAC Firewire */

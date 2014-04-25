@@ -252,6 +252,15 @@ map_data_channels(struct snd_bebob *bebob, struct amdtp_stream *s)
 			/* location of this channel in this section */
 			sec_loc = buf[pos++] - 1;
 
+			/*
+			 * Basically the number of location is within the
+			 * number of channels in this section. But some models
+			 * of M-Audio don't follow this. Its location for MIDI
+			 * is the position of MIDI channels in AMDTP packet.
+			 */
+			if (sec_loc >= channels)
+				sec_loc = ch;
+
 			switch (type) {
 			/* for MIDI conformant data channel */
 			case 0x0a:
