@@ -69,6 +69,39 @@ end:
 }
 
 static void
+proc_read_meters(struct snd_info_entry *entry,
+		 struct snd_info_buffer *buffer)
+{
+	struct snd_bebob *bebob = entry->private_data;
+	struct snd_bebob_meter_spec *spec = bebob->spec->meter;
+	u32 *buf;
+	unsigned int i, c, channels, size;
+
+	if (spec == NULL)
+		return;
+
+	channels = spec->num * 2;
+	size = channels * sizeof(u32);
+	buf = kmalloc(size, GFP_KERNEL);
+	if (buf == NULL)
+		return;
+
+	if (spec->get(bebob, buf, size) < 0)
+		goto end;
+
+	for (i = 0, c = 1; i < channels; i++) {
+		snd_iprintf(buffer, "%s %d:\t%d\n",
+			    spec->labels[i / 2], c++, buf[i]);
+		if ((i + 1 < channels - 1) &&
+		    (strcmp(spec->labels[i / 2],
+			    spec->labels[(i + 1) / 2]) != 0))
+			c = 1;
+	}
+end:
+	kfree(buf);
+}
+
+static void
 proc_read_formation(struct snd_info_entry *entry,
 		struct snd_info_buffer *buffer)
 {
@@ -100,16 +133,25 @@ proc_read_clock(struct snd_info_entry *entry,
 		struct snd_info_buffer *buffer)
 {
 	struct snd_bebob *bebob = entry->private_data;
-	unsigned int rate;
+	struct snd_bebob_rate_spec *rate_spec = bebob->spec->rate;
+	struct snd_bebob_clock_spec *clk_spec = bebob->spec->clock;
+	unsigned int rate, id;
 	bool internal;
 
-	if (snd_bebob_stream_get_rate(bebob, &rate) >= 0)
+	if (rate_spec->get(bebob, &rate) >= 0)
 		snd_iprintf(buffer, "Sampling rate: %d\n", rate);
 
-	if (snd_bebob_stream_check_internal_clock(bebob, &internal) >= 0)
-		snd_iprintf(buffer, "Clock Source: %s (MSU-dest: %d)",
-			    (internal) ? "Internal" : "External",
-			    bebob->sync_input_plug);
+	if (clk_spec) {
+		if (clk_spec->get(bebob, &id) >= 0)
+			snd_iprintf(buffer, "Clock Source: %s\n",
+				    clk_spec->labels[id]);
+	} else {
+		if (snd_bebob_stream_check_internal_clock(bebob,
+							  &internal) >= 0)
+			snd_iprintf(buffer, "Clock Source: %s (MSU-dest: %d)\n",
+				    (internal) ? "Internal" : "External",
+				    bebob->sync_input_plug);
+	}
 }
 
 static void
@@ -148,4 +190,7 @@ void snd_bebob_proc_init(struct snd_bebob *bebob)
 	add_node(bebob, root, "clock", proc_read_clock);
 	add_node(bebob, root, "firmware", proc_read_hw_info);
 	add_node(bebob, root, "formation", proc_read_formation);
+
+	if (bebob->spec->meter != NULL)
+		add_node(bebob, root, "meter", proc_read_meters);
 }

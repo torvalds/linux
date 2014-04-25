@@ -48,6 +48,28 @@ struct snd_bebob_stream_formation {
 /* this is a lookup table for index of stream formations */
 extern const unsigned int snd_bebob_rate_table[SND_BEBOB_STRM_FMT_ENTRIES];
 
+/* device specific operations */
+#define SND_BEBOB_CLOCK_INTERNAL	"Internal"
+struct snd_bebob_clock_spec {
+	unsigned int num;
+	char *const *labels;
+	int (*get)(struct snd_bebob *bebob, unsigned int *id);
+};
+struct snd_bebob_rate_spec {
+	int (*get)(struct snd_bebob *bebob, unsigned int *rate);
+	int (*set)(struct snd_bebob *bebob, unsigned int rate);
+};
+struct snd_bebob_meter_spec {
+	unsigned int num;
+	char *const *labels;
+	int (*get)(struct snd_bebob *bebob, u32 *target, unsigned int size);
+};
+struct snd_bebob_spec {
+	struct snd_bebob_clock_spec *clock;
+	struct snd_bebob_rate_spec *rate;
+	struct snd_bebob_meter_spec *meter;
+};
+
 struct snd_bebob {
 	struct snd_card *card;
 	struct fw_unit *unit;
@@ -55,6 +77,8 @@ struct snd_bebob {
 
 	struct mutex mutex;
 	spinlock_t lock;
+
+	const struct snd_bebob_spec *spec;
 
 	unsigned int midi_input_ports;
 	unsigned int midi_output_ports;
@@ -99,6 +123,12 @@ snd_bebob_read_quad(struct fw_unit *unit, u64 addr, u32 *buf)
 				  BEBOB_ADDR_REG_INFO + addr,
 				  (void *)buf, sizeof(u32), 0);
 }
+
+/* AV/C Audio Subunit Specification 1.0 (Oct 2000, 1394TA) */
+int avc_audio_set_selector(struct fw_unit *unit, unsigned int subunit_id,
+			   unsigned int fb_id, unsigned int num);
+int avc_audio_get_selector(struct fw_unit *unit, unsigned  int subunit_id,
+			   unsigned int fb_id, unsigned int *num);
 
 /*
  * AVC command extensions, AV/C Unit and Subunit, Revision 17
@@ -194,12 +224,13 @@ int snd_bebob_create_pcm_devices(struct snd_bebob *bebob);
 
 int snd_bebob_create_hwdep_device(struct snd_bebob *bebob);
 
-#define SND_BEBOB_DEV_ENTRY(vendor, model) \
+#define SND_BEBOB_DEV_ENTRY(vendor, model, data) \
 { \
 	.match_flags	= IEEE1394_MATCH_VENDOR_ID | \
 			  IEEE1394_MATCH_MODEL_ID, \
 	.vendor_id	= vendor, \
 	.model_id	= model, \
+	.driver_data	= (kernel_ulong_t)data \
 }
 
 #endif

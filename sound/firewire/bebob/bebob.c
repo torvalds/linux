@@ -126,6 +126,7 @@ bebob_probe(struct fw_unit *unit,
 {
 	struct snd_card *card;
 	struct snd_bebob *bebob;
+	const struct snd_bebob_spec *spec;
 	unsigned int card_index;
 	int err;
 
@@ -140,6 +141,12 @@ bebob_probe(struct fw_unit *unit,
 		goto end;
 	}
 
+	spec = (const struct snd_bebob_spec *)entry->driver_data;
+	if (spec == NULL) {
+		err = -ENOSYS;
+		goto end;
+	}
+
 	err = snd_card_new(&unit->device, index[card_index], id[card_index],
 			   THIS_MODULE, sizeof(struct snd_bebob), &card);
 	if (err < 0)
@@ -151,6 +158,7 @@ bebob_probe(struct fw_unit *unit,
 
 	bebob->card = card;
 	bebob->unit = unit;
+	bebob->spec = spec;
 	mutex_init(&bebob->mutex);
 	spin_lock_init(&bebob->lock);
 	init_waitqueue_head(&bebob->hwdep_wait);
@@ -216,62 +224,72 @@ static void bebob_remove(struct fw_unit *unit)
 	snd_card_free_when_closed(bebob->card);
 }
 
+struct snd_bebob_rate_spec normal_rate_spec = {
+	.get	= &snd_bebob_stream_get_rate,
+	.set	= &snd_bebob_stream_set_rate
+};
+static const struct snd_bebob_spec spec_normal = {
+	.clock	= NULL,
+	.rate	= &normal_rate_spec,
+	.meter	= NULL
+};
+
 static const struct ieee1394_device_id bebob_id_table[] = {
 	/* Edirol, FA-66 */
-	SND_BEBOB_DEV_ENTRY(VEN_EDIROL, 0x00010049),
+	SND_BEBOB_DEV_ENTRY(VEN_EDIROL, 0x00010049, &spec_normal),
 	/* Edirol, FA-101 */
-	SND_BEBOB_DEV_ENTRY(VEN_EDIROL, 0x00010048),
+	SND_BEBOB_DEV_ENTRY(VEN_EDIROL, 0x00010048, &spec_normal),
 	/* Presonus, FIREBOX */
-	SND_BEBOB_DEV_ENTRY(VEN_PRESONUS, 0x00010000),
+	SND_BEBOB_DEV_ENTRY(VEN_PRESONUS, 0x00010000, &spec_normal),
 	/* PreSonus, FIREPOD/FP10 */
-	SND_BEBOB_DEV_ENTRY(VEN_PRESONUS, 0x00010066),
+	SND_BEBOB_DEV_ENTRY(VEN_PRESONUS, 0x00010066, &spec_normal),
 	/* PreSonus, Inspire1394 */
-	SND_BEBOB_DEV_ENTRY(VEN_PRESONUS, 0x00010001),
+	SND_BEBOB_DEV_ENTRY(VEN_PRESONUS, 0x00010001, &spec_normal),
 	/* BridgeCo, RDAudio1 */
-	SND_BEBOB_DEV_ENTRY(VEN_BRIDGECO, 0x00010048),
+	SND_BEBOB_DEV_ENTRY(VEN_BRIDGECO, 0x00010048, &spec_normal),
 	/* BridgeCo, Audio5 */
-	SND_BEBOB_DEV_ENTRY(VEN_BRIDGECO, 0x00010049),
+	SND_BEBOB_DEV_ENTRY(VEN_BRIDGECO, 0x00010049, &spec_normal),
 	/* Mackie, Onyx 1220/1620/1640 (Firewire I/O Card) */
-	SND_BEBOB_DEV_ENTRY(VEN_MACKIE, 0x00010065),
+	SND_BEBOB_DEV_ENTRY(VEN_MACKIE, 0x00010065, &spec_normal),
 	/* Mackie, d.2 (Firewire Option) */
-	SND_BEBOB_DEV_ENTRY(VEN_MACKIE, 0x00010067),
+	SND_BEBOB_DEV_ENTRY(VEN_MACKIE, 0x00010067, &spec_normal),
 	/* Stanton, ScratchAmp */
-	SND_BEBOB_DEV_ENTRY(VEN_STANTON, 0x00000001),
+	SND_BEBOB_DEV_ENTRY(VEN_STANTON, 0x00000001, &spec_normal),
 	/* Tascam, IF-FW DM */
-	SND_BEBOB_DEV_ENTRY(VEN_TASCAM, 0x00010067),
+	SND_BEBOB_DEV_ENTRY(VEN_TASCAM, 0x00010067, &spec_normal),
 	/* Behringer, XENIX UFX 1204 */
-	SND_BEBOB_DEV_ENTRY(VEN_BEHRINGER, 0x00001204),
+	SND_BEBOB_DEV_ENTRY(VEN_BEHRINGER, 0x00001204, &spec_normal),
 	/* Behringer, XENIX UFX 1604 */
-	SND_BEBOB_DEV_ENTRY(VEN_BEHRINGER, 0x00001604),
+	SND_BEBOB_DEV_ENTRY(VEN_BEHRINGER, 0x00001604, &spec_normal),
 	/* Behringer, Digital Mixer X32 series (X-UF Card) */
-	SND_BEBOB_DEV_ENTRY(VEN_BEHRINGER, 0x00000006),
+	SND_BEBOB_DEV_ENTRY(VEN_BEHRINGER, 0x00000006, &spec_normal),
 	/* Apogee Electronics, Rosetta 200/400 (X-FireWire card) */
 	/* Apogee Electronics, DA/AD/DD-16X (X-FireWire card) */
-	SND_BEBOB_DEV_ENTRY(VEN_APOGEE, 0x00010048),
+	SND_BEBOB_DEV_ENTRY(VEN_APOGEE, 0x00010048, &spec_normal),
 	/* Apogee Electronics, Ensemble */
-	SND_BEBOB_DEV_ENTRY(VEN_APOGEE, 0x00001eee),
+	SND_BEBOB_DEV_ENTRY(VEN_APOGEE, 0x00001eee, &spec_normal),
 	/* ESI, Quatafire610 */
-	SND_BEBOB_DEV_ENTRY(VEN_ESI, 0x00010064),
+	SND_BEBOB_DEV_ENTRY(VEN_ESI, 0x00010064, &spec_normal),
 	/* AcousticReality, eARMasterOne */
-	SND_BEBOB_DEV_ENTRY(VEN_ACOUSTIC, 0x00000002),
+	SND_BEBOB_DEV_ENTRY(VEN_ACOUSTIC, 0x00000002, &spec_normal),
 	/* CME, MatrixKFW */
-	SND_BEBOB_DEV_ENTRY(VEN_CME, 0x00030000),
+	SND_BEBOB_DEV_ENTRY(VEN_CME, 0x00030000, &spec_normal),
 	/* Phonic, Helix Board 12 MkII */
-	SND_BEBOB_DEV_ENTRY(VEN_PHONIC, 0x00050000),
+	SND_BEBOB_DEV_ENTRY(VEN_PHONIC, 0x00050000, &spec_normal),
 	/* Phonic, Helix Board 18 MkII */
-	SND_BEBOB_DEV_ENTRY(VEN_PHONIC, 0x00060000),
+	SND_BEBOB_DEV_ENTRY(VEN_PHONIC, 0x00060000, &spec_normal),
 	/* Phonic, Helix Board 24 MkII */
-	SND_BEBOB_DEV_ENTRY(VEN_PHONIC, 0x00070000),
+	SND_BEBOB_DEV_ENTRY(VEN_PHONIC, 0x00070000, &spec_normal),
 	/* Phonic, Helix Board 12 Universal/18 Universal/24 Universal */
-	SND_BEBOB_DEV_ENTRY(VEN_PHONIC, 0x00000000),
+	SND_BEBOB_DEV_ENTRY(VEN_PHONIC, 0x00000000, &spec_normal),
 	/* Lynx, Aurora 8/16 (LT-FW) */
-	SND_BEBOB_DEV_ENTRY(VEN_LYNX, 0x00000001),
+	SND_BEBOB_DEV_ENTRY(VEN_LYNX, 0x00000001, &spec_normal),
 	/* ICON, FireXon */
-	SND_BEBOB_DEV_ENTRY(VEN_ICON, 0x00000001),
+	SND_BEBOB_DEV_ENTRY(VEN_ICON, 0x00000001, &spec_normal),
 	/* PrismSound, Orpheus */
-	SND_BEBOB_DEV_ENTRY(VEN_PRISMSOUND, 0x00010048),
+	SND_BEBOB_DEV_ENTRY(VEN_PRISMSOUND, 0x00010048, &spec_normal),
 	/* PrismSound, ADA-8XR */
-	SND_BEBOB_DEV_ENTRY(VEN_PRISMSOUND, 0x0000ada8),
+	SND_BEBOB_DEV_ENTRY(VEN_PRISMSOUND, 0x0000ada8, &spec_normal),
 	/* IDs are unknown but able to be supported */
 	/*  Apogee, Mini-ME Firewire */
 	/*  Apogee, Mini-DAC Firewire */

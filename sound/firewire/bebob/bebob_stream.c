@@ -119,13 +119,27 @@ end:
 int
 snd_bebob_stream_check_internal_clock(struct snd_bebob *bebob, bool *internal)
 {
+	struct snd_bebob_clock_spec *clk_spec = bebob->spec->clock;
 	u8 addr[AVC_BRIDGECO_ADDR_BYTES], input[7];
+	unsigned int id;
 	int err = 0;
 
 	*internal = false;
 
+	/* 1.The device has its own operation to switch source of clock */
+	if (clk_spec) {
+		err = clk_spec->get(bebob, &id);
+		if (err < 0)
+			dev_err(&bebob->unit->device,
+				"fail to get clock source: %d\n", err);
+		else if (strncmp(clk_spec->labels[id], SND_BEBOB_CLOCK_INTERNAL,
+				 strlen(SND_BEBOB_CLOCK_INTERNAL)) == 0)
+			*internal = true;
+		goto end;
+	}
+
 	/*
-	 * 1.The device don't support to switch source of clock then assumed
+	 * 2.The device don't support to switch source of clock then assumed
 	 *   to use internal clock always
 	 */
 	if (bebob->sync_input_plug < 0) {
@@ -134,7 +148,7 @@ snd_bebob_stream_check_internal_clock(struct snd_bebob *bebob, bool *internal)
 	}
 
 	/*
-	 * 2.The device supports to switch source of clock by an usual way.
+	 * 3.The device supports to switch source of clock by an usual way.
 	 *   Let's check input for 'Music Sub Unit Sync Input' plug.
 	 */
 	avc_bridgeco_fill_msu_addr(addr, AVC_BRIDGECO_PLUG_DIR_IN,
@@ -442,6 +456,7 @@ end:
 
 int snd_bebob_stream_start_duplex(struct snd_bebob *bebob, int rate)
 {
+	struct snd_bebob_rate_spec *rate_spec = bebob->spec->rate;
 	struct amdtp_stream *master, *slave;
 	atomic_t *slave_substreams;
 	enum cip_flags sync_mode;
@@ -508,7 +523,7 @@ int snd_bebob_stream_start_duplex(struct snd_bebob *bebob, int rate)
 		break_both_connections(bebob);
 
 	/* stop streams if rate is different */
-	err = snd_bebob_stream_get_rate(bebob, &curr_rate);
+	err = rate_spec->get(bebob, &curr_rate);
 	if (err < 0) {
 		dev_err(&bebob->unit->device,
 			"fail to get sampling rate: %d\n", err);
@@ -532,7 +547,7 @@ int snd_bebob_stream_start_duplex(struct snd_bebob *bebob, int rate)
 		 * If establishing connections at first, Yamaha GO46
 		 * (and maybe Terratec X24) don't generate sound.
 		 */
-		err = snd_bebob_stream_set_rate(bebob, rate);
+		err = rate_spec->set(bebob, rate);
 		if (err < 0) {
 			dev_err(&bebob->unit->device,
 				"fail to set sampling rate: %d\n",
@@ -822,6 +837,7 @@ end:
 
 int snd_bebob_stream_discover(struct snd_bebob *bebob)
 {
+	struct snd_bebob_clock_spec *clk_spec = bebob->spec->clock;
 	u8 plugs[AVC_PLUG_INFO_BUF_BYTES], addr[AVC_BRIDGECO_ADDR_BYTES];
 	enum avc_bridgeco_plug_type type;
 	unsigned int i;
@@ -908,7 +924,8 @@ int snd_bebob_stream_discover(struct snd_bebob *bebob)
 	}
 
 	/* for check source of clock later */
-	err = seek_msu_sync_input_plug(bebob);
+	if (!clk_spec)
+		err = seek_msu_sync_input_plug(bebob);
 end:
 	return err;
 }
