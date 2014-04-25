@@ -674,7 +674,6 @@ struct mwifiex_if_ops {
 	void (*card_reset) (struct mwifiex_adapter *);
 	void (*fw_dump)(struct mwifiex_adapter *);
 	int (*clean_pcie_ring) (struct mwifiex_adapter *adapter);
-	void (*iface_work)(struct work_struct *work);
 };
 
 struct mwifiex_adapter {
@@ -810,7 +809,6 @@ struct mwifiex_adapter {
 	bool ext_scan;
 	u8 fw_api_ver;
 	u8 fw_key_api_major_ver, fw_key_api_minor_ver;
-	struct work_struct iface_work;
 };
 
 int mwifiex_init_lock_list(struct mwifiex_adapter *adapter);
