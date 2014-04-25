@@ -575,19 +575,16 @@ static int dgap_init_one(struct pci_dev *pdev, const struct pci_device_id *ent)
 	if (dgap_NumBoards >= MAXBOARDS)
 		return -EPERM;
 
-	/* wake up and enable device */
 	rc = pci_enable_device(pdev);
+	if (rc)
+		return -EIO;
 
-	if (rc < 0) {
-		rc = -EIO;
-	} else {
-		rc = dgap_probe1(pdev, ent->driver_data);
-		if (rc == 0) {
-			dgap_NumBoards++;
-			rc = dgap_firmware_load(pdev, ent->driver_data);
-		}
-	}
-	return rc;
+	rc = dgap_probe1(pdev, ent->driver_data);
+	if (rc)
+		return rc;
+
+	dgap_NumBoards++;
+	return dgap_firmware_load(pdev, ent->driver_data);
 }
 
 static int dgap_probe1(struct pci_dev *pdev, int card_type)
