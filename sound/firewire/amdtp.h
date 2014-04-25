@@ -51,6 +51,12 @@ enum cip_sfc {
 
 
 /*
+ * This module supports maximum 64 PCM channels for one PCM stream
+ * This is for our convenience.
+ */
+#define AMDTP_MAX_CHANNELS_FOR_PCM	64
+
+/*
  * AMDTP packet can include channels for MIDI conformant data.
  * Each MIDI conformant data channel includes 8 MPX-MIDI data stream.
  * Each MPX-MIDI data stream includes one data stream from/to MIDI ports.
@@ -85,6 +91,8 @@ struct amdtp_stream {
 	void (*transfer_samples)(struct amdtp_stream *s,
 				 struct snd_pcm_substream *pcm,
 				 __be32 *buffer, unsigned int frames);
+	u8 pcm_positions[AMDTP_MAX_CHANNELS_FOR_PCM];
+	u8 midi_position;
 
 	unsigned int syt_interval;
 	unsigned int transfer_delay;
