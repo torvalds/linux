@@ -282,6 +282,7 @@ struct mmc_host {
 #define MMC_CAP2_HS400_1_2V	(1 << 16)	/* Can support HS400 1.2V */
 #define MMC_CAP2_HS400		(MMC_CAP2_HS400_1_8V | \
 				 MMC_CAP2_HS400_1_2V)
+#define MMC_CAP2_SDIO_IRQ_NOTHREAD (1 << 17)
 
 	mmc_pm_flag_t		pm_caps;	/* supported pm features */
 
@@ -396,6 +397,8 @@ static inline void mmc_signal_sdio_irq(struct mmc_host *host)
 	host->sdio_irq_pending = true;
 	wake_up_process(host->sdio_irq_thread);
 }
+
+void sdio_run_irqs(struct mmc_host *host);
 
 #ifdef CONFIG_REGULATOR
 int mmc_regulator_get_ocrmask(struct regulator *supply);
