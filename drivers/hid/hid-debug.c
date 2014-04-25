@@ -855,6 +855,16 @@ static const char *keys[KEY_MAX + 1] = {
 	[KEY_KBDILLUMDOWN] = "KbdIlluminationDown",
 	[KEY_KBDILLUMUP] = "KbdIlluminationUp",
 	[KEY_SWITCHVIDEOMODE] = "SwitchVideoMode",
+	[KEY_BUTTONCONFIG] = "ButtonConfig",
+	[KEY_TASKMANAGER] = "TaskManager",
+	[KEY_JOURNAL] = "Journal",
+	[KEY_CONTROLPANEL] = "ControlPanel",
+	[KEY_APPSELECT] = "AppSelect",
+	[KEY_SCREENSAVER] = "ScreenSaver",
+	[KEY_VOICECOMMAND] = "VoiceCommand",
+	[KEY_BRIGHTNESS_MIN] = "BrightnessMin",
+	[KEY_BRIGHTNESS_MAX] = "BrightnessMax",
+	[KEY_BRIGHTNESS_AUTO] = "BrightnessAuto",
 };
 
 static const char *relatives[REL_MAX + 1] = {
