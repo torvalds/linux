@@ -20,6 +20,7 @@
 
 #include <sound/core.h>
 #include <sound/initval.h>
+#include <sound/info.h>
 
 #include "../lib.h"
 #include "../fcp.h"
@@ -170,6 +171,8 @@ int snd_bebob_stream_start_duplex(struct snd_bebob *bebob, int rate);
 void snd_bebob_stream_stop_duplex(struct snd_bebob *bebob);
 void snd_bebob_stream_update_duplex(struct snd_bebob *bebob);
 void snd_bebob_stream_destroy_duplex(struct snd_bebob *bebob);
+
+void snd_bebob_proc_init(struct snd_bebob *bebob);
 
 #define SND_BEBOB_DEV_ENTRY(vendor, model) \
 { \
