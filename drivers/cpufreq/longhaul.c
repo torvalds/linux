@@ -528,6 +528,7 @@ static int longhaul_get_ranges(void)
 
 static void longhaul_setup_voltagescaling(void)
 {
+	struct cpufreq_frequency_table *freq_pos;
 	union msr_longhaul longhaul;
 	struct mV_pos minvid, maxvid, vid;
 	unsigned int j, speed, pos, kHz_step, numvscales;
@@ -606,18 +607,16 @@ static void longhaul_setup_voltagescaling(void)
 	/* Calculate kHz for one voltage step */
 	kHz_step = (highest_speed - min_vid_speed) / numvscales;
 
-	j = 0;
-	while (longhaul_table[j].frequency != CPUFREQ_TABLE_END) {
-		speed = longhaul_table[j].frequency;
+	cpufreq_for_each_entry(freq_pos, longhaul_table) {
+		speed = freq_pos->frequency;
 		if (speed > min_vid_speed)
 			pos = (speed - min_vid_speed) / kHz_step + minvid.pos;
 		else
 			pos = minvid.pos;
-		longhaul_table[j].driver_data |= mV_vrm_table[pos] << 8;
+		freq_pos->driver_data |= mV_vrm_table[pos] << 8;
 		vid = vrm_mV_table[mV_vrm_table[pos]];
 		printk(KERN_INFO PFX "f: %d kHz, index: %d, vid: %d mV\n",
-				speed, j, vid.mV);
-		j++;
+			speed, (int)(freq_pos - longhaul_table), vid.mV);
 	}
 
 	can_scale_voltage = 1;
