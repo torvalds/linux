@@ -120,7 +120,7 @@ int inet_peer_maxttl __read_mostly = 10 * 60 * HZ;	/* usual time to live: 10 min
 static void inetpeer_gc_worker(struct work_struct *work)
 {
 	struct inet_peer *p, *n, *c;
-	LIST_HEAD(list);
+	struct list_head list;
 
 	spin_lock_bh(&gc_lock);
 	list_replace_init(&gc_list, &list);
