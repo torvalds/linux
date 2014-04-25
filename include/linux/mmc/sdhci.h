@@ -178,6 +178,9 @@ struct sdhci_host {
 
 	u32			thread_isr;
 
+	/* cached registers */
+	u32			ier;
+
 	wait_queue_head_t	buf_ready_int;	/* Waitqueue for Buffer Read Ready interrupt */
 	unsigned int		tuning_done;	/* Condition flag set when CMD19 succeeds */
 
