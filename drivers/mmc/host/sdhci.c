@@ -205,9 +205,14 @@ static void sdhci_do_reset(struct sdhci_host *host, u8 mask)
 
 	host->ops->reset(host, mask);
 
-	if (host->flags & (SDHCI_USE_SDMA | SDHCI_USE_ADMA)) {
-		if ((host->ops->enable_dma) && (mask & SDHCI_RESET_ALL))
-			host->ops->enable_dma(host);
+	if (mask & SDHCI_RESET_ALL) {
+		if (host->flags & (SDHCI_USE_SDMA | SDHCI_USE_ADMA)) {
+			if (host->ops->enable_dma)
+				host->ops->enable_dma(host);
+		}
+
+		/* Resetting the controller clears many */
+		host->preset_enabled = false;
 	}
 }
 
@@ -1126,8 +1131,7 @@ void sdhci_set_clock(struct sdhci_host *host, unsigned int clock)
 		return;
 
 	if (host->version >= SDHCI_SPEC_300) {
-		if (sdhci_readw(host, SDHCI_HOST_CONTROL2) &
-			SDHCI_CTRL_PRESET_VAL_ENABLE) {
+		if (host->preset_enabled) {
 			u16 pre_val;
 
 			clk = sdhci_readw(host, SDHCI_CLOCK_CONTROL);
@@ -1493,13 +1497,13 @@ static void sdhci_do_set_ios(struct sdhci_host *host, struct mmc_ios *ios)
 		    (ios->timing == MMC_TIMING_UHS_SDR25))
 			ctrl |= SDHCI_CTRL_HISPD;
 
-		ctrl_2 = sdhci_readw(host, SDHCI_HOST_CONTROL2);
-		if (!(ctrl_2 & SDHCI_CTRL_PRESET_VAL_ENABLE)) {
+		if (!host->preset_enabled) {
 			sdhci_writeb(host, ctrl, SDHCI_HOST_CONTROL);
 			/*
 			 * We only need to set Driver Strength if the
 			 * preset value enable is not set.
 			 */
+			ctrl_2 = sdhci_readw(host, SDHCI_HOST_CONTROL2);
 			ctrl_2 &= ~SDHCI_CTRL_DRV_TYPE_MASK;
 			if (ios->drv_type == MMC_SET_DRIVER_TYPE_A)
 				ctrl_2 |= SDHCI_CTRL_DRV_TYPE_A;
@@ -2018,26 +2022,30 @@ out:
 
 static void sdhci_enable_preset_value(struct sdhci_host *host, bool enable)
 {
-	u16 ctrl;
-
 	/* Host Controller v3.00 defines preset value registers */
 	if (host->version < SDHCI_SPEC_300)
 		return;
-
-	ctrl = sdhci_readw(host, SDHCI_HOST_CONTROL2);
 
 	/*
 	 * We only enable or disable Preset Value if they are not already
 	 * enabled or disabled respectively. Otherwise, we bail out.
 	 */
-	if (enable && !(ctrl & SDHCI_CTRL_PRESET_VAL_ENABLE)) {
-		ctrl |= SDHCI_CTRL_PRESET_VAL_ENABLE;
+	if (host->preset_enabled != enable) {
+		u16 ctrl = sdhci_readw(host, SDHCI_HOST_CONTROL2);
+
+		if (enable)
+			ctrl |= SDHCI_CTRL_PRESET_VAL_ENABLE;
+		else
+			ctrl &= ~SDHCI_CTRL_PRESET_VAL_ENABLE;
+
 		sdhci_writew(host, ctrl, SDHCI_HOST_CONTROL2);
-		host->flags |= SDHCI_PV_ENABLED;
-	} else if (!enable && (ctrl & SDHCI_CTRL_PRESET_VAL_ENABLE)) {
-		ctrl &= ~SDHCI_CTRL_PRESET_VAL_ENABLE;
-		sdhci_writew(host, ctrl, SDHCI_HOST_CONTROL2);
-		host->flags &= ~SDHCI_PV_ENABLED;
+
+		if (enable)
+			host->flags |= SDHCI_PV_ENABLED;
+		else
+			host->flags &= ~SDHCI_PV_ENABLED;
+
+		host->preset_enabled = enable;
 	}
 }
 

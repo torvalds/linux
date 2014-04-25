@@ -143,6 +143,7 @@ struct sdhci_host {
 
 	bool runtime_suspended;	/* Host is runtime suspended */
 	bool bus_on;		/* Bus power prevents runtime suspend */
+	bool preset_enabled;	/* Preset is enabled */
 
 	struct mmc_request *mrq;	/* Current request */
 	struct mmc_command *cmd;	/* Current command */
