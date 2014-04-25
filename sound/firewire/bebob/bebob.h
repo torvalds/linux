@@ -224,6 +224,10 @@ int snd_bebob_create_pcm_devices(struct snd_bebob *bebob);
 
 int snd_bebob_create_hwdep_device(struct snd_bebob *bebob);
 
+/* model specific operations */
+extern struct snd_bebob_spec phase88_rack_spec;
+extern struct snd_bebob_spec phase24_series_spec;
+
 #define SND_BEBOB_DEV_ENTRY(vendor, model, data) \
 { \
 	.match_flags	= IEEE1394_MATCH_VENDOR_ID | \

@@ -52,6 +52,7 @@ static DECLARE_BITMAP(devices_used, SNDRV_CARDS);
 #define VEN_LYNX	0x000019e5
 #define VEN_ICON	0x00001a9e
 #define VEN_PRISMSOUND	0x00001198
+#define VEN_TERRATEC	0x00000aac
 
 static int
 name_device(struct snd_bebob *bebob, unsigned int vendor_id)
@@ -290,6 +291,16 @@ static const struct ieee1394_device_id bebob_id_table[] = {
 	SND_BEBOB_DEV_ENTRY(VEN_PRISMSOUND, 0x00010048, &spec_normal),
 	/* PrismSound, ADA-8XR */
 	SND_BEBOB_DEV_ENTRY(VEN_PRISMSOUND, 0x0000ada8, &spec_normal),
+	/* TerraTec Electronic GmbH, PHASE 88 Rack FW */
+	SND_BEBOB_DEV_ENTRY(VEN_TERRATEC, 0x00000003, &phase88_rack_spec),
+	/* TerraTec Electronic GmbH, PHASE 24 FW */
+	SND_BEBOB_DEV_ENTRY(VEN_TERRATEC, 0x00000004, &phase24_series_spec),
+	/* TerraTec Electronic GmbH, Phase X24 FW */
+	SND_BEBOB_DEV_ENTRY(VEN_TERRATEC, 0x00000007, &phase24_series_spec),
+	/* TerraTec Electronic GmbH, EWS MIC2/MIC8 */
+	SND_BEBOB_DEV_ENTRY(VEN_TERRATEC, 0x00000005, &spec_normal),
+	/* Terratec Electronic GmbH, Aureon 7.1 Firewire */
+	SND_BEBOB_DEV_ENTRY(VEN_TERRATEC, 0x00000002, &spec_normal),
 	/* IDs are unknown but able to be supported */
 	/*  Apogee, Mini-ME Firewire */
 	/*  Apogee, Mini-DAC Firewire */
