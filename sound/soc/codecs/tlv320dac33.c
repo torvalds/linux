@@ -1540,7 +1540,7 @@ static int dac33_i2c_probe(struct i2c_client *client,
 	for (i = 0; i < ARRAY_SIZE(dac33->supplies); i++)
 		dac33->supplies[i].supply = dac33_supply_names[i];
 
-	ret = regulator_bulk_get(&client->dev, ARRAY_SIZE(dac33->supplies),
+	ret = devm_regulator_bulk_get(&client->dev, ARRAY_SIZE(dac33->supplies),
 				 dac33->supplies);
 
 	if (ret != 0) {
@@ -1551,11 +1551,9 @@ static int dac33_i2c_probe(struct i2c_client *client,
 	ret = snd_soc_register_codec(&client->dev,
 			&soc_codec_dev_tlv320dac33, &dac33_dai, 1);
 	if (ret < 0)
-		goto err_register;
+		goto err_get;
 
 	return ret;
-err_register:
-	regulator_bulk_free(ARRAY_SIZE(dac33->supplies), dac33->supplies);
 err_get:
 	if (dac33->power_gpio >= 0)
 		gpio_free(dac33->power_gpio);
@@ -1572,8 +1570,6 @@ static int dac33_i2c_remove(struct i2c_client *client)
 
 	if (dac33->power_gpio >= 0)
 		gpio_free(dac33->power_gpio);
-
-	regulator_bulk_free(ARRAY_SIZE(dac33->supplies), dac33->supplies);
 
 	snd_soc_unregister_codec(&client->dev);
 	return 0;
