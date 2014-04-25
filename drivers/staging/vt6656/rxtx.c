@@ -813,9 +813,6 @@ static u16 s_vGenerateTxParameter(struct vnt_private *pDevice,
 	else if (wFifoCtl & FIFOCTL_AUTO_FB_1)
 		byFBOption = AUTO_FB_1;
 
-	if (!pFifoHead)
-		return 0;
-
 	if (byPktType == PK_TYPE_11GB || byPktType == PK_TYPE_11GA) {
 		if (need_rts) {
 			struct vnt_rrv_time_rts *pBuf =
