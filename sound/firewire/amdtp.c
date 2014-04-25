@@ -53,12 +53,14 @@ static void pcm_period_tasklet(unsigned long data);
  * amdtp_stream_init - initialize an AMDTP stream structure
  * @s: the AMDTP stream to initialize
  * @unit: the target of the stream
+ * @dir: the direction of stream
  * @flags: the packet transmission method to use
  */
 int amdtp_stream_init(struct amdtp_stream *s, struct fw_unit *unit,
-		      enum cip_flags flags)
+		      enum amdtp_stream_direction dir, enum cip_flags flags)
 {
 	s->unit = fw_unit_get(unit);
+	s->direction = dir;
 	s->flags = flags;
 	s->context = ERR_PTR(-1);
 	mutex_init(&s->mutex);

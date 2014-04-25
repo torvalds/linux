@@ -48,9 +48,15 @@ struct fw_unit;
 struct fw_iso_context;
 struct snd_pcm_substream;
 
+enum amdtp_stream_direction {
+	AMDTP_OUT_STREAM = 0,
+	AMDTP_IN_STREAM
+};
+
 struct amdtp_stream {
 	struct fw_unit *unit;
 	enum cip_flags flags;
+	enum amdtp_stream_direction direction;
 	struct fw_iso_context *context;
 	struct mutex mutex;
 
@@ -85,6 +91,7 @@ struct amdtp_stream {
 };
 
 int amdtp_stream_init(struct amdtp_stream *s, struct fw_unit *unit,
+		      enum amdtp_stream_direction dir,
 		      enum cip_flags flags);
 void amdtp_stream_destroy(struct amdtp_stream *s);
 
