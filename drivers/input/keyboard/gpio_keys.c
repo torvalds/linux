@@ -578,23 +578,18 @@ gpio_keys_get_devtree_pdata(struct device *dev)
 	int i;
 
 	node = dev->of_node;
-	if (!node) {
-		error = -ENODEV;
-		goto err_out;
-	}
+	if (!node)
+		return ERR_PTR(-ENODEV);
 
 	nbuttons = of_get_child_count(node);
-	if (nbuttons == 0) {
-		error = -ENODEV;
-		goto err_out;
-	}
+	if (nbuttons == 0)
+		return ERR_PTR(-ENODEV);
 
-	pdata = kzalloc(sizeof(*pdata) + nbuttons * (sizeof *button),
-			GFP_KERNEL);
-	if (!pdata) {
-		error = -ENOMEM;
-		goto err_out;
-	}
+	pdata = devm_kzalloc(dev,
+			     sizeof(*pdata) + nbuttons * sizeof(*button),
+			     GFP_KERNEL);
+	if (!pdata)
+		return ERR_PTR(-ENOMEM);
 
 	pdata->buttons = (struct gpio_keys_button *)(pdata + 1);
 	pdata->nbuttons = nbuttons;
@@ -619,7 +614,7 @@ gpio_keys_get_devtree_pdata(struct device *dev)
 				dev_err(dev,
 					"Failed to get gpio flags, error: %d\n",
 					error);
-			goto err_free_pdata;
+			return ERR_PTR(error);
 		}
 
 		button = &pdata->buttons[i++];
@@ -630,8 +625,7 @@ gpio_keys_get_devtree_pdata(struct device *dev)
 		if (of_property_read_u32(pp, "linux,code", &button->code)) {
 			dev_err(dev, "Button without keycode: 0x%x\n",
 				button->gpio);
-			error = -EINVAL;
-			goto err_free_pdata;
+			return ERR_PTR(-EINVAL);
 		}
 
 		button->desc = of_get_property(pp, "label", NULL);
@@ -646,17 +640,10 @@ gpio_keys_get_devtree_pdata(struct device *dev)
 			button->debounce_interval = 5;
 	}
 
-	if (pdata->nbuttons == 0) {
-		error = -EINVAL;
-		goto err_free_pdata;
-	}
+	if (pdata->nbuttons == 0)
+		return ERR_PTR(-EINVAL);
 
 	return pdata;
-
-err_free_pdata:
-	kfree(pdata);
-err_out:
-	return ERR_PTR(error);
 }
 
 static struct of_device_id gpio_keys_of_match[] = {
@@ -691,6 +678,7 @@ static int gpio_keys_probe(struct platform_device *pdev)
 	const struct gpio_keys_platform_data *pdata = dev_get_platdata(dev);
 	struct gpio_keys_drvdata *ddata;
 	struct input_dev *input;
+	size_t size;
 	int i, error;
 	int wakeup = 0;
 
@@ -700,14 +688,18 @@ static int gpio_keys_probe(struct platform_device *pdev)
 			return PTR_ERR(pdata);
 	}
 
-	ddata = kzalloc(sizeof(struct gpio_keys_drvdata) +
-			pdata->nbuttons * sizeof(struct gpio_button_data),
-			GFP_KERNEL);
-	input = input_allocate_device();
-	if (!ddata || !input) {
+	size = sizeof(struct gpio_keys_drvdata) +
+			pdata->nbuttons * sizeof(struct gpio_button_data);
+	ddata = devm_kzalloc(dev, size, GFP_KERNEL);
+	if (!ddata) {
 		dev_err(dev, "failed to allocate state\n");
-		error = -ENOMEM;
-		goto fail1;
+		return -ENOMEM;
+	}
+
+	input = devm_input_allocate_device(dev);
+	if (!input) {
+		dev_err(dev, "failed to allocate input device\n");
+		return -ENOMEM;
 	}
 
 	ddata->pdata = pdata;
@@ -768,20 +760,12 @@ static int gpio_keys_probe(struct platform_device *pdev)
 	while (--i >= 0)
 		gpio_remove_key(&ddata->data[i]);
 
- fail1:
-	input_free_device(input);
-	kfree(ddata);
-	/* If we have no platform data, we allocated pdata dynamically. */
-	if (!dev_get_platdata(&pdev->dev))
-		kfree(pdata);
-
 	return error;
 }
 
 static int gpio_keys_remove(struct platform_device *pdev)
 {
 	struct gpio_keys_drvdata *ddata = platform_get_drvdata(pdev);
-	struct input_dev *input = ddata->input;
 	int i;
 
 	sysfs_remove_group(&pdev->dev.kobj, &gpio_keys_attr_group);
@@ -790,14 +774,6 @@ static int gpio_keys_remove(struct platform_device *pdev)
 
 	for (i = 0; i < ddata->pdata->nbuttons; i++)
 		gpio_remove_key(&ddata->data[i]);
-
-	input_unregister_device(input);
-
-	/* If we have no platform data, we allocated pdata dynamically. */
-	if (!dev_get_platdata(&pdev->dev))
-		kfree(ddata->pdata);
-
-	kfree(ddata);
 
 	return 0;
 }
