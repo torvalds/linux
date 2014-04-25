@@ -196,6 +196,8 @@ int snd_efw_stream_init_duplex(struct snd_efw *efw)
 		goto end;
 	/* Fireworks transmits NODATA packets with TAG0. */
 	efw->tx_stream.flags |= CIP_EMPTY_WITH_TAG0;
+	/* Fireworks has its own meaning for dbc. */
+	efw->tx_stream.flags |= CIP_DBC_IS_END_EVENT;
 
 	err = init_stream(efw, &efw->rx_stream);
 	if (err < 0) {

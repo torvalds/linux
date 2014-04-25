@@ -620,6 +620,7 @@ static void handle_in_packet(struct amdtp_stream *s,
 	u32 cip_header[2];
 	unsigned int data_blocks, data_block_quadlets, data_block_counter;
 	struct snd_pcm_substream *pcm = NULL;
+	bool lost;
 
 	cip_header[0] = be32_to_cpu(buffer[0]);
 	cip_header[1] = be32_to_cpu(buffer[1]);
@@ -658,7 +659,13 @@ static void handle_in_packet(struct amdtp_stream *s,
 
 	/* Check data block counter continuity */
 	data_block_counter = cip_header[0] & AMDTP_DBC_MASK;
-	if (data_block_counter != s->data_block_counter) {
+	if (!(s->flags & CIP_DBC_IS_END_EVENT))
+		lost = data_block_counter != s->data_block_counter;
+	else
+		lost = data_block_counter !=
+		       ((s->data_block_counter + data_blocks) & 0xff);
+
+	if (lost) {
 		dev_info(&s->unit->device,
 			 "Detect discontinuity of CIP: %02X %02X\n",
 			 s->data_block_counter, data_block_counter);
@@ -676,7 +683,11 @@ static void handle_in_packet(struct amdtp_stream *s,
 			amdtp_pull_midi(s, buffer, data_blocks);
 	}
 
-	s->data_block_counter = (data_block_counter + data_blocks) & 0xff;
+	if (s->flags & CIP_DBC_IS_END_EVENT)
+		s->data_block_counter = data_block_counter;
+	else
+		s->data_block_counter =
+				(data_block_counter + data_blocks) & 0xff;
 end:
 	if (queue_in_packet(s) < 0)
 		goto err;
