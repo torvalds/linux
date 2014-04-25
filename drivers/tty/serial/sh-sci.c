@@ -2419,7 +2419,6 @@ static int sci_remove(struct platform_device *dev)
 struct sci_port_info {
 	unsigned int type;
 	unsigned int regtype;
-	unsigned int scscr_extra;
 };
 
 static const struct of_device_id of_sci_match[] = {
@@ -2428,13 +2427,6 @@ static const struct of_device_id of_sci_match[] = {
 		.data = &(const struct sci_port_info) {
 			.type = PORT_SCIF,
 			.regtype = SCIx_SH4_SCIF_REGTYPE,
-		},
-	}, {
-		.compatible = "renesas,scif-r8a7779",
-		.data = (void *)&(const struct sci_port_info) {
-			.type = PORT_SCIF,
-			.regtype = SCIx_SH4_SCIF_REGTYPE,
-			.scscr_extra = SCSCR_CKE1,
 		},
 	}, {
 		.compatible = "renesas,scifa",
@@ -2496,7 +2488,7 @@ sci_parse_dt(struct platform_device *pdev, unsigned int *dev_id)
 	p->flags = UPF_IOREMAP | UPF_BOOT_AUTOCONF;
 	p->type = info->type;
 	p->regtype = info->regtype;
-	p->scscr = SCSCR_RE | SCSCR_TE | info->scscr_extra;
+	p->scscr = SCSCR_RE | SCSCR_TE;
 
 	return p;
 }
