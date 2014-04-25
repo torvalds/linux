@@ -203,42 +203,6 @@ static ssize_t blk_mq_hw_sysfs_rq_list_show(struct blk_mq_hw_ctx *hctx,
 	return ret;
 }
 
-static ssize_t blk_mq_hw_sysfs_ipi_show(struct blk_mq_hw_ctx *hctx, char *page)
-{
-	ssize_t ret;
-
-	spin_lock(&hctx->lock);
-	ret = sprintf(page, "%u\n", !!(hctx->flags & BLK_MQ_F_SHOULD_IPI));
-	spin_unlock(&hctx->lock);
-
-	return ret;
-}
-
-static ssize_t blk_mq_hw_sysfs_ipi_store(struct blk_mq_hw_ctx *hctx,
-					 const char *page, size_t len)
-{
-	struct blk_mq_ctx *ctx;
-	unsigned long ret;
-	unsigned int i;
-
-	if (kstrtoul(page, 10, &ret)) {
-		pr_err("blk-mq-sysfs: invalid input '%s'\n", page);
-		return -EINVAL;
-	}
-
-	spin_lock(&hctx->lock);
-	if (ret)
-		hctx->flags |= BLK_MQ_F_SHOULD_IPI;
-	else
-		hctx->flags &= ~BLK_MQ_F_SHOULD_IPI;
-	spin_unlock(&hctx->lock);
-
-	hctx_for_each_ctx(hctx, ctx, i)
-		ctx->ipi_redirect = !!ret;
-
-	return len;
-}
-
 static ssize_t blk_mq_hw_sysfs_tags_show(struct blk_mq_hw_ctx *hctx, char *page)
 {
 	return blk_mq_tag_sysfs_show(hctx->tags, page);
@@ -307,11 +271,6 @@ static struct blk_mq_hw_ctx_sysfs_entry blk_mq_hw_sysfs_pending = {
 	.attr = {.name = "pending", .mode = S_IRUGO },
 	.show = blk_mq_hw_sysfs_rq_list_show,
 };
-static struct blk_mq_hw_ctx_sysfs_entry blk_mq_hw_sysfs_ipi = {
-	.attr = {.name = "ipi_redirect", .mode = S_IRUGO | S_IWUSR},
-	.show = blk_mq_hw_sysfs_ipi_show,
-	.store = blk_mq_hw_sysfs_ipi_store,
-};
 static struct blk_mq_hw_ctx_sysfs_entry blk_mq_hw_sysfs_tags = {
 	.attr = {.name = "tags", .mode = S_IRUGO },
 	.show = blk_mq_hw_sysfs_tags_show,
@@ -326,7 +285,6 @@ static struct attribute *default_hw_ctx_attrs[] = {
 	&blk_mq_hw_sysfs_run.attr,
 	&blk_mq_hw_sysfs_dispatched.attr,
 	&blk_mq_hw_sysfs_pending.attr,
-	&blk_mq_hw_sysfs_ipi.attr,
 	&blk_mq_hw_sysfs_tags.attr,
 	&blk_mq_hw_sysfs_cpus.attr,
 	NULL,

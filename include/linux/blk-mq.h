@@ -122,7 +122,6 @@ enum {
 
 	BLK_MQ_F_SHOULD_MERGE	= 1 << 0,
 	BLK_MQ_F_SHOULD_SORT	= 1 << 1,
-	BLK_MQ_F_SHOULD_IPI	= 1 << 2,
 
 	BLK_MQ_S_STOPPED	= 0,
 

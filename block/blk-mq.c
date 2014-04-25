@@ -326,15 +326,19 @@ static void __blk_mq_complete_request_remote(void *data)
 void __blk_mq_complete_request(struct request *rq)
 {
 	struct blk_mq_ctx *ctx = rq->mq_ctx;
+	bool shared = false;
 	int cpu;
 
-	if (!ctx->ipi_redirect) {
+	if (!test_bit(QUEUE_FLAG_SAME_COMP, &rq->q->queue_flags)) {
 		rq->q->softirq_done_fn(rq);
 		return;
 	}
 
 	cpu = get_cpu();
-	if (cpu != ctx->cpu && cpu_online(ctx->cpu)) {
+	if (!test_bit(QUEUE_FLAG_SAME_FORCE, &rq->q->queue_flags))
+		shared = cpus_share_cache(cpu, ctx->cpu);
+
+	if (cpu != ctx->cpu && !shared && cpu_online(ctx->cpu)) {
 		rq->csd.func = __blk_mq_complete_request_remote;
 		rq->csd.info = rq;
 		rq->csd.flags = 0;

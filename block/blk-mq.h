@@ -11,7 +11,6 @@ struct blk_mq_ctx {
 
 	unsigned int		cpu;
 	unsigned int		index_hw;
-	unsigned int		ipi_redirect;
 
 	/* incremented at dispatch time */
 	unsigned long		rq_dispatched[2];
