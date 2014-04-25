@@ -159,13 +159,17 @@ pcm_open(struct snd_pcm_substream *substream)
 	bool internal;
 	int err;
 
-	err = pcm_init_hw_params(bebob, substream);
+	err = snd_bebob_stream_lock_try(bebob);
 	if (err < 0)
 		goto end;
 
+	err = pcm_init_hw_params(bebob, substream);
+	if (err < 0)
+		goto err_locked;
+
 	err = snd_bebob_stream_check_internal_clock(bebob, &internal);
 	if (err < 0)
-		goto end;
+		goto err_locked;
 
 	/*
 	 * When source of clock is internal or any PCM stream are running,
@@ -178,7 +182,7 @@ pcm_open(struct snd_pcm_substream *substream)
 		if (err < 0) {
 			dev_err(&bebob->unit->device,
 				"fail to get sampling rate: %d\n", err);
-			goto end;
+			goto err_locked;
 		}
 
 		substream->runtime->hw.rate_min = sampling_rate;
@@ -186,14 +190,18 @@ pcm_open(struct snd_pcm_substream *substream)
 	}
 
 	snd_pcm_set_sync(substream);
-
 end:
+	return err;
+err_locked:
+	snd_bebob_stream_lock_release(bebob);
 	return err;
 }
 
 static int
 pcm_close(struct snd_pcm_substream *substream)
 {
+	struct snd_bebob *bebob = substream->private_data;
+	snd_bebob_stream_lock_release(bebob);
 	return 0;
 }
 

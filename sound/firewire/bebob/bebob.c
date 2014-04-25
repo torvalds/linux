@@ -153,6 +153,7 @@ bebob_probe(struct fw_unit *unit,
 	bebob->unit = unit;
 	mutex_init(&bebob->mutex);
 	spin_lock_init(&bebob->lock);
+	init_waitqueue_head(&bebob->hwdep_wait);
 
 	err = name_device(bebob, entry->vendor_id);
 	if (err < 0)
@@ -172,6 +173,10 @@ bebob_probe(struct fw_unit *unit,
 	}
 
 	err = snd_bebob_create_pcm_devices(bebob);
+	if (err < 0)
+		goto error;
+
+	err = snd_bebob_create_hwdep_device(bebob);
 	if (err < 0)
 		goto error;
 

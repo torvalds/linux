@@ -912,3 +912,42 @@ int snd_bebob_stream_discover(struct snd_bebob *bebob)
 end:
 	return err;
 }
+
+void snd_bebob_stream_lock_changed(struct snd_bebob *bebob)
+{
+	bebob->dev_lock_changed = true;
+	wake_up(&bebob->hwdep_wait);
+}
+
+int snd_bebob_stream_lock_try(struct snd_bebob *bebob)
+{
+	int err;
+
+	spin_lock_irq(&bebob->lock);
+
+	/* user land lock this */
+	if (bebob->dev_lock_count < 0) {
+		err = -EBUSY;
+		goto end;
+	}
+
+	/* this is the first time */
+	if (bebob->dev_lock_count++ == 0)
+		snd_bebob_stream_lock_changed(bebob);
+	err = 0;
+end:
+	spin_unlock_irq(&bebob->lock);
+	return err;
+}
+
+void snd_bebob_stream_lock_release(struct snd_bebob *bebob)
+{
+	spin_lock_irq(&bebob->lock);
+
+	if (WARN_ON(bebob->dev_lock_count <= 0))
+		goto end;
+	if (--bebob->dev_lock_count == 0)
+		snd_bebob_stream_lock_changed(bebob);
+end:
+	spin_unlock_irq(&bebob->lock);
+}

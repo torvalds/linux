@@ -24,6 +24,8 @@
 #include <sound/rawmidi.h>
 #include <sound/pcm.h>
 #include <sound/pcm_params.h>
+#include <sound/firewire.h>
+#include <sound/hwdep.h>
 
 #include "../lib.h"
 #include "../fcp.h"
@@ -75,6 +77,11 @@ struct snd_bebob {
 		rx_stream_formations[SND_BEBOB_STRM_FMT_ENTRIES];
 
 	int sync_input_plug;
+
+	/* for uapi */
+	int dev_lock_count;
+	bool dev_lock_changed;
+	wait_queue_head_t hwdep_wait;
 };
 
 static inline int
@@ -175,11 +182,17 @@ void snd_bebob_stream_stop_duplex(struct snd_bebob *bebob);
 void snd_bebob_stream_update_duplex(struct snd_bebob *bebob);
 void snd_bebob_stream_destroy_duplex(struct snd_bebob *bebob);
 
+void snd_bebob_stream_lock_changed(struct snd_bebob *bebob);
+int snd_bebob_stream_lock_try(struct snd_bebob *bebob);
+void snd_bebob_stream_lock_release(struct snd_bebob *bebob);
+
 void snd_bebob_proc_init(struct snd_bebob *bebob);
 
 int snd_bebob_create_midi_devices(struct snd_bebob *bebob);
 
 int snd_bebob_create_pcm_devices(struct snd_bebob *bebob);
+
+int snd_bebob_create_hwdep_device(struct snd_bebob *bebob);
 
 #define SND_BEBOB_DEV_ENTRY(vendor, model) \
 { \

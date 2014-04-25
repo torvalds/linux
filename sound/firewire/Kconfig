@@ -84,6 +84,7 @@ config SND_BEBOB
 	select SND_FIREWIRE_LIB
 	select SND_RAWMIDI
 	select SND_PCM
+	select SND_HWDEP
         help
 	 Say Y here to include support for FireWire devices based
 	 on BridgeCo DM1000/DM1100/DM1500 with BeBoB firmware:
