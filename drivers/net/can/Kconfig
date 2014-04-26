@@ -77,12 +77,6 @@ config CAN_TI_HECC
 	  Driver for TI HECC (High End CAN Controller) module found on many
 	  TI devices. The device specifications are available from www.ti.com
 
-config CAN_MCP251X
-	tristate "Microchip MCP251x SPI CAN controllers"
-	depends on SPI && HAS_DMA
-	---help---
-	  Driver for the Microchip MCP251x SPI CAN controllers.
-
 config CAN_BFIN
 	depends on BF534 || BF536 || BF537 || BF538 || BF539 || BF54x
 	tristate "Analog Devices Blackfin on-chip CAN"
@@ -132,6 +126,8 @@ source "drivers/net/can/sja1000/Kconfig"
 source "drivers/net/can/c_can/Kconfig"
 
 source "drivers/net/can/cc770/Kconfig"
+
+source "drivers/net/can/spi/Kconfig"
 
 source "drivers/net/can/usb/Kconfig"
 
