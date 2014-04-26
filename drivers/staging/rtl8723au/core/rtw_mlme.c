@@ -160,20 +160,6 @@ static void _rtw_free_network23a(struct mlme_priv *pmlmepriv,
 	kfree(pnetwork);
 }
 
-void _rtw_free_network23a_nolock23a(struct mlme_priv *pmlmepriv,
-				    struct wlan_network *pnetwork)
-{
-	if (!pnetwork)
-		return;
-
-	if (pnetwork->fixed == true)
-		return;
-
-	list_del_init(&pnetwork->list);
-
-	kfree(pnetwork);
-}
-
 /*
  return the wlan_network with the matching addr
 
@@ -349,7 +335,7 @@ __le16 *rtw_get_beacon_interval23a_from_ie(u8 *ie)
 static void rtw_free_network_nolock(struct mlme_priv *pmlmepriv,
 				    struct wlan_network *pnetwork)
 {
-	_rtw_free_network23a_nolock23a(pmlmepriv, pnetwork);
+	_rtw_free_network23a(pmlmepriv, pnetwork);
 }
 
 int rtw_is_same_ibss23a(struct rtw_adapter *adapter,
