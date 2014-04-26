@@ -794,6 +794,7 @@ static int sunxi_pinctrl_probe(struct platform_device *pdev)
 	struct pinctrl_pin_desc *pins;
 	struct sunxi_pinctrl *pctl;
 	struct reset_control *rstc;
+	struct resource *res;
 	int i, ret, last_pin;
 	struct clk *clk;
 
@@ -804,9 +805,10 @@ static int sunxi_pinctrl_probe(struct platform_device *pdev)
 
 	spin_lock_init(&pctl->lock);
 
-	pctl->membase = of_iomap(node, 0);
-	if (!pctl->membase)
-		return -ENOMEM;
+	res = platform_get_resource(pdev, IORESOURCE_MEM, 0);
+	pctl->membase = devm_ioremap_resource(&pdev->dev, res);
+	if (IS_ERR(pctl->membase))
+		return PTR_ERR(pctl->membase);
 
 	device = of_match_device(sunxi_pinctrl_match, &pdev->dev);
 	if (!device)
