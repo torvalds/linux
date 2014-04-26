@@ -98,7 +98,6 @@
 
 struct intf_priv;
 struct intf_hdl;
-struct io_queue;
 
 struct _io_ops
 {
@@ -113,8 +112,6 @@ struct _io_ops
 
 		void (*_read_mem)(struct intf_hdl *pintfhdl, u32 addr, u32 cnt, u8 *pmem);
 		void (*_write_mem)(struct intf_hdl *pintfhdl, u32 addr, u32 cnt, u8 *pmem);
-
-		void (*_sync_irp_protocol_rw)(struct io_queue *pio_q);
 
 		u32 (*_read_interrupt)(struct intf_hdl *pintfhdl, u32 addr);
 
@@ -265,16 +262,6 @@ Below is the data structure used by _io_handler
 
 */
 
-struct io_queue {
-	spinlock_t	lock;
-	struct list_head free_ioreqs;
-	struct list_head pending;		/* The io_req list that will be served in the single protocol read/write. */
-	struct list_head processing;
-	u8	*free_ioreqs_buf; /*  4-byte aligned */
-	u8	*pallocated_free_ioreqs_buf;
-	struct	intf_hdl	intf;
-};
-
 struct io_priv{
 
 	struct rtw_adapter *padapter;
@@ -282,13 +269,6 @@ struct io_priv{
 	struct intf_hdl intf;
 
 };
-
-uint ioreq_flush(struct rtw_adapter *adapter, struct io_queue *ioqueue);
-void sync_ioreq_enqueue(struct io_req *preq,struct io_queue *ioqueue);
-uint sync_ioreq_flush(struct rtw_adapter *adapter, struct io_queue *ioqueue);
-
-uint free_ioreq(struct io_req *preq, struct io_queue *pio_queue);
-struct io_req *alloc_ioreq(struct io_queue *pio_q);
 
 uint register_intf_hdl(u8 *dev, struct intf_hdl *pintfhdl);
 void unregister_intf_hdl(struct intf_hdl *pintfhdl);
@@ -357,13 +337,6 @@ int dbg_rtw_writeN23a(struct rtw_adapter *adapter, u32 addr ,u32 length , u8 *da
 #define rtw_write_port(adapter, addr, cnt, mem) _rtw_write_port23a((adapter), (addr), (cnt), (mem))
 #define rtw_write_port_cancel(adapter) _rtw_write_port23a_cancel((adapter))
 #endif /* DBG_IO */
-
-uint alloc_io_queue(struct rtw_adapter *adapter);
-void free_io_queue(struct rtw_adapter *adapter);
-void async_bus_io(struct io_queue *pio_q);
-void bus_sync_io(struct io_queue *pio_q);
-u32 _ioreq2rwmem(struct io_queue *pio_q);
-void dev_power_down(struct rtw_adapter * Adapter, u8 bpwrup);
 
 #define PlatformEFIOWrite1Byte(_a,_b,_c)		\
 	rtw_write8(_a,_b,_c)
