@@ -3959,7 +3959,8 @@ void issue_action_spct_ch_switch23a(struct rtw_adapter *padapter,
 	dump_mgntframe23a(padapter, pmgntframe);
 }
 
-void issue_action_BA23a(struct rtw_adapter *padapter, unsigned char *raddr,
+void issue_action_BA23a(struct rtw_adapter *padapter,
+			const unsigned char *raddr,
 			unsigned char action, unsigned short status)
 {
 	u8 category = WLAN_CATEGORY_BACK;
@@ -5844,7 +5845,7 @@ u8 setopmode_hdl23a(struct rtw_adapter *padapter, const u8 *pbuf)
 	u8	type;
 	struct mlme_ext_priv	*pmlmeext = &padapter->mlmeextpriv;
 	struct mlme_ext_info *pmlmeinfo = &pmlmeext->mlmext_info;
-	struct setopmode_parm *psetop = (struct setopmode_parm *)pbuf;
+	const struct setopmode_parm *psetop = (struct setopmode_parm *)pbuf;
 
 	if (psetop->mode == Ndis802_11APMode) {
 		pmlmeinfo->state = WIFI_FW_AP_STATE;
@@ -5869,7 +5870,7 @@ u8 createbss_hdl23a(struct rtw_adapter *padapter, const u8 *pbuf)
 	struct mlme_ext_priv	*pmlmeext = &padapter->mlmeextpriv;
 	struct mlme_ext_info *pmlmeinfo = &pmlmeext->mlmext_info;
 	struct wlan_bssid_ex *pnetwork = &pmlmeinfo->network;
-	struct wlan_bssid_ex *pparm = (struct wlan_bssid_ex *)pbuf;
+	const struct wlan_bssid_ex *pparm = (struct wlan_bssid_ex *)pbuf;
 	/* u32	initialgain; */
 
 	if (pparm->InfrastructureMode == Ndis802_11APMode) {
@@ -5927,7 +5928,7 @@ u8 join_cmd_hdl23a(struct rtw_adapter *padapter, const u8 *pbuf)
 	struct mlme_ext_priv	*pmlmeext = &padapter->mlmeextpriv;
 	struct mlme_ext_info *pmlmeinfo = &pmlmeext->mlmext_info;
 	struct wlan_bssid_ex *pnetwork = &pmlmeinfo->network;
-	struct wlan_bssid_ex *pparm = (struct wlan_bssid_ex *)pbuf;
+	const struct wlan_bssid_ex *pparm = (struct wlan_bssid_ex *)pbuf;
 	struct HT_info_element *pht_info;
 	u32 i;
         /* u32	initialgain; */
@@ -6045,7 +6046,7 @@ u8 join_cmd_hdl23a(struct rtw_adapter *padapter, const u8 *pbuf)
 
 u8 disconnect_hdl23a(struct rtw_adapter *padapter, const u8 *pbuf)
 {
-	struct disconnect_parm *param = (struct disconnect_parm *)pbuf;
+	const struct disconnect_parm *param = (struct disconnect_parm *)pbuf;
 	struct mlme_ext_priv	*pmlmeext = &padapter->mlmeextpriv;
 	struct mlme_ext_info *pmlmeinfo = &pmlmeext->mlmext_info;
 	struct wlan_bssid_ex *pnetwork = &pmlmeinfo->network;
@@ -6089,8 +6090,10 @@ u8 disconnect_hdl23a(struct rtw_adapter *padapter, const u8 *pbuf)
 	return	H2C_SUCCESS;
 }
 
-static int rtw_scan_ch_decision(struct rtw_adapter *padapter, struct rtw_ieee80211_channel *out,
-	u32 out_num, struct rtw_ieee80211_channel *in, u32 in_num)
+static int
+rtw_scan_ch_decision(struct rtw_adapter *padapter,
+		     struct rtw_ieee80211_channel *out, u32 out_num,
+		     const struct rtw_ieee80211_channel *in, u32 in_num)
 {
 	int i, j;
 	int scan_ch_num = 0;
@@ -6157,7 +6160,7 @@ static int rtw_scan_ch_decision(struct rtw_adapter *padapter, struct rtw_ieee802
 u8 sitesurvey_cmd_hdl23a(struct rtw_adapter *padapter, const u8 *pbuf)
 {
 	struct mlme_ext_priv *pmlmeext = &padapter->mlmeextpriv;
-	struct sitesurvey_parm *pparm = (struct sitesurvey_parm *)pbuf;
+	const struct sitesurvey_parm *pparm = (struct sitesurvey_parm *)pbuf;
 	u8 bdelayscan = false;
 	u32 initialgain;
 	u32 i;
@@ -6238,7 +6241,7 @@ u8 sitesurvey_cmd_hdl23a(struct rtw_adapter *padapter, const u8 *pbuf)
 
 u8 setauth_hdl23a(struct rtw_adapter *padapter, const u8 *pbuf)
 {
-	struct setauth_parm		*pparm = (struct setauth_parm *)pbuf;
+	const struct setauth_parm *pparm = (struct setauth_parm *)pbuf;
 	struct mlme_ext_priv	*pmlmeext = &padapter->mlmeextpriv;
 	struct mlme_ext_info *pmlmeinfo = &pmlmeext->mlmext_info;
 
@@ -6253,7 +6256,7 @@ u8 setauth_hdl23a(struct rtw_adapter *padapter, const u8 *pbuf)
 u8 setkey_hdl23a(struct rtw_adapter *padapter, const u8 *pbuf)
 {
 	unsigned short				ctrl;
-	struct setkey_parm		*pparm = (struct setkey_parm *)pbuf;
+	const struct setkey_parm *pparm = (struct setkey_parm *)pbuf;
 	struct mlme_ext_priv	*pmlmeext = &padapter->mlmeextpriv;
 	struct mlme_ext_info *pmlmeinfo = &pmlmeext->mlmext_info;
 	unsigned char					null_sta[] = {0x00, 0x00, 0x00, 0x00, 0x00, 0x00};
@@ -6281,7 +6284,7 @@ u8 set_stakey_hdl23a(struct rtw_adapter *padapter, const u8 *pbuf)
 	u8 cam_id;/* cam_entry */
 	struct mlme_ext_priv	*pmlmeext = &padapter->mlmeextpriv;
 	struct mlme_ext_info *pmlmeinfo = &pmlmeext->mlmext_info;
-	struct set_stakey_parm	*pparm = (struct set_stakey_parm *)pbuf;
+	const struct set_stakey_parm *pparm = (struct set_stakey_parm *)pbuf;
 
 	/* cam_entry: */
 	/* 0~3 for default key */
@@ -6364,7 +6367,7 @@ u8 set_stakey_hdl23a(struct rtw_adapter *padapter, const u8 *pbuf)
 
 u8 add_ba_hdl23a(struct rtw_adapter *padapter, const u8 *pbuf)
 {
-	struct addBaReq_parm	*pparm = (struct addBaReq_parm *)pbuf;
+	const struct addBaReq_parm *pparm = (struct addBaReq_parm *)pbuf;
 	struct mlme_ext_priv	*pmlmeext = &padapter->mlmeextpriv;
 	struct mlme_ext_info *pmlmeinfo = &pmlmeext->mlmext_info;
 
@@ -6436,7 +6439,7 @@ u8 mlme_evt_hdl23a(struct rtw_adapter *padapter, const u8 *pbuf)
 {
 	u8 evt_code, evt_seq;
 	u16 evt_sz;
-	uint	*peventbuf;
+	const uint *peventbuf;
 	void (*event_callback)(struct rtw_adapter *dev, u8 *pbuf);
 	struct evt_priv *pevt_priv = &padapter->evtpriv;
 
@@ -6544,7 +6547,7 @@ u8 tx_beacon_hdl23a(struct rtw_adapter *padapter, const u8 *pbuf)
 
 u8 set_ch_hdl23a(struct rtw_adapter *padapter, const u8 *pbuf)
 {
-	struct set_ch_parm *set_ch_parm;
+	const struct set_ch_parm *set_ch_parm;
 	struct mlme_ext_priv	*pmlmeext = &padapter->mlmeextpriv;
 
 	if (!pbuf)
@@ -6567,7 +6570,7 @@ u8 set_ch_hdl23a(struct rtw_adapter *padapter, const u8 *pbuf)
 
 u8 set_chplan_hdl23a(struct rtw_adapter *padapter, const u8 *pbuf)
 {
-	struct SetChannelPlan_param *setChannelPlan_param;
+	const struct SetChannelPlan_param *setChannelPlan_param;
 	struct mlme_ext_priv	*pmlmeext = &padapter->mlmeextpriv;
 
 	if (!pbuf)

@@ -405,12 +405,12 @@ void rtw_free_all_stainfo23a(struct rtw_adapter *padapter)
 }
 
 /* any station allocated can be searched by hash list */
-struct sta_info *rtw_get_stainfo23a(struct sta_priv *pstapriv, u8 *hwaddr)
+struct sta_info *rtw_get_stainfo23a(struct sta_priv *pstapriv, const u8 *hwaddr)
 {
 	struct list_head *plist, *phead;
 	struct sta_info *psta = NULL;
 	u32	index;
-	u8 *addr;
+	const u8 *addr;
 	u8 bc_addr[ETH_ALEN] = {0xff, 0xff, 0xff, 0xff, 0xff, 0xff};
 
 	if (hwaddr == NULL)

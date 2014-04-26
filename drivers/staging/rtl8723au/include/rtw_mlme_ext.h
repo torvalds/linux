@@ -605,8 +605,9 @@ int issue_deauth23a_ex23a(struct rtw_adapter *padapter, u8 *da, unsigned short r
 		    int try_cnt, int wait_ms);
 void issue_action_spct_ch_switch23a(struct rtw_adapter *padapter, u8 *ra,
 				 u8 new_ch, u8 ch_offset);
-void issue_action_BA23a(struct rtw_adapter *padapter, unsigned char *raddr,
-		     unsigned char action, unsigned short status);
+void issue_action_BA23a(struct rtw_adapter *padapter,
+			const unsigned char *raddr,
+			unsigned char action, unsigned short status);
 unsigned int send_delba23a(struct rtw_adapter *padapter, u8 initiator, u8 *addr);
 unsigned int send_beacon23a(struct rtw_adapter *padapter);
 

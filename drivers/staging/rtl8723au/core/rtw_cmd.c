@@ -1446,7 +1446,7 @@ static void c2h_wk_callback(struct work_struct *work)
 
 u8 rtw_drvextra_cmd_hdl23a(struct rtw_adapter *padapter, const u8 *pbuf)
 {
-	struct drvextra_cmd_parm *pdrvextra_cmd;
+	const struct drvextra_cmd_parm *pdrvextra_cmd;
 
 	if (!pbuf)
 		return H2C_PARAMETERS_ERROR;
@@ -1482,7 +1482,11 @@ u8 rtw_drvextra_cmd_hdl23a(struct rtw_adapter *padapter, const u8 *pbuf)
 
 	if (pdrvextra_cmd->pbuf && (pdrvextra_cmd->type_size > 0)) {
 		kfree(pdrvextra_cmd->pbuf);
-		pdrvextra_cmd->pbuf = NULL;
+		/*
+		 * No need to set pdrvextra_cmd->pbuf = NULL as we were
+		 * operating on a copy of the original pcmd->parmbuf
+		 * created in rtw_cmd_work().
+		 */
 	}
 
 	return H2C_SUCCESS;

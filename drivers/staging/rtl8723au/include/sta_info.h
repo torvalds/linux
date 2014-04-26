@@ -349,7 +349,7 @@ struct	sta_priv {
 	struct wlan_acl_pool acl_list;
 };
 
-static inline u32 wifi_mac_hash(u8 *mac)
+static inline u32 wifi_mac_hash(const u8 *mac)
 {
 	u32 x;
 
@@ -377,7 +377,7 @@ struct sta_info *rtw_get_stainfo23a_by_offset23a(struct sta_priv *stapriv,
 struct sta_info *rtw_alloc_stainfo23a(struct sta_priv *pstapriv, u8 *hwaddr);
 u32 rtw_free_stainfo23a(struct rtw_adapter *padapter, struct sta_info *psta);
 void rtw_free_all_stainfo23a(struct rtw_adapter *padapter);
-struct sta_info *rtw_get_stainfo23a(struct sta_priv *pstapriv, u8 *hwaddr);
+struct sta_info *rtw_get_stainfo23a(struct sta_priv *pstapriv, const u8 *hwaddr);
 u32 rtw_init_bcmc_stainfo23a(struct rtw_adapter *padapter);
 struct sta_info *rtw_get_bcmc_stainfo23a(struct rtw_adapter *padapter);
 u8 rtw_access_ctrl23a(struct rtw_adapter *padapter, u8 *mac_addr);
