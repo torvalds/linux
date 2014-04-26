@@ -4469,18 +4469,18 @@ u8 collect_bss_info23a(struct rtw_adapter *padapter,
 		       struct recv_frame *precv_frame,
 		       struct wlan_bssid_ex *bssid)
 {
-	int i, length;
+	int i;
 	const u8 *p;
 	struct sk_buff *skb = precv_frame->pkt;
 	struct ieee80211_mgmt *mgmt = (struct ieee80211_mgmt *) skb->data;
-	int packet_len = skb->len;
+	unsigned int length;
 	u8 ie_offset;
 	struct registry_priv *pregistrypriv = &padapter->registrypriv;
 	struct mlme_ext_priv *pmlmeext = &padapter->mlmeextpriv;
 	struct mlme_ext_info *pmlmeinfo = &pmlmeext->mlmext_info;
 	u16 capab_info;
 
-	length = packet_len - sizeof(struct ieee80211_hdr_3addr);
+	length = skb->len - sizeof(struct ieee80211_hdr_3addr);
 
 	if (length > MAX_IE_SZ) {
 		/* DBG_8723A("IE too long for survey event\n"); */
