@@ -1536,7 +1536,9 @@ static void c2h_wk_callback(struct work_struct *work)
 			/* This C2H event is read, clear it */
 			c2h_evt_clear23a(adapter);
 		} else if ((c2h_evt = (struct c2h_evt_hdr *)
-			    kmalloc(16, GFP_ATOMIC))) {
+			    kmalloc(16, GFP_KERNEL))) {
+			if (!c2h_evt)
+				continue;
 			/* This C2H event is not read, read & clear now */
 			if (c2h_evt_read23a(adapter, (u8*)c2h_evt) != _SUCCESS)
 				continue;
