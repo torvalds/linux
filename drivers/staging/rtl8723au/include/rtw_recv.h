@@ -152,12 +152,12 @@ struct rx_pkt_attrib	{
 #define RXDESC_OFFSET RXDESC_SIZE
 
 struct recv_stat {
-	unsigned int rxdw0;
-	unsigned int rxdw1;
-	unsigned int rxdw2;
-	unsigned int rxdw3;
-	unsigned int rxdw4;
-	unsigned int rxdw5;
+	__le32 rxdw0;
+	__le32 rxdw1;
+	__le32 rxdw2;
+	__le32 rxdw3;
+	__le32 rxdw4;
+	__le32 rxdw5;
 };
 
 /* accesser of recv_priv: rtw_recv_entry23a(dispatch / passive level);	\
