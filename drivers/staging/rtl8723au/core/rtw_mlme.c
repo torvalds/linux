@@ -149,17 +149,11 @@ struct wlan_network *rtw_alloc_network(struct mlme_priv *pmlmepriv)
 static void _rtw_free_network23a(struct mlme_priv *pmlmepriv,
 				 struct wlan_network *pnetwork, u8 isfreeall)
 {
-	u32 lifetime = SCANQUEUE_LIFETIME;
-
 	if (!pnetwork)
 		return;
 
 	if (pnetwork->fixed == true)
 		return;
-
-	if ((check_fwstate(pmlmepriv, WIFI_ADHOC_MASTER_STATE) == true) ||
-	    (check_fwstate(pmlmepriv, WIFI_ADHOC_STATE) == true))
-		lifetime = 1;
 
 	list_del_init(&pnetwork->list);
 
