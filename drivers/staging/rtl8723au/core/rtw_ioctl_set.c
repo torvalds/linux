@@ -280,27 +280,26 @@ exit:
 }
 
 u8 rtw_set_802_11_infrastructure_mode23a(struct rtw_adapter* padapter,
-	enum ndis_802_11_net_infra networktype)
+					 enum ndis_802_11_net_infra networktype)
 {
-	struct	mlme_priv	*pmlmepriv = &padapter->mlmepriv;
-	struct	wlan_network	*cur_network = &pmlmepriv->cur_network;
-	enum ndis_802_11_net_infra* pold_state = &cur_network->network.InfrastructureMode;
+	struct mlme_priv *pmlmepriv = &padapter->mlmepriv;
+	struct wlan_network *cur_network = &pmlmepriv->cur_network;
+	enum ndis_802_11_net_infra* pold_state;
 
-
+	pold_state = &cur_network->network.InfrastructureMode;
 
 	RT_TRACE(_module_rtl871x_ioctl_set_c_, _drv_notice_,
-		 ("+rtw_set_802_11_infrastructure_mode23a: old =%d new =%d fw_state = 0x%08x\n",
+		 ("+rtw_set_802_11_infrastructure_mode23a: old =%d new =%d "
+		  "fw_state = 0x%08x\n",
 		  *pold_state, networktype, get_fwstate(pmlmepriv)));
 
-	if (*pold_state != networktype)
-	{
+	if (*pold_state != networktype)	{
 		spin_lock_bh(&pmlmepriv->lock);
 
-		RT_TRACE(_module_rtl871x_ioctl_set_c_, _drv_info_, (" change mode!"));
-		/* DBG_8723A("change mode, old_mode =%d, new_mode =%d, fw_state = 0x%x\n", *pold_state, networktype, get_fwstate(pmlmepriv)); */
+		RT_TRACE(_module_rtl871x_ioctl_set_c_, _drv_info_,
+			 (" change mode!"));
 
-		if (*pold_state == Ndis802_11APMode)
-		{
+		if (*pold_state == Ndis802_11APMode) {
 			/* change to other mode from Ndis802_11APMode */
 			cur_network->join_res = -1;
 
@@ -309,18 +308,21 @@ u8 rtw_set_802_11_infrastructure_mode23a(struct rtw_adapter* padapter,
 #endif
 		}
 
-		if ((check_fwstate(pmlmepriv, _FW_LINKED) == true) ||(*pold_state == Ndis802_11IBSS))
+		if (check_fwstate(pmlmepriv, _FW_LINKED) ||
+		    *pold_state == Ndis802_11IBSS)
 			rtw_disassoc_cmd23a(padapter, 0, true);
 
-		if ((check_fwstate(pmlmepriv, _FW_LINKED) == true) ||
-			(check_fwstate(pmlmepriv, WIFI_ADHOC_MASTER_STATE) == true))
+		if (check_fwstate(pmlmepriv, _FW_LINKED) ||
+		    check_fwstate(pmlmepriv, WIFI_ADHOC_MASTER_STATE))
 			rtw_free_assoc_resources23a(padapter, 1);
 
-		if ((*pold_state == Ndis802_11Infrastructure) ||(*pold_state == Ndis802_11IBSS))
-	       {
-			if (check_fwstate(pmlmepriv, _FW_LINKED) == true)
-			{
-				rtw_indicate_disconnect23a(padapter); /* will clr Linked_state; before this function, we must have chked whether  issue dis-assoc_cmd or not */
+		if (*pold_state == Ndis802_11Infrastructure ||
+		    *pold_state == Ndis802_11IBSS) {
+			if (check_fwstate(pmlmepriv, _FW_LINKED)) {
+				/* will clr Linked_state; before this function,
+				   we must have chked whether issue
+				   dis-assoc_cmd or not */
+				rtw_indicate_disconnect23a(padapter);
 			}
 	       }
 
@@ -330,37 +332,35 @@ u8 rtw_set_802_11_infrastructure_mode23a(struct rtw_adapter* padapter,
 
 		switch (networktype)
 		{
-			case Ndis802_11IBSS:
-				set_fwstate(pmlmepriv, WIFI_ADHOC_STATE);
-				break;
+		case Ndis802_11IBSS:
+			set_fwstate(pmlmepriv, WIFI_ADHOC_STATE);
+			break;
 
-			case Ndis802_11Infrastructure:
-				set_fwstate(pmlmepriv, WIFI_STATION_STATE);
-				break;
+		case Ndis802_11Infrastructure:
+			set_fwstate(pmlmepriv, WIFI_STATION_STATE);
+			break;
 
-			case Ndis802_11APMode:
-				set_fwstate(pmlmepriv, WIFI_AP_STATE);
+		case Ndis802_11APMode:
+			set_fwstate(pmlmepriv, WIFI_AP_STATE);
 #ifdef CONFIG_8723AU_AP_MODE
-				start_ap_mode23a(padapter);
-				/* rtw_indicate_connect23a(padapter); */
+			start_ap_mode23a(padapter);
+			/* rtw_indicate_connect23a(padapter); */
 #endif
+			break;
 
-				break;
-
-			case Ndis802_11AutoUnknown:
-			case Ndis802_11InfrastructureMax:
-				break;
+		case Ndis802_11AutoUnknown:
+		case Ndis802_11InfrastructureMax:
+			break;
 		}
 
 		/* SecClearAllKeys(adapter); */
 
-		/* RT_TRACE(COMP_OID_SET, DBG_LOUD, ("set_infrastructure: fw_state:%x after changing mode\n", */
-		/*									get_fwstate(pmlmepriv))); */
+		/* RT_TRACE(COMP_OID_SET, DBG_LOUD,
+		   ("set_infrastructure: fw_state:%x after changing mode\n", */
+		/* get_fwstate(pmlmepriv))); */
 
 		spin_unlock_bh(&pmlmepriv->lock);
 	}
-
-
 
 	return true;
 }
