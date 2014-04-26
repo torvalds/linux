@@ -224,7 +224,7 @@ config INPUT_GP2A
 
 config INPUT_GPIO_BEEPER
 	tristate "Generic GPIO Beeper support"
-	depends on OF_GPIO
+	depends on GPIOLIB
 	help
 	  Say Y here if you have a beeper connected to a GPIO pin.
 
