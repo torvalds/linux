@@ -1739,12 +1739,6 @@ static void rtl8723au_init_default_value(struct rtw_adapter *padapter)
 	rtl8723a_init_default_value(padapter);
 }
 
-static u8 rtl8192cu_ps_func(struct rtw_adapter *Adapter,
-			    enum hal_intf_ps_func efunc_id, u8 *val)
-{
-	return true;
-}
-
 int rtl8723au_set_hal_ops(struct rtw_adapter *padapter)
 {
 	struct hal_ops	*pHalFunc = &padapter->HalFunc;
@@ -1779,7 +1773,6 @@ int rtl8723au_set_hal_ops(struct rtw_adapter *padapter)
 	pHalFunc->hal_xmit = &rtl8723au_hal_xmit;
 	pHalFunc->mgnt_xmit = &rtl8723au_mgnt_xmit;
 	pHalFunc->hal_xmitframe_enqueue = &rtl8723au_hal_xmitframe_enqueue;
-	pHalFunc->interface_ps_func = &rtl8192cu_ps_func;
 	rtl8723a_set_hal_ops(pHalFunc);
 	return 0;
 }

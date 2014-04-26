@@ -178,13 +178,6 @@ u32	rtw_hal_inirp_deinit23a(struct rtw_adapter *padapter)
 
 }
 
-u8	rtw_hal_intf_ps_func23a(struct rtw_adapter *padapter, enum hal_intf_ps_func efunc_id, u8 *val)
-{
-	if (padapter->HalFunc.interface_ps_func)
-		return padapter->HalFunc.interface_ps_func(padapter, efunc_id, val);
-	return _FAIL;
-}
-
 s32	rtw_hal_xmit23aframe_enqueue(struct rtw_adapter *padapter, struct xmit_frame *pxmitframe)
 {
 	if (padapter->HalFunc.hal_xmitframe_enqueue)

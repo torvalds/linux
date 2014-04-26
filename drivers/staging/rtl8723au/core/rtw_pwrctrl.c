@@ -497,14 +497,6 @@ void rtw_free_pwrctrl_priv(struct rtw_adapter *adapter)
 {
 }
 
-u8 rtw_interface_ps_func23a(struct rtw_adapter *padapter, enum hal_intf_ps_func efunc_id, u8* val)
-{
-	u8 bResult = true;
-	rtw_hal_intf_ps_func23a(padapter, efunc_id, val);
-
-	return bResult;
-}
-
 inline void rtw_set_ips_deny23a(struct rtw_adapter *padapter, u32 ms)
 {
 	struct pwrctrl_priv *pwrpriv = &padapter->pwrctrlpriv;

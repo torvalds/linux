@@ -60,11 +60,6 @@ enum hal_odm_variable {
 	HAL_ODM_WIFI_DISPLAY_STATE,
 };
 
-enum hal_intf_ps_func {
-	HAL_USB_SELECT_SUSPEND,
-	HAL_MAX_ID,
-};
-
 struct hal_ops {
 	u32 (*hal_power_on)(struct rtw_adapter *padapter);
 	u32 (*hal_init)(struct rtw_adapter *padapter);
@@ -123,9 +118,6 @@ struct hal_ops {
 
 	void (*Add_RateATid)(struct rtw_adapter *padapter, u32 bitmap,
 			     u8 arg, u8 rssi_level);
-
-	u8 (*interface_ps_func)(struct rtw_adapter *padapter,
-				enum hal_intf_ps_func efunc_id, u8 *val);
 
 	s32 (*hal_xmit)(struct rtw_adapter *padapter,
 			struct xmit_frame *pxmitframe);
@@ -252,9 +244,6 @@ void rtw_hal_disable_interrupt23a(struct rtw_adapter *padapter);
 
 u32 rtw_hal_inirp_init23a(struct rtw_adapter *padapter);
 u32 rtw_hal_inirp_deinit23a(struct rtw_adapter *padapter);
-
-u8 rtw_hal_intf_ps_func23a(struct rtw_adapter *padapter,
-			   enum hal_intf_ps_func efunc_id, u8 *val);
 
 s32 rtw_hal_xmit23aframe_enqueue(struct rtw_adapter *padapter,
 				 struct xmit_frame *pxmitframe);
