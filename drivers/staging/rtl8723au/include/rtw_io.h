@@ -121,8 +121,6 @@ struct _io_ops
 		u32 (*_read_port)(struct intf_hdl *pintfhdl, u32 addr, u32 cnt, struct recv_buf *rbuf);
 		u32 (*_write_port)(struct intf_hdl *pintfhdl, u32 addr, u32 cnt, struct xmit_buf *pmem);
 
-		u32 (*_write_scsi)(struct intf_hdl *pintfhdl,u32 cnt, u8 *pmem);
-
 		void (*_read_port_cancel)(struct intf_hdl *pintfhdl);
 		void (*_write_port_cancel)(struct intf_hdl *pintfhdl);
 };
@@ -362,8 +360,6 @@ int dbg_rtw_writeN23a(struct rtw_adapter *adapter, u32 addr ,u32 length , u8 *da
 #define rtw_write_port_and_wait(adapter, addr, cnt, mem, timeout_ms) _rtw_write_port23a_and_wait23a((adapter), (addr), (cnt), (mem), (timeout_ms))
 #define rtw_write_port_cancel(adapter) _rtw_write_port23a_cancel((adapter))
 #endif /* DBG_IO */
-
-void rtw_write_scsi(struct rtw_adapter *adapter, u32 cnt, u8 *pmem);
 
 uint alloc_io_queue(struct rtw_adapter *adapter);
 void free_io_queue(struct rtw_adapter *adapter);
