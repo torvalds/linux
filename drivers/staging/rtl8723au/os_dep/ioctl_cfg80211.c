@@ -262,7 +262,7 @@ static int rtw_cfg80211_inform_bss(struct rtw_adapter *padapter,
 	u8 buf[MAX_BSSINFO_LEN], *pbuf;
 	size_t len;
 	struct ieee80211_hdr *pwlanhdr;
-	unsigned short *fctrl;
+	__le16 *fctrl;
 
 	struct wireless_dev *wdev = padapter->rtw_wdev;
 	struct wiphy *wiphy = wdev->wiphy;
@@ -2332,7 +2332,7 @@ void rtw_cfg80211_indicate_sta_disassoc(struct rtw_adapter *padapter,
 	u8 *pmgmt_frame;
 	uint frame_len;
 	struct ieee80211_hdr *pwlanhdr;
-	unsigned short *fctrl;
+	__le16 *fctrl;
 	u8 mgmt_buf[128] = { 0 };
 	struct mlme_ext_priv *pmlmeext = &padapter->mlmeextpriv;
 	struct mlme_ext_info *pmlmeinfo = &pmlmeext->mlmext_info;

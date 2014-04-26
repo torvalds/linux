@@ -2435,7 +2435,7 @@ void issue_beacon23a(struct rtw_adapter *padapter, int timeout_ms)
 	struct pkt_attrib *pattrib;
 	unsigned char *pframe;
 	struct ieee80211_hdr *pwlanhdr;
-	unsigned short *fctrl;
+	__le16 *fctrl;
 	unsigned int rate_len;
 	struct xmit_priv *pxmitpriv = &padapter->xmitpriv;
 	struct mlme_priv *pmlmepriv = &padapter->mlmepriv;
@@ -2603,7 +2603,7 @@ void issue_probersp23a(struct rtw_adapter *padapter, unsigned char *da,
 	struct pkt_attrib *pattrib;
 	unsigned char *pframe;
 	struct ieee80211_hdr *pwlanhdr;
-	unsigned short *fctrl;
+	__le16 *fctrl;
 	unsigned char *mac, *bssid;
 	struct xmit_priv *pxmitpriv = &padapter->xmitpriv;
 #ifdef CONFIG_8723AU_AP_MODE
@@ -2820,7 +2820,7 @@ static int _issue_probereq23a(struct rtw_adapter *padapter,
 	struct pkt_attrib		*pattrib;
 	unsigned char			*pframe;
 	struct ieee80211_hdr	*pwlanhdr;
-	unsigned short		*fctrl;
+	__le16		*fctrl;
 	unsigned char			*mac;
 	unsigned char			bssrate[NumRates];
 	struct xmit_priv *pxmitpriv = &padapter->xmitpriv;
@@ -2846,7 +2846,7 @@ static int _issue_probereq23a(struct rtw_adapter *padapter,
 
 	mac = myid(&padapter->eeprompriv);
 
-	fctrl = &pwlanhdr->frame_control;
+		fctrl = &pwlanhdr->frame_control;
 	*fctrl = 0;
 
 	if (da) {
@@ -2971,7 +2971,7 @@ void issue_auth23a(struct rtw_adapter *padapter, struct sta_info *psta,
 	struct pkt_attrib *pattrib;
 	unsigned char *pframe;
 	struct ieee80211_hdr *pwlanhdr;
-	unsigned short *fctrl;
+	__le16 *fctrl;
 	unsigned int val32;
 	unsigned short val16;
 	int use_shared_key = 0;
@@ -3280,7 +3280,7 @@ void issue_assocreq23a(struct rtw_adapter *padapter)
 	unsigned char *pframe;
 	const u8 *p;
 	struct ieee80211_hdr *pwlanhdr;
-	unsigned short *fctrl;
+	__le16 *fctrl;
 	unsigned int i, j, index = 0;
 	unsigned char rf_type, bssrate[NumRates], sta_bssrate[NumRates];
 	struct ndis_802_11_var_ies *pIE;
@@ -3548,7 +3548,7 @@ static int _issue_nulldata23a(struct rtw_adapter *padapter, unsigned char *da,
 	struct pkt_attrib *pattrib;
 	unsigned char *pframe;
 	struct ieee80211_hdr *pwlanhdr;
-	unsigned short *fctrl;
+	__le16 *fctrl;
 	struct xmit_priv *pxmitpriv;
 	struct mlme_ext_priv *pmlmeext;
 	struct mlme_ext_info *pmlmeinfo;
@@ -3671,7 +3671,8 @@ static int _issue_qos_nulldata23a(struct rtw_adapter *padapter,
 	struct pkt_attrib *pattrib;
 	unsigned char *pframe;
 	struct ieee80211_hdr *pwlanhdr;
-	unsigned short *fctrl, *qc;
+	__le16 *fctrl;
+	u16 *qc;
 	struct xmit_priv *pxmitpriv = &padapter->xmitpriv;
 	struct mlme_ext_priv *pmlmeext = &padapter->mlmeextpriv;
 	struct mlme_ext_info *pmlmeinfo = &pmlmeext->mlmext_info;
@@ -3797,7 +3798,7 @@ static int _issue_deauth23a(struct rtw_adapter *padapter, unsigned char *da,
 	struct pkt_attrib *pattrib;
 	unsigned char *pframe;
 	struct ieee80211_hdr *pwlanhdr;
-	unsigned short *fctrl;
+	__le16 *fctrl;
 	struct xmit_priv *pxmitpriv = &padapter->xmitpriv;
 	struct mlme_ext_priv *pmlmeext = &padapter->mlmeextpriv;
 	struct mlme_ext_info *pmlmeinfo = &pmlmeext->mlmext_info;
@@ -3908,7 +3909,7 @@ void issue_action_spct_ch_switch23a(struct rtw_adapter *padapter,
 	struct pkt_attrib *pattrib;
 	unsigned char *pframe;
 	struct ieee80211_hdr *pwlanhdr;
-	unsigned short *fctrl;
+	__le16 *fctrl;
 	struct xmit_priv *pxmitpriv = &padapter->xmitpriv;
 	struct mlme_ext_priv *pmlmeext = &padapter->mlmeextpriv;
 	u8 category, action;
@@ -3975,7 +3976,7 @@ void issue_action_BA23a(struct rtw_adapter *padapter,
 	struct pkt_attrib *pattrib;
 	u8 *pframe;
 	struct ieee80211_hdr *pwlanhdr;
-	u16 *fctrl;
+	__le16 *fctrl;
 	struct xmit_priv *pxmitpriv = &padapter->xmitpriv;
 	struct mlme_ext_priv *pmlmeext = &padapter->mlmeextpriv;
 	struct mlme_ext_info *pmlmeinfo = &pmlmeext->mlmext_info;
@@ -4155,7 +4156,7 @@ static void issue_action_BSSCoexistPacket(struct rtw_adapter *padapter)
 	struct pkt_attrib *pattrib;
 	u8 *pframe;
 	struct ieee80211_hdr *pwlanhdr;
-	unsigned short *fctrl;
+	__le16 *fctrl;
 	struct wlan_network *pnetwork;
 	struct xmit_priv *pxmitpriv = &padapter->xmitpriv;
 	struct mlme_priv *pmlmepriv = &padapter->mlmepriv;
