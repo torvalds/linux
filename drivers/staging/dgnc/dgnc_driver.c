@@ -448,20 +448,15 @@ static void dgnc_cleanup_board(struct dgnc_board *brd)
 	/* Free all allocated channels structs */
 	for (i = 0; i < MAXPORTS ; i++) {
 		if (brd->channels[i]) {
-			if (brd->channels[i]->ch_rqueue)
-				kfree(brd->channels[i]->ch_rqueue);
-			if (brd->channels[i]->ch_equeue)
-				kfree(brd->channels[i]->ch_equeue);
-			if (brd->channels[i]->ch_wqueue)
-				kfree(brd->channels[i]->ch_wqueue);
-
+			kfree(brd->channels[i]->ch_rqueue);
+			kfree(brd->channels[i]->ch_equeue);
+			kfree(brd->channels[i]->ch_wqueue);
 			kfree(brd->channels[i]);
 			brd->channels[i] = NULL;
 		}
 	}
 
-	if (brd->flipbuf)
-		kfree(brd->flipbuf);
+	kfree(brd->flipbuf);
 
 	dgnc_Board[brd->boardnum] = NULL;
 
