@@ -1083,7 +1083,7 @@ static void traffic_status_watchdog(struct rtw_adapter *padapter)
 	pmlmepriv->LinkDetectInfo.bHigherBusyTxTraffic = bHigherBusyTxTraffic;
 }
 
-void dynamic_chk_wk_hdl(struct rtw_adapter *padapter, u8 *pbuf, int sz)
+static void dynamic_chk_wk_hdl(struct rtw_adapter *padapter, u8 *pbuf, int sz)
 {
 	struct mlme_priv *pmlmepriv;
 
@@ -1110,7 +1110,7 @@ void dynamic_chk_wk_hdl(struct rtw_adapter *padapter, u8 *pbuf, int sz)
 #endif
 }
 
-void lps_ctrl_wk_hdl(struct rtw_adapter *padapter, u8 lps_ctrl_type)
+static void lps_ctrl_wk_hdl(struct rtw_adapter *padapter, u8 lps_ctrl_type)
 {
 	struct pwrctrl_priv *pwrpriv = &padapter->pwrctrlpriv;
 	struct mlme_priv *pmlmepriv = &padapter->mlmepriv;
@@ -1687,11 +1687,5 @@ void rtw_setassocsta_cmdrsp_callback23a(struct rtw_adapter *padapter,
 	spin_unlock_bh(&pmlmepriv->lock);
 
 exit:
-	rtw_free_cmd_obj23a(pcmd);
-}
-
-void rtw_getrttbl_cmd_cmdrsp_callback(struct rtw_adapter *padapter,
-				      struct cmd_obj *pcmd)
-{
 	rtw_free_cmd_obj23a(pcmd);
 }

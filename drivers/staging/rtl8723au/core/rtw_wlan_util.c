@@ -140,7 +140,7 @@ u8 judge_network_type23a(struct rtw_adapter *padapter, unsigned char *rate, int 
 	return	network_type;
 }
 
-unsigned char ratetbl_val_2wifirate(unsigned char rate)
+static unsigned char ratetbl_val_2wifirate(unsigned char rate)
 {
 	unsigned char val = 0;
 
@@ -185,7 +185,7 @@ unsigned char ratetbl_val_2wifirate(unsigned char rate)
 	return val;
 }
 
-int is_basicrate(struct rtw_adapter *padapter, unsigned char rate)
+static int is_basicrate(struct rtw_adapter *padapter, unsigned char rate)
 {
 	int i;
 	unsigned char val;
@@ -203,7 +203,8 @@ int is_basicrate(struct rtw_adapter *padapter, unsigned char rate)
 	return false;
 }
 
-unsigned int ratetbl2rateset(struct rtw_adapter *padapter, unsigned char *rateset)
+static unsigned int ratetbl2rateset(struct rtw_adapter *padapter,
+				    unsigned char *rateset)
 {
 	int i;
 	unsigned char rate;
@@ -1232,7 +1233,7 @@ unsigned int is_ap_in_wep23a(struct rtw_adapter *padapter)
 	}
 }
 
-int wifirate2_ratetbl_inx23a(unsigned char rate)
+static int wifirate2_ratetbl_inx23a(unsigned char rate)
 {
 	int	inx = 0;
 	rate = rate & 0x7f;
@@ -1346,25 +1347,13 @@ unsigned char get_highest_rate_idx23a(u32 mask)
 	return rate_idx;
 }
 
-unsigned char get_highest_mcs_rate(struct HT_caps_element *pHT_caps)
-{
-	int i, mcs_rate;
-
-	mcs_rate = (pHT_caps->u.HT_cap_element.MCS_rate[0] | (pHT_caps->u.HT_cap_element.MCS_rate[1] << 8));
-
-	for (i = 15; i >= 0; i--) {
-		if (mcs_rate & (0x1 << i))
-			break;
-	}
-	return i;
-}
-
 void Update_RA_Entry23a(struct rtw_adapter *padapter, struct sta_info *psta)
 {
 	rtw_hal_update_ra_mask23a(psta, 0);
 }
 
-void enable_rate_adaptive(struct rtw_adapter *padapter, struct sta_info *psta)
+static void enable_rate_adaptive(struct rtw_adapter *padapter,
+				 struct sta_info *psta)
 {
 	Update_RA_Entry23a(padapter, psta);
 }

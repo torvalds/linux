@@ -2243,7 +2243,8 @@ OnAction23a(struct rtw_adapter *padapter, struct recv_frame *precv_frame)
 	return _SUCCESS;
 }
 
-int DoReserved23a(struct rtw_adapter *padapter, struct recv_frame *precv_frame)
+static int DoReserved23a(struct rtw_adapter *padapter,
+			 struct recv_frame *precv_frame)
 {
 	return _SUCCESS;
 }
@@ -5537,7 +5538,7 @@ void mlmeext_sta_del_event_callback23a(struct rtw_adapter *padapter)
 Following are the functions for the timer handlers
 
 *****************************************************************************/
-void linked23a_rx_sig_stren_disp(struct rtw_adapter *padapter)
+static void linked23a_rx_sig_stren_disp(struct rtw_adapter *padapter)
 {
 	struct mlme_ext_priv    *pmlmeext = &padapter->mlmeextpriv;
 	struct mlme_ext_info *pmlmeinfo = &pmlmeext->mlmext_info;

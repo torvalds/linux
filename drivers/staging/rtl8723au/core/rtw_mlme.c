@@ -361,17 +361,8 @@ int rtw_init_mlme_priv23a (struct rtw_adapter *padapter)
 	return res;
 }
 
-void rtw_free_network(struct mlme_priv *pmlmepriv,
-		      struct wlan_network *pnetwork, u8 is_freeall)
-{
-	RT_TRACE(_module_rtl871x_mlme_c_, _drv_err_,
-		 ("rtw_free_network ==> ssid = %s\n\n" ,
-		  pnetwork->network.Ssid.ssid));
-	_rtw_free_network23a(pmlmepriv, pnetwork, is_freeall);
-}
-
-void rtw_free_network_nolock(struct mlme_priv *pmlmepriv,
-			     struct wlan_network *pnetwork)
+static void rtw_free_network_nolock(struct mlme_priv *pmlmepriv,
+				    struct wlan_network *pnetwork)
 {
 	_rtw_free_network23a_nolock23a(pmlmepriv, pnetwork);
 }
@@ -628,8 +619,8 @@ exit:
 	spin_unlock_bh(&queue->lock);
 }
 
-void rtw_add_network(struct rtw_adapter *adapter,
-		     struct wlan_bssid_ex *pnetwork)
+static void rtw_add_network(struct rtw_adapter *adapter,
+			    struct wlan_bssid_ex *pnetwork)
 {
 	update_current_network(adapter, pnetwork);
 	rtw_update_scanned_network23a(adapter, pnetwork);
@@ -641,8 +632,8 @@ void rtw_add_network(struct rtw_adapter *adapter,
 /*			   (3) WMM */
 /*			   (4) HT */
 /*                      (5) others */
-int rtw_is_desired_network(struct rtw_adapter *adapter,
-			   struct wlan_network *pnetwork)
+static int rtw_is_desired_network(struct rtw_adapter *adapter,
+				  struct wlan_network *pnetwork)
 {
 	struct security_priv *psecuritypriv = &adapter->securitypriv;
 	struct mlme_priv *pmlmepriv = &adapter->mlmepriv;
