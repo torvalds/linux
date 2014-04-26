@@ -25,8 +25,6 @@
 #include <ieee80211.h> /*  <ieee80211/ieee80211.h> */
 
 
-#define FREE_CMDOBJ_SZ	128
-
 #define MAX_CMDSZ	1024
 #define MAX_RSPSZ	512
 #define MAX_EVTSZ	1024
