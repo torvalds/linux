@@ -1004,8 +1004,8 @@ void rtw_get_bcn_info23a(struct wlan_network *pnetwork)
 	unsigned int		len;
 	unsigned char		*p;
 
-	memcpy(&cap, rtw_get_capability23a_from_ie(pnetwork->network.IEs), 2);
-	cap = le16_to_cpu(cap);
+	cap = get_unaligned_le16(
+		rtw_get_capability23a_from_ie(pnetwork->network.IEs));
 	if (cap & WLAN_CAPABILITY_PRIVACY) {
 		bencrypt = 1;
 		pnetwork->network.Privacy = 1;

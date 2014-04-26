@@ -333,9 +333,9 @@ void rtw23a_roaming(struct rtw_adapter *padapter,
 	spin_unlock_bh(&pmlmepriv->lock);
 }
 
-u8 *rtw_get_capability23a_from_ie(u8 *ie)
+__le16 *rtw_get_capability23a_from_ie(u8 *ie)
 {
-	return ie + 8 + 2;
+	return (__le16 *)(ie + 8 + 2);
 }
 
 u16 rtw_get_capability23a(struct wlan_bssid_ex *bss)
@@ -416,11 +416,8 @@ int is_same_network23a(struct wlan_bssid_ex *src, struct wlan_bssid_ex *dst)
 {
 	u16 s_cap, d_cap;
 
-	memcpy(&s_cap, rtw_get_capability23a_from_ie(src->IEs), 2);
-	memcpy(&d_cap, rtw_get_capability23a_from_ie(dst->IEs), 2);
-
-	s_cap = le16_to_cpu(s_cap);
-	d_cap = le16_to_cpu(d_cap);
+	s_cap = get_unaligned_le16(rtw_get_capability23a_from_ie(src->IEs));
+	d_cap = get_unaligned_le16(rtw_get_capability23a_from_ie(dst->IEs));
 
 	return ((src->Ssid.ssid_len == dst->Ssid.ssid_len) &&
 		/*	(src->Configuration.DSConfig == dst->Configuration.DSConfig) && */

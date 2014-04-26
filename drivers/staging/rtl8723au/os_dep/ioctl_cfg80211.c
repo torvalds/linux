@@ -292,7 +292,7 @@ static int rtw_cfg80211_inform_bss(struct rtw_adapter *padapter,
 	    le16_to_cpu(*(u16 *)
 			rtw_get_beacon_interval23a_from_ie(pnetwork->network.IEs));
 	notify_capability =
-	    le16_to_cpu(*(u16 *)
+		get_unaligned_le16(
 			rtw_get_capability23a_from_ie(pnetwork->network.IEs));
 
 	notify_ie = pnetwork->network.IEs + _FIXED_IE_LENGTH_;
