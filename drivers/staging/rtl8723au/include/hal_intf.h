@@ -126,10 +126,6 @@ struct hal_ops {
 	s32 (*hal_xmitframe_enqueue)(struct rtw_adapter *padapter,
 				     struct xmit_frame *pxmitframe);
 
-	u32 (*read_bbreg)(struct rtw_adapter *padapter, u32 RegAddr,
-			  u32 BitMask);
-	void (*write_bbreg)(struct rtw_adapter *padapter, u32 RegAddr,
-			    u32 BitMask, u32 Data);
 	u32 (*read_rfreg)(struct rtw_adapter *padapter, u32 eRFPath,
 			  u32 RegAddr, u32 BitMask);
 	void (*write_rfreg)(struct rtw_adapter *padapter, u32 eRFPath,
@@ -264,8 +260,6 @@ void	rtw_hal_clone_data(struct rtw_adapter *dst_padapter, struct rtw_adapter *sr
 
 void rtw_hal_bcn_related_reg_setting23a(struct rtw_adapter *padapter);
 
-u32	rtw_hal_read_bbreg23a(struct rtw_adapter *padapter, u32 RegAddr, u32 BitMask);
-void	rtw_hal_write_bbreg23a(struct rtw_adapter *padapter, u32 RegAddr, u32 BitMask, u32 Data);
 u32	rtw_hal_read_rfreg23a(struct rtw_adapter *padapter, u32 eRFPath, u32 RegAddr, u32 BitMask);
 void	rtw_hal_write_rfreg23a(struct rtw_adapter *padapter, u32 eRFPath, u32 RegAddr, u32 BitMask, u32 Data);
 

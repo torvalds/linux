@@ -1739,8 +1739,6 @@ void rtl8723a_set_hal_ops(struct hal_ops *pHalFunc)
 
 	pHalFunc->Add_RateATid = &rtl8723a_add_rateatid;
 
-	pHalFunc->read_bbreg = &PHY_QueryBBReg;
-	pHalFunc->write_bbreg = &PHY_SetBBReg;
 	pHalFunc->read_rfreg = &PHY_QueryRFReg;
 	pHalFunc->write_rfreg = &PHY_SetRFReg;
 

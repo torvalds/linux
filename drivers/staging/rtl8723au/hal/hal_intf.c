@@ -255,19 +255,6 @@ void	rtw_hal_add_ra_tid23a(struct rtw_adapter *padapter, u32 bitmap, u8 arg, u8 
 		padapter->HalFunc.Add_RateATid(padapter, bitmap, arg, rssi_level);
 }
 
-u32	rtw_hal_read_bbreg23a(struct rtw_adapter *padapter, u32 RegAddr, u32 BitMask)
-{
-	u32 data = 0;
-	if (padapter->HalFunc.read_bbreg)
-		 data = padapter->HalFunc.read_bbreg(padapter, RegAddr, BitMask);
-	return data;
-}
-void	rtw_hal_write_bbreg23a(struct rtw_adapter *padapter, u32 RegAddr, u32 BitMask, u32 Data)
-{
-	if (padapter->HalFunc.write_bbreg)
-		padapter->HalFunc.write_bbreg(padapter, RegAddr, BitMask, Data);
-}
-
 u32	rtw_hal_read_rfreg23a(struct rtw_adapter *padapter, u32 eRFPath, u32 RegAddr, u32 BitMask)
 {
 	u32 data = 0;
