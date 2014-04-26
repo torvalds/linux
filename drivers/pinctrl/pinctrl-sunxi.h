@@ -448,8 +448,6 @@ struct sunxi_desc_pin {
 struct sunxi_pinctrl_desc {
 	const struct sunxi_desc_pin	*pins;
 	int				npins;
-	struct pinctrl_gpio_range	*ranges;
-	int				nranges;
 	unsigned			pin_base;
 };
 
