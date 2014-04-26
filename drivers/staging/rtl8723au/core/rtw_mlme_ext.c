@@ -1385,7 +1385,7 @@ OnAssocReq23a(struct rtw_adapter *padapter, struct recv_frame *precv_frame)
 		supportRateNum = p[1];
 
 		p = cfg80211_find_ie(WLAN_EID_EXT_SUPP_RATES, pos, left);
-		if (!p) {
+		if (p) {
 			if (supportRateNum <= sizeof(supportRate)) {
 				memcpy(supportRate+supportRateNum, p + 2, p[1]);
 				supportRateNum += p[1];
