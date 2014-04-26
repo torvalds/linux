@@ -213,21 +213,3 @@ void _rtw_write_port23a_cancel(struct rtw_adapter *adapter)
 	if (_write_port_cancel)
 		_write_port_cancel(pintfhdl);
 }
-
-int rtw_init_io_priv23a(struct rtw_adapter *padapter,
-		     void (*set_intf_ops)(struct _io_ops *pops))
-{
-	struct io_priv	*piopriv = &padapter->iopriv;
-	struct intf_hdl *pintf = &piopriv->intf;
-
-	if (set_intf_ops == NULL)
-		return _FAIL;
-
-	piopriv->padapter = padapter;
-	pintf->padapter = padapter;
-	pintf->pintf_dev = adapter_to_dvobj(padapter);
-
-	set_intf_ops(&pintf->io_ops);
-
-	return _SUCCESS;
-}

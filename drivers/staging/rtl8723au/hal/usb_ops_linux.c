@@ -815,8 +815,15 @@ void rtl8723au_xmit_tasklet(void *priv)
 	}
 }
 
-void rtl8723au_set_intf_ops(struct _io_ops *pops)
+void rtl8723au_set_intf_ops(struct rtw_adapter *padapter)
 {
+	struct io_priv	*piopriv = &padapter->iopriv;
+	struct intf_hdl *pintf = &piopriv->intf;
+	struct _io_ops *pops = &pintf->io_ops;
+
+	piopriv->padapter = padapter;
+	pintf->padapter = padapter;
+	pintf->pintf_dev = adapter_to_dvobj(padapter);
 
 	memset((u8 *)pops, 0, sizeof(struct _io_ops));
 
