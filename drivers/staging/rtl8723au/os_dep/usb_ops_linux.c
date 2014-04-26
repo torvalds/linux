@@ -41,18 +41,17 @@ struct zero_bulkout_context {
 	void *padapter;
 };
 
-void usb_read_mem23a(struct intf_hdl *pintfhdl, u32 addr, u32 cnt, u8 *rmem)
+void usb_read_mem23a(struct rtw_adapter *adapter, u32 addr, u32 cnt, u8 *rmem)
 {
 }
 
-void usb_write_mem23a(struct intf_hdl *pintfhdl, u32 addr, u32 cnt, u8 *wmem)
+void usb_write_mem23a(struct rtw_adapter *adapter, u32 addr, u32 cnt, u8 *wmem)
 {
 }
 
-void usb_read_port_cancel23a(struct intf_hdl *pintfhdl)
+void usb_read_port_cancel23a(struct rtw_adapter *padapter)
 {
 	struct recv_buf *precvbuf;
-	struct rtw_adapter *padapter = pintfhdl->padapter;
 	int i;
 
 	precvbuf = (struct recv_buf *)padapter->recvpriv.precv_buf;
@@ -161,11 +160,10 @@ check_completion:
 	tasklet_hi_schedule(&pxmitpriv->xmit_tasklet);
 }
 
-u32 usb_write_port23a(struct intf_hdl *pintfhdl, u32 addr, u32 cnt,
-		   struct xmit_buf *pxmitbuf)
+u32 usb_write_port23a(struct rtw_adapter *padapter, u32 addr, u32 cnt,
+		      struct xmit_buf *pxmitbuf)
 {
 	struct urb *purb = NULL;
-	struct rtw_adapter *padapter = (struct rtw_adapter *)pintfhdl->padapter;
 	struct dvobj_priv *pdvobj = adapter_to_dvobj(padapter);
 	struct xmit_priv *pxmitpriv = &padapter->xmitpriv;
 	struct xmit_frame *pxmitframe = (struct xmit_frame *)pxmitbuf->priv_data;
@@ -255,9 +253,8 @@ exit:
 	return ret;
 }
 
-void usb_write_port23a_cancel(struct intf_hdl *pintfhdl)
+void usb_write_port23a_cancel(struct rtw_adapter *padapter)
 {
-	struct rtw_adapter *padapter = pintfhdl->padapter;
 	struct xmit_buf *pxmitbuf;
 	struct list_head *plist;
 	int j;

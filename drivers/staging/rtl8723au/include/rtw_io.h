@@ -101,25 +101,25 @@ struct intf_hdl;
 
 struct _io_ops
 {
-		u8 (*_read8)(struct intf_hdl *pintfhdl, u32 addr);
-		u16 (*_read16)(struct intf_hdl *pintfhdl, u32 addr);
-		u32 (*_read32)(struct intf_hdl *pintfhdl, u32 addr);
+	u8 (*_read8)(struct rtw_adapter *adapter, u32 addr);
+	u16 (*_read16)(struct rtw_adapter *adapter, u32 addr);
+	u32 (*_read32)(struct rtw_adapter *adapter, u32 addr);
 
-		int (*_write8)(struct intf_hdl *pintfhdl, u32 addr, u8 val);
-		int (*_write16)(struct intf_hdl *pintfhdl, u32 addr, u16 val);
-		int (*_write32)(struct intf_hdl *pintfhdl, u32 addr, u32 val);
-		int (*_writeN)(struct intf_hdl *pintfhdl, u32 addr, u32 length, u8 *pdata);
+	int (*_write8)(struct rtw_adapter *adapter, u32 addr, u8 val);
+	int (*_write16)(struct rtw_adapter *adapter, u32 addr, u16 val);
+	int (*_write32)(struct rtw_adapter *adapter, u32 addr, u32 val);
+	int (*_writeN)(struct rtw_adapter *adapter, u32 addr, u32 length, u8 *pdata);
 
-		void (*_read_mem)(struct intf_hdl *pintfhdl, u32 addr, u32 cnt, u8 *pmem);
-		void (*_write_mem)(struct intf_hdl *pintfhdl, u32 addr, u32 cnt, u8 *pmem);
+	void (*_read_mem)(struct rtw_adapter *adapter, u32 addr, u32 cnt, u8 *pmem);
+	void (*_write_mem)(struct rtw_adapter *adapter, u32 addr, u32 cnt, u8 *pmem);
 
-		u32 (*_read_interrupt)(struct intf_hdl *pintfhdl, u32 addr);
+	u32 (*_read_interrupt)(struct rtw_adapter *adapter, u32 addr);
 
-		u32 (*_read_port)(struct intf_hdl *pintfhdl, u32 addr, u32 cnt, struct recv_buf *rbuf);
-		u32 (*_write_port)(struct intf_hdl *pintfhdl, u32 addr, u32 cnt, struct xmit_buf *pmem);
+	u32 (*_read_port)(struct rtw_adapter *adapter, u32 addr, u32 cnt, struct recv_buf *rbuf);
+	u32 (*_write_port)(struct rtw_adapter *adapter, u32 addr, u32 cnt, struct xmit_buf *pmem);
 
-		void (*_read_port_cancel)(struct intf_hdl *pintfhdl);
-		void (*_write_port_cancel)(struct intf_hdl *pintfhdl);
+	void (*_read_port_cancel)(struct rtw_adapter *adapter);
+	void (*_write_port_cancel)(struct rtw_adapter *adapter);
 };
 
 struct io_req {

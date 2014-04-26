@@ -1229,9 +1229,9 @@ static unsigned int rtl8723au_inirp_init(struct rtw_adapter *Adapter)
 	uint	status;
 	struct intf_hdl *pintfhdl = &Adapter->intf;
 	struct recv_priv *precvpriv = &Adapter->recvpriv;
-	u32 (*_read_port)(struct intf_hdl *pintfhdl, u32 addr, u32 cnt,
+	u32 (*_read_port)(struct rtw_adapter *padapter, u32 addr, u32 cnt,
 			  struct recv_buf *rbuf);
-	u32 (*_read_interrupt)(struct intf_hdl *pintfhdl, u32 addr);
+	u32 (*_read_interrupt)(struct rtw_adapter *padapter, u32 addr);
 	struct hal_data_8723a	*pHalData = GET_HAL_DATA(Adapter);
 
 	_read_port = pintfhdl->io_ops._read_port;
@@ -1245,7 +1245,7 @@ static unsigned int rtl8723au_inirp_init(struct rtw_adapter *Adapter)
 	/* issue Rx irp to receive data */
 	precvbuf = (struct recv_buf *)precvpriv->precv_buf;
 	for (i = 0; i < NR_RECVBUFF; i++) {
-		if (_read_port(pintfhdl, precvpriv->ff_hwaddr, 0, precvbuf) ==
+		if (_read_port(Adapter, precvpriv->ff_hwaddr, 0, precvbuf) ==
 		    false) {
 			RT_TRACE(_module_hci_hal_init_c_, _drv_err_,
 				 ("usb_rx_init: usb_read_port error\n"));
@@ -1256,7 +1256,7 @@ static unsigned int rtl8723au_inirp_init(struct rtw_adapter *Adapter)
 		precvpriv->free_recv_buf_queue_cnt--;
 	}
 	_read_interrupt = pintfhdl->io_ops._read_interrupt;
-	if (_read_interrupt(pintfhdl, RECV_INT_IN_ADDR) == false) {
+	if (_read_interrupt(Adapter, RECV_INT_IN_ADDR) == false) {
 		RT_TRACE(_module_hci_hal_init_c_, _drv_err_,
 			 ("usb_rx_init: usb_read_interrupt error\n"));
 		status = _FAIL;
