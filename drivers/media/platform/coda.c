@@ -3233,7 +3233,7 @@ static int coda_probe(struct platform_device *pdev)
 	}
 
 	if (devm_request_threaded_irq(&pdev->dev, irq, NULL, coda_irq_handler,
-		IRQF_ONESHOT, CODA_NAME, dev) < 0) {
+		IRQF_ONESHOT, dev_name(&pdev->dev), dev) < 0) {
 		dev_err(&pdev->dev, "failed to request irq\n");
 		return -ENOENT;
 	}
