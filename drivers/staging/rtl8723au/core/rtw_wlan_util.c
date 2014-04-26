@@ -1007,7 +1007,7 @@ int rtw_check_bcn_info23a(struct rtw_adapter *Adapter,
 	}
 
 	/* check encryption info */
-	val16 = rtw_get_capability23a((struct wlan_bssid_ex *)bssid);
+	val16 = rtw_get_capability23a(bssid);
 
 	if (val16 & BIT(4))
 		bssid->Privacy = 1;
@@ -1141,7 +1141,7 @@ unsigned int is_ap_in_tkip23a(struct rtw_adapter *padapter)
 	struct mlme_ext_info *pmlmeinfo = &pmlmeext->mlmext_info;
 	struct wlan_bssid_ex *cur_network = &pmlmeinfo->network;
 
-	if (rtw_get_capability23a((struct wlan_bssid_ex *)cur_network) & WLAN_CAPABILITY_PRIVACY) {
+	if (rtw_get_capability23a(cur_network) & WLAN_CAPABILITY_PRIVACY) {
 		for (i = sizeof(struct ndis_802_11_fixed_ies); i < pmlmeinfo->network.IELength;) {
 			pIE = (struct ndis_802_11_var_ies *)(pmlmeinfo->network.IEs + i);
 
@@ -1172,7 +1172,7 @@ unsigned int should_forbid_n_rate23a(struct rtw_adapter * padapter)
 	struct mlme_priv	*pmlmepriv = &padapter->mlmepriv;
 	struct wlan_bssid_ex  *cur_network = &pmlmepriv->cur_network.network;
 
-	if (rtw_get_capability23a((struct wlan_bssid_ex *)cur_network) & WLAN_CAPABILITY_PRIVACY) {
+	if (rtw_get_capability23a(cur_network) & WLAN_CAPABILITY_PRIVACY) {
 		for (i = sizeof(struct ndis_802_11_fixed_ies); i < cur_network->IELength;) {
 			pIE = (struct ndis_802_11_var_ies *)(cur_network->IEs + i);
 
@@ -1207,7 +1207,7 @@ unsigned int is_ap_in_wep23a(struct rtw_adapter *padapter)
 	struct mlme_ext_info *pmlmeinfo = &pmlmeext->mlmext_info;
 	struct wlan_bssid_ex *cur_network = &pmlmeinfo->network;
 
-	if (rtw_get_capability23a((struct wlan_bssid_ex *)cur_network) & WLAN_CAPABILITY_PRIVACY) {
+	if (rtw_get_capability23a(cur_network) & WLAN_CAPABILITY_PRIVACY) {
 		for (i = sizeof(struct ndis_802_11_fixed_ies); i < pmlmeinfo->network.IELength;) {
 			pIE = (struct ndis_802_11_var_ies *)(pmlmeinfo->network.IEs + i);
 

@@ -361,7 +361,7 @@ void add_RATid23a(struct rtw_adapter *padapter, struct sta_info *psta, u8 rssi_l
 	unsigned int tx_ra_bitmap = 0;
 	struct ht_priv *psta_ht = NULL;
 	struct mlme_priv *pmlmepriv = &padapter->mlmepriv;
-	struct wlan_bssid_ex *pcur_network = (struct wlan_bssid_ex *)&pmlmepriv->cur_network.network;
+	struct wlan_bssid_ex *pcur_network = &pmlmepriv->cur_network.network;
 
 	if (psta)
 		psta_ht = &psta->htpriv;
@@ -459,7 +459,7 @@ static void update_bmc_sta(struct rtw_adapter *padapter)
 	int i, supportRateNum = 0;
 	unsigned int tx_ra_bitmap = 0;
 	struct mlme_priv *pmlmepriv = &padapter->mlmepriv;
-	struct wlan_bssid_ex *pcur_network = (struct wlan_bssid_ex *)&pmlmepriv->cur_network.network;
+	struct wlan_bssid_ex *pcur_network = &pmlmepriv->cur_network.network;
 	struct sta_info *psta = rtw_get_bcmc_stainfo23a(padapter);
 
 	if (psta)
@@ -652,7 +652,7 @@ static void start_bss_network(struct rtw_adapter *padapter, u8 *pbuf)
 	struct registry_priv *pregpriv = &padapter->registrypriv;
 	struct mlme_priv *pmlmepriv = &padapter->mlmepriv;
 	struct security_priv* psecuritypriv = &padapter->securitypriv;
-	struct wlan_bssid_ex *pnetwork = (struct wlan_bssid_ex *)&pmlmepriv->cur_network.network;
+	struct wlan_bssid_ex *pnetwork = &pmlmepriv->cur_network.network;
 	struct mlme_ext_priv *pmlmeext = &padapter->mlmeextpriv;
 	struct mlme_ext_info *pmlmeinfo = &pmlmeext->mlmext_info;
 	struct wlan_bssid_ex *pnetwork_mlmeext = &pmlmeinfo->network;
@@ -766,7 +766,7 @@ static void start_bss_network(struct rtw_adapter *padapter, u8 *pbuf)
 	update_wireless_mode23a(padapter);
 
 	/* udpate capability after cur_wireless_mode updated */
-	update_capinfo23a(padapter, rtw_get_capability23a((struct wlan_bssid_ex *)pnetwork));
+	update_capinfo23a(padapter, rtw_get_capability23a(pnetwork));
 
 	/* let pnetwork_mlmeext == pnetwork_mlme. */
 	memcpy(pnetwork_mlmeext, pnetwork, pnetwork->Length);
@@ -1047,7 +1047,7 @@ int rtw_check_beacon_data23a(struct rtw_adapter *padapter, u8 *pbuf,
 		HT_info_handler23a(padapter, (struct ndis_802_11_var_ies *)pHT_info_ie);
 	}
 
-	pbss_network->Length = get_wlan_bssid_ex_sz((struct wlan_bssid_ex  *)pbss_network);
+	pbss_network->Length = get_wlan_bssid_ex_sz(pbss_network);
 
 	/* issue beacon to start bss network */
 	start_bss_network(padapter, (u8*)pbss_network);

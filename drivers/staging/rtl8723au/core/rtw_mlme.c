@@ -2249,7 +2249,7 @@ void rtw_update_registrypriv_dev_network23a(struct rtw_adapter* adapter)
 	pdev_network->IELength = sz;
 
 	pdev_network->Length =
-		get_wlan_bssid_ex_sz((struct wlan_bssid_ex *)pdev_network);
+		get_wlan_bssid_ex_sz(pdev_network);
 
 	/* notes: translate IELength & Length after assign the
 	   Length to cmdsz in createbss_cmd(); */
