@@ -821,7 +821,6 @@ void rtl8723au_set_intf_ops(struct rtw_adapter *padapter)
 	struct _io_ops *pops = &pintf->io_ops;
 
 	pintf->padapter = padapter;
-	pintf->pintf_dev = adapter_to_dvobj(padapter);
 
 	memset((u8 *)pops, 0, sizeof(struct _io_ops));
 

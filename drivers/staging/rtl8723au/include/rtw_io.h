@@ -137,10 +137,8 @@ struct io_req {
 
 struct	intf_hdl {
 	struct rtw_adapter *padapter;
-	struct dvobj_priv *pintf_dev;/* 	pointer to &(padapter->dvobjpriv); */
 
 	struct _io_ops	io_ops;
-
 };
 
 struct reg_protocol_rd {
