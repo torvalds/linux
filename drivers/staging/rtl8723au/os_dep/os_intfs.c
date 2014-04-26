@@ -424,7 +424,6 @@ static u8 rtw_init_default_value(struct rtw_adapter *padapter)
 	/* misc. */
 	padapter->bReadPortCancel = false;
 	padapter->bWritePortCancel = false;
-	padapter->bRxRSSIDisplay = 0;
 	padapter->bNotifyChannelChange = 0;
 	return ret;
 }
@@ -439,7 +438,6 @@ u8 rtw_reset_drv_sw23a(struct rtw_adapter *padapter)
 	rtw_hal_def_value_init23a(padapter);
 	padapter->bReadPortCancel = false;
 	padapter->bWritePortCancel = false;
-	padapter->bRxRSSIDisplay = 0;
 	pmlmepriv->scan_interval = SCAN_INTERVAL;/*  30*2 sec = 60sec */
 
 	padapter->xmitpriv.tx_pkts = 0;

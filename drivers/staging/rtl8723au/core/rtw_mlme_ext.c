@@ -5533,28 +5533,6 @@ void mlmeext_sta_del_event_callback23a(struct rtw_adapter *padapter)
 	}
 }
 
-/****************************************************************************
-
-Following are the functions for the timer handlers
-
-*****************************************************************************/
-static void linked23a_rx_sig_stren_disp(struct rtw_adapter *padapter)
-{
-	struct mlme_ext_priv    *pmlmeext = &padapter->mlmeextpriv;
-	struct mlme_ext_info *pmlmeinfo = &pmlmeext->mlmext_info;
-	u8 mac_id;
-	int UndecoratedSmoothedPWDB;
-	if ((pmlmeinfo->state&0x03) == WIFI_FW_STATION_STATE)
-		mac_id = 0;
-	else if ((pmlmeinfo->state&0x03) == _HW_STATE_AP_)
-		mac_id = 2;
-
-	rtw_hal_get_def_var23a(padapter, HW_DEF_RA_INFO_DUMP,&mac_id);
-
-	rtw_hal_get_def_var23a(padapter, HAL_DEF_UNDERCORATEDSMOOTHEDPWDB, &UndecoratedSmoothedPWDB);
-	DBG_8723A("UndecoratedSmoothedPWDB:%d\n", UndecoratedSmoothedPWDB);
-}
-
 static u8 chk_ap_is_alive(struct rtw_adapter *padapter, struct sta_info *psta)
 {
 	u8 ret = false;
@@ -5578,9 +5556,6 @@ void linked_status_chk23a(struct rtw_adapter *padapter)
 	struct mlme_ext_priv	*pmlmeext = &padapter->mlmeextpriv;
 	struct mlme_ext_info *pmlmeinfo = &pmlmeext->mlmext_info;
 	struct sta_priv		*pstapriv = &padapter->stapriv;
-
-	if (padapter->bRxRSSIDisplay)
-		 linked23a_rx_sig_stren_disp(padapter);
 
 	rtw_hal_sreset_linked_status_check23a(padapter);
 

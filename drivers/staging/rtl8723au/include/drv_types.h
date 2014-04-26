@@ -300,7 +300,6 @@ struct rtw_adapter {
 	u8 bBTFWReady;
 	u8 bReadPortCancel;
 	u8 bWritePortCancel;
-	u8 bRxRSSIDisplay;
 	/* The driver will show the desired chan nor when this flag is 1. */
 	u8 bNotifyChannelChange;
 	struct rtw_adapter *pbuddy_adapter;
