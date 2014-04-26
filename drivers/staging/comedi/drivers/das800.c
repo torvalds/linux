@@ -683,7 +683,7 @@ static int das800_probe(struct comedi_device *dev)
 
 static int das800_attach(struct comedi_device *dev, struct comedi_devconfig *it)
 {
-	const struct das800_board *thisboard = comedi_board(dev);
+	const struct das800_board *thisboard;
 	struct das800_private *devpriv;
 	struct comedi_subdevice *s;
 	unsigned int irq = it->options[1];

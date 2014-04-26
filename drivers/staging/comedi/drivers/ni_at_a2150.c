@@ -695,7 +695,7 @@ static int a2150_probe(struct comedi_device *dev)
 
 static int a2150_attach(struct comedi_device *dev, struct comedi_devconfig *it)
 {
-	const struct a2150_board *thisboard = comedi_board(dev);
+	const struct a2150_board *thisboard;
 	struct a2150_private *devpriv;
 	struct comedi_subdevice *s;
 	unsigned int irq = it->options[1];
