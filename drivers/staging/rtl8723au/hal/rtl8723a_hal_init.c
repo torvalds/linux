@@ -1738,8 +1738,8 @@ void rtl8723a_set_hal_ops(struct hal_ops *pHalFunc)
 		&rtl8723a_SetBeaconRelatedRegisters;
 
 	pHalFunc->Add_RateATid = &rtl8723a_add_rateatid;
-	pHalFunc->run_thread = &rtl8723a_start_thread;
-	pHalFunc->cancel_thread = &rtl8723a_stop_thread;
+	pHalFunc->run_thread = NULL;
+	pHalFunc->cancel_thread = NULL;
 
 	pHalFunc->read_bbreg = &PHY_QueryBBReg;
 	pHalFunc->write_bbreg = &PHY_SetBBReg;
@@ -3186,12 +3186,4 @@ void rtl8723a_clone_haldata(struct rtw_adapter *dst_adapter,
 {
 	memcpy(dst_adapter->HalData, src_adapter->HalData,
 	       dst_adapter->hal_data_sz);
-}
-
-void rtl8723a_start_thread(struct rtw_adapter *padapter)
-{
-}
-
-void rtl8723a_stop_thread(struct rtw_adapter *padapter)
-{
 }

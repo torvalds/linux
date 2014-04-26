@@ -383,14 +383,7 @@ u32 rtw_start_drv_threads23a(struct rtw_adapter *padapter)
 
 	RT_TRACE(_module_os_intfs_c_, _drv_info_,
 		 ("+rtw_start_drv_threads23a\n"));
-	padapter->cmdThread = kthread_run(rtw_cmd_thread23a, padapter,
-					  "RTW_CMD_THREAD");
-	if (IS_ERR(padapter->cmdThread)) {
-		_status = _FAIL;
-	} else {
-		/* wait for cmd_thread to run */
-		down(&padapter->cmdpriv.terminate_cmdthread_sema);
-	}
+
 	rtw_hal_start_thread23a(padapter);
 	return _status;
 }
@@ -399,10 +392,8 @@ void rtw_stop_drv_threads23a(struct rtw_adapter *padapter)
 {
 	RT_TRACE(_module_os_intfs_c_, _drv_info_, ("+rtw_stop_drv_threads23a\n"));
 
-	/* Below is to termindate rtw_cmd_thread23a & event_thread... */
-	up(&padapter->cmdpriv.cmd_queue_sema);
-	if (padapter->cmdThread)
-		down(&padapter->cmdpriv.terminate_cmdthread_sema);
+	flush_workqueue(padapter->cmdpriv.wq);
+
 	rtw_hal_stop_thread23a(padapter);
 }
 

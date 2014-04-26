@@ -34,6 +34,7 @@
 #define CMDBUFF_ALIGN_SZ 512
 
 struct cmd_obj {
+	struct work_struct work;
 	struct rtw_adapter *padapter;
 	u16	cmdcode;
 	u8	res;
@@ -41,16 +42,11 @@ struct cmd_obj {
 	u32	cmdsz;
 	u8	*rsp;
 	u32	rspsz;
-	/* struct semaphore		cmd_sem; */
 	struct list_head	list;
 };
 
 struct cmd_priv {
-	struct semaphore	cmd_queue_sema;
-	/* struct semaphore	cmd_done_sema; */
-	struct semaphore	terminate_cmdthread_sema;
-	struct rtw_queue	cmd_queue;
-	u8	cmd_seq;
+	struct workqueue_struct *wq;
 	u8	*cmd_buf;	/* shall be non-paged, and 4 bytes aligned */
 	u8	*cmd_allocated_buf;
 	u8	*rsp_buf;	/* shall be non-paged, and 4 bytes aligned */
@@ -58,7 +54,6 @@ struct cmd_priv {
 	u32	cmd_issued_cnt;
 	u32	cmd_done_cnt;
 	u32	rsp_cnt;
-	u8 cmdthd_running;
 	struct rtw_adapter *padapter;
 };
 
@@ -94,7 +89,7 @@ struct c2h_evt_hdr {
 
 #define c2h_evt_exist(c2h_evt) ((c2h_evt)->id || (c2h_evt)->plen)
 
-u32 rtw_enqueue_cmd23a(struct cmd_priv *pcmdpriv, struct cmd_obj *obj);
+int rtw_enqueue_cmd23a(struct cmd_priv *pcmdpriv, struct cmd_obj *obj);
 void rtw_free_cmd_obj23a(struct cmd_obj *pcmd);
 
 int rtw_cmd_thread23a(void *context);

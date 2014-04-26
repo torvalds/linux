@@ -176,13 +176,6 @@ int rtw_init_cmd_priv23a(struct cmd_priv *pcmdpriv)
 {
 	int res = _SUCCESS;
 
-	sema_init(&pcmdpriv->cmd_queue_sema, 0);
-	sema_init(&pcmdpriv->terminate_cmdthread_sema, 0);
-
-	_rtw_init_queue23a(&pcmdpriv->cmd_queue);
-
-	pcmdpriv->cmd_seq = 1;
-
 	pcmdpriv->cmd_allocated_buf = kzalloc(MAX_CMDSZ + CMDBUFF_ALIGN_SZ,
 					      GFP_KERNEL);
 
@@ -208,6 +201,11 @@ int rtw_init_cmd_priv23a(struct cmd_priv *pcmdpriv)
 	pcmdpriv->cmd_issued_cnt = 0;
 	pcmdpriv->cmd_done_cnt = 0;
 	pcmdpriv->rsp_cnt = 0;
+
+
+	pcmdpriv->wq = alloc_workqueue("rtl8723au", 0, 1);
+	if (!pcmdpriv->wq)
+		res = _FAIL;
 
 exit:
 
@@ -260,32 +258,6 @@ void _rtw_free_cmd_priv23a(struct cmd_priv *pcmdpriv)
 	}
 }
 
-/*
-Calling Context:
-rtw_enqueue_cmd23a can only be called between kernel thread,
-since only spin_lock is used.
-
-ISR/Call-Back functions can't call this sub-function.
-*/
-
-int _rtw_enqueue_cmd23a(struct rtw_queue *queue, struct cmd_obj *obj)
-{
-	unsigned long irqL;
-
-	if (obj == NULL)
-		goto exit;
-
-	spin_lock_irqsave(&queue->lock, irqL);
-
-	list_add_tail(&obj->list, &queue->queue);
-
-	spin_unlock_irqrestore(&queue->lock, irqL);
-
-exit:
-
-	return _SUCCESS;
-}
-
 u32 rtw_init_evt_priv23a(struct evt_priv *pevtpriv)
 {
 	int res;
@@ -330,21 +302,21 @@ static int rtw_cmd_filter(struct cmd_priv *pcmdpriv, struct cmd_obj *cmd_obj)
 	if (cmd_obj->cmdcode == GEN_CMD_CODE(_SetChannelPlan))
 		bAllow = true;
 
-	if ((pcmdpriv->padapter->hw_init_completed == false &&
-	     bAllow == false) || pcmdpriv->cmdthd_running == false)
+	if (pcmdpriv->padapter->hw_init_completed == false && bAllow == false)
 		return _FAIL;
 	return _SUCCESS;
 }
 
-u32 rtw_enqueue_cmd23a(struct cmd_priv *pcmdpriv, struct cmd_obj *cmd_obj)
+static void rtw_cmd_work(struct work_struct *work);
+
+int rtw_enqueue_cmd23a(struct cmd_priv *pcmdpriv, struct cmd_obj *cmd_obj)
 {
 	int res = _FAIL;
-	struct rtw_adapter *padapter = pcmdpriv->padapter;
 
 	if (!cmd_obj)
 		goto exit;
 
-	cmd_obj->padapter = padapter;
+	cmd_obj->padapter = pcmdpriv->padapter;
 
 	res = rtw_cmd_filter(pcmdpriv, cmd_obj);
 	if (res == _FAIL) {
@@ -352,32 +324,18 @@ u32 rtw_enqueue_cmd23a(struct cmd_priv *pcmdpriv, struct cmd_obj *cmd_obj)
 		goto exit;
 	}
 
-	res = _rtw_enqueue_cmd23a(&pcmdpriv->cmd_queue, cmd_obj);
+	INIT_WORK(&cmd_obj->work, rtw_cmd_work);
 
-	if (res == _SUCCESS)
-		up(&pcmdpriv->cmd_queue_sema);
+	res = queue_work(pcmdpriv->wq, &cmd_obj->work);
 
+	if (!res) {
+		printk(KERN_ERR "%s: Call to queue_work() failed\n", __func__);
+		res = _FAIL;
+	} else
+		res = _SUCCESS;
 exit:
+
 	return res;
-}
-
-static struct cmd_obj *rtw_dequeue_cmd(struct cmd_priv *pcmdpriv)
-{
-	struct cmd_obj *obj;
-	struct rtw_queue *queue = &pcmdpriv->cmd_queue;
-	unsigned long irqL;
-
-	spin_lock_irqsave(&queue->lock, irqL);
-	if (list_empty(&queue->queue))
-		obj = NULL;
-	else {
-		obj = container_of((&queue->queue)->next, struct cmd_obj, list);
-		list_del_init(&obj->list);
-	}
-
-	spin_unlock_irqrestore(&queue->lock, irqL);
-
-	return obj;
 }
 
 void rtw_cmd_clr_isr23a(struct	cmd_priv *pcmdpriv)
@@ -404,115 +362,64 @@ void rtw_free_cmd_obj23a(struct cmd_obj *pcmd)
 	kfree(pcmd);
 }
 
-int rtw_cmd_thread23a(void *context)
+static void rtw_cmd_work(struct work_struct *work)
 {
-	u8 ret;
-	struct cmd_obj *pcmd;
-	u8 *pcmdbuf, *prspbuf;
 	u8 (*cmd_hdl)(struct rtw_adapter *padapter, u8* pbuf);
 	void (*pcmd_callback)(struct rtw_adapter *dev, struct cmd_obj *pcmd);
-	struct rtw_adapter *padapter = (struct rtw_adapter *)context;
-	struct cmd_priv *pcmdpriv = &padapter->cmdpriv;
+	struct cmd_priv *pcmdpriv;
+	struct cmd_obj *pcmd = container_of(work, struct cmd_obj, work);
+	u8 *pcmdbuf;
 
-	allow_signal(SIGTERM);
-
+	pcmdpriv = &pcmd->padapter->cmdpriv;
 	pcmdbuf = pcmdpriv->cmd_buf;
-	prspbuf = pcmdpriv->rsp_buf;
 
-	pcmdpriv->cmdthd_running = true;
-	up(&pcmdpriv->terminate_cmdthread_sema);
+	if (rtw_cmd_filter(pcmdpriv, pcmd) == _FAIL) {
+		pcmd->res = H2C_DROPPED;
+		goto post_process;
+	}
 
-	RT_TRACE(_module_rtl871x_cmd_c_, _drv_info_,
-		 ("start r871x rtw_cmd_thread23a !!!!\n"));
+	pcmdpriv->cmd_issued_cnt++;
 
-	while(1) {
-		if (down_interruptible(&pcmdpriv->cmd_queue_sema))
-			break;
-_next:
-		if ((padapter->bDriverStopped == true) ||
-		    (padapter->bSurpriseRemoved == true)) {
-			DBG_8723A("%s: DriverStopped(%d) SurpriseRemoved(%d) "
-				  "break at line %d\n",	__func__,
-				  padapter->bDriverStopped,
-				  padapter->bSurpriseRemoved, __LINE__);
-			break;
-		}
+	pcmd->cmdsz = ALIGN(pcmd->cmdsz, 4);
 
-		if (!(pcmd = rtw_dequeue_cmd(pcmdpriv)))
-			continue;
+	memcpy(pcmdbuf, pcmd->parmbuf, pcmd->cmdsz);
 
-		if (rtw_cmd_filter(pcmdpriv, pcmd) == _FAIL) {
+	if (pcmd->cmdcode < (sizeof(wlancmds)/sizeof(struct cmd_hdl))) {
+		cmd_hdl = wlancmds[pcmd->cmdcode].h2cfuns;
+
+		if (cmd_hdl)
+			pcmd->res = cmd_hdl(pcmd->padapter, pcmdbuf);
+		else
 			pcmd->res = H2C_DROPPED;
-			goto post_process;
-		}
-
-		pcmdpriv->cmd_issued_cnt++;
-
-		pcmd->cmdsz = ALIGN(pcmd->cmdsz, 4);
-
-		memcpy(pcmdbuf, pcmd->parmbuf, pcmd->cmdsz);
-
-		if (pcmd->cmdcode < (sizeof(wlancmds)/sizeof(struct cmd_hdl))) {
-			cmd_hdl = wlancmds[pcmd->cmdcode].h2cfuns;
-
-			if (cmd_hdl) {
-				ret = cmd_hdl(pcmd->padapter, pcmdbuf);
-				pcmd->res = ret;
-			}
-
-			pcmdpriv->cmd_seq++;
-		} else
-			pcmd->res = H2C_PARAMETERS_ERROR;
-
-		cmd_hdl = NULL;
+	} else
+		pcmd->res = H2C_PARAMETERS_ERROR;
 
 post_process:
-		/* call callback function for post-processed */
-		if (pcmd->cmdcode < (sizeof(rtw_cmd_callback) /
-				     sizeof(struct _cmd_callback))) {
-			pcmd_callback =
-				rtw_cmd_callback[pcmd->cmdcode].callback;
-			if (!pcmd_callback) {
-				RT_TRACE(_module_rtl871x_cmd_c_, _drv_info_,
-					 ("mlme_cmd_hdl(): pcmd_callback = "
-					  "0x%p, cmdcode = 0x%x\n",
-					  pcmd_callback, pcmd->cmdcode));
-				rtw_free_cmd_obj23a(pcmd);
-			} else {
-				/* todo: !!! fill rsp_buf to pcmd->rsp
-				   if (pcmd->rsp!= NULL) */
-				/* need conider that free cmd_obj in
-				   rtw_cmd_callback */
-				pcmd_callback(pcmd->padapter, pcmd);
-			}
-		} else {
-			RT_TRACE(_module_rtl871x_cmd_c_, _drv_err_,
-				 ("%s: cmdcode = 0x%x callback not defined!\n",
-				  __func__, pcmd->cmdcode));
+	/* call callback function for post-processed */
+	if (pcmd->cmdcode < (sizeof(rtw_cmd_callback) /
+			     sizeof(struct _cmd_callback))) {
+		pcmd_callback =	rtw_cmd_callback[pcmd->cmdcode].callback;
+		if (!pcmd_callback) {
+			RT_TRACE(_module_rtl871x_cmd_c_, _drv_info_,
+				 ("mlme_cmd_hdl(): pcmd_callback = 0x%p, "
+				  "cmdcode = 0x%x\n",
+				  pcmd_callback, pcmd->cmdcode));
 			rtw_free_cmd_obj23a(pcmd);
+		} else {
+			/* todo: !!! fill rsp_buf to pcmd->rsp
+			   if (pcmd->rsp!= NULL) */
+			/* need conider that free cmd_obj in
+			   rtw_cmd_callback */
+			pcmd_callback(pcmd->padapter, pcmd);
 		}
-
-		if (signal_pending (current))
-			flush_signals(current);
-
-		goto _next;
-
-	}
-	pcmdpriv->cmdthd_running = false;
-
-	/*  free all cmd_obj resources */
-	do {
-		pcmd = rtw_dequeue_cmd(pcmdpriv);
-		if (!pcmd)
-			break;
-
+	} else {
+		RT_TRACE(_module_rtl871x_cmd_c_, _drv_err_,
+			 ("%s: cmdcode = 0x%x callback not defined!\n",
+			  __func__, pcmd->cmdcode));
 		rtw_free_cmd_obj23a(pcmd);
-	} while(1);
-
-	up(&pcmdpriv->terminate_cmdthread_sema);
-
-	complete_and_exit(NULL, 0);
+	}
 }
+
 
 u8 rtw_sitesurvey_cmd23a(struct rtw_adapter *padapter,
 			 struct cfg80211_ssid *ssid, int ssid_num,
