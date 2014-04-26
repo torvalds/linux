@@ -21,8 +21,6 @@
 #include <recv_osdep.h>
 #include <linux/vmalloc.h>
 
-#define RT_TAG	('1178')
-
 /*
 * Translate the OS dependent @param error_code to OS independent RTW_STATUS_CODE23a
 * @return: one of RTW_STATUS_CODE23a
