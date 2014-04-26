@@ -275,11 +275,6 @@ struct rtw_adapter {
 	u8	init_adpt_in_progress;
 	u8	bHaltInProgress;
 
-	void *cmdThread;
-	void *evtThread;
-	void *xmitThread;
-	void *recvThread;
-
 	void (*intf_start)(struct rtw_adapter *adapter);
 	void (*intf_stop)(struct rtw_adapter *adapter);
 
