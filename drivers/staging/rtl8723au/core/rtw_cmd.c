@@ -215,10 +215,9 @@ exit:
 /* forward definition */
 
 static void c2h_wk_callback(struct work_struct *work);
-int _rtw_init_evt_priv23a(struct evt_priv *pevtpriv)
-{
-	int res = _SUCCESS;
 
+u32 rtw_init_evt_priv23a(struct evt_priv *pevtpriv)
+{
 	/* allocate DMA-able/Non-Page memory for cmd_buf and rsp_buf */
 	atomic_set(&pevtpriv->event_seq, 0);
 	pevtpriv->evt_done_cnt = 0;
@@ -227,16 +226,7 @@ int _rtw_init_evt_priv23a(struct evt_priv *pevtpriv)
 	pevtpriv->c2h_wk_alive = false;
 	pevtpriv->c2h_queue = rtw_cbuf_alloc23a(C2H_QUEUE_MAX_LEN + 1);
 
-	return res;
-}
-
-u32 rtw_init_evt_priv23a(struct evt_priv *pevtpriv)
-{
-	int res;
-
-	res = _rtw_init_evt_priv23a(pevtpriv);
-
-	return res;
+	return _SUCCESS;
 }
 
 void rtw_free_evt_priv23a(struct evt_priv *pevtpriv)
