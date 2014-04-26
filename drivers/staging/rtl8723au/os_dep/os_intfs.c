@@ -311,14 +311,14 @@ static u16 rtw_select_queue(struct net_device *dev, struct sk_buff *skb,
 u16 rtw_recv_select_queue23a(struct sk_buff *skb)
 {
 	struct iphdr *piphdr;
+	struct ethhdr *eth = (struct ethhdr *)skb->data;
 	unsigned int dscp;
-	u16 eth_type;
+	u16 eth_type = get_unaligned_be16(&eth->h_proto);
 	u32 priority;
 	u8 *pdata = skb->data;
 
-	memcpy(&eth_type, pdata + (ETH_ALEN << 1), 2);
 	switch (eth_type) {
-	case htons(ETH_P_IP):
+	case ETH_P_IP:
 		piphdr = (struct iphdr *)(pdata + ETH_HLEN);
 		dscp = piphdr->tos & 0xfc;
 		priority = dscp >> 5;
