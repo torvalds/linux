@@ -230,26 +230,6 @@ int _rtw_init_evt_priv23a(struct evt_priv *pevtpriv)
 	return res;
 }
 
-void _rtw_free_evt_priv23a (struct evt_priv *pevtpriv)
-{
-	RT_TRACE(_module_rtl871x_cmd_c_, _drv_info_,
-		 ("+_rtw_free_evt_priv23a\n"));
-	cancel_work_sync(&pevtpriv->c2h_wk);
-	while(pevtpriv->c2h_wk_alive)
-		msleep(10);
-
-	while (!rtw_cbuf_empty23a(pevtpriv->c2h_queue)) {
-		void *c2h;
-		if ((c2h = rtw_cbuf_pop23a(pevtpriv->c2h_queue)) != NULL &&
-		    c2h != (void *)pevtpriv) {
-			kfree(c2h);
-		}
-	}
-
-	RT_TRACE(_module_rtl871x_cmd_c_, _drv_info_,
-		 ("-_rtw_free_evt_priv23a\n"));
-}
-
 u32 rtw_init_evt_priv23a(struct evt_priv *pevtpriv)
 {
 	int res;
@@ -261,9 +241,17 @@ u32 rtw_init_evt_priv23a(struct evt_priv *pevtpriv)
 
 void rtw_free_evt_priv23a(struct evt_priv *pevtpriv)
 {
-	RT_TRACE(_module_rtl871x_cmd_c_, _drv_info_,
-		 ("rtw_free_evt_priv23a\n"));
-	_rtw_free_evt_priv23a(pevtpriv);
+	cancel_work_sync(&pevtpriv->c2h_wk);
+	while (pevtpriv->c2h_wk_alive)
+		msleep(10);
+
+	while (!rtw_cbuf_empty23a(pevtpriv->c2h_queue)) {
+		void *c2h;
+		if ((c2h = rtw_cbuf_pop23a(pevtpriv->c2h_queue)) != NULL &&
+		    c2h != (void *)pevtpriv) {
+			kfree(c2h);
+		}
+	}
 }
 
 void rtw_free_cmd_priv23a(struct cmd_priv *pcmdpriv)

@@ -19,7 +19,6 @@
 #include <drv_types.h>
 
 int _rtw_init_evt_priv23a(struct evt_priv *pevtpriv);
-void _rtw_free_evt_priv23a(struct	evt_priv *pevtpriv);
 int _rtw_enqueue_cmd23a(struct rtw_queue *queue, struct cmd_obj *obj);
 
 #endif
