@@ -5,4 +5,28 @@ config PINCTRL_SUNXI
 	select PINMUX
 	select GENERIC_PINCONF
 
+config PINCTRL_SUN4I_A10
+       bool
+       select PINCTRL_SUNXI
+
+config PINCTRL_SUN5I_A10S
+       bool
+       select PINCTRL_SUNXI
+
+config PINCTRL_SUN5I_A13
+       bool
+       select PINCTRL_SUNXI
+
+config PINCTRL_SUN6I_A31
+       bool
+       select PINCTRL_SUNXI
+
+config PINCTRL_SUN6I_A31_R
+       bool
+       select PINCTRL_SUNXI
+
+config PINCTRL_SUN7I_A20
+       bool
+       select PINCTRL_SUNXI
+
 endif
