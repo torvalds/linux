@@ -514,7 +514,6 @@ u8 rtw_createbss_cmd23a(struct rtw_adapter  *padapter)
 		goto exit;
 	}
 
-	INIT_LIST_HEAD(&pcmd->list);
 	pcmd->cmdcode = _CreateBss_CMD_;
 	pcmd->parmbuf = (unsigned char *)pdev_network;
 	pcmd->cmdsz = get_wlan_bssid_ex_sz((struct wlan_bssid_ex*)pdev_network);
@@ -688,7 +687,6 @@ u8 rtw_joinbss_cmd23a(struct rtw_adapter *padapter,
 	/* get cmdsz before endian conversion */
 	pcmd->cmdsz = get_wlan_bssid_ex_sz(psecnetwork);
 
-	INIT_LIST_HEAD(&pcmd->list);
 	pcmd->cmdcode = _JoinBss_CMD_;/* GEN_CMD_CODE(_JoinBss) */
 	pcmd->parmbuf = (unsigned char *)psecnetwork;
 	pcmd->rsp = NULL;

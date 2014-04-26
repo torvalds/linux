@@ -5097,8 +5097,6 @@ void report_survey_event23a(struct rtw_adapter *padapter, struct recv_frame *pre
 		return;
 	}
 
-	INIT_LIST_HEAD(&pcmd_obj->list);
-
 	pcmd_obj->cmdcode = GEN_CMD_CODE(_Set_MLME_EVT);
 	pcmd_obj->cmdsz = cmdsz;
 	pcmd_obj->parmbuf = pevtcmd;
@@ -5150,8 +5148,6 @@ void report_surveydone_event23a(struct rtw_adapter *padapter)
 		return;
 	}
 
-	INIT_LIST_HEAD(&pcmd_obj->list);
-
 	pcmd_obj->cmdcode = GEN_CMD_CODE(_Set_MLME_EVT);
 	pcmd_obj->cmdsz = cmdsz;
 	pcmd_obj->parmbuf = pevtcmd;
@@ -5196,8 +5192,6 @@ void report_join_res23a(struct rtw_adapter *padapter, int res)
 		kfree(pcmd_obj);
 		return;
 	}
-
-	INIT_LIST_HEAD(&pcmd_obj->list);
 
 	pcmd_obj->cmdcode = GEN_CMD_CODE(_Set_MLME_EVT);
 	pcmd_obj->cmdsz = cmdsz;
@@ -5248,8 +5242,6 @@ void report_del_sta_event23a(struct rtw_adapter *padapter, unsigned char* MacAdd
 		kfree(pcmd_obj);
 		return;
 	}
-
-	INIT_LIST_HEAD(&pcmd_obj->list);
 
 	pcmd_obj->cmdcode = GEN_CMD_CODE(_Set_MLME_EVT);
 	pcmd_obj->cmdsz = cmdsz;
@@ -5304,8 +5296,6 @@ void report_add_sta_event23a(struct rtw_adapter *padapter, unsigned char* MacAdd
 		kfree(pcmd_obj);
 		return;
 	}
-
-	INIT_LIST_HEAD(&pcmd_obj->list);
 
 	pcmd_obj->cmdcode = GEN_CMD_CODE(_Set_MLME_EVT);
 	pcmd_obj->cmdsz = cmdsz;

@@ -1908,8 +1908,6 @@ int rtw_set_auth23a(struct rtw_adapter * adapter,
 	pcmd->rsp = NULL;
 	pcmd->rspsz = 0;
 
-	INIT_LIST_HEAD(&pcmd->list);
-
 	RT_TRACE(_module_rtl871x_mlme_c_,_drv_err_,
 		 ("after enqueue set_auth_cmd, auth_mode=%x\n",
 		  psecuritypriv->dot11AuthAlgrthm));
@@ -2008,8 +2006,6 @@ int rtw_set_key23a(struct rtw_adapter *adapter,
 	pcmd->cmdsz =  (sizeof(struct setkey_parm));
 	pcmd->rsp = NULL;
 	pcmd->rspsz = 0;
-
-	INIT_LIST_HEAD(&pcmd->list);
 
 	/* sema_init(&pcmd->cmd_sem, 0); */
 

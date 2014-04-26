@@ -42,7 +42,6 @@ struct cmd_obj {
 	u32	cmdsz;
 	u8	*rsp;
 	u32	rspsz;
-	struct list_head	list;
 };
 
 struct cmd_priv {
@@ -72,7 +71,6 @@ struct	evt_priv {
 
 #define init_h2fwcmd_w_parm_no_rsp(pcmd, pparm, code) \
 do {\
-	INIT_LIST_HEAD(&pcmd->list);\
 	pcmd->cmdcode = code;\
 	pcmd->parmbuf = (u8 *)(pparm);\
 	pcmd->cmdsz = sizeof (*pparm);\

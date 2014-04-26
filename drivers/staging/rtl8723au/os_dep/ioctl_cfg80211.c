@@ -522,8 +522,6 @@ static int set_group_key(struct rtw_adapter *padapter, u8 *key, u8 alg,
 	pcmd->rsp = NULL;
 	pcmd->rspsz = 0;
 
-	INIT_LIST_HEAD(&pcmd->list);
-
 	res = rtw_enqueue_cmd23a(pcmdpriv, pcmd);
 
 exit:
