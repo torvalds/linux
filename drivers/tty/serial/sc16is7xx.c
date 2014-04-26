@@ -317,6 +317,7 @@ struct sc16is7xx_port {
 #ifdef CONFIG_GPIOLIB
 	struct gpio_chip		gpio;
 #endif
+	unsigned char			buf[SC16IS7XX_FIFO_SIZE];
 	struct sc16is7xx_one		p[0];
 };
 
@@ -471,16 +472,15 @@ static void sc16is7xx_handle_rx(struct uart_port *port, unsigned int rxlen,
 {
 	struct sc16is7xx_port *s = dev_get_drvdata(port->dev);
 	unsigned int lsr = 0, ch, flag, bytes_read, i;
-	u8 buf[port->fifosize];
 	bool read_lsr = (iir == SC16IS7XX_IIR_RLSE_SRC) ? true : false;
 
-	if (unlikely(rxlen >= port->fifosize)) {
+	if (unlikely(rxlen >= sizeof(s->buf))) {
 		dev_warn_ratelimited(port->dev,
 				     "Port %i: Possible RX FIFO overrun: %d\n",
 				     port->line, rxlen);
 		port->icount.buf_overrun++;
 		/* Ensure sanity of RX level */
-		rxlen = port->fifosize;
+		rxlen = sizeof(s->buf);
 	}
 
 	while (rxlen) {
@@ -493,12 +493,12 @@ static void sc16is7xx_handle_rx(struct uart_port *port, unsigned int rxlen,
 			lsr = 0;
 
 		if (read_lsr) {
-			buf[0] = sc16is7xx_port_read(port, SC16IS7XX_RHR_REG);
+			s->buf[0] = sc16is7xx_port_read(port, SC16IS7XX_RHR_REG);
 			bytes_read = 1;
 		} else {
 			regcache_cache_bypass(s->regmap, true);
 			regmap_raw_read(s->regmap, SC16IS7XX_RHR_REG,
-					buf, rxlen);
+					s->buf, rxlen);
 			regcache_cache_bypass(s->regmap, false);
 			bytes_read = rxlen;
 		}
@@ -532,7 +532,7 @@ static void sc16is7xx_handle_rx(struct uart_port *port, unsigned int rxlen,
 		}
 
 		for (i = 0; i < bytes_read; ++i) {
-			ch = buf[i];
+			ch = s->buf[i];
 			if (uart_handle_sysrq_char(port, ch))
 				continue;
 
@@ -553,7 +553,6 @@ static void sc16is7xx_handle_tx(struct uart_port *port)
 	struct sc16is7xx_port *s = dev_get_drvdata(port->dev);
 	struct circ_buf *xmit = &port->state->xmit;
 	unsigned int txlen, to_send, i;
-	u8 buf[port->fifosize];
 
 	if (unlikely(port->x_char)) {
 		sc16is7xx_port_write(port, SC16IS7XX_THR_REG, port->x_char);
@@ -577,11 +576,11 @@ static void sc16is7xx_handle_tx(struct uart_port *port)
 
 		/* Convert to linear buffer */
 		for (i = 0; i < to_send; ++i) {
-			buf[i] = xmit->buf[xmit->tail];
+			s->buf[i] = xmit->buf[xmit->tail];
 			xmit->tail = (xmit->tail + 1) & (UART_XMIT_SIZE - 1);
 		}
 		regcache_cache_bypass(s->regmap, true);
-		regmap_raw_write(s->regmap, SC16IS7XX_THR_REG, buf, to_send);
+		regmap_raw_write(s->regmap, SC16IS7XX_THR_REG, s->buf, to_send);
 		regcache_cache_bypass(s->regmap, false);
 	}
 
