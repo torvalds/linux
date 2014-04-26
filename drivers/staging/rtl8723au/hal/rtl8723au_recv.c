@@ -135,11 +135,20 @@ void rtl8723au_free_recv_priv(struct rtw_adapter *padapter)
 	skb_queue_purge(&precvpriv->free_recv_skb_queue);
 }
 
+struct recv_stat_cpu {
+	u32 rxdw0;
+	u32 rxdw1;
+	u32 rxdw2;
+	u32 rxdw3;
+	u32 rxdw4;
+	u32 rxdw5;
+};
+
 void update_recvframe_attrib(struct recv_frame *precvframe,
 			     struct recv_stat *prxstat)
 {
 	struct rx_pkt_attrib *pattrib;
-	struct recv_stat report;
+	struct recv_stat_cpu report;
 	struct rxreport_8723a *prxreport;
 
 	report.rxdw0 = le32_to_cpu(prxstat->rxdw0);
