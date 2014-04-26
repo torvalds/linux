@@ -1565,17 +1565,17 @@ int ieee80211_reconfig(struct ieee80211_local *local)
 		list_for_each_entry(ctx, &local->chanctx_list, list)
 			WARN_ON(drv_add_chanctx(local, ctx));
 		mutex_unlock(&local->chanctx_mtx);
-	}
 
-	list_for_each_entry(sdata, &local->interfaces, list) {
-		if (!ieee80211_sdata_running(sdata))
-			continue;
-		ieee80211_assign_chanctx(local, sdata);
-	}
+		list_for_each_entry(sdata, &local->interfaces, list) {
+			if (!ieee80211_sdata_running(sdata))
+				continue;
+			ieee80211_assign_chanctx(local, sdata);
+		}
 
-	sdata = rtnl_dereference(local->monitor_sdata);
-	if (sdata && ieee80211_sdata_running(sdata))
-		ieee80211_assign_chanctx(local, sdata);
+		sdata = rtnl_dereference(local->monitor_sdata);
+		if (sdata && ieee80211_sdata_running(sdata))
+			ieee80211_assign_chanctx(local, sdata);
+	}
 
 	/* add STAs back */
 	mutex_lock(&local->sta_mtx);
