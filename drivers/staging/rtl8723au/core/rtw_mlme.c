@@ -147,7 +147,7 @@ struct wlan_network *rtw_alloc_network(struct mlme_priv *pmlmepriv)
 }
 
 static void _rtw_free_network23a(struct mlme_priv *pmlmepriv,
-				 struct wlan_network *pnetwork, u8 isfreeall)
+				 struct wlan_network *pnetwork)
 {
 	if (!pnetwork)
 		return;
@@ -228,7 +228,7 @@ void rtw_free_network_queue23a(struct rtw_adapter *padapter, u8 isfreeall)
 	list_for_each_safe(plist, ptmp, phead) {
 		pnetwork = container_of(plist, struct wlan_network, list);
 
-		_rtw_free_network23a(pmlmepriv,pnetwork, isfreeall);
+		_rtw_free_network23a(pmlmepriv, pnetwork);
 	}
 
 	spin_unlock_bh(&scanned_queue->lock);
