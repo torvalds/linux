@@ -182,7 +182,7 @@
 
 &fec {
 	phy-mode = "mii";
-	phy-reset-gpios = <&gpio3 30 GPIO_ACTIVE_HIGH>;
+	phy-reset-gpios = <&gpio3 30 GPIO_ACTIVE_LOW>;
 	phy-supply = <&reg_3v3>;
 	pinctrl-names = "default";
 	pinctrl-0 = <&pinctrl_fec1>;
