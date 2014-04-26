@@ -262,17 +262,8 @@ struct rtw_adapter {
 	struct net_device *pnetdev;
 
 	/*  used by rtw_rereg_nd_name related function */
-	struct rereg_nd_name_data {
-		struct net_device *old_pnetdev;
-		char old_ifname[IFNAMSIZ];
-		u8 old_ips_mode;
-		u8 old_bRegUseLed;
-	} rereg_nd_name_priv;
-
 	int bup;
 	struct net_device_stats stats;
-	struct iw_statistics iwstats;
-	struct proc_dir_entry *dir_dev;/*  for proc directory */
 
 	struct wireless_dev *rtw_wdev;
 	int net_closed;
@@ -289,11 +280,6 @@ struct rtw_adapter {
 	/* IFACE_ID0 is equals to PRIMARY_ADAPTER */
 	/* IFACE_ID1 is equals to SECONDARY_ADAPTER */
 	u8 iface_id;
-
-	u8    fix_rate;
-
-	unsigned char     in_cta_test;
-
 };
 
 #define adapter_to_dvobj(adapter) (adapter->dvobj)
