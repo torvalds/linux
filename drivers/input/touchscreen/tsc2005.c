@@ -604,12 +604,13 @@ static int tsc2005_probe(struct spi_device *spi)
 	if (error)
 		return error;
 
-	ts = kzalloc(sizeof(*ts), GFP_KERNEL);
-	input_dev = input_allocate_device();
-	if (!ts || !input_dev) {
-		error = -ENOMEM;
-		goto err_free_mem;
-	}
+	ts = devm_kzalloc(&spi->dev, sizeof(*ts), GFP_KERNEL);
+	if (!ts)
+		return -ENOMEM;
+
+	input_dev = devm_input_allocate_device(&spi->dev);
+	if (!input_dev)
+		return -ENOMEM;
 
 	ts->spi = spi;
 	ts->idev = input_dev;
@@ -649,12 +650,13 @@ static int tsc2005_probe(struct spi_device *spi)
 	/* Ensure the touchscreen is off */
 	tsc2005_stop_scan(ts);
 
-	error = request_threaded_irq(spi->irq, NULL, tsc2005_irq_thread,
-				     IRQF_TRIGGER_RISING | IRQF_ONESHOT,
-				     "tsc2005", ts);
+	error = devm_request_threaded_irq(&spi->dev, spi->irq, NULL,
+					  tsc2005_irq_thread,
+					  IRQF_TRIGGER_RISING | IRQF_ONESHOT,
+					  "tsc2005", ts);
 	if (error) {
 		dev_err(&spi->dev, "Failed to request irq, err: %d\n", error);
-		goto err_free_mem;
+		return error;
 	}
 
 	spi_set_drvdata(spi, ts);
@@ -662,7 +664,7 @@ static int tsc2005_probe(struct spi_device *spi)
 	if (error) {
 		dev_err(&spi->dev,
 			"Failed to create sysfs attributes, err: %d\n", error);
-		goto err_clear_drvdata;
+		return error;
 	}
 
 	error = input_register_device(ts->idev);
@@ -677,23 +679,12 @@ static int tsc2005_probe(struct spi_device *spi)
 
 err_remove_sysfs:
 	sysfs_remove_group(&spi->dev.kobj, &tsc2005_attr_group);
-err_clear_drvdata:
-	free_irq(spi->irq, ts);
-err_free_mem:
-	input_free_device(input_dev);
-	kfree(ts);
 	return error;
 }
 
 static int tsc2005_remove(struct spi_device *spi)
 {
-	struct tsc2005 *ts = spi_get_drvdata(spi);
-
-	sysfs_remove_group(&ts->spi->dev.kobj, &tsc2005_attr_group);
-
-	free_irq(ts->spi->irq, ts);
-	input_unregister_device(ts->idev);
-	kfree(ts);
+	sysfs_remove_group(&spi->dev.kobj, &tsc2005_attr_group);
 
 	return 0;
 }
