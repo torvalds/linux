@@ -186,7 +186,7 @@ void _rtw_free_network23a_nolock23a(struct mlme_priv *pmlmepriv,
  Shall be calle under atomic context... to avoid possible racing condition...
 */
 struct wlan_network *
-_rtw_find_network23a(struct rtw_queue *scanned_queue, u8 *addr)
+rtw_find_network23a(struct rtw_queue *scanned_queue, u8 *addr)
 {
 	struct list_head *phead, *plist;
 	struct wlan_network *pnetwork = NULL;
@@ -356,21 +356,6 @@ static void rtw_free_network_nolock(struct mlme_priv *pmlmepriv,
 				    struct wlan_network *pnetwork)
 {
 	_rtw_free_network23a_nolock23a(pmlmepriv, pnetwork);
-}
-
-/*
- return the wlan_network with the matching addr
-
- Shall be calle under atomic context... to avoid possible racing condition...
-*/
-struct	wlan_network *
-rtw_find_network23a(struct rtw_queue *scanned_queue, u8 *addr)
-{
-	struct wlan_network *pnetwork;
-
-	pnetwork = _rtw_find_network23a(scanned_queue, addr);
-
-	return pnetwork;
 }
 
 int rtw_is_same_ibss23a(struct rtw_adapter *adapter,
