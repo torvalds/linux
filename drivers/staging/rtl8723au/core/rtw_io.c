@@ -118,39 +118,6 @@ int _rtw_writeN23a(struct rtw_adapter *adapter, u32 addr , u32 length , u8 *pdat
 
 	return RTW_STATUS_CODE23a(ret);
 }
-int _rtw_write823a_async23a(struct rtw_adapter *adapter, u32 addr, u8 val)
-{
-	struct io_priv *pio_priv = &adapter->iopriv;
-	struct intf_hdl *pintfhdl = &pio_priv->intf;
-	int ret;
-
-	ret = pintfhdl->io_ops._write8_async(pintfhdl, addr, val);
-
-	return RTW_STATUS_CODE23a(ret);
-}
-int _rtw_write1623a_async(struct rtw_adapter *adapter, u32 addr, u16 val)
-{
-	struct io_priv *pio_priv = &adapter->iopriv;
-	struct intf_hdl *pintfhdl = &pio_priv->intf;
-	int ret;
-
-	val = cpu_to_le16(val);
-	ret = pintfhdl->io_ops._write16_async(pintfhdl, addr, val);
-
-	return RTW_STATUS_CODE23a(ret);
-}
-int _rtw_write3223a_async23a(struct rtw_adapter *adapter, u32 addr, u32 val)
-{
-	struct io_priv *pio_priv = &adapter->iopriv;
-	struct intf_hdl *pintfhdl = &pio_priv->intf;
-	int ret;
-
-	val = cpu_to_le32(val);
-	ret = pintfhdl->io_ops._write32_async(pintfhdl, addr, val);
-
-	return RTW_STATUS_CODE23a(ret);
-}
-
 void _rtw_read_mem23a(struct rtw_adapter *adapter, u32 addr, u32 cnt, u8 *pmem)
 {
 	struct io_priv *pio_priv = &adapter->iopriv;

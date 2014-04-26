@@ -111,10 +111,6 @@ struct _io_ops
 		int (*_write32)(struct intf_hdl *pintfhdl, u32 addr, u32 val);
 		int (*_writeN)(struct intf_hdl *pintfhdl, u32 addr, u32 length, u8 *pdata);
 
-		int (*_write8_async)(struct intf_hdl *pintfhdl, u32 addr, u8 val);
-		int (*_write16_async)(struct intf_hdl *pintfhdl, u32 addr, u16 val);
-		int (*_write32_async)(struct intf_hdl *pintfhdl, u32 addr, u32 val);
-
 		void (*_read_mem)(struct intf_hdl *pintfhdl, u32 addr, u32 cnt, u8 *pmem);
 		void (*_write_mem)(struct intf_hdl *pintfhdl, u32 addr, u32 cnt, u8 *pmem);
 
@@ -129,7 +125,6 @@ struct _io_ops
 
 		void (*_read_port_cancel)(struct intf_hdl *pintfhdl);
 		void (*_write_port_cancel)(struct intf_hdl *pintfhdl);
-
 };
 
 struct io_req {
@@ -315,10 +310,6 @@ int _rtw_write1623a(struct rtw_adapter *adapter, u32 addr, u16 val);
 int _rtw_write3223a(struct rtw_adapter *adapter, u32 addr, u32 val);
 int _rtw_writeN23a(struct rtw_adapter *adapter, u32 addr, u32 length, u8 *pdata);
 
-int _rtw_write823a_async23a(struct rtw_adapter *adapter, u32 addr, u8 val);
-int _rtw_write1623a_async(struct rtw_adapter *adapter, u32 addr, u16 val);
-int _rtw_write3223a_async23a(struct rtw_adapter *adapter, u32 addr, u32 val);
-
 void _rtw_write_mem23a(struct rtw_adapter *adapter, u32 addr, u32 cnt, u8 *pmem);
 u32 _rtw_write_port23a(struct rtw_adapter *adapter, u32 addr, u32 cnt, struct xmit_buf *pmem);
 u32 _rtw_write_port23a_and_wait23a(struct rtw_adapter *adapter, u32 addr, u32 cnt, struct xmit_buf *pmem, int timeout_ms);
@@ -349,10 +340,6 @@ int dbg_rtw_writeN23a(struct rtw_adapter *adapter, u32 addr ,u32 length , u8 *da
 #define  rtw_write32(adapter, addr, val) dbg_rtw_write3223a((adapter), (addr), (val), __FUNCTION__, __LINE__)
 #define  rtw_writeN(adapter, addr, length, data) dbg_rtw_writeN23a((adapter), (addr), (length), (data), __FUNCTION__, __LINE__)
 
-#define rtw_write8_async(adapter, addr, val) _rtw_write823a_async23a((adapter), (addr), (val))
-#define rtw_write16_async(adapter, addr, val) _rtw_write1623a_async((adapter), (addr), (val))
-#define rtw_write32_async(adapter, addr, val) _rtw_write3223a_async23a((adapter), (addr), (val))
-
 #define rtw_write_mem(adapter, addr, cnt, mem) _rtw_write_mem23a((adapter), addr, cnt, mem)
 #define rtw_write_port(adapter, addr, cnt, mem) _rtw_write_port23a(adapter, addr, cnt, mem)
 #define rtw_write_port_and_wait(adapter, addr, cnt, mem, timeout_ms) _rtw_write_port23a_and_wait23a((adapter), (addr), (cnt), (mem), (timeout_ms))
@@ -369,10 +356,6 @@ int dbg_rtw_writeN23a(struct rtw_adapter *adapter, u32 addr ,u32 length , u8 *da
 #define  rtw_write16(adapter, addr, val) _rtw_write1623a((adapter), (addr), (val))
 #define  rtw_write32(adapter, addr, val) _rtw_write3223a((adapter), (addr), (val))
 #define  rtw_writeN(adapter, addr, length, data) _rtw_writeN23a((adapter), (addr), (length), (data))
-
-#define rtw_write8_async(adapter, addr, val) _rtw_write823a_async23a((adapter), (addr), (val))
-#define rtw_write16_async(adapter, addr, val) _rtw_write1623a_async((adapter), (addr), (val))
-#define rtw_write32_async(adapter, addr, val) _rtw_write3223a_async23a((adapter), (addr), (val))
 
 #define rtw_write_mem(adapter, addr, cnt, mem) _rtw_write_mem23a((adapter), (addr), (cnt), (mem))
 #define rtw_write_port(adapter, addr, cnt, mem) _rtw_write_port23a((adapter), (addr), (cnt), (mem))
