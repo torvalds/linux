@@ -899,15 +899,17 @@ int rtw_check_bcn_info23a(struct rtw_adapter *Adapter,
 	}
 
 	bssid = (struct wlan_bssid_ex *)kzalloc(sizeof(struct wlan_bssid_ex),
-		GFP_ATOMIC);
+						GFP_ATOMIC);
+	if (!bssid)
+		return _FAIL;
 
 	bssid->reserved = 1;
 
-	bssid->Length = sizeof(struct wlan_bssid_ex) - MAX_IE_SZ + len;
+	bssid->Length = offsetof(struct wlan_bssid_ex, IEs) + len;
 
 	/* below is to copy the information element */
 	bssid->IELength = len;
-	memcpy(bssid->IEs, &mgmt->u, bssid->IELength);
+	memcpy(bssid->IEs, &mgmt->u, len);
 
 	/* check bw and channel offset */
 	/* parsing HT_CAP_IE */
@@ -1589,9 +1591,11 @@ void update_bmc_sta_support_rate23a(struct rtw_adapter *padapter, u32 mac_id)
 
 	if (pmlmeext->cur_wireless_mode & WIRELESS_11B) {
 		/*  Only B, B/G, and B/G/N AP could use CCK rate */
-		memcpy((pmlmeinfo->FW_sta_info[mac_id].SupportedRates), rtw_basic_rate_cck, 4);
+		memcpy((pmlmeinfo->FW_sta_info[mac_id].SupportedRates),
+		       rtw_basic_rate_cck, 4);
 	} else {
-		memcpy((pmlmeinfo->FW_sta_info[mac_id].SupportedRates), rtw_basic_rate_ofdm, 4);
+		memcpy((pmlmeinfo->FW_sta_info[mac_id].SupportedRates),
+		       rtw_basic_rate_ofdm, 3);
 	}
 }
 

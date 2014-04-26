@@ -4510,7 +4510,7 @@ u8 collect_bss_info23a(struct rtw_adapter *padapter,
 	}
 	ie_offset -= offsetof(struct ieee80211_mgmt, u);
 
-	bssid->Length = sizeof(struct wlan_bssid_ex) - MAX_IE_SZ + length;
+	bssid->Length = offsetof(struct wlan_bssid_ex, IEs) + length;
 
 	/* below is to copy the information element */
 	bssid->IELength = length;
