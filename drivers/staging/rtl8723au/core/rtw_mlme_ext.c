@@ -4867,9 +4867,9 @@ static void process_80211d(struct rtw_adapter *padapter,
 		if (!ie || ie[1] < IEEE80211_COUNTRY_IE_MIN_LEN)
 			return;
 
-		ie += 2;
-		p = ie;
+		p = ie + 2;
 		ie += ie[1];
+		ie += 2;
 
 		memcpy(country, p, 3);
 		country[3] = '\0';
