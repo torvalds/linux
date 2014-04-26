@@ -579,7 +579,7 @@ static int tsc2005_probe(struct spi_device *spi)
 	int error;
 
 	if (!pdata) {
-		dev_dbg(&spi->dev, "no platform data\n");
+		dev_err(&spi->dev, "no platform data\n");
 		return -ENODEV;
 	}
 
@@ -591,7 +591,7 @@ static int tsc2005_probe(struct spi_device *spi)
 	max_p	= pdata->ts_pressure_max   ? : MAX_12BIT;
 
 	if (spi->irq <= 0) {
-		dev_dbg(&spi->dev, "no irq\n");
+		dev_err(&spi->dev, "no irq\n");
 		return -ENODEV;
 	}
 
