@@ -1967,6 +1967,12 @@ S:	Maintained
 F:	drivers/bcma/
 F:	include/linux/bcma/
 
+BROADCOM SYSTEMPORT ETHERNET DRIVER
+M:	Florian Fainelli <f.fainelli@gmail.com>
+L:	netdev@vger.kernel.org
+S:	Supported
+F:	drivers/net/ethernet/broadcom/bcmsysport.*
+
 BROCADE BFA FC SCSI DRIVER
 M:	Anil Gurumurthy <anil.gurumurthy@qlogic.com>
 M:	Sudarsana Kalluru <sudarsana.kalluru@qlogic.com>
