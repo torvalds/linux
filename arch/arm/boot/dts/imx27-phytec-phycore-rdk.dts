@@ -38,6 +38,20 @@
 		};
 	};
 
+	regulators {
+		regulator@2 {
+			compatible = "regulator-fixed";
+			pinctrl-names = "default";
+			pinctrl-0 = <&pinctrl_csien>;
+			reg = <2>;
+			regulator-name = "CSI_EN";
+			regulator-min-microvolt = <3300000>;
+			regulator-max-microvolt = <3300000>;
+			gpio = <&gpio2 24 GPIO_ACTIVE_LOW>;
+			regulator-always-on;
+		};
+	};
+
 	usbphy {
 		usbphy2: usbphy@2 {
 			compatible = "usb-nop-xceiv";
@@ -83,6 +97,12 @@
 
 &iomuxc {
 	imx27_phycore_rdk {
+		pinctrl_csien: csiengrp {
+			fsl,pins = <
+				MX27_PAD_USB_OC_B__GPIO2_24 0x0
+			>;
+		};
+
 		pinctrl_cspi1cs1: cspi1cs1grp {
 			fsl,pins = <
 				MX27_PAD_CSPI1_SS1__GPIO4_27 0x0
