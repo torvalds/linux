@@ -323,6 +323,7 @@
 	phy_type = "ulpi";
 	fsl,usbphy = <&usbphy0>;
 	vbus-supply = <&sw3_reg>;
+	disable-over-current;
 	status = "okay";
 };
 
