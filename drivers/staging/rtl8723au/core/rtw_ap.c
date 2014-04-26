@@ -783,7 +783,8 @@ static void start_bss_network(struct rtw_adapter *padapter, u8 *pbuf)
 	update_bmc_sta(padapter);
 }
 
-int rtw_check_beacon_data23a(struct rtw_adapter *padapter, u8 *pbuf,  int len)
+int rtw_check_beacon_data23a(struct rtw_adapter *padapter, u8 *pbuf,
+			     unsigned int len)
 {
 	int ret = _SUCCESS;
 	u8 *p;
@@ -819,7 +820,7 @@ int rtw_check_beacon_data23a(struct rtw_adapter *padapter, u8 *pbuf,  int len)
 	if (!check_fwstate(pmlmepriv, WIFI_AP_STATE))
 		return _FAIL;
 
-	if (len>MAX_IE_SZ)
+	if (len > MAX_IE_SZ)
 		return _FAIL;
 
 	pbss_network->IELength = len;
