@@ -260,7 +260,7 @@ static int rtw_cfg80211_inform_bss(struct rtw_adapter *padapter,
 	size_t notify_ielen;
 	s32 notify_signal;
 	u8 buf[MAX_BSSINFO_LEN], *pbuf;
-	size_t len, bssinf_len = 0;
+	size_t len;
 	struct ieee80211_hdr *pwlanhdr;
 	unsigned short *fctrl;
 
@@ -270,11 +270,9 @@ static int rtw_cfg80211_inform_bss(struct rtw_adapter *padapter,
 
 	/* DBG_8723A("%s\n", __func__); */
 
-	bssinf_len =
-		pnetwork->network.IELength + sizeof(struct ieee80211_hdr_3addr);
-	if (bssinf_len > MAX_BSSINFO_LEN) {
+	if (pnetwork->network.IELength > MAX_IE_SZ) {
 		DBG_8723A("%s IE Length too long > %d byte\n", __func__,
-			  MAX_BSSINFO_LEN);
+			  MAX_IE_SZ);
 		goto exit;
 	}
 
