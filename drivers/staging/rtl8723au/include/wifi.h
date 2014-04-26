@@ -82,42 +82,42 @@ enum WIFI_REG_DOMAIN {
 
 
 #define SetToDs(pbuf)	\
-	(*(unsigned short *)(pbuf) |= cpu_to_le16(IEEE80211_FCTL_TODS))
+	(*(__le16 *)(pbuf) |= cpu_to_le16(IEEE80211_FCTL_TODS))
 
 #define SetFrDs(pbuf)	\
-	(*(unsigned short *)(pbuf) |= cpu_to_le16(IEEE80211_FCTL_FROMDS))
+	(*(__le16 *)(pbuf) |= cpu_to_le16(IEEE80211_FCTL_FROMDS))
 
 #define get_tofr_ds(pframe)	((ieee80211_has_tods(pframe) << 1) | \
 				 ieee80211_has_fromds(pframe))
 
 #define SetMFrag(pbuf)	\
-	(*(unsigned short *)(pbuf) |= cpu_to_le16(IEEE80211_FCTL_MOREFRAGS))
+	(*(__le16 *)(pbuf) |= cpu_to_le16(IEEE80211_FCTL_MOREFRAGS))
 
 #define ClearMFrag(pbuf)	\
-	(*(unsigned short *)(pbuf) &= (~cpu_to_le16(IEEE80211_FCTL_MOREFRAGS)))
+	(*(__le16 *)(pbuf) &= (~cpu_to_le16(IEEE80211_FCTL_MOREFRAGS)))
 
 #define SetRetry(pbuf)	\
-	(*(unsigned short *)(pbuf) |= cpu_to_le16(IEEE80211_FCTL_RETRY))
+	(*(__le16 *)(pbuf) |= cpu_to_le16(IEEE80211_FCTL_RETRY))
 
 #define SetPwrMgt(pbuf)	\
-	(*(unsigned short *)(pbuf) |= cpu_to_le16(IEEE80211_FCTL_PM))
+	(*(__le16 *)(pbuf) |= cpu_to_le16(IEEE80211_FCTL_PM))
 
 #define SetMData(pbuf)	\
-	(*(unsigned short *)(pbuf) |= cpu_to_le16(IEEE80211_FCTL_MOREDATA))
+	(*(__le16 *)(pbuf) |= cpu_to_le16(IEEE80211_FCTL_MOREDATA))
 
 #define SetPrivacy(pbuf)	\
-	(*(unsigned short *)(pbuf) |= cpu_to_le16(IEEE80211_FCTL_PROTECTED))
+	(*(__le16 *)(pbuf) |= cpu_to_le16(IEEE80211_FCTL_PROTECTED))
 
 #define SetFrameType(pbuf, type)	\
 	do {	\
-		*(unsigned short *)(pbuf) &= __constant_cpu_to_le16(~(BIT(3) | BIT(2))); \
-		*(unsigned short *)(pbuf) |= __constant_cpu_to_le16(type); \
+		*(__le16 *)(pbuf) &= __constant_cpu_to_le16(~(BIT(3) | BIT(2))); \
+		*(__le16 *)(pbuf) |= __constant_cpu_to_le16(type); \
 	} while (0)
 
 #define SetFrameSubType(pbuf, type) \
 	do {    \
-		*(unsigned short *)(pbuf) &= cpu_to_le16(~(BIT(7) | BIT(6) | BIT(5) | BIT(4) | BIT(3) | BIT(2))); \
-		*(unsigned short *)(pbuf) |= cpu_to_le16(type); \
+		*(__le16 *)(pbuf) &= cpu_to_le16(~(BIT(7) | BIT(6) | BIT(5) | BIT(4) | BIT(3) | BIT(2))); \
+		*(__le16 *)(pbuf) |= cpu_to_le16(type); \
 	} while (0)
 
 #define GetTupleCache(pbuf)	(cpu_to_le16(*(unsigned short *)((unsigned long)(pbuf) + 22)))
@@ -131,26 +131,26 @@ enum WIFI_REG_DOMAIN {
 
 #define SetSeqNum(pbuf, num) \
 	do {    \
-		*(unsigned short *)((unsigned long)(pbuf) + 22) = \
-			((*(unsigned short *)((unsigned long)(pbuf) + 22)) & le16_to_cpu((unsigned short)0x000f)) | \
-			le16_to_cpu((unsigned short)(0xfff0 & (num << 4))); \
+		*(__le16 *)((size_t)(pbuf) + 22) = \
+			((*(__le16 *)((size_t)(pbuf) + 22)) & cpu_to_le16((unsigned short)0x000f)) | \
+			cpu_to_le16((unsigned short)(0xfff0 & (num << 4))); \
 	} while (0)
 
 #define SetDuration(pbuf, dur) \
-	(*(unsigned short *)((unsigned long)(pbuf) + 2) =		\
+	(*(__le16 *)((unsigned long)(pbuf) + 2) =		\
 	 cpu_to_le16(0xffff & (dur)))
 
 #define SetPriority(pbuf, tid)	\
-	(*(unsigned short *)(pbuf) |= cpu_to_le16(tid & 0xf))
+	(*(__le16 *)(pbuf) |= cpu_to_le16(tid & 0xf))
 
 #define SetEOSP(pbuf, eosp)	\
-	(*(unsigned short *)(pbuf) |= cpu_to_le16((eosp & 1) << 4))
+	(*(__le16 *)(pbuf) |= cpu_to_le16((eosp & 1) << 4))
 
 #define SetAckpolicy(pbuf, ack)	\
-	(*(unsigned short *)(pbuf) |= cpu_to_le16((ack & 3) << 5))
+	(*(__le16 *)(pbuf) |= cpu_to_le16((ack & 3) << 5))
 
 #define SetAMsdu(pbuf, amsdu)	\
-	(*(unsigned short *)(pbuf) |= cpu_to_le16((amsdu & 1) << 7))
+	(*(__le16 *)(pbuf) |= cpu_to_le16((amsdu & 1) << 7))
 
 #define GetAid(pbuf)							\
 	(cpu_to_le16(*(unsigned short *)((unsigned long)(pbuf) + 2)) &	\
