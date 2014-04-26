@@ -159,8 +159,8 @@ prep_hdw_info(void)
 		hi->ndev = NULL;
 		hi->addr[0] = 0L;
 		hi->addr[1] = 0L;
-		hi->addr_mapped[0] = 0L;
-		hi->addr_mapped[1] = 0L;
+		hi->addr_mapped[0] = NULL;
+		hi->addr_mapped[1] = NULL;
 	}
 }
 
@@ -176,12 +176,12 @@ cleanup_ioremap(void)
 		if (hi->addr_mapped[0]) {
 			iounmap(hi->addr_mapped[0]);
 			release_mem_region((long) hi->addr[0], hi->len[0]);
-			hi->addr_mapped[0] = 0;
+			hi->addr_mapped[0] = NULL;
 		}
 		if (hi->addr_mapped[1]) {
 			iounmap(hi->addr_mapped[1]);
 			release_mem_region((long) hi->addr[1], hi->len[1]);
-			hi->addr_mapped[1] = 0;
+			hi->addr_mapped[1] = NULL;
 		}
 	}
 }
