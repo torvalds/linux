@@ -78,7 +78,7 @@ enum {
 };
 
 /*
- * struct ad7152_chip_info - chip specifc information
+ * struct ad7152_chip_info - chip specific information
  */
 
 struct ad7152_chip_info {

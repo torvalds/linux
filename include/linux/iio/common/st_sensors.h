@@ -269,6 +269,10 @@ int st_sensors_set_enable(struct iio_dev *indio_dev, bool enable);
 
 int st_sensors_set_axis_enable(struct iio_dev *indio_dev, u8 axis_enable);
 
+void st_sensors_power_enable(struct iio_dev *indio_dev);
+
+void st_sensors_power_disable(struct iio_dev *indio_dev);
+
 int st_sensors_set_odr(struct iio_dev *indio_dev, unsigned int odr);
 
 int st_sensors_set_dataready_irq(struct iio_dev *indio_dev, bool enable);

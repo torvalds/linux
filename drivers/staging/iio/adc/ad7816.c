@@ -40,7 +40,7 @@
 
 
 /*
- * struct ad7816_chip_info - chip specifc information
+ * struct ad7816_chip_info - chip specific information
  */
 
 struct ad7816_chip_info {
